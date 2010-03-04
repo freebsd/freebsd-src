@@ -160,6 +160,10 @@
             usd
                 04.csh
                 ..
+                05.dc
+                ..
+                06.bc
+                ..
                 07.mail
                 ..
                 10.exref
@@ -189,8 +193,6 @@
             ..
             IPv6
             ..
-            bc
-            ..
             bootforth
             ..
             cvs
@@ -211,6 +213,8 @@
             ..
             find_interface
             ..
+            hast
+            ..
             hostapd
             ..
             ibcs2
@@ -229,6 +233,12 @@
                     ..
                 ..
                 dyn_sysctl
+                ..
+                firmware
+                    fwconsumer
+                    ..
+                    fwimage
+                    ..
                 ..
                 syscall
                     module
@@ -259,8 +269,6 @@
             ..
             ppp
             ..
-            pppd
-            ..
             printing
             ..
             scsi_target
@@ -277,15 +285,9 @@
                 srcs
                 ..
             ..
-            slattach
-            ..
-            sliplogin
-            ..
             smbfs
                 print
                 ..
-            ..
-            startslip
             ..
             sunrpc
                 dir
@@ -1030,6 +1032,8 @@
             fr_FR.ISO8859-15
             ..
             fr_FR.UTF-8
+            ..
+            gl_ES.ISO8859-1
             ..
             he_IL.UTF-8
             ..

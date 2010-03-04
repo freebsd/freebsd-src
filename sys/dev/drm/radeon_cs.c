@@ -403,8 +403,8 @@ static inline int r600_cs_packet3(struct drm_radeon_cs_parser *parser, uint32_t 
 			DRM_ERROR("bad DRAW_INDEX\n");
 			break;
 		}
-		ib_chunk->kdata[offset_dw + 1] = (offset & 0xffffffff);
-		ib_chunk->kdata[offset_dw + 2] = (upper_32_bits(offset) & 0xff);
+		ib_chunk->kdata[offset_dw + 1] += (offset & 0xffffffff);
+		ib_chunk->kdata[offset_dw + 2] += (upper_32_bits(offset) & 0xff);
 		break;
 	case R600_IT_DRAW_INDEX_AUTO:
 		//DRM_INFO("R600_IT_DRAW_INDEX_AUTO\n");
@@ -433,8 +433,8 @@ static inline int r600_cs_packet3(struct drm_radeon_cs_parser *parser, uint32_t 
 				DRM_ERROR("bad WAIT_REG_MEM\n");
 				break;
 			}
-			ib_chunk->kdata[offset_dw + 2] = (offset & 0xffffffff);
-			ib_chunk->kdata[offset_dw + 3] = (upper_32_bits(offset) & 0xff);
+			ib_chunk->kdata[offset_dw + 2] += (offset & 0xffffffff);
+			ib_chunk->kdata[offset_dw + 3] += (upper_32_bits(offset) & 0xff);
 		}
 		if (ret)
 			DRM_ERROR("bad WAIT_REG_MEM\n");
@@ -469,7 +469,7 @@ static inline int r600_cs_packet3(struct drm_radeon_cs_parser *parser, uint32_t 
 				break;
 			}
 			ib_chunk->kdata[offset_dw + 2] += (offset & 0xffffffff);
-			ib_chunk->kdata[offset_dw + 3] |= (upper_32_bits(offset) & 0xff);
+			ib_chunk->kdata[offset_dw + 3] += (upper_32_bits(offset) & 0xff);
 		}
 		if (ret)
 			DRM_ERROR("bad EVENT_WRITE\n");
@@ -488,7 +488,7 @@ static inline int r600_cs_packet3(struct drm_radeon_cs_parser *parser, uint32_t 
 			break;
 		}
 		ib_chunk->kdata[offset_dw + 2] += (offset & 0xffffffff);
-		ib_chunk->kdata[offset_dw + 3] |= (upper_32_bits(offset) & 0xff);
+		ib_chunk->kdata[offset_dw + 3] += (upper_32_bits(offset) & 0xff);
 		break;
 	case R600_IT_SET_CONFIG_REG:
 		//DRM_INFO("R600_IT_SET_CONFIG_REG\n");
@@ -628,7 +628,7 @@ static inline int r600_cs_packet3(struct drm_radeon_cs_parser *parser, uint32_t 
 					if (ret)
 						break;
 					ib_chunk->kdata[offset_dw + (i * 7) + 0 + 2] += (offset & 0xffffffff);
-					ib_chunk->kdata[offset_dw + (i * 7) + 2 + 2] |= (upper_32_bits(offset) & 0xff);
+					ib_chunk->kdata[offset_dw + (i * 7) + 2 + 2] += (upper_32_bits(offset) & 0xff);
 					break;
 				}
 				if (ret)

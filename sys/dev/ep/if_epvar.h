@@ -45,6 +45,9 @@ struct ep_softc {
 	bus_space_tag_t bst;
 	void *ep_intrhand;
 
+	struct callout watchdog_timer;
+	int tx_timer;
+
 	u_short ep_connectors;	/* Connectors on this card. */
 	u_char ep_connector;	/* Configured connector. */
 

@@ -29,7 +29,7 @@
 
 #define DEF_MAX_MSG	64000	/* Default maximum mail msg minus headers. */
 
-#define LINE_LENGTH	76	/* Chars per encoded line. Divisible by 4. */
+#define LINE_LENGTH	72	/* Chars per encoded line. Divisible by 4. */
 
 int chop_and_send_or_queue(FILE *dfp, char *delta, off_t ctm_size,
 	long max_msg_size, char *mail_alias, char *queue_dir);

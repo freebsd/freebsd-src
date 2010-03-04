@@ -97,7 +97,7 @@ static void     ixgb_intr(void *);
 static void     ixgb_start(struct ifnet *);
 static void     ixgb_start_locked(struct ifnet *);
 static int      ixgb_ioctl(struct ifnet *, IOCTL_CMD_TYPE, caddr_t);
-static void     ixgb_watchdog(struct ifnet *);
+static void     ixgb_watchdog(struct adapter *);
 static void     ixgb_init(void *);
 static void     ixgb_init_locked(struct adapter *);
 static void     ixgb_stop(void *);
@@ -249,18 +249,17 @@ ixgb_attach(device_t dev)
 	int             tsize, rsize;
 	int             error = 0;
 
-	printf("ixgb%d: %s\n", device_get_unit(dev), ixgb_copyright);
+	device_printf(dev, "%s\n", ixgb_copyright);
 	INIT_DEBUGOUT("ixgb_attach: begin");
 
 	/* Allocate, clear, and link in our adapter structure */
 	if (!(adapter = device_get_softc(dev))) {
-		printf("ixgb: adapter structure allocation failed\n");
+		device_printf(dev, "adapter structure allocation failed\n");
 		return (ENOMEM);
 	}
 	bzero(adapter, sizeof(struct adapter));
 	adapter->dev = dev;
 	adapter->osdep.dev = dev;
-	adapter->unit = device_get_unit(dev);
 	IXGB_LOCK_INIT(adapter, device_get_nameunit(dev));
 
 	if (ixgb_adapter_list != NULL)
@@ -275,7 +274,7 @@ ixgb_attach(device_t dev)
 			(void *)adapter, 0,
 			ixgb_sysctl_stats, "I", "Statistics");
 
-	callout_init(&adapter->timer, CALLOUT_MPSAFE);
+	callout_init_mtx(&adapter->timer, &adapter->mtx, 0);
 
 	/* Determine hardware revision */
 	ixgb_identify_hardware(adapter);
@@ -299,8 +298,7 @@ ixgb_attach(device_t dev)
 		ETHERMTU + ETHER_HDR_LEN + ETHER_CRC_LEN;
 
 	if (ixgb_allocate_pci_resources(adapter)) {
-		printf("ixgb%d: Allocation of PCI resources failed\n",
-		       adapter->unit);
+		device_printf(dev, "Allocation of PCI resources failed\n");
 		error = ENXIO;
 		goto err_pci;
 	}
@@ -309,8 +307,7 @@ ixgb_attach(device_t dev)
 
 	/* Allocate Transmit Descriptor ring */
 	if (ixgb_dma_malloc(adapter, tsize, &adapter->txdma, BUS_DMA_NOWAIT)) {
-		printf("ixgb%d: Unable to allocate TxDescriptor memory\n",
-		       adapter->unit);
+		device_printf(dev, "Unable to allocate TxDescriptor memory\n");
 		error = ENOMEM;
 		goto err_tx_desc;
 	}
@@ -321,8 +318,7 @@ ixgb_attach(device_t dev)
 
 	/* Allocate Receive Descriptor ring */
 	if (ixgb_dma_malloc(adapter, rsize, &adapter->rxdma, BUS_DMA_NOWAIT)) {
-		printf("ixgb%d: Unable to allocate rx_desc memory\n",
-		       adapter->unit);
+		device_printf(dev, "Unable to allocate rx_desc memory\n");
 		error = ENOMEM;
 		goto err_rx_desc;
 	}
@@ -330,8 +326,7 @@ ixgb_attach(device_t dev)
 
 	/* Initialize the hardware */
 	if (ixgb_hardware_init(adapter)) {
-		printf("ixgb%d: Unable to initialize the hardware\n",
-		       adapter->unit);
+		device_printf(dev, "Unable to initialize the hardware\n");
 		error = EIO;
 		goto err_hw_init;
 	}
@@ -387,13 +382,14 @@ ixgb_detach(device_t dev)
 	IXGB_UNLOCK(adapter);
 
 #if __FreeBSD_version < 500000
-	ether_ifdetach(adapter->ifp, ETHER_BPF_SUPPORTED);
+	ether_ifdetach(ifp, ETHER_BPF_SUPPORTED);
 #else
-	ether_ifdetach(adapter->ifp);
+	ether_ifdetach(ifp);
 #endif
+	callout_drain(&adapter->timer);
 	ixgb_free_pci_resources(adapter);
 #if __FreeBSD_version >= 500000
-	if_free(adapter->ifp);
+	if_free(ifp);
 #endif
 
 	/* Free Transmit Descriptor ring */
@@ -413,9 +409,6 @@ ixgb_detach(device_t dev)
 		adapter->next->prev = adapter->prev;
 	if (adapter->prev != NULL)
 		adapter->prev->next = adapter->next;
-
-	ifp->if_drv_flags &= ~(IFF_DRV_RUNNING | IFF_DRV_OACTIVE);
-	ifp->if_timer = 0;
 
 	IXGB_LOCK_DESTROY(adapter);
 	return (0);
@@ -478,7 +471,7 @@ ixgb_start_locked(struct ifnet * ifp)
 		ETHER_BPF_MTAP(ifp, m_head);
 #endif
 		/* Set timeout in case hardware has problems transmitting */
-		ifp->if_timer = IXGB_TX_TIMEOUT;
+		adapter->tx_timer = IXGB_TX_TIMEOUT;
 
 	}
 	return;
@@ -615,26 +608,24 @@ out:
  **********************************************************************/
 
 static void
-ixgb_watchdog(struct ifnet * ifp)
+ixgb_watchdog(struct adapter *adapter)
 {
-	struct adapter *adapter;
-	adapter = ifp->if_softc;
+	struct ifnet *ifp;
+
+	ifp = adapter->ifp;
 
 	/*
 	 * If we are in this routine because of pause frames, then don't
 	 * reset the hardware.
 	 */
 	if (IXGB_READ_REG(&adapter->hw, STATUS) & IXGB_STATUS_TXOFF) {
-		ifp->if_timer = IXGB_TX_TIMEOUT;
+		adapter->tx_timer = IXGB_TX_TIMEOUT;
 		return;
 	}
-	printf("ixgb%d: watchdog timeout -- resetting\n", adapter->unit);
-
-	ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
-
+	if_printf(ifp, "watchdog timeout -- resetting\n");
 
 	ixgb_stop(adapter);
-	ixgb_init(adapter);
+	ixgb_init_locked(adapter);
 
 
 	ifp->if_oerrors++;
@@ -663,23 +654,22 @@ ixgb_init_locked(struct adapter *adapter)
 	IXGB_LOCK_ASSERT(adapter);
 
 	ixgb_stop(adapter);
+	ifp = adapter->ifp;
 
 	/* Get the latest mac address, User can use a LAA */
-	bcopy(IF_LLADDR(adapter->ifp), adapter->hw.curr_mac_addr,
-	      IXGB_ETH_LENGTH_OF_ADDRESS);
+	bcopy(IF_LLADDR(ifp), adapter->hw.curr_mac_addr,
+	    IXGB_ETH_LENGTH_OF_ADDRESS);
 
 	/* Initialize the hardware */
 	if (ixgb_hardware_init(adapter)) {
-		printf("ixgb%d: Unable to initialize the hardware\n",
-		       adapter->unit);
+		if_printf(ifp, "Unable to initialize the hardware\n");
 		return;
 	}
 	ixgb_enable_vlans(adapter);
 
 	/* Prepare transmit descriptors and buffers */
 	if (ixgb_setup_transmit_structures(adapter)) {
-		printf("ixgb%d: Could not setup transmit structures\n",
-		       adapter->unit);
+		if_printf(ifp, "Could not setup transmit structures\n");
 		ixgb_stop(adapter);
 		return;
 	}
@@ -690,8 +680,7 @@ ixgb_init_locked(struct adapter *adapter)
 
 	/* Prepare receive descriptors and buffers */
 	if (ixgb_setup_receive_structures(adapter)) {
-		printf("ixgb%d: Could not setup receive structures\n",
-		       adapter->unit);
+		if_printf(ifp, "Could not setup receive structures\n");
 		ixgb_stop(adapter);
 		return;
 	}
@@ -720,7 +709,7 @@ ixgb_init_locked(struct adapter *adapter)
 		temp_reg |= IXGB_CTRL0_JFE;
 		IXGB_WRITE_REG(&adapter->hw, CTRL0, temp_reg);
 	}
-	callout_reset(&adapter->timer, 2 * hz, ixgb_local_timer, adapter);
+	callout_reset(&adapter->timer, hz, ixgb_local_timer, adapter);
 	ixgb_clear_hw_cntrs(&adapter->hw);
 #ifdef DEVICE_POLLING
 	/*
@@ -760,11 +749,8 @@ ixgb_poll_locked(struct ifnet * ifp, enum poll_cmd cmd, int count)
 	if (cmd == POLL_AND_CHECK_STATUS) {
 		reg_icr = IXGB_READ_REG(&adapter->hw, ICR);
 		if (reg_icr & (IXGB_INT_RXSEQ | IXGB_INT_LSC)) {
-			callout_stop(&adapter->timer);
 			ixgb_check_for_link(&adapter->hw);
 			ixgb_print_link_status(adapter);
-			callout_reset(&adapter->timer, 2 * hz, ixgb_local_timer,
-			    adapter);
 		}
 	}
 	rx_npkts = ixgb_process_receive_interrupts(adapter, count);
@@ -837,11 +823,8 @@ ixgb_intr(void *arg)
 
 	/* Link status change */
 	if (reg_icr & (IXGB_INT_RXSEQ | IXGB_INT_LSC)) {
-		callout_stop(&adapter->timer);
 		ixgb_check_for_link(&adapter->hw);
 		ixgb_print_link_status(adapter);
-		callout_reset(&adapter->timer, 2 * hz, ixgb_local_timer,
-		    adapter);
 	}
 	while (loop_cnt > 0) {
 		if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
@@ -959,8 +942,8 @@ ixgb_encap(struct adapter * adapter, struct mbuf * m_head)
 					&nsegs, BUS_DMA_NOWAIT);
 	if (error != 0) {
 		adapter->no_tx_dma_setup++;
-		printf("ixgb%d: ixgb_encap: bus_dmamap_load_mbuf failed; "
-		       "error %u\n", adapter->unit, error);
+		if_printf(ifp, "ixgb_encap: bus_dmamap_load_mbuf failed; "
+		       "error %u\n", error);
 		bus_dmamap_destroy(adapter->txtag, map);
 		return (error);
 	}
@@ -1130,7 +1113,7 @@ ixgb_local_timer(void *arg)
 	struct adapter *adapter = arg;
 	ifp = adapter->ifp;
 
-	IXGB_LOCK(adapter);
+	IXGB_LOCK_ASSERT(adapter);
 
 	ixgb_check_for_link(&adapter->hw);
 	ixgb_print_link_status(adapter);
@@ -1138,10 +1121,9 @@ ixgb_local_timer(void *arg)
 	if (ixgb_display_debug_stats && ifp->if_drv_flags & IFF_DRV_RUNNING) {
 		ixgb_print_hw_stats(adapter);
 	}
-	callout_reset(&adapter->timer, 2 * hz, ixgb_local_timer, adapter);
-
-	IXGB_UNLOCK(adapter);
-	return;
+	if (adapter->tx_timer != 0 && --adapter->tx_timer == 0)
+		ixgb_watchdog(adapter);
+	callout_reset(&adapter->timer, hz, ixgb_local_timer, adapter);
 }
 
 static void
@@ -1149,15 +1131,14 @@ ixgb_print_link_status(struct adapter * adapter)
 {
 	if (adapter->hw.link_up) {
 		if (!adapter->link_active) {
-			printf("ixgb%d: Link is up %d Mbps %s \n",
-			       adapter->unit,
+			if_printf(adapter->ifp, "Link is up %d Mbps %s \n",
 			       10000,
 			       "Full Duplex");
 			adapter->link_active = 1;
 		}
 	} else {
 		if (adapter->link_active) {
-			printf("ixgb%d: Link is Down \n", adapter->unit);
+			if_printf(adapter->ifp, "Link is Down \n");
 			adapter->link_active = 0;
 		}
 	}
@@ -1191,9 +1172,9 @@ ixgb_stop(void *arg)
 	ixgb_free_transmit_structures(adapter);
 	ixgb_free_receive_structures(adapter);
 
-
 	/* Tell the stack that the interface is no longer active */
 	ifp->if_drv_flags &= ~(IFF_DRV_RUNNING | IFF_DRV_OACTIVE);
+	adapter->tx_timer = 0;
 
 	return;
 }
@@ -1213,8 +1194,8 @@ ixgb_identify_hardware(struct adapter * adapter)
 	adapter->hw.pci_cmd_word = pci_read_config(dev, PCIR_COMMAND, 2);
 	if (!((adapter->hw.pci_cmd_word & PCIM_CMD_BUSMASTEREN) &&
 	      (adapter->hw.pci_cmd_word & PCIM_CMD_MEMEN))) {
-		printf("ixgb%d: Memory Access and/or Bus Master bits were not set!\n",
-		       adapter->unit);
+		device_printf(dev,
+		    "Memory Access and/or Bus Master bits were not set!\n");
 		adapter->hw.pci_cmd_word |=
 			(PCIM_CMD_BUSMASTEREN | PCIM_CMD_MEMEN);
 		pci_write_config(dev, PCIR_COMMAND, adapter->hw.pci_cmd_word, 2);
@@ -1234,7 +1215,8 @@ ixgb_identify_hardware(struct adapter * adapter)
 		break;
 	default:
 		INIT_DEBUGOUT1("Unknown device if 0x%x", adapter->hw.device_id);
-		printf("ixgb%d: unsupported device id 0x%x\n", adapter->unit, adapter->hw.device_id);
+		device_printf(dev, "unsupported device id 0x%x\n",
+		    adapter->hw.device_id);
 	}
 
 	return;
@@ -1251,8 +1233,7 @@ ixgb_allocate_pci_resources(struct adapter * adapter)
 						 &rid, 0, ~0, 1,
 						 RF_ACTIVE);
 	if (!(adapter->res_memory)) {
-		printf("ixgb%d: Unable to allocate bus resource: memory\n",
-		       adapter->unit);
+		device_printf(dev, "Unable to allocate bus resource: memory\n");
 		return (ENXIO);
 	}
 	adapter->osdep.mem_bus_space_tag =
@@ -1266,16 +1247,15 @@ ixgb_allocate_pci_resources(struct adapter * adapter)
 						    &rid, 0, ~0, 1,
 						  RF_SHAREABLE | RF_ACTIVE);
 	if (!(adapter->res_interrupt)) {
-		printf("ixgb%d: Unable to allocate bus resource: interrupt\n",
-		       adapter->unit);
+		device_printf(dev,
+		    "Unable to allocate bus resource: interrupt\n");
 		return (ENXIO);
 	}
 	if (bus_setup_intr(dev, adapter->res_interrupt,
 			   INTR_TYPE_NET | INTR_MPSAFE,
 			   NULL, (void (*) (void *))ixgb_intr, adapter,
 			   &adapter->int_handler_tag)) {
-		printf("ixgb%d: Error registering interrupt handler!\n",
-		       adapter->unit);
+		device_printf(dev, "Error registering interrupt handler!\n");
 		return (ENXIO);
 	}
 	adapter->hw.back = &adapter->osdep;
@@ -1322,13 +1302,12 @@ ixgb_hardware_init(struct adapter * adapter)
 
 	/* Make sure we have a good EEPROM before we read from it */
 	if (!ixgb_validate_eeprom_checksum(&adapter->hw)) {
-		printf("ixgb%d: The EEPROM Checksum Is Not Valid\n",
-		       adapter->unit);
+		device_printf(adapter->dev,
+		    "The EEPROM Checksum Is Not Valid\n");
 		return (EIO);
 	}
 	if (!ixgb_init_hw(&adapter->hw)) {
-		printf("ixgb%d: Hardware Initialization Failed",
-		       adapter->unit);
+		device_printf(adapter->dev, "Hardware Initialization Failed");
 		return (EIO);
 	}
 
@@ -1352,7 +1331,7 @@ ixgb_setup_interface(device_t dev, struct adapter * adapter)
 #if __FreeBSD_version >= 502000
 	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
 #else
-	ifp->if_unit = adapter->unit;
+	ifp->if_unit = device_get_unit(dev);
 	ifp->if_name = "ixgb";
 #endif
 	ifp->if_mtu = ETHERMTU;
@@ -1362,7 +1341,6 @@ ixgb_setup_interface(device_t dev, struct adapter * adapter)
 	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
 	ifp->if_ioctl = ixgb_ioctl;
 	ifp->if_start = ixgb_start;
-	ifp->if_watchdog = ixgb_watchdog;
 	ifp->if_snd.ifq_maxlen = adapter->num_tx_desc - 1;
 
 #if __FreeBSD_version < 500000
@@ -1420,8 +1398,10 @@ static int
 ixgb_dma_malloc(struct adapter * adapter, bus_size_t size,
 		struct ixgb_dma_alloc * dma, int mapflags)
 {
+	device_t dev;
 	int             r;
 
+	dev = adapter->dev;
 	r = bus_dma_tag_create(NULL,	/* parent */
 			       PAGE_SIZE, 0,	/* alignment, bounds */
 			       BUS_SPACE_MAXADDR,	/* lowaddr */
@@ -1437,15 +1417,15 @@ ixgb_dma_malloc(struct adapter * adapter, bus_size_t size,
 #endif
 			       &dma->dma_tag);
 	if (r != 0) {
-		printf("ixgb%d: ixgb_dma_malloc: bus_dma_tag_create failed; "
-		       "error %u\n", adapter->unit, r);
+		device_printf(dev, "ixgb_dma_malloc: bus_dma_tag_create failed; "
+		       "error %u\n", r);
 		goto fail_0;
 	}
 	r = bus_dmamem_alloc(dma->dma_tag, (void **)&dma->dma_vaddr,
 			     BUS_DMA_NOWAIT, &dma->dma_map);
 	if (r != 0) {
-		printf("ixgb%d: ixgb_dma_malloc: bus_dmamem_alloc failed; "
-		       "error %u\n", adapter->unit, r);
+		device_printf(dev, "ixgb_dma_malloc: bus_dmamem_alloc failed; "
+		       "error %u\n", r);
 		goto fail_1;
 	}
 	r = bus_dmamap_load(dma->dma_tag, dma->dma_map, dma->dma_vaddr,
@@ -1454,8 +1434,8 @@ ixgb_dma_malloc(struct adapter * adapter, bus_size_t size,
 			    &dma->dma_paddr,
 			    mapflags | BUS_DMA_NOWAIT);
 	if (r != 0) {
-		printf("ixgb%d: ixgb_dma_malloc: bus_dmamap_load failed; "
-		       "error %u\n", adapter->unit, r);
+		device_printf(dev, "ixgb_dma_malloc: bus_dmamap_load failed; "
+		       "error %u\n", r);
 		goto fail_2;
 	}
 	dma->dma_size = size;
@@ -1493,8 +1473,8 @@ ixgb_allocate_transmit_structures(struct adapter * adapter)
 	      (struct ixgb_buffer *) malloc(sizeof(struct ixgb_buffer) *
 					    adapter->num_tx_desc, M_DEVBUF,
 					    M_NOWAIT | M_ZERO))) {
-		printf("ixgb%d: Unable to allocate tx_buffer memory\n",
-		       adapter->unit);
+		device_printf(adapter->dev,
+		    "Unable to allocate tx_buffer memory\n");
 		return ENOMEM;
 	}
 	bzero(adapter->tx_buffer_area,
@@ -1528,7 +1508,7 @@ ixgb_setup_transmit_structures(struct adapter * adapter)
 			       NULL,	/* lockfuncarg */
 #endif
 			       &adapter->txtag)) {
-		printf("ixgb%d: Unable to allocate TX DMA tag\n", adapter->unit);
+		device_printf(adapter->dev, "Unable to allocate TX DMA tag\n");
 		return (ENOMEM);
 	}
 	if (ixgb_allocate_transmit_structures(adapter))
@@ -1763,9 +1743,9 @@ ixgb_clean_transmit_interrupts(struct adapter * adapter)
 
 		ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 		if (num_avail == adapter->num_tx_desc)
-			ifp->if_timer = 0;
+			adapter->tx_timer = 0;
 		else if (num_avail == adapter->num_tx_desc_avail)
-			ifp->if_timer = IXGB_TX_TIMEOUT;
+			adapter->tx_timer = IXGB_TX_TIMEOUT;
 	}
 	adapter->num_tx_desc_avail = num_avail;
 	return;
@@ -1845,8 +1825,8 @@ ixgb_allocate_receive_structures(struct adapter * adapter)
 	      (struct ixgb_buffer *) malloc(sizeof(struct ixgb_buffer) *
 					    adapter->num_rx_desc, M_DEVBUF,
 					    M_NOWAIT | M_ZERO))) {
-		printf("ixgb%d: Unable to allocate rx_buffer memory\n",
-		       adapter->unit);
+		device_printf(adapter->dev,
+		    "Unable to allocate rx_buffer memory\n");
 		return (ENOMEM);
 	}
 	bzero(adapter->rx_buffer_area,
@@ -1867,9 +1847,9 @@ ixgb_allocate_receive_structures(struct adapter * adapter)
 #endif
 				   &adapter->rxtag);
 	if (error != 0) {
-		printf("ixgb%d: ixgb_allocate_receive_structures: "
+		device_printf(adapter->dev, "ixgb_allocate_receive_structures: "
 		       "bus_dma_tag_create failed; error %u\n",
-		       adapter->unit, error);
+		       error);
 		goto fail_0;
 	}
 	rx_buffer = adapter->rx_buffer_area;
@@ -1877,9 +1857,10 @@ ixgb_allocate_receive_structures(struct adapter * adapter)
 		error = bus_dmamap_create(adapter->rxtag, BUS_DMA_NOWAIT,
 					  &rx_buffer->map);
 		if (error != 0) {
-			printf("ixgb%d: ixgb_allocate_receive_structures: "
+			device_printf(adapter->dev,
+			       "ixgb_allocate_receive_structures: "
 			       "bus_dmamap_create failed; error %u\n",
-			       adapter->unit, error);
+			       error);
 			goto fail_1;
 		}
 	}
@@ -2431,20 +2412,21 @@ ixgb_print_hw_stats(struct adapter * adapter)
 	char            buf_speed[100], buf_type[100];
 	ixgb_bus_speed  bus_speed;
 	ixgb_bus_type   bus_type;
-	int             unit = adapter->unit;
+	device_t dev;
 
+	dev = adapter->dev;
 #ifdef _SV_
-	printf("ixgb%d: Packets not Avail = %ld\n", unit,
+	device_printf(dev, "Packets not Avail = %ld\n",
 	       adapter->no_pkts_avail);
-	printf("ixgb%d: CleanTxInterrupts = %ld\n", unit,
+	device_printf(dev, "CleanTxInterrupts = %ld\n",
 	       adapter->clean_tx_interrupts);
-	printf("ixgb%d: ICR RXDMT0 = %lld\n", unit,
+	device_printf(dev, "ICR RXDMT0 = %lld\n",
 	       (long long)adapter->sv_stats.icr_rxdmt0);
-	printf("ixgb%d: ICR RXO = %lld\n", unit,
+	device_printf(dev, "ICR RXO = %lld\n",
 	       (long long)adapter->sv_stats.icr_rxo);
-	printf("ixgb%d: ICR RXT0 = %lld\n", unit,
+	device_printf(dev, "ICR RXT0 = %lld\n",
 	       (long long)adapter->sv_stats.icr_rxt0);
-	printf("ixgb%d: ICR TXDW = %lld\n", unit,
+	device_printf(dev, "ICR TXDW = %lld\n",
 	       (long long)adapter->sv_stats.icr_TXDW);
 #endif				/* _SV_ */
 
@@ -2456,55 +2438,55 @@ ixgb_print_hw_stats(struct adapter * adapter)
 		bus_speed == ixgb_bus_speed_100 ? "100MHz" :
 		bus_speed == ixgb_bus_speed_133 ? "133MHz" :
 		"UNKNOWN");
-	printf("ixgb%d: PCI_Bus_Speed = %s\n", unit,
+	device_printf(dev, "PCI_Bus_Speed = %s\n",
 	       buf_speed);
 
 	sprintf(buf_type,
 		bus_type == ixgb_bus_type_pci ? "PCI" :
 		bus_type == ixgb_bus_type_pcix ? "PCI-X" :
 		"UNKNOWN");
-	printf("ixgb%d: PCI_Bus_Type = %s\n", unit,
+	device_printf(dev, "PCI_Bus_Type = %s\n",
 	       buf_type);
 
-	printf("ixgb%d: Tx Descriptors not Avail1 = %ld\n", unit,
+	device_printf(dev, "Tx Descriptors not Avail1 = %ld\n",
 	       adapter->no_tx_desc_avail1);
-	printf("ixgb%d: Tx Descriptors not Avail2 = %ld\n", unit,
+	device_printf(dev, "Tx Descriptors not Avail2 = %ld\n",
 	       adapter->no_tx_desc_avail2);
-	printf("ixgb%d: Std Mbuf Failed = %ld\n", unit,
+	device_printf(dev, "Std Mbuf Failed = %ld\n",
 	       adapter->mbuf_alloc_failed);
-	printf("ixgb%d: Std Cluster Failed = %ld\n", unit,
+	device_printf(dev, "Std Cluster Failed = %ld\n",
 	       adapter->mbuf_cluster_failed);
 
-	printf("ixgb%d: Defer count = %lld\n", unit,
+	device_printf(dev, "Defer count = %lld\n",
 	       (long long)adapter->stats.dc);
-	printf("ixgb%d: Missed Packets = %lld\n", unit,
+	device_printf(dev, "Missed Packets = %lld\n",
 	       (long long)adapter->stats.mpc);
-	printf("ixgb%d: Receive No Buffers = %lld\n", unit,
+	device_printf(dev, "Receive No Buffers = %lld\n",
 	       (long long)adapter->stats.rnbc);
-	printf("ixgb%d: Receive length errors = %lld\n", unit,
+	device_printf(dev, "Receive length errors = %lld\n",
 	       (long long)adapter->stats.rlec);
-	printf("ixgb%d: Crc errors = %lld\n", unit,
+	device_printf(dev, "Crc errors = %lld\n",
 	       (long long)adapter->stats.crcerrs);
-	printf("ixgb%d: Driver dropped packets = %ld\n", unit,
+	device_printf(dev, "Driver dropped packets = %ld\n",
 	       adapter->dropped_pkts);
 
-	printf("ixgb%d: XON Rcvd = %lld\n", unit,
+	device_printf(dev, "XON Rcvd = %lld\n",
 	       (long long)adapter->stats.xonrxc);
-	printf("ixgb%d: XON Xmtd = %lld\n", unit,
+	device_printf(dev, "XON Xmtd = %lld\n",
 	       (long long)adapter->stats.xontxc);
-	printf("ixgb%d: XOFF Rcvd = %lld\n", unit,
+	device_printf(dev, "XOFF Rcvd = %lld\n",
 	       (long long)adapter->stats.xoffrxc);
-	printf("ixgb%d: XOFF Xmtd = %lld\n", unit,
+	device_printf(dev, "XOFF Xmtd = %lld\n",
 	       (long long)adapter->stats.xofftxc);
 
-	printf("ixgb%d: Good Packets Rcvd = %lld\n", unit,
+	device_printf(dev, "Good Packets Rcvd = %lld\n",
 	       (long long)adapter->stats.gprcl);
-	printf("ixgb%d: Good Packets Xmtd = %lld\n", unit,
+	device_printf(dev, "Good Packets Xmtd = %lld\n",
 	       (long long)adapter->stats.gptcl);
 
-	printf("ixgb%d: Jumbo frames recvd = %lld\n", unit,
+	device_printf(dev, "Jumbo frames recvd = %lld\n",
 	       (long long)adapter->stats.jprcl);
-	printf("ixgb%d: Jumbo frames Xmtd = %lld\n", unit,
+	device_printf(dev, "Jumbo frames Xmtd = %lld\n",
 	       (long long)adapter->stats.jptcl);
 
 	return;

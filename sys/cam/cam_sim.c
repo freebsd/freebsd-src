@@ -69,7 +69,7 @@ cam_sim_alloc(sim_action_func sim_action, sim_poll_func sim_poll,
 		return (NULL);
 
 	sim = (struct cam_sim *)malloc(sizeof(struct cam_sim),
-	    M_CAMSIM, M_NOWAIT);
+	    M_CAMSIM, M_ZERO | M_NOWAIT);
 
 	if (sim == NULL)
 		return (NULL);
@@ -86,6 +86,7 @@ cam_sim_alloc(sim_action_func sim_action, sim_poll_func sim_poll,
 	sim->flags = 0;
 	sim->refcount = 1;
 	sim->devq = queue;
+	sim->max_ccbs = 8;	/* Reserve for management purposes. */
 	sim->mtx = mtx;
 	if (mtx == &Giant) {
 		sim->flags |= 0;

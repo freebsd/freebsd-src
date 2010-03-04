@@ -312,7 +312,6 @@ archive_write_open(struct archive *_a, void *client_data,
 	struct archive_write *a = (struct archive_write *)_a;
 	int ret;
 
-	ret = ARCHIVE_OK;
 	__archive_check_magic(&a->archive, ARCHIVE_WRITE_MAGIC,
 	    ARCHIVE_STATE_NEW, "archive_write_open");
 	archive_clear_error(&a->archive);
@@ -423,7 +422,7 @@ _archive_write_header(struct archive *_a, struct archive_entry *entry)
 	if (a->skip_file_dev != 0 &&
 	    archive_entry_dev(entry) == a->skip_file_dev &&
 	    a->skip_file_ino != 0 &&
-	    archive_entry_ino(entry) == a->skip_file_ino) {
+	    archive_entry_ino64(entry) == a->skip_file_ino) {
 		archive_set_error(&a->archive, 0,
 		    "Can't add archive to itself");
 		return (ARCHIVE_FAILED);

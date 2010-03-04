@@ -71,16 +71,17 @@ static struct fha_global {
 	u_long hashmask;
 } g_fha;
 
-/* 
- * These are the entries in the filehandle hash. They talk about a specific 
- * file, requests against which are being handled by one or more nfsds. We keep
- * a chain of nfsds against the file. We only have more than one if reads are 
- * ongoing, and then only if the reads affect disparate regions of the file.
+/*
+ * These are the entries in the filehandle hash.  They talk about a specific
+ * file, requests against which are being handled by one or more nfsds.  We
+ * keep a chain of nfsds against the file. We only have more than one if reads
+ * are ongoing, and then only if the reads affect disparate regions of the
+ * file.
  *
- * In general, we want to assign a new request to an existing nfsd if it is 
- * going to contend with work happening already on that nfsd, or if the 
- * operation is a read and the nfsd is already handling a proximate read. We 
- * do this to avoid jumping around in the read stream unnecessarily, and to 
+ * In general, we want to assign a new request to an existing nfsd if it is
+ * going to contend with work happening already on that nfsd, or if the
+ * operation is a read and the nfsd is already handling a proximate read.  We
+ * do this to avoid jumping around in the read stream unnecessarily, and to
  * avoid contention between threads over single files.
  */
 struct fha_hash_entry {
@@ -101,7 +102,7 @@ struct fha_info {
 };
 
 static int fhe_stats_sysctl(SYSCTL_HANDLER_ARGS);
- 
+
 static void
 nfs_fha_init(void *foo)
 {
@@ -136,7 +137,7 @@ nfs_fha_init(void *foo)
 	    &fha_ctls.max_reqs_per_nfsd, 0, "Maximum requests that "
 	    "single nfsd thread should be working on at any time");
 
-	SYSCTL_ADD_OID(&fha_clist, SYSCTL_STATIC_CHILDREN(_vfs_nfsrv_fha), 
+	SYSCTL_ADD_OID(&fha_clist, SYSCTL_STATIC_CHILDREN(_vfs_nfsrv_fha),
 	    OID_AUTO, "fhe_stats", CTLTYPE_STRING | CTLFLAG_RD, 0, 0,
 	    fhe_stats_sysctl, "A", "");
 }
@@ -151,34 +152,34 @@ nfs_fha_uninit(void *foo)
 SYSINIT(nfs_fha, SI_SUB_ROOT_CONF, SI_ORDER_ANY, nfs_fha_init, NULL);
 SYSUNINIT(nfs_fha, SI_SUB_ROOT_CONF, SI_ORDER_ANY, nfs_fha_uninit, NULL);
 
-/* 
+/*
  * This just specifies that offsets should obey affinity when within
  * the same 1Mbyte (1<<20) chunk for the file (reads only for now).
  */
 static void
 fha_extract_info(struct svc_req *req, struct fha_info *i)
 {
-	struct mbuf *md = req->rq_args;
+	struct mbuf *md;
 	nfsfh_t fh;
-	caddr_t dpos = mtod(md, caddr_t);
+	caddr_t dpos;
 	static u_int64_t random_fh = 0;
 	int error;
 	int v3 = (req->rq_vers == 3);
 	u_int32_t *tl;
 	rpcproc_t procnum;
 
-	/* 
-	 * We start off with a random fh. If we get a reasonable
-	 * procnum, we set the fh. If there's a concept of offset 
+	/*
+	 * We start off with a random fh.  If we get a reasonable
+	 * procnum, we set the fh.  If there's a concept of offset
 	 * that we're interested in, we set that.
 	 */
 	i->fh = ++random_fh;
 	i->offset = 0;
 	i->locktype = LK_EXCLUSIVE;
-	
+
 	/*
 	 * Extract the procnum and convert to v3 form if necessary,
-	 * taking care to deal with out-of-range procnums. Caller will
+	 * taking care to deal with out-of-range procnums.  Caller will
 	 * ensure that rq_vers is either 2 or 3.
 	 */
 	procnum = req->rq_proc;
@@ -188,25 +189,31 @@ fha_extract_info(struct svc_req *req, struct fha_info *i)
 		procnum = nfsrv_nfsv3_procid[procnum];
 	}
 
-	/* 
-	 * We do affinity for most. However, we divide a realm of affinity 
-	 * by file offset so as to allow for concurrent random access. We 
-	 * only do this for reads today, but this may change when IFS supports 
+	/*
+	 * We do affinity for most.  However, we divide a realm of affinity
+	 * by file offset so as to allow for concurrent random access.  We
+	 * only do this for reads today, but this may change when IFS supports
 	 * efficient concurrent writes.
 	 */
 	if (procnum == NFSPROC_FSSTAT ||
 	    procnum == NFSPROC_FSINFO ||
 	    procnum == NFSPROC_PATHCONF ||
-	    procnum == NFSPROC_NOOP || 
+	    procnum == NFSPROC_NOOP ||
 	    procnum == NFSPROC_NULL)
 		goto out;
-	
+
+	error = nfs_realign(&req->rq_args, M_DONTWAIT);
+	if (error)
+		goto out;
+	md = req->rq_args;
+	dpos = mtod(md, caddr_t);
+
 	/* Grab the filehandle. */
 	error = nfsm_srvmtofh_xx(&fh.fh_generic, v3, &md, &dpos);
 	if (error)
 		goto out;
 
-	i->fh = *(const u_int64_t *)(fh.fh_generic.fh_fid.fid_data);
+	bcopy(fh.fh_generic.fh_fid.fid_data, &i->fh, sizeof(i->fh));
 
 	/* Content ourselves with zero offset for all but reads. */
 	if (procnum != NFSPROC_READ)
@@ -266,8 +273,8 @@ fha_hash_entry_new(u_int64_t fh)
 	e->num_writes = 0;
 	e->num_threads = 0;
 	LIST_INIT(&e->threads);
-	
-	return e;
+
+	return (e);
 }
 
 static void
@@ -292,10 +299,9 @@ fha_hash_entry_lookup(SVCPOOL *pool, u_int64_t fh)
 {
 	struct fha_hash_entry *fhe, *new_fhe;
 
-	LIST_FOREACH(fhe, &g_fha.hashtable[fh % g_fha.hashmask], link) {
+	LIST_FOREACH(fhe, &g_fha.hashtable[fh % g_fha.hashmask], link)
 		if (fhe->fh == fh)
 			break;
-	}
 
 	if (!fhe) {
 		/* Allocate a new entry. */
@@ -304,25 +310,24 @@ fha_hash_entry_lookup(SVCPOOL *pool, u_int64_t fh)
 		mtx_lock(&pool->sp_lock);
 
 		/* Double-check to make sure we still need the new entry. */
-		LIST_FOREACH(fhe, &g_fha.hashtable[fh % g_fha.hashmask], link) {
+		LIST_FOREACH(fhe, &g_fha.hashtable[fh % g_fha.hashmask], link)
 			if (fhe->fh == fh)
 				break;
-		}
 		if (!fhe) {
 			fhe = new_fhe;
 			LIST_INSERT_HEAD(&g_fha.hashtable[fh % g_fha.hashmask],
 			    fhe, link);
-		} else {
+		} else
 			fha_hash_entry_destroy(new_fhe);
-		}
 	}
 
-	return fhe;
+	return (fhe);
 }
 
 static void
 fha_hash_entry_add_thread(struct fha_hash_entry *fhe, SVCTHREAD *thread)
 {
+
 	LIST_INSERT_HEAD(&fhe->threads, thread, st_alink);
 	fhe->num_threads++;
 }
@@ -335,7 +340,7 @@ fha_hash_entry_remove_thread(struct fha_hash_entry *fhe, SVCTHREAD *thread)
 	fhe->num_threads--;
 }
 
-/* 
+/*
  * Account for an ongoing operation associated with this file.
  */
 static void
@@ -361,7 +366,7 @@ get_idle_thread(SVCPOOL *pool)
 }
 
 
-/* 
+/*
  * Get the service thread currently associated with the fhe that is
  * appropriate to handle this operation.
  */
@@ -383,15 +388,15 @@ fha_hash_entry_choose_thread(SVCPOOL *pool, struct fha_hash_entry *fhe,
 		/* If there are any writes in progress, use the first thread. */
 		if (fhe->num_writes) {
 #if 0
-			ITRACE_CURPROC(ITRACE_NFS, ITRACE_INFO, 
+			ITRACE_CURPROC(ITRACE_NFS, ITRACE_INFO,
 			    "fha: %p(%d)w", thread, req_count);
 #endif
 			return (thread);
 		}
 
-		/* 
-		 * Check for read locality, making sure that we won't 
-		 * exceed our per-thread load limit in the process. 
+		/*
+		 * Check for read locality, making sure that we won't
+		 * exceed our per-thread load limit in the process.
 		 */
 		offset1 = i->offset >> fha_ctls.bin_shift;
 		offset2 = STAILQ_FIRST(&thread->st_reqs)->rq_p3
@@ -400,21 +405,21 @@ fha_hash_entry_choose_thread(SVCPOOL *pool, struct fha_hash_entry *fhe,
 			if ((fha_ctls.max_reqs_per_nfsd == 0) ||
 			    (req_count < fha_ctls.max_reqs_per_nfsd)) {
 #if 0
-				ITRACE_CURPROC(ITRACE_NFS, ITRACE_INFO, 
+				ITRACE_CURPROC(ITRACE_NFS, ITRACE_INFO,
 				    "fha: %p(%d)r", thread, req_count);
 #endif
 				return (thread);
 			}
 		}
 
-		/* 
+		/*
 		 * We don't have a locality match, so skip this thread,
-		 * but keep track of the most attractive thread in case 
+		 * but keep track of the most attractive thread in case
 		 * we need to come back to it later.
 		 */
 #if 0
-		ITRACE_CURPROC(ITRACE_NFS, ITRACE_INFO, 
-		    "fha: %p(%d)s off1 %llu off2 %llu", thread, 
+		ITRACE_CURPROC(ITRACE_NFS, ITRACE_INFO,
+		    "fha: %p(%d)s off1 %llu off2 %llu", thread,
 		    req_count, offset1, offset2);
 #endif
 		if ((min_thread == NULL) || (req_count < min_count)) {
@@ -423,38 +428,38 @@ fha_hash_entry_choose_thread(SVCPOOL *pool, struct fha_hash_entry *fhe,
 		}
 	}
 
-	/* 
-	 * We didn't find a good match yet. See if we can add 
+	/*
+	 * We didn't find a good match yet.  See if we can add
 	 * a new thread to this file handle entry's thread list.
 	 */
-	if ((fha_ctls.max_nfsds_per_fh == 0) || 
+	if ((fha_ctls.max_nfsds_per_fh == 0) ||
 	    (fhe->num_threads < fha_ctls.max_nfsds_per_fh)) {
-		/* 
-		 * We can add a new thread, so try for an idle thread 
-		 * first, and fall back to this_thread if none are idle. 
+		/*
+		 * We can add a new thread, so try for an idle thread
+		 * first, and fall back to this_thread if none are idle.
 		 */
 		if (STAILQ_EMPTY(&this_thread->st_reqs)) {
 			thread = this_thread;
 #if 0
-			ITRACE_CURPROC(ITRACE_NFS, ITRACE_INFO, 
+			ITRACE_CURPROC(ITRACE_NFS, ITRACE_INFO,
 			    "fha: %p(%d)t", thread, thread->st_reqcount);
 #endif
 		} else if ((thread = get_idle_thread(pool))) {
 #if 0
-			ITRACE_CURPROC(ITRACE_NFS, ITRACE_INFO, 
+			ITRACE_CURPROC(ITRACE_NFS, ITRACE_INFO,
 			    "fha: %p(%d)i", thread, thread->st_reqcount);
 #endif
-		} else { 
+		} else {
 			thread = this_thread;
 #if 0
-			ITRACE_CURPROC(ITRACE_NFS, ITRACE_INFO, 
+			ITRACE_CURPROC(ITRACE_NFS, ITRACE_INFO,
 			    "fha: %p(%d)b", thread, thread->st_reqcount);
 #endif
 		}
 		fha_hash_entry_add_thread(fhe, thread);
 	} else {
-		/* 
-		 * We don't want to use any more threads for this file, so 
+		/*
+		 * We don't want to use any more threads for this file, so
 		 * go back to the most attractive nfsd we're already using.
 		 */
 		thread = min_thread;
@@ -463,8 +468,8 @@ fha_hash_entry_choose_thread(SVCPOOL *pool, struct fha_hash_entry *fhe,
 	return (thread);
 }
 
-/* 
- * After getting a request, try to assign it to some thread. Usually we
+/*
+ * After getting a request, try to assign it to some thread.  Usually we
  * handle it ourselves.
  */
 SVCTHREAD *
@@ -487,16 +492,16 @@ fha_assign(SVCTHREAD *this_thread, struct svc_req *req)
 	pool = req->rq_xprt->xp_pool;
 	fha_extract_info(req, &i);
 
-	/* 
-	 * We save the offset associated with this request for later 
+	/*
+	 * We save the offset associated with this request for later
 	 * nfsd matching.
 	 */
 	fhe = fha_hash_entry_lookup(pool, i.fh);
 	req->rq_p1 = fhe;
 	req->rq_p2 = i.locktype;
 	req->rq_p3 = i.offset;
-	
-	/* 
+
+	/*
 	 * Choose a thread, taking into consideration locality, thread load,
 	 * and the number of threads already working on this file.
 	 */
@@ -507,8 +512,8 @@ fha_assign(SVCTHREAD *this_thread, struct svc_req *req)
 	return (thread);
 }
 
-/* 
- * Called when we're done with an operation. The request has already
+/*
+ * Called when we're done with an operation.  The request has already
  * been de-queued.
  */
 void

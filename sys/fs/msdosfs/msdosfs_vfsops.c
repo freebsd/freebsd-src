@@ -75,6 +75,8 @@
 #include <fs/msdosfs/fat.h>
 #include <fs/msdosfs/msdosfsmount.h>
 
+static const char msdosfs_lock_msg[] = "fatlk";
+
 /* Mount options that we support. */
 static const char *msdosfs_opts[] = {
 	"async", "noatime", "noclusterr", "noclusterw",
@@ -466,6 +468,8 @@ mountmsdosfs(struct vnode *devvp, struct mount *mp)
 	pmp->pm_cp = cp;
 	pmp->pm_bo = bo;
 
+	lockinit(&pmp->pm_fatlock, 0, msdosfs_lock_msg, 0, 0);
+
 	/*
 	 * Initialize ownerships and permissions, since nothing else will
 	 * initialize them iff we are mounting root.
@@ -716,7 +720,10 @@ mountmsdosfs(struct vnode *devvp, struct mount *mp)
 	/*
 	 * Have the inuse map filled in.
 	 */
-	if ((error = fillinusemap(pmp)) != 0)
+	MSDOSFS_LOCK_MP(pmp);
+	error = fillinusemap(pmp);
+	MSDOSFS_UNLOCK_MP(pmp);
+	if (error != 0)
 		goto error_exit;
 
 	/*
@@ -745,6 +752,7 @@ mountmsdosfs(struct vnode *devvp, struct mount *mp)
 	mp->mnt_stat.f_fsid.val[1] = mp->mnt_vfc->vfc_typenum;
 	MNT_ILOCK(mp);
 	mp->mnt_flag |= MNT_LOCAL;
+	mp->mnt_kern_flag |= MNTK_MPSAFE;
 	MNT_IUNLOCK(mp);
 
 	if (pmp->pm_flags & MSDOSFS_LARGEFS)
@@ -763,6 +771,7 @@ error_exit:
 		PICKUP_GIANT();
 	}
 	if (pmp) {
+		lockdestroy(&pmp->pm_fatlock);
 		if (pmp->pm_inusemap)
 			free(pmp->pm_inusemap, M_MSDOSFSFAT);
 		free(pmp, M_MSDOSFSMNT);
@@ -837,6 +846,7 @@ msdosfs_unmount(struct mount *mp, int mntflags)
 	free(pmp->pm_inusemap, M_MSDOSFSFAT);
 	if (pmp->pm_flags & MSDOSFS_LARGEFS)
 		msdosfs_fileno_free(mp);
+	lockdestroy(&pmp->pm_fatlock);
 	free(pmp, M_MSDOSFSMNT);
 	mp->mnt_data = NULL;
 	MNT_ILOCK(mp);

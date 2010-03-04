@@ -2136,7 +2136,7 @@ void
 SetProtocolFlags(struct alias_link *lnk, int pflags)
 {
 
-	lnk->pflags = pflags;;
+	lnk->pflags = pflags;
 }
 
 int

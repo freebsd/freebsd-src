@@ -4,8 +4,6 @@
 PROG=	dmesg
 MAN=	dmesg.8
 
-WARNS?=	6
-
 LDADD=	-lkvm
 DPADD=	${LIBKVM}
 

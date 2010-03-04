@@ -8,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2009, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2010, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -135,8 +135,9 @@
 #include <contrib/dev/acpica/include/acinterp.h>
 #include <contrib/dev/acpica/include/acapps.h>
 
-extern FILE                     *AcpiGbl_DebugFile;
-extern BOOLEAN                  AcpiGbl_IgnoreErrors;
+extern FILE                 *AcpiGbl_DebugFile;
+extern BOOLEAN              AcpiGbl_IgnoreErrors;
+extern UINT8                AcpiGbl_RegionFillValue;
 
 
 typedef struct ae_table_desc
@@ -231,7 +232,7 @@ AeRegionHandler (
     UINT32                  Function,
     ACPI_PHYSICAL_ADDRESS   Address,
     UINT32                  BitWidth,
-    ACPI_INTEGER            *Value,
+    UINT64                  *Value,
     void                    *HandlerContext,
     void                    *RegionContext);
 

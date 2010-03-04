@@ -46,6 +46,10 @@ __FBSDID("$FreeBSD$");
 #include <string.h>
 #include <unistd.h>
 
+#ifdef __i386__
+#define USE_APM
+#endif
+
 #ifdef USE_APM
 #include <machine/apm_bios.h>
 #endif
@@ -259,7 +263,7 @@ get_freq_id(int freq, int *freqs, int numfreqs)
  * to APM.  If nothing succeeds, we'll just run in default mode.
  */
 static void
-acline_init()
+acline_init(void)
 {
 	acline_mib_len = 4;
 

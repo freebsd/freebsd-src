@@ -77,13 +77,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *        This product includes software developed by the NetBSD
- *        Foundation, Inc. and its contributors.
- * 4. Neither the name of The NetBSD Foundation nor the names of its
- *    contributors may be used to endorse or promote products derived
- *    from this software without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
  * ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
@@ -203,7 +196,6 @@ static void		pmap_enter_locked(pmap_t, vm_offset_t, vm_page_t,
 static void		pmap_fix_cache(struct vm_page *, pmap_t, vm_offset_t);
 static void		pmap_alloc_l1(pmap_t);
 static void		pmap_free_l1(pmap_t);
-static void		pmap_use_l1(pmap_t);
 
 static int		pmap_clearbit(struct vm_page *, u_int);
 
@@ -829,47 +821,6 @@ pmap_free_l1(pmap_t pm)
 	mtx_unlock(&l1_lru_lock);
 }
 
-static PMAP_INLINE void
-pmap_use_l1(pmap_t pm)
-{
-	struct l1_ttable *l1;
-
-	/*
-	 * Do nothing if we're in interrupt context.
-	 * Access to an L1 by the kernel pmap must not affect
-	 * the LRU list.
-	 */
-	if (pm == pmap_kernel())
-		return;
-
-	l1 = pm->pm_l1;
-
-	/*
-	 * If the L1 is not currently on the LRU list, just return
-	 */
-	if (l1->l1_domain_use_count == PMAP_DOMAINS)
-		return;
-
-	mtx_lock(&l1_lru_lock);
-
-	/*
-	 * Check the use count again, now that we've acquired the lock
-	 */
-	if (l1->l1_domain_use_count == PMAP_DOMAINS) {
-		mtx_unlock(&l1_lru_lock);
-		return;
-	}
-
-	/*
-	 * Move the L1 to the back of the LRU list
-	 */
-	TAILQ_REMOVE(&l1_lru_list, l1, l1_lru);
-	TAILQ_INSERT_TAIL(&l1_lru_list, l1, l1_lru);
-
-	mtx_unlock(&l1_lru_lock);
-}
-
-
 /*
  * Returns a pointer to the L2 bucket associated with the specified pmap
  * and VA, or NULL if no L2 bucket exists for the address.
@@ -1199,79 +1150,38 @@ pmap_tlb_flushD(pmap_t pm)
 		cpu_tlb_flushD();
 }
 
-static PMAP_INLINE void
-pmap_l2cache_wbinv_range(pmap_t pm, vm_offset_t va, vm_size_t len)
+static int
+pmap_has_valid_mapping(pmap_t pm, vm_offset_t va)
 {
-	vm_size_t rest;
 	pd_entry_t *pde;
 	pt_entry_t *ptep;
 
-	rest = MIN(PAGE_SIZE - (va & PAGE_MASK), len);
+	if (pmap_get_pde_pte(pm, va, &pde, &ptep) &&
+	    ptep && ((*ptep & L2_TYPE_MASK) != L2_TYPE_INV))
+		return (1);
 
-	while (len > 0) {
-		CTR4(KTR_PMAP, "pmap_l2cache_wbinv_range: pmap %p is_kernel %d "
-		    "va 0x%08x len 0x%x ", pm, pm == pmap_kernel(), va, rest);
-		if (pmap_get_pde_pte(pm, va, &pde, &ptep) && l2pte_valid(*ptep))
-			cpu_l2cache_wbinv_range(va, rest);
-
-		len -= rest;
-		va += rest;
-
-		rest = MIN(PAGE_SIZE, len);
-	}
+	return (0);
 }
 
 static PMAP_INLINE void
 pmap_idcache_wbinv_range(pmap_t pm, vm_offset_t va, vm_size_t len)
 {
-
-	if (pmap_is_current(pm)) {
-		cpu_idcache_wbinv_range(va, len);
-		pmap_l2cache_wbinv_range(pm, va, len);
-	}
-}
-
-static PMAP_INLINE void
-pmap_l2cache_wb_range(pmap_t pm, vm_offset_t va, vm_size_t len)
-{
 	vm_size_t rest;
-	pd_entry_t *pde;
-	pt_entry_t *ptep;
 
-	rest = MIN(PAGE_SIZE - (va & PAGE_MASK), len);
+	CTR4(KTR_PMAP, "pmap_dcache_wbinv_range: pmap %p is_kernel %d va 0x%08x"
+	    " len 0x%x ", pm, pm == pmap_kernel(), va, len);
 
-	while (len > 0) {
-		CTR4(KTR_PMAP, "pmap_l2cache_wb_range: pmap %p is_kernel %d "
-		    "va 0x%08x len 0x%x ", pm, pm == pmap_kernel(), va, rest);
-		if (pmap_get_pde_pte(pm, va, &pde, &ptep) && l2pte_valid(*ptep))
-			cpu_l2cache_wb_range(va, rest);
-
-		len -= rest;
-		va += rest;
-
-		rest = MIN(PAGE_SIZE, len);
-	}
-}
-
-static PMAP_INLINE void
-pmap_l2cache_inv_range(pmap_t pm, vm_offset_t va, vm_size_t len)
-{
-	vm_size_t rest;
-	pd_entry_t *pde;
-	pt_entry_t *ptep;
-
-	rest = MIN(PAGE_SIZE - (va & PAGE_MASK), len);
-
-	while (len > 0) {
-		CTR4(KTR_PMAP, "pmap_l2cache_wb_range: pmap %p is_kernel %d "
-		    "va 0x%08x len 0x%x ", pm, pm == pmap_kernel(), va, rest);
-		if (pmap_get_pde_pte(pm, va, &pde, &ptep) && l2pte_valid(*ptep)) 
-		    cpu_l2cache_inv_range(va, rest);
-
-		len -= rest;
-		va += rest;
-
-		rest = MIN(PAGE_SIZE, len);
+	if (pmap_is_current(pm) || pm == pmap_kernel()) {
+		rest = MIN(PAGE_SIZE - (va & PAGE_MASK), len);
+		while (len > 0) {
+			if (pmap_has_valid_mapping(pm, va)) {
+				cpu_idcache_wbinv_range(va, rest);
+				cpu_l2cache_wbinv_range(va, rest);
+			}
+			len -= rest;
+			va += rest;
+			rest = MIN(PAGE_SIZE, len);
+		}
 	}
 }
 
@@ -1279,24 +1189,31 @@ static PMAP_INLINE void
 pmap_dcache_wb_range(pmap_t pm, vm_offset_t va, vm_size_t len, boolean_t do_inv,
     boolean_t rd_only)
 {
+	vm_size_t rest;
 
 	CTR4(KTR_PMAP, "pmap_dcache_wb_range: pmap %p is_kernel %d va 0x%08x "
 	    "len 0x%x ", pm, pm == pmap_kernel(), va, len);
 	CTR2(KTR_PMAP, " do_inv %d rd_only %d", do_inv, rd_only);
 
 	if (pmap_is_current(pm)) {
-		if (do_inv) {
-			if (rd_only) {
-				cpu_dcache_inv_range(va, len);
-				pmap_l2cache_inv_range(pm, va, len);
+		rest = MIN(PAGE_SIZE - (va & PAGE_MASK), len);
+		while (len > 0) {
+			if (pmap_has_valid_mapping(pm, va)) {
+				if (do_inv && rd_only) {
+					cpu_dcache_inv_range(va, rest);
+					cpu_l2cache_inv_range(va, rest);
+				} else if (do_inv) {
+					cpu_dcache_wbinv_range(va, rest);
+					cpu_l2cache_wbinv_range(va, rest);
+				} else if (!rd_only) {
+					cpu_dcache_wb_range(va, rest);
+					cpu_l2cache_wb_range(va, rest);
+				}
 			}
-			else {
-				cpu_dcache_wbinv_range(va, len);
-				pmap_l2cache_wbinv_range(pm, va, len);
-			}
-		} else if (!rd_only) {
-			cpu_dcache_wb_range(va, len);
-			pmap_l2cache_wb_range(pm, va, len);
+			len -= rest;
+			va += rest;
+
+			rest = MIN(PAGE_SIZE, len);
 		}
 	}
 }
@@ -1311,6 +1228,7 @@ pmap_idcache_wbinv_all(pmap_t pm)
 	}
 }
 
+#ifdef notyet
 static PMAP_INLINE void
 pmap_dcache_wbinv_all(pmap_t pm)
 {
@@ -1320,6 +1238,7 @@ pmap_dcache_wbinv_all(pmap_t pm)
 		cpu_l2cache_wbinv_all();
 	}
 }
+#endif
 
 /*
  * PTE_SYNC_CURRENT:
@@ -1914,7 +1833,7 @@ pmap_init(void)
 {
 	int shpgperproc = PMAP_SHPGPERPROC;
 
-	PDEBUG(1, printf("pmap_init: phys_start = %08x\n"));
+	PDEBUG(1, printf("pmap_init: phys_start = %08x\n", PHYSADDR));
 
 	/*
 	 * init the pv free list
@@ -2373,8 +2292,8 @@ pmap_bootstrap(vm_offset_t firstaddr, vm_offset_t lastaddr, struct pv_addr *l1pt
 	vm_size_t size;
 	int l1idx, l2idx, l2next = 0;
 
-	PDEBUG(1, printf("firstaddr = %08x, loadaddr = %08x\n",
-	    firstaddr, loadaddr));
+	PDEBUG(1, printf("firstaddr = %08x, lastaddr = %08x\n",
+	    firstaddr, lastaddr));
 	
 	virtual_avail = firstaddr;
 	kernel_pmap->pm_l1 = l1;
@@ -2903,14 +2822,14 @@ pmap_kenter_internal(vm_offset_t va, vm_offset_t pa, int flags)
 	if (pvzone != NULL && (m = vm_phys_paddr_to_vm_page(pa))) {
 		vm_page_lock_queues();
 		if (!TAILQ_EMPTY(&m->md.pv_list) || m->md.pv_kva) {
-				/* release vm_page lock for pv_entry UMA */
+			/* release vm_page lock for pv_entry UMA */
 			vm_page_unlock_queues();
 			if ((pve = pmap_get_pv_entry()) == NULL)
 				panic("pmap_kenter_internal: no pv entries");	
 			vm_page_lock_queues();
 			PMAP_LOCK(pmap_kernel());
 			pmap_enter_pv(m, pve, pmap_kernel(), va,
-					 PVF_WRITE | PVF_UNMAN);
+			    PVF_WRITE | PVF_UNMAN);
 			pmap_fix_cache(m, pmap_kernel(), va);
 			PMAP_UNLOCK(pmap_kernel());
 		} else {
@@ -3225,7 +3144,8 @@ pmap_remove_all(vm_page_t m)
 		 */
 		if (pmap_is_current(pv->pv_pmap)) {
 			cpu_dcache_inv_range(pv->pv_va, PAGE_SIZE);
-			cpu_l2cache_inv_range(pv->pv_va, PAGE_SIZE);
+			if (pmap_has_valid_mapping(pv->pv_pmap, pv->pv_va))
+				cpu_l2cache_inv_range(pv->pv_va, PAGE_SIZE);
 		}
 
 		if (pv->pv_flags & PVF_UNMAN) {
@@ -3512,9 +3432,10 @@ do_l2b_alloc:
 		if (pmap_is_current(pmap) &&
 		    (oflags & PVF_NC) == 0 &&
 		    (opte & L2_S_PROT_W) != 0 &&
-		    (prot & VM_PROT_WRITE) == 0) {
+		    (prot & VM_PROT_WRITE) == 0 &&
+		    (opte & L2_TYPE_MASK) != L2_TYPE_INV) {
 			cpu_dcache_wb_range(va, PAGE_SIZE);
-			pmap_l2cache_wb_range(pmap, va, PAGE_SIZE);
+			cpu_l2cache_wb_range(va, PAGE_SIZE);
 		}
 	} else {
 		/*
@@ -4251,7 +4172,7 @@ pmap_zero_page_idle(vm_page_t m)
  * pmap_clean_page()
  *
  * This is a local function used to work out the best strategy to clean
- * a single page referenced by its entry in the PV table. It's used by
+ * a single page referenced by its entry in the PV table. It should be used by
  * pmap_copy_page, pmap_zero page and maybe some others later on.
  *
  * Its policy is effectively:
@@ -4266,6 +4187,8 @@ pmap_zero_page_idle(vm_page_t m)
  * mapped at 0x00000000 a whole cache clean will be performed rather than
  * just the 1 page. Since this should not occur in everyday use and if it does
  * it will just result in not the most efficient clean for the page.
+ *
+ * We don't yet use this function but may want to.
  */
 static int
 pmap_clean_page(struct pv_entry *pv, boolean_t is_src)
@@ -4602,6 +4525,12 @@ pmap_mincore(pmap_t pmap, vm_offset_t addr)
 	printf("pmap_mincore()\n");
 	
 	return (0);
+}
+
+
+void
+pmap_sync_icache(pmap_t pm, vm_offset_t va, vm_size_t sz)
+{
 }
 
 

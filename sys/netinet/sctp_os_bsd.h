@@ -78,8 +78,6 @@ __FBSDID("$FreeBSD$");
 #include <netinet/ip_icmp.h>
 #include <netinet/icmp_var.h>
 
-#include <net/vnet.h>
-
 #ifdef IPSEC
 #include <netipsec/ipsec.h>
 #include <netipsec/key.h>
@@ -155,7 +153,6 @@ MALLOC_DECLARE(SCTP_M_SOCKOPT);
  *
  */
 #define USER_ADDR_NULL	(NULL)	/* FIX ME: temp */
-#define SCTP_LIST_EMPTY(list)	LIST_EMPTY(list)
 
 #if defined(SCTP_DEBUG)
 #define SCTPDBG(level, params...)					\
@@ -257,10 +254,9 @@ MALLOC_DECLARE(SCTP_M_SOCKOPT);
 /* SCTP_ZONE_INIT: initialize the zone */
 typedef struct uma_zone *sctp_zone_t;
 
-#define UMA_ZFLAG_FULL	0x0020
 #define SCTP_ZONE_INIT(zone, name, size, number) { \
 	zone = uma_zcreate(name, size, NULL, NULL, NULL, NULL, UMA_ALIGN_PTR,\
-		UMA_ZFLAG_FULL); \
+		0); \
 	uma_zone_set_max(zone, number); \
 }
 
@@ -481,12 +477,6 @@ sctp_get_mbuf_for_msg(unsigned int space_needed,
 #if defined(HAVE_SHA2)
 #include <crypto/sha2/sha2.h>
 #endif
-
-#include <sys/md5.h>
-/* map standard crypto API names */
-#define MD5_Init	MD5Init
-#define MD5_Update	MD5Update
-#define MD5_Final	MD5Final
 
 #endif
 

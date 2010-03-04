@@ -1224,6 +1224,7 @@ handle_reply(int fd, SVCXPRT *xprt)
 		goto done;
 
 	do {
+		fromlen = sizeof(ss);
 		inlen = recvfrom(fd, buffer, RPC_BUF_MAX, 0,
 			    (struct sockaddr *)&ss, &fromlen);
 	} while (inlen < 0 && errno == EINTR);

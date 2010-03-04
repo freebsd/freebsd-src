@@ -41,9 +41,7 @@
 #include SESINC
 
 int
-main(argc, argv)
-	int argc;
-	char **argv;
+main(int argc, char **argv)
 {
 	unsigned int nobj;
 	int fd;

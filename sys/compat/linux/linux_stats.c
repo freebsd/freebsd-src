@@ -58,8 +58,6 @@ __FBSDID("$FreeBSD$");
 #include <compat/linux/linux_util.h>
 #include <compat/linux/linux_file.h>
 
-#include <security/mac/mac_framework.h>
-
 static void
 translate_vnhook_major_minor(struct vnode *vp, struct stat *sb)
 {

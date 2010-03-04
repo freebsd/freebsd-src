@@ -435,10 +435,6 @@ aac_pci_attach(device_t dev)
 		fwprintf(sc, HBA_FLAGS_DBG_INIT_B, "set hardware up for StrongARM");
 		sc->aac_if = aac_sa_interface;
 		break;
-	case AAC_HWIF_FALCON:
-		fwprintf(sc, HBA_FLAGS_DBG_INIT_B, "set hardware up for Falcon/PPC");
-		sc->aac_if = aac_fa_interface;
-		break;
 	case AAC_HWIF_RKT:
 		fwprintf(sc, HBA_FLAGS_DBG_INIT_B, "set hardware up for Rocket/MIPS");
 		sc->aac_if = aac_rkt_interface;

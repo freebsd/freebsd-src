@@ -5,7 +5,6 @@ SRCS=	main.c perform.c
 
 CFLAGS+= -I${.CURDIR}/../lib
 
-WARNS?=	6
 WFORMAT?=	1
 
 DPADD=	${LIBINSTALL} ${LIBMD}

@@ -307,7 +307,7 @@ add_pax_attr(struct archive_string *as, const char *key, const char *value)
 	 * PAX attributes have the following layout:
 	 *     <len> <space> <key> <=> <value> <nl>
 	 */
-	len = 1 + strlen(key) + 1 + strlen(value) + 1;
+	len = 1 + (int)strlen(key) + 1 + (int)strlen(value) + 1;
 
 	/*
 	 * The <len> field includes the length of the <len> field, so
@@ -362,7 +362,7 @@ archive_write_pax_header_xattrs(struct pax *pax, struct archive_entry *entry)
 		url_encoded_name = url_encode(name);
 		if (url_encoded_name != NULL) {
 			/* Convert narrow-character to wide-character. */
-			int wcs_length = strlen(url_encoded_name);
+			size_t wcs_length = strlen(url_encoded_name);
 			wcs_name = (wchar_t *)malloc((wcs_length + 1) * sizeof(wchar_t));
 			if (wcs_name == NULL)
 				__archive_errx(1, "No memory for xattr conversion");
@@ -479,7 +479,7 @@ archive_write_pax_header(struct archive_write *a,
 	path = archive_entry_pathname(entry_main);
 	path_w = archive_entry_pathname_w(entry_main);
 	if (path != NULL && path_w == NULL) {
-		archive_set_error(&a->archive, EILSEQ,
+		archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
 		    "Can't translate pathname '%s' to UTF-8", path);
 		ret = ARCHIVE_WARN;
 		hdrcharset = "BINARY";
@@ -487,7 +487,7 @@ archive_write_pax_header(struct archive_write *a,
 	uname = archive_entry_uname(entry_main);
 	uname_w = archive_entry_uname_w(entry_main);
 	if (uname != NULL && uname_w == NULL) {
-		archive_set_error(&a->archive, EILSEQ,
+		archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
 		    "Can't translate uname '%s' to UTF-8", uname);
 		ret = ARCHIVE_WARN;
 		hdrcharset = "BINARY";
@@ -495,7 +495,7 @@ archive_write_pax_header(struct archive_write *a,
 	gname = archive_entry_gname(entry_main);
 	gname_w = archive_entry_gname_w(entry_main);
 	if (gname != NULL && gname_w == NULL) {
-		archive_set_error(&a->archive, EILSEQ,
+		archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
 		    "Can't translate gname '%s' to UTF-8", gname);
 		ret = ARCHIVE_WARN;
 		hdrcharset = "BINARY";
@@ -509,7 +509,7 @@ archive_write_pax_header(struct archive_write *a,
 			linkpath_w = archive_entry_symlink_w(entry_main);
 	}
 	if (linkpath != NULL && linkpath_w == NULL) {
-		archive_set_error(&a->archive, EILSEQ,
+		archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
 		    "Can't translate linkpath '%s' to UTF-8", linkpath);
 		ret = ARCHIVE_WARN;
 		hdrcharset = "BINARY";
@@ -625,7 +625,7 @@ archive_write_pax_header(struct archive_write *a,
 	}
 
 	/* If numeric GID is too large, add 'gid' to pax extended attrs. */
-	if (archive_entry_gid(entry_main) >= (1 << 18)) {
+	if ((unsigned int)archive_entry_gid(entry_main) >= (1 << 18)) {
 		add_pax_attr_int(&(pax->pax_header), "gid",
 		    archive_entry_gid(entry_main));
 		need_extension = 1;
@@ -650,7 +650,7 @@ archive_write_pax_header(struct archive_write *a,
 	}
 
 	/* If numeric UID is too large, add 'uid' to pax extended attrs. */
-	if (archive_entry_uid(entry_main) >= (1 << 18)) {
+	if ((unsigned int)archive_entry_uid(entry_main) >= (1 << 18)) {
 		add_pax_attr_int(&(pax->pax_header), "uid",
 		    archive_entry_uid(entry_main));
 		need_extension = 1;
@@ -819,7 +819,7 @@ archive_write_pax_header(struct archive_write *a,
 		add_pax_attr_int(&(pax->pax_header), "SCHILY.dev",
 		    archive_entry_dev(entry_main));
 		add_pax_attr_int(&(pax->pax_header), "SCHILY.ino",
-		    archive_entry_ino(entry_main));
+		    archive_entry_ino64(entry_main));
 		add_pax_attr_int(&(pax->pax_header), "SCHILY.nlink",
 		    archive_entry_nlink(entry_main));
 
@@ -887,7 +887,6 @@ archive_write_pax_header(struct archive_write *a,
 		uid_t uid;
 		gid_t gid;
 		mode_t mode;
-		long ns;
 
 		pax_attr_entry = archive_entry_new();
 		p = archive_entry_pathname(entry_main);
@@ -897,12 +896,12 @@ archive_write_pax_header(struct archive_write *a,
 		    archive_strlen(&(pax->pax_header)));
 		/* Copy uid/gid (but clip to ustar limits). */
 		uid = archive_entry_uid(entry_main);
-		if (uid >= 1 << 18)
-			uid = (1 << 18) - 1;
+		if ((unsigned int)uid >= 1 << 18)
+			uid = (uid_t)(1 << 18) - 1;
 		archive_entry_set_uid(pax_attr_entry, uid);
 		gid = archive_entry_gid(entry_main);
-		if (gid >= 1 << 18)
-			gid = (1 << 18) - 1;
+		if ((unsigned int)gid >= 1 << 18)
+			gid = (gid_t)(1 << 18) - 1;
 		archive_entry_set_gid(pax_attr_entry, gid);
 		/* Copy mode over (but not setuid/setgid bits) */
 		mode = archive_entry_mode(entry_main);
@@ -925,17 +924,12 @@ archive_write_pax_header(struct archive_write *a,
 
 		/* Copy mtime, but clip to ustar limits. */
 		s = archive_entry_mtime(entry_main);
-		ns = archive_entry_mtime_nsec(entry_main);
-		if (s < 0) { s = 0; ns = 0; }
-		if (s > 0x7fffffff) { s = 0x7fffffff; ns = 0; }
-		archive_entry_set_mtime(pax_attr_entry, s, ns);
+		if (s < 0) { s = 0; }
+		if (s >= 0x7fffffff) { s = 0x7fffffff; }
+		archive_entry_set_mtime(pax_attr_entry, s, 0);
 
-		/* Ditto for atime. */
-		s = archive_entry_atime(entry_main);
-		ns = archive_entry_atime_nsec(entry_main);
-		if (s < 0) { s = 0; ns = 0; }
-		if (s > 0x7fffffff) { s = 0x7fffffff; ns = 0; }
-		archive_entry_set_atime(pax_attr_entry, s, ns);
+		/* Standard ustar doesn't support atime. */
+		archive_entry_set_atime(pax_attr_entry, 0, 0);
 
 		/* Standard ustar doesn't support ctime. */
 		archive_entry_set_ctime(pax_attr_entry, 0, 0);
@@ -949,7 +943,8 @@ archive_write_pax_header(struct archive_write *a,
 		if (r != 0) {
 			const char *msg = "archive_write_pax_header: "
 			    "'x' header failed?!  This can't happen.\n";
-			write(2, msg, strlen(msg));
+			size_t u = write(2, msg, strlen(msg));
+			(void)u; /* UNUSED */
 			exit(1);
 		}
 		r = (a->compressor.write)(a, paxbuff, 512);
@@ -1030,7 +1025,7 @@ build_ustar_entry_name(char *dest, const char *src, size_t src_length,
 	char *p;
 	int need_slash = 0; /* Was there a trailing slash? */
 	size_t suffix_length = 99;
-	int insert_length;
+	size_t insert_length;
 
 	/* Length of additional dir element to be added. */
 	if (insert == NULL)
@@ -1124,7 +1119,7 @@ build_ustar_entry_name(char *dest, const char *src, size_t src_length,
 	p += filename_end - filename;
 	if (need_slash)
 		*p++ = '/';
-	*p++ = '\0';
+	*p = '\0';
 
 	return (dest);
 }
@@ -1215,13 +1210,11 @@ build_pax_attribute_name(char *dest, const char *src)
 static int
 archive_write_pax_finish(struct archive_write *a)
 {
-	struct pax *pax;
 	int r;
 
 	if (a->compressor.write == NULL)
 		return (ARCHIVE_OK);
 
-	pax = (struct pax *)a->format_data;
 	r = write_nulls(a, 512 * 2);
 	return (r);
 }
@@ -1256,7 +1249,8 @@ archive_write_pax_finish_entry(struct archive_write *a)
 static int
 write_nulls(struct archive_write *a, size_t padding)
 {
-	int ret, to_write;
+	int ret;
+	size_t to_write;
 
 	while (padding > 0) {
 		to_write = padding < a->null_length ? padding : a->null_length;
@@ -1387,6 +1381,6 @@ base64_encode(const char *s, size_t len)
 		break;
 	}
 	/* Add trailing NUL character so output is a valid C string. */
-	*d++ = '\0';
+	*d = '\0';
 	return (out);
 }

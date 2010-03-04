@@ -13,27 +13,19 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
 #include <sys/sysctl.h>
-#include <string.h>
 
 int
-sysctlbyname(const char *name, void *oldp, size_t *oldlenp, void *newp,
-	     size_t newlen)
+sysctlbyname(const char *name, void *oldp, size_t *oldlenp,
+    const void *newp, size_t newlen)
 {
-	int name2oid_oid[2];
 	int real_oid[CTL_MAXNAME+2];
 	int error;
 	size_t oidlen;
 
-	name2oid_oid[0] = 0;	/* This is magic & undocumented! */
-	name2oid_oid[1] = 3;
-
-	oidlen = sizeof(real_oid);
-	error = sysctl(name2oid_oid, 2, real_oid, &oidlen, (void *)name,
-		       strlen(name));
+	oidlen = sizeof(real_oid) / sizeof(int);
+	error = sysctlnametomib(name, real_oid, &oidlen);
 	if (error < 0) 
-		return error;
-	oidlen /= sizeof (int);
+		return (error);
 	error = sysctl(real_oid, oidlen, oldp, oldlenp, newp, newlen);
 	return (error);
 }
-

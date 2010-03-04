@@ -25,7 +25,7 @@
 .\" $FreeBSD$
 .\"
 .Dd April 3, 2008
-.Dt mctest 1
+.Dt MCTEST 1
 .Os
 .Sh NAME
 .Nm mctest
@@ -40,29 +40,34 @@
 .Op Fl t Ar inter-packet gap
 .Op Fl M Ar number of clients (source only)
 .Op Fl m Ar my client number (sink only)
-.Op Fl r 
+.Op Fl r
 .Sh DESCRIPTION
-The 
+The
 .Nm
-command implements a multicast test which involved a source 
-and a sink.  The source sends packets to a pre-configured 
-multicast address over the interface given as a command line 
-argument. The sink listens for multicast packets, records 
-the time at which they're received and then reflects them back
-over unicast to the source.  When the source has captured all
+command implements a multicast test which involves a source
+and a sink.
+The source sends packets to a pre-configured
+multicast address over the interface given as a command line
+argument.
+The sink listens for multicast packets, records
+the time at which they are received and then reflects them back
+over unicast to the source.
+When the source has captured all
 the reflected packets it prints out the round trip time of each.
 .Pp
 The source prints out the round trip time of packets sent to the
-sinks.  The sink prints out the time between the packets received.
+sinks.
+The sink prints out the time between the packets received.
 .Pp
 The options are as follows:
-.Bl -tag -width ".Fl d Ar argument"
+.Bl -tag -width ".Fl i Ar interface"
 .It Fl i Ar interface
-Network interface, which can be found with ifconfig(1).
+Network interface, which can be found with
+.Xr ifconfig 8 .
 .It Fl g Ar group
-Multicast group
+Multicast group.
 .It Fl b Ar base port
-Port on which to listen
+Port on which to listen.
 .It Fl s Ar size
 Packet size in bytes.
 .It Fl n Ar number
@@ -70,14 +75,15 @@ Number of packets.
 .It Fl t Ar gap
 Inter-packet gap in nanoseconds.
 .It Fl M Ar clients
-The number of clients that are listening
+The number of clients that are listening.
 .It Fl m Ar my number
 The client's number 0, 1, etc.
 .It Fl r
 This version of
 .Nm
-is the receiver aka the sink.  This option MUST
-only be used with one copy of the program at a time.  
+is the receiver aka the sink.
+This option MUST
+only be used with one copy of the program at a time.
 .El
 .Sh EXAMPLES
 The following is an example of a typical usage
@@ -92,14 +98,15 @@ Sink
 .Pp
 Send 100 packets of 1024 bytes, with an inter-packet gap of 1 nanosecond.
 .Pp
-Gaps are measured with 
+Gaps are measured with
 .Xr nanosleep 2 ,
 and so are not accurate down to nanoseconds
-but depend on the setting of kern.hz.  
+but depend on the setting of
+.Va kern.hz .
 .Sh SEE ALSO
-.Xr ifconfig 8 ,
 .Xr netstat 1 ,
-.Xr nanosleep 2 .
+.Xr nanosleep 2 ,
+.Xr ifconfig 8
 .Sh HISTORY
 The
 .Nm
@@ -110,4 +117,5 @@ This
 manual page was written by
 .An George V. Neville-Neil Aq gnn@FreeBSD.org .
 .Sh BUGS
-Should be reported to the author or to net@freebsd.org.
+Should be reported to the author or to
+.Aq net@FreeBSD.org .

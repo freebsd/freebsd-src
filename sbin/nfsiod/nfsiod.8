@@ -28,7 +28,7 @@
 .\"     From: @(#)nfsiod.8	8.2 (Berkeley) 2/22/94
 .\" $FreeBSD$
 .\"
-.Dd September 22, 1994
+.Dd December 26, 2009
 .Dt NFSIOD 8
 .Os
 .Sh NAME
@@ -42,33 +42,39 @@ asynchronous I/O server
 .Sh DESCRIPTION
 The
 .Nm
-utility is a kernel process which runs on an
+utility controls the maximum number of
+.Nm
+kernel processes which run on an
 .Tn NFS
 client machine to service asynchronous I/O requests to its server.
-It improves performance but is not required for correct operation.
+Having
+.Nm
+kernel processes
+improves performance but is not required for correct operation.
 .Pp
-This program controls the maximum number of processes that the kernel runs.
-.Pp
-The options are as follows:
+The option is as follows:
 .Bl -tag -width indent
 .It Fl n
-Specify how many servers are permitted to be started.
+Specify how many processes are permitted to be started.
 .El
 .Pp
-A client should run enough daemons to handle its maximum
+Without an option,
+.Nm
+displays the current settings.
+A client should allow enough number of processes to handle its maximum
 level of concurrency, typically four to six.
 .Pp
 If
 .Nm
 detects that the running kernel does not include
 .Tn NFS
-support, it will attempt to load a loadable kernel module containing
+support, it will attempt to load a kernel module containing
 .Tn NFS
 code, using
 .Xr kldload 2 .
 If this fails, or no
 .Tn NFS
-KLD was available,
+module was available,
 .Nm
 exits with an error.
 .Sh EXIT STATUS
@@ -85,3 +91,10 @@ The
 .Nm
 utility first appeared in
 .Bx 4.4 .
+.Pp
+Starting with
+.Fx 5.0 ,
+the utility no longer starts daemons, but only serves as a vfs
+loader and
+.Xr sysctl 3
+wrapper.

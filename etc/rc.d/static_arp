@@ -34,6 +34,7 @@
 # KEYWORD: nojail
 
 . /etc/rc.subr
+. /etc/network.subr
 
 name="static_arp"
 start_cmd="static_arp_start"

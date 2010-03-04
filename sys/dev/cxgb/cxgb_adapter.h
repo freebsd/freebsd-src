@@ -46,6 +46,7 @@ $FreeBSD$
 #include <net/if.h>
 #include <net/if_media.h>
 #include <net/if_dl.h>
+#include <netinet/tcp_lro.h>
 
 #include <machine/bus.h>
 #include <machine/resource.h>
@@ -57,10 +58,6 @@ $FreeBSD$
 #include <cxgb_osdep.h>
 #include <t3cdev.h>
 #include <sys/mbufq.h>
-
-#ifdef LRO_SUPPORTED
-#include <netinet/tcp_lro.h>
-#endif
 
 struct adapter;
 struct sge_qset;
@@ -136,7 +133,6 @@ enum {
 };
 #define IS_DOOMED(p)	(p->flags & DOOMED)
 #define SET_DOOMED(p)	do {p->flags |= DOOMED;} while (0)
-#define DOOMED(p)	(p->flags & DOOMED)
 #define IS_BUSY(sc)	(sc->flags & CXGB_BUSY)
 #define SET_BUSY(sc)	do {sc->flags |= CXGB_BUSY;} while (0)
 #define CLR_BUSY(sc)	do {sc->flags &= ~CXGB_BUSY;} while (0)
@@ -157,12 +153,10 @@ enum { TXQ_ETH = 0,
 #define WR_LEN (WR_FLITS * 8)
 #define PIO_LEN (WR_LEN - sizeof(struct cpl_tx_pkt_lso))
 
-#ifdef LRO_SUPPORTED
 struct lro_state {
 	unsigned short enabled;
 	struct lro_ctrl ctrl;
 };
-#endif
 
 #define RX_BUNDLE_SIZE 8
 
@@ -285,9 +279,7 @@ enum {
 struct sge_qset {
 	struct sge_rspq		rspq;
 	struct sge_fl		fl[SGE_RXQ_PER_SET];
-#ifdef LRO_SUPPORTED
 	struct lro_state        lro;
-#endif
 	struct sge_txq		txq[SGE_TXQ_PER_SET];
 	uint32_t                txq_stopped;       /* which Tx queues are stopped */
 	uint64_t                port_stats[SGE_PSTAT_MAX];
@@ -360,8 +352,6 @@ struct adapter {
 	struct taskqueue	*tq;
 	struct callout		cxgb_tick_ch;
 	struct callout		sge_timer_ch;
-
-	unsigned int		check_task_cnt;
 
 	/* Register lock for use by the hardware layer */
 	struct mtx		mdio_lock;
@@ -500,7 +490,7 @@ int t3_os_find_pci_capability(adapter_t *adapter, int cap);
 int t3_os_pci_save_state(struct adapter *adapter);
 int t3_os_pci_restore_state(struct adapter *adapter);
 void t3_os_link_changed(adapter_t *adapter, int port_id, int link_status,
-			int speed, int duplex, int fc);
+			int speed, int duplex, int fc, int mac_was_reset);
 void t3_os_phymod_changed(struct adapter *adap, int port_id);
 void t3_sge_err_intr_handler(adapter_t *adapter);
 int t3_offload_tx(struct t3cdev *, struct mbuf *);

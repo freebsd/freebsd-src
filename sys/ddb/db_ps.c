@@ -136,7 +136,7 @@ db_ps(db_expr_t addr, boolean_t hasaddr, db_expr_t count, char *modif)
 					if (TD_ON_LOCK(td))
 						lflag++;
 					if (TD_IS_SLEEPING(td)) {
-						if (!td->td_flags & TDF_SINTR)
+						if (!(td->td_flags & TDF_SINTR))
 							dflag++;
 						else
 							sflag++;
@@ -171,7 +171,7 @@ db_ps(db_expr_t addr, boolean_t hasaddr, db_expr_t count, char *modif)
 		state[1] = '\0';
 
 		/* Additional process state flags. */
-		if (!p->p_flag & P_INMEM)
+		if (!(p->p_flag & P_INMEM))
 			strlcat(state, "W", sizeof(state));
 		if (p->p_flag & P_TRACED)
 			strlcat(state, "X", sizeof(state));
@@ -189,13 +189,19 @@ db_ps(db_expr_t addr, boolean_t hasaddr, db_expr_t count, char *modif)
 		if (cred != NULL && jailed(cred))
 			strlcat(state, "J", sizeof(state));
 		db_printf(" %-6.6s ", state);
-		if (p->p_flag & P_HADTHREADS)
+		if (p->p_flag & P_HADTHREADS) {
 #ifdef __LP64__
-			db_printf(" (threaded)                  %s\n",
-			    p->p_comm);
+			db_printf(" (threaded)                  ");
 #else
-			db_printf(" (threaded)          %s\n", p->p_comm);
+			db_printf(" (threaded)          ");
 #endif
+			if (p->p_flag & P_SYSTEM)
+				db_printf("[");
+			db_printf("%s", p->p_comm);
+			if (p->p_flag & P_SYSTEM)
+				db_printf("]");
+			db_printf("\n");
+		}
 		FOREACH_THREAD_IN_PROC(p, td) {
 			dumpthread(p, td, p->p_flag & P_HADTHREADS);
 			if (db_pager_quit)

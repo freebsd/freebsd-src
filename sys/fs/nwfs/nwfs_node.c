@@ -151,7 +151,7 @@ loop:
 rescan:
 	if (nwfs_hashlookup(nmp, fid, &np) == 0) {
 		vp = NWTOV(np);
-		mtx_lock(&vp->v_interlock);
+		VI_LOCK(vp);
 		sx_xunlock(&nwhashlock);
 		if (vget(vp, LK_EXCLUSIVE | LK_INTERLOCK, curthread))
 			goto loop;

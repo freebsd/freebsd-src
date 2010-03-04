@@ -73,6 +73,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/types.h>
 #include <sys/systm.h>
 
+#include "opt_cputype.h"
+
 #include <machine/cpuinfo.h>
 #include <machine/cache.h>
 
@@ -81,6 +83,7 @@ struct mips_cache_ops mips_cache_ops;
 void
 mips_config_cache(struct mips_cpuinfo * cpuinfo)
 {
+
 	switch (cpuinfo->l1.ic_linesize) {
 	case 16:
 		mips_cache_ops.mco_icache_sync_all = mipsNN_icache_sync_all_16;
@@ -223,7 +226,9 @@ mips_config_cache(struct mips_cpuinfo * cpuinfo)
 #endif
 
 	/* Check that all cache ops are set up. */
-	if (mips_picache_size || 1) {   /* XXX- must have primary Icache */
+	/* must have primary Icache */
+	if (cpuinfo->l1.ic_size) {   
+		
 		if (!mips_cache_ops.mco_icache_sync_all)
 			panic("no icache_sync_all cache op");
 		if (!mips_cache_ops.mco_icache_sync_range)
@@ -231,7 +236,8 @@ mips_config_cache(struct mips_cpuinfo * cpuinfo)
 		if (!mips_cache_ops.mco_icache_sync_range_index)
 			panic("no icache_sync_range_index cache op");
 	}
-	if (mips_pdcache_size || 1) {   /* XXX- must have primary Icache */
+	/* must have primary Dcache */
+	if (cpuinfo->l1.dc_size) {
 		if (!mips_cache_ops.mco_pdcache_wbinv_all)
 			panic("no pdcache_wbinv_all");
 		if (!mips_cache_ops.mco_pdcache_wbinv_range)

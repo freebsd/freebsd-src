@@ -15,6 +15,8 @@ CFLAGS+=-DNETINET6
 # User customizations to the sendmail build environment
 CFLAGS+=${SENDMAIL_CFLAGS}
 
+WARNS?=	2
+
 LIB=	sm
 
 SRCS+=	sm_os.h

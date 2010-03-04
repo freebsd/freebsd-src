@@ -79,6 +79,8 @@ static int uhub_debug = 0;
 SYSCTL_NODE(_hw_usb, OID_AUTO, uhub, CTLFLAG_RW, 0, "USB HUB");
 SYSCTL_INT(_hw_usb_uhub, OID_AUTO, debug, CTLFLAG_RW, &uhub_debug, 0,
     "Debug level");
+
+TUNABLE_INT("hw.usb.uhub.debug", &uhub_debug);
 #endif
 
 #if USB_HAVE_POWERD
@@ -316,12 +318,13 @@ repeat:
 	if (err) {
 		goto error;
 	}
-	/* detach any existing devices */
+	/* check if there is a child */
 
-	if (child) {
-		usb_free_device(child,
-		    USB_UNCFG_FLAG_FREE_SUBDEV |
-		    USB_UNCFG_FLAG_FREE_EP0);
+	if (child != NULL) {
+		/*
+		 * Free USB device and all subdevices, if any.
+		 */
+		usb_free_device(child, 0);
 		child = NULL;
 	}
 	/* get fresh status */
@@ -382,7 +385,7 @@ repeat:
 		    (!(sc->sc_st.port_status & UPS_CURRENT_CONNECT_STATUS))) {
 			if (timeout) {
 				DPRINTFN(0, "giving up port reset "
-				    "- device vanished!\n");
+				    "- device vanished\n");
 				goto error;
 			}
 			timeout = 1;
@@ -432,16 +435,17 @@ repeat:
 	child = usb_alloc_device(sc->sc_dev, udev->bus, udev,
 	    udev->depth + 1, portno - 1, portno, speed, mode);
 	if (child == NULL) {
-		DPRINTFN(0, "could not allocate new device!\n");
+		DPRINTFN(0, "could not allocate new device\n");
 		goto error;
 	}
 	return (0);			/* success */
 
 error:
-	if (child) {
-		usb_free_device(child,
-		    USB_UNCFG_FLAG_FREE_SUBDEV |
-		    USB_UNCFG_FLAG_FREE_EP0);
+	if (child != NULL) {
+		/*
+		 * Free USB device and all subdevices, if any.
+		 */
+		usb_free_device(child, 0);
 		child = NULL;
 	}
 	if (err == 0) {
@@ -707,14 +711,14 @@ uhub_attach(device_t dev)
 	    parent_hub->flags.self_powered : 0);
 
 	if (udev->depth > USB_HUB_MAX_DEPTH) {
-		DPRINTFN(0, "hub depth, %d, exceeded. HUB ignored!\n",
+		DPRINTFN(0, "hub depth, %d, exceeded. HUB ignored\n",
 		    USB_HUB_MAX_DEPTH);
 		goto error;
 	}
 	if (!udev->flags.self_powered && parent_hub &&
 	    (!parent_hub->flags.self_powered)) {
 		DPRINTFN(0, "bus powered HUB connected to "
-		    "bus powered HUB. HUB ignored!\n");
+		    "bus powered HUB. HUB ignored\n");
 		goto error;
 	}
 	/* get HUB descriptor */
@@ -736,11 +740,11 @@ uhub_attach(device_t dev)
 		goto error;
 	}
 	if (hubdesc.bNbrPorts != nports) {
-		DPRINTFN(0, "number of ports changed!\n");
+		DPRINTFN(0, "number of ports changed\n");
 		goto error;
 	}
 	if (nports == 0) {
-		DPRINTFN(0, "portless HUB!\n");
+		DPRINTFN(0, "portless HUB\n");
 		goto error;
 	}
 	hub = malloc(sizeof(hub[0]) + (sizeof(hub->ports[0]) * nports),
@@ -780,7 +784,7 @@ uhub_attach(device_t dev)
 	}
 	if (err) {
 		DPRINTFN(0, "cannot setup interrupt transfer, "
-		    "errstr=%s!\n", usbd_errstr(err));
+		    "errstr=%s\n", usbd_errstr(err));
 		goto error;
 	}
 	/* wait with power off for a while */
@@ -888,12 +892,14 @@ uhub_detach(device_t dev)
 	struct usb_device *child;
 	uint8_t x;
 
-	/* detach all children first */
-	bus_generic_detach(dev);
-
 	if (hub == NULL) {		/* must be partially working */
 		return (0);
 	}
+
+	/* Make sure interrupt transfer is gone. */
+	usbd_transfer_unsetup(sc->sc_xfer, UHUB_N_TRANSFER);
+
+	/* Detach all ports */
 	for (x = 0; x != hub->nports; x++) {
 
 		child = usb_bus_port_get_device(sc->sc_udev->bus, hub->ports + x);
@@ -901,15 +907,12 @@ uhub_detach(device_t dev)
 		if (child == NULL) {
 			continue;
 		}
-		/*
-		 * Subdevices are not freed, because the caller of
-		 * uhub_detach() will do that.
-		 */
-		usb_free_device(child,
-		    USB_UNCFG_FLAG_FREE_EP0);
-	}
 
-	usbd_transfer_unsetup(sc->sc_xfer, UHUB_N_TRANSFER);
+		/*
+		 * Free USB device and all subdevices, if any.
+		 */
+		usb_free_device(child, 0);
+	}
 
 	free(hub, M_USBDEV);
 	sc->sc_udev->hub = NULL;
@@ -984,9 +987,18 @@ static int
 uhub_child_location_string(device_t parent, device_t child,
     char *buf, size_t buflen)
 {
-	struct uhub_softc *sc = device_get_softc(parent);
-	struct usb_hub *hub = sc->sc_udev->hub;
+	struct uhub_softc *sc;
+	struct usb_hub *hub;
 	struct hub_result res;
+
+	if (!device_is_attached(parent)) {
+		if (buflen)
+			buf[0] = 0;
+		return (0);
+	}
+
+	sc = device_get_softc(parent);
+	hub = sc->sc_udev->hub;
 
 	mtx_lock(&Giant);
 	uhub_find_iface_index(hub, child, &res);
@@ -1009,10 +1021,19 @@ static int
 uhub_child_pnpinfo_string(device_t parent, device_t child,
     char *buf, size_t buflen)
 {
-	struct uhub_softc *sc = device_get_softc(parent);
-	struct usb_hub *hub = sc->sc_udev->hub;
+	struct uhub_softc *sc;
+	struct usb_hub *hub;
 	struct usb_interface *iface;
 	struct hub_result res;
+
+	if (!device_is_attached(parent)) {
+		if (buflen)
+			buf[0] = 0;
+		return (0);
+	}
+
+	sc = device_get_softc(parent);
+	hub = sc->sc_udev->hub;
 
 	mtx_lock(&Giant);
 	uhub_find_iface_index(hub, child, &res);
@@ -1087,43 +1108,62 @@ done:
  *   The best Transaction Translation slot for an interrupt endpoint.
  *------------------------------------------------------------------------*/
 static uint8_t
-usb_intr_find_best_slot(usb_size_t *ptr, uint8_t start, uint8_t end)
+usb_intr_find_best_slot(usb_size_t *ptr, uint8_t start,
+    uint8_t end, uint8_t mask)
 {
-	usb_size_t max = 0 - 1;
+	usb_size_t min = 0 - 1;
+	usb_size_t sum;
 	uint8_t x;
 	uint8_t y;
+	uint8_t z;
 
 	y = 0;
 
 	/* find the last slot with lesser used bandwidth */
 
 	for (x = start; x < end; x++) {
-		if (max >= ptr[x]) {
-			max = ptr[x];
+
+		sum = 0;
+
+		/* compute sum of bandwidth */
+		for (z = x; z < end; z++) {
+			if (mask & (1U << (z - x)))
+				sum += ptr[z];
+		}
+
+		/* check if the current multi-slot is more optimal */
+		if (min >= sum) {
+			min = sum;
 			y = x;
 		}
+
+		/* check if the mask is about to be shifted out */
+		if (mask & (1U << (end - 1 - x)))
+			break;
 	}
 	return (y);
 }
 
 /*------------------------------------------------------------------------*
- *	usb_intr_schedule_adjust
+ *	usb_hs_bandwidth_adjust
  *
  * This function will update the bandwith usage for the microframe
  * having index "slot" by "len" bytes. "len" can be negative.  If the
  * "slot" argument is greater or equal to "USB_HS_MICRO_FRAMES_MAX"
  * the "slot" argument will be replaced by the slot having least used
- * bandwidth.
+ * bandwidth. The "mask" argument is used for multi-slot allocations.
  *
  * Returns:
- *   The slot on which the bandwidth update was done.
+ *    The slot in which the bandwidth update was done: 0..7
  *------------------------------------------------------------------------*/
-uint8_t
-usb_intr_schedule_adjust(struct usb_device *udev, int16_t len, uint8_t slot)
+static uint8_t
+usb_hs_bandwidth_adjust(struct usb_device *udev, int16_t len,
+    uint8_t slot, uint8_t mask)
 {
 	struct usb_bus *bus = udev->bus;
 	struct usb_hub *hub;
 	enum usb_dev_speed speed;
+	uint8_t x;
 
 	USB_BUS_LOCK_ASSERT(bus, MA_OWNED);
 
@@ -1145,20 +1185,154 @@ usb_intr_schedule_adjust(struct usb_device *udev, int16_t len, uint8_t slot)
 		hub = udev->parent_hs_hub->hub;
 		if (slot >= USB_HS_MICRO_FRAMES_MAX) {
 			slot = usb_intr_find_best_slot(hub->uframe_usage,
-			    USB_FS_ISOC_UFRAME_MAX, 6);
+			    USB_FS_ISOC_UFRAME_MAX, 6, mask);
 		}
-		hub->uframe_usage[slot] += len;
-		bus->uframe_usage[slot] += len;
+		for (x = slot; x < 8; x++) {
+			if (mask & (1U << (x - slot))) {
+				hub->uframe_usage[x] += len;
+				bus->uframe_usage[x] += len;
+			}
+		}
 		break;
 	default:
 		if (slot >= USB_HS_MICRO_FRAMES_MAX) {
 			slot = usb_intr_find_best_slot(bus->uframe_usage, 0,
-			    USB_HS_MICRO_FRAMES_MAX);
+			    USB_HS_MICRO_FRAMES_MAX, mask);
 		}
-		bus->uframe_usage[slot] += len;
+		for (x = slot; x < 8; x++) {
+			if (mask & (1U << (x - slot))) {
+				bus->uframe_usage[x] += len;
+			}
+		}
 		break;
 	}
 	return (slot);
+}
+
+/*------------------------------------------------------------------------*
+ *	usb_hs_bandwidth_alloc
+ *
+ * This function is a wrapper function for "usb_hs_bandwidth_adjust()".
+ *------------------------------------------------------------------------*/
+void
+usb_hs_bandwidth_alloc(struct usb_xfer *xfer)
+{
+	struct usb_device *udev;
+	uint8_t slot;
+	uint8_t mask;
+	uint8_t speed;
+
+	udev = xfer->xroot->udev;
+
+	if (udev->flags.usb_mode != USB_MODE_HOST)
+		return;		/* not supported */
+
+	xfer->endpoint->refcount_bw++;
+	if (xfer->endpoint->refcount_bw != 1)
+		return;		/* already allocated */
+
+	speed = usbd_get_speed(udev);
+
+	switch (xfer->endpoint->edesc->bmAttributes & UE_XFERTYPE) {
+	case UE_INTERRUPT:
+		/* allocate a microframe slot */
+
+		mask = 0x01;
+		slot = usb_hs_bandwidth_adjust(udev,
+		    xfer->max_frame_size, USB_HS_MICRO_FRAMES_MAX, mask);
+
+		xfer->endpoint->usb_uframe = slot;
+		xfer->endpoint->usb_smask = mask << slot;
+
+		if ((speed != USB_SPEED_FULL) &&
+		    (speed != USB_SPEED_LOW)) {
+			xfer->endpoint->usb_cmask = 0x00 ;
+		} else {
+			xfer->endpoint->usb_cmask = (-(0x04 << slot)) & 0xFE;
+		}
+		break;
+
+	case UE_ISOCHRONOUS:
+		switch (usbd_xfer_get_fps_shift(xfer)) {
+		case 0:
+			mask = 0xFF;
+			break;
+		case 1:
+			mask = 0x55;
+			break;
+		case 2:
+			mask = 0x11;
+			break;
+		default:
+			mask = 0x01;
+			break;
+		}
+
+		/* allocate a microframe multi-slot */
+
+		slot = usb_hs_bandwidth_adjust(udev,
+		    xfer->max_frame_size, USB_HS_MICRO_FRAMES_MAX, mask);
+
+		xfer->endpoint->usb_uframe = slot;
+		xfer->endpoint->usb_cmask = 0;
+		xfer->endpoint->usb_smask = mask << slot;
+		break;
+
+	default:
+		xfer->endpoint->usb_uframe = 0;
+		xfer->endpoint->usb_cmask = 0;
+		xfer->endpoint->usb_smask = 0;
+		break;
+	}
+
+	DPRINTFN(11, "slot=%d, mask=0x%02x\n", 
+	    xfer->endpoint->usb_uframe, 
+	    xfer->endpoint->usb_smask >> xfer->endpoint->usb_uframe);
+}
+
+/*------------------------------------------------------------------------*
+ *	usb_hs_bandwidth_free
+ *
+ * This function is a wrapper function for "usb_hs_bandwidth_adjust()".
+ *------------------------------------------------------------------------*/
+void
+usb_hs_bandwidth_free(struct usb_xfer *xfer)
+{
+	struct usb_device *udev;
+	uint8_t slot;
+	uint8_t mask;
+
+	udev = xfer->xroot->udev;
+
+	if (udev->flags.usb_mode != USB_MODE_HOST)
+		return;		/* not supported */
+
+	xfer->endpoint->refcount_bw--;
+	if (xfer->endpoint->refcount_bw != 0)
+		return;		/* still allocated */
+
+	switch (xfer->endpoint->edesc->bmAttributes & UE_XFERTYPE) {
+	case UE_INTERRUPT:
+	case UE_ISOCHRONOUS:
+
+		slot = xfer->endpoint->usb_uframe;
+		mask = xfer->endpoint->usb_smask;
+
+		/* free microframe slot(s): */ 	  
+		usb_hs_bandwidth_adjust(udev,
+		    -xfer->max_frame_size, slot, mask >> slot);
+
+		DPRINTFN(11, "slot=%d, mask=0x%02x\n", 
+		    slot, mask >> slot);
+
+		xfer->endpoint->usb_uframe = 0;
+		xfer->endpoint->usb_cmask = 0;
+		xfer->endpoint->usb_smask = 0;
+		break;
+
+	default:
+		break;
+	}
 }
 
 /*------------------------------------------------------------------------*
@@ -1750,7 +1924,7 @@ usb_dev_resume_peer(struct usb_device *udev)
 	err = usbd_req_clear_port_feature(udev->parent_hub,
 	    NULL, udev->port_no, UHF_PORT_SUSPEND);
 	if (err) {
-		DPRINTFN(0, "Resuming port failed!\n");
+		DPRINTFN(0, "Resuming port failed\n");
 		return;
 	}
 	/* resume settle time */
@@ -1798,7 +1972,7 @@ usb_dev_resume_peer(struct usb_device *udev)
 		    NULL, UF_DEVICE_REMOTE_WAKEUP);
 		if (err) {
 			DPRINTFN(0, "Clearing device "
-			    "remote wakeup failed: %s!\n",
+			    "remote wakeup failed: %s\n",
 			    usbd_errstr(err));
 		}
 	}
@@ -1868,7 +2042,7 @@ repeat:
 		    NULL, UF_DEVICE_REMOTE_WAKEUP);
 		if (err) {
 			DPRINTFN(0, "Setting device "
-			    "remote wakeup failed!\n");
+			    "remote wakeup failed\n");
 		}
 	}
 	USB_BUS_LOCK(udev->bus);

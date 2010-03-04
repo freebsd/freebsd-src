@@ -45,18 +45,14 @@ __FBSDID("$FreeBSD$");
 #include "un-namespace.h"
 
 int
-tcgetattr(fd, t)
-	int fd;
-	struct termios *t;
+tcgetattr(int fd, struct termios *t)
 {
 
 	return (_ioctl(fd, TIOCGETA, t));
 }
 
 int
-tcsetattr(fd, opt, t)
-	int fd, opt;
-	const struct termios *t;
+tcsetattr(int fd, int opt, const struct termios *t)
 {
 	struct termios localterm;
 
@@ -88,8 +84,7 @@ tcsetpgrp(int fd, pid_t pgrp)
 }
 
 pid_t
-tcgetpgrp(fd)
-	int fd;
+tcgetpgrp(int fd)
 {
 	int s;
 
@@ -123,25 +118,21 @@ tcsetsid(int fd, pid_t pid)
 }
 
 speed_t
-cfgetospeed(t)
-	const struct termios *t;
+cfgetospeed(const struct termios *t)
 {
 
 	return (t->c_ospeed);
 }
 
 speed_t
-cfgetispeed(t)
-	const struct termios *t;
+cfgetispeed(const struct termios *t)
 {
 
 	return (t->c_ispeed);
 }
 
 int
-cfsetospeed(t, speed)
-	struct termios *t;
-	speed_t speed;
+cfsetospeed(struct termios *t, speed_t speed)
 {
 
 	t->c_ospeed = speed;
@@ -149,9 +140,7 @@ cfsetospeed(t, speed)
 }
 
 int
-cfsetispeed(t, speed)
-	struct termios *t;
-	speed_t speed;
+cfsetispeed(struct termios *t, speed_t speed)
 {
 
 	t->c_ispeed = speed;
@@ -159,9 +148,7 @@ cfsetispeed(t, speed)
 }
 
 int
-cfsetspeed(t, speed)
-	struct termios *t;
-	speed_t speed;
+cfsetspeed(struct termios *t, speed_t speed)
 {
 
 	t->c_ispeed = t->c_ospeed = speed;
@@ -173,8 +160,7 @@ cfsetspeed(t, speed)
  * mode with no characters interpreted, 8-bit data path.
  */
 void
-cfmakeraw(t)
-	struct termios *t;
+cfmakeraw(struct termios *t)
 {
 
 	t->c_iflag &= ~(IMAXBEL|IXOFF|INPCK|BRKINT|PARMRK|ISTRIP|INLCR|IGNCR|ICRNL|IXON|IGNPAR);
@@ -188,8 +174,7 @@ cfmakeraw(t)
 }
 
 int
-tcsendbreak(fd, len)
-	int fd, len;
+tcsendbreak(int fd, int len __unused)
 {
 	struct timeval sleepytime;
 
@@ -204,8 +189,7 @@ tcsendbreak(fd, len)
 }
 
 int
-__tcdrain(fd)
-	int fd;
+__tcdrain(int fd)
 {
 	return (_ioctl(fd, TIOCDRAIN, 0));
 }
@@ -214,8 +198,7 @@ __weak_reference(__tcdrain, tcdrain);
 __weak_reference(__tcdrain, _tcdrain);
 
 int
-tcflush(fd, which)
-	int fd, which;
+tcflush(int fd, int which)
 {
 	int com;
 
@@ -237,8 +220,7 @@ tcflush(fd, which)
 }
 
 int
-tcflow(fd, action)
-	int fd, action;
+tcflow(int fd, int action)
 {
 	struct termios term;
 	u_char c;

@@ -2,6 +2,6 @@
 
 PROG = locale
 CFLAGS += -I${.CURDIR}/../../lib/libc/locale
-WARNS ?= 1
+WARNS ?= 3
 
 .include <bsd.prog.mk>

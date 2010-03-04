@@ -509,7 +509,6 @@ METHOD int bind_intr {
 	int		_cpu;
 } DEFAULT bus_generic_bind_intr;
 
-
 /**
  * @brief Allow (bus) drivers to specify the trigger mode and polarity
  * of the specified interrupt.
@@ -525,6 +524,25 @@ METHOD int config_intr {
 	enum intr_trigger _trig;
 	enum intr_polarity _pol;
 } DEFAULT bus_generic_config_intr;
+
+/**
+ * @brief Allow drivers to associate a description with an active
+ * interrupt handler.
+ *
+ * @param _dev		the parent device of @p _child
+ * @param _child	the device which allocated the resource
+ * @param _irq		the resource representing the interrupt
+ * @param _cookie	the cookie value returned when the interrupt
+ *			was originally registered
+ * @param _descr	the description to associate with the interrupt
+ */
+METHOD int describe_intr {
+	device_t	_dev;
+	device_t	_child;
+	struct resource *_irq;
+	void		*_cookie;
+	const char	*_descr;
+} DEFAULT bus_generic_describe_intr;
 
 /**
  * @brief Notify a (bus) driver about a child that the hints mechanism

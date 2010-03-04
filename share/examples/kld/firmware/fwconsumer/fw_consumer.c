@@ -36,7 +36,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/proc.h>
 #include <sys/module.h>
 
-static struct firmware *fp;
+static const struct firmware *fp;
 
 static int
 fw_consumer_modevent(module_t mod, int type, void *unused)

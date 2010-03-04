@@ -125,11 +125,7 @@
 #define	NFSPROC_T	struct thread
 #define	NFSDEV_T	dev_t
 #define	NFSSVCARGS	nfssvc_args
-#ifdef NFS4_ACL_EXTATTR_NAME
 #define	NFSACL_T	struct acl
-#else
-#define	NFSACL_T	void
-#endif
 
 /*
  * These should be defined as the types used for the corresponding VOP's

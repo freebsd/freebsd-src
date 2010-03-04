@@ -14,6 +14,8 @@ MAN=		libbsdxml.3
 CFLAGS+= 	-I${.CURDIR} -DHAVE_EXPAT_CONFIG_H
 CLEANFILES=	bsdxml.h bsdxml_external.h
 
+WARNS?=		2
+
 # OK, so it is not entirely unadultered: we ammend the COPYING
 # to point people to the right place, get rid of some VMS stuff
 # and use FreeBSD style indempotency #ifndefs. We also want to

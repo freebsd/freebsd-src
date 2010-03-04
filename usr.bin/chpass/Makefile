@@ -9,7 +9,6 @@ PROG=	chpass
 SRCS=	chpass.c edit.c field.c pw_scan.c table.c util.c
 BINOWN=	root
 BINMODE=4555
-WARNS?=	5
 .if ${MK_NIS} != "no"
 CFLAGS+= -DYP
 .endif

@@ -30,7 +30,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 25, 2009
+.Dd December 13, 2009
 .Dt YPSERV 8
 .Os
 .Sh NAME
@@ -408,6 +408,15 @@ in subprocesses, allowing the parent server process to go on handling
 other requests.)
 This makes it easier to trace the server with
 a debugging tool.
+.It Fl h Ar addr
+Specify a specific address to bind to for requests.  This option may be
+specified multiple times.  If no
+.Fl h
+option is specified,
+.Nm
+will bind to default passive address
+.Pq e.g. INADDR_ANY for IPv4
+for each transport.
 .It Fl P Ar port
 Force ypserv to bind to a specific TCP/UDP port, rather than selecting
 its own.

@@ -729,7 +729,7 @@ daclose(struct disk *dp)
 	if ((softc->quirks & DA_Q_NO_SYNC_CACHE) == 0) {
 		union	ccb *ccb;
 
-		ccb = cam_periph_getccb(periph, /*priority*/1);
+		ccb = cam_periph_getccb(periph, CAM_PRIORITY_NORMAL);
 
 		scsi_synchronize_cache(&ccb->csio,
 				       /*retries*/1,
@@ -813,19 +813,6 @@ dastrategy(struct bio *bp)
 
 	cam_periph_lock(periph);
 
-#if 0
-	/*
-	 * check it's not too big a transfer for our adapter
-	 */
-	scsi_minphys(bp,&sd_switch);
-#endif
-
-	/*
-	 * Mask interrupts so that the pack cannot be invalidated until
-	 * after we are in the queue.  Otherwise, we might not properly
-	 * clean up one of the buffers.
-	 */
-	
 	/*
 	 * If the device has been made invalid, error out
 	 */
@@ -843,7 +830,7 @@ dastrategy(struct bio *bp)
 	/*
 	 * Schedule ourselves for performing the work.
 	 */
-	xpt_schedule(periph, /* XXX priority */1);
+	xpt_schedule(periph, CAM_PRIORITY_NORMAL);
 	cam_periph_unlock(periph);
 
 	return;
@@ -872,8 +859,7 @@ dadump(void *arg, void *virtual, vm_offset_t physical, off_t offset, size_t leng
 	}
 
 	if (length > 0) {
-		periph->flags |= CAM_PERIPH_POLLED;
-		xpt_setup_ccb(&csio.ccb_h, periph->path, /*priority*/1);
+		xpt_setup_ccb(&csio.ccb_h, periph->path, CAM_PRIORITY_NORMAL);
 		csio.ccb_h.ccb_state = DA_CCB_DUMP;
 		scsi_read_write(&csio,
 				/*retries*/1,
@@ -898,7 +884,6 @@ dadump(void *arg, void *virtual, vm_offset_t physical, off_t offset, size_t leng
 			else
 				printf("status == 0x%x, scsi status == 0x%x\n",
 				       csio.ccb_h.status, csio.scsi_status);
-			periph->flags |= CAM_PERIPH_POLLED;
 			return(EIO);
 		}
 		cam_periph_unlock(periph);
@@ -910,7 +895,7 @@ dadump(void *arg, void *virtual, vm_offset_t physical, off_t offset, size_t leng
 	 */
 	if ((softc->quirks & DA_Q_NO_SYNC_CACHE) == 0) {
 
-		xpt_setup_ccb(&csio.ccb_h, periph->path, /*priority*/1);
+		xpt_setup_ccb(&csio.ccb_h, periph->path, CAM_PRIORITY_NORMAL);
 		csio.ccb_h.ccb_state = DA_CCB_DUMP;
 		scsi_synchronize_cache(&csio,
 				       /*retries*/1,
@@ -942,7 +927,6 @@ dadump(void *arg, void *virtual, vm_offset_t physical, off_t offset, size_t leng
 			}
 		}
 	}
-	periph->flags &= ~CAM_PERIPH_POLLED;
 	cam_periph_unlock(periph);
 	return (0);
 }
@@ -1207,7 +1191,7 @@ daregister(struct cam_periph *periph, void *arg)
 
 	/* Check if the SIM does not want 6 byte commands */
 	bzero(&cpi, sizeof(cpi));
-	xpt_setup_ccb(&cpi.ccb_h, periph->path, /*priority*/1);
+	xpt_setup_ccb(&cpi.ccb_h, periph->path, CAM_PRIORITY_NORMAL);
 	cpi.ccb_h.func_code = XPT_PATH_INQ;
 	xpt_action((union ccb *)&cpi);
 	if (cpi.ccb_h.status == CAM_REQ_CMP && (cpi.hba_misc & PIM_NO_6_BYTE))
@@ -1288,7 +1272,7 @@ daregister(struct cam_periph *periph, void *arg)
 	 * the end of probe.
 	 */
 	(void)cam_periph_hold(periph, PRIBIO);
-	xpt_schedule(periph, /*priority*/5);
+	xpt_schedule(periph, CAM_PRIORITY_DEV);
 
 	/*
 	 * Schedule a periodic event to occasionally send an
@@ -1394,7 +1378,7 @@ dastart(struct cam_periph *periph, union ccb *start_ccb)
 		
 		if (bp != NULL) {
 			/* Have more work to do, so ensure we stay scheduled */
-			xpt_schedule(periph, /* XXX priority */1);
+			xpt_schedule(periph, CAM_PRIORITY_NORMAL);
 		}
 		break;
 	}
@@ -1504,8 +1488,10 @@ dadone(struct cam_periph *periph, union ccb *done_ccb)
 {
 	struct da_softc *softc;
 	struct ccb_scsiio *csio;
+	u_int32_t  priority;
 
 	softc = (struct da_softc *)periph->softc;
+	priority = done_ccb->ccb_h.pinfo.priority;
 	csio = &done_ccb->csio;
 	switch (csio->ccb_h.ccb_state & DA_CCB_TYPE_MASK) {
 	case DA_CCB_BUFFER_IO:
@@ -1623,7 +1609,7 @@ dadone(struct cam_periph *periph, union ccb *done_ccb)
 					softc->state = DA_STATE_PROBE2;
 					free(rdcap, M_SCSIDA);
 					xpt_release_ccb(done_ccb);
-					xpt_schedule(periph, /*priority*/5);
+					xpt_schedule(periph, priority);
 					return;
 				}
 			} else {
@@ -1691,7 +1677,7 @@ dadone(struct cam_periph *periph, union ccb *done_ccb)
 
 				xpt_setup_ccb(&cgd.ccb_h, 
 					      done_ccb->ccb_h.path,
-					      /* priority */ 1);
+					      CAM_PRIORITY_NORMAL);
 				cgd.ccb_h.func_code = XPT_GDEV_TYPE;
 				xpt_action((union ccb *)&cgd);
 
@@ -1845,7 +1831,7 @@ daprevent(struct cam_periph *periph, int action)
 		return;
 	}
 
-	ccb = cam_periph_getccb(periph, /*priority*/1);
+	ccb = cam_periph_getccb(periph, CAM_PRIORITY_NORMAL);
 
 	scsi_prevent(&ccb->csio,
 		     /*retries*/1,
@@ -1895,7 +1881,7 @@ dagetcapacity(struct cam_periph *periph)
 	if (rcap == NULL)
 		return (ENOMEM);
 		
-	ccb = cam_periph_getccb(periph, /*priority*/1);
+	ccb = cam_periph_getccb(periph, CAM_PRIORITY_NORMAL);
 	scsi_read_capacity(&ccb->csio,
 			   /*retries*/4,
 			   /*cbfncp*/dadone,
@@ -1959,8 +1945,15 @@ dagetcapacity(struct cam_periph *periph)
 
 done:
 
-	if (error == 0)
-		dasetgeom(periph, block_len, maxsector);
+	if (error == 0) {
+		if (block_len >= MAXPHYS || block_len == 0) {
+			xpt_print(periph->path,
+			    "unsupportable block size %ju\n",
+			    (uintmax_t) block_len);
+			error = EINVAL;
+		} else
+			dasetgeom(periph, block_len, maxsector);
+	}
 
 	xpt_release_ccb(ccb);
 
@@ -1989,7 +1982,7 @@ dasetgeom(struct cam_periph *periph, uint32_t block_len, uint64_t maxsector)
 	 * up with something that will make this a bootable
 	 * device.
 	 */
-	xpt_setup_ccb(&ccg.ccb_h, periph->path, /*priority*/1);
+	xpt_setup_ccb(&ccg.ccb_h, periph->path, CAM_PRIORITY_NORMAL);
 	ccg.ccb_h.func_code = XPT_CALC_GEOMETRY;
 	ccg.block_size = dp->secsize;
 	ccg.volume_size = dp->sectors;
@@ -2063,7 +2056,7 @@ dashutdown(void * arg, int howto)
 			continue;
 		}
 
-		xpt_setup_ccb(&ccb.ccb_h, periph->path, /*priority*/1);
+		xpt_setup_ccb(&ccb.ccb_h, periph->path, CAM_PRIORITY_NORMAL);
 
 		ccb.ccb_h.ccb_state = DA_CCB_DUMP;
 		scsi_synchronize_cache(&ccb.csio,

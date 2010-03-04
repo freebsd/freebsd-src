@@ -231,12 +231,16 @@ struct resource_list_entry {
 	STAILQ_ENTRY(resource_list_entry) link;
 	int	type;			/**< @brief type argument to alloc_resource */
 	int	rid;			/**< @brief resource identifier */
+	int	flags;			/**< @brief resource flags */
 	struct	resource *res;		/**< @brief the real resource when allocated */
 	u_long	start;			/**< @brief start of resource range */
 	u_long	end;			/**< @brief end of resource range */
 	u_long	count;			/**< @brief count within range */
 };
 STAILQ_HEAD(resource_list, resource_list_entry);
+
+#define	RLE_RESERVED		0x0001	/* Reserved by the parent bus. */
+#define	RLE_ALLOCATED		0x0002	/* Reserved resource is allocated. */
 
 void	resource_list_init(struct resource_list *rl);
 void	resource_list_free(struct resource_list *rl);
@@ -247,6 +251,8 @@ struct resource_list_entry *
 int	resource_list_add_next(struct resource_list *rl,
 			  int type,
 			  u_long start, u_long end, u_long count);
+int	resource_list_busy(struct resource_list *rl,
+			   int type, int rid);
 struct resource_list_entry*
 	resource_list_find(struct resource_list *rl,
 			   int type, int rid);
@@ -261,6 +267,15 @@ struct resource *
 int	resource_list_release(struct resource_list *rl,
 			      device_t bus, device_t child,
 			      int type, int rid, struct resource *res);
+struct resource *
+	resource_list_reserve(struct resource_list *rl,
+			      device_t bus, device_t child,
+			      int type, int *rid,
+			      u_long start, u_long end,
+			      u_long count, u_int flags);
+int	resource_list_unreserve(struct resource_list *rl,
+				device_t bus, device_t child,
+				int type, int rid);
 void	resource_list_purge(struct resource_list *rl);
 int	resource_list_print_type(struct resource_list *rl,
 				 const char *name, int type,
@@ -292,6 +307,9 @@ int	bus_generic_bind_intr(device_t dev, device_t child,
 int	bus_generic_child_present(device_t dev, device_t child);
 int	bus_generic_config_intr(device_t, int, enum intr_trigger,
 				enum intr_polarity);
+int	bus_generic_describe_intr(device_t dev, device_t child,
+				  struct resource *irq, void *cookie,
+				  const char *descr);
 int	bus_generic_deactivate_resource(device_t dev, device_t child, int type,
 					int rid, struct resource *r);
 int	bus_generic_detach(device_t dev);
@@ -344,8 +362,10 @@ struct resource_spec {
 	int	flags;
 };
 
-int bus_alloc_resources(device_t dev, struct resource_spec *rs, struct resource **res);
-void bus_release_resources(device_t dev, const struct resource_spec *rs, struct resource **res);
+int	bus_alloc_resources(device_t dev, struct resource_spec *rs,
+			    struct resource **res);
+void	bus_release_resources(device_t dev, const struct resource_spec *rs,
+			      struct resource **res);
 
 struct	resource *bus_alloc_resource(device_t dev, int type, int *rid,
 				     u_long start, u_long end, u_long count,
@@ -363,6 +383,8 @@ int	bus_setup_intr(device_t dev, struct resource *r, int flags,
 		       void *arg, void **cookiep);
 int	bus_teardown_intr(device_t dev, struct resource *r, void *cookie);
 int	bus_bind_intr(device_t dev, struct resource *r, int cpu);
+int	bus_describe_intr(device_t dev, struct resource *irq, void *cookie,
+			  const char *fmt, ...);
 int	bus_set_resource(device_t dev, int type, int rid,
 			 u_long start, u_long count);
 int	bus_get_resource(device_t dev, int type, int rid,

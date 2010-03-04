@@ -14,7 +14,7 @@
  - OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  - PERFORMANCE OF THIS SOFTWARE.
 -->
-<!-- $Id: man.nsupdate.html,v 1.22.14.9 2009/06/04 03:07:24 tbox Exp $ -->
+<!-- $Id: man.nsupdate.html,v 1.22.14.9.8.1 2009/12/31 23:17:55 tbox Exp $ -->
 <html>
 <head>
 <meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">
@@ -50,7 +50,7 @@
 <div class="cmdsynopsis"><p><code class="command">nsupdate</code>  [<code class="option">-d</code>] [<code class="option">-D</code>] [[<code class="option">-g</code>] |  [<code class="option">-o</code>] |  [<code class="option">-y <em class="replaceable"><code>[<span class="optional">hmac:</span>]keyname:secret</code></em></code>] |  [<code class="option">-k <em class="replaceable"><code>keyfile</code></em></code>]] [<code class="option">-t <em class="replaceable"><code>timeout</code></em></code>] [<code class="option">-u <em class="replaceable"><code>udptimeout</code></em></code>] [<code class="option">-r <em class="replaceable"><code>udpretries</code></em></code>] [<code class="option">-R <em class="replaceable"><code>randomdev</code></em></code>] [<code class="option">-v</code>] [filename]</p></div>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2610840"></a><h2>DESCRIPTION</h2>
+<a name="id2610846"></a><h2>DESCRIPTION</h2>
 <p><span><strong class="command">nsupdate</strong></span>
       is used to submit Dynamic DNS Update requests as defined in RFC2136
       to a name server.
@@ -187,7 +187,7 @@
     </p>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2611166"></a><h2>INPUT FORMAT</h2>
+<a name="id2611241"></a><h2>INPUT FORMAT</h2>
 <p><span><strong class="command">nsupdate</strong></span>
       reads input from
       <em class="parameter"><code>filename</code></em>
@@ -451,7 +451,7 @@
     </p>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2667085"></a><h2>EXAMPLES</h2>
+<a name="id2667228"></a><h2>EXAMPLES</h2>
 <p>
       The examples below show how
       <span><strong class="command">nsupdate</strong></span>
@@ -505,7 +505,7 @@
     </p>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2667136"></a><h2>FILES</h2>
+<a name="id2667278"></a><h2>FILES</h2>
 <div class="variablelist"><dl>
 <dt><span class="term"><code class="constant">/etc/resolv.conf</code></span></dt>
 <dd><p>
@@ -524,7 +524,7 @@
 </dl></div>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2667273"></a><h2>SEE ALSO</h2>
+<a name="id2667348"></a><h2>SEE ALSO</h2>
 <p><span class="citerefentry"><span class="refentrytitle">RFC2136</span></span>,
       <span class="citerefentry"><span class="refentrytitle">RFC3007</span></span>,
       <span class="citerefentry"><span class="refentrytitle">RFC2104</span></span>,
@@ -537,7 +537,7 @@
     </p>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2667344"></a><h2>BUGS</h2>
+<a name="id2667418"></a><h2>BUGS</h2>
 <p>
       The TSIG key is redundantly stored in two separate files.
       This is a consequence of nsupdate using the DST library

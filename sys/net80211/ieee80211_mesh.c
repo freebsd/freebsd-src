@@ -132,7 +132,7 @@ static	ieee80211_send_action_func mesh_send_action_meshlink_reply;
 
 static const struct ieee80211_mesh_proto_metric mesh_metric_airtime = {
 	.mpm_descr	= "AIRTIME",
-	.mpm_ie		= IEEE80211_MESHCONF_AIRTIME,
+	.mpm_ie		= IEEE80211_MESHCONF_METRIC_AIRTIME,
 	.mpm_metric	= mesh_airtime_calc,
 };
 
@@ -344,18 +344,18 @@ int
 ieee80211_mesh_register_proto_path(const struct ieee80211_mesh_proto_path *mpp)
 {
 	int i, firstempty = -1;
-	static const uint8_t emptyie[4] = { 0, 0, 0, 0 };
 
 	for (i = 0; i < N(mesh_proto_paths); i++) {
-		if (memcmp(mpp->mpp_ie, mesh_proto_paths[i].mpp_ie, 4) == 0)
+		if (strncmp(mpp->mpp_descr, mesh_proto_paths[i].mpp_descr,
+		    IEEE80211_MESH_PROTO_DSZ) == 0)
 			return EEXIST;
-		if (memcmp(mesh_proto_paths[i].mpp_ie, emptyie, 4) == 0 &&
-		    firstempty == -1)
+		if (!mesh_proto_paths[i].mpp_active && firstempty == -1)
 			firstempty = i;
 	}
 	if (firstempty < 0)
 		return ENOSPC;
 	memcpy(&mesh_proto_paths[firstempty], mpp, sizeof(*mpp));
+	mesh_proto_paths[firstempty].mpp_active = 1;
 	return 0;
 }
 
@@ -364,18 +364,18 @@ ieee80211_mesh_register_proto_metric(const struct
     ieee80211_mesh_proto_metric *mpm)
 {
 	int i, firstempty = -1;
-	static const uint8_t emptyie[4] = { 0, 0, 0, 0 };
 
 	for (i = 0; i < N(mesh_proto_metrics); i++) {
-		if (memcmp(mpm->mpm_ie, mesh_proto_metrics[i].mpm_ie, 4) == 0)
+		if (strncmp(mpm->mpm_descr, mesh_proto_metrics[i].mpm_descr,
+		    IEEE80211_MESH_PROTO_DSZ) == 0)
 			return EEXIST;
-		if (memcmp(mesh_proto_metrics[i].mpm_ie, emptyie, 4) == 0 &&
-		    firstempty == -1)
+		if (!mesh_proto_metrics[i].mpm_active && firstempty == -1)
 			firstempty = i;
 	}
 	if (firstempty < 0)
 		return ENOSPC;
 	memcpy(&mesh_proto_metrics[firstempty], mpm, sizeof(*mpm));
+	mesh_proto_metrics[firstempty].mpm_active = 1;
 	return 0;
 }
 
@@ -388,8 +388,6 @@ mesh_select_proto_path(struct ieee80211vap *vap, const char *name)
 	for (i = 0; i < N(mesh_proto_paths); i++) {
 		if (strcasecmp(mesh_proto_paths[i].mpp_descr, name) == 0) {
 			ms->ms_ppath = &mesh_proto_paths[i];
-			if (vap->iv_state == IEEE80211_S_RUN)
-				vap->iv_newstate(vap, IEEE80211_S_INIT, 0);
 			return 0;
 		}
 	}
@@ -405,8 +403,6 @@ mesh_select_proto_metric(struct ieee80211vap *vap, const char *name)
 	for (i = 0; i < N(mesh_proto_metrics); i++) {
 		if (strcasecmp(mesh_proto_metrics[i].mpm_descr, name) == 0) {
 			ms->ms_pmetric = &mesh_proto_metrics[i];
-			if (vap->iv_state == IEEE80211_S_RUN)
-				vap->iv_newstate(vap, IEEE80211_S_INIT, 0);
 			return 0;
 		}
 	}
@@ -739,10 +735,12 @@ mesh_linkchange(struct ieee80211_node *ni, enum ieee80211_mesh_mlstate state)
 	    ni->ni_mlstate != IEEE80211_NODE_MESH_ESTABLISHED) {
 		KASSERT(ms->ms_neighbors < 65535, ("neighbor count overflow"));
 		ms->ms_neighbors++;
+		ieee80211_beacon_notify(vap, IEEE80211_BEACON_MESHCONF);
 	} else if (ni->ni_mlstate == IEEE80211_NODE_MESH_ESTABLISHED &&
 	    state != IEEE80211_NODE_MESH_ESTABLISHED) {
 		KASSERT(ms->ms_neighbors > 0, ("neighbor count 0"));
 		ms->ms_neighbors--;
+		ieee80211_beacon_notify(vap, IEEE80211_BEACON_MESHCONF);
 	}
 	ni->ni_mlstate = state;
 	switch (state) {
@@ -1470,11 +1468,12 @@ mesh_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m0, int subtype,
 		if (xrates != NULL)
 			IEEE80211_VERIFY_ELEMENT(xrates,
 			    IEEE80211_RATE_MAXSIZE - rates[1], return);
-		if (meshid != NULL)
+		if (meshid != NULL) {
 			IEEE80211_VERIFY_ELEMENT(meshid,
 			    IEEE80211_MESHID_LEN, return);
-		/* NB: meshid, not ssid */
-		IEEE80211_VERIFY_SSID(vap->iv_bss, meshid, return);
+			/* NB: meshid, not ssid */
+			IEEE80211_VERIFY_SSID(vap->iv_bss, meshid, return);
+		}
 
 		/* XXX find a better class or define it's own */
 		IEEE80211_NOTE_MAC(vap, IEEE80211_MSG_INPUT, wh->i_addr2,
@@ -2282,55 +2281,47 @@ mesh_verify_meshid(struct ieee80211vap *vap, const uint8_t *ie)
 static int
 mesh_verify_meshconf(struct ieee80211vap *vap, const uint8_t *ie)
 {
-	static const uint8_t null[4] = IEEE80211_MESHCONF_NULL;
 	const struct ieee80211_meshconf_ie *meshconf =
 	    (const struct ieee80211_meshconf_ie *) ie;
 	const struct ieee80211_mesh_state *ms = vap->iv_mesh;
+	uint16_t cap;
 
 	if (meshconf == NULL)
 		return 1;
-	if (meshconf->conf_ver != IEEE80211_MESHCONF_VERSION) {
+	if (meshconf->conf_pselid != ms->ms_ppath->mpp_ie) {
 		IEEE80211_DPRINTF(vap, IEEE80211_MSG_MESH,
-		    "wrong mesh conf version: %d\n", meshconf->conf_ver);
+		    "unknown path selection algorithm: 0x%x\n",
+		    meshconf->conf_pselid);
 		return 1;
 	}
-	if (memcmp(meshconf->conf_pselid, ms->ms_ppath->mpp_ie, 4) != 0) {
+	if (meshconf->conf_pmetid != ms->ms_pmetric->mpm_ie) {
 		IEEE80211_DPRINTF(vap, IEEE80211_MSG_MESH,
-		    "unknown path selection algorithm: 0x%x%x%x%x\n",
-		    meshconf->conf_pselid[0], meshconf->conf_pselid[1],
-		    meshconf->conf_pselid[2], meshconf->conf_pselid[3]);
+		    "unknown path metric algorithm: 0x%x\n",
+		    meshconf->conf_pmetid);
 		return 1;
 	}
-	if (memcmp(meshconf->conf_pmetid, ms->ms_pmetric->mpm_ie, 4) != 0) {
+	if (meshconf->conf_ccid != 0) {
 		IEEE80211_DPRINTF(vap, IEEE80211_MSG_MESH,
-		    "unknown path metric algorithm: 0x%x%x%x%x\n",
-		    meshconf->conf_pmetid[0], meshconf->conf_pmetid[1],
-		    meshconf->conf_pmetid[2], meshconf->conf_pmetid[3]);
+		    "unknown congestion control algorithm: 0x%x\n",
+		    meshconf->conf_ccid);
 		return 1;
 	}
-	if (memcmp(meshconf->conf_ccid, null, 4) != 0) {
+	if (meshconf->conf_syncid != IEEE80211_MESHCONF_SYNC_NEIGHOFF) {
 		IEEE80211_DPRINTF(vap, IEEE80211_MSG_MESH,
-		    "unknown congestion sig algorithm: 0x%x%x%x%x\n",
-		    meshconf->conf_ccid[0], meshconf->conf_ccid[1],
-		    meshconf->conf_ccid[2], meshconf->conf_ccid[3]);
+		    "unknown sync algorithm: 0x%x\n",
+		    meshconf->conf_syncid);
 		return 1;
 	}
-	if (memcmp(meshconf->conf_syncid, null, 4) != 0) {
+	if (meshconf->conf_authid != 0) {
 		IEEE80211_DPRINTF(vap, IEEE80211_MSG_MESH,
-		    "unknown sync algorithm: 0x%x%x%x%x\n",
-		    meshconf->conf_syncid[0], meshconf->conf_syncid[1],
-		    meshconf->conf_syncid[2], meshconf->conf_syncid[3]);
+		    "unknown auth auth algorithm: 0x%x\n",
+		    meshconf->conf_pselid);
 		return 1;
 	}
-	if (memcmp(meshconf->conf_authid, null, 4) != 0) {
-		IEEE80211_DPRINTF(vap, IEEE80211_MSG_MESH,
-		    "unknown auth auth algorithm: 0x%x%x%x%x\n",
-		    meshconf->conf_pselid[0], meshconf->conf_pselid[1],
-		    meshconf->conf_pselid[2], meshconf->conf_pselid[3]);
-		return 1;
-	}
+	/* NB: conf_cap is only read correctly here */
+	cap = LE_READ_2(&meshconf->conf_cap);
 	/* Not accepting peers */
-	if (!(meshconf->conf_cap & IEEE80211_MESHCONF_CAP_AP)) {
+	if (!(cap & IEEE80211_MESHCONF_CAP_AP)) {
 		IEEE80211_DPRINTF(vap, IEEE80211_MSG_MESH,
 		    "not accepting peers: 0x%x\n", meshconf->conf_cap);
 		return 1;
@@ -2394,34 +2385,28 @@ uint8_t *
 ieee80211_add_meshconf(uint8_t *frm, struct ieee80211vap *vap)
 {
 	const struct ieee80211_mesh_state *ms = vap->iv_mesh;
-	static const uint8_t null[4] = IEEE80211_MESHCONF_NULL;
+	uint16_t caps;
 
 	KASSERT(vap->iv_opmode == IEEE80211_M_MBSS, ("not a MBSS vap"));
 
 	*frm++ = IEEE80211_ELEMID_MESHCONF;
 	*frm++ = sizeof(struct ieee80211_meshconf_ie) - 2;
-	*frm++ = IEEE80211_MESHCONF_VERSION;
-	memcpy(frm, ms->ms_ppath->mpp_ie, 4);	/* path selection */
-	frm += 4;
-	memcpy(frm, ms->ms_pmetric->mpm_ie, 4);	/* link metric */
-	frm += 4;
-	/* XXX null for now */
-	memcpy(frm, null, 4);			/* congestion control */
-	frm += 4;
-	memcpy(frm, null, 4);			/* sync */
-	frm += 4;
-	memcpy(frm, null, 4);			/* auth */
-	frm += 4;
+	*frm++ = ms->ms_ppath->mpp_ie;		/* path selection */
+	*frm++ = ms->ms_pmetric->mpm_ie;	/* link metric */
+	*frm++ = IEEE80211_MESHCONF_CC_DISABLED;
+	*frm++ = IEEE80211_MESHCONF_SYNC_NEIGHOFF;
+	*frm++ = IEEE80211_MESHCONF_AUTH_DISABLED;
 	/* NB: set the number of neighbors before the rest */
 	*frm = (ms->ms_neighbors > 15 ? 15 : ms->ms_neighbors) << 1;
 	if (ms->ms_flags & IEEE80211_MESHFLAGS_PORTAL)
 		*frm |= IEEE80211_MESHCONF_FORM_MP;
 	frm += 1;
+	caps = 0;
 	if (ms->ms_flags & IEEE80211_MESHFLAGS_AP)
-		*frm |= IEEE80211_MESHCONF_CAP_AP;
+		caps |= IEEE80211_MESHCONF_CAP_AP;
 	if (ms->ms_flags & IEEE80211_MESHFLAGS_FWD)
-		*frm |= IEEE80211_MESHCONF_CAP_FWRD;
-	frm += 1;
+		caps |= IEEE80211_MESHCONF_CAP_FWRD;
+	ADDSHORT(frm, caps);
 	return frm;
 }
 
@@ -2569,6 +2554,18 @@ ieee80211_mesh_init_neighbor(struct ieee80211_node *ni,
 	const struct ieee80211_scanparams *sp)
 {
 	ieee80211_parse_meshid(ni, sp->meshid);
+}
+
+void
+ieee80211_mesh_update_beacon(struct ieee80211vap *vap,
+	struct ieee80211_beacon_offsets *bo)
+{
+	KASSERT(vap->iv_opmode == IEEE80211_M_MBSS, ("not a MBSS vap"));
+
+	if (isset(bo->bo_flags, IEEE80211_BEACON_MESHCONF)) {
+		(void)ieee80211_add_meshconf(bo->bo_meshconf, vap);
+		clrbit(bo->bo_flags, IEEE80211_BEACON_MESHCONF);
+	}
 }
 
 static int

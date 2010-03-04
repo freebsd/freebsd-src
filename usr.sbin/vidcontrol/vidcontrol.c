@@ -185,8 +185,8 @@ usage(void)
 "usage: vidcontrol [-CdHLPpx] [-b color] [-c appearance] [-f [size] file]",
 "                  [-g geometry] [-h size] [-i adapter | mode] [-l screen_map]",
 "                  [-M char] [-m on | off] [-r foreground background]",
-"                  [-S on | off] [-s number] [-t N | off] [mode]",
-"                  [foreground [background]] [show]");
+"                  [-S on | off] [-s number] [-T xterm | cons25] [-t N | off]",
+"                  [mode] [foreground [background]] [show]");
 	exit(1);
 }
 
@@ -1159,6 +1159,18 @@ clear_history(void)
 	}
 }
 
+static void
+set_terminal_mode(char *arg)
+{
+
+	if (strcmp(arg, "xterm") == 0)
+		fprintf(stderr, "\033[=T");
+	else if (strcmp(arg, "cons25") == 0)
+		fprintf(stderr, "\033[=1T");
+	else
+		usage();
+}
+
 
 int
 main(int argc, char **argv)
@@ -1175,7 +1187,8 @@ main(int argc, char **argv)
 		err(1, "must be on a virtual console");
 	dumpmod = 0;
 	dumpopt = DUMP_FBF;
-	while((opt = getopt(argc, argv, "b:Cc:df:g:h:Hi:l:LM:m:pPr:S:s:t:x")) != -1)
+	while ((opt = getopt(argc, argv,
+	    "b:Cc:df:g:h:Hi:l:LM:m:pPr:S:s:T:t:x")) != -1)
 		switch(opt) {
 		case 'b':
 			set_border_color(optarg);
@@ -1243,6 +1256,9 @@ main(int argc, char **argv)
 			break;
 		case 's':
 			set_console(optarg);
+			break;
+		case 'T':
+			set_terminal_mode(optarg);
 			break;
 		case 't':
 			set_screensaver_timeout(optarg);

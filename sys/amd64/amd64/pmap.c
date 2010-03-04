@@ -105,7 +105,6 @@ __FBSDID("$FreeBSD$");
  *	and to when physical maps must be made correct.
  */
 
-#include "opt_msgbuf.h"
 #include "opt_pmap.h"
 #include "opt_vm.h"
 
@@ -116,7 +115,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/mman.h>
-#include <sys/msgbuf.h>
 #include <sys/mutex.h>
 #include <sys/proc.h>
 #include <sys/sx.h>
@@ -153,7 +151,11 @@ __FBSDID("$FreeBSD$");
 #endif
 
 #if !defined(DIAGNOSTIC)
-#define PMAP_INLINE	__gnu89_inline
+#ifdef __GNUC_GNU_INLINE__
+#define PMAP_INLINE	inline
+#else
+#define PMAP_INLINE	extern inline
+#endif
 #else
 #define PMAP_INLINE
 #endif
@@ -183,7 +185,7 @@ static int pat_works = 0;		/* Is page attribute table sane? */
 SYSCTL_NODE(_vm, OID_AUTO, pmap, CTLFLAG_RD, 0, "VM/pmap parameters");
 
 static int pg_ps_enabled = 1;
-SYSCTL_INT(_vm_pmap, OID_AUTO, pg_ps_enabled, CTLFLAG_RD, &pg_ps_enabled, 0,
+SYSCTL_INT(_vm_pmap, OID_AUTO, pg_ps_enabled, CTLFLAG_RDTUN, &pg_ps_enabled, 0,
     "Are large page mappings enabled?");
 
 static u_int64_t	KPTphys;	/* phys addr of kernel level 1 */
@@ -206,7 +208,6 @@ static int shpgperproc = PMAP_SHPGPERPROC;
  */
 pt_entry_t *CMAP1 = 0;
 caddr_t CADDR1 = 0;
-struct msgbuf *msgbufp = 0;
 
 /*
  * Crashdump maps.
@@ -442,7 +443,7 @@ create_pagetables(vm_paddr_t *firstaddr)
 	if (ndmpdp < 4)		/* Minimum 4GB of dirmap */
 		ndmpdp = 4;
 	DMPDPphys = allocpages(firstaddr, NDMPML4E);
-	if ((amd_feature & AMDID_PAGE1GB) == 0)
+	if (TRUE || (amd_feature & AMDID_PAGE1GB) == 0)
 		DMPDphys = allocpages(firstaddr, ndmpdp);
 	dmaplimit = (vm_paddr_t)ndmpdp << PDPSHIFT;
 
@@ -476,7 +477,7 @@ create_pagetables(vm_paddr_t *firstaddr)
 
 	/* Now set up the direct map space using either 2MB or 1GB pages */
 	/* Preset PG_M and PG_A because demotion expects it */
-	if ((amd_feature & AMDID_PAGE1GB) == 0) {
+	if (TRUE || (amd_feature & AMDID_PAGE1GB) == 0) {
 		for (i = 0; i < NPDEPG * ndmpdp; i++) {
 			((pd_entry_t *)DMPDphys)[i] = (vm_paddr_t)i << PDRSHIFT;
 			((pd_entry_t *)DMPDphys)[i] |= PG_RW | PG_V | PG_PS |
@@ -570,14 +571,7 @@ pmap_bootstrap(vm_paddr_t *firstaddr)
 	 */
 	SYSMAP(caddr_t, unused, crashdumpmap, MAXDUMPPGS)
 
-	/*
-	 * msgbufp is used to map the system message buffer.
-	 */
-	SYSMAP(struct msgbuf *, unused, msgbufp, atop(round_page(MSGBUF_SIZE)))
-
 	virtual_avail = va;
-
-	*CMAP1 = 0;
 
 	invltlb();
 
@@ -664,7 +658,6 @@ pmap_page_init(vm_page_t m)
 void
 pmap_init(void)
 {
-	pd_entry_t *pd;
 	vm_page_t mpte;
 	vm_size_t s;
 	int i, pv_npg;
@@ -673,18 +666,13 @@ pmap_init(void)
 	 * Initialize the vm page array entries for the kernel pmap's
 	 * page table pages.
 	 */ 
-	pd = pmap_pde(kernel_pmap, KERNBASE);
 	for (i = 0; i < NKPT; i++) {
-		if ((pd[i] & (PG_PS | PG_V)) == (PG_PS | PG_V))
-			continue;
-		KASSERT((pd[i] & PG_V) != 0,
-		    ("pmap_init: page table page is missing"));
-		mpte = PHYS_TO_VM_PAGE(pd[i] & PG_FRAME);
+		mpte = PHYS_TO_VM_PAGE(KPTphys + (i << PAGE_SHIFT));
 		KASSERT(mpte >= vm_page_array &&
 		    mpte < &vm_page_array[vm_page_array_size],
 		    ("pmap_init: page table page is out of range"));
 		mpte->pindex = pmap_pde_pindex(KERNBASE) + i;
-		mpte->phys_addr = pd[i] & PG_FRAME;
+		mpte->phys_addr = KPTphys + (i << PAGE_SHIFT);
 	}
 
 	/*
@@ -696,6 +684,15 @@ pmap_init(void)
 	pv_entry_max = shpgperproc * maxproc + cnt.v_page_count;
 	TUNABLE_INT_FETCH("vm.pmap.pv_entries", &pv_entry_max);
 	pv_entry_high_water = 9 * (pv_entry_max / 10);
+
+	/*
+	 * Disable large page mappings by default if the kernel is running in
+	 * a virtual machine on an AMD Family 10h processor.  This is a work-
+	 * around for Erratum 383.
+	 */
+	if (vm_guest == VM_GUEST_VM && cpu_vendor_id == CPU_VENDOR_AMD &&
+	    CPUID_TO_FAMILY(cpu_id) == 0x10)
+		pg_ps_enabled = 0;
 
 	/*
 	 * Are large page mappings enabled?
@@ -4808,6 +4805,11 @@ if (oldpmap)	/* XXX FIXME */
 	td->td_pcb->pcb_cr3 = cr3;
 	load_cr3(cr3);
 	critical_exit();
+}
+
+void
+pmap_sync_icache(pmap_t pm, vm_offset_t va, vm_size_t sz)
+{
 }
 
 /*

@@ -23,6 +23,8 @@ CFLAGS+= -I${.CURDIR} -I${LUKEMFTP}
 LDADD=	-ledit -ltermcap -lutil
 DPADD=	${LIBEDIT} ${LIBTERMCAP} ${LIBUTIL}
 
+WARNS?=	2
+
 LINKS=	${BINDIR}/ftp ${BINDIR}/pftp \
 	${BINDIR}/ftp ${BINDIR}/gate-ftp
 MLINKS=	ftp.1 pftp.1 \

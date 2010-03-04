@@ -215,7 +215,7 @@ AcpiOsExecute(ACPI_EXECUTE_TYPE Type, ACPI_OSD_EXEC_CALLBACK Function,
 }
 
 void
-AcpiOsSleep(ACPI_INTEGER Milliseconds)
+AcpiOsSleep(UINT64 Milliseconds)
 {
     int		timo;
 

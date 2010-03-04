@@ -69,7 +69,7 @@ savecore_start()
 			${crashinfo_program} -d ${dumpdir}
 		fi
 	else
-		[ -z "${rc_quiet}" ] && echo "No core dumps found"
+		check_startmsgs && echo 'No core dumps found.'
 	fi
 }
 

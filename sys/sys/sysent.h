@@ -87,7 +87,7 @@ struct sysentvec {
 	void		(*sv_prepsyscall)(struct trapframe *, int *, u_int *,
 			    caddr_t *);
 	char		*sv_name;	/* name of binary type */
-	int		(*sv_coredump)(struct thread *, struct vnode *, off_t);
+	int		(*sv_coredump)(struct thread *, struct vnode *, off_t, int);
 					/* function to dump core, or NULL */
 	int		(*sv_imgact_try)(struct image_params *);
 	int		sv_minsigstksz;	/* minimum signal stack size */

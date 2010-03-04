@@ -53,14 +53,21 @@ typedef struct	__mcontext {
 	int		mc_fpused;	/* fp has been used */
 	f_register_t	mc_fpregs[33];	/* fp regs 0 to 31 and csr */
 	register_t	mc_fpc_eir;	/* fp exception instruction reg */
+	void		*mc_tls;	/* pointer to TLS area */
 	int	__spare__[8];	/* XXX reserved */ 
 } mcontext_t;
 #endif
 
-#define	SZREG		4
+#ifndef SZREG
+#if defined(__mips_o32)
+#define	SZREG	4
+#else
+#define	SZREG	8
+#endif
+#endif
 
 /* offsets into mcontext_t */
-#define	UCTX_REG(x)	(8 + (x)*SZREG)
+#define	UCTX_REG(x)	(4 + SZREG + (x)*SZREG)
 
 #define	UCR_ZERO	UCTX_REG(0)
 #define	UCR_AT		UCTX_REG(1)

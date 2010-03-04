@@ -29,7 +29,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 4, 2006
+.Dd December 29, 2009
 .Dt CLOCK_GETTIME 2
 .Os
 .Sh NAME
@@ -59,21 +59,43 @@ used by a clock which is specified by
 The
 .Fa clock_id
 argument
-can be one of five values:
-.Dv CLOCK_REALTIME
+can be one of the following values:
+.Dv CLOCK_REALTIME ,
+.Dv CLOCK_REALTIME_PRECISE ,
+.Dv CLOCK_REALTIME_FAST
 for time that increments as
-a wall clock should,
-.Dv CLOCK_MONOTONIC
-which increments in SI seconds,
-.Dv CLOCK_UPTIME
+a wall clock should;
+.Dv CLOCK_MONOTONIC ,
+.Dv CLOCK_MONOTONIC_PRECISE ,
+.Dv CLOCK_MONOTONIC_FAST
+which increments in SI seconds;
+.Dv CLOCK_UPTIME ,
+.Dv CLOCK_UPTIME_PRECISE ,
+.Dv CLOCK_UPTIME_FAST
 which starts at zero when the kernel boots and increments
-monotonically in SI seconds while the machine is running,
+monotonically in SI seconds while the machine is running;
 .Dv CLOCK_VIRTUAL
 for time that increments only when
-the CPU is running in user mode on behalf of the calling process, or
+the CPU is running in user mode on behalf of the calling process;
 .Dv CLOCK_PROF
 for time that increments when the CPU is running in user or
-kernel mode.
+kernel mode; or
+.Dv CLOCK_SECOND
+which returns the current second without performing a full time counter
+query, using in-kernel cached value of current second.
+.Pp
+The clock IDs
+.Fa CLOCK_REALTIME_FAST ,
+.Fa CLOCK_MONOTONIC_FAST ,
+.Fa CLOCK_UPTIME_FAST
+are analogs of corresponding IDs without _FAST suffix but do not perform
+a full time counter query, so their accuracy is one timer tick.
+Similarly,
+.Fa CLOCK_REALTIME_PRECISE ,
+.Fa CLOCK_MONOTONIC_PRECISE ,
+.Fa CLOCK_UPTIME_PRECISE
+are used to get the most exact value as possible, at the expense of
+execution time.
 .Pp
 The structure pointed to by
 .Fa tp
@@ -88,7 +110,8 @@ struct timespec {
 };
 .Ed
 .Pp
-Only the super-user may set the time of day.
+Only the super-user may set the time of day, using only
+.Fa CLOCK_REALTIME .
 If the system securelevel is greater than 1 (see
 .Xr init 8 ) ,
 the time may only be advanced.
@@ -134,3 +157,13 @@ and
 .Fn clock_getres
 system calls conform to
 .St -p1003.1b-93 .
+The clock IDs
+.Fa CLOCK_REALTIME_FAST ,
+.Fa CLOCK_REALTIME_PRECISE ,
+.Fa CLOCK_MONOTONIC_FAST ,
+.Fa CLOCK_MONOTONIC_PRECISE ,
+.Fa CLOCK_UPTIME ,
+.Fa CLOCK_UPTIME_FAST ,
+.Fa CLOCK_UPTIME_PRECISE ,
+.Fa CLOCK_SECOND
+are FreeBSD extensions to the POSIX interface.

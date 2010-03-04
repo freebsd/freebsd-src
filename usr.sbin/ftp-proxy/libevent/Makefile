@@ -22,4 +22,6 @@ CFLAGS+= -I${.CURDIR} \
 	-DHAVE_WORKING_KQUEUE \
 	-DVERSION='"1.3b"'
 
+WARNS?=	2
+
 .include <bsd.lib.mk>

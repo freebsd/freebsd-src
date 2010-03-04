@@ -319,7 +319,7 @@ targioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag, struct thread *t
 		else
 			cdbg.flags = CAM_DEBUG_NONE;
 		cam_periph_lock(softc->periph);
-		xpt_setup_ccb(&cdbg.ccb_h, softc->path, /*priority*/0);
+		xpt_setup_ccb(&cdbg.ccb_h, softc->path, CAM_PRIORITY_NORMAL);
 		cdbg.ccb_h.func_code = XPT_DEBUG;
 		cdbg.ccb_h.cbfcnp = targdone;
 
@@ -410,7 +410,7 @@ targendislun(struct cam_path *path, int enable, int grp6_len, int grp7_len)
 	cam_status	  status;
 
 	/* Tell the lun to begin answering selects */
-	xpt_setup_ccb(&en_ccb.ccb_h, path, /*priority*/1);
+	xpt_setup_ccb(&en_ccb.ccb_h, path, CAM_PRIORITY_NORMAL);
 	en_ccb.ccb_h.func_code = XPT_EN_LUN;
 	/* Don't need support for any vendor specific commands */
 	en_ccb.grp6_len = grp6_len;
@@ -438,7 +438,7 @@ targenable(struct targ_softc *softc, struct cam_path *path, int grp6_len,
 		return (CAM_LUN_ALRDY_ENA);
 
 	/* Make sure SIM supports target mode */
-	xpt_setup_ccb(&cpi.ccb_h, path, /*priority*/1);
+	xpt_setup_ccb(&cpi.ccb_h, path, CAM_PRIORITY_NORMAL);
 	cpi.ccb_h.func_code = XPT_PATH_INQ;
 	xpt_action((union ccb *)&cpi);
 	status = cpi.ccb_h.status & CAM_STATUS_MASK;
@@ -586,7 +586,7 @@ targwrite(struct cdev *dev, struct uio *uio, int ioflag)
 			break;
 		}
 		priority = fuword32(&user_ccb->ccb_h.pinfo.priority);
-		if (priority == -1) {
+		if (priority == CAM_PRIORITY_NONE) {
 			error = EINVAL;
 			break;
 		}
@@ -1100,7 +1100,7 @@ abort_all_pending(struct targ_softc *softc)
 	 * Then abort all pending CCBs.
 	 * targdone() will return the aborted CCB via user_ccb_queue
 	 */
-	xpt_setup_ccb(&cab.ccb_h, softc->path, /*priority*/0);
+	xpt_setup_ccb(&cab.ccb_h, softc->path, CAM_PRIORITY_NORMAL);
 	cab.ccb_h.func_code = XPT_ABORT;
 	cab.ccb_h.status = CAM_REQ_CMP_ERR;
 	TAILQ_FOREACH(ccb_h, &softc->pending_ccb_queue, periph_links.tqe) {

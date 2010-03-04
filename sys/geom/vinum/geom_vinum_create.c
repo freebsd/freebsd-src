@@ -94,7 +94,7 @@ gv_create_drive(struct gv_softc *sc, struct gv_drive *d)
 		if (g_attach(cp, pp) != 0) {
 			g_destroy_consumer(cp);
 			g_topology_unlock();
-			G_VINUM_DEBUG(0, "create drive '%s': couldn't attach",
+			G_VINUM_DEBUG(0, "create drive '%s': unable to attach",
 			    d->name);
 			g_free(d);
 			return (GV_ERR_CREATE);
@@ -135,7 +135,7 @@ gv_create_drive(struct gv_softc *sc, struct gv_drive *d)
 			g_detach(cp);
 			g_destroy_consumer(cp);
 			g_topology_unlock();
-			G_VINUM_DEBUG(0, "create drive '%s': couldn't update "
+			G_VINUM_DEBUG(0, "create drive '%s': unable to update "
 			    "access counts", d->name);
 			if (d->hdr != NULL)
 				g_free(d->hdr);
@@ -314,17 +314,16 @@ gv_concat(struct g_geom *gp, struct gctl_req *req)
 	struct gv_plex *p;
 	struct gv_softc *sc;
 	char *drive, buf[30], *vol;
-	int *drives, *flags, dcount;
+	int *drives, dcount;
 
 	sc = gp->softc;
 	dcount = 0;
 	vol = gctl_get_param(req, "name", NULL);
 	if (vol == NULL) {
-		gctl_error(req, "volume names not given");	
+		gctl_error(req, "volume name not given");	
 		return;
 	}
 
-	flags = gctl_get_paraml(req, "flags", sizeof(*flags));
 	drives = gctl_get_paraml(req, "drives", sizeof(*drives));
 
 	if (drives == NULL) { 
@@ -388,7 +387,7 @@ gv_mirror(struct g_geom *gp, struct gctl_req *req)
 	pcount = 0;
 	vol = gctl_get_param(req, "name", NULL);
 	if (vol == NULL) {
-		gctl_error(req, "volume's not given");	
+		gctl_error(req, "volume name not given");	
 		return;
 	}
 
@@ -396,7 +395,7 @@ gv_mirror(struct g_geom *gp, struct gctl_req *req)
 	drives = gctl_get_paraml(req, "drives", sizeof(*drives));
 
 	if (drives == NULL) { 
-		gctl_error(req, "drives not given");
+		gctl_error(req, "drive names not given");
 		return;
 	}
 
@@ -475,12 +474,11 @@ gv_raid5(struct g_geom *gp, struct gctl_req *req)
 	char *vol, *drive, buf[30];
 	off_t *stripesize;
 
-	dcount = 0;
 	sc = gp->softc;
 
 	vol = gctl_get_param(req, "name", NULL);
 	if (vol == NULL) {
-		gctl_error(req, "volume's not given");
+		gctl_error(req, "volume name not given");	
 		return;
 	}
 	flags = gctl_get_paraml(req, "flags", sizeof(*flags));
@@ -493,7 +491,7 @@ gv_raid5(struct g_geom *gp, struct gctl_req *req)
 	}
 
 	if (drives == NULL) {
-		gctl_error(req, "drives not given");
+		gctl_error(req, "drive names not given");
 		return;
 	}
 
@@ -558,14 +556,14 @@ gv_stripe(struct g_geom *gp, struct gctl_req *req)
 	pcount = 0;
 	vol = gctl_get_param(req, "name", NULL);
 	if (vol == NULL) {
-		gctl_error(req, "volume's not given");	
+		gctl_error(req, "volume name not given");	
 		return;
 	}
 	flags = gctl_get_paraml(req, "flags", sizeof(*flags));
 	drives = gctl_get_paraml(req, "drives", sizeof(*drives));
 
 	if (drives == NULL) { 
-		gctl_error(req, "drives not given");
+		gctl_error(req, "drive names not given");
 		return;
 	}
 

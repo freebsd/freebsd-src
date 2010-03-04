@@ -8,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2009, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2010, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -871,7 +871,7 @@ AcpiOsStall (
 
 void
 AcpiOsSleep (
-    ACPI_INTEGER            milliseconds)
+    UINT64                  milliseconds)
 {
 
     sleep (milliseconds / 1000);    /* Sleep for whole seconds */
@@ -976,7 +976,7 @@ ACPI_STATUS
 AcpiOsWritePciConfiguration (
     ACPI_PCI_ID             *PciId,
     UINT32                  Register,
-    ACPI_INTEGER            Value,
+    UINT64                  Value,
     UINT32                  Width)
 {
 

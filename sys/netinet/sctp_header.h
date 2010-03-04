@@ -62,7 +62,7 @@ struct sctp_ipv6addr_param {
 struct sctp_cookie_perserve_param {
 	struct sctp_paramhdr ph;/* type=SCTP_COOKIE_PRESERVE, len=8 */
 	uint32_t time;		/* time in ms to extend cookie */
-};
+}                          SCTP_PACKED;
 
 #define SCTP_ARRAY_MIN_LEN 1
 /* Host Name Address */
@@ -138,7 +138,7 @@ struct sctp_asconf_addrv4_param {	/* an ASCONF address (v4) parameter */
 
 struct sctp_supported_chunk_types_param {
 	struct sctp_paramhdr ph;/* type = 0x8008  len = x */
-	uint8_t chunk_types[0];
+	uint8_t chunk_types[];
 }                                SCTP_PACKED;
 
 
@@ -219,7 +219,7 @@ struct sctp_state_cookie {	/* this is our definition... */
 struct sctp_missing_nat_state {
 	uint16_t cause;
 	uint16_t length;
-	uint8_t data[0];
+	uint8_t data[];
 }                      SCTP_PACKED;
 
 
@@ -284,13 +284,6 @@ struct sctp_sack_chunk {
 	struct sctp_sack sack;
 }               SCTP_PACKED;
 
-
-/* EY Following 3 structs define NR Selective Ack (NR_SACK) chunk */
-struct sctp_nr_gap_ack_block {
-	uint16_t start;		/* NR Gap Ack block start */
-	uint16_t end;		/* NR Gap Ack block end */
-}                     SCTP_PACKED;
-
 struct sctp_nr_sack {
 	uint32_t cum_tsn_ack;	/* cumulative TSN Ack */
 	uint32_t a_rwnd;	/* updated a_rwnd of sender */
@@ -299,7 +292,6 @@ struct sctp_nr_sack {
 	uint16_t num_dup_tsns;	/* number of duplicate TSNs */
 	uint16_t reserved;	/* not currently used */
 	/* struct sctp_gap_ack_block's follow */
-	/* struct sctp_nr_gap_ack_block's follow */
 	/* uint32_t duplicate_tsn's follow */
 }            SCTP_PACKED;
 
@@ -459,7 +451,7 @@ struct sctp_pktdrop_chunk {
 	uint32_t current_onq;
 	uint16_t trunc_len;
 	uint16_t reserved;
-	uint8_t data[0];
+	uint8_t data[];
 }                  SCTP_PACKED;
 
 /**********STREAM RESET STUFF ******************/
@@ -469,13 +461,13 @@ struct sctp_stream_reset_out_request {
 	uint32_t request_seq;	/* monotonically increasing seq no */
 	uint32_t response_seq;	/* if a response, the resp seq no */
 	uint32_t send_reset_at_tsn;	/* last TSN I assigned outbound */
-	uint16_t list_of_streams[0];	/* if not all list of streams */
+	uint16_t list_of_streams[];	/* if not all list of streams */
 }                             SCTP_PACKED;
 
 struct sctp_stream_reset_in_request {
 	struct sctp_paramhdr ph;
 	uint32_t request_seq;
-	uint16_t list_of_streams[0];	/* if not all list of streams */
+	uint16_t list_of_streams[];	/* if not all list of streams */
 }                            SCTP_PACKED;
 
 
@@ -503,7 +495,7 @@ struct sctp_stream_reset_add_strm {
 	uint32_t request_seq;
 	uint16_t number_of_streams;
 	uint16_t reserved;
-};
+}                          SCTP_PACKED;
 
 #define SCTP_STREAM_RESET_NOTHING   0x00000000	/* Nothing for me to do */
 #define SCTP_STREAM_RESET_PERFORMED 0x00000001	/* Did it */
@@ -553,24 +545,24 @@ struct sctp_stream_reset_resp_tsn {
 #define SCTP_RANDOM_MAX_SIZE 256
 struct sctp_auth_random {
 	struct sctp_paramhdr ph;/* type = 0x8002 */
-	uint8_t random_data[0];
+	uint8_t random_data[];
 }                SCTP_PACKED;
 
 struct sctp_auth_chunk_list {
 	struct sctp_paramhdr ph;/* type = 0x8003 */
-	uint8_t chunk_types[0];
+	uint8_t chunk_types[];
 }                    SCTP_PACKED;
 
 struct sctp_auth_hmac_algo {
 	struct sctp_paramhdr ph;/* type = 0x8004 */
-	uint16_t hmac_ids[0];
+	uint16_t hmac_ids[];
 }                   SCTP_PACKED;
 
 struct sctp_auth_chunk {
 	struct sctp_chunkhdr ch;
 	uint16_t shared_key_id;
 	uint16_t hmac_id;
-	uint8_t hmac[0];
+	uint8_t hmac[];
 }               SCTP_PACKED;
 
 struct sctp_auth_invalid_hmac {

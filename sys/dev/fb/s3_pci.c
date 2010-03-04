@@ -388,10 +388,10 @@ s3lfb_blank_display(video_adapter_t *adp, int mode)
 }
 
 static int
-s3lfb_mmap(video_adapter_t *adp, vm_offset_t offset, vm_paddr_t *paddr,
-	  int prot)
+s3lfb_mmap(video_adapter_t *adp, vm_ooffset_t offset, vm_paddr_t *paddr,
+	  int prot, vm_memattr_t *memattr)
 {
-	return (*prevvidsw->mmap)(adp, offset, paddr, prot);
+	return (*prevvidsw->mmap)(adp, offset, paddr, prot, memattr);
 }
 
 static int

@@ -2322,6 +2322,9 @@ tr_setup:
 			} else
 				(void)ieee80211_input_all(ic, m, rssi, nf);
 		}
+		if ((ifp->if_drv_flags & IFF_DRV_OACTIVE) == 0 &&
+		    !IFQ_IS_EMPTY(&ifp->if_snd))
+			zyd_start(ifp);
 		ZYD_LOCK(sc);
 		break;
 
@@ -2431,6 +2434,9 @@ tr_setup:
 			usbd_xfer_set_priv(xfer, data);
 			usbd_transfer_submit(xfer);
 		}
+		ZYD_UNLOCK(sc);
+		zyd_start(ifp);
+		ZYD_LOCK(sc);
 		break;
 
 	default:			/* Error */
@@ -2443,13 +2449,18 @@ tr_setup:
 		if (data != NULL)
 			zyd_tx_free(data, error);
 
-		if (error == USB_ERR_STALLED) {
-			/* try to clear stall first */
+		if (error != USB_ERR_CANCELLED) {
+			if (error == USB_ERR_TIMEOUT)
+				device_printf(sc->sc_dev, "device timeout\n");
+
+			/*
+			 * Try to clear stall first, also if other
+			 * errors occur, hence clearing stall
+			 * introduces a 50 ms delay:
+			 */
 			usbd_xfer_set_stall(xfer);
 			goto tr_setup;
 		}
-		if (error == USB_ERR_TIMEOUT)
-			device_printf(sc->sc_dev, "device timeout\n");
 		break;
 	}
 }

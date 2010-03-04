@@ -485,7 +485,7 @@ mpt_pci_attach(device_t dev)
 	 * Make sure we've disabled the ROM.
 	 */
 	data = pci_read_config(dev, PCIR_BIOS, 4);
-	data &= ~1;
+	data &= ~PCIM_BIOS_ENABLE;
 	pci_write_config(dev, PCIR_BIOS, data, 4);
 
 	/*

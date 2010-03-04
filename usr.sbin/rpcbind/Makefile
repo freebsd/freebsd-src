@@ -14,6 +14,8 @@ CFLAGS+= -DPORTMAP -DLIBWRAP
 CFLAGS+= -DINET6
 .endif
 
+WARNS?=	1
+
 DPADD=	${LIBWRAP} ${LIBUTIL}
 LDADD=	-lwrap -lutil
 

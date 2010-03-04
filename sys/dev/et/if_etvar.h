@@ -1,13 +1,13 @@
 /*-
  * Copyright (c) 2007 The DragonFly Project.  All rights reserved.
- * 
+ *
  * This code is derived from software contributed to The DragonFly Project
  * by Sepherosa Ziehau <sepherosa@gmail.com>
- * 
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
- * 
+ *
  * 1. Redistributions of source code must retain the above copyright
  *    notice, this list of conditions and the following disclaimer.
  * 2. Redistributions in binary form must reproduce the above copyright
@@ -17,7 +17,7 @@
  * 3. Neither the name of The DragonFly Project nor the names of its
  *    contributors may be used to endorse or promote products derived
  *    from this software without specific, prior written permission.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
  * ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
  * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
@@ -30,7 +30,7 @@
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- * 
+ *
  * $DragonFly: src/sys/dev/netif/et/if_etvar.h,v 1.4 2007/10/23 14:28:42 sephe Exp $
  * $FreeBSD$
  */
@@ -40,7 +40,7 @@
 
 /* DragonFly compatibility */
 #define EVL_ENCAPLEN		ETHER_VLAN_ENCAP_LEN
- 
+
 /*
  * Allocate the right type of mbuf for the desired total length.
  */
@@ -92,9 +92,9 @@ m_getl(int len, int how, int type, int flags, int *psize)
 #define ET_JUMBO_MEM_SIZE	(ET_JSLOTS * ET_JLEN)
 
 #define CSR_WRITE_4(sc, reg, val)	\
-	bus_space_write_4((sc)->sc_mem_bt, (sc)->sc_mem_bh, (reg), (val))
+	bus_write_4((sc)->sc_mem_res, (reg), (val))
 #define CSR_READ_4(sc, reg)		\
-	bus_space_read_4((sc)->sc_mem_bt, (sc)->sc_mem_bh, (reg))
+	bus_read_4((sc)->sc_mem_res, (reg))
 
 #define ET_ADDR_HI(addr)	((uint64_t) (addr) >> 32)
 #define ET_ADDR_LO(addr)	((uint64_t) (addr) & 0xffffffff)
@@ -104,38 +104,54 @@ struct et_txdesc {
 	uint32_t	td_addr_lo;
 	uint32_t	td_ctrl1;	/* ET_TDCTRL1_ */
 	uint32_t	td_ctrl2;	/* ET_TDCTRL2_ */
-} __packed;
+};
 
-#define ET_TDCTRL1_LEN		__BITS(15, 0)
+#define ET_TDCTRL1_LEN_MASK	0x0000FFFF
 
-#define ET_TDCTRL2_LAST_FRAG	__BIT(0)
-#define ET_TDCTRL2_FIRST_FRAG	__BIT(1)
-#define ET_TDCTRL2_INTR		__BIT(2)
+#define ET_TDCTRL2_LAST_FRAG	0x00000001
+#define ET_TDCTRL2_FIRST_FRAG	0x00000002
+#define ET_TDCTRL2_INTR		0x00000004
+#define ET_TDCTRL2_CTRL_WORD	0x00000008
+#define ET_TDCTRL2_HDX_BACKP	0x00000010
+#define ET_TDCTRL2_XMIT_PAUSE	0x00000020
+#define ET_TDCTRL2_FRAME_ERR	0x00000040
+#define ET_TDCTRL2_NO_CRC	0x00000080
+#define ET_TDCTRL2_MAC_OVRRD	0x00000100
+#define ET_TDCTRL2_PAD_PACKET	0x00000200
+#define ET_TDCTRL2_JUMBO_PACKET	0x00000400
+#define ET_TDCTRL2_INS_VLAN	0x00000800
+#define ET_TDCTRL2_CSUM_IP	0x00001000
+#define ET_TDCTRL2_CSUM_TCP	0x00002000
+#define ET_TDCTRL2_CSUM_UDP	0x00004000
 
 struct et_rxdesc {
 	uint32_t	rd_addr_lo;
 	uint32_t	rd_addr_hi;
 	uint32_t	rd_ctrl;	/* ET_RDCTRL_ */
-} __packed;
+};
 
-#define ET_RDCTRL_BUFIDX	__BITS(9, 0)
+#define ET_RDCTRL_BUFIDX_MASK	0x000003FF
 
 struct et_rxstat {
 	uint32_t	rxst_info1;
 	uint32_t	rxst_info2;	/* ET_RXST_INFO2_ */
-} __packed;
+};
 
-#define ET_RXST_INFO2_LEN	__BITS(15, 0)
-#define ET_RXST_INFO2_BUFIDX	__BITS(25, 16)
-#define ET_RXST_INFO2_RINGIDX	__BITS(27, 26)
+#define ET_RXST_INFO2_LEN_MASK	0x0000FFFF
+#define ET_RXST_INFO2_LEN_SHIFT	0
+#define ET_RXST_INFO2_BUFIDX_MASK	0x03FF0000
+#define ET_RXST_INFO2_BUFIDX_SHIFT	16
+#define ET_RXST_INFO2_RINGIDX_MASK	0x0C000000
+#define ET_RXST_INFO2_RINGIDX_SHIFT	26
 
 struct et_rxstatus {
 	uint32_t	rxs_ring;
 	uint32_t	rxs_stat_ring;	/* ET_RXS_STATRING_ */
-} __packed;
+};
 
-#define ET_RXS_STATRING_INDEX	__BITS(27, 16)
-#define ET_RXS_STATRING_WRAP	__BIT(28)
+#define ET_RXS_STATRING_INDEX_MASK	0x0FFF0000
+#define ET_RXS_STATRING_INDEX_SHIFT	16
+#define ET_RXS_STATRING_WRAP	0x10000000
 
 struct et_dmamap_ctx {
 	int		nsegs;
@@ -225,8 +241,6 @@ struct et_softc {
 	device_t		dev;
 	struct mtx		sc_mtx;
 	device_t		sc_miibus;
-	bus_space_handle_t	sc_mem_bh;
-	bus_space_tag_t		sc_mem_bt;
 	void			*sc_irq_handle;
 	struct resource		*sc_irq_res;
 	struct resource		*sc_mem_res;
@@ -234,6 +248,7 @@ struct et_softc {
 	struct arpcom		arpcom;
 	int			sc_if_flags;
 	uint32_t		sc_flags;	/* ET_FLAG_ */
+	int			sc_expcap;
 
 	int			sc_mem_rid;
 
@@ -273,7 +288,9 @@ struct et_softc {
 #define ET_UNLOCK(_sc)		mtx_unlock(&(_sc)->sc_mtx)
 #define ET_LOCK_ASSERT(_sc)	mtx_assert(&(_sc)->sc_mtx, MA_OWNED)
 
-#define ET_FLAG_TXRX_ENABLED	0x1
-#define ET_FLAG_JUMBO		0x2
+#define ET_FLAG_PCIE		0x0001
+#define ET_FLAG_MSI		0x0002
+#define ET_FLAG_TXRX_ENABLED	0x0100
+#define ET_FLAG_JUMBO		0x0200
 
 #endif	/* !_IF_ETVAR_H */

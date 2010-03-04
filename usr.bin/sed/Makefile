@@ -4,4 +4,6 @@
 PROG=	sed
 SRCS=	compile.c main.c misc.c process.c
 
+WARNS?=	2
+
 .include <bsd.prog.mk>

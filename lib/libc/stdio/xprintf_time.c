@@ -64,7 +64,6 @@ __printf_render_time(struct __printf_io *io, const struct printf_info *pi, const
 	intmax_t t, tx;
 	int i, prec, nsec;
 
-	prec = 0;
 	if (pi->is_long) {
 		tv = *((struct timeval **)arg[0]);
 		t = tv->tv_sec;
@@ -78,6 +77,8 @@ __printf_render_time(struct __printf_io *io, const struct printf_info *pi, const
 	} else {
 		tp = *((time_t **)arg[0]);
 		t = *tp;
+		nsec = 0;
+		prec = 0;
 	}
 
 	p = buf;

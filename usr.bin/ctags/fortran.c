@@ -52,7 +52,7 @@ static void takeprec(void);
 char *lbp;				/* line buffer pointer */
 
 int
-PF_funcs()
+PF_funcs(void)
 {
 	bool	pfcnt;			/* pascal/fortran functions found */
 	char	*cp;

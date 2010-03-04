@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 24, 2006
+.Dd January 7, 2010
 .Dt SENDFILE 2
 .Os
 .Sh NAME
@@ -116,9 +116,17 @@ Busy servers may benefit by transferring requests that would
 block to a separate I/O worker thread.
 .It
 .Dv SF_MNOWAIT .
-(description missing)
+Do not wait for some kernel resource to become available,
+in particular,
+.Vt mbuf
+and
+.Vt sf_buf .
+The flag does not make the
+.Fn sendfile
+syscall truly non-blocking, since other resources are still allocated
+in a blocking fashion.
 .It
-.Dv SF_SYNC ,
+.Dv SF_SYNC .
 .Nm
 sleeps until the network stack no longer references the VM pages
 of the file, making subsequent modifications to it safe.

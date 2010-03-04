@@ -8,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2009, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2010, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -124,20 +124,20 @@
 #define FILE_SUFFIX_DISASSEMBLY     "dsl"
 #define ACPI_TABLE_FILE_SUFFIX      ".dat"
 
-extern UINT8                    *DsdtPtr;
-extern UINT32                   AcpiDsdtLength;
-extern UINT8                    *AmlStart;
-extern UINT32                   AmlLength;
 
-
-extern int                      AcpiGbl_Optind;
-extern char                     *AcpiGbl_Optarg;
-
+/*
+ * getopt
+ */
 int
 AcpiGetopt(
     int                     argc,
     char                    **argv,
     char                    *opts);
+
+extern int                  AcpiGbl_Optind;
+extern int                  AcpiGbl_Opterr;
+extern char                 *AcpiGbl_Optarg;
+
 
 /*
  * adisasm
@@ -151,7 +151,8 @@ AdAmlDisassemble (
     BOOLEAN                 GetAllTables);
 
 void
-AdPrintStatistics (void);
+AdPrintStatistics (
+    void);
 
 ACPI_STATUS
 AdFindDsdt(
@@ -159,7 +160,8 @@ AdFindDsdt(
     UINT32                  *DsdtLength);
 
 void
-AdDumpTables (void);
+AdDumpTables (
+    void);
 
 ACPI_STATUS
 AdGetLocalTables (
@@ -179,7 +181,9 @@ AdDisplayTables (
     ACPI_TABLE_HEADER       *Table);
 
 ACPI_STATUS
-AdDisplayStatistics (void);
+AdDisplayStatistics (
+    void);
+
 
 /*
  * adwalk
@@ -209,6 +213,7 @@ AcpiDmConvertResourceIndexes (
     ACPI_PARSE_OBJECT       *ParseTreeRoot,
     ACPI_NAMESPACE_NODE     *NamespaceRoot);
 
+
 /*
  * adfile
  */
@@ -226,11 +231,6 @@ FlSplitInputPathname (
     char                    *InputPath,
     char                    **OutDirectoryPath,
     char                    **OutFilename);
-
-char *
-FlGenerateFilename (
-    char                    *InputFilename,
-    char                    *Suffix);
 
 char *
 AdGenerateFilename (

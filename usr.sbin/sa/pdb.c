@@ -94,14 +94,14 @@ v1_to_v2(DBT *key __unused, DBT *data)
 
 /* Copy pdb_file to in-memory pacct_db. */
 int
-pacct_init()
+pacct_init(void)
 {
 	return (db_copy_in(&pacct_db, pdb_file, "process accounting",
 	    NULL, v1_to_v2));
 }
 
 void
-pacct_destroy()
+pacct_destroy(void)
 {
 	db_destroy(pacct_db, "process accounting");
 }
@@ -150,14 +150,14 @@ pacct_add(const struct cmdinfo *ci)
 
 /* Copy in-memory pacct_db to pdb_file. */
 int
-pacct_update()
+pacct_update(void)
 {
 	return (db_copy_out(pacct_db, pdb_file, "process accounting",
 	    NULL));
 }
 
 void
-pacct_print()
+pacct_print(void)
 {
 	BTREEINFO bti;
 	DBT key, data, ndata;

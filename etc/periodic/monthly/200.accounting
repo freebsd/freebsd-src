@@ -15,7 +15,7 @@ oldmask=$(umask)
 umask 066
 case "$monthly_accounting_enable" in
     [Yy][Ee][Ss])
-	W=/var/log/wtmp
+	W=/var/log/utx.log
 	rc=0
 	remove=NO
 	if [ ! -f $W.0 ]

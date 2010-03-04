@@ -92,13 +92,13 @@ clnt_raw_create(prog, vers)
 	rpcprog_t prog;
 	rpcvers_t vers;
 {
-	struct clntraw_private *clp = clntraw_private;
+	struct clntraw_private *clp;
 	struct rpc_msg call_msg;
-	XDR *xdrs = &clp->xdr_stream;
-	CLIENT	*client = &clp->client_object;
+	XDR *xdrs;
+	CLIENT	*client;
 
 	mutex_lock(&clntraw_lock);
-	if (clp == NULL) {
+	if ((clp = clntraw_private) == NULL) {
 		clp = (struct clntraw_private *)calloc(1, sizeof (*clp));
 		if (clp == NULL) {
 			mutex_unlock(&clntraw_lock);
@@ -110,6 +110,9 @@ clnt_raw_create(prog, vers)
 		clp->_raw_buf = __rpc_rawcombuf;
 		clntraw_private = clp;
 	}
+	xdrs = &clp->xdr_stream;
+	client = &clp->client_object;
+
 	/*
 	 * pre-serialize the static part of the call msg and stash it away
 	 */

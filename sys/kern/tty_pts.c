@@ -71,9 +71,6 @@ __FBSDID("$FreeBSD$");
  * UT_LINESIZE.
  */
 static struct unrhdr *pts_pool;
-static unsigned int pts_maxdev = 999;
-SYSCTL_UINT(_kern, OID_AUTO, pts_maxdev, CTLFLAG_RW, &pts_maxdev, 0,
-    "Maximum amount of pts(4) pseudo-terminals");
 
 static MALLOC_DEFINE(M_PTS, "pts", "pseudo tty device");
 
@@ -379,7 +376,7 @@ ptsdev_ioctl(struct file *fp, u_long cmd, void *data,
 
 	/* Just redirect this ioctl to the slave device. */
 	tty_lock(tp);
-	error = tty_ioctl(tp, cmd, data, td);
+	error = tty_ioctl(tp, cmd, data, fp->f_flag, td);
 	tty_unlock(tp);
 	if (error == ENOIOCTL)
 		error = ENOTTY;
@@ -725,16 +722,11 @@ pts_alloc(int fflags, struct thread *td, struct file *fp)
 		chgptscnt(uid, -1, 0);
 		return (EAGAIN);
 	}
-	if (unit > pts_maxdev) {
-		free_unr(pts_pool, unit);
-		chgptscnt(uid, -1, 0);
-		return (EAGAIN);
-	}
 
 	/* Allocate TTY and softc. */
 	psc = malloc(sizeof(struct pts_softc), M_PTS, M_WAITOK|M_ZERO);
-	cv_init(&psc->pts_inwait, "pts inwait");
-	cv_init(&psc->pts_outwait, "pts outwait");
+	cv_init(&psc->pts_inwait, "ptsin");
+	cv_init(&psc->pts_outwait, "ptsout");
 
 	psc->pts_unit = unit;
 	psc->pts_uidinfo = uid;
@@ -772,8 +764,8 @@ pts_alloc_external(int fflags, struct thread *td, struct file *fp,
 
 	/* Allocate TTY and softc. */
 	psc = malloc(sizeof(struct pts_softc), M_PTS, M_WAITOK|M_ZERO);
-	cv_init(&psc->pts_inwait, "pts inwait");
-	cv_init(&psc->pts_outwait, "pts outwait");
+	cv_init(&psc->pts_inwait, "ptsin");
+	cv_init(&psc->pts_outwait, "ptsout");
 
 	psc->pts_unit = -1;
 	psc->pts_cdev = dev;

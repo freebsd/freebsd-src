@@ -8,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2009, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2010, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -260,7 +260,7 @@ AcpiEvPciConfigRegionSetup (
     void                    **RegionContext)
 {
     ACPI_STATUS             Status = AE_OK;
-    ACPI_INTEGER            PciValue;
+    UINT64                  PciValue;
     ACPI_PCI_ID             *PciId = *RegionContext;
     ACPI_OPERAND_OBJECT     *HandlerObj;
     ACPI_NAMESPACE_NODE     *ParentNode;
@@ -714,6 +714,20 @@ AcpiEvInitializeRegion (
             case ACPI_TYPE_THERMAL:
 
                 HandlerObj = ObjDesc->ThermalZone.Handler;
+                break;
+
+            case ACPI_TYPE_METHOD:
+                /*
+                 * If we are executing module level code, the original
+                 * Node's object was replaced by this Method object and we
+                 * saved the handler in the method object.
+                 *
+                 * See AcpiNsExecModuleCode
+                 */
+                if (ObjDesc->Method.Flags & AOPOBJ_MODULE_LEVEL)
+                {
+                    HandlerObj = ObjDesc->Method.Extra.Handler;
+                }
                 break;
 
             default:

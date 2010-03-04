@@ -85,7 +85,7 @@ DEFINE_TEST(test_extattr_freebsd)
 
 	n = extattr_set_fd(fd, EXTATTR_NAMESPACE_USER, "testattr", "1234", 4);
 	if (n != 4) {
-		skipping("Restoring xattr to an unwritable file (broken in some versions of FreeBSD");
+		skipping("Restoring xattr to an unwritable file seems to be broken on this platform");
 		extattr_privilege_bug = 1;
 	}
 	close(fd);
@@ -114,17 +114,15 @@ DEFINE_TEST(test_extattr_freebsd)
 	archive_entry_set_size(ae, 0);
 	archive_entry_set_mode(ae, 0);
 	archive_entry_xattr_add_entry(ae, "user.bar", "123456", 6);
-	if (extattr_privilege_bug)
-		/* If the bug is here, write_header will return warning. */
-		assertEqualIntA(a, ARCHIVE_WARN,
-		    archive_write_header(a, ae));
-	else
-		assertEqualIntA(a, ARCHIVE_OK,
-		    archive_write_header(a, ae));
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_header(a, ae));
 	archive_entry_free(ae);
 
 	/* Close the archive. */
-	assertEqualIntA(a, ARCHIVE_OK, archive_write_close(a));
+	if (extattr_privilege_bug)
+		/* If the bug is here, write_close will return warning. */
+		assertEqualIntA(a, ARCHIVE_WARN, archive_write_close(a));
+	else
+		assertEqualIntA(a, ARCHIVE_OK, archive_write_close(a));
 	assertEqualInt(ARCHIVE_OK, archive_write_finish(a));
 
 	/* Verify the data on disk. */

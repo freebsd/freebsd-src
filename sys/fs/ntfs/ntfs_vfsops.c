@@ -316,6 +316,8 @@ ntfs_mountfs(devvp, mp, td)
 		else
 			ntmp->ntm_bpmftrec = (1 << (-cpr)) / ntmp->ntm_bps;
 	}
+	ntmp->ntm_multiplier = ntmp->ntm_bps / DEV_BSIZE;
+
 	dprintf(("ntfs_mountfs(): bps: %d, spc: %d, media: %x, mftrecsz: %d (%d sects)\n",
 		ntmp->ntm_bps,ntmp->ntm_spc,ntmp->ntm_bootfile.bf_media,
 		ntmp->ntm_mftrecsz,ntmp->ntm_bpmftrec));

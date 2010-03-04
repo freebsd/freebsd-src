@@ -38,23 +38,23 @@
 #define	USRSTACK	VM_MAXUSER_ADDRESS
 
 #ifndef	MAXTSIZ
-#define	MAXTSIZ		(16*1024*1024)		/* max text size */
+#define	MAXTSIZ		(64*1024*1024)		/* max text size */
 #endif
 
 #ifndef	DFLDSIZ
-#define	DFLDSIZ		(32*1024*1024)		/* default data size */
+#define	DFLDSIZ		(128*1024*1024)		/* default data size */
 #endif
 
 #ifndef	MAXDSIZ
-#define	MAXDSIZ		(512*1024*1024)		/* max data size */
+#define	MAXDSIZ		(1*1024*1024*1024)	/* max data size */
 #endif
 
 #ifndef	DFLSSIZ
-#define	DFLSSIZ		(1*1024*1024)		/* default stack size */
+#define	DFLSSIZ		(8*1024*1024)		/* default stack size */
 #endif
 
 #ifndef	MAXSSIZ
-#define	MAXSSIZ		(32*1024*1024)		/* max stack size */
+#define	MAXSSIZ		(64*1024*1024)		/* max stack size */
 #endif
 
 /*
@@ -98,20 +98,14 @@
 #define	KERNBASE		0x00100000	/* start of kernel virtual */
 
 #define	VM_MIN_KERNEL_ADDRESS	((vm_offset_t)(KERNEL_SR << ADDR_SR_SHFT))
-#define	VM_MAX_KERNEL_ADDRESS	(VM_MIN_KERNEL_ADDRESS + 2*SEGMENT_LENGTH - 1)
+#define	VM_MAX_SAFE_KERNEL_ADDRESS (VM_MIN_KERNEL_ADDRESS + 2*SEGMENT_LENGTH -1)
+#define	VM_MAX_KERNEL_ADDRESS	(VM_MIN_KERNEL_ADDRESS + 3*SEGMENT_LENGTH - 1)
 
 /*
  * Use the direct-mapped BAT registers for UMA small allocs. This
  * takes pressure off the small amount of available KVA.
  */
 #define UMA_MD_SMALL_ALLOC
-
-/*
- * On 64-bit systems in bridge mode, we have no direct map, so we fake
- * the small_alloc() calls. But we need the VM to be in a reasonable
- * state first.
- */
-#define UMA_MD_SMALL_ALLOC_NEEDS_VM
 
 #else
 

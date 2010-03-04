@@ -316,8 +316,51 @@
     <sect2 id="proc-powerpc">
       <title>powerpc</title>
 
-      <para>The information for this paragraph has yet to be
-	compiled.</para>
+      <para>This section describes the systems currently known to be
+	supported by &os; on the PowerPC platform. This list is not
+	exhaustive.</para>
+
+      <para>In general, all New World architecture Apple hardware
+	is supported, as well a limited selection of non-Apple
+	machines.</para>
+
+      <para>All systems listed below are fully supported, with the
+	exception that software fan control is currently missing on
+	the Power Macintosh G5. SMP is supported on all systems with
+	more than 1 processor.</para>
+
+      <itemizedlist>
+	<listitem>
+	  <para>Apple iMac</para>
+	</listitem>
+	<listitem>
+	  <para>Apple Power Macintosh G3 (Blue & White)</para>
+	</listitem>
+	<listitem>
+	  <para>Apple Power Macintosh G4</para>
+	</listitem>
+	<listitem>
+	  <para>Apple Power Macintosh G5 (non-970MP models)</para>
+	</listitem>
+	<listitem>
+	  <para>Apple iBook</para>
+	</listitem>
+	<listitem>
+	  <para>Apple PowerBook G4</para>
+	</listitem>
+	<listitem>
+	  <para>Apple XServe G4</para>
+	</listitem>
+	<listitem>
+	  <para>Apple XServe G5</para>
+	</listitem>
+	<listitem>
+	  <para>Apple Mac Mini</para>
+	</listitem>
+	<listitem>
+	  <para>Embedded boards based on MPC85XX</para>
+	</listitem>
+      </itemizedlist>
     </sect2>
 
     <sect2 id="proc-sparc64">
@@ -515,12 +558,21 @@
 	</listitem>
 
 	<listitem>
+	  <para>&sun.fire; V215 (support first appeared in 7.3-RELEASE)</para>
+	</listitem>
+
+	<listitem>
 	  <para>&sun.fire; V250</para>
 	</listitem>
 
 	<listitem>
 	  <para>&sun.fire; V440 (support for the on-board NICs first
 	    appeared in 8.0-RELEASE)</para>
+	</listitem>
+
+	<listitem>
+	  <para>&sun.fire; V480 (501-6780 and 501-6790 centerplanes only, for
+	    which support first appeared in 7.3-RELEASE)</para>
 	</listitem>
 
 	<listitem>
@@ -542,6 +594,10 @@
 
 	<listitem>
 	  <para>&sun.fire; V240</para>
+	</listitem>
+
+	<listitem>
+	  <para>&sun.fire; V245 (support first appeared in 7.3-RELEASE)</para>
 	</listitem>
       </itemizedlist>
     </sect2>
@@ -964,138 +1020,6 @@
       &hwlist.ctau;
 
       &hwlist.cm;
-    </sect2>
-
-    <sect2 id="isdn">
-      <title>ISDN Interfaces</title>
-
-      <para>[&arch.i386;] AcerISDN P10 ISA PnP (experimental)</para>
-
-      <para>[&arch.i386;] Asuscom ISDNlink 128K ISA</para>
-
-      <para>[&arch.i386;] ASUSCOM P-IN100-ST-D (and other Winbond
-	W6692-based cards)</para>
-
-      <para>[&arch.i386;] AVM</para>
-
-      <itemizedlist>
-	<listitem>
-	  <para>A1</para>
-	</listitem>
-
-	<listitem>
-	  <para>B1 ISA (tested with V2.0)</para>
-	</listitem>
-
-	<listitem>
-	  <para>B1 PCI (tested with V4.0)</para>
-	</listitem>
-
-	<listitem>
-	  <para>Fritz!Card classic</para>
-	</listitem>
-
-	<listitem>
-	  <para>Fritz!Card PnP</para>
-	</listitem>
-
-	<listitem>
-	  <para>Fritz!Card PCI</para>
-	</listitem>
-
-	<listitem>
-	  <para>Fritz!Card PCI, Version 2</para>
-	</listitem>
-
-	<listitem>
-	  <para>T1</para>
-	</listitem>
-      </itemizedlist>
-
-      <para>[&arch.i386;] Creatix</para>
-
-      <itemizedlist>
-	<listitem>
-	  <para>ISDN-S0</para>
-	</listitem>
-
-	<listitem>
-	  <para>ISDN-S0 P&amp;P</para>
-	</listitem>
-      </itemizedlist>
-
-      <para>[&arch.i386;] Compaq Microcom 610 ISDN (Compaq series
-	PSB2222I) ISA PnP</para>
-
-      <para>[&arch.i386;] Dr. Neuhaus Niccy Go@ and compatibles</para>
-
-      <para>[&arch.i386;] Dynalink IS64PPH and IS64PPH+</para>
-
-      <para>[&arch.i386;] Eicon Diehl DIVA 2.0 and 2.02</para>
-
-      <para>[&arch.i386;] ELSA</para>
-
-      <itemizedlist>
-	<listitem>
-	  <para>ELSA PCC-16</para>
-	</listitem>
-
-	<listitem>
-	  <para>QuickStep 1000pro ISA</para>
-	</listitem>
-
-	<listitem>
-	  <para>MicroLink ISDN/PCI</para>
-	</listitem>
-
-	<listitem>
-	  <para>QuickStep 1000pro PCI</para>
-	</listitem>
-      </itemizedlist>
-
-      <para>[&arch.i386;] ITK ix1 Micro ( &lt; V.3, non-PnP version
-	)</para>
-
-      <para>[&arch.i386;] Sedlbauer Win Speed</para>
-
-      <para>[&arch.i386;] Siemens I-Surf 2.0</para>
-
-      <para>[&arch.i386;] TELEINT ISDN SPEED No.1
-	(experimental)</para>
-
-      <para>[&arch.i386;] Teles</para>
-
-      <itemizedlist>
-	<listitem>
-	  <para>S0/8</para>
-	</listitem>
-
-	<listitem>
-	  <para>S0/16</para>
-	</listitem>
-
-	<listitem>
-	  <para>S0/16.3</para>
-	</listitem>
-
-	<listitem>
-	  <para>S0/16.3 PnP</para>
-	</listitem>
-
-	<listitem>
-	  <para>16.3c ISA PnP (experimental)</para>
-	</listitem>
-
-	<listitem>
-	  <para>Teles PCI-TJ</para>
-	</listitem>
-      </itemizedlist>
-
-      <para>[&arch.i386;] Traverse Technologies NETjet-S PCI</para>
-
-      <para>[&arch.i386;] USRobotics Sportster ISDN TA intern</para>
-
-      <para>[&arch.i386;] Winbond W6692 based PCI cards</para>
     </sect2>
 
     <sect2 id="serial">

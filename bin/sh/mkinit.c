@@ -102,9 +102,9 @@ struct block {
  */
 
 struct event {
-	char *name;		/* name of event (e.g. INIT) */
-	char *routine;		/* name of routine called on event */
-	char *comment;		/* comment describing routine */
+	const char *name;	/* name of event (e.g. INIT) */
+	const char *routine;	/* name of routine called on event */
+	const char *comment;	/* comment describing routine */
 	struct text code;	/* code for handling event */
 };
 
@@ -140,7 +140,7 @@ struct event event[] = {
 };
 
 
-char *curfile;				/* current file */
+const char *curfile;			/* current file */
 int linno;				/* current line */
 char *header_files[200];		/* list of header files */
 struct text defines;			/* #define statements */
@@ -148,20 +148,20 @@ struct text decls;			/* declarations */
 int amiddecls;				/* for formatting */
 
 
-void readfile(char *);
-int match(char *, char *);
-int gooddefine(char *);
-void doevent(struct event *, FILE *, char *);
+void readfile(const char *);
+int match(const char *, const char *);
+int gooddefine(const char *);
+void doevent(struct event *, FILE *, const char *);
 void doinclude(char *);
 void dodecl(char *, FILE *);
 void output(void);
-void addstr(char *, struct text *);
+void addstr(const char *, struct text *);
 void addchar(int, struct text *);
 void writetext(struct text *, FILE *);
-FILE *ckfopen(char *, char *);
+FILE *ckfopen(const char *, const char *);
 void *ckmalloc(size_t);
-char *savestr(char *);
-void error(char *);
+char *savestr(const char *);
+void error(const char *);
 
 #define equal(s1, s2)	(strcmp(s1, s2) == 0)
 
@@ -170,9 +170,9 @@ main(int argc __unused, char *argv[])
 {
 	char **ap;
 
-	header_files[0] = "\"shell.h\"";
-	header_files[1] = "\"mystring.h\"";
-	header_files[2] = "\"init.h\"";
+	header_files[0] = savestr("\"shell.h\"");
+	header_files[1] = savestr("\"mystring.h\"");
+	header_files[2] = savestr("\"init.h\"");
 	for (ap = argv + 1 ; *ap ; ap++)
 		readfile(*ap);
 	output();
@@ -186,7 +186,7 @@ main(int argc __unused, char *argv[])
  */
 
 void
-readfile(char *fname)
+readfile(const char *fname)
 {
 	FILE *fp;
 	char line[1024];
@@ -230,9 +230,9 @@ readfile(char *fname)
 
 
 int
-match(char *name, char *line)
+match(const char *name, const char *line)
 {
-	char *p, *q;
+	const char *p, *q;
 
 	p = name, q = line;
 	while (*p) {
@@ -246,9 +246,9 @@ match(char *name, char *line)
 
 
 int
-gooddefine(char *line)
+gooddefine(const char *line)
 {
-	char *p;
+	const char *p;
 
 	if (! match("#define", line))
 		return 0;			/* not a define */
@@ -269,11 +269,11 @@ gooddefine(char *line)
 
 
 void
-doevent(struct event *ep, FILE *fp, char *fname)
+doevent(struct event *ep, FILE *fp, const char *fname)
 {
 	char line[1024];
 	int indent;
-	char *p;
+	const char *p;
 
 	sprintf(line, "\n      /* from %s: */\n", fname);
 	addstr(line, &ep->code);
@@ -407,7 +407,7 @@ output(void)
  */
 
 void
-addstr(char *s, struct text *text)
+addstr(const char *s, struct text *text)
 {
 	while (*s) {
 		if (--text->nleft < 0)
@@ -452,7 +452,7 @@ writetext(struct text *text, FILE *fp)
 }
 
 FILE *
-ckfopen(char *file, char *mode)
+ckfopen(const char *file, const char *mode)
 {
 	FILE *fp;
 
@@ -474,7 +474,7 @@ ckmalloc(size_t nbytes)
 }
 
 char *
-savestr(char *s)
+savestr(const char *s)
 {
 	char *p;
 
@@ -484,7 +484,7 @@ savestr(char *s)
 }
 
 void
-error(char *msg)
+error(const char *msg)
 {
 	if (curfile != NULL)
 		fprintf(stderr, "%s:%d: ", curfile, linno);

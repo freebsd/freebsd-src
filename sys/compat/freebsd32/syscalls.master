@@ -13,7 +13,7 @@
 ;		case where the event exists, but we don't want auditing, the
 ;		event should be #defined to AUE_NULL in audit_kevents.h.
 ;	type	one of STD, OBSOL, UNIMPL, COMPAT, COMPAT4, COMPAT6,
-;		COMPAT7, LIBCOMPAT, NODEF, NOARGS, NOPROTO, NOSTD
+;		COMPAT7, NODEF, NOARGS, NOPROTO, NOSTD
 ;		The COMPAT* options may be combined with one or more NO*
 ;		options separated by '|' with no spaces (e.g. COMPAT|NOARGS)
 ;	name	psuedo-prototype of syscall routine
@@ -29,7 +29,6 @@
 ;	COMPAT4	included on COMPAT4 #ifdef (FreeBSD 4 compat)
 ;	COMPAT6	included on COMPAT6 #ifdef (FreeBSD 6 compat)
 ;	COMPAT7	included on COMPAT7 #ifdef (FreeBSD 7 compat)
-;	LIBCOMPAT included on COMPAT #ifdef, and placed in syscall.h
 ;	OBSOL	obsolete, not included in system, only specifies name
 ;	UNIMPL	not implemented, placeholder only
 ;	NOSTD	implemented but as a lkm that can be statically
@@ -740,10 +739,14 @@
 				    struct freebsd32_ucontext *oucp, \
 				    const struct freebsd32_ucontext *ucp); }
 424	AUE_SWAPOFF	UNIMPL	swapoff
-425	AUE_NULL	UNIMPL	__acl_get_link
-426	AUE_NULL	UNIMPL	__acl_set_link
-427	AUE_NULL	UNIMPL	__acl_delete_link
-428	AUE_NULL	UNIMPL	__acl_aclcheck_link
+425	AUE_NULL	NOPROTO	{ int __acl_get_link(const char *path, \
+				    acl_type_t type, struct acl *aclp); }
+426	AUE_NULL	NOPROTO	{ int __acl_set_link(const char *path, \
+				    acl_type_t type, struct acl *aclp); }
+427	AUE_NULL	NOPROTO	{ int __acl_delete_link(const char *path, \
+				    acl_type_t type); }
+428	AUE_NULL	NOPROTO	{ int __acl_aclcheck_link(const char *path, \
+				    acl_type_t type, struct acl *aclp); }
 429	AUE_SIGWAIT	NOPROTO	{ int sigwait(const sigset_t *set, \
 				    int *sig); }
 430	AUE_NULL	UNIMPL	thr_create;
@@ -901,3 +904,15 @@
 512	AUE_SHMCTL	STD	{ int freebsd32_shmctl(int shmid, int cmd, \
 				    struct shmid_ds32 *buf); }
 513	AUE_LPATHCONF	NOPROTO	{ int lpathconf(char *path, int name); }
+514	AUE_CAP_NEW	UNIMPL	cap_new
+515	AUE_CAP_GETRIGHTS	UNIMPL	cap_getrights
+516	AUE_CAP_ENTER	UNIMPL	cap_enter
+517	AUE_CAP_GETMODE	UNIMPL	cap_getmode
+518	AUE_PDFORK	UNIMPL	pdfork
+519	AUE_PDKILL	UNIMPL	pdkill
+520	AUE_PDGETPID	UNIMPL	pdgetpid
+521	AUE_PDWAIT	UNIMPL	pdwait
+522	AUE_SELECT	STD	{ int freebsd32_pselect(int nd, fd_set *in, \
+				    fd_set *ou, fd_set *ex, \
+				    const struct timespec32 *ts, \
+				    const sigset_t *sm); }

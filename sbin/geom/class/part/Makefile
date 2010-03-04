@@ -4,8 +4,7 @@
 
 CLASS=	part
 
+DPADD=	${LIBUTIL}
 LDADD=	-lutil
-
-WARNS?=	4
 
 .include <bsd.lib.mk>

@@ -57,6 +57,7 @@ void _rtld_bind_start(void);
  * PLT functions. Not really correct prototypes, but the
  * symbol values are needed.
  */
+void _rtld_powerpc_pltlongresolve(void);
 void _rtld_powerpc_pltresolve(void);
 void _rtld_powerpc_pltcall(void);
 

@@ -686,7 +686,7 @@ turnstile_wait(struct turnstile *ts, struct thread *owner, int queue)
 	 */
 	tc = TC_LOOKUP(ts->ts_lockobj);
 	if (ts == td->td_turnstile) {
-	mtx_assert(&tc->tc_lock, MA_OWNED);
+		mtx_assert(&tc->tc_lock, MA_OWNED);
 #ifdef TURNSTILE_PROFILING
 		tc->tc_depth++;
 		if (tc->tc_depth > tc->tc_max_depth) {
@@ -733,6 +733,7 @@ turnstile_wait(struct turnstile *ts, struct thread *owner, int queue)
 	td->td_tsqueue = queue;
 	td->td_blocked = ts;
 	td->td_lockname = lock->lo_name;
+	td->td_blktick = ticks;
 	TD_SET_LOCK(td);
 	mtx_unlock_spin(&tc->tc_lock);
 	propagate_priority(td);
@@ -925,6 +926,7 @@ turnstile_unpend(struct turnstile *ts, int owner_type)
 		MPASS(TD_CAN_RUN(td));
 		td->td_blocked = NULL;
 		td->td_lockname = NULL;
+		td->td_blktick = 0;
 #ifdef INVARIANTS
 		td->td_tsqueue = 0xff;
 #endif

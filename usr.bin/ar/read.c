@@ -88,7 +88,7 @@ read_archive(struct bsdar *bsdar, char mode)
 	if ((a = archive_read_new()) == NULL)
 		bsdar_errc(bsdar, EX_SOFTWARE, 0, "archive_read_new failed");
 	archive_read_support_compression_all(a);
-	archive_read_support_format_all(a);
+	archive_read_support_format_ar(a);
 	AC(archive_read_open_file(a, bsdar->filename, DEF_BLKSZ));
 
 	for (;;) {

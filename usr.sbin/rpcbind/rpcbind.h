@@ -134,11 +134,20 @@ void read_warmstart(void);
 
 char *addrmerge(struct netbuf *caller, char *serv_uaddr, char *clnt_uaddr,
 		     char *netid);
+int listen_addr(const struct sockaddr *sa);
 void network_init(void);
 struct sockaddr *local_sa(int);
 
 /* For different getaddr semantics */
 #define	RPCB_ALLVERS 0
 #define	RPCB_ONEVERS 1
+
+/* To convert a struct sockaddr to IPv4 or IPv6 address */
+#define	SA2SIN(sa)	((struct sockaddr_in *)(sa))
+#define	SA2SINADDR(sa)	(SA2SIN(sa)->sin_addr)
+#ifdef INET6
+#define	SA2SIN6(sa)	((struct sockaddr_in6 *)(sa))
+#define	SA2SIN6ADDR(sa)	(SA2SIN6(sa)->sin6_addr)
+#endif
 
 #endif /* rpcbind_h */

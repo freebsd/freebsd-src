@@ -633,7 +633,7 @@ g_stripe_start(struct bio *bp)
 	 * Do use "economic" when:
 	 * 1. "Economic" mode is ON.
 	 * or
-	 * 2. "Fast" mode failed. It can only failed if there is no memory.
+	 * 2. "Fast" mode failed. It can only fail if there is no memory.
 	 */
 	if (!fast || error != 0)
 		error = g_stripe_start_economic(bp, no, offset, length);
@@ -675,6 +675,8 @@ g_stripe_check_and_run(struct g_stripe_softc *sc)
 	}
 	sc->sc_provider->sectorsize = sectorsize;
 	sc->sc_provider->mediasize = mediasize * sc->sc_ndisks;
+	sc->sc_provider->stripesize = sc->sc_stripesize;
+	sc->sc_provider->stripeoffset = 0;
 	g_error_provider(sc->sc_provider, 0);
 
 	G_STRIPE_DEBUG(0, "Device %s activated.", sc->sc_name);
@@ -911,6 +913,10 @@ g_stripe_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 
 	g_trace(G_T_TOPOLOGY, "%s(%s, %s)", __func__, mp->name, pp->name);
 	g_topology_assert();
+
+	/* Skip providers that are already open for writing. */
+	if (pp->acw > 0)
+		return (NULL);
 
 	G_STRIPE_DEBUG(3, "Tasting %s.", pp->name);
 

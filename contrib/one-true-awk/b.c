@@ -24,6 +24,9 @@ THIS SOFTWARE.
 
 /* lasciate ogne speranza, voi ch'intrate. */
 
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
+
 #define	DEBUG
 
 #include <ctype.h>
@@ -285,9 +288,21 @@ int quoted(char **pp)	/* pick up next thing after a \\ */
 	return c;
 }
 
+static int collate_range_cmp(int a, int b)
+{
+	static char s[2][2];
+
+	if ((uschar)a == (uschar)b)
+		return 0;
+	s[0][0] = a;
+	s[1][0] = b;
+	return (strcoll(s[0], s[1]));
+}
+
 char *cclenter(const char *argp)	/* add a character class */
 {
 	int i, c, c2;
+	int j;
 	uschar *p = (uschar *) argp;
 	uschar *op, *bp;
 	static uschar *buf = 0;
@@ -306,15 +321,18 @@ char *cclenter(const char *argp)	/* add a character class */
 				c2 = *p++;
 				if (c2 == '\\')
 					c2 = quoted((char **) &p);
-				if (c > c2) {	/* empty; ignore */
+				if (collate_range_cmp(c, c2) > 0) {
 					bp--;
 					i--;
 					continue;
 				}
-				while (c < c2) {
+				for (j = 0; j < NCHARS; j++) {
+					if ((collate_range_cmp(c, j) > 0) ||
+					    collate_range_cmp(j, c2) > 0)
+						continue;
 					if (!adjbuf((char **) &buf, &bufsz, bp-buf+2, 100, (char **) &bp, "cclenter1"))
 						FATAL("out of space for character class [%.10s...] 2", p);
-					*bp++ = ++c;
+					*bp++ = j;
 					i++;
 				}
 				continue;
@@ -731,6 +749,7 @@ Node *unary(Node *np)
  * to nelson beebe for the suggestion; let's see if it works everywhere.
  */
 
+/* #define HAS_ISBLANK */
 #ifndef HAS_ISBLANK
 
 int (isblank)(int c)
@@ -876,7 +895,7 @@ int cgoto(fa *f, int s, int c)
 					if (q[j] >= maxsetvec) {
 						maxsetvec *= 4;
 						setvec = (int *) realloc(setvec, maxsetvec * sizeof(int));
-						tmpset = (int *) realloc(setvec, maxsetvec * sizeof(int));
+						tmpset = (int *) realloc(tmpset, maxsetvec * sizeof(int));
 						if (setvec == 0 || tmpset == 0)
 							overflo("cgoto overflow");
 					}

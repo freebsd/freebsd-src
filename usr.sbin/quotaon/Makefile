@@ -6,8 +6,6 @@ LINKS=	${BINDIR}/quotaon ${BINDIR}/quotaoff
 MAN=	quotaon.8
 MLINKS=	quotaon.8 quotaoff.8
 
-WARNS?=	4
-
 DPADD=  ${LIBUTIL}
 LDADD=  -lutil
 

@@ -145,7 +145,7 @@ AcpiOsReadPciConfiguration(ACPI_PCI_ID *PciId, UINT32 Register, void *Value,
 
 ACPI_STATUS
 AcpiOsWritePciConfiguration (ACPI_PCI_ID *PciId, UINT32 Register,
-    ACPI_INTEGER Value, UINT32 Width)
+    UINT64 Value, UINT32 Width)
 {
     u_int32_t	byte_width = Width / 8;
 

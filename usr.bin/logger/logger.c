@@ -114,6 +114,7 @@ main(int argc, char *argv[])
 		case 'f':		/* file to log */
 			if (freopen(optarg, "r", stdin) == NULL)
 				err(1, "%s", optarg);
+			setvbuf(stdin, 0, _IONBF, 0);
 			break;
 		case 'h':		/* hostname to deliver to */
 			host = optarg;

@@ -25,6 +25,23 @@ THIS SOFTWARE.
 This file lists all bug fixes, changes, etc., made since the AWK book
 was sent to the printers in August, 1987.
 
+Nov 26, 2009:
+	fixed a long-standing issue with when FS takes effect.  a
+	change to FS is now noticed immediately for subsequent splits.
+
+	changed the name getline() to awkgetline() to avoid yet another
+	name conflict somewhere.
+
+Feb 11, 2009:
+	temporarily for now defined HAS_ISBLANK, since that seems to
+	be the best way through the thicket.  isblank arrived in C99,
+	but seems to be arriving at different systems at different
+	times.
+
+Oct 8, 2008:
+	fixed typo in b.c that set tmpvec wrongly.  no one had ever
+	run into the problem, apparently.  thanks to alistair crooks.
+
 Oct 23, 2007:
 	minor fix in lib.c: increase inputFS to 100, change malloc
 	for fields to n+1.  

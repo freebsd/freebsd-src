@@ -93,7 +93,7 @@ int
 sbwrite(struct uufsd *disk, int all)
 {
 	struct fs *fs;
-	int i;
+	unsigned i;
 
 	ERROR(disk, NULL);
 

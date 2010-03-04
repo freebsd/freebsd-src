@@ -34,6 +34,17 @@
 #error this file needs sys/cdefs.h as a prerequisite
 #endif
 
+/*
+ * Note: All the 64-bit atomic operations are only atomic when running
+ * in 64-bit mode.  It is assumed that code compiled for n32 and n64
+ * fits into this definition and no further safeties are needed.
+ *
+ * It is also assumed that the add, subtract and other arithmetic is
+ * done on numbers not pointers.  The special rules for n32 pointers
+ * do not have atomic operations defined for them, but generally shouldn't
+ * need atomic operations.
+ */
+
 static __inline  void
 mips_sync(void)
 {
@@ -126,7 +137,7 @@ atomic_subtract_32(__volatile uint32_t *p, uint32_t v)
 		"1:\tll	%0, %3\n\t"		/* load old value */
 		"subu	%0, %2\n\t"		/* calculate new value */
 		"sc	%0, %1\n\t"		/* attempt to store */
-		"beqz	%0, 1b\n\t"			/* spin if failed */
+		"beqz	%0, 1b\n\t"		/* spin if failed */
 		: "=&r" (temp), "=m" (*p)
 		: "r" (v), "m" (*p)
 		: "memory");
@@ -166,6 +177,110 @@ atomic_readandset_32(__volatile uint32_t *addr, uint32_t value)
 	return result;
 }
 
+#if defined(__mips_n64) || defined(__mips_n32)
+static __inline void
+atomic_set_64(__volatile uint64_t *p, uint64_t v)
+{
+	uint64_t temp;
+
+	__asm __volatile (
+		"1:\n\t"
+		"lld	%0, %3\n\t"		/* load old value */
+		"or	%0, %2, %0\n\t"		/* calculate new value */
+		"scd	%0, %1\n\t"		/* attempt to store */
+		"beqz	%0, 1b\n\t"		/* spin if failed */
+		: "=&r" (temp), "=m" (*p)
+		: "r" (v), "m" (*p)
+		: "memory");
+
+}
+
+static __inline void
+atomic_clear_64(__volatile uint64_t *p, uint64_t v)
+{
+	uint64_t temp;
+	v = ~v;
+
+	__asm __volatile (
+		"1:\n\t"
+		"lld	%0, %3\n\t"		/* load old value */
+		"and	%0, %2, %0\n\t"		/* calculate new value */
+		"scd	%0, %1\n\t"		/* attempt to store */
+		"beqz	%0, 1b\n\t"		/* spin if failed */
+		: "=&r" (temp), "=m" (*p)
+		: "r" (v), "m" (*p)
+		: "memory");
+}
+
+static __inline void
+atomic_add_64(__volatile uint64_t *p, uint64_t v)
+{
+	uint64_t temp;
+
+	__asm __volatile (
+		"1:\n\t"
+		"lld	%0, %3\n\t"		/* load old value */
+		"daddu	%0, %2, %0\n\t"		/* calculate new value */
+		"scd	%0, %1\n\t"		/* attempt to store */
+		"beqz	%0, 1b\n\t"		/* spin if failed */
+		: "=&r" (temp), "=m" (*p)
+		: "r" (v), "m" (*p)
+		: "memory");
+}
+
+static __inline void
+atomic_subtract_64(__volatile uint64_t *p, uint64_t v)
+{
+	uint64_t temp;
+
+	__asm __volatile (
+		"1:\n\t"
+		"lld	%0, %3\n\t"		/* load old value */
+		"dsubu	%0, %2\n\t"		/* calculate new value */
+		"scd	%0, %1\n\t"		/* attempt to store */
+		"beqz	%0, 1b\n\t"		/* spin if failed */
+		: "=&r" (temp), "=m" (*p)
+		: "r" (v), "m" (*p)
+		: "memory");
+}
+
+static __inline uint64_t
+atomic_readandclear_64(__volatile uint64_t *addr)
+{
+	uint64_t result,temp;
+
+	__asm __volatile (
+		"1:\n\t"
+		"lld	 %0, %3\n\t"		/* load old value */
+		"li	 %1, 0\n\t"		/* value to store */
+		"scd	 %1, %2\n\t"		/* attempt to store */
+		"beqz	 %1, 1b\n\t"		/* if the store failed, spin */
+		: "=&r"(result), "=&r"(temp), "=m" (*addr)
+		: "m" (*addr)
+		: "memory");
+
+	return result;
+}
+
+static __inline uint64_t
+atomic_readandset_64(__volatile uint64_t *addr, uint64_t value)
+{
+	uint64_t result,temp;
+
+	__asm __volatile (
+		"1:\n\t"
+		"lld	 %0,%3\n\t"		/* Load old value*/
+		"or      %1,$0,%4\n\t"
+		"scd	 %1,%2\n\t"		/* attempt to store */
+		"beqz	 %1, 1b\n\t"		/* if the store failed, spin */
+		: "=&r"(result), "=&r"(temp), "=m" (*addr)
+		: "m" (*addr), "r" (value)
+		: "memory");
+
+	return result;
+}
+#endif
+
 #define	ATOMIC_ACQ_REL(NAME, WIDTH)					\
 static __inline  void							\
 atomic_##NAME##_acq_##WIDTH(__volatile uint##WIDTH##_t *p, uint##WIDTH##_t v)\
@@ -194,7 +309,7 @@ ATOMIC_ACQ_REL(set, 32)
 ATOMIC_ACQ_REL(clear, 32)
 ATOMIC_ACQ_REL(add, 32)
 ATOMIC_ACQ_REL(subtract, 32)
-#if 0
+#if defined(__mips_n64) || defined(__mips_n32)
 ATOMIC_ACQ_REL(set, 64)
 ATOMIC_ACQ_REL(clear, 64)
 ATOMIC_ACQ_REL(add, 64)
@@ -226,8 +341,22 @@ atomic_store_rel_##WIDTH(__volatile uint##WIDTH##_t *p, uint##WIDTH##_t v)\
 
 ATOMIC_STORE_LOAD(32)
 ATOMIC_STORE_LOAD(64)
-void atomic_store_64 (__volatile uint64_t *, uint64_t *);
-void atomic_load_64 (__volatile uint64_t *, uint64_t *);
+#if !defined(__mips_n64) && !defined(__mips_n32)
+void atomic_store_64(__volatile uint64_t *, uint64_t *);
+void atomic_load_64(__volatile uint64_t *, uint64_t *);
+#else
+static __inline void
+atomic_store_64(__volatile uint64_t *p, uint64_t *v)
+{
+	*p = *v;
+}
+
+static __inline void
+atomic_load_64(__volatile uint64_t *p, uint64_t *v)
+{
+	*v = *p;
+}
+#endif
 
 #undef ATOMIC_STORE_LOAD
 
@@ -294,10 +423,82 @@ atomic_fetchadd_32(__volatile uint32_t *p, uint32_t v)
 		"addu %2, %3, %0\n\t"		/* calculate new value */
 		"sc %2, %1\n\t"			/* attempt to store */
 		"beqz %2, 1b\n\t"		/* spin if failed */
-		: "=&r" (value), "=m" (*p), "=r" (temp)
+		: "=&r" (value), "=m" (*p), "=&r" (temp)
 		: "r" (v), "m" (*p));
 	return (value);
 }
+
+#if defined(__mips_n64) || defined(__mips_n32)
+/*
+ * Atomically compare the value stored at *p with cmpval and if the
+ * two values are equal, update the value of *p with newval. Returns
+ * zero if the compare failed, nonzero otherwise.
+ */
+static __inline uint64_t
+atomic_cmpset_64(__volatile uint64_t* p, uint64_t cmpval, uint64_t newval)
+{
+	uint64_t ret;
+
+	__asm __volatile (
+		"1:\n\t"
+		"lld	%0, %4\n\t"		/* load old value */
+		"bne	%0, %2, 2f\n\t"		/* compare */
+		"move	%0, %3\n\t"		/* value to store */
+		"scd	%0, %1\n\t"		/* attempt to store */
+		"beqz	%0, 1b\n\t"		/* if it failed, spin */
+		"j	3f\n\t"
+		"2:\n\t"
+		"li	%0, 0\n\t"
+		"3:\n"
+		: "=&r" (ret), "=m" (*p)
+		: "r" (cmpval), "r" (newval), "m" (*p)
+		: "memory");
+
+	return ret;
+}
+
+/*
+ * Atomically compare the value stored at *p with cmpval and if the
+ * two values are equal, update the value of *p with newval. Returns
+ * zero if the compare failed, nonzero otherwise.
+ */
+static __inline uint64_t
+atomic_cmpset_acq_64(__volatile uint64_t *p, uint64_t cmpval, uint64_t newval)
+{
+	int retval;
+
+	retval = atomic_cmpset_64(p, cmpval, newval);
+	mips_sync();
+	return (retval);
+}
+
+static __inline uint64_t
+atomic_cmpset_rel_64(__volatile uint64_t *p, uint64_t cmpval, uint64_t newval)
+{
+	mips_sync();
+	return (atomic_cmpset_64(p, cmpval, newval));
+}
+
+/*
+ * Atomically add the value of v to the integer pointed to by p and return
+ * the previous value of *p.
+ */
+static __inline uint64_t
+atomic_fetchadd_64(__volatile uint64_t *p, uint64_t v)
+{
+	uint64_t value, temp;
+
+	__asm __volatile (
+		"1:\n\t"
+		"lld	%0, %1\n\t"		/* load old value */
+		"daddu	%2, %3, %0\n\t"		/* calculate new value */
+		"scd	%2, %1\n\t"		/* attempt to store */
+		"beqz	%2, 1b\n\t"		/* spin if failed */
+		: "=&r" (value), "=m" (*p), "=&r" (temp)
+		: "r" (v), "m" (*p));
+	return (value);
+}
+#endif
 
 /* Operations on chars. */
 #define	atomic_set_char		atomic_set_8
@@ -349,7 +550,13 @@ atomic_fetchadd_32(__volatile uint32_t *p, uint32_t v)
 #define	atomic_readandset_int	atomic_readandset_32
 #define	atomic_fetchadd_int	atomic_fetchadd_32
 
-#ifdef __mips64
+/*
+ * I think the following is right, even for n32.  For n32 the pointers
+ * are still 32-bits, so we need to operate on them as 32-bit quantities,
+ * even though they are sign extended in operation.  For longs, there's
+ * no question because they are always 32-bits.
+ */
+#ifdef __mips_n64
 /* Operations on longs. */
 #define	atomic_set_long		atomic_set_64
 #define	atomic_set_acq_long	atomic_set_acq_64
@@ -371,27 +578,7 @@ atomic_fetchadd_32(__volatile uint32_t *p, uint32_t v)
 #define	atomic_fetchadd_long	atomic_fetchadd_64
 #define	atomic_readandclear_long	atomic_readandclear_64
 
-/* Operations on pointers. */
-#define	atomic_set_ptr		atomic_set_64
-#define	atomic_set_acq_ptr	atomic_set_acq_64
-#define	atomic_set_rel_ptr	atomic_set_rel_64
-#define	atomic_clear_ptr	atomic_clear_64
-#define	atomic_clear_acq_ptr	atomic_clear_acq_64
-#define	atomic_clear_rel_ptr	atomic_clear_rel_64
-#define	atomic_add_ptr		atomic_add_64
-#define	atomic_add_acq_ptr	atomic_add_acq_64
-#define	atomic_add_rel_ptr	atomic_add_rel_64
-#define	atomic_subtract_ptr	atomic_subtract_64
-#define	atomic_subtract_acq_ptr	atomic_subtract_acq_64
-#define	atomic_subtract_rel_ptr	atomic_subtract_rel_64
-#define	atomic_cmpset_ptr	atomic_cmpset_64
-#define	atomic_cmpset_acq_ptr	atomic_cmpset_acq_64
-#define	atomic_cmpset_rel_ptr	atomic_cmpset_rel_64
-#define	atomic_load_acq_ptr	atomic_load_acq_64
-#define	atomic_store_rel_ptr	atomic_store_rel_64
-#define	atomic_readandclear_ptr	atomic_readandclear_64
-
-#else /* __mips64 */
+#else /* !__mips_n64 */
 
 /* Operations on longs. */
 #define	atomic_set_long		atomic_set_32
@@ -421,25 +608,26 @@ atomic_fetchadd_32(__volatile uint32_t *p, uint32_t v)
 	atomic_fetchadd_32((volatile u_int *)(p), (u_int)(v))
 #define	atomic_readandclear_long	atomic_readandclear_32
 
+#endif /* __mips_n64 */
+
 /* Operations on pointers. */
-#define	atomic_set_ptr		atomic_set_32
-#define	atomic_set_acq_ptr	atomic_set_acq_32
-#define	atomic_set_rel_ptr	atomic_set_rel_32
-#define	atomic_clear_ptr	atomic_clear_32
-#define	atomic_clear_acq_ptr	atomic_clear_acq_32
-#define	atomic_clear_rel_ptr	atomic_clear_rel_32
-#define	atomic_add_ptr		atomic_add_32
-#define	atomic_add_acq_ptr	atomic_add_acq_32
-#define	atomic_add_rel_ptr	atomic_add_rel_32
-#define	atomic_subtract_ptr	atomic_subtract_32
-#define	atomic_subtract_acq_ptr	atomic_subtract_acq_32
-#define	atomic_subtract_rel_ptr	atomic_subtract_rel_32
-#define	atomic_cmpset_ptr	atomic_cmpset_32
-#define	atomic_cmpset_acq_ptr	atomic_cmpset_acq_32
-#define	atomic_cmpset_rel_ptr	atomic_cmpset_rel_32
-#define	atomic_load_acq_ptr	atomic_load_acq_32
-#define	atomic_store_rel_ptr	atomic_store_rel_32
-#define	atomic_readandclear_ptr	atomic_readandclear_32
-#endif /* __mips64 */
+#define	atomic_set_ptr		atomic_set_long
+#define	atomic_set_acq_ptr	atomic_set_acq_long
+#define	atomic_set_rel_ptr	atomic_set_rel_long
+#define	atomic_clear_ptr	atomic_clear_long
+#define	atomic_clear_acq_ptr	atomic_clear_acq_long
+#define	atomic_clear_rel_ptr	atomic_clear_rel_long
+#define	atomic_add_ptr		atomic_add_long
+#define	atomic_add_acq_ptr	atomic_add_acq_long
+#define	atomic_add_rel_ptr	atomic_add_rel_long
+#define	atomic_subtract_ptr	atomic_subtract_long
+#define	atomic_subtract_acq_ptr	atomic_subtract_acq_long
+#define	atomic_subtract_rel_ptr	atomic_subtract_rel_long
+#define	atomic_cmpset_ptr	atomic_cmpset_long
+#define	atomic_cmpset_acq_ptr	atomic_cmpset_acq_long
+#define	atomic_cmpset_rel_ptr	atomic_cmpset_rel_long
+#define	atomic_load_acq_ptr	atomic_load_acq_long
+#define	atomic_store_rel_ptr	atomic_store_rel_long
+#define	atomic_readandclear_ptr	atomic_readandclear_long
 
 #endif /* ! _MACHINE_ATOMIC_H_ */

@@ -3,11 +3,22 @@
 
 PROG=	bsdtar
 BSDTAR_VERSION_STRING=2.7.0
-SRCS=	bsdtar.c cmdline.c getdate.c matching.c read.c siginfo.c subst.c tree.c util.c write.c
-WARNS?=	5
-DPADD=	${LIBARCHIVE} ${LIBBZ2} ${LIBZ}
+SRCS=	bsdtar.c	\
+	cmdline.c	\
+	err.c		\
+	getdate.c	\
+	line_reader.c	\
+	matching.c	\
+	pathmatch.c	\
+	read.c		\
+	subst.c		\
+	tree.c		\
+	util.c		\
+	write.c
+DPADD=	${LIBARCHIVE} ${LIBBZ2} ${LIBZ} ${LIBMD}
 LDADD=	-larchive -lbz2 -lz -lmd
 .if ${MK_OPENSSL} != "no"
+DPADD+=	${LIBCRYPTO}
 LDADD+= -lcrypto
 .endif
 CFLAGS+=	-DBSDTAR_VERSION_STRING=\"${BSDTAR_VERSION_STRING}\"

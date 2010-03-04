@@ -22,6 +22,9 @@ ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF
 THIS SOFTWARE.
 ****************************************************************/
 
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
+
 #define DEBUG
 #include <stdio.h>
 #include <ctype.h>
@@ -388,7 +391,7 @@ Cell *jump(Node **a, int n)	/* break, continue, next, nextfile, return */
 	return 0;	/* not reached */
 }
 
-Cell *getline(Node **a, int n)	/* get next line from specific input */
+Cell *awkgetline(Node **a, int n)	/* get next line from specific input */
 {		/* a[0] is variable, a[1] is operator, a[2] is filename */
 	Cell *r, *x;
 	extern Cell **fldtab;
@@ -653,7 +656,7 @@ Cell *relop(Node **a, int n)	/* a[0 < a[1], etc. */
 		j = x->fval - y->fval;
 		i = j<0? -1: (j>0? 1: 0);
 	} else {
-		i = strcmp(getsval(x), getsval(y));
+		i = strcoll(getsval(x), getsval(y));
 	}
 	tempfree(x);
 	tempfree(y);
@@ -1159,11 +1162,11 @@ Cell *cat(Node **a, int q)	/* a[0] cat a[1] */
 			x->sval, y->sval);
 	strcpy(s, x->sval);
 	strcpy(s+n1, y->sval);
+	tempfree(x);
 	tempfree(y);
 	z = gettemp();
 	z->sval = s;
 	z->tval = STR;
-	tempfree(x);
 	return(z);
 }
 

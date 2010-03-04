@@ -6,6 +6,8 @@ LIB=    ln
 SRCS=   libmain.c libyywrap.c
 NO_PIC=
 
+WARNS?=	2
+
 .if ${MK_INSTALLLIB} != "no"
 LINKS=  ${LIBDIR}/libln.a ${LIBDIR}/libl.a
 LINKS+=	${LIBDIR}/libln.a ${LIBDIR}/libfl.a

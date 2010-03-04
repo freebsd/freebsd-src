@@ -469,9 +469,6 @@ device		tdfx_linux		# Enable Linuxulator support
 # kernel environment variables to select initial debugging levels for the
 # Intel ACPICA code.  (Note that the Intel code must also have USE_DEBUGGER
 # defined when it is built).
-#
-# Note that building ACPI into the kernel is deprecated; the module is
-# normally loaded automatically by the loader.
 
 device		acpi
 options 	ACPI_DEBUG
@@ -522,6 +519,7 @@ device		radeondrm	# ATI Radeon
 device		savagedrm	# S3 Savage3D, Savage4
 device		sisdrm		# SiS 300/305, 540, 630
 device		tdfxdrm		# 3dfx Voodoo 3/4/5 and Banshee
+device		viadrm		# VIA
 options 	DRM_DEBUG	# Include debug printfs (slow)
 
 #
@@ -536,7 +534,6 @@ hint.mse.0.irq="5"
 # Network interfaces:
 #
 
-# ath:  Atheros a/b/g WiFi adapters (requires ath_hal and wlan)
 # ce:   Cronyx Tau-PCI/32 sync single/dual port G.703/E1 serial adaptor
 #       with 32 HDLC subchannels (requires sppp (default), or NETGRAPH if
 #       NETGRAPH_CRONYX is configured)
@@ -555,30 +552,20 @@ hint.mse.0.irq="5"
 #       Intel EtherExpress
 # ipw:	Intel PRO/Wireless 2100 IEEE 802.11 adapter
 # iwi:	Intel PRO/Wireless 2200BG/2225BG/2915ABG IEEE 802.11 adapters
+#	Requires the iwi firmware module
 # iwn:	Intel Wireless WiFi Link 4965AGN 802.11 network adapters
+#	Requires the iwn firmware module
+# mwl:	Marvell 88W8363 IEEE 802.11 adapter
+#	Requires the mwl firmware module
 # nfe:	nVidia nForce MCP on-board Ethernet Networking (BSD open source)
 # nve:	nVidia nForce MCP on-board Ethernet Networking
-# ral:	Ralink Technology IEEE 802.11 wireless adapter
 # sbni: Granch SBNI12-xx ISA and PCI adapters
 # wl:   Lucent Wavelan (ISA card only).
 # wpi:	Intel 3945ABG Wireless LAN controller
+#	Requires the wpi firmware module
 
 # Order for ISA/EISA devices is important here
 
-device		ath		# Atheros pci/cardbus NIC's
-device		ath_hal		# pci/cardbus chip support
-#device		ath_ar5210	# AR5210 chips
-#device		ath_ar5211	# AR5211 chips
-#device		ath_ar5212	# AR5212 chips
-#device		ath_rf2413
-#device		ath_rf2417
-#device		ath_rf2425
-#device		ath_rf5111
-#device		ath_rf5112
-#device		ath_rf5413
-#device		ath_ar5416	# AR5416 chips
-options 	AH_SUPPORT_AR5416	# enable AR5416 tx/rx descriptors
-device		ath_rate_sample	# SampleRate tx rate control for ath
 device		ce
 device		cp
 device		cs
@@ -603,17 +590,17 @@ hint.ie.2.at="isa"
 hint.ie.2.port="0x300"
 hint.ie.2.irq="5"
 hint.ie.2.maddr="0xd0000"
+device		ipw
 device		iwi
 device		iwn
-device		ipw
 # Hint for the i386-only ISA front-end of le(4).
 hint.le.0.at="isa"
 hint.le.0.port="0x280"
 hint.le.0.irq="10"
 hint.le.0.drq="0"
+device		mwl
 device		nfe		# nVidia nForce MCP on-board Ethernet Networking
 device		nve		# nVidia nForce MCP on-board Ethernet Networking
-device		ral
 device		sbni
 hint.sbni.0.at="isa"
 hint.sbni.0.port="0x210"
@@ -625,6 +612,45 @@ hint.wl.0.port="0x300"
 options 	WLCACHE		# enables the signal-strength cache
 options 	WLDEBUG		# enables verbose debugging output
 device		wpi
+
+# IEEE 802.11 adapter firmware modules
+
+# Intel PRO/Wireless 2100 firmware:
+#   ipwfw:		BSS/IBSS/monitor mode firmware
+#   ipwbssfw:		BSS mode firmware
+#   ipwibssfw:		IBSS mode firmware
+#   ipwmonitorfw:	Monitor mode firmware
+# Intel PRO/Wireless 2200BG/2225BG/2915ABG firmware:
+#   iwifw:		BSS/IBSS/monitor mode firmware
+#   iwibssfw:		BSS mode firmware
+#   iwiibssfw:		IBSS mode firmware
+#   iwimonitorfw:	Monitor mode firmware
+# Intel Wireless WiFi Link 4965/1000/5000/6000 series firmware:
+#   iwnfw:		Single module to support the 4965/1000/5000/5150/6000
+#   iwn4965fw:		Specific module for the 4965 only
+#   iwn1000fw:		Specific module for the 1000 only
+#   iwn5000fw:		Specific module for the 5000 only
+#   iwn5150fw:		Specific module for the 5150 only
+#   iwn6000fw:		Specific module for the 6000 only
+# mwlfw:	Marvell 88W8363 firmware
+# wpifw:	Intel 3945ABG Wireless LAN Controller firmware
+
+device		iwifw
+device		iwibssfw
+device		iwiibssfw
+device		iwimonitorfw
+device		ipwfw
+device		ipwbssfw
+device		ipwibssfw
+device		ipwmonitorfw
+device		iwnfw
+device		iwn4965fw
+device		iwn1000fw
+device		iwn5000fw
+device		iwn5150fw
+device		iwn6000fw
+device		mwlfw
+device		wpifw
 
 #
 # ATA raid adapters
@@ -785,15 +811,19 @@ hint.pcf.0.irq="5"
 # Hardware watchdog timers:
 #
 # ichwd: Intel ICH watchdog timer
+# amdsbwd: AMD SB7xx watchdog timer
 #
 device		ichwd
+device		amdsbwd
 
 #
 # Temperature sensors:
 #
 # coretemp: on-die sensor on Intel Core and newer CPUs
+# amdtemp: on-die sensor on AMD K8/K10/K11 CPUs
 #
 device		coretemp
+device		amdtemp
 
 #
 # CPU control pseudo-device. Provides access to MSRs, CPUID info and

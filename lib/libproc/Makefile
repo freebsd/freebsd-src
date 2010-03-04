@@ -9,12 +9,10 @@ SRCS=				\
 
 INCS=	libproc.h
 
-CFLAGS+=	-I. -I${.CURDIR}
+CFLAGS+=	-I${.CURDIR}
 
 SHLIB_MAJOR=	2
 
-WARNS?=	6
-
-WITHOUT_MAN=	yes
+WITHOUT_MAN=
 
 .include <bsd.lib.mk>

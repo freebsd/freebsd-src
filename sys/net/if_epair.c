@@ -323,7 +323,7 @@ epair_add_ifp_for_draining(struct ifnet *ifp)
 	STAILQ_FOREACH(elm, &epair_dpcpu->epair_ifp_drain_list, ifp_next)
 		if (elm->ifp == ifp)
 			break;
-	/* If the ipf is there already, return success. */
+	/* If the ifp is there already, return success. */
 	if (elm != NULL)
 		return (0);
 

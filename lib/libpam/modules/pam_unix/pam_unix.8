@@ -105,6 +105,17 @@ sufficient.
 If the password database has no password for the entity being
 authenticated, then this option will forgo password prompting, and
 silently allow authentication to succeed.
+.Pp
+.Sy NOTE:
+If
+.Nm
+is invoked by a process that does not have the privileges required to
+access the password database (in most cases, this means root
+privileges), the
+.Cm nullok
+option may cause
+.Nm
+to allow any user to log in with any password.
 .It Cm local_pass
 Use only the local password database, even if NIS is in use.
 This will cause an authentication failure if the system is configured

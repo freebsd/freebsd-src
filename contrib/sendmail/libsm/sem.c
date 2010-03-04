@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000-2001, 2005 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 2000-2001, 2005, 2008 Sendmail, Inc. and its suppliers.
  *      All rights reserved.
  *
  * By using this file, you agree to the terms and conditions set
@@ -8,11 +8,12 @@
  */
 
 #include <sm/gen.h>
-SM_RCSID("@(#)$Id: sem.c,v 1.13 2005/08/12 20:39:59 ca Exp $")
+SM_RCSID("@(#)$Id: sem.c,v 1.14 2008/05/30 16:26:38 ca Exp $")
 
 #if SM_CONF_SEM
 # include <stdlib.h>
 # include <unistd.h>
+# include <sm/string.h>
 # include <sm/sem.h>
 # include <sm/heap.h>
 # include <errno.h>
@@ -199,5 +200,46 @@ sm_sem_get(semid, semnum)
 	if ((semval = semctl(semid, semnum, GETVAL, NULL)) < 0)
 		return -1;
 	return semval;
+}
+
+/*
+**  SM_SEMSETOWNER -- set owner/group/mode of semaphores.
+**
+**	Parameters:
+**		semid -- id for semaphores.
+**		uid -- uid to use
+**		gid -- gid to use
+**		mode -- mode to use
+**
+**	Returns:
+**		0 on success.
+**		< 0 on failure.
+*/
+
+int
+sm_semsetowner(semid, uid, gid, mode)
+	int semid;
+	uid_t uid;
+	gid_t gid;
+	mode_t mode;
+{
+	int r;
+	struct semid_ds	semidds;
+	union semun {
+		int		val;
+		struct semid_ds	*buf;
+		ushort		*array;
+	} arg;
+
+	memset(&semidds, 0, sizeof(semidds));
+	arg.buf = &semidds;
+	if ((r = semctl(semid, 1, IPC_STAT, arg)) < 0)
+		return r;
+	semidds.sem_perm.uid = uid;
+	semidds.sem_perm.gid = gid;
+	semidds.sem_perm.mode = mode;
+	if ((r = semctl(semid, 1, IPC_SET, arg)) < 0)
+		return r;
+	return 0;
 }
 #endif /* SM_CONF_SEM */

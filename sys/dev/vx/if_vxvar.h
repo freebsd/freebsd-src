@@ -51,8 +51,10 @@ struct vx_softc {
 	int vx_tx_succ_ok;		/* # packets sent in sequence	 */
 					/* w/o underrun			 */
 	struct callout vx_callout;	/* Callout for timeouts		 */
+	struct callout vx_watchdog;
 	struct mtx vx_mtx;
 	int vx_buffill_pending;
+	int vx_timer;
 };
 
 #define CSR_WRITE_4(sc, reg, val)	\

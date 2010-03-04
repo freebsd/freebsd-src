@@ -353,7 +353,7 @@ m3_wrcd(kobj_t kobj, void *devinfo, int regno, u_int32_t data)
 	struct sc_info *sc = (struct sc_info *)devinfo;
 	if (m3_wait(sc)) {
 		device_printf(sc->dev, "m3_wrcd timed out.\n");
-		return -1;;
+		return -1;
 	}
 	m3_wr_2(sc, CODEC_DATA, data);
 	m3_wr_1(sc, CODEC_COMMAND, regno & 0x7f);

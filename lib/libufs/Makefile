@@ -16,7 +16,7 @@ MLINKS+= ufs_disk_close.3 ufs_disk_fillout.3
 MLINKS+= ufs_disk_close.3 ufs_disk_fillout_blank.3
 MLINKS+= ufs_disk_close.3 ufs_disk_write.3
 
-WARNS?=	2
+WARNS?=	3
 
 CFLAGS+= -D_LIBUFS
 .if defined(LIBUFS_DEBUG)

@@ -41,7 +41,11 @@
 /* Information taken from MIPS ABI supplemental */
 
 #ifndef __ELF_WORD_SIZE
+#if defined(__mips_n64)
+#define	__ELF_WORD_SIZE 64	/* Used by <sys/elf_generic.h> */
+#else
 #define	__ELF_WORD_SIZE 32	/* Used by <sys/elf_generic.h> */
+#endif
 #endif
 #include <sys/elf32.h>	/* Definitions common to all 32 bit architectures. */
 #include <sys/elf64.h>	/* Definitions common to all 64 bit architectures. */
@@ -249,5 +253,12 @@ __ElfType(Auxinfo);
 #define	AT_EXECPATH	15	/* Path to the executable. */
 
 #define	AT_COUNT	16	/* Count of defined aux entry types. */
+
+#define	ET_DYN_LOAD_ADDR 0x0120000
+
+/*
+ * Constant to mark start of symtab/strtab saved by trampoline
+ */
+#define	SYMTAB_MAGIC	0x64656267
 
 #endif /* !_MACHINE_ELF_H_ */

@@ -34,9 +34,7 @@ extern EFI_SYSTEM_TABLE		*ST;
 extern EFI_BOOT_SERVICES	*BS;
 extern EFI_RUNTIME_SERVICES	*RS;
 
-extern struct devsw efifs_dev;
-extern struct fs_ops efifs_fsops;
-
+extern struct devsw efipart_dev;
 extern struct devsw efinet_dev;
 extern struct netif_driver efinetif;
 

@@ -30,16 +30,39 @@
 #ifndef	_MACHINE_PCPU_H_
 #define	_MACHINE_PCPU_H_
 
+#include <sys/sysctl.h>
 #include <machine/pcb.h>
 
+struct pcpu_stats {
+	u_long		pcs_nasts;		/* IPI_AST counter. */
+	u_long		pcs_nclks;		/* Clock interrupt counter. */
+	u_long		pcs_nextints;		/* ExtINT counter. */
+	u_long		pcs_nhighfps;		/* IPI_HIGH_FP counter. */
+	u_long		pcs_nhwints;		/* Hardware int. counter. */
+	u_long		pcs_npreempts;		/* IPI_PREEMPT counter. */
+	u_long		pcs_nrdvs;		/* IPI_RENDEZVOUS counter. */
+	u_long		pcs_nstops;		/* IPI_STOP counter. */
+	u_long		pcs_nstrays;		/* Stray interrupt counter. */
+};
+
+struct pcpu_md {
+	struct pcb	pcb;			/* Used by IPI_STOP */
+	struct pmap	*current_pmap;		/* active pmap */
+	vm_offset_t	vhpt;			/* Address of VHPT */
+	uint64_t	lid;			/* local CPU ID */
+	uint64_t	clock;			/* Clock counter. */
+	uint64_t	clockadj;		/* Clock adjust. */
+	uint32_t	awake:1;		/* CPU is awake? */
+	struct pcpu_stats stats;		/* Interrupt stats. */
+#ifdef _KERNEL
+	struct sysctl_ctx_list sysctl_ctx;
+	struct sysctl_oid *sysctl_tree;
+#endif
+};
+
 #define	PCPU_MD_FIELDS							\
-	struct pcb	pc_pcb;			/* Used by IPI_STOP */	\
-	struct pmap	*pc_current_pmap;	/* active pmap */	\
-	uint64_t	pc_lid;			/* local CPU ID */	\
-	uint64_t	pc_clock;		/* Clock counter. */	\
-	uint64_t	pc_clockadj;		/* Clock adjust. */	\
-	uint32_t	pc_awake:1;		/* CPU is awake? */	\
-	uint32_t	pc_acpi_id		/* ACPI CPU id. */
+	uint32_t	pc_acpi_id;		/* ACPI CPU id. */	\
+	struct pcpu_md	pc_md			/* MD fields. */
 
 #ifdef _KERNEL
 

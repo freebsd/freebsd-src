@@ -250,7 +250,7 @@ static const struct ed_product {
  */
 static int	ed_pccard_probe(device_t);
 static int	ed_pccard_attach(device_t);
-static void	ed_pccard_tick(void *);
+static void	ed_pccard_tick(struct ed_softc *);
 
 static int	ed_pccard_dl100xx(device_t dev, const struct ed_product *);
 static void	ed_pccard_dl100xx_mii_reset(struct ed_softc *sc);
@@ -1196,9 +1196,8 @@ ed_child_detached(device_t dev, device_t child)
 }
 
 static void
-ed_pccard_tick(void *arg)
+ed_pccard_tick(struct ed_softc *sc)
 {
-	struct ed_softc *sc = arg;
 	struct mii_data *mii;
 	int media = 0;
 
@@ -1223,7 +1222,6 @@ ed_pccard_tick(void *arg)
 		}
 		
 	}
-	callout_reset(&sc->tick_ch, hz, ed_pccard_tick, sc);
 }
 
 static device_method_t ed_pccard_methods[] = {

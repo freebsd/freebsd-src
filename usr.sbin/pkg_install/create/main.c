@@ -249,7 +249,7 @@ main(int argc, char **argv)
 }
 
 static void
-usage()
+usage(void)
 {
     fprintf(stderr, "%s\n%s\n%s\n%s\n%s\n%s\n%s\n",
 "usage: pkg_create [-YNOhjnvyz] [-C conflicts] [-P pkgs] [-p prefix]",

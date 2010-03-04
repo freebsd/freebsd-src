@@ -391,6 +391,7 @@ void
 g_io_request(struct bio *bp, struct g_consumer *cp)
 {
 	struct g_provider *pp;
+	int first;
 
 	KASSERT(cp != NULL, ("NULL cp in g_io_request"));
 	KASSERT(bp != NULL, ("NULL bp in g_io_request"));
@@ -463,12 +464,14 @@ g_io_request(struct bio *bp, struct g_consumer *cp)
 
 	pp->nstart++;
 	cp->nstart++;
+	first = TAILQ_EMPTY(&g_bio_run_down.bio_queue);
 	TAILQ_INSERT_TAIL(&g_bio_run_down.bio_queue, bp, bio_queue);
 	g_bio_run_down.bio_queue_length++;
 	g_bioq_unlock(&g_bio_run_down);
 
 	/* Pass it on down. */
-	wakeup(&g_wait_down);
+	if (first)
+		wakeup(&g_wait_down);
 }
 
 void
@@ -476,6 +479,7 @@ g_io_deliver(struct bio *bp, int error)
 {
 	struct g_consumer *cp;
 	struct g_provider *pp;
+	int first;
 
 	KASSERT(bp != NULL, ("NULL bp in g_io_deliver"));
 	pp = bp->bio_to;
@@ -536,11 +540,13 @@ g_io_deliver(struct bio *bp, int error)
 	pp->nend++;
 	if (error != ENOMEM) {
 		bp->bio_error = error;
+		first = TAILQ_EMPTY(&g_bio_run_up.bio_queue);
 		TAILQ_INSERT_TAIL(&g_bio_run_up.bio_queue, bp, bio_queue);
 		bp->bio_flags |= BIO_ONQUEUE;
 		g_bio_run_up.bio_queue_length++;
 		g_bioq_unlock(&g_bio_run_up);
-		wakeup(&g_wait_up);
+		if (first)
+			wakeup(&g_wait_up);
 		return;
 	}
 	g_bioq_unlock(&g_bio_run_up);

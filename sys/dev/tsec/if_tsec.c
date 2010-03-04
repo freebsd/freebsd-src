@@ -716,9 +716,9 @@ tsec_start_locked(struct ifnet *ifp)
 	bus_dmamap_sync(sc->tsec_tx_dtag, sc->tsec_tx_dmap,
 	    BUS_DMASYNC_POSTREAD | BUS_DMASYNC_POSTWRITE);
 
-	for (;;) {
+	while (!IFQ_DRV_IS_EMPTY(&ifp->if_snd)) {
 		/* Get packet from the queue */
-		IF_DEQUEUE(&ifp->if_snd, m0);
+		IFQ_DRV_DEQUEUE(&ifp->if_snd, m0);
 		if (m0 == NULL)
 			break;
 
@@ -755,7 +755,7 @@ tsec_start_locked(struct ifnet *ifp)
 			m0 = mtmp;
 
 		if (tsec_encap(sc, m0, fcb_inserted)) {
-			IF_PREPEND(&ifp->if_snd, m0);
+			IFQ_DRV_PREPEND(&ifp->if_snd, m0);
 			ifp->if_drv_flags |= IFF_DRV_OACTIVE;
 			break;
 		}

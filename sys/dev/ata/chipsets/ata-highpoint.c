@@ -54,7 +54,7 @@ __FBSDID("$FreeBSD$");
 /* local prototypes */
 static int ata_highpoint_chipinit(device_t dev);
 static int ata_highpoint_ch_attach(device_t dev);
-static void ata_highpoint_setmode(device_t dev, int mode);
+static int ata_highpoint_setmode(device_t dev, int target, int mode);
 static int ata_highpoint_check_80pin(device_t dev, int mode);
 
 /* misc defines */
@@ -143,26 +143,27 @@ ata_highpoint_chipinit(device_t dev)
 static int
 ata_highpoint_ch_attach(device_t dev)
 {
-    struct ata_channel *ch = device_get_softc(dev);
+	struct ata_pci_controller *ctlr = device_get_softc(device_get_parent(dev));
+	struct ata_channel *ch = device_get_softc(dev);
 
-    /* setup the usual register normal pci style */
-    if (ata_pci_ch_attach(dev))
-	return ENXIO;
-
-    ch->flags |= ATA_ALWAYS_DMASTAT;
-    return 0;
+	/* setup the usual register normal pci style */
+	if (ata_pci_ch_attach(dev))
+		return (ENXIO);
+	ch->flags |= ATA_ALWAYS_DMASTAT;
+	ch->flags |= ATA_CHECKS_CABLE;
+	if (ctlr->chip->cfg1 == HPT_366)
+		ch->flags |= ATA_NO_ATAPI_DMA;
+	return (0);
 }
 
-static void
-ata_highpoint_setmode(device_t dev, int mode)
+static int
+ata_highpoint_setmode(device_t dev, int target, int mode)
 {
-    device_t gparent = GRANDPARENT(dev);
-    struct ata_pci_controller *ctlr = device_get_softc(gparent);
-    struct ata_channel *ch = device_get_softc(device_get_parent(dev));
-    struct ata_device *atadev = device_get_softc(dev);
-    int devno = (ch->unit << 1) + atadev->unit;
-    int error;
-    u_int32_t timings33[][4] = {
+	device_t parent = device_get_parent(dev);
+	struct ata_pci_controller *ctlr = device_get_softc(parent);
+	struct ata_channel *ch = device_get_softc(dev);
+	int devno = (ch->unit << 1) + target;
+	u_int32_t timings33[][4] = {
     /*    HPT366      HPT370      HPT372      HPT374               mode */
 	{ 0x40d0a7aa, 0x06914e57, 0x0d029d5e, 0x0ac1f48a },     /* PIO 0 */
 	{ 0x40d0a7a3, 0x06914e43, 0x0d029d26, 0x0ac1f465 },     /* PIO 1 */
@@ -179,51 +180,41 @@ ata_highpoint_setmode(device_t dev, int mode)
 	{ 0x10c9a731, 0x16454e31, 0x1c8a9c62, 0x12ac8242 },     /* UDMA 4 */
 	{ 0,          0x16454e31, 0x1c8a9c62, 0x12848242 },     /* UDMA 5 */
 	{ 0,          0,          0x1c869c62, 0x12808242 }      /* UDMA 6 */
-    };
+	};
 
-    mode = ata_limit_mode(dev, mode, ctlr->chip->max_dma);
-
-    if (ctlr->chip->cfg1 == HPT_366 && ata_atapi(dev))
-	mode = ata_limit_mode(dev, mode, ATA_PIO_MAX);
-
-    mode = ata_highpoint_check_80pin(dev, mode);
-
-    /*
-     * most if not all HPT chips cant really handle that the device is
-     * running at ATA_UDMA6/ATA133 speed, so we cheat at set the device to
-     * a max of ATA_UDMA5/ATA100 to guard against suboptimal performance
-     */
-    error = ata_controlcmd(dev, ATA_SETFEATURES, ATA_SF_SETXFER, 0,
-			   ata_limit_mode(dev, mode, ATA_UDMA5));
-    if (bootverbose)
-	device_printf(dev, "%ssetting %s on HighPoint chip\n",
-		      (error) ? "FAILURE " : "", ata_mode2str(mode));
-    if (!error)
-	pci_write_config(gparent, 0x40 + (devno << 2),
+	mode = min(mode, ctlr->chip->max_dma);
+	mode = ata_highpoint_check_80pin(dev, mode);
+	/*
+	 * most if not all HPT chips cant really handle that the device is
+	 * running at ATA_UDMA6/ATA133 speed, so we cheat at set the device to
+         * a max of ATA_UDMA5/ATA100 to guard against suboptimal performance
+	 */
+	mode = min(mode, ATA_UDMA5);
+	pci_write_config(parent, 0x40 + (devno << 2),
 			 timings33[ata_mode2idx(mode)][ctlr->chip->cfg1], 4);
-    atadev->mode = mode;
+	return (mode);
 }
 
 static int
 ata_highpoint_check_80pin(device_t dev, int mode)
 {
-    device_t gparent = GRANDPARENT(dev);
-    struct ata_pci_controller *ctlr = device_get_softc(gparent);
-    struct ata_channel *ch = device_get_softc(device_get_parent(dev));
+    device_t parent = device_get_parent(dev);
+    struct ata_pci_controller *ctlr = device_get_softc(parent);
+    struct ata_channel *ch = device_get_softc(dev);
     u_int8_t reg, val, res;
 
-    if (ctlr->chip->cfg1 == HPT_374 && pci_get_function(gparent) == 1) {
+    if (ctlr->chip->cfg1 == HPT_374 && pci_get_function(parent) == 1) {
 	reg = ch->unit ? 0x57 : 0x53;
-	val = pci_read_config(gparent, reg, 1);
-	pci_write_config(gparent, reg, val | 0x80, 1);
+	val = pci_read_config(parent, reg, 1);
+	pci_write_config(parent, reg, val | 0x80, 1);
     }
     else {
 	reg = 0x5b;
-	val = pci_read_config(gparent, reg, 1);
-	pci_write_config(gparent, reg, val & 0xfe, 1);
+	val = pci_read_config(parent, reg, 1);
+	pci_write_config(parent, reg, val & 0xfe, 1);
     }
-    res = pci_read_config(gparent, 0x5a, 1) & (ch->unit ? 0x1:0x2);
-    pci_write_config(gparent, reg, val, 1);
+    res = pci_read_config(parent, 0x5a, 1) & (ch->unit ? 0x1:0x2);
+    pci_write_config(parent, reg, val, 1);
 
     if (mode > ATA_UDMA2 && res) {
 	ata_print_cable(dev, "controller");

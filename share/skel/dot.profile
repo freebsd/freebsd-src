@@ -11,8 +11,7 @@ PATH=/sbin:/bin:/usr/sbin:/usr/bin:/usr/games:/usr/local/sbin:/usr/local/bin:$HO
 # Setting TERM is normally done through /etc/ttys.  Do only override
 # if you're sure that you'll never log in via telnet or xterm or a
 # serial line.
-# Use cons25l1 for iso-* fonts
-# TERM=cons25; 	export TERM
+# TERM=xterm; 	export TERM
 
 BLOCKSIZE=K;	export BLOCKSIZE
 EDITOR=vi;   	export EDITOR

@@ -129,9 +129,6 @@ struct acpi_ec_params {
     int		uid;
 };
 
-/* Indicate that this device has already been probed via ECDT. */
-#define DEV_ECDT(x)	(acpi_get_magic(x) == (uintptr_t)&acpi_ec_devclass)
-
 /*
  * Driver softc.
  */
@@ -226,7 +223,7 @@ static ACPI_STATUS	EcSpaceSetup(ACPI_HANDLE Region, UINT32 Function,
 				void *Context, void **return_Context);
 static ACPI_STATUS	EcSpaceHandler(UINT32 Function,
 				ACPI_PHYSICAL_ADDRESS Address,
-				UINT32 width, ACPI_INTEGER *Value,
+				UINT32 width, UINT64 *Value,
 				void *Context, void *RegionContext);
 static ACPI_STATUS	EcWaitEvent(struct acpi_ec_softc *sc, EC_EVENT Event,
 				u_int gen_count);
@@ -241,9 +238,9 @@ static int		acpi_ec_suspend(device_t dev);
 static int		acpi_ec_resume(device_t dev);
 static int		acpi_ec_shutdown(device_t dev);
 static int		acpi_ec_read_method(device_t dev, u_int addr,
-				ACPI_INTEGER *val, int width);
+				UINT64 *val, int width);
 static int		acpi_ec_write_method(device_t dev, u_int addr,
-				ACPI_INTEGER val, int width);
+				UINT64 val, int width);
 
 static device_method_t acpi_ec_methods[] = {
     /* Device interface */
@@ -332,7 +329,6 @@ acpi_ec_ecdt_probe(device_t parent)
     params->uid = ecdt->Uid;
     acpi_GetInteger(h, "_GLK", &params->glk);
     acpi_set_private(child, params);
-    acpi_set_magic(child, (uintptr_t)&acpi_ec_devclass);
 
     /* Finish the attach process. */
     if (device_probe_and_attach(child) != 0)
@@ -348,6 +344,7 @@ acpi_ec_probe(device_t dev)
     ACPI_STATUS status;
     device_t	peer;
     char	desc[64];
+    int		ecdt;
     int		ret;
     struct acpi_ec_params *params;
     static char *ec_ids[] = { "PNP0C09", NULL };
@@ -362,14 +359,14 @@ acpi_ec_probe(device_t dev)
      * duplicate probe.
      */
     ret = ENXIO;
-    params = NULL;
+    ecdt = 0;
     buf.Pointer = NULL;
     buf.Length = ACPI_ALLOCATE_BUFFER;
-    if (DEV_ECDT(dev)) {
-	params = acpi_get_private(dev);
+    params = acpi_get_private(dev);
+    if (params != NULL) {
+	ecdt = 1;
 	ret = 0;
-    } else if (!acpi_disabled("ec") &&
-	ACPI_ID_PROBE(device_get_parent(dev), dev, ec_ids)) {
+    } else if (ACPI_ID_PROBE(device_get_parent(dev), dev, ec_ids)) {
 	params = malloc(sizeof(struct acpi_ec_params), M_TEMP,
 			M_WAITOK | M_ZERO);
 	h = acpi_get_handle(dev);
@@ -439,7 +436,7 @@ out:
     if (ret == 0) {
 	snprintf(desc, sizeof(desc), "Embedded Controller: GPE %#x%s%s",
 		 params->gpe_bit, (params->glk) ? ", GLK" : "",
-		 DEV_ECDT(dev) ? ", ECDT" : "");
+		 ecdt ? ", ECDT" : "");
 	device_set_desc_copy(dev, desc);
     }
 
@@ -471,6 +468,7 @@ acpi_ec_attach(device_t dev)
     sc->ec_gpehandle = params->gpe_handle;
     sc->ec_uid = params->uid;
     sc->ec_suspending = FALSE;
+    acpi_set_private(dev, NULL);
     free(params, M_TEMP);
 
     /* Attach bus resources for data and command/status ports. */
@@ -583,7 +581,7 @@ acpi_ec_shutdown(device_t dev)
 
 /* Methods to allow other devices (e.g., smbat) to read/write EC space. */
 static int
-acpi_ec_read_method(device_t dev, u_int addr, ACPI_INTEGER *val, int width)
+acpi_ec_read_method(device_t dev, u_int addr, UINT64 *val, int width)
 {
     struct acpi_ec_softc *sc;
     ACPI_STATUS status;
@@ -596,7 +594,7 @@ acpi_ec_read_method(device_t dev, u_int addr, ACPI_INTEGER *val, int width)
 }
 
 static int
-acpi_ec_write_method(device_t dev, u_int addr, ACPI_INTEGER val, int width)
+acpi_ec_write_method(device_t dev, u_int addr, UINT64 val, int width)
 {
     struct acpi_ec_softc *sc;
     ACPI_STATUS status;
@@ -726,7 +724,7 @@ EcSpaceSetup(ACPI_HANDLE Region, UINT32 Function, void *Context,
 
 static ACPI_STATUS
 EcSpaceHandler(UINT32 Function, ACPI_PHYSICAL_ADDRESS Address, UINT32 width,
-	       ACPI_INTEGER *Value, void *Context, void *RegionContext)
+	       UINT64 *Value, void *Context, void *RegionContext)
 {
     struct acpi_ec_softc	*sc = (struct acpi_ec_softc *)Context;
     ACPI_STATUS			Status;
@@ -767,7 +765,7 @@ EcSpaceHandler(UINT32 Function, ACPI_PHYSICAL_ADDRESS Address, UINT32 width,
 	case ACPI_READ:
 	    Status = EcRead(sc, EcAddr, &EcData);
 	    if (ACPI_SUCCESS(Status))
-		*Value |= ((ACPI_INTEGER)EcData) << i;
+		*Value |= ((UINT64)EcData) << i;
 	    break;
 	case ACPI_WRITE:
 	    EcData = (UINT8)((*Value) >> i);

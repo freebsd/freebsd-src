@@ -306,7 +306,7 @@ main(int argc, char *argv[])
 }
 
 static void
-usage()
+usage(void)
 {
 
 	(void)fprintf(stderr,
@@ -318,7 +318,7 @@ usage()
 }
 
 static void
-back_patch()
+back_patch(void)
 {
 	struct instruction *cur_instr;
 
@@ -347,7 +347,7 @@ back_patch()
 }
 
 static void
-output_code()
+output_code(void)
 {
 	struct instruction *cur_instr;
 	patch_t *cur_patch;
@@ -639,6 +639,8 @@ output_listing(char *ifilename)
 		}
 		instrptr++;
 	}
+	free(func_values);
+
 	/* Dump the remainder of the file */
 	while(fgets(buf, sizeof(buf), ifile) != NULL)
 		fprintf(listfile, "             %s", buf);
@@ -731,7 +733,7 @@ stop(const char *string, int err_code)
 }
 
 struct instruction *
-seq_alloc()
+seq_alloc(void)
 {
 	struct instruction *new_instr;
 
@@ -745,7 +747,7 @@ seq_alloc()
 }
 
 critical_section_t *
-cs_alloc()
+cs_alloc(void)
 {
 	critical_section_t *new_cs;
 
@@ -759,7 +761,7 @@ cs_alloc()
 }
 
 scope_t *
-scope_alloc()
+scope_alloc(void)
 {
 	scope_t *new_scope;
 

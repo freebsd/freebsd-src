@@ -101,9 +101,9 @@ static unsigned char archive1[] = {
 static void verify1(struct archive_entry *ae)
 {
 	/* A hardlink is not a symlink. */
-	assert(!S_ISLNK(archive_entry_mode(ae)));
+	assert(archive_entry_filetype(ae) != AE_IFLNK);
 	/* Nor is it a directory. */
-	assert(!S_ISDIR(archive_entry_mode(ae)));
+	assert(archive_entry_filetype(ae) != AE_IFDIR);
 	assertEqualInt(archive_entry_mode(ae) & 0777, 0644);
 	assertEqualInt(archive_entry_uid(ae), 1000);
 	assertEqualInt(archive_entry_gid(ae), 1000);
@@ -132,7 +132,7 @@ static unsigned char archive2[] = {
 
 static void verify2(struct archive_entry *ae)
 {
-	assert(S_ISLNK(archive_entry_mode(ae)));
+	assertEqualInt(archive_entry_filetype(ae), AE_IFLNK);
 	assertEqualInt(archive_entry_mode(ae) & 0777, 0755);
 	assertEqualInt(archive_entry_uid(ae), 1000);
 	assertEqualInt(archive_entry_gid(ae), 1000);
@@ -161,7 +161,7 @@ static unsigned char archive3[] = {
 
 static void verify3(struct archive_entry *ae)
 {
-	assert(S_ISCHR(archive_entry_mode(ae)));
+	assertEqualInt(archive_entry_filetype(ae), AE_IFCHR);
 	assertEqualInt(archive_entry_mode(ae) & 0777, 0755);
 	assertEqualInt(archive_entry_uid(ae), 1000);
 	assertEqualInt(archive_entry_gid(ae), 1000);
@@ -190,7 +190,7 @@ static unsigned char archive4[] = {
 
 static void verify4(struct archive_entry *ae)
 {
-	assert(S_ISBLK(archive_entry_mode(ae)));
+	assertEqualInt(archive_entry_filetype(ae), AE_IFBLK);
 	assertEqualInt(archive_entry_mode(ae) & 0777, 0755);
 	assertEqualInt(archive_entry_uid(ae), 1000);
 	assertEqualInt(archive_entry_gid(ae), 1000);
@@ -219,7 +219,7 @@ static unsigned char archive5[] = {
 
 static void verify5(struct archive_entry *ae)
 {
-	assert(S_ISDIR(archive_entry_mode(ae)));
+	assertEqualInt(archive_entry_filetype(ae), AE_IFDIR);
 	assertEqualInt(archive_entry_mtime(ae), 1131430878);
 	assertEqualInt(archive_entry_mode(ae) & 0777, 0755);
 	assertEqualInt(archive_entry_uid(ae), 1000);
@@ -245,7 +245,7 @@ static unsigned char archive6[] = {
 
 static void verify6(struct archive_entry *ae)
 {
-	assert(S_ISFIFO(archive_entry_mode(ae)));
+	assertEqualInt(archive_entry_filetype(ae), AE_IFIFO);
 	assertEqualInt(archive_entry_mode(ae) & 0777, 0755);
 	assertEqualInt(archive_entry_uid(ae), 1000);
 	assertEqualInt(archive_entry_gid(ae), 1000);
@@ -316,7 +316,7 @@ static unsigned char archiveK[] = {
 
 static void verifyK(struct archive_entry *ae)
 {
-	assert(S_ISLNK(archive_entry_mode(ae)));
+	assertEqualInt(archive_entry_filetype(ae), AE_IFLNK);
 	assertEqualInt(archive_entry_mode(ae) & 0777, 0755);
 	assertEqualInt(archive_entry_uid(ae), 1000);
 	assertEqualInt(archive_entry_gid(ae), 1000);
@@ -402,7 +402,7 @@ static unsigned char archivexL[] = {
 
 static void verifyxL(struct archive_entry *ae)
 {
-	assert(S_ISLNK(archive_entry_mode(ae)));
+	assertEqualInt(archive_entry_filetype(ae), AE_IFLNK);
 	assertEqualInt(archive_entry_mode(ae) & 0777, 0755);
 	assertEqualInt(archive_entry_uid(ae), 1000);
 	assertEqualInt(archive_entry_gid(ae), 1000);

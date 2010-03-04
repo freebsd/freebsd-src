@@ -652,7 +652,7 @@ linux_unlinkat(struct thread *td, struct linux_unlinkat_args *args)
 	if (args->flag & LINUX_AT_REMOVEDIR)
 		error = kern_rmdirat(td, dfd, path, UIO_SYSSPACE);
 	else
-		error = kern_unlinkat(td, dfd, path, UIO_SYSSPACE);
+		error = kern_unlinkat(td, dfd, path, UIO_SYSSPACE, 0);
 	if (error == EPERM && !(args->flag & LINUX_AT_REMOVEDIR)) {
 		/* Introduce POSIX noncompliant behaviour of Linux */
 		if (kern_statat(td, AT_SYMLINK_NOFOLLOW, dfd, path,

@@ -209,8 +209,7 @@ static void elf_sym_to_nlist(struct nlist *, Elf_Sym *, Elf_Shdr *, int);
  * as such its use should be restricted.
  */
 int
-__elf_is_okay__(ehdr)
-	Elf_Ehdr *ehdr;
+__elf_is_okay__(Elf_Ehdr *ehdr)
 {
 	int retval = 0;
 	/*

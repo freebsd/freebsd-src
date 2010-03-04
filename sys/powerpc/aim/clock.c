@@ -95,8 +95,7 @@ static struct timecounter	decr_timecounter = {
 void
 decr_intr(struct trapframe *frame)
 {
-	long		tick;
-	int		nticks;
+	int32_t		tick, nticks;
 
 	/*
 	 * Check whether we are initialized.
@@ -113,12 +112,15 @@ decr_intr(struct trapframe *frame)
 		tick += ticks_per_intr;
 	mtdec(tick);
 
-	if (PCPU_GET(cpuid) == 0) {
-		while (nticks-- > 0)
+	while (nticks-- > 0) {
+		if (PCPU_GET(cpuid) == 0)
 			hardclock(TRAPF_USERMODE(frame), TRAPF_PC(frame));
-	} else {
-		while (nticks-- > 0)
+		else
 			hardclock_cpu(TRAPF_USERMODE(frame));
+
+		statclock(TRAPF_USERMODE(frame));
+		if (profprocs != 0)
+			profclock(TRAPF_USERMODE(frame), TRAPF_PC(frame));
 	}
 }
 
@@ -144,6 +146,8 @@ decr_init(void)
 	ns_per_tick = 1000000000 / ticks_per_sec;
 	ticks_per_intr = ticks_per_sec / hz;
 	mtdec(ticks_per_intr);
+
+	set_cputicker(mftb, ticks_per_sec, 0);
 
 	mtmsr(msr);
 }

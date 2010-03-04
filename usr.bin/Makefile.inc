@@ -3,6 +3,4 @@
 
 BINDIR?=	/usr/bin
 
-# Commented out for the time being.
-# I intend to make this default at some stage.
-#WARNS?=		2
+WARNS?=		6

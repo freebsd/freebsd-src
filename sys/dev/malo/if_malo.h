@@ -550,6 +550,8 @@ struct malo_softc {
 
 	struct malo_txq		malo_txq[MALO_NUM_TX_QUEUES];
 	struct task		malo_txtask;	/* tx int processing */
+	struct callout	malo_watchdog_timer;
+	int			malo_timer;
 
 	struct malo_tx_radiotap_header malo_tx_th;
 	struct malo_rx_radiotap_header malo_rx_th;

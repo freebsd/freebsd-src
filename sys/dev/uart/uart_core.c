@@ -45,7 +45,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/reboot.h>
 #include <machine/bus.h>
 #include <sys/rman.h>
-#include <sys/termios.h>
 #include <machine/resource.h>
 #include <machine/stdarg.h>
 
@@ -91,7 +90,7 @@ uart_getrange(struct uart_class *uc)
  * Schedule a soft interrupt. We do this on the 0 to !0 transition
  * of the TTY pending interrupt status.
  */
-static void
+void
 uart_sched_softih(struct uart_softc *sc, uint32_t ipend)
 {
 	uint32_t new, old;

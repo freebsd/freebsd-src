@@ -9,8 +9,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. The name of the author may not be used to endorse or promote products
- *    derived from this software without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
  * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
@@ -23,7 +21,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	from: NetBSD: mc146818.c,v 1.4 2003/11/24 06:20:40 tsutsui Exp
+ *	$NetBSD: mc146818.c,v 1.16 2008/05/14 13:29:28 tsutsui Exp $
  */
 
 #include <sys/cdefs.h>
@@ -94,7 +92,7 @@ mc146818_attach(device_t dev)
 	(*sc->sc_mcwrite)(dev, MC_REGB, sc->sc_regb);
 	mtx_unlock_spin(&sc->sc_mtx);
 
-	clock_register(dev, 1000000);	/* 1 second resolution. */
+	clock_register(dev, 1000000);	/* 1 second resolution */
 
 	return (0);
 }
@@ -116,7 +114,7 @@ mc146818_gettime(device_t dev, struct timespec *ts)
 
 	/*
 	 * If MC_REGA_UIP is 0 we have at least 244us before the next
-	 * update. If it's 1 an update is imminent.
+	 * update.  If it's 1 an update is imminent.
 	 */
 	for (;;) {
 		mtx_lock_spin(&sc->sc_mtx);
@@ -260,6 +258,9 @@ mc146818_def_write(device_t dev, u_int reg, u_int val)
 	bus_space_write_1(sc->sc_bst, sc->sc_bsh, MC_DATA, val);
 }
 
+#undef MC_ADDR
+#undef MC_DATA
+
 /*
  * Looks like it's common even across platforms to store the century at
  * 0x32 in the NVRAM of the mc146818.
@@ -283,3 +284,5 @@ mc146818_def_setcent(device_t dev, u_int cent)
 	sc = device_get_softc(dev);
 	(*sc->sc_mcwrite)(dev, MC_CENT, cent);
 }
+
+#undef MC_CENT

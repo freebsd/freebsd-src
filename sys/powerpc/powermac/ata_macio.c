@@ -111,7 +111,7 @@ static const struct ide_timings udma_timings[5] = {
  * Define the macio ata bus attachment.
  */
 static  int  ata_macio_probe(device_t dev);
-static  void ata_macio_setmode(device_t parent, device_t dev);
+static  int  ata_macio_setmode(device_t dev, int target, int mode);
 static  int  ata_macio_attach(device_t dev);
 static  int  ata_macio_begin_transaction(struct ata_request *request);
 
@@ -193,7 +193,7 @@ ata_macio_probe(device_t dev)
 	ata_default_registers(dev);
 
 	ch->unit = 0;
-	ch->flags |= ATA_USE_16BIT;
+	ch->flags |= ATA_USE_16BIT | ATA_NO_ATAPI_DMA;
 	ata_generic_hw(dev);
 
 	return (ata_probe(dev));
@@ -247,26 +247,15 @@ ata_macio_attach(device_t dev)
 	return ata_attach(dev);
 }
 
-static void
-ata_macio_setmode(device_t parent, device_t dev)
+static int
+ata_macio_setmode(device_t dev, int target, int mode)
 {
-	struct ata_device *atadev = device_get_softc(dev);
-	struct ata_macio_softc *sc = device_get_softc(parent);
-	int mode = atadev->mode;
+	struct ata_macio_softc *sc = device_get_softc(dev);
 
 	int min_cycle = 0, min_active = 0;
         int cycle_tick = 0, act_tick = 0, inact_tick = 0, half_tick;
 
-	mode = ata_limit_mode(dev, mode, sc->max_mode);
-
-	/* XXX Some controllers don't work correctly with ATAPI DMA */
-	if (atadev->param.config & ATA_PROTO_ATAPI)
-		mode = ata_limit_mode(dev, mode, ATA_PIO_MAX);
-
-	if (ata_controlcmd(dev, ATA_SETFEATURES, ATA_SF_SETXFER, 0, mode))
-		return;
-
-	atadev->mode = mode;
+	mode = min(mode, sc->max_mode);
 
 	if ((mode & ATA_DMA_MASK) == ATA_UDMA0) {
 		min_cycle = udma_timings[mode & ATA_MODE_MASK].cycle;
@@ -276,7 +265,7 @@ ata_macio_setmode(device_t parent, device_t dev)
 		act_tick = ATA_TIME_TO_TICK(sc->rev,min_active);
 
 		/* mask: 0x1ff00000 */
-		sc->udmaconf[atadev->unit] =
+		sc->udmaconf[target] =
 		    (cycle_tick << 21) | (act_tick << 25) | 0x100000;
 	} else if ((mode & ATA_DMA_MASK) == ATA_WDMA0) {
 		min_cycle = dma_timings[mode & ATA_MODE_MASK].cycle;
@@ -288,7 +277,7 @@ ata_macio_setmode(device_t parent, device_t dev)
 		if (sc->rev == 4) {
 			inact_tick = cycle_tick - act_tick;
 			/* mask: 0x001ffc00 */
-			sc->wdmaconf[atadev->unit] = 
+			sc->wdmaconf[target] = 
 			    (act_tick << 10) | (inact_tick << 15);
 		} else {
 			inact_tick = cycle_tick - act_tick - DMA_REC_OFFSET;
@@ -297,7 +286,7 @@ ata_macio_setmode(device_t parent, device_t dev)
 			half_tick = 0;  /* XXX */
 
 			/* mask: 0xfffff800 */
-			sc->wdmaconf[atadev->unit] = (half_tick << 21) 
+			sc->wdmaconf[target] = (half_tick << 21) 
 			    | (inact_tick << 16) | (act_tick << 11);
 		}
 	} else {
@@ -313,7 +302,7 @@ ata_macio_setmode(device_t parent, device_t dev)
 			inact_tick = cycle_tick - act_tick;
 
 			/* mask: 0x000003ff */
-			sc->pioconf[atadev->unit] =
+			sc->pioconf[target] =
 			    (inact_tick << 5) | act_tick;
 		} else {
 			if (act_tick < PIO_ACT_MIN)
@@ -324,21 +313,22 @@ ata_macio_setmode(device_t parent, device_t dev)
 				inact_tick = PIO_REC_MIN;
 
 			/* mask: 0x000007ff */
-			sc->pioconf[atadev->unit] = 
+			sc->pioconf[target] = 
 			    (inact_tick << 5) | act_tick;
 		}
 	}
+
+	return (mode);
 }
 
 static int
 ata_macio_begin_transaction(struct ata_request *request)
 {
-	struct ata_device *atadev = device_get_softc(request->dev);
 	struct ata_macio_softc *sc = device_get_softc(request->parent);
 
 	bus_write_4(sc->sc_mem, ATA_MACIO_TIMINGREG, 
-	    sc->udmaconf[atadev->unit] | sc->wdmaconf[atadev->unit] 
-	    | sc->pioconf[atadev->unit]); 
+	    sc->udmaconf[request->unit] | sc->wdmaconf[request->unit] 
+	    | sc->pioconf[request->unit]); 
 
 	return ata_begin_transaction(request);
 }

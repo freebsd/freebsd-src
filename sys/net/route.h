@@ -384,6 +384,7 @@ void	 rt_missmsg(int, struct rt_addrinfo *, int, int);
 void	 rt_newaddrmsg(int, struct ifaddr *, int, struct rtentry *);
 void	 rt_newmaddrmsg(int, struct ifmultiaddr *);
 int	 rt_setgate(struct rtentry *, struct sockaddr *, struct sockaddr *);
+void 	 rt_maskedcopy(struct sockaddr *, struct sockaddr *, struct sockaddr *);
 
 /*
  * Note the following locking behavior:

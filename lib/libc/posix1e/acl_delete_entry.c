@@ -75,6 +75,7 @@ int
 acl_delete_entry(acl_t acl, acl_entry_t entry_d)
 {
 	struct acl *acl_int;
+	struct acl_entry entry_int;
 	int i, j, found = 0;
 
 	if (acl == NULL || entry_d == NULL) {
@@ -94,8 +95,12 @@ acl_delete_entry(acl_t acl, acl_entry_t entry_d)
 		errno = EINVAL;
 		return (-1);
 	}
+
+	/* Use a local copy to prevent deletion of more than this entry */
+	entry_int = *entry_d;
+
 	for (i = 0; i < acl->ats_acl.acl_cnt;) {
-		if (_entry_matches(&(acl->ats_acl.acl_entry[i]), entry_d)) {
+		if (_entry_matches(&(acl->ats_acl.acl_entry[i]), &entry_int)) {
 			/* ...shift the remaining entries... */
 			for (j = i; j < acl->ats_acl.acl_cnt - 1; ++j)
 				acl->ats_acl.acl_entry[j] =

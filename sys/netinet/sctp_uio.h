@@ -45,6 +45,9 @@ __FBSDID("$FreeBSD$");
 
 typedef uint32_t sctp_assoc_t;
 
+/* Compatibility to previous define's */
+#define sctp_stream_reset_events sctp_stream_reset_event
+
 /* On/Off setup for subscription to events */
 struct sctp_event_subscribe {
 	uint8_t sctp_data_io_event;
@@ -57,7 +60,7 @@ struct sctp_event_subscribe {
 	uint8_t sctp_adaptation_layer_event;
 	uint8_t sctp_authentication_event;
 	uint8_t sctp_sender_dry_event;
-	uint8_t sctp_stream_reset_events;
+	uint8_t sctp_stream_reset_event;
 };
 
 /* ancillary data types */
@@ -273,7 +276,7 @@ struct sctp_send_failed {
 	uint32_t ssf_error;
 	struct sctp_sndrcvinfo ssf_info;
 	sctp_assoc_t ssf_assoc_id;
-	uint8_t ssf_data[0];
+	uint8_t ssf_data[];
 };
 
 /* flag that indicates state of data */
@@ -367,7 +370,7 @@ struct sctp_stream_reset_event {
 	uint16_t strreset_flags;
 	uint32_t strreset_length;
 	sctp_assoc_t strreset_assoc_id;
-	uint16_t strreset_list[0];
+	uint16_t strreset_list[];
 };
 
 /* flags in strreset_flags field */
@@ -402,19 +405,19 @@ union sctp_notification {
 };
 
 /* notification types */
-#define SCTP_ASSOC_CHANGE		0x0001
-#define SCTP_PEER_ADDR_CHANGE		0x0002
-#define SCTP_REMOTE_ERROR		0x0003
-#define SCTP_SEND_FAILED		0x0004
-#define SCTP_SHUTDOWN_EVENT		0x0005
-#define SCTP_ADAPTATION_INDICATION	0x0006
+#define SCTP_ASSOC_CHANGE			0x0001
+#define SCTP_PEER_ADDR_CHANGE			0x0002
+#define SCTP_REMOTE_ERROR			0x0003
+#define SCTP_SEND_FAILED			0x0004
+#define SCTP_SHUTDOWN_EVENT			0x0005
+#define SCTP_ADAPTATION_INDICATION		0x0006
 /* same as above */
-#define SCTP_ADAPTION_INDICATION	0x0006
-#define SCTP_PARTIAL_DELIVERY_EVENT	0x0007
-#define SCTP_AUTHENTICATION_EVENT	0x0008
-#define SCTP_STREAM_RESET_EVENT		0x0009
-#define SCTP_SENDER_DRY_EVENT           0x000a
-
+#define SCTP_ADAPTION_INDICATION		0x0006
+#define SCTP_PARTIAL_DELIVERY_EVENT		0x0007
+#define SCTP_AUTHENTICATION_EVENT		0x0008
+#define SCTP_STREAM_RESET_EVENT			0x0009
+#define SCTP_SENDER_DRY_EVENT			0x000a
+#define SCTP__NOTIFICATIONS_STOPPED_EVENT	0x000b	/* we dont send this */
 /*
  * socket option structs
  */
@@ -514,19 +517,18 @@ struct sctp_authchunk {
 struct sctp_authkey {
 	sctp_assoc_t sca_assoc_id;
 	uint16_t sca_keynumber;
-	uint8_t sca_key[0];
+	uint8_t sca_key[];
 };
 
 /* SCTP_HMAC_IDENT */
 struct sctp_hmacalgo {
 	uint32_t shmac_number_of_idents;
-	uint16_t shmac_idents[0];
+	uint16_t shmac_idents[];
 };
 
 /* AUTH hmac_id */
 #define SCTP_AUTH_HMAC_ID_RSVD		0x0000
 #define SCTP_AUTH_HMAC_ID_SHA1		0x0001	/* default, mandatory */
-#define SCTP_AUTH_HMAC_ID_MD5		0x0002	/* deprecated */
 #define SCTP_AUTH_HMAC_ID_SHA256	0x0003
 #define SCTP_AUTH_HMAC_ID_SHA224	0x0004
 #define SCTP_AUTH_HMAC_ID_SHA384	0x0005
@@ -542,7 +544,7 @@ struct sctp_authkeyid {
 /* SCTP_PEER_AUTH_CHUNKS / SCTP_LOCAL_AUTH_CHUNKS */
 struct sctp_authchunks {
 	sctp_assoc_t gauth_assoc_id;
-	uint8_t gauth_chunks[0];
+	uint8_t gauth_chunks[];
 };
 
 struct sctp_assoc_value {
@@ -552,7 +554,7 @@ struct sctp_assoc_value {
 
 struct sctp_assoc_ids {
 	uint32_t gaids_number_of_ids;
-	sctp_assoc_t gaids_assoc_id[0];
+	sctp_assoc_t gaids_assoc_id[];
 };
 
 struct sctp_sack_info {
@@ -601,7 +603,7 @@ struct sctp_stream_reset {
 	sctp_assoc_t strrst_assoc_id;
 	uint16_t strrst_flags;
 	uint16_t strrst_num_streams;	/* 0 == ALL */
-	uint16_t strrst_list[0];/* list if strrst_num_streams is not 0 */
+	uint16_t strrst_list[];	/* list if strrst_num_streams is not 0 */
 };
 
 
@@ -754,7 +756,7 @@ struct sctp_cwnd_log_req {
 	int32_t num_ret;	/* Number returned */
 	int32_t start_at;	/* start at this one */
 	int32_t end_at;		/* end at this one */
-	struct sctp_cwnd_log log[0];
+	struct sctp_cwnd_log log[];
 };
 
 struct sctp_timeval {

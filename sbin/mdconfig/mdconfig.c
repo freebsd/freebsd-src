@@ -41,7 +41,7 @@ static void usage(void);
 static int md_find(char *, const char *);
 static int md_query(char *name);
 static int md_list(char *units, int opt);
-static char *geom_config_get(struct gconf *g, char *name);
+static char *geom_config_get(struct gconf *g, const char *name);
 static void md_prthumanval(char *length);
 
 #define OPT_VERBOSE	0x01
@@ -52,7 +52,7 @@ static void md_prthumanval(char *length);
 #define CLASS_NAME_MD	"MD"
 
 static void
-usage()
+usage(void)
 {
 	fprintf(stderr,
 "usage: mdconfig -a -t type [-n] [-o [no]option] ... [-f file]\n"
@@ -74,7 +74,7 @@ main(int argc, char **argv)
 	int ch, fd, i, vflag;
 	char *p;
 	int cmdline = 0;
-	char *mdunit;
+	char *mdunit = NULL;
 
 	bzero(&mdio, sizeof(mdio));
 	mdio.md_file = malloc(PATH_MAX);
@@ -379,10 +379,9 @@ md_list(char *units, int opt)
 				if (strcmp(type, "vnode") == 0)
 					file = geom_config_get(gc, "file");
 				length = geom_config_get(gc, "length");
-				if (length == NULL)
-					length = "<a>";
 				printf("\t%s\t", type);
-				md_prthumanval(length);
+				if (length != NULL)
+					md_prthumanval(length);
 				if (file != NULL) {
 					printf("\t%s", file);
 					file = NULL;
@@ -409,7 +408,7 @@ md_list(char *units, int opt)
  * Returns value of 'name' from gconfig structure.
  */
 static char *
-geom_config_get(struct gconf *g, char *name)
+geom_config_get(struct gconf *g, const char *name)
 {
 	struct gconfig *gce;
 
@@ -454,14 +453,15 @@ static void
 md_prthumanval(char *length)
 {
 	char buf[6];
-	uint64_t bytes;
+	uintmax_t bytes;
 	char *endptr;
 
-	bytes = strtoul(length, &endptr, 10);
-	if (bytes == (unsigned)ULONG_MAX || *endptr != '\0')
+	errno = 0;
+	bytes = strtoumax(length, &endptr, 10);
+	if (errno != 0 || *endptr != '\0' || bytes > INT64_MAX)
 		return;
-	humanize_number(buf, sizeof(buf) - (bytes < 0 ? 0 : 1),
-	    bytes, "", HN_AUTOSCALE, HN_B | HN_NOSPACE | HN_DECIMAL);
+	humanize_number(buf, sizeof(buf), (int64_t)bytes, "",
+	    HN_AUTOSCALE, HN_B | HN_NOSPACE | HN_DECIMAL);
 	(void)printf("%6s", buf);
 }
 

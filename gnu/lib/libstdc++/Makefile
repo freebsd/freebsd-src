@@ -21,6 +21,7 @@ CFLAGS+=	-I${GCCLIB}/include -I${SRCDIR}/include -I.
 CFLAGS+=	-frandom-seed=RepeatabilityConsideredGood
 CXXFLAGS+=	-fno-implicit-templates -ffunction-sections -fdata-sections \
 		-Wno-deprecated
+PO_CXXFLAGS=	${CXXFLAGS:N-ffunction-sections}
 
 DPADD=		${LIBM}
 LDADD=		-lm

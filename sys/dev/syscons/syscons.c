@@ -343,17 +343,105 @@ sc_alloc_tty(int index, int devnum)
 	return (tp);
 }
 
+#ifdef SC_PIXEL_MODE
+static void
+sc_set_vesa_mode(scr_stat *scp, sc_softc_t *sc, int unit)
+{
+	video_info_t info;
+	int depth;
+	int i;
+	int vmode;
+
+	vmode = 0;
+	(void)resource_int_value("sc", unit, "vesa_mode", &vmode);
+	if (vmode < M_VESA_BASE || vmode > M_VESA_MODE_MAX ||
+	    vidd_get_info(sc->adp, vmode, &info) != 0 ||
+	    !sc_support_pixel_mode(&info))
+		vmode = 0;
+
+	/*
+	 * If the mode is unset or unsupported, search for an available
+	 * 800x600 graphics mode with the highest color depth.
+	 */
+	if (vmode == 0) {
+		for (depth = 0, i = M_VESA_BASE; i <= M_VESA_MODE_MAX; i++)
+			if (vidd_get_info(sc->adp, i, &info) == 0 &&
+			    info.vi_width == 800 && info.vi_height == 600 &&
+			    sc_support_pixel_mode(&info) &&
+			    info.vi_depth > depth) {
+				vmode = i;
+				depth = info.vi_depth;
+			}
+		if (vmode == 0)
+			return;
+		vidd_get_info(sc->adp, vmode, &info);
+	}
+
+#ifndef SC_NO_FONT_LOADING
+	if ((sc->fonts_loaded & FONT_16) == 0)
+		return;
+#endif
+#ifdef DEV_SPLASH
+	if ((sc->flags & SC_SPLASH_SCRN) != 0)
+		splash_term(sc->adp);
+#endif
+#ifndef SC_NO_HISTORY
+	if (scp->history != NULL) {
+		sc_vtb_append(&scp->vtb, 0, scp->history,
+		    scp->ypos * scp->xsize + scp->xpos);
+		scp->history_pos = sc_vtb_tail(scp->history);
+	}
+#endif
+	vidd_set_mode(sc->adp, vmode);
+	scp->status |= (UNKNOWN_MODE | PIXEL_MODE | MOUSE_HIDDEN);
+	scp->status &= ~(GRAPHICS_MODE | MOUSE_VISIBLE);
+	scp->xpixel = info.vi_width;
+	scp->ypixel = info.vi_height;
+	scp->xsize = scp->xpixel / 8;
+	scp->ysize = scp->ypixel / 16;
+	scp->xpos = 0;
+	scp->ypos = scp->ysize - 1;
+	scp->xoff = scp->yoff = 0;
+#ifndef SC_NO_FONT_LOADING
+	scp->font = sc->font_16;
+#else
+	scp->font = NULL;
+#endif
+	scp->font_size = 16;
+	scp->font_width = 8;
+	scp->start = scp->xsize * scp->ysize - 1;
+	scp->end = 0;
+	scp->cursor_pos = scp->cursor_oldpos = scp->xsize * scp->xsize;
+	scp->mode = sc->initial_mode = vmode;
+#ifndef __sparc64__
+	sc_vtb_init(&scp->scr, VTB_FRAMEBUFFER, scp->xsize, scp->ysize,
+	    (void *)sc->adp->va_window, FALSE);
+#endif
+	sc_alloc_scr_buffer(scp, FALSE, FALSE);
+	sc_init_emulator(scp, NULL);
+#ifndef SC_NO_CUTPASTE
+	sc_alloc_cut_buffer(scp, FALSE);
+#endif
+#ifndef SC_NO_HISTORY
+	sc_alloc_history_buffer(scp, 0, 0, FALSE);
+#endif
+	sc_set_border(scp, scp->border);
+	sc_set_cursor_image(scp);
+	scp->status &= ~UNKNOWN_MODE;
+#ifdef DEV_SPLASH
+	if ((sc->flags & SC_SPLASH_SCRN) != 0)
+		splash_init(sc->adp, scsplash_callback, sc);
+#endif
+}
+#endif
+
 int
 sc_attach_unit(int unit, int flags)
 {
     sc_softc_t *sc;
     scr_stat *scp;
-#ifdef SC_PIXEL_MODE
-    video_info_t info;
-#endif
-    int vc;
     struct cdev *dev;
-    unsigned int vmode = 0;
+    int vc;
 
     flags &= ~SC_KERNEL_CONSOLE;
 
@@ -374,26 +462,9 @@ sc_attach_unit(int unit, int flags)
     if (sc_console == NULL)	/* sc_console_unit < 0 */
 	sc_console = scp;
 
-    (void)resource_int_value("sc", unit, "vesa_mode", &vmode);
-    if (vmode < M_VESA_BASE || vmode > M_VESA_MODE_MAX)
-	vmode = M_VESA_FULL_800;
-
 #ifdef SC_PIXEL_MODE
-    if ((sc->config & SC_VESAMODE)
-	&& (vidd_get_info(sc->adp, vmode, &info) == 0)) {
-#ifdef DEV_SPLASH
-	if (sc->flags & SC_SPLASH_SCRN)
-	    splash_term(sc->adp);
-#endif
-	sc_set_graphics_mode(scp, NULL, vmode);
-	sc_set_pixel_mode(scp, NULL, 0, 0, 16, 8);
-	sc->initial_mode = vmode;
-#ifdef DEV_SPLASH
-	/* put up the splash again! */
-	if (sc->flags & SC_SPLASH_SCRN)
-    	    splash_init(sc->adp, scsplash_callback, sc);
-#endif
-    }
+    if ((sc->config & SC_VESAMODE) != 0)
+	sc_set_vesa_mode(scp, sc, unit);
 #endif /* SC_PIXEL_MODE */
 
     /* initialize cursor */
@@ -594,7 +665,7 @@ sckbdevent(keyboard_t *thiskbd, int event, void *arg)
     struct tty *cur_tty;
     int c, error = 0; 
     size_t len;
-    u_char *cp;
+    const u_char *cp;
 
     sc = (sc_softc_t *)arg;
     /* assert(thiskbd == sc->kbd) */
@@ -633,6 +704,11 @@ sckbdevent(keyboard_t *thiskbd, int event, void *arg)
 	    ttydisc_rint(cur_tty, KEYCHAR(c), 0);
 	    break;
 	case FKEY:  /* function key, return string */
+	    cp = (*sc->cur_scp->tsw->te_fkeystr)(sc->cur_scp, c);
+	    if (cp != NULL) {
+	    	ttydisc_rint_simple(cur_tty, cp, strlen(cp));
+		break;
+	    }
 	    cp = kbdd_get_fkeystr(thiskbd, KEYCHAR(c), &len);
 	    if (cp != NULL)
 	    	ttydisc_rint_simple(cur_tty, cp, len);
@@ -642,9 +718,7 @@ sckbdevent(keyboard_t *thiskbd, int event, void *arg)
 	    ttydisc_rint(cur_tty, KEYCHAR(c), 0);
 	    break;
 	case BKEY:  /* backtab fixed sequence (esc [ Z) */
-	    ttydisc_rint(cur_tty, 0x1b, 0);
-	    ttydisc_rint(cur_tty, '[', 0);
-	    ttydisc_rint(cur_tty, 'Z', 0);
+	    ttydisc_rint_simple(cur_tty, "\x1B[Z", 3);
 	    break;
 	}
 
@@ -1541,7 +1615,7 @@ sc_cngetc(struct consdev *cd)
     static struct fkeytab fkey;
     static int fkeycp;
     scr_stat *scp;
-    u_char *p;
+    const u_char *p;
     int cur_mode;
     int s = spltty();	/* block sckbdevent and scrn_timer while we poll */
     int c;
@@ -1590,6 +1664,13 @@ sc_cngetc(struct consdev *cd)
     case 0:	/* normal char */
 	return KEYCHAR(c);
     case FKEY:	/* function key */
+	p = (*scp->tsw->te_fkeystr)(scp, c);
+	if (p != NULL) {
+	    fkey.len = strlen(p);
+	    bcopy(p, fkey.str, fkey.len);
+	    fkeycp = 1;
+	    return fkey.str[0];
+	}
 	p = kbdd_get_fkeystr(scp->sc->kbd, KEYCHAR(c), (size_t *)&fkeycp);
 	fkey.len = fkeycp;
 	if ((p != NULL) && (fkey.len > 0)) {
@@ -2049,6 +2130,11 @@ restore_scrn_saver_mode(scr_stat *scp, int changemode)
     }
     if (set_mode(scp) == 0) {
 #ifndef SC_NO_PALETTE_LOADING
+#ifdef SC_PIXEL_MODE
+	if ((scp->sc->adp->va_flags & V_ADP_DAC8) != 0)
+	    vidd_load_palette(scp->sc->adp, scp->sc->palette2);
+	else
+#endif
 	vidd_load_palette(scp->sc->adp, scp->sc->palette);
 #endif
 	--scrn_blanked;
@@ -2452,8 +2538,14 @@ exchange_scr(sc_softc_t *sc)
     if (!ISGRAPHSC(scp))
 	sc_set_cursor_image(scp);
 #ifndef SC_NO_PALETTE_LOADING
-    if (ISGRAPHSC(sc->old_scp))
+    if (ISGRAPHSC(sc->old_scp)) {
+#ifdef SC_PIXEL_MODE
+	if ((sc->adp->va_flags & V_ADP_DAC8) != 0)
+	    vidd_load_palette(sc->adp, sc->palette2);
+	else
+#endif
 	vidd_load_palette(sc->adp, sc->palette);
+    }
 #endif
     sc_set_border(scp, scp->border);
 
@@ -2802,6 +2894,10 @@ scinit(int unit, int flags)
 
 #ifndef SC_NO_PALETTE_LOADING
 	vidd_save_palette(sc->adp, sc->palette);
+#ifdef SC_PIXEL_MODE
+	for (i = 0; i < sizeof(sc->palette2); i++)
+		sc->palette2[i] = i / 3;
+#endif
 #endif
 
 #ifdef DEV_SPLASH
@@ -3390,14 +3486,15 @@ next_code:
 }
 
 static int
-sctty_mmap(struct tty *tp, vm_offset_t offset, vm_paddr_t *paddr, int nprot)
+sctty_mmap(struct tty *tp, vm_ooffset_t offset, vm_paddr_t *paddr,
+    int nprot, vm_memattr_t *memattr)
 {
     scr_stat *scp;
 
     scp = sc_get_stat(tp);
     if (scp != scp->sc->cur_scp)
 	return -1;
-    return vidd_mmap(scp->sc->adp, offset, paddr, nprot);
+    return vidd_mmap(scp->sc->adp, offset, paddr, nprot, memattr);
 }
 
 static int
@@ -3561,19 +3658,18 @@ sc_paste(scr_stat *scp, const u_char *p, int count)
 }
 
 void
-sc_respond(scr_stat *scp, const u_char *p, int count) 
+sc_respond(scr_stat *scp, const u_char *p, int count, int wakeup) 
 {
     struct tty *tp;
 
     tp = SC_DEV(scp->sc, scp->sc->cur_scp->index);
     if (!tty_opened(tp))
 	return;
-    for (; count > 0; --count)
-	ttydisc_rint(tp, *p++, 0);
-#if 0
-    /* XXX: we can't call ttydisc_rint_done() here! */
-    ttydisc_rint_done(tp);
-#endif
+    ttydisc_rint_simple(tp, p, count);
+    if (wakeup) {
+	/* XXX: we can't always call ttydisc_rint_done() here! */
+	ttydisc_rint_done(tp);
+    }
 }
 
 void

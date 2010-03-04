@@ -41,6 +41,7 @@
  */
 #define	IPCOMP_ALG_MAX	8
 
+#define	IPCOMPSTAT_VERSION	1
 struct ipcompstat {
 	u_int32_t	ipcomps_hdrops;	/* Packet shorter than header shows */
 	u_int32_t	ipcomps_nopf;	/* Protocol family not supported */
@@ -58,6 +59,9 @@ struct ipcompstat {
 	u_int32_t	ipcomps_pdrops;	/* Packet blocked due to policy */
 	u_int32_t	ipcomps_crypto;	/* "Crypto" processing failure */
 	u_int32_t	ipcomps_hist[IPCOMP_ALG_MAX];/* Per-algorithm op count */
+	u_int32_t	version;	/* Version of this structure. */
+	u_int32_t	ipcomps_threshold; /* Packet < comp. algo. threshold. */
+	u_int32_t	ipcomps_uncompr; /* Compression was useles. */
 };
 
 #ifdef _KERNEL

@@ -91,10 +91,8 @@ extern const char *__progname;
 	nt_hdr = (image_nt_header *)(x + dos_hdr->idh_lfanew);		\
 	sect_hdr = IMAGE_FIRST_SECTION(nt_hdr);
 
-static
-int insert_padding(imgbase, imglen)
-	void			**imgbase;
-	int			*imglen;
+static int
+insert_padding(void **imgbase, int *imglen)
 {
         image_section_header	*sect_hdr;
         image_dos_header	*dos_hdr;

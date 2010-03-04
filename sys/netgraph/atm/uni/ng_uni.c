@@ -771,18 +771,18 @@ struct unimem_debug {
 LIST_HEAD(unimem_debug_list, unimem_debug);
 
 static struct unimem_debug_list nguni_freemem[UNIMEM_TYPES] = {
-    LIST_HEAD_INITIALIZER(unimem_debug),
-    LIST_HEAD_INITIALIZER(unimem_debug),
-    LIST_HEAD_INITIALIZER(unimem_debug),
-    LIST_HEAD_INITIALIZER(unimem_debug),
-    LIST_HEAD_INITIALIZER(unimem_debug),
+    LIST_HEAD_INITIALIZER(nguni_freemem[0]),
+    LIST_HEAD_INITIALIZER(nguni_freemem[1]),
+    LIST_HEAD_INITIALIZER(nguni_freemem[2]),
+    LIST_HEAD_INITIALIZER(nguni_freemem[3]),
+    LIST_HEAD_INITIALIZER(nguni_freemem[4]),
 };
 static struct unimem_debug_list nguni_usedmem[UNIMEM_TYPES] = {
-    LIST_HEAD_INITIALIZER(unimem_debug),
-    LIST_HEAD_INITIALIZER(unimem_debug),
-    LIST_HEAD_INITIALIZER(unimem_debug),
-    LIST_HEAD_INITIALIZER(unimem_debug),
-    LIST_HEAD_INITIALIZER(unimem_debug),
+    LIST_HEAD_INITIALIZER(nguni_usedmem[0]),
+    LIST_HEAD_INITIALIZER(nguni_usedmem[1]),
+    LIST_HEAD_INITIALIZER(nguni_usedmem[2]),
+    LIST_HEAD_INITIALIZER(nguni_usedmem[3]),
+    LIST_HEAD_INITIALIZER(nguni_usedmem[4]),
 };
 
 static struct mtx nguni_unilist_mtx;

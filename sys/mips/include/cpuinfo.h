@@ -57,11 +57,11 @@ struct mips_cpuinfo {
 	u_int16_t	tlb_nentries;
 	u_int8_t	icache_virtual;
 	struct {
-		u_int8_t	ic_size;
+		u_int32_t	ic_size;
 		u_int8_t	ic_linesize;
 		u_int8_t	ic_nways;
 		u_int16_t	ic_nsets;
-		u_int8_t	dc_size;
+		u_int32_t	dc_size;
 		u_int8_t	dc_linesize;
 		u_int8_t	dc_nways;
 		u_int16_t	dc_nsets;

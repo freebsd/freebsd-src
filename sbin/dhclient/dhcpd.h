@@ -37,6 +37,8 @@
  * Enterprises.  To learn more about the Internet Software Consortium,
  * see ``http://www.vix.com/isc''.  To learn more about Vixie
  * Enterprises, see ``http://www.vix.com''.
+ *
+ * $FreeBSD$
  */
 
 #include <sys/types.h>
@@ -194,6 +196,7 @@ struct interface_info {
 	char			 name[IFNAMSIZ];
 	int			 rfdesc;
 	int			 wfdesc;
+	int			 ufdesc;
 	unsigned char		*rbuf;
 	size_t			 rbuf_max;
 	size_t			 rbuf_offset;

@@ -456,7 +456,7 @@ lptout(void *arg)
 	if (sc->sc_state & OPEN) {
 		sc->sc_backoff++;
 		if (sc->sc_backoff > hz/LPTOUTMAX)
-			sc->sc_backoff = sc->sc_backoff > hz/LPTOUTMAX;
+			sc->sc_backoff = hz/LPTOUTMAX;
 		callout_reset(&sc->sc_timer, sc->sc_backoff, lptout, sc);
 	} else
 		sc->sc_state &= ~TOUT;
@@ -486,11 +486,14 @@ lptopen(struct cdev *dev, int flags, int fmt, struct thread *td)
 {
 	int trys, err;
 	struct lpt_data *sc = dev->si_drv1;
-	device_t lptdev = sc->sc_dev;
-	device_t ppbus = device_get_parent(lptdev);
+	device_t lptdev;
+	device_t ppbus;
 
 	if (!sc)
 		return (ENXIO);
+
+	lptdev = sc->sc_dev;
+	ppbus = device_get_parent(lptdev);
 
 	ppb_lock(ppbus);
 	if (sc->sc_state) {
@@ -624,7 +627,7 @@ lptclose(struct cdev *dev, int flags, int fmt, struct thread *td)
 		while ((ppb_rstr(ppbus) &
 			(LPS_SEL|LPS_OUT|LPS_NBSY|LPS_NERR)) !=
 			(LPS_SEL|LPS_NBSY|LPS_NERR) || sc->sc_xfercnt)
-			/* wait 1/4 second, give up if we get a signal */
+			/* wait 1 second, give up if we get a signal */
 			if (ppb_sleep(ppbus, lptdev, LPPRI | PCATCH, "lpclose",
 			    hz) != EWOULDBLOCK)
 				break;

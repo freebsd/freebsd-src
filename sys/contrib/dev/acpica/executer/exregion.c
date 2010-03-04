@@ -9,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2009, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2010, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -149,7 +149,7 @@ AcpiExSystemMemorySpaceHandler (
     UINT32                  Function,
     ACPI_PHYSICAL_ADDRESS   Address,
     UINT32                  BitWidth,
-    ACPI_INTEGER            *Value,
+    UINT64                  *Value,
     void                    *HandlerContext,
     void                    *RegionContext)
 {
@@ -157,7 +157,8 @@ AcpiExSystemMemorySpaceHandler (
     void                    *LogicalAddrPtr = NULL;
     ACPI_MEM_SPACE_CONTEXT  *MemInfo = RegionContext;
     UINT32                  Length;
-    ACPI_SIZE               WindowSize;
+    ACPI_SIZE               MapLength;
+    ACPI_SIZE               PageBoundaryMapLength;
 #ifdef ACPI_MISALIGNMENT_NOT_SUPPORTED
     UINT32                  Remainder;
 #endif
@@ -197,7 +198,7 @@ AcpiExSystemMemorySpaceHandler (
      * Hardware does not support non-aligned data transfers, we must verify
      * the request.
      */
-    (void) AcpiUtShortDivide ((ACPI_INTEGER) Address, Length, NULL, &Remainder);
+    (void) AcpiUtShortDivide ((UINT64) Address, Length, NULL, &Remainder);
     if (Remainder != 0)
     {
         return_ACPI_STATUS (AE_AML_ALIGNMENT);
@@ -210,8 +211,8 @@ AcpiExSystemMemorySpaceHandler (
      *    2) Address beyond the current mapping?
      */
     if ((Address < MemInfo->MappedPhysicalAddress) ||
-        (((ACPI_INTEGER) Address + Length) >
-            ((ACPI_INTEGER)
+        (((UINT64) Address + Length) >
+            ((UINT64)
             MemInfo->MappedPhysicalAddress + MemInfo->MappedLength)))
     {
         /*
@@ -227,26 +228,45 @@ AcpiExSystemMemorySpaceHandler (
         }
 
         /*
-         * Don't attempt to map memory beyond the end of the region, and
-         * constrain the maximum mapping size to something reasonable.
+         * October 2009: Attempt to map from the requested address to the
+         * end of the region. However, we will never map more than one
+         * page, nor will we cross a page boundary.
          */
-        WindowSize = (ACPI_SIZE)
+        MapLength = (ACPI_SIZE)
             ((MemInfo->Address + MemInfo->Length) - Address);
 
-        if (WindowSize > ACPI_SYSMEM_REGION_WINDOW_SIZE)
+        /*
+         * If mapping the entire remaining portion of the region will cross
+         * a page boundary, just map up to the page boundary, do not cross.
+         * On some systems, crossing a page boundary while mapping regions
+         * can cause warnings if the pages have different attributes
+         * due to resource management.
+         *
+         * This has the added benefit of constraining a single mapping to
+         * one page, which is similar to the original code that used a 4k
+         * maximum window.
+         */
+        PageBoundaryMapLength =
+            ACPI_ROUND_UP (Address, ACPI_DEFAULT_PAGE_SIZE) - Address;
+        if (PageBoundaryMapLength == 0)
         {
-            WindowSize = ACPI_SYSMEM_REGION_WINDOW_SIZE;
+            PageBoundaryMapLength = ACPI_DEFAULT_PAGE_SIZE;
+        }
+
+        if (MapLength > PageBoundaryMapLength)
+        {
+            MapLength = PageBoundaryMapLength;
         }
 
         /* Create a new mapping starting at the address given */
 
         MemInfo->MappedLogicalAddress = AcpiOsMapMemory (
-            (ACPI_PHYSICAL_ADDRESS) Address, WindowSize);
+            (ACPI_PHYSICAL_ADDRESS) Address, MapLength);
         if (!MemInfo->MappedLogicalAddress)
         {
             ACPI_ERROR ((AE_INFO,
                 "Could not map memory at %8.8X%8.8X, size %X",
-                ACPI_FORMAT_NATIVE_UINT (Address), (UINT32) WindowSize));
+                ACPI_FORMAT_NATIVE_UINT (Address), (UINT32) MapLength));
             MemInfo->MappedLength = 0;
             return_ACPI_STATUS (AE_NO_MEMORY);
         }
@@ -254,7 +274,7 @@ AcpiExSystemMemorySpaceHandler (
         /* Save the physical address and mapping size */
 
         MemInfo->MappedPhysicalAddress = Address;
-        MemInfo->MappedLength = WindowSize;
+        MemInfo->MappedLength = MapLength;
     }
 
     /*
@@ -262,7 +282,7 @@ AcpiExSystemMemorySpaceHandler (
      * access
      */
     LogicalAddrPtr = MemInfo->MappedLogicalAddress +
-        ((ACPI_INTEGER) Address - (ACPI_INTEGER) MemInfo->MappedPhysicalAddress);
+        ((UINT64) Address - (UINT64) MemInfo->MappedPhysicalAddress);
 
     ACPI_DEBUG_PRINT ((ACPI_DB_INFO,
         "System-Memory (width %d) R/W %d Address=%8.8X%8.8X\n",
@@ -284,19 +304,19 @@ AcpiExSystemMemorySpaceHandler (
         switch (BitWidth)
         {
         case 8:
-            *Value = (ACPI_INTEGER) ACPI_GET8 (LogicalAddrPtr);
+            *Value = (UINT64) ACPI_GET8 (LogicalAddrPtr);
             break;
 
         case 16:
-            *Value = (ACPI_INTEGER) ACPI_GET16 (LogicalAddrPtr);
+            *Value = (UINT64) ACPI_GET16 (LogicalAddrPtr);
             break;
 
         case 32:
-            *Value = (ACPI_INTEGER) ACPI_GET32 (LogicalAddrPtr);
+            *Value = (UINT64) ACPI_GET32 (LogicalAddrPtr);
             break;
 
         case 64:
-            *Value = (ACPI_INTEGER) ACPI_GET64 (LogicalAddrPtr);
+            *Value = (UINT64) ACPI_GET64 (LogicalAddrPtr);
             break;
 
         default:
@@ -363,7 +383,7 @@ AcpiExSystemIoSpaceHandler (
     UINT32                  Function,
     ACPI_PHYSICAL_ADDRESS   Address,
     UINT32                  BitWidth,
-    ACPI_INTEGER            *Value,
+    UINT64                  *Value,
     void                    *HandlerContext,
     void                    *RegionContext)
 {
@@ -427,7 +447,7 @@ AcpiExPciConfigSpaceHandler (
     UINT32                  Function,
     ACPI_PHYSICAL_ADDRESS   Address,
     UINT32                  BitWidth,
-    ACPI_INTEGER            *Value,
+    UINT64                  *Value,
     void                    *HandlerContext,
     void                    *RegionContext)
 {
@@ -507,7 +527,7 @@ AcpiExCmosSpaceHandler (
     UINT32                  Function,
     ACPI_PHYSICAL_ADDRESS   Address,
     UINT32                  BitWidth,
-    ACPI_INTEGER            *Value,
+    UINT64                  *Value,
     void                    *HandlerContext,
     void                    *RegionContext)
 {
@@ -544,7 +564,7 @@ AcpiExPciBarSpaceHandler (
     UINT32                  Function,
     ACPI_PHYSICAL_ADDRESS   Address,
     UINT32                  BitWidth,
-    ACPI_INTEGER            *Value,
+    UINT64                  *Value,
     void                    *HandlerContext,
     void                    *RegionContext)
 {
@@ -581,7 +601,7 @@ AcpiExDataTableSpaceHandler (
     UINT32                  Function,
     ACPI_PHYSICAL_ADDRESS   Address,
     UINT32                  BitWidth,
-    ACPI_INTEGER            *Value,
+    UINT64                  *Value,
     void                    *HandlerContext,
     void                    *RegionContext)
 {

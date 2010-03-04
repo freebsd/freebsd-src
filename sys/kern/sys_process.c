@@ -59,6 +59,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_kern.h>
 #include <vm/vm_object.h>
 #include <vm/vm_page.h>
+#include <vm/vm_pager.h>
 #include <vm/vm_param.h>
 
 #ifdef COMPAT_IA32
@@ -72,6 +73,20 @@ struct ptrace_io_desc32 {
 	u_int32_t	piod_addr;
 	u_int32_t	piod_len;
 };
+
+struct ptrace_vm_entry32 {
+	int		pve_entry;
+	int		pve_timestamp;
+	uint32_t	pve_start;
+	uint32_t	pve_end;
+	uint32_t	pve_offset;
+	u_int		pve_prot;
+	u_int		pve_pathlen;
+	int32_t		pve_fileid;
+	u_int		pve_fsid;
+	uint32_t	pve_path;
+};
+
 #endif
 
 /*
@@ -213,10 +228,10 @@ int
 proc_rwmem(struct proc *p, struct uio *uio)
 {
 	vm_map_t map;
-	vm_object_t backing_object, object = NULL;
-	vm_offset_t pageno = 0;		/* page number */
+	vm_object_t backing_object, object;
+	vm_offset_t pageno;		/* page number */
 	vm_prot_t reqprot;
-	int error, fault_flags, writing;
+	int error, writing;
 
 	/*
 	 * Assert that someone has locked this vmspace.  (Should be
@@ -232,9 +247,7 @@ proc_rwmem(struct proc *p, struct uio *uio)
 	map = &p->p_vmspace->vm_map;
 
 	writing = uio->uio_rw == UIO_WRITE;
-	reqprot = writing ? (VM_PROT_WRITE | VM_PROT_OVERRIDE_WRITE) :
-	    VM_PROT_READ;
-	fault_flags = writing ? VM_FAULT_DIRTY : VM_FAULT_NORMAL; 
+	reqprot = writing ? VM_PROT_COPY | VM_PROT_READ : VM_PROT_READ;
 
 	/*
 	 * Only map in one page at a time.  We don't have to, but it
@@ -269,7 +282,7 @@ proc_rwmem(struct proc *p, struct uio *uio)
 		/*
 		 * Fault the page on behalf of the process
 		 */
-		error = vm_fault(map, pageno, reqprot, fault_flags);
+		error = vm_fault(map, pageno, reqprot, VM_FAULT_NORMAL);
 		if (error) {
 			if (error == KERN_RESOURCE_SHORTAGE)
 				error = ENOMEM;
@@ -279,8 +292,8 @@ proc_rwmem(struct proc *p, struct uio *uio)
 		}
 
 		/*
-		 * Now we need to get the page.  out_entry, out_prot, wired,
-		 * and single_use aren't used.  One would think the vm code
+		 * Now we need to get the page.  out_entry and wired
+		 * aren't used.  One would think the vm code
 		 * would be a *bit* nicer...  We use tmap because
 		 * vm_map_lookup() can change the map argument.
 		 */
@@ -302,6 +315,10 @@ proc_rwmem(struct proc *p, struct uio *uio)
 			pindex += OFF_TO_IDX(object->backing_object_offset);
 			VM_OBJECT_UNLOCK(object);
 			object = backing_object;
+		}
+		if (writing && m != NULL) {
+			vm_page_dirty(m);
+			vm_pager_page_unswapped(m);
 		}
 		VM_OBJECT_UNLOCK(object);
 		if (m == NULL) {
@@ -327,6 +344,10 @@ proc_rwmem(struct proc *p, struct uio *uio)
 		 */
 		error = uiomove_fromphys(&m, page_offset, len, uio);
 
+		/* Make the I-cache coherent for breakpoints. */
+		if (!error && writing && (out_prot & VM_PROT_EXECUTE))
+			vm_sync_icache(map, uva, len);
+
 		/*
 		 * Release the page.
 		 */
@@ -338,6 +359,148 @@ proc_rwmem(struct proc *p, struct uio *uio)
 
 	return (error);
 }
+
+static int
+ptrace_vm_entry(struct thread *td, struct proc *p, struct ptrace_vm_entry *pve)
+{
+	struct vattr vattr;
+	vm_map_t map;
+	vm_map_entry_t entry;
+	vm_object_t obj, tobj, lobj;
+	struct vmspace *vm;
+	struct vnode *vp;
+	char *freepath, *fullpath;
+	u_int pathlen;
+	int error, index, vfslocked;
+
+	error = 0;
+	obj = NULL;
+
+	vm = vmspace_acquire_ref(p);
+	map = &vm->vm_map;
+	vm_map_lock_read(map);
+
+	do {
+		entry = map->header.next;
+		index = 0;
+		while (index < pve->pve_entry && entry != &map->header) {
+			entry = entry->next;
+			index++;
+		}
+		if (index != pve->pve_entry) {
+			error = EINVAL;
+			break;
+		}
+		while (entry != &map->header &&
+		    (entry->eflags & MAP_ENTRY_IS_SUB_MAP) != 0) {
+			entry = entry->next;
+			index++;
+		}
+		if (entry == &map->header) {
+			error = ENOENT;
+			break;
+		}
+
+		/* We got an entry. */
+		pve->pve_entry = index + 1;
+		pve->pve_timestamp = map->timestamp;
+		pve->pve_start = entry->start;
+		pve->pve_end = entry->end - 1;
+		pve->pve_offset = entry->offset;
+		pve->pve_prot = entry->protection;
+
+		/* Backing object's path needed? */
+		if (pve->pve_pathlen == 0)
+			break;
+
+		pathlen = pve->pve_pathlen;
+		pve->pve_pathlen = 0;
+
+		obj = entry->object.vm_object;
+		if (obj != NULL)
+			VM_OBJECT_LOCK(obj);
+	} while (0);
+
+	vm_map_unlock_read(map);
+	vmspace_free(vm);
+
+	pve->pve_fsid = VNOVAL;
+	pve->pve_fileid = VNOVAL;
+
+	if (error == 0 && obj != NULL) {
+		lobj = obj;
+		for (tobj = obj; tobj != NULL; tobj = tobj->backing_object) {
+			if (tobj != obj)
+				VM_OBJECT_LOCK(tobj);
+			if (lobj != obj)
+				VM_OBJECT_UNLOCK(lobj);
+			lobj = tobj;
+			pve->pve_offset += tobj->backing_object_offset;
+		}
+		vp = (lobj->type == OBJT_VNODE) ? lobj->handle : NULL;
+		if (vp != NULL)
+			vref(vp);
+		if (lobj != obj)
+			VM_OBJECT_UNLOCK(lobj);
+		VM_OBJECT_UNLOCK(obj);
+
+		if (vp != NULL) {
+			freepath = NULL;
+			fullpath = NULL;
+			vn_fullpath(td, vp, &fullpath, &freepath);
+			vfslocked = VFS_LOCK_GIANT(vp->v_mount);
+			vn_lock(vp, LK_SHARED | LK_RETRY);
+			if (VOP_GETATTR(vp, &vattr, td->td_ucred) == 0) {
+				pve->pve_fileid = vattr.va_fileid;
+				pve->pve_fsid = vattr.va_fsid;
+			}
+			vput(vp);
+			VFS_UNLOCK_GIANT(vfslocked);
+
+			if (fullpath != NULL) {
+				pve->pve_pathlen = strlen(fullpath) + 1;
+				if (pve->pve_pathlen <= pathlen) {
+					error = copyout(fullpath, pve->pve_path,
+					    pve->pve_pathlen);
+				} else
+					error = ENAMETOOLONG;
+			}
+			if (freepath != NULL)
+				free(freepath, M_TEMP);
+		}
+	}
+
+	return (error);
+}
+
+#ifdef COMPAT_IA32
+static int      
+ptrace_vm_entry32(struct thread *td, struct proc *p,
+    struct ptrace_vm_entry32 *pve32)
+{
+	struct ptrace_vm_entry pve;
+	int error;
+
+	pve.pve_entry = pve32->pve_entry;
+	pve.pve_pathlen = pve32->pve_pathlen;
+	pve.pve_path = (void *)(uintptr_t)pve32->pve_path;
+
+	error = ptrace_vm_entry(td, p, &pve);
+	if (error == 0) {
+		pve32->pve_entry = pve.pve_entry;
+		pve32->pve_timestamp = pve.pve_timestamp;
+		pve32->pve_start = pve.pve_start;
+		pve32->pve_end = pve.pve_end;
+		pve32->pve_offset = pve.pve_offset;
+		pve32->pve_prot = pve.pve_prot;
+		pve32->pve_fileid = pve.pve_fileid;
+		pve32->pve_fsid = pve.pve_fsid;
+	}
+
+	pve32->pve_pathlen = pve.pve_pathlen;
+	return (error);
+}
+#endif /* COMPAT_IA32 */
 
 /*
  * Process debugging system call.
@@ -382,6 +545,7 @@ ptrace(struct thread *td, struct ptrace_args *uap)
 	union {
 		struct ptrace_io_desc piod;
 		struct ptrace_lwpinfo pl;
+		struct ptrace_vm_entry pve;
 		struct dbreg dbreg;
 		struct fpreg fpreg;
 		struct reg reg;
@@ -390,6 +554,7 @@ ptrace(struct thread *td, struct ptrace_args *uap)
 		struct fpreg32 fpreg32;
 		struct reg32 reg32;
 		struct ptrace_io_desc32 piod32;
+		struct ptrace_vm_entry32 pve32;
 #endif
 	} r;
 	void *addr;
@@ -422,6 +587,9 @@ ptrace(struct thread *td, struct ptrace_args *uap)
 	case PT_IO:
 		error = COPYIN(uap->addr, &r.piod, sizeof r.piod);
 		break;
+	case PT_VM_ENTRY:
+		error = COPYIN(uap->addr, &r.pve, sizeof r.pve);
+		break;
 	default:
 		addr = uap->addr;
 		break;
@@ -434,6 +602,9 @@ ptrace(struct thread *td, struct ptrace_args *uap)
 		return (error);
 
 	switch (uap->req) {
+	case PT_VM_ENTRY:
+		error = COPYOUT(&r.pve, uap->addr, sizeof r.pve);
+		break;
 	case PT_IO:
 		error = COPYOUT(&r.piod, uap->addr, sizeof r.piod);
 		break;
@@ -809,6 +980,7 @@ kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
 
 	case PT_WRITE_I:
 	case PT_WRITE_D:
+		td2->td_dbgflags |= TDB_USERWR;
 		write = 1;
 		/* FALLTHROUGH */
 	case PT_READ_I:
@@ -877,6 +1049,7 @@ kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
 			break;
 		case PIOD_WRITE_D:
 		case PIOD_WRITE_I:
+			td2->td_dbgflags |= TDB_USERWR;
 			uio.uio_rw = UIO_WRITE;
 			break;
 		default:
@@ -899,6 +1072,7 @@ kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
 		goto sendsig;	/* in PT_CONTINUE above */
 
 	case PT_SETREGS:
+		td2->td_dbgflags |= TDB_USERWR;
 		error = PROC_WRITE(regs, td2, addr);
 		break;
 
@@ -907,6 +1081,7 @@ kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
 		break;
 
 	case PT_SETFPREGS:
+		td2->td_dbgflags |= TDB_USERWR;
 		error = PROC_WRITE(fpregs, td2, addr);
 		break;
 
@@ -915,6 +1090,7 @@ kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
 		break;
 
 	case PT_SETDBREGS:
+		td2->td_dbgflags |= TDB_USERWR;
 		error = PROC_WRITE(dbregs, td2, addr);
 		break;
 
@@ -962,6 +1138,21 @@ kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
 		free(buf, M_TEMP);
 		if (!error)
 			td->td_retval[0] = tmp;
+		PROC_LOCK(p);
+		break;
+
+	case PT_VM_TIMESTAMP:
+		td->td_retval[0] = p->p_vmspace->vm_map.timestamp;
+		break;
+
+	case PT_VM_ENTRY:
+		PROC_UNLOCK(p);
+#ifdef COMPAT_IA32
+		if (wrap32)
+			error = ptrace_vm_entry32(td, p, addr);
+		else
+#endif
+		error = ptrace_vm_entry(td, p, addr);
 		PROC_LOCK(p);
 		break;
 

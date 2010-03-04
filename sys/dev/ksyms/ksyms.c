@@ -94,7 +94,7 @@ struct ksyms_softc {
 static struct mtx 		 ksyms_mtx;
 static struct cdev 		*ksyms_dev;
 static LIST_HEAD(, ksyms_softc)	 ksyms_list = 
-	LIST_HEAD_INITIALIZER(&ksyms_list);
+	LIST_HEAD_INITIALIZER(ksyms_list);
 
 static const char 	ksyms_shstrtab[] = 
 	"\0" STR_SYMTAB "\0" STR_STRTAB "\0" STR_SHSTRTAB "\0";
@@ -589,8 +589,8 @@ ksyms_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int32_t flag __unused,
 
 /* ARGUSED */
 static int
-ksyms_mmap(struct cdev *dev, vm_offset_t offset, vm_paddr_t *paddr,
-		int prot __unused)
+ksyms_mmap(struct cdev *dev, vm_ooffset_t offset, vm_paddr_t *paddr,
+		int prot __unused, vm_memattr_t *memattr __unused)
 {
     	struct ksyms_softc *sc;
 	int error;

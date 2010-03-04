@@ -48,6 +48,31 @@ typedef uint32_t ofw_pci_intr_t;
 #define	OFW_TYPE_PCI		"pci"
 #define	OFW_TYPE_PCIE		"pciex"
 
+struct ofw_pci_msi_addr_ranges {
+	uint32_t	addr32_hi;
+	uint32_t	addr32_lo;
+	uint32_t	addr32_sz;
+	uint32_t	addr64_hi;
+	uint32_t	addr64_lo;
+	uint32_t	addr64_sz;
+};
+
+#define	OFW_PCI_MSI_ADDR_RANGE_32(r) \
+	(((uint64_t)(r)->addr32_hi << 32) | (uint64_t)(r)->addr32_lo)
+#define	OFW_PCI_MSI_ADDR_RANGE_64(r) \
+	(((uint64_t)(r)->addr64_hi << 32) | (uint64_t)(r)->addr64_lo)
+
+struct ofw_pci_msi_eq_to_devino {
+	uint32_t	eq_first;
+	uint32_t	eq_count;
+	uint32_t	devino_first;
+};
+
+struct ofw_pci_msi_ranges {
+	uint32_t	first;
+	uint32_t	count;
+};
+
 struct ofw_pci_ranges {
 	uint32_t	cspace;
 	uint32_t	child_hi;

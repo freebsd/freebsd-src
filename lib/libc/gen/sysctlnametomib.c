@@ -48,8 +48,8 @@ sysctlnametomib(const char *name, int *mibp, size_t *sizep)
 	oid[0] = 0;
 	oid[1] = 3;
 
-	*sizep *= sizeof (int);
-	error = sysctl(oid, 2, mibp, sizep, (void *)name, strlen(name));
-	*sizep /= sizeof (int);
+	*sizep *= sizeof(int);
+	error = sysctl(oid, 2, mibp, sizep, name, strlen(name));
+	*sizep /= sizeof(int);
 	return (error);
 }

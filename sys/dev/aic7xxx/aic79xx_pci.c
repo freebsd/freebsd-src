@@ -89,6 +89,7 @@ ahd_compose_id(u_int device, u_int vendor, u_int subdevice, u_int subvendor)
 #define ID_AHA_39320D_B			0x801C900500419005ull
 #define ID_AHA_39320D_HP		0x8011900500AC0E11ull
 #define ID_AHA_39320D_B_HP		0x801C900500AC0E11ull
+#define ID_AHA_39320LPE 		0x8017900500459005ull
 #define ID_AIC7902_PCI_REV_A4		0x3
 #define ID_AIC7902_PCI_REV_B0		0x10
 #define SUBID_HP			0x0E11
@@ -204,6 +205,12 @@ struct ahd_pci_identity ahd_pci_ident_table [] =
 		"Adaptec (HP OEM) 39320D Ultra320 SCSI adapter",
 		ahd_aic7902_setup
 	},
+	{
+		ID_AHA_39320LPE,
+		ID_ALL_MASK,
+		"Adaptec 39320LPE Ultra320 SCSI adapter",
+		ahd_aic7902_setup
+	},
 	/* Generic chip probes for devices we don't know 'exactly' */
 	{
 		ID_AIC7901 & ID_9005_GENERIC_MASK,
@@ -241,10 +248,10 @@ static const char *pci_bus_modes[] =
 	"PCI bus mode unknown",
 	"PCI bus mode unknown",
 	"PCI bus mode unknown",
-	"PCI-X 101-133Mhz",
-	"PCI-X 67-100Mhz",
-	"PCI-X 50-66Mhz",
-	"PCI 33 or 66Mhz"
+	"PCI-X 101-133MHz",
+	"PCI-X 67-100MHz",
+	"PCI-X 50-66MHz",
+	"PCI 33 or 66MHz"
 };
 
 #define		TESTMODE	0x00000800ul

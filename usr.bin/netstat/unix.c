@@ -193,21 +193,37 @@ fail:
 }
 
 void
-unixpr(u_long count_off, u_long gencnt_off, u_long dhead_off, u_long shead_off)
+unixpr(u_long count_off, u_long gencnt_off, u_long dhead_off, u_long shead_off,
+    u_long sphead_off)
 {
 	char 	*buf;
 	int	ret, type;
 	struct	xsocket *so;
 	struct	xunpgen *xug, *oxug;
 	struct	xunpcb *xunp;
+	u_long	head_off;
 
 	for (type = SOCK_STREAM; type <= SOCK_SEQPACKET; type++) {
 		if (live)
 			ret = pcblist_sysctl(type, &buf);
-		else
-			ret = pcblist_kvm(count_off, gencnt_off,
-			    type == SOCK_STREAM ? shead_off :
-			    (type == SOCK_DGRAM ? dhead_off : 0), &buf);
+		else {
+			head_off = 0;
+			switch (type) {
+			case SOCK_STREAM:
+				head_off = shead_off;
+				break;
+
+			case SOCK_DGRAM:
+				head_off = dhead_off;
+				break;
+
+			case SOCK_SEQPACKET:
+				head_off = sphead_off;
+				break;
+			}
+			ret = pcblist_kvm(count_off, gencnt_off, head_off,
+			    &buf);
+		}
 		if (ret == -1)
 			continue;
 		if (ret < 0)

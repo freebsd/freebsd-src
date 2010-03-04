@@ -367,6 +367,7 @@ ae_attach(device_t dev)
 	if (ifp == NULL) {
 		device_printf(dev, "could not allocate ifnet structure.\n");
 		error = ENXIO;
+		goto fail;
 	}
 
 	ifp->if_softc = sc;
@@ -1047,7 +1048,7 @@ ae_get_reg_eaddr(ae_softc_t *sc, uint32_t *eaddr)
 	if (AE_CHECK_EADDR_VALID(eaddr) != 0) {
 		if (bootverbose)
 			device_printf(sc->dev,
-			    "Ethetnet address registers are invalid.\n");
+			    "Ethernet address registers are invalid.\n");
 		return (EINVAL);
 	}
 	return (0);
@@ -2077,7 +2078,7 @@ ae_rxfilter(ae_softc_t *sc)
 	TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
 		if (ifma->ifma_addr->sa_family != AF_LINK)
 			continue;
-		crc = ether_crc32_le(LLADDR((struct sockaddr_dl *)
+		crc = ether_crc32_be(LLADDR((struct sockaddr_dl *)
 			ifma->ifma_addr), ETHER_ADDR_LEN);
 		mchash[crc >> 31] |= 1 << ((crc >> 26) & 0x1f);
 	}

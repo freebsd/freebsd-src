@@ -55,7 +55,6 @@ __FBSDID("$FreeBSD$");
 #include <time.h>
 #include <unistd.h>
 
-#include "pathnames.h"
 #include "calendar.h"
 
 struct passwd	*pw;

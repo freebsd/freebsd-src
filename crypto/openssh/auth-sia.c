@@ -34,10 +34,6 @@
 #include <unistd.h>
 #include <stdarg.h>
 #include <string.h>
-#include <sys/types.h>
-#include <sys/security.h>
-#include <prot.h>
-#include <time.h>
 
 #include "ssh.h"
 #include "key.h"
@@ -52,52 +48,6 @@
 extern ServerOptions options;
 extern int saved_argc;
 extern char **saved_argv;
-
-static int
-sia_password_change_required(const char *user)
-{
-	struct es_passwd *acct;
-	time_t pw_life;
-	time_t pw_date;
-
-	set_auth_parameters(saved_argc, saved_argv);
-
-	if ((acct = getespwnam(user)) == NULL) {
-		error("Couldn't access protected database entry for %s", user);
-		endprpwent();
-		return (0);
-	}
-
-	/* If forced password change flag is set, honor it */
-	if (acct->uflg->fg_psw_chg_reqd && acct->ufld->fd_psw_chg_reqd) {
-		endprpwent();
-		return (1);
-	}
-
-	/* Obtain password lifetime; if none, it can't have expired */
-	if (acct->uflg->fg_expire)
-		pw_life = acct->ufld->fd_expire;
-	else if (acct->sflg->fg_expire)
-		pw_life = acct->sfld->fd_expire;
-	else {
-		endprpwent();
-		return (0);
-	}
-
-	/* Offset from last change; if none, it must be expired */
-	if (acct->uflg->fg_schange)
-		pw_date = acct->ufld->fd_schange + pw_life;
-	else {
-		endprpwent();
-		return (1);
-	}
-
-	endprpwent();
-
-	/* If expiration date is prior to now, change password */
-	
-	return (pw_date <= time((time_t *) NULL));
-}
 
 int
 sys_auth_passwd(Authctxt *authctxt, const char *pass)
@@ -125,9 +75,6 @@ sys_auth_passwd(Authctxt *authctxt, const char *pass)
 	}
 
 	sia_ses_release(&ent);
-
-	authctxt->force_pwchange = sia_password_change_required(
-		authctxt->user);
 
 	return (1);
 }

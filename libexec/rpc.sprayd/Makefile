@@ -7,5 +7,6 @@ MAN =	rpc.sprayd.8
 DPADD=	${LIBRPCSVC}
 LDADD=	-lrpcsvc
 
-.include <bsd.prog.mk>
+WARNS?=	2
 
+.include <bsd.prog.mk>

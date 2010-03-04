@@ -78,7 +78,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/stdarg.h>
 
 extern struct mtx ncl_iod_mutex;
-extern struct proc *ncl_iodwant[NFS_MAXRAHEAD];
+extern enum nfsiod_state ncl_iodwant[NFS_MAXRAHEAD];
 extern struct nfsmount *ncl_iodmount[NFS_MAXRAHEAD];
 extern int ncl_numasync;
 extern unsigned int ncl_iodmax;
@@ -87,6 +87,10 @@ extern struct nfsstats newnfsstats;
 int
 ncl_uninit(struct vfsconf *vfsp)
 {
+	/*
+	 * XXX: Unloading of nfscl module is unsupported.
+	 */
+#if 0
 	int i;
 
 	/*
@@ -96,7 +100,7 @@ ncl_uninit(struct vfsconf *vfsp)
 	mtx_lock(&ncl_iod_mutex);
 	ncl_iodmax = 0;
 	for (i = 0; i < ncl_numasync; i++)
-		if (ncl_iodwant[i])
+		if (ncl_iodwant[i] == NFSIOD_AVAILABLE)
 			wakeup(&ncl_iodwant[i]);
 	/* The last nfsiod to exit will wake us up when ncl_numasync hits 0 */
 	while (ncl_numasync)
@@ -104,6 +108,9 @@ ncl_uninit(struct vfsconf *vfsp)
 	mtx_unlock(&ncl_iod_mutex);
 	ncl_nhuninit();
 	return (0);
+#else
+	return (EOPNOTSUPP);
+#endif
 }
 
 void 
@@ -389,7 +396,7 @@ ncl_init(struct vfsconf *vfsp)
 
 	/* Ensure async daemons disabled */
 	for (i = 0; i < NFS_MAXRAHEAD; i++) {
-		ncl_iodwant[i] = NULL;
+		ncl_iodwant[i] = NFSIOD_NOT_AVAILABLE;
 		ncl_iodmount[i] = NULL;
 	}
 	ncl_nhinit();			/* Init the nfsnode table */

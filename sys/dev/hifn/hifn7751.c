@@ -2929,8 +2929,8 @@ hifn_write_reg_1(struct hifn_softc *sc, bus_size_t reg, u_int32_t val)
  *
  */
 static int
-vulcanpk_mmap(struct cdev *dev, vm_offset_t offset,
-	      vm_paddr_t *paddr, int nprot)
+vulcanpk_mmap(struct cdev *dev, vm_ooffset_t offset,
+	      vm_paddr_t *paddr, int nprot, vm_memattr_t *memattr)
 {
 	struct hifn_softc *sc;
 	vm_paddr_t pd;
@@ -2942,7 +2942,8 @@ vulcanpk_mmap(struct cdev *dev, vm_offset_t offset,
 	b = rman_get_virtual(sc->sc_bar1res);
 
 #if 0
-	printf("vpk mmap: %p(%08x) offset=%d\n", b, pd, offset);
+	printf("vpk mmap: %p(%016llx) offset=%lld\n", b,
+	    (unsigned long long)pd, offset);
 	hexdump(b, HIFN_1_PUB_MEMEND, "vpk", 0);
 #endif
 

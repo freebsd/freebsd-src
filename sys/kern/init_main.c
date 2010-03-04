@@ -284,15 +284,28 @@ restart:
  ***************************************************************************
  */
 static void
-print_caddr_t(void *data __unused)
+print_caddr_t(void *data)
 {
 	printf("%s", (char *)data);
 }
+
+static void
+print_version(void *data __unused)
+{
+	int len;
+
+	/* Strip a trailing newline from version. */
+	len = strlen(version);
+	while (len > 0 && version[len - 1] == '\n')
+		len--;
+	printf("%.*s %s\n", len, version, machine);
+}
+
 SYSINIT(announce, SI_SUB_COPYRIGHT, SI_ORDER_FIRST, print_caddr_t,
     copyright);
 SYSINIT(trademark, SI_SUB_COPYRIGHT, SI_ORDER_SECOND, print_caddr_t,
     trademark);
-SYSINIT(version, SI_SUB_COPYRIGHT, SI_ORDER_THIRD, print_caddr_t, version);
+SYSINIT(version, SI_SUB_COPYRIGHT, SI_ORDER_THIRD, print_version, NULL);
 
 #ifdef WITNESS
 static char wit_warn[] =
@@ -492,6 +505,11 @@ proc0_init(void *dummy __unused)
 	pmap_pinit0(vmspace_pmap(&vmspace0));
 	p->p_vmspace = &vmspace0;
 	vmspace0.vm_refcnt = 1;
+
+	/*
+	 * proc0 is not expected to enter usermode, so there is no special
+	 * handling for sv_minuser here, like is done for exec_new_vmspace().
+	 */
 	vm_map_init(&vmspace0.vm_map, p->p_sysent->sv_minuser,
 	    p->p_sysent->sv_maxuser);
 	vmspace0.vm_map.pmap = vmspace_pmap(&vmspace0);
@@ -551,6 +569,19 @@ proc0_post(void *dummy __unused)
 	srandom(ts.tv_sec ^ ts.tv_nsec);
 }
 SYSINIT(p0post, SI_SUB_INTRINSIC_POST, SI_ORDER_FIRST, proc0_post, NULL);
+
+static void
+random_init(void *dummy __unused)
+{
+
+	/*
+	 * After CPU has been started we have some randomness on most
+	 * platforms via get_cyclecount().  For platforms that don't
+	 * we will reseed random(9) in proc0_post() as well.
+	 */
+	srandom(get_cyclecount());
+}
+SYSINIT(random, SI_SUB_RANDOM, SI_ORDER_FIRST, random_init, NULL);
 
 /*
  ***************************************************************************

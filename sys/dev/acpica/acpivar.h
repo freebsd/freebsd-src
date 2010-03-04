@@ -88,7 +88,6 @@ struct acpi_softc {
 struct acpi_device {
     /* ACPI ivars */
     ACPI_HANDLE			ad_handle;
-    uintptr_t			ad_magic;
     void			*ad_private;
     int				ad_flags;
 
@@ -224,7 +223,7 @@ extern int	acpi_quirks;
  * attach to ACPI.
  */
 #define ACPI_IVAR_HANDLE	0x100
-#define ACPI_IVAR_MAGIC		0x101
+#define ACPI_IVAR_UNUSED	0x101	/* Unused/reserved. */
 #define ACPI_IVAR_PRIVATE	0x102
 #define ACPI_IVAR_FLAGS		0x103
 
@@ -250,7 +249,6 @@ static __inline void varp ## _set_ ## var(device_t dev, type t)	\
 }
 
 __ACPI_BUS_ACCESSOR(acpi, handle, ACPI, HANDLE, ACPI_HANDLE)
-__ACPI_BUS_ACCESSOR(acpi, magic, ACPI, MAGIC, uintptr_t)
 __ACPI_BUS_ACCESSOR(acpi, private, ACPI, PRIVATE, void *)
 __ACPI_BUS_ACCESSOR(acpi, flags, ACPI, FLAGS, int)
 
@@ -447,7 +445,7 @@ int		acpi_acad_get_acline(int *);
 #define ACPI_PKG_VALID(pkg, size)				\
     ((pkg) != NULL && (pkg)->Type == ACPI_TYPE_PACKAGE &&	\
      (pkg)->Package.Count >= (size))
-int		acpi_PkgInt(ACPI_OBJECT *res, int idx, ACPI_INTEGER *dst);
+int		acpi_PkgInt(ACPI_OBJECT *res, int idx, UINT64 *dst);
 int		acpi_PkgInt32(ACPI_OBJECT *res, int idx, uint32_t *dst);
 int		acpi_PkgStr(ACPI_OBJECT *res, int idx, void *dst, size_t size);
 int		acpi_PkgGas(device_t dev, ACPI_OBJECT *res, int idx, int *type,

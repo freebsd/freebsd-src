@@ -3,6 +3,5 @@
 
 PROG=	tail
 SRCS=	forward.c misc.c read.c reverse.c tail.c
-WARNS?=	4
 
 .include <bsd.prog.mk>

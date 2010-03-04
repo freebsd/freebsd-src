@@ -11,8 +11,6 @@ LINKS=	${BINDIR}/sunlabel ${BINDIR}/disklabel
 MLINKS=	sunlabel.8 disklabel.8
 .endif
 
-WARNS?=	5
-
 DPADD=	${LIBGEOM}
 LDADD=	-lgeom
 

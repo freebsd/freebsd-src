@@ -9,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2009, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2010, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -305,7 +305,7 @@ AcpiExOpcode_6A_0T_1R (
     ACPI_OPERAND_OBJECT     **Operand = &WalkState->Operands[0];
     ACPI_OPERAND_OBJECT     *ReturnDesc = NULL;
     ACPI_STATUS             Status = AE_OK;
-    ACPI_INTEGER            Index;
+    UINT64                  Index;
     ACPI_OPERAND_OBJECT     *ThisElement;
 
 
@@ -344,18 +344,15 @@ AcpiExOpcode_6A_0T_1R (
         }
 
         /* Create an integer for the return value */
+        /* Default return value is ACPI_UINT64_MAX if no match found */
 
-        ReturnDesc = AcpiUtCreateInternalObject (ACPI_TYPE_INTEGER);
+        ReturnDesc = AcpiUtCreateIntegerObject (ACPI_UINT64_MAX);
         if (!ReturnDesc)
         {
             Status = AE_NO_MEMORY;
             goto Cleanup;
 
         }
-
-        /* Default return value if no match found */
-
-        ReturnDesc->Integer.Value = ACPI_INTEGER_MAX;
 
         /*
          * Examine each element until a match is found. Both match conditions
@@ -365,7 +362,7 @@ AcpiExOpcode_6A_0T_1R (
          *
          * Upon finding a match, the loop will terminate via "break" at
          * the bottom.  If it terminates "normally", MatchValue will be
-         * ACPI_INTEGER_MAX (Ones) (its initial value) indicating that no
+         * ACPI_UINT64_MAX (Ones) (its initial value) indicating that no
          * match was found.
          */
         for ( ; Index < Operand[0]->Package.Count; Index++)

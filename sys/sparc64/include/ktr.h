@@ -34,11 +34,9 @@
 
 #include <sys/ktr.h>
 
-#include <machine/upa.h>
-
 #ifndef LOCORE
 
-#define	KTR_CPU	UPA_CR_GET_MID(ldxa(0, ASI_UPA_CONFIG_REG))
+#define	KTR_CPU	PCPU_GET(mid)
 
 #else
 
@@ -74,7 +72,7 @@ l2:	add	r2, 1, r3 ; \
 	add	r1, r2, r1 ; \
 	rd	%tick, r2 ; \
 	stx	r2, [r1 + KTR_TIMESTAMP] ; \
-	UPA_GET_MID(r2) ; \
+	lduw	[PCPU(MID)], r2 ; \
 	stw	r2, [r1 + KTR_CPU] ; \
 	stw	%g0, [r1 + KTR_LINE] ; \
 	stx	%g0, [r1 + KTR_FILE] ; \
@@ -84,7 +82,7 @@ l2:	add	r2, 1, r3 ; \
 #define CATR(mask, desc, r1, r2, r3, l1, l2, l3) \
 	set	mask, r1 ; \
 	TEST(ktr_mask, r1, r2, r2, l3) ; \
-	UPA_GET_MID(r1) ; \
+	lduw	[PCPU(MID)], r1 ; \
 	mov	1, r2 ; \
 	sllx	r2, r1, r1 ; \
 	TEST(ktr_cpumask, r1, r2, r3, l3) ; \

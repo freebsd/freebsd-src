@@ -81,6 +81,7 @@
 #include <machine/cpu.h>
 #include <machine/frame.h>
 #include <machine/intr_machdep.h>
+#include <machine/pcb.h>
 #include <machine/smp.h>
 #include <machine/trap.h>
 #include <machine/tstate.h>
@@ -459,7 +460,6 @@ trap_pfault(struct thread *td, struct trapframe *tf, int64_t type, uint64_t data
 	vm_offset_t va;
 	vm_prot_t prot;
 	u_long ctx;
-	int flags;
 	int rv;
 
 	if (td == NULL)
@@ -486,15 +486,13 @@ trap_pfault(struct thread *td, struct trapframe *tf, int64_t type, uint64_t data
 	KASSERT(td->td_proc->p_vmspace != NULL, ("trap_pfault: vmspace NULL"));
 
 
-	if (type == T_DATA_PROTECTION) {
+	if (type == T_DATA_PROTECTION)
 		prot = VM_PROT_WRITE;
-		flags = VM_FAULT_DIRTY;
-	} else {
+	else {
 		if (type == T_DATA_MISS)
 			prot = VM_PROT_READ;
 		else
 			prot = VM_PROT_READ | VM_PROT_EXECUTE;
-		flags = VM_FAULT_NORMAL;
 	}
 
 	if (ctx != TLB_CTX_KERNEL) {
@@ -520,7 +518,7 @@ trap_pfault(struct thread *td, struct trapframe *tf, int64_t type, uint64_t data
 		PROC_UNLOCK(p);
 
 		/* Fault in the user page. */
-		rv = vm_fault(&vm->vm_map, va, prot, flags);
+		rv = vm_fault(&vm->vm_map, va, prot, VM_FAULT_NORMAL);
 
 		/*
 		 * Now the process can be swapped again.
@@ -582,7 +580,6 @@ syscall(struct trapframe *tf)
 	register_t *argp;
 	struct proc *p;
 	u_long code;
-	u_long tpc;
 	int reg;
 	int regcnt;
 	int narg;
@@ -606,7 +603,7 @@ syscall(struct trapframe *tf)
 	 * For syscalls, we don't want to retry the faulting instruction
 	 * (usually), instead we need to advance one instruction.
 	 */
-	tpc = tf->tf_tpc;
+	td->td_pcb->pcb_tpc = tf->tf_tpc;
 	TF_DONE(tf);
 
 	reg = 0;
@@ -673,40 +670,8 @@ syscall(struct trapframe *tf)
 		    error, syscallnames[code], td->td_retval[0],
 		    td->td_retval[1]);
 	}
-	
-	/*
-	 * MP SAFE (we may or may not have the MP lock at this point)
-	 */
-	switch (error) {
-	case 0:
-		tf->tf_out[0] = td->td_retval[0];
-		tf->tf_out[1] = td->td_retval[1];
-		tf->tf_tstate &= ~TSTATE_XCC_C;
-		break;
 
-	case ERESTART:
-		/*
-		 * Undo the tpc advancement we have done above, we want to
-		 * reexecute the system call.
-		 */
-		tf->tf_tpc = tpc;
-		tf->tf_tnpc -= 4;
-		break;
-
-	case EJUSTRETURN:
-		break;
-
-	default:
- 		if (p->p_sysent->sv_errsize) {
- 			if (error >= p->p_sysent->sv_errsize)
-  				error = -1;	/* XXX */
-   			else
-  				error = p->p_sysent->sv_errtbl[error];
-		}
-		tf->tf_out[0] = error;
-		tf->tf_tstate |= TSTATE_XCC_C;
-		break;
-	}
+	cpu_set_syscall_retval(td, error);
 
 	/*
 	 * Handle reschedule and other end-of-syscall issues

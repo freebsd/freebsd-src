@@ -196,7 +196,7 @@ mtree_bid(struct archive_read *a)
 		return (-1);
 
 	if (strncmp(p, signature, strlen(signature)) == 0)
-		return (8 * strlen(signature));
+		return (8 * (int)strlen(signature));
 	return (0);
 }
 
@@ -398,7 +398,6 @@ read_mtree(struct archive_read *a, struct mtree *mtree)
 
 	global = NULL;
 	last_entry = NULL;
-	r = ARCHIVE_OK;
 
 	for (counter = 1; ; ++counter) {
 		len = readline(a, mtree, &p, 256);
@@ -588,8 +587,7 @@ parse_file(struct archive_read *a, struct archive_entry *entry,
 
 	if (archive_entry_filetype(entry) == AE_IFREG ||
 	    archive_entry_filetype(entry) == AE_IFDIR) {
-		mtree->fd = open(path,
-		    O_RDONLY | O_BINARY);
+		mtree->fd = open(path, O_RDONLY | O_BINARY);
 		if (mtree->fd == -1 &&
 		    (errno != ENOENT ||
 		     archive_strlen(&mtree->contents_name) > 0)) {
@@ -1038,11 +1036,7 @@ parse_escapes(char *src, struct mtree_entry *mentry)
 	char *dest = src;
 	char c;
 
-	/*
-	 * The current directory is somewhat special, it should be archived
-	 * only once as it will confuse extraction otherwise.
-	 */
-	if (strcmp(src, ".") == 0)
+	if (mentry != NULL && strcmp(src, ".") == 0)
 		mentry->full = 1;
 
 	while (*src != '\0') {
@@ -1161,7 +1155,7 @@ mtree_atol10(char **p)
 	digit = **p - '0';
 	while (digit >= 0 && digit < base) {
 		if (l > limit || (l == limit && digit > last_digit_limit)) {
-			l = UINT64_MAX; /* Truncate on overflow. */
+			l = INT64_MAX; /* Truncate on overflow. */
 			break;
 		}
 		l = (l * base) + digit;
@@ -1202,7 +1196,7 @@ mtree_atol16(char **p)
 		digit = -1;
 	while (digit >= 0 && digit < base) {
 		if (l > limit || (l == limit && digit > last_digit_limit)) {
-			l = UINT64_MAX; /* Truncate on overflow. */
+			l = INT64_MAX; /* Truncate on overflow. */
 			break;
 		}
 		l = (l * base) + digit;

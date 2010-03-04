@@ -27,13 +27,12 @@
 #include <sys/queue.h>
 #include <sys/types.h>
 
+#include <errno.h>
+#include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <unistd.h>
 #include <string.h>
-#include <poll.h>
-#include <fcntl.h>
-#include <errno.h>
+#include <unistd.h>
 
 #include "libusb20.h"
 #include "libusb20_desc.h"
@@ -67,6 +66,7 @@ static libusb20_get_config_index_t ugen20_get_config_index;
 static libusb20_set_config_index_t ugen20_set_config_index;
 static libusb20_set_alt_index_t ugen20_set_alt_index;
 static libusb20_reset_device_t ugen20_reset_device;
+static libusb20_check_connected_t ugen20_check_connected;
 static libusb20_set_power_mode_t ugen20_set_power_mode;
 static libusb20_get_power_mode_t ugen20_get_power_mode;
 static libusb20_kernel_driver_active_t ugen20_kernel_driver_active;
@@ -449,6 +449,8 @@ ugen20_get_config_desc_full(struct libusb20_device *pdev,
 	uint16_t len;
 	int error;
 
+	/* make sure memory is initialised */
+	memset(&cdesc, 0, sizeof(cdesc));
 	memset(&gen_desc, 0, sizeof(gen_desc));
 
 	gen_desc.ugd_data = &cdesc;
@@ -468,6 +470,10 @@ ugen20_get_config_desc_full(struct libusb20_device *pdev,
 	if (!ptr) {
 		return (LIBUSB20_ERROR_NO_MEM);
 	}
+
+	/* make sure memory is initialised */
+	memset(ptr, 0, len);
+
 	gen_desc.ugd_data = ptr;
 	gen_desc.ugd_maxlen = len;
 
@@ -544,6 +550,25 @@ ugen20_reset_device(struct libusb20_device *pdev)
 		return (LIBUSB20_ERROR_OTHER);
 	}
 	return (ugen20_tr_renew(pdev));
+}
+
+static int
+ugen20_check_connected(struct libusb20_device *pdev)
+{
+	uint32_t plugtime;
+	int error = 0;
+
+	if (ioctl(pdev->file_ctrl, USB_GET_PLUGTIME, &plugtime)) {
+		error = LIBUSB20_ERROR_NO_DEVICE;
+		goto done;
+	}
+
+	if (pdev->session_data.plugtime != plugtime) {
+		error = LIBUSB20_ERROR_NO_DEVICE;
+		goto done;
+	}
+done:
+	return (error);
 }
 
 static int
@@ -800,7 +825,11 @@ ugen20_tr_submit(struct libusb20_transfer *xfer)
 	if (xfer->flags & LIBUSB20_TRANSFER_DO_CLEAR_STALL) {
 		fsep->flags |= USB_FS_FLAG_CLEAR_STALL;
 	}
-	fsep->timeout = xfer->timeout;
+	/* NOTE: The "fsep->timeout" variable is 16-bit. */
+	if (xfer->timeout > 65535)
+		fsep->timeout = 65535;
+	else
+		fsep->timeout = xfer->timeout;
 
 	temp.ep_index = xfer->trIndex;
 

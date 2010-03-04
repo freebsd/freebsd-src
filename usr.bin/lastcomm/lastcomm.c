@@ -59,7 +59,6 @@ __FBSDID("$FreeBSD$");
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#include <utmp.h>
 #include "pathnames.h"
 
 /*XXX*/#include <inttypes.h>
@@ -154,11 +153,11 @@ main(int argc, char *argv[])
 		if (*argv && !requested(argv, &ab))
 			continue;
 
-		(void)printf("%-*.*s %-7s %-*s %-*s",
+		(void)printf("%-*.*s %-7s %-*s %-8s",
 			     AC_COMM_LEN, AC_COMM_LEN, ab.ac_comm,
 			     flagbits(ab.ac_flagx),
-			     UT_NAMESIZE, user_from_uid(ab.ac_uid, 0),
-			     UT_LINESIZE, getdev(ab.ac_tty));
+			     MAXLOGNAME - 1, user_from_uid(ab.ac_uid, 0),
+			     getdev(ab.ac_tty));
 		
 		
 		/* user + system time */

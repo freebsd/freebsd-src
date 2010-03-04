@@ -8,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2009, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2010, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -270,7 +270,7 @@ AcpiRsCreatePciRoutingTable (
 
     /*
      * Loop through the ACPI_INTERNAL_OBJECTS - Each object should be a
-     * package that in turn contains an ACPI_INTEGER Address, a UINT8 Pin,
+     * package that in turn contains an UINT64 Address, a UINT8 Pin,
      * a Name, and a UINT8 SourceIndex.
      */
     TopObjectList    = PackageObject->Package.Elements;

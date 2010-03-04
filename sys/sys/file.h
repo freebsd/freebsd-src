@@ -216,87 +216,62 @@ static __inline fo_stat_t	fo_stat;
 static __inline fo_close_t	fo_close;
 
 static __inline int
-fo_read(fp, uio, active_cred, flags, td)
-	struct file *fp;
-	struct uio *uio;
-	struct ucred *active_cred;
-	int flags;
-	struct thread *td;
+fo_read(struct file *fp, struct uio *uio, struct ucred *active_cred,
+    int flags, struct thread *td)
 {
 
 	return ((*fp->f_ops->fo_read)(fp, uio, active_cred, flags, td));
 }
 
 static __inline int
-fo_write(fp, uio, active_cred, flags, td)
-	struct file *fp;
-	struct uio *uio;
-	struct ucred *active_cred;
-	int flags;
-	struct thread *td;
+fo_write(struct file *fp, struct uio *uio, struct ucred *active_cred,
+    int flags, struct thread *td)
 {
 
 	return ((*fp->f_ops->fo_write)(fp, uio, active_cred, flags, td));
 }
 
 static __inline int
-fo_truncate(fp, length, active_cred, td)
-	struct file *fp;
-	off_t length;
-	struct ucred *active_cred;
-	struct thread *td;
+fo_truncate(struct file *fp, off_t length, struct ucred *active_cred,
+    struct thread *td)
 {
 
 	return ((*fp->f_ops->fo_truncate)(fp, length, active_cred, td));
 }
 
 static __inline int
-fo_ioctl(fp, com, data, active_cred, td)
-	struct file *fp;
-	u_long com;
-	void *data;
-	struct ucred *active_cred;
-	struct thread *td;
+fo_ioctl(struct file *fp, u_long com, void *data, struct ucred *active_cred,
+    struct thread *td)
 {
 
 	return ((*fp->f_ops->fo_ioctl)(fp, com, data, active_cred, td));
 }
 
 static __inline int
-fo_poll(fp, events, active_cred, td)
-	struct file *fp;
-	int events;
-	struct ucred *active_cred;
-	struct thread *td;
+fo_poll(struct file *fp, int events, struct ucred *active_cred,
+    struct thread *td)
 {
 
 	return ((*fp->f_ops->fo_poll)(fp, events, active_cred, td));
 }
 
 static __inline int
-fo_stat(fp, sb, active_cred, td)
-	struct file *fp;
-	struct stat *sb;
-	struct ucred *active_cred;
-	struct thread *td;
+fo_stat(struct file *fp, struct stat *sb, struct ucred *active_cred,
+    struct thread *td)
 {
 
 	return ((*fp->f_ops->fo_stat)(fp, sb, active_cred, td));
 }
 
 static __inline int
-fo_close(fp, td)
-	struct file *fp;
-	struct thread *td;
+fo_close(struct file *fp, struct thread *td)
 {
 
 	return ((*fp->f_ops->fo_close)(fp, td));
 }
 
 static __inline int
-fo_kqfilter(fp, kn)
-	struct file *fp;
-	struct knote *kn;
+fo_kqfilter(struct file *fp, struct knote *kn)
 {
 
 	return ((*fp->f_ops->fo_kqfilter)(fp, kn));

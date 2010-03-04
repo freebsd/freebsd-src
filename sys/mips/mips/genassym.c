@@ -69,6 +69,7 @@ ASSYM(TD_REALKSTACK, offsetof(struct thread, td_md.md_realstack));
 ASSYM(TD_FLAGS, offsetof(struct thread, td_flags));
 ASSYM(TD_LOCK, offsetof(struct thread, td_lock));
 ASSYM(TD_FRAME, offsetof(struct thread, td_frame));
+ASSYM(TD_TLS, offsetof(struct thread, td_md.md_tls));
 
 ASSYM(TF_REG_SR, offsetof(struct trapframe, sr));
 
@@ -81,7 +82,6 @@ ASSYM(PC_CURPCB, offsetof(struct pcpu, pc_curpcb));
 ASSYM(PC_SEGBASE, offsetof(struct pcpu, pc_segbase));
 ASSYM(PC_CURTHREAD, offsetof(struct pcpu, pc_curthread));
 ASSYM(PC_FPCURTHREAD, offsetof(struct pcpu, pc_fpcurthread));
-ASSYM(PC_BOOT_STACK, offsetof(struct pcpu, pc_boot_stack));
 ASSYM(PC_CPUID, offsetof(struct pcpu, pc_cpuid));
 ASSYM(PC_CURPMAP, offsetof(struct pcpu, pc_curpmap));
 
@@ -90,6 +90,7 @@ ASSYM(VM_MAXUSER_ADDRESS, VM_MAXUSER_ADDRESS);
 ASSYM(VM_KERNEL_ALLOC_OFFSET, VM_KERNEL_ALLOC_OFFSET);
 ASSYM(SIGF_UC, offsetof(struct sigframe, sf_uc));
 ASSYM(SIGFPE, SIGFPE);
+ASSYM(PAGE_SHIFT, PAGE_SHIFT);
 ASSYM(PGSHIFT, PGSHIFT);
 ASSYM(NBPG, NBPG);
 ASSYM(SEGSHIFT, SEGSHIFT);
@@ -97,3 +98,4 @@ ASSYM(NPTEPG, NPTEPG);
 ASSYM(TDF_NEEDRESCHED, TDF_NEEDRESCHED);
 ASSYM(TDF_ASTPENDING, TDF_ASTPENDING);
 ASSYM(PCPU_SIZE, sizeof(struct pcpu));
+ASSYM(MAXCOMLEN, MAXCOMLEN);

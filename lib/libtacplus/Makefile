@@ -33,4 +33,6 @@ LDADD=		-lmd
 SHLIB_MAJOR=	4
 MAN=		libtacplus.3 tacplus.conf.5
 
+WARNS?=		2
+
 .include <bsd.lib.mk>

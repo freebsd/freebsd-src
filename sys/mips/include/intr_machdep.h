@@ -29,15 +29,44 @@
 #ifndef	_MACHINE_INTR_MACHDEP_H_
 #define	_MACHINE_INTR_MACHDEP_H_
 
+#ifdef TARGET_XLR_XLS
+#define XLR_MAX_INTR 64 
+#else
 #define NHARD_IRQS	6
 #define NSOFT_IRQS	2
+#endif
 
 struct trapframe;
 
-void cpu_establish_hardintr(const char *, int (*)(void*), void (*)(void*), 
+void cpu_init_interrupts(void);
+void cpu_establish_hardintr(const char *, driver_filter_t *, driver_intr_t *, 
     void *, int, int, void **);
-void cpu_establish_softintr(const char *, int (*)(void*), void (*)(void*), 
+void cpu_establish_softintr(const char *, driver_filter_t *, void (*)(void*), 
     void *, int, int, void **);
 void cpu_intr(struct trapframe *);
 
+/*
+ * Allow a platform to override the default hard interrupt mask and unmask
+ * functions. The 'arg' can be cast safely to an 'int' and holds the mips
+ * hard interrupt number to mask or unmask.
+ */
+typedef void (*cpu_intr_mask_t)(void *arg);
+typedef void (*cpu_intr_unmask_t)(void *arg);
+void cpu_set_hardintr_mask_func(cpu_intr_mask_t func);
+void cpu_set_hardintr_unmask_func(cpu_intr_unmask_t func);
+
+/*
+ * Opaque datatype that represents intr counter
+ */
+typedef unsigned long* mips_intrcnt_t;
+
+mips_intrcnt_t mips_intrcnt_create(const char *);
+void mips_intrcnt_setname(mips_intrcnt_t, const char *);
+
+static __inline void
+mips_intrcnt_inc(mips_intrcnt_t counter)
+{
+	if (counter)
+		atomic_add_long(counter, 1);
+}
 #endif /* !_MACHINE_INTR_MACHDEP_H_ */

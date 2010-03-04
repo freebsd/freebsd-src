@@ -56,6 +56,7 @@
 #include <net/if_dl.h>
 #include <net/route.h>
 #include <net/vnet.h>
+#include <net/flowtable.h>
 
 #ifdef RADIX_MPATH
 #include <net/radix_mpath.h>
@@ -97,8 +98,6 @@ VNET_DEFINE(struct rtstat, rtstat);
 #define	V_rttrash	VNET(rttrash)
 #define	V_rtstat	VNET(rtstat)
 
-static void rt_maskedcopy(struct sockaddr *,
-	    struct sockaddr *, struct sockaddr *);
 
 /* compare two sockaddr structures */
 #define	sa_equal(a1, a2) (bcmp((a1), (a2), (a1)->sa_len) == 0)
@@ -170,13 +169,20 @@ rt_tables_get_rnh(int table, int fam)
 static void
 route_init(void)
 {
+	struct domain *dom;
+	int max_keylen = 0;
 
 	/* whack the tunable ints into  line. */
 	if (rt_numfibs > RT_MAXFIBS)
 		rt_numfibs = RT_MAXFIBS;
 	if (rt_numfibs == 0)
 		rt_numfibs = 1;
-	rn_init();	/* initialize all zeroes, all ones, mask table */
+
+	for (dom = domains; dom; dom = dom->dom_next)
+		if (dom->dom_maxrtkey > max_keylen)
+			max_keylen = dom->dom_maxrtkey;
+
+	rn_init(max_keylen);	/* init all zeroes, all ones, mask table */
 }
 SYSINIT(route_init, SI_SUB_PROTO_DOMAIN, SI_ORDER_THIRD, route_init, 0);
 
@@ -996,6 +1002,9 @@ rtrequest1_fib(int req, struct rt_addrinfo *info, struct rtentry **ret_nrt,
 {
 	int error = 0, needlock = 0;
 	register struct rtentry *rt;
+#ifdef FLOWTABLE
+	register struct rtentry *rt0;
+#endif
 	register struct radix_node *rn;
 	register struct radix_node_head *rnh;
 	struct ifaddr *ifa;
@@ -1153,6 +1162,55 @@ rtrequest1_fib(int req, struct rt_addrinfo *info, struct rtentry **ret_nrt,
 		}
 #endif
 
+#ifdef FLOWTABLE
+		rt0 = NULL;
+		/* XXX
+		 * "flow-table" only support IPv4 at the moment.
+		 */
+#ifdef INET
+		if (dst->sa_family == AF_INET) {
+			rn = rnh->rnh_matchaddr(dst, rnh);
+			if (rn && ((rn->rn_flags & RNF_ROOT) == 0)) {
+				struct sockaddr *mask;
+				u_char *m, *n;
+				int len;
+				
+				/*
+				 * compare mask to see if the new route is
+				 * more specific than the existing one
+				 */
+				rt0 = RNTORT(rn);
+				RT_LOCK(rt0);
+				RT_ADDREF(rt0);
+				RT_UNLOCK(rt0);
+				/*
+				 * A host route is already present, so 
+				 * leave the flow-table entries as is.
+				 */
+				if (rt0->rt_flags & RTF_HOST) {
+					RTFREE(rt0);
+					rt0 = NULL;
+				} else if (!(flags & RTF_HOST) && netmask) {
+					mask = rt_mask(rt0);
+					len = mask->sa_len;
+					m = (u_char *)mask;
+					n = (u_char *)netmask;
+					while (len-- > 0) {
+						if (*n != *m)
+							break;
+						n++;
+						m++;
+					}
+					if (len == 0 || (*n < *m)) {
+						RTFREE(rt0);
+						rt0 = NULL;
+					}
+				}
+			}
+		}
+#endif
+#endif
+
 		/* XXX mtu manipulation will be done in rnh_addaddr -- itojun */
 		rn = rnh->rnh_addaddr(ndst, netmask, rnh, rt->rt_nodes);
 		/*
@@ -1165,8 +1223,20 @@ rtrequest1_fib(int req, struct rt_addrinfo *info, struct rtentry **ret_nrt,
 			Free(rt_key(rt));
 			RT_LOCK_DESTROY(rt);
 			uma_zfree(V_rtzone, rt);
+#ifdef FLOWTABLE
+			if (rt0 != NULL)
+				RTFREE(rt0);
+#endif
 			senderr(EEXIST);
+		} 
+#ifdef FLOWTABLE
+		else if (rt0 != NULL) {
+#ifdef INET
+			flowtable_route_flush(V_ip_ft, rt0);
+#endif
+			RTFREE(rt0);
 		}
+#endif
 
 		/*
 		 * If this protocol has something to add to this then
@@ -1250,7 +1320,7 @@ rt_setgate(struct rtentry *rt, struct sockaddr *dst, struct sockaddr *gate)
 	return (0);
 }
 
-static void
+void
 rt_maskedcopy(struct sockaddr *src, struct sockaddr *dst, struct sockaddr *netmask)
 {
 	register u_char *cp1 = (u_char *)src;
@@ -1432,7 +1502,11 @@ rtinit1(struct ifaddr *ifa, int cmd, int flags, int fibnum)
 			    ((struct sockaddr_dl *)rt->rt_gateway)->sdl_index =
 				rt->rt_ifp->if_index;
 			}
+			RT_ADDREF(rt);
+			RT_UNLOCK(rt);
 			rt_newaddrmsg(cmd, ifa, error, rt);
+			RT_LOCK(rt);
+			RT_REMREF(rt);
 			if (cmd == RTM_DELETE) {
 				/*
 				 * If we are deleting, and we found an entry,

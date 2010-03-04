@@ -120,7 +120,6 @@ g_eli_mkey_decrypt(const struct g_eli_metadata *md, const unsigned char *key,
 	g_eli_crypto_hmac(key, G_ELI_USERKEYLEN, "\x01", 1, enckey, 0);
 
 	mmkey = md->md_mkeys;
-	nkey = 0;
 	for (nkey = 0; nkey < G_ELI_MAXMKEYS; nkey++, mmkey += G_ELI_MKEYLEN) {
 		bit = (1 << nkey);
 		if (!(md->md_keys & bit))

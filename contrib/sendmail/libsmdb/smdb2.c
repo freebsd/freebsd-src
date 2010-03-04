@@ -1,5 +1,5 @@
 /*
-** Copyright (c) 1999-2003 Sendmail, Inc. and its suppliers.
+** Copyright (c) 1999-2003, 2009 Sendmail, Inc. and its suppliers.
 **	All rights reserved.
 **
 ** By using this file, you agree to the terms and conditions set
@@ -8,7 +8,7 @@
 */
 
 #include <sm/gen.h>
-SM_RCSID("@(#)$Id: smdb2.c,v 8.79 2003/06/13 21:33:11 ca Exp $")
+SM_RCSID("@(#)$Id: smdb2.c,v 8.80 2009/11/12 23:07:49 ca Exp $")
 
 #include <fcntl.h>
 #include <stdlib.h>
@@ -620,12 +620,13 @@ smdb_db_open(database, db_name, mode, mode_mask, sff, type, user_info, db_params
 	}
 
 	smdb_db = smdb_malloc_database();
-	if (smdb_db == NULL)
-		return SMDBE_MALLOC;
-
 	db2 = smdb2_malloc_database();
-	if (db2 == NULL)
+	if (db2 == NULL || smdb_db == NULL)
+	{
+		smdb_unlock_file(lock_fd);
+		smdb_free_database(smdb_db);	/* ok to be NULL */
 		return SMDBE_MALLOC;
+	}
 
 	db2->smdb2_lock_fd = lock_fd;
 

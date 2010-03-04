@@ -8,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2009, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2010, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -470,22 +470,7 @@ typedef union uint64_overlay
 
 } UINT64_OVERLAY;
 
-typedef struct uint32_struct
-{
-    UINT32                          Lo;
-    UINT32                          Hi;
 
-} UINT32_STRUCT;
-
-
-/*
- * Acpi integer width. In ACPI version 1, integers are 32 bits. In ACPI
- * version 2, integers are 64 bits. Note that this pertains to the ACPI integer
- * type only, not other integers used in the implementation of the ACPI CA
- * subsystem.
- */
-typedef UINT64                          ACPI_INTEGER;
-#define ACPI_INTEGER_MAX                ACPI_UINT64_MAX
 #define ACPI_INTEGER_BIT_SIZE           64
 #define ACPI_MAX_DECIMAL_DIGITS         20  /* 2^64 = 18,446,744,073,709,551,616 */
 #define ACPI_MAX64_DECIMAL_DIGITS       20
@@ -499,6 +484,19 @@ typedef UINT64                          ACPI_INTEGER;
 #define ACPI_ROOT_OBJECT                ACPI_ADD_PTR (ACPI_HANDLE, NULL, ACPI_MAX_PTR)
 #define ACPI_WAIT_FOREVER               0xFFFF  /* UINT16, as per ACPI spec */
 #define ACPI_DO_NOT_WAIT                0
+
+/*
+ * Obsolete: Acpi integer width. In ACPI version 1 (1996), integers are 32 bits.
+ * In ACPI version 2 (2000) and later, integers are 64 bits. Note that this
+ * pertains to the ACPI integer type only, not to other integers used in the
+ * implementation of the ACPICA subsystem.
+ *
+ * 01/2010: This type is obsolete and has been removed from the entire ACPICA
+ * code base. It remains here for compatibility with device drivers that use
+ * the type. However, it will be removed in the future.
+ */
+typedef UINT64                          ACPI_INTEGER;
+#define ACPI_INTEGER_MAX                ACPI_UINT64_MAX
 
 
 /*******************************************************************************
@@ -890,7 +888,7 @@ typedef union acpi_object
     struct
     {
         ACPI_OBJECT_TYPE                Type;       /* ACPI_TYPE_INTEGER */
-        ACPI_INTEGER                    Value;      /* The actual number */
+        UINT64                          Value;      /* The actual number */
     } Integer;
 
     struct
@@ -1094,7 +1092,7 @@ ACPI_STATUS (*ACPI_ADR_SPACE_HANDLER) (
     UINT32                          Function,
     ACPI_PHYSICAL_ADDRESS           Address,
     UINT32                          BitWidth,
-    ACPI_INTEGER                    *Value,
+    UINT64                          *Value,
     void                            *HandlerContext,
     void                            *RegionContext);
 
@@ -1164,7 +1162,7 @@ typedef struct acpi_device_info
     UINT8                           HighestDstates[4];  /* _SxD values: 0xFF indicates not valid */
     UINT8                           LowestDstates[5];   /* _SxW values: 0xFF indicates not valid */
     UINT32                          CurrentStatus;      /* _STA value */
-    ACPI_INTEGER                    Address;            /* _ADR value */
+    UINT64                          Address;            /* _ADR value */
     ACPI_DEVICE_ID                  HardwareId;         /* _HID value */
     ACPI_DEVICE_ID                  UniqueId;           /* _UID value */
     ACPI_DEVICE_ID_LIST             CompatibleIdList;   /* _CID list <must be last> */

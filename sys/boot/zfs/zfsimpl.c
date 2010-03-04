@@ -51,7 +51,9 @@ static char *dnode_cache_buf;
 static char *zap_scratch;
 static char *zfs_temp_buf, *zfs_temp_end, *zfs_temp_ptr;
 
-#define TEMP_SIZE	(1*SPA_MAXBLOCKSIZE)
+#define TEMP_SIZE	(1024 * 1024)
+
+static int zio_read(spa_t *spa, const blkptr_t *bp, void *buf);
 
 static void
 zfs_init(void)
@@ -402,7 +404,7 @@ vdev_create(uint64_t guid, vdev_read_t *read)
 }
 
 static int
-vdev_init_from_nvlist(const unsigned char *nvlist, vdev_t **vdevp)
+vdev_init_from_nvlist(const unsigned char *nvlist, vdev_t **vdevp, int is_newer)
 {
 	int rc;
 	uint64_t guid, id, ashift, nparity;
@@ -410,7 +412,8 @@ vdev_init_from_nvlist(const unsigned char *nvlist, vdev_t **vdevp)
 	const char *path;
 	vdev_t *vdev, *kid;
 	const unsigned char *kids;
-	int nkids, i;
+	int nkids, i, is_new;
+	uint64_t is_offline, is_faulted, is_degraded, is_removed;
 
 	if (nvlist_find(nvlist, ZPOOL_CONFIG_GUID,
 			DATA_TYPE_UINT64, 0, &guid)
@@ -422,17 +425,6 @@ vdev_init_from_nvlist(const unsigned char *nvlist, vdev_t **vdevp)
 		return (ENOENT);
 	}
 
-	/*
-	 * Assume that if we've seen this vdev tree before, this one
-	 * will be identical.
-	 */
-	vdev = vdev_find(guid);
-	if (vdev) {
-		if (vdevp)
-			*vdevp = vdev;
-		return (0);
-	}
-
 	if (strcmp(type, VDEV_TYPE_MIRROR)
 	    && strcmp(type, VDEV_TYPE_DISK)
 	    && strcmp(type, VDEV_TYPE_RAIDZ)) {
@@ -440,44 +432,92 @@ vdev_init_from_nvlist(const unsigned char *nvlist, vdev_t **vdevp)
 		return (EIO);
 	}
 
-	if (!strcmp(type, VDEV_TYPE_MIRROR))
-		vdev = vdev_create(guid, vdev_mirror_read);
-	else if (!strcmp(type, VDEV_TYPE_RAIDZ))
-		vdev = vdev_create(guid, vdev_raidz_read);
-	else
-		vdev = vdev_create(guid, vdev_disk_read);
+	is_offline = is_removed = is_faulted = is_degraded = 0;
 
-	vdev->v_id = id;
-	if (nvlist_find(nvlist, ZPOOL_CONFIG_ASHIFT,
-		DATA_TYPE_UINT64, 0, &ashift) == 0)
-		vdev->v_ashift = ashift;
-	else
-		vdev->v_ashift = 0;
-	if (nvlist_find(nvlist, ZPOOL_CONFIG_NPARITY,
-		DATA_TYPE_UINT64, 0, &nparity) == 0)
-		vdev->v_nparity = nparity;
-	else
-		vdev->v_nparity = 0;
-	if (nvlist_find(nvlist, ZPOOL_CONFIG_PATH,
-			DATA_TYPE_STRING, 0, &path) == 0) {
-		if (strlen(path) > 5
-		    && path[0] == '/'
-		    && path[1] == 'd'
-		    && path[2] == 'e'
-		    && path[3] == 'v'
-		    && path[4] == '/')
-			path += 5;
-		vdev->v_name = strdup(path);
-	} else {
-		if (!strcmp(type, "raidz")) {
-			if (vdev->v_nparity == 1)
-				vdev->v_name = "raidz1";
-			else
-				vdev->v_name = "raidz2";
+	nvlist_find(nvlist, ZPOOL_CONFIG_OFFLINE, DATA_TYPE_UINT64, 0,
+			&is_offline);
+	nvlist_find(nvlist, ZPOOL_CONFIG_REMOVED, DATA_TYPE_UINT64, 0,
+			&is_removed);
+	nvlist_find(nvlist, ZPOOL_CONFIG_FAULTED, DATA_TYPE_UINT64, 0,
+			&is_faulted);
+	nvlist_find(nvlist, ZPOOL_CONFIG_DEGRADED, DATA_TYPE_UINT64, 0,
+			&is_degraded);
+
+	vdev = vdev_find(guid);
+	if (!vdev) {
+		is_new = 1;
+
+		if (!strcmp(type, VDEV_TYPE_MIRROR))
+			vdev = vdev_create(guid, vdev_mirror_read);
+		else if (!strcmp(type, VDEV_TYPE_RAIDZ))
+			vdev = vdev_create(guid, vdev_raidz_read);
+		else
+			vdev = vdev_create(guid, vdev_disk_read);
+
+		vdev->v_id = id;
+		if (nvlist_find(nvlist, ZPOOL_CONFIG_ASHIFT,
+			DATA_TYPE_UINT64, 0, &ashift) == 0)
+			vdev->v_ashift = ashift;
+		else
+			vdev->v_ashift = 0;
+		if (nvlist_find(nvlist, ZPOOL_CONFIG_NPARITY,
+			DATA_TYPE_UINT64, 0, &nparity) == 0)
+			vdev->v_nparity = nparity;
+		else
+			vdev->v_nparity = 0;
+		if (nvlist_find(nvlist, ZPOOL_CONFIG_PATH,
+				DATA_TYPE_STRING, 0, &path) == 0) {
+			if (strlen(path) > 5
+			    && path[0] == '/'
+			    && path[1] == 'd'
+			    && path[2] == 'e'
+			    && path[3] == 'v'
+			    && path[4] == '/')
+				path += 5;
+			vdev->v_name = strdup(path);
 		} else {
-			vdev->v_name = strdup(type);
+			if (!strcmp(type, "raidz")) {
+				if (vdev->v_nparity == 1)
+					vdev->v_name = "raidz1";
+				else
+					vdev->v_name = "raidz2";
+			} else {
+				vdev->v_name = strdup(type);
+			}
+		}
+
+		if (is_offline)
+			vdev->v_state = VDEV_STATE_OFFLINE;
+		else if (is_removed)
+			vdev->v_state = VDEV_STATE_REMOVED;
+		else if (is_faulted)
+			vdev->v_state = VDEV_STATE_FAULTED;
+		else if (is_degraded)
+			vdev->v_state = VDEV_STATE_DEGRADED;
+		else
+			vdev->v_state = VDEV_STATE_HEALTHY;
+	} else {
+		is_new = 0;
+
+		if (is_newer) {
+			/*
+			 * We've already seen this vdev, but from an older
+			 * vdev label, so let's refresh its state from the
+			 * newer label.
+			 */
+			if (is_offline)
+				vdev->v_state = VDEV_STATE_OFFLINE;
+			else if (is_removed)
+				vdev->v_state = VDEV_STATE_REMOVED;
+			else if (is_faulted)
+				vdev->v_state = VDEV_STATE_FAULTED;
+			else if (is_degraded)
+				vdev->v_state = VDEV_STATE_DEGRADED;
+			else
+				vdev->v_state = VDEV_STATE_HEALTHY;
 		}
 	}
+
 	rc = nvlist_find(nvlist, ZPOOL_CONFIG_CHILDREN,
 			 DATA_TYPE_NVLIST_ARRAY, &nkids, &kids);
 	/*
@@ -486,10 +526,12 @@ vdev_init_from_nvlist(const unsigned char *nvlist, vdev_t **vdevp)
 	if (rc == 0) {
 		vdev->v_nchildren = nkids;
 		for (i = 0; i < nkids; i++) {
-			rc = vdev_init_from_nvlist(kids, &kid);
+			rc = vdev_init_from_nvlist(kids, &kid, is_newer);
 			if (rc)
 				return (rc);
-			STAILQ_INSERT_TAIL(&vdev->v_children, kid, v_childlink);
+			if (is_new)
+				STAILQ_INSERT_TAIL(&vdev->v_children, kid,
+						   v_childlink);
 			kids = nvlist_next(kids);
 		}
 	} else {
@@ -591,7 +633,9 @@ state_name(vdev_state_t state)
 		"UNKNOWN",
 		"CLOSED",
 		"OFFLINE",
+		"REMOVED",
 		"CANT_OPEN",
+		"FAULTED",
 		"DEGRADED",
 		"ONLINE"
 	};
@@ -709,7 +753,7 @@ vdev_probe(vdev_phys_read_t *read, void *read_priv, spa_t **spap)
 	uint64_t pool_txg, pool_guid;
 	const char *pool_name;
 	const unsigned char *vdevs;
-	int i, rc;
+	int i, rc, is_newer;
 	char upbuf[1024];
 	const struct uberblock *up;
 
@@ -791,12 +835,15 @@ vdev_probe(vdev_phys_read_t *read, void *read_priv, spa_t **spap)
 		spa = spa_create(pool_guid);
 		spa->spa_name = strdup(pool_name);
 	}
-	if (pool_txg > spa->spa_txg)
+	if (pool_txg > spa->spa_txg) {
 		spa->spa_txg = pool_txg;
+		is_newer = 1;
+	} else
+		is_newer = 0;
 
 	/*
 	 * Get the vdev tree and create our in-core copy of it.
-	 * If we already have a healthy vdev with this guid, this must
+	 * If we already have a vdev with this guid, this must
 	 * be some kind of alias (overlapping slices, dangerously dedicated
 	 * disks etc).
 	 */
@@ -806,16 +853,16 @@ vdev_probe(vdev_phys_read_t *read, void *read_priv, spa_t **spap)
 		return (EIO);
 	}
 	vdev = vdev_find(guid);
-	if (vdev && vdev->v_state == VDEV_STATE_HEALTHY) {
+	if (vdev && vdev->v_phys_read)	/* Has this vdev already been inited? */
 		return (EIO);
-	}
 
 	if (nvlist_find(nvlist,
 			ZPOOL_CONFIG_VDEV_TREE,
 			DATA_TYPE_NVLIST, 0, &vdevs)) {
 		return (EIO);
 	}
-	rc = vdev_init_from_nvlist(vdevs, &top_vdev);
+
+	rc = vdev_init_from_nvlist(vdevs, &top_vdev, is_newer);
 	if (rc)
 		return (rc);
 
@@ -836,7 +883,6 @@ vdev_probe(vdev_phys_read_t *read, void *read_priv, spa_t **spap)
 	if (vdev) {
 		vdev->v_phys_read = read;
 		vdev->v_read_priv = read_priv;
-		vdev->v_state = VDEV_STATE_HEALTHY;
 	} else {
 		printf("ZFS: inconsistent nvlist contents\n");
 		return (EIO);
@@ -897,6 +943,33 @@ ilog2(int n)
 }
 
 static int
+zio_read_gang(spa_t *spa, const blkptr_t *bp, const dva_t *dva, void *buf)
+{
+	zio_gbh_phys_t zio_gb;
+	vdev_t *vdev;
+	int vdevid;
+	off_t offset;
+	int i;
+
+	vdevid = DVA_GET_VDEV(dva);
+	offset = DVA_GET_OFFSET(dva);
+	STAILQ_FOREACH(vdev, &spa->spa_vdevs, v_childlink)
+		if (vdev->v_id == vdevid)
+			break;
+	if (!vdev || !vdev->v_read)
+		return (EIO);
+	if (vdev->v_read(vdev, bp, &zio_gb, offset, SPA_GANGBLOCKSIZE))
+		return (EIO);
+
+	for (i = 0; i < SPA_GBH_NBLKPTRS; i++) {
+		if (zio_read(spa, &zio_gb.zg_blkptr[i], buf))
+			return (EIO);
+	}
+ 
+	return (0);
+}
+
+static int
 zio_read(spa_t *spa, const blkptr_t *bp, void *buf)
 {
 	int cpfunc = BP_GET_COMPRESS(bp);
@@ -920,20 +993,27 @@ zio_read(spa_t *spa, const blkptr_t *bp, void *buf)
 		if (!dva->dva_word[0] && !dva->dva_word[1])
 			continue;
 
-		vdevid = DVA_GET_VDEV(dva);
-		offset = DVA_GET_OFFSET(dva);
-		STAILQ_FOREACH(vdev, &spa->spa_vdevs, v_childlink)
-			if (vdev->v_id == vdevid)
-				break;
-		if (!vdev || !vdev->v_read)
-			continue;
-		if (vdev->v_read(vdev, bp, pbuf, offset, psize))
-			continue;
+		if (DVA_GET_GANG(dva)) {
+			printf("ZFS: gang block detected!\n");
+			if (zio_read_gang(spa, bp, dva, buf))
+				return (EIO); 
+		} else {
+			vdevid = DVA_GET_VDEV(dva);
+			offset = DVA_GET_OFFSET(dva);
+			STAILQ_FOREACH(vdev, &spa->spa_vdevs, v_childlink)
+				if (vdev->v_id == vdevid)
+					break;
+			if (!vdev || !vdev->v_read) {
+				continue;
+			}
+			if (vdev->v_read(vdev, bp, pbuf, offset, psize))
+				continue;
 
-		if (cpfunc != ZIO_COMPRESS_OFF) {
-			if (zio_decompress_data(cpfunc, pbuf, psize,
-				buf, lsize))
-				return (EIO);
+			if (cpfunc != ZIO_COMPRESS_OFF) {
+				if (zio_decompress_data(cpfunc, pbuf, psize,
+				    buf, lsize))
+					return (EIO);
+			}
 		}
 
 		return (0);
@@ -1331,13 +1411,13 @@ zfs_mount_dataset(spa_t *spa, uint64_t objnum, objset_phys_t *objset)
 	dsl_dataset_phys_t *ds;
 
 	if (objset_get_dnode(spa, &spa->spa_mos, objnum, &dataset)) {
-		printf("ZFS: can't find dataset %lld\n", objnum);
+		printf("ZFS: can't find dataset %llu\n", objnum);
 		return (EIO);
 	}
 
 	ds = (dsl_dataset_phys_t *) &dataset.dn_bonus;
 	if (zio_read(spa, &ds->ds_bp, objset)) {
-		printf("ZFS: can't read object set for dataset %lld\n", objnum);
+		printf("ZFS: can't read object set for dataset %llu\n", objnum);
 		return (EIO);
 	}
 
@@ -1367,7 +1447,8 @@ zfs_mount_root(spa_t *spa, objset_phys_t *objset)
 	 */
 	if (zap_lookup(spa, &dir, DMU_POOL_PROPS, &props) == 0
 	     && objset_get_dnode(spa, &spa->spa_mos, props, &propdir) == 0
-	     && zap_lookup(spa, &propdir, "bootfs", &bootfs) == 0)
+	     && zap_lookup(spa, &propdir, "bootfs", &bootfs) == 0
+	     && bootfs != 0)
 		return zfs_mount_dataset(spa, bootfs, objset);
 
 	/*
@@ -1425,7 +1506,7 @@ zfs_lookup(spa_t *spa, const char *upath, dnode_phys_t *dnode)
 	int symlinks_followed = 0;
 
 	if (spa->spa_root_objset.os_type != DMU_OST_ZFS) {
-		printf("ZFS: unexpected object set type %lld\n",
+		printf("ZFS: unexpected object set type %llu\n",
 		       spa->spa_root_objset.os_type);
 		return (EIO);
 	}

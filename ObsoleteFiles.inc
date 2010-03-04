@@ -14,6 +14,89 @@
 # The file is partitioned: OLD_FILES first, then OLD_LIBS and OLD_DIRS last.
 #
 
+# 20100227: [ia64] removed <machine/sapicreg.h> and <machine/sapicvar.h>
+.if ${TARGET_ARCH} == "ia64"
+OLD_FILES+=usr/include/machine/sapicreg.h
+OLD_FILES+=usr/include/machine/sapicvar.h
+.endif
+# 20100208: man pages moved
+.if ${TARGET_ARCH} == "i386"
+OLD_FILES+=usr/share/man/man4/i386/alpm.4.gz
+OLD_FILES+=usr/share/man/man4/i386/amdpm.4.gz
+OLD_FILES+=usr/share/man/man4/i386/mcd.4.gz
+OLD_FILES+=usr/share/man/man4/i386/padlock.4.gz
+OLD_FILES+=usr/share/man/man4/i386/pcf.4.gz
+OLD_FILES+=usr/share/man/man4/i386/scd.4.gz
+OLD_FILES+=usr/share/man/man4/i386/viapm.4.gz
+.endif
+# 20100122: move BSDL bc/dc USD documents to /usr/share/doc/usd
+OLD_FILES+=usr/share/doc/papers/bc.ascii.gz
+OLD_FILES+=usr/share/doc/papers/dc.ascii.gz
+# 20100120: replacing GNU bc/dc with BSDL versions
+OLD_FILES+=usr/share/examples/bc/ckbook.b
+OLD_FILES+=usr/share/examples/bc/pi.b
+OLD_FILES+=usr/share/examples/bc/primes.b
+OLD_FILES+=usr/share/examples/bc/twins.b
+OLD_FILES+=usr/share/info/dc.info.gz
+OLD_DIRS+=usr/share/examples/bc
+# 20100114: removal of ttyslot(3)
+OLD_FILES+=usr/share/man/man3/ttyslot.3.gz
+# 20100113: remove utmp.h, replace it by utmpx.h
+OLD_FILES+=usr/share/man/man3/login.3.gz
+OLD_FILES+=usr/share/man/man3/logout.3.gz
+OLD_FILES+=usr/share/man/man3/logwtmp.3.gz
+OLD_FILES+=usr/share/man/man3/ulog_endutxent.3.gz
+OLD_FILES+=usr/share/man/man3/ulog_getutxent.3.gz
+OLD_FILES+=usr/share/man/man3/ulog_getutxline.3.gz
+OLD_FILES+=usr/share/man/man3/ulog_getutxuser.3.gz
+OLD_FILES+=usr/share/man/man3/ulog_pututxline.3.gz
+OLD_FILES+=usr/share/man/man3/ulog_setutxent.3.gz
+OLD_FILES+=usr/share/man/man3/ulog_setutxfile.3.gz
+OLD_FILES+=usr/share/man/man5/lastlog.5.gz
+OLD_FILES+=usr/share/man/man5/utmp.5.gz
+OLD_FILES+=usr/share/man/man5/wtmp.5.gz
+OLD_LIBS+=lib/libutil.so.8
+# 20100105: new userland semaphore implementation
+OLD_FILES+=usr/include/sys/semaphore.h
+# 20100103: ntptrace(8) removed
+OLD_FILES+=usr/sbin/ntptrace
+OLD_FILES+=usr/share/man/man8/ntptrace.8.gz
+# 20091229: remove no longer relevant examples
+OLD_FILES+=usr/share/examples/pppd/auth-down.sample
+OLD_FILES+=usr/share/examples/pppd/auth-up.sample
+OLD_FILES+=usr/share/examples/pppd/chap-secrets.sample
+OLD_FILES+=usr/share/examples/pppd/chat.sh.sample
+OLD_FILES+=usr/share/examples/pppd/ip-down.sample
+OLD_FILES+=usr/share/examples/pppd/ip-up.sample
+OLD_FILES+=usr/share/examples/pppd/options.sample
+OLD_FILES+=usr/share/examples/pppd/pap-secrets.sample
+OLD_FILES+=usr/share/examples/pppd/ppp.deny.sample
+OLD_FILES+=usr/share/examples/pppd/ppp.shells.sample
+OLD_DIRS+=usr/share/examples/pppd
+OLD_FILES+=usr/share/examples/slattach/unit-command.sh
+OLD_DIRS+=usr/share/examples/slattach
+OLD_FILES+=usr/share/examples/sliplogin/slip.hosts
+OLD_FILES+=usr/share/examples/sliplogin/slip.login
+OLD_FILES+=usr/share/examples/sliplogin/slip.logout
+OLD_FILES+=usr/share/examples/sliplogin/slip.slparms
+OLD_DIRS+=usr/share/examples/sliplogin
+OLD_FILES+=usr/share/examples/startslip/sldown.sh
+OLD_FILES+=usr/share/examples/startslip/slip.sh
+OLD_FILES+=usr/share/examples/startslip/slup.sh
+OLD_DIRS+=usr/share/examples/startslip
+# 20091202: unify rc.firewall and rc.firewall6.
+OLD_FILES+=etc/rc.d/ip6fw
+OLD_FILES+=etc/rc.firewall6
+OLD_FILES+=usr/share/examples/etc/rc.firewall6
+# 20091117: removal of rc.early(8) link
+OLD_FILES+=usr/share/man/man8/rc.early.8.gz
+# 20091117: usr/share/zoneinfo/GMT link removed
+OLD_FILES+=usr/share/zoneinfo/GMT
+# 20091027: pselect.3 implemented as syscall
+OLD_FILES+=usr/share/man/man3/pselect.3.gz
+# 20091005: fusword.9 and susword.9 removed
+OLD_FILES+=usr/share/man/man9/fusword.9.gz
+OLD_FILES+=usr/share/man/man9/susword.9.gz
 # 20090909: vesa and dpms promoted to be i386/amd64 common
 OLD_FILES+=usr/include/machine/pc/vesa.h
 OLD_FILES+=usr/share/man/man4/i386/dpms.4.gz
@@ -26,6 +109,49 @@ OLD_FILES+=usr/share/man/man8/lukemftpd.8.gz
 OLD_FILES+=etc/mtree/BSD.local.dist
 OLD_FILES+=etc/mtree/BSD.x11.dist
 OLD_FILES+=etc/mtree/BSD.x11-4.dist
+# 20090812: net80211 documentation overhaul
+OLD_FILES+=usr/share/man/man9/ieee80211_add_rates.9.gz
+OLD_FILES+=usr/share/man/man9/ieee80211_add_xrates.9.gz
+OLD_FILES+=usr/share/man/man9/ieee80211_alloc_node.9.gz
+OLD_FILES+=usr/share/man/man9/ieee80211_attach.9.gz
+OLD_FILES+=usr/share/man/man9/ieee80211_begin_scan.9.gz
+OLD_FILES+=usr/share/man/man9/ieee80211_cfgget.9.gz
+OLD_FILES+=usr/share/man/man9/ieee80211_cfgset.9.gz
+OLD_FILES+=usr/share/man/man9/ieee80211_chan2ieee.9.gz
+OLD_FILES+=usr/share/man/man9/ieee80211_chan2mode.9.gz
+OLD_FILES+=usr/share/man/man9/ieee80211_create_ibss.9.gz
+OLD_FILES+=usr/share/man/man9/ieee80211_crypto_attach.9.gz
+OLD_FILES+=usr/share/man/man9/ieee80211_crypto_detach.9.gz
+OLD_FILES+=usr/share/man/man9/ieee80211_decap.9.gz
+OLD_FILES+=usr/share/man/man9/ieee80211_dump_pkt.9.gz
+OLD_FILES+=usr/share/man/man9/ieee80211_dup_bss.9.gz
+OLD_FILES+=usr/share/man/man9/ieee80211_encap.9.gz
+OLD_FILES+=usr/share/man/man9/ieee80211_end_scan.9.gz
+OLD_FILES+=usr/share/man/man9/ieee80211_find_node.9.gz
+OLD_FILES+=usr/share/man/man9/ieee80211_fix_rate.9.gz
+OLD_FILES+=usr/share/man/man9/ieee80211_free_allnodes.9.gz
+OLD_FILES+=usr/share/man/man9/ieee80211_ieee2mhz.9.gz
+OLD_FILES+=usr/share/man/man9/ieee80211_ioctl.9.gz
+OLD_FILES+=usr/share/man/man9/ieee80211_lookup_node.9.gz
+OLD_FILES+=usr/share/man/man9/ieee80211_media2rate.9.gz
+OLD_FILES+=usr/share/man/man9/ieee80211_media_change.9.gz
+OLD_FILES+=usr/share/man/man9/ieee80211_media_init.9.gz
+OLD_FILES+=usr/share/man/man9/ieee80211_media_status.9.gz
+OLD_FILES+=usr/share/man/man9/ieee80211_mhz2ieee.9.gz
+OLD_FILES+=usr/share/man/man9/ieee80211_next_scan.9.gz
+OLD_FILES+=usr/share/man/man9/ieee80211_node_attach.9.gz
+OLD_FILES+=usr/share/man/man9/ieee80211_node_detach.9.gz
+OLD_FILES+=usr/share/man/man9/ieee80211_node_lateattach.9.gz
+OLD_FILES+=usr/share/man/man9/ieee80211_print_essid.9.gz
+OLD_FILES+=usr/share/man/man9/ieee80211_proto_attach.9.gz
+OLD_FILES+=usr/share/man/man9/ieee80211_proto_detach.9.gz
+OLD_FILES+=usr/share/man/man9/ieee80211_rate2media.9.gz
+OLD_FILES+=usr/share/man/man9/ieee80211_recv_mgmt.9.gz
+OLD_FILES+=usr/share/man/man9/ieee80211_send_mgmt.9.gz
+OLD_FILES+=usr/share/man/man9/ieee80211_setmode.9.gz
+OLD_FILES+=usr/share/man/man9/ieee80211_timeout_nodes.9.gz
+OLD_FILES+=usr/share/man/man9/ieee80211_watchdog.9.gz
+OLD_FILES+=usr/share/man/man9/ieee80211_wep_crypt.9.gz
 # 20090801: vimage.h removed in favour of vnet.h
 OLD_FILES+=usr/include/sys/vimage.h
 # 20090719: library version bump for 8.0
@@ -503,6 +629,8 @@ OLD_FILES+=usr/include/dev/usb/usb_quirks.h
 OLD_FILES+=usr/include/dev/usb/usbcdc.h
 OLD_FILES+=usr/include/dev/usb/usbdivar.h
 OLD_FILES+=usr/include/dev/usb/uxb360gp_rdesc.h
+OLD_FILES+=usr/sbin/usbdevs
+OLD_FILES+=usr/share/man/man8/usbdevs.8.gz
 # 20090203: removal of pccard header files
 OLD_FILES+=usr/include/pccard/cardinfo.h
 OLD_FILES+=usr/include/pccard/cis.h
@@ -2162,7 +2290,7 @@ OLD_FILES+=usr/lib/libpam_ssh.a
 OLD_FILES+=usr/lib/libpam_ssh_p.a
 OLD_FILES+=usr/bin/help
 OLD_FILES+=usr/bin/sccs
-.if ${TARGET_ARCH} != "arm" && ${TARGET_ARCH} != "i386" && ${TARGET_ARCH} != "powerpc"
+.if ${TARGET_ARCH} != "amd64" && ${TARGET_ARCH} != "arm" && ${TARGET_ARCH} != "i386" && ${TARGET_ARCH} != "powerpc"
 OLD_FILES+=usr/bin/gdbserver
 .endif
 OLD_FILES+=usr/bin/ssh-keysign

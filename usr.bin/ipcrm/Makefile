@@ -7,4 +7,6 @@ LDADD=	-lkvm
 CFLAGS+=-I${.CURDIR}/../ipcs
 .PATH:  ${.CURDIR}/../ipcs
 
+WARNS?=	0
+
 .include <bsd.prog.mk>

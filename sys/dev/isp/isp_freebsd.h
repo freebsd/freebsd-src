@@ -177,9 +177,9 @@ struct isp_fc {
 		hysteresis	: 8,
 		role		: 2,
 		gdt_running	: 1,
-		ldt_running	: 1,
 		loop_dead	: 1,
-		fcbsy		: 1;
+		fcbsy		: 1,
+		ready		: 1;
 	struct callout ldt;	/* loop down timer */
 	struct callout gdt;	/* gone device timer */
 #ifdef	ISP_TARGET_MODE

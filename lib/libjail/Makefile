@@ -24,6 +24,4 @@ MLINKS+=jail.3 jailparam_free.3
 
 CFLAGS+=-I${.CURDIR}
 
-WARNS?=	6
-
 .include <bsd.lib.mk>

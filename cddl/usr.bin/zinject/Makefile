@@ -19,7 +19,7 @@ CFLAGS+= -I${.CURDIR}/../../contrib/opensolaris/head
 CFLAGS+= -I${.CURDIR}/../../lib/libumem
 
 DPADD=	${LIBAVL} ${LIBGEOM} ${LIBM} ${LIBNVPAIR} ${LIBUMEM} ${LIBUUTIL} \
-	${LIBZFS} ${LIBZPOOL} ${LIBUUTIL}
+	${LIBZFS} ${LIBZPOOL}
 LDADD=	-lavl -lgeom -lm -lnvpair -lumem -luutil -lzfs -lzpool
 
 .include <bsd.prog.mk>

@@ -16,7 +16,6 @@ MAN=	crash.8 \
 
 MLINKS=	rc.8 rc.atm.8 \
 	rc.8 rc.d.8 \
-	rc.8 rc.early.8 \
 	rc.8 rc.firewall.8 \
 	rc.8 rc.local.8 \
 	rc.8 rc.network.8 \
