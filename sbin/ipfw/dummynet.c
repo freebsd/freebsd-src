@@ -1241,8 +1241,8 @@ dummynet_flush(void)
 void
 dummynet_list(int ac, char *av[], int show_counters)
 {
-	struct dn_id oid, *x;
-	int ret, l = sizeof(oid);
+	struct dn_id oid, *x = NULL;
+	int ret, i, l = sizeof(oid);
 
 	oid_fill(&oid, l, DN_CMD_GET, DN_API_VERSION);
 	switch (co.do_pipe) {
@@ -1256,14 +1256,29 @@ dummynet_list(int ac, char *av[], int show_counters)
 		oid.subtype = DN_SCH;	/* list sched */
 		break;
 	}
+
+	/* Request the buffer size (in oid.id)*/
 	ret = do_cmd(-IP_DUMMYNET3, &oid, (uintptr_t)&l);
 	// printf("%s returns %d need %d\n", __FUNCTION__, ret, oid.id);
 	if (ret != 0 || oid.id <= sizeof(oid))
 		return;
-	l = oid.id;
-	x = safe_calloc(1, l);
+
+	/* Try max 10 times
+	 * Buffer is correct if l != 0.
+	 * If l == 0 no buffer is sent, maybe because kernel requires 
+	 * a greater buffer, so try with the new size in x->id.
+	 */
+	for (i = 0, l = oid.id; i < 10; i++, l = x->id) {
+		x = safe_realloc(x, l);
 	*x = oid;
 	ret = do_cmd(-IP_DUMMYNET3, x, (uintptr_t)&l);
+
+		if (ret != 0 || x->id <= sizeof(oid))
+			return;
+
+		if (l != 0)
+			break; /* ok */
+	}
 	// printf("%s returns %d need %d\n", __FUNCTION__, ret, oid.id);
 	// XXX filter on ac, av
 	list_pipes(x, O_NEXT(x, l));
