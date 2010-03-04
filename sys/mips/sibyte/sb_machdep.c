@@ -220,6 +220,13 @@ mips_init(void)
 	mips_cpu_init();
 
 	/*
+	 * Sibyte has a L1 data cache coherent with DMA. This includes
+	 * on-chip network interfaces as well as PCI/HyperTransport bus
+	 * masters.
+	 */
+	cpuinfo.cache_coherent_dma = TRUE;
+
+	/*
 	 * XXX
 	 * The kernel is running in 32-bit mode but the CFE is running in
 	 * 64-bit mode. So the SR_KX bit in the status register is turned
