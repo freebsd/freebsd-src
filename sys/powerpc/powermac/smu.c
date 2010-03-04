@@ -32,16 +32,18 @@ __FBSDID("$FreeBSD$");
 #include <sys/bus.h>
 #include <sys/systm.h>
 #include <sys/module.h>
-#include <sys/callout.h>
 #include <sys/conf.h>
 #include <sys/cpu.h>
 #include <sys/ctype.h>
 #include <sys/kernel.h>
+#include <sys/kthread.h>
 #include <sys/reboot.h>
 #include <sys/rman.h>
 #include <sys/sysctl.h>
+#include <sys/unistd.h>
 
 #include <machine/bus.h>
+#include <machine/intr_machdep.h>
 #include <machine/md_var.h>
 
 #include <dev/led/led.h>
@@ -53,7 +55,11 @@ struct smu_cmd {
 	volatile uint8_t cmd;
 	uint8_t		len;
 	uint8_t		data[254];
+
+	STAILQ_ENTRY(smu_cmd) cmd_q;
 };
+
+STAILQ_HEAD(smu_cmdq, smu_cmd);
 
 struct smu_fan {
 	cell_t	reg;
@@ -88,16 +94,21 @@ struct smu_softc {
 	bus_space_tag_t	sc_bt;
 	bus_space_handle_t sc_mailbox;
 
-	struct smu_cmd	*sc_cmd;
+	struct smu_cmd	*sc_cmd, *sc_cur_cmd;
 	bus_addr_t	sc_cmd_phys;
 	bus_dmamap_t	sc_cmd_dmamap;
+	struct smu_cmdq	sc_cmdq;
 
 	struct smu_fan	*sc_fans;
 	int		sc_nfans;
 	struct smu_sensor *sc_sensors;
 	int		sc_nsensors;
 
-	struct callout	sc_fanmgt_callout;
+	int		sc_doorbellirqid;
+	struct resource	*sc_doorbellirq;
+	void		*sc_doorbellirqcookie;
+
+	struct proc	*sc_fanmgt_proc;
 	time_t		sc_lastuserchange;
 
 	/* Calibration data */
@@ -130,14 +141,16 @@ static void	smu_cpufreq_pre_change(device_t, const struct cf_level *level);
 static void	smu_cpufreq_post_change(device_t, const struct cf_level *level);
 
 /* utility functions */
-static int	smu_run_cmd(device_t dev, struct smu_cmd *cmd);
+static int	smu_run_cmd(device_t dev, struct smu_cmd *cmd, int wait);
 static int	smu_get_datablock(device_t dev, int8_t id, uint8_t *buf,
 		    size_t len);
 static void	smu_attach_fans(device_t dev, phandle_t fanroot);
 static void	smu_attach_sensors(device_t dev, phandle_t sensroot);
-static void	smu_fanmgt_callout(void *xdev);
+static void	smu_fan_management_proc(void *xdev);
+static void	smu_manage_fans(device_t smu);
 static void	smu_set_sleepled(void *xdev, int onoff);
 static int	smu_server_mode(SYSCTL_HANDLER_ARGS);
+static void	smu_doorbell_intr(void *xdev);
 
 /* where to find the doorbell GPIO */
 
@@ -162,7 +175,7 @@ DRIVER_MODULE(smu, nexus, smu_driver, smu_devclass, 0, 0);
 MALLOC_DEFINE(M_SMU, "smu", "SMU Sensor Information");
 
 #define SMU_MAILBOX		0x8000860c
-#define SMU_FANMGT_INTERVAL	500 /* ms */
+#define SMU_FANMGT_INTERVAL	1000 /* ms */
 
 /* Command types */
 #define SMU_ADC			0xd8
@@ -227,6 +240,8 @@ smu_attach(device_t dev)
 	sc = device_get_softc(dev);
 
 	mtx_init(&sc->sc_mtx, "smu", NULL, MTX_DEF);
+	sc->sc_cur_cmd = NULL;
+	sc->sc_doorbellirqid = -1;
 
 	/*
 	 * Map the mailbox area. This should be determined from firmware,
@@ -246,6 +261,7 @@ smu_attach(device_t dev)
 	    BUS_DMA_ZERO, &sc->sc_cmd_dmamap);
 	bus_dmamap_load(sc->sc_dmatag, sc->sc_cmd_dmamap,
 	    sc->sc_cmd, PAGE_SIZE, smu_phys_callback, sc, 0);
+	STAILQ_INIT(&sc->sc_cmdq);
 
 	/*
 	 * Set up handlers to change CPU voltage when CPU frequency is changed.
@@ -304,8 +320,8 @@ smu_attach(device_t dev)
 	    "critical_temp", CTLTYPE_INT | CTLFLAG_RW,
 	    &sc->sc_critical_temp, sizeof(int), "Critical temperature (C)");
 
-	callout_init(&sc->sc_fanmgt_callout, 1);
-	smu_fanmgt_callout(dev);
+	kproc_create(smu_fan_management_proc, dev, &sc->sc_fanmgt_proc,
+	    RFHIGHPID, 0, "smu_thermal");
 
 	/*
 	 * Set up LED interface
@@ -321,24 +337,37 @@ smu_attach(device_t dev)
 	    "server_mode", CTLTYPE_INT | CTLFLAG_RW, dev, 0,
 	    smu_server_mode, "I", "Enable reboot after power failure");
 
+	/*
+	 * Set up doorbell interrupt.
+	 */
+	sc->sc_doorbellirqid = 0;
+	sc->sc_doorbellirq = bus_alloc_resource_any(smu_doorbell, SYS_RES_IRQ,
+	    &sc->sc_doorbellirqid, RF_ACTIVE);
+	bus_setup_intr(smu_doorbell, sc->sc_doorbellirq,
+	    INTR_TYPE_MISC | INTR_MPSAFE, NULL, smu_doorbell_intr, dev,
+	    &sc->sc_doorbellirqcookie);
+	powerpc_config_intr(rman_get_start(sc->sc_doorbellirq),
+	    INTR_TRIGGER_EDGE, INTR_POLARITY_LOW);
+
 	return (0);
 }
 
-static int
-smu_run_cmd(device_t dev, struct smu_cmd *cmd)
+static void
+smu_send_cmd(device_t dev, struct smu_cmd *cmd)
 {
 	struct smu_softc *sc;
-	int doorbell_ack, result, oldpow;
 
 	sc = device_get_softc(dev);
 
-	mtx_lock(&sc->sc_mtx);
+	mtx_assert(&sc->sc_mtx, MA_OWNED);
 
-	oldpow = powerpc_pow_enabled;
-	powerpc_pow_enabled = 0;
+	powerpc_pow_enabled = 0;	/* SMU cannot work if we go to NAP */
+	sc->sc_cur_cmd = cmd;
 
 	/* Copy the command to the mailbox */
-	memcpy(sc->sc_cmd, cmd, sizeof(*cmd));
+	sc->sc_cmd->cmd = cmd->cmd;
+	sc->sc_cmd->len = cmd->len;
+	memcpy(sc->sc_cmd->data, cmd->data, sizeof(cmd->data));
 	bus_dmamap_sync(sc->sc_dmatag, sc->sc_cmd_dmamap, BUS_DMASYNC_PREWRITE);
 	bus_space_write_4(sc->sc_bt, sc->sc_mailbox, 0, sc->sc_cmd_phys);
 
@@ -347,33 +376,107 @@ smu_run_cmd(device_t dev, struct smu_cmd *cmd)
 
 	/* Ring SMU doorbell */
 	macgpio_write(smu_doorbell, GPIO_DDR_OUTPUT);
+}
 
-	/* Wait for the doorbell GPIO to go high, signaling completion */
-	do {
-		/* XXX: timeout */
-		DELAY(50);
-		doorbell_ack = macgpio_read(smu_doorbell);
-	} while (doorbell_ack != (GPIO_DDR_OUTPUT | GPIO_LEVEL_RO | GPIO_DATA));
+static void
+smu_doorbell_intr(void *xdev)
+{
+	device_t smu;
+	struct smu_softc *sc;
+	int doorbell_ack;
+
+	smu = xdev;
+	doorbell_ack = macgpio_read(smu_doorbell);
+	sc = device_get_softc(smu);
+
+	if (doorbell_ack != (GPIO_DDR_OUTPUT | GPIO_LEVEL_RO | GPIO_DATA)) 
+		return;
+
+	mtx_lock(&sc->sc_mtx);
+
+	if (sc->sc_cur_cmd == NULL)	/* spurious */
+		goto done;
 
 	/* Check result. First invalidate the cache again... */
 	__asm __volatile("dcbf 0,%0; sync" :: "r"(sc->sc_cmd) : "memory");
 	
 	bus_dmamap_sync(sc->sc_dmatag, sc->sc_cmd_dmamap, BUS_DMASYNC_POSTREAD);
 
-	/* SMU acks the command by inverting the command bits */
-	if (sc->sc_cmd->cmd == ((~cmd->cmd) & 0xff))
-		result = 0;
-	else
-		result = EIO;
+	sc->sc_cur_cmd->cmd = sc->sc_cmd->cmd;
+	sc->sc_cur_cmd->len = sc->sc_cmd->len;
+	memcpy(sc->sc_cur_cmd->data, sc->sc_cmd->data,
+	    sizeof(sc->sc_cmd->data));
+	wakeup(sc->sc_cur_cmd);
+	sc->sc_cur_cmd = NULL;
+	powerpc_pow_enabled = 1;
 
-	powerpc_pow_enabled = oldpow;
-
-	memcpy(cmd->data, sc->sc_cmd->data, sizeof(cmd->data));
-	cmd->len = sc->sc_cmd->len;
+    done:
+	/* Queue next command if one is pending */
+	if (STAILQ_FIRST(&sc->sc_cmdq) != NULL) {
+		sc->sc_cur_cmd = STAILQ_FIRST(&sc->sc_cmdq);
+		STAILQ_REMOVE_HEAD(&sc->sc_cmdq, cmd_q);
+		smu_send_cmd(smu, sc->sc_cur_cmd);
+	}
 
 	mtx_unlock(&sc->sc_mtx);
+}
 
-	return (result);
+static int
+smu_run_cmd(device_t dev, struct smu_cmd *cmd, int wait)
+{
+	struct smu_softc *sc;
+	uint8_t cmd_code;
+	int error;
+
+	sc = device_get_softc(dev);
+	cmd_code = cmd->cmd;
+
+	mtx_lock(&sc->sc_mtx);
+	if (sc->sc_cur_cmd != NULL) {
+		STAILQ_INSERT_TAIL(&sc->sc_cmdq, cmd, cmd_q);
+	} else
+		smu_send_cmd(dev, cmd);
+	mtx_unlock(&sc->sc_mtx);
+
+	if (!wait)
+		return (0);
+
+	if (sc->sc_doorbellirqid < 0) {
+		/* Poll if the IRQ has not been set up yet */
+		do {
+			DELAY(50);
+			smu_doorbell_intr(dev);
+		} while (sc->sc_cur_cmd != NULL);
+	} else {
+		/* smu_doorbell_intr will wake us when the command is ACK'ed */
+		error = tsleep(cmd, 0, "smu", 800 * hz / 1000);
+		if (error != 0)
+			smu_doorbell_intr(dev);	/* One last chance */
+		
+		if (error != 0) {
+		    mtx_lock(&sc->sc_mtx);
+		    if (cmd->cmd == cmd_code) {	/* Never processed */
+			/* Abort this command if we timed out */
+			if (sc->sc_cur_cmd == cmd)
+				sc->sc_cur_cmd = NULL;
+			else
+				STAILQ_REMOVE(&sc->sc_cmdq, cmd, smu_cmd,
+				    cmd_q);
+			mtx_unlock(&sc->sc_mtx);
+			return (error);
+		    }
+		    error = 0;
+		    mtx_unlock(&sc->sc_mtx);
+		}
+	}
+
+	/* SMU acks the command by inverting the command bits */
+	if (cmd->cmd == ((~cmd_code) & 0xff))
+		error = 0;
+	else
+		error = EIO;
+
+	return (error);
 }
 
 static int
@@ -387,7 +490,7 @@ smu_get_datablock(device_t dev, int8_t id, uint8_t *buf, size_t len)
 	cmd.data[0] = SMU_PARTITION_LATEST;
 	cmd.data[1] = id; 
 
-	smu_run_cmd(dev, &cmd);
+	smu_run_cmd(dev, &cmd, 1);
 
 	addr[0] = addr[1] = 0;
 	addr[2] = cmd.data[0];
@@ -400,7 +503,7 @@ smu_get_datablock(device_t dev, int8_t id, uint8_t *buf, size_t len)
 	memcpy(&cmd.data[2], addr, sizeof(addr));
 	cmd.data[6] = len;
 
-	smu_run_cmd(dev, &cmd);
+	smu_run_cmd(dev, &cmd, 1);
 	memcpy(buf, cmd.data, len);
 	return (0);
 }
@@ -421,7 +524,7 @@ smu_slew_cpu_voltage(device_t dev, int to)
 	cmd.data[6] = 1;
 	cmd.data[7] = to;
 
-	smu_run_cmd(dev, &cmd);
+	smu_run_cmd(dev, &cmd, 1);
 }
 
 static void
@@ -516,7 +619,7 @@ smu_fan_set_rpm(device_t smu, struct smu_fan *fan, int rpm)
 		cmd.data[2] = (rpm >> 8) & 0xff;
 		cmd.data[3] = rpm & 0xff;
 	
-		error = smu_run_cmd(smu, &cmd);
+		error = smu_run_cmd(smu, &cmd, 1);
 		if (error)
 			fan->old_style = 1;
 	}
@@ -527,7 +630,7 @@ smu_fan_set_rpm(device_t smu, struct smu_fan *fan, int rpm)
 		cmd.data[1] = 1 << fan->reg;
 		cmd.data[2 + 2*fan->reg] = (rpm >> 8) & 0xff;
 		cmd.data[3 + 2*fan->reg] = rpm & 0xff;
-		error = smu_run_cmd(smu, &cmd);
+		error = smu_run_cmd(smu, &cmd, 1);
 	}
 
 	if (error == 0)
@@ -545,7 +648,7 @@ smu_fan_read_rpm(device_t smu, struct smu_fan *fan)
 	cmd.len = 1;
 	cmd.data[0] = 1;
 
-	smu_run_cmd(smu, &cmd);
+	smu_run_cmd(smu, &cmd, 1);
 
 	return ((cmd.data[fan->reg*2+1] << 8) | cmd.data[fan->reg*2+2]);
 }
@@ -651,17 +754,21 @@ smu_attach_fans(device_t dev, phandle_t fanroot)
 }
 
 static int
-smu_sensor_read(device_t smu, struct smu_sensor *sens)
+smu_sensor_read(device_t smu, struct smu_sensor *sens, int *val)
 {
 	struct smu_cmd cmd;
 	struct smu_softc *sc;
 	int64_t value;
+	int error;
 
 	cmd.cmd = SMU_ADC;
 	cmd.len = 1;
 	cmd.data[0] = sens->reg;
+	error = 0;
 
-	smu_run_cmd(smu, &cmd);
+	error = smu_run_cmd(smu, &cmd, 1);
+	if (error != 0)
+		return (error);
 	
 	sc = device_get_softc(smu);
 	value = (cmd.data[0] << 8) | cmd.data[1];
@@ -674,9 +781,7 @@ smu_sensor_read(device_t smu, struct smu_sensor *sens)
 		value <<= 1;
 
 		/* Convert from 16.16 fixed point degC into integer C. */
-		value *= 15625;
-		value /= 1024;
-		value /= 1000000;
+		value >>= 16;
 		break;
 	case SMU_VOLTAGE_SENSOR:
 		value *= sc->sc_cpu_volt_scale;
@@ -710,7 +815,8 @@ smu_sensor_read(device_t smu, struct smu_sensor *sens)
 		break;
 	}
 
-	return (value);
+	*val = value;
+	return (0);
 }
 
 static int
@@ -725,7 +831,10 @@ smu_sensor_sysctl(SYSCTL_HANDLER_ARGS)
 	sc = device_get_softc(smu);
 	sens = &sc->sc_sensors[arg2];
 
-	value = smu_sensor_read(smu, sens);
+	error = smu_sensor_read(smu, sens, &value);
+	if (error != 0)
+		return (error);
+
 	error = sysctl_handle_int(oidp, &value, 0, req);
 
 	return (error);
@@ -808,41 +917,32 @@ smu_attach_sensors(device_t dev, phandle_t sensroot)
 	}
 }
 
-static int
-ms_to_ticks(int ms)
+static void
+smu_fan_management_proc(void *xdev)
 {
-	if (hz > 1000)
-		return ms*(hz/1000);
+	device_t smu = xdev;
 
-	return ms/(1000/hz);
-} 
+	while(1) {
+		smu_manage_fans(smu);
+		pause("smu", SMU_FANMGT_INTERVAL * hz / 1000);
+	}
+}
 
 static void
-smu_fanmgt_callout(void *xdev) {
-	device_t smu = xdev;
+smu_manage_fans(device_t smu)
+{
 	struct smu_softc *sc;
-	int i, maxtemp, temp, factor;
+	int i, maxtemp, temp, factor, error;
 
 	sc = device_get_softc(smu);
-
-	if (time_uptime - sc->sc_lastuserchange < 3) {
-		/*
-		 * If we have heard from a user process in the last 3 seconds,
-		 * go away.
-		 */
-
-		callout_reset(&sc->sc_fanmgt_callout,
-		    ms_to_ticks(SMU_FANMGT_INTERVAL), smu_fanmgt_callout, smu);
-		return;
-	}
 
 	maxtemp = 0;
 	for (i = 0; i < sc->sc_nsensors; i++) {
 		if (sc->sc_sensors[i].type != SMU_TEMP_SENSOR)
 			continue;
 
-		temp = smu_sensor_read(smu, &sc->sc_sensors[i]);
-		if (temp > maxtemp)
+		error = smu_sensor_read(smu, &sc->sc_sensors[i], &temp);
+		if (error == 0 && temp > maxtemp)
 			maxtemp = temp;
 	}
 
@@ -865,8 +965,19 @@ smu_fanmgt_callout(void *xdev) {
 		    "more than 20 degrees over target temperature (%d C)!\n",
 		    maxtemp, sc->sc_target_temp);
 
-	if (maxtemp > sc->sc_target_temp) 
+	if (time_uptime - sc->sc_lastuserchange < 3) {
+		/*
+		 * If we have heard from a user process in the last 3 seconds,
+		 * go away.
+		 */
+
+		return;
+	}
+
+	if (maxtemp - sc->sc_target_temp > 4) 
 		factor = 110;
+	else if (maxtemp - sc->sc_target_temp > 1) 
+		factor = 105;
 	else if (sc->sc_target_temp - maxtemp > 4) 
 		factor = 90;
 	else if (sc->sc_target_temp - maxtemp > 1) 
@@ -877,15 +988,12 @@ smu_fanmgt_callout(void *xdev) {
 	for (i = 0; i < sc->sc_nfans; i++) 
 		smu_fan_set_rpm(smu, &sc->sc_fans[i],
 		    (sc->sc_fans[i].setpoint * factor) / 100);
-
-	callout_reset(&sc->sc_fanmgt_callout,
-	    ms_to_ticks(SMU_FANMGT_INTERVAL), smu_fanmgt_callout, smu);
 }
 
 static void
 smu_set_sleepled(void *xdev, int onoff)
 {
-	struct smu_cmd cmd;
+	static struct smu_cmd cmd;
 	device_t smu = xdev;
 
 	cmd.cmd = SMU_MISC;
@@ -894,7 +1002,7 @@ smu_set_sleepled(void *xdev, int onoff)
 	cmd.data[1] = 0;
 	cmd.data[2] = onoff; 
 
-	smu_run_cmd(smu, &cmd);
+	smu_run_cmd(smu, &cmd, 0);
 }
 
 static int
@@ -909,7 +1017,7 @@ smu_server_mode(SYSCTL_HANDLER_ARGS)
 	cmd.len = 1;
 	cmd.data[0] = SMU_PWR_GET_POWERUP;
 
-	error = smu_run_cmd(smu, &cmd);
+	error = smu_run_cmd(smu, &cmd, 1);
 
 	if (error)
 		return (error);
@@ -932,6 +1040,6 @@ smu_server_mode(SYSCTL_HANDLER_ARGS)
 	cmd.data[1] = 0;
 	cmd.data[2] = SMU_WAKEUP_AC_INSERT;
 
-	return (smu_run_cmd(smu, &cmd));
+	return (smu_run_cmd(smu, &cmd, 1));
 }
 

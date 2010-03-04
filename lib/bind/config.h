@@ -166,6 +166,12 @@ int sigwait(const unsigned int *set, int *sig);
 /* Define to 1 if you have the <dlfcn.h> header file. */
 #define HAVE_DLFCN_H 1
 
+/* Define to 1 if you have the `EVP_sha256' function. */
+#define HAVE_EVP_SHA256 1
+
+/* Define to 1 if you have the `EVP_sha512' function. */
+#define HAVE_EVP_SHA512 1
+
 /* Define to 1 if you have the <fcntl.h> header file. */
 #define HAVE_FCNTL_H 1
 
@@ -276,10 +282,6 @@ int sigwait(const unsigned int *set, int *sig);
 
 /* Define to 1 if you have the <unistd.h> header file. */
 #define HAVE_UNISTD_H 1
-
-/* Define to the sub-directory in which libtool stores uninstalled libraries.
-   */
-#define LT_OBJDIR ".libs/"
 
 /* Defined if extern char *optarg is not declared. */
 /* #undef NEED_OPTARG */

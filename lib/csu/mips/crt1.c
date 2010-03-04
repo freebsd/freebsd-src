@@ -66,9 +66,6 @@ extern int etext;
 char **environ;
 const char *__progname = "";
 
-void __gccmain(void) {}
-void __main(void) {}
-
 /* The entry function. */
 void
 __start(char **ap,

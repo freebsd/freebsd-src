@@ -40,7 +40,8 @@ static const char rcsid[] =
 #include <stdlib.h>
 #include <unistd.h>
 
-static int	parselength(char *, off_t *);
+#include <libutil.h>
+
 static void	usage(void);
 
 static int	no_create;
@@ -53,7 +54,8 @@ main(int argc, char **argv)
 {
 	struct stat	sb;
 	mode_t	omode;
-	off_t	oflow, rsize, sz, tsize;
+	off_t	oflow, rsize, tsize;
+	int64_t sz;
 	int	ch, error, fd, oflags;
 	char   *fname, *rname;
 
@@ -71,7 +73,7 @@ main(int argc, char **argv)
 			rname = optarg;
 			break;
 		case 's':
-			if (parselength(optarg, &sz) == -1)
+			if (expand_number(optarg, &sz) == -1)
 				errx(EXIT_FAILURE,
 				    "invalid size argument `%s'", optarg);
 			if (*optarg == '+' || *optarg == '-')
@@ -146,65 +148,6 @@ main(int argc, char **argv)
 		close(fd);
 
 	return error ? EXIT_FAILURE : EXIT_SUCCESS;
-}
-
-/*
- * Return the numeric value of a string given in the form [+-][0-9]+[GMKT]
- * or -1 on format error or overflow.
- */
-static int
-parselength(char *ls, off_t *sz)
-{
-	off_t	length, oflow;
-	int	lsign;
-
-	length = 0;
-	lsign = 1;
-
-	switch (*ls) {
-	case '-':
-		lsign = -1;
-	case '+':
-		ls++;
-	}
-
-#define	ASSIGN_CHK_OFLOW(x, y)	if (x < y) return -1; y = x
-	/*
-	 * Calculate the value of the decimal digit string, failing
-	 * on overflow.
-	 */
-	while (isdigit(*ls)) {
-		oflow = length * 10 + *ls++ - '0';
-		ASSIGN_CHK_OFLOW(oflow, length);
-	}
-
-	switch (*ls) {
-	case 'T':
-	case 't':
-		oflow = length * 1024;
-		ASSIGN_CHK_OFLOW(oflow, length);
-	case 'G':
-	case 'g':
-		oflow = length * 1024;
-		ASSIGN_CHK_OFLOW(oflow, length);
-	case 'M':
-	case 'm':
-		oflow = length * 1024;
-		ASSIGN_CHK_OFLOW(oflow, length);
-	case 'K':
-	case 'k':
-		if (ls[1] != '\0')
-			return -1;
-		oflow = length * 1024;
-		ASSIGN_CHK_OFLOW(oflow, length);
-	case '\0':
-		break;
-	default:
-		return -1;
-	}
-
-	*sz = length * lsign;
-	return 0;
 }
 
 static void

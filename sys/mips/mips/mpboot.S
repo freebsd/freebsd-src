@@ -53,13 +53,13 @@ GLOBAL(mpentry)
 	 * Initialize stack and call machine startup
 	 */
 	PTR_LA	sp, _C_LABEL(pcpu_space)
-	addiu	sp, (NBPG * 2) - START_FRAME
+	addiu	sp, (NBPG * 2) - CALLFRAME_SIZ
 	sll	t0, s0, PAGE_SHIFT + 1
 	addu	sp, sp, t0
 
 	/* Zero out old ra and old fp for debugger */
-	sw      zero, START_FRAME - 4(sp)
-	sw      zero, START_FRAME - 8(sp)
+	sw      zero, CALLFRAME_SIZ - 4(sp)
+	sw      zero, CALLFRAME_SIZ - 8(sp)
 
 	PTR_LA	gp, _C_LABEL(_gp)
 
