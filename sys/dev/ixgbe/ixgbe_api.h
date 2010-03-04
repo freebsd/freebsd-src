@@ -67,8 +67,7 @@ s32 ixgbe_setup_phy_link_speed(struct ixgbe_hw *hw,
                                ixgbe_link_speed speed,
                                bool autoneg,
                                bool autoneg_wait_to_complete);
-s32 ixgbe_setup_link(struct ixgbe_hw *hw);
-s32 ixgbe_setup_link_speed(struct ixgbe_hw *hw, ixgbe_link_speed speed,
+s32 ixgbe_setup_link(struct ixgbe_hw *hw, ixgbe_link_speed speed,
                            bool autoneg, bool autoneg_wait_to_complete);
 s32 ixgbe_check_link(struct ixgbe_hw *hw, ixgbe_link_speed *speed,
                      bool *link_up, bool link_up_wait_to_complete);
@@ -97,6 +96,7 @@ s32 ixgbe_update_uc_addr_list(struct ixgbe_hw *hw, u8 *addr_list,
                               u32 addr_count, ixgbe_mc_addr_itr func);
 s32 ixgbe_update_mc_addr_list(struct ixgbe_hw *hw, u8 *mc_addr_list,
                               u32 mc_addr_count, ixgbe_mc_addr_itr func);
+void ixgbe_add_uc_addr(struct ixgbe_hw *hw, u8 *addr_list, u32 vmdq);
 s32 ixgbe_enable_mc(struct ixgbe_hw *hw);
 s32 ixgbe_disable_mc(struct ixgbe_hw *hw);
 s32 ixgbe_clear_vfta(struct ixgbe_hw *hw);
@@ -164,6 +164,8 @@ s32 ixgbe_set_san_mac_addr(struct ixgbe_hw *hw, u8 *san_mac_addr);
 s32 ixgbe_get_device_caps(struct ixgbe_hw *hw, u16 *device_caps);
 s32 ixgbe_acquire_swfw_semaphore(struct ixgbe_hw *hw, u16 mask);
 void ixgbe_release_swfw_semaphore(struct ixgbe_hw *hw, u16 mask);
+s32 ixgbe_get_wwn_prefix(struct ixgbe_hw *hw, u16 *wwnn_prefix,
+                         u16 *wwpn_prefix);
 
 
 #endif /* _IXGBE_API_H_ */

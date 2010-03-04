@@ -116,9 +116,7 @@ main(int argc, char *argv[])
 }
 
 int
-subdir(p, dir)
-	const char *p;
-	const char *dir;
+subdir(const char *p, const char *dir)
 {
 	int l;
 
@@ -133,7 +131,7 @@ subdir(p, dir)
 }
 
 static void
-usage()
+usage(void)
 {
 	(void)fprintf(stderr,
 		"usage: mount_nullfs [-o options] target mount-point\n");

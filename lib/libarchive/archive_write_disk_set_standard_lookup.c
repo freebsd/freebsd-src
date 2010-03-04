@@ -125,6 +125,7 @@ lookup_gid(void *private_data, const char *gname, gid_t gid)
 		int r;
 
 		for (;;) {
+			result = &grent; /* Old getgrnam_r ignores last arg. */
 			r = getgrnam_r(gname, &grent, buffer, bufsize, &result);
 			if (r == 0)
 				break;
@@ -184,6 +185,7 @@ lookup_uid(void *private_data, const char *uname, uid_t uid)
 		int r;
 
 		for (;;) {
+			result = &pwent; /* Old getpwnam_r ignores last arg. */
 			r = getpwnam_r(uname, &pwent, buffer, bufsize, &result);
 			if (r == 0)
 				break;
@@ -230,8 +232,8 @@ hash(const char *p)
 	   as used by ELF for hashing function names. */
 	unsigned g, h = 0;
 	while (*p != '\0') {
-		h = ( h << 4 ) + *p++;
-		if (( g = h & 0xF0000000 )) {
+		h = (h << 4) + *p++;
+		if ((g = h & 0xF0000000) != 0) {
 			h ^= g >> 24;
 			h &= 0x0FFFFFFF;
 		}

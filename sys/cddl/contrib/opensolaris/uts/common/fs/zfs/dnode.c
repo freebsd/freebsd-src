@@ -415,8 +415,7 @@ void
 dnode_reallocate(dnode_t *dn, dmu_object_type_t ot, int blocksize,
     dmu_object_type_t bonustype, int bonuslen, dmu_tx_t *tx)
 {
-	int i, nblkptr;
-	dmu_buf_impl_t *db = NULL;
+	int nblkptr;
 
 	ASSERT3U(blocksize, >=, SPA_MINBLOCKSIZE);
 	ASSERT3U(blocksize, <=, SPA_MAXBLOCKSIZE);
@@ -428,42 +427,25 @@ dnode_reallocate(dnode_t *dn, dmu_object_type_t ot, int blocksize,
 	ASSERT3U(bonustype, <, DMU_OT_NUMTYPES);
 	ASSERT3U(bonuslen, <=, DN_MAX_BONUSLEN);
 
-	for (i = 0; i < TXG_SIZE; i++)
-		ASSERT(!list_link_active(&dn->dn_dirty_link[i]));
-
 	/* clean up any unreferenced dbufs */
 	dnode_evict_dbufs(dn);
-	ASSERT3P(list_head(&dn->dn_dbufs), ==, NULL);
 
-	/*
-	 * XXX I should really have a generation number to tell if we
-	 * need to do this...
-	 */
-	if (blocksize != dn->dn_datablksz ||
-	    dn->dn_bonustype != bonustype || dn->dn_bonuslen != bonuslen) {
-		/* free all old data */
-		dnode_free_range(dn, 0, -1ULL, tx);
-	}
-
-	nblkptr = 1 + ((DN_MAX_BONUSLEN - bonuslen) >> SPA_BLKPTRSHIFT);
-
-	/* change blocksize */
 	rw_enter(&dn->dn_struct_rwlock, RW_WRITER);
-	if (blocksize != dn->dn_datablksz &&
-	    (!BP_IS_HOLE(&dn->dn_phys->dn_blkptr[0]) ||
-	    list_head(&dn->dn_dbufs) != NULL)) {
-		db = dbuf_hold(dn, 0, FTAG);
-		dbuf_new_size(db, blocksize, tx);
-	}
-	dnode_setdblksz(dn, blocksize);
 	dnode_setdirty(dn, tx);
-	dn->dn_next_bonuslen[tx->tx_txg&TXG_MASK] = bonuslen;
-	dn->dn_next_blksz[tx->tx_txg&TXG_MASK] = blocksize;
+	if (dn->dn_datablksz != blocksize) {
+		/* change blocksize */
+		ASSERT(dn->dn_maxblkid == 0 &&
+		    (BP_IS_HOLE(&dn->dn_phys->dn_blkptr[0]) ||
+		    dnode_block_freed(dn, 0)));
+		dnode_setdblksz(dn, blocksize);
+		dn->dn_next_blksz[tx->tx_txg&TXG_MASK] = blocksize;
+	}
+	if (dn->dn_bonuslen != bonuslen)
+		dn->dn_next_bonuslen[tx->tx_txg&TXG_MASK] = bonuslen;
+	nblkptr = 1 + ((DN_MAX_BONUSLEN - bonuslen) >> SPA_BLKPTRSHIFT);
 	if (dn->dn_nblkptr != nblkptr)
 		dn->dn_next_nblkptr[tx->tx_txg&TXG_MASK] = nblkptr;
 	rw_exit(&dn->dn_struct_rwlock);
-	if (db)
-		dbuf_rele(db, FTAG);
 
 	/* change type */
 	dn->dn_type = ot;
@@ -1187,11 +1169,6 @@ dnode_block_freed(dnode_t *dn, uint64_t blkid)
 	if (dn->dn_free_txg)
 		return (TRUE);
 
-	/*
-	 * If dn_datablkshift is not set, then there's only a single
-	 * block, in which case there will never be a free range so it
-	 * won't matter.
-	 */
 	range_tofind.fr_blkid = blkid;
 	mutex_enter(&dn->dn_mtx);
 	for (i = 0; i < TXG_SIZE; i++) {

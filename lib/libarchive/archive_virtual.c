@@ -66,6 +66,7 @@ archive_read_finish(struct archive *a)
 int
 archive_write_header(struct archive *a, struct archive_entry *entry)
 {
+	++a->file_count;
 	return ((a->vtable->archive_write_header)(a, entry));
 }
 

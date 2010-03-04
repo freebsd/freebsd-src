@@ -705,8 +705,12 @@ _sx_xunlock_hard(struct sx *sx, uintptr_t tid, const char *file, int line)
 	 * ideal.  It gives precedence to shared waiters if they are
 	 * present.  For this condition, we have to preserve the
 	 * state of the exclusive waiters flag.
+	 * If interruptible sleeps left the shared queue empty avoid a
+	 * starvation for the threads sleeping on the exclusive queue by giving
+	 * them precedence and cleaning up the shared waiters bit anyway.
 	 */
-	if (sx->sx_lock & SX_LOCK_SHARED_WAITERS) {
+	if ((sx->sx_lock & SX_LOCK_SHARED_WAITERS) != 0 &&
+	    sleepq_sleepcnt(&sx->lock_object, SQ_SHARED_QUEUE) != 0) {
 		queue = SQ_SHARED_QUEUE;
 		x |= (sx->sx_lock & SX_LOCK_EXCLUSIVE_WAITERS);
 	} else
@@ -931,7 +935,7 @@ _sx_sunlock_hard(struct sx *sx, const char *file, int line)
 		 * so, just drop one and return.
 		 */
 		if (SX_SHARERS(x) > 1) {
-			if (atomic_cmpset_ptr(&sx->sx_lock, x,
+			if (atomic_cmpset_rel_ptr(&sx->sx_lock, x,
 			    x - SX_ONE_SHARER)) {
 				if (LOCK_LOG_TEST(&sx->lock_object, 0))
 					CTR4(KTR_LOCK,
@@ -949,8 +953,8 @@ _sx_sunlock_hard(struct sx *sx, const char *file, int line)
 		 */
 		if (!(x & SX_LOCK_EXCLUSIVE_WAITERS)) {
 			MPASS(x == SX_SHARERS_LOCK(1));
-			if (atomic_cmpset_ptr(&sx->sx_lock, SX_SHARERS_LOCK(1),
-			    SX_LOCK_UNLOCKED)) {
+			if (atomic_cmpset_rel_ptr(&sx->sx_lock,
+			    SX_SHARERS_LOCK(1), SX_LOCK_UNLOCKED)) {
 				if (LOCK_LOG_TEST(&sx->lock_object, 0))
 					CTR2(KTR_LOCK, "%s: %p last succeeded",
 					    __func__, sx);
@@ -973,7 +977,7 @@ _sx_sunlock_hard(struct sx *sx, const char *file, int line)
 		 * Note that the state of the lock could have changed,
 		 * so if it fails loop back and retry.
 		 */
-		if (!atomic_cmpset_ptr(&sx->sx_lock,
+		if (!atomic_cmpset_rel_ptr(&sx->sx_lock,
 		    SX_SHARERS_LOCK(1) | SX_LOCK_EXCLUSIVE_WAITERS,
 		    SX_LOCK_UNLOCKED)) {
 			sleepq_release(&sx->lock_object);

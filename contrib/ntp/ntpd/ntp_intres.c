@@ -15,11 +15,6 @@
  * might go about autoconfiguring an NTP distribution network.
  *
  */
- /*
- * For special situations define the FORCE_DNSRETRY Macro
- * to force retries even if it fails the lookup.
- * Use with extreme caution since it will then retry forever.
- */
 
 #ifdef HAVE_CONFIG_H
 # include <config.h>
@@ -463,8 +458,10 @@ findhostaddr(
 	struct conf_entry *entry
 	)
 {
+	static int eai_again_seen = 0;
 	struct addrinfo *addr;
 	struct addrinfo hints;
+	int again;
 	int error;
 
 	checkparent();		/* make sure our guy is still running */
@@ -475,17 +472,14 @@ findhostaddr(
 		return 1;
 	}
 
-        if (entry->ce_name == NULL && SOCKNUL(&entry->peer_store)) {
+	if (entry->ce_name == NULL && SOCKNUL(&entry->peer_store)) {
 		msyslog(LOG_ERR, "findhostaddr: both ce_name and ce_peeraddr are undefined!");
 		return 0;
 	}
 
 	if (entry->ce_name) {
-#ifdef DEBUG
-		if (debug > 2)
-			msyslog(LOG_INFO, "findhostaddr: Resolving <%s>",
-				entry->ce_name);
-#endif /* DEBUG */
+		DPRINTF(2, ("findhostaddr: Resolving <%s>\n",
+			entry->ce_name));
 
 		memset(&hints, 0, sizeof(hints));
 		hints.ai_family = AF_UNSPEC;
@@ -508,68 +502,72 @@ findhostaddr(
 				entry->ce_config.v6_flag = 1;
 			}
 		}
-		else if (error == EAI_NONAME)
-		{
-			msyslog(LOG_ERR, "host name not found: %s", entry->ce_name);
-		}
 	} else {
-#ifdef DEBUG
-		if (debug > 2)
-			msyslog(LOG_INFO, "findhostaddr: Resolving %s>",
-				stoa(&entry->peer_store));
-#endif
+		DPRINTF(2, ("findhostaddr: Resolving <%s>\n",
+			stoa(&entry->peer_store)));
+
 		entry->ce_name = emalloc(MAXHOSTNAMELEN);
 		error = getnameinfo((const struct sockaddr *)&entry->peer_store,
 				   SOCKLEN(&entry->peer_store),
 				   (char *)&entry->ce_name, MAXHOSTNAMELEN,
 				   NULL, 0, 0);
 	}
-#ifdef DEBUG
-	if (debug > 2)
-		printf("intres: got error status of: %d\n", error);
-#endif
 
-	/*
-	 * If the resolver failed, see if the failure is
-	 * temporary. If so, return success.
-	 */
-	if (error != 0) {
-		switch (error)
-		{
+	if (0 == error) {
+
+		/* again is our return value, for success it is 1 */
+		again = 1;
+
+		DPRINTF(2, ("findhostaddr: %s resolved.\n", 
+			(entry->ce_name) ? "name" : "address"));
+	} else {
+		/*
+		 * If the resolver failed, see if the failure is
+		 * temporary. If so, return success.
+		 */
+		again = 0;
+
+		switch (error) {
+
+		case EAI_FAIL:
+			again = 1;
+			break;
+
 		case EAI_AGAIN:
-			return (1);
+			again = 1;
+			eai_again_seen = 1;
+			break;
+
 		case EAI_NONAME:
-#ifndef FORCE_DNSRETRY
-			return (0);
-#else
-			return (1);
-#endif
 #if defined(EAI_NODATA) && (EAI_NODATA != EAI_NONAME)
 		case EAI_NODATA:
 #endif
-		case EAI_FAIL:
+			msyslog(LOG_ERR, "host name not found%s%s: %s",
+				(EAI_NONAME == error) ? "" : " EAI_NODATA",
+				(eai_again_seen) ? " (permanent)" : "",
+				entry->ce_name);
+			again = !eai_again_seen;
+			break;
+
 #ifdef EAI_SYSTEM
 		case EAI_SYSTEM:
-			return (1);
+			/* 
+			 * EAI_SYSTEM means the real error is in errno.  We should be more
+			 * discriminating about which errno values require retrying, but
+			 * this matches existing behavior.
+			 */
+			again = 1;
+			DPRINTF(1, ("intres: EAI_SYSTEM errno %d (%s) means try again, right?\n",
+				errno, strerror(errno)));
+			break;
 #endif
-		default:
-			return (0);
 		}
+
+		/* do this here to avoid perturbing errno earlier */
+		DPRINTF(2, ("intres: got error status of: %d\n", error));
 	}
 
-	if (entry->ce_name) {
-#ifdef DEBUG
-		if (debug > 2)
-			msyslog(LOG_INFO, "findhostaddr: name resolved.");
-#endif
-
-#ifdef DEBUG
-		if (debug > 2)
-			msyslog(LOG_INFO, "findhostaddr: address resolved.");
-#endif
-	}
-		   
-	return (1);
+	return again;
 }
 
 
@@ -579,12 +577,14 @@ findhostaddr(
 static void
 openntp(void)
 {
-	struct addrinfo hints;
-	struct addrinfo *addrResult;
-	const char *localhost = "127.0.0.1";	/* Use IPv6 loopback */
+	const char	*localhost = "127.0.0.1";	/* Use IPv4 loopback */
+	struct addrinfo	hints;
+	struct addrinfo	*addr;
+	u_long		on;
+	int		err;
 
 	if (sockfd != INVALID_SOCKET)
-	    return;
+		return;
 
 	memset(&hints, 0, sizeof(hints));
 
@@ -592,52 +592,81 @@ openntp(void)
 	 * For now only bother with IPv4
 	 */
 	hints.ai_family = AF_INET;
-
 	hints.ai_socktype = SOCK_DGRAM;
-	if (getaddrinfo(localhost, "ntp", &hints, &addrResult)!=0) {
-		msyslog(LOG_ERR, "getaddrinfo failed: %m");
+
+	err = getaddrinfo(localhost, "ntp", &hints, &addr);
+
+	if (err) {
+#ifdef EAI_SYSTEM
+		if (EAI_SYSTEM == err)
+			msyslog(LOG_ERR, "getaddrinfo(%s) failed: %m",
+				localhost);
+		else
+#endif
+			msyslog(LOG_ERR, "getaddrinfo(%s) failed: %s",
+				localhost, gai_strerror(err));
 		resolver_exit(1);
 	}
-	sockfd = socket(addrResult->ai_family, addrResult->ai_socktype, 0);
 
-	if (sockfd == -1) {
+	sockfd = socket(addr->ai_family, addr->ai_socktype, 0);
+
+	if (INVALID_SOCKET == sockfd) {
 		msyslog(LOG_ERR, "socket() failed: %m");
+		resolver_exit(1);
+	}
+
+#ifndef SYS_WINNT
+	/*
+	 * On Windows only the count of sockets must be less than
+	 * FD_SETSIZE. On Unix each descriptor's value must be less
+	 * than FD_SETSIZE, as fd_set is a bit array.
+	 */
+	if (sockfd >= FD_SETSIZE) {
+		msyslog(LOG_ERR, "socket fd %d too large, FD_SETSIZE %d",
+			(int)sockfd, FD_SETSIZE);
 		resolver_exit(1);
 	}
 
 	/*
 	 * Make the socket non-blocking.  We'll wait with select()
+	 * Unix: fcntl(O_NONBLOCK) or fcntl(FNDELAY)
 	 */
-#ifndef SYS_WINNT
-#if defined(O_NONBLOCK)
+# ifdef O_NONBLOCK
 	if (fcntl(sockfd, F_SETFL, O_NONBLOCK) == -1) {
 		msyslog(LOG_ERR, "fcntl(O_NONBLOCK) failed: %m");
 		resolver_exit(1);
 	}
-#else
-#if defined(FNDELAY)
+# else
+#  ifdef FNDELAY
 	if (fcntl(sockfd, F_SETFL, FNDELAY) == -1) {
 		msyslog(LOG_ERR, "fcntl(FNDELAY) failed: %m");
 		resolver_exit(1);
 	}
-#else
-# include "Bletch: NEED NON BLOCKING IO"
-#endif /* FNDDELAY */
-#endif /* O_NONBLOCK */
-#else  /* SYS_WINNT */
-	{
-		int on = 1;
-		if (ioctlsocket(sockfd,FIONBIO,(u_long *) &on) == SOCKET_ERROR) {
-			msyslog(LOG_ERR, "ioctlsocket(FIONBIO) fails: %m");
-			resolver_exit(1); /* Windows NT - set socket in non-blocking mode */
-		}
+#  else
+#   include "Bletch: NEED NON BLOCKING IO"
+#  endif	/* FNDDELAY */
+# endif	/* O_NONBLOCK */
+	(void)on;	/* quiet unused warning */
+#else	/* !SYS_WINNT above */
+	/*
+	 * Make the socket non-blocking.  We'll wait with select()
+	 * Windows: ioctlsocket(FIONBIO)
+	 */
+	on = 1;
+	err = ioctlsocket(sockfd, FIONBIO, &on);
+	if (SOCKET_ERROR == err) {
+		msyslog(LOG_ERR, "ioctlsocket(FIONBIO) fails: %m");
+		resolver_exit(1);
 	}
 #endif /* SYS_WINNT */
-	if (connect(sockfd, addrResult->ai_addr, addrResult->ai_addrlen) == -1) {
+
+	err = connect(sockfd, addr->ai_addr, addr->ai_addrlen);
+	if (SOCKET_ERROR == err) {
 		msyslog(LOG_ERR, "openntp: connect() failed: %m");
 		resolver_exit(1);
 	}
-	freeaddrinfo(addrResult);
+
+	freeaddrinfo(addr);
 }
 
 
@@ -664,7 +693,7 @@ request(
 	checkparent();		/* make sure our guy is still running */
 
 	if (sockfd == INVALID_SOCKET)
-	    openntp();
+		openntp();
 	
 #ifdef SYS_WINNT
 	hReadWriteEvent = CreateEvent(NULL, FALSE, FALSE, NULL);
@@ -1110,6 +1139,7 @@ doconfigure(
 #endif
 		if (dores && SOCKNUL(&(ce->peer_store))) {
 			if (!findhostaddr(ce)) {
+#ifndef IGNORE_DNS_ERRORS
 				msyslog(LOG_ERR,
 					"couldn't resolve `%s', giving up on it",
 					ce->ce_name);
@@ -1117,6 +1147,7 @@ doconfigure(
 				ce = ceremove->ce_next;
 				removeentry(ceremove);
 				continue;
+#endif
 			}
 		}
 

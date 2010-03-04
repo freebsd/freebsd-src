@@ -700,6 +700,7 @@ struct pf_rule {
 
 /* rule flags again */
 #define PFRULE_IFBOUND		0x00010000	/* if-bound */
+#define PFRULE_STATESLOPPY	0x00020000	/* sloppy state tracking */
 
 #define PFSTATE_HIWAT		10000	/* default state table size */
 #define PFSTATE_ADAPT_START	6000	/* default adaptive timeout start */
@@ -800,7 +801,9 @@ struct pf_state {
 	u_int8_t	 pad;
 #endif
 	u_int8_t	 log;
-	u_int8_t	 allow_opts;
+	u_int8_t	 state_flags;
+#define	PFSTATE_ALLOWOPTS	0x01
+#define	PFSTATE_SLOPPY		0x02
 	u_int8_t	 timeout;
 	u_int8_t	 sync_flags;
 #define	PFSTATE_NOSYNC	 0x01

@@ -1739,7 +1739,7 @@ ieee80211_node_delucastkey(struct ieee80211_node *ni)
 		status = ieee80211_crypto_delkey(ni->ni_vap, &ni->ni_ucastkey);
 		if (nt->nt_keyixmap != NULL && keyix < nt->nt_keyixmax) {
 			nikey = nt->nt_keyixmap[keyix];
-			nt->nt_keyixmap[keyix] = NULL;;
+			nt->nt_keyixmap[keyix] = NULL;
 		}
 	}
 	if (!isowned)

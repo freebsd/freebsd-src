@@ -41,8 +41,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/uio.h>
 
-#include <machine/specialreg.h>
-
 #include <vm/vm.h>
 #include <vm/pmap.h>
 
@@ -54,6 +52,7 @@ static struct cdevsw io_cdevsw = {
 	.d_version =	D_VERSION,
 	.d_open =	ioopen,
 	.d_close =	ioclose,
+	.d_ioctl =	ioioctl,
 	.d_name =	"io",
 };
 

@@ -87,7 +87,7 @@ static void die(void) __dead2;
 static void digest_dynamic(Obj_Entry *, int);
 static Obj_Entry *digest_phdr(const Elf_Phdr *, int, caddr_t, const char *);
 static Obj_Entry *dlcheck(void *);
-static Obj_Entry *do_load_object(int, const char *, char *, struct stat *);
+static Obj_Entry *do_load_object(int, const char *, char *, struct stat *, int);
 static int do_search_info(const Obj_Entry *obj, int, struct dl_serinfo *);
 static bool donelist_check(DoneList *, const Obj_Entry *);
 static void errmsg_restore(char *);
@@ -103,7 +103,7 @@ static void initlist_add_objects(Obj_Entry *, Obj_Entry **, Objlist *);
 static bool is_exported(const Elf_Sym *);
 static void linkmap_add(Obj_Entry *);
 static void linkmap_delete(Obj_Entry *);
-static int load_needed_objects(Obj_Entry *);
+static int load_needed_objects(Obj_Entry *, int);
 static int load_preload_objects(void);
 static Obj_Entry *load_object(const char *, const Obj_Entry *, int);
 static Obj_Entry *obj_from_addr(const void *);
@@ -366,12 +366,12 @@ _rtld(Elf_Addr *sp, func_ptr_type *exit_proc, Obj_Entry **objp)
      * future processes to honor the potentially un-safe variables.
      */
     if (!trust) {
-        unsetenv(LD_ "PRELOAD");
-        unsetenv(LD_ "LIBMAP");
-        unsetenv(LD_ "LIBRARY_PATH");
-        unsetenv(LD_ "LIBMAP_DISABLE");
-        unsetenv(LD_ "DEBUG");
-        unsetenv(LD_ "ELF_HINTS_PATH");
+        if (unsetenv(LD_ "PRELOAD") || unsetenv(LD_ "LIBMAP") ||
+	    unsetenv(LD_ "LIBRARY_PATH") || unsetenv(LD_ "LIBMAP_DISABLE") ||
+	    unsetenv(LD_ "DEBUG") || unsetenv(LD_ "ELF_HINTS_PATH")) {
+		_rtld_error("environment corrupt; aborting");
+		die();
+	}
     }
     ld_debug = getenv(LD_ "DEBUG");
     libmap_disable = getenv(LD_ "LIBMAP_DISABLE") != NULL;
@@ -474,6 +474,7 @@ _rtld(Elf_Addr *sp, func_ptr_type *exit_proc, Obj_Entry **objp)
     /* Initialize a fake symbol for resolving undefined weak references. */
     sym_zero.st_info = ELF_ST_INFO(STB_GLOBAL, STT_NOTYPE);
     sym_zero.st_shndx = SHN_UNDEF;
+    sym_zero.st_value = -(uintptr_t)obj_main->relocbase;
 
     if (!libmap_disable)
         libmap_disable = (bool)lm_init(libmap_override);
@@ -484,7 +485,7 @@ _rtld(Elf_Addr *sp, func_ptr_type *exit_proc, Obj_Entry **objp)
     preload_tail = obj_tail;
 
     dbg("loading needed objects");
-    if (load_needed_objects(obj_main) == -1)
+    if (load_needed_objects(obj_main, 0) == -1)
 	die();
 
     /* Make a list of all objects loaded at startup. */
@@ -897,7 +898,7 @@ digest_dynamic(Obj_Entry *obj, int early)
 #endif
 
 	case DT_FLAGS:
-		if ((dynp->d_un.d_val & DF_1_ORIGIN) && trust)
+		if ((dynp->d_un.d_val & DF_ORIGIN) && trust)
 		    obj->z_origin = true;
 		if (dynp->d_un.d_val & DF_SYMBOLIC)
 		    obj->symbolic = true;
@@ -931,6 +932,8 @@ digest_dynamic(Obj_Entry *obj, int early)
 #endif
 
 	case DT_FLAGS_1:
+		if (dynp->d_un.d_val & DF_1_NOOPEN)
+		    obj->z_noopen = true;
 		if ((dynp->d_un.d_val & DF_1_ORIGIN) && trust)
 		    obj->z_origin = true;
 		if (dynp->d_un.d_val & DF_1_GLOBAL)
@@ -991,26 +994,26 @@ digest_phdr(const Elf_Phdr *phdr, int phnum, caddr_t entry, const char *path)
 
     obj = obj_new();
     for (ph = phdr;  ph < phlimit;  ph++) {
+	if (ph->p_type != PT_PHDR)
+	    continue;
+
+	obj->phdr = phdr;
+	obj->phsize = ph->p_memsz;
+	obj->relocbase = (caddr_t)phdr - ph->p_vaddr;
+	break;
+    }
+
+    for (ph = phdr;  ph < phlimit;  ph++) {
 	switch (ph->p_type) {
 
-	case PT_PHDR:
-	    if ((const Elf_Phdr *)ph->p_vaddr != phdr) {
-		_rtld_error("%s: invalid PT_PHDR", path);
-		return NULL;
-	    }
-	    obj->phdr = (const Elf_Phdr *) ph->p_vaddr;
-	    obj->phsize = ph->p_memsz;
-	    break;
-
 	case PT_INTERP:
-	    obj->interp = (const char *) ph->p_vaddr;
+	    obj->interp = (const char *)(ph->p_vaddr + obj->relocbase);
 	    break;
 
 	case PT_LOAD:
 	    if (nsegs == 0) {	/* First load segment */
 		obj->vaddrbase = trunc_page(ph->p_vaddr);
-		obj->mapbase = (caddr_t) obj->vaddrbase;
-		obj->relocbase = obj->mapbase - obj->vaddrbase;
+		obj->mapbase = obj->vaddrbase + obj->relocbase;
 		obj->textsize = round_page(ph->p_vaddr + ph->p_memsz) -
 		  obj->vaddrbase;
 	    } else {		/* Last load segment */
@@ -1021,7 +1024,7 @@ digest_phdr(const Elf_Phdr *phdr, int phnum, caddr_t entry, const char *path)
 	    break;
 
 	case PT_DYNAMIC:
-	    obj->dynamic = (const Elf_Dyn *) ph->p_vaddr;
+	    obj->dynamic = (const Elf_Dyn *)(ph->p_vaddr + obj->relocbase);
 	    break;
 
 	case PT_TLS:
@@ -1029,7 +1032,7 @@ digest_phdr(const Elf_Phdr *phdr, int phnum, caddr_t entry, const char *path)
 	    obj->tlssize = ph->p_memsz;
 	    obj->tlsalign = ph->p_align;
 	    obj->tlsinitsize = ph->p_filesz;
-	    obj->tlsinit = (void*) ph->p_vaddr;
+	    obj->tlsinit = (void*)(ph->p_vaddr + obj->relocbase);
 	    break;
 	}
     }
@@ -1424,7 +1427,7 @@ is_exported(const Elf_Sym *def)
  * returns -1 on failure.
  */
 static int
-load_needed_objects(Obj_Entry *first)
+load_needed_objects(Obj_Entry *first, int flags)
 {
     Obj_Entry *obj, *obj1;
 
@@ -1433,7 +1436,7 @@ load_needed_objects(Obj_Entry *first)
 
 	for (needed = obj->needed;  needed != NULL;  needed = needed->next) {
 	    obj1 = needed->obj = load_object(obj->strtab + needed->name, obj,
-		false);
+		flags & ~RTLD_LO_NOLOAD);
 	    if (obj1 == NULL && !ld_tracing)
 		return -1;
 	    if (obj1 != NULL && obj1->z_nodelete && !obj1->ref_nodel) {
@@ -1464,7 +1467,7 @@ load_preload_objects(void)
 
 	savech = p[len];
 	p[len] = '\0';
-	if (load_object(p, NULL, false) == NULL)
+	if (load_object(p, NULL, 0) == NULL)
 	    return -1;	/* XXX - cleanup */
 	p[len] = savech;
 	p += len;
@@ -1481,7 +1484,7 @@ load_preload_objects(void)
  * on failure.
  */
 static Obj_Entry *
-load_object(const char *name, const Obj_Entry *refobj, int noload)
+load_object(const char *name, const Obj_Entry *refobj, int flags)
 {
     Obj_Entry *obj;
     int fd = -1;
@@ -1527,11 +1530,11 @@ load_object(const char *name, const Obj_Entry *refobj, int noload)
 	close(fd);
 	return obj;
     }
-    if (noload)
+    if (flags & RTLD_LO_NOLOAD)
 	return (NULL);
 
     /* First use of this object, so we must map it in */
-    obj = do_load_object(fd, name, path, &sb);
+    obj = do_load_object(fd, name, path, &sb, flags);
     if (obj == NULL)
 	free(path);
     close(fd);
@@ -1540,7 +1543,8 @@ load_object(const char *name, const Obj_Entry *refobj, int noload)
 }
 
 static Obj_Entry *
-do_load_object(int fd, const char *name, char *path, struct stat *sbp)
+do_load_object(int fd, const char *name, char *path, struct stat *sbp,
+  int flags)
 {
     Obj_Entry *obj;
     struct statfs fs;
@@ -1567,6 +1571,14 @@ do_load_object(int fd, const char *name, char *path, struct stat *sbp)
     object_add_name(obj, name);
     obj->path = path;
     digest_dynamic(obj, 0);
+    if (obj->z_noopen && (flags & (RTLD_LO_DLOPEN | RTLD_LO_TRACE)) ==
+      RTLD_LO_DLOPEN) {
+	dbg("refusing to load non-loadable \"%s\"", obj->path);
+	_rtld_error("Cannot dlopen non-loadable %s", obj->path);
+	munmap(obj->mapbase, obj->mapsize);
+	obj_free(obj);
+	return (NULL);
+    }
 
     *obj_tail = obj;
     obj_tail = &obj->next;
@@ -1985,14 +1997,18 @@ dlopen(const char *name, int mode)
     Obj_Entry **old_obj_tail;
     Obj_Entry *obj;
     Objlist initlist;
-    int result, lockstate, nodelete, noload;
+    int result, lockstate, nodelete, lo_flags;
 
     LD_UTRACE(UTRACE_DLOPEN_START, NULL, NULL, 0, mode, name);
     ld_tracing = (mode & RTLD_TRACE) == 0 ? NULL : "1";
     if (ld_tracing != NULL)
 	environ = (char **)*get_program_var_addr("environ");
     nodelete = mode & RTLD_NODELETE;
-    noload = mode & RTLD_NOLOAD;
+    lo_flags = RTLD_LO_DLOPEN;
+    if (mode & RTLD_NOLOAD)
+	    lo_flags |= RTLD_LO_NOLOAD;
+    if (ld_tracing != NULL)
+	    lo_flags |= RTLD_LO_TRACE;
 
     objlist_init(&initlist);
 
@@ -2005,7 +2021,7 @@ dlopen(const char *name, int mode)
 	obj = obj_main;
 	obj->refcount++;
     } else {
-	obj = load_object(name, obj_main, noload);
+	obj = load_object(name, obj_main, lo_flags);
     }
 
     if (obj) {
@@ -2015,7 +2031,7 @@ dlopen(const char *name, int mode)
 	mode &= RTLD_MODEMASK;
 	if (*old_obj_tail != NULL) {		/* We loaded something new. */
 	    assert(*old_obj_tail == obj);
-	    result = load_needed_objects(obj);
+	    result = load_needed_objects(obj, RTLD_LO_DLOPEN);
 	    init_dag(obj);
 	    if (result != -1)
 		result = rtld_verify_versions(&obj->dagmembers);
@@ -3135,13 +3151,13 @@ allocate_tls(Obj_Entry *objs, void *oldtcb, size_t tcbsize, size_t tcbalign)
 	dtv[1] = tls_max_index;
 
 	for (obj = objs; obj; obj = obj->next) {
-	    if (obj->tlsoffset) {
+	    if (obj->tlsoffset > 0) {
 		addr = (Elf_Addr)tls + obj->tlsoffset;
-		memset((void*) (addr + obj->tlsinitsize),
-		       0, obj->tlssize - obj->tlsinitsize);
-		if (obj->tlsinit)
-		    memcpy((void*) addr, obj->tlsinit,
-			   obj->tlsinitsize);
+		if (obj->tlsinitsize > 0)
+		    memcpy((void*) addr, obj->tlsinit, obj->tlsinitsize);
+		if (obj->tlssize > obj->tlsinitsize)
+		    memset((void*) (addr + obj->tlsinitsize), 0,
+			   obj->tlssize - obj->tlsinitsize);
 		dtv[obj->tlsindex + 1] = addr;
 	    }
 	}
@@ -3341,21 +3357,18 @@ allocate_tls_offset(Obj_Entry *obj)
 void
 free_tls_offset(Obj_Entry *obj)
 {
-#if defined(__i386__) || defined(__amd64__) || defined(__sparc64__) || \
-    defined(__arm__) || defined(__mips__)
+
     /*
      * If we were the last thing to allocate out of the static TLS
      * block, we give our space back to the 'allocator'. This is a
      * simplistic workaround to allow libGL.so.1 to be loaded and
-     * unloaded multiple times. We only handle the Variant II
-     * mechanism for now - this really needs a proper allocator.
+     * unloaded multiple times.
      */
     if (calculate_tls_end(obj->tlsoffset, obj->tlssize)
 	== calculate_tls_end(tls_last_offset, tls_last_size)) {
 	tls_last_offset -= obj->tlssize;
 	tls_last_size = 0;
     }
-#endif
 }
 
 void *
@@ -3424,7 +3437,7 @@ locate_dependency(const Obj_Entry *obj, const char *name)
 	if (object_match_name(needed->obj, name))
 	    return needed->obj;
     }
-    _rtld_error("%s: Unexpected  inconsistency: dependency %s not found",
+    _rtld_error("%s: Unexpected inconsistency: dependency %s not found",
 	obj->path, name);
     die();
 }

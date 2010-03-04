@@ -92,6 +92,14 @@ __opendir2(const char *name, int flags)
 	return __opendir_common(fd, name, flags);
 }
 
+static int
+opendir_compar(const void *p1, const void *p2)
+{
+
+	return (strcmp((*(const struct dirent **)p1)->d_name,
+	    (*(const struct dirent **)p2)->d_name));
+}
+
 /*
  * Common routine for opendir(3), __opendir2(3) and fdopendir(3).
  */
@@ -240,7 +248,8 @@ __opendir_common(int fd, const char *name, int flags)
 				/*
 				 * This sort must be stable.
 				 */
-				mergesort(dpv, n, sizeof(*dpv), alphasort);
+				mergesort(dpv, n, sizeof(*dpv),
+				    opendir_compar);
 
 				dpv[n] = NULL;
 				xp = NULL;

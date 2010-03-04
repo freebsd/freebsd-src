@@ -118,12 +118,12 @@ typedef struct _drv_t {
 	node_p	node;
 	struct	ifqueue queue;
 	struct	ifqueue hi_queue;
-	short	timeout;
-	struct	callout timeout_handle;
 #else
 	struct	ifqueue queue;
 	struct	ifnet *ifp;
 #endif
+	short	timeout;
+	struct	callout timeout_handle;
 	struct	cdev *devt;
 } drv_t;
 
@@ -155,13 +155,13 @@ static void ct_up (drv_t *d);
 static void ct_start (drv_t *d);
 static void ct_down (drv_t *d);
 static void ct_watchdog (drv_t *d);
+static void ct_watchdog_timer (void *arg);
 #ifdef NETGRAPH
 extern struct ng_type typestruct;
 #else
 static void ct_ifstart (struct ifnet *ifp);
 static void ct_tlf (struct sppp *sp);
 static void ct_tls (struct sppp *sp);
-static void ct_ifwatchdog (struct ifnet *ifp);
 static int ct_sioctl (struct ifnet *ifp, u_long cmd, caddr_t data);
 static void ct_initialize (void *softc);
 #endif
@@ -701,6 +701,7 @@ static int ct_attach (device_t dev)
 		c->sys = d;
 		channel [b->num*NCHAN + c->num] = d;
 		sprintf (d->name, "ct%d.%d", b->num, c->num);
+		callout_init (&d->timeout_handle, CALLOUT_MPSAFE);
 
 #ifdef NETGRAPH
 		if (ng_make_node_common (&typestruct, &d->node) != 0) {
@@ -724,8 +725,7 @@ static int ct_attach (device_t dev)
 		d->queue.ifq_maxlen = IFQ_MAXLEN;
 		d->hi_queue.ifq_maxlen = IFQ_MAXLEN;
 		mtx_init (&d->queue.ifq_mtx, "ct_queue", NULL, MTX_DEF);
-		mtx_init (&d->hi_queue.ifq_mtx, "ct_queue_hi", NULL, MTX_DEF);		
-		callout_init (&d->timeout_handle, CALLOUT_MPSAFE);
+		mtx_init (&d->hi_queue.ifq_mtx, "ct_queue_hi", NULL, MTX_DEF);
 #else /*NETGRAPH*/
 		d->ifp = if_alloc(IFT_PPP);
 		if (d->ifp == NULL) {
@@ -742,7 +742,6 @@ static int ct_attach (device_t dev)
 		d->ifp->if_flags	= IFF_POINTOPOINT | IFF_MULTICAST;
 		d->ifp->if_ioctl	= ct_sioctl;
 		d->ifp->if_start	= ct_ifstart;
-		d->ifp->if_watchdog	= ct_ifwatchdog;
 		d->ifp->if_init		= ct_initialize;
 		d->queue.ifq_maxlen	= NBUF;
 		mtx_init (&d->queue.ifq_mtx, "ct_queue", NULL, MTX_DEF);
@@ -816,6 +815,7 @@ static int ct_detach (device_t dev)
 		if (!d || !d->chan->type)
 			continue;
 
+		callout_stop (&d->timeout_handle);
 #ifdef NETGRAPH
 		if (d->node) {
 			ng_rmnode_self (d->node);
@@ -845,12 +845,12 @@ static int ct_detach (device_t dev)
 	callout_drain (&led_timo[b->num]);
 	splx (s);
 	
-	s = splimp ();
 	for (c = b->chan; c < b->chan + NCHAN; ++c) {
 		drv_t *d = (drv_t*) c->sys;
 
 		if (!d || !d->chan->type)
 			continue;
+		callout_drain(&d->timeout_handle);
 		
 		/* Deallocate buffers. */
 		ct_bus_dma_mem_free (&d->dmamem);
@@ -858,7 +858,6 @@ static int ct_detach (device_t dev)
 	bd->board = 0;
 	adapter [b->num] = 0;
 	free (b, M_DEVBUF);
-	splx (s);
 	
 	mtx_destroy (&bd->ct_mtx);
 
@@ -874,13 +873,6 @@ static void ct_ifstart (struct ifnet *ifp)
 	CT_LOCK (bd);
 	ct_start (d);
 	CT_UNLOCK (bd);
-}
-
-static void ct_ifwatchdog (struct ifnet *ifp)
-{
-	drv_t *d = ifp->if_softc;
-
-	ct_watchdog (d);
 }
 
 static void ct_tlf (struct sppp *sp)
@@ -970,6 +962,7 @@ static void ct_down (drv_t *d)
 	ct_set_dtr (d->chan, 0);
 	ct_set_rts (d->chan, 0);
 	d->running = 0;
+	callout_stop (&d->timeout_handle);
 	splx (s);
 }
 
@@ -1033,11 +1026,7 @@ static void ct_send (drv_t *d)
 
 		/* Set up transmit timeout, if the transmit ring is not empty.
 		 * Transmit timeout is 10 seconds. */
-#ifdef NETGRAPH
 		d->timeout = 10;
-#else
-		d->ifp->if_timer = 10;
-#endif
 	}
 #ifndef NETGRAPH
 	d->ifp->if_drv_flags |= IFF_DRV_OACTIVE;
@@ -1058,6 +1047,7 @@ static void ct_start (drv_t *d)
 		if (! d->chan->rts)
 			ct_set_rts (d->chan, 1);
 		ct_send (d);
+		callout_reset (&d->timeout_handle, hz, ct_watchdog_timer, d);
 	}
 
 	splx (s);
@@ -1070,11 +1060,7 @@ static void ct_start (drv_t *d)
  */
 static void ct_watchdog (drv_t *d)
 {
-	bdrv_t *bd = d->bd;
-	int s;
 
-	s = splimp ();
-	CT_LOCK (bd);
 	CT_DEBUG (d, ("device timeout\n"));
 	if (d->running) {
 		ct_setup_chan (d->chan);
@@ -1083,8 +1069,20 @@ static void ct_watchdog (drv_t *d)
 		ct_set_rts (d->chan, 1);
 		ct_start (d);
 	}
+}
+
+static void ct_watchdog_timer (void *arg)
+{
+	drv_t *d = arg;
+	bdrv_t *bd = d->bd;
+
+	CT_LOCK (bd);
+	if (d->timeout == 1)
+		ct_watchdog (d);
+	if (d->timeout)
+		d->timeout--;
+	callout_reset (&d->timeout_handle, hz, ct_watchdog_timer, d);
 	CT_UNLOCK (bd);
-	splx (s);
 }
 
 /*
@@ -1096,12 +1094,10 @@ static void ct_transmit (ct_chan_t *c, void *attachment, int len)
 
 	if (!d)
 		return;
-#ifdef NETGRAPH
 	d->timeout = 0;
-#else
+#ifndef NETGRAPH
 	++d->ifp->if_opackets;
 	d->ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
-	d->ifp->if_timer = 0;
 #endif
 	ct_start (d);
 }
@@ -1181,12 +1177,10 @@ static void ct_error (ct_chan_t *c, int data)
 		break;
 	case CT_UNDERRUN:
 		CT_DEBUG (d, ("underrun error\n"));
-#ifdef NETGRAPH
 		d->timeout = 0;
-#else
+#ifndef NETGRAPH
 		++d->ifp->if_oerrors;
 		d->ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
-		d->ifp->if_timer = 0;
 #endif
 		ct_start (d);
 		break;
@@ -2142,20 +2136,6 @@ static int ng_ct_rmnode (node_p node)
 	return 0;
 }
 
-static void ng_ct_watchdog (void *arg)
-{
-	drv_t *d = arg;
-
-	if (!d)
-		return;
-		
-	if (d->timeout == 1)
-		ct_watchdog (d);
-	if (d->timeout)
-		d->timeout--;
-	callout_reset (&d->timeout_handle, hz, ng_ct_watchdog, d);
-}
-
 static int ng_ct_connect (hook_p hook)
 {
 	drv_t *d = NG_NODE_PRIVATE (NG_HOOK_NODE (hook));
@@ -2163,7 +2143,7 @@ static int ng_ct_connect (hook_p hook)
 	if (!d)
 		return 0;
 		
-	callout_reset (&d->timeout_handle, hz, ng_ct_watchdog, d);
+	callout_reset (&d->timeout_handle, hz, ct_watchdog_timer, d);
 	return 0;
 }
 

@@ -67,6 +67,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/callout.h>
 #include <sys/malloc.h>
 #include <sys/priv.h>
+#include <sys/kdb.h>
 
 #include <dev/usb/usb.h>
 #include <dev/usb/usbdi.h>
@@ -104,6 +105,8 @@ SYSCTL_INT(_hw_usb_ukbd, OID_AUTO, debug, CTLFLAG_RW,
 SYSCTL_INT(_hw_usb_ukbd, OID_AUTO, no_leds, CTLFLAG_RW,
     &ukbd_no_leds, 0, "Disables setting of keyboard leds");
 
+TUNABLE_INT("hw.usb.ukbd.debug", &ukbd_debug);
+TUNABLE_INT("hw.usb.ukbd.no_leds", &ukbd_no_leds);
 #endif
 
 #define	UPROTO_BOOT_KEYBOARD 1
@@ -148,6 +151,7 @@ struct ukbd_softc {
 	struct ukbd_data sc_ndata;
 	struct ukbd_data sc_odata;
 
+	struct thread *sc_poll_thread;
 	struct usb_device *sc_udev;
 	struct usb_interface *sc_iface;
 	struct usb_xfer *sc_xfer[UKBD_N_TRANSFER];
@@ -171,9 +175,10 @@ struct ukbd_softc {
 #define	UKBD_FLAG_APPLE_SWAP	0x0100
 #define	UKBD_FLAG_TIMER_RUNNING	0x0200
 
-	int32_t	sc_mode;		/* input mode (K_XLATE,K_RAW,K_CODE) */
-	int32_t	sc_state;		/* shift/lock key state */
-	int32_t	sc_accents;		/* accent key index (> 0) */
+	int	sc_mode;		/* input mode (K_XLATE,K_RAW,K_CODE) */
+	int	sc_state;		/* shift/lock key state */
+	int	sc_accents;		/* accent key index (> 0) */
+	int	sc_poll_tick_last;
 
 	uint16_t sc_inputs;
 	uint16_t sc_inputhead;
@@ -184,6 +189,7 @@ struct ukbd_softc {
 	uint8_t	sc_iface_no;
 	uint8_t sc_kbd_id;
 	uint8_t sc_led_id;
+	uint8_t sc_poll_detected;
 };
 
 #define	KEY_ERROR	  0x01
@@ -247,8 +253,8 @@ static const uint8_t ukbd_trtab[256] = {
 	NN, NN, NN, NN, NN, NN, NN, NN,	/* 68 - 6F */
 	NN, NN, NN, NN, 115, 108, 111, 113,	/* 70 - 77 */
 	109, 110, 112, 118, 114, 116, 117, 119,	/* 78 - 7F */
-	121, 120, NN, NN, NN, NN, NN, 115,	/* 80 - 87 */
-	112, 125, 121, 123, NN, NN, NN, NN,	/* 88 - 8F */
+	121, 120, NN, NN, NN, NN, NN, 123,	/* 80 - 87 */
+	124, 125, 126, 127, 128, NN, NN, NN,	/* 88 - 8F */
 	NN, NN, NN, NN, NN, NN, NN, NN,	/* 90 - 97 */
 	NN, NN, NN, NN, NN, NN, NN, NN,	/* 98 - 9F */
 	NN, NN, NN, NN, NN, NN, NN, NN,	/* A0 - A7 */
@@ -278,6 +284,9 @@ static int	ukbd_ioctl(keyboard_t *, u_long, caddr_t);
 static int	ukbd_enable(keyboard_t *);
 static int	ukbd_disable(keyboard_t *);
 static void	ukbd_interrupt(struct ukbd_softc *);
+static int	ukbd_is_polling(struct ukbd_softc *);
+static int	ukbd_polls_other_thread(struct ukbd_softc *);
+static void	ukbd_event_keyinput(struct ukbd_softc *);
 
 static device_probe_t ukbd_probe;
 static device_attach_t ukbd_attach;
@@ -328,6 +337,22 @@ ukbd_do_poll(struct ukbd_softc *sc, uint8_t wait)
 {
 	DPRINTFN(2, "polling\n");
 
+	/* update stats about last polling event */
+	sc->sc_poll_tick_last = ticks;
+	sc->sc_poll_detected = 1;
+
+	if (kdb_active == 0) {
+		while (sc->sc_inputs == 0) {
+			/* make sure the USB code gets a chance to run */
+			pause("UKBD", 1);
+
+			/* check if we should wait */
+			if (!wait)
+				break;
+		}
+		return;		/* Only poll if KDB is active */
+	}
+
 	while (sc->sc_inputs == 0) {
 
 		usbd_transfer_poll(sc->sc_xfer, UKBD_N_TRANSFER);
@@ -360,9 +385,13 @@ ukbd_get_key(struct ukbd_softc *sc, uint8_t wait)
 		/* start transfer, if not already started */
 		usbd_transfer_start(sc->sc_xfer[UKBD_INTR_DT]);
 	}
-	if (sc->sc_flags & UKBD_FLAG_POLLING) {
+
+	if (ukbd_polls_other_thread(sc))
+		return (-1);
+
+	if (sc->sc_flags & UKBD_FLAG_POLLING)
 		ukbd_do_poll(sc, wait);
-	}
+
 	if (sc->sc_inputs == 0) {
 		c = -1;
 	} else {
@@ -383,14 +412,13 @@ ukbd_interrupt(struct ukbd_softc *sc)
 	uint32_t o_mod;
 	uint32_t now = sc->sc_time_ms;
 	uint32_t dtime;
-	uint32_t c;
 	uint8_t key;
 	uint8_t i;
 	uint8_t j;
 
-	if (sc->sc_ndata.keycode[0] == KEY_ERROR) {
-		goto done;
-	}
+	if (sc->sc_ndata.keycode[0] == KEY_ERROR)
+		return;
+
 	n_mod = sc->sc_ndata.modifiers;
 	o_mod = sc->sc_odata.modifiers;
 	if (n_mod != o_mod) {
@@ -463,14 +491,22 @@ pfound:	;
 
 	sc->sc_odata = sc->sc_ndata;
 
-	bcopy(sc->sc_ntime, sc->sc_otime, sizeof(sc->sc_otime));
+	memcpy(sc->sc_otime, sc->sc_ntime, sizeof(sc->sc_otime));
 
-	if (sc->sc_inputs == 0) {
-		goto done;
-	}
-	if (sc->sc_flags & UKBD_FLAG_POLLING) {
-		goto done;
-	}
+	ukbd_event_keyinput(sc);
+}
+
+static void
+ukbd_event_keyinput(struct ukbd_softc *sc)
+{
+	int c;
+
+	if (ukbd_is_polling(sc))
+		return;
+
+	if (sc->sc_inputs == 0)
+		return;
+
 	if (KBD_IS_ACTIVE(&sc->sc_kbd) &&
 	    KBD_IS_BUSY(&sc->sc_kbd)) {
 		/* let the callback function process the input */
@@ -482,8 +518,6 @@ pfound:	;
 			c = ukbd_read_char(&sc->sc_kbd, 0);
 		} while (c != NOKEY);
 	}
-done:
-	return;
 }
 
 static void
@@ -493,12 +527,14 @@ ukbd_timeout(void *arg)
 
 	mtx_assert(&Giant, MA_OWNED);
 
-	if (!(sc->sc_flags & UKBD_FLAG_POLLING)) {
-		sc->sc_time_ms += 25;	/* milliseconds */
-	}
+	sc->sc_time_ms += 25;	/* milliseconds */
+
 	ukbd_interrupt(sc);
 
-	if (ukbd_any_key_pressed(sc)) {
+	/* Make sure any leftover key events gets read out */
+	ukbd_event_keyinput(sc);
+
+	if (ukbd_any_key_pressed(sc) || (sc->sc_inputs != 0)) {
 		ukbd_start_timer(sc);
 	} else {
 		sc->sc_flags &= ~UKBD_FLAG_TIMER_RUNNING;
@@ -745,7 +781,7 @@ ukbd_probe(device_t dev)
 		if (usb_test_quirk(uaa, UQ_KBD_IGNORE))
 			return (ENXIO);
 		else
-			return (0);
+			return (BUS_PROBE_GENERIC);
 	}
 
 	error = usbd_req_get_hid_desc(uaa->device, NULL,
@@ -767,7 +803,7 @@ ukbd_probe(device_t dev)
 		if (usb_test_quirk(uaa, UQ_KBD_IGNORE))
 			error = ENXIO;
 		else
-			error = 0;
+			error = BUS_PROBE_GENERIC;
 	} else
 		error = ENXIO;
 
@@ -831,6 +867,18 @@ ukbd_attach(device_t dev)
 	 */
 	KBD_PROBE_DONE(kbd);
 
+	/*
+	 * Set boot protocol if we need the quirk.
+	 */
+	if (usb_test_quirk(uaa, UQ_KBD_BOOTPROTO)) {
+		err = usbd_req_set_protocol(sc->sc_udev, NULL, 
+			sc->sc_iface_index, 0);
+		if (err != USB_ERR_NORMAL_COMPLETION) {
+			DPRINTF("set protocol error=%s\n", usbd_errstr(err));
+			goto detach;
+		}
+	}
+
 	/* figure out if there is an ID byte in the data */
 	err = usbd_req_get_hid_desc(uaa->device, NULL, &hid_ptr,
 	    &hid_len, M_TEMP, uaa->info.bIfaceIndex);
@@ -874,9 +922,13 @@ ukbd_attach(device_t dev)
 	/* ignore if SETIDLE fails, hence it is not crucial */
 	err = usbd_req_set_idle(sc->sc_udev, NULL, sc->sc_iface_index, 0, 0);
 
+	mtx_lock(&Giant);
+
 	ukbd_ioctl(kbd, KDSETLED, (caddr_t)&sc->sc_state);
 
 	KBD_INIT_DONE(kbd);
+
+	mtx_unlock(&Giant);
 
 	if (kbd_register(kbd) < 0) {
 		goto detach;
@@ -919,9 +971,8 @@ ukbd_detach(device_t dev)
 
 	DPRINTF("\n");
 
-	if (sc->sc_flags & UKBD_FLAG_POLLING) {
-		panic("cannot detach polled keyboard!\n");
-	}
+	mtx_lock(&Giant);
+
 	sc->sc_flags |= UKBD_FLAG_GONE;
 
 	usb_callout_stop(&sc->sc_callout);
@@ -948,6 +999,8 @@ ukbd_detach(device_t dev)
 	}
 	sc->sc_kbd.kb_flags = 0;
 
+	mtx_unlock(&Giant);
+
 	usbd_transfer_unsetup(sc->sc_xfer, UKBD_N_TRANSFER);
 
 	usb_callout_drain(&sc->sc_callout);
@@ -963,7 +1016,11 @@ ukbd_resume(device_t dev)
 {
 	struct ukbd_softc *sc = device_get_softc(dev);
 
+	mtx_lock(&Giant);
+
 	ukbd_clear_state(&sc->sc_kbd);
+
+	mtx_unlock(&Giant);
 
 	return (0);
 }
@@ -1070,12 +1127,18 @@ ukbd_check(keyboard_t *kbd)
 			mtx_unlock(&Giant);
 			return (retval);
 		}
-		ukbd_do_poll(sc, 0);
 	} else {
 		/* XXX the keyboard layer requires Giant */
 		if (!mtx_owned(&Giant))
 			return (0);
 	}
+
+	/* check if key belongs to this thread */
+	if (ukbd_polls_other_thread(sc))
+		return (0);
+
+	if (sc->sc_flags & UKBD_FLAG_POLLING)
+		ukbd_do_poll(sc, 0);
 
 #ifdef UKBD_EMULATE_ATSCANCODE
 	if (sc->sc_buffered_char[0]) {
@@ -1111,6 +1174,10 @@ ukbd_check_char(keyboard_t *kbd)
 		if (!mtx_owned(&Giant))
 			return (0);
 	}
+
+	/* check if key belongs to this thread */
+	if (ukbd_polls_other_thread(sc))
+		return (0);
 
 	if ((sc->sc_composed_char > 0) &&
 	    (!(sc->sc_flags & UKBD_FLAG_COMPOSE))) {
@@ -1149,6 +1216,10 @@ ukbd_read(keyboard_t *kbd, int wait)
 		if (!mtx_owned(&Giant))
 			return (-1);
 	}
+
+	/* check if key belongs to this thread */
+	if (ukbd_polls_other_thread(sc))
+		return (-1);
 
 #ifdef UKBD_EMULATE_ATSCANCODE
 	if (sc->sc_buffered_char[0]) {
@@ -1213,6 +1284,10 @@ ukbd_read_char(keyboard_t *kbd, int wait)
 		if (!mtx_owned(&Giant))
 			return (NOKEY);
 	}
+
+	/* check if key belongs to this thread */
+	if (ukbd_polls_other_thread(sc))
+		return (NOKEY);
 
 next_code:
 
@@ -1413,7 +1488,17 @@ ukbd_ioctl(keyboard_t *kbd, u_long cmd, caddr_t arg)
 		 * keyboard system must get out of "Giant" first, before the
 		 * CPU can proceed here ...
 		 */
-		return (EINVAL);
+		switch (cmd) {
+		case KDGKBMODE:
+		case KDSKBMODE:
+			/* workaround for Geli */
+			mtx_lock(&Giant);
+			i = ukbd_ioctl(kbd, cmd, arg);
+			mtx_unlock(&Giant);
+			return (i);
+		default:
+			return (EINVAL);
+		}
 	}
 
 	switch (cmd) {
@@ -1439,7 +1524,8 @@ ukbd_ioctl(keyboard_t *kbd, u_long cmd, caddr_t arg)
 		case K_RAW:
 		case K_CODE:
 			if (sc->sc_mode != *(int *)arg) {
-				ukbd_clear_state(kbd);
+				if (ukbd_is_polling(sc) == 0)
+					ukbd_clear_state(kbd);
 				sc->sc_mode = *(int *)arg;
 			}
 			break;
@@ -1546,7 +1632,11 @@ ukbd_clear_state(keyboard_t *kbd)
 	struct ukbd_softc *sc = kbd->kb_data;
 
 	if (!mtx_owned(&Giant)) {
-		return;			/* XXX */
+		/* XXX cludge */
+		mtx_lock(&Giant);
+		ukbd_clear_state(kbd);
+		mtx_unlock(&Giant);
+		return;
 	}
 
 	sc->sc_flags &= ~(UKBD_FLAG_COMPOSE | UKBD_FLAG_POLLING);
@@ -1557,10 +1647,10 @@ ukbd_clear_state(keyboard_t *kbd)
 	sc->sc_buffered_char[0] = 0;
 	sc->sc_buffered_char[1] = 0;
 #endif
-	bzero(&sc->sc_ndata, sizeof(sc->sc_ndata));
-	bzero(&sc->sc_odata, sizeof(sc->sc_odata));
-	bzero(&sc->sc_ntime, sizeof(sc->sc_ntime));
-	bzero(&sc->sc_otime, sizeof(sc->sc_otime));
+	memset(&sc->sc_ndata, 0, sizeof(sc->sc_ndata));
+	memset(&sc->sc_odata, 0, sizeof(sc->sc_odata));
+	memset(&sc->sc_ntime, 0, sizeof(sc->sc_ntime));
+	memset(&sc->sc_otime, 0, sizeof(sc->sc_otime));
 }
 
 /* save the internal state, not used */
@@ -1575,6 +1665,30 @@ static int
 ukbd_set_state(keyboard_t *kbd, void *buf, size_t len)
 {
 	return (EINVAL);
+}
+
+static int
+ukbd_is_polling(struct ukbd_softc *sc)
+{
+	int delta;
+
+	if (sc->sc_flags & UKBD_FLAG_POLLING)
+		return (1);	/* polling */
+
+	delta = ticks - sc->sc_poll_tick_last;
+	if ((delta < 0) || (delta >= hz)) {
+		sc->sc_poll_detected = 0;
+		return (0);		/* not polling */
+	}
+
+	return (sc->sc_poll_detected);
+}
+
+static int
+ukbd_polls_other_thread(struct ukbd_softc *sc)
+{
+	return (ukbd_is_polling(sc) &&
+	    (sc->sc_poll_thread != curthread));
 }
 
 static int
@@ -1593,8 +1707,10 @@ ukbd_poll(keyboard_t *kbd, int on)
 
 	if (on) {
 		sc->sc_flags |= UKBD_FLAG_POLLING;
+		sc->sc_poll_thread = curthread;
 	} else {
 		sc->sc_flags &= ~UKBD_FLAG_POLLING;
+		ukbd_start_timer(sc);	/* start timer */
 	}
 	return (0);
 }
@@ -1636,20 +1752,59 @@ static int
 ukbd_key2scan(struct ukbd_softc *sc, int code, int shift, int up)
 {
 	static const int scan[] = {
-		0x1c, 0x1d, 0x35,
-		0x37 | SCAN_PREFIX_SHIFT,	/* PrintScreen */
-		0x38, 0x47, 0x48, 0x49, 0x4b, 0x4d, 0x4f,
-		0x50, 0x51, 0x52, 0x53,
-		0x46,			/* XXX Pause/Break */
-		0x5b, 0x5c, 0x5d,
+		/* 89 */
+		0x11c,	/* Enter */
+		/* 90-99 */
+		0x11d,	/* Ctrl-R */
+		0x135,	/* Divide */
+		0x137 | SCAN_PREFIX_SHIFT,	/* PrintScreen */
+		0x138,	/* Alt-R */
+		0x147,	/* Home */
+		0x148,	/* Up */
+		0x149,	/* PageUp */
+		0x14b,	/* Left */
+		0x14d,	/* Right */
+		0x14f,	/* End */
+		/* 100-109 */
+		0x150,	/* Down */
+		0x151,	/* PageDown */
+		0x152,	/* Insert */
+		0x153,	/* Delete */
+		0x146,	/* XXX Pause/Break */
+		0x15b,	/* Win_L(Super_L) */
+		0x15c,	/* Win_R(Super_R) */
+		0x15d,	/* Application(Menu) */
+
 		/* SUN TYPE 6 USB KEYBOARD */
-		0x68, 0x5e, 0x5f, 0x60, 0x61, 0x62, 0x63,
-		0x64, 0x65, 0x66, 0x67, 0x25, 0x1f, 0x1e,
-		0x20,
+		0x168,	/* Sun Type 6 Help */
+		0x15e,	/* Sun Type 6 Stop */
+		/* 110 - 119 */
+		0x15f,	/* Sun Type 6 Again */
+		0x160,	/* Sun Type 6 Props */
+		0x161,	/* Sun Type 6 Undo */
+		0x162,	/* Sun Type 6 Front */
+		0x163,	/* Sun Type 6 Copy */
+		0x164,	/* Sun Type 6 Open */
+		0x165,	/* Sun Type 6 Paste */
+		0x166,	/* Sun Type 6 Find */
+		0x167,	/* Sun Type 6 Cut */
+		0x125,	/* Sun Type 6 Mute */
+		/* 120 - 128 */
+		0x11f,	/* Sun Type 6 VolumeDown */
+		0x11e,	/* Sun Type 6 VolumeUp */
+		0x120,	/* Sun Type 6 PowerDown */
+
+		/* Japanese 106/109 keyboard */
+		0x73,	/* Keyboard Intl' 1 (backslash / underscore) */
+		0x70,	/* Keyboard Intl' 2 (Katakana / Hiragana) */
+		0x7d,	/* Keyboard Intl' 3 (Yen sign) (Not using in jp106/109) */
+		0x79,	/* Keyboard Intl' 4 (Henkan) */
+		0x7b,	/* Keyboard Intl' 5 (Muhenkan) */
+		0x5c,	/* Keyboard Intl' 6 (Keypad ,) (For PC-9821 layout) */
 	};
 
 	if ((code >= 89) && (code < (89 + (sizeof(scan) / sizeof(scan[0]))))) {
-		code = scan[code - 89] | SCAN_PREFIX_E0;
+		code = scan[code - 89];
 	}
 	/* Pause/Break */
 	if ((code == 104) && (!(shift & (MOD_CONTROL_L | MOD_CONTROL_R)))) {

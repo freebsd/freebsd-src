@@ -102,7 +102,7 @@ vdev_geom_orphan(struct g_consumer *cp)
 }
 
 static struct g_consumer *
-vdev_geom_attach(struct g_provider *pp, int write)
+vdev_geom_attach(struct g_provider *pp)
 {
 	struct g_geom *gp;
 	struct g_consumer *cp;
@@ -126,7 +126,7 @@ vdev_geom_attach(struct g_provider *pp, int write)
 			g_wither_geom(gp, ENXIO);
 			return (NULL);
 		}
-		if (g_access(cp, 1, write, 1) != 0) {
+		if (g_access(cp, 1, 0, 1) != 0) {
 			g_wither_geom(gp, ENXIO);
 			return (NULL);
 		}
@@ -145,14 +145,14 @@ vdev_geom_attach(struct g_provider *pp, int write)
 				g_destroy_consumer(cp);
 				return (NULL);
 			}
-			if (g_access(cp, 1, write, 1) != 0) {
+			if (g_access(cp, 1, 0, 1) != 0) {
 				g_detach(cp);
 				g_destroy_consumer(cp);
 				return (NULL);
 			}
 			ZFS_LOG(1, "Created consumer for %s.", pp->name);
 		} else {
-			if (g_access(cp, 1, cp->acw > 0 ? 0 : write, 1) != 0)
+			if (g_access(cp, 1, 0, 1) != 0)
 				return (NULL);
 			ZFS_LOG(1, "Used existing consumer for %s.", pp->name);
 		}
@@ -293,11 +293,16 @@ vdev_geom_read_guid(struct g_consumer *cp)
 	uint64_t psize;
 	off_t offset, size;
 	uint64_t guid;
-	int error, l, len;
+	int error, l, len, iszvol;
 
 	g_topology_assert_not();
 
 	pp = cp->provider;
+	ZFS_LOG(1, "Reading guid from %s...", pp->name);
+	if (g_getattr("ZFS::iszvol", cp, &iszvol) == 0 && iszvol) {
+		ZFS_LOG(1, "Skipping ZVOL-based provider %s.", pp->name);
+		return (0);
+	}
 
 	psize = pp->mediasize;
 	psize = P2ALIGN(psize, (uint64_t)sizeof(vdev_label_t));
@@ -316,8 +321,7 @@ vdev_geom_read_guid(struct g_consumer *cp)
 		if ((offset % pp->sectorsize) != 0)
 			continue;
 
-		error = vdev_geom_io(cp, BIO_READ, label, offset, size);
-		if (error != 0)
+		if (vdev_geom_io(cp, BIO_READ, label, offset, size) != 0)
 			continue;
 		buf = label->vl_vdev_phys.vp_nvlist;
 
@@ -338,7 +342,6 @@ vdev_geom_read_guid(struct g_consumer *cp)
 
 struct vdev_geom_find {
 	uint64_t guid;
-	int write;
 	struct g_consumer *cp;
 };
 
@@ -390,10 +393,10 @@ vdev_geom_attach_by_guid_event(void *arg, int flags __unused)
 				g_detach(zcp);
 				if (guid != ap->guid)
 					continue;
-				ap->cp = vdev_geom_attach(pp, ap->write);
+				ap->cp = vdev_geom_attach(pp);
 				if (ap->cp == NULL) {
-					printf("ZFS WARNING: Cannot open %s "
-					    "for writting.\n", pp->name);
+					printf("ZFS WARNING: Unable to attach to %s.",
+					    pp->name);
 					continue;
 				}
 				goto end;
@@ -407,14 +410,13 @@ end:
 }
 
 static struct g_consumer *
-vdev_geom_attach_by_guid(uint64_t guid, int write)
+vdev_geom_attach_by_guid(uint64_t guid)
 {
 	struct vdev_geom_find *ap;
 	struct g_consumer *cp;
 
 	ap = kmem_zalloc(sizeof(*ap), KM_SLEEP);
 	ap->guid = guid;
-	ap->write = write;
 	g_waitfor_event(vdev_geom_attach_by_guid_event, ap, M_WAITOK, NULL);
 	cp = ap->cp;
 	kmem_free(ap, sizeof(*ap));
@@ -429,11 +431,11 @@ vdev_geom_open_by_guid(vdev_t *vd)
 	size_t len;
 
 	ZFS_LOG(1, "Searching by guid [%ju].", (uintmax_t)vd->vdev_guid);
-	cp = vdev_geom_attach_by_guid(vd->vdev_guid, !!(spa_mode & FWRITE));
+	cp = vdev_geom_attach_by_guid(vd->vdev_guid);
 	if (cp != NULL) {
 		len = strlen(cp->provider->name) + strlen("/dev/") + 1;
 		buf = kmem_alloc(len, KM_SLEEP);
-	
+
 		snprintf(buf, len, "/dev/%s", cp->provider->name);
 		spa_strfree(vd->vdev_path);
 		vd->vdev_path = buf;
@@ -460,7 +462,7 @@ vdev_geom_open_by_path(vdev_t *vd, int check_guid)
 	pp = g_provider_by_name(vd->vdev_path + sizeof("/dev/") - 1);
 	if (pp != NULL) {
 		ZFS_LOG(1, "Found provider by name %s.", vd->vdev_path);
-		cp = vdev_geom_attach(pp, !!(spa_mode & FWRITE));
+		cp = vdev_geom_attach(pp);
 		if (cp != NULL && check_guid) {
 			g_topology_unlock();
 			guid = vdev_geom_read_guid(cp);
@@ -488,7 +490,7 @@ vdev_geom_open(vdev_t *vd, uint64_t *psize, uint64_t *ashift)
 	vdev_geom_ctx_t *ctx;
 	struct g_provider *pp;
 	struct g_consumer *cp;
-	int owned;
+	int error, owned;
 
 	/*
 	 * We must have a pathname, and it must be absolute.
@@ -502,7 +504,8 @@ vdev_geom_open(vdev_t *vd, uint64_t *psize, uint64_t *ashift)
 
 	if ((owned = mtx_owned(&Giant)))
 		mtx_unlock(&Giant);
-	cp = vdev_geom_open_by_path(vd, 0);
+	error = 0;
+	cp = vdev_geom_open_by_path(vd, 1);
 	if (cp == NULL) {
 		/*
 		 * The device at vd->vdev_path doesn't have the expected guid.
@@ -512,16 +515,27 @@ vdev_geom_open(vdev_t *vd, uint64_t *psize, uint64_t *ashift)
 		cp = vdev_geom_open_by_guid(vd);
 	}
 	if (cp == NULL)
-		cp = vdev_geom_open_by_path(vd, 1);
+		cp = vdev_geom_open_by_path(vd, 0);
 	if (cp == NULL) {
 		ZFS_LOG(1, "Provider %s not found.", vd->vdev_path);
-		vd->vdev_stat.vs_aux = VDEV_AUX_OPEN_FAILED;
-		if (owned)
-			mtx_lock(&Giant);
-		return (EACCES);
+		error = ENOENT;
+	} else if (cp->acw == 0 && (spa_mode & FWRITE) != 0) {
+		g_topology_lock();
+		error = g_access(cp, 0, 1, 0);
+		if (error != 0) {
+			printf("ZFS WARNING: Unable to open %s for writing (error=%d).",
+			    vd->vdev_path, error);
+			vdev_geom_detach(cp, 0);
+			cp = NULL;
+		}
+		g_topology_unlock();
 	}
 	if (owned)
 		mtx_lock(&Giant);
+	if (cp == NULL) {
+		vd->vdev_stat.vs_aux = VDEV_AUX_OPEN_FAILED;
+		return (error);
+	}
 
 	cp->private = vd;
 
@@ -662,26 +676,6 @@ sendreq:
 static void
 vdev_geom_io_done(zio_t *zio)
 {
-
-	/*																						    
-	 * If the device returned ENXIO, then attempt we should verify if GEOM														
-	 * provider has been removed. If this is the case, then we trigger an														 
-	 * asynchronous removal of the device.																		
-	 */																						   
-	if (zio->io_error == ENXIO) {
-		vdev_t *vd = zio->io_vd;
-		vdev_geom_ctx_t *ctx;
-		struct g_provider *pp = NULL;
-
-		ctx = vd->vdev_tsd;
-		if (ctx != NULL && ctx->gc_consumer != NULL)
-			pp = ctx->gc_consumer->provider;
-
-		if (pp == NULL || (pp->flags & G_PF_ORPHAN)) {
-			vd->vdev_remove_wanted = B_TRUE;
-			spa_async_request(zio->io_spa, SPA_ASYNC_REMOVE);
-		}
-	}
 }
 
 vdev_ops_t vdev_geom_ops = {

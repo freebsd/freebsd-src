@@ -1,6 +1,6 @@
 /******************************************************************************
 
-  Copyright (c) 2001-2009, Intel Corporation 
+  Copyright (c) 2001-2010, Intel Corporation 
   All rights reserved.
   
   Redistribution and use in source and binary forms, with or without 
@@ -54,7 +54,7 @@
 #define EM_MIN_TXD		80
 #define EM_MAX_TXD_82543	256
 #define EM_MAX_TXD		4096
-#define EM_DEFAULT_TXD		EM_MAX_TXD_82543
+#define EM_DEFAULT_TXD		1024
 
 /*
  * EM_RXD - Maximum number of receive Descriptors
@@ -72,7 +72,7 @@
 #define EM_MIN_RXD		80
 #define EM_MAX_RXD_82543	256
 #define EM_MAX_RXD		4096
-#define EM_DEFAULT_RXD	EM_MAX_RXD_82543
+#define EM_DEFAULT_RXD		1024
 
 /*
  * EM_TIDV - Transmit Interrupt Delay Value
@@ -135,9 +135,9 @@
 #define EM_RADV                         64
 
 /*
- * This parameter controls the duration of transmit watchdog timer.
+ * This parameter controls the max duration of transmit watchdog.
  */
-#define EM_TX_TIMEOUT                   5
+#define EM_WATCHDOG                   (10 * hz)
 
 /*
  * This parameter controls when the driver calls the routine to reclaim
@@ -189,6 +189,7 @@
 #define ETHER_ALIGN                     2
 #define EM_FC_PAUSE_TIME		0x0680
 #define EM_EEPROM_APME			0x400;
+#define EM_82544_APME			0x0004;
 
 /* Code compatilbility between 6 and 7 */
 #ifndef ETHER_BPF_MTAP
@@ -308,7 +309,8 @@ struct adapter {
 	struct ifmedia	media;
 	struct callout	timer;
 	struct callout	tx_fifo_timer;
-	int		watchdog_timer;
+	bool		watchdog_check;
+	int		watchdog_time;
 	int		msi;
 	int		if_flags;
 	int		max_frame_size;
@@ -332,8 +334,9 @@ struct adapter {
 #endif
 
 	/* Management and WOL features */
-	int		wol;
-	int		has_manage;
+	u32		wol;
+	bool		has_manage;
+	bool		has_amt;
 
 	/* Info about the board itself */
 	uint8_t		link_active;
@@ -417,6 +420,13 @@ struct adapter {
 	boolean_t       pcix_82544;
 	boolean_t       in_detach;
 
+#ifdef EM_IEEE1588
+	/* IEEE 1588 precision time support */
+	struct cyclecounter     cycles;
+	struct nettimer         clock;
+	struct nettime_compare  compare;
+	struct hwtstamp_ctrl    hwtstamp;
+#endif
 
 	struct e1000_hw_stats stats;
 };

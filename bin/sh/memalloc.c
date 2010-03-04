@@ -95,7 +95,7 @@ ckfree(pointer p)
  */
 
 char *
-savestr(char *s)
+savestr(const char *s)
 {
 	char *p;
 

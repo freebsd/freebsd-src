@@ -3024,7 +3024,10 @@ static int radeon_cp_getparam(struct drm_device *dev, void *data, struct drm_fil
 		value = GET_SCRATCH(dev_priv, 2);
 		break;
 	case RADEON_PARAM_IRQ_NR:
-		value = dev->irq;
+		if ((dev_priv->flags & RADEON_FAMILY_MASK) >= CHIP_R600)
+			value = 0;
+		else
+			value = dev->irq;
 		break;
 	case RADEON_PARAM_GART_BASE:
 		value = dev_priv->gart_vm_start;

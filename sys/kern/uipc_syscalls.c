@@ -941,8 +941,8 @@ kern_recvit(td, s, mp, fromseg, controlp)
 	struct uio *ktruio = NULL;
 #endif
 
-	if(controlp != NULL)
-		*controlp = 0;
+	if (controlp != NULL)
+		*controlp = NULL;
 
 	AUDIT_ARG_FD(s);
 	error = getsock(td->td_proc->p_fd, s, &fp, NULL);
@@ -1886,7 +1886,7 @@ kern_sendfile(struct thread *td, struct sendfile_args *uap,
 	if (uap->flags & SF_SYNC) {
 		sfs = malloc(sizeof *sfs, M_TEMP, M_WAITOK);
 		memset(sfs, 0, sizeof *sfs);
-		mtx_init(&sfs->mtx, "sendfile", MTX_DEF, 0);
+		mtx_init(&sfs->mtx, "sendfile", NULL, MTX_DEF);
 		cv_init(&sfs->cv, "sendfile");
 	}
 
@@ -2016,7 +2016,7 @@ retry_space:
 		 * Loop and construct maximum sized mbuf chain to be bulk
 		 * dumped into socket buffer.
 		 */
-		while(space > loopbytes) {
+		while (space > loopbytes) {
 			vm_pindex_t pindex;
 			vm_offset_t pgoff;
 			struct mbuf *m0;
@@ -2037,18 +2037,10 @@ retry_space:
 				rem = obj->un_pager.vnp.vnp_size -
 				    uap->offset - fsbytes - loopbytes;
 			xfsize = omin(rem, xfsize);
+			xfsize = omin(space - loopbytes, xfsize);
 			if (xfsize <= 0) {
 				VM_OBJECT_UNLOCK(obj);
 				done = 1;		/* all data sent */
-				break;
-			}
-			/*
-			 * Don't overflow the send buffer.
-			 * Stop here and send out what we've
-			 * already got.
-			 */
-			if (space < loopbytes + xfsize) {
-				VM_OBJECT_UNLOCK(obj);
 				break;
 			}
 
@@ -2086,9 +2078,11 @@ retry_space:
 				/*
 				 * Get the page from backing store.
 				 */
-				bsize = vp->v_mount->mnt_stat.f_iosize;
 				vfslocked = VFS_LOCK_GIANT(vp->v_mount);
-				vn_lock(vp, LK_SHARED | LK_RETRY);
+				error = vn_lock(vp, LK_SHARED);
+				if (error != 0)
+					goto after_read;
+				bsize = vp->v_mount->mnt_stat.f_iosize;
 
 				/*
 				 * XXXMAC: Because we don't have fp->f_cred
@@ -2101,6 +2095,7 @@ retry_space:
 				    IO_VMIO | ((MAXBSIZE / bsize) << IO_SEQSHIFT),
 				    td->td_ucred, NOCRED, &resid, td);
 				VOP_UNLOCK(vp, 0);
+			after_read:
 				VFS_UNLOCK_GIANT(vfslocked);
 				VM_OBJECT_LOCK(obj);
 				vm_page_io_finish(pg);

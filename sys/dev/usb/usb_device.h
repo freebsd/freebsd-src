@@ -41,7 +41,6 @@ struct usb_device;		/* linux compat */
 /* "usb_unconfigure()" flags */
 
 #define	USB_UNCFG_FLAG_NONE 0x00
-#define	USB_UNCFG_FLAG_FREE_SUBDEV 0x01		/* subdevices are freed */
 #define	USB_UNCFG_FLAG_FREE_EP0	0x02		/* endpoint zero is freed */
 
 struct usb_clear_stall_msg {

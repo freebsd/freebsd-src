@@ -28,7 +28,7 @@ SRCS+=	ifgre.c			# GRE keys etc
 SRCS+=	ifgif.c			# GIF reversed header workaround
 
 SRCS+=	ifieee80211.c regdomain.c # SIOC[GS]IEEE80211 support
-DPADD+=	${LIBBSDXML} ${LIBSBUF} ${LIBJAIL}
+DPADD+=	${LIBBSDXML} ${LIBJAIL} ${LIBSBUF}
 LDADD+=	-lbsdxml -ljail -lsbuf
 
 SRCS+=	ifcarp.c		# SIOC[GS]VH support
@@ -47,6 +47,6 @@ LDADD+=	-lipx
 MAN=	ifconfig.8
 
 CFLAGS+= -Wall -Wmissing-prototypes -Wcast-qual -Wwrite-strings -Wnested-externs
-WARNS?=	0
+WARNS?=	2
 
 .include <bsd.prog.mk>

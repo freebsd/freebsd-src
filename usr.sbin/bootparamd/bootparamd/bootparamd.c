@@ -191,9 +191,9 @@ int blen;
 {
   FILE *bpf;
   char  *where;
+#ifdef YP
   static char *result;
   int resultlen;
-#ifdef YP
   static char *yp_domain;
 #endif
 
@@ -294,9 +294,9 @@ int len;
   int ch, pch;
   FILE *bpf;
   int res = 0;
+#ifdef YP
   static char *result;
   int resultlen;
-#ifdef YP
   static char *yp_domain;
 #endif
 

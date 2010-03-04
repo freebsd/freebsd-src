@@ -25,36 +25,59 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 13, 2008
+.Dd February 8, 2010
 .Os
 .Dt IWN 4
 .Sh NAME
 .Nm iwn
-.Nd "Intel Wireless WiFi Link 4965AGN IEEE 802.11n driver"
+.Nd Intel Wireless WiFi Link 4965/1000/5000/5150/5300/6000/6050 
+IEEE 802.11n driver
 .Sh SYNOPSIS
 To compile this driver into the kernel,
 include the following lines in your
 kernel configuration file:
 .Bd -ragged -offset indent
 .Cd "device iwn"
-.Cd "device iwnfw"
 .Cd "device pci"
 .Cd "device wlan"
 .Cd "device firmware"
 .Ed
 .Pp
+You also need to select a firmware for your device.
+Choose one from:
+.Bd -ragged -offset indent
+.Cd "device iwn4965fw"
+.Cd "device iwn1000fw"
+.Cd "device iwn5000fw"
+.Cd "device iwn5150fw"
+.Cd "device iwn6000fw"
+.Ed
+.Pp
+Or you can use
+.Bd -ragged -offset indent
+.Cd "device iwnfw"
+.Ed
+.Pp
+to include them all.
+.Pp
 Alternatively, to load the driver as a
-module at boot time, place the following line in
+module at boot time, place the following lines in
 .Xr loader.conf 5 :
 .Bd -literal -offset indent
 if_iwn_load="YES"
+iwn4965fw_load="YES"
+iwn1000fw_load="YES"
+iwn5000fw_load="YES"
+iwn5150fw_load="YES"
+iwn6000fw_load="YES"
 .Ed
 .Sh DESCRIPTION
 The
 .Nm
 driver provides support for
 .Tn Intel
-Wireless WiFi Link 4965AGN PCI-Express network adapters.
+Wireless WiFi Link 4965, 1000, 5000 and 6000 series of 
+PCI-Express network adapters.
 .Nm
 supports
 .Cm station ,

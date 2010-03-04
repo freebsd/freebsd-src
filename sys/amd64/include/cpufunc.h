@@ -190,28 +190,28 @@ inl(u_int port)
 }
 
 static __inline void
-insb(u_int port, void *addr, size_t cnt)
+insb(u_int port, void *addr, size_t count)
 {
 	__asm __volatile("cld; rep; insb"
-			 : "+D" (addr), "+c" (cnt)
+			 : "+D" (addr), "+c" (count)
 			 : "d" (port)
 			 : "memory");
 }
 
 static __inline void
-insw(u_int port, void *addr, size_t cnt)
+insw(u_int port, void *addr, size_t count)
 {
 	__asm __volatile("cld; rep; insw"
-			 : "+D" (addr), "+c" (cnt)
+			 : "+D" (addr), "+c" (count)
 			 : "d" (port)
 			 : "memory");
 }
 
 static __inline void
-insl(u_int port, void *addr, size_t cnt)
+insl(u_int port, void *addr, size_t count)
 {
 	__asm __volatile("cld; rep; insl"
-			 : "+D" (addr), "+c" (cnt)
+			 : "+D" (addr), "+c" (count)
 			 : "d" (port)
 			 : "memory");
 }
@@ -244,26 +244,26 @@ outl(u_int port, u_int data)
 }
 
 static __inline void
-outsb(u_int port, const void *addr, size_t cnt)
+outsb(u_int port, const void *addr, size_t count)
 {
 	__asm __volatile("cld; rep; outsb"
-			 : "+S" (addr), "+c" (cnt)
+			 : "+S" (addr), "+c" (count)
 			 : "d" (port));
 }
 
 static __inline void
-outsw(u_int port, const void *addr, size_t cnt)
+outsw(u_int port, const void *addr, size_t count)
 {
 	__asm __volatile("cld; rep; outsw"
-			 : "+S" (addr), "+c" (cnt)
+			 : "+S" (addr), "+c" (count)
 			 : "d" (port));
 }
 
 static __inline void
-outsl(u_int port, const void *addr, size_t cnt)
+outsl(u_int port, const void *addr, size_t count)
 {
 	__asm __volatile("cld; rep; outsl"
-			 : "+S" (addr), "+c" (cnt)
+			 : "+S" (addr), "+c" (count)
 			 : "d" (port));
 }
 
@@ -277,7 +277,7 @@ static __inline void
 mfence(void)
 {
 
-	__asm__ __volatile("mfence" : : : "memory");
+	__asm __volatile("mfence" : : : "memory");
 }
 
 static __inline void
@@ -457,14 +457,14 @@ load_es(u_int sel)
 	__asm __volatile("mov %0,%%es" : : "rm" (sel));
 }
 
-static inline void
+static __inline void
 cpu_monitor(const void *addr, int extensions, int hints)
 {
 	__asm __volatile("monitor;"
 	    : :"a" (addr), "c" (extensions), "d"(hints));
 }
 
-static inline void
+static __inline void
 cpu_mwait(int extensions, int hints)
 {
 	__asm __volatile("mwait;" : :"a" (hints), "c" (extensions));
@@ -670,9 +670,9 @@ void	halt(void);
 void	ia32_pause(void);
 u_char	inb(u_int port);
 u_int	inl(u_int port);
-void	insb(u_int port, void *addr, size_t cnt);
-void	insl(u_int port, void *addr, size_t cnt);
-void	insw(u_int port, void *addr, size_t cnt);
+void	insb(u_int port, void *addr, size_t count);
+void	insl(u_int port, void *addr, size_t count);
+void	insw(u_int port, void *addr, size_t count);
 register_t	intr_disable(void);
 void	intr_restore(register_t rf);
 void	invd(void);
@@ -697,9 +697,9 @@ void	load_gs(u_int sel);
 void	ltr(u_short sel);
 void	outb(u_int port, u_char data);
 void	outl(u_int port, u_int data);
-void	outsb(u_int port, const void *addr, size_t cnt);
-void	outsl(u_int port, const void *addr, size_t cnt);
-void	outsw(u_int port, const void *addr, size_t cnt);
+void	outsb(u_int port, const void *addr, size_t count);
+void	outsl(u_int port, const void *addr, size_t count);
+void	outsw(u_int port, const void *addr, size_t count);
 void	outw(u_int port, u_short data);
 u_long	rcr0(void);
 u_long	rcr2(void);

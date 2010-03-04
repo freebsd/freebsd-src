@@ -384,7 +384,7 @@ rmremote(const struct printer *pp)
  * Return 1 if the filename begins with 'cf'
  */
 int
-iscf(struct dirent *d)
+iscf(const struct dirent *d)
 {
 	return(d->d_name[0] == 'c' && d->d_name[1] == 'f');
 }

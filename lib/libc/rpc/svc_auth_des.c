@@ -449,10 +449,10 @@ cache_spot(key, name, timestamp)
 #define INVALID		-1 	/* grouplen, if cache entry is invalid */
 
 struct bsdcred {
-	short uid;		/* cached uid */
-	short gid;		/* cached gid */
-	short grouplen;	/* length of cached groups */
-	short groups[NGROUPS];	/* cached groups */
+	uid_t uid;		/* cached uid */
+	gid_t gid;		/* cached gid */
+	int grouplen;	/* length of cached groups */
+	gid_t groups[NGRPS];	/* cached groups */
 };
 
 /*

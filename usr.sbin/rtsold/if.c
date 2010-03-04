@@ -82,7 +82,6 @@ interface_up(char *name)
 	struct in6_ndireq nd;
 	int llflag;
 	int s;
-	int error;
 
 	memset(&ifr, 0, sizeof(ifr));
 	strncpy(ifr.ifr_name, name, sizeof(ifr.ifr_name));

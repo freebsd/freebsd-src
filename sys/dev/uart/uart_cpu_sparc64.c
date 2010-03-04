@@ -254,7 +254,8 @@ uart_cpu_getdev(int devtype, struct uart_devinfo *di)
 		addr += range - range * (di->bas.chan - 1);
 	} else if (!strcmp(buf, "lom-console") || !strcmp(buf, "su") ||
 	    !strcmp(buf, "su_pnp") || !strcmp(compat, "rsc-console") ||
-	    !strcmp(compat, "su") || !strcmp(compat, "su16550")) {
+	    !strcmp(compat, "su") || !strcmp(compat, "su16550") ||
+	    !strcmp(compat, "su16552")) {
 		class = &uart_ns8250_class;
 		di->bas.chan = 0;
 	}

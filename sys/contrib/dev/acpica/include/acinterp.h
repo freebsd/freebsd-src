@@ -8,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2009, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2010, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -214,13 +214,13 @@ AcpiExCommonBufferSetup (
 ACPI_STATUS
 AcpiExWriteWithUpdateRule (
     ACPI_OPERAND_OBJECT     *ObjDesc,
-    ACPI_INTEGER            Mask,
-    ACPI_INTEGER            FieldValue,
+    UINT64                  Mask,
+    UINT64                  FieldValue,
     UINT32                  FieldDatumByteOffset);
 
 void
 AcpiExGetBufferDatum(
-    ACPI_INTEGER            *Datum,
+    UINT64                  *Datum,
     void                    *Buffer,
     UINT32                  BufferLength,
     UINT32                  ByteGranularity,
@@ -228,7 +228,7 @@ AcpiExGetBufferDatum(
 
 void
 AcpiExSetBufferDatum (
-    ACPI_INTEGER            MergedDatum,
+    UINT64                  MergedDatum,
     void                    *Buffer,
     UINT32                  BufferLength,
     UINT32                  ByteGranularity,
@@ -266,7 +266,7 @@ ACPI_STATUS
 AcpiExAccessRegion (
     ACPI_OPERAND_OBJECT     *ObjDesc,
     UINT32                  FieldDatumByteOffset,
-    ACPI_INTEGER            *Value,
+    UINT64                  *Value,
     UINT32                  ReadWrite);
 
 
@@ -296,8 +296,8 @@ AcpiExDoConcatenate (
 ACPI_STATUS
 AcpiExDoLogicalNumericOp (
     UINT16                  Opcode,
-    ACPI_INTEGER            Integer0,
-    ACPI_INTEGER            Integer1,
+    UINT64                  Integer0,
+    UINT64                  Integer1,
     BOOLEAN                 *LogicalResult);
 
 ACPI_STATUS
@@ -307,11 +307,11 @@ AcpiExDoLogicalOp (
     ACPI_OPERAND_OBJECT     *Operand1,
     BOOLEAN                 *LogicalResult);
 
-ACPI_INTEGER
+UINT64
 AcpiExDoMathOp (
     UINT16                  Opcode,
-    ACPI_INTEGER            Operand0,
-    ACPI_INTEGER            Operand1);
+    UINT64                  Operand0,
+    UINT64                  Operand1);
 
 ACPI_STATUS
 AcpiExCreateMutex (
@@ -425,7 +425,7 @@ AcpiExSystemDoNotifyOp (
 
 ACPI_STATUS
 AcpiExSystemDoSuspend(
-    ACPI_INTEGER            Time);
+    UINT64                  Time);
 
 ACPI_STATUS
 AcpiExSystemDoStall (
@@ -697,12 +697,12 @@ AcpiExReleaseGlobalLock (
 void
 AcpiExEisaIdToString (
     char                    *Dest,
-    ACPI_INTEGER            CompressedId);
+    UINT64                  CompressedId);
 
 void
 AcpiExIntegerToString (
     char                    *Dest,
-    ACPI_INTEGER            Value);
+    UINT64                  Value);
 
 
 /*
@@ -713,7 +713,7 @@ AcpiExSystemMemorySpaceHandler (
     UINT32                  Function,
     ACPI_PHYSICAL_ADDRESS   Address,
     UINT32                  BitWidth,
-    ACPI_INTEGER            *Value,
+    UINT64                  *Value,
     void                    *HandlerContext,
     void                    *RegionContext);
 
@@ -722,7 +722,7 @@ AcpiExSystemIoSpaceHandler (
     UINT32                  Function,
     ACPI_PHYSICAL_ADDRESS   Address,
     UINT32                  BitWidth,
-    ACPI_INTEGER            *Value,
+    UINT64                  *Value,
     void                    *HandlerContext,
     void                    *RegionContext);
 
@@ -731,7 +731,7 @@ AcpiExPciConfigSpaceHandler (
     UINT32                  Function,
     ACPI_PHYSICAL_ADDRESS   Address,
     UINT32                  BitWidth,
-    ACPI_INTEGER            *Value,
+    UINT64                  *Value,
     void                    *HandlerContext,
     void                    *RegionContext);
 
@@ -740,7 +740,7 @@ AcpiExCmosSpaceHandler (
     UINT32                  Function,
     ACPI_PHYSICAL_ADDRESS   Address,
     UINT32                  BitWidth,
-    ACPI_INTEGER            *Value,
+    UINT64                  *Value,
     void                    *HandlerContext,
     void                    *RegionContext);
 
@@ -749,7 +749,7 @@ AcpiExPciBarSpaceHandler (
     UINT32                  Function,
     ACPI_PHYSICAL_ADDRESS   Address,
     UINT32                  BitWidth,
-    ACPI_INTEGER            *Value,
+    UINT64                  *Value,
     void                    *HandlerContext,
     void                    *RegionContext);
 
@@ -758,7 +758,7 @@ AcpiExEmbeddedControllerSpaceHandler (
     UINT32                  Function,
     ACPI_PHYSICAL_ADDRESS   Address,
     UINT32                  BitWidth,
-    ACPI_INTEGER            *Value,
+    UINT64                  *Value,
     void                    *HandlerContext,
     void                    *RegionContext);
 
@@ -767,7 +767,7 @@ AcpiExSmBusSpaceHandler (
     UINT32                  Function,
     ACPI_PHYSICAL_ADDRESS   Address,
     UINT32                  BitWidth,
-    ACPI_INTEGER            *Value,
+    UINT64                  *Value,
     void                    *HandlerContext,
     void                    *RegionContext);
 
@@ -777,7 +777,7 @@ AcpiExDataTableSpaceHandler (
     UINT32                  Function,
     ACPI_PHYSICAL_ADDRESS   Address,
     UINT32                  BitWidth,
-    ACPI_INTEGER            *Value,
+    UINT64                  *Value,
     void                    *HandlerContext,
     void                    *RegionContext);
 

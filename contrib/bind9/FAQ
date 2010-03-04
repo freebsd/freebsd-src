@@ -153,24 +153,29 @@ A: BIND 9.3 and later: Use TSIG to select the appropriate view.
 
    Master 10.0.1.1:
            key "external" {
-                   algorithm hmac-md5;
-                   secret "xxxxxxxx";
+                   algorithm hmac-sha256;
+                   secret "xxxxxxxxxxxxxxxxxxxxxxxx";
            };
            view "internal" {
-                   match-clients { !key external; 10.0.1/24; };
+                   match-clients { !key external; // reject message ment for the
+                                                  // external view.
+                                   10.0.1/24; };  // accept from these addresses.
                    ...
            };
            view "external" {
                    match-clients { key external; any; };
-                   server 10.0.1.2 { keys external; };
+                   server 10.0.1.2 { keys external; };  // tag messages from the
+                                                        // external view to the
+                                                        // other servers for the
+                                                        // view.
                    recursion no;
                    ...
            };
 
    Slave 10.0.1.2:
            key "external" {
-                   algorithm hmac-md5;
-                   secret "xxxxxxxx";
+                   algorithm hmac-sha256;
+                   secret "xxxxxxxxxxxxxxxxxxxxxxxx";
            };
            view "internal" {
                    match-clients { !key external; 10.0.1/24; };
@@ -220,13 +225,13 @@ A: You choose one view to be master and the second a slave and transfer
 
    Master 10.0.1.1:
            key "external" {
-                   algorithm hmac-md5;
-                   secret "xxxxxxxx";
+                   algorithm hmac-sha256;
+                   secret "xxxxxxxxxxxxxxxxxxxxxxxx";
            };
 
            key "mykey" {
-                   algorithm hmac-md5;
-                   secret "yyyyyyyy";
+                   algorithm hmac-sha256;
+                   secret "yyyyyyyyyyyyyyyyyyyyyyyy";
            };
 
            view "internal" {
@@ -239,7 +244,7 @@ A: You choose one view to be master and the second a slave and transfer
                            type master;
                            file "internal/example.db";
                            allow-update { key mykey; };
-                           notify-also { 10.0.1.1; };
+                           also-notify { 10.0.1.1; };
                    };
            };
 
@@ -249,7 +254,7 @@ A: You choose one view to be master and the second a slave and transfer
                            type slave;
                            file "external/example.db";
                            masters { 10.0.1.1; };
-                           transfer-source { 10.0.1.1; };
+                           transfer-source 10.0.1.1;
                            // allow-update-forwarding { any; };
                            // allow-notify { ... };
                    };

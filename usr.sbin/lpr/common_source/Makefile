@@ -10,4 +10,6 @@ INTERNALLIB=
 SRCS=		common.c ctlinfo.c displayq.c matchjobs.c net.c \
 		printcap.c request.c rmjob.c startdaemon.c
 
+WARNS?=		1
+
 .include <bsd.lib.mk>

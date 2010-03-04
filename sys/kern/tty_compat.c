@@ -180,7 +180,8 @@ ttsetcompat(struct tty *tp, u_long *com, caddr_t data, struct termios *term)
 
 /*ARGSUSED*/
 int
-tty_ioctl_compat(struct tty *tp, u_long com, caddr_t data, struct thread *td)
+tty_ioctl_compat(struct tty *tp, u_long com, caddr_t data, int fflag,
+    struct thread *td)
 {
 	switch (com) {
 	case TIOCSETP:
@@ -196,7 +197,7 @@ tty_ioctl_compat(struct tty *tp, u_long com, caddr_t data, struct thread *td)
 		term = tp->t_termios;
 		if ((error = ttsetcompat(tp, &com, data, &term)) != 0)
 			return error;
-		return tty_ioctl(tp, com, &term, td);
+		return tty_ioctl(tp, com, &term, fflag, td);
 	}
 	case TIOCGETP: {
 		struct sgttyb *sg = (struct sgttyb *)data;
@@ -255,12 +256,13 @@ tty_ioctl_compat(struct tty *tp, u_long com, caddr_t data, struct thread *td)
 		int ldisczero = 0;
 
 		return (tty_ioctl(tp, TIOCSETD,
-			*(int *)data == 2 ? (caddr_t)&ldisczero : data, td));
+			*(int *)data == 2 ? (caddr_t)&ldisczero : data,
+			fflag, td));
 	    }
 
 	case OTIOCCONS:
 		*(int *)data = 1;
-		return (tty_ioctl(tp, TIOCCONS, data, td));
+		return (tty_ioctl(tp, TIOCCONS, data, fflag, td));
 
 	default:
 		return (ENOIOCTL);

@@ -51,6 +51,7 @@
 #include <sys/malloc.h>
 #include <sys/module.h>
 #include <sys/queue.h>
+#include <sys/sysctl.h>
 
 #define AIC_PCI_CONFIG 1
 #include <machine/bus.h>
@@ -259,6 +260,7 @@ void	  ahd_platform_free(struct ahd_softc *ahd);
 int	  ahd_map_int(struct ahd_softc *ahd);
 int	  ahd_attach(struct ahd_softc *);
 int	  ahd_softc_comp(struct ahd_softc *lahd, struct ahd_softc *rahd);
+void	  ahd_sysctl(struct ahd_softc *ahd);
 int	  ahd_detach(device_t);
 #define	ahd_platform_init(arg)
 

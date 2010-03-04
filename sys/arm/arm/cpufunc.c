@@ -83,15 +83,6 @@ __FBSDID("$FreeBSD$");
 #include <arm/xscale/ixp425/ixp425var.h>
 #endif
 
-#if defined(CPU_XSCALE_80200) || defined(CPU_XSCALE_80321) || \
-    defined(CPU_XSCALE_80219) || defined(CPU_XSCALE_81342)
-#include <arm/xscale/xscalereg.h>
-#endif
-
-#if defined(PERFCTRS)
-struct arm_pmc_funcs *arm_pmc;
-#endif
-
 /* PRIMARY CACHE VARIABLES */
 int	arm_picache_size;
 int	arm_picache_line_size;
@@ -790,6 +781,73 @@ struct cpu_functions xscalec3_cpufuncs = {
 	xscale_setup			/* cpu setup		*/
 };
 #endif /* CPU_XSCALE_81342 */
+
+
+#if defined(CPU_FA526)
+struct cpu_functions fa526_cpufuncs = {
+	/* CPU functions */
+
+	.cf_id			= cpufunc_id,
+	.cf_cpwait		= cpufunc_nullop,
+
+	/* MMU functions */
+
+	.cf_control		= cpufunc_control,
+	.cf_domains		= cpufunc_domains,
+	.cf_setttb		= fa526_setttb,
+	.cf_faultstatus		= cpufunc_faultstatus,
+	.cf_faultaddress	= cpufunc_faultaddress,
+
+	/* TLB functions */
+
+	.cf_tlb_flushID		= armv4_tlb_flushID,
+	.cf_tlb_flushID_SE	= fa526_tlb_flushID_SE,
+	.cf_tlb_flushI		= armv4_tlb_flushI,
+	.cf_tlb_flushI_SE	= fa526_tlb_flushI_SE,
+	.cf_tlb_flushD		= armv4_tlb_flushD,
+	.cf_tlb_flushD_SE	= armv4_tlb_flushD_SE,
+
+	/* Cache operations */
+
+	.cf_icache_sync_all	= fa526_icache_sync_all,
+	.cf_icache_sync_range	= fa526_icache_sync_range,
+
+	.cf_dcache_wbinv_all	= fa526_dcache_wbinv_all,
+	.cf_dcache_wbinv_range	= fa526_dcache_wbinv_range,
+	.cf_dcache_inv_range	= fa526_dcache_inv_range,
+	.cf_dcache_wb_range	= fa526_dcache_wb_range,
+
+	.cf_idcache_wbinv_all	= fa526_idcache_wbinv_all,
+	.cf_idcache_wbinv_range	= fa526_idcache_wbinv_range,
+
+
+	.cf_l2cache_wbinv_all = cpufunc_nullop,
+	.cf_l2cache_wbinv_range = (void *)cpufunc_nullop,
+	.cf_l2cache_inv_range = (void *)cpufunc_nullop,
+	.cf_l2cache_wb_range = (void *)cpufunc_nullop,
+
+
+	/* Other functions */
+
+	.cf_flush_prefetchbuf	= fa526_flush_prefetchbuf,
+	.cf_drain_writebuf	= armv4_drain_writebuf,
+	.cf_flush_brnchtgt_C	= cpufunc_nullop,
+	.cf_flush_brnchtgt_E	= fa526_flush_brnchtgt_E,
+
+	.cf_sleep		= fa526_cpu_sleep,
+
+	/* Soft functions */
+
+	.cf_dataabt_fixup	= cpufunc_null_fixup,
+	.cf_prefetchabt_fixup	= cpufunc_null_fixup,
+
+	.cf_context_switch	= fa526_context_switch,
+
+	.cf_setup		= fa526_setup
+};
+#endif	/* CPU_FA526 */
+
+
 /*
  * Global constants also used by locore.s
  */
@@ -802,6 +860,7 @@ u_int cpu_reset_needs_v4_MMU_disable;	/* flag used in locore.s */
   defined (CPU_ARM9E) || defined (CPU_ARM10) ||			       \
   defined(CPU_XSCALE_80200) || defined(CPU_XSCALE_80321) ||	       \
   defined(CPU_XSCALE_PXA2X0) || defined(CPU_XSCALE_IXP425) ||	       \
+  defined(CPU_FA526) ||					       \
   defined(CPU_XSCALE_80219) || defined(CPU_XSCALE_81342)
 
 static void get_cachetype_cp15(void);
@@ -1082,6 +1141,19 @@ set_cpufuncs()
 		goto out;
 	}
 #endif	/* CPU_SA1110 */
+#ifdef CPU_FA526
+	if (cputype == CPU_ID_FA526) {
+		cpufuncs = fa526_cpufuncs;
+		cpu_reset_needs_v4_MMU_disable = 1;	/* SA needs it	*/
+		get_cachetype_cp15();
+		pmap_pte_init_generic();
+
+		/* Use powersave on this CPU. */
+		cpu_do_powersave = 1;
+
+		goto out;
+	}
+#endif	/* CPU_FA526 */
 #ifdef CPU_IXP12X0
         if (cputype == CPU_ID_IXP1200) {
                 cpufuncs = ixp12x0_cpufuncs;
@@ -1096,18 +1168,6 @@ set_cpufuncs()
 		int rev = cpufunc_id() & CPU_ID_REVISION_MASK;
 
 		i80200_icu_init();
-
-		/*
-		 * Reset the Performance Monitoring Unit to a
-		 * pristine state:
-		 *	- CCNT, PMN0, PMN1 reset to 0
-		 *	- overflow indications cleared
-		 *	- all counters disabled
-		 */
-		__asm __volatile("mcr p14, 0, %0, c0, c0, 0"
-			:
-			: "r" (PMNC_P|PMNC_C|PMNC_PMN0_IF|PMNC_PMN1_IF|
-			       PMNC_CC_IF));
 
 #if defined(XSCALE_CCLKCFG)
 		/*
@@ -1128,10 +1188,6 @@ set_cpufuncs()
 			: "r" (BCUCTL_E0|BCUCTL_E1|BCUCTL_EV));
 
 		cpufuncs = xscale_cpufuncs;
-#if defined(PERFCTRS)
-		xscale_pmu_init();
-#endif
-
 		/*
 		 * i80200 errata: Step-A0 and A1 have a bug where
 		 * D$ dirty bits are not cleared on "invalidate by
@@ -1152,23 +1208,7 @@ set_cpufuncs()
 	if (cputype == CPU_ID_80321_400 || cputype == CPU_ID_80321_600 ||
 	    cputype == CPU_ID_80321_400_B0 || cputype == CPU_ID_80321_600_B0 ||
 	    cputype == CPU_ID_80219_400 || cputype == CPU_ID_80219_600) {
-		/*
-		 * Reset the Performance Monitoring Unit to a
-		 * pristine state:
-		 *	- CCNT, PMN0, PMN1 reset to 0
-		 *	- overflow indications cleared
-		 *	- all counters disabled
-		 */
-		__asm __volatile("mcr p14, 0, %0, c0, c0, 0"
-			:
-			: "r" (PMNC_P|PMNC_C|PMNC_PMN0_IF|PMNC_PMN1_IF|
-			       PMNC_CC_IF));
-
 		cpufuncs = xscale_cpufuncs;
-#if defined(PERFCTRS)
-		xscale_pmu_init();
-#endif
-
 		cpu_reset_needs_v4_MMU_disable = 1;	/* XScale needs it */
 		get_cachetype_cp15();
 		pmap_pte_init_xscale();
@@ -1179,10 +1219,6 @@ set_cpufuncs()
 #if defined(CPU_XSCALE_81342)
 	if (cputype == CPU_ID_81342) {
 		cpufuncs = xscalec3_cpufuncs;
-#if defined(PERFCTRS)
-		xscale_pmu_init();
-#endif
-
 		cpu_reset_needs_v4_MMU_disable = 1;	/* XScale needs it */
 		get_cachetype_cp15();
 		pmap_pte_init_xscale();
@@ -1196,10 +1232,6 @@ set_cpufuncs()
 	    (cputype & ~CPU_ID_XSCALE_COREREV_MASK) == CPU_ID_PXA210) {
 
 		cpufuncs = xscale_cpufuncs;
-#if defined(PERFCTRS)
-		xscale_pmu_init();
-#endif
-
 		cpu_reset_needs_v4_MMU_disable = 1;	/* XScale needs it */
 		get_cachetype_cp15();
 		pmap_pte_init_xscale();
@@ -1215,10 +1247,6 @@ set_cpufuncs()
             cputype == CPU_ID_IXP425_266 || cputype == CPU_ID_IXP435) {
 
 		cpufuncs = xscale_cpufuncs;
-#if defined(PERFCTRS)
-		xscale_pmu_init();
-#endif
-
 		cpu_reset_needs_v4_MMU_disable = 1;	/* XScale needs it */
 		get_cachetype_cp15();
 		pmap_pte_init_xscale();
@@ -1600,7 +1628,8 @@ late_abort_fixup(arg)
   defined(CPU_XSCALE_80200) || defined(CPU_XSCALE_80321) ||		\
   defined(CPU_XSCALE_PXA2X0) || defined(CPU_XSCALE_IXP425) ||		\
   defined(CPU_XSCALE_80219) || defined(CPU_XSCALE_81342) || \
-  defined(CPU_ARM10) ||  defined(CPU_ARM11)
+  defined(CPU_ARM10) ||  defined(CPU_ARM11) || \
+  defined(CPU_FA526)
 
 #define IGN	0
 #define OR	1
@@ -2065,6 +2094,63 @@ sa11x0_setup(args)
 	cpu_control(0xffffffff, cpuctrl);
 }
 #endif	/* CPU_SA1100 || CPU_SA1110 */
+
+#if defined(CPU_FA526)
+struct cpu_option fa526_options[] = {
+#ifdef COMPAT_12
+	{ "nocache",		IGN, BIC, (CPU_CONTROL_IC_ENABLE |
+					   CPU_CONTROL_DC_ENABLE) },
+	{ "nowritebuf",		IGN, BIC, CPU_CONTROL_WBUF_ENABLE },
+#endif	/* COMPAT_12 */
+	{ "cpu.cache",		BIC, OR,  (CPU_CONTROL_IC_ENABLE |
+					   CPU_CONTROL_DC_ENABLE) },
+	{ "cpu.nocache",	OR,  BIC, (CPU_CONTROL_IC_ENABLE |
+					   CPU_CONTROL_DC_ENABLE) },
+	{ "cpu.writebuf",	BIC, OR,  CPU_CONTROL_WBUF_ENABLE },
+	{ "cpu.nowritebuf",	OR,  BIC, CPU_CONTROL_WBUF_ENABLE },
+	{ NULL,			IGN, IGN, 0 }
+};
+
+void
+fa526_setup(char *args)
+{
+	int cpuctrl, cpuctrlmask;
+
+	cpuctrl = CPU_CONTROL_MMU_ENABLE | CPU_CONTROL_32BP_ENABLE
+		 | CPU_CONTROL_32BD_ENABLE | CPU_CONTROL_SYST_ENABLE
+		 | CPU_CONTROL_IC_ENABLE | CPU_CONTROL_DC_ENABLE
+		 | CPU_CONTROL_WBUF_ENABLE | CPU_CONTROL_LABT_ENABLE
+		| CPU_CONTROL_BPRD_ENABLE;
+	cpuctrlmask = CPU_CONTROL_MMU_ENABLE | CPU_CONTROL_32BP_ENABLE
+		 | CPU_CONTROL_32BD_ENABLE | CPU_CONTROL_SYST_ENABLE
+		 | CPU_CONTROL_IC_ENABLE | CPU_CONTROL_DC_ENABLE
+		 | CPU_CONTROL_WBUF_ENABLE | CPU_CONTROL_ROM_ENABLE
+		 | CPU_CONTROL_BEND_ENABLE | CPU_CONTROL_AFLT_ENABLE
+		 | CPU_CONTROL_LABT_ENABLE | CPU_CONTROL_BPRD_ENABLE
+		 | CPU_CONTROL_CPCLK | CPU_CONTROL_VECRELOC;
+
+#ifndef ARM32_DISABLE_ALIGNMENT_FAULTS
+	cpuctrl |= CPU_CONTROL_AFLT_ENABLE;
+#endif
+
+	cpuctrl = parse_cpu_options(args, fa526_options, cpuctrl);
+
+#ifdef __ARMEB__
+	cpuctrl |= CPU_CONTROL_BEND_ENABLE;
+#endif
+
+	if (vector_page == ARM_VECTORS_HIGH)
+		cpuctrl |= CPU_CONTROL_VECRELOC;
+
+	/* Clear out the cache */
+	cpu_idcache_wbinv_all();
+
+	/* Set the control register */
+	ctrl = cpuctrl;
+	cpu_control(0xffffffff, cpuctrl);
+}
+#endif	/* CPU_FA526 */
+
 
 #if defined(CPU_IXP12X0)
 struct cpu_option ixp12x0_options[] = {

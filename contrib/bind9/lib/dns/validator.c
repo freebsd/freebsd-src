@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: validator.c,v 1.164.12.9 2009/05/07 23:47:12 tbox Exp $ */
+/* $Id: validator.c,v 1.164.12.9.8.2 2009/12/31 20:29:21 each Exp $ */
 
 #include <config.h>
 
@@ -1607,7 +1607,7 @@ get_key(dns_validator_t *val, dns_rdata_rrsig_t *siginfo) {
 		 * We have an rrset for the given keyname.
 		 */
 		val->keyset = &val->frdataset;
-		if (val->frdataset.trust == dns_trust_pending &&
+		if (DNS_TRUST_PENDING(val->frdataset.trust) &&
 		    dns_rdataset_isassociated(&val->fsigrdataset))
 		{
 			/*
@@ -1622,7 +1622,7 @@ get_key(dns_validator_t *val, dns_rdata_rrsig_t *siginfo) {
 			if (result != ISC_R_SUCCESS)
 				return (result);
 			return (DNS_R_WAIT);
-		} else if (val->frdataset.trust == dns_trust_pending) {
+		} else if (DNS_TRUST_PENDING(val->frdataset.trust)) {
 			/*
 			 * Having a pending key with no signature means that
 			 * something is broken.
@@ -2243,7 +2243,7 @@ validatezonekey(dns_validator_t *val) {
 			 * We have DS records.
 			 */
 			val->dsset = &val->frdataset;
-			if (val->frdataset.trust == dns_trust_pending &&
+			if (DNS_TRUST_PENDING(val->frdataset.trust) &&
 			    dns_rdataset_isassociated(&val->fsigrdataset))
 			{
 				result = create_validator(val,
@@ -2256,7 +2256,7 @@ validatezonekey(dns_validator_t *val) {
 				if (result != ISC_R_SUCCESS)
 					return (result);
 				return (DNS_R_WAIT);
-			} else if (val->frdataset.trust == dns_trust_pending) {
+			} else if (DNS_TRUST_PENDING(val->frdataset.trust)) {
 				/*
 				 * There should never be an unsigned DS.
 				 */
@@ -3242,20 +3242,20 @@ proveunsecure(dns_validator_t *val, isc_boolean_t have_ds, isc_boolean_t resume)
 	if (val->havedlvsep)
 		dns_name_copy(dns_fixedname_name(&val->dlvsep), secroot, NULL);
 	else {
+		unsigned int labels;
 		dns_name_copy(val->event->name, secroot, NULL);
 		/*
 		 * If this is a response to a DS query, we need to look in
 		 * the parent zone for the trust anchor.
 		 */
-		if (val->event->type == dns_rdatatype_ds &&
-		    dns_name_countlabels(secroot) > 1U)
-			dns_name_split(secroot, 1, NULL, secroot);
+
+		labels = dns_name_countlabels(secroot);
+		if (val->event->type == dns_rdatatype_ds && labels > 1U)
+			dns_name_getlabelsequence(secroot, 1, labels - 1,
+						  secroot);
 		result = dns_keytable_finddeepestmatch(val->keytable,
 						       secroot, secroot);
-
 		if (result == ISC_R_NOTFOUND) {
-			validator_log(val, ISC_LOG_DEBUG(3),
-				      "not beneath secure root");
 			if (val->mustbesecure) {
 				validator_log(val, ISC_LOG_WARNING,
 					      "must be secure failure");
@@ -3337,7 +3337,7 @@ proveunsecure(dns_validator_t *val, isc_boolean_t have_ds, isc_boolean_t resume)
 			 * There is no DS.  If this is a delegation,
 			 * we maybe done.
 			 */
-			if (val->frdataset.trust == dns_trust_pending) {
+			if (DNS_TRUST_PENDING(val->frdataset.trust)) {
 				result = create_fetch(val, tname,
 						      dns_rdatatype_ds,
 						      dsfetched2,

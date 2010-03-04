@@ -1372,8 +1372,6 @@ sk_attach(dev)
 	ifp->if_capenable = ifp->if_capabilities;
 	ifp->if_ioctl = sk_ioctl;
 	ifp->if_start = sk_start;
-	ifp->if_timer = 0;
-	ifp->if_watchdog = NULL;
 	ifp->if_init = sk_init;
 	IFQ_SET_MAXLEN(&ifp->if_snd, SK_TX_RING_CNT - 1);
 	ifp->if_snd.ifq_drv_maxlen = SK_TX_RING_CNT - 1;

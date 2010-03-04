@@ -47,10 +47,14 @@ u_int32_t deflate_global(u_int8_t *, u_int32_t, int, u_int8_t **);
 void *z_alloc(void *, u_int, u_int);
 void z_free(void *, void *);
 
+/*
+ * We are going to use a combined allocation to hold the metadata
+ * from the struct immediately followed by the real application data.
+ */
 struct deflate_buf {
-	u_int8_t *out;
-	u_int32_t size;
-	int flag;
+	struct deflate_buf *next;
+	uint32_t size;
+	uint8_t data[];
 };
 
 #endif /* _CRYPTO_DEFLATE_H_ */

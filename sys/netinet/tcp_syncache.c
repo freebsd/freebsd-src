@@ -278,11 +278,33 @@ syncache_init(void)
 void
 syncache_destroy(void)
 {
+	struct syncache_head *sch;
+	struct syncache *sc, *nsc;
+	int i;
 
-	/* XXX walk the cache, free remaining objects, stop timers */
+	/* Cleanup hash buckets: stop timers, free entries, destroy locks. */
+	for (i = 0; i < V_tcp_syncache.hashsize; i++) {
 
+		sch = &V_tcp_syncache.hashbase[i];
+		callout_drain(&sch->sch_timer);
+
+		SCH_LOCK(sch);
+		TAILQ_FOREACH_SAFE(sc, &sch->sch_bucket, sc_hash, nsc)
+			syncache_drop(sc, sch);
+		SCH_UNLOCK(sch);
+		KASSERT(TAILQ_EMPTY(&sch->sch_bucket),
+		    ("%s: sch->sch_bucket not empty", __func__));
+		KASSERT(sch->sch_length == 0, ("%s: sch->sch_length %d not 0",
+		    __func__, sch->sch_length));
+		mtx_destroy(&sch->sch_mtx);
+	}
+
+	KASSERT(V_tcp_syncache.cache_count == 0, ("%s: cache_count %d not 0",
+	    __func__, V_tcp_syncache.cache_count));
+
+	/* Free the allocated global resources. */
 	uma_zdestroy(V_tcp_syncache.zone);
-	FREE(V_tcp_syncache.hashbase, M_SYNCACHE);
+	free(V_tcp_syncache.hashbase, M_SYNCACHE);
 }
 #endif
 

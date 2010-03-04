@@ -55,6 +55,8 @@
 **     1.20.00.14   02/05/2007         Erich Chen        bug fix for incorrect ccb_h.status report
 **                                                       and cause g_vfs_done() read write error
 **     1.20.00.15   10/10/2007         Erich Chen        support new RAID adapter type ARC120x
+**     1.20.00.16   10/10/2009         Erich Chen        Bug fix for RAID adapter type ARC120x
+**                                                       bus_dmamem_alloc() with BUS_DMA_ZERO
 ******************************************************************************************
 * $FreeBSD$
 */
@@ -1938,7 +1940,7 @@ static void arcmsr_handle_virtual_command(struct AdapterControlBlock *acb,
 	switch (pccb->csio.cdb_io.cdb_bytes[0]) {
 	case INQUIRY: {
 		unsigned char inqdata[36];
-		char *buffer=pccb->csio.data_ptr;;
+		char *buffer=pccb->csio.data_ptr;
 	
 		if (pccb->ccb_h.target_lun) {
 			pccb->ccb_h.status |= CAM_SEL_TIMEOUT;
@@ -2903,7 +2905,7 @@ static u_int32_t arcmsr_initialize(device_t dev)
 	}
 	/* Allocation for our srbs */
 	if(bus_dmamem_alloc(acb->srb_dmat, (void **)&acb->uncacheptr
-		, BUS_DMA_WAITOK | BUS_DMA_COHERENT, &acb->srb_dmamap) != 0) {
+		, BUS_DMA_WAITOK | BUS_DMA_COHERENT | BUS_DMA_ZERO, &acb->srb_dmamap) != 0) {
 		bus_dma_tag_destroy(acb->srb_dmat);
 		bus_dma_tag_destroy(acb->dm_segs_dmat);
 		bus_dma_tag_destroy(acb->parent_dmat);

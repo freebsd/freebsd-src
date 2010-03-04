@@ -252,6 +252,10 @@ sub parse {
 		    $txt =~ s/ Ta /\t/g;
 		    $txt =~ s/([^\t]+)\t.*/$1/;
 		}
+
+		# Remove Li commands
+		$txt =~ s/^Li //g;
+
 		parabuf_addline(\%mdocvars, normalize($txt));
 	    } elsif (/^Bl/) {
 		$mdocvars{isin_list} = 1;

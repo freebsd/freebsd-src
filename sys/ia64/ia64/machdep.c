@@ -85,6 +85,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/efi.h>
 #include <machine/elf.h>
 #include <machine/fpu.h>
+#include <machine/intr.h>
 #include <machine/mca.h>
 #include <machine/md_var.h>
 #include <machine/mutex.h>
@@ -101,9 +102,21 @@ __FBSDID("$FreeBSD$");
 
 #include <i386/include/specialreg.h>
 
-u_int64_t processor_frequency;
-u_int64_t bus_frequency;
-u_int64_t itc_frequency;
+SYSCTL_NODE(_hw, OID_AUTO, freq, CTLFLAG_RD, 0, "");
+SYSCTL_NODE(_machdep, OID_AUTO, cpu, CTLFLAG_RD, 0, "");
+
+static u_int bus_freq;
+SYSCTL_UINT(_hw_freq, OID_AUTO, bus, CTLFLAG_RD, &bus_freq, 0,
+    "Bus clock frequency");
+
+static u_int cpu_freq;
+SYSCTL_UINT(_hw_freq, OID_AUTO, cpu, CTLFLAG_RD, &cpu_freq, 0,
+    "CPU clock frequency");
+
+static u_int itc_freq;
+SYSCTL_UINT(_hw_freq, OID_AUTO, itc, CTLFLAG_RD, &itc_freq, 0,
+    "ITC frequency");
+
 int cold = 1;
 
 u_int64_t pa_bootinfo;
@@ -122,6 +135,10 @@ struct fpswa_iface *fpswa_iface;
 u_int64_t ia64_pal_base;
 u_int64_t ia64_port_base;
 
+u_int64_t ia64_lapic_addr = PAL_PIB_DEFAULT_ADDR;
+
+struct ia64_pib *ia64_pib;
+
 static int ia64_sync_icache_needed;
 
 char machine[] = MACHINE;
@@ -139,8 +156,6 @@ SYSCTL_STRING(_hw, OID_AUTO, family, CTLFLAG_RD, cpu_family, 0,
 extern vm_offset_t ksym_start, ksym_end;
 #endif
 
-static void cpu_startup(void *);
-SYSINIT(cpu, SI_SUB_CPU, SI_ORDER_FIRST, cpu_startup, NULL);
 
 struct msgbuf *msgbufp = NULL;
 
@@ -203,9 +218,7 @@ identifycpu(void)
 			 * (i.e. the clock frequency) to identify those.
 			 * Allow for roughly 1% error margin.
 			 */
-			tmp = processor_frequency >> 7;
-			if ((processor_frequency - tmp) < 1*Ghz &&
-			    (processor_frequency + tmp) >= 1*Ghz)
+			if (cpu_freq > 990 && cpu_freq < 1010)
 				model_name = "Deerfield";
 			else
 				model_name = "Madison";
@@ -232,11 +245,8 @@ identifycpu(void)
 	features = ia64_get_cpuid(4);
 
 	printf("CPU: %s (", model_name);
-	if (processor_frequency) {
-		printf("%ld.%02ld-Mhz ",
-		    (processor_frequency + 4999) / Mhz,
-		    ((processor_frequency + 4999) / (Mhz/100)) % 100);
-	}
+	if (cpu_freq)
+		printf("%u Mhz ", cpu_freq);
 	printf("%s)\n", family_name);
 	printf("  Origin = \"%s\"  Revision = %d\n", vendor, revision);
 	printf("  Features = 0x%b\n", (u_int32_t) features,
@@ -247,9 +257,11 @@ identifycpu(void)
 }
 
 static void
-cpu_startup(dummy)
-	void *dummy;
+cpu_startup(void *dummy)
 {
+	char nodename[16];
+	struct pcpu *pc;
+	struct pcpu_stats *pcs;
 
 	/*
 	 * Good {morning,afternoon,evening,night}.
@@ -301,15 +313,71 @@ cpu_startup(dummy)
 	 * information.
 	 */
 	ia64_probe_sapics();
+	ia64_pib = pmap_mapdev(ia64_lapic_addr, sizeof(*ia64_pib));
+
 	ia64_mca_init();
-}
 
-void
-cpu_boot(int howto)
-{
+	/*
+	 * Create sysctl tree for per-CPU information.
+	 */
+	SLIST_FOREACH(pc, &cpuhead, pc_allcpu) {
+		snprintf(nodename, sizeof(nodename), "%u", pc->pc_cpuid);
+		sysctl_ctx_init(&pc->pc_md.sysctl_ctx);
+		pc->pc_md.sysctl_tree = SYSCTL_ADD_NODE(&pc->pc_md.sysctl_ctx,
+		    SYSCTL_STATIC_CHILDREN(_machdep_cpu), OID_AUTO, nodename,
+		    CTLFLAG_RD, NULL, "");
+		if (pc->pc_md.sysctl_tree == NULL)
+			continue;
 
-	efi_reset_system();
+		pcs = &pc->pc_md.stats;
+
+		SYSCTL_ADD_ULONG(&pc->pc_md.sysctl_ctx,
+		    SYSCTL_CHILDREN(pc->pc_md.sysctl_tree), OID_AUTO,
+		    "nasts", CTLFLAG_RD, &pcs->pcs_nasts,
+		    "Number of IPI_AST interrupts");
+
+		SYSCTL_ADD_ULONG(&pc->pc_md.sysctl_ctx,
+		    SYSCTL_CHILDREN(pc->pc_md.sysctl_tree), OID_AUTO,
+		    "nclks", CTLFLAG_RD, &pcs->pcs_nclks,
+		    "Number of clock interrupts");
+
+		SYSCTL_ADD_ULONG(&pc->pc_md.sysctl_ctx,
+		    SYSCTL_CHILDREN(pc->pc_md.sysctl_tree), OID_AUTO,
+		    "nextints", CTLFLAG_RD, &pcs->pcs_nextints,
+		    "Number of ExtINT interrupts");
+
+		SYSCTL_ADD_ULONG(&pc->pc_md.sysctl_ctx,
+		    SYSCTL_CHILDREN(pc->pc_md.sysctl_tree), OID_AUTO,
+		    "nhighfps", CTLFLAG_RD, &pcs->pcs_nhighfps,
+		    "Number of IPI_HIGH_FP interrupts");
+
+		SYSCTL_ADD_ULONG(&pc->pc_md.sysctl_ctx,
+		    SYSCTL_CHILDREN(pc->pc_md.sysctl_tree), OID_AUTO,
+		    "nhwints", CTLFLAG_RD, &pcs->pcs_nhwints,
+		    "Number of hardware (device) interrupts");
+
+		SYSCTL_ADD_ULONG(&pc->pc_md.sysctl_ctx,
+		    SYSCTL_CHILDREN(pc->pc_md.sysctl_tree), OID_AUTO,
+		    "npreempts", CTLFLAG_RD, &pcs->pcs_npreempts,
+		    "Number of IPI_PREEMPT interrupts");
+
+		SYSCTL_ADD_ULONG(&pc->pc_md.sysctl_ctx,
+		    SYSCTL_CHILDREN(pc->pc_md.sysctl_tree), OID_AUTO,
+		    "nrdvs", CTLFLAG_RD, &pcs->pcs_nrdvs,
+		    "Number of IPI_RENDEZVOUS interrupts");
+
+		SYSCTL_ADD_ULONG(&pc->pc_md.sysctl_ctx,
+		    SYSCTL_CHILDREN(pc->pc_md.sysctl_tree), OID_AUTO,
+		    "nstops", CTLFLAG_RD, &pcs->pcs_nstops,
+		    "Number of IPI_STOP interrupts");
+
+		SYSCTL_ADD_ULONG(&pc->pc_md.sysctl_ctx,
+		    SYSCTL_CHILDREN(pc->pc_md.sysctl_tree), OID_AUTO,
+		    "nstrays", CTLFLAG_RD, &pcs->pcs_nstrays,
+		    "Number of stray vectors");
+	}
 }
+SYSINIT(cpu_startup, SI_SUB_CPU, SI_ORDER_FIRST, cpu_startup, NULL);
 
 void
 cpu_flush_dcache(void *ptr, size_t len)
@@ -333,7 +401,7 @@ cpu_est_clockrate(int cpu_id, uint64_t *rate)
 
 	if (pcpu_find(cpu_id) == NULL || rate == NULL)
 		return (EINVAL);
-	*rate = processor_frequency;
+	*rate = (u_long)cpu_freq * 1000000ul;
 	return (0);
 }
 
@@ -366,7 +434,7 @@ void
 cpu_reset()
 {
 
-	cpu_boot(0);
+	efi_reset_system();
 }
 
 void
@@ -381,7 +449,7 @@ cpu_switch(struct thread *old, struct thread *new, struct mtx *mtx)
 	if (PCPU_GET(fpcurthread) == old)
 		old->td_frame->tf_special.psr |= IA64_PSR_DFH;
 	if (!savectx(oldpcb)) {
-		old->td_lock = mtx;
+		atomic_store_rel_ptr(&old->td_lock, mtx);
 #if defined(SCHED_ULE) && defined(SMP)
 		/* td_lock is volatile */
 		while (new->td_lock == &blocked_lock)
@@ -537,6 +605,15 @@ map_gateway_page(void)
 	ia64_set_k5(VM_MAX_ADDRESS);
 }
 
+static u_int
+freq_ratio(u_long base, u_long ratio)
+{
+	u_long f;
+
+	f = (base * (ratio >> 32)) / (ratio & 0xfffffffful);
+	return ((f + 500000) / 1000000);
+}
+
 static void
 calculate_frequencies(void)
 {
@@ -559,15 +636,9 @@ calculate_frequencies(void)
 			       pal.pal_result[2] >> 32,
 			       pal.pal_result[2] & ((1L << 32) - 1));
 		}
-		processor_frequency =
-			sal.sal_result[0] * (pal.pal_result[0] >> 32)
-			/ (pal.pal_result[0] & ((1L << 32) - 1));
-		bus_frequency =
-			sal.sal_result[0] * (pal.pal_result[1] >> 32)
-			/ (pal.pal_result[1] & ((1L << 32) - 1));
-		itc_frequency =
-			sal.sal_result[0] * (pal.pal_result[2] >> 32)
-			/ (pal.pal_result[2] & ((1L << 32) - 1));
+		cpu_freq = freq_ratio(sal.sal_result[0], pal.pal_result[0]);
+		bus_freq = freq_ratio(sal.sal_result[0], pal.pal_result[1]);
+		itc_freq = freq_ratio(sal.sal_result[0], pal.pal_result[2]);
 	}
 }
 
@@ -613,7 +684,8 @@ ia64_init(void)
 	for (md = efi_md_first(); md != NULL; md = efi_md_next(md)) {
 		switch (md->md_type) {
 		case EFI_MD_TYPE_IOPORT:
-			ia64_port_base = IA64_PHYS_TO_RR6(md->md_phys);
+			ia64_port_base = (uintptr_t)pmap_mapdev(md->md_phys,
+			    md->md_pages * EFI_PAGE_SIZE);
 			break;
 		case EFI_MD_TYPE_PALCODE:
 			ia64_pal_base = md->md_phys;
@@ -859,16 +931,6 @@ ia64_init(void)
 	return (ret);
 }
 
-__volatile void *
-ia64_ioport_address(u_int port)
-{
-	uint64_t addr;
-
-	addr = (port > 0xffff) ? IA64_PHYS_TO_RR6((uint64_t)port) :
-	    ia64_port_base | ((port & 0xfffc) << 10) | (port & 0xFFF);
-	return ((__volatile void *)addr);
-}
-
 uint64_t
 ia64_get_hcdp(void)
 {
@@ -908,6 +970,13 @@ bzero(void *buf, size_t len)
 	}
 }
 
+u_int
+ia64_itc_freq(void)
+{
+
+	return (itc_freq);
+}
+
 void
 DELAY(int n)
 {
@@ -916,7 +985,7 @@ DELAY(int n)
 	sched_pin();
 
 	start = ia64_get_itc();
-	end = start + (itc_frequency * n) / 1000000;
+	end = start + itc_freq * n;
 	/* printf("DELAY from 0x%lx to 0x%lx\n", start, end); */
 	do {
 		now = ia64_get_itc();
@@ -1056,11 +1125,9 @@ sigreturn(struct thread *td,
 {
 	ucontext_t uc;
 	struct trapframe *tf;
-	struct proc *p;
 	struct pcb *pcb;
 
 	tf = td->td_frame;
-	p = td->td_proc;
 	pcb = td->td_pcb;
 
 	/*
@@ -1072,17 +1139,13 @@ sigreturn(struct thread *td,
 
 	set_mcontext(td, &uc.uc_mcontext);
 
-	PROC_LOCK(p);
 #if defined(COMPAT_43)
 	if (sigonstack(tf->tf_special.sp))
 		td->td_sigstk.ss_flags |= SS_ONSTACK;
 	else
 		td->td_sigstk.ss_flags &= ~SS_ONSTACK;
 #endif
-	td->td_sigmask = uc.uc_sigmask;
-	SIG_CANTMASK(td->td_sigmask);
-	signotify(td);
-	PROC_UNLOCK(p);
+	kern_sigprocmask(td, SIG_SETMASK, &uc.uc_sigmask, NULL, 0);
 
 	return (EJUSTRETURN);
 }
@@ -1465,81 +1528,6 @@ set_fpregs(struct thread *td, struct fpreg *fpregs)
 	restore_callee_saved_fp(&fpregs->fpr_preserved);
 	pcb->pcb_high_fp = fpregs->fpr_high;
 	return (0);
-}
-
-/*
- * High FP register functions.
- */
-
-int
-ia64_highfp_drop(struct thread *td)
-{
-	struct pcb *pcb;
-	struct pcpu *cpu;
-	struct thread *thr;
-
-	mtx_lock_spin(&td->td_md.md_highfp_mtx);
-	pcb = td->td_pcb;
-	cpu = pcb->pcb_fpcpu;
-	if (cpu == NULL) {
-		mtx_unlock_spin(&td->td_md.md_highfp_mtx);
-		return (0);
-	}
-	pcb->pcb_fpcpu = NULL;
-	thr = cpu->pc_fpcurthread;
-	cpu->pc_fpcurthread = NULL;
-	mtx_unlock_spin(&td->td_md.md_highfp_mtx);
-
-	/* Post-mortem sanity checking. */
-	KASSERT(thr == td, ("Inconsistent high FP state"));
-	return (1);
-}
-
-int
-ia64_highfp_save(struct thread *td)
-{
-	struct pcb *pcb;
-	struct pcpu *cpu;
-	struct thread *thr;
-
-	/* Don't save if the high FP registers weren't modified. */
-	if ((td->td_frame->tf_special.psr & IA64_PSR_MFH) == 0)
-		return (ia64_highfp_drop(td));
-
-	mtx_lock_spin(&td->td_md.md_highfp_mtx);
-	pcb = td->td_pcb;
-	cpu = pcb->pcb_fpcpu;
-	if (cpu == NULL) {
-		mtx_unlock_spin(&td->td_md.md_highfp_mtx);
-		return (0);
-	}
-#ifdef SMP
-	if (td == curthread)
-		sched_pin();
-	if (cpu != pcpup) {
-		mtx_unlock_spin(&td->td_md.md_highfp_mtx);
-		ipi_send(cpu, IPI_HIGH_FP);
-		if (td == curthread)
-			sched_unpin();
-		while (pcb->pcb_fpcpu == cpu)
-			DELAY(100);
-		return (1);
-	} else {
-		save_high_fp(&pcb->pcb_high_fp);
-		if (td == curthread)
-			sched_unpin();
-	}
-#else
-	save_high_fp(&pcb->pcb_high_fp);
-#endif
-	pcb->pcb_fpcpu = NULL;
-	thr = cpu->pc_fpcurthread;
-	cpu->pc_fpcurthread = NULL;
-	mtx_unlock_spin(&td->td_md.md_highfp_mtx);
-
-	/* Post-mortem sanity cxhecking. */
-	KASSERT(thr == td, ("Inconsistent high FP state"));
-	return (1);
 }
 
 void

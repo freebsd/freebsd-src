@@ -20,6 +20,8 @@ defaultroute_start()
 {
 	local output carrier nocarrier nl
 
+	afexists inet || return 0
+
 	# Return without waiting if we don't have dhcp interfaces or
 	# if none of the dhcp interfaces is plugged in.
 	dhcp_interfaces=`list_net_interfaces dhcp`

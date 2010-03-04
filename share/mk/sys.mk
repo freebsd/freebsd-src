@@ -44,6 +44,7 @@ CFLAGS		?=	-O2 -pipe
 CFLAGS		+=	-fno-strict-aliasing
 .endif
 .endif
+PO_CFLAGS	?=	${CFLAGS}
 
 # Turn CTF conversion off by default for now. This default could be
 # changed later if DTrace becomes popular.
@@ -65,7 +66,8 @@ CFLAGS		+=	-g
 .endif
 
 CXX		?=	c++
-CXXFLAGS	?=	${CFLAGS:N-std=*:N-Wnested-externs:N-W*-prototypes:N-Wno-pointer-sign}
+CXXFLAGS	?=	${CFLAGS:N-std=*:N-Wnested-externs:N-W*-prototypes:N-Wno-pointer-sign:N-Wold-style-definition}
+PO_CXXFLAGS	?=	${CXXFLAGS}
 
 CPP		?=	cpp
 

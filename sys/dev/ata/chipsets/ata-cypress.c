@@ -53,7 +53,7 @@ __FBSDID("$FreeBSD$");
 
 /* local prototypes */
 static int ata_cypress_chipinit(device_t dev);
-static void ata_cypress_setmode(device_t dev, int mode);
+static int ata_cypress_setmode(device_t dev, int target, int mode);
 
 
 /*
@@ -93,29 +93,20 @@ ata_cypress_chipinit(device_t dev)
     return 0;
 }
 
-static void
-ata_cypress_setmode(device_t dev, int mode)
+static int
+ata_cypress_setmode(device_t dev, int target, int mode)
 {
-    device_t gparent = GRANDPARENT(dev);
-    struct ata_channel *ch = device_get_softc(device_get_parent(dev));
-    struct ata_device *atadev = device_get_softc(dev);
-    int error;
+	device_t parent = device_get_parent(dev);
+	struct ata_channel *ch = device_get_softc(dev);
 
-    mode = ata_limit_mode(dev, mode, ATA_WDMA2);
+	mode = min(mode, ATA_WDMA2);
 
-    /* XXX SOS missing WDMA0+1 + PIO modes */
-    if (mode == ATA_WDMA2) { 
-	error = ata_controlcmd(dev, ATA_SETFEATURES, ATA_SF_SETXFER, 0, mode);
-	if (bootverbose)
-	    device_printf(dev, "%ssetting WDMA2 on Cypress chip\n",
-			  error ? "FAILURE " : "");
-	if (!error) {
-	    pci_write_config(gparent, ch->unit ? 0x4e : 0x4c, 0x2020, 2);
-	    atadev->mode = mode;
-	    return;
+	/* XXX SOS missing WDMA0+1 + PIO modes */
+	if (mode == ATA_WDMA2) { 
+		pci_write_config(parent, ch->unit ? 0x4e : 0x4c, 0x2020, 2);
 	}
-    }
-    /* we could set PIO mode timings, but we assume the BIOS did that */
+	/* we could set PIO mode timings, but we assume the BIOS did that */
+	return (mode);
 }
 
 ATA_DECLARE_DRIVER(ata_cypress);

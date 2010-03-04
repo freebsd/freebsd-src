@@ -1306,7 +1306,7 @@ zfs_create(vnode_t *dvp, char *name, vattr_t *vap, int excl, int mode,
 	}
 
 	if (vap->va_mask & AT_XVATTR) {
-		if ((error = secpolicy_xvattr((xvattr_t *)vap,
+		if ((error = secpolicy_xvattr(dvp, (xvattr_t *)vap,
 		    crgetuid(cr), cr, vap->va_type)) != 0) {
 			ZFS_EXIT(zfsvfs);
 			return (error);
@@ -1758,7 +1758,7 @@ zfs_mkdir(vnode_t *dvp, char *dirname, vattr_t *vap, vnode_t **vpp, cred_t *cr,
 		zf |= ZCILOOK;
 
 	if (vap->va_mask & AT_XVATTR)
-		if ((error = secpolicy_xvattr((xvattr_t *)vap,
+		if ((error = secpolicy_xvattr(dvp, (xvattr_t *)vap,
 		    crgetuid(cr), cr, vap->va_type)) != 0) {
 			ZFS_EXIT(zfsvfs);
 			return (error);
@@ -2538,6 +2538,7 @@ zfs_setattr(vnode_t *vp, vattr_t *vap, int flags, cred_t *cr,
 	vattr_t		oldva;
 	uint_t		mask = vap->va_mask;
 	uint_t		saved_mask;
+	uint64_t	saved_mode;
 	int		trim_mask = 0;
 	uint64_t	new_mode;
 	znode_t		*attrzp;
@@ -2766,6 +2767,13 @@ top:
 		if (trim_mask) {
 			saved_mask = vap->va_mask;
 			vap->va_mask &= ~trim_mask;
+			if (trim_mask & AT_MODE) {
+				/*
+				 * Save the mode, as secpolicy_vnode_setattr()
+				 * will overwrite it with ova.va_mode.
+				 */
+				saved_mode = vap->va_mode;
+			}
 		}
 		err = secpolicy_vnode_setattr(cr, vp, vap, &oldva, flags,
 		    (int (*)(void *, int, cred_t *))zfs_zaccess_unix, zp);
@@ -2774,8 +2782,16 @@ top:
 			return (err);
 		}
 
-		if (trim_mask)
+		if (trim_mask) {
 			vap->va_mask |= saved_mask;
+			if (trim_mask & AT_MODE) {
+				/*
+				 * Recover the mode after
+				 * secpolicy_vnode_setattr().
+				 */
+				vap->va_mode = saved_mode;
+			}
+		}
 	}
 
 	/*
@@ -3973,21 +3989,33 @@ zfs_freebsd_access(ap)
 		struct thread *a_td;
 	} */ *ap;
 {
+	accmode_t accmode;
+	int error = 0;
 
 	/*
-	 * ZFS itself only knowns about VREAD, VWRITE and VEXEC, the rest
-	 * we have to handle by calling vaccess().
+	 * ZFS itself only knowns about VREAD, VWRITE, VEXEC and VAPPEND,
 	 */
-	if ((ap->a_accmode & ~(VREAD|VWRITE|VEXEC)) != 0) {
-		vnode_t *vp = ap->a_vp;
-		znode_t *zp = VTOZ(vp);
-		znode_phys_t *zphys = zp->z_phys;
+	accmode = ap->a_accmode & (VREAD|VWRITE|VEXEC|VAPPEND);
+	if (accmode != 0)
+		error = zfs_access(ap->a_vp, accmode, 0, ap->a_cred, NULL);
 
-		return (vaccess(vp->v_type, zphys->zp_mode, zphys->zp_uid,
-		    zphys->zp_gid, ap->a_accmode, ap->a_cred, NULL));
+	/*
+	 * VADMIN has to be handled by vaccess().
+	 */
+	if (error == 0) {
+		accmode = ap->a_accmode & ~(VREAD|VWRITE|VEXEC|VAPPEND);
+		if (accmode != 0) {
+			vnode_t *vp = ap->a_vp;
+			znode_t *zp = VTOZ(vp);
+			znode_phys_t *zphys = zp->z_phys;
+
+			error = vaccess(vp->v_type, zphys->zp_mode,
+			    zphys->zp_uid, zphys->zp_gid, accmode, ap->a_cred,
+			    NULL);
+		}
 	}
 
-	return (zfs_access(ap->a_vp, ap->a_accmode, 0, ap->a_cred, NULL));
+	return (error);
 }
 
 static int
@@ -4180,17 +4208,15 @@ zfs_freebsd_setattr(ap)
 	zflags = VTOZ(vp)->z_phys->zp_flags;
 
 	if (vap->va_flags != VNOVAL) {
+		zfsvfs_t *zfsvfs = VTOZ(vp)->z_zfsvfs;
 		int error;
+
+		if (zfsvfs->z_use_fuids == B_FALSE)
+			return (EOPNOTSUPP);
 
 		fflags = vap->va_flags;
 		if ((fflags & ~(SF_IMMUTABLE|SF_APPEND|SF_NOUNLINK|UF_NODUMP)) != 0)
 			return (EOPNOTSUPP);
-		/*
-		 * Callers may only modify the file flags on objects they
-		 * have VADMIN rights for.
-		 */
-		if ((error = VOP_ACCESS(vp, VADMIN, cred, curthread)) != 0)
-			return (error);
 		/*
 		 * Unprivileged processes are not permitted to unset system
 		 * flags, or modify flags if any system flags are set.
@@ -4201,14 +4227,21 @@ zfs_freebsd_setattr(ap)
 		 * is non-zero; otherwise, they behave like unprivileged
 		 * processes.
 		 */
-		if (priv_check_cred(cred, PRIV_VFS_SYSFLAGS, 0) == 0) {
+		if (secpolicy_fs_owner(vp->v_mount, cred) == 0 ||
+		    priv_check_cred(cred, PRIV_VFS_SYSFLAGS, 0) == 0) {
 			if (zflags &
 			    (ZFS_IMMUTABLE | ZFS_APPENDONLY | ZFS_NOUNLINK)) {
 				error = securelevel_gt(cred, 0);
-				if (error)
+				if (error != 0)
 					return (error);
 			}
 		} else {
+			/*
+			 * Callers may only modify the file flags on objects they
+			 * have VADMIN rights for.
+			 */
+			if ((error = VOP_ACCESS(vp, VADMIN, cred, curthread)) != 0)
+				return (error);
 			if (zflags &
 			    (ZFS_IMMUTABLE | ZFS_APPENDONLY | ZFS_NOUNLINK)) {
 				return (EPERM);
@@ -4976,7 +5009,7 @@ struct vop_vector zfs_vnodeops = {
 
 struct vop_vector zfs_fifoops = {
 	.vop_default =		&fifo_specops,
-	.vop_fsync =		VOP_PANIC,
+	.vop_fsync =		zfs_freebsd_fsync,
 	.vop_access =		zfs_freebsd_access,
 	.vop_getattr =		zfs_freebsd_getattr,
 	.vop_inactive =		zfs_freebsd_inactive,

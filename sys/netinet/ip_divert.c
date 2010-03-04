@@ -32,13 +32,9 @@ __FBSDID("$FreeBSD$");
 
 #if !defined(KLD_MODULE)
 #include "opt_inet.h"
-#include "opt_ipfw.h"
 #include "opt_sctp.h"
 #ifndef INET
 #error "IPDIVERT requires INET."
-#endif
-#ifndef IPFIREWALL
-#error "IPDIVERT requires IPFIREWALL"
 #endif
 #endif
 
@@ -52,29 +48,20 @@ __FBSDID("$FreeBSD$");
 #include <sys/priv.h>
 #include <sys/proc.h>
 #include <sys/protosw.h>
-#include <sys/rwlock.h>
-#include <sys/signalvar.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
-#include <sys/sx.h>
 #include <sys/sysctl.h>
-#include <sys/systm.h>
-
-#include <vm/uma.h>
+#include <net/vnet.h>
 
 #include <net/if.h>
 #include <net/netisr.h> 
-#include <net/route.h>
-#include <net/vnet.h>
 
 #include <netinet/in.h>
 #include <netinet/in_pcb.h>
 #include <netinet/in_systm.h>
 #include <netinet/in_var.h>
 #include <netinet/ip.h>
-#include <netinet/ip_divert.h>
 #include <netinet/ip_var.h>
-#include <netinet/ip_fw.h>
 #ifdef SCTP
 #include <netinet/sctp_crc32.h>
 #endif
@@ -92,27 +79,29 @@ __FBSDID("$FreeBSD$");
 #define	DIVRCVQ		(65536 + 100)
 
 /*
- * Divert sockets work in conjunction with ipfw, see the divert(4)
- * manpage for features.
- * Internally, packets selected by ipfw in ip_input() or ip_output(),
- * and never diverted before, are passed to the input queue of the
- * divert socket with a given 'divert_port' number (as specified in
- * the matching ipfw rule), and they are tagged with a 16 bit cookie
- * (representing the rule number of the matching ipfw rule), which
- * is passed to process reading from the socket.
+ * Divert sockets work in conjunction with ipfw or other packet filters,
+ * see the divert(4) manpage for features.
+ * Packets are selected by the packet filter and tagged with an
+ * MTAG_IPFW_RULE tag carrying the 'divert port' number (as set by
+ * the packet filter) and information on the matching filter rule for
+ * subsequent reinjection. The divert_port is used to put the packet
+ * on the corresponding divert socket, while the rule number is passed
+ * up (at least partially) as the sin_port in the struct sockaddr.
  *
- * Packets written to the divert socket are again tagged with a cookie
- * (usually the same as above) and a destination address.
- * If the destination address is INADDR_ANY then the packet is
- * treated as outgoing and sent to ip_output(), otherwise it is
- * treated as incoming and sent to ip_input().
- * In both cases, the packet is tagged with the cookie.
+ * Packets written to the divert socket carry in sin_addr a
+ * destination address, and in sin_port the number of the filter rule
+ * after which to continue processing.
+ * If the destination address is INADDR_ANY, the packet is treated as
+ * as outgoing and sent to ip_output(); otherwise it is treated as
+ * incoming and sent to ip_input().
+ * Further, sin_zero carries some information on the interface,
+ * which can be used in the reinject -- see comments in the code.
  *
  * On reinjection, processing in ip_input() and ip_output()
  * will be exactly the same as for the original packet, except that
- * ipfw processing will start at the rule number after the one
- * written in the cookie (so, tagging a packet with a cookie of 0
- * will cause it to be effectively considered as a standard packet).
+ * packet filter processing will start at the rule number after the one
+ * written in the sin_port (ipfw does not allow a rule #0, so sin_port=0
+ * will apply the entire ruleset to the packet).
  */
 
 /* Internal variables. */
@@ -193,7 +182,7 @@ div_destroy(void)
  * IPPROTO_DIVERT is not in the real IP protocol number space; this
  * function should never be called.  Just in case, drop any packets.
  */
-void
+static void
 div_input(struct mbuf *m, int off)
 {
 
@@ -217,9 +206,8 @@ divert_packet(struct mbuf *m, int incoming)
 	struct sockaddr_in divsrc;
 	struct m_tag *mtag;
 
-	mtag = m_tag_find(m, PACKET_TAG_DIVERT, NULL);
+	mtag = m_tag_locate(m, MTAG_IPFW_RULE, 0, NULL);
 	if (mtag == NULL) {
-		printf("%s: no divert tag\n", __func__);
 		m_freem(m);
 		return;
 	}
@@ -244,14 +232,15 @@ divert_packet(struct mbuf *m, int incoming)
 		ip->ip_len = htons(ip->ip_len);
 	}
 #endif
+	bzero(&divsrc, sizeof(divsrc));
+	divsrc.sin_len = sizeof(divsrc);
+	divsrc.sin_family = AF_INET;
+	/* record matching rule, in host format */
+	divsrc.sin_port = ((struct ipfw_rule_ref *)(mtag+1))->rulenum;
 	/*
 	 * Record receive interface address, if any.
 	 * But only for incoming packets.
 	 */
-	bzero(&divsrc, sizeof(divsrc));
-	divsrc.sin_len = sizeof(divsrc);
-	divsrc.sin_family = AF_INET;
-	divsrc.sin_port = divert_cookie(mtag);	/* record matching rule */
 	if (incoming) {
 		struct ifaddr *ifa;
 		struct ifnet *ifp;
@@ -299,7 +288,7 @@ divert_packet(struct mbuf *m, int incoming)
 
 	/* Put packet on socket queue, if any */
 	sa = NULL;
-	nport = htons((u_int16_t)divert_info(mtag));
+	nport = htons((u_int16_t)(((struct ipfw_rule_ref *)(mtag+1))->info));
 	INP_INFO_RLOCK(&V_divcbinfo);
 	LIST_FOREACH(inp, &V_divcb, inp_list) {
 		/* XXX why does only one socket match? */
@@ -338,7 +327,7 @@ div_output(struct socket *so, struct mbuf *m, struct sockaddr_in *sin,
     struct mbuf *control)
 {
 	struct m_tag *mtag;
-	struct divert_tag *dt;
+	struct ipfw_rule_ref *dt;
 	int error = 0;
 	struct mbuf *options;
 
@@ -353,23 +342,31 @@ div_output(struct socket *so, struct mbuf *m, struct sockaddr_in *sin,
 	if (control)
 		m_freem(control);		/* XXX */
 
-	if ((mtag = m_tag_find(m, PACKET_TAG_DIVERT, NULL)) == NULL) {
-		mtag = m_tag_get(PACKET_TAG_DIVERT, sizeof(struct divert_tag),
-		    M_NOWAIT | M_ZERO);
+	mtag = m_tag_locate(m, MTAG_IPFW_RULE, 0, NULL);
+	if (mtag == NULL) {
+		/* this should be normal */
+		mtag = m_tag_alloc(MTAG_IPFW_RULE, 0,
+		    sizeof(struct ipfw_rule_ref), M_NOWAIT | M_ZERO);
 		if (mtag == NULL) {
 			error = ENOBUFS;
 			goto cantsend;
 		}
-		dt = (struct divert_tag *)(mtag+1);
 		m_tag_prepend(m, mtag);
-	} else
-		dt = (struct divert_tag *)(mtag+1);
+	}
+	dt = (struct ipfw_rule_ref *)(mtag+1);
 
 	/* Loopback avoidance and state recovery */
 	if (sin) {
 		int i;
 
-		dt->cookie = sin->sin_port;
+		/* set the starting point. We provide a non-zero slot,
+		 * but a non_matching chain_id to skip that info and use
+		 * the rulenum/rule_id.
+		 */
+		dt->slot = 1; /* dummy, chain_id is invalid */
+		dt->chain_id = 0;
+		dt->rulenum = sin->sin_port+1; /* host format ? */
+		dt->rule_id = 0;
 		/*
 		 * Find receive interface with the given name, stuffed
 		 * (if it exists) in the sin_zero[] field.
@@ -387,7 +384,7 @@ div_output(struct socket *so, struct mbuf *m, struct sockaddr_in *sin,
 		struct ip *const ip = mtod(m, struct ip *);
 		struct inpcb *inp;
 
-		dt->info |= IP_FW_DIVERT_OUTPUT_FLAG;
+		dt->info |= IPFW_IS_DIVERT | IPFW_INFO_OUT;
 		INP_INFO_WLOCK(&V_divcbinfo);
 		inp = sotoinpcb(so);
 		INP_RLOCK(inp);
@@ -453,7 +450,7 @@ div_output(struct socket *so, struct mbuf *m, struct sockaddr_in *sin,
 				m_freem(options);
 		}
 	} else {
-		dt->info |= IP_FW_DIVERT_LOOPBACK_FLAG;
+		dt->info |= IPFW_IS_DIVERT | IPFW_INFO_IN;
 		if (m->m_pkthdr.rcvif == NULL) {
 			/*
 			 * No luck with the name, check by IP address.
@@ -587,7 +584,7 @@ div_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *nam,
 	return div_output(so, m, (struct sockaddr_in *)nam, control);
 }
 
-void
+static void
 div_ctlinput(int cmd, struct sockaddr *sa, void *vip)
 {
         struct in_addr faddr;
@@ -800,5 +797,5 @@ static moduledata_t ipdivertmod = {
 };
 
 DECLARE_MODULE(ipdivert, ipdivertmod, SI_SUB_PROTO_IFATTACHDOMAIN, SI_ORDER_ANY);
-MODULE_DEPEND(dummynet, ipfw, 2, 2, 2);
+MODULE_DEPEND(ipdivert, ipfw, 2, 2, 2);
 MODULE_VERSION(ipdivert, 1);

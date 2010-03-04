@@ -1,6 +1,6 @@
 divert(-1)
 #
-# Copyright (c) 1998-2007 Sendmail, Inc. and its suppliers.
+# Copyright (c) 1998-2009 Sendmail, Inc. and its suppliers.
 #	All rights reserved.
 # Copyright (c) 1983, 1995 Eric P. Allman.  All rights reserved.
 # Copyright (c) 1988, 1993
@@ -13,7 +13,7 @@ divert(-1)
 #
 divert(0)
 
-VERSIONID(`$Id: proto.m4,v 8.734 2008/01/24 23:42:01 ca Exp $')
+VERSIONID(`$Id: proto.m4,v 8.741 2009/12/11 00:04:53 ca Exp $')
 
 # level CF_LEVEL config file format
 V`'CF_LEVEL/ifdef(`VENDOR_NAME', `VENDOR_NAME', `Berkeley')
@@ -580,6 +580,7 @@ _OPTION(MaxRecipientsPerMessage, `confMAX_RCPTS_PER_MESSAGE', `0')
 # once the threshold number of recipients have been rejected
 _OPTION(BadRcptThrottle, `confBAD_RCPT_THROTTLE', `0')
 
+
 # shall we get local names from our installed interfaces?
 _OPTION(DontProbeInterfaces, `confDONT_PROBE_INTERFACES', `False')
 
@@ -639,6 +640,7 @@ _OPTION(AuthMaxBits, `confAUTH_MAX_BITS', `')
 
 # SMTP STARTTLS server options
 _OPTION(TLSSrvOptions, `confTLS_SRV_OPTIONS', `')
+
 
 # Input mail filters
 _OPTION(InputMailFilters, `confINPUT_MAIL_FILTERS', `')
@@ -1509,7 +1511,9 @@ ifdef(`_LDAP_ROUTE_DETAIL_',
 # try without +detail
 R<> <> <$+> <$+ + $* @ $+> <>	$@ $>LDAPExpand <$1> <$2 @ $4> <+$3>')dnl
 
-ifdef(`_LDAP_ROUTE_NODOMAIN_', `dnl', `
+ifdef(`_LDAP_ROUTE_NODOMAIN_', `
+# pretend we did the @domain lookup
+R<> <> <$+> <$+ @ $+> <$*>	$: <> <> <$1> <@ $3> <$4>', `
 # if still no mailRoutingAddress and no mailHost,
 # try @domain
 ifelse(_LDAP_ROUTE_DETAIL_, `_PRESERVE_', `dnl
@@ -2139,7 +2143,10 @@ R$+ < @ $=w >		$@ RELAY
 ifdef(`_RELAY_HOSTS_ONLY_',
 `R$+ < @ $=R >		$@ RELAY
 ifdef(`_ACCESS_TABLE_', `dnl
-R$+ < @ $+ >		$: <$(access To:$2 $: ? $)> <$1 < @ $2 >>
+ifdef(`_RELAY_FULL_ADDR_', `dnl
+R$+ < @ $+ >		$: <$(access To:$1@$2 $: ? $)> <$1 < @ $2 >>
+R<?> <$+ < @ $+ >>	$: <$(access To:$2 $: ? $)> <$1 < @ $2 >>',`
+R$+ < @ $+ >		$: <$(access To:$2 $: ? $)> <$1 < @ $2 >>')
 dnl workspace: <Result-of-lookup | ?> <localpart<@domain>>
 R<?> <$+ < @ $+ >>	$: <$(access $2 $: ? $)> <$1 < @ $2 >>',`dnl')',
 `R$+ < @ $* $=R >	$@ RELAY
@@ -2691,7 +2698,7 @@ R$* <?> $#$*		$#$2
 R$* <?> $*		$: $1', `dnl')
 ifdef(`_ACCESS_TABLE_', `dnl
 dnl store name of other side
-R$*		$: $(macro {TLS_Name} $@ $&{server_name} $) $1
+R$*		$: $(macro {TLS_Name} $@ $&{client_name} $) $1
 dnl ignore second arg for now
 dnl maybe use it to distinguish permanent/temporary error?
 dnl if MAIL: permanent (STARTTLS has not been offered)

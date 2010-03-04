@@ -131,32 +131,20 @@ nfsvno_getfh(struct vnode *vp, fhandle_t *fhp, struct thread *p)
 /*
  * Perform access checking for vnodes obtained from file handles that would
  * refer to files already opened by a Unix client. You cannot just use
- * vn_writechk() and VOP_ACCESS() for two reasons.
- * 1 - You must check for exported rdonly as well as MNT_RDONLY for the write case
+ * vn_writechk() and VOP_ACCESSX() for two reasons.
+ * 1 - You must check for exported rdonly as well as MNT_RDONLY for the write
+ *     case.
  * 2 - The owner is to be given access irrespective of mode bits for some
  *     operations, so that processes that chmod after opening a file don't
  *     break.
  */
 int
-nfsvno_accchk(struct vnode *vp, u_int32_t accessbits, struct ucred *cred,
-    struct nfsexstuff *exp, struct thread *p, int override, int vpislocked)
+nfsvno_accchk(struct vnode *vp, accmode_t accmode, struct ucred *cred,
+    struct nfsexstuff *exp, struct thread *p, int override, int vpislocked,
+    u_int32_t *supportedtypep)
 {
 	struct vattr vattr;
 	int error = 0, getret = 0;
-	accmode_t accmode;
-
-	/*
-	 * Convert accessbits to Vxxx flags.
-	 */
-	if (accessbits & (NFSV4ACE_WRITEDATA | NFSV4ACE_APPENDDATA |
-	    NFSV4ACE_ADDFILE | NFSV4ACE_ADDSUBDIRECTORY |
-	    NFSV4ACE_DELETECHILD | NFSV4ACE_WRITEATTRIBUTES |
-	    NFSV4ACE_DELETE | NFSV4ACE_WRITEACL | NFSV4ACE_WRITEOWNER))
-		accmode = VWRITE;
-	else if (accessbits & (NFSV4ACE_EXECUTE | NFSV4ACE_SEARCH))
-		accmode = VEXEC;
-	else
-		accmode = VREAD;
 
 	if (accmode & VWRITE) {
 		/* Just vn_writechk() changed to check rdonly */
@@ -166,7 +154,7 @@ nfsvno_accchk(struct vnode *vp, u_int32_t accessbits, struct ucred *cred,
 		 * device resident on the file system.
 		 */
 		if (NFSVNO_EXRDONLY(exp) ||
-			(vp->v_mount->mnt_flag & MNT_RDONLY)) {
+		    (vp->v_mount->mnt_flag & MNT_RDONLY)) {
 			switch (vp->v_type) {
 			case VREG:
 			case VDIR:
@@ -187,22 +175,26 @@ nfsvno_accchk(struct vnode *vp, u_int32_t accessbits, struct ucred *cred,
 	if (vpislocked == 0)
 		NFSVOPLOCK(vp, LK_EXCLUSIVE | LK_RETRY, p);
 
-#if defined(NFS4_ACL_EXTATTR_NAME) && defined(notyet)
-	/*
-	 * This function should be called once FFS has NFSv4 ACL support
-	 * in it.
-	 */
 	/*
 	 * Should the override still be applied when ACLs are enabled?
 	 */
-	if (nfsrv_useacl != 0 && NFSHASNFS4ACL(vp->v_mount))
-		error = nfsrv_aclaccess(vp, accmode, accessbits, cred, p);
-	else
-#endif
-	if (accessbits == NFSV4ACE_READATTRIBUTES)
-		error = 0;
-	else
-		error = VOP_ACCESS(vp, accmode, cred, p);
+	error = VOP_ACCESSX(vp, accmode, cred, p);
+	if (error != 0 && (accmode & (VDELETE | VDELETE_CHILD))) {
+		/*
+		 * Try again with VEXPLICIT_DENY, to see if the test for
+		 * deletion is supported.
+		 */
+		error = VOP_ACCESSX(vp, accmode | VEXPLICIT_DENY, cred, p);
+		if (error == 0) {
+			if (vp->v_type == VDIR) {
+				accmode &= ~(VDELETE | VDELETE_CHILD);
+				accmode |= VWRITE;
+				error = VOP_ACCESSX(vp, accmode, cred, p);
+			} else if (supportedtypep != NULL) {
+				*supportedtypep &= ~NFSACCESS_DELETE;
+			}
+		}
+	}
 
 	/*
 	 * Allow certain operations for the owner (reads and writes
@@ -720,7 +712,7 @@ nfsvno_write(struct vnode *vp, off_t off, int retlen, int cnt, int stable,
 int
 nfsvno_createsub(struct nfsrv_descript *nd, struct nameidata *ndp,
     struct vnode **vpp, struct nfsvattr *nvap, int *exclusive_flagp,
-    u_char *cverf, NFSDEV_T rdev, struct thread *p, struct nfsexstuff *exp)
+    int32_t *cverf, NFSDEV_T rdev, struct thread *p, struct nfsexstuff *exp)
 {
 	u_quad_t tempsize;
 	int error;
@@ -737,8 +729,8 @@ nfsvno_createsub(struct nfsrv_descript *nd, struct nameidata *ndp,
 				if (*exclusive_flagp) {
 					*exclusive_flagp = 0;
 					NFSVNO_ATTRINIT(nvap);
-					NFSBCOPY(cverf,(caddr_t)&nvap->na_atime,
-					    NFSX_VERF);
+					nvap->na_atime.tv_sec = cverf[0];
+					nvap->na_atime.tv_nsec = cverf[1];
 					error = VOP_SETATTR(ndp->ni_vp,
 					    &nvap->na_vattr, nd->nd_cred);
 				}
@@ -790,9 +782,9 @@ nfsvno_createsub(struct nfsrv_descript *nd, struct nameidata *ndp,
 		else
 			vput(ndp->ni_dvp);
 		if (!error && nvap->na_size != VNOVAL) {
-			error = nfsvno_accchk(*vpp, NFSV4ACE_ADDFILE,
+			error = nfsvno_accchk(*vpp, VWRITE,
 			    nd->nd_cred, exp, p, NFSACCCHK_NOOVERRIDE,
-			    NFSACCCHK_VPISLOCKED);
+			    NFSACCCHK_VPISLOCKED, NULL);
 			if (!error) {
 				tempsize = nvap->na_size;
 				NFSVNO_ATTRINIT(nvap);
@@ -1285,7 +1277,7 @@ nfsvno_statfs(struct vnode *vp, struct statfs *sf)
 void
 nfsvno_open(struct nfsrv_descript *nd, struct nameidata *ndp,
     nfsquad_t clientid, nfsv4stateid_t *stateidp, struct nfsstate *stp,
-    int *exclusive_flagp, struct nfsvattr *nvap, u_char *cverf, int create,
+    int *exclusive_flagp, struct nfsvattr *nvap, int32_t *cverf, int create,
     NFSACL_T *aclp, nfsattrbit_t *attrbitp, struct ucred *cred, struct thread *p,
     struct nfsexstuff *exp, struct vnode **vpp)
 {
@@ -1307,9 +1299,8 @@ nfsvno_open(struct nfsrv_descript *nd, struct nameidata *ndp,
 				if (*exclusive_flagp) {
 					*exclusive_flagp = 0;
 					NFSVNO_ATTRINIT(nvap);
-					NFSBCOPY(cverf,
-					    (caddr_t)&nvap->na_atime,
-					    NFSX_VERF);
+					nvap->na_atime.tv_sec = cverf[0];
+					nvap->na_atime.tv_nsec = cverf[1];
 					nd->nd_repstat = VOP_SETATTR(ndp->ni_vp,
 					    &nvap->na_vattr, cred);
 				} else {
@@ -1335,8 +1326,9 @@ nfsvno_open(struct nfsrv_descript *nd, struct nameidata *ndp,
 				else
 					NFSVNO_EXINIT(&nes);
 				nd->nd_repstat = nfsvno_accchk(vp, 
-				    NFSV4ACE_ADDFILE, cred, &nes, p,
-				    NFSACCCHK_NOOVERRIDE,NFSACCCHK_VPISLOCKED);
+				    VWRITE, cred, &nes, p,
+				    NFSACCCHK_NOOVERRIDE,
+				    NFSACCCHK_VPISLOCKED, NULL);
 				nd->nd_repstat = nfsrv_opencheck(clientid,
 				    stateidp, stp, vp, nd, p, nd->nd_repstat);
 				if (!nd->nd_repstat) {
@@ -1482,9 +1474,9 @@ nfsrvd_readdir(struct nfsrv_descript *nd, int isdgram,
 #endif
 	}
 	if (!nd->nd_repstat)
-		nd->nd_repstat = nfsvno_accchk(vp, NFSV4ACE_SEARCH,
+		nd->nd_repstat = nfsvno_accchk(vp, VEXEC,
 		    nd->nd_cred, exp, p, NFSACCCHK_NOOVERRIDE,
-		    NFSACCCHK_VPISLOCKED);
+		    NFSACCCHK_VPISLOCKED, NULL);
 	if (nd->nd_repstat) {
 		vput(vp);
 		if (nd->nd_flag & ND_NFSV3)
@@ -1676,7 +1668,7 @@ nfsrvd_readdirplus(struct nfsrv_descript *nd, int isdgram,
 	struct nfsvattr nva, at, *nvap = &nva;
 	struct mbuf *mb0, *mb1;
 	struct nfsreferral *refp;
-	int nlen, r, error = 0, getret = 1, vgetret;
+	int nlen, r, error = 0, getret = 1, usevget = 1;
 	int siz, cnt, fullsiz, eofflag, ncookies, entrycnt;
 	caddr_t bpos0, bpos1;
 	u_int64_t off, toff, verf;
@@ -1684,6 +1676,7 @@ nfsrvd_readdirplus(struct nfsrv_descript *nd, int isdgram,
 	nfsattrbit_t attrbits, rderrbits, savbits;
 	struct uio io;
 	struct iovec iv;
+	struct componentname cn;
 
 	if (nd->nd_repstat) {
 		nfsrv_postopattr(nd, getret, &at);
@@ -1752,17 +1745,15 @@ nfsrvd_readdirplus(struct nfsrv_descript *nd, int isdgram,
 	if (!nd->nd_repstat && cnt == 0)
 		nd->nd_repstat = NFSERR_TOOSMALL;
 	if (!nd->nd_repstat)
-		nd->nd_repstat = nfsvno_accchk(vp, NFSV4ACE_SEARCH,
+		nd->nd_repstat = nfsvno_accchk(vp, VEXEC,
 		    nd->nd_cred, exp, p, NFSACCCHK_NOOVERRIDE,
-		    NFSACCCHK_VPISLOCKED);
+		    NFSACCCHK_VPISLOCKED, NULL);
 	if (nd->nd_repstat) {
 		vput(vp);
 		if (nd->nd_flag & ND_NFSV3)
 			nfsrv_postopattr(nd, getret, &at);
 		return (0);
 	}
-
-	NFSVOPUNLOCK(vp, 0, p);
 
 	MALLOC(rbuf, caddr_t, siz, M_TEMP, M_WAITOK);
 again:
@@ -1781,10 +1772,8 @@ again:
 	io.uio_segflg = UIO_SYSSPACE;
 	io.uio_rw = UIO_READ;
 	io.uio_td = NULL;
-	NFSVOPLOCK(vp, LK_EXCLUSIVE | LK_RETRY, p);
 	nd->nd_repstat = VOP_READDIR(vp, &io, nd->nd_cred, &eofflag, &ncookies,
 	    &cookies);
-	NFSVOPUNLOCK(vp, 0, p);
 	off = (u_int64_t)io.uio_offset;
 	if (io.uio_resid)
 		siz -= io.uio_resid;
@@ -1796,7 +1785,7 @@ again:
 	if (!nd->nd_repstat)
 		nd->nd_repstat = getret;
 	if (nd->nd_repstat) {
-		vrele(vp);
+		vput(vp);
 		if (cookies)
 			free((caddr_t)cookies, M_TEMP);
 		free((caddr_t)rbuf, M_TEMP);
@@ -1809,7 +1798,7 @@ again:
 	 * rpc reply
 	 */
 	if (siz == 0) {
-		vrele(vp);
+		vput(vp);
 		if (nd->nd_flag & ND_NFSV3)
 			nfsrv_postopattr(nd, getret, &at);
 		NFSM_BUILD(tl, u_int32_t *, 4 * NFSX_UNSIGNED);
@@ -1854,33 +1843,7 @@ again:
 		toff = off;
 		goto again;
 	}
-
-	/*
-	 * Probe one of the directory entries to see if the filesystem
-	 * supports VGET for NFSv3. For NFSv4, it will return an
-	 * error later, if attributes are required.
-	 * (To be honest, most if not all NFSv4 clients will require
-	 *  attributes, but??)
-	 */
-	if ((nd->nd_flag & ND_NFSV3)) {
-		vgetret = VFS_VGET(vp->v_mount, dp->d_fileno, LK_EXCLUSIVE,
-		    &nvp);
-		if (vgetret != 0) {
-			if (vgetret == EOPNOTSUPP)
-				nd->nd_repstat = NFSERR_NOTSUPP;
-			else
-				nd->nd_repstat = NFSERR_SERVERFAULT;
-			vrele(vp);
-			if (cookies)
-				free((caddr_t)cookies, M_TEMP);
-			free((caddr_t)rbuf, M_TEMP);
-			nfsrv_postopattr(nd, getret, &at);
-			return (0);
-		}
-		if (!vgetret)
-			vput(nvp);
-		nvp = NULL;
-	}
+	NFSVOPUNLOCK(vp, 0, p);
 
 	/*
 	 * Save this position, in case there is an error before one entry
@@ -1938,9 +1901,41 @@ again:
 				if (nd->nd_flag & ND_NFSV4)
 					refp = nfsv4root_getreferral(NULL,
 					    vp, dp->d_fileno);
-				if (refp == NULL)
-					r = VFS_VGET(vp->v_mount, dp->d_fileno,
-					    LK_EXCLUSIVE, &nvp);
+				if (refp == NULL) {
+					if (usevget)
+						r = VFS_VGET(vp->v_mount,
+						    dp->d_fileno, LK_EXCLUSIVE,
+						    &nvp);
+					else
+						r = EOPNOTSUPP;
+					if (r == EOPNOTSUPP) {
+						if (usevget) {
+							usevget = 0;
+							cn.cn_nameiop = LOOKUP;
+							cn.cn_lkflags =
+							    LK_EXCLUSIVE |
+							    LK_RETRY;
+							cn.cn_cred =
+							    nd->nd_cred;
+							cn.cn_thread = p;
+						}
+						cn.cn_nameptr = dp->d_name;
+						cn.cn_namelen = nlen;
+						cn.cn_flags = ISLASTCN |
+						    NOFOLLOW | LOCKLEAF |
+						    MPSAFE;
+						if (nlen == 2 &&
+						    dp->d_name[0] == '.' &&
+						    dp->d_name[1] == '.')
+							cn.cn_flags |=
+							    ISDOTDOT;
+						if (!VOP_ISLOCKED(vp))
+							vn_lock(vp,
+							    LK_EXCLUSIVE |
+							    LK_RETRY);
+						r = VOP_LOOKUP(vp, &nvp, &cn);
+					}
+				}
 				if (!r) {
 				    if (refp == NULL &&
 					((nd->nd_flag & ND_NFSV3) ||
@@ -2019,7 +2014,10 @@ again:
 		cookiep++;
 		ncookies--;
 	}
-	vrele(vp);
+	if (!usevget && VOP_ISLOCKED(vp))
+		vput(vp);
+	else
+		vrele(vp);
 
 	/*
 	 * If dirlen > cnt, we must strip off the last entry. If that

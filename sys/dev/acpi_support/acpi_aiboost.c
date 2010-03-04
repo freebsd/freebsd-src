@@ -41,23 +41,25 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/sysctl.h>
 
-#define _COMPONENT	ACPI_OEM
+#define	_COMPONENT	ACPI_OEM
 ACPI_MODULE_NAME("AIBOOST")
 
-#define DESCSTRLEN 32
-struct acpi_aiboost_element{
+#define	DESCSTRLEN	32
+
+struct acpi_aiboost_element {
 	uint32_t id;
-	char desc[DESCSTRLEN];
+	char	desc[DESCSTRLEN];
 };
+
 ACPI_SERIAL_DECL(aiboost, "ACPI AIBOOST");
-/**/
-struct acpi_aiboost_component{
-	unsigned int num;
-	struct acpi_aiboost_element elem[1];
+
+struct acpi_aiboost_component {
+	u_int	num;
+	struct acpi_aiboost_element elem[0];
 };
 
 struct acpi_aiboost_softc {
-	int pid;
+	int	pid;
 	struct acpi_aiboost_component *temp;
 	struct acpi_aiboost_component *volt;
 	struct acpi_aiboost_component *fan;
@@ -65,7 +67,7 @@ struct acpi_aiboost_softc {
 
 static int	acpi_aiboost_probe(device_t dev);
 static int	acpi_aiboost_attach(device_t dev);
-static int 	acpi_aiboost_detach(device_t dev);
+static int	acpi_aiboost_detach(device_t dev);
 
 static device_method_t acpi_aiboost_methods[] = {
 	/* Device interface */
@@ -85,46 +87,56 @@ static driver_t	acpi_aiboost_driver = {
 static devclass_t acpi_aiboost_devclass;
 
 DRIVER_MODULE(acpi_aiboost, acpi, acpi_aiboost_driver, acpi_aiboost_devclass,
-	      0, 0);
+    0, 0);
 MODULE_DEPEND(acpi_aiboost, acpi, 1, 1, 1);
+
 static char    *abs_id[] = {"ATK0110", NULL};
 
-/*VSIF, RVLT, SVLT,  TSIF, RTMP, STMP FSIF, RFAN, SFAN */
+/* VSIF, RVLT, SVLT, TSIF, RTMP, STMP, FSIF, RFAN, SFAN */
 
-static ACPI_STATUS acpi_aiboost_getcomponent(device_t dev, char *name, struct  acpi_aiboost_component **comp)
+static ACPI_STATUS
+acpi_aiboost_getcomponent(device_t dev, char *name,
+    struct acpi_aiboost_component **comp)
 {
-	ACPI_BUFFER		buf, buf2;
-	ACPI_OBJECT            *o,*elem,*subobj;
+	ACPI_BUFFER buf, buf2;
+	ACPI_OBJECT *elem, *o, *subobj;
 	ACPI_STATUS status;
-	struct acpi_aiboost_component *c = NULL;
-
+	struct acpi_aiboost_component *c;
 	int i;
 
+	c = NULL;
 	buf.Pointer = NULL;
 	buf.Length = ACPI_ALLOCATE_BUFFER;
 	buf2.Pointer = NULL;
-
 	status = AcpiEvaluateObject(acpi_get_handle(dev), name, NULL, &buf);
-	
-	if(ACPI_FAILURE(status))
-		return status;
-	
-	o = buf.Pointer;
-	if(o->Type != ACPI_TYPE_PACKAGE)
-		goto error;
-	
-	elem = o->Package.Elements;
-	if(elem->Type != ACPI_TYPE_INTEGER)
-		goto error;
 
-	c = malloc(sizeof(struct acpi_aiboost_component)
-		   + sizeof(struct acpi_aiboost_element)
-		   * (elem->Integer.Value -1),
-		   M_DEVBUF, M_ZERO|M_WAITOK);
+	if (ACPI_FAILURE(status))
+		return (status);
+
+	o = buf.Pointer;
+	if (o->Type != ACPI_TYPE_PACKAGE) {
+		device_printf(dev, "%s is not a package\n", name);
+		goto error;
+	}
+
+	elem = o->Package.Elements;
+	if (elem->Type != ACPI_TYPE_INTEGER) {
+		device_printf(dev, "First item in %s is not a count\n", name);
+		goto error;
+	}
+
+	if (elem->Integer.Value != o->Package.Count - 1) {
+		device_printf(dev, "Device count mismatch in %s\n", name);
+		goto error;
+	}
+
+	c = malloc(sizeof(struct acpi_aiboost_component) +
+	    sizeof(struct acpi_aiboost_element) * elem->Integer.Value, M_DEVBUF,
+	    M_WAITOK | M_ZERO);
 	*comp = c;
 	c->num = elem->Integer.Value;
-	
-	for(i = 1 ; i < o->Package.Count; i++){
+
+	for (i = 1; i < o->Package.Count; i++) {
 		elem = &o->Package.Elements[i];
 		if (elem->Type == ACPI_TYPE_ANY) {
 			buf2.Pointer = NULL;
@@ -132,196 +144,195 @@ static ACPI_STATUS acpi_aiboost_getcomponent(device_t dev, char *name, struct  a
 
 			status = AcpiEvaluateObject(elem->Reference.Handle,
 			    NULL, NULL, &buf2);
-			if (ACPI_FAILURE(status)){
-				printf("FETCH OBJECT\n");
+			if (ACPI_FAILURE(status)) {
+				device_printf(dev,
+				    "Failed to fetch object for %s\n", name);
 				goto error;
 			}
 			subobj = buf2.Pointer;
 		} else if (elem->Type == ACPI_TYPE_PACKAGE)
 			subobj = elem;
 		else {
-			printf("NO PACKAGE\n");
+			device_printf(dev,
+			    "Subitem %d was not a package for %s\n", i, name);
 			goto error;
 		}
-		if(ACPI_FAILURE(acpi_PkgInt32(subobj,0, &c->elem[i -1].id))){
-			printf("ID FAILED\n");
+		status = acpi_PkgInt32(subobj, 0, &c->elem[i - 1].id);
+		if (ACPI_FAILURE(status)) {
+			device_printf(dev,
+			    "Failed to fetch ID for subobject %d in %s\n", i,
+			    name);
 			goto error;
 		}
-		status = acpi_PkgStr(subobj, 1, c->elem[i - 1].desc, 
-				     sizeof(c->elem[i - 1].desc));
-		if(ACPI_FAILURE(status)){
-			if(status == E2BIG){
+		status = acpi_PkgStr(subobj, 1, c->elem[i - 1].desc,
+		    sizeof(c->elem[i - 1].desc));
+		if (ACPI_FAILURE(status)){
+			if (status == E2BIG) {
 				c->elem[i - 1].desc[DESCSTRLEN-1] = 0;
-			}else{
-				printf("DESC FAILED %d\n", i-1);
+			} else {
+				device_printf(dev,
+		    "Failed to fetch description for subobject %d in %s\n",
+				    i, name);
 				goto error;
 			}
 		}
-		
+
 		if (buf2.Pointer) {
 			AcpiOsFree(buf2.Pointer);
 			buf2.Pointer = NULL;
 		}
 	}
 
-	if(buf.Pointer)
+	if (buf.Pointer)
 		AcpiOsFree(buf.Pointer);
 
-	return 0;
+	return (0);
 
- error:
-	printf("BAD DATA\n");
-	if(buf.Pointer)
+error:
+	if (buf.Pointer)
 		AcpiOsFree(buf.Pointer);
-	if(buf2.Pointer)
+	if (buf2.Pointer)
 		AcpiOsFree(buf2.Pointer);
-	if(c)
+	if (c)
 		free(c, M_DEVBUF);
-	return AE_BAD_DATA;
+	return (AE_BAD_DATA);
 }
 
-static int 
+static int
 acpi_aiboost_get_value(ACPI_HANDLE handle, char *path, UINT32 number)
 {
 	ACPI_OBJECT arg1, *ret;
 	ACPI_OBJECT_LIST args;
 	ACPI_BUFFER buf;
-	buf.Length = ACPI_ALLOCATE_BUFFER;
-	buf.Pointer = 0;
 	int val;
 
 	arg1.Type = ACPI_TYPE_INTEGER;
 	arg1.Integer.Value = number;
 	args.Count = 1;
 	args.Pointer = &arg1;
-
-	if(ACPI_FAILURE(AcpiEvaluateObject(handle, path, &args, &buf))){
-		return -1;
-	}
+	buf.Length = ACPI_ALLOCATE_BUFFER;
+	buf.Pointer = NULL;
+	if (ACPI_FAILURE(AcpiEvaluateObject(handle, path, &args, &buf)))
+		return (-1);
 
 	ret = buf.Pointer;
-	val = (ret->Type == ACPI_TYPE_INTEGER)? ret->Integer.Value : -1;
+	if (ret->Type == ACPI_TYPE_INTEGER)
+		val = ret->Integer.Value;
+	else
+		val = -1;
 
 	AcpiOsFree(buf.Pointer);
-	return val;
+	return (val);
 }
 
 
-static int acpi_aiboost_temp_sysctl(SYSCTL_HANDLER_ARGS)
+static int
+acpi_aiboost_temp_sysctl(SYSCTL_HANDLER_ARGS)
 {
-	device_t dev = arg1;
-	int function = oidp->oid_arg2;
-	int error = 0, val;
+	device_t dev;
+	int error, val;
+
+	dev = arg1;
 	ACPI_SERIAL_BEGIN(aiboost);
-	val = acpi_aiboost_get_value(acpi_get_handle(dev), "RTMP",function );
-	error = sysctl_handle_int(oidp, &val, 0 , req);
+	val = acpi_aiboost_get_value(acpi_get_handle(dev), "RTMP", arg2);
+	error = sysctl_handle_int(oidp, &val, 0, req);
 	ACPI_SERIAL_END(aiboost);
-	
-	return 0;
+	return (error);
 }
 
-static int acpi_aiboost_volt_sysctl(SYSCTL_HANDLER_ARGS)
+static int
+acpi_aiboost_volt_sysctl(SYSCTL_HANDLER_ARGS)
 {
-	device_t dev = arg1;
-	int function = oidp->oid_arg2;
-	int error = 0, val;
+	device_t dev;
+	int error, val;
+
+	dev = arg1;
 	ACPI_SERIAL_BEGIN(aiboost);
-	val = acpi_aiboost_get_value(acpi_get_handle(dev), "RVLT", function);
-	error = sysctl_handle_int(oidp, &val, 0 , req);
+	val = acpi_aiboost_get_value(acpi_get_handle(dev), "RVLT", arg2);
+	error = sysctl_handle_int(oidp, &val, 0, req);
 	ACPI_SERIAL_END(aiboost);
-	
-	return 0;
+	return (error);
 }
 
-static int acpi_aiboost_fan_sysctl(SYSCTL_HANDLER_ARGS)
+static int
+acpi_aiboost_fan_sysctl(SYSCTL_HANDLER_ARGS)
 {
-	device_t dev = arg1;
-	int function = oidp->oid_arg2;
-	int error = 0, val;
+	device_t dev;
+	int error, val;
+
+	dev = arg1;
 	ACPI_SERIAL_BEGIN(aiboost);
-	val = acpi_aiboost_get_value(acpi_get_handle(dev), "RFAN", function);
-	error = sysctl_handle_int(oidp, &val, 0 , req);
+	val = acpi_aiboost_get_value(acpi_get_handle(dev), "RFAN", arg2);
+	error = sysctl_handle_int(oidp, &val, 0, req);
 	ACPI_SERIAL_END(aiboost);
-	
-	return 0;
+	return (error);
 }
 
 static int
 acpi_aiboost_probe(device_t dev)
 {
-	int		ret = ENXIO;
 
-	if (ACPI_ID_PROBE(device_get_parent(dev), dev, abs_id)) {
-		device_set_desc(dev, "ASUStek AIBOOSTER");
-		ret = 0;
-	}
-	return (ret);
+	if (ACPI_ID_PROBE(device_get_parent(dev), dev, abs_id) == NULL)
+		return (ENXIO);
+
+	device_set_desc(dev, "ASUStek AIBOOSTER");
+	return (0);
 }
 
 static int
 acpi_aiboost_attach(device_t dev)
 {
 	struct acpi_aiboost_softc *sc;
-	char nambuf[]="tempXXX";
+	char nambuf[16];
 	int i;
 
 	sc = device_get_softc(dev);
-	if(ACPI_FAILURE(acpi_aiboost_getcomponent(dev, "TSIF", &sc->temp)))
+	if (ACPI_FAILURE(acpi_aiboost_getcomponent(dev, "TSIF", &sc->temp)))
 		goto error;
-	for(i= 0; i < sc->temp->num; i++){
-		sprintf(nambuf,"temp%d", i);
+	for (i = 0; i < sc->temp->num; i++) {
+		snprintf(nambuf, sizeof(nambuf), "temp%d", i);
 		SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev),
-				SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
-				OID_AUTO, nambuf,
-				CTLTYPE_INT|CTLFLAG_RD, dev, 
-				sc->temp->elem[i].id,
-				acpi_aiboost_temp_sysctl,
-				"I", sc->temp->elem[i].desc);
-	}
-	if(ACPI_FAILURE(acpi_aiboost_getcomponent(dev, "VSIF", &sc->volt)))
-		goto error;
-
-	for(i= 0; i < sc->volt->num; i++){
-		sprintf(nambuf,"volt%d", i);
-		SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev),
-				SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
-				OID_AUTO, nambuf,
-				CTLTYPE_INT|CTLFLAG_RD, dev, 
-				sc->volt->elem[i].id,
-				acpi_aiboost_volt_sysctl,
-				"I", sc->volt->elem[i].desc);
+		    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)), OID_AUTO,
+		    nambuf, CTLTYPE_INT | CTLFLAG_RD, dev, sc->temp->elem[i].id,
+		    acpi_aiboost_temp_sysctl, "I", sc->temp->elem[i].desc);
 	}
 
-	if(ACPI_FAILURE(acpi_aiboost_getcomponent(dev, "FSIF", &sc->fan)))
+	if (ACPI_FAILURE(acpi_aiboost_getcomponent(dev, "VSIF", &sc->volt)))
 		goto error;
-
-	for(i= 0; i < sc->fan->num; i++){
-		sprintf(nambuf,"fan%d", i);
+	for (i = 0; i < sc->volt->num; i++) {
+		snprintf(nambuf, sizeof(nambuf), "volt%d", i);
 		SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev),
-				SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
-				OID_AUTO, nambuf,
-				CTLTYPE_INT|CTLFLAG_RD, dev, 
-				sc->fan->elem[i].id,
-				acpi_aiboost_fan_sysctl,
-				"I", sc->fan->elem[i].desc);
+		    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)), OID_AUTO,
+		    nambuf, CTLTYPE_INT | CTLFLAG_RD, dev, sc->volt->elem[i].id,
+		    acpi_aiboost_volt_sysctl, "I", sc->volt->elem[i].desc);
 	}
 
-	
+	if (ACPI_FAILURE(acpi_aiboost_getcomponent(dev, "FSIF", &sc->fan)))
+		goto error;
+	for (i = 0; i < sc->fan->num; i++) {
+		snprintf(nambuf, sizeof(nambuf), "fan%d", i);
+		SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev),
+		    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)), OID_AUTO,
+		    nambuf, CTLTYPE_INT | CTLFLAG_RD, dev, sc->fan->elem[i].id,
+		    acpi_aiboost_fan_sysctl, "I", sc->fan->elem[i].desc);
+	}
+
 	return (0);
  error:
-	return EINVAL;
+	return (EINVAL);
 }
 
-static int 
+static int
 acpi_aiboost_detach(device_t dev)
 {
-	struct acpi_aiboost_softc *sc = device_get_softc(dev);
+	struct acpi_aiboost_softc *sc;
 
-	if(sc->temp)
+	sc = device_get_softc(dev);
+	if (sc->temp)
 		free(sc->temp, M_DEVBUF);
-	if(sc->volt)
+	if (sc->volt)
 		free(sc->volt, M_DEVBUF);
-	if(sc->fan)
+	if (sc->fan)
 		free(sc->fan, M_DEVBUF);
 	return (0);
 }

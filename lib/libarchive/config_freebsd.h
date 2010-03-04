@@ -28,6 +28,7 @@
 /* FreeBSD 5.0 and later have ACL and extattr support. */
 #if __FreeBSD__ > 4
 #define	HAVE_ACL_CREATE_ENTRY 1
+#define	HAVE_ACL_GET_LINK_NP 1
 #define	HAVE_ACL_GET_PERM_NP 1
 #define	HAVE_ACL_INIT 1
 #define	HAVE_ACL_SET_FD 1
@@ -50,6 +51,7 @@
 #define	HAVE_SHA512 1
 #endif
 
+#define	HAVE_BSDXML_H 1
 #define	HAVE_BZLIB_H 1
 #define	HAVE_CHFLAGS 1
 #define	HAVE_CHOWN 1
@@ -60,6 +62,7 @@
 #define	HAVE_DECL_STRERROR_R 1
 #define	HAVE_DECL_UINT32_MAX 1
 #define	HAVE_DECL_UINT64_MAX 1
+#define	HAVE_DIRENT_H 1
 #define	HAVE_EFTYPE 1
 #define	HAVE_EILSEQ 1
 #define	HAVE_ERRNO_H 1
@@ -81,12 +84,13 @@
 #define	HAVE_LCHMOD 1
 #define	HAVE_LCHOWN 1
 #define	HAVE_LIMITS_H 1
+#define	HAVE_LINK 1
+#define	HAVE_LSTAT 1
 #define	HAVE_LUTIMES 1
 #define	HAVE_MALLOC 1
 #define	HAVE_MD5 1
 #define	HAVE_MD5_H 1
 #define	HAVE_MEMMOVE 1
-#define	HAVE_MEMSET 1
 #define	HAVE_MKDIR 1
 #define	HAVE_MKFIFO 1
 #define	HAVE_MKNOD 1
@@ -95,7 +99,6 @@
 #define	HAVE_POLL_H 1
 #define	HAVE_PWD_H 1
 #define	HAVE_READLINK 1
-#define	HAVE_RIPEMD_H
 #define	HAVE_RMD160 1
 #define	HAVE_SELECT 1
 #define	HAVE_SETENV 1
@@ -118,6 +121,8 @@
 #define	HAVE_STRUCT_STAT_ST_BIRTHTIMESPEC_TV_NSEC 1
 #define	HAVE_STRUCT_STAT_ST_FLAGS 1
 #define	HAVE_STRUCT_STAT_ST_MTIMESPEC_TV_NSEC 1
+#define	HAVE_SYMLINK 1
+#define	HAVE_SYS_CDEFS_H 1
 #define	HAVE_SYS_IOCTL_H 1
 #define	HAVE_SYS_SELECT_H 1
 #define	HAVE_SYS_STAT_H 1
@@ -140,7 +145,6 @@
 #define	HAVE_WMEMCMP 1
 #define	HAVE_WMEMCPY 1
 #define	HAVE_ZLIB_H 1
-#define	STDC_HEADERS 1
 #define	TIME_WITH_SYS_TIME 1
 
 /* FreeBSD 4 and earlier lack intmax_t/uintmax_t */

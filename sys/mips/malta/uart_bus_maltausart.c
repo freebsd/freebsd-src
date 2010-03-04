@@ -28,10 +28,6 @@
  * code written by Olivier Houchard.
  */
 
-/*
- * XXXMIPS: This file is hacked from arm/... . XXXMIPS here means this file is
- * experimental and was written for MIPS32 port.
- */
 #include "opt_uart.h"
 
 #include <sys/cdefs.h>
@@ -53,9 +49,6 @@ __FBSDID("$FreeBSD$");
 #include <dev/uart/uart_bus.h>
 #include <dev/uart/uart_cpu.h>
 
-/*
- * XXXMIPS:
- */
 #include <mips/malta/maltareg.h>
 
 #include "uart_if.h"
@@ -88,9 +81,9 @@ uart_malta_probe(device_t dev)
 	sc->sc_sysdev = SLIST_FIRST(&uart_sysdevs);
 	sc->sc_class = &uart_ns8250_class;
 	bcopy(&sc->sc_sysdev->bas, &sc->sc_bas, sizeof(sc->sc_bas));
-	sc->sc_sysdev->bas.bst = 0;
+	sc->sc_sysdev->bas.bst = mips_bus_space_generic;
 	sc->sc_sysdev->bas.bsh = MIPS_PHYS_TO_KSEG1(MALTA_UART0ADR);
-	sc->sc_bas.bst = 0;
+	sc->sc_bas.bst = mips_bus_space_generic;
 	sc->sc_bas.bsh = MIPS_PHYS_TO_KSEG1(MALTA_UART0ADR);
 	return(uart_bus_probe(dev, 0, 0, 0, 0));
 }

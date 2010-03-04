@@ -279,7 +279,7 @@ static struct {
 	{ &proc_filtops },			/* EVFILT_PROC */
 	{ &sig_filtops },			/* EVFILT_SIGNAL */
 	{ &timer_filtops },			/* EVFILT_TIMER */
-	{ &file_filtops },			/* EVFILT_NETDEV */
+	{ &null_filtops },			/* former EVFILT_NETDEV */
 	{ &fs_filtops },			/* EVFILT_FS */
 	{ &null_filtops },			/* EVFILT_LIO */
 	{ &user_filtops },			/* EVFILT_USER */
@@ -349,8 +349,10 @@ filt_procattach(struct knote *kn)
 
 	if (p == NULL)
 		return (ESRCH);
-	if ((error = p_cansee(curthread, p)))
+	if ((error = p_cansee(curthread, p))) {
+		PROC_UNLOCK(p);
 		return (error);
+	}
 
 	kn->kn_ptr.p_proc = p;
 	kn->kn_flags |= EV_CLEAR;		/* automatically set */
@@ -867,6 +869,7 @@ kqueue_add_filteropts(int filt, struct filterops *filtops)
 {
 	int error;
 
+	error = 0;
 	if (filt > 0 || filt + EVFILT_SYSCOUNT < 0) {
 		printf(
 "trying to add a filterop that is out of range: %d is beyond %d\n",
@@ -883,7 +886,7 @@ kqueue_add_filteropts(int filt, struct filterops *filtops)
 	}
 	mtx_unlock(&filterops_lock);
 
-	return (0);
+	return (error);
 }
 
 int
@@ -1025,13 +1028,13 @@ findkn:
 
 	/* knote is in the process of changing, wait for it to stablize. */
 	if (kn != NULL && (kn->kn_status & KN_INFLUX) == KN_INFLUX) {
+		KQ_GLOBAL_UNLOCK(&kq_global, haskqglobal);
+		kq->kq_state |= KQ_FLUXWAIT;
+		msleep(kq, &kq->kq_lock, PSOCK | PDROP, "kqflxwt", 0);
 		if (fp != NULL) {
 			fdrop(fp, td);
 			fp = NULL;
 		}
-		KQ_GLOBAL_UNLOCK(&kq_global, haskqglobal);
-		kq->kq_state |= KQ_FLUXWAIT;
-		msleep(kq, &kq->kq_lock, PSOCK | PDROP, "kqflxwt", 0);
 		goto findkn;
 	}
 
@@ -1229,7 +1232,7 @@ kqueue_expand(struct kqueue *kq, struct filterops *fops, uintptr_t ident,
 			size = kq->kq_knlistsize;
 			while (size <= fd)
 				size += KQEXTENT;
-			list = malloc(size * sizeof list, M_KQUEUE, mflag);
+			list = malloc(size * sizeof(*list), M_KQUEUE, mflag);
 			if (list == NULL)
 				return ENOMEM;
 			KQ_LOCK(kq);
@@ -1239,13 +1242,13 @@ kqueue_expand(struct kqueue *kq, struct filterops *fops, uintptr_t ident,
 			} else {
 				if (kq->kq_knlist != NULL) {
 					bcopy(kq->kq_knlist, list,
-					    kq->kq_knlistsize * sizeof list);
+					    kq->kq_knlistsize * sizeof(*list));
 					free(kq->kq_knlist, M_KQUEUE);
 					kq->kq_knlist = NULL;
 				}
 				bzero((caddr_t)list +
-				    kq->kq_knlistsize * sizeof list,
-				    (size - kq->kq_knlistsize) * sizeof list);
+				    kq->kq_knlistsize * sizeof(*list),
+				    (size - kq->kq_knlistsize) * sizeof(*list));
 				kq->kq_knlistsize = size;
 				kq->kq_knlist = list;
 			}

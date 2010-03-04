@@ -947,7 +947,7 @@
 /* #undef HAVE_UTMPX_H */
 
 /* Define to 1 if you have the <utmp.h> header file. */
-#define HAVE_UTMP_H 1
+/* #undef HAVE_UTMP_H */
 
 /* Define to 1 if you have the <values.h> header file. */
 /* #undef HAVE_VALUES_H */

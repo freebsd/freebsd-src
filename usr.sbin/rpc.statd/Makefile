@@ -5,7 +5,7 @@ MAN=	rpc.statd.8
 SRCS=	file.c sm_inter_svc.c sm_inter.h statd.c procs.c
 
 CFLAGS+= -I.
-#WARNS?= 2
+WARNS?= 2
 
 DPADD=	${LIBRPCSVC}
 LDADD=	-lrpcsvc

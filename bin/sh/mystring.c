@@ -108,7 +108,7 @@ int
 number(const char *s)
 {
 	if (! is_number(s))
-		error("Illegal number: %s", (char *)s);
+		error("Illegal number: %s", s);
 	return atoi(s);
 }
 

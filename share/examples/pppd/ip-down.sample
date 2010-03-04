@@ -1,7 +1,0 @@
-#!/bin/sh
-#
-# $FreeBSD$
-#
-# Example for /etc/ppp/ip-down file.
-
-/usr/bin/logger -p daemon.notice -t pppd "$1 is down"

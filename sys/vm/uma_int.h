@@ -144,10 +144,10 @@
 
 #define UMA_HASH_INSERT(h, s, mem)					\
 		SLIST_INSERT_HEAD(&(h)->uh_slab_hash[UMA_HASH((h),	\
-		    (mem))], (s), us_hlink);
+		    (mem))], (s), us_hlink)
 #define UMA_HASH_REMOVE(h, s, mem)					\
 		SLIST_REMOVE(&(h)->uh_slab_hash[UMA_HASH((h),		\
-		    (mem))], (s), uma_slab, us_hlink);
+		    (mem))], (s), uma_slab, us_hlink)
 
 /* Hash table for freed address -> slab translation */
 

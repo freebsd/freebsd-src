@@ -167,3 +167,10 @@ The
 .Nm
 command and this manual page were written by
 .An Dag-Erling Sm\(/orgrav Aq des@FreeBSD.org .
+.Sh BUGS
+Unlike
+.Xr netstat 1 ,
+.Nm
+lists sockets by walking file descriptor tables and will not output
+the ones owned by the kernel, e.g. NLM sockets created by
+.Xr rpc.lockd 8 .

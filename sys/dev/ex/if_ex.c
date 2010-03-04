@@ -677,7 +677,7 @@ ex_tx_intr(struct ex_softc *sc)
 	while (sc->tx_head != sc->tx_tail) {
 		CSR_WRITE_2(sc, HOST_ADDR_REG, sc->tx_head);
 
-		if (! CSR_READ_2(sc, IO_PORT_REG) & Done_bit)
+		if (!(CSR_READ_2(sc, IO_PORT_REG) & Done_bit))
 			break;
 
 		tx_status = CSR_READ_2(sc, IO_PORT_REG);

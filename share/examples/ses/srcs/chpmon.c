@@ -47,9 +47,7 @@
 #define	BADSTAT	\
 	(SES_ENCSTAT_UNRECOV|SES_ENCSTAT_CRITICAL|SES_ENCSTAT_NONCRITICAL)
 int
-main(a, v)
-	int a;
-	char **v;
+main(int a, char **v)
 {
 	int fd, delay, dev;
 	ses_encstat stat, *carray;

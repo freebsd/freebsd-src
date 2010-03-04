@@ -9,6 +9,8 @@ CFLAGS+=	-DGTAGS
 #if using ncurses:
 CFLAGS+=	-DSYSV_CURSES
 
+WARNS?=	0
+
 VI=	nvi
 EX=	nex
 VIEW=	nview

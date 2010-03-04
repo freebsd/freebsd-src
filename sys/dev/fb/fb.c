@@ -511,10 +511,10 @@ int genfbioctl(genfb_softc_t *sc, video_adapter_t *adp, u_long cmd,
 	return error;
 }
 
-int genfbmmap(genfb_softc_t *sc, video_adapter_t *adp, vm_offset_t offset,
-	      vm_offset_t *paddr, int prot)
+int genfbmmap(genfb_softc_t *sc, video_adapter_t *adp, vm_ooffset_t offset,
+	      vm_offset_t *paddr, int prot, vm_memattr_t *memattr)
 {
-	return vidd_mmap(adp, offset, paddr, prot);
+	return vidd_mmap(adp, offset, paddr, prot, memattr);
 }
 
 #endif /* FB_INSTALL_CDEV */
@@ -653,7 +653,7 @@ fb_commonioctl(video_adapter_t *adp, u_long cmd, caddr_t arg)
 		((video_adapter_info_t *)arg)->va_mem_base = adp->va_mem_base;
 		((video_adapter_info_t *)arg)->va_mem_size = adp->va_mem_size;
 		((video_adapter_info_t *)arg)->va_window
-#ifdef __i386__
+#if defined(__amd64__) || defined(__i386__)
 			= vtophys(adp->va_window);
 #else
 			= adp->va_window;
@@ -665,8 +665,8 @@ fb_commonioctl(video_adapter_t *adp, u_long cmd, caddr_t arg)
 		((video_adapter_info_t *)arg)->va_window_orig
 			= adp->va_window_orig;
 		((video_adapter_info_t *)arg)->va_unused0
-#ifdef __i386__
-			= (adp->va_buffer) ? vtophys(adp->va_buffer) : 0;
+#if defined(__amd64__) || defined(__i386__)
+			= adp->va_buffer != 0 ? vtophys(adp->va_buffer) : 0;
 #else
 			= adp->va_buffer;
 #endif

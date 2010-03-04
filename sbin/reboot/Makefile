@@ -2,9 +2,6 @@
 # $FreeBSD$
 
 PROG=	reboot
-WARNS?=	6
-DPADD=	${LIBUTIL}
-LDADD=	-lutil
 MAN=	reboot.8 nextboot.8
 MLINKS=	reboot.8 halt.8 reboot.8 fastboot.8 reboot.8 fasthalt.8
 

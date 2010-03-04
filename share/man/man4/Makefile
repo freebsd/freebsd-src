@@ -15,6 +15,7 @@ MAN=	aac.4 \
 	${_acpi_toshiba.4} \
 	acpi_video.4 \
 	${_acpi_wmi.4} \
+	ada.4 \
 	adv.4 \
 	adw.4 \
 	ae.4 \
@@ -28,10 +29,13 @@ MAN=	aac.4 \
 	aio.4 \
 	alc.4 \
 	ale.4 \
+	alpm.4 \
 	altq.4 \
 	amd.4 \
-	${_amdtemp.4} \
+	amdpm.4 \
+	${_amdsbwd.4} \
 	${_amdsmb.4} \
+	${_amdtemp.4} \
 	amr.4 \
 	an.4 \
 	arcmsr.4 \
@@ -44,6 +48,7 @@ MAN=	aac.4 \
 	ath_hal.4 \
 	atkbd.4 \
 	atkbdc.4 \
+	${_atp.4} \
 	audit.4 \
 	auditpipe.4 \
 	aue.4 \
@@ -57,6 +62,7 @@ MAN=	aac.4 \
 	bridge.4 \
 	bt.4 \
 	bwi.4 \
+	bwn.4 \
 	cardbus.4 \
 	carp.4 \
 	cas.4 \
@@ -117,6 +123,7 @@ MAN=	aac.4 \
 	geom_linux_lvm.4 \
 	geom_uzip.4 \
 	gif.4 \
+	gpib.4 \
 	gre.4 \
 	harp.4 \
 	hatm.4 \
@@ -153,10 +160,12 @@ MAN=	aac.4 \
 	ips.4 \
 	ipsec.4 \
 	ipw.4 \
+	ipwfw.4 \
 	iscsi_initiator.4 \
 	isp.4 \
 	ispfw.4 \
 	iwi.4 \
+	iwifw.4 \
 	iwn.4 \
 	iwnfw.4 \
 	ixgb.4 \
@@ -193,11 +202,13 @@ MAN=	aac.4 \
 	mac_stub.4 \
 	mac_test.4 \
 	malo.4 \
+	mcd.4 \
 	md.4 \
 	mem.4 \
 	meteor.4 \
 	mfi.4 \
 	miibus.4 \
+	mk48txx.4 \
 	mld.4 \
 	mlx.4 \
 	mly.4 \
@@ -286,16 +297,20 @@ MAN=	aac.4 \
 	nsp.4 \
 	null.4 \
 	${_nve.4} \
+	${_nvram.4} \
 	${_nxge.4} \
 	ohci.4 \
 	orm.4 \
+	${_padlock.4} \
 	pass.4 \
 	patm.4 \
 	pccard.4 \
 	pccbb.4 \
+	pcf.4 \
 	pci.4 \
 	pcib.4 \
 	pcic.4 \
+	pcii.4 \
 	pcm.4 \
 	pcn.4 \
 	pim.4 \
@@ -319,11 +334,13 @@ MAN=	aac.4 \
 	rp.4 \
 	rue.4 \
 	rum.4 \
+	run.4 \
 	sa.4 \
 	safe.4 \
 	sbp.4 \
 	sbp_targ.4 \
 	scc.4 \
+	scd.4 \
 	sched_4bsd.4 \
 	sched_ule.4 \
 	screen.4 \
@@ -334,6 +351,7 @@ MAN=	aac.4 \
 	ses.4 \
 	sf.4 \
 	si.4 \
+	siba.4 \
 	sio.4 \
 	siis.4 \
 	sis.4 \
@@ -393,6 +411,7 @@ MAN=	aac.4 \
 	textdump.4 \
 	ti.4 \
 	tl.4 \
+	tnt4882.4 \
 	trm.4 \
 	tty.4 \
 	tun.4 \
@@ -420,6 +439,7 @@ MAN=	aac.4 \
 	ugen.4 \
 	uhci.4 \
 	uhid.4 \
+	uhso.4 \
 	uipaq.4 \
 	ukbd.4 \
 	ulpt.4 \
@@ -440,6 +460,7 @@ MAN=	aac.4 \
 	uvscom.4 \
 	vga.4 \
 	vge.4 \
+	viapm.4 \
 	vinum.4 \
 	vkbd.4 \
 	vlan.4 \
@@ -608,9 +629,11 @@ _acpi_panasonic.4=acpi_panasonic.4
 _acpi_sony.4=	acpi_sony.4
 _acpi_toshiba.4=acpi_toshiba.4
 _acpi_wmi.4=	acpi_wmi.4
+_amdsbwd.4=	amdsbwd.4
 _amdsmb.4=	amdsmb.4
 _amdtemp.4=	amdtemp.4
 _asmc.4=	asmc.4
+_atp.4=		atp.4
 _coretemp.4=	coretemp.4
 _cpuctl.4=	cpuctl.4
 _dpms.4=	dpms.4
@@ -632,7 +655,9 @@ _ndis.4=	ndis.4
 _nfe.4=		nfe.4
 _nfsmb.4=	nfsmb.4
 _nve.4=		nve.4
+_nvram.4=	nvram.4
 _nxge.4=	nxge.4
+_padlock.4=	padlock.4
 _rr232x.4=	rr232x.4
 _speaker.4=	speaker.4
 _spkr.4=	spkr.4
@@ -640,6 +665,10 @@ _urtw.4=	urtw.4
 _wpi.4=		wpi.4
 
 MLINKS+=lindev.4 full.4
+.endif
+
+.if ${MACHINE_ARCH} == "powerpc"
+_atp.4=		atp.4
 .endif
 
 .if exists(${.CURDIR}/man4.${MACHINE_ARCH})

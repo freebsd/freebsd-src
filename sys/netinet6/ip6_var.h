@@ -358,7 +358,8 @@ VNET_DECLARE(int, ip6_use_defzone);	/* Whether to use the default scope
 #endif
 #define	V_ip6_use_defzone		VNET(ip6_use_defzone)
 
-extern	struct pfil_head inet6_pfil_hook;	/* packet filter hooks */
+VNET_DECLARE (struct pfil_head, inet6_pfil_hook);	/* packet filter hooks */
+#define	V_inet6_pfil_hook	VNET(inet6_pfil_hook)
 
 extern struct	pr_usrreqs rip6_usrreqs;
 struct sockopt;

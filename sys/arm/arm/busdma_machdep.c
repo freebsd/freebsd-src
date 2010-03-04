@@ -555,12 +555,12 @@ int
 bus_dmamap_destroy(bus_dma_tag_t dmat, bus_dmamap_t map)
 {
 
-	_busdma_free_dmamap(map);
 	if (STAILQ_FIRST(&map->bpages) != NULL) {
 		CTR3(KTR_BUSDMA, "%s: tag %p error %d",
 		    __func__, dmat, EBUSY);
 		return (EBUSY);
 	}
+	_busdma_free_dmamap(map);
 	if (dmat->bounce_zone)
 		dmat->bounce_zone->map_count--;
         dmat->map_count--;

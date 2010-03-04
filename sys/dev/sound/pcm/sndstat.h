@@ -37,9 +37,6 @@
 	struct pcm_channel *c;						\
 	struct pcm_feeder *f;						\
 									\
-	if (verbose < 1)						\
-		return (0);						\
-									\
 	d = device_get_softc(dev);					\
 	PCM_BUSYASSERT(d);						\
 									\
@@ -48,9 +45,19 @@
 		return (0);						\
 	}								\
 									\
-	sbuf_printf(s, " (%dp:%dv/%dr:%dv channels %splex%s)",		\
-	    d->playcount, d->pvchancount, d->reccount, d->rvchancount,	\
-	    (d->flags & SD_F_SIMPLEX) ? "sim" : "du",			\
+	if (verbose < 1) {						\
+		sbuf_printf(s, " (%s%s%s",				\
+		    d->playcount ? "play" : "",				\
+		    (d->playcount && d->reccount) ? "/" : "",		\
+		    d->reccount ? "rec" : "");				\
+	} else {							\
+		sbuf_printf(s, " (%dp:%dv/%dr:%dv",			\
+		    d->playcount, d->pvchancount,			\
+		    d->reccount, d->rvchancount);			\
+	}								\
+	sbuf_printf(s, "%s)%s",						\
+	    ((d->playcount != 0 && d->reccount != 0) &&			\
+	    (d->flags & SD_F_SIMPLEX)) ? " simplex" : "",		\
 	    (device_get_unit(dev) == snd_unit) ? " default" : "")
 
 

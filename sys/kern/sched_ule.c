@@ -103,6 +103,7 @@ struct td_sched {
 	u_int		ts_slptime;	/* Number of ticks we vol. slept */
 	u_int		ts_runtime;	/* Number of ticks we were running */
 	int		ts_ltick;	/* Last tick that we were running on */
+	int		ts_incrtick;	/* Last tick that we incremented on */
 	int		ts_ftick;	/* First tick that we were running on */
 	int		ts_ticks;	/* Tick count */
 #ifdef KTR
@@ -300,7 +301,6 @@ static int sched_pickcpu(struct thread *, int);
 static void sched_balance(void);
 static int sched_balance_pair(struct tdq *, struct tdq *);
 static inline struct tdq *sched_setcpu(struct thread *, int, int);
-static inline struct mtx *thread_block_switch(struct thread *);
 static inline void thread_unblock_switch(struct thread *, struct mtx *);
 static struct mtx *sched_switch_migrate(struct tdq *, struct thread *, int);
 static int sysctl_kern_sched_topology_spec(SYSCTL_HANDLER_ARGS);
@@ -495,7 +495,7 @@ tdq_load_add(struct tdq *tdq, struct thread *td)
 	THREAD_LOCK_ASSERT(td, MA_OWNED);
 
 	tdq->tdq_load++;
-	if ((td->td_proc->p_flag & P_NOLOAD) == 0)
+	if ((td->td_flags & TDF_NOLOAD) == 0)
 		tdq->tdq_sysload++;
 	KTR_COUNTER0(KTR_SCHED, "load", tdq->tdq_loadname, tdq->tdq_load);
 }
@@ -514,7 +514,7 @@ tdq_load_rem(struct tdq *tdq, struct thread *td)
 	    ("tdq_load_rem: Removing with 0 load on queue %d", TDQ_ID(tdq)));
 
 	tdq->tdq_load--;
-	if ((td->td_proc->p_flag & P_NOLOAD) == 0)
+	if ((td->td_flags & TDF_NOLOAD) == 0)
 		tdq->tdq_sysload--;
 	KTR_COUNTER0(KTR_SCHED, "load", tdq->tdq_loadname, tdq->tdq_load);
 }
@@ -773,7 +773,7 @@ sched_balance_group(struct cpu_group *cg)
 }
 
 static void
-sched_balance()
+sched_balance(void)
 {
 	struct tdq *tdq;
 
@@ -1105,9 +1105,11 @@ sched_setcpu(struct thread *td, int cpu, int flags)
 	 * The hard case, migration, we need to block the thread first to
 	 * prevent order reversals with other cpus locks.
 	 */
+	spinlock_enter();
 	thread_lock_block(td);
 	TDQ_LOCK(tdq);
 	thread_lock_unblock(td, TDQ_LOCKPTR(tdq));
+	spinlock_exit();
 	return (tdq);
 }
 
@@ -1406,7 +1408,7 @@ sched_priority(struct thread *td)
 	 * score.  Negative nice values make it easier for a thread to be
 	 * considered interactive.
 	 */
-	score = imax(0, sched_interact_score(td) - td->td_proc->p_nice);
+	score = imax(0, sched_interact_score(td) + td->td_proc->p_nice);
 	if (score < sched_interact) {
 		pri = PRI_MIN_REALTIME;
 		pri += ((PRI_MAX_REALTIME - PRI_MIN_REALTIME) / sched_interact)
@@ -1714,23 +1716,6 @@ sched_unlend_user_prio(struct thread *td, u_char prio)
 }
 
 /*
- * Block a thread for switching.  Similar to thread_block() but does not
- * bump the spin count.
- */
-static inline struct mtx *
-thread_block_switch(struct thread *td)
-{
-	struct mtx *lock;
-
-	THREAD_LOCK_ASSERT(td, MA_OWNED);
-	lock = td->td_lock;
-	td->td_lock = &blocked_lock;
-	mtx_unlock_spin(lock);
-
-	return (lock);
-}
-
-/*
  * Handle migration from sched_switch().  This happens only for
  * cpu binding.
  */
@@ -1748,7 +1733,7 @@ sched_switch_migrate(struct tdq *tdq, struct thread *td, int flags)
 	 * not holding either run-queue lock.
 	 */
 	spinlock_enter();
-	thread_block_switch(td);	/* This releases the lock on tdq. */
+	thread_lock_block(td);	/* This releases the lock on tdq. */
 
 	/*
 	 * Acquire both run-queue locks before placing the thread on the new
@@ -1768,7 +1753,8 @@ sched_switch_migrate(struct tdq *tdq, struct thread *td, int flags)
 }
 
 /*
- * Release a thread that was blocked with thread_block_switch().
+ * Variadic version of thread_lock_unblock() that does not assume td_lock
+ * is blocked.
  */
 static inline void
 thread_unblock_switch(struct thread *td, struct mtx *mtx)
@@ -1824,7 +1810,7 @@ sched_switch(struct thread *td, struct thread *newtd, int flags)
 	} else {
 		/* This thread must be going to sleep. */
 		TDQ_LOCK(tdq);
-		mtx = thread_block_switch(td);
+		mtx = thread_lock_block(td);
 		tdq_load_rem(tdq, td);
 	}
 	/*
@@ -1908,7 +1894,7 @@ sched_sleep(struct thread *td, int prio)
 	THREAD_LOCK_ASSERT(td, MA_OWNED);
 
 	td->td_slptick = ticks;
-	if (TD_IS_SUSPENDED(td) || prio <= PSOCK)
+	if (TD_IS_SUSPENDED(td) || prio >= PSOCK)
 		td->td_flags |= TDF_CANSWAP;
 	if (static_boost == 1 && prio)
 		sched_prio(td, prio);
@@ -1991,6 +1977,7 @@ sched_fork_thread(struct thread *td, struct thread *child)
 	 */
 	ts2->ts_ticks = ts->ts_ticks;
 	ts2->ts_ltick = ts->ts_ltick;
+	ts2->ts_incrtick = ts->ts_incrtick;
 	ts2->ts_ftick = ts->ts_ftick;
 	child->td_user_pri = td->td_user_pri;
 	child->td_base_user_pri = td->td_base_user_pri;
@@ -2182,11 +2169,12 @@ sched_tick(void)
 	 * Ticks is updated asynchronously on a single cpu.  Check here to
 	 * avoid incrementing ts_ticks multiple times in a single tick.
 	 */
-	if (ts->ts_ltick == ticks)
+	if (ts->ts_incrtick == ticks)
 		return;
 	/* Adjust ticks for pctcpu */
 	ts->ts_ticks += 1 << SCHED_TICK_SHIFT;
 	ts->ts_ltick = ticks;
+	ts->ts_incrtick = ticks;
 	/*
 	 * Update if we've exceeded our desired tick threshhold by over one
 	 * second.

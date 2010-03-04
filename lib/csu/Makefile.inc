@@ -1,3 +1,5 @@
 # $FreeBSD$
 
 SSP_CFLAGS=
+
+WARNS?=	6

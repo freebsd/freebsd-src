@@ -218,6 +218,7 @@ typedef struct Struct_Obj_Entry {
     bool phdr_alloc : 1;	/* Phdr is allocated and needs to be freed. */
     bool z_origin : 1;		/* Process rpath and soname tokens */
     bool z_nodelete : 1;	/* Do not unload the object and dependencies */
+    bool z_noopen : 1;		/* Do not load on dlopen */
     bool ref_nodel : 1;		/* Refcount increased to prevent dlclose */
     bool init_scanned: 1;	/* Object is already on init list. */
     bool on_fini_list: 1;	/* Object is already on fini list. */
@@ -239,6 +240,11 @@ typedef struct Struct_Obj_Entry {
 #define SYMLOOK_IN_PLT	0x01	/* Lookup for PLT symbol */
 #define SYMLOOK_DLSYM	0x02	/* Return newes versioned symbol. Used by
 				   dlsym. */
+
+/* Flags for load_object(). */
+#define	RTLD_LO_NOLOAD	0x01	/* dlopen() specified RTLD_NOLOAD. */
+#define	RTLD_LO_DLOPEN	0x02	/* Load_object() called from dlopen(). */
+#define	RTLD_LO_TRACE	0x04	/* Only tracing. */
 
 /*
  * Symbol cache entry used during relocation to avoid multiple lookups

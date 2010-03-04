@@ -70,17 +70,15 @@ FILE	*msg;
 
 void	*getspace(int);
 void	 intr(int);
-static void	 usage(void);
+static void	 usage(void) __dead2;
 void	 verify(int, int, char *);
 void	 writeop(int, int);
 void	rewind_tape(int);
 
 int
-main(argc, argv)
-	int argc;
-	char *argv[];
+main(int argc, char *argv[])
 {
-	register int lastnread, nread, nw, inp, outp;
+	int lastnread, nread, nw, inp, outp;
 	enum {READ, VERIFY, COPY, COPYVERIFY} op = READ;
 	sig_t oldsig;
 	int ch, needeof;
@@ -227,12 +225,10 @@ r1:		guesslen = 0;
 }
 
 void
-verify(inp, outp, outb)
-	register int inp, outp;
-	register char *outb;
+verify(int inp, int outp, char *outb)
 {
-	register int eot, inmaxblk, inn, outmaxblk, outn;
-	register char *inb;
+	int eot, inmaxblk, inn, outmaxblk, outn;
+	char *inb;
 
 	inb = getspace(maxblk);
 	inmaxblk = outmaxblk = maxblk;
@@ -281,8 +277,7 @@ r2:		if (inn != outn) {
 }
 
 void
-intr(signo)
-	int signo __unused;
+intr(int signo __unused)
 {
 	if (record) {
 		if (record - lastrec > 1)
@@ -296,8 +291,7 @@ intr(signo)
 }
 
 void *
-getspace(blk)
-	int blk;
+getspace(int blk)
 {
 	void *bp;
 
@@ -307,8 +301,7 @@ getspace(blk)
 }
 
 void
-writeop(fd, type)
-	int fd, type;
+writeop(int fd, int type)
 {
 	struct mtop op;
 
@@ -319,7 +312,7 @@ writeop(fd, type)
 }
 
 static void
-usage()
+usage(void)
 {
 	fprintf(stderr, "usage: tcopy [-cvx] [-s maxblk] [src [dest]]\n");
 	exit(1);

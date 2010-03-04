@@ -41,6 +41,7 @@ static const char rcsid[] =
 
 #include "globals.h"
 #include <setjmp.h>
+#include <utmpx.h>
 #include "pathnames.h"
 
 extern jmp_buf jmpenv;
@@ -56,8 +57,6 @@ static int old_status;
 static void schgdate(struct tsp *, char *);
 static void setmaster(struct tsp *);
 static void answerdelay(void);
-
-extern void logwtmp(char *, char *, char *);
 
 int
 slave()
@@ -80,6 +79,7 @@ slave()
 	char newdate[32];
 	struct netinfo *ntp;
 	struct hosttbl *htp;
+	struct utmpx utx;
 
 
 	old_slavenet = 0;
@@ -280,9 +280,13 @@ loop:
 				 */
 				synch(tvtomsround(ntime));
 			} else {
-				logwtmp("|", "date", "");
- 				(void)settimeofday(&tmptv, 0);
-				logwtmp("{", "date", "");
+				utx.ut_type = OLD_TIME;
+				gettimeofday(&utx.ut_tv, NULL);
+				pututxline(&utx);
+				(void)settimeofday(&tmptv, 0);
+				utx.ut_type = NEW_TIME;
+				gettimeofday(&utx.ut_tv, NULL);
+				pututxline(&utx);
 				syslog(LOG_NOTICE,
 				       "date changed by %s from %s",
 					msg->tsp_name, olddate);

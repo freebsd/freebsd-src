@@ -4,7 +4,6 @@
 
 PROG=	umount
 SRCS=	umount.c vfslist.c mounttab.c
-WARNS?=	0
 MAN=	umount.8
 
 MOUNT=	${.CURDIR}/../mount

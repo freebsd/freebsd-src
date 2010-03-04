@@ -152,6 +152,10 @@ SYSCTL_LONG(_vfs, OID_AUTO, wantfreevnodes, CTLFLAG_RW, &wantfreevnodes, 0, "");
 static u_long freevnodes;
 SYSCTL_LONG(_vfs, OID_AUTO, freevnodes, CTLFLAG_RD, &freevnodes, 0, "");
 
+static int vlru_allow_cache_src;
+SYSCTL_INT(_vfs, OID_AUTO, vlru_allow_cache_src, CTLFLAG_RW,
+    &vlru_allow_cache_src, 0, "Allow vlru to reclaim source vnode");
+
 /*
  * Various variables used for debugging the new implementation of
  * reassignbuf().
@@ -643,7 +647,9 @@ vlrureclaim(struct mount *mp)
 		 * If it's been deconstructed already, it's still
 		 * referenced, or it exceeds the trigger, skip it.
 		 */
-		if (vp->v_usecount || !LIST_EMPTY(&(vp)->v_cache_src) ||
+		if (vp->v_usecount ||
+		    (!vlru_allow_cache_src &&
+			!LIST_EMPTY(&(vp)->v_cache_src)) ||
 		    (vp->v_iflag & VI_DOOMED) != 0 || (vp->v_object != NULL &&
 		    vp->v_object->resident_page_count > trigger)) {
 			VI_UNLOCK(vp);
@@ -668,7 +674,9 @@ vlrureclaim(struct mount *mp)
 		 * interlock, the other thread will be unable to drop the
 		 * vnode lock before our VOP_LOCK() call fails.
 		 */
-		if (vp->v_usecount || !LIST_EMPTY(&(vp)->v_cache_src) ||
+		if (vp->v_usecount ||
+		    (!vlru_allow_cache_src &&
+			!LIST_EMPTY(&(vp)->v_cache_src)) ||
 		    (vp->v_object != NULL &&
 		    vp->v_object->resident_page_count > trigger)) {
 			VOP_UNLOCK(vp, LK_INTERLOCK);
@@ -2141,37 +2149,44 @@ vrefcnt(struct vnode *vp)
 	return (usecnt);
 }
 
+#define	VPUTX_VRELE	1
+#define	VPUTX_VPUT	2
+#define	VPUTX_VUNREF	3
 
-/*
- * Vnode put/release.
- * If count drops to zero, call inactive routine and return to freelist.
- */
-void
-vrele(struct vnode *vp)
+static void
+vputx(struct vnode *vp, int func)
 {
-	struct thread *td = curthread;	/* XXX */
+	int error;
 
-	KASSERT(vp != NULL, ("vrele: null vp"));
+	KASSERT(vp != NULL, ("vputx: null vp"));
+	if (func == VPUTX_VUNREF)
+		ASSERT_VOP_ELOCKED(vp, "vunref");
+	else if (func == VPUTX_VPUT)
+		ASSERT_VOP_LOCKED(vp, "vput");
+	else
+		KASSERT(func == VPUTX_VRELE, ("vputx: wrong func"));
 	VFS_ASSERT_GIANT(vp->v_mount);
-
+	CTR2(KTR_VFS, "%s: vp %p", __func__, vp);
 	VI_LOCK(vp);
 
 	/* Skip this v_writecount check if we're going to panic below. */
 	VNASSERT(vp->v_writecount < vp->v_usecount || vp->v_usecount < 1, vp,
-	    ("vrele: missed vn_close"));
-	CTR2(KTR_VFS, "%s: vp %p", __func__, vp);
+	    ("vputx: missed vn_close"));
+	error = 0;
 
 	if (vp->v_usecount > 1 || ((vp->v_iflag & VI_DOINGINACT) &&
 	    vp->v_usecount == 1)) {
+		if (func == VPUTX_VPUT)
+			VOP_UNLOCK(vp, 0);
 		v_decr_usecount(vp);
 		return;
 	}
+
 	if (vp->v_usecount != 1) {
 #ifdef DIAGNOSTIC
-		vprint("vrele: negative ref count", vp);
+		vprint("vputx: negative ref count", vp);
 #endif
-		VI_UNLOCK(vp);
-		panic("vrele: negative ref cnt");
+		panic("vputx: negative ref cnt");
 	}
 	CTR2(KTR_VFS, "%s: return vnode %p to the freelist", __func__, vp);
 	/*
@@ -2185,19 +2200,33 @@ vrele(struct vnode *vp)
 	 * as VI_DOINGINACT to avoid recursion.
 	 */
 	vp->v_iflag |= VI_OWEINACT;
-	if (vn_lock(vp, LK_EXCLUSIVE | LK_INTERLOCK) == 0) {
+	if (func == VPUTX_VRELE) {
+		error = vn_lock(vp, LK_EXCLUSIVE | LK_INTERLOCK);
 		VI_LOCK(vp);
-		if (vp->v_usecount > 0)
-			vp->v_iflag &= ~VI_OWEINACT;
+	} else if (func == VPUTX_VPUT && VOP_ISLOCKED(vp) != LK_EXCLUSIVE) {
+		error = VOP_LOCK(vp, LK_UPGRADE | LK_INTERLOCK | LK_NOWAIT);
+		VI_LOCK(vp);
+	}
+	if (vp->v_usecount > 0)
+		vp->v_iflag &= ~VI_OWEINACT;
+	if (error == 0) {
 		if (vp->v_iflag & VI_OWEINACT)
-			vinactive(vp, td);
-		VOP_UNLOCK(vp, 0);
-	} else {
-		VI_LOCK(vp);
-		if (vp->v_usecount > 0)
-			vp->v_iflag &= ~VI_OWEINACT;
+			vinactive(vp, curthread);
+		if (func != VPUTX_VUNREF)
+			VOP_UNLOCK(vp, 0);
 	}
 	vdropl(vp);
+}
+
+/*
+ * Vnode put/release.
+ * If count drops to zero, call inactive routine and return to freelist.
+ */
+void
+vrele(struct vnode *vp)
+{
+
+	vputx(vp, VPUTX_VRELE);
 }
 
 /*
@@ -2208,56 +2237,18 @@ vrele(struct vnode *vp)
 void
 vput(struct vnode *vp)
 {
-	struct thread *td = curthread;	/* XXX */
-	int error;
 
-	KASSERT(vp != NULL, ("vput: null vp"));
-	ASSERT_VOP_LOCKED(vp, "vput");
-	VFS_ASSERT_GIANT(vp->v_mount);
-	CTR2(KTR_VFS, "%s: vp %p", __func__, vp);
-	VI_LOCK(vp);
-	/* Skip this v_writecount check if we're going to panic below. */
-	VNASSERT(vp->v_writecount < vp->v_usecount || vp->v_usecount < 1, vp,
-	    ("vput: missed vn_close"));
-	error = 0;
+	vputx(vp, VPUTX_VPUT);
+}
 
-	if (vp->v_usecount > 1 || ((vp->v_iflag & VI_DOINGINACT) &&
-	    vp->v_usecount == 1)) {
-		VOP_UNLOCK(vp, 0);
-		v_decr_usecount(vp);
-		return;
-	}
+/*
+ * Release an exclusively locked vnode. Do not unlock the vnode lock.
+ */
+void
+vunref(struct vnode *vp)
+{
 
-	if (vp->v_usecount != 1) {
-#ifdef DIAGNOSTIC
-		vprint("vput: negative ref count", vp);
-#endif
-		panic("vput: negative ref cnt");
-	}
-	CTR2(KTR_VFS, "%s: return to freelist the vnode %p", __func__, vp);
-	/*
-	 * We want to hold the vnode until the inactive finishes to
-	 * prevent vgone() races.  We drop the use count here and the
-	 * hold count below when we're done.
-	 */
-	v_decr_useonly(vp);
-	vp->v_iflag |= VI_OWEINACT;
-	if (VOP_ISLOCKED(vp) != LK_EXCLUSIVE) {
-		error = VOP_LOCK(vp, LK_UPGRADE|LK_INTERLOCK|LK_NOWAIT);
-		VI_LOCK(vp);
-		if (error) {
-			if (vp->v_usecount > 0)
-				vp->v_iflag &= ~VI_OWEINACT;
-			goto done;
-		}
-	}
-	if (vp->v_usecount > 0)
-		vp->v_iflag &= ~VI_OWEINACT;
-	if (vp->v_iflag & VI_OWEINACT)
-		vinactive(vp, td);
-	VOP_UNLOCK(vp, 0);
-done:
-	vdropl(vp);
+	vputx(vp, VPUTX_VUNREF);
 }
 
 /*
@@ -2689,14 +2680,12 @@ vn_printf(struct vnode *vp, const char *fmt, ...)
 		strlcat(buf, "|VI_DOOMED", sizeof(buf));
 	if (vp->v_iflag & VI_FREE)
 		strlcat(buf, "|VI_FREE", sizeof(buf));
-	if (vp->v_iflag & VI_OBJDIRTY)
-		strlcat(buf, "|VI_OBJDIRTY", sizeof(buf));
 	if (vp->v_iflag & VI_DOINGINACT)
 		strlcat(buf, "|VI_DOINGINACT", sizeof(buf));
 	if (vp->v_iflag & VI_OWEINACT)
 		strlcat(buf, "|VI_OWEINACT", sizeof(buf));
 	flags = vp->v_iflag & ~(VI_MOUNT | VI_AGE | VI_DOOMED | VI_FREE |
-	    VI_OBJDIRTY | VI_DOINGINACT | VI_OWEINACT);
+	    VI_DOINGINACT | VI_OWEINACT);
 	if (flags != 0) {
 		snprintf(buf2, sizeof(buf2), "|VI(0x%lx)", flags);
 		strlcat(buf, buf2, sizeof(buf));
@@ -2761,6 +2750,7 @@ DB_SHOW_COMMAND(vnode, db_show_vnode)
 DB_SHOW_COMMAND(mount, db_show_mount)
 {
 	struct mount *mp;
+	struct vfsopt *opt;
 	struct statfs *sp;
 	struct vnode *vp;
 	char buf[512];
@@ -2865,6 +2855,18 @@ DB_SHOW_COMMAND(mount, db_show_mount)
 		    "0x%08x", flags);
 	}
 	db_printf("    mnt_kern_flag = %s\n", buf);
+
+	db_printf("    mnt_opt = ");
+	opt = TAILQ_FIRST(mp->mnt_opt);
+	if (opt != NULL) {
+		db_printf("%s", opt->name);
+		opt = TAILQ_NEXT(opt, link);
+		while (opt != NULL) {
+			db_printf(", %s", opt->name);
+			opt = TAILQ_NEXT(opt, link);
+		}
+	}
+	db_printf("\n");
 
 	sp = &mp->mnt_stat;
 	db_printf("    mnt_stat = { version=%u type=%u flags=0x%016jx "
@@ -3177,7 +3179,8 @@ vfs_msync(struct mount *mp, int flags)
 	MNT_ILOCK(mp);
 	MNT_VNODE_FOREACH(vp, mp, mvp) {
 		VI_LOCK(vp);
-		if ((vp->v_iflag & VI_OBJDIRTY) &&
+		obj = vp->v_object;
+		if (obj != NULL && (obj->flags & OBJ_MIGHTBEDIRTY) != 0 &&
 		    (flags == MNT_WAIT || VOP_ISLOCKED(vp) == 0)) {
 			MNT_IUNLOCK(mp);
 			if (!vget(vp,
@@ -3519,6 +3522,11 @@ vaccess(enum vtype type, mode_t file_mode, uid_t file_uid, gid_t file_gid,
 {
 	accmode_t dac_granted;
 	accmode_t priv_granted;
+
+	KASSERT((accmode & ~(VEXEC | VWRITE | VREAD | VADMIN | VAPPEND)) == 0,
+	    ("invalid bit in accmode"));
+	KASSERT((accmode & VAPPEND) == 0 || (accmode & VWRITE),
+	    	("VAPPEND without VWRITE"));
 
 	/*
 	 * Look for a normal, non-privileged way to access the file/directory

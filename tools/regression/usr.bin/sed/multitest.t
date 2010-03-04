@@ -50,7 +50,7 @@ main()
 	awk 'END { for (i = 1; i < 15; i++) print "l1_" i}' </dev/null >lines1
 	awk 'END { for (i = 1; i < 10; i++) print "l2_" i}' </dev/null >lines2
 
-	echo "1..121"
+	echo "1..129"
 
 	exec 4>&1 5>&2
 	tests

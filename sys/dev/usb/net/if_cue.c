@@ -90,9 +90,11 @@ __FBSDID("$FreeBSD$");
 /* Belkin F5U111 adapter covered by NETMATE entry */
 
 static const struct usb_device_id cue_devs[] = {
-	{USB_VPI(USB_VENDOR_CATC, USB_PRODUCT_CATC_NETMATE, 0)},
-	{USB_VPI(USB_VENDOR_CATC, USB_PRODUCT_CATC_NETMATE2, 0)},
-	{USB_VPI(USB_VENDOR_SMARTBRIDGES, USB_PRODUCT_SMARTBRIDGES_SMARTLINK, 0)},
+#define	CUE_DEV(v,p) { USB_VP(USB_VENDOR_##v, USB_PRODUCT_##v##_##p) }
+	CUE_DEV(CATC, NETMATE),
+	CUE_DEV(CATC, NETMATE2),
+	CUE_DEV(SMARTBRIDGES, SMARTLINK),
+#undef CUE_DEV
 };
 
 /* prototypes */
@@ -404,7 +406,7 @@ cue_attach(device_t dev)
 	error = usbd_transfer_setup(uaa->device, &iface_index,
 	    sc->sc_xfer, cue_config, CUE_N_TRANSFER, sc, &sc->sc_mtx);
 	if (error) {
-		device_printf(dev, "allocating USB transfers failed!\n");
+		device_printf(dev, "allocating USB transfers failed\n");
 		goto detach;
 	}
 

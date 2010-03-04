@@ -923,16 +923,24 @@ sysctl_kern_msgbuf(SYSCTL_HANDLER_ARGS)
 	}
 
 	/* Read the whole buffer, one chunk at a time. */
+	mtx_lock(&msgbuf_lock);
 	msgbuf_peekbytes(msgbufp, NULL, 0, &seq);
-	while ((len = msgbuf_peekbytes(msgbufp, buf, sizeof(buf), &seq)) > 0) {
+	for (;;) {
+		len = msgbuf_peekbytes(msgbufp, buf, sizeof(buf), &seq);
+		mtx_unlock(&msgbuf_lock);
+		if (len == 0)
+			return (0);
+
 		error = sysctl_handle_opaque(oidp, buf, len, req);
 		if (error)
 			return (error);
+
+		mtx_lock(&msgbuf_lock);
 	}
-	return (0);
 }
 
-SYSCTL_PROC(_kern, OID_AUTO, msgbuf, CTLTYPE_STRING | CTLFLAG_RD,
+SYSCTL_PROC(_kern, OID_AUTO, msgbuf,
+    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_MPSAFE,
     NULL, 0, sysctl_kern_msgbuf, "A", "Contents of kernel message buffer");
 
 static int msgbuf_clearflag;
@@ -943,15 +951,18 @@ sysctl_kern_msgbuf_clear(SYSCTL_HANDLER_ARGS)
 	int error;
 	error = sysctl_handle_int(oidp, oidp->oid_arg1, oidp->oid_arg2, req);
 	if (!error && req->newptr) {
+		mtx_lock(&msgbuf_lock);
 		msgbuf_clear(msgbufp);
+		mtx_unlock(&msgbuf_lock);
 		msgbuf_clearflag = 0;
 	}
 	return (error);
 }
 
 SYSCTL_PROC(_kern, OID_AUTO, msgbuf_clear,
-    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_SECURE, &msgbuf_clearflag, 0,
-    sysctl_kern_msgbuf_clear, "I", "Clear kernel message buffer");
+    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_SECURE | CTLFLAG_MPSAFE,
+    &msgbuf_clearflag, 0, sysctl_kern_msgbuf_clear, "I",
+    "Clear kernel message buffer");
 
 #ifdef DDB
 

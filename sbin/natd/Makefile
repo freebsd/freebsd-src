@@ -2,7 +2,7 @@
 
 PROG		= natd
 SRCS		= natd.c icmp.c
-WARNS?=	0
+WARNS?=	3
 LDADD		= -lalias
 DPADD		= ${LIBALIAS}
 MAN		= natd.8

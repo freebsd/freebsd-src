@@ -120,7 +120,7 @@ struct ng_node ng_deadnode = {
 	0,	/* numhooks */
 	NULL,	/* private */
 	0,	/* ID */
-	LIST_HEAD_INITIALIZER(ng_deadnode.hooks),
+	LIST_HEAD_INITIALIZER(ng_deadnode.nd_hooks),
 	{},	/* all_nodes list entry */
 	{},	/* id hashtable list entry */
 	{	0,

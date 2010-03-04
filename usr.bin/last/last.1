@@ -83,7 +83,7 @@ be reported.
 This may be used with the
 .Fl f
 option to derive the results from stored
-.Pa wtmp
+.Pa utx.log
 files.
 When this argument is provided, all other options except for
 .Fl f
@@ -141,7 +141,7 @@ letter pair is not specified, the value defaults to 0.
 Read the file
 .Ar file
 instead of the default,
-.Pa /var/log/wtmp .
+.Pa /var/log/utx.log .
 .It Fl h Ar host
 .Ar Host
 names may be names or internet numbers.
@@ -196,13 +196,13 @@ If interrupted with a quit signal
 indicates how
 far the search has progressed and then continues.
 .Sh FILES
-.Bl -tag -width /var/log/wtmp -compact
-.It Pa /var/log/wtmp
+.Bl -tag -width /var/log/utx.log -compact
+.It Pa /var/log/utx.log
 login data base
 .El
 .Sh SEE ALSO
 .Xr lastcomm 1 ,
-.Xr utmp 5 ,
+.Xr getutxent 3 ,
 .Xr ac 8
 .Sh HISTORY
 A
@@ -212,7 +212,7 @@ utility appeared in
 .Sh BUGS
 If a login shell should terminate abnormally for some reason, it is likely
 that a logout record will not be written to the
-.Pa wtmp
+.Pa utx.log
 file.
 In this case,
 .Nm

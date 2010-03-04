@@ -44,6 +44,8 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_cputype.h"
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
@@ -265,7 +267,6 @@ mainbus_activate_resource(device_t bus, device_t child, int type, int rid,
 			    + poffs;
 		}
 		rman_set_virtual(r, vaddr);
-		/* IBM-PC: the type of bus_space_handle_t is u_int */
 #ifdef TARGET_OCTEON
 		temp = 0x0000000000000000;
 		temp |= (uint32_t)vaddr;

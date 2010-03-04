@@ -647,7 +647,7 @@ int
 cgetnext(char **bp, char **db_array)
 {
 	size_t len;
-	int done, hadreaderr, i, savederrno, status;
+	int done, hadreaderr, savederrno, status;
 	char *cp, *line, *rp, *np, buf[BSIZE], nbuf[BSIZE];
 	u_int dummy;
 
@@ -658,7 +658,7 @@ cgetnext(char **bp, char **db_array)
 		(void)cgetclose();
 		return (-1);
 	}
-	for(;;) {
+	for (;;) {
 		if (toprec && !gottoprec) {
 			gottoprec = 1;
 			line = toprec;
@@ -709,7 +709,6 @@ cgetnext(char **bp, char **db_array)
 		/*
 		 * Line points to a name line.
 		 */
-		i = 0;
 		done = 0;
 		np = nbuf;
 		for (;;) {

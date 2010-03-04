@@ -1,0 +1,169 @@
+.\"
+.\" Copyright (c) 1994 Keith E. Walker
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. The name of the author may not be used to endorse or promote products
+.\"    derived from this software without specific prior written permission
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd December 8, 1994
+.Dt MCD 4
+.Os
+.Sh NAME
+.Nm mcd
+.Nd Mitsumi CD-ROM driver
+.Sh SYNOPSIS
+.Cd "device mcd"
+.Pp
+In
+.Pa /boot/device.hints :
+.Cd hint.mcd.0.at="isa"
+.Cd hint.mcd.0.port="0x300"
+.Cd hint.mcd.0.irq="10"
+.Sh DESCRIPTION
+The
+.Nm
+driver provides a data and audio interface to the Mitsumi-brand CD-ROM
+player.
+The CD-ROM player must be interfaced to the ISA bus through
+one of the Mitsumi proprietary controller boards.
+The controller
+boards supported are the LU002S, LU005S, the FX001 and the quite
+common FX001D.
+.Pp
+The
+.Nm
+driver responds to disk-specific
+.Fn ioctl
+commands, namely the
+.Dv DIOCGDINFO ,
+.Dv DIOCGPART ,
+.Dv DIOCWDINFO ,
+and
+.Dv DIOCSDINFO ,
+commands.
+Other disk-specific
+.Fn ioctl
+commands will return an error.
+.Pp
+The
+.Nm
+driver also responds to special CD-ROM
+.Fn ioctl
+commands.
+These commands
+control the CD-ROM player's audio features.
+The commands are:
+.Pp
+.Bl -tag -width CDIOCREADSUBCHANNEL -compact -offset indent
+.It CDIOCREADSUBCHANNEL
+get sub-channel information on current status of disc playing
+.It CDIOCREADTOCHEADER
+get table of contents header
+.It CDIOCREADTOCENTRYS
+gets all of the table of contents
+.It CDIOCPLAYTRACKS
+begins audio playing at location specified
+.It CDIOCPLAYBLOCKS
+fails with error
+.Er EINVAL
+.It CDIOCPLAYMSF
+begins audio playing at location specified
+.It CDIOCRESUME
+resumes playing a previously paused disc
+.It CDIOCPAUSE
+pauses a playing disc
+.It CDIOCSTART
+begins playing a disc
+.It CDIOCSTOP
+stops a previously playing disc
+.It CDIOCEJECT
+opens the disc tray (there is no support for a corresponding un-eject
+command).
+.It CDIOCRESET
+stops any play and resets the Mitsumi controller board
+.It CDIOCSETDEBUG
+cause the kernel to print debug messages to the console about the
+.Nm
+driver
+.It CDIOCCLRDEBUG
+cause the kernel to quit printing debug messages about the
+.Nm
+driver
+.El
+.Pp
+The
+.Fn ioctl
+commands defined above are the only ones that the
+.Nm
+driver supports.
+There are other CD-ROM related
+.Fn ioctl
+commands (such as
+.Dv CDIOCSETVOL
+and
+.Dv CDIOCSETSTERIO )
+which are available
+and may be supported by future versions of the driver.
+.Sh FILES
+.Bl -tag -width /dev/(r)mcd0a -compact
+.It Pa /dev/(r)mcd0a
+accesses
+.Bx
+partition on the disc.
+Normally, there is only
+one file system on a CD-ROM disc.
+.It Pa /dev/(r)mcd0c
+accesses raw device.
+.El
+.Sh NOTES
+The character-mode devices for the
+.Nm
+driver should only be used for accessing the audio features of the
+CD-ROM player as the performance on data is abysmal.
+.Pp
+The current version of the driver uses neither the DMA or IRQ
+features of the interface board, although it has an interrupt handler
+for any IRQ requests that are generated.
+Until the DMA features are
+supported, the only interrupts that the board generates are those that
+are not supported by the driver anyway.
+.Sh SEE ALSO
+.In sys/cdio.h
+.Sh HISTORY
+An
+.Nm
+driver appeared in
+.Fx 1.0 .
+.Sh AUTHORS
+.An -nosplit
+The driver was written by
+.An Holger Veit
+(data part) and
+.An Brian Moore
+(audio part).
+Changes were provided by
+.An Gary Clark II ,
+.An Andrew A. Chernov ,
+and
+.An Jordan K. Hubbard .

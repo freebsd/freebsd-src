@@ -97,6 +97,7 @@ zfs_prop_init(void)
 		{ "restricted",	ZFS_ACL_RESTRICTED },
 		{ "passthrough", ZFS_ACL_PASSTHROUGH },
 		{ "secure",	ZFS_ACL_RESTRICTED }, /* bkwrd compatability */
+		{ "passthrough-x", ZFS_ACL_PASSTHROUGH_X },
 		{ NULL }
 	};
 
@@ -173,7 +174,7 @@ zfs_prop_init(void)
 	    "discard | groupmask | passthrough", "ACLMODE", acl_mode_table);
 	register_index(ZFS_PROP_ACLINHERIT, "aclinherit", ZFS_ACL_RESTRICTED,
 	    PROP_INHERIT, ZFS_TYPE_FILESYSTEM,
-	    "discard | noallow | restricted | passthrough",
+	    "discard | noallow | restricted | passthrough | passthrough-x",
 	    "ACLINHERIT", acl_inherit_table);
 	register_index(ZFS_PROP_COPIES, "copies", 1,
 	    PROP_INHERIT, ZFS_TYPE_FILESYSTEM | ZFS_TYPE_VOLUME,

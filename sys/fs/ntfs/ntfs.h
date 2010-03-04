@@ -183,6 +183,7 @@ struct attr_indexentry {
 };
 
 #define	NTFS_FILEMAGIC	(u_int32_t)(0x454C4946)
+#define	NTFS_BLOCK_SIZE	512
 #define	NTFS_FRFLAG_DIR	0x0002
 struct filerec {
 	struct fixuphdr fr_fixup;
@@ -257,6 +258,7 @@ struct ntfsmount {
  	char **		ntm_u28;	/* Unicode to 8 bit */
 	void *		ntm_ic_l2u;	/* Local to Unicode (iconv) */
 	void *		ntm_ic_u2l;	/* Unicode to Local (iconv) */
+	u_int8_t	ntm_multiplier; /* NTFS blockno to DEV_BSIZE sectorno */
 };
 
 #define ntm_mftcn	ntm_bootfile.bf_mftcn

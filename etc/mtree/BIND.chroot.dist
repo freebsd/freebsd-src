@@ -15,6 +15,8 @@
             ..
             slave   uname=bind
             ..
+            working uname=bind
+            ..
         ..
     ..
 /set type=dir uname=bind gname=wheel mode=0755

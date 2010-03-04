@@ -312,18 +312,17 @@ kthread_exit(void)
 {
 	struct proc *p;
 
+	p = curthread->td_proc;
+
 	/* A module may be waiting for us to exit. */
 	wakeup(curthread);
-
-	/*
-	 * We could rely on thread_exit to call exit1() but
-	 * there is extra work that needs to be done
-	 */
-	if (curthread->td_proc->p_numthreads == 1)
-		kproc_exit(0);	/* never returns */
-
-	p = curthread->td_proc;
 	PROC_LOCK(p);
+	if (p->p_numthreads == 1) {
+		PROC_UNLOCK(p);
+		kproc_exit(0);
+
+		/* NOTREACHED. */
+	}
 	PROC_SLOCK(p);
 	thread_exit();
 }
@@ -335,34 +334,55 @@ kthread_exit(void)
 int
 kthread_suspend(struct thread *td, int timo)
 {
-	if ((td->td_pflags & TDP_KTHREAD) == 0) {
+	struct proc *p;
+
+	p = td->td_proc;
+
+	/*
+	 * td_pflags should not be read by any thread other than
+	 * curthread, but as long as this flag is invariant during the
+	 * thread's lifetime, it is OK to check its state.
+	 */
+	if ((td->td_pflags & TDP_KTHREAD) == 0)
 		return (EINVAL);
-	}
+
+	/*
+	 * The caller of the primitive should have already checked that the
+	 * thread is up and running, thus not being blocked by other
+	 * conditions.
+	 */
+	PROC_LOCK(p);
 	thread_lock(td);
 	td->td_flags |= TDF_KTH_SUSP;
 	thread_unlock(td);
-	/*
-	 * If it's stopped for some other reason,
-	 * kick it to notice our request 
-	 * or we'll end up timing out
-	 */
-	wakeup(td); /* traditional  place for kernel threads to sleep on */ /* XXX ?? */
-	return (tsleep(&td->td_flags, PPAUSE | PDROP, "suspkt", timo));
+	return (msleep(&td->td_flags, &p->p_mtx, PPAUSE | PDROP, "suspkt",
+	    timo));
 }
 
 /*
- * let the kthread it can keep going again.
+ * Resume a thread previously put asleep with kthread_suspend().
  */
 int
 kthread_resume(struct thread *td)
 {
-	if ((td->td_pflags & TDP_KTHREAD) == 0) {
+	struct proc *p;
+
+	p = td->td_proc;
+
+	/*
+	 * td_pflags should not be read by any thread other than
+	 * curthread, but as long as this flag is invariant during the
+	 * thread's lifetime, it is OK to check its state.
+	 */
+	if ((td->td_pflags & TDP_KTHREAD) == 0)
 		return (EINVAL);
-	}
+
+	PROC_LOCK(p);
 	thread_lock(td);
 	td->td_flags &= ~TDF_KTH_SUSP;
 	thread_unlock(td);
-	wakeup(&td->td_name);
+	wakeup(&td->td_flags);
+	PROC_UNLOCK(p);
 	return (0);
 }
 
@@ -371,15 +391,28 @@ kthread_resume(struct thread *td)
  * and notify the caller that is has happened.
  */
 void
-kthread_suspend_check(struct thread *td)
+kthread_suspend_check()
 {
+	struct proc *p;
+	struct thread *td;
+
+	td = curthread;
+	p = td->td_proc;
+
+	if ((td->td_pflags & TDP_KTHREAD) == 0)
+		panic("%s: curthread is not a valid kthread", __func__);
+
+	/*
+	 * As long as the double-lock protection is used when accessing the
+	 * TDF_KTH_SUSP flag, synchronizing the read operation via proc mutex
+	 * is fine.
+	 */
+	PROC_LOCK(p);
 	while (td->td_flags & TDF_KTH_SUSP) {
-		/*
-		 * let the caller know we got the message then sleep
-		 */
 		wakeup(&td->td_flags);
-		tsleep(&td->td_name, PPAUSE, "ktsusp", 0);
+		msleep(&td->td_flags, &p->p_mtx, PPAUSE, "ktsusp", 0);
 	}
+	PROC_UNLOCK(p);
 }
 
 int

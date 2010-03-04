@@ -6,7 +6,7 @@
  * forth in the LICENSE file which can be found at the top level of
  * the sendmail distribution.
  *
- *	$Id: ldap.h,v 1.33 2007/10/10 00:06:44 ca Exp $
+ *	$Id: ldap.h,v 1.34 2008/11/17 21:02:54 ca Exp $
  */
 
 #ifndef	SM_LDAP_H
@@ -92,7 +92,7 @@ struct sm_ldap_struct
 	char		ldap_attrsep;
 
 # if _FFR_LDAP_NETWORK_TIMEOUT
-	struct timeval	ldap_networktmo;
+	int		ldap_networktmo;
 # endif /* _FFR_LDAP_NETWORK_TIMEOUT */
 
 	/* Linked list of maps sharing the same LDAP binding */

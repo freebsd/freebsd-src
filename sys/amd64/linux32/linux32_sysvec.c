@@ -565,9 +565,9 @@ linux_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 int
 linux_sigreturn(struct thread *td, struct linux_sigreturn_args *args)
 {
-	struct proc *p = td->td_proc;
 	struct l_sigframe frame;
 	struct trapframe *regs;
+	sigset_t bmask;
 	l_sigset_t lmask;
 	int eflags, i;
 	ksiginfo_t ksi;
@@ -623,11 +623,8 @@ linux_sigreturn(struct thread *td, struct linux_sigreturn_args *args)
 	lmask.__bits[0] = frame.sf_sc.sc_mask;
 	for (i = 0; i < (LINUX_NSIG_WORDS-1); i++)
 		lmask.__bits[i+1] = frame.sf_extramask[i];
-	PROC_LOCK(p);
-	linux_to_bsd_sigset(&lmask, &td->td_sigmask);
-	SIG_CANTMASK(td->td_sigmask);
-	signotify(td);
-	PROC_UNLOCK(p);
+	linux_to_bsd_sigset(&lmask, &bmask);
+	kern_sigprocmask(td, SIG_SETMASK, &bmask, NULL, 0);
 
 	/*
 	 * Restore signal context.
@@ -666,9 +663,9 @@ linux_sigreturn(struct thread *td, struct linux_sigreturn_args *args)
 int
 linux_rt_sigreturn(struct thread *td, struct linux_rt_sigreturn_args *args)
 {
-	struct proc *p = td->td_proc;
 	struct l_ucontext uc;
 	struct l_sigcontext *context;
+	sigset_t bmask;
 	l_stack_t *lss;
 	stack_t ss;
 	struct trapframe *regs;
@@ -725,11 +722,8 @@ linux_rt_sigreturn(struct thread *td, struct linux_rt_sigreturn_args *args)
 		return(EINVAL);
 	}
 
-	PROC_LOCK(p);
-	linux_to_bsd_sigset(&uc.uc_sigmask, &td->td_sigmask);
-	SIG_CANTMASK(td->td_sigmask);
-	signotify(td);
-	PROC_UNLOCK(p);
+	linux_to_bsd_sigset(&uc.uc_sigmask, &bmask);
+	kern_sigprocmask(td, SIG_SETMASK, &bmask, NULL, 0);
 
 	/*
 	 * Restore signal context

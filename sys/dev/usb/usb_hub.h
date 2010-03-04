@@ -66,8 +66,8 @@ struct usb_hub {
 
 /* function prototypes */
 
-uint8_t	usb_intr_schedule_adjust(struct usb_device *udev, int16_t len,
-	    uint8_t slot);
+void	usb_hs_bandwidth_alloc(struct usb_xfer *xfer);
+void	usb_hs_bandwidth_free(struct usb_xfer *xfer);
 void	usbd_fs_isoc_schedule_init_all(struct usb_fs_isoc_schedule *fss);
 void	usb_bus_port_set_device(struct usb_bus *bus, struct usb_port *up,
 	    struct usb_device *udev, uint8_t device_index);

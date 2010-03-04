@@ -185,6 +185,7 @@ static void	uvscom_cfg_get_status(struct ucom_softc *, uint8_t *,
 		    uint8_t *);
 static void	uvscom_cfg_write(struct uvscom_softc *, uint8_t, uint16_t);
 static uint16_t	uvscom_cfg_read_status(struct uvscom_softc *);
+static void	uvscom_poll(struct ucom_softc *ucom);
 
 static const struct usb_config uvscom_config[UVSCOM_N_TRANSFER] = {
 
@@ -230,6 +231,7 @@ static const struct ucom_callback uvscom_callback = {
 	.ucom_stop_read = &uvscom_stop_read,
 	.ucom_start_write = &uvscom_start_write,
 	.ucom_stop_write = &uvscom_stop_write,
+	.ucom_poll = &uvscom_poll,
 };
 
 static const struct usb_device_id uvscom_devs[] = {
@@ -733,4 +735,11 @@ uvscom_cfg_read_status(struct uvscom_softc *sc)
 		    "(ignored)\n", usbd_errstr(err));
 	}
 	return (data[0] | (data[1] << 8));
+}
+
+static void
+uvscom_poll(struct ucom_softc *ucom)
+{
+	struct uvscom_softc *sc = ucom->sc_parent;
+	usbd_transfer_poll(sc->sc_xfer, UVSCOM_N_TRANSFER);
 }

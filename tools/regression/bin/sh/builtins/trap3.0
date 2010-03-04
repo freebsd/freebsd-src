@@ -1,0 +1,12 @@
+# $FreeBSD$
+
+{
+	trap '' garbage && exit 3
+	trap - garbage && exit 3
+	trap true garbage && exit 3
+	trap '' 99999 && exit 3
+	trap - 99999 && exit 3
+	trap true 99999 && exit 3
+} 2>/dev/null
+test -n "$(trap true garbage TERM 2>/dev/null || trap)" || exit 3
+exit 0

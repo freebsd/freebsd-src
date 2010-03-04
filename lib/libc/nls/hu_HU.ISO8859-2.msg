@@ -181,6 +181,16 @@ $ ENOATTR
 87 Attribútum nem található
 $ EDOOFUS
 88 Programozási hiba
+$ EBADMSG
+89 Helytelen üzenet
+$ EMULTIHOP
+90 Multihop kísérlet
+$ ENOLINK
+91 A kapcsolat szigorítva lett
+$ EPROTO
+92 Protokol hiba
+$ ENOTCAPABLE
+93 Elégtelen képességek
 $
 $ strsignal() support catalog
 $
@@ -247,3 +257,39 @@ $ SIGUSR1
 30 Felhasználói szignál 1
 $ SIGUSR2
 31 Felhasználói szignál 2
+$
+$ gai_strerror() support catalog
+$
+$set 3
+$ 1 (elavult)
+1 A hosztnévhez tartozó címcsalád nem támogatott
+$ EAI_AGAIN
+2 Ideiglenes hiba a névfeloldáskor
+$ EAI_BADFLAGS
+3 Érvénytelen ai_flags érték
+$ EAI_FAIL
+4 Nem helyreállítható hiba a névfeloldásban
+$ EAI_FAMILY
+5 ai_family nem támogatott
+$ EAI_MEMORY
+6 Memóriafoglalási hiba
+$ 7 (elavult)
+7 Nem tartozik cím í hosztnévhez
+$ EAI_NONAME
+8 Se hosztnév, se szolgáltatásnév nem áll rendelkezésre
+$ EAI_SERVICE
+9 Nem támogatott ai_socktype szolgáltatásnév
+$ EAI_SOCKTYPE
+10 ai_socktype nem támogatott
+$ EAI_SYSTEM
+11 Rendszerhiba jött vissza az errno változóban
+$ EAI_BADHINTS
+12 Érvénytelen hint érték
+$ EAI_PROTOCOL
+13 A feloldott protokol ismeretlen
+$ EAI_OVERFLOW
+14 Az argumentumok puffere túlcsordult
+$ 0
+32766 Siker
+$ NL_MSGMAX
+32767 Ismeretlen hiba

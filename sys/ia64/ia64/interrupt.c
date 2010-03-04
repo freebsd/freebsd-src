@@ -60,7 +60,6 @@
 #include <machine/md_var.h>
 #include <machine/pcb.h>
 #include <machine/reg.h>
-#include <machine/sapicvar.h>
 #include <machine/smp.h>
 
 #ifdef EVCNT_COUNTERS
@@ -72,38 +71,6 @@ struct evcnt clock_intr_evcnt;	/* event counter for clock intrs. */
 
 #ifdef DDB
 #include <ddb/ddb.h>
-#endif
-
-static void ia64_dispatch_intr(void *, u_int);
-
-static void 
-dummy_perf(unsigned long vector, struct trapframe *tf)  
-{
-	printf("performance interrupt!\n");
-}
-
-void (*perf_irq)(unsigned long, struct trapframe *) = dummy_perf;
-
-static unsigned int ints[MAXCPU];
-SYSCTL_OPAQUE(_debug, OID_AUTO, ints, CTLFLAG_RW, &ints, sizeof(ints), "IU",
-    "");
-
-static unsigned int clks[MAXCPU];
-#ifdef SMP
-SYSCTL_OPAQUE(_debug, OID_AUTO, clks, CTLFLAG_RW, &clks, sizeof(clks), "IU",
-    "");
-#else
-SYSCTL_INT(_debug, OID_AUTO, clks, CTLFLAG_RW, clks, 0, "");
-#endif
-
-#ifdef SMP
-static unsigned int asts[MAXCPU];
-SYSCTL_OPAQUE(_debug, OID_AUTO, asts, CTLFLAG_RW, &asts, sizeof(asts), "IU",
-    "");
-
-static unsigned int rdvs[MAXCPU];
-SYSCTL_OPAQUE(_debug, OID_AUTO, rdvs, CTLFLAG_RW, &rdvs, sizeof(rdvs), "IU",
-    "");
 #endif
 
 SYSCTL_NODE(_debug, OID_AUTO, clock, CTLFLAG_RW, 0, "clock statistics");
@@ -124,11 +91,23 @@ static int adjust_ticks = 0;
 SYSCTL_INT(_debug_clock, OID_AUTO, adjust_ticks, CTLFLAG_RD,
     &adjust_ticks, 0, "Total number of ITC interrupts with adjustment");
 
+
+struct ia64_intr {
+	struct intr_event *event;	/* interrupt event */
+	volatile long *cntp;		/* interrupt counter */
+	struct sapic *sapic;
+	u_int	irq;
+};
+
+static struct ia64_intr *ia64_intrs[256];
+
+
+static void ia64_dispatch_intr(void *, u_int);
+
 void
 interrupt(struct trapframe *tf)
 {
 	struct thread *td;
-	volatile struct ia64_interrupt_block *ib = IA64_INTERRUPT_BLOCK;
 	uint64_t adj, clk, itc;
 	int64_t delta;
 	u_int vector;
@@ -139,43 +118,45 @@ interrupt(struct trapframe *tf)
 
 	td = curthread;
 
+	PCPU_INC(cnt.v_intr);
+
 	vector = tf->tf_special.ifa;
 
  next:
 	/*
 	 * Handle ExtINT interrupts by generating an INTA cycle to
 	 * read the vector.
-	 * IPI_STOP_HARD is mapped to IPI_STOP so it is not necessary
-	 * to add it to this switch-like construct.
 	 */
 	if (vector == 0) {
-		inta = ib->ib_inta;
-		printf("ExtINT interrupt: vector=%u\n", (int)inta);
+		PCPU_INC(md.stats.pcs_nextints);
+		inta = ia64_ld1(&ia64_pib->ib_inta);
 		if (inta == 15) {
+			PCPU_INC(md.stats.pcs_nstrays);
 			__asm __volatile("mov cr.eoi = r0;; srlz.d");
 			goto stray;
 		}
 		vector = (int)inta;
-	} else if (vector == 15)
+	} else if (vector == 15) {
+		PCPU_INC(md.stats.pcs_nstrays);
 		goto stray;
+	}
 
 	if (vector == CLOCK_VECTOR) {/* clock interrupt */
 		/* CTR0(KTR_INTR, "clock interrupt"); */
 
 		itc = ia64_get_itc();
 
-		PCPU_INC(cnt.v_intr);
+		PCPU_INC(md.stats.pcs_nclks);
 #ifdef EVCNT_COUNTERS
 		clock_intr_evcnt.ev_count++;
 #else
 		intrcnt[INTRCNT_CLOCK]++;
 #endif
-		clks[PCPU_GET(cpuid)]++;
 
 		critical_enter();
 
-		adj = PCPU_GET(clockadj);
-		clk = PCPU_GET(clock);
+		adj = PCPU_GET(md.clockadj);
+		clk = PCPU_GET(md.clock);
 		delta = itc - clk;
 		count = 0;
 		while (delta >= ia64_clock_reload) {
@@ -206,40 +187,40 @@ interrupt(struct trapframe *tf)
 			adj = 0;
 			adjust_excess++;
 		}
-		PCPU_SET(clock, clk);
-		PCPU_SET(clockadj, adj);
+		PCPU_SET(md.clock, clk);
+		PCPU_SET(md.clockadj, adj);
 		critical_exit();
 		ia64_srlz_d();
 
 #ifdef SMP
 	} else if (vector == ipi_vector[IPI_AST]) {
-		asts[PCPU_GET(cpuid)]++;
+		PCPU_INC(md.stats.pcs_nasts);
 		CTR1(KTR_SMP, "IPI_AST, cpuid=%d", PCPU_GET(cpuid));
 	} else if (vector == ipi_vector[IPI_HIGH_FP]) {
-		struct thread *thr = PCPU_GET(fpcurthread);
-		if (thr != NULL) {
-			mtx_lock_spin(&thr->td_md.md_highfp_mtx);
-			save_high_fp(&thr->td_pcb->pcb_high_fp);
-			thr->td_pcb->pcb_fpcpu = NULL;
-			PCPU_SET(fpcurthread, NULL);
-			mtx_unlock_spin(&thr->td_md.md_highfp_mtx);
-		}
+		PCPU_INC(md.stats.pcs_nhighfps);
+		ia64_highfp_save_ipi();
 	} else if (vector == ipi_vector[IPI_RENDEZVOUS]) {
-		rdvs[PCPU_GET(cpuid)]++;
+		PCPU_INC(md.stats.pcs_nrdvs);
 		CTR1(KTR_SMP, "IPI_RENDEZVOUS, cpuid=%d", PCPU_GET(cpuid));
 		enable_intr();
 		smp_rendezvous_action();
 		disable_intr();
 	} else if (vector == ipi_vector[IPI_STOP]) {
+		PCPU_INC(md.stats.pcs_nstops);
 		cpumask_t mybit = PCPU_GET(cpumask);
 
-		savectx(PCPU_PTR(pcb));
+		/* Make sure IPI_STOP_HARD is mapped to IPI_STOP. */
+		KASSERT(IPI_STOP == IPI_STOP_HARD,
+		    ("%s: IPI_STOP_HARD not handled.", __func__));
+
+		savectx(PCPU_PTR(md.pcb));
 		atomic_set_int(&stopped_cpus, mybit);
 		while ((started_cpus & mybit) == 0)
 			cpu_spinwait();
 		atomic_clear_int(&started_cpus, mybit);
 		atomic_clear_int(&stopped_cpus, mybit);
 	} else if (vector == ipi_vector[IPI_PREEMPT]) {
+		PCPU_INC(md.stats.pcs_npreempts);
 		CTR1(KTR_SMP, "IPI_PREEMPT, cpuid=%d", PCPU_GET(cpuid));
 		__asm __volatile("mov cr.eoi = r0;; srlz.d");
 		enable_intr();
@@ -248,7 +229,7 @@ interrupt(struct trapframe *tf)
 		goto stray;
 #endif
 	} else {
-		ints[PCPU_GET(cpuid)]++;
+		PCPU_INC(md.stats.pcs_nhwints);
 		atomic_add_int(&td->td_intr_nesting_level, 1);
 		ia64_dispatch_intr(tf, vector);
 		atomic_subtract_int(&td->td_intr_nesting_level, 1);
@@ -268,19 +249,6 @@ stray:
 	}
 }
 
-/*
- * Hardware irqs have vectors starting at this offset.
- */
-#define IA64_HARDWARE_IRQ_BASE	0x20
-
-struct ia64_intr {
-	struct intr_event *event;	/* interrupt event */
-	volatile long *cntp;		/* interrupt counter */
-	struct sapic *sapic;
-	u_int	irq;
-};
-
-static struct ia64_intr *ia64_intrs[256];
 
 static void
 ia64_intr_eoi(void *arg)
@@ -324,57 +292,75 @@ ia64_setup_intr(const char *name, int irq, driver_filter_t filter,
 	struct ia64_intr *i;
 	struct sapic *sa;
 	char *intrname;
-	u_int vector;
+	u_int prio, vector;
 	int error;
 
-	/* Get the I/O SAPIC that corresponds to the IRQ. */
-	sa = sapic_lookup(irq);
-	if (sa == NULL)
+	prio = intr_priority(flags);
+	if (prio > PRI_MAX_ITHD)
 		return (EINVAL);
 
-	/*
-	 * XXX - There's a priority implied by the choice of vector.
-	 * We should therefore relate the vector to the interrupt type.
-	 */
-	vector = irq + IA64_HARDWARE_IRQ_BASE;
+	/* XXX lock */
 
-	i = ia64_intrs[vector];
-	if (i == NULL) {
-		i = malloc(sizeof(struct ia64_intr), M_DEVBUF, M_NOWAIT);
-		if (i == NULL)
-			return (ENOMEM);
+	/* Get the I/O SAPIC and vector that corresponds to the IRQ. */
+	sa = sapic_lookup(irq, &vector);
+	if (sa == NULL) {
+		/* XXX unlock */
+		return (EINVAL);
+	}
+
+	if (vector == 0) {
+		/* XXX unlock */
+		i = malloc(sizeof(struct ia64_intr), M_DEVBUF,
+		    M_ZERO | M_WAITOK);
+		/* XXX lock */
+		sa = sapic_lookup(irq, &vector);
+		KASSERT(sa != NULL, ("sapic_lookup"));
+		if (vector != 0)
+			free(i, M_DEVBUF);
+	}
+
+	/*
+	 * If the IRQ has no vector assigned to it yet, assign one based
+	 * on the priority.
+	 */
+	if (vector == 0) {
+		vector = (256 - 64) - (prio << 1);
+		while (vector < 256 && ia64_intrs[vector] != NULL)
+			vector++;
 
 		error = intr_event_create(&i->event, (void *)(uintptr_t)vector,
 		    0, irq, ia64_intr_mask, ia64_intr_unmask, ia64_intr_eoi,
 		    NULL, "irq%u:", irq);
 		if (error) {
+			/* XXX unlock */
 			free(i, M_DEVBUF);
 			return (error);
 		}
 
-		if (!atomic_cmpset_ptr(&ia64_intrs[vector], NULL, i)) {
-			intr_event_destroy(i->event);
-			free(i, M_DEVBUF);
-			i = ia64_intrs[vector];
-		} else {
-			i->sapic = sa;
-			i->irq = irq;
+		i->sapic = sa;
+		i->irq = irq;
+		i->cntp = intrcnt + irq + INTRCNT_ISA_IRQ;
+		ia64_intrs[vector] = i;
+		sapic_enable(sa, irq, vector);
 
-			i->cntp = intrcnt + irq + INTRCNT_ISA_IRQ;
-			if (name != NULL && *name != '\0') {
-				/* XXX needs abstraction. Too error prone. */
-				intrname = intrnames +
-				    (irq + INTRCNT_ISA_IRQ) * INTRNAME_LEN;
-				memset(intrname, ' ', INTRNAME_LEN - 1);
-				bcopy(name, intrname, strlen(name));
-			}
+		/* XXX unlock */
 
-			sapic_enable(i->sapic, irq, vector);
+		if (name != NULL && *name != '\0') {
+			/* XXX needs abstraction. Too error prone. */
+			intrname = intrnames +
+			    (irq + INTRCNT_ISA_IRQ) * INTRNAME_LEN;
+			memset(intrname, ' ', INTRNAME_LEN - 1);
+			bcopy(name, intrname, strlen(name));
 		}
+	} else {
+		i = ia64_intrs[vector];
+		/* XXX unlock */
 	}
 
+	KASSERT(i != NULL, ("vector mapping bug"));
+
 	error = intr_event_add_handler(i->event, name, filter, handler, arg,
-	    intr_priority(flags), flags, cookiep);
+	    prio, flags, cookiep);
 	return (error);
 }
 

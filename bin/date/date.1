@@ -299,7 +299,7 @@ for more information.
 .El
 .Sh FILES
 .Bl -tag -width /var/log/messages -compact
-.It Pa /var/log/wtmp
+.It Pa /var/log/utx.log
 record of date resets and time changes
 .It Pa /var/log/messages
 record of the user setting the time
@@ -406,9 +406,9 @@ fails.
 .Sh SEE ALSO
 .Xr locale 1 ,
 .Xr gettimeofday 2 ,
+.Xr getutxent 3 ,
 .Xr strftime 3 ,
 .Xr strptime 3 ,
-.Xr utmp 5 ,
 .Xr timed 8
 .Rs
 .%T "TSP: The Time Synchronization Protocol for UNIX 4.3BSD"

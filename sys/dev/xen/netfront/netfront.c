@@ -81,7 +81,7 @@ __FBSDID("$FreeBSD$");
 
 #include "xenbus_if.h"
 
-#define XN_CSUM_FEATURES	(CSUM_TCP | CSUM_UDP | CSUM_TSO)
+#define XN_CSUM_FEATURES	(CSUM_TCP | CSUM_UDP)
 
 #define GRANT_INVALID_REF	0
 
@@ -154,6 +154,9 @@ static int create_netdev(device_t dev);
 static void netif_disconnect_backend(struct netfront_info *info);
 static int setup_device(device_t dev, struct netfront_info *info);
 static void end_access(int ref, void *page);
+
+static int  xn_ifmedia_upd(struct ifnet *ifp);
+static void xn_ifmedia_sts(struct ifnet *ifp, struct ifmediareq *ifmr);
 
 /* Xenolinux helper functions */
 int network_connect(struct netfront_info *);
@@ -230,7 +233,7 @@ struct netfront_info {
 
 	struct mtx   tx_lock;
 	struct mtx   rx_lock;
-	struct sx    sc_lock;
+	struct mtx   sc_lock;
 
 	u_int handle;
 	u_int irq;
@@ -240,7 +243,9 @@ struct netfront_info {
 	/* Receive-ring batched refills. */
 #define RX_MIN_TARGET 32
 #define RX_MAX_TARGET NET_RX_RING_SIZE
-	int rx_min_target, rx_max_target, rx_target;
+	int rx_min_target;
+	int rx_max_target;
+	int rx_target;
 
 	/*
 	 * {tx,rx}_skbs store outstanding skbuffs. The first entry in each
@@ -253,19 +258,20 @@ struct netfront_info {
 	grant_ref_t grant_rx_ref[NET_TX_RING_SIZE + 1]; 
 
 #define TX_MAX_TARGET min(NET_RX_RING_SIZE, 256)
-	device_t xbdev;
-	int tx_ring_ref;
-	int rx_ring_ref;
-	uint8_t mac[ETHER_ADDR_LEN];
+	device_t		xbdev;
+	int			tx_ring_ref;
+	int			rx_ring_ref;
+	uint8_t			mac[ETHER_ADDR_LEN];
 	struct xn_chain_data	xn_cdata;	/* mbufs */
-	struct mbuf_head xn_rx_batch;	/* head of the batch queue */
+	struct mbuf_head	xn_rx_batch;	/* head of the batch queue */
 
 	int			xn_if_flags;
 	struct callout	        xn_stat_ch;
 
-	u_long rx_pfn_array[NET_RX_RING_SIZE];
-	multicall_entry_t rx_mcl[NET_RX_RING_SIZE+1];
-	mmu_update_t rx_mmu[NET_RX_RING_SIZE];
+	u_long			rx_pfn_array[NET_RX_RING_SIZE];
+	multicall_entry_t	rx_mcl[NET_RX_RING_SIZE+1];
+	mmu_update_t		rx_mmu[NET_RX_RING_SIZE];
+	struct ifmedia		sc_media;
 };
 
 #define rx_mbufs xn_cdata.xn_rx_chain
@@ -274,7 +280,7 @@ struct netfront_info {
 #define XN_LOCK_INIT(_sc, _name) \
         mtx_init(&(_sc)->tx_lock, #_name"_tx", "network transmit lock", MTX_DEF); \
         mtx_init(&(_sc)->rx_lock, #_name"_rx", "network receive lock", MTX_DEF);  \
-        sx_init(&(_sc)->sc_lock, #_name"_rx")
+    mtx_init(&(_sc)->sc_lock, #_name"_sc", "netfront softc lock", MTX_DEF)
 
 #define XN_RX_LOCK(_sc)           mtx_lock(&(_sc)->rx_lock)
 #define XN_RX_UNLOCK(_sc)         mtx_unlock(&(_sc)->rx_lock)
@@ -282,15 +288,15 @@ struct netfront_info {
 #define XN_TX_LOCK(_sc)           mtx_lock(&(_sc)->tx_lock)
 #define XN_TX_UNLOCK(_sc)         mtx_unlock(&(_sc)->tx_lock)
 
-#define XN_LOCK(_sc)           sx_xlock(&(_sc)->sc_lock); 
-#define XN_UNLOCK(_sc)         sx_xunlock(&(_sc)->sc_lock); 
+#define XN_LOCK(_sc)           mtx_lock(&(_sc)->sc_lock); 
+#define XN_UNLOCK(_sc)         mtx_unlock(&(_sc)->sc_lock); 
 
-#define XN_LOCK_ASSERT(_sc)    sx_assert(&(_sc)->sc_lock, SX_LOCKED); 
+#define XN_LOCK_ASSERT(_sc)    mtx_assert(&(_sc)->sc_lock, MA_OWNED); 
 #define XN_RX_LOCK_ASSERT(_sc)    mtx_assert(&(_sc)->rx_lock, MA_OWNED); 
 #define XN_TX_LOCK_ASSERT(_sc)    mtx_assert(&(_sc)->tx_lock, MA_OWNED); 
 #define XN_LOCK_DESTROY(_sc)   mtx_destroy(&(_sc)->rx_lock); \
                                mtx_destroy(&(_sc)->tx_lock); \
-                               sx_destroy(&(_sc)->sc_lock);
+                               mtx_destroy(&(_sc)->sc_lock);
 
 struct netfront_rx_info {
 	struct netif_rx_response rx;
@@ -355,9 +361,13 @@ xennet_get_rx_ref(struct netfront_info *np, RING_IDX ri)
 
 #define IPRINTK(fmt, args...) \
     printf("[XEN] " fmt, ##args)
+#ifdef INVARIANTS
 #define WPRINTK(fmt, args...) \
     printf("[XEN] " fmt, ##args)
-#if 0
+#else
+#define WPRINTK(fmt, args...)
+#endif
+#ifdef DEBUG
 #define DPRINTK(fmt, args...) \
     printf("[XEN] %s: " fmt, __func__, ##args)
 #else
@@ -1056,7 +1066,6 @@ xn_txeof(struct netfront_info *np)
 		return;
 	
 	ifp = np->xn_ifp;
-	ifp->if_timer = 0;
 	
 	do {
 		prod = np->tx.sring->rsp_prod;
@@ -1080,7 +1089,7 @@ xn_txeof(struct netfront_info *np)
 				ifp->if_opackets++;
 			if (unlikely(gnttab_query_foreign_access(
 			    np->grant_tx_ref[id]) != 0)) {
-				printf("network_tx_buf_gc: warning "
+				WPRINTK("network_tx_buf_gc: warning "
 				    "-- grant still in use by backend "
 				    "domain.\n");
 				goto out; 
@@ -1255,7 +1264,7 @@ xennet_get_responses(struct netfront_info *np,
 		u_long mfn;
 
 #if 0		
-		printf("rx->status=%hd rx->offset=%hu frags=%u\n",
+		DPRINTK("rx->status=%hd rx->offset=%hu frags=%u\n",
 			rx->status, rx->offset, frags);
 #endif
 		if (unlikely(rx->status < 0 ||
@@ -1469,7 +1478,7 @@ xn_start_locked(struct ifnet *ifp)
 		 * slot [0] free for the freelist head
 		 */
 		if (sc->xn_cdata.xn_tx_chain_cnt + nfrags >= NET_TX_RING_SIZE) {
-			printf("xn_start_locked: xn_tx_chain_cnt (%d) + nfrags %d >= NET_TX_RING_SIZE (%d); must be full!\n",
+			WPRINTK("xn_start_locked: xn_tx_chain_cnt (%d) + nfrags %d >= NET_TX_RING_SIZE (%d); must be full!\n",
 			    (int) sc->xn_cdata.xn_tx_chain_cnt,
 			    (int) nfrags, (int) NET_TX_RING_SIZE);
 			IF_PREPEND(&ifp->if_snd, m_head);
@@ -1485,7 +1494,7 @@ xn_start_locked(struct ifnet *ifp)
 		 * the required size.
 		 */
 		if (RING_FREE_REQUESTS(&sc->tx) < (nfrags + 1)) {
-			printf("xn_start_locked: free ring slots (%d) < (nfrags + 1) (%d); must be full!\n",
+			WPRINTK("xn_start_locked: free ring slots (%d) < (nfrags + 1) (%d); must be full!\n",
 			    (int) RING_FREE_REQUESTS(&sc->tx),
 			    (int) (nfrags + 1));
 			IF_PREPEND(&ifp->if_snd, m_head);
@@ -1623,6 +1632,7 @@ xn_ifinit_locked(struct netfront_info *sc)
 	
 	ifp->if_drv_flags |= IFF_DRV_RUNNING;
 	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
+	if_link_state_change(ifp, LINK_STATE_UP);
 	
 	callout_reset(&sc->xn_stat_ch, hz, xn_tick, sc);
 
@@ -1762,7 +1772,7 @@ xn_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		/* FALLTHROUGH */
 	case SIOCSIFMEDIA:
 	case SIOCGIFMEDIA:
-		error = EINVAL;
+		error = ifmedia_ioctl(ifp, ifr, &sc->sc_media, cmd);
 		break;
 	default:
 		error = ether_ioctl(ifp, cmd, data);
@@ -1786,6 +1796,7 @@ xn_stop(struct netfront_info *sc)
 	xn_free_tx_ring(sc);
     
 	ifp->if_drv_flags &= ~(IFF_DRV_RUNNING | IFF_DRV_OACTIVE);
+	if_link_state_change(ifp, LINK_STATE_DOWN);
 }
 
 /* START of Xenolinux helper functions adapted to FreeBSD */
@@ -1814,7 +1825,6 @@ network_connect(struct netfront_info *np)
 	np->copying_receiver = ((MODPARM_rx_copy && feature_rx_copy) ||
 				(MODPARM_rx_flip && !feature_rx_flip));
 
-	XN_LOCK(np);
 	/* Recovery procedure: */
 	error = talk_to_backend(np->xbdev, np);
 	if (error) 
@@ -1864,7 +1874,6 @@ network_connect(struct netfront_info *np)
 	xn_txeof(np);
 	XN_TX_UNLOCK(np);
 	network_alloc_rx_buffers(np);
-	XN_UNLOCK(np);
 
 	return (0);
 }
@@ -1904,6 +1913,11 @@ create_netdev(device_t dev)
 	np->xbdev         = dev;
     
 	XN_LOCK_INIT(np, xennetif);
+
+	ifmedia_init(&np->sc_media, 0, xn_ifmedia_upd, xn_ifmedia_sts);
+	ifmedia_add(&np->sc_media, IFM_ETHER|IFM_MANUAL, 0, NULL);
+	ifmedia_set(&np->sc_media, IFM_ETHER|IFM_MANUAL);
+
 	np->rx_target     = RX_MIN_TARGET;
 	np->rx_min_target = RX_MIN_TARGET;
 	np->rx_max_target = RX_MAX_TARGET;
@@ -1920,14 +1934,14 @@ create_netdev(device_t dev)
 	/* A grant for every tx ring slot */
 	if (gnttab_alloc_grant_references(TX_MAX_TARGET,
 					  &np->gref_tx_head) < 0) {
-		printf("#### netfront can't alloc tx grant refs\n");
+		IPRINTK("#### netfront can't alloc tx grant refs\n");
 		err = ENOMEM;
 		goto exit;
 	}
 	/* A grant for every rx ring slot */
 	if (gnttab_alloc_grant_references(RX_MAX_TARGET,
 					  &np->gref_rx_head) < 0) {
-		printf("#### netfront can't alloc rx grant refs\n");
+		WPRINTK("#### netfront can't alloc rx grant refs\n");
 		gnttab_free_grant_references(np->gref_tx_head);
 		err = ENOMEM;
 		goto exit;
@@ -1958,7 +1972,6 @@ create_netdev(device_t dev)
     	ifp->if_hwassist = XN_CSUM_FEATURES;
     	ifp->if_capabilities = IFCAP_HWCSUM;
 #if __FreeBSD_version >= 700000
-	ifp->if_capabilities |= IFCAP_TSO4;
 	if (xn_enable_lro) {
 		int err = tcp_lro_init(&np->xn_lro);
 		if (err) {
@@ -1991,7 +2004,8 @@ out:
  * acknowledgement.
  */
 #if 0
-static void netfront_closing(device_t dev)
+static void
+netfront_closing(device_t dev)
 {
 #if 0
 	struct netfront_info *info = dev->dev_driver_data;
@@ -2004,7 +2018,8 @@ static void netfront_closing(device_t dev)
 }
 #endif
 
-static int netfront_detach(device_t dev)
+static int
+netfront_detach(device_t dev)
 {
 	struct netfront_info *info = device_get_softc(dev);
 
@@ -2015,8 +2030,8 @@ static int netfront_detach(device_t dev)
 	return 0;
 }
 
-
-static void netif_free(struct netfront_info *info)
+static void
+netif_free(struct netfront_info *info)
 {
 	netif_disconnect_backend(info);
 #if 0
@@ -2024,7 +2039,8 @@ static void netif_free(struct netfront_info *info)
 #endif
 }
 
-static void netif_disconnect_backend(struct netfront_info *info)
+static void
+netif_disconnect_backend(struct netfront_info *info)
 {
 	XN_RX_LOCK(info);
 	XN_TX_LOCK(info);
@@ -2046,10 +2062,24 @@ static void netif_disconnect_backend(struct netfront_info *info)
 }
 
 
-static void end_access(int ref, void *page)
+static void
+end_access(int ref, void *page)
 {
 	if (ref != GRANT_INVALID_REF)
 		gnttab_end_foreign_access(ref, page);
+}
+
+static int
+xn_ifmedia_upd(struct ifnet *ifp)
+{
+	return (0);
+}
+
+static void
+xn_ifmedia_sts(struct ifnet *ifp, struct ifmediareq *ifmr)
+{
+	ifmr->ifm_status = IFM_AVALID|IFM_ACTIVE;
+	ifmr->ifm_active = IFM_ETHER|IFM_MANUAL;
 }
 
 /* ** Driver registration ** */

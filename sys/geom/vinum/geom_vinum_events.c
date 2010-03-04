@@ -193,7 +193,7 @@ gv_drive_lost(struct gv_softc *sc, struct gv_drive *d)
 	if (cp != NULL) {
 		if (cp->nstart != cp->nend) {
 			G_VINUM_DEBUG(0, "dead drive '%s' has still active "
-			    "requests, can't detach consumer", d->name);
+			    "requests, unable to detach consumer", d->name);
 			gv_post_event(sc, GV_EVENT_DRIVE_LOST, d, NULL, 0, 0);
 			return;
 		}

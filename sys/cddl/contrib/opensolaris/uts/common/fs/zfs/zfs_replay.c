@@ -60,10 +60,14 @@ zfs_init_vattr(vattr_t *vap, uint64_t mask, uint64_t mode,
 {
 	VATTR_NULL(vap);
 	vap->va_mask = (uint_t)mask;
-	vap->va_type = IFTOVT(mode);
-	vap->va_mode = mode & MODEMASK;
-	vap->va_uid = (uid_t)(IS_EPHEMERAL(uid)) ? -1 : uid;
-	vap->va_gid = (gid_t)(IS_EPHEMERAL(gid)) ? -1 : gid;
+	if (mask & AT_TYPE)
+		vap->va_type = IFTOVT(mode);
+	if (mask & AT_MODE)
+		vap->va_mode = mode & MODEMASK;
+	if (mask & AT_UID)
+		vap->va_uid = (uid_t)(IS_EPHEMERAL(uid)) ? -1 : uid;
+	if (mask & AT_GID)
+		vap->va_gid = (gid_t)(IS_EPHEMERAL(gid)) ? -1 : gid;
 	vap->va_rdev = zfs_cmpldev(rdev);
 	vap->va_nodeid = nodeid;
 }

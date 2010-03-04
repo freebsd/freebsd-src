@@ -11,7 +11,7 @@
 # the default is gnu99 for now
 CSTD		?= gnu99
 
-.if !defined(NO_WARNS) && ${CC} != "icc"
+.if ${CC} != "icc"
 . if ${CSTD} == "k&r"
 CFLAGS		+= -traditional
 . elif ${CSTD} == "c89" || ${CSTD} == "c90"
@@ -23,6 +23,8 @@ CFLAGS		+= -std=iso9899:1999
 . else
 CFLAGS		+= -std=${CSTD}
 . endif
+.endif
+.if !defined(NO_WARNS) && ${CC} != "icc"
 # -pedantic is problematic because it also imposes namespace restrictions
 #CFLAGS		+= -pedantic
 . if defined(WARNS)
@@ -41,20 +43,22 @@ CWARNFLAGS	+=	-W -Wno-unused-parameter -Wstrict-prototypes\
 .  endif
 .  if ${WARNS} >= 4
 CWARNFLAGS	+=	-Wreturn-type -Wcast-qual -Wwrite-strings -Wswitch\
-			-Wshadow -Wcast-align -Wunused-parameter
+			-Wshadow -Wunused-parameter
+.   if !defined(NO_WCAST_ALIGN)
+CWARNFLAGS	+=	-Wcast-align
+.   endif
 .  endif
 # BDECFLAGS
 .  if ${WARNS} >= 6
-CWARNFLAGS	+=	-Wchar-subscripts -Winline -Wnested-externs -Wredundant-decls
+CWARNFLAGS	+=	-Wchar-subscripts -Winline -Wnested-externs\
+			-Wredundant-decls -Wold-style-definition
 .  endif
 .  if ${WARNS} >= 2 && ${WARNS} <= 4
 # XXX Delete -Wuninitialized by default for now -- the compiler doesn't
 # XXX always get it right.
 CWARNFLAGS	+=	-Wno-uninitialized
 .  endif
-.  if !defined(WITH_GCC3)
 CWARNFLAGS	+=	-Wno-pointer-sign
-.  endif
 . endif
 
 . if defined(FORMAT_AUDIT)

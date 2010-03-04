@@ -87,7 +87,7 @@ int
 fesetexceptflag(const fexcept_t *flagp, int excepts)
 {
 	fenv_t env;
-	int mxcsr;
+	__uint32_t mxcsr;
 
 	__fnstenv(&env);
 	env.__status &= ~excepts;
@@ -117,7 +117,7 @@ feraiseexcept(int excepts)
 int
 fegetenv(fenv_t *envp)
 {
-	int mxcsr;
+	__uint32_t mxcsr;
 
 	__fnstenv(envp);
 	/*
@@ -135,7 +135,7 @@ fegetenv(fenv_t *envp)
 int
 feholdexcept(fenv_t *envp)
 {
-	int mxcsr;
+	__uint32_t mxcsr;
 
 	__fnstenv(envp);
 	__fnclex();
@@ -152,7 +152,8 @@ feholdexcept(fenv_t *envp)
 int
 feupdateenv(const fenv_t *envp)
 {
-	int mxcsr, status;
+	__uint32_t mxcsr;
+	__uint16_t status;
 
 	__fnstsw(&status);
 	if (__HAS_SSE())
@@ -167,7 +168,8 @@ feupdateenv(const fenv_t *envp)
 int
 __feenableexcept(int mask)
 {
-	int mxcsr, control, omask;
+	__uint32_t mxcsr, omask;
+	__uint16_t control;
 
 	mask &= FE_ALL_EXCEPT;
 	__fnstcw(&control);
@@ -188,7 +190,8 @@ __feenableexcept(int mask)
 int
 __fedisableexcept(int mask)
 {
-	int mxcsr, control, omask;
+	__uint32_t mxcsr, omask;
+	__uint16_t control;
 
 	mask &= FE_ALL_EXCEPT;
 	__fnstcw(&control);

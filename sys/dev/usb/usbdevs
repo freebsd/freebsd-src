@@ -328,6 +328,7 @@ vendor AVISION		0x0638	Avision
 vendor TEAC		0x0644	TEAC
 vendor SGI		0x065e	Silicon Graphics
 vendor SANWASUPPLY	0x0663	Sanwa Supply
+vendor MEGATEC		0x0665	Megatec
 vendor LINKSYS		0x066b	Linksys
 vendor ACERSA		0x066e	Acer Semiconductor America
 vendor SIGMATEL		0x066f	Sigmatel
@@ -523,6 +524,7 @@ vendor ELCON		0x0db7	ELCON Systemtechnik
 vendor NETAC		0x0dd8	Netac
 vendor SITECOMEU	0x0df6	Sitecom Europe
 vendor MOBILEACTION	0x0df7	Mobile Action
+vendor AMIGO		0x0e0b	Amigo Technology
 vendor SPEEDDRAGON	0x0e55	Speed Dragon Multimedia
 vendor HAWKING		0x0e66	Hawking
 vendor FOSSIL		0x0e67	Fossil, Inc
@@ -554,6 +556,7 @@ vendor PLX		0x10b5	PLX
 vendor ASANTE		0x10bd	Asante
 vendor SILABS		0x10c4	Silicon Labs
 vendor ACTIONS		0x10d6  Actions
+vendor AIRPLUS		0x1011  Airplus
 vendor ANALOG		0x1110	Analog Devices
 vendor TENX		0x1130	Ten X Technology, Inc.
 vendor ISSC		0x1131	Integrated System Solution Corp.
@@ -561,6 +564,7 @@ vendor JRC		0x1145	Japan Radio Company
 vendor SPHAIRON		0x114b	Sphairon Access Systems GmbH
 vendor DELORME		0x1163	DeLorme
 vendor SERVERWORKS	0x1166	ServerWorks
+vendor DLINK3		0x1186	Dlink
 vendor ACERCM		0x1189	Acer Communications & Multimedia
 vendor SIERRA		0x1199	Sierra Wireless
 vendor TOPFIELD		0x11db	Topfield Co., Ltd
@@ -586,12 +590,14 @@ vendor NETGEAR3		0x1385	Netgear
 vendor BALTECH		0x13ad	Baltech
 vendor CISCOLINKSYS	0x13b1	Cisco-Linksys
 vendor SHARK		0x13d2	Shark
+vendor AZUREWAVE	0x13d3	AsureWave
 vendor EMTEC		0x13fe	Emtec
 vendor NOVATEL		0x1410	Novatel Wireless
 vendor MERLIN		0x1416	Merlin
 vendor WISTRONNEWEB	0x1435	Wistron NeWeb
 vendor RADIOSHACK	0x1453	Radio Shack
 vendor HUAWEI3COM	0x1472	Huawei-3Com
+vendor ABOCOM2		0x1482	AboCom Systems
 vendor SILICOM		0x1485	Silicom
 vendor RALINK		0x148f	Ralink Technology
 vendor IMAGINATION	0x149a	Imagination Technologies
@@ -600,18 +606,22 @@ vendor SUPERTOP		0x14cd	Super Top
 vendor PLANEX3		0x14ea	Planex Communications
 vendor SILICONPORTALS	0x1527	Silicon Portals
 vendor UBIQUAM		0x1529	UBIQUAM Co., Ltd.
+vendor JMICRON		0x152d	JMicron
 vendor UBLOX		0x1546	U-blox
 vendor PNY		0x154b	PNY
 vendor OQO		0x1557	OQO
 vendor UMEDIA		0x157e	U-MEDIA Communications
 vendor FIBERLINE	0x1582	Fiberline
 vendor SPARKLAN		0x15a9	SparkLAN
+vendor AMIT2		0x15c5	AMIT
 vendor SOHOWARE		0x15e8	SOHOware
 vendor UMAX		0x1606	UMAX Data Systems
 vendor INSIDEOUT	0x1608	Inside Out Networks
+vendor AMOI		0x1614	Amoi Electronics
 vendor GOODWAY		0x1631	Good Way Technology
 vendor ENTREGA		0x1645	Entrega
 vendor ACTIONTEC	0x1668	Actiontec Electronics
+vendor CISCOLINKSYS2	0x167b  Cisco-Linksys
 vendor ATHEROS		0x168c	Atheros Communications
 vendor GIGASET		0x1690	Gigaset
 vendor GLOBALSUN	0x16ab	Global Sun Technology
@@ -621,16 +631,28 @@ vendor CMOTECH		0x16d8	C-motech
 vendor AXESSTEL		0x1726  Axesstel Co., Ltd.
 vendor LINKSYS4		0x1737	Linksys
 vendor SENAO		0x1740	Senao
+vendor ASUS2		0x1761	ASUS
+vendor SWEEX2		0x177f	Sweex
 vendor METAGEEK		0x1781	MetaGeek
 vendor AMIT		0x18c5	AMIT
 vendor QCOM		0x18e8	Qcom
 vendor LINKSYS3		0x1915	Linksys
 vendor QUALCOMMINC	0x19d2	Qualcomm, Incorporated
+vendor WCH2		0x1a86	QinHeng Electronics
 vendor STELERA		0x1a8d	Stelera Wireless
+vendor TCTMOBILE	0x1bbb  TCT Mobile
+vendor TELIT		0x1bc7  Telit
 vendor MPMAN		0x1cae	MpMan
 vendor DRESDENELEKTRONIK 0x1cf1 dresden elektronik
+vendor PEGATRON		0x1d4d	Pegatron
+vendor QISDA		0x1da5  Qisda
+vendor ALINK		0x1e0e  Alink
+vendor AIRTIES		0x1eda	AirTies
 vendor DLINK		0x2001	D-Link
 vendor PLANEX2		0x2019	Planex Communications
+vendor TLAYTECH		0x20b9	Tlay Tech
+vendor ENCORE		0x203d	Encore
+vendor PARA		0x20b8	PARA Industrial
 vendor ERICSSON		0x2282	Ericsson
 vendor MOTOROLA2	0x22b8	Motorola
 vendor TRIPPLITE	0x2478	Tripp-Lite
@@ -656,9 +678,12 @@ vendor ZINWELL		0x5a57	Zinwell
 vendor SITECOM		0x6189	Sitecom
 vendor ARKMICRO		0x6547	Arkmicro Technologies Inc.
 vendor 3COM2		0x6891	3Com
+vendor EDIMAX		0x7392	Edimax
 vendor INTEL		0x8086	Intel
+vendor INTEL2		0x8087	Intel
 vendor SITECOM2		0x9016	Sitecom
 vendor MOSCHIP		0x9710	MosChip Semiconductor
+vendor MARVELL		0x9e88	Marvell Technology Group Ltd.
 vendor 3COM3		0xa727	3Com
 vendor HP2		0xf003	Hewlett Packard
 vendor USRP		0xfffe	GNU Radio USRP
@@ -688,6 +713,12 @@ product 3COMUSR USR56K		0x3021	U.S. Robotics 56000 Voice FaxModem Pro
 /* AboCom products */
 product ABOCOM XX1		0x110c	XX1
 product ABOCOM XX2		0x200c	XX2
+product ABOCOM RT2770		0x2770	RT2770
+product ABOCOM RT2870		0x2870	RT2870
+product ABOCOM RT3070		0x3070	RT3070
+product ABOCOM RT3071		0x3071	RT3071
+product ABOCOM RT3072		0x3072	RT3072
+product ABOCOM2 RT2870_1	0x3c09	RT2870
 product ABOCOM URE450		0x4000	URE450 Ethernet Adapter
 product ABOCOM UFE1000		0x4002	UFE1000 Fast Ethernet Adapter
 product ABOCOM DSB650TX_PNA	0x4003	1/10/100 Ethernet Adapter
@@ -718,6 +749,17 @@ product ACCTON SMCWUSBTG2_NF	0x4507	SMCWUSBT-G2 (no firmware)
 product ACCTON SMCWUSBTG2	0x4508	SMCWUSBT-G2
 product ACCTON PRISM_GT		0x4521	PrismGT USB 2.0 WLAN
 product ACCTON SS1001		0x5046	SpeedStream Ethernet Adapter
+product ACCTON RT2870_2		0x6618	RT2870
+product ACCTON RT3070		0x7511	RT3070
+product ACCTON RT2770		0x7512	RT2770
+product ACCTON RT2870_3		0x7522	RT2870
+product ACCTON RT2870_5		0x8522	RT2870
+product ACCTON RT3070_4		0xa512	RT3070
+product ACCTON RT2870_4		0xa618	RT2870
+product	ACCTON RT3070_1		0xa701	RT3070
+product	ACCTON RT3070_2		0xa702	RT3070
+product ACCTON RT2870_1		0xb522	RT2870
+product	ACCTON RT3070_3		0xc522	RT3070
 product ACCTON ZD1211B		0xe501	ZD1211B
 
 /* Aceeca products */
@@ -737,6 +779,7 @@ product ACERP ACERSCAN_620U	0x2060	Acerscan 620U
 product ACERP ACERSCAN_4300U	0x20b0	Benq 3300U/4300U
 product ACERP ACERSCAN_640BT	0x20be	Acerscan 640BT
 product ACERP ACERSCAN_1240U	0x20c0	Acerscan 1240U
+product ACERP H10		0x4068	AWL400 Wireless Adapter
 product ACERP ATAPI		0x6003	ATA/ATAPI Adapter
 product ACERP AWL300		0x9000	AWL300 Wireless Adapter
 product ACERP AWL400		0x9001	AWL400 Wireless Adapter
@@ -813,8 +856,14 @@ product AIPTEK POCKETCAM3M	0x2011	PocketCAM 3Mega
 product AIPTEK2 PENCAM_MEGA_1_3 0x504a	PenCam Mega 1.3
 product AIPTEK2 SUNPLUS_TECH	0x0c15	Sunplus Technology Inc.
 
+/* AirPlis products */
+product AIRPLUS MCD650		0x3198	MCD650 modem
+
 /* AirPrime products */
 product AIRPRIME PC5220		0x0112	CDMA Wireless PC Card
+
+/* AirTies products */
+product AIRTIES RT3070		0x2310	RT3070
 
 /* AKS products */
 product AKS USBHASP		0x0001	USB-HASP 0.06
@@ -831,12 +880,22 @@ product ALCOR SM_KBD		0x9410	MicroConnectors/StrongMan Keyboard
 product ALCOR NEC_KBD_HUB	0x9472	NEC Kbd Hub
 product ALCOR AU6390	0x6390	AU6390 USB-IDE converter
 
+/* Alink products */
+product ALINK DWM652U5		0xce16	DWM-652
+product ALINK 3G		0x9000	3G modem
+product ALINK 3GU		0x9200	3G modem
+
 /* Altec Lansing products */
 product ALTEC ADA70		0x0070	ADA70 Speakers
 product ALTEC ASC495		0xff05	ASC495 Speakers
 
 /* Allied Telesyn International products */
 product ALLIEDTELESYN ATUSB100	0xb100	AT-USB100
+
+/* Amoi products */
+product AMOI H01		0x0800	H01 3G modem
+product AMOI H01A		0x7002	H01A 3G modem
+product AMOI H02		0x0802	H02 3G modem
 
 /* American Power Conversion products */
 product APC UPS			0x0002	Uninterruptible Power Supply
@@ -845,14 +904,27 @@ product APC UPS			0x0002	Uninterruptible Power Supply
 product AMBIT WLAN		0x0302	WLAN
 product AMBIT NTL_250		0x6098	NTL 250 cable modem
 
+/* American Power Conversion products */
+product APC UPS			0x0002	Uninterruptible Power Supply
+
+/* Amigo Technology products */
+product AMIGO RT2870_1		0x9031	RT2870
+product AMIGO RT2870_2		0x9041	RT2870
+
 /* AMIT products */
 product AMIT CGWLUSB2GO		0x0002	CG-WLUSB2GO
+product AMIT CGWLUSB2GNR	0x0008	CG-WLUSB2GNR
+product AMIT RT2870_1		0x0012	RT2870
+
+/* AMIT(2) products */
+product AMIT2 RT2870		0x0008	RT2870
 
 /* Anchor products */
 product ANCHOR EZUSB		0x2131	EZUSB
 product ANCHOR EZLINK		0x2720	EZLINK
 
 /* AnyData products */
+product ANYDATA ADU_620UW	0x6202	CDMA 2000 EV-DO USB Modem
 product ANYDATA ADU_E100X	0x6501	CDMA 2000 1xRTT/EV-DO USB Modem
 product ANYDATA ADU_500A	0x6502	CDMA 2000 EV-DO USB Modem
 
@@ -902,16 +974,26 @@ product ASANTE EA		0x1427	Ethernet
 product ASIX AX88172		0x1720	10/100 Ethernet
 product ASIX AX88178		0x1780	AX88178
 product ASIX AX88772		0x7720	AX88772
+product ASIX AX88772A		0x772a	AX88772A USB 2.0 10/100 Ethernet
 
 /* ASUS products */
+product ASUS2 USBN11		0x0b05	USB-N11
 product ASUS WL167G		0x1707	WL-167g Wireless Adapter
 product ASUS WL159G		0x170c	WL-159g
 product ASUS A9T_WIFI		0x171b	A9T wireless
+product ASUS P5B_WIFI		0x171d	P5B wireless
 product ASUS RT2573_1		0x1723	RT2573
 product ASUS RT2573_2		0x1724	RT2573
 product ASUS LCM		0x1726	LCM display
+product ASUS RT2870_1		0x1731	RT2870
+product ASUS RT2870_2		0x1732	RT2870
+product ASUS RT2870_3		0x1742	RT2870
+product ASUS RT2870_4		0x1760	RT2870
+product ASUS RT2870_5		0x1761	RT2870
+product	ASUS RT3070		0x1784	RT3070
 product ASUS P535		0x420f	ASUS P535 PDA
 product	ASUS GMSC		0x422f	ASUS Generic Mass Storage
+product ASUS RT2570		0x1706	RT2500USB Wireless Adapter
 
 /* ATen products */
 product ATEN UC1284		0x2001	Parallel printer
@@ -945,6 +1027,13 @@ product AVISION 1200U		0x0268	1200U scanner
 /* Axesstel products */
 product AXESSTEL DATAMODEM	0x1000  Data Modem
 
+/* AsureWave products */
+product AZUREWAVE RT2870_1	0x3247	RT2870
+product AZUREWAVE RT2870_2	0x3262	RT2870
+product AZUREWAVE RT3070_1	0x3273	RT3070
+product	AZUREWAVE RT3070_2	0x3284	RT3070
+product	AZUREWAVE RT3070_3	0x3305	RT3070
+
 /* Baltech products */
 product BALTECH CARDREADER	0x9999	Card reader
 
@@ -974,8 +1063,14 @@ product BELKIN F5D7051		0x7051	F5D7051 54g USB Network Adapter
 product BELKIN F5D7050A		0x705a	F5D7050A Wireless Adapter
 /* Also sold as 'Ativa 802.11g wireless card' */
 product BELKIN F5D7050_V4000	0x705c	F5D7050 v4000 Wireless Adapter
+product BELKIN F5D7050E		0x705e	F5D7050E Wireless Adapter
+product BELKIN RT2870_1		0x8053	RT2870
+product BELKIN RT2870_2		0x805c	RT2870
+product BELKIN F5D8053V3	0x815c	F5D8053 v3
+product BELKIN F5D8055		0x825a	F5D8055
 product BELKIN F5D9050V3	0x905b	F5D9050 ver 3 Wireless Adapter
 product BELKIN2 F5U002		0x0002	F5U002 Parallel printer
+product BELKIN F6D4050V1	0x935a	F6D4050 v1
 
 /* Billionton products */
 product BILLIONTON USB100	0x0986	USB100N 10/100 FastEthernet
@@ -1022,6 +1117,7 @@ product CCYU ED1064		0x2136	EasyDisk ED1064
 
 /* Century products */
 product CENTURY EX35QUAT	0x011e	Century USB Disk Enclosure
+product CENTURY EX35SW4_SB4	0x011f	Century USB Disk Enclosure
 
 /* Cherry products */
 product CHERRY MY3000KBD	0x0001	My3000 keyboard
@@ -1034,6 +1130,7 @@ product CHIC CYPRESS		0x0003	Cypress USB Mouse
 
 /* Chicony products */
 product CHICONY KB8933		0x0001	KB-8933 keyboard
+product CHICONY CNF7129		0xb071	Notebook Web Camera
 product CHICONY2 TWINKLECAM	0x600d	TwinkleCam USB camera
 
 /* CH Products */
@@ -1051,6 +1148,7 @@ product CISCOLINKSYS HU200TS	0x001a	HU200TS Wireless Adapter
 product CISCOLINKSYS WUSB54GC	0x0020	WUSB54GC
 product CISCOLINKSYS WUSB54GR	0x0023	WUSB54GR
 product CISCOLINKSYS WUSBF54G	0x0024	WUSBF54G
+product	CISCOLINKSYS2	RT3070	0x4001	RT3070
 
 /* CMOTECH products */
 product CMOTECH CNU510		0x5141	CDMA Technologies USB modem
@@ -1077,6 +1175,15 @@ product CONCEPTRONIC AR5523_2	0x7811	AR5523
 product CONCEPTRONIC AR5523_2_NF	0x7812	AR5523 (no firmware)
 product CONCEPTRONIC2 C54RU	0x3c02	C54RU WLAN
 product CONCEPTRONIC2 C54RU2	0x3c22	C54RU
+product CONCEPTRONIC2 VIGORN61	0x3c25	VIGORN61
+product CONCEPTRONIC2 RT2870_1	0x3c06	RT2870
+product CONCEPTRONIC2 RT2870_2	0x3c07	RT2870
+product CONCEPTRONIC2 RT2870_7	0x3c09	RT2870
+product CONCEPTRONIC2 RT2870_8	0x3c12	RT2870
+product CONCEPTRONIC2 RT2870_3	0x3c23	RT2870
+product CONCEPTRONIC2 RT2870_4	0x3c25	RT2870
+product CONCEPTRONIC2 RT2870_5	0x3c27	RT2870
+product CONCEPTRONIC2 RT2870_6	0x3c28	RT2870
 
 /* Connectix products */
 product CONNECTIX QUICKCAM	0x0001	QuickCam
@@ -1091,6 +1198,12 @@ product COREGA FETHER_USB2_TX	0x0017	FEther USB2-TX
 product COREGA WLUSB_11_KEY	0x001a	ULUSB-11 Key
 product COREGA CGWLUSB2GL	0x002d	CG-WLUSB2GL
 product COREGA CGWLUSB2GPX	0x002e	CG-WLUSB2GPX
+product COREGA RT2870_1		0x002f	RT2870
+product COREGA RT2870_2		0x003c	RT2870
+product COREGA RT2870_3		0x003f	RT2870
+product COREGA RT3070		0x0041	RT3070
+product COREGA CGWLUSB300GNM	0x0042	CG-WLUSB300GNM
+
 product COREGA WLUSB_11_STICK	0x7613	WLAN USB Stick 11
 product COREGA FETHER_USB_TXC	0x9601	FEther USB-TXC
 
@@ -1112,12 +1225,14 @@ product CTX EX1300		0x9999	Ex1300 hub
 product CURITEL HX550C		0x1101	CDMA 2000 1xRTT USB modem (HX-550C)
 product CURITEL HX57XB		0x2101	CDMA 2000 1xRTT USB modem (HX-570/575B/PR-600)
 product CURITEL PC5740		0x3701	Broadband Wireless modem
+product CURITEL UM175		0x3714	EVDO modem
 
 /* CyberPower products */
 product CYBERPOWER 1500CAVRLCD	0x0501	1500CAVRLCD
 
 /* CyberTAN Technology products */
 product CYBERTAN TG54USB	0x1666	TG54USB
+product CYBERTAN RT2870		0x1828	RT2870
 
 /* Cypress Semiconductor products */
 product CYPRESS MOUSE		0x0001	mouse
@@ -1144,7 +1259,22 @@ product DELL BC02		0x8000	BC02 Bluetooth USB Adapter
 product DELL PRISM_GT_1		0x8102	PrismGT USB 2.0 WLAN
 product DELL TM350		0x8103	TrueMobile 350 Bluetooth USB Adapter
 product DELL PRISM_GT_2		0x8104	PrismGT USB 2.0 WLAN
+product DELL U5700		0x8114	Dell 5700 3G
+product DELL U5500		0x8115	Dell 5500 3G
+product DELL U5505		0x8116	Dell 5505 3G
+product DELL U5700_2		0x8117	Dell 5700 3G
+product DELL U5510		0x8118	Dell 5510 3G
+product DELL U5700_3		0x8128	Dell 5700 3G
+product DELL U5700_4		0x8129	Dell 5700 3G
+product DELL U5720		0x8133	Dell 5720 3G
+product DELL U5720_2		0x8134	Dell 5720 3G
 product DELL U740		0x8135	Dell U740 CDMA
+product DELL U5520		0x8136	Dell 5520 3G
+product DELL U5520_2		0x8137	Dell 5520 3G
+product DELL U5520_3		0x8138	Dell 5520 3G
+product DELL U5730		0x8180	Dell 5730 3G
+product DELL U5730_2		0x8181	Dell 5730 3G
+product DELL U5730_3		0x8182	Dell 5730 3G
 
 /* Delorme Paublishing products */
 product DELORME EARTHMATE	0x0100	Earthmate GPS
@@ -1180,6 +1310,8 @@ product DLINK DWLAG122		0x3a04	DWL-AG122
 product DLINK DWLAG122_NF	0x3a05	DWL-AG122 (no firmware)
 product DLINK DWLG122		0x3c00	DWL-G122 b1 Wireless Adapter
 product DLINK DUBE100B1		0x3c05	DUB-E100 rev B1
+product DLINK RT2870		0x3c09	RT2870
+product DLINK RT3072		0x3c0a	RT3072
 product DLINK DSB650C		0x4000	10Mbps Ethernet
 product DLINK DSB650TX1		0x4001	10/100 Ethernet
 product DLINK DSB650TX		0x4002	10/100 Ethernet
@@ -1187,15 +1319,25 @@ product DLINK DSB650TX_PNA	0x4003	1/10/100 Ethernet
 product DLINK DSB650TX3		0x400b	10/100 Ethernet
 product DLINK DSB650TX2		0x4102	10/100 Ethernet
 product DLINK DSB650		0xabc1	10/100 Ethernet
+product DLINK2 DWA120		0x3a0c	DWA-120
 product DLINK2 DWA120_NF	0x3a0d	DWA-120 (no firmware)
-product DLINK2 DWA120		0x3a0e	DWA-120
 product DLINK2 DWLG122C1	0x3c03	DWL-G122 c1
 product DLINK2 WUA1340		0x3c04	WUA-1340
 product DLINK2 DWA111		0x3c06	DWA-111
+product DLINK2 RT2870_1		0x3c09	RT2870
 product DLINK2 DWA110		0x3c07	DWA-110
+product DLINK2 RT3072		0x3c0a	RT3072
+product DLINK2 RT3070_1		0x3c0d	RT3070
+product DLINK2 RT3070_2		0x3c0e	RT3070
+product DLINK2 RT3070_3		0x3c0f	RT3070
+product DLINK2 RT2870_2		0x3c11	RT2870
+product DLINK2 DWA130		0x3c13	DWA-130
+product DLINK2 RT3070_4		0x3c15	RT3070
+product DLINK3 DWM652		0x3e04	DWM-652
 
 /* DMI products */
 product DMI CFSM_RW		0xa109	CF/SM Reader/Writer
+product DMI DISK		0x2bcf	Generic Disk
 
 /* DrayTek products */
 product DRAYTEK VIGOR550	0x0550	Vigor550
@@ -1206,6 +1348,15 @@ product DRESDENELEKTRONIK WIRELESSHANDHELDTERMINAL  0x0004 Wireless Handheld Ter
 
 /* Dynastream Innovations */
 product DYNASTREAM ANTDEVBOARD	0x1003	ANT dev board
+
+/* Edimax products */
+product EDIMAX EW7318USG	0x7318	USB Wireless dongle
+product EDIMAX RT2870_1		0x7711	RT2870
+product EDIMAX EW7717		0x7717	EW-7717
+product EDIMAX EW7718		0x7718	EW-7718
+
+/* Eicon Networks */
+product EICON DIVA852		0x4905	Diva 852 ISDN TA
 
 /* EIZO products */
 product EIZO HUB		0x0000	hub
@@ -1231,6 +1382,11 @@ product ELSA USB2ETHERNET	0x3000	Microlink USB2Ethernet
 
 /* EMS products */
 product EMS DUAL_SHOOTER	0x0003	PSX gun controller converter
+
+/* Encore products */
+product ENCORE RT3070_1		0x1480	RT3070
+product ENCORE RT3070_2		0x14a1	RT3070
+product ENCORE RT3070_3		0x14a9	RT3070
 
 /* Entrega products */
 product ENTREGA 1S		0x0001	1S serial
@@ -1315,6 +1471,8 @@ product FTDI SERIAL_8U100AX	0x8372	8U100AX Serial
 product FTDI SERIAL_8U232AM	0x6001	8U232AM Serial
 product FTDI SERIAL_8U232AM4	0x6004	8U232AM Serial
 product FTDI SERIAL_2232C	0x6010	FT2232C Dual port Serial
+product FTDI SERIAL_2232D	0x9e90	FT2232D Dual port Serial
+product FTDI SERIAL_4232H	0x6011	FT4232H Quad port Serial
 /* Gude Analog- und Digitalsysteme products also uses FTDI's id: */
 product FTDI TACTRIX_OPENPORT_13M 0xcc48 OpenPort 1.3 Mitsubishi
 product FTDI TACTRIX_OPENPORT_13S 0xcc49 OpenPort 1.3 Subaru
@@ -1336,6 +1494,9 @@ product FTDI CFA_633		0xfc0b	Crystalfontz CFA-633 USB LCD
 product FTDI CFA_631		0xfc0c	Crystalfontz CFA-631 USB LCD
 product FTDI CFA_635		0xfc0d	Crystalfontz CFA-635 USB LCD
 product FTDI SEMC_DSS20		0xfc82	SEMC DSS-20 SyncStation
+/* Commerzielle und Technische Informationssysteme GmbH products */
+product FTDI CTI_USB_NANO_485	0xf60b	CTI USB-Nano 485
+product FTDI CTI_USB_MINI_485	0xf608	CTI USB-Mini 485
 
 /* Fuji photo products */
 product FUJIPHOTO MASS0100	0x0100	Mass Storage
@@ -1372,6 +1533,11 @@ product GIGASET SMCWUSBTG_NF	0x0711	SMCWUSBT-G (no firmware)
 product GIGASET AR5523		0x0712	AR5523
 product GIGASET AR5523_NF	0x0713	AR5523 (no firmware)
 product GIGASET RT2573		0x0722	RT2573
+product GIGASET RT3070_1	0x0740	RT3070
+product GIGASET RT3070_2	0x0744	RT3070
+product GIGABYTE RT2870_1	0x800b	RT2870
+product GIGABYTE GNWB31N	0x800c	GN-WB31N
+product GIGABYTE GNWB32L	0x800d	GN-WB32L
 
 /* Global Sun Technology product */
 product GLOBALSUN AR5523_1	0x7801	AR5523
@@ -1407,6 +1573,7 @@ product GUILLEMOT DALEADER	0xa300	DA Leader
 product GUILLEMOT HWGUSB254	0xe000	HWGUSB2-54 WLAN
 product GUILLEMOT HWGUSB254LB	0xe010	HWGUSB2-54-LB
 product GUILLEMOT HWGUSB254V2AP	0xe020	HWGUSB2-54V2-AP
+product GUILLEMOT HWNU300	0xe030	HWNU-300
 
 /* Hagiwara products */
 product HAGIWARA FGSM		0x0002	FlashGate SmartMedia Card Reader
@@ -1425,6 +1592,10 @@ product HANDSPRING TREO600	0x0300	Handspring Treo 600
 product HAUPPAUGE WINTV_USB_FM	0x4d12	WinTV USB FM
 
 /* Hawking Technologies products */
+product HAWKING RT2870_1	0x0001	RT2870
+product HAWKING RT2870_2	0x0003	RT2870
+product HAWKING HWUN2		0x0009	HWUN2
+product HAWKING RT3070		0x000b	RT3070
 product HAWKING UF100		0x400c	10/100 USB Ethernet
 
 /* Hitachi, Ltd. products */
@@ -1471,12 +1642,14 @@ product HP 2215			0x1016	iPAQ 22xx/Jornada 548
 product HP 568J			0x1116	Jornada 568
 product HP 930C			0x1204	DeskJet 930c
 product HP P2000U		0x1801	Inkjet P-2000U
+product HP HS2300		0x1e1d  HS2300 HSDPA (aka MC8775)
 product HP 640C			0x2004	DeskJet 640c
 product HP 4670V		0x3005	ScanJet 4670v
 product HP P1100		0x3102	Photosmart P1100
 product HP OJ4215		0x3d11	OfficeJet 4215
 product HP HN210E		0x811c	Ethernet HN210E
 product HP2 C500		0x6002	PhotoSmart C500
+product HP EV2200		0x1b1d  ev2200 HSDPA (aka MC5720)
 product HP HS2300		0x1e1d  hs2300 HSDPA (aka MC8775)
 
 /* HTC products */
@@ -1487,7 +1660,72 @@ product HTC SMARTPHONE		0x0a51	SmartPhone USB Sync
 /* HUAWEI products */
 product HUAWEI MOBILE		0x1001	Huawei Mobile
 product HUAWEI E220		0x1003	Huawei HSDPA modem
+product HUAWEI E220BIS		0x1004	Huawei HSDPA modem
+product HUAWEI E1401		0x1401	3G modem
+product HUAWEI E1402		0x1402	3G modem
+product HUAWEI E1403		0x1403	3G modem
+product HUAWEI E1404		0x1404	3G modem
+product HUAWEI E1405		0x1405	3G modem
+product HUAWEI E1406		0x1406	3G modem
+product HUAWEI E1407		0x1407	3G modem
+product HUAWEI E1408		0x1408	3G modem
+product HUAWEI E1409		0x1409	3G modem
+product HUAWEI E140A		0x140a	3G modem
+product HUAWEI E140B		0x140b	3G modem
 product HUAWEI E180V		0x140c	Huawei Mobile E180V
+product HUAWEI E140D		0x140d	3G modem
+product HUAWEI E140E		0x140e	3G modem
+product HUAWEI E140F		0x140f	3G modem
+product HUAWEI E1410		0x1410	3G modem
+product HUAWEI E1411		0x1411	3G modem
+product HUAWEI E1412		0x1412	3G modem
+product HUAWEI E1413		0x1413	3G modem
+product HUAWEI E1414		0x1414	3G modem
+product HUAWEI E1415		0x1415	3G modem
+product HUAWEI E1416		0x1416	3G modem
+product HUAWEI E1417		0x1417	3G modem
+product HUAWEI E1418		0x1418	3G modem
+product HUAWEI E1419		0x1419	3G modem
+product HUAWEI E141A		0x141a	3G modem
+product HUAWEI E141B		0x141b	3G modem
+product HUAWEI E141C		0x141c	3G modem
+product HUAWEI E141D		0x141d	3G modem
+product HUAWEI E141E		0x141e	3G modem
+product HUAWEI E141F		0x141f	3G modem
+product HUAWEI E1420		0x1420	3G modem
+product HUAWEI E1421		0x1421	3G modem
+product HUAWEI E1422		0x1422	3G modem
+product HUAWEI E1423		0x1423	3G modem
+product HUAWEI E1424		0x1424	3G modem
+product HUAWEI E1425		0x1425	3G modem
+product HUAWEI E1426		0x1426	3G modem
+product HUAWEI E1427		0x1427	3G modem
+product HUAWEI E1428		0x1428	3G modem
+product HUAWEI E1429		0x1429	3G modem
+product HUAWEI E142A		0x142a	3G modem
+product HUAWEI E142B		0x142b	3G modem
+product HUAWEI E142C		0x142c	3G modem
+product HUAWEI E142D		0x142d	3G modem
+product HUAWEI E142E		0x142e	3G modem
+product HUAWEI E142F		0x142f	3G modem
+product HUAWEI E1430		0x1430	3G modem
+product HUAWEI E1431		0x1431	3G modem
+product HUAWEI E1432		0x1432	3G modem
+product HUAWEI E1433		0x1433	3G modem
+product HUAWEI E1434		0x1434	3G modem
+product HUAWEI E1435		0x1435	3G modem
+product HUAWEI E1436		0x1436	3G modem
+product HUAWEI E1437		0x1437	3G modem
+product HUAWEI E1438		0x1438	3G modem
+product HUAWEI E1439		0x1439	3G modem
+product HUAWEI E143A		0x143a	3G modem
+product HUAWEI E143B		0x143b	3G modem
+product HUAWEI E143C		0x143c	3G modem
+product HUAWEI E143D		0x143d	3G modem
+product HUAWEI E143E		0x143e	3G modem
+product HUAWEI E143F		0x143f	3G modem
+product HUAWEI E1752		0x1446	3G modem
+product HUAWEI E14AC		0x14ac	3G modem
 
 /* HUAWEI 3com products */
 product HUAWEI3COM WUB320G	0x0009	Aolynk WUB320g
@@ -1512,6 +1750,7 @@ product INSYSTEM STORAGE_V2	0x5701	USB Storage Adapter V2
 /* Intel products */
 product INTEL EASYPC_CAMERA	0x0110	Easy PC Camera
 product INTEL TESTBOARD		0x9890	82930 test board
+product INTEL2 IRMH        	0x0020	Integrated Rate Matching Hub
 
 /* Intersil products */
 product INTERSIL PRISM_GT	0x1000	PrismGT USB 2.0 WLAN
@@ -1532,6 +1771,10 @@ product IODATA USBETTXS		0x0913	USB ETTX
 product IODATA USBWNB11A	0x0919	USB WN-B11
 product IODATA USBWNB11		0x0922	USB Airport WN-B11
 product IODATA ETGUS2		0x0930	ETG-US2
+product IODATA RT3072_1		0x0944	RT3072
+product IODATA RT3072_2		0x0945	RT3072
+product IODATA RT3072_3		0x0947	RT3072
+product IODATA RT3072_4		0x0948	RT3072
 product IODATA USBRSAQ		0x0a03	Serial USB-RSAQ1
 product IODATA2 USB2SC		0x0a09	USB2.0-SCSI Bridge USB2-SC
 
@@ -1548,6 +1791,9 @@ product JABLOTRON PC60B		0x0001	PC-60B
 
 /* Jaton products */
 product JATON EDA		0x5704	Ethernet
+
+/* JMicron products */
+product JMICRON JM20337		0x2338	USB to ATA/ATAPI Bridge
 
 /* JVC products */
 product JVC GR_DX95		0x000a	GR-DX95
@@ -1628,6 +1874,7 @@ product KYOCERA FINECAM_S5	0x0103	Finecam S5
 product KYOCERA FINECAM_L3	0x0105	Finecam L3
 product KYOCERA AHK3001V	0x0203	AH-K3001V
 product KYOCERA2 CDMA_MSM_K	0x17da	Qualcomm Kyocera CDMA Technologies MSM
+product KYOCERA2 KPC680		0x180a	Qualcomm Kyocera CDMA Technologies MSM
 
 /* LaCie products */
 product LACIE HD		0xa601	Hard Disk
@@ -1652,6 +1899,11 @@ product LINKSYS2 WUSB11		0x2219	WUSB11 Wireless Adapter
 product LINKSYS2 USB200M	0x2226	USB 2.0 10/100 Ethernet
 product LINKSYS3 WUSB11v28	0x2233	WUSB11 v2.8 Wireless Adapter
 product LINKSYS4 USB1000	0x0039	USB1000
+product LINKSYS4 WUSB100	0x0070	WUSB100
+product LINKSYS4 WUSB600N	0x0071	WUSB600N
+product LINKSYS4 WUSB54GCV2	0x0073	WUSB54GC v2
+product LINKSYS4 WUSB54GCV3	0x0077	WUSB54GC v3
+product LINKSYS4 WUSB600NV2	0x0079	WUSB600N v2
 
 /* Logitech products */
 product LOGITECH M2452		0x0203	M2452 keyboard
@@ -1681,6 +1933,9 @@ product LOGITECH QUICKCAMPRO2	0xd001	QuickCam Pro
 /* Logitec Corp. products */
 product LOGITEC LDR_H443SU2	0x0033	DVD Multi-plus unit LDR-H443SU2
 product LOGITEC LDR_H443U2	0x00b3	DVD Multi-plus unit LDR-H443U2
+product LOGITEC RT2870_1	0x0162	RT2870
+product LOGITEC RT2870_2	0x0163	RT2870
+product LOGITEC RT2870_3	0x0164	RT2870
 
 /* Lucent products */
 product LUCENT EVALKIT		0x1001	USS-720 evaluation kit
@@ -1690,6 +1945,9 @@ product LUWEN EASYDISK		0x0005	EasyDisc
 
 /* Macally products */
 product MACALLY MOUSE1		0x0101	mouse
+
+/* Marvell Technology Group, Ltd. products */
+product MARVELL SHEEVAPLUG	0x9e8f	SheevaPlug serial interface
 
 /* MCT Corp. */
 product MCT HUB0100		0x0100	Hub
@@ -1715,7 +1973,10 @@ product MELCO PCOPRS1		0x00b3	PC-OP-RS1 RemoteStation
 product MELCO SG54HP		0x00d8	WLI-U2-SG54HP
 product MELCO G54HP		0x00d9	WLI-U2-G54HP
 product MELCO KG54L		0x00da	WLI-U2-KG54L
+product MELCO WLIUCG300N	0x00e8	WLI-UC-G300N
 product MELCO SG54HG		0x00f4	WLI-U2-SG54HG
+product MELCO WLIUCAG300N	0x012e	WLI-UC-AG300N
+product MELCO WLIUCGN		0x015d	WLI-UC-GN
 
 /* Merlin products */
 product MERLIN V620             0x1110  Merlin V620
@@ -1733,14 +1994,24 @@ product MGE UPS2		0xffff	MGE UPS SYSTEMS PROTECTIONCENTER 2
 
 /* Micro Star International products */
 product MSI BT_DONGLE		0x1967	Bluetooth USB dongle
+product MSI RT3070_1		0x3820	RT3070
+product MSI RT3070_2		0x3821	RT3070
+product MSI RT3070_3		0x3870	RT3070
 product MSI UB11B		0x6823	UB11B
 product MSI RT2570		0x6861	RT2570
 product MSI RT2570_2		0x6865	RT2570
 product MSI RT2570_3		0x6869	RT2570
 product MSI RT2573_1		0x6874	RT2573
 product MSI RT2573_2		0x6877	RT2573
+product MSI RT3070_4		0x6899	RT3070
+product MSI RT3070_5		0x821a	RT3070
+product MSI RT3070_6		0x870a	RT3070
+product MSI RT3070_7		0x899a	RT3070
 product MSI RT2573_3		0xa861	RT2573
 product MSI RT2573_4		0xa874	RT2573
+
+/* Microdia products */
+product MICRODIA TWINKLECAM	0x600d	TwinkleCam USB camera
 
 /* Microsoft products */
 product MICROSOFT SIDEPREC	0x0008	SideWinder Precision Pro
@@ -1813,6 +2084,7 @@ product MOSCHIP MCS7830		0x7830	MCS7830 Ethernet
 /* Motorola products */
 product MOTOROLA MC141555	0x1555	MC141555 hub controller
 product MOTOROLA SB4100		0x4100	SB4100 USB Cable Modem
+product MOTOROLA2 T720C		0x2822	T720c
 product MOTOROLA2 A41XV32X	0x2a22	A41x/V32x Mobile Phones
 product MOTOROLA2 E398		0x4810	E398 Mobile Phone
 product MOTOROLA2 USBLAN	0x600c	USBLAN
@@ -1869,6 +2141,7 @@ product NETGEAR EA101X		0x1002	Ethernet
 product NETGEAR FA101		0x1020	Ethernet 10/100, USB1.1
 product NETGEAR FA120		0x1040	USB 2.0 Ethernet
 product NETGEAR WG111V2_2	0x4240	PrismGT USB 2.0 WLAN
+product NETGEAR WG111V3		0x4260	WG111v3
 product NETGEAR WG111U		0x4300	WG111U
 product NETGEAR WG111U_NF	0x4301	WG111U (no firmware)
 product NETGEAR WG111V2		0x6a00	WG111V2
@@ -1878,6 +2151,7 @@ product NETGEAR3 WG111T		0x4250	WG111T
 product NETGEAR3 WG111T_NF	0x4251	WG111T (no firmware)
 product NETGEAR3 WPN111		0x5f00	WPN111
 product NETGEAR3 WPN111_NF	0x5f01	WPN111 (no firmware)
+product NETGEAR3 WPN111_2	0x5f02	WPN111
 
 /* Nikon products */
 product NIKON E990		0x0102	Digital Camera E990
@@ -1887,6 +2161,9 @@ product NIKON D300		0x041a  Digital Camera D300
 /* NovaTech Products */
 product NOVATECH NV902		0x9020	NovaTech NV-902W
 product NOVATECH RT2573		0x9021	RT2573
+
+/* Nokia products */
+product NOKIA N958GB		0x0070	Nokia N95 8GBc
 
 /* Novatel Wireless products */
 product NOVATEL V640		0x1100	Merlin V620
@@ -1899,13 +2176,21 @@ product NOVATEL U740_2		0x1410	Merlin U740
 product NOVATEL U870		0x1420	Merlin U870
 product NOVATEL XU870		0x1430	Merlin XU870
 product NOVATEL X950D		0x1450	Merlin X950D
+product NOVATEL ES620		0x2100	Expedite ES620
+product NOVATEL E725		0x2120	Expedite E725
+product NOVATEL ES620_2		0x2130	Expedite ES620
 product NOVATEL ES620		0x2100	ES620 CDMA
 product NOVATEL U720		0x2110	Merlin U720
+product NOVATEL EU730		0x2400	Expedite EU730
+product NOVATEL EU740		0x2410	Expedite EU740
+product NOVATEL EU870D		0x2420	Expedite EU870D
 product NOVATEL U727		0x4100	Merlin U727 CDMA
 product NOVATEL MC950D		0x4400	Novatel MC950D HSUPA
 product NOVATEL ZEROCD		0x5010	Novatel ZeroCD
 product NOVATEL ZEROCD2		0x5030	Novatel ZeroCD
+product NOVATEL U727_2		0x5100	Merlin U727 CDMA
 product NOVATEL U760		0x6000	Novatel U760
+product NOVATEL MC760		0x6002	Novatel MC760
 product NOVATEL2 FLEXPACKGPS	0x0100	NovAtel FlexPack GPS receiver
 
 /* Merlin products */
@@ -1940,6 +2225,39 @@ product OPTION GTICON322	0xd033	GlobeTrotter Icon322 storage
 product OPTION GTMAX36		0x6701	GlobeTrotter Max 3.6 Modem
 product OPTION GTHSDPA		0x6971	GlobeTrotter HSDPA
 product OPTION GTMAXHSUPA	0x7001	GlobeTrotter HSUPA
+product OPTION GTMAXHSUPAE	0x6901	GlobeTrotter HSUPA PCIe
+product OPTION GTMAX380HSUPAE	0x7211	GlobeTrotter 380HSUPA PCIe
+product OPTION GT3G_1		0x6050	3G modem
+product OPTION GT3G_2		0x6100	3G modem
+product OPTION GT3G_3		0x6150	3G modem
+product OPTION GT3G_4		0x6200	3G modem
+product OPTION GT3G_5		0x6250	3G modem
+product OPTION GT3G_6		0x6350	3G modem
+product OPTION E6500		0x6500	3G modem
+product OPTION E6501		0x6501	3G modem
+product OPTION E6601		0x6601	3G modem
+product OPTION E6721		0x6721	3G modem
+product OPTION E6741		0x6741	3G modem
+product OPTION E6761		0x6761	3G modem
+product OPTION E6800		0x6800	3G modem
+product OPTION E7021		0x7021	3G modem
+product OPTION E7041		0x7041	3G modem
+product OPTION E7061		0x7061	3G modem
+product OPTION E7100		0x7100	3G modem
+product OPTION GTM380		0x7201	3G modem
+product OPTION GE40X		0x7601	Globetrotter HSUPA
+product OPTION GSICON72		0x6911	GlobeSurfer iCON
+product OPTION GSICONHSUPA	0x7251	Globetrotter HSUPA
+product OPTION ICON401		0x7401	GlobeSurfer iCON 401
+product OPTION GTHSUPA		0x7011	Globetrotter HSUPA
+product OPTION GMT382		0x7501	Globetrotter HSUPA
+product OPTION GE40X_1		0x7301	Globetrotter HSUPA
+product OPTION GE40X_2		0x7361	Globetrotter HSUPA
+product OPTION GE40X_3		0x7381	Globetrotter HSUPA
+product OPTION ICONEDGE		0xc031	GlobeSurfer iCON EDGE
+product OPTION MODHSXPA		0xd013	Globetrotter HSUPA
+product OPTION ICON321		0xd031	Globetrotter HSUPA
+product OPTION ICON505		0xd055	Globetrotter iCON 505
 
 /* OQO */
 product OQO WIFI01		0x0002	model 01 WiFi interface
@@ -1968,6 +2286,14 @@ product PANASONIC KXLCB20AN	0x0d0a	CD-R Drive KXL-CB20AN
 product PANASONIC KXLCB35AN	0x0d0e	DVD-ROM & CD-R/RW
 product PANASONIC SDCAAE	0x1b00	MultiMediaCard
 
+/* PARA Industrial products */
+product PARA RT3070		0x8888	RT3070
+ 	 
+/* Pegatron products */
+product PEGATRON RT2870		0x0002	RT2870
+product PEGATRON RT3070		0x000c	RT3070
+product PEGATRON RT3070_2	0x000e	RT3070
+
 /* Peracom products */
 product PERACOM SERIAL1		0x0001	Serial
 product PERACOM ENET		0x0002	Ethernet
@@ -1985,9 +2311,13 @@ product PHILIPS SPE3030CC	0x083a	USB 2.0 External Disk
 product PHILIPS SNU5600		0x1236	SNU5600
 product PHILIPS UM10016		0x1552	ISP 1581 Hi-Speed USB MPEG2 Encoder Reference Kit
 product PHILIPS DIVAUSB		0x1801	DIVA USB mp3 player
+product PHILIPS RT2870		0x200f	RT2870
 
 /* Philips Semiconductor products */
-product PHILIPSSEMI HUB1122	0x1122	hub
+product PHILIPSSEMI HUB1122	0x1122	HUB
+
+/* Megatec */
+product MEGATEC UPS		0x5161	Protocol based UPS
 
 /* P.I. Engineering products */
 product PIENGINEERING PS2USB	0x020b	PS2 to Mac USB Adapter
@@ -1997,11 +2327,15 @@ product PLANEX GW_US11H		0x14ea	GW-US11H WLAN
 product PLANEX2 GW_US11S	0x3220	GW-US11S WLAN
 product PLANEX2 GW_US54GXS	0x5303	GW-US54GXS WLAN
 product PLANEX2 GWUS54HP	0xab01	GW-US54HP
+product PLANEX2 GWUS300MINIS	0xab24	GW-US300MiniS
+product PLANEX2	RT3070		0xab25	RT3070
 product PLANEX2 GWUS54MINI2	0xab50	GW-US54Mini2
 product PLANEX2 GWUS54SG	0xc002	GW-US54SG
 product PLANEX2 GWUS54GZL	0xc007	GW-US54GZL
 product PLANEX2 GWUS54GD	0xed01	GW-US54GD
 product PLANEX2 GWUSMM		0xed02	GW-USMM
+product PLANEX2 RT2870		0xed06	RT2870
+product PLANEX2 GWUSMICRON	0xed14	GW-USMicroN
 product PLANEX3 GWUS54GZ	0xab10	GW-US54GZ
 product PLANEX3 GU1000T		0xab11	GU-1000T
 product PLANEX3 GWUS54MINI	0xab13	GW-US54Mini
@@ -2059,14 +2393,101 @@ product PUTERCOM UPA100		0x047e	USB-1284 BRIDGE
 product QCOM RT2573		0x6196	RT2573
 product QCOM RT2573_2		0x6229	RT2573
 product QCOM RT2573_3		0x6238	RT2573
+product QCOM RT2870		0x6259	RT2870
+
+/* Qisda products */
+product QISDA H21_1		0x4512	3G modem
+product QISDA H21_2		0x4523	3G modem
+product QISDA H20_1		0x4515	3G modem
+product QISDA H20_2		0x4519	3G modem
 
 /* Qualcomm products */
 product QUALCOMM CDMA_MSM	0x6000	CDMA Technologies MSM phone
 product QUALCOMM2 RWT_FCT	0x3100	RWT FCT-CDMA 2000 1xRTT modem
 product QUALCOMM2 CDMA_MSM	0x3196	CDMA Technologies MSM modem
+product QUALCOMM2 AC8700	0x6000	AC8700
+product QUALCOMM2 MF330		0x6613	MF330
 product QUALCOMMINC CDMA_MSM	0x0001	CDMA Technologies MSM modem
 product QUALCOMMINC ZTE_STOR	0x2000	USB ZTE Storage
+product QUALCOMMINC AC8710	0xfff1	3G modem
+product QUALCOMMINC AC2726	0xfff5	3G modem
 product QUALCOMMINC AC8700	0xfffe	CDMA 1xEVDO USB modem
+product QUALCOMMINC E0002	0x0002	3G modem
+product QUALCOMMINC E0003	0x0003	3G modem
+product QUALCOMMINC E0004	0x0004	3G modem
+product QUALCOMMINC E0005	0x0005	3G modem
+product QUALCOMMINC E0006	0x0006	3G modem
+product QUALCOMMINC E0007	0x0007	3G modem
+product QUALCOMMINC E0008	0x0008	3G modem
+product QUALCOMMINC E0009	0x0009	3G modem
+product QUALCOMMINC E000A	0x000a	3G modem
+product QUALCOMMINC E000B	0x000b	3G modem
+product QUALCOMMINC E000C	0x000c	3G modem
+product QUALCOMMINC E000D	0x000d	3G modem
+product QUALCOMMINC E000E	0x000e	3G modem
+product QUALCOMMINC E000F	0x000f	3G modem
+product QUALCOMMINC E0010	0x0010	3G modem
+product QUALCOMMINC E0011	0x0011	3G modem
+product QUALCOMMINC E0012	0x0012	3G modem
+product QUALCOMMINC E0013	0x0013	3G modem
+product QUALCOMMINC E0014	0x0014	3G modem
+product QUALCOMMINC MF628	0x0015	3G modem
+product QUALCOMMINC MF633R	0x0016	ZTE WCDMA modem
+product QUALCOMMINC E0017	0x0017	3G modem
+product QUALCOMMINC E0018	0x0018	3G modem
+product QUALCOMMINC E0019	0x0019	3G modem
+product QUALCOMMINC E0020	0x0020	3G modem
+product QUALCOMMINC E0021	0x0021	3G modem
+product QUALCOMMINC E0022	0x0022	3G modem
+product QUALCOMMINC E0023	0x0023	3G modem
+product QUALCOMMINC E0024	0x0024	3G modem
+product QUALCOMMINC E0025	0x0025	3G modem
+product QUALCOMMINC E0026	0x0026	3G modem
+product QUALCOMMINC E0027	0x0027	3G modem
+product QUALCOMMINC E0028	0x0028	3G modem
+product QUALCOMMINC E0029	0x0029	3G modem
+product QUALCOMMINC E0030	0x0030	3G modem
+product QUALCOMMINC MF626	0x0031	3G modem
+product QUALCOMMINC E0032	0x0032	3G modem
+product QUALCOMMINC E0033	0x0033	3G modem
+product QUALCOMMINC E0037	0x0037	3G modem
+product QUALCOMMINC E0039	0x0039	3G modem
+product QUALCOMMINC E0042	0x0042	3G modem
+product QUALCOMMINC E0043	0x0043	3G modem
+product QUALCOMMINC E0048	0x0048	3G modem
+product QUALCOMMINC E0049	0x0049	3G modem
+product QUALCOMMINC E0051	0x0051	3G modem
+product QUALCOMMINC E0052	0x0052	3G modem
+product QUALCOMMINC ZTE_STOR2	0x0053	USB ZTE Storage
+product QUALCOMMINC E0054	0x0054	3G modem
+product QUALCOMMINC E0055	0x0055	3G modem
+product QUALCOMMINC E0057	0x0057	3G modem
+product QUALCOMMINC E0058	0x0058	3G modem
+product QUALCOMMINC E0059	0x0059	3G modem
+product QUALCOMMINC E0060	0x0060	3G modem
+product QUALCOMMINC E0061	0x0061	3G modem
+product QUALCOMMINC E0062	0x0062	3G modem
+product QUALCOMMINC E0063	0x0063	3G modem
+product QUALCOMMINC E0064	0x0064	3G modem
+product QUALCOMMINC E0066	0x0066	3G modem
+product QUALCOMMINC E0069	0x0069	3G modem
+product QUALCOMMINC E0070	0x0070	3G modem
+product QUALCOMMINC E0073	0x0073	3G modem
+product QUALCOMMINC E0076	0x0076	3G modem
+product QUALCOMMINC E0078	0x0078	3G modem
+product QUALCOMMINC E0082	0x0082	3G modem
+product QUALCOMMINC E0086	0x0086	3G modem
+product QUALCOMMINC E2002	0x2002	3G modem
+product QUALCOMMINC E2003	0x2003	3G modem
+
+/* Quanta products */
+/* Quanta products */
+product QUANTA RT3070		0x0304	RT3070
+product QUANTA Q101		0xea02	HSDPA modem
+product QUANTA Q111		0xea03	HSDPA modem
+product QUANTA GLX		0xea04	HSDPA modem
+product QUANTA GKE		0xea05	HSDPA modem
+product QUANTA GLE		0xea06	HSDPA modem
 
 /* Qtronix products */
 product QTRONIX 980N		0x2011	Scorpion-980N keyboard
@@ -2082,9 +2503,16 @@ product RAINBOW IKEY2000	0x1200	i-Key 2000
 
 /* Ralink Technology products */
 product RALINK RT2570		0x1706	RT2500USB Wireless Adapter
+product RALINK RT2070		0x2070	RT2070
 product RALINK RT2570_2		0x2570	RT2500USB Wireless Adapter
 product RALINK RT2573		0x2573	RT2501USB Wireless Adapter
 product RALINK RT2671		0x2671	RT2601USB Wireless Adapter
+product RALINK RT2770		0x2770	RT2770
+product RALINK RT2870		0x2870	RT2870
+product RALINK RT3070		0x3070	RT3070
+product RALINK RT3071		0x3071	RT3071
+product RALINK RT3072		0x3072	RT3072
+product RALINK RT3572		0x3572	RT3572
 product RALINK RT2570_3		0x9020	RT2500USB Wireless Adapter
 product RALINK RT2573_2		0x9021	RT2501USB Wireless Adapter
 
@@ -2092,6 +2520,9 @@ product RALINK RT2573_2		0x9021	RT2501USB Wireless Adapter
 /* Green House and CompUSA OEM this part */
 product REALTEK USBKR100	0x8150	USBKR100 USB Ethernet
 product REALTEK RTL8187		0x8187	RTL8187 Wireless Adapter
+product REALTEK RTL8187B_0	0x8189	RTL8187B Wireless Adapter
+product REALTEK RTL8187B_1	0x8197	RTL8187B Wireless Adapter
+product REALTEK RTL8187B_2	0x8198	RTL8187B Wireless Adapter
 
 /* Ricoh products */
 product RICOH VGPVCC2		0x1830	VGP-VCC2 Camera
@@ -2111,6 +2542,7 @@ product ROCKFIRE GAMEPAD	0x2033	gamepad 203USB
 
 /* RATOC Systems products */
 product RATOC REXUSB60		0xb000	REX-USB60
+product RATOC REXUSB60F		0xb020	REX-USB60F
 
 /* Sagem products */
 product SAGEM USBSERIAL		0x0027	USB-Serial Controller
@@ -2121,6 +2553,7 @@ product SAGEM XG76NA		0x0062	XG-76NA
 product SAMSUNG ML6060		0x3008	ML-6060 laser printer
 product SAMSUNG YP_U2		0x5050	YP-U2 MP3 Player
 product SAMSUNG I500		0x6601	I500 Palm USB Phone 
+product SAMSUNG2 RT2870_1	0x2018	RT2870
 
 /* Samsung Techwin products */
 product SAMSUNG_TECHWIN DIGIMAX_410	0x000a	Digimax 410
@@ -2144,7 +2577,18 @@ product SCANLOGIC SL11R		0x0002	SL11R IDE Adapter
 product SCANLOGIC 336CX		0x0300	Phantom 336CX - C3 scanner
 
 /* Senao products */
+product SENAO RT2870_3		0x0605	RT2870
+product SENAO RT2870_4		0x0615	RT2870
 product SENAO NUB8301		0x2000	NUB-8301
+product SENAO RT2870_1		0x9701	RT2870
+product SENAO RT2870_2		0x9702	RT2870
+product SENAO RT3070		0x9703	RT3070
+product SENAO RT3071		0x9705	RT3071
+product SENAO RT3072_1		0x9706	RT3072
+product SENAO RT3072_2		0x9707	RT3072
+product SENAO RT3072_3		0x9708	RT3072
+product SENAO RT3072_4		0x9709	RT3072
+product SENAO RT3072_5		0x9801	RT3072
 
 /* ShanTou products */
 product SHANTOU ST268		0x0268	ST268
@@ -2160,6 +2604,7 @@ product SHARP SL5600		0x8006	Zaurus SL-5600 PDA
 product SHARP SLC700		0x8007	Zaurus SL-C700 PDA
 product SHARP SLC750		0x9031	Zaurus SL-C750 PDA
 product SHARP WZERO3ES		0x9123	W-ZERO3 ES Smartphone
+product SHARP WZERO3ADES	0x91ac	Advanced W-ZERO3 ES Smartphone
 product SHARP WILLCOM03		0x9242	WILLCOM03
 
 /* Shuttle Technology products */
@@ -2187,33 +2632,64 @@ product SIEMENS3 X65		0x0003	X65
 product SIEMENS3 X75		0x0004	X75
 
 /* Sierra Wireless products */
+product SIERRA EM5625		0x0017	EM5625
+product SIERRA MC5720_2		0x0018	MC5720
+product SIERRA MC5725		0x0020	MC5725
 product SIERRA AIRCARD580	0x0112	Sierra Wireless AirCard 580
 product SIERRA AIRCARD595	0x0019	Sierra Wireless AirCard 595
 product SIERRA AC595U		0x0120	Sierra Wireless AirCard 595U
 product SIERRA AC597E		0x0021	Sierra Wireless AirCard 597E
+product SIERRA EM5725		0x0022	EM5725
 product SIERRA C597		0x0023	Sierra Wireless Compass 597
+product SIERRA MC5727		0x0024	MC5727
+product SIERRA T598		0x0025	T598
+product SIERRA T11		0x0026	T11
+product SIERRA AC402		0x0027	AC402
+product SIERRA MC5728		0x0028	MC5728
+product SIERRA E0029		0x0029	E0029
+product SIERRA AIRCARD580	0x0112	Sierra Wireless AirCard 580
+product SIERRA AC595U		0x0120	Sierra Wireless AirCard 595U
+product SIERRA MC5720		0x0218	MC5720 Wireless Modem
+product SIERRA MINI5725		0x0220	Sierra Wireless miniPCI 5275
+product SIERRA MC5727_2		0x0224	MC5727
+product SIERRA MC8755_2		0x6802	MC8755
+product SIERRA MC8765		0x6803	MC8765
+product SIERRA MC8755		0x6804	MC8755
+product SIERRA MC8765_2		0x6805	MC8765
+product SIERRA MC8755_4		0x6808	MC8755
+product SIERRA MC8765_3		0x6809	MC8765
+product SIERRA AC875U		0x6812	AC875U HSDPA USB Modem
+product SIERRA MC8755_3		0x6813	MC8755 HSDPA
+product SIERRA MC8775_2		0x6815	MC8775
+product SIERRA MC8775		0x6816	MC8775
 product SIERRA AC875		0x6820	Sierra Wireless AirCard 875
+product SIERRA AC875U_2		0x6821	AC875U
+product SIERRA AC875E		0x6822	AC875E
+product SIERRA MC8780		0x6832	MC8780
+product SIERRA MC8781		0x6833	MC8781
+product SIERRA MC8780_2		0x6834	MC8780
+product SIERRA MC8781_2		0x6835	MC8781
+product SIERRA MC8780_3		0x6838	MC8780
+product SIERRA MC8781_3		0x6839	MC8781
+product SIERRA MC8785		0x683A	MC8785
+product SIERRA MC8785_2		0x683B	MC8785
+product SIERRA MC8790		0x683C	MC8790
+product SIERRA MC8791		0x683D	MC8791
+product SIERRA MC8792		0x683E	MC8792
 product SIERRA AC880		0x6850	Sierra Wireless AirCard 880
 product SIERRA AC881		0x6851	Sierra Wireless AirCard 881
 product SIERRA AC880E		0x6852	Sierra Wireless AirCard 880E
 product SIERRA AC881E		0x6853	Sierra Wireless AirCard 881E
 product SIERRA AC880U		0x6855	Sierra Wireless AirCard 880U
 product SIERRA AC881U		0x6856	Sierra Wireless AirCard 881U
+product SIERRA AC885E		0x6859	AC885E
+product SIERRA AC885E_2		0x685A	AC885E
 product SIERRA AC885U		0x6880	Sierra Wireless AirCard 885U
-product SIERRA EM5625		0x0017	EM5625
-product SIERRA MC5720		0x0218	MC5720 Wireless Modem
-product SIERRA MC5720_2		0x0018	MC5720
-product SIERRA MC5725		0x0020	MC5725
-product SIERRA MINI5725		0x0220	Sierra Wireless miniPCI 5275
-product SIERRA MC8755_2		0x6802	MC8755
-product SIERRA MC8765		0x6803	MC8765
-product SIERRA MC8755		0x6804	MC8755
-product SIERRA AC875U		0x6812	AC875U HSDPA USB Modem
-product SIERRA MC8755_3		0x6813	MC8755 HSDPA
-product SIERRA MC8775_2		0x6815	MC8775
+product SIERRA C888		0x6890	C888
+product SIERRA C22		0x6891	C22
+product SIERRA E6892		0x6892	E6892
+product SIERRA E6893		0x6893	E6893
 product SIERRA AIRCARD875	0x6820	Aircard 875 HSDPA
-product SIERRA MC8780		0x6832	MC8780
-product SIERRA MC8781		0x6833	MC8781
 product SIERRA TRUINSTALL	0x0fff	Aircard Tru Installer
 
 /* Sigmatel products */
@@ -2261,6 +2737,24 @@ product SITECOM SERIAL		0x2068	USB to serial cable (v2)
 product SITECOM2 WL022		0x182d	WL-022
 
 /* Sitecom Europe products */
+product SITECOMEU RT2870_1	0x0017	RT2870
+product SITECOMEU WL168V1	0x000d	WL-168 v1
+product SITECOMEU WL168V4	0x0028	WL-168 v4
+product SITECOMEU RT2870_2	0x002b	RT2870
+product SITECOMEU RT2870_3	0x002c	RT2870
+product SITECOMEU RT2870_4	0x002d	RT2870
+product SITECOMEU RT2770	0x0039	RT2770
+product SITECOMEU RT3070_2	0x003b	RT3070
+product SITECOMEU RT3070_3	0x003c	RT3070
+product SITECOMEU RT3070_4	0x003d	RT3070
+product SITECOMEU RT3070	0x003e	RT3070
+product SITECOMEU WL608		0x003f	WL-608
+product SITECOMEU RT3072_1	0x0041	RT3072
+product SITECOMEU RT3072_2	0x0042	RT3072
+product SITECOMEU RT3072_3	0x0047	RT3072
+product SITECOMEU RT3072_4	0x0048	RT3072
+product SITECOMEU RT3072_5	0x004a	RT3072
+product SITECOMEU RT3072_6	0x004d	RT3072
 product SITECOMEU LN028		0x061c	LN-028
 product SITECOMEU WL113		0x9071	WL-113
 product SITECOMEU ZD1211B	0x9075	ZD1211B
@@ -2318,7 +2812,9 @@ product SOURCENEXT KEIKAI8	0x039f	KeikaiDenwa 8
 product SOURCENEXT KEIKAI8_CHG	0x012e	KeikaiDenwa 8 with charger
 
 /* SparkLAN products */
-product SPARKLAN RT2573		0x0004	 RT2573
+product SPARKLAN RT2573		0x0004	RT2573
+product SPARKLAN RT2870_1	0x0006	RT2870
+product SPARKLAN RT3070		0x0010	RT3070
 
 /* Sphairon Access Systems GmbH products */
 product SPHAIRON UB801R		0x0110	UB801R
@@ -2326,6 +2822,22 @@ product SPHAIRON UB801R		0x0110	UB801R
 /* Stelera Wireless products */
 product STELERA ZEROCD		0x1000	Zerocd Installer
 product STELERA C105		0x1002	Stelera/Bandrish C105 USB
+product STELERA E1003		0x1003	3G modem
+product STELERA E1004		0x1004	3G modem
+product STELERA E1005		0x1005	3G modem
+product STELERA E1006		0x1006	3G modem
+product STELERA E1007		0x1007	3G modem
+product STELERA E1008		0x1008	3G modem
+product STELERA E1009		0x1009	3G modem
+product STELERA E100A		0x100a	3G modem
+product STELERA E100B		0x100b	3G modem
+product STELERA E100C		0x100c	3G modem
+product STELERA E100D		0x100d	3G modem
+product STELERA E100E		0x100e	3G modem
+product STELERA E100F		0x100f	3G modem
+product STELERA E1010		0x1010	3G modem
+product STELERA E1011		0x1011	3G modem
+product STELERA E1012		0x1012	3G modem
 
 /* MpMan products */
 product MPMAN MPF400_1		0x36d0	MPF400 Music Player 1Go
@@ -2366,11 +2878,14 @@ product DIAMOND2 RIO600USB	0x5001	Rio 600 USB
 product DIAMOND2 RIO800USB	0x5002	Rio 800 USB
 
 /* Surecom Technology products */
+product SURECOM EP9001G2A	0x11f2	EP-9001-G rev 2A
 product SURECOM RT2570		0x11f3	RT2570
 product SURECOM RT2573		0x31f3	RT2573
 
 /* Sweex products */
 product SWEEX ZD1211		0x1809	ZD1211
+product SWEEX2 LW303		0x0302	LW303
+product SWEEX2 LW313		0x0313	LW313
 
 /* System TALKS, Inc. */
 product SYSTEMTALKS SGCX2UL	0x1920	SGC-X2UL
@@ -2380,6 +2895,9 @@ product TAPWAVE ZODIAC		0x0100	Zodiac
 
 /* Taugagreining products */
 product TAUGA CAMERAMATE	0x0005	CameraMate (DPCM_USB)
+
+/* TCTMobile products */
+product TCTMOBILE X060S		0x0000	X060S 3G modem
 
 /* TDK products */
 product TDK UPA9664		0x0115	USB-PDC Adapter UPA9664
@@ -2399,6 +2917,10 @@ product TEKRAM ZD1211_2		0x6630	ZD1211
 /* Telex Communications products */
 product TELEX MIC1		0x0001	Enhanced USB Microphone
 
+/* Telit products */
+product TELIT UC864E		0x1003	UC864E 3G modem
+product TELIT UC864G		0x1004	UC864G 3G modem
+
 /* Ten X Technology, Inc. */
 product TENX UAUDIO0		0xf211	USB audio headset
 
@@ -2409,11 +2931,16 @@ product TI TUSB2046		0x2046	TUSB2046 hub
 /* Thrustmaster products */
 product THRUST FUSION_PAD	0xa0a3	Fusion Digital Gamepad
 
+/* TLayTech products */
+product TLAYTECH TEU800		0x1682	TEU800 3G modem
+
 /* Topre Corporation products */
 product TOPRE HHKB		0x0100	HHKB Professional
 
 /* Toshiba Corporation products */
 product TOSHIBA POCKETPC_E740	0x0706	PocketPC e740
+product TOSHIBA G450		0x0d45	G450 modem
+product TOSHIBA HSDPA		0x1302	G450 modem
 
 /* Trek Technology products */
 product TREK THUMBDRIVE		0x1111	ThumbDrive
@@ -2452,10 +2979,10 @@ product UMEDIA TEW444UBEU_NF	0x3007	TEW-444UB EU (no firmware)
 product UMEDIA TEW429UB_A	0x300a	TEW-429UB_A
 product UMEDIA TEW429UB		0x300b	TEW-429UB
 product UMEDIA TEW429UBC1	0x300d	TEW-429UB C1
+product UMEDIA RT2870_1		0x300e	RT2870
 product UMEDIA ALL0298V2	0x3204	ALL0298 v2
 product UMEDIA AR5523_2		0x3205	AR5523
 product UMEDIA AR5523_2_NF	0x3206	AR5523 (no firmware)
-product UMEDIA AR5523_3		0x3207	AR5523
 
 /* Universal Access products */
 product UNIACCESS PANACHE	0x0101	Panache Surf USB ISDN Adapter
@@ -2497,13 +3024,17 @@ product WACOM GRAPHIRE		0x0010	Graphire
 product WACOM GRAPHIRE3_4X5	0x0013	Graphire 3 4x5
 product WACOM INTUOSA5		0x0021	Intuos A5
 product WACOM GD0912U		0x0022	Intuos 9x12 Graphics Tablet
-/* WCH products*/
+
+/* WCH products */
 product WCH CH341SER		0x5523	CH341/CH340 USB-Serial Bridge
+product WCH2 CH341SER		0x7523	CH341/CH340 USB-Serial Bridge
+
 /* Western Digital products */
 product WESTERN COMBO		0x0200	Firewire USB Combo
 product WESTERN EXTHDD		0x0400	External HDD
 product WESTERN HUB		0x0500	USB HUB
 product WESTERN MYBOOK		0x0901	MyBook External HDD
+product WESTERN MYPASSWORD	0x0704	MyPassword External HDD
 
 /* Windbond Electronics */
 product WINBOND UH104		0x5518	4-port USB Hub
@@ -2557,9 +3088,16 @@ product ZCOM AR5523		0x0012	AR5523
 product ZCOM AR5523_NF		0x0013	AR5523 driver (no firmware)
 product ZCOM XM142		0x0015	XM-142
 product ZCOM ZD1211B		0x001a	ZD1211B
+product ZCOM RT2870_1		0x0022	RT2870
+product ZCOM RT2870_2		0x0025	RT2870
 
 /* Zinwell products */
 product ZINWELL RT2570		0x0260	RT2570
+product ZINWELL RT2870_1	0x0280	RT2870
+product ZINWELL RT2870_2	0x0282	RT2870
+product ZINWELL RT3072_1	0x0283	RT3072
+product ZINWELL RT3072_2	0x0284	RT3072
+product ZINWELL RT3070		0x5257	RT3070
 
 /* Zoom Telephonics, Inc. products */
 product ZOOM 2986L		0x9700	2986L Fax modem
@@ -2580,3 +3118,4 @@ product ZYXEL AG225H		0x3409	AG-225H
 product ZYXEL M202		0x340a	M-202
 product ZYXEL G220V2		0x340f	G-220 v2
 product ZYXEL G202		0x3410	G-202
+product ZYXEL RT2870_1		0x3416	RT2870

@@ -289,7 +289,7 @@ void
 cam_ccbq_free(struct cam_ccbq *ccbq)
 {
 	if (ccbq) {
-		camq_fini(&ccbq->queue);
+		cam_ccbq_fini(ccbq);
 		free(ccbq, M_CAMCCBQ);
 	}
 }
@@ -334,8 +334,14 @@ cam_ccbq_init(struct cam_ccbq *ccbq, int openings)
 	}
 	ccbq->devq_openings = openings;
 	ccbq->dev_openings = openings;	
-	TAILQ_INIT(&ccbq->active_ccbs);
 	return (0);
+}
+
+void
+cam_ccbq_fini(struct cam_ccbq *ccbq)
+{
+
+	camq_fini(&ccbq->queue);
 }
 
 /*

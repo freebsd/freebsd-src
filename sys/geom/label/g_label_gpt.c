@@ -153,12 +153,17 @@ g_label_gpt_uuid_taste(struct g_consumer *cp, char *label, size_t size)
 	snprintf_uuid(label, size, &part_gpt_entry->ent.ent_uuid);
 }
 
-const struct g_label_desc g_label_gpt = {
+struct g_label_desc g_label_gpt = {
 	.ld_taste = g_label_gpt_taste,
-	.ld_dir = G_LABEL_GPT_VOLUME_DIR
+	.ld_dir = G_LABEL_GPT_VOLUME_DIR,
+	.ld_enabled = 1
 };
 
-const struct g_label_desc g_label_gpt_uuid = {
+struct g_label_desc g_label_gpt_uuid = {
 	.ld_taste = g_label_gpt_uuid_taste,
-	.ld_dir = G_LABEL_GPT_ID_DIR
+	.ld_dir = G_LABEL_GPT_ID_DIR,
+	.ld_enabled = 1
 };
+
+G_LABEL_INIT(gpt, g_label_gpt, "Create device nodes for GPT labels");
+G_LABEL_INIT(gptid, g_label_gpt_uuid, "Create device nodes for GPT UUIDs");

@@ -273,7 +273,7 @@ ata_raid_flush(struct bio *bp)
 	request->u.ata.lba = 0;
 	request->u.ata.count = 0;
 	request->u.ata.feature = 0;
-	request->timeout = 1;
+	request->timeout = ATA_REQUEST_TIMEOUT;
 	request->retries = 0;
 	request->flags |= ATA_R_ORDERED | ATA_R_DIRECT;
 	ata_queue_request(request);
@@ -407,7 +407,7 @@ ata_raid_strategy(struct bio *bp)
 	    if (rdp->status & AR_S_REBUILDING)
 		blk = ((lba / rdp->interleave) * rdp->width) * rdp->interleave +
 		      (rdp->interleave * (drv % rdp->width)) +
-		      lba % rdp->interleave;;
+		      lba % rdp->interleave;
 
 	    if (bp->bio_cmd == BIO_READ) {
 		int src_online =
@@ -4371,7 +4371,7 @@ ata_raid_init_request(device_t dev, struct ar_softc *rdp, struct bio *bio)
 	return NULL;
     }
     request->dev = dev;
-    request->timeout = 5;
+    request->timeout = ATA_REQUEST_TIMEOUT;
     request->retries = 2;
     request->callback = ata_raid_done;
     request->driver = rdp;
@@ -4445,7 +4445,7 @@ ata_raid_rw(device_t dev, u_int64_t lba, void *data, u_int bcount, int flags)
 
     /* setup request */
     request->dev = dev;
-    request->timeout = 10;
+    request->timeout = ATA_REQUEST_TIMEOUT;
     request->retries = 0;
     request->data = data;
     request->bytecount = bcount;

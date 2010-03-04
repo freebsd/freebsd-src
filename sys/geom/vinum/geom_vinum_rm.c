@@ -207,7 +207,7 @@ gv_rm_vol(struct gv_softc *sc, struct gv_volume *v)
 
 	/* Check if any of our consumers is open. */
 	if (gv_provider_is_open(pp)) {
-		G_VINUM_DEBUG(0, "Unable to remove %s: volume still in use",
+		G_VINUM_DEBUG(0, "unable to remove %s: volume still in use",
 		    v->name);
 		return;
 	}
@@ -241,7 +241,7 @@ gv_rm_plex(struct gv_softc *sc, struct gv_plex *p)
 
 	/* Check if any of our consumers is open. */
 	if (v != NULL && gv_provider_is_open(v->provider) && v->plexcount < 2) {
-		G_VINUM_DEBUG(0, "Unable to remove %s: volume still in use",
+		G_VINUM_DEBUG(0, "unable to remove %s: volume still in use",
 		    p->name);
 		return;
 	}
@@ -318,7 +318,7 @@ gv_rm_drive(struct gv_softc *sc, struct gv_drive *d, int flags)
 		g_topology_unlock();
 
 		if (err) {
-			G_VINUM_DEBUG(0, "%s: couldn't access '%s', "
+			G_VINUM_DEBUG(0, "%s: unable to access '%s', "
 			    "errno: %d", __func__, cp->provider->name, err);
 			return;
 		}
@@ -327,7 +327,7 @@ gv_rm_drive(struct gv_softc *sc, struct gv_drive *d, int flags)
 		d->hdr->magic = GV_NOMAGIC;
 		err = gv_write_header(cp, d->hdr);
 		if (err)
-			G_VINUM_DEBUG(0, "gv_rm_drive: couldn't write header to"
+			G_VINUM_DEBUG(0, "gv_rm_drive: error writing header to"
 			    " '%s', errno: %d", cp->provider->name, err);
 
 		g_topology_lock();

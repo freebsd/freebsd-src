@@ -135,6 +135,7 @@ static void uslcom_start_read(struct ucom_softc *);
 static void uslcom_stop_read(struct ucom_softc *);
 static void uslcom_start_write(struct ucom_softc *);
 static void uslcom_stop_write(struct ucom_softc *);
+static void uslcom_poll(struct ucom_softc *ucom);
 
 static const struct usb_config uslcom_config[USLCOM_N_TRANSFER] = {
 
@@ -170,27 +171,30 @@ static struct ucom_callback uslcom_callback = {
 	.ucom_stop_read = &uslcom_stop_read,
 	.ucom_start_write = &uslcom_start_write,
 	.ucom_stop_write = &uslcom_stop_write,
+	.ucom_poll = &uslcom_poll,
 };
 
 static const struct usb_device_id uslcom_devs[] = {
-    { USB_VPI(USB_VENDOR_BALTECH,	USB_PRODUCT_BALTECH_CARDREADER, 0) },
-    { USB_VPI(USB_VENDOR_DYNASTREAM,	USB_PRODUCT_DYNASTREAM_ANTDEVBOARD, 0) },
-    { USB_VPI(USB_VENDOR_JABLOTRON,	USB_PRODUCT_JABLOTRON_PC60B, 0) },
-    { USB_VPI(USB_VENDOR_SILABS,	USB_PRODUCT_SILABS_ARGUSISP, 0) },
-    { USB_VPI(USB_VENDOR_SILABS,	USB_PRODUCT_SILABS_CRUMB128, 0) },
-    { USB_VPI(USB_VENDOR_SILABS,	USB_PRODUCT_SILABS_DEGREE, 0) },
-    { USB_VPI(USB_VENDOR_SILABS,	USB_PRODUCT_SILABS_BURNSIDE, 0) },
-    { USB_VPI(USB_VENDOR_SILABS,	USB_PRODUCT_SILABS_HELICOM, 0) },
-    { USB_VPI(USB_VENDOR_SILABS,	USB_PRODUCT_SILABS_LIPOWSKY_HARP, 0) },
-    { USB_VPI(USB_VENDOR_SILABS,	USB_PRODUCT_SILABS_LIPOWSKY_JTAG, 0) },
-    { USB_VPI(USB_VENDOR_SILABS,	USB_PRODUCT_SILABS_LIPOWSKY_LIN, 0) },
-    { USB_VPI(USB_VENDOR_SILABS,	USB_PRODUCT_SILABS_POLOLU, 0) },
-    { USB_VPI(USB_VENDOR_SILABS,	USB_PRODUCT_SILABS_CP2102, 0) },
-    { USB_VPI(USB_VENDOR_SILABS,	USB_PRODUCT_SILABS_CP210X_2, 0) },
-    { USB_VPI(USB_VENDOR_SILABS,	USB_PRODUCT_SILABS_SUUNTO, 0) },
-    { USB_VPI(USB_VENDOR_SILABS,	USB_PRODUCT_SILABS_TRAQMATE, 0) },
-    { USB_VPI(USB_VENDOR_SILABS2,	USB_PRODUCT_SILABS2_DCU11CLONE, 0) },
-    { USB_VPI(USB_VENDOR_USI,		USB_PRODUCT_USI_MC60, 0) },
+#define	USLCOM_DEV(v,p)  { USB_VP(USB_VENDOR_##v, USB_PRODUCT_##v##_##p) }
+    USLCOM_DEV(BALTECH, CARDREADER),
+    USLCOM_DEV(DYNASTREAM, ANTDEVBOARD),
+    USLCOM_DEV(JABLOTRON, PC60B),
+    USLCOM_DEV(SILABS, ARGUSISP),
+    USLCOM_DEV(SILABS, CRUMB128),
+    USLCOM_DEV(SILABS, DEGREE),
+    USLCOM_DEV(SILABS, BURNSIDE),
+    USLCOM_DEV(SILABS, HELICOM),
+    USLCOM_DEV(SILABS, LIPOWSKY_HARP),
+    USLCOM_DEV(SILABS, LIPOWSKY_JTAG),
+    USLCOM_DEV(SILABS, LIPOWSKY_LIN),
+    USLCOM_DEV(SILABS, POLOLU),
+    USLCOM_DEV(SILABS, CP2102),
+    USLCOM_DEV(SILABS, CP210X_2),
+    USLCOM_DEV(SILABS, SUUNTO),
+    USLCOM_DEV(SILABS, TRAQMATE),
+    USLCOM_DEV(SILABS2, DCU11CLONE),
+    USLCOM_DEV(USI, MC60),
+#undef USLCOM_DEV
 };
 
 static device_method_t uslcom_methods[] = {
@@ -561,4 +565,11 @@ uslcom_stop_write(struct ucom_softc *ucom)
 	struct uslcom_softc *sc = ucom->sc_parent;
 
 	usbd_transfer_stop(sc->sc_xfer[USLCOM_BULK_DT_WR]);
+}
+
+static void
+uslcom_poll(struct ucom_softc *ucom)
+{
+	struct uslcom_softc *sc = ucom->sc_parent;
+	usbd_transfer_poll(sc->sc_xfer, USLCOM_N_TRANSFER);
 }

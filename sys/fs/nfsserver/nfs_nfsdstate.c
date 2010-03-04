@@ -33,7 +33,7 @@ __FBSDID("$FreeBSD$");
 
 struct nfsrv_stablefirst nfsrv_stablefirst;
 int nfsrv_issuedelegs = 0;
-int nfsrv_dolocallocks = 1;
+int nfsrv_dolocallocks = 0;
 struct nfsv4lock nfsv4rootfs_lock;
 
 extern int newnfs_numnfsd;
@@ -1753,7 +1753,7 @@ tryagain:
 		(new_lop->lo_flags == NFSLCK_WRITE ||
 		 lop->lo_flags == NFSLCK_WRITE) &&
 		lckstp != lop->lo_stp &&
-		(lckstp->ls_clp != lop->lo_stp->ls_clp ||
+		(clp != lop->lo_stp->ls_clp ||
 		 lckstp->ls_ownerlen != lop->lo_stp->ls_ownerlen ||
 		 NFSBCMP(lckstp->ls_owner, lop->lo_stp->ls_owner,
 		    lckstp->ls_ownerlen))) {

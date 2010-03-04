@@ -232,3 +232,18 @@ check_result "${BAR} 0 0 ${BAR} 0 0 ${NULL}"
 
 run_test -r -g FOO -u FOO -g FOO -s FOO ${BAR} 1 -g FOO
 check_result "${BAR} 0 0 ${NULL} 0 0 ${BAR}"
+
+
+# corruption (blanking) of environ members.
+export BLANK_ME=
+export AFTER_BLANK=blanked
+run_test -b BLANK_ME -p MORE=vars -g FOO -g BLANK_ME -g AFTER_BLANK
+check_result "0 0 ${FOO} ${NULL} ${AFTER_BLANK}"
+
+run_test -b BLANK_ME -u FOO -g FOO -g AFTER_BLANK
+check_result "0 0 ${NULL} ${AFTER_BLANK}"
+
+export BLANK_ME2=
+export AFTER_BLANKS=blankD
+run_test -b BLANK_ME -b AFTER_BLANK -b BLANK_ME2 -g FOO -g AFTER_BLANKS
+check_result "${FOO} ${AFTER_BLANKS}"

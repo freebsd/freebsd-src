@@ -45,6 +45,8 @@ __FBSDID("$FreeBSD$");
 uint32_t lib_version = G_LIB_VERSION;
 uint32_t version = G_RAID3_VERSION;
 
+static intmax_t default_blocksize = 0;
+
 static void raid3_main(struct gctl_req *req, unsigned f);
 static void raid3_clear(struct gctl_req *req);
 static void raid3_dump(struct gctl_req *req);
@@ -87,10 +89,11 @@ struct g_command class_commands[] = {
 		{ 'F', "nofailsync", NULL, G_TYPE_BOOL },
 		{ 'n', "noautosync", NULL, G_TYPE_BOOL },
 		{ 'r', "round_robin", NULL, G_TYPE_BOOL },
+		{ 's', "blocksize", &default_blocksize, G_TYPE_NUMBER },
 		{ 'w', "verify", NULL, G_TYPE_BOOL },
 		G_OPT_SENTINEL
 	    },
-	    NULL, "[-hFnrvw] name prov prov prov ..."
+	    NULL, "[-hFnrvw] [-s blocksize] name prov prov prov ..."
 	},
 	{ "rebuild", G_FLAG_VERBOSE, NULL, G_NULL_OPTS, NULL,
 	    "[-v] name prov"
@@ -190,7 +193,7 @@ raid3_label(struct gctl_req *req)
 	 * sectorsizes of every disk and find the smallest mediasize.
 	 */
 	mediasize = 0;
-	sectorsize = 0;
+	sectorsize = gctl_get_intmax(req, "blocksize");
 	for (i = 1; i < nargs; i++) {
 		str = gctl_get_ascii(req, "arg%d", i);
 		msize = g_get_mediasize(str);

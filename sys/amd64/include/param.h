@@ -105,7 +105,7 @@
 #define	NPML4EPG	(PAGE_SIZE/(sizeof (pml4_entry_t)))
 #define	NPML4EPGSHIFT	9		/* LOG2(NPML4EPG) */
 #define	PML4SHIFT	39		/* LOG2(NBPML4) */
-#define	NBPML4		(1ul<<PML4SHIFT)/* bytes/page map lev4 table */
+#define	NBPML4		(1UL<<PML4SHIFT)/* bytes/page map lev4 table */
 #define	PML4MASK	(NBPML4-1)
 
 #define	MAXPAGESIZES	3	/* maximum number of supported page sizes */

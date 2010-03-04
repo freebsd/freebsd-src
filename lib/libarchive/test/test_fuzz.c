@@ -44,86 +44,87 @@ __FBSDID("$FreeBSD$");
  * post-failure diagnostics.
  */
 
-/* Because this works for any archive, I can just re-use the archives
- * developed for other tests.  I've not included all of the compressed
- * archives here, though; I don't want to spend all of my test time
- * testing zlib and bzlib. */
-static const char *
-files[] = {
-	"test_fuzz_1.iso",
-	"test_compat_bzip2_1.tbz",
-	"test_compat_gtar_1.tar",
-	"test_compat_tar_hardlink_1.tar",
-	"test_compat_zip_1.zip",
-	"test_read_format_gtar_sparse_1_17_posix10_modified.tar",
-	"test_read_format_tar_empty_filename.tar",
-	"test_read_format_zip.zip",
-	NULL
+/* Because this works for any archive, we can just re-use the archives
+ * developed for other tests. */
+static struct {
+	int uncompress; /* If 1, decompress the file before fuzzing. */
+	const char *name;
+} files[] = {
+	{0, "test_fuzz_1.iso.Z"}, /* Exercise compress decompressor. */
+	{1, "test_fuzz_1.iso.Z"},
+	{0, "test_compat_bzip2_1.tbz"}, /* Exercise bzip2 decompressor. */
+	{1, "test_compat_bzip2_1.tbz"},
+	{0, "test_compat_gtar_1.tar"},
+	{0, "test_compat_gzip_1.tgz"}, /* Exercise gzip decompressor. */
+	{0, "test_compat_gzip_2.tgz"}, /* Exercise gzip decompressor. */
+	{0, "test_compat_tar_hardlink_1.tar"},
+	{0, "test_compat_xz_1.txz"}, /* Exercise xz decompressor. */
+	{0, "test_compat_zip_1.zip"},
+	{0, "test_read_format_ar.ar"},
+	{0, "test_read_format_cpio_bin_be.cpio"},
+	{0, "test_read_format_gtar_sparse_1_17_posix10_modified.tar"},
+	{0, "test_read_format_mtree.mtree"},
+	{0, "test_read_format_tar_empty_filename.tar"},
+	{0, "test_read_format_zip.zip"},
+	{1, NULL}
 };
-
-#define UnsupportedCompress(r, a) \
-        (r != ARCHIVE_OK && \
-         (strcmp(archive_error_string(a), \
-            "Unrecognized archive format") == 0 && \
-          archive_compression(a) == ARCHIVE_COMPRESSION_NONE))
 
 DEFINE_TEST(test_fuzz)
 {
-	const char **filep;
 	const void *blk;
 	size_t blk_size;
 	off_t blk_offset;
+	int n;
 
-	for (filep = files; *filep != NULL; ++filep) {
+	for (n = 0; files[n].name != NULL; ++n) {
+		const size_t buffsize = 30000000;
+		const char *filename = files[n].name;
 		struct archive_entry *ae;
 		struct archive *a;
 		char *rawimage, *image;
 		size_t size;
-		int i, r;
+		int i;
 
-		extract_reference_file(*filep);
-		rawimage = slurpfile(&size, *filep);
-		assert(rawimage != NULL);
-		image = malloc(size);
-		assert(image != NULL);
-		srand(time(NULL));
-
-		assert((a = archive_read_new()) != NULL);
-		assert(0 == archive_read_support_compression_all(a));
-		assert(0 == archive_read_support_format_all(a));
-		assert(0 == archive_read_open_memory(a, rawimage, size));
-		r = archive_read_next_header(a, &ae);
-		if (UnsupportedCompress(r, a)) {
-			skipping("Skipping GZIP/BZIP2 compression check: "
-			    "This version of libarchive was compiled "
-			    "without gzip/bzip2 support");
-			assert(0 == archive_read_close(a));
-			assert(0 == archive_read_finish(a));
-			continue;
-		}
-		assert(0 == r);
-		if (r == ARCHIVE_OK) {
-			char buff[20];
-
-			r = archive_read_data(a, buff, 19);
-			if (r < ARCHIVE_OK && strcmp(archive_error_string(a),
-			    "libarchive compiled without deflate support (no libz)") == 0) {
-				skipping("Skipping ZIP compression check: %s",
-				    archive_error_string(a));
-				assert(0 == archive_read_close(a));
-				assert(0 == archive_read_finish(a));
+		extract_reference_file(filename);
+		if (files[n].uncompress) {
+			int r;
+			/* Use format_raw to decompress the data. */
+			assert((a = archive_read_new()) != NULL);
+			assertEqualIntA(a, ARCHIVE_OK,
+			    archive_read_support_compression_all(a));
+			assertEqualIntA(a, ARCHIVE_OK,
+			    archive_read_support_format_raw(a));
+			r = archive_read_open_filename(a, filename, 16384);
+			if (r != ARCHIVE_OK) {
+				archive_read_finish(a);
+				skipping("Cannot uncompress %s", filename);
 				continue;
 			}
-			while (0 == archive_read_data_block(a, &blk,
-				&blk_size, &blk_offset))
+			assertEqualIntA(a, ARCHIVE_OK,
+			    archive_read_next_header(a, &ae));
+			rawimage = malloc(buffsize);
+			size = archive_read_data(a, rawimage, buffsize);
+			assertEqualIntA(a, ARCHIVE_EOF,
+			    archive_read_next_header(a, &ae));
+			assertEqualInt(ARCHIVE_OK,
+			    archive_read_finish(a));
+			assert(size > 0);
+			failure("Internal buffer is not big enough for "
+			    "uncompressed test file: %s", filename);
+			if (!assert(size < buffsize))
 				continue;
-
+		} else {
+			rawimage = slurpfile(&size, filename);
+			if (!assert(rawimage != NULL))
+				continue;
 		}
-		assert(0 == archive_read_close(a));
-		assert(0 == archive_read_finish(a));
+		image = malloc(size);
+		assert(image != NULL);
+		srand((unsigned)time(NULL));
 
 		for (i = 0; i < 100; ++i) {
-			int j, fd, numbytes;
+			FILE *f;
+			int j, numbytes;
 
 			/* Fuzz < 1% of the bytes in the archive. */
 			memcpy(image, rawimage, size);
@@ -133,11 +134,10 @@ DEFINE_TEST(test_fuzz)
 
 			/* Save the messed-up image to a file.
 			 * If we crash, that file will be useful. */
-			fd = open("after.test.failure.send.this.file."
-			    "to.libarchive.maintainers.with.system.details",
-			    O_WRONLY | O_CREAT | O_TRUNC, 0744);
-			write(fd, image, (off_t)size);
-			close(fd);
+			f = fopen("after.test.failure.send.this.file."
+			    "to.libarchive.maintainers.with.system.details", "wb");
+			fwrite(image, 1, (size_t)size, f);
+			fclose(f);
 
 			assert((a = archive_read_new()) != NULL);
 			assertEqualIntA(a, ARCHIVE_OK,

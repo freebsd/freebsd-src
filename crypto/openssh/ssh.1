@@ -34,9 +34,9 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $OpenBSD: ssh.1,v 1.282 2009/02/12 03:44:25 djm Exp $
+.\" $OpenBSD: ssh.1,v 1.283 2009/03/19 15:15:09 jmc Exp $
 .\" $FreeBSD$
-.Dd February 12 2009
+.Dd March 19 2009
 .Dt SSH 1
 .Os
 .Sh NAME
@@ -192,26 +192,9 @@ For protocol version 2,
 .Ar cipher_spec
 is a comma-separated list of ciphers
 listed in order of preference.
-The supported ciphers are:
-3des-cbc,
-aes128-cbc,
-aes192-cbc,
-aes256-cbc,
-aes128-ctr,
-aes192-ctr,
-aes256-ctr,
-arcfour128,
-arcfour256,
-arcfour,
-blowfish-cbc,
-and
-cast128-cbc.
-The default is:
-.Bd -literal -offset indent
-aes128-cbc,3des-cbc,blowfish-cbc,cast128-cbc,arcfour128,
-arcfour256,arcfour,aes192-cbc,aes256-cbc,aes128-ctr,
-aes192-ctr,aes256-ctr
-.Ed
+See the
+.Cm Ciphers
+keyword for more information.
 .It Fl D Xo
 .Sm off
 .Oo Ar bind_address : Oc

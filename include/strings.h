@@ -46,7 +46,7 @@ void	 bzero(void *, size_t);					/* LEGACY */
 #if __XSI_VISIBLE
 int	 ffs(int) __pure2;
 #endif
-#ifdef __BSD_VISIBLE
+#if __BSD_VISIBLE
 int	 ffsl(long) __pure2;
 int	 ffsll(long long) __pure2;
 int	 fls(int) __pure2;

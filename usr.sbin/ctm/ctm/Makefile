@@ -17,6 +17,8 @@ NOTYET=	ctm_ed.c
 LDADD=	-lmd
 DPADD=	${LIBMD}
 
+WARNS?=	2
+
 .if exists(${.CURDIR}/../../Makefile.inc)
 .include "${.CURDIR}/../../Makefile.inc"
 .endif

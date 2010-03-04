@@ -36,10 +36,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/types.h>
 #include <sys/sysctl.h>
 
-#include <err.h>
-#include <fcntl.h>
 #include <stdio.h>
-#include <stdlib.h>
 #include <string.h>
 #include <sys/param.h>
 #include <sys/stat.h>
@@ -49,22 +46,22 @@ devname_r(dev_t dev, mode_t type, char *buf, int len)
 {
 	int i;
 	size_t j;
-	char *r;
 
-	if ((type & S_IFMT) == S_IFCHR) {
+	if (dev == NODEV || !(S_ISCHR(type) || S_ISBLK(dev))) {
+		strlcpy(buf, "#NODEV", len);
+		return (buf);
+	}
+
+	if (S_ISCHR(type)) {
 		j = len;
 		i = sysctlbyname("kern.devname", buf, &j, &dev, sizeof (dev));
 		if (i == 0)
-		    return (buf);
+			return (buf);
 	}
 
 	/* Finally just format it */
-	if (dev == NODEV)
-		r = "#NODEV";
-	else 
-		r = "#%c:%d:0x%x";
-	snprintf(buf, len, r,
-	    (type & S_IFMT) == S_IFCHR ? 'C' : 'B', major(dev), minor(dev));
+	snprintf(buf, len, "#%c:%d:0x%x",
+	    S_ISCHR(type) ? 'C' : 'B', major(dev), minor(dev));
 	return (buf);
 }
 
@@ -73,5 +70,5 @@ devname(dev_t dev, mode_t type)
 {
 	static char buf[SPECNAMELEN + 1];
 
-	return(devname_r(dev, type, buf, sizeof(buf)));
+	return (devname_r(dev, type, buf, sizeof(buf)));
 }

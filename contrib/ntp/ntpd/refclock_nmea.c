@@ -7,11 +7,6 @@
 #include <config.h>
 #endif
 
-#if defined(SYS_WINNT)
-#undef close
-#define close closesocket
-#endif
-
 #if defined(REFCLOCK) && defined(CLOCK_NMEA)
 
 #include <stdio.h>
@@ -26,6 +21,12 @@
 #ifdef HAVE_PPSAPI
 # include "ppsapi_timepps.h"
 #endif /* HAVE_PPSAPI */
+
+#ifdef SYS_WINNT
+extern int async_write(int, const void *, unsigned int);
+#undef write
+#define write(fd, data, octets)	async_write(fd, data, octets)
+#endif
 
 /*
  * This driver supports the NMEA GPS Receiver with

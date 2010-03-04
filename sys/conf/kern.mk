@@ -12,13 +12,7 @@ CWARNFLAGS=
 .else
 CWARNFLAGS?=	-Wall -Wredundant-decls -Wnested-externs -Wstrict-prototypes \
 		-Wmissing-prototypes -Wpointer-arith -Winline -Wcast-qual \
-		${_wundef} ${_Wno_pointer_sign} -fformat-extensions
-.if !defined(WITH_GCC3)
-_Wno_pointer_sign=-Wno-pointer-sign
-.endif
-.if !defined(NO_UNDEF)
-_wundef=	-Wundef
-.endif
+		-Wundef -Wno-pointer-sign -fformat-extensions
 .endif
 #
 # The following flags are next up for working on:
@@ -86,11 +80,10 @@ INLINE_LIMIT?=	15000
 .endif
 
 #
-# For MIPS we also tell gcc to use floating point emulation and 
-# disable MIPS DSP ASE Instruction set.
+# For MIPS we also tell gcc to use floating point emulation
 #
 .if ${MACHINE_ARCH} == "mips"
-CFLAGS+=	-msoft-float -mno-dsp
+CFLAGS+=	-msoft-float
 INLINE_LIMIT?=	8000
 .endif
 

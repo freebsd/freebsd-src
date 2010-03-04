@@ -1038,6 +1038,8 @@ struct ti_softc {
 	int			ti_if_flags;
 	int			ti_txcnt;
 	struct mtx		ti_mtx;
+	struct callout		ti_watchdog;
+	int			ti_timer;
 	ti_flag_vals		ti_flags;
 	struct cdev		 *dev;
 };

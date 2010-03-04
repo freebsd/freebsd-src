@@ -115,6 +115,7 @@ struct umct_softc {
 	uint8_t	sc_lcr;
 	uint8_t	sc_mcr;
 	uint8_t	sc_iface_no;
+	uint8_t sc_swap_cb;
 	uint8_t	sc_name[16];
 };
 
@@ -125,8 +126,10 @@ static device_attach_t umct_attach;
 static device_detach_t umct_detach;
 
 static usb_callback_t umct_intr_callback;
-static usb_callback_t umct_write_callback;
+static usb_callback_t umct_intr_callback_sub;
 static usb_callback_t umct_read_callback;
+static usb_callback_t umct_read_callback_sub;
+static usb_callback_t umct_write_callback;
 
 static void	umct_cfg_do_request(struct umct_softc *sc, uint8_t request,
 		    uint16_t len, uint32_t value);
@@ -142,6 +145,7 @@ static void	umct_start_read(struct ucom_softc *);
 static void	umct_stop_read(struct ucom_softc *);
 static void	umct_start_write(struct ucom_softc *);
 static void	umct_stop_write(struct ucom_softc *);
+static void	umct_poll(struct ucom_softc *ucom);
 
 static const struct usb_config umct_config[UMCT_N_TRANSFER] = {
 
@@ -186,6 +190,7 @@ static const struct ucom_callback umct_callback = {
 	.ucom_stop_read = &umct_stop_read,
 	.ucom_start_write = &umct_start_write,
 	.ucom_stop_write = &umct_stop_write,
+	.ucom_poll = &umct_poll,
 };
 
 static const struct usb_device_id umct_devs[] = {
@@ -238,7 +243,7 @@ umct_attach(device_t dev)
 	struct usb_attach_arg *uaa = device_get_ivars(dev);
 	struct umct_softc *sc = device_get_softc(dev);
 	int32_t error;
-	//uint16_t maxp;
+	uint16_t maxp;
 	uint8_t iface_index;
 
 	sc->sc_udev = uaa->device;
@@ -258,16 +263,16 @@ umct_attach(device_t dev)
 
 	if (error) {
 		device_printf(dev, "allocating USB "
-		    "transfers failed!\n");
+		    "transfers failed\n");
 		goto detach;
 	}
+
 	/*
 	 * The real bulk-in endpoint is also marked as an interrupt.
 	 * The only way to differentiate it from the real interrupt
 	 * endpoint is to look at the wMaxPacketSize field.
 	 */
-#ifdef XXX
-	maxp = UGETW(sc->sc_xfer[UMCT_BULK_DT_RD]->endpoint->edesc->wMaxPacketSize);
+	maxp = usbd_xfer_max_framelen(sc->sc_xfer[UMCT_BULK_DT_RD]);
 	if (maxp == 0x2) {
 
 		/* guessed wrong - switch around endpoints */
@@ -276,11 +281,9 @@ umct_attach(device_t dev)
 
 		sc->sc_xfer[UMCT_INTR_DT_RD] = sc->sc_xfer[UMCT_BULK_DT_RD];
 		sc->sc_xfer[UMCT_BULK_DT_RD] = temp;
-
-		sc->sc_xfer[UMCT_BULK_DT_RD]->callback = &umct_read_callback;
-		sc->sc_xfer[UMCT_INTR_DT_RD]->callback = &umct_intr_callback;
+		sc->sc_swap_cb = 1;
 	}
-#endif
+
 	sc->sc_obufsize = usbd_xfer_max_len(sc->sc_xfer[UMCT_BULK_DT_WR]);
 
 	if (uaa->info.idProduct == USB_PRODUCT_MCT_SITECOM_USB232) {
@@ -340,7 +343,7 @@ umct_cfg_do_request(struct umct_softc *sc, uint8_t request,
 }
 
 static void
-umct_intr_callback(struct usb_xfer *xfer, usb_error_t error)
+umct_intr_callback_sub(struct usb_xfer *xfer, usb_error_t error)
 {
 	struct umct_softc *sc = usbd_xfer_softc(xfer);
 	struct usb_page_cache *pc;
@@ -545,6 +548,28 @@ umct_stop_write(struct ucom_softc *ucom)
 }
 
 static void
+umct_read_callback(struct usb_xfer *xfer, usb_error_t error)
+{
+	struct umct_softc *sc = usbd_xfer_softc(xfer);
+
+	if (sc->sc_swap_cb)
+		umct_intr_callback_sub(xfer, error);
+	else
+		umct_read_callback_sub(xfer, error);
+}
+
+static void
+umct_intr_callback(struct usb_xfer *xfer, usb_error_t error)
+{
+	struct umct_softc *sc = usbd_xfer_softc(xfer);
+
+	if (sc->sc_swap_cb)
+		umct_read_callback_sub(xfer, error);
+	else
+		umct_intr_callback_sub(xfer, error);
+}
+
+static void
 umct_write_callback(struct usb_xfer *xfer, usb_error_t error)
 {
 	struct umct_softc *sc = usbd_xfer_softc(xfer);
@@ -575,7 +600,7 @@ tr_setup:
 }
 
 static void
-umct_read_callback(struct usb_xfer *xfer, usb_error_t error)
+umct_read_callback_sub(struct usb_xfer *xfer, usb_error_t error)
 {
 	struct umct_softc *sc = usbd_xfer_softc(xfer);
 	struct usb_page_cache *pc;
@@ -602,4 +627,11 @@ tr_setup:
 		}
 		return;
 	}
+}
+
+static void
+umct_poll(struct ucom_softc *ucom)
+{
+	struct umct_softc *sc = ucom->sc_parent;
+	usbd_transfer_poll(sc->sc_xfer, UMCT_N_TRANSFER);
 }

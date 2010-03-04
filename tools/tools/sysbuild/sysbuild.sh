@@ -43,6 +43,18 @@ if [ `uname -m` = "i386" ] ; then
 
 	# Where our build-bits are to be found
 	FREEBSD_PART=`echo $TARGET_PART | sed 's/s[12]a/s3/'`
+elif [ `uname -m` = "amd64" ] ; then
+	TARGET_PART=`df / | sed '
+	1d
+	s/[    ].*//
+	s,/dev/,,
+	s,s1a,s3a,
+	s,s2a,s1a,
+	s,s3a,s2a,
+	'`
+
+	# Where our build-bits are to be found
+	FREEBSD_PART=`echo $TARGET_PART | sed 's/s[12]a/s3/'`
 else
 	TARGET_PART=unknown
 	FREEBSD_PART=unknown
@@ -162,7 +174,7 @@ ports_recurse() (
 		else
 			(
 			cd $d
-			ports_recurse `make -V _DEPEND_DIRS`
+			ports_recurse `make -V _DEPEND_DIRS ${PORTS_OPTS}`
 			)
 			echo $d >> /tmp/_.plist
 		fi
@@ -195,7 +207,7 @@ ports_build() (
 				cd /usr/ports
 				cd $p
 				set +e
-				make clean
+				make clean ${PORTS_OPTS}
 				if make install ${PORTS_OPTS} ; then
 					if [ "x${PKG_DIR}" != "x" ] ; then
 						make package ${PORTS_OPTS}
@@ -217,9 +229,11 @@ ports_prefetch() (
 	true > /tmp/_.plist
 	ports_recurse $PORTS_WE_WANT
 
+	true > /mnt/_.prefetch
 	# Now checksump/fetch them
 	for p in `cat /tmp/_.plist`
 	do
+		echo "Prefetching $p" >> /mnt/_.prefetch
 		b=`echo $p | tr / _`
 		(
 			cd $p
@@ -434,6 +448,7 @@ if [ "x${OBJ_PATH}" != "x" ] ; then
 fi
 
 log_it Wait for ports prefetch
+log_it "(Tail /mnt/_.prefetch for progress)"
 wait
 
 log_it Move filesystems

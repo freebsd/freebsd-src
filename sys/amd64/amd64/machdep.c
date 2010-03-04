@@ -128,7 +128,7 @@ __FBSDID("$FreeBSD$");
 #endif
 
 #ifdef DEV_ATPIC
-#include <amd64/isa/icu.h>
+#include <x86/isa/icu.h>
 #else
 #include <machine/apicvar.h>
 #endif
@@ -156,6 +156,8 @@ SYSINIT(cpu, SI_SUB_CPU, SI_ORDER_FIRST, cpu_startup, NULL);
 #ifdef DDB
 extern vm_offset_t ksym_start, ksym_end;
 #endif
+
+struct msgbuf *msgbufp;
 
 /* Intel ICH registers */
 #define ICH_PMBASE	0x400
@@ -415,7 +417,7 @@ sigreturn(td, uap)
 	ucontext_t uc;
 	struct proc *p = td->td_proc;
 	struct trapframe *regs;
-	const ucontext_t *ucp;
+	ucontext_t *ucp;
 	long rflags;
 	int cs, error, ret;
 	ksiginfo_t ksi;
@@ -478,7 +480,6 @@ sigreturn(td, uap)
 	td->td_pcb->pcb_fsbase = ucp->uc_mcontext.mc_fsbase;
 	td->td_pcb->pcb_gsbase = ucp->uc_mcontext.mc_gsbase;
 
-	PROC_LOCK(p);
 #if defined(COMPAT_43)
 	if (ucp->uc_mcontext.mc_onstack & 1)
 		td->td_sigstk.ss_flags |= SS_ONSTACK;
@@ -486,10 +487,7 @@ sigreturn(td, uap)
 		td->td_sigstk.ss_flags &= ~SS_ONSTACK;
 #endif
 
-	td->td_sigmask = ucp->uc_sigmask;
-	SIG_CANTMASK(td->td_sigmask);
-	signotify(td);
-	PROC_UNLOCK(p);
+	kern_sigprocmask(td, SIG_SETMASK, &ucp->uc_sigmask, NULL, 0);
 	td->td_pcb->pcb_flags |= PCB_FULLCTX;
 	td->td_pcb->pcb_full_iret = 1;
 	return (EJUSTRETURN);
@@ -1279,7 +1277,7 @@ add_smap_entry(struct bios_smap *smap, vm_paddr_t *physmap, int *physmap_idxp)
 static void
 getmemsize(caddr_t kmdp, u_int64_t first)
 {
-	int i, off, physmap_idx, pa_indx, da_indx;
+	int i, physmap_idx, pa_indx, da_indx;
 	vm_paddr_t pa, physmap[PHYSMAP_SIZE];
 	u_long physmem_tunable;
 	pt_entry_t *pte;
@@ -1512,9 +1510,7 @@ do_next:
 	phys_avail[pa_indx] -= round_page(MSGBUF_SIZE);
 
 	/* Map the message buffer. */
-	for (off = 0; off < round_page(MSGBUF_SIZE); off += PAGE_SIZE)
-		pmap_kenter((vm_offset_t)msgbufp + off, phys_avail[pa_indx] +
-		    off);
+	msgbufp = (struct msgbuf *)PHYS_TO_DMAP(phys_avail[pa_indx]);
 }
 
 u_int64_t
@@ -1667,6 +1663,7 @@ hammer_time(u_int64_t modulep, u_int64_t physfree)
 
 	identify_cpu();		/* Final stage of CPU initialization */
 	initializecpu();	/* Initialize CPU registers */
+	initializecpucache();
 
 	/* make an initial tss so cpu can get interrupt stack on syscall! */
 	common_tss[0].tss_rsp0 = thread0.td_kstack + \

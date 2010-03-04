@@ -89,12 +89,12 @@ main(int argc, char *argv[])
 		case 'n':
 			num_servers = atoi(optarg);
 			if (num_servers < 1) {
-				warnx("nfsiod count %d; reset to %d",
+				warnx("nfsiod count %u; reset to %d",
 				    num_servers, 1);
 				num_servers = 1;
 			}
 			if (num_servers > MAXNFSDCNT) {
-				warnx("nfsiod count %d; reset to %d",
+				warnx("nfsiod count %u; reset to %d",
 				    num_servers, MAXNFSDCNT);
 				num_servers = MAXNFSDCNT;
 			}
@@ -109,9 +109,6 @@ main(int argc, char *argv[])
 	if (argc > 0)
 		usage();
 
-	if (num_servers == 0)
-		exit(0);		/* no change */
-
 	len = sizeof iodmin;
 	error = sysctlbyname("vfs.nfs.iodmin", &iodmin, &len, NULL, 0);
 	if (error < 0)
@@ -120,6 +117,11 @@ main(int argc, char *argv[])
 	error = sysctlbyname("vfs.nfs.iodmax", &iodmax, &len, NULL, 0);
 	if (error < 0)
 		err(1, "sysctlbyname(\"vfs.nfs.iodmax\")");
+	if (num_servers == 0) {		/* no change */
+		printf("vfs.nfs.iodmin=%u\nvfs.nfs.iodmax=%u\n",
+		    iodmin, iodmax);
+		exit(0);
+	}
 	/* Catch the case where we're lowering num_servers below iodmin */
 	if (iodmin > num_servers) {
 		iodmin = num_servers;

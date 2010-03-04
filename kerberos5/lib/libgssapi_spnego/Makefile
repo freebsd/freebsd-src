@@ -2,8 +2,8 @@
 
 LIB=	gssapi_spnego
 LDFLAGS= -Wl,-Bsymbolic
-LDADD=	-lasn1
-DPADD=	${LIBASN1}
+LDADD=	-lgssapi -lasn1
+DPADD=	${LIBGSSAPI} ${LIBASN1}
 
 SRCS=	accept_sec_context.c \
 	compat.c \

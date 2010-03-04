@@ -13,6 +13,8 @@ MAN=		zlib.3
 
 CFLAGS+=	-DHAS_snprintf -DHAS_vsnprintf
 
+WARNS?=		3
+
 CLEANFILES+=	example.o example foo.gz minigzip.o minigzip
 
 SRCS = adler32.c compress.c crc32.c gzio.c uncompr.c deflate.c trees.c \

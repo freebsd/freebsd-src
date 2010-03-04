@@ -4,10 +4,12 @@
 
 SRCS=		crt1.c crti.S crtn.S
 OBJS=		${SRCS:N*.h:R:S/$/.o/g}
-OBJS+=		gcrt1.o
+OBJS+=		Scrt1.o gcrt1.o
 CFLAGS+=	-Wall -Wno-unused \
 		-I${.CURDIR}/../common \
 		-I${.CURDIR}/../../libc/include
+
+WARNS?=		2
 
 all: ${OBJS}
 
@@ -15,6 +17,9 @@ CLEANFILES=	${OBJS}
 
 gcrt1.o: crt1.c
 	${CC} ${CFLAGS} -DGCRT -c -o gcrt1.o ${.ALLSRC}
+
+Scrt1.o: crt1.c
+	${CC} ${CFLAGS} -fPIC -DPIC -c -o Scrt1.o ${.ALLSRC}
 
 realinstall:
 	${INSTALL} -o ${LIBOWN} -g ${LIBGRP} -m ${LIBMODE} \

@@ -84,6 +84,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/usb/usb_bus.h>
 #include <dev/usb/usb_pci.h>
 #include <dev/usb/controller/ehci.h>
+#include <dev/usb/controller/ehcireg.h>
 
 #define	PCI_EHCI_VENDORID_ACERLABS	0x10b9
 #define	PCI_EHCI_VENDORID_AMD		0x1022
@@ -192,6 +193,14 @@ ehci_pci_match(device_t self)
 		return "Intel 82801I (ICH9) USB 2.0 controller";
 	case 0x293c8086:
 		return "Intel 82801I (ICH9) USB 2.0 controller";
+	case 0x3a3a8086:
+		return "Intel 82801JI (ICH10) USB 2.0 controller USB-A";
+	case 0x3a3c8086:
+		return "Intel 82801JI (ICH10) USB 2.0 controller USB-B";
+	case 0x3b348086:
+		return ("Intel PCH USB 2.0 controller USB-A");
+	case 0x3b3c8086:
+		return ("Intel PCH USB 2.0 controller USB-B");
 
 	case 0x00e01033:
 		return ("NEC uPD 720100 USB 2.0 controller");
@@ -208,6 +217,12 @@ ehci_pci_match(device_t self)
 		return "NVIDIA nForce4 USB 2.0 controller";
 	case 0x03f210de:
 		return "NVIDIA nForce MCP61 USB 2.0 controller";
+	case 0x0aa610de:
+		return "NVIDIA nForce MCP79 USB 2.0 controller";
+	case 0x0aa910de:
+		return "NVIDIA nForce MCP79 USB 2.0 controller";
+	case 0x0aaa10de:
+		return "NVIDIA nForce MCP79 USB 2.0 controller";
 
 	case 0x15621131:
 		return "Philips ISP156x USB 2.0 controller";
@@ -237,6 +252,50 @@ ehci_pci_probe(device_t self)
 		return (0);
 	} else {
 		return (ENXIO);
+	}
+}
+
+static void
+ehci_pci_ati_quirk(device_t self, uint8_t is_sb700)
+{
+	device_t smbdev;
+	uint32_t val;
+
+	if (is_sb700) {
+		/* Lookup SMBUS PCI device */
+		smbdev = pci_find_device(PCI_EHCI_VENDORID_ATI, 0x4385);
+		if (smbdev == NULL)
+			return;
+		val = pci_get_revid(smbdev);
+		if (val != 0x3a && val != 0x3b)
+			return;
+	}
+
+	/*
+	 * Note: this bit is described as reserved in SB700
+	 * Register Reference Guide.
+	 */
+	val = pci_read_config(self, 0x53, 1);
+	if (!(val & 0x8)) {
+		val |= 0x8;
+		pci_write_config(self, 0x53, val, 1);
+		device_printf(self, "AMD SB600/700 quirk applied\n");
+	}
+}
+
+static void
+ehci_pci_via_quirk(device_t self)
+{
+	uint32_t val;
+
+	if ((pci_get_device(self) == 0x3104) && 
+	    ((pci_get_revid(self) & 0xf0) == 0x60)) {
+		/* Correct schedule sleep time to 10us */
+		val = pci_read_config(self, 0x4b, 1);
+		if (val & 0x20)
+			return;
+		pci_write_config(self, 0x4b, val, 1);
+		device_printf(self, "VIA-quirk applied\n");
 	}
 }
 
@@ -273,13 +332,11 @@ ehci_pci_attach(device_t self)
 		device_printf(self, "pre-2.0 USB revision (ignored)\n");
 		/* fallthrough */
 	case PCI_USB_REV_2_0:
-		sc->sc_bus.usbrev = USB_REV_2_0;
 		break;
 	default:
 		/* Quirk for Parallels Desktop 4.0 */
 		device_printf(self, "USB revision is unknown. Assuming v2.0.\n");
-		sc->sc_bus.usbrev = USB_REV_2_0;
-                break;
+		break;
 	}
 
 	rid = PCI_CBMEM;
@@ -370,6 +427,58 @@ ehci_pci_attach(device_t self)
 		goto error;
 	}
 	ehci_pci_takecontroller(self);
+
+	/* Undocumented quirks taken from Linux */
+
+	switch (pci_get_vendor(self)) {
+	case PCI_EHCI_VENDORID_ATI:
+		/* SB600 and SB700 EHCI quirk */
+		switch (pci_get_device(self)) {
+		case 0x4386:
+			ehci_pci_ati_quirk(self, 0);
+			break;
+		case 0x4396:
+			ehci_pci_ati_quirk(self, 1);
+			break;
+		default:
+			break;
+		}
+		break;
+
+	case PCI_EHCI_VENDORID_VIA:
+		ehci_pci_via_quirk(self);
+		break;
+
+	default:
+		break;
+	}
+
+	/* Dropped interrupts workaround */
+	switch (pci_get_vendor(self)) {
+	case PCI_EHCI_VENDORID_ATI:
+	case PCI_EHCI_VENDORID_VIA:
+		sc->sc_flags |= EHCI_SCFLG_LOSTINTRBUG;
+		if (bootverbose)
+			device_printf(self,
+			    "Dropped interrupts workaround enabled\n");
+		break;
+	default:
+		break;
+	}
+
+	/* Doorbell feature workaround */
+	switch (pci_get_vendor(self)) {
+	case PCI_EHCI_VENDORID_NVIDIA:
+	case PCI_EHCI_VENDORID_NVIDIA2:
+		sc->sc_flags |= EHCI_SCFLG_IAADBUG;
+		if (bootverbose)
+			device_printf(self,
+			    "Doorbell workaround enabled\n");
+		break;
+	default:
+		break;
+	}
+
 	err = ehci_init(sc);
 	if (!err) {
 		err = device_probe_and_attach(sc->sc_bus.bdev);

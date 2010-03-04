@@ -274,7 +274,9 @@ lla_rt_output(struct rt_msghdr *rtm, struct rt_addrinfo *info)
 #ifdef INET
 			if (dst->sa_family == AF_INET && 
 			    ((struct sockaddr_inarp *)dst)->sin_other != 0) {
-				struct rtentry *rt = rtalloc1(dst, 0, 0);
+				struct rtentry *rt;
+				((struct sockaddr_inarp *)dst)->sin_other = 0;
+				rt = rtalloc1(dst, 0, 0);
 				if (rt == NULL || !(rt->rt_flags & RTF_HOST)) {
 					log(LOG_INFO, "%s: RTM_ADD publish "
 					    "(proxy only) is invalid\n",

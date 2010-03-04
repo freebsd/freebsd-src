@@ -762,7 +762,7 @@ LookupWord(char *buff)
 
 
 static int
-yylex()
+yylex(void)
 {
     char	c;
     char	*p;

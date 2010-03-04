@@ -8,7 +8,7 @@ DPADD=	${LIBUFS}
 LDADD=	-lufs
 SRCS=	newfs.c mkfs.c geom_bsd_enc.c
 
-WARNS?=	2
+WARNS?=	3
 MAN=	newfs.8
 
 .include <bsd.prog.mk>

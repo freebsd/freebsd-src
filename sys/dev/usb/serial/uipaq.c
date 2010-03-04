@@ -122,6 +122,7 @@ static void	uipaq_stop_write(struct ucom_softc *);
 static void	uipaq_cfg_set_dtr(struct ucom_softc *, uint8_t);
 static void	uipaq_cfg_set_rts(struct ucom_softc *, uint8_t);
 static void	uipaq_cfg_set_break(struct ucom_softc *, uint8_t);
+static void	uipaq_poll(struct ucom_softc *ucom);
 
 static const struct usb_config uipaq_config_data[UIPAQ_N_TRANSFER] = {
 
@@ -152,6 +153,7 @@ static const struct ucom_callback uipaq_callback = {
 	.ucom_stop_read = &uipaq_stop_read,
 	.ucom_start_write = &uipaq_start_write,
 	.ucom_stop_write = &uipaq_stop_write,
+	.ucom_poll = &uipaq_poll,
 };
 
 /*
@@ -1013,6 +1015,8 @@ static const struct usb_device_id uipaq_devs[] = {
 	/**/
 	{USB_VPI(USB_VENDOR_SHARP, USB_PRODUCT_SHARP_WZERO3ES, 0)},
 	/**/
+	{USB_VPI(USB_VENDOR_SHARP, USB_PRODUCT_SHARP_WZERO3ADES, 0)},
+	/**/
 	{USB_VPI(USB_VENDOR_SHARP, USB_PRODUCT_SHARP_WILLCOM03, 0)},
 	/* Symbol USB Sync */
 	{USB_VPI(USB_VENDOR_SYMBOL, 0x2000, 0)},
@@ -1341,4 +1345,11 @@ tr_setup:
 		}
 		return;
 	}
+}
+
+static void
+uipaq_poll(struct ucom_softc *ucom)
+{
+	struct uipaq_softc *sc = ucom->sc_parent;
+	usbd_transfer_poll(sc->sc_xfer, UIPAQ_N_TRANSFER);
 }

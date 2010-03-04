@@ -85,7 +85,7 @@ __FBSDID("$FreeBSD$");
  */
 static  int  ata_kauai_probe(device_t dev);
 static  int  ata_kauai_attach(device_t dev);
-static  void ata_kauai_setmode(device_t parent, device_t dev);
+static  int  ata_kauai_setmode(device_t dev, int target, int mode);
 static  int  ata_kauai_begin_transaction(struct ata_request *request);
 
 static device_method_t ata_kauai_methods[] = {
@@ -307,34 +307,26 @@ ata_kauai_attach(device_t dev)
 	return ata_attach(dev);
 }
 
-static void
-ata_kauai_setmode(device_t parent, device_t dev)
+static int
+ata_kauai_setmode(device_t dev, int target, int mode)
 {
-	struct ata_device *atadev = device_get_softc(dev);
-	struct ata_kauai_softc *sc = device_get_softc(parent);
-	uint32_t mode;
+	struct ata_kauai_softc *sc = device_get_softc(dev);
 
-	mode = ata_limit_mode(dev,atadev->mode, 
-	    (sc->shasta) ? ATA_UDMA6 : ATA_UDMA5);
-
-	if (ata_controlcmd(dev, ATA_SETFEATURES, ATA_SF_SETXFER, 0, mode))
-		return;
-
-	atadev->mode = mode;
+	mode = min(mode,sc->shasta ? ATA_UDMA6 : ATA_UDMA5);
 
 	if (sc->shasta) {
 		switch (mode & ATA_DMA_MASK) {
 		    case ATA_UDMA0:
-			sc->udmaconf[atadev->unit] 
+			sc->udmaconf[target] 
 			    = udma_timing_shasta[mode & ATA_MODE_MASK];
 			break;
 		    case ATA_WDMA0:
-			sc->udmaconf[atadev->unit] = 0;
-			sc->wdmaconf[atadev->unit] 
+			sc->udmaconf[target] = 0;
+			sc->wdmaconf[target] 
 			    = dma_timing_shasta[mode & ATA_MODE_MASK];
 			break;
 		    default:
-			sc->pioconf[atadev->unit] 
+			sc->pioconf[target] 
 			    = pio_timing_shasta[(mode & ATA_MODE_MASK) - 
 			    ATA_PIO0];
 			break;
@@ -342,32 +334,33 @@ ata_kauai_setmode(device_t parent, device_t dev)
 	} else {
 		switch (mode & ATA_DMA_MASK) {
 		    case ATA_UDMA0:
-			sc->udmaconf[atadev->unit] 
+			sc->udmaconf[target] 
 			    = udma_timing_kauai[mode & ATA_MODE_MASK];
 			break;
 		    case ATA_WDMA0:
-			sc->udmaconf[atadev->unit] = 0;
-			sc->wdmaconf[atadev->unit]
+			sc->udmaconf[target] = 0;
+			sc->wdmaconf[target]
 			    = dma_timing_kauai[mode & ATA_MODE_MASK];
 			break;
 		    default:
-			sc->pioconf[atadev->unit] 
+			sc->pioconf[target] 
 			    = pio_timing_kauai[(mode & ATA_MODE_MASK)
 			    - ATA_PIO0];
 			break;
 		}
 	}
+
+	return (mode);
 }
 
 static int
 ata_kauai_begin_transaction(struct ata_request *request)
 {
-	struct ata_device *atadev = device_get_softc(request->dev);
 	struct ata_kauai_softc *sc = device_get_softc(request->parent);
 
-	bus_write_4(sc->sc_memr, UDMA_CONFIG_REG, sc->udmaconf[atadev->unit]);
+	bus_write_4(sc->sc_memr, UDMA_CONFIG_REG, sc->udmaconf[request->unit]);
 	bus_write_4(sc->sc_memr, PIO_CONFIG_REG, 
-	    sc->wdmaconf[atadev->unit] | sc->pioconf[atadev->unit]);
+	    sc->wdmaconf[request->unit] | sc->pioconf[request->unit]);
 
 	return ata_begin_transaction(request);
 }

@@ -53,8 +53,8 @@ __FBSDID("$FreeBSD$");
 
 /* local prototypes */
 static int ata_national_chipinit(device_t dev);
-static void ata_national_setmode(device_t dev, int mode);
-
+static int ata_national_ch_attach(device_t dev);
+static int ata_national_setmode(device_t dev, int target, int mode);
 
 /*
  * National chipset support functions
@@ -81,53 +81,55 @@ ata_national_chipinit(device_t dev)
     if (ata_setup_interrupt(dev, ata_generic_intr))
 	return ENXIO;
 		    
+    ctlr->ch_attach = ata_national_ch_attach;
     ctlr->setmode = ata_national_setmode;
     return 0;
 }
 
-static void
-ata_national_setmode(device_t dev, int mode)
+static int
+ata_national_ch_attach(device_t dev)
 {
-    device_t gparent = GRANDPARENT(dev);
-    struct ata_channel *ch = device_get_softc(device_get_parent(dev));
-    struct ata_device *atadev = device_get_softc(dev);
-    int devno = (ch->unit << 1) + atadev->unit;
-    u_int32_t piotiming[] =
-	{ 0x9172d132, 0x21717121, 0x00803020, 0x20102010, 0x00100010,
-	  0x00803020, 0x20102010, 0x00100010,
-	  0x00100010, 0x00100010, 0x00100010 };
-    u_int32_t dmatiming[] = { 0x80077771, 0x80012121, 0x80002020 };
-    u_int32_t udmatiming[] = { 0x80921250, 0x80911140, 0x80911030 };
-    int error;
+	struct ata_channel *ch = device_get_softc(dev);
+	int error;
+ 
+	error = ata_pci_ch_attach(dev);
+	ch->dma.alignment = 16;
+	ch->dma.max_iosize = 64 * DEV_BSIZE;
+	return (error);
+}
 
-    ch->dma.alignment = 16;
-    ch->dma.max_iosize = 64 * DEV_BSIZE;
+static int
+ata_national_setmode(device_t dev, int target, int mode)
+{
+	device_t parent = device_get_parent(dev);
+	struct ata_channel *ch = device_get_softc(dev);
+	int devno = (ch->unit << 1) + target;
+	int piomode;
+	u_int32_t piotiming[] =
+	    { 0x9172d132, 0x21717121, 0x00803020, 0x20102010, 0x00100010,
+	      0x9172d132, 0x20102010, 0x00100010 };
+	u_int32_t dmatiming[] = { 0x80077771, 0x80012121, 0x80002020 };
+	u_int32_t udmatiming[] = { 0x80921250, 0x80911140, 0x80911030 };
 
-    mode = ata_limit_mode(dev, mode, ATA_UDMA2);
+	mode = min(mode, ATA_UDMA2);
 
-    error = ata_controlcmd(dev, ATA_SETFEATURES, ATA_SF_SETXFER, 0, mode);
-
-    if (bootverbose)
-	device_printf(dev, "%s setting %s on National chip\n",
-		      (error) ? "failed" : "success", ata_mode2str(mode));
-    if (!error) {
 	if (mode >= ATA_UDMA0) {
-	    pci_write_config(gparent, 0x44 + (devno << 3),
+	    pci_write_config(parent, 0x44 + (devno << 3),
 			     udmatiming[mode & ATA_MODE_MASK], 4);
-	}
-	else if (mode >= ATA_WDMA0) {
-	    pci_write_config(gparent, 0x44 + (devno << 3),
+	    piomode = ATA_PIO4;
+	} else if (mode >= ATA_WDMA0) {
+	    pci_write_config(parent, 0x44 + (devno << 3),
 			     dmatiming[mode & ATA_MODE_MASK], 4);
-	}
-	else {
-	    pci_write_config(gparent, 0x44 + (devno << 3),
-			     pci_read_config(gparent, 0x44 + (devno << 3), 4) |
+	    piomode = mode;
+	} else {
+	    pci_write_config(parent, 0x44 + (devno << 3),
+			     pci_read_config(parent, 0x44 + (devno << 3), 4) |
 			     0x80000000, 4);
+	    piomode = mode;
 	}
-	pci_write_config(gparent, 0x40 + (devno << 3),
-			 piotiming[ata_mode2idx(mode)], 4);
-	atadev->mode = mode;
-    }
+	pci_write_config(parent, 0x40 + (devno << 3),
+			 piotiming[ata_mode2idx(piomode)], 4);
+	return (mode);
 }
 
 ATA_DECLARE_DRIVER(ata_national);

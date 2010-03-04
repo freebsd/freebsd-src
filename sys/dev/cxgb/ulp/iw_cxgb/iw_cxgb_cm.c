@@ -203,7 +203,7 @@ static int set_tcpinfo(struct iwch_ep *ep)
 
 	ep->snd_seq = ti.tcpi_snd_nxt;
 	ep->rcv_seq = ti.tcpi_rcv_nxt;
-	ep->emss = ti.__tcpi_snd_mss - sizeof(struct tcpiphdr);
+	ep->emss = ti.tcpi_snd_mss - sizeof(struct tcpiphdr);
 	ep->hwtid = TOEPCB(ep->com.so)->tp_tid; /* XXX */
 	if (ti.tcpi_options & TCPI_OPT_TIMESTAMPS)
 		ep->emss -= 12;

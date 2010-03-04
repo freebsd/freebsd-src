@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: resolver.c,v 1.384.14.14 2009/06/02 23:47:13 tbox Exp $ */
+/* $Id: resolver.c,v 1.384.14.14.8.2 2010/01/07 17:17:19 each Exp $ */
 
 /*! \file */
 
@@ -4289,10 +4289,19 @@ cache_name(fetchctx_t *fctx, dns_name_t *name, dns_adbaddrinfo_t *addrinfo,
 			rdataset->ttl = res->view->maxcachettl;
 
 		/*
-		 * If this rrset is in a secure domain, do DNSSEC validation
-		 * for it, unless it is glue.
+		 * If this RRset is in a secure domain, is in bailiwick,
+		 * and is not glue, attempt DNSSEC validation.	(We do not
+		 * attempt to validate glue or out-of-bailiwick data--even
+		 * though there might be some performance benefit to doing
+		 * so--because it makes it simpler and safer to ensure that
+		 * records from a secure domain are only cached if validated
+		 * within the context of a query to the domain that owns
+		 * them.)
 		 */
-		if (secure_domain && rdataset->trust != dns_trust_glue) {
+		if (secure_domain && rdataset->trust != dns_trust_glue &&
+		    !EXTERNAL(rdataset)) {
+			dns_trust_t trust;
+
 			/*
 			 * RRSIGs are validated as part of validating the
 			 * type they cover.
@@ -4330,11 +4339,17 @@ cache_name(fetchctx_t *fctx, dns_name_t *name, dns_adbaddrinfo_t *addrinfo,
 
 			/*
 			 * Cache this rdataset/sigrdataset pair as
-			 * pending data.
+			 * pending data.  Track whether it was additional
+			 * or not.
 			 */
-			rdataset->trust = dns_trust_pending;
+			if (rdataset->trust == dns_trust_additional)
+				trust = dns_trust_pending_additional;
+			else
+				trust = dns_trust_pending_answer;
+
+			rdataset->trust = trust;
 			if (sigrdataset != NULL)
-				sigrdataset->trust = dns_trust_pending;
+				sigrdataset->trust = trust;
 			if (!need_validation || !ANSWER(rdataset)) {
 				addedrdataset = ardataset;
 				result = dns_db_addrdataset(fctx->cache, node,
@@ -4682,7 +4697,7 @@ ncache_message(fetchctx_t *fctx, dns_adbaddrinfo_t *addrinfo,
 			for (trdataset = ISC_LIST_HEAD(tname->list);
 			     trdataset != NULL;
 			     trdataset = ISC_LIST_NEXT(trdataset, link))
-				trdataset->trust = dns_trust_pending;
+				trdataset->trust = dns_trust_pending_answer;
 			result = dns_message_nextname(fctx->rmessage,
 						      DNS_SECTION_AUTHORITY);
 		}
@@ -5440,9 +5455,7 @@ answer_response(fetchctx_t *fctx) {
 						/*
 						 * This data is outside of
 						 * our query domain, and
-						 * may only be cached if it
-						 * comes from a secure zone
-						 * and validates.
+						 * may not be cached.
 						 */
 						rdataset->attributes |=
 						    DNS_RDATASETATTR_EXTERNAL;

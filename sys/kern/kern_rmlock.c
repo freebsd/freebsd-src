@@ -128,9 +128,9 @@ static struct mtx rm_spinlock;
 MTX_SYSINIT(rm_spinlock, &rm_spinlock, "rm_spinlock", MTX_SPIN);
 
 /*
- * Add or remove tracker from per cpu list.
+ * Add or remove tracker from per-cpu list.
  *
- * The per cpu list can be traversed at any time in forward direction from an
+ * The per-cpu list can be traversed at any time in forward direction from an
  * interrupt on the *local* cpu.
  */
 static void inline
@@ -147,7 +147,7 @@ rm_tracker_add(struct pcpu *pc, struct rm_priotracker *tracker)
 	next->rmq_prev = &tracker->rmp_cpuQueue;
 
 	/* Update pointer to first element. */
-	pc->pc_rm_queue.rmq_next =  &tracker->rmp_cpuQueue;
+	pc->pc_rm_queue.rmq_next = &tracker->rmp_cpuQueue;
 }
 
 static void inline
@@ -257,7 +257,7 @@ _rm_rlock_hard(struct rmlock *rm, struct rm_priotracker *tracker)
 		return;
 	}
 
-	/* Remove our tracker from the per cpu list. */
+	/* Remove our tracker from the per-cpu list. */
 	rm_tracker_remove(pc, tracker);
 
 	/* Check to see if the IPI granted us the lock after all. */
@@ -274,11 +274,11 @@ _rm_rlock_hard(struct rmlock *rm, struct rm_priotracker *tracker)
 	 */
 	if ((rm->lock_object.lo_flags & LO_RECURSABLE) != 0) {
 		/*
-		 * Just grand the lock if this thread already have a tracker
-		 * for this lock on the per cpu queue.
+		 * Just grant the lock if this thread already has a tracker
+		 * for this lock on the per-cpu queue.
 		 */
 		for (queue = pc->pc_rm_queue.rmq_next;
-		    queue !=  &pc->pc_rm_queue; queue = queue->rmq_next) {
+		    queue != &pc->pc_rm_queue; queue = queue->rmq_next) {
 			atracker = (struct rm_priotracker *)queue;
 			if ((atracker->rmp_rmlock == rm) &&
 			    (atracker->rmp_thread == tracker->rmp_thread)) {
@@ -337,7 +337,7 @@ _rm_rlock(struct rmlock *rm, struct rm_priotracker *tracker)
 	 * Fast path to combine two common conditions into a single
 	 * conditional jump.
 	 */
-	if (0 == (td->td_owepreempt |  rm->rm_noreadtoken))
+	if (0 == (td->td_owepreempt | rm->rm_noreadtoken))
 		return;
 
 	/* We do not have a read token and need to acquire one. */
@@ -413,7 +413,7 @@ _rm_wlock(struct rmlock *rm)
 		 * before rm_cleanIPI is called.
 		 */
 #ifdef SMP
-   		smp_rendezvous(smp_no_rendevous_barrier,
+		smp_rendezvous(smp_no_rendevous_barrier,
 		    rm_cleanIPI,
 		    smp_no_rendevous_barrier,
 		    rm);
@@ -487,7 +487,7 @@ _rm_rlock_debug(struct rmlock *rm, struct rm_priotracker *tracker,
 }
 
 void
-_rm_runlock_debug(struct rmlock *rm,  struct rm_priotracker *tracker,
+_rm_runlock_debug(struct rmlock *rm, struct rm_priotracker *tracker,
     const char *file, int line)
 {
 
@@ -526,7 +526,7 @@ _rm_rlock_debug(struct rmlock *rm, struct rm_priotracker *tracker,
 }
 
 void
-_rm_runlock_debug(struct rmlock *rm,  struct rm_priotracker *tracker,
+_rm_runlock_debug(struct rmlock *rm, struct rm_priotracker *tracker,
     const char *file, int line)
 {
 

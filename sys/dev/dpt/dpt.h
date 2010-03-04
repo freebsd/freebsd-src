@@ -26,6 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
+ * $FreeBSD$
  */
 
 /*
@@ -38,9 +39,6 @@
  *		Ron McDaniels;	SCSI Software Interrupts
  *		FreeBSD.ORG;	Great O/S to work on and for.
  */
-
-
-#ident "$FreeBSD$"
 
 #ifndef _DPT_H
 #define _DPT_H

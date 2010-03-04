@@ -45,7 +45,7 @@ DEFINE_TEST(test_read_disk_entry_from_file)
 {
 	struct archive *a;
 	struct archive_entry *entry;
-	int fd;
+	FILE *f;
 
 	assert((a = archive_read_disk_new()) != NULL);
 
@@ -57,10 +57,10 @@ DEFINE_TEST(test_read_disk_entry_from_file)
 	assertEqualString(archive_read_disk_gname(a, 0), "FOOGROUP");
 
 	/* Create a file on disk. */
-	fd = open("foo", O_WRONLY | O_CREAT, 0777);
-	assert(fd >= 0);
-	assertEqualInt(4, write(fd, "1234", 4));
-	close(fd);
+	f = fopen("foo", "wb");
+	assert(f != NULL);
+	assertEqualInt(4, fwrite("1234", 1, 4, f));
+	fclose(f);
 
 	/* Use archive_read_disk_entry_from_file to get information about it. */
 	entry = archive_entry_new();

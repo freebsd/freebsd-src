@@ -32,7 +32,7 @@
 .\"     @(#)netintro.4	8.2 (Berkeley) 11/30/93
 .\" $FreeBSD$
 .\"
-.Dd June 18, 2004
+.Dd January 26, 2010
 .Dt NETINTRO 4
 .Os
 .Sh NAME
@@ -204,6 +204,7 @@ struct	ifreq {
         struct    sockaddr ifru_addr;
         struct    sockaddr ifru_dstaddr;
         struct    sockaddr ifru_broadaddr;
+        struct    ifreq_buffer ifru_buffer;
         short     ifru_flags[2];
         short     ifru_index;
         int       ifru_metric;
@@ -216,6 +217,7 @@ struct	ifreq {
 #define ifr_addr      ifr_ifru.ifru_addr      /* address */
 #define ifr_dstaddr   ifr_ifru.ifru_dstaddr   /* other end of p-to-p link */
 #define ifr_broadaddr ifr_ifru.ifru_broadaddr /* broadcast address */
+#define ifr_buffer    ifr_ifru.ifru_buffer    /* user supplied buffer with its length */
 #define ifr_flags     ifr_ifru.ifru_flags[0]  /* flags (low 16 bits) */
 #define ifr_flagshigh ifr_ifru.ifru_flags[1]  /* flags (high 16 bits) */
 #define ifr_metric    ifr_ifru.ifru_metric    /* metric */
@@ -277,6 +279,33 @@ and
 fields of the
 .Vt ifreq
 structure, respectively.
+.It Dv SIOCGIFDESCR
+Get the interface description, returned in the
+.Va buffer
+field of
+.Va ifru_buffer
+struct.
+The user supplied buffer length should be defined in the
+.Va length
+field of
+.Va ifru_buffer
+struct passed in as parameter, and the length would include
+the terminating nul character.
+If there is not enough space to hold the interface length,
+no copy would be done and an
+error would be returned.
+The kernel will store the buffer length in the
+.Va length
+field upon return, regardless whether the buffer itself is
+sufficient to hold the data.
+.It Dv SIOCSIFDESCR
+Set the interface description to the value of the
+.Va buffer
+field of
+.Va ifru_buffer
+struct, with
+.Va length
+field specifying its length (counting the terminating nul).
 .It Dv SIOCSIFFLAGS
 Set interface flags field.
 If the interface is marked down,
@@ -402,6 +431,13 @@ struct if_clonereq {
         int     ifcr_total;     /* total cloners (out) */
         int     ifcr_count;     /* room for this many in user buffer */
         char    *ifcr_buffer;   /* buffer for cloner names */
+};
+.Ed
+.Bd -literal
+/* Structure used in SIOCGIFDESCR and SIOCSIFDESCR requests */
+struct ifreq_buffer {
+        size_t  length;         /* length of the buffer */
+        void   *buffer;         /* pointer to userland space buffer */
 };
 .Ed
 .Sh SEE ALSO

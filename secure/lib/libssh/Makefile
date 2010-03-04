@@ -19,7 +19,7 @@ SRCS=	acss.c authfd.c authfile.c bufaux.c bufbn.c buffer.c \
 # compiled directly into sshd instead.
 
 # Portability layer
-SRCS+=	bsd-misc.c fmt_scaled.c getrrsetbyname.c \
+SRCS+=	bsd-misc.c fmt_scaled.c getrrsetbyname.c glob.c \
 	openssl-compat.c port-tun.c strtonum.c vis.c xcrypt.c xmmap.c
 # FreeBSD additions
 SRCS+=	version.c

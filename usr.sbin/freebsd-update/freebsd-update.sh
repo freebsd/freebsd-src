@@ -284,6 +284,9 @@ config_TargetRelease () {
 	else
 		return 1
 	fi
+	if echo ${TARGETRELEASE} | grep -qE '^[0-9.]+$'; then
+		TARGETRELEASE="${TARGETRELEASE}-RELEASE"
+	fi
 }
 
 # Define what happens to output of utilities
@@ -600,6 +603,7 @@ fetch_check_params () {
 		echo ${WORKDIR}
 		exit 1
 	fi
+	chmod 700 ${WORKDIR}
 	cd ${WORKDIR} || exit 1
 
 	# Generate release number.  The s/SECURITY/RELEASE/ bit exists

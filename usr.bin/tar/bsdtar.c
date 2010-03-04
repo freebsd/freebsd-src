@@ -47,6 +47,9 @@ __FBSDID("$FreeBSD$");
 #ifdef HAVE_PATHS_H
 #include <paths.h>
 #endif
+#ifdef HAVE_SIGNAL_H
+#include <signal.h>
+#endif
 #include <stdio.h>
 #ifdef HAVE_STDLIB_H
 #include <stdlib.h>
@@ -60,11 +63,10 @@ __FBSDID("$FreeBSD$");
 #ifdef HAVE_UNISTD_H
 #include <unistd.h>
 #endif
-#if HAVE_ZLIB_H
-#include <zlib.h>
-#endif
 
 #include "bsdtar.h"
+#include "err.h"
+#include "matching.h"
 
 /*
  * Per POSIX.1-1988, tar defaults to reading/writing archives to/from
@@ -81,10 +83,39 @@ __FBSDID("$FreeBSD$");
 #define	_PATH_DEFTAPE "/dev/tape"
 #endif
 
-/* External function to parse a date/time string (from getdate.y) */
+#ifdef __MINGW32__
+int _CRT_glob = 0; /* Disable broken CRT globbing. */
+#endif
+
+#if defined(HAVE_SIGACTION) && (defined(SIGINFO) || defined(SIGUSR1))
+static volatile int siginfo_occurred;
+
+static void
+siginfo_handler(int sig)
+{
+	(void)sig; /* UNUSED */
+	siginfo_occurred = 1;
+}
+
+int
+need_report(void)
+{
+	int r = siginfo_occurred;
+	siginfo_occurred = 0;
+	return (r);
+}
+#else
+int
+need_report(void)
+{
+	return (0);
+}
+#endif
+
+/* External function to parse a date/time string */
 time_t get_date(time_t, const char *);
 
-static void		 long_help(struct bsdtar *);
+static void		 long_help(void);
 static void		 only_mode(struct bsdtar *, const char *opt,
 			     const char *valid);
 static void		 set_mode(struct bsdtar *, char opt);
@@ -113,32 +144,44 @@ main(int argc, char **argv)
 	memset(bsdtar, 0, sizeof(*bsdtar));
 	bsdtar->fd = -1; /* Mark as "unused" */
 	option_o = 0;
-#if defined(_WIN32) && !defined(__CYGWIN__)
-	/* Make sure open() function will be used with a binary mode. */
-	/* on cygwin, we need something similar, but instead link against */
-	/* a special startup object, binmode.o */
-	_set_fmode(_O_BINARY);
+
+#if defined(HAVE_SIGACTION) && (defined(SIGINFO) || defined(SIGUSR1))
+	{ /* Catch SIGINFO and SIGUSR1, if they exist. */
+		struct sigaction sa;
+		sa.sa_handler = siginfo_handler;
+		sigemptyset(&sa.sa_mask);
+		sa.sa_flags = 0;
+#ifdef SIGINFO
+		if (sigaction(SIGINFO, &sa, NULL))
+			bsdtar_errc(1, errno, "sigaction(SIGINFO) failed");
+#endif
+#ifdef SIGUSR1
+		/* ... and treat SIGUSR1 the same way as SIGINFO. */
+		if (sigaction(SIGUSR1, &sa, NULL))
+			bsdtar_errc(1, errno, "sigaction(SIGUSR1) failed");
+#endif
+	}
 #endif
 
-	/* Need bsdtar->progname before calling bsdtar_warnc. */
+	/* Need bsdtar_progname before calling bsdtar_warnc. */
 	if (*argv == NULL)
-		bsdtar->progname = "bsdtar";
+		bsdtar_progname = "bsdtar";
 	else {
 #if defined(_WIN32) && !defined(__CYGWIN__)
-		bsdtar->progname = strrchr(*argv, '\\');
+		bsdtar_progname = strrchr(*argv, '\\');
 #else
-		bsdtar->progname = strrchr(*argv, '/');
+		bsdtar_progname = strrchr(*argv, '/');
 #endif
-		if (bsdtar->progname != NULL)
-			bsdtar->progname++;
+		if (bsdtar_progname != NULL)
+			bsdtar_progname++;
 		else
-			bsdtar->progname = *argv;
+			bsdtar_progname = *argv;
 	}
 
 	time(&now);
 
 	if (setlocale(LC_ALL, "") == NULL)
-		bsdtar_warnc(bsdtar, 0, "Failed to set default locale");
+		bsdtar_warnc(0, "Failed to set default locale");
 #if defined(HAVE_NL_LANGINFO) && defined(HAVE_D_MD_ORDER)
 	bsdtar->day_first = (*nl_langinfo(D_MD_ORDER) == 'd');
 #endif
@@ -158,8 +201,10 @@ main(int argc, char **argv)
 	/* Default: Perform basic security checks. */
 	bsdtar->extract_flags |= SECURITY;
 
-	/* Defaults for root user: */
-	if (bsdtar_is_privileged(bsdtar)) {
+#ifndef _WIN32
+	/* On POSIX systems, assume --same-owner and -p when run by
+	 * the root user.  This doesn't make any sense on Windows. */
+	if (bsdtar->user_uid == 0) {
 		/* --same-owner */
 		bsdtar->extract_flags |= ARCHIVE_EXTRACT_OWNER;
 		/* -p */
@@ -168,6 +213,7 @@ main(int argc, char **argv)
 		bsdtar->extract_flags |= ARCHIVE_EXTRACT_XATTR;
 		bsdtar->extract_flags |= ARCHIVE_EXTRACT_FFLAGS;
 	}
+#endif
 
 	bsdtar->argv = argv;
 	bsdtar->argc = argc;
@@ -185,9 +231,9 @@ main(int argc, char **argv)
 			break;
 		case 'b': /* SUSv2 */
 			t = atoi(bsdtar->optarg);
-			if (t <= 0 || t > 1024)
-				bsdtar_errc(bsdtar, 1, 0,
-				    "Argument to -b is out of range (1..1024)");
+			if (t <= 0 || t > 8192)
+				bsdtar_errc(1, 0,
+				    "Argument to -b is out of range (1..8192)");
 			bsdtar->bytes_per_block = 512 * t;
 			break;
 		case 'C': /* GNU tar */
@@ -203,8 +249,8 @@ main(int argc, char **argv)
 			bsdtar->option_chroot = 1;
 			break;
 		case OPTION_EXCLUDE: /* GNU tar */
-			if (exclude(bsdtar, bsdtar->optarg))
-				bsdtar_errc(bsdtar, 1, 0,
+			if (lafe_exclude(&bsdtar->matching, bsdtar->optarg))
+				bsdtar_errc(1, 0,
 				    "Couldn't exclude %s\n", bsdtar->optarg);
 			break;
 		case OPTION_FORMAT: /* GNU tar, others */
@@ -227,7 +273,7 @@ main(int argc, char **argv)
 			possible_help_request = 1;
 			break;
 		case OPTION_HELP: /* GNU tar, others */
-			long_help(bsdtar);
+			long_help();
 			exit(0);
 			break;
 		case 'I': /* GNU tar */
@@ -249,36 +295,24 @@ main(int argc, char **argv)
 			 * noone else needs this to filter entries
 			 * when transforming archives.
 			 */
-			if (include(bsdtar, bsdtar->optarg))
-				bsdtar_errc(bsdtar, 1, 0,
+			if (lafe_include(&bsdtar->matching, bsdtar->optarg))
+				bsdtar_errc(1, 0,
 				    "Failed to add %s to inclusion list",
 				    bsdtar->optarg);
 			break;
 		case 'j': /* GNU tar */
-#if HAVE_LIBBZ2
 			if (bsdtar->create_compression != '\0')
-				bsdtar_errc(bsdtar, 1, 0,
+				bsdtar_errc(1, 0,
 				    "Can't specify both -%c and -%c", opt,
 				    bsdtar->create_compression);
 			bsdtar->create_compression = opt;
-#else
-			bsdtar_warnc(bsdtar, 0,
-			    "bzip2 compression not supported by this version of bsdtar");
-			usage(bsdtar);
-#endif
 			break;
 		case 'J': /* GNU tar 1.21 and later */
-#if HAVE_LIBLZMA
 			if (bsdtar->create_compression != '\0')
-				bsdtar_errc(bsdtar, 1, 0,
+				bsdtar_errc(1, 0,
 				    "Can't specify both -%c and -%c", opt,
 				    bsdtar->create_compression);
 			bsdtar->create_compression = opt;
-#else
-			bsdtar_warnc(bsdtar, 0,
-			    "xz compression not supported by this version of bsdtar");
-			usage(bsdtar);
-#endif
 			break;
 		case 'k': /* GNU tar */
 			bsdtar->extract_flags |= ARCHIVE_EXTRACT_NO_OVERWRITE;
@@ -294,17 +328,11 @@ main(int argc, char **argv)
 			bsdtar->option_warn_links = 1;
 			break;
 		case OPTION_LZMA:
-#if HAVE_LIBLZMA
 			if (bsdtar->create_compression != '\0')
-				bsdtar_errc(bsdtar, 1, 0,
+				bsdtar_errc(1, 0,
 				    "Can't specify both -%c and -%c", opt,
 				    bsdtar->create_compression);
 			bsdtar->create_compression = opt;
-#else
-			bsdtar_warnc(bsdtar, 0,
-			    "lzma compression not supported by this version of bsdtar");
-			usage(bsdtar);
-#endif
 			break;
 		case 'm': /* SUSv2 */
 			bsdtar->extract_flags &= ~ARCHIVE_EXTRACT_TIME;
@@ -326,7 +354,7 @@ main(int argc, char **argv)
 			{
 				struct stat st;
 				if (stat(bsdtar->optarg, &st) != 0)
-					bsdtar_errc(bsdtar, 1, 0,
+					bsdtar_errc(1, 0,
 					    "Can't open file %s", bsdtar->optarg);
 				bsdtar->newer_ctime_sec = st.st_ctime;
 				bsdtar->newer_ctime_nsec =
@@ -340,7 +368,7 @@ main(int argc, char **argv)
 			{
 				struct stat st;
 				if (stat(bsdtar->optarg, &st) != 0)
-					bsdtar_errc(bsdtar, 1, 0,
+					bsdtar_errc(1, 0,
 					    "Can't open file %s", bsdtar->optarg);
 				bsdtar->newer_mtime_sec = st.st_mtime;
 				bsdtar->newer_mtime_nsec =
@@ -411,9 +439,9 @@ main(int argc, char **argv)
 #if HAVE_REGEX_H
 			add_substitution(bsdtar, bsdtar->optarg);
 #else
-			bsdtar_warnc(bsdtar, 0,
+			bsdtar_warnc(0,
 			    "-s is not supported by this version of bsdtar");
-			usage(bsdtar);
+			usage();
 #endif
 			break;
 		case OPTION_SAME_OWNER: /* GNU tar */
@@ -457,8 +485,8 @@ main(int argc, char **argv)
 			bsdtar->option_interactive = 1;
 			break;
 		case 'X': /* GNU tar */
-			if (exclude_from_file(bsdtar, bsdtar->optarg))
-				bsdtar_errc(bsdtar, 1, 0,
+			if (lafe_exclude_from_file(&bsdtar->matching, bsdtar->optarg))
+				bsdtar_errc(1, 0,
 				    "failed to process exclusions from file %s",
 				    bsdtar->optarg);
 			break;
@@ -466,43 +494,31 @@ main(int argc, char **argv)
 			set_mode(bsdtar, opt);
 			break;
 		case 'y': /* FreeBSD version of GNU tar */
-#if HAVE_LIBBZ2
 			if (bsdtar->create_compression != '\0')
-				bsdtar_errc(bsdtar, 1, 0,
+				bsdtar_errc(1, 0,
 				    "Can't specify both -%c and -%c", opt,
 				    bsdtar->create_compression);
 			bsdtar->create_compression = opt;
-#else
-			bsdtar_warnc(bsdtar, 0,
-			    "bzip2 compression not supported by this version of bsdtar");
-			usage(bsdtar);
-#endif
 			break;
 		case 'Z': /* GNU tar */
 			if (bsdtar->create_compression != '\0')
-				bsdtar_errc(bsdtar, 1, 0,
+				bsdtar_errc(1, 0,
 				    "Can't specify both -%c and -%c", opt,
 				    bsdtar->create_compression);
 			bsdtar->create_compression = opt;
 			break;
 		case 'z': /* GNU tar, star, many others */
-#if HAVE_LIBZ
 			if (bsdtar->create_compression != '\0')
-				bsdtar_errc(bsdtar, 1, 0,
+				bsdtar_errc(1, 0,
 				    "Can't specify both -%c and -%c", opt,
 				    bsdtar->create_compression);
 			bsdtar->create_compression = opt;
-#else
-			bsdtar_warnc(bsdtar, 0,
-			    "gzip compression not supported by this version of bsdtar");
-			usage(bsdtar);
-#endif
 			break;
 		case OPTION_USE_COMPRESS_PROGRAM:
 			bsdtar->compress_program = bsdtar->optarg;
 			break;
 		default:
-			usage(bsdtar);
+			usage();
 		}
 	}
 
@@ -512,13 +528,13 @@ main(int argc, char **argv)
 
 	/* If no "real" mode was specified, treat -h as --help. */
 	if ((bsdtar->mode == '\0') && possible_help_request) {
-		long_help(bsdtar);
+		long_help();
 		exit(0);
 	}
 
 	/* Otherwise, a mode is required. */
 	if (bsdtar->mode == '\0')
-		bsdtar_errc(bsdtar, 1, 0,
+		bsdtar_errc(1, 0,
 		    "Must specify one of -c, -r, -t, -u, -x");
 
 	/* Check boolean options only permitted in certain modes. */
@@ -592,13 +608,13 @@ main(int argc, char **argv)
 		break;
 	}
 
-	cleanup_exclusions(bsdtar);
+	lafe_cleanup_exclusions(&bsdtar->matching);
 #if HAVE_REGEX_H
 	cleanup_substitution(bsdtar);
 #endif
 
 	if (bsdtar->return_value != 0)
-		bsdtar_warnc(bsdtar, 0,
+		bsdtar_warnc(0,
 		    "Error exit delayed from previous errors.");
 	return (bsdtar->return_value);
 }
@@ -607,7 +623,7 @@ static void
 set_mode(struct bsdtar *bsdtar, char opt)
 {
 	if (bsdtar->mode != '\0' && bsdtar->mode != opt)
-		bsdtar_errc(bsdtar, 1, 0,
+		bsdtar_errc(1, 0,
 		    "Can't specify both -%c and -%c", opt, bsdtar->mode);
 	bsdtar->mode = opt;
 }
@@ -619,18 +635,18 @@ static void
 only_mode(struct bsdtar *bsdtar, const char *opt, const char *valid_modes)
 {
 	if (strchr(valid_modes, bsdtar->mode) == NULL)
-		bsdtar_errc(bsdtar, 1, 0,
+		bsdtar_errc(1, 0,
 		    "Option %s is not permitted in mode -%c",
 		    opt, bsdtar->mode);
 }
 
 
 void
-usage(struct bsdtar *bsdtar)
+usage(void)
 {
 	const char	*p;
 
-	p = bsdtar->progname;
+	p = bsdtar_progname;
 
 	fprintf(stderr, "Usage:\n");
 	fprintf(stderr, "  List:    %s -tf <archive-filename>\n", p);
@@ -685,12 +701,12 @@ static const char *long_help_msg =
  *          echo bsdtar; else echo not bsdtar; fi
  */
 static void
-long_help(struct bsdtar *bsdtar)
+long_help(void)
 {
 	const char	*prog;
 	const char	*p;
 
-	prog = bsdtar->progname;
+	prog = bsdtar_progname;
 
 	fflush(stderr);
 

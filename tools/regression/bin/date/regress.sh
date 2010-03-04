@@ -35,18 +35,20 @@ check()
 
 	R=`date -r ${TEST1} +%${S}`
 	if [ "${R}" = "${A1}" ]; then
-		echo "${count}a. ${S} - ok"
+		echo "ok ${S}{t1}"
 	else
-		echo "${count}a. ${S} - not ok (got ${R}, expected ${A1})"
+		echo "no ok ${S}{t1} - (got ${R}, expected ${A1})"
 	fi
 
 	R=`date -r ${TEST2} +%${S}`
 	if [ "${R}" = "${A2}" ]; then
-		echo "${count}b. ${S} - ok"
+		echo "ok ${S}{t2}"
 	else
-		echo "${count}b. ${S} - not ok (got ${R}, expected ${A2})"
+		echo "no ok ${S}{t2} - (got ${R}, expected ${A2})"
 	fi
 }
+
+echo "1..78"
 
 check A Saturday Monday
 check a Sat Mon

@@ -563,7 +563,10 @@ ypproc_all_2_svc(ypreq_nokey *argp, struct svc_req *rqstp)
 	 * Proper fix for PR #10970: exit here so that we don't risk
 	 * having a child spawned from this sub-process.
 	 */
-	_exit(0);
+	if (!debug)
+		_exit(0);
+
+	return &result;
 }
 
 ypresp_master *

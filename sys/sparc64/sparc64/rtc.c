@@ -28,10 +28,11 @@
 __FBSDID("$FreeBSD$");
 
 /*
- * The `rtc' device is a MC146818 compatible clock found on the ISA
- * bus and EBus. The EBus variant actually is the Real-Time Clock
- * function of a National Semiconductor PC87317/PC97317 which also
- * provides Advanced Power Control functionality.
+ * The `rtc' device is found on the ISA bus and the EBus.  The ISA version
+ * always is a MC146818 compatible clock while the EBus variant either is the
+ * MC146818 compatible Real-Time Clock function of a National Semiconductor
+ * PC87317/PC97317 which also provides Advanced Power Control functionality
+ * or a Texas Instruments bq4802.
  */
 
 #include "opt_isa.h"
@@ -110,7 +111,7 @@ static device_method_t rtc_isa_methods[] = {
 	DEVMETHOD(clock_gettime,	mc146818_gettime),
 	DEVMETHOD(clock_settime,	mc146818_settime),
 
-	{ 0, 0 }
+	KOBJMETHOD_END
 };
 
 static driver_t rtc_isa_driver = {
@@ -122,14 +123,18 @@ static driver_t rtc_isa_driver = {
 DRIVER_MODULE(rtc, isa, rtc_isa_driver, rtc_devclass, 0, 0);
 #endif
 
-static u_int pc87317_getcent(device_t);
-static void pc87317_setcent(device_t, u_int);
+static u_int pc87317_getcent(device_t dev);
+static void pc87317_setcent(device_t dev, u_int cent);
 
 static int
 rtc_ebus_probe(device_t dev)
 {
 
 	if (strcmp(ofw_bus_get_name(dev), "rtc") == 0) {
+		/* The bq4802 is not supported, yet. */
+		if (ofw_bus_get_compat(dev) != NULL &&
+		    strcmp(ofw_bus_get_compat(dev), "bq4802") == 0)
+			return (ENXIO);
 		device_set_desc(dev, RTC_DESC);
 		return (0);
 	}

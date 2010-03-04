@@ -266,22 +266,20 @@ main(int ac, char *av[])
 }
 
 static void
-usage()
+usage(void)
 {
     fprintf(stderr, "usage: mklocale [-d] [-o output] [source]\n");
     exit(1);
 }
 
 void
-yyerror(s)
-	const char *s;
+yyerror(const char *s)
 {
     fprintf(stderr, "%s\n", s);
 }
 
 static void *
-xmalloc(sz)
-	unsigned int sz;
+xmalloc(unsigned int sz)
 {
     void *r = malloc(sz);
     if (!r)
@@ -290,8 +288,7 @@ xmalloc(sz)
 }
 
 static uint32_t *
-xlalloc(sz)
-	unsigned int sz;
+xlalloc(unsigned int sz)
 {
     uint32_t *r = (uint32_t *)malloc(sz * sizeof(uint32_t));
     if (!r)
@@ -300,9 +297,7 @@ xlalloc(sz)
 }
 
 static uint32_t *
-xrelalloc(old, sz)
-	uint32_t *old;
-	unsigned int sz;
+xrelalloc(uint32_t *old, unsigned int sz)
 {
     uint32_t *r = (uint32_t *)realloc((char *)old,
 						sz * sizeof(uint32_t));
@@ -312,10 +307,7 @@ xrelalloc(old, sz)
 }
 
 void
-set_map(map, list, flag)
-	rune_map *map;
-	rune_list *list;
-	uint32_t flag;
+set_map(rune_map *map, rune_list *list, uint32_t flag)
 {
     while (list) {
 	rune_list *nlist = list->next;
@@ -325,9 +317,7 @@ set_map(map, list, flag)
 }
 
 void
-set_digitmap(map, list)
-	rune_map *map;
-	rune_list *list;
+set_digitmap(rune_map *map, rune_list *list)
 {
     int32_t i;
 
@@ -347,10 +337,7 @@ set_digitmap(map, list)
 }
 
 void
-add_map(map, list, flag)
-	rune_map *map;
-	rune_list *list;
-	uint32_t flag;
+add_map(rune_map *map, rune_list *list, uint32_t flag)
 {
     int32_t i;
     rune_list *lr = 0;
@@ -555,7 +542,7 @@ add_map(map, list, flag)
 }
 
 static void
-dump_tables()
+dump_tables(void)
 {
     int x, first_d, curr_d;
     rune_list *list;

@@ -107,7 +107,7 @@ DRIVER_MODULE(eeprom, sbus, eeprom_driver, eeprom_devclass, 0, 0);
 static int
 eeprom_probe(device_t dev)
 {
- 
+
 	if (strcmp("eeprom", ofw_bus_get_name(dev)) == 0) {
 		device_set_desc(dev, "EEPROM/clock");
 		return (0);
@@ -119,7 +119,6 @@ static int
 eeprom_attach(device_t dev)
 {
 	struct mk48txx_softc *sc;
-	struct resource *res;
 	struct timespec ts;
 	int error, rid;
 
@@ -128,14 +127,13 @@ eeprom_attach(device_t dev)
 	mtx_init(&sc->sc_mtx, "eeprom_mtx", NULL, MTX_DEF);
 
 	rid = 0;
-	res = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid, RF_ACTIVE);
-	if (res == NULL) {
+	sc->sc_res = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid,
+	    RF_ACTIVE);
+	if (sc->sc_res == NULL) {
 		device_printf(dev, "cannot allocate resources\n");
 		error = ENXIO;
 		goto fail_mtx;
 	}
-	sc->sc_bst = rman_get_bustag(res);
-	sc->sc_bsh = rman_get_bushandle(res);
 
 	if ((sc->sc_model = ofw_bus_get_model(dev)) == NULL) {
 		device_printf(dev, "cannot determine model\n");
@@ -180,7 +178,7 @@ eeprom_attach(device_t dev)
 	return (0);
 
  fail_res:
-	bus_release_resource(dev, SYS_RES_MEMORY, rid, res);
+	bus_release_resource(dev, SYS_RES_MEMORY, rid, sc->sc_res);
  fail_mtx:
 	mtx_destroy(&sc->sc_mtx);
 

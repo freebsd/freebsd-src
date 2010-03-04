@@ -160,7 +160,7 @@ cfe_enumenv(int idx, char *name, int namelen, char *val, int vallen)
 {
     cfe_xiocb_t xiocb;
 
-    xiocb.xiocb_fcode = CFE_CMD_ENV_SET;
+    xiocb.xiocb_fcode = CFE_CMD_ENV_ENUM;
     xiocb.xiocb_status = 0;
     xiocb.xiocb_handle = 0;
     xiocb.xiocb_flags = 0;

@@ -38,6 +38,7 @@ __FBSDID("$FreeBSD$");
 
 #include <errno.h>
 #include <string.h>
+#include <unistd.h>
 
 #include "talk.h"
 

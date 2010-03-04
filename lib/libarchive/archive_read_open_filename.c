@@ -35,6 +35,9 @@ __FBSDID("$FreeBSD$");
 #ifdef HAVE_FCNTL_H
 #include <fcntl.h>
 #endif
+#ifdef HAVE_IO_H
+#include <io.h>
+#endif
 #ifdef HAVE_STDLIB_H
 #include <stdlib.h>
 #endif
@@ -96,6 +99,9 @@ archive_read_open_filename(struct archive *a, const char *filename,
 		 */
 		filename = ""; /* Normalize NULL to "" */
 		fd = 0;
+#if defined(__CYGWIN__) || defined(_WIN32)
+		setmode(0, O_BINARY);
+#endif
 	} else {
 		fd = open(filename, O_RDONLY | O_BINARY);
 		if (fd < 0) {

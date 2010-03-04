@@ -69,6 +69,10 @@ static int p6_allocate_pmc(enum pmc_event _pe, char *_ctrspec,
 static int tsc_allocate_pmc(enum pmc_event _pe, char *_ctrspec,
     struct pmc_op_pmcallocate *_pmc_config);
 #endif
+#if defined(__XSCALE__)
+static int xscale_allocate_pmc(enum pmc_event _pe, char *_ctrspec,
+    struct pmc_op_pmcallocate *_pmc_config);
+#endif
 
 #define PMC_CALL(cmd, params)				\
 	syscall(pmc_syscall, PMC_OP_##cmd, (params))
@@ -132,6 +136,7 @@ PMC_CLASSDEP_TABLE(k8, K8);
 PMC_CLASSDEP_TABLE(p4, P4);
 PMC_CLASSDEP_TABLE(p5, P5);
 PMC_CLASSDEP_TABLE(p6, P6);
+PMC_CLASSDEP_TABLE(xscale, XSCALE);
 
 #undef	__PMC_EV_ALIAS
 #define	__PMC_EV_ALIAS(N,CODE) 	{ N, PMC_EV_##CODE },
@@ -176,6 +181,7 @@ PMC_MDEP_TABLE(k8, K8, PMC_CLASS_TSC);
 PMC_MDEP_TABLE(p4, P4, PMC_CLASS_TSC);
 PMC_MDEP_TABLE(p5, P5, PMC_CLASS_TSC);
 PMC_MDEP_TABLE(p6, P6, PMC_CLASS_TSC);
+PMC_MDEP_TABLE(xscale, XSCALE, PMC_CLASS_XSCALE);
 
 static const struct pmc_event_descr tsc_event_table[] =
 {
@@ -215,6 +221,9 @@ PMC_CLASS_TABLE_DESC(p6, P6, p6, p6);
 #endif
 #if	defined(__i386__) || defined(__amd64__)
 PMC_CLASS_TABLE_DESC(tsc, TSC, tsc, tsc);
+#endif
+#if	defined(__XSCALE__)
+PMC_CLASS_TABLE_DESC(xscale, XSCALE, xscale, xscale);
 #endif
 
 #undef	PMC_CLASS_TABLE_DESC
@@ -442,6 +451,10 @@ static struct pmc_event_alias core_aliases[] = {
 /*
  * Intel Core2 (Family 6, Model F), Core2Extreme (Family 6, Model 17H)
  * and Atom (Family 6, model 1CH) PMCs.
+ *
+ * We map aliases to events on the fixed-function counters if these
+ * are present.  Note that not all CPUs in this family contain fixed-function
+ * counters.
  */
 
 static struct pmc_event_alias core2_aliases[] = {
@@ -454,8 +467,22 @@ static struct pmc_event_alias core2_aliases[] = {
 	EV_ALIAS("unhalted-cycles",	"iaf-cpu-clk-unhalted.core"),
 	EV_ALIAS(NULL, NULL)
 };
-#define	atom_aliases	core2_aliases
-#define corei7_aliases	core2_aliases
+
+static struct pmc_event_alias core2_aliases_without_iaf[] = {
+	EV_ALIAS("branches",		"iap-br-inst-retired.any"),
+	EV_ALIAS("branch-mispredicts",	"iap-br-inst-retired.mispred"),
+	EV_ALIAS("cycles",		"tsc-tsc"),
+	EV_ALIAS("ic-misses",		"iap-l1i-misses"),
+	EV_ALIAS("instructions",	"iap-inst-retired.any_p"),
+	EV_ALIAS("interrupts",		"iap-hw-int-rcv"),
+	EV_ALIAS("unhalted-cycles",	"iap-cpu-clk-unhalted.core_p"),
+	EV_ALIAS(NULL, NULL)
+};
+
+#define	atom_aliases			core2_aliases
+#define	atom_aliases_without_iaf	core2_aliases_without_iaf
+#define corei7_aliases			core2_aliases
+#define corei7_aliases_without_iaf	core2_aliases_without_iaf
 
 #define	IAF_KW_OS		"os"
 #define	IAF_KW_USR		"usr"
@@ -1990,6 +2017,29 @@ tsc_allocate_pmc(enum pmc_event pe, char *ctrspec,
 }
 #endif
 
+#if	defined(__XSCALE__)
+
+static struct pmc_event_alias xscale_aliases[] = {
+	EV_ALIAS("branches",		"BRANCH_RETIRED"),
+	EV_ALIAS("branch-mispredicts",	"BRANCH_MISPRED"),
+	EV_ALIAS("dc-misses",		"DC_MISS"),
+	EV_ALIAS("ic-misses",		"IC_MISS"),
+	EV_ALIAS("instructions",	"INSTR_RETIRED"),
+	EV_ALIAS(NULL, NULL)
+};
+static int
+xscale_allocate_pmc(enum pmc_event pe, char *ctrspec __unused,
+    struct pmc_op_pmcallocate *pmc_config __unused)
+{
+	switch (pe) {
+	default:
+		break;
+	}
+
+	return (0);
+}
+#endif
+
 /*
  * Match an event name `name' with its canonical form.
  *
@@ -2317,6 +2367,10 @@ pmc_event_names_of_class(enum pmc_class cl, const char ***eventnames,
 		ev = p6_event_table;
 		count = PMC_EVENT_TABLE_SIZE(p6);
 		break;
+	case PMC_CLASS_XSCALE:
+		ev = xscale_event_table;
+		count = PMC_EVENT_TABLE_SIZE(xscale);
+		break;
 	default:
 		errno = EINVAL;
 		return (-1);
@@ -2379,6 +2433,10 @@ pmc_init(void)
 	uint32_t abi_version;
 	struct module_stat pmc_modstat;
 	struct pmc_op_getcpuinfo op_cpu_info;
+#if defined(__amd64__) || defined(__i386__)
+	int cpu_has_iaf_counters;
+	unsigned int t;
+#endif
 
 	if (pmc_syscall != -1) /* already inited */
 		return (0);
@@ -2420,6 +2478,8 @@ pmc_init(void)
 	if (pmc_class_table == NULL)
 		return (-1);
 
+	for (n = 0; n < PMC_CLASS_TABLE_SIZE; n++)
+		pmc_class_table[n] = NULL;
 
 	/*
 	 * Fill in the class table.
@@ -2427,6 +2487,14 @@ pmc_init(void)
 	n = 0;
 #if defined(__amd64__) || defined(__i386__)
 	pmc_class_table[n++] = &tsc_class_table_descr;
+
+	/*
+ 	 * Check if this CPU has fixed function counters.
+	 */
+	cpu_has_iaf_counters = 0;
+	for (t = 0; t < cpu_info.pm_nclass; t++)
+		if (cpu_info.pm_classes[t].pm_class == PMC_CLASS_IAF)
+			cpu_has_iaf_counters = 1;
 #endif
 
 #define	PMC_MDEP_INIT(C) do {					\
@@ -2434,6 +2502,16 @@ pmc_init(void)
 		pmc_mdep_class_list  = C##_pmc_classes;		\
 		pmc_mdep_class_list_size =			\
 		    PMC_TABLE_SIZE(C##_pmc_classes);		\
+	} while (0)
+
+#define	PMC_MDEP_INIT_INTEL_V2(C) do {					\
+		PMC_MDEP_INIT(C);					\
+		if (cpu_has_iaf_counters) 				\
+			pmc_class_table[n++] = &iaf_class_table_descr;	\
+		else							\
+			pmc_mdep_event_aliases =			\
+				C##_aliases_without_iaf;		\
+		pmc_class_table[n] = &C##_class_table_descr;		\
 	} while (0)
 
 	/* Configure the event name parser. */
@@ -2461,9 +2539,7 @@ pmc_init(void)
 		pmc_class_table[n] = &k8_class_table_descr;
 		break;
 	case PMC_CPU_INTEL_ATOM:
-		PMC_MDEP_INIT(atom);
-		pmc_class_table[n++] = &iaf_class_table_descr;
-		pmc_class_table[n]   = &atom_class_table_descr;
+		PMC_MDEP_INIT_INTEL_V2(atom);
 		break;
 	case PMC_CPU_INTEL_CORE:
 		PMC_MDEP_INIT(core);
@@ -2471,18 +2547,20 @@ pmc_init(void)
 		break;
 	case PMC_CPU_INTEL_CORE2:
 	case PMC_CPU_INTEL_CORE2EXTREME:
-		PMC_MDEP_INIT(core2);
-		pmc_class_table[n++] = &iaf_class_table_descr;
-		pmc_class_table[n]   = &core2_class_table_descr;
+		PMC_MDEP_INIT_INTEL_V2(core2);
 		break;
 	case PMC_CPU_INTEL_COREI7:
-		PMC_MDEP_INIT(corei7);
-		pmc_class_table[n++] = &iaf_class_table_descr;
-		pmc_class_table[n]   = &corei7_class_table_descr;
+		PMC_MDEP_INIT_INTEL_V2(corei7);
 		break;
 	case PMC_CPU_INTEL_PIV:
 		PMC_MDEP_INIT(p4);
 		pmc_class_table[n] = &p4_class_table_descr;
+		break;
+#endif
+#if defined(__XSCALE__)
+	case PMC_CPU_INTEL_XSCALE:
+		PMC_MDEP_INIT(xscale);
+		pmc_class_table[n] = &xscale_class_table_descr;
 		break;
 #endif
 
@@ -2600,6 +2678,9 @@ _pmc_name_of_event(enum pmc_event pe, enum pmc_cputype cpu)
 	} else if (pe >= PMC_EV_P6_FIRST && pe <= PMC_EV_P6_LAST) {
 		ev = p6_event_table;
 		evfence = p6_event_table + PMC_EVENT_TABLE_SIZE(p6);
+	} else if (pe >= PMC_EV_XSCALE_FIRST && pe <= PMC_EV_XSCALE_LAST) {
+		ev = xscale_event_table;
+		evfence = xscale_event_table + PMC_EVENT_TABLE_SIZE(xscale);
 	} else if (pe == PMC_EV_TSC_TSC) {
 		ev = tsc_event_table;
 		evfence = tsc_event_table + PMC_EVENT_TABLE_SIZE(tsc);

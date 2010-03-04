@@ -51,6 +51,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/disk.h>
 #include <sys/stat.h>
 #include <sys/disklabel.h>
+#include <sys/sysctl.h>
 #include <machine/bus.h>
 
 #include <dev/iir/iir.h>
@@ -83,8 +84,6 @@ static int iir_devsw_installed = 0;
 static int sdev_made = 0;
 #endif
 extern int gdt_cnt;
-extern char ostype[];
-extern char osrelease[];
 extern gdt_statist_t gdt_stat;
 
 /*

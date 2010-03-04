@@ -47,6 +47,7 @@ static const char sccsid[] = "@(#)invite.c	8.1 (Berkeley) 6/6/93";
 #include <errno.h>
 #include <setjmp.h>
 #include <signal.h>
+#include <unistd.h>
 
 #include "talk_ctl.h"
 #include "talk.h"

@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 23, 2009
+.Dd February 12, 2010
 .Dt RC.CONF 5
 .Os
 .Sh NAME
@@ -351,6 +351,9 @@ If
 .Xr dhclient 8
 is used to set the hostname via DHCP,
 this variable should be set to an empty string.
+If this value remains unset when the system is done booting
+your console login will display the default hostname of
+.Dq Amnesiac.
 .It Va nisdomainname
 .Pq Vt str
 The NIS domain name of this host, or
@@ -393,7 +396,7 @@ variable for interface
 .Ar iface
 only.
 .It Va synchronous_dhclient
-.Pq Bt bool
+.Pq Vt bool
 Set to
 .Dq Li YES
 to start
@@ -504,6 +507,10 @@ specifies a filename.
 .Pq Vt str
 The IPv6 equivalent of
 .Va firewall_flags .
+.It Va firewall_coscripts
+.Pq Vt str
+List of executables and/or rc scripts to run after firewall starts/stops.
+Default is empty.
 .\" ----- firewall_nat_enable setting --------------------------------
 .It Va firewall_nat_enable
 .Pq Vt bool
@@ -1153,6 +1160,45 @@ and
 variables.
 .Pp
 If a
+.Va vlans_ Ns Aq Ar interface
+variable is set,
+a
+.Xr vlan 4
+interface will be created for each item in the list with the
+.Ar vlandev
+argument set to
+.Ar interface .
+If a vlan interface's name is a number,
+then that number is used as the vlan tag and the new vlan interface is
+named
+.Ar interface . Ns Ar tag .
+Otherwise,
+the vlan tag must be specified via a
+.Va vlan
+parameter in the
+.Va create_args_ Ns Aq Ar interface
+variable.
+.Pp
+To create a vlan device named
+.Li em0.101
+on
+.Li em0
+with the vlan tag 101:
+.Bd -literal
+vlans_em0="101"
+.Ed
+.Pp
+To create a vlan device named
+.Li myvlan
+on
+.Li em0
+with the vlan tag 102:
+.Bd -literal
+vlans_em0="myvlan"
+create_args_myvlan="vlan 102"
+.Ed
+.Pp
+If a
 .Va wlans_ Ns Aq Ar interface
 variable is set,
 an
@@ -1219,7 +1265,7 @@ Finally, you can add
 options in this variable, in addition to the
 .Pa /etc/start_if. Ns Aq Ar interface
 file.
-For instance, configure an
+For instance, to configure an
 .Xr ath 4
 wireless device in station mode with an address obtained 
 via DHCP, using WPA authentication and 802.11b mode, it is
@@ -1241,7 +1287,7 @@ This is intended to replace the no longer supported
 .Va pccard_ifconfig
 variable.
 .Pp
-It is also possible to rename interface by doing:
+It is also possible to rename an interface by doing:
 .Bd -literal
 ifconfig_ed0_name="net0"
 ifconfig_net0="inet 192.0.2.1 netmask 0xffffff00"
@@ -1352,6 +1398,12 @@ the IPv6-preferred one is used. Default is IPv4-preferred.
 .It Va cloned_interfaces
 .Pq Vt str
 Set to the list of clonable network interfaces to create on this host.
+Further cloning arguments may be passed to the
+.Xr ifconfig 8
+.Cm create
+command for each interface by setting the
+.Va create_args_ Ns Aq Ar interface
+variable.
 Entries in
 .Va cloned_interfaces
 are automatically appended to
@@ -1694,6 +1746,27 @@ is set to
 .Dq Li YES ,
 these are the flags to pass to
 .Xr inetd 8 .
+.It Va hastd_enable
+.Pq Vt bool
+If set to
+.Dq Li YES ,
+run the
+.Xr hastd 8
+daemon.
+.It Va hastd_program
+.Pq Vt str
+Path to
+.Xr hastd 8
+(default
+.Pa /sbin/hastd ) .
+.It Va hastd_flags
+.Pq Vt str
+If
+.Va hastd_enable
+is set to
+.Dq Li YES ,
+these are the flags to pass to
+.Xr hastd 8 .
 .It Va named_enable
 .Pq Vt bool
 If set to

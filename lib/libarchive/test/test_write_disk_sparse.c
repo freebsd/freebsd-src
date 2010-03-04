@@ -40,7 +40,7 @@ verify_write_data(struct archive *a, int sparse)
 	size_t buff_size = 64 * 1024;
 	char *buff, *p;
 	const char *msg = sparse ? "sparse" : "non-sparse";
-	int fd;
+	FILE *f;
 
 	buff = malloc(buff_size);
 	assert(buff != NULL);
@@ -78,12 +78,12 @@ verify_write_data(struct archive *a, int sparse)
 	/* Test the entry on disk. */
 	assert(0 == stat(archive_entry_pathname(ae), &st));
         assertEqualInt(st.st_size, 8 * buff_size);
-	fd = open(archive_entry_pathname(ae), O_RDONLY);
-	if (!assert(fd >= 0))
+	f = fopen(archive_entry_pathname(ae), "rb");
+	if (!assert(f != NULL))
 		return;
 
 	/* Check first block. */
-	assertEqualInt(buff_size, read(fd, buff, buff_size));
+	assertEqualInt(buff_size, fread(buff, 1, buff_size, f));
 	failure("%s", msg);
 	assertEqualMem(buff, data, sizeof(data));
 	for (p = buff + sizeof(data); p < buff + buff_size; ++p) {
@@ -93,7 +93,7 @@ verify_write_data(struct archive *a, int sparse)
 	}
 
 	/* Check second block. */
-	assertEqualInt(buff_size, read(fd, buff, buff_size));
+	assertEqualInt(buff_size, fread(buff, 1, buff_size, f));
 	for (p = buff; p < buff + buff_size; ++p) {
 		failure("offset: %d, %s", (int)(p - buff), msg);
 		if (p == buff + buff_size / 2 - 3) {
@@ -104,7 +104,7 @@ verify_write_data(struct archive *a, int sparse)
 	}
 
 	/* Check third block. */
-	assertEqualInt(buff_size, read(fd, buff, buff_size));
+	assertEqualInt(buff_size, fread(buff, 1, buff_size, f));
 	for (p = buff; p < buff + buff_size - sizeof(data); ++p) {
 		failure("offset: %d, %s", (int)(p - buff), msg);
 		if (!assertEqualInt(0, *p))
@@ -115,7 +115,7 @@ verify_write_data(struct archive *a, int sparse)
 
 	/* XXX more XXX */
 
-	assertEqualInt(0, close(fd));
+	assertEqualInt(0, fclose(f));
 	archive_entry_free(ae);
 	free(buff);
 }
@@ -132,7 +132,7 @@ verify_write_data_block(struct archive *a, int sparse)
 	size_t buff_size = 64 * 1024;
 	char *buff, *p;
 	const char *msg = sparse ? "sparse" : "non-sparse";
-	int fd;
+	FILE *f;
 
 	buff = malloc(buff_size);
 	assert(buff != NULL);
@@ -174,12 +174,12 @@ verify_write_data_block(struct archive *a, int sparse)
 	/* Test the entry on disk. */
 	assert(0 == stat(archive_entry_pathname(ae), &st));
         assertEqualInt(st.st_size, 8 * buff_size);
-	fd = open(archive_entry_pathname(ae), O_RDONLY);
-	if (!assert(fd >= 0))
+	f = fopen(archive_entry_pathname(ae), "rb");
+	if (!assert(f != NULL))
 		return;
 
 	/* Check 100-byte gap at beginning */
-	assertEqualInt(100, read(fd, buff, 100));
+	assertEqualInt(100, fread(buff, 1, 100, f));
 	failure("%s", msg);
 	for (p = buff; p < buff + 100; ++p) {
 		failure("offset: %d, %s", (int)(p - buff), msg);
@@ -188,7 +188,7 @@ verify_write_data_block(struct archive *a, int sparse)
 	}
 
 	/* Check first block. */
-	assertEqualInt(buff_size, read(fd, buff, buff_size));
+	assertEqualInt(buff_size, fread(buff, 1, buff_size, f));
 	failure("%s", msg);
 	assertEqualMem(buff, data, sizeof(data));
 	for (p = buff + sizeof(data); p < buff + buff_size; ++p) {
@@ -198,7 +198,7 @@ verify_write_data_block(struct archive *a, int sparse)
 	}
 
 	/* Check 100-byte gap */
-	assertEqualInt(100, read(fd, buff, 100));
+	assertEqualInt(100, fread(buff, 1, 100, f));
 	failure("%s", msg);
 	for (p = buff; p < buff + 100; ++p) {
 		failure("offset: %d, %s", (int)(p - buff), msg);
@@ -207,7 +207,7 @@ verify_write_data_block(struct archive *a, int sparse)
 	}
 
 	/* Check second block. */
-	assertEqualInt(buff_size, read(fd, buff, buff_size));
+	assertEqualInt(buff_size, fread(buff, 1, buff_size, f));
 	for (p = buff; p < buff + buff_size; ++p) {
 		failure("offset: %d, %s", (int)(p - buff), msg);
 		if (p == buff + buff_size / 2 - 3) {
@@ -218,7 +218,7 @@ verify_write_data_block(struct archive *a, int sparse)
 	}
 
 	/* Check 100-byte gap */
-	assertEqualInt(100, read(fd, buff, 100));
+	assertEqualInt(100, fread(buff, 1, 100, f));
 	failure("%s", msg);
 	for (p = buff; p < buff + 100; ++p) {
 		failure("offset: %d, %s", (int)(p - buff), msg);
@@ -227,7 +227,7 @@ verify_write_data_block(struct archive *a, int sparse)
 	}
 
 	/* Check third block. */
-	assertEqualInt(buff_size, read(fd, buff, buff_size));
+	assertEqualInt(buff_size, fread(buff, 1, buff_size, f));
 	for (p = buff; p < buff + buff_size - sizeof(data); ++p) {
 		failure("offset: %d, %s", (int)(p - buff), msg);
 		if (!assertEqualInt(0, *p))
@@ -237,7 +237,7 @@ verify_write_data_block(struct archive *a, int sparse)
 	assertEqualMem(buff + buff_size - sizeof(data), data, sizeof(data));
 
 	/* Check another block size beyond last we wrote. */
-	assertEqualInt(buff_size, read(fd, buff, buff_size));
+	assertEqualInt(buff_size, fread(buff, 1, buff_size, f));
 	failure("%s", msg);
 	for (p = buff; p < buff + buff_size; ++p) {
 		failure("offset: %d, %s", (int)(p - buff), msg);
@@ -248,7 +248,7 @@ verify_write_data_block(struct archive *a, int sparse)
 
 	/* XXX more XXX */
 
-	assertEqualInt(0, close(fd));
+	assertEqualInt(0, fclose(f));
 	free(buff);
 	archive_entry_free(ae);
 }

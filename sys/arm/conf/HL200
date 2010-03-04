@@ -59,7 +59,7 @@ options 	SYSVSHM			#SYSV-style shared memory
 options 	SYSVMSG			#SYSV-style message queues
 options 	SYSVSEM			#SYSV-style semaphores
 options 	_KPOSIX_PRIORITY_SCHEDULING #Posix P1003_1B real-time extensions
-#options 	SYSCTL_OMIT_DESCR
+#options 	NO_SYSCTL_DESCR
 options 	MUTEX_NOINLINE
 options 	RWLOCK_NOINLINE
 options 	NO_FFS_SNAPSHOT
@@ -74,6 +74,7 @@ device		mii
 device		lxtphy
 
 # Debugging for use in -current
+#options 	DEADLKRES		#Enable the deadlock resolver
 #options 	INVARIANTS		#Enable calls of extra sanity checking
 #options 	INVARIANT_SUPPORT	#Extra sanity checks of internal structures, required by INVARIANTS
 #options 	WITNESS			#Enable checks to detect deadlocks and cycles
@@ -100,9 +101,17 @@ device		usb		# USB Bus (required)
 device		uhid		# "Human Interface Devices"
 device		ulpt		# Printer
 device		umass		# Disks/Mass storage - Requires scbus and da
-device		ural		# Ralink Technology RT2500USB wireless NICs
-device		rum		# Ralink Technology RT2501USB wireless NICs
 device		urio		# Diamond Rio 500 MP3 player
+# USB Serial devices
+device		uark		# Technologies ARK3116 based serial adapters
+device		ubsa		# Belkin F5U103 and compatible serial adapters
+#device		ubser		# not yet converted.
+device		uftdi		# For FTDI usb serial adapters
+device		uipaq		# Some WinCE based devices
+device		uplcom		# Prolific PL-2303 serial adapters
+device		uslcom		# SI Labs CP2101/CP2102 serial adapters
+device		uvisor		# Visor and Palm devices
+device		uvscom		# USB serial support for DDI pocket's PHS
 # USB Ethernet, requires miibus
 device		miibus
 device		aue		# ADMtek USB Ethernet
@@ -111,16 +120,12 @@ device		cdce		# Generic USB over Ethernet
 device		cue		# CATC USB Ethernet
 device		kue		# Kawasaki LSI USB Ethernet
 device		rue		# RealTek RTL8150 USB Ethernet
-device		udav
-# usb serial
-device		uark
-device		ubsa
-#device		ubser		# not yet converted.
-device		uftdi
-device		uipaq
-device		uplcom
-device		uvisor
-device		uvscom
+device		udav		# Davicom DM9601E USB
+# USB Wireless
+device		rum		# Ralink Technology RT2501USB wireless NICs
+device		uath		# Atheros AR5523 wireless NICs
+device		ural		# Ralink Technology RT2500USB wireless NICs
+device		zyd		# ZyDAS zb1211/zb1211b wireless NICs
 # SCSI peripherals
 device		scbus		# SCSI bus (required for SCSI)
 device		da		# Direct Access (disks)
