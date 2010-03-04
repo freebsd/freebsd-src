@@ -1212,6 +1212,13 @@ convert_rule_to_7(struct ip_fw *rule)
 		ccmdlen = F_LEN(ccmd);
 
 		bcopy(ccmd, dst, F_LEN(ccmd)*sizeof(uint32_t));
+
+		if (dst->opcode > O_NAT)
+			/* O_REASS doesn't exists in 7.2 version, so
+			 * decrement opcode if it is after O_REASS
+			 */
+			dst->opcode--;
+
 		if (ccmdlen > ll) {
 			printf("ipfw: opcode %d size truncated\n",
 				ccmd->opcode);
@@ -1246,6 +1253,13 @@ convert_rule_to_8(struct ip_fw *rule)
 		ccmdlen = F_LEN(ccmd);
 		
 		bcopy(ccmd, dst, F_LEN(ccmd)*sizeof(uint32_t));
+
+		if (dst->opcode > O_NAT)
+			/* O_REASS doesn't exists in 7.2 version, so
+			 * increment opcode if it is after O_REASS
+			 */
+			dst->opcode++;
+
 		if (ccmdlen > ll) {
 			printf("ipfw: opcode %d size truncated\n",
 			    ccmd->opcode);
