@@ -49,7 +49,9 @@ __FBSDID("$FreeBSD$");
  */
 #include <sys/param.h>
 #include <sys/mount.h>
+
 #include <ufs/ufs/quota.h>
+
 #include <err.h>
 #include <errno.h>
 #include <fcntl.h>
@@ -57,12 +59,12 @@ __FBSDID("$FreeBSD$");
 #include <grp.h>
 #include <libutil.h>
 #include <pwd.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
 #include <unistd.h>
-#include <utmp.h>
 
 /* Let's be paranoid about block size */
 #if 10 > DEV_BSHIFT
@@ -218,9 +220,9 @@ repquota(struct fstab *fs, int type)
 		fprintf(stdout, "*** Report for %s quotas on %s (%s)\n",
 		    qfextension[type], fs->fs_file, fs->fs_spec);
 	printf("%*s           Block  limits                    File  limits\n",
-		max(UT_NAMESIZE,10), " ");
+		max(MAXLOGNAME - 1, 10), " ");
 	printf("User%*s  used   soft   hard  grace     used    soft    hard  grace\n",
-		max(UT_NAMESIZE,10), " ");
+		max(MAXLOGNAME - 1, 10), " ");
 	maxid = quota_maxid(qf);
 	for (id = 0; id < maxid; id++) {
 		if (quota_read(qf, &dqbuf, id) != 0)
@@ -229,30 +231,30 @@ repquota(struct fstab *fs, int type)
 			continue;
 		if ((fup = lookup(id, type)) == 0)
 			fup = addid(id, type, (char *)0);
-		printf("%-*s ", max(UT_NAMESIZE,10), fup->fu_name);
+		printf("%-*s ", max(MAXLOGNAME - 1, 10), fup->fu_name);
 		printf("%c%c", 
-			dqbuf.dqb_bsoftlimit &&
-			    dqbuf.dqb_curblocks >=
-			    dqbuf.dqb_bsoftlimit ? '+' : '-',
-			dqbuf.dqb_isoftlimit &&
-			    dqbuf.dqb_curinodes >=
-			    dqbuf.dqb_isoftlimit ? '+' : '-');
+		    dqbuf.dqb_bsoftlimit &&
+		    dqbuf.dqb_curblocks >=
+		    dqbuf.dqb_bsoftlimit ? '+' : '-',
+		    dqbuf.dqb_isoftlimit &&
+		    dqbuf.dqb_curinodes >=
+		    dqbuf.dqb_isoftlimit ? '+' : '-');
 		prthumanval(dqbuf.dqb_curblocks);
 		prthumanval(dqbuf.dqb_bsoftlimit);
 		prthumanval(dqbuf.dqb_bhardlimit);
 		printf(" %6s",
-			dqbuf.dqb_bsoftlimit &&
-			    dqbuf.dqb_curblocks >=
-			    dqbuf.dqb_bsoftlimit ?
-			    timeprt(dqbuf.dqb_btime) : "-");
-		printf("  %7llu %7llu %7llu %6s\n",
-			dqbuf.dqb_curinodes,
-			dqbuf.dqb_isoftlimit,
-			dqbuf.dqb_ihardlimit,
-			dqbuf.dqb_isoftlimit &&
-			    dqbuf.dqb_curinodes >=
-			    dqbuf.dqb_isoftlimit ?
-			    timeprt(dqbuf.dqb_itime) : "-");
+		    dqbuf.dqb_bsoftlimit &&
+		    dqbuf.dqb_curblocks >=
+		    dqbuf.dqb_bsoftlimit ?
+		    timeprt(dqbuf.dqb_btime) : "-");
+		printf("  %7ju %7ju %7ju %6s\n",
+		    (uintmax_t)dqbuf.dqb_curinodes,
+		    (uintmax_t)dqbuf.dqb_isoftlimit,
+		    (uintmax_t)dqbuf.dqb_ihardlimit,
+		    dqbuf.dqb_isoftlimit &&
+		    dqbuf.dqb_curinodes >=
+		    dqbuf.dqb_isoftlimit ?
+		    timeprt(dqbuf.dqb_itime) : "-");
 	}
 	quota_close(qf);
 	return (0);
@@ -265,7 +267,7 @@ prthumanval(int64_t blocks)
 	int flags;
 
 	if (!hflag) {
-		printf(" %6llu", dbtokb(blocks));
+		printf(" %6ju", (uintmax_t)dbtokb(blocks));
 		return;
 	}
 	flags = HN_NOSPACE | HN_DECIMAL;
