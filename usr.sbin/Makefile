@@ -302,7 +302,6 @@ _jls=		jls
 .endif
 
 # XXX MK_SYSCONS
-# XXX is moused w/ usb useful?
 .if ${MK_LEGACY_CONSOLE} != "no"
 _kbdcontrol=	kbdcontrol
 _kbdmap=	kbdmap
