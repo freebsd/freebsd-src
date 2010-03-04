@@ -583,6 +583,20 @@ ipfw_readfile(int ac, char *av[])
 int
 main(int ac, char *av[])
 {
+#if defined(_WIN32) && defined(TCC)
+	{
+		WSADATA wsaData;
+		int ret=0;
+		unsigned short wVersionRequested = MAKEWORD(2, 2);
+		ret = WSAStartup(wVersionRequested, &wsaData);
+		if (ret != 0) {
+			/* Tell the user that we could not find a usable */
+			/* Winsock DLL.                                  */
+			printf("WSAStartup failed with error: %d\n", ret);
+			return 1;
+		}
+	}
+#endif
 	/*
 	 * If the last argument is an absolute pathname, interpret it
 	 * as a file to be preprocessed.
