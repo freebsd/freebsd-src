@@ -316,24 +316,20 @@ GetLinkageForFunction(ASTContext &Context, const FunctionDecl *FD,
   return CodeGenModule::GVA_CXXInline;
 }
 
-/// SetFunctionDefinitionAttributes - Set attributes for a global.
-///
-/// FIXME: This is currently only done for aliases and functions, but not for
-/// variables (these details are set in EmitGlobalVarDefinition for variables).
-void CodeGenModule::SetFunctionDefinitionAttributes(const FunctionDecl *D,
-                                                    llvm::GlobalValue *GV) {
+llvm::GlobalValue::LinkageTypes
+CodeGenModule::getFunctionLinkage(const FunctionDecl *D) {
   GVALinkage Linkage = GetLinkageForFunction(getContext(), D, Features);
 
   if (Linkage == GVA_Internal) {
-    GV->setLinkage(llvm::Function::InternalLinkage);
+    return llvm::Function::InternalLinkage;
   } else if (D->hasAttr<DLLExportAttr>()) {
-    GV->setLinkage(llvm::Function::DLLExportLinkage);
+    return llvm::Function::DLLExportLinkage;
   } else if (D->hasAttr<WeakAttr>()) {
-    GV->setLinkage(llvm::Function::WeakAnyLinkage);
+    return llvm::Function::WeakAnyLinkage;
   } else if (Linkage == GVA_C99Inline) {
     // In C99 mode, 'inline' functions are guaranteed to have a strong
     // definition somewhere else, so we can use available_externally linkage.
-    GV->setLinkage(llvm::Function::AvailableExternallyLinkage);
+    return llvm::Function::AvailableExternallyLinkage;
   } else if (Linkage == GVA_CXXInline || Linkage == GVA_TemplateInstantiation) {
     // In C++, the compiler has to emit a definition in every translation unit
     // that references the function.  We should use linkonce_odr because
@@ -341,13 +337,22 @@ void CodeGenModule::SetFunctionDefinitionAttributes(const FunctionDecl *D,
     // don't need to codegen it.  b) if the function persists, it needs to be
     // merged with other definitions. c) C++ has the ODR, so we know the
     // definition is dependable.
-    GV->setLinkage(llvm::Function::LinkOnceODRLinkage);
+    return llvm::Function::LinkOnceODRLinkage;
   } else {
     assert(Linkage == GVA_StrongExternal);
     // Otherwise, we have strong external linkage.
-    GV->setLinkage(llvm::Function::ExternalLinkage);
+    return llvm::Function::ExternalLinkage;
   }
+}
 
+
+/// SetFunctionDefinitionAttributes - Set attributes for a global.
+///
+/// FIXME: This is currently only done for aliases and functions, but not for
+/// variables (these details are set in EmitGlobalVarDefinition for variables).
+void CodeGenModule::SetFunctionDefinitionAttributes(const FunctionDecl *D,
+                                                    llvm::GlobalValue *GV) {
+  GV->setLinkage(getFunctionLinkage(D));
   SetCommonAttributes(D, GV);
 }
 
@@ -747,14 +752,20 @@ llvm::Constant *CodeGenModule::GetOrCreateLLVMFunction(const char *MangledName,
     // A called constructor which has no definition or declaration need be
     // synthesized.
     else if (const CXXConstructorDecl *CD = dyn_cast<CXXConstructorDecl>(FD)) {
-      if (CD->isImplicit())
+      if (CD->isImplicit()) {
+        assert (CD->isUsed());
         DeferredDeclsToEmit.push_back(D);
+      }
     } else if (const CXXDestructorDecl *DD = dyn_cast<CXXDestructorDecl>(FD)) {
-      if (DD->isImplicit())
+      if (DD->isImplicit()) {
+        assert (DD->isUsed());
         DeferredDeclsToEmit.push_back(D);
+      }
     } else if (const CXXMethodDecl *MD = dyn_cast<CXXMethodDecl>(FD)) {
-      if (MD->isCopyAssignment() && MD->isImplicit())
+      if (MD->isCopyAssignment() && MD->isImplicit()) {
+        assert (MD->isUsed());
         DeferredDeclsToEmit.push_back(D);
+      }
     }
   }
 
@@ -1190,28 +1201,8 @@ static void ReplaceUsesOfNonProtoTypeWithRealFunction(llvm::GlobalValue *Old,
 
 
 void CodeGenModule::EmitGlobalFunctionDefinition(GlobalDecl GD) {
-  const llvm::FunctionType *Ty;
   const FunctionDecl *D = cast<FunctionDecl>(GD.getDecl());
-
-  if (const CXXMethodDecl *MD = dyn_cast<CXXMethodDecl>(D)) {
-    bool isVariadic = D->getType()->getAs<FunctionProtoType>()->isVariadic();
-
-    Ty = getTypes().GetFunctionType(getTypes().getFunctionInfo(MD), isVariadic);
-  } else {
-    Ty = cast<llvm::FunctionType>(getTypes().ConvertType(D->getType()));
-
-    // As a special case, make sure that definitions of K&R function
-    // "type foo()" aren't declared as varargs (which forces the backend
-    // to do unnecessary work).
-    if (D->getType()->isFunctionNoProtoType()) {
-      assert(Ty->isVarArg() && "Didn't lower type as expected");
-      // Due to stret, the lowered function could have arguments.
-      // Just create the same type as was lowered by ConvertType
-      // but strip off the varargs bit.
-      std::vector<const llvm::Type*> Args(Ty->param_begin(), Ty->param_end());
-      Ty = llvm::FunctionType::get(Ty->getReturnType(), Args, false);
-    }
-  }
+  const llvm::FunctionType *Ty = getTypes().GetFunctionType(GD);
 
   // Get or create the prototype for the function.
   llvm::Constant *Entry = GetAddrOfFunction(GD, Ty);
@@ -1342,6 +1333,7 @@ void CodeGenModule::EmitAliasDefinition(const ValueDecl *D) {
       GA->setLinkage(llvm::Function::DLLExportLinkage);
     }
   } else if (D->hasAttr<WeakAttr>() ||
+             D->hasAttr<WeakRefAttr>() ||
              D->hasAttr<WeakImportAttr>()) {
     GA->setLinkage(llvm::Function::WeakAnyLinkage);
   }

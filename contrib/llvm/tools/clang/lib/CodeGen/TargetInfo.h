@@ -17,6 +17,7 @@
 
 namespace llvm {
   class GlobalValue;
+  class Value;
 }
 
 namespace clang {
@@ -25,6 +26,7 @@ namespace clang {
 
   namespace CodeGen {
     class CodeGenModule;
+    class CodeGenFunction;
   }
 
   /// TargetCodeGenInfo - This class organizes various target-specific
@@ -44,6 +46,35 @@ namespace clang {
     /// target-specific attributes for the given global.
     virtual void SetTargetAttributes(const Decl *D, llvm::GlobalValue *GV,
                                      CodeGen::CodeGenModule &M) const { }
+
+    /// Controls whether __builtin_extend_pointer should sign-extend
+    /// pointers to uint64_t or zero-extend them (the default).  Has
+    /// no effect for targets:
+    ///   - that have 64-bit pointers, or
+    ///   - that cannot address through registers larger than pointers, or
+    ///   - that implicitly ignore/truncate the top bits when addressing
+    ///     through such registers.
+    virtual bool extendPointerWithSExt() const { return false; }
+
+    /// Performs the code-generation required to convert a return
+    /// address as stored by the system into the actual address of the
+    /// next instruction that will be executed.
+    ///
+    /// Used by __builtin_extract_return_addr().
+    virtual llvm::Value *decodeReturnAddress(CodeGen::CodeGenFunction &CGF,
+                                             llvm::Value *Address) const {
+      return Address;
+    }
+
+    /// Performs the code-generation required to convert the address
+    /// of an instruction into a return address suitable for storage
+    /// by the system in a return slot.
+    ///
+    /// Used by __builtin_frob_return_addr().
+    virtual llvm::Value *encodeReturnAddress(CodeGen::CodeGenFunction &CGF,
+                                             llvm::Value *Address) const {
+      return Address;
+    }
   };
 }
 

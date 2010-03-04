@@ -56,6 +56,9 @@ namespace {
                              unsigned AsmVariant, const char *ExtraCode);
 
     bool printGetPCX(const MachineInstr *MI, unsigned OpNo);
+    
+    virtual bool isBlockOnlyReachableByFallthrough(const MachineBasicBlock *MBB)
+                       const;
   };
 } // end of anonymous namespace
 
@@ -140,18 +143,19 @@ bool SparcAsmPrinter::printGetPCX(const MachineInstr *MI, unsigned opNum) {
     break;
   }
 
+  unsigned mfNum = MI->getParent()->getParent()->getFunctionNumber();
   unsigned bbNum = MI->getParent()->getNumber();
 
-  O << '\n' << ".LLGETPCH" << bbNum << ":\n";
-  O << "\tcall\t.LLGETPC" << bbNum << '\n' ;
+  O << '\n' << ".LLGETPCH" << mfNum << '_' << bbNum << ":\n";
+  O << "\tcall\t.LLGETPC" << mfNum << '_' << bbNum << '\n' ;
 
   O << "\t  sethi\t"
-    << "%hi(_GLOBAL_OFFSET_TABLE_+(.-.LLGETPCH" << bbNum << ")), "  
+    << "%hi(_GLOBAL_OFFSET_TABLE_+(.-.LLGETPCH" << mfNum << '_' << bbNum << ")), "  
     << operand << '\n' ;
 
-  O << ".LLGETPC" << bbNum << ":\n" ;
+  O << ".LLGETPC" << mfNum << '_' << bbNum << ":\n" ;
   O << "\tor\t" << operand  
-    << ", %lo(_GLOBAL_OFFSET_TABLE_+(.-.LLGETPCH" << bbNum << ")), "
+    << ", %lo(_GLOBAL_OFFSET_TABLE_+(.-.LLGETPCH" << mfNum << '_' << bbNum << ")), "
     << operand << '\n';
   O << "\tadd\t" << operand << ", %o7, " << operand << '\n'; 
   
@@ -196,6 +200,38 @@ bool SparcAsmPrinter::PrintAsmMemoryOperand(const MachineInstr *MI,
 
   return false;
 }
+
+/// isBlockOnlyReachableByFallthough - Return true if the basic block has
+/// exactly one predecessor and the control transfer mechanism between
+/// the predecessor and this block is a fall-through.
+/// Override AsmPrinter implementation to handle delay slots
+bool SparcAsmPrinter::isBlockOnlyReachableByFallthrough(const MachineBasicBlock *MBB) 
+    const {
+  // If this is a landing pad, it isn't a fall through.  If it has no preds,
+  // then nothing falls through to it.
+  if (MBB->isLandingPad() || MBB->pred_empty())
+    return false;
+  
+  // If there isn't exactly one predecessor, it can't be a fall through.
+  MachineBasicBlock::const_pred_iterator PI = MBB->pred_begin(), PI2 = PI;
+  ++PI2;
+  if (PI2 != MBB->pred_end())
+    return false;
+  
+  // The predecessor has to be immediately before this block.
+  const MachineBasicBlock *Pred = *PI;
+  
+  if (!Pred->isLayoutSuccessor(MBB))
+    return false;
+  
+  // Check if the last terminator is an unconditional branch
+  MachineBasicBlock::const_iterator I = Pred->end();
+  while( I != Pred->begin() && !(--I)->getDesc().isTerminator() )
+      ; /* Noop */
+  return I == Pred->end() || !I->getDesc().isBarrier();
+}
+
+
 
 // Force static initialization.
 extern "C" void LLVMInitializeSparcAsmPrinter() { 

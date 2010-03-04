@@ -12,26 +12,26 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "clang/Basic/LangOptions.h"
-#include "clang/Basic/SourceManager.h"
-#include "clang/Checker/PathSensitive/GRExprEngineBuilders.h"
-#include "clang/Checker/PathSensitive/GRStateTrait.h"
-#include "clang/Checker/BugReporter/PathDiagnostic.h"
-#include "clang/Checker/Checkers/LocalCheckers.h"
-#include "clang/Checker/BugReporter/PathDiagnostic.h"
-#include "clang/Checker/BugReporter/BugReporter.h"
-#include "clang/Checker/PathSensitive/SymbolManager.h"
-#include "clang/Checker/PathSensitive/GRTransferFuncs.h"
-#include "clang/Checker/PathSensitive/CheckerVisitor.h"
-#include "clang/Checker/DomainSpecific/CocoaConventions.h"
 #include "clang/AST/DeclObjC.h"
 #include "clang/AST/StmtVisitor.h"
+#include "clang/Basic/LangOptions.h"
+#include "clang/Basic/SourceManager.h"
+#include "clang/Checker/BugReporter/BugReporter.h"
+#include "clang/Checker/BugReporter/PathDiagnostic.h"
+#include "clang/Checker/BugReporter/PathDiagnostic.h"
+#include "clang/Checker/Checkers/LocalCheckers.h"
+#include "clang/Checker/DomainSpecific/CocoaConventions.h"
+#include "clang/Checker/PathSensitive/CheckerVisitor.h"
+#include "clang/Checker/PathSensitive/GRExprEngineBuilders.h"
+#include "clang/Checker/PathSensitive/GRStateTrait.h"
+#include "clang/Checker/PathSensitive/GRTransferFuncs.h"
+#include "clang/Checker/PathSensitive/SymbolManager.h"
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/FoldingSet.h"
-#include "llvm/ADT/ImmutableMap.h"
 #include "llvm/ADT/ImmutableList.h"
-#include "llvm/ADT/StringExtras.h"
+#include "llvm/ADT/ImmutableMap.h"
 #include "llvm/ADT/STLExtras.h"
+#include "llvm/ADT/StringExtras.h"
 #include <stdarg.h>
 
 using namespace clang;
@@ -1222,6 +1222,12 @@ RetainSummaryManager::updateSummaryFromAnnotations(RetainSummary &Summ,
     else if (FD->getAttr<CFReturnsRetainedAttr>()) {
       Summ.setRetEffect(RetEffect::MakeOwned(RetEffect::CF, true));
     }
+    else if (FD->getAttr<NSReturnsNotRetainedAttr>()) {
+      Summ.setRetEffect(RetEffect::MakeNotOwned(RetEffect::ObjC));
+    }
+    else if (FD->getAttr<CFReturnsNotRetainedAttr>()) {
+      Summ.setRetEffect(RetEffect::MakeNotOwned(RetEffect::CF));
+    }
   }
   else if (RetTy->getAs<PointerType>()) {
     if (FD->getAttr<CFReturnsRetainedAttr>()) {
@@ -1244,6 +1250,10 @@ RetainSummaryManager::updateSummaryFromAnnotations(RetainSummary &Summ,
       Summ.setRetEffect(ObjCAllocRetE);
       return;
     }
+    if (MD->getAttr<NSReturnsNotRetainedAttr>()) {
+      Summ.setRetEffect(RetEffect::MakeNotOwned(RetEffect::ObjC));
+      return;
+    }
 
     isTrackedLoc = true;
   }
@@ -1251,8 +1261,12 @@ RetainSummaryManager::updateSummaryFromAnnotations(RetainSummary &Summ,
   if (!isTrackedLoc)
     isTrackedLoc = MD->getResultType()->getAs<PointerType>() != NULL;
 
-  if (isTrackedLoc && MD->getAttr<CFReturnsRetainedAttr>())
-    Summ.setRetEffect(RetEffect::MakeOwned(RetEffect::CF, true));
+  if (isTrackedLoc) {
+    if (MD->getAttr<CFReturnsRetainedAttr>())
+      Summ.setRetEffect(RetEffect::MakeOwned(RetEffect::CF, true));
+    else if (MD->getAttr<CFReturnsNotRetainedAttr>())
+      Summ.setRetEffect(RetEffect::MakeNotOwned(RetEffect::CF));
+  }
 }
 
 RetainSummary*

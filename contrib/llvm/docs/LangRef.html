@@ -848,7 +848,7 @@ define i32 @main() {                                        <i>; i32()* </i>
 
 <div class="doc_text">
 
-<p>LLVM function definitions consist of the "<tt>define</tt>" keyord, an
+<p>LLVM function definitions consist of the "<tt>define</tt>" keyword, an
    optional <a href="#linkage">linkage type</a>, an optional
    <a href="#visibility">visibility style</a>, an optional
    <a href="#callingconv">calling convention</a>, a return type, an optional
@@ -1277,7 +1277,7 @@ target datalayout = "<i>layout specification</i>"
 
 <ul>
   <li><tt>E</tt> - big endian</li>
-  <li><tt>p:32:64:64</tt> - 32-bit pointers with 64-bit alignment</li>
+  <li><tt>p:64:64:64</tt> - 64-bit pointers with 64-bit alignment</li>
   <li><tt>i1:8:8</tt> - i1 is 8-bit (byte) aligned</li>
   <li><tt>i8:8:8</tt> - i8 is 8-bit (byte) aligned</li>
   <li><tt>i16:16:16</tt> - i16 is 16-bit aligned</li>
@@ -1664,7 +1664,7 @@ Classifications</a> </div>
    which indicates that the function takes a variable number of arguments.
    Variable argument functions can access their arguments with
    the <a href="#int_varargs">variable argument handling intrinsic</a>
-   functions.  '<tt>&lt;returntype&gt;</tt>' is a any type except
+   functions.  '<tt>&lt;returntype&gt;</tt>' is any type except
    <a href="#t_label">label</a>.</p>
 
 <h5>Examples:</h5>
@@ -1674,12 +1674,11 @@ Classifications</a> </div>
     <td class="left">function taking an <tt>i32</tt>, returning an <tt>i32</tt>
     </td>
   </tr><tr class="layout">
-    <td class="left"><tt>float&nbsp;(i16&nbsp;signext,&nbsp;i32&nbsp;*)&nbsp;*
+    <td class="left"><tt>float&nbsp;(i16,&nbsp;i32&nbsp;*)&nbsp;*
     </tt></td>
     <td class="left"><a href="#t_pointer">Pointer</a> to a function that takes
-      an <tt>i16</tt> that should be sign extended and a
-      <a href="#t_pointer">pointer</a> to <tt>i32</tt>, returning
-      <tt>float</tt>.
+      an <tt>i16</tt> and a <a href="#t_pointer">pointer</a> to <tt>i32</tt>,
+      returning <tt>float</tt>.
     </td>
   </tr><tr class="layout">
     <td class="left"><tt>i32 (i8*, ...)</tt></td>
@@ -1792,7 +1791,7 @@ Classifications</a> </div>
    and the alignment requirements of the union as a whole will be the largest
    alignment requirement of any member.</p>
 
-<p>Unions members are accessed using '<tt><a href="#i_load">load</a></tt> and
+<p>Union members are accessed using '<tt><a href="#i_load">load</a></tt> and
    '<tt><a href="#i_store">store</a></tt>' by getting a pointer to a field with
    the '<tt><a href="#i_getelementptr">getelementptr</a></tt>' instruction.
    Since all members are at offset zero, the getelementptr instruction does
@@ -1827,10 +1826,13 @@ Classifications</a> </div>
 <div class="doc_text">
 
 <h5>Overview:</h5>
-<p>As in many languages, the pointer type represents a pointer or reference to
-   another object, which must live in memory. Pointer types may have an optional
-   address space attribute defining the target-specific numbered address space
-   where the pointed-to object resides. The default address space is zero.</p>
+<p>The pointer type is used to specify memory locations.
+   Pointers are commonly used to reference objects in memory.</p>
+   
+<p>Pointer types may have an optional address space attribute defining the
+   numbered address space where the pointed-to object resides. The default
+   address space is number zero. The semantics of non-zero address
+   spaces are target-specific.</p>
 
 <p>Note that LLVM does not permit pointers to void (<tt>void*</tt>) nor does it
    permit pointers to labels (<tt>label*</tt>).  Use <tt>i8*</tt> instead.</p>
@@ -2885,9 +2887,10 @@ IfUnequal:
       function to be invoked. </li>
 
   <li>'<tt>function args</tt>': argument list whose types match the function
-      signature argument types.  If the function signature indicates the
-      function accepts a variable number of arguments, the extra arguments can
-      be specified.</li>
+      signature argument types and parameter attributes. All arguments must be
+      of <a href="#t_firstclass">first class</a> type. If the function
+      signature indicates the function accepts a variable number of arguments,
+      the extra arguments can be specified.</li>
 
   <li>'<tt>normal label</tt>': the label reached when the called function
       executes a '<tt><a href="#i_ret">ret</a></tt>' instruction. </li>
@@ -4074,8 +4077,9 @@ Instruction</a> </div>
 
 <h5>Syntax:</h5>
 <pre>
-  &lt;result&gt; = load &lt;ty&gt;* &lt;pointer&gt;[, align &lt;alignment&gt;]
-  &lt;result&gt; = volatile load &lt;ty&gt;* &lt;pointer&gt;[, align &lt;alignment&gt;]
+  &lt;result&gt; = load &lt;ty&gt;* &lt;pointer&gt;[, align &lt;alignment&gt;][, !nontemporal !&lt;index&gt;]
+  &lt;result&gt; = volatile load &lt;ty&gt;* &lt;pointer&gt;[, align &lt;alignment&gt;][, !nontemporal !&lt;index&gt;]
+  !&lt;index&gt; = !{ i32 1 }
 </pre>
 
 <h5>Overview:</h5>
@@ -4088,15 +4092,23 @@ Instruction</a> </div>
    marked as <tt>volatile</tt>, then the optimizer is not allowed to modify the
    number or order of execution of this <tt>load</tt> with other
    volatile <tt>load</tt> and <tt><a href="#i_store">store</a></tt>
-   instructions. </p>
+   instructions.</p>
 
-<p>The optional constant "align" argument specifies the alignment of the
+<p>The optional constant <tt>align</tt> argument specifies the alignment of the
    operation (that is, the alignment of the memory address). A value of 0 or an
-   omitted "align" argument means that the operation has the preferential
+   omitted <tt>align</tt> argument means that the operation has the preferential
    alignment for the target. It is the responsibility of the code emitter to
    ensure that the alignment information is correct. Overestimating the
-   alignment results in an undefined behavior. Underestimating the alignment may
+   alignment results in undefined behavior. Underestimating the alignment may
    produce less efficient code. An alignment of 1 is always safe.</p>
+
+<p>The optional <tt>!nontemporal</tt> metadata must reference a single
+   metatadata name &lt;index&gt; corresponding to a metadata node with
+   one <tt>i32</tt> entry of value 1.  The existence of
+   the <tt>!nontemporal</tt> metatadata on the instruction tells the optimizer
+   and code generator that this load is not expected to be reused in the cache.
+   The code generator may select special instructions to save cache bandwidth,
+   such as the <tt>MOVNT</tt> instruction on x86.</p>
 
 <h5>Semantics:</h5>
 <p>The location of memory pointed to is loaded.  If the value being loaded is of
@@ -4124,8 +4136,8 @@ Instruction</a> </div>
 
 <h5>Syntax:</h5>
 <pre>
-  store &lt;ty&gt; &lt;value&gt;, &lt;ty&gt;* &lt;pointer&gt;[, align &lt;alignment&gt;]                   <i>; yields {void}</i>
-  volatile store &lt;ty&gt; &lt;value&gt;, &lt;ty&gt;* &lt;pointer&gt;[, align &lt;alignment&gt;]          <i>; yields {void}</i>
+  store &lt;ty&gt; &lt;value&gt;, &lt;ty&gt;* &lt;pointer&gt;[, align &lt;alignment&gt;][, !nontemporal !<index>]                   <i>; yields {void}</i>
+  volatile store &lt;ty&gt; &lt;value&gt;, &lt;ty&gt;* &lt;pointer&gt;[, align &lt;alignment&gt;][, !nontemporal !<index>]          <i>; yields {void}</i>
 </pre>
 
 <h5>Overview:</h5>
@@ -4149,6 +4161,15 @@ Instruction</a> </div>
    ensure that the alignment information is correct. Overestimating the
    alignment results in an undefined behavior. Underestimating the alignment may
    produce less efficient code. An alignment of 1 is always safe.</p>
+
+<p>The optional !nontemporal metadata must reference a single metatadata
+   name <index> corresponding to a metadata node with one i32 entry of
+   value 1.  The existence of the !nontemporal metatadata on the
+   instruction tells the optimizer and code generator that this load is
+   not expected to be reused in the cache.  The code generator may
+   select special instructions to save cache bandwidth, such as the
+   MOVNT instruction on x86.</p>
+
 
 <h5>Semantics:</h5>
 <p>The contents of memory are updated to contain '<tt>&lt;value&gt;</tt>' at the
@@ -4943,7 +4964,7 @@ entry:
       <tt>op1</tt> is equal to <tt>op2</tt>.</li>
 
   <li><tt>ogt</tt>: yields <tt>true</tt> if both operands are not a QNAN and
-      <tt>op1</tt> is greather than <tt>op2</tt>.</li>
+      <tt>op1</tt> is greater than <tt>op2</tt>.</li>
 
   <li><tt>oge</tt>: yields <tt>true</tt> if both operands are not a QNAN and
       <tt>op1</tt> is greater than or equal to <tt>op2</tt>.</li>
@@ -5119,7 +5140,7 @@ Loop:       ; Infinite loop that counts from 0 on up...
         <li>The call is in tail position (ret immediately follows call and ret
             uses value of call or is void).</li>
         <li>Option <tt>-tailcallopt</tt> is enabled,
-            or <code>llvm::PerformTailCallOpt</code> is <code>true</code>.</li>
+            or <code>llvm::GuaranteedTailCallOpt</code> is <code>true</code>.</li>
         <li><a href="CodeGenerator.html#tailcallopt">Platform specific
             constraints are met.</a></li>
       </ul>
@@ -5150,10 +5171,10 @@ Loop:       ; Infinite loop that counts from 0 on up...
       to function value.</li>
 
   <li>'<tt>function args</tt>': argument list whose types match the function
-      signature argument types. All arguments must be of
-      <a href="#t_firstclass">first class</a> type. If the function signature
-      indicates the function accepts a variable number of arguments, the extra
-      arguments can be specified.</li>
+      signature argument types and parameter attributes. All arguments must be
+      of <a href="#t_firstclass">first class</a> type. If the function
+      signature indicates the function accepts a variable number of arguments,
+      the extra arguments can be specified.</li>
 
   <li>The optional <a href="#fnattrs">function attributes</a> list. Only
       '<tt>noreturn</tt>', '<tt>nounwind</tt>', '<tt>readonly</tt>' and
@@ -5188,7 +5209,7 @@ Loop:       ; Infinite loop that counts from 0 on up...
 standard C99 library as being the C99 library functions, and may perform
 optimizations or generate code for them under that assumption.  This is
 something we'd like to change in the future to provide better support for
-freestanding environments and non-C-based langauges.</p>
+freestanding environments and non-C-based languages.</p>
 
 </div>
 
@@ -5744,7 +5765,7 @@ LLVM</a>.</p>
 
 <h5>Semantics:</h5>
 <p>This intrinsic does not modify the behavior of the program.  Backends that do
-   not support this intrinisic may ignore it.</p>
+   not support this intrinsic may ignore it.</p>
 
 </div>
 
@@ -5824,7 +5845,7 @@ LLVM</a>.</p>
    number of bytes to copy, and the fourth argument is the alignment of the
    source and destination locations.</p>
 
-<p>If the call to this intrinisic has an alignment value that is not 0 or 1,
+<p>If the call to this intrinsic has an alignment value that is not 0 or 1,
    then the caller guarantees that both the source and destination pointers are
    aligned to that boundary.</p>
 
@@ -5874,7 +5895,7 @@ LLVM</a>.</p>
    number of bytes to copy, and the fourth argument is the alignment of the
    source and destination locations.</p>
 
-<p>If the call to this intrinisic has an alignment value that is not 0 or 1,
+<p>If the call to this intrinsic has an alignment value that is not 0 or 1,
    then the caller guarantees that the source and destination pointers are
    aligned to that boundary.</p>
 
@@ -5922,7 +5943,7 @@ LLVM</a>.</p>
    specifying the number of bytes to fill, and the fourth argument is the known
    alignment of destination location.</p>
 
-<p>If the call to this intrinisic has an alignment value that is not 0 or 1,
+<p>If the call to this intrinsic has an alignment value that is not 0 or 1,
    then the caller guarantees that the destination pointer is aligned to that
    boundary.</p>
 
@@ -6693,7 +6714,7 @@ LLVM</a>.</p>
 <h5>Arguments:</h5>
 <p>The <tt>llvm.memory.barrier</tt> intrinsic requires five boolean arguments.
    The first four arguments enables a specific barrier as listed below.  The
-   fith argument specifies that the barrier applies to io or device or uncached
+   fifth argument specifies that the barrier applies to io or device or uncached
    memory.</p>
 
 <ul>
@@ -7432,7 +7453,7 @@ LLVM</a>.</p>
 
   <a href="mailto:sabre@nondot.org">Chris Lattner</a><br>
   <a href="http://llvm.org">The LLVM Compiler Infrastructure</a><br>
-  Last modified: $Date: 2010-02-12 21:49:41 +0100 (Fri, 12 Feb 2010) $
+  Last modified: $Date: 2010-03-02 07:36:51 +0100 (Tue, 02 Mar 2010) $
 </address>
 
 </body>

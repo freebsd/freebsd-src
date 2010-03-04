@@ -668,27 +668,8 @@ public:
   SDNode *SelectNodeTo(SDNode *N, unsigned TargetOpc, SDVTList VTs,
                        const SDValue *Ops, unsigned NumOps);
 
-  /// MorphNodeTo - These *mutate* the specified node to have the specified
+  /// MorphNodeTo - This *mutates* the specified node to have the specified
   /// return type, opcode, and operands.
-  SDNode *MorphNodeTo(SDNode *N, unsigned Opc, EVT VT);
-  SDNode *MorphNodeTo(SDNode *N, unsigned Opc, EVT VT, SDValue Op1);
-  SDNode *MorphNodeTo(SDNode *N, unsigned Opc, EVT VT,
-                      SDValue Op1, SDValue Op2);
-  SDNode *MorphNodeTo(SDNode *N, unsigned Opc, EVT VT,
-                      SDValue Op1, SDValue Op2, SDValue Op3);
-  SDNode *MorphNodeTo(SDNode *N, unsigned Opc, EVT VT,
-                      const SDValue *Ops, unsigned NumOps);
-  SDNode *MorphNodeTo(SDNode *N, unsigned Opc, EVT VT1, EVT VT2);
-  SDNode *MorphNodeTo(SDNode *N, unsigned Opc, EVT VT1,
-                      EVT VT2, const SDValue *Ops, unsigned NumOps);
-  SDNode *MorphNodeTo(SDNode *N, unsigned Opc, EVT VT1,
-                      EVT VT2, EVT VT3, const SDValue *Ops, unsigned NumOps);
-  SDNode *MorphNodeTo(SDNode *N, unsigned Opc, EVT VT1,
-                      EVT VT2, SDValue Op1);
-  SDNode *MorphNodeTo(SDNode *N, unsigned Opc, EVT VT1,
-                      EVT VT2, SDValue Op1, SDValue Op2);
-  SDNode *MorphNodeTo(SDNode *N, unsigned Opc, EVT VT1,
-                      EVT VT2, SDValue Op1, SDValue Op2, SDValue Op3);
   SDNode *MorphNodeTo(SDNode *N, unsigned Opc, SDVTList VTs,
                       const SDValue *Ops, unsigned NumOps);
 
@@ -897,6 +878,15 @@ public:
 
   /// isKnownNeverNan - Test whether the given SDValue is known to never be NaN.
   bool isKnownNeverNaN(SDValue Op) const;
+
+  /// isKnownNeverZero - Test whether the given SDValue is known to never be
+  /// positive or negative Zero.
+  bool isKnownNeverZero(SDValue Op) const;
+
+  /// isEqualTo - Test whether two SDValues are known to compare equal. This
+  /// is true if they are the same value, or if one is negative zero and the
+  /// other positive zero.
+  bool isEqualTo(SDValue A, SDValue B) const;
 
   /// isVerifiedDebugInfoDesc - Returns true if the specified SDValue has
   /// been verified as a debug information descriptor.

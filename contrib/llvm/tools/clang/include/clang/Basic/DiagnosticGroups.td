@@ -18,11 +18,13 @@ def Implicit : DiagGroup<"implicit", [
     
 
 
-// Empty DiagGroups: these are recognized by clang but ignored.
+// Empty DiagGroups are recognized by clang but ignored.
 def : DiagGroup<"address">;
+def AddressOfTemporary : DiagGroup<"address-of-temporary">;
 def : DiagGroup<"aggregate-return">;
 def : DiagGroup<"attributes">;
 def : DiagGroup<"bad-function-cast">;
+def BadLiteral : DiagGroup<"bad-literal">;
 def : DiagGroup<"c++-compat">;
 def : DiagGroup<"cast-align">;
 def : DiagGroup<"cast-qual">;
@@ -119,7 +121,6 @@ def VectorConversions : DiagGroup<"vector-conversions">;      // clang specific
 def VolatileRegisterVar : DiagGroup<"volatile-register-var">;
 def : DiagGroup<"write-strings">;
 def CharSubscript : DiagGroup<"char-subscripts">;
-def ForceAlignArgPointer : DiagGroup<"force-align-arg-pointer">;
 
 // Aggregation warning settings.
 
@@ -180,4 +181,4 @@ def : DiagGroup<"comments", [Comment]>;         // -Wcomments = -Wcomment
 // A warning group for warnings that we want to have on by default in clang,
 // but which aren't on by default in GCC.
 def NonGCC : DiagGroup<"non-gcc",
-    [SignCompare, Conversion, ForceAlignArgPointer]>;
+    [SignCompare, Conversion, BadLiteral]>;

@@ -513,7 +513,7 @@ cannotEliminateFrame(const MachineFunction &MF) const {
 }
 
 /// estimateStackSize - Estimate and return the size of the frame.
-static unsigned estimateStackSize(MachineFunction &MF, MachineFrameInfo *MFI) {
+static unsigned estimateStackSize(MachineFunction &MF) {
   const MachineFrameInfo *FFI = MF.getFrameInfo();
   int Offset = 0;
   for (int i = FFI->getObjectIndexBegin(); i != 0; ++i) {
@@ -671,8 +671,16 @@ ARMBaseRegisterInfo::processFunctionBeforeCalleeSavedScan(MachineFunction &MF,
     }
   }
 
+  // If any of the stack slot references may be out of range of an immediate
+  // offset, make sure a register (or a spill slot) is available for the
+  // register scavenger. Note that if we're indexing off the frame pointer, the
+  // effective stack size is 4 bytes larger since the FP points to the stack
+  // slot of the previous FP.
+  bool BigStack = RS &&
+    estimateStackSize(MF) + (hasFP(MF) ? 4 : 0) >= estimateRSStackSizeLimit(MF);
+
   bool ExtraCSSpill = false;
-  if (!CanEliminateFrame || cannotEliminateFrame(MF)) {
+  if (BigStack || !CanEliminateFrame || cannotEliminateFrame(MF)) {
     AFI->setHasStackFrame(true);
 
     // If LR is not spilled, but at least one of R4, R5, R6, and R7 is spilled.
@@ -727,51 +735,43 @@ ARMBaseRegisterInfo::processFunctionBeforeCalleeSavedScan(MachineFunction &MF,
     // callee-saved register or reserve a special spill slot to facilitate
     // register scavenging. Thumb1 needs a spill slot for stack pointer
     // adjustments also, even when the frame itself is small.
-    if (RS && !ExtraCSSpill) {
-      MachineFrameInfo  *MFI = MF.getFrameInfo();
-      // If any of the stack slot references may be out of range of an
-      // immediate offset, make sure a register (or a spill slot) is
-      // available for the register scavenger. Note that if we're indexing
-      // off the frame pointer, the effective stack size is 4 bytes larger
-      // since the FP points to the stack slot of the previous FP.
-      if (estimateStackSize(MF, MFI) + (hasFP(MF) ? 4 : 0)
-          >= estimateRSStackSizeLimit(MF)) {
-        // If any non-reserved CS register isn't spilled, just spill one or two
-        // extra. That should take care of it!
-        unsigned NumExtras = TargetAlign / 4;
-        SmallVector<unsigned, 2> Extras;
-        while (NumExtras && !UnspilledCS1GPRs.empty()) {
-          unsigned Reg = UnspilledCS1GPRs.back();
-          UnspilledCS1GPRs.pop_back();
+    if (BigStack && !ExtraCSSpill) {
+      // If any non-reserved CS register isn't spilled, just spill one or two
+      // extra. That should take care of it!
+      unsigned NumExtras = TargetAlign / 4;
+      SmallVector<unsigned, 2> Extras;
+      while (NumExtras && !UnspilledCS1GPRs.empty()) {
+        unsigned Reg = UnspilledCS1GPRs.back();
+        UnspilledCS1GPRs.pop_back();
+        if (!isReservedReg(MF, Reg)) {
+          Extras.push_back(Reg);
+          NumExtras--;
+        }
+      }
+      // For non-Thumb1 functions, also check for hi-reg CS registers
+      if (!AFI->isThumb1OnlyFunction()) {
+        while (NumExtras && !UnspilledCS2GPRs.empty()) {
+          unsigned Reg = UnspilledCS2GPRs.back();
+          UnspilledCS2GPRs.pop_back();
           if (!isReservedReg(MF, Reg)) {
             Extras.push_back(Reg);
             NumExtras--;
           }
         }
-        // For non-Thumb1 functions, also check for hi-reg CS registers
-        if (!AFI->isThumb1OnlyFunction()) {
-          while (NumExtras && !UnspilledCS2GPRs.empty()) {
-            unsigned Reg = UnspilledCS2GPRs.back();
-            UnspilledCS2GPRs.pop_back();
-            if (!isReservedReg(MF, Reg)) {
-              Extras.push_back(Reg);
-              NumExtras--;
-            }
-          }
+      }
+      if (Extras.size() && NumExtras == 0) {
+        for (unsigned i = 0, e = Extras.size(); i != e; ++i) {
+          MF.getRegInfo().setPhysRegUsed(Extras[i]);
+          AFI->setCSRegisterIsSpilled(Extras[i]);
         }
-        if (Extras.size() && NumExtras == 0) {
-          for (unsigned i = 0, e = Extras.size(); i != e; ++i) {
-            MF.getRegInfo().setPhysRegUsed(Extras[i]);
-            AFI->setCSRegisterIsSpilled(Extras[i]);
-          }
-        } else if (!AFI->isThumb1OnlyFunction()) {
-          // note: Thumb1 functions spill to R12, not the stack.
-          // Reserve a slot closest to SP or frame pointer.
-          const TargetRegisterClass *RC = ARM::GPRRegisterClass;
-          RS->setScavengingFrameIndex(MFI->CreateStackObject(RC->getSize(),
-                                                             RC->getAlignment(),
-                                                             false));
-        }
+      } else if (!AFI->isThumb1OnlyFunction()) {
+        // note: Thumb1 functions spill to R12, not the stack.  Reserve a slot
+        // closest to SP or frame pointer.
+        const TargetRegisterClass *RC = ARM::GPRRegisterClass;
+        MachineFrameInfo *MFI = MF.getFrameInfo();
+        RS->setScavengingFrameIndex(MFI->CreateStackObject(RC->getSize(),
+                                                           RC->getAlignment(),
+                                                           false));
       }
     }
   }
@@ -1085,6 +1085,15 @@ hasReservedCallFrame(MachineFunction &MF) const {
   return !MF.getFrameInfo()->hasVarSizedObjects();
 }
 
+// canSimplifyCallFramePseudos - If there is a reserved call frame, the
+// call frame pseudos can be simplified. Unlike most targets, having a FP
+// is not sufficient here since we still may reference some objects via SP
+// even when FP is available in Thumb2 mode.
+bool ARMBaseRegisterInfo::
+canSimplifyCallFramePseudos(MachineFunction &MF) const {
+  return hasReservedCallFrame(MF) || MF.getFrameInfo()->hasVarSizedObjects();
+}
+
 static void
 emitSPUpdate(bool isARM,
              MachineBasicBlock &MBB, MachineBasicBlock::iterator &MBBI,
@@ -1119,13 +1128,14 @@ eliminateCallFramePseudoInstr(MachineFunction &MF, MachineBasicBlock &MBB,
 
       ARMFunctionInfo *AFI = MF.getInfo<ARMFunctionInfo>();
       assert(!AFI->isThumb1OnlyFunction() &&
-             "This eliminateCallFramePseudoInstr does not suppor Thumb1!");
+             "This eliminateCallFramePseudoInstr does not support Thumb1!");
       bool isARM = !AFI->isThumbFunction();
 
       // Replace the pseudo instruction with a new instruction...
       unsigned Opc = Old->getOpcode();
-      ARMCC::CondCodes Pred = (ARMCC::CondCodes)Old->getOperand(1).getImm();
-      // FIXME: Thumb2 version of ADJCALLSTACKUP and ADJCALLSTACKDOWN?
+      int PIdx = Old->findFirstPredOperandIdx();
+      ARMCC::CondCodes Pred = (PIdx == -1)
+        ? ARMCC::AL : (ARMCC::CondCodes)Old->getOperand(PIdx).getImm();
       if (Opc == ARM::ADJCALLSTACKDOWN || Opc == ARM::tADJCALLSTACKDOWN) {
         // Note: PredReg is operand 2 for ADJCALLSTACKDOWN.
         unsigned PredReg = Old->getOperand(2).getReg();
@@ -1149,7 +1159,6 @@ ARMBaseRegisterInfo::eliminateFrameIndex(MachineBasicBlock::iterator II,
   MachineInstr &MI = *II;
   MachineBasicBlock &MBB = *MI.getParent();
   MachineFunction &MF = *MBB.getParent();
-  const MachineFrameInfo *MFI = MF.getFrameInfo();
   ARMFunctionInfo *AFI = MF.getInfo<ARMFunctionInfo>();
   assert(!AFI->isThumb1OnlyFunction() &&
          "This eliminateFrameIndex does not support Thumb1!");
@@ -1160,12 +1169,12 @@ ARMBaseRegisterInfo::eliminateFrameIndex(MachineBasicBlock::iterator II,
   }
 
   int FrameIndex = MI.getOperand(i).getIndex();
-  int Offset = MFI->getObjectOffset(FrameIndex) + MFI->getStackSize() + SPAdj;
   unsigned FrameReg;
 
-  Offset = getFrameIndexReference(MF, FrameIndex, FrameReg);
+  int Offset = getFrameIndexReference(MF, FrameIndex, FrameReg);
   if (FrameReg != ARM::SP)
     SPAdj = 0;
+  Offset += SPAdj;
 
   // Modify MI as necessary to handle as much of 'Offset' as possible
   bool Done = false;
@@ -1256,7 +1265,7 @@ emitPrologue(MachineFunction &MF) const {
   MachineFrameInfo  *MFI = MF.getFrameInfo();
   ARMFunctionInfo *AFI = MF.getInfo<ARMFunctionInfo>();
   assert(!AFI->isThumb1OnlyFunction() &&
-         "This emitPrologue does not suppor Thumb1!");
+         "This emitPrologue does not support Thumb1!");
   bool isARM = !AFI->isThumbFunction();
   unsigned VARegSaveSize = AFI->getVarArgsRegSaveSize();
   unsigned NumBytes = MFI->getStackSize();
@@ -1417,7 +1426,7 @@ emitEpilogue(MachineFunction &MF, MachineBasicBlock &MBB) const {
   MachineFrameInfo *MFI = MF.getFrameInfo();
   ARMFunctionInfo *AFI = MF.getInfo<ARMFunctionInfo>();
   assert(!AFI->isThumb1OnlyFunction() &&
-         "This emitEpilogue does not suppor Thumb1!");
+         "This emitEpilogue does not support Thumb1!");
   bool isARM = !AFI->isThumbFunction();
 
   unsigned VARegSaveSize = AFI->getVarArgsRegSaveSize();

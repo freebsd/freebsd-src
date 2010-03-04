@@ -31,7 +31,7 @@ static const enum llvm::raw_ostream::Colors warningColor =
   llvm::raw_ostream::MAGENTA;
 static const enum llvm::raw_ostream::Colors errorColor = llvm::raw_ostream::RED;
 static const enum llvm::raw_ostream::Colors fatalColor = llvm::raw_ostream::RED;
-// used for changing only the bold attribute
+// Used for changing only the bold attribute.
 static const enum llvm::raw_ostream::Colors savedColor =
   llvm::raw_ostream::SAVEDCOLOR;
 
@@ -682,6 +682,9 @@ void TextDiagnosticPrinter::HandleDiagnostic(Diagnostic::Level Level,
   // file+line+column number prefix is.
   uint64_t StartOfLocationInfo = OS.tell();
 
+  if (!Prefix.empty())
+    OS << Prefix << ": ";
+
   // If the location is specified, print out a file/line/col and include trace
   // if enabled.
   if (Info.getLocation().isValid()) {
@@ -786,12 +789,15 @@ void TextDiagnosticPrinter::HandleDiagnostic(Diagnostic::Level Level,
   llvm::SmallString<100> OutStr;
   Info.FormatDiagnostic(OutStr);
 
-  if (DiagOpts->ShowOptionNames)
+  if (DiagOpts->ShowOptionNames) {
     if (const char *Opt = Diagnostic::getWarningOptionForDiag(Info.getID())) {
       OutStr += " [-W";
       OutStr += Opt;
       OutStr += ']';
+    } else if (Diagnostic::isBuiltinExtensionDiag(Info.getID())) {
+      OutStr += " [-pedantic]";
     }
+  }
 
   if (DiagOpts->ShowColors) {
     // Print warnings, errors and fatal errors in bold, no color

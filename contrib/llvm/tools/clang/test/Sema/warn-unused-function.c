@@ -13,4 +13,18 @@ extern void f3() { } // expected-warning{{unused}}
 // FIXME: This will trigger a warning when it should not.
 // Update once PR6281 is fixed.
 //inline static void f4();
-//void f4() { } 
+//void f4() { }
+
+static void __attribute__((used)) f5() {}
+static void f6();
+static void __attribute__((used)) f6();
+static void f6() {};
+
+static void f7(void);
+void f8(void(*a0)(void));
+void f9(void) { f8(f7); }
+static void f7(void) {}
+
+__attribute__((unused)) static void bar(void);
+void bar(void) { }
+

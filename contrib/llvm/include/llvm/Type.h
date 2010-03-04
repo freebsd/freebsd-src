@@ -89,7 +89,7 @@ public:
     VectorTyID,      ///< 15: SIMD 'packed' format, or other vector type
 
     NumTypeIDs,                         // Must remain as last defined ID
-    LastPrimitiveTyID = LabelTyID,
+    LastPrimitiveTyID = MetadataTyID,
     FirstDerivedTyID = IntegerTyID
   };
 
@@ -182,6 +182,9 @@ public:
   // are defined in private classes defined in Type.cpp for primitive types.
   //
 
+  /// getDescription - Return the string representation of the type.
+  std::string getDescription() const;
+
   /// getTypeID - Return the type id for the type.  This will return one
   /// of the TypeID enum elements defined above.
   ///
@@ -205,14 +208,20 @@ public:
   /// isPPC_FP128Ty - Return true if this is powerpc long double.
   bool isPPC_FP128Ty() const { return ID == PPC_FP128TyID; }
 
+  /// isFloatingPointTy - Return true if this is one of the five floating point
+  /// types
+  bool isFloatingPointTy() const { return ID == FloatTyID || ID == DoubleTyID ||
+      ID == X86_FP80TyID || ID == FP128TyID || ID == PPC_FP128TyID; }
+
+  /// isFPOrFPVectorTy - Return true if this is a FP type or a vector of FP.
+  ///
+  bool isFPOrFPVectorTy() const;
+ 
   /// isLabelTy - Return true if this is 'label'.
   bool isLabelTy() const { return ID == LabelTyID; }
 
   /// isMetadataTy - Return true if this is 'metadata'.
   bool isMetadataTy() const { return ID == MetadataTyID; }
-
-  /// getDescription - Return the string representation of the type.
-  std::string getDescription() const;
 
   /// isIntegerTy - True if this is an instance of IntegerType.
   ///
@@ -226,15 +235,6 @@ public:
   ///
   bool isIntOrIntVectorTy() const;
   
-  /// isFloatingPointTy - Return true if this is one of the five floating point
-  /// types
-  bool isFloatingPointTy() const { return ID == FloatTyID || ID == DoubleTyID ||
-      ID == X86_FP80TyID || ID == FP128TyID || ID == PPC_FP128TyID; }
-
-  /// isFPOrFPVectorTy - Return true if this is a FP type or a vector of FP.
-  ///
-  bool isFPOrFPVectorTy() const;
- 
   /// isFunctionTy - True if this is an instance of FunctionType.
   ///
   bool isFunctionTy() const { return ID == FunctionTyID; }
@@ -243,6 +243,10 @@ public:
   ///
   bool isStructTy() const { return ID == StructTyID; }
 
+  /// isUnionTy - True if this is an instance of UnionType.
+  ///
+  bool isUnionTy() const { return ID == UnionTyID; }
+
   /// isArrayTy - True if this is an instance of ArrayType.
   ///
   bool isArrayTy() const { return ID == ArrayTyID; }
@@ -250,6 +254,10 @@ public:
   /// isPointerTy - True if this is an instance of PointerType.
   ///
   bool isPointerTy() const { return ID == PointerTyID; }
+
+  /// isOpaqueTy - True if this is an instance of OpaqueType.
+  ///
+  bool isOpaqueTy() const { return ID == OpaqueTyID; }
 
   /// isVectorTy - True if this is an instance of VectorType.
   ///

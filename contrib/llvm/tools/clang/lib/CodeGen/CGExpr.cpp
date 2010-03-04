@@ -36,7 +36,17 @@ llvm::AllocaInst *CodeGenFunction::CreateTempAlloca(const llvm::Type *Ty,
   return new llvm::AllocaInst(Ty, 0, Name, AllocaInsertPt);
 }
 
-llvm::Value *CodeGenFunction::CreateMemTemp(QualType Ty, const llvm::Twine &Name) {
+llvm::Value *CodeGenFunction::CreateIRTemp(QualType Ty,
+                                           const llvm::Twine &Name) {
+  llvm::AllocaInst *Alloc = CreateTempAlloca(ConvertType(Ty), Name);
+  // FIXME: Should we prefer the preferred type alignment here?
+  CharUnits Align = getContext().getTypeAlignInChars(Ty);
+  Alloc->setAlignment(Align.getQuantity());
+  return Alloc;
+}
+
+llvm::Value *CodeGenFunction::CreateMemTemp(QualType Ty,
+                                            const llvm::Twine &Name) {
   llvm::AllocaInst *Alloc = CreateTempAlloca(ConvertTypeForMem(Ty), Name);
   // FIXME: Should we prefer the preferred type alignment here?
   CharUnits Align = getContext().getTypeAlignInChars(Ty);
@@ -1520,9 +1530,7 @@ CodeGenFunction::EmitLValueForFieldInitialization(llvm::Value* BaseValue,
 }
 
 LValue CodeGenFunction::EmitCompoundLiteralLValue(const CompoundLiteralExpr* E){
-  llvm::Value *DeclPtr = CreateTempAlloca(ConvertTypeForMem(E->getType()),
-                                          ".compoundliteral");
-
+  llvm::Value *DeclPtr = CreateMemTemp(E->getType(), ".compoundliteral");
   const Expr* InitExpr = E->getInitializer();
   LValue Result = LValue::MakeAddr(DeclPtr, MakeQualifiers(E->getType()));
 

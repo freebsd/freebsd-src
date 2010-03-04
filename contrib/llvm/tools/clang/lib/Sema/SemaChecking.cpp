@@ -13,8 +13,9 @@
 //===----------------------------------------------------------------------===//
 
 #include "Sema.h"
-#include "clang/Analysis/CFG.h"
 #include "clang/Analysis/AnalysisContext.h"
+#include "clang/Analysis/CFG.h"
+#include "clang/Analysis/Analyses/ReachableCode.h"
 #include "clang/Analysis/Analyses/PrintfFormatString.h"
 #include "clang/AST/ASTContext.h"
 #include "clang/AST/CharUnits.h"
@@ -109,7 +110,8 @@ bool Sema::CheckablePrintfAttr(const FormatAttr *Format, CallExpr *TheCall) {
     }
     if (format_idx < TheCall->getNumArgs()) {
       Expr *Format = TheCall->getArg(format_idx)->IgnoreParenCasts();
-      if (!Format->isNullPointerConstant(Context, Expr::NPC_ValueDependentIsNull))
+      if (!Format->isNullPointerConstant(Context,
+                                         Expr::NPC_ValueDependentIsNull))
         return true;
     }
   }
@@ -150,7 +152,7 @@ Sema::CheckBuiltinFunctionCall(unsigned BuiltinID, CallExpr *TheCall) {
   case Builtin::BI__builtin_isinf_sign:
   case Builtin::BI__builtin_isnan:
   case Builtin::BI__builtin_isnormal:
-    if (SemaBuiltinFPClassification(TheCall))
+    if (SemaBuiltinFPClassification(TheCall, 1))
       return ExprError();
     break;
   case Builtin::BI__builtin_return_address:
@@ -504,6 +506,7 @@ bool Sema::SemaBuiltinVAStart(CallExpr *TheCall) {
   }
 
   // Determine whether the current function is variadic or not.
+  BlockScopeInfo *CurBlock = getCurBlock();
   bool isVariadic;
   if (CurBlock)
     isVariadic = CurBlock->isVariadic;
@@ -590,19 +593,20 @@ bool Sema::SemaBuiltinUnorderedCompare(CallExpr *TheCall) {
 
 /// SemaBuiltinSemaBuiltinFPClassification - Handle functions like
 /// __builtin_isnan and friends.  This is declared to take (...), so we have
-/// to check everything.
-bool Sema::SemaBuiltinFPClassification(CallExpr *TheCall, unsigned LastArg) {
-  if (TheCall->getNumArgs() < LastArg)
+/// to check everything. We expect the last argument to be a floating point
+/// value.
+bool Sema::SemaBuiltinFPClassification(CallExpr *TheCall, unsigned NumArgs) {
+  if (TheCall->getNumArgs() < NumArgs)
     return Diag(TheCall->getLocEnd(), diag::err_typecheck_call_too_few_args)
       << 0 /*function call*/;
-  if (TheCall->getNumArgs() > LastArg)
-    return Diag(TheCall->getArg(LastArg)->getLocStart(),
+  if (TheCall->getNumArgs() > NumArgs)
+    return Diag(TheCall->getArg(NumArgs)->getLocStart(),
                 diag::err_typecheck_call_too_many_args)
       << 0 /*function call*/
-      << SourceRange(TheCall->getArg(LastArg)->getLocStart(),
+      << SourceRange(TheCall->getArg(NumArgs)->getLocStart(),
                      (*(TheCall->arg_end()-1))->getLocEnd());
 
-  Expr *OrigArg = TheCall->getArg(LastArg-1);
+  Expr *OrigArg = TheCall->getArg(NumArgs-1);
 
   if (OrigArg->isTypeDependent())
     return false;
@@ -953,6 +957,7 @@ Sema::CheckNonNullArguments(const NonNullAttr *NonNull,
 ///  FormatGuard: Automatic Protection From printf Format String
 ///  Vulnerabilities, Proceedings of the 10th USENIX Security Symposium, 2001.
 ///
+/// TODO:
 /// Functionality implemented:
 ///
 ///  We can statically check the following properties for string
@@ -963,7 +968,7 @@ Sema::CheckNonNullArguments(const NonNullAttr *NonNull,
 ///      data arguments?
 ///
 ///  (2) Does each format conversion correctly match the type of the
-///      corresponding data argument?  (TODO)
+///      corresponding data argument?
 ///
 /// Moreover, for all printf functions we can:
 ///
@@ -982,7 +987,6 @@ Sema::CheckNonNullArguments(const NonNullAttr *NonNull,
 ///
 /// All of these checks can be done by parsing the format string.
 ///
-/// For now, we ONLY do (1), (3), (5), (6), (7), and (8).
 void
 Sema::CheckPrintfArguments(const CallExpr *TheCall, bool HasVAListArg,
                            unsigned format_idx, unsigned firstDataArg) {
@@ -1042,13 +1046,15 @@ class CheckPrintfHandler : public analyze_printf::FormatStringHandler {
   Sema &S;
   const StringLiteral *FExpr;
   const Expr *OrigFormatExpr;
-  unsigned NumConversions;
   const unsigned NumDataArgs;
   const bool IsObjCLiteral;
   const char *Beg; // Start of format string.
   const bool HasVAListArg;
   const CallExpr *TheCall;
   unsigned FormatIdx;
+  llvm::BitVector CoveredArgs;
+  bool usesPositionalArgs;
+  bool atFirstArg;
 public:
   CheckPrintfHandler(Sema &s, const StringLiteral *fexpr,
                      const Expr *origFormatExpr,
@@ -1056,20 +1062,30 @@ public:
                      const char *beg, bool hasVAListArg,
                      const CallExpr *theCall, unsigned formatIdx)
     : S(s), FExpr(fexpr), OrigFormatExpr(origFormatExpr),
-      NumConversions(0), NumDataArgs(numDataArgs),
+      NumDataArgs(numDataArgs),
       IsObjCLiteral(isObjCLiteral), Beg(beg),
       HasVAListArg(hasVAListArg),
-      TheCall(theCall), FormatIdx(formatIdx) {}
+      TheCall(theCall), FormatIdx(formatIdx),
+      usesPositionalArgs(false), atFirstArg(true) {
+        CoveredArgs.resize(numDataArgs);
+        CoveredArgs.reset();
+      }
 
   void DoneProcessing();
 
   void HandleIncompleteFormatSpecifier(const char *startSpecifier,
                                        unsigned specifierLen);
 
-  void
+  bool
   HandleInvalidConversionSpecifier(const analyze_printf::FormatSpecifier &FS,
                                    const char *startSpecifier,
                                    unsigned specifierLen);
+
+  virtual void HandleInvalidPosition(const char *startSpecifier,
+                                     unsigned specifierLen,
+                                     analyze_printf::PositionContext p);
+
+  virtual void HandleZeroPosition(const char *startPos, unsigned posLen);
 
   void HandleNullChar(const char *nullCharacter);
 
@@ -1082,9 +1098,8 @@ private:
                                       unsigned specifierLen);
   SourceLocation getLocationOfByte(const char *x);
 
-  bool HandleAmount(const analyze_printf::OptionalAmount &Amt,
-                    unsigned MissingArgDiag, unsigned BadTypeDiag,
-          const char *startSpecifier, unsigned specifierLen);
+  bool HandleAmount(const analyze_printf::OptionalAmount &Amt, unsigned k,
+                    const char *startSpecifier, unsigned specifierLen);
   void HandleFlags(const analyze_printf::FormatSpecifier &FS,
                    llvm::StringRef flag, llvm::StringRef cspec,
                    const char *startSpecifier, unsigned specifierLen);
@@ -1115,18 +1130,50 @@ HandleIncompleteFormatSpecifier(const char *startSpecifier,
     << getFormatSpecifierRange(startSpecifier, specifierLen);
 }
 
-void CheckPrintfHandler::
+void
+CheckPrintfHandler::HandleInvalidPosition(const char *startPos, unsigned posLen,
+                                          analyze_printf::PositionContext p) {
+  SourceLocation Loc = getLocationOfByte(startPos);
+  S.Diag(Loc, diag::warn_printf_invalid_positional_specifier)
+    << (unsigned) p << getFormatSpecifierRange(startPos, posLen);
+}
+
+void CheckPrintfHandler::HandleZeroPosition(const char *startPos,
+                                            unsigned posLen) {
+  SourceLocation Loc = getLocationOfByte(startPos);
+  S.Diag(Loc, diag::warn_printf_zero_positional_specifier)
+    << getFormatSpecifierRange(startPos, posLen);
+}
+
+bool CheckPrintfHandler::
 HandleInvalidConversionSpecifier(const analyze_printf::FormatSpecifier &FS,
                                  const char *startSpecifier,
                                  unsigned specifierLen) {
 
-  ++NumConversions;
+  unsigned argIndex = FS.getArgIndex();
+  bool keepGoing = true;
+  if (argIndex < NumDataArgs) {
+    // Consider the argument coverered, even though the specifier doesn't
+    // make sense.
+    CoveredArgs.set(argIndex);
+  }
+  else {
+    // If argIndex exceeds the number of data arguments we
+    // don't issue a warning because that is just a cascade of warnings (and
+    // they may have intended '%%' anyway). We don't want to continue processing
+    // the format string after this point, however, as we will like just get
+    // gibberish when trying to match arguments.
+    keepGoing = false;
+  }
+
   const analyze_printf::ConversionSpecifier &CS =
     FS.getConversionSpecifier();
   SourceLocation Loc = getLocationOfByte(CS.getStart());
   S.Diag(Loc, diag::warn_printf_invalid_conversion)
       << llvm::StringRef(CS.getStart(), CS.getLength())
       << getFormatSpecifierRange(startSpecifier, specifierLen);
+
+  return keepGoing;
 }
 
 void CheckPrintfHandler::HandleNullChar(const char *nullCharacter) {
@@ -1137,7 +1184,7 @@ void CheckPrintfHandler::HandleNullChar(const char *nullCharacter) {
 }
 
 const Expr *CheckPrintfHandler::getDataArg(unsigned i) const {
-  return TheCall->getArg(FormatIdx + i);
+  return TheCall->getArg(FormatIdx + i + 1);
 }
 
 
@@ -1154,17 +1201,16 @@ void CheckPrintfHandler::HandleFlags(const analyze_printf::FormatSpecifier &FS,
 
 bool
 CheckPrintfHandler::HandleAmount(const analyze_printf::OptionalAmount &Amt,
-                                 unsigned MissingArgDiag,
-                                 unsigned BadTypeDiag,
-                                 const char *startSpecifier,
+                                 unsigned k, const char *startSpecifier,
                                  unsigned specifierLen) {
 
   if (Amt.hasDataArgument()) {
-    ++NumConversions;
     if (!HasVAListArg) {
-      if (NumConversions > NumDataArgs) {
-        S.Diag(getLocationOfByte(Amt.getStart()), MissingArgDiag)
-          << getFormatSpecifierRange(startSpecifier, specifierLen);
+      unsigned argIndex = Amt.getArgIndex();
+      if (argIndex >= NumDataArgs) {
+        S.Diag(getLocationOfByte(Amt.getStart()),
+               diag::warn_printf_asterisk_missing_arg)
+          << k << getFormatSpecifierRange(startSpecifier, specifierLen);
         // Don't do any more checking.  We will just emit
         // spurious errors.
         return false;
@@ -1174,14 +1220,17 @@ CheckPrintfHandler::HandleAmount(const analyze_printf::OptionalAmount &Amt,
       // Although not in conformance with C99, we also allow the argument to be
       // an 'unsigned int' as that is a reasonably safe case.  GCC also
       // doesn't emit a warning for that case.
-      const Expr *Arg = getDataArg(NumConversions);
+      CoveredArgs.set(argIndex);
+      const Expr *Arg = getDataArg(argIndex);
       QualType T = Arg->getType();
 
       const analyze_printf::ArgTypeResult &ATR = Amt.getArgType(S.Context);
       assert(ATR.isValid());
 
       if (!ATR.matchesType(S.Context, T)) {
-        S.Diag(getLocationOfByte(Amt.getStart()), BadTypeDiag)
+        S.Diag(getLocationOfByte(Amt.getStart()),
+               diag::warn_printf_asterisk_wrong_type)
+          << k
           << ATR.getRepresentativeType(S.Context) << T
           << getFormatSpecifierRange(startSpecifier, specifierLen)
           << Arg->getSourceRange();
@@ -1200,32 +1249,31 @@ CheckPrintfHandler::HandleFormatSpecifier(const analyze_printf::FormatSpecifier
                                           const char *startSpecifier,
                                           unsigned specifierLen) {
 
-  using namespace analyze_printf;
+  using namespace analyze_printf;  
   const ConversionSpecifier &CS = FS.getConversionSpecifier();
+
+  if (atFirstArg) {
+    atFirstArg = false;
+    usesPositionalArgs = FS.usesPositionalArg();
+  }
+  else if (usesPositionalArgs != FS.usesPositionalArg()) {
+    // Cannot mix-and-match positional and non-positional arguments.
+    S.Diag(getLocationOfByte(CS.getStart()),
+           diag::warn_printf_mix_positional_nonpositional_args)
+      << getFormatSpecifierRange(startSpecifier, specifierLen);
+    return false;
+  }
 
   // First check if the field width, precision, and conversion specifier
   // have matching data arguments.
-  if (!HandleAmount(FS.getFieldWidth(),
-                    diag::warn_printf_asterisk_width_missing_arg,
-                    diag::warn_printf_asterisk_width_wrong_type,
-          startSpecifier, specifierLen)) {
+  if (!HandleAmount(FS.getFieldWidth(), /* field width */ 0,
+                    startSpecifier, specifierLen)) {
     return false;
   }
 
-  if (!HandleAmount(FS.getPrecision(),
-                    diag::warn_printf_asterisk_precision_missing_arg,
-                    diag::warn_printf_asterisk_precision_wrong_type,
-          startSpecifier, specifierLen)) {
+  if (!HandleAmount(FS.getPrecision(), /* precision */ 1,
+                    startSpecifier, specifierLen)) {
     return false;
-  }
-
-  // Check for using an Objective-C specific conversion specifier
-  // in a non-ObjC literal.
-  if (!IsObjCLiteral && CS.isObjCArg()) {
-    HandleInvalidConversionSpecifier(FS, startSpecifier, specifierLen);
-
-    // Continue checking the other format specifiers.
-    return true;
   }
 
   if (!CS.consumesDataArgument()) {
@@ -1234,7 +1282,20 @@ CheckPrintfHandler::HandleFormatSpecifier(const analyze_printf::FormatSpecifier
     return true;
   }
 
-  ++NumConversions;
+  // Consume the argument.
+  unsigned argIndex = FS.getArgIndex();
+  if (argIndex < NumDataArgs) {
+    // The check to see if the argIndex is valid will come later.
+    // We set the bit here because we may exit early from this
+    // function if we encounter some other error.
+    CoveredArgs.set(argIndex);
+  }
+
+  // Check for using an Objective-C specific conversion specifier
+  // in a non-ObjC literal.
+  if (!IsObjCLiteral && CS.isObjCArg()) {
+    return HandleInvalidConversionSpecifier(FS, startSpecifier, specifierLen);
+  }
 
   // Are we using '%n'?  Issue a warning about this being
   // a possible security issue.
@@ -1268,7 +1329,7 @@ CheckPrintfHandler::HandleFormatSpecifier(const analyze_printf::FormatSpecifier
   if (HasVAListArg)
     return true;
 
-  if (NumConversions > NumDataArgs) {
+  if (argIndex >= NumDataArgs) {
     S.Diag(getLocationOfByte(CS.getStart()),
            diag::warn_printf_insufficient_data_args)
       << getFormatSpecifierRange(startSpecifier, specifierLen);
@@ -1278,7 +1339,7 @@ CheckPrintfHandler::HandleFormatSpecifier(const analyze_printf::FormatSpecifier
 
   // Now type check the data expression that matches the
   // format specifier.
-  const Expr *Ex = getDataArg(NumConversions);
+  const Expr *Ex = getDataArg(argIndex);
   const analyze_printf::ArgTypeResult &ATR = FS.getArgType(S.Context);
   if (ATR.isValid() && !ATR.matchesType(S.Context, Ex->getType())) {
     // Check if we didn't match because of an implicit cast from a 'char'
@@ -1302,10 +1363,17 @@ CheckPrintfHandler::HandleFormatSpecifier(const analyze_printf::FormatSpecifier
 void CheckPrintfHandler::DoneProcessing() {
   // Does the number of data arguments exceed the number of
   // format conversions in the format string?
-  if (!HasVAListArg && NumConversions < NumDataArgs)
-    S.Diag(getDataArg(NumConversions+1)->getLocStart(),
-           diag::warn_printf_too_many_data_args)
-      << getFormatStringRange();
+  if (!HasVAListArg) {
+    // Find any arguments that weren't covered.
+    CoveredArgs.flip();
+    signed notCoveredArg = CoveredArgs.find_first();
+    if (notCoveredArg >= 0) {
+      assert((unsigned)notCoveredArg < NumDataArgs);
+      S.Diag(getDataArg((unsigned) notCoveredArg)->getLocStart(),
+             diag::warn_printf_data_arg_not_used)
+        << getFormatStringRange();
+    }
+  }
 }
 
 void Sema::CheckPrintfString(const StringLiteral *FExpr,
@@ -1680,13 +1748,13 @@ struct IntRange {
   }
 
   // Returns the supremum of two ranges: i.e. their conservative merge.
-  static IntRange join(const IntRange &L, const IntRange &R) {
+  static IntRange join(IntRange L, IntRange R) {
     return IntRange(std::max(L.Width, R.Width),
                     L.NonNegative && R.NonNegative);
   }
 
   // Returns the infinum of two ranges: i.e. their aggressive merge.
-  static IntRange meet(const IntRange &L, const IntRange &R) {
+  static IntRange meet(IntRange L, IntRange R) {
     return IntRange(std::min(L.Width, R.Width),
                     L.NonNegative || R.NonNegative);
   }
@@ -1804,6 +1872,15 @@ IntRange GetExprRange(ASTContext &C, Expr *E, unsigned MaxWidth) {
     case BinaryOperator::NE:
       return IntRange::forBoolType();
 
+    // The type of these compound assignments is the type of the LHS,
+    // so the RHS is not necessarily an integer.
+    case BinaryOperator::MulAssign:
+    case BinaryOperator::DivAssign:
+    case BinaryOperator::RemAssign:
+    case BinaryOperator::AddAssign:
+    case BinaryOperator::SubAssign:
+      return IntRange::forType(C, E->getType());
+
     // Operations with opaque sources are black-listed.
     case BinaryOperator::PtrMemD:
     case BinaryOperator::PtrMemI:
@@ -1811,15 +1888,18 @@ IntRange GetExprRange(ASTContext &C, Expr *E, unsigned MaxWidth) {
 
     // Bitwise-and uses the *infinum* of the two source ranges.
     case BinaryOperator::And:
+    case BinaryOperator::AndAssign:
       return IntRange::meet(GetExprRange(C, BO->getLHS(), MaxWidth),
                             GetExprRange(C, BO->getRHS(), MaxWidth));
 
     // Left shift gets black-listed based on a judgement call.
     case BinaryOperator::Shl:
+    case BinaryOperator::ShlAssign:
       return IntRange::forType(C, E->getType());
 
     // Right shift by a constant can narrow its left argument.
-    case BinaryOperator::Shr: {
+    case BinaryOperator::Shr:
+    case BinaryOperator::ShrAssign: {
       IntRange L = GetExprRange(C, BO->getLHS(), MaxWidth);
 
       // If the shift amount is a positive constant, drop the width by
@@ -2103,250 +2183,30 @@ void Sema::CheckImplicitConversion(Expr *E, QualType T) {
   return;
 }
 
-// MarkLive - Mark all the blocks reachable from e as live.  Returns the total
-// number of blocks just marked live.
-static unsigned MarkLive(CFGBlock *e, llvm::BitVector &live) {
-  unsigned count = 0;
-  std::queue<CFGBlock*> workq;
-  // Prep work queue
-  live.set(e->getBlockID());
-  ++count;
-  workq.push(e);
-  // Solve
-  while (!workq.empty()) {
-    CFGBlock *item = workq.front();
-    workq.pop();
-    for (CFGBlock::succ_iterator I=item->succ_begin(),
-           E=item->succ_end();
-         I != E;
-         ++I) {
-      if ((*I) && !live[(*I)->getBlockID()]) {
-        live.set((*I)->getBlockID());
-        ++count;
-        workq.push(*I);
-      }
-    }
-  }
-  return count;
-}
 
-static SourceLocation GetUnreachableLoc(CFGBlock &b, SourceRange &R1,
-                                        SourceRange &R2) {
-  Stmt *S;
-  unsigned sn = 0;
-  R1 = R2 = SourceRange();
-
-  top:
-  if (sn < b.size())
-    S = b[sn].getStmt();
-  else if (b.getTerminator())
-    S = b.getTerminator();
-  else
-    return SourceLocation();
-
-  switch (S->getStmtClass()) {
-  case Expr::BinaryOperatorClass: {
-    BinaryOperator *BO = cast<BinaryOperator>(S);
-    if (BO->getOpcode() == BinaryOperator::Comma) {
-      if (sn+1 < b.size())
-        return b[sn+1].getStmt()->getLocStart();
-      CFGBlock *n = &b;
-      while (1) {
-        if (n->getTerminator())
-          return n->getTerminator()->getLocStart();
-        if (n->succ_size() != 1)
-          return SourceLocation();
-        n = n[0].succ_begin()[0];
-        if (n->pred_size() != 1)
-          return SourceLocation();
-        if (!n->empty())
-          return n[0][0].getStmt()->getLocStart();
-      }
-    }
-    R1 = BO->getLHS()->getSourceRange();
-    R2 = BO->getRHS()->getSourceRange();
-    return BO->getOperatorLoc();
-  }
-  case Expr::UnaryOperatorClass: {
-    const UnaryOperator *UO = cast<UnaryOperator>(S);
-    R1 = UO->getSubExpr()->getSourceRange();
-    return UO->getOperatorLoc();
-  }
-  case Expr::CompoundAssignOperatorClass: {
-    const CompoundAssignOperator *CAO = cast<CompoundAssignOperator>(S);
-    R1 = CAO->getLHS()->getSourceRange();
-    R2 = CAO->getRHS()->getSourceRange();
-    return CAO->getOperatorLoc();
-  }
-  case Expr::ConditionalOperatorClass: {
-    const ConditionalOperator *CO = cast<ConditionalOperator>(S);
-    return CO->getQuestionLoc();
-  }
-  case Expr::MemberExprClass: {
-    const MemberExpr *ME = cast<MemberExpr>(S);
-    R1 = ME->getSourceRange();
-    return ME->getMemberLoc();
-  }
-  case Expr::ArraySubscriptExprClass: {
-    const ArraySubscriptExpr *ASE = cast<ArraySubscriptExpr>(S);
-    R1 = ASE->getLHS()->getSourceRange();
-    R2 = ASE->getRHS()->getSourceRange();
-    return ASE->getRBracketLoc();
-  }
-  case Expr::CStyleCastExprClass: {
-    const CStyleCastExpr *CSC = cast<CStyleCastExpr>(S);
-    R1 = CSC->getSubExpr()->getSourceRange();
-    return CSC->getLParenLoc();
-  }
-  case Expr::CXXFunctionalCastExprClass: {
-    const CXXFunctionalCastExpr *CE = cast <CXXFunctionalCastExpr>(S);
-    R1 = CE->getSubExpr()->getSourceRange();
-    return CE->getTypeBeginLoc();
-  }
-  case Expr::ImplicitCastExprClass:
-    ++sn;
-    goto top;
-  case Stmt::CXXTryStmtClass: {
-    return cast<CXXTryStmt>(S)->getHandler(0)->getCatchLoc();
-  }
-  default: ;
-  }
-  R1 = S->getSourceRange();
-  return S->getLocStart();
-}
-
-static SourceLocation MarkLiveTop(CFGBlock *e, llvm::BitVector &live,
-                               SourceManager &SM) {
-  std::queue<CFGBlock*> workq;
-  // Prep work queue
-  workq.push(e);
-  SourceRange R1, R2;
-  SourceLocation top = GetUnreachableLoc(*e, R1, R2);
-  bool FromMainFile = false;
-  bool FromSystemHeader = false;
-  bool TopValid = false;
-  if (top.isValid()) {
-    FromMainFile = SM.isFromMainFile(top);
-    FromSystemHeader = SM.isInSystemHeader(top);
-    TopValid = true;
-  }
-  // Solve
-  while (!workq.empty()) {
-    CFGBlock *item = workq.front();
-    workq.pop();
-    SourceLocation c = GetUnreachableLoc(*item, R1, R2);
-    if (c.isValid()
-        && (!TopValid
-            || (SM.isFromMainFile(c) && !FromMainFile)
-            || (FromSystemHeader && !SM.isInSystemHeader(c))
-            || SM.isBeforeInTranslationUnit(c, top))) {
-      top = c;
-      FromMainFile = SM.isFromMainFile(top);
-      FromSystemHeader = SM.isInSystemHeader(top);
-    }
-    live.set(item->getBlockID());
-    for (CFGBlock::succ_iterator I=item->succ_begin(),
-           E=item->succ_end();
-         I != E;
-         ++I) {
-      if ((*I) && !live[(*I)->getBlockID()]) {
-        live.set((*I)->getBlockID());
-        workq.push(*I);
-      }
-    }
-  }
-  return top;
-}
-
-static int LineCmp(const void *p1, const void *p2) {
-  SourceLocation *Line1 = (SourceLocation *)p1;
-  SourceLocation *Line2 = (SourceLocation *)p2;
-  return !(*Line1 < *Line2);
-}
 
 namespace {
-  struct ErrLoc {
-    SourceLocation Loc;
-    SourceRange R1;
-    SourceRange R2;
-    ErrLoc(SourceLocation l, SourceRange r1, SourceRange r2)
-      : Loc(l), R1(r1), R2(r2) { }
-  };
+class UnreachableCodeHandler : public reachable_code::Callback {
+  Sema &S;
+public:
+  UnreachableCodeHandler(Sema *s) : S(*s) {}
+  
+  void HandleUnreachable(SourceLocation L, SourceRange R1, SourceRange R2) {
+    S.Diag(L, diag::warn_unreachable) << R1 << R2;
+  }
+};  
 }
 
 /// CheckUnreachable - Check for unreachable code.
 void Sema::CheckUnreachable(AnalysisContext &AC) {
-  unsigned count;
   // We avoid checking when there are errors, as the CFG won't faithfully match
   // the user's code.
-  if (getDiagnostics().hasErrorOccurred())
-    return;
-  if (Diags.getDiagnosticLevel(diag::warn_unreachable) == Diagnostic::Ignored)
-    return;
-
-  CFG *cfg = AC.getCFG();
-  if (cfg == 0)
+  if (getDiagnostics().hasErrorOccurred() ||
+      Diags.getDiagnosticLevel(diag::warn_unreachable) == Diagnostic::Ignored)
     return;
 
-  llvm::BitVector live(cfg->getNumBlockIDs());
-  // Mark all live things first.
-  count = MarkLive(&cfg->getEntry(), live);
-
-  if (count == cfg->getNumBlockIDs())
-    // If there are no dead blocks, we're done.
-    return;
-
-  SourceRange R1, R2;
-
-  llvm::SmallVector<ErrLoc, 24> lines;
-  bool AddEHEdges = AC.getAddEHEdges();
-  // First, give warnings for blocks with no predecessors, as they
-  // can't be part of a loop.
-  for (CFG::iterator I = cfg->begin(), E = cfg->end(); I != E; ++I) {
-    CFGBlock &b = **I;
-    if (!live[b.getBlockID()]) {
-      if (b.pred_begin() == b.pred_end()) {
-        if (!AddEHEdges && b.getTerminator()
-            && isa<CXXTryStmt>(b.getTerminator())) {
-          // When not adding EH edges from calls, catch clauses
-          // can otherwise seem dead.  Avoid noting them as dead.
-          count += MarkLive(&b, live);
-          continue;
-        }
-        SourceLocation c = GetUnreachableLoc(b, R1, R2);
-        if (!c.isValid()) {
-          // Blocks without a location can't produce a warning, so don't mark
-          // reachable blocks from here as live.
-          live.set(b.getBlockID());
-          ++count;
-          continue;
-        }
-        lines.push_back(ErrLoc(c, R1, R2));
-        // Avoid excessive errors by marking everything reachable from here
-        count += MarkLive(&b, live);
-      }
-    }
-  }
-
-  if (count < cfg->getNumBlockIDs()) {
-    // And then give warnings for the tops of loops.
-    for (CFG::iterator I = cfg->begin(), E = cfg->end(); I != E; ++I) {
-      CFGBlock &b = **I;
-      if (!live[b.getBlockID()])
-        // Avoid excessive errors by marking everything reachable from here
-        lines.push_back(ErrLoc(MarkLiveTop(&b, live,
-                                           Context.getSourceManager()),
-                               SourceRange(), SourceRange()));
-    }
-  }
-
-  llvm::array_pod_sort(lines.begin(), lines.end(), LineCmp);
-  for (llvm::SmallVector<ErrLoc, 24>::iterator I = lines.begin(),
-         E = lines.end();
-       I != E;
-       ++I)
-    if (I->Loc.isValid())
-      Diag(I->Loc, diag::warn_unreachable) << I->R1 << I->R2;
+  UnreachableCodeHandler UC(this);
+  reachable_code::FindUnreachableCode(AC, UC);
 }
 
 /// CheckFallThrough - Check that we don't fall off the end of a
@@ -2368,7 +2228,8 @@ Sema::ControlFlowKind Sema::CheckFallThrough(AnalysisContext &AC) {
   // confuse us, so we mark all live things first.
   std::queue<CFGBlock*> workq;
   llvm::BitVector live(cfg->getNumBlockIDs());
-  unsigned count = MarkLive(&cfg->getEntry(), live);
+  unsigned count = reachable_code::ScanReachableFromBlock(cfg->getEntry(),
+                                                          live);
 
   bool AddEHEdges = AC.getAddEHEdges();
   if (!AddEHEdges && count != cfg->getNumBlockIDs())
@@ -2382,7 +2243,7 @@ Sema::ControlFlowKind Sema::CheckFallThrough(AnalysisContext &AC) {
           if (b.getTerminator() && isa<CXXTryStmt>(b.getTerminator()))
             // When not adding EH edges from calls, catch clauses
             // can otherwise seem dead.  Avoid noting them as dead.
-            count += MarkLive(&b, live);
+            count += reachable_code::ScanReachableFromBlock(b, live);
           continue;
         }
       }
@@ -2489,22 +2350,20 @@ void Sema::CheckFallThroughForFunctionDef(Decl *D, Stmt *Body,
 
   bool ReturnsVoid = false;
   bool HasNoReturn = false;
+
   if (FunctionDecl *FD = dyn_cast<FunctionDecl>(D)) {
     // For function templates, class templates and member function templates
     // we'll do the analysis at instantiation time.
     if (FD->isDependentContext())
       return;
 
-    if (FD->getResultType()->isVoidType())
-      ReturnsVoid = true;
-    if (FD->hasAttr<NoReturnAttr>() ||
-        FD->getType()->getAs<FunctionType>()->getNoReturnAttr())
-      HasNoReturn = true;
+    ReturnsVoid = FD->getResultType()->isVoidType();
+    HasNoReturn = FD->hasAttr<NoReturnAttr>() ||
+                  FD->getType()->getAs<FunctionType>()->getNoReturnAttr();
+
   } else if (ObjCMethodDecl *MD = dyn_cast<ObjCMethodDecl>(D)) {
-    if (MD->getResultType()->isVoidType())
-      ReturnsVoid = true;
-    if (MD->hasAttr<NoReturnAttr>())
-      HasNoReturn = true;
+    ReturnsVoid = MD->getResultType()->isVoidType();
+    HasNoReturn = MD->hasAttr<NoReturnAttr>();
   }
 
   // Short circuit for compilation speed.

@@ -146,7 +146,7 @@ bool AsmParser::Run() {
   // FIXME: Target hook & command line option for initial section.
   Out.SwitchSection(getMachOSection("__TEXT", "__text",
                                     MCSectionMachO::S_ATTR_PURE_INSTRUCTIONS,
-                                    0, SectionKind()));
+                                    0, SectionKind::getText()));
 
 
   // Prime the lexer.
@@ -914,8 +914,10 @@ bool AsmParser::ParseDirectiveDarwinSection() {
     return Error(Loc, ErrorStr.c_str());
   
   // FIXME: Arch specific.
+  bool isText = Segment == "__TEXT";  // FIXME: Hack.
   Out.SwitchSection(getMachOSection(Segment, Section, TAA, StubSize,
-                                    SectionKind()));
+                                    isText ? SectionKind::getText()
+                                           : SectionKind::getDataRel()));
   return false;
 }
 
@@ -929,8 +931,10 @@ bool AsmParser::ParseDirectiveSectionSwitch(const char *Segment,
   Lex();
   
   // FIXME: Arch specific.
+  bool isText = StringRef(Segment) == "__TEXT";  // FIXME: Hack.
   Out.SwitchSection(getMachOSection(Segment, Section, TAA, StubSize,
-                                    SectionKind()));
+                                    isText ? SectionKind::getText()
+                                    : SectionKind::getDataRel()));
 
   // Set the implicit alignment, if any.
   //
@@ -1237,8 +1241,14 @@ bool AsmParser::ParseDirectiveAlign(bool IsPow2, unsigned ValueSize) {
     }
   }
 
-  // FIXME: Target specific behavior about how the "extra" bytes are filled.
-  Out.EmitValueToAlignment(Alignment, FillExpr, ValueSize, MaxBytesToFill);
+  // FIXME: hard code the parser to use EmitCodeAlignment for text when using
+  // the TextAlignFillValue.
+  if(Out.getCurrentSection()->getKind().isText() && 
+     Lexer.getMAI().getTextAlignFillValue() == FillExpr)
+    Out.EmitCodeAlignment(Alignment, MaxBytesToFill);
+  else
+    // FIXME: Target specific behavior about how the "extra" bytes are filled.
+    Out.EmitValueToAlignment(Alignment, FillExpr, ValueSize, MaxBytesToFill);
 
   return false;
 }
@@ -1362,7 +1372,7 @@ bool AsmParser::ParseDirectiveComm(bool IsLocal) {
   if (IsLocal) {
     Out.EmitZerofill(getMachOSection("__DATA", "__bss",
                                      MCSectionMachO::S_ZEROFILL, 0,
-                                     SectionKind()),
+                                     SectionKind::getBSS()),
                      Sym, Size, 1 << Pow2Alignment);
     return false;
   }
@@ -1398,7 +1408,7 @@ bool AsmParser::ParseDirectiveDarwinZerofill() {
     // Create the zerofill section but no symbol
     Out.EmitZerofill(getMachOSection(Segment, Section,
                                      MCSectionMachO::S_ZEROFILL, 0,
-                                     SectionKind()));
+                                     SectionKind::getBSS()));
     return false;
   }
 
@@ -1456,7 +1466,7 @@ bool AsmParser::ParseDirectiveDarwinZerofill() {
   // FIXME: Arch specific.
   Out.EmitZerofill(getMachOSection(Segment, Section,
                                  MCSectionMachO::S_ZEROFILL, 0,
-                                 SectionKind()),
+                                 SectionKind::getBSS()),
                    Sym, Size, 1 << Pow2Alignment);
 
   return false;

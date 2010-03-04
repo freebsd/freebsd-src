@@ -134,6 +134,9 @@ public:
                                     unsigned ValueSize = 1,
                                     unsigned MaxBytesToEmit = 0);
 
+  virtual void EmitCodeAlignment(unsigned ByteAlignment,
+                                 unsigned MaxBytesToEmit = 0);
+
   virtual void EmitValueToOffset(const MCExpr *Offset,
                                  unsigned char Value = 0);
 
@@ -511,6 +514,13 @@ void MCAsmStreamer::EmitValueToAlignment(unsigned ByteAlignment, int64_t Value,
   if (MaxBytesToEmit) 
     OS << ", " << MaxBytesToEmit;
   EmitEOL();
+}
+
+void MCAsmStreamer::EmitCodeAlignment(unsigned ByteAlignment,
+                                      unsigned MaxBytesToEmit) {
+  // Emit with a text fill value.
+  EmitValueToAlignment(ByteAlignment, MAI.getTextAlignFillValue(),
+                       1, MaxBytesToEmit);
 }
 
 void MCAsmStreamer::EmitValueToOffset(const MCExpr *Offset,

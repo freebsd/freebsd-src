@@ -15,6 +15,7 @@
 #include "clang/AST/DeclCXX.h"
 #include "clang/AST/DeclTemplate.h"
 #include "clang/AST/ExprCXX.h"
+#include "clang/AST/TypeLoc.h"
 using namespace clang;
 
 //===----------------------------------------------------------------------===//
@@ -120,6 +121,27 @@ Stmt::child_iterator CXXPseudoDestructorExpr::child_begin() { return &Base; }
 Stmt::child_iterator CXXPseudoDestructorExpr::child_end() {
   return &Base + 1;
 }
+
+PseudoDestructorTypeStorage::PseudoDestructorTypeStorage(TypeSourceInfo *Info)
+ : Type(Info) 
+{
+  Location = Info->getTypeLoc().getSourceRange().getBegin();
+}
+
+QualType CXXPseudoDestructorExpr::getDestroyedType() const {
+  if (TypeSourceInfo *TInfo = DestroyedType.getTypeSourceInfo())
+    return TInfo->getType();
+  
+  return QualType();
+}
+
+SourceRange CXXPseudoDestructorExpr::getSourceRange() const {
+  SourceLocation End = DestroyedType.getLocation();
+  if (TypeSourceInfo *TInfo = DestroyedType.getTypeSourceInfo())
+    End = TInfo->getTypeLoc().getSourceRange().getEnd();
+  return SourceRange(Base->getLocStart(), End);
+}
+
 
 // UnresolvedLookupExpr
 UnresolvedLookupExpr *

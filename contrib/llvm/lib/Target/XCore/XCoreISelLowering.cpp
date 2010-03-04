@@ -29,6 +29,7 @@
 #include "llvm/CodeGen/MachineFrameInfo.h"
 #include "llvm/CodeGen/MachineFunction.h"
 #include "llvm/CodeGen/MachineInstrBuilder.h"
+#include "llvm/CodeGen/MachineJumpTableInfo.h"
 #include "llvm/CodeGen/MachineRegisterInfo.h"
 #include "llvm/CodeGen/SelectionDAGISel.h"
 #include "llvm/CodeGen/ValueTypes.h"
@@ -53,6 +54,8 @@ getTargetNodeName(unsigned Opcode) const
     case XCoreISD::RETSP             : return "XCoreISD::RETSP";
     case XCoreISD::LADD              : return "XCoreISD::LADD";
     case XCoreISD::LSUB              : return "XCoreISD::LSUB";
+    case XCoreISD::BR_JT             : return "XCoreISD::BR_JT";
+    case XCoreISD::BR_JT32           : return "XCoreISD::BR_JT32";
     default                           : return NULL;
   }
 }
@@ -106,9 +109,8 @@ XCoreTargetLowering::XCoreTargetLowering(XCoreTargetMachine &XTM)
   
   setOperationAction(ISD::TRAP, MVT::Other, Legal);
   
-  // Expand jump tables for now
-  setOperationAction(ISD::BR_JT, MVT::Other, Expand);
-  setOperationAction(ISD::JumpTable, MVT::i32, Custom);
+  // Jump tables.
+  setOperationAction(ISD::BR_JT, MVT::Other, Custom);
 
   setOperationAction(ISD::GlobalAddress, MVT::i32,   Custom);
   setOperationAction(ISD::BlockAddress, MVT::i32 , Custom);
@@ -157,7 +159,7 @@ LowerOperation(SDValue Op, SelectionDAG &DAG) {
   case ISD::GlobalTLSAddress: return LowerGlobalTLSAddress(Op, DAG);
   case ISD::BlockAddress:     return LowerBlockAddress(Op, DAG);
   case ISD::ConstantPool:     return LowerConstantPool(Op, DAG);
-  case ISD::JumpTable:        return LowerJumpTable(Op, DAG);
+  case ISD::BR_JT:            return LowerBR_JT(Op, DAG);
   case ISD::LOAD:             return LowerLOAD(Op, DAG);
   case ISD::STORE:            return LowerSTORE(Op, DAG);
   case ISD::SELECT_CC:        return LowerSELECT_CC(Op, DAG);
@@ -315,14 +317,27 @@ LowerConstantPool(SDValue Op, SelectionDAG &DAG)
 }
 
 SDValue XCoreTargetLowering::
-LowerJumpTable(SDValue Op, SelectionDAG &DAG)
+LowerBR_JT(SDValue Op, SelectionDAG &DAG)
 {
-  // FIXME there isn't really debug info here
+  SDValue Chain = Op.getOperand(0);
+  SDValue Table = Op.getOperand(1);
+  SDValue Index = Op.getOperand(2);
   DebugLoc dl = Op.getDebugLoc();
-  EVT PtrVT = Op.getValueType();
-  JumpTableSDNode *JT = cast<JumpTableSDNode>(Op);
-  SDValue JTI = DAG.getTargetJumpTable(JT->getIndex(), PtrVT);
-  return DAG.getNode(XCoreISD::DPRelativeWrapper, dl, MVT::i32, JTI);
+  JumpTableSDNode *JT = cast<JumpTableSDNode>(Table);
+  unsigned JTI = JT->getIndex();
+  MachineFunction &MF = DAG.getMachineFunction();
+  const MachineJumpTableInfo *MJTI = MF.getJumpTableInfo();
+  SDValue TargetJT = DAG.getTargetJumpTable(JT->getIndex(), MVT::i32);
+
+  unsigned NumEntries = MJTI->getJumpTables()[JTI].MBBs.size();
+  if (NumEntries <= 32) {
+    return DAG.getNode(XCoreISD::BR_JT, dl, MVT::Other, Chain, TargetJT, Index);
+  }
+  assert((NumEntries >> 31) == 0);
+  SDValue ScaledIndex = DAG.getNode(ISD::SHL, dl, MVT::i32, Index,
+                                    DAG.getConstant(1, MVT::i32));
+  return DAG.getNode(XCoreISD::BR_JT32, dl, MVT::Other, Chain, TargetJT,
+                     ScaledIndex);
 }
 
 static bool
@@ -458,7 +473,7 @@ LowerLOAD(SDValue Op, SelectionDAG &DAG)
                     false, false, 0, CallingConv::C, false,
                     /*isReturnValueUsed=*/true,
                     DAG.getExternalSymbol("__misaligned_load", getPointerTy()),
-                    Args, DAG, dl, DAG.GetOrdering(Chain.getNode()));
+                    Args, DAG, dl);
 
   SDValue Ops[] =
     { CallResult.first, CallResult.second };
@@ -521,7 +536,7 @@ LowerSTORE(SDValue Op, SelectionDAG &DAG)
                     false, false, 0, CallingConv::C, false,
                     /*isReturnValueUsed=*/true,
                     DAG.getExternalSymbol("__misaligned_store", getPointerTy()),
-                    Args, DAG, dl, DAG.GetOrdering(Chain.getNode()));
+                    Args, DAG, dl);
 
   return CallResult.second;
 }
@@ -1146,10 +1161,8 @@ static inline bool isImmUs4(int64_t val)
 bool
 XCoreTargetLowering::isLegalAddressingMode(const AddrMode &AM, 
                                               const Type *Ty) const {
-  // Be conservative with void
-  // FIXME: Can we be more aggressive?
   if (Ty->getTypeID() == Type::VoidTyID)
-    return false;
+    return AM.Scale == 0 && isImmUs(AM.BaseOffs) && isImmUs4(AM.BaseOffs);
 
   const TargetData *TD = TM.getTargetData();
   unsigned Size = TD->getTypeAllocSize(Ty);

@@ -147,10 +147,20 @@ public:
   
   void addTransition(const GRState *state) {
     assert(state);
+    // If the 'state' is not new, we need to check if the cached state 'ST'
+    // is new.
     if (state != getState() || (ST && ST != B.GetState(Pred)))
       GenerateNode(state, true);
     else
       Dst.Add(Pred);
+  }
+
+  // Generate a node with a new program point different from the one that will
+  // be created by the GRStmtNodeBuilder.
+  void addTransition(const GRState *state, ProgramPoint Loc) {
+    ExplodedNode *N = B.generateNode(Loc, state, Pred);
+    if (N)
+      addTransition(N);
   }
 
   void EmitReport(BugReport *R) {

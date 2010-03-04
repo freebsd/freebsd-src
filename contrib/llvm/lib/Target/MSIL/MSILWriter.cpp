@@ -38,7 +38,8 @@ namespace llvm {
     virtual bool addPassesToEmitWholeFile(PassManager &PM,
                                           formatted_raw_ostream &Out,
                                           CodeGenFileType FileType,
-                                          CodeGenOpt::Level OptLevel);
+                                          CodeGenOpt::Level OptLevel,
+                                          bool DisableVerify);
 
     virtual const TargetData *getTargetData() const { return 0; }
   };
@@ -57,7 +58,7 @@ bool MSILModule::runOnModule(Module &M) {
   TypeSymbolTable& Table = M.getTypeSymbolTable();
   std::set<const Type *> Types = getAnalysis<FindUsedTypes>().getTypes();
   for (TypeSymbolTable::iterator I = Table.begin(), E = Table.end(); I!=E; ) {
-    if (!isa<StructType>(I->second) && !isa<OpaqueType>(I->second))
+    if (!I->second->isStructTy() && !I->second->isOpaqueTy())
       Table.remove(I++);
     else {
       std::set<const Type *>::iterator T = Types.find(I->second);
@@ -1459,7 +1460,7 @@ void MSILWriter::printDeclarations(const TypeSymbolTable& ST) {
   for (std::set<const Type*>::const_iterator
        UI = UsedTypes->begin(), UE = UsedTypes->end(); UI!=UE; ++UI) {
     const Type* Ty = *UI;
-    if (isa<ArrayType>(Ty) || isa<VectorType>(Ty) || isa<StructType>(Ty))
+    if (Ty->isArrayTy() || Ty->isVectorTy() || Ty->isStructTy())
       Name = getTypeName(Ty, false, true);
     // Type with no need to declare.
     else continue;
@@ -1688,7 +1689,8 @@ void MSILWriter::printExternals() {
 bool MSILTarget::addPassesToEmitWholeFile(PassManager &PM,
                                           formatted_raw_ostream &o,
                                           CodeGenFileType FileType,
-                                          CodeGenOpt::Level OptLevel)
+                                          CodeGenOpt::Level OptLevel,
+                                          bool DisableVerify)
 {
   if (FileType != TargetMachine::CGFT_AssemblyFile) return true;
   MSILWriter* Writer = new MSILWriter(o);

@@ -18,6 +18,7 @@
 #include "llvm/Type.h"
 #include "llvm/Value.h"
 #include "llvm/Assembly/Writer.h"
+#include "llvm/CodeGen/MachineConstantPool.h"
 #include "llvm/CodeGen/MachineFunction.h"
 #include "llvm/CodeGen/MachineMemOperand.h"
 #include "llvm/CodeGen/MachineRegisterInfo.h"
@@ -701,6 +702,28 @@ void MachineInstr::addMemOperand(MachineFunction &MF,
   MemRefsEnd = NewMemRefsEnd;
 }
 
+bool MachineInstr::isIdenticalTo(const MachineInstr *Other,
+                                 MICheckType Check) const {
+    if (Other->getOpcode() != getOpcode() ||
+        Other->getNumOperands() != getNumOperands())
+      return false;
+    for (unsigned i = 0, e = getNumOperands(); i != e; ++i) {
+      const MachineOperand &MO = getOperand(i);
+      const MachineOperand &OMO = Other->getOperand(i);
+      if (Check != CheckDefs && MO.isReg() && MO.isDef()) {
+        if (Check == IgnoreDefs)
+          continue;
+        // Check == IgnoreVRegDefs
+        if (TargetRegisterInfo::isPhysicalRegister(MO.getReg()) ||
+            TargetRegisterInfo::isPhysicalRegister(OMO.getReg()))
+          if (MO.getReg() != OMO.getReg())
+            return false;
+      } else if (!MO.isIdenticalTo(OMO))
+        return false;
+    }
+    return true;
+}
+
 /// removeFromParent - This method unlinks 'this' from the containing basic
 /// block, and returns it, but does not delete it.
 MachineInstr *MachineInstr::removeFromParent() {
@@ -959,8 +982,8 @@ void MachineInstr::copyPredicates(const MachineInstr *MI) {
 /// SawStore is set to true, it means that there is a store (or call) between
 /// the instruction's location and its intended destination.
 bool MachineInstr::isSafeToMove(const TargetInstrInfo *TII,
-                                bool &SawStore,
-                                AliasAnalysis *AA) const {
+                                AliasAnalysis *AA,
+                                bool &SawStore) const {
   // Ignore stuff that we obviously can't move.
   if (TID->mayStore() || TID->isCall()) {
     SawStore = true;
@@ -985,11 +1008,11 @@ bool MachineInstr::isSafeToMove(const TargetInstrInfo *TII,
 /// isSafeToReMat - Return true if it's safe to rematerialize the specified
 /// instruction which defined the specified register instead of copying it.
 bool MachineInstr::isSafeToReMat(const TargetInstrInfo *TII,
-                                 unsigned DstReg,
-                                 AliasAnalysis *AA) const {
+                                 AliasAnalysis *AA,
+                                 unsigned DstReg) const {
   bool SawStore = false;
   if (!TII->isTriviallyReMaterializable(this, AA) ||
-      !isSafeToMove(TII, SawStore, AA))
+      !isSafeToMove(TII, AA, SawStore))
     return false;
   for (unsigned i = 0, e = getNumOperands(); i != e; ++i) {
     const MachineOperand &MO = getOperand(i);

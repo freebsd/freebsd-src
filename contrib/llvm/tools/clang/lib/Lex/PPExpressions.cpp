@@ -106,7 +106,7 @@ static bool EvaluateDefined(PPValue &Result, Token &PeekTok, DefinedTracker &DT,
 
   // Consume identifier.
   Result.setEnd(PeekTok.getLocation());
-  PP.LexNonComment(PeekTok);
+  PP.LexUnexpandedToken(PeekTok);
 
   // If we are in parens, ensure we have a trailing ).
   if (LParenLoc.isValid()) {
@@ -170,10 +170,8 @@ static bool EvaluateValue(PPValue &Result, Token &PeekTok, DefinedTracker &DT,
     return true;
   case tok::numeric_constant: {
     llvm::SmallString<64> IntegerBuffer;
-    IntegerBuffer.resize(PeekTok.getLength());
-    const char *ThisTokBegin = &IntegerBuffer[0];
-    unsigned ActualLength = PP.getSpelling(PeekTok, ThisTokBegin);
-    NumericLiteralParser Literal(ThisTokBegin, ThisTokBegin+ActualLength,
+    llvm::StringRef Spelling = PP.getSpelling(PeekTok, IntegerBuffer);
+    NumericLiteralParser Literal(Spelling.begin(), Spelling.end(),
                                  PeekTok.getLocation(), PP);
     if (Literal.hadError)
       return true; // a diagnostic was already reported.
@@ -218,10 +216,9 @@ static bool EvaluateValue(PPValue &Result, Token &PeekTok, DefinedTracker &DT,
   }
   case tok::char_constant: {   // 'x'
     llvm::SmallString<32> CharBuffer;
-    CharBuffer.resize(PeekTok.getLength());
-    const char *ThisTokBegin = &CharBuffer[0];
-    unsigned ActualLength = PP.getSpelling(PeekTok, ThisTokBegin);
-    CharLiteralParser Literal(ThisTokBegin, ThisTokBegin+ActualLength,
+    llvm::StringRef ThisTok = PP.getSpelling(PeekTok, CharBuffer);
+
+    CharLiteralParser Literal(ThisTok.begin(), ThisTok.end(),
                               PeekTok.getLocation(), PP);
     if (Literal.hadError())
       return true;  // A diagnostic was already emitted.

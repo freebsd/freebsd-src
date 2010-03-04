@@ -18,7 +18,6 @@ add_clang_library(clangChecker
   CheckDeadStores.cpp
   CheckObjCDealloc.cpp
   CheckObjCInstMethSignature.cpp
-  CheckObjCUnusedIVars.cpp
   CheckSecuritySyntaxOnly.cpp
   CheckSizeofPointer.cpp
   Checker.cpp
@@ -35,6 +34,7 @@ add_clang_library(clangChecker
   GRExprEngineExperimentalChecks.cpp
   GRState.cpp
   LLVMConventionsChecker.cpp
+  MacOSXAPIChecker.cpp
   MallocChecker.cpp
   ManagerRegistry.cpp
   MemRegion.cpp
@@ -42,6 +42,7 @@ add_clang_library(clangChecker
   NSErrorChecker.cpp
   NoReturnFunctionChecker.cpp
   OSAtomicChecker.cpp
+  ObjCUnusedIVarsChecker.cpp
   PathDiagnostic.cpp
   PointerArithChecker.cpp
   PointerSubChecker.cpp
@@ -62,6 +63,7 @@ add_clang_library(clangChecker
   UndefResultChecker.cpp
   UndefinedArraySubscriptChecker.cpp
   UndefinedAssignmentChecker.cpp
+  UnixAPIChecker.cpp
   VLASizeChecker.cpp
   ValueManager.cpp
   )

@@ -1161,6 +1161,8 @@ bool X86FastISel::X86VisitIntrinsicCall(IntrinsicInst &I) {
     if (!X86SelectAddress(DI->getAddress(), AM))
       return false;
     const TargetInstrDesc &II = TII.get(TargetOpcode::DBG_VALUE);
+    // FIXME may need to add RegState::Debug to any registers produced,
+    // although ESP/EBP should be the only ones at the moment.
     addFullAddress(BuildMI(MBB, DL, II), AM).addImm(0).
                                         addMetadata(DI->getVariable());
     return true;

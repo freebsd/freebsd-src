@@ -102,6 +102,12 @@ void FindFunctionBackedges(const Function &F,
 //
 void RemoveSuccessor(TerminatorInst *TI, unsigned SuccNum);
 
+/// GetSuccessorNumber - Search for the specified successor of basic block BB
+/// and return its position in the terminator instruction's list of
+/// successors.  It is an error to call this with a block that is not a
+/// successor.
+unsigned GetSuccessorNumber(BasicBlock *BB, BasicBlock *Succ);
+
 /// isCriticalEdge - Return true if the specified edge is a critical edge.
 /// Critical edges are edges from a block with multiple successors to a block
 /// with multiple predecessors.

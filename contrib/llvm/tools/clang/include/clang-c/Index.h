@@ -18,6 +18,7 @@
 
 #include <sys/stat.h>
 #include <time.h>
+#include <stdio.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -86,14 +87,12 @@ struct CXUnsavedFile {
   const char *Filename;
 
   /**
-   * \brief A null-terminated buffer containing the unsaved contents
-   * of this file.
+   * \brief A buffer containing the unsaved contents of this file.
    */
   const char *Contents;
 
   /**
-   * \brief The length of the unsaved contents of this buffer, not
-   * counting the NULL at the end of the buffer.
+   * \brief The length of the unsaved contents of this buffer.
    */
   unsigned long Length;
 };
@@ -145,8 +144,8 @@ CINDEX_LINKAGE void clang_disposeString(CXString string);
  *
  * Here is an example:
  *
- *   // excludeDeclsFromPCH = 1
- *   Idx = clang_createIndex(1);
+ *   // excludeDeclsFromPCH = 1, displayDiagnostics=1
+ *   Idx = clang_createIndex(1, 1);
  *
  *   // IndexTest.pch was produced with the following command:
  *   // "clang -x c IndexTest.h -emit-ast -o IndexTest.pch"
@@ -170,7 +169,8 @@ CINDEX_LINKAGE void clang_disposeString(CXString string);
  * -include-pch) allows 'excludeDeclsFromPCH' to remove redundant callbacks
  * (which gives the indexer the same performance benefit as the compiler).
  */
-CINDEX_LINKAGE CXIndex clang_createIndex(int excludeDeclarationsFromPCH);
+CINDEX_LINKAGE CXIndex clang_createIndex(int excludeDeclarationsFromPCH,
+                                         int displayDiagnostics);
   
 /**
  * \brief Destroy the given index.
@@ -207,7 +207,7 @@ typedef void *CXFile;
 /**
  * \brief Retrieve the complete file and path name of the given file.
  */
-CINDEX_LINKAGE const char *clang_getFileName(CXFile SFile);
+CINDEX_LINKAGE CXString clang_getFileName(CXFile SFile);
 
 /**
  * \brief Retrieve the last modification time of the given file.
@@ -388,45 +388,105 @@ enum CXDiagnosticSeverity {
 };
 
 /**
- * \brief Describes the kind of fix-it hint expressed within a
- * diagnostic.
- */
-enum CXFixItKind {
-  /**
-   * \brief A fix-it hint that inserts code at a particular position.
-   */
-  CXFixIt_Insertion   = 0,
-
-  /**
-   * \brief A fix-it hint that removes code within a range.
-   */
-  CXFixIt_Removal     = 1,
-
-  /**
-   * \brief A fix-it hint that replaces the code within a range with another
-   * string.
-   */
-  CXFixIt_Replacement = 2
-};
-
-/**
  * \brief A single diagnostic, containing the diagnostic's severity,
  * location, text, source ranges, and fix-it hints.
  */
 typedef void *CXDiagnostic;
 
 /**
- * \brief Callback function invoked for each diagnostic emitted during
- * translation.
- *
- * \param Diagnostic the diagnostic emitted during translation. This
- * diagnostic pointer is only valid during the execution of the
- * callback.
- *
- * \param ClientData the callback client data.
+ * \brief Determine the number of diagnostics produced for the given
+ * translation unit.
  */
-typedef void (*CXDiagnosticCallback)(CXDiagnostic Diagnostic,
-                                     CXClientData ClientData);
+CINDEX_LINKAGE unsigned clang_getNumDiagnostics(CXTranslationUnit Unit);
+
+/**
+ * \brief Retrieve a diagnostic associated with the given translation unit.
+ *
+ * \param Unit the translation unit to query.
+ * \param Index the zero-based diagnostic number to retrieve.
+ *
+ * \returns the requested diagnostic. This diagnostic must be freed
+ * via a call to \c clang_disposeDiagnostic().
+ */
+CINDEX_LINKAGE CXDiagnostic clang_getDiagnostic(CXTranslationUnit Unit,
+                                                unsigned Index);
+
+/**
+ * \brief Destroy a diagnostic.
+ */
+CINDEX_LINKAGE void clang_disposeDiagnostic(CXDiagnostic Diagnostic);
+
+/**
+ * \brief Options to control the display of diagnostics.
+ *
+ * The values in this enum are meant to be combined to customize the
+ * behavior of \c clang_displayDiagnostic().
+ */
+enum CXDiagnosticDisplayOptions {
+  /**
+   * \brief Display the source-location information where the
+   * diagnostic was located.
+   *
+   * When set, diagnostics will be prefixed by the file, line, and
+   * (optionally) column to which the diagnostic refers. For example,
+   *
+   * \code
+   * test.c:28: warning: extra tokens at end of #endif directive
+   * \endcode
+   *
+   * This option corresponds to the clang flag \c -fshow-source-location.
+   */
+  CXDiagnostic_DisplaySourceLocation = 0x01,
+
+  /**
+   * \brief If displaying the source-location information of the
+   * diagnostic, also include the column number.
+   *
+   * This option corresponds to the clang flag \c -fshow-column.
+   */
+  CXDiagnostic_DisplayColumn = 0x02,
+
+  /**
+   * \brief If displaying the source-location information of the
+   * diagnostic, also include information about source ranges in a
+   * machine-parsable format.
+   *
+   * This option corresponds to the clang flag 
+   * \c -fdiagnostics-print-source-range-info.
+   */
+  CXDiagnostic_DisplaySourceRanges = 0x04
+};
+
+/**
+ * \brief Format the given diagnostic in a manner that is suitable for display.
+ *
+ * This routine will format the given diagnostic to a string, rendering
+ * the diagnostic according to the various options given. The 
+ * \c clang_defaultDiagnosticDisplayOptions() function returns the set of 
+ * options that most closely mimics the behavior of the clang compiler.
+ *
+ * \param Diagnostic The diagnostic to print.
+ *
+ * \param Options A set of options that control the diagnostic display, 
+ * created by combining \c CXDiagnosticDisplayOptions values.
+ *
+ * \returns A new string containing for formatted diagnostic.
+ */
+CINDEX_LINKAGE CXString clang_formatDiagnostic(CXDiagnostic Diagnostic,
+                                               unsigned Options);
+
+/**
+ * \brief Retrieve the set of display options most similar to the
+ * default behavior of the clang compiler.
+ *
+ * \returns A set of display options suitable for use with \c
+ * clang_displayDiagnostic().
+ */
+CINDEX_LINKAGE unsigned clang_defaultDiagnosticDisplayOptions(void);
+
+/**
+ * \brief Print a diagnostic to the given file.
+ */
 
 /**
  * \brief Determine the severity of the given diagnostic.
@@ -476,69 +536,33 @@ CINDEX_LINKAGE CXSourceRange clang_getDiagnosticRange(CXDiagnostic Diagnostic,
 CINDEX_LINKAGE unsigned clang_getDiagnosticNumFixIts(CXDiagnostic Diagnostic);
 
 /**
- * \brief Retrieve the kind of the given fix-it.
+ * \brief Retrieve the replacement information for a given fix-it.
  *
- * \param Diagnostic the diagnostic whose fix-its are being queried.
+ * Fix-its are described in terms of a source range whose contents
+ * should be replaced by a string. This approach generalizes over
+ * three kinds of operations: removal of source code (the range covers
+ * the code to be removed and the replacement string is empty),
+ * replacement of source code (the range covers the code to be
+ * replaced and the replacement string provides the new code), and
+ * insertion (both the start and end of the range point at the
+ * insertion location, and the replacement string provides the text to
+ * insert).
  *
- * \param FixIt the zero-based index of the fix-it to query.
+ * \param Diagnostic The diagnostic whose fix-its are being queried.
+ *
+ * \param FixIt The zero-based index of the fix-it.
+ *
+ * \param ReplacementRange The source range whose contents will be
+ * replaced with the returned replacement string. Note that source
+ * ranges are half-open ranges [a, b), so the source code should be
+ * replaced from a and up to (but not including) b.
+ *
+ * \returns A string containing text that should be replace the source
+ * code indicated by the \c ReplacementRange.
  */
-CINDEX_LINKAGE enum CXFixItKind 
-clang_getDiagnosticFixItKind(CXDiagnostic Diagnostic, unsigned FixIt);
-
-/**
- * \brief Retrieve the insertion information for an insertion fix-it.
- *
- * For a fix-it that describes an insertion into a text buffer,
- * retrieve the source location where the text should be inserted and
- * the text to be inserted.
- *
- * \param Diagnostic the diagnostic whose fix-its are being queried.
- *
- * \param FixIt the zero-based index of the insertion fix-it.
- *
- * \param Location will be set to the location where text should be
- * inserted.
- *
- * \returns the text string to insert at the given location.
- */
-CINDEX_LINKAGE CXString
-clang_getDiagnosticFixItInsertion(CXDiagnostic Diagnostic, unsigned FixIt,
-                                  CXSourceLocation *Location);
-
-/**
- * \brief Retrieve the removal information for a removal fix-it.
- *
- * For a fix-it that describes a removal from a text buffer, retrieve
- * the source range that should be removed.
- *
- * \param Diagnostic the diagnostic whose fix-its are being queried.
- *
- * \param FixIt the zero-based index of the removal fix-it.
- *
- * \returns a source range describing the text that should be removed
- * from the buffer.
- */
-CINDEX_LINKAGE CXSourceRange
-clang_getDiagnosticFixItRemoval(CXDiagnostic Diagnostic, unsigned FixIt);
-
-/**
- * \brief Retrieve the replacement information for an replacement fix-it.
- *
- * For a fix-it that describes replacement of text in the text buffer
- * with alternative text.
- *
- * \param Diagnostic the diagnostic whose fix-its are being queried.
- *
- * \param FixIt the zero-based index of the replacement fix-it.
- *
- * \param Range will be set to the source range whose text should be
- * replaced with the returned text.
- *
- * \returns the text string to use as replacement text.
- */
-CINDEX_LINKAGE CXString
-clang_getDiagnosticFixItReplacement(CXDiagnostic Diagnostic, unsigned FixIt,
-                                    CXSourceRange *Range);
+CINDEX_LINKAGE CXString clang_getDiagnosticFixIt(CXDiagnostic Diagnostic, 
+                                                 unsigned FixIt,
+                                               CXSourceRange *ReplacementRange);
 
 /**
  * @}
@@ -600,17 +624,13 @@ CINDEX_LINKAGE CXTranslationUnit clang_createTranslationUnitFromSourceFile(
                                          int num_clang_command_line_args,
                                          const char **clang_command_line_args,
                                          unsigned num_unsaved_files,
-                                         struct CXUnsavedFile *unsaved_files,
-                                         CXDiagnosticCallback diag_callback,
-                                         CXClientData diag_client_data);
+                                         struct CXUnsavedFile *unsaved_files);
  
 /**
  * \brief Create a translation unit from an AST file (-emit-ast).
  */
 CINDEX_LINKAGE CXTranslationUnit clang_createTranslationUnit(CXIndex, 
-                                             const char *ast_filename,
-                                             CXDiagnosticCallback diag_callback,
-                                             CXClientData diag_client_data);
+                                             const char *ast_filename);
 
 /**
  * \brief Destroy the specified CXTranslationUnit object.
@@ -764,7 +784,19 @@ enum CXCursorKind {
    * The translation unit cursor exists primarily to act as the root
    * cursor for traversing the contents of a translation unit.
    */
-  CXCursor_TranslationUnit               = 300
+  CXCursor_TranslationUnit               = 300,
+
+  /* Attributes */
+  CXCursor_FirstAttr                     = 400,
+  /**
+   * \brief An attribute whose specific kind is not exposed via this
+   * interface.
+   */
+  CXCursor_UnexposedAttr                 = 400,
+
+  CXCursor_IBActionAttr                  = 401,
+  CXCursor_IBOutletAttr                  = 402,
+  CXCursor_LastAttr                      = CXCursor_IBOutletAttr
 };
 
 /**
@@ -855,6 +887,32 @@ CINDEX_LINKAGE unsigned clang_isInvalid(enum CXCursorKind);
  * unit.
  */
 CINDEX_LINKAGE unsigned clang_isTranslationUnit(enum CXCursorKind);
+
+/**
+ * \brief Describe the linkage of the entity referred to by a cursor.
+ */
+enum CXLinkageKind {
+  /** \brief This value indicates that no linkage information is available
+   * for a provided CXCursor. */
+  CXLinkage_Invalid,
+  /**
+   * \brief This is the linkage for variables, parameters, and so on that
+   *  have automatic storage.  This covers normal (non-extern) local variables.
+   */
+  CXLinkage_NoLinkage,
+  /** \brief This is the linkage for static variables and static functions. */
+  CXLinkage_Internal,
+  /** \brief This is the linkage for entities with external linkage that live
+   * in C++ anonymous namespaces.*/
+  CXLinkage_UniqueExternal,
+  /** \brief This is the linkage for entities with true, external linkage. */
+  CXLinkage_External
+};
+
+/**
+ * \brief Determine the linkage of the entity referred to be a given cursor.
+ */
+CINDEX_LINKAGE enum CXLinkageKind clang_getCursorLinkage(CXCursor cursor);
 
 /**
  * @}
@@ -1221,7 +1279,7 @@ CINDEX_LINKAGE void clang_disposeTokens(CXTranslationUnit TU,
  */
 
 /* for debug/testing */
-CINDEX_LINKAGE const char *clang_getCursorKindSpelling(enum CXCursorKind Kind);
+CINDEX_LINKAGE CXString clang_getCursorKindSpelling(enum CXCursorKind Kind);
 CINDEX_LINKAGE void clang_getDefinitionSpellingAndExtent(CXCursor,
                                           const char **startBuf,
                                           const char **endBuf,
@@ -1229,7 +1287,7 @@ CINDEX_LINKAGE void clang_getDefinitionSpellingAndExtent(CXCursor,
                                           unsigned *startColumn,
                                           unsigned *endLine,
                                           unsigned *endColumn);
-
+CINDEX_LINKAGE void clang_enableStackTraces(void);
 /**
  * @}
  */
@@ -1313,13 +1371,13 @@ enum CXCompletionChunkKind {
    *   - a Placeholder chunk for "int x"
    *   - an Optional chunk containing the remaining defaulted arguments, e.g.,
    *       - a Comma chunk for ","
-   *       - a Placeholder chunk for "float x"
+   *       - a Placeholder chunk for "float y"
    *       - an Optional chunk containing the last defaulted argument:
    *           - a Comma chunk for ","
    *           - a Placeholder chunk for "double z"
    *   - a RightParen chunk for ")"
    *
-   * There are many ways two handle Optional chunks. Two simple approaches are:
+   * There are many ways to handle Optional chunks. Two simple approaches are:
    *   - Completely ignore optional chunks, in which case the template for the
    *     function "f" would only include the first parameter ("int x").
    *   - Fully expand all optional chunks, in which case the template for the
@@ -1478,7 +1536,7 @@ clang_getCompletionChunkKind(CXCompletionString completion_string,
  *
  * \returns the text associated with the chunk at index \c chunk_number.
  */
-CINDEX_LINKAGE const char *
+CINDEX_LINKAGE CXString
 clang_getCompletionChunkText(CXCompletionString completion_string,
                              unsigned chunk_number);
 
@@ -1613,15 +1671,33 @@ CXCodeCompleteResults *clang_codeComplete(CXIndex CIdx,
                                           struct CXUnsavedFile *unsaved_files,
                                           const char *complete_filename,
                                           unsigned complete_line,
-                                          unsigned complete_column,
-                                          CXDiagnosticCallback diag_callback,
-                                          CXClientData diag_client_data);
+                                          unsigned complete_column);
 
 /**
  * \brief Free the given set of code-completion results.
  */
 CINDEX_LINKAGE
 void clang_disposeCodeCompleteResults(CXCodeCompleteResults *Results);
+
+/**
+ * \brief Determine the number of diagnostics produced prior to the
+ * location where code completion was performed.
+ */
+CINDEX_LINKAGE 
+unsigned clang_codeCompleteGetNumDiagnostics(CXCodeCompleteResults *Results);
+
+/**
+ * \brief Retrieve a diagnostic associated with the given code completion.
+ *
+ * \param Result the code completion results to query.
+ * \param Index the zero-based diagnostic number to retrieve.
+ *
+ * \returns the requested diagnostic. This diagnostic must be freed
+ * via a call to \c clang_disposeDiagnostic().
+ */
+CINDEX_LINKAGE 
+CXDiagnostic clang_codeCompleteGetDiagnostic(CXCodeCompleteResults *Results,
+                                             unsigned Index);
 
 /**
  * @}

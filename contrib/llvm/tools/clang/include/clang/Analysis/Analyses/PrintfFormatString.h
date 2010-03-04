@@ -75,11 +75,14 @@ public:
    VoidPtrArg,    // 'p'
    OutIntPtrArg,  // 'n'
    PercentArg,    // '%'
-    // Objective-C specific specifiers.
+   // MacOS X unicode extensions.
+   CArg, // 'C'
+   UnicodeStrArg, // 'S'
+   // Objective-C specific specifiers.
    ObjCObjArg,    // '@'
-    // GlibC specific specifiers.
+   // GlibC specific specifiers.
    PrintErrno,    // 'm'
-    // Specifier ranges.
+   // Specifier ranges.
    IntArgBeg = dArg,
    IntArgEnd = iArg,
    UIntArgBeg = oArg,
@@ -147,19 +150,26 @@ enum LengthModifier {
 
 class OptionalAmount {
 public:
-  enum HowSpecified { NotSpecified, Constant, Arg };
+  enum HowSpecified { NotSpecified, Constant, Arg, Invalid };
 
-  OptionalAmount(HowSpecified h, const char *st)
-    : start(st), hs(h), amt(0) {}
+  OptionalAmount(HowSpecified h, unsigned i, const char *st)
+    : start(st), hs(h), amt(i) {}
 
-  OptionalAmount()
-    : start(0), hs(NotSpecified), amt(0) {}
+  OptionalAmount(bool b = true)
+    : start(0), hs(b ? NotSpecified : Invalid), amt(0) {}
 
-  OptionalAmount(unsigned i, const char *st)
-    : start(st), hs(Constant), amt(i) {}
+  bool isInvalid() const {
+    return hs == Invalid;
+  }
 
   HowSpecified getHowSpecified() const { return hs; }
+
   bool hasDataArgument() const { return hs == Arg; }
+
+  unsigned getArgIndex() const {
+    assert(hasDataArgument());
+    return amt;
+  }
 
   unsigned getConstantAmount() const {
     assert(hs == Constant);
@@ -185,14 +195,19 @@ class FormatSpecifier {
   unsigned HasSpacePrefix : 1;
   unsigned HasAlternativeForm : 1;
   unsigned HasLeadingZeroes : 1;
-  unsigned flags : 5;
+  /// Positional arguments, an IEEE extension:
+  ///  IEEE Std 1003.1, 2004 Edition
+  ///  http://www.opengroup.org/onlinepubs/009695399/functions/printf.html
+  unsigned UsesPositionalArg : 1;
+  unsigned argIndex;
   ConversionSpecifier CS;
   OptionalAmount FieldWidth;
   OptionalAmount Precision;
 public:
   FormatSpecifier() : LM(None),
     IsLeftJustified(0), HasPlusPrefix(0), HasSpacePrefix(0),
-    HasAlternativeForm(0), HasLeadingZeroes(0) {}
+    HasAlternativeForm(0), HasLeadingZeroes(0), UsesPositionalArg(0),
+    argIndex(0) {}
 
   static FormatSpecifier Parse(const char *beg, const char *end);
 
@@ -208,6 +223,17 @@ public:
   void setHasSpacePrefix() { HasSpacePrefix = 1; }
   void setHasAlternativeForm() { HasAlternativeForm = 1; }
   void setHasLeadingZeros() { HasLeadingZeroes = 1; }
+  void setUsesPositionalArg() { UsesPositionalArg = 1; }
+
+  void setArgIndex(unsigned i) {
+    assert(CS.consumesDataArgument());
+    argIndex = i;
+  }
+
+  unsigned getArgIndex() const {
+    assert(CS.consumesDataArgument());
+    return argIndex;
+  }
 
   // Methods for querying the format specifier.
 
@@ -247,7 +273,10 @@ public:
   bool hasAlternativeForm() const { return (bool) HasAlternativeForm; }
   bool hasLeadingZeros() const { return (bool) HasLeadingZeroes; }
   bool hasSpacePrefix() const { return (bool) HasSpacePrefix; }
+  bool usesPositionalArg() const { return (bool) UsesPositionalArg; }
 };
+
+enum PositionContext { FieldWidthPos = 0, PrecisionPos = 1 };
 
 class FormatStringHandler {
 public:
@@ -259,10 +288,15 @@ public:
 
   virtual void HandleNullChar(const char *nullCharacter) {}
 
-  virtual void
+  virtual void HandleInvalidPosition(const char *startPos, unsigned posLen,
+                                     PositionContext p) {}
+
+  virtual void HandleZeroPosition(const char *startPos, unsigned posLen) {}
+
+  virtual bool
     HandleInvalidConversionSpecifier(const analyze_printf::FormatSpecifier &FS,
                                      const char *startSpecifier,
-                                     unsigned specifierLen) {}
+                                     unsigned specifierLen) { return true; }
 
   virtual bool HandleFormatSpecifier(const analyze_printf::FormatSpecifier &FS,
                                      const char *startSpecifier,

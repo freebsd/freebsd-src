@@ -167,9 +167,7 @@ Parser::DeclPtrTy Parser::ParseLinkage(ParsingDeclSpec &DS,
   assert(Tok.is(tok::string_literal) && "Not a string literal!");
   llvm::SmallVector<char, 8> LangBuffer;
   // LangBuffer is guaranteed to be big enough.
-  LangBuffer.resize(Tok.getLength());
-  const char *LangBufPtr = &LangBuffer[0];
-  unsigned StrSize = PP.getSpelling(Tok, LangBufPtr);
+  llvm::StringRef Lang = PP.getSpelling(Tok, LangBuffer);
 
   SourceLocation Loc = ConsumeStringToken();
 
@@ -177,7 +175,7 @@ Parser::DeclPtrTy Parser::ParseLinkage(ParsingDeclSpec &DS,
   DeclPtrTy LinkageSpec
     = Actions.ActOnStartLinkageSpecification(CurScope,
                                              /*FIXME: */SourceLocation(),
-                                             Loc, LangBufPtr, StrSize,
+                                             Loc, Lang.data(), Lang.size(),
                                        Tok.is(tok::l_brace)? Tok.getLocation()
                                                            : SourceLocation());
 
@@ -464,8 +462,7 @@ void Parser::ParseDecltypeSpecifier(DeclSpec &DS) {
 ///         simple-template-id
 ///
 Parser::TypeResult Parser::ParseClassName(SourceLocation &EndLocation,
-                                          const CXXScopeSpec *SS,
-                                          bool DestrExpected) {
+                                          const CXXScopeSpec *SS) {
   // Check whether we have a template-id that names a type.
   if (Tok.is(tok::annot_template_id)) {
     TemplateIdAnnotation *TemplateId
@@ -536,8 +533,7 @@ Parser::TypeResult Parser::ParseClassName(SourceLocation &EndLocation,
   // We have an identifier; check whether it is actually a type.
   TypeTy *Type = Actions.getTypeName(*Id, IdLoc, CurScope, SS, true);
   if (!Type) {    
-    Diag(IdLoc, DestrExpected ? diag::err_destructor_class_name
-                            : diag::err_expected_class_name);
+    Diag(IdLoc, diag::err_expected_class_name);
     return true;
   }
 
@@ -647,7 +643,8 @@ void Parser::ParseClassSpecifier(tok::TokenKind TagTokKind,
     // "FOO : BAR" is not a potential typo for "FOO::BAR".
     ColonProtectionRAIIObject X(*this);
     
-    if (ParseOptionalCXXScopeSpecifier(SS, /*ObjectType=*/0, true))
+    ParseOptionalCXXScopeSpecifier(SS, /*ObjectType=*/0, true);
+    if (SS.isSet())
       if (Tok.isNot(tok::identifier) && Tok.isNot(tok::annot_template_id))
         Diag(Tok, diag::err_expected_ident);
   }
@@ -943,7 +940,9 @@ void Parser::ParseClassSpecifier(tok::TokenKind TagTokKind,
   //
   // This switch enumerates the valid "follow" set for definition.
   if (TUK == Action::TUK_Definition) {
+    bool ExpectedSemi = true;
     switch (Tok.getKind()) {
+    default: break;
     case tok::semi:               // struct foo {...} ;
     case tok::star:               // struct foo {...} *         P;
     case tok::amp:                // struct foo {...} &         R = ...
@@ -954,24 +953,46 @@ void Parser::ParseClassSpecifier(tok::TokenKind TagTokKind,
     case tok::annot_template_id:  // struct foo {...} a<int>    ::b;
     case tok::l_paren:            // struct foo {...} (         x);
     case tok::comma:              // __builtin_offsetof(struct foo{...} ,
+      ExpectedSemi = false;
+      break;
+    // Type qualifiers
+    case tok::kw_const:           // struct foo {...} const     x;
+    case tok::kw_volatile:        // struct foo {...} volatile  x;
+    case tok::kw_restrict:        // struct foo {...} restrict  x;
+    case tok::kw_inline:          // struct foo {...} inline    foo() {};
     // Storage-class specifiers
     case tok::kw_static:          // struct foo {...} static    x;
     case tok::kw_extern:          // struct foo {...} extern    x;
     case tok::kw_typedef:         // struct foo {...} typedef   x;
     case tok::kw_register:        // struct foo {...} register  x;
     case tok::kw_auto:            // struct foo {...} auto      x;
-    // Type qualifiers
-    case tok::kw_const:           // struct foo {...} const     x;
-    case tok::kw_volatile:        // struct foo {...} volatile  x;
-    case tok::kw_restrict:        // struct foo {...} restrict  x;
-    case tok::kw_inline:          // struct foo {...} inline    foo() {};
+      // As shown above, type qualifiers and storage class specifiers absolutely
+      // can occur after class specifiers according to the grammar.  However,
+      // almost noone actually writes code like this.  If we see one of these,
+      // it is much more likely that someone missed a semi colon and the
+      // type/storage class specifier we're seeing is part of the *next*
+      // intended declaration, as in:
+      //
+      //   struct foo { ... }
+      //   typedef int X;
+      //
+      // We'd really like to emit a missing semicolon error instead of emitting
+      // an error on the 'int' saying that you can't have two type specifiers in
+      // the same declaration of X.  Because of this, we look ahead past this
+      // token to see if it's a type specifier.  If so, we know the code is
+      // otherwise invalid, so we can produce the expected semi error.
+      if (!isKnownToBeTypeSpecifier(NextToken()))
+        ExpectedSemi = false;
       break;
         
     case tok::r_brace:  // struct bar { struct foo {...} } 
       // Missing ';' at end of struct is accepted as an extension in C mode.
-      if (!getLang().CPlusPlus) break;
-      // FALL THROUGH.
-    default:
+      if (!getLang().CPlusPlus)
+        ExpectedSemi = false;
+      break;
+    }
+    
+    if (ExpectedSemi) {
       ExpectAndConsume(tok::semi, diag::err_expected_semi_after_tagdecl,
                        TagType == DeclSpec::TST_class ? "class"
                        : TagType == DeclSpec::TST_struct? "struct" : "union");
@@ -980,7 +1001,6 @@ void Parser::ParseClassSpecifier(tok::TokenKind TagTokKind,
       // ';' after the definition.
       PP.EnterToken(Tok);
       Tok.setKind(tok::semi);  
-      break;
     }
   }
 }
@@ -1064,7 +1084,8 @@ Parser::BaseResult Parser::ParseBaseSpecifier(DeclPtrTy ClassDecl) {
 
   // Parse optional '::' and optional nested-name-specifier.
   CXXScopeSpec SS;
-  ParseOptionalCXXScopeSpecifier(SS, /*ObjectType=*/0, true);
+  ParseOptionalCXXScopeSpecifier(SS, /*ObjectType=*/0, 
+                                 /*EnteringContext=*/false);
 
   // The location of the base class itself.
   SourceLocation BaseLoc = Tok.getLocation();
@@ -1122,7 +1143,7 @@ void Parser::HandleMemberFunctionDefaultArgs(Declarator& DeclaratorInfo,
         LateMethod->DefaultArgs.reserve(FTI.NumArgs);
         for (unsigned I = 0; I < ParamIdx; ++I)
           LateMethod->DefaultArgs.push_back(
-                    LateParsedDefaultArgument(FTI.ArgInfo[ParamIdx].Param));
+                             LateParsedDefaultArgument(FTI.ArgInfo[I].Param));
       }
 
       // Add this parameter to the list of parameters (it or may
@@ -1165,7 +1186,7 @@ void Parser::ParseCXXClassMemberDeclaration(AccessSpecifier AS,
   // Access declarations.
   if (!TemplateInfo.Kind &&
       (Tok.is(tok::identifier) || Tok.is(tok::coloncolon)) &&
-      TryAnnotateCXXScopeToken() &&
+      !TryAnnotateCXXScopeToken() &&
       Tok.is(tok::annot_cxxscope)) {
     bool isAccessDecl = false;
     if (NextToken().is(tok::identifier))

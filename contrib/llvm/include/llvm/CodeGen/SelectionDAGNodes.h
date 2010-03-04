@@ -1595,8 +1595,10 @@ public:
     return SubclassData;
   }
 
+  // We access subclass data here so that we can check consistency
+  // with MachineMemOperand information.
   bool isVolatile() const { return (SubclassData >> 5) & 1; }
-  bool isNonTemporal() const { return MMO->isNonTemporal(); }
+  bool isNonTemporal() const { return (SubclassData >> 6) & 1; }
 
   /// Returns the SrcValue and offset that describes the location of the access
   const Value *getSrcValue() const { return MMO->getValue(); }
@@ -1762,7 +1764,12 @@ public:
   bool isSplat() const { return isSplatMask(Mask, getValueType(0)); }
   int  getSplatIndex() const { 
     assert(isSplat() && "Cannot get splat index for non-splat!");
-    return Mask[0];
+    EVT VT = getValueType(0);
+    for (unsigned i = 0, e = VT.getVectorNumElements(); i != e; ++i) {
+      if (Mask[i] != -1)
+        return Mask[i];
+    }
+    return -1;
   }
   static bool isSplatMask(const int *Mask, EVT VT);
 
@@ -1807,6 +1814,12 @@ public:
 
   const APFloat& getValueAPF() const { return Value->getValueAPF(); }
   const ConstantFP *getConstantFPValue() const { return Value; }
+
+  /// isZero - Return true if the value is positive or negative zero.
+  bool isZero() const { return Value->isZero(); }
+
+  /// isNaN - Return true if the value is a NaN.
+  bool isNaN() const { return Value->isNaN(); }
 
   /// isExactlyValue - We don't rely on operator== working on double values, as
   /// it returns true for things that are clearly not equal, like -0.0 and 0.0.

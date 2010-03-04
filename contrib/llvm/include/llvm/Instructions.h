@@ -591,7 +591,7 @@ public:
           "Both operands to ICmp instruction are not of the same type!");
     // Check that the operands are the right type
     assert((getOperand(0)->getType()->isIntOrIntVectorTy() ||
-            isa<PointerType>(getOperand(0)->getType())) &&
+            getOperand(0)->getType()->isPointerTy()) &&
            "Invalid operand types for ICmp instruction");
   }
 
@@ -612,7 +612,7 @@ public:
           "Both operands to ICmp instruction are not of the same type!");
     // Check that the operands are the right type
     assert((getOperand(0)->getType()->isIntOrIntVectorTy() ||
-            isa<PointerType>(getOperand(0)->getType())) &&
+            getOperand(0)->getType()->isPointerTy()) &&
            "Invalid operand types for ICmp instruction");
   }
 
@@ -631,7 +631,7 @@ public:
           "Both operands to ICmp instruction are not of the same type!");
     // Check that the operands are the right type
     assert((getOperand(0)->getType()->isIntOrIntVectorTy() ||
-            isa<PointerType>(getOperand(0)->getType())) &&
+            getOperand(0)->getType()->isPointerTy()) &&
            "Invalid operand types for ICmp instruction");
   }
 
@@ -1805,7 +1805,7 @@ public:
     return i/2;
   }
 
-  /// getIncomingBlock - Return incoming basic block #i.
+  /// getIncomingBlock - Return incoming basic block number @p i.
   ///
   BasicBlock *getIncomingBlock(unsigned i) const {
     return cast<BasicBlock>(getOperand(i*2+1));

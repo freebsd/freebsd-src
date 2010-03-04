@@ -1120,8 +1120,15 @@ Expr::isLvalueResult Expr::isLvalueInternal(ASTContext &Ctx) const {
       return LV_Valid;
     break;
   case ImplicitCastExprClass:
-    return cast<ImplicitCastExpr>(this)->isLvalueCast()? LV_Valid
-                                                       : LV_InvalidExpression;
+    if (cast<ImplicitCastExpr>(this)->isLvalueCast())
+      return LV_Valid;
+
+    // If this is a conversion to a class temporary, make a note of
+    // that.
+    if (Ctx.getLangOptions().CPlusPlus && getType()->isRecordType())
+      return LV_ClassTemporary;
+
+    break;
   case ParenExprClass: // C99 6.5.1p5
     return cast<ParenExpr>(this)->getSubExpr()->isLvalue(Ctx);
   case BinaryOperatorClass:
@@ -1171,9 +1178,15 @@ Expr::isLvalueResult Expr::isLvalueInternal(ASTContext &Ctx) const {
     if (ReturnType->isLValueReferenceType())
       return LV_Valid;
 
+    // If the function is returning a class temporary, make a note of
+    // that.
+    if (Ctx.getLangOptions().CPlusPlus && ReturnType->isRecordType())
+      return LV_ClassTemporary;
+
     break;
   }
   case CompoundLiteralExprClass: // C99 6.5.2.5p5
+    // FIXME: Is this what we want in C++?
     return LV_Valid;
   case ChooseExprClass:
     // __builtin_choose_expr is an lvalue if the selected operand is.
@@ -1207,6 +1220,13 @@ Expr::isLvalueResult Expr::isLvalueInternal(ASTContext &Ctx) const {
     if (cast<ExplicitCastExpr>(this)->getTypeAsWritten()->
           isLValueReferenceType())
       return LV_Valid;
+
+    // If this is a conversion to a class temporary, make a note of
+    // that.
+    if (Ctx.getLangOptions().CPlusPlus && 
+        cast<ExplicitCastExpr>(this)->getTypeAsWritten()->isRecordType())
+      return LV_ClassTemporary;
+
     break;
   case CXXTypeidExprClass:
     // C++ 5.2.8p1: The result of a typeid expression is an lvalue of ...
@@ -1253,6 +1273,11 @@ Expr::isLvalueResult Expr::isLvalueInternal(ASTContext &Ctx) const {
         return LV_Valid;
     break;
 
+  case Expr::CXXConstructExprClass:
+  case Expr::CXXTemporaryObjectExprClass:
+  case Expr::CXXZeroInitValueExprClass:
+    return LV_ClassTemporary;
+
   default:
     break;
   }
@@ -1296,6 +1321,8 @@ Expr::isModifiableLvalue(ASTContext &Ctx, SourceLocation *Loc) const {
   case LV_SubObjCPropertySetting: return MLV_SubObjCPropertySetting;
   case LV_SubObjCPropertyGetterSetting: 
     return MLV_SubObjCPropertyGetterSetting;
+  case LV_ClassTemporary:
+    return MLV_ClassTemporary;
   }
 
   // The following is illegal:
@@ -1655,11 +1682,18 @@ static ICEDiag CheckICE(const Expr* E, ASTContext &Ctx) {
       return NoDiag();
     if (Ctx.getLangOptions().CPlusPlus &&
         E->getType().getCVRQualifiers() == Qualifiers::Const) {
+      const NamedDecl *D = cast<DeclRefExpr>(E)->getDecl();
+
+      // Parameter variables are never constants.  Without this check,
+      // getAnyInitializer() can find a default argument, which leads
+      // to chaos.
+      if (isa<ParmVarDecl>(D))
+        return ICEDiag(2, cast<DeclRefExpr>(E)->getLocation());
+
       // C++ 7.1.5.1p2
       //   A variable of non-volatile const-qualified integral or enumeration
       //   type initialized by an ICE can be used in ICEs.
-      if (const VarDecl *Dcl =
-              dyn_cast<VarDecl>(cast<DeclRefExpr>(E)->getDecl())) {
+      if (const VarDecl *Dcl = dyn_cast<VarDecl>(D)) {
         Qualifiers Quals = Ctx.getCanonicalType(Dcl->getType()).getQualifiers();
         if (Quals.hasVolatile() || !Quals.hasConst())
           return ICEDiag(2, cast<DeclRefExpr>(E)->getLocation());

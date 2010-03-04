@@ -94,9 +94,7 @@ CXXRecordDecl::setBases(CXXBaseSpecifier const * const *Bases,
     // Keep track of inherited vbases for this base class.
     const CXXBaseSpecifier *Base = Bases[i];
     QualType BaseType = Base->getType();
-    // Skip template types.
-    // FIXME. This means that this list must be rebuilt during template
-    // instantiation.
+    // Skip dependent types; we can't do any checking on them now.
     if (BaseType->isDependentType())
       continue;
     CXXRecordDecl *BaseClassDecl
@@ -143,6 +141,9 @@ CXXRecordDecl::setBases(CXXBaseSpecifier const * const *Bases,
     data().NumVBases = vbaseCount;
     for (int i = 0; i < vbaseCount; i++) {
       QualType QT = UniqueVbases[i]->getType();
+      // Skip dependent types; we can't do any checking on them now.
+      if (QT->isDependentType())
+        continue;
       CXXRecordDecl *VBaseClassDecl
         = cast<CXXRecordDecl>(QT->getAs<RecordType>()->getDecl());
       data().VBases[i] =
@@ -543,14 +544,14 @@ CXXRecordDecl::getDefaultConstructor(ASTContext &Context) {
   return 0;
 }
 
-CXXDestructorDecl *CXXRecordDecl::getDestructor(ASTContext &Context) {
+CXXDestructorDecl *CXXRecordDecl::getDestructor(ASTContext &Context) const {
   QualType ClassType = Context.getTypeDeclType(this);
 
   DeclarationName Name
     = Context.DeclarationNames.getCXXDestructorName(
                                           Context.getCanonicalType(ClassType));
 
-  DeclContext::lookup_iterator I, E;
+  DeclContext::lookup_const_iterator I, E;
   llvm::tie(I, E) = lookup(Name);
   assert(I != E && "Did not find a destructor!");
 
@@ -573,7 +574,13 @@ bool CXXMethodDecl::isUsualDeallocationFunction() const {
   if (getOverloadedOperator() != OO_Delete &&
       getOverloadedOperator() != OO_Array_Delete)
     return false;
-  
+
+  // C++ [basic.stc.dynamic.deallocation]p2:
+  //   A template instance is never a usual deallocation function,
+  //   regardless of its signature.
+  if (getPrimaryTemplate())
+    return false;
+
   // C++ [basic.stc.dynamic.deallocation]p2:
   //   If a class T has a member deallocation function named operator delete 
   //   with exactly one parameter, then that function is a usual (non-placement)
@@ -604,51 +611,20 @@ bool CXXMethodDecl::isUsualDeallocationFunction() const {
   return true;
 }
 
-typedef llvm::DenseMap<const CXXMethodDecl*,
-                       std::vector<const CXXMethodDecl *> *>
-                       OverriddenMethodsMapTy;
-
-// FIXME: We hate static data.  This doesn't survive PCH saving/loading, and
-// the vtable building code uses it at CG time.
-static OverriddenMethodsMapTy *OverriddenMethods = 0;
-
 void CXXMethodDecl::addOverriddenMethod(const CXXMethodDecl *MD) {
   assert(MD->isCanonicalDecl() && "Method is not canonical!");
   assert(!MD->getParent()->isDependentContext() &&
          "Can't add an overridden method to a class template!");
 
-  // FIXME: The CXXMethodDecl dtor needs to remove and free the entry.
-
-  if (!OverriddenMethods)
-    OverriddenMethods = new OverriddenMethodsMapTy();
-
-  std::vector<const CXXMethodDecl *> *&Methods = (*OverriddenMethods)[this];
-  if (!Methods)
-    Methods = new std::vector<const CXXMethodDecl *>;
-
-  Methods->push_back(MD);
+  getASTContext().addOverriddenMethod(this, MD);
 }
 
 CXXMethodDecl::method_iterator CXXMethodDecl::begin_overridden_methods() const {
-  if (!OverriddenMethods)
-    return 0;
-
-  OverriddenMethodsMapTy::iterator it = OverriddenMethods->find(this);
-  if (it == OverriddenMethods->end() || it->second->empty())
-    return 0;
-
-  return &(*it->second)[0];
+  return getASTContext().overridden_methods_begin(this);
 }
 
 CXXMethodDecl::method_iterator CXXMethodDecl::end_overridden_methods() const {
-  if (!OverriddenMethods)
-    return 0;
-
-  OverriddenMethodsMapTy::iterator it = OverriddenMethods->find(this);
-  if (it == OverriddenMethods->end() || it->second->empty())
-    return 0;
-
-  return &(*it->second)[0] + it->second->size();
+  return getASTContext().overridden_methods_end(this);
 }
 
 QualType CXXMethodDecl::getThisType(ASTContext &C) const {

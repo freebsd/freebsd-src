@@ -1852,12 +1852,13 @@ void PCHWriter::WriteAttributeRecord(const Attr *Attr) {
 
     case Attr::GNUInline:
     case Attr::Hiding:
+    case Attr::IBActionKind:
     case Attr::IBOutletKind:
     case Attr::Malloc:
     case Attr::NoDebug:
+    case Attr::NoInline:
     case Attr::NoReturn:
     case Attr::NoThrow:
-    case Attr::NoInline:
       break;
 
     case Attr::NonNull: {
@@ -1867,10 +1868,12 @@ void PCHWriter::WriteAttributeRecord(const Attr *Attr) {
       break;
     }
 
+    case Attr::CFReturnsNotRetained:
+    case Attr::CFReturnsRetained:
+    case Attr::NSReturnsNotRetained:
+    case Attr::NSReturnsRetained:
     case Attr::ObjCException:
     case Attr::ObjCNSObject:
-    case Attr::CFReturnsRetained:
-    case Attr::NSReturnsRetained:
     case Attr::Overloadable:
     case Attr::Override:
       break;
@@ -1913,6 +1916,7 @@ void PCHWriter::WriteAttributeRecord(const Attr *Attr) {
 
     case Attr::WarnUnusedResult:
     case Attr::Weak:
+    case Attr::WeakRef:
     case Attr::WeakImport:
       break;
     }
@@ -2332,4 +2336,3 @@ void PCHWriter::AddDeclarationName(DeclarationName Name, RecordData &Record) {
     break;
   }
 }
-

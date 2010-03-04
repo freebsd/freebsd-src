@@ -17,6 +17,7 @@
 #include "llvm/ADT/FoldingSet.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/MathExtras.h"
+#include <limits.h>
 #include <cstring>
 
 using namespace llvm;
@@ -625,17 +626,58 @@ APFloat::copySignificand(const APFloat &rhs)
 /* Make this number a NaN, with an arbitrary but deterministic value
    for the significand.  If double or longer, this is a signalling NaN,
    which may not be ideal.  If float, this is QNaN(0).  */
-void
-APFloat::makeNaN(unsigned type)
+void APFloat::makeNaN(bool SNaN, bool Negative, const APInt *fill)
 {
   category = fcNaN;
-  // FIXME: Add double and long double support for QNaN(0).
-  if (semantics->precision == 24 && semantics->maxExponent == 127) {
-    type |=  0x7fc00000U;
-    type &= ~0x80000000U;
-  } else
-    type = ~0U;
-  APInt::tcSet(significandParts(), type, partCount());
+  sign = Negative;
+
+  integerPart *significand = significandParts();
+  unsigned numParts = partCount();
+
+  // Set the significand bits to the fill.
+  if (!fill || fill->getNumWords() < numParts)
+    APInt::tcSet(significand, 0, numParts);
+  if (fill) {
+    APInt::tcAssign(significand, fill->getRawData(),
+                    std::min(fill->getNumWords(), numParts));
+
+    // Zero out the excess bits of the significand.
+    unsigned bitsToPreserve = semantics->precision - 1;
+    unsigned part = bitsToPreserve / 64;
+    bitsToPreserve %= 64;
+    significand[part] &= ((1ULL << bitsToPreserve) - 1);
+    for (part++; part != numParts; ++part)
+      significand[part] = 0;
+  }
+
+  unsigned QNaNBit = semantics->precision - 2;
+
+  if (SNaN) {
+    // We always have to clear the QNaN bit to make it an SNaN.
+    APInt::tcClearBit(significand, QNaNBit);
+
+    // If there are no bits set in the payload, we have to set
+    // *something* to make it a NaN instead of an infinity;
+    // conventionally, this is the next bit down from the QNaN bit.
+    if (APInt::tcIsZero(significand, numParts))
+      APInt::tcSetBit(significand, QNaNBit - 1);
+  } else {
+    // We always have to set the QNaN bit to make it a QNaN.
+    APInt::tcSetBit(significand, QNaNBit);
+  }
+
+  // For x87 extended precision, we want to make a NaN, not a
+  // pseudo-NaN.  Maybe we should expose the ability to make
+  // pseudo-NaNs?
+  if (semantics == &APFloat::x87DoubleExtended)
+    APInt::tcSetBit(significand, QNaNBit + 1);
+}
+
+APFloat APFloat::makeNaN(const fltSemantics &Sem, bool SNaN, bool Negative,
+                         const APInt *fill) {
+  APFloat value(Sem, uninitialized);
+  value.makeNaN(SNaN, Negative, fill);
+  return value;
 }
 
 APFloat &
@@ -700,9 +742,14 @@ APFloat::APFloat(const fltSemantics &ourSemantics) {
   sign = false;
 }
 
+APFloat::APFloat(const fltSemantics &ourSemantics, uninitializedTag tag) {
+  assertArithmeticOK(ourSemantics);
+  // Allocates storage if necessary but does not initialize it.
+  initialize(&ourSemantics);
+}
 
 APFloat::APFloat(const fltSemantics &ourSemantics,
-                 fltCategory ourCategory, bool negative, unsigned type)
+                 fltCategory ourCategory, bool negative)
 {
   assertArithmeticOK(ourSemantics);
   initialize(&ourSemantics);
@@ -711,7 +758,7 @@ APFloat::APFloat(const fltSemantics &ourSemantics,
   if (category == fcNormal)
     category = fcZero;
   else if (ourCategory == fcNaN)
-    makeNaN(type);
+    makeNaN();
 }
 
 APFloat::APFloat(const fltSemantics &ourSemantics, const StringRef& text)
@@ -2345,11 +2392,24 @@ APFloat::convertFromDecimalString(const StringRef &str, roundingMode rounding_mo
   if (decDigitValue(*D.firstSigDigit) >= 10U) {
     category = fcZero;
     fs = opOK;
-  } else if ((D.normalizedExponent + 1) * 28738
-             <= 8651 * (semantics->minExponent - (int) semantics->precision)) {
+
+  /* Check whether the normalized exponent is high enough to overflow
+     max during the log-rebasing in the max-exponent check below. */
+  } else if (D.normalizedExponent - 1 > INT_MAX / 42039) {
+    fs = handleOverflow(rounding_mode);
+
+  /* If it wasn't, then it also wasn't high enough to overflow max
+     during the log-rebasing in the min-exponent check.  Check that it
+     won't overflow min in either check, then perform the min-exponent
+     check. */
+  } else if (D.normalizedExponent - 1 < INT_MIN / 42039 ||
+             (D.normalizedExponent + 1) * 28738 <=
+               8651 * (semantics->minExponent - (int) semantics->precision)) {
     /* Underflow to zero and round.  */
     zeroSignificand();
     fs = normalize(rounding_mode, lfLessThanHalf);
+
+  /* We can finally safely perform the max-exponent check. */
   } else if ((D.normalizedExponent - 1) * 42039
              >= 12655 * semantics->maxExponent) {
     /* Overflow and round.  */

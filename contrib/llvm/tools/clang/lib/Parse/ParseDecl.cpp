@@ -564,10 +564,10 @@ Parser::DeclPtrTy Parser::ParseDeclarationAfterDeclarator(Declarator &D,
       }
 
       if (Init.isInvalid()) {
-        SkipUntil(tok::semi, true, true);
-        return DeclPtrTy();
-      }
-      Actions.AddInitializerToDecl(ThisDecl, move(Init));
+        SkipUntil(tok::comma, true, true);
+        Actions.ActOnInitializerError(ThisDecl);
+      } else
+        Actions.AddInitializerToDecl(ThisDecl, move(Init));
     }
   } else if (Tok.is(tok::l_paren)) {
     // Parse C++ direct initializer: '(' expression-list ')'
@@ -738,7 +738,7 @@ bool Parser::ParseImplicitInt(DeclSpec &DS, CXXScopeSpec *SS,
 
       // Parse this as a tag as if the missing tag were present.
       if (TagKind == tok::kw_enum)
-        ParseEnumSpecifier(Loc, DS, AS);
+        ParseEnumSpecifier(Loc, DS, TemplateInfo, AS);
       else
         ParseClassSpecifier(TagKind, Loc, DS, TemplateInfo, AS);
       return true;
@@ -859,10 +859,15 @@ void Parser::ParseDeclarationSpecifiers(DeclSpec &DS,
       return;
 
     case tok::coloncolon: // ::foo::bar
-      // Annotate C++ scope specifiers.  If we get one, loop.
-      if (TryAnnotateCXXScopeToken(true))
-        continue;
-      goto DoneWithDeclSpec;
+      // C++ scope specifier.  Annotate and loop, or bail out on error.
+      if (TryAnnotateCXXScopeToken(true)) {
+        if (!DS.hasTypeSpecifier())
+          DS.SetTypeSpecError();
+        goto DoneWithDeclSpec;
+      }
+      if (Tok.is(tok::coloncolon)) // ::new or ::delete
+        goto DoneWithDeclSpec;
+      continue;
 
     case tok::annot_cxxscope: {
       if (DS.hasTypeSpecifier())
@@ -1020,8 +1025,15 @@ void Parser::ParseDeclarationSpecifiers(DeclSpec &DS,
     case tok::identifier: {
       // In C++, check to see if this is a scope specifier like foo::bar::, if
       // so handle it as such.  This is important for ctor parsing.
-      if (getLang().CPlusPlus && TryAnnotateCXXScopeToken(true))
-        continue;
+      if (getLang().CPlusPlus) {
+        if (TryAnnotateCXXScopeToken(true)) {
+          if (!DS.hasTypeSpecifier())
+            DS.SetTypeSpecError();
+          goto DoneWithDeclSpec;
+        }
+        if (!Tok.is(tok::identifier))
+          continue;
+      }
 
       // This identifier can only be a typedef name if we haven't already seen
       // a type-specifier.  Without this check we misparse:
@@ -1294,7 +1306,7 @@ void Parser::ParseDeclarationSpecifiers(DeclSpec &DS,
     // enum-specifier:
     case tok::kw_enum:
       ConsumeToken();
-      ParseEnumSpecifier(Loc, DS, AS);
+      ParseEnumSpecifier(Loc, DS, TemplateInfo, AS);
       continue;
 
     // cv-qualifier:
@@ -1313,7 +1325,11 @@ void Parser::ParseDeclarationSpecifiers(DeclSpec &DS,
 
     // C++ typename-specifier:
     case tok::kw_typename:
-      if (TryAnnotateTypeOrScopeToken())
+      if (TryAnnotateTypeOrScopeToken()) {
+        DS.SetTypeSpecError();
+        goto DoneWithDeclSpec;
+      }
+      if (!Tok.is(tok::kw_typename))
         continue;
       break;
 
@@ -1423,10 +1439,11 @@ bool Parser::ParseOptionalTypeSpecifier(DeclSpec &DS, bool& isInvalid,
     // Annotate typenames and C++ scope specifiers.  If we get one, just
     // recurse to handle whatever we get.
     if (TryAnnotateTypeOrScopeToken())
-      return ParseOptionalTypeSpecifier(DS, isInvalid, PrevSpec, DiagID,
-                                        TemplateInfo, SuppressDeclarations);
-    // Otherwise, not a type specifier.
-    return false;
+      return true;
+    if (Tok.is(tok::identifier))
+      return false;
+    return ParseOptionalTypeSpecifier(DS, isInvalid, PrevSpec, DiagID,
+                                      TemplateInfo, SuppressDeclarations);
   case tok::coloncolon:   // ::foo::bar
     if (NextToken().is(tok::kw_new) ||    // ::new
         NextToken().is(tok::kw_delete))   // ::delete
@@ -1435,10 +1452,9 @@ bool Parser::ParseOptionalTypeSpecifier(DeclSpec &DS, bool& isInvalid,
     // Annotate typenames and C++ scope specifiers.  If we get one, just
     // recurse to handle whatever we get.
     if (TryAnnotateTypeOrScopeToken())
-      return ParseOptionalTypeSpecifier(DS, isInvalid, PrevSpec, DiagID,
-                                        TemplateInfo, SuppressDeclarations);
-    // Otherwise, not a type specifier.
-    return false;
+      return true;
+    return ParseOptionalTypeSpecifier(DS, isInvalid, PrevSpec, DiagID,
+                                      TemplateInfo, SuppressDeclarations);
 
   // simple-type-specifier:
   case tok::annot_typename: {
@@ -1556,7 +1572,7 @@ bool Parser::ParseOptionalTypeSpecifier(DeclSpec &DS, bool& isInvalid,
   // enum-specifier:
   case tok::kw_enum:
     ConsumeToken();
-    ParseEnumSpecifier(Loc, DS);
+    ParseEnumSpecifier(Loc, DS, TemplateInfo, AS_none);
     return true;
 
   // cv-qualifier:
@@ -1834,6 +1850,7 @@ void Parser::ParseStructUnionBody(SourceLocation RecordLoc,
 /// [C++]   'enum' '::'[opt] nested-name-specifier[opt] identifier
 ///
 void Parser::ParseEnumSpecifier(SourceLocation StartLoc, DeclSpec &DS,
+                                const ParsedTemplateInfo &TemplateInfo,
                                 AccessSpecifier AS) {
   // Parse the tag portion of this.
   if (Tok.is(tok::code_completion)) {
@@ -1848,8 +1865,11 @@ void Parser::ParseEnumSpecifier(SourceLocation StartLoc, DeclSpec &DS,
     Attr.reset(ParseGNUAttributes());
 
   CXXScopeSpec SS;
-  if (getLang().CPlusPlus && ParseOptionalCXXScopeSpecifier(SS, 0, false)) {
-    if (Tok.isNot(tok::identifier)) {
+  if (getLang().CPlusPlus) {
+    if (ParseOptionalCXXScopeSpecifier(SS, 0, false))
+      return;
+
+    if (SS.isSet() && Tok.isNot(tok::identifier)) {
       Diag(Tok, diag::err_expected_ident);
       if (Tok.isNot(tok::l_brace)) {
         // Has no name and is not a definition.
@@ -1867,6 +1887,15 @@ void Parser::ParseEnumSpecifier(SourceLocation StartLoc, DeclSpec &DS,
     // Skip the rest of this declarator, up until the comma or semicolon.
     SkipUntil(tok::comma, true);
     return;
+  }
+
+  // enums cannot be templates.
+  if (TemplateInfo.Kind != ParsedTemplateInfo::NonTemplate) {
+    Diag(Tok, diag::err_enum_template);
+
+    // Skip the rest of this declarator, up until the comma or semicolon.
+    SkipUntil(tok::comma, true);
+    return;      
   }
 
   // If an identifier is present, consume and remember it.
@@ -2002,6 +2031,47 @@ bool Parser::isTypeQualifier() const {
   }
 }
 
+/// isKnownToBeTypeSpecifier - Return true if we know that the specified token
+/// is definitely a type-specifier.  Return false if it isn't part of a type
+/// specifier or if we're not sure.
+bool Parser::isKnownToBeTypeSpecifier(const Token &Tok) const {
+  switch (Tok.getKind()) {
+  default: return false;
+    // type-specifiers
+  case tok::kw_short:
+  case tok::kw_long:
+  case tok::kw_signed:
+  case tok::kw_unsigned:
+  case tok::kw__Complex:
+  case tok::kw__Imaginary:
+  case tok::kw_void:
+  case tok::kw_char:
+  case tok::kw_wchar_t:
+  case tok::kw_char16_t:
+  case tok::kw_char32_t:
+  case tok::kw_int:
+  case tok::kw_float:
+  case tok::kw_double:
+  case tok::kw_bool:
+  case tok::kw__Bool:
+  case tok::kw__Decimal32:
+  case tok::kw__Decimal64:
+  case tok::kw__Decimal128:
+  case tok::kw___vector:
+    
+    // struct-or-union-specifier (C99) or class-specifier (C++)
+  case tok::kw_class:
+  case tok::kw_struct:
+  case tok::kw_union:
+    // enum-specifier
+  case tok::kw_enum:
+    
+    // typedef-name
+  case tok::annot_typename:
+    return true;
+  }
+}
+
 /// isTypeSpecifierQualifier - Return true if the current token could be the
 /// start of a specifier-qualifier-list.
 bool Parser::isTypeSpecifierQualifier() {
@@ -2016,21 +2086,19 @@ bool Parser::isTypeSpecifierQualifier() {
     // Annotate typenames and C++ scope specifiers.  If we get one, just
     // recurse to handle whatever we get.
     if (TryAnnotateTypeOrScopeToken())
-      return isTypeSpecifierQualifier();
-    // Otherwise, not a type specifier.
-    return false;
+      return true;
+    if (Tok.is(tok::identifier))
+      return false;
+    return isTypeSpecifierQualifier();
 
   case tok::coloncolon:   // ::foo::bar
     if (NextToken().is(tok::kw_new) ||    // ::new
         NextToken().is(tok::kw_delete))   // ::delete
       return false;
 
-    // Annotate typenames and C++ scope specifiers.  If we get one, just
-    // recurse to handle whatever we get.
     if (TryAnnotateTypeOrScopeToken())
-      return isTypeSpecifierQualifier();
-    // Otherwise, not a type specifier.
-    return false;
+      return true;
+    return isTypeSpecifierQualifier();
 
     // GNU attributes support.
   case tok::kw___attribute:
@@ -2101,14 +2169,15 @@ bool Parser::isDeclarationSpecifier() {
     if (TryAltiVecVectorToken())
       return true;
     // Fall through.
-
   case tok::kw_typename: // typename T::type
     // Annotate typenames and C++ scope specifiers.  If we get one, just
     // recurse to handle whatever we get.
     if (TryAnnotateTypeOrScopeToken())
-      return isDeclarationSpecifier();
-    // Otherwise, not a declaration specifier.
-    return false;
+      return true;
+    if (Tok.is(tok::identifier))
+      return false;
+    return isDeclarationSpecifier();
+
   case tok::coloncolon:   // ::foo::bar
     if (NextToken().is(tok::kw_new) ||    // ::new
         NextToken().is(tok::kw_delete))   // ::delete
@@ -2117,9 +2186,8 @@ bool Parser::isDeclarationSpecifier() {
     // Annotate typenames and C++ scope specifiers.  If we get one, just
     // recurse to handle whatever we get.
     if (TryAnnotateTypeOrScopeToken())
-      return isDeclarationSpecifier();
-    // Otherwise, not a declaration specifier.
-    return false;
+      return true;
+    return isDeclarationSpecifier();
 
     // storage-class-specifier
   case tok::kw_typedef:
@@ -2200,7 +2268,10 @@ bool Parser::isConstructorDeclarator() {
 
   // Parse the C++ scope specifier.
   CXXScopeSpec SS;
-  ParseOptionalCXXScopeSpecifier(SS, 0, true);
+  if (ParseOptionalCXXScopeSpecifier(SS, 0, true)) {
+    TPA.Revert();
+    return false;
+  }
 
   // Parse the constructor name.
   if (Tok.is(tok::identifier) || Tok.is(tok::annot_template_id)) {
@@ -2351,7 +2422,9 @@ void Parser::ParseDeclaratorInternal(Declarator &D,
       (Tok.is(tok::coloncolon) || Tok.is(tok::identifier) ||
        Tok.is(tok::annot_cxxscope))) {
     CXXScopeSpec SS;
-    if (ParseOptionalCXXScopeSpecifier(SS, /*ObjectType=*/0, true)) {
+    ParseOptionalCXXScopeSpecifier(SS, /*ObjectType=*/0, true); // ignore fail
+
+    if (SS.isSet()) {
       if (Tok.isNot(tok::star)) {
         // The scope spec really belongs to the direct-declarator.
         D.getCXXScopeSpec() = SS;
@@ -2507,9 +2580,13 @@ void Parser::ParseDirectDeclarator(Declarator &D) {
 
   if (getLang().CPlusPlus && D.mayHaveIdentifier()) {
     // ParseDeclaratorInternal might already have parsed the scope.
-    bool afterCXXScope = D.getCXXScopeSpec().isSet() ||
+    bool afterCXXScope = D.getCXXScopeSpec().isSet();
+    if (!afterCXXScope) {
       ParseOptionalCXXScopeSpecifier(D.getCXXScopeSpec(), /*ObjectType=*/0,
                                      true);
+      afterCXXScope = D.getCXXScopeSpec().isSet();
+    }
+
     if (afterCXXScope) {
       if (Actions.ShouldEnterDeclaratorScope(CurScope, D.getCXXScopeSpec()))
         // Change the declaration context for name lookup, until this function
@@ -2588,7 +2665,7 @@ void Parser::ParseDirectDeclarator(Declarator &D) {
          "Haven't past the location of the identifier yet?");
 
   // Don't parse attributes unless we have an identifier.
-  if (D.getIdentifier() && getLang().CPlusPlus
+  if (D.getIdentifier() && getLang().CPlusPlus0x
    && isCXX0XAttributeSpecifier(true)) {
     SourceLocation AttrEndLoc;
     CXX0XAttributeList Attr = ParseCXX0XAttributes();
@@ -2799,7 +2876,7 @@ void Parser::ParseFunctionDeclarator(SourceLocation LParenLoc, Declarator &D,
   // K&R-style function:  void foo(a,b,c)
   if (!getLang().CPlusPlus && Tok.is(tok::identifier)
       && !TryAltiVecVectorToken()) {
-    if (!TryAnnotateTypeOrScopeToken()) {
+    if (TryAnnotateTypeOrScopeToken() || !Tok.is(tok::annot_typename)) {
       // K&R identifier lists can't have typedefs as identifiers, per
       // C99 6.7.5.3p11.
       if (RequiresArg) {
@@ -3238,3 +3315,69 @@ void Parser::ParseTypeofSpecifier(DeclSpec &DS) {
                          DiagID, Operand.release()))
     Diag(StartLoc, DiagID) << PrevSpec;
 }
+
+
+/// TryAltiVecVectorTokenOutOfLine - Out of line body that should only be called
+/// from TryAltiVecVectorToken.
+bool Parser::TryAltiVecVectorTokenOutOfLine() {
+  Token Next = NextToken();
+  switch (Next.getKind()) {
+  default: return false;
+  case tok::kw_short:
+  case tok::kw_long:
+  case tok::kw_signed:
+  case tok::kw_unsigned:
+  case tok::kw_void:
+  case tok::kw_char:
+  case tok::kw_int:
+  case tok::kw_float:
+  case tok::kw_double:
+  case tok::kw_bool:
+  case tok::kw___pixel:
+    Tok.setKind(tok::kw___vector);
+    return true;
+  case tok::identifier:
+    if (Next.getIdentifierInfo() == Ident_pixel) {
+      Tok.setKind(tok::kw___vector);
+      return true;
+    }
+    return false;
+  }
+}
+
+bool Parser::TryAltiVecTokenOutOfLine(DeclSpec &DS, SourceLocation Loc,
+                                      const char *&PrevSpec, unsigned &DiagID,
+                                      bool &isInvalid) {
+  if (Tok.getIdentifierInfo() == Ident_vector) {
+    Token Next = NextToken();
+    switch (Next.getKind()) {
+    case tok::kw_short:
+    case tok::kw_long:
+    case tok::kw_signed:
+    case tok::kw_unsigned:
+    case tok::kw_void:
+    case tok::kw_char:
+    case tok::kw_int:
+    case tok::kw_float:
+    case tok::kw_double:
+    case tok::kw_bool:
+    case tok::kw___pixel:
+      isInvalid = DS.SetTypeAltiVecVector(true, Loc, PrevSpec, DiagID);
+      return true;
+    case tok::identifier:
+      if (Next.getIdentifierInfo() == Ident_pixel) {
+        isInvalid = DS.SetTypeAltiVecVector(true, Loc, PrevSpec, DiagID);
+        return true;
+      }
+      break;
+    default:
+      break;
+    }
+  } else if (Tok.getIdentifierInfo() == Ident_pixel &&
+             DS.isTypeAltiVecVector()) {
+    isInvalid = DS.SetTypeAltiVecPixel(true, Loc, PrevSpec, DiagID);
+    return true;
+  }
+  return false;
+}
+  

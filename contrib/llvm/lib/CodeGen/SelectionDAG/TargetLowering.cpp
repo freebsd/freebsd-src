@@ -1441,8 +1441,10 @@ bool TargetLowering::SimplifyDemandedBits(SDValue Op,
   case ISD::TRUNCATE: {
     // Simplify the input, using demanded bit information, and compute the known
     // zero/one bits live out.
+    unsigned OperandBitWidth =
+      Op.getOperand(0).getValueType().getScalarType().getSizeInBits();
     APInt TruncMask = NewMask;
-    TruncMask.zext(Op.getOperand(0).getValueSizeInBits());
+    TruncMask.zext(OperandBitWidth);
     if (SimplifyDemandedBits(Op.getOperand(0), TruncMask,
                              KnownZero, KnownOne, TLO, Depth+1))
       return true;
@@ -1453,15 +1455,14 @@ bool TargetLowering::SimplifyDemandedBits(SDValue Op,
     // on the known demanded bits.
     if (Op.getOperand(0).getNode()->hasOneUse()) {
       SDValue In = Op.getOperand(0);
-      unsigned InBitWidth = In.getValueSizeInBits();
       switch (In.getOpcode()) {
       default: break;
       case ISD::SRL:
         // Shrink SRL by a constant if none of the high bits shifted in are
         // demanded.
         if (ConstantSDNode *ShAmt = dyn_cast<ConstantSDNode>(In.getOperand(1))){
-          APInt HighBits = APInt::getHighBitsSet(InBitWidth,
-                                                 InBitWidth - BitWidth);
+          APInt HighBits = APInt::getHighBitsSet(OperandBitWidth,
+                                                 OperandBitWidth - BitWidth);
           HighBits = HighBits.lshr(ShAmt->getZExtValue());
           HighBits.trunc(BitWidth);
           
@@ -1607,7 +1608,7 @@ static bool ValueHasExactlyOneBitSet(SDValue Val, const SelectionDAG &DAG) {
 
   // Fall back to ComputeMaskedBits to catch other known cases.
   EVT OpVT = Val.getValueType();
-  unsigned BitWidth = OpVT.getSizeInBits();
+  unsigned BitWidth = OpVT.getScalarType().getSizeInBits();
   APInt Mask = APInt::getAllOnesValue(BitWidth);
   APInt KnownZero, KnownOne;
   DAG.ComputeMaskedBits(Val, Mask, KnownZero, KnownOne);
@@ -1775,7 +1776,7 @@ TargetLowering::SimplifySetCC(EVT VT, SDValue N0, SDValue N1,
         break;   // todo, be more careful with signed comparisons
       }
     } else if (N0.getOpcode() == ISD::SIGN_EXTEND_INREG &&
-                (Cond == ISD::SETEQ || Cond == ISD::SETNE)) {
+               (Cond == ISD::SETEQ || Cond == ISD::SETNE)) {
       EVT ExtSrcTy = cast<VTSDNode>(N0.getOperand(1))->getVT();
       unsigned ExtSrcTyBits = ExtSrcTy.getSizeInBits();
       EVT ExtDstTy = N0.getValueType();
@@ -1809,22 +1810,21 @@ TargetLowering::SimplifySetCC(EVT VT, SDValue N0, SDValue N1,
                           Cond);
     } else if ((N1C->isNullValue() || N1C->getAPIntValue() == 1) &&
                 (Cond == ISD::SETEQ || Cond == ISD::SETNE)) {
-      
       // SETCC (SETCC), [0|1], [EQ|NE]  -> SETCC
-      if (N0.getOpcode() == ISD::SETCC) {
+      if (N0.getOpcode() == ISD::SETCC &&
+          isTypeLegal(VT) && VT.bitsLE(N0.getValueType())) {
         bool TrueWhenTrue = (Cond == ISD::SETEQ) ^ (N1C->getAPIntValue() != 1);
         if (TrueWhenTrue)
-          return N0;
-        
+          return DAG.getNode(ISD::TRUNCATE, dl, VT, N0);        
         // Invert the condition.
         ISD::CondCode CC = cast<CondCodeSDNode>(N0.getOperand(2))->get();
         CC = ISD::getSetCCInverse(CC, 
                                   N0.getOperand(0).getValueType().isInteger());
         return DAG.getSetCC(dl, VT, N0.getOperand(0), N0.getOperand(1), CC);
       }
-      
+
       if ((N0.getOpcode() == ISD::XOR ||
-            (N0.getOpcode() == ISD::AND && 
+           (N0.getOpcode() == ISD::AND && 
             N0.getOperand(0).getOpcode() == ISD::XOR &&
             N0.getOperand(1) == N0.getOperand(0).getOperand(1))) &&
           isa<ConstantSDNode>(N0.getOperand(1)) &&
@@ -1847,7 +1847,34 @@ TargetLowering::SimplifySetCC(EVT VT, SDValue N0, SDValue N1,
                               N0.getOperand(0).getOperand(0),
                               N0.getOperand(1));
           }
+
           return DAG.getSetCC(dl, VT, Val, N1,
+                              Cond == ISD::SETEQ ? ISD::SETNE : ISD::SETEQ);
+        }
+      } else if (N1C->getAPIntValue() == 1 &&
+                 (VT == MVT::i1 ||
+                  getBooleanContents() == ZeroOrOneBooleanContent)) {
+        SDValue Op0 = N0;
+        if (Op0.getOpcode() == ISD::TRUNCATE)
+          Op0 = Op0.getOperand(0);
+
+        if ((Op0.getOpcode() == ISD::XOR) &&
+            Op0.getOperand(0).getOpcode() == ISD::SETCC &&
+            Op0.getOperand(1).getOpcode() == ISD::SETCC) {
+          // (xor (setcc), (setcc)) == / != 1 -> (setcc) != / == (setcc)
+          Cond = (Cond == ISD::SETEQ) ? ISD::SETNE : ISD::SETEQ;
+          return DAG.getSetCC(dl, VT, Op0.getOperand(0), Op0.getOperand(1),
+                              Cond);
+        } else if (Op0.getOpcode() == ISD::AND &&
+                isa<ConstantSDNode>(Op0.getOperand(1)) &&
+                cast<ConstantSDNode>(Op0.getOperand(1))->getAPIntValue() == 1) {
+          // If this is (X&1) == / != 1, normalize it to (X&1) != / == 0.
+          if (Op0.getValueType() != VT)
+            Op0 = DAG.getNode(ISD::AND, dl, VT,
+                          DAG.getNode(ISD::TRUNCATE, dl, VT, Op0.getOperand(0)),
+                          DAG.getConstant(1, VT));
+          return DAG.getSetCC(dl, VT, Op0,
+                              DAG.getConstant(0, Op0.getValueType()),
                               Cond == ISD::SETEQ ? ISD::SETNE : ISD::SETEQ);
         }
       }

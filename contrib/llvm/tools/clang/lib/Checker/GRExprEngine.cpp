@@ -37,6 +37,15 @@ using llvm::dyn_cast_or_null;
 using llvm::cast;
 using llvm::APSInt;
 
+namespace {
+  // Trait class for recording returned expression in the state.
+  struct ReturnExpr {
+    static int TagInt;
+    typedef const Stmt *data_type;
+  };
+  int ReturnExpr::TagInt; 
+}
+
 //===----------------------------------------------------------------------===//
 // Utility functions.
 //===----------------------------------------------------------------------===//
@@ -318,6 +327,8 @@ static void RegisterInternalChecks(GRExprEngine &Eng) {
   RegisterNoReturnFunctionChecker(Eng);
   RegisterBuiltinFunctionChecker(Eng);
   RegisterOSAtomicChecker(Eng);
+  RegisterUnixAPIChecker(Eng);
+  RegisterMacOSXAPIChecker(Eng);
 }
 
 GRExprEngine::GRExprEngine(AnalysisManager &mgr, GRTransferFuncs *tf)
@@ -458,7 +469,7 @@ void GRExprEngine::ProcessStmt(CFGElement CE, GRStmtNodeBuilder& builder) {
                                 "Error evaluating statement");
 
   Builder = &builder;
-  EntryNode = builder.getLastNode();
+  EntryNode = builder.getBasePredecessor();
 
   // Set up our simple checks.
   if (BatchAuditor)
@@ -1286,6 +1297,37 @@ void GRExprEngine::ProcessSwitch(GRSwitchNodeBuilder& builder) {
   // If we reach here, than we know that the default branch is
   // possible.
   if (defaultIsFeasible) builder.generateDefaultCaseNode(DefaultSt);
+}
+
+void GRExprEngine::ProcessCallEnter(GRCallEnterNodeBuilder &B) {
+  const FunctionDecl *FD = B.getCallee();
+  const StackFrameContext *LocCtx = AMgr.getStackFrame(FD, 
+                                                       B.getLocationContext(),
+                                                       B.getCallExpr(),
+                                                       B.getBlock(),
+                                                       B.getIndex());
+
+  const GRState *state = B.getState();
+  state = getStoreManager().EnterStackFrame(state, LocCtx);
+
+  B.GenerateNode(state, LocCtx);
+}
+
+void GRExprEngine::ProcessCallExit(GRCallExitNodeBuilder &B) {
+  const GRState *state = B.getState();
+  const ExplodedNode *Pred = B.getPredecessor();
+  const StackFrameContext *LocCtx = 
+                            cast<StackFrameContext>(Pred->getLocationContext());
+  const Stmt *CE = LocCtx->getCallSite();
+
+  // If the callee returns an expression, bind its value to CallExpr.
+  const Stmt *ReturnedExpr = state->get<ReturnExpr>();
+  if (ReturnedExpr) {
+    SVal RetVal = state->getSVal(ReturnedExpr);
+    state = state->BindExpr(CE, RetVal);
+  }
+
+  B.GenerateNode(state);
 }
 
 //===----------------------------------------------------------------------===//
@@ -2316,8 +2358,9 @@ void GRExprEngine::VisitDeclStmt(DeclStmt *DS, ExplodedNode *Pred,
 
       // Recover some path-sensitivity if a scalar value evaluated to
       // UnknownVal.
-      if (InitVal.isUnknown() ||
-          !getConstraintManager().canReasonAbout(InitVal)) {
+      if ((InitVal.isUnknown() ||
+          !getConstraintManager().canReasonAbout(InitVal)) &&
+          !VD->getType()->isReferenceType()) {
         InitVal = ValMgr.getConjuredSymbolVal(NULL, InitEx,
                                                Builder->getCurrentBlockCount());
       }
@@ -2855,10 +2898,19 @@ void GRExprEngine::VisitAsmStmtHelperInputs(AsmStmt* A,
 
 void GRExprEngine::VisitReturnStmt(ReturnStmt *RS, ExplodedNode *Pred,
                                    ExplodedNodeSet &Dst) {
-
   ExplodedNodeSet Src;
   if (Expr *RetE = RS->getRetValue()) {
-    Visit(RetE, Pred, Src);
+    // Record the returned expression in the state.
+    {
+      static int Tag = 0;
+      SaveAndRestore<const void *> OldTag(Builder->Tag, &Tag);
+      const GRState *state = GetState(Pred);
+      state = state->set<ReturnExpr>(RetE);
+      Pred = Builder->generateNode(RetE, state, Pred);
+    }
+    // We may get a NULL Pred because we generated a cached node.
+    if (Pred)
+      Visit(RetE, Pred, Src);
   }
   else {
     Src.Add(Pred);
@@ -3137,6 +3189,14 @@ struct DOTGraphTraits<ExplodedNode*> :
 
       case ProgramPoint::BlockExitKind:
         assert (false);
+        break;
+
+      case ProgramPoint::CallEnterKind:
+        Out << "CallEnter";
+        break;
+
+      case ProgramPoint::CallExitKind:
+        Out << "CallExit";
         break;
 
       default: {

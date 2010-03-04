@@ -586,7 +586,10 @@ Sema::ActOnBaseSpecifier(DeclPtrTy classdecl, SourceRange SpecifierRange,
     return true;
 
   AdjustDeclIfTemplate(classdecl);
-  CXXRecordDecl *Class = cast<CXXRecordDecl>(classdecl.getAs<Decl>());
+  CXXRecordDecl *Class = dyn_cast<CXXRecordDecl>(classdecl.getAs<Decl>());
+  if (!Class)
+    return true;
+
   QualType BaseType = GetTypeFromParser(basetype);
   if (CXXBaseSpecifier *BaseSpec = CheckBaseSpecifier(Class, SpecifierRange,
                                                       Virtual, Access,
@@ -1635,8 +1638,22 @@ Sema::SetBaseOrMemberInitializers(CXXConstructorDecl *Constructor,
       new (Context) CXXBaseOrMemberInitializer*[NumInitializers];
 
     Constructor->setBaseOrMemberInitializers(baseOrMemberInitializers);
-    for (unsigned Idx = 0; Idx < NumInitializers; ++Idx)
-      baseOrMemberInitializers[Idx] = AllToInit[Idx];
+    for (unsigned Idx = 0; Idx < NumInitializers; ++Idx) {
+      CXXBaseOrMemberInitializer *Member = AllToInit[Idx];
+      baseOrMemberInitializers[Idx] = Member;
+      if (!Member->isBaseInitializer())
+        continue;
+      const Type *BaseType = Member->getBaseClass();
+      const RecordType *RT = BaseType->getAs<RecordType>();
+      if (!RT)
+        continue;
+      CXXRecordDecl *BaseClassDecl =
+          cast<CXXRecordDecl>(RT->getDecl());
+      if (BaseClassDecl->hasTrivialDestructor())
+        continue;
+      CXXDestructorDecl *DD = BaseClassDecl->getDestructor(Context);
+      MarkDeclarationReferenced(Constructor->getLocation(), DD);
+    }
   }
 
   return HadError;
@@ -2174,7 +2191,10 @@ void Sema::AddImplicitlyDeclaredMembersToClass(CXXRecordDecl *ClassDecl) {
       CXXConstructorDecl::Create(Context, ClassDecl,
                                  ClassDecl->getLocation(), Name,
                                  Context.getFunctionType(Context.VoidTy,
-                                                         0, 0, false, 0),
+                                                         0, 0, false, 0,
+                                                         /*FIXME*/false, false,
+                                                         0, 0, false,
+                                                         CC_Default),
                                  /*TInfo=*/0,
                                  /*isExplicit=*/false,
                                  /*isInline=*/true,
@@ -2246,7 +2266,10 @@ void Sema::AddImplicitlyDeclaredMembersToClass(CXXRecordDecl *ClassDecl) {
                                    ClassDecl->getLocation(), Name,
                                    Context.getFunctionType(Context.VoidTy,
                                                            &ArgType, 1,
-                                                           false, 0),
+                                                           false, 0,
+                                                           /*FIXME:*/false,
+                                                           false, 0, 0, false,
+                                                           CC_Default),
                                    /*TInfo=*/0,
                                    /*isExplicit=*/false,
                                    /*isInline=*/true,
@@ -2332,7 +2355,10 @@ void Sema::AddImplicitlyDeclaredMembersToClass(CXXRecordDecl *ClassDecl) {
     CXXMethodDecl *CopyAssignment =
       CXXMethodDecl::Create(Context, ClassDecl, ClassDecl->getLocation(), Name,
                             Context.getFunctionType(RetType, &ArgType, 1,
-                                                    false, 0),
+                                                    false, 0,
+                                                    /*FIXME:*/false,
+                                                    false, 0, 0, false,
+                                                    CC_Default),
                             /*TInfo=*/0, /*isStatic=*/false, /*isInline=*/true);
     CopyAssignment->setAccess(AS_public);
     CopyAssignment->setImplicit();
@@ -2364,7 +2390,10 @@ void Sema::AddImplicitlyDeclaredMembersToClass(CXXRecordDecl *ClassDecl) {
       = CXXDestructorDecl::Create(Context, ClassDecl,
                                   ClassDecl->getLocation(), Name,
                                   Context.getFunctionType(Context.VoidTy,
-                                                          0, 0, false, 0),
+                                                          0, 0, false, 0,
+                                                           /*FIXME:*/false,
+                                                           false, 0, 0, false,
+                                                           CC_Default),
                                   /*isInline=*/true,
                                   /*isImplicitlyDeclared=*/true);
     Destructor->setAccess(AS_public);
@@ -2523,7 +2552,13 @@ QualType Sema::CheckConstructorDeclarator(Declarator &D, QualType R,
   const FunctionProtoType *Proto = R->getAs<FunctionProtoType>();
   return Context.getFunctionType(Context.VoidTy, Proto->arg_type_begin(),
                                  Proto->getNumArgs(),
-                                 Proto->isVariadic(), 0);
+                                 Proto->isVariadic(), 0,
+                                 Proto->hasExceptionSpec(),
+                                 Proto->hasAnyExceptionSpec(),
+                                 Proto->getNumExceptions(),
+                                 Proto->exception_begin(),
+                                 Proto->getNoReturnAttr(),
+                                 Proto->getCallConv());
 }
 
 /// CheckConstructor - Checks a fully-formed constructor for
@@ -2680,7 +2715,9 @@ QualType Sema::CheckDestructorDeclarator(Declarator &D,
   // "void" as the return type, since destructors don't have return
   // types. We *always* have to do this, because GetTypeForDeclarator
   // will put in a result type of "int" when none was specified.
-  return Context.getFunctionType(Context.VoidTy, 0, 0, false, 0);
+  // FIXME: Exceptions!
+  return Context.getFunctionType(Context.VoidTy, 0, 0, false, 0,
+                                 false, false, 0, 0, false, CC_Default);
 }
 
 /// CheckConversionDeclarator - Called by ActOnDeclarator to check the
@@ -2749,8 +2786,15 @@ void Sema::CheckConversionDeclarator(Declarator &D, QualType &R,
   // Rebuild the function type "R" without any parameters (in case any
   // of the errors above fired) and with the conversion type as the
   // return type.
+  const FunctionProtoType *Proto = R->getAs<FunctionProtoType>();
   R = Context.getFunctionType(ConvType, 0, 0, false,
-                              R->getAs<FunctionProtoType>()->getTypeQuals());
+                              Proto->getTypeQuals(),
+                              Proto->hasExceptionSpec(),
+                              Proto->hasAnyExceptionSpec(),
+                              Proto->getNumExceptions(),
+                              Proto->exception_begin(),
+                              Proto->getNoReturnAttr(),
+                              Proto->getCallConv());
 
   // C++0x explicit conversion operators.
   if (D.getDeclSpec().isExplicitSpecified() && !getLangOptions().CPlusPlus0x)
@@ -3996,7 +4040,8 @@ bool Sema::InitializeVarWithConstructor(VarDecl *VD,
 
 void Sema::FinalizeVarWithDestructor(VarDecl *VD, const RecordType *Record) {
   CXXRecordDecl *ClassDecl = cast<CXXRecordDecl>(Record->getDecl());
-  if (!ClassDecl->hasTrivialDestructor()) {
+  if (!ClassDecl->isInvalidDecl() && !VD->isInvalidDecl() &&
+      !ClassDecl->hasTrivialDestructor()) {
     CXXDestructorDecl *Destructor = ClassDecl->getDestructor(Context);
     MarkDeclarationReferenced(VD->getLocation(), Destructor);
     CheckDestructorAccess(VD->getLocation(), Record);
@@ -4368,8 +4413,7 @@ Sema::CheckReferenceInit(Expr *&Init, QualType DeclType,
 
   // Most paths end in a failed conversion.
   if (ICS) {
-    ICS->setBad();
-    ICS->Bad.init(BadConversionSequence::no_conversion, Init, DeclType);
+    ICS->setBad(BadConversionSequence::no_conversion, Init, DeclType);
   }
 
   // C++ [dcl.init.ref]p5:
@@ -5761,55 +5805,74 @@ Sema::ActOnCXXConditionDeclaration(Scope *S, Declarator &D) {
   return Dcl;
 }
 
-void Sema::MaybeMarkVirtualMembersReferenced(SourceLocation Loc,
-                                             CXXMethodDecl *MD) {
+static bool needsVtable(CXXMethodDecl *MD, ASTContext &Context) {
   // Ignore dependent types.
   if (MD->isDependentContext())
-    return;
-  
-  CXXRecordDecl *RD = MD->getParent();
-  
-  // Ignore classes without a vtable.
-  if (!RD->isDynamicClass())
-    return;
+    return false;
 
   // Ignore declarations that are not definitions.
   if (!MD->isThisDeclarationADefinition())
-    return;
-  
-  if (isa<CXXConstructorDecl>(MD)) {
-    switch (MD->getParent()->getTemplateSpecializationKind()) {
-    case TSK_Undeclared:
-    case TSK_ExplicitSpecialization:
-      // Classes that aren't instantiations of templates don't need their
-      // virtual methods marked until we see the definition of the key 
-      // function.
-      return;
-        
-    case TSK_ImplicitInstantiation:
-    case TSK_ExplicitInstantiationDeclaration:
-    case TSK_ExplicitInstantiationDefinition:
-      // This is a constructor of a class template; mark all of the virtual
-      // members as referenced to ensure that they get instantiatied.
-      break;
-    }
-  } else if (!MD->isOutOfLine()) {
-    // Consider only out-of-line definitions of member functions. When we see
-    // an inline definition, it's too early to compute the key function.
-    return;
-  } else if (const CXXMethodDecl *KeyFunction = Context.getKeyFunction(RD)) {
-    // If this is not the key function, we don't need to mark virtual members.
-    if (KeyFunction->getCanonicalDecl() != MD->getCanonicalDecl())
-      return;
-  } else {
-    // The class has no key function, so we've already noted that we need to
-    // mark the virtual members of this class.
-    return;
+    return false;
+
+  CXXRecordDecl *RD = MD->getParent();
+
+  // Ignore classes without a vtable.
+  if (!RD->isDynamicClass())
+    return false;
+
+  switch (MD->getParent()->getTemplateSpecializationKind()) {
+  case TSK_Undeclared:
+  case TSK_ExplicitSpecialization:
+    // Classes that aren't instantiations of templates don't need their
+    // virtual methods marked until we see the definition of the key 
+    // function.
+    break;
+
+  case TSK_ImplicitInstantiation:
+    // This is a constructor of a class template; mark all of the virtual
+    // members as referenced to ensure that they get instantiatied.
+    if (isa<CXXConstructorDecl>(MD) || isa<CXXDestructorDecl>(MD))
+      return true;
+    break;
+
+  case TSK_ExplicitInstantiationDeclaration:
+    return true; //FIXME: This looks wrong.
+
+  case TSK_ExplicitInstantiationDefinition:
+    // This is method of a explicit instantiation; mark all of the virtual
+    // members as referenced to ensure that they get instantiatied.
+    return true;
   }
-  
+
+  // Consider only out-of-line definitions of member functions. When we see
+  // an inline definition, it's too early to compute the key function.
+  if (!MD->isOutOfLine())
+    return false;
+
+  const CXXMethodDecl *KeyFunction = Context.getKeyFunction(RD);
+
+  // If there is no key function, we will need a copy of the vtable.
+  if (!KeyFunction)
+    return true;
+
+  // If this is the key function, we need to mark virtual members.
+  if (KeyFunction->getCanonicalDecl() == MD->getCanonicalDecl())
+    return true;
+
+  return false;
+}
+
+void Sema::MaybeMarkVirtualMembersReferenced(SourceLocation Loc,
+                                             CXXMethodDecl *MD) {
+  CXXRecordDecl *RD = MD->getParent();
+
   // We will need to mark all of the virtual members as referenced to build the
   // vtable.
-  ClassesWithUnmarkedVirtualMembers.push_back(std::make_pair(RD, Loc));
+  // We actually call MarkVirtualMembersReferenced instead of adding to
+  // ClassesWithUnmarkedVirtualMembers because this marking is needed by
+  // codegen that will happend before we finish parsing the file.
+  if (needsVtable(MD, Context))
+    MarkVirtualMembersReferenced(Loc, RD);
 }
 
 bool Sema::ProcessPendingClassesWithUnmarkedVirtualMembers() {
@@ -5837,4 +5900,3 @@ void Sema::MarkVirtualMembersReferenced(SourceLocation Loc, CXXRecordDecl *RD) {
       MarkDeclarationReferenced(Loc, MD);
   }
 }
-

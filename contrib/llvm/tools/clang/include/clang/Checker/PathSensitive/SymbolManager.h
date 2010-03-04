@@ -89,27 +89,23 @@ public:
 
 typedef const SymbolData* SymbolRef;
 
+// A symbol representing the value of a MemRegion.
 class SymbolRegionValue : public SymbolData {
-  const MemRegion *R;
-  // We may cast the region to another type, so the expected type of the symbol
-  // may be different from the region's original type.
-  QualType T;
+  const TypedRegion *R;
 
 public:
-  SymbolRegionValue(SymbolID sym, const MemRegion *r, QualType t = QualType())
-    : SymbolData(RegionValueKind, sym), R(r), T(t) {}
+  SymbolRegionValue(SymbolID sym, const TypedRegion *r)
+    : SymbolData(RegionValueKind, sym), R(r) {}
 
-  const MemRegion* getRegion() const { return R; }
+  const TypedRegion* getRegion() const { return R; }
 
-  static void Profile(llvm::FoldingSetNodeID& profile, const MemRegion* R,
-		      QualType T) {
+  static void Profile(llvm::FoldingSetNodeID& profile, const TypedRegion* R) {
     profile.AddInteger((unsigned) RegionValueKind);
     profile.AddPointer(R);
-    T.Profile(profile);
   }
 
   virtual void Profile(llvm::FoldingSetNodeID& profile) {
-    Profile(profile, R, T);
+    Profile(profile, R);
   }
 
   void dumpToStream(llvm::raw_ostream &os) const;
@@ -122,6 +118,7 @@ public:
   }
 };
 
+// A symbol representing the result of an expression.
 class SymbolConjured : public SymbolData {
   const Stmt* S;
   QualType T;
@@ -161,6 +158,8 @@ public:
   }
 };
 
+// A symbol representing the value of a MemRegion whose parent region has 
+// symbolic value.
 class SymbolDerived : public SymbolData {
   SymbolRef parentSymbol;
   const TypedRegion *R;
@@ -294,8 +293,8 @@ public:
   static bool canSymbolicate(QualType T);
 
   /// Make a unique symbol for MemRegion R according to its kind.
-  const SymbolRegionValue* getRegionValueSymbol(const MemRegion* R,
-						QualType T = QualType());
+  const SymbolRegionValue* getRegionValueSymbol(const TypedRegion* R);
+
   const SymbolConjured* getConjuredSymbol(const Stmt* E, QualType T,
                                           unsigned VisitCount,
                                           const void* SymbolTag = 0);

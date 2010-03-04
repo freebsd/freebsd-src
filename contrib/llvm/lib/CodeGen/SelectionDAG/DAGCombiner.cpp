@@ -1064,7 +1064,7 @@ SDValue DAGCombiner::visitADD(SDNode *N) {
   if (VT.isInteger() && !VT.isVector()) {
     APInt LHSZero, LHSOne;
     APInt RHSZero, RHSOne;
-    APInt Mask = APInt::getAllOnesValue(VT.getSizeInBits());
+    APInt Mask = APInt::getAllOnesValue(VT.getScalarType().getSizeInBits());
     DAG.ComputeMaskedBits(N0, Mask, LHSZero, LHSOne);
 
     if (LHSZero.getBoolValue()) {
@@ -1136,7 +1136,7 @@ SDValue DAGCombiner::visitADDC(SDNode *N) {
   // fold (addc a, b) -> (or a, b), CARRY_FALSE iff a and b share no bits.
   APInt LHSZero, LHSOne;
   APInt RHSZero, RHSOne;
-  APInt Mask = APInt::getAllOnesValue(VT.getSizeInBits());
+  APInt Mask = APInt::getAllOnesValue(VT.getScalarType().getSizeInBits());
   DAG.ComputeMaskedBits(N0, Mask, LHSZero, LHSOne);
 
   if (LHSZero.getBoolValue()) {
@@ -1786,7 +1786,7 @@ SDValue DAGCombiner::visitAND(SDNode *N) {
   SDValue RAND = ReassociateOps(ISD::AND, N->getDebugLoc(), N0, N1);
   if (RAND.getNode() != 0)
     return RAND;
-  // fold (and (or x, 0xFFFF), 0xFF) -> 0xFF
+  // fold (and (or x, C), D) -> D if (C & D) == D
   if (N1C && N0.getOpcode() == ISD::OR)
     if (ConstantSDNode *ORI = dyn_cast<ConstantSDNode>(N0.getOperand(1)))
       if ((ORI->getAPIntValue() & N1C->getAPIntValue()) == N1C->getAPIntValue())
@@ -2025,13 +2025,15 @@ SDValue DAGCombiner::visitOR(SDNode *N) {
   if (ROR.getNode() != 0)
     return ROR;
   // Canonicalize (or (and X, c1), c2) -> (and (or X, c2), c1|c2)
+  // iff (c1 & c2) == 0.
   if (N1C && N0.getOpcode() == ISD::AND && N0.getNode()->hasOneUse() &&
              isa<ConstantSDNode>(N0.getOperand(1))) {
     ConstantSDNode *C1 = cast<ConstantSDNode>(N0.getOperand(1));
-    return DAG.getNode(ISD::AND, N->getDebugLoc(), VT,
-                       DAG.getNode(ISD::OR, N0.getDebugLoc(), VT,
-                                   N0.getOperand(0), N1),
-                       DAG.FoldConstantArithmetic(ISD::OR, VT, N1C, C1));
+    if ((C1->getAPIntValue() & N1C->getAPIntValue()) != 0)
+      return DAG.getNode(ISD::AND, N->getDebugLoc(), VT,
+                         DAG.getNode(ISD::OR, N0.getDebugLoc(), VT,
+                                     N0.getOperand(0), N1),
+                         DAG.FoldConstantArithmetic(ISD::OR, VT, N1C, C1));
   }
   // fold (or (setcc x), (setcc y)) -> (setcc (or x, y))
   if (isSetCCEquivalent(N0, LL, LR, CC0) && isSetCCEquivalent(N1, RL, RR, CC1)){
@@ -2754,7 +2756,7 @@ SDValue DAGCombiner::visitSRL(SDNode *N) {
   if (N1C && N0.getOpcode() == ISD::CTLZ &&
       N1C->getAPIntValue() == Log2_32(VT.getSizeInBits())) {
     APInt KnownZero, KnownOne;
-    APInt Mask = APInt::getAllOnesValue(VT.getSizeInBits());
+    APInt Mask = APInt::getAllOnesValue(VT.getScalarType().getSizeInBits());
     DAG.ComputeMaskedBits(N0.getOperand(0), Mask, KnownZero, KnownOne);
 
     // If any of the input bits are KnownOne, then the input couldn't be all
@@ -4655,12 +4657,63 @@ SDValue DAGCombiner::visitBRCOND(SDNode *N) {
             DAG.DeleteNode(Trunc);
           }
           // Replace the uses of SRL with SETCC
-          DAG.ReplaceAllUsesOfValueWith(N1, SetCC);
+          WorkListRemover DeadNodes(*this);
+          DAG.ReplaceAllUsesOfValueWith(N1, SetCC, &DeadNodes);
           removeFromWorkList(N1.getNode());
           DAG.DeleteNode(N1.getNode());
           return SDValue(N, 0);   // Return N so it doesn't get rechecked!
         }
       }
+    }
+  }
+  
+  // Transform br(xor(x, y)) -> br(x != y)
+  // Transform br(xor(xor(x,y), 1)) -> br (x == y)
+  if (N1.hasOneUse() && N1.getOpcode() == ISD::XOR) {
+    SDNode *TheXor = N1.getNode();
+    SDValue Op0 = TheXor->getOperand(0);
+    SDValue Op1 = TheXor->getOperand(1);
+    if (Op0.getOpcode() == Op1.getOpcode()) {
+      // Avoid missing important xor optimizations.
+      SDValue Tmp = visitXOR(TheXor);
+      if (Tmp.getNode()) {
+        DEBUG(dbgs() << "\nReplacing.8 ";
+              TheXor->dump(&DAG);
+              dbgs() << "\nWith: ";
+              Tmp.getNode()->dump(&DAG);
+              dbgs() << '\n');
+        WorkListRemover DeadNodes(*this);
+        DAG.ReplaceAllUsesOfValueWith(N1, Tmp, &DeadNodes);
+        removeFromWorkList(TheXor);
+        DAG.DeleteNode(TheXor);
+        return DAG.getNode(ISD::BRCOND, N->getDebugLoc(),
+                           MVT::Other, Chain, Tmp, N2);
+      }
+    }
+
+    if (Op0.getOpcode() != ISD::SETCC && Op1.getOpcode() != ISD::SETCC) {
+      bool Equal = false;
+      if (ConstantSDNode *RHSCI = dyn_cast<ConstantSDNode>(Op0))
+        if (RHSCI->getAPIntValue() == 1 && Op0.hasOneUse() &&
+            Op0.getOpcode() == ISD::XOR) {
+          TheXor = Op0.getNode();
+          Equal = true;
+        }
+
+      EVT SetCCVT = N1.getValueType();
+      if (LegalTypes)
+        SetCCVT = TLI.getSetCCResultType(SetCCVT);
+      SDValue SetCC = DAG.getSetCC(TheXor->getDebugLoc(),
+                                   SetCCVT,
+                                   Op0, Op1,
+                                   Equal ? ISD::SETEQ : ISD::SETNE);
+      // Replace the uses of XOR with SETCC
+      WorkListRemover DeadNodes(*this);
+      DAG.ReplaceAllUsesOfValueWith(N1, SetCC, &DeadNodes);
+      removeFromWorkList(N1.getNode());
+      DAG.DeleteNode(N1.getNode());
+      return DAG.getNode(ISD::BRCOND, N->getDebugLoc(),
+                         MVT::Other, Chain, SetCC, N2);
     }
   }
 
@@ -5012,7 +5065,7 @@ SDValue DAGCombiner::visitLOAD(SDNode *N) {
       assert(N->getValueType(2) == MVT::Other && "Malformed indexed loads?");
       if (N->hasNUsesOfValue(0, 0) && N->hasNUsesOfValue(0, 1)) {
         SDValue Undef = DAG.getUNDEF(N->getValueType(0));
-        DEBUG(dbgs() << "\nReplacing.6 ";
+        DEBUG(dbgs() << "\nReplacing.7 ";
               N->dump(&DAG);
               dbgs() << "\nWith: ";
               Undef.getNode()->dump(&DAG);

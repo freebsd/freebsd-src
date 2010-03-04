@@ -710,7 +710,7 @@ public:
   CXXConstructorDecl *getDefaultConstructor(ASTContext &Context);
 
   /// getDestructor - Returns the destructor decl for this class.
-  CXXDestructorDecl *getDestructor(ASTContext &Context);
+  CXXDestructorDecl *getDestructor(ASTContext &Context) const;
 
   /// isLocalClass - If the class is a local class [class.local], returns
   /// the enclosing function declaration.
@@ -750,6 +750,21 @@ public:
   /// \todo add a separate paramaeter to configure IsDerivedFrom, rather than 
   /// tangling input and output in \p Paths  
   bool isDerivedFrom(CXXRecordDecl *Base, CXXBasePaths &Paths) const;
+
+  /// \brief Determine whether this class is virtually derived from
+  /// the class \p Base.
+  ///
+  /// This routine only determines whether this class is virtually
+  /// derived from \p Base, but does not account for factors that may
+  /// make a Derived -> Base class ill-formed, such as
+  /// private/protected inheritance or multiple, ambiguous base class
+  /// subobjects.
+  ///
+  /// \param Base the base class we are searching for.
+  ///
+  /// \returns true if this class is virtually derived from Base,
+  /// false otherwise.
+  bool isVirtuallyDerivedFrom(CXXRecordDecl *Base) const;
 
   /// \brief Determine whether this class is provably not derived from
   /// the type \p Base.
@@ -824,6 +839,18 @@ public:
   /// base class that we are searching for.
   static bool FindBaseClass(const CXXBaseSpecifier *Specifier,
                             CXXBasePath &Path, void *BaseRecord);
+
+  /// \brief Base-class lookup callback that determines whether the
+  /// given base class specifier refers to a specific class
+  /// declaration and describes virtual derivation.
+  ///
+  /// This callback can be used with \c lookupInBases() to determine
+  /// whether a given derived class has is a virtual base class
+  /// subobject of a particular type.  The user data pointer should
+  /// refer to the canonical CXXRecordDecl of the base class that we
+  /// are searching for.
+  static bool FindVirtualBaseClass(const CXXBaseSpecifier *Specifier,
+                                   CXXBasePath &Path, void *BaseRecord);
   
   /// \brief Base-class lookup callback that determines whether there exists
   /// a tag with the given name.

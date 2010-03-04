@@ -653,7 +653,7 @@ loop:    ; preds = %loop, %entry
         ; body
   %calltmp = call double @putchard( double 4.200000e+01 )
         ; increment
-  %nextvar = add double %i, 1.000000e+00
+  %nextvar = fadd double %i, 1.000000e+00
 
         ; termination test
   %cmptmp = fcmp ult double %i, %n
@@ -1563,7 +1563,7 @@ operators</a>
   <a href="mailto:sabre@nondot.org">Chris Lattner</a><br>
   <a href="mailto:idadesub@users.sourceforge.net">Erick Tryzelaar</a><br>
   <a href="http://llvm.org">The LLVM Compiler Infrastructure</a><br>
-  Last modified: $Date: 2010-02-03 18:27:31 +0100 (Wed, 03 Feb 2010) $
+  Last modified: $Date: 2010-03-02 02:11:08 +0100 (Tue, 02 Mar 2010) $
 </address>
 </body>
 </html>

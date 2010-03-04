@@ -1041,9 +1041,9 @@ ret
 
 <div class="doc_code">
 <pre>
-%t1 = add float %W, %X
-%t2 = mul float %t1, %Y
-%t3 = add float %t2, %Z
+%t1 = fadd float %W, %X
+%t2 = fmul float %t1, %Y
+%t3 = fadd float %t2, %Z
 </pre>
 </div>
 
@@ -2116,7 +2116,7 @@ MOVSX32rm16 -&gt; movsx, 32-bit register, 16-bit memory
 
   <a href="mailto:sabre@nondot.org">Chris Lattner</a><br>
   <a href="http://llvm.org">The LLVM Compiler Infrastructure</a><br>
-  Last modified: $Date: 2010-01-11 19:53:47 +0100 (Mon, 11 Jan 2010) $
+  Last modified: $Date: 2010-03-02 02:11:08 +0100 (Tue, 02 Mar 2010) $
 </address>
 
 </body>
