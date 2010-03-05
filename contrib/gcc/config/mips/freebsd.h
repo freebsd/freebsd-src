@@ -65,6 +65,7 @@ Boston, MA 02110-1301, USA.  */
 
 #undef	LINK_SPEC
 #define LINK_SPEC "\
+    %{EB} %{EL} %(endian_spec) \
     %{G*} %{mips1} %{mips2} %{mips3} %{mips4} \
     %{mips32} %{mips32r2} %{mips64} %{mips64r2} \
     %{bestGnum} %{call_shared} %{no_archive} %{exact_version} \
@@ -72,8 +73,6 @@ Boston, MA 02110-1301, USA.  */
     %{mabi=n32:-melf32%{EB:b}%{EL:l}tsmipn32_fbsd} \
     %{mabi=64:-melf64%{EB:b}%{EL:l}tsmip_fbsd} \
     %{mabi=o64:-melf64%{EB:b}%{EL:l}tsmip_fbsd} \
-    %(fbsd_link_spec) \
-    %(endian_spec) \
     %(fbsd_link_spec)"
 
     
@@ -82,7 +81,7 @@ Boston, MA 02110-1301, USA.  */
 #undef  STARTFILE_SPEC
 #define STARTFILE_SPEC	FBSD_STARTFILE_SPEC
 
-/* Provide an ENDFILE_SPEC appropriate for FreeBSD/i386.  */
+/* Provide an ENDFILE_SPEC appropriate for FreeBSD/mips.  */
 #undef  ENDFILE_SPEC
 #define ENDFILE_SPEC	FBSD_ENDFILE_SPEC
 
