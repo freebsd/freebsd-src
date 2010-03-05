@@ -308,7 +308,7 @@ AcpiUtAllocateOwnerId (
 
     if (*OwnerId)
     {
-        ACPI_ERROR ((AE_INFO, "Owner ID [%2.2X] already exists", *OwnerId));
+        ACPI_ERROR ((AE_INFO, "Owner ID [0x%2.2X] already exists", *OwnerId));
         return_ACPI_STATUS (AE_ALREADY_EXISTS);
     }
 
@@ -427,7 +427,7 @@ AcpiUtReleaseOwnerId (
 
     if (OwnerId == 0)
     {
-        ACPI_ERROR ((AE_INFO, "Invalid OwnerId: %2.2X", OwnerId));
+        ACPI_ERROR ((AE_INFO, "Invalid OwnerId: 0x%2.2X", OwnerId));
         return_VOID;
     }
 
@@ -457,7 +457,7 @@ AcpiUtReleaseOwnerId (
     else
     {
         ACPI_ERROR ((AE_INFO,
-            "Release of non-allocated OwnerId: %2.2X", OwnerId + 1));
+            "Release of non-allocated OwnerId: 0x%2.2X", OwnerId + 1));
     }
 
     (void) AcpiUtReleaseMutex (ACPI_MTX_CACHES);

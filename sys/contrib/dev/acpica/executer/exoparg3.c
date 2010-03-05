@@ -206,7 +206,7 @@ AcpiExOpcode_3A_0T_0R (
 
     default:
 
-        ACPI_ERROR ((AE_INFO, "Unknown AML opcode %X",
+        ACPI_ERROR ((AE_INFO, "Unknown AML opcode 0x%X",
             WalkState->Opcode));
         Status = AE_AML_BAD_OPCODE;
         goto Cleanup;
@@ -345,7 +345,7 @@ AcpiExOpcode_3A_1T_1R (
 
     default:
 
-        ACPI_ERROR ((AE_INFO, "Unknown AML opcode %X",
+        ACPI_ERROR ((AE_INFO, "Unknown AML opcode 0x%X",
             WalkState->Opcode));
         Status = AE_AML_BAD_OPCODE;
         goto Cleanup;
