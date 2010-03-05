@@ -265,7 +265,7 @@ AcpiExSystemDoStall (
          * (ACPI specifies 100 usec as max, but this gives some slack in
          * order to support existing BIOSs)
          */
-        ACPI_ERROR ((AE_INFO, "Time parameter is too large (%d)",
+        ACPI_ERROR ((AE_INFO, "Time parameter is too large (%u)",
             HowLong));
         Status = AE_AML_OPERAND_VALUE;
     }
