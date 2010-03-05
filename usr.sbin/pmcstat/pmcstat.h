@@ -47,13 +47,15 @@
 #define	FLAG_HAS_SAMPLESDIR		0x00000800	/* -D dir */
 #define	FLAG_HAS_KERNELPATH		0x00001000	/* -k kernel */
 #define	FLAG_DO_PRINT			0x00002000	/* -o */
-#define	FLAG_DO_CALLGRAPHS		0x00004000	/* -G */
-#define	FLAG_DO_ANALYSIS		0x00008000	/* -g or -G */
-#define	FLAG_WANTS_MAPPINGS		0x00010000	/* -m */
+#define	FLAG_DO_CALLGRAPHS		0x00004000	/* -G or -F */
+#define	FLAG_DO_ANNOTATE		0x00008000	/* -m */
+#define	FLAG_DO_TOP			0x00010000	/* -T */
+#define	FLAG_DO_ANALYSIS		0x00020000	/* -g or -G or -m or -T */
 
 #define	DEFAULT_SAMPLE_COUNT		65536
 #define	DEFAULT_WAIT_INTERVAL		5.0
-#define	DEFAULT_DISPLAY_HEIGHT		23
+#define	DEFAULT_DISPLAY_HEIGHT		256		/* file virtual height */
+#define	DEFAULT_DISPLAY_WIDTH		1024		/* file virtual width */
 #define	DEFAULT_BUFFER_SIZE		4096
 #define	DEFAULT_CALLGRAPH_DEPTH		4
 
@@ -75,11 +77,23 @@
 
 #define	PMCSTAT_LDD_COMMAND		"/usr/bin/ldd"
 
-#define	PMCSTAT_PRINT_ENTRY(A,T,...) do {				\
-		(void) fprintf((A)->pa_printfile, "%-9s", T);		\
-		(void) fprintf((A)->pa_printfile, " "  __VA_ARGS__);	\
-		(void) fprintf((A)->pa_printfile, "\n");		\
+#define	PMCSTAT_PRINT_ENTRY(T,...) do {					\
+		(void) fprintf(args.pa_printfile, "%-9s", T);		\
+		(void) fprintf(args.pa_printfile, " "  __VA_ARGS__);	\
+		(void) fprintf(args.pa_printfile, "\n");		\
 	} while (0)
+
+#define PMCSTAT_PL_NONE		0
+#define PMCSTAT_PL_CALLGRAPH	1
+#define PMCSTAT_PL_GPROF	2
+#define PMCSTAT_PL_ANNOTATE	3
+#define PMCSTAT_PL_CALLTREE	4
+
+#define PMCSTAT_TOP_DELTA 	0
+#define PMCSTAT_TOP_ACCUM	1
+
+#define	min(A,B)		((A) < (B) ? (A) : (B))
+#define	max(A,B)		((A) > (B) ? (A) : (B))
 
 enum pmcstat_state {
 	PMCSTAT_FINISHED = 0,
@@ -110,6 +124,8 @@ struct pmcstat_target {
 struct pmcstat_args {
 	int	pa_flags;		/* argument flags */
 	int	pa_required;		/* required features */
+	int	pa_pplugin;		/* pre-processing plugin */
+	int	pa_plugin;		/* analysis plugin */
 	int	pa_verbosity;		/* verbosity level */
 	FILE	*pa_printfile;		/* where to send printed output */
 	int	pa_logfd;		/* output log file */
@@ -124,31 +140,44 @@ struct pmcstat_args {
 	int	pa_graphdepth;		/* print depth for callgraphs */
 	double	pa_interval;		/* printing interval in seconds */
 	uint32_t pa_cpumask;		/* filter for CPUs analysed */
+	int	pa_ctdumpinstr;		/* dump instructions with calltree */
+	int	pa_topmode;		/* delta or accumulative */
+	int	pa_toptty;		/* output to tty or file */
+	int	pa_topcolor;		/* terminal support color */
+	int	pa_mergepmc;		/* merge PMC with same name */
 	int	pa_argc;
 	char	**pa_argv;
 	STAILQ_HEAD(, pmcstat_ev) pa_events;
 	SLIST_HEAD(, pmcstat_target) pa_targets;
-} args;
+};
+
+extern int pmcstat_displayheight;	/* current terminal height */
+extern int pmcstat_displaywidth;	/* current terminal width */
+extern struct pmcstat_args args;	/* command line args */
 
 /* Function prototypes */
-void	pmcstat_attach_pmcs(struct pmcstat_args *_a);
-void	pmcstat_cleanup(struct pmcstat_args *_a);
-void	pmcstat_clone_event_descriptor(struct pmcstat_args *_a,
+void	pmcstat_attach_pmcs(void);
+void	pmcstat_cleanup(void);
+void	pmcstat_clone_event_descriptor(
     struct pmcstat_ev *_ev, uint32_t _cpumask);
-int	pmcstat_close_log(struct pmcstat_args *_a);
-void	pmcstat_create_process(struct pmcstat_args *_a);
-void	pmcstat_find_targets(struct pmcstat_args *_a, const char *_arg);
-void	pmcstat_initialize_logging(struct pmcstat_args *_a);
-void	pmcstat_kill_process(struct pmcstat_args *_a);
+int	pmcstat_close_log(void);
+void	pmcstat_create_process(void);
+void	pmcstat_find_targets(const char *_arg);
+void	pmcstat_initialize_logging(void);
+void	pmcstat_kill_process(void);
 int	pmcstat_open_log(const char *_p, int _mode);
-void	pmcstat_print_counters(struct pmcstat_args *_a);
-void	pmcstat_print_headers(struct pmcstat_args *_a);
-void	pmcstat_print_pmcs(struct pmcstat_args *_a);
+void	pmcstat_print_counters(void);
+void	pmcstat_print_headers(void);
+void	pmcstat_print_pmcs(void);
 void	pmcstat_show_usage(void);
-void	pmcstat_shutdown_logging(struct pmcstat_args *_a);
-void	pmcstat_start_pmcs(struct pmcstat_args *_a);
+void	pmcstat_shutdown_logging(void);
+void	pmcstat_start_pmcs(void);
 void	pmcstat_start_process(void);
-int	pmcstat_process_log(struct pmcstat_args *_a);
+int	pmcstat_process_log(void);
+int	pmcstat_keypress_log(void);
+void	pmcstat_display_log(void);
+void	pmcstat_pluginconfigure_log(char *_opt);
 uint32_t pmcstat_get_cpumask(const char *_a);
+void    pmcstat_topexit(void);
 
 #endif	/* _PMCSTAT_H_ */
