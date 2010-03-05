@@ -72,8 +72,8 @@ void __start(char **, void (*)(void), struct Struct_Obj_Entry *, struct ps_strin
 void
 __start(char **ap,
 	void (*cleanup)(void),			/* from shared loader */
-	struct Struct_Obj_Entry *obj,		/* from shared loader */
-	struct ps_strings *ps_strings)
+	struct Struct_Obj_Entry *obj __unused,	/* from shared loader */
+	struct ps_strings *ps_strings __unused)
 {
 	int argc;
 	char **argv;
