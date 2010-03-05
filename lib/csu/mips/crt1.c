@@ -66,6 +66,8 @@ extern int etext;
 char **environ;
 const char *__progname = "";
 
+void __start(char **, void (*)(void), struct Struct_Obj_Entry *, struct ps_strings *);
+
 /* The entry function. */
 void
 __start(char **ap,
