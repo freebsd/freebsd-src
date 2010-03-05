@@ -3447,6 +3447,8 @@ acpi_set_debugging(void *junk)
 	AcpiDbgLevel = 0;
     }
 
+    AcpiGbl_EnableAmlDebugObject = TRUE;
+
     layer = getenv("debug.acpi.layer");
     level = getenv("debug.acpi.level");
     if (layer == NULL && level == NULL)
