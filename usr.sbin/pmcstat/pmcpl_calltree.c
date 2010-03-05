@@ -387,7 +387,7 @@ pmcpl_ct_node_dumptop(int pmcin, struct pmcpl_ct_node *ct,
 	if (ct->pct_narc == 0) {
 		pmcpl_ct_topscreen[x+1][*y] = NULL;
 		if (*y >= PMCPL_CT_MAXLINE ||
-		    *y >= pmcstat_displaywidth)
+		    *y >= pmcstat_displayheight)
 			return 1;
 		*y = *y + 1;
 		for (i=0; i < x; i++)
