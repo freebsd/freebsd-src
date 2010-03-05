@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 12, 2010
+.Dd March 05, 2010
 .Dt RC.CONF 5
 .Os
 .Sh NAME
@@ -3497,6 +3497,11 @@ indicates that the highest frequency (less power savings) should be used.
 If set to
 .Dq Li NO ,
 any configured jails will not be started.
+.It jail_parallel_start
+.Pq Vt bool
+If set to
+.Dq Li YES
+all configured jails will be started in the background (= in parallel).
 .It Va jail_list
 .Pq Vt str
 A space separated list of names for jails.
