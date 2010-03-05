@@ -65,12 +65,17 @@ Boston, MA 02110-1301, USA.  */
 
 #undef	LINK_SPEC
 #define LINK_SPEC "\
-    %{G*} %{mips1} %{mips2} %{mips3} %{mips4} %{mips32} %{mips32r2} %{mips64} \
+    %{G*} %{mips1} %{mips2} %{mips3} %{mips4} \
+    %{mips32} %{mips32r2} %{mips64} %{mips64r2} \
     %{bestGnum} %{call_shared} %{no_archive} %{exact_version} \
-    %(fbsd_link_spec) "
-#if 0
-    %(endian_spec)
-#endif
+    %{mabi=32:-melf32%{EB:b}%{EL:l}tsmip_fbsd} \
+    %{mabi=n32:-melf32%{EB:b}%{EL:l}tsmipn32_fbsd} \
+    %{mabi=64:-melf64%{EB:b}%{EL:l}tsmip_fbsd} \
+    %{mabi=o64:-melf64%{EB:b}%{EL:l}tsmip_fbsd} \
+    %(fbsd_link_spec) \
+    %(endian_spec) \
+    %(fbsd_link_spec)"
+
     
 /* Reset our STARTFILE_SPEC which was properly set in config/freebsd.h
    but trashed by config/mips/elf.h.  */
@@ -250,12 +255,28 @@ Boston, MA 02110-1301, USA.  */
     }								\
   while (0)
 
-/* Default to the mips32 ISA */
-#undef  DRIVER_SELF_SPECS
+/* Default ABI and ISA */
+#undef DRIVER_SELF_SPECS
+#if MIPS_ABI_DEFAULT == ABI_N32
 #define DRIVER_SELF_SPECS \
-  "%{!march=*: -march=mips32}"
-#if 0
-  "%{!EB:%{!EL:%(endian_spec)}}", 
+	"%{!EB:%{!EL:%(endian_spec)}}", \
+	"%{!march=*: -march=mips64}",   \
+	"%{!mabi=*: -mabi=n32}"
+#elif MIPS_ABI_DEFAULT == ABI_64
+#define DRIVER_SELF_SPECS \
+	"%{!EB:%{!EL:%(endian_spec)}}", \
+	"%{!march=*: -march=mips64}",   \
+	"%{!mabi=*: -mabi=64}"
+#elif MIPS_ABI_DEFAULT == ABI_O64
+#define DRIVER_SELF_SPECS \
+	"%{!EB:%{!EL:%(endian_spec)}}", \
+	"%{!march=*: -march=mips64}",   \
+	"%{!mabi=*: -mabi=o64}"
+#else /* default to o32 */
+#define DRIVER_SELF_SPECS \
+	"%{!EB:%{!EL:%(endian_spec)}}", \
+	"%{!march=*: -march=mips32}",   \
+	"%{!mabi=*: -mabi=32}"
 #endif
 
 #if 0
