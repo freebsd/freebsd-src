@@ -258,8 +258,8 @@ WMAKEENV=	${CROSSENV} \
 		VERSION="${VERSION}" \
 		INSTALL="sh ${.CURDIR}/tools/install.sh" \
 		PATH=${TMPPATH} \
-		CC="${CC} -isystem ${WORLDTMP}/usr/include -B${WORLDTMP} -L${WORLDTMP}/usr/lib/" \
-		CXX="${CXX} -isystem ${WORLDTMP}/include/c++/4.2 -isystem ${WORLDTMP}/include/c++/4.2/backward -B${WORLDTMP} -L${WORLDTMP}/usr/lib/"
+		CC="${CC} -isystem ${WORLDTMP}/usr/include -B${WORLDTMP}/usr/bin/ -L${WORLDTMP}/usr/lib/" \
+		CXX="${CXX} -isystem ${WORLDTMP}/include/c++/4.2 -isystem ${WORLDTMP}/include/c++/4.2/backward -B${WORLDTMP}/usr/bin/ -L${WORLDTMP}/usr/lib/"
 
 .if ${MK_CDDL} == "no" || defined(NO_CTF)
 WMAKEENV+=	NO_CTF=1

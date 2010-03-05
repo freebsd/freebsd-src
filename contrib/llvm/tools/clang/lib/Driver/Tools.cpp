@@ -2638,7 +2638,7 @@ void freebsd::Assemble::ConstructJob(Compilation &C, const JobAction &JA,
   }
 
   const char *Exec =
-    Args.MakeArgString(getToolChain().GetProgramPath(C, "/usr/bin/as"));
+    Args.MakeArgString(getToolChain().GetProgramPath(C, "as"));
   Dest.addCommand(new Command(JA, *this, Exec, CmdArgs));
 }
 
@@ -2756,7 +2756,7 @@ void freebsd::Link::ConstructJob(Compilation &C, const JobAction &JA,
   }
 
   const char *Exec =
-    Args.MakeArgString(getToolChain().GetProgramPath(C, "/usr/bin/ld"));
+    Args.MakeArgString(getToolChain().GetProgramPath(C, "ld"));
   Dest.addCommand(new Command(JA, *this, Exec, CmdArgs));
 }
 
