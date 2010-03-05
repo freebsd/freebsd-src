@@ -2181,7 +2181,7 @@ static int octeon_has_4ports (void)
     u_int chipid;
     int retcode = 1;
 
-    chipid = octeon_get_chipid() & 0xffffff00;
+    chipid = octeon_get_chipid();
 
     switch (chipid) {
         case OCTEON_CN31XX_CHIP:
