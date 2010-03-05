@@ -4,7 +4,7 @@
 
 DTCDIR=	${.CURDIR}/../../../contrib/dtc
 LIBFDTDIR= ${.CURDIR}/../../../sys/contrib/libfdt
-.PATH: ${DTCDIR} ${LIBFDTDIR} ${DTCDIR}/tests
+.PATH: ${DTCDIR} ${LIBFDTDIR}
 
 PROG=	dtc
 
