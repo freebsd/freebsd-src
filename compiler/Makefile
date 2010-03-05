@@ -4,7 +4,7 @@ PROG=	iasl
 SRCS=	aslcompilerparse.c aslcompilerlex.c aslanalyze.c aslcodegen.c \
 	aslcompile.c aslerror.c aslfiles.c asllength.c \
 	asllisting.c aslload.c asllookup.c aslmain.c aslmap.c aslopcodes.c \
-	asloperands.c aslresource.c aslrestype1.c aslrestype2.c aslstartup.c \
+	asloperands.c aslpredef.c aslresource.c aslrestype1.c aslrestype2.c aslstartup.c \
 	asltree.c aslutils.c asltransform.c aslfold.c aslstubs.c aslopt.c \
 	../common/getopt.c \
 	../utilities/utalloc.c \

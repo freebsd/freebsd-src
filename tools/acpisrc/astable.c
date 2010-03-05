@@ -523,6 +523,7 @@ ACPI_TYPED_IDENTIFIER_TABLE           AcpiIdentifiers[] = {
     {"ACPI_TABLE_IVRS",                     SRC_TYPE_STRUCT},
     {"ACPI_TABLE_MADT",                     SRC_TYPE_STRUCT},
     {"ACPI_TABLE_MCFG",                     SRC_TYPE_STRUCT},
+    {"ACPI_TABLE_MCHI",                     SRC_TYPE_STRUCT},
     {"ACPI_TABLE_MSCT",                     SRC_TYPE_STRUCT},
     {"ACPI_TABLE_RSDP",                     SRC_TYPE_STRUCT},
     {"ACPI_TABLE_RSDT",                     SRC_TYPE_STRUCT},
