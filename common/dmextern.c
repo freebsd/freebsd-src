@@ -374,7 +374,7 @@ AcpiDmAddToExternalList (
                 (NextExternal->Value != Value))
             {
                 ACPI_ERROR ((AE_INFO,
-                    "Argument count mismatch for method %s %d %d",
+                    "Argument count mismatch for method %s %u %u",
                     NextExternal->Path, NextExternal->Value, Value));
             }
 

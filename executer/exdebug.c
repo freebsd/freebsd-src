@@ -1,7 +1,6 @@
-
 /******************************************************************************
  *
- * Module Name: exoparg3 - AML execution - opcodes with 3 arguments
+ * Module Name: exdebug - Support for stores to the AML Debug Object
  *
  *****************************************************************************/
 
@@ -84,7 +83,6 @@
  * HERE.  ANY SOFTWARE ORIGINATING FROM INTEL OR DERIVED FROM INTEL SOFTWARE
  * IS PROVIDED "AS IS," AND INTEL WILL NOT PROVIDE ANY SUPPORT,  ASSISTANCE,
  * INSTALLATION, TRAINING OR OTHER SERVICES.  INTEL WILL NOT PROVIDE ANY
-
  * UPDATES, ENHANCEMENTS OR EXTENSIONS.  INTEL SPECIFICALLY DISCLAIMS ANY
  * IMPLIED WARRANTIES OF MERCHANTABILITY, NONINFRINGEMENT AND FITNESS FOR A
  * PARTICULAR PURPOSE.
@@ -115,263 +113,238 @@
  *
  *****************************************************************************/
 
-#define __EXOPARG3_C__
+#define __EXDEBUG_C__
 
 #include "acpi.h"
 #include "accommon.h"
 #include "acinterp.h"
-#include "acparser.h"
-#include "amlcode.h"
 
 
 #define _COMPONENT          ACPI_EXECUTER
-        ACPI_MODULE_NAME    ("exoparg3")
+        ACPI_MODULE_NAME    ("exdebug")
 
 
-/*!
- * Naming convention for AML interpreter execution routines.
- *
- * The routines that begin execution of AML opcodes are named with a common
- * convention based upon the number of arguments, the number of target operands,
- * and whether or not a value is returned:
- *
- *      AcpiExOpcode_xA_yT_zR
- *
- * Where:
- *
- * xA - ARGUMENTS:    The number of arguments (input operands) that are
- *                    required for this opcode type (1 through 6 args).
- * yT - TARGETS:      The number of targets (output operands) that are required
- *                    for this opcode type (0, 1, or 2 targets).
- * zR - RETURN VALUE: Indicates whether this opcode type returns a value
- *                    as the function return (0 or 1).
- *
- * The AcpiExOpcode* functions are called via the Dispatcher component with
- * fully resolved operands.
-!*/
-
-
+#ifndef ACPI_NO_ERROR_MESSAGES
 /*******************************************************************************
  *
- * FUNCTION:    AcpiExOpcode_3A_0T_0R
+ * FUNCTION:    AcpiExDoDebugObject
  *
- * PARAMETERS:  WalkState           - Current walk state
+ * PARAMETERS:  SourceDesc          - Object to be output to "Debug Object"
+ *              Level               - Indentation level (used for packages)
+ *              Index               - Current package element, zero if not pkg
  *
- * RETURN:      Status
+ * RETURN:      None
  *
- * DESCRIPTION: Execute Triadic operator (3 operands)
+ * DESCRIPTION: Handles stores to the AML Debug Object. For example:
+ *              Store(INT1, Debug)
+ *
+ * This function is not compiled if ACPI_NO_ERROR_MESSAGES is set.
+ *
+ * This function is only enabled if AcpiGbl_EnableAmlDebugObject is set, or
+ * if ACPI_LV_DEBUG_OBJECT is set in the AcpiDbgLevel. Thus, in the normal
+ * operational case, stores to the debug object are ignored but can be easily
+ * enabled if necessary.
  *
  ******************************************************************************/
 
-ACPI_STATUS
-AcpiExOpcode_3A_0T_0R (
-    ACPI_WALK_STATE         *WalkState)
+void
+AcpiExDoDebugObject (
+    ACPI_OPERAND_OBJECT     *SourceDesc,
+    UINT32                  Level,
+    UINT32                  Index)
 {
-    ACPI_OPERAND_OBJECT     **Operand = &WalkState->Operands[0];
-    ACPI_SIGNAL_FATAL_INFO  *Fatal;
-    ACPI_STATUS             Status = AE_OK;
+    UINT32                  i;
 
 
-    ACPI_FUNCTION_TRACE_STR (ExOpcode_3A_0T_0R,
-        AcpiPsGetOpcodeName (WalkState->Opcode));
+    ACPI_FUNCTION_TRACE_PTR (ExDoDebugObject, SourceDesc);
 
 
-    switch (WalkState->Opcode)
+    /* Output must be enabled via the DebugObject global or the DbgLevel */
+
+    if (!AcpiGbl_EnableAmlDebugObject &&
+        !(AcpiDbgLevel & ACPI_LV_DEBUG_OBJECT))
     {
-    case AML_FATAL_OP:          /* Fatal (FatalType  FatalCode  FatalArg) */
-
-        ACPI_DEBUG_PRINT ((ACPI_DB_INFO,
-            "FatalOp: Type %X Code %X Arg %X <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<\n",
-            (UINT32) Operand[0]->Integer.Value,
-            (UINT32) Operand[1]->Integer.Value,
-            (UINT32) Operand[2]->Integer.Value));
-
-        Fatal = ACPI_ALLOCATE (sizeof (ACPI_SIGNAL_FATAL_INFO));
-        if (Fatal)
-        {
-            Fatal->Type     = (UINT32) Operand[0]->Integer.Value;
-            Fatal->Code     = (UINT32) Operand[1]->Integer.Value;
-            Fatal->Argument = (UINT32) Operand[2]->Integer.Value;
-        }
-
-        /* Always signal the OS! */
-
-        Status = AcpiOsSignal (ACPI_SIGNAL_FATAL, Fatal);
-
-        /* Might return while OS is shutting down, just continue */
-
-        ACPI_FREE (Fatal);
-        break;
-
-
-    default:
-
-        ACPI_ERROR ((AE_INFO, "Unknown AML opcode 0x%X",
-            WalkState->Opcode));
-        Status = AE_AML_BAD_OPCODE;
-        goto Cleanup;
+        return_VOID;
     }
 
-
-Cleanup:
-
-    return_ACPI_STATUS (Status);
-}
-
-
-/*******************************************************************************
- *
- * FUNCTION:    AcpiExOpcode_3A_1T_1R
- *
- * PARAMETERS:  WalkState           - Current walk state
- *
- * RETURN:      Status
- *
- * DESCRIPTION: Execute Triadic operator (3 operands)
- *
- ******************************************************************************/
-
-ACPI_STATUS
-AcpiExOpcode_3A_1T_1R (
-    ACPI_WALK_STATE         *WalkState)
-{
-    ACPI_OPERAND_OBJECT     **Operand = &WalkState->Operands[0];
-    ACPI_OPERAND_OBJECT     *ReturnDesc = NULL;
-    char                    *Buffer = NULL;
-    ACPI_STATUS             Status = AE_OK;
-    UINT64                  Index;
-    ACPI_SIZE               Length;
-
-
-    ACPI_FUNCTION_TRACE_STR (ExOpcode_3A_1T_1R,
-        AcpiPsGetOpcodeName (WalkState->Opcode));
-
-
-    switch (WalkState->Opcode)
+    /*
+     * Print line header as long as we are not in the middle of an
+     * object display
+     */
+    if (!((Level > 0) && Index == 0))
     {
-    case AML_MID_OP:    /* Mid (Source[0], Index[1], Length[2], Result[3]) */
-
-        /*
-         * Create the return object.  The Source operand is guaranteed to be
-         * either a String or a Buffer, so just use its type.
-         */
-        ReturnDesc = AcpiUtCreateInternalObject (
-                        (Operand[0])->Common.Type);
-        if (!ReturnDesc)
-        {
-            Status = AE_NO_MEMORY;
-            goto Cleanup;
-        }
-
-        /* Get the Integer values from the objects */
-
-        Index = Operand[1]->Integer.Value;
-        Length = (ACPI_SIZE) Operand[2]->Integer.Value;
-
-        /*
-         * If the index is beyond the length of the String/Buffer, or if the
-         * requested length is zero, return a zero-length String/Buffer
-         */
-        if (Index >= Operand[0]->String.Length)
-        {
-            Length = 0;
-        }
-
-        /* Truncate request if larger than the actual String/Buffer */
-
-        else if ((Index + Length) > Operand[0]->String.Length)
-        {
-            Length = (ACPI_SIZE) Operand[0]->String.Length -
-                        (ACPI_SIZE) Index;
-        }
-
-        /* Strings always have a sub-pointer, not so for buffers */
-
-        switch ((Operand[0])->Common.Type)
-        {
-        case ACPI_TYPE_STRING:
-
-            /* Always allocate a new buffer for the String */
-
-            Buffer = ACPI_ALLOCATE_ZEROED ((ACPI_SIZE) Length + 1);
-            if (!Buffer)
-            {
-                Status = AE_NO_MEMORY;
-                goto Cleanup;
-            }
-            break;
-
-        case ACPI_TYPE_BUFFER:
-
-            /* If the requested length is zero, don't allocate a buffer */
-
-            if (Length > 0)
-            {
-                /* Allocate a new buffer for the Buffer */
-
-                Buffer = ACPI_ALLOCATE_ZEROED (Length);
-                if (!Buffer)
-                {
-                    Status = AE_NO_MEMORY;
-                    goto Cleanup;
-                }
-            }
-            break;
-
-        default:                        /* Should not happen */
-
-            Status = AE_AML_OPERAND_TYPE;
-            goto Cleanup;
-        }
-
-        if (Buffer)
-        {
-            /* We have a buffer, copy the portion requested */
-
-            ACPI_MEMCPY (Buffer, Operand[0]->String.Pointer + Index,
-                         Length);
-        }
-
-        /* Set the length of the new String/Buffer */
-
-        ReturnDesc->String.Pointer = Buffer;
-        ReturnDesc->String.Length = (UINT32) Length;
-
-        /* Mark buffer initialized */
-
-        ReturnDesc->Buffer.Flags |= AOPOBJ_DATA_VALID;
-        break;
-
-
-    default:
-
-        ACPI_ERROR ((AE_INFO, "Unknown AML opcode 0x%X",
-            WalkState->Opcode));
-        Status = AE_AML_BAD_OPCODE;
-        goto Cleanup;
+        AcpiOsPrintf ("[ACPI Debug] %*s", Level, " ");
     }
 
-    /* Store the result in the target */
+    /* Display the index for package output only */
 
-    Status = AcpiExStore (ReturnDesc, Operand[3], WalkState);
-
-Cleanup:
-
-    /* Delete return object on error */
-
-    if (ACPI_FAILURE (Status) || WalkState->ResultObj)
+    if (Index > 0)
     {
-        AcpiUtRemoveReference (ReturnDesc);
-        WalkState->ResultObj = NULL;
+       AcpiOsPrintf ("(%.2u) ", Index-1);
     }
 
-    /* Set the return object and exit */
+    if (!SourceDesc)
+    {
+        AcpiOsPrintf ("[Null Object]\n");
+        return_VOID;
+    }
 
+    if (ACPI_GET_DESCRIPTOR_TYPE (SourceDesc) == ACPI_DESC_TYPE_OPERAND)
+    {
+        AcpiOsPrintf ("%s ", AcpiUtGetObjectTypeName (SourceDesc));
+
+        if (!AcpiUtValidInternalObject (SourceDesc))
+        {
+           AcpiOsPrintf ("%p, Invalid Internal Object!\n", SourceDesc);
+           return_VOID;
+        }
+    }
+    else if (ACPI_GET_DESCRIPTOR_TYPE (SourceDesc) == ACPI_DESC_TYPE_NAMED)
+    {
+        AcpiOsPrintf ("%s: %p\n",
+            AcpiUtGetTypeName (((ACPI_NAMESPACE_NODE *) SourceDesc)->Type),
+            SourceDesc);
+        return_VOID;
+    }
     else
     {
-        WalkState->ResultObj = ReturnDesc;
+        return_VOID;
     }
-    return_ACPI_STATUS (Status);
+
+    /* SourceDesc is of type ACPI_DESC_TYPE_OPERAND */
+
+    switch (SourceDesc->Common.Type)
+    {
+    case ACPI_TYPE_INTEGER:
+
+        /* Output correct integer width */
+
+        if (AcpiGbl_IntegerByteWidth == 4)
+        {
+            AcpiOsPrintf ("0x%8.8X\n",
+                (UINT32) SourceDesc->Integer.Value);
+        }
+        else
+        {
+            AcpiOsPrintf ("0x%8.8X%8.8X\n",
+                ACPI_FORMAT_UINT64 (SourceDesc->Integer.Value));
+        }
+        break;
+
+    case ACPI_TYPE_BUFFER:
+
+        AcpiOsPrintf ("[0x%.2X]\n", (UINT32) SourceDesc->Buffer.Length);
+        AcpiUtDumpBuffer2 (SourceDesc->Buffer.Pointer,
+            (SourceDesc->Buffer.Length < 256) ? 
+                SourceDesc->Buffer.Length : 256, DB_BYTE_DISPLAY);
+        break;
+
+    case ACPI_TYPE_STRING:
+
+        AcpiOsPrintf ("[0x%.2X] \"%s\"\n",
+            SourceDesc->String.Length, SourceDesc->String.Pointer);
+        break;
+
+    case ACPI_TYPE_PACKAGE:
+
+        AcpiOsPrintf ("[Contains 0x%.2X Elements]\n",
+            SourceDesc->Package.Count);
+
+        /* Output the entire contents of the package */
+
+        for (i = 0; i < SourceDesc->Package.Count; i++)
+        {
+            AcpiExDoDebugObject (SourceDesc->Package.Elements[i],
+                Level+4, i+1);
+        }
+        break;
+
+    case ACPI_TYPE_LOCAL_REFERENCE:
+
+        AcpiOsPrintf ("[%s] ", AcpiUtGetReferenceName (SourceDesc));
+
+        /* Decode the reference */
+
+        switch (SourceDesc->Reference.Class)
+        {
+        case ACPI_REFCLASS_INDEX:
+
+            AcpiOsPrintf ("0x%X\n", SourceDesc->Reference.Value);
+            break;
+
+        case ACPI_REFCLASS_TABLE:
+
+            /* Case for DdbHandle */
+
+            AcpiOsPrintf ("Table Index 0x%X\n", SourceDesc->Reference.Value);
+            return;
+
+        default:
+            break;
+        }
+
+        AcpiOsPrintf ("  ");
+
+        /* Check for valid node first, then valid object */
+
+        if (SourceDesc->Reference.Node)
+        {
+            if (ACPI_GET_DESCRIPTOR_TYPE (SourceDesc->Reference.Node) !=
+                    ACPI_DESC_TYPE_NAMED)
+            {
+                AcpiOsPrintf (" %p - Not a valid namespace node\n",
+                    SourceDesc->Reference.Node);
+            }
+            else
+            {
+                AcpiOsPrintf ("Node %p [%4.4s] ", SourceDesc->Reference.Node,
+                    (SourceDesc->Reference.Node)->Name.Ascii);
+
+                switch ((SourceDesc->Reference.Node)->Type)
+                {
+                /* These types have no attached object */
+
+                case ACPI_TYPE_DEVICE:
+                    AcpiOsPrintf ("Device\n");
+                    break;
+
+                case ACPI_TYPE_THERMAL:
+                    AcpiOsPrintf ("Thermal Zone\n");
+                    break;
+
+                default:
+                    AcpiExDoDebugObject ((SourceDesc->Reference.Node)->Object,
+                        Level+4, 0);
+                    break;
+                }
+            }
+        }
+        else if (SourceDesc->Reference.Object)
+        {
+            if (ACPI_GET_DESCRIPTOR_TYPE (SourceDesc->Reference.Object) ==
+                    ACPI_DESC_TYPE_NAMED)
+            {
+                AcpiExDoDebugObject (((ACPI_NAMESPACE_NODE *)
+                    SourceDesc->Reference.Object)->Object,
+                    Level+4, 0);
+            }
+            else
+            {
+                AcpiExDoDebugObject (SourceDesc->Reference.Object,
+                    Level+4, 0);
+            }
+        }
+        break;
+
+    default:
+
+        AcpiOsPrintf ("%p\n", SourceDesc);
+        break;
+    }
+
+    ACPI_DEBUG_PRINT_RAW ((ACPI_DB_EXEC, "\n"));
+    return_VOID;
 }
+#endif
 
 

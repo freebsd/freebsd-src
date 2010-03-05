@@ -262,6 +262,7 @@ static ACPI_DMTABLE_DATA    AcpiDmTableData[] =
     {ACPI_SIG_IVRS, NULL,                   AcpiDmDumpIvrs, "I/O Virtualization Reporting Structure"},
     {ACPI_SIG_MADT, NULL,                   AcpiDmDumpMadt, "Multiple APIC Description Table"},
     {ACPI_SIG_MCFG, NULL,                   AcpiDmDumpMcfg, "Memory Mapped Configuration table"},
+    {ACPI_SIG_MCHI, AcpiDmTableInfoMchi,    NULL,           "Management Controller Host Interface table"},
     {ACPI_SIG_MSCT, NULL,                   AcpiDmDumpMsct, "Maximum System Characteristics Table"},
     {ACPI_SIG_RSDT, NULL,                   AcpiDmDumpRsdt, "Root System Description Table"},
     {ACPI_SIG_SBST, AcpiDmTableInfoSbst,    NULL,           "Smart Battery Specification Table"},
@@ -911,7 +912,7 @@ AcpiDmDumpTable (
 
         default:
             ACPI_ERROR ((AE_INFO,
-                "**** Invalid table opcode [%X] ****\n", Info->Opcode));
+                "**** Invalid table opcode [0x%X] ****\n", Info->Opcode));
             return (AE_SUPPORT);
         }
     }

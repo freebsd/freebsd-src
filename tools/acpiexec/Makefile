@@ -49,6 +49,7 @@ SRCS=	aetables.c aehandlers.c aeexec.c aemain.c \
 	../../executer/exconfig.c \
 	../../executer/exconvrt.c \
 	../../executer/excreate.c \
+	../../executer/exdebug.c \
 	../../executer/exdump.c \
 	../../executer/exfield.c \
 	../../executer/exfldio.c \

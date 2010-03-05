@@ -727,7 +727,7 @@ AcpiOsCreateSemaphore (
     if (i >= ACPI_OS_MAX_SEMAPHORES)
     {
         ACPI_EXCEPTION ((AE_INFO, AE_LIMIT,
-            "Reached max semaphores (%d), could not create", ACPI_OS_MAX_SEMAPHORES));
+            "Reached max semaphores (%u), could not create", ACPI_OS_MAX_SEMAPHORES));
         return AE_LIMIT;
     }
 
@@ -862,7 +862,7 @@ AcpiOsWaitSemaphore (
 
     if (AcpiGbl_Semaphores[Index].CurrentUnits == 0)
     {
-        ACPI_ERROR ((AE_INFO, "%s - No unit received. Timeout %X, OSstatus 0x%X",
+        ACPI_ERROR ((AE_INFO, "%s - No unit received. Timeout 0x%X, OS_Status 0x%X",
             AcpiUtGetMutexName (Index), Timeout, WaitStatus));
 
         return AE_OK;
@@ -923,7 +923,7 @@ AcpiOsSignalSemaphore (
         AcpiGbl_Semaphores[Index].MaxUnits)
     {
         ACPI_ERROR ((AE_INFO,
-            "Oversignalled semaphore[%d]! Current %d Max %d",
+            "Oversignalled semaphore[%u]! Current %u Max %u",
             Index, AcpiGbl_Semaphores[Index].CurrentUnits,
             AcpiGbl_Semaphores[Index].MaxUnits));
 
@@ -1409,3 +1409,78 @@ AcpiOsSignal (
     return (AE_OK);
 }
 
+
+/******************************************************************************
+ *
+ * FUNCTION:    Local cache interfaces
+ *
+ * DESCRIPTION: Implements cache interfaces via malloc/free for testing
+ *              purposes only. 
+ *
+ *****************************************************************************/
+
+#ifndef ACPI_USE_LOCAL_CACHE
+
+ACPI_STATUS
+AcpiOsCreateCache (
+    char                    *CacheName,
+    UINT16                  ObjectSize,
+    UINT16                  MaxDepth,
+    ACPI_CACHE_T            **ReturnCache)
+{
+    ACPI_MEMORY_LIST        *NewCache;
+
+
+    NewCache = malloc (sizeof (ACPI_MEMORY_LIST));
+    if (!NewCache)
+    {
+        return (AE_NO_MEMORY);
+    }
+
+    memset (NewCache, 0, sizeof (ACPI_MEMORY_LIST));
+    NewCache->LinkOffset = 8;
+    NewCache->ListName = CacheName;
+    NewCache->ObjectSize = ObjectSize;
+    NewCache->MaxDepth = MaxDepth;
+
+    *ReturnCache = (ACPI_CACHE_T) NewCache;
+    return (AE_OK);
+}
+
+ACPI_STATUS
+AcpiOsDeleteCache (
+    ACPI_CACHE_T            *Cache)
+{
+    free (Cache);
+    return (AE_OK);
+}
+
+ACPI_STATUS
+AcpiOsPurgeCache (
+    ACPI_CACHE_T            *Cache)
+{
+    return (AE_OK);
+}
+
+void *
+AcpiOsAcquireObject (
+    ACPI_CACHE_T            *Cache)
+{
+    void                    *NewObject;
+
+    NewObject = malloc (((ACPI_MEMORY_LIST *) Cache)->ObjectSize);
+    memset (NewObject, 0, ((ACPI_MEMORY_LIST *) Cache)->ObjectSize);
+    
+    return (NewObject);
+}
+
+ACPI_STATUS
+AcpiOsReleaseObject (
+    ACPI_CACHE_T            *Cache,
+    void                    *Object)
+{
+    free (Object);
+    return (AE_OK);
+}
+
+#endif

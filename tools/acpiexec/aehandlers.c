@@ -922,7 +922,7 @@ AeRegionHandler (
         ((UINT64)(RegionElement->Address) + RegionElement->Length))
     {
         ACPI_WARNING ((AE_INFO,
-            "Request on [%4.4s] is beyond region limit Req-%X+%X, Base=%X, Len-%X",
+            "Request on [%4.4s] is beyond region limit Req-0x%X+0x%X, Base=0x%X, Len-0x%X",
             (RegionObject->Region.Node)->Name.Ascii, (UINT32) Address,
             ByteWidth, (UINT32)(RegionElement->Address),
             RegionElement->Length));

@@ -803,7 +803,7 @@ AcpiEvGpeDispatch (
         if (ACPI_FAILURE (Status))
         {
             ACPI_EXCEPTION ((AE_INFO, Status,
-                "Unable to clear GPE[%2X]", GpeNumber));
+                "Unable to clear GPE[0x%2X]", GpeNumber));
             return_UINT32 (ACPI_INTERRUPT_NOT_HANDLED);
         }
     }
@@ -836,7 +836,7 @@ AcpiEvGpeDispatch (
             if (ACPI_FAILURE (Status))
             {
                 ACPI_EXCEPTION ((AE_INFO, Status,
-                    "Unable to clear GPE[%2X]", GpeNumber));
+                    "Unable to clear GPE[0x%2X]", GpeNumber));
                 return_UINT32 (ACPI_INTERRUPT_NOT_HANDLED);
             }
         }
@@ -852,7 +852,7 @@ AcpiEvGpeDispatch (
         if (ACPI_FAILURE (Status))
         {
             ACPI_EXCEPTION ((AE_INFO, Status,
-                "Unable to disable GPE[%2X]", GpeNumber));
+                "Unable to disable GPE[0x%2X]", GpeNumber));
             return_UINT32 (ACPI_INTERRUPT_NOT_HANDLED);
         }
 
@@ -865,7 +865,7 @@ AcpiEvGpeDispatch (
         if (ACPI_FAILURE (Status))
         {
             ACPI_EXCEPTION ((AE_INFO, Status,
-                "Unable to queue handler for GPE[%2X] - event disabled",
+                "Unable to queue handler for GPE[0x%2X] - event disabled",
                 GpeNumber));
         }
         break;
@@ -875,7 +875,7 @@ AcpiEvGpeDispatch (
         /* No handler or method to run! */
 
         ACPI_ERROR ((AE_INFO,
-            "No handler or method for GPE[%2X], disabling event",
+            "No handler or method for GPE[0x%2X], disabling event",
             GpeNumber));
 
         /*
@@ -886,7 +886,7 @@ AcpiEvGpeDispatch (
         if (ACPI_FAILURE (Status))
         {
             ACPI_EXCEPTION ((AE_INFO, Status,
-                "Unable to disable GPE[%2X]", GpeNumber));
+                "Unable to disable GPE[0x%2X]", GpeNumber));
             return_UINT32 (ACPI_INTERRUPT_NOT_HANDLED);
         }
         break;
