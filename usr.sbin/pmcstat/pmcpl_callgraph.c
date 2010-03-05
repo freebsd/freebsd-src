@@ -550,7 +550,7 @@ pmcstat_cgnode_topprint(struct pmcstat_cgnode *cg,
 
 		len = ns_len + vs_len + 1;
 		if (width - len < 0) {
-			PMCSTAT_PRINTW("...");
+			PMCSTAT_PRINTW(" ...");
 			break;
 		}
 		width -= len;
