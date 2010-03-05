@@ -595,6 +595,12 @@ fsk_detach(struct dn_fsk *fs, int flags)
 		h = fs->sched ? &fs->sched->fsk_list : &dn_cfg.fsu;
 		SLIST_REMOVE(h, fs, dn_fsk, sch_chain);
 	}
+	/* Free the RED parameters, they will be recomputed on
+	 * subsequent attach if needed.
+	 */
+	if (fs->w_q_lookup)
+		free(fs->w_q_lookup, M_DUMMYNET);
+	fs->w_q_lookup = NULL;
 	qht_delete(fs, flags);
 	if (fs->sched && fs->sched->fp->free_fsk)
 		fs->sched->fp->free_fsk(fs);
