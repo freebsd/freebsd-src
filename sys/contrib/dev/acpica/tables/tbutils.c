@@ -349,7 +349,7 @@ AcpiTbVerifyChecksum (
     if (Checksum)
     {
         ACPI_WARNING ((AE_INFO,
-            "Incorrect checksum in table [%4.4s] - %2.2X, should be %2.2X",
+            "Incorrect checksum in table [%4.4s] - 0x%2.2X, should be 0x%2.2X",
             Table->Signature, Table->Checksum,
             (UINT8) (Table->Checksum - Checksum)));
 
@@ -567,7 +567,7 @@ AcpiTbGetRootTableEntry (
             /* Will truncate 64-bit address to 32 bits, issue warning */
 
             ACPI_WARNING ((AE_INFO,
-                "64-bit Physical Address in XSDT is too large (%8.8X%8.8X),"
+                "64-bit Physical Address in XSDT is too large (0x%8.8X%8.8X),"
                 " truncating",
                 ACPI_FORMAT_UINT64 (Address64)));
         }

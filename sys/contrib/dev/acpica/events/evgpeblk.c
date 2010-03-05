@@ -1337,8 +1337,8 @@ AcpiEvGpeInitialize (
             (GpeNumberMax >= AcpiGbl_FADT.Gpe1Base))
         {
             ACPI_ERROR ((AE_INFO,
-                "GPE0 block (GPE 0 to %d) overlaps the GPE1 block "
-                "(GPE %d to %d) - Ignoring GPE1",
+                "GPE0 block (GPE 0 to %u) overlaps the GPE1 block "
+                "(GPE %u to %u) - Ignoring GPE1",
                 GpeNumberMax, AcpiGbl_FADT.Gpe1Base,
                 AcpiGbl_FADT.Gpe1Base +
                 ((RegisterCount1 * ACPI_GPE_REGISTER_WIDTH) - 1)));
