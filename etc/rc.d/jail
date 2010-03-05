@@ -636,7 +636,8 @@ jail_start()
 		done
 
 		eval ${_setfib} jail ${_flags} -i ${_rootdir} ${_hostname} \
-			\"${_addrl}\" ${_exec_start} > ${_tmp_jail} 2>&1
+			\"${_addrl}\" ${_exec_start} > ${_tmp_jail} 2>&1 \
+			</dev/null
 
 		if [ "$?" -eq 0 ] ; then
 			_jail_id=$(head -1 ${_tmp_jail})
@@ -728,4 +729,19 @@ fi
 if [ -n "$*" ]; then
 	jail_list="$*"
 fi
-run_rc_command "${cmd}" &
+
+# Only allow the parallel start of jails, other commands are not
+# safe to execute in parallel.
+case "${cmd}" in
+*start)
+	;;
+*)
+	jail_parallel_start=NO
+esac
+
+if checkyesno jail_parallel_start; then
+	run_rc_command "${cmd}" &
+else
+	run_rc_command "${cmd}"
+fi
+
