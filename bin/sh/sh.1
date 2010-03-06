@@ -32,7 +32,7 @@
 .\"	from: @(#)sh.1	8.6 (Berkeley) 5/4/95
 .\" $FreeBSD$
 .\"
-.Dd December 31, 2009
+.Dd March 6, 2010
 .Dt SH 1
 .Os
 .Sh NAME
@@ -1571,10 +1571,12 @@ built-in command.
 .It Ic command Oo Fl p Oc Op Ar utility Op Ar argument ...
 .It Ic command Oo Fl v | V Oc Op Ar utility
 The first form of invocation executes the specified
+.Ar utility ,
+ignoring shell functions in the search.
+If
 .Ar utility
-as a simple command (see the
-.Sx Simple Commands
-section).
+is a special builtin,
+it is executed as if it were a regular builtin.
 .Pp
 If the
 .Fl p
