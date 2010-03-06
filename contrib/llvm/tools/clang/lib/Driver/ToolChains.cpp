@@ -662,7 +662,6 @@ const char *Darwin::GetForcedPicModel() const {
 
 Generic_GCC::Generic_GCC(const HostInfo &Host, const llvm::Triple& Triple)
   : ToolChain(Host, Triple) {
-  getProgramPaths().push_back(getDriver().Dir);
 }
 
 Generic_GCC::~Generic_GCC() {
@@ -767,6 +766,7 @@ FreeBSD::FreeBSD(const HostInfo &Host, const llvm::Triple& Triple, bool Lib32)
   } else {
     getFilePaths().push_back("/usr/lib");
   }
+  getProgramPaths().push_back("/usr/bin");
 }
 
 Tool &FreeBSD::SelectTool(const Compilation &C, const JobAction &JA) const {
