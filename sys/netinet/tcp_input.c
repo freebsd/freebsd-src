@@ -632,7 +632,7 @@ relocked:
 		    ("%s: INP_TIMEWAIT ti_locked %d", __func__, ti_locked));
 
 		if (ti_locked == TI_RLOCKED) {
-			if (rw_try_upgrade(&V_tcbinfo.ipi_lock) == 0) {
+			if (INP_INFO_TRY_UPGRADE(&V_tcbinfo) == 0) {
 				in_pcbref(inp);
 				INP_WUNLOCK(inp);
 				INP_INFO_RUNLOCK(&V_tcbinfo);
@@ -683,7 +683,7 @@ relocked:
 		    ("%s: upgrade check ti_locked %d", __func__, ti_locked));
 
 		if (ti_locked == TI_RLOCKED) {
-			if (rw_try_upgrade(&V_tcbinfo.ipi_lock) == 0) {
+			if (INP_INFO_TRY_UPGRADE(&V_tcbinfo) == 0) {
 				in_pcbref(inp);
 				INP_WUNLOCK(inp);
 				INP_INFO_RUNLOCK(&V_tcbinfo);
