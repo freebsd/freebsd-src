@@ -550,8 +550,8 @@ void TargetLoweringObjectFileMachO::Initialize(MCContext &Ctx,
   }
 
   // Exception Handling.
-  LSDASection = getMachOSection("__TEXT", "__gcc_except_tab", 0,
-                                SectionKind::getReadOnlyWithRel());
+  LSDASection = getMachOSection("__DATA", "__gcc_except_tab", 0,
+                                SectionKind::getDataRel());
   EHFrameSection =
     getMachOSection("__TEXT", "__eh_frame",
                     MCSectionMachO::S_COALESCED |
@@ -652,7 +652,7 @@ SelectSectionForGlobal(const GlobalValue *GV, SectionKind Kind,
 
   // FIXME: Alignment check should be handled by section classifier.
   if (Kind.isMergeable1ByteCString() ||
-      Kind.isMergeable2ByteCString()) {
+      (Kind.isMergeable2ByteCString() && !GV->hasExternalLinkage())) {
     if (TM.getTargetData()->getPreferredAlignment(
                                               cast<GlobalVariable>(GV)) < 32) {
       if (Kind.isMergeable1ByteCString())
@@ -779,7 +779,7 @@ unsigned TargetLoweringObjectFileMachO::getFDEEncoding() const {
 }
 
 unsigned TargetLoweringObjectFileMachO::getTTypeEncoding() const {
-  return DW_EH_PE_indirect | DW_EH_PE_pcrel | DW_EH_PE_sdata4;
+  return DW_EH_PE_absptr;
 }
 
 //===----------------------------------------------------------------------===//

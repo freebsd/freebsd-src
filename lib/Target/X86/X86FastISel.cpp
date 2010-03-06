@@ -388,6 +388,8 @@ bool X86FastISel::X86SelectAddress(Value *V, X86AddressMode &AM) {
   }
 
   case Instruction::GetElementPtr: {
+    X86AddressMode SavedAM = AM;
+
     // Pattern-match simple GEPs.
     uint64_t Disp = (int32_t)AM.Disp;
     unsigned IndexReg = AM.IndexReg;
@@ -428,7 +430,13 @@ bool X86FastISel::X86SelectAddress(Value *V, X86AddressMode &AM) {
     AM.IndexReg = IndexReg;
     AM.Scale = Scale;
     AM.Disp = (uint32_t)Disp;
-    return X86SelectAddress(U->getOperand(0), AM);
+    if (X86SelectAddress(U->getOperand(0), AM))
+      return true;
+    
+    // If we couldn't merge the sub value into this addr mode, revert back to
+    // our address and just match the value instead of completely failing.
+    AM = SavedAM;
+    break;
   unsupported_gep:
     // Ok, the GEP indices weren't all covered.
     break;

@@ -56,8 +56,11 @@
 #include "llvm/Support/MathExtras.h"
 #include "llvm/Support/Timer.h"
 #include "llvm/Support/raw_ostream.h"
+#include "llvm/ADT/Statistic.h"
 #include <algorithm>
 using namespace llvm;
+
+STATISTIC(NumFastIselFailures, "Number of instructions fast isel failed on");
 
 static cl::opt<bool>
 EnableFastISelVerbose("fast-isel-verbose", cl::Hidden,
@@ -930,6 +933,7 @@ void SelectionDAGISel::SelectAllBasicBlocks(Function &Fn,
         // feed PHI nodes in successor blocks.
         if (isa<TerminatorInst>(BI))
           if (!HandlePHINodesInSuccessorBlocksFast(LLVMBB, FastIS)) {
+            ++NumFastIselFailures;
             ResetDebugLoc(SDB, FastIS);
             if (EnableFastISelVerbose || EnableFastISelAbort) {
               dbgs() << "FastISel miss: ";
@@ -954,6 +958,7 @@ void SelectionDAGISel::SelectAllBasicBlocks(Function &Fn,
 
         // Then handle certain instructions as single-LLVM-Instruction blocks.
         if (isa<CallInst>(BI)) {
+          ++NumFastIselFailures;
           if (EnableFastISelVerbose || EnableFastISelAbort) {
             dbgs() << "FastISel missed call: ";
             BI->dump();
@@ -983,6 +988,7 @@ void SelectionDAGISel::SelectAllBasicBlocks(Function &Fn,
         // Otherwise, give up on FastISel for the rest of the block.
         // For now, be a little lenient about non-branch terminators.
         if (!isa<TerminatorInst>(BI) || isa<BranchInst>(BI)) {
+          ++NumFastIselFailures;
           if (EnableFastISelVerbose || EnableFastISelAbort) {
             dbgs() << "FastISel miss: ";
             BI->dump();
@@ -1032,6 +1038,8 @@ SelectionDAGISel::FinishBasicBlock() {
       MachineInstr *PHI = SDB->PHINodesToUpdate[i].first;
       assert(PHI->isPHI() &&
              "This is not a machine PHI node that we are updating!");
+      if (!BB->isSuccessor(PHI->getParent()))
+        continue;
       PHI->addOperand(MachineOperand::CreateReg(SDB->PHINodesToUpdate[i].second,
                                                 false));
       PHI->addOperand(MachineOperand::CreateMBB(BB));
@@ -1414,21 +1422,6 @@ static bool findNonImmUse(SDNode *Use, SDNode* Def, SDNode *ImmedUse,
   return false;
 }
 
-/// isNonImmUse - Start searching from Root up the DAG to check is Def can
-/// be reached. Return true if that's the case. However, ignore direct uses
-/// by ImmedUse (which would be U in the example illustrated in
-/// IsLegalToFold) and by Root (which can happen in the store case).
-/// FIXME: to be really generic, we should allow direct use by any node
-/// that is being folded. But realisticly since we only fold loads which
-/// have one non-chain use, we only need to watch out for load/op/store
-/// and load/op/cmp case where the root (store / cmp) may reach the load via
-/// its chain operand.
-static inline bool isNonImmUse(SDNode *Root, SDNode *Def, SDNode *ImmedUse,
-                               bool IgnoreChains) {
-  SmallPtrSet<SDNode*, 16> Visited;
-  return findNonImmUse(Root, Def, ImmedUse, Root, Visited, IgnoreChains);
-}
-
 /// IsProfitableToFold - Returns true if it's profitable to fold the specific
 /// operand node N of U during instruction selection that starts at Root.
 bool SelectionDAGISel::IsProfitableToFold(SDValue N, SDNode *U,
@@ -1485,6 +1478,8 @@ bool SelectionDAGISel::IsLegalToFold(SDValue N, SDNode *U, SDNode *Root,
   // Fold. But since Fold and FU are flagged together, this will create
   // a cycle in the scheduling graph.
 
+  // If the node has flags, walk down the graph to the "lowest" node in the
+  // flagged set.
   EVT VT = Root->getValueType(Root->getNumValues()-1);
   while (VT == MVT::Flag) {
     SDNode *FU = findFlagUse(Root);
@@ -1492,9 +1487,17 @@ bool SelectionDAGISel::IsLegalToFold(SDValue N, SDNode *U, SDNode *Root,
       break;
     Root = FU;
     VT = Root->getValueType(Root->getNumValues()-1);
+    
+    // If our query node has a flag result with a use, we've walked up it.  If
+    // the user (which has already been selected) has a chain or indirectly uses
+    // the chain, our WalkChainUsers predicate will not consider it.  Because of
+    // this, we cannot ignore chains in this predicate.
+    IgnoreChains = false;
   }
+  
 
-  return !isNonImmUse(Root, N.getNode(), U, IgnoreChains);
+  SmallPtrSet<SDNode*, 16> Visited;
+  return !findNonImmUse(Root, N.getNode(), U, Root, Visited, IgnoreChains);
 }
 
 SDNode *SelectionDAGISel::Select_INLINEASM(SDNode *N) {
@@ -2249,11 +2252,15 @@ SelectCodeCommon(SDNode *NodeToMatch, const unsigned char *MatcherTable,
                                 N.getNode()))
         break;
       continue;
-    case OPC_CheckComplexPat:
-      if (!CheckComplexPattern(NodeToMatch, N, 
-                               MatcherTable[MatcherIndex++], RecordedNodes))
+    case OPC_CheckComplexPat: {
+      unsigned CPNum = MatcherTable[MatcherIndex++];
+      unsigned RecNo = MatcherTable[MatcherIndex++];
+      assert(RecNo < RecordedNodes.size() && "Invalid CheckComplexPat");
+      if (!CheckComplexPattern(NodeToMatch, RecordedNodes[RecNo], CPNum,
+                               RecordedNodes))
         break;
       continue;
+    }
     case OPC_CheckOpcode:
       if (!::CheckOpcode(MatcherTable, MatcherIndex, N.getNode())) break;
       continue;
@@ -2711,29 +2718,26 @@ SelectCodeCommon(SDNode *NodeToMatch, const unsigned char *MatcherTable,
 
 
 void SelectionDAGISel::CannotYetSelect(SDNode *N) {
-  if (N->getOpcode() == ISD::INTRINSIC_W_CHAIN ||
-      N->getOpcode() == ISD::INTRINSIC_WO_CHAIN ||
-      N->getOpcode() == ISD::INTRINSIC_VOID)
-    return CannotYetSelectIntrinsic(N);
-  
   std::string msg;
   raw_string_ostream Msg(msg);
   Msg << "Cannot yet select: ";
-  N->printrFull(Msg, CurDAG);
+  
+  if (N->getOpcode() != ISD::INTRINSIC_W_CHAIN &&
+      N->getOpcode() != ISD::INTRINSIC_WO_CHAIN &&
+      N->getOpcode() != ISD::INTRINSIC_VOID) {
+    N->printrFull(Msg, CurDAG);
+  } else {
+    bool HasInputChain = N->getOperand(0).getValueType() == MVT::Other;
+    unsigned iid =
+      cast<ConstantSDNode>(N->getOperand(HasInputChain))->getZExtValue();
+    if (iid < Intrinsic::num_intrinsics)
+      Msg << "intrinsic %" << Intrinsic::getName((Intrinsic::ID)iid);
+    else if (const TargetIntrinsicInfo *TII = TM.getIntrinsicInfo())
+      Msg << "target intrinsic %" << TII->getName(iid);
+    else
+      Msg << "unknown intrinsic #" << iid;
+  }
   llvm_report_error(Msg.str());
-}
-
-void SelectionDAGISel::CannotYetSelectIntrinsic(SDNode *N) {
-  dbgs() << "Cannot yet select: ";
-  unsigned iid =
-    cast<ConstantSDNode>(N->getOperand(N->getOperand(0).getValueType() ==
-                                       MVT::Other))->getZExtValue();
-  if (iid < Intrinsic::num_intrinsics)
-    llvm_report_error("Cannot yet select: intrinsic %" +
-                      Intrinsic::getName((Intrinsic::ID)iid));
-  else if (const TargetIntrinsicInfo *tii = TM.getIntrinsicInfo())
-    llvm_report_error(Twine("Cannot yet select: target intrinsic %") +
-                      tii->getName(iid));
 }
 
 char SelectionDAGISel::ID = 0;
