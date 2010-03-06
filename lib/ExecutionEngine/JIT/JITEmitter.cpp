@@ -156,53 +156,18 @@ namespace {
     // was no stub.  This function uses the call-site->function map to find a
     // relevant function, but asserts that only stubs and not other call sites
     // will be passed in.
-    Function *EraseStub(const MutexGuard &locked, void *Stub) {
-      CallSiteToFunctionMapTy::iterator C2F_I =
-        CallSiteToFunctionMap.find(Stub);
-      if (C2F_I == CallSiteToFunctionMap.end()) {
-        // Not a stub.
-        return NULL;
-      }
+    Function *EraseStub(const MutexGuard &locked, void *Stub);
 
-      Function *const F = C2F_I->second;
-#ifndef NDEBUG
-      void *RealStub = FunctionToLazyStubMap.lookup(F);
-      assert(RealStub == Stub &&
-             "Call-site that wasn't a stub pass in to EraseStub");
-#endif
-      FunctionToLazyStubMap.erase(F);
-      CallSiteToFunctionMap.erase(C2F_I);
-
-      // Remove the stub from the function->call-sites map, and remove the whole
-      // entry from the map if that was the last call site.
-      FunctionToCallSitesMapTy::iterator F2C_I = FunctionToCallSitesMap.find(F);
-      assert(F2C_I != FunctionToCallSitesMap.end() &&
-             "FunctionToCallSitesMap broken");
-      bool Erased = F2C_I->second.erase(Stub);
-      (void)Erased;
-      assert(Erased && "FunctionToCallSitesMap broken");
-      if (F2C_I->second.empty())
-        FunctionToCallSitesMap.erase(F2C_I);
-
-      return F;
-    }
-
-    void EraseAllCallSites(const MutexGuard &locked, Function *F) {
+    void EraseAllCallSitesFor(const MutexGuard &locked, Function *F) {
       assert(locked.holds(TheJIT->lock));
-      EraseAllCallSitesPrelocked(F);
+      EraseAllCallSitesForPrelocked(F);
     }
-    void EraseAllCallSitesPrelocked(Function *F) {
-      FunctionToCallSitesMapTy::iterator F2C = FunctionToCallSitesMap.find(F);
-      if (F2C == FunctionToCallSitesMap.end())
-        return;
-      for (SmallPtrSet<void*, 1>::const_iterator I = F2C->second.begin(),
-             E = F2C->second.end(); I != E; ++I) {
-        bool Erased = CallSiteToFunctionMap.erase(*I);
-        (void)Erased;
-        assert(Erased && "Missing call site->function mapping");
-      }
-      FunctionToCallSitesMap.erase(F2C);
-    }
+    void EraseAllCallSitesForPrelocked(Function *F);
+
+    // Erases _all_ call sites regardless of their function.  This is used to
+    // unregister the stub addresses from the StubToResolverMap in
+    // ~JITResolver().
+    void EraseAllCallSitesPrelocked();
   };
 
   /// JITResolver - Keep track of, and resolve, call sites for functions that
@@ -240,6 +205,8 @@ namespace {
       LazyResolverFn = jit.getJITInfo().getLazyResolverFunction(JITCompilerFn);
     }
 
+    ~JITResolver();
+
     /// getLazyFunctionStubIfAvailable - This returns a pointer to a function's
     /// lazy-compilation stub if it has already been created.
     void *getLazyFunctionStubIfAvailable(Function *F);
@@ -258,8 +225,6 @@ namespace {
 
     void getRelocatableGVs(SmallVectorImpl<GlobalValue*> &GVs,
                            SmallVectorImpl<void*> &Ptrs);
-
-    GlobalValue *invalidateStub(void *Stub);
 
     /// getGOTIndexForAddress - Return a new or existing index in the GOT for
     /// an address.  This function only manages slots, it does not manage the
@@ -304,6 +269,17 @@ namespace {
       assert(I != Map.begin() && "This is not a known stub!");
       --I;
       return I->second;
+    }
+    /// True if any stubs refer to the given resolver. Only used in an assert().
+    /// O(N)
+    bool ResolverHasStubs(JITResolver* Resolver) const {
+      MutexGuard guard(Lock);
+      for (std::map<void*, JITResolver*>::const_iterator I = Map.begin(),
+             E = Map.end(); I != E; ++I) {
+        if (I->second == Resolver)
+          return true;
+      }
+      return false;
     }
   };
   /// This needs to be static so that a lazy call stub can access it with no
@@ -370,9 +346,6 @@ namespace {
     /// MMI - Machine module info for exception informations
     MachineModuleInfo* MMI;
 
-    // GVSet - a set to keep track of which globals have been seen
-    SmallPtrSet<const GlobalVariable*, 8> GVSet;
-
     // CurFn - The llvm function being emitted.  Only valid during
     // finishFunction().
     const Function *CurFn;
@@ -395,16 +368,6 @@ namespace {
     };
     ValueMap<const Function *, EmittedCode,
              EmittedFunctionConfig> EmittedFunctions;
-
-    // CurFnStubUses - For a given Function, a vector of stubs that it
-    // references.  This facilitates the JIT detecting that a stub is no
-    // longer used, so that it may be deallocated.
-    DenseMap<AssertingVH<const Function>, SmallVector<void*, 1> > CurFnStubUses;
-
-    // StubFnRefs - For a given pointer to a stub, a set of Functions which
-    // reference the stub.  When the count of a stub's references drops to zero,
-    // the stub is unused.
-    DenseMap<void *, SmallPtrSet<const Function*, 1> > StubFnRefs;
 
     DILocation PrevDLT;
 
@@ -494,11 +457,6 @@ namespace {
     /// function body.
     void deallocateMemForFunction(const Function *F);
 
-    /// AddStubToCurrentFunction - Mark the current function being JIT'd as
-    /// using the stub at the specified address. Allows
-    /// deallocateMemForFunction to also remove stubs no longer referenced.
-    void AddStubToCurrentFunction(void *Stub);
-
     virtual void processDebugLoc(DebugLoc DL, bool BeforePrintingInsn);
 
     virtual void emitLabel(uint64_t LabelID) {
@@ -529,14 +487,86 @@ namespace {
                              bool MayNeedFarStub);
     void *getPointerToGVIndirectSym(GlobalValue *V, void *Reference);
     unsigned addSizeOfGlobal(const GlobalVariable *GV, unsigned Size);
-    unsigned addSizeOfGlobalsInConstantVal(const Constant *C, unsigned Size);
-    unsigned addSizeOfGlobalsInInitializer(const Constant *Init, unsigned Size);
+    unsigned addSizeOfGlobalsInConstantVal(
+      const Constant *C, unsigned Size,
+      SmallPtrSet<const GlobalVariable*, 8> &SeenGlobals,
+      SmallVectorImpl<const GlobalVariable*> &Worklist);
+    unsigned addSizeOfGlobalsInInitializer(
+      const Constant *Init, unsigned Size,
+      SmallPtrSet<const GlobalVariable*, 8> &SeenGlobals,
+      SmallVectorImpl<const GlobalVariable*> &Worklist);
     unsigned GetSizeOfGlobalsInBytes(MachineFunction &MF);
   };
 }
 
 void CallSiteValueMapConfig::onDelete(JITResolverState *JRS, Function *F) {
-  JRS->EraseAllCallSitesPrelocked(F);
+  JRS->EraseAllCallSitesForPrelocked(F);
+}
+
+Function *JITResolverState::EraseStub(const MutexGuard &locked, void *Stub) {
+  CallSiteToFunctionMapTy::iterator C2F_I =
+    CallSiteToFunctionMap.find(Stub);
+  if (C2F_I == CallSiteToFunctionMap.end()) {
+    // Not a stub.
+    return NULL;
+  }
+
+  StubToResolverMap->UnregisterStubResolver(Stub);
+
+  Function *const F = C2F_I->second;
+#ifndef NDEBUG
+  void *RealStub = FunctionToLazyStubMap.lookup(F);
+  assert(RealStub == Stub &&
+         "Call-site that wasn't a stub passed in to EraseStub");
+#endif
+  FunctionToLazyStubMap.erase(F);
+  CallSiteToFunctionMap.erase(C2F_I);
+
+  // Remove the stub from the function->call-sites map, and remove the whole
+  // entry from the map if that was the last call site.
+  FunctionToCallSitesMapTy::iterator F2C_I = FunctionToCallSitesMap.find(F);
+  assert(F2C_I != FunctionToCallSitesMap.end() &&
+         "FunctionToCallSitesMap broken");
+  bool Erased = F2C_I->second.erase(Stub);
+  (void)Erased;
+  assert(Erased && "FunctionToCallSitesMap broken");
+  if (F2C_I->second.empty())
+    FunctionToCallSitesMap.erase(F2C_I);
+
+  return F;
+}
+
+void JITResolverState::EraseAllCallSitesForPrelocked(Function *F) {
+  FunctionToCallSitesMapTy::iterator F2C = FunctionToCallSitesMap.find(F);
+  if (F2C == FunctionToCallSitesMap.end())
+    return;
+  StubToResolverMapTy &S2RMap = *StubToResolverMap;
+  for (SmallPtrSet<void*, 1>::const_iterator I = F2C->second.begin(),
+         E = F2C->second.end(); I != E; ++I) {
+    S2RMap.UnregisterStubResolver(*I);
+    bool Erased = CallSiteToFunctionMap.erase(*I);
+    (void)Erased;
+    assert(Erased && "Missing call site->function mapping");
+  }
+  FunctionToCallSitesMap.erase(F2C);
+}
+
+void JITResolverState::EraseAllCallSitesPrelocked() {
+  StubToResolverMapTy &S2RMap = *StubToResolverMap;
+  for (CallSiteToFunctionMapTy::const_iterator
+         I = CallSiteToFunctionMap.begin(),
+         E = CallSiteToFunctionMap.end(); I != E; ++I) {
+    S2RMap.UnregisterStubResolver(I->first);
+  }
+  CallSiteToFunctionMap.clear();
+  FunctionToCallSitesMap.clear();
+}
+
+JITResolver::~JITResolver() {
+  // No need to lock because we're in the destructor, and state isn't shared.
+  state.EraseAllCallSitesPrelocked();
+  assert(!StubToResolverMap->ResolverHasStubs(this) &&
+         "Resolver destroyed with stubs still alive.");
 }
 
 /// getLazyFunctionStubIfAvailable - This returns a pointer to a function stub
@@ -589,20 +619,22 @@ void *JITResolver::getLazyFunctionStub(Function *F) {
   DEBUG(dbgs() << "JIT: Lazy stub emitted at [" << Stub << "] for function '"
         << F->getName() << "'\n");
 
-  // Register this JITResolver as the one corresponding to this call site so
-  // JITCompilerFn will be able to find it.
-  StubToResolverMap->RegisterStubResolver(Stub, this);
+  if (TheJIT->isCompilingLazily()) {
+    // Register this JITResolver as the one corresponding to this call site so
+    // JITCompilerFn will be able to find it.
+    StubToResolverMap->RegisterStubResolver(Stub, this);
 
-  // Finally, keep track of the stub-to-Function mapping so that the
-  // JITCompilerFn knows which function to compile!
-  state.AddCallSite(locked, Stub, F);
-
-  // If we are JIT'ing non-lazily but need to call a function that does not
-  // exist yet, add it to the JIT's work list so that we can fill in the stub
-  // address later.
-  if (!Actual && !TheJIT->isCompilingLazily())
-    if (!isNonGhostDeclaration(F) && !F->hasAvailableExternallyLinkage())
-      TheJIT->addPendingFunction(F);
+    // Finally, keep track of the stub-to-Function mapping so that the
+    // JITCompilerFn knows which function to compile!
+    state.AddCallSite(locked, Stub, F);
+  } else if (!Actual) {
+    // If we are JIT'ing non-lazily but need to call a function that does not
+    // exist yet, add it to the JIT's work list so that we can fill in the
+    // stub address later.
+    assert(!isNonGhostDeclaration(F) && !F->hasAvailableExternallyLinkage() &&
+           "'Actual' should have been set above.");
+    TheJIT->addPendingFunction(F);
+  }
 
   return Stub;
 }
@@ -674,42 +706,6 @@ void JITResolver::getRelocatableGVs(SmallVectorImpl<GlobalValue*> &GVs,
     GVs.push_back(i->first);
     Ptrs.push_back(i->second);
   }
-}
-
-GlobalValue *JITResolver::invalidateStub(void *Stub) {
-  MutexGuard locked(TheJIT->lock);
-
-  // Remove the stub from the StubToResolverMap.
-  StubToResolverMap->UnregisterStubResolver(Stub);
-
-  GlobalToIndirectSymMapTy &GM = state.getGlobalToIndirectSymMap(locked);
-
-  // Look up the cheap way first, to see if it's a function stub we are
-  // invalidating.  If so, remove it from both the forward and reverse maps.
-  if (Function *F = state.EraseStub(locked, Stub)) {
-    return F;
-  }
-
-  // Otherwise, it might be an indirect symbol stub.  Find it and remove it.
-  for (GlobalToIndirectSymMapTy::iterator i = GM.begin(), e = GM.end();
-       i != e; ++i) {
-    if (i->second != Stub)
-      continue;
-    GlobalValue *GV = i->first;
-    GM.erase(i);
-    return GV;
-  }
-
-  // Lastly, check to see if it's in the ExternalFnToStubMap.
-  for (std::map<void *, void *>::iterator i = ExternalFnToStubMap.begin(),
-       e = ExternalFnToStubMap.end(); i != e; ++i) {
-    if (i->second != Stub)
-      continue;
-    ExternalFnToStubMap.erase(i);
-    break;
-  }
-
-  return 0;
 }
 
 /// JITCompilerFn - This function is called when a lazy compilation stub has
@@ -797,7 +793,6 @@ void *JITEmitter::getPointerToGlobal(GlobalValue *V, void *Reference,
     // that we're returning the same address for the function as any previous
     // call.  TODO: Yes, this is wrong. The lazy stub isn't guaranteed to be
     // close enough to call.
-    AddStubToCurrentFunction(FnStub);
     return FnStub;
   }
 
@@ -814,18 +809,10 @@ void *JITEmitter::getPointerToGlobal(GlobalValue *V, void *Reference,
       return TheJIT->getPointerToFunction(F);
   }
 
-  // Otherwise, we may need a to emit a stub, and, conservatively, we
-  // always do so.
-  void *StubAddr = Resolver.getLazyFunctionStub(F);
-
-  // Add the stub to the current function's list of referenced stubs, so we can
-  // deallocate them if the current function is ever freed.  It's possible to
-  // return null from getLazyFunctionStub in the case of a weak extern that
-  // fails to resolve.
-  if (StubAddr)
-    AddStubToCurrentFunction(StubAddr);
-
-  return StubAddr;
+  // Otherwise, we may need a to emit a stub, and, conservatively, we always do
+  // so.  Note that it's possible to return null from getLazyFunctionStub in the
+  // case of a weak extern that fails to resolve.
+  return Resolver.getLazyFunctionStub(F);
 }
 
 void *JITEmitter::getPointerToGVIndirectSym(GlobalValue *V, void *Reference) {
@@ -833,22 +820,7 @@ void *JITEmitter::getPointerToGVIndirectSym(GlobalValue *V, void *Reference) {
   // resolved address.
   void *GVAddress = getPointerToGlobal(V, Reference, false);
   void *StubAddr = Resolver.getGlobalValueIndirectSym(V, GVAddress);
-
-  // Add the stub to the current function's list of referenced stubs, so we can
-  // deallocate them if the current function is ever freed.
-  AddStubToCurrentFunction(StubAddr);
-
   return StubAddr;
-}
-
-void JITEmitter::AddStubToCurrentFunction(void *StubAddr) {
-  assert(CurFn && "Stub added to current function, but current function is 0!");
-
-  SmallVectorImpl<void*> &StubsUsed = CurFnStubUses[CurFn];
-  StubsUsed.push_back(StubAddr);
-
-  SmallPtrSet<const Function *, 1> &FnRefs = StubFnRefs[StubAddr];
-  FnRefs.insert(CurFn);
 }
 
 void JITEmitter::processDebugLoc(DebugLoc DL, bool BeforePrintingInsn) {
@@ -922,11 +894,14 @@ unsigned JITEmitter::addSizeOfGlobal(const GlobalVariable *GV, unsigned Size) {
 }
 
 /// addSizeOfGlobalsInConstantVal - find any globals that we haven't seen yet
-/// but are referenced from the constant; put them in GVSet and add their
-/// size into the running total Size.
+/// but are referenced from the constant; put them in SeenGlobals and the
+/// Worklist, and add their size into the running total Size.
 
-unsigned JITEmitter::addSizeOfGlobalsInConstantVal(const Constant *C,
-                                              unsigned Size) {
+unsigned JITEmitter::addSizeOfGlobalsInConstantVal(
+    const Constant *C,
+    unsigned Size,
+    SmallPtrSet<const GlobalVariable*, 8> &SeenGlobals,
+    SmallVectorImpl<const GlobalVariable*> &Worklist) {
   // If its undefined, return the garbage.
   if (isa<UndefValue>(C))
     return Size;
@@ -948,7 +923,7 @@ unsigned JITEmitter::addSizeOfGlobalsInConstantVal(const Constant *C,
     case Instruction::PtrToInt:
     case Instruction::IntToPtr:
     case Instruction::BitCast: {
-      Size = addSizeOfGlobalsInConstantVal(Op0, Size);
+      Size = addSizeOfGlobalsInConstantVal(Op0, Size, SeenGlobals, Worklist);
       break;
     }
     case Instruction::Add:
@@ -964,8 +939,9 @@ unsigned JITEmitter::addSizeOfGlobalsInConstantVal(const Constant *C,
     case Instruction::And:
     case Instruction::Or:
     case Instruction::Xor: {
-      Size = addSizeOfGlobalsInConstantVal(Op0, Size);
-      Size = addSizeOfGlobalsInConstantVal(CE->getOperand(1), Size);
+      Size = addSizeOfGlobalsInConstantVal(Op0, Size, SeenGlobals, Worklist);
+      Size = addSizeOfGlobalsInConstantVal(CE->getOperand(1), Size,
+                                           SeenGlobals, Worklist);
       break;
     }
     default: {
@@ -979,8 +955,10 @@ unsigned JITEmitter::addSizeOfGlobalsInConstantVal(const Constant *C,
 
   if (C->getType()->getTypeID() == Type::PointerTyID)
     if (const GlobalVariable* GV = dyn_cast<GlobalVariable>(C))
-      if (GVSet.insert(GV))
+      if (SeenGlobals.insert(GV)) {
+        Worklist.push_back(GV);
         Size = addSizeOfGlobal(GV, Size);
+      }
 
   return Size;
 }
@@ -988,15 +966,18 @@ unsigned JITEmitter::addSizeOfGlobalsInConstantVal(const Constant *C,
 /// addSizeOfGLobalsInInitializer - handle any globals that we haven't seen yet
 /// but are referenced from the given initializer.
 
-unsigned JITEmitter::addSizeOfGlobalsInInitializer(const Constant *Init,
-                                              unsigned Size) {
+unsigned JITEmitter::addSizeOfGlobalsInInitializer(
+    const Constant *Init,
+    unsigned Size,
+    SmallPtrSet<const GlobalVariable*, 8> &SeenGlobals,
+    SmallVectorImpl<const GlobalVariable*> &Worklist) {
   if (!isa<UndefValue>(Init) &&
       !isa<ConstantVector>(Init) &&
       !isa<ConstantAggregateZero>(Init) &&
       !isa<ConstantArray>(Init) &&
       !isa<ConstantStruct>(Init) &&
       Init->getType()->isFirstClassType())
-    Size = addSizeOfGlobalsInConstantVal(Init, Size);
+    Size = addSizeOfGlobalsInConstantVal(Init, Size, SeenGlobals, Worklist);
   return Size;
 }
 
@@ -1007,7 +988,7 @@ unsigned JITEmitter::addSizeOfGlobalsInInitializer(const Constant *Init,
 
 unsigned JITEmitter::GetSizeOfGlobalsInBytes(MachineFunction &MF) {
   unsigned Size = 0;
-  GVSet.clear();
+  SmallPtrSet<const GlobalVariable*, 8> SeenGlobals;
 
   for (MachineFunction::iterator MBB = MF.begin(), E = MF.end();
        MBB != E; ++MBB) {
@@ -1031,7 +1012,7 @@ unsigned JITEmitter::GetSizeOfGlobalsInBytes(MachineFunction &MF) {
           // assuming the addresses of the new globals in this module
           // start at 0 (or something) and adjusting them after codegen
           // complete.  Another possibility is to grab a marker bit in GV.
-          if (GVSet.insert(GV))
+          if (SeenGlobals.insert(GV))
             // A variable as yet unseen.  Add in its size.
             Size = addSizeOfGlobal(GV, Size);
         }
@@ -1040,12 +1021,14 @@ unsigned JITEmitter::GetSizeOfGlobalsInBytes(MachineFunction &MF) {
   }
   DEBUG(dbgs() << "JIT: About to look through initializers\n");
   // Look for more globals that are referenced only from initializers.
-  // GVSet.end is computed each time because the set can grow as we go.
-  for (SmallPtrSet<const GlobalVariable *, 8>::iterator I = GVSet.begin();
-       I != GVSet.end(); I++) {
-    const GlobalVariable* GV = *I;
+  SmallVector<const GlobalVariable*, 8> Worklist(
+    SeenGlobals.begin(), SeenGlobals.end());
+  while (!Worklist.empty()) {
+    const GlobalVariable* GV = Worklist.back();
+    Worklist.pop_back();
     if (GV->hasInitializer())
-      Size = addSizeOfGlobalsInInitializer(GV->getInitializer(), Size);
+      Size = addSizeOfGlobalsInInitializer(GV->getInitializer(), Size,
+                                           SeenGlobals, Worklist);
   }
 
   return Size;
@@ -1347,40 +1330,6 @@ void JITEmitter::deallocateMemForFunction(const Function *F) {
   if (JITEmitDebugInfo) {
     DR->UnregisterFunction(F);
   }
-
-  // If the function did not reference any stubs, return.
-  if (CurFnStubUses.find(F) == CurFnStubUses.end())
-    return;
-
-  // For each referenced stub, erase the reference to this function, and then
-  // erase the list of referenced stubs.
-  SmallVectorImpl<void *> &StubList = CurFnStubUses[F];
-  for (unsigned i = 0, e = StubList.size(); i != e; ++i) {
-    void *Stub = StubList[i];
-
-    // If we already invalidated this stub for this function, continue.
-    if (StubFnRefs.count(Stub) == 0)
-      continue;
-
-    SmallPtrSet<const Function *, 1> &FnRefs = StubFnRefs[Stub];
-    FnRefs.erase(F);
-
-    // If this function was the last reference to the stub, invalidate the stub
-    // in the JITResolver.  Were there a memory manager deallocateStub routine,
-    // we could call that at this point too.
-    if (FnRefs.empty()) {
-      DEBUG(dbgs() << "\nJIT: Invalidated Stub at [" << Stub << "]\n");
-      StubFnRefs.erase(Stub);
-
-      // Invalidate the stub.  If it is a GV stub, update the JIT's global
-      // mapping for that GV to zero.
-      GlobalValue *GV = Resolver.invalidateStub(Stub);
-      if (GV) {
-        TheJIT->updateGlobalMapping(GV, 0);
-      }
-    }
-  }
-  CurFnStubUses.erase(F);
 }
 
 

@@ -2520,6 +2520,23 @@ call void asm alignstack "eieio", ""()
    metadata nodes, which can be looked up in the module symbol table. For
    example: "<tt>!foo =  metadata !{!4, !3}</tt>".
 
+<p>Metadata can be used as function arguments. Here <tt>llvm.dbg.value</tt> 
+   function is using two metadata arguments.
+
+   <div class="doc_code">
+     <pre>
+       call void @llvm.dbg.value(metadata !24, i64 0, metadata !25)
+     </pre>
+   </div></p>
+
+<p>Metadata can be attached with an instruction. Here metadata <tt>!21</tt> is
+   attached with <tt>add</tt> instruction using <tt>!dbg</tt> identifier.
+
+  <div class="doc_code">
+    <pre>
+      %indvar.next = add i64 %indvar, 1, !dbg !21
+    </pre>
+  </div></p>
 </div>
 
 
@@ -7453,7 +7470,7 @@ LLVM</a>.</p>
 
   <a href="mailto:sabre@nondot.org">Chris Lattner</a><br>
   <a href="http://llvm.org">The LLVM Compiler Infrastructure</a><br>
-  Last modified: $Date: 2010-03-02 07:36:51 +0100 (Tue, 02 Mar 2010) $
+  Last modified: $Date: 2010-03-05 00:44:48 +0100 (Fri, 05 Mar 2010) $
 </address>
 
 </body>
