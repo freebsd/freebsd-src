@@ -60,31 +60,25 @@ static const char rcsid[] =
 #include <wchar.h>
 #include <wctype.h>
 
-#define	INITLINELEN	(LINE_MAX + 1)
-#define	MAXLINELEN	((SIZE_MAX / sizeof(wchar_t)) / 2)
-
-int cflag, dflag, uflag;
+int cflag, dflag, uflag, iflag;
 int numchars, numfields, repeats;
 
 FILE	*file(const char *, const char *);
-wchar_t	*getline(wchar_t *, size_t *, FILE *);
-void	 show(FILE *, wchar_t *);
+wchar_t	*convert(wchar_t *, const char *);
+char	*getlinemax(char *, FILE *);
+void	 show(FILE *, const char *);
 wchar_t	*skip(wchar_t *);
 void	 obsolete(char *[]);
 static void	 usage(void);
-int      wcsicoll(wchar_t *, wchar_t *);
 
 int
 main (int argc, char *argv[])
 {
-	wchar_t *t1, *t2;
+	wchar_t *tprev, *tthis, *wprev, *wthis, *wp;
 	FILE *ifp, *ofp;
-	int ch, b1;
-	size_t prevbuflen, thisbuflen;
-	wchar_t *prevline, *thisline;
-	char *p;
+	int ch, comp;
+	char *prevline, *thisline, *p;
 	const char *ifn;
-	int iflag = 0, comp;
 
 	(void) setlocale(LC_ALL, "");
 
@@ -139,48 +133,47 @@ main (int argc, char *argv[])
 	if (argc > 1)
 		ofp = file(argv[1], "w");
 
- 	prevbuflen = INITLINELEN;
- 	thisbuflen = INITLINELEN;
- 	prevline = malloc(prevbuflen * sizeof(*prevline));
- 	thisline = malloc(thisbuflen * sizeof(*thisline));
-	if (prevline == NULL || thisline == NULL)
+	prevline = malloc(LINE_MAX);
+	thisline = malloc(LINE_MAX);
+	wprev = malloc(LINE_MAX * sizeof(*wprev));
+	wthis = malloc(LINE_MAX * sizeof(*wthis));
+	if (prevline == NULL || thisline == NULL ||
+	    wprev == NULL || wthis == NULL)
 		err(1, "malloc");
 
-	if ((prevline = getline(prevline, &prevbuflen, ifp)) == NULL) {
+	if ((prevline = getlinemax(prevline, ifp)) == NULL) {
 		if (ferror(ifp))
 			err(1, "%s", ifn);
 		exit(0);
 	}
+	tprev = convert(wprev, prevline);
+
 	if (!cflag && uflag && dflag)
 		show(ofp, prevline);
 
-	while ((thisline = getline(thisline, &thisbuflen, ifp)) != NULL) {
-		/* If requested get the chosen fields + character offsets. */
-		if (numfields || numchars) {
-			t1 = skip(thisline);
-			t2 = skip(prevline);
-		} else {
-			t1 = thisline;
-			t2 = prevline;
-		}
+	while ((thisline = getlinemax(thisline, ifp)) != NULL) {
+		tthis = convert(wthis, thisline);
 
-		/* If different, print; set previous to new value. */
-		if (iflag)
-			comp = wcsicoll(t1, t2);
+		if (tthis == NULL && tprev == NULL)
+			comp = strcmp(thisline, prevline);
+		else if (tthis == NULL || tprev == NULL)
+			comp = 1;
 		else
-			comp = wcscoll(t1, t2);
+			comp = wcscoll(tthis, tprev);
 
 		if (comp) {
+			/* If different, print; set previous to new value. */
 			if (cflag || !dflag || !uflag)
 				show(ofp, prevline);
-			t1 = prevline;
-			b1 = prevbuflen;
+			p = prevline;
+			wp = wprev;
 			prevline = thisline;
-			prevbuflen = thisbuflen;
+			wprev = wthis;
+			tprev = tthis;
 			if (!cflag && uflag && dflag)
 				show(ofp, prevline);
-			thisline = t1;
-			thisbuflen = b1;
+			thisline = p;
+			wthis = wp;
 			repeats = 0;
 		} else
 			++repeats;
@@ -192,29 +185,46 @@ main (int argc, char *argv[])
 	exit(0);
 }
 
-wchar_t *
-getline(wchar_t *buf, size_t *buflen, FILE *fp)
+char *
+getlinemax(char *buf, FILE *fp)
 {
 	size_t bufpos;
-	wint_t ch;
+	int ch;
 
 	bufpos = 0;
-	while ((ch = getwc(fp)) != WEOF && ch != '\n') {
-		if (bufpos + 1 >= *buflen) {
-			*buflen = *buflen * 2;
-			if (*buflen > MAXLINELEN)
-				errx(1,
-				    "Maximum line buffer length (%zu) exceeded",
-				    MAXLINELEN);
-			buf = reallocf(buf, *buflen * sizeof(*buf));
-			if (buf == NULL)
-				err(1, "reallocf");
-		}
+	while ((ch = getc(fp)) != EOF && ch != '\n') {
 		buf[bufpos++] = ch;
+		if (bufpos >= LINE_MAX)
+			errx(1, "Maximum line length (%zu) exceeded",
+			     LINE_MAX);
 	}
 	buf[bufpos] = '\0';
 
 	return (bufpos != 0 || ch == '\n' ? buf : NULL);
+}
+
+wchar_t *
+convert(wchar_t *buf, const char *str)
+{
+	size_t n;
+	wchar_t *p, *ret;
+
+	if ((n = mbstowcs(buf, str, LINE_MAX)) == LINE_MAX)
+		errx(1, "Maximum line length (%zu) exceeded", LINE_MAX);
+	else if (n != (size_t)-1) {
+		/* If requested get the chosen fields + character offsets. */
+		if (numfields || numchars)
+			ret = skip(buf);
+		else
+			ret = buf;
+		if (iflag) {
+			for (p = ret; *p != L'\0'; p++)
+				*p = towlower(*p);
+		}
+	} else
+		ret = NULL;
+
+	return (ret);
 }
 
 /*
@@ -223,13 +233,13 @@ getline(wchar_t *buf, size_t *buflen, FILE *fp)
  *	of the line.
  */
 void
-show(FILE *ofp, wchar_t *str)
+show(FILE *ofp, const char *str)
 {
 
 	if (cflag)
-		(void)fprintf(ofp, "%4d %ls\n", repeats + 1, str);
+		(void)fprintf(ofp, "%4d %s\n", repeats + 1, str);
 	if ((dflag && repeats) || (uflag && !repeats))
-		(void)fprintf(ofp, "%ls\n", str);
+		(void)fprintf(ofp, "%s\n", str);
 }
 
 wchar_t *
@@ -237,13 +247,14 @@ skip(wchar_t *str)
 {
 	int nchars, nfields;
 
-	for (nfields = 0; *str != '\0' && nfields++ != numfields; ) {
+	for (nfields = 0; *str != L'\0' && nfields++ != numfields; ) {
 		while (iswblank(*str))
 			str++;
-		while (*str != '\0' && !iswblank(*str))
+		while (*str != L'\0' && !iswblank(*str))
 			str++;
 	}
-	for (nchars = numchars; nchars-- && *str; ++str);
+	for (nchars = numchars; nchars-- && *str != L'\0'; ++str)
+		;
 	return(str);
 }
 
@@ -292,53 +303,4 @@ usage(void)
 	(void)fprintf(stderr,
 "usage: uniq [-c | -d | -u] [-i] [-f fields] [-s chars] [input [output]]\n");
 	exit(1);
-}
-
-static size_t wcsicoll_l1_buflen = 0, wcsicoll_l2_buflen = 0;
-static wchar_t *wcsicoll_l1_buf = NULL, *wcsicoll_l2_buf = NULL;
-
-int
-wcsicoll(wchar_t *s1, wchar_t *s2)
-{
-	wchar_t *p;
-	size_t l1, l2;
-	size_t new_l1_buflen, new_l2_buflen;
-
-	l1 = wcslen(s1) + 1;
-	l2 = wcslen(s2) + 1;
-	new_l1_buflen = wcsicoll_l1_buflen;
-	new_l2_buflen = wcsicoll_l2_buflen;
-	while (new_l1_buflen < l1) {
-		if (new_l1_buflen == 0)
-			new_l1_buflen = INITLINELEN;
-		else
-			new_l1_buflen *= 2;
-	}
-	while (new_l2_buflen < l2) {
-		if (new_l2_buflen == 0)
-			new_l2_buflen = INITLINELEN;
-		else
-			new_l2_buflen *= 2;
-	}
-	if (new_l1_buflen > wcsicoll_l1_buflen) {
-		wcsicoll_l1_buf = reallocf(wcsicoll_l1_buf, new_l1_buflen * sizeof(*wcsicoll_l1_buf));
-		if (wcsicoll_l1_buf == NULL)
-                	err(1, "reallocf");
-		wcsicoll_l1_buflen = new_l1_buflen;
-	}
-	if (new_l2_buflen > wcsicoll_l2_buflen) {
-		wcsicoll_l2_buf = reallocf(wcsicoll_l2_buf, new_l2_buflen * sizeof(*wcsicoll_l2_buf));
-		if (wcsicoll_l2_buf == NULL)
-                	err(1, "reallocf");
-		wcsicoll_l2_buflen = new_l2_buflen;
-	}
-
-	for (p = wcsicoll_l1_buf; *s1; s1++)
-		*p++ = towlower(*s1);
-	*p = '\0';
-	for (p = wcsicoll_l2_buf; *s2; s2++)
-		*p++ = towlower(*s2);
-	*p = '\0';
-
-	return (wcscoll(wcsicoll_l1_buf, wcsicoll_l2_buf));
 }
