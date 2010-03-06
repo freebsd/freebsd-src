@@ -50,22 +50,8 @@
 #include <machine/psl.h>
 #include <machine/endian.h>
 
-#define	MIPS_CACHED_MEMORY_ADDR		0x80000000
-#define	MIPS_UNCACHED_MEMORY_ADDR	0xa0000000
-#define	MIPS_MAX_MEM_ADDR		0xbe000000
-#define	MIPS_RESERVED_ADDR		0xbfc80000
-
 #define MIPS_KSEG0_LARGEST_PHYS         0x20000000
-#define	MIPS_CACHED_TO_PHYS(x)		((uintptr_t)(x) & 0x1fffffff)
-#define	MIPS_PHYS_TO_CACHED(x)		((uintptr_t)(x) | MIPS_CACHED_MEMORY_ADDR)
-#define	MIPS_UNCACHED_TO_PHYS(x)	((uintptr_t)(x) & 0x1fffffff)
-#define	MIPS_PHYS_TO_UNCACHED(x)	((uintptr_t)(x) | MIPS_UNCACHED_MEMORY_ADDR)
-
 #define	MIPS_PHYS_MASK			(0x1fffffff)
-#define	MIPS_PA_2_K1VA(x)		(MIPS_KSEG1_START | ((x) & MIPS_PHYS_MASK))
-
-#define	MIPS_VA_TO_CINDEX(x)		((uintptr_t)(x) & 0xffffff | MIPS_CACHED_MEMORY_ADDR)
-#define	MIPS_CACHED_TO_UNCACHED(x)	(MIPS_PHYS_TO_UNCACHED(MIPS_CACHED_TO_PHYS(x)))
 
 #define	MIPS_PHYS_TO_KSEG0(x)		((uintptr_t)(x) | MIPS_KSEG0_START)
 #define	MIPS_PHYS_TO_KSEG1(x)		((uintptr_t)(x) | MIPS_KSEG1_START)
