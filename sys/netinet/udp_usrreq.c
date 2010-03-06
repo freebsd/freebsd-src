@@ -245,6 +245,9 @@ udp_destroy(void)
 	    V_udbinfo.ipi_hashmask);
 	hashdestroy(V_udbinfo.ipi_porthashbase, M_PCB,
 	    V_udbinfo.ipi_porthashmask);
+
+	uma_zdestroy(V_udpcb_zone);
+	uma_zdestroy(V_udbinfo.ipi_zone);
 	INP_INFO_LOCK_DESTROY(&V_udbinfo);
 }
 #endif
