@@ -813,7 +813,6 @@ evalcommand(union node *cmd, int flags, struct backcmd *backcmd)
 #ifdef DEBUG
 		trputs("Shell function:  ");  trargs(argv);
 #endif
-		redirect(cmd->ncmd.redirect, REDIR_PUSH);
 		saveparam = shellparam;
 		shellparam.malloc = 0;
 		shellparam.reset = 1;
@@ -831,6 +830,8 @@ evalcommand(union node *cmd, int flags, struct backcmd *backcmd)
 			else {
 				freeparam(&shellparam);
 				shellparam = saveparam;
+				if (exception == EXERROR || exception == EXEXEC)
+					popredir();
 			}
 			unreffunc(cmdentry.u.func);
 			poplocalvars();
@@ -841,6 +842,7 @@ evalcommand(union node *cmd, int flags, struct backcmd *backcmd)
 		}
 		handler = &jmploc;
 		funcnest++;
+		redirect(cmd->ncmd.redirect, REDIR_PUSH);
 		INTON;
 		for (sp = varlist.list ; sp ; sp = sp->next)
 			mklocal(sp->text);
