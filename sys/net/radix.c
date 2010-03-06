@@ -1161,6 +1161,24 @@ rn_inithead(head, off)
 	return (1);
 }
 
+#ifdef VIMAGE
+int
+rn_detachhead(void **head)
+{
+	struct radix_node_head *rnh;
+
+	KASSERT((head != NULL && *head != NULL),
+	    ("%s: head already freed", __func__));
+	rnh = *head;
+	
+	/* Free <left,root,right> nodes. */
+	Free(rnh);
+
+	*head = NULL;
+	return (1);
+}
+#endif
+
 void
 rn_init(int maxk)
 {
