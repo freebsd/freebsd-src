@@ -205,7 +205,7 @@ struct local_sysmaps {
 
 /* This structure is for large memory
  * above 512Meg. We can't (in 32 bit mode)
- * just use the direct mapped MIPS_CACHED_TO_PHYS()
+ * just use the direct mapped MIPS_KSEG0_TO_PHYS()
  * macros since we can't see the memory and must
  * map it in when we need to access it. In 64
  * bit mode this goes away.
@@ -271,7 +271,7 @@ pmap_steal_memory(vm_size_t size)
 	if (pa >= MIPS_KSEG0_LARGEST_PHYS) {
 		panic("Out of memory below 512Meg?");
 	}
-	va = MIPS_PHYS_TO_CACHED(pa);
+	va = MIPS_PHYS_TO_KSEG0(pa);
 	bzero((caddr_t)va, size);
 	return va;
 }
@@ -994,7 +994,7 @@ pmap_unuse_pt(pmap_t pmap, vm_offset_t va, vm_page_t mpte)
 			mpte = pmap->pm_ptphint;
 		} else {
 			pteva = *pmap_pde(pmap, va);
-			mpte = PHYS_TO_VM_PAGE(MIPS_CACHED_TO_PHYS(pteva));
+			mpte = PHYS_TO_VM_PAGE(MIPS_KSEG0_TO_PHYS(pteva));
 			pmap->pm_ptphint = mpte;
 		}
 	}
@@ -1048,7 +1048,7 @@ pmap_pinit(pmap_t pmap)
 	ptdpg->valid = VM_PAGE_BITS_ALL;
 
 	pmap->pm_segtab = (pd_entry_t *)
-	    MIPS_PHYS_TO_CACHED(VM_PAGE_TO_PHYS(ptdpg));
+	    MIPS_PHYS_TO_KSEG0(VM_PAGE_TO_PHYS(ptdpg));
 	if ((ptdpg->flags & PG_ZERO) == 0)
 		bzero(pmap->pm_segtab, PAGE_SIZE);
 
@@ -1115,7 +1115,7 @@ _pmap_allocpte(pmap_t pmap, unsigned ptepindex, int flags)
 	pmap->pm_stats.resident_count++;
 
 	ptepa = VM_PAGE_TO_PHYS(m);
-	pteva = MIPS_PHYS_TO_CACHED(ptepa);
+	pteva = MIPS_PHYS_TO_KSEG0(ptepa);
 	pmap->pm_segtab[ptepindex] = (pd_entry_t)pteva;
 
 	/*
@@ -1169,7 +1169,7 @@ retry:
 		    (pmap->pm_ptphint->pindex == ptepindex)) {
 			m = pmap->pm_ptphint;
 		} else {
-			m = PHYS_TO_VM_PAGE(MIPS_CACHED_TO_PHYS(pteva));
+			m = PHYS_TO_VM_PAGE(MIPS_KSEG0_TO_PHYS(pteva));
 			pmap->pm_ptphint = m;
 		}
 		m->wire_count++;
@@ -1215,7 +1215,7 @@ pmap_release(pmap_t pmap)
 	    ("pmap_release: pmap resident count %ld != 0",
 	    pmap->pm_stats.resident_count));
 
-	ptdpg = PHYS_TO_VM_PAGE(MIPS_CACHED_TO_PHYS(pmap->pm_segtab));
+	ptdpg = PHYS_TO_VM_PAGE(MIPS_KSEG0_TO_PHYS(pmap->pm_segtab));
 	ptdpg->wire_count--;
 	atomic_subtract_int(&cnt.v_wire_count, 1);
 	vm_page_free_zero(ptdpg);
@@ -1285,7 +1285,7 @@ pmap_growkernel(vm_offset_t addr)
 			 */
 			panic("Gak, can't handle a k-page table outside of lower 512Meg");
 		}
-		pte = (pt_entry_t *)MIPS_PHYS_TO_CACHED(ptppaddr);
+		pte = (pt_entry_t *)MIPS_PHYS_TO_KSEG0(ptppaddr);
 		segtab_pde(kernel_segmap, kernel_vm_end) = (pd_entry_t)pte;
 
 		/*
@@ -2027,7 +2027,7 @@ pmap_enter_quick_locked(pmap_t pmap, vm_offset_t va, vm_page_t m,
 				    (pmap->pm_ptphint->pindex == ptepindex)) {
 					mpte = pmap->pm_ptphint;
 				} else {
-					mpte = PHYS_TO_VM_PAGE(MIPS_CACHED_TO_PHYS(pteva));
+					mpte = PHYS_TO_VM_PAGE(MIPS_KSEG0_TO_PHYS(pteva));
 					pmap->pm_ptphint = mpte;
 				}
 				mpte->wire_count++;
@@ -2117,7 +2117,7 @@ pmap_kenter_temporary(vm_paddr_t pa, int i)
 	} else
 #endif
 	if (pa < MIPS_KSEG0_LARGEST_PHYS) {
-		va = MIPS_PHYS_TO_CACHED(pa);
+		va = MIPS_PHYS_TO_KSEG0(pa);
 	} else {
 		int cpu;
 		struct local_sysmaps *sysm;
@@ -2289,7 +2289,7 @@ pmap_zero_page(vm_page_t m)
 #endif
 	if (phys < MIPS_KSEG0_LARGEST_PHYS) {
 
-		va = MIPS_PHYS_TO_CACHED(phys);
+		va = MIPS_PHYS_TO_KSEG0(phys);
 
 		bzero((caddr_t)va, PAGE_SIZE);
 		mips_dcache_wbinv_range(va, PAGE_SIZE);
@@ -2347,7 +2347,7 @@ pmap_zero_page_area(vm_page_t m, int off, int size)
 	} else
 #endif
 	if (phys < MIPS_KSEG0_LARGEST_PHYS) {
-		va = MIPS_PHYS_TO_CACHED(phys);
+		va = MIPS_PHYS_TO_KSEG0(phys);
 		bzero((char *)(caddr_t)va + off, size);
 		mips_dcache_wbinv_range(va + off, size);
 	} else {
@@ -2388,7 +2388,7 @@ pmap_zero_page_idle(vm_page_t m)
 	} else
 #endif
 	if (phys < MIPS_KSEG0_LARGEST_PHYS) {
-		va = MIPS_PHYS_TO_CACHED(phys);
+		va = MIPS_PHYS_TO_KSEG0(phys);
 		bzero((caddr_t)va, PAGE_SIZE);
 		mips_dcache_wbinv_range(va, PAGE_SIZE);
 	} else {
@@ -2463,9 +2463,9 @@ pmap_copy_page(vm_page_t src, vm_page_t dst)
 			 */
 			pmap_flush_pvcache(src);
 			mips_dcache_wbinv_range_index(
-			    MIPS_PHYS_TO_CACHED(phy_dst), NBPG);
-			va_src = MIPS_PHYS_TO_CACHED(phy_src);
-			va_dst = MIPS_PHYS_TO_CACHED(phy_dst);
+			    MIPS_PHYS_TO_KSEG0(phy_dst), NBPG);
+			va_src = MIPS_PHYS_TO_KSEG0(phy_src);
+			va_dst = MIPS_PHYS_TO_KSEG0(phy_dst);
 			bcopy((caddr_t)va_src, (caddr_t)va_dst, PAGE_SIZE);
 			mips_dcache_wbinv_range(va_dst, PAGE_SIZE);
 		} else {
@@ -2479,14 +2479,14 @@ pmap_copy_page(vm_page_t src, vm_page_t dst)
 			int_level = disableintr();
 			if (phy_src < MIPS_KSEG0_LARGEST_PHYS) {
 				/* one side needs mapping - dest */
-				va_src = MIPS_PHYS_TO_CACHED(phy_src);
+				va_src = MIPS_PHYS_TO_KSEG0(phy_src);
 				sysm->CMAP2 = mips_paddr_to_tlbpfn(phy_dst) | PTE_RW | PTE_V | PTE_G | PTE_W | PTE_CACHE;
 				pmap_TLB_update_kernel((vm_offset_t)sysm->CADDR2, sysm->CMAP2);
 				sysm->valid2 = 1;
 				va_dst = (vm_offset_t)sysm->CADDR2;
 			} else if (phy_dst < MIPS_KSEG0_LARGEST_PHYS) {
 				/* one side needs mapping - src */
-				va_dst = MIPS_PHYS_TO_CACHED(phy_dst);
+				va_dst = MIPS_PHYS_TO_KSEG0(phy_dst);
 				sysm->CMAP1 = mips_paddr_to_tlbpfn(phy_src) | PTE_RW | PTE_V | PTE_G | PTE_W | PTE_CACHE;
 				pmap_TLB_update_kernel((vm_offset_t)sysm->CADDR1, sysm->CMAP1);
 				va_src = (vm_offset_t)sysm->CADDR1;
@@ -3306,7 +3306,7 @@ pmap_kextract(vm_offset_t va)
 {
 	vm_offset_t pa = 0;
 
-	if (va < MIPS_CACHED_MEMORY_ADDR) {
+	if (va < MIPS_KSEG0_START) {
 		/* user virtual address */
 		pt_entry_t *ptep;
 
@@ -3316,16 +3316,16 @@ pmap_kextract(vm_offset_t va)
 				pa = mips_tlbpfn_to_paddr(*ptep) |
 				    (va & PAGE_MASK);
 		}
-	} else if (va >= MIPS_CACHED_MEMORY_ADDR &&
-	    va < MIPS_UNCACHED_MEMORY_ADDR)
-		pa = MIPS_CACHED_TO_PHYS(va);
-	else if (va >= MIPS_UNCACHED_MEMORY_ADDR &&
+	} else if (va >= MIPS_KSEG0_START &&
+	    va < MIPS_KSEG1_START)
+		pa = MIPS_KSEG0_TO_PHYS(va);
+	else if (va >= MIPS_KSEG1_START &&
 	    va < MIPS_KSEG2_START)
-		pa = MIPS_UNCACHED_TO_PHYS(va);
+		pa = MIPS_KSEG1_TO_PHYS(va);
 #ifdef VM_ALLOC_WIRED_TLB_PG_POOL
 	else if (need_wired_tlb_page_pool && ((va >= VM_MIN_KERNEL_ADDRESS) &&
 	    (va < (VM_MIN_KERNEL_ADDRESS + VM_KERNEL_ALLOC_OFFSET))))
-		pa = MIPS_CACHED_TO_PHYS(va);
+		pa = MIPS_KSEG0_TO_PHYS(va);
 #endif
 	else if (va >= MIPS_KSEG2_START && va < VM_MAX_KERNEL_ADDRESS) {
 		pt_entry_t *ptep;

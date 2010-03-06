@@ -1253,7 +1253,7 @@ VECTOR(MipsCache, unknown)
 	PTR_LA	k0, _C_LABEL(MipsCacheException)
 	li	k1, MIPS_PHYS_MASK
 	and	k0, k1
-	li	k1, MIPS_UNCACHED_MEMORY_ADDR
+	li	k1, MIPS_KSEG1_START
 	or	k0, k1
 	j	k0
 	nop

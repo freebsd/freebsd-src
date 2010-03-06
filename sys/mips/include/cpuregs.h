@@ -89,12 +89,6 @@
 #define MIPS_KSEG2_END			MIPS_KSSEG_END
 #define	MIPS_KSEG3_START		0xe0000000
 #define	MIPS_KSEG3_END			0xffffffff
-#define	MIPS_MAX_MEM_ADDR		0xbe000000
-#define	MIPS_RESERVED_ADDR		0xbfc80000
-
-/* Map virtual address to index in mips3 r4k virtually-indexed cache */
-#define	MIPS3_VA_TO_CINDEX(x) \
-		((unsigned)(x) & 0xffffff | MIPS_KSEG0_START)
 
 #define	MIPS_PHYS_TO_XKPHYS(cca,x) \
 	((0x2ULL << 62) | ((unsigned long long)(cca) << 59) | (x))
