@@ -195,7 +195,7 @@ getlinemax(char *buf, FILE *fp)
 	while ((ch = getc(fp)) != EOF && ch != '\n') {
 		buf[bufpos++] = ch;
 		if (bufpos >= LINE_MAX)
-			errx(1, "Maximum line length (%zu) exceeded",
+			errx(1, "Maximum line length (%d) exceeded",
 			     LINE_MAX);
 	}
 	buf[bufpos] = '\0';
@@ -210,7 +210,7 @@ convert(wchar_t *buf, const char *str)
 	wchar_t *p, *ret;
 
 	if ((n = mbstowcs(buf, str, LINE_MAX)) == LINE_MAX)
-		errx(1, "Maximum line length (%zu) exceeded", LINE_MAX);
+		errx(1, "Maximum line length (%d) exceeded", LINE_MAX);
 	else if (n != (size_t)-1) {
 		/* If requested get the chosen fields + character offsets. */
 		if (numfields || numchars)
