@@ -734,8 +734,10 @@ void X86TargetInfo::getDefaultFeatures(const std::string &CPU,
 bool X86TargetInfo::setFeatureEnabled(llvm::StringMap<bool> &Features,
                                       const std::string &Name,
                                       bool Enabled) const {
-  // FIXME: This *really* should not be here.
-  if (!Features.count(Name) && Name != "sse4")
+  // FIXME: This *really* should not be here.  We need some way of translating
+  // options into llvm subtarget features.
+  if (!Features.count(Name) &&
+      (Name != "sse4" && Name != "sse4.2" && Name != "sse4.1"))
     return false;
 
   if (Enabled) {
@@ -751,9 +753,12 @@ bool X86TargetInfo::setFeatureEnabled(llvm::StringMap<bool> &Features,
     else if (Name == "ssse3")
       Features["mmx"] = Features["sse"] = Features["sse2"] = Features["sse3"] =
         Features["ssse3"] = true;
-    else if (Name == "sse4")
+    else if (Name == "sse4" || Name == "sse4.2")
       Features["mmx"] = Features["sse"] = Features["sse2"] = Features["sse3"] =
         Features["ssse3"] = Features["sse41"] = Features["sse42"] = true;
+    else if (Name == "sse4.1")
+      Features["mmx"] = Features["sse"] = Features["sse2"] = Features["sse3"] =
+        Features["ssse3"] = Features["sse41"] = true;
     else if (Name == "3dnow")
       Features["3dnowa"] = true;
     else if (Name == "3dnowa")
@@ -774,6 +779,10 @@ bool X86TargetInfo::setFeatureEnabled(llvm::StringMap<bool> &Features,
     else if (Name == "ssse3")
       Features["ssse3"] = Features["sse41"] = Features["sse42"] = false;
     else if (Name == "sse4")
+      Features["sse41"] = Features["sse42"] = false;
+    else if (Name == "sse4.2")
+      Features["sse42"] = false;
+    else if (Name == "sse4.1")
       Features["sse41"] = Features["sse42"] = false;
     else if (Name == "3dnow")
       Features["3dnow"] = Features["3dnowa"] = false;
@@ -1207,6 +1216,8 @@ class ARMTargetInfo : public TargetInfo {
   unsigned SoftFloat : 1;
   unsigned SoftFloatABI : 1;
 
+  static const Builtin::Info BuiltinInfo[];
+
 public:
   ARMTargetInfo(const std::string &TripleStr)
     : TargetInfo(TripleStr), ABI("aapcs-linux"), CPU("arm1136j-s")
@@ -1393,9 +1404,8 @@ public:
   }
   virtual void getTargetBuiltins(const Builtin::Info *&Records,
                                  unsigned &NumRecords) const {
-    // FIXME: Implement.
-    Records = 0;
-    NumRecords = 0;
+    Records = BuiltinInfo;
+    NumRecords = clang::ARM::LastTSBuiltin-Builtin::FirstTSBuiltin;
   }
   virtual const char *getVAListDeclaration() const {
     return "typedef char* __builtin_va_list;";
@@ -1460,6 +1470,12 @@ void ARMTargetInfo::getGCCRegAliases(const GCCRegAlias *&Aliases,
   Aliases = GCCRegAliases;
   NumAliases = llvm::array_lengthof(GCCRegAliases);
 }
+
+const Builtin::Info ARMTargetInfo::BuiltinInfo[] = {
+#define BUILTIN(ID, TYPE, ATTRS) { #ID, TYPE, ATTRS, 0, false },
+#define LIBBUILTIN(ID, TYPE, ATTRS, HEADER) { #ID, TYPE, ATTRS, HEADER, false },
+#include "clang/Basic/BuiltinsARM.def"
+};
 } // end anonymous namespace.
 
 
@@ -1892,9 +1908,10 @@ namespace {
       FloatFormat = &llvm::APFloat::IEEEsingle;
       DoubleFormat = &llvm::APFloat::IEEEsingle;
       LongDoubleFormat = &llvm::APFloat::IEEEsingle;
-      DescriptionString = "E-p:32:32:32-a0:32:32"
-                          "-i1:8:8-i8:8:8-i16:16:16-i32:32:32-i64:32:64"
-                          "-f32:32:32-f64:32:64-n32";
+      DescriptionString = "E-p:32:32:32-i1:8:8-i8:8:32-"
+                          "i16:16:32-i32:32:32-i64:32:32-"
+                          "f32:32:32-f64:64:64-v64:64:64-"
+                          "v128:128:128-a0:0:64-n32";
     }
 
     virtual void getTargetDefines(const LangOptions &Opts,

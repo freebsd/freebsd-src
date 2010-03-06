@@ -33,6 +33,7 @@
 #include "llvm/Module.h"
 #include "llvm/Intrinsics.h"
 #include "llvm/LLVMContext.h"
+#include "llvm/ADT/Triple.h"
 #include "llvm/Target/TargetData.h"
 #include "llvm/Support/ErrorHandling.h"
 using namespace clang;
@@ -87,6 +88,10 @@ void CodeGenModule::Release() {
   EmitCtorList(GlobalDtors, "llvm.global_dtors");
   EmitAnnotations();
   EmitLLVMUsed();
+}
+
+bool CodeGenModule::isTargetDarwin() const {
+  return getContext().Target.getTriple().getOS() == llvm::Triple::Darwin;
 }
 
 /// ErrorUnsupported - Print out an error that codegen doesn't support the
@@ -619,8 +624,40 @@ bool CodeGenModule::MayDeferGeneration(const ValueDecl *Global) {
   return false;
 }
 
+llvm::Constant *CodeGenModule::GetWeakRefReference(const ValueDecl *VD) {
+  const AliasAttr *AA = VD->getAttr<AliasAttr>();
+  assert(AA && "No alias?");
+
+  const llvm::Type *DeclTy = getTypes().ConvertTypeForMem(VD->getType());
+
+  // Unique the name through the identifier table.
+  const char *AliaseeName =
+    getContext().Idents.get(AA->getAliasee()).getNameStart();
+
+  // See if there is already something with the target's name in the module.
+  llvm::GlobalValue *Entry = GlobalDeclMap[AliaseeName];
+
+  llvm::Constant *Aliasee;
+  if (isa<llvm::FunctionType>(DeclTy))
+    Aliasee = GetOrCreateLLVMFunction(AliaseeName, DeclTy, GlobalDecl());
+  else
+    Aliasee = GetOrCreateLLVMGlobal(AliaseeName,
+                                    llvm::PointerType::getUnqual(DeclTy), 0);
+  if (!Entry) {
+    llvm::GlobalValue* F = cast<llvm::GlobalValue>(Aliasee);
+    F->setLinkage(llvm::Function::ExternalWeakLinkage);    
+    WeakRefReferences.insert(F);
+  }
+
+  return Aliasee;
+}
+
 void CodeGenModule::EmitGlobal(GlobalDecl GD) {
   const ValueDecl *Global = cast<ValueDecl>(GD.getDecl());
+
+  // Weak references don't produce any output by themselves.
+  if (Global->hasAttr<WeakRefAttr>())
+    return;
 
   // If this is an alias definition (which otherwise looks like a declaration)
   // emit it now.
@@ -708,6 +745,14 @@ llvm::Constant *CodeGenModule::GetOrCreateLLVMFunction(const char *MangledName,
   // Lookup the entry, lazily creating it if necessary.
   llvm::GlobalValue *&Entry = GlobalDeclMap[MangledName];
   if (Entry) {
+    if (WeakRefReferences.count(Entry)) {
+      const FunctionDecl *FD = cast_or_null<FunctionDecl>(D.getDecl());
+      if (FD && !FD->hasAttr<WeakAttr>())
+	Entry->setLinkage(llvm::Function::ExternalLinkage);
+
+      WeakRefReferences.erase(Entry);
+    }
+
     if (Entry->getType()->getElementType() == Ty)
       return Entry;
 
@@ -753,17 +798,17 @@ llvm::Constant *CodeGenModule::GetOrCreateLLVMFunction(const char *MangledName,
     // synthesized.
     else if (const CXXConstructorDecl *CD = dyn_cast<CXXConstructorDecl>(FD)) {
       if (CD->isImplicit()) {
-        assert (CD->isUsed());
+        assert(CD->isUsed() && "Sema doesn't consider constructor as used.");
         DeferredDeclsToEmit.push_back(D);
       }
     } else if (const CXXDestructorDecl *DD = dyn_cast<CXXDestructorDecl>(FD)) {
       if (DD->isImplicit()) {
-        assert (DD->isUsed());
+        assert(DD->isUsed() && "Sema doesn't consider destructor as used.");
         DeferredDeclsToEmit.push_back(D);
       }
     } else if (const CXXMethodDecl *MD = dyn_cast<CXXMethodDecl>(FD)) {
       if (MD->isCopyAssignment() && MD->isImplicit()) {
-        assert (MD->isUsed());
+        assert(MD->isUsed() && "Sema doesn't consider CopyAssignment as used.");
         DeferredDeclsToEmit.push_back(D);
       }
     }
@@ -817,6 +862,13 @@ llvm::Constant *CodeGenModule::GetOrCreateLLVMGlobal(const char *MangledName,
   // Lookup the entry, lazily creating it if necessary.
   llvm::GlobalValue *&Entry = GlobalDeclMap[MangledName];
   if (Entry) {
+    if (WeakRefReferences.count(Entry)) {
+      if (D && !D->hasAttr<WeakAttr>())
+	Entry->setLinkage(llvm::Function::ExternalLinkage);
+
+      WeakRefReferences.erase(Entry);
+    }
+
     if (Entry->getType() == Ty)
       return Entry;
 
@@ -1203,7 +1255,7 @@ static void ReplaceUsesOfNonProtoTypeWithRealFunction(llvm::GlobalValue *Old,
 void CodeGenModule::EmitGlobalFunctionDefinition(GlobalDecl GD) {
   const FunctionDecl *D = cast<FunctionDecl>(GD.getDecl());
   const llvm::FunctionType *Ty = getTypes().GetFunctionType(GD);
-
+  getMangleContext().mangleInitDiscriminator();
   // Get or create the prototype for the function.
   llvm::Constant *Entry = GetAddrOfFunction(GD, Ty);
 
