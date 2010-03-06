@@ -18,6 +18,7 @@
 #include "llvm/CodeGen/MachineDominators.h"
 #include "llvm/CodeGen/MachineInstr.h"
 #include "llvm/CodeGen/MachineRegisterInfo.h"
+#include "llvm/Analysis/AliasAnalysis.h"
 #include "llvm/Target/TargetInstrInfo.h"
 #include "llvm/ADT/ScopedHashTable.h"
 #include "llvm/ADT/Statistic.h"
@@ -25,76 +26,16 @@
 
 using namespace llvm;
 
-namespace llvm {
-  template<> struct DenseMapInfo<MachineInstr*> {
-    static inline MachineInstr *getEmptyKey() {
-      return 0;
-    }
-
-    static inline MachineInstr *getTombstoneKey() {
-      return reinterpret_cast<MachineInstr*>(-1);
-    }
-
-    static unsigned getHashValue(const MachineInstr* const &MI) {
-      unsigned Hash = MI->getOpcode() * 37;
-      for (unsigned i = 0, e = MI->getNumOperands(); i != e; ++i) {
-        const MachineOperand &MO = MI->getOperand(i);
-        uint64_t Key = (uint64_t)MO.getType() << 32;
-        switch (MO.getType()) {
-        default: break;
-        case MachineOperand::MO_Register:
-          if (MO.isDef() && TargetRegisterInfo::isVirtualRegister(MO.getReg()))
-            continue;  // Skip virtual register defs.
-          Key |= MO.getReg();
-          break;
-        case MachineOperand::MO_Immediate:
-          Key |= MO.getImm();
-          break;
-        case MachineOperand::MO_FrameIndex:
-        case MachineOperand::MO_ConstantPoolIndex:
-        case MachineOperand::MO_JumpTableIndex:
-          Key |= MO.getIndex();
-          break;
-        case MachineOperand::MO_MachineBasicBlock:
-          Key |= DenseMapInfo<void*>::getHashValue(MO.getMBB());
-          break;
-        case MachineOperand::MO_GlobalAddress:
-          Key |= DenseMapInfo<void*>::getHashValue(MO.getGlobal());
-          break;
-        case MachineOperand::MO_BlockAddress:
-          Key |= DenseMapInfo<void*>::getHashValue(MO.getBlockAddress());
-          break;
-        }
-        Key += ~(Key << 32);
-        Key ^= (Key >> 22);
-        Key += ~(Key << 13);
-        Key ^= (Key >> 8);
-        Key += (Key << 3);
-        Key ^= (Key >> 15);
-        Key += ~(Key << 27);
-        Key ^= (Key >> 31);
-        Hash = (unsigned)Key + Hash * 37;
-      }
-      return Hash;
-    }
-
-    static bool isEqual(const MachineInstr* const &LHS,
-                        const MachineInstr* const &RHS) {
-      if (RHS == getEmptyKey() || RHS == getTombstoneKey() ||
-          LHS == getEmptyKey() || LHS == getTombstoneKey())
-        return LHS == RHS;
-      return LHS->isIdenticalTo(RHS, MachineInstr::IgnoreVRegDefs);
-    }
-  };
-} // end llvm namespace
+STATISTIC(NumCoalesces, "Number of copies coalesced");
+STATISTIC(NumCSEs,      "Number of common subexpression eliminated");
 
 namespace {
   class MachineCSE : public MachineFunctionPass {
     const TargetInstrInfo *TII;
+    const TargetRegisterInfo *TRI;
     MachineRegisterInfo  *MRI;
     MachineDominatorTree *DT;
-    ScopedHashTable<MachineInstr*, unsigned> VNT;
-    unsigned CurrVN;
+    AliasAnalysis *AA;
   public:
     static char ID; // Pass identification
     MachineCSE() : MachineFunctionPass(&ID), CurrVN(0) {}
@@ -104,12 +45,22 @@ namespace {
     virtual void getAnalysisUsage(AnalysisUsage &AU) const {
       AU.setPreservesCFG();
       MachineFunctionPass::getAnalysisUsage(AU);
+      AU.addRequired<AliasAnalysis>();
       AU.addRequired<MachineDominatorTree>();
       AU.addPreserved<MachineDominatorTree>();
     }
 
   private:
+    unsigned CurrVN;
+    ScopedHashTable<MachineInstr*, unsigned, MachineInstrExpressionTrait> VNT;
+    SmallVector<MachineInstr*, 64> Exps;
+
     bool PerformTrivialCoalescing(MachineInstr *MI, MachineBasicBlock *MBB);
+    bool isPhysDefTriviallyDead(unsigned Reg,
+                                MachineBasicBlock::const_iterator I,
+                                MachineBasicBlock::const_iterator E);
+    bool hasLivePhysRegDefUse(MachineInstr *MI, MachineBasicBlock *MBB);
+    bool isCSECandidate(MachineInstr *MI);
     bool ProcessBlock(MachineDomTreeNode *Node);
   };
 } // end anonymous namespace
@@ -125,27 +76,65 @@ bool MachineCSE::PerformTrivialCoalescing(MachineInstr *MI,
   bool Changed = false;
   for (unsigned i = 0, e = MI->getNumOperands(); i != e; ++i) {
     MachineOperand &MO = MI->getOperand(i);
-    if (MO.isReg() && MO.isUse()) {
-      unsigned Reg = MO.getReg();
-      if (!Reg || TargetRegisterInfo::isPhysicalRegister(Reg))
-        continue;
-      MachineInstr *DefMI = MRI->getVRegDef(Reg);
-      if (DefMI->getParent() == MBB) {
-        unsigned SrcReg, DstReg, SrcSubIdx, DstSubIdx;
-        if (TII->isMoveInstr(*DefMI, SrcReg, DstReg, SrcSubIdx, DstSubIdx) &&
-            TargetRegisterInfo::isVirtualRegister(SrcReg) &&
-            !SrcSubIdx && !DstSubIdx) {
-          MO.setReg(SrcReg);
-          Changed = true;
-        }
-      }
+    if (!MO.isReg() || !MO.isUse())
+      continue;
+    unsigned Reg = MO.getReg();
+    if (!Reg || TargetRegisterInfo::isPhysicalRegister(Reg))
+      continue;
+    if (!MRI->hasOneUse(Reg))
+      // Only coalesce single use copies. This ensure the copy will be
+      // deleted.
+      continue;
+    MachineInstr *DefMI = MRI->getVRegDef(Reg);
+    if (DefMI->getParent() != MBB)
+      continue;
+    unsigned SrcReg, DstReg, SrcSubIdx, DstSubIdx;
+    if (TII->isMoveInstr(*DefMI, SrcReg, DstReg, SrcSubIdx, DstSubIdx) &&
+        TargetRegisterInfo::isVirtualRegister(SrcReg) &&
+        !SrcSubIdx && !DstSubIdx) {
+      MO.setReg(SrcReg);
+      DefMI->eraseFromParent();
+      ++NumCoalesces;
+      Changed = true;
     }
   }
 
   return Changed;
 }
 
-static bool hasLivePhysRegDefUse(MachineInstr *MI) {
+bool MachineCSE::isPhysDefTriviallyDead(unsigned Reg,
+                                        MachineBasicBlock::const_iterator I,
+                                        MachineBasicBlock::const_iterator E) {
+  unsigned LookAheadLeft = 5;
+  while (LookAheadLeft--) {
+    if (I == E)
+      // Reached end of block, register is obviously dead.
+      return true;
+
+    if (I->isDebugValue())
+      continue;
+    bool SeenDef = false;
+    for (unsigned i = 0, e = I->getNumOperands(); i != e; ++i) {
+      const MachineOperand &MO = I->getOperand(i);
+      if (!MO.isReg() || !MO.getReg())
+        continue;
+      if (!TRI->regsOverlap(MO.getReg(), Reg))
+        continue;
+      if (MO.isUse())
+        return false;
+      SeenDef = true;
+    }
+    if (SeenDef)
+      // See a def of Reg (or an alias) before encountering any use, it's 
+      // trivially dead.
+      return true;
+    ++I;
+  }
+  return false;
+}
+
+bool MachineCSE::hasLivePhysRegDefUse(MachineInstr *MI, MachineBasicBlock *MBB){
+  unsigned PhysDef = 0;
   for (unsigned i = 0, e = MI->getNumOperands(); i != e; ++i) {
     MachineOperand &MO = MI->getOperand(i);
     if (!MO.isReg())
@@ -153,30 +142,69 @@ static bool hasLivePhysRegDefUse(MachineInstr *MI) {
     unsigned Reg = MO.getReg();
     if (!Reg)
       continue;
-    if (TargetRegisterInfo::isPhysicalRegister(Reg) &&
-        !(MO.isDef() && MO.isDead()))
+    if (TargetRegisterInfo::isPhysicalRegister(Reg)) {
+      if (MO.isUse())
+        // Can't touch anything to read a physical register.
+        return true;
+      if (MO.isDead())
+        // If the def is dead, it's ok.
+        continue;
+      // Ok, this is a physical register def that's not marked "dead". That's
+      // common since this pass is run before livevariables. We can scan
+      // forward a few instructions and check if it is obviously dead.
+      if (PhysDef)
+        // Multiple physical register defs. These are rare, forget about it.
+        return true;
+      PhysDef = Reg;
+    }
+  }
+
+  if (PhysDef) {
+    MachineBasicBlock::iterator I = MI; I = llvm::next(I);
+    if (!isPhysDefTriviallyDead(PhysDef, I, MBB->end()))
       return true;
   }
   return false;
 }
 
+bool MachineCSE::isCSECandidate(MachineInstr *MI) {
+  // Ignore copies or instructions that read / write physical registers
+  // (except for dead defs of physical registers).
+  unsigned SrcReg, DstReg, SrcSubIdx, DstSubIdx;
+  if (TII->isMoveInstr(*MI, SrcReg, DstReg, SrcSubIdx, DstSubIdx) ||
+      MI->isExtractSubreg() || MI->isInsertSubreg() || MI->isSubregToReg())
+    return false;
+
+  // Ignore stuff that we obviously can't move.
+  const TargetInstrDesc &TID = MI->getDesc();  
+  if (TID.mayStore() || TID.isCall() || TID.isTerminator() ||
+      TID.hasUnmodeledSideEffects())
+    return false;
+
+  if (TID.mayLoad()) {
+    // Okay, this instruction does a load. As a refinement, we allow the target
+    // to decide whether the loaded value is actually a constant. If so, we can
+    // actually use it as a load.
+    if (!MI->isInvariantLoad(AA))
+      // FIXME: we should be able to hoist loads with no other side effects if
+      // there are no other instructions which can change memory in this loop.
+      // This is a trivial form of alias analysis.
+      return false;
+  }
+  return true;
+}
+
 bool MachineCSE::ProcessBlock(MachineDomTreeNode *Node) {
   bool Changed = false;
 
-  ScopedHashTableScope<MachineInstr*, unsigned> VNTS(VNT);
+  ScopedHashTableScope<MachineInstr*, unsigned,
+    MachineInstrExpressionTrait> VNTS(VNT);
   MachineBasicBlock *MBB = Node->getBlock();
-  for (MachineBasicBlock::iterator I = MBB->begin(), E = MBB->end(); I != E;
-       ++I) {
+  for (MachineBasicBlock::iterator I = MBB->begin(), E = MBB->end(); I != E; ) {
     MachineInstr *MI = &*I;
-    bool SawStore = false;
-    if (!MI->isSafeToMove(TII, 0, SawStore))
-      continue;
-    // Ignore copies or instructions that read / write physical registers
-    // (except for dead defs of physical registers).
-    unsigned SrcReg, DstReg, SrcSubIdx, DstSubIdx;
-    if (TII->isMoveInstr(*MI, SrcReg, DstReg, SrcSubIdx, DstSubIdx))
-      continue;
-    if (hasLivePhysRegDefUse(MI))
+    ++I;
+
+    if (!isCSECandidate(MI))
       continue;
 
     bool FoundCSE = VNT.count(MI);
@@ -185,11 +213,41 @@ bool MachineCSE::ProcessBlock(MachineDomTreeNode *Node) {
       if (PerformTrivialCoalescing(MI, MBB))
         FoundCSE = VNT.count(MI);
     }
+    // FIXME: commute commutable instructions?
 
-    if (FoundCSE)
-      DEBUG(dbgs() << "Found a common subexpression: " << *MI);
-    else
-      VNT.insert(MI, ++CurrVN);
+    // If the instruction defines a physical register and the value *may* be
+    // used, then it's not safe to replace it with a common subexpression.
+    if (FoundCSE && hasLivePhysRegDefUse(MI, MBB))
+      FoundCSE = false;
+
+    if (!FoundCSE) {
+      VNT.insert(MI, CurrVN++);
+      Exps.push_back(MI);
+      continue;
+    }
+
+    // Found a common subexpression, eliminate it.
+    unsigned CSVN = VNT.lookup(MI);
+    MachineInstr *CSMI = Exps[CSVN];
+    DEBUG(dbgs() << "Examining: " << *MI);
+    DEBUG(dbgs() << "*** Found a common subexpression: " << *CSMI);
+    unsigned NumDefs = MI->getDesc().getNumDefs();
+    for (unsigned i = 0, e = MI->getNumOperands(); NumDefs && i != e; ++i) {
+      MachineOperand &MO = MI->getOperand(i);
+      if (!MO.isReg() || !MO.isDef())
+        continue;
+      unsigned OldReg = MO.getReg();
+      unsigned NewReg = CSMI->getOperand(i).getReg();
+      if (OldReg == NewReg)
+        continue;
+      assert(TargetRegisterInfo::isVirtualRegister(OldReg) &&
+             TargetRegisterInfo::isVirtualRegister(NewReg) &&
+             "Do not CSE physical register defs!");
+      MRI->replaceRegWith(OldReg, NewReg);
+      --NumDefs;
+    }
+    MI->eraseFromParent();
+    ++NumCSEs;
   }
 
   // Recursively call ProcessBlock with childred.
@@ -202,7 +260,9 @@ bool MachineCSE::ProcessBlock(MachineDomTreeNode *Node) {
 
 bool MachineCSE::runOnMachineFunction(MachineFunction &MF) {
   TII = MF.getTarget().getInstrInfo();
+  TRI = MF.getTarget().getRegisterInfo();
   MRI = &MF.getRegInfo();
   DT = &getAnalysis<MachineDominatorTree>();
+  AA = &getAnalysis<AliasAnalysis>();
   return ProcessBlock(DT->getRootNode());
 }

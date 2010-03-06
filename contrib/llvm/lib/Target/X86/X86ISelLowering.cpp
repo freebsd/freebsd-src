@@ -990,7 +990,6 @@ X86TargetLowering::X86TargetLowering(X86TargetMachine &TM)
   setTargetDAGCombine(ISD::VECTOR_SHUFFLE);
   setTargetDAGCombine(ISD::BUILD_VECTOR);
   setTargetDAGCombine(ISD::SELECT);
-  setTargetDAGCombine(ISD::AND);
   setTargetDAGCombine(ISD::SHL);
   setTargetDAGCombine(ISD::SRA);
   setTargetDAGCombine(ISD::SRL);
@@ -2236,7 +2235,8 @@ static
 bool MatchingStackOffset(SDValue Arg, unsigned Offset, ISD::ArgFlagsTy Flags,
                          MachineFrameInfo *MFI, const MachineRegisterInfo *MRI,
                          const X86InstrInfo *TII) {
-  int FI;
+  unsigned Bytes = Arg.getValueType().getSizeInBits() / 8;
+  int FI = INT_MAX;
   if (Arg.getOpcode() == ISD::CopyFromReg) {
     unsigned VR = cast<RegisterSDNode>(Arg.getOperand(1))->getReg();
     if (!VR || TargetRegisterInfo::isPhysicalRegister(VR))
@@ -2252,25 +2252,30 @@ bool MatchingStackOffset(SDValue Arg, unsigned Offset, ISD::ArgFlagsTy Flags,
       if ((Opcode == X86::LEA32r || Opcode == X86::LEA64r) &&
           Def->getOperand(1).isFI()) {
         FI = Def->getOperand(1).getIndex();
-        if (MFI->getObjectSize(FI) != Flags.getByValSize())
-          return false;
+        Bytes = Flags.getByValSize();
       } else
         return false;
     }
-  } else {
-    LoadSDNode *Ld = dyn_cast<LoadSDNode>(Arg);
-    if (!Ld)
+  } else if (LoadSDNode *Ld = dyn_cast<LoadSDNode>(Arg)) {
+    if (Flags.isByVal())
+      // ByVal argument is passed in as a pointer but it's now being
+      // dereferenced. e.g.
+      // define @foo(%struct.X* %A) {
+      //   tail call @bar(%struct.X* byval %A)
+      // }
       return false;
     SDValue Ptr = Ld->getBasePtr();
     FrameIndexSDNode *FINode = dyn_cast<FrameIndexSDNode>(Ptr);
     if (!FINode)
       return false;
     FI = FINode->getIndex();
-  }
+  } else
+    return false;
 
+  assert(FI != INT_MAX);
   if (!MFI->isFixedObjectIndex(FI))
     return false;
-  return Offset == MFI->getObjectOffset(FI);
+  return Offset == MFI->getObjectOffset(FI) && Bytes == MFI->getObjectSize(FI);
 }
 
 /// IsEligibleForTailCallOptimization - Check whether the call is eligible
@@ -9174,58 +9179,6 @@ static SDValue PerformCMOVCombine(SDNode *N, SelectionDAG &DAG,
   return SDValue();
 }
 
-/// PerformANDCombine - Look for SSE and instructions of this form:
-/// (and x, (build_vector signbit,signbit,signbit,signbit)). If there
-/// exists a use of a build_vector that's the bitwise complement of the mask,
-/// then transform the node to
-/// (and (xor x, (build_vector -1,-1,-1,-1)), (build_vector ~sb,~sb,~sb,~sb)).
-static SDValue PerformANDCombine(SDNode *N, SelectionDAG &DAG,
-                                 TargetLowering::DAGCombinerInfo &DCI) {
-  EVT VT = N->getValueType(0);
-  if (!VT.isVector() || !VT.isInteger())
-    return SDValue();
-
-  SDValue N0 = N->getOperand(0);
-  SDValue N1 = N->getOperand(1);
-  if (N0.getOpcode() == ISD::XOR || !N1.hasOneUse())
-    return SDValue();
-
-  if (N1.getOpcode() == ISD::BUILD_VECTOR) {
-    unsigned NumElts = VT.getVectorNumElements();
-    EVT EltVT = VT.getVectorElementType();
-    SmallVector<SDValue, 8> Mask;
-    Mask.reserve(NumElts);
-    for (unsigned i = 0; i != NumElts; ++i) {
-      SDValue Arg = N1.getOperand(i);
-      if (Arg.getOpcode() == ISD::UNDEF) {
-        Mask.push_back(Arg);
-        continue;
-      }
-      ConstantSDNode *C = dyn_cast<ConstantSDNode>(Arg);
-      if (!C)
-        return SDValue();
-      if (!C->getAPIntValue().isSignBit() &&
-          !C->getAPIntValue().isMaxSignedValue())
-        return SDValue();
-      Mask.push_back(DAG.getConstant(~C->getAPIntValue(), EltVT));
-    }
-    N1 = DAG.getNode(ISD::BUILD_VECTOR, N1.getDebugLoc(), VT,
-                     &Mask[0], NumElts);
-    if (!N1.use_empty()) {
-      unsigned Bits = EltVT.getSizeInBits();
-      Mask.clear();
-      for (unsigned i = 0; i != NumElts; ++i)
-        Mask.push_back(DAG.getConstant(APInt::getAllOnesValue(Bits), EltVT));
-      SDValue NewMask = DAG.getNode(ISD::BUILD_VECTOR, N->getDebugLoc(),
-                                    VT, &Mask[0], NumElts);
-      return DAG.getNode(ISD::AND, N->getDebugLoc(), VT,
-                         DAG.getNode(ISD::XOR, N->getDebugLoc(), VT,
-                                     N0, NewMask), N1);
-    }
-  }
-
-  return SDValue();
-}
 
 /// PerformMulCombine - Optimize a single multiply with constant into two
 /// in order to implement it with two cheaper instructions, e.g.
@@ -9755,7 +9708,6 @@ SDValue X86TargetLowering::PerformDAGCombine(SDNode *N,
   case ISD::VECTOR_SHUFFLE: return PerformShuffleCombine(N, DAG, *this);
   case ISD::SELECT:         return PerformSELECTCombine(N, DAG, Subtarget);
   case X86ISD::CMOV:        return PerformCMOVCombine(N, DAG, DCI);
-  case ISD::AND:            return PerformANDCombine(N, DAG, DCI);
   case ISD::MUL:            return PerformMulCombine(N, DAG, DCI);
   case ISD::SHL:
   case ISD::SRA:
@@ -9838,11 +9790,20 @@ bool X86TargetLowering::ExpandInlineAsm(CallInst *CI) const {
     // rorw $$8, ${0:w}  -->  llvm.bswap.i16
     if (CI->getType()->isIntegerTy(16) &&
         AsmPieces.size() == 3 &&
-        AsmPieces[0] == "rorw" &&
+        (AsmPieces[0] == "rorw" || AsmPieces[0] == "rolw") &&
         AsmPieces[1] == "$$8," &&
         AsmPieces[2] == "${0:w}" &&
-        IA->getConstraintString() == "=r,0,~{dirflag},~{fpsr},~{flags},~{cc}") {
-      return LowerToBSwap(CI);
+        IA->getConstraintString().compare(0, 5, "=r,0,") == 0) {
+      AsmPieces.clear();
+      SplitString(IA->getConstraintString().substr(5), AsmPieces, ",");
+      std::sort(AsmPieces.begin(), AsmPieces.end());
+      if (AsmPieces.size() == 4 &&
+          AsmPieces[0] == "~{cc}" &&
+          AsmPieces[1] == "~{dirflag}" &&
+          AsmPieces[2] == "~{flags}" &&
+          AsmPieces[3] == "~{fpsr}") {
+        return LowerToBSwap(CI);
+      }
     }
     break;
   case 3:

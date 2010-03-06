@@ -67,7 +67,7 @@ static cl::opt<bool> VerifyMachineCode("verify-machineinstrs", cl::Hidden,
     cl::desc("Verify generated machine code"),
     cl::init(getenv("LLVM_VERIFY_MACHINEINSTRS")!=NULL));
 
-static cl::opt<bool> EnableMachineCSE("machine-cse", cl::Hidden,
+static cl::opt<bool> EnableMachineCSE("enable-machine-cse", cl::Hidden,
     cl::desc("Enable Machine CSE"));
 
 static cl::opt<cl::boolOrDefault>
@@ -212,6 +212,12 @@ bool LLVMTargetMachine::addPassesToEmitMachineCode(PassManagerBase &PM,
   return false; // success!
 }
 
+static void printNoVerify(PassManagerBase &PM,
+                           const char *Banner) {
+  if (PrintMachineCode)
+    PM.add(createMachineFunctionPrinterPass(dbgs(), Banner));
+}
+
 static void printAndVerify(PassManagerBase &PM,
                            const char *Banner,
                            bool allowDoubleDefs = false) {
@@ -320,10 +326,10 @@ bool LLVMTargetMachine::addCommonCodeGenPasses(PassManagerBase &PM,
 
   if (OptLevel != CodeGenOpt::None) {
     PM.add(createOptimizeExtsPass());
-    if (EnableMachineCSE)
-      PM.add(createMachineCSEPass());
     if (!DisableMachineLICM)
       PM.add(createMachineLICMPass());
+    if (EnableMachineCSE)
+      PM.add(createMachineCSEPass());
     if (!DisableMachineSink)
       PM.add(createMachineSinkingPass());
     printAndVerify(PM, "After MachineLICM and MachineSinking",
@@ -378,13 +384,13 @@ bool LLVMTargetMachine::addCommonCodeGenPasses(PassManagerBase &PM,
   // Branch folding must be run after regalloc and prolog/epilog insertion.
   if (OptLevel != CodeGenOpt::None && !DisableBranchFold) {
     PM.add(createBranchFoldingPass(getEnableTailMergeDefault()));
-    printAndVerify(PM, "After BranchFolding");
+    printNoVerify(PM, "After BranchFolding");
   }
 
   // Tail duplication.
   if (OptLevel != CodeGenOpt::None && !DisableTailDuplicate) {
     PM.add(createTailDuplicatePass(false));
-    printAndVerify(PM, "After TailDuplicate");
+    printNoVerify(PM, "After TailDuplicate");
   }
 
   PM.add(createGCMachineCodeAnalysisPass());
@@ -394,11 +400,11 @@ bool LLVMTargetMachine::addCommonCodeGenPasses(PassManagerBase &PM,
 
   if (OptLevel != CodeGenOpt::None && !DisableCodePlace) {
     PM.add(createCodePlacementOptPass());
-    printAndVerify(PM, "After CodePlacementOpt");
+    printNoVerify(PM, "After CodePlacementOpt");
   }
 
   if (addPreEmitPass(PM, OptLevel))
-    printAndVerify(PM, "After PreEmit passes");
+    printNoVerify(PM, "After PreEmit passes");
 
   return false;
 }

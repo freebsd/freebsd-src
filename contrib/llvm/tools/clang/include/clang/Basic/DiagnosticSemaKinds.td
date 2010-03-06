@@ -1587,11 +1587,12 @@ def err_undeclared_label_use : Error<"use of undeclared label '%0'">;
 def err_goto_into_protected_scope : Error<"illegal goto into protected scope">;
 def err_switch_into_protected_scope : Error<
   "illegal switch case into protected scope">;
-def err_indirect_goto_in_protected_scope : Error<
-  "illegal indirect goto in protected scope, unknown effect on scopes">;
-def err_addr_of_label_in_protected_scope : Error<
+def err_indirect_goto_in_protected_scope : Warning<
+  "illegal indirect goto in protected scope, unknown effect on scopes">,
+    InGroup<DiagGroup<"label-address-scope">>;
+def err_addr_of_label_in_protected_scope : Warning<
   "address taken of label in protected scope, jump to it would have "
-  "unknown effect on scope">;
+  "unknown effect on scope">, InGroup<DiagGroup<"label-address-scope">>;
 def note_protected_by_variable_init : Note<
   "jump bypasses variable initialization">;
 def note_protected_by_vla_typedef : Note<

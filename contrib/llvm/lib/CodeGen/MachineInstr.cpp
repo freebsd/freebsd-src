@@ -704,24 +704,31 @@ void MachineInstr::addMemOperand(MachineFunction &MF,
 
 bool MachineInstr::isIdenticalTo(const MachineInstr *Other,
                                  MICheckType Check) const {
-    if (Other->getOpcode() != getOpcode() ||
-        Other->getNumOperands() != getNumOperands())
+  // If opcodes or number of operands are not the same then the two
+  // instructions are obviously not identical.
+  if (Other->getOpcode() != getOpcode() ||
+      Other->getNumOperands() != getNumOperands())
+    return false;
+
+  // Check operands to make sure they match.
+  for (unsigned i = 0, e = getNumOperands(); i != e; ++i) {
+    const MachineOperand &MO = getOperand(i);
+    const MachineOperand &OMO = Other->getOperand(i);
+    // Clients may or may not want to ignore defs when testing for equality.
+    // For example, machine CSE pass only cares about finding common
+    // subexpressions, so it's safe to ignore virtual register defs.
+    if (Check != CheckDefs && MO.isReg() && MO.isDef()) {
+      if (Check == IgnoreDefs)
+        continue;
+      // Check == IgnoreVRegDefs
+      if (TargetRegisterInfo::isPhysicalRegister(MO.getReg()) ||
+          TargetRegisterInfo::isPhysicalRegister(OMO.getReg()))
+        if (MO.getReg() != OMO.getReg())
+          return false;
+    } else if (!MO.isIdenticalTo(OMO))
       return false;
-    for (unsigned i = 0, e = getNumOperands(); i != e; ++i) {
-      const MachineOperand &MO = getOperand(i);
-      const MachineOperand &OMO = Other->getOperand(i);
-      if (Check != CheckDefs && MO.isReg() && MO.isDef()) {
-        if (Check == IgnoreDefs)
-          continue;
-        // Check == IgnoreVRegDefs
-        if (TargetRegisterInfo::isPhysicalRegister(MO.getReg()) ||
-            TargetRegisterInfo::isPhysicalRegister(OMO.getReg()))
-          if (MO.getReg() != OMO.getReg())
-            return false;
-      } else if (!MO.isIdenticalTo(OMO))
-        return false;
-    }
-    return true;
+  }
+  return true;
 }
 
 /// removeFromParent - This method unlinks 'this' from the containing basic
@@ -1347,4 +1354,49 @@ void MachineInstr::addRegisterDefined(unsigned IncomingReg,
     addOperand(MachineOperand::CreateReg(IncomingReg,
                                          true  /*IsDef*/,
                                          true  /*IsImp*/));
+}
+
+unsigned
+MachineInstrExpressionTrait::getHashValue(const MachineInstr* const &MI) {
+  unsigned Hash = MI->getOpcode() * 37;
+  for (unsigned i = 0, e = MI->getNumOperands(); i != e; ++i) {
+    const MachineOperand &MO = MI->getOperand(i);
+    uint64_t Key = (uint64_t)MO.getType() << 32;
+    switch (MO.getType()) {
+      default: break;
+      case MachineOperand::MO_Register:
+        if (MO.isDef() && MO.getReg() &&
+            TargetRegisterInfo::isVirtualRegister(MO.getReg()))
+          continue;  // Skip virtual register defs.
+        Key |= MO.getReg();
+        break;
+      case MachineOperand::MO_Immediate:
+        Key |= MO.getImm();
+        break;
+      case MachineOperand::MO_FrameIndex:
+      case MachineOperand::MO_ConstantPoolIndex:
+      case MachineOperand::MO_JumpTableIndex:
+        Key |= MO.getIndex();
+        break;
+      case MachineOperand::MO_MachineBasicBlock:
+        Key |= DenseMapInfo<void*>::getHashValue(MO.getMBB());
+        break;
+      case MachineOperand::MO_GlobalAddress:
+        Key |= DenseMapInfo<void*>::getHashValue(MO.getGlobal());
+        break;
+      case MachineOperand::MO_BlockAddress:
+        Key |= DenseMapInfo<void*>::getHashValue(MO.getBlockAddress());
+        break;
+    }
+    Key += ~(Key << 32);
+    Key ^= (Key >> 22);
+    Key += ~(Key << 13);
+    Key ^= (Key >> 8);
+    Key += (Key << 3);
+    Key ^= (Key >> 15);
+    Key += ~(Key << 27);
+    Key ^= (Key >> 31);
+    Hash = (unsigned)Key + Hash * 37;
+  }
+  return Hash;
 }

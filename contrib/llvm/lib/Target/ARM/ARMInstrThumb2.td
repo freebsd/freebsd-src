@@ -131,7 +131,7 @@ def t2addrmode_imm12 : Operand<i32>,
   let MIOperandInfo = (ops GPR:$base, i32imm:$offsimm);
 }
 
-// t2addrmode_imm8  := reg - imm8
+// t2addrmode_imm8  := reg +/- imm8
 def t2addrmode_imm8 : Operand<i32>,
                       ComplexPattern<i32, 2, "SelectT2AddrModeImm8", []> {
   let PrintMethod = "printT2AddrModeImm8Operand";
@@ -657,6 +657,32 @@ multiclass T2I_unary_rrot<bits<3> opcod, string opc, PatFrag opnode> {
    }
 }
 
+// SXTB16 and UXTB16 do not need the .w qualifier.
+multiclass T2I_unary_rrot_nw<bits<3> opcod, string opc, PatFrag opnode> {
+  def r     : T2I<(outs GPR:$dst), (ins GPR:$src), IIC_iUNAr,
+                  opc, "\t$dst, $src",
+                 [(set GPR:$dst, (opnode GPR:$src))]> {
+     let Inst{31-27} = 0b11111;
+     let Inst{26-23} = 0b0100;
+     let Inst{22-20} = opcod;
+     let Inst{19-16} = 0b1111; // Rn
+     let Inst{15-12} = 0b1111;
+     let Inst{7} = 1;
+     let Inst{5-4} = 0b00; // rotate
+   }
+  def r_rot : T2I<(outs GPR:$dst), (ins GPR:$src, i32imm:$rot), IIC_iUNAsi,
+                  opc, "\t$dst, $src, ror $rot",
+                 [(set GPR:$dst, (opnode (rotr GPR:$src, rot_imm:$rot)))]> {
+     let Inst{31-27} = 0b11111;
+     let Inst{26-23} = 0b0100;
+     let Inst{22-20} = opcod;
+     let Inst{19-16} = 0b1111; // Rn
+     let Inst{15-12} = 0b1111;
+     let Inst{7} = 1;
+     let Inst{5-4} = {?,?}; // rotate
+   }
+}
+
 // DO variant - disassembly only, no pattern
 
 multiclass T2I_unary_rrot_DO<bits<3> opcod, string opc> {
@@ -983,6 +1009,28 @@ def t2LDRSH_POST : T2Iidxldst<1, 0b01, 1, 0, (outs GPR:$dst, GPR:$base_wb),
                             []>;
 }
 
+// LDRT, LDRBT, LDRHT, LDRSBT, LDRSHT all have offset mode (PUW=0b110) and are
+// for disassembly only.
+// Ref: A8.6.57 LDR (immediate, Thumb) Encoding T4
+class T2IldT<bit signed, bits<2> type, string opc>
+  : T2Ii8<(outs GPR:$dst), (ins t2addrmode_imm8:$addr), IIC_iLoadi, opc,
+          "\t$dst, $addr", []> {
+  let Inst{31-27} = 0b11111;
+  let Inst{26-25} = 0b00;
+  let Inst{24} = signed;
+  let Inst{23} = 0;
+  let Inst{22-21} = type;
+  let Inst{20} = 1; // load
+  let Inst{11} = 1;
+  let Inst{10-8} = 0b110; // PUW.
+}
+
+def t2LDRT   : T2IldT<0, 0b10, "ldrt">;
+def t2LDRBT  : T2IldT<0, 0b00, "ldrbt">;
+def t2LDRHT  : T2IldT<0, 0b01, "ldrht">;
+def t2LDRSBT : T2IldT<1, 0b00, "ldrsbt">;
+def t2LDRSHT : T2IldT<1, 0b01, "ldrsht">;
+
 // Store
 defm t2STR :T2I_st<0b10,"str", BinOpFrag<(store node:$LHS, node:$RHS)>>;
 defm t2STRB:T2I_st<0b00,"strb",BinOpFrag<(truncstorei8 node:$LHS, node:$RHS)>>;
@@ -1037,8 +1085,97 @@ def t2STRB_POST : T2Iidxldst<0, 0b00, 0, 0, (outs GPR:$base_wb),
         [(set GPR:$base_wb,
               (post_truncsti8 GPR:$src, GPR:$base, t2am_imm8_offset:$offset))]>;
 
+// STRT, STRBT, STRHT all have offset mode (PUW=0b110) and are for disassembly
+// only.
+// Ref: A8.6.193 STR (immediate, Thumb) Encoding T4
+class T2IstT<bits<2> type, string opc>
+  : T2Ii8<(outs GPR:$src), (ins t2addrmode_imm8:$addr), IIC_iStorei, opc,
+          "\t$src, $addr", []> {
+  let Inst{31-27} = 0b11111;
+  let Inst{26-25} = 0b00;
+  let Inst{24} = 0; // not signed
+  let Inst{23} = 0;
+  let Inst{22-21} = type;
+  let Inst{20} = 0; // store
+  let Inst{11} = 1;
+  let Inst{10-8} = 0b110; // PUW
+}
+
+def t2STRT   : T2IstT<0b10, "strt">;
+def t2STRBT  : T2IstT<0b00, "strbt">;
+def t2STRHT  : T2IstT<0b01, "strht">;
 
 // FIXME: ldrd / strd pre / post variants
+
+// T2Ipl (Preload Data/Instruction) signals the memory system of possible future
+// data/instruction access.  These are for disassembly only.
+multiclass T2Ipl<bit instr, bit write, string opc> {
+
+  def i12 : T2I<(outs), (ins t2addrmode_imm12:$addr), IIC_iLoadi, opc,
+                "\t$addr", []> {
+    let Inst{31-25} = 0b1111100;
+    let Inst{24} = instr;
+    let Inst{23} = 1; // U = 1
+    let Inst{22} = 0;
+    let Inst{21} = write;
+    let Inst{20} = 1;
+    let Inst{15-12} = 0b1111;
+  }
+
+  def i8 : T2I<(outs), (ins t2addrmode_imm8:$addr), IIC_iLoadi, opc,
+                "\t$addr", []> {
+    let Inst{31-25} = 0b1111100;
+    let Inst{24} = instr;
+    let Inst{23} = 0; // U = 0
+    let Inst{22} = 0;
+    let Inst{21} = write;
+    let Inst{20} = 1;
+    let Inst{15-12} = 0b1111;
+    let Inst{11-8} = 0b1100;
+  }
+
+  // A8.6.118 #0 and #-0 differs.  Translates -0 to -1, -1 to -2, ..., etc.
+  def pci : T2I<(outs), (ins GPR:$base, i32imm:$imm), IIC_iLoadi, opc,
+                "\t[pc, ${imm:negzero}]", []> {
+    let Inst{31-25} = 0b1111100;
+    let Inst{24} = instr;
+    let Inst{23} = ?; // add = (U == 1)
+    let Inst{22} = 0;
+    let Inst{21} = write;
+    let Inst{20} = 1;
+    let Inst{19-16} = 0b1111; // Rn = 0b1111
+    let Inst{15-12} = 0b1111;
+  }
+
+  def r   : T2I<(outs), (ins GPR:$base, GPR:$a), IIC_iLoadi, opc,
+                "\t[$base, $a]", []> {
+    let Inst{31-25} = 0b1111100;
+    let Inst{24} = instr;
+    let Inst{23} = 0; // add = TRUE for T1
+    let Inst{22} = 0;
+    let Inst{21} = write;
+    let Inst{20} = 1;
+    let Inst{15-12} = 0b1111;
+    let Inst{11-6} = 0000000;
+    let Inst{5-4} = 0b00; // no shift is applied
+  }
+
+  def s   : T2I<(outs), (ins GPR:$base, GPR:$a, i32imm:$shamt), IIC_iLoadi, opc,
+                "\t[$base, $a, lsl $shamt]", []> {
+    let Inst{31-25} = 0b1111100;
+    let Inst{24} = instr;
+    let Inst{23} = 0; // add = TRUE for T1
+    let Inst{22} = 0;
+    let Inst{21} = write;
+    let Inst{20} = 1;
+    let Inst{15-12} = 0b1111;
+    let Inst{11-6} = 0000000;
+  }
+}
+
+defm t2PLD  : T2Ipl<0, 0, "pld">;
+defm t2PLDW : T2Ipl<0, 1, "pldw">;
+defm t2PLI  : T2Ipl<1, 0, "pli">;
 
 //===----------------------------------------------------------------------===//
 //  Load / store multiple Instructions.
@@ -1149,7 +1286,7 @@ defm t2UXTB   : T2I_unary_rrot<0b101, "uxtb",
                                UnOpFrag<(and node:$Src, 0x000000FF)>>;
 defm t2UXTH   : T2I_unary_rrot<0b001, "uxth",
                                UnOpFrag<(and node:$Src, 0x0000FFFF)>>;
-defm t2UXTB16 : T2I_unary_rrot<0b011, "uxtb16",
+defm t2UXTB16 : T2I_unary_rrot_nw<0b011, "uxtb16",
                                UnOpFrag<(and node:$Src, 0x00FF00FF)>>;
 
 def : T2Pat<(and (shl GPR:$Src, (i32 8)), 0xFF00FF),
