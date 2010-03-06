@@ -914,6 +914,9 @@ cmddone:
 			backcmd->nleft = memout.nextc - memout.buf;
 			memout.buf = NULL;
 		}
+		if (cmdentry.u.index != EXECCMD &&
+				(e == -1 || e == EXERROR || e == EXEXEC))
+			popredir();
 		if (e != -1) {
 			if ((e != EXERROR && e != EXEXEC)
 			    || cmdentry.special)
@@ -922,8 +925,6 @@ cmddone:
 			if (flags != EV_BACKCMD)
 				FORCEINTON;
 		}
-		if (cmdentry.u.index != EXECCMD)
-			popredir();
 	} else {
 #ifdef DEBUG
 		trputs("normal command:  ");  trargs(argv);
