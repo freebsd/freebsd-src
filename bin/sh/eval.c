@@ -597,6 +597,7 @@ evalcommand(union node *cmd, int flags, struct backcmd *backcmd)
 	char *lastarg;
 	int realstatus;
 	int do_clearcmdentry;
+	char *path = pathval();
 
 	/* First expand the arguments. */
 	TRACE(("evalcommand(%p, %d) called\n", (void *)cmd, flags));
@@ -682,7 +683,7 @@ evalcommand(union node *cmd, int flags, struct backcmd *backcmd)
 		cmdentry.special = 1;
 	} else {
 		static const char PATH[] = "PATH=";
-		char *path = pathval();
+		int cmd_flags = 0, bltinonly = 0;
 
 		/*
 		 * Modify the command lookup path, if a PATH= assignment
@@ -713,24 +714,68 @@ evalcommand(union node *cmd, int flags, struct backcmd *backcmd)
 				do_clearcmdentry = 1;
 			}
 
-		find_command(argv[0], &cmdentry, 0, path);
-		/* implement the bltin builtin here */
-		if (cmdentry.cmdtype == CMDBUILTIN && cmdentry.u.index == BLTINCMD) {
-			for (;;) {
-				argv++;
-				if (--argc == 0)
-					break;
-				if ((cmdentry.u.index = find_builtin(*argv,
-				    &cmdentry.special)) < 0) {
+		for (;;) {
+			if (bltinonly) {
+				cmdentry.u.index = find_builtin(*argv, &cmdentry.special);
+				if (cmdentry.u.index < 0) {
 					cmdentry.u.index = BLTINCMD;
 					argv--;
 					argc++;
 					break;
 				}
-				if (cmdentry.u.index != BLTINCMD)
+			} else
+				find_command(argv[0], &cmdentry, cmd_flags, path);
+			/* implement the bltin and command builtins here */
+			if (cmdentry.cmdtype != CMDBUILTIN)
+				break;
+			if (cmdentry.u.index == BLTINCMD) {
+				if (argc == 1)
 					break;
-			}
+				argv++;
+				argc--;
+				bltinonly = 1;
+			} else if (cmdentry.u.index == COMMANDCMD) {
+				if (argc == 1)
+					break;
+				if (!strcmp(argv[1], "-p")) {
+					if (argc == 2)
+						break;
+					if (argv[2][0] == '-') {
+						if (strcmp(argv[2], "--"))
+							break;
+						if (argc == 3)
+							break;
+						argv += 3;
+						argc -= 3;
+					} else {
+						argv += 2;
+						argc -= 2;
+					}
+					path = _PATH_STDPATH;
+					clearcmdentry(0);
+					do_clearcmdentry = 1;
+				} else if (!strcmp(argv[1], "--")) {
+					if (argc == 2)
+						break;
+					argv += 2;
+					argc -= 2;
+				} else if (argv[1][0] == '-')
+					break;
+				else {
+					argv++;
+					argc--;
+				}
+				cmd_flags |= DO_NOFUNC;
+				bltinonly = 0;
+			} else
+				break;
 		}
+		/*
+		 * Special builtins lose their special properties when
+		 * called via 'command'.
+		 */
+		if (cmd_flags & DO_NOFUNC)
+			cmdentry.special = 0;
 	}
 
 	/* Fork off a child process if necessary. */
@@ -741,9 +786,7 @@ evalcommand(union node *cmd, int flags, struct backcmd *backcmd)
 	    && (cmdentry.cmdtype != CMDBUILTIN
 		 || cmdentry.u.index == CDCMD
 		 || cmdentry.u.index == DOTCMD
-		 || cmdentry.u.index == EVALCMD))
-	 || (cmdentry.cmdtype == CMDBUILTIN &&
-	    cmdentry.u.index == COMMANDCMD)) {
+		 || cmdentry.u.index == EVALCMD))) {
 		jp = makejob(cmd, 1);
 		mode = cmd->ncmd.backgnd;
 		if (flags & EV_BACKCMD) {
@@ -889,7 +932,7 @@ cmddone:
 		for (sp = varlist.list ; sp ; sp = sp->next)
 			setvareq(sp->text, VEXPORT|VSTACK);
 		envp = environment();
-		shellexec(argv, envp, pathval(), cmdentry.u.index);
+		shellexec(argv, envp, path, cmdentry.u.index);
 		/*NOTREACHED*/
 	}
 	goto out;
@@ -996,15 +1039,11 @@ int
 commandcmd(int argc, char **argv)
 {
 	static char stdpath[] = _PATH_STDPATH;
-	struct jmploc loc, *old;
-	struct strlist *sp;
 	char *path;
 	int ch;
 	int cmd = -1;
 
-	for (sp = cmdenviron; sp ; sp = sp->next)
-		setvareq(sp->text, VEXPORT|VSTACK);
-	path = pathval();
+	path = bltinlookup("PATH", 1);
 
 	optind = optreset = 1;
 	opterr = 0;
@@ -1032,22 +1071,14 @@ commandcmd(int argc, char **argv)
 			error("wrong number of arguments");
 		return typecmd_impl(2, argv - 1, cmd, path);
 	}
-	if (argc != 0) {
-		old = handler;
-		handler = &loc;
-		if (setjmp(handler->loc) == 0)
-			shellexec(argv, environment(), path, 0);
-		handler = old;
-		if (exception == EXEXEC)
-			exit(exerrno);
-		exraise(exception);
-	}
+	if (argc != 0)
+		error("commandcmd() called while it should not be");
 
 	/*
 	 * Do nothing successfully if no command was specified;
 	 * ksh also does this.
 	 */
-	exit(0);
+	return 0;
 }
 
 
