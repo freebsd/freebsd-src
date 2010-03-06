@@ -99,7 +99,7 @@ const GRState *GRState::BindExpr(const Stmt* Ex, SVal V, bool Invalidate) const{
 
 const GRState* GRStateManager::getInitialState(const LocationContext *InitLoc) {
   GRState State(this,
-                EnvMgr.getInitialEnvironment(InitLoc->getAnalysisContext()),
+                EnvMgr.getInitialEnvironment(),
                 StoreMgr->getInitialStore(InitLoc),
                 GDMFactory.GetEmptyMap());
 
@@ -131,13 +131,11 @@ const GRState* GRState::makeWithStore(Store store) const {
 //  State pretty-printing.
 //===----------------------------------------------------------------------===//
 
-void GRState::print(llvm::raw_ostream& Out, const char* nl,
+void GRState::print(llvm::raw_ostream& Out, CFG &C, const char* nl,
                     const char* sep) const {
   // Print the store.
   GRStateManager &Mgr = getStateManager();
   Mgr.getStoreManager().print(getStore(), Out, nl, sep);
-
-  CFG &C = *getAnalysisContext().getCFG();
 
   // Print Subexpression bindings.
   bool isFirst = true;
@@ -186,12 +184,12 @@ void GRState::print(llvm::raw_ostream& Out, const char* nl,
   }
 }
 
-void GRState::printDOT(llvm::raw_ostream& Out) const {
-  print(Out, "\\l", "\\|");
+void GRState::printDOT(llvm::raw_ostream& Out, CFG &C) const {
+  print(Out, C, "\\l", "\\|");
 }
 
-void GRState::printStdErr() const {
-  print(llvm::errs());
+void GRState::printStdErr(CFG &C) const {
+  print(llvm::errs(), C);
 }
 
 //===----------------------------------------------------------------------===//

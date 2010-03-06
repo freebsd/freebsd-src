@@ -387,6 +387,22 @@ RValue CodeGenFunction::EmitBuiltinExpr(const FunctionDecl *FD,
     Value *Result = getTargetHooks().encodeReturnAddress(*this, Address);
     return RValue::get(Result);
   }
+  case Builtin::BI__builtin_dwarf_sp_column: {
+    const llvm::IntegerType *Ty
+      = cast<llvm::IntegerType>(ConvertType(E->getType()));
+    int Column = getTargetHooks().getDwarfEHStackPointer(CGM);
+    if (Column == -1) {
+      CGM.ErrorUnsupported(E, "__builtin_dwarf_sp_column");
+      return RValue::get(llvm::UndefValue::get(Ty));
+    }
+    return RValue::get(llvm::ConstantInt::get(Ty, Column, true));
+  }
+  case Builtin::BI__builtin_init_dwarf_reg_size_table: {
+    Value *Address = EmitScalarExpr(E->getArg(0));
+    if (getTargetHooks().initDwarfEHRegSizeTable(*this, Address))
+      CGM.ErrorUnsupported(E, "__builtin_init_dwarf_reg_size_table");
+    return RValue::get(llvm::UndefValue::get(ConvertType(E->getType())));
+  }
   case Builtin::BI__builtin_eh_return: {
     Value *Int = EmitScalarExpr(E->getArg(0));
     Value *Ptr = EmitScalarExpr(E->getArg(1));
@@ -666,6 +682,23 @@ RValue CodeGenFunction::EmitBuiltinExpr(const FunctionDecl *FD,
     Value *F = CGM.getIntrinsic(Intrinsic::pow, &ArgType, 1);
     return RValue::get(Builder.CreateCall2(F, Base, Exponent, "tmp"));
   }
+
+  case Builtin::BI__builtin_signbit:
+  case Builtin::BI__builtin_signbitf:
+  case Builtin::BI__builtin_signbitl: {
+    LLVMContext &C = CGM.getLLVMContext();
+
+    Value *Arg = EmitScalarExpr(E->getArg(0));
+    const llvm::Type *ArgTy = Arg->getType();
+    if (ArgTy->isPPC_FP128Ty())
+      break; // FIXME: I'm not sure what the right implementation is here.
+    int ArgWidth = ArgTy->getPrimitiveSizeInBits();
+    const llvm::Type *ArgIntTy = llvm::IntegerType::get(C, ArgWidth);
+    Value *BCArg = Builder.CreateBitCast(Arg, ArgIntTy);
+    Value *ZeroCmp = llvm::Constant::getNullValue(ArgIntTy);
+    Value *Result = Builder.CreateICmpSLT(BCArg, ZeroCmp);
+    return RValue::get(Builder.CreateZExt(Result, ConvertType(E->getType())));
+  }
   }
 
   // If this is an alias for a libm function (e.g. __builtin_sin) turn it into
@@ -735,6 +768,9 @@ RValue CodeGenFunction::EmitBuiltinExpr(const FunctionDecl *FD,
 Value *CodeGenFunction::EmitTargetBuiltinExpr(unsigned BuiltinID,
                                               const CallExpr *E) {
   switch (Target.getTriple().getArch()) {
+  case llvm::Triple::arm:
+  case llvm::Triple::thumb:
+    return EmitARMBuiltinExpr(BuiltinID, E);
   case llvm::Triple::x86:
   case llvm::Triple::x86_64:
     return EmitX86BuiltinExpr(BuiltinID, E);
@@ -743,6 +779,18 @@ Value *CodeGenFunction::EmitTargetBuiltinExpr(unsigned BuiltinID,
     return EmitPPCBuiltinExpr(BuiltinID, E);
   default:
     return 0;
+  }
+}
+
+Value *CodeGenFunction::EmitARMBuiltinExpr(unsigned BuiltinID,
+                                           const CallExpr *E) {
+  switch (BuiltinID) {
+  default: return 0;
+
+  case ARM::BI__builtin_thread_pointer: {
+    Value *AtomF = CGM.getIntrinsic(Intrinsic::arm_thread_pointer, 0, 0);
+    return Builder.CreateCall(AtomF);
+  }
   }
 }
 

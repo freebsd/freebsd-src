@@ -104,7 +104,8 @@ public:
   {
     {
       llvm::raw_svector_ostream Out(CrashString);
-      Out << "ClangCIndex [createTranslationUnitFromSourceFile]: clang";
+      Out << "ClangCIndex [" << getClangFullVersion() << "]"
+          << "[createTranslationUnitFromSourceFile]: clang";
       for (llvm::SmallVectorImpl<const char*>::iterator I=Args.begin(),
            E=Args.end(); I!=E; ++I)
         Out << ' ' << *I;
@@ -1002,7 +1003,8 @@ clang_createTranslationUnitFromSourceFile(CXIndex CIdx,
     // FIXME: Until we have broader testing, just drop the entire AST if we
     // encountered an error.
     if (NumErrors != Diags->getNumErrors()) {
-      if (CXXIdx->getDisplayDiagnostics()) {
+      // Make sure to check that 'Unit' is non-NULL.
+      if (CXXIdx->getDisplayDiagnostics() && Unit.get()) {
         for (ASTUnit::diag_iterator D = Unit->diag_begin(), 
                                  DEnd = Unit->diag_end();
              D != DEnd; ++D) {
@@ -1526,6 +1528,8 @@ CXCursor clang_getCursor(CXTranslationUnit TU, CXSourceLocation Loc) {
     return clang_getNullCursor();
 
   ASTUnit *CXXUnit = static_cast<ASTUnit *>(TU);
+
+  ASTUnit::ConcurrencyCheck Check(*CXXUnit);
 
   SourceLocation SLoc = cxloc::translateSourceLocation(Loc);
   CXCursor Result = MakeCXCursorInvalid(CXCursor_NoDeclFound);
@@ -2052,6 +2056,8 @@ void clang_tokenize(CXTranslationUnit TU, CXSourceRange Range,
   if (!CXXUnit || !Tokens || !NumTokens)
     return;
 
+  ASTUnit::ConcurrencyCheck Check(*CXXUnit);
+  
   SourceRange R = cxloc::translateCXSourceRange(Range);
   if (R.isInvalid())
     return;
@@ -2174,6 +2180,8 @@ void clang_annotateTokens(CXTranslationUnit TU,
   ASTUnit *CXXUnit = static_cast<ASTUnit *>(TU);
   if (!CXXUnit || !Tokens)
     return;
+
+  ASTUnit::ConcurrencyCheck Check(*CXXUnit);
 
   // Annotate all of the source locations in the region of interest that map
   SourceRange RegionOfInterest;

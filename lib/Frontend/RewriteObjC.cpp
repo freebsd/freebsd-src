@@ -4266,6 +4266,17 @@ void RewriteObjC::SynthesizeBlockLiterals(SourceLocation FunLocStart,
   // Insert declaration for the function in which block literal is used.
   if (CurFunctionDeclToDeclareForBlock && !Blocks.empty())
     RewriteBlockLiteralFunctionDecl(CurFunctionDeclToDeclareForBlock);
+  bool RewriteSC = (GlobalVarDecl &&
+                    !Blocks.empty() &&
+                    GlobalVarDecl->getStorageClass() == VarDecl::Static &&
+                    GlobalVarDecl->getType().getCVRQualifiers());
+  if (RewriteSC) {
+    std::string SC(" void __");
+    SC += GlobalVarDecl->getNameAsString();
+    SC += "() {}";
+    InsertText(FunLocStart, SC);
+  }
+  
   // Insert closures that were part of the function.
   for (unsigned i = 0, count=0; i < Blocks.size(); i++) {
     CollectBlockDeclRefInfo(Blocks[i]);
@@ -4311,6 +4322,21 @@ void RewriteObjC::SynthesizeBlockLiterals(SourceLocation FunLocStart,
     BlockByCopyDeclsPtrSet.clear();
     ImportedBlockDecls.clear();
   }
+  if (RewriteSC) {
+    // Must insert any 'const/volatile/static here. Since it has been
+    // removed as result of rewriting of block literals.
+    std::string SC;
+    if (GlobalVarDecl->getStorageClass() == VarDecl::Static)
+      SC = "static ";
+    if (GlobalVarDecl->getType().isConstQualified())
+      SC += "const ";
+    if (GlobalVarDecl->getType().isVolatileQualified())
+      SC += "volatile ";
+    if (GlobalVarDecl->getType().isRestrictQualified())
+      SC += "restrict ";
+    InsertText(FunLocStart, SC);
+  }
+  
   Blocks.clear();
   InnerDeclRefsCount.clear();
   InnerDeclRefs.clear();

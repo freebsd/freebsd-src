@@ -109,12 +109,6 @@ public:
     return *StateMgr;
   }
 
-  /// getAnalysisContext - Return the AnalysisContext associated with this
-  /// state.
-  AnalysisContext &getAnalysisContext() const {
-    return Env.getAnalysisContext();
-  }
-
   /// getEnvironment - Return the environment associated with this state.
   ///  The environment is the mapping from expressions to values.
   const Environment& getEnvironment() const { return Env; }
@@ -133,7 +127,6 @@ public:
   /// Profile - Profile the contents of a GRState object for use
   ///  in a FoldingSet.
   static void Profile(llvm::FoldingSetNodeID& ID, const GRState* V) {
-    // FIXME: Do we need to include the AnalysisContext in the profile?
     V->Env.Profile(ID);
     ID.AddPointer(V->St);
     V->GDM.Profile(ID);
@@ -337,12 +330,12 @@ public:
   };
 
   // Pretty-printing.
-  void print(llvm::raw_ostream& Out, const char *nl = "\n",
+  void print(llvm::raw_ostream& Out, CFG &C, const char *nl = "\n",
              const char *sep = "") const;
 
-  void printStdErr() const;
+  void printStdErr(CFG &C) const;
 
-  void printDOT(llvm::raw_ostream& Out) const;
+  void printDOT(llvm::raw_ostream& Out, CFG &C) const;
 };
 
 class GRStateSet {

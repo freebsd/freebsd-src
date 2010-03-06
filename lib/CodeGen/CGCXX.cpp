@@ -142,6 +142,12 @@ bool CodeGenModule::TryEmitDefinitionAsAlias(GlobalDecl AliasDecl,
     return true;
   }
 
+  llvm::GlobalValue::LinkageTypes TargetLinkage
+    = getFunctionLinkage(cast<FunctionDecl>(TargetDecl.getDecl()));
+
+  if (llvm::GlobalValue::isWeakForLinker(TargetLinkage))
+    return true;
+
   // Derive the type for the alias.
   const llvm::PointerType *AliasType
     = getTypes().GetFunctionType(AliasDecl)->getPointerTo();

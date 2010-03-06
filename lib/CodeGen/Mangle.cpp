@@ -37,7 +37,19 @@ using namespace clang;
 using namespace CodeGen;
 
 namespace {
-  
+
+static const DeclContext *GetLocalClassFunctionDeclContext(
+                                                      const DeclContext *DC) {
+  if (isa<CXXRecordDecl>(DC)) {
+    while (!DC->isNamespace() && !DC->isTranslationUnit() &&
+           !isa<FunctionDecl>(DC))
+      DC = DC->getParent();
+    if (isa<FunctionDecl>(DC))
+      return DC;
+  }
+  return 0;
+}
+
 static const CXXMethodDecl *getStructor(const CXXMethodDecl *MD) {
   assert((isa<CXXConstructorDecl>(MD) || isa<CXXDestructorDecl>(MD)) &&
          "Passed in decl is not a ctor or dtor!");
@@ -61,7 +73,7 @@ class CXXNameMangler {
 
   const CXXMethodDecl *Structor;
   unsigned StructorType;
-
+  
   llvm::DenseMap<uintptr_t, unsigned> Substitutions;
 
   ASTContext &getASTContext() const { return Context.getASTContext(); }
@@ -128,11 +140,12 @@ private:
   void mangleUnscopedTemplateName(const TemplateDecl *ND);
   void mangleSourceName(const IdentifierInfo *II);
   void mangleLocalName(const NamedDecl *ND);
-  void mangleNestedName(const NamedDecl *ND, const DeclContext *DC);
+  void mangleNestedName(const NamedDecl *ND, const DeclContext *DC,
+                        bool NoFunction=false);
   void mangleNestedName(const TemplateDecl *TD,
                         const TemplateArgument *TemplateArgs,
                         unsigned NumTemplateArgs);
-  void manglePrefix(const DeclContext *DC);
+  void manglePrefix(const DeclContext *DC, bool NoFunction=false);
   void mangleTemplatePrefix(const TemplateDecl *ND);
   void mangleOperatorName(OverloadedOperatorKind OO, unsigned Arity);
   void mangleQualifiers(Qualifiers Quals);
@@ -342,7 +355,12 @@ void CXXNameMangler::mangleName(const NamedDecl *ND) {
   //         ::= <local-name>
   //
   const DeclContext *DC = ND->getDeclContext();
-
+  
+  if (GetLocalClassFunctionDeclContext(DC)) {
+    mangleLocalName(ND);
+    return;
+  }
+  
   // If this is an extern variable declared locally, the relevant DeclContext
   // is that of the containing namespace, or the translation unit.
   if (isa<FunctionDecl>(DC) && ND->hasLinkage())
@@ -603,7 +621,8 @@ void CXXNameMangler::mangleSourceName(const IdentifierInfo *II) {
 }
 
 void CXXNameMangler::mangleNestedName(const NamedDecl *ND,
-                                      const DeclContext *DC) {
+                                      const DeclContext *DC,
+                                      bool NoFunction) {
   // <nested-name> ::= N [<CV-qualifiers>] <prefix> <unqualified-name> E
   //               ::= N [<CV-qualifiers>] <template-prefix> <template-args> E
 
@@ -616,8 +635,9 @@ void CXXNameMangler::mangleNestedName(const NamedDecl *ND,
   if (const TemplateDecl *TD = isTemplate(ND, TemplateArgs)) {
     mangleTemplatePrefix(TD);
     mangleTemplateArgs(*TemplateArgs);
-  } else {
-    manglePrefix(DC);
+  }
+  else {
+    manglePrefix(DC, NoFunction);
     mangleUnqualifiedName(ND);
   }
 
@@ -640,18 +660,35 @@ void CXXNameMangler::mangleLocalName(const NamedDecl *ND) {
   // <local-name> := Z <function encoding> E <entity name> [<discriminator>]
   //              := Z <function encoding> E s [<discriminator>]
   // <discriminator> := _ <non-negative number>
+  const DeclContext *DC = ND->getDeclContext();
   Out << 'Z';
   
-  if (const ObjCMethodDecl *MD = dyn_cast<ObjCMethodDecl>(ND->getDeclContext()))
+  if (const ObjCMethodDecl *MD = dyn_cast<ObjCMethodDecl>(DC))
     mangleObjCMethodName(MD);
+  else if (const DeclContext *CDC = GetLocalClassFunctionDeclContext(DC)) {
+    mangleFunctionEncoding(cast<FunctionDecl>(CDC));
+    Out << 'E';
+    mangleNestedName(ND, DC, true /*NoFunction*/);
+    
+    // FIXME. This still does not cover all cases.
+    unsigned disc;
+    if (Context.getNextDiscriminator(ND, disc)) {
+      if (disc < 10)
+        Out << '_' << disc;
+      else 
+        Out << "__" << disc << '_';
+    }
+
+    return;
+  }
   else  
-    mangleFunctionEncoding(cast<FunctionDecl>(ND->getDeclContext()));
+    mangleFunctionEncoding(cast<FunctionDecl>(DC));
 
   Out << 'E';
   mangleUnqualifiedName(ND);
 }
 
-void CXXNameMangler::manglePrefix(const DeclContext *DC) {
+void CXXNameMangler::manglePrefix(const DeclContext *DC, bool NoFunction) {
   //  <prefix> ::= <prefix> <unqualified-name>
   //           ::= <template-prefix> <template-args>
   //           ::= <template-param>
@@ -672,8 +709,11 @@ void CXXNameMangler::manglePrefix(const DeclContext *DC) {
   if (const TemplateDecl *TD = isTemplate(cast<NamedDecl>(DC), TemplateArgs)) {
     mangleTemplatePrefix(TD);
     mangleTemplateArgs(*TemplateArgs);
-  } else {
-    manglePrefix(DC->getParent());
+  }
+  else if(NoFunction && isa<FunctionDecl>(DC))
+    return;
+  else {
+    manglePrefix(DC->getParent(), NoFunction);
     mangleUnqualifiedName(cast<NamedDecl>(DC));
   }
 
