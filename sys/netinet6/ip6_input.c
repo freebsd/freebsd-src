@@ -197,6 +197,8 @@ ip6_init(void)
 	V_ip6_defhlim = IPV6_DEFHLIM;
 	V_ip6_defmcasthlim = IPV6_DEFAULT_MULTICAST_HOPS;
 	V_ip6_accept_rtadv = 0;
+	V_ip6_defroute_rtadv = 1;
+	V_ip6_disable_isrouter_rtadvif = 0;
 	V_ip6_log_interval = 5;
 	V_ip6_hdrnestlimit = 15; /* How many header options will we process? */
 	V_ip6_dad_count = 1;	 /* DupAddrDetectionTransmits */

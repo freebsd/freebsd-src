@@ -383,6 +383,8 @@ VNET_DEFINE(int, ip6_sendredirects);
 VNET_DEFINE(int, ip6_defhlim);
 VNET_DEFINE(int, ip6_defmcasthlim);
 VNET_DEFINE(int, ip6_accept_rtadv);
+VNET_DEFINE(int, ip6_defroute_rtadv);
+VNET_DEFINE(int, ip6_disable_isrouter_rtadvif);
 VNET_DEFINE(int, ip6_maxfragpackets);
 VNET_DEFINE(int, ip6_maxfrags);
 VNET_DEFINE(int, ip6_log_interval);
@@ -499,6 +501,16 @@ SYSCTL_VNET_INT(_net_inet6_ip6, IPV6CTL_ACCEPT_RTADV, accept_rtadv,
 	CTLFLAG_RW, &VNET_NAME(ip6_accept_rtadv), 0,
 	"Default value of per-interface flag for accepting ICMPv6 Router"
 	"Advertisement messages");
+SYSCTL_VNET_INT(_net_inet6_ip6, IPV6CTL_DEFROUTE_RTADV, defroute_rtadv,
+	CTLFLAG_RW, &VNET_NAME(ip6_defroute_rtadv), 0,
+	"Default value of per-interface flag to control whether routers "
+	"sending ICMPv6 RA messages on that interface are added into the "
+	"default router list.");
+SYSCTL_VNET_INT(_net_inet6_ip6, IPV6CTL_DISABLE_ISROUTER_RTADVIF,
+	disable_isrouter_rtadvif, CTLFLAG_RW,
+	&VNET_NAME(ip6_disable_isrouter_rtadvif), 0,
+	"Always set 0 to R flag in ICMPv6 NA messages when accepting RA"
+	" on the interface.");
 SYSCTL_VNET_INT(_net_inet6_ip6, IPV6CTL_KEEPFAITH, keepfaith, CTLFLAG_RW,
 	&VNET_NAME(ip6_keepfaith), 0, "");
 SYSCTL_VNET_INT(_net_inet6_ip6, IPV6CTL_LOG_INTERVAL, log_interval,

@@ -223,6 +223,8 @@ nd6_ifattach(struct ifnet *ifp)
 	/* A loopback interface does not need to accept RTADV. */
 	if (V_ip6_accept_rtadv && !(ifp->if_flags & IFF_LOOPBACK))
 		nd->flags |= ND6_IFF_ACCEPT_RTADV;
+	if (V_ip6_defroute_rtadv && !(ifp->if_flags & IFF_LOOPBACK))
+		nd->flags |= ND6_IFF_DEFROUTE_RTADV;
 
 	/* XXX: we cannot call nd6_setmtu since ifp is not fully initialized */
 	nd6_setmtu0(ifp, nd);
@@ -848,7 +850,7 @@ nd6_purge(struct ifnet *ifp)
 	if (V_nd6_defifindex == ifp->if_index)
 		nd6_setdefaultiface(0);
 
-	if (!V_ip6_forwarding && ND_IFINFO(ifp)->flags & ND6_IFF_ACCEPT_RTADV) {
+	if (ND_IFINFO(ifp)->flags & ND6_IFF_ACCEPT_RTADV) {
 		/* Refresh default router list. */
 		defrouter_select();
 	}
@@ -982,10 +984,9 @@ nd6_is_new_addr_neighbor(struct sockaddr_in6 *addr, struct ifnet *ifp)
 	/*
 	 * If the default router list is empty, all addresses are regarded
 	 * as on-link, and thus, as a neighbor.
-	 * XXX: we restrict the condition to hosts, because routers usually do
-	 * not have the "default router list".
 	 */
-	if (!V_ip6_forwarding && TAILQ_FIRST(&V_nd_defrouter) == NULL &&
+	if (ND_IFINFO(ifp)->flags & ND6_IFF_ACCEPT_RTADV &&
+	    TAILQ_FIRST(&V_nd_defrouter) == NULL &&
 	    V_nd6_defifindex == ifp->if_index) {
 		return (1);
 	}
@@ -1042,7 +1043,7 @@ nd6_free(struct llentry *ln, int gc)
 	/* cancel timer */
 	nd6_llinfo_settimer(ln, -1);
 
-	if (!V_ip6_forwarding) {
+	if (ND_IFINFO(ln->lle_tbl->llt_ifp)->flags & ND6_IFF_ACCEPT_RTADV) {
 		int s;
 		s = splnet();
 		dr = defrouter_lookup(&L3_ADDR_SIN6(ln)->sin6_addr, ln->lle_tbl->llt_ifp);
@@ -1720,7 +1721,7 @@ nd6_cache_lladdr(struct ifnet *ifp, struct in6_addr *from, char *lladdr,
 	 * for those are not autoconfigured hosts, we explicitly avoid such
 	 * cases for safety.
 	 */
-	if (do_update && router && !V_ip6_forwarding &&
+	if (do_update && router &&
 	    ND_IFINFO(ifp)->flags & ND6_IFF_ACCEPT_RTADV) {
 		/*
 		 * guaranteed recursion
