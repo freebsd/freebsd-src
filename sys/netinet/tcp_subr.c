@@ -835,8 +835,19 @@ tcp_discardcb(struct tcpcb *tp)
 	INP_WLOCK_ASSERT(inp);
 
 	/*
-	 * Make sure that all of our timers are stopped before we
-	 * delete the PCB.
+	 * Make sure that all of our timers are stopped before we delete the
+	 * PCB.
+	 *
+	 * XXXRW: Really, we would like to use callout_drain() here in order
+	 * to avoid races experienced in tcp_timer.c where a timer is already
+	 * executing at this point.  However, we can't, both because we're
+	 * running in a context where we can't sleep, and also because we
+	 * hold locks required by the timers.  What we instead need to do is
+	 * test to see if callout_drain() is required, and if so, defer some
+	 * portion of the remainder of tcp_discardcb() to an asynchronous
+	 * context that can callout_drain() and then continue.  Some care
+	 * will be required to ensure that no further processing takes place
+	 * on the tcpcb, even though it hasn't been freed (a flag?).
 	 */
 	callout_stop(&tp->t_timers->tt_rexmt);
 	callout_stop(&tp->t_timers->tt_persist);
