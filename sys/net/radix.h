@@ -162,9 +162,7 @@ struct radix_node_head {
 
 void	 rn_init(int);
 int	 rn_inithead(void **, int);
-#ifdef VIMAGE
 int	 rn_detachhead(void **);
-#endif
 int	 rn_refines(void *, void *);
 struct radix_node
 	 *rn_addmask(void *, int, int),
