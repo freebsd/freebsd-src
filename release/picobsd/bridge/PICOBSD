@@ -16,8 +16,8 @@ cpu		I586_CPU
 cpu		I686_CPU
 ident		PICOBSD
 
-options                SMP
-device apic
+options		SMP
+device	apic
 
 options		SCHED_4BSD		# mandatory to have one scheduler
 #options	MATH_EMULATE		#Support for x87 emulation
@@ -48,7 +48,7 @@ options		DUMMYNET
 device		if_bridge
 # Running with less than 1000 seems to give poor timing on
 # qemu, so we set HZ explicitly.
-options         HZ=1000
+options		HZ=1000
 
 device		random			# used by ssh
 device		pci
