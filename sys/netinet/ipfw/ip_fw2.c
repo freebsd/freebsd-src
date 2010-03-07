@@ -2392,7 +2392,7 @@ vnet_ipfw_uninit(const void *unused)
 	IPFW_WLOCK(chain);
 
 	ipfw_dyn_uninit(0);	/* run the callout_drain */
-	ipfw_flush_tables(chain);
+	ipfw_destroy_tables(chain);
 	reap = NULL;
 	for (i = 0; i < chain->n_rules; i++) {
 		rule = chain->map[i];
