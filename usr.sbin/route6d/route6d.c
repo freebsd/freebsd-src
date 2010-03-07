@@ -184,7 +184,7 @@ int	aflag = 0;	/* age out even the statically defined routes */
 int	hflag = 0;	/* don't split horizon */
 int	lflag = 0;	/* exchange site local routes */
 int	Pflag = 0;	/* don't age out routes with RTF_PROTO[123] */
-int	Qflag = 0;	/* set RTF_PROTO[123] flag to routes by RIPng */
+int	Qflag = RTF_PROTO2;	/* set RTF_PROTO[123] flag to routes by RIPng */
 int	sflag = 0;	/* announce static routes w/ split horizon */
 int	Sflag = 0;	/* announce static routes to every interface */
 unsigned long routetag = 0;	/* route tag attached on originating case */
@@ -337,10 +337,12 @@ main(argc, argv)
 		case 'P':
 			ep = NULL;
 			proto = strtoul(optarg, &ep, 0);
-			if (!ep || *ep != '\0' || (proto < 1) || (3 < proto)) {
+			if (!ep || *ep != '\0' || 3 < proto) {
 				fatal("invalid P flag");
 				/*NOTREACHED*/
 			}
+			if (proto == 0)
+				Pflag = 0;
 			if (proto == 1)
 				Pflag |= RTF_PROTO1;
 			if (proto == 2)
@@ -351,10 +353,12 @@ main(argc, argv)
 		case 'Q':
 			ep = NULL;
 			proto = strtoul(optarg, &ep, 0);
-			if (!ep || *ep != '\0' || (proto < 1) || (3 < proto)) {
+			if (!ep || *ep != '\0' || 3 < proto) {
 				fatal("invalid Q flag");
 				/*NOTREACHED*/
 			}
+			if (proto == 0)
+				Qflag = 0;
 			if (proto == 1)
 				Qflag |= RTF_PROTO1;
 			if (proto == 2)
@@ -2747,6 +2751,14 @@ rt_entry(rtm, again)
 	if (rtm->rtm_flags & RTF_CLONED)
 		return;
 #endif
+	/* Ignore RTF_PROTO<num> mismached routes */
+	/*
+	 * XXX: can we know if it is a connected network route or not?
+	 *      RTF_WASCLONED was the flag for that, but we no longer
+	 *      use it.  Rely on Qflag instead here.
+	 */
+	if (Qflag && !(rtm->rtm_flags & Qflag))
+		return;
 	/*
 	 * do not look at dynamic routes.
 	 * netbsd/openbsd cloned routes have UGHD.
