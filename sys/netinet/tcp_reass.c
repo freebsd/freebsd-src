@@ -132,6 +132,15 @@ tcp_reass_init(void)
 	    tcp_reass_zone_change, NULL, EVENTHANDLER_PRI_ANY);
 }
 
+#ifdef VIMAGE
+void
+tcp_reass_destroy(void)
+{
+
+	uma_zdestroy(V_tcp_reass_zone);
+}
+#endif
+
 int
 tcp_reass(struct tcpcb *tp, struct tcphdr *th, int *tlenp, struct mbuf *m)
 {
