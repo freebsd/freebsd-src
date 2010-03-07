@@ -31,7 +31,7 @@
  */
 
 #ifndef	lint
-static char _rcsid[] = "$KAME: route6d.c,v 1.104 2003/10/31 00:30:20 itojun Exp $";
+static const char _rcsid[] = "$KAME: route6d.c,v 1.104 2003/10/31 00:30:20 itojun Exp $";
 #endif
 
 #include <stdio.h>
@@ -137,7 +137,7 @@ struct	ifc *ifc;
 struct  iff *iff_head;
 int	nifc;		/* number of valid ifc's */
 struct	ifc **index2ifc;
-int	nindex2ifc;
+unsigned int	nindex2ifc;
 struct	ifc *loopifcp = NULL;	/* pointing to loopback */
 #ifdef HAVE_POLL_H
 struct	pollfd set[2];
@@ -244,12 +244,13 @@ void applyplen(struct in6_addr *, int);
 void ifrtdump(int);
 void ifdump(int);
 void ifdump0(FILE *, const struct ifc *);
+void ifremove(int);
 void rtdump(int);
 void rt_entry(struct rt_msghdr *, int);
 void rtdexit(void);
 void riprequest(struct ifc *, struct netinfo6 *, int,
 	struct sockaddr_in6 *);
-void ripflush(struct ifc *, struct sockaddr_in6 *);
+void ripflush(struct ifc *, struct sockaddr_in6 *, int, struct netinfo6 *np);
 void sendrequest(struct ifc *);
 int sin6mask2len(const struct sockaddr_in6 *);
 int mask2len(const struct in6_addr *, int);
@@ -297,7 +298,7 @@ main(argc, argv)
 	unsigned long	proto;
 	struct	ifc *ifcp;
 	sigset_t mask, omask;
-	char	*pidfile = ROUTE6D_PID;
+	const char *pidfile = ROUTE6D_PID;
 	FILE	*pidfh;
 	char *progname;
 	char *ep;
@@ -783,13 +784,8 @@ init()
 /*
  * ripflush flushes the rip datagram stored in the rip buffer
  */
-static int nrt;
-static struct netinfo6 *np;
-
 void
-ripflush(ifcp, sin6)
-	struct ifc *ifcp;
-	struct sockaddr_in6 *sin6;
+ripflush(struct ifc *ifcp, struct sockaddr_in6 *sin6, int nrt, struct netinfo6 *np)
 {
 	int i;
 	int error;
@@ -831,21 +827,19 @@ ripflush(ifcp, sin6)
 			ifcp->ifc_name, inet6_n2p(&ifcp->ifc_ripsin.sin6_addr));
 		ifcp->ifc_flags &= ~IFF_UP;	/* As if down for AF_INET6 */
 	}
-	nrt = 0; np = ripbuf->rip6_nets;
 }
 
 /*
  * Generate RIP6_RESPONSE packets and send them.
  */
 void
-ripsend(ifcp, sin6, flag)
-	struct	ifc *ifcp;
-	struct	sockaddr_in6 *sin6;
-	int flag;
+ripsend(struct	ifc *ifcp, struct sockaddr_in6 *sin6, int flag)
 {
 	struct	riprt *rrt;
 	struct	in6_addr *nh;	/* next hop */
+	struct netinfo6 *np;
 	int	maxrte;
+	int nrt;
 
 	if (qflag)
 		return;
@@ -859,7 +853,9 @@ ripsend(ifcp, sin6, flag)
 				sizeof(struct udphdr) - 
 				sizeof(struct rip6) + sizeof(struct netinfo6)) /
 				sizeof(struct netinfo6);
-		nrt = 0; np = ripbuf->rip6_nets; nh = NULL;
+		nh = NULL;
+		nrt = 0;
+		np = ripbuf->rip6_nets;
 		for (rrt = riprt; rrt; rrt = rrt->rrt_next) {
 			if (rrt->rrt_rflags & RRTF_NOADVERTISE)
 				continue;
@@ -867,12 +863,14 @@ ripsend(ifcp, sin6, flag)
 			*np = rrt->rrt_info;
 			np++; nrt++;
 			if (nrt == maxrte) {
-				ripflush(NULL, sin6);
+				ripflush(NULL, sin6, nrt, np);
 				nh = NULL;
+				nrt = 0;
+				np = ripbuf->rip6_nets;
 			}
 		}
 		if (nrt)	/* Send last packet */
-			ripflush(NULL, sin6);
+			ripflush(NULL, sin6, nrt, np);
 		return;
 	}
 
@@ -896,7 +894,7 @@ ripsend(ifcp, sin6, flag)
 		np = ripbuf->rip6_nets;
 		*np = rrt_info;
 		nrt = 1;
-		ripflush(ifcp, sin6);
+		ripflush(ifcp, sin6, nrt, np);
 		return;
 	}
 
@@ -928,8 +926,13 @@ ripsend(ifcp, sin6, flag)
 		    !IN6_IS_ADDR_UNSPECIFIED(&rrt->rrt_gw) &&
 		    (rrt->rrt_rflags & RRTF_NH_NOT_LLADDR) == 0) {
 			if (nh == NULL || !IN6_ARE_ADDR_EQUAL(nh, &rrt->rrt_gw)) {
-				if (nrt == maxrte - 2)
-					ripflush(ifcp, sin6);
+				if (nrt == maxrte - 2) {
+					ripflush(ifcp, sin6, nrt, np);
+					nh = NULL;
+					nrt = 0;
+					np = ripbuf->rip6_nets;
+				}
+
 				np->rip6_dest = rrt->rrt_gw;
 				if (IN6_IS_ADDR_LINKLOCAL(&np->rip6_dest))
 					SET_IN6_LINKLOCAL_IFINDEX(np->rip6_dest, 0);
@@ -943,8 +946,12 @@ ripsend(ifcp, sin6, flag)
 			          !IN6_ARE_ADDR_EQUAL(nh, &rrt->rrt_gw) ||
 				  rrt->rrt_rflags & RRTF_NH_NOT_LLADDR)) {
 			/* Reset nexthop */
-			if (nrt == maxrte - 2)
-				ripflush(ifcp, sin6);
+			if (nrt == maxrte - 2) {
+				ripflush(ifcp, sin6, nrt, np);
+				nh = NULL;
+				nrt = 0;
+				np = ripbuf->rip6_nets;
+			}
 			memset(np, 0, sizeof(struct netinfo6));
 			np->rip6_metric = NEXTHOP_METRIC;
 			nh = NULL;
@@ -955,12 +962,14 @@ ripsend(ifcp, sin6, flag)
 		*np = rrt->rrt_info;
 		np++; nrt++;
 		if (nrt == maxrte) {
-			ripflush(ifcp, sin6);
+			ripflush(ifcp, sin6, nrt, np);
 			nh = NULL;
+			nrt = 0;
+			np = ripbuf->rip6_nets;
 		}
 	}
 	if (nrt)	/* Send last packet */
-		ripflush(ifcp, sin6);
+		ripflush(ifcp, sin6, nrt, np);
 }
 
 /*
@@ -1201,7 +1210,7 @@ riprecv()
 	if (idx && IN6_IS_ADDR_LINKLOCAL(&fsock.sin6_addr))
 		SET_IN6_LINKLOCAL_IFINDEX(fsock.sin6_addr, idx);
 
-	if (len < sizeof(struct rip6)) {
+	if ((size_t)len < sizeof(struct rip6)) {
 		trace(1, "Packet too short\n");
 		return;
 	}
@@ -1736,7 +1745,7 @@ void
 rtrecv()
 {
 	char buf[BUFSIZ];
-	char *p, *q;
+	char *p, *q = NULL;
 	struct rt_msghdr *rtm;
 	struct ifa_msghdr *ifam;
 	struct if_msghdr *ifm;
@@ -1746,7 +1755,7 @@ rtrecv()
 	int iface = 0, rtable = 0;
 	struct sockaddr_in6 *rta[RTAX_MAX];
 	struct sockaddr_in6 mask;
-	int i, addrs;
+	int i, addrs = 0;
 	struct riprt *rrt;
 
 	if ((len = read(rtsock, buf, sizeof(buf))) < 0) {
@@ -2735,7 +2744,7 @@ rt_entry(rtm, again)
 	char	*rtmp, *ifname = NULL;
 	struct	riprt *rrt, *orrt;
 	struct	netinfo6 *np;
-	int	s;
+	int ifindex;
 
 	sin6_dst = sin6_gw = sin6_mask = sin6_genmask = sin6_ifp = 0;
 	if ((rtm->rtm_flags & RTF_UP) == 0 || rtm->rtm_flags &
@@ -2758,6 +2767,9 @@ rt_entry(rtm, again)
 	 *      use it.  Rely on Qflag instead here.
 	 */
 	if (Qflag && !(rtm->rtm_flags & Qflag))
+		return;
+	/* XXX: Ignore connected routes. */
+	if (!(rtm->rtm_flags & RTF_GATEWAY))
 		return;
 	/*
 	 * do not look at dynamic routes.
@@ -2855,16 +2867,16 @@ rt_entry(rtm, again)
 	trace(1, " gw %s", inet6_n2p(&rrt->rrt_gw));
 
 	/* Interface */
-	s = rtm->rtm_index;
-	if (s < nindex2ifc && index2ifc[s])
-		ifname = index2ifc[s]->ifc_name;
+	ifindex = rtm->rtm_index;
+	if ((unsigned int)ifindex < nindex2ifc && index2ifc[ifindex])
+		ifname = index2ifc[ifindex]->ifc_name;
 	else {
 		trace(1, " not configured\n");
 		free(rrt);
 		return;
 	}
-	trace(1, " if %s sock %d", ifname, s);
-	rrt->rrt_index = s;
+	trace(1, " if %s sock %d", ifname, ifindex);
+	rrt->rrt_index = ifindex;
 
 	trace(1, "\n");
 
@@ -3127,7 +3139,7 @@ ifdump(sig)
 				if (iff_find(ifcp, IFIL_TYPE_N) != NULL)
 					continue;
 			} else {
-				if (ifcp->ifc_flags & IFF_UP != 0 &&
+				if ((ifcp->ifc_flags & IFF_UP) &&
 				    iff_find(ifcp, IFIL_TYPE_N) == NULL)
 					continue;
 			}
