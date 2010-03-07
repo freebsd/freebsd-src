@@ -16,7 +16,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 31, 1997
+.Dd July 21, 2009
 .Dt ROUTE6D 8
 .Os
 .Sh NAME
@@ -25,6 +25,15 @@
 .Sh SYNOPSIS
 .Nm
 .Op Fl adDhlnqsS
+.Bk -words
+.Op Fl p Ar pidfile
+.Ek
+.Bk -words
+.Op Fl P Ar protonum
+.Ek
+.Bk -words
+.Op Fl Q Ar protonum
+.Ek
 .Bk -words
 .Op Fl R Ar routelog
 .Ek
@@ -62,6 +71,29 @@ statically defined routes will be removed unless corresponding updates
 arrive as if the routes are received at the startup of
 .Nm .
 .\"
+.It Fl p Ar pidfile
+This option specifies PID filename as
+.Ar pidfile .
+The default value is
+.Pa /var/run/route6d.pid .
+.It Fl P Ar protonum
+This option makes the
+.Nm
+recognize a route with RTF_PROTO[123] flag as one with infinite lifetime.  The
+.Ar protonum
+must be 1, 2, or 3 and they corresponds to RTF_PROTO1, RTF_PROTO2, and
+RTF_PROTO3, respectively.  Multiple
+.Fl P
+flags are allowed.
+.It Fl Q Ar protonum
+This option makes the
+.Nm
+add RTF_PROTO[123] flags to routes which are obtained via RIP sessions.  The
+.Ar protonum
+must be 1, 2, or 3 and they corresponds to RTF_PROTO1, RTF_PROTO2, and
+RTF_PROTO3, respectively.  Multiple
+.Fl Q
+flags are allowed.
 .It Fl R Ar routelog
 This option makes the
 .Nm
