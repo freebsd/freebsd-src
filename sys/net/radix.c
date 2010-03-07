@@ -1161,7 +1161,6 @@ rn_inithead(head, off)
 	return (1);
 }
 
-#ifdef VIMAGE
 int
 rn_detachhead(void **head)
 {
@@ -1177,7 +1176,6 @@ rn_detachhead(void **head)
 	*head = NULL;
 	return (1);
 }
-#endif
 
 void
 rn_init(int maxk)
