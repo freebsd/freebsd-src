@@ -159,10 +159,10 @@ char jdaystr[] = "       1   2   3   4   5   6   7   8   9"
 		 " 350 351 352 353 354 355 356 357 358 359"
 		 " 360 361 362 363 364 365 366";
 
+int	flag_nohighlight;	/* user doesn't want a highlighted today */
 int     flag_weeks;		/* user wants number of week */
 int     nswitch;		/* user defined switch date */
 int	nswitchb;		/* switch date for backward compatibility */
-const char	*term_so, *term_se;
 int	today;
 
 char	*center(char *s, char *t, int w);
@@ -181,6 +181,7 @@ int	sndaysb(struct date * d);
 static void	usage(void);
 void	monthranger(int year, int jd_flag, int m, int before, int after);
 void	monthrangeb(int year, int jd_flag, int m, int before, int after);
+void	highlight(char *dst, char *src, int len, int *extraletters);
 
 int
 main(int argc, char *argv[])
@@ -204,15 +205,9 @@ main(int argc, char *argv[])
 	char	*flag_highlightdate = NULL;
 	int	before, after;
 	const char    *locale;		/* locale to get country code */
-	char tbuf[1024], cbuf[512], *b;
 
-	/* On how to highlight on this terminal */
-	term_se = term_so = NULL;
-	if (isatty(STDOUT_FILENO) && tgetent(tbuf, NULL) == 1) {
-		b = cbuf;
-		term_so = tgetstr("so", &b);
-		term_se = tgetstr("se", &b);
-	}
+	flag_nohighlight = 0;
+	flag_weeks = 0;
 
 	/*
 	 * Use locale to determine the country code,
@@ -283,7 +278,7 @@ main(int argc, char *argv[])
 			flag_highlightdate = optarg;
 			break;
 		case 'h':
-			term_so = term_se = NULL;
+			flag_nohighlight = 1;
 			break;
 		case 'e':
 			if (flag_backward)
@@ -367,6 +362,12 @@ main(int argc, char *argv[])
 		break;
 	default:
 		usage();
+	}
+
+	if (flag_hole_year) {
+		m = 1;
+		before = 0;
+		after = 11;
 	}
 
 	if (flag_month != NULL) {
@@ -717,33 +718,17 @@ mkmonthr(int y, int m, int jd_flag, struct monthlines *mlines)
 	for (i = 0; i != 7; i++) {
 		l = 0;
 		for (j = firstm + i, k = 0; j < last; j += 7, k += dw) {
-			if (j == today &&
-			    (term_so != NULL && term_se != NULL)) {
-				l = strlen(term_so);
-				if (jd_flag)
-					dt.d = j - jan1 + 1;
-				else
-					sdateb(j, &dt);
-				/* separator */
-				mlines->lines[i][k] = ' ';
-				/* the actual text */
-				memcpy(mlines->lines[i] + k + l,
-				    ds + dt.d * dw, dw);
-				/* highlight on */
-				memcpy(mlines->lines[i] + k + 1, term_so, l);
-				/* highlight off */
-				memcpy(mlines->lines[i] + k + l + dw, term_se,
-				    strlen(term_se));
-				l = strlen(term_se) + strlen(term_so);
-				continue;
-			}
 			if (j >= first) {
 				if (jd_flag)
 					dt.d = j - jan1 + 1;
 				else
 					sdater(j, &dt);
-				memcpy(mlines->lines[i] + k + l,
-				       ds + dt.d * dw, dw);
+				if (j == today && !flag_nohighlight)
+					highlight(mlines->lines[i] + k,
+					    ds + dt.d * dw, dw, &l);
+				else
+					memcpy(mlines->lines[i] + k + l,
+					       ds + dt.d * dw, dw);
 			} else
 				memcpy(mlines->lines[i] + k + l, "    ", dw);
 		}
@@ -837,33 +822,17 @@ mkmonthb(int y, int m, int jd_flag, struct monthlines *mlines)
 		l = 0;
 		for (j = firsts + 7 * i, k = 0; j < last && k != dw * 7;
 		    j++, k += dw) { 
-			if (j == today &&
-			    (term_so != NULL && term_se != NULL)) {
-				l = strlen(term_so);
-				if (jd_flag)
-					dt.d = j - jan1 + 1;
-				else
-					sdateb(j, &dt);
-				/* separator */
-				mlines->lines[i][k] = ' ';
-				/* the actual text */
-				memcpy(mlines->lines[i] + k + l,
-				    ds + dt.d * dw, dw);
-				/* highlight on */
-				memcpy(mlines->lines[i] + k + 1, term_so, l);
-				/* highlight off */
-				memcpy(mlines->lines[i] + k + l + dw, term_se,
-				    strlen(term_se));
-				l = strlen(term_se) + strlen(term_so);
-				continue;
-			}
 			if (j >= first) {
 				if (jd_flag)
 					dt.d = j - jan1 + 1;
 				else
 					sdateb(j, &dt);
-				memcpy(mlines->lines[i] + k + l,
-				       ds + dt.d * dw, dw);
+				if (j == today && !flag_nohighlight)
+					highlight(mlines->lines[i] + k,
+					    ds + dt.d * dw, dw, &l);
+				else
+					memcpy(mlines->lines[i] + k + l,
+					       ds + dt.d * dw, dw);
 			} else
 				memcpy(mlines->lines[i] + k + l, "    ", dw);
 		}
@@ -1030,4 +999,74 @@ parsemonth(const char *s, int *m, int *y)
 		return (0);
 	}
 	return (1);
+}
+
+void
+highlight(char *dst, char *src, int len, int *extralen)
+{
+	static int first = 1;
+	static const char *term_so, *term_se;
+
+	if (first) {
+		char tbuf[1024], cbuf[512], *b;
+
+		term_se = term_so = NULL;
+
+		/* On how to highlight on this type of terminal (if any) */
+		if (isatty(STDOUT_FILENO) && tgetent(tbuf, NULL) == 1) {
+			b = cbuf;
+			term_so = tgetstr("so", &b);
+			term_se = tgetstr("se", &b);
+		}
+
+		first = 0;
+	}
+
+	/*
+	 * This check is not necessary, should have been handled before calling
+	 * this function.
+	 */
+	if (flag_nohighlight) {
+		memcpy(dst, src, len);
+		return;
+	}
+
+	/* If it is a real terminal, use the data from the termcap database. */
+	if (term_so != NULL && term_se != NULL) {
+		/* separator */
+		dst[0] = ' ';
+		dst++;
+		/* highlight on */
+		memcpy(dst, term_so, strlen(term_so));
+		dst += strlen(term_so);
+		/* the actual text (minus leading space) */
+		len--;
+		src++;
+		memcpy(dst, src, len);
+		dst += len;
+		/* highlight off */
+		memcpy(dst, term_se, strlen(term_se));
+		*extralen = strlen(term_so) + strlen(term_se);
+		return;
+	}
+
+	/*
+	 * Otherwise, print a _, backspace and the letter
+	 */
+	*extralen = 0;
+	/* skip leading space */
+	src++;
+	len--;
+	/* separator */
+	dst[0] = ' ';
+	dst++;
+	while (len > 0) {
+		/* _ and backspace */
+		memcpy(dst, "_\010", 2);
+		dst += 2;
+		*extralen += 2;
+		/* the character */
+		*dst++ = *src++;
+		len--;
+	}
 }
