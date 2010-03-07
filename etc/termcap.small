@@ -203,93 +203,46 @@ cons60l7|cons60-iso8859-7:\
 	:li#60:tc=cons25l7:
 cons60l7-m|cons60-iso8859-7-mono:\
 	:li#60:tc=cons25l7-m:
-#
-dosansi|ANSI.SYS standard crt:\
-	:am:bs:ce=\E[K:cl=\E[2J:cm=\E[%i%d;%dH:co#80:\
-	:do=\E[B:li#25:mi:nd=\E[C:\
-	:se=\E[m:so=\E[7m:up=\E[A:us=\E[4m:ue=\E[m:\
-	:md=\E[1m:mr=\E[7m:mb=\E[5m:me=\E[m:\
-	:kh=\EG:kb=^h:ku=\EH:kd=\EP:kl=\EK:kr=\EM:\
-	:k1=\E;:k2=\E<:k3=\E=:k4=\E>:k5=\E?:\
-	:k6=\E@:k7=\EA:k8=\EB:k9=\EC:k0=\ED:
 
-# The following is a version of the ibm-pc entry distributed with PC/IX,
-# (Interactive Systems' System 3 for the Big Blue), modified by Richard
-# McIntosh at UCB/CSM.  The :pt: and :uc: have been removed from the original,
-# (the former is untrue, and the latter failed under UCB/man); standout and
-# underline modes have been added.  Note: this entry describes the "native"
-# capabilities of the PC monochrome display, without ANY emulation; most
-# communications packages (but NOT PC/IX connect) do some kind of emulation.
-pc|ibmpc|ibm pc PC/IX:\
-	:li#24:co#80:am:bs:bw:eo:\
-	:cd=\E[J:ce=\E[K:cl=\Ec:cm=\E[%i%2;%2H:do=\E[B:ho=\E[;H:\
-	:nd=\E[C:up=\E[A:so=\E[7m:se=\E[0m:us=\E[4m:ue=\E[0m:
-pc3|ibmpc3|IBM PC 386BSD Console:\
-	:Co#8:\
-	:DO=\E[%dB:\
-	:F1=\E[W:\
-	:F2=\E[X:\
-	:K1=\E[H:\
-	:K2=\E[I:\
-	:K3=\E[E:\
-	:K4=\E[F:\
-	:K5=\E[G:\
-	:LE=\E[%dD:\
-	:RI=\E[%dC:\
-	:AB=\E[1;%dx:\
-	:AF=\E[2;%dx:\
-	:UP=\E[%dA:\
-	:ac=l\332m\300k\277j\331u\264t\303v\301w\302q\304x\263n\305`^Da\260f\370g\361~\371.^Y-^Xh\261i^U0\333y\363z\362:\
-	:am:\
-	:bl=^G:\
-	:bs:\
-	:cb=\E[1K:\
-	:cd=\E[J:\
-	:ce=\E[K:\
-	:cl=\E[H\E[J:\
-	:cm=\E[%i%d;%dH:\
-	:co#80:\
-	:cr=^M:\
-	:do=\E[B:\
-	:ho=\E[H:\
-	:is=\E[m:\
-	:it#8:\
-	:k;=\E[V:\
-	:k1=\E[M:\
-	:k2=\E[N:\
-	:k3=\E[O:\
-	:k4=\E[P:\
-	:k5=\E[Q:\
-	:k6=\E[R:\
-	:k7=\E[S:\
-	:k8=\E[T:\
-	:k9=\E[U:\
-	:kD=\177:\
-	:@7=\E[F:\
-	:kN=\E[G:\
-	:kP=\E[I:\
-	:kb=\177:\
-	:kd=\E[B:\
-	:kh=\E[H:\
-	:kl=\E[D:\
-	:kr=\E[C:\
-	:ku=\E[A:\
-	:le=^H:\
-	:li#25:\
-	:ms:\
-	:nd=\E[C:\
-	:op=\E[x:\
-	:pa#64:\
-	:rs=\E[m:\
-	:se=\E[m:\
-	:sf=\E[S:\
-	:so=\E[7;1r\E[7m:\
-	:sr=\E[T:\
-	:ta=^I:\
-	:te=\E[m:\
-	:ti=\E[m:\
-	:up=\E[A:\
-	:ut:
+SC|screen|VT 100/ANSI X3.64 virtual terminal:\
+	:am:xn:ms:mi:G0:km:\
+	:DO=\E[%dB:LE=\E[%dD:RI=\E[%dC:UP=\E[%dA:bs:bt=\E[Z:\
+	:cb=\E[1K:cd=\E[J:ce=\E[K:cl=\E[H\E[J:cm=\E[%i%d;%dH:ct=\E[3g:\
+	:do=^J:nd=\E[C:pt:rc=\E8:rs=\Ec:sc=\E7:st=\EH:up=\EM:\
+	:le=^H:bl=^G:cr=^M:it#8:ho=\E[H:nw=\EE:ta=^I:is=\E)0:\
+	:li#24:co#80:us=\E[4m:ue=\E[24m:so=\E[3m:se=\E[23m:\
+	:mb=\E[5m:md=\E[1m:mr=\E[7m:me=\E[m:sr=\EM:al=\E[L:\
+	:AL=\E[%dL:dl=\E[M:DL=\E[%dM:cs=\E[%i%d;%dr:dc=\E[P:\
+	:DC=\E[%dP:im=\E[4h:ei=\E[4l:IC=\E[%d@:\
+	:ks=\E[?1h\E=:ke=\E[?1l\E>:vb=\Eg:\
+	:ku=\EOA:kd=\EOB:kr=\EOC:kl=\EOD:kb=^H:\
+	:k1=\EOP:k2=\EOQ:k3=\EOR:k4=\EOS:k5=\E[15~:k6=\E[17~:\
+	:k7=\E[18~:k8=\E[19~:k9=\E[20~:k;=\E[21~:F1=\E[23~:F2=\E[24~:\
+	:F3=\E[25~:F4=\E[26~:F5=\E[28~:F6=\E[29~:\
+	:F7=\E[31~:F8=\E[32~:F9=\E[33~:FA=\E[34~:\
+	:kh=\E[1~:kI=\E[2~:kD=\E[3~:@7=\E[4~:kP=\E[5~:\
+	:kN=\E[6~:eA=\E(B\E)0:as=^N:ae=^O:ti=\E[?1049h:te=\E[?1049l:\
+	:vi=\E[?25l:ve=\E[34h\E[?25h:vs=\E[34l:\
+	:Co#8:pa#64:AF=\E[3%dm:AB=\E[4%dm:op=\E[39;49m:AX:\
+	:ac=``aaffggjjkkllmmnnooppqqrrssttuuvvwwxxyyzz{{||}}~~..--++,,hhII00:
+
+vt100|dec-vt100|vt100-am|vt100am|dec vt100:\
+	:do=2\E[B:co#80:li#24:cl=50\E[H\E[J:sf=2*\ED:\
+	:le=^H:bs:am:cm=5\E[%i%d;%dH:nd=2\E[C:up=2\E[A:\
+	:ce=3\E[K:cd=50\E[J:so=2\E[7m:se=2\E[m:us=2\E[4m:ue=2\E[m:\
+	:md=2\E[1m:mr=2\E[7m:mb=2\E[5m:me=2\E[m:\
+	:is=\E>\E[?1;3;4;5l\E[?7;8h\E[1;24r\E[24;1H:\
+	:if=/usr/share/tabset/vt100:nw=2\EE:ho=\E[H:\
+	:as=2\E(0:ae=2\E(B:\
+	:ac=``aaffggjjkkllmmnnooppqqrrssttuuvvwwxxyyzz{{||:\
+	:rs=\E>\E[?1;3;4;5l\E[?7;8h:ks=\E[?1h\E=:ke=\E[?1l\E>:\
+	:ku=\EOA:kd=\EOB:kr=\EOC:kl=\EOD:kb=\177:\
+	:k0=\EOy:k1=\EOP:k2=\EOQ:k3=\EOR:k4=\EOS:k5=\EOt:\
+	:k6=\EOu:k7=\EOv:k8=\EOl:k9=\EOw:k;=\EOx:@8=\EOM:\
+	:K1=\EOq:K2=\EOr:K3=\EOs:K4=\EOp:K5=\EOn:pt:sr=2*\EM:xn:\
+	:sc=2\E7:rc=2\E8:cs=5\E[%i%d;%dr:UP=2\E[%dA:DO=2\E[%dB:RI=2\E[%dC:\
+	:LE=2\E[%dD:ct=2\E[3g:st=2\EH:ta=^I:ms:bl=^G:cr=^M:eo:it#8:\
+	:RA=\E[?7l:SA=\E[?7h:po=\E[5i:pf=\E[4i:
 
 # $XTermId: termcap,v 1.78 2009/11/09 00:24:26 tom Exp $
 #
@@ -325,3 +278,38 @@ xterm|X11 terminal emulator:\
 xterm-clear:\
 	:te=\E[?1049l:ti=\E[?1049h:\
 	:tc=xterm-new:
+#
+# This should work for the commonly used "color xterm" variations (XFree86
+# xterm, color_xterm, nxterm, rxvt).  Note that it does not set 'bce', so for
+# XFree86 and rxvt, some applications that use colors will be less efficient,
+# and in a few special cases (with "smart" optimization) the wrong color will
+# be painted in spots.
+xterm-color|generic "ANSI" color xterm:\
+	:Co#8:NC@:pa#64:\
+	:AB=\E[4%dm:AF=\E[3%dm:ac=:op=\E[m:tc=xterm-r6:
+#
+# Compatible with the X11R6.3 xterm
+xterm-r6|xterm-old|X11R6 xterm:\
+	:am:bs:km:mi:ms:pt:xn:\
+	:co#80:kn#20:li#24:\
+	:*6=\E[4~:@0=\E[1~:@7=\E[4~:AL=\E[%dL:DC=\E[%dP:DL=\E[%dM:\
+	:DO=\E[%dB:F1=\E[23~:F2=\E[24~:F3=\E[25~:F4=\E[26~:\
+	:F5=\E[28~:F6=\E[29~:F7=\E[31~:F8=\E[32~:F9=\E[33~:\
+	:FA=\E[34~:LE=\E[%dD:RI=\E[%dC:UP=\E[%dA:ae=^O:al=\E[L:\
+	:as=^N:bl=^G:cd=\E[J:ce=\E[K:cl=\E[H\E[2J:cm=\E[%i%d;%dH:\
+	:cs=\E[%i%d;%dr:ct=\E[3g:dc=\E[P:dl=\E[M:eA=\E)0:ei=\E[4l:\
+	:ho=\E[H:im=\E[4h:\
+	:is=\E[m\E[?7h\E[4l\E>\E7\E[r\E[?1;3;4;6l\E8:\
+	:k1=\E[11~:k2=\E[12~:k3=\E[13~:k4=\E[14~:k5=\E[15~:\
+	:k6=\E[17~:k7=\E[18~:k8=\E[19~:k9=\E[20~:k;=\E[21~:\
+	:kD=\E[3~:kI=\E[2~:kN=\E[6~:kP=\E[5~:kb=^H:kd=\EOB:\
+	:ke=\E[?1l\E>:kh=\E[1~:kl=\EOD:kr=\EOC:ks=\E[?1h\E=:\
+	:ku=\EOA:md=\E[1m:me=\E[m:ml=\El:mr=\E[7m:mu=\Em:nd=\E[C:\
+	:rc=\E8:rs=\E[m\E[?7h\E[4l\E>\E7\E[r\E[?1;3;4;6l\E8:\
+	:sc=\E7:se=\E[m:sf=^J:so=\E[7m:sr=\EM:\
+	:ue=\E[m:up=\E[A:us=\E[4m:
+#
+# Add the capability to "clear the screen" after exiting vi, more/less, etc.
+xterm-r6-clear:\
+	:te=\E[2J\E[?47l\E8:ti=\E7\E[?47h:ue=\E[m:\
+	:tc=xterm-r6:
