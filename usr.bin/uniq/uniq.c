@@ -53,6 +53,7 @@ static const char rcsid[] =
 #include <limits.h>
 #include <locale.h>
 #include <stdint.h>
+#define _WITH_GETLINE
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -64,8 +65,8 @@ int cflag, dflag, uflag, iflag;
 int numchars, numfields, repeats;
 
 FILE	*file(const char *, const char *);
-wchar_t	*convert(wchar_t *, const char *);
-char	*getlinemax(char *, FILE *);
+wchar_t	*convert(const char *);
+int	 inlcmp(const char *, const char *);
 void	 show(FILE *, const char *);
 wchar_t	*skip(wchar_t *);
 void	 obsolete(char *[]);
@@ -74,9 +75,10 @@ static void	 usage(void);
 int
 main (int argc, char *argv[])
 {
-	wchar_t *tprev, *tthis, *wprev, *wthis, *wp;
+	wchar_t *tprev, *tthis;
 	FILE *ifp, *ofp;
 	int ch, comp;
+	size_t prevbuflen, thisbuflen, b1;
 	char *prevline, *thisline, *p;
 	const char *ifn;
 
@@ -133,29 +135,27 @@ main (int argc, char *argv[])
 	if (argc > 1)
 		ofp = file(argv[1], "w");
 
-	prevline = malloc(LINE_MAX);
-	thisline = malloc(LINE_MAX);
-	wprev = malloc(LINE_MAX * sizeof(*wprev));
-	wthis = malloc(LINE_MAX * sizeof(*wthis));
-	if (prevline == NULL || thisline == NULL ||
-	    wprev == NULL || wthis == NULL)
-		err(1, "malloc");
+	prevbuflen = thisbuflen = 0;
+	prevline = thisline = NULL;
 
-	if ((prevline = getlinemax(prevline, ifp)) == NULL) {
+	if (getline(&prevline, &prevbuflen, ifp) < 0) {
 		if (ferror(ifp))
 			err(1, "%s", ifn);
 		exit(0);
 	}
-	tprev = convert(wprev, prevline);
+	tprev = convert(prevline);
 
 	if (!cflag && uflag && dflag)
 		show(ofp, prevline);
 
-	while ((thisline = getlinemax(thisline, ifp)) != NULL) {
-		tthis = convert(wthis, thisline);
+	tthis = NULL;
+	while (getline(&thisline, &thisbuflen, ifp) >= 0) {
+		if (tthis != NULL)
+			free(tthis);
+		tthis = convert(thisline);
 
 		if (tthis == NULL && tprev == NULL)
-			comp = strcmp(thisline, prevline);
+			comp = inlcmp(thisline, prevline);
 		else if (tthis == NULL || tprev == NULL)
 			comp = 1;
 		else
@@ -166,14 +166,17 @@ main (int argc, char *argv[])
 			if (cflag || !dflag || !uflag)
 				show(ofp, prevline);
 			p = prevline;
-			wp = wprev;
+			b1 = prevbuflen;
 			prevline = thisline;
-			wprev = wthis;
+			prevbuflen = thisbuflen;
+			if (tprev != NULL)
+				free(tprev);
 			tprev = tthis;
 			if (!cflag && uflag && dflag)
 				show(ofp, prevline);
 			thisline = p;
-			wthis = wp;
+			thisbuflen = b1;
+			tthis = NULL;
 			repeats = 0;
 		} else
 			++repeats;
@@ -185,46 +188,54 @@ main (int argc, char *argv[])
 	exit(0);
 }
 
-char *
-getlinemax(char *buf, FILE *fp)
-{
-	size_t bufpos;
-	int ch;
-
-	bufpos = 0;
-	while ((ch = getc(fp)) != EOF && ch != '\n') {
-		buf[bufpos++] = ch;
-		if (bufpos >= LINE_MAX)
-			errx(1, "Maximum line length (%d) exceeded",
-			     LINE_MAX);
-	}
-	buf[bufpos] = '\0';
-
-	return (bufpos != 0 || ch == '\n' ? buf : NULL);
-}
-
 wchar_t *
-convert(wchar_t *buf, const char *str)
+convert(const char *str)
 {
 	size_t n;
-	wchar_t *p, *ret;
+	wchar_t *buf, *ret, *p;
 
-	if ((n = mbstowcs(buf, str, LINE_MAX)) == LINE_MAX)
-		errx(1, "Maximum line length (%d) exceeded", LINE_MAX);
-	else if (n != (size_t)-1) {
-		/* If requested get the chosen fields + character offsets. */
-		if (numfields || numchars)
-			ret = skip(buf);
-		else
-			ret = buf;
-		if (iflag) {
-			for (p = ret; *p != L'\0'; p++)
-				*p = towlower(*p);
-		}
+	if ((n = mbstowcs(NULL, str, 0)) == (size_t)-1)
+		return (NULL);
+	if ((buf = malloc((n + 1) * sizeof(*buf))) == NULL)
+		err(1, "malloc");
+	if (mbstowcs(buf, str, n + 1) != n)
+		errx(1, "internal mbstowcs() error");
+	/* The last line may not end with \n. */
+	if (n > 0 && buf[n - 1] == L'\n')
+		buf[n - 1] = L'\0';
+
+	/* If requested get the chosen fields + character offsets. */
+	if (numfields || numchars) {
+		if ((ret = wcsdup(skip(buf))) == NULL)
+			err(1, "wcsdup");
+		free(buf);
 	} else
-		ret = NULL;
+		ret = buf;
+
+	if (iflag) {
+		for (p = ret; *p != L'\0'; p++)
+			*p = towlower(*p);
+	}
 
 	return (ret);
+}
+
+int
+inlcmp(const char *s1, const char *s2)
+{
+	int c1, c2;
+
+	while (*s1 == *s2++)
+		if (*s1++ == '\0')
+			return (0);
+	c1 = (unsigned char)*s1;
+	c2 = (unsigned char)*(s2 - 1);
+	/* The last line may not end with \n. */
+	if (c1 == '\n')
+		c1 = '\0';
+	if (c2 == '\n')
+		c2 = '\0';
+	return (c1 - c2);
 }
 
 /*
@@ -237,9 +248,9 @@ show(FILE *ofp, const char *str)
 {
 
 	if (cflag)
-		(void)fprintf(ofp, "%4d %s\n", repeats + 1, str);
+		(void)fprintf(ofp, "%4d %s", repeats + 1, str);
 	if ((dflag && repeats) || (uflag && !repeats))
-		(void)fprintf(ofp, "%s\n", str);
+		(void)fprintf(ofp, "%s", str);
 }
 
 wchar_t *
