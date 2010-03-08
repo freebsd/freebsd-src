@@ -1670,10 +1670,8 @@ pmcstat_print_log(void)
 int
 pmcstat_close_log(void)
 {
-	if (pmc_flush_logfile() < 0 ||
-	    pmc_configure_logfile(-1) < 0)
+	if (pmc_flush_logfile() < 0)
 		err(EX_OSERR, "ERROR: logging failed");
-	args.pa_flags &= ~(FLAG_HAS_OUTPUT_LOGFILE | FLAG_HAS_PIPE);
 	return (args.pa_flags & FLAG_HAS_PIPE ? PMCSTAT_EXITING :
 	    PMCSTAT_FINISHED);
 }

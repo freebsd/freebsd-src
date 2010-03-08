@@ -759,7 +759,7 @@ struct pmc_owner  {
 };
 
 #define	PMC_PO_OWNS_LOGFILE		0x00000001 /* has a log file */
-#define	PMC_PO_IN_FLUSH			0x00000010 /* in the middle of a flush */
+#define	PMC_PO_SHUTDOWN			0x00000010 /* in the process of shutdown */
 #define	PMC_PO_INITIAL_MAPPINGS_DONE	0x00000020
 
 /*
