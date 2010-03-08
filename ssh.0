@@ -5,10 +5,10 @@ NAME
 
 SYNOPSIS
      ssh [-1246AaCfgKkMNnqsTtVvXxYy] [-b bind_address] [-c cipher_spec]
-         [-D [bind_address:]port] [-e escape_char] [-F configfile]
+         [-D [bind_address:]port] [-e escape_char] [-F configfile] [-I pkcs11]
          [-i identity_file] [-L [bind_address:]port:host:hostport]
          [-l login_name] [-m mac_spec] [-O ctl_cmd] [-o option] [-p port]
-         [-R [bind_address:]port:host:hostport] [-S ctl_path]
+         [-R [bind_address:]port:host:hostport] [-S ctl_path] [-W host:port]
          [-w local_tun[:remote_tun]] [user@]hostname [command]
 
 DESCRIPTION
@@ -42,7 +42,7 @@ DESCRIPTION
 
              Agent forwarding should be enabled with caution.  Users with the
              ability to bypass file permissions on the remote host (for the
-             agent's Unix-domain socket) can access the local agent through
+             agent's UNIX-domain socket) can access the local agent through
              the forwarded connection.  An attacker cannot obtain key material
              from the agent, however they can perform operations on the keys
              that enable them to authenticate using the identities loaded into
@@ -131,11 +131,9 @@ DESCRIPTION
 
      -g      Allows remote hosts to connect to local forwarded ports.
 
-     -I smartcard_device
-             Specify the device ssh should use to communicate with a smartcard
-             used for storing the user's private RSA key.  This option is only
-             available if support for smartcard devices is compiled in (de-
-             fault is no support).
+     -I pkcs11
+             Specify the PKCS#11 shared library ssh should use to communicate
+             with a PKCS#11 token providing the user's private RSA key.
 
      -i identity_file
              Selects a file from which the identity (private key) for RSA or
@@ -144,7 +142,9 @@ DESCRIPTION
              tocol version 2.  Identity files may also be specified on a per-
              host basis in the configuration file.  It is possible to have
              multiple -i options (and multiple identities specified in config-
-             uration files).
+             uration files).  ssh will also try to load certificate informa-
+             tion from the filename obtained by appending -cert.pub to identi-
+             ty filenames.
 
      -K      Enables GSSAPI-based authentication and forwarding (delegation)
              of GSSAPI credentials to the server.
@@ -252,6 +252,7 @@ DESCRIPTION
                    NumberOfPasswordPrompts
                    PasswordAuthentication
                    PermitLocalCommand
+                   PKCS11Provider
                    Port
                    PreferredAuthentications
                    Protocol
@@ -264,7 +265,6 @@ DESCRIPTION
                    SendEnv
                    ServerAliveInterval
                    ServerAliveCountMax
-                   SmartcardDevice
                    StrictHostKeyChecking
                    TCPKeepAlive
                    Tunnel
@@ -332,6 +332,12 @@ DESCRIPTION
              tion, and configuration problems.  Multiple -v options increase
              the verbosity.  The maximum is 3.
 
+     -W host:port
+             Requests that standard input and output on the client be forward-
+             ed to host on port over the secure channel.  Implies -N, -T,
+             ExitOnForwardFailure and ClearAllForwardings and works with Pro-
+             tocol version 2 only.
+
      -w local_tun[:remote_tun]
              Requests tunnel device forwarding with the specified tun(4) de-
              vices between the client (local_tun) and the server (remote_tun).
@@ -373,15 +379,14 @@ DESCRIPTION
      error occurred.
 
 AUTHENTICATION
-     The OpenSSH SSH client supports SSH protocols 1 and 2.  Protocol 2 is the
-     default, with ssh falling back to protocol 1 if it detects protocol 2 is
-     unsupported.  These settings may be altered using the Protocol option in
-     ssh_config(5), or enforced using the -1 and -2 options (see above).  Both
-     protocols support similar authentication methods, but protocol 2 is pre-
-     ferred since it provides additional mechanisms for confidentiality (the
-     traffic is encrypted using AES, 3DES, Blowfish, CAST128, or Arcfour) and
-     integrity (hmac-md5, hmac-sha1, umac-64, hmac-ripemd160).  Protocol 1
-     lacks a strong mechanism for ensuring the integrity of the connection.
+     The OpenSSH SSH client supports SSH protocols 1 and 2.  The default is to
+     use protocol 2 only, though this can be changed via the Protocol option
+     in ssh_config(5) or the -1 and -2 options (see above).  Both protocols
+     support similar authentication methods, but protocol 2 is the default
+     since it provides additional mechanisms for confidentiality (the traffic
+     is encrypted using AES, 3DES, Blowfish, CAST128, or Arcfour) and integri-
+     ty (hmac-md5, hmac-sha1, umac-64, hmac-ripemd160).  Protocol 1 lacks a
+     strong mechanism for ensuring the integrity of the connection.
 
      The methods available for authentication are: GSSAPI-based authentica-
      tion, host-based authentication, public key authentication, challenge-re-
@@ -431,8 +436,15 @@ AUTHENTICATION
      though the lines can be very long.  After this, the user can log in with-
      out giving the password.
 
-     The most convenient way to use public key authentication may be with an
-     authentication agent.  See ssh-agent(1) for more information.
+     A variation on public key authentication is available in the form of cer-
+     tificate authentication: instead of a set of public/private keys, signed
+     certificates are used.  This has the advantage that a single trusted cer-
+     tification authority can be used in place of many public/private keys.
+     See the CERTIFICATES section of ssh-keygen(1) for more information.
+
+     The most convenient way to use public key or certificate authentication
+     may be with an authentication agent.  See ssh-agent(1) for more informa-
+     tion.
 
      Challenge-response authentication works as follows: The server sends an
      arbitrary "challenge" text, and prompts for a response.  Protocol 2 al-
@@ -864,4 +876,4 @@ AUTHORS
      created OpenSSH.  Markus Friedl contributed the support for SSH protocol
      versions 1.5 and 2.0.
 
-OpenBSD 4.6                     March 19, 2009                              14
+OpenBSD 4.6                      March 5, 2010                              14

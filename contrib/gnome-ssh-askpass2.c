@@ -120,6 +120,8 @@ passphrase_dialog(char *message)
 	g_signal_connect(G_OBJECT(entry), "activate",
 			 G_CALLBACK(ok_dialog), dialog);
 
+	gtk_window_set_keep_above(GTK_WINDOW(dialog), TRUE);
+
 	/* Grab focus */
 	gtk_widget_show_now(dialog);
 	if (grab_pointer) {

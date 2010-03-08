@@ -19,7 +19,7 @@ ciphers="aes128-cbc 3des-cbc blowfish-cbc cast128-cbc
 for c in $ciphers; do for m in $macs; do
 	trace "proto 2 cipher $c mac $m"
 	for x in $tries; do
-		echo -n "$c/$m:\t"
+		echon "$c/$m:\t"
 		( ${SSH} -o 'compression no' \
 			-F $OBJ/ssh_proxy -2 -m $m -c $c somehost \
 			exec sh -c \'"dd of=/dev/null obs=32k"\' \
@@ -35,7 +35,7 @@ ciphers="3des blowfish"
 for c in $ciphers; do
 	trace "proto 1 cipher $c"
 	for x in $tries; do
-		echo -n "$c:\t"
+		echon "$c:\t"
 		( ${SSH} -o 'compression no' \
 			-F $OBJ/ssh_proxy -1 -c $c somehost \
 			exec sh -c \'"dd of=/dev/null obs=32k"\' \

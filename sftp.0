@@ -4,8 +4,9 @@ NAME
      sftp - secure file transfer program
 
 SYNOPSIS
-     sftp [-1Cv] [-B buffer_size] [-b batchfile] [-F ssh_config]
-          [-o ssh_option] [-P sftp_server_path] [-R num_requests] [-S program]
+     sftp [-1246Cpqrv] [-B buffer_size] [-b batchfile] [-c cipher]
+          [-D sftp_server_path] [-F ssh_config] [-i identity_file]
+          [-o ssh_option] [-P port] [-R num_requests] [-S program]
           [-s subsystem | sftp_server] host
      sftp [user@]host[:file ...]
      sftp [user@]host[:dir[/]]
@@ -31,6 +32,12 @@ DESCRIPTION
 
      -1      Specify the use of protocol version 1.
 
+     -2      Specify the use of protocol version 2.
+
+     -4      Forces sftp to use IPv4 addresses only.
+
+     -6      Forces sftp to use IPv6 addresses only.
+
      -B buffer_size
              Specify the size of the buffer that sftp uses when transferring
              files.  Larger buffers require fewer round trips at the cost of
@@ -49,9 +56,22 @@ DESCRIPTION
 
      -C      Enables compression (via ssh's -C flag).
 
+     -c cipher
+             Selects the cipher to use for encrypting the data transfers.
+             This option is directly passed to ssh(1).
+
+     -D sftp_server_path
+             Connect directly to a local sftp server (rather than via ssh(1)).
+             This option may be useful in debugging the client and server.
+
      -F ssh_config
              Specifies an alternative per-user configuration file for ssh(1).
              This option is directly passed to ssh(1).
+
+     -i identity_file
+             Selects the file from which the identity (private key) for public
+             key authentication is read.  This option is directly passed to
+             ssh(1).
 
      -o ssh_option
              Can be used to pass options to ssh in the format used in
@@ -91,6 +111,7 @@ DESCRIPTION
                    NoHostAuthenticationForLocalhost
                    NumberOfPasswordPrompts
                    PasswordAuthentication
+                   PKCS11Provider
                    Port
                    PreferredAuthentications
                    Protocol
@@ -102,7 +123,6 @@ DESCRIPTION
                    SendEnv
                    ServerAliveInterval
                    ServerAliveCountMax
-                   SmartcardDevice
                    StrictHostKeyChecking
                    TCPKeepAlive
                    UsePrivilegedPort
@@ -110,14 +130,23 @@ DESCRIPTION
                    UserKnownHostsFile
                    VerifyHostKeyDNS
 
-     -P sftp_server_path
-             Connect directly to a local sftp server (rather than via ssh(1)).
-             This option may be useful in debugging the client and server.
+     -P port
+             Specifies the port to connect to on the remote host.
+
+     -p      Preserves modification times, access times, and modes from the
+             original files transferred.
+
+     -q      Quiet mode: disables the progress meter as well as warning and
+             diagnostic messages from ssh(1).
 
      -R num_requests
              Specify how many requests may be outstanding at any one time.
              Increasing this may slightly improve file transfer speed but will
              increase memory usage.  The default is 64 outstanding requests.
+
+     -r      Recursively copy entire directories when uploading and download-
+             ing.  Note that sftp does not follow symbolic links encountered
+             in the tree traversal.
 
      -S program
              Name of the program to use for the encrypted connection.  The
@@ -165,14 +194,19 @@ INTERACTIVE COMMANDS
 
      exit    Quit sftp.
 
-     get [-P] remote-path [local-path]
+     get [-Ppr] remote-path [local-path]
              Retrieve the remote-path and store it on the local machine.  If
              the local path name is not specified, it is given the same name
              it has on the remote machine.  remote-path may contain glob(3)
              characters and may match multiple files.  If it does and local-
-             path is specified, then local-path must specify a directory.  If
-             the -P flag is specified, then full file permissions and access
-             times are copied too.
+             path is specified, then local-path must specify a directory.
+
+             If either the -P or -p flag is specified, then full file permis-
+             sions and access times are copied too.
+
+             If the -r flag is specified then directories will be copied re-
+             cursively.  Note that sftp does not follow symbolic links when
+             performing recursive transfers.
 
      help    Display help text.
 
@@ -193,7 +227,7 @@ INTERACTIVE COMMANDS
 
      lpwd    Print local working directory.
 
-     ls [-1aflnrSt] [path]
+     ls [-1afhlnrSt] [path]
              Display a remote directory listing of either path or the current
              directory if path is not specified.  path may contain glob(3)
              characters and may match multiple files.
@@ -207,6 +241,12 @@ INTERACTIVE COMMANDS
 
              -f      Do not sort the listing.  The default sort order is lexi-
                      cographical.
+
+             -h      When used with a long format option, use unit suffixes:
+                     Byte, Kilobyte, Megabyte, Gigabyte, Terabyte, Petabyte,
+                     and Exabyte in order to reduce the number of digits to
+                     four or fewer using powers of 2 for sizes (K=1024,
+                     M=1048576, etc.).
 
              -l      Display additional details including permissions and own-
                      ership information.
@@ -229,14 +269,19 @@ INTERACTIVE COMMANDS
      progress
              Toggle display of progress meter.
 
-     put [-P] local-path [remote-path]
+     put [-Ppr] local-path [remote-path]
              Upload local-path and store it on the remote machine.  If the re-
              mote path name is not specified, it is given the same name it has
              on the local machine.  local-path may contain glob(3) characters
              and may match multiple files.  If it does and remote-path is
-             specified, then remote-path must specify a directory.  If the -P
-             flag is specified, then the file's full permission and access
-             time are copied too.
+             specified, then remote-path must specify a directory.
+
+             If ether the -P or -p flag is specified, then full file permis-
+             sions and access times are copied too.
+
+             If the -r flag is specified then directories will be copied re-
+             cursively.  Note that sftp does not follow symbolic links when
+             performing recursive transfers.
 
      pwd     Display remote working directory.
 
@@ -271,4 +316,4 @@ SEE ALSO
      T. Ylonen and S. Lehtinen, SSH File Transfer Protocol, draft-ietf-secsh-
      filexfer-00.txt, January 2001, work in progress material.
 
-OpenBSD 4.6                    December 9, 2008                              5
+OpenBSD 4.6                    February 8, 2010                              5

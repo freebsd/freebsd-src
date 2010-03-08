@@ -57,9 +57,9 @@ for p in 1 2; do
 done
 
 # Retry previous with key option, should also be denied.
-echo -n 'permitopen="127.0.0.1:'$PORT'" ' >$OBJ/authorized_keys_$USER
+echon 'permitopen="127.0.0.1:'$PORT'" ' >$OBJ/authorized_keys_$USER
 cat $OBJ/rsa.pub >> $OBJ/authorized_keys_$USER
-echo -n 'permitopen="127.0.0.1:'$PORT'" ' >>$OBJ/authorized_keys_$USER
+echon 'permitopen="127.0.0.1:'$PORT'" ' >>$OBJ/authorized_keys_$USER
 cat $OBJ/rsa1.pub >> $OBJ/authorized_keys_$USER
 for p in 1 2; do
 	rm -f $pidfile

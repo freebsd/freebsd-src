@@ -316,7 +316,9 @@ DESCRIPTION
              identity is read.  The default is ~/.ssh/identity for protocol
              version 1, and ~/.ssh/id_rsa and ~/.ssh/id_dsa for protocol ver-
              sion 2.  Additionally, any identities represented by the authen-
-             tication agent will be used for authentication.
+             tication agent will be used for authentication.  ssh(1) will try
+             to load certificate information from the filename obtained by ap-
+             pending -cert.pub to the path of a specified IdentityFile.
 
              The file name may use the tilde syntax to refer to a user's home
              directory or one of the following escape characters: `%d' (local
@@ -347,8 +349,14 @@ DESCRIPTION
              `%d' (local user's home directory), `%h' (remote host name), `%l'
              (local host name), `%n' (host name as provided on the command
              line), `%p' (remote port), `%r' (remote user name) or `%u' (local
-             user name).  This directive is ignored unless PermitLocalCommand
-             has been enabled.
+             user name).
+
+             The command is run synchronously and does not have access to the
+             session of the ssh(1) that spawned it.  It should not be used for
+             interactive commands.
+
+             This directive is ignored unless PermitLocalCommand has been en-
+             abled.
 
      LocalForward
              Specifies that a TCP port on the local machine be forwarded over
@@ -405,6 +413,11 @@ DESCRIPTION
              ing the !command escape sequence in ssh(1).  The argument must be
              ``yes'' or ``no''.  The default is ``no''.
 
+     PKCS11Provider
+             Specifies which PKCS#11 provider to use.  The argument to this
+             keyword is the PKCS#11 shared libary ssh(1) should use to commu-
+             nicate with a PKCS#11 token providing the user's private RSA key.
+
      Port    Specifies the port number to connect on the remote host.  The de-
              fault is 22.
 
@@ -418,9 +431,9 @@ DESCRIPTION
      Protocol
              Specifies the protocol versions ssh(1) should support in order of
              preference.  The possible values are `1' and `2'.  Multiple ver-
-             sions must be comma-separated.  The default is ``2,1''.  This
-             means that ssh tries version 2 and falls back to version 1 if
-             version 2 is not available.
+             sions must be comma-separated.  When this option is set to
+             ``2,1'' ssh will try version 2 and fall back to version 1 if ver-
+             sion 2 is not available.  The default is `2'.
 
      ProxyCommand
              Specifies the command to use to connect to the server.  The com-
@@ -526,13 +539,6 @@ DESCRIPTION
              the encrypted channel to request a response from the server.  The
              default is 0, indicating that these messages will not be sent to
              the server.  This option applies to protocol version 2 only.
-
-     SmartcardDevice
-             Specifies which smartcard device to use.  The argument to this
-             keyword is the device ssh(1) should use to communicate with a
-             smartcard used for storing the user's private RSA key.  By de-
-             fault, no device is specified and smartcard support is not acti-
-             vated.
 
      StrictHostKeyChecking
              If this flag is set to ``yes'', ssh(1) will never automatically
@@ -667,4 +673,4 @@ AUTHORS
      ated OpenSSH.  Markus Friedl contributed the support for SSH protocol
      versions 1.5 and 2.0.
 
-OpenBSD 4.6                    February 22, 2009                            11
+OpenBSD 4.6                      March 5, 2010                              11

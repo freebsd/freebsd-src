@@ -1,4 +1,4 @@
-#	$OpenBSD: ssh-com-sftp.sh,v 1.5 2004/02/24 17:06:52 markus Exp $
+#	$OpenBSD: ssh-com-sftp.sh,v 1.6 2009/08/20 18:43:07 djm Exp $
 #	Placed in the Public Domain.
 
 tid="basic sftp put/get with ssh.com server"
@@ -51,7 +51,7 @@ for v in ${VERSIONS}; do
 		for R in ${REQUESTS}; do
 			verbose "test $tid: buffer_size $B num_requests $R"
 			rm -f ${COPY}.1 ${COPY}.2
-			${SFTP} -P ${server} -B $B -R $R -b $SFTPCMDFILE \
+			${SFTP} -D ${server} -B $B -R $R -b $SFTPCMDFILE \
 			> /dev/null 2>&1
 			r=$?
 			if [ $r -ne 0 ]; then
