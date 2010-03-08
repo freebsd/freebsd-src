@@ -1,11 +1,11 @@
 # $FreeBSD$
 
-.if ${MACHINE_ARCH} == "amd64" || ${MACHINE_ARCH} == "ia64"
-.error "ACPI can only be compiled into the kernel on the amd64 and ia64 platforms"
+.if ${MACHINE_ARCH} == "ia64"
+.error "ACPI can only be compiled into the kernel on the ia64 platform"
 .endif
 
-.if ${MACHINE} != "i386"
-.error "The ACPI module is only for i386"
+.if ${MACHINE} != "amd64" && ${MACHINE} != "i386"
+.error "The ACPI module is only for amd64 and i386"
 .endif
 
 .PATH:	${.CURDIR}/../../../contrib/dev/acpica/debugger \
@@ -97,9 +97,13 @@ opt_ddb.h: Makefile
 SRCS+=	acpi_machdep.c acpi_wakecode.h acpi_wakeup.c
 SRCS+=	assym.s madt.c
 CLEANFILES+=	acpi_wakecode.bin acpi_wakecode.h acpi_wakecode.o
+
 .if ${MACHINE_ARCH} == "amd64"
-SRCS+=	opt_global.h
+SRCS+=	acpi_switch.S opt_global.h
 CLEANFILES+=	acpi_wakedata.h
+ASM_CFLAGS=	-x assembler-with-cpp -DLOCORE ${CFLAGS}
+acpi_switch.o:	acpi_switch.S
+	${CC} -c ${ASM_CFLAGS} ${WERROR} ${.IMPSRC}
 .endif
 
 acpi_wakecode.h: acpi_wakecode.S assym.s
