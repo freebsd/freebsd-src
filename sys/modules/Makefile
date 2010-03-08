@@ -273,7 +273,7 @@ SUBDIR=	${_3dfx} \
 	sysvipc \
 	ti \
 	tl \
-	${_tmpfs} \
+	tmpfs \
 	trm \
 	${_twa} \
 	twe \
@@ -416,7 +416,6 @@ _sppp=		sppp
 _stg=		stg
 _streams=	streams
 _svr4=		svr4
-_tmpfs=		tmpfs
 _wi=		wi
 _xe=		xe
 .if ${MK_ZFS} != "no" || defined(ALL_MODULES)
@@ -554,7 +553,6 @@ _sound=		sound
 _speaker=	speaker
 _splash=	splash
 _sppp=		sppp
-_tmpfs=		tmpfs
 _twa=		twa
 _vesa=		vesa
 _x86bios=	x86bios
