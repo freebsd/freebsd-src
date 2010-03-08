@@ -1,4 +1,4 @@
-/* $OpenBSD: servconf.c,v 1.195 2009/04/14 21:10:54 jj Exp $ */
+/* $OpenBSD: servconf.c,v 1.204 2010/03/04 10:36:03 djm Exp $ */
 /*
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
  *                    All rights reserved
@@ -65,6 +65,7 @@ initialize_server_options(ServerOptions *options)
 	options->listen_addrs = NULL;
 	options->address_family = -1;
 	options->num_host_key_files = 0;
+	options->num_host_cert_files = 0;
 	options->pid_file = NULL;
 	options->server_key_bits = -1;
 	options->login_grace_time = -1;
@@ -128,6 +129,8 @@ initialize_server_options(ServerOptions *options)
 	options->adm_forced_command = NULL;
 	options->chroot_directory = NULL;
 	options->zero_knowledge_password_authentication = -1;
+	options->revoked_keys_file = NULL;
+	options->trusted_user_ca_keys = NULL;
 }
 
 void
@@ -139,7 +142,7 @@ fill_default_server_options(ServerOptions *options)
 
 	/* Standard Options */
 	if (options->protocol == SSH_PROTO_UNKNOWN)
-		options->protocol = SSH_PROTO_1|SSH_PROTO_2;
+		options->protocol = SSH_PROTO_2;
 	if (options->num_host_key_files == 0) {
 		/* fill default hostkeys for protocols */
 		if (options->protocol & SSH_PROTO_1)
@@ -152,6 +155,7 @@ fill_default_server_options(ServerOptions *options)
 			    _PATH_HOST_DSA_KEY_FILE;
 		}
 	}
+	/* No certificates by default */
 	if (options->num_ports == 0)
 		options->ports[options->num_ports++] = SSH_DEFAULT_PORT;
 	if (options->listen_addrs == NULL)
@@ -305,7 +309,8 @@ typedef enum {
 	sGssAuthentication, sGssCleanupCreds, sAcceptEnv, sPermitTunnel,
 	sMatch, sPermitOpen, sForceCommand, sChrootDirectory,
 	sUsePrivilegeSeparation, sAllowAgentForwarding,
-	sZeroKnowledgePasswordAuthentication,
+	sZeroKnowledgePasswordAuthentication, sHostCertificate,
+	sRevokedKeys, sTrustedUserCAKeys,
 	sDeprecated, sUnsupported
 } ServerOpCodes;
 
@@ -424,6 +429,9 @@ static struct {
 	{ "permitopen", sPermitOpen, SSHCFG_ALL },
 	{ "forcecommand", sForceCommand, SSHCFG_ALL },
 	{ "chrootdirectory", sChrootDirectory, SSHCFG_ALL },
+	{ "hostcertificate", sHostCertificate, SSHCFG_GLOBAL },
+	{ "revokedkeys", sRevokedKeys, SSHCFG_ALL },
+	{ "trustedusercakeys", sTrustedUserCAKeys, SSHCFG_ALL },
 	{ NULL, sBadOption, 0 }
 };
 
@@ -457,6 +465,22 @@ parse_token(const char *cp, const char *filename,
 	error("%s: line %d: Bad configuration option: %s",
 	    filename, linenum, cp);
 	return sBadOption;
+}
+
+char *
+derelativise_path(const char *path)
+{
+	char *expanded, *ret, *cwd;
+
+	expanded = tilde_expand_filename(path, getuid());
+	if (*expanded == '/')
+		return expanded;
+	if ((cwd = getcwd(NULL, 0)) == NULL)
+		fatal("%s: getcwd: %s", __func__, strerror(errno));
+	xasprintf(&ret, "%s/%s", cwd, expanded);
+	xfree(cwd);
+	xfree(expanded);
+	return ret;
 }
 
 static void
@@ -793,11 +817,21 @@ process_server_config_line(ServerOptions *options, char *line,
 			fatal("%s line %d: missing file name.",
 			    filename, linenum);
 		if (*activep && *charptr == NULL) {
-			*charptr = tilde_expand_filename(arg, getuid());
+			*charptr = derelativise_path(arg);
 			/* increase optional counter */
 			if (intptr != NULL)
 				*intptr = *intptr + 1;
 		}
+		break;
+
+	case sHostCertificate:
+		intptr = &options->num_host_cert_files;
+		if (*intptr >= MAX_HOSTKEYS)
+			fatal("%s line %d: too many host certificates "
+			    "specified (max %d).", filename, linenum,
+			    MAX_HOSTCERTS);
+		charptr = &options->host_cert_files[*intptr];
+		goto parse_filename;
 		break;
 
 	case sPidFile:
@@ -1294,6 +1328,14 @@ process_server_config_line(ServerOptions *options, char *line,
 			*charptr = xstrdup(arg);
 		break;
 
+	case sTrustedUserCAKeys:
+		charptr = &options->trusted_user_ca_keys;
+		goto parse_filename;
+
+	case sRevokedKeys:
+		charptr = &options->revoked_keys_file;
+		goto parse_filename;
+
 	case sDeprecated:
 		logit("%s line %d: Deprecated option %s",
 		    filename, linenum, arg);
@@ -1408,6 +1450,8 @@ copy_set_server_options(ServerOptions *dst, ServerOptions *src, int preauth)
 		return;
 	M_CP_STROPT(adm_forced_command);
 	M_CP_STROPT(chroot_directory);
+	M_CP_STROPT(trusted_user_ca_keys);
+	M_CP_STROPT(revoked_keys_file);
 }
 
 #undef M_CP_INTOPT
@@ -1626,6 +1670,9 @@ dump_config(ServerOptions *o)
 	dump_cfg_string(sAuthorizedKeysFile, o->authorized_keys_file);
 	dump_cfg_string(sAuthorizedKeysFile2, o->authorized_keys_file2);
 	dump_cfg_string(sForceCommand, o->adm_forced_command);
+	dump_cfg_string(sChrootDirectory, o->chroot_directory);
+	dump_cfg_string(sTrustedUserCAKeys, o->trusted_user_ca_keys);
+	dump_cfg_string(sRevokedKeys, o->revoked_keys_file);
 
 	/* string arguments requiring a lookup */
 	dump_cfg_string(sLogLevel, log_level_name(o->log_level));
@@ -1634,6 +1681,8 @@ dump_config(ServerOptions *o)
 	/* string array arguments */
 	dump_cfg_strarray(sHostKeyFile, o->num_host_key_files,
 	     o->host_key_files);
+	dump_cfg_strarray(sHostKeyFile, o->num_host_cert_files,
+	     o->host_cert_files);
 	dump_cfg_strarray(sAllowUsers, o->num_allow_users, o->allow_users);
 	dump_cfg_strarray(sDenyUsers, o->num_deny_users, o->deny_users);
 	dump_cfg_strarray(sAllowGroups, o->num_allow_groups, o->allow_groups);

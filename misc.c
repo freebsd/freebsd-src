@@ -1,4 +1,4 @@
-/* $OpenBSD: misc.c,v 1.71 2009/02/21 19:32:04 tobias Exp $ */
+/* $OpenBSD: misc.c,v 1.75 2010/01/09 23:04:13 dtucker Exp $ */
 /*
  * Copyright (c) 2000 Markus Friedl.  All rights reserved.
  * Copyright (c) 2005,2006 Damien Miller.  All rights reserved.
@@ -560,11 +560,11 @@ char *
 percent_expand(const char *string, ...)
 {
 #define EXPAND_MAX_KEYS	16
+	u_int num_keys, i, j;
 	struct {
 		const char *key;
 		const char *repl;
 	} keys[EXPAND_MAX_KEYS];
-	u_int num_keys, i, j;
 	char buf[4096];
 	va_list ap;
 
@@ -576,12 +576,11 @@ percent_expand(const char *string, ...)
 			break;
 		keys[num_keys].repl = va_arg(ap, char *);
 		if (keys[num_keys].repl == NULL)
-			fatal("percent_expand: NULL replacement");
+			fatal("%s: NULL replacement", __func__);
 	}
+	if (num_keys == EXPAND_MAX_KEYS && va_arg(ap, char *) != NULL)
+		fatal("%s: too many keys", __func__);
 	va_end(ap);
-
-	if (num_keys >= EXPAND_MAX_KEYS)
-		fatal("percent_expand: too many keys");
 
 	/* Expand string */
 	*buf = '\0';
@@ -590,23 +589,24 @@ percent_expand(const char *string, ...)
  append:
 			buf[i++] = *string;
 			if (i >= sizeof(buf))
-				fatal("percent_expand: string too long");
+				fatal("%s: string too long", __func__);
 			buf[i] = '\0';
 			continue;
 		}
 		string++;
+		/* %% case */
 		if (*string == '%')
 			goto append;
 		for (j = 0; j < num_keys; j++) {
 			if (strchr(keys[j].key, *string) != NULL) {
 				i = strlcat(buf, keys[j].repl, sizeof(buf));
 				if (i >= sizeof(buf))
-					fatal("percent_expand: string too long");
+					fatal("%s: string too long", __func__);
 				break;
 			}
 		}
 		if (j >= num_keys)
-			fatal("percent_expand: unknown key %%%c", *string);
+			fatal("%s: unknown key %%%c", __func__, *string);
 	}
 	return (xstrdup(buf));
 #undef EXPAND_MAX_KEYS
@@ -849,3 +849,14 @@ ms_to_timeval(struct timeval *tv, int ms)
 	tv->tv_usec = (ms % 1000) * 1000;
 }
 
+void
+sock_set_v6only(int s)
+{
+#ifdef IPV6_V6ONLY
+	int on = 1;
+
+	debug3("%s: set socket %d IPV6_V6ONLY", __func__, s);
+	if (setsockopt(s, IPPROTO_IPV6, IPV6_V6ONLY, &on, sizeof(on)) == -1)
+		error("setsockopt IPV6_V6ONLY: %s", strerror(errno));
+#endif
+}

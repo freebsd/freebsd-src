@@ -93,14 +93,14 @@ DESCRIPTION
              login.conf(5)) The default is ``yes''.
 
      ChrootDirectory
-             Specifies a path to chroot(2) to after authentication.  This
-             path, and all its components, must be root-owned directories that
-             are not writable by any other user or group.  After the chroot,
-             sshd(8) changes the working directory to the user's home directo-
-             ry.
+             Specifies the pathname of a directory to chroot(2) to after au-
+             thentication.  All components of the pathname must be root-owned
+             directories that are not writable by any other user or group.
+             After the chroot, sshd(8) changes the working directory to the
+             user's home directory.
 
-             The path may contain the following tokens that are expanded at
-             runtime once the connecting user has been authenticated: %% is
+             The pathname may contain the following tokens that are expanded
+             at runtime once the connecting user has been authenticated: %% is
              replaced by a literal '%', %h is replaced by the home directory
              of the user being authenticated, and %u is replaced by the user-
              name of that user.
@@ -235,6 +235,12 @@ DESCRIPTION
              resolve the name from the TCP connection itself.  The default is
              ``no''.
 
+     HostCertificate
+             Specifies a file containing a public host certificate.  The cer-
+             tificate's public key must match a private host key already spec-
+             ified by HostKey.  The default behaviour of sshd(8) is not to
+             load any certificates.
+
      HostKey
              Specifies a file containing a private host key used by SSH.  The
              default is /etc/ssh/ssh_host_key for protocol version 1, and
@@ -346,8 +352,8 @@ DESCRIPTION
              KbdInteractiveAuthentication, KerberosAuthentication,
              MaxAuthTries, MaxSessions, PasswordAuthentication,
              PermitEmptyPasswords, PermitOpen, PermitRootLogin,
-             RhostsRSAAuthentication, RSAAuthentication, X11DisplayOffset,
-             X11Forwarding and X11UseLocalHost.
+             PubkeyAuthentication, RhostsRSAAuthentication, RSAAuthentication,
+             X11DisplayOffset, X11Forwarding and X11UseLocalHost.
 
      MaxAuthTries
              Specifies the maximum number of authentication attempts permitted
@@ -445,7 +451,7 @@ DESCRIPTION
      Protocol
              Specifies the protocol versions sshd(8) supports.  The possible
              values are `1' and `2'.  Multiple versions must be comma-separat-
-             ed.  The default is ``2,1''.  Note that the order of the protocol
+             ed.  The default is `2'.  Note that the order of the protocol
              list does not indicate preference, because the client selects
              among multiple protocol versions offered by the server.  Specify-
              ing ``2,1'' is identical to ``1,2''.
@@ -454,6 +460,12 @@ DESCRIPTION
              Specifies whether public key authentication is allowed.  The de-
              fault is ``yes''.  Note that this option applies to protocol ver-
              sion 2 only.
+
+     RevokedKeys
+             Specifies a list of revoked public keys.  Keys listed in this
+             file will be refused for public key authentication.  Note that if
+             this file is not readable, then public key authentication will be
+             refused for all users.
 
      RhostsRSAAuthentication
              Specifies whether rhosts or /etc/hosts.equiv authentication to-
@@ -475,7 +487,8 @@ DESCRIPTION
              of the user's files and home directory before accepting login.
              This is normally desirable because novices sometimes accidentally
              leave their directory or files world-writable.  The default is
-             ``yes''.
+             ``yes''.  Note that this does not apply to ChrootDirectory, whose
+             permissions and ownership are checked unconditionally.
 
      Subsystem
              Configures an external subsystem (e.g. file transfer daemon).
@@ -514,6 +527,18 @@ DESCRIPTION
 
              To disable TCP keepalive messages, the value should be set to
              ``no''.
+
+     TrustedUserCAKeys
+             Specifies a file containing public keys of certificate authori-
+             ties that are trusted to sign user certificates for authentica-
+             tion.  Keys are listed one per line; empty lines and comments
+             starting with `#' are allowed.  If a certificate is presented for
+             authentication and has its signing CA key listed in this file,
+             then it may be used for authentication for any user listed in the
+             certificate's principals list.  Note that certificates that lack
+             a list of principals will not be permitted for authentication us-
+             ing TrustedUserCAKeys.  For more details on certificates, see the
+             CERTIFICATES section in ssh-keygen(1).
 
      UseDNS  Specifies whether sshd(8) should look up the remote host name and
              check that the resolved host name for the remote IP address maps
@@ -631,4 +656,4 @@ AUTHORS
      versions 1.5 and 2.0.  Niels Provos and Markus Friedl contributed support
      for privilege separation.
 
-OpenBSD 4.6                     April 21, 2009                              10
+OpenBSD 4.6                      March 4, 2010                              10

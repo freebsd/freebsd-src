@@ -4,7 +4,7 @@ NAME
      sftp-server - SFTP server subsystem
 
 SYNOPSIS
-     sftp-server [-f log_facility] [-l log_level]
+     sftp-server [-ehR] [-f log_facility] [-l log_level] [-u umask]
 
 DESCRIPTION
      sftp-server is a program that speaks the server side of SFTP protocol to
@@ -17,11 +17,16 @@ DESCRIPTION
 
      Valid options are:
 
+     -e      Causes sftp-server to print logging information to stderr instead
+             of syslog for debugging.
+
      -f log_facility
              Specifies the facility code that is used when logging messages
              from sftp-server.  The possible values are: DAEMON, USER, AUTH,
              LOCAL0, LOCAL1, LOCAL2, LOCAL3, LOCAL4, LOCAL5, LOCAL6, LOCAL7.
              The default is AUTH.
+
+     -h      Displays sftp-server usage information.
 
      -l log_level
              Specifies which messages will be logged by sftp-server.  The pos-
@@ -30,6 +35,14 @@ DESCRIPTION
              sftp-server performs on behalf of the client.  DEBUG and DEBUG1
              are equivalent.  DEBUG2 and DEBUG3 each specify higher levels of
              debugging output.  The default is ERROR.
+
+     -R      Places this instance of sftp-server into a read-only mode.  At-
+             tempts to open files for writing, as well as other operations
+             that change the state of the filesystem, will be denied.
+
+     -u umask
+             Sets an explicit umask(2) to be applied to newly-created files
+             and directories, instead of the user's default mask.
 
      For logging to work, sftp-server must be able to access /dev/log.  Use of
      sftp-server in a chroot configuration therefore requires that syslogd(8)
@@ -47,4 +60,4 @@ HISTORY
 AUTHORS
      Markus Friedl <markus@openbsd.org>
 
-OpenBSD 4.6                     March 26, 2009                               1
+OpenBSD 4.6                     January 9, 2010                              1

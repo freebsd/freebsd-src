@@ -5,17 +5,20 @@ NAME
 
 SYNOPSIS
      ssh-add [-cDdLlXx] [-t life] [file ...]
-     ssh-add -s reader
-     ssh-add -e reader
+     ssh-add -s pkcs11
+     ssh-add -e pkcs11
 
 DESCRIPTION
      ssh-add adds RSA or DSA identities to the authentication agent,
      ssh-agent(1).  When run without arguments, it adds the files
-     ~/.ssh/id_rsa, ~/.ssh/id_dsa and ~/.ssh/identity.  Alternative file names
-     can be given on the command line.  If any file requires a passphrase,
-     ssh-add asks for the passphrase from the user.  The passphrase is read
-     from the user's tty.  ssh-add retries the last passphrase if multiple
-     identity files are given.
+     ~/.ssh/id_rsa, ~/.ssh/id_dsa and ~/.ssh/identity.  After loading a pri-
+     vate key, ssh-add will try to load corresponding certificate information
+     from the filename obtained by appending -cert.pub to the name of the pri-
+     vate key file.  Alternative file names can be given on the command line.
+
+     If any file requires a passphrase, ssh-add asks for the passphrase from
+     the user.  The passphrase is read from the user's tty.  ssh-add retries
+     the last passphrase if multiple identity files are given.
 
      The authentication agent must be running and the SSH_AUTH_SOCK environ-
      ment variable must contain the name of its socket for ssh-add to work.
@@ -37,8 +40,8 @@ DESCRIPTION
              matching keys will be removed from the agent.  If no public key
              is found at a given path, ssh-add will append .pub and retry.
 
-     -e reader
-             Remove key in smartcard reader.
+     -e pkcs11
+             Remove keys provided by the PKCS#11 shared library pkcs11.
 
      -L      Lists public key parameters of all identities currently repre-
              sented by the agent.
@@ -46,8 +49,8 @@ DESCRIPTION
      -l      Lists fingerprints of all identities currently represented by the
              agent.
 
-     -s reader
-             Add key in smartcard reader.
+     -s pkcs11
+             Add keys provided by the PKCS#11 shared library pkcs11.
 
      -t life
              Set a maximum lifetime when adding identities to an agent.  The
@@ -70,7 +73,7 @@ ENVIRONMENT
              to redirect the input from /dev/null to make this work.)
 
      SSH_AUTH_SOCK
-             Identifies the path of a unix-domain socket used to communicate
+             Identifies the path of a UNIX-domain socket used to communicate
              with the agent.
 
 FILES
@@ -103,4 +106,4 @@ AUTHORS
      ated OpenSSH.  Markus Friedl contributed the support for SSH protocol
      versions 1.5 and 2.0.
 
-OpenBSD 4.6                      June 12, 2007                               2
+OpenBSD 4.6                      March 5, 2010                               2

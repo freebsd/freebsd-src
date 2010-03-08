@@ -1,6 +1,6 @@
 #!/usr/bin/awk
 #
-# $Id: mdoc2man.awk,v 1.8 2007/06/05 10:01:16 dtucker Exp $
+# $Id: mdoc2man.awk,v 1.9 2009/10/24 00:52:42 dtucker Exp $
 #
 # Version history:
 #  v4+ Adapted for OpenSSH Portable (see cvs Id and history)
@@ -149,6 +149,9 @@ function add(str) {
     } else if(match(words[w],"^Dt$")) {
       id=wtail()
       next
+    } else if(match(words[w],"^Ux$")) {
+      add("UNIX")
+      skip=1
     } else if(match(words[w],"^Ox$")) {
       add("OpenBSD")
       skip=1

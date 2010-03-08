@@ -1,4 +1,4 @@
-#	$OpenBSD: test-exec.sh,v 1.35 2008/06/28 13:57:25 djm Exp $
+#	$OpenBSD: test-exec.sh,v 1.37 2010/02/24 06:21:56 djm Exp $
 #	Placed in the Public Domain.
 
 #SUDO=sudo
@@ -172,9 +172,17 @@ cleanup ()
 			echo no sshd running
 		else
 			if [ $pid -lt 2 ]; then
-				echo bad pid for ssd: $pid
+				echo bad pid for ssh: $pid
 			else
 				$SUDO kill $pid
+				trace "wait for sshd to exit"
+				i=0;
+				while [ -f $PIDFILE -a $i -lt 5 ]; do
+					i=`expr $i + 1`
+					sleep $i
+				done
+				test -f $PIDFILE && \
+				    fatal "sshd didn't exit port $PORT pid $pid"
 			fi
 		fi
 	fi
@@ -222,6 +230,7 @@ trap fatal 3 2
 cat << EOF > $OBJ/sshd_config
 	StrictModes		no
 	Port			$PORT
+	Protocol		2,1
 	AddressFamily		inet
 	ListenAddress		127.0.0.1
 	#ListenAddress		::1
@@ -247,6 +256,7 @@ echo 'StrictModes no' >> $OBJ/sshd_proxy
 # create client config
 cat << EOF > $OBJ/ssh_config
 Host *
+	Protocol		2,1
 	Hostname		127.0.0.1
 	HostKeyAlias		localhost-with-alias
 	Port			$PORT

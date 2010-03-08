@@ -14,6 +14,8 @@ piddir=@piddir@
 
 SSHD=$prefix/sbin/sshd
 PIDFILE=$piddir/sshd.pid
+PidFile=`grep "^PidFile" ${sysconfdir}/sshd_config | tr "=" " " | awk '{print $2}'`
+[ X$PidFile = X ]  ||  PIDFILE=$PidFile
 SSH_KEYGEN=$prefix/bin/ssh-keygen
 HOST_KEY_RSA1=$sysconfdir/ssh_host_key
 HOST_KEY_DSA=$sysconfdir/ssh_host_dsa_key

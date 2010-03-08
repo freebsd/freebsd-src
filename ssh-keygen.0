@@ -13,15 +13,17 @@ SYNOPSIS
      ssh-keygen -c [-P passphrase] [-C comment] [-f keyfile]
      ssh-keygen -l [-f input_keyfile]
      ssh-keygen -B [-f input_keyfile]
-     ssh-keygen -D reader
+     ssh-keygen -D pkcs11
      ssh-keygen -F hostname [-f known_hosts_file] [-l]
      ssh-keygen -H [-f known_hosts_file]
      ssh-keygen -R hostname [-f known_hosts_file]
-     ssh-keygen -U reader [-f input_keyfile]
      ssh-keygen -r hostname [-f input_keyfile] [-g]
      ssh-keygen -G output_file [-v] [-b bits] [-M memory] [-S start_point]
-     ssh-keygen -T output_file -f input_file [-v] [-a num_trials] [-W
-                generator]
+     ssh-keygen -T output_file -f input_file [-v] [-a num_trials]
+                [-W generator]
+     ssh-keygen -s ca_key -I certificate_identity [-h] [-n principals]
+                [-O constraint] [-V validity_interval] file ...
+     ssh-keygen -L [-f input_keyfile]
 
 DESCRIPTION
      ssh-keygen generates, manages and converts authentication keys for
@@ -89,8 +91,9 @@ DESCRIPTION
              gram will prompt for the file containing the private keys, for
              the passphrase if the key has one, and for the new comment.
 
-     -D reader
-             Download the RSA public key stored in the smartcard in reader.
+     -D pkcs11
+             Download the RSA public keys provided by the PKCS#11 shared li-
+             brary pkcs11.
 
      -e      This option will read a private or public OpenSSH key file and
              print the key in RFC 4716 SSH Public Key File Format to stdout.
@@ -122,11 +125,20 @@ DESCRIPTION
              and is therefore safe to use on files that mix hashed and non-
              hashed names.
 
+     -h      When signing a key, create a host certificate instead of a user
+             certificate.  Please see the CERTIFICATES section for details.
+
+     -I certificate_identity
+             Specify the key identity when signing a public key.  Please see
+             the CERTIFICATES section for details.
+
      -i      This option will read an unencrypted private (or public) key file
              in SSH2-compatible format and print an OpenSSH compatible private
              (or public) key to stdout.  ssh-keygen also reads the RFC 4716
              SSH Public Key File Format.  This option allows importing keys
              from several commercial SSH implementations.
+
+     -L      Prints the contents of a certificate.
 
      -l      Show fingerprint of specified public key file.  Private RSA1 keys
              are also supported.  For RSA and DSA keys ssh-keygen tries to
@@ -140,6 +152,65 @@ DESCRIPTION
 
      -N new_passphrase
              Provides the new passphrase.
+
+     -n principals
+             Specify one or more principals (user or host names) to be includ-
+             ed in a certificate when signing a key.  Multiple principals may
+             be specified, separated by commas.  Please see the CERTIFICATES
+             section for details.
+
+     -O constraint
+             Specify a certificate constraint when signing a key.  This option
+             may be specified multiple times.  Please see the CERTIFICATES
+             section for details.  The constraints that are valid for user
+             certificates are:
+
+             no-x11-forwarding
+                     Disable X11 forwarding (permitted by default).
+
+             no-agent-forwarding
+                     Disable ssh-agent(1) forwarding (permitted by default).
+
+             no-port-forwarding
+                     Disable port forwarding (permitted by default).
+
+             no-pty  Disable PTY allocation (permitted by default).
+
+             no-user-rc
+                     Disable execution of ~/.ssh/rc by sshd(8) (permitted by
+                     default).
+
+             clear   Clear all enabled permissions.  This is useful for clear-
+                     ing the default set of permissions so permissions may be
+                     added individually.
+
+             permit-x11-forwarding
+                     Allows X11 forwarding.
+
+             permit-agent-forwarding
+                     Allows ssh-agent(1) forwarding.
+
+             permit-port-forwarding
+                     Allows port forwarding.
+
+             permit-pty
+                     Allows PTY allocation.
+
+             permit-user-rc
+                     Allows execution of ~/.ssh/rc by sshd(8).
+
+             force-command=command
+                     Forces the execution of command instead of any shell or
+                     command specified by the user when the certificate is
+                     used for authentication.
+
+             source-address=address_list
+                     Restrict the source addresses from which the certificate
+                     is considered valid from.  The address_list is a comma-
+                     separated list of one or more address/netmask pairs in
+                     CIDR format.
+
+             At present, no constraints are valid for host keys.
 
      -P passphrase
              Provides the (old) passphrase.
@@ -164,6 +235,10 @@ DESCRIPTION
              Specify start point (in hex) when generating candidate moduli for
              DH-GEX.
 
+     -s ca_key
+             Certify (sign) a public key using the specified CA key.  Please
+             see the CERTIFICATES section for details.
+
      -T output_file
              Test DH group exchange candidate primes (generated using the -G
              option) for safety.
@@ -173,8 +248,25 @@ DESCRIPTION
              ``rsa1'' for protocol version 1 and ``rsa'' or ``dsa'' for proto-
              col version 2.
 
-     -U reader
-             Upload an existing RSA private key into the smartcard in reader.
+     -V validity_interval
+             Specify a validity interval when signing a certificate.  A valid-
+             ity interval may consist of a single time, indicating that the
+             certificate is valid beginning now and expiring at that time, or
+             may consist of two times separated by a colon to indicate an ex-
+             plicit time interval.  The start time may be specified as a date
+             in YYYYMMDD format, a time in YYYYMMDDHHMMSS format or a relative
+             time (to the current time) consisting of a minus sign followed by
+             a relative time in the format described in the TIME FORMATS sec-
+             tion of ssh_config(5).  The end time may be specified as a YYYYM-
+             MDD date, a YYYYMMDDHHMMSS time or a relative time starting with
+             a plus character.
+
+             For example: ``+52w1d'' (valid from now to 52 weeks and one day
+             from now), ``-4w:+4w'' (valid from four weeks ago to four weeks
+             from now), ``20100101123000:20110101123000'' (valid from 12:30
+             PM, January 1st, 2010 to 12:30 PM, January 1st, 2011),
+             ``-1d:20110101'' (valid from yesterday to midnight, January 1st,
+             2011).
 
      -v      Verbose mode.  Causes ssh-keygen to print debugging messages
              about its progress.  This is helpful for debugging moduli genera-
@@ -221,15 +313,66 @@ MODULI GENERATION
      this file contains moduli of a range of bit lengths and that both ends of
      a connection share common moduli.
 
+CERTIFICATES
+     ssh-keygen supports signing of keys to produce certificates that may be
+     used for user or host authentication.  Certificates consist of a public
+     key, some identity information, zero or more principal (user or host)
+     names and an optional set of constraints that are signed by a Certifica-
+     tion Authority (CA) key.  Clients or servers may then trust only the CA
+     key and verify its signature on a certificate rather than trusting many
+     user/host keys.  Note that OpenSSH certificates are a different, and much
+     simpler, format to the X.509 certificates used in ssl(8).
+
+     ssh-keygen supports two types of certificates: user and host.  User cer-
+     tificates authenticate users to servers, whereas host certificates au-
+     thenticate server hosts to users.  To generate a user certificate:
+
+           $ ssh-keygen -s /path/to/ca_key -I key_id /path/to/user_key.pub
+
+     The resultant certificate will be placed in /path/to/user_key_cert.pub.
+     A host certificate requires the -h option:
+
+           $ ssh-keygen -s /path/to/ca_key -I key_id -h /path/to/host_key.pub
+
+     The host certificate will be output to /path/to/host_key_cert.pub.  In
+     both cases, key_id is a "key identifier" that is logged by the server
+     when the certificate is used for authentication.
+
+     Certificates may be limited to be valid for a set of principal (us-
+     er/host) names.  By default, generated certificates are valid for all
+     users or hosts.  To generate a certificate for a specified set of princi-
+     pals:
+
+           $ ssh-keygen -s ca_key -I key_id -n user1,user2 user_key.pub
+           $ ssh-keygen -s ca_key -I key_id -h -n host.domain $0
+
+     Additional limitations on the validity and use of user certificates may
+     be specified through certificate constraints.  A constrained certificate
+     may disable features of the SSH session, may be valid only when presented
+     from particular source addresses or may force the use of a specific com-
+     mand.  For a list of valid certificate constraints, see the documentation
+     for the -O option above.
+
+     Finally, certificates may be defined with a validity lifetime.  The -V
+     option allows specification of certificate start and end times.  A cer-
+     tificate that is presented at a time outside this range will not be con-
+     sidered valid.  By default, certificates have a maximum validity inter-
+     val.
+
+     For certificates to be used for user or host authentication, the CA pub-
+     lic key must be trusted by sshd(8) or ssh(1).  Please refer to those man-
+     ual pages for details.
+
 FILES
      ~/.ssh/identity
              Contains the protocol version 1 RSA authentication identity of
              the user.  This file should not be readable by anyone but the us-
              er.  It is possible to specify a passphrase when generating the
              key; that passphrase will be used to encrypt the private part of
-             this file using 3DES.  This file is not automatically accessed by
-             ssh-keygen but it is offered as the default file for the private
-             key.  ssh(1) will read this file when a login attempt is made.
+             this file using 128-bit AES.  This file is not automatically ac-
+             cessed by ssh-keygen but it is offered as the default file for
+             the private key.  ssh(1) will read this file when a login attempt
+             is made.
 
      ~/.ssh/identity.pub
              Contains the protocol version 1 RSA public key for authentica-
@@ -243,9 +386,10 @@ FILES
              the user.  This file should not be readable by anyone but the us-
              er.  It is possible to specify a passphrase when generating the
              key; that passphrase will be used to encrypt the private part of
-             this file using 3DES.  This file is not automatically accessed by
-             ssh-keygen but it is offered as the default file for the private
-             key.  ssh(1) will read this file when a login attempt is made.
+             this file using 128-bit AES.  This file is not automatically ac-
+             cessed by ssh-keygen but it is offered as the default file for
+             the private key.  ssh(1) will read this file when a login attempt
+             is made.
 
      ~/.ssh/id_dsa.pub
              Contains the protocol version 2 DSA public key for authentica-
@@ -259,9 +403,10 @@ FILES
              the user.  This file should not be readable by anyone but the us-
              er.  It is possible to specify a passphrase when generating the
              key; that passphrase will be used to encrypt the private part of
-             this file using 3DES.  This file is not automatically accessed by
-             ssh-keygen but it is offered as the default file for the private
-             key.  ssh(1) will read this file when a login attempt is made.
+             this file using 128-bit AES.  This file is not automatically ac-
+             cessed by ssh-keygen but it is offered as the default file for
+             the private key.  ssh(1) will read this file when a login attempt
+             is made.
 
      ~/.ssh/id_rsa.pub
              Contains the protocol version 2 RSA public key for authentica-
@@ -286,4 +431,4 @@ AUTHORS
      created OpenSSH.  Markus Friedl contributed the support for SSH protocol
      versions 1.5 and 2.0.
 
-OpenBSD 4.6                      July 24, 2008                               5
+OpenBSD 4.6                      March 8, 2010                               7

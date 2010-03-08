@@ -1,4 +1,4 @@
-#	$OpenBSD: Makefile,v 1.48 2008/06/28 13:57:25 djm Exp $
+#	$OpenBSD: Makefile,v 1.52 2010/02/26 20:33:21 djm Exp $
 
 REGRESS_TARGETS=	t1 t2 t3 t4 t5 t6 t7 t-exec
 tests:		$(REGRESS_TARGETS)
@@ -34,6 +34,7 @@ LTESTS= 	connect \
 		agent-ptrace \
 		keyscan \
 		keygen-change \
+		keygen-convert \
 		key-options \
 		scp \
 		sftp \
@@ -50,7 +51,10 @@ LTESTS= 	connect \
 		cfgmatch \
 		addrmatch \
 		localcommand \
-		forcecommand
+		forcecommand \
+		portnum \
+		cert-hostkey \
+		cert-userkey
 
 INTEROP_TESTS=	putty-transfer putty-ciphers putty-kex conch-ciphers
 #INTEROP_TESTS+=ssh-com ssh-com-client ssh-com-keygen ssh-com-sftp
@@ -64,7 +68,11 @@ CLEANFILES=	t2.out t6.out1 t6.out2 t7.out t7.out.pub copy.1 copy.2 \
 		ls.copy banner.in banner.out empty.in \
 		scp-ssh-wrapper.scp ssh_proxy_envpass remote_pid \
 		sshd_proxy_bak rsa_ssh2_cr.prv rsa_ssh2_crnl.prv \
-		putty.rsa2
+		known_hosts-cert host_ca_key* cert_host_key* \
+		putty.rsa2 sshd_proxy_orig
+
+# Enable all malloc(3) randomisations and checks
+TEST_ENV=      "MALLOC_OPTIONS=AFGJPRX"
 
 t1:
 	ssh-keygen -if ${.CURDIR}/rsa_ssh2.prv | diff - ${.CURDIR}/rsa_openssh.prv
@@ -104,13 +112,13 @@ t-exec:	${LTESTS:=.sh}
 	@if [ "x$?" = "x" ]; then exit 0; fi; \
 	for TEST in ""$?; do \
 		echo "run test $${TEST}" ... 1>&2; \
-		(env SUDO=${SUDO} sh ${.CURDIR}/test-exec.sh ${.OBJDIR} ${.CURDIR}/$${TEST}) || exit $$?; \
+		(env SUDO=${SUDO} TEST_ENV=${TEST_ENV} sh ${.CURDIR}/test-exec.sh ${.OBJDIR} ${.CURDIR}/$${TEST}) || exit $$?; \
 	done
 
 t-exec-interop:	${INTEROP_TESTS:=.sh}
 	@if [ "x$?" = "x" ]; then exit 0; fi; \
 	for TEST in ""$?; do \
 		echo "run test $${TEST}" ... 1>&2; \
-		(env SUDO=${SUDO} sh ${.CURDIR}/test-exec.sh ${.OBJDIR} ${.CURDIR}/$${TEST}) || exit $$?; \
+		(env SUDO=${SUDO} TEST_ENV=${TEST_ENV} sh ${.CURDIR}/test-exec.sh ${.OBJDIR} ${.CURDIR}/$${TEST}) || exit $$?; \
 	done
 

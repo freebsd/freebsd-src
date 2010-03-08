@@ -1,4 +1,4 @@
-#	$OpenBSD: ssh_config,v 1.25 2009/02/17 01:28:32 djm Exp $
+#	$OpenBSD: ssh_config,v 1.26 2010/01/11 01:39:46 dtucker Exp $
 
 # This is the ssh client system-wide configuration file.  See
 # ssh_config(5) for more information.  This file provides defaults for
@@ -44,3 +44,4 @@
 #   TunnelDevice any:any
 #   PermitLocalCommand no
 #   VisualHostKey no
+#   ProxyCommand ssh -q -W %h:%p gateway.example.com

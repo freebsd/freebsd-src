@@ -18,7 +18,7 @@ DESCRIPTION
      The options are as follows:
 
      -a bind_address
-             Bind the agent to the unix-domain socket bind_address.  The de-
+             Bind the agent to the UNIX-domain socket bind_address.  The de-
              fault is /tmp/ssh-XXXXXXXXXX/agent.<ppid>.
 
      -c      Generate C-shell commands on stdout.  This is the default if
@@ -46,11 +46,12 @@ DESCRIPTION
      The agent initially does not have any private keys.  Keys are added using
      ssh-add(1).  When executed without arguments, ssh-add(1) adds the files
      ~/.ssh/id_rsa, ~/.ssh/id_dsa and ~/.ssh/identity.  If the identity has a
-     passphrase, ssh-add(1) asks for the passphrase (using a small X11 appli-
-     cation if running under X11, or from the terminal if running without X).
-     It then sends the identity to the agent.  Several identities can be
-     stored in the agent; the agent can automatically use any of these identi-
-     ties.  ssh-add -l displays the identities currently held by the agent.
+     passphrase, ssh-add(1) asks for the passphrase on the terminal if it has
+     one or from a small X11 program if running under X11.  If neither of
+     these is the case then the authentication will fail.  It then sends the
+     identity to the agent.  Several identities can be stored in the agent;
+     the agent can automatically use any of these identities.  ssh-add -l dis-
+     plays the identities currently held by the agent.
 
      The idea is that the agent is run in the user's local PC, laptop, or ter-
      minal.  Authentication data need not be stored on any other machine, and
@@ -75,7 +76,7 @@ DESCRIPTION
      agent, and the result will be returned to the requester.  This way, pri-
      vate keys are not exposed to clients using the agent.
 
-     A unix-domain socket is created and the name of this socket is stored in
+     A UNIX-domain socket is created and the name of this socket is stored in
      the SSH_AUTH_SOCK environment variable.  The socket is made accessible
      only to the current user.  This method is easily abused by root or anoth-
      er instance of the same user.
@@ -99,7 +100,7 @@ FILES
              the user.
 
      /tmp/ssh-XXXXXXXXXX/agent.<ppid>
-             Unix-domain sockets used to contain the connection to the authen-
+             UNIX-domain sockets used to contain the connection to the authen-
              tication agent.  These sockets should only be readable by the
              owner.  The sockets should get automatically removed when the
              agent exits.
@@ -114,4 +115,4 @@ AUTHORS
      ated OpenSSH.  Markus Friedl contributed the support for SSH protocol
      versions 1.5 and 2.0.
 
-OpenBSD 4.6                     March 26, 2009                               2
+OpenBSD 4.6                    January 17, 2010                              2
