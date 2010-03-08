@@ -1485,6 +1485,7 @@ next:
 			/* sched config shouldn't modify the FIFO scheduler */
 			if (dn_ht_find(dn_cfg.schedhash, i, 0, &a) != NULL) {
 				/* FIFO already exist, don't touch it */
+				err = 0; /* and this is not an error */
 				goto error;
 			}
 		}
