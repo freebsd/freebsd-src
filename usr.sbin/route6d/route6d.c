@@ -79,6 +79,7 @@ static const char _rcsid[] = "$KAME: route6d.c,v 1.104 2003/10/31 00:30:20 itoju
 #include "route6d.h"
 
 #define	MAXFILTER	40
+#define RT_DUMP_MAXRETRY	15
 
 #ifdef	DEBUG
 #define	INIT_INTERVAL6	6
@@ -2702,6 +2703,8 @@ krtread(again)
 	mib[4] = NET_RT_DUMP;	/* Dump the kernel routing table */
 	mib[5] = 0;		/* No flags */
 	do {
+		if (retry)
+			sleep(1);
 		retry++;
 		errmsg = NULL;
 		if (buf)
@@ -2718,7 +2721,7 @@ krtread(again)
 			errmsg = "sysctl NET_RT_DUMP";
 			continue;
 		}
-	} while (retry < 15 && errmsg != NULL);
+	} while (retry < RT_DUMP_MAXRETRY && errmsg != NULL);
 	if (errmsg) {
 		fatal("%s (with %d retries, msize=%lu)", errmsg, retry,
 		    (u_long)msize);
@@ -2760,16 +2763,8 @@ rt_entry(rtm, again)
 	if (rtm->rtm_flags & RTF_CLONED)
 		return;
 #endif
-	/* Ignore RTF_PROTO<num> mismached routes */
-	/*
-	 * XXX: can we know if it is a connected network route or not?
-	 *      RTF_WASCLONED was the flag for that, but we no longer
-	 *      use it.  Rely on Qflag instead here.
-	 */
-	if (Qflag && !(rtm->rtm_flags & Qflag))
-		return;
 	/* XXX: Ignore connected routes. */
-	if (!(rtm->rtm_flags & RTF_GATEWAY))
+	if (!(rtm->rtm_flags & (RTF_GATEWAY|RTF_HOST|RTF_STATIC)))
 		return;
 	/*
 	 * do not look at dynamic routes.
@@ -3006,6 +3001,7 @@ delroute(np, gw)
 	rtm->rtm_seq = ++seq;
 	rtm->rtm_pid = pid;
 	rtm->rtm_flags = RTF_UP | RTF_GATEWAY;
+	rtm->rtm_flags |= Qflag;
 	if (np->rip6_plen == sizeof(struct in6_addr) * 8)
 		rtm->rtm_flags |= RTF_HOST;
 	rtm->rtm_addrs = RTA_DST | RTA_GATEWAY | RTA_NETMASK;
