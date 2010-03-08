@@ -89,6 +89,7 @@ DESCRIPTION
                    NoHostAuthenticationForLocalhost
                    NumberOfPasswordPrompts
                    PasswordAuthentication
+                   PKCS11Provider
                    Port
                    PreferredAuthentications
                    Protocol
@@ -100,7 +101,6 @@ DESCRIPTION
                    SendEnv
                    ServerAliveInterval
                    ServerAliveCountMax
-                   SmartcardDevice
                    StrictHostKeyChecking
                    TCPKeepAlive
                    UsePrivilegedPort
@@ -145,4 +145,4 @@ AUTHORS
      Timo Rinne <tri@iki.fi>
      Tatu Ylonen <ylo@cs.hut.fi>
 
-OpenBSD 4.6                      July 12, 2008                               3
+OpenBSD 4.6                    February 8, 2010                              3

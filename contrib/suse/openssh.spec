@@ -220,6 +220,7 @@ fi
 %attr(0755,root,root) %dir %{_libdir}/ssh
 %attr(0755,root,root) %{_libdir}/ssh/sftp-server
 %attr(4711,root,root) %{_libdir}/ssh/ssh-keysign
+%attr(0755,root,root) %{_libdir}/ssh/ssh-pkcs11-helper
 %attr(0644,root,root) %doc %{_mandir}/man1/scp.1*
 %attr(0644,root,root) %doc %{_mandir}/man1/sftp.1*
 %attr(-,root,root) %doc %{_mandir}/man1/slogin.1*
@@ -233,6 +234,7 @@ fi
 %attr(0644,root,root) %doc %{_mandir}/man5/sshd_config.5*
 %attr(0644,root,root) %doc %{_mandir}/man8/sftp-server.8*
 %attr(0644,root,root) %doc %{_mandir}/man8/ssh-keysign.8*
+%attr(0644,root,root) %doc %{_mandir}/man8/ssh-pkcs11-helper.8*
 %attr(0644,root,root) %doc %{_mandir}/man8/sshd.8*
 %attr(0644,root,root) /var/adm/fillup-templates/sysconfig.ssh
 

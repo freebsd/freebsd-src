@@ -1,4 +1,5 @@
 #!/bin/sh
+#	$OpenBSD: ssh2putty.sh,v 1.2 2009/10/06 23:51:49 dtucker Exp $
 
 if test "x$1" = "x" -o "x$2" = "x" -o "x$3" = "x" ; then
 	echo "Usage: ssh2putty hostname port ssh-private-key"

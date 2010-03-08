@@ -1,4 +1,4 @@
-/* $OpenBSD: auth2-pubkey.c,v 1.19 2008/07/03 21:46:58 otto Exp $ */
+/* $OpenBSD: auth2-pubkey.c,v 1.21 2010/03/04 10:36:03 djm Exp $ */
 /*
  * Copyright (c) 2000 Markus Friedl.  All rights reserved.
  *
@@ -32,6 +32,8 @@
 #include <pwd.h>
 #include <stdio.h>
 #include <stdarg.h>
+#include <string.h>
+#include <time.h>
 #include <unistd.h>
 
 #include "xmalloc.h"
@@ -54,6 +56,7 @@
 #endif
 #include "monitor_wrap.h"
 #include "misc.h"
+#include "authfile.h"
 
 /* import */
 extern ServerOptions options;
@@ -178,6 +181,7 @@ static int
 user_key_allowed2(struct passwd *pw, Key *key, char *file)
 {
 	char line[SSH_MAX_PUBKEY_BYTES];
+	const char *reason;
 	int found_key = 0;
 	FILE *f;
 	u_long linenum = 0;
@@ -196,10 +200,12 @@ user_key_allowed2(struct passwd *pw, Key *key, char *file)
 	}
 
 	found_key = 0;
-	found = key_new(key->type);
+	found = key_new(key_is_cert(key) ? KEY_UNSPEC : key->type);
 
 	while (read_keyfile_line(f, file, line, sizeof(line), &linenum) != -1) {
 		char *cp, *key_options = NULL;
+
+		auth_clear_options();
 
 		/* Skip leading whitespace, empty and comment lines. */
 		for (cp = line; *cp == ' ' || *cp == '\t'; cp++)
@@ -227,8 +233,32 @@ user_key_allowed2(struct passwd *pw, Key *key, char *file)
 				continue;
 			}
 		}
-		if (key_equal(found, key) &&
-		    auth_parse_options(pw, key_options, file, linenum) == 1) {
+		if (auth_parse_options(pw, key_options, file, linenum) != 1)
+			continue;
+		if (key->type == KEY_RSA_CERT || key->type == KEY_DSA_CERT) {
+			if (!key_is_cert_authority)
+				continue;
+			if (!key_equal(found, key->cert->signature_key))
+				continue;
+			debug("matching CA found: file %s, line %lu",
+			    file, linenum);
+			fp = key_fingerprint(found, SSH_FP_MD5,
+			    SSH_FP_HEX);
+			verbose("Found matching %s CA: %s",
+			    key_type(found), fp);
+			xfree(fp);
+			if (key_cert_check_authority(key, 0, 0, pw->pw_name,
+			    &reason) != 0) {
+				error("%s", reason);
+				auth_debug_add("%s", reason);
+				continue;
+			}
+			if (auth_cert_constraints(&key->cert->constraints,
+			    pw) != 0)
+				continue;
+			found_key = 1;
+			break;
+		} else if (!key_is_cert_authority && key_equal(found, key)) {
 			found_key = 1;
 			debug("matching key found: file %s, line %lu",
 			    file, linenum);
@@ -247,12 +277,62 @@ user_key_allowed2(struct passwd *pw, Key *key, char *file)
 	return found_key;
 }
 
+/* Authenticate a certificate key against TrustedUserCAKeys */
+static int
+user_cert_trusted_ca(struct passwd *pw, Key *key)
+{
+	char *key_fp, *ca_fp;
+	const char *reason;
+	int ret = 0;
+
+	if (!key_is_cert(key) || options.trusted_user_ca_keys == NULL)
+		return 0;
+
+	key_fp = key_fingerprint(key, SSH_FP_MD5, SSH_FP_HEX);
+	ca_fp = key_fingerprint(key, SSH_FP_MD5, SSH_FP_HEX);
+
+	if (key_in_file(key->cert->signature_key,
+	    options.trusted_user_ca_keys, 1) != 1) {
+		debug2("%s: CA %s %s is not listed in %s", __func__,
+		    key_type(key->cert->signature_key), ca_fp,
+		    options.trusted_user_ca_keys);
+		goto out;
+	}
+	if (key_cert_check_authority(key, 0, 1, pw->pw_name, &reason) != 0) {
+		error("%s", reason);
+		auth_debug_add("%s", reason);
+		goto out;
+	}
+	if (auth_cert_constraints(&key->cert->constraints, pw) != 0)
+		goto out;
+
+	verbose("%s certificate %s allowed by trusted %s key %s",
+	    key_type(key), key_fp, key_type(key->cert->signature_key), ca_fp);
+	ret = 1;
+
+ out:
+	if (key_fp != NULL)
+		xfree(key_fp);
+	if (ca_fp != NULL)
+		xfree(ca_fp);
+	return ret;
+}
+
 /* check whether given key is in .ssh/authorized_keys* */
 int
 user_key_allowed(struct passwd *pw, Key *key)
 {
 	int success;
 	char *file;
+
+	if (auth_key_is_revoked(key))
+		return 0;
+	if (key_is_cert(key) && auth_key_is_revoked(key->cert->signature_key))
+		return 0;
+
+	success = user_cert_trusted_ca(pw, key);
+	if (success)
+		return success;
 
 	file = authorized_keys_file(pw);
 	success = user_key_allowed2(pw, key, file);

@@ -1,4 +1,4 @@
-%define ver 5.3p1
+%define ver 5.4p1
 %define rel 1
 
 # OpenSSH privilege separation requires a user & group ID
@@ -74,7 +74,9 @@ Release: %{rel}
 %endif
 URL: http://www.openssh.com/portable.html
 Source0: ftp://ftp.openbsd.org/pub/OpenBSD/OpenSSH/portable/openssh-%{version}.tar.gz
+%if ! %{skip_x11_askpass}
 Source1: http://www.jmknoble.net/software/x11-ssh-askpass/x11-ssh-askpass-%{aversion}.tar.gz
+%endif
 License: BSD
 Group: Applications/Internet
 BuildRoot: %{_tmppath}/%{name}-%{version}-buildroot
@@ -92,7 +94,7 @@ BuildPreReq: glibc-devel, pam
 BuildPreReq: /usr/include/security/pam_appl.h
 %endif
 %if ! %{no_x11_askpass}
-BuildPreReq: XFree86-devel
+BuildPreReq: /usr/include/X11/Xlib.h
 %endif
 %if ! %{no_gnome_askpass}
 BuildPreReq: pkgconfig
@@ -343,7 +345,9 @@ fi
 %attr(0644,root,root) %{_mandir}/man1/ssh-keygen.1*
 %attr(0755,root,root) %dir %{_libexecdir}/openssh
 %attr(4711,root,root) %{_libexecdir}/openssh/ssh-keysign
+%attr(0755,root,root) %{_libexecdir}/openssh/ssh-pkcs11-helper
 %attr(0644,root,root) %{_mandir}/man8/ssh-keysign.8*
+%attr(0644,root,root) %{_mandir}/man8/ssh-pkcs11-helper.8*
 %endif
 %if %{scard}
 %attr(0755,root,root) %dir %{_datadir}/openssh
