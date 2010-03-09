@@ -94,17 +94,17 @@ int	nflag;			/* do not create .snap directory */
 intmax_t fssize;		/* file system size */
 int	sectorsize;		/* bytes/sector */
 int	realsectorsize;		/* bytes/sector in hardware */
-int64_t	fsize = 0;		/* fragment size */
-int64_t	bsize = 0;		/* block size */
-int64_t	maxbsize = 0;		/* maximum clustering */
-int64_t	maxblkspercg = MAXBLKSPERCG; /* maximum blocks per cylinder group */
+int	fsize = 0;		/* fragment size */
+int	bsize = 0;		/* block size */
+int	maxbsize = 0;		/* maximum clustering */
+int	maxblkspercg = MAXBLKSPERCG; /* maximum blocks per cylinder group */
 int	minfree = MINFREE;	/* free space threshold */
 int	opt = DEFAULTOPT;	/* optimization preference (space or time) */
-int64_t	density;		/* number of bytes per inode */
-int64_t	maxcontig = 0;		/* max contiguous blocks to allocate */
-int64_t	maxbpg;			/* maximum blocks per file in a cyl group */
-int64_t	avgfilesize = AVFILESIZ;/* expected average file size */
-int64_t	avgfilesperdir = AFPDIR;/* expected number of files per directory */
+int	density;		/* number of bytes per inode */
+int	maxcontig = 0;		/* max contiguous blocks to allocate */
+int	maxbpg;			/* maximum blocks per file in a cyl group */
+int	avgfilesize = AVFILESIZ;/* expected average file size */
+int	avgfilesperdir = AFPDIR;/* expected number of files per directory */
 u_char	*volumelabel = NULL;	/* volume label for filesystem */
 struct uufsd disk;		/* libufs disk structure */
 
@@ -186,13 +186,13 @@ main(int argc, char *argv[])
 			Xflag++;
 			break;
 		case 'a':
-			rval = expand_number(optarg, &maxcontig);
+			rval = expand_number_int(optarg, &maxcontig);
 			if (rval < 0 || maxcontig <= 0)
 				errx(1, "%s: bad maximum contiguous blocks",
 				    optarg);
 			break;
 		case 'b':
-			rval = expand_number(optarg, &bsize);
+			rval = expand_number_int(optarg, &bsize);
 			if (rval < 0)
 				 errx(1, "%s: bad block size",
                                     optarg);
@@ -204,39 +204,39 @@ main(int argc, char *argv[])
 				    optarg, MAXBSIZE);
 			break;
 		case 'c':
-			rval = expand_number(optarg, &maxblkspercg);
+			rval = expand_number_int(optarg, &maxblkspercg);
 			if (rval < 0 || maxblkspercg <= 0)
 				errx(1, "%s: bad blocks per cylinder group",
 				    optarg);
 			break;
 		case 'd':
-			rval = expand_number(optarg, &maxbsize);
+			rval = expand_number_int(optarg, &maxbsize);
 			if (rval < 0 || maxbsize < MINBSIZE)
 				errx(1, "%s: bad extent block size", optarg);
 			break;
 		case 'e':
-			rval = expand_number(optarg, &maxbpg);
+			rval = expand_number_int(optarg, &maxbpg);
 			if (rval < 0 || maxbpg <= 0)
 			  errx(1, "%s: bad blocks per file in a cylinder group",
 				    optarg);
 			break;
 		case 'f':
-			rval = expand_number(optarg, &fsize);
+			rval = expand_number_int(optarg, &fsize);
 			if (rval < 0 || fsize <= 0)
 				errx(1, "%s: bad fragment size", optarg);
 			break;
 		case 'g':
-			rval = expand_number(optarg, &avgfilesize);
+			rval = expand_number_int(optarg, &avgfilesize);
 			if (rval < 0 || avgfilesize <= 0)
 				errx(1, "%s: bad average file size", optarg);
 			break;
 		case 'h':
-			rval = expand_number(optarg, &avgfilesperdir);
+			rval = expand_number_int(optarg, &avgfilesperdir);
 			if (rval < 0 || avgfilesperdir <= 0)
 			       errx(1, "%s: bad average files per dir", optarg);
 			break;
 		case 'i':
-			rval = expand_number(optarg, &density);
+			rval = expand_number_int(optarg, &density);
 			if (rval < 0 || density <= 0)
 				errx(1, "%s: bad bytes per inode", optarg);
 			break;
@@ -505,9 +505,9 @@ expand_number_int(const char *buf, int *num)
 	int rval;
 
 	rval = expand_number(buf, &num64);
-	if (rval != 0)
+	if (rval < 0)
 		return (rval);
-	if (num64 > INT_MAX) {
+	if (num64 > INT_MAX || num64 < INT_MIN) {
 		errno = ERANGE;
 		return (-1);
 	}
