@@ -1,4 +1,4 @@
-/* $OpenBSD: ssh-agent.c,v 1.161 2009/03/23 19:38:04 tobias Exp $ */
+/* $OpenBSD: ssh-agent.c,v 1.165 2010/02/26 20:29:54 djm Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -77,8 +77,8 @@ __RCSID("$FreeBSD$");
 #include "log.h"
 #include "misc.h"
 
-#ifdef SMARTCARD
-#include "scard.h"
+#ifdef ENABLE_PKCS11
+#include "ssh-pkcs11.h"
 #endif
 
 #if defined(HAVE_SYS_PRCTL_H)
@@ -106,6 +106,7 @@ typedef struct identity {
 	TAILQ_ENTRY(identity) next;
 	Key *key;
 	char *comment;
+	char *provider;
 	u_int death;
 	u_int confirm;
 } Identity;
@@ -172,6 +173,8 @@ static void
 free_identity(Identity *id)
 {
 	key_free(id->key);
+	if (id->provider != NULL)
+		xfree(id->provider);
 	xfree(id->comment);
 	xfree(id);
 }
@@ -466,6 +469,8 @@ process_add_identity(SocketEntry *e, int version)
 	int type, success = 0, death = 0, confirm = 0;
 	char *type_name, *comment;
 	Key *k = NULL;
+	u_char *cert;
+	u_int len;
 
 	switch (version) {
 	case 1:
@@ -496,6 +501,14 @@ process_add_identity(SocketEntry *e, int version)
 			buffer_get_bignum2(&e->request, k->dsa->pub_key);
 			buffer_get_bignum2(&e->request, k->dsa->priv_key);
 			break;
+		case KEY_DSA_CERT:
+			cert = buffer_get_string(&e->request, &len);
+			if ((k = key_from_blob(cert, len)) == NULL)
+				fatal("Certificate parse failed");
+			xfree(cert);
+			key_add_private(k);
+			buffer_get_bignum2(&e->request, k->dsa->priv_key);
+			break;
 		case KEY_RSA:
 			k = key_new_private(type);
 			buffer_get_bignum2(&e->request, k->rsa->n);
@@ -508,6 +521,17 @@ process_add_identity(SocketEntry *e, int version)
 			/* Generate additional parameters */
 			rsa_generate_additional_parameters(k->rsa);
 			break;
+		case KEY_RSA_CERT:
+			cert = buffer_get_string(&e->request, &len);
+			if ((k = key_from_blob(cert, len)) == NULL)
+				fatal("Certificate parse failed");
+			xfree(cert);
+			key_add_private(k);
+			buffer_get_bignum2(&e->request, k->rsa->d);
+			buffer_get_bignum2(&e->request, k->rsa->iqmp);
+			buffer_get_bignum2(&e->request, k->rsa->p);
+			buffer_get_bignum2(&e->request, k->rsa->q);
+			break;
 		default:
 			buffer_clear(&e->request);
 			goto send;
@@ -517,6 +541,7 @@ process_add_identity(SocketEntry *e, int version)
 	/* enable blinding */
 	switch (k->type) {
 	case KEY_RSA:
+	case KEY_RSA_CERT:
 	case KEY_RSA1:
 		if (RSA_blinding_on(k->rsa, NULL) != 1) {
 			error("process_add_identity: RSA_blinding_on failed");
@@ -550,7 +575,7 @@ process_add_identity(SocketEntry *e, int version)
 	if (lifetime && !death)
 		death = time(NULL) + lifetime;
 	if ((id = lookup_identity(k, version)) == NULL) {
-		id = xmalloc(sizeof(Identity));
+		id = xcalloc(1, sizeof(Identity));
 		id->key = k;
 		TAILQ_INSERT_TAIL(&tab->idlist, id, next);
 		/* Increment the number of identities. */
@@ -610,17 +635,17 @@ no_identities(SocketEntry *e, u_int type)
 	buffer_free(&msg);
 }
 
-#ifdef SMARTCARD
+#ifdef ENABLE_PKCS11
 static void
 process_add_smartcard_key(SocketEntry *e)
 {
-	char *sc_reader_id = NULL, *pin;
-	int i, type, version, success = 0, death = 0, confirm = 0;
-	Key **keys, *k;
+	char *provider = NULL, *pin;
+	int i, type, version, count = 0, success = 0, death = 0, confirm = 0;
+	Key **keys = NULL, *k;
 	Identity *id;
 	Idtab *tab;
 
-	sc_reader_id = buffer_get_string(&e->request, NULL);
+	provider = buffer_get_string(&e->request, NULL);
 	pin = buffer_get_string(&e->request, NULL);
 
 	while (buffer_len(&e->request)) {
@@ -634,30 +659,22 @@ process_add_smartcard_key(SocketEntry *e)
 		default:
 			error("process_add_smartcard_key: "
 			    "Unknown constraint type %d", type);
-			xfree(sc_reader_id);
-			xfree(pin);
 			goto send;
 		}
 	}
 	if (lifetime && !death)
 		death = time(NULL) + lifetime;
 
-	keys = sc_get_keys(sc_reader_id, pin);
-	xfree(sc_reader_id);
-	xfree(pin);
-
-	if (keys == NULL || keys[0] == NULL) {
-		error("sc_get_keys failed");
-		goto send;
-	}
-	for (i = 0; keys[i] != NULL; i++) {
+	count = pkcs11_add_provider(provider, pin, &keys);
+	for (i = 0; i < count; i++) {
 		k = keys[i];
 		version = k->type == KEY_RSA1 ? 1 : 2;
 		tab = idtab_lookup(version);
 		if (lookup_identity(k, version) == NULL) {
-			id = xmalloc(sizeof(Identity));
+			id = xcalloc(1, sizeof(Identity));
 			id->key = k;
-			id->comment = sc_get_key_label(k);
+			id->provider = xstrdup(provider);
+			id->comment = xstrdup(provider); /* XXX */
 			id->death = death;
 			id->confirm = confirm;
 			TAILQ_INSERT_TAIL(&tab->idlist, id, next);
@@ -668,8 +685,13 @@ process_add_smartcard_key(SocketEntry *e)
 		}
 		keys[i] = NULL;
 	}
-	xfree(keys);
 send:
+	if (pin)
+		xfree(pin);
+	if (provider)
+		xfree(provider);
+	if (keys)
+		xfree(keys);
 	buffer_put_int(&e->output, 1);
 	buffer_put_char(&e->output,
 	    success ? SSH_AGENT_SUCCESS : SSH_AGENT_FAILURE);
@@ -678,42 +700,37 @@ send:
 static void
 process_remove_smartcard_key(SocketEntry *e)
 {
-	char *sc_reader_id = NULL, *pin;
-	int i, version, success = 0;
-	Key **keys, *k = NULL;
-	Identity *id;
+	char *provider = NULL, *pin = NULL;
+	int version, success = 0;
+	Identity *id, *nxt;
 	Idtab *tab;
 
-	sc_reader_id = buffer_get_string(&e->request, NULL);
+	provider = buffer_get_string(&e->request, NULL);
 	pin = buffer_get_string(&e->request, NULL);
-	keys = sc_get_keys(sc_reader_id, pin);
-	xfree(sc_reader_id);
 	xfree(pin);
 
-	if (keys == NULL || keys[0] == NULL) {
-		error("sc_get_keys failed");
-		goto send;
-	}
-	for (i = 0; keys[i] != NULL; i++) {
-		k = keys[i];
-		version = k->type == KEY_RSA1 ? 1 : 2;
-		if ((id = lookup_identity(k, version)) != NULL) {
-			tab = idtab_lookup(version);
-			TAILQ_REMOVE(&tab->idlist, id, next);
-			tab->nentries--;
-			free_identity(id);
-			success = 1;
+	for (version = 1; version < 3; version++) {
+		tab = idtab_lookup(version);
+		for (id = TAILQ_FIRST(&tab->idlist); id; id = nxt) {
+			nxt = TAILQ_NEXT(id, next);
+			if (!strcmp(provider, id->provider)) {
+				TAILQ_REMOVE(&tab->idlist, id, next);
+				free_identity(id);
+				tab->nentries--;
+			}
 		}
-		key_free(k);
-		keys[i] = NULL;
 	}
-	xfree(keys);
-send:
+	if (pkcs11_del_provider(provider) == 0)
+		success = 1;
+	else
+		error("process_remove_smartcard_key:"
+		    " pkcs11_del_provider failed");
+	xfree(provider);
 	buffer_put_int(&e->output, 1);
 	buffer_put_char(&e->output,
 	    success ? SSH_AGENT_SUCCESS : SSH_AGENT_FAILURE);
 }
-#endif /* SMARTCARD */
+#endif /* ENABLE_PKCS11 */
 
 /* dispatch incoming messages */
 
@@ -798,7 +815,7 @@ process_message(SocketEntry *e)
 	case SSH2_AGENTC_REMOVE_ALL_IDENTITIES:
 		process_remove_all_identities(e, 2);
 		break;
-#ifdef SMARTCARD
+#ifdef ENABLE_PKCS11
 	case SSH_AGENTC_ADD_SMARTCARD_KEY:
 	case SSH_AGENTC_ADD_SMARTCARD_KEY_CONSTRAINED:
 		process_add_smartcard_key(e);
@@ -806,7 +823,7 @@ process_message(SocketEntry *e)
 	case SSH_AGENTC_REMOVE_SMARTCARD_KEY:
 		process_remove_smartcard_key(e);
 		break;
-#endif /* SMARTCARD */
+#endif /* ENABLE_PKCS11 */
 	default:
 		/* Unknown message.  Respond with failure. */
 		error("Unknown message %d", type);
@@ -920,11 +937,11 @@ after_select(fd_set *readset, fd_set *writeset)
 	socklen_t slen;
 	char buf[1024];
 	int len, sock;
-	u_int i;
+	u_int i, orig_alloc;
 	uid_t euid;
 	gid_t egid;
 
-	for (i = 0; i < sockets_alloc; i++)
+	for (i = 0, orig_alloc = sockets_alloc; i < orig_alloc; i++)
 		switch (sockets[i].type) {
 		case AUTH_UNUSED:
 			break;
@@ -957,16 +974,13 @@ after_select(fd_set *readset, fd_set *writeset)
 		case AUTH_CONNECTION:
 			if (buffer_len(&sockets[i].output) > 0 &&
 			    FD_ISSET(sockets[i].fd, writeset)) {
-				do {
-					len = write(sockets[i].fd,
-					    buffer_ptr(&sockets[i].output),
-					    buffer_len(&sockets[i].output));
-					if (len == -1 && (errno == EAGAIN ||
-					    errno == EINTR ||
-					    errno == EWOULDBLOCK))
-						continue;
-					break;
-				} while (1);
+				len = write(sockets[i].fd,
+				    buffer_ptr(&sockets[i].output),
+				    buffer_len(&sockets[i].output));
+				if (len == -1 && (errno == EAGAIN ||
+				    errno == EWOULDBLOCK ||
+				    errno == EINTR))
+					continue;
 				if (len <= 0) {
 					close_socket(&sockets[i]);
 					break;
@@ -974,14 +988,11 @@ after_select(fd_set *readset, fd_set *writeset)
 				buffer_consume(&sockets[i].output, len);
 			}
 			if (FD_ISSET(sockets[i].fd, readset)) {
-				do {
-					len = read(sockets[i].fd, buf, sizeof(buf));
-					if (len == -1 && (errno == EAGAIN ||
-					    errno == EINTR ||
-					    errno == EWOULDBLOCK))
-						continue;
-					break;
-				} while (1);
+				len = read(sockets[i].fd, buf, sizeof(buf));
+				if (len == -1 && (errno == EAGAIN ||
+				    errno == EWOULDBLOCK ||
+				    errno == EINTR))
+					continue;
 				if (len <= 0) {
 					close_socket(&sockets[i]);
 					break;
@@ -1016,6 +1027,9 @@ static void
 cleanup_handler(int sig)
 {
 	cleanup_socket();
+#ifdef ENABLE_PKCS11
+	pkcs11_terminate();
+#endif
 	_exit(2);
 }
 
@@ -1263,6 +1277,10 @@ main(int ac, char **av)
 #endif
 
 skip:
+
+#ifdef ENABLE_PKCS11
+	pkcs11_init(0);
+#endif
 	new_socket(AUTH_SOCKET, sock);
 	if (ac > 0)
 		parent_alive_interval = 10;

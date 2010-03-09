@@ -34,9 +34,9 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $OpenBSD: sshd.8,v 1.248 2009/03/26 08:38:39 sobrado Exp $
+.\" $OpenBSD: sshd.8,v 1.255 2010/03/05 06:50:35 jmc Exp $
 .\" $FreeBSD$
-.Dd March 26 2009
+.Dd March 5 2010
 .Dt SSHD 8
 .Os
 .Sh NAME
@@ -48,6 +48,7 @@
 .Op Fl 46DdeiqTt
 .Op Fl b Ar bits
 .Op Fl C Ar connection_spec
+.Op Fl c Ar host_certificate_file
 .Op Fl f Ar config_file
 .Op Fl g Ar login_grace_time
 .Op Fl h Ar host_key_file
@@ -120,6 +121,15 @@ and
 All are required and may be supplied in any order, either with multiple
 .Fl C
 options or as a comma-separated list.
+.It Fl c Ar host_certificate_file
+Specifies a path to a certificate file to identify
+.Nm
+during key exchange.
+The certificate file must match a host key file specified using the
+.Fl h
+option or the
+.Cm HostKey
+configuration directive.
 .It Fl D
 When this option is specified,
 .Nm
@@ -128,8 +138,8 @@ This allows easy monitoring of
 .Nm sshd .
 .It Fl d
 Debug mode.
-The server sends verbose debug output to the system
-log, and does not put itself in the background.
+The server sends verbose debug output to standard error,
+and does not put itself in the background.
 The server also will not fork and will only process one connection.
 This option is only intended for debugging for the server.
 Multiple
@@ -261,7 +271,7 @@ or
 .El
 .Sh AUTHENTICATION
 The OpenSSH SSH daemon supports SSH protocols 1 and 2.
-Both protocols are supported by default,
+The default is to use protocol 2 only,
 though this can be changed via the
 .Cm Protocol
 option in
@@ -501,6 +511,13 @@ No spaces are permitted, except within double quotes.
 The following option specifications are supported (note
 that option keywords are case-insensitive):
 .Bl -tag -width Ds
+.It Cm cert-authority
+Specifies that the listed key is a certification authority (CA) that is
+trusted to validate signed certificates for user authentication.
+.Pp
+Certificates may encode access restrictions similar to these key options.
+If both certificate restrictions and key options are present, the most
+restrictive union of the two is applied.
 .It Cm command="command"
 Specifies that the command is executed whenever this key is used for
 authentication.
@@ -520,6 +537,10 @@ The command originally supplied by the client is available in the
 .Ev SSH_ORIGINAL_COMMAND
 environment variable.
 Note that this option applies to shell, command or subsystem execution.
+Also note that this command may be superseded by either a
+.Xr sshd_config 5
+.Cm ForceCommand
+directive or a command embedded in a certificate.
 .It Cm environment="NAME=value"
 Specifies that the string is to be added to the environment when
 logging in using this key.
@@ -616,9 +637,18 @@ be prepared by the administrator (optional), and the per-user file is
 maintained automatically: whenever the user connects from an unknown host,
 its key is added to the per-user file.
 .Pp
-Each line in these files contains the following fields: hostnames,
-bits, exponent, modulus, comment.
+Each line in these files contains the following fields: markers (optional),
+hostnames, bits, exponent, modulus, comment.
 The fields are separated by spaces.
+.Pp
+The marker is optional, but if it is present then it must be one of
+.Dq @cert-authority ,
+to indicate that the line contains a certification authority (CA) key,
+or
+.Dq @revoked ,
+to indicate that the key contained on the line is revoked and must not ever
+be accepted.
+Only one marker should be used on a key line.
 .Pp
 Hostnames is a comma-separated list of patterns
 .Pf ( Ql *
@@ -659,8 +689,25 @@ Lines starting with
 and empty lines are ignored as comments.
 .Pp
 When performing host authentication, authentication is accepted if any
-matching line has the proper key.
-It is thus permissible (but not
+matching line has the proper key; either one that matches exactly or,
+if the server has presented a certificate for authentication, the key
+of the certification authority that signed the certificate.
+For a key to be trusted as a certification authority, it must use the
+.Dq @cert-authority
+marker described above.
+.Pp
+The known hosts file also provides a facility to mark keys as revoked,
+for example when it is known that the associated private key has been
+stolen.
+Revoked keys are specified by including the
+.Dq @revoked
+marker at the beginning of the key line, and are never accepted for
+authentication or as certification authorities, but instead will
+produce a warning from
+.Xr ssh 1
+when they are encountered.
+.Pp
+It is permissible (but not
 recommended) to have several lines or different host keys for the same
 names.
 This will inevitably happen when short forms of host names
@@ -671,10 +718,16 @@ accepted if valid information can be found from either file.
 .Pp
 Note that the lines in these files are typically hundreds of characters
 long, and you definitely don't want to type in the host keys by hand.
-Rather, generate them by a script
+Rather, generate them by a script,
+.Xr ssh-keyscan 1
 or by taking
 .Pa /etc/ssh/ssh_host_key.pub
 and adding the host names at the front.
+.Xr ssh-keygen 1
+also offers some basic automated editing for
+.Pa ~/.ssh/known_hosts
+including removing hosts matching a host name and converting all host
+names to their hashed representations.
 .Pp
 An example ssh_known_hosts file:
 .Bd -literal -offset 3n
@@ -684,6 +737,10 @@ cvs.example.net,192.0.2.10 ssh-rsa AAAA1234.....=
 # A hashed hostname
 |1|JfKTdBh7rNbXkVAQCRp4OQoPfmI=|USECr3SWf1JUPsms5AqfD5QfxkM= ssh-rsa
 AAAA1234.....=
+# A revoked key
+@revoked * ssh-rsa AAAAB5W...
+# A CA key, accepted for any host in *.mydomain.com or *.mydomain.org
+@cert-authority *.mydomain.org,*.mydomain.com ssh-rsa AAAAB5W...
 .Ed
 .Sh FILES
 .Bl -tag -width Ds -compact

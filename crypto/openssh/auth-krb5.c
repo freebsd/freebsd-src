@@ -78,6 +78,11 @@ auth_krb5_password(Authctxt *authctxt, const char *password)
 	krb5_error_code problem;
 	krb5_ccache ccache = NULL;
 	int len;
+	char *client, *platform_client;
+
+	/* get platform-specific kerberos client principal name (if it exists) */
+	platform_client = platform_krb5_get_principal_name(authctxt->pw->pw_name);
+	client = platform_client ? platform_client : authctxt->pw->pw_name;
 
 	temporarily_use_uid(authctxt->pw);
 
@@ -85,7 +90,7 @@ auth_krb5_password(Authctxt *authctxt, const char *password)
 	if (problem)
 		goto out;
 
-	problem = krb5_parse_name(authctxt->krb5_ctx, authctxt->pw->pw_name,
+	problem = krb5_parse_name(authctxt->krb5_ctx, client,
 		    &authctxt->krb5_user);
 	if (problem)
 		goto out;
@@ -141,8 +146,7 @@ auth_krb5_password(Authctxt *authctxt, const char *password)
 	if (problem)
 		goto out;
 
-	if (!krb5_kuserok(authctxt->krb5_ctx, authctxt->krb5_user,
-			  authctxt->pw->pw_name)) {
+	if (!krb5_kuserok(authctxt->krb5_ctx, authctxt->krb5_user, client)) {
 		problem = -1;
 		goto out;
 	}
@@ -176,6 +180,9 @@ auth_krb5_password(Authctxt *authctxt, const char *password)
 
  out:
 	restore_uid();
+	
+	if (platform_client != NULL)
+		xfree(platform_client);
 
 	if (problem) {
 		if (ccache)
