@@ -162,6 +162,7 @@ static int	acpi_sname2sstate(const char *sname);
 static const char *acpi_sstate2sname(int sstate);
 static int	acpi_supported_sleep_state_sysctl(SYSCTL_HANDLER_ARGS);
 static int	acpi_sleep_state_sysctl(SYSCTL_HANDLER_ARGS);
+static int	acpi_debug_objects_sysctl(SYSCTL_HANDLER_ARGS);
 static int	acpi_pm_func(u_long cmd, void *arg, ...);
 static int	acpi_child_location_str_method(device_t acdev, device_t child,
 					       char *buf, size_t buflen);
@@ -252,6 +253,19 @@ SYSCTL_STRING(_debug_acpi, OID_AUTO, acpi_ca_version, CTLFLAG_RD,
  */
 static int acpi_serialize_methods;
 TUNABLE_INT("hw.acpi.serialize_methods", &acpi_serialize_methods);
+
+/* Allow users to dump Debug objects without ACPI debugger. */
+static int acpi_debug_objects;
+TUNABLE_INT("debug.acpi.enable_debug_objects", &acpi_debug_objects);
+SYSCTL_PROC(_debug_acpi, OID_AUTO, enable_debug_objects,
+    CTLFLAG_RW | CTLTYPE_INT, NULL, 0, acpi_debug_objects_sysctl, "I",
+    "Enable Debug objects");
+
+/* Allow the interpreter to ignore common mistakes in BIOS. */
+static int acpi_interpreter_slack = 1;
+TUNABLE_INT("debug.acpi.interpreter_slack", &acpi_interpreter_slack);
+SYSCTL_INT(_debug_acpi, OID_AUTO, interpreter_slack, CTLFLAG_RDTUN,
+    &acpi_interpreter_slack, 1, "Turn on interpreter slack mode.");
 
 /* Power devices off and on in suspend and resume.  XXX Remove once tested. */
 static int acpi_do_powerstate = 1;
@@ -452,8 +466,17 @@ acpi_attach(device_t dev)
      * Set the globals from our tunables.  This is needed because ACPI-CA
      * uses UINT8 for some values and we have no tunable_byte.
      */
-    AcpiGbl_AllMethodsSerialized = acpi_serialize_methods;
-    AcpiGbl_EnableInterpreterSlack = TRUE;
+    AcpiGbl_AllMethodsSerialized = acpi_serialize_methods ? TRUE : FALSE;
+    AcpiGbl_EnableInterpreterSlack = acpi_interpreter_slack ? TRUE : FALSE;
+    AcpiGbl_EnableAmlDebugObject = acpi_debug_objects ? TRUE : FALSE;
+
+#ifndef ACPI_DEBUG
+    /*
+     * Disable all debugging layers and levels.
+     */
+    AcpiDbgLayer = 0;
+    AcpiDbgLevel = 0;
+#endif
 
     /* Start up the ACPI CA subsystem. */
     status = AcpiInitializeSubsystem();
@@ -3447,8 +3470,6 @@ acpi_set_debugging(void *junk)
 	AcpiDbgLevel = 0;
     }
 
-    AcpiGbl_EnableAmlDebugObject = TRUE;
-
     layer = getenv("debug.acpi.layer");
     level = getenv("debug.acpi.level");
     if (layer == NULL && level == NULL)
@@ -3523,6 +3544,26 @@ SYSCTL_PROC(_debug_acpi, OID_AUTO, layer, CTLFLAG_RW | CTLTYPE_STRING,
 SYSCTL_PROC(_debug_acpi, OID_AUTO, level, CTLFLAG_RW | CTLTYPE_STRING,
 	    "debug.acpi.level", 0, acpi_debug_sysctl, "A", "");
 #endif /* ACPI_DEBUG */
+
+static int
+acpi_debug_objects_sysctl(SYSCTL_HANDLER_ARGS)
+{
+	int	error;
+	int	old;
+
+	old = acpi_debug_objects;
+	error = sysctl_handle_int(oidp, &acpi_debug_objects, 0, req);
+	if (error != 0 || req->newptr == NULL)
+		return (error);
+	if (old == acpi_debug_objects || (old && acpi_debug_objects))
+		return (0);
+
+	ACPI_SERIAL_BEGIN(acpi);
+	AcpiGbl_EnableAmlDebugObject = acpi_debug_objects ? TRUE : FALSE;
+	ACPI_SERIAL_END(acpi);
+
+	return (0);
+}
 
 static int
 acpi_pm_func(u_long cmd, void *arg, ...)
