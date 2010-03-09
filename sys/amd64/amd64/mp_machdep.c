@@ -200,7 +200,8 @@ mp_topology(void)
 	group = &mp_groups[0];
 	groups = 1;
 	for (cpu = 0, apic_id = 0; apic_id <= MAX_APIC_ID; apic_id++) {
-		if (!cpu_info[apic_id].cpu_present)
+		if (!cpu_info[apic_id].cpu_present ||
+		    cpu_info[apic_id].cpu_disabled)
 			continue;
 		/*
 		 * If the current group has members and we're not a logical
