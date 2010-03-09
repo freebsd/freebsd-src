@@ -1,4 +1,4 @@
-/* $OpenBSD: hostfile.c,v 1.45 2006/08/03 03:34:42 deraadt Exp $ */
+/* $OpenBSD: hostfile.c,v 1.48 2010/03/04 10:36:03 djm Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -183,6 +183,41 @@ hostfile_check_key(int bits, const Key *key, const char *host, const char *filen
 	return 1;
 }
 
+static enum { MRK_ERROR, MRK_NONE, MRK_REVOKE, MRK_CA }
+check_markers(char **cpp)
+{
+	char marker[32], *sp, *cp = *cpp;
+	int ret = MRK_NONE;
+
+	while (*cp == '@') {
+		/* Only one marker is allowed */
+		if (ret != MRK_NONE)
+			return MRK_ERROR;
+		/* Markers are terminated by whitespace */
+		if ((sp = strchr(cp, ' ')) == NULL &&
+		    (sp = strchr(cp, '\t')) == NULL)
+			return MRK_ERROR;
+		/* Extract marker for comparison */
+		if (sp <= cp + 1 || sp >= cp + sizeof(marker))
+			return MRK_ERROR;
+		memcpy(marker, cp, sp - cp);
+		marker[sp - cp] = '\0';
+		if (strcmp(marker, CA_MARKER) == 0)
+			ret = MRK_CA;
+		else if (strcmp(marker, REVOKE_MARKER) == 0)
+			ret = MRK_REVOKE;
+		else
+			return MRK_ERROR;
+
+		/* Skip past marker and any whitespace that follows it */
+		cp = sp;
+		for (; *cp == ' ' || *cp == '\t'; cp++)
+			;
+	}
+	*cpp = cp;
+	return ret;
+}
+
 /*
  * Checks whether the given host (which must be in all lowercase) is already
  * in the list of our known hosts. Returns HOST_OK if the host is known and
@@ -195,16 +230,20 @@ hostfile_check_key(int bits, const Key *key, const char *host, const char *filen
 
 static HostStatus
 check_host_in_hostfile_by_key_or_type(const char *filename,
-    const char *host, const Key *key, int keytype, Key *found, int *numret)
+    const char *host, const Key *key, int keytype, Key *found,
+    int want_revocation, int *numret)
 {
 	FILE *f;
 	char line[8192];
-	int linenum = 0;
+	int want, have, linenum = 0, want_cert = key_is_cert(key);
 	u_int kbits;
 	char *cp, *cp2, *hashed_host;
 	HostStatus end_return;
 
-	debug3("check_host_in_hostfile: filename %s", filename);
+	debug3("check_host_in_hostfile: host %s filename %s", host, filename);
+
+	if (want_revocation && (key == NULL || keytype != 0 || found != NULL))
+		fatal("%s: invalid arguments", __func__);
 
 	/* Open the file containing the list of known hosts. */
 	f = fopen(filename, "r");
@@ -229,6 +268,20 @@ check_host_in_hostfile_by_key_or_type(const char *filename,
 		if (!*cp || *cp == '#' || *cp == '\n')
 			continue;
 
+		if (want_revocation)
+			want = MRK_REVOKE;
+		else if (want_cert)
+			want = MRK_CA;
+		else
+			want = MRK_NONE;
+
+		if ((have = check_markers(&cp)) == MRK_ERROR) {
+			verbose("%s: invalid marker at %s:%d",
+			    __func__, filename, linenum);
+			continue;
+		} else if (want != have)
+			continue;
+
 		/* Find the end of the host name portion. */
 		for (cp2 = cp; *cp2 && *cp2 != ' ' && *cp2 != '\t'; cp2++)
 			;
@@ -249,6 +302,9 @@ check_host_in_hostfile_by_key_or_type(const char *filename,
 
 		/* Got a match.  Skip host name. */
 		cp = cp2;
+
+		if (want_revocation)
+			found = key_new(KEY_UNSPEC);
 
 		/*
 		 * Extract the key from the line.  This will skip any leading
@@ -272,9 +328,33 @@ check_host_in_hostfile_by_key_or_type(const char *filename,
 		if (!hostfile_check_key(kbits, found, host, filename, linenum))
 			continue;
 
+		if (want_revocation) {
+			if (key_is_cert(key) &&
+			    key_equal_public(key->cert->signature_key, found)) {
+				verbose("check_host_in_hostfile: revoked CA "
+				    "line %d", linenum);
+				key_free(found);
+				return HOST_REVOKED;
+			}
+			if (key_equal_public(key, found)) {
+				verbose("check_host_in_hostfile: revoked key "
+				    "line %d", linenum);
+				key_free(found);
+				return HOST_REVOKED;
+			}
+			key_free(found);
+			continue;
+		}
+
 		/* Check if the current key is the same as the given key. */
-		if (key_equal(key, found)) {
-			/* Ok, they match. */
+		if (want_cert && key_equal(key->cert->signature_key, found)) {
+			/* Found CA cert for key */
+			debug3("check_host_in_hostfile: CA match line %d",
+			    linenum);
+			fclose(f);
+			return HOST_OK;
+		} else if (!want_cert && key_equal(key, found)) {
+			/* Found identical key */
 			debug3("check_host_in_hostfile: match line %d", linenum);
 			fclose(f);
 			return HOST_OK;
@@ -302,8 +382,11 @@ check_host_in_hostfile(const char *filename, const char *host, const Key *key,
 {
 	if (key == NULL)
 		fatal("no key to look up");
-	return (check_host_in_hostfile_by_key_or_type(filename, host, key, 0,
-	    found, numret));
+	if (check_host_in_hostfile_by_key_or_type(filename, host,
+	    key, 0, NULL, 1, NULL) == HOST_REVOKED)
+		return HOST_REVOKED;
+	return check_host_in_hostfile_by_key_or_type(filename, host, key, 0,
+	    found, 0, numret);
 }
 
 int
@@ -311,7 +394,7 @@ lookup_key_in_hostfile_by_type(const char *filename, const char *host,
     int keytype, Key *found, int *numret)
 {
 	return (check_host_in_hostfile_by_key_or_type(filename, host, NULL,
-	    keytype, found, numret) == HOST_FOUND);
+	    keytype, found, 0, numret) == HOST_FOUND);
 }
 
 /*

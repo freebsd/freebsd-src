@@ -1,4 +1,4 @@
-/* $OpenBSD: monitor_fdpass.c,v 1.18 2008/11/30 11:59:26 dtucker Exp $ */
+/* $OpenBSD: monitor_fdpass.c,v 1.19 2010/01/12 00:58:25 djm Exp $ */
 /*
  * Copyright 2001 Niels Provos <provos@citi.umich.edu>
  * All rights reserved.
@@ -34,6 +34,9 @@
 #endif
 
 #include <errno.h>
+#ifdef HAVE_POLL_H
+#include <poll.h>
+#endif
 #include <string.h>
 #include <stdarg.h>
 
@@ -55,6 +58,7 @@ mm_send_fd(int sock, int fd)
 	struct iovec vec;
 	char ch = '\0';
 	ssize_t n;
+	struct pollfd pfd;
 
 	memset(&msg, 0, sizeof(msg));
 #ifdef HAVE_ACCRIGHTS_IN_MSGHDR
@@ -75,9 +79,13 @@ mm_send_fd(int sock, int fd)
 	msg.msg_iov = &vec;
 	msg.msg_iovlen = 1;
 
-	while ((n = sendmsg(sock, &msg, 0)) == -1 && (errno == EAGAIN ||
-	    errno == EINTR))
+	pfd.fd = sock;
+	pfd.events = POLLOUT;
+	while ((n = sendmsg(sock, &msg, 0)) == -1 &&
+	    (errno == EAGAIN || errno == EINTR)) {
 		debug3("%s: sendmsg(%d): %s", __func__, fd, strerror(errno));
+		(void)poll(&pfd, 1, -1);
+	}
 	if (n == -1) {
 		error("%s: sendmsg(%d): %s", __func__, fd,
 		    strerror(errno));
@@ -112,6 +120,7 @@ mm_receive_fd(int sock)
 	ssize_t n;
 	char ch;
 	int fd;
+	struct pollfd pfd;
 
 	memset(&msg, 0, sizeof(msg));
 	vec.iov_base = &ch;
@@ -126,9 +135,13 @@ mm_receive_fd(int sock)
 	msg.msg_controllen = sizeof(cmsgbuf.buf);
 #endif
 
-	while ((n = recvmsg(sock, &msg, 0)) == -1 && (errno == EAGAIN ||
-	    errno == EINTR))
+	pfd.fd = sock;
+	pfd.events = POLLIN;
+	while ((n = recvmsg(sock, &msg, 0)) == -1 &&
+	    (errno == EAGAIN || errno == EINTR)) {
 		debug3("%s: recvmsg: %s", __func__, strerror(errno));
+		(void)poll(&pfd, 1, -1);
+	}
 	if (n == -1) {
 		error("%s: recvmsg: %s", __func__, strerror(errno));
 		return -1;

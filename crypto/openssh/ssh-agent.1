@@ -1,4 +1,4 @@
-.\" $OpenBSD: ssh-agent.1,v 1.47 2009/03/26 08:38:39 sobrado Exp $
+.\" $OpenBSD: ssh-agent.1,v 1.50 2010/01/17 21:49:09 tedu Exp $
 .\" $FreeBSD$
 .\"
 .\" Author: Tatu Ylonen <ylo@cs.hut.fi>
@@ -35,7 +35,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.Dd March 26 2009
+.Dd January 17 2010
 .Dt SSH-AGENT 1
 .Os
 .Sh NAME
@@ -68,7 +68,9 @@ machines using
 The options are as follows:
 .Bl -tag -width Ds
 .It Fl a Ar bind_address
-Bind the agent to the unix-domain socket
+Bind the agent to the
+.Ux Ns -domain
+socket
 .Ar bind_address .
 The default is
 .Pa /tmp/ssh-XXXXXXXXXX/agent.\*(Ltppid\*(Gt .
@@ -118,8 +120,9 @@ and
 .Pa ~/.ssh/identity .
 If the identity has a passphrase,
 .Xr ssh-add 1
-asks for the passphrase (using a small X11 application if running
-under X11, or from the terminal if running without X).
+asks for the passphrase on the terminal if it has one or from a small X11
+program if running under X11.
+If neither of these is the case then the authentication will fail.
 It then sends the identity to the agent.
 Several identities can be stored in the
 agent; the agent can automatically use any of these identities.
@@ -163,8 +166,9 @@ Instead, operations that require a private key will be performed
 by the agent, and the result will be returned to the requester.
 This way, private keys are not exposed to clients using the agent.
 .Pp
-A unix-domain socket is created
-and the name of this socket is stored in the
+A
+.Ux Ns -domain
+socket is created and the name of this socket is stored in the
 .Ev SSH_AUTH_SOCK
 environment
 variable.
@@ -187,8 +191,8 @@ Contains the protocol version 2 DSA authentication identity of the user.
 .It Pa ~/.ssh/id_rsa
 Contains the protocol version 2 RSA authentication identity of the user.
 .It Pa /tmp/ssh-XXXXXXXXXX/agent.\*(Ltppid\*(Gt
-Unix-domain sockets used to contain the connection to the
-authentication agent.
+.Ux Ns -domain
+sockets used to contain the connection to the authentication agent.
 These sockets should only be readable by the owner.
 The sockets should get automatically removed when the agent exits.
 .El
