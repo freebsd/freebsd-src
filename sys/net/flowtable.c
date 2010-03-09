@@ -472,7 +472,8 @@ flow_stale(struct flowtable *ft, struct flentry *fle)
 	    || ((fle->f_rt->rt_flags & RTF_HOST) &&
 		((fle->f_rt->rt_flags & (RTF_UP))
 		    != (RTF_UP)))
-	    || (fle->f_rt->rt_ifp == NULL))
+	    || (fle->f_rt->rt_ifp == NULL)
+	    || !RT_LINK_IS_UP(fle->f_rt->rt_ifp))
 		return (1);
 
 	idle_time = time_uptime - fle->f_uptime;
