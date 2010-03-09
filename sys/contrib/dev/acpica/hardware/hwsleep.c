@@ -474,13 +474,16 @@ AcpiEnterSleepState (
             return_ACPI_STATUS (Status);
         }
 
-        /*
-         * Some BIOSs don't set WAK_STS at all.  Give up waiting after
-         * 1000 retries if it still isn't set.
-         */
-        if (Retry-- == 0)
+        if (AcpiGbl_EnableInterpreterSlack)
         {
-            break;
+            /*
+             * Some BIOSs don't set WAK_STS at all.  Give up waiting after
+             * 1000 retries if it still isn't set.
+             */
+            if (Retry-- == 0)
+            {
+                break;
+            }
         }
 
         /* Spin until we wake */
