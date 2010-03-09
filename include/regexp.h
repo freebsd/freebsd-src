@@ -37,6 +37,10 @@
 #ifndef	_REGEXP_H_
 #define	_REGEXP_H_
 
+#ifdef __GNUC__
+#warning "this file includes <regexp.h> which is deprecated, use <regex.h> instead"
+#endif
+
 /*
  * Definitions etc. for regexp(3) routines.
  *
