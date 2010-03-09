@@ -92,7 +92,7 @@ int	Jflag;			/* enable gjournal for file system */
 int	lflag;			/* enable multilabel for file system */
 int	nflag;			/* do not create .snap directory */
 intmax_t fssize;		/* file system size */
-int64_t	sectorsize;		/* bytes/sector */
+int	sectorsize;		/* bytes/sector */
 int	realsectorsize;		/* bytes/sector in hardware */
 int64_t	fsize = 0;		/* fragment size */
 int64_t	bsize = 0;		/* block size */
@@ -119,6 +119,7 @@ static void getfssize(intmax_t *, const char *p, intmax_t, intmax_t);
 static struct disklabel *getdisklabel(char *s);
 static void rewritelabel(char *s, struct disklabel *lp);
 static void usage(void);
+static int expand_number_int(const char *buf, int *num);
 
 ufs2_daddr_t part_ofs; /* partition offset in blocks, used with files */
 
@@ -171,7 +172,7 @@ main(int argc, char *argv[])
 			Rflag = 1;
 			break;
 		case 'S':
-			rval = expand_number(optarg, &sectorsize);
+			rval = expand_number_int(optarg, &sectorsize);
 			if (rval < 0 || sectorsize <= 0)
 				errx(1, "%s: bad sector size", optarg);
 			break;
@@ -495,4 +496,21 @@ usage()
 	fprintf(stderr, "\t-r reserved sectors at the end of device\n");
 	fprintf(stderr, "\t-s file system size (sectors)\n");
 	exit(1);
+}
+
+static int
+expand_number_int(const char *buf, int *num)
+{
+	int64_t num64;
+	int rval;
+
+	rval = expand_number(buf, &num64);
+	if (rval != 0)
+		return (rval);
+	if (num64 > INT_MAX) {
+		errno = ERANGE;
+		return (-1);
+	}
+	*num = (int)num64;
+	return (0);
 }
