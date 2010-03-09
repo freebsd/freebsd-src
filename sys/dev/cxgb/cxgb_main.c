@@ -1229,7 +1229,7 @@ t3_os_link_changed(adapter_t *adapter, int port_id, int link_status, int speed,
 void t3_os_phymod_changed(struct adapter *adap, int port_id)
 {
 	static const char *mod_str[] = {
-		NULL, "SR", "LR", "LRM", "TWINAX", "TWINAX", "unknown"
+		NULL, "SR", "LR", "LRM", "TWINAX", "TWINAX-L", "unknown"
 	};
 	struct port_info *pi = &adap->port[port_id];
 	int mod = pi->phy.modtype;
