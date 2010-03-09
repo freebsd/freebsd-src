@@ -14270,7 +14270,7 @@ static device_method_t bwn_methods[] = {
 	DEVMETHOD(device_detach,	bwn_detach),
 	DEVMETHOD(device_suspend,	bwn_suspend),
 	DEVMETHOD(device_resume,	bwn_resume),
-	{ 0,0 }
+	KOBJMETHOD_END
 };
 static driver_t bwn_driver = {
 	"bwn",
