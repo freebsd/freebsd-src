@@ -78,7 +78,7 @@ struct nexus_device {
 
 #define DEVTONX(dev)	((struct nexus_device *)device_get_ivars(dev))
 
-static struct rman irq_rman, drq_rman, port_rman, mem_rman;
+static struct rman irq_rman, port_rman, mem_rman;
 
 static	int nexus_probe(device_t);
 static	int nexus_attach(device_t);
@@ -188,21 +188,6 @@ nexus_probe(device_t dev)
 	    || rman_manage_region(&irq_rman,
 				  irq_rman.rm_start, irq_rman.rm_end))
 		panic("nexus_probe irq_rman");
-
-	/*
-	 * ISA DMA on PCI systems is implemented in the ISA part of each
-	 * PCI->ISA bridge and the channels can be duplicated if there are
-	 * multiple bridges.  (eg: laptops with docking stations)
-	 */
-	drq_rman.rm_start = 0;
-	drq_rman.rm_end = 7;
-	drq_rman.rm_type = RMAN_ARRAY;
-	drq_rman.rm_descr = "DMA request lines";
-	/* XXX drq 0 not available on some machines */
-	if (rman_init(&drq_rman)
-	    || rman_manage_region(&drq_rman,
-				  drq_rman.rm_start, drq_rman.rm_end))
-		panic("nexus_probe drq_rman");
 
 	/*
 	 * However, IO ports and Memory truely are global at this level,
@@ -353,10 +338,6 @@ nexus_alloc_resource(device_t bus, device_t child, int type, int *rid,
 	switch (type) {
 	case SYS_RES_IRQ:
 		rm = &irq_rman;
-		break;
-
-	case SYS_RES_DRQ:
-		rm = &drq_rman;
 		break;
 
 	case SYS_RES_IOPORT:
@@ -591,4 +572,3 @@ nexus_settime(device_t dev, struct timespec *ts)
 	tm.tm_mday = ct.day;
 	return (efi_set_time(&tm));
 }
-
