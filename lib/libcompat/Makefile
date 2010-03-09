@@ -5,7 +5,7 @@ LIB=compat
 CFLAGS+=-DLIBC_SCCS -DSYSLIBC_SCCS -I${.CURDIR}/../libc/locale
 NO_PIC=
 
-WARNS?=	1
+WARNS?=	0
 
 .PATH:	${.CURDIR}/4.1/${MACHINE_ARCH} ${.CURDIR}/4.1 \
 	${.CURDIR}/4.3/${MACHINE_ARCH} ${.CURDIR}/4.3 \
