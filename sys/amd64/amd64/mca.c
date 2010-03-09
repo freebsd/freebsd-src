@@ -60,7 +60,7 @@ static int mca_count;		/* Number of records stored. */
 
 SYSCTL_NODE(_hw, OID_AUTO, mca, CTLFLAG_RD, NULL, "Machine Check Architecture");
 
-static int mca_enabled = 0;
+static int mca_enabled = 1;
 TUNABLE_INT("hw.mca.enabled", &mca_enabled);
 SYSCTL_INT(_hw_mca, OID_AUTO, enabled, CTLFLAG_RDTUN, &mca_enabled, 0,
     "Administrative toggle for machine check support");
