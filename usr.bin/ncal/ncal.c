@@ -60,7 +60,7 @@ struct monthlines {
 	wchar_t name[MAX_WIDTH + 1];
 	char lines[7][MAX_WIDTH + 1];
 	char weeks[MAX_WIDTH + 1];
-	unsigned int linelen[7];
+	unsigned int extralen[7];
 };
 
 struct weekdays {
@@ -290,6 +290,8 @@ main(int argc, char *argv[])
 			break;
 		case 'm':
 			flag_month = optarg;
+			before = 0;
+			after = 0;
 			break;
 		case 'o':
 			if (flag_backward)
@@ -336,14 +338,19 @@ main(int argc, char *argv[])
 		if (flag_easter)
 			usage();
 		flag_month = *argv++;
+		before = 0;
+		after = 0;
+		m = strtol(flag_month, NULL, 10);
 		/* FALLTHROUGH */
 	case 1:
 		y = atoi(*argv++);
 		if (y < 1 || y > 9999)
 			errx(EX_USAGE, "year %d not in range 1..9999", y);
-		before = 0;
-		after = 11;
-		m = 1;
+		if (before == -1 && after == -1) {
+			before = 0;
+			after = 11;
+			m = 1;
+		}
 		break;
 	case 0:
 		{
@@ -470,8 +477,7 @@ printeaster(int y, int julian, int orthodox)
 	printf("%s\n", buf);
 }
 
-#define MW(mw, ms, ml) \
-	strlen(ms) > (ml) ? (mw) + 9 : (mw)
+#define MW(mw, me)		((mw) + me)
 #define	DECREASEMONTH(m, y) 		\
 		if (--m == 0) {		\
 			m = 12;		\
@@ -564,7 +570,9 @@ monthrangeb(int y, int jd_flag, int m, int before, int after)
 
 		for (i = 0; i != 6; i++) {
 			for (j = 0; j < count; j++)
-				printf("%-*s  ", mw, year[j].lines[i]+1);
+				printf("%-*s  ",
+				    MW(mw, year[j].extralen[i]),
+					year[j].lines[i]+1);
 			printf("\n");
 		}
 
@@ -641,8 +649,8 @@ monthranger(int y, int jd_flag, int m, int before, int after)
 			/* Full months */
 			for (j = 0; j < count; j++)
 				printf("%-*s",
-				    MW(mw, year[j].lines[i],
-					year[j].linelen[i]), year[j].lines[i]);
+				    MW(mw, year[j].extralen[i]),
+					year[j].lines[i]);
 			printf("\n");
 		}
 
@@ -733,7 +741,7 @@ mkmonthr(int y, int m, int jd_flag, struct monthlines *mlines)
 				memcpy(mlines->lines[i] + k + l, "    ", dw);
 		}
 		mlines->lines[i][k + l] = '\0';
-		mlines->linelen[i] = k;
+		mlines->extralen[i] = l;
 	}
 
 	/* fill the weeknumbers */
@@ -840,6 +848,7 @@ mkmonthb(int y, int m, int jd_flag, struct monthlines *mlines)
 			mlines->lines[i][1] = '\0';
 		else
 			mlines->lines[i][k + l] = '\0';
+		mlines->extralen[i] = l;
 	}
 }
 
