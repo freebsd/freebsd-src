@@ -118,9 +118,11 @@ powerpc_decr_interrupt(struct trapframe *framep)
 	struct thread *td;
 
 	td = PCPU_GET(curthread);
+	critical_enter();
 	atomic_add_int(&td->td_intr_nesting_level, 1);
 	decr_intr(framep);
 	atomic_subtract_int(&td->td_intr_nesting_level, 1);
+	critical_exit();
 }
 
 /*
@@ -129,10 +131,8 @@ powerpc_decr_interrupt(struct trapframe *framep)
 void
 powerpc_extr_interrupt(struct trapframe *framep)
 {
-	struct thread *td;
 
-	td = PCPU_GET(curthread);
-	atomic_add_int(&td->td_intr_nesting_level, 1);
+	critical_enter();
 	PIC_DISPATCH(pic, framep);
-	atomic_subtract_int(&td->td_intr_nesting_level, 1);
+	critical_exit();
 }
