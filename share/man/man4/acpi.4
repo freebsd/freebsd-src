@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 8, 2009
+.Dd March 9, 2010
 .Dt ACPI 4
 .Os
 .Sh NAME
@@ -62,6 +62,10 @@ used to modify or monitor
 .Nm
 behavior.
 .Bl -tag -width indent
+.It Va debug.acpi.enable_debug_objects
+Enable dumping Debug objects without
+.Cd "options ACPI_DEBUG" .
+Default is 0, ignore Debug objects.
 .It Va hw.acpi.acline
 AC line state (1 means online, 0 means on battery power).
 .It Va hw.acpi.cpu.cx_usage
@@ -197,6 +201,9 @@ Enables loading of a custom ACPI DSDT.
 Name of the DSDT table to load, if loading is enabled.
 .It Va debug.acpi.disabled
 Selectively disables portions of ACPI for debugging purposes.
+.It Va debug.acpi.interpreter_slack
+Enable less strict ACPI implementations.
+Default is 1, ignore common BIOS mistakes.
 .It Va debug.acpi.max_threads
 Specify the number of task threads that are started on boot.
 Limiting this to 1 may help work around various BIOSes that cannot
