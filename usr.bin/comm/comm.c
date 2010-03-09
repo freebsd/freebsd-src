@@ -201,6 +201,8 @@ convert(const char *str)
 
 	if ((n = mbstowcs(NULL, str, 0)) == (size_t)-1)
 		return (NULL);
+	if (SIZE_MAX / sizeof(*buf) < n + 1)
+		errx(1, "conversion buffer length overflow");
 	if ((buf = malloc((n + 1) * sizeof(*buf))) == NULL)
 		err(1, "malloc");
 	if (mbstowcs(buf, str, n + 1) != n)
