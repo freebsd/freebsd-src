@@ -21,7 +21,7 @@ static void DS1672_Init();
 
 static void
 DS1672_Init() {
-	uint8_t buf[] = {0x00, 0xa9};
+	char buf[] = {0x00, 0xa9};
 
 	EEWrite(0xd0, buf, sizeof(buf));
 }
