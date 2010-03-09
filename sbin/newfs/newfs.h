@@ -86,7 +86,7 @@ extern int	Jflag;		/* enable gjournal for file system */
 extern int	lflag;		/* enable multilabel MAC for file system */
 extern int	nflag;		/* do not create .snap directory */
 extern intmax_t	fssize;		/* file system size */
-extern int64_t	sectorsize;	/* bytes/sector */
+extern int	sectorsize;	/* bytes/sector */
 extern int	realsectorsize;	/* bytes/sector in hardware*/
 extern int64_t	fsize;		/* fragment size */
 extern int64_t	bsize;		/* block size */
