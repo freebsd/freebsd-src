@@ -951,7 +951,7 @@ ipfw_ctl(struct sockopt *sopt)
 	case IP_FW_ADD:
 		rule = malloc(RULE_MAXSIZE, M_TEMP, M_WAITOK);
 		error = sooptcopyin(sopt, rule, RULE_MAXSIZE,
-			sizeof(struct ip_fw) );
+			sizeof(struct ip_fw7) );
 
 		/*
 		 * If the size of commands equals RULESIZE7 then we assume
