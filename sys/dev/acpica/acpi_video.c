@@ -584,8 +584,8 @@ acpi_video_vo_bind(struct acpi_video_output *vo, ACPI_HANDLE handle)
 			vo->vo_economy = vo->vo_levels[BCL_ECONOMY];
 	}
 	if (vo->vo_levels != NULL)
-	    AcpiInstallNotifyHandler(handle, ACPI_DEVICE_NOTIFY,
-		acpi_video_vo_notify_handler, vo);
+		AcpiInstallNotifyHandler(handle, ACPI_DEVICE_NOTIFY,
+		    acpi_video_vo_notify_handler, vo);
 	ACPI_SERIAL_END(video_output);
 }
 
