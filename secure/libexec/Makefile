@@ -4,7 +4,7 @@
 
 SUBDIR=
 .if ${MK_OPENSSH} != "no"
-SUBDIR+=sftp-server ssh-keysign ssh-pkcs11-helper
+SUBDIR+=sftp-server ssh-keysign
 .endif
 
 .include <bsd.subdir.mk>
