@@ -983,7 +983,7 @@ COMMON ITEMS:
 	mergemaster -p					[5]
 	make installworld
 	make delete-old
-	mergemaster					[4]
+	mergemaster -i					[4]
 	<reboot>
 
 
@@ -1054,7 +1054,8 @@ COMMON ITEMS:
 	system.  Attempting to do it by hand is not recommended and those
 	that pursue this avenue should read this file carefully, as well
 	as the archives of freebsd-current and freebsd-hackers mailing lists
-	for potential gotchas.
+	for potential gotchas.  The -U option is also useful to consider.
+	See mergemaster(8) for more information.
 
 	[5] Usually this step is a noop.  However, from time to time
 	you may need to do this if you get unknown user in the following
