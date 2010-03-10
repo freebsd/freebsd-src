@@ -1,12 +1,44 @@
-; RUN: llc < %s -march=xcore -mcpu=xs1b-generic > %t1.s
-; RUN: grep ladd %t1.s | count 2
-; RUN: grep lsub %t1.s | count 2
+; RUN: llc < %s -march=xcore | FileCheck %s
 define i64 @add64(i64 %a, i64 %b) {
 	%result = add i64 %a, %b
 	ret i64 %result
 }
+; CHECK: add64
+; CHECK: ldc r11, 0
+; CHECK-NEXT: ladd r2, r0, r0, r2, r11
+; CHECK-NEXT: ladd r2, r1, r1, r3, r2
+; CHECK-NEXT: retsp 0
 
 define i64 @sub64(i64 %a, i64 %b) {
 	%result = sub i64 %a, %b
 	ret i64 %result
 }
+; CHECK: sub64
+; CHECK: ldc r11, 0
+; CHECK-NEXT: lsub r2, r0, r0, r2, r11
+; CHECK-NEXT: lsub r2, r1, r1, r3, r2
+; CHECK-NEXT: retsp 0
+
+define i64 @maccu(i64 %a, i32 %b, i32 %c) {
+entry:
+	%0 = zext i32 %b to i64
+	%1 = zext i32 %c to i64
+	%2 = mul i64 %1, %0
+	%3 = add i64 %2, %a
+	ret i64 %3
+}
+; CHECK: maccu:
+; CHECK: maccu r1, r0, r3, r2
+; CHECK-NEXT: retsp 0
+
+define i64 @maccs(i64 %a, i32 %b, i32 %c) {
+entry:
+	%0 = sext i32 %b to i64
+	%1 = sext i32 %c to i64
+	%2 = mul i64 %1, %0
+	%3 = add i64 %2, %a
+	ret i64 %3
+}
+; CHECK: maccs:
+; CHECK: maccs r1, r0, r3, r2
+; CHECK-NEXT: retsp 0

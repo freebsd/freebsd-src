@@ -65,7 +65,7 @@ def SDT_X86VASTART_SAVE_XMM_REGS : SDTypeProfile<0, -1, [SDTCisVT<0, i8>,
 
 def SDTX86RepStr  : SDTypeProfile<0, 1, [SDTCisVT<0, OtherVT>]>;
 
-def SDTX86RdTsc   : SDTypeProfile<0, 0, []>;
+def SDTX86Void    : SDTypeProfile<0, 0, []>;
 
 def SDTX86Wrapper : SDTypeProfile<1, 1, [SDTCisSameAs<0, 1>, SDTCisPtrTy<0>]>;
 
@@ -143,7 +143,7 @@ def X86rep_movs: SDNode<"X86ISD::REP_MOVS", SDTX86RepStr,
                         [SDNPHasChain, SDNPInFlag, SDNPOutFlag, SDNPMayStore,
                          SDNPMayLoad]>;
 
-def X86rdtsc   : SDNode<"X86ISD::RDTSC_DAG",SDTX86RdTsc,
+def X86rdtsc   : SDNode<"X86ISD::RDTSC_DAG", SDTX86Void,
                         [SDNPHasChain, SDNPOutFlag, SDNPSideEffect]>;
 
 def X86Wrapper    : SDNode<"X86ISD::Wrapper",     SDTX86Wrapper>;
@@ -177,6 +177,9 @@ def X86and_flag  : SDNode<"X86ISD::AND",  SDTBinaryArithWithFlags,
                           [SDNPCommutative]>;
 
 def X86mul_imm : SDNode<"X86ISD::MUL_IMM", SDTIntBinOp>;
+
+def X86MingwAlloca : SDNode<"X86ISD::MINGW_ALLOCA", SDTX86Void,
+                            [SDNPHasChain, SDNPInFlag, SDNPOutFlag]>;
 
 //===----------------------------------------------------------------------===//
 // X86 Operand Definitions.
@@ -519,7 +522,7 @@ def ADJCALLSTACKUP32   : I<0, Pseudo, (outs), (ins i32imm:$amt1, i32imm:$amt2),
 }
 
 // x86-64 va_start lowering magic.
-let usesCustomInserter = 1 in
+let usesCustomInserter = 1 in {
 def VASTART_SAVE_XMM_REGS : I<0, Pseudo,
                               (outs),
                               (ins GR8:$al,
@@ -529,6 +532,19 @@ def VASTART_SAVE_XMM_REGS : I<0, Pseudo,
                               [(X86vastart_save_xmm_regs GR8:$al,
                                                          imm:$regsavefi,
                                                          imm:$offset)]>;
+
+// Dynamic stack allocation yields _alloca call for Cygwin/Mingw targets.  Calls
+// to _alloca is needed to probe the stack when allocating more than 4k bytes in
+// one go. Touching the stack at 4K increments is necessary to ensure that the
+// guard pages used by the OS virtual memory manager are allocated in correct
+// sequence.
+// The main point of having separate instruction are extra unmodelled effects
+// (compared to ordinary calls) like stack pointer change.
+
+def MINGW_ALLOCA : I<0, Pseudo, (outs), (ins),
+                     "# dynamic stack allocation",
+                     [(X86MingwAlloca)]>;
+}
 
 // Nop
 let neverHasSideEffects = 1 in {
@@ -2631,6 +2647,17 @@ def ADD32rr  : I<0x01, MRMDestReg, (outs GR32:$dst),
 } // end isConvertibleToThreeAddress
 } // end isCommutable
 
+// These are alternate spellings for use by the disassembler, we mark them as
+// code gen only to ensure they aren't matched by the assembler.
+let isCodeGenOnly = 1 in {
+  def ADD8rr_alt: I<0x02, MRMSrcReg, (outs GR8:$dst), (ins GR8:$src1, GR8:$src2),
+                   "add{b}\t{$src2, $dst|$dst, $src2}", []>;
+  def ADD16rr_alt: I<0x03, MRMSrcReg,(outs GR16:$dst),(ins GR16:$src1, GR16:$src2),
+                    "add{w}\t{$src2, $dst|$dst, $src2}", []>, OpSize;
+  def ADD32rr_alt: I<0x03, MRMSrcReg,(outs GR16:$dst),(ins GR16:$src1, GR16:$src2),
+                    "add{l}\t{$src2, $dst|$dst, $src2}", []>;
+}
+
 // Register-Memory Addition
 def ADD8rm   : I<0x02, MRMSrcMem, (outs GR8 :$dst),
                                   (ins GR8 :$src1, i8mem :$src2),
@@ -2648,15 +2675,6 @@ def ADD32rm  : I<0x03, MRMSrcMem, (outs GR32:$dst),
                  [(set GR32:$dst, (add GR32:$src1, (load addr:$src2))),
                   (implicit EFLAGS)]>;
                   
-// Register-Register Addition - Equivalent to the normal rr forms (ADD8rr, 
-//   ADD16rr, and ADD32rr), but differently encoded.
-def ADD8mrmrr: I<0x02, MRMSrcReg, (outs GR8:$dst), (ins GR8:$src1, GR8:$src2),
-                 "add{b}\t{$src2, $dst|$dst, $src2}", []>;
-def ADD16mrmrr: I<0x03, MRMSrcReg,(outs GR16:$dst),(ins GR16:$src1, GR16:$src2),
-                  "add{w}\t{$src2, $dst|$dst, $src2}", []>, OpSize;
-def ADD32mrmrr: I<0x03, MRMSrcReg,(outs GR16:$dst),(ins GR16:$src1, GR16:$src2),
-                  "add{l}\t{$src2, $dst|$dst, $src2}", []>;
-
 // Register-Integer Addition
 def ADD8ri    : Ii8<0x80, MRM0r, (outs GR8:$dst), (ins GR8:$src1, i8imm:$src2),
                     "add{b}\t{$src2, $dst|$dst, $src2}",
@@ -3119,16 +3137,16 @@ def IMUL32rmi8 : Ii8<0x6B, MRMSrcMem,                       // GR32 = [mem32]*I8
 //
 let Defs = [EFLAGS] in {
 let isCommutable = 1 in {   // TEST X, Y   --> TEST Y, X
-def TEST8rr  : I<0x84, MRMDestReg, (outs),  (ins GR8:$src1, GR8:$src2),
+def TEST8rr  : I<0x84, MRMSrcReg, (outs),  (ins GR8:$src1, GR8:$src2),
                      "test{b}\t{$src2, $src1|$src1, $src2}",
                      [(X86cmp (and_su GR8:$src1, GR8:$src2), 0),
                       (implicit EFLAGS)]>;
-def TEST16rr : I<0x85, MRMDestReg, (outs),  (ins GR16:$src1, GR16:$src2),
+def TEST16rr : I<0x85, MRMSrcReg, (outs),  (ins GR16:$src1, GR16:$src2),
                      "test{w}\t{$src2, $src1|$src1, $src2}",
                      [(X86cmp (and_su GR16:$src1, GR16:$src2), 0),
                       (implicit EFLAGS)]>,
                  OpSize;
-def TEST32rr : I<0x85, MRMDestReg, (outs),  (ins GR32:$src1, GR32:$src2),
+def TEST32rr : I<0x85, MRMSrcReg, (outs),  (ins GR32:$src1, GR32:$src2),
                      "test{l}\t{$src2, $src1|$src1, $src2}",
                      [(X86cmp (and_su GR32:$src1, GR32:$src2), 0),
                       (implicit EFLAGS)]>;
@@ -3437,12 +3455,18 @@ def CMP32rm : I<0x3B, MRMSrcMem,
                 "cmp{l}\t{$src2, $src1|$src1, $src2}",
                 [(X86cmp GR32:$src1, (loadi32 addr:$src2)),
                  (implicit EFLAGS)]>;
-def CMP8mrmrr : I<0x3A, MRMSrcReg, (outs), (ins GR8:$src1, GR8:$src2),
-                  "cmp{b}\t{$src2, $src1|$src1, $src2}", []>;
-def CMP16mrmrr : I<0x3B, MRMSrcReg, (outs), (ins GR16:$src1, GR16:$src2),
-                   "cmp{w}\t{$src2, $src1|$src1, $src2}", []>, OpSize;
-def CMP32mrmrr : I<0x3B, MRMSrcReg, (outs), (ins GR32:$src1, GR32:$src2),
-                   "cmp{l}\t{$src2, $src1|$src1, $src2}", []>;
+
+// These are alternate spellings for use by the disassembler, we mark them as
+// code gen only to ensure they aren't matched by the assembler.
+let isCodeGenOnly = 1 in {
+  def CMP8rr_alt : I<0x3A, MRMSrcReg, (outs), (ins GR8:$src1, GR8:$src2),
+                    "cmp{b}\t{$src2, $src1|$src1, $src2}", []>;
+  def CMP16rr_alt : I<0x3B, MRMSrcReg, (outs), (ins GR16:$src1, GR16:$src2),
+                     "cmp{w}\t{$src2, $src1|$src1, $src2}", []>, OpSize;
+  def CMP32rr_alt : I<0x3B, MRMSrcReg, (outs), (ins GR32:$src1, GR32:$src2),
+                     "cmp{l}\t{$src2, $src1|$src1, $src2}", []>;
+}
+
 def CMP8ri  : Ii8<0x80, MRM7r,
                   (outs), (ins GR8:$src1, i8imm:$src2),
                   "cmp{b}\t{$src2, $src1|$src1, $src2}",
@@ -4236,7 +4260,7 @@ def VMWRITE32rr : I<0x79, MRMSrcReg, (outs GR32:$dst), (ins GR32:$src),
 // 0F 01 C4
 def VMXOFF : I<0x01, MRM_C4, (outs), (ins), "vmxoff", []>, TB;
 def VMXON : I<0xC7, MRM6m, (outs), (ins i64mem:$vmxon),
-  "vmxon\t{$vmxon}", []>, XD;
+  "vmxon\t{$vmxon}", []>, XS;
 
 //===----------------------------------------------------------------------===//
 // Non-Instruction Patterns
@@ -5134,7 +5158,7 @@ def : Pat<(parallel (store (X86and_flag (loadi32 addr:$dst), i32immSExt8:$src2),
           (AND32mi8 addr:$dst, i32immSExt8:$src2)>;
 
 // -disable-16bit support.
-def : Pat<(truncstorei16 (i32 imm:$src), addr:$dst),
+def : Pat<(truncstorei16 (i16 imm:$src), addr:$dst),
           (MOV16mi addr:$dst, imm:$src)>;
 def : Pat<(truncstorei16 GR32:$src, addr:$dst),
           (MOV16mr addr:$dst, (EXTRACT_SUBREG GR32:$src, x86_subreg_16bit))>;

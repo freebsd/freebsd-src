@@ -331,9 +331,9 @@ multiclass T2I_bin_ii12rs<bits<3> op23_21, string opc, PatFrag opnode,
      let Inst{15} = 0;
    }
    // 12-bit imm
-   def ri12 : T2sI<(outs GPR:$dst), (ins GPR:$lhs, imm0_4095:$rhs), IIC_iALUi,
-                   !strconcat(opc, "w"), "\t$dst, $lhs, $rhs",
-                   [(set GPR:$dst, (opnode GPR:$lhs, imm0_4095:$rhs))]> {
+   def ri12 : T2I<(outs GPR:$dst), (ins GPR:$lhs, imm0_4095:$rhs), IIC_iALUi,
+                  !strconcat(opc, "w"), "\t$dst, $lhs, $rhs",
+                  [(set GPR:$dst, (opnode GPR:$lhs, imm0_4095:$rhs))]> {
      let Inst{31-27} = 0b11110;
      let Inst{25} = 1;
      let Inst{24} = 0;
@@ -2637,9 +2637,9 @@ def t2MRSsys : T2I<(outs GPR:$dst), (ins), NoItinerary, "mrs", "\t$dst, spsr",
   let Inst{12} = 0;
 }
 
-// FIXME: mask is ignored for the time being.
 // Rn = Inst{19-16}
-def t2MSR : T2I<(outs), (ins GPR:$src), NoItinerary, "msr", "\tcpsr, $src",
+def t2MSR : T2I<(outs), (ins GPR:$src, i32imm:$mask), NoItinerary, "msr",
+                "\tcpsr${mask:msr}, $src",
                 [/* For disassembly only; pattern left blank */]> {
   let Inst{31-27} = 0b11110;
   let Inst{26} = 0;
@@ -2649,9 +2649,9 @@ def t2MSR : T2I<(outs), (ins GPR:$src), NoItinerary, "msr", "\tcpsr, $src",
   let Inst{12} = 0;
 }
 
-// FIXME: mask is ignored for the time being.
 // Rn = Inst{19-16}
-def t2MSRsys : T2I<(outs), (ins GPR:$src), NoItinerary, "msr", "\tspsr, $src",
+def t2MSRsys : T2I<(outs), (ins GPR:$src, i32imm:$mask), NoItinerary, "msr",
+                   "\tspsr${mask:msr}, $src",
                    [/* For disassembly only; pattern left blank */]> {
   let Inst{31-27} = 0b11110;
   let Inst{26} = 0;

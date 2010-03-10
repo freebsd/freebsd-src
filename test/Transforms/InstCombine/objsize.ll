@@ -91,7 +91,7 @@ bb11:
   %1 = bitcast float* %0 to i8*                   ; <i8*> [#uses=1]
   %2 = call i32 @llvm.objectsize.i32(i8* %1, i1 false) ; <i32> [#uses=1]
   %3 = call i8* @__memcpy_chk(i8* undef, i8* undef, i32 512, i32 %2) nounwind ; <i8*> [#uses=0]
-; CHECK: @__memcpy_chk
+; CHECK: unreachable
   unreachable
 
 bb12:
@@ -113,12 +113,28 @@ entry:
   %1 = bitcast %struct.data* %0 to i8*
   %2 = call i64 @llvm.objectsize.i64(i8* %1, i1 false) nounwind
 ; CHECK-NOT: @llvm.objectsize
-; CHECK: @__memset_chk(i8* %1, i32 0, i64 1824, i64 1824)
+; CHECK: @llvm.memset.i64(i8* %1, i8 0, i64 1824, i32 8)
   %3 = call i8* @__memset_chk(i8* %1, i32 0, i64 1824, i64 %2) nounwind
   ret i32 0
 }
 
+@s = external global i8*
+
+define void @test5(i32 %n) nounwind ssp {
+; CHECK: @test5
+entry:
+  %0 = tail call noalias i8* @malloc(i32 20) nounwind
+  %1 = tail call i32 @llvm.objectsize.i32(i8* %0, i1 false)
+  %2 = load i8** @s, align 8
+; CHECK-NOT: @llvm.objectsize
+; CHECK: @__memcpy_chk(i8* %0, i8* %1, i32 10, i32 20)
+  %3 = tail call i8* @__memcpy_chk(i8* %0, i8* %2, i32 10, i32 %1) nounwind
+  ret void
+}
+
 declare i8* @__memset_chk(i8*, i32, i64, i64) nounwind
+
+declare noalias i8* @malloc(i32) nounwind
 
 declare i32 @llvm.objectsize.i32(i8*, i1) nounwind readonly
 
