@@ -495,7 +495,7 @@ dn_compat_config_profile(struct dn_profile *pf, struct dn_link *p,
 static int
 dn_compat_configure(void *v)
 {
-	struct dn_id *buf, *base;
+	struct dn_id *buf = NULL, *base;
 	struct dn_sch *sch = NULL;
 	struct dn_link *p = NULL;
 	struct dn_fs *fs = NULL;
@@ -547,6 +547,8 @@ dn_compat_configure(void *v)
 	}
 	error = do_config(base, (char *)buf - (char *)base);
 
+	if (buf)
+		free(buf, M_DUMMYNET);
 	return error;
 }
 
