@@ -152,12 +152,12 @@ detect_hs21(struct bce_softc *bce_sc)
 	char *sysenv;
 
 	if (bce_sc->bce_chipid != HS21_BCM_CHIPID)
-		return 0;
+		return (0);
 	sysenv = getenv("smbios.system.product");
 	if (sysenv == NULL)
-		return 0;
+		return (0);
 	if (strncmp(sysenv, HS21_PRODUCT_ID, strlen(HS21_PRODUCT_ID)) != 0)
-		return 0;
+		return (0);
 	return (1);
 }
 
