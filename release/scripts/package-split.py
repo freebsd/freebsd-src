@@ -26,7 +26,7 @@ else:
 # List of packages for disc1.  This just includes packages sysinstall can
 # install as a distribution
 def disc1_packages():
-    pkgs = ['lang/perl5.8']
+    pkgs = ['lang/perl5.10']
     pkgs.extend(['x11/xorg',
 		 'x11-drivers/xorg-drivers',
 		 'x11-fonts/xorg-fonts',
@@ -47,13 +47,8 @@ def disc2_packages():
 		'x11/kde-lite']
     else:
 	pkgs = ['x11/gnome2',
-		'x11/kdebase4',
 		'x11/kdelibs4',
-		'games/kdegames4',
-		'graphics/kdegraphics4',
-		'misc/kdeutils4',
-		'multimedia/kdemultimedia4',
-		'net/kdenetwork4']
+		'games/kdegames4']
     return pkgs
 
 def disc3_packages():
@@ -84,21 +79,21 @@ def disc3_packages():
             'misc/compat6x',
             'net/cvsup-without-gui',
             'net/rsync',
+            'net/mpd5',
             'net/samba3',
             'news/slrn',
             'news/tin',
+            'ports-mgmt/portmaster',
             'ports-mgmt/portupgrade',
             'print/a2ps-letter',
-            'print/apsfilter',
             'print/ghostscript7-nox11',
             'print/gv',
             'print/psutils-letter',
-            'print/teTeX',
             'shells/bash',
             'shells/pdksh',
             'shells/zsh',
             'security/sudo',
-            'textproc/docproj-jadetex',
+            'sysutils/screen',
             'www/apache13',
             'www/apache13-modssl',
             'www/apache22',
