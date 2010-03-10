@@ -31,11 +31,31 @@
 #include "llvm/ADT/SmallString.h"
 using namespace llvm;
 
-DwarfPrinter::DwarfPrinter(raw_ostream &OS, AsmPrinter *A, const MCAsmInfo *T,
-                           const char *flavor)
+DwarfPrinter::DwarfPrinter(raw_ostream &OS, AsmPrinter *A, const MCAsmInfo *T)
 : O(OS), Asm(A), MAI(T), TD(Asm->TM.getTargetData()),
   RI(Asm->TM.getRegisterInfo()), M(NULL), MF(NULL), MMI(NULL),
-  SubprogramCount(0), Flavor(flavor), SetCounter(1) {}
+  SubprogramCount(0) {}
+
+
+/// getDWLabel - Return the MCSymbol corresponding to the assembler temporary
+/// label with the specified stem and unique ID.
+MCSymbol *DwarfPrinter::getDWLabel(const char *Name, unsigned ID) const {
+  // FIXME: REMOVE this.  However, there is stuff in EH that passes counters in
+  // here that can be zero.
+  
+  //assert(ID && "Should use getTempLabel if no ID");
+  if (ID == 0) return getTempLabel(Name);
+  return Asm->OutContext.GetOrCreateTemporarySymbol
+        (Twine(MAI->getPrivateGlobalPrefix()) + Twine(Name) + Twine(ID));
+}
+
+/// getTempLabel - Return the MCSymbol corresponding to the assembler temporary
+/// label with the specified name.
+MCSymbol *DwarfPrinter::getTempLabel(const char *Name) const {
+  return Asm->OutContext.GetOrCreateTemporarySymbol
+     (Twine(MAI->getPrivateGlobalPrefix()) + Name);
+}
+
 
 /// SizeOfEncodedValue - Return the size of the encoding in bytes.
 unsigned DwarfPrinter::SizeOfEncodedValue(unsigned Encoding) const {
@@ -55,33 +75,6 @@ unsigned DwarfPrinter::SizeOfEncodedValue(unsigned Encoding) const {
 
   assert(0 && "Invalid encoded value.");
   return 0;
-}
-
-void DwarfPrinter::PrintRelDirective(bool Force32Bit, bool isInSection) const {
-  if (isInSection && MAI->getDwarfSectionOffsetDirective())
-    O << MAI->getDwarfSectionOffsetDirective();
-  else if (Force32Bit || TD->getPointerSize() == sizeof(int32_t))
-    O << MAI->getData32bitsDirective();
-  else
-    O << MAI->getData64bitsDirective();
-}
-
-void DwarfPrinter::PrintRelDirective(unsigned Encoding) const {
-  unsigned Size = SizeOfEncodedValue(Encoding);
-  assert((Size == 4 || Size == 8) && "Do not support other types or rels!");
-
-  O << (Size == 4 ?
-        MAI->getData32bitsDirective() : MAI->getData64bitsDirective());
-}
-
-/// EOL - Print a newline character to asm stream.  If a comment is present
-/// then it will be printed first.  Comments should not contain '\n'.
-void DwarfPrinter::EOL(const Twine &Comment) const {
-  if (Asm->VerboseAsm && !Comment.isTriviallyEmpty()) {
-    Asm->O.PadToColumn(MAI->getCommentColumn());
-    Asm->O << Asm->MAI->getCommentString() << ' ' << Comment;
-  }
-  Asm->O << '\n';
 }
 
 static const char *DecodeDWARFEncoding(unsigned Encoding) {
@@ -145,6 +138,7 @@ void DwarfPrinter::EmitSLEB128(int Value, const char *Desc) const {
     Asm->OutStreamer.AddComment(Desc);
     
   if (MAI->hasLEB128()) {
+    // FIXME: MCize.
     O << "\t.sleb128\t" << Value;
     Asm->OutStreamer.AddBlankLine();
     return;
@@ -170,6 +164,7 @@ void DwarfPrinter::EmitULEB128(unsigned Value, const char *Desc,
     Asm->OutStreamer.AddComment(Desc);
  
   if (MAI->hasLEB128() && PadTo == 0) {
+    // FIXME: MCize.
     O << "\t.uleb128\t" << Value;
     Asm->OutStreamer.AddBlankLine();
     return;
@@ -191,134 +186,48 @@ void DwarfPrinter::EmitULEB128(unsigned Value, const char *Desc,
 }
 
 
-/// PrintLabelName - Print label name in form used by Dwarf writer.
-///
-void DwarfPrinter::PrintLabelName(const char *Tag, unsigned Number) const {
-  O << MAI->getPrivateGlobalPrefix() << Tag;
-  if (Number) O << Number;
-}
-void DwarfPrinter::PrintLabelName(const char *Tag, unsigned Number,
-                                  const char *Suffix) const {
-  O << MAI->getPrivateGlobalPrefix() << Tag;
-  if (Number) O << Number;
-  O << Suffix;
-}
-
-/// EmitLabel - Emit location label for internal use by Dwarf.
-///
-void DwarfPrinter::EmitLabel(const char *Tag, unsigned Number) const {
-  PrintLabelName(Tag, Number);
-  O << ":\n";
-}
-
-/// EmitReference - Emit a reference to a label.
-///
-void DwarfPrinter::EmitReference(const char *Tag, unsigned Number,
-                                 bool IsPCRelative, bool Force32Bit) const {
-  PrintRelDirective(Force32Bit);
-  PrintLabelName(Tag, Number);
-  if (IsPCRelative) O << "-" << MAI->getPCSymbol();
-}
-void DwarfPrinter::EmitReference(const std::string &Name, bool IsPCRelative,
-                                 bool Force32Bit) const {
-  PrintRelDirective(Force32Bit);
-  O << Name;
-  if (IsPCRelative) O << "-" << MAI->getPCSymbol();
-}
-
-void DwarfPrinter::EmitReference(const MCSymbol *Sym, bool IsPCRelative,
-                                 bool Force32Bit) const {
-  PrintRelDirective(Force32Bit);
-  O << *Sym;
-  if (IsPCRelative) O << "-" << MAI->getPCSymbol();
-}
-
-void DwarfPrinter::EmitReference(const char *Tag, unsigned Number,
-                                 unsigned Encoding) const {
-  SmallString<64> Name;
-  raw_svector_ostream(Name) << MAI->getPrivateGlobalPrefix()
-                            << Tag << Number;
-
-  MCSymbol *Sym = Asm->OutContext.GetOrCreateSymbol(Name.str());
-  EmitReference(Sym, Encoding);
-}
-
 void DwarfPrinter::EmitReference(const MCSymbol *Sym, unsigned Encoding) const {
   const TargetLoweringObjectFile &TLOF = Asm->getObjFileLowering();
 
-  PrintRelDirective(Encoding);
-  O << *TLOF.getSymbolForDwarfReference(Sym, Asm->MMI, Encoding);;
+  const MCExpr *Exp = TLOF.getSymbolForDwarfReference(Sym, Asm->MMI, Encoding);
+  Asm->OutStreamer.EmitValue(Exp, SizeOfEncodedValue(Encoding), /*addrspace*/0);
 }
 
-void DwarfPrinter::EmitReference(const GlobalValue *GV, unsigned Encoding)const {
+void DwarfPrinter::EmitReference(const GlobalValue *GV, unsigned Encoding)const{
   const TargetLoweringObjectFile &TLOF = Asm->getObjFileLowering();
 
-  PrintRelDirective(Encoding);
-  O << *TLOF.getSymbolForDwarfGlobalReference(GV, Asm->Mang,
-                                              Asm->MMI, Encoding);;
+  const MCExpr *Exp =
+    TLOF.getSymbolForDwarfGlobalReference(GV, Asm->Mang, Asm->MMI, Encoding);
+  Asm->OutStreamer.EmitValue(Exp, SizeOfEncodedValue(Encoding), /*addrspace*/0);
 }
 
 /// EmitDifference - Emit the difference between two labels.  If this assembler
 /// supports .set, we emit a .set of a temporary and then use it in the .word.
-void DwarfPrinter::EmitDifference(const char *TagHi, unsigned NumberHi,
-                                  const char *TagLo, unsigned NumberLo,
+void DwarfPrinter::EmitDifference(const MCSymbol *TagHi, const MCSymbol *TagLo,
                                   bool IsSmall) {
-  if (MAI->hasSetDirective()) {
-    // FIXME: switch to OutStreamer.EmitAssignment.
-    O << "\t.set\t";
-    PrintLabelName("set", SetCounter, Flavor);
-    O << ",";
-    PrintLabelName(TagHi, NumberHi);
-    O << "-";
-    PrintLabelName(TagLo, NumberLo);
-    O << "\n";
-
-    PrintRelDirective(IsSmall);
-    PrintLabelName("set", SetCounter, Flavor);
-    ++SetCounter;
-  } else {
-    PrintRelDirective(IsSmall);
-    PrintLabelName(TagHi, NumberHi);
-    O << "-";
-    PrintLabelName(TagLo, NumberLo);
-  }
+  unsigned Size = IsSmall ? 4 : TD->getPointerSize();
+  Asm->EmitLabelDifference(TagHi, TagLo, Size);
 }
 
-void DwarfPrinter::EmitSectionOffset(const char* Label, const char* Section,
-                                     unsigned LabelNumber,
-                                     unsigned SectionNumber,
-                                     bool IsSmall, bool isEH,
-                                     bool useSet) {
-  bool printAbsolute = false;
+void DwarfPrinter::EmitSectionOffset(const MCSymbol *Label,
+                                     const MCSymbol *Section,
+                                     bool IsSmall, bool isEH) {
+  bool isAbsolute;
   if (isEH)
-    printAbsolute = MAI->isAbsoluteEHSectionOffsets();
+    isAbsolute = MAI->isAbsoluteEHSectionOffsets();
   else
-    printAbsolute = MAI->isAbsoluteDebugSectionOffsets();
+    isAbsolute = MAI->isAbsoluteDebugSectionOffsets();
 
-  if (MAI->hasSetDirective() && useSet) {
-    // FIXME: switch to OutStreamer.EmitAssignment.
-    O << "\t.set\t";
-    PrintLabelName("set", SetCounter, Flavor);
-    O << ",";
-    PrintLabelName(Label, LabelNumber);
-
-    if (!printAbsolute) {
-      O << "-";
-      PrintLabelName(Section, SectionNumber);
-    }
-
-    O << "\n";
-    PrintRelDirective(IsSmall);
-    PrintLabelName("set", SetCounter, Flavor);
-    ++SetCounter;
-  } else {
-    PrintRelDirective(IsSmall, true);
-    PrintLabelName(Label, LabelNumber);
-
-    if (!printAbsolute) {
-      O << "-";
-      PrintLabelName(Section, SectionNumber);
-    }
+  if (!isAbsolute)
+    return EmitDifference(Label, Section, IsSmall);
+  
+  // On COFF targets, we have to emit the weird .secrel32 directive.
+  if (const char *SecOffDir = MAI->getDwarfSectionOffsetDirective())
+    // FIXME: MCize.
+    Asm->O << SecOffDir << Label->getName();
+  else {
+    unsigned Size = IsSmall ? 4 : TD->getPointerSize();
+    Asm->OutStreamer.EmitSymbolValue(Label, Size, 0/*AddrSpace*/);
   }
 }
 
@@ -337,12 +246,9 @@ void DwarfPrinter::EmitFrameMoves(const char *BaseLabel, unsigned BaseLabelID,
     const MachineMove &Move = Moves[i];
     unsigned LabelID = Move.getLabelID();
 
-    if (LabelID) {
-      LabelID = MMI->MappedLabel(LabelID);
-
-      // Throw out move if the label is invalid.
-      if (!LabelID) continue;
-    }
+    // Throw out move if the label is invalid.
+    if (LabelID && MMI->isLabelDeleted(LabelID))
+      continue;
 
     const MachineLocation &Dst = Move.getDestination();
     const MachineLocation &Src = Move.getSource();
@@ -350,9 +256,8 @@ void DwarfPrinter::EmitFrameMoves(const char *BaseLabel, unsigned BaseLabelID,
     // Advance row if new location.
     if (BaseLabel && LabelID && (BaseLabelID != LabelID || !IsLocal)) {
       EmitCFAByte(dwarf::DW_CFA_advance_loc4);
-      EmitDifference("label", LabelID, BaseLabel, BaseLabelID, true);
-      Asm->O << '\n';
-
+      EmitDifference(getDWLabel("label", LabelID),
+                     getDWLabel(BaseLabel, BaseLabelID), true);
       BaseLabelID = LabelID;
       BaseLabel = "label";
       IsLocal = true;

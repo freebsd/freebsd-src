@@ -33,6 +33,7 @@
 #include "llvm/CodeGen/TargetLoweringObjectFileImpl.h"
 #include "llvm/MC/MCAsmInfo.h"
 #include "llvm/MC/MCContext.h"
+#include "llvm/MC/MCExpr.h"
 #include "llvm/MC/MCInst.h"
 #include "llvm/MC/MCSectionMachO.h"
 #include "llvm/MC/MCStreamer.h"
@@ -848,7 +849,7 @@ GetARMSetPICJumpTableLabel2(unsigned uid, unsigned uid2,
   raw_svector_ostream(Name) << MAI->getPrivateGlobalPrefix()
     << getFunctionNumber() << '_' << uid << '_' << uid2
     << "_set_" << MBB->getNumber();
-  return OutContext.GetOrCreateSymbol(Name.str());
+  return OutContext.GetOrCreateTemporarySymbol(Name.str());
 }
 
 MCSymbol *ARMAsmPrinter::
@@ -856,7 +857,7 @@ GetARMJTIPICJumpTableLabel2(unsigned uid, unsigned uid2) const {
   SmallString<60> Name;
   raw_svector_ostream(Name) << MAI->getPrivateGlobalPrefix() << "JTI"
     << getFunctionNumber() << '_' << uid << '_' << uid2;
-  return OutContext.GetOrCreateSymbol(Name.str());
+  return OutContext.GetOrCreateTemporarySymbol(Name.str());
 }
 
 void ARMAsmPrinter::printJTBlockOperand(const MachineInstr *MI, int OpNum) {
@@ -1128,17 +1129,40 @@ void ARMAsmPrinter::EmitEndOfAsmFile(Module &M) {
       OutStreamer.SwitchSection(TLOFMacho.getNonLazySymbolPointerSection());
       EmitAlignment(2);
       for (unsigned i = 0, e = Stubs.size(); i != e; ++i) {
-        O << *Stubs[i].first << ":\n\t.indirect_symbol ";
-        O << *Stubs[i].second << "\n\t.long\t0\n";
+        // L_foo$stub:
+        OutStreamer.EmitLabel(Stubs[i].first);
+        //   .indirect_symbol _foo
+        MCSymbol *MCSym = Stubs[i].second;
+        OutStreamer.EmitSymbolAttribute(MCSym, MCSA_IndirectSymbol);
+
+        if (MCSym->isUndefined())
+          // External to current translation unit.
+          OutStreamer.EmitIntValue(0, 4/*size*/, 0/*addrspace*/);
+        else
+          // Internal to current translation unit.
+          OutStreamer.EmitValue(MCSymbolRefExpr::Create(MCSym, OutContext),
+                                4/*size*/, 0/*addrspace*/);
       }
+
+      Stubs.clear();
+      OutStreamer.AddBlankLine();
     }
 
     Stubs = MMIMacho.GetHiddenGVStubList();
     if (!Stubs.empty()) {
       OutStreamer.SwitchSection(getObjFileLowering().getDataSection());
       EmitAlignment(2);
-      for (unsigned i = 0, e = Stubs.size(); i != e; ++i)
-        O << *Stubs[i].first << ":\n\t.long " << *Stubs[i].second << "\n";
+      for (unsigned i = 0, e = Stubs.size(); i != e; ++i) {
+        // L_foo$stub:
+        OutStreamer.EmitLabel(Stubs[i].first);
+        //   .long _foo
+        OutStreamer.EmitValue(MCSymbolRefExpr::Create(Stubs[i].second,
+                                                      OutContext),
+                              4/*size*/, 0/*addrspace*/);
+      }
+
+      Stubs.clear();
+      OutStreamer.AddBlankLine();
     }
 
     // Funny Darwin hack: This flag tells the linker that no global symbols
@@ -1168,7 +1192,7 @@ void ARMAsmPrinter::printInstructionThroughMCStreamer(const MachineInstr *MI) {
     // FIXME: MOVE TO SHARED PLACE.
     unsigned Id = (unsigned)MI->getOperand(2).getImm();
     const char *Prefix = MAI->getPrivateGlobalPrefix();
-    MCSymbol *Label =OutContext.GetOrCreateSymbol(Twine(Prefix)
+    MCSymbol *Label =OutContext.GetOrCreateTemporarySymbol(Twine(Prefix)
                          + "PC" + Twine(getFunctionNumber()) + "_" + Twine(Id));
     OutStreamer.EmitLabel(Label);
     

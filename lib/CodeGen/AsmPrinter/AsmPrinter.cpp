@@ -61,7 +61,7 @@ AsmPrinter::AsmPrinter(formatted_raw_ostream &o, TargetMachine &tm,
   : MachineFunctionPass(&ID), O(o),
     TM(tm), MAI(T), TRI(tm.getRegisterInfo()),
     OutContext(Ctx), OutStreamer(Streamer),
-    LastMI(0), LastFn(0), Counter(~0U), PrevDLT(NULL) {
+    LastMI(0), LastFn(0), Counter(~0U), SetCounter(0), PrevDLT(NULL) {
   DW = 0; MMI = 0;
   VerboseAsm = Streamer.isVerboseAsm();
 }
@@ -335,7 +335,7 @@ static void EmitComments(const MachineInstr &MI, raw_ostream &CommentOS) {
     // Print source line info.
     DIScope Scope = DLT.getScope();
     // Omit the directory, because it's likely to be long and uninteresting.
-    if (!Scope.isNull())
+    if (Scope.Verify())
       CommentOS << Scope.getFilename();
     else
       CommentOS << "<unknown>";
@@ -893,6 +893,31 @@ void AsmPrinter::EmitInt64(uint64_t Value) const {
   OutStreamer.EmitIntValue(Value, 8, 0/*addrspace*/);
 }
 
+/// EmitLabelDifference - Emit something like ".long Hi-Lo" where the size
+/// in bytes of the directive is specified by Size and Hi/Lo specify the
+/// labels.  This implicitly uses .set if it is available.
+void AsmPrinter::EmitLabelDifference(const MCSymbol *Hi, const MCSymbol *Lo,
+                                     unsigned Size) const {
+  // Get the Hi-Lo expression.
+  const MCExpr *Diff = 
+    MCBinaryExpr::CreateSub(MCSymbolRefExpr::Create(Hi, OutContext),
+                            MCSymbolRefExpr::Create(Lo, OutContext),
+                            OutContext);
+  
+  if (!MAI->hasSetDirective()) {
+    OutStreamer.EmitValue(Diff, Size, 0/*AddrSpace*/);
+    return;
+  }
+
+  // Otherwise, emit with .set (aka assignment).
+  MCSymbol *SetLabel =
+    OutContext.GetOrCreateTemporarySymbol(Twine(MAI->getPrivateGlobalPrefix()) +
+                                          "set" + Twine(SetCounter++));
+  OutStreamer.EmitAssignment(SetLabel, Diff);
+  OutStreamer.EmitSymbolValue(SetLabel, Size, 0/*AddrSpace*/);
+}
+
+
 //===----------------------------------------------------------------------===//
 
 // EmitAlignment - Emit an alignment directive to the specified power of
@@ -1287,18 +1312,16 @@ void AsmPrinter::processDebugLoc(const MachineInstr *MI,
   if (DL.isUnknown())
     return;
   DILocation CurDLT = MF->getDILocation(DL);
-  if (CurDLT.getScope().isNull())
+  if (!CurDLT.getScope().Verify())
     return;
 
   if (!BeforePrintingInsn) {
     // After printing instruction
     DW->EndScope(MI);
   } else if (CurDLT.getNode() != PrevDLT) {
-    unsigned L = DW->RecordSourceLine(CurDLT.getLineNumber(), 
-                                      CurDLT.getColumnNumber(),
-                                      CurDLT.getScope().getNode());
-    printLabel(L);
-    O << '\n';
+    MCSymbol *L = DW->RecordSourceLine(CurDLT.getLineNumber(), 
+                                       CurDLT.getColumnNumber(),
+                                       CurDLT.getScope().getNode());
     DW->BeginScope(MI, L);
     PrevDLT = CurDLT.getNode();
   }
@@ -1529,12 +1552,17 @@ void AsmPrinter::printKill(const MachineInstr *MI) const {
 /// printLabel - This method prints a local label used by debug and
 /// exception handling tables.
 void AsmPrinter::printLabelInst(const MachineInstr *MI) const {
-  printLabel(MI->getOperand(0).getImm());
-  OutStreamer.AddBlankLine();
+  MCSymbol *Sym = 
+    OutContext.GetOrCreateTemporarySymbol(Twine(MAI->getPrivateGlobalPrefix()) +
+                                 "label" + Twine(MI->getOperand(0).getImm()));
+  OutStreamer.EmitLabel(Sym);
 }
 
 void AsmPrinter::printLabel(unsigned Id) const {
-  O << MAI->getPrivateGlobalPrefix() << "label" << Id << ':';
+  MCSymbol *Sym = 
+    OutContext.GetOrCreateTemporarySymbol(Twine(MAI->getPrivateGlobalPrefix()) +
+                                          "label" + Twine(Id));
+  OutStreamer.EmitLabel(Sym);
 }
 
 /// PrintAsmOperand - Print the specified operand of MI, an INLINEASM
@@ -1575,15 +1603,14 @@ MCSymbol *AsmPrinter::GetBlockAddressSymbol(const Function *F,
                           "_" + FnName.str() + "_" + BB->getName(), 
                           Mangler::Private);
 
-  return OutContext.GetOrCreateSymbol(NameResult.str());
+  return OutContext.GetOrCreateTemporarySymbol(NameResult.str());
 }
 
 /// GetCPISymbol - Return the symbol for the specified constant pool entry.
 MCSymbol *AsmPrinter::GetCPISymbol(unsigned CPID) const {
-  SmallString<60> Name;
-  raw_svector_ostream(Name) << MAI->getPrivateGlobalPrefix() << "CPI"
-    << getFunctionNumber() << '_' << CPID;
-  return OutContext.GetOrCreateSymbol(Name.str());
+  return OutContext.GetOrCreateTemporarySymbol
+    (Twine(MAI->getPrivateGlobalPrefix()) + "CPI" + Twine(getFunctionNumber())
+     + "_" + Twine(CPID));
 }
 
 /// GetJTISymbol - Return the symbol for the specified jump table entry.
@@ -1594,10 +1621,9 @@ MCSymbol *AsmPrinter::GetJTISymbol(unsigned JTID, bool isLinkerPrivate) const {
 /// GetJTSetSymbol - Return the symbol for the specified jump table .set
 /// FIXME: privatize to AsmPrinter.
 MCSymbol *AsmPrinter::GetJTSetSymbol(unsigned UID, unsigned MBBID) const {
-  SmallString<60> Name;
-  raw_svector_ostream(Name) << MAI->getPrivateGlobalPrefix()
-    << getFunctionNumber() << '_' << UID << "_set_" << MBBID;
-  return OutContext.GetOrCreateSymbol(Name.str());
+  return OutContext.GetOrCreateTemporarySymbol
+  (Twine(MAI->getPrivateGlobalPrefix()) + Twine(getFunctionNumber()) + "_" +
+   Twine(UID) + "_set_" + Twine(MBBID));
 }
 
 /// GetGlobalValueSymbol - Return the MCSymbol for the specified global
@@ -1605,7 +1631,10 @@ MCSymbol *AsmPrinter::GetJTSetSymbol(unsigned UID, unsigned MBBID) const {
 MCSymbol *AsmPrinter::GetGlobalValueSymbol(const GlobalValue *GV) const {
   SmallString<60> NameStr;
   Mang->getNameWithPrefix(NameStr, GV, false);
-  return OutContext.GetOrCreateSymbol(NameStr.str());
+  
+  if (!GV->hasPrivateLinkage())
+    return OutContext.GetOrCreateSymbol(NameStr.str());
+  return OutContext.GetOrCreateTemporarySymbol(NameStr.str());
 }
 
 /// GetSymbolWithGlobalValueBase - Return the MCSymbol for a symbol with
@@ -1617,7 +1646,9 @@ MCSymbol *AsmPrinter::GetSymbolWithGlobalValueBase(const GlobalValue *GV,
   SmallString<60> NameStr;
   Mang->getNameWithPrefix(NameStr, GV, ForcePrivate);
   NameStr.append(Suffix.begin(), Suffix.end());
-  return OutContext.GetOrCreateSymbol(NameStr.str());
+  if (!GV->hasPrivateLinkage() && !ForcePrivate)
+    return OutContext.GetOrCreateSymbol(NameStr.str());
+  return OutContext.GetOrCreateTemporarySymbol(NameStr.str());
 }
 
 /// GetExternalSymbolSymbol - Return the MCSymbol for the specified

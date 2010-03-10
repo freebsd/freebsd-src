@@ -440,29 +440,49 @@ public:
                              DenseMap<const MCSymbol*,MCSymbolData*> &SymbolMap,
                                      std::vector<MachRelocationEntry> &Relocs) {
     uint32_t Address = Fragment.getOffset() + Fixup.Offset;
-    unsigned IsPCRel = 0;
+    unsigned IsPCRel = isFixupKindPCRel(Fixup.Kind);
     unsigned Log2Size = getFixupKindLog2Size(Fixup.Kind);
     unsigned Type = RIT_Vanilla;
 
     // See <reloc.h>.
     const MCSymbol *A = Target.getSymA();
-    MCSymbolData *SD = SymbolMap.lookup(A);
-    uint32_t Value = SD->getFragment()->getAddress() + SD->getOffset();
+    MCSymbolData *A_SD = SymbolMap.lookup(A);
+
+    if (!A_SD->getFragment())
+      llvm_report_error("symbol '" + A->getName() +
+                        "' can not be undefined in a subtraction expression");
+
+    uint32_t Value = A_SD->getFragment()->getAddress() + A_SD->getOffset();
     uint32_t Value2 = 0;
 
     if (const MCSymbol *B = Target.getSymB()) {
-      Type = RIT_LocalDifference;
+      MCSymbolData *B_SD = SymbolMap.lookup(B);
 
-      MCSymbolData *SD = SymbolMap.lookup(B);
-      Value2 = SD->getFragment()->getAddress() + SD->getOffset();
+      if (!B_SD->getFragment())
+        llvm_report_error("symbol '" + B->getName() +
+                          "' can not be undefined in a subtraction expression");
+
+      // Select the appropriate difference relocation type.
+      //
+      // Note that there is no longer any semantic difference between these two
+      // relocation types from the linkers point of view, this is done solely
+      // for pedantic compatibility with 'as'.
+      Type = A_SD->isExternal() ? RIT_Difference : RIT_LocalDifference;
+      Value2 = B_SD->getFragment()->getAddress() + B_SD->getOffset();
     }
 
     // The value which goes in the fixup is current value of the expression.
     Fixup.FixedValue = Value - Value2 + Target.getConstant();
-    if (isFixupKindPCRel(Fixup.Kind)) {
+    if (IsPCRel)
       Fixup.FixedValue -= Address;
-      IsPCRel = 1;
-    }
+
+    // If this fixup is a vanilla PC relative relocation for a local label, we
+    // don't need a relocation.
+    //
+    // FIXME: Implement proper atom support.
+    if (IsPCRel && Target.getSymA() && Target.getSymA()->isTemporary() &&
+        !Target.getSymB())
+      return;
 
     MachRelocationEntry MRE;
     MRE.Word0 = ((Address   <<  0) |
@@ -473,14 +493,12 @@ public:
     MRE.Word1 = Value;
     Relocs.push_back(MRE);
 
-    if (Type == RIT_LocalDifference) {
-      Type = RIT_Pair;
-
+    if (Type == RIT_Difference || Type == RIT_LocalDifference) {
       MachRelocationEntry MRE;
       MRE.Word0 = ((0         <<  0) |
-                   (Type      << 24) |
+                   (RIT_Pair  << 24) |
                    (Log2Size  << 28) |
-                   (0   << 30) |
+                   (IsPCRel   << 30) |
                    RF_Scattered);
       MRE.Word1 = Value2;
       Relocs.push_back(MRE);
@@ -491,15 +509,21 @@ public:
                              MCAsmFixup &Fixup,
                              DenseMap<const MCSymbol*,MCSymbolData*> &SymbolMap,
                              std::vector<MachRelocationEntry> &Relocs) {
+    unsigned IsPCRel = isFixupKindPCRel(Fixup.Kind);
+    unsigned Log2Size = getFixupKindLog2Size(Fixup.Kind);
+
     MCValue Target;
     if (!Fixup.Value->EvaluateAsRelocatable(Target))
       llvm_report_error("expected relocatable expression");
 
-    // If this is a difference or a local symbol plus an offset, then we need a
-    // scattered relocation entry.
+    // If this is a difference or a defined symbol plus an offset, then we need
+    // a scattered relocation entry.
+    uint32_t Offset = Target.getConstant();
+    if (IsPCRel)
+      Offset += 1 << Log2Size;
     if (Target.getSymB() ||
         (Target.getSymA() && !Target.getSymA()->isUndefined() &&
-         Target.getConstant()))
+         Offset))
       return ComputeScatteredRelocationInfo(Asm, Fragment, Fixup, Target,
                                             SymbolMap, Relocs);
 
@@ -507,8 +531,6 @@ public:
     uint32_t Address = Fragment.getOffset() + Fixup.Offset;
     uint32_t Value = 0;
     unsigned Index = 0;
-    unsigned IsPCRel = 0;
-    unsigned Log2Size = getFixupKindLog2Size(Fixup.Kind);
     unsigned IsExtern = 0;
     unsigned Type = 0;
 
@@ -545,11 +567,15 @@ public:
 
     // The value which goes in the fixup is current value of the expression.
     Fixup.FixedValue = Value + Target.getConstant();
-
-    if (isFixupKindPCRel(Fixup.Kind)) {
+    if (IsPCRel)
       Fixup.FixedValue -= Address;
-      IsPCRel = 1;
-    }
+
+    // If this fixup is a vanilla PC relative relocation for a local label, we
+    // don't need a relocation.
+    //
+    // FIXME: Implement proper atom support.
+    if (IsPCRel && Target.getSymA() && Target.getSymA()->isTemporary())
+      return;
 
     // struct relocation_info (8 bytes)
     MachRelocationEntry MRE;
@@ -1040,8 +1066,8 @@ void MCAssembler::LayoutSection(MCSectionData &SD) {
 
       // Align the fragment offset; it is safe to adjust the offset freely since
       // this is only in virtual sections.
-      uint64_t Aligned = RoundUpToAlignment(Address, ZFF.getAlignment());
-      F.setOffset(Aligned - SD.getAddress());
+      Address = RoundUpToAlignment(Address, ZFF.getAlignment());
+      F.setOffset(Address - SD.getAddress());
 
       // FIXME: This is misnamed.
       F.setFileSize(ZFF.getSize());
@@ -1270,9 +1296,15 @@ void MCAssembler::Finish() {
     if (!isVirtualSection(SD.getSection()))
       continue;
 
+    // Align this section if necessary by adding padding bytes to the previous
+    // section.
+    if (uint64_t Pad = OffsetToAlignment(Address, it->getAlignment()))
+      Address += Pad;
+
     SD.setAddress(Address);
     LayoutSection(SD);
     Address += SD.getSize();
+
   }
 
   DEBUG_WITH_TYPE("mc-dump", {
@@ -1336,7 +1368,7 @@ void MCDataFragment::dump() {
     OS << ",\n       ";
     OS << " Fixups:[";
     for (fixup_iterator it = fixup_begin(), ie = fixup_end(); it != ie; ++it) {
-      if (it != fixup_begin()) OS << ",\n            ";
+      if (it != fixup_begin()) OS << ",\n                ";
       OS << *it;
     }
     OS << "]";
@@ -1379,7 +1411,7 @@ void MCSectionData::dump() {
   OS << "<MCSectionData";
   OS << " Alignment:" << getAlignment() << " Address:" << Address
      << " Size:" << Size << " FileSize:" << FileSize
-     << " Fragments:[";
+     << " Fragments:[\n      ";
   for (iterator it = begin(), ie = end(); it != ie; ++it) {
     if (it != begin()) OS << ",\n      ";
     it->dump();
@@ -1407,7 +1439,7 @@ void MCAssembler::dump() {
   raw_ostream &OS = llvm::errs();
 
   OS << "<MCAssembler\n";
-  OS << "  Sections:[";
+  OS << "  Sections:[\n    ";
   for (iterator it = begin(), ie = end(); it != ie; ++it) {
     if (it != begin()) OS << ",\n    ";
     it->dump();
@@ -1416,7 +1448,7 @@ void MCAssembler::dump() {
   OS << "  Symbols:[";
 
   for (symbol_iterator it = symbol_begin(), ie = symbol_end(); it != ie; ++it) {
-    if (it != symbol_begin()) OS << ",\n    ";
+    if (it != symbol_begin()) OS << ",\n           ";
     it->dump();
   }
   OS << "]>\n";

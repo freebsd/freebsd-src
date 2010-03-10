@@ -352,11 +352,6 @@ InlineCost InlineCostAnalyzer::getInlineCost(CallSite CS,
   // Calls usually take a long time, so they make the inlining gain smaller.
   InlineCost += CalleeFI.Metrics.NumCalls * InlineConstants::CallPenalty;
 
-  // Don't inline into something too big, which would make it bigger.
-  // "size" here is the number of basic blocks, not instructions.
-  //
-  InlineCost += Caller->size()/15;
-  
   // Look at the size of the callee. Each instruction counts as 5.
   InlineCost += CalleeFI.Metrics.NumInsts*InlineConstants::InstrCost;
 
@@ -387,4 +382,46 @@ float InlineCostAnalyzer::getInlineFudgeFactor(CallSite CS) {
   else if (CalleeFI.Metrics.NumVectorInsts > CalleeFI.Metrics.NumInsts/10)
     Factor += 1.5f;
   return Factor;
+}
+
+/// growCachedCostInfo - update the cached cost info for Caller after Callee has
+/// been inlined.
+void
+InlineCostAnalyzer::growCachedCostInfo(Function* Caller, Function* Callee) {
+  FunctionInfo &CallerFI = CachedFunctionInfo[Caller];
+
+  // For small functions we prefer to recalculate the cost for better accuracy.
+  if (CallerFI.Metrics.NumBlocks < 10 || CallerFI.Metrics.NumInsts < 1000) {
+    resetCachedCostInfo(Caller);
+    return;
+  }
+
+  // For large functions, we can save a lot of computation time by skipping
+  // recalculations.
+  if (CallerFI.Metrics.NumCalls > 0)
+    --CallerFI.Metrics.NumCalls;
+
+  if (Callee) {
+    FunctionInfo &CalleeFI = CachedFunctionInfo[Callee];
+    if (!CalleeFI.Metrics.NumBlocks) {
+      resetCachedCostInfo(Caller);
+      return;
+    }
+    CallerFI.Metrics.NeverInline |= CalleeFI.Metrics.NeverInline;
+    CallerFI.Metrics.usesDynamicAlloca |= CalleeFI.Metrics.usesDynamicAlloca;
+
+    CallerFI.Metrics.NumInsts += CalleeFI.Metrics.NumInsts;
+    CallerFI.Metrics.NumBlocks += CalleeFI.Metrics.NumBlocks;
+    CallerFI.Metrics.NumCalls += CalleeFI.Metrics.NumCalls;
+    CallerFI.Metrics.NumVectorInsts += CalleeFI.Metrics.NumVectorInsts;
+    CallerFI.Metrics.NumRets += CalleeFI.Metrics.NumRets;
+
+    // analyzeBasicBlock counts each function argument as an inst.
+    if (CallerFI.Metrics.NumInsts >= Callee->arg_size())
+      CallerFI.Metrics.NumInsts -= Callee->arg_size();
+    else
+      CallerFI.Metrics.NumInsts = 0;
+  }
+  // We are not updating the argumentweights. We have already determined that
+  // Caller is a fairly large function, so we accept the loss of precision.
 }

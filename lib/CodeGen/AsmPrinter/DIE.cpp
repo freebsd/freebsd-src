@@ -131,17 +131,15 @@ void DIE::print(raw_ostream &O, unsigned IncIndent) {
       << "Die: "
       << format("0x%lx", (long)(intptr_t)this)
       << ", Offset: " << Offset
-      << ", Size: " << Size
-      << "\n";
+      << ", Size: " << Size << "\n";
 
     O << Indent
       << dwarf::TagString(Abbrev.getTag())
       << " "
-      << dwarf::ChildrenString(Abbrev.getChildrenFlag());
+      << dwarf::ChildrenString(Abbrev.getChildrenFlag()) << "\n";
   } else {
-    O << "Size: " << Size;
+    O << "Size: " << Size << "\n";
   }
-  O << "\n";
 
   const SmallVector<DIEAbbrevData, 8> &Data = Abbrev.getData();
 
@@ -254,51 +252,27 @@ void DIEString::print(raw_ostream &O) {
 #endif
 
 //===----------------------------------------------------------------------===//
-// DIEDwarfLabel Implementation
+// DIELabel Implementation
 //===----------------------------------------------------------------------===//
 
 /// EmitValue - Emit label value.
 ///
-void DIEDwarfLabel::EmitValue(DwarfPrinter *D, unsigned Form) const {
+void DIELabel::EmitValue(DwarfPrinter *D, unsigned Form) const {
   bool IsSmall = Form == dwarf::DW_FORM_data4;
-  D->EmitReference(Label, false, IsSmall);
+  unsigned Size = IsSmall ? 4 : D->getTargetData()->getPointerSize();
+  D->getAsm()->OutStreamer.EmitSymbolValue(Label, Size, 0/*AddrSpace*/);
 }
 
 /// SizeOf - Determine size of label value in bytes.
 ///
-unsigned DIEDwarfLabel::SizeOf(const TargetData *TD, unsigned Form) const {
+unsigned DIELabel::SizeOf(const TargetData *TD, unsigned Form) const {
   if (Form == dwarf::DW_FORM_data4) return 4;
   return TD->getPointerSize();
 }
 
 #ifndef NDEBUG
-void DIEDwarfLabel::print(raw_ostream &O) {
-  O << "Lbl: ";
-  Label.print(O);
-}
-#endif
-
-//===----------------------------------------------------------------------===//
-// DIEObjectLabel Implementation
-//===----------------------------------------------------------------------===//
-
-/// EmitValue - Emit label value.
-///
-void DIEObjectLabel::EmitValue(DwarfPrinter *D, unsigned Form) const {
-  bool IsSmall = Form == dwarf::DW_FORM_data4;
-  D->EmitReference(Sym, false, IsSmall);
-}
-
-/// SizeOf - Determine size of label value in bytes.
-///
-unsigned DIEObjectLabel::SizeOf(const TargetData *TD, unsigned Form) const {
-  if (Form == dwarf::DW_FORM_data4) return 4;
-  return TD->getPointerSize();
-}
-
-#ifndef NDEBUG
-void DIEObjectLabel::print(raw_ostream &O) {
-  O << "Obj: " << Sym->getName();
+void DIELabel::print(raw_ostream &O) {
+  O << "Lbl: " << Label->getName();
 }
 #endif
 
@@ -310,10 +284,7 @@ void DIEObjectLabel::print(raw_ostream &O) {
 ///
 void DIESectionOffset::EmitValue(DwarfPrinter *D, unsigned Form) const {
   bool IsSmall = Form == dwarf::DW_FORM_data4;
-  D->EmitSectionOffset(Label.getTag(), Section.getTag(),
-                       Label.getNumber(), Section.getNumber(),
-                       IsSmall, IsEH, UseSet);
-  D->getAsm()->O << '\n'; // FIXME: Necesssary?
+  D->EmitSectionOffset(Label, Section, IsSmall, IsEH);
 }
 
 /// SizeOf - Determine size of delta value in bytes.
@@ -325,11 +296,8 @@ unsigned DIESectionOffset::SizeOf(const TargetData *TD, unsigned Form) const {
 
 #ifndef NDEBUG
 void DIESectionOffset::print(raw_ostream &O) {
-  O << "Off: ";
-  Label.print(O);
-  O << "-";
-  Section.print(O);
-  O << "-" << IsEH << "-" << UseSet;
+  O << "Off: " << Label->getName() << "-" << Section->getName()
+    << "-" << IsEH;
 }
 #endif
 
@@ -353,10 +321,7 @@ unsigned DIEDelta::SizeOf(const TargetData *TD, unsigned Form) const {
 
 #ifndef NDEBUG
 void DIEDelta::print(raw_ostream &O) {
-  O << "Del: ";
-  LabelHi.print(O);
-  O << "-";
-  LabelLo.print(O);
+  O << "Del: " << LabelHi->getName() << "-" << LabelLo->getName();
 }
 #endif
 
@@ -400,15 +365,13 @@ void DIEBlock::EmitValue(DwarfPrinter *D, unsigned Form) const {
   case dwarf::DW_FORM_block1: Asm->EmitInt8(Size);         break;
   case dwarf::DW_FORM_block2: Asm->EmitInt16(Size);        break;
   case dwarf::DW_FORM_block4: Asm->EmitInt32(Size);        break;
-  case dwarf::DW_FORM_block:  D->EmitULEB128(Size); break;
-  default: llvm_unreachable("Improper form for block");         break;
+  case dwarf::DW_FORM_block:  D->EmitULEB128(Size);        break;
+  default: llvm_unreachable("Improper form for block");    break;
   }
 
   const SmallVector<DIEAbbrevData, 8> &AbbrevData = Abbrev.getData();
-  for (unsigned i = 0, N = Values.size(); i < N; ++i) {
-    Asm->O << '\n';
+  for (unsigned i = 0, N = Values.size(); i < N; ++i)
     Values[i]->EmitValue(D, AbbrevData[i].getForm());
-  }
 }
 
 /// SizeOf - Determine size of block data in bytes.

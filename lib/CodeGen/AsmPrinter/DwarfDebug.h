@@ -62,14 +62,6 @@ class DwarfDebug : public DwarfPrinter {
   // Attributes used to construct specific Dwarf sections.
   //
 
-  /// CompileUnitMap - A map of global variables representing compile units to
-  /// compile units.
-  DenseMap<Value *, CompileUnit *> CompileUnitMap;
-
-  /// CompileUnits - All the compile units in this module.
-  ///
-  SmallVector<CompileUnit *, 8> CompileUnits;
-
   /// ModuleCU - All DIEs are inserted in ModuleCU.
   CompileUnit *ModuleCU;
 
@@ -175,8 +167,8 @@ class DwarfDebug : public DwarfPrinter {
 
   /// InlineInfo - Keep track of inlined functions and their location.  This
   /// information is used to populate debug_inlined section.
-  typedef std::pair<unsigned, DIE *> InlineInfoLabels;
-  DenseMap<MDNode *, SmallVector<InlineInfoLabels, 4> > InlineInfo;
+  typedef std::pair<MCSymbol*, DIE *> InlineInfoLabels;
+  DenseMap<MDNode*, SmallVector<InlineInfoLabels, 4> > InlineInfo;
   SmallVector<MDNode *, 4> InlinedSPNodes;
 
   /// CompileUnitOffsets - A vector of the offsets of the compile units. This is
@@ -251,23 +243,18 @@ class DwarfDebug : public DwarfPrinter {
   /// addLabel - Add a Dwarf label attribute data and value.
   ///
   void addLabel(DIE *Die, unsigned Attribute, unsigned Form,
-                const DWLabel &Label);
-
-  /// addObjectLabel - Add an non-Dwarf label attribute data and value.
-  ///
-  void addObjectLabel(DIE *Die, unsigned Attribute, unsigned Form,
-                      const MCSymbol *Sym);
+                const MCSymbol *Label);
 
   /// addSectionOffset - Add a section offset label attribute data and value.
   ///
   void addSectionOffset(DIE *Die, unsigned Attribute, unsigned Form,
-                        const DWLabel &Label, const DWLabel &Section,
-                        bool isEH = false, bool useSet = true);
+                        const MCSymbol *Label, const MCSymbol *Section,
+                        bool isEH = false);
 
   /// addDelta - Add a label delta attribute data and value.
   ///
   void addDelta(DIE *Die, unsigned Attribute, unsigned Form,
-                const DWLabel &Hi, const DWLabel &Lo);
+                const MCSymbol *Hi, const MCSymbol *Lo);
 
   /// addDIEEntry - Add a DIE attribute data and value.
   ///
@@ -346,7 +333,7 @@ class DwarfDebug : public DwarfPrinter {
                              DICompositeType *CTy);
 
   /// constructEnumTypeDIE - Construct enum type DIE from DIEnumerator.
-  DIE *constructEnumTypeDIE(DIEnumerator *ETy);
+  DIE *constructEnumTypeDIE(DIEnumerator ETy);
 
   /// createGlobalVariableDIE - Create new DIE using GV.
   DIE *createGlobalVariableDIE(const DIGlobalVariable &GV);
@@ -356,10 +343,6 @@ class DwarfDebug : public DwarfPrinter {
 
   /// createSubprogramDIE - Create new DIE using SP.
   DIE *createSubprogramDIE(const DISubprogram &SP, bool MakeDecl = false);
-
-  /// findCompileUnit - Get the compile unit for the given descriptor. 
-  ///
-  CompileUnit *findCompileUnit(DICompileUnit Unit);
 
   /// getUpdatedDbgScope - Find or create DbgScope assicated with 
   /// the instruction. Initialize scope and update scope hierarchy.
@@ -529,10 +512,10 @@ public:
   ///
   void endFunction(const MachineFunction *MF);
 
-  /// recordSourceLine - Records location information and associates it with a 
-  /// label. Returns a unique label ID used to generate a label and provide
-  /// correspondence to the source line list.
-  unsigned recordSourceLine(unsigned Line, unsigned Col, MDNode *Scope);
+  /// recordSourceLine - Register a source line with debug info. Returns the
+  /// unique label that was emitted and which provides correspondence to
+  /// the source line list.
+  MCSymbol *recordSourceLine(unsigned Line, unsigned Col, MDNode *Scope);
 
   /// getSourceLineCount - Return the number of source lines in the debug
   /// info.
@@ -556,7 +539,7 @@ public:
   void collectVariableInfo();
 
   /// beginScope - Process beginning of a scope starting at Label.
-  void beginScope(const MachineInstr *MI, unsigned Label);
+  void beginScope(const MachineInstr *MI, MCSymbol *Label);
 
   /// endScope - Prcess end of a scope.
   void endScope(const MachineInstr *MI);
