@@ -1342,6 +1342,7 @@ static int
 bge_chipinit(struct bge_softc *sc)
 {
 	uint32_t dma_rw_ctl;
+	uint16_t val;
 	int i;
 
 	/* Set endianness before we access any non-PCI registers. */
@@ -1361,6 +1362,17 @@ bge_chipinit(struct bge_softc *sc)
 	for (i = BGE_STATUS_BLOCK;
 	    i < BGE_STATUS_BLOCK_END + 1; i += sizeof(uint32_t))
 		BGE_MEMWIN_WRITE(sc, i, 0);
+
+	if (sc->bge_chiprev == BGE_CHIPREV_5704_BX) {
+		/*
+		 *  Fix data corruption casued by non-qword write with WB.
+		 *  Fix master abort in PCI mode.
+		 *  Fix PCI latency timer.
+		 */
+		val = pci_read_config(sc->bge_dev, BGE_PCI_MSI_DATA + 2, 2);
+		val |= (1 << 10) | (1 << 12) | (1 << 13);
+		pci_write_config(sc->bge_dev, BGE_PCI_MSI_DATA + 2, val, 2);
+	}
 
 	/*
 	 * Set up the PCI DMA control register.
