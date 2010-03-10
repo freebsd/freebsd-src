@@ -66,8 +66,6 @@ __FBSDID("$FreeBSD$");
 static int brgphy_probe(device_t);
 static int brgphy_attach(device_t);
 
-#define BCM5708S_BAD_CHIPID	0x57081021
-
 struct brgphy_softc {
 	struct mii_softc mii_sc;
 	int mii_oui;
@@ -145,6 +143,23 @@ static const struct mii_phydesc brgphys[] = {
 	MII_PHY_END
 };
 
+#define HS21_PRODUCT_ID	"IBM eServer BladeCenter HS21"
+#define HS21_BCM_CHIPID	0x57081021
+
+static int
+detect_hs21(struct bce_softc *bce_sc)
+{
+	char *sysenv;
+
+	if (bce_sc->bce_chipid != HS21_BCM_CHIPID)
+		return 0;
+	sysenv = getenv("smbios.system.product");
+	if (sysenv == NULL)
+		return 0;
+	if (strncmp(sysenv, HS21_PRODUCT_ID, strlen(HS21_PRODUCT_ID)) != 0)
+		return 0;
+	return (1);
+}
 
 /* Search for our PHY in the list of known PHYs */
 static int
@@ -295,10 +310,10 @@ brgphy_attach(device_t dev)
 			ADD(IFM_MAKEWORD(IFM_ETHER, IFM_2500_SX, IFM_FDX, sc->mii_inst), 0);
 			printf("2500baseSX-FDX, ");
 		} else if ((bsc->serdes_flags & BRGPHY_5708S) && bce_sc &&
-		    (bce_sc->bce_chipid == BCM5708S_BAD_CHIPID)) {
+		    (detect_hs21(bce_sc) != 0)) {
 			/*
 			 * There appears to be certain silicon revision
-			 * usually used in blades that is having issues with
+			 * in IBM HS21 blades that is having issues with
 			 * this driver wating for the auto-negotiation to
 			 * complete. This happens with a specific chip id
 			 * only and when the 1000baseSX-FDX is the only
