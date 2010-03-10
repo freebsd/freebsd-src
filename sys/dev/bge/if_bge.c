@@ -1365,7 +1365,7 @@ bge_chipinit(struct bge_softc *sc)
 
 	if (sc->bge_chiprev == BGE_CHIPREV_5704_BX) {
 		/*
-		 *  Fix data corruption casued by non-qword write with WB.
+		 *  Fix data corruption caused by non-qword write with WB.
 		 *  Fix master abort in PCI mode.
 		 *  Fix PCI latency timer.
 		 */
