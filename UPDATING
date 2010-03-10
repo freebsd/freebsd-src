@@ -497,7 +497,7 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 9.x IS SLOW:
 
 20090313:
 	The k8temp(4) driver has been renamed to amdtemp(4) since
-	support for K10 and K11 CPU families was added.
+	support for Family 10 and Family 11 CPU families was added.
 
 20090309:
 	IGMPv3 and Source-Specific Multicast (SSM) have been merged
