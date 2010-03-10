@@ -10381,10 +10381,9 @@ bwn_rx_radiotap(struct bwn_mac *mac, struct mbuf *m,
 static void
 bwn_tsf_read(struct bwn_mac *mac, uint64_t *tsf)
 {
-	struct bwn_softc *sc = mac->mac_sc;
 	uint32_t low, high;
 
-	KASSERT(siba_get_revid(sc->sc_dev) >= 3,
+	KASSERT(siba_get_revid(mac->mac_sc->sc_dev) >= 3,
 	    ("%s:%d: fail", __func__, __LINE__));
 
 	low = BWN_READ_4(mac, BWN_REV3PLUS_TSF_LOW);
