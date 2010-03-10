@@ -88,15 +88,15 @@ v=`cat version` u=${USER:-root} d=`pwd` h=${HOSTNAME:-`hostname`} t=`date`
 i=`${MAKE:-make} -V KERN_IDENT`
 
 case "$d" in
-*/compile/*)
+*/sys/*)
 	SRCDIR=${d##*obj}
 	if [ -n "$MACHINE" ]; then
 		SRCDIR=${SRCDIR##/$MACHINE}
 	fi
-	SRCDIR=$(cd ${SRCDIR%%/compile/*}/.. && pwd)
+	SRCDIR=${SRCDIR%%/sys/*}
 
 	for dir in /bin /usr/bin /usr/local/bin; do
-		if [ -d "${SRCDIR}/.svn" -a -x "${dir}/svnversion" ] ; then
+		if [ -d "${SRCDIR}/sys/.svn" -a -x "${dir}/svnversion" ] ; then
 			svnversion=${dir}/svnversion
 			break
 		fi
@@ -107,7 +107,7 @@ case "$d" in
 	done
 
 	if [ -n "$svnversion" ] ; then
-		svn=" r`cd ${SRCDIR} && $svnversion`"
+		svn=" r`cd ${SRCDIR}/sys && $svnversion`"
 	fi
 	if [ -n "$git_cmd" ] ; then
 		git=`$git_cmd rev-parse --verify --short HEAD 2>/dev/null`
