@@ -31,10 +31,10 @@ def ext_predef_outside_function : Warning<
   "predefined identifier is only valid inside function">;
 def warn_float_overflow : Warning<
   "magnitude of floating-point constant too large for type %0; maximum is %1">,
-   InGroup<BadLiteral>;
+   InGroup<LiteralRange>;
 def warn_float_underflow : Warning<
   "magnitude of floating-point constant too small for type %0; minimum is %1">,
-  InGroup<BadLiteral>;
+  InGroup<LiteralRange>;
 
 // C99 Designated Initializers
 def err_array_designator_negative : Error<
@@ -141,7 +141,8 @@ def err_using_decl_conflict_reverse : Error<
 def note_using_decl : Note<"%select{|previous }0using declaration">;
 
 def warn_access_decl_deprecated : Warning<
-  "access declarations are deprecated; use using declarations instead">;
+  "access declarations are deprecated; use using declarations instead">,
+  InGroup<Deprecated>;
 
 def err_invalid_thread : Error<
   "'__thread' is only allowed on variable declarations">;
@@ -1580,6 +1581,9 @@ def err_bitfield_width_exceeds_type_size : Error<
   "size of bit-field %0 exceeds size of its type (%1 bits)">;
 def err_anon_bitfield_width_exceeds_type_size : Error<
   "size of anonymous bit-field exceeds size of its type (%0 bits)">;
+def warn_missing_braces : Warning<
+  "suggest braces around initialization of subobject">,
+  InGroup<DiagGroup<"missing-braces">>, DefaultIgnore;
 
 def err_redefinition_of_label : Error<"redefinition of label '%0'">;
 def err_undeclared_label_use : Error<"use of undeclared label '%0'">;
@@ -1785,7 +1789,7 @@ def err_array_init_not_init_list : Error<
   "array initializer must be an initializer "
   "list%select{| or string literal}0">;
 def warn_deprecated_string_literal_conversion : Warning<
-  "conversion from string literal to %0 is deprecated">;
+  "conversion from string literal to %0 is deprecated">, InGroup<Deprecated>;
 def err_realimag_invalid_type : Error<"invalid type %0 to %1 operator">;
 def err_typecheck_sclass_fscope : Error<
   "illegal storage class on file-scoped variable">;
@@ -2043,11 +2047,11 @@ def note_delete_member_function_declared_here : Note<
   "%0 declared here">;
 def err_decrement_bool : Error<"cannot decrement expression of type bool">;
 def warn_increment_bool : Warning<
-  "incrementing expression of type bool is deprecated">;
-def err_catch_incomplete_ptr : Error<
-  "cannot catch pointer to incomplete type %0">;
-def err_catch_incomplete_ref : Error<
-  "cannot catch reference to incomplete type %0">;
+  "incrementing expression of type bool is deprecated">, InGroup<Deprecated>;
+def ext_catch_incomplete_ptr : ExtWarn<
+  "ISO C++ forbids catching a pointer to incomplete type %0">;
+def ext_catch_incomplete_ref : ExtWarn<
+  "ISO C++ forbids catching a reference to incomplete type %0">;
 def err_catch_incomplete : Error<"cannot catch incomplete type %0">;
 def err_catch_rvalue_ref : Error<"cannot catch exceptions by rvalue reference">;
 def err_qualified_catch_declarator : Error<

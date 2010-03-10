@@ -665,22 +665,29 @@ void Sema::ActOnBaseSpecifiers(DeclPtrTy ClassDecl, BaseTy **Bases,
                        (CXXBaseSpecifier**)(Bases), NumBases);
 }
 
+static CXXRecordDecl *GetClassForType(QualType T) {
+  if (const RecordType *RT = T->getAs<RecordType>())
+    return cast<CXXRecordDecl>(RT->getDecl());
+  else if (const InjectedClassNameType *ICT = T->getAs<InjectedClassNameType>())
+    return ICT->getDecl();
+  else
+    return 0;
+}
+
 /// \brief Determine whether the type \p Derived is a C++ class that is
 /// derived from the type \p Base.
 bool Sema::IsDerivedFrom(QualType Derived, QualType Base) {
   if (!getLangOptions().CPlusPlus)
     return false;
-    
-  const RecordType *DerivedRT = Derived->getAs<RecordType>();
-  if (!DerivedRT)
+  
+  CXXRecordDecl *DerivedRD = GetClassForType(Derived);
+  if (!DerivedRD)
     return false;
   
-  const RecordType *BaseRT = Base->getAs<RecordType>();
-  if (!BaseRT)
+  CXXRecordDecl *BaseRD = GetClassForType(Base);
+  if (!BaseRD)
     return false;
   
-  CXXRecordDecl *DerivedRD = cast<CXXRecordDecl>(DerivedRT->getDecl());
-  CXXRecordDecl *BaseRD = cast<CXXRecordDecl>(BaseRT->getDecl());
   // FIXME: instantiate DerivedRD if necessary.  We need a PoI for this.
   return DerivedRD->hasDefinition() && DerivedRD->isDerivedFrom(BaseRD);
 }
@@ -691,16 +698,14 @@ bool Sema::IsDerivedFrom(QualType Derived, QualType Base, CXXBasePaths &Paths) {
   if (!getLangOptions().CPlusPlus)
     return false;
   
-  const RecordType *DerivedRT = Derived->getAs<RecordType>();
-  if (!DerivedRT)
+  CXXRecordDecl *DerivedRD = GetClassForType(Derived);
+  if (!DerivedRD)
     return false;
   
-  const RecordType *BaseRT = Base->getAs<RecordType>();
-  if (!BaseRT)
+  CXXRecordDecl *BaseRD = GetClassForType(Base);
+  if (!BaseRD)
     return false;
   
-  CXXRecordDecl *DerivedRD = cast<CXXRecordDecl>(DerivedRT->getDecl());
-  CXXRecordDecl *BaseRD = cast<CXXRecordDecl>(BaseRT->getDecl());
   return DerivedRD->isDerivedFrom(BaseRD, Paths);
 }
 
@@ -1083,6 +1088,9 @@ Sema::ActOnMemInitializer(DeclPtrTy ConstructorD,
           // specialization, we take it as a type name.
           BaseType = CheckTypenameType((NestedNameSpecifier *)SS.getScopeRep(),
                                        *MemberOrBase, SS.getRange());
+          if (BaseType.isNull())
+            return true;
+
           R.clear();
         }
       }
@@ -4526,20 +4534,23 @@ Sema::CheckReferenceInit(Expr *&Init, QualType DeclType,
     OverloadCandidateSet::iterator Best;
     switch (BestViableFunction(CandidateSet, DeclLoc, Best)) {
     case OR_Success:
+      // C++ [over.ics.ref]p1:
+      //
+      //   [...] If the parameter binds directly to the result of
+      //   applying a conversion function to the argument
+      //   expression, the implicit conversion sequence is a
+      //   user-defined conversion sequence (13.3.3.1.2), with the
+      //   second standard conversion sequence either an identity
+      //   conversion or, if the conversion function returns an
+      //   entity of a type that is a derived class of the parameter
+      //   type, a derived-to-base Conversion.
+      if (!Best->FinalConversion.DirectBinding)
+        break;
+
       // This is a direct binding.
       BindsDirectly = true;
 
       if (ICS) {
-        // C++ [over.ics.ref]p1:
-        //
-        //   [...] If the parameter binds directly to the result of
-        //   applying a conversion function to the argument
-        //   expression, the implicit conversion sequence is a
-        //   user-defined conversion sequence (13.3.3.1.2), with the
-        //   second standard conversion sequence either an identity
-        //   conversion or, if the conversion function returns an
-        //   entity of a type that is a derived class of the parameter
-        //   type, a derived-to-base Conversion.
         ICS->setUserDefined();
         ICS->UserDefined.Before = Best->Conversions[0].Standard;
         ICS->UserDefined.After = Best->FinalConversion;
@@ -5189,21 +5200,28 @@ VarDecl *Sema::BuildExceptionDeclaration(Scope *S, QualType ExDeclType,
     Invalid = true;
   }
 
+  // GCC allows catching pointers and references to incomplete types
+  // as an extension; so do we, but we warn by default.
+
   QualType BaseType = ExDeclType;
   int Mode = 0; // 0 for direct type, 1 for pointer, 2 for reference
   unsigned DK = diag::err_catch_incomplete;
+  bool IncompleteCatchIsInvalid = true;
   if (const PointerType *Ptr = BaseType->getAs<PointerType>()) {
     BaseType = Ptr->getPointeeType();
     Mode = 1;
-    DK = diag::err_catch_incomplete_ptr;
+    DK = diag::ext_catch_incomplete_ptr;
+    IncompleteCatchIsInvalid = false;
   } else if (const ReferenceType *Ref = BaseType->getAs<ReferenceType>()) {
     // For the purpose of error recovery, we treat rvalue refs like lvalue refs.
     BaseType = Ref->getPointeeType();
     Mode = 2;
-    DK = diag::err_catch_incomplete_ref;
+    DK = diag::ext_catch_incomplete_ref;
+    IncompleteCatchIsInvalid = false;
   }
   if (!Invalid && (Mode == 0 || !BaseType->isVoidType()) &&
-      !BaseType->isDependentType() && RequireCompleteType(Loc, BaseType, DK))
+      !BaseType->isDependentType() && RequireCompleteType(Loc, BaseType, DK) &&
+      IncompleteCatchIsInvalid)
     Invalid = true;
 
   if (!Invalid && !ExDeclType->isDependentType() &&
@@ -5889,10 +5907,13 @@ void Sema::MaybeMarkVirtualMembersReferenced(SourceLocation Loc,
 
   // We will need to mark all of the virtual members as referenced to build the
   // vtable.
-  // We actually call MarkVirtualMembersReferenced instead of adding to
-  // ClassesWithUnmarkedVirtualMembers because this marking is needed by
-  // codegen that will happend before we finish parsing the file.
-  if (needsVtable(MD, Context))
+  if (!needsVtable(MD, Context))
+    return;
+
+  TemplateSpecializationKind kind = RD->getTemplateSpecializationKind();
+  if (kind == TSK_ImplicitInstantiation)
+    ClassesWithUnmarkedVirtualMembers.push_back(std::make_pair(RD, Loc));
+  else
     MarkVirtualMembersReferenced(Loc, RD);
 }
 
