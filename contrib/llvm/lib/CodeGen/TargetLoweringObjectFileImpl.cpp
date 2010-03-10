@@ -403,12 +403,15 @@ getSymbolForDwarfGlobalReference(const GlobalValue *GV, Mangler *Mang,
 
     // Add information about the stub reference to ELFMMI so that the stub
     // gets emitted by the asmprinter.
-    MCSymbol *Sym = getContext().GetOrCreateSymbol(Name.str());
+    MCSymbol *Sym = getContext().GetOrCreateTemporarySymbol(Name.str());
     MCSymbol *&StubSym = ELFMMI.getGVStubEntry(Sym);
     if (StubSym == 0) {
       Name.clear();
       Mang->getNameWithPrefix(Name, GV, false);
-      StubSym = getContext().GetOrCreateSymbol(Name.str());
+      if (GV->hasPrivateLinkage())
+        StubSym = getContext().GetOrCreateTemporarySymbol(Name.str());
+      else
+        StubSym = getContext().GetOrCreateSymbol(Name.str());
     }
 
     return TargetLoweringObjectFile::
@@ -463,6 +466,14 @@ getMachOSection(StringRef Segment, StringRef Section,
 
 void TargetLoweringObjectFileMachO::Initialize(MCContext &Ctx,
                                                const TargetMachine &TM) {
+  // _foo.eh symbols are currently always exported so that the linker knows
+  // about them.  This is not necessary on 10.6 and later, but it
+  // doesn't hurt anything.
+  // FIXME: I need to get this from Triple.
+  IsFunctionEHSymbolGlobal = true;
+  IsFunctionEHFrameSymbolPrivate = false;
+  SupportsWeakOmittedEHFrame = false;
+  
   if (UniquingMap != 0)
     ((MachOUniqueMapTy*)UniquingMap)->clear();
   TargetLoweringObjectFile::Initialize(Ctx, TM);
@@ -651,16 +662,16 @@ SelectSectionForGlobal(const GlobalValue *GV, SectionKind Kind,
   }
 
   // FIXME: Alignment check should be handled by section classifier.
-  if (Kind.isMergeable1ByteCString() ||
-      (Kind.isMergeable2ByteCString() && !GV->hasExternalLinkage())) {
-    if (TM.getTargetData()->getPreferredAlignment(
-                                              cast<GlobalVariable>(GV)) < 32) {
-      if (Kind.isMergeable1ByteCString())
-        return CStringSection;
-      assert(Kind.isMergeable2ByteCString());
-      return UStringSection;
-    }
-  }
+  if (Kind.isMergeable1ByteCString() &&
+      TM.getTargetData()->getPreferredAlignment(cast<GlobalVariable>(GV)) < 32)
+    return CStringSection;
+      
+  // Do not put 16-bit arrays in the UString section if they have an
+  // externally visible label, this runs into issues with certain linker
+  // versions.
+  if (Kind.isMergeable2ByteCString() && !GV->hasExternalLinkage() &&
+      TM.getTargetData()->getPreferredAlignment(cast<GlobalVariable>(GV)) < 32)
+    return UStringSection;
 
   if (Kind.isMergeableConst()) {
     if (Kind.isMergeableConst4())
@@ -749,12 +760,15 @@ getSymbolForDwarfGlobalReference(const GlobalValue *GV, Mangler *Mang,
 
     // Add information about the stub reference to MachOMMI so that the stub
     // gets emitted by the asmprinter.
-    MCSymbol *Sym = getContext().GetOrCreateSymbol(Name.str());
+    MCSymbol *Sym = getContext().GetOrCreateTemporarySymbol(Name.str());
     MCSymbol *&StubSym = MachOMMI.getGVStubEntry(Sym);
     if (StubSym == 0) {
       Name.clear();
       Mang->getNameWithPrefix(Name, GV, false);
-      StubSym = getContext().GetOrCreateSymbol(Name.str());
+      if (GV->hasPrivateLinkage())
+        StubSym = getContext().GetOrCreateTemporarySymbol(Name.str());
+      else
+        StubSym = getContext().GetOrCreateSymbol(Name.str());
     }
 
     return TargetLoweringObjectFile::

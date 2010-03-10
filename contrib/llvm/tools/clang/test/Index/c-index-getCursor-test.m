@@ -90,7 +90,9 @@ int main (int argc, const char * argv[]) {
 // CHECK: [31:27 - 33:9] ObjCInterfaceDecl=Baz:31:12
 // CHECK: [33:9 - 33:16] ObjCIvarDecl=_anIVar:33:9 (Definition)
 // CHECK: [33:16 - 36:1] ObjCInterfaceDecl=Baz:31:12
-// CHECK: [36:1 - 36:21] ObjCInstanceMethodDecl=bazMethod:36:1
+// CHECK: [36:1 - 36:4] ObjCInstanceMethodDecl=bazMethod:36:1
+// CHECK: [36:4 - 36:7] ObjCClassRef=Foo:3:12
+// CHECK: [36:7 - 36:21] ObjCInstanceMethodDecl=bazMethod:36:1
 // CHECK: [36:21 - 38:5] ObjCInterfaceDecl=Baz:31:12
 // CHECK: [38:5 - 40:1] Invalid Cursor => NoDeclFound
 // CHECK: [40:1 - 41:3] EnumDecl=:40:1 (Definition)
@@ -118,7 +120,9 @@ int main (int argc, const char * argv[]) {
 // CHECK: [47:4 - 47:6] VarDecl=c:47:12 (Definition)
 // CHECK: [47:6 - 47:10] ObjCProtocolRef=SubP:27:1
 // CHECK: [47:10 - 47:16] VarDecl=c:47:12 (Definition)
-// CHECK: [47:16 - 47:26] ObjCMessageExpr=fooC:8:1
+// CHECK: [47:16 - 47:17] ObjCMessageExpr=fooC:8:1
+// CHECK: [47:17 - 47:20] ObjCClassRef=Foo:3:12
+// CHECK: [47:20 - 47:26] ObjCMessageExpr=fooC:8:1
 // CHECK: [47:26 - 47:27] UnexposedStmt=
 // CHECK: [47:27 - 48:2] UnexposedStmt=
 // CHECK: [48:2 - 48:4] TypeRef=id:0:0

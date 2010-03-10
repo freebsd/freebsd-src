@@ -9,7 +9,7 @@ SRCS=	ARMBaseInstrInfo.cpp ARMBaseRegisterInfo.cpp \
 	ARMISelLowering.cpp ARMInstrInfo.cpp ARMJITInfo.cpp \
 	ARMLoadStoreOptimizer.cpp ARMLoadStoreOptimizer.cpp ARMMCAsmInfo.cpp \
 	ARMRegisterInfo.cpp ARMSubtarget.cpp ARMTargetMachine.cpp \
-	NEONMoveFix.cpp \
+	ARMTargetObjectFile.cpp NEONMoveFix.cpp \
 	NEONPreAllocPass.cpp Thumb1InstrInfo.cpp Thumb1RegisterInfo.cpp \
 	Thumb2ITBlockPass.cpp Thumb2InstrInfo.cpp Thumb2RegisterInfo.cpp \
 	Thumb2SizeReduction.cpp

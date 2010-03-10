@@ -54,6 +54,15 @@ namespace llvm {
       // Corresponds to LSUB instruction
       LSUB,
 
+      // Corresponds to LMUL instruction
+      LMUL,
+
+      // Corresponds to MACCU instruction
+      MACCU,
+
+      // Corresponds to MACCS instruction
+      MACCS,
+
       // Jumptable branch.
       BR_JT,
 
@@ -132,6 +141,8 @@ namespace llvm {
     SDValue LowerSELECT_CC(SDValue Op, SelectionDAG &DAG);
     SDValue LowerVAARG(SDValue Op, SelectionDAG &DAG);
     SDValue LowerVASTART(SDValue Op, SelectionDAG &DAG);
+    SDValue LowerUMUL_LOHI(SDValue Op, SelectionDAG &DAG);
+    SDValue LowerSMUL_LOHI(SDValue Op, SelectionDAG &DAG);
     SDValue LowerFRAMEADDR(SDValue Op, SelectionDAG &DAG);
   
     // Inline asm support
@@ -140,9 +151,17 @@ namespace llvm {
               EVT VT) const;
   
     // Expand specifics
+    SDValue TryExpandADDWithMul(SDNode *Op, SelectionDAG &DAG);
     SDValue ExpandADDSUB(SDNode *Op, SelectionDAG &DAG);
 
     virtual SDValue PerformDAGCombine(SDNode *N, DAGCombinerInfo &DCI) const;
+
+    virtual void computeMaskedBitsForTargetNode(const SDValue Op,
+                                                const APInt &Mask,
+                                                APInt &KnownZero,
+                                                APInt &KnownOne,
+                                                const SelectionDAG &DAG,
+                                                unsigned Depth = 0) const;
 
     virtual SDValue
       LowerFormalArguments(SDValue Chain,

@@ -32,6 +32,7 @@
 
 /* Type defines.  */
 typedef double __v2df __attribute__ ((__vector_size__ (16)));
+typedef long long __v2di __attribute__ ((__vector_size__ (16)));
 
 /* SSE4 Rounding macros. */
 #define _MM_FROUND_TO_NEAREST_INT    0x00
@@ -48,7 +49,7 @@ typedef double __v2df __attribute__ ((__vector_size__ (16)));
 #define _MM_FROUND_CEIL      (_MM_FROUND_RAISE_EXC | _MM_FROUND_TO_POS_INF)
 #define _MM_FROUND_TRUNC     (_MM_FROUND_RAISE_EXC | _MM_FROUND_TO_ZERO)
 #define _MM_FROUND_RINT      (_MM_FROUND_RAISE_EXC | _MM_FROUND_CUR_DIRECTION)
-#define _MM_FROUND_NEARBYINT (_MM_FROUND_RAISE_EXC | _MM_FROUND_CUR_DIRECTION)
+#define _MM_FROUND_NEARBYINT (_MM_FROUND_NO_EXC | _MM_FROUND_CUR_DIRECTION)
 
 #define _mm_ceil_ps(X)       _mm_round_ps((X), _MM_FROUND_CEIL)
 #define _mm_ceil_pd(X)       _mm_round_pd((X), _MM_FROUND_CEIL)
@@ -60,30 +61,10 @@ typedef double __v2df __attribute__ ((__vector_size__ (16)));
 #define _mm_floor_ss(X, Y)   _mm_round_ss((X), (Y), _MM_FROUND_FLOOR)
 #define _mm_floor_sd(X, Y)   _mm_round_sd((X), (Y), _MM_FROUND_FLOOR)
 
-/* SSE4 Rounding Intrinsics.  */
-static inline __m128 __attribute__((__always_inline__, __nodebug__))
-_mm_round_ps (__m128 __V, const int __M)
-{
-  return (__m128) __builtin_ia32_roundps ((__v4sf)__V, __M);
-}
-
-static inline __m128 __attribute__((__always_inline__, __nodebug__))
-_mm_round_ss (__m128 __V1, __m128 __V2, const int __M)
-{
-  return (__m128) __builtin_ia32_roundss ((__v4sf)__V1, (__v4sf)__V2, __M);
-}
-
-static inline __m128d __attribute__((__always_inline__, __nodebug__))
-_mm_round_pd (__m128d __V, const int __M)
-{
-  return (__m128d) __builtin_ia32_roundpd ((__v2df)__V, __M);
-}
-
-static inline __m128d __attribute__((__always_inline__, __nodebug__))
-_mm_round_sd(__m128d __V1, __m128d __V2, const int __M)
-{
-  return (__m128d) __builtin_ia32_roundsd ((__v2df)__V1, (__v2df)__V2, __M);
-}
+#define _mm_round_ps(X, Y)      __builtin_ia32_roundps((X), (Y))
+#define _mm_round_ss(X, Y, M)   __builtin_ia32_roundss((X), (Y), (M))
+#define _mm_round_pd(X, M)      __builtin_ia32_roundpd((X), (M))
+#define _mm_round_sd(X, Y, M)   __builtin_ia32_roundsd((X), (Y), (M))
 
 /* SSE4 Packed Blending Intrinsics.  */
 static inline __m128d __attribute__((__always_inline__, __nodebug__))
@@ -124,6 +105,100 @@ _mm_blend_epi16 (__m128i __V1, __m128i __V2, const int __M)
 {
   return (__m128i) __builtin_ia32_pblendw128 ((__v8hi)__V1, (__v8hi)__V2, __M);
 }
+
+/* SSE4 Dword Multiply Instructions.  */
+static inline  __m128i __attribute__((__always_inline__, __nodebug__))
+_mm_mullo_epi32 (__m128i __V1, __m128i __V2)
+{
+  return (__m128i) __builtin_ia32_pmulld128((__v4si)__V1, (__v4si)__V2);
+}
+
+static inline  __m128i __attribute__((__always_inline__, __nodebug__))
+_mm_mul_epi32 (__m128i __V1, __m128i __V2)
+{
+  return (__m128i) __builtin_ia32_pmuldq128 ((__v4si)__V1, (__v4si)__V2);
+}
+
+/* SSE4 Floating Point Dot Product Instructions.  */
+#define _mm_dp_ps(X, Y, M) __builtin_ia32_dpps ((X), (Y), (M))
+#define _mm_dp_pd(X, Y, M) __builtin_ia32_dppd ((X), (Y), (M))
+
+/* SSE4 Streaming Load Hint Instruction.  */
+static inline  __m128i __attribute__((__always_inline__, __nodebug__))
+_mm_stream_load_si128 (__m128i *__V)
+{
+  return (__m128i) __builtin_ia32_movntdqa ((__v2di *) __V);
+}
+
+/* SSE4 Packed Integer Min/Max Instructions.  */
+static inline  __m128i __attribute__((__always_inline__, __nodebug__))
+_mm_min_epi8 (__m128i __V1, __m128i __V2)
+{
+  return (__m128i) __builtin_ia32_pminsb128 ((__v16qi) __V1, (__v16qi) __V2);
+}
+
+static inline  __m128i __attribute__((__always_inline__, __nodebug__))
+_mm_max_epi8 (__m128i __V1, __m128i __V2)
+{
+  return (__m128i) __builtin_ia32_pmaxsb128 ((__v16qi) __V1, (__v16qi) __V2);
+}
+
+static inline  __m128i __attribute__((__always_inline__, __nodebug__))
+_mm_min_epu16 (__m128i __V1, __m128i __V2)
+{
+  return (__m128i) __builtin_ia32_pminuw128 ((__v8hi) __V1, (__v8hi) __V2);
+}
+
+static inline  __m128i __attribute__((__always_inline__, __nodebug__))
+_mm_max_epu16 (__m128i __V1, __m128i __V2)
+{
+  return (__m128i) __builtin_ia32_pmaxuw128 ((__v8hi) __V1, (__v8hi) __V2);
+}
+
+static inline  __m128i __attribute__((__always_inline__, __nodebug__))
+_mm_min_epi32 (__m128i __V1, __m128i __V2)
+{
+  return (__m128i) __builtin_ia32_pminsd128 ((__v4si) __V1, (__v4si) __V2);
+}
+
+static inline  __m128i __attribute__((__always_inline__, __nodebug__))
+_mm_max_epi32 (__m128i __V1, __m128i __V2)
+{
+  return (__m128i) __builtin_ia32_pmaxsd128 ((__v4si) __V1, (__v4si) __V2);
+}
+
+static inline  __m128i __attribute__((__always_inline__, __nodebug__))
+_mm_min_epu32 (__m128i __V1, __m128i __V2)
+{
+  return (__m128i) __builtin_ia32_pminud128((__v4si) __V1, (__v4si) __V2);
+}
+
+static inline  __m128i __attribute__((__always_inline__, __nodebug__))
+_mm_max_epu32 (__m128i __V1, __m128i __V2)
+{
+  return (__m128i) __builtin_ia32_pmaxud128((__v4si) __V1, (__v4si) __V2);
+}
+
+/* SSE4 Insertion and Extraction from XMM Register Instructions.  */
+#define _mm_insert_ps(X, Y, N) __builtin_ia32_insertps128((X), (Y), (N))
+#define _mm_extract_ps(X, N) (__extension__                      \
+                              ({ union { int i; float f; } __t;  \
+                                 __v4sf __a = (__v4sf)X;         \
+                                 __t.f = __a[N];                 \
+                                 __t.i;}))
+
+/* Miscellaneous insert and extract macros.  */
+/* Extract a single-precision float from X at index N into D.  */
+#define _MM_EXTRACT_FLOAT(D, X, N) (__extension__ ({ __v4sf __a = (__v4sf)X; \
+                                                    (D) = __a[N]; }))
+                                                    
+/* Or together 2 sets of indexes (X and Y) with the zeroing bits (Z) to create
+   an index suitable for _mm_insert_ps.  */
+#define _MM_MK_INSERTPS_NDX(X, Y, Z) (((X) << 6) | ((Y) << 4) | (Z))
+                                           
+/* Extract a float from X at index N into the first index of the return.  */
+#define _MM_PICK_OUT_PS(X, N) _mm_insert_ps (_mm_setzero_ps(), (X),   \
+                                             _MM_MK_INSERTPS_NDX((N), 0, 0x0e))
 
 #endif /* __SSE4_1__ */
 
