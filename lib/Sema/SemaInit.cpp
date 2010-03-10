@@ -18,6 +18,7 @@
 #include "SemaInit.h"
 #include "Lookup.h"
 #include "Sema.h"
+#include "clang/Lex/Preprocessor.h"
 #include "clang/Parse/Designator.h"
 #include "clang/AST/ASTContext.h"
 #include "clang/AST/ExprCXX.h"
@@ -496,6 +497,20 @@ void InitListChecker::CheckImplicitInitList(const InitializedEntity &Entity,
     SourceLocation EndLoc
       = ParentIList->getInit(EndIndex)->getSourceRange().getEnd();
     StructuredSubobjectInitList->setRBraceLoc(EndLoc);
+  }
+  
+  // Warn about missing braces.
+  if (T->isArrayType() || T->isRecordType()) {
+    SemaRef.Diag(StructuredSubobjectInitList->getLocStart(),
+                 diag::warn_missing_braces)
+    << StructuredSubobjectInitList->getSourceRange()
+    << CodeModificationHint::CreateInsertion(
+                                    StructuredSubobjectInitList->getLocStart(), 
+                                    "{")
+    << CodeModificationHint::CreateInsertion(
+                                    SemaRef.PP.getLocForEndOfToken(
+                                      StructuredSubobjectInitList->getLocEnd()), 
+                                      "}");
   }
 }
 
@@ -2258,10 +2273,17 @@ static OverloadingResult TryRefInitWithConversionFunction(Sema &S,
   Sema::ReferenceCompareResult NewRefRelationship
     = S.CompareReferenceRelationship(DeclLoc, T1, T2.getNonReferenceType(),
                                      NewDerivedToBase);
-  assert(NewRefRelationship != Sema::Ref_Incompatible &&
-         "Overload resolution picked a bad conversion function");
-  (void)NewRefRelationship;
-  if (NewDerivedToBase)
+  if (NewRefRelationship == Sema::Ref_Incompatible) {
+    // If the type we've converted to is not reference-related to the
+    // type we're looking for, then there is another conversion step
+    // we need to perform to produce a temporary of the right type
+    // that we'll be binding to.
+    ImplicitConversionSequence ICS;
+    ICS.setStandard();
+    ICS.Standard = Best->FinalConversion;
+    T2 = ICS.Standard.getToType(2);
+    Sequence.AddConversionSequenceStep(ICS, T2);
+  } else if (NewDerivedToBase)
     Sequence.AddDerivedToBaseCastStep(
                                 S.Context.getQualifiedType(T1,
                                   T2.getNonReferenceType().getQualifiers()), 

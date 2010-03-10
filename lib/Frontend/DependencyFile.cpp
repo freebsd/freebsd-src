@@ -74,8 +74,7 @@ void clang::AttachDependencyFileGen(Preprocessor &PP,
     return;
   }
 
-  assert(!PP.getPPCallbacks() && "Preprocessor callbacks already registered!");
-  PP.setPPCallbacks(new DependencyFileCallback(&PP, OS, Opts));
+  PP.addPPCallbacks(new DependencyFileCallback(&PP, OS, Opts));
 }
 
 /// FileMatchesDepCriteria - Determine whether the given Filename should be

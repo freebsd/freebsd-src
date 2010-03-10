@@ -315,6 +315,7 @@ public:
   bool VisitSizeOfAlignOfExpr(SizeOfAlignOfExpr *E);
   bool VisitExplicitCastExpr(ExplicitCastExpr *E);
   bool VisitCompoundLiteralExpr(CompoundLiteralExpr *E);
+  bool VisitObjCMessageExpr(ObjCMessageExpr *E);
 };
 
 } // end anonymous namespace
@@ -532,9 +533,10 @@ bool CursorVisitor::VisitVarDecl(VarDecl *D) {
 }
 
 bool CursorVisitor::VisitObjCMethodDecl(ObjCMethodDecl *ND) {
-  // FIXME: We really need a TypeLoc covering Objective-C method declarations.
-  // At the moment, we don't have information about locations in the return
-  // type.
+  if (TypeSourceInfo *TSInfo = ND->getResultTypeSourceInfo())
+    if (Visit(TSInfo->getTypeLoc()))
+      return true;
+
   for (ObjCMethodDecl::param_iterator P = ND->param_begin(),
        PEnd = ND->param_end();
        P != PEnd; ++P) {
@@ -896,6 +898,14 @@ bool CursorVisitor::VisitCompoundLiteralExpr(CompoundLiteralExpr *E) {
   if (TypeSourceInfo *TSInfo = E->getTypeSourceInfo())
     if (Visit(TSInfo->getTypeLoc()))
       return true;
+
+  return VisitExpr(E);
+}
+
+bool CursorVisitor::VisitObjCMessageExpr(ObjCMessageExpr *E) {
+  ObjCMessageExpr::ClassInfo CI = E->getClassInfo();
+  if (CI.Decl && Visit(MakeCursorObjCClassRef(CI.Decl, CI.Loc, TU)))
+    return true;
 
   return VisitExpr(E);
 }
@@ -1577,6 +1587,18 @@ unsigned clang_isStatement(enum CXCursorKind K) {
 
 unsigned clang_isTranslationUnit(enum CXCursorKind K) {
   return K == CXCursor_TranslationUnit;
+}
+
+unsigned clang_isUnexposed(enum CXCursorKind K) {
+  switch (K) {
+    case CXCursor_UnexposedDecl:
+    case CXCursor_UnexposedExpr:
+    case CXCursor_UnexposedStmt:
+    case CXCursor_UnexposedAttr:
+      return true;
+    default:
+      return false;
+  }
 }
 
 CXCursorKind clang_getCursorKind(CXCursor C) {

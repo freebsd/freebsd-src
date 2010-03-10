@@ -78,21 +78,21 @@ ASTContext::~ASTContext() {
       // Increment in loop to prevent using deallocated memory.
       Deallocate(&*I++);
     }
-  }
 
-  for (llvm::DenseMap<const RecordDecl*, const ASTRecordLayout*>::iterator
-       I = ASTRecordLayouts.begin(), E = ASTRecordLayouts.end(); I != E; ) {
-    // Increment in loop to prevent using deallocated memory.
-    ASTRecordLayout *R = const_cast<ASTRecordLayout*>((I++)->second);
-    delete R;
-  }
+    for (llvm::DenseMap<const RecordDecl*, const ASTRecordLayout*>::iterator
+         I = ASTRecordLayouts.begin(), E = ASTRecordLayouts.end(); I != E; ) {
+      // Increment in loop to prevent using deallocated memory.
+      if (ASTRecordLayout *R = const_cast<ASTRecordLayout*>((I++)->second))
+        R->Destroy(*this);
+    }
 
-  for (llvm::DenseMap<const ObjCContainerDecl*,
-                      const ASTRecordLayout*>::iterator
-       I = ObjCLayouts.begin(), E = ObjCLayouts.end(); I != E; ) {
-    // Increment in loop to prevent using deallocated memory.
-    ASTRecordLayout *R = const_cast<ASTRecordLayout*>((I++)->second);
-    delete R;
+    for (llvm::DenseMap<const ObjCContainerDecl*,
+         const ASTRecordLayout*>::iterator
+         I = ObjCLayouts.begin(), E = ObjCLayouts.end(); I != E; ) {
+      // Increment in loop to prevent using deallocated memory.
+      if (ASTRecordLayout *R = const_cast<ASTRecordLayout*>((I++)->second))
+        R->Destroy(*this);
+    }
   }
 
   // Destroy nested-name-specifiers.
@@ -887,6 +887,10 @@ ASTContext::getTypeInfo(const Type *T) {
 
   case Type::QualifiedName:
     return getTypeInfo(cast<QualifiedNameType>(T)->getNamedType().getTypePtr());
+
+ case Type::InjectedClassName:
+   return getTypeInfo(cast<InjectedClassNameType>(T)
+                        ->getUnderlyingType().getTypePtr());
 
   case Type::TemplateSpecialization:
     assert(getCanonicalType(T) != T &&
@@ -1918,38 +1922,71 @@ QualType ASTContext::getFunctionType(QualType ResultTy,const QualType *ArgArray,
   return QualType(FTP, 0);
 }
 
+#ifndef NDEBUG
+static bool NeedsInjectedClassNameType(const RecordDecl *D) {
+  if (!isa<CXXRecordDecl>(D)) return false;
+  const CXXRecordDecl *RD = cast<CXXRecordDecl>(D);
+  if (isa<ClassTemplatePartialSpecializationDecl>(RD))
+    return true;
+  if (RD->getDescribedClassTemplate() &&
+      !isa<ClassTemplateSpecializationDecl>(RD))
+    return true;
+  return false;
+}
+#endif
+
+/// getInjectedClassNameType - Return the unique reference to the
+/// injected class name type for the specified templated declaration.
+QualType ASTContext::getInjectedClassNameType(CXXRecordDecl *Decl,
+                                              QualType TST) {
+  assert(NeedsInjectedClassNameType(Decl));
+  if (Decl->TypeForDecl) {
+    assert(isa<InjectedClassNameType>(Decl->TypeForDecl));
+  } else if (CXXRecordDecl *PrevDecl
+               = cast_or_null<CXXRecordDecl>(Decl->getPreviousDeclaration())) {
+    assert(PrevDecl->TypeForDecl && "previous declaration has no type");
+    Decl->TypeForDecl = PrevDecl->TypeForDecl;
+    assert(isa<InjectedClassNameType>(Decl->TypeForDecl));
+  } else {
+    Decl->TypeForDecl = new (*this, TypeAlignment)
+      InjectedClassNameType(Decl, TST, TST->getCanonicalTypeInternal());
+    Types.push_back(Decl->TypeForDecl);
+  }
+  return QualType(Decl->TypeForDecl, 0);
+}
+
 /// getTypeDeclType - Return the unique reference to the type for the
 /// specified type declaration.
-QualType ASTContext::getTypeDeclType(const TypeDecl *Decl,
-                                     const TypeDecl* PrevDecl) {
+QualType ASTContext::getTypeDeclTypeSlow(const TypeDecl *Decl) {
   assert(Decl && "Passed null for Decl param");
-  if (Decl->TypeForDecl) return QualType(Decl->TypeForDecl, 0);
+  assert(!Decl->TypeForDecl && "TypeForDecl present in slow case");
 
   if (const TypedefDecl *Typedef = dyn_cast<TypedefDecl>(Decl))
     return getTypedefType(Typedef);
-  else if (isa<TemplateTypeParmDecl>(Decl)) {
-    assert(false && "Template type parameter types are always available.");
-  } else if (const ObjCInterfaceDecl *ObjCInterface
+
+  if (const ObjCInterfaceDecl *ObjCInterface
                = dyn_cast<ObjCInterfaceDecl>(Decl))
     return getObjCInterfaceType(ObjCInterface);
 
+  assert(!isa<TemplateTypeParmDecl>(Decl) &&
+         "Template type parameter types are always available.");
+
   if (const RecordDecl *Record = dyn_cast<RecordDecl>(Decl)) {
-    if (PrevDecl)
-      Decl->TypeForDecl = PrevDecl->TypeForDecl;
-    else
-      Decl->TypeForDecl = new (*this, TypeAlignment) RecordType(Record);
+    assert(!Record->getPreviousDeclaration() &&
+           "struct/union has previous declaration");
+    assert(!NeedsInjectedClassNameType(Record));
+    Decl->TypeForDecl = new (*this, TypeAlignment) RecordType(Record);
   } else if (const EnumDecl *Enum = dyn_cast<EnumDecl>(Decl)) {
-    if (PrevDecl)
-      Decl->TypeForDecl = PrevDecl->TypeForDecl;
-    else
-      Decl->TypeForDecl = new (*this, TypeAlignment) EnumType(Enum);
+    assert(!Enum->getPreviousDeclaration() &&
+           "enum has previous declaration");
+    Decl->TypeForDecl = new (*this, TypeAlignment) EnumType(Enum);
   } else if (const UnresolvedUsingTypenameDecl *Using =
                dyn_cast<UnresolvedUsingTypenameDecl>(Decl)) {
     Decl->TypeForDecl = new (*this, TypeAlignment) UnresolvedUsingType(Using);
   } else
-    assert(false && "TypeDecl without a type?");
+    llvm_unreachable("TypeDecl without a type?");
 
-  if (!PrevDecl) Types.push_back(Decl->TypeForDecl);
+  Types.push_back(Decl->TypeForDecl);
   return QualType(Decl->TypeForDecl, 0);
 }
 
@@ -2020,6 +2057,24 @@ QualType ASTContext::getTemplateTypeParmType(unsigned Depth, unsigned Index,
   TemplateTypeParmTypes.InsertNode(TypeParm, InsertPos);
 
   return QualType(TypeParm, 0);
+}
+
+TypeSourceInfo *
+ASTContext::getTemplateSpecializationTypeInfo(TemplateName Name,
+                                              SourceLocation NameLoc,
+                                        const TemplateArgumentListInfo &Args,
+                                              QualType CanonType) {
+  QualType TST = getTemplateSpecializationType(Name, Args, CanonType);
+
+  TypeSourceInfo *DI = CreateTypeSourceInfo(TST);
+  TemplateSpecializationTypeLoc TL
+    = cast<TemplateSpecializationTypeLoc>(DI->getTypeLoc());
+  TL.setTemplateNameLoc(NameLoc);
+  TL.setLAngleLoc(Args.getLAngleLoc());
+  TL.setRAngleLoc(Args.getRAngleLoc());
+  for (unsigned i = 0, e = TL.getNumArgs(); i != e; ++i)
+    TL.setArgLocInfo(i, Args[i].getLocInfo());
+  return DI;
 }
 
 QualType
