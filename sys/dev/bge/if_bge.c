@@ -3181,7 +3181,7 @@ bge_reset(struct bge_softc *sc)
 	write_op(sc, BGE_MISC_CFG, BGE_32BITTIME_66MHZ);
 	/*
 	 * Disable PCI-X relaxed ordering to ensure status block update
-	 * comes first than packet buffer DMA. Otherwise driver may
+	 * comes first then packet buffer DMA. Otherwise driver may
 	 * read stale status block.
 	 */
 	if (sc->bge_flags & BGE_FLAG_PCIX) {
