@@ -319,7 +319,9 @@ struct rt_addrinfo {
 
 #ifdef _KERNEL
 
-#define RT_LINK_IS_UP(ifp)	((ifp)->if_link_state == LINK_STATE_UP)
+#define RT_LINK_IS_UP(ifp)	(((ifp)->if_flags &		    \
+				  (IFF_LOOPBACK | IFF_POINTOPOINT)) \
+				 || (ifp)->if_link_state == LINK_STATE_UP)
 
 #define	RT_LOCK_INIT(_rt) \
 	mtx_init(&(_rt)->rt_mtx, "rtentry", NULL, MTX_DEF | MTX_DUPOK)
