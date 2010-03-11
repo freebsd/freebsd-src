@@ -28,11 +28,11 @@ ukbdmap.h			optional	ukbd_dflt_keymap	\
 	no-obj no-implicit-rule before-depend				\
 	clean		"ukbdmap.h"
 #
-compat/freebsd32/freebsd32_ioctl.c	optional	compat_ia32
-compat/freebsd32/freebsd32_misc.c	optional	compat_ia32
-compat/freebsd32/freebsd32_syscalls.c	optional	compat_ia32
-compat/freebsd32/freebsd32_sysent.c	optional	compat_ia32
-compat/ia32/ia32_sysvec.c		optional	compat_ia32
+compat/freebsd32/freebsd32_ioctl.c	optional	compat_freebsd32
+compat/freebsd32/freebsd32_misc.c	optional	compat_freebsd32
+compat/freebsd32/freebsd32_syscalls.c	optional	compat_freebsd32
+compat/freebsd32/freebsd32_sysent.c	optional	compat_freebsd32
+compat/ia32/ia32_sysvec.c		optional	compat_freebsd32
 contrib/ia64/libuwx/src/uwx_bstream.c		standard
 contrib/ia64/libuwx/src/uwx_context.c		standard
 contrib/ia64/libuwx/src/uwx_env.c		standard
@@ -68,10 +68,10 @@ ia64/acpica/madt.c		optional	acpi
 ia64/disasm/disasm_decode.c	standard
 ia64/disasm/disasm_extract.c	standard
 ia64/disasm/disasm_format.c	standard
-ia64/ia32/ia32_misc.c		optional	compat_ia32
-ia64/ia32/ia32_reg.c		optional	compat_ia32
-ia64/ia32/ia32_signal.c		optional	compat_ia32
-ia64/ia32/ia32_trap.c		optional	compat_ia32
+ia64/ia32/ia32_misc.c		optional	compat_freebsd32
+ia64/ia32/ia32_reg.c		optional	compat_freebsd32
+ia64/ia32/ia32_signal.c		optional	compat_freebsd32
+ia64/ia32/ia32_trap.c		optional	compat_freebsd32
 ia64/ia64/autoconf.c		standard
 ia64/ia64/bus_machdep.c		standard
 ia64/ia64/busdma_machdep.c	standard
@@ -117,7 +117,7 @@ ia64/isa/isa_dma.c		optional	isa
 ia64/pci/pci_cfgreg.c		optional	pci
 isa/syscons_isa.c		optional	sc
 isa/vga_isa.c			optional	vga
-kern/imgact_elf32.c		optional	compat_ia32
+kern/imgact_elf32.c		optional	compat_freebsd32
 libkern/bcmp.c			standard
 libkern/ffsl.c			standard
 libkern/fls.c			standard
