@@ -562,6 +562,7 @@ journal_findfile(void)
 {
 	struct ufs1_dinode *dp1;
 	struct ufs2_dinode *dp2;
+	ino_t ino;
 	int mode;
 	void *ip;
 	int i;
@@ -580,9 +581,9 @@ journal_findfile(void)
 		for (i = 0; i < NDADDR; i++) {
 			if (dp1->di_db[i] == 0)
 				break;
-			if (dir_search(dp1->di_db[i],
-			    sblksize(&sblock, (off_t)dp1->di_size, i)) != 0)
-				return (-1);
+			if ((ino = dir_search(dp1->di_db[i],
+			    sblksize(&sblock, (off_t)dp1->di_size, i))) != 0)
+				return (ino);
 		}
 	} else {
 		if ((off_t)dp1->di_size >= lblktosize(&sblock, NDADDR)) {
@@ -592,9 +593,9 @@ journal_findfile(void)
 		for (i = 0; i < NDADDR; i++) {
 			if (dp2->di_db[i] == 0)
 				break;
-			if (dir_search(dp2->di_db[i],
-			    sblksize(&sblock, (off_t)dp2->di_size, i)) != 0)
-				return (-1);
+			if ((ino = dir_search(dp2->di_db[i],
+			    sblksize(&sblock, (off_t)dp2->di_size, i))) != 0)
+				return (ino);
 		}
 	}
 
@@ -793,10 +794,11 @@ journal_clear(void)
 	void *ip;
 
 	ino = journal_findfile();
-	if (ino <= 0) {
+	if (ino == (ino_t)-1 || ino == 0) {
 		warnx("Journal file does not exist");
 		return;
 	}
+	printf("Clearing journal flags from inode %d\n", ino);
 	if (getino(&disk, &ip, ino, &mode) != 0) {
 		warn("Failed to get journal inode");
 		return;
@@ -834,11 +836,13 @@ journal_alloc(int64_t size)
 	 * If the journal file exists we can't allocate it.
 	 */
 	ino = journal_findfile();
-	if (ino > 0)
+	if (ino == (ino_t)-1)
+		return (-1);
+	if (ino > 0) {
 		warnx("Journal file %s already exists, please remove.",
 		    SUJ_FILE);
-	if (ino != 0)
 		return (-1);
+	}
 	/*
 	 * If the user didn't supply a size pick one based on the filesystem
 	 * size constrained with hardcoded MIN and MAX values.  We opt for
@@ -892,13 +896,13 @@ journal_alloc(int64_t size)
 			dp1->di_size = size;
 			dp1->di_mode = IFREG | IREAD;
 			dp1->di_nlink = 1;
-			dp1->di_flags = SF_IMMUTABLE | SF_NOUNLINK;
+			dp1->di_flags = SF_IMMUTABLE | SF_NOUNLINK | UF_NODUMP;
 		} else {
 			bzero(dp2, sizeof(*dp2));
 			dp2->di_size = size;
 			dp2->di_mode = IFREG | IREAD;
 			dp2->di_nlink = 1;
-			dp2->di_flags = SF_IMMUTABLE | SF_NOUNLINK;
+			dp2->di_flags = SF_IMMUTABLE | SF_NOUNLINK | UF_NODUMP;
 		}
 		for (i = 0; i < NDADDR && resid; i++, resid--) {
 			blk = journal_balloc();
