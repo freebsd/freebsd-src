@@ -338,11 +338,6 @@ uvisor_attach(device_t dev)
 		DPRINTF("could not allocate all pipes\n");
 		goto detach;
 	}
-	/* clear stall at first run */
-	mtx_lock(&sc->sc_mtx);
-	usbd_xfer_set_stall(sc->sc_xfer[UVISOR_BULK_DT_WR]);
-	usbd_xfer_set_stall(sc->sc_xfer[UVISOR_BULK_DT_RD]);
-	mtx_unlock(&sc->sc_mtx);
 
 	error = ucom_attach(&sc->sc_super_ucom, &sc->sc_ucom, 1, sc,
 	    &uvisor_callback, &sc->sc_mtx);
