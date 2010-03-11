@@ -29,6 +29,9 @@
 #ifndef _COMPAT_FREEBSD32_FREEBSD32_H_
 #define _COMPAT_FREEBSD32_FREEBSD32_H_
 
+#include <sys/procfs.h>
+#include <sys/socket.h>
+
 #define PTRIN(v)	(void *)(uintptr_t) (v)
 #define PTROUT(v)	(u_int32_t)(uintptr_t) (v)
 
@@ -195,6 +198,27 @@ struct i386_ldt_args32 {
 	uint32_t start;
 	uint32_t descs;
 	uint32_t num;
+};
+
+/*
+ * Alternative layouts for <sys/procfs.h>
+ */
+struct prstatus32 {
+        int     pr_version;
+        u_int   pr_statussz;
+        u_int   pr_gregsetsz;
+        u_int   pr_fpregsetsz;
+        int     pr_osreldate;
+        int     pr_cursig;
+        pid_t   pr_pid;
+        struct reg32 pr_reg;
+};
+
+struct prpsinfo32 {
+        int     pr_version;
+        u_int   pr_psinfosz;
+        char    pr_fname[PRFNAMESZ+1];
+        char    pr_psargs[PRARGSZ+1];
 };
 
 #endif /* !_COMPAT_FREEBSD32_FREEBSD32_H_ */

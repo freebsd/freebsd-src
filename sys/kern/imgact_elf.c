@@ -75,11 +75,6 @@ __FBSDID("$FreeBSD$");
 #include <machine/elf.h>
 #include <machine/md_var.h>
 
-#if defined(COMPAT_IA32) && __ELF_WORD_SIZE == 32
-#include <machine/fpu.h>
-#include <compat/ia32/ia32_reg.h>
-#endif
-
 #define OLD_EI_BRAND	8
 
 static int __elfN(check_header)(const Elf_Ehdr *hdr);
@@ -1303,7 +1298,9 @@ __elfN(corehdr)(td, vp, cred, numsegs, hdr, hdrsize, gzfile)
 	}
 }
 
-#if defined(COMPAT_IA32) && __ELF_WORD_SIZE == 32
+#if defined(COMPAT_FREEBSD32) && __ELF_WORD_SIZE == 32
+#include <compat/freebsd32/freebsd32.h>
+
 typedef struct prstatus32 elf_prstatus_t;
 typedef struct prpsinfo32 elf_prpsinfo_t;
 typedef struct fpreg32 elf_prfpregset_t;
@@ -1387,7 +1384,7 @@ __elfN(puthdr)(struct thread *td, void *dst, size_t *off, int numsegs)
 			status->pr_osreldate = osreldate;
 			status->pr_cursig = p->p_sig;
 			status->pr_pid = thr->td_tid;
-#if defined(COMPAT_IA32) && __ELF_WORD_SIZE == 32
+#if defined(COMPAT_FREEBSD32) && __ELF_WORD_SIZE == 32
 			fill_regs32(thr, &status->pr_reg);
 			fill_fpregs32(thr, fpregset);
 #else
@@ -1439,8 +1436,8 @@ __elfN(puthdr)(struct thread *td, void *dst, size_t *off, int numsegs)
 		ehdr->e_ident[EI_ABIVERSION] = 0;
 		ehdr->e_ident[EI_PAD] = 0;
 		ehdr->e_type = ET_CORE;
-#if defined(COMPAT_IA32) && __ELF_WORD_SIZE == 32
-		ehdr->e_machine = EM_386;
+#if defined(COMPAT_FREEBSD32) && __ELF_WORD_SIZE == 32
+		ehdr->e_machine = ELF_ARCH32;
 #else
 		ehdr->e_machine = ELF_ARCH;
 #endif

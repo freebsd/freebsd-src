@@ -34,8 +34,8 @@
 __FBSDID("$FreeBSD$");
 #include "opt_compat.h"
 
-#ifndef COMPAT_IA32
-#error "Unable to compile Linux-emulator due to missing COMPAT_IA32 option!"
+#ifndef COMPAT_FREEBSD32
+#error "Unable to compile Linux-emulator due to missing COMPAT_FREEBSD32 option!"
 #endif
 
 #define	__ELF_WORD_SIZE	32

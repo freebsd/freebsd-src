@@ -443,7 +443,7 @@ cpu_switch(struct thread *old, struct thread *new, struct mtx *mtx)
 	struct pcb *oldpcb, *newpcb;
 
 	oldpcb = old->td_pcb;
-#ifdef COMPAT_IA32
+#ifdef COMPAT_FREEBSD32
 	ia32_savectx(oldpcb);
 #endif
 	if (PCPU_GET(fpcurthread) == old)
@@ -459,7 +459,7 @@ cpu_switch(struct thread *old, struct thread *new, struct mtx *mtx)
 		oldpcb->pcb_current_pmap =
 		    pmap_switch(newpcb->pcb_current_pmap);
 		PCPU_SET(curthread, new);
-#ifdef COMPAT_IA32
+#ifdef COMPAT_FREEBSD32
 		ia32_restorectx(newpcb);
 #endif
 		if (PCPU_GET(fpcurthread) == new)
@@ -479,7 +479,7 @@ cpu_throw(struct thread *old __unused, struct thread *new)
 	newpcb = new->td_pcb;
 	(void)pmap_switch(newpcb->pcb_current_pmap);
 	PCPU_SET(curthread, new);
-#ifdef COMPAT_IA32
+#ifdef COMPAT_FREEBSD32
 	ia32_restorectx(newpcb);
 #endif
 	restorectx(newpcb);

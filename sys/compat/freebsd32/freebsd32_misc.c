@@ -31,6 +31,8 @@ __FBSDID("$FreeBSD$");
 #include "opt_inet.h"
 #include "opt_inet6.h"
 
+#define __ELF_WORD_SIZE 32
+
 #include <sys/param.h>
 #include <sys/bus.h>
 #include <sys/clock.h>
@@ -44,6 +46,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/file.h>		/* Must come after sys/malloc.h */
+#include <sys/imgact.h>
 #include <sys/mbuf.h>
 #include <sys/mman.h>
 #include <sys/module.h>
@@ -91,6 +94,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_extern.h>
 
 #include <machine/cpu.h>
+#include <machine/elf.h>
 
 #include <security/audit/audit.h>
 
@@ -114,6 +118,16 @@ CTASSERT(sizeof(struct sigaction32) == 24);
 
 static int freebsd32_kevent_copyout(void *arg, struct kevent *kevp, int count);
 static int freebsd32_kevent_copyin(void *arg, struct kevent *kevp, int count);
+
+#if BYTE_ORDER == BIG_ENDIAN
+#define PAIR32TO64(type, name) ((name ## 2) | ((type)(name ## 1) << 32))
+#define RETVAL_HI 0	
+#define RETVAL_LO 1	
+#else
+#define PAIR32TO64(type, name) ((name ## 1) | ((type)(name ## 2) << 32))
+#define RETVAL_HI 1	
+#define RETVAL_LO 0	
+#endif
 
 int
 freebsd32_wait4(struct thread *td, struct freebsd32_wait4_args *uap)
@@ -426,8 +440,7 @@ freebsd32_mmap(struct thread *td, struct freebsd32_mmap_args *uap)
 	int prot	 = uap->prot;
 	int flags	 = uap->flags;
 	int fd		 = uap->fd;
-	off_t pos	 = (uap->poslo
-			    | ((off_t)uap->poshi << 32));
+	off_t pos	 = PAIR32TO64(off_t,uap->pos);
 #ifdef __ia64__
 	vm_size_t pageoff;
 	int error;
@@ -523,8 +536,8 @@ freebsd6_freebsd32_mmap(struct thread *td, struct freebsd6_freebsd32_mmap_args *
 	ap.prot = uap->prot;
 	ap.flags = uap->flags;
 	ap.fd = uap->fd;
-	ap.poslo = uap->poslo;
-	ap.poshi = uap->poshi;
+	ap.pos1 = uap->pos1;
+	ap.pos2 = uap->pos2;
 
 	return (freebsd32_mmap(td, &ap));
 }
@@ -586,7 +599,6 @@ freebsd32_select(struct thread *td, struct freebsd32_select_args *uap)
 	} else
 		tvp = NULL;
 	/*
-	 * XXX big-endian needs to convert the fd_sets too.
 	 * XXX Do pointers need PTRIN()?
 	 */
 	return (kern_select(td, uap->nd, uap->in, uap->ou, uap->ex, tvp,
@@ -620,7 +632,6 @@ freebsd32_pselect(struct thread *td, struct freebsd32_pselect_args *uap)
 	} else
 		uset = NULL;
 	/*
-	 * XXX big-endian needs to convert the fd_sets too.
 	 * XXX Do pointers need PTRIN()?
 	 */
 	error = kern_pselect(td, uap->nd, uap->in, uap->ou, uap->ex, tvp,
@@ -843,7 +854,7 @@ freebsd32_preadv(struct thread *td, struct freebsd32_preadv_args *uap)
 	error = freebsd32_copyinuio(uap->iovp, uap->iovcnt, &auio);
 	if (error)
 		return (error);
-	error = kern_preadv(td, uap->fd, auio, uap->offset);
+	error = kern_preadv(td, uap->fd, auio, PAIR32TO64(off_t,uap->offset));
 	free(auio, M_IOV);
 	return (error);
 }
@@ -857,7 +868,7 @@ freebsd32_pwritev(struct thread *td, struct freebsd32_pwritev_args *uap)
 	error = freebsd32_copyinuio(uap->iovp, uap->iovcnt, &auio);
 	if (error)
 		return (error);
-	error = kern_pwritev(td, uap->fd, auio, uap->offset);
+	error = kern_pwritev(td, uap->fd, auio, PAIR32TO64(off_t,uap->offset));
 	free(auio, M_IOV);
 	return (error);
 }
@@ -1982,7 +1993,7 @@ freebsd32_pread(struct thread *td, struct freebsd32_pread_args *uap)
 	ap.fd = uap->fd;
 	ap.buf = uap->buf;
 	ap.nbyte = uap->nbyte;
-	ap.offset = (uap->offsetlo | ((off_t)uap->offsethi << 32));
+	ap.offset = PAIR32TO64(off_t,uap->offset);
 	return (pread(td, &ap));
 }
 
@@ -1994,7 +2005,7 @@ freebsd32_pwrite(struct thread *td, struct freebsd32_pwrite_args *uap)
 	ap.fd = uap->fd;
 	ap.buf = uap->buf;
 	ap.nbyte = uap->nbyte;
-	ap.offset = (uap->offsetlo | ((off_t)uap->offsethi << 32));
+	ap.offset = PAIR32TO64(off_t,uap->offset);
 	return (pwrite(td, &ap));
 }
 
@@ -2006,13 +2017,13 @@ freebsd32_lseek(struct thread *td, struct freebsd32_lseek_args *uap)
 	off_t pos;
 
 	ap.fd = uap->fd;
-	ap.offset = (uap->offsetlo | ((off_t)uap->offsethi << 32));
+	ap.offset = PAIR32TO64(off_t,uap->offset);
 	ap.whence = uap->whence;
 	error = lseek(td, &ap);
 	/* Expand the quad return into two parts for eax and edx */
 	pos = *(off_t *)(td->td_retval);
-	td->td_retval[0] = pos & 0xffffffff;	/* %eax */
-	td->td_retval[1] = pos >> 32;		/* %edx */
+	td->td_retval[RETVAL_LO] = pos & 0xffffffff;	/* %eax */
+	td->td_retval[RETVAL_HI] = pos >> 32;		/* %edx */
 	return error;
 }
 
@@ -2022,7 +2033,7 @@ freebsd32_truncate(struct thread *td, struct freebsd32_truncate_args *uap)
 	struct truncate_args ap;
 
 	ap.path = uap->path;
-	ap.length = (uap->lengthlo | ((off_t)uap->lengthhi << 32));
+	ap.length = PAIR32TO64(off_t,uap->length);
 	return (truncate(td, &ap));
 }
 
@@ -2032,7 +2043,7 @@ freebsd32_ftruncate(struct thread *td, struct freebsd32_ftruncate_args *uap)
 	struct ftruncate_args ap;
 
 	ap.fd = uap->fd;
-	ap.length = (uap->lengthlo | ((off_t)uap->lengthhi << 32));
+	ap.length = PAIR32TO64(off_t,uap->length);
 	return (ftruncate(td, &ap));
 }
 
@@ -2064,7 +2075,7 @@ freebsd6_freebsd32_pread(struct thread *td, struct freebsd6_freebsd32_pread_args
 	ap.fd = uap->fd;
 	ap.buf = uap->buf;
 	ap.nbyte = uap->nbyte;
-	ap.offset = (uap->offsetlo | ((off_t)uap->offsethi << 32));
+	ap.offset = PAIR32TO64(off_t,uap->offset);
 	return (pread(td, &ap));
 }
 
@@ -2076,7 +2087,7 @@ freebsd6_freebsd32_pwrite(struct thread *td, struct freebsd6_freebsd32_pwrite_ar
 	ap.fd = uap->fd;
 	ap.buf = uap->buf;
 	ap.nbyte = uap->nbyte;
-	ap.offset = (uap->offsetlo | ((off_t)uap->offsethi << 32));
+	ap.offset = PAIR32TO64(off_t,uap->offset);
 	return (pwrite(td, &ap));
 }
 
@@ -2088,13 +2099,13 @@ freebsd6_freebsd32_lseek(struct thread *td, struct freebsd6_freebsd32_lseek_args
 	off_t pos;
 
 	ap.fd = uap->fd;
-	ap.offset = (uap->offsetlo | ((off_t)uap->offsethi << 32));
+	ap.offset = PAIR32TO64(off_t,uap->offset);
 	ap.whence = uap->whence;
 	error = lseek(td, &ap);
 	/* Expand the quad return into two parts for eax and edx */
 	pos = *(off_t *)(td->td_retval);
-	td->td_retval[0] = pos & 0xffffffff;	/* %eax */
-	td->td_retval[1] = pos >> 32;		/* %edx */
+	td->td_retval[RETVAL_LO] = pos & 0xffffffff;	/* %eax */
+	td->td_retval[RETVAL_HI] = pos >> 32;		/* %edx */
 	return error;
 }
 
@@ -2104,7 +2115,7 @@ freebsd6_freebsd32_truncate(struct thread *td, struct freebsd6_freebsd32_truncat
 	struct truncate_args ap;
 
 	ap.path = uap->path;
-	ap.length = (uap->lengthlo | ((off_t)uap->lengthhi << 32));
+	ap.length = PAIR32TO64(off_t,uap->length);
 	return (truncate(td, &ap));
 }
 
@@ -2114,7 +2125,7 @@ freebsd6_freebsd32_ftruncate(struct thread *td, struct freebsd6_freebsd32_ftrunc
 	struct ftruncate_args ap;
 
 	ap.fd = uap->fd;
-	ap.length = (uap->lengthlo | ((off_t)uap->lengthhi << 32));
+	ap.length = PAIR32TO64(off_t,uap->length);
 	return (ftruncate(td, &ap));
 }
 #endif /* COMPAT_FREEBSD6 */
@@ -2141,7 +2152,7 @@ freebsd32_do_sendfile(struct thread *td,
 
 	ap.fd = uap->fd;
 	ap.s = uap->s;
-	ap.offset = (uap->offsetlo | ((off_t)uap->offsethi << 32));
+	ap.offset = PAIR32TO64(off_t,uap->offset);
 	ap.nbytes = uap->nbytes;
 	ap.hdtr = (struct sf_hdtr *)uap->hdtr;		/* XXX not used */
 	ap.sbytes = uap->sbytes;
@@ -2879,7 +2890,7 @@ freebsd32_cpuset_setid(struct thread *td,
 	struct cpuset_setid_args ap;
 
 	ap.which = uap->which;
-	ap.id = (uap->idlo | ((id_t)uap->idhi << 32));
+	ap.id = PAIR32TO64(id_t,uap->id);
 	ap.setid = uap->setid;
 
 	return (cpuset_setid(td, &ap));
@@ -2893,7 +2904,7 @@ freebsd32_cpuset_getid(struct thread *td,
 
 	ap.level = uap->level;
 	ap.which = uap->which;
-	ap.id = (uap->idlo | ((id_t)uap->idhi << 32));
+	ap.id = PAIR32TO64(id_t,uap->id);
 	ap.setid = uap->setid;
 
 	return (cpuset_getid(td, &ap));
@@ -2907,7 +2918,7 @@ freebsd32_cpuset_getaffinity(struct thread *td,
 
 	ap.level = uap->level;
 	ap.which = uap->which;
-	ap.id = (uap->idlo | ((id_t)uap->idhi << 32));
+	ap.id = PAIR32TO64(id_t,uap->id);
 	ap.cpusetsize = uap->cpusetsize;
 	ap.mask = uap->mask;
 
@@ -2922,7 +2933,7 @@ freebsd32_cpuset_setaffinity(struct thread *td,
 
 	ap.level = uap->level;
 	ap.which = uap->which;
-	ap.id = (uap->idlo | ((id_t)uap->idhi << 32));
+	ap.id = PAIR32TO64(id_t,uap->id);
 	ap.cpusetsize = uap->cpusetsize;
 	ap.mask = uap->mask;
 
@@ -3072,3 +3083,123 @@ syscall32_module_handler(struct module *mod, int what, void *arg)
 		return (error);
 	}
 }
+
+register_t *
+freebsd32_copyout_strings(struct image_params *imgp)
+{
+	int argc, envc;
+	u_int32_t *vectp;
+	char *stringp, *destp;
+	u_int32_t *stack_base;
+	struct freebsd32_ps_strings *arginfo;
+	size_t execpath_len;
+	int szsigcode;
+
+	/*
+	 * Calculate string base and vector table pointers.
+	 * Also deal with signal trampoline code for this exec type.
+	 */
+	if (imgp->execpath != NULL && imgp->auxargs != NULL)
+		execpath_len = strlen(imgp->execpath) + 1;
+	else
+		execpath_len = 0;
+	arginfo = (struct freebsd32_ps_strings *)FREEBSD32_PS_STRINGS;
+	szsigcode = *(imgp->proc->p_sysent->sv_szsigcode);
+	destp =	(caddr_t)arginfo - szsigcode - SPARE_USRSPACE -
+		roundup(execpath_len, sizeof(char *)) -
+		roundup((ARG_MAX - imgp->args->stringspace), sizeof(char *));
+
+	/*
+	 * install sigcode
+	 */
+	if (szsigcode)
+		copyout(imgp->proc->p_sysent->sv_sigcode,
+			((caddr_t)arginfo - szsigcode), szsigcode);
+
+	/*
+	 * Copy the image path for the rtld.
+	 */
+	if (execpath_len != 0) {
+		imgp->execpathp = (uintptr_t)arginfo - szsigcode - execpath_len;
+		copyout(imgp->execpath, (void *)imgp->execpathp,
+		    execpath_len);
+	}
+
+	/*
+	 * If we have a valid auxargs ptr, prepare some room
+	 * on the stack.
+	 */
+	if (imgp->auxargs) {
+		/*
+		 * 'AT_COUNT*2' is size for the ELF Auxargs data. This is for
+		 * lower compatibility.
+		 */
+		imgp->auxarg_size = (imgp->auxarg_size) ? imgp->auxarg_size
+			: (AT_COUNT * 2);
+		/*
+		 * The '+ 2' is for the null pointers at the end of each of
+		 * the arg and env vector sets,and imgp->auxarg_size is room
+		 * for argument of Runtime loader.
+		 */
+		vectp = (u_int32_t *) (destp - (imgp->args->argc +
+		    imgp->args->envc + 2 + imgp->auxarg_size + execpath_len) *
+		    sizeof(u_int32_t));
+	} else
+		/*
+		 * The '+ 2' is for the null pointers at the end of each of
+		 * the arg and env vector sets
+		 */
+		vectp = (u_int32_t *)
+			(destp - (imgp->args->argc + imgp->args->envc + 2) * sizeof(u_int32_t));
+
+	/*
+	 * vectp also becomes our initial stack base
+	 */
+	stack_base = vectp;
+
+	stringp = imgp->args->begin_argv;
+	argc = imgp->args->argc;
+	envc = imgp->args->envc;
+	/*
+	 * Copy out strings - arguments and environment.
+	 */
+	copyout(stringp, destp, ARG_MAX - imgp->args->stringspace);
+
+	/*
+	 * Fill in "ps_strings" struct for ps, w, etc.
+	 */
+	suword32(&arginfo->ps_argvstr, (u_int32_t)(intptr_t)vectp);
+	suword32(&arginfo->ps_nargvstr, argc);
+
+	/*
+	 * Fill in argument portion of vector table.
+	 */
+	for (; argc > 0; --argc) {
+		suword32(vectp++, (u_int32_t)(intptr_t)destp);
+		while (*stringp++ != 0)
+			destp++;
+		destp++;
+	}
+
+	/* a null vector table pointer separates the argp's from the envp's */
+	suword32(vectp++, 0);
+
+	suword32(&arginfo->ps_envstr, (u_int32_t)(intptr_t)vectp);
+	suword32(&arginfo->ps_nenvstr, envc);
+
+	/*
+	 * Fill in environment portion of vector table.
+	 */
+	for (; envc > 0; --envc) {
+		suword32(vectp++, (u_int32_t)(intptr_t)destp);
+		while (*stringp++ != 0)
+			destp++;
+		destp++;
+	}
+
+	/* end of vector table is a null pointer */
+	suword32(vectp, 0);
+
+	return ((register_t *)stack_base);
+}
+

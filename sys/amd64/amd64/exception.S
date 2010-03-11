@@ -572,7 +572,7 @@ ENTRY(fork_trampoline)
  * included.
  */
 
-#ifdef COMPAT_IA32
+#ifdef COMPAT_FREEBSD32
 	.data
 	.p2align 4
 	.text
