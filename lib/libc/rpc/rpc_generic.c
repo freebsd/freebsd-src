@@ -248,7 +248,6 @@ __rpc_getconfip(nettype)
 	static char *netid_udp_main;
 	struct netconfig *dummy;
 	int main_thread;
-	static thread_key_t tcp_key, udp_key;
 
 	if ((main_thread = thr_main())) {
 		netid_udp = netid_udp_main;
