@@ -972,8 +972,7 @@ iwn_eeprom_unlock(struct iwn_softc *sc)
 int
 iwn_init_otprom(struct iwn_softc *sc)
 {
-	uint32_t base;
-	uint16_t next;
+	uint16_t prev, base, next;
 	int count, error;
 
 	/* Wait for clock stabilization before accessing prph. */
@@ -1000,25 +999,26 @@ iwn_init_otprom(struct iwn_softc *sc)
 	    IWN_OTP_GP_ECC_CORR_STTS | IWN_OTP_GP_ECC_UNCORR_STTS);
 
 	/*
-	 * Find last valid OTP block (contains the EEPROM image) for HW
-	 * without OTP shadow RAM.
+	 * Find the block before last block (contains the EEPROM image)
+	 * for HW without OTP shadow RAM.
 	 */
 	if (sc->hw_type == IWN_HW_REV_TYPE_1000) {
 		/* Switch to absolute addressing mode. */
 		IWN_CLRBITS(sc, IWN_OTP_GP, IWN_OTP_GP_RELATIVE_ACCESS);
-		base = 0;
+		base = prev = 0;
 		for (count = 0; count < IWN1000_OTP_NBLOCKS; count++) {
 			error = iwn_read_prom_data(sc, base, &next, 2);
 			if (error != 0)
 				return error;
 			if (next == 0)	/* End of linked-list. */
 				break;
+			prev = base;
 			base = le16toh(next);
 		}
-		if (base == 0 || count == IWN1000_OTP_NBLOCKS)
+		if (count == 0 || count == IWN1000_OTP_NBLOCKS)
 			return EIO;
 		/* Skip "next" word. */
-		sc->prom_base = base + 1;
+		sc->prom_base = prev + 1;
 	}
 	return 0;
 }
