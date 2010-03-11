@@ -359,13 +359,24 @@ struct dn_queue *ipdn_q_find(struct dn_fsk *, struct dn_sch_inst *,
         struct ipfw_flow_id *);
 struct dn_sch_inst *ipdn_si_find(struct dn_schk *, struct ipfw_flow_id *);
 
-/* helper structure to copy objects returned to userland */
+/*
+ * copy_range is a template for requests for ranges of pipes/queues/scheds.
+ * The number of ranges is variable and can be derived by o.len.
+ * As a default, we use a small number of entries so that the struct
+ * fits easily on the stack and is sufficient for most common requests.
+ */
+#define DEFAULT_RANGES	5
+struct copy_range {
+        struct dn_id o;
+        uint32_t	r[ 2 * DEFAULT_RANGES ];
+};
+
 struct copy_args {
 	char **start;
 	char *end;
 	int flags;
 	int type;
-	int extra;	/* extra filtering */
+	struct copy_range *extra;	/* extra filtering */
 };
 
 struct sockopt;
