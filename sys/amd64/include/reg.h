@@ -37,6 +37,10 @@
 #ifndef _MACHINE_REG_H_
 #define	_MACHINE_REG_H_
 
+#if defined(_KERNEL) && !defined(_STANDALONE)
+#include "opt_compat.h"
+#endif
+
 /*
  * Register set accessible via /proc/$pid/regs and PT_{SET,GET}REGS.
  */
@@ -115,6 +119,11 @@ struct dbreg {
 
 #define	DBREG_DRX(d,x)	((d)->dr[(x)])	/* reference dr0 - dr15 by
 					   register number */
+
+#ifdef COMPAT_FREEBSD32
+#include <machine/fpu.h>
+#include <compat/ia32/ia32_reg.h>
+#endif
 
 #ifdef _KERNEL
 /*

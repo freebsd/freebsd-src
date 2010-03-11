@@ -676,7 +676,7 @@ ivt_##name:					\
 #define	IVT_END(name)				\
 	.endp	ivt_##name
 
-#ifdef COMPAT_IA32
+#ifdef COMPAT_FREEBSD32
 #define	IA32_TRAP	ia32_trap
 #else
 #define	IA32_TRAP	trap

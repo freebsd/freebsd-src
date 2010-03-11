@@ -878,9 +878,10 @@ kern_select(struct thread *td, int nd, fd_set *fd_in, fd_set *fd_ou,
 	sbp = selbits;
 #define	getbits(name, x) \
 	do {								\
-		if (name == NULL)					\
+		if (name == NULL) {					\
 			ibits[x] = NULL;				\
-		else {							\
+			obits[x] = NULL;				\
+		} else {						\
 			ibits[x] = sbp + nbufbytes / 2 / sizeof *sbp;	\
 			obits[x] = sbp;					\
 			sbp += ncpbytes / sizeof *sbp;			\
@@ -895,6 +896,28 @@ kern_select(struct thread *td, int nd, fd_set *fd_in, fd_set *fd_ou,
 	getbits(fd_ou, 1);
 	getbits(fd_ex, 2);
 #undef	getbits
+
+#if BYTE_ORDER == BIG_ENDIAN && defined(__LP64__)
+	/*
+	 * XXX: swizzle_fdset assumes that if abi_nfdbits != NFDBITS,
+	 * we are running under 32-bit emulation. This should be more
+	 * generic.
+	 */
+#define swizzle_fdset(bits)						\
+	if (abi_nfdbits != NFDBITS && bits != NULL) {			\
+		int i;							\
+		for (i = 0; i < ncpbytes / sizeof *sbp; i++)		\
+			bits[i] = (bits[i] >> 32) | (bits[i] << 32);	\
+	}
+#else
+#define swizzle_fdset(bits)
+#endif
+
+	/* Make sure the bit order makes it through an ABI transition */
+	swizzle_fdset(ibits[0]);
+	swizzle_fdset(ibits[1]);
+	swizzle_fdset(ibits[2]);
+	
 	if (nbufbytes != 0)
 		bzero(selbits, nbufbytes / 2);
 
@@ -941,6 +964,13 @@ done:
 		error = EINTR;
 	if (error == EWOULDBLOCK)
 		error = 0;
+
+	/* swizzle bit order back, if necessary */
+	swizzle_fdset(obits[0]);
+	swizzle_fdset(obits[1]);
+	swizzle_fdset(obits[2]);
+#undef swizzle_fdset
+
 #define	putbits(name, x) \
 	if (name && (error2 = copyout(obits[x], name, ncpubytes))) \
 		error = error2;
