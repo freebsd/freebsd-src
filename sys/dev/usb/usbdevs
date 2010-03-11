@@ -400,6 +400,7 @@ vendor STSN		0x07ef	STSN
 vendor CENTURY		0x07f7	Century Corp
 vendor ZOOM		0x0803	Zoom Telephonics
 vendor PCS		0x0810	Personal Communication Systems
+vendor ALPHASMART	0x081e	AlphaSmart, Inc.
 vendor BROADLOGIC	0x0827	BroadLogic
 vendor HANDSPRING	0x082d	Handspring
 vendor PALM		0x0830	Palm Computing
@@ -884,6 +885,10 @@ product ALTEC ASC495		0xff05	ASC495 Speakers
 
 /* Allied Telesyn International products */
 product ALLIEDTELESYN ATUSB100	0xb100	AT-USB100
+
+/* AlphaSmart, Inc. products */
+product ALPHASMART DANA_KB	0xdbac	AlphaSmart Dana Keyboard
+product ALPHASMART DANA_SYNC	0xdf00	AlphaSmart Dana HotSync
 
 /* Amoi products */
 product AMOI H01		0x0800	H01 3G modem
