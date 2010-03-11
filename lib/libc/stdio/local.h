@@ -110,6 +110,14 @@ extern int	__sdidinit;
 }
 
 /*
+ * Structure initializations for 'fake' FILE objects.
+ */
+#define	FAKE_FILE {				\
+	._file = -1,				\
+	._fl_mutex = PTHREAD_MUTEX_INITIALIZER, \
+}
+
+/*
  * Set the orientation for a stream. If o > 0, the stream has wide-
  * orientation. If o < 0, the stream has byte-orientation.
  */

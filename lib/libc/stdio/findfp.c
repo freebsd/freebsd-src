@@ -61,6 +61,7 @@ int	__sdidinit;
 	._read = __sread,		\
 	._seek = __sseek,		\
 	._write = __swrite,		\
+	._fl_mutex = PTHREAD_MUTEX_INITIALIZER, \
 }
 				/* the usual - (stdin + stdout + stderr) */
 static FILE usual[FOPEN_MAX - 3];
@@ -96,7 +97,7 @@ moreglue(n)
 	int n;
 {
 	struct glue *g;
-	static FILE empty;
+	static FILE empty = { ._fl_mutex = PTHREAD_MUTEX_INITIALIZER };
 	FILE *p;
 
 	g = (struct glue *)malloc(sizeof(*g) + ALIGNBYTES + n * sizeof(FILE));
@@ -154,7 +155,7 @@ found:
 	fp->_ub._size = 0;
 	fp->_lb._base = NULL;	/* no line buffer */
 	fp->_lb._size = 0;
-/*	fp->_lock = NULL; */	/* once set always set (reused) */
+/*	fp->_fl_mutex = NULL; */ /* once set always set (reused) */
 	fp->_orientation = 0;
 	memset(&fp->_mbstate, 0, sizeof(mbstate_t));
 	return (fp);
