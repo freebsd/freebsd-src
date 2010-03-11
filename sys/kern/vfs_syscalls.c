@@ -1060,8 +1060,8 @@ kern_openat(struct thread *td, int fd, char *path, enum uio_seg pathseg,
 	AUDIT_ARG_MODE(mode);
 	/* XXX: audit dirfd */
 	/*
-	 * Only one of the O_EXEC, O_RDONLY, O_WRONLY and O_RDWR may
-	 * be specified.
+	 * Only one of the O_EXEC, O_RDONLY, O_WRONLY and O_RDWR flags
+	 * may be specified.
 	 */
 	if (flags & O_EXEC) {
 		if (flags & O_ACCMODE)
