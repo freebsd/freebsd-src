@@ -462,11 +462,14 @@ main(int argc, char *argv[])
 					error("put");
 			}
 		}
-		/* Create original format password file entry */
-		if (is_comment && makeold){	/* copy comments */
-			if (fprintf(oldfp, "%s\n", line) < 0)
-				error("write old");
-		} else if (makeold) {
+		/*
+		 * Create original style password file entry.
+		 *
+		 * Don't copy comments since this could reveal encrypted
+		 * passwords if entries have been simply commented out
+		 * in master.passwd.
+		 */
+		if (makeold && !is_comment) {
 			char uidstr[20];
 			char gidstr[20];
 
