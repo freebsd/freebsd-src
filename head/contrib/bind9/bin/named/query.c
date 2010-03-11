@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: query.c,v 1.313.20.7.12.1 2009/11/18 23:58:04 marka Exp $ */
+/* $Id: query.c,v 1.313.20.16 2009/12/30 08:34:29 jinmei Exp $ */
 
 /*! \file */
 
@@ -1160,7 +1160,8 @@ query_addadditional(void *arg, dns_name_t *name, dns_rdatatype_t qtype) {
 			goto cleanup;
 	}
 	result = dns_db_find(db, name, version, type,
-			     client->query.dboptions | DNS_DBFIND_GLUEOK,
+			     client->query.dboptions |
+			     DNS_DBFIND_GLUEOK | DNS_DBFIND_ADDITIONALOK,
 			     client->now, &node, fname, rdataset,
 			     sigrdataset);
 	if (result == DNS_R_GLUE &&
@@ -1645,7 +1646,8 @@ query_addadditional2(void *arg, dns_name_t *name, dns_rdatatype_t qtype) {
 		goto try_glue;
 
 	result = dns_db_find(db, name, version, type,
-			     client->query.dboptions | DNS_DBFIND_GLUEOK,
+			     client->query.dboptions |
+			     DNS_DBFIND_GLUEOK | DNS_DBFIND_ADDITIONALOK,
 			     client->now, &node, fname, NULL, NULL);
 	if (result == ISC_R_SUCCESS)
 		goto found;
@@ -2242,7 +2244,8 @@ query_addns(ns_client_t *client, dns_db_t *db, dns_dbversion_t *version) {
 
 static inline isc_result_t
 query_addcnamelike(ns_client_t *client, dns_name_t *qname, dns_name_t *tname,
-		   dns_trust_t trust, dns_name_t **anamep, dns_rdatatype_t type)
+		   dns_rdataset_t *dname, dns_name_t **anamep,
+		   dns_rdatatype_t type)
 {
 	dns_rdataset_t *rdataset;
 	dns_rdatalist_t *rdatalist;
@@ -2278,7 +2281,7 @@ query_addcnamelike(ns_client_t *client, dns_name_t *qname, dns_name_t *tname,
 	rdatalist->type = type;
 	rdatalist->covers = 0;
 	rdatalist->rdclass = client->message->rdclass;
-	rdatalist->ttl = 0;
+	rdatalist->ttl = dname->ttl;
 
 	dns_name_toregion(tname, &r);
 	rdata->data = r.base;
@@ -2290,7 +2293,7 @@ query_addcnamelike(ns_client_t *client, dns_name_t *qname, dns_name_t *tname,
 	ISC_LIST_APPEND(rdatalist->rdata, rdata, link);
 	RUNTIME_CHECK(dns_rdatalist_tordataset(rdatalist, rdataset)
 		      == ISC_R_SUCCESS);
-	rdataset->trust = trust;
+	rdataset->trust = dname->trust;
 
 	query_addrrset(client, anamep, &rdataset, NULL, NULL,
 		       DNS_SECTION_ANSWER);
@@ -2733,7 +2736,7 @@ query_addds(ns_client_t *client, dns_db_t *db, dns_dbnode_t *node,
 	return;
 
    addnsec3:
-	if (dns_db_iscache(db))
+	if (!dns_db_iszone(db))
 		goto cleanup;
 	/*
 	 * Add the NSEC3 which proves the DS does not exist.
@@ -3315,6 +3318,14 @@ do { \
 	line = __LINE__; \
 } while (0)
 
+#define RECURSE_ERROR(r) \
+do { \
+	if ((r) == DNS_R_DUPLICATE || (r) == DNS_R_DROP) \
+		QUERY_ERROR(r); \
+	else \
+		QUERY_ERROR(DNS_R_SERVFAIL); \
+} while (0)
+
 /*
  * Extract a network address from the RDATA of an A or AAAA
  * record.
@@ -3602,7 +3613,7 @@ query_findclosestnsec3(dns_name_t *qname, dns_db_t *db,
 		       dns_name_t *found)
 {
 	unsigned char salt[256];
-	size_t salt_length = sizeof(salt);
+	size_t salt_length;
 	isc_uint16_t iterations;
 	isc_result_t result;
 	unsigned int dboptions;
@@ -3718,8 +3729,6 @@ query_find(ns_client_t *client, dns_fetchevent_t *event, dns_rdatatype_t qtype)
 	dns_rdataset_t *noqname;
 	isc_boolean_t resuming;
 	int line = -1;
-	dns_rdataset_t tmprdataset;
-	unsigned int dboptions;
 
 	CTRACE("query_find");
 
@@ -3937,49 +3946,9 @@ query_find(ns_client_t *client, dns_fetchevent_t *event, dns_rdatatype_t qtype)
 	/*
 	 * Now look for an answer in the database.
 	 */
-	dboptions = client->query.dboptions;
-	if (sigrdataset == NULL && client->view->enablednssec) {
-		/*
-		 * If the client doesn't want DNSSEC we still want to
-		 * look for any data pending validation to save a remote
-		 * lookup if possible.
-		 */
-		dns_rdataset_init(&tmprdataset);
-		sigrdataset = &tmprdataset;
-		dboptions |= DNS_DBFIND_PENDINGOK;
-	}
- refind:
 	result = dns_db_find(db, client->query.qname, version, type,
-			     dboptions, client->now, &node, fname,
-			     rdataset, sigrdataset);
-	/*
-	 * If we have found pending data try to validate it.
-	 * If the data does not validate as secure and we can't
-	 * use the unvalidated data requery the database with
-	 * pending disabled to prevent infinite looping.
-	 */
-	if (result != ISC_R_SUCCESS || !DNS_TRUST_PENDING(rdataset->trust))
-		goto validation_done;
-	if (validate(client, db, fname, rdataset, sigrdataset))
-		goto validation_done;
-	if (rdataset->trust != dns_trust_pending_answer ||
-	    !PENDINGOK(client->query.dboptions)) {
-		dns_rdataset_disassociate(rdataset);
-		if (sigrdataset != NULL &&
-		    dns_rdataset_isassociated(sigrdataset))
-			dns_rdataset_disassociate(sigrdataset);
-		if (sigrdataset == &tmprdataset)
-			sigrdataset = NULL;
-		dns_db_detachnode(db, &node);
-		dboptions &= ~DNS_DBFIND_PENDINGOK;
-		goto refind;
-	}
- validation_done:
-	if (sigrdataset == &tmprdataset) {
-		if (dns_rdataset_isassociated(sigrdataset))
-			dns_rdataset_disassociate(sigrdataset);
-		sigrdataset = NULL;
-	}
+			     client->query.dboptions, client->now,
+			     &node, fname, rdataset, sigrdataset);
 
  resume:
 	CTRACE("query_find: resume");
@@ -4039,14 +4008,8 @@ query_find(ns_client_t *client, dns_fetchevent_t *event, dns_rdatatype_t qtype)
 				if (result == ISC_R_SUCCESS)
 					client->query.attributes |=
 						NS_QUERYATTR_RECURSING;
-				else if (result == DNS_R_DUPLICATE ||
-					 result == DNS_R_DROP) {
-					/* Duplicate query. */
-					QUERY_ERROR(result);
-				} else {
-					/* Unable to recurse. */
-					QUERY_ERROR(DNS_R_SERVFAIL);
-				}
+				else
+					RECURSE_ERROR(result);
 				goto cleanup;
 			} else {
 				/* Unable to give root server referral. */
@@ -4225,11 +4188,8 @@ query_find(ns_client_t *client, dns_fetchevent_t *event, dns_rdatatype_t qtype)
 				if (result == ISC_R_SUCCESS)
 					client->query.attributes |=
 						NS_QUERYATTR_RECURSING;
-				else if (result == DNS_R_DUPLICATE ||
-					 result == DNS_R_DROP)
-					QUERY_ERROR(result);
 				else
-					QUERY_ERROR(DNS_R_SERVFAIL);
+					RECURSE_ERROR(result);
 			} else {
 				dns_fixedname_t fixed;
 
@@ -4643,7 +4603,7 @@ query_find(ns_client_t *client, dns_fetchevent_t *event, dns_rdatatype_t qtype)
 		 */
 		dns_name_init(tname, NULL);
 		(void)query_addcnamelike(client, client->query.qname, fname,
-					 trdataset->trust, &tname,
+					 trdataset, &tname,
 					 dns_rdatatype_cname);
 		if (tname != NULL)
 			dns_message_puttempname(client->message, &tname);
@@ -4769,7 +4729,8 @@ query_find(ns_client_t *client, dns_fetchevent_t *event, dns_rdatatype_t qtype)
 						    client->query.attributes |=
 							NS_QUERYATTR_RECURSING;
 						else
-						    QUERY_ERROR(DNS_R_SERVFAIL);					}
+						    RECURSE_ERROR(result);
+					}
 					goto addauth;
 				}
 				/*
@@ -5163,9 +5124,17 @@ ns_query_start(ns_client_t *client) {
 	}
 
 	/*
-	 * Turn on minimal response for DNSKEY queries.
+	 * Turn on minimal response for DNSKEY and DS queries.
 	 */
-	if (qtype == dns_rdatatype_dnskey)
+	if (qtype == dns_rdatatype_dnskey || qtype == dns_rdatatype_ds)
+		client->query.attributes |= (NS_QUERYATTR_NOAUTHORITY |
+					     NS_QUERYATTR_NOADDITIONAL);
+
+	/*
+	 * Turn on minimal responses for EDNS/UDP bufsize 512 queries.
+	 */
+	if (client->opt != NULL && client->udpsize <= 512U &&
+	    (client->attributes & NS_CLIENTATTR_TCP) == 0)
 		client->query.attributes |= (NS_QUERYATTR_NOAUTHORITY |
 					     NS_QUERYATTR_NOADDITIONAL);
 

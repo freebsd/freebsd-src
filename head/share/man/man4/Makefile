@@ -29,8 +29,10 @@ MAN=	aac.4 \
 	aio.4 \
 	alc.4 \
 	ale.4 \
+	alpm.4 \
 	altq.4 \
 	amd.4 \
+	amdpm.4 \
 	${_amdsbwd.4} \
 	${_amdsmb.4} \
 	${_amdtemp.4} \
@@ -60,6 +62,7 @@ MAN=	aac.4 \
 	bridge.4 \
 	bt.4 \
 	bwi.4 \
+	bwn.4 \
 	cardbus.4 \
 	carp.4 \
 	cas.4 \
@@ -120,6 +123,7 @@ MAN=	aac.4 \
 	geom_linux_lvm.4 \
 	geom_uzip.4 \
 	gif.4 \
+	gpib.4 \
 	gre.4 \
 	harp.4 \
 	hatm.4 \
@@ -198,6 +202,7 @@ MAN=	aac.4 \
 	mac_stub.4 \
 	mac_test.4 \
 	malo.4 \
+	mcd.4 \
 	md.4 \
 	mem.4 \
 	meteor.4 \
@@ -292,16 +297,20 @@ MAN=	aac.4 \
 	nsp.4 \
 	null.4 \
 	${_nve.4} \
+	${_nvram.4} \
 	${_nxge.4} \
 	ohci.4 \
 	orm.4 \
+	${_padlock.4} \
 	pass.4 \
 	patm.4 \
 	pccard.4 \
 	pccbb.4 \
+	pcf.4 \
 	pci.4 \
 	pcib.4 \
 	pcic.4 \
+	pcii.4 \
 	pcm.4 \
 	pcn.4 \
 	pim.4 \
@@ -325,11 +334,13 @@ MAN=	aac.4 \
 	rp.4 \
 	rue.4 \
 	rum.4 \
+	run.4 \
 	sa.4 \
 	safe.4 \
 	sbp.4 \
 	sbp_targ.4 \
 	scc.4 \
+	scd.4 \
 	sched_4bsd.4 \
 	sched_ule.4 \
 	screen.4 \
@@ -400,6 +411,7 @@ MAN=	aac.4 \
 	textdump.4 \
 	ti.4 \
 	tl.4 \
+	tnt4882.4 \
 	trm.4 \
 	tty.4 \
 	tun.4 \
@@ -448,6 +460,7 @@ MAN=	aac.4 \
 	uvscom.4 \
 	vga.4 \
 	vge.4 \
+	viapm.4 \
 	vinum.4 \
 	vkbd.4 \
 	vlan.4 \
@@ -642,7 +655,9 @@ _ndis.4=	ndis.4
 _nfe.4=		nfe.4
 _nfsmb.4=	nfsmb.4
 _nve.4=		nve.4
+_nvram.4=	nvram.4
 _nxge.4=	nxge.4
+_padlock.4=	padlock.4
 _rr232x.4=	rr232x.4
 _speaker.4=	speaker.4
 _spkr.4=	spkr.4

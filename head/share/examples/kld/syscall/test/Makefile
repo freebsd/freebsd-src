@@ -3,6 +3,6 @@
 
 PROG=	call
 NO_MAN=
-WARNS+=	5
+WARNS?=	5
 
 .include <bsd.prog.mk>

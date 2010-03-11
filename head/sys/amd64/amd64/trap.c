@@ -885,6 +885,73 @@ dblfault_handler(struct trapframe *frame)
 	panic("double fault");
 }
 
+struct syscall_args {
+	u_int code;
+	struct sysent *callp;
+	register_t args[8];
+	register_t *argp;
+	int narg;
+};
+
+static int
+fetch_syscall_args(struct thread *td, struct syscall_args *sa)
+{
+	struct proc *p;
+	struct trapframe *frame;
+	caddr_t params;
+	int reg, regcnt, error;
+
+	p = td->td_proc;
+	frame = td->td_frame;
+	reg = 0;
+	regcnt = 6;
+
+	params = (caddr_t)frame->tf_rsp + sizeof(register_t);
+	sa->code = frame->tf_rax;
+
+	if (p->p_sysent->sv_prepsyscall) {
+		(*p->p_sysent->sv_prepsyscall)(frame, (int *)sa->args,
+		    &sa->code, &params);
+	} else {
+		if (sa->code == SYS_syscall || sa->code == SYS___syscall) {
+			sa->code = frame->tf_rdi;
+			reg++;
+			regcnt--;
+		}
+	}
+ 	if (p->p_sysent->sv_mask)
+ 		sa->code &= p->p_sysent->sv_mask;
+
+ 	if (sa->code >= p->p_sysent->sv_size)
+ 		sa->callp = &p->p_sysent->sv_table[0];
+  	else
+ 		sa->callp = &p->p_sysent->sv_table[sa->code];
+
+	sa->narg = sa->callp->sy_narg;
+	KASSERT(sa->narg <= sizeof(sa->args) / sizeof(sa->args[0]),
+	    ("Too many syscall arguments!"));
+	error = 0;
+	sa->argp = &frame->tf_rdi;
+	sa->argp += reg;
+	bcopy(sa->argp, sa->args, sizeof(sa->args[0]) * regcnt);
+	if (sa->narg > regcnt) {
+		KASSERT(params != NULL, ("copyin args with no params!"));
+		error = copyin(params, &sa->args[regcnt],
+	    	    (sa->narg - regcnt) * sizeof(sa->args[0]));
+	}
+	sa->argp = &sa->args[0];
+
+	/*
+	 * This may result in two records if debugger modified
+	 * registers or memory during sleep at stop/ptrace point.
+	 */
+#ifdef KTRACE
+	if (KTRPOINT(td, KTR_SYSCALL))
+		ktrsyscall(sa->code, sa->narg, sa->argp);
+#endif
+	return (error);
+}
+
 /*
  *	syscall -	system call request C handler
  *
@@ -893,20 +960,17 @@ dblfault_handler(struct trapframe *frame)
 void
 syscall(struct trapframe *frame)
 {
-	caddr_t params;
-	struct sysent *callp;
-	struct thread *td = curthread;
-	struct proc *p = td->td_proc;
+	struct thread *td;
+	struct proc *p;
+	struct syscall_args sa;
 	register_t orig_tf_rflags;
 	int error;
-	int narg;
-	register_t args[8];
-	register_t *argp;
-	u_int code;
-	int reg, regcnt;
 	ksiginfo_t ksi;
 
 	PCPU_INC(cnt.v_syscall);
+	td = curthread;
+	p = td->td_proc;
+	td->td_syscalls++;
 
 #ifdef DIAGNOSTIC
 	if (ISPL(frame->tf_cs) != SEL_UPL) {
@@ -915,65 +979,37 @@ syscall(struct trapframe *frame)
 	}
 #endif
 
-	reg = 0;
-	regcnt = 6;
 	td->td_pticks = 0;
 	td->td_frame = frame;
 	if (td->td_ucred != p->p_ucred) 
 		cred_update_thread(td);
-	params = (caddr_t)frame->tf_rsp + sizeof(register_t);
-	code = frame->tf_rax;
 	orig_tf_rflags = frame->tf_rflags;
-
-	if (p->p_sysent->sv_prepsyscall) {
-		(*p->p_sysent->sv_prepsyscall)(frame, (int *)args, &code, &params);
-	} else {
-		if (code == SYS_syscall || code == SYS___syscall) {
-			code = frame->tf_rdi;
-			reg++;
-			regcnt--;
-		}
+	if (p->p_flag & P_TRACED) {
+		PROC_LOCK(p);
+		td->td_dbgflags &= ~TDB_USERWR;
+		PROC_UNLOCK(p);
 	}
-
- 	if (p->p_sysent->sv_mask)
- 		code &= p->p_sysent->sv_mask;
-
- 	if (code >= p->p_sysent->sv_size)
- 		callp = &p->p_sysent->sv_table[0];
-  	else
- 		callp = &p->p_sysent->sv_table[code];
-
-	narg = callp->sy_narg;
-	KASSERT(narg <= sizeof(args) / sizeof(args[0]),
-	    ("Too many syscall arguments!"));
-	error = 0;
-	argp = &frame->tf_rdi;
-	argp += reg;
-	bcopy(argp, args, sizeof(args[0]) * regcnt);
-	if (narg > regcnt) {
-		KASSERT(params != NULL, ("copyin args with no params!"));
-		error = copyin(params, &args[regcnt],
-	    		(narg - regcnt) * sizeof(args[0]));
-	}
-	argp = &args[0];
-
-#ifdef KTRACE
-	if (KTRPOINT(td, KTR_SYSCALL))
-		ktrsyscall(code, narg, argp);
-#endif
+	error = fetch_syscall_args(td, &sa);
 
 	CTR4(KTR_SYSC, "syscall enter thread %p pid %d proc %s code %d", td,
-	    td->td_proc->p_pid, td->td_name, code);
-
-	td->td_syscalls++;
+	    td->td_proc->p_pid, td->td_name, sa.code);
 
 	if (error == 0) {
 		td->td_retval[0] = 0;
 		td->td_retval[1] = frame->tf_rdx;
 
-		STOPEVENT(p, S_SCE, narg);
-
+		STOPEVENT(p, S_SCE, sa.narg);
 		PTRACESTOP_SC(p, td, S_PT_SCE);
+		if (td->td_dbgflags & TDB_USERWR) {
+			/*
+			 * Reread syscall number and arguments if
+			 * debugger modified registers or memory.
+			 */
+			error = fetch_syscall_args(td, &sa);
+			if (error != 0)
+				goto retval;
+			td->td_retval[1] = frame->tf_rdx;
+		}
 
 #ifdef KDTRACE_HOOKS
 		/*
@@ -981,13 +1017,13 @@ syscall(struct trapframe *frame)
 		 * callback and if there is a probe active for the
 		 * syscall 'entry', process the probe.
 		 */
-		if (systrace_probe_func != NULL && callp->sy_entry != 0)
-			(*systrace_probe_func)(callp->sy_entry, code, callp,
-			    args);
+		if (systrace_probe_func != NULL && sa.callp->sy_entry != 0)
+			(*systrace_probe_func)(sa.callp->sy_entry, sa.code,
+			    sa.callp, sa.args);
 #endif
 
-		AUDIT_SYSCALL_ENTER(code, td);
-		error = (*callp->sy_call)(td, argp);
+		AUDIT_SYSCALL_ENTER(sa.code, td);
+		error = (*sa.callp->sy_call)(td, sa.argp);
 		AUDIT_SYSCALL_EXIT(error, td);
 
 		/* Save the latest error return value. */
@@ -999,12 +1035,12 @@ syscall(struct trapframe *frame)
 		 * callback and if there is a probe active for the
 		 * syscall 'return', process the probe.
 		 */
-		if (systrace_probe_func != NULL && callp->sy_return != 0)
-			(*systrace_probe_func)(callp->sy_return, code, callp,
-			    args);
+		if (systrace_probe_func != NULL && sa.callp->sy_return != 0)
+			(*systrace_probe_func)(sa.callp->sy_return, sa.code,
+			    sa.callp, sa.args);
 #endif
 	}
-
+ retval:
 	cpu_set_syscall_retval(td, error);
 
 	/*
@@ -1023,14 +1059,16 @@ syscall(struct trapframe *frame)
 	 * Check for misbehavior.
 	 */
 	WITNESS_WARN(WARN_PANIC, NULL, "System call %s returning",
-	    (code >= 0 && code < SYS_MAXSYSCALL) ? syscallnames[code] : "???");
+	    (sa.code >= 0 && sa.code < SYS_MAXSYSCALL) ?
+	     syscallnames[sa.code] : "???");
 	KASSERT(td->td_critnest == 0,
 	    ("System call %s returning in a critical section",
-	    (code >= 0 && code < SYS_MAXSYSCALL) ? syscallnames[code] : "???"));
+	    (sa.code >= 0 && sa.code < SYS_MAXSYSCALL) ?
+	     syscallnames[sa.code] : "???"));
 	KASSERT(td->td_locks == 0,
 	    ("System call %s returning with %d locks held",
-	    (code >= 0 && code < SYS_MAXSYSCALL) ? syscallnames[code] : "???",
-	    td->td_locks));
+	    (sa.code >= 0 && sa.code < SYS_MAXSYSCALL) ?
+	     syscallnames[sa.code] : "???", td->td_locks));
 
 	/*
 	 * Handle reschedule and other end-of-syscall issues
@@ -1038,11 +1076,11 @@ syscall(struct trapframe *frame)
 	userret(td, frame);
 
 	CTR4(KTR_SYSC, "syscall exit thread %p pid %d proc %s code %d", td,
-	    td->td_proc->p_pid, td->td_name, code);
+	    td->td_proc->p_pid, td->td_name, sa.code);
 
 #ifdef KTRACE
 	if (KTRPOINT(td, KTR_SYSRET))
-		ktrsysret(code, error, td->td_retval[0]);
+		ktrsysret(sa.code, error, td->td_retval[0]);
 #endif
 
 	/*
@@ -1050,7 +1088,7 @@ syscall(struct trapframe *frame)
 	 * register set.  If we ever support an emulation where this
 	 * is not the case, this code will need to be revisited.
 	 */
-	STOPEVENT(p, S_SCX, code);
+	STOPEVENT(p, S_SCX, sa.code);
 
 	PTRACESTOP_SC(p, td, S_PT_SCX);
 }

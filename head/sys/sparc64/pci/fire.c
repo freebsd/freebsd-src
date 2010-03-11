@@ -852,7 +852,7 @@ fire_intr_register(struct fire_softc *sc, u_int ino)
 		return (ENXIO);
 	fica = malloc((ino >= FO_EQ_FIRST_INO && ino <= FO_EQ_LAST_INO) ?
 	    sizeof(struct fire_msiqarg) : sizeof(struct fire_icarg), M_DEVBUF,
-	    M_NOWAIT);
+	    M_NOWAIT | M_ZERO);
 	if (fica == NULL)
 		return (ENOMEM);
 	fica->fica_sc = sc;
@@ -1838,13 +1838,13 @@ fire_msiq_common(struct intr_vector *iv, struct fire_msiqarg *fmqa)
 	qrec = &fmqa->fmqa_base[head];
 	word0 = qrec->fomqr_word0;
 	for (;;) {
+		if (__predict_false((word0 & FO_MQR_WORD0_FMT_TYPE_MASK) == 0))
+			break;
 		KASSERT((word0 & FO_MQR_WORD0_FMT_TYPE_MSI64) != 0 ||
 		    (word0 & FO_MQR_WORD0_FMT_TYPE_MSI32) != 0,
 		    ("%s: received non-MSI/MSI-X message in event queue %d "
 		    "(word0 %#llx)", device_get_nameunit(dev), msiq,
 		    (unsigned long long)word0));
-		if (__predict_false((word0 & FO_MQR_WORD0_FMT_TYPE_MASK) == 0))
-			break;
 		msi = (word0 & FO_MQR_WORD0_DATA0_MASK) >>
 		    FO_MQR_WORD0_DATA0_SHFT;
 		/*

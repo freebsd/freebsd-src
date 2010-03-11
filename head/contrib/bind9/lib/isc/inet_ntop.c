@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004, 2005, 2007  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2005, 2007, 2009  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1996-2001  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -19,7 +19,7 @@
 
 #if defined(LIBC_SCCS) && !defined(lint)
 static char rcsid[] =
-	"$Id: inet_ntop.c,v 1.19 2007/06/19 23:47:17 tbox Exp $";
+	"$Id: inet_ntop.c,v 1.19.332.2 2009/07/18 23:47:25 tbox Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 #include <config.h>
@@ -52,7 +52,7 @@ static const char *inet_ntop6(const unsigned char *src, char *dst,
  *	convert a network format address to presentation format.
  * \return
  *	pointer to presentation format address (`dst'), or NULL (see errno).
- * \author 
+ * \author
  *	Paul Vixie, 1996.
  */
 const char *
@@ -169,8 +169,9 @@ inet_ntop6(const unsigned char *src, char *dst, size_t size)
 		if (i != 0)
 			*tp++ = ':';
 		/* Is this address an encapsulated IPv4? */
-		if (i == 6 && best.base == 0 &&
-		    (best.len == 6 || (best.len == 5 && words[5] == 0xffff))) {
+		if (i == 6 && best.base == 0 && (best.len == 6 ||
+		    (best.len == 7 && words[7] != 0x0001) ||
+		    (best.len == 5 && words[5] == 0xffff))) {
 			if (!inet_ntop4(src+12, tp,
 					sizeof(tmp) - (tp - tmp)))
 				return (NULL);

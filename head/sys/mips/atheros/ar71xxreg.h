@@ -23,6 +23,9 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  */
+
+/* $FreeBSD$ */
+
 #ifndef _AR71XX_REG_H_
 #define _AR71XX_REG_H_
 
@@ -400,9 +403,9 @@
 #define		AR71XX_DMA_RX_STATUS		0x194
 #define			DMA_RX_STATUS_PCOUNT_MASK	0xff
 #define			DMA_RX_STATUS_PCOUNT_SHIFT	16
-#define			DMA_RX_STATUS_BUS_ERROR		(1 << 3) 
-#define			DMA_RX_STATUS_OVERFLOW		(1 << 1) 
-#define			DMA_RX_STATUS_PKT_RECVD		(1 << 0) 
+#define			DMA_RX_STATUS_BUS_ERROR		(1 << 3)
+#define			DMA_RX_STATUS_OVERFLOW		(1 << 2)
+#define			DMA_RX_STATUS_PKT_RECVD		(1 << 0)
 #define		AR71XX_DMA_INTR				0x198
 #define		AR71XX_DMA_INTR_STATUS			0x19C
 #define			DMA_INTR_ALL			((1 << 8) - 1)
@@ -422,6 +425,7 @@
 #define			SPI_IO_CTRL_CS2			(1 << 18)
 #define			SPI_IO_CTRL_CS1			(1 << 17)
 #define			SPI_IO_CTRL_CS0			(1 << 16)
+#define			SPI_IO_CTRL_CSMASK		(7 << 16)
 #define			SPI_IO_CTRL_CLK			(1 << 8)
 #define			SPI_IO_CTRL_DO			1
 #define		AR71XX_SPI_RDS		0x0C

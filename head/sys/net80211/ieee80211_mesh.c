@@ -1468,11 +1468,12 @@ mesh_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m0, int subtype,
 		if (xrates != NULL)
 			IEEE80211_VERIFY_ELEMENT(xrates,
 			    IEEE80211_RATE_MAXSIZE - rates[1], return);
-		if (meshid != NULL)
+		if (meshid != NULL) {
 			IEEE80211_VERIFY_ELEMENT(meshid,
 			    IEEE80211_MESHID_LEN, return);
-		/* NB: meshid, not ssid */
-		IEEE80211_VERIFY_SSID(vap->iv_bss, meshid, return);
+			/* NB: meshid, not ssid */
+			IEEE80211_VERIFY_SSID(vap->iv_bss, meshid, return);
+		}
 
 		/* XXX find a better class or define it's own */
 		IEEE80211_NOTE_MAC(vap, IEEE80211_MSG_INPUT, wh->i_addr2,

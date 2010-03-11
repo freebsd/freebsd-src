@@ -15,13 +15,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *        This product includes software developed by the NetBSD
- *        Foundation, Inc. and its contributors.
- * 4. Neither the name of The NetBSD Foundation nor the names of its
- *    contributors may be used to endorse or promote products derived
- *    from this software without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
  * ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
@@ -224,6 +217,7 @@ static struct usb_device_id uftdi_devs[] = {
 	UFTDI_DEV(FTDI, SERIAL_8U100AX, SIO),
 	UFTDI_DEV(FTDI, SERIAL_2232C, 8U232AM),
 	UFTDI_DEV(FTDI, SERIAL_2232D, 8U232AM),
+	UFTDI_DEV(FTDI, SERIAL_4232H, 8U232AM),
 	UFTDI_DEV(FTDI, SERIAL_8U232AM, 8U232AM),
 	UFTDI_DEV(FTDI, SERIAL_8U232AM4, 8U232AM),
 	UFTDI_DEV(FTDI, SEMC_DSS20, 8U232AM),

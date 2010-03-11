@@ -72,8 +72,9 @@ struct brgphy_softc {
 	int mii_model;
 	int mii_rev;
 	int serdes_flags;	/* Keeps track of the serdes type used */
-#define BRGPHY_5706S	0x0001
-#define BRGPHY_5708S	0x0002
+#define BRGPHY_5706S		0x0001
+#define BRGPHY_5708S		0x0002
+#define BRGPHY_NOANWAIT		0x0004
 	int bce_phy_flags;	/* PHY flags transferred from the MAC driver */
 };
 
@@ -104,6 +105,7 @@ static void	brgphy_reset(struct mii_softc *);
 static void	brgphy_enable_loopback(struct mii_softc *);
 static void	bcm5401_load_dspcode(struct mii_softc *);
 static void	bcm5411_load_dspcode(struct mii_softc *);
+static void	bcm54k2_load_dspcode(struct mii_softc *);
 static void	brgphy_fixup_5704_a0_bug(struct mii_softc *);
 static void	brgphy_fixup_adc_bug(struct mii_softc *);
 static void	brgphy_fixup_adjust_trim(struct mii_softc *);
@@ -117,6 +119,7 @@ static const struct mii_phydesc brgphys[] = {
 	MII_PHY_DESC(xxBROADCOM, BCM5400),
 	MII_PHY_DESC(xxBROADCOM, BCM5401),
 	MII_PHY_DESC(xxBROADCOM, BCM5411),
+	MII_PHY_DESC(xxBROADCOM, BCM54K2),
 	MII_PHY_DESC(xxBROADCOM, BCM5701),
 	MII_PHY_DESC(xxBROADCOM, BCM5703),
 	MII_PHY_DESC(xxBROADCOM, BCM5704),
@@ -140,6 +143,23 @@ static const struct mii_phydesc brgphys[] = {
 	MII_PHY_END
 };
 
+#define HS21_PRODUCT_ID	"IBM eServer BladeCenter HS21"
+#define HS21_BCM_CHIPID	0x57081021
+
+static int
+detect_hs21(struct bce_softc *bce_sc)
+{
+	char *sysenv;
+
+	if (bce_sc->bce_chipid != HS21_BCM_CHIPID)
+		return (0);
+	sysenv = getenv("smbios.system.product");
+	if (sysenv == NULL)
+		return (0);
+	if (strncmp(sysenv, HS21_PRODUCT_ID, strlen(HS21_PRODUCT_ID)) != 0)
+		return (0);
+	return (1);
+}
 
 /* Search for our PHY in the list of known PHYs */
 static int
@@ -289,6 +309,19 @@ brgphy_attach(device_t dev)
 		if (bce_sc && (bce_sc->bce_phy_flags & BCE_PHY_2_5G_CAPABLE_FLAG)) {
 			ADD(IFM_MAKEWORD(IFM_ETHER, IFM_2500_SX, IFM_FDX, sc->mii_inst), 0);
 			printf("2500baseSX-FDX, ");
+		} else if ((bsc->serdes_flags & BRGPHY_5708S) && bce_sc &&
+		    (detect_hs21(bce_sc) != 0)) {
+			/*
+			 * There appears to be certain silicon revision
+			 * in IBM HS21 blades that is having issues with
+			 * this driver wating for the auto-negotiation to
+			 * complete. This happens with a specific chip id
+			 * only and when the 1000baseSX-FDX is the only
+			 * mode. Workaround this issue since it's unlikely
+			 * to be ever addressed.
+			 */
+			printf("auto-neg workaround, ");
+			bsc->serdes_flags |= BRGPHY_NOANWAIT;
 		}
 	}
 
@@ -415,6 +448,9 @@ brgphy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
 			case MII_MODEL_xxBROADCOM_BCM5411:
 				bcm5411_load_dspcode(sc);
 				break;
+			case MII_MODEL_xxBROADCOM_BCM54K2:
+				bcm54k2_load_dspcode(sc);
+				break;
 			}
 			break;
 		case MII_OUI_xxBROADCOM_ALT1:
@@ -539,7 +575,8 @@ brgphy_status(struct mii_softc *sc)
 
 	/* Autoneg is still in progress. */
 	if ((bmcr & BRGPHY_BMCR_AUTOEN) &&
-	    (bmsr & BRGPHY_BMSR_ACOMP) == 0) {
+	    (bmsr & BRGPHY_BMSR_ACOMP) == 0 &&
+	    (bsc->serdes_flags & BRGPHY_NOANWAIT) == 0) {
 		/* Erg, still trying, I guess... */
 		mii->mii_media_active |= IFM_NONE;
 		goto brgphy_status_exit;
@@ -728,6 +765,24 @@ bcm5411_load_dspcode(struct mii_softc *sc)
 
 	for (i = 0; dspcode[i].reg != 0; i++)
 		PHY_WRITE(sc, dspcode[i].reg, dspcode[i].val);
+}
+
+void
+bcm54k2_load_dspcode(struct mii_softc *sc)
+{
+	static const struct {
+		int		reg;
+		uint16_t	val;
+	} dspcode[] = {
+		{ 4,				0x01e1 },
+		{ 9,				0x0300 },
+		{ 0,				0 },
+	};
+	int i;
+
+	for (i = 0; dspcode[i].reg != 0; i++)
+		PHY_WRITE(sc, dspcode[i].reg, dspcode[i].val);
+
 }
 
 static void
@@ -931,6 +986,9 @@ brgphy_reset(struct mii_softc *sc)
 			break;
 		case MII_MODEL_xxBROADCOM_BCM5411:
 			bcm5411_load_dspcode(sc);
+			break;
+		case MII_MODEL_xxBROADCOM_BCM54K2:
+			bcm54k2_load_dspcode(sc);
 			break;
 		}
 		break;

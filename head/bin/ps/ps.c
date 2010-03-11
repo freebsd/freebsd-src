@@ -212,7 +212,8 @@ main(int argc, char *argv[])
 	init_list(&sesslist, addelem_pid, sizeof(pid_t), "session id");
 	init_list(&ttylist, addelem_tty, sizeof(dev_t), "tty");
 	init_list(&uidlist, addelem_uid, sizeof(uid_t), "user");
-	memf = nlistf = _PATH_DEVNULL;
+	memf = _PATH_DEVNULL;
+	nlistf = NULL;
 	while ((ch = getopt(argc, argv, PS_ARGS)) != -1)
 		switch (ch) {
 		case 'A':

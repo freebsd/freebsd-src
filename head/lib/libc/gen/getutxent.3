@@ -138,7 +138,8 @@ Other fields inside the structure are:
 .Bl -tag -width ut_user
 .It Fa ut_tv
 The time the event occured.
-This field is used for all types of entries.
+This field is used for all types of entries, except
+.Dv EMPTY .
 .It Fa ut_id
 An identifier that is used to refer to the entry.
 This identifier can be used to remove or replace a login entry by
@@ -311,13 +312,9 @@ will only be written to
 Entries of type
 .Dv USER_PROCESS
 will also be written to
-.Pa /var/run/utx.active .
-It will only be written to
-.Pa /var/log/utx.lastlogin
-if
-.Fa ut_tv
-for that user has a greater value than the existing entry or when no
-entry for the user has been found.
+.Pa /var/run/utx.active
+and
+.Pa /var/log/utx.lastlogin .
 .Pp
 Entries of type
 .Dv DEAD_PROCESS
@@ -345,6 +342,8 @@ to be discarded.
 All entries whose type has not been mentioned previously, are discarded
 by this implementation of
 .Fn pututxline .
+This implementation also ignores the value of
+.Fa ut_tv .
 .Sh RETURN VALUES
 The
 .Fn getutxent ,
@@ -414,12 +413,32 @@ The
 .Fn endutxent ,
 .Fn getutxent ,
 .Fn getutxid ,
-.Fn getutxline ,
-.Fn pututxline
+.Fn getutxline
 and
 .Fn setutxent
 functions are expected to conform to
 .St -p1003.1-2008 .
+.Pp
+The
+.Fn pututxline
+function deviates from the standard by writing its records to multiple
+database files, depending on its
+.Fa ut_type .
+This prevents the need for special utility functions to update the other
+databases, such as the
+.Fn updlastlogx
+and
+.Fn updwtmpx
+functions which are available in other implementations.
+It also tries to replace
+.Dv DEAD_PROCESS
+entries in the active sessions database when storing
+.Dv USER_PROCESS
+entries and no entry with the same value for
+.Fa ut_id
+has been found.
+The standard always requires a new entry to be allocated, which could
+cause an unbounded growth of the database.
 .Pp
 The
 .Fn getutxuser

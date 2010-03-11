@@ -599,26 +599,12 @@ cpu_throw(struct thread *old, struct thread *new)
 #define DB_PRINT_REG_ARRAY(ptr, arrname, regname)	\
 	db_printf("  %-12s 0x%lx\n", #regname, (long)((ptr)->arrname[regname]))
 
-DB_SHOW_COMMAND(pcb, ddb_dump_pcb)
+static void
+dump_trapframe(struct trapframe *trapframe)
 {
-	struct thread *td;
-	struct pcb *pcb;
-	struct trapframe *trapframe;
 
-	/* Determine which thread to examine. */
-	if (have_addr)
-		td = db_lookup_thread(addr, FALSE);
-	else
-		td = curthread;
-	
-	pcb = td->td_pcb;
-
-	db_printf("Thread %d at %p\n", td->td_tid, td);
-
-	db_printf("PCB at %p\n", pcb);
-
-	trapframe = &pcb->pcb_regs;
 	db_printf("Trapframe at %p\n", trapframe);
+
 	DB_PRINT_REG(trapframe, zero);
 	DB_PRINT_REG(trapframe, ast);
 	DB_PRINT_REG(trapframe, v0);
@@ -657,6 +643,28 @@ DB_SHOW_COMMAND(pcb, ddb_dump_pcb)
 	DB_PRINT_REG(trapframe, badvaddr);
 	DB_PRINT_REG(trapframe, cause);
 	DB_PRINT_REG(trapframe, pc);
+}
+
+DB_SHOW_COMMAND(pcb, ddb_dump_pcb)
+{
+	struct thread *td;
+	struct pcb *pcb;
+	struct trapframe *trapframe;
+
+	/* Determine which thread to examine. */
+	if (have_addr)
+		td = db_lookup_thread(addr, TRUE);
+	else
+		td = curthread;
+	
+	pcb = td->td_pcb;
+
+	db_printf("Thread %d at %p\n", td->td_tid, td);
+
+	db_printf("PCB at %p\n", pcb);
+
+	trapframe = &pcb->pcb_regs;
+	dump_trapframe(trapframe);
 
 	db_printf("PCB Context:\n");
 	DB_PRINT_REG_ARRAY(pcb, pcb_context, PCB_REG_S0);
@@ -682,6 +690,18 @@ DB_SHOW_COMMAND(pcb, ddb_dump_pcb)
 		db_printf("td->td_frame %p is not the same as pcb_regs %p\n",
 			  td->td_frame, trapframe);
 	}
+}
+
+/*
+ * Dump the trapframe beginning at address specified by first argument.
+ */
+DB_SHOW_COMMAND(trapframe, ddb_dump_trapframe)
+{
+	
+	if (!have_addr)
+		return;
+
+	dump_trapframe((struct trapframe *)addr);
 }
 
 #endif	/* DDB */

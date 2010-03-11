@@ -714,10 +714,14 @@ static int
 ata_pcichannel_getrev(device_t dev, int target)
 {
 	struct ata_pci_controller *ctlr = device_get_softc(device_get_parent(dev));
+	struct ata_channel *ch = device_get_softc(dev);
 
-	if (ctlr->getrev)
-		return (ctlr->getrev(dev, target));
-	else
+	if (ch->flags & ATA_SATA) {
+		if (ctlr->getrev)
+			return (ctlr->getrev(dev, target));
+		else 
+			return (0xff);
+	} else
 		return (0);
 }
 
@@ -877,6 +881,7 @@ ata_pcivendor2str(device_t dev)
     case ATA_ITE_ID:            return "ITE";
     case ATA_JMICRON_ID:        return "JMicron";
     case ATA_MARVELL_ID:        return "Marvell";
+    case ATA_MARVELL2_ID:       return "Marvell";
     case ATA_NATIONAL_ID:       return "National";
     case ATA_NETCELL_ID:        return "Netcell";
     case ATA_NVIDIA_ID:         return "nVidia";

@@ -52,8 +52,6 @@ extern char version[];		/* system version */
 extern char copyright[];	/* system copyright */
 extern int kstack_pages;	/* number of kernel stack pages */
 
-extern int nswap;		/* size of swap space */
-
 extern u_long pagesizes[];	/* supported page sizes */
 extern long physmem;		/* physical memory */
 extern long realmem;		/* 'real' memory */
@@ -65,6 +63,14 @@ extern int bootverbose;		/* nonzero to print verbose messages */
 
 extern int maxusers;		/* system tune hint */
 extern int ngroups_max;		/* max # of supplemental groups */
+extern int vm_guest;		/* Running as virtual machine guest? */
+
+/*
+ * Detected virtual machine guest types. The intention is to expand
+ * and/or add to the VM_GUEST_VM type if specific VM functionality is
+ * ever implemented (e.g. vendor-specific paravirtualization features).
+ */
+enum VM_GUEST { VM_GUEST_NO = 0, VM_GUEST_VM, VM_GUEST_XEN };
 
 #ifdef	INVARIANTS		/* The option is always available */
 #define	KASSERT(exp,msg) do {						\

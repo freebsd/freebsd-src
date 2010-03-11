@@ -137,7 +137,7 @@ ffs_mount(struct mount *mp)
 	struct ufsmount *ump = 0;
 	struct fs *fs;
 	int error, flags;
-	u_int mntorflags, mntandnotflags;
+	u_int mntorflags;
 	accmode_t accmode;
 	struct nameidata ndp;
 	char *fspec;
@@ -162,7 +162,6 @@ ffs_mount(struct mount *mp)
 		return (error);
 
 	mntorflags = 0;
-	mntandnotflags = 0;
 	if (vfs_getopt(mp->mnt_optnew, "acls", NULL, NULL) == 0)
 		mntorflags |= MNT_ACLS;
 
@@ -186,7 +185,7 @@ ffs_mount(struct mount *mp)
 	}
 
 	MNT_ILOCK(mp);
-	mp->mnt_flag = (mp->mnt_flag | mntorflags) & ~mntandnotflags;
+	mp->mnt_flag |= mntorflags;
 	MNT_IUNLOCK(mp);
 	/*
 	 * If updating, check whether changing from read-only to

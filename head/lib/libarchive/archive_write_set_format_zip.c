@@ -231,7 +231,7 @@ archive_write_set_format_zip(struct archive *_a)
 	if (a->format_destroy != NULL)
 		(a->format_destroy)(a);
 
-	zip = (struct zip *) malloc(sizeof(*zip));
+	zip = (struct zip *) calloc(1, sizeof(*zip));
 	if (zip == NULL) {
 		archive_set_error(&a->archive, ENOMEM, "Can't allocate zip data");
 		return (ARCHIVE_FATAL);

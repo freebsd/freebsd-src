@@ -146,6 +146,9 @@ ata_op_string(struct ata_cmd *cmd)
 	        case 0x03: return ("SETFEATURES SET TRANSFER MODE");
 	        case 0x02: return ("SETFEATURES ENABLE WCACHE");
 	        case 0x82: return ("SETFEATURES DISABLE WCACHE");
+	        case 0x06: return ("SETFEATURES ENABLE PUIS");
+	        case 0x86: return ("SETFEATURES DISABLE PUIS");
+	        case 0x07: return ("SETFEATURES SPIN-UP");
 	        case 0xaa: return ("SETFEATURES ENABLE RCACHE");
 	        case 0x55: return ("SETFEATURES DISABLE RCACHE");
 	        }
@@ -198,7 +201,7 @@ ata_command_sbuf(struct ccb_ataio *ataio, struct sbuf *sb)
 {
 	char cmd_str[(12 * 3) + 1];
 
-	sbuf_printf(sb, "CMD: %s: %s",
+	sbuf_printf(sb, "%s. ACB: %s",
 	    ata_op_string(&ataio->cmd),
 	    ata_cmd_string(&ataio->cmd, cmd_str, sizeof(cmd_str)));
 
@@ -212,7 +215,7 @@ int
 ata_status_sbuf(struct ccb_ataio *ataio, struct sbuf *sb)
 {
 
-	sbuf_printf(sb, "ATA Status: %02x (%s%s%s%s%s%s%s%s)",
+	sbuf_printf(sb, "ATA status: %02x (%s%s%s%s%s%s%s%s)",
 	    ataio->res.status,
 	    (ataio->res.status & 0x80) ? "BSY " : "",
 	    (ataio->res.status & 0x40) ? "DRDY " : "",
@@ -223,7 +226,7 @@ ata_status_sbuf(struct ccb_ataio *ataio, struct sbuf *sb)
 	    (ataio->res.status & 0x02) ? "IDX " : "",
 	    (ataio->res.status & 0x01) ? "ERR" : "");
 	if (ataio->res.status & 1) {
-	    sbuf_printf(sb, ", Error: %02x (%s%s%s%s%s%s%s%s)",
+	    sbuf_printf(sb, ", error: %02x (%s%s%s%s%s%s%s%s)",
 		ataio->res.error,
 		(ataio->res.error & 0x80) ? "ICRC " : "",
 		(ataio->res.error & 0x40) ? "UNC " : "",

@@ -38,17 +38,12 @@ __FBSDID("$FreeBSD$");
 #include <stdlib.h>
 #include <ctype.h>
 #include <string.h>
-#include <dirent.h>
-#include <paths.h>
 
 static char zapchar;
 static FILE *tf;
-static int maxpts = -1;
-static int curpts = 0;
 static size_t lbsize;
 static char *line;
 
-#define PTS "pts/"
 #define	MALLOCCHUNK	100
 
 static char *skip(char *);
@@ -73,7 +68,6 @@ struct ttyent *
 getttyent(void)
 {
 	static struct ttyent tty;
-	static char devpts_name[] = "pts/4294967295";
 	char *p;
 	int c;
 	size_t i;
@@ -81,19 +75,8 @@ getttyent(void)
 	if (!tf && !setttyent())
 		return (NULL);
 	for (;;) {
-		if (!fgets(p = line, lbsize, tf)) {
-			if (curpts <= maxpts) {
-				sprintf(devpts_name, "pts/%d", curpts++);
-				tty.ty_name = devpts_name;
-				tty.ty_getty = tty.ty_type = NULL;
-				tty.ty_status = TTY_NETWORK;
-				tty.ty_window = NULL;   
-				tty.ty_comment = NULL;
-				tty.ty_group  = _TTYS_NOGROUP; 	
-				return (&tty);
-			}
+		if (!fgets(p = line, lbsize, tf))
 			return (NULL);
-		}
 		/* extend buffer if line was too big, and retry */
 		while (!index(p, '\n') && !feof(tf)) {
 			i = strlen(p);
@@ -219,28 +202,11 @@ value(char *p)
 int
 setttyent(void)
 {
-	DIR *devpts_dir;
 
 	if (line == NULL) {
 		if ((line = malloc(MALLOCCHUNK)) == NULL)
 			return (0);
 		lbsize = MALLOCCHUNK;
-	}
-	devpts_dir = opendir(_PATH_DEV PTS);
-	if (devpts_dir) {
-		struct dirent *dp;
-
-		maxpts = -1;
-		while ((dp = readdir(devpts_dir))) {
-			if (strcmp(dp->d_name, ".") != 0 &&
-			    strcmp(dp->d_name, "..") != 0) {
-				if (atoi(dp->d_name) > maxpts) {
-					maxpts = atoi(dp->d_name);
-					curpts = 0;
-				}
-			}
-		}
-		closedir(devpts_dir);
 	}
 	if (tf) {
 		rewind(tf);
@@ -255,7 +221,6 @@ endttyent(void)
 {
 	int rval;
 
-	maxpts = -1;
 	/*
          * NB: Don't free `line' because getttynam()
 	 * may still be referencing it

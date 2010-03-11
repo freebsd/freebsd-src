@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: db.h,v 1.93.50.3 2009/01/18 23:25:17 marka Exp $ */
+/* $Id: db.h,v 1.93.50.5 2009/11/25 23:48:42 tbox Exp $ */
 
 #ifndef DNS_DB_H
 #define DNS_DB_H 1
@@ -205,14 +205,15 @@ struct dns_db {
 /*%
  * Options that can be specified for dns_db_find().
  */
-#define DNS_DBFIND_GLUEOK		0x01
-#define DNS_DBFIND_VALIDATEGLUE		0x02
-#define DNS_DBFIND_NOWILD		0x04
-#define DNS_DBFIND_PENDINGOK		0x08
-#define DNS_DBFIND_NOEXACT		0x10
-#define DNS_DBFIND_FORCENSEC		0x20
-#define DNS_DBFIND_COVERINGNSEC		0x40
-#define DNS_DBFIND_FORCENSEC3		0x80
+#define DNS_DBFIND_GLUEOK		0x0001
+#define DNS_DBFIND_VALIDATEGLUE		0x0002
+#define DNS_DBFIND_NOWILD		0x0004
+#define DNS_DBFIND_PENDINGOK		0x0008
+#define DNS_DBFIND_NOEXACT		0x0010
+#define DNS_DBFIND_FORCENSEC		0x0020
+#define DNS_DBFIND_COVERINGNSEC		0x0040
+#define DNS_DBFIND_FORCENSEC3		0x0080
+#define DNS_DBFIND_ADDITIONALOK		0x0100
 /*@}*/
 
 /*@{*/
@@ -693,6 +694,10 @@ dns_db_find(dns_db_t *db, dns_name_t *name, dns_dbversion_t *version,
  *	be returned.  For zone databases, glue is as defined in RFC2181.
  *	For cache databases, glue is any rdataset with a trust of
  *	dns_trust_glue.
+ *
+ * \li	If 'options' does not have #DNS_DBFIND_ADDITIONALOK set, then no
+ *	additional records will be returned.  Only caches can have
+ *	rdataset with trust dns_trust_additional.
  *
  * \li	If 'options' does not have #DNS_DBFIND_PENDINGOK set, then no
  *	pending data will be returned.  This option is only meaningful for

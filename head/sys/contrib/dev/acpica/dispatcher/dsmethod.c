@@ -8,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2009, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2010, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -318,7 +318,7 @@ AcpiDsBeginMethodExecution (
             (WalkState->Thread->CurrentSyncLevel > ObjDesc->Method.Mutex->Mutex.SyncLevel))
         {
             ACPI_ERROR ((AE_INFO,
-                "Cannot acquire Mutex for method [%4.4s], current SyncLevel is too large (%d)",
+                "Cannot acquire Mutex for method [%4.4s], current SyncLevel is too large (%u)",
                 AcpiUtGetNodeName (MethodNode),
                 WalkState->Thread->CurrentSyncLevel));
 

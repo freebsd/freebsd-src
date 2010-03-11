@@ -61,13 +61,6 @@ __FBSDID("$FreeBSD$");
  * the outq, we'll stick to 128 byte blocks here.
  */
 
-/* Statistics. */
-static unsigned long ttyinq_nfast = 0;
-SYSCTL_ULONG(_kern, OID_AUTO, tty_inq_nfast, CTLFLAG_RD,
-	&ttyinq_nfast, 0, "Unbuffered reads to userspace on input");
-static unsigned long ttyinq_nslow = 0;
-SYSCTL_ULONG(_kern, OID_AUTO, tty_inq_nslow, CTLFLAG_RD,
-	&ttyinq_nslow, 0, "Buffered reads to userspace on input");
 static int ttyinq_flush_secure = 1;
 SYSCTL_INT(_kern, OID_AUTO, tty_inq_flush_secure, CTLFLAG_RW,
 	&ttyinq_flush_secure, 0, "Zero buffers while flushing");
@@ -201,8 +194,6 @@ ttyinq_read_uio(struct ttyinq *ti, struct tty *tp, struct uio *uio,
 		 *   the write pointer to a new block.
 		 */
 		if (cend == TTYINQ_DATASIZE || cend == ti->ti_end) {
-			atomic_add_long(&ttyinq_nfast, 1);
-
 			/*
 			 * Fast path: zero copy. Remove the first block,
 			 * so we can unlock the TTY temporarily.
@@ -239,7 +230,6 @@ ttyinq_read_uio(struct ttyinq *ti, struct tty *tp, struct uio *uio,
 			TTYINQ_RECYCLE(ti, tib);
 		} else {
 			char ob[TTYINQ_DATASIZE - 1];
-			atomic_add_long(&ttyinq_nslow, 1);
 
 			/*
 			 * Slow path: store data in a temporary buffer.

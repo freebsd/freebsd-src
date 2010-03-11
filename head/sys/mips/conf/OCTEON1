@@ -17,6 +17,13 @@
 #
 # $FreeBSD$
 
+##############################################################################
+###                                                                        ###
+### PLEASE NOTE: This file is the experimental 64-bit kernel.  If you want ###
+### a stable kernel, please use the 32-bit OCTEON1-32 instead.             ###
+###                                                                        ###
+##############################################################################
+
 machine		mips
 cpu		CPU_MIPS4KC
 ident		OCTEON1
@@ -30,7 +37,6 @@ makeoptions     TARGET_BIG_ENDIAN=defined
 makeoptions     TARGET_64BIT=defined
 makeoptions	KERNLOADADDR=0xffffffff80100000
 
-options		KERNVIRTADDR=0xffffffff80100000
 include		"../cavium/std.octeon1"
 
 hints		"OCTEON1.hints"		#Default places to look for devices.
@@ -60,6 +66,7 @@ options         UFS_DIRHASH             #Improve performance on big directories
 
 
 # Debugging for use in -current
+#options		DEADLKRES	#Enable the deadlock resolver
 options		INVARIANTS		#Enable calls of extra sanity checking
 options		INVARIANT_SUPPORT	#Extra sanity checks of internal structures, required by INVARIANTS
 #options		WITNESS			#Enable checks to detect deadlocks and cycles

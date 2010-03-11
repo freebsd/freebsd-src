@@ -162,6 +162,7 @@ struct radix_node_head {
 
 void	 rn_init(int);
 int	 rn_inithead(void **, int);
+int	 rn_detachhead(void **);
 int	 rn_refines(void *, void *);
 struct radix_node
 	 *rn_addmask(void *, int, int),

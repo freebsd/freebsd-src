@@ -67,8 +67,10 @@ bmilekic [label="Bosko Milekic\nbmilekic@FreeBSD.org\n????/??/??"]
 bms [label="Bruce M Simpson\nbms@FreeBSD.org\n2003/08/06"]
 brian [label="Brian Somers\nbrian@FreeBSD.org\n1996/12/16"]
 brooks [label="Brooks Davis\nbrooks@FreeBSD.org\n2001/06/21"]
+brucec [label="Bruce Cran\nbrucec@FreeBSD.org\n2010/01/29"]
 brueffer [label="Christian Brueffer\nbrueffer@FreeBSD.org\n2006/02/28"]
 bruno [label="Bruno Ducrot\nbruno@FreeBSD.org\n2005/07/18"]
+bschmidt [label="Bernhard Schmidt\nbschmidt@FreeBSD.org\n2010/02/06"]
 bz [label="Bjoern A. Zeeb\nbz@FreeBSD.org\n2004/07/27"]
 ceri [label="Ceri Davies\nceri@FreeBSD.org\n2006/11/07"]
 cokane [label="Coleman Kane\ncokane@FreeBSD.org\n2000/06/19"]
@@ -92,6 +94,7 @@ fabient [label="Fabien Thomas\nfabient@FreeBSD.org\n2009/03/16"]
 fanf [label="Tony Finch\nfanf@FreeBSD.org\n2002/05/05"]
 fjoe [label="Max Khon\nfjoe@FreeBSD.org\n2001/08/06"]
 flz [label="Florent Thoumie\nflz@FreeBSD.org\n2006/03/30"]
+gabor [label="Gabor Kovesdan\ngabor@FreeBSD.org\n2010/02/02"]
 gad [label="Garance A. Drosehn\ngad@FreeBSD.org\n2000/10/27"]
 gallatin [label="Andrew Gallatin\ngallatin@FreeBSD.org\n????/??/??"]
 gavin [label="Gavin Atkinson\ngavin@FreeBSD.org\n2009/12/07"]
@@ -153,7 +156,7 @@ peadar [label="Peter Edwards\npeadar@FreeBSD.org\n2004/03/08"]
 peter [label="Peter Wemm\npeter@FreeBSD.org\n????/??/??"]
 philip [label="Philip Paeps\nphilip@FreBSD.org\n2004/01/21"]
 phk [label="Poul-Henning Kamp\nphk@FreeBSD.org\n1994/02/21"]
-pho [label="Peter Holm	\npho@FreeBSD.org\n2008/11/16"]
+pho [label="Peter Holm\npho@FreeBSD.org\n2008/11/16"]
 pjd [label="Pawel Jakub Dawidek\npjd@FreeBSD.org\n2004/02/02"]
 ps [label="Paul Saab\nps@FreeBSD.org\n2000/02/23"]
 qingli [label="Qing Li\nqingli@FreeBSD.org\n2005/04/13"]
@@ -187,6 +190,7 @@ trasz [label="Edward Tomasz Napierala\ntrasz@FreeBSD.org\n2008/08/22"]
 trhodes [label="Tom Rhodes\ntrhodes@FreeBSD.org\n2002/05/28"]
 tuexen [label="Michael Tuexen\ntuexen@FreeBSD.org\n2009/06/06"]
 ume [label="Hajimu UMEMOTO\nume@FreeBSD.org\n2000/02/26"]
+uqs [label="Ulrich Spoerlein\nuqs@FreeBSD.org\n2010/01/28"]
 vanhu [label="Yvan Vanhullebus\nvanhu@FreeBSD.org\n2008/07/21"]
 versus [label="Konrad Jankowski\nversus@FreeBSD.org\n2008/10/27"]
 weongyo [label="Weongyo Jeong\nweongyo@FreeBSD.org\n2007/12/21"]
@@ -242,6 +246,7 @@ cperciva -> simon
 
 csjp -> bushman
 
+delphij -> gabor
 delphij -> rafan
 
 des -> anholt
@@ -259,6 +264,7 @@ dwmalone -> snb
 ed -> gavin
 ed -> jilles
 ed -> rdivacky
+ed -> uqs
 
 eivind -> des
 eivind -> rwatson
@@ -398,6 +404,7 @@ peter -> ps
 philip -> ed
 philip -> jls
 philip -> matteo
+philip -> uqs
 
 pjd -> kib
 pjd -> lulf
@@ -405,7 +412,9 @@ pjd -> lulf
 rgrimes -> markm
 
 rpaulo -> avg
+rpaulo -> bschmidt
 
+rrs -> brucec
 rrs -> tuexen
 
 ru -> ceri

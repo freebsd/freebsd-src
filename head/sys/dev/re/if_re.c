@@ -172,7 +172,7 @@ static struct rl_type re_devs[] = {
 	{ RT_VENDORID, RT_DEVICEID_8139, 0,
 	    "RealTek 8139C+ 10/100BaseTX" },
 	{ RT_VENDORID, RT_DEVICEID_8101E, 0,
-	    "RealTek 8101E/8102E/8102EL PCIe 10/100baseTX" },
+	    "RealTek 8101E/8102E/8102EL/8103E PCIe 10/100baseTX" },
 	{ RT_VENDORID, RT_DEVICEID_8168, 0,
 	    "RealTek 8168/8168B/8168C/8168CP/8168D/8168DP/"
 	    "8111B/8111C/8111CP/8111DP PCIe Gigabit Ethernet" },
@@ -212,6 +212,7 @@ static struct rl_hwrev re_hwrevs[] = {
 	{ RL_HWREV_8102E, RL_8169, "8102E"},
 	{ RL_HWREV_8102EL, RL_8169, "8102EL"},
 	{ RL_HWREV_8102EL_SPIN1, RL_8169, "8102EL"},
+	{ RL_HWREV_8103E, RL_8169, "8103E"},
 	{ RL_HWREV_8168_SPIN2, RL_8169, "8168"},
 	{ RL_HWREV_8168_SPIN3, RL_8169, "8168"},
 	{ RL_HWREV_8168C, RL_8169, "8168C/8111C"},
@@ -1161,6 +1162,9 @@ re_attach(device_t dev)
 	msic = 0;
 	if (pci_find_extcap(dev, PCIY_EXPRESS, &reg) == 0) {
 		sc->rl_flags |= RL_FLAG_PCIE;
+		/* Set PCIe maximum read request size to 2048. */
+		if (pci_get_max_read_req(dev) < 2048)
+			pci_set_max_read_req(dev, 2048);
 		msic = pci_msi_count(dev);
 		if (bootverbose)
 			device_printf(dev, "MSI count : %d\n", msic);
@@ -1267,6 +1271,12 @@ re_attach(device_t dev)
 		sc->rl_flags |= RL_FLAG_NOJUMBO | RL_FLAG_PHYWAKE |
 		    RL_FLAG_PAR | RL_FLAG_DESCV2 | RL_FLAG_MACSTAT |
 		    RL_FLAG_FASTETHER | RL_FLAG_CMDSTOP | RL_FLAG_AUTOPAD;
+		break;
+	case RL_HWREV_8103E:
+		sc->rl_flags |= RL_FLAG_NOJUMBO | RL_FLAG_PHYWAKE |
+		    RL_FLAG_PAR | RL_FLAG_DESCV2 | RL_FLAG_MACSTAT |
+		    RL_FLAG_FASTETHER | RL_FLAG_CMDSTOP | RL_FLAG_AUTOPAD |
+		    RL_FLAG_MACSLEEP;
 		break;
 	case RL_HWREV_8168_SPIN1:
 	case RL_HWREV_8168_SPIN2:
@@ -1419,7 +1429,7 @@ re_attach(device_t dev)
 	 */
 	if ((sc->rl_flags & RL_FLAG_DESCV2) == 0) {
 		ifp->if_hwassist |= CSUM_TSO;
-		ifp->if_capabilities |= IFCAP_TSO4;
+		ifp->if_capabilities |= IFCAP_TSO4 | IFCAP_VLAN_HWTSO;
 	}
 
 	/*
@@ -1441,7 +1451,7 @@ re_attach(device_t dev)
 	 * packets in TSO size.
 	 */
 	ifp->if_hwassist &= ~CSUM_TSO;
-	ifp->if_capenable &= ~IFCAP_TSO4;
+	ifp->if_capenable &= ~(IFCAP_TSO4 | IFCAP_VLAN_HWTSO);
 #ifdef DEVICE_POLLING
 	ifp->if_capabilities |= IFCAP_POLLING;
 #endif
@@ -2779,6 +2789,7 @@ re_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 		    (ifp->if_capenable & IFCAP_TSO4) != 0) {
 			ifp->if_capenable &= ~IFCAP_TSO4;
 			ifp->if_hwassist &= ~CSUM_TSO;
+			VLAN_CAPABILITIES(ifp);
 		}
 		RL_UNLOCK(sc);
 		break;
@@ -2845,14 +2856,10 @@ re_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 				ifp->if_hwassist &= ~RE_CSUM_FEATURES;
 			reinit = 1;
 		}
-		if (mask & IFCAP_VLAN_HWTAGGING) {
-			ifp->if_capenable ^= IFCAP_VLAN_HWTAGGING;
-			reinit = 1;
-		}
-		if (mask & IFCAP_TSO4) {
+		if ((mask & IFCAP_TSO4) != 0 &&
+		    (ifp->if_capabilities & IFCAP_TSO) != 0) {
 			ifp->if_capenable ^= IFCAP_TSO4;
-			if ((IFCAP_TSO4 & ifp->if_capenable) &&
-			    (IFCAP_TSO4 & ifp->if_capabilities))
+			if ((IFCAP_TSO4 & ifp->if_capenable) != 0)
 				ifp->if_hwassist |= CSUM_TSO;
 			else
 				ifp->if_hwassist &= ~CSUM_TSO;
@@ -2861,6 +2868,17 @@ re_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 				ifp->if_capenable &= ~IFCAP_TSO4;
 				ifp->if_hwassist &= ~CSUM_TSO;
 			}
+		}
+		if ((mask & IFCAP_VLAN_HWTSO) != 0 &&
+		    (ifp->if_capabilities & IFCAP_VLAN_HWTSO) != 0)
+			ifp->if_capenable ^= IFCAP_VLAN_HWTSO;
+		if ((mask & IFCAP_VLAN_HWTAGGING) != 0 &&
+		    (ifp->if_capabilities & IFCAP_VLAN_HWTAGGING) != 0) {
+			ifp->if_capenable ^= IFCAP_VLAN_HWTAGGING;
+			/* TSO over VLAN requires VLAN hardware tagging. */
+			if ((ifp->if_capenable & IFCAP_VLAN_HWTAGGING) == 0)
+				ifp->if_capenable &= ~IFCAP_VLAN_HWTSO;
+			reinit = 1;
 		}
 		if ((mask & IFCAP_WOL) != 0 &&
 		    (ifp->if_capabilities & IFCAP_WOL) != 0) {

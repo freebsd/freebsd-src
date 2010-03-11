@@ -14,13 +14,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *        This product includes software developed by the NetBSD
- *        Foundation, Inc. and its contributors.
- * 4. Neither the name of The NetBSD Foundation nor the names of its
- *    contributors may be used to endorse or promote products derived
- *    from this software without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
  * ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
@@ -350,6 +343,7 @@ typedef struct ehci_softc {
 #define	EHCI_SCFLG_BIGEMMIO	0x0010	/* big-endian byte order MMIO */
 #define	EHCI_SCFLG_TT		0x0020	/* transaction translator present */
 #define	EHCI_SCFLG_LOSTINTRBUG	0x0040	/* workaround for VIA / ATI chipsets */
+#define	EHCI_SCFLG_IAADBUG	0x0080	/* workaround for nVidia chipsets */
 
 	uint8_t	sc_offs;		/* offset to operational registers */
 	uint8_t	sc_doorbell_disable;	/* set on doorbell failure */

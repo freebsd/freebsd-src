@@ -1,6 +1,6 @@
 /******************************************************************************
 
-  Copyright (c) 2001-2009, Intel Corporation 
+  Copyright (c) 2001-2010, Intel Corporation 
   All rights reserved.
   
   Redistribution and use in source and binary forms, with or without 
@@ -191,32 +191,9 @@ s32 e1000_get_phy_id(struct e1000_hw *hw)
 		if (phy->id != 0 && phy->id != PHY_REVISION_MASK)
 			goto out;
 
-		/*
-		 * If the PHY ID is still unknown, we may have an 82577
-		 * without link.  We will try again after setting Slow MDIC
-		 * mode. No harm in trying again in this case since the PHY
-		 * ID is unknown at this point anyway.
-		 */
-		ret_val = phy->ops.acquire(hw);
-		if (ret_val)
-			goto out;
-		ret_val = e1000_set_mdio_slow_mode_hv(hw, TRUE);
-		if (ret_val)
-			goto out;
-		phy->ops.release(hw);
-
 		retry_count++;
 	}
 out:
-	/* Revert to MDIO fast mode, if applicable */
-	if (retry_count) {
-		ret_val = phy->ops.acquire(hw);
-		if (ret_val)
-			return ret_val;
-		ret_val = e1000_set_mdio_slow_mode_hv(hw, FALSE);
-		phy->ops.release(hw);
-	}
-
 	return ret_val;
 }
 
@@ -261,6 +238,11 @@ s32 e1000_read_phy_reg_mdic(struct e1000_hw *hw, u32 offset, u16 *data)
 	s32 ret_val = E1000_SUCCESS;
 
 	DEBUGFUNC("e1000_read_phy_reg_mdic");
+
+	if (offset > MAX_PHY_REG_ADDRESS) {
+		DEBUGOUT1("PHY Address %d is out of range\n", offset);
+		return -E1000_ERR_PARAM;
+	}
 
 	/*
 	 * Set up Op-code, Phy Address, and register offset in the MDI
@@ -319,6 +301,11 @@ s32 e1000_write_phy_reg_mdic(struct e1000_hw *hw, u32 offset, u16 data)
 	s32 ret_val = E1000_SUCCESS;
 
 	DEBUGFUNC("e1000_write_phy_reg_mdic");
+
+	if (offset > MAX_PHY_REG_ADDRESS) {
+		DEBUGOUT1("PHY Address %d is out of range\n", offset);
+		return -E1000_ERR_PARAM;
+	}
 
 	/*
 	 * Set up Op-code, Phy Address, and register offset in the MDI
@@ -822,18 +809,17 @@ s32 e1000_write_kmrn_reg_locked(struct e1000_hw *hw, u32 offset, u16 data)
  **/
 s32 e1000_copper_link_setup_82577(struct e1000_hw *hw)
 {
-	struct e1000_phy_info *phy = &hw->phy;
 	s32 ret_val;
 	u16 phy_data;
 
 	DEBUGFUNC("e1000_copper_link_setup_82577");
 
-	if (phy->reset_disable) {
+	if (hw->phy.reset_disable) {
 		ret_val = E1000_SUCCESS;
 		goto out;
 	}
 
-	if (phy->type == e1000_phy_82580) {
+	if (hw->phy.type == e1000_phy_82580) {
 		ret_val = hw->phy.ops.reset(hw);
 		if (ret_val) {
 			DEBUGOUT("Error resetting the PHY.\n");
@@ -842,7 +828,7 @@ s32 e1000_copper_link_setup_82577(struct e1000_hw *hw)
 	}
 
 	/* Enable CRS on TX. This must be set for half-duplex operation. */
-	ret_val = phy->ops.read_reg(hw, I82577_CFG_REG, &phy_data);
+	ret_val = hw->phy.ops.read_reg(hw, I82577_CFG_REG, &phy_data);
 	if (ret_val)
 		goto out;
 
@@ -851,7 +837,7 @@ s32 e1000_copper_link_setup_82577(struct e1000_hw *hw)
 	/* Enable downshift */
 	phy_data |= I82577_CFG_ENABLE_DOWNSHIFT;
 
-	ret_val = phy->ops.write_reg(hw, I82577_CFG_REG, phy_data);
+	ret_val = hw->phy.ops.write_reg(hw, I82577_CFG_REG, phy_data);
 
 out:
 	return ret_val;
@@ -877,7 +863,7 @@ s32 e1000_copper_link_setup_m88(struct e1000_hw *hw)
 		goto out;
 	}
 
-	/* Enable CRS on TX. This must be set for half-duplex operation. */
+	/* Enable CRS on Tx. This must be set for half-duplex operation. */
 	ret_val = phy->ops.read_reg(hw, M88E1000_PHY_SPEC_CTRL, &phy_data);
 	if (ret_val)
 		goto out;
@@ -3058,38 +3044,6 @@ void e1000_power_down_phy_copper(struct e1000_hw *hw)
 }
 
 /**
- *  e1000_set_mdio_slow_mode_hv - Set slow MDIO access mode
- *  @hw:   pointer to the HW structure
- *  @slow: TRUE for slow mode, FALSE for normal mode
- *
- *  Assumes semaphore already acquired.
- **/
-s32 e1000_set_mdio_slow_mode_hv(struct e1000_hw *hw, bool slow)
-{
-	s32 ret_val = E1000_SUCCESS;
-	u16 data = 0;
-
-	/* Set MDIO mode - page 769, register 16: 0x2580==slow, 0x2180==fast */
-	hw->phy.addr = 1;
-	ret_val = e1000_write_phy_reg_mdic(hw, IGP01E1000_PHY_PAGE_SELECT,
-				         (BM_PORT_CTRL_PAGE << IGP_PAGE_SHIFT));
-	if (ret_val)
-		goto out;
-
-	ret_val = e1000_write_phy_reg_mdic(hw, BM_CS_CTRL1,
-	                                   (0x2180 | (slow << 10)));
-	if (ret_val)
-		goto out;
-
-	/* dummy read when reverting to fast mode - throw away result */
-	if (!slow)
-		ret_val = e1000_read_phy_reg_mdic(hw, BM_CS_CTRL1, &data);
-
-out:
-	return ret_val;
-}
-
-/**
  *  __e1000_read_phy_reg_hv -  Read HV PHY register
  *  @hw: pointer to the HW structure
  *  @offset: register offset to be read
@@ -3106,24 +3060,13 @@ static s32 __e1000_read_phy_reg_hv(struct e1000_hw *hw, u32 offset, u16 *data,
 	s32 ret_val;
 	u16 page = BM_PHY_REG_PAGE(offset);
 	u16 reg = BM_PHY_REG_NUM(offset);
-	bool in_slow_mode = FALSE;
 
-	DEBUGFUNC("e1000_read_phy_reg_hv");
+	DEBUGFUNC("__e1000_read_phy_reg_hv");
 
 	if (!locked) {
 		ret_val = hw->phy.ops.acquire(hw);
 		if (ret_val)
 			return ret_val;
-	}
-
-	/* Workaround failure in MDIO access while cable is disconnected */
-	if ((hw->phy.type == e1000_phy_82577) &&
-	    !(E1000_READ_REG(hw, E1000_STATUS) & E1000_STATUS_LU)) {
-		ret_val = e1000_set_mdio_slow_mode_hv(hw, TRUE);
-		if (ret_val)
-			goto out;
-
-		in_slow_mode = TRUE;
 	}
 
 	/* Page 800 works differently than the rest so it has its own func */
@@ -3162,10 +3105,6 @@ static s32 __e1000_read_phy_reg_hv(struct e1000_hw *hw, u32 offset, u16 *data,
 	ret_val = e1000_read_phy_reg_mdic(hw, MAX_PHY_REG_ADDRESS & reg,
 	                                  data);
 out:
-	/* Revert to MDIO fast mode, if applicable */
-	if ((hw->phy.type == e1000_phy_82577) && in_slow_mode)
-		ret_val |= e1000_set_mdio_slow_mode_hv(hw, FALSE);
-
 	if (!locked)
 		hw->phy.ops.release(hw);
 
@@ -3217,24 +3156,13 @@ static s32 __e1000_write_phy_reg_hv(struct e1000_hw *hw, u32 offset, u16 data,
 	s32 ret_val;
 	u16 page = BM_PHY_REG_PAGE(offset);
 	u16 reg = BM_PHY_REG_NUM(offset);
-	bool in_slow_mode = FALSE;
 
-	DEBUGFUNC("e1000_write_phy_reg_hv");
+	DEBUGFUNC("__e1000_write_phy_reg_hv");
 
 	if (!locked) {
 		ret_val = hw->phy.ops.acquire(hw);
 		if (ret_val)
 			return ret_val;
-	}
-
-	/* Workaround failure in MDIO access while cable is disconnected */
-	if ((hw->phy.type == e1000_phy_82577) &&
-	    !(E1000_READ_REG(hw, E1000_STATUS) & E1000_STATUS_LU)) {
-		ret_val = e1000_set_mdio_slow_mode_hv(hw, TRUE);
-		if (ret_val)
-			goto out;
-
-		in_slow_mode = TRUE;
 	}
 
 	/* Page 800 works differently than the rest so it has its own func */
@@ -3290,10 +3218,6 @@ static s32 __e1000_write_phy_reg_hv(struct e1000_hw *hw, u32 offset, u16 data,
 	                                  data);
 
 out:
-	/* Revert to MDIO fast mode, if applicable */
-	if ((hw->phy.type == e1000_phy_82577) && in_slow_mode)
-		ret_val |= e1000_set_mdio_slow_mode_hv(hw, FALSE);
-
 	if (!locked)
 		hw->phy.ops.release(hw);
 

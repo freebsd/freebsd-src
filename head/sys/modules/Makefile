@@ -42,6 +42,7 @@ SUBDIR=	${_3dfx} \
 	${_bm} \
 	bridgestp \
 	bwi \
+	bwn \
 	cam \
 	${_canbepm} \
 	${_canbus} \
@@ -194,6 +195,7 @@ SUBDIR=	${_3dfx} \
 	${_ndis} \
 	${_netgraph} \
 	${_nfe} \
+	nfs_common \
 	nfscl \
 	nfsclient \
 	nfscommon \
@@ -239,6 +241,7 @@ SUBDIR=	${_3dfx} \
 	re \
 	reiserfs \
 	rl \
+	runfw \
 	${_s3} \
 	${_safe} \
 	${_sbni} \
@@ -248,6 +251,7 @@ SUBDIR=	${_3dfx} \
 	sdhci \
 	sem \
 	sf \
+	siba_bwn \
 	siis \
 	sis \
 	sk \
@@ -269,7 +273,7 @@ SUBDIR=	${_3dfx} \
 	sysvipc \
 	ti \
 	tl \
-	${_tmpfs} \
+	tmpfs \
 	trm \
 	${_twa} \
 	twe \
@@ -412,7 +416,6 @@ _sppp=		sppp
 _stg=		stg
 _streams=	streams
 _svr4=		svr4
-_tmpfs=		tmpfs
 _wi=		wi
 _xe=		xe
 .if ${MK_ZFS} != "no" || defined(ALL_MODULES)
@@ -550,7 +553,6 @@ _sound=		sound
 _speaker=	speaker
 _splash=	splash
 _sppp=		sppp
-_tmpfs=		tmpfs
 _twa=		twa
 _vesa=		vesa
 _x86bios=	x86bios
@@ -615,6 +617,7 @@ _igb=		igb
 .if ${MK_CDDL} != "no" || defined(ALL_MODULES)
 _opensolaris=	opensolaris
 .endif
+_smbfs=		smbfs
 _sound=		sound
 .if ${MK_ZFS} != "no" || defined(ALL_MODULES)
 _zfs=		zfs

@@ -191,7 +191,7 @@ jailparam_all(struct jailparam **jpp)
 		/* Add the parameter to the list */
 		if (njp >= nlist) {
 			nlist *= 2;
-			jp = realloc(jp, nlist * sizeof(jp));
+			jp = realloc(jp, nlist * sizeof(*jp));
 			if (jp == NULL) {
 				jailparam_free(jp, njp);
 				return (-1);

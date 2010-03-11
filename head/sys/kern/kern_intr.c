@@ -1378,6 +1378,12 @@ intr_event_handle(struct intr_event *ie, struct trapframe *frame)
 			ret = ih->ih_filter(frame);
 		else
 			ret = ih->ih_filter(ih->ih_argument);
+		KASSERT(ret == FILTER_STRAY ||
+		    ((ret & (FILTER_SCHEDULE_THREAD | FILTER_HANDLED)) != 0 &&
+		    (ret & ~(FILTER_SCHEDULE_THREAD | FILTER_HANDLED)) == 0),
+		    ("%s: incorrect return value %#x from %s", __func__, ret,
+		    ih->ih_name));
+
 		/* 
 		 * Wrapper handler special handling:
 		 *
@@ -1546,7 +1552,11 @@ intr_filter_loop(struct intr_event *ie, struct trapframe *frame,
 			thread_only = 1;
 			continue;
 		}
-
+		KASSERT(ret == FILTER_STRAY ||
+		    ((ret & (FILTER_SCHEDULE_THREAD | FILTER_HANDLED)) != 0 &&
+		    (ret & ~(FILTER_SCHEDULE_THREAD | FILTER_HANDLED)) == 0),
+		    ("%s: incorrect return value %#x from %s", __func__, ret,
+		    ih->ih_name));
 		if (ret & FILTER_STRAY)
 			continue;
 		else { 

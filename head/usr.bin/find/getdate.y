@@ -28,7 +28,6 @@ __FBSDID("$FreeBSD$");
 #else /* defined(vms) */
 # include <sys/types.h>
 # include <sys/time.h>
-# include <sys/timeb.h>
 #endif	/* !defined(vms) */
 
 #if defined (__STDC__) || defined (USG)
@@ -69,7 +68,7 @@ static int yyparse(void);
 static int yylex(void);
 static int yyerror(const char *);
 
-time_t get_date(char *, struct timeb *);
+time_t get_date(char *);
 
 #define EPOCH		1970
 #define HOUR(x)		((time_t)(x) * 60)
@@ -849,58 +848,50 @@ difftm (struct tm *a, struct tm *b)
 }
 
 time_t
-get_date(char *p, struct timeb *now)
+get_date(char *p)
 {
-    struct tm		*tm, gmt;
-    struct timeb	ftz;
+    struct tm		*tm, *gmt_ptr, gmt;
+    int			tzoff;
     time_t		Start;
     time_t		tod;
     time_t nowtime;
 
     bzero (&gmt, sizeof(struct tm));
     yyInput = p;
-    if (now == NULL) {
-	struct tm *gmt_ptr;
 
-        now = &ftz;
-	(void)time (&nowtime);
+    (void)time (&nowtime);
 
-	gmt_ptr = gmtime (&nowtime);
-	if (gmt_ptr != NULL)
-	{
-	    /* Make a copy, in case localtime modifies *tm (I think
-	       that comment now applies to *gmt_ptr, but I am too
-	       lazy to dig into how gmtime and locatime allocate the
-	       structures they return pointers to).  */
-	    gmt = *gmt_ptr;
-	}
-
-	if (! (tm = localtime (&nowtime)))
-	    return -1;
-
-	if (gmt_ptr != NULL)
-	    ftz.timezone = difftm (&gmt, tm) / 60;
-	else
-	    /* We are on a system like VMS, where the system clock is
-	       in local time and the system has no concept of timezones.
-	       Hopefully we can fake this out (for the case in which the
-	       user specifies no timezone) by just saying the timezone
-	       is zero.  */
-	    ftz.timezone = 0;
-
-	if(tm->tm_isdst)
-	    ftz.timezone += 60;
-    }
-    else
+    gmt_ptr = gmtime (&nowtime);
+    if (gmt_ptr != NULL)
     {
-	nowtime = now->time;
+	/* Make a copy, in case localtime modifies *tm (I think
+	   that comment now applies to *gmt_ptr, but I am too
+	   lazy to dig into how gmtime and locatime allocate the
+	   structures they return pointers to).  */
+	gmt = *gmt_ptr;
     }
+
+    if (! (tm = localtime (&nowtime)))
+	return -1;
+
+    if (gmt_ptr != NULL)
+	tzoff = difftm (&gmt, tm) / 60;
+    else
+	/* We are on a system like VMS, where the system clock is
+	   in local time and the system has no concept of timezones.
+	   Hopefully we can fake this out (for the case in which the
+	   user specifies no timezone) by just saying the timezone
+	   is zero.  */
+	tzoff = 0;
+
+    if(tm->tm_isdst)
+	tzoff += 60;
 
     tm = localtime(&nowtime);
     yyYear = tm->tm_year + 1900;
     yyMonth = tm->tm_mon + 1;
     yyDay = tm->tm_mday;
-    yyTimezone = now->timezone;
+    yyTimezone = tzoff;
     yyDSTmode = DSTmaybe;
     yyHour = 0;
     yyMinutes = 0;
@@ -956,7 +947,7 @@ main(int ac, char *av[])
     (void)printf("Enter date, or blank line to exit.\n\t> ");
     (void)fflush(stdout);
     while (gets(buff) && buff[0]) {
-	d = get_date(buff, (struct timeb *)NULL);
+	d = get_date(buff);
 	if (d == -1)
 	    (void)printf("Bad format - couldn't convert.\n");
 	else

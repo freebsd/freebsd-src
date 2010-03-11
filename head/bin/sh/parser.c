@@ -1641,7 +1641,7 @@ getprompt(void *unused __unused)
 			case 'w':
 				ps[i] = '\0';
 				getcwd(&ps[i], PROMPTLEN - i);
-				if (*fmt == 'W') {
+				if (*fmt == 'W' && ps[i + 1] != '\0') {
 					/* Final path component only. */
 					trim = 1;
 					for (j = i; ps[j] != '\0'; j++)

@@ -162,7 +162,11 @@ __FBSDID("$FreeBSD$");
 #endif
 
 #if !defined(DIAGNOSTIC)
+#ifdef __GNUC_GNU_INLINE__
+#define PMAP_INLINE	inline
+#else
 #define PMAP_INLINE	extern inline
+#endif
 #else
 #define PMAP_INLINE
 #endif
@@ -217,7 +221,7 @@ static int pat_works = 0;		/* Is page attribute table sane? */
 
 SYSCTL_NODE(_vm, OID_AUTO, pmap, CTLFLAG_RD, 0, "VM/pmap parameters");
 
-static int pg_ps_enabled;
+static int pg_ps_enabled = 1;
 SYSCTL_INT(_vm_pmap, OID_AUTO, pg_ps_enabled, CTLFLAG_RDTUN, &pg_ps_enabled, 0,
     "Are large page mappings enabled?");
 
@@ -243,8 +247,9 @@ struct sysmaps {
 	caddr_t	CADDR2;
 };
 static struct sysmaps sysmaps_pcpu[MAXCPU];
-pt_entry_t *CMAP1 = 0;
+pt_entry_t *CMAP1 = 0, *KPTmap;
 static pt_entry_t *CMAP3;
+static pd_entry_t *KPTD;
 caddr_t CADDR1 = 0, ptvmmap = 0;
 static caddr_t CADDR3;
 struct msgbuf *msgbufp = 0;
@@ -403,7 +408,6 @@ pmap_bootstrap(vm_paddr_t firstaddr)
 	}
 	SYSMAP(caddr_t, CMAP1, CADDR1, 1)
 	SYSMAP(caddr_t, CMAP3, CADDR3, 1)
-	*CMAP3 = 0;
 
 	/*
 	 * Crashdump maps.
@@ -421,16 +425,29 @@ pmap_bootstrap(vm_paddr_t firstaddr)
 	SYSMAP(struct msgbuf *, unused, msgbufp, atop(round_page(MSGBUF_SIZE)))
 
 	/*
+	 * KPTmap is used by pmap_kextract().
+	 */
+	SYSMAP(pt_entry_t *, KPTD, KPTmap, KVA_PAGES)
+
+	for (i = 0; i < NKPT; i++)
+		KPTD[i] = (KPTphys + (i << PAGE_SHIFT)) | pgeflag | PG_RW | PG_V;
+
+	/*
+	 * Adjust the start of the KPTD and KPTmap so that the implementation
+	 * of pmap_kextract() and pmap_growkernel() can be made simpler.
+	 */
+	KPTD -= KPTDI;
+	KPTmap -= i386_btop(KPTDI << PDRSHIFT);
+
+	/*
 	 * ptemap is used for pmap_pte_quick
 	 */
-	SYSMAP(pt_entry_t *, PMAP1, PADDR1, 1);
-	SYSMAP(pt_entry_t *, PMAP2, PADDR2, 1);
+	SYSMAP(pt_entry_t *, PMAP1, PADDR1, 1)
+	SYSMAP(pt_entry_t *, PMAP2, PADDR2, 1)
 
 	mtx_init(&PMAP2mutex, "PMAP2", NULL, MTX_DEF);
 
 	virtual_avail = va;
-
-	*CMAP1 = 0;
 
 	/*
 	 * Leave in place an identity mapping (virt == phys) for the low 1 MB
@@ -533,25 +550,19 @@ pmap_init_pat(void)
 static void
 pmap_set_pg(void)
 {
-	pd_entry_t pdir;
 	pt_entry_t *pte;
 	vm_offset_t va, endva;
-	int i; 
 
 	if (pgeflag == 0)
 		return;
 
-	i = KERNLOAD/NBPDR;
 	endva = KERNBASE + KERNend;
 
 	if (pseflag) {
 		va = KERNBASE + KERNLOAD;
 		while (va  < endva) {
-			pdir = kernel_pmap->pm_pdir[KPTDI+i];
-			pdir |= pgeflag;
-			kernel_pmap->pm_pdir[KPTDI+i] = PTD[KPTDI+i] = pdir;
+			pdir_pde(PTD, va) |= pgeflag;
 			invltlb();	/* Play it safe, invltlb() every time */
-			i++;
 			va += NBPDR;
 		}
 	} else {
@@ -679,6 +690,15 @@ pmap_init(void)
 	TUNABLE_INT_FETCH("vm.pmap.pv_entries", &pv_entry_max);
 	pv_entry_max = roundup(pv_entry_max, _NPCPV);
 	pv_entry_high_water = 9 * (pv_entry_max / 10);
+
+	/*
+	 * Disable large page mappings by default if the kernel is running in
+	 * a virtual machine on an AMD Family 10h processor.  This is a work-
+	 * around for Erratum 383.
+	 */
+	if (vm_guest == VM_GUEST_VM && cpu_vendor_id == CPU_VENDOR_AMD &&
+	    CPUID_TO_FAMILY(cpu_id) == 0x10)
+		pg_ps_enabled = 0;
 
 	/*
 	 * Are large page mappings enabled?
@@ -976,7 +996,8 @@ pmap_invalidate_cache_range(vm_offset_t sva, vm_offset_t eva)
 
 	if (cpu_feature & CPUID_SS)
 		; /* If "Self Snoop" is supported, do nothing. */
-	else if (cpu_feature & CPUID_CLFSH) {
+	else if ((cpu_feature & CPUID_CLFSH) != 0 &&
+		 eva - sva < 2 * 1024 * 1024) {
 
 		/*
 		 * Otherwise, do per-cache line flush.  Use the mfence
@@ -993,7 +1014,8 @@ pmap_invalidate_cache_range(vm_offset_t sva, vm_offset_t eva)
 
 		/*
 		 * No targeted cache flush methods are supported by CPU,
-		 * globally invalidate cache as a last resort.
+		 * or the supplied range is bigger then 2MB.
+		 * Globally invalidate cache.
 		 */
 		pmap_invalidate_cache();
 	}
@@ -1839,6 +1861,7 @@ pmap_growkernel(vm_offset_t addr)
 	vm_page_t nkpg;
 	pd_entry_t newpdir;
 	pt_entry_t *pde;
+	boolean_t updated_PTD;
 
 	mtx_assert(&kernel_map->system_mtx, MA_OWNED);
 	if (kernel_vm_end == 0) {
@@ -1878,14 +1901,20 @@ pmap_growkernel(vm_offset_t addr)
 			pmap_zero_page(nkpg);
 		ptppaddr = VM_PAGE_TO_PHYS(nkpg);
 		newpdir = (pd_entry_t) (ptppaddr | PG_V | PG_RW | PG_A | PG_M);
-		pdir_pde(PTD, kernel_vm_end) = newpdir;
+		pdir_pde(KPTD, kernel_vm_end) = pgeflag | newpdir;
 
+		updated_PTD = FALSE;
 		mtx_lock_spin(&allpmaps_lock);
 		LIST_FOREACH(pmap, &allpmaps, pm_list) {
+			if ((pmap->pm_pdir[PTDPTDI] & PG_FRAME) == (PTDpde[0] &
+			    PG_FRAME))
+				updated_PTD = TRUE;
 			pde = pmap_pde(pmap, kernel_vm_end);
 			pde_store(pde, newpdir);
 		}
 		mtx_unlock_spin(&allpmaps_lock);
+		KASSERT(updated_PTD,
+		    ("pmap_growkernel: current page table is not in allpmaps"));
 		kernel_vm_end = (kernel_vm_end + PAGE_SIZE * NPTEPG) & ~(PAGE_SIZE * NPTEPG - 1);
 		if (kernel_vm_end - 1 >= kernel_map->max_offset) {
 			kernel_vm_end = kernel_map->max_offset;
@@ -2368,10 +2397,14 @@ pmap_demote_pde(pmap_t pmap, pd_entry_t *pde, vm_offset_t va)
 	mptepa = VM_PAGE_TO_PHYS(mpte);
 
 	/*
-	 * Temporarily map the page table page (mpte) into the kernel's
-	 * address space at either PADDR1 or PADDR2.
+	 * If the page mapping is in the kernel's address space, then the
+	 * KPTmap can provide access to the page table page.  Otherwise,
+	 * temporarily map the page table page (mpte) into the kernel's
+	 * address space at either PADDR1 or PADDR2. 
 	 */
-	if (curthread->td_pinned > 0 && mtx_owned(&vm_page_queue_mtx)) {
+	if (va >= KERNBASE)
+		firstpte = &KPTmap[i386_btop(trunc_4mpage(va))];
+	else if (curthread->td_pinned > 0 && mtx_owned(&vm_page_queue_mtx)) {
 		if ((*PMAP1 & PG_FRAME) != mptepa) {
 			*PMAP1 = mptepa | PG_RW | PG_V | PG_A | PG_M;
 #ifdef SMP
@@ -2435,10 +2468,9 @@ pmap_demote_pde(pmap_t pmap, pd_entry_t *pde, vm_offset_t va)
 		/*
 		 * A harmless race exists between this loop and the bcopy()
 		 * in pmap_pinit() that initializes the kernel segment of
-		 * the new page table.  Specifically, that bcopy() may copy
-		 * the new PDE from the PTD, which is first in allpmaps, to
-		 * the new page table before this loop updates that new
-		 * page table.
+		 * the new page table directory.  Specifically, that bcopy()
+		 * may copy the new PDE from the PTD to the new page table
+		 * before this loop updates that new page table.
 		 */
 		mtx_lock_spin(&allpmaps_lock);
 		LIST_FOREACH(allpmaps_entry, &allpmaps, pm_list) {

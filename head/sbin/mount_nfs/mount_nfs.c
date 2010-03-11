@@ -130,20 +130,19 @@ enum tryret {
 	TRYRET_LOCALERR		/* Local failure. */
 };
 
-int	fallback_mount(struct iovec *iov, int iovlen, int mntflags);
-int	sec_name_to_num(char *sec);
-char	*sec_num_to_name(int num);
-int	getnfsargs(char *, struct iovec **iov, int *iovlen);
+static int	fallback_mount(struct iovec *iov, int iovlen, int mntflags);
+static int	sec_name_to_num(char *sec);
+static char	*sec_num_to_name(int num);
+static int	getnfsargs(char *, struct iovec **iov, int *iovlen);
 /* void	set_rpc_maxgrouplist(int); */
-struct netconfig *getnetconf_cached(const char *netid);
-const char	*netidbytype(int af, int sotype);
-void	usage(void) __dead2;
-int	xdr_dir(XDR *, char *);
-int	xdr_fh(XDR *, struct nfhret *);
-enum tryret nfs_tryproto(struct addrinfo *ai, char *hostp, char *spec,
+static struct netconfig *getnetconf_cached(const char *netid);
+static const char	*netidbytype(int af, int sotype);
+static void	usage(void) __dead2;
+static int	xdr_dir(XDR *, char *);
+static int	xdr_fh(XDR *, struct nfhret *);
+static enum tryret nfs_tryproto(struct addrinfo *ai, char *hostp, char *spec,
     char **errstr, struct iovec **iov, int *iovlen);
-enum tryret returncode(enum clnt_stat stat, struct rpc_err *rpcerr);
-extern int getosreldate(void);
+static enum tryret returncode(enum clnt_stat stat, struct rpc_err *rpcerr);
 
 int
 main(int argc, char *argv[])
@@ -476,7 +475,7 @@ copyopt(struct iovec **newiov, int *newiovlen,
  *      passing NFS mount options to nmount() as individual
  *      parameters.  It should be eventually be removed.
  */
-int
+static int
 fallback_mount(struct iovec *iov, int iovlen, int mntflags)
 {
 	struct nfs_args args = {
@@ -663,7 +662,7 @@ fallback_mount(struct iovec *iov, int iovlen, int mntflags)
 	return nmount(newiov, newiovlen, mntflags);
 }
 
-int
+static int
 sec_name_to_num(char *sec)
 {
 	if (!strcmp(sec, "krb5"))
@@ -677,7 +676,7 @@ sec_name_to_num(char *sec)
 	return (-1);
 }
 
-char *
+static char *
 sec_num_to_name(int flavor)
 {
 	switch (flavor) {
@@ -693,17 +692,22 @@ sec_num_to_name(int flavor)
 	return (NULL);
 }
 
-int
+static int
 getnfsargs(char *spec, struct iovec **iov, int *iovlen)
 {
 	struct addrinfo hints, *ai_nfs, *ai;
 	enum tryret ret;
-	int ecode, speclen, remoteerr;
+	int ecode, speclen, remoteerr, offset, have_bracket = 0;
 	char *hostp, *delimp, *errstr;
 	size_t len;
 	static char nam[MNAMELEN + 1], pname[MAXHOSTNAMELEN + 5];
 
-	if ((delimp = strrchr(spec, ':')) != NULL) {
+	if (*spec == '[' && (delimp = strchr(spec + 1, ']')) != NULL &&
+	    *(delimp + 1) == ':') {
+		hostp = spec + 1;
+		spec = delimp + 2;
+		have_bracket = 1;
+	} else if ((delimp = strrchr(spec, ':')) != NULL) {
 		hostp = spec;
 		spec = delimp + 1;
 	} else if ((delimp = strrchr(spec, '@')) != NULL) {
@@ -731,10 +735,15 @@ getnfsargs(char *spec, struct iovec **iov, int *iovlen)
 	/* Make both '@' and ':' notations equal */
 	if (*hostp != '\0') {
 		len = strlen(hostp);
-		memmove(nam, hostp, len);
-		nam[len] = ':';
-		memmove(nam + len + 1, spec, speclen);
-		nam[len + speclen + 1] = '\0';
+		offset = 0;
+		if (have_bracket)
+			nam[offset++] = '[';
+		memmove(nam + offset, hostp, len);
+		if (have_bracket)
+			nam[len + offset++] = ']';
+		nam[len + offset++] = ':';
+		memmove(nam + len + offset, spec, speclen);
+		nam[len + speclen + offset] = '\0';
 	}
 
 	/*
@@ -839,7 +848,7 @@ getnfsargs(char *spec, struct iovec **iov, int *iovlen)
  * In all error cases, *errstr will be set to a statically-allocated string
  * describing the error.
  */
-enum tryret
+static enum tryret
 nfs_tryproto(struct addrinfo *ai, char *hostp, char *spec, char **errstr,
     struct iovec **iov, int *iovlen)
 {
@@ -1061,7 +1070,7 @@ tryagain:
  * Catagorise a RPC return status and error into an `enum tryret'
  * return code.
  */
-enum tryret
+static enum tryret
 returncode(enum clnt_stat stat, struct rpc_err *rpcerr)
 {
 	switch (stat) {
@@ -1096,7 +1105,7 @@ returncode(enum clnt_stat stat, struct rpc_err *rpcerr)
  *
  * XXX there should be a library function for this.
  */
-const char *
+static const char *
 netidbytype(int af, int sotype)
 {
 	struct nc_protos *p;
@@ -1116,7 +1125,7 @@ netidbytype(int af, int sotype)
  * Otherwise it behaves just like getnetconfigent(), so nc_*error()
  * work on failure.
  */
-struct netconfig *
+static struct netconfig *
 getnetconf_cached(const char *netid)
 {
 	static struct nc_entry {
@@ -1144,13 +1153,13 @@ getnetconf_cached(const char *netid)
 /*
  * xdr routines for mount rpc's
  */
-int
+static int
 xdr_dir(XDR *xdrsp, char *dirp)
 {
 	return (xdr_string(xdrsp, &dirp, MNTPATHLEN));
 }
 
-int
+static int
 xdr_fh(XDR *xdrsp, struct nfhret *np)
 {
 	int i;
@@ -1196,8 +1205,8 @@ xdr_fh(XDR *xdrsp, struct nfhret *np)
 	return (0);
 }
 
-void
-usage()
+static void
+usage(void)
 {
 	(void)fprintf(stderr, "%s\n%s\n%s\n%s\n",
 "usage: mount_nfs [-23bcdiLlNPsTU] [-a maxreadahead] [-D deadthresh]",

@@ -842,6 +842,13 @@ kaudit_to_bsm(struct kaudit_record *kar, struct au_record **pau)
 		UPATH1_VNODE1_TOKENS;
 		break;
 
+	case AUE_CLOSEFROM:
+		if (ARG_IS_VALID(kar, ARG_FD)) {
+			tok = au_to_arg32(1, "fd", ar->ar_arg_fd);
+			kau_write(rec, tok);
+		}
+		break;
+
 	case AUE_CORE:
 		if (ARG_IS_VALID(kar, ARG_SIGNUM)) {
 			tok = au_to_arg32(1, "signal", ar->ar_arg_signum);

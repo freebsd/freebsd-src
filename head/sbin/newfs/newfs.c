@@ -77,39 +77,9 @@ __FBSDID("$FreeBSD$");
 #include <syslog.h>
 #include <unistd.h>
 
+#include <libutil.h>
+
 #include "newfs.h"
-
-/*
- * The following two constants set the default block and fragment sizes.
- * Both constants must be a power of 2 and meet the following constraints:
- *	MINBSIZE <= DESBLKSIZE <= MAXBSIZE
- *	sectorsize <= DESFRAGSIZE <= DESBLKSIZE
- *	DESBLKSIZE / DESFRAGSIZE <= 8
- */
-#define	DFL_FRAGSIZE	2048
-#define	DFL_BLKSIZE	16384
-
-/*
- * Cylinder groups may have up to MAXBLKSPERCG blocks. The actual
- * number used depends upon how much information can be stored
- * in a cylinder group map which must fit in a single file system
- * block. The default is to use as many as possible blocks per group.
- */
-#define	MAXBLKSPERCG	0x7fffffff	/* desired fs_fpg ("infinity") */
-
-/*
- * MAXBLKPG determines the maximum number of data blocks which are
- * placed in a single cylinder group. The default is one indirect
- * block worth of data blocks.
- */
-#define MAXBLKPG(bsize)	((bsize) / sizeof(ufs2_daddr_t))
-
-/*
- * Each file system has a number of inodes statically allocated.
- * We allocate one inode slot per NFPI fragments, expecting this
- * to be far more than we will ever need.
- */
-#define	NFPI		4
 
 int	Eflag;			/* Erase previous disk contents */
 int	Lflag;			/* add a volume label */
@@ -149,6 +119,7 @@ static void getfssize(intmax_t *, const char *p, intmax_t, intmax_t);
 static struct disklabel *getdisklabel(char *s);
 static void rewritelabel(char *s, struct disklabel *lp);
 static void usage(void);
+static int expand_number_int(const char *buf, int *num);
 
 ufs2_daddr_t part_ofs; /* partition offset in blocks, used with files */
 
@@ -161,7 +132,7 @@ main(int argc, char *argv[])
 	struct stat st;
 	char *cp, *special;
 	intmax_t reserved;
-	int ch, i;
+	int ch, i, rval;
 	off_t mediasize;
 	char part_name;		/* partition name, default to full disk */
 
@@ -201,7 +172,8 @@ main(int argc, char *argv[])
 			Rflag = 1;
 			break;
 		case 'S':
-			if ((sectorsize = atoi(optarg)) <= 0)
+			rval = expand_number_int(optarg, &sectorsize);
+			if (rval < 0 || sectorsize <= 0)
 				errx(1, "%s: bad sector size", optarg);
 			break;
 		case 'T':
@@ -214,12 +186,17 @@ main(int argc, char *argv[])
 			Xflag++;
 			break;
 		case 'a':
-			if ((maxcontig = atoi(optarg)) <= 0)
+			rval = expand_number_int(optarg, &maxcontig);
+			if (rval < 0 || maxcontig <= 0)
 				errx(1, "%s: bad maximum contiguous blocks",
 				    optarg);
 			break;
 		case 'b':
-			if ((bsize = atoi(optarg)) < MINBSIZE)
+			rval = expand_number_int(optarg, &bsize);
+			if (rval < 0)
+				 errx(1, "%s: bad block size",
+                                    optarg);
+			if (bsize < MINBSIZE)
 				errx(1, "%s: block size too small, min is %d",
 				    optarg, MINBSIZE);
 			if (bsize > MAXBSIZE)
@@ -227,33 +204,40 @@ main(int argc, char *argv[])
 				    optarg, MAXBSIZE);
 			break;
 		case 'c':
-			if ((maxblkspercg = atoi(optarg)) <= 0)
+			rval = expand_number_int(optarg, &maxblkspercg);
+			if (rval < 0 || maxblkspercg <= 0)
 				errx(1, "%s: bad blocks per cylinder group",
 				    optarg);
 			break;
 		case 'd':
-			if ((maxbsize = atoi(optarg)) < MINBSIZE)
+			rval = expand_number_int(optarg, &maxbsize);
+			if (rval < 0 || maxbsize < MINBSIZE)
 				errx(1, "%s: bad extent block size", optarg);
 			break;
 		case 'e':
-			if ((maxbpg = atoi(optarg)) <= 0)
+			rval = expand_number_int(optarg, &maxbpg);
+			if (rval < 0 || maxbpg <= 0)
 			  errx(1, "%s: bad blocks per file in a cylinder group",
 				    optarg);
 			break;
 		case 'f':
-			if ((fsize = atoi(optarg)) <= 0)
+			rval = expand_number_int(optarg, &fsize);
+			if (rval < 0 || fsize <= 0)
 				errx(1, "%s: bad fragment size", optarg);
 			break;
 		case 'g':
-			if ((avgfilesize = atoi(optarg)) <= 0)
+			rval = expand_number_int(optarg, &avgfilesize);
+			if (rval < 0 || avgfilesize <= 0)
 				errx(1, "%s: bad average file size", optarg);
 			break;
 		case 'h':
-			if ((avgfilesperdir = atoi(optarg)) <= 0)
+			rval = expand_number_int(optarg, &avgfilesperdir);
+			if (rval < 0 || avgfilesperdir <= 0)
 			       errx(1, "%s: bad average files per dir", optarg);
 			break;
 		case 'i':
-			if ((density = atoi(optarg)) <= 0)
+			rval = expand_number_int(optarg, &density);
+			if (rval < 0 || density <= 0)
 				errx(1, "%s: bad bytes per inode", optarg);
 			break;
 		case 'l':
@@ -387,25 +371,11 @@ main(int argc, char *argv[])
 		fsize = MAX(DFL_FRAGSIZE, sectorsize);
 	if (bsize <= 0)
 		bsize = MIN(DFL_BLKSIZE, 8 * fsize);
-	if (maxbsize == 0)
-		maxbsize = bsize;
-	/*
-	 * Maxcontig sets the default for the maximum number of blocks
-	 * that may be allocated sequentially. With file system clustering
-	 * it is possible to allocate contiguous blocks up to the maximum
-	 * transfer size permitted by the controller or buffering.
-	 */
-	if (maxcontig == 0)
-		maxcontig = MAX(1, MAXPHYS / bsize);
-	if (density == 0)
-		density = NFPI * fsize;
 	if (minfree < MINFREE && opt != FS_OPTSPACE) {
 		fprintf(stderr, "Warning: changing optimization to space ");
 		fprintf(stderr, "because minfree is less than %d%%\n", MINFREE);
 		opt = FS_OPTSPACE;
 	}
-	if (maxbpg == 0)
-		maxbpg = MAXBLKPG(bsize);
 	realsectorsize = sectorsize;
 	if (sectorsize != DEV_BSIZE) {		/* XXX */
 		int secperblk = sectorsize / DEV_BSIZE;
@@ -499,13 +469,13 @@ usage()
 	    getprogname(),
 	    " [device-type]");
 	fprintf(stderr, "where fsoptions are:\n");
-	fprintf(stderr, "\t-E Erase previuos disk content\n");
+	fprintf(stderr, "\t-E Erase previous disk content\n");
 	fprintf(stderr, "\t-J Enable journaling via gjournal\n");
 	fprintf(stderr, "\t-L volume label to add to superblock\n");
 	fprintf(stderr,
 	    "\t-N do not create file system, just print out parameters\n");
 	fprintf(stderr, "\t-O file system format: 1 => UFS1, 2 => UFS2\n");
-	fprintf(stderr, "\t-R regression test, supress random factors\n");
+	fprintf(stderr, "\t-R regression test, suppress random factors\n");
 	fprintf(stderr, "\t-S sector size\n");
 	fprintf(stderr, "\t-T disktype\n");
 	fprintf(stderr, "\t-U enable soft updates\n");
@@ -526,4 +496,21 @@ usage()
 	fprintf(stderr, "\t-r reserved sectors at the end of device\n");
 	fprintf(stderr, "\t-s file system size (sectors)\n");
 	exit(1);
+}
+
+static int
+expand_number_int(const char *buf, int *num)
+{
+	int64_t num64;
+	int rval;
+
+	rval = expand_number(buf, &num64);
+	if (rval < 0)
+		return (rval);
+	if (num64 > INT_MAX || num64 < INT_MIN) {
+		errno = ERANGE;
+		return (-1);
+	}
+	*num = (int)num64;
+	return (0);
 }

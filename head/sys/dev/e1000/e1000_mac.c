@@ -1,6 +1,6 @@
 /******************************************************************************
 
-  Copyright (c) 2001-2009, Intel Corporation 
+  Copyright (c) 2001-2010, Intel Corporation 
   All rights reserved.
   
   Redistribution and use in source and binary forms, with or without 
@@ -78,7 +78,6 @@ void e1000_init_mac_ops_generic(struct e1000_hw *hw)
 	mac->ops.update_mc_addr_list = e1000_null_update_mc;
 	mac->ops.clear_vfta = e1000_null_mac_generic;
 	mac->ops.write_vfta = e1000_null_write_vfta;
-	mac->ops.mta_set = e1000_null_mta_set;
 	mac->ops.rar_set = e1000_rar_set_generic;
 	mac->ops.validate_mdi_setting = e1000_validate_mdi_setting_generic;
 }
@@ -140,16 +139,6 @@ void e1000_null_update_mc(struct e1000_hw *hw, u8 *h, u32 a)
 void e1000_null_write_vfta(struct e1000_hw *hw, u32 a, u32 b)
 {
 	DEBUGFUNC("e1000_null_write_vfta");
-	return;
-}
-
-/**
- *  e1000_null_set_mta - No-op function, return void
- *  @hw: pointer to the HW structure
- **/
-void e1000_null_mta_set(struct e1000_hw *hw, u32 a)
-{
-	DEBUGFUNC("e1000_null_mta_set");
 	return;
 }
 
@@ -482,42 +471,6 @@ void e1000_rar_set_generic(struct e1000_hw *hw, u8 *addr, u32 index)
 }
 
 /**
- *  e1000_mta_set_generic - Set multicast filter table address
- *  @hw: pointer to the HW structure
- *  @hash_value: determines the MTA register and bit to set
- *
- *  The multicast table address is a register array of 32-bit registers.
- *  The hash_value is used to determine what register the bit is in, the
- *  current value is read, the new bit is OR'd in and the new value is
- *  written back into the register.
- **/
-void e1000_mta_set_generic(struct e1000_hw *hw, u32 hash_value)
-{
-	u32 hash_bit, hash_reg, mta;
-
-	DEBUGFUNC("e1000_mta_set_generic");
-	/*
-	 * The MTA is a register array of 32-bit registers. It is
-	 * treated like an array of (32*mta_reg_count) bits.  We want to
-	 * set bit BitArray[hash_value]. So we figure out what register
-	 * the bit is in, read it, OR in the new bit, then write
-	 * back the new value.  The (hw->mac.mta_reg_count - 1) serves as a
-	 * mask to bits 31:5 of the hash value which gives us the
-	 * register we're modifying.  The hash bit within that register
-	 * is determined by the lower 5 bits of the hash value.
-	 */
-	hash_reg = (hash_value >> 5) & (hw->mac.mta_reg_count - 1);
-	hash_bit = hash_value & 0x1F;
-
-	mta = E1000_READ_REG_ARRAY(hw, E1000_MTA, hash_reg);
-
-	mta |= (1 << hash_bit);
-
-	E1000_WRITE_REG_ARRAY(hw, E1000_MTA, hash_reg, mta);
-	E1000_WRITE_FLUSH(hw);
-}
-
-/**
  *  e1000_update_mc_addr_list_generic - Update Multicast addresses
  *  @hw: pointer to the HW structure
  *  @mc_addr_list: array of multicast addresses to program
@@ -560,8 +513,7 @@ void e1000_update_mc_addr_list_generic(struct e1000_hw *hw,
  *  @mc_addr: pointer to a multicast address
  *
  *  Generates a multicast address hash value which is used to determine
- *  the multicast filter table array address and new table value.  See
- *  e1000_mta_set_generic()
+ *  the multicast filter table array address and new table value.
  **/
 u32 e1000_hash_mc_addr_generic(struct e1000_hw *hw, u8 *mc_addr)
 {
@@ -774,7 +726,7 @@ s32 e1000_check_for_copper_link_generic(struct e1000_hw *hw)
 	 * of MAC speed/duplex configuration.  So we only need to
 	 * configure Collision Distance in the MAC.
 	 */
-	e1000_config_collision_dist_generic(hw);
+	mac->ops.config_collision_dist(hw);
 
 	/*
 	 * Configure Flow Control now that Auto-Neg has completed.
@@ -1047,6 +999,7 @@ out:
  **/
 s32 e1000_setup_fiber_serdes_link_generic(struct e1000_hw *hw)
 {
+	struct e1000_mac_info *mac = &hw->mac;
 	u32 ctrl;
 	s32 ret_val = E1000_SUCCESS;
 
@@ -1057,7 +1010,7 @@ s32 e1000_setup_fiber_serdes_link_generic(struct e1000_hw *hw)
 	/* Take the link out of reset */
 	ctrl &= ~E1000_CTRL_LRST;
 
-	e1000_config_collision_dist_generic(hw);
+	mac->ops.config_collision_dist(hw);
 
 	ret_val = e1000_commit_fc_settings_generic(hw);
 	if (ret_val)
@@ -1097,8 +1050,7 @@ out:
  *  @hw: pointer to the HW structure
  *
  *  Configures the collision distance to the default value and is used
- *  during link setup. Currently no func pointer exists and all
- *  implementations are handled in the generic version of this function.
+ *  during link setup.
  **/
 void e1000_config_collision_dist_generic(struct e1000_hw *hw)
 {
@@ -1152,7 +1104,7 @@ s32 e1000_poll_fiber_serdes_link_generic(struct e1000_hw *hw)
 		 * link up if we detect a signal. This will allow us to
 		 * communicate with non-autonegotiating link partners.
 		 */
-		ret_val = hw->mac.ops.check_for_link(hw);
+		ret_val = mac->ops.check_for_link(hw);
 		if (ret_val) {
 			DEBUGOUT("Error while checking for link\n");
 			goto out;
@@ -1209,7 +1161,7 @@ s32 e1000_commit_fc_settings_generic(struct e1000_hw *hw)
 		 * Rx Flow control is enabled and Tx Flow control is disabled
 		 * by a software over-ride. Since there really isn't a way to
 		 * advertise that we are capable of Rx Pause ONLY, we will
-		 * advertise that we support both symmetric and asymmetric RX
+		 * advertise that we support both symmetric and asymmetric Rx
 		 * PAUSE.  Later, we will disable the adapter's ability to send
 		 * PAUSE frames.
 		 */
@@ -1253,7 +1205,6 @@ out:
  **/
 s32 e1000_set_fc_watermarks_generic(struct e1000_hw *hw)
 {
-	s32 ret_val = E1000_SUCCESS;
 	u32 fcrtl = 0, fcrth = 0;
 
 	DEBUGFUNC("e1000_set_fc_watermarks_generic");
@@ -1280,7 +1231,7 @@ s32 e1000_set_fc_watermarks_generic(struct e1000_hw *hw)
 	E1000_WRITE_REG(hw, E1000_FCRTL, fcrtl);
 	E1000_WRITE_REG(hw, E1000_FCRTH, fcrth);
 
-	return ret_val;
+	return E1000_SUCCESS;
 }
 
 /**
@@ -1519,7 +1470,7 @@ s32 e1000_config_fc_after_link_up_generic(struct e1000_hw *hw)
 			} else {
 				hw->fc.current_mode = e1000_fc_rx_pause;
 				DEBUGOUT("Flow Control = "
-				         "RX PAUSE frames only.\r\n");
+				         "Rx PAUSE frames only.\r\n");
 			}
 		}
 		/*
@@ -1535,7 +1486,7 @@ s32 e1000_config_fc_after_link_up_generic(struct e1000_hw *hw)
 		          (mii_nway_lp_ability_reg & NWAY_LPAR_PAUSE) &&
 		          (mii_nway_lp_ability_reg & NWAY_LPAR_ASM_DIR)) {
 			hw->fc.current_mode = e1000_fc_tx_pause;
-			DEBUGOUT("Flow Control = TX PAUSE frames only.\r\n");
+			DEBUGOUT("Flow Control = Tx PAUSE frames only.\r\n");
 		}
 		/*
 		 * For transmitting PAUSE frames ONLY.
@@ -1550,7 +1501,7 @@ s32 e1000_config_fc_after_link_up_generic(struct e1000_hw *hw)
 		         !(mii_nway_lp_ability_reg & NWAY_LPAR_PAUSE) &&
 		         (mii_nway_lp_ability_reg & NWAY_LPAR_ASM_DIR)) {
 			hw->fc.current_mode = e1000_fc_rx_pause;
-			DEBUGOUT("Flow Control = RX PAUSE frames only.\r\n");
+			DEBUGOUT("Flow Control = Rx PAUSE frames only.\r\n");
 		} else {
 			/*
 			 * Per the IEEE spec, at this point flow control
@@ -1892,19 +1843,10 @@ out:
  **/
 s32 e1000_cleanup_led_generic(struct e1000_hw *hw)
 {
-	s32 ret_val = E1000_SUCCESS;
-
 	DEBUGFUNC("e1000_cleanup_led_generic");
 
-	if (hw->mac.ops.cleanup_led != e1000_cleanup_led_generic) {
-		ret_val = -E1000_ERR_CONFIG;
-		goto out;
-	}
-
 	E1000_WRITE_REG(hw, E1000_LEDCTL, hw->mac.ledctl_default);
-
-out:
-	return ret_val;
+	return E1000_SUCCESS;
 }
 
 /**
@@ -2063,7 +2005,6 @@ s32 e1000_disable_pcie_master_generic(struct e1000_hw *hw)
 	if (!timeout) {
 		DEBUGOUT("Master requests are pending.\n");
 		ret_val = -E1000_ERR_MASTER_REQUESTS_PENDING;
-		goto out;
 	}
 
 out:

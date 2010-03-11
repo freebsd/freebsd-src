@@ -15,13 +15,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the NetBSD
- *	Foundation, Inc. and its contributors.
- * 4. Neither the name of The NetBSD Foundation nor the names of its
- *    contributors may be used to endorse or promote products derived
- *    from this software without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
  * ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
@@ -55,8 +48,9 @@ __FBSDID("$FreeBSD$");
 #include <limits.h>
 #include <netdb.h>
 #include <pwd.h>
-#include <stdio.h>
 #include <stdarg.h>
+#include <stdint.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
@@ -583,7 +577,9 @@ utmpxprint(const struct utmpx *ut)
 	if (ut->ut_type == EMPTY)
 		return;
 	
-	printf("[%.24s] ", ctime(&ut->ut_tv.tv_sec));
+	printf("[%jd.%06u -- %.24s] ",
+	    (intmax_t)ut->ut_tv.tv_sec, (unsigned int)ut->ut_tv.tv_usec,
+	    ctime(&ut->ut_tv.tv_sec));
 
 	switch (ut->ut_type) {
 	case BOOT_TIME:

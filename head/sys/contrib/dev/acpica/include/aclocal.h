@@ -8,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2009, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2010, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -500,6 +500,7 @@ typedef struct acpi_predefined_data
 {
     char                        *Pathname;
     const ACPI_PREDEFINED_INFO  *Predefined;
+    union acpi_operand_object   *ParentPackage;
     UINT32                      Flags;
     UINT8                       NodeFlags;
 
@@ -852,8 +853,7 @@ typedef struct acpi_opcode_info
 
 typedef union acpi_parse_value
 {
-    ACPI_INTEGER                    Integer;        /* Integer constant (Up to 64 bits) */
-    UINT64_STRUCT                   Integer64;      /* Structure overlay for 2 32-bit Dwords */
+    UINT64                          Integer;        /* Integer constant (Up to 64 bits) */
     UINT32                          Size;           /* bytelist or field size */
     char                            *String;        /* NULL terminated string */
     UINT8                           *Buffer;        /* buffer or string */

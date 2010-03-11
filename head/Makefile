@@ -15,6 +15,7 @@
 # reinstallkernel     - Reinstall the kernel and the kernel-modules.
 # reinstallkernel.debug
 # kernel              - buildkernel + installkernel.
+# kernel-toolchain    - Builds the subset of world necessary to build a kernel
 # doxygen             - Build API documentation of the kernel, needs doxygen.
 # update              - Convenient way to update your source tree (cvs).
 # check-old           - List obsolete directories/files/libraries.

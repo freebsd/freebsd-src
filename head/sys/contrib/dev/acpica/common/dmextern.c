@@ -8,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2009, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2010, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -374,7 +374,7 @@ AcpiDmAddToExternalList (
                 (NextExternal->Value != Value))
             {
                 ACPI_ERROR ((AE_INFO,
-                    "Argument count mismatch for method %s %d %d",
+                    "Argument count mismatch for method %s %u %u",
                     NextExternal->Path, NextExternal->Value, Value));
             }
 

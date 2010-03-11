@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998-2007 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 1998-2009 Sendmail, Inc. and its suppliers.
  *	All rights reserved.
  * Copyright (c) 1983, 1995-1997 Eric P. Allman.  All rights reserved.
  * Copyright (c) 1988, 1993
@@ -14,7 +14,7 @@
 #include <sendmail.h>
 #include <sm/sem.h>
 
-SM_RCSID("@(#)$Id: queue.c,v 8.977 2008/02/15 23:19:58 ca Exp $")
+SM_RCSID("@(#)$Id: queue.c,v 8.987 2009/12/18 17:08:01 ca Exp $")
 
 #include <dirent.h>
 
@@ -134,7 +134,7 @@ static const char EmptyString[] = "";
 
 static void	grow_wlist __P((int, int));
 static int	multiqueue_cache __P((char *, int, QUEUEGRP *, int, unsigned int *));
-static int	gatherq __P((int, int, bool, bool *, bool *));
+static int	gatherq __P((int, int, bool, bool *, bool *, int *));
 static int	sortq __P((int));
 static void	printctladdr __P((ADDRESS *, SM_FILE_T *));
 static bool	readqf __P((ENVELOPE *, bool));
@@ -2106,7 +2106,7 @@ run_work_group(wgrp, flags)
 
 	for (i = 0; i < Queue[qgrp]->qg_numqueues; i++)
 	{
-		h = gatherq(qgrp, qdir, false, &full, &more);
+		(void) gatherq(qgrp, qdir, false, &full, &more, &h);
 #if SM_CONF_SHM
 		if (ShmId != SM_SHM_NO_ID)
 			QSHM_ENTRIES(Queue[qgrp]->qg_qpaths[qdir].qp_idx) = h;
@@ -2450,6 +2450,7 @@ runqueueevent(ignore)
 **		full -- (optional) to be set 'true' if WorkList is full
 **		more -- (optional) to be set 'true' if there are still more
 **			messages in this queue not added to WorkList
+**		pnentries -- (optional) total nuber of entries in queue
 **
 **	Returns:
 **		The number of request in the queue (not necessarily
@@ -2472,25 +2473,26 @@ static int	WorkListSize = 0;	/* current max size of WorkList */
 static int	WorkListCount = 0;	/* # of work items in WorkList */
 
 static int
-gatherq(qgrp, qdir, doall, full, more)
+gatherq(qgrp, qdir, doall, full, more, pnentries)
 	int qgrp;
 	int qdir;
 	bool doall;
 	bool *full;
 	bool *more;
+	int *pnentries;
 {
 	register struct dirent *d;
 	register WORK *w;
 	register char *p;
 	DIR *f;
-	int i, num_ent;
-	int wn;
+	int i, num_ent, wn, nentries;
 	QUEUE_CHAR *check;
 	char qd[MAXPATHLEN];
 	char qf[MAXPATHLEN];
 
 	wn = WorkListCount - 1;
 	num_ent = 0;
+	nentries = 0;
 	if (qdir == NOQDIR)
 		(void) sm_strlcpy(qd, ".", sizeof(qd));
 	else
@@ -2600,6 +2602,7 @@ gatherq(qgrp, qdir, doall, full, more)
 			continue;
 		}
 
+		++nentries;
 		check = QueueLimitId;
 		while (check != NULL)
 		{
@@ -2855,6 +2858,21 @@ gatherq(qgrp, qdir, doall, full, more)
 				break;
 
 			  case 'K':
+#if _FFR_EXPDELAY
+				if (MaxQueueAge > 0)
+				{
+					time_t lasttry, delay;    
+
+					lasttry = (time_t) atol(&lbuf[1]);
+					delay = MIN(lasttry - w->w_ctime,
+						    MaxQueueAge);
+					age = curtime() - lasttry;
+					if (age < delay)
+						w->w_tooyoung = true;
+					break;
+				}
+#endif /* _FFR_EXPDELAY */
+
 				age = curtime() - (time_t) atol(&lbuf[1]);
 				if (age >= 0 && MinQueueAge > 0 &&
 				    age < MinQueueAge)
@@ -2900,6 +2918,8 @@ gatherq(qgrp, qdir, doall, full, more)
 		*full = (wn >= MaxQueueRun && MaxQueueRun > 0) ||
 			(WorkList == NULL && wn > 0);
 
+	if (pnentries != NULL)
+		*pnentries = nentries;
 	return i;
 }
 /*
@@ -3331,8 +3351,8 @@ workcmpf4(a, b)
 **  WORKCMPF5 -- compare based on assigned random number
 **
 **	Parameters:
-**		a -- the first argument (ignored).
-**		b -- the second argument (ignored).
+**		a -- the first argument.
+**		b -- the second argument.
 **
 **	Returns:
 **		randomly 1/-1
@@ -3682,7 +3702,7 @@ dowork(qgrp, qdir, id, forkflag, requeueflag, e)
 			finis(true, true, ExitStat);
 		else
 		{
-			dropenvelope(e, true, false);
+			(void) dropenvelope(e, true, false);
 			sm_rpool_free(rpool);
 			e->e_rpool = NULL;
 		}
@@ -3859,7 +3879,7 @@ doworklist(el, forkflag, requeueflag)
 
 			/* do the delivery */
 			sendall(&e, SM_DELIVER);
-			dropenvelope(&e, true, false);
+			(void) dropenvelope(&e, true, false);
 		}
 		else
 		{
@@ -4834,7 +4854,7 @@ print_single_queue(qgrp, qdir)
 	**  Read and order the queue.
 	*/
 
-	nrequests = gatherq(qgrp, qdir, true, NULL, NULL);
+	nrequests = gatherq(qgrp, qdir, true, NULL, NULL, NULL);
 	(void) sortq(Queue[qgrp]->qg_maxlist);
 
 	/*
@@ -5332,31 +5352,31 @@ static const char QueueIdChars[] = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefgh
 */
 
 # define queuenextid() CurrentPid
-
+#define QIC_LEN_SQR	(QIC_LEN * QIC_LEN)
 
 void
 assign_queueid(e)
 	register ENVELOPE *e;
 {
 	pid_t pid = queuenextid();
-	static int cX = 0;
-	static long random_offset;
+	static unsigned int cX = 0;
+	static unsigned int random_offset;
 	struct tm *tm;
 	char idbuf[MAXQFNAME - 2];
-	int seq;
+	unsigned int seq;
 
 	if (e->e_id != NULL)
 		return;
 
 	/* see if we need to get a new base time/pid */
-	if (cX >= QIC_LEN * QIC_LEN || LastQueueTime == 0 ||
-	    LastQueuePid != pid)
+	if (cX >= QIC_LEN_SQR || LastQueueTime == 0 || LastQueuePid != pid)
 	{
 		time_t then = LastQueueTime;
 
 		/* if the first time through, pick a random offset */
 		if (LastQueueTime == 0)
-			random_offset = get_random();
+			random_offset = ((unsigned int)get_random())
+					% QIC_LEN_SQR;
 
 		while ((LastQueueTime = curtime()) == then &&
 		       LastQueuePid == pid)
@@ -5368,16 +5388,16 @@ assign_queueid(e)
 	}
 
 	/*
-	**  Generate a new sequence number between 0 and QIC_LEN*QIC_LEN-1.
-	**  This lets us generate up to QIC_LEN*QIC_LEN unique queue ids
+	**  Generate a new sequence number between 0 and QIC_LEN_SQR-1.
+	**  This lets us generate up to QIC_LEN_SQR unique queue ids
 	**  per second, per process.  With envelope splitting,
 	**  a single message can consume many queue ids.
 	*/
 
-	seq = (int)((cX + random_offset) % (QIC_LEN * QIC_LEN));
+	seq = (cX + random_offset) % QIC_LEN_SQR;
 	++cX;
 	if (tTd(7, 50))
-		sm_dprintf("assign_queueid: random_offset = %ld (%d)\n",
+		sm_dprintf("assign_queueid: random_offset=%u (%u)\n",
 			random_offset, seq);
 
 	tm = gmtime(&LastQueueTime);
@@ -5430,6 +5450,7 @@ sync_queue_time()
 {
 #if FAST_PID_RECYCLE
 	if (OpMode != MD_TEST &&
+	    OpMode != MD_CHECKCONFIG &&
 	    OpMode != MD_VERIFY &&
 	    LastQueueTime > 0 &&
 	    LastQueuePid == CurrentPid &&
@@ -5740,6 +5761,10 @@ pickqdir(qg, fsize, e)
 	else
 		qdir = get_rand_mod(qg->qg_numqueues);
 
+#if _FFR_TESTS
+	if (tTd(4, 101))
+		return NOQDIR;
+#endif /* _FFR_TESTS */
 	if (MinBlocksFree <= 0 && fsize <= 0)
 		return qdir;
 
@@ -6599,6 +6624,16 @@ init_sem(owner)
 			"func=init_sem, sem_key=%ld, sm_sem_start=%d, error=%s",
 			(long) SemKey, SemId, sm_errstring(-SemId));
 		return;
+	}
+	if (owner && RunAsUid != 0)
+	{
+		int r;
+
+		r = sm_semsetowner(SemId, RunAsUid, RunAsGid, 0660);
+		if (r != 0)
+			sm_syslog(LOG_ERR, NOQID,
+				"key=%ld, sm_semsetowner=%d, RunAsUid=%d, RunAsGid=%d",
+				(long) SemKey, r, RunAsUid, RunAsGid);
 	}
 #endif /* SM_CONF_SEM */
 #endif /* _FFR_USE_SEM_LOCKING */
@@ -8826,7 +8861,7 @@ quarantine_queue(reason, qgrplimit)
 			if (StopRequest)
 				stop_sendmail();
 
-			nrequests = gatherq(qgrp, qdir, true, NULL, NULL);
+			nrequests = gatherq(qgrp, qdir, true, NULL, NULL, NULL);
 
 			/* first see if there is anything */
 			if (nrequests <= 0)

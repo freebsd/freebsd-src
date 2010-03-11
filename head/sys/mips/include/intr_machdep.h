@@ -30,21 +30,7 @@
 #define	_MACHINE_INTR_MACHDEP_H_
 
 #ifdef TARGET_XLR_XLS
-/*
- * XLR/XLS uses its own intr_machdep.c and has
- * a different number of interupts. This probably
- * should be placed somewhere else.
- */
-
-struct mips_intrhand {
-        struct  intr_event *mih_event;
-        driver_intr_t      *mih_disable;
-        volatile long       *cntp;  /* interrupt counter */
-};
-
-extern struct mips_intrhand mips_intr_handlers[];
 #define XLR_MAX_INTR 64 
-
 #else
 #define NHARD_IRQS	6
 #define NSOFT_IRQS	2
@@ -58,6 +44,16 @@ void cpu_establish_hardintr(const char *, driver_filter_t *, driver_intr_t *,
 void cpu_establish_softintr(const char *, driver_filter_t *, void (*)(void*), 
     void *, int, int, void **);
 void cpu_intr(struct trapframe *);
+
+/*
+ * Allow a platform to override the default hard interrupt mask and unmask
+ * functions. The 'arg' can be cast safely to an 'int' and holds the mips
+ * hard interrupt number to mask or unmask.
+ */
+typedef void (*cpu_intr_mask_t)(void *arg);
+typedef void (*cpu_intr_unmask_t)(void *arg);
+void cpu_set_hardintr_mask_func(cpu_intr_mask_t func);
+void cpu_set_hardintr_unmask_func(cpu_intr_unmask_t func);
 
 /*
  * Opaque datatype that represents intr counter

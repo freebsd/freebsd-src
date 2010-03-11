@@ -65,7 +65,6 @@ static const char rcsid[] =
 #include <syslog.h>
 #include <time.h>
 #include <ttyent.h>
-#include <ulog.h>
 #include <unistd.h>
 #include <utmpx.h>
 #include <sys/reboot.h>

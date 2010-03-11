@@ -47,19 +47,7 @@
 .Ft int
 .Fn isatty "int fd"
 .Sh DESCRIPTION
-These functions operate on the system file descriptors for terminal
-type devices.
-These descriptors are not related to the standard
-.Tn I/O
-.Dv FILE
-typedef, but refer to the special device files found in
-.Pa /dev
-and for which an entry exists
-in the initialization file
-.Pa /etc/ttys
-or pseudo-terminals.
-(See
-.Xr ttys 5 . )
+These functions operate on file descriptors for terminal type devices.
 .Pp
 The
 .Fn isatty
@@ -100,11 +88,6 @@ The
 .Fn ttyname_r
 function returns 0 if successful.
 Otherwise an error number is returned.
-.Sh FILES
-.Bl -tag -width ".Pa /etc/ttys" -compact
-.It Pa /dev/\(**
-.It Pa /etc/ttys
-.El
 .Sh ERRORS
 The
 .Fn ttyname_r
@@ -122,8 +105,10 @@ argument
 is smaller than the length of the string to be returned.
 .El
 .Sh SEE ALSO
-.Xr ioctl 2 ,
-.Xr ttys 5
+.Xr fdevname 3 ,
+.Xr ptsname 3 ,
+.Xr tcgetattr 3 ,
+.Xr tty 4
 .Sh HISTORY
 The
 .Fn isatty

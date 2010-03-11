@@ -1,7 +1,108 @@
 ----------------------------------------
-14 December 2009. Summary of changes for version 20091214:
+04 March 2010. Summary of changes for version 20100304:
 
-This release is available at www.acpica.org/downloads
+1) ACPI CA Core Subsystem:
+
+Fixed a possible problem with the AML Mutex handling function 
+AcpiExReleaseMutex where the function could fault under the very rare 
+condition when the interpreter has blocked, the interpreter lock is released, 
+the interpreter is then reentered via the same thread, and attempts to 
+acquire an AML mutex that was previously acquired. FreeBSD report 140979. Lin 
+Ming.
+
+Implemented additional configuration support for the AML "Debug Object". 
+Output from the debug object can now be enabled via a global variable, 
+AcpiGbl_EnableAmlDebugObject. This will assist with remote machine debugging. 
+This debug output is now available in the release version of ACPICA instead 
+of just the debug version. Also, the entire debug output module can now be 
+configured out of the ACPICA build if desired. One new file added, 
+executer/exdebug.c. Lin Ming, Bob Moore.
+
+Added header support for the ACPI MCHI table (Management Controller Host 
+Interface Table). This table was added in ACPI 4.0, but the defining document 
+has only recently become available.
+
+Standardized output of integer values for ACPICA warnings/errors. Always use 
+0x prefix for hex output, always use %u for unsigned integer decimal output. 
+Affects ACPI_INFO, ACPI_ERROR, ACPI_EXCEPTION, and ACPI_WARNING (about 400 
+invocations.) These invocations were converted from the original 
+ACPI_DEBUG_PRINT invocations and were not consistent. ACPICA BZ 835.
+
+Example Code and Data Size: These are the sizes for the OS-independent 
+acpica.lib produced by the Microsoft Visual C++ 6.0 32-bit compiler. The 
+debug version of the code includes the debug output trace mechanism and has a 
+much larger code and data size.
+
+  Previous Release:
+    Non-Debug Version:  87.1K Code, 18.0K Data, 105.1K Total
+    Debug Version:     163.5K Code, 50.9K Data, 214.4K Total
+  Current Release:
+    Non-Debug Version:  87.5K Code, 18.4K Data, 105.9K Total
+    Debug Version:     163.4K Code, 51.1K Data, 214.5K Total
+
+2) iASL Compiler/Disassembler and Tools:
+
+iASL: Implemented typechecking support for static (non-control method) 
+predefined named objects that are declared with the Name() operator. For 
+example, the type of this object is now validated to be of type Integer: 
+Name(_BBN, 1). This change migrates the compiler to using the core predefined 
+name table instead of maintaining a local version. Added a new file, 
+aslpredef.c. ACPICA BZ 832.
+
+Disassembler: Added support for the ACPI 4.0 MCHI table.
+
+----------------------------------------
+21 January 2010. Summary of changes for version 20100121:
+
+1) ACPI CA Core Subsystem:
+
+Added the 2010 copyright to all module headers and signons. This affects 
+virtually every file in the ACPICA core subsystem, the iASL compiler, the 
+tools/utilities, and the test suites.
+
+Implemented a change to the AcpiGetDevices interface to eliminate unnecessary 
+invocations of the _STA method. In the case where a specific _HID is 
+requested, do not run _STA until a _HID match is found. This eliminates 
+potentially dozens of _STA calls during a search for a particular device/HID, 
+which in turn can improve boot times. ACPICA BZ 828. Lin Ming.
+
+Implemented an additional repair for predefined method return values. Attempt 
+to repair unexpected NULL elements within returned Package objects. Create an 
+Integer of value zero, a NULL String, or a zero-length Buffer as appropriate. 
+ACPICA BZ 818. Lin Ming, Bob Moore.
+
+Removed the obsolete ACPI_INTEGER data type. This type was introduced as the 
+code was migrated from ACPI 1.0 (with 32-bit AML integers) to ACPI 2.0 (with 
+64-bit AML integers). It is now obsolete and this change removes it from the 
+ACPICA code base, replaced by UINT64. The original typedef has been retained 
+for now for compatibility with existing device driver code. ACPICA BZ 824.
+
+Removed the unused UINT32_STRUCT type, and the obsolete Integer64 field in 
+the parse tree object.
+
+Added additional warning options for the gcc-4 generation. Updated the source 
+accordingly. This includes some code restructuring to eliminate unreachable 
+code, elimination of some gotos, elimination of unused return values, some 
+additional casting, and removal of redundant declarations.
+
+Example Code and Data Size: These are the sizes for the OS-independent 
+acpica.lib produced by the Microsoft Visual C++ 6.0 32-bit compiler. The 
+debug version of the code includes the debug output trace mechanism and has a 
+much larger code and data size.
+
+  Previous Release:
+    Non-Debug Version:  87.0K Code, 18.0K Data, 105.0K Total
+    Debug Version:     163.4K Code, 50.8K Data, 214.2K Total
+  Current Release:
+    Non-Debug Version:  87.1K Code, 18.0K Data, 105.1K Total
+    Debug Version:     163.5K Code, 50.9K Data, 214.4K Total
+
+2) iASL Compiler/Disassembler and Tools:
+
+No functional changes for this release.
+
+----------------------------------------
+14 December 2009. Summary of changes for version 20091214:
 
 1) ACPI CA Core Subsystem:
 
@@ -67,8 +168,6 @@ depend on a specific initial value for a region or field.
 
 ----------------------------------------
 12 November 2009. Summary of changes for version 20091112:
-
-This release is available at www.acpica.org/downloads
 
 1) ACPI CA Core Subsystem:
 
@@ -140,8 +239,6 @@ level set very high.
 
 ----------------------------------------
 13 October 2009. Summary of changes for version 20091013:
-
-This release is available at www.acpica.org/downloads
 
 1) ACPI CA Core Subsystem:
 
@@ -1037,9 +1134,6 @@ header.
 
 29 July 2008. Summary of changes for version 20080729:
 
-This release is available at http://acpica.org/downloads
-Direct git access via http://www.acpica.org/repos/acpica.git
-
 1) ACPI CA Core Subsystem:
 
 Fix a possible deadlock in the GPE dispatch. Remove call to 
@@ -1128,9 +1222,6 @@ completion message. Previously, no message was displayed in this case.
 
 ----------------------------------------
 01 July 2008. Summary of changes for version 20080701:
-
-This release is available at http://acpica.org/downloads
-Direct git access via http://www.acpica.org/repos/acpica.git
 
 0) Git source tree / acpica.org
 

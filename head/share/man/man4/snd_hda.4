@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 12, 2010
+.Dd January 22, 2010
 .Dt SND_HDA 4
 .Os
 .Sh NAME
@@ -459,6 +459,42 @@ mic and line-in) and headset (headphones and mic) at front connectors.
 .Li pcm1
 for internal speaker playback.
 On headphones connection rear connectors will be muted.
+.Sh MIXER CONTROLS
+Depending on codec configuration, these controls and signal sources could be
+reported to
+.Xr sound 4 :
+.Pp
+.Bl -tag -width ".Va speaker" -offset indent
+.It Va vol
+overall output level (volume)
+.It Va rec
+overall recording level
+.It Va igain
+input-to-output monitoring loopback level
+.It Va ogain
+external amplifier control
+.It Va pcm
+PCM playback
+.It Va mix
+input mix
+.It Va mic
+first external or second internal microphone input
+.It Va monitor
+first internal or second external microphone input
+.It Va line , Va line1 , Va line2, Va line3
+analog (line) inputs
+.It Va dig1 , Va dig2 , Va dig3
+digital (S/PDIF, HDMI or DisplayPort) inputs
+.It Va cd
+CD input
+.It Va speaker
+PC speaker input
+.It Va phin , Va phout , Va radio . Va video
+other random inputs
+.El
+.Pp
+Controls have different precision. Some could be just an on/off triggers.
+Most of controls use logarithmic scale.
 .Sh HARDWARE
 The
 .Nm

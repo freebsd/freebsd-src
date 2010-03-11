@@ -40,6 +40,7 @@ __FBSDID("$FreeBSD$");
 #include "opt_compat.h"
 #include "opt_kdtrace.h"
 #include "opt_ktrace.h"
+#include "opt_core.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -49,6 +50,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/condvar.h>
 #include <sys/event.h>
 #include <sys/fcntl.h>
+#include <sys/imgact.h>
 #include <sys/kernel.h>
 #include <sys/ktr.h>
 #include <sys/ktrace.h>
@@ -78,6 +80,8 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_extern.h>
 #include <vm/uma.h>
 
+#include <sys/jail.h>
+
 #include <machine/cpu.h>
 
 #include <security/audit/audit.h>
@@ -98,7 +102,7 @@ SDT_PROBE_ARGTYPE(proc, kernel, , signal_discard, 1, "struct proc *");
 SDT_PROBE_ARGTYPE(proc, kernel, , signal_discard, 2, "int");
 
 static int	coredump(struct thread *);
-static char	*expand_name(const char *, uid_t, pid_t);
+static char	*expand_name(const char *, uid_t, pid_t, struct thread *, int);
 static int	killpg1(struct thread *td, int sig, int pgid, int all,
 		    ksiginfo_t *ksi);
 static int	issignal(struct thread *td, int stop_allowed);
@@ -279,7 +283,7 @@ sigqueue_init(sigqueue_t *list, struct proc *p)
  * 	0	-	signal not found
  *	others	-	signal number
  */ 
-int
+static int
 sigqueue_get(sigqueue_t *sq, int signo, ksiginfo_t *si)
 {
 	struct proc *p = sq->sq_proc;
@@ -341,7 +345,7 @@ sigqueue_take(ksiginfo_t *ksi)
 		SIGDELSET(sq->sq_signals, ksi->ksi_signo);
 }
 
-int
+static int
 sigqueue_add(sigqueue_t *sq, int signo, ksiginfo_t *si)
 {
 	struct proc *p = sq->sq_proc;
@@ -357,7 +361,10 @@ sigqueue_add(sigqueue_t *sq, int signo, ksiginfo_t *si)
 
 	/* directly insert the ksi, don't copy it */
 	if (si->ksi_flags & KSI_INS) {
-		TAILQ_INSERT_TAIL(&sq->sq_list, si, ksi_link);
+		if (si->ksi_flags & KSI_HEAD)
+			TAILQ_INSERT_HEAD(&sq->sq_list, si, ksi_link);
+		else
+			TAILQ_INSERT_TAIL(&sq->sq_list, si, ksi_link);
 		si->ksi_sigq = sq;
 		goto out_set_bit;
 	}
@@ -378,7 +385,10 @@ sigqueue_add(sigqueue_t *sq, int signo, ksiginfo_t *si)
 			p->p_pendingcnt++;
 		ksiginfo_copy(si, ksi);
 		ksi->ksi_signo = signo;
-		TAILQ_INSERT_TAIL(&sq->sq_list, ksi, ksi_link);
+		if (si->ksi_flags & KSI_HEAD)
+			TAILQ_INSERT_HEAD(&sq->sq_list, ksi, ksi_link);
+		else
+			TAILQ_INSERT_TAIL(&sq->sq_list, ksi, ksi_link);
 		ksi->ksi_sigq = sq;
 	}
 
@@ -420,7 +430,7 @@ sigqueue_flush(sigqueue_t *sq)
 	SIGEMPTYSET(sq->sq_kill);
 }
 
-void
+static void
 sigqueue_collect_set(sigqueue_t *sq, sigset_t *set)
 {
 	ksiginfo_t *ksi;
@@ -432,7 +442,7 @@ sigqueue_collect_set(sigqueue_t *sq, sigset_t *set)
 	SIGSETOR(*set, sq->sq_kill);
 }
 
-void
+static void
 sigqueue_move_set(sigqueue_t *src, sigqueue_t *dst, sigset_t *setp)
 {
 	sigset_t tmp, set;
@@ -476,7 +486,7 @@ sigqueue_move_set(sigqueue_t *src, sigqueue_t *dst, sigset_t *setp)
 	sigqueue_collect_set(src, &src->sq_signals);
 }
 
-void
+static void
 sigqueue_move(sigqueue_t *src, sigqueue_t *dst, int signo)
 {
 	sigset_t set;
@@ -486,7 +496,7 @@ sigqueue_move(sigqueue_t *src, sigqueue_t *dst, int signo)
 	sigqueue_move_set(src, dst, &set);
 }
 
-void
+static void
 sigqueue_delete_set(sigqueue_t *sq, sigset_t *set)
 {
 	struct proc *p = sq->sq_proc;
@@ -520,7 +530,7 @@ sigqueue_delete(sigqueue_t *sq, int signo)
 }
 
 /* Remove a set of signals for a process */
-void
+static void
 sigqueue_delete_set_proc(struct proc *p, sigset_t *set)
 {
 	sigqueue_t worklist;
@@ -547,7 +557,7 @@ sigqueue_delete_proc(struct proc *p, int signo)
 	sigqueue_delete_set_proc(p, &set);
 }
 
-void
+static void
 sigqueue_delete_stopmask_proc(struct proc *p)
 {
 	sigset_t set;
@@ -2492,6 +2502,7 @@ issignal(struct thread *td, int stop_allowed)
 	struct sigacts *ps;
 	struct sigqueue *queue;
 	sigset_t sigpending;
+	ksiginfo_t ksi;
 	int sig, prop, newsig;
 
 	p = td->td_proc;
@@ -2529,24 +2540,22 @@ issignal(struct thread *td, int stop_allowed)
 		if (p->p_flag & P_TRACED && (p->p_flag & P_PPWAIT) == 0) {
 			/*
 			 * If traced, always stop.
+			 * Remove old signal from queue before the stop.
+			 * XXX shrug off debugger, it causes siginfo to
+			 * be thrown away.
 			 */
+			queue = &td->td_sigqueue;
+			ksi.ksi_signo = 0;
+			if (sigqueue_get(queue, sig, &ksi) == 0) {
+				queue = &p->p_sigqueue;
+				sigqueue_get(queue, sig, &ksi);
+			}
+
 			mtx_unlock(&ps->ps_mtx);
 			newsig = ptracestop(td, sig);
 			mtx_lock(&ps->ps_mtx);
 
 			if (sig != newsig) {
-				ksiginfo_t ksi;
-
-				queue = &td->td_sigqueue;
-				/*
-				 * clear old signal.
-				 * XXX shrug off debugger, it causes siginfo to
-				 * be thrown away.
-				 */
-				if (sigqueue_get(queue, sig, &ksi) == 0) {
-					queue = &p->p_sigqueue;
-					sigqueue_get(queue, sig, &ksi);
-				}
 
 				/*
 				 * If parent wants us to take the signal,
@@ -2561,10 +2570,20 @@ issignal(struct thread *td, int stop_allowed)
 				 * Put the new signal into td_sigqueue. If the
 				 * signal is being masked, look for other signals.
 				 */
-				SIGADDSET(queue->sq_signals, sig);
+				sigqueue_add(queue, sig, NULL);
 				if (SIGISMEMBER(td->td_sigmask, sig))
 					continue;
 				signotify(td);
+			} else {
+				if (ksi.ksi_signo != 0) {
+					ksi.ksi_flags |= KSI_HEAD;
+					if (sigqueue_add(&td->td_sigqueue, sig,
+					    &ksi) != 0)
+						ksi.ksi_signo = 0;
+				}
+				if (ksi.ksi_signo == 0)
+					sigqueue_add(&td->td_sigqueue, sig,
+					    NULL);
 			}
 
 			/*
@@ -2921,12 +2940,51 @@ childproc_exited(struct proc *p)
 	sigparent(p, reason, status);
 }
 
+/*
+ * We only have 1 character for the core count in the format
+ * string, so the range will be 0-9
+ */
+#define MAX_NUM_CORES 10
+static int num_cores = 5;
+
+static int
+sysctl_debug_num_cores_check (SYSCTL_HANDLER_ARGS)
+{
+	int error;
+	int new_val;
+	
+	error = sysctl_handle_int(oidp, &new_val, 0, req);
+	if (error != 0 || req->newptr == NULL)
+		return (error);
+	if (new_val > MAX_NUM_CORES)
+		new_val = MAX_NUM_CORES;
+	if (new_val < 0)
+		new_val = 0;
+	num_cores = new_val;
+	return (0);
+}
+SYSCTL_PROC(_debug, OID_AUTO, ncores, CTLTYPE_INT|CTLFLAG_RW, 
+	    0, sizeof(int), sysctl_debug_num_cores_check, "I", "");
+
+#if defined(COMPRESS_USER_CORES)
+int compress_user_cores = 1;
+SYSCTL_INT(_kern, OID_AUTO, compress_user_cores, CTLFLAG_RW,
+        &compress_user_cores, 0, "");
+
+int compress_user_cores_gzlevel = -1; /* default level */
+SYSCTL_INT(_kern, OID_AUTO, compress_user_cores_gzlevel, CTLFLAG_RW,
+    &compress_user_cores_gzlevel, -1, "user core gz compression level");
+
+#define GZ_SUFFIX	".gz"	
+#define GZ_SUFFIX_LEN	3	
+#endif
+
 static char corefilename[MAXPATHLEN] = {"%N.core"};
 SYSCTL_STRING(_kern, OID_AUTO, corefile, CTLFLAG_RW, corefilename,
 	      sizeof(corefilename), "process corefile name format string");
 
 /*
- * expand_name(name, uid, pid)
+ * expand_name(name, uid, pid, td, compress)
  * Expand the name described in corefilename, using name, uid, and pid.
  * corefilename is a printf-like string, with three format specifiers:
  *	%N	name of process ("name")
@@ -2937,20 +2995,21 @@ SYSCTL_STRING(_kern, OID_AUTO, corefile, CTLFLAG_RW, corefilename,
  * This is controlled by the sysctl variable kern.corefile (see above).
  */
 static char *
-expand_name(name, uid, pid)
-	const char *name;
-	uid_t uid;
-	pid_t pid;
+expand_name(const char *name, uid_t uid, pid_t pid, struct thread *td,
+    int compress)
 {
 	struct sbuf sb;
 	const char *format;
 	char *temp;
 	size_t i;
-
+	int indexpos;
+	char hostname[MAXHOSTNAMELEN];
+	
 	format = corefilename;
 	temp = malloc(MAXPATHLEN, M_TEMP, M_NOWAIT | M_ZERO);
 	if (temp == NULL)
 		return (NULL);
+	indexpos = -1;
 	(void)sbuf_new(&sb, temp, MAXPATHLEN, SBUF_FIXEDLEN);
 	for (i = 0; format[i]; i++) {
 		switch (format[i]) {
@@ -2959,6 +3018,15 @@ expand_name(name, uid, pid)
 			switch (format[i]) {
 			case '%':
 				sbuf_putc(&sb, '%');
+				break;
+			case 'H':	/* hostname */
+				getcredhostname(td->td_ucred, hostname,
+				    sizeof(hostname));
+				sbuf_printf(&sb, "%s", hostname);
+				break;
+			case 'I':       /* autoincrementing index */
+				sbuf_printf(&sb, "0");
+				indexpos = sbuf_len(&sb) - 1;
 				break;
 			case 'N':	/* process name */
 				sbuf_printf(&sb, "%s", name);
@@ -2979,6 +3047,11 @@ expand_name(name, uid, pid)
 			sbuf_putc(&sb, format[i]);
 		}
 	}
+#ifdef COMPRESS_USER_CORES
+	if (compress) {
+		sbuf_printf(&sb, GZ_SUFFIX);
+	}
+#endif
 	if (sbuf_overflowed(&sb)) {
 		sbuf_delete(&sb);
 		log(LOG_ERR, "pid %ld (%s), uid (%lu): corename is too "
@@ -2988,6 +3061,53 @@ expand_name(name, uid, pid)
 	}
 	sbuf_finish(&sb);
 	sbuf_delete(&sb);
+
+	/*
+	 * If the core format has a %I in it, then we need to check
+	 * for existing corefiles before returning a name.
+	 * To do this we iterate over 0..num_cores to find a
+	 * non-existing core file name to use.
+	 */
+	if (indexpos != -1) {
+		struct nameidata nd;
+		int error, n;
+		int flags = O_CREAT | O_EXCL | FWRITE | O_NOFOLLOW;
+		int cmode = S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP;
+		int vfslocked;
+
+		for (n = 0; n < num_cores; n++) {
+			temp[indexpos] = '0' + n;
+			NDINIT(&nd, LOOKUP, NOFOLLOW | MPSAFE, UIO_SYSSPACE,
+			    temp, td); 
+			error = vn_open(&nd, &flags, cmode, NULL);
+			if (error) {
+				if (error == EEXIST) {
+					continue;
+				}
+				log(LOG_ERR,
+				    "pid %d (%s), uid (%u):  Path `%s' failed "
+                                    "on initial open test, error = %d\n",
+				    pid, name, uid, temp, error);
+				free(temp, M_TEMP);
+				return (NULL);
+			}
+			vfslocked = NDHASGIANT(&nd);
+			NDFREE(&nd, NDF_ONLY_PNBUF);
+			VOP_UNLOCK(nd.ni_vp, 0);
+			error = vn_close(nd.ni_vp, FWRITE, td->td_ucred, td);
+			VFS_UNLOCK_GIANT(vfslocked);
+			if (error) {
+				log(LOG_ERR,
+				    "pid %d (%s), uid (%u):  Path `%s' failed "
+                                    "on close after initial open test, "
+                                    "error = %d\n",
+				    pid, name, uid, temp, error);
+				free(temp, M_TEMP);
+				return (NULL);
+			}
+			break;
+		}
+	}
 	return (temp);
 }
 
@@ -3013,12 +3133,19 @@ coredump(struct thread *td)
 	char *name;			/* name of corefile */
 	off_t limit;
 	int vfslocked;
+	int compress;
 
+#ifdef COMPRESS_USER_CORES
+	compress = compress_user_cores;
+#else
+	compress = 0;
+#endif
 	PROC_LOCK_ASSERT(p, MA_OWNED);
 	MPASS((p->p_flag & P_HADTHREADS) == 0 || p->p_singlethread == td);
 	_STOPEVENT(p, S_CORE, 0);
 
-	name = expand_name(p->p_comm, td->td_ucred->cr_uid, p->p_pid);
+	name = expand_name(p->p_comm, td->td_ucred->cr_uid, p->p_pid, td,
+	    compress);
 	if (name == NULL) {
 		PROC_UNLOCK(p);
 #ifdef AUDIT
@@ -3109,7 +3236,7 @@ restart:
 	PROC_UNLOCK(p);
 
 	error = p->p_sysent->sv_coredump ?
-	  p->p_sysent->sv_coredump(td, vp, limit) :
+	  p->p_sysent->sv_coredump(td, vp, limit, compress ? IMGACT_CORE_COMPRESS : 0) :
 	  ENOSYS;
 
 	if (locked) {

@@ -108,6 +108,8 @@ void	vnet_destroy(struct vnet *vnet);
  * assertions.
  */
 #ifdef VNET_DEBUG
+void vnet_log_recursion(struct vnet *, const char *, int);
+
 #define	VNET_ASSERT(condition)						\
 	if (!(condition)) {						\
 		printf("VNET_ASSERT @ %s:%d %s():\n",			\
@@ -125,9 +127,7 @@ void	vnet_destroy(struct vnet *vnet);
 #define	CURVNET_SET_VERBOSE(arg)					\
 	CURVNET_SET_QUIET(arg)						\
 	if (saved_vnet)							\
-		printf("CURVNET_SET(%p) in %s() on cpu %d, prev %p in %s()\n", \
-		       curvnet,	curthread->td_vnet_lpush, curcpu,	\
-		       saved_vnet, saved_vnet_lpush);
+		vnet_log_recursion(saved_vnet, saved_vnet_lpush, __LINE__);
 
 #define	CURVNET_SET(arg)	CURVNET_SET_VERBOSE(arg)
  

@@ -9,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2009, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2010, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -186,21 +186,6 @@ typedef struct asl_mapping_entry
     UINT8                       Flags;
 
 } ASL_MAPPING_ENTRY;
-
-
-/* An entry in the Reserved Name information table */
-
-#define ASL_RSVD_RETURN_VALUE   0x01
-#define ASL_RSVD_RESOURCE_NAME  0x02
-#define ASL_RSVD_SCOPE          0x04
-
-typedef struct asl_reserved_info
-{
-    char                        *Name;
-    UINT8                       NumArguments;
-    UINT8                       Flags;
-
-} ASL_RESERVED_INFO;
 
 
 /* Parse tree walk info structure */
@@ -522,7 +507,7 @@ char                        *AslMessages [] = {
 /*    ASL_MSG_RESERVED_ARG_COUNT_HI */      "Reserved method has too many arguments",
 /*    ASL_MSG_RESERVED_ARG_COUNT_LO */      "Reserved method has too few arguments",
 /*    ASL_MSG_RESERVED_METHOD */            "Reserved name must be a control method",
-/*    ASL_MSG_RESERVED_OPERAND_TYPE */      "Invalid operand type for reserved name, must be",
+/*    ASL_MSG_RESERVED_OPERAND_TYPE */      "Invalid object type for reserved name, must be",
 /*    ASL_MSG_RESERVED_RETURN_VALUE */      "Reserved method must return a value",
 /*    ASL_MSG_RESERVED_USE */               "Invalid use of reserved name",
 /*    ASL_MSG_RESERVED_WORD */              "Use of reserved name",
@@ -571,11 +556,6 @@ char                    *AslErrorLevel [ASL_NUM_REPORT_LEVELS] = {
 
 #define ASL_ERROR_LEVEL_LENGTH          8       /* Length of strings above */
 
-/* Exception counters */
-
-UINT32                  Gbl_ExceptionCount[ASL_NUM_REPORT_LEVELS] = {0,0,0,0,0,0};
-
-#endif
-
+#endif  /* ASL_EXCEPTIONS */
 
 #endif  /* __ASLTYPES_H */

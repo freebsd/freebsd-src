@@ -589,17 +589,19 @@ cd9660_fhtovp(mp, fhp, vpp)
 	struct fid *fhp;
 	struct vnode **vpp;
 {
-	struct ifid *ifhp = (struct ifid *)fhp;
+	struct ifid ifh;
 	struct iso_node *ip;
 	struct vnode *nvp;
 	int error;
 
+	memcpy(&ifh, fhp, sizeof(ifh));
+
 #ifdef	ISOFS_DBG
 	printf("fhtovp: ino %d, start %ld\n",
-	       ifhp->ifid_ino, ifhp->ifid_start);
+	    ifh.ifid_ino, ifh.ifid_start);
 #endif
 
-	if ((error = VFS_VGET(mp, ifhp->ifid_ino, LK_EXCLUSIVE, &nvp)) != 0) {
+	if ((error = VFS_VGET(mp, ifh.ifid_ino, LK_EXCLUSIVE, &nvp)) != 0) {
 		*vpp = NULLVP;
 		return (error);
 	}

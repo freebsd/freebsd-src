@@ -9,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2009, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2010, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -169,13 +169,7 @@ AeAddToErrorLog (
     ASL_ERROR_MSG           *Prev;
 
 
-    if (!Gbl_ErrorLog)
-    {
-        Gbl_ErrorLog = Enode;
-        return;
-    }
-
-    /* List is sorted according to line number */
+    /* If Gbl_ErrorLog is null, this is the first error node */
 
     if (!Gbl_ErrorLog)
     {
@@ -183,8 +177,10 @@ AeAddToErrorLog (
         return;
     }
 
-    /* Walk error list until we find a line number greater than ours */
-
+    /*
+     * Walk error list until we find a line number greater than ours.
+     * List is sorted according to line number.
+     */
     Prev = NULL;
     Next = Gbl_ErrorLog;
 

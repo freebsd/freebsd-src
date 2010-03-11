@@ -45,6 +45,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/bio.h>
 #include <sys/buf.h>
+#include <sys/disk.h>
 #include <sys/sysent.h>
 #include <sys/malloc.h>
 #include <sys/mount.h>
@@ -1920,7 +1921,7 @@ lseek(td, uap)
 	struct file *fp;
 	struct vnode *vp;
 	struct vattr vattr;
-	off_t offset;
+	off_t offset, size;
 	int error, noneg;
 	int vfslocked;
 
@@ -1951,6 +1952,15 @@ lseek(td, uap)
 		VOP_UNLOCK(vp, 0);
 		if (error)
 			break;
+
+		/*
+		 * If the file references a disk device, then fetch
+		 * the media size and use that to determine the ending
+		 * offset.
+		 */
+		if (vattr.va_size == 0 && vp->v_type == VCHR &&
+		    fo_ioctl(fp, DIOCGMEDIASIZE, &size, cred, td) == 0)
+			vattr.va_size = size;
 		if (noneg &&
 		    (vattr.va_size > OFF_MAX ||
 		    (offset > 0 && vattr.va_size > OFF_MAX - offset))) {
@@ -2122,8 +2132,7 @@ kern_accessat(struct thread *td, int fd, char *path, enum uio_seg pathseg,
 
 	/*
 	 * Create and modify a temporary credential instead of one that
-	 * is potentially shared.  This could also mess up socket
-	 * buffer accounting which can run in an interrupt context.
+	 * is potentially shared.
 	 */
 	if (!(flags & AT_EACCESS)) {
 		cred = td->td_ucred;

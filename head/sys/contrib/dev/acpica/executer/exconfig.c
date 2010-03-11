@@ -8,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2009, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2010, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -387,7 +387,7 @@ AcpiExRegionRead (
     UINT8                   *Buffer)
 {
     ACPI_STATUS             Status;
-    ACPI_INTEGER            Value;
+    UINT64                  Value;
     UINT32                  RegionOffset = 0;
     UINT32                  i;
 
@@ -610,7 +610,10 @@ AcpiExLoadOp (
     Status = AcpiTbAddTable (&TableDesc, &TableIndex);
     if (ACPI_FAILURE (Status))
     {
-        goto Cleanup;
+        /* Delete allocated table buffer */
+
+        AcpiTbDeleteTable (&TableDesc);
+        return_ACPI_STATUS (Status);
     }
 
     /*
@@ -653,13 +656,6 @@ AcpiExLoadOp (
                     AcpiGbl_TableHandlerContext);
     }
 
-Cleanup:
-    if (ACPI_FAILURE (Status))
-    {
-        /* Delete allocated table buffer */
-
-        AcpiTbDeleteTable (&TableDesc);
-    }
     return_ACPI_STATUS (Status);
 }
 

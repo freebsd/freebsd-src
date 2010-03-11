@@ -959,12 +959,12 @@ vfs_domount(
 		}
 		vp->v_iflag |= VI_MOUNT;
 		VI_UNLOCK(vp);
+		VOP_UNLOCK(vp, 0);
 
 		/*
 		 * Allocate and initialize the filesystem.
 		 */
 		mp = vfs_mount_alloc(vp, vfsp, fspath, td->td_ucred);
-		VOP_UNLOCK(vp, 0);
 
 		/* XXXMAC: pass to vfs_mount_alloc? */
 		mp->mnt_optnew = fsdata;
@@ -1060,12 +1060,12 @@ vfs_domount(
 	 * Put the new filesystem on the mount list after root.
 	 */
 	cache_purge(vp);
+	VI_LOCK(vp);
+	vp->v_iflag &= ~VI_MOUNT;
+	VI_UNLOCK(vp);
 	if (!error) {
 		struct vnode *newdp;
 
-		VI_LOCK(vp);
-		vp->v_iflag &= ~VI_MOUNT;
-		VI_UNLOCK(vp);
 		vp->v_mountedhere = mp;
 		mtx_lock(&mountlist_mtx);
 		TAILQ_INSERT_TAIL(&mountlist, mp, mnt_list);
@@ -1083,9 +1083,6 @@ vfs_domount(
 		if (error)
 			vrele(vp);
 	} else {
-		VI_LOCK(vp);
-		vp->v_iflag &= ~VI_MOUNT;
-		VI_UNLOCK(vp);
 		vfs_unbusy(mp);
 		vfs_mount_destroy(mp);
 		vput(vp);

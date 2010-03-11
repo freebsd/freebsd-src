@@ -1,6 +1,6 @@
 /******************************************************************************
 
-  Copyright (c) 2001-2009, Intel Corporation 
+  Copyright (c) 2001-2010, Intel Corporation 
   All rights reserved.
   
   Redistribution and use in source and binary forms, with or without 
@@ -80,8 +80,10 @@ static void e1000_release_swfw_sync_82575(struct e1000_hw *hw, u16 mask);
 static bool e1000_sgmii_active_82575(struct e1000_hw *hw);
 static s32  e1000_reset_init_script_82575(struct e1000_hw *hw);
 static s32  e1000_read_mac_addr_82575(struct e1000_hw *hw);
+static void e1000_config_collision_dist_82575(struct e1000_hw *hw);
 static void e1000_power_down_phy_copper_82575(struct e1000_hw *hw);
 static void e1000_shutdown_serdes_link_82575(struct e1000_hw *hw);
+static void e1000_power_up_serdes_link_82575(struct e1000_hw *hw);
 static s32 e1000_set_pcie_completion_timeout(struct e1000_hw *hw);
 
 static const u16 e1000_82580_rxpbs_table[] =
@@ -122,8 +124,7 @@ static s32 e1000_init_phy_params_82575(struct e1000_hw *hw)
 		phy->ops.reset      = e1000_phy_hw_reset_sgmii_82575;
 		phy->ops.read_reg   = e1000_read_phy_reg_sgmii_82575;
 		phy->ops.write_reg  = e1000_write_phy_reg_sgmii_82575;
-	} else if ((hw->mac.type == e1000_82580) ||
-	           (hw->mac.type == e1000_82580er)) {
+	} else if (hw->mac.type >= e1000_82580) {
 		phy->ops.reset      = e1000_phy_hw_reset_generic;
 		phy->ops.read_reg   = e1000_read_phy_reg_82580;
 		phy->ops.write_reg  = e1000_write_phy_reg_82580;
@@ -273,8 +274,7 @@ static s32 e1000_init_mac_params_82575(struct e1000_hw *hw)
 	 * if using i2c make certain the MDICNFG register is cleared to prevent
 	 * communications from being misrouted to the mdic registers
 	 */
-	if ((ctrl_ext & E1000_CTRL_I2C_ENA) &&
-	    ((hw->mac.type == e1000_82580) || (hw->mac.type == e1000_82580er)))
+	if ((ctrl_ext & E1000_CTRL_I2C_ENA) && (hw->mac.type == e1000_82580))
 		E1000_WRITE_REG(hw, E1000_MDICNFG, 0);
 
 	/* Set mta register count */
@@ -285,7 +285,7 @@ static s32 e1000_init_mac_params_82575(struct e1000_hw *hw)
 	mac->rar_entry_count = E1000_RAR_ENTRIES_82575;
 	if (mac->type == e1000_82576)
 		mac->rar_entry_count = E1000_RAR_ENTRIES_82576;
-	if ((mac->type == e1000_82580) || (mac->type == e1000_82580er))
+	if (mac->type == e1000_82580)
 		mac->rar_entry_count = E1000_RAR_ENTRIES_82580;
 	/* Set if part includes ASF firmware */
 	mac->asf_firmware_present = TRUE;
@@ -299,7 +299,7 @@ static s32 e1000_init_mac_params_82575(struct e1000_hw *hw)
 	/* bus type/speed/width */
 	mac->ops.get_bus_info = e1000_get_bus_info_pcie_generic;
 	/* reset */
-	if ((mac->type == e1000_82580) || (mac->type == e1000_82580er))
+	if (mac->type >= e1000_82580)
 		mac->ops.reset_hw = e1000_reset_hw_82580;
 	else
 	mac->ops.reset_hw = e1000_reset_hw_82575;
@@ -314,20 +314,22 @@ static s32 e1000_init_mac_params_82575(struct e1000_hw *hw)
 	                : e1000_setup_serdes_link_82575;
 	/* physical interface shutdown */
 	mac->ops.shutdown_serdes = e1000_shutdown_serdes_link_82575;
+	/* physical interface power up */
+	mac->ops.power_up_serdes = e1000_power_up_serdes_link_82575;
 	/* check for link */
 	mac->ops.check_for_link = e1000_check_for_link_82575;
 	/* receive address register setting */
 	mac->ops.rar_set = e1000_rar_set_generic;
 	/* read mac address */
 	mac->ops.read_mac_addr = e1000_read_mac_addr_82575;
+	/* configure collision distance */
+	mac->ops.config_collision_dist = e1000_config_collision_dist_82575;
 	/* multicast address update */
 	mac->ops.update_mc_addr_list = e1000_update_mc_addr_list_generic;
 	/* writing VFTA */
 	mac->ops.write_vfta = e1000_write_vfta_generic;
 	/* clearing VFTA */
 	mac->ops.clear_vfta = e1000_clear_vfta_generic;
-	/* setting MTA */
-	mac->ops.mta_set = e1000_mta_set_generic;
 	/* ID LED init */
 	mac->ops.id_led_init = e1000_id_led_init_generic;
 	/* blink LED */
@@ -888,6 +890,35 @@ static s32 e1000_check_for_link_82575(struct e1000_hw *hw)
 }
 
 /**
+ *  e1000_power_up_serdes_link_82575 - Power up the serdes link after shutdown
+ *  @hw: pointer to the HW structure
+ **/
+static void e1000_power_up_serdes_link_82575(struct e1000_hw *hw)
+{
+	u32 reg;
+
+	DEBUGFUNC("e1000_power_up_serdes_link_82575");
+
+	if ((hw->phy.media_type != e1000_media_type_internal_serdes) &&
+	    !e1000_sgmii_active_82575(hw))
+		return;
+
+	/* Enable PCS to turn on link */
+	reg = E1000_READ_REG(hw, E1000_PCS_CFG0);
+	reg |= E1000_PCS_CFG_PCS_EN;
+	E1000_WRITE_REG(hw, E1000_PCS_CFG0, reg);
+
+	/* Power up the laser */
+	reg = E1000_READ_REG(hw, E1000_CTRL_EXT);
+	reg &= ~E1000_CTRL_EXT_SDP3_DATA;
+	E1000_WRITE_REG(hw, E1000_CTRL_EXT, reg);
+
+	/* flush the write to verify completion */
+	E1000_WRITE_FLUSH(hw);
+	msec_delay(1);
+}
+
+/**
  *  e1000_get_pcs_speed_and_duplex_82575 - Retrieve current speed/duplex
  *  @hw: pointer to the HW structure
  *  @speed: stores the current speed
@@ -954,28 +985,14 @@ static s32 e1000_get_pcs_speed_and_duplex_82575(struct e1000_hw *hw,
 void e1000_shutdown_serdes_link_82575(struct e1000_hw *hw)
 {
 	u32 reg;
-	u16 eeprom_data = 0;
+
+	DEBUGFUNC("e1000_shutdown_serdes_link_82575");
 
 	if ((hw->phy.media_type != e1000_media_type_internal_serdes) &&
 	    !e1000_sgmii_active_82575(hw))
 		return;
 
-	if (hw->bus.func == E1000_FUNC_0)
-		hw->nvm.ops.read(hw, NVM_INIT_CONTROL3_PORT_A, 1, &eeprom_data);
-	else if ((hw->mac.type == e1000_82580) ||
-	         (hw->mac.type == e1000_82580er))
-		hw->nvm.ops.read(hw, NVM_INIT_CONTROL3_PORT_A +
-		                 NVM_82580_LAN_FUNC_OFFSET(hw->bus.func), 1,
-		                 &eeprom_data);
-	else if (hw->bus.func == E1000_FUNC_1)
-		hw->nvm.ops.read(hw, NVM_INIT_CONTROL3_PORT_B, 1, &eeprom_data);
-
-	/*
-	 * If APM is not enabled in the EEPROM and management interface is
-	 * not enabled, then power down.
-	 */
-	if (!(eeprom_data & E1000_NVM_APME_82575) &&
-	    !e1000_enable_mng_pass_thru(hw)) {
+	if (!e1000_enable_mng_pass_thru(hw)) {
 		/* Disable PCS to turn off link */
 		reg = E1000_READ_REG(hw, E1000_PCS_CFG0);
 		reg &= ~E1000_PCS_CFG_PCS_EN;
@@ -1205,15 +1222,9 @@ static s32 e1000_setup_serdes_link_82575(struct e1000_hw *hw)
 	ctrl_reg = E1000_READ_REG(hw, E1000_CTRL);
 	ctrl_reg |= E1000_CTRL_SLU;
 
-	if (hw->mac.type == e1000_82575 || hw->mac.type == e1000_82576) {
-		/* set both sw defined pins */
+	/* set both sw defined pins on 82575/82576*/
+	if (hw->mac.type == e1000_82575 || hw->mac.type == e1000_82576)
 		ctrl_reg |= E1000_CTRL_SWDPIN0 | E1000_CTRL_SWDPIN1;
-
-		/* Set switch control to serdes energy detect */
-		reg = E1000_READ_REG(hw, E1000_CONNSW);
-		reg |= E1000_CONNSW_ENRGSRC;
-		E1000_WRITE_REG(hw, E1000_CONNSW, reg);
-	}
 
 	reg = E1000_READ_REG(hw, E1000_PCS_LCTL);
 
@@ -1268,10 +1279,7 @@ static s32 e1000_setup_serdes_link_82575(struct e1000_hw *hw)
 		DEBUGOUT1("Configuring Autoneg:PCS_LCTL=0x%08X\n", reg);
 	} else {
 		/* Set PCS register for forced link */
-		reg |= E1000_PCS_LCTL_FSD |        /* Force Speed */
-		       E1000_PCS_LCTL_FORCE_LINK | /* Force Link */
-		       E1000_PCS_LCTL_FLV_LINK_UP; /* Force link value up */
-
+		reg |= E1000_PCS_LCTL_FSD;        /* Force Speed */
 		DEBUGOUT1("Configuring Forced Link:PCS_LCTL=0x%08X\n", reg);
 	}
 
@@ -1393,6 +1401,28 @@ static s32 e1000_read_mac_addr_82575(struct e1000_hw *hw)
 
 out:
 	return ret_val;
+}
+
+/**
+ *  e1000_config_collision_dist_82575 - Configure collision distance
+ *  @hw: pointer to the HW structure
+ *
+ *  Configures the collision distance to the default value and is used
+ *  during link setup.
+ **/
+static void e1000_config_collision_dist_82575(struct e1000_hw *hw)
+{
+	u32 tctl_ext;
+
+	DEBUGFUNC("e1000_config_collision_dist_82575");
+
+	tctl_ext = E1000_READ_REG(hw, E1000_TCTL_EXT);
+
+	tctl_ext &= ~E1000_TCTL_EXT_COLD;
+	tctl_ext |= E1000_COLLISION_DISTANCE << E1000_TCTL_EXT_COLD_SHIFT;
+
+	E1000_WRITE_REG(hw, E1000_TCTL_EXT, tctl_ext);
+	E1000_WRITE_FLUSH(hw);
 }
 
 /**
@@ -1656,7 +1686,6 @@ void e1000_vmdq_set_replication_pf(struct e1000_hw *hw, bool enable)
  **/
 static s32 e1000_read_phy_reg_82580(struct e1000_hw *hw, u32 offset, u16 *data)
 {
-	u32 mdicnfg = 0;
 	s32 ret_val;
 
 	DEBUGFUNC("e1000_read_phy_reg_82580");
@@ -1664,15 +1693,6 @@ static s32 e1000_read_phy_reg_82580(struct e1000_hw *hw, u32 offset, u16 *data)
 	ret_val = hw->phy.ops.acquire(hw);
 	if (ret_val)
 		goto out;
-
-	/*
-	 * We config the phy address in MDICNFG register now. Same bits
-	 * as before. The values in MDIC can be written but will be
-	 * ignored. This allows us to call the old function after
-	 * configuring the PHY address in the new register
-	 */
-	mdicnfg = (hw->phy.addr << E1000_MDIC_PHY_SHIFT);
-	E1000_WRITE_REG(hw, E1000_MDICNFG, mdicnfg);
 
 	ret_val = e1000_read_phy_reg_mdic(hw, offset, data);
 
@@ -1692,7 +1712,6 @@ out:
  **/
 static s32 e1000_write_phy_reg_82580(struct e1000_hw *hw, u32 offset, u16 data)
 {
-	u32 mdicnfg = 0;
 	s32 ret_val;
 
 	DEBUGFUNC("e1000_write_phy_reg_82580");
@@ -1701,15 +1720,6 @@ static s32 e1000_write_phy_reg_82580(struct e1000_hw *hw, u32 offset, u16 data)
 	if (ret_val)
 		goto out;
 
-	/*
-	 * We config the phy address in MDICNFG register now. Same bits
-	 * as before. The values in MDIC can be written but will be
-	 * ignored. This allows us to call the old function after
-	 * configuring the PHY address in the new register
-	 */
-	mdicnfg = (hw->phy.addr << E1000_MDIC_PHY_SHIFT);
-	E1000_WRITE_REG(hw, E1000_MDICNFG, mdicnfg);
-
 	ret_val = e1000_write_phy_reg_mdic(hw, offset, data);
 
 	hw->phy.ops.release(hw);
@@ -1717,6 +1727,7 @@ static s32 e1000_write_phy_reg_82580(struct e1000_hw *hw, u32 offset, u16 data)
 out:
 	return ret_val;
 }
+
 /**
  *  e1000_reset_hw_82580 - Reset hardware
  *  @hw: pointer to the HW structure
@@ -1819,23 +1830,6 @@ u16 e1000_rxpbs_adjust_82580(u32 data)
 
 	if (data < E1000_82580_RXPBS_TABLE_SIZE)
 		ret_val = e1000_82580_rxpbs_table[data];
-
-	return ret_val;
-}
-/**
- *  e1000_erfuse_check_82580 - ER Fuse check
- *  @hw: pointer to the HW structure
- *
- *  This function returns the status of the ER Fuse
- **/
-s32 e1000_erfuse_check_82580(struct e1000_hw *hw)
-{
-	s32 ret_val = E1000_SUCCESS;
-	s32 ufuse_reg;
-
-	ufuse_reg = E1000_READ_REG(hw, E1000_UFUSE);
-	if ((ufuse_reg & E1000_ERFUSE) == E1000_ERFUSE)
-		ret_val = E1000_ERFUSE_FAILURE;
 
 	return ret_val;
 }

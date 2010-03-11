@@ -739,7 +739,7 @@ fail:
  * the first time that no match happens, so we don't keep getting this
  * message.  Should that prove to be undesirable, we can change it.
  * This is called when all drivers that can attach to a given bus
- * decline to accept this device.  Other errrors may not be detected.
+ * decline to accept this device.  Other errors may not be detected.
  */
 static void
 devnomatch(device_t dev)

@@ -212,7 +212,7 @@ static int	nfs_renameit(struct vnode *sdvp, struct componentname *scnp,
  * Global variables
  */
 struct mtx 	nfs_iod_mtx;
-struct proc	*nfs_iodwant[NFS_MAXASYNCDAEMON];
+enum nfsiod_state nfs_iodwant[NFS_MAXASYNCDAEMON];
 struct nfsmount *nfs_iodmount[NFS_MAXASYNCDAEMON];
 int		 nfs_numasync = 0;
 vop_advlock_t	*nfs_advlock_p = nfs_dolock;
@@ -981,9 +981,13 @@ nfs_lookup(struct vop_lookup_args *ap)
 		 * We only accept a negative hit in the cache if the
 		 * modification time of the parent directory matches
 		 * our cached copy.  Otherwise, we discard all of the
-		 * negative cache entries for this directory.
+		 * negative cache entries for this directory. We also
+		 * only trust -ve cache entries for less than
+		 * nm_negative_namecache_timeout seconds.
 		 */
-		if (VOP_GETATTR(dvp, &vattr, cnp->cn_cred) == 0 &&
+		if ((u_int)(ticks - np->n_dmtime_ticks) <
+		    (nmp->nm_negnametimeo * hz) &&
+		    VOP_GETATTR(dvp, &vattr, cnp->cn_cred) == 0 &&
 		    vattr.va_mtime.tv_sec == np->n_dmtime) {
 			nfsstats.lookupcache_hits++;
 			return (ENOENT);
@@ -1157,8 +1161,10 @@ nfsmout:
 			 */
 			mtx_lock(&np->n_mtx);
 			if (np->n_dmtime <= dmtime) {
-				if (np->n_dmtime == 0)
+				if (np->n_dmtime == 0) {
 					np->n_dmtime = dmtime;
+					np->n_dmtime_ticks = ticks;
+				}
 				mtx_unlock(&np->n_mtx);
 				cache_enter(dvp, NULL, cnp);
 			} else

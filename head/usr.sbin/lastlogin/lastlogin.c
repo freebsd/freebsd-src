@@ -37,7 +37,6 @@ __RCSID("$NetBSD: lastlogin.c,v 1.4 1998/02/03 04:45:35 perry Exp $");
 #endif
 
 #include <err.h>
-#include <pwd.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
@@ -57,8 +56,6 @@ main(int argc, char *argv[])
 	while ((ch = getopt(argc, argv, "")) != -1) {
 		usage();
 	}
-
-	setpassent(1);	/* Keep passwd file pointers open */
 
 	/* Process usernames given on the command line. */
 	if (argc > 1) {
@@ -85,7 +82,6 @@ main(int argc, char *argv[])
 		endutxent();
 	}
 
-	setpassent(0);	/* Close passwd file pointers */
 	exit(0);
 }
 

@@ -72,8 +72,8 @@ SYSCTL_UINT(_vfs_devfs, OID_AUTO, rule_depth, CTLFLAG_RW,
 	&devfs_rule_depth, 0, "Max depth of ruleset include");
 
 /*
- * Helper sysctl for devname(3).  We're given a struct cdev * and return
- * the name, if any, registered by the device driver.
+ * Helper sysctl for devname(3).  We're given a dev_t and return the
+ * name, if any, registered by the device driver.
  */
 static int
 sysctl_devname(SYSCTL_HANDLER_ARGS)
@@ -81,23 +81,26 @@ sysctl_devname(SYSCTL_HANDLER_ARGS)
 	int error;
 	dev_t ud;
 	struct cdev_priv *cdp;
+	struct cdev *dev;
 
 	error = SYSCTL_IN(req, &ud, sizeof (ud));
 	if (error)
 		return (error);
 	if (ud == NODEV)
-		return(EINVAL);
-/*
-	ud ^ devfs_random();
-*/
+		return (EINVAL);
+	dev = NULL;
 	dev_lock();
 	TAILQ_FOREACH(cdp, &cdevp_list, cdp_list)
-		if (cdp->cdp_inode == ud)
+		if (cdp->cdp_inode == ud) {
+			dev = &cdp->cdp_c;
+			dev_refl(dev);
 			break;
+		}
 	dev_unlock();
-	if (cdp == NULL)
-		return(ENOENT);
-	return(SYSCTL_OUT(req, cdp->cdp_c.si_name, strlen(cdp->cdp_c.si_name) + 1));
+	if (dev == NULL)
+		return (ENOENT);
+	error = SYSCTL_OUT(req, dev->si_name, strlen(dev->si_name) + 1);
+	dev_rel(dev);
 	return (error);
 }
 

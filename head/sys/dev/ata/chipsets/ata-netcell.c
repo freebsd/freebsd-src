@@ -54,6 +54,7 @@ __FBSDID("$FreeBSD$");
 /* local prototypes */
 static int ata_netcell_chipinit(device_t dev);
 static int ata_netcell_ch_attach(device_t dev);
+static int ata_netcell_setmode(device_t dev, int target, int mode);
 
 /*
  * NetCell chipset support functions
@@ -80,7 +81,7 @@ ata_netcell_chipinit(device_t dev)
         return ENXIO;
 
     ctlr->ch_attach = ata_netcell_ch_attach;
-    ctlr->setmode = ata_generic_setmode;
+    ctlr->setmode = ata_netcell_setmode;
     return 0;
 }
 
@@ -95,7 +96,16 @@ ata_netcell_ch_attach(device_t dev)
  
     /* the NetCell only supports 16 bit PIO transfers */
     ch->flags |= ATA_USE_16BIT;
+    /* It is a hardware RAID without cable. */
+    ch->flags |= ATA_CHECKS_CABLE;
     return 0;
+}
+
+static int
+ata_netcell_setmode(device_t dev, int target, int mode)
+{
+
+	return (min(mode, ATA_UDMA6));
 }
 
 ATA_DECLARE_DRIVER(ata_netcell);

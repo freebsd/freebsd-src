@@ -9,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2009, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2010, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -389,7 +389,7 @@ AcpiNsLocal (
     {
         /* Type code out of range  */
 
-        ACPI_WARNING ((AE_INFO, "Invalid Object Type %X", Type));
+        ACPI_WARNING ((AE_INFO, "Invalid Object Type 0x%X", Type));
         return_UINT32 (ACPI_NS_NORMAL);
     }
 
@@ -965,7 +965,7 @@ AcpiNsOpensScope (
     {
         /* type code out of range  */
 
-        ACPI_WARNING ((AE_INFO, "Invalid Object Type %X", Type));
+        ACPI_WARNING ((AE_INFO, "Invalid Object Type 0x%X", Type));
         return_UINT32 (ACPI_NS_NORMAL);
     }
 

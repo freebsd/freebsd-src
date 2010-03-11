@@ -38,6 +38,17 @@
 #ifndef _SYS_TIMEB_H_
 #define _SYS_TIMEB_H_
 
+#ifdef __GNUC__
+#warning "this file includes <sys/timeb.h> which is deprecated"
+#endif
+
+#include <sys/_types.h>
+
+#ifndef _TIME_T_DECLARED
+typedef	__time_t	time_t;
+#define	_TIME_T_DECLARED
+#endif
+
 /* The ftime(2) system call structure -- deprecated. */
 struct timeb {
 	time_t	time;			/* seconds since the Epoch */
@@ -54,4 +65,4 @@ int ftime(struct timeb *);
 __END_DECLS
 #endif /* _KERNEL */
 
-#endif
+#endif /* !_SYS_TIMEB_H_ */

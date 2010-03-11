@@ -1342,6 +1342,7 @@ static int
 bge_chipinit(struct bge_softc *sc)
 {
 	uint32_t dma_rw_ctl;
+	uint16_t val;
 	int i;
 
 	/* Set endianness before we access any non-PCI registers. */
@@ -1362,6 +1363,17 @@ bge_chipinit(struct bge_softc *sc)
 	    i < BGE_STATUS_BLOCK_END + 1; i += sizeof(uint32_t))
 		BGE_MEMWIN_WRITE(sc, i, 0);
 
+	if (sc->bge_chiprev == BGE_CHIPREV_5704_BX) {
+		/*
+		 *  Fix data corruption caused by non-qword write with WB.
+		 *  Fix master abort in PCI mode.
+		 *  Fix PCI latency timer.
+		 */
+		val = pci_read_config(sc->bge_dev, BGE_PCI_MSI_DATA + 2, 2);
+		val |= (1 << 10) | (1 << 12) | (1 << 13);
+		pci_write_config(sc->bge_dev, BGE_PCI_MSI_DATA + 2, val, 2);
+	}
+
 	/*
 	 * Set up the PCI DMA control register.
 	 */
@@ -1378,6 +1390,15 @@ bge_chipinit(struct bge_softc *sc)
 			dma_rw_ctl |= (sc->bge_asicrev == BGE_ASICREV_BCM5780) ?
 			    BGE_PCIDMARWCTL_ONEDMA_ATONCE_GLOBAL :
 			    BGE_PCIDMARWCTL_ONEDMA_ATONCE_LOCAL;
+		} else if (sc->bge_asicrev == BGE_ASICREV_BCM5703) {
+			/*
+			 * In the BCM5703, the DMA read watermark should
+			 * be set to less than or equal to the maximum
+			 * memory read byte count of the PCI-X command
+			 * register.
+			 */
+			dma_rw_ctl |= BGE_PCIDMARWCTL_RD_WAT_SHIFT(4) |
+			    BGE_PCIDMARWCTL_WR_WAT_SHIFT(3);
 		} else if (sc->bge_asicrev == BGE_ASICREV_BCM5704) {
 			/* 1536 bytes for read, 384 bytes for write. */
 			dma_rw_ctl |= BGE_PCIDMARWCTL_RD_WAT_SHIFT(7) |
@@ -1993,10 +2014,6 @@ bge_probe(device_t dev)
 			snprintf(buf, 96, "%s, %sASIC rev. %#08x", model,
 			    br != NULL ? "" : "unknown ", id);
 			device_set_desc_copy(dev, buf);
-			if (pci_get_subvendor(dev) == DELL_VENDORID)
-				sc->bge_flags |= BGE_FLAG_NO_3LED;
-			if (did == BCOM_DEVICEID_BCM5755M)
-				sc->bge_flags |= BGE_FLAG_ADJUST_TRIM;
 			return (0);
 		}
 		t++;
@@ -2607,6 +2624,10 @@ bge_attach(device_t dev)
 		sc->bge_flags |= BGE_FLAG_ADC_BUG;
 	if (sc->bge_chipid == BGE_CHIPID_BCM5704_A0)
 		sc->bge_flags |= BGE_FLAG_5704_A0_BUG;
+	if (pci_get_subvendor(dev) == DELL_VENDORID)
+		sc->bge_flags |= BGE_FLAG_NO_3LED;
+	if (pci_get_device(dev) == BCOM_DEVICEID_BCM5755M)
+		sc->bge_flags |= BGE_FLAG_ADJUST_TRIM;
 	if (BGE_IS_5705_PLUS(sc) &&
 	    !(sc->bge_flags & BGE_FLAG_ADJUST_TRIM)) {
 		if (sc->bge_asicrev == BGE_ASICREV_BCM5755 ||
@@ -2656,9 +2677,11 @@ bge_attach(device_t dev)
 		/*
 		 * BCM5754 and BCM5787 shares the same ASIC id so
 		 * explicit device id check is required.
+		 * Due to unknown reason TSO does not work on BCM5755M.
 		 */
 		if (pci_get_device(dev) != BCOM_DEVICEID_BCM5754 &&
-		    pci_get_device(dev) != BCOM_DEVICEID_BCM5754M)
+		    pci_get_device(dev) != BCOM_DEVICEID_BCM5754M &&
+		    pci_get_device(dev) != BCOM_DEVICEID_BCM5755M)
 			sc->bge_flags |= BGE_FLAG_TSO;
 	}
 
@@ -2744,9 +2767,8 @@ bge_attach(device_t dev)
 		    & BGE_HWCFG_ASF) {
 			sc->bge_asf_mode |= ASF_ENABLE;
 			sc->bge_asf_mode |= ASF_STACKUP;
-			if (sc->bge_asicrev == BGE_ASICREV_BCM5750) {
+			if (BGE_IS_575X_PLUS(sc))
 				sc->bge_asf_mode |= ASF_NEW_HANDSHAKE;
-			}
 		}
 	}
 
@@ -2817,7 +2839,7 @@ bge_attach(device_t dev)
 	    IFCAP_VLAN_MTU;
 	if ((sc->bge_flags & BGE_FLAG_TSO) != 0) {
 		ifp->if_hwassist |= CSUM_TSO;
-		ifp->if_capabilities |= IFCAP_TSO4;
+		ifp->if_capabilities |= IFCAP_TSO4 | IFCAP_VLAN_HWTSO;
 	}
 #ifdef IFCAP_VLAN_HWCSUM
 	ifp->if_capabilities |= IFCAP_VLAN_HWCSUM;
@@ -3137,14 +3159,17 @@ bge_reset(struct bge_softc *sc)
 		devctl = pci_read_config(dev,
 		    sc->bge_expcap + PCIR_EXPRESS_DEVICE_CTL, 2);
 		/* Clear enable no snoop and disable relaxed ordering. */
-		devctl &= ~(0x0010 | 0x0800);
+		devctl &= ~(PCIM_EXP_CTL_RELAXED_ORD_ENABLE |
+		    PCIM_EXP_CTL_NOSNOOP_ENABLE);
 		/* Set PCIE max payload size to 128. */
 		devctl &= ~PCIM_EXP_CTL_MAX_PAYLOAD;
 		pci_write_config(dev, sc->bge_expcap + PCIR_EXPRESS_DEVICE_CTL,
 		    devctl, 2);
 		/* Clear error status. */
 		pci_write_config(dev, sc->bge_expcap + PCIR_EXPRESS_DEVICE_STA,
-		    0, 2);
+		    PCIM_EXP_STA_CORRECTABLE_ERROR |
+		    PCIM_EXP_STA_NON_FATAL_ERROR | PCIM_EXP_STA_FATAL_ERROR |
+		    PCIM_EXP_STA_UNSUPPORTED_REQ, 2);
 	}
 
 	/* Reset some of the PCI state that got zapped by reset. */
@@ -3154,7 +3179,26 @@ bge_reset(struct bge_softc *sc)
 	pci_write_config(dev, BGE_PCI_CACHESZ, cachesize, 4);
 	pci_write_config(dev, BGE_PCI_CMD, command, 4);
 	write_op(sc, BGE_MISC_CFG, BGE_32BITTIME_66MHZ);
-
+	/*
+	 * Disable PCI-X relaxed ordering to ensure status block update
+	 * comes first then packet buffer DMA. Otherwise driver may
+	 * read stale status block.
+	 */
+	if (sc->bge_flags & BGE_FLAG_PCIX) {
+		devctl = pci_read_config(dev,
+		    sc->bge_pcixcap + PCIXR_COMMAND, 2);
+		devctl &= ~PCIXM_COMMAND_ERO;
+		if (sc->bge_asicrev == BGE_ASICREV_BCM5703) {
+			devctl &= ~PCIXM_COMMAND_MAX_READ;
+			devctl |= PCIXM_COMMAND_MAX_READ_2048;
+		} else if (sc->bge_asicrev == BGE_ASICREV_BCM5704) {
+			devctl &= ~(PCIXM_COMMAND_MAX_SPLITS |
+			    PCIXM_COMMAND_MAX_READ);
+			devctl |= PCIXM_COMMAND_MAX_READ_2048;
+		}
+		pci_write_config(dev, sc->bge_pcixcap + PCIXR_COMMAND,
+		    devctl, 2);
+	}
 	/* Re-enable MSI, if neccesary, and enable the memory arbiter. */
 	if (BGE_IS_5714_FAMILY(sc)) {
 		/* This chip disables MSI on reset. */
@@ -3677,7 +3721,7 @@ bge_asf_driver_up(struct bge_softc *sc)
 		if (sc->bge_asf_count)
 			sc->bge_asf_count --;
 		else {
-			sc->bge_asf_count = 5;
+			sc->bge_asf_count = 2;
 			bge_writemem_ind(sc, BGE_SOFTWARE_GENCOMM_FW,
 			    BGE_FW_DRV_ALIVE);
 			bge_writemem_ind(sc, BGE_SOFTWARE_GENNCOMM_FW_LEN, 4);
@@ -3833,12 +3877,11 @@ bge_cksum_pad(struct mbuf *m)
 static struct mbuf *
 bge_setup_tso(struct bge_softc *sc, struct mbuf *m, uint16_t *mss)
 {
-	struct ether_header *eh;
 	struct ip *ip;
 	struct tcphdr *tcp;
 	struct mbuf *n;
 	uint16_t hlen;
-	uint32_t ip_off, poff;
+	uint32_t poff;
 
 	if (M_WRITABLE(m) == 0) {
 		/* Get a writable copy. */
@@ -3848,28 +3891,16 @@ bge_setup_tso(struct bge_softc *sc, struct mbuf *m, uint16_t *mss)
 			return (NULL);
 		m = n;
 	}
-	ip_off = sizeof(struct ether_header);
-	m = m_pullup(m, ip_off);
+	m = m_pullup(m, sizeof(struct ether_header) + sizeof(struct ip));
 	if (m == NULL)
 		return (NULL);
-	eh = mtod(m, struct ether_header *);
-	/* Check the existence of VLAN tag. */
-	if (eh->ether_type == htons(ETHERTYPE_VLAN)) {
-		ip_off = sizeof(struct ether_vlan_header);
-		m = m_pullup(m, ip_off);
-		if (m == NULL)
-			return (NULL);
-	}
-	m = m_pullup(m, ip_off + sizeof(struct ip));
-	if (m == NULL)
-		return (NULL);
-	ip = (struct ip *)(mtod(m, char *) + ip_off);
-	poff = ip_off + (ip->ip_hl << 2);
+	ip = (struct ip *)(mtod(m, char *) + sizeof(struct ether_header));
+	poff = sizeof(struct ether_header) + (ip->ip_hl << 2);
 	m = m_pullup(m, poff + sizeof(struct tcphdr));
 	if (m == NULL)
 		return (NULL);
 	tcp = (struct tcphdr *)(mtod(m, char *) + poff);
-	m = m_pullup(m, poff + sizeof(struct tcphdr) + tcp->th_off);
+	m = m_pullup(m, poff + (tcp->th_off << 2));
 	if (m == NULL)
 		return (NULL);
 	/*
@@ -4524,9 +4555,6 @@ bge_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 				ifp->if_hwassist |= BGE_CSUM_FEATURES;
 			else
 				ifp->if_hwassist &= ~BGE_CSUM_FEATURES;
-#ifdef VLAN_CAPABILITIES
-			VLAN_CAPABILITIES(ifp);
-#endif
 		}
 
 		if ((mask & IFCAP_TSO4) != 0 &&
@@ -4544,16 +4572,21 @@ bge_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 			bge_init(sc);
 		}
 
-		if (mask & IFCAP_VLAN_HWTAGGING) {
+		if ((mask & IFCAP_VLAN_HWTSO) != 0 &&
+		    (ifp->if_capabilities & IFCAP_VLAN_HWTSO) != 0)
+			ifp->if_capenable ^= IFCAP_VLAN_HWTSO;
+		if ((mask & IFCAP_VLAN_HWTAGGING) != 0 &&
+		    (ifp->if_capabilities & IFCAP_VLAN_HWTAGGING) != 0) {
 			ifp->if_capenable ^= IFCAP_VLAN_HWTAGGING;
+			if ((ifp->if_capenable & IFCAP_VLAN_HWTAGGING) == 0)
+				ifp->if_capenable &= ~IFCAP_VLAN_HWTSO;
 			BGE_LOCK(sc);
 			bge_setvlan(sc);
 			BGE_UNLOCK(sc);
-#ifdef VLAN_CAPABILITIES
-			VLAN_CAPABILITIES(ifp);
-#endif
 		}
-
+#ifdef VLAN_CAPABILITIES
+		VLAN_CAPABILITIES(ifp);
+#endif
 		break;
 	default:
 		error = ether_ioctl(ifp, command, data);

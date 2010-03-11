@@ -125,8 +125,9 @@ int
 sbwrite(struct uufsd *disk, int all)
 {
 	struct fs *fs;
-	int i, blks, size;
+	int blks, size;
 	uint8_t *space;
+	unsigned i;
 
 	ERROR(disk, NULL);
 

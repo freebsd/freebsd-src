@@ -52,7 +52,6 @@ __FBSDID("$FreeBSD$");
 #include <cam/cam_ccb.h>
 #include <cam/cam_sim.h>
 #include <cam/cam_xpt_sim.h>
-#include <cam/cam_xpt_periph.h>
 #include <cam/cam_debug.h>
 
 /* local prototypes */
@@ -231,20 +230,10 @@ static int
 siis_resume(device_t dev)
 {
 	struct siis_controller *ctlr = device_get_softc(dev);
-	int cap;
-	uint16_t val;
 
 	/* Set PCIe max read request size to at least 1024 bytes */
-	if (pci_find_extcap(dev, PCIY_EXPRESS, &cap) == 0) {
-		val = pci_read_config(dev,
-		    cap + PCIR_EXPRESS_DEVICE_CTL, 2);
-		if ((val & PCIM_EXP_CTL_MAX_READ_REQUEST) < 0x3000) {
-			val &= ~PCIM_EXP_CTL_MAX_READ_REQUEST;
-			val |= 0x3000;
-			pci_write_config(dev,
-			    cap + PCIR_EXPRESS_DEVICE_CTL, val, 2);
-		}
-	}
+	if (pci_get_max_read_req(dev) < 1024)
+		pci_set_max_read_req(dev, 1024);
 	/* Put controller into reset state. */
 	ctlr->gctl |= SIIS_GCTL_GRESET;
 	ATA_OUTL(ctlr->r_gmem, SIIS_GCTL, ctlr->gctl);
@@ -740,17 +729,26 @@ siis_phy_check_events(device_t dev)
 	/* If we have a connection event, deal with it */
 	if (ch->pm_level == 0) {
 		u_int32_t status = ATA_INL(ch->r_mem, SIIS_P_SSTS);
-		if (((status & ATA_SS_DET_MASK) == ATA_SS_DET_PHY_ONLINE) &&
-		    ((status & ATA_SS_SPD_MASK) != ATA_SS_SPD_NO_SPEED) &&
-		    ((status & ATA_SS_IPM_MASK) == ATA_SS_IPM_ACTIVE)) {
-			if (bootverbose)
+		union ccb *ccb;
+
+		if (bootverbose) {
+			if (((status & ATA_SS_DET_MASK) == ATA_SS_DET_PHY_ONLINE) &&
+			    ((status & ATA_SS_SPD_MASK) != ATA_SS_SPD_NO_SPEED) &&
+			    ((status & ATA_SS_IPM_MASK) == ATA_SS_IPM_ACTIVE)) {
 				device_printf(dev, "CONNECT requested\n");
-			siis_reset(dev);
-		} else {
-			if (bootverbose)
+			} else
 				device_printf(dev, "DISCONNECT requested\n");
-			ch->devices = 0;
 		}
+		siis_reset(dev);
+		if ((ccb = xpt_alloc_ccb_nowait()) == NULL)
+			return;
+		if (xpt_create_path(&ccb->ccb_h.path, NULL,
+		    cam_sim_path(ch->sim),
+		    CAM_TARGET_WILDCARD, CAM_LUN_WILDCARD) != CAM_REQ_CMP) {
+			xpt_free_ccb(ccb);
+			return;
+		}
+		xpt_rescan(ccb);
 	}
 }
 
@@ -1025,6 +1023,13 @@ siis_execute_transaction(struct siis_slot *slot)
 		if ((ccb->ccb_h.flags & CAM_DIR_MASK) == CAM_DIR_OUT)
 			ctp->control |= htole16(SIIS_PRB_PACKET_WRITE);
 	}
+	/* Special handling for Soft Reset command. */
+	if ((ccb->ccb_h.func_code == XPT_ATA_IO) &&
+	    (ccb->ataio.cmd.flags & CAM_ATAIO_CONTROL) &&
+	    (ccb->ataio.cmd.control & ATA_A_RESET)) {
+		/* Kick controller into sane state */
+		siis_portinit(dev);
+	}
 	/* Setup the FIS for this request */
 	if (!siis_setup_fis(dev, ctp, ccb, slot->slot)) {
 		device_printf(ch->dev, "Setting up SATA FIS failed\n");
@@ -1069,6 +1074,28 @@ siis_process_timeout(device_t dev)
 	}
 }
 
+/* Must be called with channel locked. */
+static void
+siis_rearm_timeout(device_t dev)
+{
+	struct siis_channel *ch = device_get_softc(dev);
+	int i;
+
+	mtx_assert(&ch->mtx, MA_OWNED);
+	for (i = 0; i < SIIS_MAX_SLOTS; i++) {
+		struct siis_slot *slot = &ch->slot[i];
+
+		/* Do we have a running request on slot? */
+		if (slot->state < SIIS_SLOT_RUNNING)
+			continue;
+		if ((ch->toslots & (1 << i)) == 0)
+			continue;
+		callout_reset(&slot->timeout,
+		    (int)slot->ccb->ccb_h.timeout * hz / 1000,
+		    (timeout_t*)siis_timeout, slot);
+	}
+}
+
 /* Locked by callout mechanism. */
 static void
 siis_timeout(struct siis_slot *slot)
@@ -1081,10 +1108,11 @@ siis_timeout(struct siis_slot *slot)
 	if (slot->state < SIIS_SLOT_RUNNING)
 		return;
 	device_printf(dev, "Timeout on slot %d\n", slot->slot);
-device_printf(dev, "%s is %08x ss %08x rs %08x es %08x sts %08x serr %08x\n",
-    __func__, ATA_INL(ch->r_mem, SIIS_P_IS), ATA_INL(ch->r_mem, SIIS_P_SS), ch->rslots,
-    ATA_INL(ch->r_mem, SIIS_P_CMDERR), ATA_INL(ch->r_mem, SIIS_P_STS),
-    ATA_INL(ch->r_mem, SIIS_P_SERR));
+	device_printf(dev, "%s is %08x ss %08x rs %08x es %08x sts %08x serr %08x\n",
+	    __func__, ATA_INL(ch->r_mem, SIIS_P_IS),
+	    ATA_INL(ch->r_mem, SIIS_P_SS), ch->rslots,
+	    ATA_INL(ch->r_mem, SIIS_P_CMDERR), ATA_INL(ch->r_mem, SIIS_P_STS),
+	    ATA_INL(ch->r_mem, SIIS_P_SERR));
 
 	if (ch->toslots == 0)
 		xpt_freeze_simq(ch->sim, 1);
@@ -1229,8 +1257,9 @@ siis_end_transaction(struct siis_slot *slot, enum siis_err_type et)
 				siis_issue_read_log(dev);
 		}
 	/* If all the reset of commands are in timeout - abort them. */
-	} else if ((ch->rslots & ~ch->toslots) == 0)
-		siis_process_timeout(dev);
+	} else if ((ch->rslots & ~ch->toslots) == 0 &&
+	    et != SIIS_ERR_TIMEOUT)
+		siis_rearm_timeout(dev);
 }
 
 static void
@@ -1368,8 +1397,6 @@ siis_devreset(device_t dev)
 			return (EBUSY);
 		}
 	}
-	if (bootverbose)
-		device_printf(dev, "device reset time=%dms\n", timeout);
 	return (0);
 }
 
@@ -1389,8 +1416,6 @@ siis_wait_ready(device_t dev, int t)
 			return (EBUSY);
 		}
 	}
-	if (bootverbose)
-		device_printf(dev, "ready wait time=%dms\n", timeout);
 	return (0);
 }
 
@@ -1401,6 +1426,7 @@ siis_reset(device_t dev)
 	int i, retry = 0, sata_rev;
 	uint32_t val;
 
+	xpt_freeze_simq(ch->sim, 1);
 	if (bootverbose)
 		device_printf(dev, "SIIS reset...\n");
 	if (!ch->readlog && !ch->recovery)
@@ -1466,6 +1492,7 @@ retry:
 			    "SIIS reset done: phy reset found no device\n");
 		/* Tell the XPT about the event */
 		xpt_async(AC_BUS_RESET, ch->path, NULL);
+		xpt_release_simq(ch->sim, TRUE);
 		return;
 	}
 	/* Wait for clearing busy status. */
@@ -1496,6 +1523,7 @@ retry:
 		device_printf(dev, "SIIS reset done: devices=%08x\n", ch->devices);
 	/* Tell the XPT about the event */
 	xpt_async(AC_BUS_RESET, ch->path, NULL);
+	xpt_release_simq(ch->sim, TRUE);
 }
 
 static int
@@ -1644,6 +1672,8 @@ siisaction(struct cam_sim *sim, union ccb *ccb)
 			else
 				ATA_OUTL(ch->r_mem, SIIS_P_CTLCLR, SIIS_P_CTL_PME);
 		}
+		if (cts->xport_specific.sata.valid & CTS_SATA_VALID_TAGS)
+			d->atapi = cts->xport_specific.sata.atapi;
 		ccb->ccb_h.status = CAM_REQ_CMP;
 		xpt_done(ccb);
 		break;
@@ -1687,6 +1717,8 @@ siisaction(struct cam_sim *sim, union ccb *ccb)
 		cts->xport_specific.sata.valid |= CTS_SATA_VALID_PM;
 		cts->xport_specific.sata.tags = d->tags;
 		cts->xport_specific.sata.valid |= CTS_SATA_VALID_TAGS;
+		cts->xport_specific.sata.atapi = d->atapi;
+		cts->xport_specific.sata.valid |= CTS_SATA_VALID_ATAPI;
 		ccb->ccb_h.status = CAM_REQ_CMP;
 		xpt_done(ccb);
 		break;

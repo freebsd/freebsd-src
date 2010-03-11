@@ -8,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2009, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2010, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -534,7 +534,7 @@ LdNamespace1Begin (
         if (Op->Asl.CompileFlags == NODE_IS_RESOURCE_DESC)
         {
             Status = LdLoadResourceElements (Op, WalkState);
-            goto Exit;
+            return_ACPI_STATUS (Status);
         }
 
         ObjectType = AslMapNamedOpcodeToDataType (Op->Asl.AmlOpcode);
@@ -578,7 +578,7 @@ LdNamespace1Begin (
             AslCoreSubsystemError (Op, Status,
                 "Failure from namespace lookup", FALSE);
 
-            goto Exit;
+            return_ACPI_STATUS (Status);
         }
 
         /* We found a node with this name, now check the type */
@@ -713,15 +713,14 @@ LdNamespace1Begin (
 
                 AslError (ASL_ERROR, ASL_MSG_NAME_EXISTS, Op,
                     Op->Asl.ExternalName);
-                Status = AE_OK;
-                goto Exit;
+                return_ACPI_STATUS (AE_OK);
             }
         }
         else
         {
             AslCoreSubsystemError (Op, Status,
                 "Failure from namespace lookup", FALSE);
-            goto Exit;
+            return_ACPI_STATUS (Status);
         }
     }
 
@@ -759,8 +758,7 @@ FinishNode:
         Node->Value = (UINT32) Op->Asl.Extra;
     }
 
-Exit:
-    return (Status);
+    return_ACPI_STATUS (Status);
 }
 
 

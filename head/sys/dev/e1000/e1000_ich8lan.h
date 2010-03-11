@@ -1,6 +1,6 @@
 /******************************************************************************
 
-  Copyright (c) 2001-2009, Intel Corporation 
+  Copyright (c) 2001-2010, Intel Corporation 
   All rights reserved.
   
   Redistribution and use in source and binary forms, with or without 
@@ -162,6 +162,10 @@
 #define HV_OEM_BITS_RESTART_AN 0x0400 /* Restart Auto-negotiation */
 
 #define LCD_CFG_PHY_ADDR_BIT   0x0020 /* Phy address bit from LCD Config word */
+
+/* KMRN Mode Control */
+#define HV_KMRN_MODE_CTRL	PHY_REG(769, 16)
+#define HV_KMRN_MDIO_SLOW	0x0400
 
 #define SW_FLAG_TIMEOUT    1000 /* SW Semaphore flag timeout in milliseconds */
 

@@ -35,7 +35,7 @@ will not be completely signed until named has had time to walk the
 zone and generate the NSEC and RRSIG records.  Initially the NSEC
 record at the zone apex will have the OPT bit set.  When the NSEC
 chain is complete the OPT bit will be cleared.  Additionally when
-the zone is fully signed the private type (default TYPE65535) records
+the zone is fully signed the private type (default TYPE65534) records
 will have a non zero value for the final octet. 
 
 The private type record has 5 octets.
@@ -45,7 +45,7 @@ The private type record has 5 octets.
 	complete flag (octet 5)
 
 If you wish to go straight to a secure zone using NSEC3 you should
-also add a NSECPARAM record to the update request with the flags
+also add a NSEC3PARAM record to the update request with the flags
 field set to indicate whether the NSEC3 chain will have the OPTOUT
 bit set or not.
 

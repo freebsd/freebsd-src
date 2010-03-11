@@ -8,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2009, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2010, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -246,7 +246,7 @@ AcpiExOpcode_2A_0T_0R (
 
     default:
 
-        ACPI_ERROR ((AE_INFO, "Unknown AML opcode %X",
+        ACPI_ERROR ((AE_INFO, "Unknown AML opcode 0x%X",
             WalkState->Opcode));
         Status = AE_AML_BAD_OPCODE;
     }
@@ -319,7 +319,7 @@ AcpiExOpcode_2A_2T_1R (
 
     default:
 
-        ACPI_ERROR ((AE_INFO, "Unknown AML opcode %X",
+        ACPI_ERROR ((AE_INFO, "Unknown AML opcode 0x%X",
             WalkState->Opcode));
         Status = AE_AML_BAD_OPCODE;
         goto Cleanup;
@@ -383,7 +383,7 @@ AcpiExOpcode_2A_1T_1R (
 {
     ACPI_OPERAND_OBJECT     **Operand = &WalkState->Operands[0];
     ACPI_OPERAND_OBJECT     *ReturnDesc = NULL;
-    ACPI_INTEGER            Index;
+    UINT64                  Index;
     ACPI_STATUS             Status = AE_OK;
     ACPI_SIZE               Length;
 
@@ -555,7 +555,7 @@ AcpiExOpcode_2A_1T_1R (
         if (ACPI_FAILURE (Status))
         {
             ACPI_EXCEPTION ((AE_INFO, Status,
-                "Index (%X%8.8X) is beyond end of object",
+                "Index (0x%8.8X%8.8X) is beyond end of object",
                 ACPI_FORMAT_UINT64 (Index)));
             goto Cleanup;
         }
@@ -579,7 +579,7 @@ AcpiExOpcode_2A_1T_1R (
 
     default:
 
-        ACPI_ERROR ((AE_INFO, "Unknown AML opcode %X",
+        ACPI_ERROR ((AE_INFO, "Unknown AML opcode 0x%X",
             WalkState->Opcode));
         Status = AE_AML_BAD_OPCODE;
         break;
@@ -702,7 +702,7 @@ AcpiExOpcode_2A_0T_1R (
 
     default:
 
-        ACPI_ERROR ((AE_INFO, "Unknown AML opcode %X",
+        ACPI_ERROR ((AE_INFO, "Unknown AML opcode 0x%X",
             WalkState->Opcode));
         Status = AE_AML_BAD_OPCODE;
         goto Cleanup;
@@ -716,7 +716,7 @@ StoreLogicalResult:
      */
     if (LogicalResult)
     {
-        ReturnDesc->Integer.Value = ACPI_INTEGER_MAX;
+        ReturnDesc->Integer.Value = ACPI_UINT64_MAX;
     }
 
 Cleanup:

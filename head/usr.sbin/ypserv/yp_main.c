@@ -303,13 +303,18 @@ create_service(const int sock, const struct netconfig *nconf,
 					freeaddrinfo(res0);
 					return -1;
 				}
-				if (bind(s, res->ai_addr,
-				    res->ai_addrlen) == -1) {
-					_msgout("cannot bind %s socket: %s",
-					    nconf->nc_netid, strerror(errno));
-					freeaddrinfo(res0);
-					close(sock);
-					return -1;
+				if (bindresvport_sa(s, res->ai_addr) == -1) {
+					if ((errno != EPERM) ||
+					    (bind(s, res->ai_addr,
+					    res->ai_addrlen) == -1)) {
+						_msgout("cannot bind "
+						    "%s socket: %s",
+						    nconf->nc_netid,
+						strerror(errno));
+						freeaddrinfo(res0);
+						close(sock);
+						return -1;
+					}
 				}
 				if (nconf->nc_semantics != NC_TPI_CLTS)
 					listen(s, SOMAXCONN);
@@ -445,6 +450,7 @@ main(int argc, char *argv[])
 {
 	int ch;
 	int error;
+	int ntrans;
 	
 	void *nc_handle;
 	struct netconfig *nconf;
@@ -522,12 +528,13 @@ main(int argc, char *argv[])
 	/*
 	 * Create RPC service for each transport.
 	 */
+	ntrans = 0;
 	while((nconf = getnetconfig(nc_handle))) {
 		if ((nconf->nc_flag & NC_VISIBLE)) {
 			if (__rpc_nconf2sockinfo(nconf, &si) == 0) {
-				_msgout("cannot get information for %s",
-				    nconf->nc_netid);
-				exit(1);
+				_msgout("cannot get information for %s.  "
+				    "Ignored.", nconf->nc_netid);
+				continue;
 			}
 			if (_rpcpmstart) {
 				if (si.si_socktype != _rpcfdtype ||
@@ -540,12 +547,16 @@ main(int argc, char *argv[])
 				endnetconfig(nc_handle);
 				exit(1);
 			}
+			ntrans++;
 		}
 	}
 	endnetconfig(nc_handle);
 	while(!(SLIST_EMPTY(&ble_head)))
 		SLIST_REMOVE_HEAD(&ble_head, ble_next);
-
+	if (ntrans == 0) {
+		_msgout("no transport is available.  Aborted.");
+		exit(1);
+	}
 	if (_rpcpmstart) {
 		(void) signal(SIGALRM, (SIG_PF) closedown);
 		(void) alarm(_RPCSVC_CLOSEDOWN/2);

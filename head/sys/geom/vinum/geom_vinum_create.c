@@ -314,7 +314,7 @@ gv_concat(struct g_geom *gp, struct gctl_req *req)
 	struct gv_plex *p;
 	struct gv_softc *sc;
 	char *drive, buf[30], *vol;
-	int *drives, *flags, dcount;
+	int *drives, dcount;
 
 	sc = gp->softc;
 	dcount = 0;
@@ -324,7 +324,6 @@ gv_concat(struct g_geom *gp, struct gctl_req *req)
 		return;
 	}
 
-	flags = gctl_get_paraml(req, "flags", sizeof(*flags));
 	drives = gctl_get_paraml(req, "drives", sizeof(*drives));
 
 	if (drives == NULL) { 
@@ -475,7 +474,6 @@ gv_raid5(struct g_geom *gp, struct gctl_req *req)
 	char *vol, *drive, buf[30];
 	off_t *stripesize;
 
-	dcount = 0;
 	sc = gp->softc;
 
 	vol = gctl_get_param(req, "name", NULL);

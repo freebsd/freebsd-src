@@ -14,6 +14,33 @@
 # The file is partitioned: OLD_FILES first, then OLD_LIBS and OLD_DIRS last.
 #
 
+# 20100303: actual removal of utmp.h
+OLD_FILES+=usr/include/utmp.h
+# 20100227: [ia64] removed <machine/sapicreg.h> and <machine/sapicvar.h>
+.if ${TARGET_ARCH} == "ia64"
+OLD_FILES+=usr/include/machine/sapicreg.h
+OLD_FILES+=usr/include/machine/sapicvar.h
+.endif
+# 20100208: man pages moved
+.if ${TARGET_ARCH} == "i386"
+OLD_FILES+=usr/share/man/man4/i386/alpm.4.gz
+OLD_FILES+=usr/share/man/man4/i386/amdpm.4.gz
+OLD_FILES+=usr/share/man/man4/i386/mcd.4.gz
+OLD_FILES+=usr/share/man/man4/i386/padlock.4.gz
+OLD_FILES+=usr/share/man/man4/i386/pcf.4.gz
+OLD_FILES+=usr/share/man/man4/i386/scd.4.gz
+OLD_FILES+=usr/share/man/man4/i386/viapm.4.gz
+.endif
+# 20100122: move BSDL bc/dc USD documents to /usr/share/doc/usd
+OLD_FILES+=usr/share/doc/papers/bc.ascii.gz
+OLD_FILES+=usr/share/doc/papers/dc.ascii.gz
+# 20100120: replacing GNU bc/dc with BSDL versions
+OLD_FILES+=usr/share/examples/bc/ckbook.b
+OLD_FILES+=usr/share/examples/bc/pi.b
+OLD_FILES+=usr/share/examples/bc/primes.b
+OLD_FILES+=usr/share/examples/bc/twins.b
+OLD_FILES+=usr/share/info/dc.info.gz
+OLD_DIRS+=usr/share/examples/bc
 # 20100114: removal of ttyslot(3)
 OLD_FILES+=usr/share/man/man3/ttyslot.3.gz
 # 20100113: remove utmp.h, replace it by utmpx.h
@@ -2265,7 +2292,7 @@ OLD_FILES+=usr/lib/libpam_ssh.a
 OLD_FILES+=usr/lib/libpam_ssh_p.a
 OLD_FILES+=usr/bin/help
 OLD_FILES+=usr/bin/sccs
-.if ${TARGET_ARCH} != "arm" && ${TARGET_ARCH} != "i386" && ${TARGET_ARCH} != "powerpc"
+.if ${TARGET_ARCH} != "amd64" && ${TARGET_ARCH} != "arm" && ${TARGET_ARCH} != "i386" && ${TARGET_ARCH} != "powerpc"
 OLD_FILES+=usr/bin/gdbserver
 .endif
 OLD_FILES+=usr/bin/ssh-keysign

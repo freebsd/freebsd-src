@@ -105,7 +105,7 @@
  * Version of the package tools - increase whenever you make a change
  * in the code that is not cosmetic only.
  */
-#define PKG_INSTALL_VERSION	20090902
+#define PKG_INSTALL_VERSION	20100122
 
 #define PKG_WRAPCONF_FNAME	"/var/db/pkg_install.conf"
 #define main(argc, argv)	real_main(argc, argv)

@@ -8,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2009, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2010, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -696,7 +696,7 @@ AcpiEvTerminate (
             if (ACPI_FAILURE (Status))
             {
                 ACPI_ERROR ((AE_INFO,
-                    "Could not disable fixed event %d", (UINT32) i));
+                    "Could not disable fixed event %u", (UINT32) i));
             }
         }
 

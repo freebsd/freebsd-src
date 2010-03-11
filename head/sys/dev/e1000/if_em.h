@@ -1,6 +1,6 @@
 /******************************************************************************
 
-  Copyright (c) 2001-2009, Intel Corporation 
+  Copyright (c) 2001-2010, Intel Corporation 
   All rights reserved.
   
   Redistribution and use in source and binary forms, with or without 
@@ -54,7 +54,7 @@
 #define EM_MIN_TXD		80
 #define EM_MAX_TXD_82543	256
 #define EM_MAX_TXD		4096
-#define EM_DEFAULT_TXD		EM_MAX_TXD_82543
+#define EM_DEFAULT_TXD		1024
 
 /*
  * EM_RXD - Maximum number of receive Descriptors
@@ -72,7 +72,7 @@
 #define EM_MIN_RXD		80
 #define EM_MAX_RXD_82543	256
 #define EM_MAX_RXD		4096
-#define EM_DEFAULT_RXD	EM_MAX_RXD_82543
+#define EM_DEFAULT_RXD		1024
 
 /*
  * EM_TIDV - Transmit Interrupt Delay Value
@@ -137,7 +137,7 @@
 /*
  * This parameter controls the max duration of transmit watchdog.
  */
-#define EM_WATCHDOG                   (5 * hz)
+#define EM_WATCHDOG                   (10 * hz)
 
 /*
  * This parameter controls when the driver calls the routine to reclaim
@@ -420,6 +420,13 @@ struct adapter {
 	boolean_t       pcix_82544;
 	boolean_t       in_detach;
 
+#ifdef EM_IEEE1588
+	/* IEEE 1588 precision time support */
+	struct cyclecounter     cycles;
+	struct nettimer         clock;
+	struct nettime_compare  compare;
+	struct hwtstamp_ctrl    hwtstamp;
+#endif
 
 	struct e1000_hw_stats stats;
 };

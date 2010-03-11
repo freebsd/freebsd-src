@@ -445,7 +445,7 @@ int		acpi_acad_get_acline(int *);
 #define ACPI_PKG_VALID(pkg, size)				\
     ((pkg) != NULL && (pkg)->Type == ACPI_TYPE_PACKAGE &&	\
      (pkg)->Package.Count >= (size))
-int		acpi_PkgInt(ACPI_OBJECT *res, int idx, ACPI_INTEGER *dst);
+int		acpi_PkgInt(ACPI_OBJECT *res, int idx, UINT64 *dst);
 int		acpi_PkgInt32(ACPI_OBJECT *res, int idx, uint32_t *dst);
 int		acpi_PkgStr(ACPI_OBJECT *res, int idx, void *dst, size_t size);
 int		acpi_PkgGas(device_t dev, ACPI_OBJECT *res, int idx, int *type,

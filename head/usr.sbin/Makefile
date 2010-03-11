@@ -302,7 +302,6 @@ _jls=		jls
 .endif
 
 # XXX MK_SYSCONS
-# XXX is moused w/ usb useful?
 .if ${MK_LEGACY_CONSOLE} != "no"
 _kbdcontrol=	kbdcontrol
 _kbdmap=	kbdmap
@@ -512,6 +511,7 @@ _ofwdump=	ofwdump
 
 .if ${MACHINE_ARCH} == "sparc64"
 _eeprom=	eeprom
+_mount_smbfs=	mount_smbfs
 _ofwdump=	ofwdump
 .endif
 

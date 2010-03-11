@@ -69,7 +69,7 @@ __FBSDID("$FreeBSD$");
 
 #ifdef DEV_ISA
 #include <isa/isavar.h>
-#include <amd64/isa/isa.h>
+#include <x86/isa/isa.h>
 #endif
 #include <sys/rtprio.h>
 

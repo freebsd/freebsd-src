@@ -73,7 +73,7 @@ int	kthread_resume(struct thread *);
 void	kthread_shutdown(void *, int);
 void	kthread_start(const void *);
 int	kthread_suspend(struct thread *, int);
-void	kthread_suspend_check(struct thread *);
+void	kthread_suspend_check(void);
 
 
 #endif /* !_SYS_KTHREAD_H_ */

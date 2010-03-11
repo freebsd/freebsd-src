@@ -93,7 +93,7 @@ __opendir2(const char *name, int flags)
 }
 
 static int
-opendir_sort(const void *p1, const void *p2)
+opendir_compar(const void *p1, const void *p2)
 {
 
 	return (strcmp((*(const struct dirent **)p1)->d_name,
@@ -249,7 +249,7 @@ __opendir_common(int fd, const char *name, int flags)
 				 * This sort must be stable.
 				 */
 				mergesort(dpv, n, sizeof(*dpv),
-				    opendir_sort);
+				    opendir_compar);
 
 				dpv[n] = NULL;
 				xp = NULL;

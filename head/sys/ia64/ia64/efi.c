@@ -33,6 +33,8 @@ __FBSDID("$FreeBSD$");
 #include <machine/bootinfo.h>
 #include <machine/efi.h>
 #include <machine/sal.h>
+#include <vm/vm.h>
+#include <vm/pmap.h>
 
 extern uint64_t ia64_call_efi_physical(uint64_t, uint64_t, uint64_t, uint64_t,
     uint64_t, uint64_t);
@@ -123,8 +125,8 @@ efi_boot_minimal(uint64_t systbl)
 				md->md_virt =
 				    (void *)IA64_PHYS_TO_RR7(md->md_phys);
 			else if (md->md_attr & EFI_MD_ATTR_UC)
-				md->md_virt =
-				    (void *)IA64_PHYS_TO_RR6(md->md_phys);
+				md->md_virt = pmap_mapdev(md->md_phys,
+				    md->md_pages * EFI_PAGE_SIZE);
 		}
 		md = efi_md_next(md);
 	}

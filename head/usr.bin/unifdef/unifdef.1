@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)unifdef.1	8.2 (Berkeley) 4/1/94
-.\"	$dotat: unifdef/unifdef.1,v 1.62 2010/01/19 17:33:53 fanf2 Exp $
+.\"	$dotat: unifdef/unifdef.1,v 1.63 2010/02/19 16:41:15 fanf2 Exp $
 .\" $FreeBSD$
 .\"
 .Dd January 19, 2010
@@ -168,14 +168,16 @@ with appropriate arguments to process the file.
 .Sh OPTIONS
 .Pp
 .Bl -tag -width indent -compact
-.It Fl D Ns Ar sym Ns Op = Ns Ar val
-Specify that a symbol is defined,
-and optionally specify what value to give it
-for the purpose of handling
+.It Fl D Ns Ar sym Ns = Ns Ar val
+Specify that a symbol is defined to a given value
+which is used when evaluating
 .Ic #if
 and
 .Ic #elif
-directives.
+control expressions.
+.Pp
+.It Fl D Ns Ar sym
+Specify that a symbol is defined to the value 1.
 .Pp
 .It Fl U Ns Ar sym
 Specify that a symbol is undefined.

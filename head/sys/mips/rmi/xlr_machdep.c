@@ -352,14 +352,6 @@ mips_init(void)
 
 	mips_cpu_init();
 	pmap_bootstrap();
-
-	mips_proc0_init();
-	write_c0_register32(MIPS_COP_0_OSSCRATCH, 7, pcpup->pc_curthread);
-
-	mutex_init();
-
-	PMAP_LOCK_INIT(kernel_pmap);
-
 #ifdef DDB
 #ifdef SMP
 	setup_nmi();
@@ -369,6 +361,9 @@ mips_init(void)
 		kdb_enter("Boot flags requested debugger", NULL);
 	}
 #endif
+	mips_proc0_init();
+	write_c0_register32(MIPS_COP_0_OSSCRATCH, 7, pcpup->pc_curthread);
+	mutex_init();
 }
 
 void
@@ -461,6 +456,9 @@ platform_start(__register_t a0 __unused,
 				}
 				phys_avail[1] = boot_map->physmem_map[0].addr +
 				    boot_map->physmem_map[0].size;
+				printf("First segment: addr:%p -> %p \n",
+				       (void *)phys_avail[0], 
+				       (void *)phys_avail[1]);
 
 			} else {
 /*
@@ -472,9 +470,19 @@ platform_start(__register_t a0 __unused,
 				    boot_map->physmem_map[i].addr;
 				phys_avail[j + 1] = phys_avail[j] +
 				    boot_map->physmem_map[i].size;
-#if 0				/* FIXME TOD0 */
-				phys_avail[j] = phys_avail[j + 1] = 0;
-#endif
+				if (phys_avail[j + 1] < phys_avail[j] ) {
+					/* Houston we have an issue. Memory is
+					 * larger than possible. Its probably in
+					 * 64 bit > 4Gig and we are in 32 bit mode.
+					 */
+					phys_avail[j + 1] = 0xfffff000;
+					printf("boot map size was %llx\n", boot_map->physmem_map[i].size);
+					boot_map->physmem_map[i].size = phys_avail[j + 1] - phys_avail[j];
+					printf("reduced to %llx\n", boot_map->physmem_map[i].size);
+				}
+				printf("Next segment : addr:%p -> %p \n",
+				       (void *)phys_avail[j], 
+				       (void *)phys_avail[j+1]);
 			}
 			physsz += boot_map->physmem_map[i].size;
 		}
@@ -588,7 +596,7 @@ disable_msgring_int(void *arg);
 void 
 enable_msgring_int(void *arg);
 void xlr_msgring_handler(struct trapframe *tf);
-void msgring_process_fast_intr(void *arg);
+int msgring_process_fast_intr(void *arg);
 
 struct msgring_ithread {
 	struct thread *i_thread;
@@ -599,40 +607,32 @@ struct msgring_ithread {
 struct msgring_ithread msgring_ithreads[MAXCPU];
 char ithd_name[MAXCPU][32];
 
-void
+int
 msgring_process_fast_intr(void *arg)
 {
 	int cpu = PCPU_GET(cpuid);
 	volatile struct msgring_ithread *it;
-	struct proc *p;
 	struct thread *td;
 
 	/* wakeup an appropriate intr_thread for processing this interrupt */
 	it = (volatile struct msgring_ithread *)&msgring_ithreads[cpu];
 	td = it->i_thread;
-	p = td->td_proc;
 
 	/*
 	 * Interrupt thread will enable the interrupts after processing all
 	 * messages
 	 */
 	disable_msgring_int(NULL);
-	it->i_pending = 1;
+	atomic_store_rel_int(&it->i_pending, 1);
+	thread_lock(td);
 	if (TD_AWAITING_INTR(td)) {
-		thread_lock(td);
-		CTR3(KTR_INTR, "%s: schedule pid %d (%s)", __func__, p->p_pid,
-		    p->p_comm);
 		TD_CLR_IWAIT(td);
 		sched_add(td, SRQ_INTR);
-		thread_unlock(td);
-	} else {
-		CTR4(KTR_INTR, "%s: pid %d (%s): state %d",
-		    __func__, p->p_pid, p->p_comm, td->td_state);
 	}
-
+	thread_unlock(td);
+	return FILTER_HANDLED;
 }
 
-#define MIT_DEAD 4
 static void
 msgring_process(void *arg)
 {
@@ -654,27 +654,26 @@ msgring_process(void *arg)
 	//printf("Started %s on CPU %d\n", __FUNCTION__, ithd->i_cpu);
 
 	while (1) {
-		if (ithd->i_flags & MIT_DEAD) {
-			CTR3(KTR_INTR, "%s: pid %d (%s) exiting", __func__,
-			    p->p_pid, p->p_comm);
-			kthread_exit();
-		}
 		while (ithd->i_pending) {
 			/*
 			 * This might need a full read and write barrier to
 			 * make sure that this write posts before any of the
 			 * memory or device accesses in the handlers.
 			 */
-			atomic_store_rel_int(&ithd->i_pending, 0);
 			xlr_msgring_handler(NULL);
+			atomic_store_rel_int(&ithd->i_pending, 0);
+			enable_msgring_int(NULL);
 		}
-		if (!ithd->i_pending && !(ithd->i_flags & MIT_DEAD)) {
+		if (!ithd->i_pending) {
 			thread_lock(td);
+			if (ithd->i_pending) {
+			  thread_unlock(td);
+			  continue;
+			}
 			sched_class(td, PRI_ITHD);
 			TD_SET_IWAIT(td);
-			thread_unlock(td);
-			enable_msgring_int(NULL);
 			mi_switch(SW_VOL, NULL);
+			thread_unlock(td);
 		}
 	}
 

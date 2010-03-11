@@ -41,7 +41,6 @@ __FBSDID("$FreeBSD$");
 #include <dev/uart/uart.h>
 #include <dev/uart/uart_cpu.h>
 
-#include <mips/cavium/octeonreg.h>
 #include <mips/cavium/octeon_pcmap_regs.h>
 
 bus_space_tag_t uart_bus_space_io;
@@ -71,7 +70,6 @@ __FBSDID("$FreeBSD$");
  * 64-bit word bus that's on the octeon.  We only support simple read/write
  * in this space.  Everything else is undefined.
  */
-
 static uint8_t
 ou_bs_r_1(void *t, bus_space_handle_t handle, bus_size_t offset)
 {
@@ -128,7 +126,7 @@ ou_bs_w_8(void *t, bus_space_handle_t bsh, bus_size_t offset, uint64_t value)
 	oct_write64(bsh + (offset << 3), value);
 }
 
-static struct bus_space octeon_uart_tag = {
+struct bus_space octeon_uart_tag = {
 	.bs_map = generic_bs_map,
 	.bs_unmap = generic_bs_unmap,
 	.bs_subregion = generic_bs_subregion,
@@ -177,7 +175,7 @@ uart_cpu_getdev(int devtype, struct uart_devinfo *di)
 	 */
 	di->ops = uart_getops(class);
 	di->bas.chan = 0;
-	if (bus_space_map(di->bas.bst, OCTEON_UART0ADR, OCTEON_UART_SIZE,
+	if (bus_space_map(di->bas.bst, OCTEON_MIO_UART0, OCTEON_MIO_UART_SIZE,
 	    0, &di->bas.bsh) != 0)
 		return (ENXIO);
 	di->bas.regshft = 0;

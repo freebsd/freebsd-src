@@ -74,8 +74,6 @@ __FBSDID("$FreeBSD$");
 #include <mips/rmi/dev/xlr/atx_cpld.h>
 #include <mips/rmi/dev/xlr/xgmac_mdio.h>
 
-extern void iodi_activateirqs(void);
-
 extern bus_space_tag_t uart_bus_space_mem;
 
 static struct resource *
@@ -90,19 +88,6 @@ iodi_setup_intr(device_t, device_t, struct resource *, int,
     driver_filter_t *, driver_intr_t *, void *, void **);
 
 struct iodi_softc *iodi_softc;	/* There can be only one. */
-
-/*
-static void pic_usb_ack(void *arg)
-{
-	xlr_reg_t *mmio = xlr_io_mmio(XLR_IO_PIC_OFFSET);
-	int irq = PIC_USB_IRQ ;
-
-	mtx_lock_spin(&xlr_pic_lock);
-	xlr_write_reg(mmio, PIC_INT_ACK, (1 << (irq - PIC_IRQ_BASE)));
-	mtx_unlock_spin(&xlr_pic_lock);
-}
-*/
-
 
 static int
 iodi_setup_intr(device_t dev, device_t child,
@@ -157,11 +142,6 @@ iodi_setup_intr(device_t dev, device_t child,
 	return (0);
 }
 
-/* Strange hook found in mips/include/bus.h */
-#ifndef MIPS_BUS_SPACE_PCI
-#define MIPS_BUS_SPACE_PCI	10
-#endif
-
 static struct resource *
 iodi_alloc_resource(device_t bus, device_t child, int type, int *rid,
     u_long start, u_long end, u_long count, u_int flags)
@@ -199,7 +179,7 @@ iodi_alloc_resource(device_t bus, device_t child, int type, int *rid,
 		res->r_bustag = uart_bus_space_mem;
 	} else if (strcmp(device_get_name(child), "ehci") == 0) {
 		res->r_bushandle = 0xbef24000;
-		res->r_bustag = (bus_space_tag_t) MIPS_BUS_SPACE_PCI;
+		res->r_bustag = rmi_pci_bus_space;
 	} else if (strcmp(device_get_name(child), "cfi") == 0) {
 		res->r_bushandle = 0xbc000000;
 		res->r_bustag = 0;
@@ -271,11 +251,15 @@ iodi_attach(device_t dev)
 			tmpd = device_add_child(dev, "rge", 5);
 			device_set_ivars(tmpd, &xlr_board_info.gmac_block[1]);
 
-			tmpd = device_add_child(dev, "rge", 6);
-			device_set_ivars(tmpd, &xlr_board_info.gmac_block[1]);
+			if (xlr_board_info.gmac_block[1].enabled & 0x4) {
+				tmpd = device_add_child(dev, "rge", 6);
+				device_set_ivars(tmpd, &xlr_board_info.gmac_block[1]);
+			}
 
-			tmpd = device_add_child(dev, "rge", 7);
-			device_set_ivars(tmpd, &xlr_board_info.gmac_block[1]);
+			if (xlr_board_info.gmac_block[1].enabled & 0x8) {
+				tmpd = device_add_child(dev, "rge", 7);
+				device_set_ivars(tmpd, &xlr_board_info.gmac_block[1]);
+			}
 		} else if (xlr_board_info.gmac_block[1].type == XLR_XGMAC) {
 #if 0				/* XGMAC not yet */
 			tmpd = device_add_child(dev, "rge", 4);

@@ -1,6 +1,6 @@
 /******************************************************************************
 
-  Copyright (c) 2001-2009, Intel Corporation 
+  Copyright (c) 2001-2010, Intel Corporation 
   All rights reserved.
   
   Redistribution and use in source and binary forms, with or without 
@@ -336,8 +336,6 @@ static s32 e1000_init_mac_params_82571(struct e1000_hw *hw)
 	mac->ops.write_vfta = e1000_write_vfta_generic;
 	/* clearing VFTA */
 	mac->ops.clear_vfta = e1000_clear_vfta_82571;
-	/* setting MTA */
-	mac->ops.mta_set = e1000_mta_set_generic;
 	/* read mac address */
 	mac->ops.read_mac_addr = e1000_read_mac_addr_82571;
 	/* ID LED init */

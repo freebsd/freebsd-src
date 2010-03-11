@@ -190,7 +190,7 @@ cgread1(struct uufsd *disk, int c)
 
 	fs = &disk->d_fs;
 
-	if (c >= fs->fs_ncg) {
+	if ((unsigned)c >= fs->fs_ncg) {
 		return (0);
 	}
 	if (bread(disk, fsbtodb(fs, cgtod(fs, c)), disk->d_cgunion.d_buf,

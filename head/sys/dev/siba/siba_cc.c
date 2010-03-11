@@ -55,9 +55,9 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/bus.h>
 
-#include <dev/siba/sibavar.h>
-#include <dev/siba/sibareg.h>
 #include <dev/siba/siba_ids.h>
+#include <dev/siba/sibareg.h>
+#include <dev/siba/sibavar.h>
 
 static int	siba_cc_attach(device_t);
 static int	siba_cc_probe(device_t);
@@ -141,7 +141,7 @@ static device_method_t siba_cc_methods[] = {
 	DEVMETHOD(device_attach,	siba_cc_attach),
 	DEVMETHOD(device_probe,		siba_cc_probe),
 
-	{0, 0},
+	KOBJMETHOD_END
 };
 
 static driver_t siba_cc_driver = {

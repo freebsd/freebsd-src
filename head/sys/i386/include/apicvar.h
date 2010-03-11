@@ -259,7 +259,7 @@ int	lapic_set_lvt_triggermode(u_int apic_id, u_int lvt,
 	    enum intr_trigger trigger);
 void	lapic_set_tpr(u_int vector);
 void	lapic_setup(int boot);
-enum lapic_clock	lapic_setup_clock(void);
+enum lapic_clock	lapic_setup_clock(enum lapic_clock srcsdes);
 
 #endif /* !LOCORE */
 #endif /* _MACHINE_APICVAR_H_ */

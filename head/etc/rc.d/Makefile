@@ -12,7 +12,7 @@ FILES=	DAEMON FILESYSTEMS LOGIN NETWORKING SERVERS \
 	encswap \
 	faith fsck ftp-proxy ftpd \
 	gbde geli geli2 gssd \
-	hcsecd \
+	hastd hcsecd \
 	hostapd hostid hostid_save hostname \
 	inetd initrandom \
 	ip6addrctl ipfilter ipfs ipfw ipmon \
@@ -30,7 +30,7 @@ FILES=	DAEMON FILESYSTEMS LOGIN NETWORKING SERVERS \
 	powerd power_profile ppp pppoed pwcheck \
 	quota \
 	random rarpd resolv rfcomm_pppd_server root \
-	route6d routed routing rpcbind rtadvd rwho \
+	route6d routed routing rpcbind rtadvd rtsold rwho \
 	savecore sdpd securelevel sendmail \
 	serial sppp statd static_arp stf swap1 \
 	syscons sysctl syslogd \

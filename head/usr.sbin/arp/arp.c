@@ -101,7 +101,8 @@ static int valid_type(int type);
 static int nflag;	/* no reverse dns lookups */
 static char *rifname;
 
-static int	expire_time, flags, doing_proxy, proxy_only;
+static time_t	expire_time;
+static int	flags, doing_proxy, proxy_only;
 
 /* which function we're supposed to do */
 #define F_GET		1
@@ -594,6 +595,15 @@ print_entry(struct sockaddr_dl *sdl,
 		printf(" on %s", ifname);
 	if (rtm->rtm_rmx.rmx_expire == 0)
 		printf(" permanent");
+	else {
+		static struct timeval tv;
+		if (tv.tv_sec == 0)
+			gettimeofday(&tv, 0);
+		if ((expire_time = rtm->rtm_rmx.rmx_expire - tv.tv_sec) > 0)
+			printf(" expires in %d seconds", (int)expire_time);
+		else
+			printf(" expired");
+	}
 	if (addr->sin_other & SIN_PROXY)
 		printf(" published (proxy only)");
 	if (rtm->rtm_flags & RTF_ANNOUNCE)

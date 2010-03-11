@@ -199,6 +199,7 @@ static struct mtx ipqlock;
 
 static void	maxnipq_update(void);
 static void	ipq_zone_change(void *);
+static void	ip_drain_locked(void);
 
 SYSCTL_VNET_INT(_net_inet_ip, OID_AUTO, fragpackets, CTLFLAG_RD,
     &VNET_NAME(nipq), 0,
@@ -367,6 +368,22 @@ ip_init(void)
 	IPQ_LOCK_INIT();
 	netisr_register(&ip_nh);
 }
+
+#ifdef VIMAGE
+void
+ip_destroy(void)
+{
+
+	/* Cleanup in_ifaddr hash table; should be empty. */
+	hashdestroy(V_in_ifaddrhashtbl, M_IFADDR, V_in_ifaddrhmask);
+
+	IPQ_LOCK();
+	ip_drain_locked();
+	IPQ_UNLOCK();
+
+	uma_zdestroy(V_ipq_zone);
+}
+#endif
 
 void
 ip_fini(void *xtp)
@@ -1237,23 +1254,32 @@ ip_slowtimo(void)
 /*
  * Drain off all datagram fragments.
  */
+static void
+ip_drain_locked(void)
+{
+	int     i;
+
+	IPQ_LOCK_ASSERT();
+
+	for (i = 0; i < IPREASS_NHASH; i++) {
+		while(!TAILQ_EMPTY(&V_ipq[i])) {
+			IPSTAT_ADD(ips_fragdropped,
+			    TAILQ_FIRST(&V_ipq[i])->ipq_nfrags);
+			ip_freef(&V_ipq[i], TAILQ_FIRST(&V_ipq[i]));
+		}
+	}
+}
+
 void
 ip_drain(void)
 {
 	VNET_ITERATOR_DECL(vnet_iter);
-	int     i;
 
 	VNET_LIST_RLOCK_NOSLEEP();
 	IPQ_LOCK();
 	VNET_FOREACH(vnet_iter) {
 		CURVNET_SET(vnet_iter);
-		for (i = 0; i < IPREASS_NHASH; i++) {
-			while(!TAILQ_EMPTY(&V_ipq[i])) {
-				IPSTAT_ADD(ips_fragdropped,
-				    TAILQ_FIRST(&V_ipq[i])->ipq_nfrags);
-				ip_freef(&V_ipq[i], TAILQ_FIRST(&V_ipq[i]));
-			}
-		}
+		ip_drain_locked();
 		CURVNET_RESTORE();
 	}
 	IPQ_UNLOCK();

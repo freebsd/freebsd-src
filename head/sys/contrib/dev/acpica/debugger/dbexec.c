@@ -8,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2009, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2010, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -243,7 +243,7 @@ AcpiDbExecuteMethod (
                 default:
 
                     Params[i].Type           = ACPI_TYPE_INTEGER;
-                    Params[i].Integer.Value  = i * (ACPI_INTEGER) 0x1000;
+                    Params[i].Integer.Value  = i * (UINT64) 0x1000;
                     break;
                 }
             }
@@ -484,7 +484,7 @@ AcpiDbExecute (
      * Allow any handlers in separate threads to complete.
      * (Such as Notify handlers invoked from AML executed above).
      */
-    AcpiOsSleep ((ACPI_INTEGER) 10);
+    AcpiOsSleep ((UINT64) 10);
 
 
 #ifdef ACPI_DEBUG_OUTPUT

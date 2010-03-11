@@ -302,11 +302,11 @@ evtchn_close(struct cdev *dev, int flag, int otyp, struct thread *td __unused)
 {
 	int i;
 
-	mtx_lock_spin(&lock);
 	if (ring != NULL) {
 		free(ring, M_DEVBUF);
 		ring = NULL;
 	}
+	mtx_lock_spin(&lock);
 	for ( i = 0; i < NR_EVENT_CHANNELS; i++ )
 		if ( synch_test_and_clear_bit(i, &bound_ports[0]) )
 			mask_evtchn(i);

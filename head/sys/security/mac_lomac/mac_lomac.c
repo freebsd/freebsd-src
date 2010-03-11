@@ -1043,6 +1043,7 @@ lomac_devfs_create_device(struct ucred *cred, struct mount *mp,
 		lomac_type = MAC_LOMAC_TYPE_EQUAL;
 	else if (ptys_equal &&
 	    (strncmp(dev->si_name, "ttyp", strlen("ttyp")) == 0 ||
+	    strncmp(dev->si_name, "pts/", strlen("pts/")) == 0 ||
 	    strncmp(dev->si_name, "ptyp", strlen("ptyp")) == 0))
 		lomac_type = MAC_LOMAC_TYPE_EQUAL;
 	else

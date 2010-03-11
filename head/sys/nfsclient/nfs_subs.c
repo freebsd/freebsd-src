@@ -347,7 +347,7 @@ nfs_init(struct vfsconf *vfsp)
 		nfs_ticks = 1;
 	/* Ensure async daemons disabled */
 	for (i = 0; i < NFS_MAXASYNCDAEMON; i++) {
-		nfs_iodwant[i] = NULL;
+		nfs_iodwant[i] = NFSIOD_NOT_AVAILABLE;
 		nfs_iodmount[i] = NULL;
 	}
 	nfs_nhinit();			/* Init the nfsnode table */
@@ -375,7 +375,7 @@ nfs_uninit(struct vfsconf *vfsp)
 	mtx_lock(&nfs_iod_mtx);
 	nfs_iodmax = 0;
 	for (i = 0; i < nfs_numasync; i++)
-		if (nfs_iodwant[i])
+		if (nfs_iodwant[i] == NFSIOD_AVAILABLE)
 			wakeup(&nfs_iodwant[i]);
 	/* The last nfsiod to exit will wake us up when nfs_numasync hits 0 */
 	while (nfs_numasync)

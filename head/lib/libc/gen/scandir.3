@@ -81,7 +81,8 @@ The
 function
 is a routine which can be used for the
 .Fa compar
-argument to sort the array alphabetically.
+argument to sort the array alphabetically using
+.Xr strcoll 3 .
 .Pp
 The memory allocated for the array can be deallocated with
 .Xr free 3 ,
@@ -94,7 +95,8 @@ cannot allocate enough memory to hold all the data structures.
 .Xr directory 3 ,
 .Xr malloc 3 ,
 .Xr qsort 3 ,
-.Xr dir 5
+.Xr dir 5 ,
+.Xr strcoll 3
 .Sh HISTORY
 The
 .Fn scandir

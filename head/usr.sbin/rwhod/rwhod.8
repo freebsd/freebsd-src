@@ -188,9 +188,8 @@ system call, with any trailing domain name omitted.
 The array at the end of the message contains information about
 the users logged in to the sending machine.
 This information
-includes the contents of the
-.Xr utmp 5
-entry for each non-idle terminal line and a value indicating the
+includes the contents of the entry from the user accounting database
+for each non-idle terminal line and a value indicating the
 time in seconds since a character was last received on the terminal line.
 .Pp
 Messages received by the

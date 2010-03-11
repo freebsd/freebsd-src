@@ -8,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2009, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2010, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -442,7 +442,7 @@ Cleanup1:
  *              RegionOffset        - Where in the region to read or write
  *              BitWidth            - Field width in bits (8, 16, 32, or 64)
  *              Value               - Pointer to in or out value, must be
- *                                    full 64-bit ACPI_INTEGER
+ *                                    a full 64-bit integer
  *
  * RETURN:      Status
  *
@@ -457,7 +457,7 @@ AcpiEvAddressSpaceDispatch (
     UINT32                  Function,
     UINT32                  RegionOffset,
     UINT32                  BitWidth,
-    ACPI_INTEGER            *Value)
+    UINT64                  *Value)
 {
     ACPI_STATUS             Status;
     ACPI_ADR_SPACE_HANDLER  Handler;

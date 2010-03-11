@@ -53,10 +53,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/uart/uart_bus.h>
 #include <dev/uart/uart_cpu.h>
 
-/*
- * XXXMIPS:
- */
-#include <mips/cavium/octeonreg.h>
+#include <mips/cavium/octeon_pcmap_regs.h>
 
 #include "uart_if.h"
 
@@ -96,7 +93,6 @@ uart_octeon_probe(device_t dev)
 	sc = device_get_softc(dev);
 	sc->sc_class = &uart_oct16550_class;
 
-#if 1
 	/*
 	 * We inherit the settings from the systme console.  Note, the bst
 	 * bad bus_space_map are bogus here, but obio doesn't yet support
@@ -105,10 +101,9 @@ uart_octeon_probe(device_t dev)
 	sc->sc_sysdev = SLIST_FIRST(&uart_sysdevs);
 	bcopy(&sc->sc_sysdev->bas, &sc->sc_bas, sizeof(sc->sc_bas));
 	sc->sc_bas.bst = uart_bus_space_mem;
-	if (bus_space_map(sc->sc_bas.bst, OCTEON_UART0ADR, OCTEON_UART_SIZE,
+	if (bus_space_map(sc->sc_bas.bst, OCTEON_MIO_UART0, OCTEON_MIO_UART_SIZE,
 	    0, &sc->sc_bas.bsh) != 0)
 		return (ENXIO);
-#endif
 	return (uart_bus_probe(dev, sc->sc_bas.regshft, 0, 0, unit));
 }
 

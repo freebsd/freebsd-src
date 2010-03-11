@@ -23,6 +23,7 @@ CFLAGS+=	-I${GCCLIB}/include -I${SRCDIR} -I${GCCDIR}
 CFLAGS+=	-I${.CURDIR}/../libstdc++ -I.
 CFLAGS+=	-frandom-seed=RepeatabilityConsideredGood
 CXXFLAGS+=	-fno-implicit-templates -ffunction-sections -fdata-sections
+PO_CXXFLAGS=    ${CXXFLAGS:N-ffunction-sections}
 
 HDRS=	exception new typeinfo cxxabi.h exception_defines.h
 INCS=	${HDRS:S;^;${SRCDIR}/;}

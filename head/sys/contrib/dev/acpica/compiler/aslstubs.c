@@ -9,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2009, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2010, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -250,6 +250,15 @@ AcpiEvCheckForWakeOnlyGpe (
     return (AE_OK);
 }
 
+void
+AcpiExDoDebugObject (
+    ACPI_OPERAND_OBJECT     *SourceDesc,
+    UINT32                  Level,
+    UINT32                  Index)
+{
+    return;
+}
+
 ACPI_STATUS
 AcpiExReadDataFromField (
     ACPI_WALK_STATE         *WalkState,
@@ -275,7 +284,6 @@ AcpiExLoadTableOp (
 {
     return (AE_SUPPORT);
 }
-
 
 ACPI_STATUS
 AcpiExUnloadTable (

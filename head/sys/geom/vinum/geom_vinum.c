@@ -130,7 +130,6 @@ gv_access(struct g_provider *pp, int dr, int dw, int de)
 	struct gv_drive *d, *d2;
 	int error;
 	
-	error = ENXIO;
 	gp = pp->geom;
 	sc = gp->softc;
 	/*
@@ -789,7 +788,15 @@ gv_worker(void *arg)
 					    "completely accessible", p->name);
 					break;
 				}
+				if (p->flags & GV_PLEX_SYNCING ||
+				    p->flags & GV_PLEX_REBUILDING ||
+				    p->flags & GV_PLEX_GROWING) {
+					G_VINUM_DEBUG(0, "plex %s is busy with "
+					    "syncing or parity build", p->name);
+					break;
+				}
 				p->synced = 0;
+				p->flags |= GV_PLEX_REBUILDING;
 				g_topology_assert_not();
 				g_topology_lock();
 				err = gv_access(p->vol_sc->provider, 1, 1, 0);
@@ -810,6 +817,13 @@ gv_worker(void *arg)
 				if (p->state != GV_PLEX_UP) {
 					G_VINUM_DEBUG(0, "plex %s is not "
 					    "completely accessible", p->name);
+					break;
+				}
+				if (p->flags & GV_PLEX_SYNCING ||
+				    p->flags & GV_PLEX_REBUILDING ||
+				    p->flags & GV_PLEX_GROWING) {
+					G_VINUM_DEBUG(0, "plex %s is busy with "
+					    "syncing or parity build", p->name);
 					break;
 				}
 				p->synced = 0;

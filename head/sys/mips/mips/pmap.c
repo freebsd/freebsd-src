@@ -205,7 +205,7 @@ struct local_sysmaps {
 
 /* This structure is for large memory
  * above 512Meg. We can't (in 32 bit mode)
- * just use the direct mapped MIPS_CACHED_TO_PHYS()
+ * just use the direct mapped MIPS_KSEG0_TO_PHYS()
  * macros since we can't see the memory and must
  * map it in when we need to access it. In 64
  * bit mode this goes away.
@@ -271,7 +271,7 @@ pmap_steal_memory(vm_size_t size)
 	if (pa >= MIPS_KSEG0_LARGEST_PHYS) {
 		panic("Out of memory below 512Meg?");
 	}
-	va = MIPS_PHYS_TO_CACHED(pa);
+	va = MIPS_PHYS_TO_KSEG0(pa);
 	bzero((caddr_t)va, size);
 	return va;
 }
@@ -355,6 +355,26 @@ again:
 	virtual_avail = VM_MIN_KERNEL_ADDRESS + VM_KERNEL_ALLOC_OFFSET;
 	virtual_end = VM_MAX_KERNEL_ADDRESS;
 
+#ifdef SMP
+	/*
+	 * Steal some virtual address space to map the pcpu area.
+	 */
+	virtual_avail = roundup2(virtual_avail, PAGE_SIZE * 2);
+	pcpup = (struct pcpu *)virtual_avail;
+	virtual_avail += PAGE_SIZE * 2;
+
+	/*
+	 * Initialize the wired TLB entry mapping the pcpu region for
+	 * the BSP at 'pcpup'. Up until this point we were operating
+	 * with the 'pcpup' for the BSP pointing to a virtual address
+	 * in KSEG0 so there was no need for a TLB mapping.
+	 */
+	mips_pcpu_tlb_init(PCPU_ADDR(0));
+
+	if (bootverbose)
+		printf("pcpu is available at virtual address %p.\n", pcpup);
+#endif
+
 	/*
 	 * Steal some virtual space that will not be in kernel_segmap. This
 	 * va memory space will be used to map in kernel pages that are
@@ -428,8 +448,8 @@ again:
 	kernel_pmap->pm_segtab = kernel_segmap;
 	kernel_pmap->pm_active = ~0;
 	TAILQ_INIT(&kernel_pmap->pm_pvlist);
-	kernel_pmap->pm_asid[PCPU_GET(cpuid)].asid = PMAP_ASID_RESERVED;
-	kernel_pmap->pm_asid[PCPU_GET(cpuid)].gen = 0;
+	kernel_pmap->pm_asid[0].asid = PMAP_ASID_RESERVED;
+	kernel_pmap->pm_asid[0].gen = 0;
 	pmap_max_asid = VMNUM_PIDS;
 	MachSetPID(0);
 }
@@ -974,7 +994,7 @@ pmap_unuse_pt(pmap_t pmap, vm_offset_t va, vm_page_t mpte)
 			mpte = pmap->pm_ptphint;
 		} else {
 			pteva = *pmap_pde(pmap, va);
-			mpte = PHYS_TO_VM_PAGE(MIPS_CACHED_TO_PHYS(pteva));
+			mpte = PHYS_TO_VM_PAGE(MIPS_KSEG0_TO_PHYS(pteva));
 			pmap->pm_ptphint = mpte;
 		}
 	}
@@ -1028,7 +1048,7 @@ pmap_pinit(pmap_t pmap)
 	ptdpg->valid = VM_PAGE_BITS_ALL;
 
 	pmap->pm_segtab = (pd_entry_t *)
-	    MIPS_PHYS_TO_CACHED(VM_PAGE_TO_PHYS(ptdpg));
+	    MIPS_PHYS_TO_KSEG0(VM_PAGE_TO_PHYS(ptdpg));
 	if ((ptdpg->flags & PG_ZERO) == 0)
 		bzero(pmap->pm_segtab, PAGE_SIZE);
 
@@ -1095,7 +1115,7 @@ _pmap_allocpte(pmap_t pmap, unsigned ptepindex, int flags)
 	pmap->pm_stats.resident_count++;
 
 	ptepa = VM_PAGE_TO_PHYS(m);
-	pteva = MIPS_PHYS_TO_CACHED(ptepa);
+	pteva = MIPS_PHYS_TO_KSEG0(ptepa);
 	pmap->pm_segtab[ptepindex] = (pd_entry_t)pteva;
 
 	/*
@@ -1149,7 +1169,7 @@ retry:
 		    (pmap->pm_ptphint->pindex == ptepindex)) {
 			m = pmap->pm_ptphint;
 		} else {
-			m = PHYS_TO_VM_PAGE(MIPS_CACHED_TO_PHYS(pteva));
+			m = PHYS_TO_VM_PAGE(MIPS_KSEG0_TO_PHYS(pteva));
 			pmap->pm_ptphint = m;
 		}
 		m->wire_count++;
@@ -1195,7 +1215,7 @@ pmap_release(pmap_t pmap)
 	    ("pmap_release: pmap resident count %ld != 0",
 	    pmap->pm_stats.resident_count));
 
-	ptdpg = PHYS_TO_VM_PAGE(MIPS_CACHED_TO_PHYS(pmap->pm_segtab));
+	ptdpg = PHYS_TO_VM_PAGE(MIPS_KSEG0_TO_PHYS(pmap->pm_segtab));
 	ptdpg->wire_count--;
 	atomic_subtract_int(&cnt.v_wire_count, 1);
 	vm_page_free_zero(ptdpg);
@@ -1265,7 +1285,7 @@ pmap_growkernel(vm_offset_t addr)
 			 */
 			panic("Gak, can't handle a k-page table outside of lower 512Meg");
 		}
-		pte = (pt_entry_t *)MIPS_PHYS_TO_CACHED(ptppaddr);
+		pte = (pt_entry_t *)MIPS_PHYS_TO_KSEG0(ptppaddr);
 		segtab_pde(kernel_segmap, kernel_vm_end) = (pd_entry_t)pte;
 
 		/*
@@ -2007,7 +2027,7 @@ pmap_enter_quick_locked(pmap_t pmap, vm_offset_t va, vm_page_t m,
 				    (pmap->pm_ptphint->pindex == ptepindex)) {
 					mpte = pmap->pm_ptphint;
 				} else {
-					mpte = PHYS_TO_VM_PAGE(MIPS_CACHED_TO_PHYS(pteva));
+					mpte = PHYS_TO_VM_PAGE(MIPS_KSEG0_TO_PHYS(pteva));
 					pmap->pm_ptphint = mpte;
 				}
 				mpte->wire_count++;
@@ -2085,7 +2105,7 @@ void *
 pmap_kenter_temporary(vm_paddr_t pa, int i)
 {
 	vm_offset_t va;
-
+	int int_level;
 	if (i != 0)
 		printf("%s: ERROR!!! More than one page of virtual address mapping not supported\n",
 		    __func__);
@@ -2097,18 +2117,24 @@ pmap_kenter_temporary(vm_paddr_t pa, int i)
 	} else
 #endif
 	if (pa < MIPS_KSEG0_LARGEST_PHYS) {
-		va = MIPS_PHYS_TO_CACHED(pa);
+		va = MIPS_PHYS_TO_KSEG0(pa);
 	} else {
 		int cpu;
 		struct local_sysmaps *sysm;
-
+		/* If this is used other than for dumps, we may need to leave
+		 * interrupts disasbled on return. If crash dumps don't work when
+		 * we get to this point, we might want to consider this (leaving things
+		 * disabled as a starting point ;-)
+	 	 */
+		int_level = disableintr();
 		cpu = PCPU_GET(cpuid);
 		sysm = &sysmap_lmem[cpu];
 		/* Since this is for the debugger, no locks or any other fun */
 		sysm->CMAP1 = mips_paddr_to_tlbpfn(pa) | PTE_RW | PTE_V | PTE_G | PTE_W | PTE_CACHE;
-		pmap_TLB_update_kernel((vm_offset_t)sysm->CADDR1, sysm->CMAP1);
 		sysm->valid1 = 1;
+		pmap_TLB_update_kernel((vm_offset_t)sysm->CADDR1, sysm->CMAP1);
 		va = (vm_offset_t)sysm->CADDR1;
+		restoreintr(int_level);
 	}
 	return ((void *)va);
 }
@@ -2117,6 +2143,7 @@ void
 pmap_kenter_temporary_free(vm_paddr_t pa)
 {
 	int cpu;
+	int int_level;
 	struct local_sysmaps *sysm;
 
 	if (pa < MIPS_KSEG0_LARGEST_PHYS) {
@@ -2126,7 +2153,9 @@ pmap_kenter_temporary_free(vm_paddr_t pa)
 	cpu = PCPU_GET(cpuid);
 	sysm = &sysmap_lmem[cpu];
 	if (sysm->valid1) {
+		int_level = disableintr();
 		pmap_TLB_invalidate_kernel((vm_offset_t)sysm->CADDR1);
+		restoreintr(int_level);
 		sysm->CMAP1 = 0;
 		sysm->valid1 = 0;
 	}
@@ -2237,7 +2266,7 @@ pmap_zero_page(vm_page_t m)
 {
 	vm_offset_t va;
 	vm_paddr_t phys = VM_PAGE_TO_PHYS(m);
-
+	int int_level;
 #ifdef VM_ALLOC_WIRED_TLB_PG_POOL
 	if (need_wired_tlb_page_pool) {
 		struct fpage *fp1;
@@ -2260,7 +2289,7 @@ pmap_zero_page(vm_page_t m)
 #endif
 	if (phys < MIPS_KSEG0_LARGEST_PHYS) {
 
-		va = MIPS_PHYS_TO_CACHED(phys);
+		va = MIPS_PHYS_TO_KSEG0(phys);
 
 		bzero((caddr_t)va, PAGE_SIZE);
 		mips_dcache_wbinv_range(va, PAGE_SIZE);
@@ -2272,11 +2301,13 @@ pmap_zero_page(vm_page_t m)
 		sysm = &sysmap_lmem[cpu];
 		PMAP_LGMEM_LOCK(sysm);
 		sched_pin();
+		int_level = disableintr();
 		sysm->CMAP1 = mips_paddr_to_tlbpfn(phys) | PTE_RW | PTE_V | PTE_G | PTE_W | PTE_CACHE;
-		pmap_TLB_update_kernel((vm_offset_t)sysm->CADDR1, sysm->CMAP1);
 		sysm->valid1 = 1;
+		pmap_TLB_update_kernel((vm_offset_t)sysm->CADDR1, sysm->CMAP1);
 		bzero(sysm->CADDR1, PAGE_SIZE);
 		pmap_TLB_invalidate_kernel((vm_offset_t)sysm->CADDR1);
+		restoreintr(int_level);
 		sysm->CMAP1 = 0;
 		sysm->valid1 = 0;
 		sched_unpin();
@@ -2296,7 +2327,7 @@ pmap_zero_page_area(vm_page_t m, int off, int size)
 {
 	vm_offset_t va;
 	vm_paddr_t phys = VM_PAGE_TO_PHYS(m);
-
+	int int_level;
 #ifdef VM_ALLOC_WIRED_TLB_PG_POOL
 	if (need_wired_tlb_page_pool) {
 		struct fpage *fp1;
@@ -2316,7 +2347,7 @@ pmap_zero_page_area(vm_page_t m, int off, int size)
 	} else
 #endif
 	if (phys < MIPS_KSEG0_LARGEST_PHYS) {
-		va = MIPS_PHYS_TO_CACHED(phys);
+		va = MIPS_PHYS_TO_KSEG0(phys);
 		bzero((char *)(caddr_t)va + off, size);
 		mips_dcache_wbinv_range(va + off, size);
 	} else {
@@ -2326,12 +2357,14 @@ pmap_zero_page_area(vm_page_t m, int off, int size)
 		cpu = PCPU_GET(cpuid);
 		sysm = &sysmap_lmem[cpu];
 		PMAP_LGMEM_LOCK(sysm);
+		int_level = disableintr();
 		sched_pin();
 		sysm->CMAP1 = mips_paddr_to_tlbpfn(phys) | PTE_RW | PTE_V | PTE_G | PTE_W | PTE_CACHE;
-		pmap_TLB_update_kernel((vm_offset_t)sysm->CADDR1, sysm->CMAP1);
 		sysm->valid1 = 1;
+		pmap_TLB_update_kernel((vm_offset_t)sysm->CADDR1, sysm->CMAP1);
 		bzero((char *)sysm->CADDR1 + off, size);
 		pmap_TLB_invalidate_kernel((vm_offset_t)sysm->CADDR1);
+		restoreintr(int_level);
 		sysm->CMAP1 = 0;
 		sysm->valid1 = 0;
 		sched_unpin();
@@ -2344,7 +2377,7 @@ pmap_zero_page_idle(vm_page_t m)
 {
 	vm_offset_t va;
 	vm_paddr_t phys = VM_PAGE_TO_PHYS(m);
-
+	int int_level;
 #ifdef VM_ALLOC_WIRED_TLB_PG_POOL
 	if (need_wired_tlb_page_pool) {
 		sched_pin();
@@ -2355,7 +2388,7 @@ pmap_zero_page_idle(vm_page_t m)
 	} else
 #endif
 	if (phys < MIPS_KSEG0_LARGEST_PHYS) {
-		va = MIPS_PHYS_TO_CACHED(phys);
+		va = MIPS_PHYS_TO_KSEG0(phys);
 		bzero((caddr_t)va, PAGE_SIZE);
 		mips_dcache_wbinv_range(va, PAGE_SIZE);
 	} else {
@@ -2365,12 +2398,14 @@ pmap_zero_page_idle(vm_page_t m)
 		cpu = PCPU_GET(cpuid);
 		sysm = &sysmap_lmem[cpu];
 		PMAP_LGMEM_LOCK(sysm);
+		int_level = disableintr();
 		sched_pin();
 		sysm->CMAP1 = mips_paddr_to_tlbpfn(phys) | PTE_RW | PTE_V | PTE_G | PTE_W | PTE_CACHE;
-		pmap_TLB_update_kernel((vm_offset_t)sysm->CADDR1, sysm->CMAP1);
 		sysm->valid1 = 1;
+		pmap_TLB_update_kernel((vm_offset_t)sysm->CADDR1, sysm->CMAP1);
 		bzero(sysm->CADDR1, PAGE_SIZE);
 		pmap_TLB_invalidate_kernel((vm_offset_t)sysm->CADDR1);
+		restoreintr(int_level);
 		sysm->CMAP1 = 0;
 		sysm->valid1 = 0;
 		sched_unpin();
@@ -2391,7 +2426,7 @@ pmap_copy_page(vm_page_t src, vm_page_t dst)
 	vm_offset_t va_src, va_dst;
 	vm_paddr_t phy_src = VM_PAGE_TO_PHYS(src);
 	vm_paddr_t phy_dst = VM_PAGE_TO_PHYS(dst);
-
+	int int_level;
 #ifdef VM_ALLOC_WIRED_TLB_PG_POOL
 	if (need_wired_tlb_page_pool) {
 		struct fpage *fp1, *fp2;
@@ -2428,9 +2463,9 @@ pmap_copy_page(vm_page_t src, vm_page_t dst)
 			 */
 			pmap_flush_pvcache(src);
 			mips_dcache_wbinv_range_index(
-			    MIPS_PHYS_TO_CACHED(phy_dst), NBPG);
-			va_src = MIPS_PHYS_TO_CACHED(phy_src);
-			va_dst = MIPS_PHYS_TO_CACHED(phy_dst);
+			    MIPS_PHYS_TO_KSEG0(phy_dst), NBPG);
+			va_src = MIPS_PHYS_TO_KSEG0(phy_src);
+			va_dst = MIPS_PHYS_TO_KSEG0(phy_dst);
 			bcopy((caddr_t)va_src, (caddr_t)va_dst, PAGE_SIZE);
 			mips_dcache_wbinv_range(va_dst, PAGE_SIZE);
 		} else {
@@ -2441,16 +2476,17 @@ pmap_copy_page(vm_page_t src, vm_page_t dst)
 			sysm = &sysmap_lmem[cpu];
 			PMAP_LGMEM_LOCK(sysm);
 			sched_pin();
+			int_level = disableintr();
 			if (phy_src < MIPS_KSEG0_LARGEST_PHYS) {
 				/* one side needs mapping - dest */
-				va_src = MIPS_PHYS_TO_CACHED(phy_src);
+				va_src = MIPS_PHYS_TO_KSEG0(phy_src);
 				sysm->CMAP2 = mips_paddr_to_tlbpfn(phy_dst) | PTE_RW | PTE_V | PTE_G | PTE_W | PTE_CACHE;
 				pmap_TLB_update_kernel((vm_offset_t)sysm->CADDR2, sysm->CMAP2);
-				sysm->valid2 = 2;
+				sysm->valid2 = 1;
 				va_dst = (vm_offset_t)sysm->CADDR2;
 			} else if (phy_dst < MIPS_KSEG0_LARGEST_PHYS) {
 				/* one side needs mapping - src */
-				va_dst = MIPS_PHYS_TO_CACHED(phy_dst);
+				va_dst = MIPS_PHYS_TO_KSEG0(phy_dst);
 				sysm->CMAP1 = mips_paddr_to_tlbpfn(phy_src) | PTE_RW | PTE_V | PTE_G | PTE_W | PTE_CACHE;
 				pmap_TLB_update_kernel((vm_offset_t)sysm->CADDR1, sysm->CMAP1);
 				va_src = (vm_offset_t)sysm->CADDR1;
@@ -2476,6 +2512,7 @@ pmap_copy_page(vm_page_t src, vm_page_t dst)
 				sysm->CMAP2 = 0;
 				sysm->valid2 = 0;
 			}
+			restoreintr(int_level);
 			sched_unpin();
 			PMAP_LGMEM_UNLOCK(sysm);
 		}
@@ -3269,7 +3306,7 @@ pmap_kextract(vm_offset_t va)
 {
 	vm_offset_t pa = 0;
 
-	if (va < MIPS_CACHED_MEMORY_ADDR) {
+	if (va < MIPS_KSEG0_START) {
 		/* user virtual address */
 		pt_entry_t *ptep;
 
@@ -3279,16 +3316,16 @@ pmap_kextract(vm_offset_t va)
 				pa = mips_tlbpfn_to_paddr(*ptep) |
 				    (va & PAGE_MASK);
 		}
-	} else if (va >= MIPS_CACHED_MEMORY_ADDR &&
-	    va < MIPS_UNCACHED_MEMORY_ADDR)
-		pa = MIPS_CACHED_TO_PHYS(va);
-	else if (va >= MIPS_UNCACHED_MEMORY_ADDR &&
+	} else if (va >= MIPS_KSEG0_START &&
+	    va < MIPS_KSEG1_START)
+		pa = MIPS_KSEG0_TO_PHYS(va);
+	else if (va >= MIPS_KSEG1_START &&
 	    va < MIPS_KSEG2_START)
-		pa = MIPS_UNCACHED_TO_PHYS(va);
+		pa = MIPS_KSEG1_TO_PHYS(va);
 #ifdef VM_ALLOC_WIRED_TLB_PG_POOL
 	else if (need_wired_tlb_page_pool && ((va >= VM_MIN_KERNEL_ADDRESS) &&
 	    (va < (VM_MIN_KERNEL_ADDRESS + VM_KERNEL_ALLOC_OFFSET))))
-		pa = MIPS_CACHED_TO_PHYS(va);
+		pa = MIPS_KSEG0_TO_PHYS(va);
 #endif
 	else if (va >= MIPS_KSEG2_START && va < VM_MAX_KERNEL_ADDRESS) {
 		pt_entry_t *ptep;

@@ -160,6 +160,10 @@
             usd
                 04.csh
                 ..
+                05.dc
+                ..
+                06.bc
+                ..
                 07.mail
                 ..
                 10.exref
@@ -189,8 +193,6 @@
             ..
             IPv6
             ..
-            bc
-            ..
             bootforth
             ..
             cvs
@@ -210,6 +212,8 @@
                 ..
             ..
             find_interface
+            ..
+            hast
             ..
             hostapd
             ..

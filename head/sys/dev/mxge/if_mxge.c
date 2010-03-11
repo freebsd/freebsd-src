@@ -2249,7 +2249,7 @@ mxge_transmit_locked(struct mxge_slice_state *ss, struct mbuf *m)
 		return (err);
 	}
 
-	if (drbr_empty(ifp, tx->br) &&
+	if (!drbr_needs_enqueue(ifp, tx->br) &&
 	    ((tx->mask - (tx->req - tx->done)) > tx->max_desc)) {
 		/* let BPF see it */
 		BPF_MTAP(ifp, m);
@@ -4122,6 +4122,13 @@ mxge_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 		}
 		if (mask & IFCAP_VLAN_HWTAGGING)
 			ifp->if_capenable ^= IFCAP_VLAN_HWTAGGING;
+		if (mask & IFCAP_VLAN_HWTSO)
+			ifp->if_capenable ^= IFCAP_VLAN_HWTSO;
+
+		if (!(ifp->if_capabilities & IFCAP_VLAN_HWTSO) ||
+		    !(ifp->if_capenable & IFCAP_VLAN_HWTAGGING))
+			ifp->if_capenable &= ~IFCAP_VLAN_HWTSO;
+
 		mtx_unlock(&sc->driver_mtx);
 		VLAN_CAPABILITIES(ifp);
 
@@ -4734,6 +4741,11 @@ mxge_attach(device_t dev)
 
 #ifdef MXGE_NEW_VLAN_API
 	ifp->if_capabilities |= IFCAP_VLAN_HWTAGGING | IFCAP_VLAN_HWCSUM;
+
+	/* Only FW 1.4.32 and newer can do TSO over vlans */
+	if (sc->fw_ver_major == 1 && sc->fw_ver_minor == 4 &&
+	    sc->fw_ver_tiny >= 32)
+		ifp->if_capabilities |= IFCAP_VLAN_HWTSO;
 #endif
 
 	sc->max_mtu = mxge_max_mtu(sc);

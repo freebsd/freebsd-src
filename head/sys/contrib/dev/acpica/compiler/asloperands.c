@@ -9,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2009, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2010, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -604,7 +604,7 @@ OpnDoRegion (
     }
     else
     {
-        Op->Asl.Value.Integer = ACPI_INTEGER_MAX;
+        Op->Asl.Value.Integer = ACPI_UINT64_MAX;
     }
 }
 
@@ -1007,7 +1007,7 @@ OpnDoDefinitionBlock (
 
         for (i = 0; i < 4; i++)
         {
-            if (!isalnum (Gbl_TableSignature[i]))
+            if (!isalnum ((int) Gbl_TableSignature[i]))
             {
                 AslError (ASL_ERROR, ASL_MSG_TABLE_SIGNATURE, Child,
                     "Contains non-alphanumeric characters");

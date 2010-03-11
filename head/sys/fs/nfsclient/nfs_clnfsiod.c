@@ -72,7 +72,7 @@ __FBSDID("$FreeBSD$");
 extern struct mtx ncl_iod_mutex;
 
 int ncl_numasync;
-struct proc *ncl_iodwant[NFS_MAXRAHEAD];
+enum nfsiod_state ncl_iodwant[NFS_MAXRAHEAD];
 struct nfsmount *ncl_iodmount[NFS_MAXRAHEAD];
 
 static void	nfssvc_iod(void *);
@@ -114,7 +114,7 @@ sysctl_iodmin(SYSCTL_HANDLER_ARGS)
 	 * than the new minimum, create some more.
 	 */
 	for (i = nfs_iodmin - ncl_numasync; i > 0; i--)
-		ncl_nfsiodnew();
+		ncl_nfsiodnew(0);
 out:
 	mtx_unlock(&ncl_iod_mutex);	
 	return (0);
@@ -147,7 +147,7 @@ sysctl_iodmax(SYSCTL_HANDLER_ARGS)
 	 */
 	iod = ncl_numasync - 1;
 	for (i = 0; i < ncl_numasync - ncl_iodmax; i++) {
-		if (ncl_iodwant[iod])
+		if (ncl_iodwant[iod] == NFSIOD_AVAILABLE)
 			wakeup(&ncl_iodwant[iod]);
 		iod--;
 	}
@@ -159,7 +159,7 @@ SYSCTL_PROC(_vfs_newnfs, OID_AUTO, iodmax, CTLTYPE_UINT | CTLFLAG_RW, 0,
     sizeof (ncl_iodmax), sysctl_iodmax, "IU", "");
 
 int
-ncl_nfsiodnew(void)
+ncl_nfsiodnew(int set_iodwant)
 {
 	int error, i;
 	int newiod;
@@ -175,12 +175,17 @@ ncl_nfsiodnew(void)
 		}
 	if (newiod == -1)
 		return (-1);
+	if (set_iodwant > 0)
+		ncl_iodwant[i] = NFSIOD_CREATED_FOR_NFS_ASYNCIO;
 	mtx_unlock(&ncl_iod_mutex);
 	error = kproc_create(nfssvc_iod, nfs_asyncdaemon + i, NULL, RFHIGHPID,
 	    0, "nfsiod %d", newiod);
 	mtx_lock(&ncl_iod_mutex);
-	if (error)
+	if (error) {
+		if (set_iodwant > 0)
+			ncl_iodwant[i] = NFSIOD_NOT_AVAILABLE;
 		return (-1);
+	}
 	ncl_numasync++;
 	return (newiod);
 }
@@ -199,7 +204,7 @@ nfsiod_setup(void *dummy)
 		nfs_iodmin = NFS_MAXRAHEAD;
 
 	for (i = 0; i < nfs_iodmin; i++) {
-		error = ncl_nfsiodnew();
+		error = ncl_nfsiodnew(0);
 		if (error == -1)
 			panic("newnfsiod_setup: ncl_nfsiodnew failed");
 	}
@@ -235,7 +240,8 @@ nfssvc_iod(void *instance)
 			goto finish;
 		if (nmp)
 			nmp->nm_bufqiods--;
-		ncl_iodwant[myiod] = curthread->td_proc;
+		if (ncl_iodwant[myiod] == NFSIOD_NOT_AVAILABLE)
+			ncl_iodwant[myiod] = NFSIOD_AVAILABLE;
 		ncl_iodmount[myiod] = NULL;
 		/*
 		 * Always keep at least nfs_iodmin kthreads.
@@ -295,7 +301,7 @@ finish:
 	nfs_asyncdaemon[myiod] = 0;
 	if (nmp)
 	    nmp->nm_bufqiods--;
-	ncl_iodwant[myiod] = NULL;
+	ncl_iodwant[myiod] = NFSIOD_NOT_AVAILABLE;
 	ncl_iodmount[myiod] = NULL;
 	/* Someone may be waiting for the last nfsiod to terminate. */
 	if (--ncl_numasync == 0)

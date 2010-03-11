@@ -1,5 +1,5 @@
 /*
- * Copryight 1998 Sean Eric Fagan
+ * Copyright 1998 Sean Eric Fagan
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -155,8 +155,8 @@ mips_syscall_entry(struct trussinfo *trussinfo, int nargs) {
   if (nargs == 0)
     return;
 
-#if 0 // XXX
   fsc.args = malloc((1+nargs) * sizeof(unsigned long));
+#if 0 // XXX
   iorequest.piod_op = PIOD_READ_D;
   iorequest.piod_offs = (void *)parm_offset;
   iorequest.piod_addr = fsc.args;

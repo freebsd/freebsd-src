@@ -43,7 +43,10 @@ CWARNFLAGS	+=	-W -Wno-unused-parameter -Wstrict-prototypes\
 .  endif
 .  if ${WARNS} >= 4
 CWARNFLAGS	+=	-Wreturn-type -Wcast-qual -Wwrite-strings -Wswitch\
-			-Wshadow -Wcast-align -Wunused-parameter
+			-Wshadow -Wunused-parameter
+.   if !defined(NO_WCAST_ALIGN)
+CWARNFLAGS	+=	-Wcast-align
+.   endif
 .  endif
 # BDECFLAGS
 .  if ${WARNS} >= 6

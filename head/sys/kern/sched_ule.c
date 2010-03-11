@@ -301,7 +301,6 @@ static int sched_pickcpu(struct thread *, int);
 static void sched_balance(void);
 static int sched_balance_pair(struct tdq *, struct tdq *);
 static inline struct tdq *sched_setcpu(struct thread *, int, int);
-static inline struct mtx *thread_block_switch(struct thread *);
 static inline void thread_unblock_switch(struct thread *, struct mtx *);
 static struct mtx *sched_switch_migrate(struct tdq *, struct thread *, int);
 static int sysctl_kern_sched_topology_spec(SYSCTL_HANDLER_ARGS);
@@ -1106,9 +1105,11 @@ sched_setcpu(struct thread *td, int cpu, int flags)
 	 * The hard case, migration, we need to block the thread first to
 	 * prevent order reversals with other cpus locks.
 	 */
+	spinlock_enter();
 	thread_lock_block(td);
 	TDQ_LOCK(tdq);
 	thread_lock_unblock(td, TDQ_LOCKPTR(tdq));
+	spinlock_exit();
 	return (tdq);
 }
 
@@ -1715,23 +1716,6 @@ sched_unlend_user_prio(struct thread *td, u_char prio)
 }
 
 /*
- * Block a thread for switching.  Similar to thread_block() but does not
- * bump the spin count.
- */
-static inline struct mtx *
-thread_block_switch(struct thread *td)
-{
-	struct mtx *lock;
-
-	THREAD_LOCK_ASSERT(td, MA_OWNED);
-	lock = td->td_lock;
-	td->td_lock = &blocked_lock;
-	mtx_unlock_spin(lock);
-
-	return (lock);
-}
-
-/*
  * Handle migration from sched_switch().  This happens only for
  * cpu binding.
  */
@@ -1749,7 +1733,7 @@ sched_switch_migrate(struct tdq *tdq, struct thread *td, int flags)
 	 * not holding either run-queue lock.
 	 */
 	spinlock_enter();
-	thread_block_switch(td);	/* This releases the lock on tdq. */
+	thread_lock_block(td);	/* This releases the lock on tdq. */
 
 	/*
 	 * Acquire both run-queue locks before placing the thread on the new
@@ -1769,7 +1753,8 @@ sched_switch_migrate(struct tdq *tdq, struct thread *td, int flags)
 }
 
 /*
- * Release a thread that was blocked with thread_block_switch().
+ * Variadic version of thread_lock_unblock() that does not assume td_lock
+ * is blocked.
  */
 static inline void
 thread_unblock_switch(struct thread *td, struct mtx *mtx)
@@ -1825,7 +1810,7 @@ sched_switch(struct thread *td, struct thread *newtd, int flags)
 	} else {
 		/* This thread must be going to sleep. */
 		TDQ_LOCK(tdq);
-		mtx = thread_block_switch(td);
+		mtx = thread_lock_block(td);
 		tdq_load_rem(tdq, td);
 	}
 	/*

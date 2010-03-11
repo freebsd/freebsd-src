@@ -276,7 +276,7 @@ struct sctp_send_failed {
 	uint32_t ssf_error;
 	struct sctp_sndrcvinfo ssf_info;
 	sctp_assoc_t ssf_assoc_id;
-	uint8_t ssf_data[0];
+	uint8_t ssf_data[];
 };
 
 /* flag that indicates state of data */
@@ -370,7 +370,7 @@ struct sctp_stream_reset_event {
 	uint16_t strreset_flags;
 	uint32_t strreset_length;
 	sctp_assoc_t strreset_assoc_id;
-	uint16_t strreset_list[0];
+	uint16_t strreset_list[];
 };
 
 /* flags in strreset_flags field */
@@ -517,13 +517,13 @@ struct sctp_authchunk {
 struct sctp_authkey {
 	sctp_assoc_t sca_assoc_id;
 	uint16_t sca_keynumber;
-	uint8_t sca_key[0];
+	uint8_t sca_key[];
 };
 
 /* SCTP_HMAC_IDENT */
 struct sctp_hmacalgo {
 	uint32_t shmac_number_of_idents;
-	uint16_t shmac_idents[0];
+	uint16_t shmac_idents[];
 };
 
 /* AUTH hmac_id */
@@ -544,7 +544,7 @@ struct sctp_authkeyid {
 /* SCTP_PEER_AUTH_CHUNKS / SCTP_LOCAL_AUTH_CHUNKS */
 struct sctp_authchunks {
 	sctp_assoc_t gauth_assoc_id;
-	uint8_t gauth_chunks[0];
+	uint8_t gauth_chunks[];
 };
 
 struct sctp_assoc_value {
@@ -554,7 +554,7 @@ struct sctp_assoc_value {
 
 struct sctp_assoc_ids {
 	uint32_t gaids_number_of_ids;
-	sctp_assoc_t gaids_assoc_id[0];
+	sctp_assoc_t gaids_assoc_id[];
 };
 
 struct sctp_sack_info {
@@ -603,7 +603,7 @@ struct sctp_stream_reset {
 	sctp_assoc_t strrst_assoc_id;
 	uint16_t strrst_flags;
 	uint16_t strrst_num_streams;	/* 0 == ALL */
-	uint16_t strrst_list[0];/* list if strrst_num_streams is not 0 */
+	uint16_t strrst_list[];	/* list if strrst_num_streams is not 0 */
 };
 
 
@@ -756,7 +756,7 @@ struct sctp_cwnd_log_req {
 	int32_t num_ret;	/* Number returned */
 	int32_t start_at;	/* start at this one */
 	int32_t end_at;		/* end at this one */
-	struct sctp_cwnd_log log[0];
+	struct sctp_cwnd_log log[];
 };
 
 struct sctp_timeval {

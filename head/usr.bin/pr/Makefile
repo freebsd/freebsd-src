@@ -4,6 +4,4 @@
 PROG=	pr
 SRCS=	pr.c egetopt.c
 
-WARNS?=	2
-
 .include <bsd.prog.mk>

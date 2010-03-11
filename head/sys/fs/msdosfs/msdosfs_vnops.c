@@ -1072,7 +1072,7 @@ abortit:
 	/*
 	 * If ".." must be changed (ie the directory gets a new
 	 * parent) then the source directory must not be in the
-	 * directory heirarchy above the target, as this would
+	 * directory hierarchy above the target, as this would
 	 * orphan everything below the source directory. Also
 	 * the user must have write permission in the source so
 	 * as to be able to change "..". We must repeat the call
@@ -1287,7 +1287,7 @@ static struct {
 	struct direntry dot;
 	struct direntry dotdot;
 } dosdirtemplate = {
-	{	".       ", "   ",			/* the . entry */
+	{	".          ",				/* the . entry */
 		ATTR_DIRECTORY,				/* file attribute */
 		0,					/* reserved */
 		0, { 0, 0 }, { 0, 0 },			/* create time & date */
@@ -1297,7 +1297,7 @@ static struct {
 		{ 0, 0 },				/* startcluster */
 		{ 0, 0, 0, 0 }				/* filesize */
 	},
-	{	"..      ", "   ",			/* the .. entry */
+	{	"..         ",				/* the .. entry */
 		ATTR_DIRECTORY,				/* file attribute */
 		0,					/* reserved */
 		0, { 0, 0 }, { 0, 0 },			/* create time & date */
@@ -1468,14 +1468,12 @@ msdosfs_rmdir(ap)
 	 * the name cache.
 	 */
 	cache_purge(dvp);
-	VOP_UNLOCK(dvp, 0);
 	/*
 	 * Truncate the directory that is being deleted.
 	 */
 	error = detrunc(ip, (u_long)0, IO_SYNC, cnp->cn_cred, td);
 	cache_purge(vp);
 
-	vn_lock(dvp, LK_EXCLUSIVE | LK_RETRY);
 out:
 	return (error);
 }
@@ -1729,7 +1727,7 @@ msdosfs_readdir(ap)
 			} else
 				dirbuf.d_fileno = (uint32_t)fileno;
 
-			if (chksum != winChksum(dentp)) {
+			if (chksum != winChksum(dentp->deName)) {
 				dirbuf.d_namlen = dos2unixfn(dentp->deName,
 				    (u_char *)dirbuf.d_name,
 				    dentp->deLowerCase |

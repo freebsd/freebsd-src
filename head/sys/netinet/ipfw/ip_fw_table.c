@@ -66,6 +66,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet/in.h>
 #include <netinet/ip_var.h>	/* struct ipfw_rule_ref */
 #include <netinet/ip_fw.h>
+#include <sys/queue.h> /* LIST_HEAD */
 #include <netinet/ipfw/ip_fw_private.h>
 
 #ifdef MAC
@@ -200,6 +201,21 @@ ipfw_init_tables(struct ip_fw_chain *ch)
 		}
 	}
 	return (0);
+}
+
+void
+ipfw_destroy_tables(struct ip_fw_chain *ch)
+{
+	int tbl;
+	struct radix_node_head *rnh;
+
+	IPFW_WLOCK_ASSERT(ch);
+
+	ipfw_flush_tables(ch);
+	for (tbl = 0; tbl < IPFW_TABLES_MAX; tbl++) {
+		rnh = ch->tables[tbl];
+		rn_detachhead((void **)&rnh);
+	}
 }
 
 int

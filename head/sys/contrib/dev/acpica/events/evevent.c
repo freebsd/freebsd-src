@@ -8,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2009, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2010, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -415,7 +415,7 @@ AcpiEvFixedEventDispatch (
                 ACPI_DISABLE_EVENT);
 
         ACPI_ERROR ((AE_INFO,
-            "No installed handler for fixed event [%08X]",
+            "No installed handler for fixed event [0x%08X]",
             Event));
 
         return (ACPI_INTERRUPT_NOT_HANDLED);

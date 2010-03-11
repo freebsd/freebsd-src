@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002-2003 Luigi Rizzo
+ * Copyright (c) 2002-2003,2010 Luigi Rizzo
  * Copyright (c) 1996 Alex Nash, Paul Traina, Poul-Henning Kamp
  * Copyright (c) 1994 Ugen J.S.Antsilevich
  *
@@ -80,31 +80,27 @@ help(void)
 }
 
 /*
- * Free a the (locally allocated) copy of command line arguments.
- */
-static void
-free_args(int ac, char **av)
-{
-	int i;
-
-	for (i=0; i < ac; i++)
-		free(av[i]);
-	free(av);
-}
-
-/*
  * Called with the arguments, including program name because getopt
  * wants it to be present.
  * Returns 0 if successful, 1 if empty command, errx() in case of errors.
+ * First thing we do is process parameters creating an argv[] array
+ * which includes the program name and a NULL entry at the end.
+ * If we are called with a single string, we split it on whitespace.
+ * Also, arguments with a trailing ',' are joined to the next one.
+ * The pointers (av[]) and data are in a a single chunk of memory.
+ * av[0] points to the original program name, all other entries
+ * point into the allocated chunk.
  */
 static int
 ipfw_main(int oldac, char **oldav)
 {
-	int ch, ac, save_ac;
+	int ch, ac;
 	const char *errstr;
 	char **av, **save_av;
 	int do_acct = 0;		/* Show packet/byte count */
 	int try_next = 0;		/* set if pipe cmd not found */
+	int av_size;			/* compute the av size */
+	char *av_p;			/* used to build the av list */
 
 #define WHITESP		" \t\f\v\n\r"
 	if (oldac < 2)
@@ -112,10 +108,9 @@ ipfw_main(int oldac, char **oldav)
 
 	if (oldac == 2) {
 		/*
-		 * If we are called with a single string, try to split it into
-		 * arguments for subsequent parsing.
-		 * But first, remove spaces after a ',', by copying the string
-		 * in-place.
+		 * If we are called with one argument, try to split it into
+		 * words for subsequent parsing. Spaces after a ',' are
+		 * removed by copying the string in-place.
 		 */
 		char *arg = oldav[1];	/* The string is the first arg. */
 		int l = strlen(arg);
@@ -150,31 +145,59 @@ ipfw_main(int oldac, char **oldav)
 				ac++;
 
 		/*
-		 * Allocate the argument list, including one entry for
-		 * the program name because getopt expects it.
+		 * Allocate the argument list structure as a single block
+		 * of memory, containing pointers and the argument
+		 * strings. We include one entry for the program name
+		 * because getopt expects it, and a NULL at the end
+		 * to simplify further parsing.
 		 */
-		av = safe_calloc(ac + 1, sizeof(char *));
+		ac++;		/* add 1 for the program name */
+		av_size = (ac+1) * sizeof(char *) + l + 1;
+		av = safe_calloc(av_size, 1);
 
 		/*
-		 * Second, copy arguments from arg[] to av[]. For each one,
+		 * Init the argument pointer to the end of the array
+		 * and copy arguments from arg[] to av[]. For each one,
 		 * j is the initial character, i is the one past the end.
 		 */
-		for (ac = 1, i = j = 0; i < l; i++)
+		av_p = (char *)&av[ac+1];
+		for (ac = 1, i = j = 0; i < l; i++) {
 			if (index(WHITESP, arg[i]) != NULL || i == l-1) {
 				if (i == l-1)
 					i++;
-				av[ac] = safe_calloc(i-j+1, 1);
-				bcopy(arg+j, av[ac], i-j);
+				bcopy(arg+j, av_p, i-j);
+				av[ac] = av_p;
+				av_p += i-j;	/* the lenght of the string */
+				*av_p++ = '\0';
 				ac++;
 				j = i + 1;
 			}
+		}
 	} else {
 		/*
 		 * If an argument ends with ',' join with the next one.
 		 */
-		int first, i, l;
+		int first, i, l=0;
 
-		av = safe_calloc(oldac, sizeof(char *));
+		/*
+		 * Allocate the argument list structure as a single block
+		 * of memory, containing both pointers and the argument
+		 * strings. We include some space for the program name
+		 * because getopt expects it.
+		 * We add an extra pointer to the end of the array,
+		 * to make simpler further parsing.
+		 */
+		for (i=0; i<oldac; i++)
+			l += strlen(oldav[i]);
+
+		av_size = (oldac+1) * sizeof(char *) + l + oldac;
+		av = safe_calloc(av_size, 1);
+
+		/*
+		 * Init the argument pointer to the end of the array
+		 * and copy arguments from arg[] to av[]
+		 */
+		av_p = (char *)&av[oldac+1];
 		for (first = i = ac = 1, l = 0; i < oldac; i++) {
 			char *arg = oldav[i];
 			int k = strlen(arg);
@@ -182,11 +205,12 @@ ipfw_main(int oldac, char **oldav)
 			l += k;
 			if (arg[k-1] != ',' || i == oldac-1) {
 				/* Time to copy. */
-				av[ac] = safe_calloc(l+1, 1);
+				av[ac] = av_p;
 				for (l=0; first <= i; first++) {
-					strcat(av[ac]+l, oldav[first]);
-					l += strlen(oldav[first]);
+					strcat(av_p, oldav[first]);
+					av_p += strlen(oldav[first]);
 				}
+				*av_p++ = '\0';
 				ac++;
 				l = 0;
 				first = i+1;
@@ -194,13 +218,47 @@ ipfw_main(int oldac, char **oldav)
 		}
 	}
 
-	av[0] = strdup(oldav[0]);	/* copy progname from the caller */
+	/*
+	 * set the progname pointer to the original string
+	 * and terminate the array with null
+	 */
+	av[0] = oldav[0];
+	av[ac] = NULL;
+
 	/* Set the force flag for non-interactive processes */
 	if (!co.do_force)
 		co.do_force = !isatty(STDIN_FILENO);
 
+#ifdef EMULATE_SYSCTL /* sysctl emulation */
+	if ( ac >= 2 && !strcmp(av[1], "sysctl")) {
+		char *s;
+		int i;
+
+		if (ac != 3) {
+			printf(	"sysctl emulation usage:\n"
+				"	ipfw sysctl name[=value]\n"
+				"	ipfw sysctl -a\n");
+			return 0;
+		}
+		s = index(av[2], '=');
+		if (s == NULL) {
+			s = !strcmp(av[2], "-a") ? NULL : av[2];
+			sysctlbyname(s, NULL, NULL, NULL, 0);
+		} else {	/* ipfw sysctl x.y.z=value */
+			/* assume an INT value, will extend later */
+			if (s[1] == '\0') {
+				printf("ipfw sysctl: missing value\n\n");
+				return 0;
+			}
+			*s = '\0';
+			i = strtol(s+1, NULL, 0);
+			sysctlbyname(av[2], NULL, NULL, &i, sizeof(int));
+		}
+		return 0;
+	}
+#endif
+
 	/* Save arguments for final freeing of memory. */
-	save_ac = ac;
 	save_av = av;
 
 	optind = optreset = 1;	/* restart getopt() */
@@ -232,7 +290,7 @@ ipfw_main(int oldac, char **oldav)
 			break;
 
 		case 'h': /* help */
-			free_args(save_ac, save_av);
+			free(save_av);
 			help();
 			break;	/* NOTREACHED */
 
@@ -273,7 +331,7 @@ ipfw_main(int oldac, char **oldav)
 			break;
 
 		default:
-			free_args(save_ac, save_av);
+			free(save_av);
 			return 1;
 		}
 
@@ -304,6 +362,10 @@ ipfw_main(int oldac, char **oldav)
 		co.do_pipe = 1;
 	else if (_substrcmp(*av, "queue") == 0)
 		co.do_pipe = 2;
+	else if (_substrcmp(*av, "flowset") == 0)
+		co.do_pipe = 2;
+	else if (_substrcmp(*av, "sched") == 0)
+		co.do_pipe = 3;
 	else if (!strncmp(*av, "set", strlen(*av))) {
 		if (ac > 1 && isdigit(av[1][0])) {
 			co.use_set = strtonum(av[1], 0, resvd_set_number,
@@ -335,7 +397,7 @@ ipfw_main(int oldac, char **oldav)
 
 	if (co.use_set == 0) {
 		if (_substrcmp(*av, "add") == 0)
-			ipfw_add(ac, av);
+			ipfw_add(av);
 		else if (co.do_nat && _substrcmp(*av, "show") == 0)
  			ipfw_show_nat(ac, av);
 		else if (co.do_pipe && _substrcmp(*av, "config") == 0)
@@ -343,20 +405,20 @@ ipfw_main(int oldac, char **oldav)
 		else if (co.do_nat && _substrcmp(*av, "config") == 0)
  			ipfw_config_nat(ac, av);
 		else if (_substrcmp(*av, "set") == 0)
-			ipfw_sets_handler(ac, av);
+			ipfw_sets_handler(av);
 		else if (_substrcmp(*av, "table") == 0)
 			ipfw_table_handler(ac, av);
 		else if (_substrcmp(*av, "enable") == 0)
-			ipfw_sysctl_handler(ac, av, 1);
+			ipfw_sysctl_handler(av, 1);
 		else if (_substrcmp(*av, "disable") == 0)
-			ipfw_sysctl_handler(ac, av, 0);
+			ipfw_sysctl_handler(av, 0);
 		else
 			try_next = 1;
 	}
 
 	if (co.use_set || try_next) {
 		if (_substrcmp(*av, "delete") == 0)
-			ipfw_delete(ac, av);
+			ipfw_delete(av);
 		else if (_substrcmp(*av, "flush") == 0)
 			ipfw_flush(co.do_force);
 		else if (_substrcmp(*av, "zero") == 0)
@@ -373,7 +435,7 @@ ipfw_main(int oldac, char **oldav)
 	}
 
 	/* Free memory allocated in the argument parsing. */
-	free_args(save_ac, save_av);
+	free(save_av);
 	return 0;
 }
 
@@ -521,6 +583,20 @@ ipfw_readfile(int ac, char *av[])
 int
 main(int ac, char *av[])
 {
+#if defined(_WIN32) && defined(TCC)
+	{
+		WSADATA wsaData;
+		int ret=0;
+		unsigned short wVersionRequested = MAKEWORD(2, 2);
+		ret = WSAStartup(wVersionRequested, &wsaData);
+		if (ret != 0) {
+			/* Tell the user that we could not find a usable */
+			/* Winsock DLL.                                  */
+			printf("WSAStartup failed with error: %d\n", ret);
+			return 1;
+		}
+	}
+#endif
 	/*
 	 * If the last argument is an absolute pathname, interpret it
 	 * as a file to be preprocessed.

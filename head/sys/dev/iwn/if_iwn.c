@@ -972,8 +972,7 @@ iwn_eeprom_unlock(struct iwn_softc *sc)
 int
 iwn_init_otprom(struct iwn_softc *sc)
 {
-	uint32_t base;
-	uint16_t next;
+	uint16_t prev, base, next;
 	int count, error;
 
 	/* Wait for clock stabilization before accessing prph. */
@@ -1000,25 +999,26 @@ iwn_init_otprom(struct iwn_softc *sc)
 	    IWN_OTP_GP_ECC_CORR_STTS | IWN_OTP_GP_ECC_UNCORR_STTS);
 
 	/*
-	 * Find last valid OTP block (contains the EEPROM image) for HW
-	 * without OTP shadow RAM.
+	 * Find the block before last block (contains the EEPROM image)
+	 * for HW without OTP shadow RAM.
 	 */
 	if (sc->hw_type == IWN_HW_REV_TYPE_1000) {
 		/* Switch to absolute addressing mode. */
 		IWN_CLRBITS(sc, IWN_OTP_GP, IWN_OTP_GP_RELATIVE_ACCESS);
-		base = 0;
+		base = prev = 0;
 		for (count = 0; count < IWN1000_OTP_NBLOCKS; count++) {
 			error = iwn_read_prom_data(sc, base, &next, 2);
 			if (error != 0)
 				return error;
 			if (next == 0)	/* End of linked-list. */
 				break;
+			prev = base;
 			base = le16toh(next);
 		}
-		if (base == 0 || count == IWN1000_OTP_NBLOCKS)
+		if (count == 0 || count == IWN1000_OTP_NBLOCKS)
 			return EIO;
 		/* Skip "next" word. */
-		sc->prom_base = base + 1;
+		sc->prom_base = prev + 1;
 	}
 	return 0;
 }
@@ -1927,6 +1927,7 @@ iwn_rx_phy(struct iwn_softc *sc, struct iwn_rx_desc *desc,
 	struct iwn_rx_stat *stat = (struct iwn_rx_stat *)(desc + 1);
 
 	DPRINTF(sc, IWN_DEBUG_CALIBRATE, "%s: received PHY stats\n", __func__);
+	bus_dmamap_sync(sc->rxq.data_dmat, data->map, BUS_DMASYNC_POSTREAD);
 
 	/* Save RX statistics, they will be used on MPDU_RX_DONE. */
 	memcpy(&sc->last_rx_stat, stat, sizeof (*stat));
@@ -2140,6 +2141,7 @@ iwn5000_rx_calib_results(struct iwn_softc *sc, struct iwn_rx_desc *desc,
 	if (sc->sc_flags & IWN_FLAG_CALIB_DONE)
 		return;
 
+	bus_dmamap_sync(sc->rxq.data_dmat, data->map, BUS_DMASYNC_POSTREAD);
 	len = (le32toh(desc->len) & 0x3fff) - 4;
 
 	switch (calib->code) {
@@ -2202,6 +2204,7 @@ iwn_rx_statistics(struct iwn_softc *sc, struct iwn_rx_desc *desc,
 	    (ic->ic_flags & IEEE80211_F_SCAN))
 		return;
 
+	bus_dmamap_sync(sc->rxq.data_dmat, data->map, BUS_DMASYNC_POSTREAD);
 	DPRINTF(sc, IWN_DEBUG_CALIBRATE, "%s: cmd %d\n", __func__, desc->type);
 	iwn_calib_reset(sc);	/* Reset TX power calibration timeout. */
 
@@ -2253,6 +2256,7 @@ iwn4965_tx_done(struct iwn_softc *sc, struct iwn_rx_desc *desc,
 	    stat->btkillcnt, stat->rate, le16toh(stat->duration),
 	    le32toh(stat->status));
 
+	bus_dmamap_sync(sc->rxq.data_dmat, data->map, BUS_DMASYNC_POSTREAD);
 	iwn_tx_done(sc, desc, stat->ackfailcnt, le32toh(stat->status) & 0xff);
 }
 
@@ -2272,6 +2276,8 @@ iwn5000_tx_done(struct iwn_softc *sc, struct iwn_rx_desc *desc,
 	/* Reset TX scheduler slot. */
 	iwn5000_reset_sched(sc, desc->qid & 0xf, desc->idx);
 #endif
+
+	bus_dmamap_sync(sc->rxq.data_dmat, data->map, BUS_DMASYNC_POSTREAD);
 	iwn_tx_done(sc, desc, stat->ackfailcnt, le16toh(stat->status) & 0xff);
 }
 
@@ -2433,10 +2439,11 @@ iwn_notif_intr(struct iwn_softc *sc)
 		{
 			struct iwn_beacon_missed *miss =
 			    (struct iwn_beacon_missed *)(desc + 1);
-			int misses = le32toh(miss->consecutive);
+			int misses;
 
 			bus_dmamap_sync(sc->rxq.data_dmat, data->map,
 			    BUS_DMASYNC_POSTREAD);
+			misses = le32toh(miss->consecutive);
 
 			/* XXX not sure why we're notified w/ zero */
 			if (misses == 0)
@@ -4372,7 +4379,7 @@ iwn_send_sensitivity(struct iwn_softc *sc)
 	cmd.corr_barker      = htole16(190);
 	cmd.corr_barker_mrc  = htole16(390);
 
-	DPRINTF(sc, IWN_DEBUG_RESET,
+	DPRINTF(sc, IWN_DEBUG_CALIBRATE,
 	    "%s: set sensitivity %d/%d/%d/%d/%d/%d/%d\n", __func__,
 	    calib->ofdm_x1, calib->ofdm_mrc_x1, calib->ofdm_x4,
 	    calib->ofdm_mrc_x4, calib->cck_x4,
@@ -6388,10 +6395,14 @@ iwn_intr_str(uint8_t cmd)
 	case IWN_CMD_SET_LED:		return "IWN_CMD_SET_LED";
 	case IWN5000_CMD_WIMAX_COEX:	return "IWN5000_CMD_WIMAX_COEX";
 	case IWN5000_CMD_CALIB_CONFIG:	return "IWN5000_CMD_CALIB_CONFIG";
+	case IWN5000_CMD_CALIB_RESULT:	return "IWN5000_CMD_CALIB_RESULT";
+	case IWN5000_CMD_CALIB_COMPLETE: return "IWN5000_CMD_CALIB_COMPLETE";
 	case IWN_CMD_SET_POWER_MODE:	return "IWN_CMD_SET_POWER_MODE";
 	case IWN_CMD_SCAN:		return "IWN_CMD_SCAN";
+	case IWN_CMD_SCAN_RESULTS:	return "IWN_CMD_SCAN_RESULTS";
 	case IWN_CMD_TXPOWER:		return "IWN_CMD_TXPOWER";
 	case IWN_CMD_TXPOWER_DBM:	return "IWN_CMD_TXPOWER_DBM";
+	case IWN5000_CMD_TX_ANT_CONFIG:	return "IWN5000_CMD_TX_ANT_CONFIG";
 	case IWN_CMD_BT_COEX:		return "IWN_CMD_BT_COEX";
 	case IWN_CMD_SET_CRITICAL_TEMP:	return "IWN_CMD_SET_CRITICAL_TEMP";
 	case IWN_CMD_SET_SENSITIVITY:	return "IWN_CMD_SET_SENSITIVITY";

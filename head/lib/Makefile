@@ -9,8 +9,8 @@
 # csu must be built before all shared libaries for ELF.
 # libc must be built before all other shared libraries.
 # libbsm must be built before ibauditd.
-# libcom_err must be built before libkrb5 and libpam.
-# libcrypt must be built before libkrb5 and libpam.
+# libcom_err must be built before libpam.
+# libcrypt must be built before libpam.
 # libkvm must be built before libdevstat.
 # msun must be built before libg++ and libstdc++.
 # libmd must be built before libatm, libopie, libradius, and libtacplus.
@@ -21,27 +21,27 @@
 # librpcsvc must be built before libpam.
 # libsbuf must be built before libcam.
 # libtacplus must be built before libpam.
-# libulog must be built before libpam.
 # libutil must be built before libpam.
 # libypclnt must be built before libpam.
 # libgssapi must be built before librpcsec_gss
 #
 # Otherwise, the SUBDIR list should be in alphabetical order.
+#
+# Except it appears bind needs to be compiled last
 
-SUBDIR=	${_csu} libc libbsm libauditd libcom_err libcrypt libelf libkvm msun \
-	libmd \
-	ncurses ${_libnetgraph} libradius librpcsvc libsbuf \
-	libtacplus libulog libutil ${_libypclnt} libalias libarchive \
-	${_libatm} libbegemot ${_libbluetooth} ${_libbsnmp} libbz2 \
-	libcalendar libcam libcompat libdevinfo libdevstat libdisk \
-	libdwarf libedit libexpat libfetch libftpio libgeom ${_libgpib} \
-	${_libgssapi} ${_librpcsec_gss} libipsec \
+SUBDIR=	${_csu} libc libbsm libauditd libcom_err libcrypt libelf libkvm \
+	msun libmd ncurses ${_libnetgraph} libradius librpcsvc libsbuf \
+	libtacplus libutil ${_libypclnt}
+SUBDIR+=libalias libarchive ${_libatm} libbegemot ${_libbluetooth} \
+	${_libbsnmp} libbz2 libcalendar libcam libcompat libdevinfo \
+	libdevstat libdisk libdwarf libedit ${_libefi} libexpat libfetch \
+	libftpio libgeom ${_libgpib} ${_libgssapi} ${_librpcsec_gss} libipsec \
 	${_libipx} libjail libkiconv libmagic libmemstat ${_libmilter} \
 	${_libmp} ${_libncp} ${_libngatm} libopie libpam libpcap \
 	${_libpmc} libproc librt ${_libsdp} ${_libsm} ${_libsmb} \
-	${_libsmdb} \
-	${_libsmutil} libstand ${_libtelnet} ${_libthr} libthread_db libufs \
-	libugidfw ${_libusbhid} ${_libusb} ${_libvgl} libwrap liby libz \
+	${_libsmdb} ${_libsmutil} libstand \
+	${_libtelnet} ${_libthr} libthread_db libufs libugidfw libulog \
+	${_libusbhid} ${_libusb} ${_libvgl} libwrap liby libz \
 	${_bind}
 
 .if exists(${.CURDIR}/csu/${MACHINE_ARCH}-elf)
@@ -105,6 +105,7 @@ _libvgl=	libvgl
 .endif
 
 .if ${MACHINE_ARCH} == "ia64"
+_libefi=	libefi
 _libsmb=	libsmb
 .endif
 
@@ -117,6 +118,10 @@ _libvgl=	libvgl
 .endif
 
 .if ${MACHINE_ARCH} == "powerpc"
+_libsmb=	libsmb
+.endif
+
+.if ${MACHINE_ARCH} == "sparc64"
 _libsmb=	libsmb
 .endif
 

@@ -8,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2009, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2010, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -314,7 +314,7 @@ AcpiNsDumpOneObject (
 
         if (Type > ACPI_TYPE_LOCAL_MAX)
         {
-            ACPI_WARNING ((AE_INFO, "Invalid ACPI Object Type %08X", Type));
+            ACPI_WARNING ((AE_INFO, "Invalid ACPI Object Type 0x%08X", Type));
         }
 
         AcpiOsPrintf ("%4.4s", AcpiUtGetNodeName (ThisNode));

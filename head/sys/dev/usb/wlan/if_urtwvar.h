@@ -81,6 +81,10 @@ struct urtw_tx_radiotap_header {
 	((1 << IEEE80211_RADIOTAP_FLAGS) |				\
 	 (1 << IEEE80211_RADIOTAP_CHANNEL))
 
+struct urtw_stats {
+	unsigned int			txrates[12];
+};
+
 struct urtw_vap {
 	struct ieee80211vap		vap;
 	int				(*newstate)(struct ieee80211vap *,
@@ -168,6 +172,8 @@ struct urtw_softc {
 	uint8_t				sc_acmctl;
 	uint64_t			sc_txstatus;	/* only for 8187B */
 	struct task			sc_updateslot_task;
+
+	struct urtw_stats		sc_stats;
 
 	struct	urtw_rx_radiotap_header	sc_rxtap;
 	int				sc_rxtap_len;

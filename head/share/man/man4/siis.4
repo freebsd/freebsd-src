@@ -48,12 +48,13 @@ module at boot time, place the following line in
 siis_load="YES"
 .Ed
 .Pp
-The following tunables are settable from the loader:
+The following tunables are settable from the
+.Xr loader 8 :
 .Bl -ohang
-.It Va hint.siis.X.msi
+.It Va hint.siis. Ns Ar X Ns Va .msi
 controls Message Signaled Interrupts (MSI) usage by the specified controller.
-.It Va hint.siisch.X.pm_level
-controls SATA interface Power Management for specified channel,
+.It Va hint.siisch. Ns Ar X Ns Va .pm_level
+controls SATA interface Power Management for the specified channel,
 allowing some power to be saved at the cost of additional command
 latency.
 Possible values:
@@ -65,13 +66,15 @@ device is allowed to initiate PM state change, host is passive.
 .El
 Note that interface Power Management is not compatible with
 device presence detection.
-You will have to reset bus manually on device hot-plug.
-.It Va hint.siisch.X.sata_rev
+A manual bus reset is needed on device hot-plug.
+.It Va hint.siisch. Ns Ar X Ns Va .sata_rev
 setting to nonzero value limits maximum SATA revision (speed).
 Values 1, 2 and 3 are respectively 1.5, 3 and 6Gbps.
 .El
 .Sh DESCRIPTION
-This driver provides the CAM subsystem native access to the
+This driver provides the
+.Xr CAM 4
+subsystem with native access to the
 .Tn SATA
 ports of controller.
 Each SATA port is represented to CAM as a separate bus with 16 targets.
@@ -90,14 +93,15 @@ Port Multipliers (including FIS-based switching), hardware command queues
 (31 command per port), Native Command Queuing, SATA interface Power Management,
 device hot-plug and Message Signaled Interrupts.
 .Pp
-Same hardware is also supported by atasiliconimage driver from
+Same hardware is also supported by the atasiliconimage driver from
 .Xr ata 4
-subsystem. If both drivers are loaded at the same time, this one will be
+subsystem.
+If both drivers are loaded at the same time, this one will be
 given precedence as the more functional of the two.
 .Sh HARDWARE
 The
 .Nm
-driver supports following controllers:
+driver supports the following controllers:
 .Bl -bullet -compact
 .It
 SiI3124
@@ -108,11 +112,11 @@ SiI3531
 .El
 .Sh SEE ALSO
 .Xr ada 4 ,
+.Xr ata 4 ,
+.Xr cam 4 ,
 .Xr cd 4 ,
 .Xr da 4 ,
-.Xr sa 4 ,
-.Xr scsi 4 ,
-.Xr ata 4
+.Xr sa 4
 .Sh HISTORY
 The
 .Nm

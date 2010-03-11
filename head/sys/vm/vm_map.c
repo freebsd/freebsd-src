@@ -1136,7 +1136,7 @@ vm_map_insert(vm_map_t map, vm_object_t object, vm_ooffset_t offset,
 	    ((protoeflags & MAP_ENTRY_NEEDS_COPY) || object == NULL))) {
 		if (!(cow & MAP_ACC_CHARGED) && !swap_reserve(end - start))
 			return (KERN_RESOURCE_SHORTAGE);
-		KASSERT(object == NULL || (cow & MAP_ENTRY_NEEDS_COPY) ||
+		KASSERT(object == NULL || (protoeflags & MAP_ENTRY_NEEDS_COPY) ||
 		    object->uip == NULL,
 		    ("OVERCOMMIT: vm_map_insert o %p", object));
 		uip = curthread->td_ucred->cr_ruidinfo;

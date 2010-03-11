@@ -9,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2009, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2010, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -554,7 +554,7 @@ TrDoSwitch (
 
                 NewOp               = NewOp2;
                 NewOp2              = TrCreateValuedLeafNode (PARSEOP_NAMESTRING,
-                                        (ACPI_INTEGER) ACPI_TO_INTEGER (PredicateValueName));
+                                        (UINT64) ACPI_TO_INTEGER (PredicateValueName));
                 NewOp->Asl.Next     = NewOp2;
                 TrAmlInitLineNumbers (NewOp2, Predicate);
 
@@ -612,7 +612,7 @@ TrDoSwitch (
                  * CaseOp->Child->Peer is the beginning of the case block
                  */
                 NewOp = TrCreateValuedLeafNode (PARSEOP_NAMESTRING,
-                            (ACPI_INTEGER) ACPI_TO_INTEGER (PredicateValueName));
+                            (UINT64) ACPI_TO_INTEGER (PredicateValueName));
                 NewOp->Asl.Next = Predicate;
                 TrAmlInitLineNumbers (NewOp, Predicate);
 
@@ -761,7 +761,7 @@ TrDoSwitch (
     /* Create the NameSeg child for the Name node */
 
     NewOp2 = TrCreateValuedLeafNode (PARSEOP_NAMESEG,
-                (ACPI_INTEGER) ACPI_TO_INTEGER (PredicateValueName));
+                (UINT64) ACPI_TO_INTEGER (PredicateValueName));
     NewOp2->Asl.CompileFlags |= NODE_IS_NAME_DECLARATION;
     NewOp->Asl.Child  = NewOp2;
 
@@ -771,22 +771,22 @@ TrDoSwitch (
     {
     case ACPI_BTYPE_INTEGER:
         NewOp2->Asl.Next = TrCreateValuedLeafNode (PARSEOP_ZERO,
-                                (ACPI_INTEGER) 0);
+                                (UINT64) 0);
         break;
 
     case ACPI_BTYPE_STRING:
         NewOp2->Asl.Next = TrCreateValuedLeafNode (PARSEOP_STRING_LITERAL,
-                                (ACPI_INTEGER) ACPI_TO_INTEGER (""));
+                                (UINT64) ACPI_TO_INTEGER (""));
         break;
 
     case ACPI_BTYPE_BUFFER:
         (void) TrLinkPeerNode (NewOp2, TrCreateValuedLeafNode (PARSEOP_BUFFER,
-                                    (ACPI_INTEGER) 0));
+                                    (UINT64) 0));
         Next = NewOp2->Asl.Next;
         (void) TrLinkChildren (Next, 1, TrCreateValuedLeafNode (PARSEOP_ZERO,
-                                    (ACPI_INTEGER) 1));
+                                    (UINT64) 1));
         (void) TrLinkPeerNode (Next->Asl.Child,
-            TrCreateValuedLeafNode (PARSEOP_DEFAULT_ARG, (ACPI_INTEGER) 0));
+            TrCreateValuedLeafNode (PARSEOP_DEFAULT_ARG, (UINT64) 0));
 
         TrAmlSetSubtreeParent (Next->Asl.Child, Next);
         break;
@@ -821,7 +821,7 @@ TrDoSwitch (
     Predicate->Asl.Parent = StoreOp;
 
     NewOp = TrCreateValuedLeafNode (PARSEOP_NAMESEG,
-                (ACPI_INTEGER) ACPI_TO_INTEGER (PredicateValueName));
+                (UINT64) ACPI_TO_INTEGER (PredicateValueName));
     NewOp->Asl.Parent    = StoreOp;
     Predicate->Asl.Next  = NewOp;
 

@@ -1,5 +1,6 @@
 /*-
  * Copyright (c) 2005 Poul-Henning Kamp <phk@FreeBSD.org>
+ * Copyright (c) 2010 Joerg Wunsch <joerg@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -53,6 +54,7 @@ __FBSDID("$FreeBSD$");
 #define UPD7210_HW_DRIVER
 #define UPD7210_SW_DRIVER
 #include <dev/ieee488/upd7210.h>
+#include <dev/ieee488/tnt4882.h>
 
 static MALLOC_DEFINE(M_GPIB, "GPIB", "GPIB");
 
@@ -89,26 +91,48 @@ upd7210_wr(struct upd7210 *u, enum upd7210_wreg reg, u_int val)
 void
 upd7210intr(void *arg)
 {
-	u_int isr1, isr2;
+	u_int isr_1, isr_2, isr_3;
 	struct upd7210 *u;
 
 	u = arg;
 	mtx_lock(&u->mutex);
-	isr1 = upd7210_rd(u, ISR1);
-	isr2 = upd7210_rd(u, ISR2);
-	if (u->busy == 0 || u->irq == NULL || !u->irq(u, 1)) {
+	isr_1 = upd7210_rd(u, ISR1);
+	isr_2 = upd7210_rd(u, ISR2);
+	if (u->use_fifo) {
+		isr_3 = bus_read_1(u->reg_res[0], isr3);
+	} else {
+		isr_3 = 0;
+	}
+	if (isr_1 != 0 || isr_2 != 0 || isr_3 != 0) {
+		if (u->busy == 0 || u->irq == NULL || !u->irq(u, isr_3)) {
 #if 0
-		printf("upd7210intr [%02x %02x %02x",
-		    upd7210_rd(u, DIR), isr1, isr2);
-		printf(" %02x %02x %02x %02x %02x] ",
-		    upd7210_rd(u, SPSR),
-		    upd7210_rd(u, ADSR),
-		    upd7210_rd(u, CPTR),
-		    upd7210_rd(u, ADR0),
+			printf("upd7210intr [%02x %02x %02x",
+			       upd7210_rd(u, DIR), isr1, isr2);
+			printf(" %02x %02x %02x %02x %02x] ",
+			       upd7210_rd(u, SPSR),
+			       upd7210_rd(u, ADSR),
+			       upd7210_rd(u, CPTR),
+			       upd7210_rd(u, ADR0),
 		    upd7210_rd(u, ADR1));
-		upd7210_print_isr(isr1, isr2);
-		printf("\n");
+			upd7210_print_isr(isr1, isr2);
+			printf("\n");
 #endif
+		}
+		/*
+		 * "special interrupt handling"
+		 *
+		 * In order to implement shared IRQs, the original
+		 * PCIIa uses IO locations 0x2f0 + (IRQ#) as an output
+		 * location.  If an ISR for a particular card has
+		 * detected this card triggered the IRQ, it must reset
+		 * the card's IRQ by writing (anything) to that IO
+		 * location.
+		 *
+		 * Some clones apparently don't implement this
+		 * feature, but National Instrument cards do.
+		 */
+		if (u->irq_clear_res != NULL)
+			bus_write_1(u->irq_clear_res, 0, 42);
 	}
 	mtx_unlock(&u->mutex);
 }
@@ -150,17 +174,38 @@ upd7210_goto_standby(struct upd7210 *u)
 /* Unaddressed Listen Only mode */
 
 static int
-gpib_l_irq(struct upd7210 *u, int intr __unused)
+gpib_l_irq(struct upd7210 *u, int isr_3)
 {
 	int i;
+	int have_data = 0;
 
-	if (u->rreg[ISR1] & 1) {
+	if (u->use_fifo) {
+		/* TNT5004 or TNT4882 in FIFO mode */
+		if (isr_3 & 0x04) {
+			/* FIFO not empty */
+			i = bus_read_1(u->reg_res[0], fifob);
+			have_data = 1;
+			bus_write_1(u->reg_res[0], cnt0, -1);
+			bus_write_1(u->reg_res[0], cnt1, (-1) >> 8);
+			bus_write_1(u->reg_res[0], cnt2, (-1) >> 16);
+			bus_write_1(u->reg_res[0], cnt3, (-1) >> 24);
+			bus_write_1(u->reg_res[0], cmdr, 0x04); /* GO */
+		}
+	} else if (u->rreg[ISR1] & 1) {
 		i = upd7210_rd(u, DIR);
+		have_data = 1;
+	}
+
+	if (have_data) {
 		u->buf[u->buf_wp++] = i;
 		u->buf_wp &= (u->bufsize - 1);
 		i = (u->buf_rp + u->bufsize - u->buf_wp) & (u->bufsize - 1);
-		if (i < 8)
-			upd7210_wr(u, IMR1, 0);
+		if (i < 8) {
+			if (u->use_fifo)
+				bus_write_1(u->reg_res[0], imr3, 0x00);
+			else
+				upd7210_wr(u, IMR1, 0);
+		}
 		wakeup(u->buf);
 		return (1);
 	}
@@ -188,15 +233,28 @@ gpib_l_open(struct cdev *dev, int oflags, int devtype, struct thread *td)
 	u->buf_wp = 0;
 	u->buf_rp = 0;
 
-	upd7210_wr(u, AUXMR, AUXMR_CRST);
+	upd7210_wr(u, AUXMR, AUXMR_CRST); /* chip reset */
 	DELAY(10000);
-	upd7210_wr(u, AUXMR, C_ICR | 8);
+	upd7210_wr(u, AUXMR, C_ICR | 8); /* 8 MHz clock */
 	DELAY(1000);
-	upd7210_wr(u, ADR, 0x60);
-	upd7210_wr(u, ADR, 0xe0);
-	upd7210_wr(u, ADMR, 0x70);
-	upd7210_wr(u, AUXMR, AUXMR_PON);
-	upd7210_wr(u, IMR1, 0x01);
+	upd7210_wr(u, ADR, 0x60); /* ADR0: disable listener and talker 0 */
+	upd7210_wr(u, ADR, 0xe0); /* ADR1: disable listener and talker 1 */
+	upd7210_wr(u, ADMR, 0x70); /* listen-only (lon) */
+	upd7210_wr(u, AUXMR, AUXMR_PON); /* immediate execute power-on (pon) */
+	if (u->use_fifo) {
+		/* TNT5004 or TNT4882 in FIFO mode */
+		bus_write_1(u->reg_res[0], cmdr, 0x10); /* reset FIFO */
+		bus_write_1(u->reg_res[0], cfg, 0x20); /* xfer IN, 8-bit FIFO */
+		bus_write_1(u->reg_res[0], cnt0, -1);
+		bus_write_1(u->reg_res[0], cnt1, (-1) >> 8);
+		bus_write_1(u->reg_res[0], cnt2, (-1) >> 16);
+		bus_write_1(u->reg_res[0], cnt3, (-1) >> 24);
+		bus_write_1(u->reg_res[0], cmdr, 0x04); /* GO */
+		bus_write_1(u->reg_res[0], imr3, 0x04); /* NEF IE */
+	} else {
+		/* µPD7210/NAT7210, or TNT4882 in non-FIFO mode */
+		upd7210_wr(u, IMR1, 0x01); /* data in interrupt enable */
+	}
 	return (0);
 }
 
@@ -209,6 +267,11 @@ gpib_l_close(struct cdev *dev, int oflags, int devtype, struct thread *td)
 
 	mtx_lock(&u->mutex);
 	u->busy = 0;
+	if (u->use_fifo) {
+		/* TNT5004 or TNT4882 in FIFO mode */
+		bus_write_1(u->reg_res[0], cmdr, 0x22); /* soft RESET */
+		bus_write_1(u->reg_res[0], imr3, 0x00);
+	}
 	upd7210_wr(u, AUXMR, AUXMR_CRST);
 	DELAY(10000);
 	upd7210_wr(u, IMR1, 0x00);
@@ -253,8 +316,12 @@ gpib_l_read(struct cdev *dev, struct uio *uio, int ioflag)
 		u->buf_rp += z;
 		u->buf_rp &= (u->bufsize - 1);
 	}
-	if (u->wreg[IMR1] == 0)
-		upd7210_wr(u, IMR1, 0x01);
+	if (u->use_fifo) {
+		bus_write_1(u->reg_res[0], imr3, 0x04); /* NFF IE */
+	} else {
+		if (u->wreg[IMR1] == 0)
+			upd7210_wr(u, IMR1, 0x01);
+	}
 	mtx_unlock(&u->mutex);
 	return (error);
 }
