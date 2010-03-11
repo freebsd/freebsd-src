@@ -502,6 +502,7 @@ tapopen(struct cdev *dev, int flag, int mode, struct thread *td)
 	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 	if (tapuponopen)
 		ifp->if_flags |= IFF_UP;
+	if_link_state_change(ifp, LINK_STATE_UP);
 	splx(s);
 
 	TAPDEBUG("%s is open. minor = %#x\n", ifp->if_xname, dev2unit(dev));
@@ -547,6 +548,7 @@ tapclose(struct cdev *dev, int foo, int bar, struct thread *td)
 	} else
 		mtx_unlock(&tp->tap_mtx);
 
+	if_link_state_change(ifp, LINK_STATE_DOWN);
 	funsetown(&tp->tap_sigio);
 	selwakeuppri(&tp->tap_rsel, PZERO+1);
 	KNOTE_UNLOCKED(&tp->tap_rsel.si_note, 0);
