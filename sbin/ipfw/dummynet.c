@@ -1234,53 +1234,142 @@ dummynet_flush(void)
 	do_cmd(IP_DUMMYNET3, &oid, oid.len);
 }
 
+/* Parse input for 'ipfw [pipe|sched|queue] show [range list]'
+ * Returns the number of ranges, and possibly stores them
+ * in the array v of size len.
+ */
+static int
+parse_range(int ac, char *av[], uint32_t *v, int len)
+{
+	int n = 0;
+	char *endptr, *s;
+	uint32_t base[2];
+
+	if (v == NULL || len < 2) {
+		v = base;
+		len = 2;
+	}
+
+	for (s = *av; s != NULL; av++, ac--) {
+		v[0] = strtoul(s, &endptr, 10);
+		v[1] = (*endptr != '-') ? v[0] :
+			 strtoul(endptr+1, &endptr, 10);
+		if (*endptr == '\0') { /* prepare for next round */
+			s = (ac > 0) ? *(av+1) : NULL;
+		} else {
+			if (*endptr != ',') {
+				warn("invalid number: %s", s);
+				s = ++endptr;
+				continue;
+			}
+			/* continue processing from here */
+			s = ++endptr;
+			ac++;
+			av--;
+		}
+		if (v[1] < v[0] ||
+			v[1] < 0 || v[1] >= DN_MAX_ID-1 ||
+			v[0] < 0 || v[1] >= DN_MAX_ID-1) {
+			continue; /* invalid entry */
+		}
+		n++;
+		/* translate if 'pipe list' */
+		if (co.do_pipe == 1) {
+			v[0] += DN_MAX_ID;
+			v[1] += DN_MAX_ID;
+		}
+		v = (n*2 < len) ? v + 2 : base;
+	}
+	return n;
+}
+
 /* main entry point for dummynet list functions. co.do_pipe indicates
  * which function we want to support.
- * XXX todo- accept filtering arguments.
+ * av may contain filtering arguments, either individual entries
+ * or ranges, or lists (space or commas are valid separators).
+ * Format for a range can be n1-n2 or n3 n4 n5 ...
+ * In a range n1 must be <= n2, otherwise the range is ignored.
+ * A number 'n4' is translate in a range 'n4-n4'
+ * All number must be > 0 and < DN_MAX_ID-1
  */
 void
 dummynet_list(int ac, char *av[], int show_counters)
 {
-	struct dn_id oid, *x = NULL;
-	int ret, i, l = sizeof(oid);
+	struct dn_id *oid, *x = NULL;
+	int ret, i, l;
+	int n; 		/* # of ranges */
+	int buflen;
+	int max_size;	/* largest obj passed up */
 
-	oid_fill(&oid, l, DN_CMD_GET, DN_API_VERSION);
+	ac--;
+	av++; 		/* skip 'list' | 'show' word */
+
+	n = parse_range(ac, av, NULL, 0);	/* Count # of ranges. */
+
+	/* Allocate space to store ranges */
+	l = sizeof(*oid) + sizeof(uint32_t) * n * 2;
+	oid = safe_calloc(1, l);
+	oid_fill(oid, l, DN_CMD_GET, DN_API_VERSION);
+
+	if (n > 0)	/* store ranges in idx */
+		parse_range(ac, av, (uint32_t *)(oid + 1), n*2);
+	/*
+	 * Compute the size of the largest object returned. If the
+	 * response leaves at least this much spare space in the
+	 * buffer, then surely the response is complete; otherwise
+	 * there might be a risk of truncation and we will need to
+	 * retry with a larger buffer.
+	 * XXX don't bother with smaller structs.
+	 */
+	max_size = sizeof(struct dn_fs);
+	if (max_size < sizeof(struct dn_sch))
+		max_size = sizeof(struct dn_sch);
+	if (max_size < sizeof(struct dn_flow))
+		max_size = sizeof(struct dn_flow);
+
 	switch (co.do_pipe) {
 	case 1:
-		oid.subtype = DN_LINK;	/* list pipe */
+		oid->subtype = DN_LINK;	/* list pipe */
 		break;
 	case 2:
-		oid.subtype = DN_FS;	/* list queue */
+		oid->subtype = DN_FS;	/* list queue */
 		break;
 	case 3:
-		oid.subtype = DN_SCH;	/* list sched */
+		oid->subtype = DN_SCH;	/* list sched */
 		break;
 	}
 
-	/* Request the buffer size (in oid.id)*/
-	ret = do_cmd(-IP_DUMMYNET3, &oid, (uintptr_t)&l);
-	// printf("%s returns %d need %d\n", __FUNCTION__, ret, oid.id);
-	if (ret != 0 || oid.id <= sizeof(oid))
-		return;
-
-	/* Try max 10 times
-	 * Buffer is correct if l != 0.
-	 * If l == 0 no buffer is sent, maybe because kernel requires 
-	 * a greater buffer, so try with the new size in x->id.
+	/*
+	 * Ask the kernel an estimate of the required space (result
+	 * in oid.id), unless we are requesting a subset of objects,
+	 * in which case the kernel does not give an exact answer.
+	 * In any case, space might grow in the meantime due to the
+	 * creation of new queues, so we must be prepared to retry.
 	 */
-	for (i = 0, l = oid.id; i < 10; i++, l = x->id) {
-		x = safe_realloc(x, l);
-	*x = oid;
-	ret = do_cmd(-IP_DUMMYNET3, x, (uintptr_t)&l);
-
-		if (ret != 0 || x->id <= sizeof(oid))
-			return;
-
-		if (l != 0)
-			break; /* ok */
+	if (n > 0) {
+		buflen = 4*1024;
+	} else {
+		ret = do_cmd(-IP_DUMMYNET3, oid, (uintptr_t)&l);
+		if (ret != 0 || oid->id <= sizeof(*oid))
+			goto done;
+		buflen = oid->id + max_size;
+		oid->len = sizeof(*oid); /* restore */
 	}
-	// printf("%s returns %d need %d\n", __FUNCTION__, ret, oid.id);
-	// XXX filter on ac, av
+	/* Try a few times, until the buffer fits */
+	for (i = 0; i < 20; i++) {
+		l = buflen;
+		x = safe_realloc(x, l);
+		bcopy(oid, x, oid->len);
+		ret = do_cmd(-IP_DUMMYNET3, x, (uintptr_t)&l);
+		if (ret != 0 || x->id <= sizeof(*oid))
+			goto done; /* no response */
+		if (l + max_size <= buflen)
+			break; /* ok */
+		buflen *= 2;	 /* double for next attempt */
+	}
 	list_pipes(x, O_NEXT(x, l));
-	free(x);
+done:
+	if (x)
+		free(x);
+	free(oid);
 }

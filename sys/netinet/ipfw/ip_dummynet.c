@@ -787,7 +787,7 @@ copy_obj(char **start, char *end, void *_o, const char *msg, int i)
 	int have = end - *start;
 
 	if (have < o->len || o->len == 0 || o->type == 0) {
-		D("ERROR type %d %s %d have %d need %d",
+		D("(WARN) type %d %s %d have %d need %d",
 			o->type, msg, i, have, o->len);
 		return 1;
 	}
@@ -954,43 +954,64 @@ static int
 copy_data_helper(void *_o, void *_arg)
 {
 	struct copy_args *a = _arg;
+	uint32_t *r = a->extra->r; /* start of first range */
+	uint32_t *lim;	/* first invalid pointer */
+	int n;
 
-	if (a->type == DN_LINK ||	/* pipe show */
-	    a->type == DN_SCH) {	/* sched show */
-		struct dn_schk *s = _o; /* we get only schedulers */
-		if (a->type == DN_SCH && s->sch.sched_nr >= DN_MAX_ID)
-			return 0;	/* not valid scheduler */
-		if (a->type == DN_LINK && s->sch.sched_nr <= DN_MAX_ID)
-			return 0;	/* not valid pipe */
-		if (a->flags & DN_C_LINK) {
-			if (copy_obj(a->start, a->end, &s->link,
-					"link", s->sch.sched_nr))
-				return DNHT_SCAN_END;
-			if (copy_profile(a, s->profile))
-				return DNHT_SCAN_END;
-			if (copy_flowset(a, s->fs, 0))
-				return DNHT_SCAN_END;
-		}
-		if (a->flags & DN_C_SCH) {
-			if (copy_obj(a->start, a->end, &s->sch,
-					"sched", s->sch.sched_nr))
-				return DNHT_SCAN_END;
+	lim = (uint32_t *)((char *)(a->extra) + a->extra->o.len);
 
-			/* list all attached flowsets */
-			if (copy_fsk_list(a, s, 0))
-				return DNHT_SCAN_END;
+	if (a->type == DN_LINK || a->type == DN_SCH) {
+		/* pipe|sched show, we receive a dn_schk */
+		struct dn_schk *s = _o;
+
+		n = s->sch.sched_nr;
+		if (a->type == DN_SCH && n >= DN_MAX_ID)
+			return 0;	/* not a scheduler */
+		if (a->type == DN_LINK && n <= DN_MAX_ID)
+		    return 0;	/* not a pipe */
+
+		/* see if the object is within one of our ranges */
+		for (;r < lim; r += 2) {
+			if (n < r[0] || n > r[1])
+				continue;
+			/* Found a valid entry, copy and we are done */
+			if (a->flags & DN_C_LINK) {
+				if (copy_obj(a->start, a->end,
+				    &s->link, "link", n))
+					return DNHT_SCAN_END;
+				if (copy_profile(a, s->profile))
+					return DNHT_SCAN_END;
+				if (copy_flowset(a, s->fs, 0))
+					return DNHT_SCAN_END;
+			}
+			if (a->flags & DN_C_SCH) {
+				if (copy_obj(a->start, a->end,
+				    &s->sch, "sched", n))
+					return DNHT_SCAN_END;
+				/* list all attached flowsets */
+				if (copy_fsk_list(a, s, 0))
+					return DNHT_SCAN_END;
+			}
+			if (a->flags & DN_C_FLOW)
+				copy_si(a, s, 0);
+			break;
 		}
-		if (a->flags & DN_C_FLOW) {
-			copy_si(a, s, 0);
-		}
-	}
-	if (a->type == DN_FS) {	/* queue show, skip internal flowsets */
+	} else if (a->type == DN_FS) {
+		/* queue show, skip internal flowsets */
 		struct dn_fsk *fs = _o;
-		if (fs->fs.fs_nr >= DN_MAX_ID)
+
+		n = fs->fs.fs_nr;
+		if (n >= DN_MAX_ID)
 			return 0;
-		if (copy_flowset(a, fs, 0))
-			return DNHT_SCAN_END;
-		copy_q(a, fs, 0);
+		/* see if the object is within one of our ranges */
+		for (;r < lim; r += 2) {
+			if (n < r[0] || n > r[1])
+				continue;
+			if (copy_flowset(a, fs, 0))
+				return DNHT_SCAN_END;
+			copy_q(a, fs, 0);
+			break; /* we are done */
+		}
 	}
 	return 0;
 }
@@ -1690,7 +1711,7 @@ do_config(void *p, int l)
 }
 
 static int
-compute_space(struct dn_id *cmd, int *to_copy)
+compute_space(struct dn_id *cmd, struct copy_args *a)
 {
 	int x = 0, need = 0;
 	int profile_size = sizeof(struct dn_profile) - 
@@ -1746,7 +1767,7 @@ compute_space(struct dn_id *cmd, int *to_copy)
 		need =  dn_compat_calc_size(dn_cfg); 
 		break;
 	}
-	*to_copy = x;
+	a->flags = x;
 	if (x & DN_C_SCH) {
 		need += dn_cfg.schk_count * sizeof(struct dn_sch) / 2;
 		/* NOT also, each fs might be attached to a sched */
@@ -1775,28 +1796,59 @@ dummynet_get(struct sockopt *sopt, void **compat)
 	int have, i, need, error;
 	char *start = NULL, *buf;
 	size_t sopt_valsize;
-	struct dn_id cmd;
+	struct dn_id *cmd;
 	struct copy_args a;
+	struct copy_range r;
+	int l = sizeof(struct dn_id);
+
+	bzero(&a, sizeof(a));
+	bzero(&r, sizeof(r));
 
 	/* save and restore original sopt_valsize around copyin */
 	sopt_valsize = sopt->sopt_valsize;
+
+	cmd = &r.o;
+
 	if (!compat) {
-		error = sooptcopyin(sopt, &cmd, sizeof(cmd), sizeof(cmd));
-		if (error)
-			return error;
+		/* copy at least an oid, and possibly a full object */
+		error = sooptcopyin(sopt, cmd, sizeof(r), sizeof(*cmd));
 		sopt->sopt_valsize = sopt_valsize;
+		if (error)
+			goto done;
+		l = cmd->len;
 #ifdef EMULATE_SYSCTL
 		/* sysctl emulation. */
-		if (cmd.type == DN_SYSCTL_GET)
+		if (cmd->type == DN_SYSCTL_GET)
 			return kesysctl_emu_get(sopt);
 #endif
-	} else {
+		if (l > sizeof(r)) {
+			/* request larger than default, allocate buffer */
+			cmd = malloc(l,  M_DUMMYNET, M_WAIT);
+			if (cmd == NULL)
+				return ENOMEM; //XXX
+			error = sooptcopyin(sopt, cmd, l, l);
+			sopt->sopt_valsize = sopt_valsize;
+			if (error)
+				goto done;
+		}
+	} else { /* compatibility */
 		error = 0;
-		cmd.type = DN_CMD_GET;
-		cmd.len = sizeof(struct dn_id);
-		cmd.subtype = DN_GET_COMPAT;
-		// cmd.id = sopt_valsize;
+		cmd->type = DN_CMD_GET;
+		cmd->len = sizeof(struct dn_id);
+		cmd->subtype = DN_GET_COMPAT;
+		// cmd->id = sopt_valsize;
 		D("compatibility mode");
+	}
+	a.extra = (struct copy_range *)cmd;
+	if (cmd->len == sizeof(*cmd)) { /* no range, create a default */
+		uint32_t *rp = (uint32_t *)(cmd + 1);
+		cmd->len += 2* sizeof(uint32_t);
+		rp[0] = 1;
+		rp[1] = DN_MAX_ID - 1;
+		if (cmd->subtype == DN_LINK) {
+			rp[0] += DN_MAX_ID;
+			rp[1] += DN_MAX_ID;
+		}
 	}
 	/* Count space (under lock) and allocate (outside lock).
 	 * Exit with lock held if we manage to get enough buffer.
@@ -1804,32 +1856,45 @@ dummynet_get(struct sockopt *sopt, void **compat)
 	 */
 	for (have = 0, i = 0; i < 10; i++) {
 		DN_BH_WLOCK();
-		need = compute_space(&cmd, &a.flags);
+		need = compute_space(cmd, &a);
+
+		/* if there is a range, ignore value from compute_space() */
+		if (l > sizeof(*cmd))
+			need = sopt_valsize - sizeof(*cmd);
+
 		if (need < 0) {
 			DN_BH_WUNLOCK();
-			return EINVAL;
+			error = EINVAL;
+			goto done;
 		}
-		need += sizeof(cmd);
-		cmd.id = need;
+		need += sizeof(*cmd);
+		cmd->id = need;
 		if (have >= need)
 			break;
+
 		DN_BH_WUNLOCK();
 		if (start)
 			free(start, M_DUMMYNET);
 		start = NULL;
 		if (need > sopt_valsize)
 			break;
+
 		have = need;
 		start = malloc(have, M_DUMMYNET, M_WAITOK | M_ZERO);
-		if (start == NULL)
-			return ENOMEM;
+		if (start == NULL) {
+			error = ENOMEM;
+			goto done;
+		}
 	}
+
 	if (start == NULL) {
 		if (compat) {
 			*compat = NULL;
-			return 1; // XXX
+			error =  1; // XXX
+		} else {
+			error = sooptcopyout(sopt, cmd, sizeof(*cmd));
 		}
-		return sooptcopyout(sopt, &cmd, sizeof(cmd));
+		goto done;
 	}
 	ND("have %d:%d sched %d, %d:%d links %d, %d:%d flowsets %d, "
 		"%d:%d si %d, %d:%d queues %d",
@@ -1839,10 +1904,12 @@ dummynet_get(struct sockopt *sopt, void **compat)
 		dn_cfg.si_count, sizeof(struct dn_flow), DN_SCH_I,
 		dn_cfg.queue_count, sizeof(struct dn_queue), DN_QUEUE);
 	sopt->sopt_valsize = sopt_valsize;
-	a.type = cmd.subtype;
+	a.type = cmd->subtype;
+
 	if (compat == NULL) {
-		bcopy(&cmd, start, sizeof(cmd));
-		buf = start + sizeof(cmd);
+		bcopy(cmd, start, sizeof(*cmd));
+		((struct dn_id*)(start))->len = sizeof(struct dn_id);
+		buf = start + sizeof(*cmd);
 	} else
 		buf = start;
 	a.start = &buf;
@@ -1853,19 +1920,26 @@ dummynet_get(struct sockopt *sopt, void **compat)
 		dn_ht_scan(dn_cfg.schedhash, copy_data_helper_compat, &a);
 		a.type = DN_COMPAT_QUEUE;
 		dn_ht_scan(dn_cfg.fshash, copy_data_helper_compat, &a);
-	} else if (a.type == DN_FS)
+	} else if (a.type == DN_FS) {
 		dn_ht_scan(dn_cfg.fshash, copy_data_helper, &a);
-	else
+	} else {
 		dn_ht_scan(dn_cfg.schedhash, copy_data_helper, &a);
+	}
 	DN_BH_WUNLOCK();
+
 	if (compat) {
 		*compat = start;
 		sopt->sopt_valsize = buf - start;
 		/* free() is done by ip_dummynet_compat() */
+		start = NULL; //XXX hack
 	} else {
 		error = sooptcopyout(sopt, start, buf - start);
-		free(start, M_DUMMYNET);
 	}
+done:
+	if (cmd && cmd != &r.o)
+		free(cmd, M_DUMMYNET);
+	if (start)
+		free(start, M_DUMMYNET);
 	return error;
 }
 
@@ -1945,8 +2019,7 @@ drain_queue_fs_cb(void *_fs, void *arg)
 		dn_ht_scan_bucket(fs->qht, &fs->drain_bucket,
 				drain_queue_cb, NULL);
 		fs->drain_bucket++;
-	}
-	else {
+	} else {
 		/* No hash table for this flowset, null the pointer 
 		 * if the queue is deleted
 		 */
