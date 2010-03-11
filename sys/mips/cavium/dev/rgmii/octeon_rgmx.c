@@ -136,7 +136,6 @@ struct rgmx_softc_dev {
 	u_int			idx;
         u_char                  ieee[6];
 
-        char const * typestr;   /* printable name of the interface.  */
         u_short txb_size;       /* size of TX buffer, in bytes  */
 
         /* Transmission buffer management.  */
@@ -182,7 +181,6 @@ static u_int get_rgmx_port_ordinal(u_int port);
 static void octeon_rgmx_set_mac(u_int port);
 static void octeon_rgmx_init_sc(struct rgmx_softc_dev *sc, device_t dev, u_int port, u_int num_devices);
 static int octeon_rgmx_init_ifnet(struct rgmx_softc_dev *sc);
-static void octeon_rgmx_mark_ready(struct rgmx_softc_dev *sc);
 static void octeon_rgmx_stop(struct rgmx_softc_dev *sc);
 static void octeon_rgmx_config_speed(u_int port, u_int);
 #ifdef DEBUG_RGMX_DUMP
@@ -349,8 +347,6 @@ static int octeon_rgmx_init_ifnet (struct rgmx_softc_dev *sc)
         ifmedia_set(&sc->media, bit2media[0]);
 
         ether_ifattach(sc->ifp, sc->ieee);
-        /* Print additional info when attached.  */
-        device_printf(sc->sc_dev, "type %s, full duplex\n", sc->typestr);
 
         return (0);
 }
@@ -447,12 +443,6 @@ static int rgmii_attach (device_t dev)
                             	device_printf(dev, "  ifinit failed for rgmx port %u\n", port);
                                 return (ENOSPC);
                         }
-/*
- * Don't call octeon_rgmx_mark_ready()
- * ifnet will call it indirectly via  octeon_rgmx_init()
- *
- *                         octeon_rgmx_mark_ready(sc);
- */
                         num_devices++;
                 }
 	}
@@ -1648,9 +1638,47 @@ static int octeon_rgmx_medchange (struct ifnet *ifp)
 
 static void octeon_rgmx_medstat (struct ifnet *ifp, struct ifmediareq *ifm)
 {
-    /*
-     * No support for Media Status callback
-     */
+    	struct rgmx_softc_dev *sc = ifp->if_softc;
+	octeon_rgmx_rxx_rx_inbnd_t link_status;
+
+	octeon_rgmx_config_speed(sc->port, 1);
+
+	RGMX_LOCK(sc);
+
+	ifm->ifm_status = IFM_AVALID;
+	ifm->ifm_active = IFM_ETHER;
+
+	/*
+	 * Parse link status.
+	 */
+	link_status.word64 = sc->link_status;
+
+	if (!link_status.bits.status) {
+		RGMX_UNLOCK(sc);
+		return;
+	}
+
+	ifm->ifm_status |= IFM_ACTIVE;
+
+	switch (link_status.bits.speed) {
+	case 0:
+		ifm->ifm_active |= IFM_10_T;
+		break;
+	case 1:
+		ifm->ifm_active |= IFM_100_TX;
+		break;
+	case 2:
+		ifm->ifm_active |= IFM_1000_T;;
+		break;
+	default:
+		/* Unknown!  */
+		break;
+	}
+
+	/* Always full duplex.  */
+	ifm->ifm_active |= IFM_FDX;
+
+	RGMX_UNLOCK(sc);
 }
 
 static int octeon_rgmx_ioctl (struct ifnet * ifp, u_long command, caddr_t data)
@@ -1678,10 +1706,7 @@ static int octeon_rgmx_ioctl (struct ifnet * ifp, u_long command, caddr_t data)
                          * Restart or Start now, if driver is not running currently.
                          */
                         if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0) {
-                            printf(" SIOCSTIFFLAGS  UP/Not-running\n"); break;
                             octeon_rgmx_init(sc);
-                        } else {
-                            printf(" SIOCSTIFFLAGS  UP/Running\n"); break;
                         }
                     } else {
                         /*
@@ -1689,10 +1714,7 @@ static int octeon_rgmx_ioctl (struct ifnet * ifp, u_long command, caddr_t data)
                          * Stop & shut it down now, if driver is running currently.
                          */
                         if ((ifp->if_drv_flags & IFF_DRV_RUNNING) != 0) {
-                            printf(" SIOCSTIFFLAGS  Down/Running\n"); break;
                             octeon_rgmx_stop(sc);
-                        } else {
-                            printf(" SIOCSTIFFLAGS  Down/Not-Running\n"); break;
                         }
                     }
                     break;
@@ -1734,17 +1756,10 @@ static int octeon_rgmx_ioctl (struct ifnet * ifp, u_long command, caddr_t data)
         return (error);
 }
 
-
-
-
-/*
- * octeon_rgmx_mark_ready
- *
- * Initialize the rgmx driver for this instance
- * Initialize device.
- */
-static void octeon_rgmx_mark_ready (struct rgmx_softc_dev *sc)
+static void  octeon_rgmx_init (void *xsc)
 {
+	struct rgmx_softc_dev *sc = xsc;
+	octeon_rgmx_rxx_rx_inbnd_t link_status;
 
         /* Enable interrupts.  */
     	/* For RGMX they are already enabled earlier */
@@ -1763,21 +1778,21 @@ static void octeon_rgmx_mark_ready (struct rgmx_softc_dev *sc)
 
         /* Kick start the output */
         /* Hopefully PKO is running and will pick up packets via the timer  or receive loop */
-}
 
+	/* Set link status.  */
+	octeon_rgmx_config_speed(sc->port, 0);
 
-static void  octeon_rgmx_init (void *xsc)
-{
+	RGMX_LOCK(sc);
+	/*
+	 * Parse link status.
+	 */
+	link_status.word64 = sc->link_status;
 
-    /*
-     * Called mostly from ifnet interface  ifp->if_init();
-     * I think we can anchor most of our iniialization here and
-     * not do it in different places  from driver_attach().
-     */
-    /*
-     * For now, we only mark the interface ready
-     */
-    octeon_rgmx_mark_ready((struct rgmx_softc_dev *) xsc);
+	if (link_status.bits.status)
+		if_link_state_change(sc->ifp, LINK_STATE_UP);
+	else
+		if_link_state_change(sc->ifp, LINK_STATE_DOWN);
+	RGMX_UNLOCK(sc);
 }
 
 
