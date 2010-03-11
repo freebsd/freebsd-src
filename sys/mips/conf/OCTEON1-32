@@ -70,6 +70,8 @@ nodevice	uart_ns8250
 device	 	rgmii
 #options 	VERBOSE_SYSINIT
 
+device		bpf
+device		random
 
 #
 # Use the following for  Compact Flash file-system
