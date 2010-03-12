@@ -552,6 +552,9 @@ ng_attach_cntl(struct socket *so)
 		return (error);
 	}
 
+	/* Store a hint for netstat(1). */
+	priv->node_id = priv->node->nd_ID;
+
 	/* Link the node and the private data. */
 	NG_NODE_SET_PRIVATE(priv->node, priv);
 	NG_NODE_REF(priv->node);
