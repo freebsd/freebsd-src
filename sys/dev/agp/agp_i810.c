@@ -177,6 +177,10 @@ static const struct agp_i810_match {
 	    "Intel G45 SVGA controller"},
 	{0x2E328086, CHIP_G4X, 0x00020000,
 	    "Intel G41 SVGA controller"},
+	{0x00428086, CHIP_G4X, 0x00020000,
+	    "Intel Ironlake (D) SVGA controller"},
+	{0x00468086, CHIP_G4X, 0x00020000,
+	    "Intel Ironlake (M) SVGA controller"},
 	{0, 0, 0, NULL}
 };
 
