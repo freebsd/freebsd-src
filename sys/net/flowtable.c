@@ -1,6 +1,6 @@
 /**************************************************************************
 
-Copyright (c) 2008-2010, BitGravity Inc.
+Copyright (c) 2008-2009, BitGravity Inc.
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -298,14 +298,11 @@ SYSCTL_VNET_PROC(_net_inet_flowtable, OID_AUTO, nmbflows,
 
 
 
-#define FS_PRINT(sb, field)	sbuf_printf((sb), "\t%s=%jd", #field, fs->ft_##field)
+#define FS_PRINT(sb, field)	sbuf_printf((sb), "\t%s: %jd\n", #field, fs->ft_##field)
 
 static void
-fs_print(struct flowtable_stats *fs)
+fs_print(struct sbuf *sb, struct flowtable_stats *fs)
 {
-	struct sbuf *sb;
-
-	sb = sbuf_new(NULL, NULL, 32*1024, SBUF_FIXEDLEN);
 
 	FS_PRINT(sb, collisions);
 	FS_PRINT(sb, allocated);
@@ -315,12 +312,10 @@ fs_print(struct flowtable_stats *fs)
 	FS_PRINT(sb, frees);
 	FS_PRINT(sb, hits);
 	FS_PRINT(sb, lookups);
-	sbuf_finish(sb);
-	
 }
 
 static void
-flowtable_show_stats(struct flowtable *ft)
+flowtable_show_stats(struct sbuf *sb, struct flowtable *ft)
 {
 	int i;
 	struct flowtable_stats fs, *pfs;
@@ -344,27 +339,32 @@ flowtable_show_stats(struct flowtable *ft)
 	} else {
 		pfs = &ft->ft_stats[0];
 	}
-
-	fs_print(pfs);
+	fs_print(sb, pfs);
 }
 
 static int
 sysctl_flowtable_stats(SYSCTL_HANDLER_ARGS)
 {
 	struct flowtable *ft;
+	struct sbuf *sb;
+	int error;
+
+	sb = sbuf_new(NULL, NULL, 64*1024, SBUF_FIXEDLEN);
 
 	ft = V_flow_list_head;
 	while (ft != NULL) {
-		printf("name: %s\n", ft->ft_name);
-		flowtable_show_stats(ft);
+		sbuf_printf(sb, "\ntable name: %s\n", ft->ft_name);
+		flowtable_show_stats(sb, ft);
 		ft = ft->ft_next;
 	}
+	sbuf_finish(sb);
+	error = SYSCTL_OUT(req, sbuf_data(sb), sbuf_len(sb) + 1);
+	sbuf_delete(sb);
 
-	return (0);
+	return (error);
 }
-SYSCTL_VNET_PROC(_net_inet_flowtable, OID_AUTO, stats,
-    CTLTYPE_INT|CTLFLAG_RW, 0, 0, sysctl_flowtable_stats, "IU",
-    "flowtable statistics");
+SYSCTL_VNET_PROC(_net_inet_flowtable, OID_AUTO, stats, CTLTYPE_STRING|CTLFLAG_RD,
+    NULL, 0, sysctl_flowtable_stats, "A", "flowtable statistics");
 
 
 #ifndef RADIX_MPATH
