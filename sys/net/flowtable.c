@@ -905,20 +905,6 @@ flowtable_set_hashkey(struct flentry *fle, uint32_t *key)
 		hashkey[i] = key[i];
 }
 
-
-static uint32_t *
-flowtable_get_hashkey(struct flentry *fle)
-{
-	uint32_t *hashkey;
-
-	if (fle->f_flags & FL_IPV6)
-		hashkey = ((struct flentry_v4 *)fle)->fl_flow.ipf_key;
-	else
-		hashkey = ((struct flentry_v6 *)fle)->fl_flow.ipf_key;
-
-	return (hashkey);
-}
-
 static int
 flowtable_insert(struct flowtable *ft, uint32_t hash, uint32_t *key,
     uint32_t fibnum, struct route *ro, uint16_t flags)
@@ -1601,6 +1587,19 @@ VNET_SYSUNINIT(flowtable_uninit, SI_SUB_KTHREAD_INIT, SI_ORDER_ANY,
 #endif
 
 #ifdef DDB
+static uint32_t *
+flowtable_get_hashkey(struct flentry *fle)
+{
+	uint32_t *hashkey;
+
+	if (fle->f_flags & FL_IPV6)
+		hashkey = ((struct flentry_v4 *)fle)->fl_flow.ipf_key;
+	else
+		hashkey = ((struct flentry_v6 *)fle)->fl_flow.ipf_key;
+
+	return (hashkey);
+}
+
 static bitstr_t *
 flowtable_mask_pcpu(struct flowtable *ft, int cpuid)
 {
