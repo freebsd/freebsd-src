@@ -2547,6 +2547,7 @@ struct msk_if_softc {
 	struct msk_hw_stats	msk_stats;
 	int			msk_if_flags;
 	uint16_t		msk_vtag;	/* VLAN tag id. */
+	uint32_t		msk_csum;
 };
 
 #define MSK_TIMEOUT	1000
