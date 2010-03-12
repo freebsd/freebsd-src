@@ -416,7 +416,7 @@ The pattern has the format /old/new/[gps].
 old is a basic regular expression.
 If it doesn't apply, the pattern is skipped.
 new is the replacement string of the matched part.
-~ is substituted with the match, \1 to \9 with the content of
+~ is substituted with the match, \e1 to \e9 with the content of
 the corresponding captured group.
 The optional trailing g specifies that matching should continue
 after the matched part and stopped on the first unmatched pattern.
