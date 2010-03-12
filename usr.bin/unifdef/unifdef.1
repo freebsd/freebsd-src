@@ -29,11 +29,9 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"     @(#)unifdef.1	8.2 (Berkeley) 4/1/94
-.\"	$dotat: unifdef/unifdef.1,v 1.63 2010/02/19 16:41:15 fanf2 Exp $
 .\" $FreeBSD$
 .\"
-.Dd January 19, 2010
+.Dd March 11, 2010
 .Dt UNIFDEF 1
 .Os
 .Sh NAME
@@ -41,7 +39,7 @@
 .Nd remove preprocessor conditionals from code
 .Sh SYNOPSIS
 .Nm
-.Op Fl BbcdeKknst
+.Op Fl bBcdeKknsStV
 .Op Fl I Ns Ar path
 .Op Fl D Ns Ar sym Ns Op = Ns Ar val
 .Op Fl U Ns Ar sym
@@ -184,17 +182,17 @@ Specify that a symbol is undefined.
 If the same symbol appears in more than one argument,
 the last occurrence dominates.
 .Pp
-.It Fl B
-Compress blank lines around a deleted section.
-Mutually exclusive with the
-.Fl b
-option.
-.Pp
 .It Fl b
 Replace removed lines with blank lines
 instead of deleting them.
 Mutually exclusive with the
 .Fl B
+option.
+.Pp
+.It Fl B
+Compress blank lines around a deleted section.
+Mutually exclusive with the
+.Fl b
 option.
 .Pp
 .It Fl c
@@ -285,6 +283,13 @@ for creating
 .Nm
 command lines.
 .Pp
+.It Fl S
+Like the
+.Fl s
+option, but the nesting depth of each symbol is also printed.
+This is useful for working out the number of possible combinations
+of interdependent defined/undefined symbols.
+.Pp
 .It Fl t
 Disables parsing for C comments
 and line continuations,
@@ -329,6 +334,9 @@ for compatibility with
 .Xr cpp 1
 and to simplify the implementation of
 .Nm unifdefall .
+.Pp
+.It Fl V
+Print version details.
 .El
 .Pp
 The
