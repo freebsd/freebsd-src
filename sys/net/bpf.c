@@ -1580,8 +1580,7 @@ filt_bpfread(struct knote *kn, long hint)
 		kn->kn_data = d->bd_slen;
 		if (d->bd_hbuf)
 			kn->kn_data += d->bd_hlen;
-	}
-	else if (d->bd_rtout > 0 && d->bd_state == BPF_IDLE) {
+	} else if (d->bd_rtout > 0 && d->bd_state == BPF_IDLE) {
 		callout_reset(&d->bd_callout, d->bd_rtout,
 		    bpf_timed_out, d);
 		d->bd_state = BPF_WAITING;
