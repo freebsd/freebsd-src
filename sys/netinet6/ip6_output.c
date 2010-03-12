@@ -872,7 +872,7 @@ passout:
 #ifdef SCTP
 	sw_csum = m->m_pkthdr.csum_flags & ~ifp->if_hwassist;
 	if (sw_csum & CSUM_SCTP) {
-		sctp_delayed_cksum(m);
+		sctp_delayed_cksum(m, sizeof(struct ip6_hdr));
 		sw_csum &= ~CSUM_SCTP;
 	}
 #endif
