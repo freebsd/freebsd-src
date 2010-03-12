@@ -56,12 +56,12 @@
 #include <string.h>
 #include <unistd.h>
 
-#ifdef __IDSTRING
-__IDSTRING(dotat, "$dotat: unifdef/unifdef.c,v 1.198 2010/02/19 16:37:05 fanf2 Exp $");
-#endif
-#ifdef __FBSDID
-__FBSDID("$FreeBSD$");
-#endif
+const char copyright[] =
+    "@(#) $Version: unifdef-2.3 $\n"
+    "@(#) $FreeBSD$\n"
+    "@(#) $Author: Tony Finch (dot@dotat.at) $\n"
+    "@(#) $URL: http://dotat.at/prog/unifdef $\n"
+;
 
 /* types of input lines: */
 typedef enum {
@@ -172,6 +172,7 @@ static bool             strictlogic;		/* -K: keep ambiguous #ifs */
 static bool             killconsts;		/* -k: eval constant #ifs */
 static bool             lnnum;			/* -n: add #line directives */
 static bool             symlist;		/* -s: output symbol list */
+static bool             symdepth;		/* -S: output symbol depth */
 static bool             text;			/* -t: this is a text file */
 
 static const char      *symname[MAXSYMS];	/* symbol name */
@@ -204,6 +205,8 @@ static int              delcount;		/* count of deleted lines */
 static unsigned         blankcount;		/* count of blank lines */
 static unsigned         blankmax;		/* maximum recent blankcount */
 static bool             constexpr;		/* constant #if expression */
+static bool             zerosyms = true;	/* to format symdepth output */
+static bool             firstsym;		/* ditto */
 
 static int              exitstat;		/* program exit status */
 
@@ -228,6 +231,7 @@ static void             state(Ifstate);
 static int              strlcmp(const char *, const char *, size_t);
 static void             unnest(void);
 static void             usage(void);
+static void             version(void);
 
 #define endsym(c) (!isalnum((unsigned char)c) && c != '_')
 
@@ -239,7 +243,7 @@ main(int argc, char *argv[])
 {
 	int opt;
 
-	while ((opt = getopt(argc, argv, "i:D:U:I:o:BbcdeKklnst")) != -1)
+	while ((opt = getopt(argc, argv, "i:D:U:I:o:bBcdeKklnsStV")) != -1)
 		switch (opt) {
 		case 'i': /* treat stuff controlled by these symbols as text */
 			/*
@@ -261,15 +265,14 @@ main(int argc, char *argv[])
 		case 'U': /* undef a symbol */
 			addsym(false, false, optarg);
 			break;
-		case 'I':
-			/* no-op for compatibility with cpp */
-			break;
-		case 'B': /* compress blank lines around removed section */
-			compblank = true;
+		case 'I': /* no-op for compatibility with cpp */
 			break;
 		case 'b': /* blank deleted lines instead of omitting them */
 		case 'l': /* backwards compatibility */
 			lnblank = true;
+			break;
+		case 'B': /* compress blank lines around removed section */
+			compblank = true;
 			break;
 		case 'c': /* treat -D as -U and vice versa */
 			complement = true;
@@ -295,9 +298,14 @@ main(int argc, char *argv[])
 		case 's': /* only output list of symbols that control #ifs */
 			symlist = true;
 			break;
+		case 'S': /* list symbols with their nesting depth */
+			symlist = symdepth = true;
+			break;
 		case 't': /* don't parse C comments */
 			text = true;
 			break;
+		case 'V': /* print version */
+			version();
 		default:
 			usage();
 		}
@@ -309,7 +317,7 @@ main(int argc, char *argv[])
 		errx(2, "can only do one file");
 	} else if (argc == 1 && strcmp(*argv, "-") != 0) {
 		filename = *argv;
-		input = fopen(filename, "r");
+		input = fopen(filename, "rb");
 		if (input == NULL)
 			err(2, "can't open %s", filename);
 	} else {
@@ -345,12 +353,12 @@ main(int argc, char *argv[])
 				    TEMPLATE);
 			ofd = mkstemp(tempname);
 			if (ofd != -1)
-				output = fdopen(ofd, "w+");
+				output = fdopen(ofd, "wb+");
 			if (output == NULL)
 				err(2, "can't create temporary file");
-			fchmod(ofd, ist.st_mode & ACCESSPERMS);
+			fchmod(ofd, ist.st_mode & (S_IRWXU|S_IRWXG|S_IRWXO));
 		} else {
-			output = fopen(ofilename, "w");
+			output = fopen(ofilename, "wb");
 			if (output == NULL)
 				err(2, "can't open %s", ofilename);
 		}
@@ -360,9 +368,23 @@ main(int argc, char *argv[])
 }
 
 static void
+version(void)
+{
+	const char *c = copyright;
+	for (;;) {
+		while (*++c != '$')
+			if (*c == '\0')
+				exit(0);
+		while (*++c != '$')
+			putc(*c, stderr);
+		putc('\n', stderr);
+	}
+}
+
+static void
 usage(void)
 {
-	fprintf(stderr, "usage: unifdef [-BbcdeKknst] [-Ipath]"
+	fprintf(stderr, "usage: unifdef [-bBcdeKknsStV] [-Ipath]"
 	    " [-Dsym[=val]] [-Usym] [-iDsym[=val]] [-iUsym] ... [file]\n");
 	exit(2);
 }
@@ -557,6 +579,8 @@ flushline(bool keep)
 		delcount += 1;
 		blankcount = 0;
 	}
+	if (debugging)
+		fflush(output);
 }
 
 /*
@@ -565,17 +589,14 @@ flushline(bool keep)
 static void
 process(void)
 {
-	Linetype lineval;
-
 	/* When compressing blank lines, act as if the file
 	   is preceded by a large number of blank lines. */
 	blankmax = blankcount = 1000;
 	for (;;) {
-		linenum++;
-		lineval = parseline();
+		Linetype lineval = parseline();
 		trans_table[ifstate[depth]][lineval]();
-		debug("process %s -> %s depth %d",
-		    linetype_name[lineval],
+		debug("process line %d %s -> %s depth %d",
+		    linenum, linetype_name[lineval],
 		    ifstate_name[ifstate[depth]], depth);
 	}
 }
@@ -586,6 +607,8 @@ process(void)
 static void
 closeout(void)
 {
+	if (symdepth && !zerosyms)
+		printf("\n");
 	if (fclose(output) == EOF) {
 		warn("couldn't write to %s", ofilename);
 		if (overwriting) {
@@ -628,6 +651,7 @@ parseline(void)
 	Linetype retval;
 	Comment_state wascomment;
 
+	linenum++;
 	if (fgets(tline, MAXLINE, input) == NULL)
 		return (LT_EOF);
 	if (newline == NULL) {
@@ -642,6 +666,7 @@ parseline(void)
 	if (linestate == LS_START) {
 		if (*cp == '#') {
 			linestate = LS_HASH;
+			firstsym = true;
 			cp = skipcomment(cp + 1);
 		} else if (*cp != '\0')
 			linestate = LS_DIRTY;
@@ -715,7 +740,7 @@ parseline(void)
 		while (*cp != '\0')
 			cp = skipcomment(cp + 1);
 	}
-	debug("parser %s comment %s line",
+	debug("parser line %d state %s comment %s line", linenum,
 	    comment_name[incomment], linestate_name[linestate]);
 	return (retval);
 }
@@ -1108,7 +1133,13 @@ findsym(const char *str)
 	if (cp == str)
 		return (-1);
 	if (symlist) {
-		printf("%.*s\n", (int)(cp-str), str);
+		if (symdepth && firstsym)
+			printf("%s%3d", zerosyms ? "" : "\n", depth);
+		firstsym = zerosyms = false;
+		printf("%s%.*s%s",
+		    symdepth ? " " : "",
+		    (int)(cp-str), str,
+		    symdepth ? "" : "\n");
 		/* we don't care about the value of the symbol */
 		return (0);
 	}
@@ -1153,6 +1184,8 @@ addsym(bool ignorethis, bool definethis, char *sym)
 			usage();
 		value[symind] = NULL;
 	}
+	debug("addsym %s=%s", symname[symind],
+	    value[symind] ? value[symind] : "undef");
 }
 
 /*
