@@ -214,6 +214,16 @@ cpu_thread_swapin(struct thread *td)
 {
 	pt_entry_t *pte;
 	int i;
+	vm_offset_t unused_kstack_page;
+
+	/*
+	 * Unmap the unused kstack page.
+	 */
+	unused_kstack_page = td->td_kstack;
+	if (td->td_md.md_realstack == td->td_kstack)
+		unused_kstack_page += (KSTACK_PAGES - 1) * PAGE_SIZE;
+
+	pmap_kremove(unused_kstack_page);
 
 	/*
 	 * The kstack may be at a different physical address now.
@@ -239,13 +249,19 @@ cpu_thread_swapout(struct thread *td)
 void
 cpu_thread_alloc(struct thread *td)
 {
+	vm_offset_t unused_kstack_page;
 	pt_entry_t *pte;
 	int i;
 
-	if(td->td_kstack & (1 << PAGE_SHIFT))
+	if (td->td_kstack & (1 << PAGE_SHIFT)) {
 		td->td_md.md_realstack = td->td_kstack + PAGE_SIZE;
-	else
+		unused_kstack_page = td->td_kstack;
+	} else {
 		td->td_md.md_realstack = td->td_kstack;
+		unused_kstack_page = td->td_kstack +
+					(KSTACK_PAGES - 1) * PAGE_SIZE;
+	}
+	pmap_kremove(unused_kstack_page);
 
 	td->td_pcb = (struct pcb *)(td->td_md.md_realstack +
 	    (td->td_kstack_pages - 1) * PAGE_SIZE) - 1;
