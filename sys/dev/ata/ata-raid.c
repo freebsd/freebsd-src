@@ -2544,22 +2544,24 @@ ata_raid_intel_read_meta(device_t dev, struct ar_softc **raidp)
 
 	    /* clear out any old info */
 	    for (disk = 0; disk < raid->total_disks; disk++) {
+		u_int disk_idx = map->disk_idx[disk] & 0xffff;
+
 		raid->disks[disk].dev = NULL;
-		bcopy(meta->disk[map->disk_idx[disk]].serial,
+		bcopy(meta->disk[disk_idx].serial,
 		      raid->disks[disk].serial,
 		      sizeof(raid->disks[disk].serial));
 		raid->disks[disk].sectors =
-		    meta->disk[map->disk_idx[disk]].sectors;
+		    meta->disk[disk_idx].sectors;
 		raid->disks[disk].flags = 0;
-		if (meta->disk[map->disk_idx[disk]].flags & INTEL_F_ONLINE)
+		if (meta->disk[disk_idx].flags & INTEL_F_ONLINE)
 		    raid->disks[disk].flags |= AR_DF_ONLINE;
-		if (meta->disk[map->disk_idx[disk]].flags & INTEL_F_ASSIGNED)
+		if (meta->disk[disk_idx].flags & INTEL_F_ASSIGNED)
 		    raid->disks[disk].flags |= AR_DF_ASSIGNED;
-		if (meta->disk[map->disk_idx[disk]].flags & INTEL_F_SPARE) {
+		if (meta->disk[disk_idx].flags & INTEL_F_SPARE) {
 		    raid->disks[disk].flags &= ~(AR_DF_ONLINE | AR_DF_ASSIGNED);
 		    raid->disks[disk].flags |= AR_DF_SPARE;
 		}
-		if (meta->disk[map->disk_idx[disk]].flags & INTEL_F_DOWN)
+		if (meta->disk[disk_idx].flags & INTEL_F_DOWN)
 		    raid->disks[disk].flags &= ~AR_DF_ONLINE;
 	    }
 	}
