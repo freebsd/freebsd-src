@@ -1,6 +1,6 @@
 /**************************************************************************
 
-Copyright (c) 2008-2009, BitGravity Inc.
+Copyright (c) 2008-2010, BitGravity Inc.
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
