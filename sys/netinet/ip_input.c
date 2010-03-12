@@ -329,7 +329,7 @@ ip_init(void)
 #ifdef FLOWTABLE
 	TUNABLE_INT_FETCH("net.inet.ip.output_flowtable_size",
 	    &V_ip_output_flowtable_size);
-	V_ip_ft = flowtable_alloc(V_ip_output_flowtable_size, FL_PCPU);
+	V_ip_ft = flowtable_alloc("ipv4", V_ip_output_flowtable_size, FL_PCPU);
 #endif
 
 	/* Skip initialization of globals for non-default instances. */
