@@ -219,6 +219,11 @@ pmap_map_fpage(vm_paddr_t pa, struct fpage *fp,
     boolean_t check_unmaped);
 void pmap_unmap_fpage(vm_paddr_t pa, struct fpage *fp);
 
+/*
+ * Function to save TLB contents so that they may be inspected in the debugger.
+ */
+extern void pmap_save_tlb(void);
+
 #endif				/* _KERNEL */
 
 #endif				/* !LOCORE */
