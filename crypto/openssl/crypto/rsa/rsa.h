@@ -55,7 +55,6 @@
  * copied and put under another distribution licence
  * [including the GNU Public Licence.]
  */
-/* $FreeBSD$ */
 
 #ifndef HEADER_RSA_H
 #define HEADER_RSA_H
