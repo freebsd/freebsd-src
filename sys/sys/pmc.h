@@ -298,7 +298,7 @@ enum pmc_event {
 	__PMC_OP(PMCRW, "Read/Set a PMC")				\
 	__PMC_OP(PMCSETCOUNT, "Set initial count/sampling rate")	\
 	__PMC_OP(PMCSTART, "Start a PMC")				\
-	__PMC_OP(PMCSTOP, "Start a PMC")				\
+	__PMC_OP(PMCSTOP, "Stop a PMC")					\
 	__PMC_OP(WRITELOG, "Write a cookie to the log file")
 
 
