@@ -141,13 +141,18 @@ SYSTEM_CFILES= config.c env.c hints.c vnode_if.c
 SYSTEM_DEP= Makefile ${SYSTEM_OBJS}
 SYSTEM_OBJS= locore.o ${MDOBJS} ${OBJS}
 SYSTEM_OBJS+= ${SYSTEM_CFILES:.c=.o}
-SYSTEM_OBJS+= hack.So
 .if defined(CTFMERGE)
 SYSTEM_CTFMERGE= ${CTFMERGE} ${CTFFLAGS} -o ${.TARGET} ${SYSTEM_OBJS} vers.o
 LD+= -g
 .endif
-SYSTEM_LD= @${LD} -Bdynamic -T ${LDSCRIPT} \
-	-warn-common -export-dynamic -dynamic-linker /red/herring \
+.if ${MACHINE_ARCH} != ia64
+SYSTEM_OBJS+= hack.So
+SYSTEM_LDFLAGS= -Bdynamic -T ${LDSCRIPT} -export-dynamic \
+	-dynamic-linker /red/herring
+.else
+SYSTEM_LDFLAGS= -r
+.endif
+SYSTEM_LD= @${LD} ${SYSTEM_LDFLAGS} -warn-common \
 	-o ${.TARGET} -X ${SYSTEM_OBJS} vers.o
 SYSTEM_LD_TAIL= @${OBJCOPY} --strip-symbol gcc2_compiled. ${.TARGET} ; \
 	${SIZE} ${.TARGET} ; chmod 755 ${.TARGET}
