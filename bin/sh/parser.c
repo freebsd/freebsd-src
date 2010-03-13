@@ -863,6 +863,164 @@ breakloop:
 }
 
 
+/*
+ * Called to parse command substitutions.
+ */
+
+STATIC char *
+parsebackq(char *out, struct nodelist **pbqlist,
+		int oldstyle, int dblquote, int quoted)
+{
+	struct nodelist **nlpp;
+	union node *n;
+	char *volatile str;
+	struct jmploc jmploc;
+	struct jmploc *const savehandler = handler;
+	int savelen;
+	int saveprompt;
+	const int bq_startlinno = plinno;
+	char *volatile ostr = NULL;
+	struct parsefile *const savetopfile = getcurrentfile();
+
+	str = NULL;
+	if (setjmp(jmploc.loc)) {
+		popfilesupto(savetopfile);
+		if (str)
+			ckfree(str);
+		if (ostr)
+			ckfree(ostr);
+		handler = savehandler;
+		if (exception == EXERROR) {
+			startlinno = bq_startlinno;
+			synerror("Error in command substitution");
+		}
+		longjmp(handler->loc, 1);
+	}
+	INTOFF;
+	savelen = out - stackblock();
+	if (savelen > 0) {
+		str = ckmalloc(savelen);
+		memcpy(str, stackblock(), savelen);
+	}
+	handler = &jmploc;
+	INTON;
+        if (oldstyle) {
+                /* We must read until the closing backquote, giving special
+                   treatment to some slashes, and then push the string and
+                   reread it as input, interpreting it normally.  */
+                char *oout;
+                int c;
+                int olen;
+
+
+                STARTSTACKSTR(oout);
+		for (;;) {
+			if (needprompt) {
+				setprompt(2);
+				needprompt = 0;
+			}
+			switch (c = pgetc()) {
+			case '`':
+				goto done;
+
+			case '\\':
+                                if ((c = pgetc()) == '\n') {
+					plinno++;
+					if (doprompt)
+						setprompt(2);
+					else
+						setprompt(0);
+					/*
+					 * If eating a newline, avoid putting
+					 * the newline into the new character
+					 * stream (via the STPUTC after the
+					 * switch).
+					 */
+					continue;
+				}
+                                if (c != '\\' && c != '`' && c != '$'
+                                    && (!dblquote || c != '"'))
+                                        STPUTC('\\', oout);
+				break;
+
+			case '\n':
+				plinno++;
+				needprompt = doprompt;
+				break;
+
+			case PEOF:
+			        startlinno = plinno;
+				synerror("EOF in backquote substitution");
+ 				break;
+
+			default:
+				break;
+			}
+			STPUTC(c, oout);
+                }
+done:
+                STPUTC('\0', oout);
+                olen = oout - stackblock();
+		INTOFF;
+		ostr = ckmalloc(olen);
+		memcpy(ostr, stackblock(), olen);
+		setinputstring(ostr, 1);
+		INTON;
+        }
+	nlpp = pbqlist;
+	while (*nlpp)
+		nlpp = &(*nlpp)->next;
+	*nlpp = (struct nodelist *)stalloc(sizeof (struct nodelist));
+	(*nlpp)->next = NULL;
+
+	if (oldstyle) {
+		saveprompt = doprompt;
+		doprompt = 0;
+	}
+
+	n = list(0);
+
+	if (oldstyle)
+		doprompt = saveprompt;
+	else {
+		if (readtoken() != TRP)
+			synexpect(TRP);
+	}
+
+	(*nlpp)->n = n;
+        if (oldstyle) {
+		/*
+		 * Start reading from old file again, ignoring any pushed back
+		 * tokens left from the backquote parsing
+		 */
+                popfile();
+		tokpushback = 0;
+	}
+	while (stackblocksize() <= savelen)
+		growstackblock();
+	STARTSTACKSTR(out);
+	if (str) {
+		memcpy(out, str, savelen);
+		STADJUST(savelen, out);
+		INTOFF;
+		ckfree(str);
+		str = NULL;
+		INTON;
+	}
+	if (ostr) {
+		INTOFF;
+		ckfree(ostr);
+		ostr = NULL;
+		INTON;
+	}
+	handler = savehandler;
+	if (quoted)
+		USTPUTC(CTLBACKQ | CTLQUOTE, out);
+	else
+		USTPUTC(CTLBACKQ, out);
+	return out;
+}
+
 
 /*
  * If eofmark is NULL, read a word or a redirection symbol.  If eofmark
@@ -879,8 +1037,6 @@ breakloop:
 #define CHECKEND()	{goto checkend; checkend_return:;}
 #define PARSEREDIR()	{goto parseredir; parseredir_return:;}
 #define PARSESUB()	{goto parsesub; parsesub_return:;}
-#define PARSEBACKQOLD()	{oldstyle = 1; goto parsebackq; parsebackq_oldreturn:;}
-#define PARSEBACKQNEW()	{oldstyle = 0; goto parsebackq; parsebackq_newreturn:;}
 #define	PARSEARITH()	{goto parsearith; parsearith_return:;}
 
 STATIC int
@@ -896,7 +1052,6 @@ readtoken1(int firstc, char const *syntax, char *eofmark, int striptabs)
 	int varnest;	/* levels of variables expansion */
 	int arinest;	/* levels of arithmetic expansion */
 	int parenlevel;	/* levels of parens in arithmetic */
-	int oldstyle;
 	char const *prevsyntax;	/* syntax before arithmetic */
 	int synentry;
 
@@ -1029,7 +1184,8 @@ readtoken1(int firstc, char const *syntax, char *eofmark, int striptabs)
 				}
 				break;
 			case CBQUOTE:	/* '`' */
-				PARSEBACKQOLD();
+				out = parsebackq(out, &bqlist, 1, dblquote,
+						arinest || dblquote);
 				break;
 			case CEOF:
 				goto endword;		/* exit outer loop */
@@ -1189,7 +1345,8 @@ parsesub: {
 			PARSEARITH();
 		} else {
 			pungetc();
-			PARSEBACKQNEW();
+			out = parsebackq(out, &bqlist, 0, dblquote,
+					arinest || dblquote);
 		}
 	} else {
 		USTPUTC(CTLVAR, out);
@@ -1294,167 +1451,6 @@ parsesub: {
 	goto parsesub_return;
 }
 
-
-/*
- * Called to parse command substitutions.  Newstyle is set if the command
- * is enclosed inside $(...); nlpp is a pointer to the head of the linked
- * list of commands (passed by reference), and savelen is the number of
- * characters on the top of the stack which must be preserved.
- */
-
-parsebackq: {
-	struct nodelist **nlpp;
-	union node *n;
-	char *volatile str;
-	struct jmploc jmploc;
-	struct jmploc *const savehandler = handler;
-	int savelen;
-	int saveprompt;
-	const int bq_startlinno = plinno;
-	char *volatile ostr = NULL;
-	struct parsefile *const savetopfile = getcurrentfile();
-
-	str = NULL;
-	if (setjmp(jmploc.loc)) {
-		popfilesupto(savetopfile);
-		if (str)
-			ckfree(str);
-		if (ostr)
-			ckfree(ostr);
-		handler = savehandler;
-		if (exception == EXERROR) {
-			startlinno = bq_startlinno;
-			synerror("Error in command substitution");
-		}
-		longjmp(handler->loc, 1);
-	}
-	INTOFF;
-	savelen = out - stackblock();
-	if (savelen > 0) {
-		str = ckmalloc(savelen);
-		memcpy(str, stackblock(), savelen);
-	}
-	handler = &jmploc;
-	INTON;
-        if (oldstyle) {
-                /* We must read until the closing backquote, giving special
-                   treatment to some slashes, and then push the string and
-                   reread it as input, interpreting it normally.  */
-                char *oout;
-                int c;
-                int olen;
-
-
-                STARTSTACKSTR(oout);
-		for (;;) {
-			if (needprompt) {
-				setprompt(2);
-				needprompt = 0;
-			}
-			switch (c = pgetc()) {
-			case '`':
-				goto done;
-
-			case '\\':
-                                if ((c = pgetc()) == '\n') {
-					plinno++;
-					if (doprompt)
-						setprompt(2);
-					else
-						setprompt(0);
-					/*
-					 * If eating a newline, avoid putting
-					 * the newline into the new character
-					 * stream (via the STPUTC after the
-					 * switch).
-					 */
-					continue;
-				}
-                                if (c != '\\' && c != '`' && c != '$'
-                                    && (!dblquote || c != '"'))
-                                        STPUTC('\\', oout);
-				break;
-
-			case '\n':
-				plinno++;
-				needprompt = doprompt;
-				break;
-
-			case PEOF:
-			        startlinno = plinno;
-				synerror("EOF in backquote substitution");
- 				break;
-
-			default:
-				break;
-			}
-			STPUTC(c, oout);
-                }
-done:
-                STPUTC('\0', oout);
-                olen = oout - stackblock();
-		INTOFF;
-		ostr = ckmalloc(olen);
-		memcpy(ostr, stackblock(), olen);
-		setinputstring(ostr, 1);
-		INTON;
-        }
-	nlpp = &bqlist;
-	while (*nlpp)
-		nlpp = &(*nlpp)->next;
-	*nlpp = (struct nodelist *)stalloc(sizeof (struct nodelist));
-	(*nlpp)->next = NULL;
-
-	if (oldstyle) {
-		saveprompt = doprompt;
-		doprompt = 0;
-	}
-
-	n = list(0);
-
-	if (oldstyle)
-		doprompt = saveprompt;
-	else {
-		if (readtoken() != TRP)
-			synexpect(TRP);
-	}
-
-	(*nlpp)->n = n;
-        if (oldstyle) {
-		/*
-		 * Start reading from old file again, ignoring any pushed back
-		 * tokens left from the backquote parsing
-		 */
-                popfile();
-		tokpushback = 0;
-	}
-	while (stackblocksize() <= savelen)
-		growstackblock();
-	STARTSTACKSTR(out);
-	if (str) {
-		memcpy(out, str, savelen);
-		STADJUST(savelen, out);
-		INTOFF;
-		ckfree(str);
-		str = NULL;
-		INTON;
-	}
-	if (ostr) {
-		INTOFF;
-		ckfree(ostr);
-		ostr = NULL;
-		INTON;
-	}
-	handler = savehandler;
-	if (arinest || dblquote)
-		USTPUTC(CTLBACKQ | CTLQUOTE, out);
-	else
-		USTPUTC(CTLBACKQ, out);
-	if (oldstyle)
-		goto parsebackq_oldreturn;
-	else
-		goto parsebackq_newreturn;
-}
 
 /*
  * Parse an arithmetic expansion (indicate start of one and set state)
