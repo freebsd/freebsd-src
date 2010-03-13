@@ -1,4 +1,4 @@
-/* apps/s_apps.h */
+/* ssl/t1_reneg.c */
 /* Copyright (C) 1995-1998 Eric Young (eay@cryptsoft.com)
  * All rights reserved.
  *
@@ -56,7 +56,7 @@
  * [including the GNU Public Licence.]
  */
 /* ====================================================================
- * Copyright (c) 1998-2001 The OpenSSL Project.  All rights reserved.
+ * Copyright (c) 1998-2009 The OpenSSL Project.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -108,69 +108,185 @@
  * Hudson (tjh@cryptsoft.com).
  *
  */
-#if !defined(OPENSSL_SYS_NETWARE)  /* conflicts with winsock2 stuff on netware */
-#include <sys/types.h>
+#include <stdio.h>
+#include <openssl/objects.h>
+#include "ssl_locl.h"
+
+/* Add the client's renegotiation binding */
+int ssl_add_clienthello_renegotiate_ext(SSL *s, unsigned char *p, int *len,
+					int maxlen)
+    {
+    if(p)
+        {
+	if((s->s3->previous_client_finished_len+1) > maxlen)
+            {
+            SSLerr(SSL_F_SSL_ADD_CLIENTHELLO_RENEGOTIATE_EXT,SSL_R_RENEGOTIATE_EXT_TOO_LONG);
+            return 0;
+            }
+            
+        /* Length byte */
+	*p = s->s3->previous_client_finished_len;
+        p++;
+
+        memcpy(p, s->s3->previous_client_finished,
+	       s->s3->previous_client_finished_len);
+#ifdef OPENSSL_RI_DEBUG
+    fprintf(stderr, "%s RI extension sent by client\n",
+		s->s3->previous_client_finished_len ? "Non-empty" : "Empty");
 #endif
-#include <openssl/opensslconf.h>
+        }
+    
+    *len=s->s3->previous_client_finished_len + 1;
 
-#if defined(OPENSSL_SYS_WINDOWS) || defined(OPENSSL_SYS_MSDOS)
-#include <conio.h>
+ 
+    return 1;
+    }
+
+/* Parse the client's renegotiation binding and abort if it's not
+   right */
+int ssl_parse_clienthello_renegotiate_ext(SSL *s, unsigned char *d, int len,
+					  int *al)
+    {
+    int ilen;
+
+    /* Parse the length byte */
+    if(len < 1)
+        {
+        SSLerr(SSL_F_SSL_PARSE_CLIENTHELLO_RENEGOTIATE_EXT,SSL_R_RENEGOTIATION_ENCODING_ERR);
+        *al=SSL_AD_ILLEGAL_PARAMETER;
+        return 0;
+        }
+    ilen = *d;
+    d++;
+
+    /* Consistency check */
+    if((ilen+1) != len)
+        {
+        SSLerr(SSL_F_SSL_PARSE_CLIENTHELLO_RENEGOTIATE_EXT,SSL_R_RENEGOTIATION_ENCODING_ERR);
+        *al=SSL_AD_ILLEGAL_PARAMETER;
+        return 0;
+        }
+
+    /* Check that the extension matches */
+    if(ilen != s->s3->previous_client_finished_len)
+        {
+        SSLerr(SSL_F_SSL_PARSE_CLIENTHELLO_RENEGOTIATE_EXT,SSL_R_RENEGOTIATION_MISMATCH);
+        *al=SSL_AD_HANDSHAKE_FAILURE;
+        return 0;
+        }
+    
+    if(memcmp(d, s->s3->previous_client_finished,
+	      s->s3->previous_client_finished_len))
+        {
+        SSLerr(SSL_F_SSL_PARSE_CLIENTHELLO_RENEGOTIATE_EXT,SSL_R_RENEGOTIATION_MISMATCH);
+        *al=SSL_AD_HANDSHAKE_FAILURE;
+        return 0;
+        }
+#ifdef OPENSSL_RI_DEBUG
+    fprintf(stderr, "%s RI extension received by server\n",
+				ilen ? "Non-empty" : "Empty");
 #endif
 
-#ifdef OPENSSL_SYS_MSDOS
-#define _kbhit kbhit
+    s->s3->send_connection_binding=1;
+
+    return 1;
+    }
+
+/* Add the server's renegotiation binding */
+int ssl_add_serverhello_renegotiate_ext(SSL *s, unsigned char *p, int *len,
+					int maxlen)
+    {
+    if(p)
+        {
+        if((s->s3->previous_client_finished_len +
+            s->s3->previous_server_finished_len + 1) > maxlen)
+            {
+            SSLerr(SSL_F_SSL_ADD_SERVERHELLO_RENEGOTIATE_EXT,SSL_R_RENEGOTIATE_EXT_TOO_LONG);
+            return 0;
+            }
+        
+        /* Length byte */
+        *p = s->s3->previous_client_finished_len + s->s3->previous_server_finished_len;
+        p++;
+
+        memcpy(p, s->s3->previous_client_finished,
+	       s->s3->previous_client_finished_len);
+        p += s->s3->previous_client_finished_len;
+
+        memcpy(p, s->s3->previous_server_finished,
+	       s->s3->previous_server_finished_len);
+#ifdef OPENSSL_RI_DEBUG
+    fprintf(stderr, "%s RI extension sent by server\n",
+    		s->s3->previous_client_finished_len ? "Non-empty" : "Empty");
 #endif
+        }
+    
+    *len=s->s3->previous_client_finished_len
+	+ s->s3->previous_server_finished_len + 1;
+    
+    return 1;
+    }
 
-#if defined(OPENSSL_SYS_VMS) && !defined(FD_SET)
-/* VAX C does not defined fd_set and friends, but it's actually quite simple */
-/* These definitions are borrowed from SOCKETSHR.	/Richard Levitte */
-#define MAX_NOFILE	32
-#define	NBBY		 8		/* number of bits in a byte	*/
+/* Parse the server's renegotiation binding and abort if it's not
+   right */
+int ssl_parse_serverhello_renegotiate_ext(SSL *s, unsigned char *d, int len,
+					  int *al)
+    {
+    int expected_len=s->s3->previous_client_finished_len
+	+ s->s3->previous_server_finished_len;
+    int ilen;
 
-#ifndef	FD_SETSIZE
-#define	FD_SETSIZE	MAX_NOFILE
-#endif	/* FD_SETSIZE */
+    /* Check for logic errors */
+    OPENSSL_assert(!expected_len || s->s3->previous_client_finished_len);
+    OPENSSL_assert(!expected_len || s->s3->previous_server_finished_len);
+    
+    /* Parse the length byte */
+    if(len < 1)
+        {
+        SSLerr(SSL_F_SSL_PARSE_SERVERHELLO_RENEGOTIATE_EXT,SSL_R_RENEGOTIATION_ENCODING_ERR);
+        *al=SSL_AD_ILLEGAL_PARAMETER;
+        return 0;
+        }
+    ilen = *d;
+    d++;
 
-/* How many things we'll allow select to use. 0 if unlimited */
-#define MAXSELFD	MAX_NOFILE
-typedef int	fd_mask;	/* int here! VMS prototypes int, not long */
-#define NFDBITS	(sizeof(fd_mask) * NBBY)	/* bits per mask (power of 2!)*/
-#define NFDSHIFT 5				/* Shift based on above */
+    /* Consistency check */
+    if(ilen+1 != len)
+        {
+        SSLerr(SSL_F_SSL_PARSE_SERVERHELLO_RENEGOTIATE_EXT,SSL_R_RENEGOTIATION_ENCODING_ERR);
+        *al=SSL_AD_ILLEGAL_PARAMETER;
+        return 0;
+        }
+    
+    /* Check that the extension matches */
+    if(ilen != expected_len)
+        {
+        SSLerr(SSL_F_SSL_PARSE_SERVERHELLO_RENEGOTIATE_EXT,SSL_R_RENEGOTIATION_MISMATCH);
+        *al=SSL_AD_HANDSHAKE_FAILURE;
+        return 0;
+        }
 
-typedef fd_mask fd_set;
-#define	FD_SET(n, p)	(*(p) |= (1 << ((n) % NFDBITS)))
-#define	FD_CLR(n, p)	(*(p) &= ~(1 << ((n) % NFDBITS)))
-#define	FD_ISSET(n, p)	(*(p) & (1 << ((n) % NFDBITS)))
-#define FD_ZERO(p)	memset((char *)(p), 0, sizeof(*(p)))
+    if(memcmp(d, s->s3->previous_client_finished,
+	      s->s3->previous_client_finished_len))
+        {
+        SSLerr(SSL_F_SSL_PARSE_SERVERHELLO_RENEGOTIATE_EXT,SSL_R_RENEGOTIATION_MISMATCH);
+        *al=SSL_AD_HANDSHAKE_FAILURE;
+        return 0;
+        }
+    d += s->s3->previous_client_finished_len;
+
+    if(memcmp(d, s->s3->previous_server_finished,
+	      s->s3->previous_server_finished_len))
+        {
+        SSLerr(SSL_F_SSL_PARSE_SERVERHELLO_RENEGOTIATE_EXT,SSL_R_RENEGOTIATION_MISMATCH);
+        *al=SSL_AD_ILLEGAL_PARAMETER;
+        return 0;
+        }
+#ifdef OPENSSL_RI_DEBUG
+    fprintf(stderr, "%s RI extension received by client\n",
+				ilen ? "Non-empty" : "Empty");
 #endif
+    s->s3->send_connection_binding=1;
 
-#define PORT            4433
-#define PORT_STR        "4433"
-#define PROTOCOL        "tcp"
-
-int do_server(int port, int type, int *ret, int (*cb) (char *hostname, int s, unsigned char *context), unsigned char *context);
-#ifdef HEADER_X509_H
-int MS_CALLBACK verify_callback(int ok, X509_STORE_CTX *ctx);
-#endif
-#ifdef HEADER_SSL_H
-int set_cert_stuff(SSL_CTX *ctx, char *cert_file, char *key_file);
-int set_cert_key_stuff(SSL_CTX *ctx, X509 *cert, EVP_PKEY *key);
-#endif
-int init_client(int *sock, char *server, int port, int type);
-int should_retry(int i);
-int extract_port(char *str, short *port_ptr);
-int extract_host_port(char *str,char **host_ptr,unsigned char *ip,short *p);
-
-long MS_CALLBACK bio_dump_callback(BIO *bio, int cmd, const char *argp,
-	int argi, long argl, long ret);
-
-#ifdef HEADER_SSL_H
-void MS_CALLBACK apps_ssl_info_callback(const SSL *s, int where, int ret);
-void MS_CALLBACK msg_cb(int write_p, int version, int content_type, const void *buf, size_t len, SSL *ssl, void *arg);
-void MS_CALLBACK tlsext_cb(SSL *s, int client_server, int type,
-					unsigned char *data, int len,
-					void *arg);
-#endif
-
-int MS_CALLBACK generate_cookie_callback(SSL *ssl, unsigned char *cookie, unsigned int *cookie_len);
-int MS_CALLBACK verify_cookie_callback(SSL *ssl, unsigned char *cookie, unsigned int cookie_len);
+    return 1;
+    }
