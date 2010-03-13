@@ -541,6 +541,11 @@ static buf_hash_table_t buf_hash_table;
 
 uint64_t zfs_crc64_table[256];
 
+#ifdef ZIO_USE_UMA
+extern kmem_cache_t	*zio_buf_cache[];
+extern kmem_cache_t	*zio_data_buf_cache[];
+#endif
+
 /*
  * Level 2 ARC
  */
@@ -1896,8 +1901,6 @@ arc_kmem_reap_now(arc_reclaim_strategy_t strat)
 	size_t			i;
 	kmem_cache_t		*prev_cache = NULL;
 	kmem_cache_t		*prev_data_cache = NULL;
-	extern kmem_cache_t	*zio_buf_cache[];
-	extern kmem_cache_t	*zio_data_buf_cache[];
 #endif
 
 #ifdef _KERNEL
