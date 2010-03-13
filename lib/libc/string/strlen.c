@@ -99,14 +99,15 @@ strlen(const char *str)
 	lp = (const unsigned long *)((uintptr_t)str & ~LONGPTR_MASK);
 	va = (*lp - mask01);
 	vb = ((~*lp) & mask80);
+	lp++;
 	if (va & vb)
 		/* Check if we have \0 in the first part */
-		for (p = str; (uintptr_t)p & LONGPTR_MASK; p++)
+		for (p = str; p < (const char *)lp; p++)
 			if (*p == '\0')
 				return (p - str);
 
 	/* Scan the rest of the string using word sized operation */
-	for (lp = (const unsigned long *)p; ; lp++) {
+	for (; ; lp++) {
 		va = (*lp - mask01);
 		vb = ((~*lp) & mask80);
 		if (va & vb) {
