@@ -40,7 +40,7 @@ static void pbn(const char *name, BIGNUM *bn)
 	return;
 	}
 
-void primes()
+static void primes()
     {
     char buf[10240];
     char lbuf[10240];
@@ -63,7 +63,7 @@ void primes()
 	}
     }
 
-void pqg()
+static void pqg()
     {
     char buf[1024];
     char lbuf[1024];
@@ -112,7 +112,7 @@ void pqg()
 	}
     }
 
-void pqgver()
+static void pqgver()
     {
     char buf[1024];
     char lbuf[1024];
@@ -131,6 +131,7 @@ void pqgver()
 		fputs(buf,stdout);
 		continue;
 		}
+	fputs(buf, stdout);
 	if(!strcmp(keyword,"[mod"))
 	    nmod=atoi(value);
 	else if(!strcmp(keyword,"P"))
@@ -158,12 +159,6 @@ void pqgver()
 		fprintf(stderr, "Parse Error\n");
 		exit (1);
 		}
-	    pbn("P",p);
-	    pbn("Q",q);
-	    pbn("G",g);
-	    pv("Seed",seed,20);
-	    printf("c = %d\n",counter);
-	    printf("H = %lx\n",h);
 	    dsa = FIPS_dsa_new();
 	    if (!DSA_generate_parameters_ex(dsa, nmod,seed,20 ,&counter2,&h2,NULL))
 			{
@@ -174,7 +169,7 @@ void pqgver()
 		|| (counter != counter2) || (h != h2))
 	    	printf("Result = F\n");
 	    else
-	    	printf("Result = T\n");
+	    	printf("Result = P\n");
 	    BN_free(p);
 	    BN_free(q);
 	    BN_free(g);
@@ -217,7 +212,7 @@ static int dss_paramcheck(int nmod, BIGNUM *p, BIGNUM *q, BIGNUM *g,
     return 1;
     }
 
-void keyver()
+static void keyver()
     {
     char buf[1024];
     char lbuf[1024];
@@ -286,7 +281,7 @@ void keyver()
 		if (!BN_mod_exp(Y2, g, X, p, ctx) || BN_cmp(Y2, Y))
 	    		printf("Result = F\n");
 	        else
-	    		printf("Result = T\n");
+	    		printf("Result = P\n");
 		}
 	    BN_free(X);
 	    BN_free(Y);
@@ -304,7 +299,7 @@ void keyver()
 	    BN_free(Y2);
     }
 
-void keypair()
+static void keypair()
     {
     char buf[1024];
     char lbuf[1024];
@@ -353,7 +348,7 @@ void keypair()
 	}
     }
 
-void siggen()
+static void siggen()
     {
     char buf[1024];
     char lbuf[1024];
@@ -426,7 +421,7 @@ void siggen()
 		FIPS_dsa_free(dsa);
     }
 
-void sigver()
+static void sigver()
     {
     DSA *dsa=NULL;
     char buf[1024];
