@@ -178,7 +178,8 @@ ${PROG}.symbols: ${FULLPROG}
 	${OBJCOPY} --only-keep-debug ${FULLPROG} ${.TARGET}
 .endif
 
-.if ${MACHINE_ARCH} != amd64 && ${MACHINE_ARCH} != mips
+.if ${MACHINE_ARCH} != amd64 && ${MACHINE_ARCH} != ia64 && \
+    ${MACHINE_ARCH} != mips
 ${FULLPROG}: ${KMOD}.kld
 	${LD} -Bshareable ${LDFLAGS} -o ${.TARGET} ${KMOD}.kld
 .if !defined(DEBUG_FLAGS)
@@ -191,7 +192,8 @@ EXPORT_SYMS?=	NO
 CLEANFILES+=	export_syms
 .endif
 
-.if ${MACHINE_ARCH} != amd64 && ${MACHINE_ARCH} != mips
+.if ${MACHINE_ARCH} != amd64 && ${MACHINE_ARCH} != ia64 && \
+    ${MACHINE_ARCH} != mips
 ${KMOD}.kld: ${OBJS}
 .else
 ${FULLPROG}: ${OBJS}
@@ -211,7 +213,8 @@ ${FULLPROG}: ${OBJS}
 .endif
 .endif
 .if !defined(DEBUG_FLAGS) && \
-    (${MACHINE_ARCH} == amd64 || ${MACHINE_ARCH} == mips)
+    (${MACHINE_ARCH} == amd64 || ${MACHINE_ARCH} == ia64 || \
+     ${MACHINE_ARCH} == mips)
 	${OBJCOPY} --strip-debug ${.TARGET}
 .endif
 
