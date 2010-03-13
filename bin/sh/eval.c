@@ -680,7 +680,7 @@ evalcommand(union node *cmd, int flags, struct backcmd *backcmd)
 		/* Variable assignment(s) without command */
 		cmdentry.cmdtype = CMDBUILTIN;
 		cmdentry.u.index = BLTINCMD;
-		cmdentry.special = 1;
+		cmdentry.special = 0;
 	} else {
 		static const char PATH[] = "PATH=";
 		int cmd_flags = 0, bltinonly = 0;
@@ -891,6 +891,12 @@ evalcommand(union node *cmd, int flags, struct backcmd *backcmd)
 		}
 		handler = &jmploc;
 		redirect(cmd->ncmd.redirect, mode);
+		/*
+		 * If there is no command word, redirection errors should
+		 * not be fatal but assignment errors should.
+		 */
+		if (argc == 0 && !(flags & EV_BACKCMD))
+			cmdentry.special = 1;
 		if (cmdentry.special)
 			listsetvar(cmdenviron);
 		commandname = argv[0];
