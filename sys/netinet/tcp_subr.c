@@ -376,25 +376,15 @@ tcp_init(void)
 
 	TUNABLE_INT_FETCH("net.inet.tcp.sack.enable", &V_tcp_do_sack);
 
-	INP_INFO_LOCK_INIT(&V_tcbinfo, "tcp");
-	LIST_INIT(&V_tcb);
-#ifdef VIMAGE
-	V_tcbinfo.ipi_vnet = curvnet;
-#endif
-	V_tcbinfo.ipi_listhead = &V_tcb;
 	hashsize = TCBHASHSIZE;
 	TUNABLE_INT_FETCH("net.inet.tcp.tcbhashsize", &hashsize);
 	if (!powerof2(hashsize)) {
 		printf("WARNING: TCB hash size not a power of 2\n");
 		hashsize = 512; /* safe default */
 	}
-	V_tcbinfo.ipi_hashbase = hashinit(hashsize, M_PCB,
-	    &V_tcbinfo.ipi_hashmask);
-	V_tcbinfo.ipi_porthashbase = hashinit(hashsize, M_PCB,
-	    &V_tcbinfo.ipi_porthashmask);
-	V_tcbinfo.ipi_zone = uma_zcreate("tcp_inpcb", sizeof(struct inpcb),
-	    NULL, NULL, tcp_inpcb_init, NULL, UMA_ALIGN_PTR, UMA_ZONE_NOFREE);
-	uma_zone_set_max(V_tcbinfo.ipi_zone, maxsockets);
+	in_pcbinfo_init(&V_tcbinfo, "tcp", &V_tcb, hashsize, hashsize,
+	    "tcp_inpcb", tcp_inpcb_init, NULL, UMA_ZONE_NOFREE);
+
 	/*
 	 * These have to be type stable for the benefit of the timers.
 	 */
@@ -463,18 +453,9 @@ tcp_destroy(void)
 	tcp_hc_destroy();
 	syncache_destroy();
 	tcp_tw_destroy();
-
-	/* XXX check that hashes are empty! */
-	hashdestroy(V_tcbinfo.ipi_hashbase, M_PCB,
-	    V_tcbinfo.ipi_hashmask);
-	hashdestroy(V_tcbinfo.ipi_porthashbase, M_PCB,
-	    V_tcbinfo.ipi_porthashmask);
-
+	in_pcbinfo_destroy(&V_tcbinfo);
 	uma_zdestroy(V_sack_hole_zone);
 	uma_zdestroy(V_tcpcb_zone);
-	uma_zdestroy(V_tcbinfo.ipi_zone);
-
-	INP_INFO_LOCK_DESTROY(&V_tcbinfo);
 }
 #endif
 
