@@ -1076,6 +1076,8 @@ bwn_attach_post(struct bwn_softc *sc)
 		| IEEE80211_C_TXPMGT		/* capable of txpow mgt */
 		;
 
+	ic->ic_flags_ext |= IEEE80211_FEXT_SWBMISS;	/* s/w bmiss */
+
 	/* call MI attach routine. */
 	ieee80211_ifattach(ic,
 	    bwn_is_valid_ether_addr(siba_sprom_get_mac_80211a(sc->sc_dev)) ?
