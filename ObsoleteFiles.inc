@@ -14,6 +14,10 @@
 # The file is partitioned: OLD_FILES first, then OLD_LIBS and OLD_DIRS last.
 #
 
+# 20100314: removal of regexp.h
+OLD_FILES+=usr/include/regexp.h
+OLD_FILES+=usr/share/man/man3/regexp.3.gz
+OLD_FILES+=usr/share/man/man3/regsub.3.gz
 # 20100303: actual removal of utmp.h
 OLD_FILES+=usr/include/utmp.h
 # 20100227: [ia64] removed <machine/sapicreg.h> and <machine/sapicvar.h>

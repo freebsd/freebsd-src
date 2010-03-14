@@ -44,49 +44,49 @@ __FBSDID("$FreeBSD$");
 static char sccsid[] = "@(#)regex.c	5.1 (Berkeley) 3/29/92";
 #endif /* LIBC_SCCS and not lint */
 
-#include <sys/types.h>
+#include <regex.h>
 #include <stddef.h>
-#include <regexp.h>
-#include <string.h>
-#include <stdlib.h>
-#include <string.h>
+#include <unistd.h>
 
-static regexp *re_regexp;
-static int re_goterr;
-static char *re_errstr;
+static regex_t re_regexp;
+static int re_gotexp;
+static char re_errstr[100];
 
 char *
-re_comp(char *s)
-{
-	if (s == NULL || *s == '\0') {
-		if (re_regexp == NULL)
-			return "no previous regular expression";
-		return (NULL);
-	}
-	if (re_regexp)
-		free(re_regexp);
-	if (re_errstr)
-		free(re_errstr);
-	re_goterr = 0;
-	re_regexp = regcomp(s);
-	return (re_goterr ? re_errstr : NULL);
-}
-
-int
-re_exec(char *s)
+re_comp(const char *s)
 {
 	int rc;
 
-	re_goterr = 0;
-	rc = regexec(re_regexp, s);
-	return (re_goterr ? -1 : rc);
+	if (s == NULL || *s == '\0') {
+		if (!re_gotexp)
+			return __DECONST(char *,
+			    "no previous regular expression");
+		return (NULL);
+	}
+
+	if (re_gotexp) {
+		regfree(&re_regexp);
+		re_gotexp = 0;
+	}
+
+	rc = regcomp(&re_regexp, s, REG_EXTENDED);
+	if (rc == 0) {
+		re_gotexp = 1;
+		return (NULL);
+	}
+
+	regerror(rc, &re_regexp, re_errstr, sizeof(re_errstr));
+	re_errstr[sizeof(re_errstr) - 1] = '\0';
+	return (re_errstr);
 }
 
-void
-regerror(const char *s)
+int
+re_exec(const char *s)
 {
-	re_goterr = 1;
-	if (re_errstr)
-		free(re_errstr);
-	re_errstr = strdup(s);
+	int rc;
+
+	if (!re_gotexp)
+		return (-1);
+	rc = regexec(&re_regexp, s, 0, NULL, 0);
+	return (rc == 0 ? 1 : 0);
 }
