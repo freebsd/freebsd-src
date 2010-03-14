@@ -147,35 +147,20 @@ static void
 div_init(void)
 {
 
-	INP_INFO_LOCK_INIT(&V_divcbinfo, "div");
-	LIST_INIT(&V_divcb);
-	V_divcbinfo.ipi_listhead = &V_divcb;
-#ifdef VIMAGE
-	V_divcbinfo.ipi_vnet = curvnet;
-#endif
 	/*
-	 * XXX We don't use the hash list for divert IP, but it's easier
-	 * to allocate a one entry hash list than it is to check all
-	 * over the place for hashbase == NULL.
+	 * XXX We don't use the hash list for divert IP, but it's easier to
+	 * allocate one-entry hash lists than it is to check all over the
+	 * place for hashbase == NULL.
 	 */
-	V_divcbinfo.ipi_hashbase = hashinit(1, M_PCB, &V_divcbinfo.ipi_hashmask);
-	V_divcbinfo.ipi_porthashbase = hashinit(1, M_PCB,
-	    &V_divcbinfo.ipi_porthashmask);
-	V_divcbinfo.ipi_zone = uma_zcreate("divcb", sizeof(struct inpcb),
-	    NULL, NULL, div_inpcb_init, div_inpcb_fini, UMA_ALIGN_PTR,
-	    UMA_ZONE_NOFREE);
-	uma_zone_set_max(V_divcbinfo.ipi_zone, maxsockets);
+	in_pcbinfo_init(&V_divcbinfo, "div", &V_divcb, 1, 1, "divcb",
+	    div_inpcb_init, div_inpcb_fini, UMA_ZONE_NOFREE);
 }
 
 static void
 div_destroy(void)
 {
 
-	INP_INFO_LOCK_DESTROY(&V_divcbinfo);
-	uma_zdestroy(V_divcbinfo.ipi_zone);
-	hashdestroy(V_divcbinfo.ipi_hashbase, M_PCB, V_divcbinfo.ipi_hashmask);
-	hashdestroy(V_divcbinfo.ipi_porthashbase, M_PCB,
-	    V_divcbinfo.ipi_porthashmask);
+	in_pcbinfo_destroy(&V_divcbinfo);
 }
 
 /*
