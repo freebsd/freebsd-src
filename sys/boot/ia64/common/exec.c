@@ -36,19 +36,30 @@ __FBSDID("$FreeBSD$");
 #include <machine/ia64_cpu.h>
 #include <machine/pte.h>
 
-#include <ia64/include/bootinfo.h>
 #include <ia64/include/vmparam.h>
 
 #include <efi.h>
 #include <efilib.h>
 
-#include "bootstrap.h"
+#include "libia64.h"
 
-#define _KERNEL
+static int elf64_exec(struct preloaded_file *amp);
+static int elf64_obj_exec(struct preloaded_file *amp);
 
-static int	elf64_exec(struct preloaded_file *amp);
+static struct file_format ia64_elf = {
+	elf64_loadfile,
+	elf64_exec
+};
+static struct file_format ia64_elf_obj = {
+	elf64_obj_loadfile,
+	elf64_obj_exec
+};
 
-struct file_format ia64_elf = { elf64_loadfile, elf64_exec };
+struct file_format *file_formats[] = {
+	&ia64_elf,
+	&ia64_elf_obj,
+	NULL
+};
 
 /*
  * Entered with psr.ic and psr.i both zero.
@@ -121,4 +132,13 @@ elf64_exec(struct preloaded_file *fp)
 
 	/* NOTREACHED */
 	return (0);
+}
+
+static int
+elf64_obj_exec(struct preloaded_file *fp)
+{
+
+	printf("%s called for preloaded file %p (=%s):\n", __func__, fp,
+	    fp->f_name);
+	return (ENOSYS);
 }
