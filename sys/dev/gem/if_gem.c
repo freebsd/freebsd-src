@@ -298,8 +298,11 @@ gem_attach(struct gem_softc *sc)
 
 	/*
 	 * Fall back on an internal PHY if no external PHY was found.
+	 * Note that with Apple (K2) GMACs GEM_MIF_CONFIG_MDI0 can't be
+	 * trusted when the firmware has powered down the chip.
 	 */
-	if (error != 0 && (v & GEM_MIF_CONFIG_MDI0) != 0) {
+	if (error != 0 &&
+	    ((v & GEM_MIF_CONFIG_MDI0) != 0 || GEM_IS_APPLE(sc))) {
 		v &= ~GEM_MIF_CONFIG_PHY_SEL;
 		GEM_BANK1_WRITE_4(sc, GEM_MIF_CONFIG, v);
 		switch (sc->sc_variant) {
