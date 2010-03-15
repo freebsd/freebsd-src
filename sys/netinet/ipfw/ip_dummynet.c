@@ -122,6 +122,12 @@ ipdn_bound_var(int *v, int dflt, int lo, int hi, const char *msg)
 }
 
 /*---- flow_id mask, hash and compare functions ---*/
+/*
+ * The flow_id includes the 5-tuple, the queue/pipe number
+ * which we store in the extra area in host order,
+ * and for ipv6 also the flow_id6.
+ * XXX see if we want the tos byte (can store in 'flags')
+ */
 static struct ipfw_flow_id *
 flow_id_mask(struct ipfw_flow_id *mask, struct ipfw_flow_id *id)
 {
@@ -130,7 +136,7 @@ flow_id_mask(struct ipfw_flow_id *mask, struct ipfw_flow_id *id)
 	id->dst_port &= mask->dst_port;
 	id->src_port &= mask->src_port;
 	id->proto &= mask->proto;
-	id->flags = 0; /* we don't care about this one */
+	id->extra &= mask->extra;
 	if (is_v6) {
 		APPLY_MASK(&id->dst_ip6, &mask->dst_ip6);
 		APPLY_MASK(&id->src_ip6, &mask->src_ip6);
@@ -151,7 +157,7 @@ flow_id_or(struct ipfw_flow_id *src, struct ipfw_flow_id *dst)
 	dst->dst_port |= src->dst_port;
 	dst->src_port |= src->src_port;
 	dst->proto |= src->proto;
-	dst->flags = 0; /* we don't care about this one */
+	dst->extra |= src->extra;
 	if (is_v6) {
 #define OR_MASK(_d, _s)                          \
     (_d)->__u6_addr.__u6_addr32[0] |= (_s)->__u6_addr.__u6_addr32[0]; \
@@ -172,7 +178,7 @@ flow_id_or(struct ipfw_flow_id *src, struct ipfw_flow_id *dst)
 static int
 nonzero_mask(struct ipfw_flow_id *m)
 {
-	if (m->dst_port || m->src_port || m->proto)
+	if (m->dst_port || m->src_port || m->proto || m->extra)
 		return 1;
 	if (IS_IP6_FLOW_ID(m)) {
 		return
@@ -208,10 +214,12 @@ flow_id_hash(struct ipfw_flow_id *id)
             (s[0] << 16) ^ (s[1] << 16) ^
             (s[2] << 16) ^ (s[3] << 16) ^
             (id->dst_port << 1) ^ (id->src_port) ^
+	    (id->extra) ^
             (id->proto ) ^ (id->flow_id6);
     } else {
         i = (id->dst_ip)        ^ (id->dst_ip >> 15) ^
             (id->src_ip << 1)   ^ (id->src_ip >> 16) ^
+	    (id->extra) ^
             (id->dst_port << 1) ^ (id->src_port)     ^ (id->proto);
     }
     return i;
@@ -223,29 +231,26 @@ flow_id_cmp(struct ipfw_flow_id *id1, struct ipfw_flow_id *id2)
 {
 	int is_v6 = IS_IP6_FLOW_ID(id1);
 
-	if (is_v6 != IS_IP6_FLOW_ID(id2))
-		return 1; /* a ipv4 and a ipv6 flow */
+	if (!is_v6) {
+	    if (IS_IP6_FLOW_ID(id2))
+		return 1; /* different address families */
 
-	if (!is_v6 && id1->dst_ip == id2->dst_ip &&
-	    id1->src_ip == id2->src_ip &&
-	    id1->dst_port == id2->dst_port &&
-	    id1->src_port == id2->src_port &&
-	    id1->proto == id2->proto &&
-	    id1->flags == id2->flags)
-		return 0;
-	    
-	if (is_v6 &&
+	    return (id1->dst_ip == id2->dst_ip &&
+		    id1->src_ip == id2->src_ip &&
+		    id1->dst_port == id2->dst_port &&
+		    id1->src_port == id2->src_port &&
+		    id1->proto == id2->proto &&
+		    id1->extra == id2->extra) ? 0 : 1;
+	}
+	/* the ipv6 case */
+	return (
 	    !bcmp(&id1->dst_ip6,&id2->dst_ip6, sizeof(id1->dst_ip6)) &&
 	    !bcmp(&id1->src_ip6,&id2->src_ip6, sizeof(id1->src_ip6)) &&
 	    id1->dst_port == id2->dst_port &&
 	    id1->src_port == id2->src_port &&
 	    id1->proto == id2->proto &&
-	    id1->flags == id2->flags &&
-	    id1->flow_id6 == id2->flow_id6)
-		return 0;
-     
-	/* Masks differ */
-	return 1;
+	    id1->extra == id2->extra &&
+	    id1->flow_id6 == id2->flow_id6) ? 0 : 1;
 }
 /*--------- end of flow-id mask, hash and compare ---------*/
 
@@ -2111,10 +2116,13 @@ ip_dn_init(void)
 	if (bootverbose)
 		printf("DUMMYNET with IPv6 initialized (100131)\n");
 
-	/* init defaults here, MSVC does not accept initializers */
+	/* Set defaults here. MSVC does not accept initializers,
+	 * and this is also useful for vimages
+	 */
 	/* queue limits */
 	dn_cfg.slot_limit = 100; /* Foot shooting limit for queues. */
 	dn_cfg.byte_limit = 1024 * 1024;
+	dn_cfg.expire = 1;
 
 	/* RED parameters */
 	dn_cfg.red_lookup_depth = 256;	/* default lookup table depth */

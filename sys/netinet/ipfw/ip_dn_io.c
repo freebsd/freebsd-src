@@ -113,6 +113,10 @@ SYSCTL_INT(_net_inet_ip_dummynet, OID_AUTO, io_fast,
     CTLFLAG_RW, &dn_cfg.io_fast, 0, "Enable fast dummynet io.");
 SYSCTL_INT(_net_inet_ip_dummynet, OID_AUTO, debug,
     CTLFLAG_RW, &dn_cfg.debug, 0, "Dummynet debug level");
+SYSCTL_INT(_net_inet_ip_dummynet, OID_AUTO, expire,
+    CTLFLAG_RW, &dn_cfg.expire, 0, "Expire empty queues/pipes");
+SYSCTL_INT(_net_inet_ip_dummynet, OID_AUTO, expire_cycle,
+    CTLFLAG_RD, &dn_cfg.expire_cycle, 0, "Expire cycle for queues/pipes");
 
 /* RED parameters */
 SYSCTL_INT(_net_inet_ip_dummynet, OID_AUTO, red_lookup_depth,
@@ -546,8 +550,11 @@ dummynet_task(void *context, int pending)
 			transmit_event(&q, (struct delay_line *)p, dn_cfg.curr_time);
 		}
 	}
-	dn_drain_scheduler();
-	dn_drain_queue();
+	if (dn_cfg.expire && ++dn_cfg.expire_cycle >= dn_cfg.expire) {
+		dn_cfg.expire_cycle = 0;
+		dn_drain_scheduler();
+		dn_drain_queue();
+	}
 
 	DN_BH_WUNLOCK();
 	dn_reschedule();

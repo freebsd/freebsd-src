@@ -141,10 +141,14 @@ struct dn_parms {
 	struct dn_alg_head	schedlist;	/* list of algorithms */
 
 	/* Store the fs/sch to scan when draining. The value is the
-	 * bucket number of the hash table 
+	 * bucket number of the hash table. Expire can be disabled
+	 * with net.inet.ip.dummynet.expire=0, or it happens every
+	 * expire ticks.
 	 **/
 	int drain_fs;
 	int drain_sch;
+	uint32_t expire;
+	uint32_t expire_cycle;	/* tick count */
 	
 	/* if the upper half is busy doing something long,
 	 * can set the busy flag and we will enqueue packets in
