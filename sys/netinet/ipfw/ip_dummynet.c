@@ -814,15 +814,15 @@ copy_obj(char **start, char *end, void *_o, const char *msg, int i)
 }
 
 /* Specific function to copy a queue.
- * It copies only the common part of a queue, and correctly set
- * the length
+ * Copies only the user-visible part of a queue (which is in
+ * a struct dn_flow), and sets len accordingly.
  */
 static int
 copy_obj_q(char **start, char *end, void *_o, const char *msg, int i)
 {
 	struct dn_id *o = _o;
 	int have = end - *start;
-	int len = sizeof(struct dn_queue);
+	int len = sizeof(struct dn_flow); /* see above comment */
 
 	if (have < len || o->len == 0 || o->type != DN_QUEUE) {
 		D("ERROR type %d %s %d have %d need %d",
@@ -1783,9 +1783,13 @@ compute_space(struct dn_id *cmd, struct copy_args *a)
 	if (x & DN_C_LINK) {
 		need += dn_cfg.schk_count * sizeof(struct dn_link) / 2;
 	}
-	/* XXX queue space might be variable */
+	/*
+	 * When exporting a queue to userland, only pass up the
+	 * struct dn_flow, which is the only visible part.
+	 */
+
 	if (x & DN_C_QUEUE)
-		need += dn_cfg.queue_count * sizeof(struct dn_queue);
+		need += dn_cfg.queue_count * sizeof(struct dn_flow);
 	if (x & DN_C_FLOW)
 		need += dn_cfg.si_count * (sizeof(struct dn_flow));
 	return need;
