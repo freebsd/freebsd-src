@@ -80,7 +80,6 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_pager.h>
 
 #include <machine/bootinfo.h>
-#include <machine/clock.h>
 #include <machine/cpu.h>
 #include <machine/efi.h>
 #include <machine/elf.h>
@@ -99,8 +98,6 @@ __FBSDID("$FreeBSD$");
 #endif
 #include <machine/unwind.h>
 #include <machine/vmparam.h>
-
-#include <i386/include/specialreg.h>
 
 SYSCTL_NODE(_hw, OID_AUTO, freq, CTLFLAG_RD, 0, "");
 SYSCTL_NODE(_machdep, OID_AUTO, cpu, CTLFLAG_RD, 0, "");
@@ -450,18 +447,22 @@ cpu_switch(struct thread *old, struct thread *new, struct mtx *mtx)
 		old->td_frame->tf_special.psr |= IA64_PSR_DFH;
 	if (!savectx(oldpcb)) {
 		atomic_store_rel_ptr(&old->td_lock, mtx);
-#if defined(SCHED_ULE) && defined(SMP)
-		/* td_lock is volatile */
-		while (new->td_lock == &blocked_lock)
-			;
-#endif
+
 		newpcb = new->td_pcb;
 		oldpcb->pcb_current_pmap =
 		    pmap_switch(newpcb->pcb_current_pmap);
+
+#if defined(SCHED_ULE) && defined(SMP)
+		while (atomic_load_acq_ptr(&new->td_lock) == &blocked_lock)
+			cpu_spinwait();
+#endif
+
 		PCPU_SET(curthread, new);
+
 #ifdef COMPAT_FREEBSD32
 		ia32_restorectx(newpcb);
 #endif
+
 		if (PCPU_GET(fpcurthread) == new)
 			new->td_frame->tf_special.psr &= ~IA64_PSR_DFH;
 		restorectx(newpcb);
@@ -478,10 +479,18 @@ cpu_throw(struct thread *old __unused, struct thread *new)
 
 	newpcb = new->td_pcb;
 	(void)pmap_switch(newpcb->pcb_current_pmap);
+
+#if defined(SCHED_ULE) && defined(SMP)
+	while (atomic_load_acq_ptr(&new->td_lock) == &blocked_lock)
+		cpu_spinwait();
+#endif
+
 	PCPU_SET(curthread, new);
+
 #ifdef COMPAT_FREEBSD32
 	ia32_restorectx(newpcb);
 #endif
+
 	restorectx(newpcb);
 	/* We should not get here. */
 	panic("cpu_throw: restorectx() returned");
