@@ -141,7 +141,8 @@ print_mask(struct ipfw_flow_id *id)
 {
 	if (!IS_IP6_FLOW_ID(id)) {
 		printf("    "
-		    "mask: 0x%02x 0x%08x/0x%04x -> 0x%08x/0x%04x\n",
+		    "mask: %s 0x%02x 0x%08x/0x%04x -> 0x%08x/0x%04x\n",
+		    id->extra ? "queue," : "",
 		    id->proto,
 		    id->src_ip, id->src_port,
 		    id->dst_ip, id->dst_port);
@@ -151,7 +152,8 @@ print_mask(struct ipfw_flow_id *id)
 		    "Tot_pkt/bytes Pkt/Byte Drp\n");
 	} else {
 		char buf[255];
-		printf("\n        mask: proto: 0x%02x, flow_id: 0x%08x,  ",
+		printf("\n        mask: %sproto: 0x%02x, flow_id: 0x%08x,  ",
+		    id->extra ? "queue," : "",
 		    id->proto, id->flow_id6);
 		inet_ntop(AF_INET6, &(id->src_ip6), buf, sizeof(buf));
 		printf("%s/0x%04x -> ", buf, id->src_port);
@@ -175,7 +177,8 @@ list_flow(struct dn_flow *ni)
 
 	pe = getprotobynumber(id->proto);
 		/* XXX: Should check for IPv4 flows */
-	printf("%3u ", (ni->oid.id) & 0xff);
+	printf("%3u%c", (ni->oid.id) & 0xff,
+		id->extra ? '*' : ' ');
 	if (!IS_IP6_FLOW_ID(id)) {
 		if (pe)
 			printf("%-4s ", pe->p_name);
@@ -910,6 +913,7 @@ ipfw_config_pipe(int ac, char **av)
 			    case TOK_ALL:
 				    /*
 				     * special case, all bits significant
+				     * except 'extra' (the queue number)
 				     */
 				    mask->dst_ip = ~0;
 				    mask->src_ip = ~0;
@@ -919,6 +923,11 @@ ipfw_config_pipe(int ac, char **av)
 				    n2mask(&mask->dst_ip6, 128);
 				    n2mask(&mask->src_ip6, 128);
 				    mask->flow_id6 = ~0;
+				    *flags |= DN_HAVE_MASK;
+				    goto end_mask;
+
+			    case TOK_QUEUE:
+				    mask->extra = ~0;
 				    *flags |= DN_HAVE_MASK;
 				    goto end_mask;
 
@@ -992,7 +1001,7 @@ ipfw_config_pipe(int ac, char **av)
 				    if (a > 0xFF)
 					    errx(EX_DATAERR,
 						"proto mask must be 8 bit");
-				    fs->flow_mask.proto = (uint8_t)a;
+				    mask->proto = (uint8_t)a;
 			    }
 			    if (a != 0)
 				    *flags |= DN_HAVE_MASK;
