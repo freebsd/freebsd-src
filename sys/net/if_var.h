@@ -645,7 +645,7 @@ drbr_dequeue_cond(struct ifnet *ifp, struct buf_ring *br,
 			IFQ_UNLOCK(&ifp->if_snd);
 			return (NULL);
 		}
-		IFQ_DEQUEUE(&ifp->if_snd, m);
+		IFQ_DEQUEUE_NOLOCK(&ifp->if_snd, m);
 		IFQ_UNLOCK(&ifp->if_snd);
 		return (m);
 	}
