@@ -535,7 +535,7 @@ read_bandwidth(char *arg, int *bandwidth, char *if_name, int namelen)
 		if (*end == 'K' || *end == 'k') {
 			end++;
 			bw *= 1000;
-		} else if (*end == 'M') {
+		} else if (*end == 'M' || *end == 'm') {
 			end++;
 			bw *= 1000000;
 		}
