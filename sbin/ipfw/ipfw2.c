@@ -231,7 +231,7 @@ static struct _s_x rule_action_params[] = {
  */
 static int lookup_key[] = {
 	TOK_DSTIP, TOK_SRCIP, TOK_DSTPORT, TOK_SRCPORT,
-	TOK_UID, TOK_JAIL, -1 };
+	TOK_UID, TOK_JAIL, TOK_DSCP, -1 };
 
 static struct _s_x rule_options[] = {
 	{ "tagged",		TOK_TAGGED },
@@ -258,6 +258,7 @@ static struct _s_x rule_options[] = {
 	{ "iplen",		TOK_IPLEN },
 	{ "ipid",		TOK_IPID },
 	{ "ipprecedence",	TOK_IPPRECEDENCE },
+	{ "dscp",		TOK_DSCP },
 	{ "iptos",		TOK_IPTOS },
 	{ "ipttl",		TOK_IPTTL },
 	{ "ipversion",		TOK_IPVER },
@@ -3519,7 +3520,7 @@ read_options:
 			char *p;
 			int j;
 
-			if (av[0] && av[1])
+			if (!av[0] || !av[1])
 				errx(EX_USAGE, "format: lookup argument tablenum");
 			cmd->opcode = O_IP_DST_LOOKUP;
 			cmd->len |= F_INSN_SIZE(ipfw_insn) + 2;
