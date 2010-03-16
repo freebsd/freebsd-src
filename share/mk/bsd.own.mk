@@ -305,6 +305,8 @@ WITH_IDEA=
     BZIP2 \
     CALENDAR \
     CDDL \
+    CLANG \
+    CLANG_IS_CC \
     CPP \
     CRYPT \
     CTM \
@@ -407,8 +409,6 @@ MK_${var}:=	yes
     BIND_LIBS \
     BIND_SIGCHASE \
     BIND_XML \
-    CLANG \
-    CLANG_IS_CC \
     GNU_CPIO \
     HESIOD \
     IDEA
