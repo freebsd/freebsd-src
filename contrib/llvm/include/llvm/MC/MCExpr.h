@@ -15,6 +15,7 @@
 
 namespace llvm {
 class MCAsmInfo;
+class MCAsmLayout;
 class MCContext;
 class MCSymbol;
 class MCValue;
@@ -62,21 +63,25 @@ public:
   /// EvaluateAsAbsolute - Try to evaluate the expression to an absolute value.
   ///
   /// @param Res - The absolute value, if evaluation succeeds.
+  /// @param Layout - The assembler layout object to use for evaluating symbol
+  /// values. If not given, then only non-symbolic expressions will be
+  /// evaluated.
   /// @result - True on success.
-  bool EvaluateAsAbsolute(int64_t &Res) const;
+  bool EvaluateAsAbsolute(int64_t &Res, const MCAsmLayout *Layout = 0) const;
 
   /// EvaluateAsRelocatable - Try to evaluate the expression to a relocatable
   /// value, i.e. an expression of the fixed form (a - b + constant).
   ///
   /// @param Res - The relocatable value, if evaluation succeeds.
+  /// @param Layout - The assembler layout object to use for evaluating values.
   /// @result - True on success.
-  bool EvaluateAsRelocatable(MCValue &Res) const;
+  bool EvaluateAsRelocatable(MCValue &Res, const MCAsmLayout *Layout = 0) const;
 
   /// @}
 
   static bool classof(const MCExpr *) { return true; }
 };
-  
+
 inline raw_ostream &operator<<(raw_ostream &OS, const MCExpr &E) {
   E.print(OS);
   return OS;
@@ -116,27 +121,65 @@ public:
 /// assembler variable (defined constant), or constitute an implicit definition
 /// of the symbol as external.
 class MCSymbolRefExpr : public MCExpr {
+public:
+  enum VariantKind {
+    VK_None,
+    VK_Invalid,
+
+    VK_GOT,
+    VK_GOTOFF,
+    VK_GOTPCREL,
+    VK_GOTTPOFF,
+    VK_INDNTPOFF,
+    VK_NTPOFF,
+    VK_PLT,
+    VK_TLSGD,
+    VK_TPOFF
+  };
+
+private:
+  /// The symbol being referenced.
   const MCSymbol *Symbol;
 
-  explicit MCSymbolRefExpr(const MCSymbol *_Symbol)
-    : MCExpr(MCExpr::SymbolRef), Symbol(_Symbol) {}
+  /// The symbol reference modifier.
+  const VariantKind Kind;
+
+  explicit MCSymbolRefExpr(const MCSymbol *_Symbol, VariantKind _Kind)
+    : MCExpr(MCExpr::SymbolRef), Symbol(_Symbol), Kind(_Kind) {}
 
 public:
   /// @name Construction
   /// @{
 
-  static const MCSymbolRefExpr *Create(const MCSymbol *Symbol, MCContext &Ctx);
-  static const MCSymbolRefExpr *Create(StringRef Name, MCContext &Ctx);
+  static const MCSymbolRefExpr *Create(const MCSymbol *Symbol, MCContext &Ctx) {
+    return MCSymbolRefExpr::Create(Symbol, VK_None, Ctx);
+  }
+
+  static const MCSymbolRefExpr *Create(const MCSymbol *Symbol, VariantKind Kind,
+                                       MCContext &Ctx);
+  static const MCSymbolRefExpr *Create(StringRef Name, VariantKind Kind,
+                                       MCContext &Ctx);
   
   /// CreateTemp - Create a reference to an assembler temporary label with the
   /// specified name.
-  static const MCSymbolRefExpr *CreateTemp(StringRef Name, MCContext &Ctx);
+  static const MCSymbolRefExpr *CreateTemp(StringRef Name, VariantKind Kind,
+                                           MCContext &Ctx);
 
   /// @}
   /// @name Accessors
   /// @{
 
   const MCSymbol &getSymbol() const { return *Symbol; }
+
+  VariantKind getKind() const { return Kind; }
+
+  /// @}
+  /// @name Static Utility Functions
+  /// @{
+
+  static StringRef getVariantKindName(VariantKind Kind);
+
+  static VariantKind getVariantKindForName(StringRef Name);
 
   /// @}
 
@@ -346,11 +389,12 @@ protected:
   MCTargetExpr() : MCExpr(Target) {}
   virtual ~MCTargetExpr() {}
 public:
-  
-  virtual void PrintImpl(raw_ostream &OS) const = 0;
-  virtual bool EvaluateAsRelocatableImpl(MCValue &Res) const = 0;
 
-  
+  virtual void PrintImpl(raw_ostream &OS) const = 0;
+  virtual bool EvaluateAsRelocatableImpl(MCValue &Res,
+                                         const MCAsmLayout *Layout) const = 0;
+
+
   static bool classof(const MCExpr *E) {
     return E->getKind() == MCExpr::Target;
   }

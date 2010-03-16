@@ -298,6 +298,7 @@ bool Sema::MergeCXXFunctionDecl(FunctionDecl *New, FunctionDecl *Old) {
       Invalid = true;
     } else if (OldParam->hasDefaultArg()) {
       // Merge the old default argument into the new parameter
+      NewParam->setHasInheritedDefaultArg();
       if (OldParam->hasUninstantiatedDefaultArg())
         NewParam->setUninstantiatedDefaultArg(
                                       OldParam->getUninstantiatedDefaultArg());
@@ -719,7 +720,7 @@ bool Sema::IsDerivedFrom(QualType Derived, QualType Base, CXXBasePaths &Paths) {
 /// if there is an error.
 bool
 Sema::CheckDerivedToBaseConversion(QualType Derived, QualType Base,
-                                   AccessDiagnosticsKind ADK,
+                                   unsigned InaccessibleBaseID,
                                    unsigned AmbigiousBaseConvID,
                                    SourceLocation Loc, SourceRange Range,
                                    DeclarationName Name) {
@@ -735,15 +736,12 @@ Sema::CheckDerivedToBaseConversion(QualType Derived, QualType Base,
   (void)DerivationOkay;
   
   if (!Paths.isAmbiguous(Context.getCanonicalType(Base).getUnqualifiedType())) {
-    if (ADK == ADK_quiet)
+    if (!InaccessibleBaseID)
       return false;
 
     // Check that the base class can be accessed.
-    switch (CheckBaseClassAccess(Loc, /*IsBaseToDerived*/ false,
-                                 Base, Derived, Paths.front(),
-                                 /*force*/ false,
-                                 /*unprivileged*/ false,
-                                 ADK)) {
+    switch (CheckBaseClassAccess(Loc, Base, Derived, Paths.front(),
+                                 InaccessibleBaseID)) {
     case AR_accessible: return false;
     case AR_inaccessible: return true;
     case AR_dependent: return false;
@@ -779,7 +777,8 @@ Sema::CheckDerivedToBaseConversion(QualType Derived, QualType Base,
                                    SourceLocation Loc, SourceRange Range,
                                    bool IgnoreAccess) {
   return CheckDerivedToBaseConversion(Derived, Base,
-                                      IgnoreAccess ? ADK_quiet : ADK_normal,
+                                      IgnoreAccess ? 0
+                                       : diag::err_upcast_to_inaccessible_base,
                                       diag::err_ambiguous_derived_to_base_conv,
                                       Loc, Range, DeclarationName());
 }
@@ -1657,6 +1656,11 @@ Sema::SetBaseOrMemberInitializers(CXXConstructorDecl *Constructor,
         continue;
       CXXRecordDecl *BaseClassDecl =
           cast<CXXRecordDecl>(RT->getDecl());
+
+      // We don't know if a dependent type will have an implicit destructor.
+      if (BaseClassDecl->isDependentType())
+        continue;
+
       if (BaseClassDecl->hasTrivialDestructor())
         continue;
       CXXDestructorDecl *DD = BaseClassDecl->getDestructor(Context);
@@ -1848,6 +1852,11 @@ Sema::MarkBaseAndMemberDestructorsReferenced(CXXDestructorDecl *Destructor) {
   // Ignore dependent destructors.
   if (Destructor->isDependentContext())
     return;
+
+  // FIXME: all the access-control diagnostics are positioned on the
+  // field/base declaration.  That's probably good; that said, the
+  // user might reasonably want to know why the destructor is being
+  // emitted, and we currently don't say.
   
   CXXRecordDecl *ClassDecl = Destructor->getParent();
 
@@ -1866,25 +1875,41 @@ Sema::MarkBaseAndMemberDestructorsReferenced(CXXDestructorDecl *Destructor) {
     if (FieldClassDecl->hasTrivialDestructor())
       continue;
 
-    const CXXDestructorDecl *Dtor = FieldClassDecl->getDestructor(Context);
+    CXXDestructorDecl *Dtor = FieldClassDecl->getDestructor(Context);
+    CheckDestructorAccess(Field->getLocation(), Dtor,
+                          PartialDiagnostic(diag::err_access_dtor_field)
+                            << Field->getDeclName()
+                            << FieldType);
+
     MarkDeclarationReferenced(Destructor->getLocation(),
                               const_cast<CXXDestructorDecl*>(Dtor));
   }
 
+  llvm::SmallPtrSet<const RecordType *, 8> DirectVirtualBases;
+
   // Bases.
   for (CXXRecordDecl::base_class_iterator Base = ClassDecl->bases_begin(),
        E = ClassDecl->bases_end(); Base != E; ++Base) {
-    // Ignore virtual bases.
+    // Bases are always records in a well-formed non-dependent class.
+    const RecordType *RT = Base->getType()->getAs<RecordType>();
+
+    // Remember direct virtual bases.
     if (Base->isVirtual())
-      continue;
+      DirectVirtualBases.insert(RT);
 
     // Ignore trivial destructors.
-    CXXRecordDecl *BaseClassDecl
-      = cast<CXXRecordDecl>(Base->getType()->getAs<RecordType>()->getDecl());
+    CXXRecordDecl *BaseClassDecl = cast<CXXRecordDecl>(RT->getDecl());
     if (BaseClassDecl->hasTrivialDestructor())
       continue;
+
+    CXXDestructorDecl *Dtor = BaseClassDecl->getDestructor(Context);
+
+    // FIXME: caret should be on the start of the class name
+    CheckDestructorAccess(Base->getSourceRange().getBegin(), Dtor,
+                          PartialDiagnostic(diag::err_access_dtor_base)
+                            << Base->getType()
+                            << Base->getSourceRange());
     
-    const CXXDestructorDecl *Dtor = BaseClassDecl->getDestructor(Context);
     MarkDeclarationReferenced(Destructor->getLocation(),
                               const_cast<CXXDestructorDecl*>(Dtor));
   }
@@ -1892,13 +1917,24 @@ Sema::MarkBaseAndMemberDestructorsReferenced(CXXDestructorDecl *Destructor) {
   // Virtual bases.
   for (CXXRecordDecl::base_class_iterator VBase = ClassDecl->vbases_begin(),
        E = ClassDecl->vbases_end(); VBase != E; ++VBase) {
+
+    // Bases are always records in a well-formed non-dependent class.
+    const RecordType *RT = VBase->getType()->getAs<RecordType>();
+
+    // Ignore direct virtual bases.
+    if (DirectVirtualBases.count(RT))
+      continue;
+
     // Ignore trivial destructors.
-    CXXRecordDecl *BaseClassDecl
-      = cast<CXXRecordDecl>(VBase->getType()->getAs<RecordType>()->getDecl());
+    CXXRecordDecl *BaseClassDecl = cast<CXXRecordDecl>(RT->getDecl());
     if (BaseClassDecl->hasTrivialDestructor())
       continue;
-    
-    const CXXDestructorDecl *Dtor = BaseClassDecl->getDestructor(Context);
+
+    CXXDestructorDecl *Dtor = BaseClassDecl->getDestructor(Context);
+    CheckDestructorAccess(ClassDecl->getLocation(), Dtor,
+                          PartialDiagnostic(diag::err_access_dtor_vbase)
+                            << VBase->getType());
+
     MarkDeclarationReferenced(Destructor->getLocation(),
                               const_cast<CXXDestructorDecl*>(Dtor));
   }
@@ -2392,22 +2428,26 @@ void Sema::AddImplicitlyDeclaredMembersToClass(CXXRecordDecl *ClassDecl) {
     //   If a class has no user-declared destructor, a destructor is
     //   declared implicitly. An implicitly-declared destructor is an
     //   inline public member of its class.
+    QualType Ty = Context.getFunctionType(Context.VoidTy,
+                                          0, 0, false, 0,
+                                          /*FIXME:*/false,
+                                          false, 0, 0, false,
+                                          CC_Default);
+
     DeclarationName Name
       = Context.DeclarationNames.getCXXDestructorName(ClassType);
     CXXDestructorDecl *Destructor
       = CXXDestructorDecl::Create(Context, ClassDecl,
-                                  ClassDecl->getLocation(), Name,
-                                  Context.getFunctionType(Context.VoidTy,
-                                                          0, 0, false, 0,
-                                                           /*FIXME:*/false,
-                                                           false, 0, 0, false,
-                                                           CC_Default),
+                                  ClassDecl->getLocation(), Name, Ty,
                                   /*isInline=*/true,
                                   /*isImplicitlyDeclared=*/true);
     Destructor->setAccess(AS_public);
     Destructor->setImplicit();
     Destructor->setTrivial(ClassDecl->hasTrivialDestructor());
     ClassDecl->addDecl(Destructor);
+
+    // This could be uniqued if it ever proves significant.
+    Destructor->setTypeSourceInfo(Context.getTrivialTypeSourceInfo(Ty));
     
     AddOverriddenMethods(ClassDecl, Destructor);
   }
@@ -3779,45 +3819,8 @@ void Sema::DefineImplicitDestructor(SourceLocation CurrentLocation,
   DeclContext *PreviousContext = CurContext;
   CurContext = Destructor;
 
-  // C++ [class.dtor] p5
-  // Before the implicitly-declared default destructor for a class is
-  // implicitly defined, all the implicitly-declared default destructors
-  // for its base class and its non-static data members shall have been
-  // implicitly defined.
-  for (CXXRecordDecl::base_class_iterator Base = ClassDecl->bases_begin(),
-       E = ClassDecl->bases_end(); Base != E; ++Base) {
-    CXXRecordDecl *BaseClassDecl
-      = cast<CXXRecordDecl>(Base->getType()->getAs<RecordType>()->getDecl());
-    if (!BaseClassDecl->hasTrivialDestructor()) {
-      if (CXXDestructorDecl *BaseDtor =
-          const_cast<CXXDestructorDecl*>(BaseClassDecl->getDestructor(Context)))
-        MarkDeclarationReferenced(CurrentLocation, BaseDtor);
-      else
-        assert(false &&
-               "DefineImplicitDestructor - missing dtor in a base class");
-    }
-  }
+  MarkBaseAndMemberDestructorsReferenced(Destructor);
 
-  for (CXXRecordDecl::field_iterator Field = ClassDecl->field_begin(),
-       E = ClassDecl->field_end(); Field != E; ++Field) {
-    QualType FieldType = Context.getCanonicalType((*Field)->getType());
-    if (const ArrayType *Array = Context.getAsArrayType(FieldType))
-      FieldType = Array->getElementType();
-    if (const RecordType *FieldClassType = FieldType->getAs<RecordType>()) {
-      CXXRecordDecl *FieldClassDecl
-        = cast<CXXRecordDecl>(FieldClassType->getDecl());
-      if (!FieldClassDecl->hasTrivialDestructor()) {
-        if (CXXDestructorDecl *FieldDtor =
-            const_cast<CXXDestructorDecl*>(
-                                        FieldClassDecl->getDestructor(Context)))
-          MarkDeclarationReferenced(CurrentLocation, FieldDtor);
-        else
-          assert(false &&
-          "DefineImplicitDestructor - missing dtor in class of a data member");
-      }
-    }
-  }
-  
   // FIXME: If CheckDestructor fails, we should emit a note about where the
   // implicit destructor was needed.
   if (CheckDestructor(Destructor)) {
@@ -3859,8 +3862,14 @@ void Sema::DefineImplicitOverloadedAssign(SourceLocation CurrentLocation,
       = cast<CXXRecordDecl>(Base->getType()->getAs<RecordType>()->getDecl());
     if (CXXMethodDecl *BaseAssignOpMethod =
           getAssignOperatorMethod(CurrentLocation, MethodDecl->getParamDecl(0), 
-                                  BaseClassDecl))
+                                  BaseClassDecl)) {
+      CheckDirectMemberAccess(Base->getSourceRange().getBegin(),
+                              BaseAssignOpMethod,
+                              PartialDiagnostic(diag::err_access_assign_base)
+                                << Base->getType());
+
       MarkDeclarationReferenced(CurrentLocation, BaseAssignOpMethod);
+    }
   }
   for (CXXRecordDecl::field_iterator Field = ClassDecl->field_begin(),
        E = ClassDecl->field_end(); Field != E; ++Field) {
@@ -3872,8 +3881,14 @@ void Sema::DefineImplicitOverloadedAssign(SourceLocation CurrentLocation,
         = cast<CXXRecordDecl>(FieldClassType->getDecl());
       if (CXXMethodDecl *FieldAssignOpMethod =
           getAssignOperatorMethod(CurrentLocation, MethodDecl->getParamDecl(0), 
-                                  FieldClassDecl))
+                                  FieldClassDecl)) {
+        CheckDirectMemberAccess(Field->getLocation(),
+                                FieldAssignOpMethod,
+                                PartialDiagnostic(diag::err_access_assign_field)
+                                  << Field->getDeclName() << Field->getType());
+
         MarkDeclarationReferenced(CurrentLocation, FieldAssignOpMethod);
+      }
     } else if (FieldType->isReferenceType()) {
       Diag(ClassDecl->getLocation(), diag::err_uninitialized_member_for_assign)
       << Context.getTagDeclType(ClassDecl) << 0 << Field->getDeclName();
@@ -3948,8 +3963,14 @@ void Sema::DefineImplicitCopyConstructor(SourceLocation CurrentLocation,
     CXXRecordDecl *BaseClassDecl
       = cast<CXXRecordDecl>(Base->getType()->getAs<RecordType>()->getDecl());
     if (CXXConstructorDecl *BaseCopyCtor =
-        BaseClassDecl->getCopyConstructor(Context, TypeQuals))
+        BaseClassDecl->getCopyConstructor(Context, TypeQuals)) {
+      CheckDirectMemberAccess(Base->getSourceRange().getBegin(),
+                              BaseCopyCtor,
+                              PartialDiagnostic(diag::err_access_copy_base)
+                                << Base->getType());
+
       MarkDeclarationReferenced(CurrentLocation, BaseCopyCtor);
+    }
   }
   for (CXXRecordDecl::field_iterator Field = ClassDecl->field_begin(),
                                   FieldEnd = ClassDecl->field_end();
@@ -3961,8 +3982,14 @@ void Sema::DefineImplicitCopyConstructor(SourceLocation CurrentLocation,
       CXXRecordDecl *FieldClassDecl
         = cast<CXXRecordDecl>(FieldClassType->getDecl());
       if (CXXConstructorDecl *FieldCopyCtor =
-          FieldClassDecl->getCopyConstructor(Context, TypeQuals))
+          FieldClassDecl->getCopyConstructor(Context, TypeQuals)) {
+        CheckDirectMemberAccess(Field->getLocation(),
+                                FieldCopyCtor,
+                                PartialDiagnostic(diag::err_access_copy_field)
+                                  << Field->getDeclName() << Field->getType());
+
         MarkDeclarationReferenced(CurrentLocation, FieldCopyCtor);
+      }
     }
   }
   CopyConstructor->setUsed();
@@ -4052,7 +4079,10 @@ void Sema::FinalizeVarWithDestructor(VarDecl *VD, const RecordType *Record) {
       !ClassDecl->hasTrivialDestructor()) {
     CXXDestructorDecl *Destructor = ClassDecl->getDestructor(Context);
     MarkDeclarationReferenced(VD->getLocation(), Destructor);
-    CheckDestructorAccess(VD->getLocation(), Record);
+    CheckDestructorAccess(VD->getLocation(), Destructor,
+                          PartialDiagnostic(diag::err_access_dtor_var)
+                            << VD->getDeclName()
+                            << VD->getType());
   }
 }
 
@@ -5715,7 +5745,8 @@ bool Sema::CheckOverridingFunctionReturnType(const CXXMethodDecl *New,
     }
 
     // Check if we the conversion from derived to base is valid.
-    if (CheckDerivedToBaseConversion(NewClassTy, OldClassTy, ADK_covariance,
+    if (CheckDerivedToBaseConversion(NewClassTy, OldClassTy,
+                      diag::err_covariant_return_inaccessible_base,
                       diag::err_covariant_return_ambiguous_derived_to_base_conv,
                       // FIXME: Should this point to the return type?
                       New->getLocation(), SourceRange(), New->getDeclName())) {

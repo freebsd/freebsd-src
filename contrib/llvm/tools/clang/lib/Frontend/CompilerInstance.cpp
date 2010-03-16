@@ -185,7 +185,7 @@ void CompilerInstance::createFileManager() {
 // Source Manager
 
 void CompilerInstance::createSourceManager() {
-  SourceMgr.reset(new SourceManager());
+  SourceMgr.reset(new SourceManager(getDiagnostics()));
 }
 
 // Preprocessor
@@ -294,6 +294,8 @@ void CompilerInstance::createCodeCompletionConsumer() {
                                  getFrontendOpts().DebugCodeCompletionPrinter,
                                  getFrontendOpts().ShowMacrosInCodeCompletion,
                                  llvm::outs()));
+  if (!CompletionConsumer)
+    return;
 
   if (CompletionConsumer->isOutputBinary() &&
       llvm::sys::Program::ChangeStdoutToBinary()) {

@@ -12,8 +12,12 @@
 //===----------------------------------------------------------------------===//
 
 #include "llvm/Target/Mangler.h"
-#include "llvm/GlobalValue.h"
+#include "llvm/DerivedTypes.h"
+#include "llvm/Function.h"
+#include "llvm/Target/TargetData.h"
 #include "llvm/MC/MCAsmInfo.h"
+#include "llvm/MC/MCContext.h"
+#include "llvm/Support/raw_ostream.h"
 #include "llvm/ADT/SmallString.h"
 #include "llvm/ADT/Twine.h"
 using namespace llvm;
@@ -59,11 +63,10 @@ static bool NameNeedsEscaping(StringRef Str, const MCAsmInfo &MAI) {
 /// appendMangledName - Add the specified string in mangled form if it uses
 /// any unusual characters.
 static void appendMangledName(SmallVectorImpl<char> &OutName, StringRef Str,
-                              const MCAsmInfo *MAI) {
+                              const MCAsmInfo &MAI) {
   // The first character is not allowed to be a number unless the target
   // explicitly allows it.
-  if ((MAI == 0 || !MAI->doesAllowNameToStartWithDigit()) &&
-      Str[0] >= '0' && Str[0] <= '9') {
+  if (!MAI.doesAllowNameToStartWithDigit() && Str[0] >= '0' && Str[0] <= '9') {
     MangleLetter(OutName, Str[0]);
     Str = Str.substr(1);
   }
@@ -100,6 +103,8 @@ void Mangler::getNameWithPrefix(SmallVectorImpl<char> &OutName,
   StringRef Name = GVName.toStringRef(TmpData);
   assert(!Name.empty() && "getNameWithPrefix requires non-empty name");
   
+  const MCAsmInfo &MAI = Context.getAsmInfo();
+  
   // If the global name is not led with \1, add the appropriate prefixes.
   if (Name[0] == '\1') {
     Name = Name.substr(1);
@@ -134,12 +139,32 @@ void Mangler::getNameWithPrefix(SmallVectorImpl<char> &OutName,
   // On systems that do not allow quoted names, we need to mangle most
   // strange characters.
   if (!MAI.doesAllowQuotesInName())
-    return appendMangledName(OutName, Name, &MAI);
+    return appendMangledName(OutName, Name, MAI);
   
   // Okay, the system allows quoted strings.  We can quote most anything, the
   // only characters that need escaping are " and \n.
   assert(Name.find_first_of("\n\"") != StringRef::npos);
   return appendMangledQuotedName(OutName, Name);
+}
+
+/// AddFastCallStdCallSuffix - Microsoft fastcall and stdcall functions require
+/// a suffix on their name indicating the number of words of arguments they
+/// take.
+static void AddFastCallStdCallSuffix(SmallVectorImpl<char> &OutName,
+                                     const Function *F, const TargetData &TD) {
+  // Calculate arguments size total.
+  unsigned ArgWords = 0;
+  for (Function::const_arg_iterator AI = F->arg_begin(), AE = F->arg_end();
+       AI != AE; ++AI) {
+    const Type *Ty = AI->getType();
+    // 'Dereference' type in case of byval parameter attribute
+    if (AI->hasByValAttr())
+      Ty = cast<PointerType>(Ty)->getElementType();
+    // Size should be aligned to DWORD boundary
+    ArgWords += ((TD.getTypeAllocSize(Ty) + 3)/4)*4;
+  }
+  
+  raw_svector_ostream(OutName) << '@' << ArgWords;
 }
 
 
@@ -156,16 +181,43 @@ void Mangler::getNameWithPrefix(SmallVectorImpl<char> &OutName,
     PrefixTy = Mangler::LinkerPrivate;
   
   // If this global has a name, handle it simply.
-  if (GV->hasName())
-    return getNameWithPrefix(OutName, GV->getName(), PrefixTy);
+  if (GV->hasName()) {
+    getNameWithPrefix(OutName, GV->getName(), PrefixTy);
+  } else {
+    // Get the ID for the global, assigning a new one if we haven't got one
+    // already.
+    unsigned &ID = AnonGlobalIDs[GV];
+    if (ID == 0) ID = NextAnonGlobalID++;
   
-  // Get the ID for the global, assigning a new one if we haven't got one
-  // already.
-  unsigned &ID = AnonGlobalIDs[GV];
-  if (ID == 0) ID = NextAnonGlobalID++;
+    // Must mangle the global into a unique ID.
+    getNameWithPrefix(OutName, "__unnamed_" + Twine(ID), PrefixTy);
+  }
   
-  // Must mangle the global into a unique ID.
-  getNameWithPrefix(OutName, "__unnamed_" + Twine(ID), PrefixTy);
+  // If we are supposed to add a microsoft-style suffix for stdcall/fastcall,
+  // add it.
+  if (Context.getAsmInfo().hasMicrosoftFastStdCallMangling()) {
+    if (const Function *F = dyn_cast<Function>(GV)) {
+      CallingConv::ID CC = F->getCallingConv();
+    
+      // fastcall functions need to start with @.
+      // FIXME: This logic seems unlikely to be right.
+      if (CC == CallingConv::X86_FastCall) {
+        if (OutName[0] == '_')
+          OutName[0] = '@';
+        else
+          OutName.insert(OutName.begin(), '@');
+      }
+    
+      // fastcall and stdcall functions usually need @42 at the end to specify
+      // the argument info.
+      const FunctionType *FT = F->getFunctionType();
+      if ((CC == CallingConv::X86_FastCall || CC == CallingConv::X86_StdCall) &&
+          // "Pure" variadic functions do not receive @0 suffix.
+          (!FT->isVarArg() || FT->getNumParams() == 0 ||
+           (FT->getNumParams() == 1 && F->hasStructRetAttr())))
+        AddFastCallStdCallSuffix(OutName, F, TD);
+    }
+  }
 }
 
 /// getNameWithPrefix - Fill OutName with the name of the appropriate prefix
@@ -177,3 +229,16 @@ std::string Mangler::getNameWithPrefix(const GlobalValue *GV,
   getNameWithPrefix(Buf, GV, isImplicitlyPrivate);
   return std::string(Buf.begin(), Buf.end());
 }
+
+/// getSymbol - Return the MCSymbol for the specified global value.  This
+/// symbol is the main label that is the address of the global.
+MCSymbol *Mangler::getSymbol(const GlobalValue *GV) {
+  SmallString<60> NameStr;
+  getNameWithPrefix(NameStr, GV, false);
+  if (!GV->hasPrivateLinkage())
+    return Context.GetOrCreateSymbol(NameStr.str());
+  
+  return Context.GetOrCreateTemporarySymbol(NameStr.str());
+}
+
+

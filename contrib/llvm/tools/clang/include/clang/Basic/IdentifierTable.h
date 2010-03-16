@@ -18,6 +18,7 @@
 #include "clang/Basic/OperatorKinds.h"
 #include "clang/Basic/TokenKinds.h"
 #include "llvm/ADT/StringMap.h"
+#include "llvm/ADT/StringRef.h"
 #include "llvm/ADT/SmallString.h"
 #include "llvm/ADT/OwningPtr.h"
 #include "llvm/Support/PointerLikeTypeTraits.h"
@@ -236,9 +237,7 @@ public:
   ///  Unlike the version in IdentifierTable, this returns a pointer instead
   ///  of a reference.  If the pointer is NULL then the IdentifierInfo cannot
   ///  be found.
-  //
-  // FIXME: Move to StringRef API.
-  virtual IdentifierInfo* get(const char *NameStart, const char *NameEnd) = 0;
+  virtual IdentifierInfo* get(llvm::StringRef Name) = 0;
 };
 
 /// \brief An abstract class used to resolve numerical identifier
@@ -283,16 +282,16 @@ public:
 
   /// get - Return the identifier token info for the specified named identifier.
   ///
-  IdentifierInfo &get(const char *NameStart, const char *NameEnd) {
+  IdentifierInfo &get(llvm::StringRef Name) {
     llvm::StringMapEntry<IdentifierInfo*> &Entry =
-      HashTable.GetOrCreateValue(NameStart, NameEnd);
+      HashTable.GetOrCreateValue(Name);
 
     IdentifierInfo *II = Entry.getValue();
     if (II) return *II;
 
     // No entry; if we have an external lookup, look there first.
     if (ExternalLookup) {
-      II = ExternalLookup->get(NameStart, NameEnd);
+      II = ExternalLookup->get(Name);
       if (II) {
         // Cache in the StringMap for subsequent lookups.
         Entry.setValue(II);
@@ -310,6 +309,14 @@ public:
     II->Entry = &Entry;
 
     return *II;
+  }
+
+  IdentifierInfo &get(const char *NameStart, const char *NameEnd) {
+    return get(llvm::StringRef(NameStart, NameEnd-NameStart));
+  }
+
+  IdentifierInfo &get(const char *Name, size_t NameLen) {
+    return get(llvm::StringRef(Name, NameLen));
   }
 
   /// \brief Creates a new IdentifierInfo from the given string.
@@ -341,10 +348,6 @@ public:
   }
   IdentifierInfo &CreateIdentifierInfo(llvm::StringRef Name) {
     return CreateIdentifierInfo(Name.begin(), Name.end());
-  }
-
-  IdentifierInfo &get(llvm::StringRef Name) {
-    return get(Name.begin(), Name.end());
   }
 
   typedef HashTableTy::const_iterator iterator;
@@ -474,9 +477,7 @@ public:
     SelectorName = "set";
     SelectorName += Name->getName();
     SelectorName[3] = toupper(SelectorName[3]);
-    IdentifierInfo *SetterName =
-      &Idents.get(SelectorName.data(),
-                  SelectorName.data() + SelectorName.size());
+    IdentifierInfo *SetterName = &Idents.get(SelectorName);
     return SelTable.getUnarySelector(SetterName);
   }
 };
@@ -533,7 +534,7 @@ struct DenseMapInfo<clang::Selector> {
     return LHS == RHS;
   }
 };
-  
+
 template <>
 struct isPodLike<clang::Selector> { static const bool value = true; };
 

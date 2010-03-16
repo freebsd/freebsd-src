@@ -255,6 +255,12 @@
           <li><a href="#int_umul_overflow">'<tt>llvm.umul.with.overflow.*</tt> Intrinsics</a></li>
         </ol>
       </li>
+      <li><a href="#int_fp16">Half Precision Floating Point Intrinsics</a>
+        <ol>
+          <li><a href="#int_convert_to_fp16">'<tt>llvm.convert.to.fp16</tt>' Intrinsic</a></li>
+          <li><a href="#int_convert_from_fp16">'<tt>llvm.convert.from.fp16</tt>' Intrinsic</a></li>
+        </ol>
+      </li>
       <li><a href="#int_debugger">Debugger intrinsics</a></li>
       <li><a href="#int_eh">Exception Handling intrinsics</a></li>
       <li><a href="#int_trampoline">Trampoline Intrinsic</a>
@@ -691,9 +697,9 @@ define i32 @main() {                                        <i>; i32()* </i>
       target, without having to conform to an externally specified ABI
       (Application Binary Interface).
       <a href="CodeGenerator.html#tailcallopt">Tail calls can only be optimized
-      when this convention is used.</a>  This calling convention does not
-      support varargs and requires the prototype of all callees to exactly match
-      the prototype of the function definition.</dd>
+      when this or the GHC convention is used.</a>  This calling convention
+      does not support varargs and requires the prototype of all callees to
+      exactly match the prototype of the function definition.</dd>
 
   <dt><b>"<tt>coldcc</tt>" - The cold calling convention</b>:</dt>
   <dd>This calling convention attempts to make code in the caller as efficient
@@ -702,6 +708,26 @@ define i32 @main() {                                        <i>; i32()* </i>
       not break any live ranges in the caller side.  This calling convention
       does not support varargs and requires the prototype of all callees to
       exactly match the prototype of the function definition.</dd>
+
+  <dt><b>"<tt>cc <em>10</em></tt>" - GHC convention</b>:</dt>
+  <dd>This calling convention has been implemented specifically for use by the
+      <a href="http://www.haskell.org/ghc">Glasgow Haskell Compiler (GHC)</a>.
+      It passes everything in registers, going to extremes to achieve this by
+      disabling callee save registers. This calling convention should not be
+      used lightly but only for specific situations such as an alternative to
+      the <em>register pinning</em> performance technique often used when
+      implementing functional programming languages.At the moment only X86
+      supports this convention and it has the following limitations:
+      <ul>
+        <li>On <em>X86-32</em> only supports up to 4 bit type parameters. No
+            floating point types are supported.</li>
+        <li>On <em>X86-64</em> only supports up to 10 bit type parameters and
+            6 floating point parameters.</li>
+      </ul>
+      This calling convention supports
+      <a href="CodeGenerator.html#tailcallopt">tail call optimization</a> but
+      requires both the caller and callee are using it.
+  </dd>
 
   <dt><b>"<tt>cc &lt;<em>n</em>&gt;</tt>" - Numbered convention</b>:</dt>
   <dd>Any calling convention may be specified by number, allowing
@@ -6588,6 +6614,97 @@ LLVM</a>.</p>
 
 <!-- ======================================================================= -->
 <div class="doc_subsection">
+  <a name="int_fp16">Half Precision Floating Point Intrinsics</a>
+</div>
+
+<div class="doc_text">
+
+<p>Half precision floating point is a storage-only format. This means that it is
+   a dense encoding (in memory) but does not support computation in the
+   format.</p>
+   
+<p>This means that code must first load the half-precision floating point
+   value as an i16, then convert it to float with <a
+   href="#int_convert_from_fp16"><tt>llvm.convert.from.fp16</tt></a>.
+   Computation can then be performed on the float value (including extending to
+   double etc).  To store the value back to memory, it is first converted to
+   float if needed, then converted to i16 with
+   <a href="#int_convert_to_fp16"><tt>llvm.convert.to.fp16</tt></a>, then
+   storing as an i16 value.</p>
+</div>
+
+<!-- _______________________________________________________________________ -->
+<div class="doc_subsubsection">
+  <a name="int_convert_to_fp16">'<tt>llvm.convert.to.fp16</tt>' Intrinsic</a>
+</div>
+
+<div class="doc_text">
+
+<h5>Syntax:</h5>
+<pre>
+  declare i16 @llvm.convert.to.fp16(f32 %a)
+</pre>
+
+<h5>Overview:</h5>
+<p>The '<tt>llvm.convert.to.fp16</tt>' intrinsic function performs
+   a conversion from single precision floating point format to half precision
+   floating point format.</p>
+
+<h5>Arguments:</h5>
+<p>The intrinsic function contains single argument - the value to be
+   converted.</p>
+
+<h5>Semantics:</h5>
+<p>The '<tt>llvm.convert.to.fp16</tt>' intrinsic function performs
+   a conversion from single precision floating point format to half precision
+   floating point format. The return value is an <tt>i16</tt> which
+   contains the converted number.</p>
+
+<h5>Examples:</h5>
+<pre>
+  %res = call i16 @llvm.convert.to.fp16(f32 %a)
+  store i16 %res, i16* @x, align 2
+</pre>
+
+</div>
+
+<!-- _______________________________________________________________________ -->
+<div class="doc_subsubsection">
+ <a name="int_convert_from_fp16">'<tt>llvm.convert.from.fp16</tt>' Intrinsic</a>
+</div>
+
+<div class="doc_text">
+
+<h5>Syntax:</h5>
+<pre>
+  declare f32 @llvm.convert.from.fp16(i16 %a)
+</pre>
+
+<h5>Overview:</h5>
+<p>The '<tt>llvm.convert.from.fp16</tt>' intrinsic function performs
+   a conversion from half precision floating point format to single precision
+   floating point format.</p>
+
+<h5>Arguments:</h5>
+<p>The intrinsic function contains single argument - the value to be
+   converted.</p>
+
+<h5>Semantics:</h5>
+<p>The '<tt>llvm.convert.from.fp16</tt>' intrinsic function performs a
+   conversion from half single precision floating point format to single
+   precision floating point format. The input half-float value is represented by
+   an <tt>i16</tt> value.</p>
+
+<h5>Examples:</h5>
+<pre>
+  %a = load i16* @x, align 2
+  %res = call f32 @llvm.convert.from.fp16(i16 %a)
+</pre>
+
+</div>
+
+<!-- ======================================================================= -->
+<div class="doc_subsection">
   <a name="int_debugger">Debugger Intrinsics</a>
 </div>
 
@@ -7473,7 +7590,7 @@ LLVM</a>.</p>
 
   <a href="mailto:sabre@nondot.org">Chris Lattner</a><br>
   <a href="http://llvm.org">The LLVM Compiler Infrastructure</a><br>
-  Last modified: $Date: 2010-03-08 22:05:02 +0100 (Mon, 08 Mar 2010) $
+  Last modified: $Date: 2010-03-15 05:12:21 +0100 (Mon, 15 Mar 2010) $
 </address>
 
 </body>

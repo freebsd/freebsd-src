@@ -22,7 +22,7 @@ using namespace llvm;
 // instructions will be constant folded if the specified value is constant.
 //
 unsigned InlineCostAnalyzer::FunctionInfo::
-         CountCodeReductionForConstant(Value *V) {
+CountCodeReductionForConstant(Value *V) {
   unsigned Reduction = 0;
   for (Value::use_iterator UI = V->use_begin(), E = V->use_end(); UI != E; ++UI)
     if (isa<BranchInst>(*UI) || isa<SwitchInst>(*UI)) {
@@ -31,7 +31,7 @@ unsigned InlineCostAnalyzer::FunctionInfo::
       const unsigned NumSucc = TI.getNumSuccessors();
       unsigned Instrs = 0;
       for (unsigned I = 0; I != NumSucc; ++I)
-        Instrs += TI.getSuccessor(I)->size();
+        Instrs += Metrics.NumBBInsts[TI.getSuccessor(I)];
       // We don't know which blocks will be eliminated, so use the average size.
       Reduction += InlineConstants::InstrCost*Instrs*(NumSucc-1)/NumSucc;
     } else if (CallInst *CI = dyn_cast<CallInst>(*UI)) {
@@ -120,7 +120,7 @@ static bool callIsSmall(const Function *F) {
   StringRef Name = F->getName();
   
   // These will all likely lower to a single selection DAG node.
-  if (Name == "copysign" || Name == "copysignf" ||
+  if (Name == "copysign" || Name == "copysignf" || Name == "copysignl" ||
       Name == "fabs" || Name == "fabsf" || Name == "fabsl" ||
       Name == "sin" || Name == "sinf" || Name == "sinl" ||
       Name == "cos" || Name == "cosf" || Name == "cosl" ||
@@ -142,7 +142,7 @@ static bool callIsSmall(const Function *F) {
 /// from the specified block.
 void CodeMetrics::analyzeBasicBlock(const BasicBlock *BB) {
   ++NumBlocks;
-
+  unsigned NumInstsBeforeThisBB = NumInsts;
   for (BasicBlock::const_iterator II = BB->begin(), E = BB->end();
        II != E; ++II) {
     if (isa<PHINode>(II)) continue;           // PHI nodes don't count.
@@ -208,6 +208,9 @@ void CodeMetrics::analyzeBasicBlock(const BasicBlock *BB) {
   // function which is extremely undefined behavior.
   if (isa<IndirectBrInst>(BB->getTerminator()))
     NeverInline = true;
+
+  // Remember NumInsts for this BB.
+  NumBBInsts[BB] = NumInsts - NumInstsBeforeThisBB;
 }
 
 /// analyzeFunction - Fill in the current structure with information gleaned

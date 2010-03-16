@@ -53,11 +53,13 @@ getELFSection(StringRef Section, unsigned Type, unsigned Flags,
   ELFUniqueMapTy &Map = *(ELFUniqueMapTy*)UniquingMap;
 
   // Do the lookup, if we have a hit, return it.
-  const MCSectionELF *&Entry = Map[Section];
-  if (Entry) return Entry;
+  StringMapEntry<const MCSectionELF*> &Entry = Map.GetOrCreateValue(Section);
+  if (Entry.getValue()) return Entry.getValue();
 
-  return Entry = MCSectionELF::Create(Section, Type, Flags, Kind, IsExplicit,
-                                      getContext());
+  MCSectionELF *Result = MCSectionELF::Create(Entry.getKey(), Type, Flags, Kind,
+                                              IsExplicit, getContext());
+  Entry.setValue(Result);
+  return Result;
 }
 
 void TargetLoweringObjectFileELF::Initialize(MCContext &Ctx,
@@ -306,9 +308,9 @@ SelectSectionForGlobal(const GlobalValue *GV, SectionKind Kind,
   // into a 'uniqued' section name, create and return the section now.
   if (GV->isWeakForLinker() && !Kind.isCommon() && !Kind.isBSS()) {
     const char *Prefix = getSectionPrefixForUniqueGlobal(Kind);
-    SmallString<128> Name;
-    Name.append(Prefix, Prefix+strlen(Prefix));
-    Mang->getNameWithPrefix(Name, GV, false);
+    SmallString<128> Name(Prefix, Prefix+strlen(Prefix));
+    MCSymbol *Sym = Mang->getSymbol(GV);
+    Name.append(Sym->getName().begin(), Sym->getName().end());
     return getELFSection(Name.str(), getELFSectionType(Name.str(), Kind),
                          getELFSectionFlags(Kind), Kind);
   }
@@ -391,8 +393,9 @@ getSectionForConstant(SectionKind Kind) const {
 }
 
 const MCExpr *TargetLoweringObjectFileELF::
-getSymbolForDwarfGlobalReference(const GlobalValue *GV, Mangler *Mang,
-                             MachineModuleInfo *MMI, unsigned Encoding) const {
+getExprForDwarfGlobalReference(const GlobalValue *GV, Mangler *Mang,
+                               MachineModuleInfo *MMI,
+                               unsigned Encoding, MCStreamer &Streamer) const {
 
   if (Encoding & dwarf::DW_EH_PE_indirect) {
     MachineModuleInfoELF &ELFMMI = MMI->getObjFileInfo<MachineModuleInfoELF>();
@@ -403,24 +406,20 @@ getSymbolForDwarfGlobalReference(const GlobalValue *GV, Mangler *Mang,
 
     // Add information about the stub reference to ELFMMI so that the stub
     // gets emitted by the asmprinter.
-    MCSymbol *Sym = getContext().GetOrCreateTemporarySymbol(Name.str());
-    MCSymbol *&StubSym = ELFMMI.getGVStubEntry(Sym);
-    if (StubSym == 0) {
-      Name.clear();
-      Mang->getNameWithPrefix(Name, GV, false);
-      if (GV->hasPrivateLinkage())
-        StubSym = getContext().GetOrCreateTemporarySymbol(Name.str());
-      else
-        StubSym = getContext().GetOrCreateSymbol(Name.str());
+    MCSymbol *SSym = getContext().GetOrCreateTemporarySymbol(Name.str());
+    MachineModuleInfoImpl::StubValueTy &StubSym = ELFMMI.getGVStubEntry(SSym);
+    if (StubSym.getPointer() == 0) {
+      MCSymbol *Sym = Mang->getSymbol(GV);
+      StubSym = MachineModuleInfoImpl::StubValueTy(Sym, !GV->hasLocalLinkage());
     }
 
     return TargetLoweringObjectFile::
-      getSymbolForDwarfReference(Sym, MMI,
-                                 Encoding & ~dwarf::DW_EH_PE_indirect);
+      getExprForDwarfReference(SSym, Mang, MMI,
+                               Encoding & ~dwarf::DW_EH_PE_indirect, Streamer);
   }
 
   return TargetLoweringObjectFile::
-    getSymbolForDwarfGlobalReference(GV, Mang, MMI, Encoding);
+    getExprForDwarfGlobalReference(GV, Mang, MMI, Encoding, Streamer);
 }
 
 //===----------------------------------------------------------------------===//
@@ -561,8 +560,8 @@ void TargetLoweringObjectFileMachO::Initialize(MCContext &Ctx,
   }
 
   // Exception Handling.
-  LSDASection = getMachOSection("__DATA", "__gcc_except_tab", 0,
-                                SectionKind::getDataRel());
+  LSDASection = getMachOSection("__TEXT", "__gcc_except_tab", 0,
+                                SectionKind::getReadOnlyWithRel());
   EHFrameSection =
     getMachOSection("__TEXT", "__eh_frame",
                     MCSectionMachO::S_COALESCED |
@@ -736,9 +735,8 @@ shouldEmitUsedDirectiveFor(const GlobalValue *GV, Mangler *Mang) const {
     // FIXME: ObjC metadata is currently emitted as internal symbols that have
     // \1L and \0l prefixes on them.  Fix them to be Private/LinkerPrivate and
     // this horrible hack can go away.
-    SmallString<64> Name;
-    Mang->getNameWithPrefix(Name, GV, false);
-    if (Name[0] == 'L' || Name[0] == 'l')
+    MCSymbol *Sym = Mang->getSymbol(GV);
+    if (Sym->getName()[0] == 'L' || Sym->getName()[0] == 'l')
       return false;
   }
 
@@ -746,8 +744,9 @@ shouldEmitUsedDirectiveFor(const GlobalValue *GV, Mangler *Mang) const {
 }
 
 const MCExpr *TargetLoweringObjectFileMachO::
-getSymbolForDwarfGlobalReference(const GlobalValue *GV, Mangler *Mang,
-                             MachineModuleInfo *MMI, unsigned Encoding) const {
+getExprForDwarfGlobalReference(const GlobalValue *GV, Mangler *Mang,
+                               MachineModuleInfo *MMI, unsigned Encoding,
+                               MCStreamer &Streamer) const {
   // The mach-o version of this method defaults to returning a stub reference.
 
   if (Encoding & DW_EH_PE_indirect) {
@@ -760,24 +759,20 @@ getSymbolForDwarfGlobalReference(const GlobalValue *GV, Mangler *Mang,
 
     // Add information about the stub reference to MachOMMI so that the stub
     // gets emitted by the asmprinter.
-    MCSymbol *Sym = getContext().GetOrCreateTemporarySymbol(Name.str());
-    MCSymbol *&StubSym = MachOMMI.getGVStubEntry(Sym);
-    if (StubSym == 0) {
-      Name.clear();
-      Mang->getNameWithPrefix(Name, GV, false);
-      if (GV->hasPrivateLinkage())
-        StubSym = getContext().GetOrCreateTemporarySymbol(Name.str());
-      else
-        StubSym = getContext().GetOrCreateSymbol(Name.str());
+    MCSymbol *SSym = getContext().GetOrCreateTemporarySymbol(Name.str());
+    MachineModuleInfoImpl::StubValueTy &StubSym = MachOMMI.getGVStubEntry(SSym);
+    if (StubSym.getPointer() == 0) {
+      MCSymbol *Sym = Mang->getSymbol(GV);
+      StubSym = MachineModuleInfoImpl::StubValueTy(Sym, !GV->hasLocalLinkage());
     }
 
     return TargetLoweringObjectFile::
-      getSymbolForDwarfReference(Sym, MMI,
-                                 Encoding & ~dwarf::DW_EH_PE_indirect);
+      getExprForDwarfReference(SSym, Mang, MMI,
+                               Encoding & ~dwarf::DW_EH_PE_indirect, Streamer);
   }
 
   return TargetLoweringObjectFile::
-    getSymbolForDwarfGlobalReference(GV, Mang, MMI, Encoding);
+    getExprForDwarfGlobalReference(GV, Mang, MMI, Encoding, Streamer);
 }
 
 unsigned TargetLoweringObjectFileMachO::getPersonalityEncoding() const {
@@ -793,7 +788,7 @@ unsigned TargetLoweringObjectFileMachO::getFDEEncoding() const {
 }
 
 unsigned TargetLoweringObjectFileMachO::getTTypeEncoding() const {
-  return DW_EH_PE_absptr;
+  return DW_EH_PE_indirect | DW_EH_PE_pcrel | DW_EH_PE_sdata4;
 }
 
 //===----------------------------------------------------------------------===//
@@ -904,7 +899,8 @@ SelectSectionForGlobal(const GlobalValue *GV, SectionKind Kind,
   if (GV->isWeakForLinker()) {
     const char *Prefix = getCOFFSectionPrefixForUniqueGlobal(Kind);
     SmallString<128> Name(Prefix, Prefix+strlen(Prefix));
-    Mang->getNameWithPrefix(Name, GV, false);
+    MCSymbol *Sym = Mang->getSymbol(GV);
+    Name.append(Sym->getName().begin(), Sym->getName().end());
     return getCOFFSection(Name.str(), false, Kind);
   }
 

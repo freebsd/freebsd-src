@@ -27,6 +27,7 @@
 #include "llvm/MC/MCAsmInfo.h"
 #include "llvm/MC/MCContext.h"
 #include "llvm/MC/MCSymbol.h"
+#include "llvm/Target/Mangler.h"
 #include "llvm/Target/TargetData.h"
 #include "llvm/Target/TargetLoweringObjectFile.h"
 #include "llvm/Target/TargetRegistry.h"
@@ -39,9 +40,8 @@ namespace {
   class BlackfinAsmPrinter : public AsmPrinter {
   public:
     BlackfinAsmPrinter(formatted_raw_ostream &O, TargetMachine &TM,
-                       MCContext &Ctx, MCStreamer &Streamer,
-                       const MCAsmInfo *MAI)
-      : AsmPrinter(O, TM, Ctx, Streamer, MAI) {}
+                       MCStreamer &Streamer)
+      : AsmPrinter(O, TM, Streamer) {}
 
     virtual const char *getPassName() const {
       return "Blackfin Assembly Printer";
@@ -82,10 +82,10 @@ void BlackfinAsmPrinter::printOperand(const MachineInstr *MI, int opNum) {
     O << MO.getImm();
     break;
   case MachineOperand::MO_MachineBasicBlock:
-    O << *MO.getMBB()->getSymbol(OutContext);
+    O << *MO.getMBB()->getSymbol();
     return;
   case MachineOperand::MO_GlobalAddress:
-    O << *GetGlobalValueSymbol(MO.getGlobal());
+    O << *Mang->getSymbol(MO.getGlobal());
     printOffset(MO.getOffset());
     break;
   case MachineOperand::MO_ExternalSymbol:

@@ -34,6 +34,7 @@
 #include "llvm/CodeGen/TargetLoweringObjectFileImpl.h"
 #include "llvm/MC/MCAsmInfo.h"
 #include "llvm/MC/MCContext.h"
+#include "llvm/MC/MCExpr.h"
 #include "llvm/MC/MCSectionMachO.h"
 #include "llvm/MC/MCStreamer.h"
 #include "llvm/MC/MCSymbol.h"
@@ -60,9 +61,8 @@ namespace {
     uint64_t LabelID;
   public:
     explicit PPCAsmPrinter(formatted_raw_ostream &O, TargetMachine &TM,
-                           MCContext &Ctx, MCStreamer &Streamer,
-                           const MCAsmInfo *T)
-      : AsmPrinter(O, TM, Ctx, Streamer, T),
+                           MCStreamer &Streamer)
+      : AsmPrinter(O, TM, Streamer),
         Subtarget(TM.getSubtarget<PPCSubtarget>()), LabelID(0) {}
 
     virtual const char *getPassName() const {
@@ -198,10 +198,11 @@ namespace {
           if (GV->isDeclaration() || GV->isWeakForLinker()) {
             // Dynamically-resolved functions need a stub for the function.
             MCSymbol *Sym = GetSymbolWithGlobalValueBase(GV, "$stub");
-            MCSymbol *&StubSym =
+            MachineModuleInfoImpl::StubValueTy &StubSym =
               MMI->getObjFileInfo<MachineModuleInfoMachO>().getFnStubEntry(Sym);
-            if (StubSym == 0)
-              StubSym = GetGlobalValueSymbol(GV);
+            if (StubSym.getPointer() == 0)
+              StubSym = MachineModuleInfoImpl::
+                StubValueTy(Mang->getSymbol(GV), !GV->hasInternalLinkage());
             O << *Sym;
             return;
           }
@@ -212,10 +213,11 @@ namespace {
           TempNameStr += StringRef("$stub");
           
           MCSymbol *Sym = GetExternalSymbolSymbol(TempNameStr.str());
-          MCSymbol *&StubSym =
+          MachineModuleInfoImpl::StubValueTy &StubSym =
             MMI->getObjFileInfo<MachineModuleInfoMachO>().getFnStubEntry(Sym);
-          if (StubSym == 0)
-            StubSym = GetExternalSymbolSymbol(MO.getSymbolName());
+          if (StubSym.getPointer() == 0)
+            StubSym = MachineModuleInfoImpl::
+              StubValueTy(GetExternalSymbolSymbol(MO.getSymbolName()), true);
           O << *Sym;
           return;
         }
@@ -300,10 +302,8 @@ namespace {
 
     void printTOCEntryLabel(const MachineInstr *MI, unsigned OpNo) {
       const MachineOperand &MO = MI->getOperand(OpNo);
-
       assert(MO.getType() == MachineOperand::MO_GlobalAddress);
-
-      const MCSymbol *Sym = GetGlobalValueSymbol(MO.getGlobal());
+      const MCSymbol *Sym = Mang->getSymbol(MO.getGlobal());
 
       // Map symbol -> label of TOC entry.
       const MCSymbol *&TOCEntry = TOC[Sym];
@@ -323,9 +323,8 @@ namespace {
   class PPCLinuxAsmPrinter : public PPCAsmPrinter {
   public:
     explicit PPCLinuxAsmPrinter(formatted_raw_ostream &O, TargetMachine &TM,
-                                MCContext &Ctx, MCStreamer &Streamer,
-                                const MCAsmInfo *T)
-      : PPCAsmPrinter(O, TM, Ctx, Streamer, T) {}
+                                MCStreamer &Streamer)
+      : PPCAsmPrinter(O, TM, Streamer) {}
 
     virtual const char *getPassName() const {
       return "Linux PPC Assembly Printer";
@@ -349,9 +348,8 @@ namespace {
     formatted_raw_ostream &OS;
   public:
     explicit PPCDarwinAsmPrinter(formatted_raw_ostream &O, TargetMachine &TM,
-                                 MCContext &Ctx, MCStreamer &Streamer,
-                                 const MCAsmInfo *T)
-      : PPCAsmPrinter(O, TM, Ctx, Streamer, T), OS(O) {}
+                                 MCStreamer &Streamer)
+      : PPCAsmPrinter(O, TM, Streamer), OS(O) {}
 
     virtual const char *getPassName() const {
       return "Darwin PPC Assembly Printer";
@@ -380,7 +378,7 @@ void PPCAsmPrinter::printOp(const MachineOperand &MO) {
     llvm_unreachable("printOp() does not handle immediate values");
 
   case MachineOperand::MO_MachineBasicBlock:
-    O << *MO.getMBB()->getSymbol(OutContext);
+    O << *MO.getMBB()->getSymbol();
     return;
   case MachineOperand::MO_JumpTableIndex:
     O << MAI->getPrivateGlobalPrefix() << "JTI" << getFunctionNumber()
@@ -404,10 +402,11 @@ void PPCAsmPrinter::printOp(const MachineOperand &MO) {
     MCSymbol *NLPSym = 
       OutContext.GetOrCreateSymbol(StringRef(MAI->getGlobalPrefix())+
                                    MO.getSymbolName()+"$non_lazy_ptr");
-    MCSymbol *&StubSym = 
+    MachineModuleInfoImpl::StubValueTy &StubSym = 
       MMI->getObjFileInfo<MachineModuleInfoMachO>().getGVStubEntry(NLPSym);
-    if (StubSym == 0)
-      StubSym = GetExternalSymbolSymbol(MO.getSymbolName());
+    if (StubSym.getPointer() == 0)
+      StubSym = MachineModuleInfoImpl::
+        StubValueTy(GetExternalSymbolSymbol(MO.getSymbolName()), true);
     
     O << *NLPSym;
     return;
@@ -422,24 +421,27 @@ void PPCAsmPrinter::printOp(const MachineOperand &MO) {
         (GV->isDeclaration() || GV->isWeakForLinker())) {
       if (!GV->hasHiddenVisibility()) {
         SymToPrint = GetSymbolWithGlobalValueBase(GV, "$non_lazy_ptr");
-        MCSymbol *&StubSym = 
-       MMI->getObjFileInfo<MachineModuleInfoMachO>().getGVStubEntry(SymToPrint);
-        if (StubSym == 0)
-          StubSym = GetGlobalValueSymbol(GV);
+        MachineModuleInfoImpl::StubValueTy &StubSym = 
+          MMI->getObjFileInfo<MachineModuleInfoMachO>()
+            .getGVStubEntry(SymToPrint);
+        if (StubSym.getPointer() == 0)
+          StubSym = MachineModuleInfoImpl::
+            StubValueTy(Mang->getSymbol(GV), !GV->hasInternalLinkage());
       } else if (GV->isDeclaration() || GV->hasCommonLinkage() ||
                  GV->hasAvailableExternallyLinkage()) {
         SymToPrint = GetSymbolWithGlobalValueBase(GV, "$non_lazy_ptr");
         
-        MCSymbol *&StubSym = 
+        MachineModuleInfoImpl::StubValueTy &StubSym = 
           MMI->getObjFileInfo<MachineModuleInfoMachO>().
                     getHiddenGVStubEntry(SymToPrint);
-        if (StubSym == 0)
-          StubSym = GetGlobalValueSymbol(GV);
+        if (StubSym.getPointer() == 0)
+          StubSym = MachineModuleInfoImpl::
+            StubValueTy(Mang->getSymbol(GV), !GV->hasInternalLinkage());
       } else {
-        SymToPrint = GetGlobalValueSymbol(GV);
+        SymToPrint = Mang->getSymbol(GV);
       }
     } else {
-      SymToPrint = GetGlobalValueSymbol(GV);
+      SymToPrint = Mang->getSymbol(GV);
     }
     
     O << *SymToPrint;
@@ -704,7 +706,7 @@ EmitFunctionStubs(const MachineModuleInfoMachO::SymbolListTy &Stubs) {
       EmitAlignment(4);
       
       const MCSymbol *Stub = Stubs[i].first;
-      const MCSymbol *RawSym = Stubs[i].second;
+      const MCSymbol *RawSym = Stubs[i].second.getPointer();
       const MCSymbol *LazyPtr = GetLazyPtr(Stub, OutContext);
       const MCSymbol *AnonSymbol = GetAnonSym(Stub, OutContext);
                                            
@@ -738,7 +740,7 @@ EmitFunctionStubs(const MachineModuleInfoMachO::SymbolListTy &Stubs) {
                               16, SectionKind::getText());
   for (unsigned i = 0, e = Stubs.size(); i != e; ++i) {
     const MCSymbol *Stub = Stubs[i].first;
-    const MCSymbol *RawSym = Stubs[i].second;
+    const MCSymbol *RawSym = Stubs[i].second.getPointer();
     const MCSymbol *LazyPtr = GetLazyPtr(Stub, OutContext);
 
     OutStreamer.SwitchSection(StubSection);
@@ -781,8 +783,9 @@ bool PPCDarwinAsmPrinter::doFinalization(Module &M) {
          E = Personalities.end(); I != E; ++I) {
       if (*I) {
         MCSymbol *NLPSym = GetSymbolWithGlobalValueBase(*I, "$non_lazy_ptr");
-        MCSymbol *&StubSym = MMIMacho.getGVStubEntry(NLPSym);
-        StubSym = GetGlobalValueSymbol(*I);
+        MachineModuleInfoImpl::StubValueTy &StubSym =
+          MMIMacho.getGVStubEntry(NLPSym);
+        StubSym = MachineModuleInfoImpl::StubValueTy(Mang->getSymbol(*I), true);
       }
     }
   }
@@ -797,10 +800,24 @@ bool PPCDarwinAsmPrinter::doFinalization(Module &M) {
     EmitAlignment(isPPC64 ? 3 : 2);
     
     for (unsigned i = 0, e = Stubs.size(); i != e; ++i) {
-      O << *Stubs[i].first << ":\n";
-      O << "\t.indirect_symbol " << *Stubs[i].second << '\n';
-      O << (isPPC64 ? "\t.quad\t0\n" : "\t.long\t0\n");
+      // L_foo$stub:
+      OutStreamer.EmitLabel(Stubs[i].first);
+      //   .indirect_symbol _foo
+      MachineModuleInfoImpl::StubValueTy &MCSym = Stubs[i].second;
+      OutStreamer.EmitSymbolAttribute(MCSym.getPointer(), MCSA_IndirectSymbol);
+
+      if (MCSym.getInt())
+        // External to current translation unit.
+        OutStreamer.EmitIntValue(0, isPPC64 ? 8 : 4/*size*/, 0/*addrspace*/);
+      else
+        // Internal to current translation unit.
+        OutStreamer.EmitValue(MCSymbolRefExpr::Create(MCSym.getPointer(),
+                                                      OutContext),
+                              isPPC64 ? 8 : 4/*size*/, 0/*addrspace*/);
     }
+
+    Stubs.clear();
+    OutStreamer.AddBlankLine();
   }
 
   Stubs = MMIMacho.GetHiddenGVStubList();
@@ -809,9 +826,17 @@ bool PPCDarwinAsmPrinter::doFinalization(Module &M) {
     EmitAlignment(isPPC64 ? 3 : 2);
     
     for (unsigned i = 0, e = Stubs.size(); i != e; ++i) {
-      O << *Stubs[i].first << ":\n";
-      O << (isPPC64 ? "\t.quad\t" : "\t.long\t") << *Stubs[i].second << '\n';
+      // L_foo$stub:
+      OutStreamer.EmitLabel(Stubs[i].first);
+      //   .long _foo
+      OutStreamer.EmitValue(MCSymbolRefExpr::
+                            Create(Stubs[i].second.getPointer(),
+                                   OutContext),
+                            isPPC64 ? 8 : 4/*size*/, 0/*addrspace*/);
     }
+
+    Stubs.clear();
+    OutStreamer.AddBlankLine();
   }
 
   // Funny Darwin hack: This flag tells the linker that no global symbols
@@ -824,21 +849,18 @@ bool PPCDarwinAsmPrinter::doFinalization(Module &M) {
   return AsmPrinter::doFinalization(M);
 }
 
-
-
 /// createPPCAsmPrinterPass - Returns a pass that prints the PPC assembly code
 /// for a MachineFunction to the given output stream, in a format that the
 /// Darwin assembler can deal with.
 ///
 static AsmPrinter *createPPCAsmPrinterPass(formatted_raw_ostream &o,
                                            TargetMachine &tm,
-                                           MCContext &Ctx, MCStreamer &Streamer,
-                                           const MCAsmInfo *tai) {
+                                           MCStreamer &Streamer) {
   const PPCSubtarget *Subtarget = &tm.getSubtarget<PPCSubtarget>();
 
   if (Subtarget->isDarwin())
-    return new PPCDarwinAsmPrinter(o, tm, Ctx, Streamer, tai);
-  return new PPCLinuxAsmPrinter(o, tm, Ctx, Streamer, tai);
+    return new PPCDarwinAsmPrinter(o, tm, Streamer);
+  return new PPCLinuxAsmPrinter(o, tm, Streamer);
 }
 
 // Force static initialization.

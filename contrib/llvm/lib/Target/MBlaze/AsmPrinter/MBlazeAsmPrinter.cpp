@@ -31,6 +31,7 @@
 #include "llvm/MC/MCStreamer.h"
 #include "llvm/MC/MCAsmInfo.h"
 #include "llvm/MC/MCSymbol.h"
+#include "llvm/Target/Mangler.h"
 #include "llvm/Target/TargetData.h"
 #include "llvm/Target/TargetLoweringObjectFile.h"
 #include "llvm/Target/TargetMachine.h"
@@ -52,9 +53,8 @@ namespace {
     const MBlazeSubtarget *Subtarget;
   public:
     explicit MBlazeAsmPrinter(formatted_raw_ostream &O, TargetMachine &TM,
-                              MCContext &Ctx, MCStreamer &Streamer, 
-                              const MCAsmInfo *T )
-      : AsmPrinter(O, TM, Ctx, Streamer, T) {
+                              MCStreamer &Streamer)
+      : AsmPrinter(O, TM, Streamer) {
       Subtarget = &TM.getSubtarget<MBlazeSubtarget>();
     }
 
@@ -236,11 +236,11 @@ void MBlazeAsmPrinter::printOperand(const MachineInstr *MI, int opNum) {
       }
 
     case MachineOperand::MO_MachineBasicBlock:
-      O << *MO.getMBB()->getSymbol(OutContext);
+      O << *MO.getMBB()->getSymbol();
       return;
 
     case MachineOperand::MO_GlobalAddress:
-      O << *GetGlobalValueSymbol(MO.getGlobal());
+      O << *Mang->getSymbol(MO.getGlobal());
       break;
 
     case MachineOperand::MO_ExternalSymbol:

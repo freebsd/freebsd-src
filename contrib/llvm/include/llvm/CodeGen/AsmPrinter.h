@@ -143,8 +143,7 @@ namespace llvm {
 
   protected:
     explicit AsmPrinter(formatted_raw_ostream &o, TargetMachine &TM,
-                        MCContext &Ctx, MCStreamer &Streamer,
-                        const MCAsmInfo *T);
+                        MCStreamer &Streamer);
     
   public:
     virtual ~AsmPrinter();
@@ -306,17 +305,9 @@ namespace llvm {
                        unsigned ForcedAlignBits = 0,
                        bool UseFillExpr = true) const;
 
-    /// printLabel - This method prints a local label used by debug and
-    /// exception handling tables.
-    void printLabel(unsigned Id) const;
-
     /// printDeclare - This method prints a local variable declaration used by
     /// debug tables.
     void printDeclare(const MachineInstr *MI) const;
-
-    /// GetGlobalValueSymbol - Return the MCSymbol for the specified global
-    /// value.
-    virtual MCSymbol *GetGlobalValueSymbol(const GlobalValue *GV) const;
 
     /// GetSymbolWithGlobalValueBase - Return the MCSymbol for a symbol with
     /// global value name as its base, with the specified suffix, and where the
@@ -342,8 +333,7 @@ namespace llvm {
     /// GetBlockAddressSymbol - Return the MCSymbol used to satisfy BlockAddress
     /// uses of the specified basic block.
     MCSymbol *GetBlockAddressSymbol(const BlockAddress *BA) const;
-    MCSymbol *GetBlockAddressSymbol(const Function *F,
-                                    const BasicBlock *BB) const;
+    MCSymbol *GetBlockAddressSymbol(const BasicBlock *BB) const;
 
     /// EmitBasicBlockStart - This method prints the label for the specified
     /// MachineBasicBlock, an alignment (if present) and a comment describing

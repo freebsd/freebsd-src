@@ -2262,6 +2262,13 @@ isOutOfScopePreviousDeclaration(NamedDecl *PrevDecl, DeclContext *DC,
   return true;
 }
 
+static void SetNestedNameSpecifier(DeclaratorDecl *DD, Declarator &D) {
+  CXXScopeSpec &SS = D.getCXXScopeSpec();
+  if (!SS.isSet()) return;
+  DD->setQualifierInfo(static_cast<NestedNameSpecifier*>(SS.getScopeRep()),
+                       SS.getRange());
+}
+
 NamedDecl*
 Sema::ActOnVariableDeclarator(Scope* S, Declarator& D, DeclContext* DC,
                               QualType R, TypeSourceInfo *TInfo,
@@ -2370,6 +2377,8 @@ Sema::ActOnVariableDeclarator(Scope* S, Declarator& D, DeclContext* DC,
 
   if (D.isInvalidType())
     NewVD->setInvalidDecl();
+
+  SetNestedNameSpecifier(NewVD, D);
 
   if (D.getDeclSpec().isThreadSpecified()) {
     if (NewVD->hasLocalStorage())
@@ -2718,6 +2727,7 @@ Sema::ActOnFunctionDeclarator(Scope* S, Declarator& D, DeclContext* DC,
                                         D.getIdentifierLoc(), Name, R,
                                         isInline,
                                         /*isImplicitlyDeclared=*/false);
+      NewFD->setTypeSourceInfo(TInfo);
 
       isVirtualOkay = true;
     } else {
@@ -2797,6 +2807,8 @@ Sema::ActOnFunctionDeclarator(Scope* S, Declarator& D, DeclContext* DC,
 
   if (D.isInvalidType())
     NewFD->setInvalidDecl();
+
+  SetNestedNameSpecifier(NewFD, D);
 
   // Set the lexical context. If the declarator has a C++
   // scope specifier, or is the object of a friend declaration, the
@@ -4248,9 +4260,10 @@ Sema::DeclPtrTy Sema::ActOnFinishFunctionBody(DeclPtrTy D, StmtArg BodyArg,
     CompoundStmt *Compound = isa<CXXTryStmt>(Body) ?
                                cast<CXXTryStmt>(Body)->getTryBlock() :
                                cast<CompoundStmt>(Body);
-    std::vector<Stmt*> Elements(Compound->body_begin(), Compound->body_end());
+    llvm::SmallVector<Stmt*, 64> Elements(Compound->body_begin(),
+                                          Compound->body_end());
     Elements.push_back(L);
-    Compound->setStmts(Context, &Elements[0], Elements.size());
+    Compound->setStmts(Context, Elements.data(), Elements.size());
   }
 
   if (Body) {
@@ -4843,6 +4856,13 @@ CreateNewDecl:
     } else
       New = RecordDecl::Create(Context, Kind, SearchDC, Loc, Name, KWLoc,
                                cast_or_null<RecordDecl>(PrevDecl));
+  }
+
+  // Maybe add qualifier info.
+  if (SS.isNotEmpty()) {
+    NestedNameSpecifier *NNS
+      = static_cast<NestedNameSpecifier*>(SS.getScopeRep());
+    New->setQualifierInfo(NNS, SS.getRange());
   }
 
   if (Kind != TagDecl::TK_enum) {

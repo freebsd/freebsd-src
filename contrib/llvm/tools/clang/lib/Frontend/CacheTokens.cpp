@@ -196,6 +196,11 @@ class PTHWriter {
     Out.write(Ptr, NumBytes);
   }
 
+  void EmitString(llvm::StringRef V) {
+    ::Emit16(Out, V.size());
+    EmitBuf(V.data(), V.size());
+  }
+
   /// EmitIdentifierTable - Emits two tables to the PTH file.  The first is
   ///  a hashtable mapping from identifier strings to persistent IDs.
   ///  The second is a straight table mapping from persistent IDs to string data
@@ -214,7 +219,7 @@ public:
     : Out(out), PP(pp), idcount(0), CurStrOffset(0) {}
 
   PTHMap &getPM() { return PM; }
-  void GeneratePTH(const std::string *MainFile = 0);
+  void GeneratePTH(const std::string &MainFile);
 };
 } // end anonymous namespace
 
@@ -295,7 +300,7 @@ PTHEntry PTHWriter::LexTokens(Lexer& L) {
     }
 
     if (Tok.is(tok::identifier)) {
-      Tok.setIdentifierInfo(PP.LookUpIdentifierInfo(Tok));
+      PP.LookUpIdentifierInfo(Tok);
       EmitToken(Tok);
       continue;
     }
@@ -321,7 +326,6 @@ PTHEntry PTHWriter::LexTokens(Lexer& L) {
       }
 
       IdentifierInfo* II = PP.LookUpIdentifierInfo(Tok);
-      Tok.setIdentifierInfo(II);
       tok::PPKeywordKind K = II->getPPKeywordID();
 
       ParsingPreprocessorDirective = true;
@@ -344,7 +348,7 @@ PTHEntry PTHWriter::LexTokens(Lexer& L) {
         L.setParsingPreprocessorDirective(false);
         assert(!Tok.isAtStartOfLine());
         if (Tok.is(tok::identifier))
-          Tok.setIdentifierInfo(PP.LookUpIdentifierInfo(Tok));
+          PP.LookUpIdentifierInfo(Tok);
 
         break;
       }
@@ -436,7 +440,7 @@ Offset PTHWriter::EmitCachedSpellings() {
   return SpellingsOff;
 }
 
-void PTHWriter::GeneratePTH(const std::string *MainFile) {
+void PTHWriter::GeneratePTH(const std::string &MainFile) {
   // Generate the prologue.
   Out << "cfe-pth";
   Emit32(PTHManager::Version);
@@ -447,9 +451,8 @@ void PTHWriter::GeneratePTH(const std::string *MainFile) {
     Emit32(0);
 
   // Write the name of the MainFile.
-  if (MainFile && !MainFile->empty()) {
-    Emit16(MainFile->length());
-    EmitBuf(MainFile->data(), MainFile->length());
+  if (!MainFile.empty()) {
+  	EmitString(MainFile);
   } else {
     // String with 0 bytes.
     Emit16(0);
@@ -471,7 +474,7 @@ void PTHWriter::GeneratePTH(const std::string *MainFile) {
     if (!P.isAbsolute())
       continue;
 
-    const llvm::MemoryBuffer *B = C.getBuffer();
+    const llvm::MemoryBuffer *B = C.getBuffer(PP.getDiagnostics());
     if (!B) continue;
 
     FileID FID = SM.createFileID(FE, SourceLocation(), SrcMgr::C_User);
@@ -533,15 +536,8 @@ void clang::CacheTokens(Preprocessor &PP, llvm::raw_fd_ostream* OS) {
   const SourceManager &SrcMgr = PP.getSourceManager();
   const FileEntry *MainFile = SrcMgr.getFileEntryForID(SrcMgr.getMainFileID());
   llvm::sys::Path MainFilePath(MainFile->getName());
-  std::string MainFileName;
 
-  if (!MainFilePath.isAbsolute()) {
-    llvm::sys::Path P = llvm::sys::Path::GetCurrentDirectory();
-    P.appendComponent(MainFilePath.str());
-    MainFileName = P.str();
-  } else {
-    MainFileName = MainFilePath.str();
-  }
+  MainFilePath.makeAbsolute();
 
   // Create the PTHWriter.
   PTHWriter PW(*OS, PP);
@@ -558,18 +554,18 @@ void clang::CacheTokens(Preprocessor &PP, llvm::raw_fd_ostream* OS) {
 
   // Generate the PTH file.
   PP.getFileManager().removeStatCache(StatCache);
-  PW.GeneratePTH(&MainFileName);
+  PW.GeneratePTH(MainFilePath.str());
 }
 
 //===----------------------------------------------------------------------===//
 
+namespace {
 class PTHIdKey {
 public:
   const IdentifierInfo* II;
   uint32_t FileOffset;
 };
 
-namespace {
 class PTHIdentifierTableTrait {
 public:
   typedef PTHIdKey* key_type;

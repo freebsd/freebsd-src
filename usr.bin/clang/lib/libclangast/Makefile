@@ -5,7 +5,8 @@ LIB=	clangast
 SRCDIR=	tools/clang/lib/AST
 SRCS=	APValue.cpp ASTConsumer.cpp ASTContext.cpp ASTDiagnostic.cpp \
 	AttrImpl.cpp ASTImporter.cpp CXXInheritance.cpp \
-	Decl.cpp DeclBase.cpp DeclCXX.cpp DeclGroup.cpp DeclObjC.cpp \
+	Decl.cpp DeclBase.cpp DeclCXX.cpp DeclFriend.cpp DeclGroup.cpp \
+	DeclObjC.cpp \
 	DeclPrinter.cpp DeclTemplate.cpp DeclarationName.cpp Expr.cpp \
 	ExprCXX.cpp ExprConstant.cpp FullExpr.cpp InheritViz.cpp \
 	NestedNameSpecifier.cpp ParentMap.cpp RecordLayout.cpp \

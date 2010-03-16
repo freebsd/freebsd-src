@@ -21,6 +21,7 @@
 #include "llvm/MC/MCExpr.h"
 #include "llvm/MC/MCInst.h"
 //#include "llvm/MC/MCStreamer.h"
+#include "llvm/Target/Mangler.h"
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/ADT/SmallString.h"
 using namespace llvm;
@@ -45,7 +46,7 @@ GetGlobalAddressSymbol(const MachineOperand &MO) const {
   case 0: break;
   }
   
-  return Printer.GetGlobalValueSymbol(MO.getGlobal());
+  return Printer.Mang->getSymbol(MO.getGlobal());
 }
 
 MCSymbol *ARMMCInstLower::
@@ -135,7 +136,7 @@ void ARMMCInstLower::Lower(const MachineInstr *MI, MCInst &OutMI) const {
       break;
     case MachineOperand::MO_MachineBasicBlock:
       MCOp = MCOperand::CreateExpr(MCSymbolRefExpr::Create(
-                       MO.getMBB()->getSymbol(Ctx), Ctx));
+                       MO.getMBB()->getSymbol(), Ctx));
       break;
     case MachineOperand::MO_GlobalAddress:
       MCOp = LowerSymbolOperand(MO, GetGlobalAddressSymbol(MO));

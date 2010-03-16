@@ -1945,11 +1945,19 @@ NamedDecl * Sema::DeclClonePragmaWeak(NamedDecl *ND, IdentifierInfo *II) {
     NewD = FunctionDecl::Create(FD->getASTContext(), FD->getDeclContext(),
                                 FD->getLocation(), DeclarationName(II),
                                 FD->getType(), FD->getTypeSourceInfo());
+    if (FD->getQualifier()) {
+      FunctionDecl *NewFD = cast<FunctionDecl>(NewD);
+      NewFD->setQualifierInfo(FD->getQualifier(), FD->getQualifierRange());
+    }
   } else if (VarDecl *VD = dyn_cast<VarDecl>(ND)) {
     NewD = VarDecl::Create(VD->getASTContext(), VD->getDeclContext(),
                            VD->getLocation(), II,
                            VD->getType(), VD->getTypeSourceInfo(),
                            VD->getStorageClass());
+    if (VD->getQualifier()) {
+      VarDecl *NewVD = cast<VarDecl>(NewD);
+      NewVD->setQualifierInfo(VD->getQualifier(), VD->getQualifierRange());
+    }
   }
   return NewD;
 }
@@ -2030,6 +2038,8 @@ void Sema::PopParsingDeclaration(ParsingDeclStackState S, DeclPtrTy Ctx) {
   assert(SavedIndex <= DelayedDiagnostics.size() &&
          "saved index is out of bounds");
 
+  unsigned E = DelayedDiagnostics.size();
+
   // We only want to actually emit delayed diagnostics when we
   // successfully parsed a decl.
   Decl *D = Ctx ? Ctx.getAs<Decl>() : 0;
@@ -2040,7 +2050,7 @@ void Sema::PopParsingDeclaration(ParsingDeclStackState S, DeclPtrTy Ctx) {
     // only the declarator pops will be passed decls.  This is correct;
     // we really do need to consider delayed diagnostics from the decl spec
     // for each of the different declarations.
-    for (unsigned I = 0, E = DelayedDiagnostics.size(); I != E; ++I) {
+    for (unsigned I = 0; I != E; ++I) {
       if (DelayedDiagnostics[I].Triggered)
         continue;
 
@@ -2055,6 +2065,10 @@ void Sema::PopParsingDeclaration(ParsingDeclStackState S, DeclPtrTy Ctx) {
       }
     }
   }
+
+  // Destroy all the delayed diagnostics we're about to pop off.
+  for (unsigned I = SavedIndex; I != E; ++I)
+    DelayedDiagnostics[I].destroy();
 
   DelayedDiagnostics.set_size(SavedIndex);
 }

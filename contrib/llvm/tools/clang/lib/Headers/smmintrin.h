@@ -199,6 +199,143 @@ _mm_max_epu32 (__m128i __V1, __m128i __V2)
 /* Extract a float from X at index N into the first index of the return.  */
 #define _MM_PICK_OUT_PS(X, N) _mm_insert_ps (_mm_setzero_ps(), (X),   \
                                              _MM_MK_INSERTPS_NDX((N), 0, 0x0e))
+                                             
+/* Insert int into packed integer array at index.  */
+#define _mm_insert_epi8(X, I, N) (__extension__ ({ __v16qi __a = (__v16qi)X; \
+                                                   __a[N] = I;               \
+                                                   __a;}))
+#define _mm_insert_epi32(X, I, N) (__extension__ ({ __v4si __a = (__v4si)X; \
+                                                    __a[N] = I;             \
+                                                    __a;}))
+#ifdef __x86_64__
+#define _mm_insert_epi64(X, I, N) (__extension__ ({ __v2di __a = (__v2di)X; \
+                                                    __a[N] = I;             \
+                                                    __a;}))
+#endif /* __x86_64__ */
+
+/* Extract int from packed integer array at index.  */
+#define _mm_extract_epi8(X, N) (__extension__ ({ __v16qi __a = (__v16qi)X; \
+                                                 __a[N];}))
+#define _mm_extract_epi32(X, N) (__extension__ ({ __v4si __a = (__v4si)X; \
+                                                  __a[N];}))
+#ifdef __x86_64__
+#define _mm_extract_epi64(X, N) (__extension__ ({ __v2di __a = (__v2di)X; \
+                                                  __a[N];}))
+#endif /* __x86_64 */
+
+/* SSE4 128-bit Packed Integer Comparisons.  */
+static inline int __attribute__((__always_inline__, __nodebug__))
+_mm_testz_si128(__m128i __M, __m128i __V)
+{
+  return __builtin_ia32_ptestz128((__v2di)__M, (__v2di)__V);
+}
+
+static inline int __attribute__((__always_inline__, __nodebug__))
+_mm_testc_si128(__m128i __M, __m128i __V)
+{
+  return __builtin_ia32_ptestc128((__v2di)__M, (__v2di)__V);
+}
+
+static inline int __attribute__((__always_inline__, __nodebug__))
+_mm_testnzc_si128(__m128i __M, __m128i __V)
+{
+  return __builtin_ia32_ptestnzc128((__v2di)__M, (__v2di)__V);
+}
+
+#define _mm_test_all_ones(V) _mm_testc_si128((V), _mm_cmpeq_epi32((V), (V)))
+#define _mm_test_mix_ones_zeros(M, V) _mm_testnzc_si128((M), (V))
+#define _mm_test_all_zeros(M, V) _mm_testz_si128 ((V), (V))
+
+/* SSE4 64-bit Packed Integer Comparisons.  */
+static inline __m128i __attribute__((__always_inline__, __nodebug__))
+_mm_cmpeq_epi64(__m128i __V1, __m128i __V2)
+{
+  return (__m128i) __builtin_ia32_pcmpeqq((__v2di)__V1, (__v2di)__V2);
+}
+
+/* SSE4 Packed Integer Sign-Extension.  */
+static inline __m128i __attribute__((__always_inline__, __nodebug__))
+_mm_cvtepi8_epi16(__m128i __V)
+{
+  return (__m128i) __builtin_ia32_pmovsxbw128((__v16qi) __V);
+}
+
+static inline __m128i __attribute__((__always_inline__, __nodebug__))
+_mm_cvtepi8_epi32(__m128i __V)
+{
+  return (__m128i) __builtin_ia32_pmovsxbd128((__v16qi) __V);
+}
+
+static inline __m128i __attribute__((__always_inline__, __nodebug__))
+_mm_cvtepi8_epi64(__m128i __V)
+{
+  return (__m128i) __builtin_ia32_pmovsxbq128((__v16qi) __V);
+}
+
+static inline __m128i __attribute__((__always_inline__, __nodebug__))
+_mm_cvtepi16_epi32(__m128i __V)
+{
+  return (__m128i) __builtin_ia32_pmovsxwd128((__v8hi) __V); 
+}
+
+static inline __m128i __attribute__((__always_inline__, __nodebug__))
+_mm_cvtepi16_epi64(__m128i __V)
+{
+  return (__m128i) __builtin_ia32_pmovsxwq128((__v8hi)__V);
+}
+
+static inline __m128i __attribute__((__always_inline__, __nodebug__))
+_mm_cvtepi32_epi64(__m128i __V)
+{
+  return (__m128i) __builtin_ia32_pmovsxdq128((__v4si)__V);
+}
+
+/* SSE4 Packed Integer Zero-Extension.  */
+static inline __m128i __attribute__((__always_inline__, __nodebug__))
+_mm_cvtepu8_epi16(__m128i __V)
+{
+  return (__m128i) __builtin_ia32_pmovzxbw128((__v16qi) __V);
+}
+
+static inline __m128i __attribute__((__always_inline__, __nodebug__))
+_mm_cvtepu8_epi32(__m128i __V)
+{
+  return (__m128i) __builtin_ia32_pmovzxbd128((__v16qi)__V);
+}
+
+static inline __m128i __attribute__((__always_inline__, __nodebug__))
+_mm_cvtepu8_epi64(__m128i __V)
+{
+  return (__m128i) __builtin_ia32_pmovzxbq128((__v16qi)__V);
+}
+
+static inline __m128i __attribute__((__always_inline__, __nodebug__))
+_mm_cvtepu16_epi32(__m128i __V)
+{
+  return (__m128i) __builtin_ia32_pmovzxwd128((__v8hi)__V);
+}
+
+static inline __m128i __attribute__((__always_inline__, __nodebug__))
+_mm_cvtepu16_epi64(__m128i __V)
+{
+  return (__m128i) __builtin_ia32_pmovzxwq128((__v8hi)__V);
+}
+
+static inline __m128i __attribute__((__always_inline__, __nodebug__))
+_mm_cvtepu32_epi64(__m128i __V)
+{
+  return (__m128i) __builtin_ia32_pmovzxdq128((__v4si)__V);
+}
+
+/* SSE4 Pack with Unsigned Saturation.  */
+static inline __m128i __attribute__((__always_inline__, __nodebug__))
+_mm_packus_epi32(__m128i __V1, __m128i __V2)
+{
+  return (__m128i) __builtin_ia32_packusdw128((__v4si)__V1, (__v4si)__V2);
+}
+
+/* SSE4 Multiple Packed Sums of Absolute Difference.  */
+#define _mm_mpsadbw_epu8(X, Y, M) __builtin_ia32_mpsadbw128((X), (Y), (M))
 
 #endif /* __SSE4_1__ */
 

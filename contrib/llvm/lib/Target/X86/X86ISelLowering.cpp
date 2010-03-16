@@ -16,7 +16,6 @@
 #include "X86.h"
 #include "X86InstrBuilder.h"
 #include "X86ISelLowering.h"
-#include "X86MCTargetExpr.h"
 #include "X86TargetMachine.h"
 #include "X86TargetObjectFile.h"
 #include "llvm/CallingConv.h"
@@ -37,6 +36,7 @@
 #include "llvm/CodeGen/PseudoSourceValue.h"
 #include "llvm/MC/MCAsmInfo.h"
 #include "llvm/MC/MCContext.h"
+#include "llvm/MC/MCExpr.h"
 #include "llvm/MC/MCSymbol.h"
 #include "llvm/ADT/BitVector.h"
 #include "llvm/ADT/SmallSet.h"
@@ -45,10 +45,12 @@
 #include "llvm/ADT/VectorExtras.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Debug.h"
+#include "llvm/Support/Dwarf.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/MathExtras.h"
 #include "llvm/Support/raw_ostream.h"
 using namespace llvm;
+using namespace dwarf;
 
 STATISTIC(NumTailCalls, "Number of tail calls");
 
@@ -988,6 +990,7 @@ X86TargetLowering::X86TargetLowering(X86TargetMachine &TM)
 
   // We have target-specific dag combine patterns for the following nodes:
   setTargetDAGCombine(ISD::VECTOR_SHUFFLE);
+  setTargetDAGCombine(ISD::EXTRACT_VECTOR_ELT);
   setTargetDAGCombine(ISD::BUILD_VECTOR);
   setTargetDAGCombine(ISD::SELECT);
   setTargetDAGCombine(ISD::SHL);
@@ -1118,8 +1121,8 @@ X86TargetLowering::LowerCustomJumpTableEntry(const MachineJumpTableInfo *MJTI,
          Subtarget->isPICStyleGOT());
   // In 32-bit ELF systems, our jump table entries are formed with @GOTOFF
   // entries.
-  return X86MCTargetExpr::Create(MBB->getSymbol(Ctx),
-                                 X86MCTargetExpr::GOTOFF, Ctx);
+  return MCSymbolRefExpr::Create(MBB->getSymbol(),
+                                 MCSymbolRefExpr::VK_GOTOFF, Ctx);
 }
 
 /// getPICJumpTableRelocaBase - Returns relocation base for the given PIC
@@ -1378,6 +1381,8 @@ bool X86TargetLowering::IsCalleePop(bool IsVarArg, CallingConv::ID CallingConv){
     return !Subtarget->is64Bit();
   case CallingConv::Fast:
     return GuaranteedTailCallOpt;
+  case CallingConv::GHC:
+    return GuaranteedTailCallOpt;
   }
 }
 
@@ -1385,7 +1390,9 @@ bool X86TargetLowering::IsCalleePop(bool IsVarArg, CallingConv::ID CallingConv){
 /// given CallingConvention value.
 CCAssignFn *X86TargetLowering::CCAssignFnForNode(CallingConv::ID CC) const {
   if (Subtarget->is64Bit()) {
-    if (Subtarget->isTargetWin64())
+    if (CC == CallingConv::GHC)
+      return CC_X86_64_GHC;
+    else if (Subtarget->isTargetWin64())
       return CC_X86_Win64_C;
     else
       return CC_X86_64_C;
@@ -1395,6 +1402,8 @@ CCAssignFn *X86TargetLowering::CCAssignFnForNode(CallingConv::ID CC) const {
     return CC_X86_32_FastCall;
   else if (CC == CallingConv::Fast)
     return CC_X86_32_FastCC;
+  else if (CC == CallingConv::GHC)
+    return CC_X86_32_GHC;
   else
     return CC_X86_32_C;
 }
@@ -1412,10 +1421,16 @@ CreateCopyOfByValArgument(SDValue Src, SDValue Dst, SDValue Chain,
                        /*AlwaysInline=*/true, NULL, 0, NULL, 0);
 }
 
+/// IsTailCallConvention - Return true if the calling convention is one that
+/// supports tail call optimization.
+static bool IsTailCallConvention(CallingConv::ID CC) {
+  return (CC == CallingConv::Fast || CC == CallingConv::GHC);
+}
+
 /// FuncIsMadeTailCallSafe - Return true if the function is being made into
 /// a tailcall target by changing its ABI.
 static bool FuncIsMadeTailCallSafe(CallingConv::ID CC) {
-  return GuaranteedTailCallOpt && CC == CallingConv::Fast;
+  return GuaranteedTailCallOpt && IsTailCallConvention(CC);
 }
 
 SDValue
@@ -1465,7 +1480,6 @@ X86TargetLowering::LowerFormalArguments(SDValue Chain,
                                         DebugLoc dl,
                                         SelectionDAG &DAG,
                                         SmallVectorImpl<SDValue> &InVals) {
-
   MachineFunction &MF = DAG.getMachineFunction();
   X86MachineFunctionInfo *FuncInfo = MF.getInfo<X86MachineFunctionInfo>();
 
@@ -1479,8 +1493,8 @@ X86TargetLowering::LowerFormalArguments(SDValue Chain,
   bool Is64Bit = Subtarget->is64Bit();
   bool IsWin64 = Subtarget->isTargetWin64();
 
-  assert(!(isVarArg && CallConv == CallingConv::Fast) &&
-         "Var args not supported with calling convention fastcc");
+  assert(!(isVarArg && IsTailCallConvention(CallConv)) &&
+         "Var args not supported with calling convention fastcc or ghc");
 
   // Assign locations to all of the incoming arguments.
   SmallVector<CCValAssign, 16> ArgLocs;
@@ -1683,7 +1697,7 @@ X86TargetLowering::LowerFormalArguments(SDValue Chain,
   } else {
     BytesToPopOnReturn  = 0; // Callee pops nothing.
     // If this is an sret function, the return should pop the hidden pointer.
-    if (!Is64Bit && CallConv != CallingConv::Fast && ArgsAreStructReturn(Ins))
+    if (!Is64Bit && !IsTailCallConvention(CallConv) && ArgsAreStructReturn(Ins))
       BytesToPopOnReturn = 4;
   }
 
@@ -1767,7 +1781,8 @@ X86TargetLowering::LowerCall(SDValue Chain, SDValue Callee,
 
   if (isTailCall) {
     // Check if it's really possible to do a tail call.
-    isTailCall = IsEligibleForTailCallOptimization(Callee, CallConv, isVarArg,
+    isTailCall = IsEligibleForTailCallOptimization(Callee, CallConv,
+                    isVarArg, IsStructRet, MF.getFunction()->hasStructRetAttr(),
                                                    Outs, Ins, DAG);
 
     // Sibcalls are automatically detected tailcalls which do not require
@@ -1779,8 +1794,8 @@ X86TargetLowering::LowerCall(SDValue Chain, SDValue Callee,
       ++NumTailCalls;
   }
 
-  assert(!(isVarArg && CallConv == CallingConv::Fast) &&
-         "Var args not supported with calling convention fastcc");
+  assert(!(isVarArg && IsTailCallConvention(CallConv)) &&
+         "Var args not supported with calling convention fastcc or ghc");
 
   // Analyze operands of the call, assigning locations to each operand.
   SmallVector<CCValAssign, 16> ArgLocs;
@@ -1794,7 +1809,7 @@ X86TargetLowering::LowerCall(SDValue Chain, SDValue Callee,
     // This is a sibcall. The memory operands are available in caller's
     // own caller's stack.
     NumBytes = 0;
-  else if (GuaranteedTailCallOpt && CallConv == CallingConv::Fast)
+  else if (GuaranteedTailCallOpt && IsTailCallConvention(CallConv))
     NumBytes = GetAlignedArgumentStackSize(NumBytes, DAG);
 
   int FPDiff = 0;
@@ -2074,18 +2089,6 @@ X86TargetLowering::LowerCall(SDValue Chain, SDValue Callee,
                                          OpFlags);
   }
 
-  if (isTailCall && !WasGlobalOrExternal) {
-    // Force the address into a (call preserved) caller-saved register since
-    // tailcall must happen after callee-saved registers are poped.
-    // FIXME: Give it a special register class that contains caller-saved
-    // register instead?
-    unsigned TCReg = Is64Bit ? X86::R11 : X86::EAX;
-    Chain = DAG.getCopyToReg(Chain,  dl,
-                             DAG.getRegister(TCReg, getPointerTy()),
-                             Callee,InFlag);
-    Callee = DAG.getRegister(TCReg, getPointerTy());
-  }
-
   // Returns a chain & a flag for retval copy to use.
   SDVTList NodeTys = DAG.getVTList(MVT::Other, MVT::Flag);
   SmallVector<SDValue, 8> Ops;
@@ -2131,14 +2134,6 @@ X86TargetLowering::LowerCall(SDValue Chain, SDValue Callee,
         if (RVLocs[i].isRegLoc())
           MF.getRegInfo().addLiveOut(RVLocs[i].getLocReg());
     }
-
-    assert(((Callee.getOpcode() == ISD::Register &&
-               (cast<RegisterSDNode>(Callee)->getReg() == X86::EAX ||
-                cast<RegisterSDNode>(Callee)->getReg() == X86::R11)) ||
-              Callee.getOpcode() == ISD::TargetExternalSymbol ||
-              Callee.getOpcode() == ISD::TargetGlobalAddress) &&
-           "Expecting a global address, external symbol, or scratch register");
-
     return DAG.getNode(X86ISD::TC_RETURN, dl,
                        NodeTys, &Ops[0], Ops.size());
   }
@@ -2150,7 +2145,7 @@ X86TargetLowering::LowerCall(SDValue Chain, SDValue Callee,
   unsigned NumBytesForCalleeToPush;
   if (IsCalleePop(isVarArg, CallConv))
     NumBytesForCalleeToPush = NumBytes;    // Callee pops everything
-  else if (!Is64Bit && CallConv != CallingConv::Fast && IsStructRet)
+  else if (!Is64Bit && !IsTailCallConvention(CallConv) && IsStructRet)
     // If this is a call to a struct-return function, the callee
     // pops the hidden struct pointer, so we have to push it back.
     // This is common for Darwin/X86, Linux & Mingw32 targets.
@@ -2285,17 +2280,19 @@ bool
 X86TargetLowering::IsEligibleForTailCallOptimization(SDValue Callee,
                                                      CallingConv::ID CalleeCC,
                                                      bool isVarArg,
+                                                     bool isCalleeStructRet,
+                                                     bool isCallerStructRet,
                                     const SmallVectorImpl<ISD::OutputArg> &Outs,
                                     const SmallVectorImpl<ISD::InputArg> &Ins,
                                                      SelectionDAG& DAG) const {
-  if (CalleeCC != CallingConv::Fast &&
+  if (!IsTailCallConvention(CalleeCC) &&
       CalleeCC != CallingConv::C)
     return false;
 
   // If -tailcallopt is specified, make fastcc functions tail-callable.
   const Function *CallerF = DAG.getMachineFunction().getFunction();
   if (GuaranteedTailCallOpt) {
-    if (CalleeCC == CallingConv::Fast &&
+    if (IsTailCallConvention(CalleeCC) &&
         CallerF->getCallingConv() == CalleeCC)
       return true;
     return false;
@@ -2304,8 +2301,13 @@ X86TargetLowering::IsEligibleForTailCallOptimization(SDValue Callee,
   // Look for obvious safe cases to perform tail call optimization that does not
   // requite ABI changes. This is what gcc calls sibcall.
 
-  // Do not tail call optimize vararg calls for now.
+  // Do not sibcall optimize vararg calls for now.
   if (isVarArg)
+    return false;
+
+  // Also avoid sibcall optimization if either caller or callee uses struct
+  // return semantics.
+  if (isCalleeStructRet || isCallerStructRet)
     return false;
 
   // If the callee takes no arguments then go on to check the results of the
@@ -6158,7 +6160,7 @@ SDValue X86TargetLowering::LowerSELECT(SDValue Op, SelectionDAG &DAG) {
           N2C && N2C->isNullValue() &&
           RHSC && RHSC->isNullValue()) {
         SDValue CmpOp0 = Cmp.getOperand(0);
-        Cmp = DAG.getNode(X86ISD::CMP, dl, CmpOp0.getValueType(),
+        Cmp = DAG.getNode(X86ISD::CMP, dl, MVT::i32,
                           CmpOp0, DAG.getConstant(1, CmpOp0.getValueType()));
         return DAG.getNode(X86ISD::SETCC_CARRY, dl, Op.getValueType(),
                            DAG.getConstant(X86::COND_B, MVT::i8), Cmp);
@@ -8439,6 +8441,11 @@ X86TargetLowering::EmitInstrWithCustomInserter(MachineInstr *MI,
   case X86::CMOV_V4F32:
   case X86::CMOV_V2F64:
   case X86::CMOV_V2I64:
+  case X86::CMOV_GR16:
+  case X86::CMOV_GR32:
+  case X86::CMOV_RFP32:
+  case X86::CMOV_RFP64:
+  case X86::CMOV_RFP80:
     return EmitLoweredSelect(MI, BB, EM);
 
   case X86::FP32_TO_INT16_IN_MEM:
@@ -8521,6 +8528,21 @@ X86TargetLowering::EmitInstrWithCustomInserter(MachineInstr *MI,
     F->DeleteMachineInstr(MI);   // The pseudo instruction is gone now.
     return BB;
   }
+    // DBG_VALUE.  Only the frame index case is done here.
+  case X86::DBG_VALUE: {
+    const TargetInstrInfo *TII = getTargetMachine().getInstrInfo();
+    DebugLoc DL = MI->getDebugLoc();
+    X86AddressMode AM;
+    MachineFunction *F = BB->getParent();
+    AM.BaseType = X86AddressMode::FrameIndexBase;
+    AM.Base.FrameIndex = MI->getOperand(0).getImm();
+    addFullAddress(BuildMI(BB, DL, TII->get(X86::DBG_VALUE)), AM).
+      addImm(MI->getOperand(1).getImm()).
+      addMetadata(MI->getOperand(2).getMetadata());
+    F->DeleteMachineInstr(MI);      // Remove pseudo.
+    return BB;
+  }
+
     // String/text processing lowering.
   case X86::PCMPISTRM128REG:
     return EmitPCMP(MI, BB, 3, false /* in-mem */);
@@ -8829,6 +8851,87 @@ static SDValue PerformShuffleCombine(SDNode *N, SelectionDAG &DAG,
     SDValue ResNode = DAG.getNode(X86ISD::VZEXT_LOAD, dl, Tys, Ops, 2);
     return DAG.getNode(ISD::BIT_CONVERT, dl, VT, ResNode);
   }
+  return SDValue();
+}
+
+/// PerformShuffleCombine - Detect vector gather/scatter index generation
+/// and convert it from being a bunch of shuffles and extracts to a simple
+/// store and scalar loads to extract the elements.
+static SDValue PerformEXTRACT_VECTOR_ELTCombine(SDNode *N, SelectionDAG &DAG,
+                                                const TargetLowering &TLI) {
+  SDValue InputVector = N->getOperand(0);
+
+  // Only operate on vectors of 4 elements, where the alternative shuffling
+  // gets to be more expensive.
+  if (InputVector.getValueType() != MVT::v4i32)
+    return SDValue();
+
+  // Check whether every use of InputVector is an EXTRACT_VECTOR_ELT with a
+  // single use which is a sign-extend or zero-extend, and all elements are
+  // used.
+  SmallVector<SDNode *, 4> Uses;
+  unsigned ExtractedElements = 0;
+  for (SDNode::use_iterator UI = InputVector.getNode()->use_begin(),
+       UE = InputVector.getNode()->use_end(); UI != UE; ++UI) {
+    if (UI.getUse().getResNo() != InputVector.getResNo())
+      return SDValue();
+
+    SDNode *Extract = *UI;
+    if (Extract->getOpcode() != ISD::EXTRACT_VECTOR_ELT)
+      return SDValue();
+
+    if (Extract->getValueType(0) != MVT::i32)
+      return SDValue();
+    if (!Extract->hasOneUse())
+      return SDValue();
+    if (Extract->use_begin()->getOpcode() != ISD::SIGN_EXTEND &&
+        Extract->use_begin()->getOpcode() != ISD::ZERO_EXTEND)
+      return SDValue();
+    if (!isa<ConstantSDNode>(Extract->getOperand(1)))
+      return SDValue();
+
+    // Record which element was extracted.
+    ExtractedElements |=
+      1 << cast<ConstantSDNode>(Extract->getOperand(1))->getZExtValue();
+
+    Uses.push_back(Extract);
+  }
+
+  // If not all the elements were used, this may not be worthwhile.
+  if (ExtractedElements != 15)
+    return SDValue();
+
+  // Ok, we've now decided to do the transformation.
+  DebugLoc dl = InputVector.getDebugLoc();
+
+  // Store the value to a temporary stack slot.
+  SDValue StackPtr = DAG.CreateStackTemporary(InputVector.getValueType());
+  SDValue Ch = DAG.getStore(DAG.getEntryNode(), dl, InputVector, StackPtr, NULL, 0,
+                            false, false, 0);
+
+  // Replace each use (extract) with a load of the appropriate element.
+  for (SmallVectorImpl<SDNode *>::iterator UI = Uses.begin(),
+       UE = Uses.end(); UI != UE; ++UI) {
+    SDNode *Extract = *UI;
+
+    // Compute the element's address.
+    SDValue Idx = Extract->getOperand(1);
+    unsigned EltSize =
+        InputVector.getValueType().getVectorElementType().getSizeInBits()/8;
+    uint64_t Offset = EltSize * cast<ConstantSDNode>(Idx)->getZExtValue();
+    SDValue OffsetVal = DAG.getConstant(Offset, TLI.getPointerTy());
+
+    SDValue ScalarAddr = DAG.getNode(ISD::ADD, dl, Idx.getValueType(), OffsetVal, StackPtr);
+
+    // Load the scalar.
+    SDValue LoadScalar = DAG.getLoad(Extract->getValueType(0), dl, Ch, ScalarAddr,
+                          NULL, 0, false, false, 0);
+
+    // Replace the exact with the load.
+    DAG.ReplaceAllUsesOfValueWith(SDValue(Extract, 0), LoadScalar);
+  }
+
+  // The replacement was made in place; don't return anything.
   return SDValue();
 }
 
@@ -9721,6 +9824,8 @@ SDValue X86TargetLowering::PerformDAGCombine(SDNode *N,
   switch (N->getOpcode()) {
   default: break;
   case ISD::VECTOR_SHUFFLE: return PerformShuffleCombine(N, DAG, *this);
+  case ISD::EXTRACT_VECTOR_ELT:
+                        return PerformEXTRACT_VECTOR_ELTCombine(N, DAG, *this);
   case ISD::SELECT:         return PerformSELECTCombine(N, DAG, Subtarget);
   case X86ISD::CMOV:        return PerformCMOVCombine(N, DAG, DCI);
   case ISD::MUL:            return PerformMulCombine(N, DAG, DCI);
@@ -9810,7 +9915,8 @@ bool X86TargetLowering::ExpandInlineAsm(CallInst *CI) const {
         AsmPieces[2] == "${0:w}" &&
         IA->getConstraintString().compare(0, 5, "=r,0,") == 0) {
       AsmPieces.clear();
-      SplitString(IA->getConstraintString().substr(5), AsmPieces, ",");
+      const std::string &Constraints = IA->getConstraintString();
+      SplitString(StringRef(Constraints).substr(5), AsmPieces, ",");
       std::sort(AsmPieces.begin(), AsmPieces.end());
       if (AsmPieces.size() == 4 &&
           AsmPieces[0] == "~{cc}" &&
@@ -10264,42 +10370,4 @@ X86TargetLowering::getRegForInlineAsmConstraint(const std::string &Constraint,
   }
 
   return Res;
-}
-
-//===----------------------------------------------------------------------===//
-//                           X86 Widen vector type
-//===----------------------------------------------------------------------===//
-
-/// getWidenVectorType: given a vector type, returns the type to widen
-/// to (e.g., v7i8 to v8i8). If the vector type is legal, it returns itself.
-/// If there is no vector type that we want to widen to, returns MVT::Other
-/// When and where to widen is target dependent based on the cost of
-/// scalarizing vs using the wider vector type.
-
-EVT X86TargetLowering::getWidenVectorType(EVT VT) const {
-  assert(VT.isVector());
-  if (isTypeLegal(VT))
-    return VT;
-
-  // TODO: In computeRegisterProperty, we can compute the list of legal vector
-  //       type based on element type.  This would speed up our search (though
-  //       it may not be worth it since the size of the list is relatively
-  //       small).
-  EVT EltVT = VT.getVectorElementType();
-  unsigned NElts = VT.getVectorNumElements();
-
-  // On X86, it make sense to widen any vector wider than 1
-  if (NElts <= 1)
-    return MVT::Other;
-
-  for (unsigned nVT = MVT::FIRST_VECTOR_VALUETYPE;
-       nVT <= MVT::LAST_VECTOR_VALUETYPE; ++nVT) {
-    EVT SVT = (MVT::SimpleValueType)nVT;
-
-    if (isTypeLegal(SVT) &&
-        SVT.getVectorElementType() == EltVT &&
-        SVT.getVectorNumElements() > NElts)
-      return SVT;
-  }
-  return MVT::Other;
 }

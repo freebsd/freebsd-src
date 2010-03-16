@@ -25,6 +25,7 @@
 #include "llvm/CodeGen/MachineModuleInfo.h"
 #include "llvm/MC/MCStreamer.h"
 #include "llvm/MC/MCSymbol.h"
+#include "llvm/Target/Mangler.h"
 #include "llvm/Target/TargetRegistry.h"
 #include "llvm/Target/TargetLoweringObjectFile.h"
 #include "llvm/Support/ErrorHandling.h"
@@ -35,11 +36,10 @@ using namespace llvm;
 #include "PIC16GenAsmWriter.inc"
 
 PIC16AsmPrinter::PIC16AsmPrinter(formatted_raw_ostream &O, TargetMachine &TM,
-                                 MCContext &Ctx, MCStreamer &Streamer,
-                                 const MCAsmInfo *T)
-: AsmPrinter(O, TM, Ctx, Streamer, T), DbgInfo(O, T) {
+                                 MCStreamer &Streamer)
+: AsmPrinter(O, TM, Streamer), DbgInfo(O, TM.getMCAsmInfo()) {
   PTLI = static_cast<PIC16TargetLowering*>(TM.getTargetLowering());
-  PMAI = static_cast<const PIC16MCAsmInfo*>(T);
+  PMAI = static_cast<const PIC16MCAsmInfo*>(TM.getMCAsmInfo());
   PTOF = (PIC16TargetObjectFile *)&PTLI->getObjFileLowering();
 }
 
@@ -179,7 +179,7 @@ void PIC16AsmPrinter::printOperand(const MachineInstr *MI, int opNum) {
       return;
 
     case MachineOperand::MO_GlobalAddress: {
-      MCSymbol *Sym = GetGlobalValueSymbol(MO.getGlobal());
+      MCSymbol *Sym = Mang->getSymbol(MO.getGlobal());
       // FIXME: currently we do not have a memcpy def coming in the module
       // by any chance, as we do not link in those as .bc lib. So these calls
       // are always external and it is safe to emit an extern.
@@ -206,7 +206,7 @@ void PIC16AsmPrinter::printOperand(const MachineInstr *MI, int opNum) {
       break;
     }
     case MachineOperand::MO_MachineBasicBlock:
-      O << *MO.getMBB()->getSymbol(OutContext);
+      O << *MO.getMBB()->getSymbol();
       return;
 
     default:
@@ -312,7 +312,7 @@ void PIC16AsmPrinter::EmitFunctionDecls(Module &M) {
     if (!I->isDeclaration() && !I->hasExternalLinkage())
       continue;
 
-    MCSymbol *Sym = GetGlobalValueSymbol(I);
+    MCSymbol *Sym = Mang->getSymbol(I);
     
     // Do not emit memcpy, memset, and memmove here.
     // Calls to these routines can be generated in two ways,
@@ -342,7 +342,7 @@ void PIC16AsmPrinter::EmitUndefinedVars(Module &M) {
 
   O << "\n" << MAI->getCommentString() << "Imported Variables - BEGIN" << "\n";
   for (unsigned j = 0; j < Items.size(); j++)
-    O << MAI->getExternDirective() << *GetGlobalValueSymbol(Items[j]) << "\n";
+    O << MAI->getExternDirective() << *Mang->getSymbol(Items[j]) << "\n";
   O << MAI->getCommentString() << "Imported Variables - END" << "\n";
 }
 
@@ -353,7 +353,7 @@ void PIC16AsmPrinter::EmitDefinedVars(Module &M) {
 
   O << "\n" << MAI->getCommentString() << "Exported Variables - BEGIN" << "\n";
   for (unsigned j = 0; j < Items.size(); j++)
-    O << MAI->getGlobalDirective() << *GetGlobalValueSymbol(Items[j]) << "\n";
+    O << MAI->getGlobalDirective() << *Mang->getSymbol(Items[j]) << "\n";
   O <<  MAI->getCommentString() << "Exported Variables - END" << "\n";
 }
 
@@ -432,7 +432,7 @@ void PIC16AsmPrinter::EmitInitializedDataSection(const PIC16Section *S) {
     for (unsigned j = 0; j < Items.size(); j++) {
       Constant *C = Items[j]->getInitializer();
       int AddrSpace = Items[j]->getType()->getAddressSpace();
-      O << *GetGlobalValueSymbol(Items[j]);
+      O << *Mang->getSymbol(Items[j]);
       EmitGlobalConstant(C, AddrSpace);
    }
 }
@@ -451,7 +451,7 @@ EmitUninitializedDataSection(const PIC16Section *S) {
       Constant *C = Items[j]->getInitializer();
       const Type *Ty = C->getType();
       unsigned Size = TD->getTypeAllocSize(Ty);
-      O << *GetGlobalValueSymbol(Items[j]) << " RES " << Size << "\n";
+      O << *Mang->getSymbol(Items[j]) << " RES " << Size << "\n";
     }
 }
 

@@ -12,10 +12,12 @@ add_llvm_library(LLVMSystem
   Process.cpp
   Program.cpp
   RWMutex.cpp
+  SearchForAddressOfSpecialSymbol.cpp
   Signals.cpp
   ThreadLocal.cpp
   Threading.cpp
   TimeValue.cpp
+  Valgrind.cpp
   Unix/Alarm.inc
   Unix/Host.inc
   Unix/Memory.inc

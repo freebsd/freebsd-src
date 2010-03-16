@@ -45,16 +45,16 @@ class SrcLineInfo {
   unsigned Line;                     // Source line number.
   unsigned Column;                   // Source column.
   unsigned SourceID;                 // Source ID number.
-  unsigned LabelID;                  // Label in code ID number.
+  MCSymbol *Label;                   // Label in code ID number.
 public:
-  SrcLineInfo(unsigned L, unsigned C, unsigned S, unsigned I)
-    : Line(L), Column(C), SourceID(S), LabelID(I) {}
+  SrcLineInfo(unsigned L, unsigned C, unsigned S, MCSymbol *label)
+    : Line(L), Column(C), SourceID(S), Label(label) {}
 
   // Accessors
   unsigned getLine() const { return Line; }
   unsigned getColumn() const { return Column; }
   unsigned getSourceID() const { return SourceID; }
-  unsigned getLabelID() const { return LabelID; }
+  MCSymbol *getLabel() const { return Label; }
 };
 
 class DwarfDebug : public DwarfPrinter {
@@ -102,9 +102,12 @@ class DwarfDebug : public DwarfPrinter {
   ///
   std::vector<DIEValue *> DIEValues;
 
-  /// StringPool - A UniqueVector of strings used by indirect references.
-  ///
-  UniqueVector<std::string> StringPool;
+  /// StringPool - A String->Symbol mapping of strings used by indirect
+  /// references.
+  StringMap<std::pair<MCSymbol*, unsigned> > StringPool;
+  unsigned NextStringPoolNumber;
+  
+  MCSymbol *getStringPoolEntry(StringRef Str);
 
   /// SectionMap - Provides a unique id per text section.
   ///
@@ -126,7 +129,8 @@ class DwarfDebug : public DwarfPrinter {
   //
   DbgScope *CurrentFnDbgScope;
   
-  /// DbgScopeMap - Tracks the scopes in the current function.
+  /// DbgScopeMap - Tracks the scopes in the current function.  Owns the
+  /// contained DbgScope*s.
   ///
   DenseMap<MDNode *, DbgScope *> DbgScopeMap;
 
@@ -135,11 +139,12 @@ class DwarfDebug : public DwarfPrinter {
   DenseMap<MDNode *, DbgScope *> ConcreteScopes;
 
   /// AbstractScopes - Tracks the abstract scopes a module. These scopes are
-  /// not included DbgScopeMap.
+  /// not included DbgScopeMap.  AbstractScopes owns its DbgScope*s.
   DenseMap<MDNode *, DbgScope *> AbstractScopes;
   SmallVector<DbgScope *, 4>AbstractScopesList;
 
-  /// AbstractVariables - Collection on abstract variables.
+  /// AbstractVariables - Collection on abstract variables.  Owned by the
+  /// DbgScopes in AbstractScopes.
   DenseMap<MDNode *, DbgVariable *> AbstractVariables;
 
   /// InliendSubprogramDIEs - Collection of subprgram DIEs that are marked
@@ -225,7 +230,7 @@ class DwarfDebug : public DwarfPrinter {
 
   /// createDIEEntry - Creates a new DIEEntry to be a proxy for a debug
   /// information entry.
-  DIEEntry *createDIEEntry(DIE *Entry = NULL);
+  DIEEntry *createDIEEntry(DIE *Entry);
 
   /// addUInt - Add an unsigned integer attribute data and value.
   ///
@@ -356,6 +361,8 @@ class DwarfDebug : public DwarfPrinter {
   /// findAbstractVariable - Find abstract variable associated with Var.
   DbgVariable *findAbstractVariable(DIVariable &Var, unsigned FrameIdx, 
                                     DILocation &Loc);
+  DbgVariable *findAbstractVariable(DIVariable &Var, const MachineInstr *MI,
+                                    DILocation &Loc);
 
   /// updateSubprogramScopeDIE - Find DIE for the given subprogram and 
   /// attach appropriate DW_AT_low_pc and DW_AT_high_pc attributes.
@@ -473,7 +480,7 @@ class DwarfDebug : public DwarfPrinter {
   /// as well.
   unsigned GetOrCreateSourceID(StringRef DirName, StringRef FileName);
 
-  CompileUnit *constructCompileUnit(MDNode *N);
+  void constructCompileUnit(MDNode *N);
 
   void constructGlobalVariableDIE(MDNode *N);
 

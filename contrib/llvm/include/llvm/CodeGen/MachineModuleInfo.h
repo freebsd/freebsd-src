@@ -31,34 +31,31 @@
 #ifndef LLVM_CODEGEN_MACHINEMODULEINFO_H
 #define LLVM_CODEGEN_MACHINEMODULEINFO_H
 
-#include "llvm/Support/Dwarf.h"
-#include "llvm/System/DataTypes.h"
-#include "llvm/ADT/SmallVector.h"
-#include "llvm/ADT/DenseMap.h"
-#include "llvm/ADT/UniqueVector.h"
-#include "llvm/ADT/SmallPtrSet.h"
-#include "llvm/ADT/SmallSet.h"
-#include "llvm/ADT/StringMap.h"
-#include "llvm/CodeGen/MachineLocation.h"
-#include "llvm/GlobalValue.h"
 #include "llvm/Pass.h"
+#include "llvm/GlobalValue.h"
 #include "llvm/Metadata.h"
+#include "llvm/CodeGen/MachineLocation.h"
+#include "llvm/MC/MCContext.h"
+#include "llvm/Support/Dwarf.h"
 #include "llvm/Support/ValueHandle.h"
+#include "llvm/System/DataTypes.h"
+#include "llvm/ADT/DenseMap.h"
+#include "llvm/ADT/PointerIntPair.h"
+#include "llvm/ADT/SmallPtrSet.h"
+#include "llvm/ADT/SmallVector.h"
 
 namespace llvm {
 
 //===----------------------------------------------------------------------===//
 // Forward declarations.
 class Constant;
-class MCSymbol;
-class MDNode;
 class GlobalVariable;
+class MDNode;
 class MachineBasicBlock;
 class MachineFunction;
 class Module;
 class PointerType;
 class StructType;
-  
   
 /// MachineModuleInfoImpl - This class can be derived from and used by targets
 /// to hold private target-specific information for each Module.  Objects of
@@ -66,13 +63,11 @@ class StructType;
 /// MachineModuleInfo is destroyed.
 class MachineModuleInfoImpl {
 public:
+  typedef PointerIntPair<MCSymbol*, 1, bool> StubValueTy;
   virtual ~MachineModuleInfoImpl();
-
-  typedef std::vector<std::pair<MCSymbol*, MCSymbol*> >
-      SymbolListTy;
+  typedef std::vector<std::pair<MCSymbol*, StubValueTy> > SymbolListTy;
 protected:
-    static SymbolListTy
-    GetSortedStubs(const DenseMap<MCSymbol*, MCSymbol*> &Map);
+  static SymbolListTy GetSortedStubs(const DenseMap<MCSymbol*, StubValueTy>&);
 };
   
   
@@ -82,37 +77,33 @@ protected:
 /// the current function.
 ///
 struct LandingPadInfo {
-  MachineBasicBlock *LandingPadBlock;   // Landing pad block.
-  SmallVector<unsigned, 1> BeginLabels; // Labels prior to invoke.
-  SmallVector<unsigned, 1> EndLabels;   // Labels after invoke.
-  unsigned LandingPadLabel;             // Label at beginning of landing pad.
-  Function *Personality;                // Personality function.
-  std::vector<int> TypeIds;             // List of type ids (filters negative)
+  MachineBasicBlock *LandingPadBlock;    // Landing pad block.
+  SmallVector<MCSymbol*, 1> BeginLabels; // Labels prior to invoke.
+  SmallVector<MCSymbol*, 1> EndLabels;   // Labels after invoke.
+  MCSymbol *LandingPadLabel;             // Label at beginning of landing pad.
+  Function *Personality;                 // Personality function.
+  std::vector<int> TypeIds;              // List of type ids (filters negative)
 
   explicit LandingPadInfo(MachineBasicBlock *MBB)
-  : LandingPadBlock(MBB)
-  , LandingPadLabel(0)
-  , Personality(NULL)  
-  {}
+    : LandingPadBlock(MBB), LandingPadLabel(0), Personality(0) {}
 };
 
+class MMIAddrLabelMap;
+  
 //===----------------------------------------------------------------------===//
 /// MachineModuleInfo - This class contains meta information specific to a
 /// module.  Queries can be made by different debugging and exception handling 
 /// schemes and reformated for specific use.
 ///
 class MachineModuleInfo : public ImmutablePass {
+  /// Context - This is the MCContext used for the entire code generator.
+  MCContext Context;
+  
   /// ObjFileMMI - This is the object-file-format-specific implementation of
   /// MachineModuleInfoImpl, which lets targets accumulate whatever info they
   /// want.
   MachineModuleInfoImpl *ObjFileMMI;
 
-  // LabelIDList - One entry per assigned label.  Normally the entry is equal to
-  // the list index(+1).  If the entry is zero then the label has been deleted.
-  // Any other value indicates the label has been deleted by is mapped to
-  // another label.
-  std::vector<unsigned> LabelIDList;
-  
   // FrameMoves - List of moves done by a function's prolog.  Used to construct
   // frame maps by debug and exception handling consumers.
   std::vector<MachineMove> FrameMoves;
@@ -123,7 +114,7 @@ class MachineModuleInfo : public ImmutablePass {
 
   // Map of invoke call site index values to associated begin EH_LABEL for
   // the current function.
-  DenseMap<unsigned, unsigned> CallSiteMap;
+  DenseMap<MCSymbol*, unsigned> CallSiteMap;
 
   // The current call site index being processed, if any. 0 if none.
   unsigned CurCallSite;
@@ -150,6 +141,11 @@ class MachineModuleInfo : public ImmutablePass {
   /// llvm.compiler.used.
   SmallPtrSet<const Function *, 32> UsedFunctions;
 
+  
+  /// AddrLabelSymbols - This map keeps track of which symbol is being used for
+  /// the specified basic block's address of label.
+  MMIAddrLabelMap *AddrLabelSymbols;
+  
   bool CallsEHReturn;
   bool CallsUnwindInit;
  
@@ -165,7 +161,8 @@ public:
     VariableDbgInfoMapTy;
   VariableDbgInfoMapTy VariableDbgInfo;
 
-  MachineModuleInfo();
+  MachineModuleInfo();  // DUMMY CONSTRUCTOR, DO NOT CALL.
+  MachineModuleInfo(const MCAsmInfo &MAI);  // Real constructor.
   ~MachineModuleInfo();
   
   bool doInitialization();
@@ -174,6 +171,9 @@ public:
   /// EndFunction - Discard function meta information.
   ///
   void EndFunction();
+  
+  const MCContext &getContext() const { return Context; }
+  MCContext &getContext() { return Context; }
 
   /// getInfo - Keep track of various per-function pieces of information for
   /// backends that would like to do so.
@@ -205,37 +205,30 @@ public:
   bool callsUnwindInit() const { return CallsUnwindInit; }
   void setCallsUnwindInit(bool b) { CallsUnwindInit = b; }
   
-  /// NextLabelID - Return the next unique label id.
-  ///
-  unsigned NextLabelID() {
-    unsigned ID = (unsigned)LabelIDList.size() + 1;
-    LabelIDList.push_back(ID);
-    return ID;
-  }
-  
-  /// InvalidateLabel - Inhibit use of the specified label # from
-  /// MachineModuleInfo, for example because the code was deleted.
-  void InvalidateLabel(unsigned LabelID) {
-    // Remap to zero to indicate deletion.
-    assert(0 < LabelID && LabelID <= LabelIDList.size() &&
-           "Old label ID out of range.");
-    LabelIDList[LabelID - 1] = 0;
-  }
-  
-  /// isLabelDeleted - Return true if the label was deleted.
-  /// FIXME: This should eventually be eliminated and use the 'is emitted' bit
-  /// on MCSymbol.
-  bool isLabelDeleted(unsigned LabelID) const {
-    assert(LabelID <= LabelIDList.size() && "Debug label ID out of range.");
-    return LabelID == 0 || LabelIDList[LabelID - 1] == 0;
-  }
-  
   /// getFrameMoves - Returns a reference to a list of moves done in the current
   /// function's prologue.  Used to construct frame maps for debug and exception
   /// handling comsumers.
   std::vector<MachineMove> &getFrameMoves() { return FrameMoves; }
   
-  //===-EH-----------------------------------------------------------------===//
+  /// getAddrLabelSymbol - Return the symbol to be used for the specified basic
+  /// block when its address is taken.  This cannot be its normal LBB label
+  /// because the block may be accessed outside its containing function.
+  MCSymbol *getAddrLabelSymbol(const BasicBlock *BB);
+
+  /// getAddrLabelSymbolToEmit - Return the symbol to be used for the specified
+  /// basic block when its address is taken.  If other blocks were RAUW'd to
+  /// this one, we may have to emit them as well, return the whole set.
+  std::vector<MCSymbol*> getAddrLabelSymbolToEmit(const BasicBlock *BB);
+  
+  /// takeDeletedSymbolsForFunction - If the specified function has had any
+  /// references to address-taken blocks generated, but the block got deleted,
+  /// return the symbol now so we can emit it.  This prevents emitting a
+  /// reference to a symbol that has no definition.
+  void takeDeletedSymbolsForFunction(const Function *F, 
+                                     std::vector<MCSymbol*> &Result);
+
+  
+  //===- EH ---------------------------------------------------------------===//
 
   /// getOrCreateLandingPadInfo - Find or create an LandingPadInfo for the
   /// specified MachineBasicBlock.
@@ -243,12 +236,12 @@ public:
 
   /// addInvoke - Provide the begin and end labels of an invoke style call and
   /// associate it with a try landing pad block.
-  void addInvoke(MachineBasicBlock *LandingPad, unsigned BeginLabel,
-                                                unsigned EndLabel);
+  void addInvoke(MachineBasicBlock *LandingPad,
+                 MCSymbol *BeginLabel, MCSymbol *EndLabel);
   
   /// addLandingPad - Add a new panding pad.  Returns the label ID for the 
   /// landing pad entry.
-  unsigned addLandingPad(MachineBasicBlock *LandingPad);
+  MCSymbol *addLandingPad(MachineBasicBlock *LandingPad);
   
   /// addPersonality - Provide the personality function for the exception
   /// information.
@@ -303,12 +296,12 @@ public:
   }
 
   /// setCallSiteBeginLabel - Map the begin label for a call site
-  void setCallSiteBeginLabel(unsigned BeginLabel, unsigned Site) {
+  void setCallSiteBeginLabel(MCSymbol *BeginLabel, unsigned Site) {
     CallSiteMap[BeginLabel] = Site;
   }
 
   /// getCallSiteBeginLabel - Get the call site number for a begin label
-  unsigned getCallSiteBeginLabel(unsigned BeginLabel) {
+  unsigned getCallSiteBeginLabel(MCSymbol *BeginLabel) {
     assert(CallSiteMap.count(BeginLabel) &&
            "Missing call site number for EH_LABEL!");
     return CallSiteMap[BeginLabel];
