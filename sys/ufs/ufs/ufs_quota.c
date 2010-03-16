@@ -508,6 +508,9 @@ quotaon(struct thread *td, struct mount *mp, int type, void *fname)
 	if (error)
 		return (error);
 
+	if (mp->mnt_flag & MNT_RDONLY)
+		return (EROFS);
+
 	ump = VFSTOUFS(mp);
 	dq = NODQUOT;
 
@@ -534,7 +537,9 @@ quotaon(struct thread *td, struct mount *mp, int type, void *fname)
 		return (EALREADY);
 	}
 	ump->um_qflags[type] |= QTF_OPENING|QTF_CLOSING;
+	UFS_UNLOCK(ump);
 	if ((error = dqopen(vp, ump, type)) != 0) {
+		UFS_LOCK(ump);
 		ump->um_qflags[type] &= ~(QTF_OPENING|QTF_CLOSING);
 		UFS_UNLOCK(ump);
 		(void) vn_close(vp, FREAD|FWRITE, td->td_ucred, td);
@@ -544,7 +549,6 @@ quotaon(struct thread *td, struct mount *mp, int type, void *fname)
 	MNT_ILOCK(mp);
 	mp->mnt_flag |= MNT_QUOTA;
 	MNT_IUNLOCK(mp);
-	UFS_UNLOCK(ump);
 
 	vpp = &ump->um_quotas[type];
 	if (*vpp != vp)
@@ -989,6 +993,30 @@ setuse(struct thread *td, struct mount *mp, u_long id, int type, void *addr)
 }
 
 /*
+ * Q_GETQUOTASIZE - get bit-size of quota file fields
+ */
+int
+getquotasize(struct thread *td, struct mount *mp, u_long id, int type,
+    void *sizep)
+{
+	struct ufsmount *ump = VFSTOUFS(mp);
+	int bitsize;
+
+	UFS_LOCK(ump);
+	if (ump->um_quotas[type] == NULLVP ||
+	    (ump->um_qflags[type] & QTF_CLOSING)) {
+		UFS_UNLOCK(ump);
+		return (EINVAL);
+	}
+	if ((ump->um_qflags[type] & QTF_64BIT) != 0)
+		bitsize = 64;
+	else
+		bitsize = 32;
+	UFS_UNLOCK(ump);
+	return (copyout(&bitsize, sizep, sizeof(int)));
+}
+
+/*
  * Q_SYNC - sync quota files to disk.
  */
 int
@@ -1163,12 +1191,17 @@ dqopen(struct vnode *vp, struct ufsmount *ump, int type)
 		return (0);
 	}
 
+	UFS_LOCK(ump);
 	if (strcmp(dqh.dqh_magic, Q_DQHDR64_MAGIC) == 0 &&
 	    be32toh(dqh.dqh_version) == Q_DQHDR64_VERSION &&
 	    be32toh(dqh.dqh_hdrlen) == (uint32_t)sizeof(struct dqhdr64) &&
-	    be32toh(dqh.dqh_reclen) == (uint32_t)sizeof(struct dqblk64))
+	    be32toh(dqh.dqh_reclen) == (uint32_t)sizeof(struct dqblk64)) {
+		/* XXX: what if the magic matches, but the sizes are wrong? */
 		ump->um_qflags[type] |= QTF_64BIT;
-	/* XXX: what if the magic matches, but the sizes are wrong? */
+	} else {
+		ump->um_qflags[type] &= ~QTF_64BIT;
+	}
+	UFS_UNLOCK(ump);
 
 	return (0);
 }

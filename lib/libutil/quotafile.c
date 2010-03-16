@@ -129,11 +129,9 @@ quota_open(struct fstab *fs, int quotatype, int openflags)
 		goto error;
 	qf->dev = st.st_dev;
 	serrno = hasquota(fs, quotatype, qf->qfname, sizeof(qf->qfname));
-	qcmd = QCMD(Q_GETQUOTA, quotatype);
-	if (quotactl(fs->fs_file, qcmd, 0, &dqh) == 0) {
-		qf->wordsize = 64;
+	qcmd = QCMD(Q_GETQUOTASIZE, quotatype);
+	if (quotactl(qf->fsname, qcmd, 0, &qf->wordsize) == 0)
 		return (qf);
-	}
 	if (serrno == 0) {
 		errno = EOPNOTSUPP;
 		goto error;
@@ -250,18 +248,22 @@ int
 quota_maxid(struct quotafile *qf)
 {
 	struct stat st;
+	int maxid;
 
 	if (stat(qf->qfname, &st) < 0)
 		return (0);
 	switch (qf->wordsize) {
 	case 32:
-		return (st.st_size / sizeof(struct dqblk32) - 1);
+		maxid = st.st_size / sizeof(struct dqblk32) - 1;
+		break;
 	case 64:
-		return (st.st_size / sizeof(struct dqblk64) - 2);
+		maxid = st.st_size / sizeof(struct dqblk64) - 2;
+		break;
 	default:
-		return (0);
+		maxid = 0;
+		break;
 	}
-	/* not reached */
+	return (maxid > 0 ? maxid : 0);
 }
 
 static int
@@ -395,10 +397,6 @@ quota_write_usage(struct quotafile *qf, struct dqblk *dqb, int id)
 	struct dqblk dqbuf;
 	int qcmd;
 
-	if ((qf->accmode & O_RDWR) != O_RDWR) {
-		errno = EBADF;
-		return (-1);
-	}
 	if (qf->fd == -1) {
 		qcmd = QCMD(Q_SETUSE, qf->quotatype);
 		return (quotactl(qf->fsname, qcmd, id, dqb));
@@ -406,6 +404,10 @@ quota_write_usage(struct quotafile *qf, struct dqblk *dqb, int id)
 	/*
 	 * Have to do read-modify-write of quota in file.
 	 */
+	if ((qf->accmode & O_RDWR) != O_RDWR) {
+		errno = EBADF;
+		return (-1);
+	}
 	if (quota_read(qf, &dqbuf, id) != 0)
 		return (-1);
 	/*
@@ -443,10 +445,6 @@ quota_write_limits(struct quotafile *qf, struct dqblk *dqb, int id)
 	struct dqblk dqbuf;
 	int qcmd;
 
-	if ((qf->accmode & O_RDWR) != O_RDWR) {
-		errno = EBADF;
-		return (-1);
-	}
 	if (qf->fd == -1) {
 		qcmd = QCMD(Q_SETQUOTA, qf->quotatype);
 		return (quotactl(qf->fsname, qcmd, id, dqb));
@@ -454,6 +452,10 @@ quota_write_limits(struct quotafile *qf, struct dqblk *dqb, int id)
 	/*
 	 * Have to do read-modify-write of quota in file.
 	 */
+	if ((qf->accmode & O_RDWR) != O_RDWR) {
+		errno = EBADF;
+		return (-1);
+	}
 	if (quota_read(qf, &dqbuf, id) != 0)
 		return (-1);
 	/*
