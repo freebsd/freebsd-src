@@ -15,20 +15,13 @@ MK_SSP=	no
 
 .include "${.CURDIR}/../../usr.bin/cc/Makefile.tgt"
 
-# XXX: a few C++ related GCC builtins are missing
-# http://llvm.org/bugs/show_bug.cgi?id=5255
-CC:=${CC:C/^cc|^clang/gcc/}
-.if ${CC:M*lib32*}
-CC:=${CC:C/-B(.*)/-B\1\/usr\/lib32 /}
-.endif
-
 .PATH: ${GCCDIR}/config/${GCC_CPU} ${GCCDIR}/config ${GCCDIR}
 
 CFLAGS+=	-DIN_GCC -DIN_LIBGCC2 -D__GCC_FLOAT_NOT_NEEDED \
 		-DHAVE_GTHR_DEFAULT \
 		-I${GCCLIB}/include \
 		-I${GCCDIR}/config -I${GCCDIR} -I. \
-		-I${.CURDIR}/../../usr.bin/cc/cc_tools
+		-I${.CURDIR}/../../usr.bin/cc/cc_tools -fheinous-gnu-extensions
 
 LDFLAGS+=	-nodefaultlibs
 LDADD+=		-lc
