@@ -7,7 +7,8 @@
 //
 //===----------------------------------------------------------------------===//
 //
-//  This file defines the C++ Decl subclasses.
+//  This file defines the C++ Decl subclasses, other than those for
+//  templates (in DeclTemplate.h) and friends (in DeclFriend.h).
 //
 //===----------------------------------------------------------------------===//
 
@@ -32,6 +33,7 @@ class CXXDestructorDecl;
 class CXXMethodDecl;
 class CXXRecordDecl;
 class CXXMemberLookupCriteria;
+class FriendDecl;
   
 /// \brief Represents any kind of function declaration, whether it is a
 /// concrete function or a function template.
@@ -298,6 +300,11 @@ class CXXRecordDecl : public RecordDecl {
     /// Definition - The declaration which defines this record.
     CXXRecordDecl *Definition;
 
+    /// FirstFriend - The first friend declaration in this class, or
+    /// null if there aren't any.  This is actually currently stored
+    /// in reverse order.
+    FriendDecl *FirstFriend;
+
   } *DefinitionData;
 
   struct DefinitionData &data() {
@@ -321,12 +328,6 @@ class CXXRecordDecl : public RecordDecl {
   /// instantiated or specialized.
   llvm::PointerUnion<ClassTemplateDecl*, MemberSpecializationInfo*>
     TemplateOrInstantiation;
-  
-  void getNestedVisibleConversionFunctions(CXXRecordDecl *RD,
-          const llvm::SmallPtrSet<CanQualType, 8> &TopConversionsTypeSet,
-          const llvm::SmallPtrSet<CanQualType, 8> &HiddenConversionTypes);
-  void collectConversionFunctions(
-    llvm::SmallPtrSet<CanQualType, 8>& ConversionsTypeSet) const;
   
 protected:
   CXXRecordDecl(Kind K, TagKind TK, DeclContext *DC,
@@ -458,6 +459,13 @@ public:
     return ctor_iterator(decls_end());
   }
 
+  /// An iterator over friend declarations.  All of these are defined
+  /// in DeclFriend.h.
+  class friend_iterator;
+  friend_iterator friend_begin() const;
+  friend_iterator friend_end() const;
+  void pushFriendDecl(FriendDecl *FD);
+
   /// hasConstCopyConstructor - Determines whether this class has a
   /// copy constructor that accepts a const-qualified argument.
   bool hasConstCopyConstructor(ASTContext &Context) const;
@@ -545,14 +553,6 @@ public:
   /// in current class; including conversion function templates.
   const UnresolvedSetImpl *getVisibleConversionFunctions();
 
-  /// addVisibleConversionFunction - Add a new conversion function to the
-  /// list of visible conversion functions.
-  void addVisibleConversionFunction(CXXConversionDecl *ConvDecl);
-  
-  /// \brief Add a new conversion function template to the list of visible
-  /// conversion functions.
-  void addVisibleConversionFunction(FunctionTemplateDecl *ConvDecl);
-  
   /// addConversionFunction - Add a new conversion function to the
   /// list of conversion functions.
   void addConversionFunction(CXXConversionDecl *ConvDecl);
@@ -1383,77 +1383,6 @@ public:
   static bool classof(const Decl *D) { return classofKind(D->getKind()); }
   static bool classof(const CXXConversionDecl *D) { return true; }
   static bool classofKind(Kind K) { return K == CXXConversion; }
-};
-
-/// FriendDecl - Represents the declaration of a friend entity,
-/// which can be a function, a type, or a templated function or type.
-//  For example:
-///
-/// @code
-/// template <typename T> class A {
-///   friend int foo(T);
-///   friend class B;
-///   friend T; // only in C++0x
-///   template <typename U> friend class C;
-///   template <typename U> friend A& operator+=(A&, const U&) { ... }
-/// };
-/// @endcode
-///
-/// The semantic context of a friend decl is its declaring class.
-class FriendDecl : public Decl {
-public:
-  typedef llvm::PointerUnion<NamedDecl*,Type*> FriendUnion;
-
-private:
-  // The declaration that's a friend of this class.
-  FriendUnion Friend;
-
-  // Location of the 'friend' specifier.
-  SourceLocation FriendLoc;
-
-  // FIXME: Hack to keep track of whether this was a friend function
-  // template specialization.
-  bool WasSpecialization;
-
-  FriendDecl(DeclContext *DC, SourceLocation L, FriendUnion Friend,
-             SourceLocation FriendL)
-    : Decl(Decl::Friend, DC, L),
-      Friend(Friend),
-      FriendLoc(FriendL),
-      WasSpecialization(false) {
-  }
-
-public:
-  static FriendDecl *Create(ASTContext &C, DeclContext *DC,
-                            SourceLocation L, FriendUnion Friend_,
-                            SourceLocation FriendL);
-
-  /// If this friend declaration names an (untemplated but
-  /// possibly dependent) type, return the type;  otherwise
-  /// return null.  This is used only for C++0x's unelaborated
-  /// friend type declarations.
-  Type *getFriendType() const {
-    return Friend.dyn_cast<Type*>();
-  }
-
-  /// If this friend declaration doesn't name an unelaborated
-  /// type, return the inner declaration.
-  NamedDecl *getFriendDecl() const {
-    return Friend.dyn_cast<NamedDecl*>();
-  }
-
-  /// Retrieves the location of the 'friend' keyword.
-  SourceLocation getFriendLoc() const {
-    return FriendLoc;
-  }
-
-  bool wasSpecialization() const { return WasSpecialization; }
-  void setSpecialization(bool WS) { WasSpecialization = WS; }
-
-  // Implement isa/cast/dyncast/etc.
-  static bool classof(const Decl *D) { return classofKind(D->getKind()); }
-  static bool classof(const FriendDecl *D) { return true; }
-  static bool classofKind(Kind K) { return K == Decl::Friend; }
 };
 
 /// LinkageSpecDecl - This represents a linkage specification.  For example:

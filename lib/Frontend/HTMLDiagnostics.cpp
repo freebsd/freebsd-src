@@ -40,13 +40,13 @@ class HTMLDiagnostics : public PathDiagnosticClient {
   std::vector<const PathDiagnostic*> BatchedDiags;
 public:
   HTMLDiagnostics(const std::string& prefix, const Preprocessor &pp);
-  
+
   virtual ~HTMLDiagnostics() { FlushDiagnostics(NULL); }
-  
+
   virtual void FlushDiagnostics(llvm::SmallVectorImpl<std::string> *FilesMade);
 
   virtual void HandlePathDiagnostic(const PathDiagnostic* D);
-  
+
   virtual llvm::StringRef getName() const {
     return "HTMLDiagnostics";
   }
@@ -108,7 +108,7 @@ HTMLDiagnostics::FlushDiagnostics(llvm::SmallVectorImpl<std::string> *FilesMade)
     ReportDiag(*D, FilesMade);
     delete D;
   }
-  
+
   BatchedDiags.clear();
 }
 
@@ -294,7 +294,7 @@ void HTMLDiagnostics::ReportDiag(const PathDiagnostic& D,
   llvm::raw_fd_ostream os(H.c_str(), ErrorMsg);
 
   if (!ErrorMsg.empty()) {
-    (llvm::errs() << "warning: could not create file '" << F.str() 
+    (llvm::errs() << "warning: could not create file '" << F.str()
                   << "'\n").flush();
     return;
   }
@@ -439,10 +439,10 @@ void HTMLDiagnostics::HandlePiece(Rewriter& R, FileID BugFileID,
     {
       FullSourceLoc L = MP->getLocation().asLocation().getInstantiationLoc();
       assert(L.isFileID());
-      std::pair<const char*, const char*> BufferInfo = L.getBufferData();
-      const char* MacroName = L.getDecomposedLoc().second + BufferInfo.first;
-      Lexer rawLexer(L, PP.getLangOptions(), BufferInfo.first,
-                     MacroName, BufferInfo.second);
+      llvm::StringRef BufferInfo = L.getBufferData();
+      const char* MacroName = L.getDecomposedLoc().second + BufferInfo.data();
+      Lexer rawLexer(L, PP.getLangOptions(), BufferInfo.begin(),
+                     MacroName, BufferInfo.end());
 
       Token TheTok;
       rawLexer.LexFromRawLexer(TheTok);
@@ -502,19 +502,13 @@ void HTMLDiagnostics::HandlePiece(Rewriter& R, FileID BugFileID,
 }
 
 static void EmitAlphaCounter(llvm::raw_ostream& os, unsigned n) {
-  llvm::SmallVector<char, 10> buf;
+  unsigned x = n % ('z' - 'a');
+  n /= 'z' - 'a';
 
-  do {
-    unsigned x = n % ('z' - 'a');
-    buf.push_back('a' + x);
-    n = n / ('z' - 'a');
-  } while (n);
+  if (n > 0)
+    EmitAlphaCounter(os, n);
 
-  assert(!buf.empty());
-
-  for (llvm::SmallVectorImpl<char>::reverse_iterator I=buf.rbegin(),
-       E=buf.rend(); I!=E; ++I)
-    os << *I;
+  os << char('a' + x);
 }
 
 unsigned HTMLDiagnostics::ProcessMacroPiece(llvm::raw_ostream& os,

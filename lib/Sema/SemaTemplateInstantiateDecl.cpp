@@ -17,6 +17,7 @@
 #include "clang/AST/DeclVisitor.h"
 #include "clang/AST/Expr.h"
 #include "clang/AST/ExprCXX.h"
+#include "clang/AST/TypeLoc.h"
 #include "clang/Basic/PrettyStackTrace.h"
 #include "clang/Lex/Preprocessor.h"
 
@@ -89,18 +90,55 @@ namespace {
     }
 
     // Helper functions for instantiating methods.
-    QualType SubstFunctionType(FunctionDecl *D,
+    TypeSourceInfo *SubstFunctionType(FunctionDecl *D,
                              llvm::SmallVectorImpl<ParmVarDecl *> &Params);
     bool InitFunctionInstantiation(FunctionDecl *New, FunctionDecl *Tmpl);
     bool InitMethodInstantiation(CXXMethodDecl *New, CXXMethodDecl *Tmpl);
 
     TemplateParameterList *
       SubstTemplateParams(TemplateParameterList *List);
+
+    bool SubstQualifier(const DeclaratorDecl *OldDecl,
+                        DeclaratorDecl *NewDecl);
+    bool SubstQualifier(const TagDecl *OldDecl,
+                        TagDecl *NewDecl);
       
     bool InstantiateClassTemplatePartialSpecialization(
                                               ClassTemplateDecl *ClassTemplate,
                            ClassTemplatePartialSpecializationDecl *PartialSpec);
   };
+}
+
+bool TemplateDeclInstantiator::SubstQualifier(const DeclaratorDecl *OldDecl,
+                                              DeclaratorDecl *NewDecl) {
+  NestedNameSpecifier *OldQual = OldDecl->getQualifier();
+  if (!OldQual) return false;
+
+  SourceRange QualRange = OldDecl->getQualifierRange();
+
+  NestedNameSpecifier *NewQual
+    = SemaRef.SubstNestedNameSpecifier(OldQual, QualRange, TemplateArgs);
+  if (!NewQual)
+    return true;
+
+  NewDecl->setQualifierInfo(NewQual, QualRange);
+  return false;
+}
+
+bool TemplateDeclInstantiator::SubstQualifier(const TagDecl *OldDecl,
+                                              TagDecl *NewDecl) {
+  NestedNameSpecifier *OldQual = OldDecl->getQualifier();
+  if (!OldQual) return false;
+
+  SourceRange QualRange = OldDecl->getQualifierRange();
+
+  NestedNameSpecifier *NewQual
+    = SemaRef.SubstNestedNameSpecifier(OldQual, QualRange, TemplateArgs);
+  if (!NewQual)
+    return true;
+
+  NewDecl->setQualifierInfo(NewQual, QualRange);
+  return false;
 }
 
 // FIXME: Is this too simple?
@@ -285,6 +323,10 @@ Decl *TemplateDeclInstantiator::VisitVarDecl(VarDecl *D) {
   Var->setThreadSpecified(D->isThreadSpecified());
   Var->setCXXDirectInitializer(D->hasCXXDirectInitializer());
   Var->setDeclaredInCondition(D->isDeclaredInCondition());
+
+  // Substitute the nested name specifier, if any.
+  if (SubstQualifier(D, Var))
+    return 0;
 
   // If we are instantiating a static data member defined
   // out-of-line, the instantiation will have the same lexical
@@ -510,6 +552,7 @@ Decl *TemplateDeclInstantiator::VisitEnumDecl(EnumDecl *D) {
                                     /*PrevDecl=*/0);
   Enum->setInstantiationOfMemberEnum(D);
   Enum->setAccess(D->getAccess());
+  if (SubstQualifier(D, Enum)) return 0;
   Owner->addDecl(Enum);
   Enum->startDefinition();
 
@@ -609,6 +652,10 @@ Decl *TemplateDeclInstantiator::VisitClassTemplateDecl(ClassTemplateDecl *D) {
                             Pattern->getLocation(), Pattern->getIdentifier(),
                             Pattern->getTagKeywordLoc(), /*PrevDecl=*/ NULL,
                             /*DelayTypeCreation=*/true);
+
+  // Substitute the nested name specifier, if any.
+  if (SubstQualifier(Pattern, RecordInst))
+    return 0;
 
   ClassTemplateDecl *Inst
     = ClassTemplateDecl::Create(SemaRef.Context, Owner, D->getLocation(),
@@ -744,6 +791,11 @@ Decl *TemplateDeclInstantiator::VisitCXXRecordDecl(CXXRecordDecl *D) {
     = CXXRecordDecl::Create(SemaRef.Context, D->getTagKind(), Owner,
                             D->getLocation(), D->getIdentifier(),
                             D->getTagKeywordLoc(), PrevDecl);
+
+  // Substitute the nested name specifier, if any.
+  if (SubstQualifier(D, Record))
+    return 0;
+
   Record->setImplicit(D->isImplicit());
   // FIXME: Check against AS_none is an ugly hack to work around the issue that
   // the tag decls introduced by friend class declarations don't have an access
@@ -797,9 +849,11 @@ Decl *TemplateDeclInstantiator::VisitFunctionDecl(FunctionDecl *D,
   Sema::LocalInstantiationScope Scope(SemaRef, MergeWithParentScope);
 
   llvm::SmallVector<ParmVarDecl *, 4> Params;
-  QualType T = SubstFunctionType(D, Params);
-  if (T.isNull())
+  TypeSourceInfo *TInfo = D->getTypeSourceInfo();
+  TInfo = SubstFunctionType(D, Params);
+  if (!TInfo)
     return 0;
+  QualType T = TInfo->getType();
 
   // If we're instantiating a local function declaration, put the result
   // in the owner;  otherwise we need to find the instantiated context.
@@ -812,9 +866,14 @@ Decl *TemplateDeclInstantiator::VisitFunctionDecl(FunctionDecl *D,
 
   FunctionDecl *Function =
       FunctionDecl::Create(SemaRef.Context, DC, D->getLocation(),
-                           D->getDeclName(), T, D->getTypeSourceInfo(),
+                           D->getDeclName(), T, TInfo,
                            D->getStorageClass(),
                            D->isInlineSpecified(), D->hasWrittenPrototype());
+
+  // Substitute the nested name specifier, if any.
+  if (SubstQualifier(D, Function))
+    return 0;
+
   Function->setLexicalDeclContext(Owner);
 
   // Attach the parameters
@@ -932,9 +991,11 @@ TemplateDeclInstantiator::VisitCXXMethodDecl(CXXMethodDecl *D,
   Sema::LocalInstantiationScope Scope(SemaRef, MergeWithParentScope);
 
   llvm::SmallVector<ParmVarDecl *, 4> Params;
-  QualType T = SubstFunctionType(D, Params);
-  if (T.isNull())
+  TypeSourceInfo *TInfo = D->getTypeSourceInfo();
+  TInfo = SubstFunctionType(D, Params);
+  if (!TInfo)
     return 0;
+  QualType T = TInfo->getType();
 
   // Build the instantiated method declaration.
   CXXRecordDecl *Record = cast<CXXRecordDecl>(Owner);
@@ -947,8 +1008,7 @@ TemplateDeclInstantiator::VisitCXXMethodDecl(CXXMethodDecl *D,
                                     SemaRef.Context.getCanonicalType(ClassTy));
     Method = CXXConstructorDecl::Create(SemaRef.Context, Record,
                                         Constructor->getLocation(),
-                                        Name, T,
-                                        Constructor->getTypeSourceInfo(),
+                                        Name, T, TInfo,
                                         Constructor->isExplicit(),
                                         Constructor->isInlineSpecified(), false);
   } else if (CXXDestructorDecl *Destructor = dyn_cast<CXXDestructorDecl>(D)) {
@@ -966,14 +1026,18 @@ TemplateDeclInstantiator::VisitCXXMethodDecl(CXXMethodDecl *D,
                                                                       ConvTy);
     Method = CXXConversionDecl::Create(SemaRef.Context, Record,
                                        Conversion->getLocation(), Name,
-                                       T, Conversion->getTypeSourceInfo(),
+                                       T, TInfo,
                                        Conversion->isInlineSpecified(),
                                        Conversion->isExplicit());
   } else {
     Method = CXXMethodDecl::Create(SemaRef.Context, Record, D->getLocation(),
-                                   D->getDeclName(), T, D->getTypeSourceInfo(),
+                                   D->getDeclName(), T, TInfo,
                                    D->isStatic(), D->isInlineSpecified());
   }
+
+  // Substitute the nested name specifier, if any.
+  if (SubstQualifier(D, Method))
+    return 0;
 
   if (TemplateParams) {
     // Our resulting instantiation is actually a function template, since we
@@ -1504,6 +1568,10 @@ TemplateDeclInstantiator::InstantiateClassTemplatePartialSpecialization(
                                                      InstTemplateArgs,
                                                      CanonType,
                                                      0);
+  // Substitute the nested name specifier, if any.
+  if (SubstQualifier(PartialSpec, InstPartialSpec))
+    return 0;
+
   InstPartialSpec->setInstantiatedFromMember(PartialSpec);
   InstPartialSpec->setTypeAsWritten(WrittenTy);
   
@@ -1514,60 +1582,49 @@ TemplateDeclInstantiator::InstantiateClassTemplatePartialSpecialization(
   return false;
 }
 
-/// \brief Does substitution on the type of the given function, including
-/// all of the function parameters.
-///
-/// \param D The function whose type will be the basis of the substitution
-///
-/// \param Params the instantiated parameter declarations
+bool
+Sema::CheckInstantiatedParams(llvm::SmallVectorImpl<ParmVarDecl*> &Params) {
+  bool Invalid = false;
+  for (unsigned i = 0, i_end = Params.size(); i != i_end; ++i)
+    if (ParmVarDecl *PInst = Params[i]) {
+      if (PInst->isInvalidDecl())
+        Invalid = true;
+      else if (PInst->getType()->isVoidType()) {
+        Diag(PInst->getLocation(), diag::err_param_with_void_type);
+        PInst->setInvalidDecl();
+        Invalid = true;
+      }
+      else if (RequireNonAbstractType(PInst->getLocation(),
+                                      PInst->getType(),
+                                      diag::err_abstract_type_in_decl,
+                                      Sema::AbstractParamType)) {
+        PInst->setInvalidDecl();
+        Invalid = true;
+      }
+    }
+  return Invalid;
+}
 
-/// \returns the instantiated function's type if successful, a NULL
-/// type if there was an error.
-QualType
+TypeSourceInfo*
 TemplateDeclInstantiator::SubstFunctionType(FunctionDecl *D,
                               llvm::SmallVectorImpl<ParmVarDecl *> &Params) {
-  bool InvalidDecl = false;
+  TypeSourceInfo *OldTInfo = D->getTypeSourceInfo();
+  assert(OldTInfo && "substituting function without type source info");
+  assert(Params.empty() && "parameter vector is non-empty at start");
+  TypeSourceInfo *NewTInfo = SemaRef.SubstType(OldTInfo, TemplateArgs,
+                                               D->getTypeSpecStartLoc(),
+                                               D->getDeclName());
+  if (!NewTInfo)
+    return 0;
 
-  // Substitute all of the function's formal parameter types.
-  TemplateDeclInstantiator ParamInstantiator(SemaRef, 0, TemplateArgs);
-  llvm::SmallVector<QualType, 4> ParamTys;
-  for (FunctionDecl::param_iterator P = D->param_begin(),
-                                 PEnd = D->param_end();
-       P != PEnd; ++P) {
-    if (ParmVarDecl *PInst = ParamInstantiator.VisitParmVarDecl(*P)) {
-      if (PInst->getType()->isVoidType()) {
-        SemaRef.Diag(PInst->getLocation(), diag::err_param_with_void_type);
-        PInst->setInvalidDecl();
-      } else if (SemaRef.RequireNonAbstractType(PInst->getLocation(),
-                                                PInst->getType(),
-                                                diag::err_abstract_type_in_decl,
-                                                Sema::AbstractParamType))
-        PInst->setInvalidDecl();
+  // Get parameters from the new type info.
+  TypeLoc NewTL = NewTInfo->getTypeLoc();
+  FunctionProtoTypeLoc *NewProtoLoc = cast<FunctionProtoTypeLoc>(&NewTL);
+  assert(NewProtoLoc && "Missing prototype?");
+  for (unsigned i = 0, i_end = NewProtoLoc->getNumArgs(); i != i_end; ++i)
+    Params.push_back(NewProtoLoc->getArg(i));
 
-      Params.push_back(PInst);
-      ParamTys.push_back(PInst->getType());
-
-      if (PInst->isInvalidDecl())
-        InvalidDecl = true;
-    } else
-      InvalidDecl = true;
-  }
-
-  // FIXME: Deallocate dead declarations.
-  if (InvalidDecl)
-    return QualType();
-
-  const FunctionProtoType *Proto = D->getType()->getAs<FunctionProtoType>();
-  assert(Proto && "Missing prototype?");
-  QualType ResultType
-    = SemaRef.SubstType(Proto->getResultType(), TemplateArgs,
-                        D->getLocation(), D->getDeclName());
-  if (ResultType.isNull())
-    return QualType();
-
-  return SemaRef.BuildFunctionType(ResultType, ParamTys.data(), ParamTys.size(),
-                                   Proto->isVariadic(), Proto->getTypeQuals(),
-                                   D->getLocation(), D->getDeclName());
+  return NewTInfo;
 }
 
 /// \brief Initializes the common fields of an instantiation function

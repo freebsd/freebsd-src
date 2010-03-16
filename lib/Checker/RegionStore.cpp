@@ -22,14 +22,14 @@
 #include "clang/Analysis/Support/Optional.h"
 #include "clang/Basic/TargetInfo.h"
 #include "clang/AST/CharUnits.h"
+#include "clang/AST/DeclCXX.h"
+#include "clang/AST/ExprCXX.h"
 
 #include "llvm/ADT/ImmutableMap.h"
 #include "llvm/ADT/ImmutableList.h"
 #include "llvm/Support/raw_ostream.h"
 
 using namespace clang;
-
-#define USE_EXPLICIT_COMPOUND 0
 
 //===----------------------------------------------------------------------===//
 // Representation of binding keys.
@@ -1336,54 +1336,13 @@ SVal RegionStoreManager::RetrieveLazySymbol(const TypedRegion *R) {
 SVal RegionStoreManager::RetrieveStruct(Store store, const TypedRegion* R) {
   QualType T = R->getValueType(getContext());
   assert(T->isStructureType());
-
-  const RecordType* RT = T->getAsStructureType();
-  RecordDecl* RD = RT->getDecl();
-  assert(RD->isDefinition());
-  (void)RD;
-#if USE_EXPLICIT_COMPOUND
-  llvm::ImmutableList<SVal> StructVal = getBasicVals().getEmptySValList();
-
-  // FIXME: We shouldn't use a std::vector.  If RecordDecl doesn't have a
-  // reverse iterator, we should implement one.
-  std::vector<FieldDecl *> Fields(RD->field_begin(), RD->field_end());
-
-  for (std::vector<FieldDecl *>::reverse_iterator Field = Fields.rbegin(),
-                                               FieldEnd = Fields.rend();
-       Field != FieldEnd; ++Field) {
-    FieldRegion* FR = MRMgr.getFieldRegion(*Field, R);
-    QualType FTy = (*Field)->getType();
-    SVal FieldValue = Retrieve(store, loc::MemRegionVal(FR), FTy).getSVal();
-    StructVal = getBasicVals().consVals(FieldValue, StructVal);
-  }
-
-  return ValMgr.makeCompoundVal(T, StructVal);
-#else
+  assert(T->getAsStructureType()->getDecl()->isDefinition());
   return ValMgr.makeLazyCompoundVal(store, R);
-#endif
 }
 
 SVal RegionStoreManager::RetrieveArray(Store store, const TypedRegion * R) {
-#if USE_EXPLICIT_COMPOUND
-  QualType T = R->getValueType(getContext());
-  ConstantArrayType* CAT = cast<ConstantArrayType>(T.getTypePtr());
-
-  llvm::ImmutableList<SVal> ArrayVal = getBasicVals().getEmptySValList();
-  uint64_t size = CAT->getSize().getZExtValue();
-  for (uint64_t i = 0; i < size; ++i) {
-    SVal Idx = ValMgr.makeArrayIndex(i);
-    ElementRegion* ER = MRMgr.getElementRegion(CAT->getElementType(), Idx, R,
-                                               getContext());
-    QualType ETy = ER->getElementType();
-    SVal ElementVal = Retrieve(store, loc::MemRegionVal(ER), ETy).getSVal();
-    ArrayVal = getBasicVals().consVals(ElementVal, ArrayVal);
-  }
-
-  return ValMgr.makeCompoundVal(T, ArrayVal);
-#else
   assert(isa<ConstantArrayType>(R->getValueType(getContext())));
   return ValMgr.makeLazyCompoundVal(store, R);
-#endif
 }
 
 //===----------------------------------------------------------------------===//
@@ -1884,18 +1843,29 @@ Store RegionStoreManager::RemoveDeadBindings(Store store, Stmt* Loc,
 GRState const *RegionStoreManager::EnterStackFrame(GRState const *state,
                                                StackFrameContext const *frame) {
   FunctionDecl const *FD = cast<FunctionDecl>(frame->getDecl());
-  CallExpr const *CE = cast<CallExpr>(frame->getCallSite());
-
   FunctionDecl::param_const_iterator PI = FD->param_begin();
-
-  CallExpr::const_arg_iterator AI = CE->arg_begin(), AE = CE->arg_end();
-
-  // Copy the arg expression value to the arg variables.
   Store store = state->getStore();
-  for (; AI != AE; ++AI, ++PI) {
-    SVal ArgVal = state->getSVal(*AI);
-    store = Bind(store, ValMgr.makeLoc(MRMgr.getVarRegion(*PI, frame)), ArgVal);
-  }
+
+  if (CallExpr const *CE = dyn_cast<CallExpr>(frame->getCallSite())) {
+    CallExpr::const_arg_iterator AI = CE->arg_begin(), AE = CE->arg_end();
+
+    // Copy the arg expression value to the arg variables.
+    for (; AI != AE; ++AI, ++PI) {
+      SVal ArgVal = state->getSVal(*AI);
+      store = Bind(store, ValMgr.makeLoc(MRMgr.getVarRegion(*PI,frame)),ArgVal);
+    }
+  } else if (const CXXConstructExpr *CE = 
+               dyn_cast<CXXConstructExpr>(frame->getCallSite())) {
+    CXXConstructExpr::const_arg_iterator AI = CE->arg_begin(), 
+      AE = CE->arg_end();
+
+    // Copy the arg expression value to the arg variables.
+    for (; AI != AE; ++AI, ++PI) {
+      SVal ArgVal = state->getSVal(*AI);
+      store = Bind(store, ValMgr.makeLoc(MRMgr.getVarRegion(*PI,frame)),ArgVal);
+    }
+  } else
+    assert(0 && "Unhandled call expression.");
 
   return state->makeWithStore(store);
 }

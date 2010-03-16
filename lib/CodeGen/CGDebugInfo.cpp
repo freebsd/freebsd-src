@@ -104,7 +104,10 @@ llvm::DIFile CGDebugInfo::getOrCreateFile(SourceLocation Loc) {
 void CGDebugInfo::CreateCompileUnit() {
 
   // Get absolute path name.
-  llvm::sys::Path AbsFileName(CGM.getCodeGenOpts().MainFileName);
+  std::string MainFileName = CGM.getCodeGenOpts().MainFileName;
+  if (MainFileName.empty())
+    MainFileName = "<unknown>";
+  llvm::sys::Path AbsFileName(MainFileName);
   AbsFileName.makeAbsolute();
 
   unsigned LangTag;
@@ -649,9 +652,9 @@ CollectCXXBases(const CXXRecordDecl *RD, llvm::DIFile Unit,
       cast<CXXRecordDecl>(BI->getType()->getAs<RecordType>()->getDecl());
     
     if (BI->isVirtual()) {
-      // virtual base offset index is -ve. The code generator emits dwarf
+      // virtual base offset offset is -ve. The code generator emits dwarf
       // expression where it expects +ve number.
-      BaseOffset = 0 - CGM.getVtableInfo().getVirtualBaseOffsetIndex(RD, Base);
+      BaseOffset = 0 - CGM.getVtableInfo().getVirtualBaseOffsetOffset(RD, Base);
       BFlags = llvm::DIType::FlagVirtual;
     } else
       BaseOffset = RL.getBaseClassOffset(Base);
@@ -774,9 +777,8 @@ llvm::DIType CGDebugInfo::CreateType(const RecordType *Ty,
 
   // A RD->getName() is not unique. However, the debug info descriptors 
   // are uniqued so use type name to ensure uniquness.
-  llvm::SmallString<256> FwdDeclName;
-  FwdDeclName.resize(256);
-  sprintf(&FwdDeclName[0], "fwd.type.%d", FwdDeclCount++);
+  llvm::SmallString<128> FwdDeclName;
+  llvm::raw_svector_ostream(FwdDeclName) << "fwd.type." << FwdDeclCount++;
   llvm::DIDescriptor FDContext = 
     getContextDescriptor(dyn_cast<Decl>(RD->getDeclContext()), Unit);
   llvm::DICompositeType FwdDecl =
@@ -792,6 +794,9 @@ llvm::DIType CGDebugInfo::CreateType(const RecordType *Ty,
   // Otherwise, insert it into the TypeCache so that recursive uses will find
   // it.
   TypeCache[QualType(Ty, 0).getAsOpaquePtr()] = FwdDecl.getNode();
+  // Push the struct on region stack.
+  RegionStack.push_back(FwdDecl.getNode());
+  RegionMap[Ty->getDecl()] = llvm::WeakVH(FwdDecl.getNode());
 
   // Convert all the elements.
   llvm::SmallVector<llvm::DIDescriptor, 16> EltTys;
@@ -822,6 +827,12 @@ llvm::DIType CGDebugInfo::CreateType(const RecordType *Ty,
   uint64_t Size = CGM.getContext().getTypeSize(Ty);
   uint64_t Align = CGM.getContext().getTypeAlign(Ty);
 
+  RegionStack.pop_back();
+  llvm::DenseMap<const Decl *, llvm::WeakVH>::iterator RI = 
+    RegionMap.find(Ty->getDecl());
+  if (RI != RegionMap.end())
+    RegionMap.erase(RI);
+
   llvm::DIDescriptor RDContext =  
     getContextDescriptor(dyn_cast<Decl>(RD->getDeclContext()), Unit);
   llvm::DICompositeType RealDecl =
@@ -834,7 +845,7 @@ llvm::DIType CGDebugInfo::CreateType(const RecordType *Ty,
   // Now that we have a real decl for the struct, replace anything using the
   // old decl with the new one.  This will recursively update the debug info.
   llvm::DIDerivedType(FwdDeclNode).replaceAllUsesWith(RealDecl);
-
+  RegionMap[RD] = llvm::WeakVH(RealDecl.getNode());
   return RealDecl;
 }
 
@@ -874,6 +885,9 @@ llvm::DIType CGDebugInfo::CreateType(const ObjCInterfaceType *Ty,
   // Otherwise, insert it into the TypeCache so that recursive uses will find
   // it.
   TypeCache[QualType(Ty, 0).getAsOpaquePtr()] = FwdDecl.getNode();
+  // Push the struct on region stack.
+  RegionStack.push_back(FwdDecl.getNode());
+  RegionMap[Ty->getDecl()] = llvm::WeakVH(FwdDecl.getNode());
 
   // Convert all the elements.
   llvm::SmallVector<llvm::DIDescriptor, 16> EltTys;
@@ -946,6 +960,12 @@ llvm::DIType CGDebugInfo::CreateType(const ObjCInterfaceType *Ty,
   llvm::DIArray Elements =
     DebugFactory.GetOrCreateArray(EltTys.data(), EltTys.size());
 
+  RegionStack.pop_back();
+  llvm::DenseMap<const Decl *, llvm::WeakVH>::iterator RI = 
+    RegionMap.find(Ty->getDecl());
+  if (RI != RegionMap.end())
+    RegionMap.erase(RI);
+
   // Bit size, align and offset of the type.
   uint64_t Size = CGM.getContext().getTypeSize(Ty);
   uint64_t Align = CGM.getContext().getTypeAlign(Ty);
@@ -958,6 +978,7 @@ llvm::DIType CGDebugInfo::CreateType(const ObjCInterfaceType *Ty,
   // Now that we have a real decl for the struct, replace anything using the
   // old decl with the new one.  This will recursively update the debug info.
   llvm::DIDerivedType(FwdDeclNode).replaceAllUsesWith(RealDecl);
+  RegionMap[ID] = llvm::WeakVH(RealDecl.getNode());
 
   return RealDecl;
 }
