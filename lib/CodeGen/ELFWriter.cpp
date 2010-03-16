@@ -64,7 +64,7 @@ char ELFWriter::ID = 0;
 
 ELFWriter::ELFWriter(raw_ostream &o, TargetMachine &tm)
   : MachineFunctionPass(&ID), O(o), TM(tm),
-    OutContext(*new MCContext()),
+    OutContext(*new MCContext(*TM.getMCAsmInfo())),
     TLOF(TM.getTargetLowering()->getObjFileLowering()),
     is64Bit(TM.getTargetData()->getPointerSizeInBits() == 64),
     isLittleEndian(TM.getTargetData()->isLittleEndian()),
@@ -109,7 +109,7 @@ bool ELFWriter::doInitialization(Module &M) {
   // Initialize TargetLoweringObjectFile.
   const_cast<TargetLoweringObjectFile&>(TLOF).Initialize(OutContext, TM);
   
-  Mang = new Mangler(*MAI);
+  Mang = new Mangler(OutContext, *TM.getTargetData());
 
   // ELF Header
   // ----------

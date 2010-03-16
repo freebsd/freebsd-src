@@ -10,6 +10,11 @@
 #include "llvm/CodeGen/MachineModuleInfo.h"
 
 #include "llvm/Constants.h"
+#include "llvm/DerivedTypes.h"
+#include "llvm/GlobalVariable.h"
+#include "llvm/Intrinsics.h"
+#include "llvm/Instructions.h"
+#include "llvm/Module.h"
 #include "llvm/Analysis/ValueTracking.h"
 #include "llvm/CodeGen/MachineFunctionPass.h"
 #include "llvm/CodeGen/MachineFunction.h"
@@ -17,11 +22,8 @@
 #include "llvm/Target/TargetInstrInfo.h"
 #include "llvm/Target/TargetMachine.h"
 #include "llvm/Target/TargetOptions.h"
-#include "llvm/DerivedTypes.h"
-#include "llvm/GlobalVariable.h"
-#include "llvm/Intrinsics.h"
-#include "llvm/Instructions.h"
-#include "llvm/Module.h"
+#include "llvm/MC/MCSymbol.h"
+#include "llvm/ADT/PointerUnion.h"
 #include "llvm/Support/Dwarf.h"
 #include "llvm/Support/ErrorHandling.h"
 using namespace llvm;
@@ -29,38 +31,263 @@ using namespace llvm::dwarf;
 
 // Handle the Pass registration stuff necessary to use TargetData's.
 static RegisterPass<MachineModuleInfo>
-X("machinemoduleinfo", "Module Information");
+X("machinemoduleinfo", "Machine Module Information");
 char MachineModuleInfo::ID = 0;
 
 // Out of line virtual method.
 MachineModuleInfoImpl::~MachineModuleInfoImpl() {}
 
+namespace llvm {
+class MMIAddrLabelMapCallbackPtr : CallbackVH {
+  MMIAddrLabelMap *Map;
+public:
+  MMIAddrLabelMapCallbackPtr() : Map(0) {}
+  MMIAddrLabelMapCallbackPtr(Value *V) : CallbackVH(V), Map(0) {}
+  
+  void setMap(MMIAddrLabelMap *map) { Map = map; }
+  
+  virtual void deleted();
+  virtual void allUsesReplacedWith(Value *V2);
+};
+  
+class MMIAddrLabelMap {
+  MCContext &Context;
+  struct AddrLabelSymEntry {
+    /// Symbols - The symbols for the label.  This is a pointer union that is
+    /// either one symbol (the common case) or a list of symbols.
+    PointerUnion<MCSymbol *, std::vector<MCSymbol*>*> Symbols;
+    
+    Function *Fn;   // The containing function of the BasicBlock.
+    unsigned Index; // The index in BBCallbacks for the BasicBlock.
+  };
+  
+  DenseMap<AssertingVH<BasicBlock>, AddrLabelSymEntry> AddrLabelSymbols;
+  
+  /// BBCallbacks - Callbacks for the BasicBlock's that we have entries for.  We
+  /// use this so we get notified if a block is deleted or RAUWd.
+  std::vector<MMIAddrLabelMapCallbackPtr> BBCallbacks;
+
+  /// DeletedAddrLabelsNeedingEmission - This is a per-function list of symbols
+  /// whose corresponding BasicBlock got deleted.  These symbols need to be
+  /// emitted at some point in the file, so AsmPrinter emits them after the
+  /// function body.
+  DenseMap<AssertingVH<Function>, std::vector<MCSymbol*> >
+    DeletedAddrLabelsNeedingEmission;
+public:
+  
+  MMIAddrLabelMap(MCContext &context) : Context(context) {}
+  ~MMIAddrLabelMap() {
+    assert(DeletedAddrLabelsNeedingEmission.empty() &&
+           "Some labels for deleted blocks never got emitted");
+    
+    // Deallocate any of the 'list of symbols' case.
+    for (DenseMap<AssertingVH<BasicBlock>, AddrLabelSymEntry>::iterator
+         I = AddrLabelSymbols.begin(), E = AddrLabelSymbols.end(); I != E; ++I)
+      if (I->second.Symbols.is<std::vector<MCSymbol*>*>())
+        delete I->second.Symbols.get<std::vector<MCSymbol*>*>();
+  }
+  
+  MCSymbol *getAddrLabelSymbol(BasicBlock *BB);
+  std::vector<MCSymbol*> getAddrLabelSymbolToEmit(BasicBlock *BB);
+
+  void takeDeletedSymbolsForFunction(Function *F, 
+                                     std::vector<MCSymbol*> &Result);
+
+  void UpdateForDeletedBlock(BasicBlock *BB);
+  void UpdateForRAUWBlock(BasicBlock *Old, BasicBlock *New);
+};
+}
+
+MCSymbol *MMIAddrLabelMap::getAddrLabelSymbol(BasicBlock *BB) {
+  assert(BB->hasAddressTaken() &&
+         "Shouldn't get label for block without address taken");
+  AddrLabelSymEntry &Entry = AddrLabelSymbols[BB];
+  
+  // If we already had an entry for this block, just return it.
+  if (!Entry.Symbols.isNull()) {
+    assert(BB->getParent() == Entry.Fn && "Parent changed");
+    if (Entry.Symbols.is<MCSymbol*>())
+      return Entry.Symbols.get<MCSymbol*>();
+    return (*Entry.Symbols.get<std::vector<MCSymbol*>*>())[0];
+  }
+  
+  // Otherwise, this is a new entry, create a new symbol for it and add an
+  // entry to BBCallbacks so we can be notified if the BB is deleted or RAUWd.
+  BBCallbacks.push_back(BB);
+  BBCallbacks.back().setMap(this);
+  Entry.Index = BBCallbacks.size()-1;
+  Entry.Fn = BB->getParent();
+  MCSymbol *Result = Context.CreateTempSymbol();
+  Entry.Symbols = Result;
+  return Result;
+}
+
+std::vector<MCSymbol*>
+MMIAddrLabelMap::getAddrLabelSymbolToEmit(BasicBlock *BB) {
+  assert(BB->hasAddressTaken() &&
+         "Shouldn't get label for block without address taken");
+  AddrLabelSymEntry &Entry = AddrLabelSymbols[BB];
+  
+  std::vector<MCSymbol*> Result;
+  
+  // If we already had an entry for this block, just return it.
+  if (Entry.Symbols.isNull())
+    Result.push_back(getAddrLabelSymbol(BB));
+  else if (MCSymbol *Sym = Entry.Symbols.dyn_cast<MCSymbol*>())
+    Result.push_back(Sym);
+  else
+    Result = *Entry.Symbols.get<std::vector<MCSymbol*>*>();
+  return Result;
+}
+
+
+/// takeDeletedSymbolsForFunction - If we have any deleted symbols for F, return
+/// them.
+void MMIAddrLabelMap::
+takeDeletedSymbolsForFunction(Function *F, std::vector<MCSymbol*> &Result) {
+  DenseMap<AssertingVH<Function>, std::vector<MCSymbol*> >::iterator I =
+    DeletedAddrLabelsNeedingEmission.find(F);
+
+  // If there are no entries for the function, just return.
+  if (I == DeletedAddrLabelsNeedingEmission.end()) return;
+  
+  // Otherwise, take the list.
+  std::swap(Result, I->second);
+  DeletedAddrLabelsNeedingEmission.erase(I);
+}
+
+
+void MMIAddrLabelMap::UpdateForDeletedBlock(BasicBlock *BB) {
+  // If the block got deleted, there is no need for the symbol.  If the symbol
+  // was already emitted, we can just forget about it, otherwise we need to
+  // queue it up for later emission when the function is output.
+  AddrLabelSymEntry Entry = AddrLabelSymbols[BB];
+  AddrLabelSymbols.erase(BB);
+  assert(!Entry.Symbols.isNull() && "Didn't have a symbol, why a callback?");
+  BBCallbacks[Entry.Index] = 0;  // Clear the callback.
+
+  assert((BB->getParent() == 0 || BB->getParent() == Entry.Fn) &&
+         "Block/parent mismatch");
+
+  // Handle both the single and the multiple symbols cases.
+  if (MCSymbol *Sym = Entry.Symbols.dyn_cast<MCSymbol*>()) {
+    if (Sym->isDefined())
+      return;
+  
+    // If the block is not yet defined, we need to emit it at the end of the
+    // function.  Add the symbol to the DeletedAddrLabelsNeedingEmission list
+    // for the containing Function.  Since the block is being deleted, its
+    // parent may already be removed, we have to get the function from 'Entry'.
+    DeletedAddrLabelsNeedingEmission[Entry.Fn].push_back(Sym);
+  } else {
+    std::vector<MCSymbol*> *Syms = Entry.Symbols.get<std::vector<MCSymbol*>*>();
+
+    for (unsigned i = 0, e = Syms->size(); i != e; ++i) {
+      MCSymbol *Sym = (*Syms)[i];
+      if (Sym->isDefined()) continue;  // Ignore already emitted labels.
+      
+      // If the block is not yet defined, we need to emit it at the end of the
+      // function.  Add the symbol to the DeletedAddrLabelsNeedingEmission list
+      // for the containing Function.  Since the block is being deleted, its
+      // parent may already be removed, we have to get the function from
+      // 'Entry'.
+      DeletedAddrLabelsNeedingEmission[Entry.Fn].push_back(Sym);
+    }
+    
+    // The entry is deleted, free the memory associated with the symbol list.
+    delete Syms;
+  }
+}
+
+void MMIAddrLabelMap::UpdateForRAUWBlock(BasicBlock *Old, BasicBlock *New) {
+  // Get the entry for the RAUW'd block and remove it from our map.
+  AddrLabelSymEntry OldEntry = AddrLabelSymbols[Old];
+  AddrLabelSymbols.erase(Old);
+  assert(!OldEntry.Symbols.isNull() && "Didn't have a symbol, why a callback?");
+
+  AddrLabelSymEntry &NewEntry = AddrLabelSymbols[New];
+
+  // If New is not address taken, just move our symbol over to it.
+  if (NewEntry.Symbols.isNull()) {
+    BBCallbacks[OldEntry.Index] = New;    // Update the callback.
+    NewEntry = OldEntry;     // Set New's entry.
+    return;
+  }
+
+  BBCallbacks[OldEntry.Index] = 0;    // Update the callback.
+
+  // Otherwise, we need to add the old symbol to the new block's set.  If it is
+  // just a single entry, upgrade it to a symbol list.
+  if (MCSymbol *PrevSym = NewEntry.Symbols.dyn_cast<MCSymbol*>()) {
+    std::vector<MCSymbol*> *SymList = new std::vector<MCSymbol*>();
+    SymList->push_back(PrevSym);
+    NewEntry.Symbols = SymList;
+  }
+      
+  std::vector<MCSymbol*> *SymList =
+    NewEntry.Symbols.get<std::vector<MCSymbol*>*>();
+
+  // If the old entry was a single symbol, add it.
+  if (MCSymbol *Sym = OldEntry.Symbols.dyn_cast<MCSymbol*>()) {
+    SymList->push_back(Sym);
+    return;
+  }
+  
+  // Otherwise, concatenate the list.
+  std::vector<MCSymbol*> *Syms =OldEntry.Symbols.get<std::vector<MCSymbol*>*>();
+  SymList->insert(SymList->end(), Syms->begin(), Syms->end());
+  delete Syms;
+}
+
+
+void MMIAddrLabelMapCallbackPtr::deleted() {
+  Map->UpdateForDeletedBlock(cast<BasicBlock>(getValPtr()));
+}
+
+void MMIAddrLabelMapCallbackPtr::allUsesReplacedWith(Value *V2) {
+  Map->UpdateForRAUWBlock(cast<BasicBlock>(getValPtr()), cast<BasicBlock>(V2));
+}
+
+
 //===----------------------------------------------------------------------===//
 
-MachineModuleInfo::MachineModuleInfo()
-: ImmutablePass(&ID)
-, ObjFileMMI(0)
-, CurCallSite(0)
-, CallsEHReturn(0)
-, CallsUnwindInit(0)
-, DbgInfoAvailable(false) {
+MachineModuleInfo::MachineModuleInfo(const MCAsmInfo &MAI)
+: ImmutablePass(&ID), Context(MAI),
+  ObjFileMMI(0),
+  CurCallSite(0), CallsEHReturn(0), CallsUnwindInit(0), DbgInfoAvailable(false){
   // Always emit some info, by default "no personality" info.
   Personalities.push_back(NULL);
+  AddrLabelSymbols = 0;
+}
+
+MachineModuleInfo::MachineModuleInfo()
+: ImmutablePass(&ID), Context(*(MCAsmInfo*)0) {
+  assert(0 && "This MachineModuleInfo constructor should never be called, MMI "
+         "should always be explicitly constructed by LLVMTargetMachine");
+  abort();
 }
 
 MachineModuleInfo::~MachineModuleInfo() {
   delete ObjFileMMI;
+  
+  // FIXME: Why isn't doFinalization being called??
+  //assert(AddrLabelSymbols == 0 && "doFinalization not called");
+  delete AddrLabelSymbols;
+  AddrLabelSymbols = 0;
 }
 
 /// doInitialization - Initialize the state for a new module.
 ///
 bool MachineModuleInfo::doInitialization() {
+  assert(AddrLabelSymbols == 0 && "Improperly initialized");
   return false;
 }
 
 /// doFinalization - Tear down the state after completion of a module.
 ///
 bool MachineModuleInfo::doFinalization() {
+  delete AddrLabelSymbols;
+  AddrLabelSymbols = 0;
   return false;
 }
 
@@ -99,7 +326,45 @@ void MachineModuleInfo::AnalyzeModule(Module &M) {
       UsedFunctions.insert(F);
 }
 
-//===-EH-------------------------------------------------------------------===//
+//===- Address of Block Management ----------------------------------------===//
+
+
+/// getAddrLabelSymbol - Return the symbol to be used for the specified basic
+/// block when its address is taken.  This cannot be its normal LBB label
+/// because the block may be accessed outside its containing function.
+MCSymbol *MachineModuleInfo::getAddrLabelSymbol(const BasicBlock *BB) {
+  // Lazily create AddrLabelSymbols.
+  if (AddrLabelSymbols == 0)
+    AddrLabelSymbols = new MMIAddrLabelMap(Context);
+  return AddrLabelSymbols->getAddrLabelSymbol(const_cast<BasicBlock*>(BB));
+}
+
+/// getAddrLabelSymbolToEmit - Return the symbol to be used for the specified
+/// basic block when its address is taken.  If other blocks were RAUW'd to
+/// this one, we may have to emit them as well, return the whole set.
+std::vector<MCSymbol*> MachineModuleInfo::
+getAddrLabelSymbolToEmit(const BasicBlock *BB) {
+  // Lazily create AddrLabelSymbols.
+  if (AddrLabelSymbols == 0)
+    AddrLabelSymbols = new MMIAddrLabelMap(Context);
+ return AddrLabelSymbols->getAddrLabelSymbolToEmit(const_cast<BasicBlock*>(BB));
+}
+
+
+/// takeDeletedSymbolsForFunction - If the specified function has had any
+/// references to address-taken blocks generated, but the block got deleted,
+/// return the symbol now so we can emit it.  This prevents emitting a
+/// reference to a symbol that has no definition.
+void MachineModuleInfo::
+takeDeletedSymbolsForFunction(const Function *F,
+                              std::vector<MCSymbol*> &Result) {
+  // If no blocks have had their addresses taken, we're done.
+  if (AddrLabelSymbols == 0) return;
+  return AddrLabelSymbols->
+     takeDeletedSymbolsForFunction(const_cast<Function*>(F), Result);
+}
+
+//===- EH -----------------------------------------------------------------===//
 
 /// getOrCreateLandingPadInfo - Find or create an LandingPadInfo for the
 /// specified MachineBasicBlock.
@@ -119,7 +384,7 @@ LandingPadInfo &MachineModuleInfo::getOrCreateLandingPadInfo
 /// addInvoke - Provide the begin and end labels of an invoke style call and
 /// associate it with a try landing pad block.
 void MachineModuleInfo::addInvoke(MachineBasicBlock *LandingPad,
-                                  unsigned BeginLabel, unsigned EndLabel) {
+                                  MCSymbol *BeginLabel, MCSymbol *EndLabel) {
   LandingPadInfo &LP = getOrCreateLandingPadInfo(LandingPad);
   LP.BeginLabels.push_back(BeginLabel);
   LP.EndLabels.push_back(EndLabel);
@@ -127,8 +392,8 @@ void MachineModuleInfo::addInvoke(MachineBasicBlock *LandingPad,
 
 /// addLandingPad - Provide the label of a try LandingPad block.
 ///
-unsigned MachineModuleInfo::addLandingPad(MachineBasicBlock *LandingPad) {
-  unsigned LandingPadLabel = NextLabelID();
+MCSymbol *MachineModuleInfo::addLandingPad(MachineBasicBlock *LandingPad) {
+  MCSymbol *LandingPadLabel = Context.CreateTempSymbol();
   LandingPadInfo &LP = getOrCreateLandingPadInfo(LandingPad);
   LP.LandingPadLabel = LandingPadLabel;
   return LandingPadLabel;
@@ -185,7 +450,7 @@ void MachineModuleInfo::addCleanup(MachineBasicBlock *LandingPad) {
 void MachineModuleInfo::TidyLandingPads() {
   for (unsigned i = 0; i != LandingPads.size(); ) {
     LandingPadInfo &LandingPad = LandingPads[i];
-    if (isLabelDeleted(LandingPad.LandingPadLabel))
+    if (LandingPad.LandingPadLabel && !LandingPad.LandingPadLabel->isDefined())
       LandingPad.LandingPadLabel = 0;
 
     // Special case: we *should* emit LPs with null LP MBB. This indicates
@@ -195,16 +460,14 @@ void MachineModuleInfo::TidyLandingPads() {
       continue;
     }
 
-    for (unsigned j=0; j != LandingPads[i].BeginLabels.size(); ) {
-      unsigned BeginLabel = LandingPad.BeginLabels[j];
-      unsigned EndLabel = LandingPad.EndLabels[j];
-      if (isLabelDeleted(BeginLabel) || isLabelDeleted(EndLabel)) {
-        LandingPad.BeginLabels.erase(LandingPad.BeginLabels.begin() + j);
-        LandingPad.EndLabels.erase(LandingPad.EndLabels.begin() + j);
-        continue;
-      }
-
-      ++j;
+    for (unsigned j = 0, e = LandingPads[i].BeginLabels.size(); j != e; ++j) {
+      MCSymbol *BeginLabel = LandingPad.BeginLabels[j];
+      MCSymbol *EndLabel = LandingPad.EndLabels[j];
+      if (BeginLabel->isDefined() && EndLabel->isDefined()) continue;
+      
+      LandingPad.BeginLabels.erase(LandingPad.BeginLabels.begin() + j);
+      LandingPad.EndLabels.erase(LandingPad.EndLabels.begin() + j);
+      --j, --e;
     }
 
     // Remove landing pads with no try-ranges.
@@ -218,7 +481,6 @@ void MachineModuleInfo::TidyLandingPads() {
     if (!LandingPad.LandingPadBlock ||
         (LandingPad.TypeIds.size() == 1 && !LandingPad.TypeIds[0]))
       LandingPad.TypeIds.clear();
-
     ++i;
   }
 }

@@ -40,6 +40,7 @@ class MachineBasicBlock;
 class MachineConstantPoolValue;
 class SDNode;
 class Value;
+class MCSymbol;
 template <typename T> struct DenseMapInfo;
 template <typename T> struct simplify_type;
 template <typename T> struct ilist_traits;
@@ -437,6 +438,12 @@ namespace ISD {
     //   4) saturation imm
     //   5) ISD::CvtCode indicating the type of conversion to do
     CONVERT_RNDSAT,
+
+    // FP16_TO_FP32, FP32_TO_FP16 - These operators are used to perform
+    // promotions and truncation for half-precision (16 bit) floating
+    // numbers. We need special nodes since FP16 is a storage-only type with
+    // special semantics of operations.
+    FP16_TO_FP32, FP32_TO_FP16,
 
     // FNEG, FABS, FSQRT, FSIN, FCOS, FPOWI, FPOW,
     // FLOG, FLOG2, FLOG10, FEXP, FEXP2,
@@ -1383,9 +1390,9 @@ protected:
   /// This constructor adds no operands itself; operands can be
   /// set later with InitOperands.
   SDNode(unsigned Opc, const DebugLoc dl, SDVTList VTs)
-    : NodeType(Opc), OperandsNeedDelete(false), SubclassData(0),
-      NodeId(-1), OperandList(0), ValueList(VTs.VTs), UseList(NULL),
-      NumOperands(0), NumValues(VTs.NumVTs),
+    : NodeType(Opc), OperandsNeedDelete(false), HasDebugValue(false),
+      SubclassData(0), NodeId(-1), OperandList(0), ValueList(VTs.VTs),
+      UseList(NULL), NumOperands(0), NumValues(VTs.NumVTs),
       debugLoc(dl) {}
 
   /// InitOperands - Initialize the operands list of this with 1 operand.
@@ -2088,18 +2095,18 @@ public:
   }
 };
 
-class LabelSDNode : public SDNode {
+class EHLabelSDNode : public SDNode {
   SDUse Chain;
-  unsigned LabelID;
+  MCSymbol *Label;
   friend class SelectionDAG;
-  LabelSDNode(unsigned NodeTy, DebugLoc dl, SDValue ch, unsigned id)
-    : SDNode(NodeTy, dl, getSDVTList(MVT::Other)), LabelID(id) {
+  EHLabelSDNode(DebugLoc dl, SDValue ch, MCSymbol *L)
+    : SDNode(ISD::EH_LABEL, dl, getSDVTList(MVT::Other)), Label(L) {
     InitOperands(&Chain, ch);
   }
 public:
-  unsigned getLabelID() const { return LabelID; }
+  MCSymbol *getLabel() const { return Label; }
 
-  static bool classof(const LabelSDNode *) { return true; }
+  static bool classof(const EHLabelSDNode *) { return true; }
   static bool classof(const SDNode *N) {
     return N->getOpcode() == ISD::EH_LABEL;
   }

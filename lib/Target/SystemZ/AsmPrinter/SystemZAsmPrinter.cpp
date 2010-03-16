@@ -29,6 +29,7 @@
 #include "llvm/MC/MCStreamer.h"
 #include "llvm/MC/MCAsmInfo.h"
 #include "llvm/MC/MCSymbol.h"
+#include "llvm/Target/Mangler.h"
 #include "llvm/Target/TargetData.h"
 #include "llvm/Target/TargetLoweringObjectFile.h"
 #include "llvm/Target/TargetRegistry.h"
@@ -40,9 +41,8 @@ namespace {
   class SystemZAsmPrinter : public AsmPrinter {
   public:
     SystemZAsmPrinter(formatted_raw_ostream &O, TargetMachine &TM,
-                      MCContext &Ctx, MCStreamer &Streamer,
-                      const MCAsmInfo *MAI)
-      : AsmPrinter(O, TM, Ctx, Streamer, MAI) {}
+                      MCStreamer &Streamer)
+      : AsmPrinter(O, TM, Streamer) {}
 
     virtual const char *getPassName() const {
       return "SystemZ Assembly Printer";
@@ -89,11 +89,11 @@ void SystemZAsmPrinter::printPCRelImmOperand(const MachineInstr *MI, int OpNum){
     O << MO.getImm();
     return;
   case MachineOperand::MO_MachineBasicBlock:
-    O << *MO.getMBB()->getSymbol(OutContext);
+    O << *MO.getMBB()->getSymbol();
     return;
   case MachineOperand::MO_GlobalAddress: {
     const GlobalValue *GV = MO.getGlobal();
-    O << *GetGlobalValueSymbol(GV);
+    O << *Mang->getSymbol(GV);
 
     // Assemble calls via PLT for externally visible symbols if PIC.
     if (TM.getRelocationModel() == Reloc::PIC_ &&
@@ -144,7 +144,7 @@ void SystemZAsmPrinter::printOperand(const MachineInstr *MI, int OpNum,
     O << MO.getImm();
     return;
   case MachineOperand::MO_MachineBasicBlock:
-    O << *MO.getMBB()->getSymbol(OutContext);
+    O << *MO.getMBB()->getSymbol();
     return;
   case MachineOperand::MO_JumpTableIndex:
     O << MAI->getPrivateGlobalPrefix() << "JTI" << getFunctionNumber() << '_'
@@ -158,7 +158,7 @@ void SystemZAsmPrinter::printOperand(const MachineInstr *MI, int OpNum,
     printOffset(MO.getOffset());
     break;
   case MachineOperand::MO_GlobalAddress:
-    O << *GetGlobalValueSymbol(MO.getGlobal());
+    O << *Mang->getSymbol(MO.getGlobal());
     break;
   case MachineOperand::MO_ExternalSymbol: {
     O << *GetExternalSymbolSymbol(MO.getSymbolName());

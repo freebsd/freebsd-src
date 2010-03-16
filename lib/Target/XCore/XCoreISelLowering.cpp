@@ -324,6 +324,10 @@ LowerConstantPool(SDValue Op, SelectionDAG &DAG)
   return DAG.getNode(XCoreISD::CPRelativeWrapper, dl, MVT::i32, Res);
 }
 
+unsigned XCoreTargetLowering::getJumpTableEncoding() const {
+  return MachineJumpTableInfo::EK_Inline;
+}
+
 SDValue XCoreTargetLowering::
 LowerBR_JT(SDValue Op, SelectionDAG &DAG)
 {
@@ -1341,18 +1345,72 @@ SDValue XCoreTargetLowering::PerformDAGCombine(SDNode *N,
     }
   }
   break;
+  case XCoreISD::LMUL: {
+    SDValue N0 = N->getOperand(0);
+    SDValue N1 = N->getOperand(1);
+    SDValue N2 = N->getOperand(2);
+    SDValue N3 = N->getOperand(3);
+    ConstantSDNode *N0C = dyn_cast<ConstantSDNode>(N0);
+    ConstantSDNode *N1C = dyn_cast<ConstantSDNode>(N1);
+    EVT VT = N0.getValueType();
+    // Canonicalize multiplicative constant to RHS. If both multiplicative
+    // operands are constant canonicalize smallest to RHS.
+    if ((N0C && !N1C) ||
+        (N0C && N1C && N0C->getZExtValue() < N1C->getZExtValue()))
+      return DAG.getNode(XCoreISD::LMUL, dl, DAG.getVTList(VT, VT), N1, N0, N2, N3);
+
+    // lmul(x, 0, a, b)
+    if (N1C && N1C->isNullValue()) {
+      // If the high result is unused fold to add(a, b)
+      if (N->hasNUsesOfValue(0, 0)) {
+        SDValue Lo = DAG.getNode(ISD::ADD, dl, VT, N2, N3);
+        SDValue Ops [] = { Lo, Lo };
+        return DAG.getMergeValues(Ops, 2, dl);
+      }
+      // Otherwise fold to ladd(a, b, 0)
+      return DAG.getNode(XCoreISD::LADD, dl, DAG.getVTList(VT, VT), N2, N3, N1);
+    }
+  }
+  break;
   case ISD::ADD: {
-    // Fold expressions such as add(add(mul(x,y),a),b) -> lmul(x, y, a, b).
+    // Fold 32 bit expressions such as add(add(mul(x,y),a),b) ->
+    // lmul(x, y, a, b). The high result of lmul will be ignored.
     // This is only profitable if the intermediate results are unused
     // elsewhere.
     SDValue Mul0, Mul1, Addend0, Addend1;
-    if (isADDADDMUL(SDValue(N, 0), Mul0, Mul1, Addend0, Addend1, true)) {
+    if (N->getValueType(0) == MVT::i32 &&
+        isADDADDMUL(SDValue(N, 0), Mul0, Mul1, Addend0, Addend1, true)) {
       SDValue Zero = DAG.getConstant(0, MVT::i32);
       SDValue Ignored = DAG.getNode(XCoreISD::LMUL, dl,
                                     DAG.getVTList(MVT::i32, MVT::i32), Mul0,
                                     Mul1, Addend0, Addend1);
       SDValue Result(Ignored.getNode(), 1);
       return Result;
+    }
+    APInt HighMask = APInt::getHighBitsSet(64, 32);
+    // Fold 64 bit expression such as add(add(mul(x,y),a),b) ->
+    // lmul(x, y, a, b) if all operands are zero-extended. We do this
+    // before type legalization as it is messy to match the operands after
+    // that.
+    if (N->getValueType(0) == MVT::i64 &&
+        isADDADDMUL(SDValue(N, 0), Mul0, Mul1, Addend0, Addend1, false) &&
+        DAG.MaskedValueIsZero(Mul0, HighMask) &&
+        DAG.MaskedValueIsZero(Mul1, HighMask) &&
+        DAG.MaskedValueIsZero(Addend0, HighMask) &&
+        DAG.MaskedValueIsZero(Addend1, HighMask)) {
+      SDValue Mul0L = DAG.getNode(ISD::EXTRACT_ELEMENT, dl, MVT::i32,
+                                  Mul0, DAG.getConstant(0, MVT::i32));
+      SDValue Mul1L = DAG.getNode(ISD::EXTRACT_ELEMENT, dl, MVT::i32,
+                                  Mul1, DAG.getConstant(0, MVT::i32));
+      SDValue Addend0L = DAG.getNode(ISD::EXTRACT_ELEMENT, dl, MVT::i32,
+                                     Addend0, DAG.getConstant(0, MVT::i32));
+      SDValue Addend1L = DAG.getNode(ISD::EXTRACT_ELEMENT, dl, MVT::i32,
+                                     Addend1, DAG.getConstant(0, MVT::i32));
+      SDValue Hi = DAG.getNode(XCoreISD::LMUL, dl,
+                               DAG.getVTList(MVT::i32, MVT::i32), Mul0L, Mul1L,
+                               Addend0L, Addend1L);
+      SDValue Lo(Hi.getNode(), 1);
+      return DAG.getNode(ISD::BUILD_PAIR, dl, MVT::i64, Lo, Hi);
     }
   }
   break;

@@ -26,7 +26,9 @@
 #include "llvm/Support/PrettyStackTrace.h"
 #include "llvm/Support/SourceMgr.h"
 #include "llvm/Support/raw_ostream.h"
+#include "llvm/System/Host.h"
 #include "llvm/System/Signals.h"
+#include "llvm/Target/TargetAsmBackend.h"
 #include "llvm/Target/TargetAsmParser.h"
 #include "llvm/Target/TargetData.h"
 #include "llvm/Target/TargetRegistry.h"
@@ -75,9 +77,16 @@ IncludeDirs("I", cl::desc("Directory of include files"),
             cl::value_desc("directory"), cl::Prefix);
 
 static cl::opt<std::string>
+ArchName("arch", cl::desc("Target arch to assemble for, "
+                            "see -version for available targets"));
+
+static cl::opt<std::string>
 TripleName("triple", cl::desc("Target triple to assemble for, "
-                              "see -version for available targets"),
-           cl::init(LLVM_HOSTTRIPLE));
+                              "see -version for available targets"));
+
+static cl::opt<bool>
+NoInitialTextSection("n", cl::desc(
+                   "Don't assume assembly file starts in the text section"));
 
 enum ActionType {
   AC_AsLex,
@@ -97,6 +106,15 @@ Action(cl::desc("Action to perform:"),
                   clEnumValEnd));
 
 static const Target *GetTarget(const char *ProgName) {
+  // Figure out the target triple.
+  if (TripleName.empty())
+    TripleName = sys::getHostTriple();
+  if (!ArchName.empty()) {
+    llvm::Triple TT(TripleName);
+    TT.setArchName(ArchName);
+    TripleName = TT.str();
+  }
+
   // Get the target specific parser.
   std::string Error;
   const Target *TheTarget = TargetRegistry::lookupTarget(TripleName, Error);
@@ -241,7 +259,11 @@ static int AssembleInput(const char *ProgName) {
   // it later.
   SrcMgr.setIncludeDirs(IncludeDirs);
   
-  MCContext Ctx;
+  
+  const MCAsmInfo *MAI = TheTarget->createAsmInfo(TripleName);
+  assert(MAI && "Unable to create target asm info!");
+  
+  MCContext Ctx(*MAI);
   formatted_raw_ostream *Out = GetOutputStream();
   if (!Out)
     return 1;
@@ -259,22 +281,20 @@ static int AssembleInput(const char *ProgName) {
   OwningPtr<MCInstPrinter> IP;
   OwningPtr<MCCodeEmitter> CE;
   OwningPtr<MCStreamer> Str;
-
-  const MCAsmInfo *MAI = TheTarget->createAsmInfo(TripleName);
-  assert(MAI && "Unable to create target asm info!");
+  OwningPtr<TargetAsmBackend> TAB;
 
   if (FileType == OFT_AssemblyFile) {
     IP.reset(TheTarget->createMCInstPrinter(OutputAsmVariant, *MAI, *Out));
     if (ShowEncoding)
       CE.reset(TheTarget->createCodeEmitter(*TM, Ctx));
-    Str.reset(createAsmStreamer(Ctx, *Out, *MAI,
-                                TM->getTargetData()->isLittleEndian(),
+    Str.reset(createAsmStreamer(Ctx, *Out,TM->getTargetData()->isLittleEndian(),
                                 /*asmverbose*/true, IP.get(), CE.get(),
                                 ShowInst));
   } else {
     assert(FileType == OFT_ObjectFile && "Invalid file type!");
     CE.reset(TheTarget->createCodeEmitter(*TM, Ctx));
-    Str.reset(createMachOStreamer(Ctx, *Out, CE.get()));
+    TAB.reset(TheTarget->createAsmBackend(TripleName));
+    Str.reset(createMachOStreamer(Ctx, *TAB, *Out, CE.get()));
   }
 
   AsmParser Parser(SrcMgr, Ctx, *Str.get(), *MAI);
@@ -287,9 +307,13 @@ static int AssembleInput(const char *ProgName) {
 
   Parser.setTargetParser(*TAP.get());
 
-  int Res = Parser.Run();
+  int Res = Parser.Run(NoInitialTextSection);
   if (Out != &fouts())
     delete Out;
+
+  // Delete output on errors.
+  if (Res && OutputFilename != "-")
+    sys::Path(OutputFilename).eraseFromDisk();
 
   return Res;
 }

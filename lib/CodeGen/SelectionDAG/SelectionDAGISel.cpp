@@ -368,8 +368,6 @@ bool SelectionDAGISel::runOnMachineFunction(MachineFunction &mf) {
 static void SetDebugLoc(unsigned MDDbgKind, Instruction *I,
                         SelectionDAGBuilder *SDB,
                         FastISel *FastIS, MachineFunction *MF) {
-  if (isa<DbgInfoIntrinsic>(I)) return;
-  
   if (MDNode *Dbg = I->getMetadata(MDDbgKind)) {
     DILocation DILoc(Dbg);
     DebugLoc Loc = ExtractDebugLocation(DILoc, MF->getDebugLocInfo());
@@ -446,12 +444,25 @@ namespace {
 /// nodes from the worklist.
 class SDOPsWorkListRemover : public SelectionDAG::DAGUpdateListener {
   SmallVector<SDNode*, 128> &Worklist;
+  SmallPtrSet<SDNode*, 128> &InWorklist;
 public:
-  SDOPsWorkListRemover(SmallVector<SDNode*, 128> &wl) : Worklist(wl) {}
+  SDOPsWorkListRemover(SmallVector<SDNode*, 128> &wl,
+                       SmallPtrSet<SDNode*, 128> &inwl)
+    : Worklist(wl), InWorklist(inwl) {}
 
+  void RemoveFromWorklist(SDNode *N) {
+    if (!InWorklist.erase(N)) return;
+    
+    SmallVector<SDNode*, 128>::iterator I =
+    std::find(Worklist.begin(), Worklist.end(), N);
+    assert(I != Worklist.end() && "Not in worklist");
+    
+    *I = Worklist.back();
+    Worklist.pop_back();
+  }
+  
   virtual void NodeDeleted(SDNode *N, SDNode *E) {
-    Worklist.erase(std::remove(Worklist.begin(), Worklist.end(), N),
-                   Worklist.end());
+    RemoveFromWorklist(N);
   }
 
   virtual void NodeUpdated(SDNode *N) {
@@ -480,70 +491,79 @@ static bool TrivialTruncElim(SDValue Op,
 /// x+y to (VT)((SmallVT)x+(SmallVT)y) if the casts are free.
 void SelectionDAGISel::ShrinkDemandedOps() {
   SmallVector<SDNode*, 128> Worklist;
+  SmallPtrSet<SDNode*, 128> InWorklist;
 
   // Add all the dag nodes to the worklist.
   Worklist.reserve(CurDAG->allnodes_size());
   for (SelectionDAG::allnodes_iterator I = CurDAG->allnodes_begin(),
-       E = CurDAG->allnodes_end(); I != E; ++I)
+       E = CurDAG->allnodes_end(); I != E; ++I) {
     Worklist.push_back(I);
-
-  APInt Mask;
-  APInt KnownZero;
-  APInt KnownOne;
+    InWorklist.insert(I);
+  }
 
   TargetLowering::TargetLoweringOpt TLO(*CurDAG, true);
   while (!Worklist.empty()) {
     SDNode *N = Worklist.pop_back_val();
+    InWorklist.erase(N);
 
     if (N->use_empty() && N != CurDAG->getRoot().getNode()) {
+      // Deleting this node may make its operands dead, add them to the worklist
+      // if they aren't already there.
+      for (unsigned i = 0, e = N->getNumOperands(); i != e; ++i)
+        if (InWorklist.insert(N->getOperand(i).getNode()))
+          Worklist.push_back(N->getOperand(i).getNode());
+      
       CurDAG->DeleteNode(N);
       continue;
     }
 
     // Run ShrinkDemandedOp on scalar binary operations.
-    if (N->getNumValues() == 1 &&
-        N->getValueType(0).isSimple() && N->getValueType(0).isInteger()) {
-      unsigned BitWidth = N->getValueType(0).getScalarType().getSizeInBits();
-      APInt Demanded = APInt::getAllOnesValue(BitWidth);
-      APInt KnownZero, KnownOne;
-      if (TLI.SimplifyDemandedBits(SDValue(N, 0), Demanded,
-                                   KnownZero, KnownOne, TLO) ||
-          (N->getOpcode() == ISD::TRUNCATE &&
-           TrivialTruncElim(SDValue(N, 0), TLO))) {
-        // Revisit the node.
-        Worklist.erase(std::remove(Worklist.begin(), Worklist.end(), N),
-                       Worklist.end());
-        Worklist.push_back(N);
+    if (N->getNumValues() != 1 ||
+        !N->getValueType(0).isSimple() || !N->getValueType(0).isInteger())
+      continue;
+    
+    unsigned BitWidth = N->getValueType(0).getScalarType().getSizeInBits();
+    APInt Demanded = APInt::getAllOnesValue(BitWidth);
+    APInt KnownZero, KnownOne;
+    if (!TLI.SimplifyDemandedBits(SDValue(N, 0), Demanded,
+                                  KnownZero, KnownOne, TLO) &&
+        (N->getOpcode() != ISD::TRUNCATE ||
+         !TrivialTruncElim(SDValue(N, 0), TLO)))
+      continue;
+    
+    // Revisit the node.
+    assert(!InWorklist.count(N) && "Already in worklist");
+    Worklist.push_back(N);
+    InWorklist.insert(N);
 
-        // Replace the old value with the new one.
-        DEBUG(errs() << "\nReplacing "; 
-              TLO.Old.getNode()->dump(CurDAG);
-              errs() << "\nWith: ";
-              TLO.New.getNode()->dump(CurDAG);
-              errs() << '\n');
+    // Replace the old value with the new one.
+    DEBUG(errs() << "\nShrinkDemandedOps replacing "; 
+          TLO.Old.getNode()->dump(CurDAG);
+          errs() << "\nWith: ";
+          TLO.New.getNode()->dump(CurDAG);
+          errs() << '\n');
 
-        Worklist.push_back(TLO.New.getNode());
+    if (InWorklist.insert(TLO.New.getNode()))
+      Worklist.push_back(TLO.New.getNode());
 
-        SDOPsWorkListRemover DeadNodes(Worklist);
-        CurDAG->ReplaceAllUsesOfValueWith(TLO.Old, TLO.New, &DeadNodes);
+    SDOPsWorkListRemover DeadNodes(Worklist, InWorklist);
+    CurDAG->ReplaceAllUsesOfValueWith(TLO.Old, TLO.New, &DeadNodes);
 
-        if (TLO.Old.getNode()->use_empty()) {
-          for (unsigned i = 0, e = TLO.Old.getNode()->getNumOperands();
-               i != e; ++i) {
-            SDNode *OpNode = TLO.Old.getNode()->getOperand(i).getNode(); 
-            if (OpNode->hasOneUse()) {
-              Worklist.erase(std::remove(Worklist.begin(), Worklist.end(),
-                                         OpNode), Worklist.end());
-              Worklist.push_back(OpNode);
-            }
-          }
-
-          Worklist.erase(std::remove(Worklist.begin(), Worklist.end(),
-                                     TLO.Old.getNode()), Worklist.end());
-          CurDAG->DeleteNode(TLO.Old.getNode());
-        }
+    if (!TLO.Old.getNode()->use_empty()) continue;
+        
+    for (unsigned i = 0, e = TLO.Old.getNode()->getNumOperands();
+         i != e; ++i) {
+      SDNode *OpNode = TLO.Old.getNode()->getOperand(i).getNode(); 
+      if (OpNode->hasOneUse()) {
+        // Add OpNode to the end of the list to revisit.
+        DeadNodes.RemoveFromWorklist(OpNode);
+        Worklist.push_back(OpNode);
+        InWorklist.insert(OpNode);
       }
     }
+
+    DeadNodes.RemoveFromWorklist(TLO.Old.getNode());
+    CurDAG->DeleteNode(TLO.Old.getNode());
   }
 }
 
@@ -715,12 +735,12 @@ void SelectionDAGISel::CodeGenAndEmitDAG() {
   DEBUG(dbgs() << "Optimized legalized selection DAG:\n");
   DEBUG(CurDAG->dump());
 
-  if (ViewISelDAGs) CurDAG->viewGraph("isel input for " + BlockName);
-
   if (OptLevel != CodeGenOpt::None) {
     ShrinkDemandedOps();
     ComputeLiveOutVRegInfo();
   }
+
+  if (ViewISelDAGs) CurDAG->viewGraph("isel input for " + BlockName);
 
   // Third, instruction select all of the operations to machine code, adding the
   // code to the MachineBasicBlock.
@@ -879,10 +899,10 @@ void SelectionDAGISel::SelectAllBasicBlocks(Function &Fn,
     if (MMI && BB->isLandingPad()) {
       // Add a label to mark the beginning of the landing pad.  Deletion of the
       // landing pad can thus be detected via the MachineModuleInfo.
-      unsigned LabelID = MMI->addLandingPad(BB);
+      MCSymbol *Label = MMI->addLandingPad(BB);
 
       const TargetInstrDesc &II = TII.get(TargetOpcode::EH_LABEL);
-      BuildMI(BB, SDB->getCurDebugLoc(), II).addImm(LabelID);
+      BuildMI(BB, SDB->getCurDebugLoc(), II).addSym(Label);
 
       // Mark exception register as live in.
       unsigned Reg = TLI.getExceptionAddressRegister();
@@ -1517,14 +1537,6 @@ SDNode *SelectionDAGISel::Select_UNDEF(SDNode *N) {
   return CurDAG->SelectNodeTo(N, TargetOpcode::IMPLICIT_DEF,N->getValueType(0));
 }
 
-SDNode *SelectionDAGISel::Select_EH_LABEL(SDNode *N) {
-  SDValue Chain = N->getOperand(0);
-  unsigned C = cast<LabelSDNode>(N)->getLabelID();
-  SDValue Tmp = CurDAG->getTargetConstant(C, MVT::i32);
-  return CurDAG->SelectNodeTo(N, TargetOpcode::EH_LABEL,
-                              MVT::Other, Tmp, Chain);
-}
-
 /// GetVBR - decode a vbr encoding whose top bit is set.
 ALWAYS_INLINE static uint64_t
 GetVBR(uint64_t Val, const unsigned char *MatcherTable, unsigned &Idx) {
@@ -1651,7 +1663,8 @@ WalkChainUsers(SDNode *ChainedNode,
     
     if (User->getOpcode() == ISD::CopyToReg ||
         User->getOpcode() == ISD::CopyFromReg ||
-        User->getOpcode() == ISD::INLINEASM) {
+        User->getOpcode() == ISD::INLINEASM ||
+        User->getOpcode() == ISD::EH_LABEL) {
       // If their node ID got reset to -1 then they've already been selected.
       // Treat them like a MachineOpcode.
       if (User->getNodeId() == -1)
@@ -2042,6 +2055,8 @@ SelectCodeCommon(SDNode *NodeToMatch, const unsigned char *MatcherTable,
   case ISD::EntryToken:       // These nodes remain the same.
   case ISD::BasicBlock:
   case ISD::Register:
+  //case ISD::VALUETYPE:
+  //case ISD::CONDCODE:
   case ISD::HANDLENODE:
   case ISD::TargetConstant:
   case ISD::TargetConstantFP:
@@ -2055,6 +2070,7 @@ SelectCodeCommon(SDNode *NodeToMatch, const unsigned char *MatcherTable,
   case ISD::TokenFactor:
   case ISD::CopyFromReg:
   case ISD::CopyToReg:
+  case ISD::EH_LABEL:
     NodeToMatch->setNodeId(-1); // Mark selected.
     return 0;
   case ISD::AssertSext:
@@ -2063,7 +2079,6 @@ SelectCodeCommon(SDNode *NodeToMatch, const unsigned char *MatcherTable,
                                       NodeToMatch->getOperand(0));
     return 0;
   case ISD::INLINEASM: return Select_INLINEASM(NodeToMatch);
-  case ISD::EH_LABEL:  return Select_EH_LABEL(NodeToMatch);
   case ISD::UNDEF:     return Select_UNDEF(NodeToMatch);
   }
   

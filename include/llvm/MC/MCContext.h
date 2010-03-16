@@ -15,6 +15,7 @@
 #include "llvm/Support/Allocator.h"
 
 namespace llvm {
+  class MCAsmInfo;
   class MCExpr;
   class MCSection;
   class MCSymbol;
@@ -28,31 +29,44 @@ namespace llvm {
     MCContext(const MCContext&); // DO NOT IMPLEMENT
     MCContext &operator=(const MCContext&); // DO NOT IMPLEMENT
 
+    /// The MCAsmInfo for this target.
+    const MCAsmInfo &MAI;
+    
     /// Sections - Bindings of names to allocated sections.
     StringMap<MCSection*> Sections;
 
     /// Symbols - Bindings of names to symbols.
     StringMap<MCSymbol*> Symbols;
 
+    /// NextUniqueID - The next ID to dole out to an unnamed assembler temporary
+    /// symbol.
+    unsigned NextUniqueID;
+    
     /// Allocator - Allocator object used for creating machine code objects.
     ///
     /// We use a bump pointer allocator to avoid the need to track all allocated
     /// objects.
     BumpPtrAllocator Allocator;
   public:
-    MCContext();
+    explicit MCContext(const MCAsmInfo &MAI);
     ~MCContext();
+    
+    const MCAsmInfo &getAsmInfo() const { return MAI; }
 
     /// @name Symbol Managment
     /// @{
+    
+    /// CreateTempSymbol - Create and return a new assembler temporary symbol
+    /// with a unique but unspecified name.
+    MCSymbol *CreateTempSymbol();
 
     /// GetOrCreateSymbol - Lookup the symbol inside with the specified
     /// @p Name.  If it exists, return it.  If not, create a forward
     /// reference and return it.
     ///
     /// @param Name - The symbol name, which must be unique across all symbols.
-    MCSymbol *GetOrCreateSymbol(StringRef Name);
-    MCSymbol *GetOrCreateSymbol(const Twine &Name);
+    MCSymbol *GetOrCreateSymbol(StringRef Name, bool isTemporary = false);
+    MCSymbol *GetOrCreateSymbol(const Twine &Name, bool isTemporary = false);
 
     /// GetOrCreateTemporarySymbol - Create a new assembler temporary symbol
     /// with the specified @p Name if it doesn't exist or return the existing

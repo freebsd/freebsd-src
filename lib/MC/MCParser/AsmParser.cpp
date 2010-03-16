@@ -20,7 +20,6 @@
 #include "llvm/MC/MCSectionMachO.h"
 #include "llvm/MC/MCStreamer.h"
 #include "llvm/MC/MCSymbol.h"
-#include "llvm/MC/MCValue.h"
 #include "llvm/MC/MCParser/MCParsedAsmOperand.h"
 #include "llvm/Support/Compiler.h"
 #include "llvm/Support/SourceMgr.h"
@@ -139,15 +138,14 @@ const AsmToken &AsmParser::Lex() {
   return *tok;
 }
 
-bool AsmParser::Run() {
-  // Create the initial section.
+bool AsmParser::Run(bool NoInitialTextSection) {
+  // Create the initial section, if requested.
   //
-  // FIXME: Support -n.
   // FIXME: Target hook & command line option for initial section.
-  Out.SwitchSection(getMachOSection("__TEXT", "__text",
-                                    MCSectionMachO::S_ATTR_PURE_INSTRUCTIONS,
-                                    0, SectionKind::getText()));
-
+  if (!NoInitialTextSection)
+    Out.SwitchSection(getMachOSection("__TEXT", "__text",
+                                      MCSectionMachO::S_ATTR_PURE_INSTRUCTIONS,
+                                      0, SectionKind::getText()));
 
   // Prime the lexer.
   Lex();
@@ -264,19 +262,29 @@ bool AsmParser::ParsePrimaryExpr(const MCExpr *&Res, SMLoc &EndLoc) {
   case AsmToken::String:
   case AsmToken::Identifier: {
     // This is a symbol reference.
-    MCSymbol *Sym = CreateSymbol(getTok().getIdentifier());
+    std::pair<StringRef, StringRef> Split = getTok().getIdentifier().split('@');
+    MCSymbol *Sym = CreateSymbol(Split.first);
+
+    // Lookup the symbol variant if used.
+    MCSymbolRefExpr::VariantKind Variant = MCSymbolRefExpr::VK_None;
+    if (Split.first.size() != getTok().getIdentifier().size())
+      Variant = MCSymbolRefExpr::getVariantKindForName(Split.second);
+
     EndLoc = Lexer.getLoc();
     Lex(); // Eat identifier.
 
     // If this is an absolute variable reference, substitute it now to preserve
     // semantics in the face of reassignment.
     if (Sym->getValue() && isa<MCConstantExpr>(Sym->getValue())) {
+      if (Variant)
+        return Error(EndLoc, "unexpected modified on variable reference");
+
       Res = Sym->getValue();
       return false;
     }
 
     // Otherwise create a symbol ref.
-    Res = MCSymbolRefExpr::Create(Sym, getContext());
+    Res = MCSymbolRefExpr::Create(Sym, Variant, getContext());
     return false;
   }
   case AsmToken::Integer:

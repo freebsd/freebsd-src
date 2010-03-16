@@ -32,6 +32,7 @@
 #include "llvm/MC/MCInst.h"
 #include "llvm/MC/MCStreamer.h"
 #include "llvm/MC/MCSymbol.h"
+#include "llvm/Target/Mangler.h"
 #include "llvm/Target/TargetData.h"
 #include "llvm/Target/TargetLoweringObjectFile.h"
 #include "llvm/Target/TargetRegistry.h"
@@ -42,9 +43,8 @@ namespace {
   class MSP430AsmPrinter : public AsmPrinter {
   public:
     MSP430AsmPrinter(formatted_raw_ostream &O, TargetMachine &TM,
-                     MCContext &Ctx, MCStreamer &Streamer,
-                     const MCAsmInfo *MAI)
-      : AsmPrinter(O, TM, Ctx, Streamer, MAI) {}
+                     MCStreamer &Streamer)
+      : AsmPrinter(O, TM, Streamer) {}
 
     virtual const char *getPassName() const {
       return "MSP430 Assembly Printer";
@@ -92,7 +92,7 @@ void MSP430AsmPrinter::printOperand(const MachineInstr *MI, int OpNum,
     O << MO.getImm();
     return;
   case MachineOperand::MO_MachineBasicBlock:
-    O << *MO.getMBB()->getSymbol(OutContext);
+    O << *MO.getMBB()->getSymbol();
     return;
   case MachineOperand::MO_GlobalAddress: {
     bool isMemOp  = Modifier && !strcmp(Modifier, "mem");
@@ -109,7 +109,7 @@ void MSP430AsmPrinter::printOperand(const MachineInstr *MI, int OpNum,
     if (Offset)
       O << '(' << Offset << '+';
 
-    O << *GetGlobalValueSymbol(MO.getGlobal());
+    O << *Mang->getSymbol(MO.getGlobal());
 
     if (Offset)
       O << ')';

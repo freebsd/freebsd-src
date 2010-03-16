@@ -378,7 +378,7 @@ def am3offset : Operand<i32>,
 def addrmode4 : Operand<i32>,
                 ComplexPattern<i32, 2, "SelectAddrMode4", []> {
   let PrintMethod = "printAddrMode4Operand";
-  let MIOperandInfo = (ops GPR, i32imm);
+  let MIOperandInfo = (ops GPR:$addr, i32imm);
 }
 
 // addrmode5 := reg +/- imm8*4
@@ -386,7 +386,7 @@ def addrmode4 : Operand<i32>,
 def addrmode5 : Operand<i32>,
                 ComplexPattern<i32, 2, "SelectAddrMode5", []> {
   let PrintMethod = "printAddrMode5Operand";
-  let MIOperandInfo = (ops GPR, i32imm);
+  let MIOperandInfo = (ops GPR:$base, i32imm);
 }
 
 // addrmode6 := reg with optional writeback
@@ -710,7 +710,7 @@ def BKPT : AI<(outs), (ins i32imm:$val), MiscFrm, NoItinerary, "bkpt", "\t$val",
 // opt{5} = changemode from Inst{17}
 // opt{8-6} = AIF from Inst{8-6}
 // opt{10-9} = imod from Inst{19-18} with 0b10 as enable and 0b11 as disable
-def CPS : AXI<(outs),(ins i32imm:$opt), MiscFrm, NoItinerary, "cps${opt:cps}",
+def CPS : AXI<(outs), (ins cps_opt:$opt), MiscFrm, NoItinerary, "cps$opt",
               [/* For disassembly only; pattern left blank */]>,
           Requires<[IsARM]> {
   let Inst{31-28} = 0b1111;
@@ -721,9 +721,12 @@ def CPS : AXI<(outs),(ins i32imm:$opt), MiscFrm, NoItinerary, "cps${opt:cps}",
 
 // Preload signals the memory system of possible future data/instruction access.
 // These are for disassembly only.
+//
+// A8.6.117, A8.6.118.  Different instructions are generated for #0 and #-0.
+// The neg_zero operand translates -0 to -1, -1 to -2, ..., etc.
 multiclass APreLoad<bit data, bit read, string opc> {
 
-  def i : AXI<(outs), (ins GPR:$base, i32imm:$imm), MiscFrm, NoItinerary,
+  def i : AXI<(outs), (ins GPR:$base, neg_zero:$imm), MiscFrm, NoItinerary,
                !strconcat(opc, "\t[$base, $imm]"), []> {
     let Inst{31-26} = 0b111101;
     let Inst{25} = 0; // 0 for immediate form
@@ -903,10 +906,11 @@ let isBranch = 1, isTerminator = 1, isBarrier = 1, isIndirectBranch = 1 in {
 // FIXME: Should pc be an implicit operand like PICADD, etc?
 let isReturn = 1, isTerminator = 1, isBarrier = 1, mayLoad = 1,
     hasExtraDefRegAllocReq = 1 in
-  def LDM_RET : AXI4ld<(outs),
-                    (ins addrmode4:$addr, pred:$p, reglist:$wb, variable_ops),
-                    LdStMulFrm, IIC_Br, "ldm${addr:submode}${p}\t$addr, $wb",
-                    []>;
+  def LDM_RET : AXI4ld<(outs GPR:$wb), (ins addrmode4:$addr, pred:$p,
+                                        reglist:$dsts, variable_ops),
+                       IndexModeUpd, LdStMulFrm, IIC_Br,
+                       "ldm${addr:submode}${p}\t$addr, $dsts",
+                       "$addr.addr = $wb", []>;
 
 // On non-Darwin platforms R9 is callee-saved.
 let isCall = 1,
@@ -1341,17 +1345,31 @@ def STRHT: AI3sthpo<(outs GPR:$base_wb),
 //  Load / store multiple Instructions.
 //
 
-let mayLoad = 1, hasExtraDefRegAllocReq = 1 in
-def LDM : AXI4ld<(outs),
-               (ins addrmode4:$addr, pred:$p, reglist:$wb, variable_ops),
-               LdStMulFrm, IIC_iLoadm, "ldm${addr:submode}${p}\t$addr, $wb",
-               []>;
+let mayLoad = 1, hasExtraDefRegAllocReq = 1 in {
+def LDM : AXI4ld<(outs), (ins addrmode4:$addr, pred:$p,
+                          reglist:$dsts, variable_ops),
+                 IndexModeNone, LdStMulFrm, IIC_iLoadm,
+                 "ldm${addr:submode}${p}\t$addr, $dsts", "", []>;
 
-let mayStore = 1, hasExtraSrcRegAllocReq = 1 in
-def STM : AXI4st<(outs),
-               (ins addrmode4:$addr, pred:$p, reglist:$wb, variable_ops),
-               LdStMulFrm, IIC_iStorem, "stm${addr:submode}${p}\t$addr, $wb",
-               []>;
+def LDM_UPD : AXI4ld<(outs GPR:$wb), (ins addrmode4:$addr, pred:$p,
+                                      reglist:$dsts, variable_ops),
+                     IndexModeUpd, LdStMulFrm, IIC_iLoadm,
+                     "ldm${addr:submode}${p}\t$addr, $dsts",
+                     "$addr.addr = $wb", []>;
+} // mayLoad, hasExtraDefRegAllocReq
+
+let mayStore = 1, hasExtraSrcRegAllocReq = 1 in {
+def STM : AXI4st<(outs), (ins addrmode4:$addr, pred:$p,
+                          reglist:$srcs, variable_ops),
+                 IndexModeNone, LdStMulFrm, IIC_iStorem,
+                 "stm${addr:submode}${p}\t$addr, $srcs", "", []>;
+
+def STM_UPD : AXI4st<(outs GPR:$wb), (ins addrmode4:$addr, pred:$p,
+                                      reglist:$srcs, variable_ops),
+                     IndexModeUpd, LdStMulFrm, IIC_iStorem,
+                     "stm${addr:submode}${p}\t$addr, $srcs",
+                     "$addr.addr = $wb", []>;
+} // mayStore, hasExtraSrcRegAllocReq
 
 //===----------------------------------------------------------------------===//
 //  Move Instructions.
@@ -2844,29 +2862,29 @@ def MRSsys : ABI<0b0001,(outs GPR:$dst),(ins), NoItinerary,"mrs","\t$dst, spsr",
   let Inst{7-4} = 0b0000;
 }
 
-def MSR : ABI<0b0001, (outs), (ins GPR:$src, i32imm:$mask), NoItinerary, "msr",
-              "\tcpsr${mask:msr}, $src",
+def MSR : ABI<0b0001, (outs), (ins GPR:$src, msr_mask:$mask), NoItinerary,
+              "msr", "\tcpsr$mask, $src",
               [/* For disassembly only; pattern left blank */]> {
   let Inst{23-20} = 0b0010;
   let Inst{7-4} = 0b0000;
 }
 
-def MSRi : ABI<0b0011, (outs), (ins so_imm:$a, i32imm:$mask), NoItinerary,"msr",
-              "\tcpsr${mask:msr}, $a",
+def MSRi : ABI<0b0011, (outs), (ins so_imm:$a, msr_mask:$mask), NoItinerary,
+              "msr", "\tcpsr$mask, $a",
               [/* For disassembly only; pattern left blank */]> {
   let Inst{23-20} = 0b0010;
   let Inst{7-4} = 0b0000;
 }
 
-def MSRsys : ABI<0b0001, (outs), (ins GPR:$src, i32imm:$mask),NoItinerary,"msr",
-              "\tspsr${mask:msr}, $src",
+def MSRsys : ABI<0b0001, (outs), (ins GPR:$src, msr_mask:$mask), NoItinerary,
+              "msr", "\tspsr$mask, $src",
               [/* For disassembly only; pattern left blank */]> {
   let Inst{23-20} = 0b0110;
   let Inst{7-4} = 0b0000;
 }
 
-def MSRsysi : ABI<0b0011,(outs),(ins so_imm:$a, i32imm:$mask),NoItinerary,"msr",
-              "\tspsr${mask:msr}, $a",
+def MSRsysi : ABI<0b0011, (outs), (ins so_imm:$a, msr_mask:$mask), NoItinerary,
+              "msr", "\tspsr$mask, $a",
               [/* For disassembly only; pattern left blank */]> {
   let Inst{23-20} = 0b0110;
   let Inst{7-4} = 0b0000;

@@ -24,6 +24,7 @@ def i64i32imm  : Operand<i64>;
 // pc relative.
 def i64i32imm_pcrel : Operand<i64> {
   let PrintMethod = "print_pcrel_imm";
+  let ParserMatchClass = X86AbsMemAsmOperand;
 }
 
 
@@ -32,17 +33,26 @@ def i64i8imm   : Operand<i64> {
   let ParserMatchClass = ImmSExt8AsmOperand;
 }
 
+// Special i64mem for addresses of load folding tail calls. These are not
+// allowed to use callee-saved registers since they must be scheduled
+// after callee-saved register are popped.
+def i64mem_TC : Operand<i64> {
+  let PrintMethod = "printi64mem";
+  let MIOperandInfo = (ops GR64_TC, i8imm, GR64_TC, i32imm, i8imm);
+  let ParserMatchClass = X86MemAsmOperand;
+}
+
 def lea64mem : Operand<i64> {
   let PrintMethod = "printlea64mem";
   let MIOperandInfo = (ops GR64, i8imm, GR64_NOSP, i32imm);
-  let ParserMatchClass = X86MemAsmOperand;
+  let ParserMatchClass = X86NoSegMemAsmOperand;
 }
 
 def lea64_32mem : Operand<i32> {
   let PrintMethod = "printlea64_32mem";
   let AsmOperandLowerMethod = "lower_lea64_32mem";
   let MIOperandInfo = (ops GR32, i8imm, GR32_NOSP, i32imm);
-  let ParserMatchClass = X86MemAsmOperand;
+  let ParserMatchClass = X86NoSegMemAsmOperand;
 }
 
 //===----------------------------------------------------------------------===//
@@ -176,22 +186,31 @@ let isCall = 1 in
 
 
 let isCall = 1, isTerminator = 1, isReturn = 1, isBarrier = 1 in
-def TCRETURNdi64 : I<0, Pseudo, (outs), (ins i64imm:$dst, i32imm:$offset,
-                                         variable_ops),
-                 "#TC_RETURN $dst $offset",
-                 []>;
+  let Defs = [RAX, RCX, RDX, RSI, RDI, R8, R9, R10, R11,
+              FP0, FP1, FP2, FP3, FP4, FP5, FP6, ST0, ST1,
+              MM0, MM1, MM2, MM3, MM4, MM5, MM6, MM7,
+              XMM0, XMM1, XMM2, XMM3, XMM4, XMM5, XMM6, XMM7,
+              XMM8, XMM9, XMM10, XMM11, XMM12, XMM13, XMM14, XMM15, EFLAGS],
+      Uses = [RSP] in {
+  def TCRETURNdi64 : I<0, Pseudo, (outs),
+                         (ins i64i32imm_pcrel:$dst, i32imm:$offset, variable_ops),
+                       "#TC_RETURN $dst $offset", []>;
+  def TCRETURNri64 : I<0, Pseudo, (outs), (ins GR64_TC:$dst, i32imm:$offset,
+                                           variable_ops),
+                       "#TC_RETURN $dst $offset", []>;
+  def TCRETURNmi64 : I<0, Pseudo, (outs), 
+                       (ins i64mem_TC:$dst, i32imm:$offset, variable_ops),
+                       "#TC_RETURN $dst $offset", []>;
 
-let isCall = 1, isTerminator = 1, isReturn = 1, isBarrier = 1 in
-def TCRETURNri64 : I<0, Pseudo, (outs), (ins GR64:$dst, i32imm:$offset,
-                                         variable_ops),
-                 "#TC_RETURN $dst $offset",
-                 []>;
+  def TAILJMPd64 : Ii32PCRel<0xE9, RawFrm, (outs),
+                                      (ins i64i32imm_pcrel:$dst, variable_ops),
+                   "jmp\t$dst  # TAILCALL", []>;
+  def TAILJMPr64 : I<0xFF, MRM4r, (outs), (ins GR64_TC:$dst, variable_ops),
+                     "jmp{q}\t{*}$dst  # TAILCALL", []>;
 
-
-let isCall = 1, isTerminator = 1, isReturn = 1, isBarrier = 1 in
-  def TAILJMPr64 : I<0xFF, MRM4r, (outs), (ins GR64:$dst, variable_ops),
-                   "jmp{q}\t{*}$dst  # TAILCALL",
-                   []>;     
+  def TAILJMPm64 : I<0xFF, MRM4m, (outs), (ins i64mem_TC:$dst, variable_ops),
+                     "jmp{q}\t{*}$dst  # TAILCALL", []>;
+}
 
 // Branches
 let isBranch = 1, isTerminator = 1, isBarrier = 1, isIndirectBranch = 1 in {
@@ -339,6 +358,22 @@ def MOV64mi32 : RIi32<0xC7, MRM0m, (outs), (ins i64mem:$dst, i64i32imm:$src),
                       "mov{q}\t{$src, $dst|$dst, $src}",
                       [(store i64immSExt32:$src, addr:$dst)]>;
 
+/// Versions of MOV64rr, MOV64rm, and MOV64mr for i64mem_TC and GR64_TC.
+let neverHasSideEffects = 1 in
+def MOV64rr_TC : RI<0x89, MRMDestReg, (outs GR64_TC:$dst), (ins GR64_TC:$src),
+                "mov{q}\t{$src, $dst|$dst, $src}", []>;
+
+let mayLoad = 1,
+    canFoldAsLoad = 1, isReMaterializable = 1 in
+def MOV64rm_TC : RI<0x8B, MRMSrcMem, (outs GR64_TC:$dst), (ins i64mem_TC:$src),
+                "mov{q}\t{$src, $dst|$dst, $src}",
+                []>;
+
+let mayStore = 1 in
+def MOV64mr_TC : RI<0x89, MRMDestMem, (outs), (ins i64mem_TC:$dst, GR64_TC:$src),
+                "mov{q}\t{$src, $dst|$dst, $src}",
+                []>;
+
 def MOV64o8a : RIi8<0xA0, RawFrm, (outs), (ins offset8:$src),
                       "mov{q}\t{$src, %rax|%rax, $src}", []>;
 def MOV64o64a : RIi32<0xA1, RawFrm, (outs), (ins offset64:$src),
@@ -463,8 +498,8 @@ let neverHasSideEffects = 1 in {
 
 let Defs = [EFLAGS] in {
 
-def ADD64i32 : RI<0x05, RawFrm, (outs), (ins i32imm:$src),
-                  "add{q}\t{$src, %rax|%rax, $src}", []>;
+def ADD64i32 : RIi32<0x05, RawFrm, (outs), (ins i32imm:$src),
+                     "add{q}\t{$src, %rax|%rax, $src}", []>;
 
 let isTwoAddress = 1 in {
 let isConvertibleToThreeAddress = 1 in {
@@ -520,8 +555,8 @@ def ADD64mi32 : RIi32<0x81, MRM0m, (outs), (ins i64mem:$dst, i64i32imm :$src2),
 
 let Uses = [EFLAGS] in {
 
-def ADC64i32 : RI<0x15, RawFrm, (outs), (ins i32imm:$src),
-                  "adc{q}\t{$src, %rax|%rax, $src}", []>;
+def ADC64i32 : RIi32<0x15, RawFrm, (outs), (ins i32imm:$src),
+                     "adc{q}\t{$src, %rax|%rax, $src}", []>;
 
 let isTwoAddress = 1 in {
 let isCommutable = 1 in
@@ -594,8 +629,8 @@ def SUB64ri32 : RIi32<0x81, MRM5r, (outs GR64:$dst),
                        (implicit EFLAGS)]>;
 } // isTwoAddress
 
-def SUB64i32 : RI<0x2D, RawFrm, (outs), (ins i32imm:$src),
-                  "sub{q}\t{$src, %rax|%rax, $src}", []>;
+def SUB64i32 : RIi32<0x2D, RawFrm, (outs), (ins i32imm:$src),
+                     "sub{q}\t{$src, %rax|%rax, $src}", []>;
 
 // Memory-Register Subtraction
 def SUB64mr  : RI<0x29, MRMDestMem, (outs), (ins i64mem:$dst, GR64:$src2), 
@@ -641,8 +676,8 @@ def SBB64ri32 : RIi32<0x81, MRM3r, (outs GR64:$dst),
                       [(set GR64:$dst, (sube GR64:$src1, i64immSExt32:$src2))]>;
 } // isTwoAddress
 
-def SBB64i32 : RI<0x1D, RawFrm, (outs), (ins i32imm:$src),
-                  "sbb{q}\t{$src, %rax|%rax, $src}", []>;
+def SBB64i32 : RIi32<0x1D, RawFrm, (outs), (ins i32imm:$src),
+                     "sbb{q}\t{$src, %rax|%rax, $src}", []>;
 
 def SBB64mr  : RI<0x19, MRMDestMem, (outs), (ins i64mem:$dst, GR64:$src2), 
                   "sbb{q}\t{$src2, $dst|$dst, $src2}",
@@ -1047,8 +1082,8 @@ def NOT64m : RI<0xF7, MRM2m, (outs), (ins i64mem:$dst), "not{q}\t$dst",
                 [(store (not (loadi64 addr:$dst)), addr:$dst)]>;
 
 let Defs = [EFLAGS] in {
-def AND64i32 : RI<0x25, RawFrm, (outs), (ins i32imm:$src),
-                  "and{q}\t{$src, %rax|%rax, $src}", []>;
+def AND64i32 : RIi32<0x25, RawFrm, (outs), (ins i32imm:$src),
+                     "and{q}\t{$src, %rax|%rax, $src}", []>;
 
 let isTwoAddress = 1 in {
 let isCommutable = 1 in
@@ -1187,8 +1222,8 @@ def XOR64i32 : RIi32<0x35, RawFrm, (outs), (ins i32imm:$src),
 
 // Integer comparison
 let Defs = [EFLAGS] in {
-def TEST64i32 : RI<0xa9, RawFrm, (outs), (ins i32imm:$src),
-                   "test{q}\t{$src, %rax|%rax, $src}", []>;
+def TEST64i32 : RIi32<0xa9, RawFrm, (outs), (ins i32imm:$src),
+                      "test{q}\t{$src, %rax|%rax, $src}", []>;
 let isCommutable = 1 in
 def TEST64rr : RI<0x85, MRMDestReg, (outs), (ins GR64:$src1, GR64:$src2),
                   "test{q}\t{$src2, $src1|$src1, $src2}",
@@ -1210,8 +1245,8 @@ def TEST64mi32 : RIi32<0xF7, MRM0m, (outs),
                  (implicit EFLAGS)]>;
 
 
-def CMP64i32 : RI<0x3D, RawFrm, (outs), (ins i32imm:$src),
-                  "cmp{q}\t{$src, %rax|%rax, $src}", []>;
+def CMP64i32 : RIi32<0x3D, RawFrm, (outs), (ins i32imm:$src),
+                     "cmp{q}\t{$src, %rax|%rax, $src}", []>;
 def CMP64rr : RI<0x39, MRMDestReg, (outs), (ins GR64:$src1, GR64:$src2),
                  "cmp{q}\t{$src2, $src1|$src1, $src2}",
                  [(X86cmp GR64:$src1, GR64:$src2),
@@ -1884,14 +1919,21 @@ def : Pat<(X86call (i64 texternalsym:$dst)),
           (WINCALL64pcrel32 texternalsym:$dst)>, Requires<[IsWin64]>;
 
 // tailcall stuff
-def : Pat<(X86tcret GR64:$dst, imm:$off),
-          (TCRETURNri64 GR64:$dst, imm:$off)>;
+def : Pat<(X86tcret GR64_TC:$dst, imm:$off),
+          (TCRETURNri64 GR64_TC:$dst, imm:$off)>,
+	  Requires<[In64BitMode]>;
+
+def : Pat<(X86tcret (load addr:$dst), imm:$off),
+          (TCRETURNmi64 addr:$dst, imm:$off)>,
+	  Requires<[In64BitMode]>;
 
 def : Pat<(X86tcret (i64 tglobaladdr:$dst), imm:$off),
-          (TCRETURNdi64 tglobaladdr:$dst, imm:$off)>;
+          (TCRETURNdi64 tglobaladdr:$dst, imm:$off)>,
+	  Requires<[In64BitMode]>;
 
 def : Pat<(X86tcret (i64 texternalsym:$dst), imm:$off),
-          (TCRETURNdi64 texternalsym:$dst, imm:$off)>;
+          (TCRETURNdi64 texternalsym:$dst, imm:$off)>,
+	  Requires<[In64BitMode]>;
 
 // Comparisons.
 

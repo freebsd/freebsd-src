@@ -436,7 +436,7 @@ void SPURegisterInfo::emitPrologue(MachineFunction &MF) const
 
   // Prepare for debug frame info.
   bool hasDebugInfo = MMI && MMI->hasDebugInfo();
-  unsigned FrameLabelId = 0;
+  MCSymbol *FrameLabel = 0;
 
   // Move MBBI back to the beginning of the function.
   MBBI = MBB.begin();
@@ -452,8 +452,8 @@ void SPURegisterInfo::emitPrologue(MachineFunction &MF) const
     FrameSize = -(FrameSize + SPUFrameInfo::minStackSize());
     if (hasDebugInfo) {
       // Mark effective beginning of when frame pointer becomes valid.
-      FrameLabelId = MMI->NextLabelID();
-      BuildMI(MBB, MBBI, dl, TII.get(SPU::DBG_LABEL)).addImm(FrameLabelId);
+      FrameLabel = MMI->getContext().CreateTempSymbol();
+      BuildMI(MBB, MBBI, dl, TII.get(SPU::DBG_LABEL)).addSym(FrameLabel);
     }
 
     // Adjust stack pointer, spilling $lr -> 16($sp) and $sp -> -FrameSize($sp)
@@ -500,7 +500,7 @@ void SPURegisterInfo::emitPrologue(MachineFunction &MF) const
       // Show update of SP.
       MachineLocation SPDst(MachineLocation::VirtualFP);
       MachineLocation SPSrc(MachineLocation::VirtualFP, -FrameSize);
-      Moves.push_back(MachineMove(FrameLabelId, SPDst, SPSrc));
+      Moves.push_back(MachineMove(FrameLabel, SPDst, SPSrc));
 
       // Add callee saved registers to move list.
       const std::vector<CalleeSavedInfo> &CSI = MFI->getCalleeSavedInfo();
@@ -510,16 +510,16 @@ void SPURegisterInfo::emitPrologue(MachineFunction &MF) const
         if (Reg == SPU::R0) continue;
         MachineLocation CSDst(MachineLocation::VirtualFP, Offset);
         MachineLocation CSSrc(Reg);
-        Moves.push_back(MachineMove(FrameLabelId, CSDst, CSSrc));
+        Moves.push_back(MachineMove(FrameLabel, CSDst, CSSrc));
       }
 
       // Mark effective beginning of when frame pointer is ready.
-      unsigned ReadyLabelId = MMI->NextLabelID();
-      BuildMI(MBB, MBBI, dl, TII.get(SPU::DBG_LABEL)).addImm(ReadyLabelId);
+      MCSymbol *ReadyLabel = MMI->getContext().CreateTempSymbol();
+      BuildMI(MBB, MBBI, dl, TII.get(SPU::DBG_LABEL)).addSym(ReadyLabel);
 
       MachineLocation FPDst(SPU::R1);
       MachineLocation FPSrc(MachineLocation::VirtualFP);
-      Moves.push_back(MachineMove(ReadyLabelId, FPDst, FPSrc));
+      Moves.push_back(MachineMove(ReadyLabel, FPDst, FPSrc));
     }
   } else {
     // This is a leaf function -- insert a branch hint iff there are
@@ -530,8 +530,8 @@ void SPURegisterInfo::emitPrologue(MachineFunction &MF) const
       dl = MBBI->getDebugLoc();
 
       // Insert terminator label
-      unsigned BranchLabelId = MMI->NextLabelID();
-      BuildMI(MBB, MBBI, dl, TII.get(SPU::DBG_LABEL)).addImm(BranchLabelId);
+      BuildMI(MBB, MBBI, dl, TII.get(SPU::DBG_LABEL))
+        .addSym(MMI->getContext().CreateTempSymbol());
     }
   }
 }

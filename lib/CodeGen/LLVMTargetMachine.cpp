@@ -13,16 +13,15 @@
 
 #include "llvm/Target/TargetMachine.h"
 #include "llvm/PassManager.h"
-#include "llvm/Pass.h"
 #include "llvm/Analysis/Verifier.h"
 #include "llvm/Assembly/PrintModulePass.h"
 #include "llvm/CodeGen/AsmPrinter.h"
-#include "llvm/CodeGen/Passes.h"
-#include "llvm/CodeGen/GCStrategy.h"
 #include "llvm/CodeGen/MachineFunctionAnalysis.h"
+#include "llvm/CodeGen/MachineModuleInfo.h"
+#include "llvm/CodeGen/GCStrategy.h"
+#include "llvm/CodeGen/Passes.h"
 #include "llvm/Target/TargetOptions.h"
 #include "llvm/MC/MCAsmInfo.h"
-#include "llvm/MC/MCContext.h"
 #include "llvm/MC/MCStreamer.h"
 #include "llvm/Target/TargetData.h"
 #include "llvm/Target/TargetRegistry.h"
@@ -94,21 +93,19 @@ static cl::opt<bool> EnableSplitGEPGVN("split-gep-gvn", cl::Hidden,
     cl::desc("Split GEPs and run no-load GVN"));
 
 LLVMTargetMachine::LLVMTargetMachine(const Target &T,
-                                     const std::string &TargetTriple)
-  : TargetMachine(T) {
+                                     const std::string &Triple)
+  : TargetMachine(T), TargetTriple(Triple) {
   AsmInfo = T.createAsmInfo(TargetTriple);
 }
 
 // Set the default code model for the JIT for a generic target.
 // FIXME: Is small right here? or .is64Bit() ? Large : Small?
-void
-LLVMTargetMachine::setCodeModelForJIT() {
+void LLVMTargetMachine::setCodeModelForJIT() {
   setCodeModel(CodeModel::Small);
 }
 
 // Set the default code model for static compilation for a generic target.
-void
-LLVMTargetMachine::setCodeModelForStatic() {
+void LLVMTargetMachine::setCodeModelForStatic() {
   setCodeModel(CodeModel::Small);
 }
 
@@ -118,20 +115,21 @@ bool LLVMTargetMachine::addPassesToEmitFile(PassManagerBase &PM,
                                             CodeGenOpt::Level OptLevel,
                                             bool DisableVerify) {
   // Add common CodeGen passes.
-  if (addCommonCodeGenPasses(PM, OptLevel, DisableVerify))
+  MCContext *Context = 0;
+  if (addCommonCodeGenPasses(PM, OptLevel, DisableVerify, Context))
     return true;
+  assert(Context != 0 && "Failed to get MCContext");
 
-  OwningPtr<MCContext> Context(new MCContext());
+  const MCAsmInfo &MAI = *getMCAsmInfo();
   OwningPtr<MCStreamer> AsmStreamer;
 
   formatted_raw_ostream *LegacyOutput;
   switch (FileType) {
   default: return true;
   case CGFT_AssemblyFile: {
-    const MCAsmInfo &MAI = *getMCAsmInfo();
     MCInstPrinter *InstPrinter =
       getTarget().createMCInstPrinter(MAI.getAssemblerDialect(), MAI, Out);
-    AsmStreamer.reset(createAsmStreamer(*Context, Out, MAI,
+    AsmStreamer.reset(createAsmStreamer(*Context, Out,
                                         getTargetData()->isLittleEndian(),
                                         getVerboseAsm(), InstPrinter,
                                         /*codeemitter*/0));
@@ -143,10 +141,11 @@ bool LLVMTargetMachine::addPassesToEmitFile(PassManagerBase &PM,
     // Create the code emitter for the target if it exists.  If not, .o file
     // emission fails.
     MCCodeEmitter *MCE = getTarget().createCodeEmitter(*this, *Context);
-    if (MCE == 0)
+    TargetAsmBackend *TAB = getTarget().createAsmBackend(TargetTriple);
+    if (MCE == 0 || TAB == 0)
       return true;
     
-    AsmStreamer.reset(createMachOStreamer(*Context, Out, MCE));
+    AsmStreamer.reset(createMachOStreamer(*Context, *TAB, Out, MCE));
     
     // Any output to the asmprinter's "O" stream is bad and needs to be fixed,
     // force it to come out stderr.
@@ -167,16 +166,14 @@ bool LLVMTargetMachine::addPassesToEmitFile(PassManagerBase &PM,
     break;
   }
   
-  // Create the AsmPrinter, which takes ownership of Context and AsmStreamer
-  // if successful.
+  // Create the AsmPrinter, which takes ownership of AsmStreamer if successful.
   FunctionPass *Printer =
-    getTarget().createAsmPrinter(*LegacyOutput, *this, *Context, *AsmStreamer,
-                                 getMCAsmInfo());
+    getTarget().createAsmPrinter(*LegacyOutput, *this, *AsmStreamer);
   if (Printer == 0)
     return true;
   
-  // If successful, createAsmPrinter took ownership of AsmStreamer and Context.
-  Context.take(); AsmStreamer.take();
+  // If successful, createAsmPrinter took ownership of AsmStreamer.
+  AsmStreamer.take();
   
   PM.add(Printer);
   
@@ -200,7 +197,8 @@ bool LLVMTargetMachine::addPassesToEmitMachineCode(PassManagerBase &PM,
   setCodeModelForJIT();
   
   // Add common CodeGen passes.
-  if (addCommonCodeGenPasses(PM, OptLevel, DisableVerify))
+  MCContext *Ctx = 0;
+  if (addCommonCodeGenPasses(PM, OptLevel, DisableVerify, Ctx))
     return true;
 
   addCodeEmitter(PM, OptLevel, JCE);
@@ -209,8 +207,7 @@ bool LLVMTargetMachine::addPassesToEmitMachineCode(PassManagerBase &PM,
   return false; // success!
 }
 
-static void printNoVerify(PassManagerBase &PM,
-                           const char *Banner) {
+static void printNoVerify(PassManagerBase &PM, const char *Banner) {
   if (PrintMachineCode)
     PM.add(createMachineFunctionPrinterPass(dbgs(), Banner));
 }
@@ -230,7 +227,8 @@ static void printAndVerify(PassManagerBase &PM,
 ///
 bool LLVMTargetMachine::addCommonCodeGenPasses(PassManagerBase &PM,
                                                CodeGenOpt::Level OptLevel,
-                                               bool DisableVerify) {
+                                               bool DisableVerify,
+                                               MCContext *&OutContext) {
   // Standard LLVM-Level Passes.
 
   // Before running any passes, run the verifier to determine if the input
@@ -253,8 +251,7 @@ bool LLVMTargetMachine::addCommonCodeGenPasses(PassManagerBase &PM,
 
   // Turn exception handling constructs into something the code generators can
   // handle.
-  switch (getMCAsmInfo()->getExceptionHandlingType())
-  {
+  switch (getMCAsmInfo()->getExceptionHandlingType()) {
   case ExceptionHandling::SjLj:
     // SjLj piggy-backs on dwarf for this bit. The cleanups done apply to both
     // Dwarf EH prepare needs to be run after SjLj prepare. Otherwise,
@@ -294,6 +291,13 @@ bool LLVMTargetMachine::addCommonCodeGenPasses(PassManagerBase &PM,
     PM.add(createVerifierPass());
 
   // Standard Lower-Level Passes.
+  
+  // Install a MachineModuleInfo class, which is an immutable pass that holds
+  // all the per-module stuff we're generating, including MCContext.
+  MachineModuleInfo *MMI = new MachineModuleInfo(*getMCAsmInfo());
+  PM.add(MMI);
+  OutContext = &MMI->getContext(); // Return the MCContext specifically by-ref.
+  
 
   // Set up a MachineFunction for the rest of CodeGen to work on.
   PM.add(new MachineFunctionAnalysis(*this, OptLevel));

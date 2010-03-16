@@ -21,6 +21,7 @@ def SDTIntShiftDOp: SDTypeProfile<1, 3,
                                   [SDTCisSameAs<0, 1>, SDTCisSameAs<0, 2>,
                                    SDTCisInt<0>, SDTCisInt<3>]>;
 
+// FIXME: Should be modelled as returning i32
 def SDTX86CmpTest : SDTypeProfile<0, 2, [SDTCisSameAs<0, 1>]>;
 
 def SDTX86Cmov    : SDTypeProfile<1, 4,
@@ -83,7 +84,6 @@ def X86shld    : SDNode<"X86ISD::SHLD",     SDTIntShiftDOp>;
 def X86shrd    : SDNode<"X86ISD::SHRD",     SDTIntShiftDOp>;
 
 def X86cmp     : SDNode<"X86ISD::CMP" ,     SDTX86CmpTest>;
-
 def X86bt      : SDNode<"X86ISD::BT",       SDTX86CmpTest>;
 
 def X86cmov    : SDNode<"X86ISD::CMOV",     SDTX86Cmov>;
@@ -234,6 +234,15 @@ def i8mem_NOREX : Operand<i64> {
   let ParserMatchClass = X86MemAsmOperand;
 }
 
+// Special i32mem for addresses of load folding tail calls. These are not
+// allowed to use callee-saved registers since they must be scheduled
+// after callee-saved register are popped.
+def i32mem_TC : Operand<i32> {
+  let PrintMethod = "printi32mem";
+  let MIOperandInfo = (ops GR32_TC, i8imm, GR32_TC, i32imm, i8imm);
+  let ParserMatchClass = X86MemAsmOperand;
+}
+
 def lea32mem : Operand<i32> {
   let PrintMethod = "printlea32mem";
   let MIOperandInfo = (ops GR32, i8imm, GR32_NOSP, i32imm);
@@ -288,6 +297,8 @@ def tls32addr : ComplexPattern<i32, 4, "SelectTLSADDRAddr",
 
 //===----------------------------------------------------------------------===//
 // X86 Instruction Predicate Definitions.
+def HasCMov      : Predicate<"Subtarget->hasCMov()">;
+def NoCMov       : Predicate<"!Subtarget->hasCMov()">;
 def HasMMX       : Predicate<"Subtarget->hasMMX()">;
 def HasSSE1      : Predicate<"Subtarget->hasSSE1()">;
 def HasSSE2      : Predicate<"Subtarget->hasSSE2()">;
@@ -696,30 +707,33 @@ def ENTER : I<0xC8, RawFrm, (outs), (ins i16imm:$len, i8imm:$lvl),
 // Tail call stuff.
 
 let isCall = 1, isTerminator = 1, isReturn = 1, isBarrier = 1 in
-def TCRETURNdi : I<0, Pseudo, (outs), 
-                   (ins i32imm:$dst, i32imm:$offset, variable_ops),
-                 "#TC_RETURN $dst $offset",
-                 []>;
+  let Defs = [EAX, ECX, EDX, FP0, FP1, FP2, FP3, FP4, FP5, FP6, ST0,
+              MM0, MM1, MM2, MM3, MM4, MM5, MM6, MM7,
+              XMM0, XMM1, XMM2, XMM3, XMM4, XMM5, XMM6, XMM7,
+              XMM8, XMM9, XMM10, XMM11, XMM12, XMM13, XMM14, XMM15, EFLAGS],
+      Uses = [ESP] in {
+  def TCRETURNdi : I<0, Pseudo, (outs), 
+                     (ins i32imm_pcrel:$dst, i32imm:$offset, variable_ops),
+                   "#TC_RETURN $dst $offset", []>;
+  def TCRETURNri : I<0, Pseudo, (outs), 
+                     (ins GR32_TC:$dst, i32imm:$offset, variable_ops),
+                     "#TC_RETURN $dst $offset", []>;
+  def TCRETURNmi : I<0, Pseudo, (outs), 
+                     (ins i32mem_TC:$dst, i32imm:$offset, variable_ops),
+                     "#TC_RETURN $dst $offset", []>;
 
-let isCall = 1, isTerminator = 1, isReturn = 1, isBarrier = 1 in
-def TCRETURNri : I<0, Pseudo, (outs), 
-                   (ins GR32:$dst, i32imm:$offset, variable_ops),
-                 "#TC_RETURN $dst $offset",
-                 []>;
-
-// FIXME: The should be pseudo instructions that are lowered when going to
-// mcinst.
-let isCall = 1, isBranch = 1, isTerminator = 1, isReturn = 1, isBarrier = 1 in
-  def TAILJMPd : Ii32<0xE9, RawFrm, (outs),(ins i32imm_pcrel:$dst,variable_ops),
+  // FIXME: The should be pseudo instructions that are lowered when going to
+  // mcinst.
+  def TAILJMPd : Ii32PCRel<0xE9, RawFrm, (outs),
+                           (ins i32imm_pcrel:$dst, variable_ops),
                  "jmp\t$dst  # TAILCALL",
                  []>;
-let isCall = 1, isTerminator = 1, isReturn = 1, isBarrier = 1 in
-  def TAILJMPr : I<0xFF, MRM4r, (outs), (ins GR32:$dst, variable_ops), 
+  def TAILJMPr : I<0xFF, MRM4r, (outs), (ins GR32_TC:$dst, variable_ops), 
                    "jmp{l}\t{*}$dst  # TAILCALL",
                  []>;     
-let isCall = 1, isTerminator = 1, isReturn = 1, isBarrier = 1 in
-  def TAILJMPm : I<0xFF, MRM4m, (outs), (ins i32mem:$dst, variable_ops),
-                   "jmp\t{*}$dst  # TAILCALL", []>;
+  def TAILJMPm : I<0xFF, MRM4m, (outs), (ins i32mem_TC:$dst, variable_ops),
+                   "jmp{l}\t{*}$dst  # TAILCALL", []>;
+}
 
 //===----------------------------------------------------------------------===//
 //  Miscellaneous Instructions...
@@ -1032,6 +1046,22 @@ def MOV32mr : I<0x89, MRMDestMem, (outs), (ins i32mem:$dst, GR32:$src),
                 "mov{l}\t{$src, $dst|$dst, $src}",
                 [(store GR32:$src, addr:$dst)]>;
 
+/// Versions of MOV32rr, MOV32rm, and MOV32mr for i32mem_TC and GR32_TC.
+let neverHasSideEffects = 1 in
+def MOV32rr_TC : I<0x89, MRMDestReg, (outs GR32_TC:$dst), (ins GR32_TC:$src),
+                "mov{l}\t{$src, $dst|$dst, $src}", []>;
+
+let mayLoad = 1,
+    canFoldAsLoad = 1, isReMaterializable = 1 in
+def MOV32rm_TC : I<0x8B, MRMSrcMem, (outs GR32_TC:$dst), (ins i32mem_TC:$src),
+                "mov{l}\t{$src, $dst|$dst, $src}",
+                []>;
+
+let mayStore = 1 in
+def MOV32mr_TC : I<0x89, MRMDestMem, (outs), (ins i32mem_TC:$dst, GR32_TC:$src),
+                "mov{l}\t{$src, $dst|$dst, $src}",
+                []>;
+
 // Versions of MOV8rr, MOV8mr, and MOV8rm that use i8mem_NOREX and GR8_NOREX so
 // that they can be used for copying and storing h registers, which can't be
 // encoded when a REX prefix is present.
@@ -1185,19 +1215,7 @@ let isTwoAddress = 1 in {
 // Conditional moves
 let Uses = [EFLAGS] in {
 
-// X86 doesn't have 8-bit conditional moves. Use a customInserter to
-// emit control flow. An alternative to this is to mark i8 SELECT as Promote,
-// however that requires promoting the operands, and can induce additional
-// i8 register pressure. Note that CMOV_GR8 is conservatively considered to
-// clobber EFLAGS, because if one of the operands is zero, the expansion
-// could involve an xor.
-let usesCustomInserter = 1, isTwoAddress = 0, Defs = [EFLAGS] in
-def CMOV_GR8 : I<0, Pseudo,
-                 (outs GR8:$dst), (ins GR8:$src1, GR8:$src2, i8imm:$cond),
-                 "#CMOV_GR8 PSEUDO!",
-                 [(set GR8:$dst, (X86cmov GR8:$src1, GR8:$src2,
-                                          imm:$cond, EFLAGS))]>;
-
+let Predicates = [HasCMov] in {
 let isCommutable = 1 in {
 def CMOVB16rr : I<0x42, MRMSrcReg,       // if <u, GR16 = GR16
                   (outs GR16:$dst), (ins GR16:$src1, GR16:$src2),
@@ -1585,6 +1603,49 @@ def CMOVNO32rm : I<0x41, MRMSrcMem,       // if !overflow, GR32 = [mem32]
                    [(set GR32:$dst, (X86cmov GR32:$src1, (loadi32 addr:$src2),
                                     X86_COND_NO, EFLAGS))]>,
                   TB;
+} // Predicates = [HasCMov]
+
+// X86 doesn't have 8-bit conditional moves. Use a customInserter to
+// emit control flow. An alternative to this is to mark i8 SELECT as Promote,
+// however that requires promoting the operands, and can induce additional
+// i8 register pressure. Note that CMOV_GR8 is conservatively considered to
+// clobber EFLAGS, because if one of the operands is zero, the expansion
+// could involve an xor.
+let usesCustomInserter = 1, isTwoAddress = 0, Defs = [EFLAGS] in {
+def CMOV_GR8 : I<0, Pseudo,
+                 (outs GR8:$dst), (ins GR8:$src1, GR8:$src2, i8imm:$cond),
+                 "#CMOV_GR8 PSEUDO!",
+                 [(set GR8:$dst, (X86cmov GR8:$src1, GR8:$src2,
+                                          imm:$cond, EFLAGS))]>;
+
+let Predicates = [NoCMov] in {
+def CMOV_GR32 : I<0, Pseudo,
+                    (outs GR32:$dst), (ins GR32:$src1, GR32:$src2, i8imm:$cond),
+                    "#CMOV_GR32* PSEUDO!",
+                    [(set GR32:$dst,
+                      (X86cmov GR32:$src1, GR32:$src2, imm:$cond, EFLAGS))]>;
+def CMOV_GR16 : I<0, Pseudo,
+                    (outs GR16:$dst), (ins GR16:$src1, GR16:$src2, i8imm:$cond),
+                    "#CMOV_GR16* PSEUDO!",
+                    [(set GR16:$dst,
+                      (X86cmov GR16:$src1, GR16:$src2, imm:$cond, EFLAGS))]>;
+def CMOV_RFP32 : I<0, Pseudo,
+                    (outs RFP32:$dst), (ins RFP32:$src1, RFP32:$src2, i8imm:$cond),
+                    "#CMOV_RFP32 PSEUDO!",
+                    [(set RFP32:$dst, (X86cmov RFP32:$src1, RFP32:$src2, imm:$cond,
+                                                  EFLAGS))]>;
+def CMOV_RFP64 : I<0, Pseudo,
+                    (outs RFP64:$dst), (ins RFP64:$src1, RFP64:$src2, i8imm:$cond),
+                    "#CMOV_RFP64 PSEUDO!",
+                    [(set RFP64:$dst, (X86cmov RFP64:$src1, RFP64:$src2, imm:$cond,
+                                                  EFLAGS))]>;
+def CMOV_RFP80 : I<0, Pseudo,
+                    (outs RFP80:$dst), (ins RFP80:$src1, RFP80:$src2, i8imm:$cond),
+                    "#CMOV_RFP80 PSEUDO!",
+                    [(set RFP80:$dst, (X86cmov RFP80:$src1, RFP80:$src2, imm:$cond,
+                                                  EFLAGS))]>;
+} // Predicates = [NoCMov]
+} // UsesCustomInserter = 1, isTwoAddress = 0, Defs = [EFLAGS] 
 } // Uses = [EFLAGS]
 
 
@@ -4294,14 +4355,21 @@ def : Pat<(store (i32 (X86Wrapper tblockaddress:$src)), addr:$dst),
 
 // Calls
 // tailcall stuff
-def : Pat<(X86tcret GR32:$dst, imm:$off),
-          (TCRETURNri GR32:$dst, imm:$off)>;
+def : Pat<(X86tcret GR32_TC:$dst, imm:$off),
+          (TCRETURNri GR32_TC:$dst, imm:$off)>,
+	  Requires<[In32BitMode]>;
+
+def : Pat<(X86tcret (load addr:$dst), imm:$off),
+          (TCRETURNmi addr:$dst, imm:$off)>,
+	  Requires<[In32BitMode]>;
 
 def : Pat<(X86tcret (i32 tglobaladdr:$dst), imm:$off),
-          (TCRETURNdi texternalsym:$dst, imm:$off)>;
+          (TCRETURNdi texternalsym:$dst, imm:$off)>,
+	  Requires<[In32BitMode]>;
 
 def : Pat<(X86tcret (i32 texternalsym:$dst), imm:$off),
-          (TCRETURNdi texternalsym:$dst, imm:$off)>;
+          (TCRETURNdi texternalsym:$dst, imm:$off)>,
+	  Requires<[In32BitMode]>;
 
 // Normal calls, with various flavors of addresses.
 def : Pat<(X86call (i32 tglobaladdr:$dst)),

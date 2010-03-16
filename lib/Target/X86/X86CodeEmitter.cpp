@@ -46,6 +46,7 @@ namespace {
     const TargetData    *TD;
     X86TargetMachine    &TM;
     CodeEmitter         &MCE;
+    MachineModuleInfo   *MMI;
     intptr_t PICBaseOffset;
     bool Is64BitMode;
     bool IsPIC;
@@ -115,8 +116,8 @@ FunctionPass *llvm::createX86JITCodeEmitterPass(X86TargetMachine &TM,
 
 template<class CodeEmitter>
 bool Emitter<CodeEmitter>::runOnMachineFunction(MachineFunction &MF) {
- 
-  MCE.setModuleInfo(&getAnalysis<MachineModuleInfo>());
+  MMI = &getAnalysis<MachineModuleInfo>();
+  MCE.setModuleInfo(MMI);
   
   II = TM.getInstrInfo();
   TD = TM.getTargetData();
@@ -602,10 +603,11 @@ void Emitter<CodeEmitter>::emitInstruction(const MachineInstr &MI,
         llvm_report_error("JIT does not support inline asm!");
       break;
     case TargetOpcode::DBG_LABEL:
-    case TargetOpcode::EH_LABEL:
     case TargetOpcode::GC_LABEL:
-      MCE.emitLabel(MI.getOperand(0).getImm());
+    case TargetOpcode::EH_LABEL:
+      MCE.emitLabel(MI.getOperand(0).getMCSymbol());
       break;
+        
     case TargetOpcode::IMPLICIT_DEF:
     case TargetOpcode::KILL:
     case X86::FP_REG_KILL:

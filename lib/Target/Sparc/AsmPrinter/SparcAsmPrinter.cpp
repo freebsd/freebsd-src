@@ -21,6 +21,7 @@
 #include "llvm/MC/MCAsmInfo.h"
 #include "llvm/MC/MCStreamer.h"
 #include "llvm/MC/MCSymbol.h"
+#include "llvm/Target/Mangler.h"
 #include "llvm/Target/TargetRegistry.h"
 #include "llvm/ADT/StringExtras.h"
 #include "llvm/Support/FormattedStream.h"
@@ -30,9 +31,8 @@ namespace {
   class SparcAsmPrinter : public AsmPrinter {
   public:
     explicit SparcAsmPrinter(formatted_raw_ostream &O, TargetMachine &TM,
-                             MCContext &Ctx, MCStreamer &Streamer,
-                             const MCAsmInfo *T)
-      : AsmPrinter(O, TM, Ctx, Streamer, T) {}
+                             MCStreamer &Streamer)
+      : AsmPrinter(O, TM, Streamer) {}
 
     virtual const char *getPassName() const {
       return "Sparc Assembly Printer";
@@ -84,10 +84,10 @@ void SparcAsmPrinter::printOperand(const MachineInstr *MI, int opNum) {
     O << (int)MO.getImm();
     break;
   case MachineOperand::MO_MachineBasicBlock:
-    O << *MO.getMBB()->getSymbol(OutContext);
+    O << *MO.getMBB()->getSymbol();
     return;
   case MachineOperand::MO_GlobalAddress:
-    O << *GetGlobalValueSymbol(MO.getGlobal());
+    O << *Mang->getSymbol(MO.getGlobal());
     break;
   case MachineOperand::MO_ExternalSymbol:
     O << MO.getSymbolName();

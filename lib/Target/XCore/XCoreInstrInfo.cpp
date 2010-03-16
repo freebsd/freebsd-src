@@ -429,10 +429,9 @@ bool XCoreInstrInfo::spillCalleeSavedRegisters(MachineBasicBlock &MBB,
     storeRegToStackSlot(MBB, MI, it->getReg(), true,
                         it->getFrameIdx(), it->getRegClass());
     if (emitFrameMoves) {
-      unsigned SaveLabelId = MMI->NextLabelID();
-      BuildMI(MBB, MI, DL, get(XCore::DBG_LABEL)).addImm(SaveLabelId);
-      XFI->getSpillLabels().push_back(
-          std::pair<unsigned, CalleeSavedInfo>(SaveLabelId, *it));
+      MCSymbol *SaveLabel = MMI->getContext().CreateTempSymbol();
+      BuildMI(MBB, MI, DL, get(XCore::DBG_LABEL)).addSym(SaveLabel);
+      XFI->getSpillLabels().push_back(std::make_pair(SaveLabel, *it));
     }
   }
   return true;
