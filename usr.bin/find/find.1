@@ -35,7 +35,7 @@
 .\"	@(#)find.1	8.7 (Berkeley) 5/9/95
 .\" $FreeBSD$
 .\"
-.Dd February 24, 2008
+.Dd March 17, 2010
 .Dt FIND 1
 .Os
 .Sh NAME
@@ -429,12 +429,9 @@ bits match those of
 True if the file is contained in a file system of type
 .Ar type .
 The
-.Xr sysctl 8
+.Xr lsvfs 1
 command can be used to find out the types of file systems
-that are available on the system:
-.Pp
-.Dl "sysctl vfs"
-.Pp
+that are available on the system.
 In addition, there are two pseudo-types,
 .Dq Li local
 and
@@ -947,6 +944,7 @@ section below for details.
 .Xr chmod 1 ,
 .Xr cvs 1 ,
 .Xr locate 1 ,
+.Xr lsvfs 1 ,
 .Xr whereis 1 ,
 .Xr which 1 ,
 .Xr xargs 1 ,
