@@ -356,7 +356,6 @@ WITH_IDEA=
     NLS_CATALOGS \
     NS_CACHING \
     NTP \
-    OBJC \
     OPENSSH \
     OPENSSL \
     PAM \
@@ -411,7 +410,8 @@ MK_${var}:=	yes
     BIND_XML \
     GNU_CPIO \
     HESIOD \
-    IDEA
+    IDEA \
+    OBJC
 .if defined(WITH_${var}) && defined(WITHOUT_${var})
 .error WITH_${var} and WITHOUT_${var} can't both be set.
 .endif
