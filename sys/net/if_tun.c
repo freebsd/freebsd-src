@@ -386,6 +386,8 @@ tuncreate(const char *name, struct cdev *dev)
 	ifp->if_snd.ifq_drv_maxlen = 0;
 	IFQ_SET_READY(&ifp->if_snd);
 	knlist_init_mtx(&sc->tun_rsel.si_note, NULL);
+	ifp->if_capabilities |= IFCAP_LINKSTATE;
+	ifp->if_capenable |= IFCAP_LINKSTATE;
 
 	if_attach(ifp);
 	bpfattach(ifp, DLT_NULL, sizeof(u_int32_t));
