@@ -88,6 +88,7 @@
 #define	Q_GETQUOTA	0x0700	/* get limits and usage (64-bit version) */
 #define	Q_SETQUOTA	0x0800	/* set limits and usage (64-bit version) */
 #define	Q_SETUSE	0x0900	/* set usage (64-bit version) */
+#define	Q_GETQUOTASIZE	0x0A00	/* get bit-size of quota file fields */
 
 /*
  * The following structure defines the format of the disk quota file
@@ -235,6 +236,7 @@ int	setuse32(struct thread *, struct mount *, u_long, int, void *);
 int	getquota(struct thread *, struct mount *, u_long, int, void *);
 int	setquota(struct thread *, struct mount *, u_long, int, void *);
 int	setuse(struct thread *, struct mount *, u_long, int, void *);
+int	getquotasize(struct thread *, struct mount *, u_long, int, void *);
 vfs_quotactl_t ufs_quotactl;
 
 #else /* !_KERNEL */

@@ -224,7 +224,7 @@ repquota(struct fstab *fs, int type)
 	printf("User%*s  used   soft   hard  grace     used    soft    hard  grace\n",
 		max(MAXLOGNAME - 1, 10), " ");
 	maxid = quota_maxid(qf);
-	for (id = 0; id < maxid; id++) {
+	for (id = 0; id <= maxid; id++) {
 		if (quota_read(qf, &dqbuf, id) != 0)
 			break;
 		if (dqbuf.dqb_curinodes == 0 && dqbuf.dqb_curblocks == 0)
