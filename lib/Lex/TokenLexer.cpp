@@ -325,7 +325,7 @@ void TokenLexer::Lex(Token &Tok) {
     // returned by PasteTokens, not the pasted token.
     if (PasteTokens(Tok))
       return;
-    
+
     TokenIsFromPaste = true;
   }
 
@@ -379,7 +379,7 @@ void TokenLexer::Lex(Token &Tok) {
 /// are more ## after it, chomp them iteratively.  Return the result as Tok.
 /// If this returns true, the caller should immediately return the token.
 bool TokenLexer::PasteTokens(Token &Tok) {
-  llvm::SmallVector<char, 128> Buffer;
+  llvm::SmallString<128> Buffer;
   const char *ResultTokStrPtr = 0;
   do {
     // Consume the ## operator.
@@ -439,7 +439,11 @@ bool TokenLexer::PasteTokens(Token &Tok) {
       SourceManager &SourceMgr = PP.getSourceManager();
       FileID LocFileID = SourceMgr.getFileID(ResultTokLoc);
 
-      const char *ScratchBufStart = SourceMgr.getBufferData(LocFileID).first;
+      bool Invalid = false;
+      const char *ScratchBufStart
+        = SourceMgr.getBufferData(LocFileID, &Invalid).data();
+      if (Invalid)
+        return false;
 
       // Make a lexer to lex this string from.  Lex just this one token.
       // Make a lexer object so that we lex and expand the paste result.
@@ -506,8 +510,7 @@ bool TokenLexer::PasteTokens(Token &Tok) {
   if (Tok.is(tok::identifier)) {
     // Look up the identifier info for the token.  We disabled identifier lookup
     // by saying we're skipping contents, so we need to do this manually.
-    IdentifierInfo *II = PP.LookUpIdentifierInfo(Tok, ResultTokStrPtr);
-    Tok.setIdentifierInfo(II);
+    PP.LookUpIdentifierInfo(Tok, ResultTokStrPtr);
   }
   return false;
 }

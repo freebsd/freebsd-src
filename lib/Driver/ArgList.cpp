@@ -80,9 +80,9 @@ Arg *ArgList::getLastArg(OptSpecifier Id0, OptSpecifier Id1,
   Arg *A1 = getLastArgNoClaim(Id1);
   Arg *A2 = getLastArgNoClaim(Id2);
 
-  int A0Idx = A0 ? A0->getIndex() : -1;
-  int A1Idx = A1 ? A1->getIndex() : -1;
-  int A2Idx = A2 ? A2->getIndex() : -1;
+  int A0Idx = A0 ? (int) A0->getIndex() : -1;
+  int A1Idx = A1 ? (int) A1->getIndex() : -1;
+  int A2Idx = A2 ? (int) A2->getIndex() : -1;
 
   if (A0Idx > A1Idx) {
     if (A0Idx > A2Idx)
@@ -218,23 +218,30 @@ const char *DerivedArgList::MakeArgString(llvm::StringRef Str) const {
 }
 
 Arg *DerivedArgList::MakeFlagArg(const Arg *BaseArg, const Option *Opt) const {
-  return new FlagArg(Opt, BaseArgs.MakeIndex(Opt->getName()), BaseArg);
+  Arg *A = new FlagArg(Opt, BaseArgs.MakeIndex(Opt->getName()), BaseArg);
+  SynthesizedArgs.push_back(A);
+  return A;
 }
 
 Arg *DerivedArgList::MakePositionalArg(const Arg *BaseArg, const Option *Opt,
                                        llvm::StringRef Value) const {
-  return new PositionalArg(Opt, BaseArgs.MakeIndex(Value), BaseArg);
+  Arg *A = new PositionalArg(Opt, BaseArgs.MakeIndex(Value), BaseArg);
+  SynthesizedArgs.push_back(A);
+  return A;
 }
 
 Arg *DerivedArgList::MakeSeparateArg(const Arg *BaseArg, const Option *Opt,
                                      llvm::StringRef Value) const {
-  return new SeparateArg(Opt, BaseArgs.MakeIndex(Opt->getName(), Value), 1,
-                         BaseArg);
+  Arg *A = new SeparateArg(Opt, BaseArgs.MakeIndex(Opt->getName(), Value), 1,
+                           BaseArg);
+  SynthesizedArgs.push_back(A);
+  return A;
 }
 
 Arg *DerivedArgList::MakeJoinedArg(const Arg *BaseArg, const Option *Opt,
                                    llvm::StringRef Value) const {
-  std::string Joined(Opt->getName());
-  Joined += Value;
-  return new JoinedArg(Opt, BaseArgs.MakeIndex(Joined.c_str()), BaseArg);
+  Arg *A = new JoinedArg(Opt, BaseArgs.MakeIndex(Opt->getName() + Value.str()),
+                         BaseArg);
+  SynthesizedArgs.push_back(A);
+  return A;
 }

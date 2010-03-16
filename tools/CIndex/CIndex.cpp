@@ -1133,7 +1133,8 @@ clang_createTranslationUnitFromSourceFile(CXIndex CIdx,
     // We failed to load the ASTUnit, but we can still deserialize the
     // diagnostics and emit them.
     FileManager FileMgr;
-    SourceManager SourceMgr;
+    Diagnostic Diag;
+    SourceManager SourceMgr(Diag);
     // FIXME: Faked LangOpts!
     LangOptions LangOpts;
     llvm::SmallVector<StoredDiagnostic, 4> Diags;
@@ -2042,11 +2043,13 @@ CXString clang_getTokenSpelling(CXTranslationUnit TU, CXToken CXTok) {
   SourceLocation Loc = SourceLocation::getFromRawEncoding(CXTok.int_data[1]);
   std::pair<FileID, unsigned> LocInfo
     = CXXUnit->getSourceManager().getDecomposedLoc(Loc);
-  std::pair<const char *,const char *> Buffer
-    = CXXUnit->getSourceManager().getBufferData(LocInfo.first);
+  bool Invalid = false;
+  llvm::StringRef Buffer
+    = CXXUnit->getSourceManager().getBufferData(LocInfo.first, &Invalid);
+  if (Invalid)
+    return createCXString("");
 
-  return createCXString(llvm::StringRef(Buffer.first+LocInfo.second,
-                                        CXTok.int_data[2]));
+  return createCXString(Buffer.substr(LocInfo.second, CXTok.int_data[2]));
 }
 
 CXSourceLocation clang_getTokenLocation(CXTranslationUnit TU, CXToken CXTok) {
@@ -2095,15 +2098,17 @@ void clang_tokenize(CXTranslationUnit TU, CXSourceRange Range,
     return;
 
   // Create a lexer
-  std::pair<const char *,const char *> Buffer
-    = SourceMgr.getBufferData(BeginLocInfo.first);
+  bool Invalid = false;
+  llvm::StringRef Buffer
+    = SourceMgr.getBufferData(BeginLocInfo.first, &Invalid);
+  
   Lexer Lex(SourceMgr.getLocForStartOfFile(BeginLocInfo.first),
             CXXUnit->getASTContext().getLangOptions(),
-            Buffer.first, Buffer.first + BeginLocInfo.second, Buffer.second);
+            Buffer.begin(), Buffer.data() + BeginLocInfo.second, Buffer.end());
   Lex.SetCommentRetentionState(true);
 
   // Lex tokens until we hit the end of the range.
-  const char *EffectiveBufferEnd = Buffer.first + EndLocInfo.second;
+  const char *EffectiveBufferEnd = Buffer.data() + EndLocInfo.second;
   llvm::SmallVector<CXToken, 32> CXTokens;
   Token Tok;
   do {
@@ -2125,12 +2130,16 @@ void clang_tokenize(CXTranslationUnit TU, CXSourceRange Range,
       CXTok.int_data[0] = CXToken_Literal;
       CXTok.ptr_data = (void *)Tok.getLiteralData();
     } else if (Tok.is(tok::identifier)) {
-      // Lookup the identifier to determine whether we have a
+      // Lookup the identifier to determine whether we have a keyword.
       std::pair<FileID, unsigned> LocInfo
         = SourceMgr.getDecomposedLoc(Tok.getLocation());
-      const char *StartPos
-        = CXXUnit->getSourceManager().getBufferData(LocInfo.first).first +
-          LocInfo.second;
+      bool Invalid = false;
+      llvm::StringRef Buf
+        = CXXUnit->getSourceManager().getBufferData(LocInfo.first, &Invalid);
+      if (Invalid)
+        return;
+      
+      const char *StartPos = Buf.data() + LocInfo.second;
       IdentifierInfo *II
         = CXXUnit->getPreprocessor().LookUpIdentifierInfo(Tok, StartPos);
       CXTok.int_data[0] = II->getTokenID() == tok::identifier?

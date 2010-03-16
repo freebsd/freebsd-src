@@ -423,10 +423,15 @@ namespace {
 /// (which requires a < after the Doxygen-comment delimiter). Otherwise,
 /// we only return true when we find a non-member comment.
 static bool
-isDoxygenComment(SourceManager &SourceMgr, SourceRange Comment,
+isDoxygenComment(SourceManager &SourceMgr, SourceRange Comment, 
                  bool Member = false) {
+  bool Invalid = false;
   const char *BufferStart
-    = SourceMgr.getBufferData(SourceMgr.getFileID(Comment.getBegin())).first;
+    = SourceMgr.getBufferData(SourceMgr.getFileID(Comment.getBegin()), 
+                              &Invalid).data();
+  if (Invalid)
+    return false;
+  
   const char *Start = BufferStart + SourceMgr.getFileOffset(Comment.getBegin());
   const char* End = BufferStart + SourceMgr.getFileOffset(Comment.getEnd());
 
@@ -488,9 +493,12 @@ const char *ASTContext::getCommentForDecl(const Decl *D) {
   // beginning of the file buffer.
   std::pair<FileID, unsigned> DeclStartDecomp
     = SourceMgr.getDecomposedLoc(DeclStartLoc);
+  bool Invalid = false;
   const char *FileBufferStart
-    = SourceMgr.getBufferData(DeclStartDecomp.first).first;
-
+    = SourceMgr.getBufferData(DeclStartDecomp.first, &Invalid).data();
+  if (Invalid)
+    return 0;
+  
   // First check whether we have a comment for a member.
   if (LastComment != Comments.end() &&
       !isa<TagDecl>(D) && !isa<NamespaceDecl>(D) &&
@@ -971,22 +979,10 @@ void ASTContext::ShallowCollectObjCIvars(const ObjCInterfaceDecl *OI,
   CollectNonClassIvars(OI, Ivars);
 }
 
-void ASTContext::CollectProtocolSynthesizedIvars(const ObjCProtocolDecl *PD,
-                                llvm::SmallVectorImpl<ObjCIvarDecl*> &Ivars) {
-  for (ObjCContainerDecl::prop_iterator I = PD->prop_begin(),
-       E = PD->prop_end(); I != E; ++I)
-    if (ObjCIvarDecl *Ivar = (*I)->getPropertyIvarDecl())
-      Ivars.push_back(Ivar);
-
-  // Also look into nested protocols.
-  for (ObjCProtocolDecl::protocol_iterator P = PD->protocol_begin(),
-       E = PD->protocol_end(); P != E; ++P)
-    CollectProtocolSynthesizedIvars(*P, Ivars);
-}
-
 /// CollectNonClassIvars -
 /// This routine collects all other ivars which are not declared in the class.
-/// This includes synthesized ivars and those in class's implementation.
+/// This includes synthesized ivars (via @synthesize) and those in
+//  class's @implementation.
 ///
 void ASTContext::CollectNonClassIvars(const ObjCInterfaceDecl *OI,
                                 llvm::SmallVectorImpl<ObjCIvarDecl*> &Ivars) {
@@ -997,21 +993,9 @@ void ASTContext::CollectNonClassIvars(const ObjCInterfaceDecl *OI,
       Ivars.push_back(*I);
     }
   }
-  
-  for (ObjCInterfaceDecl::prop_iterator I = OI->prop_begin(),
-       E = OI->prop_end(); I != E; ++I) {
-    if (ObjCIvarDecl *Ivar = (*I)->getPropertyIvarDecl())
-      Ivars.push_back(Ivar);
-  }
-  // Also look into interface's protocol list for properties declared
-  // in the protocol and whose ivars are synthesized.
-  for (ObjCInterfaceDecl::protocol_iterator P = OI->protocol_begin(),
-       PE = OI->protocol_end(); P != PE; ++P) {
-    ObjCProtocolDecl *PD = (*P);
-    CollectProtocolSynthesizedIvars(PD, Ivars);
-  }
 
-  // Also add any ivar defined in this class's implementation
+  // Also add any ivar defined in this class's implementation.  This
+  // includes synthesized ivars.
   if (ObjCImplementationDecl *ImplDecl = OI->getImplementation()) {
     for (ObjCImplementationDecl::ivar_iterator I = ImplDecl->ivar_begin(),
          E = ImplDecl->ivar_end(); I != E; ++I)
@@ -4760,7 +4744,8 @@ QualType ASTContext::mergeTypes(QualType LHS, QualType RHS) {
     return QualType();
   case Type::Vector:
     // FIXME: The merged type should be an ExtVector!
-    if (areCompatVectorTypes(LHS->getAs<VectorType>(), RHS->getAs<VectorType>()))
+    if (areCompatVectorTypes(LHSCan->getAs<VectorType>(),
+                             RHSCan->getAs<VectorType>()))
       return LHS;
     return QualType();
   case Type::ObjCInterface: {
@@ -4997,13 +4982,24 @@ static QualType DecodeTypeFromStr(const char *&Str, ASTContext &Context,
 
   Done = false;
   while (!Done) {
-    switch (*Str++) {
+    switch (char c = *Str++) {
       default: Done = true; --Str; break;
       case '*':
-        Type = Context.getPointerType(Type);
-        break;
       case '&':
-        Type = Context.getLValueReferenceType(Type);
+        {
+          // Both pointers and references can have their pointee types
+          // qualified with an address space.
+          char *End;
+          unsigned AddrSpace = strtoul(Str, &End, 10);
+          if (End != Str && AddrSpace != 0) {
+            Type = Context.getAddrSpaceQualType(Type, AddrSpace);
+            Str = End;
+          }
+        }
+        if (c == '*')
+          Type = Context.getPointerType(Type);
+        else
+          Type = Context.getLValueReferenceType(Type);
         break;
       // FIXME: There's no way to have a built-in with an rvalue ref arg.
       case 'C':

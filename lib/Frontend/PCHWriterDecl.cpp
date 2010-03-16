@@ -127,9 +127,10 @@ void PCHDeclWriter::VisitTagDecl(TagDecl *D) {
   Record.push_back((unsigned)D->getTagKind()); // FIXME: stable encoding
   Record.push_back(D->isDefinition());
   Record.push_back(D->isEmbeddedInDeclarator());
-  Writer.AddDeclRef(D->getTypedefForAnonDecl(), Record);
   Writer.AddSourceLocation(D->getRBraceLoc(), Record);
   Writer.AddSourceLocation(D->getTagKeywordLoc(), Record);
+  // FIXME: maybe write optional qualifier and its range.
+  Writer.AddDeclRef(D->getTypedefForAnonDecl(), Record);
 }
 
 void PCHDeclWriter::VisitEnumDecl(EnumDecl *D) {
@@ -165,6 +166,7 @@ void PCHDeclWriter::VisitEnumConstantDecl(EnumConstantDecl *D) {
 void PCHDeclWriter::VisitDeclaratorDecl(DeclaratorDecl *D) {
   VisitValueDecl(D);
   Writer.AddTypeSourceInfo(D->getTypeSourceInfo(), Record);
+  // FIXME: write optional qualifier and its range.
 }
 
 void PCHDeclWriter::VisitFunctionDecl(FunctionDecl *D) {
@@ -398,6 +400,7 @@ void PCHDeclWriter::VisitImplicitParamDecl(ImplicitParamDecl *D) {
 void PCHDeclWriter::VisitParmVarDecl(ParmVarDecl *D) {
   VisitVarDecl(D);
   Record.push_back(D->getObjCDeclQualifier()); // FIXME: stable encoding
+  Record.push_back(D->hasInheritedDefaultArg());
   Code = pch::DECL_PARM_VAR;
 
 
@@ -412,7 +415,8 @@ void PCHDeclWriter::VisitParmVarDecl(ParmVarDecl *D) {
       D->getPCHLevel() == 0 &&
       D->getStorageClass() == 0 &&
       !D->hasCXXDirectInitializer() && // Can params have this ever?
-      D->getObjCDeclQualifier() == 0)
+      D->getObjCDeclQualifier() == 0 &&
+      !D->hasInheritedDefaultArg())
     AbbrevToUse = Writer.getParmVarDeclAbbrev();
 
   // Check things we know are true of *every* PARM_VAR_DECL, which is more than
@@ -496,6 +500,7 @@ void PCHWriter::WriteDeclsBlockAbbrevs() {
   Abv->Add(BitCodeAbbrevOp(0));                       // HasInit
   // ParmVarDecl
   Abv->Add(BitCodeAbbrevOp(0));                       // ObjCDeclQualifier
+  Abv->Add(BitCodeAbbrevOp(0));                       // HasInheritedDefaultArg
 
   ParmVarDeclAbbrev = Stream.EmitAbbrev(Abv);
 }

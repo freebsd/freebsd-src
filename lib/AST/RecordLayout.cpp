@@ -38,17 +38,15 @@ ASTRecordLayout::ASTRecordLayout(ASTContext &Ctx, uint64_t size, unsigned alignm
 
 // Constructor for C++ records.
 ASTRecordLayout::ASTRecordLayout(ASTContext &Ctx,
-                       uint64_t size, unsigned alignment,
-                       uint64_t datasize,
-                       const uint64_t *fieldoffsets,
-                       unsigned fieldcount,
-                       uint64_t nonvirtualsize,
-                       unsigned nonvirtualalign,
-                       const PrimaryBaseInfo &PrimaryBase,
-                       const std::pair<const CXXRecordDecl *, uint64_t> *bases,
-                       unsigned numbases,
-                       const std::pair<const CXXRecordDecl *, uint64_t> *vbases,
-                       unsigned numvbases)
+                                 uint64_t size, unsigned alignment,
+                                 uint64_t datasize,
+                                 const uint64_t *fieldoffsets,
+                                 unsigned fieldcount,
+                                 uint64_t nonvirtualsize,
+                                 unsigned nonvirtualalign,
+                                 const PrimaryBaseInfo &PrimaryBase,
+                                 const BaseOffsetsMapTy& BaseOffsets,
+                                 const BaseOffsetsMapTy& VBaseOffsets)
   : Size(size), DataSize(datasize), FieldOffsets(0), Alignment(alignment),
     FieldCount(fieldcount), CXXInfo(new (Ctx) CXXRecordLayoutInfo)
 {
@@ -60,8 +58,17 @@ ASTRecordLayout::ASTRecordLayout(ASTContext &Ctx,
   CXXInfo->PrimaryBase = PrimaryBase;
   CXXInfo->NonVirtualSize = nonvirtualsize;
   CXXInfo->NonVirtualAlign = nonvirtualalign;
-  for (unsigned i = 0; i != numbases; ++i)
-    CXXInfo->BaseOffsets[bases[i].first] = bases[i].second;
-  for (unsigned i = 0; i != numvbases; ++i)
-    CXXInfo->VBaseOffsets[vbases[i].first] = vbases[i].second;
+  CXXInfo->BaseOffsets = BaseOffsets;
+  CXXInfo->VBaseOffsets = VBaseOffsets;
+
+#ifndef NDEBUG
+    if (const CXXRecordDecl *PrimaryBase = getPrimaryBase()) {
+      if (getPrimaryBaseWasVirtual())
+        assert(getVBaseClassOffset(PrimaryBase) == 0 &&
+               "Primary virtual base must be at offset 0!");
+      else
+        assert(getBaseClassOffset(PrimaryBase) == 0 &&
+               "Primary base must be at offset 0!");
+    }
+#endif        
 }
