@@ -16,7 +16,6 @@
 #include "llvm/MC/MCInst.h"
 #include "llvm/MC/MCSection.h"
 #include "llvm/MC/MCSymbol.h"
-#include "llvm/MC/MCValue.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/raw_ostream.h"
 using namespace llvm;
@@ -48,8 +47,6 @@ private:
   MCAssembler Assembler;
   MCCodeEmitter *Emitter;
   MCSectionData *CurSectionData;
-  DenseMap<const MCSection*, MCSectionData*> SectionMap;
-  DenseMap<const MCSymbol*, MCSymbolData*> SymbolMap;
 
 private:
   MCFragment *getCurrentFragment() const {
@@ -61,27 +58,10 @@ private:
     return 0;
   }
 
-  MCSectionData &getSectionData(const MCSection &Section) {
-    MCSectionData *&Entry = SectionMap[&Section];
-
-    if (!Entry)
-      Entry = new MCSectionData(Section, &Assembler);
-
-    return *Entry;
-  }
-
-  MCSymbolData &getSymbolData(const MCSymbol &Symbol) {
-    MCSymbolData *&Entry = SymbolMap[&Symbol];
-
-    if (!Entry)
-      Entry = new MCSymbolData(Symbol, 0, 0, &Assembler);
-
-    return *Entry;
-  }
-
 public:
-  MCMachOStreamer(MCContext &Context, raw_ostream &_OS, MCCodeEmitter *_Emitter)
-    : MCStreamer(Context), Assembler(Context, _OS), Emitter(_Emitter),
+  MCMachOStreamer(MCContext &Context, TargetAsmBackend &TAB,
+                  raw_ostream &_OS, MCCodeEmitter *_Emitter)
+    : MCStreamer(Context), Assembler(Context, TAB, _OS), Emitter(_Emitter),
       CurSectionData(0) {}
   ~MCMachOStreamer() {}
 
@@ -99,7 +79,8 @@ public:
     }
 
     case MCExpr::SymbolRef:
-      getSymbolData(cast<MCSymbolRefExpr>(Value)->getSymbol());
+      Assembler.getOrCreateSymbolData(
+        cast<MCSymbolRefExpr>(Value)->getSymbol());
       break;
 
     case MCExpr::Unary:
@@ -164,7 +145,7 @@ void MCMachOStreamer::SwitchSection(const MCSection *Section) {
   if (Section == CurSection) return;
 
   CurSection = Section;
-  CurSectionData = &getSectionData(*Section);
+  CurSectionData = &Assembler.getOrCreateSectionData(*Section);
 }
 
 void MCMachOStreamer::EmitLabel(MCSymbol *Symbol) {
@@ -175,7 +156,7 @@ void MCMachOStreamer::EmitLabel(MCSymbol *Symbol) {
   if (!F)
     F = new MCDataFragment(CurSectionData);
 
-  MCSymbolData &SD = getSymbolData(*Symbol);
+  MCSymbolData &SD = Assembler.getOrCreateSymbolData(*Symbol);
   assert(!SD.getFragment() && "Unexpected fragment on symbol data!");
   SD.setFragment(F);
   SD.setOffset(F->getContents().size());
@@ -203,7 +184,7 @@ void MCMachOStreamer::EmitAssignment(MCSymbol *Symbol, const MCExpr *Value) {
 
   // FIXME: Lift context changes into super class.
   // FIXME: Set associated section.
-  Symbol->setValue(Value);
+  Symbol->setValue(AddValueSymbols(Value));
 }
 
 void MCMachOStreamer::EmitSymbolAttribute(MCSymbol *Symbol,
@@ -221,9 +202,9 @@ void MCMachOStreamer::EmitSymbolAttribute(MCSymbol *Symbol,
   }
 
   // Adding a symbol attribute always introduces the symbol, note that an
-  // important side effect of calling getSymbolData here is to register the
-  // symbol with the assembler.
-  MCSymbolData &SD = getSymbolData(*Symbol);
+  // important side effect of calling getOrCreateSymbolData here is to register
+  // the symbol with the assembler.
+  MCSymbolData &SD = Assembler.getOrCreateSymbolData(*Symbol);
 
   // The implementation of symbol attributes is designed to match 'as', but it
   // leaves much to desired. It doesn't really make sense to arbitrarily add and
@@ -289,7 +270,7 @@ void MCMachOStreamer::EmitSymbolDesc(MCSymbol *Symbol, unsigned DescValue) {
   // Encode the 'desc' value into the lowest implementation defined bits.
   assert(DescValue == (DescValue & SF_DescFlagsMask) && 
          "Invalid .desc value!");
-  getSymbolData(*Symbol).setFlags(DescValue & SF_DescFlagsMask);
+  Assembler.getOrCreateSymbolData(*Symbol).setFlags(DescValue&SF_DescFlagsMask);
 }
 
 void MCMachOStreamer::EmitCommonSymbol(MCSymbol *Symbol, uint64_t Size,
@@ -297,14 +278,14 @@ void MCMachOStreamer::EmitCommonSymbol(MCSymbol *Symbol, uint64_t Size,
   // FIXME: Darwin 'as' does appear to allow redef of a .comm by itself.
   assert(Symbol->isUndefined() && "Cannot define a symbol twice!");
 
-  MCSymbolData &SD = getSymbolData(*Symbol);
+  MCSymbolData &SD = Assembler.getOrCreateSymbolData(*Symbol);
   SD.setExternal(true);
   SD.setCommon(Size, ByteAlignment);
 }
 
 void MCMachOStreamer::EmitZerofill(const MCSection *Section, MCSymbol *Symbol,
                                    unsigned Size, unsigned ByteAlignment) {
-  MCSectionData &SectData = getSectionData(*Section);
+  MCSectionData &SectData = Assembler.getOrCreateSectionData(*Section);
 
   // The symbol may not be present, which only creates the section.
   if (!Symbol)
@@ -314,7 +295,7 @@ void MCMachOStreamer::EmitZerofill(const MCSection *Section, MCSymbol *Symbol,
 
   assert(Symbol->isUndefined() && "Cannot define a symbol twice!");
 
-  MCSymbolData &SD = getSymbolData(*Symbol);
+  MCSymbolData &SD = Assembler.getOrCreateSymbolData(*Symbol);
 
   MCFragment *F = new MCZeroFillFragment(Size, ByteAlignment, &SectData);
   SD.setFragment(F);
@@ -346,9 +327,8 @@ void MCMachOStreamer::EmitValue(const MCExpr *Value, unsigned Size,
     for (unsigned i = 0; i != Size; ++i)
       DF->getContents().push_back(uint8_t(AbsValue >> (i * 8)));
   } else {
-    DF->getFixups().push_back(MCAsmFixup(DF->getContents().size(),
-                                         *AddValueSymbols(Value),
-                                         MCFixup::getKindForSize(Size)));
+    DF->addFixup(MCAsmFixup(DF->getContents().size(), *AddValueSymbols(Value),
+                            MCFixup::getKindForSize(Size)));
     DF->getContents().resize(DF->getContents().size() + Size, 0);
   }
 }
@@ -407,9 +387,8 @@ void MCMachOStreamer::EmitInstruction(const MCInst &Inst) {
     DF = new MCDataFragment(CurSectionData);
   for (unsigned i = 0, e = Fixups.size(); i != e; ++i) {
     MCFixup &F = Fixups[i];
-    DF->getFixups().push_back(MCAsmFixup(DF->getContents().size()+F.getOffset(),
-                                         *F.getValue(),
-                                         F.getKind()));
+    DF->addFixup(MCAsmFixup(DF->getContents().size()+F.getOffset(),
+                            *F.getValue(), F.getKind()));
   }
   DF->getContents().append(Code.begin(), Code.end());
 }
@@ -418,7 +397,7 @@ void MCMachOStreamer::Finish() {
   Assembler.Finish();
 }
 
-MCStreamer *llvm::createMachOStreamer(MCContext &Context, raw_ostream &OS,
-                                      MCCodeEmitter *CE) {
-  return new MCMachOStreamer(Context, OS, CE);
+MCStreamer *llvm::createMachOStreamer(MCContext &Context, TargetAsmBackend &TAB,
+                                      raw_ostream &OS, MCCodeEmitter *CE) {
+  return new MCMachOStreamer(Context, TAB, OS, CE);
 }

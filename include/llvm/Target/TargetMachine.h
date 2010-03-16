@@ -30,6 +30,7 @@ class TargetJITInfo;
 class TargetLowering;
 class TargetFrameInfo;
 class JITCodeEmitter;
+class MCContext;
 class TargetRegisterInfo;
 class PassManagerBase;
 class PassManager;
@@ -224,16 +225,18 @@ public:
 /// implemented with the LLVM target-independent code generator.
 ///
 class LLVMTargetMachine : public TargetMachine {
+  std::string TargetTriple;
+
 protected: // Can only create subclasses.
   LLVMTargetMachine(const Target &T, const std::string &TargetTriple);
   
+private:
   /// addCommonCodeGenPasses - Add standard LLVM codegen passes used for
   /// both emitting to assembly files or machine code output.
   ///
   bool addCommonCodeGenPasses(PassManagerBase &, CodeGenOpt::Level,
-                              bool DisableVerify);
+                              bool DisableVerify, MCContext *&OutCtx);
 
-private:
   virtual void setCodeModelForJIT();
   virtual void setCodeModelForStatic();
   

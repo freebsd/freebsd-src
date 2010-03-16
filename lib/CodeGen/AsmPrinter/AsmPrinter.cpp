@@ -55,12 +55,13 @@ using namespace llvm;
 STATISTIC(EmittedInsts, "Number of machine instrs printed");
 
 char AsmPrinter::ID = 0;
+
 AsmPrinter::AsmPrinter(formatted_raw_ostream &o, TargetMachine &tm,
-                       MCContext &Ctx, MCStreamer &Streamer,
-                       const MCAsmInfo *T)
+                       MCStreamer &Streamer)
   : MachineFunctionPass(&ID), O(o),
-    TM(tm), MAI(T), TRI(tm.getRegisterInfo()),
-    OutContext(Ctx), OutStreamer(Streamer),
+    TM(tm), MAI(tm.getMCAsmInfo()), TRI(tm.getRegisterInfo()),
+    OutContext(Streamer.getContext()),
+    OutStreamer(Streamer),
     LastMI(0), LastFn(0), Counter(~0U), SetCounter(0), PrevDLT(NULL) {
   DW = 0; MMI = 0;
   VerboseAsm = Streamer.isVerboseAsm();
@@ -72,7 +73,6 @@ AsmPrinter::~AsmPrinter() {
     delete I->second;
   
   delete &OutStreamer;
-  delete &OutContext;
 }
 
 /// getFunctionNumber - Return a unique ID for the current function.
@@ -94,17 +94,21 @@ const MCSection *AsmPrinter::getCurrentSection() const {
 void AsmPrinter::getAnalysisUsage(AnalysisUsage &AU) const {
   AU.setPreservesAll();
   MachineFunctionPass::getAnalysisUsage(AU);
+  AU.addRequired<MachineModuleInfo>();
   AU.addRequired<GCModuleInfo>();
   if (VerboseAsm)
     AU.addRequired<MachineLoopInfo>();
 }
 
 bool AsmPrinter::doInitialization(Module &M) {
+  MMI = getAnalysisIfAvailable<MachineModuleInfo>();
+  MMI->AnalyzeModule(M);
+
   // Initialize TargetLoweringObjectFile.
   const_cast<TargetLoweringObjectFile&>(getObjFileLowering())
     .Initialize(OutContext, TM);
   
-  Mang = new Mangler(*MAI);
+  Mang = new Mangler(OutContext, *TM.getTargetData());
   
   // Allow the target to emit any magic that it wants at the start of the file.
   EmitStartOfAsmFile(M);
@@ -128,9 +132,6 @@ bool AsmPrinter::doInitialization(Module &M) {
       << '\n' << MAI->getCommentString()
       << " End of file scope inline assembly\n";
 
-  MMI = getAnalysisIfAvailable<MachineModuleInfo>();
-  if (MMI)
-    MMI->AnalyzeModule(M);
   DW = getAnalysisIfAvailable<DwarfWriter>();
   if (DW)
     DW->BeginModule(&M, MMI, O, this, MAI);
@@ -193,7 +194,7 @@ void AsmPrinter::EmitGlobalVariable(const GlobalVariable *GV) {
   if (EmitSpecialLLVMGlobal(GV))
     return;
 
-  MCSymbol *GVSym = GetGlobalValueSymbol(GV);
+  MCSymbol *GVSym = Mang->getSymbol(GV);
   EmitVisibility(GVSym, GV->getVisibility());
 
   if (MAI->hasDotTypeDotSizeDirective())
@@ -305,6 +306,16 @@ void AsmPrinter::EmitFunctionHeader() {
   // Emit the CurrentFnSym.  This is a virtual function to allow targets to
   // do their wild and crazy things as required.
   EmitFunctionEntryLabel();
+  
+  // If the function had address-taken blocks that got deleted, then we have
+  // references to the dangling symbols.  Emit them at the start of the function
+  // so that we don't get references to undefined symbols.
+  std::vector<MCSymbol*> DeadBlockSyms;
+  MMI->takeDeletedSymbolsForFunction(F, DeadBlockSyms);
+  for (unsigned i = 0, e = DeadBlockSyms.size(); i != e; ++i) {
+    OutStreamer.AddComment("Address taken block that was later removed");
+    OutStreamer.EmitLabel(DeadBlockSyms[i]);
+  }
   
   // Add some workaround for linkonce linkage on Cygwin\MinGW.
   if (MAI->getLinkOnceDirective() != 0 &&
@@ -477,14 +488,12 @@ bool AsmPrinter::doFinalization(Module &M) {
     for (Module::const_global_iterator I = M.global_begin(), E = M.global_end();
          I != E; ++I) {
       if (!I->hasExternalWeakLinkage()) continue;
-      OutStreamer.EmitSymbolAttribute(GetGlobalValueSymbol(I),
-                                      MCSA_WeakReference);
+      OutStreamer.EmitSymbolAttribute(Mang->getSymbol(I), MCSA_WeakReference);
     }
     
     for (Module::const_iterator I = M.begin(), E = M.end(); I != E; ++I) {
       if (!I->hasExternalWeakLinkage()) continue;
-      OutStreamer.EmitSymbolAttribute(GetGlobalValueSymbol(I),
-                                      MCSA_WeakReference);
+      OutStreamer.EmitSymbolAttribute(Mang->getSymbol(I), MCSA_WeakReference);
     }
   }
 
@@ -492,10 +501,10 @@ bool AsmPrinter::doFinalization(Module &M) {
     OutStreamer.AddBlankLine();
     for (Module::const_alias_iterator I = M.alias_begin(), E = M.alias_end();
          I != E; ++I) {
-      MCSymbol *Name = GetGlobalValueSymbol(I);
+      MCSymbol *Name = Mang->getSymbol(I);
 
       const GlobalValue *GV = cast<GlobalValue>(I->getAliasedGlobal());
-      MCSymbol *Target = GetGlobalValueSymbol(GV);
+      MCSymbol *Target = Mang->getSymbol(GV);
 
       if (I->hasExternalLinkage() || !MAI->getWeakRefDirective())
         OutStreamer.EmitSymbolAttribute(Name, MCSA_Global);
@@ -539,7 +548,7 @@ bool AsmPrinter::doFinalization(Module &M) {
 void AsmPrinter::SetupMachineFunction(MachineFunction &MF) {
   this->MF = &MF;
   // Get the function symbol.
-  CurrentFnSym = GetGlobalValueSymbol(MF.getFunction());
+  CurrentFnSym = Mang->getSymbol(MF.getFunction());
 
   if (VerboseAsm)
     LI = &getAnalysis<MachineLoopInfo>();
@@ -651,6 +660,7 @@ void AsmPrinter::EmitConstantPool() {
 void AsmPrinter::EmitJumpTableInfo() {
   const MachineJumpTableInfo *MJTI = MF->getJumpTableInfo();
   if (MJTI == 0) return;
+  if (MJTI->getEntryKind() == MachineJumpTableInfo::EK_Inline) return;
   const std::vector<MachineJumpTableEntry> &JT = MJTI->getJumpTables();
   if (JT.empty()) return;
 
@@ -698,7 +708,7 @@ void AsmPrinter::EmitJumpTableInfo() {
         
         // .set LJTSet, LBB32-base
         const MCExpr *LHS =
-          MCSymbolRefExpr::Create(MBB->getSymbol(OutContext), OutContext);
+          MCSymbolRefExpr::Create(MBB->getSymbol(), OutContext);
         OutStreamer.EmitAssignment(GetJTSetSymbol(JTI, MBB->getNumber()),
                                 MCBinaryExpr::CreateSub(LHS, Base, OutContext));
       }
@@ -727,6 +737,8 @@ void AsmPrinter::EmitJumpTableEntry(const MachineJumpTableInfo *MJTI,
                                     unsigned UID) const {
   const MCExpr *Value = 0;
   switch (MJTI->getEntryKind()) {
+  case MachineJumpTableInfo::EK_Inline:
+    llvm_unreachable("Cannot emit EK_Inline jump table entry"); break;
   case MachineJumpTableInfo::EK_Custom32:
     Value = TM.getTargetLowering()->LowerCustomJumpTableEntry(MJTI, MBB, UID,
                                                               OutContext);
@@ -734,13 +746,13 @@ void AsmPrinter::EmitJumpTableEntry(const MachineJumpTableInfo *MJTI,
   case MachineJumpTableInfo::EK_BlockAddress:
     // EK_BlockAddress - Each entry is a plain address of block, e.g.:
     //     .word LBB123
-    Value = MCSymbolRefExpr::Create(MBB->getSymbol(OutContext), OutContext);
+    Value = MCSymbolRefExpr::Create(MBB->getSymbol(), OutContext);
     break;
   case MachineJumpTableInfo::EK_GPRel32BlockAddress: {
     // EK_GPRel32BlockAddress - Each entry is an address of block, encoded
     // with a relocation as gp-relative, e.g.:
     //     .gprel32 LBB123
-    MCSymbol *MBBSym = MBB->getSymbol(OutContext);
+    MCSymbol *MBBSym = MBB->getSymbol();
     OutStreamer.EmitGPRel32Value(MCSymbolRefExpr::Create(MBBSym, OutContext));
     return;
   }
@@ -764,7 +776,7 @@ void AsmPrinter::EmitJumpTableEntry(const MachineJumpTableInfo *MJTI,
       break;
     }
     // Otherwise, use the difference as the jump table entry.
-    Value = MCSymbolRefExpr::Create(MBB->getSymbol(OutContext), OutContext);
+    Value = MCSymbolRefExpr::Create(MBB->getSymbol(), OutContext);
     const MCExpr *JTI = MCSymbolRefExpr::Create(GetJTISymbol(UID), OutContext);
     Value = MCBinaryExpr::CreateSub(Value, JTI, OutContext);
     break;
@@ -842,8 +854,7 @@ void AsmPrinter::EmitLLVMUsedList(Constant *List) {
     const GlobalValue *GV =
       dyn_cast<GlobalValue>(InitList->getOperand(i)->stripPointerCasts());
     if (GV && getObjFileLowering().shouldEmitUsedDirectiveFor(GV, Mang))
-      OutStreamer.EmitSymbolAttribute(GetGlobalValueSymbol(GV),
-                                      MCSA_NoDeadStrip);
+      OutStreamer.EmitSymbolAttribute(Mang->getSymbol(GV), MCSA_NoDeadStrip);
   }
 }
 
@@ -960,7 +971,7 @@ static const MCExpr *LowerConstant(const Constant *CV, AsmPrinter &AP) {
     return MCConstantExpr::Create(CI->getZExtValue(), Ctx);
   
   if (const GlobalValue *GV = dyn_cast<GlobalValue>(CV))
-    return MCSymbolRefExpr::Create(AP.GetGlobalValueSymbol(GV), Ctx);
+    return MCSymbolRefExpr::Create(AP.Mang->getSymbol(GV), Ctx);
   if (const BlockAddress *BA = dyn_cast<BlockAddress>(CV))
     return MCSymbolRefExpr::Create(AP.GetBlockAddressSymbol(BA), Ctx);
   
@@ -1308,6 +1319,8 @@ void AsmPrinter::processDebugLoc(const MachineInstr *MI,
   if (!MAI || !DW || !MAI->doesSupportDebugInformation()
       || !DW->ShouldEmitDwarfDebug())
     return;
+  if (MI->getOpcode() == TargetOpcode::DBG_VALUE)
+    return;
   DebugLoc DL = MI->getDebugLoc();
   if (DL.isUnknown())
     return;
@@ -1499,7 +1512,7 @@ void AsmPrinter::printInlineAsm(const MachineInstr *MI) const {
           ++OpNo;  // Skip over the ID number.
 
           if (Modifier[0] == 'l')  // labels are target independent
-            O << *MI->getOperand(OpNo).getMBB()->getSymbol(OutContext);
+            O << *MI->getOperand(OpNo).getMBB()->getSymbol();
           else {
             AsmPrinter *AP = const_cast<AsmPrinter*>(this);
             if ((OpFlags & 7) == 4) {
@@ -1552,17 +1565,7 @@ void AsmPrinter::printKill(const MachineInstr *MI) const {
 /// printLabel - This method prints a local label used by debug and
 /// exception handling tables.
 void AsmPrinter::printLabelInst(const MachineInstr *MI) const {
-  MCSymbol *Sym = 
-    OutContext.GetOrCreateTemporarySymbol(Twine(MAI->getPrivateGlobalPrefix()) +
-                                 "label" + Twine(MI->getOperand(0).getImm()));
-  OutStreamer.EmitLabel(Sym);
-}
-
-void AsmPrinter::printLabel(unsigned Id) const {
-  MCSymbol *Sym = 
-    OutContext.GetOrCreateTemporarySymbol(Twine(MAI->getPrivateGlobalPrefix()) +
-                                          "label" + Twine(Id));
-  OutStreamer.EmitLabel(Sym);
+  OutStreamer.EmitLabel(MI->getOperand(0).getMCSymbol());
 }
 
 /// PrintAsmOperand - Print the specified operand of MI, an INLINEASM
@@ -1582,28 +1585,11 @@ bool AsmPrinter::PrintAsmMemoryOperand(const MachineInstr *MI, unsigned OpNo,
 }
 
 MCSymbol *AsmPrinter::GetBlockAddressSymbol(const BlockAddress *BA) const {
-  return GetBlockAddressSymbol(BA->getFunction(), BA->getBasicBlock());
+  return MMI->getAddrLabelSymbol(BA->getBasicBlock());
 }
 
-MCSymbol *AsmPrinter::GetBlockAddressSymbol(const Function *F,
-                                            const BasicBlock *BB) const {
-  assert(BB->hasName() &&
-         "Address of anonymous basic block not supported yet!");
-
-  // This code must use the function name itself, and not the function number,
-  // since it must be possible to generate the label name from within other
-  // functions.
-  SmallString<60> FnName;
-  Mang->getNameWithPrefix(FnName, F, false);
-
-  // FIXME: THIS IS BROKEN IF THE LLVM BASIC BLOCK DOESN'T HAVE A NAME!
-  SmallString<60> NameResult;
-  Mang->getNameWithPrefix(NameResult,
-                          StringRef("BA") + Twine((unsigned)FnName.size()) + 
-                          "_" + FnName.str() + "_" + BB->getName(), 
-                          Mangler::Private);
-
-  return OutContext.GetOrCreateTemporarySymbol(NameResult.str());
+MCSymbol *AsmPrinter::GetBlockAddressSymbol(const BasicBlock *BB) const {
+  return MMI->getAddrLabelSymbol(BB);
 }
 
 /// GetCPISymbol - Return the symbol for the specified constant pool entry.
@@ -1624,17 +1610,6 @@ MCSymbol *AsmPrinter::GetJTSetSymbol(unsigned UID, unsigned MBBID) const {
   return OutContext.GetOrCreateTemporarySymbol
   (Twine(MAI->getPrivateGlobalPrefix()) + Twine(getFunctionNumber()) + "_" +
    Twine(UID) + "_set_" + Twine(MBBID));
-}
-
-/// GetGlobalValueSymbol - Return the MCSymbol for the specified global
-/// value.
-MCSymbol *AsmPrinter::GetGlobalValueSymbol(const GlobalValue *GV) const {
-  SmallString<60> NameStr;
-  Mang->getNameWithPrefix(NameStr, GV, false);
-  
-  if (!GV->hasPrivateLinkage())
-    return OutContext.GetOrCreateSymbol(NameStr.str());
-  return OutContext.GetOrCreateTemporarySymbol(NameStr.str());
 }
 
 /// GetSymbolWithGlobalValueBase - Return the MCSymbol for a symbol with
@@ -1734,16 +1709,19 @@ void AsmPrinter::EmitBasicBlockStart(const MachineBasicBlock *MBB) const {
   if (unsigned Align = MBB->getAlignment())
     EmitAlignment(Log2_32(Align));
 
-  // If the block has its address taken, emit a special label to satisfy
-  // references to the block. This is done so that we don't need to
-  // remember the number of this label, and so that we can make
-  // forward references to labels without knowing what their numbers
-  // will be.
+  // If the block has its address taken, emit any labels that were used to
+  // reference the block.  It is possible that there is more than one label
+  // here, because multiple LLVM BB's may have been RAUW'd to this block after
+  // the references were generated.
   if (MBB->hasAddressTaken()) {
     const BasicBlock *BB = MBB->getBasicBlock();
     if (VerboseAsm)
-      OutStreamer.AddComment("Address Taken");
-    OutStreamer.EmitLabel(GetBlockAddressSymbol(BB->getParent(), BB));
+      OutStreamer.AddComment("Block address taken");
+    
+    std::vector<MCSymbol*> Syms = MMI->getAddrLabelSymbolToEmit(BB);
+
+    for (unsigned i = 0, e = Syms.size(); i != e; ++i)
+      OutStreamer.EmitLabel(Syms[i]);
   }
 
   // Print the main label for the block.
@@ -1766,7 +1744,7 @@ void AsmPrinter::EmitBasicBlockStart(const MachineBasicBlock *MBB) const {
       PrintBasicBlockLoopComments(*MBB, LI, *this);
     }
 
-    OutStreamer.EmitLabel(MBB->getSymbol(OutContext));
+    OutStreamer.EmitLabel(MBB->getSymbol());
   }
 }
 

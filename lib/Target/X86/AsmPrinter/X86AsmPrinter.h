@@ -36,9 +36,8 @@ class VISIBILITY_HIDDEN X86AsmPrinter : public AsmPrinter {
   const X86Subtarget *Subtarget;
  public:
   explicit X86AsmPrinter(formatted_raw_ostream &O, TargetMachine &TM,
-                         MCContext &Ctx, MCStreamer &Streamer,
-                         const MCAsmInfo *T)
-    : AsmPrinter(O, TM, Ctx, Streamer, T) {
+                         MCStreamer &Streamer)
+    : AsmPrinter(O, TM, Streamer) {
     Subtarget = &TM.getSubtarget<X86Subtarget>();
   }
 
@@ -55,13 +54,13 @@ class VISIBILITY_HIDDEN X86AsmPrinter : public AsmPrinter {
     AsmPrinter::getAnalysisUsage(AU);
   }
 
-  
+  virtual void EmitStartOfAsmFile(Module &M);
+
   virtual void EmitEndOfAsmFile(Module &M);
   
   virtual void EmitInstruction(const MachineInstr *MI);
   
   void printSymbolOperand(const MachineOperand &MO);
-  virtual MCSymbol *GetGlobalValueSymbol(const GlobalValue *GV) const;
 
   // These methods are used by the tablegen'erated instruction printer.
   void printOperand(const MachineInstr *MI, unsigned OpNo,

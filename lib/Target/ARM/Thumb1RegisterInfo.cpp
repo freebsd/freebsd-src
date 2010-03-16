@@ -791,9 +791,9 @@ static bool isCSRestore(MachineInstr *MI, const unsigned *CSRegs) {
       isCalleeSavedRegister(MI->getOperand(0).getReg(), CSRegs))
     return true;
   else if (MI->getOpcode() == ARM::tPOP) {
-    // The first three operands are predicates and such. The last two are
+    // The first two operands are predicates. The last two are
     // imp-def and imp-use of SP. Check everything in between.
-    for (int i = 3, e = MI->getNumOperands() - 2; i != e; ++i)
+    for (int i = 2, e = MI->getNumOperands() - 2; i != e; ++i)
       if (!isCalleeSavedRegister(MI->getOperand(i).getReg(), CSRegs))
         return false;
     return true;
@@ -854,12 +854,16 @@ void Thumb1RegisterInfo::emitEpilogue(MachineFunction &MF,
   }
 
   if (VARegSaveSize) {
+    // Unlike T2 and ARM mode, the T1 pop instruction cannot restore
+    // to LR, and we can't pop the value directly to the PC since
+    // we need to update the SP after popping the value. Therefore, we
+    // pop the old LR into R3 as a temporary.
+
     // Move back past the callee-saved register restoration
     while (MBBI != MBB.end() && isCSRestore(MBBI, CSRegs))
       ++MBBI;
     // Epilogue for vararg functions: pop LR to R3 and branch off it.
     AddDefaultPred(BuildMI(MBB, MBBI, dl, TII.get(ARM::tPOP)))
-      .addReg(0) // No write back.
       .addReg(ARM::R3, RegState::Define);
 
     emitSPUpdate(MBB, MBBI, TII, dl, *this, VARegSaveSize);

@@ -37,6 +37,11 @@ namespace llvm {
   /// EmitStrCpy - Emit a call to the strcpy function to the builder, for the
   /// specified pointer arguments.
   Value *EmitStrCpy(Value *Dst, Value *Src, IRBuilder<> &B,
+                    const TargetData *TD, StringRef Name = "strcpy");
+
+  /// EmitStrNCpy - Emit a call to the strncpy function to the builder, for the
+  /// specified pointer arguments and length.
+  Value *EmitStrNCpy(Value *Dst, Value *Src, Value *Len, IRBuilder<> &B,
                     const TargetData *TD);
   
   /// EmitMemCpy - Emit a call to the memcpy function to the builder.  This
@@ -91,6 +96,19 @@ namespace llvm {
   /// a pointer, Size is an 'intptr_t', and File is a pointer to FILE.
   void EmitFWrite(Value *Ptr, Value *Size, Value *File, IRBuilder<> &B,
                   const TargetData *TD);
+
+  /// SimplifyFortifiedLibCalls - Helper class for folding checked library
+  /// calls (e.g. __strcpy_chk) into their unchecked counterparts.
+  class SimplifyFortifiedLibCalls {
+  protected:
+    CallInst *CI;
+    virtual void replaceCall(Value *With) = 0;
+    virtual bool isFoldable(unsigned SizeCIOp, unsigned SizeArgOp,
+                            bool isString) const = 0;
+  public:
+    virtual ~SimplifyFortifiedLibCalls();
+    bool fold(CallInst *CI, const TargetData *TD);
+  };
 }
 
 #endif

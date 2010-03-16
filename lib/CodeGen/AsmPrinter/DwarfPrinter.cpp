@@ -189,7 +189,9 @@ void DwarfPrinter::EmitULEB128(unsigned Value, const char *Desc,
 void DwarfPrinter::EmitReference(const MCSymbol *Sym, unsigned Encoding) const {
   const TargetLoweringObjectFile &TLOF = Asm->getObjFileLowering();
 
-  const MCExpr *Exp = TLOF.getSymbolForDwarfReference(Sym, Asm->MMI, Encoding);
+  const MCExpr *Exp = TLOF.getExprForDwarfReference(Sym, Asm->Mang,
+                                                    Asm->MMI, Encoding,
+                                                    Asm->OutStreamer);
   Asm->OutStreamer.EmitValue(Exp, SizeOfEncodedValue(Encoding), /*addrspace*/0);
 }
 
@@ -197,7 +199,8 @@ void DwarfPrinter::EmitReference(const GlobalValue *GV, unsigned Encoding)const{
   const TargetLoweringObjectFile &TLOF = Asm->getObjFileLowering();
 
   const MCExpr *Exp =
-    TLOF.getSymbolForDwarfGlobalReference(GV, Asm->Mang, Asm->MMI, Encoding);
+    TLOF.getExprForDwarfGlobalReference(GV, Asm->Mang, Asm->MMI, Encoding,
+                                        Asm->OutStreamer);
   Asm->OutStreamer.EmitValue(Exp, SizeOfEncodedValue(Encoding), /*addrspace*/0);
 }
 
@@ -222,10 +225,11 @@ void DwarfPrinter::EmitSectionOffset(const MCSymbol *Label,
     return EmitDifference(Label, Section, IsSmall);
   
   // On COFF targets, we have to emit the weird .secrel32 directive.
-  if (const char *SecOffDir = MAI->getDwarfSectionOffsetDirective())
+  if (const char *SecOffDir = MAI->getDwarfSectionOffsetDirective()) {
     // FIXME: MCize.
     Asm->O << SecOffDir << Label->getName();
-  else {
+    Asm->OutStreamer.AddBlankLine();
+  } else {
     unsigned Size = IsSmall ? 4 : TD->getPointerSize();
     Asm->OutStreamer.EmitSymbolValue(Label, Size, 0/*AddrSpace*/);
   }
@@ -233,34 +237,31 @@ void DwarfPrinter::EmitSectionOffset(const MCSymbol *Label,
 
 /// EmitFrameMoves - Emit frame instructions to describe the layout of the
 /// frame.
-void DwarfPrinter::EmitFrameMoves(const char *BaseLabel, unsigned BaseLabelID,
+void DwarfPrinter::EmitFrameMoves(MCSymbol *BaseLabel,
                                   const std::vector<MachineMove> &Moves,
                                   bool isEH) {
-  int stackGrowth =
-    Asm->TM.getFrameInfo()->getStackGrowthDirection() ==
-    TargetFrameInfo::StackGrowsUp ?
-    TD->getPointerSize() : -TD->getPointerSize();
-  bool IsLocal = BaseLabel && strcmp(BaseLabel, "label") == 0;
-
+  int stackGrowth = TD->getPointerSize();
+  if (Asm->TM.getFrameInfo()->getStackGrowthDirection() !=
+      TargetFrameInfo::StackGrowsUp)
+    stackGrowth *= -1;
+  
   for (unsigned i = 0, N = Moves.size(); i < N; ++i) {
     const MachineMove &Move = Moves[i];
-    unsigned LabelID = Move.getLabelID();
-
+    MCSymbol *Label = Move.getLabel();
     // Throw out move if the label is invalid.
-    if (LabelID && MMI->isLabelDeleted(LabelID))
-      continue;
+    if (Label && !Label->isDefined()) continue; // Not emitted, in dead code.
 
     const MachineLocation &Dst = Move.getDestination();
     const MachineLocation &Src = Move.getSource();
 
     // Advance row if new location.
-    if (BaseLabel && LabelID && (BaseLabelID != LabelID || !IsLocal)) {
-      EmitCFAByte(dwarf::DW_CFA_advance_loc4);
-      EmitDifference(getDWLabel("label", LabelID),
-                     getDWLabel(BaseLabel, BaseLabelID), true);
-      BaseLabelID = LabelID;
-      BaseLabel = "label";
-      IsLocal = true;
+    if (BaseLabel && Label) {
+      MCSymbol *ThisSym = Label;
+      if (ThisSym != BaseLabel) {
+        EmitCFAByte(dwarf::DW_CFA_advance_loc4);
+        EmitDifference(ThisSym, BaseLabel, true);
+        BaseLabel = ThisSym;
+      }
     }
 
     // If advancing cfa.

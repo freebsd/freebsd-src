@@ -112,6 +112,7 @@ class IndexMode<bits<2> val> {
 def IndexModeNone : IndexMode<0>;
 def IndexModePre  : IndexMode<1>;
 def IndexModePost : IndexMode<2>;
+def IndexModeUpd  : IndexMode<3>;
 
 // Instruction execution domain.
 class Domain<bits<2> val> {
@@ -142,6 +143,23 @@ def cc_out : OptionalDefOperand<OtherVT, (ops CCR), (ops (i32 zero_reg))> {
 // Same as cc_out except it defaults to setting CPSR.
 def s_cc_out : OptionalDefOperand<OtherVT, (ops CCR), (ops (i32 CPSR))> {
   let PrintMethod = "printSBitModifierOperand";
+}
+
+// ARM special operands for disassembly only.
+//
+
+def cps_opt : Operand<i32> {
+  let PrintMethod = "printCPSOptionOperand";
+}
+
+def msr_mask : Operand<i32> {
+  let PrintMethod = "printMSRMaskOperand";
+}
+
+// A8.6.117, A8.6.118.  Different instructions are generated for #0 and #-0.
+// The neg_zero operand translates -0 to -1, -1 to -2, ..., etc.
+def neg_zero : Operand<i32> {
+  let PrintMethod = "printNegZeroOperand";
 }
 
 //===----------------------------------------------------------------------===//
@@ -835,18 +853,18 @@ class AI3stdpo<dag oops, dag iops, Format f, InstrItinClass itin,
 
 
 // addrmode4 instructions
-class AXI4ld<dag oops, dag iops, Format f, InstrItinClass itin,
-             string asm, list<dag> pattern>
-  : XI<oops, iops, AddrMode4, Size4Bytes, IndexModeNone, f, itin,
-       asm, "", pattern> {
+class AXI4ld<dag oops, dag iops, IndexMode im, Format f, InstrItinClass itin,
+             string asm, string cstr, list<dag> pattern>
+  : XI<oops, iops, AddrMode4, Size4Bytes, im, f, itin,
+       asm, cstr, pattern> {
   let Inst{20}    = 1; // L bit
   let Inst{22}    = 0; // S bit
   let Inst{27-25} = 0b100;
 }
-class AXI4st<dag oops, dag iops, Format f, InstrItinClass itin,
-             string asm, list<dag> pattern>
-  : XI<oops, iops, AddrMode4, Size4Bytes, IndexModeNone, f, itin,
-       asm, "", pattern> {
+class AXI4st<dag oops, dag iops, IndexMode im, Format f, InstrItinClass itin,
+             string asm, string cstr, list<dag> pattern>
+  : XI<oops, iops, AddrMode4, Size4Bytes, im, f, itin,
+       asm, cstr, pattern> {
   let Inst{20}    = 0; // L bit
   let Inst{22}    = 0; // S bit
   let Inst{27-25} = 0b100;
@@ -980,9 +998,9 @@ class T1JTI<dag oops, dag iops, InstrItinClass itin,
 
 // Two-address instructions
 class T1It<dag oops, dag iops, InstrItinClass itin,
-           string asm, list<dag> pattern>
+           string asm, string cstr, list<dag> pattern>
   : Thumb1I<oops, iops, AddrModeNone, Size2Bytes, itin, 
-            asm, "$lhs = $dst", pattern>;
+            asm, cstr, pattern>;
 
 // Thumb1 instruction that can either be predicated or set CPSR.
 class Thumb1sI<dag oops, dag iops, AddrMode am, SizeFlagVal sz,
@@ -1179,6 +1197,10 @@ class T2Ix2<dag oops, dag iops, InstrItinClass itin,
           string opc, string asm, list<dag> pattern>
   : Thumb2I<oops, iops, AddrModeNone, Size8Bytes, itin, opc, asm, "", pattern>;
 
+// Two-address instructions
+class T2XIt<dag oops, dag iops, InstrItinClass itin,
+            string asm, string cstr, list<dag> pattern>
+  : Thumb2XI<oops, iops, AddrModeNone, Size4Bytes, itin, asm, cstr, pattern>;
 
 // T2Iidxldst - Thumb2 indexed load / store instructions.
 class T2Iidxldst<bit signed, bits<2> opcod, bit load, bit pre,
@@ -1293,10 +1315,10 @@ class ASI5<bits<4> opcod1, bits<2> opcod2, dag oops, dag iops,
 }
 
 // Load / store multiple
-class AXDI5<dag oops, dag iops, InstrItinClass itin,
-            string asm, list<dag> pattern>
-  : VFPXI<oops, iops, AddrMode5, Size4Bytes, IndexModeNone,
-       VFPLdStMulFrm, itin, asm, "", pattern> {
+class AXDI5<dag oops, dag iops, IndexMode im, InstrItinClass itin,
+            string asm, string cstr, list<dag> pattern>
+  : VFPXI<oops, iops, AddrMode5, Size4Bytes, im,
+       VFPLdStMulFrm, itin, asm, cstr, pattern> {
   // TODO: Mark the instructions with the appropriate subtarget info.
   let Inst{27-25} = 0b110;
   let Inst{11-8}  = 0b1011;
@@ -1305,10 +1327,10 @@ class AXDI5<dag oops, dag iops, InstrItinClass itin,
   let Dom = VFPNeonDomain.Value;
 }
 
-class AXSI5<dag oops, dag iops, InstrItinClass itin,
-            string asm, list<dag> pattern>
-  : VFPXI<oops, iops, AddrMode5, Size4Bytes, IndexModeNone,
-       VFPLdStMulFrm, itin, asm, "", pattern> {
+class AXSI5<dag oops, dag iops, IndexMode im, InstrItinClass itin,
+            string asm, string cstr, list<dag> pattern>
+  : VFPXI<oops, iops, AddrMode5, Size4Bytes, im,
+       VFPLdStMulFrm, itin, asm, cstr, pattern> {
   // TODO: Mark the instructions with the appropriate subtarget info.
   let Inst{27-25} = 0b110;
   let Inst{11-8}  = 0b1010;

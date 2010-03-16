@@ -31,7 +31,6 @@ class MCExpr;
 class MCInst;
 class MCStreamer;
 class MCAsmInfo;
-class MCValue;
 class SourceMgr;
 class TargetAsmParser;
 class Twine;
@@ -65,7 +64,7 @@ public:
             const MCAsmInfo &MAI);
   ~AsmParser();
 
-  bool Run();
+  bool Run(bool NoInitialTextSection);
 
   
   void AddDirectiveHandler(StringRef Directive,

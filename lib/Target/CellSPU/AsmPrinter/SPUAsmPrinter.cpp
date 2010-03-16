@@ -24,6 +24,7 @@
 #include "llvm/MC/MCStreamer.h"
 #include "llvm/MC/MCAsmInfo.h"
 #include "llvm/MC/MCSymbol.h"
+#include "llvm/Target/Mangler.h"
 #include "llvm/Target/TargetLoweringObjectFile.h"
 #include "llvm/Target/TargetInstrInfo.h"
 #include "llvm/Target/TargetOptions.h"
@@ -38,9 +39,8 @@ namespace {
   class SPUAsmPrinter : public AsmPrinter {
   public:
     explicit SPUAsmPrinter(formatted_raw_ostream &O, TargetMachine &TM,
-                           MCContext &Ctx, MCStreamer &Streamer,
-                           const MCAsmInfo *T) :
-      AsmPrinter(O, TM, Ctx, Streamer, T) {}
+                           MCStreamer &Streamer) :
+      AsmPrinter(O, TM, Streamer) {}
 
     virtual const char *getPassName() const {
       return "STI CBEA SPU Assembly Printer";
@@ -281,7 +281,7 @@ void SPUAsmPrinter::printOp(const MachineOperand &MO) {
     return;
 
   case MachineOperand::MO_MachineBasicBlock:
-    O << *MO.getMBB()->getSymbol(OutContext);
+    O << *MO.getMBB()->getSymbol();
     return;
   case MachineOperand::MO_JumpTableIndex:
     O << MAI->getPrivateGlobalPrefix() << "JTI" << getFunctionNumber()
@@ -311,7 +311,7 @@ void SPUAsmPrinter::printOp(const MachineOperand &MO) {
         return;
       }
     }
-    O << *GetGlobalValueSymbol(MO.getGlobal());
+    O << *Mang->getSymbol(MO.getGlobal());
     return;
   default:
     O << "<unknown operand type: " << MO.getType() << ">";

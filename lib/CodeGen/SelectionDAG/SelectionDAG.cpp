@@ -13,6 +13,7 @@
 
 #include "llvm/CodeGen/SelectionDAG.h"
 #include "SDNodeOrdering.h"
+#include "SDNodeDbgValue.h"
 #include "llvm/Constants.h"
 #include "llvm/Analysis/ValueTracking.h"
 #include "llvm/Function.h"
@@ -596,6 +597,9 @@ void SelectionDAG::DeallocateNode(SDNode *N) {
 
   // Remove the ordering of this node.
   Ordering->remove(N);
+
+  // And its entry in the debug info table, if any.
+  DbgInfo->remove(N);
 }
 
 /// RemoveNodeFromCSEMaps - Take the specified node out of the CSE map that
@@ -793,6 +797,7 @@ SelectionDAG::SelectionDAG(TargetLowering &tli, FunctionLoweringInfo &fli)
     Root(getEntryNode()), Ordering(0) {
   AllNodes.push_back(&EntryNode);
   Ordering = new SDNodeOrdering();
+  DbgInfo = new SDDbgInfo();
 }
 
 void SelectionDAG::init(MachineFunction &mf, MachineModuleInfo *mmi,
@@ -806,6 +811,7 @@ void SelectionDAG::init(MachineFunction &mf, MachineModuleInfo *mmi,
 SelectionDAG::~SelectionDAG() {
   allnodes_clear();
   delete Ordering;
+  delete DbgInfo;
 }
 
 void SelectionDAG::allnodes_clear() {
@@ -833,6 +839,8 @@ void SelectionDAG::clear() {
   Root = getEntryNode();
   delete Ordering;
   Ordering = new SDNodeOrdering();
+  delete DbgInfo;
+  DbgInfo = new SDDbgInfo();
 }
 
 SDValue SelectionDAG::getSExtOrTrunc(SDValue Op, DebugLoc DL, EVT VT) {
@@ -1306,23 +1314,22 @@ SDValue SelectionDAG::getRegister(unsigned RegNo, EVT VT) {
   return SDValue(N, 0);
 }
 
-SDValue SelectionDAG::getLabel(unsigned Opcode, DebugLoc dl,
-                               SDValue Root,
-                               unsigned LabelID) {
+SDValue SelectionDAG::getEHLabel(DebugLoc dl, SDValue Root, MCSymbol *Label) {
   FoldingSetNodeID ID;
   SDValue Ops[] = { Root };
-  AddNodeIDNode(ID, Opcode, getVTList(MVT::Other), &Ops[0], 1);
-  ID.AddInteger(LabelID);
+  AddNodeIDNode(ID, ISD::EH_LABEL, getVTList(MVT::Other), &Ops[0], 1);
+  ID.AddPointer(Label);
   void *IP = 0;
   if (SDNode *E = CSEMap.FindNodeOrInsertPos(ID, IP))
     return SDValue(E, 0);
-
-  SDNode *N = NodeAllocator.Allocate<LabelSDNode>();
-  new (N) LabelSDNode(Opcode, dl, Root, LabelID);
+  
+  SDNode *N = NodeAllocator.Allocate<EHLabelSDNode>();
+  new (N) EHLabelSDNode(dl, Root, Label);
   CSEMap.InsertNode(N, IP);
   AllNodes.push_back(N);
   return SDValue(N, 0);
 }
+
 
 SDValue SelectionDAG::getBlockAddress(BlockAddress *BA, EVT VT,
                                       bool isTarget,
@@ -2322,22 +2329,20 @@ SDValue SelectionDAG::getNode(unsigned Opcode, DebugLoc DL,
   // Constant fold unary operations with an integer constant operand.
   if (ConstantSDNode *C = dyn_cast<ConstantSDNode>(Operand.getNode())) {
     const APInt &Val = C->getAPIntValue();
-    unsigned BitWidth = VT.getSizeInBits();
     switch (Opcode) {
     default: break;
     case ISD::SIGN_EXTEND:
-      return getConstant(APInt(Val).sextOrTrunc(BitWidth), VT);
+      return getConstant(APInt(Val).sextOrTrunc(VT.getSizeInBits()), VT);
     case ISD::ANY_EXTEND:
     case ISD::ZERO_EXTEND:
     case ISD::TRUNCATE:
-      return getConstant(APInt(Val).zextOrTrunc(BitWidth), VT);
+      return getConstant(APInt(Val).zextOrTrunc(VT.getSizeInBits()), VT);
     case ISD::UINT_TO_FP:
     case ISD::SINT_TO_FP: {
       const uint64_t zero[] = {0, 0};
-      // No compile time operations on this type.
-      if (VT==MVT::ppcf128)
-        break;
-      APFloat apf = APFloat(APInt(BitWidth, 2, zero));
+      // No compile time operations on ppcf128.
+      if (VT == MVT::ppcf128) break;
+      APFloat apf = APFloat(APInt(VT.getSizeInBits(), 2, zero));
       (void)apf.convertFromAPInt(Val,
                                  Opcode==ISD::SINT_TO_FP,
                                  APFloat::rmNearestTiesToEven);
@@ -5264,6 +5269,25 @@ unsigned SelectionDAG::GetOrdering(const SDNode *SD) const {
   return Ordering->getOrder(SD);
 }
 
+/// AssignDbgInfo - Assign debug info to the SDNode.
+void SelectionDAG::AssignDbgInfo(SDNode* SD, SDDbgValue* db) {
+  assert(SD && "Trying to assign dbg info to a null node!");
+  DbgInfo->add(SD, db);
+  SD->setHasDebugValue(true);
+}
+
+/// RememberDbgInfo - Remember debug info which is not assigned to an SDNode.
+void SelectionDAG::RememberDbgInfo(SDDbgValue* db) {
+  DbgInfo->add(db);
+}
+
+/// GetDbgInfo - Get the debug info, if any, for the SDNode.
+SDDbgValue* SelectionDAG::GetDbgInfo(const SDNode *SD) {
+  assert(SD && "Trying to get the order of a null node!");
+  if (SD->getHasDebugValue())
+    return DbgInfo->getSDDbgValue(SD);
+  return 0;
+}
 
 //===----------------------------------------------------------------------===//
 //                              SDNode Class
@@ -5639,6 +5663,8 @@ std::string SDNode::getOperationName(const SelectionDAG *G) const {
   case ISD::FP_TO_SINT:  return "fp_to_sint";
   case ISD::FP_TO_UINT:  return "fp_to_uint";
   case ISD::BIT_CONVERT: return "bit_convert";
+  case ISD::FP16_TO_FP32: return "fp16_to_fp32";
+  case ISD::FP32_TO_FP16: return "fp32_to_fp16";
 
   case ISD::CONVERT_RNDSAT: {
     switch (cast<CvtRndSatSDNode>(this)->getCvtCode()) {
@@ -5911,7 +5937,7 @@ void SDNode::print_details(raw_ostream &OS, const SelectionDAG *G) const {
   if (G)
     if (unsigned Order = G->GetOrdering(this))
       OS << " [ORD=" << Order << ']';
-  
+
   if (getNodeId() != -1)
     OS << " [ID=" << getNodeId() << ']';
 }

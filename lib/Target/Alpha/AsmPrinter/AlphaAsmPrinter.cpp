@@ -24,6 +24,7 @@
 #include "llvm/MC/MCStreamer.h"
 #include "llvm/MC/MCAsmInfo.h"
 #include "llvm/MC/MCSymbol.h"
+#include "llvm/Target/Mangler.h"
 #include "llvm/Target/TargetLoweringObjectFile.h"
 #include "llvm/Target/TargetMachine.h"
 #include "llvm/Target/TargetRegistry.h"
@@ -37,9 +38,8 @@ namespace {
     ///
 
     explicit AlphaAsmPrinter(formatted_raw_ostream &o, TargetMachine &tm,
-                             MCContext &Ctx, MCStreamer &Streamer,
-                             const MCAsmInfo *T)
-      : AsmPrinter(o, tm, Ctx, Streamer, T) {}
+                             MCStreamer &Streamer)
+      : AsmPrinter(o, tm, Streamer) {}
 
     virtual const char *getPassName() const {
       return "Alpha Assembly Printer";
@@ -96,7 +96,7 @@ void AlphaAsmPrinter::printOp(const MachineOperand &MO, bool IsCallOp) {
     return;
 
   case MachineOperand::MO_MachineBasicBlock:
-    O << *MO.getMBB()->getSymbol(OutContext);
+    O << *MO.getMBB()->getSymbol();
     return;
 
   case MachineOperand::MO_ConstantPoolIndex:
@@ -109,7 +109,7 @@ void AlphaAsmPrinter::printOp(const MachineOperand &MO, bool IsCallOp) {
     return;
 
   case MachineOperand::MO_GlobalAddress:
-    O << *GetGlobalValueSymbol(MO.getGlobal());
+    O << *Mang->getSymbol(MO.getGlobal());
     return;
 
   case MachineOperand::MO_JumpTableIndex:

@@ -10,6 +10,7 @@
 #ifndef LLVM_MC_MCASSEMBLER_H
 #define LLVM_MC_MCASSEMBLER_H
 
+#include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/SmallString.h"
 #include "llvm/ADT/ilist.h"
 #include "llvm/ADT/ilist_node.h"
@@ -20,6 +21,7 @@
 
 namespace llvm {
 class raw_ostream;
+class MCAsmLayout;
 class MCAssembler;
 class MCContext;
 class MCExpr;
@@ -27,6 +29,8 @@ class MCFragment;
 class MCSection;
 class MCSectionData;
 class MCSymbol;
+class MCValue;
+class TargetAsmBackend;
 
 /// MCAsmFixup - Represent a fixed size region of bytes inside some fragment
 /// which needs to be rewritten. This region will either be rewritten by the
@@ -160,6 +164,13 @@ public:
   /// @name Fixup Access
   /// @{
 
+  void addFixup(MCAsmFixup Fixup) {
+    // Enforce invariant that fixups are in offset order.
+    assert((Fixups.empty() || Fixup.Offset > Fixups.back().Offset) &&
+           "Fixups must be added in order!");
+    Fixups.push_back(Fixup);
+  }
+
   std::vector<MCAsmFixup> &getFixups() { return Fixups; }
   const std::vector<MCAsmFixup> &getFixups() const { return Fixups; }
 
@@ -195,7 +206,8 @@ class MCAlignFragment : public MCFragment {
   /// cannot be satisfied in this width then this fragment is ignored.
   unsigned MaxBytesToEmit;
 
-  /// EmitNops - true when aligning code and optimal nops to be used for filling
+  /// EmitNops - true when aligning code and optimal nops to be used for
+  /// filling.
   bool EmitNops;
 
 public:
@@ -505,6 +517,11 @@ public:
   uint64_t getOffset() const { return Offset; }
   void setOffset(uint64_t Value) { Offset = Value; }
 
+  uint64_t getAddress() const {
+    assert(getFragment() && "Invalid getAddress() on undefined symbol!");
+    return getFragment()->getAddress() + getOffset();
+  }
+
   /// @}
   /// @name Symbol Attributes
   /// @{
@@ -581,21 +598,60 @@ private:
 
   MCContext &Context;
 
+  TargetAsmBackend &Backend;
+
   raw_ostream &OS;
 
   iplist<MCSectionData> Sections;
 
   iplist<MCSymbolData> Symbols;
 
+  /// The map of sections to their associated assembler backend data.
+  //
+  // FIXME: Avoid this indirection?
+  DenseMap<const MCSection*, MCSectionData*> SectionMap;
+
+  /// The map of symbols to their associated assembler backend data.
+  //
+  // FIXME: Avoid this indirection?
+  DenseMap<const MCSymbol*, MCSymbolData*> SymbolMap;
+
   std::vector<IndirectSymbolData> IndirectSymbols;
 
   unsigned SubsectionsViaSymbols : 1;
 
 private:
+  /// Check whether a fixup can be satisfied, or whether it needs to be relaxed
+  /// (increased in size, in order to hold its value correctly).
+  bool FixupNeedsRelaxation(MCAsmFixup &Fixup, MCDataFragment *DF);
+
   /// LayoutSection - Assign offsets and sizes to the fragments in the section
   /// \arg SD, and update the section size. The section file offset should
   /// already have been computed.
   void LayoutSection(MCSectionData &SD);
+
+  /// LayoutOnce - Perform one layout iteration and return true if any offsets
+  /// were adjusted.
+  bool LayoutOnce();
+
+  // FIXME: Make protected once we factor out object writer classes.
+public:
+  /// Evaluate a fixup to a relocatable expression and the value which should be
+  /// placed into the fixup.
+  ///
+  /// \param Layout The layout to use for evaluation.
+  /// \param Fixup The fixup to evaluate.
+  /// \param DF The fragment the fixup is inside.
+  /// \param Target [out] On return, the relocatable expression the fixup
+  /// evaluates to.
+  /// \param Value [out] On return, the value of the fixup as currently layed
+  /// out.
+  /// \return Whether the fixup value was fully resolved. This is true if the
+  /// \arg Value result is fixed, otherwise the value may change due to
+  /// relocation.
+  bool EvaluateFixup(const MCAsmLayout &Layout,
+                     MCAsmFixup &Fixup, MCDataFragment *DF,
+                     MCValue &Target, uint64_t &Value) const;
 
 public:
   /// Construct a new assembler instance.
@@ -606,10 +662,12 @@ public:
   // concrete and require clients to pass in a target like object. The other
   // option is to make this abstract, and have targets provide concrete
   // implementations as we do with AsmParser.
-  MCAssembler(MCContext &_Context, raw_ostream &OS);
+  MCAssembler(MCContext &_Context, TargetAsmBackend &_Backend, raw_ostream &OS);
   ~MCAssembler();
 
   MCContext &getContext() const { return Context; }
+
+  TargetAsmBackend &getBackend() const { return Backend; }
 
   /// Finish - Do final processing and write the object to the output stream.
   void Finish();
@@ -671,6 +729,44 @@ public:
   }
 
   size_t indirect_symbol_size() const { return IndirectSymbols.size(); }
+
+  /// @}
+  /// @name Backend Data Access
+  /// @{
+
+  MCSectionData &getSectionData(const MCSection &Section) const {
+    MCSectionData *Entry = SectionMap.lookup(&Section);
+    assert(Entry && "Missing section data!");
+    return *Entry;
+  }
+
+  MCSectionData &getOrCreateSectionData(const MCSection &Section,
+                                        bool *Created = 0) {
+    MCSectionData *&Entry = SectionMap[&Section];
+
+    if (Created) *Created = !Entry;
+    if (!Entry)
+      Entry = new MCSectionData(Section, this);
+
+    return *Entry;
+  }
+
+  MCSymbolData &getSymbolData(const MCSymbol &Symbol) const {
+    MCSymbolData *Entry = SymbolMap.lookup(&Symbol);
+    assert(Entry && "Missing symbol data!");
+    return *Entry;
+  }
+
+  MCSymbolData &getOrCreateSymbolData(const MCSymbol &Symbol,
+                                      bool *Created = 0) {
+    MCSymbolData *&Entry = SymbolMap[&Symbol];
+
+    if (Created) *Created = !Entry;
+    if (!Entry)
+      Entry = new MCSymbolData(Symbol, 0, 0, this);
+
+    return *Entry;
+  }
 
   /// @}
 

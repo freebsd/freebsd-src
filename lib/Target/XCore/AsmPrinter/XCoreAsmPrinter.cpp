@@ -30,6 +30,7 @@
 #include "llvm/CodeGen/MachineJumpTableInfo.h"
 #include "llvm/MC/MCStreamer.h"
 #include "llvm/MC/MCSymbol.h"
+#include "llvm/Target/Mangler.h"
 #include "llvm/Target/TargetData.h"
 #include "llvm/Target/TargetLoweringObjectFile.h"
 #include "llvm/Target/TargetRegistry.h"
@@ -53,9 +54,8 @@ namespace {
     const XCoreSubtarget &Subtarget;
   public:
     explicit XCoreAsmPrinter(formatted_raw_ostream &O, TargetMachine &TM,
-                             MCContext &Ctx, MCStreamer &Streamer,
-                             const MCAsmInfo *T)
-      : AsmPrinter(O, TM, Ctx, Streamer, T),
+                             MCStreamer &Streamer)
+      : AsmPrinter(O, TM, Streamer),
       Subtarget(TM.getSubtarget<XCoreSubtarget>()) {}
 
     virtual const char *getPassName() const {
@@ -129,7 +129,7 @@ void XCoreAsmPrinter::EmitGlobalVariable(const GlobalVariable *GV) {
   OutStreamer.SwitchSection(getObjFileLowering().SectionForGlobal(GV, Mang,TM));
 
   
-  MCSymbol *GVSym = GetGlobalValueSymbol(GV);
+  MCSymbol *GVSym = Mang->getSymbol(GV);
   Constant *C = GV->getInitializer();
   unsigned Align = (unsigned)TD->getPreferredTypeAlignmentShift(C->getType());
   
@@ -276,7 +276,7 @@ printInlineJT(const MachineInstr *MI, int opNum, const std::string &directive)
     MachineBasicBlock *MBB = JTBBs[i];
     if (i > 0)
       O << ",";
-    O << *MBB->getSymbol(OutContext);
+    O << *MBB->getSymbol();
   }
 }
 
@@ -290,10 +290,10 @@ void XCoreAsmPrinter::printOperand(const MachineInstr *MI, int opNum) {
     O << MO.getImm();
     break;
   case MachineOperand::MO_MachineBasicBlock:
-    O << *MO.getMBB()->getSymbol(OutContext);
+    O << *MO.getMBB()->getSymbol();
     break;
   case MachineOperand::MO_GlobalAddress:
-    O << *GetGlobalValueSymbol(MO.getGlobal());
+    O << *Mang->getSymbol(MO.getGlobal());
     break;
   case MachineOperand::MO_ExternalSymbol:
     O << MO.getSymbolName();

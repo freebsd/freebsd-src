@@ -341,7 +341,7 @@ namespace {
 
     /// LabelLocations - This vector is a mapping from Label ID's to their
     /// address.
-    std::vector<uintptr_t> LabelLocations;
+    DenseMap<MCSymbol*, uintptr_t> LabelLocations;
 
     /// MMI - Machine module info for exception informations
     MachineModuleInfo* MMI;
@@ -459,16 +459,13 @@ namespace {
 
     virtual void processDebugLoc(DebugLoc DL, bool BeforePrintingInsn);
 
-    virtual void emitLabel(uint64_t LabelID) {
-      if (LabelLocations.size() <= LabelID)
-        LabelLocations.resize((LabelID+1)*2);
-      LabelLocations[LabelID] = getCurrentPCValue();
+    virtual void emitLabel(MCSymbol *Label) {
+      LabelLocations[Label] = getCurrentPCValue();
     }
 
-    virtual uintptr_t getLabelAddress(uint64_t LabelID) const {
-      assert(LabelLocations.size() > (unsigned)LabelID &&
-             LabelLocations[LabelID] && "Label not emitted!");
-      return LabelLocations[LabelID];
+    virtual uintptr_t getLabelAddress(MCSymbol *Label) const {
+      assert(LabelLocations.count(Label) && "Label not emitted!");
+      return LabelLocations.find(Label)->second;
     }
 
     virtual void setModuleInfo(MachineModuleInfo* Info) {
@@ -1393,6 +1390,8 @@ void JITEmitter::emitConstantPool(MachineConstantPool *MCP) {
 void JITEmitter::initJumpTableInfo(MachineJumpTableInfo *MJTI) {
   if (TheJIT->getJITInfo().hasCustomJumpTables())
     return;
+  if (MJTI->getEntryKind() == MachineJumpTableInfo::EK_Inline)
+    return;
 
   const std::vector<MachineJumpTableEntry> &JT = MJTI->getJumpTables();
   if (JT.empty()) return;
@@ -1420,6 +1419,8 @@ void JITEmitter::emitJumpTableInfo(MachineJumpTableInfo *MJTI) {
 
   
   switch (MJTI->getEntryKind()) {
+  case MachineJumpTableInfo::EK_Inline:
+    return;
   case MachineJumpTableInfo::EK_BlockAddress: {
     // EK_BlockAddress - Each entry is a plain address of block, e.g.:
     //     .word LBB123

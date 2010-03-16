@@ -12,6 +12,7 @@
 //===----------------------------------------------------------------------===//
 
 #define DEBUG_TYPE "isel"
+#include "SDNodeDbgValue.h"
 #include "SelectionDAGBuilder.h"
 #include "FunctionLoweringInfo.h"
 #include "llvm/ADT/BitVector.h"
@@ -2185,7 +2186,8 @@ void SelectionDAGBuilder::visitSelect(User &I) {
 
   for (unsigned i = 0; i != NumValues; ++i)
     Values[i] = DAG.getNode(ISD::SELECT, getCurDebugLoc(),
-                            TrueVal.getNode()->getValueType(i), Cond,
+                          TrueVal.getNode()->getValueType(TrueVal.getResNo()+i),
+                            Cond,
                             SDValue(TrueVal.getNode(),
                                     TrueVal.getResNo() + i),
                             SDValue(FalseVal.getNode(),
@@ -3799,11 +3801,6 @@ SelectionDAGBuilder::visitIntrinsicCall(CallInst &I, unsigned Intrinsic) {
     return 0;
   }
   case Intrinsic::dbg_value: {
-    // FIXME: currently, we get here only if OptLevel != CodeGenOpt::None.
-    // The real handling of this intrinsic is in FastISel.
-    if (OptLevel != CodeGenOpt::None)
-      // FIXME: Variable debug info is not supported here.
-      return 0;
     DwarfWriter *DW = DAG.getDwarfWriter();
     if (!DW)
       return 0;
@@ -3812,9 +3809,36 @@ SelectionDAGBuilder::visitIntrinsicCall(CallInst &I, unsigned Intrinsic) {
       return 0;
 
     MDNode *Variable = DI.getVariable();
+    uint64_t Offset = DI.getOffset();
     Value *V = DI.getValue();
     if (!V)
       return 0;
+
+    // Build an entry in DbgOrdering.  Debug info input nodes get an SDNodeOrder
+    // but do not always have a corresponding SDNode built.  The SDNodeOrder
+    // absolute, but not relative, values are different depending on whether
+    // debug info exists.
+    ++SDNodeOrder;
+    if (isa<ConstantInt>(V) || isa<ConstantFP>(V)) {
+      SDDbgValue* dv = new SDDbgValue(Variable, V, Offset, dl, SDNodeOrder);
+      DAG.RememberDbgInfo(dv);
+    } else {
+      SDValue &N = NodeMap[V];
+      if (N.getNode()) {
+        SDDbgValue *dv = new SDDbgValue(Variable, N.getNode(),
+                                        N.getResNo(), Offset, dl, SDNodeOrder);
+        DAG.AssignDbgInfo(N.getNode(), dv);
+      } else {
+        // We may expand this to cover more cases.  One case where we have no
+        // data available is an unreferenced parameter; we need this fallback.
+        SDDbgValue* dv = new SDDbgValue(Variable, 
+                                        UndefValue::get(V->getType()),
+                                        Offset, dl, SDNodeOrder);
+        DAG.RememberDbgInfo(dv);
+      }
+    }
+
+    // Build a debug info table entry.
     if (BitCastInst *BCI = dyn_cast<BitCastInst>(V))
       V = BCI->getOperand(0);
     AllocaInst *AI = dyn_cast<AllocaInst>(V);
@@ -3998,6 +4022,14 @@ SelectionDAGBuilder::visitIntrinsicCall(CallInst &I, unsigned Intrinsic) {
     return 0;
   case Intrinsic::pow:
     visitPow(I);
+    return 0;
+  case Intrinsic::convert_to_fp16:
+    setValue(&I, DAG.getNode(ISD::FP32_TO_FP16, dl,
+                             MVT::i16, getValue(I.getOperand(1))));
+    return 0;
+  case Intrinsic::convert_from_fp16:
+    setValue(&I, DAG.getNode(ISD::FP16_TO_FP32, dl,
+                             MVT::f32, getValue(I.getOperand(1))));
     return 0;
   case Intrinsic::pcmarker: {
     SDValue Tmp = getValue(I.getOperand(1));
@@ -4301,7 +4333,7 @@ void SelectionDAGBuilder::LowerCallTo(CallSite CS, SDValue Callee,
   const FunctionType *FTy = cast<FunctionType>(PT->getElementType());
   const Type *RetTy = FTy->getReturnType();
   MachineModuleInfo *MMI = DAG.getMachineModuleInfo();
-  unsigned BeginLabel = 0, EndLabel = 0;
+  MCSymbol *BeginLabel = 0;
 
   TargetLowering::ArgListTy Args;
   TargetLowering::ArgListEntry Entry;
@@ -4361,7 +4393,7 @@ void SelectionDAGBuilder::LowerCallTo(CallSite CS, SDValue Callee,
   if (LandingPad && MMI) {
     // Insert a label before the invoke call to mark the try range.  This can be
     // used to detect deletion of the invoke via the MachineModuleInfo.
-    BeginLabel = MMI->NextLabelID();
+    BeginLabel = MMI->getContext().CreateTempSymbol();
 
     // For SjLj, keep track of which landing pads go with which invokes
     // so as to maintain the ordering of pads in the LSDA.
@@ -4375,8 +4407,7 @@ void SelectionDAGBuilder::LowerCallTo(CallSite CS, SDValue Callee,
     // Both PendingLoads and PendingExports must be flushed here;
     // this call might not return.
     (void)getRoot();
-    DAG.setRoot(DAG.getLabel(ISD::EH_LABEL, getCurDebugLoc(),
-                             getControlRoot(), BeginLabel));
+    DAG.setRoot(DAG.getEHLabel(getCurDebugLoc(), getControlRoot(), BeginLabel));
   }
 
   // Check if target-independent constraints permit a tail call here.
@@ -4464,9 +4495,8 @@ void SelectionDAGBuilder::LowerCallTo(CallSite CS, SDValue Callee,
   if (LandingPad && MMI) {
     // Insert a label at the end of the invoke call to mark the try range.  This
     // can be used to detect deletion of the invoke via the MachineModuleInfo.
-    EndLabel = MMI->NextLabelID();
-    DAG.setRoot(DAG.getLabel(ISD::EH_LABEL, getCurDebugLoc(),
-                             getRoot(), EndLabel));
+    MCSymbol *EndLabel = MMI->getContext().CreateTempSymbol();
+    DAG.setRoot(DAG.getEHLabel(getCurDebugLoc(), getRoot(), EndLabel));
 
     // Inform MachineModuleInfo of range.
     MMI->addInvoke(LandingPad, BeginLabel, EndLabel);
@@ -4632,7 +4662,7 @@ void SelectionDAGBuilder::visitCall(CallInst &I) {
     // can't be a library call.
     if (!F->hasLocalLinkage() && F->hasName()) {
       StringRef Name = F->getName();
-      if (Name == "copysign" || Name == "copysignf") {
+      if (Name == "copysign" || Name == "copysignf" || Name == "copysignl") {
         if (I.getNumOperands() == 3 &&   // Basic sanity checks.
             I.getOperand(1)->getType()->isFloatingPointTy() &&
             I.getType() == I.getOperand(1)->getType() &&
@@ -5777,12 +5807,6 @@ TargetLowering::LowerCallTo(SDValue Chain, const Type *RetTy,
          "LowerCall emitted a return value for a tail call!");
   assert((isTailCall || InVals.size() == Ins.size()) &&
          "LowerCall didn't emit the correct number of values!");
-  DEBUG(for (unsigned i = 0, e = Ins.size(); i != e; ++i) {
-          assert(InVals[i].getNode() &&
-                 "LowerCall emitted a null value!");
-          assert(Ins[i].VT == InVals[i].getValueType() &&
-                 "LowerCall emitted a value with the wrong type!");
-        });
 
   // For a tail call, the return value is merely live-out and there aren't
   // any nodes in the DAG representing it. Return a special value to
@@ -5792,6 +5816,13 @@ TargetLowering::LowerCallTo(SDValue Chain, const Type *RetTy,
     DAG.setRoot(Chain);
     return std::make_pair(SDValue(), SDValue());
   }
+
+  DEBUG(for (unsigned i = 0, e = Ins.size(); i != e; ++i) {
+          assert(InVals[i].getNode() &&
+                 "LowerCall emitted a null value!");
+          assert(Ins[i].VT == InVals[i].getValueType() &&
+                 "LowerCall emitted a value with the wrong type!");
+        });
 
   // Collect the legal value parts into potentially illegal values
   // that correspond to the original function's return values.
