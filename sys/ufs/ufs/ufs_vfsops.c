@@ -151,6 +151,10 @@ ufs_quotactl(mp, cmds, id, arg)
 		error = getquota(td, mp, id, type, arg);
 		break;
 
+	case Q_GETQUOTASIZE:
+		error = getquotasize(td, mp, id, type, arg);
+		break;
+
 	case Q_SYNC:
 		error = qsync(mp);
 		break;
