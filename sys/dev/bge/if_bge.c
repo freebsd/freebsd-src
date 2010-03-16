@@ -3654,22 +3654,6 @@ bge_intr(void *xsc)
 #endif
 
 	/*
-	 * Do the mandatory PCI flush as well as get the link status.
-	 */
-	statusword = CSR_READ_4(sc, BGE_MAC_STS) & BGE_MACSTAT_LINK_CHANGED;
-
-	/* Make sure the descriptor ring indexes are coherent. */
-	bus_dmamap_sync(sc->bge_cdata.bge_status_tag,
-	    sc->bge_cdata.bge_status_map,
-	    BUS_DMASYNC_POSTREAD | BUS_DMASYNC_POSTWRITE);
-	rx_prod = sc->bge_ldata.bge_status_block->bge_idx[0].bge_rx_prod_idx;
-	tx_cons = sc->bge_ldata.bge_status_block->bge_idx[0].bge_tx_cons_idx;
-	sc->bge_ldata.bge_status_block->bge_status = 0;
-	bus_dmamap_sync(sc->bge_cdata.bge_status_tag,
-	    sc->bge_cdata.bge_status_map,
-	    BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
-
-	/*
 	 * Ack the interrupt by writing something to BGE_MBX_IRQ0_LO.  Don't
 	 * disable interrupts by writing nonzero like we used to, since with
 	 * our current organization this just gives complications and
@@ -3690,6 +3674,22 @@ bge_intr(void *xsc)
 	 * even with MSI.  It would only be needed for using a task queue.
 	 */
 	bge_writembx(sc, BGE_MBX_IRQ0_LO, 0);
+
+	/*
+	 * Do the mandatory PCI flush as well as get the link status.
+	 */
+	statusword = CSR_READ_4(sc, BGE_MAC_STS) & BGE_MACSTAT_LINK_CHANGED;
+
+	/* Make sure the descriptor ring indexes are coherent. */
+	bus_dmamap_sync(sc->bge_cdata.bge_status_tag,
+	    sc->bge_cdata.bge_status_map,
+	    BUS_DMASYNC_POSTREAD | BUS_DMASYNC_POSTWRITE);
+	rx_prod = sc->bge_ldata.bge_status_block->bge_idx[0].bge_rx_prod_idx;
+	tx_cons = sc->bge_ldata.bge_status_block->bge_idx[0].bge_tx_cons_idx;
+	sc->bge_ldata.bge_status_block->bge_status = 0;
+	bus_dmamap_sync(sc->bge_cdata.bge_status_tag,
+	    sc->bge_cdata.bge_status_map,
+	    BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
 
 	if ((sc->bge_asicrev == BGE_ASICREV_BCM5700 &&
 	    sc->bge_chipid != BGE_CHIPID_BCM5700_B2) ||
