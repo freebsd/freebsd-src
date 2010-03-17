@@ -55,7 +55,7 @@ __FBSDID("$FreeBSD$");
 
 #include <security/audit/audit.h>
 
-#ifdef COMPAT_IA32
+#ifdef COMPAT_FREEBSD32
 
 static inline int
 suword_lwpid(void *addr, lwpid_t lwpid)

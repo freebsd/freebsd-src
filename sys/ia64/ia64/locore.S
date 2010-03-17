@@ -26,16 +26,13 @@
  * $FreeBSD$
  */
 
+#include <sys/syscall.h>
 #include <machine/asm.h>
 #include <machine/ia64_cpu.h>
-#include <machine/pte.h>
-#include <sys/syscall.h>
-#include <assym.s>
-
-#ifndef EVCNT_COUNTERS
-#define _LOCORE
 #include <machine/intrcnt.h>
-#endif
+#include <machine/pte.h>
+#include <machine/intrcnt.h>
+#include <assym.s>
 
 	.section .data.proc0,"aw"
 	.global	kstack
@@ -310,7 +307,7 @@ EXPORT(intrnames)
 	.ascii "clock"
 	.fill INTRNAME_LEN - 5 - 1, 1, ' '
 	.byte 0
-intr_n = 0
+intr_n = 1
 .rept INTRCNT_COUNT - 1
 	.ascii "#"
 	.byte intr_n / 100 + '0'

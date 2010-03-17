@@ -876,28 +876,33 @@ ukbd_attach(device_t dev)
 	err = usbd_req_get_hid_desc(uaa->device, NULL, &hid_ptr,
 	    &hid_len, M_TEMP, uaa->info.bIfaceIndex);
 	if (err == 0) {
+		uint8_t apple_keys = 0;
 		uint8_t temp_id;
 
 		/* investigate if this is an Apple Keyboard */
 		if (hid_locate(hid_ptr, hid_len,
 		    HID_USAGE2(HUP_CONSUMER, HUG_APPLE_EJECT),
 		    hid_input, 0, &sc->sc_loc_apple_eject, &flags,
-		    &sc->sc_kbd_id)) {
+		    &temp_id)) {
 			if (flags & HIO_VARIABLE)
 				sc->sc_flags |= UKBD_FLAG_APPLE_EJECT | 
 				    UKBD_FLAG_APPLE_SWAP;
-			if (hid_locate(hid_ptr, hid_len,
-			    HID_USAGE2(0xFFFF, 0x0003),
-			    hid_input, 0, &sc->sc_loc_apple_fn, &flags,
-			    &temp_id)) {
-				if (flags & HIO_VARIABLE)
-					sc->sc_flags |= UKBD_FLAG_APPLE_FN |
-					    UKBD_FLAG_APPLE_SWAP;
-				if (temp_id != sc->sc_kbd_id) {
-					DPRINTF("HID IDs mismatch\n");
-				}
-			}
-		} else {
+			DPRINTFN(1, "Found Apple eject-key\n");
+			apple_keys = 1;
+			sc->sc_kbd_id = temp_id;
+		}
+		if (hid_locate(hid_ptr, hid_len,
+		    HID_USAGE2(0xFFFF, 0x0003),
+		    hid_input, 0, &sc->sc_loc_apple_fn, &flags,
+		    &temp_id)) {
+			if (flags & HIO_VARIABLE)
+				sc->sc_flags |= UKBD_FLAG_APPLE_FN |
+				    UKBD_FLAG_APPLE_SWAP;
+			DPRINTFN(1, "Found Apple FN-key\n");
+			apple_keys = 1;
+			sc->sc_kbd_id = temp_id;
+		}
+		if (apple_keys == 0) {
 			/* 
 			 * Assume the first HID ID contains the
 			 * keyboard data

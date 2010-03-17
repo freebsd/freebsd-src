@@ -196,6 +196,7 @@ struct usb_device *usb_alloc_device(device_t parent_dev, struct usb_bus *bus,
 		    enum usb_dev_speed speed, enum usb_hc_mode mode);
 usb_error_t	usb_probe_and_attach(struct usb_device *udev,
 		    uint8_t iface_index);
+void		usb_detach_device(struct usb_device *, uint8_t, uint8_t);
 usb_error_t	usb_reset_iface_endpoints(struct usb_device *udev,
 		    uint8_t iface_index);
 usb_error_t	usbd_set_config_index(struct usb_device *udev, uint8_t index);

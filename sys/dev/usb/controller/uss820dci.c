@@ -333,6 +333,14 @@ uss820dci_setup_rx(struct uss820dci_td *td)
 	} else {
 		sc->sc_dv_addr = 0xFF;
 	}
+
+	/* reset TX FIFO */
+	temp = USS820_READ_1(sc, USS820_TXCON);
+	temp |= USS820_TXCON_TXCLR;
+	USS820_WRITE_1(sc, USS820_TXCON, temp);
+	temp &= ~USS820_TXCON_TXCLR;
+	USS820_WRITE_1(sc, USS820_TXCON, temp);
+
 	return (0);			/* complete */
 
 setup_not_complete:

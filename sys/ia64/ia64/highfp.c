@@ -53,7 +53,7 @@ ia64_highfp_ipi(struct pcpu *cpu)
 {
 	int error;
 
-	ipi_send(cpu, IPI_HIGH_FP);
+	ipi_send(cpu, ia64_ipi_highfp);
 	error = msleep_spin(&cpu->pc_fpcurthread, &ia64_highfp_mtx,
 	    "High FP", 0);
 	return (error);

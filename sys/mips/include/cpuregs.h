@@ -577,6 +577,8 @@
 
 #define MIPS_CONFIG1_TLBSZ_MASK		0x7E000000	/* bits 30..25 # tlb entries minus one */
 #define MIPS_CONFIG1_TLBSZ_SHIFT	25
+#define	MIPS_MAX_TLB_ENTRIES		64
+
 #define MIPS_CONFIG1_IS_MASK		0x01C00000	/* bits 24..22 icache sets per way */
 #define MIPS_CONFIG1_IS_SHIFT		22
 #define MIPS_CONFIG1_IL_MASK		0x00380000	/* bits 21..19 icache line size */

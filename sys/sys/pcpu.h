@@ -168,7 +168,7 @@ struct pcpu {
 	 * the pcpu structure is private to the kernel, some ports
 	 * (e.g. lsof, part of gtop) define _KERNEL and include this
 	 * header. While strictly speaking this is wrong, there's no
-	 * reason not to keep the offsets of the MI fields contants.
+	 * reason not to keep the offsets of the MI fields constant.
 	 * If only to make kernel debugging easier...
 	 */
 	PCPU_MD_FIELDS;

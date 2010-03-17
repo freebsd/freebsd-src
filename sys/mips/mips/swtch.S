@@ -245,6 +245,14 @@ LEAF(savectx)
 	SAVE_U_PCB_CONTEXT(ra, PREG_RA, a0)
 	SAVE_U_PCB_CONTEXT(v0, PREG_SR, a0)
 	SAVE_U_PCB_CONTEXT(gp, PREG_GP, a0)
+
+	move	v0, ra			/* save 'ra' before we trash it */
+	jal	1f
+	nop
+1:
+	SAVE_U_PCB_CONTEXT(ra, PREG_PC, a0)
+	move	ra, v0			/* restore 'ra' before returning */
+
 	/*
 	 * FREEBSD_DEVELOPERS_FIXME:
 	 * In case there are CPU-specific registers that need

@@ -128,14 +128,13 @@
 #define	MAXDUMPPGS	1		/* xxx: why is this only one? */
 
 /*
- * NOTE: In FreeBSD, Uarea's don't have a fixed address.
- *	 Therefore, any code imported from OpenBSD which depends on
- *	 UADDR, UVPN and KERNELSTACK requires porting.
- * XXX: 3 stack pages?  Not 4 which would be more efficient from a tlb
- * XXX: point of view.
+ * The kernel stack needs to be aligned on a (PAGE_SIZE * 2) boundary.
+ *
+ * Although we allocate 3 pages for the kernel stack we end up using
+ * only the 2 pages that are aligned on a (PAGE_SIZE * 2) boundary.
  */
 #define	KSTACK_PAGES		3	/* kernel stack*/
-#define	KSTACK_GUARD_PAGES	0	/* pages of kstack guard; 0 disables */
+#define	KSTACK_GUARD_PAGES	1	/* pages of kstack guard; 0 disables */
 
 #define	UPAGES			2
 

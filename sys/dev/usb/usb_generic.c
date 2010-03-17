@@ -2095,17 +2095,32 @@ ugen_ioctl_post(struct usb_fifo *f, u_long cmd, void *addr, int fflags)
 		break;
 
 	case USB_IFACE_DRIVER_ACTIVE:
-		/* TODO */
-		*u.pint = 0;
+
+		n = *u.pint & 0xFF;
+
+		iface = usbd_get_iface(f->udev, n);
+
+		if (iface && iface->subdev)
+			error = 0;
+		else
+			error = ENXIO;
 		break;
 
 	case USB_IFACE_DRIVER_DETACH:
-		/* TODO */
+
 		error = priv_check(curthread, PRIV_DRIVER);
-		if (error) {
+
+		if (error)
+			break;
+
+		n = *u.pint & 0xFF;
+
+		if (n == USB_IFACE_INDEX_ANY) {
+			error = EINVAL;
 			break;
 		}
-		error = EINVAL;
+
+		usb_detach_device(f->udev, n, 0);
 		break;
 
 	case USB_SET_POWER_MODE:
