@@ -224,7 +224,7 @@ extern kmem_cache_t	*zio_data_buf_cache[];
  * second level ARC benefit from these fast lookups.
  */
 
-#define	ARCS_LOCK_PAD		128
+#define	ARCS_LOCK_PAD		CACHE_LINE_SIZE
 struct arcs_lock {
 	kmutex_t	arcs_lock;
 #ifdef _KERNEL
@@ -244,7 +244,7 @@ typedef struct arc_state {
 	uint64_t arcs_lsize[ARC_BUFC_NUMTYPES];	/* amount of evictable data */
 	uint64_t arcs_size;	/* total amount of data in this state */
 	list_t	arcs_lists[ARC_BUFC_NUMLISTS]; /* list of evictable buffers */
-	struct arcs_lock arcs_locks[ARC_BUFC_NUMLISTS] __aligned(128);
+	struct arcs_lock arcs_locks[ARC_BUFC_NUMLISTS] __aligned(CACHE_LINE_SIZE);
 } arc_state_t;
 
 #define ARCS_LOCK(s, i) &((s)->arcs_locks[(i)].arcs_lock)
@@ -581,7 +581,7 @@ struct ht_lock {
 typedef struct buf_hash_table {
 	uint64_t ht_mask;
 	arc_buf_hdr_t **ht_table;
-	struct ht_lock ht_locks[BUF_LOCKS];
+	struct ht_lock ht_locks[BUF_LOCKS] __aligned(CACHE_LINE_SIZE);
 } buf_hash_table_t;
 
 static buf_hash_table_t buf_hash_table;
