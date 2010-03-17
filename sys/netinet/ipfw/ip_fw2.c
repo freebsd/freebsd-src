@@ -886,10 +886,13 @@ ipfw_chk(struct ip_fw_args *args)
 	 * ulp is NULL if not found.
 	 */
 	void *ulp = NULL;		/* upper layer protocol pointer. */
+
 	/* XXX ipv6 variables */
 	int is_ipv6 = 0;
-	u_int16_t ext_hd = 0;	/* bits vector for extension header filtering */
+	uint8_t	icmp6_type = 0;
+	uint16_t ext_hd = 0;	/* bits vector for extension header filtering */
 	/* end of ipv6 variables */
+
 	int is_ipv4 = 0;
 
 	int done = 0;		/* flag to exit the outer loop */
@@ -941,14 +944,15 @@ do {								\
 			switch (proto) {
 			case IPPROTO_ICMPV6:
 				PULLUP_TO(hlen, ulp, struct icmp6_hdr);
-				args->f_id.flags = ICMP6(ulp)->icmp6_type;
+				icmp6_type = ICMP6(ulp)->icmp6_type;
 				break;
 
 			case IPPROTO_TCP:
 				PULLUP_TO(hlen, ulp, struct tcphdr);
 				dst_port = TCP(ulp)->th_dport;
 				src_port = TCP(ulp)->th_sport;
-				args->f_id.flags = TCP(ulp)->th_flags;
+				/* save flags for dynamic rules */
+				args->f_id._flags = TCP(ulp)->th_flags;
 				break;
 
 			case IPPROTO_SCTP:
@@ -1012,7 +1016,7 @@ do {								\
 					    return (IP_FW_DENY);
 					break;
 				}
-				args->f_id.frag_id6 =
+				args->f_id.extra =
 				    ntohl(((struct ip6_frag *)ulp)->ip6f_ident);
 				ulp = NULL;
 				break;
@@ -1115,7 +1119,8 @@ do {								\
 				PULLUP_TO(hlen, ulp, struct tcphdr);
 				dst_port = TCP(ulp)->th_dport;
 				src_port = TCP(ulp)->th_sport;
-				args->f_id.flags = TCP(ulp)->th_flags;
+				/* save flags for dynamic rules */
+				args->f_id._flags = TCP(ulp)->th_flags;
 				break;
 
 			case IPPROTO_UDP:
@@ -1126,7 +1131,7 @@ do {								\
 
 			case IPPROTO_ICMP:
 				PULLUP_TO(hlen, ulp, struct icmphdr);
-				args->f_id.flags = ICMP(ulp)->icmp_type;
+				//args->f_id.flags = ICMP(ulp)->icmp_type;
 				break;
 
 			default:
@@ -1362,6 +1367,8 @@ do {								\
 					    key = dst_ip.s_addr;
 					else if (v == 1)
 					    key = src_ip.s_addr;
+					else if (v == 6) /* dscp */
+					    key = (ip->ip_tos >> 2) & 0x3f;
 					else if (offset != 0)
 					    break;
 					else if (proto != IPPROTO_TCP &&
@@ -2034,7 +2041,7 @@ do {								\
 				if (hlen > 0 && is_ipv6 &&
 				    ((offset & IP6F_OFF_MASK) == 0) &&
 				    (proto != IPPROTO_ICMPV6 ||
-				     (is_icmp6_query(args->f_id.flags) == 1)) &&
+				     (is_icmp6_query(icmp6_type) == 1)) &&
 				    !(m->m_flags & (M_BCAST|M_MCAST)) &&
 				    !IN6_IS_ADDR_MULTICAST(&args->f_id.dst_ip6)) {
 					send_reject6(

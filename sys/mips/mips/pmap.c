@@ -76,6 +76,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/msgbuf.h>
 #include <sys/vmmeter.h>
 #include <sys/mman.h>
+#include <sys/smp.h>
 
 #include <vm/vm.h>
 #include <vm/vm_param.h>
@@ -148,6 +149,8 @@ unsigned pmap_max_asid;		/* max ASID supported by the system */
 
 
 vm_offset_t kernel_vm_end;
+
+static struct tlb tlbstash[MAXCPU][MIPS_MAX_TLB_ENTRIES];
 
 static void pmap_asid_alloc(pmap_t pmap);
 
@@ -3284,17 +3287,6 @@ db_dump_tlb(int first, int last)
 	}
 }
 
-#ifdef DDB
-#include <sys/kernel.h>
-#include <ddb/ddb.h>
-
-DB_SHOW_COMMAND(tlb, ddb_dump_tlb)
-{
-	db_dump_tlb(0, num_tlbentries - 1);
-}
-
-#endif
-
 /*
  *	Routine:	pmap_kextract
  *	Function:
@@ -3377,3 +3369,61 @@ pmap_flush_pvcache(vm_page_t m)
 		}
 	}
 }
+
+void
+pmap_save_tlb(void)
+{
+	int tlbno, cpu;
+
+	cpu = PCPU_GET(cpuid);
+
+	for (tlbno = 0; tlbno < num_tlbentries; ++tlbno)
+		MachTLBRead(tlbno, &tlbstash[cpu][tlbno]);
+}
+
+#ifdef DDB
+#include <ddb/ddb.h>
+
+DB_SHOW_COMMAND(tlb, ddb_dump_tlb)
+{
+	int cpu, tlbno;
+	struct tlb *tlb;
+
+	if (have_addr)
+		cpu = ((addr >> 4) % 16) * 10 + (addr % 16);
+	else
+		cpu = PCPU_GET(cpuid);
+
+	if (cpu < 0 || cpu >= mp_ncpus) {
+		db_printf("Invalid CPU %d\n", cpu);
+		return;
+	} else
+		db_printf("CPU %d:\n", cpu);
+
+	if (cpu == PCPU_GET(cpuid))
+		pmap_save_tlb();
+
+	for (tlbno = 0; tlbno < num_tlbentries; ++tlbno) {
+		tlb = &tlbstash[cpu][tlbno];
+		if (tlb->tlb_lo0 & PTE_V || tlb->tlb_lo1 & PTE_V) {
+			printf("TLB %2d vad 0x%0lx ",
+				tlbno, (long)(tlb->tlb_hi & 0xffffff00));
+		} else {
+			printf("TLB*%2d vad 0x%0lx ",
+				tlbno, (long)(tlb->tlb_hi & 0xffffff00));
+		}
+		printf("0=0x%0lx ", pfn_to_vad((long)tlb->tlb_lo0));
+		printf("%c", tlb->tlb_lo0 & PTE_V ? 'V' : '-');
+		printf("%c", tlb->tlb_lo0 & PTE_M ? 'M' : '-');
+		printf("%c", tlb->tlb_lo0 & PTE_G ? 'G' : '-');
+		printf(" atr %x ", (tlb->tlb_lo0 >> 3) & 7);
+		printf("1=0x%0lx ", pfn_to_vad((long)tlb->tlb_lo1));
+		printf("%c", tlb->tlb_lo1 & PTE_V ? 'V' : '-');
+		printf("%c", tlb->tlb_lo1 & PTE_M ? 'M' : '-');
+		printf("%c", tlb->tlb_lo1 & PTE_G ? 'G' : '-');
+		printf(" atr %x ", (tlb->tlb_lo1 >> 3) & 7);
+		printf(" sz=%x pid=%x\n", tlb->tlb_mask,
+		       (tlb->tlb_hi & 0x000000ff));
+	}
+}
+#endif	/* DDB */

@@ -66,6 +66,7 @@ __FBSDID("$FreeBSD$");
 #include "opt_inet.h"
 #include "opt_inet6.h"
 #include "opt_ipsec.h"
+#include "opt_sctp.h"
 
 #include <sys/param.h>
 #include <sys/kernel.h>
@@ -102,6 +103,10 @@ __FBSDID("$FreeBSD$");
 #include <netipsec/key.h>
 #include <netinet6/ip6_ipsec.h>
 #endif /* IPSEC */
+#ifdef SCTP
+#include <netinet/sctp.h>
+#include <netinet/sctp_crc32.h>
+#endif
 
 #include <netinet6/ip6protosw.h>
 #include <netinet6/scope6_var.h>
@@ -208,6 +213,9 @@ ip6_output(struct mbuf *m0, struct ip6_pktopts *opt,
 	struct route_in6 *ro_pmtu = NULL;
 	int hdrsplit = 0;
 	int needipsec = 0;
+#ifdef SCTP
+	int sw_csum;
+#endif
 #ifdef IPSEC
 	struct ipsec_output_state state;
 	struct ip6_rthdr *rh = NULL;
@@ -829,6 +837,10 @@ again:
 			}
 			m->m_pkthdr.csum_flags |=
 			    CSUM_IP_CHECKED | CSUM_IP_VALID;
+#ifdef SCTP
+			if (m->m_pkthdr.csum_flags & CSUM_SCTP)
+				m->m_pkthdr.csum_flags |= CSUM_SCTP_VALID;
+#endif
 			error = netisr_queue(NETISR_IPV6, m);
 			goto done;
 		} else
@@ -857,6 +869,13 @@ passout:
 	 * 4: if dontfrag == 1 && alwaysfrag == 1
 	 *	error, as we cannot handle this conflicting request
 	 */
+#ifdef SCTP
+	sw_csum = m->m_pkthdr.csum_flags & ~ifp->if_hwassist;
+	if (sw_csum & CSUM_SCTP) {
+		sctp_delayed_cksum(m, sizeof(struct ip6_hdr));
+		sw_csum &= ~CSUM_SCTP;
+	}
+#endif
 	tlen = m->m_pkthdr.len;
 
 	if (opt && (opt->ip6po_flags & IP6PO_DONTFRAG))

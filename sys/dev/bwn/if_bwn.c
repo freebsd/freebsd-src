@@ -1076,6 +1076,8 @@ bwn_attach_post(struct bwn_softc *sc)
 		| IEEE80211_C_TXPMGT		/* capable of txpow mgt */
 		;
 
+	ic->ic_flags_ext |= IEEE80211_FEXT_SWBMISS;	/* s/w bmiss */
+
 	/* call MI attach routine. */
 	ieee80211_ifattach(ic,
 	    bwn_is_valid_ether_addr(siba_sprom_get_mac_80211a(sc->sc_dev)) ?
@@ -10381,10 +10383,9 @@ bwn_rx_radiotap(struct bwn_mac *mac, struct mbuf *m,
 static void
 bwn_tsf_read(struct bwn_mac *mac, uint64_t *tsf)
 {
-	struct bwn_softc *sc = mac->mac_sc;
 	uint32_t low, high;
 
-	KASSERT(siba_get_revid(sc->sc_dev) >= 3,
+	KASSERT(siba_get_revid(mac->mac_sc->sc_dev) >= 3,
 	    ("%s:%d: fail", __func__, __LINE__));
 
 	low = BWN_READ_4(mac, BWN_REV3PLUS_TSF_LOW);

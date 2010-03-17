@@ -80,7 +80,6 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_pager.h>
 
 #include <machine/bootinfo.h>
-#include <machine/clock.h>
 #include <machine/cpu.h>
 #include <machine/efi.h>
 #include <machine/elf.h>
@@ -99,8 +98,6 @@ __FBSDID("$FreeBSD$");
 #endif
 #include <machine/unwind.h>
 #include <machine/vmparam.h>
-
-#include <i386/include/specialreg.h>
 
 SYSCTL_NODE(_hw, OID_AUTO, freq, CTLFLAG_RD, 0, "");
 SYSCTL_NODE(_machdep, OID_AUTO, cpu, CTLFLAG_RD, 0, "");
@@ -374,7 +371,7 @@ cpu_startup(void *dummy)
 		SYSCTL_ADD_ULONG(&pc->pc_md.sysctl_ctx,
 		    SYSCTL_CHILDREN(pc->pc_md.sysctl_tree), OID_AUTO,
 		    "nstrays", CTLFLAG_RD, &pcs->pcs_nstrays,
-		    "Number of stray vectors");
+		    "Number of stray interrupts");
 	}
 }
 SYSINIT(cpu_startup, SI_SUB_CPU, SI_ORDER_FIRST, cpu_startup, NULL);
@@ -443,25 +440,29 @@ cpu_switch(struct thread *old, struct thread *new, struct mtx *mtx)
 	struct pcb *oldpcb, *newpcb;
 
 	oldpcb = old->td_pcb;
-#ifdef COMPAT_IA32
+#ifdef COMPAT_FREEBSD32
 	ia32_savectx(oldpcb);
 #endif
 	if (PCPU_GET(fpcurthread) == old)
 		old->td_frame->tf_special.psr |= IA64_PSR_DFH;
 	if (!savectx(oldpcb)) {
 		atomic_store_rel_ptr(&old->td_lock, mtx);
-#if defined(SCHED_ULE) && defined(SMP)
-		/* td_lock is volatile */
-		while (new->td_lock == &blocked_lock)
-			;
-#endif
+
 		newpcb = new->td_pcb;
 		oldpcb->pcb_current_pmap =
 		    pmap_switch(newpcb->pcb_current_pmap);
+
+#if defined(SCHED_ULE) && defined(SMP)
+		while (atomic_load_acq_ptr(&new->td_lock) == &blocked_lock)
+			cpu_spinwait();
+#endif
+
 		PCPU_SET(curthread, new);
-#ifdef COMPAT_IA32
+
+#ifdef COMPAT_FREEBSD32
 		ia32_restorectx(newpcb);
 #endif
+
 		if (PCPU_GET(fpcurthread) == new)
 			new->td_frame->tf_special.psr &= ~IA64_PSR_DFH;
 		restorectx(newpcb);
@@ -478,10 +479,18 @@ cpu_throw(struct thread *old __unused, struct thread *new)
 
 	newpcb = new->td_pcb;
 	(void)pmap_switch(newpcb->pcb_current_pmap);
+
+#if defined(SCHED_ULE) && defined(SMP)
+	while (atomic_load_acq_ptr(&new->td_lock) == &blocked_lock)
+		cpu_spinwait();
+#endif
+
 	PCPU_SET(curthread, new);
-#ifdef COMPAT_IA32
+
+#ifdef COMPAT_FREEBSD32
 	ia32_restorectx(newpcb);
 #endif
+
 	restorectx(newpcb);
 	/* We should not get here. */
 	panic("cpu_throw: restorectx() returned");
@@ -772,6 +781,7 @@ ia64_init(void)
 	 */
 	map_pal_code();
 	efi_boot_minimal(bootinfo.bi_systab);
+	ia64_xiv_init();
 	ia64_sal_init();
 	calculate_frequencies();
 

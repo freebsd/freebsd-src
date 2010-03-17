@@ -29,19 +29,41 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/kernel.h>
+#include <sys/bus.h>
+#include <sys/interrupt.h>
+#include <sys/priority.h>
 #include <sys/queue.h>
 #include <sys/sysctl.h>
 #include <sys/systm.h>
-#include <sys/bus.h>
 #include <sys/timetc.h>
 #include <sys/pcpu.h>
 
-#include <machine/clock.h>
 #include <machine/cpu.h>
 #include <machine/efi.h>
+#include <machine/intr.h>
+#include <machine/intrcnt.h>
 #include <machine/md_var.h>
 
-uint64_t ia64_clock_reload;
+SYSCTL_NODE(_debug, OID_AUTO, clock, CTLFLAG_RW, 0, "clock statistics");
+
+static int adjust_edges = 0;
+SYSCTL_INT(_debug_clock, OID_AUTO, adjust_edges, CTLFLAG_RD,
+    &adjust_edges, 0, "Number of times ITC got more than 12.5% behind");
+
+static int adjust_excess = 0;
+SYSCTL_INT(_debug_clock, OID_AUTO, adjust_excess, CTLFLAG_RD,
+    &adjust_excess, 0, "Total number of ignored ITC interrupts");
+
+static int adjust_lost = 0;
+SYSCTL_INT(_debug_clock, OID_AUTO, adjust_lost, CTLFLAG_RD,
+    &adjust_lost, 0, "Total number of lost ITC interrupts");
+
+static int adjust_ticks = 0;
+SYSCTL_INT(_debug_clock, OID_AUTO, adjust_ticks, CTLFLAG_RD,
+    &adjust_ticks, 0, "Total number of ITC interrupts with adjustment");
+
+static u_int ia64_clock_xiv;
+static uint64_t ia64_clock_reload;
 
 #ifndef SMP
 static timecounter_get_t ia64_get_timecount;
@@ -54,12 +76,67 @@ static struct timecounter ia64_timecounter = {
 	"ITC"			/* name */
 };
 
-static unsigned
+static u_int
 ia64_get_timecount(struct timecounter* tc)
 {
 	return ia64_get_itc();
 }
 #endif
+
+static u_int
+ia64_ih_clock(struct thread *td, u_int xiv, struct trapframe *tf)
+{
+	uint64_t adj, clk, itc;
+	int64_t delta;
+	int count;
+
+	ia64_set_eoi(0);
+
+	PCPU_INC(md.stats.pcs_nclks);
+	intrcnt[INTRCNT_CLOCK]++;
+
+	ia64_srlz_d();
+
+	itc = ia64_get_itc();
+
+	adj = PCPU_GET(md.clockadj);
+	clk = PCPU_GET(md.clock);
+
+	delta = itc - clk;
+	count = 0;
+	while (delta >= ia64_clock_reload) {
+		/* Only the BSP runs the real clock */
+		if (PCPU_GET(cpuid) == 0)
+			hardclock(TRAPF_USERMODE(tf), TRAPF_PC(tf));
+		else
+			hardclock_cpu(TRAPF_USERMODE(tf));
+		if (profprocs != 0)
+			profclock(TRAPF_USERMODE(tf), TRAPF_PC(tf));
+		statclock(TRAPF_USERMODE(tf));
+		delta -= ia64_clock_reload;
+		clk += ia64_clock_reload;
+		if (adj != 0)
+			adjust_ticks++;
+		count++;
+	}
+	ia64_set_itm(ia64_get_itc() + ia64_clock_reload - adj);
+	if (count > 0) {
+		adjust_lost += count - 1;
+		if (delta > (ia64_clock_reload >> 3)) {
+			if (adj == 0)
+				adjust_edges++;
+			adj = ia64_clock_reload >> 4;
+		} else
+			adj = 0;
+	} else {
+		adj = 0;
+		adjust_excess++;
+	}
+	PCPU_SET(md.clock, clk);
+	PCPU_SET(md.clockadj, adj);
+	ia64_srlz_d();
+	return (0);
+}
 
 void
 pcpu_initclock(void)
@@ -68,7 +145,7 @@ pcpu_initclock(void)
 	PCPU_SET(md.clockadj, 0);
 	PCPU_SET(md.clock, ia64_get_itc());
 	ia64_set_itm(PCPU_GET(md.clock) + ia64_clock_reload);
-	ia64_set_itv(CLOCK_VECTOR);	/* highest priority class */
+	ia64_set_itv(ia64_clock_xiv);
 	ia64_srlz_d();
 }
 
@@ -80,6 +157,11 @@ void
 cpu_initclocks()
 {
 	u_long itc_freq;
+
+	ia64_clock_xiv = ia64_xiv_alloc(PI_REALTIME, IA64_XIV_IRQ,
+	    ia64_ih_clock);
+	if (ia64_clock_xiv == 0)
+		panic("No XIV for clock interrupts");
 
 	itc_freq = (u_long)ia64_itc_freq() * 1000000ul;
 
