@@ -371,7 +371,7 @@ cpu_startup(void *dummy)
 		SYSCTL_ADD_ULONG(&pc->pc_md.sysctl_ctx,
 		    SYSCTL_CHILDREN(pc->pc_md.sysctl_tree), OID_AUTO,
 		    "nstrays", CTLFLAG_RD, &pcs->pcs_nstrays,
-		    "Number of stray vectors");
+		    "Number of stray interrupts");
 	}
 }
 SYSINIT(cpu_startup, SI_SUB_CPU, SI_ORDER_FIRST, cpu_startup, NULL);
@@ -781,6 +781,7 @@ ia64_init(void)
 	 */
 	map_pal_code();
 	efi_boot_minimal(bootinfo.bi_systab);
+	ia64_xiv_init();
 	ia64_sal_init();
 	calculate_frequencies();
 
