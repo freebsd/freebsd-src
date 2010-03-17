@@ -48,6 +48,7 @@ void	 command(KINFO *, VARENT *);
 void	 cputime(KINFO *, VARENT *);
 int	 donlist(void);
 void	 elapsed(KINFO *, VARENT *);
+void	 elapseds(KINFO *, VARENT *);
 void	 emulname(KINFO *, VARENT *);
 VARENT	*find_varentry(VAR *);
 const	 char *fmt_argv(char **, char *, size_t);
