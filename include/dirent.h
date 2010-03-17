@@ -100,6 +100,7 @@ int	 getdents(int, char *, int);
 int	 getdirentries(int, char *, int, long *);
 #endif
 DIR	*opendir(const char *);
+DIR	*fdopendir(int);
 struct dirent *
 	 readdir(DIR *);
 #if __POSIX_VISIBLE >= 199506 || __XSI_VISIBLE >= 500
