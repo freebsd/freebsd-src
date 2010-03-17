@@ -195,7 +195,7 @@ isp_sbus_attach(device_t dev)
 	isp->isp_revision = 0;	/* XXX */
 	isp->isp_dev = dev;
 	isp->isp_nchan = 1;
-	ISP_SET_PC(isp, 0, role, role);
+	ISP_SET_PC(isp, 0, def_role, role);
 
 	/*
 	 * Get the clock frequency and convert it from HZ to MHz,
