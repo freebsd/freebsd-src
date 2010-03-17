@@ -57,6 +57,10 @@
 #define	DCR_BPM_BITS		2
 #define	DCR_BPM_MASK							\
 	(((1UL << DCR_BPM_BITS) - 1) << DCR_BPM_SHIFT)
+#define	DCR_BPM_1HIST_GSHARE	(0UL << DCR_BPM_SHIFT)
+#define	DCR_BPM_2HIST_GSHARE	(1UL << DCR_BPM_SHIFT)
+#define	DCR_BPM_PC		(2UL << DCR_BPM_SHIFT)
+#define	DCR_BPM_2HIST_MIXED	(3UL << DCR_BPM_SHIFT)
 
 #define	DCR_JPE			(1UL << 15)
 #define	DCR_ITPE		(1UL << 16)
