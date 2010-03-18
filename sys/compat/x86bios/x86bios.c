@@ -1,6 +1,6 @@
 /*-
  * Copyright (c) 2009 Alex Keda <admin@lissyara.su>
- * Copyright (c) 2009 Jung-uk Kim <jkim@FreeBSD.org>
+ * Copyright (c) 2009-2010 Jung-uk Kim <jkim@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -81,6 +81,10 @@ static vm_offset_t *x86bios_map;
 
 static vm_paddr_t x86bios_seg_phys;
 
+static int x86bios_fault;
+static uint32_t x86bios_fault_addr;
+static uint32_t x86bios_fault_inst;
+
 SYSCTL_NODE(_debug, OID_AUTO, x86bios, CTLFLAG_RD, NULL, "x86bios debugging");
 static int x86bios_trace_call;
 TUNABLE_INT("debug.x86bios.call", &x86bios_trace_call);
@@ -90,6 +94,15 @@ static int x86bios_trace_int;
 TUNABLE_INT("debug.x86bios.int", &x86bios_trace_int);
 SYSCTL_INT(_debug_x86bios, OID_AUTO, int, CTLFLAG_RW, &x86bios_trace_int, 0,
     "Trace software interrupt handlers");
+
+static void
+x86bios_set_fault(struct x86emu *emu, uint32_t addr)
+{
+
+	x86bios_fault = 1;
+	x86bios_fault_addr = addr;
+	x86bios_fault_inst = (emu->x86.R_CS << 4) + emu->x86.R_IP;
+}
 
 static void *
 x86bios_get_pages(uint32_t offset, size_t size)
@@ -123,8 +136,10 @@ x86bios_emu_rdb(struct x86emu *emu, uint32_t addr)
 	uint8_t *va;
 
 	va = x86bios_get_pages(addr, sizeof(*va));
-	if (va == NULL)
+	if (va == NULL) {
+		x86bios_set_fault(emu, addr);
 		x86emu_halt_sys(emu);
+	}
 
 	return (*va);
 }
@@ -135,8 +150,10 @@ x86bios_emu_rdw(struct x86emu *emu, uint32_t addr)
 	uint16_t *va;
 
 	va = x86bios_get_pages(addr, sizeof(*va));
-	if (va == NULL)
+	if (va == NULL) {
+		x86bios_set_fault(emu, addr);
 		x86emu_halt_sys(emu);
+	}
 
 	return (le16toh(*va));
 }
@@ -147,8 +164,10 @@ x86bios_emu_rdl(struct x86emu *emu, uint32_t addr)
 	uint32_t *va;
 
 	va = x86bios_get_pages(addr, sizeof(*va));
-	if (va == NULL)
+	if (va == NULL) {
+		x86bios_set_fault(emu, addr);
 		x86emu_halt_sys(emu);
+	}
 
 	return (le32toh(*va));
 }
@@ -159,8 +178,10 @@ x86bios_emu_wrb(struct x86emu *emu, uint32_t addr, uint8_t val)
 	uint8_t *va;
 
 	va = x86bios_get_pages(addr, sizeof(*va));
-	if (va == NULL)
+	if (va == NULL) {
+		x86bios_set_fault(emu, addr);
 		x86emu_halt_sys(emu);
+	}
 
 	*va = val;
 }
@@ -171,8 +192,10 @@ x86bios_emu_wrw(struct x86emu *emu, uint32_t addr, uint16_t val)
 	uint16_t *va;
 
 	va = x86bios_get_pages(addr, sizeof(*va));
-	if (va == NULL)
+	if (va == NULL) {
+		x86bios_set_fault(emu, addr);
 		x86emu_halt_sys(emu);
+	}
 
 	*va = htole16(val);
 }
@@ -183,8 +206,10 @@ x86bios_emu_wrl(struct x86emu *emu, uint32_t addr, uint32_t val)
 	uint32_t *va;
 
 	va = x86bios_get_pages(addr, sizeof(*va));
-	if (va == NULL)
+	if (va == NULL) {
+		x86bios_set_fault(emu, addr);
 		x86emu_halt_sys(emu);
+	}
 
 	*va = htole32(val);
 }
@@ -331,15 +356,20 @@ x86bios_call(struct x86regs *regs, uint16_t seg, uint16_t off)
 
 	mtx_lock_spin(&x86bios_lock);
 	memcpy(&x86bios_emu.x86, regs, sizeof(*regs));
+	x86bios_fault = 0;
 	x86emu_exec_call(&x86bios_emu, seg, off);
 	memcpy(regs, &x86bios_emu.x86, sizeof(*regs));
 	mtx_unlock_spin(&x86bios_lock);
 
-	if (x86bios_trace_call)
+	if (x86bios_trace_call) {
 		printf("Exiting 0x%05x (ax=0x%04x bx=0x%04x "
 		    "cx=0x%04x dx=0x%04x es=0x%04x di=0x%04x)\n",
 		    (seg << 4) + off, regs->R_AX, regs->R_BX, regs->R_CX,
 		    regs->R_DX, regs->R_ES, regs->R_DI);
+		if (x86bios_fault)
+			printf("Page fault at 0x%05x from 0x%05x.\n",
+			    x86bios_fault_addr, x86bios_fault_inst);
+	}
 }
 
 uint32_t
@@ -370,15 +400,20 @@ x86bios_intr(struct x86regs *regs, int intno)
 
 	mtx_lock_spin(&x86bios_lock);
 	memcpy(&x86bios_emu.x86, regs, sizeof(*regs));
+	x86bios_fault = 0;
 	x86emu_exec_intr(&x86bios_emu, intno);
 	memcpy(regs, &x86bios_emu.x86, sizeof(*regs));
 	mtx_unlock_spin(&x86bios_lock);
 
-	if (x86bios_trace_int)
+	if (x86bios_trace_int) {
 		printf("Exiting int 0x%x (ax=0x%04x bx=0x%04x "
 		    "cx=0x%04x dx=0x%04x es=0x%04x di=0x%04x)\n",
 		    intno, regs->R_AX, regs->R_BX, regs->R_CX,
 		    regs->R_DX, regs->R_ES, regs->R_DI);
+		if (x86bios_fault)
+			printf("Page fault at 0x%05x from 0x%05x.\n",
+			    x86bios_fault_addr, x86bios_fault_inst);
+	}
 }
 
 void *
