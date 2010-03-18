@@ -1275,10 +1275,25 @@ vlan_capabilities(struct ifvlan *ifv)
 	if (p->if_capenable & IFCAP_VLAN_HWCSUM &&
 	    p->if_capenable & IFCAP_VLAN_HWTAGGING) {
 		ifp->if_capenable = p->if_capenable & IFCAP_HWCSUM;
-		ifp->if_hwassist = p->if_hwassist;
+		ifp->if_hwassist = p->if_hwassist & (CSUM_IP | CSUM_TCP |
+		    CSUM_UDP | CSUM_SCTP | CSUM_IP_FRAGS | CSUM_FRAGMENT);
 	} else {
 		ifp->if_capenable = 0;
 		ifp->if_hwassist = 0;
+	}
+	/*
+	 * If the parent interface can do TSO on VLANs then
+	 * propagate the hardware-assisted flag. TSO on VLANs
+	 * does not necessarily require hardware VLAN tagging.
+	 */
+	if (p->if_capabilities & IFCAP_VLAN_HWTSO)
+		ifp->if_capabilities |= p->if_capabilities & IFCAP_TSO;
+	if (p->if_capenable & IFCAP_VLAN_HWTSO) {
+		ifp->if_capenable |= p->if_capenable & IFCAP_TSO;
+		ifp->if_hwassist |= p->if_hwassist & CSUM_TSO;
+	} else {
+		ifp->if_capenable &= ~(p->if_capenable & IFCAP_TSO);
+		ifp->if_hwassist &= ~(p->if_hwassist & CSUM_TSO);
 	}
 }
 
