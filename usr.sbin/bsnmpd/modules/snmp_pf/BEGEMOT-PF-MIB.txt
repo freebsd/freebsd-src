@@ -21,7 +21,7 @@ IMPORTS
 	FROM BEGEMOT-MIB;
 
 begemotPf MODULE-IDENTITY
-    LAST-UPDATED "200501240000Z"
+    LAST-UPDATED "201003170000Z"
     ORGANIZATION "NixSys BVBA"
     CONTACT-INFO
 	    "		Philip Paeps
@@ -34,6 +34,13 @@ begemotPf MODULE-IDENTITY
 	     E-Mail:	philip@FreeBSD.org"
     DESCRIPTION
 	    "The Begemot MIB for the pf packet filter."
+    REVISION	"200912050000Z"
+    DESCRIPTION
+	    "Added support for retrieving counters of labeled
+	    pf filter rules via pfLabelspfLabels subtree."
+    REVISION	"200501240000Z"
+    DESCRIPTION
+	    "Initial revision."
 
     ::= { begemot 200 }
 
@@ -51,6 +58,7 @@ pfLogInterface		OBJECT IDENTIFIER ::= { begemotPfObjects 7 }
 pfInterfaces		OBJECT IDENTIFIER ::= { begemotPfObjects 8 }
 pfTables		OBJECT IDENTIFIER ::= { begemotPfObjects 9 }
 pfAltq			OBJECT IDENTIFIER ::= { begemotPfObjects 10 }
+pfLabels		OBJECT IDENTIFIER ::= { begemotPfObjects 11 }
 
 -- --------------------------------------------------------------------------
 
@@ -1226,5 +1234,97 @@ pfAltqQueueLimit OBJECT-TYPE
     DESCRIPTION
 	"Maximum number of packets in the queue."
     ::= { pfAltqQueueEntry 7 }
+
+pfLabelsLblNumber OBJECT-TYPE
+    SYNTAX	Integer32
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"The number of labeled filter rules on this system."
+    ::= { pfLabels 1 }
+
+pfLabelsLblTable OBJECT-TYPE
+    SYNTAX	SEQUENCE OF PfLabelsLblEntry
+    MAX-ACCESS	not-accessible
+    STATUS	current
+    DESCRIPTION
+	"Table of filter rules, index on pfLabelsLblIndex."
+    ::= { pfLabels 2 }
+
+pfLabelsLblEntry OBJECT-TYPE
+    SYNTAX	PfLabelsLblEntry
+    MAX-ACCESS	not-accessible
+    STATUS	current
+    DESCRIPTION
+	"Any entry in the pfLabelsLblTable containing information
+	about a particular filter rule on the system."
+    INDEX	{ pfLabelsLblIndex }
+    ::= { pfLabelsLblTable 1 }
+
+PfLabelsLblEntry ::= SEQUENCE {
+    pfLabelsLblIndex		Integer32,
+    pfLabelsLblName		OCTET STRING,
+    pfLabelsLblEvals		Counter64,
+    pfLabelsLblBytesIn		Counter64,
+    pfLabelsLblBytesOut		Counter64,
+    pfLabelsLblPktsIn		Counter64,
+    pfLabelsLblPktsOut		Counter64
+}
+
+pfLabelsLblIndex OBJECT-TYPE
+    SYNTAX	Integer32 (1..2147483647)
+    MAX-ACCESS	not-accessible
+    STATUS	current
+    DESCRIPTION
+	"A unique value, greater than zero, for each label."
+    ::= { pfLabelsLblEntry 1 } 
+
+pfLabelsLblName OBJECT-TYPE
+    SYNTAX	OCTET STRING
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"The name of the rule label."
+    ::= { pfLabelsLblEntry 2 }
+
+pfLabelsLblEvals OBJECT-TYPE
+    SYNTAX	Counter64
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"The number of rule evaluations."
+    ::= { pfLabelsLblEntry 3 }
+
+pfLabelsLblBytesIn OBJECT-TYPE
+    SYNTAX	Counter64
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"The number of incoming bytes matched by the rule."
+    ::= { pfLabelsLblEntry 4 }
+
+pfLabelsLblBytesOut OBJECT-TYPE
+    SYNTAX	Counter64
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"The number of outgoing bytes matched by the rule."
+    ::= { pfLabelsLblEntry 5 }
+
+pfLabelsLblPktsIn OBJECT-TYPE
+    SYNTAX	Counter64
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"The number of incoming packets matched by the rule."
+    ::= { pfLabelsLblEntry 6 }
+
+pfLabelsLblPktsOut OBJECT-TYPE
+    SYNTAX	Counter64
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"The number of outgoing packets matched by the rule."
+    ::= { pfLabelsLblEntry 7 }
 
 END
