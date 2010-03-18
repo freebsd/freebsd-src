@@ -288,7 +288,7 @@ ht_announce(struct ieee80211com *ic, int mode,
 	const struct ieee80211_htrateset *rs)
 {
 	struct ifnet *ifp = ic->ic_ifp;
-	int maxmcs = ic->ic_rxstream * 8;
+	int maxmcs = 2 * 8;
 	const char *modestr = ieee80211_phymode_name[mode];
 	
 	KASSERT(maxmcs <= 16, ("maxmcs > 16"));
