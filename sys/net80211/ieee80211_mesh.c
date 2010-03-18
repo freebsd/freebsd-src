@@ -82,6 +82,7 @@ static void	mesh_forward(struct ieee80211vap *, struct mbuf *,
 static int	mesh_input(struct ieee80211_node *, struct mbuf *, int, int);
 static void	mesh_recv_mgmt(struct ieee80211_node *, struct mbuf *, int,
 		    int, int);
+static void	mesh_recv_ctl(struct ieee80211_node *, struct mbuf *, int);
 static void	mesh_peer_timeout_setup(struct ieee80211_node *);
 static void	mesh_peer_timeout_backoff(struct ieee80211_node *);
 static void	mesh_peer_timeout_cb(void *);
@@ -520,6 +521,7 @@ mesh_vattach(struct ieee80211vap *vap)
 	vap->iv_input = mesh_input;
 	vap->iv_opdetach = mesh_vdetach;
 	vap->iv_recv_mgmt = mesh_recv_mgmt;
+	vap->iv_recv_ctl = mesh_recv_ctl;
 	ms = malloc(sizeof(struct ieee80211_mesh_state), M_80211_VAP,
 	    M_NOWAIT | M_ZERO);
 	if (ms == NULL) {
@@ -1531,6 +1533,17 @@ mesh_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m0, int subtype,
 		IEEE80211_DISCARD(vap, IEEE80211_MSG_ANY,
 		    wh, "mgt", "subtype 0x%x not handled", subtype);
 		vap->iv_stats.is_rx_badsubtype++;
+		break;
+	}
+}
+
+static void
+mesh_recv_ctl(struct ieee80211_node *ni, struct mbuf *m, int subtype)
+{
+
+	switch (subtype) {
+	case IEEE80211_FC0_SUBTYPE_BAR:
+		ieee80211_recv_bar(ni, m);
 		break;
 	}
 }
