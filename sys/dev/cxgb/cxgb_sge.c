@@ -228,6 +228,8 @@ static uint8_t flit_desc_map[] = {
 #define	TXQ_LOCK(qs)		mtx_lock(&(qs)->lock)	
 #define	TXQ_UNLOCK(qs)		mtx_unlock(&(qs)->lock)	
 #define	TXQ_RING_EMPTY(qs)	drbr_empty((qs)->port->ifp, (qs)->txq[TXQ_ETH].txq_mr)
+#define	TXQ_RING_NEEDS_ENQUEUE(qs)					\
+	drbr_needs_enqueue((qs)->port->ifp, (qs)->txq[TXQ_ETH].txq_mr)
 #define	TXQ_RING_FLUSH(qs)	drbr_flush((qs)->port->ifp, (qs)->txq[TXQ_ETH].txq_mr)
 #define	TXQ_RING_DEQUEUE_COND(qs, func, arg)				\
 	drbr_dequeue_cond((qs)->port->ifp, (qs)->txq[TXQ_ETH].txq_mr, func, arg)
@@ -1712,7 +1714,7 @@ cxgb_transmit_locked(struct ifnet *ifp, struct sge_qset *qs, struct mbuf *m)
 	 * - there is space in hardware transmit queue 
 	 */
 	if (check_pkt_coalesce(qs) == 0 &&
-	    TXQ_RING_EMPTY(qs) && avail > 4) {
+	    !TXQ_RING_NEEDS_ENQUEUE(qs) && avail > 4) {
 		if (t3_encap(qs, &m)) {
 			if (m != NULL &&
 			    (error = drbr_enqueue(ifp, br, m)) != 0) 
