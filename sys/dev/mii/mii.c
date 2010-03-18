@@ -253,7 +253,6 @@ miibus_statchg(device_t dev)
 {
 	device_t		parent;
 	struct mii_data		*mii;
-	struct ifnet		*ifp;
 
 	parent = device_get_parent(dev);
 	MIIBUS_STATCHG(parent);
