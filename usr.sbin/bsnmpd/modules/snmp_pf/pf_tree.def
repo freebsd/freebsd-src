@@ -186,6 +186,20 @@
 		  )
 		)
 	      )
+	      (11 pfLabels
+		(1 pfLabelsLblNumber INTEGER32 pf_labels GET)
+		(2 pfLabelsLblTable
+		  (1 pfLabelsLblEntry : INTEGER pf_lbltable
+		    (1 pfLabelsLblIndex INTEGER)
+		    (2 pfLabelsLblName OCTETSTRING GET)
+		    (3 pfLabelsLblEvals COUNTER64 GET)
+		    (4 pfLabelsLblBytesIn COUNTER64 GET)
+		    (5 pfLabelsLblBytesOut COUNTER64 GET)
+		    (6 pfLabelsLblPktsIn COUNTER64 GET)
+		    (7 pfLabelsLblPktsOut COUNTER64 GET)
+		  )
+		)
+	      )
             )
           )
         )
