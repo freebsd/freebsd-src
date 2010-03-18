@@ -1699,15 +1699,15 @@ mskc_attach(device_t dev)
 
 	switch (sc->msk_hw_id) {
 	case CHIP_ID_YUKON_EC:
-		sc->msk_clock = 125;	/* 125 Mhz */
+		sc->msk_clock = 125;	/* 125 MHz */
 		sc->msk_pflags |= MSK_FLAG_JUMBO;
 		break;
 	case CHIP_ID_YUKON_EC_U:
-		sc->msk_clock = 125;	/* 125 Mhz */
+		sc->msk_clock = 125;	/* 125 MHz */
 		sc->msk_pflags |= MSK_FLAG_JUMBO | MSK_FLAG_JUMBO_NOCSUM;
 		break;
 	case CHIP_ID_YUKON_EX:
-		sc->msk_clock = 125;	/* 125 Mhz */
+		sc->msk_clock = 125;	/* 125 MHz */
 		sc->msk_pflags |= MSK_FLAG_JUMBO | MSK_FLAG_DESCV2 |
 		    MSK_FLAG_AUTOTX_CSUM;
 		/*
@@ -1725,11 +1725,11 @@ mskc_attach(device_t dev)
 			sc->msk_pflags |= MSK_FLAG_JUMBO_NOCSUM;
 		break;
 	case CHIP_ID_YUKON_FE:
-		sc->msk_clock = 100;	/* 100 Mhz */
+		sc->msk_clock = 100;	/* 100 MHz */
 		sc->msk_pflags |= MSK_FLAG_FASTETHER;
 		break;
 	case CHIP_ID_YUKON_FE_P:
-		sc->msk_clock = 50;	/* 50 Mhz */
+		sc->msk_clock = 50;	/* 50 MHz */
 		sc->msk_pflags |= MSK_FLAG_FASTETHER | MSK_FLAG_DESCV2 |
 		    MSK_FLAG_AUTOTX_CSUM;
 		if (sc->msk_hw_rev == CHIP_REV_YU_FE_P_A0) {
@@ -1748,15 +1748,15 @@ mskc_attach(device_t dev)
 		}
 		break;
 	case CHIP_ID_YUKON_XL:
-		sc->msk_clock = 156;	/* 156 Mhz */
+		sc->msk_clock = 156;	/* 156 MHz */
 		sc->msk_pflags |= MSK_FLAG_JUMBO;
 		break;
 	case CHIP_ID_YUKON_UL_2:
-		sc->msk_clock = 156;	/* 156 Mhz */
+		sc->msk_clock = 125;	/* 125 MHz */
 		sc->msk_pflags |= MSK_FLAG_JUMBO;
 		break;
 	default:
-		sc->msk_clock = 156;	/* 156 Mhz */
+		sc->msk_clock = 156;	/* 156 MHz */
 		break;
 	}
 
@@ -3715,10 +3715,10 @@ msk_init_locked(struct msk_if_softc *sc_if)
 	struct msk_softc *sc;
 	struct ifnet *ifp;
 	struct mii_data	 *mii;
-	uint16_t eaddr[ETHER_ADDR_LEN / 2];
+	uint8_t *eaddr;
 	uint16_t gmac;
 	uint32_t reg;
-	int error, i;
+	int error;
 
 	MSK_IF_LOCK_ASSERT(sc_if);
 
@@ -3787,14 +3787,20 @@ msk_init_locked(struct msk_if_softc *sc_if)
 	GMAC_WRITE_2(sc, sc_if->msk_port, GM_SERIAL_MODE, gmac);
 
 	/* Set station address. */
-        bcopy(IF_LLADDR(ifp), eaddr, ETHER_ADDR_LEN);
-        for (i = 0; i < ETHER_ADDR_LEN /2; i++)
-		GMAC_WRITE_2(sc, sc_if->msk_port, GM_SRC_ADDR_1L + i * 4,
-		    eaddr[i]);
-        for (i = 0; i < ETHER_ADDR_LEN /2; i++)
-		GMAC_WRITE_2(sc, sc_if->msk_port, GM_SRC_ADDR_2L + i * 4,
-		    eaddr[i]);
-
+	eaddr = IF_LLADDR(ifp);
+	GMAC_WRITE_2(sc, sc_if->msk_port, GM_SRC_ADDR_1L,
+	    eaddr[0] | (eaddr[1] << 8));
+	GMAC_WRITE_2(sc, sc_if->msk_port, GM_SRC_ADDR_1M,
+	    eaddr[2] | (eaddr[3] << 8));
+	GMAC_WRITE_2(sc, sc_if->msk_port, GM_SRC_ADDR_1H,
+	    eaddr[4] | (eaddr[5] << 8));
+	GMAC_WRITE_2(sc, sc_if->msk_port, GM_SRC_ADDR_2L,
+	    eaddr[0] | (eaddr[1] << 8));
+	GMAC_WRITE_2(sc, sc_if->msk_port, GM_SRC_ADDR_2M,
+	    eaddr[2] | (eaddr[3] << 8));
+	GMAC_WRITE_2(sc, sc_if->msk_port, GM_SRC_ADDR_2H,
+	    eaddr[4] | (eaddr[5] << 8));
+	
 	/* Disable interrupts for counter overflows. */
 	GMAC_WRITE_2(sc, sc_if->msk_port, GM_TX_IRQ_MSK, 0);
 	GMAC_WRITE_2(sc, sc_if->msk_port, GM_RX_IRQ_MSK, 0);
