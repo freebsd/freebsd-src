@@ -162,7 +162,7 @@ struct uma_hash {
 /*
  * align field or structure to cache line
  */
-#define UMA_ALIGN		__aligned(CACHE_LINE_SIZE)
+#define UMA_ALIGN
 
 /*
  * Structures for per cpu queues.
