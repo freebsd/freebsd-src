@@ -2744,9 +2744,8 @@ bge_attach(device_t dev)
 		    & BGE_HWCFG_ASF) {
 			sc->bge_asf_mode |= ASF_ENABLE;
 			sc->bge_asf_mode |= ASF_STACKUP;
-			if (sc->bge_asicrev == BGE_ASICREV_BCM5750) {
+			if (BGE_IS_575X_PLUS(sc))
 				sc->bge_asf_mode |= ASF_NEW_HANDSHAKE;
-			}
 		}
 	}
 
@@ -3677,7 +3676,7 @@ bge_asf_driver_up(struct bge_softc *sc)
 		if (sc->bge_asf_count)
 			sc->bge_asf_count --;
 		else {
-			sc->bge_asf_count = 5;
+			sc->bge_asf_count = 2;
 			bge_writemem_ind(sc, BGE_SOFTWARE_GENCOMM_FW,
 			    BGE_FW_DRV_ALIVE);
 			bge_writemem_ind(sc, BGE_SOFTWARE_GENNCOMM_FW_LEN, 4);
