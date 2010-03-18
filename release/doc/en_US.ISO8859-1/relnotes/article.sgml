@@ -115,22 +115,94 @@
     <sect2 id="security">
       <title>Security Advisories</title>
 
-      <para></para>
+      <para>Problems described in the following security advisories have
+	been fixed.  For more information, consult the individual
+	advisories available from
+	<ulink url="http://security.FreeBSD.org/"></ulink>.</para>
+
+<!--
+      <informaltable frame="none" pgwide="0">
+	<tgroup cols="3">
+	  <colspec colwidth="1*">
+	  <colspec colwidth="1*">
+	  <colspec colwidth="3*">
+	    <thead>
+	      <row>
+		<entry>Advisory</entry>
+		<entry>Date</entry>
+		<entry>Topic</entry>
+	      </row>
+	    </thead>
+
+	    <tbody>
+	      <row>
+		<entry><ulink url="http://security.freebsd.org/advisories/FreeBSD-SA-09:01.lukemftpd.asc"
+			      >SA-09:01.lukemftpd</ulink></entry>
+		<entry>07&nbsp;January&nbsp;2009</entry>
+		<entry><para>Cross-site request forgery in
+		  &man.lukemftpd.8;</para></entry>
+	      </row>
+	    </tbody>
+	</tgroup>
+      </informaltable>
+-->
     </sect2>
 
     <sect2 id="kernel">
       <title>Kernel Changes</title>
 
-      <para></para>
+      <para>The &man.ddb.8; subcommands for &man.geom.8; now supports
+	pagination.</para>
+
+      <para>&os; Linux emulation layer now supports robust futex, and
+	futex has been reimplemented by using &man.sx.9; lock.
+	Initial support of &man.ktr.4; tracing has also been
+	added.</para>
+
+      <para>A lock handling error has been fixed in interaction
+	between &man.malloc.3; implementation and threading library.
+	When a multi-threaded process calls the &man.fork.2; system
+	call in a thread and the &man.malloc.3; function in another
+	thread, it caused a deadlock in the child process.</para>
 
       <sect3 id="boot">
 	<title>Boot Loader Changes</title>
 
-	<para></para>
+	<para>A new boot loader <literal>gptzfsboot</literal>, which
+	  support GPT and ZFS has been added.</para>
+
+	<para>The boot loader <literal>zfsboot</literal> now supports
+	  more than sevevn drives in the ZFS pools.</para>
       </sect3>
 
       <sect3 id="proc">
 	<title>Hardware Support</title>
+
+	<para arch="amd64,i386">The &man.hwpmc.4; driver for Hardware
+	  Performance Monitoring Counter support has been added.  This
+	  consists of the kernel driver, &man.pmc.3; interface
+	  library, and userland utilities &man.pmcannotate.8;,
+	  pmccontrol.8;, and &man.pmcstat.8;, and allows applications
+	  to use hardware performance counters to gather performance
+	  data about specific processes or for the system as a
+	  whole.</para>
+
+	<para>The &man.k8temp.4; driver has been renamed with
+	  &man.amdtemp.4;.  The new driver supports AMD K10 and K11 as
+	  well as K8.</para>
+
+	<para>The &man.pci.4; subsystem now supports proxying of PCI
+	  Express MSI/MSI-X (Message Signaled Interrupt) requests and
+	  bus interrupt requests for child devices.  This allows child
+	  devices to use MSI/MSI-X interrupts.</para>
+
+	<para>PCI Express memory-mapped configuration space access,
+	  ACPI MCFG table support, and BAR (Base Address Register)
+	  handling in the &man.pci.4; subsystem has been improved.
+	  This is disabled by default and can be enabled by setting a
+	  loader tunable <varname>hw.pci.mcfg</varname> to
+	  <literal>1</literal>.  This value can be queried via a
+	  sysctl variable of the same name.</para>
 
 	<sect4 id="mm">
 	  <title>Multimedia Support</title>
@@ -141,16 +213,46 @@
 	<sect4 id="net-if">
 	  <title>Network Interface Support</title>
 
-	  <para></para>
+	  <para>A bug in the &man.bge.4; driver has been fixed.  It
+	    caused a panic when a lot of traffic is being handled on
+	    the interface while the system is shutting down.</para>
 
+	  <para>The &man.cxgb.4; driver has been upgraded to the
+	    latest version.  The firmware version is 7.1.0.</para>
+
+	  <para>A bug in the &man.fxp.4; driver has been fixed.  It
+	    caused incorrect IP packet length in the header when TSO
+	    (TCP segmentation offloading) is enabled.</para>
+
+	  <para>A bug in the &man.nfe.4; driver has been fixed.  It
+	    caused buffer allocation failure for jumbo frames.</para>
+
+	  <para>The &man.nge.4; driver has been improved and now works
+	    on all supported platforms.  It now supports &man.altq.4;,
+	    hardware checksum offloading for &man.vlan.4; tagged
+	    frames, WoL (Wake-on-Lan), jumbo frames, and PCI MWI
+	    (Memory Write and Invalidate) commands.  Hardware MAC
+	    statistics can be obtained via a new sysctl variable
+	    <varname>dev.nge.<replaceable>N</replaceable>.stats</varname>.
+	    Another new sysctl variable
+	    <varname>dev.nge.<replaceable>N</replaceable>.int_holdoff</varname>
+	    has been added to control interrupt moderation.  The valid
+	    ranges are <literal>1</literal> (100us) to
+	    <literal>255</literal>, and the actual delivery of
+	    interrupt would be delayed based on this value.  The
+	    default is <literal>1</literal>.</para>
 	</sect4>
       </sect3>
 
       <sect3 id="net-proto">
 	<title>Network Protocols</title>
 
-	<para></para>
-
+	<para>A kernel option
+	  <varname>IPFW_DEFAULT_TO_ACCEPT</varname> has been replaced
+	  with a new loader tunable
+	  <varname>net.inet.ip.fw.default_to_accept</varname>.  The
+	  value can be queried via a sysctl variable of the same
+	  name.</para>
       </sect3>
 
       <sect3 id="disks">
@@ -162,6 +264,21 @@
 
       <sect3 id="fs">
 	<title>File Systems</title>
+
+	<para>&os; Network File System now supports caching of
+	  negative pathname lookup in the NFS client, and uses 3
+	  seconds timeout (30 seconds in the prior releases) for
+	  caching attributes of a directory in the client.</para>
+
+	<para>A new sysctl variable for the &man.VFS.9; subsystem
+	  <varname>vfs.flushbufqtarget</varname> has been added.  This
+	  fixes issues in <literal>bufdaemon</literal>, a kernel
+	  process responsible for flushing dirty buffers, which can
+	  cause the process to deadlock in a certain workload.  The
+	  value of the variable determines the number of buffers will
+	  be flushed before allocating a new buffer.  The default
+	  value of the variable is <literal>-1</literal>
+	  (disabled).</para>
 
 	<para>ZFS has been updated from version 6 to version 13.
 	  This update includes numerous new ZFS features, such as
@@ -178,7 +295,98 @@
     <sect2 id="userland">
       <title>Userland Changes</title>
 
-      <para></para>
+      <para>The &man.bluetooth.3; library now supports Bluetooth HCI
+	API.</para>
+
+      <para>The &man.btpand.8; daemon now supports Bluetooth device
+	node names in a <option>-d</option> option.</para>
+
+      <para>A bug in the &man.chflags.1; <option>-h</option> option
+	has been fixed.  It used link target's flags as the original
+	one.</para>
+
+      <para>The &man.cpuset.1; command now supports interrupt binding
+	by a new option <option>-x
+	  <replaceable>irq</replaceable></option>.</para>
+
+      <para>A bug in the &man.dhclient.8; utility when appending a
+	NUL-terminated text provided by a DHCP server, has been
+	fixed.</para>
+
+      <para>The &man.fdisk.8; utility now supports size qualifiers (K,
+	M, and G) and <literal>*</literal> for automatic calculation
+	in the <command>p</command> command.</para>
+
+      <para>A bug in the &man.fetch.1; command that
+	<varname>FTP_TIMEOUT</varname> and
+	<varname>HTTP_TIMEOUT</varname> environment variables were
+	ignored, has been fixed.</para>
+
+      <para>A bug in the &man.fetch.1; command that default parameters
+	such as connection timeout were not set for HTTPS protocol,
+	has been fixed.  It now uses the same parameters as
+	HTTP.</para>
+
+      <para>A bug in the &man.find.1; command has been fixed.  It
+	ignored an <option>-L</option> option when
+	<option>-delete</option> is specified.
+	The following command can be safely used to remove broken links:</para>
+
+      <screen>find -L . -type l -print0 | xargs rm -0</screen>
+
+      <para>The &man.ktrace.1; utility now supports a new
+	<literal>KTRACE</literal> record for &man.sysctl.3;
+	invocations.</para>
+
+      <para>&os; <application>libc</application> library now includes
+	&man.fdopendir.3; function.</para>
+
+      <para>&os; <application>libc</application> library now includes
+	&man.feature.present.3; function which checks to see if a
+	named kernel feature is present by checking the
+	<varname>kern.features</varname> sysctl MIB.</para>
+
+      <para>The &man.man.1; command now supports manual pages in UTF-8.</para>
+
+      <para>The &man.mergemaster.8; utility now uses an
+	<option>-L</option> option when it invokes &man.mtree.8;
+	command to follow symbolic links.</para>
+
+      <para>The &man.newfs.msdos.8; command now supports media which
+	have no CHS parameter.</para>
+
+      <para>The &man.pkill.1; command now ignores itself and the
+	ancestors when finding processes.  An <option>-a</option>
+	option has been added for backward compatible behavior.</para>
+
+      <para>The &man.ps.1; command now supports a new flag
+	<option>-p</option>.  This displays descendant info with the
+	output similar to Linux's <option>-H</option> (or
+	<option>-f</option>).</para>
+
+      <para>The &man.pwd.mkdb.8; now verifies login name length is
+	shorter than <varname>MAXLOGNAME</varname> when a
+	<option>-C</option> option is specified.  Note that entries
+	with oversized login names are still allowed in the passwd
+	database, and <function>getpwent*()</function> and
+	<function>getpwuid*()</function> functions return them
+	correctly.  The <function>getpwnam*()</function> truncates
+	them to <varname>MAXLOGNAME</varname> - 1 when reading the
+	database.  The &man.su.1; utility fails for the long
+	names.</para>
+
+      <para>The &os; runtime linker, &man.rtld.1; now supports a new
+	environment variable <varname>LD_ELF_HINTS_PATH</varname> for
+	overriding the rtld hints file.  This feature gives a
+	convenient way of using a custom set of shared library that is
+	not located in the default location and switch back.  This
+	environment variable is automatically unset if the process is
+	tainted with setuid/setgid.</para>
+
+      <para>The &man.sysinstall.8; utility now supports a
+	comma-separated list of network interfaces in
+	<varname>netDev</varname> option in
+	<filename>install.cfg</filename>.</para>
 
       <sect3 id="rc-scripts">
 	<title><filename>/etc/rc.d</filename> Scripts</title>
@@ -192,13 +400,17 @@
 
       <para><application>sendmail</application> has been updated from
         version 8.14.3 to version 8.14.4.</para>
+
+      <para>The timezone database has been updated
+	to the <application>tzdata2009i</application> release.</para>
     </sect2>
 
     <sect2 id="ports">
       <title>Ports/Packages Collection Infrastructure</title>
 
-      <para></para>
-
+      <para>A bug in the &man.pkg.info.1; command which caused a
+	segmentation fault when an invalid long option is specified,
+	has been fixed.</para>
     </sect2>
 
     <sect2 id="releng">
