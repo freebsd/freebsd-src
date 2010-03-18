@@ -100,14 +100,32 @@ static int altq_enabled = 0;
 
 #define PFQ_TABLE_MAXAGE	5
 
+struct pfl_entry {
+	char		name[MAXPATHLEN + PF_RULE_LABEL_SIZE];
+	u_int64_t	evals;
+	u_int64_t	bytes[2];
+	u_int64_t	pkts[2];
+	u_int		index;
+	TAILQ_ENTRY(pfl_entry) link;
+};
+TAILQ_HEAD(pfl_table, pfl_entry);
+
+static struct pfl_table pfl_table;
+static time_t pfl_table_age;
+static int pfl_table_count;
+
+#define	PFL_TABLE_MAXAGE	5
+
 /* Forward declarations */
 static int pfi_refresh(void);
 static int pfq_refresh(void);
 static int pfs_refresh(void);
 static int pft_refresh(void);
+static int pfl_refresh(void);
 static struct pfi_entry * pfi_table_find(u_int idx);
 static struct pfq_entry * pfq_table_find(u_int idx);
 static struct pft_entry * pft_table_find(u_int idx);
+static struct pfl_entry * pfl_table_find(u_int idx);
 
 static int altq_is_enabled(int pfdevice);
 
@@ -873,7 +891,95 @@ pf_altqq(struct snmp_context __unused *ctx, struct snmp_value *val,
 	}
 
 	return (SNMP_ERR_NOERROR);
-}	
+}
+
+int
+pf_labels(struct snmp_context __unused *ctx, struct snmp_value *val,
+	u_int sub, u_int __unused vindex, enum snmp_op op)
+{
+	asn_subid_t	which = val->var.subs[sub - 1];
+
+	if (op == SNMP_OP_SET)
+		return (SNMP_ERR_NOT_WRITEABLE);
+
+	if (op == SNMP_OP_GET) {
+		if ((time(NULL) - pfl_table_age) > PFL_TABLE_MAXAGE)
+			if (pfl_refresh() == -1)
+				return (SNMP_ERR_GENERR);
+
+		switch (which) {
+			case LEAF_pfLabelsLblNumber:
+				val->v.uint32 = pfl_table_count;
+				break;
+
+			default:
+				return (SNMP_ERR_NOSUCHNAME);
+		}
+
+		return (SNMP_ERR_NOERROR);
+	}
+
+	abort();
+	return (SNMP_ERR_GENERR);
+}
+
+int
+pf_lbltable(struct snmp_context __unused *ctx, struct snmp_value *val,
+	u_int sub, u_int __unused vindex, enum snmp_op op)
+{
+	asn_subid_t	which = val->var.subs[sub - 1];
+	struct pfl_entry *e = NULL;
+
+	switch (op) {
+		case SNMP_OP_SET:
+			return (SNMP_ERR_NOT_WRITEABLE);
+		case SNMP_OP_GETNEXT:
+			if ((e = NEXT_OBJECT_INT(&pfl_table,
+			    &val->var, sub)) == NULL)
+				return (SNMP_ERR_NOSUCHNAME);
+			val->var.len = sub + 1;
+			val->var.subs[sub] = e->index;
+			break;
+		case SNMP_OP_GET:
+			if (val->var.len - sub != 1)
+				return (SNMP_ERR_NOSUCHNAME);
+			if ((e = pfl_table_find(val->var.subs[sub])) == NULL)
+				return (SNMP_ERR_NOSUCHNAME);
+			break;
+
+		case SNMP_OP_COMMIT:
+		case SNMP_OP_ROLLBACK:
+		default:
+			abort();
+	}
+
+	if ((time(NULL) - pfl_table_age) > PFL_TABLE_MAXAGE)
+		pfl_refresh();
+
+	switch (which) {
+		case LEAF_pfLabelsLblName:
+			return (string_get(val, e->name, -1));
+		case LEAF_pfLabelsLblEvals:
+			val->v.counter64 = e->evals;
+			break;
+		case LEAF_pfLabelsLblBytesIn:
+			val->v.counter64 = e->bytes[IN];
+			break;
+		case LEAF_pfLabelsLblBytesOut:
+			val->v.counter64 = e->bytes[OUT];
+			break;
+		case LEAF_pfLabelsLblPktsIn:
+			val->v.counter64 = e->pkts[IN];
+			break;
+		case LEAF_pfLabelsLblPktsOut:
+			val->v.counter64 = e->pkts[OUT];
+			break;
+		default:
+			return (SNMP_ERR_NOSUCHNAME);
+	}
+
+	return (SNMP_ERR_NOERROR);
+}
 
 static struct pfi_entry *
 pfi_table_find(u_int idx)
@@ -890,6 +996,7 @@ static struct pfq_entry *
 pfq_table_find(u_int idx)
 {
 	struct pfq_entry *e;
+
 	TAILQ_FOREACH(e, &pfq_table, link)
 		if (e->index == idx)
 			return (e);
@@ -904,6 +1011,18 @@ pft_table_find(u_int idx)
 	TAILQ_FOREACH(e, &pft_table, link)
 		if (e->index == idx)
 			return (e);
+	return (NULL);
+}
+
+static struct pfl_entry *
+pfl_table_find(u_int idx)
+{
+	struct pfl_entry *e;
+
+	TAILQ_FOREACH(e, &pfl_table, link)
+		if (e->index == idx)
+			return (e);
+
 	return (NULL);
 }
 
@@ -1129,6 +1248,135 @@ err2:
 	return(-1);
 }
 
+static int
+pfl_scan_ruleset(const char *path)
+{
+	struct pfioc_rule pr;
+	struct pfl_entry *e;
+	u_int32_t nr, i;
+
+	bzero(&pr, sizeof(pr));
+	strlcpy(pr.anchor, path, sizeof(pr.anchor));
+	pr.rule.action = PF_PASS;
+	if (ioctl(dev, DIOCGETRULES, &pr)) {
+		syslog(LOG_ERR, "pfl_scan_ruleset: ioctl(DIOCGETRULES): %s",
+		    strerror(errno));
+		goto err;
+	}
+
+	for (nr = pr.nr, i = 0; i < nr; i++) {
+		pr.nr = i;
+		if (ioctl(dev, DIOCGETRULE, &pr)) {
+			syslog(LOG_ERR, "pfl_scan_ruleset: ioctl(DIOCGETRULE):"
+			    " %s", strerror(errno));
+			goto err;
+		}
+
+		if (pr.rule.label[0]) {
+			e = (struct pfl_entry *)malloc(sizeof(*e));
+			if (e == NULL)
+				goto err;
+
+			strlcpy(e->name, path, sizeof(e->name));
+			if (path[0])
+				strlcat(e->name, "/", sizeof(e->name));
+			strlcat(e->name, pr.rule.label, sizeof(e->name));
+
+			e->evals = pr.rule.evaluations;
+			e->bytes[IN] = pr.rule.bytes[IN];
+			e->bytes[OUT] = pr.rule.bytes[OUT];
+			e->pkts[IN] = pr.rule.packets[IN];
+			e->pkts[OUT] = pr.rule.packets[OUT];
+			e->index = ++pfl_table_count;
+
+			TAILQ_INSERT_TAIL(&pfl_table, e, link);
+		}
+	}
+
+	return (0);
+
+err:
+	return (-1);
+}
+
+static int
+pfl_walk_rulesets(const char *path)
+{
+	struct pfioc_ruleset prs;
+	char newpath[MAXPATHLEN];
+	u_int32_t nr, i;
+
+	if (pfl_scan_ruleset(path))
+		goto err;
+
+	bzero(&prs, sizeof(prs));
+	strlcpy(prs.path, path, sizeof(prs.path));
+	if (ioctl(dev, DIOCGETRULESETS, &prs)) {
+		syslog(LOG_ERR, "pfl_walk_rulesets: ioctl(DIOCGETRULESETS): %s",
+		    strerror(errno));
+		goto err;
+	}
+
+	for (nr = prs.nr, i = 0; i < nr; i++) {
+		prs.nr = i;
+		if (ioctl(dev, DIOCGETRULESET, &prs)) {
+			syslog(LOG_ERR, "pfl_walk_rulesets: ioctl(DIOCGETRULESET):"
+			    " %s", strerror(errno));
+			goto err;
+		}
+
+		if (strcmp(prs.name, PF_RESERVED_ANCHOR) == 0)
+			continue;
+
+		strlcpy(newpath, path, sizeof(newpath));
+		if (path[0])
+			strlcat(newpath, "/", sizeof(newpath));
+
+		strlcat(newpath, prs.name, sizeof(newpath));
+		if (pfl_walk_rulesets(newpath))
+			goto err;
+	}
+
+	return (0);
+
+err:
+	return (-1);
+}
+
+static int
+pfl_refresh(void)
+{
+	struct pfl_entry *e;
+
+	if (started && this_tick <= pf_tick)
+		return (0);
+
+	while (!TAILQ_EMPTY(&pfl_table)) {
+		e = TAILQ_FIRST(&pfl_table);
+		TAILQ_REMOVE(&pfl_table, e, link);
+		free(e);
+	}
+	pfl_table_count = 0;
+
+	if (pfl_walk_rulesets(""))
+		goto err;
+
+	pfl_table_age = time(NULL);
+	pf_tick = this_tick;
+
+	return (0);
+
+err:
+	while (!TAILQ_EMPTY(&pfl_table)) {
+		e = TAILQ_FIRST(&pfl_table);
+		TAILQ_REMOVE(&pfl_table, e, link);
+		free(e);
+	}
+	pfl_table_count = 0;
+
+	return (-1);
+}
+
 /*
  * check whether altq support is enabled in kernel
  */
@@ -1175,6 +1423,7 @@ pf_init(struct lmodule *mod, int __unused argc, char __unused *argv[])
 	TAILQ_INIT(&pfi_table);
 	TAILQ_INIT(&pfq_table);
 	TAILQ_INIT(&pft_table);
+	TAILQ_INIT(&pfl_table);
 
 	pfi_refresh();
 	if (altq_enabled) {
@@ -1183,6 +1432,7 @@ pf_init(struct lmodule *mod, int __unused argc, char __unused *argv[])
 
 	pfs_refresh();
 	pft_refresh();
+	pfl_refresh();
 
 	started = 1;
 
@@ -1195,6 +1445,7 @@ pf_fini(void)
 	struct pfi_entry *i1, *i2;
 	struct pfq_entry *q1, *q2;
 	struct pft_entry *t1, *t2;
+	struct pfl_entry *l1, *l2;
 
 	/* Empty the list of interfaces */
 	i1 = TAILQ_FIRST(&pfi_table);
@@ -1212,12 +1463,20 @@ pf_fini(void)
 		q1 = q2;
 	}
 
-	/* And the list of tables */
+	/* List of tables */
 	t1 = TAILQ_FIRST(&pft_table);
 	while (t1 != NULL) {
 		t2 = TAILQ_NEXT(t1, link);
 		free(t1);
 		t1 = t2;
+	}
+
+	/* And the list of labeled filter rules */
+	l1 = TAILQ_FIRST(&pfl_table);
+	while (l1 != NULL) {
+		l2 = TAILQ_NEXT(l1, link);
+		free(l1);
+		l1 = l2;
 	}
 
 	close(dev);
@@ -1232,6 +1491,7 @@ pf_dump(void)
 		pfq_refresh();
 	}
 	pft_refresh();
+	pfl_refresh();
 
 	syslog(LOG_ERR, "Dump: pfi_table_age = %jd",
 	    (intmax_t)pfi_table_age);
@@ -1245,9 +1505,13 @@ pf_dump(void)
 
 	syslog(LOG_ERR, "Dump: pft_table_age = %jd",
 	    (intmax_t)pft_table_age);
-
 	syslog(LOG_ERR, "Dump: pft_table_count = %d",
 	    pft_table_count);
+
+	syslog(LOG_ERR, "Dump: pfl_table_age = %jd",
+	    (intmax_t)pfl_table_age);
+	syslog(LOG_ERR, "Dump: pfl_table_count = %d",
+	    pfl_table_count);
 }
 
 const struct snmp_module config = {
