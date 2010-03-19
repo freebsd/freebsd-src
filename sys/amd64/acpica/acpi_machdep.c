@@ -627,8 +627,10 @@ map_table(vm_paddr_t pa, int offset, const char *sig)
 	if (ACPI_FAILURE(AcpiTbChecksum(table, length))) {
 		if (bootverbose)
 			printf("ACPI: Failed checksum for table %s\n", sig);
+#if (ACPI_CHECKSUM_ABORT)
 		table_unmap(table, length);
 		return (NULL);
+#endif
 	}
 	return (table);
 }
