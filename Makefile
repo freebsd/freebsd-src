@@ -27,6 +27,7 @@ SRCS+=		gzlib.c
 SRCS+=		gzread.c
 SRCS+=		gzwrite.c
 SRCS+=		infback.c
+SRCS+=		inffast.c
 SRCS+=		inflate.c
 SRCS+=		inftrees.c
 SRCS+=		trees.c
@@ -34,22 +35,16 @@ SRCS+=		uncompr.c
 SRCS+=		zopen.c
 SRCS+=		zutil.c
 
-.if ${MACHINE_ARCH} == "i386" && defined(MACHINE_CPU)
-.if ${MACHINE_CPU:M*i686*}
+.if ${MACHINE_ARCH} == "i386" && ${MACHINE_CPU:M*i686*}
 .PATH:		${.CURDIR}/contrib/asm686
 SRCS+=		match.S
 CFLAGS+=	-DASMV -DNO_UNDERLINE
 .endif
-.endif
 
 .if ${MACHINE_ARCH} == "amd64"
 .PATH:		${.CURDIR}/contrib/gcc_gvmat64
-.PATH:		${.CURDIR}/contrib/inflate86
 SRCS+=		gvmat64.S
-SRCS+=		inffas86.c
-CFLAGS+=	-DASMV -DASMINF -DNO_UNDERLINE
-.else
-SRCS+=		inffast.c
+CFLAGS+=	-DASMV -DNO_UNDERLINE
 .endif
 
 INCS=		zconf.h zlib.h
