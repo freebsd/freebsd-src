@@ -16,7 +16,7 @@
 
 <!ENTITY % release PUBLIC "-//FreeBSD//ENTITIES Release Specification//EN">
 %release;
-<!ENTITY release.bugfix "7.2-RELEASE">
+<!ENTITY release.bugfix "7.3-RELEASE">
 ]>
 
 <article>
@@ -40,8 +40,7 @@
     <pubdate>$FreeBSD$</pubdate>
 
     <copyright>
-      <year>2008</year>
-      <year>2009</year>
+      <year>2010</year>
       <holder role="mailto:doc@FreeBSD.org">The &os; Documentation Project</holder>
     </copyright>
 
@@ -120,13 +119,12 @@
     <para>For a list of all &os; CERT security advisories, see <ulink
       url="http://www.FreeBSD.org/security/"></ulink> or <ulink
       url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/"></ulink>.</para>
-
   </sect1>
 
   <sect1 id="security">
     <title>Security Advisories</title>
 
-    <para>No advisories.</para>
+    <para>No advisory.</para>
 
 <!--
     <para>The following security advisories pertain to &os; &release.bugfix;.
@@ -163,50 +161,11 @@
   <sect1 id="open-issues">
     <title>Open Issues</title>
 
-    <para>[20090501] Some machines do not recognize the i386 disc1 as
-      bootable and fall through to booting off the next boot device.
-      All affected machines did see the other discs as bootable.  As a
-      workaround, you can boot using the bootonly or livefs CDROM and
-      then swap in disc1 once &man.sysinstall.8; starts.</para>
-
-    <para>[20090504] A lock handling error has been found in
-      interaction between &man.malloc.3; implementation and threading
-      library.  When a multi-threaded process calls the &man.fork.2;
-      system call in a thread and the &man.malloc.3; function in
-      another thread, it can cause a deadlock in the child process.
-      An Errata Notice to fix this problem is planned after the
-      release.</para>
-
-    <para>[20090505] A bug was found in the &man.bce.4; driver.  This
-      prevents it from working with the &man.lagg.4; driver in the
-      LACP (IEEE 802.3ad Link Aggregation Control Protocol) mode.  An
-      Errata Notice to fix this problem is planned after the
-      release.</para>
-
-    <para>[20090507] A bug was found in the &man.fxp.4; driver.  This
-      would cause poor TCP performance when TSO is enabled, and the
-      receiver has a smaller MSS than the interface MTU setting.  To
-      workaround this issue, one can disable TSO by using
-      &man.ifconfig.8; <option>-tso</option> parameter (per interface
-      basis) or setting <varname>net.inet.tcp.tso</varname> to
-      <literal>0</literal> (globally on the system).  An Errata Notice
-      to fix this problem is planned after the release.</para>
-
-    <para>[20090608] An issue was found in the &man.bge.4; driver that
-      it can cause a system panic upon reboot with heavy network
-      traffic.  A fix has been committed to RELENG_7 (r192127).</para>
+    <para>No issue.</para>
 
   <sect1 id="late-news">
     <title>Late-Breaking News and Corrections</title>
 
-    <para>[20090504] A patch to solve the locking issue in the
-      &man.malloc.3; implementation and threading library has been
-      committed to the <literal>RELENG_7</literal> branch for public
-      testing.</para>
-
-    <para>[20090507] A patch to solve the bug in the &man.fxp.4;
-      driver that caused poor TCP performance has been committed to
-      the <literal>RELENG_7</literal> branch for public
-      testing.</para>
+    <para>No news.</para>
   </sect1>
 </article>
