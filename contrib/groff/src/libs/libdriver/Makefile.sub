@@ -1,7 +1,0 @@
-LIB=driver
-OBJS=\
-  input.$(OBJEXT) \
-  printer.$(OBJEXT)
-CCSRCS=\
-  $(srcdir)/input.cpp \
-  $(srcdir)/printer.cpp
