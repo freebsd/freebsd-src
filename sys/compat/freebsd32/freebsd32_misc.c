@@ -1400,60 +1400,6 @@ freebsd4_freebsd32_fhstatfs(struct thread *td, struct freebsd4_freebsd32_fhstatf
 }
 #endif
 
-#if defined(COMPAT_FREEBSD4) || defined(COMPAT_FREEBSD5) || \
-    defined(COMPAT_FREEBSD6) || defined(COMPAT_FREEBSD7)
-static void
-freebsd32_ipcperm_old_in(struct ipc_perm32_old *ip32, struct ipc_perm *ip)
-{
-
-	CP(*ip32, *ip, cuid);
-	CP(*ip32, *ip, cgid);
-	CP(*ip32, *ip, uid);
-	CP(*ip32, *ip, gid);
-	CP(*ip32, *ip, mode);
-	CP(*ip32, *ip, seq);
-	CP(*ip32, *ip, key);
-}
-
-static void
-freebsd32_ipcperm_old_out(struct ipc_perm *ip, struct ipc_perm32_old *ip32)
-{
-
-	CP(*ip, *ip32, cuid);
-	CP(*ip, *ip32, cgid);
-	CP(*ip, *ip32, uid);
-	CP(*ip, *ip32, gid);
-	CP(*ip, *ip32, mode);
-	CP(*ip, *ip32, seq);
-	CP(*ip, *ip32, key);
-}
-#endif
-
-static void
-freebsd32_ipcperm_in(struct ipc_perm32 *ip32, struct ipc_perm *ip)
-{
-
-	CP(*ip32, *ip, cuid);
-	CP(*ip32, *ip, cgid);
-	CP(*ip32, *ip, uid);
-	CP(*ip32, *ip, gid);
-	CP(*ip32, *ip, mode);
-	CP(*ip32, *ip, seq);
-	CP(*ip32, *ip, key);
-}
-
-static void
-freebsd32_ipcperm_out(struct ipc_perm *ip, struct ipc_perm32 *ip32)
-{
-
-	CP(*ip, *ip32, cuid);
-	CP(*ip, *ip32, cgid);
-	CP(*ip, *ip32, uid);
-	CP(*ip, *ip32, gid);
-	CP(*ip, *ip32, mode);
-	CP(*ip, *ip32, seq);
-	CP(*ip, *ip32, key);
-}
 
 int
 freebsd32_semsys(struct thread *td, struct freebsd32_semsys_args *uap)
