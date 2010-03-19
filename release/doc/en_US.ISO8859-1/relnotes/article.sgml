@@ -151,13 +151,35 @@
     <sect2 id="kernel">
       <title>Kernel Changes</title>
 
+      <para>The &man.acpi.4; subsystem now supports parsing SRAT
+	(System Resource Affinity Table used to describe affinity
+	relationships between CPUs and memory.</para>
+
+      <para>The &man.closefrom.2; system call has been added.  This
+	closes any open file descriptors which are equal to or larger
+	than the specified value.  Note that this does not fail with
+	any errors and this is not multi-thread safe.</para>
+
       <para>The &man.ddb.8; subcommands for &man.geom.8; now supports
 	pagination.</para>
 
-      <para>&os; Linux emulation layer now supports robust futex, and
-	futex has been reimplemented by using &man.sx.9; lock.
-	Initial support of &man.ktr.4; tracing has also been
-	added.</para>
+      <para>The &man.futimes.2;, &man.lutimes.2;, and &man.utimes.2;
+	system call now support a sysctl variable
+	<varname>vfs.timestamp_precision</varname>.</para>
+
+      <para arch="amd64">The <varname>kmem_map</varname> KVA space has
+	been increased to 512GB.</para>
+
+      <para>The &man.lindev.4; driver has been added.  This is for
+	linux-specific pseudo devices and currently used only for
+	<filename>/dev/full</filename>.</para>
+
+      <para>&os; Linux emulation layer now supports
+	<varname>SO_PEERCRED</varname> socket option,
+	<varname>MSG_CMSG_CLOEXEC</varname> for
+	<function>recvmsg()</function>, and robust futex.  The futex
+	has been reimplemented by using &man.sx.9; lock.  Initial
+	support of &man.ktr.4; tracing has also been added.</para>
 
       <para>A lock handling error has been fixed in interaction
 	between &man.malloc.3; implementation and threading library.
@@ -165,18 +187,84 @@
 	call in a thread and the &man.malloc.3; function in another
 	thread, it caused a deadlock in the child process.</para>
 
+      <para>PECOFF image activator support has been removed.</para>
+
+      <para>&os; now supports POSIX semaphores
+	(<varname>P1003_1B_SEMAPHORES</varname> kernel option) by
+	default.</para>
+
+      <para>&os; now supports shared memory segments for System V IPC
+	which is larger than 2GB on 64-bit platforms.  For more
+	details, see <filename>/usr/src/UPDATING</filename>
+	file.</para>
+
+      <para>The &man.sglist.9; API to manage scatter/gather lists of
+	phyiscal addresses has been added.</para>
+
+      <para>&os; ABI of some of the structures used by the System V
+	IPC API has been changed internally.  For new kernel modules,
+	the <function>kern_msgctl()</function>,
+	<function>kern_semctl()</function>, and
+	<function>kern_shmctl()</function> functions will be
+	transparently renamed to the new
+	<function>kern_new_*()</function> functions by using ABI
+	shims.  The old functions remain as the old names to provide
+	backward compatibility for older kernel modules.</para>
+
+      <para arch="amd64,i386">The &os; virtual memory
+	subsystem now supports fully transparent use of
+	<application>superpages</application> for application memory;
+	application memory pages are dynamically promoted to or
+	demoted from superpages without any modification to
+	application code.  This change offers the benefit of large
+	page sizes such as improved virtual memory efficiency and
+	reduced TLB (translation lookaside buffer) misses without
+	downsides like application changes and virtual memory
+	inflexibility. This can be enabled by setting a loader tunable
+	<varname>vm.pmap.pg_ps_enabled</varname> to
+	<literal>1</literal> and is enabled by default on
+	&arch.amd64;.</para>
+
       <sect3 id="boot">
 	<title>Boot Loader Changes</title>
 
 	<para>A new boot loader <literal>gptzfsboot</literal>, which
 	  support GPT and ZFS has been added.</para>
 
-	<para>The boot loader <literal>zfsboot</literal> now supports
-	  more than sevevn drives in the ZFS pools.</para>
+	<para>The boot loader <literal>zfsboot</literal> now always
+	  uses 64-bit LBAs and supports more than seven drives in the
+	  ZFS pools.</para>
+
+	<para>A bug in <literal>zfsboot</literal> has been fixed.  A
+	  <filename>/boot.config</filename> smaller than 512 bytes
+	  was ignored.</para>
+
+	<para><literal>zfsloader</literal>, the final boot loader
+	  similar to &man.loader.8; which supports ZFS has been
+	  added.</para>
+
+	<para>A bug in the boot loader has been fixed.  It failed to
+	  recognize GPT correctly when the system supports both of MBR
+	  and GPT and they are synchronized with each other.</para>
       </sect3>
 
       <sect3 id="proc">
 	<title>Hardware Support</title>
+
+	<para>The <application>amdsbwd(4)</application> driver for AMD
+	  SB600/SB7xx watchdog timer has been added.</para>
+
+	<para>The &man.cpuctl.4; driver now supports atomically
+	  setting/clearing individual bits of a MSR register.  Two new
+	  ioctl calls <varname>CPUCTL_MSRSBIT</varname> and
+	  <varname>CPUCTL_MSRCBIT</varname> treat the data field of
+	  struct in the argument passed as a mask and set/clear bits
+	  of the MSR register according to the mask value.  The
+	  &man.cpucontrol.8; utility also supports this feature.  For
+	  more details, see Userland Changes section.</para>
+
+	<para>The &man.cpufreq.4; driver now supports Phenom (Family
+	  10h).</para>
 
 	<para arch="amd64,i386">The &man.hwpmc.4; driver for Hardware
 	  Performance Monitoring Counter support has been added.  This
@@ -187,9 +275,21 @@
 	  data about specific processes or for the system as a
 	  whole.</para>
 
+	<para>Several bugs in the &man.ipmi.4; driver which prevents
+	  the watchdog timeout setting from working, have been
+	  fixed.</para>
+
 	<para>The &man.k8temp.4; driver has been renamed with
 	  &man.amdtemp.4;.  The new driver supports AMD K10 and K11 as
 	  well as K8.</para>
+
+	<para>A loader tunable <varname>hw.mca.enabled</varname> has
+	  been added.  This can be used to enable/disable the machine
+	  check code.  Disabled by default.</para>
+
+	<para>A sysctl variable <varname>hw.pagesizes</varname> has
+	  been added.  This reports all of the supported page sizes on
+	  the system.</para>
 
 	<para>The &man.pci.4; subsystem now supports proxying of PCI
 	  Express MSI/MSI-X (Message Signaled Interrupt) requests and
@@ -204,25 +304,58 @@
 	  <literal>1</literal>.  This value can be queried via a
 	  sysctl variable of the same name.</para>
 
+	<para arch="amd64,i386">&os; now supports VIA Nano processor
+	  family.</para>
+
 	<sect4 id="mm">
 	  <title>Multimedia Support</title>
 
-	  <para></para>
+	  <para><application>DRM</application> now supports Radeon HD
+	    4200 (RS880), 4770 (RV740), and R6/7xx 3D, and Intel G41
+	    chips.</para>
 	</sect4>
 
 	<sect4 id="net-if">
 	  <title>Network Interface Support</title>
 
-	  <para>A bug in the &man.bge.4; driver has been fixed.  It
-	    caused a panic when a lot of traffic is being handled on
-	    the interface while the system is shutting down.</para>
+	  <para>The &man.alc.4; driver for Atheros AR8131/AR8132 PCIe
+	    ethernet controller has been added.</para>
+
+	  <para>Several bugs in the &man.bge.4; driver have been
+	    fixed.  It caused a panic when a lot of traffic is being
+	    handled on the interface while the system is shutting
+	    down, and had a DMA issue when buffer address crosses a
+	    multple of the 4GB boundaries.</para>
+
+	  <para>The &man.bge.4; driver now supports TSO (TCP
+	    segmentation offloading) for BCM5755 or newer
+	    chips.</para>
+
+	  <para arch="sparc64">The &man.cas.4; driver has been added
+	    to provide support for Sun Cassini/Cassini+ and National
+	    Semiconductor DP83065 Saturn Gigabit Ethernet
+	    devices.</para>
 
 	  <para>The &man.cxgb.4; driver has been upgraded to the
 	    latest version.  The firmware version is 7.1.0.</para>
 
-	  <para>A bug in the &man.fxp.4; driver has been fixed.  It
-	    caused incorrect IP packet length in the header when TSO
-	    (TCP segmentation offloading) is enabled.</para>
+	  <para>The &man.et.4; driver now supports IPv4/TCP/UDP Tx
+	    checksum offloading.</para>
+
+	  <para>The &man.fxp.4; driver has been improved.  The
+	    multicast filter re-programming is now more robust.  A bug
+	    which caused incorrect IP packet length in the header when
+	    TSO (TCP segmentation offloading) is enabled has been
+	    fixed.</para>
+
+	  <para>The &man.msk.4; driver has been improved for robust
+	    operation.  Also, it now supports Yukon FE+ A0 including
+	    88E8040, 88E8040T, 88E8042, 88E8048, 88E8057, and
+	    88E8070.</para>
+
+	  <para>Several bugs in the &man.mxge.4; driver have been
+	    fixed.  It could lost the promiscuous flag on resetting
+	    and a kernel panic on the hardware fault.</para>
 
 	  <para>A bug in the &man.nfe.4; driver has been fixed.  It
 	    caused buffer allocation failure for jumbo frames.</para>
@@ -240,12 +373,51 @@
 	    ranges are <literal>1</literal> (100us) to
 	    <literal>255</literal>, and the actual delivery of
 	    interrupt would be delayed based on this value.  The
-	    default is <literal>1</literal>.</para>
+	    default is <literal>1</literal>.  For more details, see
+	    &man.nge.4; manual page.</para>
+
+	  <para>The &man.vge.4; driver has been improved.  It now
+	    supports hardware checksum offloading for &man.vlan.4;
+	    tagged frames and WoL (Wake-on-Lan).  Hardware MAC
+	    statistics can be obtained via a new sysctl variable
+	    <varname>dev.vge.<replaceable>N</replaceable>.stats</varname>.
+	    Another new sysctl variables
+	    <varname>dev.nge.<replaceable>N</replaceable>.int_holdoff</varname>,
+	    <varname>dev.nge.<replaceable>N</replaceable>.rx_coal_pkt</varname>,
+	    and
+	    <varname>dev.nge.<replaceable>N</replaceable>.tx_coal_pkt</varname>
+	    has been added to control interrupt moderation.  For more
+	    details, see &man.vge.4; manual page.</para>
+
+	  <para>A bug in the &man.xl.4; driver which caused occasional
+	    watchdog timeouts has been fixed.</para>
 	</sect4>
       </sect3>
 
       <sect3 id="net-proto">
 	<title>Network Protocols</title>
+
+	<para>A bug in the &man.gif.4; that EtherIP packets sent by
+	  combination of &man.if.bridge.4; and &man.gif.4; have a
+	  reversed version field has been fixed.  If you need to
+	  communicate with older &os; releases via EtherIP, use new
+	  flags <literal>accept_rev_ethip_ver</literal> and
+	  <literal>send_rev_ethip_ver</literal> to control handling
+	  the reversed version field. These can be set by
+	  &man.ifconfig.8 utility to &man.gif.4; interfaces.  The
+	  EtherIP implementation found on &os; 6.1, 6.2, 6.3, 7.0,
+	  7.1, and 7.2 had an interoperability issue because it sent
+	  the incorrect EtherIP packets and discarded the correct
+	  ones.  For more details, see &man.gif.4; manual page.</para>
+
+	<para>IPcomp protocol is now enabled by default.  This can be
+	  controlled by a sysctl variable
+	  <varname>net.inet.ipcomp.ipcomp_enable</varname>.</para>
+
+	<para>A bug in the &man.ng.iface.4; driver has been fixed.
+	  An infinite loop happened when a packet passes out via two
+	  different &man.netgraph.3; interfaces sequentially due to
+	  tunneling.</para>
 
 	<para>A kernel option
 	  <varname>IPFW_DEFAULT_TO_ACCEPT</varname> has been replaced
@@ -253,22 +425,75 @@
 	  <varname>net.inet.ip.fw.default_to_accept</varname>.  The
 	  value can be queried via a sysctl variable of the same
 	  name.</para>
+
+	<para>The &man.tap.4; software network interface supports a
+	  new ioctl <varname>TAPGIFNAME</varname>.  This is
+	  convenient shortcut ported from NetBSD to obtain network
+	  interface name using file descriptor for character
+	  device.</para>
       </sect3>
 
       <sect3 id="disks">
 	<title>Disks and Storage</title>
 
-	<para></para>
+	<para>The &man.aac.4; driver has been synchronized with the
+	  latest official vendor driver.</para>
 
+	<para>The &man.ahc.4; driver now supports Adaptec 39320LPE
+	  adapters.</para>
+
+	<para>ATA command timeout in the &man.ata.4; driver has been
+	  increased.  This value can be set by using a kernel option
+	  <option>ATA_REQUEST_TIMEOUT</option>.</para>
+
+	<para>A bug in the &man.ata.4; driver has been fixed.  It
+	  could generate an I/O request larger than contoller's
+	  maximum I/O size and caused a kernel panic.</para>
+
+	<para>An algorithm for <literal>load</literal> balancing mode
+	  in the &man.gmirror.8; GEOM class has been changed and this
+	  mode is now set by default instead of
+	  <literal>split</literal>.  The <literal>load</literal> mode
+	  uses averaged number of requests, running on each drive
+	  instead of measuring last request execution time for each
+	  drive and choosing one with smallest time.</para>
+
+	<para>A bug in the &man.gpart.8; GEOM class has been fixed.
+	  It could not handle a GPT header whose size is greater than
+	  92 bytes which is written by OpenSolaris.</para>
+
+	<para>The &man.hptrr.4; driver now supports a new loader
+	  tunable <varname>hw.hptrr.attach_generic</varname> to
+	  prevent the driver from being attached to some Marvell chips
+	  which have no HPT RAID BIOS.</para>
+
+	<para>The &man.mfi.4; driver now supports LSI MegaRAID SAS
+	1078 and Dell PERC6.</para>
       </sect3>
 
       <sect3 id="fs">
 	<title>File Systems</title>
 
+	<para>The &man.ext2fs.5; file system has been improved.  A bug
+	  when the inode size is other than 128 has been fixed.</para>
+
 	<para>&os; Network File System now supports caching of
 	  negative pathname lookup in the NFS client, and uses 3
 	  seconds timeout (30 seconds in the prior releases) for
 	  caching attributes of a directory in the client.</para>
+
+	<para>The &man.pseudofs.9; subsystem used in &man.procfs.5;
+	  and &man.linprocfs.5; are now MPSAFE.</para>
+
+	<para><application>UFS_DIRHASH</application> (enabled by
+	  default) now supports removing the cache data when the
+	  system memory is low (via <varname>vm_lowmem</varname> event
+	  handler).  A bug that the system caused a panic when
+	  decreasing a sysctl variable
+	  <varname>vfs.ufs.dirhash_maxmem</varname> below the current
+	  amount of memory used by
+	  <application>UFS_DIRHASH</application>, has been
+	  fixed.</para>
 
 	<para>A new sysctl variable for the &man.VFS.9; subsystem
 	  <varname>vfs.flushbufqtarget</varname> has been added.  This
@@ -295,6 +520,13 @@
     <sect2 id="userland">
       <title>Userland Changes</title>
 
+      <para>The &man.apropos.1; command no longer sets the necessary
+	directories to <varname>PATH</varname> variable.  This means
+	if the caller does not have <filename
+	role="directory">/bin</filename> and <filename
+	role="directory">/usr/bin</filename> in
+	<varname>PATH</varname>, then it does not work.</para>
+
       <para>The &man.bluetooth.3; library now supports Bluetooth HCI
 	API.</para>
 
@@ -305,13 +537,47 @@
 	has been fixed.  It used link target's flags as the original
 	one.</para>
 
+      <para>The &man.cp.1; command now preserves file flags on
+	symbolic links when options <option>-Rp</option> are
+	specified.  It reported an error <quote>function not
+	implemented</quote>.</para>
+
+      <para>The &man.cpucontrol.8; command now allows user to perform
+	atomic bitwise AND and OR operations on MSR registers.  Two new
+	operations (<literal>&=</literal> and <literal>|=</literal>)
+	have been added.  The first one applies bitwise AND operation
+	between the current contents of the MSR register and the mask,
+	and the second performs bitwise OR.  The argument can be
+	optionally prefixed with <literal>~</literal> inversion
+	operator.  The following is an example to clear the second bit
+	of TSC MSR:</para>
+
+      <screen>&prompt.root; cpucontrol -m 0x10&=~0x02</screen>
+
       <para>The &man.cpuset.1; command now supports interrupt binding
 	by a new option <option>-x
 	  <replaceable>irq</replaceable></option>.</para>
 
+      <para>The default &man.crontab.5; file no longer define a
+	variable <varname>HOME</varname>.</para>
+
+      <para>The &man.df.1; command now uses human-readable output for
+	inode counts when an <option>-H</option> or <option>-h</option>
+	is specified.</para>
+
       <para>A bug in the &man.dhclient.8; utility when appending a
 	NUL-terminated text provided by a DHCP server, has been
 	fixed.</para>
+
+      <para>The &man.dhclient.8; utility now
+	uses <literal>68</literal> (bootpc) as the source port for
+	unicast <literal>DHCPREQUEST</literal> packets instead of
+	allowing the protocol stack to pick a random source port.
+	This fixes the behavior where &man.dhclient.8; would never
+	transition from <literal>RENEWING</literal>
+	to <literal>BOUND</literal> without going
+	through <literal>REBINDING</literal> in some networks which
+	has a tight policy on DHCP spoofing.</para>
 
       <para>The &man.fdisk.8; utility now supports size qualifiers (K,
 	M, and G) and <literal>*</literal> for automatic calculation
@@ -334,6 +600,15 @@
 
       <screen>find -L . -type l -print0 | xargs rm -0</screen>
 
+      <para>A bug in the &man.find.1; and &man.rm.1; command has been
+	fixed.  When a symbolic link has <literal>uchg</literal> or
+	<literal>uappend</literal> flag, the commands attempted to
+	clear the target file, not the symbolic link itself.</para>
+
+      <para>The &man.gzip.1; command now supports uncompressing files
+	compressed by pack(1), which is found in some commercial Unix
+	systems.</para>
+
       <para>The &man.ktrace.1; utility now supports a new
 	<literal>KTRACE</literal> record for &man.sysctl.3;
 	invocations.</para>
@@ -346,23 +621,60 @@
 	named kernel feature is present by checking the
 	<varname>kern.features</varname> sysctl MIB.</para>
 
+      <para>The &man.libradius.3; now supports simple embedded RADIUS
+	server.</para>
+
+      <para>The &man.lp.1; command now supports <option>-m</option>
+	option to send an email after the files have been printed, and
+	<option>-t <replaceable>title</replaceable></option> option to
+	write <replaceable>title</replaceable> on the banner page of
+	the output.  These are required by POSIX standard.</para>
+
+      <para>The &man.lpq.1; command now correctly translates remote
+	host names which contain non-standard end-of-line
+	characters.</para>
+
       <para>The &man.man.1; command now supports manual pages in UTF-8.</para>
 
       <para>The &man.mergemaster.8; utility now uses an
 	<option>-L</option> option when it invokes &man.mtree.8;
 	command to follow symbolic links.</para>
 
+      <para>A userland utility &man.mfiutil.8; for the
+	&man.mfi.4; devices has been added.  This includes basic
+	features to monitor controller, array, and drive status,
+	change basic attributes, create/delete arrays and spares,
+	and flush the controller firmware.  Note that this is a
+	small utility, not a replacement of MegaCLI in the Ports
+	Collection which is supported officially and provides more
+	functionality.</para>
+
+      <para>A userland utility &man.mptutil.8; for the
+	&man.mpt.4; devices has been added.  This includes basic
+	features to monitor controller, array, and drive status,
+	change basic attributes, and create/delete arrays and
+	spares.</para>
+
       <para>The &man.newfs.msdos.8; command now supports media which
 	have no CHS parameter.</para>
+
+      <para>The &man.ntpd.8; daemon no longer tries to bind an IPv6
+	anycast address.</para>
 
       <para>The &man.pkill.1; command now ignores itself and the
 	ancestors when finding processes.  An <option>-a</option>
 	option has been added for backward compatible behavior.</para>
 
+      <para>A race condition in the &man.ppp.8; daemon has been
+	fixed.</para>
+
       <para>The &man.ps.1; command now supports a new flag
 	<option>-p</option>.  This displays descendant info with the
 	output similar to Linux's <option>-H</option> (or
 	<option>-f</option>).</para>
+
+      <para>The &man.pwait.1; command, which waits for any process to
+	terminate has been added.</para>
 
       <para>The &man.pwd.mkdb.8; now verifies login name length is
 	shorter than <varname>MAXLOGNAME</varname> when a
@@ -383,26 +695,111 @@
 	environment variable is automatically unset if the process is
 	tainted with setuid/setgid.</para>
 
+      <para>The &man.strptime.3; function now supports
+	<literal>%z</literal> format specifier.</para>
+
       <para>The &man.sysinstall.8; utility now supports a
 	comma-separated list of network interfaces in
 	<varname>netDev</varname> option in
 	<filename>install.cfg</filename>.</para>
 
+      <para arch="ia64">The &man.sysinstall.8; utility now uses 400MB
+	for the EFI partition instead of 100MB in the previous
+	releases.</para>
+
+      <para>The &man.tail.1; <option>-F</option> flag now persists in
+	trying to open files rather than giving up when it encounters
+	an error.  <literal>ENOENT</literal> errors are not reported.
+	This behavior is consistent with the GNU version.</para>
+
+      <para>The &man.traceroute.8; and &man.traceroute6.8; now support
+	an <option>-a</option> flag to display AS number corresponding
+	to the lookup IP address on each hop.  It will query the
+	number to WHOIS server specified in <option>-A</option>
+	option.  If no <option>-A</option> is specified,
+	<hostid>whois.radb.net</hostid> will be used as the default
+	value.</para>
+
+      <para>The &man.tzsetup.8; command now supports an
+	<option>-s</option> option to skip the initial question about
+	adjusting the clock if not set to UTC.</para>
+
+      <para>The &man.yp.8; utilities now support
+	<filename>shadow.byname</filename> and
+	<filename>shadow.byuid</filename> maps.  These requires
+	privileged port access.</para>
+
       <sect3 id="rc-scripts">
 	<title><filename>/etc/rc.d</filename> Scripts</title>
 
-	<para></para>
+	<para>The &man.service.8; command as an easy interface for the
+	  rc.d scripts has been added.</para>
+
+	<para>The &man.rc.conf.5; file now supports
+	  <varname>create_args_<replaceable>IF</replaceable></varname>
+	  for interfaces created via
+	  <varname>cloned_interfaces</varname></para>
+
+	<para>The <filename>rc.d/fsck</filename> script now supports
+	  options for <varname>fsck_y_enable</varname> via
+	  <varname>fsck_y_flags</varname>.</para>
+
+	<para>The <filename>rc.d/named</filename> script now supports
+	  zone file check by &man.named-checkconf.8; before the
+	  startup and the following options:</para>
+
+	<itemizedlist>
+	  <listitem>
+	    <para><varname>named_wait</varname> has the script loop
+	      until a specified hostname in <varname>named_wait_host</varname>
+	      (<hostid>localhost</hostid> by default) can be
+	      successfully looked up. This is disabled by
+	      default.</para>
+	  </listitem>
+
+	  <listitem>
+	    <para><varname>named_auto_forward</varname> creates a
+	      forwarder configuration file based on the contents of
+	      <filename>/etc/resolv.conf</filename>.  This allows you
+	      to utilize a local resolver for better performance, less
+	      network traffic, custom zones, etc.  while still relying
+	      on the benefits of your local network resolver.  This is
+	      disabled by default.</para>
+	  </listitem>
+	</itemizedlist>
+
+	<para>The <filename>rc.d/savecore</filename> script now
+	  supports invoking &man.crashinfo.8; automatically during
+	  boot.  A new variable <varname>crashinfo_enable</varname>
+	  has been added to enable it.</para>
+
+	<para>The <filename>rc.d/static_arp</filename> script has been
+	  added.  This allows the administrator to statically bind MAC
+	  to IPv4 address at boot time.  An example is as
+	  follows:</para>
+
+	<programlisting>static_arp_pairs="gw"
+static_arp_gw="192.168.1.1 00:01:02:03:04:05"</programlisting>
       </sect3>
     </sect2>
 
     <sect2 id="contrib">
       <title>Contributed Software</title>
 
+      <para><application>ISC BIND</application> has been updated to
+	version 9.4.3-P4.</para>
+
       <para><application>sendmail</application> has been updated from
         version 8.14.3 to version 8.14.4.</para>
 
       <para>The timezone database has been updated
-	to the <application>tzdata2009i</application> release.</para>
+	to the <application>tzdata2009u</application> release.</para>
+
+      <para>The timezone binary has been updated
+	to the <application>tzcode2009k</application> release.</para>
+
+      <para><application>unifdef</application> has been updated to
+	version 1.188.</para>
     </sect2>
 
     <sect2 id="ports">
@@ -416,7 +813,8 @@
     <sect2 id="releng">
       <title>Release Engineering and Integration</title>
 
-      <para></para>
+      <para>&os; release ISO images now have <quote>FreeBSD-</quote>
+	at the beginning of the filenames.</para>
     </sect2>
 
     <sect2 id="doc">
