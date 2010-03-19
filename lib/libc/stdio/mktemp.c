@@ -120,6 +120,10 @@ _gettemp(path, doopen, domkdir, slen)
 
 	for (trv = path; *trv != '\0'; ++trv)
 		;
+	if (trv - path >= MAXPATHLEN) {
+		errno = ENAMETOOLONG;
+		return (0);
+	}
 	trv -= slen;
 	suffp = trv;
 	--trv;
