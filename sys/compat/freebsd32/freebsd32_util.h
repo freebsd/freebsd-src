@@ -61,7 +61,7 @@ static struct syscall_module_data name##_syscall32_mod = {     \
 };                                                             \
                                                                \
 static moduledata_t name##32_mod = {                           \
-       #name,                                                  \
+       "sys32/" #name,                                         \
        syscall32_module_handler,                               \
        &name##_syscall32_mod                                   \
 };                                                             \
