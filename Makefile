@@ -14,7 +14,7 @@ MAN=		zlib.3
 
 CFLAGS+=	-DHAS_snprintf -DHAS_vsnprintf -I${.CURDIR}
 
-WARNS?=		2
+WARNS?=		3
 
 CLEANFILES+=	example.o example foo.gz minigzip.o minigzip
 
