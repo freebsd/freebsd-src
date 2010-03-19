@@ -120,7 +120,6 @@
 	advisories available from
 	<ulink url="http://security.FreeBSD.org/"></ulink>.</para>
 
-<!--
       <informaltable frame="none" pgwide="0">
 	<tgroup cols="3">
 	  <colspec colwidth="1*">
@@ -136,24 +135,88 @@
 
 	    <tbody>
 	      <row>
-		<entry><ulink url="http://security.freebsd.org/advisories/FreeBSD-SA-09:01.lukemftpd.asc"
-			      >SA-09:01.lukemftpd</ulink></entry>
-		<entry>07&nbsp;January&nbsp;2009</entry>
-		<entry><para>Cross-site request forgery in
-		  &man.lukemftpd.8;</para></entry>
+		<entry><ulink url="http://security.freebsd.org/advisories/FreeBSD-SA-09:09.pipe.asc"
+			      >SA-09:09.pipe</ulink></entry>
+		<entry>10&nbsp;June&nbsp;2009</entry>
+		<entry><para>Local information disclosure via direct pipe writes</para></entry>
+	      </row>
+
+	      <row>
+		<entry><ulink url="http://security.freebsd.org/advisories/FreeBSD-SA-09:10.ipv6.asc"
+			      >SA-09:10.ipv6</ulink></entry>
+		<entry>10&nbsp;June&nbsp;2009</entry>
+		<entry><para>Missing permission check on SIOCSIFINFO_IN6 ioctl</para></entry>
+	      </row>
+
+	      <row>
+		<entry><ulink url="http://security.freebsd.org/advisories/FreeBSD-SA-09:11.ntpd.asc"
+			      >SA-09:11.ntpd</ulink></entry>
+		<entry>10&nbsp;June&nbsp;2009</entry>
+		<entry><para>ntpd stack-based buffer-overflow vulnerability</para></entry>
+	      </row>
+
+	      <row>
+		<entry><ulink url="http://security.freebsd.org/advisories/FreeBSD-SA-09:12.bind.asc"
+			      >SA-09:12.bind</ulink></entry>
+		<entry>29&nbsp;July&nbsp;2009</entry>
+		<entry><para>BIND &man.named.8; dynamic update message remote DoS</para></entry>
+	      </row>
+
+	      <row>
+		<entry><ulink url="http://security.freebsd.org/advisories/FreeBSD-SA-09:14.devfs.asc"
+			      >SA-09:14.devfs</ulink></entry>
+		<entry>2&nbsp;Oct&nbsp;2009</entry>
+		<entry><para>Devfs / VFS NULL pointer race condition</para></entry>
+	      </row>
+
+	      <row>
+		<entry><ulink url="http://security.freebsd.org/advisories/FreeBSD-SA-09:15.ssl.asc"
+			      >SA-09:15.ssl</ulink></entry>
+		<entry>3&nbsp;Dec&nbsp;2009</entry>
+		<entry><para>SSL protocol flaw</para></entry>
+	      </row>
+
+	      <row>
+		<entry><ulink url="http://security.freebsd.org/advisories/FreeBSD-SA-09:16.rtld.asc"
+			      >SA-09:16.rtld</ulink></entry>
+		<entry>3&nbsp;Dec&nbsp;2009</entry>
+		<entry><para>Improper environment sanitization in &man.rtld.1;</para></entry>
+	      </row>
+
+	      <row>
+		<entry><ulink url="http://security.freebsd.org/advisories/FreeBSD-SA-09:17.freebsd-update.asc"
+			      >SA-09:17.freebsd-update</ulink></entry>
+		<entry>3&nbsp;Dec&nbsp;2009</entry>
+		<entry><para>Inappropriate directory permissions in &man.freebsd-update.8;</para></entry>
+	      </row>
+
+	      <row>
+		<entry><ulink url="http://security.freebsd.org/advisories/FreeBSD-SA-10:01.bind.asc"
+			      >SA-10:01.bind</ulink></entry>
+		<entry>6&nbsp;Jan&nbsp;2010</entry>
+		<entry><para>BIND &man.named.8; cache poisoning with DNSSEC validation</para></entry>
+	      </row>
+
+	      <row>
+		<entry><ulink url="http://security.freebsd.org/advisories/FreeBSD-SA-10:02.ntpd.asc"
+			      >SA-10:02.ntpd</ulink></entry>
+		<entry>6&nbsp;Jan&nbsp;2010</entry>
+		<entry><para>ntpd mode 7 denial of service</para></entry>
+	      </row>
+
+	      <row>
+		<entry><ulink url="http://security.freebsd.org/advisories/FreeBSD-SA-10:03.zfs.asc"
+			      >SA-10:03.zfs</ulink></entry>
+		<entry>6&nbsp;Jan&nbsp;2010</entry>
+		<entry><para>ZFS ZIL playback with insecure permissions</para></entry>
 	      </row>
 	    </tbody>
 	</tgroup>
       </informaltable>
--->
     </sect2>
 
     <sect2 id="kernel">
       <title>Kernel Changes</title>
-
-      <para>The &man.acpi.4; subsystem now supports parsing SRAT
-	(System Resource Affinity Table used to describe affinity
-	relationships between CPUs and memory.</para>
 
       <para>The &man.closefrom.2; system call has been added.  This
 	closes any open file descriptors which are equal to or larger
@@ -166,6 +229,21 @@
       <para>The &man.futimes.2;, &man.lutimes.2;, and &man.utimes.2;
 	system call now support a sysctl variable
 	<varname>vfs.timestamp_precision</varname>.</para>
+
+      <para>The &man.jail.8; subsystem now supports
+	<varname>security.jail.ip4_saddrsel</varname> and
+	<varname>security.jail.ip6_saddrsel</varname> sysctl variables
+	to control whether to use source address selection or the
+	primary jail address for unbound outgoing connections.  The
+	default is that the source address selection is enabled.
+	Also, the jail parameter <varname>ip4.saddrsel</varname> and
+	<varname>ip6.saddrsel</varname> are boolean option to enable
+	the source address selection for IPv4 and IPv6, respectively.
+	If another boolean parameters
+	<varname>ip4.nosaddrsel</varname> and
+	<varname>ip6.nosaddrsel</varname> are set, the child jails do
+	not inherit the address selection options of the
+	parent.</para>
 
       <para arch="amd64">The <varname>kmem_map</varname> KVA space has
 	been increased to 512GB.</para>
@@ -193,13 +271,17 @@
 	(<varname>P1003_1B_SEMAPHORES</varname> kernel option) by
 	default.</para>
 
+      <para>A deadlock in the &man.sched.ule.4; scheduler has been
+	fixed.  For more details, see <ulink
+	  url="http://security.freebsd.org/advisories/FreeBSD-EN-10:02.sched_ule.asc">EN-10:02.sched_ule</ulink>.</para>
+
       <para>&os; now supports shared memory segments for System V IPC
 	which is larger than 2GB on 64-bit platforms.  For more
 	details, see <filename>/usr/src/UPDATING</filename>
 	file.</para>
 
       <para>The &man.sglist.9; API to manage scatter/gather lists of
-	phyiscal addresses has been added.</para>
+	physical addresses has been added.</para>
 
       <para>&os; ABI of some of the structures used by the System V
 	IPC API has been changed internally.  For new kernel modules,
@@ -211,19 +293,19 @@
 	shims.  The old functions remain as the old names to provide
 	backward compatibility for older kernel modules.</para>
 
-      <para arch="amd64,i386">The &os; virtual memory
-	subsystem now supports fully transparent use of
-	<application>superpages</application> for application memory;
-	application memory pages are dynamically promoted to or
-	demoted from superpages without any modification to
-	application code.  This change offers the benefit of large
-	page sizes such as improved virtual memory efficiency and
-	reduced TLB (translation lookaside buffer) misses without
-	downsides like application changes and virtual memory
-	inflexibility. This can be enabled by setting a loader tunable
-	<varname>vm.pmap.pg_ps_enabled</varname> to
-	<literal>1</literal> and is enabled by default on
-	&arch.amd64;.</para>
+      <para arch="amd64">The <application>superpages</application> in
+	the &os; virtual memory subsystem is now enabled by
+	default.</para>
+
+      <para>A new sysctl variable
+	<varname>security.bsd.map_at_zero</varname> has been added and
+	set to <literal>1</literal> (allow) by default.  This controls
+	whether &os; allows to map an object at the address
+	<literal>0</literal>, which is part of the user-controlled
+	portion of the virtual address space.  Disabling this has some
+	effect on preventing an attack which injects malicious code
+	into that location and triggers a NULL pointer dereference in
+	the kernel.</para>
 
       <sect3 id="boot">
 	<title>Boot Loader Changes</title>
@@ -246,6 +328,10 @@
 	<para>A bug in the boot loader has been fixed.  It failed to
 	  recognize GPT correctly when the system supports both of MBR
 	  and GPT and they are synchronized with each other.</para>
+
+	<para arch="pc98">The <application>boot2</application> program
+	  has been replaced with the latest version for
+	  &arch.i386;.</para>
       </sect3>
 
       <sect3 id="proc">
@@ -265,6 +351,29 @@
 
 	<para>The &man.cpufreq.4; driver now supports Phenom (Family
 	  10h).</para>
+
+	<para arch="amd64,i386">CPU cache flushing has been optimized
+	  when changing caching attributes of pages by doing nothing
+	  for CPUs that support self-snooping and using
+	  <literal>CLFLUSH</literal> instead of a full cache
+	  invalidate when possible.  &os; does not use
+	  <literal>CLFLUSH</literal> on Intel CPUs due to problems
+	  with flushing the local APIC range by default.  This can be
+	  controlled via the <varname>hw.clflush_disable</varname>
+	  loader tunable.  A setting of <literal>1</literal> disables
+	  the use of <literal>CLFLUSH</literal>.  A setting of
+	  <literal>0</literal> allows <literal>CLFLUSH</literal> to be
+	  used for Intel CPUs when <literal>CPUID_SS</literal> is not
+	  present.  This fixes a kernel panic occurred on Xen which
+	  disables self-snooping.</para>
+
+	<para arch="sparc64">The epic(4) driver for the front panel
+	  LEDs in Sun Fire V215/V245 has been added.</para>
+
+	<para arch="sparc64">The fire(4) driver for
+	  <quote>Fire</quote> JBus to PCIe bridges found in at least
+	  the Sun Fire V215/V245 and Sun Ultra 25/45 machines has been
+	  added.</para>
 
 	<para arch="amd64,i386">The &man.hwpmc.4; driver for Hardware
 	  Performance Monitoring Counter support has been added.  This
@@ -291,11 +400,6 @@
 	  been added.  This reports all of the supported page sizes on
 	  the system.</para>
 
-	<para>The &man.pci.4; subsystem now supports proxying of PCI
-	  Express MSI/MSI-X (Message Signaled Interrupt) requests and
-	  bus interrupt requests for child devices.  This allows child
-	  devices to use MSI/MSI-X interrupts.</para>
-
 	<para>PCI Express memory-mapped configuration space access,
 	  ACPI MCFG table support, and BAR (Base Address Register)
 	  handling in the &man.pci.4; subsystem has been improved.
@@ -313,19 +417,35 @@
 	  <para><application>DRM</application> now supports Radeon HD
 	    4200 (RS880), 4770 (RV740), and R6/7xx 3D, and Intel G41
 	    chips.</para>
+
+	  <para>The vgapci(4) driver for PCI VGA display devices
+	    which can attach devices as the children now supports
+	    proxying of PCI MSI/MSI-X (Message Signaled Interrupt)
+	    requests and bus interrupt requests for the child devices.
+	    This allows child devices to use MSI/MSI-X interrupts.</para>
 	</sect4>
 
 	<sect4 id="net-if">
 	  <title>Network Interface Support</title>
 
 	  <para>The &man.alc.4; driver for Atheros AR8131/AR8132 PCIe
-	    ethernet controller has been added.</para>
+	    Ethernet controller has been added.</para>
+
+	  <para>A bug in the &man.bce.4; driver has been fixed.  When
+	    adding a &man.bce.4; interface on the system as a
+	    &man.lagg.4; member with the LACP aggregation protocol
+	    enabled network communication via the &man.bce.4;
+	    interface stopped completely.  Although the &man.bce.4;
+	    interface worked if it was not a &man.lagg.4; member, the
+	    incoming traffic statistics which can be found in
+	    &man.netstat.1; output was incorrect because every packet
+	    was recognized as full-sized one.</para>
 
 	  <para>Several bugs in the &man.bge.4; driver have been
 	    fixed.  It caused a panic when a lot of traffic is being
 	    handled on the interface while the system is shutting
 	    down, and had a DMA issue when buffer address crosses a
-	    multple of the 4GB boundaries.</para>
+	    multiple of the 4GB boundaries.</para>
 
 	  <para>The &man.bge.4; driver now supports TSO (TCP
 	    segmentation offloading) for BCM5755 or newer
@@ -337,7 +457,7 @@
 	    devices.</para>
 
 	  <para>The &man.cxgb.4; driver has been upgraded to the
-	    latest version.  The firmware version is 7.1.0.</para>
+	    latest version.  The firmware version is 7.8.0.</para>
 
 	  <para>The &man.et.4; driver now supports IPv4/TCP/UDP Tx
 	    checksum offloading.</para>
@@ -346,7 +466,8 @@
 	    multicast filter re-programming is now more robust.  A bug
 	    which caused incorrect IP packet length in the header when
 	    TSO (TCP segmentation offloading) is enabled has been
-	    fixed.</para>
+	    fixed.  This fixes poor performance when TSO is enabled in
+	    the previous releases.</para>
 
 	  <para>The &man.msk.4; driver has been improved for robust
 	    operation.  Also, it now supports Yukon FE+ A0 including
@@ -354,8 +475,9 @@
 	    88E8070.</para>
 
 	  <para>Several bugs in the &man.mxge.4; driver have been
-	    fixed.  It could lost the promiscuous flag on resetting
-	    and a kernel panic on the hardware fault.</para>
+	    fixed and the firmware version is now 1.4.48b.  It could
+	    lost the promiscuous flag on resetting and a kernel panic
+	    on the hardware fault.</para>
 
 	  <para>A bug in the &man.nfe.4; driver has been fixed.  It
 	    caused buffer allocation failure for jumbo frames.</para>
@@ -375,6 +497,17 @@
 	    interrupt would be delayed based on this value.  The
 	    default is <literal>1</literal>.  For more details, see
 	    &man.nge.4; manual page.</para>
+
+	  <para>The &man.ste.4; driver has been improved and now works
+	    on all supported platforms.  It now supports
+	    suspend/resume and WoL (Wake-on-Lan).  Hardware MAC
+	    statistics can be obtained via a new sysctl variable
+	    <varname>dev.ste.<replaceable>N</replaceable>.stats</varname>.
+	    Another new sysctl variables
+	    <varname>dev.ste.<replaceable>N</replaceable>.int_rx_mod</varname>
+	    has been added to control RX interrupt moderation time.
+	    The default value is <literal>150</literal> (150us).  For
+	    more details, see &man.ste.4; manual page.</para>
 
 	  <para>The &man.vge.4; driver has been improved.  It now
 	    supports hardware checksum offloading for &man.vlan.4;
@@ -431,6 +564,9 @@
 	  convenient shortcut ported from NetBSD to obtain network
 	  interface name using file descriptor for character
 	  device.</para>
+
+	<para>The &man.vlan.4; driver is now enabled in the
+	  <filename>GENERIC</filename> kernel.</para>
       </sect3>
 
       <sect3 id="disks">
@@ -447,7 +583,7 @@
 	  <option>ATA_REQUEST_TIMEOUT</option>.</para>
 
 	<para>A bug in the &man.ata.4; driver has been fixed.  It
-	  could generate an I/O request larger than contoller's
+	  could generate an I/O request larger than controller's
 	  maximum I/O size and caused a kernel panic.</para>
 
 	<para>An algorithm for <literal>load</literal> balancing mode
@@ -461,6 +597,9 @@
 	<para>A bug in the &man.gpart.8; GEOM class has been fixed.
 	  It could not handle a GPT header whose size is greater than
 	  92 bytes which is written by OpenSolaris.</para>
+
+	<para>The default stripe size of &man.gstripe.8; GEOM class
+	  has been changed from 4KB to 64KB.</para>
 
 	<para>The &man.hptrr.4; driver now supports a new loader
 	  tunable <varname>hw.hptrr.attach_generic</varname> to
@@ -512,13 +651,17 @@
 	  for caching or the ZFS Intent Log, and partial &man.chflags.2;
 	  support.  It also includes some &os;-specific additions,
 	  such as booting from ZFS file systems, removal of ARC
-	  size limitations, ARC backpressure (which allows ZFS to work
+	  size limitations, ARC back pressure (which allows ZFS to work
 	  without tunables on &arch.amd64;), and many bugfixes.</para>
       </sect3>
     </sect2>
 
     <sect2 id="userland">
       <title>Userland Changes</title>
+
+      <para>The &man.acpidump.8; utility now supports parsing SRAT
+	(System Resource Affinity Table used to describe affinity
+	relationships between CPUs and memory.</para>
 
       <para>The &man.apropos.1; command no longer sets the necessary
 	directories to <varname>PATH</varname> variable.  This means
@@ -583,6 +726,14 @@
 	M, and G) and <literal>*</literal> for automatic calculation
 	in the <command>p</command> command.</para>
 
+      <para>The &man.fetch.1; command now supports HTTP digest
+	authentication.</para>
+
+      <para>The &man.fetch.1; command now supports
+	<varname>NO_PROXY</varname> and <varname>no_proxy</varname>
+	environment variables to disable use of HTTP proxy.  For more
+	details, see &man.fetch.3; manual page.</para>
+
       <para>A bug in the &man.fetch.1; command that
 	<varname>FTP_TIMEOUT</varname> and
 	<varname>HTTP_TIMEOUT</varname> environment variables were
@@ -621,6 +772,11 @@
 	named kernel feature is present by checking the
 	<varname>kern.features</varname> sysctl MIB.</para>
 
+      <para>&os; <application>libc</application> library now includes
+	&man.getpagesize.3; function that returns either the number of
+	page sizes supported by the system or a specified subset of
+	the supported page sizes.</para>
+
       <para>The &man.libradius.3; now supports simple embedded RADIUS
 	server.</para>
 
@@ -639,6 +795,11 @@
       <para>The &man.mergemaster.8; utility now uses an
 	<option>-L</option> option when it invokes &man.mtree.8;
 	command to follow symbolic links.</para>
+
+      <para>The &man.mergemaster.8; utility now supports
+	<varname>DELETE_STALE_RC_FILES</varname> variable in
+	<filename>mergemaster.rc</filename> file to delete stale rc.d
+	scripts automatically.</para>
 
       <para>A userland utility &man.mfiutil.8; for the
 	&man.mfi.4; devices has been added.  This includes basic
@@ -712,17 +873,30 @@
 	an error.  <literal>ENOENT</literal> errors are not reported.
 	This behavior is consistent with the GNU version.</para>
 
+      <para>The &man.tftp.1; command now returns a correct exit status
+	in the case of successful file transfer.</para>
+
+      <para>The &man.traceroute.8; program now uses in-kernel source
+	address selection even in a &man.jail.8; environment.</para>
+
       <para>The &man.traceroute.8; and &man.traceroute6.8; now support
 	an <option>-a</option> flag to display AS number corresponding
 	to the lookup IP address on each hop.  It will query the
 	number to WHOIS server specified in <option>-A</option>
 	option.  If no <option>-A</option> is specified,
-	<hostid>whois.radb.net</hostid> will be used as the default
-	value.</para>
+	<hostid>whois.radb.net</hostid> will be used as the default value.</para>
 
       <para>The &man.tzsetup.8; command now supports an
 	<option>-s</option> option to skip the initial question about
 	adjusting the clock if not set to UTC.</para>
+
+      <para>The &man.whois.1; utility has been updated.  A
+	<option>-d</option> option has been removed because
+	<hostid>whois.nic.mil</hostid> no longer exists, and it
+	supports searching for IPv6 addresses just like it can do for
+	IPv4 addresses without having to explicitly specify that the
+	ARIN server should be used to get the initial
+	information.</para>
 
       <para>The &man.yp.8; utilities now support
 	<filename>shadow.byname</filename> and
@@ -739,6 +913,16 @@
 	  <varname>create_args_<replaceable>IF</replaceable></varname>
 	  for interfaces created via
 	  <varname>cloned_interfaces</varname></para>
+
+	<para>The &man.rc.conf.5; file now supports
+	  <varname>vlans_<replaceable>IF</replaceable></varname> for
+	  creating &man.vlan.4; interfaces.  If a vlan interface is a
+	  number, then that number is treated as the vlan tag for the
+	  interface and the interface will be named
+	  <quote><replaceable>IF</replaceable>.<replaceable>N</replaceable></quote>.
+	  Otherwise, the vlan tag must be provided via a
+	  <option>vlan</option> parameter in a <varname>create_args_<replaceable>IF</replaceable></varname>
+	  variable.</para>
 
 	<para>The <filename>rc.d/fsck</filename> script now supports
 	  options for <varname>fsck_y_enable</varname> via
@@ -787,13 +971,13 @@ static_arp_gw="192.168.1.1 00:01:02:03:04:05"</programlisting>
       <title>Contributed Software</title>
 
       <para><application>ISC BIND</application> has been updated to
-	version 9.4.3-P4.</para>
+	version 9.4-ESV.</para>
 
       <para><application>sendmail</application> has been updated from
         version 8.14.3 to version 8.14.4.</para>
 
       <para>The timezone database has been updated
-	to the <application>tzdata2009u</application> release.</para>
+	to the <application>tzdata2010b</application> release.</para>
 
       <para>The timezone binary has been updated
 	to the <application>tzcode2009k</application> release.</para>
@@ -815,12 +999,16 @@ static_arp_gw="192.168.1.1 00:01:02:03:04:05"</programlisting>
 
       <para>&os; release ISO images now have <quote>FreeBSD-</quote>
 	at the beginning of the filenames.</para>
-    </sect2>
 
-    <sect2 id="doc">
-      <title>Documentation</title>
+      <para>The supported version of the
+	<application>GNOME</application> desktop environment
+	(<filename role="package">x11/gnome2</filename>) has been
+	updated to 2.28.2.</para>
 
-      <para></para>
+      <para>The supported version of the
+	<application>KDE</application> desktop environment (<filename
+	role="package">x11/kde4</filename>) has been updated to
+	4.3.5.</para>
     </sect2>
   </sect1>
 
