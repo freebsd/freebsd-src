@@ -78,10 +78,21 @@ SYSCALL32_MODULE(syscallname,                           \
     & syscallname##_syscall32, & syscallname##_sysent32,\
     NULL, NULL);
 
+#define SYSCALL32_INIT_HELPER(syscallname) {			\
+    .new_sysent = {						\
+	.sy_narg = (sizeof(struct syscallname ## _args )	\
+	    / sizeof(register_t)),				\
+	.sy_call = (sy_call_t *)& syscallname,			\
+    },								\
+    .syscall_no = FREEBSD32_SYS_##syscallname			\
+}
+
 int    syscall32_register(int *offset, struct sysent *new_sysent,
 	    struct sysent *old_sysent);
 int    syscall32_deregister(int *offset, struct sysent *old_sysent);
 int    syscall32_module_handler(struct module *mod, int what, void *arg);
+int    syscall32_helper_register(struct syscall_helper_data *sd);
+int    syscall32_helper_unregister(struct syscall_helper_data *sd);
 
 register_t *freebsd32_copyout_strings(struct image_params *imgp);
 struct iovec32;
