@@ -360,7 +360,7 @@ typedef uLong FAR uLongf;
    typedef Byte       *voidp;
 #endif
 
-#ifdef HAVE_UNISTD_H    /* may be set to #if 1 by ./configure */
+#if 0    /* was set to #if 0 by ./configure */
 #  define Z_HAVE_UNISTD_H
 #endif
 
@@ -386,12 +386,13 @@ typedef uLong FAR uLongf;
 #endif
 
 /*
- * This is hard-configured for FreeBSD, since zlib doesn't actually support
- * using the system off_t for offsets unless off_t is no longer than long.
- * To minimize the diff, we just "undef z_off_t" rather than modifying
- * the following lines.
+ * This is hard-configured for FreeBSD.
  */
-#undef z_off_t
+#include <sys/types.h>
+#define	z_off_t	off_t
+#ifndef _FILE_OFFSET_BITS
+#define _FILE_OFFSET_BITS 64
+#endif
 
 #ifndef z_off_t
 #  define z_off_t long
