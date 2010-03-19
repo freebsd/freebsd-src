@@ -221,4 +221,12 @@ struct prpsinfo32 {
         char    pr_psargs[PRARGSZ+1];
 };
 
+struct mq_attr32 {
+	int	mq_flags;
+	int	mq_maxmsg;
+	int	mq_msgsize;
+	int	mq_curmsgs;
+	int	__reserved[4];
+};
+
 #endif /* !_COMPAT_FREEBSD32_FREEBSD32_H_ */
