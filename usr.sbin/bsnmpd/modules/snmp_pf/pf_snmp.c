@@ -534,6 +534,9 @@ pf_iftable(struct snmp_context __unused *ctx, struct snmp_value *val,
 	asn_subid_t	which = val->var.subs[sub - 1];
 	struct pfi_entry *e = NULL;
 
+	if ((time(NULL) - pfi_table_age) > PFI_TABLE_MAXAGE)
+		pfi_refresh();
+
 	switch (op) {
 		case SNMP_OP_SET:
 			return (SNMP_ERR_NOT_WRITEABLE);
@@ -556,9 +559,6 @@ pf_iftable(struct snmp_context __unused *ctx, struct snmp_value *val,
 		default:
 			abort();
 	}
-
-	if ((time(NULL) - pfi_table_age) > PFI_TABLE_MAXAGE)
-		pfi_refresh();
 
 	switch (which) {
 		case LEAF_pfInterfacesIfDescr:
@@ -684,6 +684,9 @@ pf_tbltable(struct snmp_context __unused *ctx, struct snmp_value *val,
 	asn_subid_t	which = val->var.subs[sub - 1];
 	struct pft_entry *e = NULL;
 
+	if ((time(NULL) - pft_table_age) > PFT_TABLE_MAXAGE)
+		pft_refresh();
+
 	switch (op) {
 		case SNMP_OP_SET:
 			return (SNMP_ERR_NOT_WRITEABLE);
@@ -706,9 +709,6 @@ pf_tbltable(struct snmp_context __unused *ctx, struct snmp_value *val,
 		default:
 			abort();
 	}
-
-	if ((time(NULL) - pft_table_age) > PFT_TABLE_MAXAGE)
-		pft_refresh();
 
 	switch (which) {
 		case LEAF_pfTablesTblDescr:
@@ -842,6 +842,9 @@ pf_altqq(struct snmp_context __unused *ctx, struct snmp_value *val,
 	   return (SNMP_ERR_NOERROR);
 	}
 
+	if ((time(NULL) - pfq_table_age) > PFQ_TABLE_MAXAGE)
+		pfq_refresh();
+
 	switch (op) {
 		case SNMP_OP_SET:
 			return (SNMP_ERR_NOT_WRITEABLE);
@@ -864,9 +867,6 @@ pf_altqq(struct snmp_context __unused *ctx, struct snmp_value *val,
 		default:
 			abort();
 	}
-
-	if ((time(NULL) - pfq_table_age) > PFQ_TABLE_MAXAGE)
-		pfq_refresh();
 
 	switch (which) {
 		case LEAF_pfAltqQueueDescr:
@@ -930,6 +930,9 @@ pf_lbltable(struct snmp_context __unused *ctx, struct snmp_value *val,
 	asn_subid_t	which = val->var.subs[sub - 1];
 	struct pfl_entry *e = NULL;
 
+	if ((time(NULL) - pfl_table_age) > PFL_TABLE_MAXAGE)
+		pfl_refresh();
+
 	switch (op) {
 		case SNMP_OP_SET:
 			return (SNMP_ERR_NOT_WRITEABLE);
@@ -952,9 +955,6 @@ pf_lbltable(struct snmp_context __unused *ctx, struct snmp_value *val,
 		default:
 			abort();
 	}
-
-	if ((time(NULL) - pfl_table_age) > PFL_TABLE_MAXAGE)
-		pfl_refresh();
 
 	switch (which) {
 		case LEAF_pfLabelsLblName:
