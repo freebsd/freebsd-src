@@ -1400,7 +1400,6 @@ freebsd4_freebsd32_fhstatfs(struct thread *td, struct freebsd4_freebsd32_fhstatf
 }
 #endif
 
-
 int
 freebsd32_pread(struct thread *td, struct freebsd32_pread_args *uap)
 {
