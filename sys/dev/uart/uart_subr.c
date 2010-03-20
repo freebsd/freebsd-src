@@ -195,7 +195,7 @@ uart_getenv(int devtype, struct uart_devinfo *di, struct uart_class *class)
 {
 	__const char *spec;
 	bus_addr_t addr = ~0U;
-	int error;
+	int error, range;
 
 	/*
 	 * All uart_class references are weak. Make sure the default
@@ -273,12 +273,24 @@ uart_getenv(int devtype, struct uart_devinfo *di, struct uart_class *class)
 		spec++;
 	}
 
+	di->ops = uart_getops(class);
+	range = uart_getrange(class);
+
 	/*
 	 * If we still have an invalid address, the specification must be
-	 * missing an I/O port or memory address. We don't like that.
+	 * missing an I/O port or memory address. We don't like that if
+	 * the class expects an I/O port or memory range.
 	 */
-	if (addr == ~0U)
+	if (addr == ~0U && range != 0)
 		return (EINVAL);
+
+	/* Create a bus space handle if applicable. */
+	if (addr != ~0U && range != 0) {
+		error = bus_space_map(di->bas.bst, addr, range, 0,
+		    &di->bas.bsh);
+		if (error)
+			return (error);
+	}
 
 	/*
 	 * Accept only the well-known baudrates. Any invalid baudrate
@@ -299,9 +311,5 @@ uart_getenv(int devtype, struct uart_devinfo *di, struct uart_class *class)
 	} else
 		di->baudrate = 0;
 
-	/* Set the ops and create a bus space handle. */
-	di->ops = uart_getops(class);
-	error = bus_space_map(di->bas.bst, addr, uart_getrange(class), 0,
-	    &di->bas.bsh);
-	return (error);
+	return (0);
 }

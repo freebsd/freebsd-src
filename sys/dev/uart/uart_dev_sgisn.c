@@ -148,7 +148,7 @@ struct uart_class uart_sgisn_class = {
 	sgisn_methods,
 	sizeof(struct sgisn_softc),
 	.uc_ops = &uart_sgisn_ops,
-	.uc_range = 2,
+	.uc_range = 0,
 	.uc_rclk = 0
 };
 
