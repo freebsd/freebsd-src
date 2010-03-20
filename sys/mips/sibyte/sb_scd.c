@@ -56,6 +56,8 @@ extern uint64_t	sb_load64(uint32_t addr);
 #define	SYSCFG_ADDR		MIPS_PHYS_TO_KSEG1(0x10020008)
 #define SYSCFG_PLLDIV(x)	GET_VAL_64((x), 7, 5)
 
+#define	ZBBUS_CYCLE_COUNT_ADDR	MIPS_PHYS_TO_KSEG1(0x10030000)
+
 #define	INTSRC_MASK_ADDR(cpu)	\
 	(MIPS_PHYS_TO_KSEG1(0x10020028) | ((cpu) << 13))
 
@@ -80,6 +82,13 @@ sb_write_syscfg(uint64_t val)
 {
 	
 	sb_store64(SYSCFG_ADDR, val);
+}
+
+uint64_t
+sb_zbbus_cycle_count(void)
+{
+
+	return (sb_load64(ZBBUS_CYCLE_COUNT_ADDR));
 }
 
 uint64_t
