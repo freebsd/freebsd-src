@@ -297,9 +297,6 @@ struct	pvo_head moea64_pvo_unmanaged =
 uma_zone_t	moea64_upvo_zone; /* zone for pvo entries for unmanaged pages */
 uma_zone_t	moea64_mpvo_zone; /* zone for pvo entries for managed pages */
 
-vm_offset_t	pvo_allocator_start;
-vm_offset_t	pvo_allocator_end;
-
 #define	BPVO_POOL_SIZE	327680
 static struct	pvo_entry *moea64_bpvo_pool;
 static int	moea64_bpvo_pool_index = 0;
@@ -699,6 +696,7 @@ moea64_add_ofw_mappings(mmu_t mmup, phandle_t mmu, size_t sz)
 	struct ofw_map	translations[sz/sizeof(struct ofw_map)];
 	register_t	msr;
 	vm_offset_t	off;
+	vm_paddr_t	pa_base;
 	int		i, ofw_mappings;
 
 	bzero(translations, sz);
@@ -720,33 +718,18 @@ moea64_add_ofw_mappings(mmu_t mmup, phandle_t mmu, size_t sz)
 		if (translations[i].om_pa_hi)
 			panic("OFW translations above 32-bit boundary!");
 
+		pa_base = translations[i].om_pa_lo;
+
 		/* Now enter the pages for this mapping */
 
-		/*
-		 * Lock the ofw pmap. pmap_kenter(), which we use for the
-		 * pages the kernel also needs, does its own locking.
-		 */
-		PMAP_LOCK(&ofw_pmap); 
 		DISABLE_TRANS(msr);
 		for (off = 0; off < translations[i].om_len; off += PAGE_SIZE) {
-			struct vm_page m;
-
-			/* Map low memory mappings into the kernel pmap, too.
-			 * These are typically mappings made by the loader,
-			 * so we need them if we want to keep executing. */
-
-			if (translations[i].om_va + off < SEGMENT_LENGTH)
-				moea64_kenter(mmup, translations[i].om_va + off,
-				    translations[i].om_va + off);
-
-			m.phys_addr = translations[i].om_pa_lo + off;
-			moea64_enter_locked(&ofw_pmap,
-			    translations[i].om_va + off, &m, VM_PROT_ALL, 1);
+			moea64_kenter(mmup, translations[i].om_va + off,
+			    pa_base + off);
 
 			ofw_mappings++;
 		}
 		ENABLE_TRANS(msr);
-		PMAP_UNLOCK(&ofw_pmap);
 	}
 }
 
@@ -926,8 +909,8 @@ moea64_bridge_bootstrap(mmu_t mmup, vm_offset_t kernelstart, vm_offset_t kernele
 	     */
 
 	    moea64_pinit(mmup, &ofw_pmap);
-	    ofw_pmap.pm_sr[KERNEL_SR] = kernel_pmap->pm_sr[KERNEL_SR];
-	    ofw_pmap.pm_sr[KERNEL2_SR] = kernel_pmap->pm_sr[KERNEL2_SR];
+	    for (i = 0; i < 16; i++)
+		ofw_pmap.pm_sr[i] = kernel_pmap->pm_sr[i];
 
 	    if ((chosen = OF_finddevice("/chosen")) == -1)
 		panic("moea64_bootstrap: can't find /chosen");
@@ -965,15 +948,20 @@ moea64_bridge_bootstrap(mmu_t mmup, vm_offset_t kernelstart, vm_offset_t kernele
 	 * Set the start and end of kva.
 	 */
 	virtual_avail = VM_MIN_KERNEL_ADDRESS;
-	virtual_end = VM_MAX_KERNEL_ADDRESS;
+	virtual_end = VM_MAX_SAFE_KERNEL_ADDRESS; 
 
 	/*
-	 * Allocate some stupid buffer regions.
+	 * Figure out how far we can extend virtual_end into segment 16
+	 * without running into existing mappings. Segment 16 is guaranteed
+	 * to contain neither RAM nor devices (at least on Apple hardware),
+	 * but will generally contain some OFW mappings we should not
+	 * step on.
 	 */
 
-	pvo_allocator_start = virtual_avail;
-	virtual_avail += SEGMENT_LENGTH/4;
-	pvo_allocator_end = virtual_avail;
+	PMAP_LOCK(kernel_pmap);
+	while (moea64_pvo_find_va(kernel_pmap, virtual_end+1, NULL) == NULL)
+		virtual_end += PAGE_SIZE;
+	PMAP_UNLOCK(kernel_pmap);
 
 	/*
 	 * Allocate some things for page zeroing
@@ -1014,26 +1002,20 @@ moea64_bridge_bootstrap(mmu_t mmup, vm_offset_t kernelstart, vm_offset_t kernele
 	 * Allocate virtual address space for the message buffer.
 	 */
 	pa = msgbuf_phys = moea64_bootstrap_alloc(MSGBUF_SIZE, PAGE_SIZE);
-	msgbufp = (struct msgbuf *)virtual_avail;
-	va = virtual_avail;
-	virtual_avail += round_page(MSGBUF_SIZE);
-	while (va < virtual_avail) {
-		moea64_kenter(mmup, va, pa);
+	msgbufp = (struct msgbuf *)msgbuf_phys;
+	while (pa - msgbuf_phys < MSGBUF_SIZE) {
+		moea64_kenter(mmup, pa, pa);
 		pa += PAGE_SIZE;
-		va += PAGE_SIZE;
 	}
 
 	/*
 	 * Allocate virtual address space for the dynamic percpu area.
 	 */
 	pa = moea64_bootstrap_alloc(DPCPU_SIZE, PAGE_SIZE);
-	dpcpu = (void *)virtual_avail;
-	va = virtual_avail;
-	virtual_avail += DPCPU_SIZE;
-	while (va < virtual_avail) {
-		moea64_kenter(mmup, va, pa);
+	dpcpu = (void *)pa;
+	while (pa - (vm_offset_t)dpcpu < DPCPU_SIZE) {
+		moea64_kenter(mmup, pa, pa);
 		pa += PAGE_SIZE;
-		va += PAGE_SIZE;
 	}
 	dpcpu_init(dpcpu, 0);
 }
@@ -1411,14 +1393,10 @@ moea64_uma_page_alloc(uma_zone_t zone, int bytes, u_int8_t *flags, int wait)
                         break;
         }
 
-	va = pvo_allocator_start;
-	pvo_allocator_start += PAGE_SIZE;
-
-	if (pvo_allocator_start >= pvo_allocator_end)
-		panic("Ran out of PVO allocator buffer space!");
+	va = VM_PAGE_TO_PHYS(m);
 
 	moea64_pvo_enter(kernel_pmap, moea64_upvo_zone,
-	    &moea64_pvo_kunmanaged, va,  VM_PAGE_TO_PHYS(m), LPTE_M, 
+	    &moea64_pvo_kunmanaged, va, VM_PAGE_TO_PHYS(m), LPTE_M,
 	    PVO_WIRED | PVO_BOOTSTRAP);
 
 	if (needed_lock)
@@ -1556,10 +1534,12 @@ moea64_kenter(mmu_t mmu, vm_offset_t va, vm_offset_t pa)
 	uint64_t	pte_lo;
 	int		error;	
 
+#if 0
 	if (!pmap_bootstrapped) {
-		if (va >= VM_MIN_KERNEL_ADDRESS && va < VM_MAX_KERNEL_ADDRESS)
+		if (va >= VM_MIN_KERNEL_ADDRESS && va < virtual_end)
 			panic("Trying to enter an address in KVA -- %#x!\n",pa);
 	}
+#endif
 
 	pte_lo = moea64_calc_wimg(pa);
 
