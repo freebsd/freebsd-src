@@ -198,7 +198,6 @@ __fpu_ftoi(fe, fp)
 
 	sign = fp->fp_sign;
 	switch (fp->fp_class) {
-
 	case FPC_ZERO:
 		return (0);
 
@@ -248,7 +247,6 @@ __fpu_ftox(fe, fp, res)
 
 	sign = fp->fp_sign;
 	switch (fp->fp_class) {
-
 	case FPC_ZERO:
 		res[1] = 0;
 		return (0);
@@ -504,7 +502,6 @@ __fpu_implode(fe, fp, type, space)
 {
 
 	switch (type) {
-
 	case FTYPE_LNG:
 		space[0] = __fpu_ftox(fe, fp, space);
 		break;
