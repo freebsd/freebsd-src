@@ -54,6 +54,8 @@ __FBSDID("$FreeBSD$");
 
 uint64_t counter_freq;
 
+struct timecounter *platform_timecounter;
+
 static uint64_t cycles_per_tick;
 static uint64_t cycles_per_usec;
 static uint64_t cycles_per_hz, cycles_per_stathz, cycles_per_profhz;
@@ -103,6 +105,9 @@ platform_initclocks(void)
 {
 
 	tc_init(&counter_timecounter);
+
+	if (platform_timecounter != NULL)
+		tc_init(platform_timecounter);
 }
 
 static uint64_t
