@@ -949,10 +949,21 @@ pmap_unmap_fpage(vm_paddr_t pa, struct fpage *fp)
 static int
 _pmap_unwire_pte_hold(pmap_t pmap, vm_page_t m)
 {
+	vm_offset_t pteva;
 
 	/*
 	 * unmap the page table page
 	 */
+	pteva = (vm_offset_t)pmap->pm_segtab[m->pindex];
+	if (pteva >= VM_MIN_KERNEL_ADDRESS) {
+		pmap_kremove(pteva);
+		kmem_free(kernel_map, pteva, PAGE_SIZE);
+	} else {
+		KASSERT(MIPS_IS_KSEG0_ADDR(pteva),
+		    ("_pmap_unwire_pte_hold: 0x%0lx is not in kseg0",
+		    (long)pteva));
+	}
+
 	pmap->pm_segtab[m->pindex] = 0;
 	--pmap->pm_stats.resident_count;
 
@@ -997,7 +1008,7 @@ pmap_unuse_pt(pmap_t pmap, vm_offset_t va, vm_page_t mpte)
 			mpte = pmap->pm_ptphint;
 		} else {
 			pteva = *pmap_pde(pmap, va);
-			mpte = PHYS_TO_VM_PAGE(MIPS_KSEG0_TO_PHYS(pteva));
+			mpte = PHYS_TO_VM_PAGE(vtophys(pteva));
 			pmap->pm_ptphint = mpte;
 		}
 	}
@@ -1029,6 +1040,8 @@ pmap_pinit0(pmap_t pmap)
 int
 pmap_pinit(pmap_t pmap)
 {
+	vm_offset_t ptdva;
+	vm_paddr_t ptdpa;
 	vm_page_t ptdpg;
 	int i;
 	int req;
@@ -1050,8 +1063,17 @@ pmap_pinit(pmap_t pmap)
 
 	ptdpg->valid = VM_PAGE_BITS_ALL;
 
-	pmap->pm_segtab = (pd_entry_t *)
-	    MIPS_PHYS_TO_KSEG0(VM_PAGE_TO_PHYS(ptdpg));
+	ptdpa = VM_PAGE_TO_PHYS(ptdpg);
+	if (ptdpa < MIPS_KSEG0_LARGEST_PHYS) {
+		ptdva = MIPS_PHYS_TO_KSEG0(ptdpa);
+	} else {
+		ptdva = kmem_alloc_nofault(kernel_map, PAGE_SIZE);
+		if (ptdva == 0)
+			panic("pmap_pinit: unable to allocate kva");
+		pmap_kenter(ptdva, ptdpa);
+	}
+
+	pmap->pm_segtab = (pd_entry_t *)ptdva;
 	if ((ptdpg->flags & PG_ZERO) == 0)
 		bzero(pmap->pm_segtab, PAGE_SIZE);
 
@@ -1118,7 +1140,15 @@ _pmap_allocpte(pmap_t pmap, unsigned ptepindex, int flags)
 	pmap->pm_stats.resident_count++;
 
 	ptepa = VM_PAGE_TO_PHYS(m);
-	pteva = MIPS_PHYS_TO_KSEG0(ptepa);
+	if (ptepa < MIPS_KSEG0_LARGEST_PHYS) {
+		pteva = MIPS_PHYS_TO_KSEG0(ptepa);
+	} else {
+		pteva = kmem_alloc_nofault(kernel_map, PAGE_SIZE);
+		if (pteva == 0)
+			panic("_pmap_allocpte: unable to allocate kva");
+		pmap_kenter(pteva, ptepa);
+	}
+
 	pmap->pm_segtab[ptepindex] = (pd_entry_t)pteva;
 
 	/*
@@ -1172,7 +1202,7 @@ retry:
 		    (pmap->pm_ptphint->pindex == ptepindex)) {
 			m = pmap->pm_ptphint;
 		} else {
-			m = PHYS_TO_VM_PAGE(MIPS_KSEG0_TO_PHYS(pteva));
+			m = PHYS_TO_VM_PAGE(vtophys(pteva));
 			pmap->pm_ptphint = m;
 		}
 		m->wire_count++;
@@ -1212,13 +1242,24 @@ retry:
 void
 pmap_release(pmap_t pmap)
 {
+	vm_offset_t ptdva;
 	vm_page_t ptdpg;
 
 	KASSERT(pmap->pm_stats.resident_count == 0,
 	    ("pmap_release: pmap resident count %ld != 0",
 	    pmap->pm_stats.resident_count));
 
-	ptdpg = PHYS_TO_VM_PAGE(MIPS_KSEG0_TO_PHYS(pmap->pm_segtab));
+	ptdva = (vm_offset_t)pmap->pm_segtab;
+	ptdpg = PHYS_TO_VM_PAGE(vtophys(ptdva));
+
+	if (ptdva >= VM_MIN_KERNEL_ADDRESS) {
+		pmap_kremove(ptdva);
+		kmem_free(kernel_map, ptdva, PAGE_SIZE);
+	} else {
+		KASSERT(MIPS_IS_KSEG0_ADDR(ptdva),
+		    ("pmap_release: 0x%0lx is not in kseg0", (long)ptdva));
+	}
+
 	ptdpg->wire_count--;
 	atomic_subtract_int(&cnt.v_wire_count, 1);
 	vm_page_free_zero(ptdpg);
@@ -2030,7 +2071,7 @@ pmap_enter_quick_locked(pmap_t pmap, vm_offset_t va, vm_page_t m,
 				    (pmap->pm_ptphint->pindex == ptepindex)) {
 					mpte = pmap->pm_ptphint;
 				} else {
-					mpte = PHYS_TO_VM_PAGE(MIPS_KSEG0_TO_PHYS(pteva));
+					mpte = PHYS_TO_VM_PAGE(vtophys(pteva));
 					pmap->pm_ptphint = mpte;
 				}
 				mpte->wire_count++;
@@ -3171,18 +3212,6 @@ pmap_asid_alloc(pmap)
 		pmap->pm_asid[PCPU_GET(cpuid)].gen = PCPU_GET(asid_generation);
 		PCPU_SET(next_asid, PCPU_GET(next_asid) + 1);
 	}
-
-#ifdef DEBUG
-	if (pmapdebug & (PDB_FOLLOW | PDB_TLBPID)) {
-		if (curproc)
-			printf("pmap_asid_alloc: curproc %d '%s' ",
-			    curproc->p_pid, curproc->p_comm);
-		else
-			printf("pmap_asid_alloc: curproc <none> ");
-		printf("segtab %p asid %d\n", pmap->pm_segtab,
-		    pmap->pm_asid[PCPU_GET(cpuid)].asid);
-	}
-#endif
 }
 
 int
@@ -3249,42 +3278,6 @@ pmap_set_modified(vm_offset_t pa)
 {
 
 	PHYS_TO_VM_PAGE(pa)->md.pv_flags |= (PV_TABLE_REF | PV_TABLE_MOD);
-}
-
-#include <machine/db_machdep.h>
-
-/*
- *  Dump the translation buffer (TLB) in readable form.
- */
-
-void
-db_dump_tlb(int first, int last)
-{
-	struct tlb tlb;
-	int tlbno;
-
-	tlbno = first;
-
-	while (tlbno <= last) {
-		MachTLBRead(tlbno, &tlb);
-		if (tlb.tlb_lo0 & PTE_V || tlb.tlb_lo1 & PTE_V) {
-			printf("TLB %2d vad 0x%08x ", tlbno, (tlb.tlb_hi & 0xffffff00));
-		} else {
-			printf("TLB*%2d vad 0x%08x ", tlbno, (tlb.tlb_hi & 0xffffff00));
-		}
-		printf("0=0x%08x ", pfn_to_vad(tlb.tlb_lo0));
-		printf("%c", tlb.tlb_lo0 & PTE_M ? 'M' : ' ');
-		printf("%c", tlb.tlb_lo0 & PTE_G ? 'G' : ' ');
-		printf(" atr %x ", (tlb.tlb_lo0 >> 3) & 7);
-		printf("1=0x%08x ", pfn_to_vad(tlb.tlb_lo1));
-		printf("%c", tlb.tlb_lo1 & PTE_M ? 'M' : ' ');
-		printf("%c", tlb.tlb_lo1 & PTE_G ? 'G' : ' ');
-		printf(" atr %x ", (tlb.tlb_lo1 >> 3) & 7);
-		printf(" sz=%x pid=%x\n", tlb.tlb_mask,
-		       (tlb.tlb_hi & 0x000000ff)
-		       );
-		tlbno++;
-	}
 }
 
 /*
