@@ -66,6 +66,8 @@ uart_cpu_getdev(int devtype, struct uart_devinfo *di)
 
 	class = &uart_ns8250_class;
 	if (class == NULL)
+		class = &uart_sgisn_class;
+	if (class == NULL)
 		return (ENXIO);
 
 	/*
