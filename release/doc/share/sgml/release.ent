@@ -21,10 +21,11 @@
 
 <!-- The URL for obtaining this version of FreeBSD. -->
 <!ENTITY release.url "ftp://ftp.FreeBSD.org/">
+<!ENTITY url.errata "http://www.FreeBSD.org/releases/7.3R/errata.html">
 
 <!-- The type of release (usually this will be either "snapshot"
      or "release" -->
-<!ENTITY release.type "release candidate">
+<!ENTITY release.type "release">
 <!ENTITY % release.type.current  "IGNORE">
 <!ENTITY % release.type.snapshot "IGNORE">
 <!ENTITY % release.type.release "INCLUDE">

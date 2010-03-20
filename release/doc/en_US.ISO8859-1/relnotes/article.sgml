@@ -93,7 +93,7 @@
       release cycle or after the release.  Typically, it contains
       information on known bugs, security advisories, and corrections to
       documentation.  An up-to-date copy of the errata for &os;
-      &release.current; can be found on the &os; Web site.</para>
+      &release.current; can be found on <ulink url="&url.errata;"></ulink>.</para>
   </sect1>
 
   <sect1 id="new">
@@ -239,7 +239,7 @@
 	Also, the jail parameter <varname>ip4.saddrsel</varname> and
 	<varname>ip6.saddrsel</varname> are boolean option to enable
 	the source address selection for IPv4 and IPv6, respectively.
-	If another boolean parameters
+	If the boolean parameters
 	<varname>ip4.nosaddrsel</varname> and
 	<varname>ip6.nosaddrsel</varname> are set, the child jails do
 	not inherit the address selection options of the
@@ -249,7 +249,7 @@
 	been increased to 512GB.</para>
 
       <para>The &man.lindev.4; driver has been added.  This is for
-	linux-specific pseudo devices and currently used only for
+	Linux-specific pseudo devices and currently used only for
 	<filename>/dev/full</filename>.</para>
 
       <para>&os; Linux emulation layer now supports
@@ -311,7 +311,7 @@
 	<title>Boot Loader Changes</title>
 
 	<para>A new boot loader <literal>gptzfsboot</literal>, which
-	  support GPT and ZFS has been added.</para>
+	  supports GPT and ZFS has been added.</para>
 
 	<para>The boot loader <literal>zfsboot</literal> now always
 	  uses 64-bit LBAs and supports more than seven drives in the
@@ -330,7 +330,7 @@
 	  and GPT and they are synchronized with each other.</para>
 
 	<para arch="pc98">The <application>boot2</application> program
-	  has been replaced with the latest version for
+	  has been reimplemented based on the latest version for
 	  &arch.i386;.</para>
       </sect3>
 
@@ -379,7 +379,7 @@
 	  Performance Monitoring Counter support has been added.  This
 	  consists of the kernel driver, &man.pmc.3; interface
 	  library, and userland utilities &man.pmcannotate.8;,
-	  pmccontrol.8;, and &man.pmcstat.8;, and allows applications
+	  &man.pmccontrol.8;, and &man.pmcstat.8;, and allows applications
 	  to use hardware performance counters to gather performance
 	  data about specific processes or for the system as a
 	  whole.</para>
@@ -476,8 +476,8 @@
 
 	  <para>Several bugs in the &man.mxge.4; driver have been
 	    fixed and the firmware version is now 1.4.48b.  It could
-	    lost the promiscuous flag on resetting and a kernel panic
-	    on the hardware fault.</para>
+	    lose the promiscuous flag on resetting and cause a kernel
+	    panic on the hardware fault.</para>
 
 	  <para>A bug in the &man.nfe.4; driver has been fixed.  It
 	    caused buffer allocation failure for jumbo frames.</para>
@@ -599,7 +599,12 @@
 	  92 bytes which is written by OpenSolaris.</para>
 
 	<para>The default stripe size of &man.gstripe.8; GEOM class
-	  has been changed from 4KB to 64KB.</para>
+	  has been changed from 4KB to 64KB.  This change will affect
+	  users preferring the <command>create</command> command over
+	  the <command>label</command> command, which will now need to
+	  explicitly specify the old stripe size (<option>-s</option>
+	  <literal>4096</literal>) in order to use their old
+	  &man.gstripe.8; volumes.</para>
 
 	<para>The &man.hptrr.4; driver now supports a new loader
 	  tunable <varname>hw.hptrr.attach_generic</varname> to
@@ -635,14 +640,15 @@
 	  fixed.</para>
 
 	<para>A new sysctl variable for the &man.VFS.9; subsystem
-	  <varname>vfs.flushbufqtarget</varname> has been added.  This
-	  fixes issues in <literal>bufdaemon</literal>, a kernel
-	  process responsible for flushing dirty buffers, which can
-	  cause the process to deadlock in a certain workload.  The
-	  value of the variable determines the number of buffers will
-	  be flushed before allocating a new buffer.  The default
-	  value of the variable is <literal>-1</literal>
-	  (disabled).</para>
+	  <varname>vfs.flushbufqtarget</varname> has been added.
+	  This can fix issues in <literal>bufdaemon</literal>, a
+	  kernel process responsible for flushing dirty buffers, which
+	  can cause the process to deadlock in a certain workload.
+	  The value of the variable determines the number of buffers
+	  will be flushed before allocating a new buffer.  The default
+	  value of the variable on 7.3-RELEASE is
+	  <literal>-1</literal> (disabled).  The &os; 8.0-RELEASE uses
+	  <literal>100</literal> by default.</para>
 
 	<para>ZFS has been updated from version 6 to version 13.
 	  This update includes numerous new ZFS features, such as
@@ -979,8 +985,11 @@ static_arp_gw="192.168.1.1 00:01:02:03:04:05"</programlisting>
       <para>The timezone database has been updated
 	to the <application>tzdata2010b</application> release.</para>
 
-      <para>The timezone binary has been updated
-	to the <application>tzcode2009k</application> release.</para>
+      <para>The timezone libraries (stdtime part of
+	<application>libc</application>) and related binaries
+	(&man.zic.8; and &man.zdump.8;) have been updated to the
+	<application>tzcode2009k</application> release.  Note that
+	&man.tzsetup.8; needs to be run after the installation.</para>
 
       <para><application>unifdef</application> has been updated to
 	version 1.188.</para>
