@@ -118,8 +118,8 @@ void (*machExceptionTable[]) (void)= {
  */
 	MipsKernIntr,		/* external interrupt */
 	MipsKernGenException,	/* TLB modification */
-	MipsKernTLBInvalidException,	/* TLB miss (load or instr. fetch) */
-	MipsKernTLBInvalidException,	/* TLB miss (store) */
+	MipsTLBInvalidException,/* TLB miss (load or instr. fetch) */
+	MipsTLBInvalidException,/* TLB miss (store) */
 	MipsKernGenException,	/* address error (load or I-fetch) */
 	MipsKernGenException,	/* address error (store) */
 	MipsKernGenException,	/* bus error (I-fetch) */
@@ -153,8 +153,8 @@ void (*machExceptionTable[]) (void)= {
  */
 	MipsUserIntr,		/* 0 */
 	MipsUserGenException,	/* 1 */
-	MipsUserTLBInvalidException,	/* 2 */
-	MipsUserTLBInvalidException,	/* 3 */
+	MipsTLBInvalidException,/* 2 */
+	MipsTLBInvalidException,/* 3 */
 	MipsUserGenException,	/* 4 */
 	MipsUserGenException,	/* 5 */
 	MipsUserGenException,	/* 6 */
