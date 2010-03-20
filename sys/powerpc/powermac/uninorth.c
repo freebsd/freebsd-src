@@ -611,7 +611,7 @@ unin_chip_probe(device_t dev)
 	if (name == NULL)
 		return (ENXIO);
 
-	if (strcmp(name, "uni-n") != 0)
+	if (strcmp(name, "uni-n") != 0 && strcmp(name, "u3") != 0)
 		return (ENXIO);
 
 	device_set_desc(dev, "Apple UniNorth System Controller");
@@ -622,7 +622,8 @@ static int
 unin_chip_attach(device_t dev)
 {
 	phandle_t node;
-	u_int reg[2];
+	u_int reg[3];
+	int i = 0;
 
 	uncsc = device_get_softc(dev);
 	node = ofw_bus_get_node(dev);
@@ -630,14 +631,18 @@ unin_chip_attach(device_t dev)
 	if (OF_getprop(node, "reg", reg, sizeof(reg)) < 8)
 		return (ENXIO);
 
-	uncsc->sc_physaddr = reg[0];
-	uncsc->sc_size = reg[1];
+	if (strcmp(ofw_bus_get_name(dev), "u3") == 0)
+		i = 1; /* #address-cells lies */
+
+	uncsc->sc_physaddr = reg[i];
+	uncsc->sc_size = reg[i+1];
 
 	/*
 	 * Only map the first page, since that is where the registers
 	 * of interest lie.
 	 */
-	uncsc->sc_addr = (vm_offset_t) pmap_mapdev(reg[0], PAGE_SIZE);
+	uncsc->sc_addr = (vm_offset_t) pmap_mapdev(uncsc->sc_physaddr,
+	    PAGE_SIZE);
 
 	uncsc->sc_version = *(u_int *)uncsc->sc_addr;
 	device_printf(dev, "Version %d\n", uncsc->sc_version);
