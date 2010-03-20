@@ -718,16 +718,6 @@ ia64_init(void)
 	 */
 	boothowto = bootinfo.bi_boothowto;
 
-	/*
-	 * Catch case of boot_verbose set in environment.
-	 */
-	if ((p = getenv("boot_verbose")) != NULL) {
-		if (strcmp(p, "yes") == 0 || strcmp(p, "YES") == 0) {
-			boothowto |= RB_VERBOSE;
-		}
-		freeenv(p);
-	}
-
 	if (boothowto & RB_VERBOSE)
 		bootverbose = 1;
 
@@ -796,7 +786,7 @@ ia64_init(void)
 	init_param1();
 
 	p = getenv("kernelname");
-	if (p) {
+	if (p != NULL) {
 		strncpy(kernelname, p, sizeof(kernelname) - 1);
 		freeenv(p);
 	}
