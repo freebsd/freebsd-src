@@ -293,10 +293,6 @@
 	shims.  The old functions remain as the old names to provide
 	backward compatibility for older kernel modules.</para>
 
-      <para arch="amd64">The <application>superpages</application> in
-	the &os; virtual memory subsystem is now enabled by
-	default.</para>
-
       <para>A new sysctl variable
 	<varname>security.bsd.map_at_zero</varname> has been added and
 	set to <literal>1</literal> (allow) by default.  This controls
