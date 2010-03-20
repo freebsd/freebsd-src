@@ -2408,7 +2408,22 @@ moea64_clear_bit(vm_page_t m, u_int64_t ptebit, u_int64_t *origbit)
 boolean_t
 moea64_dev_direct_mapped(mmu_t mmu, vm_offset_t pa, vm_size_t size)
 {
-	return (EFAULT);
+	struct pvo_entry *pvo;
+	vm_offset_t ppa;
+	int error = 0;
+
+	PMAP_LOCK(kernel_pmap);
+	for (ppa = pa & ~ADDR_POFF; ppa < pa + size; ppa += PAGE_SIZE) {
+		pvo = moea64_pvo_find_va(kernel_pmap, ppa, NULL);
+		if (pvo == NULL ||
+		    (pvo->pvo_pte.lpte.pte_lo & LPTE_RPGN) != ppa) {
+			error = EFAULT;
+			break;
+		}
+	}
+	PMAP_UNLOCK(kernel_pmap);
+
+	return (error);
 }
 
 boolean_t
