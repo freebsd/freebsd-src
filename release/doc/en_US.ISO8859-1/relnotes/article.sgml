@@ -275,17 +275,14 @@
 	fixed.  For more details, see <ulink
 	  url="http://security.freebsd.org/advisories/FreeBSD-EN-10:02.sched_ule.asc">EN-10:02.sched_ule</ulink>.</para>
 
-      <para>&os; now supports shared memory segments for System V IPC
-	which is larger than 2GB on 64-bit platforms.  For more
-	details, see <filename>/usr/src/UPDATING</filename>
-	file.</para>
-
       <para>The &man.sglist.9; API to manage scatter/gather lists of
 	physical addresses has been added.</para>
 
       <para>&os; ABI of some of the structures used by the System V
-	IPC API has been changed internally.  For new kernel modules,
-	the <function>kern_msgctl()</function>,
+	IPC API has been changed internally, and it now supports
+	shared memory segments for System V IPC which is larger than
+	2GB on 64-bit platforms.  For new kernel modules, the
+	<function>kern_msgctl()</function>,
 	<function>kern_semctl()</function>, and
 	<function>kern_shmctl()</function> functions will be
 	transparently renamed to the new
@@ -850,13 +847,54 @@
 	database.  The &man.su.1; utility fails for the long
 	names.</para>
 
-      <para>The &os; runtime linker, &man.rtld.1; now supports a new
-	environment variable <varname>LD_ELF_HINTS_PATH</varname> for
-	overriding the rtld hints file.  This feature gives a
-	convenient way of using a custom set of shared library that is
-	not located in the default location and switch back.  This
-	environment variable is automatically unset if the process is
-	tainted with setuid/setgid.</para>
+      <para>The &os; runtime linker, &man.rtld.1; has been improved.
+	The changes include:</para>
+
+      <itemizedlist>
+	<listitem>
+	  <para>The dynamic string token substitution in the
+	    <literal>rpath</literal> and <literal>soname</literal> has
+	    been implemented.  This can be enabled by setting
+	    <option>-z <replaceable>origin</replaceable></option>
+	    option of &man.ld.1;.  Currently, it recognizes
+	    <varname>$OSNAME</varname>, <varname>$PLATFORM</varname>,
+	    <varname>$OSREL</varname>, and
+	    <varname>$ORIGIN</varname> tokens.  This translation is
+	    unconditionally disabled for setuid/setgid
+	    processes.</para>
+	</listitem>
+
+	<listitem>
+	  <para>PIE (Position Independent Executables) support has
+	    been improved.  The runtime linker now calculates
+	    relocation base for the main object, and applies the
+	    relocation adjustment for all virtual addresses encoded
+	    into the ELF structures of it in order to make it possible
+	    to load PIE binaries at a non-zero base address.</para>
+	</listitem>
+
+	<listitem>
+	  <para>The way the mapping of the ELF objects has been
+	    changed to make wiring of the address space possible.  It
+	    now maps <literal>PROT_NONE</literal> anonymous memory
+	    over the whole range first, and then mapping the segments
+	    of the object over it.  It allocates
+	    <literal>.bss</literal> by changing the protection of the
+	    range instead of remapping, and unnecessary clearing of
+	    the text segment when its end is not page-aligned has been
+	    eliminated.</para>
+	</listitem>
+
+	<listitem>
+	  <para>A new environment variable
+	    <varname>LD_ELF_HINTS_PATH</varname> for overriding the
+	    rtld hints file has been supported.  This feature gives a
+	    convenient way of using a custom set of shared library
+	    that is not located in the default location and switch
+	    back.  This environment variable is automatically unset if
+	    the process is tainted with setuid/setgid.</para>
+	</listitem>
+      </itemizedlist>
 
       <para>The &man.strptime.3; function now supports
 	<literal>%z</literal> format specifier.</para>
