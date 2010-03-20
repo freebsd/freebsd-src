@@ -162,13 +162,10 @@ loop:
 		subr = (uintptr_t)MipsUserGenException;
 	else if (pcBetween(MipsKernIntr, MipsUserIntr))
 		subr = (uintptr_t)MipsKernIntr;
-	else if (pcBetween(MipsUserIntr, MipsKernTLBInvalidException))
+	else if (pcBetween(MipsUserIntr, MipsTLBInvalidException))
 		subr = (uintptr_t)MipsUserIntr;
-	else if (pcBetween(MipsKernTLBInvalidException,
-	    MipsUserTLBInvalidException))
-		subr = (uintptr_t)MipsKernTLBInvalidException;
-	else if (pcBetween(MipsUserTLBInvalidException, MipsTLBMissException))
-		subr = (uintptr_t)MipsUserTLBInvalidException;
+	else if (pcBetween(MipsTLBInvalidException, MipsTLBMissException))
+		subr = (uintptr_t)MipsTLBInvalidException;
 	else if (pcBetween(fork_trampoline, savectx))
 		subr = (uintptr_t)fork_trampoline;
 	else if (pcBetween(savectx, mips_cpu_throw))
