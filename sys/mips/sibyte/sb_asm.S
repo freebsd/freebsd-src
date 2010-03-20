@@ -53,14 +53,14 @@ LEAF(sb_load64)
 	move	v0, v1
 #if _BYTE_ORDER == _BIG_ENDIAN
 	dsll32	v1, v1, 0
-	dsrl32	v1, v1, 0	/* v1 = lower_uint32(result) */
+	dsra32	v1, v1, 0	/* v1 = lower_uint32(result) */
 	jr	ra
-	dsrl32	v0, v0, 0	/* v0 = upper_uint32(result) */
+	dsra32	v0, v0, 0	/* v0 = upper_uint32(result) */
 #else
 	dsll32	v0, v0, 0
-	dsrl32	v0, v0, 0	/* v0 = lower_uint32(result) */
+	dsra32	v0, v0, 0	/* v0 = lower_uint32(result) */
 	jr	ra
-	dsrl32	v1, v1, 0	/* v1 = upper_uint32(result) */
+	dsra32	v1, v1, 0	/* v1 = upper_uint32(result) */
 #endif
 END(sb_load64)
 
