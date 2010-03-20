@@ -69,9 +69,12 @@ __FBSDID("$FreeBSD$");
 
 #include "namespace.h"
 #include <errno.h>
-#include <unistd.h>
 #include <signal.h>
+#ifdef FPU_DEBUG
+#include <stdio.h>
+#endif
 #include <stdlib.h>
+#include <unistd.h>
 #include "un-namespace.h"
 #include "libc_private.h"
 
