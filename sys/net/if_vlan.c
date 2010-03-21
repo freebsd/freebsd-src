@@ -1382,9 +1382,9 @@ vlan_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 	case SIOCGIFMEDIA:
 		VLAN_LOCK();
 		if (TRUNK(ifv) != NULL) {
-			error = (*PARENT(ifv)->if_ioctl)(PARENT(ifv),
-					SIOCGIFMEDIA, data);
+			p = PARENT(ifv);
 			VLAN_UNLOCK();
+			error = (*p->if_ioctl)(p, SIOCGIFMEDIA, data);
 			/* Limit the result to the parent's current config. */
 			if (error == 0) {
 				struct ifmediareq *ifmr;
