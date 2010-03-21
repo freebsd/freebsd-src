@@ -576,8 +576,6 @@ pmap_bootstrap(vm_paddr_t *firstaddr)
 
 	virtual_avail = va;
 
-	invltlb();
-
 	/* Initialize the PAT MSR. */
 	pmap_init_pat();
 }
