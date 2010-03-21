@@ -2494,9 +2494,10 @@ netinet/in_rmx.c		optional inet
 netinet/ip_divert.c		optional inet ipdivert ipfirewall
 netinet/ipfw/dn_heap.c		optional inet dummynet
 netinet/ipfw/dn_sched_fifo.c	optional inet dummynet
+netinet/ipfw/dn_sched_prio.c	optional inet dummynet
+netinet/ipfw/dn_sched_qfq.c	optional inet dummynet 
 netinet/ipfw/dn_sched_rr.c	optional inet dummynet
 netinet/ipfw/dn_sched_wf2q.c	optional inet dummynet 
-netinet/ipfw/dn_sched_qfq.c	optional inet dummynet 
 netinet/ipfw/ip_dummynet.c	optional inet dummynet
 netinet/ipfw/ip_dn_io.c		optional inet dummynet
 netinet/ipfw/ip_dn_glue.c	optional inet dummynet
