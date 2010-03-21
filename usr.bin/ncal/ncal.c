@@ -256,7 +256,7 @@ main(int argc, char *argv[])
 
 	before = after = -1;
 
-	while ((ch = getopt(argc, argv, "A:B:3Jbd:eH:hjm:ops:wy")) != -1)
+	while ((ch = getopt(argc, argv, "3A:B:Cd:eH:hjJm:Nops:wy")) != -1)
 		switch (ch) {
 		case '3':
 			flag_3months = 1;
@@ -283,8 +283,11 @@ main(int argc, char *argv[])
 			nswitch = ndaysj(&never);
 			flag_julian_cal = 1;
 			break;
-		case 'b':
+		case 'C':
 			flag_backward = 1;
+			break;
+		case 'N':
+			flag_backward = 0;
 			break;
 		case 'd':
 			flag_today = optarg;
@@ -500,11 +503,12 @@ usage(void)
 {
 
 	fputs(
-	    "usage: cal [-hjy] [[month] year]\n"
-	    "       cal [-hj] [-m month] [year]\n"
-	    "       ncal [-hJjpwy] [-s country_code] [[month] year]\n"
-	    "       ncal [-hJeo] [year]\n"
-	    "for debug the highlighting: [-b] [-H yyyy-mm-dd] [-d yyyy-mm]\n",
+"Usage: cal [general options] [-hjy] [[month] year]\n"
+"       cal [general options] [-hj] [-m month] [year]\n"
+"       ncal [general options] [-hJjpwy] [-s country_code] [[month] year]\n"
+"       ncal [general options] [-hJeo] [year]\n"
+"General options: [-NC3] [-A months] [-B months]\n"
+"For debug the highlighting: [-H yyyy-mm-dd] [-d yyyy-mm]\n",
 	    stderr);
 	exit(EX_USAGE);
 }
