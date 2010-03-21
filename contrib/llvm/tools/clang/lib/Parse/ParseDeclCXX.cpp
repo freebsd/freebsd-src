@@ -167,7 +167,10 @@ Parser::DeclPtrTy Parser::ParseLinkage(ParsingDeclSpec &DS,
   assert(Tok.is(tok::string_literal) && "Not a string literal!");
   llvm::SmallString<8> LangBuffer;
   // LangBuffer is guaranteed to be big enough.
-  llvm::StringRef Lang = PP.getSpelling(Tok, LangBuffer);
+  bool Invalid = false;
+  llvm::StringRef Lang = PP.getSpelling(Tok, LangBuffer, &Invalid);
+  if (Invalid)
+    return DeclPtrTy();
 
   SourceLocation Loc = ConsumeStringToken();
 
@@ -1517,6 +1520,9 @@ void Parser::ParseCXXMemberSpecification(SourceLocation RecordLoc,
 
     if (!Tok.is(tok::l_brace)) {
       Diag(Tok, diag::err_expected_lbrace_after_base_specifiers);
+
+      if (TagDecl)
+        Actions.ActOnTagDefinitionError(CurScope, TagDecl);
       return;
     }
   }
@@ -1593,11 +1599,11 @@ void Parser::ParseCXXMemberSpecification(SourceLocation RecordLoc,
     ParseLexedMethodDefs(getCurrentClass());
   }
 
+  Actions.ActOnTagFinishDefinition(CurScope, TagDecl, RBraceLoc);
+
   // Leave the class scope.
   ParsingDef.Pop();
   ClassScope.Exit();
-
-  Actions.ActOnTagFinishDefinition(CurScope, TagDecl, RBraceLoc);
 }
 
 /// ParseConstructorInitializer - Parse a C++ constructor initializer,

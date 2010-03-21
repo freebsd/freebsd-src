@@ -513,11 +513,10 @@ let mayLoad = 1 in
 let Defs = [EFLAGS] in {
 def UCOMISSrr: PSI<0x2E, MRMSrcReg, (outs), (ins FR32:$src1, FR32:$src2),
                    "ucomiss\t{$src2, $src1|$src1, $src2}",
-                   [(X86cmp FR32:$src1, FR32:$src2), (implicit EFLAGS)]>;
+                   [(set EFLAGS, (X86cmp FR32:$src1, FR32:$src2))]>;
 def UCOMISSrm: PSI<0x2E, MRMSrcMem, (outs), (ins FR32:$src1, f32mem:$src2),
                    "ucomiss\t{$src2, $src1|$src1, $src2}",
-                   [(X86cmp FR32:$src1, (loadf32 addr:$src2)),
-                    (implicit EFLAGS)]>;
+                   [(set EFLAGS, (X86cmp FR32:$src1, (loadf32 addr:$src2)))]>;
                     
 def COMISSrr: PSI<0x2F, MRMSrcReg, (outs), (ins VR128:$src1, VR128:$src2),
                   "comiss\t{$src2, $src1|$src1, $src2}", []>;
@@ -546,21 +545,21 @@ let Constraints = "$src1 = $dst" in {
 let Defs = [EFLAGS] in {
 def Int_UCOMISSrr: PSI<0x2E, MRMSrcReg, (outs), (ins VR128:$src1, VR128:$src2),
                        "ucomiss\t{$src2, $src1|$src1, $src2}",
-                       [(X86ucomi (v4f32 VR128:$src1), VR128:$src2),
-                        (implicit EFLAGS)]>;
+                       [(set EFLAGS, (X86ucomi (v4f32 VR128:$src1),
+                                               VR128:$src2))]>;
 def Int_UCOMISSrm: PSI<0x2E, MRMSrcMem, (outs),(ins VR128:$src1, f128mem:$src2),
                        "ucomiss\t{$src2, $src1|$src1, $src2}",
-                       [(X86ucomi (v4f32 VR128:$src1), (load addr:$src2)),
-                        (implicit EFLAGS)]>;
+                       [(set EFLAGS, (X86ucomi (v4f32 VR128:$src1),
+                                               (load addr:$src2)))]>;
 
 def Int_COMISSrr: PSI<0x2F, MRMSrcReg, (outs), (ins VR128:$src1, VR128:$src2),
                       "comiss\t{$src2, $src1|$src1, $src2}",
-                      [(X86comi (v4f32 VR128:$src1), VR128:$src2),
-                       (implicit EFLAGS)]>;
+                      [(set EFLAGS, (X86comi (v4f32 VR128:$src1),
+                                             VR128:$src2))]>;
 def Int_COMISSrm: PSI<0x2F, MRMSrcMem, (outs), (ins VR128:$src1, f128mem:$src2),
                       "comiss\t{$src2, $src1|$src1, $src2}",
-                      [(X86comi (v4f32 VR128:$src1), (load addr:$src2)),
-                       (implicit EFLAGS)]>;
+                      [(set EFLAGS, (X86comi (v4f32 VR128:$src1),
+                                             (load addr:$src2)))]>;
 } // Defs = [EFLAGS]
 
 // Aliases of packed SSE1 instructions for scalar use. These all have names
@@ -1298,11 +1297,10 @@ let mayLoad = 1 in
 let Defs = [EFLAGS] in {
 def UCOMISDrr: PDI<0x2E, MRMSrcReg, (outs), (ins FR64:$src1, FR64:$src2),
                    "ucomisd\t{$src2, $src1|$src1, $src2}",
-                   [(X86cmp FR64:$src1, FR64:$src2), (implicit EFLAGS)]>;
+                   [(set EFLAGS, (X86cmp FR64:$src1, FR64:$src2))]>;
 def UCOMISDrm: PDI<0x2E, MRMSrcMem, (outs), (ins FR64:$src1, f64mem:$src2),
                    "ucomisd\t{$src2, $src1|$src1, $src2}",
-                   [(X86cmp FR64:$src1, (loadf64 addr:$src2)),
-                    (implicit EFLAGS)]>;
+                   [(set EFLAGS, (X86cmp FR64:$src1, (loadf64 addr:$src2)))]>;
 } // Defs = [EFLAGS]
 
 // Aliases to match intrinsics which expect XMM operand(s).
@@ -1324,21 +1322,21 @@ let Constraints = "$src1 = $dst" in {
 let Defs = [EFLAGS] in {
 def Int_UCOMISDrr: PDI<0x2E, MRMSrcReg, (outs), (ins VR128:$src1, VR128:$src2),
                        "ucomisd\t{$src2, $src1|$src1, $src2}",
-                       [(X86ucomi (v2f64 VR128:$src1), (v2f64 VR128:$src2)),
-                        (implicit EFLAGS)]>;
+                       [(set EFLAGS, (X86ucomi (v2f64 VR128:$src1),
+                                               VR128:$src2))]>;
 def Int_UCOMISDrm: PDI<0x2E, MRMSrcMem, (outs),(ins VR128:$src1, f128mem:$src2),
                        "ucomisd\t{$src2, $src1|$src1, $src2}",
-                       [(X86ucomi (v2f64 VR128:$src1), (load addr:$src2)),
-                        (implicit EFLAGS)]>;
+                       [(set EFLAGS, (X86ucomi (v2f64 VR128:$src1),
+                                               (load addr:$src2)))]>;
 
 def Int_COMISDrr: PDI<0x2F, MRMSrcReg, (outs), (ins VR128:$src1, VR128:$src2),
                       "comisd\t{$src2, $src1|$src1, $src2}",
-                      [(X86comi (v2f64 VR128:$src1), (v2f64 VR128:$src2)),
-                       (implicit EFLAGS)]>;
+                      [(set EFLAGS, (X86comi (v2f64 VR128:$src1),
+                                             VR128:$src2))]>;
 def Int_COMISDrm: PDI<0x2F, MRMSrcMem, (outs), (ins VR128:$src1, f128mem:$src2),
                       "comisd\t{$src2, $src1|$src1, $src2}",
-                      [(X86comi (v2f64 VR128:$src1), (load addr:$src2)),
-                       (implicit EFLAGS)]>;
+                      [(set EFLAGS, (X86comi (v2f64 VR128:$src1),
+                                             (load addr:$src2)))]>;
 } // Defs = [EFLAGS]
 
 // Aliases of packed SSE2 instructions for scalar use. These all have names
@@ -3825,54 +3823,65 @@ def : Pat<(v2i64 (X86pcmpgtq VR128:$src1, (memop addr:$src2))),
 let Constraints = "$src1 = $dst" in {
   def CRC32m8  : SS42FI<0xF0, MRMSrcMem, (outs GR32:$dst),
                       (ins GR32:$src1, i8mem:$src2),
-                      "crc32 \t{$src2, $src1|$src1, $src2}",
+                      "crc32{b} \t{$src2, $src1|$src1, $src2}",
                        [(set GR32:$dst,
                          (int_x86_sse42_crc32_8 GR32:$src1,
-                         (load addr:$src2)))]>, OpSize;
+                         (load addr:$src2)))]>;
   def CRC32r8  : SS42FI<0xF0, MRMSrcReg, (outs GR32:$dst),
                       (ins GR32:$src1, GR8:$src2),
-                      "crc32 \t{$src2, $src1|$src1, $src2}",
+                      "crc32{b} \t{$src2, $src1|$src1, $src2}",
                        [(set GR32:$dst,
-                         (int_x86_sse42_crc32_8 GR32:$src1, GR8:$src2))]>,
-                         OpSize;
+                         (int_x86_sse42_crc32_8 GR32:$src1, GR8:$src2))]>;
   def CRC32m16  : SS42FI<0xF1, MRMSrcMem, (outs GR32:$dst),
                       (ins GR32:$src1, i16mem:$src2),
-                      "crc32 \t{$src2, $src1|$src1, $src2}",
+                      "crc32{w} \t{$src2, $src1|$src1, $src2}",
                        [(set GR32:$dst,
                          (int_x86_sse42_crc32_16 GR32:$src1,
                          (load addr:$src2)))]>,
                          OpSize;
   def CRC32r16  : SS42FI<0xF1, MRMSrcReg, (outs GR32:$dst),
                       (ins GR32:$src1, GR16:$src2),
-                      "crc32 \t{$src2, $src1|$src1, $src2}",
+                      "crc32{w} \t{$src2, $src1|$src1, $src2}",
                        [(set GR32:$dst,
                          (int_x86_sse42_crc32_16 GR32:$src1, GR16:$src2))]>,
                          OpSize;
   def CRC32m32  : SS42FI<0xF1, MRMSrcMem, (outs GR32:$dst),
                       (ins GR32:$src1, i32mem:$src2),
-                      "crc32 \t{$src2, $src1|$src1, $src2}",
+                      "crc32{l} \t{$src2, $src1|$src1, $src2}",
                        [(set GR32:$dst,
                          (int_x86_sse42_crc32_32 GR32:$src1,
-                         (load addr:$src2)))]>, OpSize;
+                         (load addr:$src2)))]>;
   def CRC32r32  : SS42FI<0xF1, MRMSrcReg, (outs GR32:$dst),
                       (ins GR32:$src1, GR32:$src2),
-                      "crc32 \t{$src2, $src1|$src1, $src2}",
+                      "crc32{l} \t{$src2, $src1|$src1, $src2}",
                        [(set GR32:$dst,
-                         (int_x86_sse42_crc32_32 GR32:$src1, GR32:$src2))]>,
-                         OpSize;
-  def CRC64m64  : SS42FI<0xF0, MRMSrcMem, (outs GR64:$dst),
-                      (ins GR64:$src1, i64mem:$src2),
-                      "crc32 \t{$src2, $src1|$src1, $src2}",
+                         (int_x86_sse42_crc32_32 GR32:$src1, GR32:$src2))]>;
+  def CRC64m8  : SS42FI<0xF0, MRMSrcMem, (outs GR64:$dst),
+                      (ins GR64:$src1, i8mem:$src2),
+                      "crc32{b} \t{$src2, $src1|$src1, $src2}",
                        [(set GR64:$dst,
-                         (int_x86_sse42_crc32_64 GR64:$src1,
+                         (int_x86_sse42_crc64_8 GR64:$src1,
                          (load addr:$src2)))]>,
-                         OpSize, REX_W;
-  def CRC64r64  : SS42FI<0xF0, MRMSrcReg, (outs GR64:$dst),
-                      (ins GR64:$src1, GR64:$src2),
-                      "crc32 \t{$src2, $src1|$src1, $src2}",
+                         REX_W;
+  def CRC64r8  : SS42FI<0xF0, MRMSrcReg, (outs GR64:$dst),
+                      (ins GR64:$src1, GR8:$src2),
+                      "crc32{b} \t{$src2, $src1|$src1, $src2}",
                        [(set GR64:$dst,
-                         (int_x86_sse42_crc32_64 GR64:$src1, GR64:$src2))]>,
-                         OpSize, REX_W;
+                         (int_x86_sse42_crc64_8 GR64:$src1, GR8:$src2))]>,
+                         REX_W;
+  def CRC64m64  : SS42FI<0xF1, MRMSrcMem, (outs GR64:$dst),
+                      (ins GR64:$src1, i64mem:$src2),
+                      "crc32{q} \t{$src2, $src1|$src1, $src2}",
+                       [(set GR64:$dst,
+                         (int_x86_sse42_crc64_64 GR64:$src1,
+                         (load addr:$src2)))]>,
+                         REX_W;
+  def CRC64r64  : SS42FI<0xF1, MRMSrcReg, (outs GR64:$dst),
+                      (ins GR64:$src1, GR64:$src2),
+                      "crc32{q} \t{$src2, $src1|$src1, $src2}",
+                       [(set GR64:$dst,
+                         (int_x86_sse42_crc64_64 GR64:$src1, GR64:$src2))]>,
+                         REX_W;
 }
 
 // String/text processing instructions.

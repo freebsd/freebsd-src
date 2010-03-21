@@ -200,19 +200,19 @@ public:
   FullSourceLoc getInstantiationLoc() const;
   FullSourceLoc getSpellingLoc() const;
 
-  unsigned getInstantiationLineNumber() const;
-  unsigned getInstantiationColumnNumber() const;
+  unsigned getInstantiationLineNumber(bool *Invalid = 0) const;
+  unsigned getInstantiationColumnNumber(bool *Invalid = 0) const;
 
-  unsigned getSpellingLineNumber() const;
-  unsigned getSpellingColumnNumber() const;
+  unsigned getSpellingLineNumber(bool *Invalid = 0) const;
+  unsigned getSpellingColumnNumber(bool *Invalid = 0) const;
 
-  const char *getCharacterData() const;
+  const char *getCharacterData(bool *Invalid = 0) const;
 
-  const llvm::MemoryBuffer* getBuffer() const;
+  const llvm::MemoryBuffer* getBuffer(bool *Invalid = 0) const;
 
   /// getBufferData - Return a StringRef to the source buffer data for the
   /// specified FileID.
-  llvm::StringRef getBufferData() const;
+  llvm::StringRef getBufferData(bool *Invalid = 0) const;
 
   /// getDecomposedLoc - Decompose the specified location into a raw FileID +
   /// Offset pair.  The first element is the FileID, the second is the

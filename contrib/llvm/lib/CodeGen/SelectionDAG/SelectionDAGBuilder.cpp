@@ -1675,11 +1675,10 @@ bool SelectionDAGBuilder::handleJTSwitchCase(CaseRec& CR,
     }
   }
 
-  // Create a jump table index for this jump table, or return an existing
-  // one.
+  // Create a jump table index for this jump table.
   unsigned JTEncoding = TLI.getJumpTableEncoding();
   unsigned JTI = CurMF->getOrCreateJumpTableInfo(JTEncoding)
-                       ->getJumpTableIndex(DestBBs);
+                       ->createJumpTableIndex(DestBBs);
 
   // Set the jump table information so that we can codegen it as a second
   // MachineBasicBlock
@@ -2592,6 +2591,11 @@ void SelectionDAGBuilder::visitGetElementPtr(User &I) {
       }
 
       Ty = StTy->getElementType(Field);
+    } else if (const UnionType *UnTy = dyn_cast<UnionType>(Ty)) {
+      unsigned Field = cast<ConstantInt>(Idx)->getZExtValue();
+      
+      // Offset canonically 0 for unions, but type changes
+      Ty = UnTy->getElementType(Field);
     } else {
       Ty = cast<SequentialType>(Ty)->getElementType();
 
@@ -4277,6 +4281,9 @@ isInTailCallPosition(CallSite CS, Attributes CalleeRetAttr,
          --BBI) {
       if (&*BBI == I)
         break;
+      // Debug info intrinsics do not get in the way of tail call optimization.
+      if (isa<DbgInfoIntrinsic>(BBI))
+        continue;
       if (BBI->mayHaveSideEffects() || BBI->mayReadFromMemory() ||
           !BBI->isSafeToSpeculativelyExecute())
         return false;

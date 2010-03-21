@@ -31,12 +31,12 @@ dnl===
 dnl===-----------------------------------------------------------------------===
 dnl Initialize autoconf and define the package name, version number and
 dnl email address for reporting bugs.
-AC_INIT([[llvm]],[[2.7svn]],[llvmbugs@cs.uiuc.edu])
+AC_INIT([[llvm]],[[2.8svn]],[llvmbugs@cs.uiuc.edu])
 
 dnl Provide a copyright substitution and ensure the copyright notice is included
 dnl in the output of --version option of the generated configure script.
-AC_SUBST(LLVM_COPYRIGHT,["Copyright (c) 2003-2009 University of Illinois at Urbana-Champaign."])
-AC_COPYRIGHT([Copyright (c) 2003-2009 University of Illinois at Urbana-Champaign.])
+AC_SUBST(LLVM_COPYRIGHT,["Copyright (c) 2003-2010 University of Illinois at Urbana-Champaign."])
+AC_COPYRIGHT([Copyright (c) 2003-2010 University of Illinois at Urbana-Champaign.])
 
 dnl Indicate that we require autoconf 2.59 or later. Ths is needed because we
 dnl use some autoconf macros only available in 2.59.
@@ -62,6 +62,41 @@ dnl Configure all of the projects present in our source tree. While we could
 dnl just AC_CONFIG_SUBDIRS on the set of directories in projects that have a
 dnl configure script, that usage of the AC_CONFIG_SUBDIRS macro is deprecated.
 dnl Instead we match on the known projects.
+
+dnl
+dnl One tricky part of doing this is that some projects depend upon other
+dnl projects.  For example, several projects rely upon the LLVM test suite.
+dnl We want to configure those projects first so that their object trees are
+dnl created before running the configure scripts of projects that depend upon
+dnl them.
+dnl
+
+dnl Several projects use llvm-gcc, so configure that first
+if test -d ${srcdir}/projects/llvm-gcc ; then
+  AC_CONFIG_SUBDIRS([projects/llvm-gcc])
+fi
+
+dnl Several projects use the LLVM test suite, so configure it next.
+if test -d ${srcdir}/projects/test-suite ; then
+  AC_CONFIG_SUBDIRS([projects/test-suite])
+fi
+
+dnl llvm-test is the old name of the test-suite, kept here for backwards
+dnl compatibility
+if test -d ${srcdir}/projects/llvm-test ; then
+  AC_CONFIG_SUBDIRS([projects/llvm-test])
+fi
+
+dnl Some projects use poolalloc; configure that next
+if test -d ${srcdir}/projects/poolalloc ; then
+  AC_CONFIG_SUBDIRS([projects/poolalloc])
+fi
+
+if test -d ${srcdir}/projects/llvm-poolalloc ; then
+  AC_CONFIG_SUBDIRS([projects/llvm-poolalloc])
+fi
+
+dnl Check for all other projects
 for i in `ls ${srcdir}/projects`
 do
   if test -d ${srcdir}/projects/${i} ; then
@@ -70,16 +105,9 @@ do
       sample)       AC_CONFIG_SUBDIRS([projects/sample])    ;;
       privbracket)  AC_CONFIG_SUBDIRS([projects/privbracket]) ;;
       llvm-stacker) AC_CONFIG_SUBDIRS([projects/llvm-stacker]) ;;
-      # llvm-test is the old name of the test-suite, kept here for backwards
-      # compatibility
-      llvm-test)    AC_CONFIG_SUBDIRS([projects/llvm-test]) ;;
-      test-suite)   AC_CONFIG_SUBDIRS([projects/test-suite]) ;;
       llvm-reopt)   AC_CONFIG_SUBDIRS([projects/llvm-reopt]);;
-      llvm-gcc)     AC_CONFIG_SUBDIRS([projects/llvm-gcc])  ;;
       llvm-java)    AC_CONFIG_SUBDIRS([projects/llvm-java]) ;;
       llvm-tv)      AC_CONFIG_SUBDIRS([projects/llvm-tv])   ;;
-      llvm-poolalloc) AC_CONFIG_SUBDIRS([projects/llvm-poolalloc]) ;;
-      poolalloc)    AC_CONFIG_SUBDIRS([projects/poolalloc]) ;;
       safecode)     AC_CONFIG_SUBDIRS([projects/safecode]) ;;
       llvm-kernel)  AC_CONFIG_SUBDIRS([projects/llvm-kernel]) ;;
       *)

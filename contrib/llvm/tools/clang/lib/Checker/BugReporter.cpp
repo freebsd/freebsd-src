@@ -36,6 +36,23 @@ BugReporterContext::~BugReporterContext() {
     if ((*I)->isOwnedByReporterContext()) delete *I;
 }
 
+void BugReporterContext::addVisitor(BugReporterVisitor* visitor) {
+  if (!visitor)
+    return;
+
+  llvm::FoldingSetNodeID ID;
+  visitor->Profile(ID);
+  void *InsertPos;
+
+  if (CallbacksSet.FindNodeOrInsertPos(ID, InsertPos)) {
+    delete visitor;
+    return;
+  }
+
+  CallbacksSet.InsertNode(visitor, InsertPos);
+  Callbacks = F.Add(visitor, Callbacks);
+}
+
 //===----------------------------------------------------------------------===//
 // Helper routines for walking the ExplodedGraph and fetching statements.
 //===----------------------------------------------------------------------===//
@@ -1613,7 +1630,9 @@ void GRBugReporter::GeneratePathDiagnostic(PathDiagnostic& PD,
   else
     return;
 
+  // Register node visitors.
   R->registerInitialVisitors(PDB, N);
+  bugreporter::registerNilReceiverVisitor(PDB);
 
   switch (PDB.getGenerationScheme()) {
     case PathDiagnosticClient::Extensive:

@@ -101,6 +101,7 @@ namespace {
     void printAddrMode5Operand(const MachineInstr *MI, int OpNum,
                                const char *Modifier = 0);
     void printAddrMode6Operand(const MachineInstr *MI, int OpNum);
+    void printAddrMode6OffsetOperand(const MachineInstr *MI, int OpNum);
     void printAddrModePCOperand(const MachineInstr *MI, int OpNum,
                                 const char *Modifier = 0);
     void printBitfieldInvMaskImmOperand (const MachineInstr *MI, int OpNum);
@@ -431,16 +432,16 @@ void ARMAsmPrinter::printAddrMode2Operand(const MachineInstr *MI, int Op) {
   O << "[" << getRegisterName(MO1.getReg());
 
   if (!MO2.getReg()) {
-    if (ARM_AM::getAM2Offset(MO3.getImm()))  // Don't print +0.
+    if (ARM_AM::getAM2Offset(MO3.getImm())) // Don't print +0.
       O << ", #"
-        << (char)ARM_AM::getAM2Op(MO3.getImm())
+        << ARM_AM::getAddrOpcStr(ARM_AM::getAM2Op(MO3.getImm()))
         << ARM_AM::getAM2Offset(MO3.getImm());
     O << "]";
     return;
   }
 
   O << ", "
-    << (char)ARM_AM::getAM2Op(MO3.getImm())
+    << ARM_AM::getAddrOpcStr(ARM_AM::getAM2Op(MO3.getImm()))
     << getRegisterName(MO2.getReg());
 
   if (unsigned ShImm = ARM_AM::getAM2Offset(MO3.getImm()))
@@ -458,12 +459,12 @@ void ARMAsmPrinter::printAddrMode2OffsetOperand(const MachineInstr *MI, int Op){
     unsigned ImmOffs = ARM_AM::getAM2Offset(MO2.getImm());
     assert(ImmOffs && "Malformed indexed load / store!");
     O << "#"
-      << (char)ARM_AM::getAM2Op(MO2.getImm())
+      << ARM_AM::getAddrOpcStr(ARM_AM::getAM2Op(MO2.getImm()))
       << ImmOffs;
     return;
   }
 
-  O << (char)ARM_AM::getAM2Op(MO2.getImm())
+  O << ARM_AM::getAddrOpcStr(ARM_AM::getAM2Op(MO2.getImm()))
     << getRegisterName(MO1.getReg());
 
   if (unsigned ShImm = ARM_AM::getAM2Offset(MO2.getImm()))
@@ -490,7 +491,7 @@ void ARMAsmPrinter::printAddrMode3Operand(const MachineInstr *MI, int Op) {
 
   if (unsigned ImmOffs = ARM_AM::getAM3Offset(MO3.getImm()))
     O << ", #"
-      << (char)ARM_AM::getAM3Op(MO3.getImm())
+      << ARM_AM::getAddrOpcStr(ARM_AM::getAM3Op(MO3.getImm()))
       << ImmOffs;
   O << "]";
 }
@@ -508,35 +509,22 @@ void ARMAsmPrinter::printAddrMode3OffsetOperand(const MachineInstr *MI, int Op){
   unsigned ImmOffs = ARM_AM::getAM3Offset(MO2.getImm());
   assert(ImmOffs && "Malformed indexed load / store!");
   O << "#"
-    << (char)ARM_AM::getAM3Op(MO2.getImm())
+    << ARM_AM::getAddrOpcStr(ARM_AM::getAM3Op(MO2.getImm()))
     << ImmOffs;
 }
 
 void ARMAsmPrinter::printAddrMode4Operand(const MachineInstr *MI, int Op,
                                           const char *Modifier) {
-  const MachineOperand &MO1 = MI->getOperand(Op);
   const MachineOperand &MO2 = MI->getOperand(Op+1);
   ARM_AM::AMSubMode Mode = ARM_AM::getAM4SubMode(MO2.getImm());
   if (Modifier && strcmp(Modifier, "submode") == 0) {
-    if (MO1.getReg() == ARM::SP) {
-      // FIXME
-      bool isLDM = (MI->getOpcode() == ARM::LDM ||
-                    MI->getOpcode() == ARM::LDM_UPD ||
-                    MI->getOpcode() == ARM::LDM_RET ||
-                    MI->getOpcode() == ARM::t2LDM ||
-                    MI->getOpcode() == ARM::t2LDM_UPD ||
-                    MI->getOpcode() == ARM::t2LDM_RET);
-      O << ARM_AM::getAMSubModeAltStr(Mode, isLDM);
-    } else
-      O << ARM_AM::getAMSubModeStr(Mode);
+    O << ARM_AM::getAMSubModeStr(Mode);
   } else if (Modifier && strcmp(Modifier, "wide") == 0) {
     ARM_AM::AMSubMode Mode = ARM_AM::getAM4SubMode(MO2.getImm());
     if (Mode == ARM_AM::ia)
       O << ".w";
   } else {
     printOperand(MI, Op);
-    if (ARM_AM::getAM4WBFlag(MO2.getImm()))
-      O << "!";
   }
 }
 
@@ -559,8 +547,6 @@ void ARMAsmPrinter::printAddrMode5Operand(const MachineInstr *MI, int Op,
   } else if (Modifier && strcmp(Modifier, "base") == 0) {
     // Used for FSTM{D|S} and LSTM{D|S} operations.
     O << getRegisterName(MO1.getReg());
-    if (ARM_AM::getAM5WBFlag(MO2.getImm()))
-      O << "!";
     return;
   }
 
@@ -568,7 +554,7 @@ void ARMAsmPrinter::printAddrMode5Operand(const MachineInstr *MI, int Op,
 
   if (unsigned ImmOffs = ARM_AM::getAM5Offset(MO2.getImm())) {
     O << ", #"
-      << (char)ARM_AM::getAM5Op(MO2.getImm())
+      << ARM_AM::getAddrOpcStr(ARM_AM::getAM5Op(MO2.getImm()))
       << ImmOffs*4;
   }
   O << "]";
@@ -577,22 +563,21 @@ void ARMAsmPrinter::printAddrMode5Operand(const MachineInstr *MI, int Op,
 void ARMAsmPrinter::printAddrMode6Operand(const MachineInstr *MI, int Op) {
   const MachineOperand &MO1 = MI->getOperand(Op);
   const MachineOperand &MO2 = MI->getOperand(Op+1);
-  const MachineOperand &MO3 = MI->getOperand(Op+2);
-  const MachineOperand &MO4 = MI->getOperand(Op+3);
 
   O << "[" << getRegisterName(MO1.getReg());
-  if (MO4.getImm()) {
+  if (MO2.getImm()) {
     // FIXME: Both darwin as and GNU as violate ARM docs here.
-    O << ", :" << MO4.getImm();
+    O << ", :" << MO2.getImm();
   }
   O << "]";
+}
 
-  if (ARM_AM::getAM6WBFlag(MO3.getImm())) {
-    if (MO2.getReg() == 0)
-      O << "!";
-    else
-      O << ", " << getRegisterName(MO2.getReg());
-  }
+void ARMAsmPrinter::printAddrMode6OffsetOperand(const MachineInstr *MI, int Op){
+  const MachineOperand &MO = MI->getOperand(Op);
+  if (MO.getReg() == 0)
+    O << "!";
+  else
+    O << ", " << getRegisterName(MO.getReg());
 }
 
 void ARMAsmPrinter::printAddrModePCOperand(const MachineInstr *MI, int Op,
@@ -604,7 +589,7 @@ void ARMAsmPrinter::printAddrModePCOperand(const MachineInstr *MI, int Op,
 
   const MachineOperand &MO1 = MI->getOperand(Op);
   assert(TargetRegisterInfo::isPhysicalRegister(MO1.getReg()));
-  O << "[pc, +" << getRegisterName(MO1.getReg()) << "]";
+  O << "[pc, " << getRegisterName(MO1.getReg()) << "]";
 }
 
 void
@@ -627,10 +612,11 @@ void
 ARMAsmPrinter::printThumbITMask(const MachineInstr *MI, int Op) {
   // (3 - the number of trailing zeros) is the number of then / else.
   unsigned Mask = MI->getOperand(Op).getImm();
+  unsigned CondBit0 = Mask >> 4 & 1;
   unsigned NumTZ = CountTrailingZeros_32(Mask);
   assert(NumTZ <= 3 && "Invalid IT mask!");
   for (unsigned Pos = 3, e = NumTZ; Pos > e; --Pos) {
-    bool T = (Mask & (1 << Pos)) == 0;
+    bool T = ((Mask >> Pos) & 1) == CondBit0;
     if (T)
       O << 't';
     else
@@ -662,7 +648,7 @@ ARMAsmPrinter::printThumbAddrModeRI5Operand(const MachineInstr *MI, int Op,
   if (MO3.getReg())
     O << ", " << getRegisterName(MO3.getReg());
   else if (unsigned ImmOffs = MO2.getImm())
-    O << ", #+" << ImmOffs * Scale;
+    O << ", #" << ImmOffs * Scale;
   O << "]";
 }
 
@@ -684,7 +670,7 @@ void ARMAsmPrinter::printThumbAddrModeSPOperand(const MachineInstr *MI,int Op) {
   const MachineOperand &MO2 = MI->getOperand(Op+1);
   O << "[" << getRegisterName(MO1.getReg());
   if (unsigned ImmOffs = MO2.getImm())
-    O << ", #+" << ImmOffs*4;
+    O << ", #" << ImmOffs*4;
   O << "]";
 }
 
@@ -720,7 +706,7 @@ void ARMAsmPrinter::printT2AddrModeImm12Operand(const MachineInstr *MI,
 
   unsigned OffImm = MO2.getImm();
   if (OffImm)  // Don't print +0.
-    O << ", #+" << OffImm;
+    O << ", #" << OffImm;
   O << "]";
 }
 
@@ -736,7 +722,7 @@ void ARMAsmPrinter::printT2AddrModeImm8Operand(const MachineInstr *MI,
   if (OffImm < 0)
     O << ", #-" << -OffImm;
   else if (OffImm > 0)
-    O << ", #+" << OffImm;
+    O << ", #" << OffImm;
   O << "]";
 }
 
@@ -752,7 +738,7 @@ void ARMAsmPrinter::printT2AddrModeImm8s4Operand(const MachineInstr *MI,
   if (OffImm < 0)
     O << ", #-" << -OffImm * 4;
   else if (OffImm > 0)
-    O << ", #+" << OffImm * 4;
+    O << ", #" << OffImm * 4;
   O << "]";
 }
 
@@ -764,7 +750,7 @@ void ARMAsmPrinter::printT2AddrModeImm8OffsetOperand(const MachineInstr *MI,
   if (OffImm < 0)
     O << "#-" << -OffImm;
   else if (OffImm > 0)
-    O << "#+" << OffImm;
+    O << "#" << OffImm;
 }
 
 void ARMAsmPrinter::printT2AddrModeSoRegOperand(const MachineInstr *MI,

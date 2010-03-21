@@ -215,17 +215,18 @@ namespace clang {
       /// generate the precompiled header.
       ORIGINAL_FILE_NAME = 19,
 
-      /// \brief Record code for the sorted array of source ranges where
-      /// comments were encountered in the source code.
-      COMMENT_RANGES = 20,
+      /// Record #20 intentionally left blank.
       
       /// \brief Record code for the version control branch and revision
       /// information of the compiler used to build this PCH file.
       VERSION_CONTROL_BRANCH_REVISION = 21,
       
       /// \brief Record code for the array of unused static functions.
-      UNUSED_STATIC_FUNCS = 22
+      UNUSED_STATIC_FUNCS = 22,
       
+      /// \brief Record code for the table of offsets to macro definition
+      /// entries in the preprocessing record.
+      MACRO_DEFINITION_OFFSETS = 23
     };
 
     /// \brief Record types used within a source manager block.
@@ -245,10 +246,7 @@ namespace clang {
       SM_SLOC_INSTANTIATION_ENTRY = 4,
       /// \brief Describes the SourceManager's line table, with
       /// information about #line directives.
-      SM_LINE_TABLE = 5,
-      /// \brief Describes one header file info [isImport, DirInfo, NumIncludes]
-      /// ControllingMacro is optional.
-      SM_HEADER_FILE_INFO = 6
+      SM_LINE_TABLE = 5
     };
 
     /// \brief Record types used within a preprocessor block.
@@ -267,7 +265,14 @@ namespace clang {
 
       /// \brief Describes one token.
       /// [PP_TOKEN, SLoc, Length, IdentInfoID, Kind, Flags]
-      PP_TOKEN = 3
+      PP_TOKEN = 3,
+
+      /// \brief Describes a macro instantiation within the preprocessing 
+      /// record.
+      PP_MACRO_INSTANTIATION = 4,
+      
+      /// \brief Describes a macro definition within the preprocessing record.
+      PP_MACRO_DEFINITION = 5
     };
 
     /// \defgroup PCHAST Precompiled header AST constants

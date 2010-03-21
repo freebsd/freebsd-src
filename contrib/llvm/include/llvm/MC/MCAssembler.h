@@ -24,8 +24,10 @@ class raw_ostream;
 class MCAsmLayout;
 class MCAssembler;
 class MCContext;
+class MCCodeEmitter;
 class MCExpr;
 class MCFragment;
+class MCObjectWriter;
 class MCSection;
 class MCSectionData;
 class MCSymbol;
@@ -35,7 +37,8 @@ class TargetAsmBackend;
 /// MCAsmFixup - Represent a fixed size region of bytes inside some fragment
 /// which needs to be rewritten. This region will either be rewritten by the
 /// assembler or cause a relocation entry to be generated.
-struct MCAsmFixup {
+class MCAsmFixup {
+public:
   /// Offset - The offset inside the fragment which needs to be rewritten.
   uint64_t Offset;
 
@@ -45,14 +48,9 @@ struct MCAsmFixup {
   /// Kind - The fixup kind.
   MCFixupKind Kind;
 
-  /// FixedValue - The value to replace the fix up by.
-  //
-  // FIXME: This should not be here.
-  uint64_t FixedValue;
-
 public:
   MCAsmFixup(uint64_t _Offset, const MCExpr &_Value, MCFixupKind _Kind)
-    : Offset(_Offset), Value(&_Value), Kind(_Kind), FixedValue(0) {}
+    : Offset(_Offset), Value(&_Value), Kind(_Kind) {}
 };
 
 class MCFragment : public ilist_node<MCFragment> {
@@ -590,6 +588,8 @@ public:
   typedef SymbolDataListType::const_iterator const_symbol_iterator;
   typedef SymbolDataListType::iterator symbol_iterator;
 
+  typedef std::vector<IndirectSymbolData>::const_iterator
+    const_indirect_symbol_iterator;
   typedef std::vector<IndirectSymbolData>::iterator indirect_symbol_iterator;
 
 private:
@@ -599,6 +599,8 @@ private:
   MCContext &Context;
 
   TargetAsmBackend &Backend;
+
+  MCCodeEmitter &Emitter;
 
   raw_ostream &OS;
 
@@ -621,21 +623,6 @@ private:
   unsigned SubsectionsViaSymbols : 1;
 
 private:
-  /// Check whether a fixup can be satisfied, or whether it needs to be relaxed
-  /// (increased in size, in order to hold its value correctly).
-  bool FixupNeedsRelaxation(MCAsmFixup &Fixup, MCDataFragment *DF);
-
-  /// LayoutSection - Assign offsets and sizes to the fragments in the section
-  /// \arg SD, and update the section size. The section file offset should
-  /// already have been computed.
-  void LayoutSection(MCSectionData &SD);
-
-  /// LayoutOnce - Perform one layout iteration and return true if any offsets
-  /// were adjusted.
-  bool LayoutOnce();
-
-  // FIXME: Make protected once we factor out object writer classes.
-public:
   /// Evaluate a fixup to a relocatable expression and the value which should be
   /// placed into the fixup.
   ///
@@ -653,6 +640,44 @@ public:
                      MCAsmFixup &Fixup, MCDataFragment *DF,
                      MCValue &Target, uint64_t &Value) const;
 
+  /// Check whether a fixup can be satisfied, or whether it needs to be relaxed
+  /// (increased in size, in order to hold its value correctly).
+  bool FixupNeedsRelaxation(MCAsmFixup &Fixup, MCDataFragment *DF);
+
+  /// LayoutSection - Assign offsets and sizes to the fragments in the section
+  /// \arg SD, and update the section size. The section file offset should
+  /// already have been computed.
+  void LayoutSection(MCSectionData &SD);
+
+  /// LayoutOnce - Perform one layout iteration and return true if any offsets
+  /// were adjusted.
+  bool LayoutOnce();
+
+public:
+  /// Find the symbol which defines the atom containing given address, inside
+  /// the given section, or null if there is no such symbol.
+  //
+  // FIXME: Eliminate this, it is very slow.
+  const MCSymbolData *getAtomForAddress(const MCSectionData *Section,
+                                        uint64_t Address) const;
+
+  /// Find the symbol which defines the atom containing the given symbol, or
+  /// null if there is no such symbol.
+  //
+  // FIXME: Eliminate this, it is very slow.
+  const MCSymbolData *getAtom(const MCSymbolData *Symbol) const;
+
+  /// Check whether a particular symbol is visible to the linker and is required
+  /// in the symbol table, or whether it can be discarded by the assembler. This
+  /// also effects whether the assembler treats the label as potentially
+  /// defining a separate atom.
+  bool isSymbolLinkerVisible(const MCSymbolData *SD) const;
+
+  /// Emit the section contents using the given object writer.
+  //
+  // FIXME: Should MCAssembler always have a reference to the object writer?
+  void WriteSectionData(const MCSectionData *Section, MCObjectWriter *OW) const;
+
 public:
   /// Construct a new assembler instance.
   ///
@@ -662,12 +687,15 @@ public:
   // concrete and require clients to pass in a target like object. The other
   // option is to make this abstract, and have targets provide concrete
   // implementations as we do with AsmParser.
-  MCAssembler(MCContext &_Context, TargetAsmBackend &_Backend, raw_ostream &OS);
+  MCAssembler(MCContext &_Context, TargetAsmBackend &_Backend,
+              MCCodeEmitter &_Emitter, raw_ostream &OS);
   ~MCAssembler();
 
   MCContext &getContext() const { return Context; }
 
   TargetAsmBackend &getBackend() const { return Backend; }
+
+  MCCodeEmitter &getEmitter() const { return Emitter; }
 
   /// Finish - Do final processing and write the object to the output stream.
   void Finish();
@@ -723,8 +751,14 @@ public:
   indirect_symbol_iterator indirect_symbol_begin() {
     return IndirectSymbols.begin();
   }
+  const_indirect_symbol_iterator indirect_symbol_begin() const {
+    return IndirectSymbols.begin();
+  }
 
   indirect_symbol_iterator indirect_symbol_end() {
+    return IndirectSymbols.end();
+  }
+  const_indirect_symbol_iterator indirect_symbol_end() const {
     return IndirectSymbols.end();
   }
 

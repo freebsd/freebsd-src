@@ -232,9 +232,7 @@ static bool FactorOutConstant(const SCEV *&S,
       const SCEVConstant *FC = cast<SCEVConstant>(Factor);
       if (const SCEVConstant *C = dyn_cast<SCEVConstant>(M->getOperand(0)))
         if (!C->getValue()->getValue().srem(FC->getValue()->getValue())) {
-          const SmallVectorImpl<const SCEV *> &MOperands = M->getOperands();
-          SmallVector<const SCEV *, 4> NewMulOps(MOperands.begin(),
-                                                 MOperands.end());
+          SmallVector<const SCEV *, 4> NewMulOps(M->op_begin(), M->op_end());
           NewMulOps[0] =
             SE.getConstant(C->getValue()->getValue().sdiv(
                                                    FC->getValue()->getValue()));
@@ -249,9 +247,7 @@ static bool FactorOutConstant(const SCEV *&S,
         const SCEV *Remainder = SE.getIntegerSCEV(0, SOp->getType());
         if (FactorOutConstant(SOp, Remainder, Factor, SE, TD) &&
             Remainder->isZero()) {
-          const SmallVectorImpl<const SCEV *> &MOperands = M->getOperands();
-          SmallVector<const SCEV *, 4> NewMulOps(MOperands.begin(),
-                                                 MOperands.end());
+          SmallVector<const SCEV *, 4> NewMulOps(M->op_begin(), M->op_end());
           NewMulOps[i] = SOp;
           S = SE.getMulExpr(NewMulOps);
           return true;
@@ -297,13 +293,11 @@ static void SimplifyAddOperands(SmallVectorImpl<const SCEV *> &Ops,
                     SE.getAddExpr(NoAddRecs);
   // If it returned an add, use the operands. Otherwise it simplified
   // the sum into a single value, so just use that.
+  Ops.clear();
   if (const SCEVAddExpr *Add = dyn_cast<SCEVAddExpr>(Sum))
-    Ops = Add->getOperands();
-  else {
-    Ops.clear();
-    if (!Sum->isZero())
-      Ops.push_back(Sum);
-  }
+    Ops.insert(Ops.end(), Add->op_begin(), Add->op_end());
+  else if (!Sum->isZero())
+    Ops.push_back(Sum);
   // Then append the addrecs.
   Ops.insert(Ops.end(), AddRecs.begin(), AddRecs.end());
 }
@@ -1060,10 +1054,9 @@ Value *SCEVExpander::visitAddRecExpr(const SCEVAddRecExpr *S) {
   if (CanonicalIV &&
       SE.getTypeSizeInBits(CanonicalIV->getType()) >
       SE.getTypeSizeInBits(Ty)) {
-    const SmallVectorImpl<const SCEV *> &Ops = S->getOperands();
-    SmallVector<const SCEV *, 4> NewOps(Ops.size());
-    for (unsigned i = 0, e = Ops.size(); i != e; ++i)
-      NewOps[i] = SE.getAnyExtendExpr(Ops[i], CanonicalIV->getType());
+    SmallVector<const SCEV *, 4> NewOps(S->getNumOperands());
+    for (unsigned i = 0, e = S->getNumOperands(); i != e; ++i)
+      NewOps[i] = SE.getAnyExtendExpr(S->op_begin()[i], CanonicalIV->getType());
     Value *V = expand(SE.getAddRecExpr(NewOps, S->getLoop()));
     BasicBlock *SaveInsertBB = Builder.GetInsertBlock();
     BasicBlock::iterator SaveInsertPt = Builder.GetInsertPoint();
@@ -1078,8 +1071,7 @@ Value *SCEVExpander::visitAddRecExpr(const SCEVAddRecExpr *S) {
 
   // {X,+,F} --> X + {0,+,F}
   if (!S->getStart()->isZero()) {
-    const SmallVectorImpl<const SCEV *> &SOperands = S->getOperands();
-    SmallVector<const SCEV *, 4> NewOps(SOperands.begin(), SOperands.end());
+    SmallVector<const SCEV *, 4> NewOps(S->op_begin(), S->op_end());
     NewOps[0] = SE.getIntegerSCEV(0, Ty);
     const SCEV *Rest = SE.getAddRecExpr(NewOps, L);
 
@@ -1248,6 +1240,15 @@ Value *SCEVExpander::visitUMaxExpr(const SCEVUMaxExpr *S) {
   return LHS;
 }
 
+Value *SCEVExpander::expandCodeFor(const SCEV *SH, const Type *Ty,
+                                   Instruction *I) {
+  BasicBlock::iterator IP = I;
+  while (isInsertedInstruction(IP) || isa<DbgInfoIntrinsic>(IP))
+    ++IP;
+  Builder.SetInsertPoint(IP->getParent(), IP);
+  return expandCodeFor(SH, Ty);
+}
+
 Value *SCEVExpander::expandCodeFor(const SCEV *SH, const Type *Ty) {
   // Expand the code for this SCEV.
   Value *V = expand(SH);
@@ -1286,9 +1287,7 @@ Value *SCEVExpander::expand(const SCEV *S) {
       // there) so that it is guaranteed to dominate any user inside the loop.
       if (L && S->hasComputableLoopEvolution(L) && L != PostIncLoop)
         InsertPt = L->getHeader()->getFirstNonPHI();
-      while (isa<DbgInfoIntrinsic>(InsertPt))
-        InsertPt = llvm::next(BasicBlock::iterator(InsertPt));
-      while (isInsertedInstruction(InsertPt))
+      while (isInsertedInstruction(InsertPt) || isa<DbgInfoIntrinsic>(InsertPt))
         InsertPt = llvm::next(BasicBlock::iterator(InsertPt));
       break;
     }
@@ -1324,7 +1323,8 @@ void SCEVExpander::rememberInstruction(Value *I) {
   // subsequently inserted code will be dominated.
   if (Builder.GetInsertPoint() == I) {
     BasicBlock::iterator It = cast<Instruction>(I);
-    do { ++It; } while (isInsertedInstruction(It));
+    do { ++It; } while (isInsertedInstruction(It) ||
+                        isa<DbgInfoIntrinsic>(It));
     Builder.SetInsertPoint(Builder.GetInsertBlock(), It);
   }
 }
@@ -1332,7 +1332,7 @@ void SCEVExpander::rememberInstruction(Value *I) {
 void SCEVExpander::restoreInsertPoint(BasicBlock *BB, BasicBlock::iterator I) {
   // If we acquired more instructions since the old insert point was saved,
   // advance past them.
-  while (isInsertedInstruction(I)) ++I;
+  while (isInsertedInstruction(I) || isa<DbgInfoIntrinsic>(I)) ++I;
 
   Builder.SetInsertPoint(BB, I);
 }

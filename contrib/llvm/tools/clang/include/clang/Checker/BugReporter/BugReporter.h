@@ -17,13 +17,15 @@
 
 #include "clang/Basic/Diagnostic.h"
 #include "clang/Basic/SourceLocation.h"
-#include "clang/Checker/PathSensitive/GRState.h"
-#include "clang/Checker/PathSensitive/ExplodedGraph.h"
 #include "clang/Checker/BugReporter/BugType.h"
+#include "clang/Checker/PathSensitive/ExplodedGraph.h"
+#include "clang/Checker/PathSensitive/GRState.h"
+#include "llvm/ADT/FoldingSet.h"
+#include "llvm/ADT/ImmutableList.h"
+#include "llvm/ADT/ImmutableSet.h"
 #include "llvm/ADT/SmallPtrSet.h"
 #include "llvm/ADT/SmallSet.h"
 #include "llvm/ADT/SmallString.h"
-#include "llvm/ADT/ImmutableSet.h"
 #include <list>
 
 namespace clang {
@@ -45,7 +47,7 @@ class ParentMap;
 // Interface for individual bug reports.
 //===----------------------------------------------------------------------===//
 
-class BugReporterVisitor {
+class BugReporterVisitor : public llvm::FoldingSetNode {
 public:
   virtual ~BugReporterVisitor();
   virtual PathDiagnosticPiece* VisitNode(const ExplodedNode* N,
@@ -53,6 +55,7 @@ public:
                                          BugReporterContext& BRC) = 0;
 
   virtual bool isOwnedByReporterContext() { return true; }
+  virtual void Profile(llvm::FoldingSetNodeID &ID) const = 0;
 };
 
 // FIXME: Combine this with RangedBugReport and remove RangedBugReport.
@@ -385,16 +388,18 @@ public:
 
 class BugReporterContext {
   GRBugReporter &BR;
-  std::vector<BugReporterVisitor*> Callbacks;
+  // Not the most efficient data structure, but we use an ImmutableList for the
+  // Callbacks because it is safe to make additions to list during iteration.
+  llvm::ImmutableList<BugReporterVisitor*>::Factory F;
+  llvm::ImmutableList<BugReporterVisitor*> Callbacks;
+  llvm::FoldingSet<BugReporterVisitor> CallbacksSet;
 public:
-  BugReporterContext(GRBugReporter& br) : BR(br) {}
+  BugReporterContext(GRBugReporter& br) : BR(br), Callbacks(F.GetEmptyList()) {}
   virtual ~BugReporterContext();
 
-  void addVisitor(BugReporterVisitor* visitor) {
-    if (visitor) Callbacks.push_back(visitor);
-  }
+  void addVisitor(BugReporterVisitor* visitor);
 
-  typedef std::vector<BugReporterVisitor*>::iterator visitor_iterator;
+  typedef llvm::ImmutableList<BugReporterVisitor*>::iterator visitor_iterator;
   visitor_iterator visitor_begin() { return Callbacks.begin(); }
   visitor_iterator visitor_end() { return Callbacks.end(); }
 
@@ -467,6 +472,7 @@ void registerTrackNullOrUndefValue(BugReporterContext& BRC, const void *stmt,
 void registerFindLastStore(BugReporterContext& BRC, const void *memregion,
                            const ExplodedNode *N);
 
+void registerNilReceiverVisitor(BugReporterContext &BRC);
 
 } // end namespace clang::bugreporter
 

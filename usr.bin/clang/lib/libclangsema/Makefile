@@ -3,7 +3,8 @@
 LIB=	clangsema
 
 SRCDIR=	tools/clang/lib/Sema
-SRCS=	CodeCompleteConsumer.cpp IdentifierResolver.cpp \
+SRCS=	AnalysisBasedWarnings.cpp CodeCompleteConsumer.cpp \
+	IdentifierResolver.cpp \
 	JumpDiagnostics.cpp IdentifierResolver.cpp ParseAST.cpp \
 	Sema.cpp SemaAccess.cpp SemaAttr.cpp SemaCXXCast.cpp \
 	SemaCXXScopeSpec.cpp SemaChecking.cpp SemaCodeComplete.cpp \

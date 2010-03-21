@@ -107,7 +107,15 @@ def warn_use_out_of_scope_declaration : Warning<
   "use of out-of-scope declaration of %0">;
 def err_inline_non_function : Error<
   "'inline' can only appear on functions">;
-  
+
+def warn_decl_shadow :
+  Warning<"declaration shadows a %select{"
+          "local variable|"
+          "variable in %2|"
+          "static data member of %2|"
+          "field of %2}1">,
+  InGroup<Shadow>, DefaultIgnore;
+
 // C++ using declarations
 def err_using_requires_qualname : Error<
   "using declaration requires a qualified name">;
@@ -1529,8 +1537,7 @@ def err_forward_ref_enum : Error<
   "ISO C++ forbids forward references to 'enum' types">;
 def err_redefinition_of_enumerator : Error<"redefinition of enumerator %0">;
 def err_duplicate_member : Error<"duplicate member %0">;
-def err_misplaced_ivar : Error<"ivar may be placed in a class extension "
-                               "in non-fragile-abi2 mode only">;
+def err_misplaced_ivar : Error<"ivars may not be placed in categories">;
 def ext_enum_value_not_int : Extension<
   "ISO C restricts enumerator values to range of 'int' (%0 is too "
   "%select{small|large}1)">;
@@ -1881,16 +1888,16 @@ def err_stmtexpr_file_scope : Error<
   "statement expression not allowed at file scope">;
 def warn_mixed_sign_comparison : Warning<
   "comparison of integers of different signs: %0 and %1">,
-  InGroup<DiagGroup<"sign-compare">>, DefaultIgnore;
+  InGroup<SignCompare>, DefaultIgnore;
 def warn_mixed_sign_conditional : Warning<
   "operands of ? are integers of different signs: %0 and %1">,
-  InGroup<DiagGroup<"sign-compare">>, DefaultIgnore;
+  InGroup<SignCompare>, DefaultIgnore;
 def warn_lunsigned_always_true_comparison : Warning<
   "comparison of unsigned expression %0 is always %1">,
-  InGroup<DiagGroup<"sign-compare">>, DefaultIgnore;
+  InGroup<SignCompare>, DefaultIgnore;
 def warn_runsigned_always_true_comparison : Warning<
   "comparison of %0 unsigned expression is always %1">,
-  InGroup<DiagGroup<"sign-compare">>, DefaultIgnore;
+  InGroup<SignCompare>, DefaultIgnore;
 
 def err_invalid_this_use : Error<
   "invalid use of 'this' outside of a nonstatic member function">;
@@ -1944,11 +1951,7 @@ def ext_integer_complement_complex : Extension<
 def error_nosetter_property_assignment : Error<
   "setter method is needed to assign to object using property" " assignment syntax">;
 def error_no_subobject_property_setting : Error<
-  "cannot assign to a sub-structure of an ivar using property" 
-  " assignment syntax">;
-def error_no_subobject_property_getter_setting : Error<
-  "cannot assign to a sub-structure returned via a getter using property" 
-  " assignment syntax">;
+  "expression is not assignable using property assignment syntax">;
 
 def ext_freestanding_complex : Extension<
   "complex numbers are an extension in a freestanding C99 implementation">;

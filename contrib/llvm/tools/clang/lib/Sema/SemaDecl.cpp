@@ -14,7 +14,7 @@
 #include "Sema.h"
 #include "SemaInit.h"
 #include "Lookup.h"
-#include "clang/Analysis/AnalysisContext.h"
+#include "AnalysisBasedWarnings.h"
 #include "clang/AST/APValue.h"
 #include "clang/AST/ASTConsumer.h"
 #include "clang/AST/ASTContext.h"
@@ -2403,6 +2403,10 @@ Sema::ActOnVariableDeclarator(Scope* S, Declarator& D, DeclContext* DC,
     NewVD->addAttr(::new (Context) AsmLabelAttr(Context, SE->getString()));
   }
 
+  // Diagnose shadowed variables before filtering for scope.
+  if (!D.getCXXScopeSpec().isSet())
+    DiagnoseShadow(S, D, Previous);
+
   // Don't consider existing declarations that are in a different
   // scope and are out-of-semantic-context declarations (if the new
   // declaration has linkage).
@@ -2452,6 +2456,72 @@ Sema::ActOnVariableDeclarator(Scope* S, Declarator& D, DeclContext* DC,
     RegisterLocallyScopedExternCDecl(NewVD, Previous, S);
 
   return NewVD;
+}
+
+/// \brief Diagnose variable or built-in function shadowing.
+///
+/// This method is called as soon as a NamedDecl materializes to check
+/// if it shadows another local or global variable, or a built-in function.
+///
+/// For performance reasons, the lookup results are reused from the calling
+/// context.
+///
+/// \param S the scope in which the shadowing name is being declared
+/// \param R the lookup of the name
+///
+void Sema::DiagnoseShadow(Scope *S, Declarator &D,
+                          const LookupResult& R) {
+  // Return if warning is ignored.
+  if (Diags.getDiagnosticLevel(diag::warn_decl_shadow) == Diagnostic::Ignored)
+    return;
+
+  // Don't diagnose declarations at file scope.  The scope might not
+  // have a DeclContext if (e.g.) we're parsing a function prototype.
+  DeclContext *NewDC = static_cast<DeclContext*>(S->getEntity());
+  if (NewDC && NewDC->isFileContext())
+    return;
+  
+  // Only diagnose if we're shadowing an unambiguous field or variable.
+  if (R.getResultKind() != LookupResult::Found)
+    return;
+
+  NamedDecl* ShadowedDecl = R.getFoundDecl();
+  if (!isa<VarDecl>(ShadowedDecl) && !isa<FieldDecl>(ShadowedDecl))
+    return;
+
+  DeclContext *OldDC = ShadowedDecl->getDeclContext();
+
+  // Only warn about certain kinds of shadowing for class members.
+  if (NewDC && NewDC->isRecord()) {
+    // In particular, don't warn about shadowing non-class members.
+    if (!OldDC->isRecord())
+      return;
+
+    // TODO: should we warn about static data members shadowing
+    // static data members from base classes?
+    
+    // TODO: don't diagnose for inaccessible shadowed members.
+    // This is hard to do perfectly because we might friend the
+    // shadowing context, but that's just a false negative.
+  }
+
+  // Determine what kind of declaration we're shadowing.
+  unsigned Kind;
+  if (isa<RecordDecl>(OldDC)) {
+    if (isa<FieldDecl>(ShadowedDecl))
+      Kind = 3; // field
+    else
+      Kind = 2; // static data member
+  } else if (OldDC->isFileContext())
+    Kind = 1; // global
+  else
+    Kind = 0; // local
+
+  DeclarationName Name = R.getLookupName();
+
+  // Emit warning and note.
+  Diag(R.getNameLoc(), diag::warn_decl_shadow) << Name << Kind << OldDC;
+  Diag(ShadowedDecl->getLocation(), diag::note_previous_declaration);
 }
 
 /// \brief Perform semantic checking on a newly-created variable
@@ -3896,7 +3966,11 @@ Sema::ActOnParamDeclarator(Scope *S, Declarator &D) {
   // Check for redeclaration of parameters, e.g. int foo(int x, int x);
   IdentifierInfo *II = D.getIdentifier();
   if (II) {
-    if (NamedDecl *PrevDecl = LookupSingleName(S, II, LookupOrdinaryName)) {
+    LookupResult R(*this, II, D.getIdentifierLoc(), LookupOrdinaryName,
+                   ForRedeclaration);
+    LookupName(R, S);
+    if (R.isSingleResult()) {
+      NamedDecl *PrevDecl = R.getFoundDecl();
       if (PrevDecl->isTemplateParameter()) {
         // Maybe we will complain about the shadowed template parameter.
         DiagnoseTemplateParameterShadow(D.getIdentifierLoc(), PrevDecl);
@@ -3910,6 +3984,8 @@ Sema::ActOnParamDeclarator(Scope *S, Declarator &D) {
         II = 0;
         D.SetIdentifier(0, D.getIdentifierLoc());
         D.setInvalidType(true);
+      } else {
+        DiagnoseShadow(S, D, R);
       }
     }
   }
@@ -4183,9 +4259,6 @@ Sema::DeclPtrTy Sema::ActOnFinishFunctionBody(DeclPtrTy D, StmtArg BodyArg,
   Decl *dcl = D.getAs<Decl>();
   Stmt *Body = BodyArg.takeAs<Stmt>();
 
-  // Don't generate EH edges for CallExprs as we'd like to avoid the n^2
-  // explosion for destrutors that can result and the compile time hit.
-  AnalysisContext AC(dcl, false);
   FunctionDecl *FD = 0;
   FunctionTemplateDecl *FunTmpl = dyn_cast_or_null<FunctionTemplateDecl>(dcl);
   if (FunTmpl)
@@ -4193,14 +4266,16 @@ Sema::DeclPtrTy Sema::ActOnFinishFunctionBody(DeclPtrTy D, StmtArg BodyArg,
   else
     FD = dyn_cast_or_null<FunctionDecl>(dcl);
 
+  sema::AnalysisBasedWarnings W(*this);
+
   if (FD) {
     FD->setBody(Body);
-    if (FD->isMain())
+    if (FD->isMain()) {
       // C and C++ allow for main to automagically return 0.
       // Implements C++ [basic.start.main]p5 and C99 5.1.2.2.3.
       FD->setHasImplicitReturnZero(true);
-    else
-      CheckFallThroughForFunctionDef(FD, Body, AC);
+      W.disableCheckFallThrough();
+    }
 
     if (!FD->isInvalidDecl())
       DiagnoseUnusedParameters(FD->param_begin(), FD->param_end());
@@ -4212,9 +4287,7 @@ Sema::DeclPtrTy Sema::ActOnFinishFunctionBody(DeclPtrTy D, StmtArg BodyArg,
   } else if (ObjCMethodDecl *MD = dyn_cast_or_null<ObjCMethodDecl>(dcl)) {
     assert(MD == getCurMethodDecl() && "Method parsing confused");
     MD->setBody(Body);
-    CheckFallThroughForFunctionDef(MD, Body, AC);
     MD->setEndLoc(Body->getLocEnd());
-
     if (!MD->isInvalidDecl())
       DiagnoseUnusedParameters(MD->param_begin(), MD->param_end());
   } else {
@@ -4267,28 +4340,40 @@ Sema::DeclPtrTy Sema::ActOnFinishFunctionBody(DeclPtrTy D, StmtArg BodyArg,
   }
 
   if (Body) {
-    CheckUnreachable(AC);
-
     // C++ constructors that have function-try-blocks can't have return
     // statements in the handlers of that block. (C++ [except.handle]p14)
     // Verify this.
     if (FD && isa<CXXConstructorDecl>(FD) && isa<CXXTryStmt>(Body))
       DiagnoseReturnInConstructorExceptionHandler(cast<CXXTryStmt>(Body));
     
-  // Verify that that gotos and switch cases don't jump into scopes illegally.
-  // Verify that that gotos and switch cases don't jump into scopes illegally.
+    // Verify that that gotos and switch cases don't jump into scopes illegally.
+    // Verify that that gotos and switch cases don't jump into scopes illegally.
     if (FunctionNeedsScopeChecking() && !hasAnyErrorsInThisFunction())
       DiagnoseInvalidJumps(Body);
 
     if (CXXDestructorDecl *Destructor = dyn_cast<CXXDestructorDecl>(dcl))
-      MarkBaseAndMemberDestructorsReferenced(Destructor);
+      MarkBaseAndMemberDestructorsReferenced(Destructor->getLocation(),
+                                             Destructor->getParent());
     
     // If any errors have occurred, clear out any temporaries that may have
     // been leftover. This ensures that these temporaries won't be picked up for
     // deletion in some later function.
     if (PP.getDiagnostics().hasErrorOccurred())
       ExprTemporaries.clear();
-    
+    else if (!isa<FunctionTemplateDecl>(dcl)) {
+      // Since the body is valid, issue any analysis-based warnings that are
+      // enabled.
+      QualType ResultType;
+      if (const FunctionDecl *FD = dyn_cast<FunctionDecl>(dcl)) {
+        ResultType = FD->getResultType();
+      }
+      else {
+        ObjCMethodDecl *MD = cast<ObjCMethodDecl>(dcl);
+        ResultType = MD->getResultType();
+      }
+      W.IssueWarnings(dcl);
+    }
+
     assert(ExprTemporaries.empty() && "Leftover temporaries in function");
   }
   
@@ -5053,6 +5138,18 @@ void Sema::ActOnTagFinishDefinition(Scope *S, DeclPtrTy TagD,
                                           
   // Notify the consumer that we've defined a tag.
   Consumer.HandleTagDeclDefinition(Tag);
+}
+
+void Sema::ActOnTagDefinitionError(Scope *S, DeclPtrTy TagD) {
+  AdjustDeclIfTemplate(TagD);
+  TagDecl *Tag = cast<TagDecl>(TagD.getAs<Decl>());
+  Tag->setInvalidDecl();
+
+  // We're undoing ActOnTagStartDefinition here, not
+  // ActOnStartCXXMemberDeclarations, so we don't have to mess with
+  // the FieldCollector.
+
+  PopDeclContext();  
 }
 
 // Note that FieldName may be null for anonymous bitfields.

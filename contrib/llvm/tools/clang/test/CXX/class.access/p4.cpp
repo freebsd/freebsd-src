@@ -112,9 +112,10 @@ namespace test3 {
     A local; // expected-error {{variable of type 'test3::A' has private destructor}}
   }
 
-  template <unsigned N> class Base { ~Base(); }; // expected-note 8 {{declared private here}}
-  class Base2 : virtual Base<2> { ~Base2(); }; // expected-note 2 {{declared private here}}
-  class Base3 : virtual Base<3> { public: ~Base3(); };
+  template <unsigned N> class Base { ~Base(); }; // expected-note 14 {{declared private here}}
+  class Base2 : virtual Base<2> { ~Base2(); }; // expected-note 3 {{declared private here}} \
+                                               // expected-error {{base class 'Base<2>' has private destructor}}
+  class Base3 : virtual Base<3> { public: ~Base3(); }; // expected-error {{base class 'Base<3>' has private destructor}}
 
   // These don't cause diagnostics because we don't need the destructor.
   class Derived0 : Base<0> { ~Derived0(); };
@@ -130,11 +131,11 @@ namespace test3 {
     ~Derived2() {}
   };
 
-  class Derived3 : // expected-error {{inherited virtual base class 'Base<2>' has private destructor}} \
-                   // expected-error {{inherited virtual base class 'Base<3>' has private destructor}}
-    Base<0>,  // expected-error {{base class 'Base<0>' has private destructor}}
-    virtual Base<1>, // expected-error {{base class 'Base<1>' has private destructor}}
-    Base2, // expected-error {{base class 'test3::Base2' has private destructor}}
+  class Derived3 : // expected-error 2 {{inherited virtual base class 'Base<2>' has private destructor}} \
+                   // expected-error 2 {{inherited virtual base class 'Base<3>' has private destructor}}
+    Base<0>,  // expected-error 2 {{base class 'Base<0>' has private destructor}}
+    virtual Base<1>, // expected-error 2 {{base class 'Base<1>' has private destructor}}
+    Base2, // expected-error 2 {{base class 'test3::Base2' has private destructor}}
     virtual Base3
   {};
   Derived3 d3;
@@ -219,4 +220,45 @@ namespace test6 {
   void test2(const Test2 &t) {
     Test2 a = t;
   }
+}
+
+// Redeclaration lookups are not accesses.
+namespace test7 {
+  class A {
+    int private_member;
+  };
+  class B : A {
+    int foo(int private_member) {
+      return 0;
+    }
+  };
+}
+
+// Ignored operator new and delete overloads are not 
+namespace test8 {
+  typedef __typeof__(sizeof(int)) size_t;
+
+  class A {
+    void *operator new(size_t s);
+    void operator delete(void *p);
+  public:
+    void *operator new(size_t s, int n);
+    void operator delete(void *p, int n);
+  };
+
+  void test() {
+    new (2) A();
+  }
+}
+
+// Don't silently upgrade forbidden-access paths to private.
+namespace test9 {
+  class A {
+    public: static int x;
+  };
+  class B : private A { // expected-note {{constrained by private inheritance here}}
+  };
+  class C : public B {
+    static int getX() { return x; } // expected-error {{'x' is a private member of 'test9::A'}}
+  };
 }

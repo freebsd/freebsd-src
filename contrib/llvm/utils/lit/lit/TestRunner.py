@@ -252,6 +252,14 @@ def executeTclScriptInternal(test, litConfig, tmpBase, commands, cwd):
         except:
             return (Test.FAIL, "Tcl 'exec' parse error on: %r" % ln)
 
+    if litConfig.useValgrind:
+        for pipeline in cmds:
+            if pipeline.commands:
+                # Only valgrind the first command in each pipeline, to avoid
+                # valgrinding things like grep, not, and FileCheck.
+                cmd = pipeline.commands[0]
+                cmd.args = litConfig.valgrindArgs + cmd.args
+
     cmd = cmds[0]
     for c in cmds[1:]:
         cmd = ShUtil.Seq(cmd, '&&', c)
@@ -327,12 +335,7 @@ def executeScript(test, litConfig, tmpBase, commands, cwd):
         if litConfig.useValgrind:
             # FIXME: Running valgrind on sh is overkill. We probably could just
             # run on clang with no real loss.
-            valgrindArgs = ['valgrind', '-q',
-                            '--tool=memcheck', '--trace-children=yes',
-                            '--error-exitcode=123']
-            valgrindArgs.extend(litConfig.valgrindArgs)
-
-            command = valgrindArgs + command
+            command = litConfig.valgrindArgs + command
 
     return executeCommand(command, cwd=cwd, env=test.config.environment)
 

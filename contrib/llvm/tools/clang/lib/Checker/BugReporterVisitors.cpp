@@ -92,6 +92,13 @@ public:
   FindLastStoreBRVisitor(SVal v, const MemRegion *r)
   : R(r), V(v), satisfied(false), StoreSite(0) {}
 
+  virtual void Profile(llvm::FoldingSetNodeID &ID) const {
+    static int tag = 0;
+    ID.AddPointer(&tag);
+    ID.AddPointer(R);
+    ID.Add(V);
+  }
+
   PathDiagnosticPiece* VisitNode(const ExplodedNode *N,
                                  const ExplodedNode *PrevN,
                                  BugReporterContext& BRC) {
@@ -129,8 +136,8 @@ public:
       return NULL;
 
     satisfied = true;
-    std::string sbuf;
-    llvm::raw_string_ostream os(sbuf);
+    llvm::SmallString<256> sbuf;
+    llvm::raw_svector_ostream os(sbuf);
 
     if (const PostStmt *PS = N->getLocationAs<PostStmt>()) {
       if (const DeclStmt *DS = PS->getStmtAs<DeclStmt>()) {
@@ -238,6 +245,13 @@ class TrackConstraintBRVisitor : public BugReporterVisitor {
 public:
   TrackConstraintBRVisitor(DefinedSVal constraint, bool assumption)
   : Constraint(constraint), Assumption(assumption), isSatisfied(false) {}
+
+  void Profile(llvm::FoldingSetNodeID &ID) const {
+    static int tag = 0;
+    ID.AddPointer(&tag);
+    ID.AddBoolean(Assumption);
+    ID.Add(Constraint);
+  }
 
   PathDiagnosticPiece* VisitNode(const ExplodedNode *N,
                                  const ExplodedNode *PrevN,
@@ -364,4 +378,53 @@ void clang::bugreporter::registerFindLastStore(BugReporterContext& BRC,
     return;
 
   BRC.addVisitor(new FindLastStoreBRVisitor(V, R));
+}
+
+
+namespace {
+class NilReceiverVisitor : public BugReporterVisitor {
+public:
+  NilReceiverVisitor() {}
+
+  void Profile(llvm::FoldingSetNodeID &ID) const {
+    static int x = 0;
+    ID.AddPointer(&x);
+  }
+
+  PathDiagnosticPiece* VisitNode(const ExplodedNode *N,
+                                 const ExplodedNode *PrevN,
+                                 BugReporterContext& BRC) {
+
+    const PostStmt *P = N->getLocationAs<PostStmt>();
+    if (!P)
+      return 0;
+    const ObjCMessageExpr *ME = P->getStmtAs<ObjCMessageExpr>();
+    if (!ME)
+      return 0;
+    const Expr *Receiver = ME->getReceiver();
+    if (!Receiver)
+      return 0;
+    const GRState *state = N->getState();
+    const SVal &V = state->getSVal(Receiver);
+    const DefinedOrUnknownSVal *DV = dyn_cast<DefinedOrUnknownSVal>(&V);
+    if (!DV)
+      return 0;
+    state = state->Assume(*DV, true);
+    if (state)
+      return 0;
+
+    // The receiver was nil, and hence the method was skipped.
+    // Register a BugReporterVisitor to issue a message telling us how
+    // the receiver was null.
+    bugreporter::registerTrackNullOrUndefValue(BRC, Receiver, N);
+    // Issue a message saying that the method was skipped.
+    PathDiagnosticLocation L(Receiver, BRC.getSourceManager());
+    return new PathDiagnosticEventPiece(L, "No method actually called "
+                                           "because the receiver is nil");
+  }
+};
+} // end anonymous namespace
+
+void clang::bugreporter::registerNilReceiverVisitor(BugReporterContext &BRC) {
+  BRC.addVisitor(new NilReceiverVisitor());
 }

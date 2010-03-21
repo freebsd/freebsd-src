@@ -23,6 +23,18 @@
 using namespace clang;
 
 //===----------------------------------------------------------------------===//
+// Custom Actions
+//===----------------------------------------------------------------------===//
+
+ASTConsumer *InitOnlyAction::CreateASTConsumer(CompilerInstance &CI,
+                                               llvm::StringRef InFile) {
+  return new ASTConsumer();
+}
+
+void InitOnlyAction::ExecuteAction() {
+}
+
+//===----------------------------------------------------------------------===//
 // AST Consumer Actions
 //===----------------------------------------------------------------------===//
 
@@ -185,7 +197,8 @@ void DumpTokensAction::ExecuteAction() {
   Preprocessor &PP = getCompilerInstance().getPreprocessor();
   // Start preprocessing the specified input file.
   Token Tok;
-  PP.EnterMainSourceFile();
+  if (PP.EnterMainSourceFile())
+    return;
   do {
     PP.Lex(Tok);
     PP.DumpToken(Tok, true);
@@ -213,7 +226,8 @@ void ParseOnlyAction::ExecuteAction() {
   llvm::OwningPtr<Action> PA(new MinimalAction(PP));
 
   Parser P(PP, *PA);
-  PP.EnterMainSourceFile();
+  if (PP.EnterMainSourceFile())
+    return;
   P.ParseTranslationUnit();
 }
 
@@ -222,7 +236,8 @@ void PreprocessOnlyAction::ExecuteAction() {
 
   Token Tok;
   // Start parsing the specified input file.
-  PP.EnterMainSourceFile();
+  if (PP.EnterMainSourceFile())
+    return;
   do {
     PP.Lex(Tok);
   } while (Tok.isNot(tok::eof));
@@ -237,7 +252,8 @@ void PrintParseAction::ExecuteAction() {
   llvm::OwningPtr<Action> PA(CreatePrintParserActionsAction(PP, OS));
 
   Parser P(PP, *PA);
-  PP.EnterMainSourceFile();
+  if (PP.EnterMainSourceFile())
+    return;
   P.ParseTranslationUnit();
 }
 

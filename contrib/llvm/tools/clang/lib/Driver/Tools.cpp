@@ -655,6 +655,12 @@ static std::string getEffectiveClangTriple(const Driver &D,
   } else {
     const toolchains::Darwin &DarwinTC(
       reinterpret_cast<const toolchains::Darwin&>(TC));
+
+    // If the target isn't initialized (e.g., an unknown Darwin platform, return
+    // the default triple).
+    if (!DarwinTC.isTargetInitialized())
+      return Triple.getTriple();
+    
     unsigned Version[3];
     DarwinTC.getTargetVersion(Version);
 
@@ -686,6 +692,8 @@ void Clang::ConstructJob(Compilation &C, const JobAction &JA,
                          const InputInfoList &Inputs,
                          const ArgList &Args,
                          const char *LinkingOutput) const {
+  bool KernelOrKext = Args.hasArg(options::OPT_mkernel,
+                                  options::OPT_fapple_kext);
   const Driver &D = getToolChain().getDriver();
   ArgStringList CmdArgs;
 
@@ -870,7 +878,7 @@ void Clang::ConstructJob(Compilation &C, const JobAction &JA,
     Args.hasFlag(options::OPT_fasynchronous_unwind_tables,
                  options::OPT_fno_asynchronous_unwind_tables,
                  getToolChain().IsUnwindTablesDefault() &&
-                 !Args.hasArg(options::OPT_mkernel));
+                 !KernelOrKext);
   if (Args.hasFlag(options::OPT_funwind_tables, options::OPT_fno_unwind_tables,
                    AsynchronousUnwindTables))
     CmdArgs.push_back("-munwind-tables");
@@ -1029,12 +1037,22 @@ void Clang::ConstructJob(Compilation &C, const JobAction &JA,
     CmdArgs.push_back(A->getValue(Args));
   }
 
+  // -fhosted is default.
+  if (KernelOrKext || Args.hasFlag(options::OPT_ffreestanding,
+                                   options::OPT_fhosted,
+                                   false))
+    CmdArgs.push_back("-ffreestanding");
+
   // Forward -f (flag) options which we can pass directly.
   Args.AddLastArg(CmdArgs, options::OPT_fcatch_undefined_behavior);
   Args.AddLastArg(CmdArgs, options::OPT_femit_all_decls);
-  Args.AddLastArg(CmdArgs, options::OPT_ffreestanding);
   Args.AddLastArg(CmdArgs, options::OPT_fheinous_gnu_extensions);
-  Args.AddLastArg(CmdArgs, options::OPT_flax_vector_conversions);
+
+  // -flax-vector-conversions is default.
+  if (!Args.hasFlag(options::OPT_flax_vector_conversions,
+                    options::OPT_fno_lax_vector_conversions))
+    CmdArgs.push_back("-fno-lax-vector-conversions");
+
   Args.AddLastArg(CmdArgs, options::OPT_fno_caret_diagnostics);
   Args.AddLastArg(CmdArgs, options::OPT_fno_show_column);
   Args.AddLastArg(CmdArgs, options::OPT_fobjc_gc_only);
@@ -1080,6 +1098,12 @@ void Clang::ConstructJob(Compilation &C, const JobAction &JA,
     CmdArgs.push_back("-fblocks");
   }
 
+  // -fno-access-control is default (for now).
+  if (Args.hasFlag(options::OPT_faccess_control,
+                   options::OPT_fno_access_control,
+                   false))
+    CmdArgs.push_back("-faccess-control");
+
   // -fexceptions=0 is default.
   if (needsExceptions(Args, InputType, getToolChain().getTriple()))
     CmdArgs.push_back("-fexceptions");
@@ -1088,7 +1112,8 @@ void Clang::ConstructJob(Compilation &C, const JobAction &JA,
     CmdArgs.push_back("-fsjlj-exceptions");
 
   // -frtti is default.
-  if (!Args.hasFlag(options::OPT_frtti, options::OPT_fno_rtti))
+  if (KernelOrKext ||
+      !Args.hasFlag(options::OPT_frtti, options::OPT_fno_rtti))
     CmdArgs.push_back("-fno-rtti");
 
   // -fsigned-char is default.
@@ -1100,6 +1125,11 @@ void Clang::ConstructJob(Compilation &C, const JobAction &JA,
   if (!Args.hasFlag(options::OPT_fthreadsafe_statics, 
                     options::OPT_fno_threadsafe_statics))
     CmdArgs.push_back("-fno-threadsafe-statics");
+
+  // -fuse-cxa-atexit is default.
+  if (KernelOrKext || !Args.hasFlag(options::OPT_fuse_cxa_atexit,
+                                    options::OPT_fno_use_cxa_atexit))
+    CmdArgs.push_back("-fno-use-cxa-atexit");
 
   // -fms-extensions=0 is default.
   if (Args.hasFlag(options::OPT_fms_extensions, options::OPT_fno_ms_extensions,
