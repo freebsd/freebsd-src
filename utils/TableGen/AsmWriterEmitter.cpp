@@ -254,16 +254,16 @@ void AsmWriterEmitter::EmitPrintInstruction(raw_ostream &O) {
 
   for (CodeGenTarget::inst_iterator I = Target.inst_begin(),
          E = Target.inst_end(); I != E; ++I)
-    if (!I->second.AsmString.empty() &&
-        I->second.TheDef->getName() != "PHI")
+    if (!(*I)->AsmString.empty() &&
+        (*I)->TheDef->getName() != "PHI")
       Instructions.push_back(
-        AsmWriterInst(I->second, 
+        AsmWriterInst(**I, 
                       AsmWriter->getValueAsInt("Variant"),
                       AsmWriter->getValueAsInt("FirstOperandColumn"),
                       AsmWriter->getValueAsInt("OperandSpacing")));
 
   // Get the instruction numbering.
-  Target.getInstructionsByEnumValue(NumberedInstructions);
+  NumberedInstructions = Target.getInstructionsByEnumValue();
   
   // Compute the CodeGenInstruction -> AsmWriterInst mapping.  Note that not
   // all machine instructions are necessarily being printed, so there may be
@@ -499,8 +499,8 @@ void AsmWriterEmitter::EmitGetInstructionName(raw_ostream &O) {
   Record *AsmWriter = Target.getAsmWriter();
   std::string ClassName = AsmWriter->getValueAsString("AsmWriterClassName");
 
-  std::vector<const CodeGenInstruction*> NumberedInstructions;
-  Target.getInstructionsByEnumValue(NumberedInstructions);
+  const std::vector<const CodeGenInstruction*> &NumberedInstructions =
+    Target.getInstructionsByEnumValue();
   
   StringToOffsetTable StringTable;
   O <<

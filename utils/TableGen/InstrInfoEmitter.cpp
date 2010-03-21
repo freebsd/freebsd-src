@@ -39,16 +39,10 @@ static void PrintBarriers(std::vector<Record*> &Barriers,
 // Instruction Itinerary Information.
 //===----------------------------------------------------------------------===//
 
-struct RecordNameComparator {
-  bool operator()(const Record *Rec1, const Record *Rec2) const {
-    return Rec1->getName() < Rec2->getName();
-  }
-};
-
 void InstrInfoEmitter::GatherItinClasses() {
   std::vector<Record*> DefList =
   Records.getAllDerivedDefinitions("InstrItinClass");
-  std::sort(DefList.begin(), DefList.end(), RecordNameComparator());
+  std::sort(DefList.begin(), DefList.end(), LessRecord());
   
   for (unsigned i = 0, N = DefList.size(); i < N; i++)
     ItinClassMap[DefList[i]->getName()] = i;
@@ -149,7 +143,7 @@ void InstrInfoEmitter::EmitOperandInfo(raw_ostream &OS,
   const CodeGenTarget &Target = CDP.getTargetInfo();
   for (CodeGenTarget::inst_iterator II = Target.inst_begin(),
        E = Target.inst_end(); II != E; ++II) {
-    std::vector<std::string> OperandInfo = GetOperandInfo(II->second);
+    std::vector<std::string> OperandInfo = GetOperandInfo(**II);
     unsigned &N = OperandInfoIDs[OperandInfo];
     if (N != 0) continue;
     
@@ -214,7 +208,7 @@ void InstrInfoEmitter::run(raw_ostream &OS) {
   // Emit all of the instruction's implicit uses and defs.
   for (CodeGenTarget::inst_iterator II = Target.inst_begin(),
          E = Target.inst_end(); II != E; ++II) {
-    Record *Inst = II->second.TheDef;
+    Record *Inst = (*II)->TheDef;
     std::vector<Record*> Uses = Inst->getValueAsListOfDefs("Uses");
     if (!Uses.empty()) {
       unsigned &IL = EmittedLists[Uses];
@@ -244,8 +238,8 @@ void InstrInfoEmitter::run(raw_ostream &OS) {
   //
   OS << "\nstatic const TargetInstrDesc " << TargetName
      << "Insts[] = {\n";
-  std::vector<const CodeGenInstruction*> NumberedInstructions;
-  Target.getInstructionsByEnumValue(NumberedInstructions);
+  const std::vector<const CodeGenInstruction*> &NumberedInstructions =
+    Target.getInstructionsByEnumValue();
 
   for (unsigned i = 0, e = NumberedInstructions.size(); i != e; ++i)
     emitRecord(*NumberedInstructions[i], i, InstrInfo, EmittedLists,

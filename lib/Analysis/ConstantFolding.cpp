@@ -564,21 +564,6 @@ static Constant *SymbolicallyEvaluateGEP(Constant *const *Ops, unsigned NumOps,
 
   unsigned BitWidth =
     TD->getTypeSizeInBits(TD->getIntPtrType(Ptr->getContext()));
-  APInt BasePtr(BitWidth, 0);
-  bool BaseIsInt = true;
-  if (!Ptr->isNullValue()) {
-    // If this is a inttoptr from a constant int, we can fold this as the base,
-    // otherwise we can't.
-    if (ConstantExpr *CE = dyn_cast<ConstantExpr>(Ptr))
-      if (CE->getOpcode() == Instruction::IntToPtr)
-        if (ConstantInt *Base = dyn_cast<ConstantInt>(CE->getOperand(0))) {
-          BasePtr = Base->getValue();
-          BasePtr.zextOrTrunc(BitWidth);
-        }
-    
-    if (BasePtr == 0)
-      BaseIsInt = false;
-  }
 
   // If this is a constant expr gep that is effectively computing an
   // "offsetof", fold it into 'cast int Size to T*' instead of 'gep 0, 0, 12'
@@ -615,7 +600,14 @@ static Constant *SymbolicallyEvaluateGEP(Constant *const *Ops, unsigned NumOps,
 
   // If the base value for this address is a literal integer value, fold the
   // getelementptr to the resulting integer value casted to the pointer type.
-  if (BaseIsInt) {
+  APInt BasePtr(BitWidth, 0);
+  if (ConstantExpr *CE = dyn_cast<ConstantExpr>(Ptr))
+    if (CE->getOpcode() == Instruction::IntToPtr)
+      if (ConstantInt *Base = dyn_cast<ConstantInt>(CE->getOperand(0))) {
+        BasePtr = Base->getValue();
+        BasePtr.zextOrTrunc(BitWidth);
+      }
+  if (Ptr->isNullValue() || BasePtr != 0) {
     Constant *C = ConstantInt::get(Ptr->getContext(), Offset+BasePtr);
     return ConstantExpr::getIntToPtr(C, ResultTy);
   }
@@ -1002,6 +994,8 @@ llvm::canConstantFoldCallTo(const Function *F) {
   case Intrinsic::usub_with_overflow:
   case Intrinsic::sadd_with_overflow:
   case Intrinsic::ssub_with_overflow:
+  case Intrinsic::convert_from_fp16:
+  case Intrinsic::convert_to_fp16:
     return true;
   default:
     return false;
@@ -1082,6 +1076,15 @@ llvm::ConstantFoldCall(Function *F,
   const Type *Ty = F->getReturnType();
   if (NumOperands == 1) {
     if (ConstantFP *Op = dyn_cast<ConstantFP>(Operands[0])) {
+      if (Name == "llvm.convert.to.fp16") {
+        APFloat Val(Op->getValueAPF());
+
+        bool lost = false;
+        Val.convert(APFloat::IEEEhalf, APFloat::rmNearestTiesToEven, &lost);
+
+        return ConstantInt::get(F->getContext(), Val.bitcastToAPInt());
+      }
+
       if (!Ty->isFloatTy() && !Ty->isDoubleTy())
         return 0;
       /// Currently APFloat versions of these functions do not exist, so we use
@@ -1166,6 +1169,20 @@ llvm::ConstantFoldCall(Function *F,
         return ConstantInt::get(Ty, Op->getValue().countTrailingZeros());
       else if (Name.startswith("llvm.ctlz"))
         return ConstantInt::get(Ty, Op->getValue().countLeadingZeros());
+      else if (Name == "llvm.convert.from.fp16") {
+        APFloat Val(Op->getValue());
+
+        bool lost = false;
+        APFloat::opStatus status =
+          Val.convert(APFloat::IEEEsingle, APFloat::rmNearestTiesToEven, &lost);
+
+        // Conversion is always precise.
+        status = status;
+        assert(status == APFloat::opOK && !lost &&
+               "Precision lost during fp16 constfolding");
+
+        return ConstantFP::get(F->getContext(), Val);
+      }
       return 0;
     }
     

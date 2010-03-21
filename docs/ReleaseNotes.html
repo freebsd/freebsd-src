@@ -10,6 +10,9 @@
 
 <div class="doc_title">LLVM 2.7 Release Notes</div>
 
+<img align=right src="http://llvm.org/img/DragonSmall.png"
+    width="136" height="136">
+
 <ol>
   <li><a href="#intro">Introduction</a></li>
   <li><a href="#subproj">Sub-project Status Update</a></li>
@@ -48,13 +51,17 @@ href="http://llvm.org/releases/">LLVM releases web site</a>.</p>
 <p>For more information about LLVM, including information about the latest
 release, please check out the <a href="http://llvm.org/">main LLVM
 web site</a>.  If you have questions or comments, the <a
-href="http://mail.cs.uiuc.edu/mailman/listinfo/llvmdev">LLVM Developer's Mailing
-List</a> is a good place to send them.</p>
+href="http://lists.cs.uiuc.edu/mailman/listinfo/llvmdev">LLVM Developer's
+Mailing List</a> is a good place to send them.</p>
 
 <p>Note that if you are reading this file from a Subversion checkout or the
 main LLVM web page, this document applies to the <i>next</i> release, not the
 current one.  To see the release notes for a specific release, please see the
 <a href="http://llvm.org/releases/">releases page</a>.</p>
+
+
+<p>FIXME: llvm.org moved to new server, mention new logo, Ted and Doug new code
+   owners.</p>
 
 </div>
  
@@ -66,6 +73,7 @@ Almost dead code.
   llvm/Analysis/PointerTracking.h => Edwin wants this, consider for 2.8.
   ABCD, SCCVN, GEPSplitterPass
   MSIL backend?
+  lib/Transforms/Utils/SSI.cpp  -> ABCD depends on it.
 -->
  
    
@@ -78,8 +86,6 @@ Almost dead code.
   loop dependence analysis
   ELF Writer?  How stable?
   <li>PostRA scheduler improvements, ARM adoption (David Goodwin).</li>
-  2.7 supports the GDB 7.0 jit interfaces for debug info.
-  2.7 eliminates ADT/iterator.h
  -->
 
  <!-- for announcement email:
@@ -88,8 +94,7 @@ Almost dead code.
  compiler_rt
  KLEE web page at klee.llvm.org
  Many new papers added to /pubs/
-   Mention gcc plugin.
-
+ Mention gcc plugin.
    -->
 
 <!-- *********************************************************************** -->
@@ -123,6 +128,7 @@ development.  Here we include updates on these subprojects.
 
 <ul>
 <li>...</li>
+include a link to cxx_compatibility.html
 </ul>
 </div>
 
@@ -139,7 +145,7 @@ href="http://clang.llvm.org/StaticAnalysis.html">automatically finding bugs</a>
 in C and Objective-C programs. The tool performs checks to find
 bugs that occur on a specific path within a program.</p>
 
-<p>In the LLVM 2.7 time-frame, the analyzer core has ...</p>
+<p>In the LLVM 2.7 time-frame, the analyzer core has sprouted legs and...</p>
 
 </div>
 
@@ -192,24 +198,6 @@ License, a "BSD-style" license.</p>
 
 <!--=========================================================================-->
 <div class="doc_subsection">
-<a name="klee">KLEE: Symbolic Execution and Automatic Test Case Generator</a>
-</div>
-
-<div class="doc_text">
-<p>
-The new LLVM <a href="http://klee.llvm.org/">KLEE project</a> is a symbolic
-execution framework for programs in LLVM bitcode form.  KLEE tries to
-symbolically evaluate "all" paths through the application and records state
-transitions that lead to fault states.  This allows it to construct testcases
-that lead to faults and can even be used to verify algorithms.  For more
-details, please see the <a
-href="http://llvm.org/pubs/2008-12-OSDI-KLEE.html">OSDI 2008 paper</a> about
-KLEE.</p>
-
-</div>
-
-<!--=========================================================================-->
-<div class="doc_subsection">
 <a name="dragonegg">DragonEgg: GCC-4.5 as an LLVM frontend</a>
 </div>
 
@@ -257,6 +245,8 @@ The LLVM Machine Code (MC) Toolkit project is ...
 </div>
 
 <div class="doc_text">
+Need update.
+<!--
 <p><a href="http://github.com/evanphx/rubinius">Rubinius</a> is an environment
 for running Ruby code which strives to write as much of the core class
 implementation in Ruby as possible. Combined with a bytecode interpreting VM, it
@@ -266,6 +256,7 @@ remove dynamism from ruby execution and increase performance.</p>
 
 <p>Since LLVM 2.5, Rubinius has made several major leaps forward, implementing
 a counter based JIT, type feedback and speculative method inlining.
+-->
 </p>
 
 </div>
@@ -278,6 +269,8 @@ a counter based JIT, type feedback and speculative method inlining.
 <div class="doc_text">
 
 <p>
+Need update.
+<!--
 <a href="http://macruby.org">MacRuby</a> is an implementation of Ruby on top of
 core Mac OS X technologies, such as the Objective-C common runtime and garbage
 collector and the CoreFoundation framework. It is principally developed by
@@ -287,7 +280,7 @@ Apple and aims at enabling the creation of full-fledged Mac OS X applications.
 <p>
 MacRuby uses LLVM for optimization passes, JIT and AOT compilation of Ruby
 expressions. It also uses zero-cost DWARF exceptions to implement Ruby exception
-handling.</p>
+handling.--> </p>
 
 </div>
 
@@ -308,9 +301,9 @@ built-in list and matrix support (including list and matrix comprehensions) and
 an easy-to-use C interface. The interpreter uses LLVM as a backend to
  JIT-compile Pure programs to fast native code.</p>
 
-<p>Pure versions ??? and later have been tested and are known to work with
-LLVM 2.7 (and continue to work with older LLVM releases >= 2.3 as well).
-</p>
+<p>Pure versions 0.43 and later have been tested and are known to work with
+LLVM 2.7 (and continue to work with older LLVM releases >= 2.5).</p>
+
 </div>
 
 
@@ -321,6 +314,8 @@ LLVM 2.7 (and continue to work with older LLVM releases >= 2.3 as well).
 
 <div class="doc_text">
 <p>
+Need update.
+<!--
 <a href="http://www.dsource.org/projects/ldc">LDC</a> is an implementation of
 the D Programming Language using the LLVM optimizer and code generator.
 The LDC project works great with the LLVM 2.6 release.  General improvements in
@@ -328,7 +323,7 @@ this
 cycle have included new inline asm constraint handling, better debug info
 support, general bug fixes and better x86-64 support.  This has allowed
 some major improvements in LDC, getting it much closer to being as
-fully featured as the original DMD compiler from DigitalMars.
+fully featured as the original DMD compiler from DigitalMars.-->
 </p>
 </div>
 
@@ -342,7 +337,8 @@ fully featured as the original DMD compiler from DigitalMars.
 <a href="http://code.roadsend.com/rphp">Roadsend PHP</a> (rphp) is an open
 source implementation of the PHP programming 
 language that uses LLVM for its optimizer, JIT and static compiler. This is a 
-reimplementation of an earlier project that is now based on LLVM.</p>
+reimplementation of an earlier project that is now based on LLVM.
+</p>
 </div>
 
 <!--=========================================================================-->
@@ -355,7 +351,8 @@ reimplementation of an earlier project that is now based on LLVM.</p>
 <a href="http://code.google.com/p/unladen-swallow/">Unladen Swallow</a> is a
 branch of <a href="http://python.org/">Python</a> intended to be fully
 compatible and significantly faster.  It uses LLVM's optimization passes and JIT
-compiler.</p>
+compiler.
+</p>
 </div>
 
 <!--=========================================================================-->
@@ -365,10 +362,13 @@ compiler.</p>
 
 <div class="doc_text">
 <p>
+Need update.
+<!--
 <a href="http://code.google.com/p/llvm-lua/">LLVM-Lua</a> uses LLVM to add JIT
 and static compiling support to the Lua VM.  Lua bytecode is analyzed to
 remove type checks, then LLVM is used to compile the bytecode down to machine
-code.</p>
+code.-->
+</p>
 </div>
 
 <!--=========================================================================-->
@@ -378,13 +378,15 @@ code.</p>
 
 <div class="doc_text">
 <p>
+Need update.
+<!--
 <a href="http://icedtea.classpath.org/wiki/Main_Page">IcedTea</a> provides a
 harness to build OpenJDK using only free software build tools and to provide
 replacements for the not-yet free parts of OpenJDK.  One of the extensions that
 IcedTea provides is a new JIT compiler named <a
 href="http://icedtea.classpath.org/wiki/ZeroSharkFaq">Shark</a> which uses LLVM
 to provide native code generation without introducing processor-dependent
-code.
+code.-->
 </p>
 </div>
 
@@ -417,6 +419,54 @@ in this section.
 <ul>
 <li>...</li>
 </ul>
+
+Extensible metadata solid.
+
+Debug info improvements: using metadata instead of llvm.dbg global variables.
+This brings several enhancements including improved compile times.
+
+New instruction selector.
+GHC Haskell ABI/ calling conv support.
+Pre-Alpha support for unions in IR.
+New InlineHint and StackAlignment function attributes
+Code generator MC'ized except for debug info and EH.
+New SCEV AA pass: -scev-aa
+Inliner reuses arrays allocas when inlining multiple callers to reduce stack usage.
+MC encoding and disassembler apis.
+Optimal Edge Profiling?
+Instcombine is now a library, has its own IRBuilder to simplify itself.
+New llvm/Support/Regex.h API.  FileCheck now does regex's
+Many subtle pointer invalidation bugs in Callgraph have been fixed and it now uses asserting value handles.
+MC Disassembler (with blog post), MCInstPrinter.  Many X86 backend and AsmPrinter simplifications
+Various tools like llc and opt now read either .ll or .bc files as input.
+Malloc and free instructions got removed.
+compiler-rt support for ARM.
+completely llvm-gcc NEON support.
+Can transcode from GAS to intel syntax with "llvm-mc foo.s -output-asm-variant=1"
+JIT debug information with GDB 7.0
+New CodeGen Level CSE
+CMake can now run tests, what other improvements?
+ARM/Thumb using reg scavenging for stack object address materialization (PEI).
+New SSAUpdater and MachineSSAUpdater classes for unstructured ssa updating,
+  changed jump threading, GVN, etc to use it which simplified them and speed
+  them up.
+Combiner-AA improvements, why not on by default?
+Pre-regalloc tail duplication
+x86 sibcall optimization
+New LSR with full strength reduction mode
+The most awesome sext / zext optimization pass. ?
+
+
+
+CondProp pass removed (functionality merged into jump threading).
+AndersAA got removed (from 2.7 or mainline?)
+PredSimplify, LoopVR, GVNPRE got removed.
+LLVM command line tools now overwrite their output, before they would only do this with -f.
+DOUT removed, use DEBUG(errs() instead.
+Much stuff converted to use raw_ostream instead of std::ostream.
+TargetAsmInfo renamed to MCAsmInfo
+llvm/ADT/iterator.h gone.
+
 
 </div>
 
@@ -699,13 +749,7 @@ listed by component.  If you run into a problem, please check the <a
 href="http://llvm.org/bugs/">LLVM bug database</a> and submit a bug if
 there isn't already one.</p>
 
-<ul>
-<li>The llvm-gcc bootstrap will fail with some versions of binutils (e.g. 2.15)
-    with a message of "<tt><a href="http://llvm.org/PR5004">Error: can not do 8
-    byte pc-relative relocation</a></tt>" when building C++ code.  We intend to
-    fix this on mainline, but a workaround is to upgrade to binutils 2.17 or
-    later.</li>
-    
+<ul>    
 <li>LLVM will not correctly compile on Solaris and/or OpenSolaris
 using the stock GCC 3.x.x series 'out the box',
 See: <a href="GettingStarted.html#brokengcc">Broken versions of GCC and other tools</a>.
@@ -731,10 +775,11 @@ components, please contact us on the <a
 href="http://lists.cs.uiuc.edu/mailman/listinfo/llvmdev">LLVMdev list</a>.</p>
 
 <ul>
-<li>The MSIL, Alpha, SPU, MIPS, PIC16, Blackfin, MSP430 and SystemZ backends are
-    experimental.</li>
+<li>The MSIL, Alpha, SPU, MIPS, PIC16, Blackfin, MSP430, SystemZ and MicroBlaze
+    backends are experimental.</li>
 <li>The <tt>llc</tt> "<tt>-filetype=asm</tt>" (the default) is the only
-    supported value for this option.  The ELF writer is experimental.</li>
+    supported value for this option.  The MachO writer is experimental, and
+    works much better in mainline SVN.</li>
 </ul>
 
 </div>
@@ -865,7 +910,7 @@ appropriate nops inserted to ensure restartability.</li>
 
 <!-- ======================================================================= -->
 <div class="doc_subsection">
-  <a name="c-fe">Known problems with the llvm-gcc C front-end</a>
+  <a name="c-fe">Known problems with the llvm-gcc C and C++ front-end</a>
 </div>
 
 <div class="doc_text">
@@ -878,24 +923,6 @@ appropriate nops inserted to ensure restartability.</li>
 
 <p>If you run into GCC extensions which are not supported, please let us know.
 </p>
-
-</div>
-
-<!-- ======================================================================= -->
-<div class="doc_subsection">
-  <a name="c++-fe">Known problems with the llvm-gcc C++ front-end</a>
-</div>
-
-<div class="doc_text">
-
-<p>The C++ front-end is considered to be fully
-tested and works for a number of non-trivial programs, including LLVM
-itself, Qt, Mozilla, etc.</p>
-
-<ul>
-<li>Exception handling works well on the X86 and PowerPC targets. Currently
-  only Linux and Darwin targets are supported (both 32 and 64 bit).</li>
-</ul>
 
 </div>
 
@@ -997,7 +1024,7 @@ lists</a>.</p>
   src="http://www.w3.org/Icons/valid-html401-blue" alt="Valid HTML 4.01"></a>
 
   <a href="http://llvm.org/">LLVM Compiler Infrastructure</a><br>
-  Last modified: $Date: 2010-03-01 20:29:17 +0100 (Mon, 01 Mar 2010) $
+  Last modified: $Date: 2010-03-19 04:18:05 +0100 (Fri, 19 Mar 2010) $
 </address>
 
 </body>

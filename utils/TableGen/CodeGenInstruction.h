@@ -105,13 +105,18 @@ namespace llvm {
           MINumOperands(MINO), MIOperandInfo(MIOI) {}
     };
 
-    /// NumDefs - Number of def operands declared.
+    /// NumDefs - Number of def operands declared, this is the number of
+    /// elements in the instruction's (outs) list.
     ///
     unsigned NumDefs;
 
     /// OperandList - The list of declared operands, along with their declared
     /// type (which is a record).
     std::vector<OperandInfo> OperandList;
+
+    /// ImplicitDefs/ImplicitUses - These are lists of registers that are
+    /// implicitly defined and used by the instruction.
+    std::vector<Record*> ImplicitDefs, ImplicitUses;
 
     // Various boolean values we track for the instruction.
     bool isReturn;

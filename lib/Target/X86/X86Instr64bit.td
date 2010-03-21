@@ -144,7 +144,7 @@ let isCall = 1 in
     // NOTE: this pattern doesn't match "X86call imm", because we do not know
     // that the offset between an arbitrary immediate and the call will fit in
     // the 32-bit pcrel field that we have.
-    def CALL64pcrel32 : Ii32<0xE8, RawFrm,
+    def CALL64pcrel32 : Ii32PCRel<0xE8, RawFrm,
                           (outs), (ins i64i32imm_pcrel:$dst, variable_ops),
                           "call{q}\t$dst", []>,
                         Requires<[In64BitMode, NotWin64]>;
@@ -511,6 +511,14 @@ def ADD64rr    : RI<0x01, MRMDestReg, (outs GR64:$dst),
                     [(set GR64:$dst, (add GR64:$src1, GR64:$src2)),
                      (implicit EFLAGS)]>;
 
+// These are alternate spellings for use by the disassembler, we mark them as
+// code gen only to ensure they aren't matched by the assembler.
+let isCodeGenOnly = 1 in {
+  def ADD64rr_alt  : RI<0x03, MRMSrcReg, (outs GR64:$dst), 
+                       (ins GR64:$src1, GR64:$src2),
+                       "add{l}\t{$src2, $dst|$dst, $src2}", []>;
+}
+
 // Register-Integer Addition
 def ADD64ri8  : RIi8<0x83, MRM0r, (outs GR64:$dst), 
                      (ins GR64:$src1, i64i8imm:$src2),
@@ -530,12 +538,6 @@ def ADD64rm     : RI<0x03, MRMSrcMem, (outs GR64:$dst),
                      "add{q}\t{$src2, $dst|$dst, $src2}",
                      [(set GR64:$dst, (add GR64:$src1, (load addr:$src2))),
                       (implicit EFLAGS)]>;
-
-// Register-Register Addition - Equivalent to the normal rr form (ADD64rr), but
-//   differently encoded.
-def ADD64mrmrr  : RI<0x03, MRMSrcReg, (outs GR64:$dst), 
-                     (ins GR64:$src1, GR64:$src2),
-                     "add{l}\t{$src2, $dst|$dst, $src2}", []>;
 
 } // isTwoAddress
 
@@ -1225,59 +1227,59 @@ let Defs = [EFLAGS] in {
 def TEST64i32 : RIi32<0xa9, RawFrm, (outs), (ins i32imm:$src),
                       "test{q}\t{$src, %rax|%rax, $src}", []>;
 let isCommutable = 1 in
-def TEST64rr : RI<0x85, MRMDestReg, (outs), (ins GR64:$src1, GR64:$src2),
+def TEST64rr : RI<0x85, MRMSrcReg, (outs), (ins GR64:$src1, GR64:$src2),
                   "test{q}\t{$src2, $src1|$src1, $src2}",
-                  [(X86cmp (and GR64:$src1, GR64:$src2), 0),
-                   (implicit EFLAGS)]>;
+                  [(set EFLAGS, (X86cmp (and GR64:$src1, GR64:$src2), 0))]>;
 def TEST64rm : RI<0x85, MRMSrcMem, (outs), (ins GR64:$src1, i64mem:$src2),
                   "test{q}\t{$src2, $src1|$src1, $src2}",
-                  [(X86cmp (and GR64:$src1, (loadi64 addr:$src2)), 0),
-                   (implicit EFLAGS)]>;
+                  [(set EFLAGS, (X86cmp (and GR64:$src1, (loadi64 addr:$src2)),
+                    0))]>;
 def TEST64ri32 : RIi32<0xF7, MRM0r, (outs),
                                         (ins GR64:$src1, i64i32imm:$src2),
                        "test{q}\t{$src2, $src1|$src1, $src2}",
-                     [(X86cmp (and GR64:$src1, i64immSExt32:$src2), 0),
-                      (implicit EFLAGS)]>;
+                     [(set EFLAGS, (X86cmp (and GR64:$src1, i64immSExt32:$src2),
+                      0))]>;
 def TEST64mi32 : RIi32<0xF7, MRM0m, (outs),
                                         (ins i64mem:$src1, i64i32imm:$src2),
                        "test{q}\t{$src2, $src1|$src1, $src2}",
-                [(X86cmp (and (loadi64 addr:$src1), i64immSExt32:$src2), 0),
-                 (implicit EFLAGS)]>;
+                [(set EFLAGS, (X86cmp (and (loadi64 addr:$src1),
+                                           i64immSExt32:$src2), 0))]>;
 
 
 def CMP64i32 : RIi32<0x3D, RawFrm, (outs), (ins i32imm:$src),
                      "cmp{q}\t{$src, %rax|%rax, $src}", []>;
 def CMP64rr : RI<0x39, MRMDestReg, (outs), (ins GR64:$src1, GR64:$src2),
                  "cmp{q}\t{$src2, $src1|$src1, $src2}",
-                 [(X86cmp GR64:$src1, GR64:$src2),
-                  (implicit EFLAGS)]>;
-def CMP64mrmrr : RI<0x3B, MRMSrcReg, (outs), (ins GR64:$src1, GR64:$src2),
-                    "cmp{q}\t{$src2, $src1|$src1, $src2}", []>;
+                 [(set EFLAGS, (X86cmp GR64:$src1, GR64:$src2))]>;
+
+// These are alternate spellings for use by the disassembler, we mark them as
+// code gen only to ensure they aren't matched by the assembler.
+let isCodeGenOnly = 1 in {
+  def CMP64mrmrr : RI<0x3B, MRMSrcReg, (outs), (ins GR64:$src1, GR64:$src2),
+                      "cmp{q}\t{$src2, $src1|$src1, $src2}", []>;
+}
+
 def CMP64mr : RI<0x39, MRMDestMem, (outs), (ins i64mem:$src1, GR64:$src2),
                  "cmp{q}\t{$src2, $src1|$src1, $src2}",
-                 [(X86cmp (loadi64 addr:$src1), GR64:$src2),
-                   (implicit EFLAGS)]>;
+                 [(set EFLAGS, (X86cmp (loadi64 addr:$src1), GR64:$src2))]>;
 def CMP64rm : RI<0x3B, MRMSrcMem, (outs), (ins GR64:$src1, i64mem:$src2),
                  "cmp{q}\t{$src2, $src1|$src1, $src2}",
-                 [(X86cmp GR64:$src1, (loadi64 addr:$src2)),
-                  (implicit EFLAGS)]>;
+                 [(set EFLAGS, (X86cmp GR64:$src1, (loadi64 addr:$src2)))]>;
 def CMP64ri8 : RIi8<0x83, MRM7r, (outs), (ins GR64:$src1, i64i8imm:$src2),
                     "cmp{q}\t{$src2, $src1|$src1, $src2}",
-                    [(X86cmp GR64:$src1, i64immSExt8:$src2),
-                     (implicit EFLAGS)]>;
+                    [(set EFLAGS, (X86cmp GR64:$src1, i64immSExt8:$src2))]>;
 def CMP64ri32 : RIi32<0x81, MRM7r, (outs), (ins GR64:$src1, i64i32imm:$src2),
                       "cmp{q}\t{$src2, $src1|$src1, $src2}",
-                      [(X86cmp GR64:$src1, i64immSExt32:$src2),
-                       (implicit EFLAGS)]>;
+                      [(set EFLAGS, (X86cmp GR64:$src1, i64immSExt32:$src2))]>;
 def CMP64mi8 : RIi8<0x83, MRM7m, (outs), (ins i64mem:$src1, i64i8imm:$src2),
                     "cmp{q}\t{$src2, $src1|$src1, $src2}",
-                    [(X86cmp (loadi64 addr:$src1), i64immSExt8:$src2),
-                     (implicit EFLAGS)]>;
+                    [(set EFLAGS, (X86cmp (loadi64 addr:$src1),
+                                          i64immSExt8:$src2))]>;
 def CMP64mi32 : RIi32<0x81, MRM7m, (outs),
                                        (ins i64mem:$src1, i64i32imm:$src2),
                       "cmp{q}\t{$src2, $src1|$src1, $src2}",
-                      [(X86cmp (loadi64 addr:$src1), i64immSExt32:$src2),
-                       (implicit EFLAGS)]>;
+                      [(set EFLAGS, (X86cmp (loadi64 addr:$src1),
+                                            i64immSExt32:$src2))]>;
 } // Defs = [EFLAGS]
 
 // Bit tests.
@@ -1285,8 +1287,7 @@ def CMP64mi32 : RIi32<0x81, MRM7m, (outs),
 let Defs = [EFLAGS] in {
 def BT64rr : RI<0xA3, MRMDestReg, (outs), (ins GR64:$src1, GR64:$src2),
                "bt{q}\t{$src2, $src1|$src1, $src2}",
-               [(X86bt GR64:$src1, GR64:$src2),
-                (implicit EFLAGS)]>, TB;
+               [(set EFLAGS, (X86bt GR64:$src1, GR64:$src2))]>, TB;
 
 // Unlike with the register+register form, the memory+register form of the
 // bt instruction does not ignore the high bits of the index. From ISel's
@@ -1300,15 +1301,14 @@ def BT64mr : RI<0xA3, MRMDestMem, (outs), (ins i64mem:$src1, GR64:$src2),
 
 def BT64ri8 : Ii8<0xBA, MRM4r, (outs), (ins GR64:$src1, i64i8imm:$src2),
                 "bt{q}\t{$src2, $src1|$src1, $src2}",
-                [(X86bt GR64:$src1, i64immSExt8:$src2),
-                 (implicit EFLAGS)]>, TB;
+                [(set EFLAGS, (X86bt GR64:$src1, i64immSExt8:$src2))]>, TB;
 // Note that these instructions don't need FastBTMem because that
 // only applies when the other operand is in a register. When it's
 // an immediate, bt is still fast.
 def BT64mi8 : Ii8<0xBA, MRM4m, (outs), (ins i64mem:$src1, i64i8imm:$src2),
                 "bt{q}\t{$src2, $src1|$src1, $src2}",
-                [(X86bt (loadi64 addr:$src1), i64immSExt8:$src2),
-                 (implicit EFLAGS)]>, TB;
+                [(set EFLAGS, (X86bt (loadi64 addr:$src1),
+                                     i64immSExt8:$src2))]>, TB;
 
 def BTC64rr : RI<0xBB, MRMDestReg, (outs), (ins GR64:$src1, GR64:$src2),
                  "btc{q}\t{$src2, $src1|$src1, $src2}", []>, TB;
@@ -1938,7 +1938,7 @@ def : Pat<(X86tcret (i64 texternalsym:$dst), imm:$off),
 // Comparisons.
 
 // TEST R,R is smaller than CMP R,0
-def : Pat<(parallel (X86cmp GR64:$src1, 0), (implicit EFLAGS)),
+def : Pat<(X86cmp GR64:$src1, 0),
           (TEST64rr GR64:$src1, GR64:$src1)>;
 
 // Conditional moves with folded loads with operands swapped and conditions
@@ -2233,21 +2233,6 @@ def : Pat<(parallel (X86add_flag GR64:$src1, (loadi64 addr:$src2)),
                     (implicit EFLAGS)),
           (ADD64rm GR64:$src1, addr:$src2)>;
 
-// Memory-Register Addition with EFLAGS result
-def : Pat<(parallel (store (X86add_flag (loadi64 addr:$dst), GR64:$src2),
-                           addr:$dst),
-                    (implicit EFLAGS)),
-          (ADD64mr addr:$dst, GR64:$src2)>;
-def : Pat<(parallel (store (X86add_flag (loadi64 addr:$dst), i64immSExt8:$src2),
-                           addr:$dst),
-                    (implicit EFLAGS)),
-          (ADD64mi8 addr:$dst, i64immSExt8:$src2)>;
-def : Pat<(parallel (store (X86add_flag (loadi64 addr:$dst), 
-                                        i64immSExt32:$src2),
-                           addr:$dst),
-                    (implicit EFLAGS)),
-          (ADD64mi32 addr:$dst, i64immSExt32:$src2)>;
-
 // Register-Register Subtraction with EFLAGS result
 def : Pat<(parallel (X86sub_flag GR64:$src1, GR64:$src2),
                     (implicit EFLAGS)),
@@ -2265,24 +2250,6 @@ def : Pat<(parallel (X86sub_flag GR64:$src1, i64immSExt8:$src2),
 def : Pat<(parallel (X86sub_flag GR64:$src1, i64immSExt32:$src2),
                     (implicit EFLAGS)),
           (SUB64ri32 GR64:$src1, i64immSExt32:$src2)>;
-
-// Memory-Register Subtraction with EFLAGS result
-def : Pat<(parallel (store (X86sub_flag (loadi64 addr:$dst), GR64:$src2),
-                           addr:$dst),
-                    (implicit EFLAGS)),
-          (SUB64mr addr:$dst, GR64:$src2)>;
-
-// Memory-Integer Subtraction with EFLAGS result
-def : Pat<(parallel (store (X86sub_flag (loadi64 addr:$dst), 
-                                        i64immSExt8:$src2),
-                           addr:$dst),
-                    (implicit EFLAGS)),
-          (SUB64mi8 addr:$dst, i64immSExt8:$src2)>;
-def : Pat<(parallel (store (X86sub_flag (loadi64 addr:$dst),
-                                        i64immSExt32:$src2),
-                           addr:$dst),
-                    (implicit EFLAGS)),
-          (SUB64mi32 addr:$dst, i64immSExt32:$src2)>;
 
 // Register-Register Signed Integer Multiplication with EFLAGS result
 def : Pat<(parallel (X86smul_flag GR64:$src1, GR64:$src2),
@@ -2313,36 +2280,18 @@ def : Pat<(parallel (X86smul_flag (loadi64 addr:$src1), i64immSExt32:$src2),
 // INC and DEC with EFLAGS result. Note that these do not set CF.
 def : Pat<(parallel (X86inc_flag GR16:$src), (implicit EFLAGS)),
           (INC64_16r GR16:$src)>, Requires<[In64BitMode]>;
-def : Pat<(parallel (store (i16 (X86inc_flag (loadi16 addr:$dst))), addr:$dst),
-                    (implicit EFLAGS)),
-          (INC64_16m addr:$dst)>, Requires<[In64BitMode]>;
 def : Pat<(parallel (X86dec_flag GR16:$src), (implicit EFLAGS)),
           (DEC64_16r GR16:$src)>, Requires<[In64BitMode]>;
-def : Pat<(parallel (store (i16 (X86dec_flag (loadi16 addr:$dst))), addr:$dst),
-                    (implicit EFLAGS)),
-          (DEC64_16m addr:$dst)>, Requires<[In64BitMode]>;
 
 def : Pat<(parallel (X86inc_flag GR32:$src), (implicit EFLAGS)),
           (INC64_32r GR32:$src)>, Requires<[In64BitMode]>;
-def : Pat<(parallel (store (i32 (X86inc_flag (loadi32 addr:$dst))), addr:$dst),
-                    (implicit EFLAGS)),
-          (INC64_32m addr:$dst)>, Requires<[In64BitMode]>;
 def : Pat<(parallel (X86dec_flag GR32:$src), (implicit EFLAGS)),
           (DEC64_32r GR32:$src)>, Requires<[In64BitMode]>;
-def : Pat<(parallel (store (i32 (X86dec_flag (loadi32 addr:$dst))), addr:$dst),
-                    (implicit EFLAGS)),
-          (DEC64_32m addr:$dst)>, Requires<[In64BitMode]>;
 
 def : Pat<(parallel (X86inc_flag GR64:$src), (implicit EFLAGS)),
           (INC64r GR64:$src)>;
-def : Pat<(parallel (store (i64 (X86inc_flag (loadi64 addr:$dst))), addr:$dst),
-                    (implicit EFLAGS)),
-          (INC64m addr:$dst)>;
 def : Pat<(parallel (X86dec_flag GR64:$src), (implicit EFLAGS)),
           (DEC64r GR64:$src)>;
-def : Pat<(parallel (store (i64 (X86dec_flag (loadi64 addr:$dst))), addr:$dst),
-                    (implicit EFLAGS)),
-          (DEC64m addr:$dst)>;
 
 // Register-Register Logical Or with EFLAGS result
 def : Pat<(parallel (X86or_flag GR64:$src1, GR64:$src2),
@@ -2362,20 +2311,6 @@ def : Pat<(parallel (X86or_flag GR64:$src1, (loadi64 addr:$src2)),
                     (implicit EFLAGS)),
           (OR64rm GR64:$src1, addr:$src2)>;
 
-// Memory-Register Logical Or with EFLAGS result
-def : Pat<(parallel (store (X86or_flag (loadi64 addr:$dst), GR64:$src2),
-                           addr:$dst),
-                    (implicit EFLAGS)),
-          (OR64mr addr:$dst, GR64:$src2)>;
-def : Pat<(parallel (store (X86or_flag (loadi64 addr:$dst), i64immSExt8:$src2),
-                           addr:$dst),
-                    (implicit EFLAGS)),
-          (OR64mi8 addr:$dst, i64immSExt8:$src2)>;
-def : Pat<(parallel (store (X86or_flag (loadi64 addr:$dst), i64immSExt32:$src2),
-                           addr:$dst),
-                    (implicit EFLAGS)),
-          (OR64mi32 addr:$dst, i64immSExt32:$src2)>;
-
 // Register-Register Logical XOr with EFLAGS result
 def : Pat<(parallel (X86xor_flag GR64:$src1, GR64:$src2),
                     (implicit EFLAGS)),
@@ -2394,21 +2329,6 @@ def : Pat<(parallel (X86xor_flag GR64:$src1, (loadi64 addr:$src2)),
                     (implicit EFLAGS)),
           (XOR64rm GR64:$src1, addr:$src2)>;
 
-// Memory-Register Logical XOr with EFLAGS result
-def : Pat<(parallel (store (X86xor_flag (loadi64 addr:$dst), GR64:$src2),
-                           addr:$dst),
-                    (implicit EFLAGS)),
-          (XOR64mr addr:$dst, GR64:$src2)>;
-def : Pat<(parallel (store (X86xor_flag (loadi64 addr:$dst), i64immSExt8:$src2),
-                           addr:$dst),
-                    (implicit EFLAGS)),
-          (XOR64mi8 addr:$dst, i64immSExt8:$src2)>;
-def : Pat<(parallel (store (X86xor_flag (loadi64 addr:$dst), 
-                                        i64immSExt32:$src2),
-                           addr:$dst),
-                    (implicit EFLAGS)),
-          (XOR64mi32 addr:$dst, i64immSExt32:$src2)>;
-
 // Register-Register Logical And with EFLAGS result
 def : Pat<(parallel (X86and_flag GR64:$src1, GR64:$src2),
                     (implicit EFLAGS)),
@@ -2426,21 +2346,6 @@ def : Pat<(parallel (X86and_flag GR64:$src1, i64immSExt32:$src2),
 def : Pat<(parallel (X86and_flag GR64:$src1, (loadi64 addr:$src2)),
                     (implicit EFLAGS)),
           (AND64rm GR64:$src1, addr:$src2)>;
-
-// Memory-Register Logical And with EFLAGS result
-def : Pat<(parallel (store (X86and_flag (loadi64 addr:$dst), GR64:$src2),
-                           addr:$dst),
-                    (implicit EFLAGS)),
-          (AND64mr addr:$dst, GR64:$src2)>;
-def : Pat<(parallel (store (X86and_flag (loadi64 addr:$dst), i64immSExt8:$src2),
-                           addr:$dst),
-                    (implicit EFLAGS)),
-          (AND64mi8 addr:$dst, i64immSExt8:$src2)>;
-def : Pat<(parallel (store (X86and_flag (loadi64 addr:$dst), 
-                                        i64immSExt32:$src2),
-                           addr:$dst),
-                    (implicit EFLAGS)),
-          (AND64mi32 addr:$dst, i64immSExt32:$src2)>;
 
 //===----------------------------------------------------------------------===//
 // X86-64 SSE Instructions

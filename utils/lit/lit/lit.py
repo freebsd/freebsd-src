@@ -362,6 +362,9 @@ def main():
     group.add_option("", "--vg", dest="useValgrind",
                      help="Run tests under valgrind",
                      action="store_true", default=False)
+    group.add_option("", "--vg-leak", dest="valgrindLeakCheck",
+                     help="Check for memory leaks under valgrind",
+                     action="store_true", default=False)
     group.add_option("", "--vg-arg", dest="valgrindArgs", metavar="ARG",
                      help="Specify an extra argument for valgrind",
                      type=str, action="append", default=[])
@@ -411,7 +414,14 @@ def main():
         gSiteConfigName = '%s.site.cfg' % opts.configPrefix
 
     if opts.numThreads is None:
-        opts.numThreads = Util.detectCPUs()
+# Python <2.5 has a race condition causing lit to always fail with numThreads>1
+# http://bugs.python.org/issue1731717
+# I haven't seen this bug occur with 2.5.2 and later, so only enable multiple
+# threads by default there.
+       if sys.hexversion >= 0x2050200:
+               opts.numThreads = Util.detectCPUs()
+       else:
+               opts.numThreads = 1
 
     inputs = args
 
@@ -429,6 +439,7 @@ def main():
                                     path = opts.path,
                                     quiet = opts.quiet,
                                     useValgrind = opts.useValgrind,
+                                    valgrindLeakCheck = opts.valgrindLeakCheck,
                                     valgrindArgs = opts.valgrindArgs,
                                     useTclAsSh = opts.useTclAsSh,
                                     noExecute = opts.noExecute,
