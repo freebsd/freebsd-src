@@ -35,7 +35,7 @@
 
 #include "feeder_if.h"
 
-SND_DECLARE_FILE("$FreeBSD$");
+SND_DECLARE_FILE("$FreeBSD: src/sys/dev/sound/pcm/sound.c,v 1.119.10.1 2010/02/10 00:26:20 kensmith Exp $");
 
 devclass_t pcm_devclass;
 

@@ -30,7 +30,7 @@
 
 #include <sys/cdefs.h>
 
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/contrib/telnet/libtelnet/pk.c,v 1.10.36.1 2010/02/10 00:26:20 kensmith Exp $");
 
 /* public key routines */
 /* functions:

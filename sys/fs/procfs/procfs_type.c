@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/fs/procfs/procfs_type.c,v 1.12.24.1 2010/02/10 00:26:20 kensmith Exp $
  */
 
 #include <sys/param.h>

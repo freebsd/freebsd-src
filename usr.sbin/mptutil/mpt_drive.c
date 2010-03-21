@@ -29,7 +29,7 @@
  */
 
 #include <sys/cdefs.h>
-__RCSID("$FreeBSD$");
+__RCSID("$FreeBSD: src/usr.sbin/mptutil/mpt_drive.c,v 1.1.4.2.2.1 2010/02/10 00:26:20 kensmith Exp $");
 
 #include <sys/param.h>
 #include <sys/errno.h>

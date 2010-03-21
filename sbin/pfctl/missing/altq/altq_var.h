@@ -1,4 +1,4 @@
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/sbin/pfctl/missing/altq/altq_var.h,v 1.1.32.1 2010/02/10 00:26:20 kensmith Exp $	*/
 /*	$KAME: altq_var.h,v 1.15 2003/07/10 12:07:49 kjc Exp $	*/
 
 /*

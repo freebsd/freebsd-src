@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/mfiutil/README,v 1.2.4.2.2.1 2010/02/10 00:26:20 kensmith Exp $
 
 This package includes a mfiutil command for administering mfi(4) controllers
 on FreeBSD.

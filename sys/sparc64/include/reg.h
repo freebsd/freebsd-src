@@ -31,7 +31,7 @@
  *
  *	from: @(#)reg.h	5.5 (Berkeley) 1/18/91
  *	from: FreeBSD: src/sys/i386/include/reg.h,v 1.23 2000/09/21
- * $FreeBSD$
+ * $FreeBSD: src/sys/sparc64/include/reg.h,v 1.14.32.1 2010/02/10 00:26:20 kensmith Exp $
  */
 
 #ifndef	_MACHINE_REG_H_

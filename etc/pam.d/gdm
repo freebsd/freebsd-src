@@ -1,5 +1,5 @@
 #
-# $FreeBSD$
+# $FreeBSD: src/etc/pam.d/gdm,v 1.8.10.1 2010/02/10 00:26:20 kensmith Exp $
 #
 # PAM configuration for the "gdm" service
 #

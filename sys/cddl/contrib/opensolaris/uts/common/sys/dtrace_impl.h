@@ -18,7 +18,7 @@
  *
  * CDDL HEADER END
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/cddl/contrib/opensolaris/uts/common/sys/dtrace_impl.h,v 1.3.2.2.2.1 2010/02/10 00:26:20 kensmith Exp $
  */
 
 /*

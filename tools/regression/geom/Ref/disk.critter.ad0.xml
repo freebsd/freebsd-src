@@ -1,4 +1,4 @@
-$FreeBSD$
+$FreeBSD: src/tools/regression/geom/Ref/disk.critter.ad0.xml,v 1.1.36.1 2010/02/10 00:26:20 kensmith Exp $
 /dev/md34	512	2671841280	5218440
 /dev/md34s1	512	20003848704	39070017
 /dev/md34s1a	512	1073741824	2097152

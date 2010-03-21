@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/hptrr/hptrr_config.c,v 1.1.2.4.6.1 2010/02/10 00:26:20 kensmith Exp $
  */
 #include <dev/hptrr/hptrr_config.h>
 /****************************************************************************

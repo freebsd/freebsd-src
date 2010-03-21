@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/gnu/usr.bin/binutils/Makefile.inc0,v 1.38.12.1 2010/02/10 00:26:20 kensmith Exp $
 #
 # This is included explicitly at the top of each sub-Makefile.  We can't
 # use the normal "Makefile.inc" mechanism, because we need some of these

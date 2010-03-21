@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# $FreeBSD$
+# $FreeBSD: src/etc/periodic/daily/100.clean-disks,v 1.9.24.1.2.1 2010/02/10 00:26:20 kensmith Exp $
 #
 # Remove garbage files more than $daily_clean_disks_days days old
 #

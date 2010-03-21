@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/fifolog/lib/fifolog_write.h,v 1.1.2.1.6.1 2010/02/10 00:26:20 kensmith Exp $
  */
 
 #define FIFOLOG_PT_BYTES_PRE		0

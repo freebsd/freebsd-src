@@ -37,7 +37,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)lst.h	8.2 (Berkeley) 4/28/95
- * $FreeBSD$
+ * $FreeBSD: src/usr.bin/make/lst.h,v 1.37.24.1 2010/02/10 00:26:20 kensmith Exp $
  */
 
 #ifndef lst_h_38f3ead1

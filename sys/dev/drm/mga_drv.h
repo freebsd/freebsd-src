@@ -29,7 +29,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/drm/mga_drv.h,v 1.11.2.1.4.1 2010/02/10 00:26:20 kensmith Exp $");
 
 #ifndef __MGA_DRV_H__
 #define __MGA_DRV_H__

@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/lib/libkse/kse.map,v 1.1.2.3.2.1 2010/02/10 00:26:20 kensmith Exp $ */
 
 /*
  * Use the same naming scheme as libc.

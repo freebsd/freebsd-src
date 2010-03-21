@@ -1,5 +1,5 @@
 /*	$NetBSD: setjmp.h,v 1.2 2001/08/25 14:45:59 bjh21 Exp $	*/
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/arm/include/setjmp.h,v 1.2.24.1 2010/02/10 00:26:20 kensmith Exp $ */
 
 /*
  * machine/setjmp.h: machine dependent setjmp-related information.

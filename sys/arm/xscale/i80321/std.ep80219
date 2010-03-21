@@ -1,5 +1,5 @@
 #EP80219 board configuration
-#$FreeBSD$
+#$FreeBSD: src/sys/arm/xscale/i80321/std.ep80219,v 1.1.12.1 2010/02/10 00:26:20 kensmith Exp $
 include	"../xscale/i80321/std.i80219"
 files		"../xscale/i80321/files.ep80219"
 makeoptions	KERNPHYSADDR=0xa0200000

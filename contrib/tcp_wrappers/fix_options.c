@@ -4,7 +4,7 @@
   *
   * Author: Wietse Venema, Eindhoven University of Technology, The Netherlands.
   *
-  * $FreeBSD$
+  * $FreeBSD: src/contrib/tcp_wrappers/fix_options.c,v 1.2.58.1 2010/02/10 00:26:20 kensmith Exp $
   */
 
 #ifndef lint

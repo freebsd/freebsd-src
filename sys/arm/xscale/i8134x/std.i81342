@@ -1,5 +1,5 @@
 #XScale i81342 generic configuration
-#$FreeBSD$
+#$FreeBSD: src/sys/arm/xscale/i8134x/std.i81342,v 1.1.12.1 2010/02/10 00:26:20 kensmith Exp $
 files		"../xscale/i8134x/files.i81342"
 include		"../xscale/std.xscale"
 cpu 		CPU_XSCALE_81342

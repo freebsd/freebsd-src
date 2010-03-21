@@ -31,7 +31,7 @@
  *
  *	@(#)parse.h	8.1 (Berkeley) 6/4/93
  *	$NetBSD: parse.h,v 1.6 2005/05/29 04:58:15 lukem Exp $
- * $FreeBSD$
+ * $FreeBSD: src/lib/libedit/parse.h,v 1.4.12.1 2010/02/10 00:26:20 kensmith Exp $
  */
 
 /*

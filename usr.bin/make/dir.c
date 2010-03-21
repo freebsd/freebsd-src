@@ -40,7 +40,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.bin/make/dir.c,v 1.52.24.1 2010/02/10 00:26:20 kensmith Exp $");
 
 /*-
  * dir.c --

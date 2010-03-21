@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/contrib/less/search.c,v 1.9.2.1.8.1 2010/02/10 00:26:20 kensmith Exp $ */
 /*
  * Copyright (C) 1984-2007  Mark Nudelman
  *

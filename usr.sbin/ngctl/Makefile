@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/ngctl/Makefile,v 1.22.10.1 2010/02/10 00:26:20 kensmith Exp $
 # $Whistle: Makefile,v 1.3 1999/01/16 00:10:11 archie Exp $
 
 .include <bsd.own.mk>

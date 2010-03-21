@@ -33,7 +33,7 @@ static const char sccsid[] = "@(#)inode.c	8.8 (Berkeley) 4/28/95";
 #endif /* not lint */
 #endif
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sbin/fsck_ffs/inode.c,v 1.38.2.1.4.1 2010/02/10 00:26:20 kensmith Exp $");
 
 #include <sys/param.h>
 #include <sys/stdint.h>

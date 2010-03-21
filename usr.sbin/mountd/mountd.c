@@ -43,7 +43,7 @@ static char sccsid[] = "@(#)mountd.c	8.15 (Berkeley) 5/1/95";
 #endif
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.sbin/mountd/mountd.c,v 1.94.2.2.6.1 2010/02/10 00:26:20 kensmith Exp $");
 
 #include <sys/param.h>
 #include <sys/mount.h>

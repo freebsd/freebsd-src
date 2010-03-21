@@ -1,4 +1,4 @@
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/contrib/ipfilter/ipsend/tcpip.h,v 1.3.12.1 2010/02/10 00:26:20 kensmith Exp $	*/
 
 /*
  * Copyright (c) 1982, 1986, 1993

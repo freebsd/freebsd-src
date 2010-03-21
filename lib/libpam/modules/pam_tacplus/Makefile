@@ -22,7 +22,7 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-# $FreeBSD$
+# $FreeBSD: src/lib/libpam/modules/pam_tacplus/Makefile,v 1.8.36.1 2010/02/10 00:26:20 kensmith Exp $
 
 LIB=	pam_tacplus
 SRCS=	pam_tacplus.c

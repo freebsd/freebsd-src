@@ -33,7 +33,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libpam/modules/pam_guest/pam_guest.c,v 1.1.34.1 2010/02/10 00:26:20 kensmith Exp $");
 
 #include <string.h>
 

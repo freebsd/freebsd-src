@@ -1,5 +1,5 @@
 $NetBSD: README.NetBSD,v 1.2 2002/05/21 23:51:05 bjh21 Exp $
-$FreeBSD$
+$FreeBSD: src/lib/libc/softfloat/README.NetBSD,v 1.1.24.1 2010/02/10 00:26:20 kensmith Exp $
 
 This is a modified version of part of John Hauser's SoftFloat 2a package.
 This version has been heavily modified to support its use with GCC to

@@ -1,5 +1,5 @@
 #	from $NetBSD: Makefile.inc,v 1.7 1995/02/27 13:06:20 cgd Exp $
-# $FreeBSD$
+# $FreeBSD: src/lib/libc/nls/Makefile.inc,v 1.11.10.1 2010/02/10 00:26:20 kensmith Exp $
 
 .PATH: ${.CURDIR}/nls
 

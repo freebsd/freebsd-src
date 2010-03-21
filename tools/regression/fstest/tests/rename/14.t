@@ -1,5 +1,5 @@
 #!/bin/sh
-# $FreeBSD$
+# $FreeBSD: src/tools/regression/fstest/tests/rename/14.t,v 1.1.12.1 2010/02/10 00:26:20 kensmith Exp $
 
 desc="rename returns EISDIR when the 'to' argument is a directory, but 'from' is not a directory"
 

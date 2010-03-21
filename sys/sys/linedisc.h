@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)conf.h	8.5 (Berkeley) 1/9/95
- * $FreeBSD$
+ * $FreeBSD: src/sys/sys/linedisc.h,v 1.192.30.1 2010/02/10 00:26:20 kensmith Exp $
  */
 
 #ifndef _SYS_LINEDISC_H_

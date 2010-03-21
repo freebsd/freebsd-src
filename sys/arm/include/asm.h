@@ -33,7 +33,7 @@
  *
  *	from: @(#)asm.h	5.5 (Berkeley) 5/7/91
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/arm/include/asm.h,v 1.6.2.1.6.1 2010/02/10 00:26:20 kensmith Exp $
  */
 
 #ifndef _MACHINE_ASM_H_

@@ -1,4 +1,4 @@
-$FreeBSD$
+$FreeBSD: src/tools/regression/geom/Ref/disk.apple.xml,v 1.2.36.1 2010/02/10 00:26:20 kensmith Exp $
 /dev/md34	512	366530560	715880
 /dev/md34s1	512	366481408	715784
 /dev/md34s2	512	32256	63

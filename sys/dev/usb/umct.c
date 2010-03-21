@@ -26,7 +26,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/usb/umct.c,v 1.18.10.1 2010/02/10 00:26:20 kensmith Exp $");
 
 /*
  * Driver for the MCT (Magic Control Technology) USB-RS232 Converter.

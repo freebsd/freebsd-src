@@ -25,7 +25,7 @@
  */
 
 #include <machine/asm.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/i386/string/wcscmp.S,v 1.1.22.3.2.1 2010/02/10 00:26:20 kensmith Exp $");
 
 /*
  * int

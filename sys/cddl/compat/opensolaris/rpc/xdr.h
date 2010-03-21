@@ -19,7 +19,7 @@
  *
  * CDDL HEADER END
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/cddl/compat/opensolaris/rpc/xdr.h,v 1.3.2.3.2.1 2010/02/10 00:26:20 kensmith Exp $
  */
 /*
  * Copyright 2005 Sun Microsystems, Inc.  All rights reserved.

@@ -31,7 +31,7 @@
 static char sccsid[] = "@(#)scandir.c	8.3 (Berkeley) 1/2/94";
 #endif /* LIBC_SCCS and not lint */
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/gen/scandir.c,v 1.8.2.1.6.1 2010/02/10 00:26:20 kensmith Exp $");
 
 /*
  * Scan the directory dirname calling select to make a list of selected

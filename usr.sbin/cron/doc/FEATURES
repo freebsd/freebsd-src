@@ -1,4 +1,4 @@
-$FreeBSD$
+$FreeBSD: src/usr.sbin/cron/doc/FEATURES,v 1.4.58.1 2010/02/10 00:26:20 kensmith Exp $
 
 Features of Vixie's cron relative to BSD 4.[23] and SysV crons:
 

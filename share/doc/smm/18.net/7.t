@@ -31,7 +31,7 @@
 .\"
 .\"	@(#)7.t	8.1 (Berkeley) 6/8/93
 .\"
-.\"	$FreeBSD$
+.\"	$FreeBSD: src/share/doc/smm/18.net/7.t,v 1.2.36.1 2010/02/10 00:26:20 kensmith Exp $
 .\"
 .nr H2 1
 .br

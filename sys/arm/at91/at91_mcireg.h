@@ -23,7 +23,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/arm/at91/at91_mcireg.h,v 1.1.4.1.6.1 2010/02/10 00:26:20 kensmith Exp $ */
 
 #ifndef ARM_AT91_AT91_MCIREG_H
 #define ARM_AT91_AT91_MCIREG_H

@@ -26,7 +26,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/kern/kern_event.c,v 1.113.2.8.2.2 2010/02/17 10:21:00 kib Exp $");
 
 #include "opt_ktrace.h"
 

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.bin/tr/cmap.h,v 1.1.32.1 2010/02/10 00:26:20 kensmith Exp $
  */
 
 #ifndef CMAP_H

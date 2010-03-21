@@ -53,7 +53,7 @@ static char *sccsid2 = "from: @(#)clnt_generic.c 1.4 87/08/11 (C) 1987 SMI";
 static char *sccsid = "from: @(#)clnt_generic.c	2.2 88/08/01 4.0 RPCSRC";
 #endif
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/rpc/clnt_generic.c,v 1.15.24.1 2010/02/10 00:26:20 kensmith Exp $");
 
 /*
  * Copyright (c) 1986-1996,1998 by Sun Microsystems, Inc.

@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/gnu/lib/libg2c/config.h,v 1.3.32.1 2010/02/10 00:26:20 kensmith Exp $ */
 
 /* *****[ libU77 ]***** */
 

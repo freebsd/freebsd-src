@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/bin/ed/Makefile,v 1.33.10.1 2010/02/10 00:26:20 kensmith Exp $
 
 .include <bsd.own.mk>
 

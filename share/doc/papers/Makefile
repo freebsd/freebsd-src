@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/share/doc/papers/Makefile,v 1.17.12.1 2010/02/10 00:26:20 kensmith Exp $
 
 SUBDIR=	beyond4.3 \
 	bufbio \

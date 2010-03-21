@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/amd64/linux32/linux32_locore.s,v 1.2.2.1.6.1 2010/02/10 00:26:20 kensmith Exp $ */
 
 #include "linux32_assym.h"			/* system definitions */
 #include <machine/asmacros.h>			/* miscellaneous asm macros */

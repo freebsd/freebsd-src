@@ -1,5 +1,5 @@
 /*	$KAME: rijndael.h,v 1.6 2003/08/28 08:36:32 itojun Exp $	*/
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/sys/crypto/rijndael/rijndael.h,v 1.6.24.1 2010/02/10 00:26:20 kensmith Exp $	*/
 
 /**
  * rijndael-alg-fst.h

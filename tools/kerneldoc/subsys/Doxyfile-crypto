@@ -1,6 +1,6 @@
 # Doxyfile 1.4.1
 
-# $FreeBSD$
+# $FreeBSD: src/tools/kerneldoc/subsys/Doxyfile-crypto,v 1.3.12.1 2010/02/10 00:26:20 kensmith Exp $
 
 #---------------------------------------------------------------------------
 # Project related configuration options

@@ -21,7 +21,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/boot/arm/at91/boot0spi/main.c,v 1.5.12.1 2010/02/10 00:26:20 kensmith Exp $
  */
 
 #include "at91rm9200.h"

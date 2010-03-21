@@ -1,7 +1,7 @@
 #
 # XBOX -- kernel for an XBOX
 #
-# $FreeBSD$
+# $FreeBSD: src/sys/i386/conf/XBOX,v 1.7.4.1.6.1 2010/02/10 00:26:20 kensmith Exp $
 cpu		I686_CPU		# Celeron
 ident		XBOX
 

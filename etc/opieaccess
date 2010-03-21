@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/etc/opieaccess,v 1.4.36.1 2010/02/10 00:26:20 kensmith Exp $
 #
 # This file controls whether UNIX passwords are to be permitted.  Rules
 # are matched in order, and the search terminates when the first matching

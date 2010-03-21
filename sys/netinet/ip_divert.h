@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGES.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/netinet/ip_divert.h,v 1.4.24.1 2010/02/10 00:26:20 kensmith Exp $
  */
 
 #ifndef _NETINET_IP_DIVERT_H_

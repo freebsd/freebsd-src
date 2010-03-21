@@ -1,5 +1,5 @@
 /*
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/sade/main.c,v 1.80.4.1.6.1 2010/02/10 00:26:20 kensmith Exp $
  *
  * Copyright (c) 1995
  *     Jordan Hubbard.  All rights reserved.

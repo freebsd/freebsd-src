@@ -1,4 +1,4 @@
-$FreeBSD$
+$FreeBSD: src/sys/contrib/ngatm/FREEBSD-upgrade,v 1.2.34.1 2010/02/10 00:26:20 kensmith Exp $
 
 This is the part of the NgATM stuff that is shared by kernel and user.
 Be careful to feed changes back to the maintainer <harti@freebsd.org>,

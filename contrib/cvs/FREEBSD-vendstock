@@ -1,4 +1,4 @@
-$FreeBSD: head/contrib/cvs/FREEBSD-vendstock 178464 2008-04-24 18:23:13Z obrien $
+$FreeBSD: src/contrib/cvs/FREEBSD-vendstock,v 1.1.2.1.6.1 2010/02/10 00:26:20 kensmith Exp $
 src/buffer.c
 src/commit.c
 src/filesubr.c

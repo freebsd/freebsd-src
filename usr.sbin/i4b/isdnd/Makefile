@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/i4b/isdnd/Makefile,v 1.14.30.1 2010/02/10 00:26:20 kensmith Exp $
 
 PROG=	isdnd
 MAN=	isdnd.rc.5 isdnd.rates.5 isdnd.acct.5 isdnd.8

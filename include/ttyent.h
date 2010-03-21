@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ttyent.h	8.1 (Berkeley) 6/2/93
- * $FreeBSD$
+ * $FreeBSD: src/include/ttyent.h,v 1.7.38.1 2010/02/10 00:26:20 kensmith Exp $
  */
 
 #ifndef	_TTYENT_H_

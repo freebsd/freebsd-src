@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libkse/thread/thr_printf.c,v 1.5.12.1 2010/02/10 00:26:20 kensmith Exp $");
 
 #include <stdarg.h>
 #include <string.h>

@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/gnu/usr.bin/binutils/libbfd/Makefile.i386,v 1.17.30.1 2010/02/10 00:26:20 kensmith Exp $
 
 DEFAULT_VECTOR=	bfd_elf32_i386_freebsd_vec
 

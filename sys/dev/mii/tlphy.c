@@ -67,7 +67,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/mii/tlphy.c,v 1.22.10.1 2010/02/10 00:26:20 kensmith Exp $");
 
 /*
  * Driver for Texas Instruments's ThunderLAN PHYs

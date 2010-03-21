@@ -33,7 +33,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/aic7xxx/aic_osm_lib.c,v 1.6.10.1 2010/02/10 00:26:20 kensmith Exp $");
 
 static void	aic_recovery_thread(void *arg);
 

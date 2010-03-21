@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/boot/ia64/efi/Makefile,v 1.28.10.1 2010/02/10 00:26:20 kensmith Exp $
 
 NO_MAN=
 

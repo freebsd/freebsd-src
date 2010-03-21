@@ -1,5 +1,5 @@
 /*	$NetBSD: ieeefp.h,v 1.4 1998/01/09 08:03:43 perry Exp $	*/
-/* $FreeBSD$ */
+/* $FreeBSD: src/include/ieeefp.h,v 1.7.36.1 2010/02/10 00:26:20 kensmith Exp $ */
 
 /* 
  * Written by J.T. Conklin, Apr 6, 1995

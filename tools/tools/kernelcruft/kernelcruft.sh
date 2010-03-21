@@ -4,7 +4,7 @@
 #
 # Try to find *.c files in /sys which are orphaned
 #
-# $FreeBSD$
+# $FreeBSD: src/tools/tools/kernelcruft/kernelcruft.sh,v 1.1.38.1 2010/02/10 00:26:20 kensmith Exp $
 
 cd /sys/conf
 cat files* | sed '

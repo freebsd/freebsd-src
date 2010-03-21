@@ -1,5 +1,5 @@
 /*
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/cxgbtool/reg_defs_t3.c,v 1.1.4.1.6.1 2010/02/10 00:26:20 kensmith Exp $
  */
 
 

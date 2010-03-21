@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# $FreeBSD$
+# $FreeBSD: src/etc/rc.d/keyserv,v 1.3.10.3.2.1 2010/02/10 00:26:20 kensmith Exp $
 #
 
 # Start keyserv if we are running Secure RPC

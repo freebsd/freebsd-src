@@ -25,7 +25,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-/* $FreeBSD$ */
+/* $FreeBSD: src/usr.sbin/bluetooth/btpand/bnep.c,v 1.1.2.1.4.1 2010/02/10 00:26:20 kensmith Exp $ */
 
 #include <sys/cdefs.h>
 __RCSID("$NetBSD: bnep.c,v 1.1 2008/08/17 13:20:57 plunky Exp $");

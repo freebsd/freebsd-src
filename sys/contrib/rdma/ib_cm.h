@@ -34,7 +34,7 @@
  *
  * $Id: ib_cm.h 4311 2005-12-05 18:42:01Z sean.hefty $
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/contrib/rdma/ib_cm.h,v 1.1.2.1.6.1 2010/02/10 00:26:20 kensmith Exp $
  */
 
 

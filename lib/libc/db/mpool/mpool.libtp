@@ -1,6 +1,6 @@
 /******************************************************************************
 
-VERSION $FreeBSD$
+VERSION $FreeBSD: src/lib/libc/db/mpool/mpool.libtp,v 1.4.58.1 2010/02/10 00:26:20 kensmith Exp $
 PACKAGE: 	User Level Shared Memory Manager
 
 DESCRIPTION: 	

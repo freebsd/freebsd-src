@@ -31,7 +31,7 @@
  *
  *	Van Jacobson (van@helios.ee.lbl.gov), Dec 31, 1989:
  *	- Initial distribution.
- * $FreeBSD$
+ * $FreeBSD: src/sys/net/slcompress.h,v 1.19.24.1 2010/02/10 00:26:20 kensmith Exp $
  */
 
 #ifndef _NET_SLCOMPRESS_H_

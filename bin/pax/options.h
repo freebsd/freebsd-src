@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)options.h	8.2 (Berkeley) 4/18/94
- * $FreeBSD$
+ * $FreeBSD: src/bin/pax/options.h,v 1.6.32.1 2010/02/10 00:26:20 kensmith Exp $
  */
 
 /*

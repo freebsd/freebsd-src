@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/usr.bin/compile_et/Makefile,v 1.12.12.1 2010/02/10 00:26:20 kensmith Exp $
 
 .PATH: ${.CURDIR}/../../contrib/com_err
 

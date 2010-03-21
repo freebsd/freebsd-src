@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/arm/conf/KB920X.hints,v 1.1.12.1 2010/02/10 00:26:20 kensmith Exp $
 #
 # Kwikbyte KB9202A description (will also work for 9202 and might work with
 # a boot loader tweak on the KB9202B).  For the moment, all we list is the

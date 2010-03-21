@@ -29,7 +29,7 @@
  *
  *	$Id: unknownl3.c,v 1.2 2000/02/13 15:26:52 hm Exp $
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/i4b/isdntrace/unknownl3.c,v 1.1.38.1 2010/02/10 00:26:20 kensmith Exp $
  *
  *      last edit-date: [Sun Feb 13 14:16:44 2000]
  *

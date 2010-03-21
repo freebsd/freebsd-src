@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THEPOSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/sound/pci/via8233.h,v 1.4.24.1 2010/02/10 00:26:20 kensmith Exp $
  */
 
 #ifndef _SYS_SOUND_PCI_VIA8233_H_

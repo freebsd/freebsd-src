@@ -1,5 +1,5 @@
 #	$NetBSD: Makefile,v 1.1 2002/03/01 11:21:58 ad Exp $
-# $FreeBSD$
+# $FreeBSD: src/usr.bin/pkill/Makefile,v 1.7.10.1 2010/02/10 00:26:20 kensmith Exp $
 
 BINDIR=	/bin
 

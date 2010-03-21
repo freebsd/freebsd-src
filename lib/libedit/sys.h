@@ -31,7 +31,7 @@
  *
  *	@(#)sys.h	8.1 (Berkeley) 6/4/93
  *	$NetBSD: sys.h,v 1.9 2004/01/17 17:57:40 christos Exp $
- * $FreeBSD$
+ * $FreeBSD: src/lib/libedit/sys.h,v 1.6.12.1 2010/02/10 00:26:20 kensmith Exp $
  */
 
 /*

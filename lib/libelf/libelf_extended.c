@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libelf/libelf_extended.c,v 1.1.12.1 2010/02/10 00:26:20 kensmith Exp $");
 
 #include <assert.h>
 #include <libelf.h>

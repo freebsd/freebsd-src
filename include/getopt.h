@@ -1,5 +1,5 @@
 /*	$NetBSD: getopt.h,v 1.4 2000/07/07 10:43:54 ad Exp $	*/
-/*	$FreeBSD$ */
+/*	$FreeBSD: src/include/getopt.h,v 1.6.32.1 2010/02/10 00:26:20 kensmith Exp $ */
 
 /*-
  * Copyright (c) 2000 The NetBSD Foundation, Inc.

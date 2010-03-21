@@ -24,7 +24,7 @@
  * This software is derived from software provide by Kwikbyte who specifically
  * disclaimed copyright on the code.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/boot/arm/at91/libat91/delay.c,v 1.1.14.1 2010/02/10 00:26:20 kensmith Exp $
  */
 
 #include "at91rm9200.h"

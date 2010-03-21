@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/nfslockd/Makefile,v 1.1.2.3.6.1 2010/02/10 00:26:20 kensmith Exp $
 
 .PATH: ${.CURDIR}/../../nlm ${.CURDIR}/../../rpc
 KMOD=	nfslockd

@@ -1,4 +1,4 @@
-$FreeBSD$
+$FreeBSD: src/tools/regression/geom/Ref/disk.sun.da1.xml,v 1.1.36.1 2010/02/10 00:26:20 kensmith Exp $
 /dev/md34	512	5120	10
 /dev/md34a	512	262967296	513608
 /dev/md34b	512	1075994624	2101552

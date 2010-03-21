@@ -8,7 +8,7 @@
 # Redirect the output from this to a file - and go to the movies while
 # it runs. This program is a CPU Hog!
 #
-# $FreeBSD$
+# $FreeBSD: src/tools/test/devrandom/stat.16bit,v 1.4.58.1 2010/02/10 00:26:20 kensmith Exp $
 #
 
 for ($i = 0; $i < (1024*64); $i++) {

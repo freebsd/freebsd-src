@@ -1,4 +1,4 @@
-.\" $FreeBSD$
+.\" $FreeBSD: src/tools/build/options/WITHOUT_WPA_SUPPLICANT_EAPOL,v 1.1.12.1 2010/02/10 00:26:20 kensmith Exp $
 Build
 .Xr wpa_supplicant 8
 without support for the IEEE 802.1X protocol and without

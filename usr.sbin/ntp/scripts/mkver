@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/ntp/scripts/mkver,v 1.9.18.1.6.1 2010/02/10 00:26:20 kensmith Exp $
 #
 PROG=${1-UNKNOWN}
 

@@ -1,5 +1,5 @@
 #!/bin/sh
-# $FreeBSD$
+# $FreeBSD: src/tools/regression/fstest/tests/rmdir/01.t,v 1.1.12.1 2010/02/10 00:26:20 kensmith Exp $
 
 desc="rmdir returns ENOTDIR if a component of the path is not a directory"
 

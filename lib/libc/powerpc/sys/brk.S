@@ -26,7 +26,7 @@
 /*      $NetBSD: brk.S,v 1.9 2000/06/26 06:25:43 kleink Exp $   */
 
 #include <machine/asm.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/powerpc/sys/brk.S,v 1.1.30.1 2010/02/10 00:26:20 kensmith Exp $");
 
 #include "SYS.h"
 

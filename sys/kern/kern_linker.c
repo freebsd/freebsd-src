@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/kern/kern_linker.c,v 1.149.2.8.2.1 2010/02/10 00:26:20 kensmith Exp $");
 
 #include "opt_ddb.h"
 #include "opt_hwpmc_hooks.h"

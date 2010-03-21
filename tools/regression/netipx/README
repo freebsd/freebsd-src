@@ -8,4 +8,4 @@ In addition, the loopback interface should be configured with the address
 
 	ifconfig lo0 ipx 0xbebe.1
 
-$FreeBSD$
+$FreeBSD: src/tools/regression/netipx/README,v 1.1.12.1 2010/02/10 00:26:20 kensmith Exp $

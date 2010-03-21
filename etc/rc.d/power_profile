@@ -5,7 +5,7 @@
 #
 # Arguments: 0x00 (AC offline, economy) or 0x01 (AC online, performance)
 #
-# $FreeBSD$
+# $FreeBSD: src/etc/rc.d/power_profile,v 1.11.2.1.6.1 2010/02/10 00:26:20 kensmith Exp $
 #
 
 # PROVIDE: power_profile

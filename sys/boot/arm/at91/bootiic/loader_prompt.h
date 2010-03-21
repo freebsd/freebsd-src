@@ -17,7 +17,7 @@
  * only.
  * END_BLOCK
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/boot/arm/at91/bootiic/loader_prompt.h,v 1.1.14.1 2010/02/10 00:26:20 kensmith Exp $
  *****************************************************************************/
 
 #ifndef _LOADER_PROMPT_H_

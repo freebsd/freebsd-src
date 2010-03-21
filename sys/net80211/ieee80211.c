@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/net80211/ieee80211.c,v 1.43.2.2.8.1 2010/02/10 00:26:20 kensmith Exp $");
 
 /*
  * IEEE 802.11 generic handler

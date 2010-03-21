@@ -1,4 +1,4 @@
-.\" $FreeBSD$
+.\" $FreeBSD: src/tools/build/options/WITHOUT_PPP,v 1.1.2.1.4.1 2010/02/10 00:26:20 kensmith Exp $
 Set to not build
 .Xr ppp 8
 and related programs.

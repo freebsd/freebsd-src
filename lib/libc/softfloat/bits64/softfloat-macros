@@ -1,5 +1,5 @@
 /* $NetBSD: softfloat-macros,v 1.1 2002/05/21 23:51:08 bjh21 Exp $ */
-/* $FreeBSD$ */
+/* $FreeBSD: src/lib/libc/softfloat/bits64/softfloat-macros,v 1.1.24.1 2010/02/10 00:26:20 kensmith Exp $ */
 
 /*
 ===============================================================================

@@ -1,5 +1,5 @@
 #!/bin/sh
-# $FreeBSD$
+# $FreeBSD: src/tools/regression/fstest/tests/symlink/10.t,v 1.1.12.1 2010/02/10 00:26:20 kensmith Exp $
 
 desc="symlink returns EROFS if the file name2 would reside on a read-only file system"
 

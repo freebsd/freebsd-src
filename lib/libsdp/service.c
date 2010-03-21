@@ -26,7 +26,7 @@
  * SUCH DAMAGE.
  *
  * $Id: service.c,v 1.1 2004/01/13 19:32:36 max Exp $
- * $FreeBSD$
+ * $FreeBSD: src/lib/libsdp/service.c,v 1.1.32.1 2010/02/10 00:26:20 kensmith Exp $
  */
 
 #include <sys/uio.h>

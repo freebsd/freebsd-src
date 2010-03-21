@@ -27,7 +27,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)socket.h	8.4 (Berkeley) 2/21/94
- * $FreeBSD$
+ * $FreeBSD: src/sys/sys/socket.h,v 1.95.2.4.6.1 2010/02/10 00:26:20 kensmith Exp $
  */
 
 #ifndef _SYS_SOCKET_H_

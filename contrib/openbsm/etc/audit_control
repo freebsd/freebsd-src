@@ -1,6 +1,6 @@
 #
 # $P4: //depot/projects/trustedbsd/openbsm/etc/audit_control#5 $
-# $FreeBSD$
+# $FreeBSD: src/contrib/openbsm/etc/audit_control,v 1.4.10.1 2010/02/10 00:26:20 kensmith Exp $
 #
 dir:/var/audit
 flags:lo

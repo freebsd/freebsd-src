@@ -65,7 +65,7 @@
  * SUCH DAMAGE.
  *
  *
- * $FreeBSD$
+ * $FreeBSD: src/share/examples/kld/cdev/module/cdev.c,v 1.8.32.1 2010/02/10 00:26:20 kensmith Exp $
  */
 #include <sys/param.h>
 #include <sys/uio.h>

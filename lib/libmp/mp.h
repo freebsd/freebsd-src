@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/lib/libmp/mp.h,v 1.2.34.1 2010/02/10 00:26:20 kensmith Exp $ */
 
 #ifndef _MP_H_
 #define _MP_H_

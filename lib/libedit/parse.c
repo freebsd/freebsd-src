@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)parse.c	8.1 (Berkeley) 6/4/93";
 #endif /* not lint && not SCCSID */
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libedit/parse.c,v 1.10.12.1 2010/02/10 00:26:20 kensmith Exp $");
 
 /*
  * parse.c: parse an editline extended command

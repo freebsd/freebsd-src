@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/lib/libthr/arch/arm/Makefile.inc,v 1.2.10.1.6.1 2010/02/10 00:26:20 kensmith Exp $
 
 .PATH: ${.CURDIR}/arch/${MACHINE_ARCH}/${MACHINE_ARCH}
 

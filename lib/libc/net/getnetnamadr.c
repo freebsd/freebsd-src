@@ -24,7 +24,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/net/getnetnamadr.c,v 1.23.12.1 2010/02/10 00:26:20 kensmith Exp $");
 
 #include "namespace.h"
 #include "reentrant.h"

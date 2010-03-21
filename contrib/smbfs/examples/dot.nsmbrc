@@ -1,5 +1,5 @@
 # $Id: dot.nsmbrc,v 1.7 2002/04/10 04:21:11 bp Exp $
-# $FreeBSD$
+# $FreeBSD: src/contrib/smbfs/examples/dot.nsmbrc,v 1.2.32.1 2010/02/10 00:26:20 kensmith Exp $
 #
 # Example for .nsmbrc file
 #

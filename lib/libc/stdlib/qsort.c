@@ -31,7 +31,7 @@
 static char sccsid[] = "@(#)qsort.c	8.1 (Berkeley) 6/4/93";
 #endif /* LIBC_SCCS and not lint */
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/stdlib/qsort.c,v 1.13.2.1.6.1 2010/02/10 00:26:20 kensmith Exp $");
 
 #include <stdlib.h>
 

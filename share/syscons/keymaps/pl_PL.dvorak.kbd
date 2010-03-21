@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/share/syscons/keymaps/pl_PL.dvorak.kbd,v 1.1.2.2.2.1 2010/02/10 00:26:20 kensmith Exp $
 #
 # Polish dvorak keymap by Robert Sebastian Gerus (17:05 01-07-2006 CEST)
 #                             (arachnist@gmail.com)

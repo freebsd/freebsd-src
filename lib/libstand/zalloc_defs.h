@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libstand/zalloc_defs.h,v 1.15.24.1 2010/02/10 00:26:20 kensmith Exp $
  */
 
 /*

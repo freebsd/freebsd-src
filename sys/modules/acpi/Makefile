@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/acpi/Makefile,v 1.53.10.1 2010/02/10 00:26:20 kensmith Exp $
 
 .if ${MACHINE} == "i386"
 SUBDIR=		acpi

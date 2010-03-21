@@ -27,7 +27,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)exec.h	8.1 (Berkeley) 6/11/93
- * $FreeBSD$
+ * $FreeBSD: src/sys/i386/include/exec.h,v 1.10.24.1 2010/02/10 00:26:20 kensmith Exp $
  */
 
 #ifndef	_MACHINE_EXEC_H_

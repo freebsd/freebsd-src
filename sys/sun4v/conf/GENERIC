@@ -18,7 +18,7 @@
 #
 # For hardware specific information check HARDWARE.TXT
 #
-# $FreeBSD$
+# $FreeBSD: src/sys/sun4v/conf/GENERIC,v 1.14.2.7.2.1 2010/02/10 00:26:20 kensmith Exp $
 
 cpu		SUN4V
 ident		GENERIC

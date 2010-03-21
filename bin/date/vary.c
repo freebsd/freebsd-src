@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/bin/date/vary.c,v 1.16.32.1 2010/02/10 00:26:20 kensmith Exp $");
 
 #include <err.h>
 #include <time.h>

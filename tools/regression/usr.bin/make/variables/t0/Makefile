@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/tools/regression/usr.bin/make/variables/t0/Makefile,v 1.1.24.1 2010/02/10 00:26:20 kensmith Exp $
 #
 # A unsorted set of macro expansions. This should be sorted out.
 #

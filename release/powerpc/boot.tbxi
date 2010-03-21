@@ -1,6 +1,6 @@
 <CHRP-BOOT>
 <LICENSE>
-$FreeBSD$
+$FreeBSD: src/release/powerpc/boot.tbxi,v 1.1.24.1 2010/02/10 00:26:20 kensmith Exp $
 </LICENSE>
 <COMPATIBLE>
 MacRISC MacRISC3 MacRISC4

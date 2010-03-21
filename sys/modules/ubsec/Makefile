@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/ubsec/Makefile,v 1.6.10.1 2010/02/10 00:26:20 kensmith Exp $
 
 .PATH:	${.CURDIR}/../../dev/ubsec
 KMOD	= ubsec

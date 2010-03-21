@@ -1,5 +1,5 @@
 #!/bin/sh
-# $FreeBSD$
+# $FreeBSD: src/tools/regression/fstest/tests/truncate/10.t,v 1.1.12.1 2010/02/10 00:26:20 kensmith Exp $
 
 desc="truncate returns EROFS if the named file resides on a read-only file system"
 

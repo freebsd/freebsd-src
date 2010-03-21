@@ -1,5 +1,5 @@
 # $Id: autotab,v 1.8 2004/09/08 08:12:21 bright Exp $
-# $FreeBSD$
+# $FreeBSD: src/share/examples/autofs/driver/autotab,v 1.2.24.1 2010/02/10 00:26:20 kensmith Exp $
 # autofs, directory, fstype, opts, path
 /auto	share	nfs	ro,-R=1	big:/vol/share direct
 #/auto	src	nfs	ro,-R=1	big:/vol/share/src indirect

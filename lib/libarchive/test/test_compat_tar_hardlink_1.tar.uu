@@ -1,4 +1,4 @@
-$FreeBSD$
+$FreeBSD: src/lib/libarchive/test/test_compat_tar_hardlink_1.tar.uu,v 1.1.2.1.6.1 2010/02/10 00:26:20 kensmith Exp $
 begin 644 test_compat_tar_hardlink_1.tar
 M>&UC9"TS+C,N,B]D;V-S7V0O4D5!1$UF````````````````````````````
 M````````````````````````````````````````````````````````````

@@ -32,7 +32,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)inode.h	8.9 (Berkeley) 5/14/95
- * $FreeBSD$
+ * $FreeBSD: src/sys/gnu/fs/ext2fs/inode.h,v 1.44.10.1.6.1 2010/02/10 00:26:20 kensmith Exp $
  */
 
 #ifndef _SYS_GNU_EXT2FS_INODE_H_

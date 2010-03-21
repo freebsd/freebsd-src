@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/lib/bind/bind/Makefile,v 1.7.2.1.8.1 2010/02/10 00:26:20 kensmith Exp $
 
 #.include <bsd.own.mk>
 

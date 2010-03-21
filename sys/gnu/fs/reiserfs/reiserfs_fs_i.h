@@ -4,7 +4,7 @@
  * 
  * Ported to FreeBSD by Jean-Sébastien Pédron <jspedron@club-internet.fr>
  * 
- * $FreeBSD$
+ * $FreeBSD: src/sys/gnu/fs/reiserfs/reiserfs_fs_i.h,v 1.1.24.1 2010/02/10 00:26:20 kensmith Exp $
  */
 
 #ifndef _GNU_REISERFS_REISERFS_FS_I_H

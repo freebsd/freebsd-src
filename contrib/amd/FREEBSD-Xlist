@@ -1,4 +1,4 @@
-$FreeBSD$
+$FreeBSD: src/contrib/amd/FREEBSD-Xlist,v 1.5.18.1.6.1 2010/02/10 00:26:20 kensmith Exp $
 *LSM.am-utils
 *Makefile.*
 *README.autofs

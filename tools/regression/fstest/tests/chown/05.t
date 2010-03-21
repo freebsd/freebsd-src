@@ -1,5 +1,5 @@
 #!/bin/sh
-# $FreeBSD$
+# $FreeBSD: src/tools/regression/fstest/tests/chown/05.t,v 1.1.10.1 2010/02/10 00:26:20 kensmith Exp $
 
 desc="chown returns EACCES when search permission is denied for a component of the path prefix"
 

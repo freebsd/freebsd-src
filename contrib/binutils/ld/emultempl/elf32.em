@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/contrib/binutils/ld/emultempl/elf32.em,v 1.14.32.1 2010/02/10 00:26:20 kensmith Exp $
 
 
 # This shell script emits a C file. -*- C -*-

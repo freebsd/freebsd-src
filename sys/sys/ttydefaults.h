@@ -32,7 +32,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ttydefaults.h	8.4 (Berkeley) 1/21/94
- * $FreeBSD$
+ * $FreeBSD: src/sys/sys/ttydefaults.h,v 1.19.22.1 2010/02/10 00:26:20 kensmith Exp $
  */
 
 /*

@@ -1,4 +1,4 @@
-#$FreeBSD$
+#$FreeBSD: src/sys/arm/xscale/i80321/files.ep80219,v 1.1.2.2.6.1 2010/02/10 00:26:20 kensmith Exp $
 #
 #
 # EP80219 Board Specific

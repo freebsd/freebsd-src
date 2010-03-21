@@ -32,7 +32,7 @@
 # SUCH DAMAGE.
 #
 #	@(#)popd	8.2 (Berkeley) 5/4/95
-# $FreeBSD$
+# $FreeBSD: src/bin/sh/funcs/popd,v 1.8.24.1 2010/02/10 00:26:20 kensmith Exp $
 
 # pushd, popd, and dirs --- written by Chris Bertin
 # Pixel Computer Inc. ...!wjh12!pixel!pixutl!chris

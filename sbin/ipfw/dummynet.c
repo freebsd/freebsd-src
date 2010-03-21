@@ -17,7 +17,7 @@
  *
  * NEW command line interface for IP firewall facility
  *
- * $FreeBSD$
+ * $FreeBSD: src/sbin/ipfw/dummynet.c,v 1.5.2.2.2.1 2010/02/10 00:26:20 kensmith Exp $
  *
  * dummynet support
  */

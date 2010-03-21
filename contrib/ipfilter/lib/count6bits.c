@@ -1,4 +1,4 @@
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/contrib/ipfilter/lib/count6bits.c,v 1.4.12.1 2010/02/10 00:26:20 kensmith Exp $	*/
 
 /*
  * Copyright (C) 2000-2001 by Darren Reed.

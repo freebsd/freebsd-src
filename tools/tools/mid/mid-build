@@ -4,7 +4,7 @@
 #
 # create a Message-ID, In-Reply-To look(1) index database
 #
-# $FreeBSD$
+# $FreeBSD: src/tools/tools/mid/mid-build,v 1.2.36.1 2010/02/10 00:26:20 kensmith Exp $
 
 
 TMPDIR=/var/tmp; export TMPDIR

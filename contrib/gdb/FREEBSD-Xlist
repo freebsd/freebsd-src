@@ -1,4 +1,4 @@
-$FreeBSD$
+$FreeBSD: src/contrib/gdb/FREEBSD-Xlist,v 1.7.10.1 2010/02/10 00:26:20 kensmith Exp $
 gdb-6.1.1/bfd/*
 gdb-6.1.1/config/*
 gdb-6.1.1/etc/*

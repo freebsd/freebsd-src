@@ -1,4 +1,4 @@
-$FreeBSD$
+$FreeBSD: src/tools/regression/geom/Ref/disk.typo.ad0.xml,v 1.1.36.1 2010/02/10 00:26:20 kensmith Exp $
 /dev/md34	512	8585262592	16768091
 /dev/md34s1	512	3220406784	6289857
 /dev/md34s1a	512	104857600	204800

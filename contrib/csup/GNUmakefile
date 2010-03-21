@@ -2,7 +2,7 @@
 # be used elsewhere because it assumes that the target system doesn't
 # support BSD extended file flags.
 #
-# $FreeBSD$
+# $FreeBSD: src/contrib/csup/GNUmakefile,v 1.1.1.2.4.1.4.1 2010/02/10 00:26:20 kensmith Exp $
 #
 
 PREFIX?=/usr/local

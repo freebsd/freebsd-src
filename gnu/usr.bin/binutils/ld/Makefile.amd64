@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/gnu/usr.bin/binutils/ld/Makefile.amd64,v 1.8.12.1 2010/02/10 00:26:20 kensmith Exp $
 
 NATIVE_EMULATION= elf_x86_64_fbsd
 

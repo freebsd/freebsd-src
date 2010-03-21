@@ -29,7 +29,7 @@
  * official policies, either expressed or implied, of the FreeBSD Project.
  *
  * ------+---------+---------+---------+---------+---------+---------+---------*
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/newsyslog/extern.h,v 1.2.36.1 2010/02/10 00:26:20 kensmith Exp $
  * ------+---------+---------+---------+---------+---------+---------+---------*
  */
 

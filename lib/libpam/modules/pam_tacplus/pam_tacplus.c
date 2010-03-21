@@ -35,7 +35,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libpam/modules/pam_tacplus/pam_tacplus.c,v 1.14.34.1 2010/02/10 00:26:20 kensmith Exp $");
 
 #include <sys/param.h>
 

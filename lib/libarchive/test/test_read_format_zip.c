@@ -23,7 +23,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #include "test.h"
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libarchive/test/test_read_format_zip.c,v 1.2.2.4.4.1 2010/02/10 00:26:20 kensmith Exp $");
 
 /*
  * The reference file for this has been manually tweaked so that:

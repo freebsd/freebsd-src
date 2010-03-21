@@ -35,7 +35,7 @@
 # OR OTHERWISE) RISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
 # IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
-# $FreeBSD$
+# $FreeBSD: src/share/doc/usd/22.trofftut/Makefile,v 1.3.38.1 2010/02/10 00:26:20 kensmith Exp $
 
 VOLUME=	usd/22.trofftut
 SRCS=	tt.mac tt00 tt01 tt02 tt03 tt04 tt05 tt06 tt07 tt08 tt09 tt10 \

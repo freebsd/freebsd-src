@@ -1,5 +1,5 @@
 #!/bin/sh
-# $FreeBSD$
+# $FreeBSD: src/tools/regression/fstest/tests/symlink/04.t,v 1.1.12.1 2010/02/10 00:26:20 kensmith Exp $
 
 desc="symlink returns ENOENT if a component of the name2 path prefix does not exist"
 

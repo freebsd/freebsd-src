@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/sys/mchain.h,v 1.10.12.1 2010/02/10 00:26:20 kensmith Exp $
  */
 #ifndef _SYS_MCHAIN_H_
 #define _SYS_MCHAIN_H_

@@ -1,5 +1,5 @@
 #!/bin/sh
-# $FreeBSD$
+# $FreeBSD: src/tools/regression/usr.bin/pkill/pgrep-S.t,v 1.1.22.1 2010/02/10 00:26:20 kensmith Exp $
 
 base=`basename $0`
 

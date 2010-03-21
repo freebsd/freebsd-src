@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.       Maxim Sobolev
  * ----------------------------------------------------------------------------
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.bin/mkuzip/mkuzip.c,v 1.6.12.1 2010/02/10 00:26:20 kensmith Exp $
  *
  */
 

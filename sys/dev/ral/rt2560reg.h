@@ -1,4 +1,4 @@
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/sys/dev/ral/rt2560reg.h,v 1.2.2.1.6.1 2010/02/10 00:26:20 kensmith Exp $	*/
 
 /*-
  * Copyright (c) 2005, 2006

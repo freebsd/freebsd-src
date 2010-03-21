@@ -35,7 +35,7 @@
 	.asciz "@(#)abs.s	5.2 (Berkeley) 12/17/90"
 #endif /* LIBC_SCCS and not lint */
 #include <machine/asm.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/i386/stdlib/abs.S,v 1.10.2.1.6.1 2010/02/10 00:26:20 kensmith Exp $");
 
 
 ENTRY(abs)

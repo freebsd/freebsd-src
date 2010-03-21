@@ -31,7 +31,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/boot/powerpc/loader/start.c,v 1.6.22.1 2010/02/10 00:26:20 kensmith Exp $");
 
 #include <stand.h>
 #include "libofw.h"

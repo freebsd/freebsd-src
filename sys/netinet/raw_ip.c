@@ -31,7 +31,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/netinet/raw_ip.c,v 1.180.2.13.2.1 2010/02/10 00:26:20 kensmith Exp $");
 
 #include "opt_inet6.h"
 #include "opt_ipsec.h"

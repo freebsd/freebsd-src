@@ -25,7 +25,7 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-# $FreeBSD$
+# $FreeBSD: src/sys/dev/sound/pcm/ac97_if.m,v 1.4.24.1 2010/02/10 00:26:20 kensmith Exp $
 #
 
 #include <dev/sound/pcm/sound.h>

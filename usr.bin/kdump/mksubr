@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# $FreeBSD$
+# $FreeBSD: src/usr.bin/kdump/mksubr,v 1.9.2.2.2.1 2010/02/10 00:26:20 kensmith Exp $
 #
 # Generates kdump_subr.c
 # mkioctls is a special-purpose script, and works fine as it is

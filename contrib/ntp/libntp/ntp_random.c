@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD: src/lib/libc/stdlib/random.c,v 1.4.2.2 1999/09/05 11:16:45 peter Exp $
+ * $FreeBSD: src/contrib/ntp/libntp/ntp_random.c,v 1.1.2.1.6.1 2010/02/10 00:26:20 kensmith Exp $
  *
  */
 

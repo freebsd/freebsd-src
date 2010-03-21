@@ -1,7 +1,7 @@
 /*
  * Ünnepnapok
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.bin/calendar/calendars/hu_HU.ISO8859-2/calendar.unnepek,v 1.1.32.1 2010/02/10 00:26:20 kensmith Exp $
  */
 
 #ifndef _hu_HU_ISO8859_2_unnepek_

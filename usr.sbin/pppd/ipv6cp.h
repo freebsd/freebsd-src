@@ -91,7 +91,7 @@
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
  * $Id: ipv6cp.h,v 1.3 1999/09/30 19:57:45 masputra Exp $
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/pppd/ipv6cp.h,v 1.2.12.1 2010/02/10 00:26:20 kensmith Exp $
  */
 
 /*

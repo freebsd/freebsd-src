@@ -9,7 +9,7 @@
  *  <0x81-0xa0><0x41-0xfe>	Hangul syllables GAGG-JWAK
  *  <0xa1-0xc6><0x41-0xa0>	Hangul syllables JWAT-HIH (ends with C652)
  *
- * $FreeBSD$
+ * $FreeBSD: src/share/mklocale/ko_KR.CP949.src,v 1.2.34.1 2010/02/10 00:26:20 kensmith Exp $
  */
 
 ENCODING        "GBK" /* CP949 isn't GBK, but they have same encoding method. */

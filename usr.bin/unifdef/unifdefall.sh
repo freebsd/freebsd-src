@@ -26,7 +26,7 @@
 # SUCH DAMAGE.
 #
 #	$dotat: unifdef/unifdefall.sh,v 1.24 2009/11/26 12:54:39 fanf2 Exp $
-# $FreeBSD$
+# $FreeBSD: src/usr.bin/unifdef/unifdefall.sh,v 1.2.24.1.2.1 2010/02/10 00:26:20 kensmith Exp $
 
 set -e
 

@@ -6,7 +6,7 @@
 #
 #   -Frédéric Praca <frederic.praca@freebsd-fr.org>
 #
-# $FreeBSD$
+# $FreeBSD: src/share/syscons/keymaps/fr.dvorak.kbd,v 1.1.38.1 2010/02/10 00:26:20 kensmith Exp $
 #                                                         alt
 # scan                       cntrl          alt    alt   cntrl lock
 # code  base   shift  cntrl  shift  alt    shift  cntrl  shift state

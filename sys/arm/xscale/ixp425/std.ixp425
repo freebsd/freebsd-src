@@ -1,5 +1,5 @@
 #XScale IXP425 generic configuration
-#$FreeBSD$
+#$FreeBSD: src/sys/arm/xscale/ixp425/std.ixp425,v 1.1.14.1 2010/02/10 00:26:20 kensmith Exp $
 files		"../xscale/ixp425/files.ixp425"
 include		"../xscale/std.xscale"
 cpu 		CPU_XSCALE_IXP425

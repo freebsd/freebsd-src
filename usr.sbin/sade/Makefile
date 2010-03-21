@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/sade/Makefile,v 1.147.12.1 2010/02/10 00:26:20 kensmith Exp $
 
 .if ${MACHINE_ARCH} != "ia64"
 _wizard=	wizard.c

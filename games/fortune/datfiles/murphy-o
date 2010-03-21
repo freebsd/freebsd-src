@@ -1,4 +1,4 @@
-%%$FreeBSD$
+%%$FreeBSD: src/games/fortune/datfiles/murphy-o,v 1.2.22.1.8.1 2010/02/10 00:26:20 kensmith Exp $
 %
 All probabilities are 50%: either a thing will
 happen or it won't.

@@ -30,7 +30,7 @@
  *
  *	$Id: i4b_ifpi_ext.h,v 1.2 2000/06/02 16:14:36 hm Exp $
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/i4b/layer1/ifpi/i4b_ifpi_ext.h,v 1.2.22.1 2010/02/10 00:26:20 kensmith Exp $
  *
  *      last edit-date: [Fri Jun  2 14:53:31 2000]
  *

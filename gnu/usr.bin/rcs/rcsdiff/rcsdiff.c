@@ -151,7 +151,7 @@ static int exitstatus;
 static RILE *workptr;
 static struct stat workstat;
 
-mainProg(rcsdiffId, "rcsdiff", "$FreeBSD$")
+mainProg(rcsdiffId, "rcsdiff", "$FreeBSD: src/gnu/usr.bin/rcs/rcsdiff/rcsdiff.c,v 1.8.58.1 2010/02/10 00:26:20 kensmith Exp $")
 {
     static char const cmdusage[] =
 	    "\nrcsdiff usage: rcsdiff -ksubst -q -rrev1 [-rrev2] -Vn -xsuff -zzone [diff options] file ...";

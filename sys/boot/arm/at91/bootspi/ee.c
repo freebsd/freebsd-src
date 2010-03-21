@@ -18,7 +18,7 @@
  * only.
  * END_BLOCK
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/boot/arm/at91/bootspi/ee.c,v 1.1.12.1 2010/02/10 00:26:20 kensmith Exp $
  *****************************************************************************/
 
 #include "at91rm9200_lowlevel.h"

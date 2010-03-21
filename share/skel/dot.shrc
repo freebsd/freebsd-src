@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/share/skel/dot.shrc,v 1.3.38.1 2010/02/10 00:26:20 kensmith Exp $
 #
 # .shrc - bourne shell startup file 
 #

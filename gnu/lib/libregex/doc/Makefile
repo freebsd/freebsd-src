@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/gnu/lib/libregex/doc/Makefile,v 1.5.38.1 2010/02/10 00:26:20 kensmith Exp $
 
 INFO = regex
 INFOSECTION= "Programming & development tools."

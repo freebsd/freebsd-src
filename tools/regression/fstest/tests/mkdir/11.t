@@ -1,5 +1,5 @@
 #!/bin/sh
-# $FreeBSD$
+# $FreeBSD: src/tools/regression/fstest/tests/mkdir/11.t,v 1.1.12.1 2010/02/10 00:26:20 kensmith Exp $
 
 desc="mkdir returns ENOSPC if there are no free inodes on the file system on which the directory is being created"
 

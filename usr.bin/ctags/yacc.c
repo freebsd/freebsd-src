@@ -38,7 +38,7 @@ static char sccsid[] = "@(#)yacc.c	8.3 (Berkeley) 4/2/94";
 #endif
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.bin/ctags/yacc.c,v 1.9.38.1 2010/02/10 00:26:20 kensmith Exp $");
 
 #include <ctype.h>
 #include <limits.h>

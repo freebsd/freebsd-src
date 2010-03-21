@@ -17,7 +17,7 @@
 __RCSID("$NetBSD: tfind.c,v 1.2 1999/09/16 11:45:37 lukem Exp $");
 #endif /* LIBC_SCCS and not lint */
 #endif
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/stdlib/tfind.c,v 1.5.36.1 2010/02/10 00:26:20 kensmith Exp $");
 
 #define _SEARCH_PRIVATE
 #include <stdlib.h>

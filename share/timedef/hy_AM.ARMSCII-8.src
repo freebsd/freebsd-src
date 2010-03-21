@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/share/timedef/hy_AM.ARMSCII-8.src,v 1.1.32.1 2010/02/10 00:26:20 kensmith Exp $
 #
 # LC_TIME source for ARMSCII-8 locale for FreeBSD
 # Made available by Vahe Khachikyan <vahe@khachikyan.de>

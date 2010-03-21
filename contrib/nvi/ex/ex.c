@@ -7,7 +7,7 @@
  * See the LICENSE file for redistribution information.
  */
 
-/* $FreeBSD$ */
+/* $FreeBSD: src/contrib/nvi/ex/ex.c,v 1.2.58.1 2010/02/10 00:26:20 kensmith Exp $ */
 
 #include "config.h"
 

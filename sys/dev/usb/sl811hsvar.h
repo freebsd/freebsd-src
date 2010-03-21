@@ -1,5 +1,5 @@
 /*	$NetBSD$	*/
-/*      $FreeBSD$	*/
+/*      $FreeBSD: src/sys/dev/usb/sl811hsvar.h,v 1.4.10.1 2010/02/10 00:26:20 kensmith Exp $	*/
 
 /*
  * Copyright (c) 2001 The NetBSD Foundation, Inc.

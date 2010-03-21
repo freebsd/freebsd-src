@@ -1,5 +1,5 @@
 #!/bin/sh
-# $FreeBSD$
+# $FreeBSD: src/tools/regression/fstest/tests/mkfifo/08.t,v 1.1.12.1 2010/02/10 00:26:20 kensmith Exp $
 
 desc="mkfifo returns EROFS if the named file resides on a read-only file system"
 

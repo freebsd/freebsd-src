@@ -1,2 +1,2 @@
-# $FreeBSD$
+# $FreeBSD: src/tools/tools/tinybsd/conf/default/etc/fstab,v 1.1.14.1 2010/02/10 00:26:20 kensmith Exp $
 /dev/ad0a / ufs ro 1 1

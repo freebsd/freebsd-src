@@ -1,5 +1,5 @@
 #!/bin/sh
-# $FreeBSD$
+# $FreeBSD: src/tools/regression/fstest/tests/rename/20.t,v 1.1.12.1 2010/02/10 00:26:20 kensmith Exp $
 
 desc="rename returns EEXIST or ENOTEMPTY if the 'to' argument is a directory and is not empty"
 

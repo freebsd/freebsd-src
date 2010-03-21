@@ -1,4 +1,4 @@
-$FreeBSD$
+$FreeBSD: src/tools/regression/geom/Ref/disk.kern.flp.xml,v 1.1.36.1 2010/02/10 00:26:20 kensmith Exp $
 /dev/md34	512	5632	11
 /dev/md34a	512	1474560	2880
 /dev/md34b	512	1474560	2880

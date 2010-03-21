@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/share/examples/pf/queue3,v 1.1.12.1.8.1 2010/02/10 00:26:20 kensmith Exp $
 # $OpenBSD: queue3,v 1.3 2006/10/07 04:48:01 mcbride Exp $
 # simple PRIQ example
 

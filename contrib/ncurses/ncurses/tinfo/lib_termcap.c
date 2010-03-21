@@ -36,7 +36,7 @@
  * (but it has changed a lot)                                               *
  ****************************************************************************/
 
-/* $FreeBSD$ */
+/* $FreeBSD: src/contrib/ncurses/ncurses/tinfo/lib_termcap.c,v 1.12.2.1.6.1 2010/02/10 00:26:20 kensmith Exp $ */
 
 #define __INTERNAL_CAPS_VISIBLE
 #include <curses.priv.h>

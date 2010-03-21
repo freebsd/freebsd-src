@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/tools/regression/usr.bin/make/syntax/semi/Makefile,v 1.1.12.1 2010/02/10 00:26:20 kensmith Exp $
 #
 # Test handling of escaped newlines.
 #

@@ -34,7 +34,7 @@
 .\"
 .\"	@(#)1.t	8.1 (Berkeley) 6/8/93
 .\"
-.\" $FreeBSD$
+.\" $FreeBSD: src/share/doc/smm/06.nfs/1.t,v 1.5.36.1 2010/02/10 00:26:20 kensmith Exp $
 .\"
 .sh 1 "NFS Implementation"
 .pp

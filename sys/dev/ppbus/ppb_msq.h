@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/ppbus/ppb_msq.h,v 1.9.38.1 2010/02/10 00:26:20 kensmith Exp $
  *
  */
 #ifndef __PPB_MSQ_H

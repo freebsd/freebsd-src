@@ -46,7 +46,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/contrib/bind9/lib/isc/alpha/include/isc/atomic.h,v 1.1.1.1.10.2 2010/02/16 18:10:35 dougb Exp $
  */
 
 #ifndef ISC_ATOMIC_H

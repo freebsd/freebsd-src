@@ -42,7 +42,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/arm/xscale/i80321/iq80321.c,v 1.15.12.1 2010/02/10 00:26:20 kensmith Exp $");
 
 #define _ARM32_BUS_DMA_PRIVATE
 #include <sys/param.h>

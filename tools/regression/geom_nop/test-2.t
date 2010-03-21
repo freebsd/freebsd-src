@@ -1,5 +1,5 @@
 #!/bin/sh
-# $FreeBSD$
+# $FreeBSD: src/tools/regression/geom_nop/test-2.t,v 1.2.12.1 2010/02/10 00:26:20 kensmith Exp $
 
 . `dirname $0`/conf.sh
 

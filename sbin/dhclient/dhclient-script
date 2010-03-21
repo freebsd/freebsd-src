@@ -1,7 +1,7 @@
 #!/bin/sh
 #
 # $OpenBSD: dhclient-script,v 1.6 2004/05/06 18:22:41 claudio Exp $
-# $FreeBSD$
+# $FreeBSD: src/sbin/dhclient/dhclient-script,v 1.17.2.2.6.1 2010/02/10 00:26:20 kensmith Exp $
 #
 # Copyright (c) 2003 Kenneth R Westerback <krw@openbsd.org>
 #

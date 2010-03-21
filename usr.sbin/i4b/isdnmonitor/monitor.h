@@ -35,7 +35,7 @@
  *
  *	$Id: monitor.h,v 1.16 1999/12/13 21:25:26 hm Exp $
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/i4b/isdnmonitor/monitor.h,v 1.8.34.1 2010/02/10 00:26:20 kensmith Exp $
  *
  *      last edit-date: [Mon Dec 13 21:52:18 1999]
  *

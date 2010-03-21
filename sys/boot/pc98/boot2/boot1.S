@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/boot/pc98/boot2/boot1.S,v 1.1.4.2.2.1 2010/02/10 00:26:20 kensmith Exp $
  */
 
 /* Memory Locations */

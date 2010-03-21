@@ -29,7 +29,7 @@
 .\" Feral Software
 .\" mjacob@feral.com
 .\"
-.\" $FreeBSD$
+.\" $FreeBSD: src/share/examples/ses/getencstat/getencstat.0,v 1.5.24.1 2010/02/10 00:26:20 kensmith Exp $
 .\"
 .Dd February 21, 2000
 .Dt GETENCSTAT 8

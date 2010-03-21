@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/share/misc/committers-src.dot,v 1.66.10.1 2010/02/10 00:26:20 kensmith Exp $
 
 # This file is meant to list all FreeBSD src committers and describe the
 # mentor-mentee relationships between them.

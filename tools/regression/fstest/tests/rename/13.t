@@ -1,5 +1,5 @@
 #!/bin/sh
-# $FreeBSD$
+# $FreeBSD: src/tools/regression/fstest/tests/rename/13.t,v 1.1.12.1 2010/02/10 00:26:20 kensmith Exp $
 
 desc="rename returns ENOTDIR when the 'from' argument is a directory, but 'to' is not a directory"
 

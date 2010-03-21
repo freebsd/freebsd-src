@@ -22,7 +22,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/csu/i386-elf/crt1_s.S,v 1.1.4.2.2.1 2010/02/10 00:26:20 kensmith Exp $
  */
 
 
@@ -41,4 +41,4 @@ _start:	xorl	%ebp,%ebp
 	call	_start1
 	.size	_start, . - _start
 
-	.ident	"$FreeBSD$"
+	.ident	"$FreeBSD: src/lib/csu/i386-elf/crt1_s.S,v 1.1.4.2.2.1 2010/02/10 00:26:20 kensmith Exp $"

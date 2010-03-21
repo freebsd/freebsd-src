@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/arm/conf/BWCT.hints,v 1.1.10.1 2010/02/10 00:26:20 kensmith Exp $
 
 # Dallas Semiconductor DS1672 RTC sitting on the I2C bus
 hint.ds1672.0.at="iicbus0"

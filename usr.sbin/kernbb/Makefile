@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/kernbb/Makefile,v 1.10.34.1 2010/02/10 00:26:20 kensmith Exp $
 
 PROG=	kernbb
 MAN=	kernbb.8

@@ -1,4 +1,4 @@
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/sys/dev/sound/sbus/apcdmareg.h,v 1.2.24.1 2010/02/10 00:26:20 kensmith Exp $	*/
 /*	$OpenBSD: apcdmareg.h,v 1.2 2003/06/02 18:53:18 jason Exp $	*/
 
 /*-

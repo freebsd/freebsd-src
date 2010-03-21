@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/sys/dtrace_bsd.h,v 1.1.2.1.6.1 2010/02/10 00:26:20 kensmith Exp $
  *
  * This file contains BSD shims for Sun's DTrace code.
  */

@@ -29,7 +29,7 @@
  */
 
 #include <machine/asm.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/i386/string/rindex.S,v 1.9.24.1.6.1 2010/02/10 00:26:20 kensmith Exp $");
 
 /*
  * rindex(s, c)

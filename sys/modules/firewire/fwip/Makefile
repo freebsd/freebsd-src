@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/firewire/fwip/Makefile,v 1.2.10.1 2010/02/10 00:26:20 kensmith Exp $
 
 # Makefile for the fwip(4) module (IP over IEEE1394)
 

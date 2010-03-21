@@ -1,4 +1,4 @@
-$FreeBSD$
+$FreeBSD: src/tools/regression/ccd/layout/ref.128k_128k_128k_128k_0_0,v 1.1.36.1 2010/02/10 00:26:20 kensmith Exp $
 ccd3: 4 components (md90, md91, md92, md93), 960 blocks concatenated
 76089c8ed2249882ae0bb260dcb4a913
 4cc57a9dd953d032ae7e07edaef31203

@@ -32,7 +32,7 @@
  *
  *	@(#)fpu_emu.h	8.1 (Berkeley) 6/11/93
  *	$NetBSD: fpu_emu.h,v 1.4 2000/08/03 18:32:07 eeh Exp $
- * $FreeBSD$
+ * $FreeBSD: src/lib/libc/sparc64/fpu/fpu_emu.h,v 1.6.12.1 2010/02/10 00:26:20 kensmith Exp $
  */
 
 /*

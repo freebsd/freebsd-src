@@ -29,7 +29,7 @@
  *
  *	From: @(#)ansi.h	8.2 (Berkeley) 1/4/94
  *	From: @(#)types.h	8.3 (Berkeley) 1/5/94
- * $FreeBSD$
+ * $FreeBSD: src/sys/sparc64/include/_types.h,v 1.8.24.1 2010/02/10 00:26:20 kensmith Exp $
  */
 
 #ifndef _MACHINE__TYPES_H_

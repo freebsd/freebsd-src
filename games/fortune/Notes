@@ -1,5 +1,5 @@
 #	@(#)Notes	8.1 (Berkeley) 5/31/93
-#	$FreeBSD$
+#	$FreeBSD: src/games/fortune/Notes,v 1.3.36.1 2010/02/10 00:26:20 kensmith Exp $
 
 Warning:
 	The fortunes contained in the fortune database have been collected

@@ -18,7 +18,7 @@
 #  ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 #  OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 #
-# $FreeBSD$
+# $FreeBSD: src/usr.bin/gzip/gzexe,v 1.1.14.1 2010/02/10 00:26:20 kensmith Exp $
 
 # The number of lines plus one in the on-the-fly decompression script
 lines=19

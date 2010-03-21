@@ -1,4 +1,4 @@
-$FreeBSD$
+$FreeBSD: src/sys/boot/arm/at91/bootspi/README,v 1.1.14.1 2010/02/10 00:26:20 kensmith Exp $
 
 This image is intended to be programmed into boot EEPROM.  The image is nearly
 0x4000 so it will not fit in KB9200's 0x2000.  It is intended for KB9201 or

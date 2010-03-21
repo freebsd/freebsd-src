@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libc/stdtime/timelocal.h,v 1.11.38.1 2010/02/10 00:26:20 kensmith Exp $
  */
 
 #ifndef _TIMELOCAL_H_

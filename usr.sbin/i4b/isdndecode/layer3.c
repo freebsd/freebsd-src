@@ -27,7 +27,7 @@
  *	layer3.c - decode and print layer 3 (Q.931) information
  *	-------------------------------------------------------
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/i4b/isdndecode/layer3.c,v 1.9.36.1 2010/02/10 00:26:20 kensmith Exp $
  *
  *      last edit-date: [Tue Mar 26 14:39:02 2002]
  *

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  * 	from: @(#) ieeefp.h 	1.0 (Berkeley) 9/23/93
- * $FreeBSD$
+ * $FreeBSD: src/sys/i386/include/ieeefp.h,v 1.11.22.1 2010/02/10 00:26:20 kensmith Exp $
  */
 
 /*

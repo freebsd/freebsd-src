@@ -15,7 +15,7 @@
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/nfe/if_nfevar.h,v 1.5.2.2.4.1 2010/02/10 00:26:20 kensmith Exp $
  */
 
 struct nfe_tx_data {

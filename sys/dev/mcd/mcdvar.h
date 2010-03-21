@@ -1,5 +1,5 @@
 /*
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/mcd/mcdvar.h,v 1.4.32.1 2010/02/10 00:26:20 kensmith Exp $
  */
 
 struct mcd_mbx {

@@ -25,7 +25,7 @@
  * notice, one of the license notices in the documentation
  * and/or other materials provided with the distribution.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/contrib/rdma/ib_addr.h,v 1.1.2.1.6.1 2010/02/10 00:26:20 kensmith Exp $
  *
  */
 

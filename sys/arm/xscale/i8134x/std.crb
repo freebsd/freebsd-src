@@ -1,5 +1,5 @@
 #CRB board configuration
-#$FreeBSD$
+#$FreeBSD: src/sys/arm/xscale/i8134x/std.crb,v 1.1.12.1 2010/02/10 00:26:20 kensmith Exp $
 include		"../xscale/i8134x/std.i81342"
 files		"../xscale/i8134x/files.crb"
 makeoptions	KERNPHYSADDR=0x00200000

@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/share/colldef/map.CP1251,v 1.1.40.1 2010/02/10 00:26:20 kensmith Exp $
 NU \x00
 SH \x01
 SX \x02

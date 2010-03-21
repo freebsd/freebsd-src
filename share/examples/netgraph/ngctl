@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/share/examples/netgraph/ngctl,v 1.3.34.1 2010/02/10 00:26:20 kensmith Exp $
 
 #
 # This is an example that shows how to send ASCII formatted control

@@ -1,5 +1,5 @@
 #	from @(#)Makefile.inc	8.1 (Berkeley) 6/4/93
-# $FreeBSD$
+# $FreeBSD: src/lib/libc/quad/Makefile.inc,v 1.11.12.1 2010/02/10 00:26:20 kensmith Exp $
 
 # Quad support, if needed
 .PATH: ${.CURDIR}/${MACHINE_ARCH}/quad ${.CURDIR}/quad

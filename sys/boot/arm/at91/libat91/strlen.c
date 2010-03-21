@@ -24,7 +24,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/boot/arm/at91/libat91/strlen.c,v 1.3.12.1 2010/02/10 00:26:20 kensmith Exp $");
 
 /******************************************************************************
  *

@@ -18,7 +18,7 @@ You should have received a copy of the GNU General Public License along
 with groff; see the file COPYING.  If not, write to the Free Software
 Foundation, 51 Franklin St - Fifth Floor, Boston, MA 02110-1301, USA. */
 
-/* $FreeBSD$ */
+/* $FreeBSD: src/contrib/groff/src/libs/libgroff/cset.cpp,v 1.3.12.1 2010/02/10 00:26:20 kensmith Exp $ */
 
 #include <ctype.h>
 #ifdef __FreeBSD__

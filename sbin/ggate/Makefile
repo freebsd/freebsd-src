@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sbin/ggate/Makefile,v 1.10.10.1 2010/02/10 00:26:20 kensmith Exp $
 
 .include <bsd.own.mk>
 

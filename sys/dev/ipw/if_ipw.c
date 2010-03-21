@@ -1,4 +1,4 @@
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/sys/dev/ipw/if_ipw.c,v 1.30.2.2.8.1 2010/02/10 00:26:20 kensmith Exp $	*/
 
 /*-
  * Copyright (c) 2004-2006
@@ -30,7 +30,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/ipw/if_ipw.c,v 1.30.2.2.8.1 2010/02/10 00:26:20 kensmith Exp $");
 
 /*-
  * Intel(R) PRO/Wireless 2100 MiniPCI driver

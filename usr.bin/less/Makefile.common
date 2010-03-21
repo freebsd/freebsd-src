@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/usr.bin/less/Makefile.common,v 1.4.34.1 2010/02/10 00:26:20 kensmith Exp $
 
 LSDIR=	${.CURDIR}/../../contrib/less
 .PATH:	${LSDIR}

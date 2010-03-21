@@ -30,7 +30,7 @@
  * SUCH DAMAGE.
  *
  * $Id: nbns_rq.c,v 1.5 2001/02/17 03:07:24 bp Exp $
- * $FreeBSD$
+ * $FreeBSD: src/contrib/smbfs/lib/smb/nbns_rq.c,v 1.2.12.1 2010/02/10 00:26:20 kensmith Exp $
  */
 #include <sys/param.h>
 #include <sys/socket.h>

@@ -1,5 +1,5 @@
 #!/usr/bin/awk -f
-# $FreeBSD$
+# $FreeBSD: src/usr.bin/getconf/fake-gperf.awk,v 1.3.34.1 2010/02/10 00:26:20 kensmith Exp $
 BEGIN {
   state = 0;
   struct_seen = "";

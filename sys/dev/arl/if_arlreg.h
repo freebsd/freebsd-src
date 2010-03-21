@@ -25,7 +25,7 @@
  * SUCH DAMAGE.
  *
  * $RISS: if_arl/dev/arl/if_arlreg.h,v 1.4 2004/03/16 04:43:27 count Exp $
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/arl/if_arlreg.h,v 1.7.10.1 2010/02/10 00:26:20 kensmith Exp $
  */
 
 #ifndef _IF_ARLREG_H

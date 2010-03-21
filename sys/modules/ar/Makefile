@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/ar/Makefile,v 1.5.10.1 2010/02/10 00:26:20 kensmith Exp $
 
 .PATH:  ${.CURDIR}/../../dev/ar
 KMOD    = if_ar

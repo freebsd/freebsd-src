@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/secure/usr.bin/openssl/Makefile,v 1.25.10.1 2010/02/10 00:26:20 kensmith Exp $
 
 PROG=	openssl
 

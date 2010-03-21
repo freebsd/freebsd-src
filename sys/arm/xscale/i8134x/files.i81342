@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/arm/xscale/i8134x/files.i81342,v 1.1.2.1.6.1 2010/02/10 00:26:20 kensmith Exp $
 arm/arm/bus_space_generic.c		standard
 arm/arm/cpufunc_asm_xscale.S		standard
 arm/arm/cpufunc_asm_xscale_c3.S		standard

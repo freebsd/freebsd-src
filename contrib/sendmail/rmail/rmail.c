@@ -8,7 +8,7 @@
  * forth in the LICENSE file which can be found at the top level of
  * the sendmail distribution.
  *
- * $FreeBSD$
+ * $FreeBSD: src/contrib/sendmail/rmail/rmail.c,v 1.13.38.1 2010/02/10 00:26:20 kensmith Exp $
  *
  */
 

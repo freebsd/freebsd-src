@@ -31,7 +31,7 @@
 #
 # Help file for the atmconfig utility
 #
-# $FreeBSD$
+# $FreeBSD: src/sbin/atm/atmconfig/atmconfig.help,v 1.5.32.1 2010/02/10 00:26:20 kensmith Exp $
 #
 ^0 intro
 ATM configuration utility.

@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/lib/libc/arm/Makefile.inc,v 1.4.10.1 2010/02/10 00:26:20 kensmith Exp $
 #
 # Machine dependent definitions for the arm architecture.
 #

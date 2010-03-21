@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/etc/mtree/BSD.usr.dist,v 1.329.2.6.2.1 2010/02/10 00:26:20 kensmith Exp $
 #
 # Please see the file src/etc/mtree/README before making changes to this file.
 #

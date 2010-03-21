@@ -32,7 +32,7 @@
  * SUCH DAMAGE.
  *
  * $DragonFly: src/sys/dev/netif/et/if_etreg.h,v 1.3 2007/10/23 14:28:42 sephe Exp $
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/et/if_etreg.h,v 1.1.2.3.2.1 2010/02/10 00:26:20 kensmith Exp $
  */
 /*-
  * Portions of this code is derived from NetBSD which is covered by

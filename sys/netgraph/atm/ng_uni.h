@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/netgraph/atm/ng_uni.h,v 1.2.24.1 2010/02/10 00:26:20 kensmith Exp $
  *
  * Netgraph module for UNI 4.0
  */

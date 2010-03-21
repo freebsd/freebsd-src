@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/gnu/usr.bin/binutils/ld/armelfb_fbsd.sh,v 1.1.14.1 2010/02/10 00:26:20 kensmith Exp $
 #XXX: This should be used once those bits are merged back in the FSF repo.
 #. ${srcdir}/emulparams/armelf_fbsd.sh
 #

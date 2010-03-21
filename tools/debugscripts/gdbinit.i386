@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/tools/debugscripts/gdbinit.i386,v 1.4.24.1 2010/02/10 00:26:20 kensmith Exp $
 # Assembler-level macros for i386
 # Disassemble the next 10 instructions.
 define xi

@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/gnu/lib/libssp/libssp_nonshared/Makefile,v 1.1.10.1 2010/02/10 00:26:20 kensmith Exp $
 
 GCCDIR=	${.CURDIR}/../../../../contrib/gcc
 GCCLIB=	${.CURDIR}/../../../../contrib/gcclibs

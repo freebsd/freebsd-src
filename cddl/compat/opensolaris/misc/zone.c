@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/cddl/compat/opensolaris/misc/zone.c,v 1.2.2.2.2.1 2010/02/10 00:26:20 kensmith Exp $
  */
 
 #include <stdlib.h>

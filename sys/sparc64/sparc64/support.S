@@ -25,7 +25,7 @@
  */
 
 #include <machine/asm.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/sparc64/sparc64/support.S,v 1.32.2.3.4.1 2010/02/10 00:26:20 kensmith Exp $");
 
 #include <sys/errno.h>
 

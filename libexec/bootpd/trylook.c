@@ -1,7 +1,7 @@
 /*
  * trylook.c - test program for lookup.c
  *
- * $FreeBSD$
+ * $FreeBSD: src/libexec/bootpd/trylook.c,v 1.5.58.1 2010/02/10 00:26:20 kensmith Exp $
  */
 
 #include <sys/types.h>

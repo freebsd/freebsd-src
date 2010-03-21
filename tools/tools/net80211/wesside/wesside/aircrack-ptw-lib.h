@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/tools/tools/net80211/wesside/wesside/aircrack-ptw-lib.h,v 1.2.12.1 2010/02/10 00:26:20 kensmith Exp $
  */
 #include <stdint.h>
 

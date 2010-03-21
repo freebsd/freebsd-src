@@ -1,7 +1,7 @@
 /*
  * NetWare requestor error codes, they taken from NDK
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/netncp/nwerror.h,v 1.2.58.1 2010/02/10 00:26:20 kensmith Exp $
  */
 #ifndef _NETNCP_NWERROR_H_
 #define _NETNCP_NWERROR_H_

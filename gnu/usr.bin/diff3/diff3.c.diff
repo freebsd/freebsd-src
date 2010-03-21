@@ -1,4 +1,4 @@
-$FreeBSD$
+$FreeBSD: src/gnu/usr.bin/diff3/diff3.c.diff,v 1.1.14.1 2010/02/10 00:26:20 kensmith Exp $
 --- diff3.c.orig	2004-04-12 15:44:35.000000000 +0800
 +++ diff3.c	2007-06-15 14:49:23.903835977 +0800
 @@ -230,7 +230,6 @@

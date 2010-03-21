@@ -1,4 +1,4 @@
-$FreeBSD$
+$FreeBSD: src/gnu/usr.bin/diff/context.c.diff,v 1.2.14.1 2010/02/10 00:26:20 kensmith Exp $
 --- context.c.orig	2004-04-12 15:44:35.000000000 +0800
 +++ context.c	2007-06-16 22:25:11.705063242 +0800
 @@ -29,7 +29,7 @@

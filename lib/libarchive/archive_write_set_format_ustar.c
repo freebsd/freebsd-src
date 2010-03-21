@@ -24,7 +24,7 @@
  */
 
 #include "archive_platform.h"
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libarchive/archive_write_set_format_ustar.c,v 1.24.2.3.6.1 2010/02/10 00:26:20 kensmith Exp $");
 
 
 #ifdef HAVE_ERRNO_H

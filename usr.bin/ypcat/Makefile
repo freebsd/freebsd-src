@@ -1,5 +1,5 @@
 #	from: @(#)Makefile	5.8 (Berkeley) 7/28/90
-# $FreeBSD$
+# $FreeBSD: src/usr.bin/ypcat/Makefile,v 1.6.38.1 2010/02/10 00:26:20 kensmith Exp $
 
 PROG=	ypcat
 

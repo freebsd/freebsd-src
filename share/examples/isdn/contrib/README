@@ -1,4 +1,4 @@
-$FreeBSD$
+$FreeBSD: src/share/examples/isdn/contrib/README,v 1.1.38.1 2010/02/10 00:26:20 kensmith Exp $
 
 This directory contains various unsupported contributions to isdn4bsd
 ---------------------------------------------------------------------

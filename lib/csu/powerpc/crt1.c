@@ -120,4 +120,4 @@ __asm__("eprol:");
 __asm__(".previous");
 #endif
 
-__asm__(".ident\t\"$FreeBSD$\"");
+__asm__(".ident\t\"$FreeBSD: src/lib/csu/powerpc/crt1.c,v 1.11.24.1 2010/02/10 00:26:20 kensmith Exp $\"");

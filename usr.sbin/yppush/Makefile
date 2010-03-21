@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/yppush/Makefile,v 1.9.38.1 2010/02/10 00:26:20 kensmith Exp $
 
 RPCDIR=	${.CURDIR}/../../include/rpcsvc
 .PATH: ${RPCDIR} ${.CURDIR}/../../usr.sbin/ypserv \

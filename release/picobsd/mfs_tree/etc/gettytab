@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/release/picobsd/mfs_tree/etc/gettytab,v 1.2.38.1 2010/02/10 00:26:20 kensmith Exp $
 #	from: @(#)gettytab	5.14 (Berkeley) 3/27/91
 #
 default:\

@@ -41,7 +41,7 @@
  *
  * Created      : 21/07/95
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/arm/include/psl.h,v 1.2.24.1 2010/02/10 00:26:20 kensmith Exp $
  */
 
 #ifndef _MACHINE_PSL_H_

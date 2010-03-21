@@ -28,7 +28,7 @@
  * SUCH DAMAGE.
  *
  * $Id: panu.c,v 1.1 2008/03/11 00:02:42 max Exp $
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/bluetooth/sdpd/panu.c,v 1.1.2.2.6.1 2010/02/10 00:26:20 kensmith Exp $
  */
 
 #include <sys/queue.h>

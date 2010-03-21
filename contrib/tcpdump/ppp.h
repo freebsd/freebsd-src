@@ -15,7 +15,7 @@
  * suitability of this software for any purpose.  It is provided "as is"
  * without express or implied warranty.
  *
- * $FreeBSD$
+ * $FreeBSD: src/contrib/tcpdump/ppp.h,v 1.8.10.1 2010/02/10 00:26:20 kensmith Exp $
  */
 #define PPP_HDRLEN	4	/* length of PPP header */
 

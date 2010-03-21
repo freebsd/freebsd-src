@@ -1,5 +1,5 @@
 .\"
-.\" $FreeBSD$
+.\" $FreeBSD: src/share/doc/papers/jail/paper.ms,v 1.7.38.1 2010/02/10 00:26:20 kensmith Exp $
 .\"
 .if n .ftr C R
 .ig TL

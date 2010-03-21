@@ -60,7 +60,7 @@
 #      -Allan G. Schrum schrum@ofsoptics.com agschrum@mindspring.com
 # Fri Sep 26 10:40:40 EDT 2003
 #
-# $FreeBSD$
+# $FreeBSD: src/contrib/cvs/contrib/sccs2rcs.in,v 1.5.18.1.6.1 2010/02/10 00:26:20 kensmith Exp $
 
 
 #we'll assume the user set up the path correctly

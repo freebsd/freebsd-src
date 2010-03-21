@@ -1,5 +1,5 @@
 #!/bin/sh
-# $FreeBSD$
+# $FreeBSD: src/tools/regression/fstest/tests/rmdir/13.t,v 1.1.12.1 2010/02/10 00:26:20 kensmith Exp $
 
 desc="rmdir returns EBUSY if the directory to be removed is the mount point for a mounted file system"
 

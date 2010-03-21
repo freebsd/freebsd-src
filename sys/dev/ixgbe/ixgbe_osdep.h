@@ -30,7 +30,7 @@
   POSSIBILITY OF SUCH DAMAGE.
 
 ******************************************************************************/
-/*$FreeBSD$*/
+/*$FreeBSD: src/sys/dev/ixgbe/ixgbe_osdep.h,v 1.3.2.4.4.1 2010/02/10 00:26:20 kensmith Exp $*/
 
 #ifndef _IXGBE_OS_H_
 #define _IXGBE_OS_H_

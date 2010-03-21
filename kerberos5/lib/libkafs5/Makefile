@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/kerberos5/lib/libkafs5/Makefile,v 1.9.30.1 2010/02/10 00:26:20 kensmith Exp $
 
 LIB=	kafs5
 INCS=	kafs.h

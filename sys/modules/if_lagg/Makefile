@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/if_lagg/Makefile,v 1.1.14.1 2010/02/10 00:26:20 kensmith Exp $
 
 .include <bsd.own.mk>
 

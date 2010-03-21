@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)pathnames.h	8.1 (Berkeley) 6/6/93
- *  $FreeBSD$
+ *  $FreeBSD: src/usr.bin/gprof/pathnames.h,v 1.2.38.1 2010/02/10 00:26:20 kensmith Exp $
  */
 
 #define	_PATH_FLAT_BLURB	"/usr/share/misc/gprof.flat"

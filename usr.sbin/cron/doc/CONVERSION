@@ -1,4 +1,4 @@
-$FreeBSD$
+$FreeBSD: src/usr.sbin/cron/doc/CONVERSION,v 1.5.38.1 2010/02/10 00:26:20 kensmith Exp $
 
 Conversion of BSD 4.[23] crontab files:
 

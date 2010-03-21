@@ -12,7 +12,7 @@
 # LIMITATION, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
 # A PARTICULAR PURPOSE.
 #
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/faithd/Makefile,v 1.10.32.1 2010/02/10 00:26:20 kensmith Exp $
 
 PROG=	faithd
 MAN=	faithd.8

@@ -2,7 +2,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libmd/rmddriver.c,v 1.3.38.1 2010/02/10 00:26:20 kensmith Exp $");
 
 /* Copyright (C) 1990-2, RSA Data Security, Inc. Created 1990. All
    rights reserved.

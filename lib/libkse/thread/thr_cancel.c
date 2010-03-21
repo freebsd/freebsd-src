@@ -1,6 +1,6 @@
 /*
  * David Leonard <d@openbsd.org>, 1999. Public domain.
- * $FreeBSD$
+ * $FreeBSD: src/lib/libkse/thread/thr_cancel.c,v 1.34.2.1.2.1 2010/02/10 00:26:20 kensmith Exp $
  */
 #include "namespace.h"
 #include <sys/errno.h>

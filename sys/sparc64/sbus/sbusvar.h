@@ -73,7 +73,7 @@
  *	from: @(#)sbusvar.h	8.1 (Berkeley) 6/11/93
  *	from: NetBSD: sbusvar.h,v 1.7 1999/06/05 05:30:43 mrg Exp
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/sparc64/sbus/sbusvar.h,v 1.6.10.1.4.1 2010/02/10 00:26:20 kensmith Exp $
  */
 
 #ifndef _SPARC64_SBUS_SBUSVAR_H_

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libc/include/un-namespace.h,v 1.17.2.2.2.1 2010/02/10 00:26:20 kensmith Exp $
  */
 
 #ifndef _UN_NAMESPACE_H_

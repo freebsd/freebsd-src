@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)param.h	5.8 (Berkeley) 6/28/91
- * $FreeBSD$
+ * $FreeBSD: src/sys/powerpc/include/param.h,v 1.16.2.3.2.1 2010/02/10 00:26:20 kensmith Exp $
  */
 
 /*

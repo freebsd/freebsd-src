@@ -23,7 +23,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #include "test.h"
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libarchive/test/test_read_format_tar_empty_filename.c,v 1.1.2.1.6.1 2010/02/10 00:26:20 kensmith Exp $");
 
 /*
  * Tar entries with empty filenames are unusual, but shouldn't crash us.

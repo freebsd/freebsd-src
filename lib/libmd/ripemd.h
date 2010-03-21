@@ -57,7 +57,7 @@
  */
 
 /*
- * $FreeBSD$
+ * $FreeBSD: src/lib/libmd/ripemd.h,v 1.3.12.1 2010/02/10 00:26:20 kensmith Exp $
  */
 
 #ifndef HEADER_RIPEMD_H

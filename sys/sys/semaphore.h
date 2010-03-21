@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/sys/semaphore.h,v 1.12.2.1.6.1 2010/02/10 00:26:20 kensmith Exp $
  */
 
 /* semaphore.h: POSIX 1003.1b semaphores */

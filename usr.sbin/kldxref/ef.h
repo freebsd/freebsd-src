@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/usr.sbin/kldxref/ef.h,v 1.6.12.1 2010/02/10 00:26:20 kensmith Exp $ */
 
 #ifndef _EF_H_
 #define _EF_H_

@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/share/mk/bsd.man.mk,v 1.57.12.1 2010/02/10 00:26:20 kensmith Exp $
 #
 # The include file <bsd.man.mk> handles installing manual pages and
 # their links.

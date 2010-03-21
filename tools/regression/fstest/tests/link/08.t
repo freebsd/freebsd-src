@@ -1,5 +1,5 @@
 #!/bin/sh
-# $FreeBSD$
+# $FreeBSD: src/tools/regression/fstest/tests/link/08.t,v 1.1.12.1 2010/02/10 00:26:20 kensmith Exp $
 
 desc="link returns ELOOP if too many symbolic links were encountered in translating one of the pathnames"
 

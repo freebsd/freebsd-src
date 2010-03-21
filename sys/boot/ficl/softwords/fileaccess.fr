@@ -4,7 +4,7 @@
 \ ** submitted by Larry Hastings, larry@hastings.org
 \ **
 \
-\ $FreeBSD$
+\ $FreeBSD: src/sys/boot/ficl/softwords/fileaccess.fr,v 1.2.12.1 2010/02/10 00:26:20 kensmith Exp $
 
 : r/o 1 ;
 : r/w 3 ; 

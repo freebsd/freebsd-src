@@ -1,5 +1,5 @@
 #!/bin/sh
-# $FreeBSD$
+# $FreeBSD: src/tools/regression/fstest/tests/open/09.t,v 1.1.12.1 2010/02/10 00:26:20 kensmith Exp $
 
 desc="O_CREAT is specified, the file does not exist, and the directory in which it is to be created has its immutable flag set"
 

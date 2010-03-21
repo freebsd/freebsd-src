@@ -1,4 +1,4 @@
-$FreeBSD$
+$FreeBSD: src/tools/regression/geom/Ref/disk.alpha.da0.xml,v 1.1.36.1 2010/02/10 00:26:20 kensmith Exp $
 /dev/md34	512	5120	10
 /dev/md34a	512	251658240	491520
 /dev/md34b	512	1086291968	2121664

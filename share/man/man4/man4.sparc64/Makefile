@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/share/man/man4/man4.sparc64/Makefile,v 1.3.24.1 2010/02/10 00:26:20 kensmith Exp $
 
 MAN=	auxio.4 \
 	central.4 \

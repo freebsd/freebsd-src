@@ -1,4 +1,4 @@
-$FreeBSD: head/sys/cddl/boot/zfs/README 192194 2009-05-16 10:48:20Z dfr $
+$FreeBSD: src/sys/cddl/boot/zfs/README,v 1.2.2.1.2.1 2010/02/10 00:26:20 kensmith Exp $
 
 This directory contains various files derived from CDDL sources that
 are used by the ZFS bootstrap:

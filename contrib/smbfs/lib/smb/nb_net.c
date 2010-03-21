@@ -30,7 +30,7 @@
  * SUCH DAMAGE.
  *
  * $Id: nb_net.c,v 1.4 2001/02/16 02:46:12 bp Exp $
- * $FreeBSD$
+ * $FreeBSD: src/contrib/smbfs/lib/smb/nb_net.c,v 1.4.12.1 2010/02/10 00:26:20 kensmith Exp $
  */
 #include <sys/param.h>
 #include <sys/socket.h>

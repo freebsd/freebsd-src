@@ -43,7 +43,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/contrib/amd/amd/amd.c,v 1.10.18.1.6.1 2010/02/10 00:26:20 kensmith Exp $");
 
 /*
  * Automounter

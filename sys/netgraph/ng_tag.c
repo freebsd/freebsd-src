@@ -27,7 +27,7 @@
  * Portions Copyright (c) 1999 Whistle Communications, Inc.
  * (ng_bpf by Archie Cobbs <archie@freebsd.org>)
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/netgraph/ng_tag.c,v 1.1.12.1 2010/02/10 00:26:20 kensmith Exp $
  */
 
 /*

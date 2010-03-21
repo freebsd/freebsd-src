@@ -2,7 +2,7 @@
 This file is in the public domain, so clarified as of
 2009-05-17 by Arthur David Olson.
 
-$FreeBSD$
+$FreeBSD: src/usr.sbin/zic/README,v 1.1.1.4.18.1.2.1 2010/02/10 00:26:20 kensmith Exp $
 
 "What time is it?" -- Richard Deacon as The King
 "Any time you want it to be." -- Frank Baxter as The Scientist

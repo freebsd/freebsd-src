@@ -24,7 +24,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/cxgb/ulp/tom/cxgb_toepcb.h,v 1.3.2.2.6.1 2010/02/10 00:26:20 kensmith Exp $
  */
 #ifndef CXGB_TOEPCB_H_
 #define CXGB_TOEPCB_H_

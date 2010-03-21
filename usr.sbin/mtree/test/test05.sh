@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/mtree/test/test05.sh,v 1.1.14.1 2010/02/10 00:26:20 kensmith Exp $
 #
 # Test for 'optional' keyword.
 #

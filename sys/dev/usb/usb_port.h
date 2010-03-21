@@ -1,6 +1,6 @@
 /*	$OpenBSD: usb_port.h,v 1.18 2000/09/06 22:42:10 rahnds Exp $ */
 /*	$NetBSD: usb_port.h,v 1.54 2002/03/28 21:49:19 ichiro Exp $	*/
-/*	$FreeBSD$       */
+/*	$FreeBSD: src/sys/dev/usb/usb_port.h,v 1.98.10.1 2010/02/10 00:26:20 kensmith Exp $       */
 
 /* Also already merged from NetBSD:
  *	$NetBSD: usb_port.h,v 1.57 2002/09/27 20:42:01 thorpej Exp $

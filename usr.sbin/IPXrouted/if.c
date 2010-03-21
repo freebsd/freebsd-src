@@ -34,7 +34,7 @@
  *
  * static char sccsid[] = "@(#)if.c	5.1 (Berkeley) 6/4/85"; (routed/if.c)
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/IPXrouted/if.c,v 1.6.34.1 2010/02/10 00:26:20 kensmith Exp $
  */
 
 #ifndef lint

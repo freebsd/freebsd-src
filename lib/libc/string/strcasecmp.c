@@ -31,7 +31,7 @@
 static char sccsid[] = "@(#)strcasecmp.c	8.1 (Berkeley) 6/4/93";
 #endif /* LIBC_SCCS and not lint */
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/string/strcasecmp.c,v 1.7.10.1 2010/02/10 00:26:20 kensmith Exp $");
 
 #include <strings.h>
 #include <ctype.h>

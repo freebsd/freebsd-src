@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/boot/pc98/libpc98/i386_module.c,v 1.2.34.1 2010/02/10 00:26:20 kensmith Exp $");
 
 int
 i386_autoload(void)

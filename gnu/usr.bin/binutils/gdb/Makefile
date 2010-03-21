@@ -1,5 +1,5 @@
 # ex:ts=8
-# $FreeBSD$
+# $FreeBSD: src/gnu/usr.bin/binutils/gdb/Makefile,v 1.82.24.1 2010/02/10 00:26:20 kensmith Exp $
 
 .include "../Makefile.inc0"
 

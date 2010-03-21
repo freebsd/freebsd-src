@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# $FreeBSD$
+# $FreeBSD: src/tools/regression/usr.bin/make/archives/fmt_44bsd_mod/test.t,v 1.1.24.1 2010/02/10 00:26:20 kensmith Exp $
 
 cd `dirname $0`
 . ../../common.sh

@@ -1,5 +1,5 @@
 #StrongARM SA11x0 common options
-#$FreeBSD$
+#$FreeBSD: src/sys/arm/sa11x0/std.sa11x0,v 1.2.24.1 2010/02/10 00:26:20 kensmith Exp $
 files		"../sa11x0/files.sa11x0"
 cpu		CPU_SA1100
 cpu		CPU_SA1110

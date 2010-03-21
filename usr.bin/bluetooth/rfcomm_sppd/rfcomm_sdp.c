@@ -26,7 +26,7 @@
  * SUCH DAMAGE.
  *
  * $Id: rfcomm_sdp.c,v 1.1 2003/09/07 18:15:55 max Exp $
- * $FreeBSD$
+ * $FreeBSD: src/usr.bin/bluetooth/rfcomm_sppd/rfcomm_sdp.c,v 1.2.32.1 2010/02/10 00:26:20 kensmith Exp $
  */
 
 #include <bluetooth.h>

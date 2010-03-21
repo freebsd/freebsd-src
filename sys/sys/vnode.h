@@ -27,7 +27,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vnode.h	8.7 (Berkeley) 2/4/94
- * $FreeBSD$
+ * $FreeBSD: src/sys/sys/vnode.h,v 1.326.2.12.2.1 2010/02/10 00:26:20 kensmith Exp $
  */
 
 #ifndef _SYS_VNODE_H_

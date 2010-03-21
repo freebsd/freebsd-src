@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/lib/libfetch/Makefile,v 1.49.2.2.2.1 2010/02/10 00:26:20 kensmith Exp $
 
 .include <bsd.own.mk>
 

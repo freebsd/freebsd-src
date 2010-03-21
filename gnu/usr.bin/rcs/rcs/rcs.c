@@ -275,7 +275,7 @@ static struct delrevpair delrev;
 static struct hshentry *cuthead, *cuttail, *delstrt;
 static struct hshentries *gendeltas;
 
-mainProg(rcsId, "rcs", "$FreeBSD$")
+mainProg(rcsId, "rcs", "$FreeBSD: src/gnu/usr.bin/rcs/rcs/rcs.c,v 1.7.58.1 2010/02/10 00:26:20 kensmith Exp $")
 {
 	static char const cmdusage[] =
 		"\nrcs usage: rcs -{ae}logins -Afile -{blu}[rev] -cstring -{iILqTU} -ksubst -mrev:msg -{nN}name[:[rev]] -orange -sstate[:rev] -t[text] -Vn -xsuff -zzone file ...";

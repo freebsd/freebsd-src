@@ -31,7 +31,7 @@
 .\"
 .\"	@(#)3.t	8.1 (Berkeley) 6/8/93
 .\"
-.\"	$FreeBSD$
+.\"	$FreeBSD: src/share/doc/smm/05.fastfs/3.t,v 1.3.36.1 2010/02/10 00:26:20 kensmith Exp $
 .\"
 .ds RH New file system
 .NH

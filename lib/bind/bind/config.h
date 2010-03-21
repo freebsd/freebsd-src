@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/lib/bind/bind/config.h,v 1.5.2.2.4.1 2010/02/10 00:26:20 kensmith Exp $ */
 
 /* config.h.  Generated from config.h.in by configure.  */
 /* #undef _SOCKADDR_LEN */

@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/usr.bin/tar/Makefile,v 1.32.2.4.6.1 2010/02/10 00:26:20 kensmith Exp $
 
 PROG=	bsdtar
 BSDTAR_VERSION_STRING=2.5.5

@@ -43,7 +43,7 @@ __SCCSID("@(#)factor.c	8.4 (Berkeley) 5/4/95");
 __RCSID("$NetBSD: factor.c,v 1.19 2009/08/12 05:54:31 dholland Exp $");
 #endif
 #ifdef __FBSDID
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/games/factor/factor.c,v 1.13.24.1.2.1 2010/02/10 00:26:20 kensmith Exp $");
 #endif
 #endif /* not lint */
 

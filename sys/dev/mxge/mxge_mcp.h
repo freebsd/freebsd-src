@@ -25,7 +25,7 @@ CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
 ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 POSSIBILITY OF SUCH DAMAGE.
 
-$FreeBSD$
+$FreeBSD: src/sys/dev/mxge/mxge_mcp.h,v 1.8.2.3.4.1 2010/02/10 00:26:20 kensmith Exp $
 ***************************************************************************/
 
 #ifndef _myri10ge_mcp_h

@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/sys/disk.h,v 1.42.2.1.4.1 2010/02/10 00:26:20 kensmith Exp $
  *
  */
 

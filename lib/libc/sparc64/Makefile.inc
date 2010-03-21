@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/lib/libc/sparc64/Makefile.inc,v 1.6.10.1 2010/02/10 00:26:20 kensmith Exp $
 #
 # Machine dependent definitions for the ultra sparc architecture.
 #

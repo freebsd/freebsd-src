@@ -25,7 +25,7 @@
  *
  *	$OpenBSD: db_machdep.h,v 1.2 1997/03/21 00:48:48 niklas Exp $
  *	$NetBSD: db_machdep.h,v 1.4.22.1 2000/08/05 11:10:43 wiz Exp $
- * $FreeBSD$
+ * $FreeBSD: src/sys/powerpc/include/db_machdep.h,v 1.8.24.1 2010/02/10 00:26:20 kensmith Exp $
  */
 
 /*

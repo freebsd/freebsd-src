@@ -1,5 +1,5 @@
 #!/bin/sh
-# $FreeBSD$
+# $FreeBSD: src/sys/kern/genassym.sh,v 1.4.36.1 2010/02/10 00:26:20 kensmith Exp $
 
 # Grrr, this should use stdin and stdout, but is encrufted for compatibility.
 

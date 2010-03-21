@@ -1,4 +1,4 @@
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/contrib/ipfilter/ipsd/sdlpi.c,v 1.2.24.1 2010/02/10 00:26:20 kensmith Exp $	*/
 
 /*
  * (C)opyright 1992-1998 Darren Reed. (from tcplog)

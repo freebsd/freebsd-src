@@ -30,7 +30,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)expand.h	8.2 (Berkeley) 5/4/95
- * $FreeBSD$
+ * $FreeBSD: src/bin/sh/expand.h,v 1.12.32.1 2010/02/10 00:26:20 kensmith Exp $
  */
 
 struct strlist {

@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/cxgb/toecore/Makefile,v 1.1.2.1.6.1 2010/02/10 00:26:20 kensmith Exp $
 TOECORE = ${.CURDIR}/../../../dev/cxgb/ulp/toecore
 .PATH: ${TOECORE} 
 

@@ -25,7 +25,7 @@
  */
 
 #include <machine/asm.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/amd64/gen/fabs.S,v 1.3.18.1.6.1 2010/02/10 00:26:20 kensmith Exp $");
 
 /*
  * Return floating point absolute value of a double.

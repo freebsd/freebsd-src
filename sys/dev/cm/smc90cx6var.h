@@ -1,5 +1,5 @@
 /*	$NetBSD: smc90cx6var.h,v 1.5 2000/03/23 07:01:32 thorpej Exp $	*/
-/*	$FreeBSD$ */
+/*	$FreeBSD: src/sys/dev/cm/smc90cx6var.h,v 1.5.12.1 2010/02/10 00:26:20 kensmith Exp $ */
 
 /*-
  * Copyright (c) 1994, 1995, 1998 The NetBSD Foundation, Inc.

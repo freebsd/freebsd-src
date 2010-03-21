@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/gnu/usr.bin/binutils/ld/Makefile.sparc64,v 1.16.32.1 2010/02/10 00:26:20 kensmith Exp $
 
 NATIVE_EMULATION= elf64_sparc_fbsd
 

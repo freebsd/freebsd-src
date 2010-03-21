@@ -29,7 +29,7 @@
 #
 # Inspired on spkrtest.pl, rewritten from scratch to remove perl dependency
 # $VER: spkrtest 0.3 (9.5.2002) Riccardo "VIC" Torrini <riccardo@torrini.org>
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/spkrtest/spkrtest.sh,v 1.3.38.1 2010/02/10 00:26:20 kensmith Exp $
 #
 
 cleanExit() {

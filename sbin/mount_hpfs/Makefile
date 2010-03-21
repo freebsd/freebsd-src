@@ -1,5 +1,5 @@
 #
-# $FreeBSD$
+# $FreeBSD: src/sbin/mount_hpfs/Makefile,v 1.6.32.1 2010/02/10 00:26:20 kensmith Exp $
 #
 
 PROG=	mount_hpfs

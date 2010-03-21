@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/sys/rwlock.h,v 1.14.4.2.2.1 2010/02/10 00:26:20 kensmith Exp $
  */
 
 #ifndef _SYS_RWLOCK_H_

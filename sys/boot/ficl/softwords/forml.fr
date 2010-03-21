@@ -1,7 +1,7 @@
 \ examples from FORML conference paper Nov 98
 \ sadler
 \
-\ $FreeBSD$
+\ $FreeBSD: src/sys/boot/ficl/softwords/forml.fr,v 1.1.38.1 2010/02/10 00:26:20 kensmith Exp $
 
 .( loading FORML examples ) cr
 object --> sub c-example

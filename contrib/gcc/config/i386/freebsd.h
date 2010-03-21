@@ -22,7 +22,7 @@ along with GCC; see the file COPYING.  If not, write to
 the Free Software Foundation, 51 Franklin Street, Fifth Floor,
 Boston, MA 02110-1301, USA.  */
 
-/* $FreeBSD$ */
+/* $FreeBSD: src/contrib/gcc/config/i386/freebsd.h,v 1.73.2.2.6.1 2010/02/10 00:26:20 kensmith Exp $ */
 
 #undef  CC1_SPEC
 #define CC1_SPEC "%(cc1_cpu) %{profile:-p}"

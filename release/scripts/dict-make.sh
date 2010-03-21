@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# $FreeBSD$
+# $FreeBSD: src/release/scripts/dict-make.sh,v 1.10.38.1 2010/02/10 00:26:20 kensmith Exp $
 #
 
 # Move the dict stuff out to its own dist

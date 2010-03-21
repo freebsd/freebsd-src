@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/contrib/gnu-sort/src/sort.c,v 1.4.32.1 2010/02/10 00:26:20 kensmith Exp $ */
 /* sort - sort lines of text (with all kinds of options).
    Copyright (C) 88, 1991-2004 Free Software Foundation, Inc.
 

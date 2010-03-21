@@ -31,7 +31,7 @@
  *
  *	@(#)portal_vnops.c	8.14 (Berkeley) 5/21/95
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/fs/portalfs/portal_vnops.c,v 1.73.2.3.4.1 2010/02/10 00:26:20 kensmith Exp $
  */
 
 /*

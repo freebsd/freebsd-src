@@ -1,4 +1,4 @@
-$FreeBSD$
+$FreeBSD: src/contrib/cvs/FREEBSD-Xlist,v 1.1.18.1.6.1 2010/02/10 00:26:20 kensmith Exp $
 */*.com
 */*.dep
 */*.dsp

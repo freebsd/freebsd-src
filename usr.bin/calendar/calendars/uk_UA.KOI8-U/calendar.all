@@ -1,7 +1,7 @@
 /*
  * Укра╖нський календар
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.bin/calendar/calendars/uk_UA.KOI8-U/calendar.all,v 1.1.16.1 2010/02/10 00:26:20 kensmith Exp $
  */
 
 #ifndef _uk_UA_KOI8_U_all_

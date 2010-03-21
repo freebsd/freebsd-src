@@ -1,5 +1,5 @@
 # $NetBSD: rc.subr,v 1.67 2006/10/07 11:25:15 elad Exp $
-# $FreeBSD$
+# $FreeBSD: src/etc/rc.subr,v 1.77.2.3.2.1 2010/02/10 00:26:20 kensmith Exp $
 #
 # Copyright (c) 1997-2004 The NetBSD Foundation, Inc.
 # All rights reserved.

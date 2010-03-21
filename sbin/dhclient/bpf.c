@@ -41,7 +41,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sbin/dhclient/bpf.c,v 1.7.2.2.2.1 2010/02/10 00:26:20 kensmith Exp $");
 
 #include "dhcpd.h"
 #include <sys/ioctl.h>

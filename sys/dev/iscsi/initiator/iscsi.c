@@ -30,7 +30,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/iscsi/initiator/iscsi.c,v 1.1.2.1.6.1 2010/02/10 00:26:20 kensmith Exp $");
 
 #include "opt_iscsi_initiator.h"
 

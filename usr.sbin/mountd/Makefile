@@ -1,5 +1,5 @@
 #	From: @(#)Makefile	8.3 (Berkeley) 1/25/94
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/mountd/Makefile,v 1.17.12.1 2010/02/10 00:26:20 kensmith Exp $
 
 PROG=	mountd
 SRCS=	mountd.c getmntopts.c

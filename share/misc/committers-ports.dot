@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/share/misc/committers-ports.dot,v 1.63.10.1 2010/02/10 00:26:20 kensmith Exp $
 
 # This file is meant to list all FreeBSD ports committers and describe the
 # mentor-mentee relationships between them.

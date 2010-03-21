@@ -26,7 +26,7 @@
  * SUCH DAMAGE.
  *
  *	from BSDI $Id: ktr.h,v 1.10.2.7 2000/03/16 21:44:42 cp Exp $
- * $FreeBSD$
+ * $FreeBSD: src/sys/sys/ktr.h,v 1.37.10.1 2010/02/10 00:26:20 kensmith Exp $
  */
 
 /*

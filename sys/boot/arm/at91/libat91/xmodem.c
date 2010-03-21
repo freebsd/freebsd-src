@@ -25,7 +25,7 @@
  * disclaimed copyright on the code.  This version of xmodem has been nearly
  * completely rewritten, but the CRC is from the original.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/boot/arm/at91/libat91/xmodem.c,v 1.2.14.1 2010/02/10 00:26:20 kensmith Exp $
  */
 
 #include "lib.h"

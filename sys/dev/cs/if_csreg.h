@@ -27,7 +27,7 @@
  */
 
 /*
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/cs/if_csreg.h,v 1.6.22.1 2010/02/10 00:26:20 kensmith Exp $
  */
 
 #define CS_89x0_IO_PORTS	0x0020

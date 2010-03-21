@@ -27,7 +27,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kvm.h	8.1 (Berkeley) 6/2/93
- * $FreeBSD$
+ * $FreeBSD: src/lib/libkvm/kvm.h,v 1.17.2.2.6.1 2010/02/10 00:26:20 kensmith Exp $
  */
 
 #ifndef _KVM_H_

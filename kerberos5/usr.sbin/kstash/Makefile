@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/kerberos5/usr.sbin/kstash/Makefile,v 1.16.30.1 2010/02/10 00:26:20 kensmith Exp $
 
 PROG=	kstash
 MAN=	kstash.8

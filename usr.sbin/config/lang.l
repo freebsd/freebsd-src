@@ -28,7 +28,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)lang.l	8.1 (Berkeley) 6/6/93
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/config/lang.l,v 1.45.2.2.4.1 2010/02/10 00:26:20 kensmith Exp $
  */
 
 #include <assert.h>

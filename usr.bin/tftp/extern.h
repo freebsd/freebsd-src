@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)extern.h	8.1 (Berkeley) 6/6/93
- * $FreeBSD$
+ * $FreeBSD: src/usr.bin/tftp/extern.h,v 1.3.36.1 2010/02/10 00:26:20 kensmith Exp $
  */
 
 void	recvfile(int, char *, char *);

@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/lib/libmd/Makefile,v 1.42.22.1 2010/02/10 00:26:20 kensmith Exp $
 
 LIB=	md
 SHLIBDIR?= /lib

@@ -1,5 +1,5 @@
 # ex:ts=8
-$FreeBSD$
+$FreeBSD: src/contrib/texinfo/FREEBSD-upgrade,v 1.7.12.1 2010/02/10 00:26:20 kensmith Exp $
 
 GNU Texinfo 4.8
 	originals can be found at: ftp://ftp.gnu.org/gnu/texinfo/

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/ppbus/ppb_1284.h,v 1.7.58.1 2010/02/10 00:26:20 kensmith Exp $
  *
  */
 #ifndef __1284_H

@@ -1,4 +1,4 @@
-#$FreeBSD$
+#$FreeBSD: src/contrib/ngatm/FREEBSD-Xlist,v 1.1.32.1 2010/02/10 00:26:20 kensmith Exp $
 */VERSION
 */README
 */Makefile.in

@@ -1,4 +1,4 @@
-$FreeBSD$
+$FreeBSD: src/contrib/libpcap/FREEBSD-upgrade,v 1.6.12.1 2010/02/10 00:26:20 kensmith Exp $
 
 This directory contains virgin copies of the original distribution files
 on a "vendor" branch.  Do not, under any circumstances, attempt to upgrade

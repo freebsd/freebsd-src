@@ -32,7 +32,7 @@
  */
 
 /* $Id: compile_et.h,v 1.6 2000/07/01 20:21:48 assar Exp $ */
-/* $FreeBSD$ */
+/* $FreeBSD: src/contrib/com_err/compile_et.h,v 1.3.30.1 2010/02/10 00:26:20 kensmith Exp $ */
 
 #ifndef __COMPILE_ET_H__
 #define __COMPILE_ET_H__

@@ -35,7 +35,7 @@
  *
  * $Id: ib_smi.h 1389 2004-12-27 22:56:47Z roland $
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/contrib/rdma/ib_smi.h,v 1.1.2.1.6.1 2010/02/10 00:26:20 kensmith Exp $
  */
 
 #if !defined( IB_SMI_H )

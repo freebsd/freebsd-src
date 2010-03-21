@@ -38,7 +38,7 @@
 #if 0
 static char sccsid[] = "@(#)muldi3.c	8.1 (Berkeley) 6/4/93";
 #else
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/libkern/arm/muldi3.c,v 1.1.24.1 2010/02/10 00:26:20 kensmith Exp $");
 #endif
 #endif /* LIBC_SCCS and not lint */
 

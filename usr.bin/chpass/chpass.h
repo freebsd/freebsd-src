@@ -38,7 +38,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)chpass.h	8.4 (Berkeley) 4/2/94
- * $FreeBSD$
+ * $FreeBSD: src/usr.bin/chpass/chpass.h,v 1.7.32.1 2010/02/10 00:26:20 kensmith Exp $
  */
 
 struct passwd;

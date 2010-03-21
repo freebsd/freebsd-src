@@ -1,4 +1,4 @@
-#$FreeBSD$
+#$FreeBSD: src/contrib/bsnmp/FREEBSD-Xlist,v 1.5.12.1 2010/02/10 00:26:20 kensmith Exp $
 */Makefile.in
 */acinclude.m4
 */aclocal.m4

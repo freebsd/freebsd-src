@@ -38,4 +38,4 @@ _fini:
 	subq	$8,%rsp
 
 	.section .rodata
-.ascii "$FreeBSD$\0"
+.ascii "$FreeBSD: src/lib/csu/amd64/crti.S,v 1.7.32.1 2010/02/10 00:26:20 kensmith Exp $\0"

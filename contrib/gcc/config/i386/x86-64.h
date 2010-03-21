@@ -19,7 +19,7 @@ along with GCC; see the file COPYING.  If not, write to
 the Free Software Foundation, 51 Franklin Street, Fifth Floor,
 Boston, MA 02110-1301, USA.  */
 
-/* $FreeBSD$ */
+/* $FreeBSD: src/contrib/gcc/config/i386/x86-64.h,v 1.5.12.1 2010/02/10 00:26:20 kensmith Exp $ */
 
 #undef ASM_COMMENT_START
 #define ASM_COMMENT_START "#"

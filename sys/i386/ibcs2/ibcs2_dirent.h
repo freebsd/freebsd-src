@@ -1,5 +1,5 @@
 /*	$NetBSD: ibcs2_dirent.h,v 1.2 1994/10/26 02:52:51 cgd Exp $	*/
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/i386/ibcs2/ibcs2_dirent.h,v 1.3.24.1 2010/02/10 00:26:20 kensmith Exp $ */
 
 /*-
  * Copyright (c) 1994 Scott Bartram

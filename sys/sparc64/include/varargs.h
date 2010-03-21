@@ -46,7 +46,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)varargs.h	8.3 (Berkeley) 3/22/94
- * $FreeBSD$
+ * $FreeBSD: src/sys/sparc64/include/varargs.h,v 1.8.24.1 2010/02/10 00:26:20 kensmith Exp $
  */
 
 #ifndef _MACHINE_VARARGS_H_

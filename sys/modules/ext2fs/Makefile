@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/ext2fs/Makefile,v 1.6.24.1 2010/02/10 00:26:20 kensmith Exp $
 
 .PATH:	${.CURDIR}/../../gnu/fs/ext2fs
 KMOD=	ext2fs

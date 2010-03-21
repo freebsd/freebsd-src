@@ -28,7 +28,7 @@
  */
 
 /* $Header: /home/daffy/u0/vern/flex/RCS/scan.l,v 2.56 95/04/24 12:17:19 vern Exp $ */
-/* $FreeBSD$ */
+/* $FreeBSD: src/usr.bin/lex/scan.l,v 1.5.56.1 2010/02/10 00:26:20 kensmith Exp $ */
 
 #include "flexdef.h"
 #include "parse.h"

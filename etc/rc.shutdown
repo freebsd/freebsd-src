@@ -24,7 +24,7 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-# $FreeBSD$
+# $FreeBSD: src/etc/rc.shutdown,v 1.31.10.1 2010/02/10 00:26:20 kensmith Exp $
 #
 
 # Site-specific closing actions for daemons run by init on shutdown,

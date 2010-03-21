@@ -1,5 +1,5 @@
 /*      $NetBSD: if_atm.h,v 1.7 1996/11/09 23:02:27 chuck Exp $       */
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/net/if_atm.h,v 1.24.10.1 2010/02/10 00:26:20 kensmith Exp $ */
 
 /*-
  *

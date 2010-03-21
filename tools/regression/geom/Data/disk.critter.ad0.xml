@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <DISKIMAGE>
   <comment>
-    $FreeBSD$
+    $FreeBSD: src/tools/regression/geom/Data/disk.critter.ad0.xml,v 1.1.38.1 2010/02/10 00:26:20 kensmith Exp $
     This image contains the MBR and disklabel sectors from my Asus M1300
     laptop.
   </comment>

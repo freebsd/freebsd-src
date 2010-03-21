@@ -1,5 +1,5 @@
 #!/bin/sh
-# $FreeBSD$
+# $FreeBSD: src/tools/regression/fstest/tests/open/22.t,v 1.1.12.1 2010/02/10 00:26:20 kensmith Exp $
 
 desc="open returns EEXIST when O_CREAT and O_EXCL were specified and the file exists"
 

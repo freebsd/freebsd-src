@@ -13,4 +13,4 @@ Medium term:
 	Tune hash algorithm used in cfs_subr.
 	Make MPSAFE
 
-$FreeBSD$
+$FreeBSD: src/sys/fs/coda/TODO,v 1.3.2.3.6.1 2010/02/10 00:26:20 kensmith Exp $

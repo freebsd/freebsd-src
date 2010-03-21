@@ -31,7 +31,7 @@
 /* $KAME: sctp_crc32.h,v 1.5 2004/08/17 04:06:16 itojun Exp $	 */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/netinet/sctp_crc32.h,v 1.3.2.1.6.1 2010/02/10 00:26:20 kensmith Exp $");
 
 #ifndef __crc32c_h__
 #define __crc32c_h__

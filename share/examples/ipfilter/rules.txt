@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/share/examples/ipfilter/rules.txt,v 1.1.40.1 2010/02/10 00:26:20 kensmith Exp $
 #
 # block all incoming TCP packets on le0 from host "foo" to any destination.
 #

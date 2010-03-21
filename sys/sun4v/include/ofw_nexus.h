@@ -28,7 +28,7 @@
  *
  *	from: NetBSD: psychoreg.h,v 1.8 2001/09/10 16:17:06 eeh Exp
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/sun4v/include/ofw_nexus.h,v 1.1.12.1 2010/02/10 00:26:20 kensmith Exp $
  */
 
 #ifndef _MACHINE_OFW_NEXUS_H_

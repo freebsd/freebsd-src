@@ -4,7 +4,7 @@
 # 
 # July 4, 1999
 #
-# $FreeBSD$
+# $FreeBSD: src/share/syscons/keymaps/fr_CA.iso.acc.kbd,v 1.4.38.1 2010/02/10 00:26:20 kensmith Exp $
 
 #                                                         alt
 # scan                       cntrl          alt    alt   cntrl lock

@@ -1,5 +1,5 @@
 /*
- * $FreeBSD$
+ * $FreeBSD: src/lib/libkse/thread/thr_vfork.c,v 1.5.2.1.2.1 2010/02/10 00:26:20 kensmith Exp $
  */
 
 #include <unistd.h>

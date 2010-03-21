@@ -23,7 +23,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/tools/regression/acct/pack.c,v 1.1.12.1 2010/02/10 00:26:20 kensmith Exp $");
 
 #include <assert.h>
 #include <float.h>

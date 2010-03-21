@@ -59,7 +59,7 @@
  *
  *	@(#)protosw.h	8.1 (Berkeley) 6/2/93
  *	BSDI protosw.h,v 2.3 1996/10/11 16:02:40 pjd Exp
- * $FreeBSD$
+ * $FreeBSD: src/sys/netinet6/ip6protosw.h,v 1.13.10.1.6.1 2010/02/10 00:26:20 kensmith Exp $
  */
 
 #ifndef _NETINET6_IP6PROTOSW_H_

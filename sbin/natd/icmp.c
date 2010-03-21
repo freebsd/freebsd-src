@@ -9,7 +9,7 @@
  *
  * Ari Suutari <suutari@iki.fi>
  *
- * $FreeBSD$
+ * $FreeBSD: src/sbin/natd/icmp.c,v 1.7.32.1 2010/02/10 00:26:20 kensmith Exp $
  */
 
 #include <stdlib.h>

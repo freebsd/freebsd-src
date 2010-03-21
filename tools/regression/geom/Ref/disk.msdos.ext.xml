@@ -1,4 +1,4 @@
-$FreeBSD$
+$FreeBSD: src/tools/regression/geom/Ref/disk.msdos.ext.xml,v 1.1.36.1 2010/02/10 00:26:20 kensmith Exp $
 /dev/md34	512	2327759360	4546405
 /dev/md34s1	512	2146765824	4192902
 /dev/md34s10	512	8193024	16002

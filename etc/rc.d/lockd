@@ -1,7 +1,7 @@
 #!/bin/sh
 #
 # FreeBSD History: src/etc/rc.d/nfslocking,v 1.11 2004/10/07 13:55:26 mtm
-# $FreeBSD$
+# $FreeBSD: src/etc/rc.d/lockd,v 1.18.4.2.4.1 2010/02/10 00:26:20 kensmith Exp $
 #
 
 # PROVIDE: lockd

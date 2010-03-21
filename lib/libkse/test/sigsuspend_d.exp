@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/lib/libkse/test/sigsuspend_d.exp,v 1.2.12.1 2010/02/10 00:26:20 kensmith Exp $
   -> Suspender thread signal handler caught signal 16
 Sigsuspend woke up by signal 16
   -> Suspender thread signal handler caught signal 16

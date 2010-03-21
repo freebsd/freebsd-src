@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/nfs4client/nfs4_socket.c,v 1.4.22.1 2010/02/10 00:26:20 kensmith Exp $ */
 /* $Id: nfs_socket.c,v 1.12 2003/11/05 14:59:01 rees Exp $ */
 
 /*-
@@ -60,7 +60,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/nfs4client/nfs4_socket.c,v 1.4.22.1 2010/02/10 00:26:20 kensmith Exp $");
 
 /*
  * Socket operations for use by nfs

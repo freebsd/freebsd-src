@@ -29,7 +29,7 @@
  * official policies, either expressed or implied, of the FreeBSD Project.
  *
  * ------+---------+---------+---------+---------+---------+---------+---------*
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/lpr/common_source/ctlinfo.h,v 1.3.34.1 2010/02/10 00:26:20 kensmith Exp $
  * ------+---------+---------+---------+---------+---------+---------+---------*
  */
 

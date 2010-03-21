@@ -33,7 +33,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)union.h	8.9 (Berkeley) 12/10/94
- * $FreeBSD$
+ * $FreeBSD: src/sys/fs/unionfs/union.h,v 1.34.2.5.4.1 2010/02/10 00:26:20 kensmith Exp $
  */
 
 #ifdef _KERNEL

@@ -1,4 +1,4 @@
-.\" $FreeBSD$
+.\" $FreeBSD: src/usr.bin/vgrind/tmac.vgrind,v 1.3.12.1 2010/02/10 00:26:20 kensmith Exp $
 .am vS
 ..
 .am vE

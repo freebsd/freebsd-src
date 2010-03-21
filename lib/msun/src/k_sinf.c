@@ -16,7 +16,7 @@
 
 #ifndef INLINE_KERNEL_SINDF
 #ifndef lint
-static char rcsid[] = "$FreeBSD$";
+static char rcsid[] = "$FreeBSD: src/lib/msun/src/k_sinf.c,v 1.13.10.1 2010/02/10 00:26:20 kensmith Exp $";
 #endif
 #endif
 

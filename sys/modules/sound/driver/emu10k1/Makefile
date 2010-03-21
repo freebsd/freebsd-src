@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/sound/driver/emu10k1/Makefile,v 1.5.12.1 2010/02/10 00:26:20 kensmith Exp $
 
 .PATH: ${.CURDIR}/../../../../dev/sound/pci \
        ${.CURDIR}/../../../../gnu/dev/sound/pci

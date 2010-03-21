@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/ppp/deflate.h,v 1.4.60.1 2010/02/10 00:26:20 kensmith Exp $
  */
 
 extern const struct ccp_algorithm PppdDeflateAlgorithm;

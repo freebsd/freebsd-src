@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/share/misc/organization.dot,v 1.2.2.1.2.1 2010/02/10 00:26:20 kensmith Exp $
 
 # This file is meant to show the infrastructural organization of the
 # FreeBSD Project; what kind of teams we have and how they relate to

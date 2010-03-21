@@ -6,7 +6,7 @@
 ** This file is in the public domain, so clarified as of
 ** 1996-06-05 by Arthur David Olson.
 **
-** $FreeBSD$
+** $FreeBSD: src/lib/libc/stdtime/tzfile.h,v 1.8.24.1.2.1 2010/02/10 00:26:20 kensmith Exp $
 */
 
 /*

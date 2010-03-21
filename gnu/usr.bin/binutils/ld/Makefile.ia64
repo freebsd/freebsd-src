@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/gnu/usr.bin/binutils/ld/Makefile.ia64,v 1.10.12.1 2010/02/10 00:26:20 kensmith Exp $
 
 NATIVE_EMULATION= elf64_ia64_fbsd
 

@@ -39,7 +39,7 @@
  * Jeffrey C. Mogul
  * Digital Equipment Corporation
  * Western Research Laboratory
- *	$FreeBSD$
+ *	$FreeBSD: src/contrib/tcpdump/nfsfh.h,v 1.8.30.1 2010/02/10 00:26:20 kensmith Exp $
  *	$NetBSD: nfsfh.h,v 1.1.1.2 1997/10/03 17:25:13 christos Exp $
  */
 

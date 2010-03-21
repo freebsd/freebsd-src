@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libdwarf/dwarf_cu.c,v 1.1.2.1.6.1 2010/02/10 00:26:20 kensmith Exp $
  */
 
 #include "_libdwarf.h"

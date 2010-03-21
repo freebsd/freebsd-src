@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sbin/devd/token.l,v 1.6.22.1 2010/02/10 00:26:20 kensmith Exp $
  */
 
 #include <ctype.h>

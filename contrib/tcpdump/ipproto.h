@@ -34,7 +34,7 @@
  *
  * From:
  *	@(#)in.h	8.3 (Berkeley) 1/3/94
- * $FreeBSD$
+ * $FreeBSD: src/contrib/tcpdump/ipproto.h,v 1.1.1.4.10.1 2010/02/10 00:26:20 kensmith Exp $
  */
 
 extern struct tok ipproto_values[];

@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/i386/sys/i386_vm86.c,v 1.7.32.1 2010/02/10 00:26:20 kensmith Exp $");
 
 #include <machine/sysarch.h>
 

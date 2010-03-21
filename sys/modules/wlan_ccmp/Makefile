@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/wlan_ccmp/Makefile,v 1.3.22.1 2010/02/10 00:26:20 kensmith Exp $
 
 .PATH: ${.CURDIR}/../../net80211
 .PATH: ${.CURDIR}/../../crypto/rijndael

@@ -1,4 +1,4 @@
-$FreeBSD$
+$FreeBSD: src/tools/regression/atm/README,v 1.2.30.1 2010/02/10 00:26:20 kensmith Exp $
 
 This directory contains tests for the ATM stuff. Specific tests for HARP
 are in the harp subdirectory and are not automatically run. All

@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/arm/at91/files.at91,v 1.7.10.1 2010/02/10 00:26:20 kensmith Exp $
 arm/arm/cpufunc_asm_arm9.S	standard
 arm/arm/irq_dispatch.S		standard
 arm/at91/at91.c			standard

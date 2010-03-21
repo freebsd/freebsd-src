@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/netgraph/vjc/Makefile,v 1.10.38.1 2010/02/10 00:26:20 kensmith Exp $
 # $Whistle: Makefile,v 1.1 1999/01/24 06:48:07 archie Exp $
 
 .PATH: ${.CURDIR}/../../../net

@@ -18,7 +18,7 @@
  *
  * CDDL HEADER END
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/cddl/compat/opensolaris/sys/cpuvar.h,v 1.4.2.3.2.1 2010/02/10 00:26:20 kensmith Exp $
  */
 
 /*

@@ -1,5 +1,5 @@
 /* $NetBSD: reg.h,v 1.4 2000/06/04 09:30:44 tsubai Exp $	*/
-/* $FreeBSD$	*/
+/* $FreeBSD: src/sys/powerpc/include/reg.h,v 1.6.24.1 2010/02/10 00:26:20 kensmith Exp $	*/
 
 #ifndef _POWERPC_REG_H_
 #define	_POWERPC_REG_H_

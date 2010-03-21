@@ -36,7 +36,7 @@ static const char sccsid[] = "@(#)pw_copy.c	8.4 (Berkeley) 4/2/94";
 #endif /* not lint */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/release/picobsd/tinyware/passwd/pw_copy.c,v 1.3.32.1 2010/02/10 00:26:20 kensmith Exp $");
 
 /*
  * This module is used to copy the master password file, replacing a single

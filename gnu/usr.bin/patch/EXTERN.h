@@ -1,4 +1,4 @@
-/* $FreeBSD$
+/* $FreeBSD: src/gnu/usr.bin/patch/EXTERN.h,v 1.6.58.1 2010/02/10 00:26:20 kensmith Exp $
  *
  * $Log: EXTERN.h,v $
  * Revision 2.0  86/09/17  15:35:37  lwall

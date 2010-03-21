@@ -34,7 +34,7 @@
  * THIS SOFTWARE, EVEN IF WHISTLE COMMUNICATIONS IS ADVISED OF THE POSSIBILITY
  * OF SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/crypto/rc4/rc4.h,v 1.3.38.1 2010/02/10 00:26:20 kensmith Exp $
  */
 
 #ifndef _SYS_CRYPTO_RC4_RC4_H_

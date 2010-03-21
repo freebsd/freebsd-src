@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)cmdtab.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-  "$FreeBSD$";
+  "$FreeBSD: src/usr.sbin/timed/timedc/cmdtab.c,v 1.3.58.1 2010/02/10 00:26:20 kensmith Exp $";
 #endif /* not lint */
 
 #include "timedc.h"

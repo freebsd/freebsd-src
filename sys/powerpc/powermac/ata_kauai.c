@@ -26,7 +26,7 @@
  *
  */
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/powerpc/powermac/ata_kauai.c,v 1.13.22.1 2010/02/10 00:26:20 kensmith Exp $");
 
 /*
  * Mac 'Kauai' PCI ATA controller

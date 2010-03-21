@@ -14,7 +14,7 @@
  * warranties of merchantability and fitness for a particular
  * purpose.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/boot/arm/at91/libat91/printf.c,v 1.2.12.1 2010/02/10 00:26:20 kensmith Exp $
  */
 
 #include <stdarg.h>

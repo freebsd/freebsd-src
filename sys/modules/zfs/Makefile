@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/zfs/Makefile,v 1.6.2.5.2.1 2010/02/10 00:26:20 kensmith Exp $
 
 KMOD=	zfs
 

@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/cddl/lib/libzfs/Makefile,v 1.3.2.2.2.1 2010/02/10 00:26:20 kensmith Exp $
 
 .PATH: ${.CURDIR}/../../../cddl/compat/opensolaris/misc
 .PATH: ${.CURDIR}/../../../sys/cddl/contrib/opensolaris/common/zfs

@@ -1,4 +1,4 @@
-.\" $FreeBSD$
+.\" $FreeBSD: src/tools/build/options/WITHOUT_SYSCONS,v 1.1.12.1 2010/02/10 00:26:20 kensmith Exp $
 Set to not build
 .Xr syscons 4
 support files such as keyboard maps, fonts, and screen output maps.

@@ -27,7 +27,7 @@
 #define _HPTIOP_H
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/hptiop/hptiop.h,v 1.1.2.3.4.1 2010/02/10 00:26:20 kensmith Exp $");
 
 #define DBG 0
 

@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/boot/efi/libefi/Makefile,v 1.17.12.1 2010/02/10 00:26:20 kensmith Exp $
 
 LIB=	efi
 INTERNALLIB=

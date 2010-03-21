@@ -1,4 +1,4 @@
-$FreeBSD$
+$FreeBSD: src/contrib/bsnmp/FREEBSD-upgrade,v 1.2.32.1 2010/02/10 00:26:20 kensmith Exp $
 
 This is the Begemot micro-SNMP daemon. It is the base for the ILMI daemon
 for ngATM. Be careful to feed changes back to the maintainer

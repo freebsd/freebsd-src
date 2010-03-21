@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/lib/librt/Makefile,v 1.5.12.1 2010/02/10 00:26:20 kensmith Exp $
 
 LIB=rt
 SHLIB_MAJOR= 1

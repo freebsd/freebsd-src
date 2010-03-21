@@ -32,7 +32,7 @@
  * SUCH DAMAGE.
  */
 
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/arm/xscale/ixp425/ixdp425reg.h,v 1.2.14.1 2010/02/10 00:26:20 kensmith Exp $ */
 #ifndef	_IXDP425REG_H_
 #define	_IXDP425REG_H_
 /* GPIOs */

@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/gnu/usr.bin/gdb/arch/powerpc/Makefile,v 1.2.12.1 2010/02/10 00:26:20 kensmith Exp $
 
 .if !defined(GDB_CROSS_DEBUGGER)
 LIBSRCS+= fbsd-proc.c fbsd-threads.c gcore.c

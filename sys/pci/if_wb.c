@@ -31,7 +31,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/pci/if_wb.c,v 1.92.2.1.6.1 2010/02/10 00:26:20 kensmith Exp $");
 
 /*
  * Winbond fast ethernet PCI NIC driver

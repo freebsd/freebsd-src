@@ -33,7 +33,7 @@ static char sccsid[] = "@(#)gfmt.c	8.6 (Berkeley) 4/2/94";
 #endif
 #endif /* not lint */
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/bin/stty/gfmt.c,v 1.20.30.1 2010/02/10 00:26:20 kensmith Exp $");
 
 #include <sys/types.h>
 

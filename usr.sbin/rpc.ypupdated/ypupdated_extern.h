@@ -1,5 +1,5 @@
 /*
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/rpc.ypupdated/ypupdated_extern.h,v 1.4.38.1 2010/02/10 00:26:20 kensmith Exp $
  */
 
 #include <db.h>

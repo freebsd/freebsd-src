@@ -31,7 +31,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/string/strcasestr.c,v 1.4.10.1 2010/02/10 00:26:20 kensmith Exp $");
 
 #include <ctype.h>
 #include <string.h>

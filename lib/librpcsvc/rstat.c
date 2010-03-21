@@ -29,7 +29,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/librpcsvc/rstat.c,v 1.4.32.1 2010/02/10 00:26:20 kensmith Exp $");
 
 #if !defined(lint) && defined(SCCSIDS)
 static char sccsid[] = "@(#)rstat.c	1.2 91/03/11 TIRPC 1.0; from 1.6 89/03/24 SMI";

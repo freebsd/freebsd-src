@@ -9,7 +9,7 @@ use and modify. Please send modifications and/or suggestions + bug fixes to
 
 #ifndef lint
 static const char rcsid[] =
-  "$FreeBSD$";
+  "$FreeBSD: src/usr.sbin/bootparamd/callbootd/callbootd.c,v 1.10.20.1.6.1 2010/02/10 00:26:20 kensmith Exp $";
 #endif /* not lint */
 
 #include "bootparam_prot.h"

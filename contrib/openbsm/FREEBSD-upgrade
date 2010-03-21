@@ -53,4 +53,4 @@ the version in contrib/openbsm/bsm, so buildworld tests before committing
 are necessary, and the commits to various parts of the system must be
 made in close succession.
 
-$FreeBSD$
+$FreeBSD: src/contrib/openbsm/FREEBSD-upgrade,v 1.7.14.1 2010/02/10 00:26:20 kensmith Exp $

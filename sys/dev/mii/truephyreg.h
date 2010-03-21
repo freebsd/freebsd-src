@@ -32,7 +32,7 @@
  * SUCH DAMAGE.
  * 
  * $DragonFly: src/sys/dev/netif/mii_layer/truephyreg.h,v 1.2 2007/10/23 14:28:42 sephe Exp $
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/mii/truephyreg.h,v 1.1.2.1.6.1 2010/02/10 00:26:20 kensmith Exp $
  */
 
 #ifndef _MII_TRUEPHYREG_H

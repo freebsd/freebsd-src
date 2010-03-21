@@ -32,7 +32,7 @@
  *     and: Thomas E. Dickey 1998 on                                        *
  ****************************************************************************/
 
-/* $FreeBSD$ */
+/* $FreeBSD: src/contrib/ncurses/ncurses/tinfo/lib_raw.c,v 1.7.2.1.6.1 2010/02/10 00:26:20 kensmith Exp $ */
 
 /*
  *	raw.c

@@ -23,7 +23,7 @@
  *	+1-313-764-2278
  *	netatalk@umich.edu
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/netatalk/aarp.h,v 1.6.12.1 2010/02/10 00:26:20 kensmith Exp $
  */
 
 #ifndef _NETATALK_AARP_H_

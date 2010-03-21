@@ -1,5 +1,5 @@
 #!/bin/sh
-# $FreeBSD$
+# $FreeBSD: src/sbin/gbde/test.sh,v 1.5.12.1 2010/02/10 00:26:20 kensmith Exp $
 
 set -e
 

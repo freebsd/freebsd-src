@@ -39,7 +39,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/ubsec/ubsec.c,v 1.49.2.1.2.1 2010/02/10 00:26:20 kensmith Exp $");
 
 /*
  * uBsec 5[56]01, 58xx hardware crypto accelerator

@@ -30,7 +30,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/ufs/ffs/ffs_inode.c,v 1.108.2.5.4.1 2010/02/10 00:26:20 kensmith Exp $");
 
 #include "opt_quota.h"
 

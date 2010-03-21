@@ -30,7 +30,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)reg.h	5.5 (Berkeley) 1/18/91
- * $FreeBSD$
+ * $FreeBSD: src/sys/compat/ia32/ia32_reg.h,v 1.1.24.1 2010/02/10 00:26:20 kensmith Exp $
  */
 
 #ifndef _COMPAT_IA32_IA32_REG_H_

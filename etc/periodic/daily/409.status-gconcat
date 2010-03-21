@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# $FreeBSD$
+# $FreeBSD: src/etc/periodic/daily/409.status-gconcat,v 1.1.14.1 2010/02/10 00:26:20 kensmith Exp $
 #
 
 # If there is a global system configuration file, suck it in.

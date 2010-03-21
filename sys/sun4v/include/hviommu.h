@@ -24,7 +24,7 @@
  * SUCH DAMAGE.
  *
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/sun4v/include/hviommu.h,v 1.1.12.1 2010/02/10 00:26:20 kensmith Exp $
  */
 
 #ifndef _HVIOMMU_H_

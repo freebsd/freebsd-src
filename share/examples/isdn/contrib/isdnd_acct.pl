@@ -18,7 +18,7 @@
 #           Tests und Zug?nge nachts durchzuf?hren... Aber die meisten
 #           Einheiten werden immer noch im 90s-Takt verbraucht :-(
 #
-# $FreeBSD$
+# $FreeBSD: src/share/examples/isdn/contrib/isdnd_acct.pl,v 1.1.38.1 2010/02/10 00:26:20 kensmith Exp $
 #
 #---------------------------------------------------------------------------
 #

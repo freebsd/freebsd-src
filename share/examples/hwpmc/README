@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/share/examples/hwpmc/README,v 1.1.24.1 2010/02/10 00:26:20 kensmith Exp $
 
 Examples illustrating the use of the hwpmc(4) driver and pmc(3)
 library interface.

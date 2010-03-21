@@ -19,7 +19,7 @@
  *
  * CDDL HEADER END
  *
- * $FreeBSD$
+ * $FreeBSD: src/cddl/compat/opensolaris/misc/mkdirp.c,v 1.2.2.2.6.1 2010/02/10 00:26:20 kensmith Exp $
  */
 
 /*	Copyright (c) 1988 AT&T	*/

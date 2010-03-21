@@ -8,7 +8,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.sbin/pkg_install/updating/main.c,v 1.2.2.3.6.1 2010/02/10 00:26:20 kensmith Exp $");
 
 #include <errno.h>
 #include <limits.h>

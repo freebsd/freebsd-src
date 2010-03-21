@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libc_r/uthread/uthread_rwlockattr.c,v 1.7.38.1 2010/02/10 00:26:20 kensmith Exp $
  */
 
 #include <errno.h>

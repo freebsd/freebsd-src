@@ -27,7 +27,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.bin/at/at.c,v 1.30.12.1 2010/02/10 00:26:20 kensmith Exp $");
 
 #define _USE_BSD 1
 

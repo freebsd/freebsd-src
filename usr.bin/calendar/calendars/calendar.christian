@@ -1,7 +1,7 @@
 /*
  * Christian
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.bin/calendar/calendars/calendar.christian,v 1.10.2.1.6.1 2010/02/10 00:26:20 kensmith Exp $
  */
 
 #ifndef _calendar_christian_

@@ -30,7 +30,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/netinet/ip_input.c,v 1.332.2.5.4.1 2010/02/10 00:26:20 kensmith Exp $");
 
 #include "opt_bootp.h"
 #include "opt_ipfw.h"

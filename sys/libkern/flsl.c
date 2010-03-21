@@ -28,7 +28,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/libkern/flsl.c,v 1.4.32.1 2010/02/10 00:26:20 kensmith Exp $");
 
 #include <sys/libkern.h>
 

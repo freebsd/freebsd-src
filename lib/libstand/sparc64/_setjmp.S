@@ -42,7 +42,7 @@
 #endif /* LIBC_SCCS and not lint */
 
 #include <machine/asm.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libstand/sparc64/_setjmp.S,v 1.3.12.1 2010/02/10 00:26:20 kensmith Exp $");
 
 #define	_JB_FP		0x0
 #define	_JB_PC		0x8

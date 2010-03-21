@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/sun4v/include/asmacros.h,v 1.2.12.1 2010/02/10 00:26:20 kensmith Exp $
  */
 
 #ifndef	_MACHINE_ASMACROS_H_

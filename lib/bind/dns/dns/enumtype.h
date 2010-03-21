@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/lib/bind/dns/dns/enumtype.h,v 1.5.2.1.4.2 2010/02/16 18:10:35 dougb Exp $ */
 
 /*
  * Copyright (C) 2004-2010 Internet Systems Consortium, Inc. ("ISC")

@@ -1,4 +1,4 @@
-.\"	$FreeBSD$
+.\"	$FreeBSD: src/contrib/ipfilter/FreeBSD-4.0/ipv6-patch-4.0,v 1.2.20.1 2010/02/10 00:26:20 kensmith Exp $
 .\"
 *** ip6_input.c.orig	Sun Feb 13 14:32:01 2000
 --- ip6_input.c	Wed Apr 26 22:31:34 2000

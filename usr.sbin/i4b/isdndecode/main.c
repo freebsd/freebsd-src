@@ -29,7 +29,7 @@
  *
  *	$Id: main.c,v 1.13 2000/02/21 15:17:17 hm Exp $
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/i4b/isdndecode/main.c,v 1.10.32.1 2010/02/10 00:26:20 kensmith Exp $
  *
  *      last edit-date: [Mon Feb 21 16:19:30 2000]
  *

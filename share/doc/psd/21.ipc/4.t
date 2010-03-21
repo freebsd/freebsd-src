@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	@(#)4.t	8.1 (Berkeley) 6/8/93
-.\"	$FreeBSD$
+.\"	$FreeBSD: src/share/doc/psd/21.ipc/4.t,v 1.2.34.1 2010/02/10 00:26:20 kensmith Exp $
 .\"
 .\".ds RH "Client/Server Model
 .bp

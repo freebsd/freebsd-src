@@ -29,7 +29,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/ida/ida.c,v 1.42.24.1 2010/02/10 00:26:20 kensmith Exp $");
 
 /*
  * Generic driver for Compaq SMART RAID adapters.

@@ -10,7 +10,7 @@
  * of any kind. I shall in no event be liable for anything that happens
  * to anyone/anything when using this software.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libc/gen/rand48.h,v 1.2.38.1 2010/02/10 00:26:20 kensmith Exp $
  */
 
 #ifndef _RAND48_H_

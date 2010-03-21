@@ -25,7 +25,7 @@
  *
  *	citrus Id: wctype.h,v 1.4 2000/12/21 01:50:21 itojun Exp
  *	$NetBSD: wctype.h,v 1.3 2000/12/22 14:16:16 itojun Exp $
- * $FreeBSD$
+ * $FreeBSD: src/include/wctype.h,v 1.13.30.1 2010/02/10 00:26:20 kensmith Exp $
  */
 
 #ifndef _WCTYPE_H_

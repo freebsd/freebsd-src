@@ -26,7 +26,7 @@
  * OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
  * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libc_r/test/guard_b.c,v 1.4.34.1 2010/02/10 00:26:20 kensmith Exp $
  *
  * Test thread stack guard functionality.
  */

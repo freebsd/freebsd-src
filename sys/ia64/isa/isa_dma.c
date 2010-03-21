@@ -31,7 +31,7 @@
  *
  *	from: @(#)isa.c	7.2 (Berkeley) 5/13/91
  *	from: isa_dma.c,v 1.3 1999/05/09 23:56:00 peter Exp $
- * $FreeBSD$
+ * $FreeBSD: src/sys/ia64/isa/isa_dma.c,v 1.10.10.1 2010/02/10 00:26:20 kensmith Exp $
  */
 
 /*

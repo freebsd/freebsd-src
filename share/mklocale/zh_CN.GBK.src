@@ -2,7 +2,7 @@
  * GBK      first byte:   81-FE
  *          second byte:  40-7E, 80-FE
  *
- * $FreeBSD$
+ * $FreeBSD: src/share/mklocale/zh_CN.GBK.src,v 1.2.12.1 2010/02/10 00:26:20 kensmith Exp $
  */
 
 ENCODING	"GBK"

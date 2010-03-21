@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# $FreeBSD$
+# $FreeBSD: src/etc/rc.d/dhclient,v 1.28.2.3.6.1 2010/02/10 00:26:20 kensmith Exp $
 #
 
 # PROVIDE: dhclient

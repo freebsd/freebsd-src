@@ -34,7 +34,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/arm/xscale/i8134x/obiovar.h,v 1.1.12.1 2010/02/10 00:26:20 kensmith Exp $
  *
  */
 

@@ -1,5 +1,5 @@
 #!/bin/sh
-# $FreeBSD$
+# $FreeBSD: src/tools/regression/fstest/tests/open/07.t,v 1.1.12.1 2010/02/10 00:26:20 kensmith Exp $
 
 desc="open returns EACCES when O_TRUNC is specified and write permission is denied"
 

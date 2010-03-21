@@ -22,7 +22,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/arm/at91/at91var.h,v 1.1.12.1 2010/02/10 00:26:20 kensmith Exp $ */
 
 #ifndef _AT91VAR_H_
 #define _AT91VAR_H_

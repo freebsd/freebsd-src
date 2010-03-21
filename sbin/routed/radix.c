@@ -28,7 +28,7 @@
  *
  *	@(#)radix.c	8.4 (Berkeley) 11/2/94
  *
- * $FreeBSD$
+ * $FreeBSD: src/sbin/routed/radix.c,v 1.9.22.1 2010/02/10 00:26:20 kensmith Exp $
  */
 
 /*
@@ -40,7 +40,7 @@
 #ifdef __NetBSD__
 __RCSID("$NetBSD$");
 #elif defined(__FreeBSD__)
-__RCSID("$FreeBSD$");
+__RCSID("$FreeBSD: src/sbin/routed/radix.c,v 1.9.22.1 2010/02/10 00:26:20 kensmith Exp $");
 #else
 __RCSID("$Revision: 2.23 $");
 #ident "$Revision: 2.23 $"

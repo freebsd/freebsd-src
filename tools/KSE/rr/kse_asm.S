@@ -24,11 +24,11 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/tools/KSE/rr/kse_asm.S,v 1.1.1.1.22.1.2.1 2010/02/10 00:26:20 kensmith Exp $
  */
 
 #include <machine/asm.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/tools/KSE/rr/kse_asm.S,v 1.1.1.1.22.1.2.1 2010/02/10 00:26:20 kensmith Exp $");
 
 /*
  * Where do we define these?

@@ -34,7 +34,7 @@
 static char sccsid[] = "@(#)setmode.c	8.2 (Berkeley) 3/25/94";
 #endif /* LIBC_SCCS and not lint */
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/gen/setmode.c,v 1.11.12.1 2010/02/10 00:26:20 kensmith Exp $");
 
 #include "namespace.h"
 #include <sys/types.h>

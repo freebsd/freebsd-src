@@ -69,7 +69,7 @@
  * the SCTP_BASE_INFO() list's we will do a SCTP_INP_INFO_WLOCK().
  */
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/netinet/sctp_lock_bsd.h,v 1.10.2.3.4.1 2010/02/10 00:26:20 kensmith Exp $");
 
 
 extern struct sctp_foo_stuff sctp_logoff[];

@@ -29,7 +29,7 @@
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  *	$NetBSD: pmap.h,v 1.17 2000/03/30 16:18:24 jdolecek Exp $
- * $FreeBSD$
+ * $FreeBSD: src/sys/powerpc/include/pmap.h,v 1.20.2.1.2.1 2010/02/10 00:26:20 kensmith Exp $
  */
 
 #ifndef	_MACHINE_PMAP_H_

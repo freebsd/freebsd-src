@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/share/security/lomac-policy.contexts,v 1.1.38.1 2010/02/10 00:26:20 kensmith Exp $
 #
 # This is a sample LOMAC policy based upon the PLM defined in the
 # original FreeBSD LOMAC port.  It may be configured on a

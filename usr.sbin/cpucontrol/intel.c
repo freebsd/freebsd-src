@@ -24,7 +24,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.sbin/cpucontrol/intel.c,v 1.1.2.1.4.1 2010/02/10 00:26:20 kensmith Exp $");
 
 #include <assert.h>
 #include <stdio.h>

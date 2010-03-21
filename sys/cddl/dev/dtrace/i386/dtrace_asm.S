@@ -19,7 +19,7 @@
  *
  * CDDL HEADER END
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/cddl/dev/dtrace/i386/dtrace_asm.S,v 1.1.2.1.6.1 2010/02/10 00:26:20 kensmith Exp $
  */
 /*
  * Copyright 2004 Sun Microsystems, Inc.  All rights reserved.

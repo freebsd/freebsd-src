@@ -1,5 +1,5 @@
 /*
- * $FreeBSD$
+ * $FreeBSD: src/sys/i386/include/speaker.h,v 1.8.12.1 2010/02/10 00:26:20 kensmith Exp $
  */
 
 #ifndef	_MACHINE_SPEAKER_H_

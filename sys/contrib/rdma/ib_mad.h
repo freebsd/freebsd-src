@@ -35,7 +35,7 @@
  *
  * $Id: ib_mad.h 5596 2006-03-03 01:00:07Z sean.hefty $
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/contrib/rdma/ib_mad.h,v 1.1.2.1.6.1 2010/02/10 00:26:20 kensmith Exp $
  */
 
 #if !defined( IB_MAD_H )

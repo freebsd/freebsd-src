@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	@(#)0.t	5.1 (Berkeley) 4/17/91
-.\" $FreeBSD$
+.\" $FreeBSD: src/share/doc/papers/relengr/0.t,v 1.3.38.1 2010/02/10 00:26:20 kensmith Exp $
 .\"
 .rm CM
 .nr PO 1.25i

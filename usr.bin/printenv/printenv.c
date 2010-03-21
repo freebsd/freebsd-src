@@ -44,7 +44,7 @@ static char sccsid[] = "@(#)printenv.c	8.2 (Berkeley) 5/4/95";
 #endif
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.bin/printenv/printenv.c,v 1.6.36.1 2010/02/10 00:26:20 kensmith Exp $");
 
 #include <sys/types.h>
 

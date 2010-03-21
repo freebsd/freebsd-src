@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# $FreeBSD$
+# $FreeBSD: src/tools/tools/mfi/runmegacli.sh,v 1.2.12.1 2010/02/10 00:26:20 kensmith Exp $
 # This is a simple wrapper for running the MegaCLI tool for Linux.  It assumes
 # that the MegaCLI binary has been installed in /compat/linux/usr/sbin/MegaCli.
 # The binary must also have been branded appropriately, and the COMPAT_LINUX,

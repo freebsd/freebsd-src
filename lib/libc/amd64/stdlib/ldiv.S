@@ -6,7 +6,7 @@
  */
 
 #include <machine/asm.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/amd64/stdlib/ldiv.S,v 1.1.2.1.6.1 2010/02/10 00:26:20 kensmith Exp $");
 
 ENTRY(ldiv)
 	movq	%rdi,%rax

@@ -1,5 +1,5 @@
 /*
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/sade/system.c,v 1.131.4.1.6.1 2010/02/10 00:26:20 kensmith Exp $
  *
  * Jordan Hubbard
  *

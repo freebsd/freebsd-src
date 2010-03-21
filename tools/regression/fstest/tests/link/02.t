@@ -1,5 +1,5 @@
 #!/bin/sh
-# $FreeBSD$
+# $FreeBSD: src/tools/regression/fstest/tests/link/02.t,v 1.1.12.1 2010/02/10 00:26:20 kensmith Exp $
 
 desc="link returns ENAMETOOLONG if a component of either pathname exceeded 255 characters"
 

@@ -39,7 +39,7 @@
 .\" 
 .\"	@(#)implement	8.1 (Berkeley) 6/8/93
 .\"
-.\" $FreeBSD$
+.\" $FreeBSD: src/share/doc/psd/02.implement/implement,v 1.4.38.1 2010/02/10 00:26:20 kensmith Exp $
 .EH 'PSD:2-%''UNIX Implementation'
 .OH 'UNIX Implementation''PSD:2-%'
 .de P1

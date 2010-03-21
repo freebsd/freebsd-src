@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/ntp/Makefile.inc,v 1.9.2.1.6.1 2010/02/10 00:26:20 kensmith Exp $
 
 .include <bsd.own.mk>
 

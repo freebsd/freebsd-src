@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/msun/src/s_fmaf.c,v 1.1.24.1 2010/02/10 00:26:20 kensmith Exp $");
 
 /*
  * Fused multiply-add: Compute x * y + z with a single rounding error.

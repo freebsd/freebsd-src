@@ -30,7 +30,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/net/bpf_jitter.c,v 1.3.2.2.6.1 2010/02/10 00:26:20 kensmith Exp $");
 
 #ifdef _KERNEL
 #include "opt_bpf.h"

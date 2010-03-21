@@ -1,5 +1,5 @@
 # $Id: Makefile,v 1.5 2004/09/08 08:12:21 bright Exp $
-# $FreeBSD$
+# $FreeBSD: src/lib/libautofs/Makefile,v 1.5.10.1 2010/02/10 00:26:20 kensmith Exp $
 
 LIB=	autofs
 SHLIB_MAJOR= 2

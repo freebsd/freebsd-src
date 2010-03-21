@@ -1,4 +1,4 @@
-$FreeBSD$
+$FreeBSD: src/tools/regression/geom/Ref/disk.flat.da1.xml,v 1.1.36.1 2010/02/10 00:26:20 kensmith Exp $
 /dev/md34	512	37888	74
 /dev/md34a	512	37748736	73728
 /dev/md34b	512	268435456	524288

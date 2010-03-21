@@ -1,4 +1,4 @@
-.\" $FreeBSD$
+.\" $FreeBSD: src/share/doc/smm/01.setup/stubs,v 1.1.40.1 2010/02/10 00:26:20 kensmith Exp $
 .\"
 .if n \{\
 .	ftr CW R

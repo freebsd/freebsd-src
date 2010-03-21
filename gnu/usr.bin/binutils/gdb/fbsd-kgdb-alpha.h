@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/gnu/usr.bin/binutils/gdb/fbsd-kgdb-alpha.h,v 1.2.32.1 2010/02/10 00:26:20 kensmith Exp $ */
 
 #ifndef FBSD_KGDB_ALPHA_H
 #define FBSD_KGDB_ALPHA_H

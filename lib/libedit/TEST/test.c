@@ -40,7 +40,7 @@ __COPYRIGHT("@(#) Copyright (c) 1992, 1993\n\
 static char sccsid[] = "@(#)test.c	8.1 (Berkeley) 6/4/93";
 #endif /* not lint && not SCCSID */
 __RCSID("$NetBSD: test.c,v 1.18 2005/06/01 11:37:52 lukem Exp $");
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libedit/TEST/test.c,v 1.5.12.1 2010/02/10 00:26:20 kensmith Exp $");
 
 /*
  * test.c: A little test program

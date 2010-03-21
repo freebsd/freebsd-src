@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/tools/regression/bin/sh/execution/func2.0,v 1.1.4.2.2.1 2010/02/10 00:26:20 kensmith Exp $
 
 f() { }
 f

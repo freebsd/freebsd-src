@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/lib/libsbuf/Makefile,v 1.5.34.1 2010/02/10 00:26:20 kensmith Exp $
 
 LIB=	sbuf
 SHLIBDIR?= /lib

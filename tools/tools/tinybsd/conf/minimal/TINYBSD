@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/tools/tools/tinybsd/conf/minimal/TINYBSD,v 1.3.12.1 2010/02/10 00:26:20 kensmith Exp $
 machine		i386
 cpu		I486_CPU
 cpu		I586_CPU

@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/tools/regression/usr.bin/make/suffixes/basic/Makefile,v 1.1.24.1 2010/02/10 00:26:20 kensmith Exp $
 #
 # Check that a simple suffix rule is correctly processed.
 

@@ -28,7 +28,7 @@
  *	i4b_l3l4.h - layer 3 / layer 4 interface
  *	------------------------------------------
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/i4b/include/i4b_l3l4.h,v 1.14.22.1 2010/02/10 00:26:20 kensmith Exp $
  *
  *	last edit-date: [Sun Aug 11 12:52:41 2002]
  *

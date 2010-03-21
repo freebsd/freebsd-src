@@ -31,7 +31,7 @@ up-to-date.  Many thanks.
 ******************************************************************/
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/nls/msgcat.c,v 1.50.24.1 2010/02/10 00:26:20 kensmith Exp $");
 
 #define _NLS_PRIVATE
 

@@ -26,7 +26,7 @@
  * SUCH DAMAGE.
  *
  * $Id: l2ping.c,v 1.5 2003/05/16 19:54:40 max Exp $
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/bluetooth/l2ping/l2ping.c,v 1.7.12.1 2010/02/10 00:26:20 kensmith Exp $
  */
 
 #include <sys/ioctl.h>

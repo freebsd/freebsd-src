@@ -1,6 +1,6 @@
 # 	This file is under a "BSD" copyright (c) by David O'Brien 1998.
 
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/amd/doc/Makefile,v 1.11.38.1 2010/02/10 00:26:20 kensmith Exp $
 
 .PATH: ${.CURDIR}/../../../contrib/amd/doc
 

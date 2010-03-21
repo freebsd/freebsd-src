@@ -26,7 +26,7 @@
  *
  * Author: Hartmut Brandt <harti@freebsd.org>
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/utopia/suni.h,v 1.2.24.1 2010/02/10 00:26:20 kensmith Exp $
  *
  * Register definitions for the following chips:
  *	PMC-Sierra PMC-5346 (S/UNI-LITE)

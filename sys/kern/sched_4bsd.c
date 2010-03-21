@@ -33,7 +33,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/kern/sched_4bsd.c,v 1.106.2.9.2.1 2010/02/10 00:26:20 kensmith Exp $");
 
 #include "opt_hwpmc_hooks.h"
 #include "opt_kdtrace.h"

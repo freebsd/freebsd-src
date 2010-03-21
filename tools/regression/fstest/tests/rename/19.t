@@ -1,5 +1,5 @@
 #!/bin/sh
-# $FreeBSD$
+# $FreeBSD: src/tools/regression/fstest/tests/rename/19.t,v 1.1.10.1 2010/02/10 00:26:20 kensmith Exp $
 
 desc="rename returns EINVAL when an attempt is made to rename '.' or '..'"
 

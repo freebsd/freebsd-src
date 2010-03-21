@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/netgraph/ng_gif_demux.h,v 1.5.24.1 2010/02/10 00:26:20 kensmith Exp $
  */
 
 #ifndef _NETGRAPH_NG_GIF_DEMUX_H_

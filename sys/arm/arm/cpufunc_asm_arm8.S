@@ -37,7 +37,7 @@
  */
  
 #include <machine/asm.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/arm/arm/cpufunc_asm_arm8.S,v 1.3.24.1 2010/02/10 00:26:20 kensmith Exp $");
 
 ENTRY(arm8_clock_config)
 	mrc	p15, 0, r3, c15, c0, 0	/* Read the clock register */

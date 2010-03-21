@@ -1,6 +1,6 @@
 # latin2 (backward compatible with ASCII)
 #
-# $FreeBSD$
+# $FreeBSD: src/share/colldef/la_LN.ISO8859-2.src,v 1.3.40.1 2010/02/10 00:26:20 kensmith Exp $
 #
 charmap map.ISO8859-2
 order \

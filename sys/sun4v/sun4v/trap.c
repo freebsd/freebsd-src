@@ -37,7 +37,7 @@
  *
  *      from: @(#)trap.c        7.4 (Berkeley) 5/13/91
  * 	from: FreeBSD: src/sys/i386/i386/trap.c,v 1.197 2001/07/19
- * $FreeBSD$
+ * $FreeBSD: src/sys/sun4v/sun4v/trap.c,v 1.15.2.2.4.1 2010/02/10 00:26:20 kensmith Exp $
  */
 
 #include "opt_ddb.h"

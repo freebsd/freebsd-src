@@ -25,7 +25,7 @@
  */
 
 #include <machine/asm.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libkse/arch/powerpc/powerpc/enter_uts.S,v 1.2.12.1 2010/02/10 00:26:20 kensmith Exp $");
 
 /*
  * _ppc32_enter_uts(struct kse_mailbox *km, kse_func_t uts, void *stack,

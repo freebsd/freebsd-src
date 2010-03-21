@@ -1,4 +1,4 @@
-$FreeBSD$
+$FreeBSD: src/tools/regression/geom/Ref/disk.pc98.wdc0.xml,v 1.2.36.1 2010/02/10 00:26:20 kensmith Exp $
 /dev/md34	512	75264	147	1	8	17
 /dev/md34s1	512	1626603520	3176960	23360	8	17
 /dev/md34s1a	512	78643200	153600	1129	8	17

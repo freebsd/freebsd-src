@@ -27,7 +27,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)pathnames.h	8.2 (Berkeley) 3/27/94
- *	$FreeBSD$
+ *	$FreeBSD: src/sbin/mount/pathnames.h,v 1.3.32.1 2010/02/10 00:26:20 kensmith Exp $
  */
 
 #define	_PATH_MOUNTDPID	"/var/run/mountd.pid"

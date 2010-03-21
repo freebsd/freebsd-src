@@ -1,5 +1,5 @@
 /*
- * $FreeBSD$
+ * $FreeBSD: src/sys/boot/pc98/boot0.5/ldscript,v 1.1.12.1 2010/02/10 00:26:20 kensmith Exp $
  */
 
 SECTIONS

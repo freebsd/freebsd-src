@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/lib/libarchive/Makefile,v 1.77.2.3.6.1 2010/02/10 00:26:20 kensmith Exp $
 
 LIB=	archive
 DPADD=	${LIBBZ2} ${LIBZ}

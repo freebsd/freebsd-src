@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <DISKIMAGE>
   <comment>
-    $FreeBSD$
+    $FreeBSD: src/tools/regression/geom/Data/disk.far.ad0.xml,v 1.1.38.1 2010/02/10 00:26:20 kensmith Exp $
     A Windows laptop.
   </comment>
   <sectorsize>512</sectorsize>

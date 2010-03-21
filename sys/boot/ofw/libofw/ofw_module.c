@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/boot/ofw/libofw/ofw_module.c,v 1.7.32.1 2010/02/10 00:26:20 kensmith Exp $");
 
 /*
  * ofw-specific module functionality.

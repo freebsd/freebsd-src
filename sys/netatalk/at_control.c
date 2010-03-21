@@ -23,7 +23,7 @@
  *	+1-313-764-2278
  *	netatalk@umich.edu
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/netatalk/at_control.c,v 1.46.10.1 2010/02/10 00:26:20 kensmith Exp $
  */
 
 #include <sys/param.h>

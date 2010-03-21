@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/share/examples/ses/setobjstat/Makefile,v 1.3.12.1 2010/02/10 00:26:20 kensmith Exp $
 #
 # Copyright (c) 2000 by Matthew Jacob
 # All rights reserved.

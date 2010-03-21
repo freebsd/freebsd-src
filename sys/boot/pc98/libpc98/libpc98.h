@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/boot/pc98/libpc98/libpc98.h,v 1.1.4.2.2.1 2010/02/10 00:26:20 kensmith Exp $
  */
 
 void set_machine_type(void);
