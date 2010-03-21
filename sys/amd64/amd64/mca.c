@@ -565,19 +565,16 @@ mca_init(void)
 
 		/*
 		 * Disable logging of level one TLB parity (L1TP) errors by
-		 * the data and instruction caches as an alternative
-		 * workaround for AMD Family 10h Erratum 383.  Unlike the
-		 * recommended workaround, there is no performance penalty to
-		 * this workaround.  However, L1TP errors will go unreported.
+		 * the data cache as an alternative workaround for AMD Family
+		 * 10h Erratum 383.  Unlike the recommended workaround, there
+		 * is no performance penalty to this workaround.  However,
+		 * L1TP errors will go unreported.
 		 */
 		if (cpu_vendor_id == CPU_VENDOR_AMD &&
 		    CPUID_TO_FAMILY(cpu_id) == 0x10 && !amd10h_L1TP) {
 			mask = rdmsr(MSR_MC0_CTL_MASK);
 			if ((mask & (1UL << 5)) == 0)
 				wrmsr(MSR_MC0_CTL_MASK, mask | (1UL << 5));
-			mask = rdmsr(MSR_MC1_CTL_MASK);
-			if ((mask & (1UL << 5)) == 0)
-				wrmsr(MSR_MC1_CTL_MASK, mask | (1UL << 5));
 		}
 		for (i = 0; i < (mcg_cap & MCG_CAP_COUNT); i++) {
 			/* By default enable logging of all errors. */
