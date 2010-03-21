@@ -409,8 +409,10 @@ void MatcherGen::EmitMatchCode(const TreePatternNode *N,
   // need to do a type check.  Emit the check, apply the tyep to NodeNoTypes and
   // reinfer any correlated types.
   bool DoTypeCheck = false;
-  if (NodeNoTypes->getExtType() != N->getExtType()) {
-    NodeNoTypes->setType(N->getExtType());
+  if (NodeNoTypes->getNumTypes() != 0 &&
+      NodeNoTypes->getExtType(0) != N->getExtType(0)) {
+    assert(NodeNoTypes->getNumTypes() == 1 && "FIXME: Handle multiple results");
+    NodeNoTypes->setType(0, N->getExtType(0));
     InferPossibleTypes();
     DoTypeCheck = true;
   }
@@ -442,8 +444,10 @@ void MatcherGen::EmitMatchCode(const TreePatternNode *N,
   for (unsigned i = 0, e = N->getPredicateFns().size(); i != e; ++i)
     AddMatcher(new CheckPredicateMatcher(N->getPredicateFns()[i]));
   
-  if (DoTypeCheck)
-    AddMatcher(new CheckTypeMatcher(N->getType()));
+  if (DoTypeCheck) {
+    assert(N->getNumTypes() == 1);
+    AddMatcher(new CheckTypeMatcher(N->getType(0)));
+  }
 }
 
 /// EmitMatcherCode - Generate the code that matches the predicate of this
@@ -567,7 +571,7 @@ void MatcherGen::EmitResultLeafAsOperand(const TreePatternNode *N,
   assert(N->isLeaf() && "Must be a leaf");
   
   if (IntInit *II = dynamic_cast<IntInit*>(N->getLeafValue())) {
-    AddMatcher(new EmitIntegerMatcher(II->getValue(), N->getType()));
+    AddMatcher(new EmitIntegerMatcher(II->getValue(), N->getType(0)));
     ResultOps.push_back(NextRecordedOperandNo++);
     return;
   }
@@ -575,13 +579,13 @@ void MatcherGen::EmitResultLeafAsOperand(const TreePatternNode *N,
   // If this is an explicit register reference, handle it.
   if (DefInit *DI = dynamic_cast<DefInit*>(N->getLeafValue())) {
     if (DI->getDef()->isSubClassOf("Register")) {
-      AddMatcher(new EmitRegisterMatcher(DI->getDef(), N->getType()));
+      AddMatcher(new EmitRegisterMatcher(DI->getDef(), N->getType(0)));
       ResultOps.push_back(NextRecordedOperandNo++);
       return;
     }
     
     if (DI->getDef()->getName() == "zero_reg") {
-      AddMatcher(new EmitRegisterMatcher(0, N->getType()));
+      AddMatcher(new EmitRegisterMatcher(0, N->getType(0)));
       ResultOps.push_back(NextRecordedOperandNo++);
       return;
     }
@@ -627,7 +631,7 @@ EmitResultInstructionAsOperand(const TreePatternNode *N,
                                SmallVectorImpl<unsigned> &OutputOps) {
   Record *Op = N->getOperator();
   const CodeGenTarget &CGT = CGP.getTargetInfo();
-  CodeGenInstruction &II = CGT.getInstruction(Op->getName());
+  CodeGenInstruction &II = CGT.getInstruction(Op);
   const DAGInstruction &Inst = CGP.getInstruction(Op);
   
   // If we can, get the pattern for the instruction we're generating.  We derive
@@ -698,7 +702,7 @@ EmitResultInstructionAsOperand(const TreePatternNode *N,
     // occur in patterns like (mul:i8 AL:i8, GR8:i8:$src).
     for (unsigned i = 0, e = PhysRegInputs.size(); i != e; ++i)
       AddMatcher(new EmitCopyToRegMatcher(PhysRegInputs[i].second,
-                                                  PhysRegInputs[i].first));
+                                          PhysRegInputs[i].first));
     // Even if the node has no other flag inputs, the resultant node must be
     // flagged to the CopyFromReg nodes we just generated.
     TreeHasInFlag = true;
@@ -708,12 +712,12 @@ EmitResultInstructionAsOperand(const TreePatternNode *N,
   
   // Determine the result types.
   SmallVector<MVT::SimpleValueType, 4> ResultVTs;
-  if (NumResults != 0 && N->getType() != MVT::isVoid) {
+  if (N->getNumTypes()) {
     // FIXME2: If the node has multiple results, we should add them.  For now,
     // preserve existing behavior?!
-    ResultVTs.push_back(N->getType());
+    assert(N->getNumTypes() == 1);
+    ResultVTs.push_back(N->getType(0));
   }
-
   
   // If this is the root instruction of a pattern that has physical registers in
   // its result pattern, add output VTs for them.  For example, X86 has:
@@ -721,16 +725,26 @@ EmitResultInstructionAsOperand(const TreePatternNode *N,
   // This also handles implicit results like:
   //   (implicit EFLAGS)
   if (isRoot && Pattern.getDstRegs().size() != 0) {
-    for (unsigned i = 0; i != Pattern.getDstRegs().size(); ++i)
-      if (Pattern.getDstRegs()[i]->isSubClassOf("Register"))
-        ResultVTs.push_back(getRegisterValueType(Pattern.getDstRegs()[i], CGT));
+    // If the root came from an implicit def in the instruction handling stuff,
+    // don't re-add it.
+    Record *HandledReg = 0;
+    if (NumResults == 0 && N->getNumTypes() != 0 &&
+        !II.ImplicitDefs.empty())
+      HandledReg = II.ImplicitDefs[0];
+    
+    for (unsigned i = 0; i != Pattern.getDstRegs().size(); ++i) {
+      Record *Reg = Pattern.getDstRegs()[i];
+      if (!Reg->isSubClassOf("Register") || Reg == HandledReg) continue;
+      ResultVTs.push_back(getRegisterValueType(Reg, CGT));
+    }
   }
 
-  // FIXME2: Instead of using the isVariadic flag on the instruction, we should
-  // have an SDNP that indicates variadicism.  The TargetInstrInfo isVariadic
-  // property should be inferred from this when an instruction has a pattern.
+  // If this is the root of the pattern and the pattern we're matching includes
+  // a node that is variadic, mark the generated node as variadic so that it
+  // gets the excess operands from the input DAG.
   int NumFixedArityOperands = -1;
-  if (isRoot && II.isVariadic)
+  if (isRoot &&
+      (Pattern.getSrcPattern()->NodeHasProperty(SDNPVariadic, CGP)))
     NumFixedArityOperands = Pattern.getSrcPattern()->getNumChildren();
   
   // If this is the root node and any of the nodes matched nodes in the input

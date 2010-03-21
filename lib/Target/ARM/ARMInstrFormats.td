@@ -15,8 +15,8 @@
 // Format specifies the encoding used by the instruction.  This is part of the
 // ad-hoc solution used to emit machine instruction encodings by our machine
 // code emitter.
-class Format<bits<5> val> {
-  bits<5> Value = val;
+class Format<bits<6> val> {
+  bits<6> Value = val;
 }
 
 def Pseudo        : Format<0>;
@@ -33,31 +33,33 @@ def LdMiscFrm     : Format<8>;
 def StMiscFrm     : Format<9>;
 def LdStMulFrm    : Format<10>;
 
-def LdStExFrm     : Format<28>;
+def LdStExFrm     : Format<11>;
 
-def ArithMiscFrm  : Format<11>;
-def ExtFrm        : Format<12>;
+def ArithMiscFrm  : Format<12>;
+def ExtFrm        : Format<13>;
 
-def VFPUnaryFrm   : Format<13>;
-def VFPBinaryFrm  : Format<14>;
-def VFPConv1Frm   : Format<15>;
-def VFPConv2Frm   : Format<16>;
-def VFPConv3Frm   : Format<17>;
-def VFPConv4Frm   : Format<18>;
-def VFPConv5Frm   : Format<19>;
-def VFPLdStFrm    : Format<20>;
-def VFPLdStMulFrm : Format<21>;
-def VFPMiscFrm    : Format<22>;
+def VFPUnaryFrm   : Format<14>;
+def VFPBinaryFrm  : Format<15>;
+def VFPConv1Frm   : Format<16>;
+def VFPConv2Frm   : Format<17>;
+def VFPConv3Frm   : Format<18>;
+def VFPConv4Frm   : Format<19>;
+def VFPConv5Frm   : Format<20>;
+def VFPLdStFrm    : Format<21>;
+def VFPLdStMulFrm : Format<22>;
+def VFPMiscFrm    : Format<23>;
 
-def ThumbFrm      : Format<23>;
+def ThumbFrm      : Format<24>;
 
-def NEONFrm       : Format<24>;
-def NEONGetLnFrm  : Format<25>;
-def NEONSetLnFrm  : Format<26>;
-def NEONDupFrm    : Format<27>;
+def NEONFrm       : Format<25>;
+def NEONGetLnFrm  : Format<26>;
+def NEONSetLnFrm  : Format<27>;
+def NEONDupFrm    : Format<28>;
 
 def MiscFrm       : Format<29>;
 def ThumbMiscFrm  : Format<30>;
+
+def NLdStFrm      : Format<31>;
 
 // Misc flags.
 
@@ -71,7 +73,7 @@ class UnaryDP    { bit isUnaryDataProc = 1; }
 class Xform16Bit { bit canXformTo16Bit = 1; }
 
 //===----------------------------------------------------------------------===//
-// ARM Instruction flags.  These need to match ARMInstrInfo.h.
+// ARM Instruction flags.  These need to match ARMBaseInstrInfo.h.
 //
 
 // Addressing mode.
@@ -183,7 +185,7 @@ class InstTemplate<AddrMode am, SizeFlagVal sz, IndexMode im,
   bits<2> IndexModeBits = IM.Value;
   
   Format F = f;
-  bits<5> Form = F.Value;
+  bits<6> Form = F.Value;
 
   Domain D = d;
   bits<2> Dom = D.Value;
@@ -229,7 +231,7 @@ class I<dag oops, dag iops, AddrMode am, SizeFlagVal sz,
         list<dag> pattern>
   : InstARM<am, sz, im, f, GenericDomain, cstr, itin> {
   let OutOperandList = oops;
-  let InOperandList = !con(iops, (ops pred:$p));
+  let InOperandList = !con(iops, (ins pred:$p));
   let AsmString   = !strconcat(opc, !strconcat("${p}", asm));
   let Pattern = pattern;
   list<Predicate> Predicates = [IsARM];
@@ -257,7 +259,7 @@ class sI<dag oops, dag iops, AddrMode am, SizeFlagVal sz,
          list<dag> pattern>
   : InstARM<am, sz, im, f, GenericDomain, cstr, itin> {
   let OutOperandList = oops;
-  let InOperandList = !con(iops, (ops pred:$p, cc_out:$s));
+  let InOperandList = !con(iops, (ins pred:$p, cc_out:$s));
   let AsmString   = !strconcat(opc, !strconcat("${p}${s}", asm));
   let Pattern = pattern;
   list<Predicate> Predicates = [IsARM];
@@ -1007,8 +1009,8 @@ class Thumb1sI<dag oops, dag iops, AddrMode am, SizeFlagVal sz,
                InstrItinClass itin,
                string opc, string asm, string cstr, list<dag> pattern>
   : InstThumb<am, sz, IndexModeNone, ThumbFrm, GenericDomain, cstr, itin> {
-  let OutOperandList = !con(oops, (ops s_cc_out:$s));
-  let InOperandList = !con(iops, (ops pred:$p));
+  let OutOperandList = !con(oops, (outs s_cc_out:$s));
+  let InOperandList = !con(iops, (ins pred:$p));
   let AsmString = !strconcat(opc, !strconcat("${s}${p}", asm));
   let Pattern = pattern;
   list<Predicate> Predicates = [IsThumb1Only];
@@ -1030,7 +1032,7 @@ class Thumb1pI<dag oops, dag iops, AddrMode am, SizeFlagVal sz,
                string opc, string asm, string cstr, list<dag> pattern>
   : InstThumb<am, sz, IndexModeNone, ThumbFrm, GenericDomain, cstr, itin> {
   let OutOperandList = oops;
-  let InOperandList = !con(iops, (ops pred:$p));
+  let InOperandList = !con(iops, (ins pred:$p));
   let AsmString = !strconcat(opc, !strconcat("${p}", asm));
   let Pattern = pattern;
   list<Predicate> Predicates = [IsThumb1Only];
@@ -1109,7 +1111,7 @@ class Thumb2I<dag oops, dag iops, AddrMode am, SizeFlagVal sz,
               string opc, string asm, string cstr, list<dag> pattern>
   : InstARM<am, sz, IndexModeNone, ThumbFrm, GenericDomain, cstr, itin> {
   let OutOperandList = oops;
-  let InOperandList = !con(iops, (ops pred:$p));
+  let InOperandList = !con(iops, (ins pred:$p));
   let AsmString = !strconcat(opc, !strconcat("${p}", asm));
   let Pattern = pattern;
   list<Predicate> Predicates = [IsThumb2];
@@ -1125,7 +1127,7 @@ class Thumb2sI<dag oops, dag iops, AddrMode am, SizeFlagVal sz,
                string opc, string asm, string cstr, list<dag> pattern>
   : InstARM<am, sz, IndexModeNone, ThumbFrm, GenericDomain, cstr, itin> {
   let OutOperandList = oops;
-  let InOperandList = !con(iops, (ops pred:$p, cc_out:$s));
+  let InOperandList = !con(iops, (ins pred:$p, cc_out:$s));
   let AsmString   = !strconcat(opc, !strconcat("${s}${p}", asm));
   let Pattern = pattern;
   list<Predicate> Predicates = [IsThumb2];
@@ -1209,7 +1211,7 @@ class T2Iidxldst<bit signed, bits<2> opcod, bit load, bit pre,
                  string opc, string asm, string cstr, list<dag> pattern>
   : InstARM<am, Size4Bytes, im, ThumbFrm, GenericDomain, cstr, itin> {
   let OutOperandList = oops;
-  let InOperandList = !con(iops, (ops pred:$p));
+  let InOperandList = !con(iops, (ins pred:$p));
   let AsmString = !strconcat(opc, !strconcat("${p}", asm));
   let Pattern = pattern;
   list<Predicate> Predicates = [IsThumb2];
@@ -1265,7 +1267,7 @@ class VFPI<dag oops, dag iops, AddrMode am, SizeFlagVal sz,
            string opc, string asm, string cstr, list<dag> pattern>
   : InstARM<am, sz, im, f, VFPDomain, cstr, itin> {
   let OutOperandList = oops;
-  let InOperandList = !con(iops, (ops pred:$p));
+  let InOperandList = !con(iops, (ins pred:$p));
   let AsmString   = !strconcat(opc, !strconcat("${p}", asm));
   let Pattern = pattern;
   list<Predicate> Predicates = [HasVFP2];
@@ -1464,11 +1466,12 @@ class AVConv5I<bits<8> opcod1, bits<4> opcod2, dag oops, dag iops,
 // ARM NEON Instruction templates.
 //
 
-class NeonI<dag oops, dag iops, AddrMode am, IndexMode im, InstrItinClass itin,
-            string opc, string dt, string asm, string cstr, list<dag> pattern>
-  : InstARM<am, Size4Bytes, im, NEONFrm, NeonDomain, cstr, itin> {
+class NeonI<dag oops, dag iops, AddrMode am, IndexMode im, Format f,
+            InstrItinClass itin, string opc, string dt, string asm, string cstr,
+            list<dag> pattern>
+  : InstARM<am, Size4Bytes, im, f, NeonDomain, cstr, itin> {
   let OutOperandList = oops;
-  let InOperandList = !con(iops, (ops pred:$p));
+  let InOperandList = !con(iops, (ins pred:$p));
   let AsmString = !strconcat(
                      !strconcat(!strconcat(opc, "${p}"), !strconcat(".", dt)),
                      !strconcat("\t", asm));
@@ -1481,7 +1484,7 @@ class NeonXI<dag oops, dag iops, AddrMode am, IndexMode im, InstrItinClass itin,
             string opc, string asm, string cstr, list<dag> pattern>
   : InstARM<am, Size4Bytes, im, NEONFrm, NeonDomain, cstr, itin> {
   let OutOperandList = oops;
-  let InOperandList = !con(iops, (ops pred:$p));
+  let InOperandList = !con(iops, (ins pred:$p));
   let AsmString = !strconcat(!strconcat(opc, "${p}"), !strconcat("\t", asm));
   let Pattern = pattern;
   list<Predicate> Predicates = [HasNEON];
@@ -1502,8 +1505,8 @@ class NI4<dag oops, dag iops, InstrItinClass itin, string opc,
 class NLdSt<bit op23, bits<2> op21_20, bits<4> op11_8, bits<4> op7_4,
             dag oops, dag iops, InstrItinClass itin,
             string opc, string dt, string asm, string cstr, list<dag> pattern>
-  : NeonI<oops, iops, AddrMode6, IndexModeNone, itin, opc, dt, asm, cstr,
-          pattern> {
+  : NeonI<oops, iops, AddrMode6, IndexModeNone, NLdStFrm, itin, opc, dt, asm,
+          cstr, pattern> {
   let Inst{31-24} = 0b11110100;
   let Inst{23} = op23;
   let Inst{21-20} = op21_20;
@@ -1513,7 +1516,7 @@ class NLdSt<bit op23, bits<2> op21_20, bits<4> op11_8, bits<4> op7_4,
 
 class NDataI<dag oops, dag iops, InstrItinClass itin,
              string opc, string dt, string asm, string cstr, list<dag> pattern>
-  : NeonI<oops, iops, AddrModeNone, IndexModeNone, itin, opc, dt, asm,
+  : NeonI<oops, iops, AddrModeNone, IndexModeNone, NEONFrm, itin, opc, dt, asm,
          cstr, pattern> {
   let Inst{31-25} = 0b1111001;
 }
@@ -1621,7 +1624,7 @@ class NVLaneOp<bits<8> opcod1, bits<4> opcod2, bits<2> opcod3,
   let Inst{4} = 1;
 
   let OutOperandList = oops;
-  let InOperandList = !con(iops, (ops pred:$p));
+  let InOperandList = !con(iops, (ins pred:$p));
   let AsmString = !strconcat(
                      !strconcat(!strconcat(opc, "${p}"), !strconcat(".", dt)),
                      !strconcat("\t", asm));

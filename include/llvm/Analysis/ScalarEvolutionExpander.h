@@ -79,12 +79,7 @@ namespace llvm {
     /// expandCodeFor - Insert code to directly compute the specified SCEV
     /// expression into the program.  The inserted code is inserted into the
     /// specified block.
-    Value *expandCodeFor(const SCEV *SH, const Type *Ty, Instruction *I) {
-      BasicBlock::iterator IP = I;
-      while (isInsertedInstruction(IP)) ++IP;
-      Builder.SetInsertPoint(IP->getParent(), IP);
-      return expandCodeFor(SH, Ty);
-    }
+    Value *expandCodeFor(const SCEV *SH, const Type *Ty, Instruction *I);
 
     /// setIVIncInsertPos - Set the current IV increment loop and position.
     void setIVIncInsertPos(const Loop *L, Instruction *Pos) {
@@ -108,6 +103,13 @@ namespace llvm {
     /// canonical form rather than in a more literal form. Non-canonical mode
     /// is useful for late optimization passes.
     void disableCanonicalMode() { CanonicalMode = false; }
+
+    /// clearInsertPoint - Clear the current insertion point. This is useful
+    /// if the instruction that had been serving as the insertion point may
+    /// have been deleted.
+    void clearInsertPoint() {
+      Builder.ClearInsertionPoint();
+    }
 
   private:
     LLVMContext &getContext() const { return SE.getContext(); }

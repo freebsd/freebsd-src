@@ -17,11 +17,11 @@
 #ifndef CODEGEN_TARGET_H
 #define CODEGEN_TARGET_H
 
-#include "llvm/Support/raw_ostream.h"
 #include "CodeGenRegisters.h"
 #include "CodeGenInstruction.h"
+#include "llvm/Support/raw_ostream.h"
+#include "llvm/ADT/DenseMap.h"
 #include <algorithm>
-#include <map>
 
 namespace llvm {
 
@@ -43,7 +43,8 @@ enum SDNP {
   SDNPMayLoad,
   SDNPMayStore,
   SDNPSideEffect,
-  SDNPMemOperand
+  SDNPMemOperand,
+  SDNPVariadic
 };
 
 /// getValueType - Return the MVT::SimpleValueType that the specified TableGen
@@ -62,7 +63,7 @@ std::string getQualifiedName(const Record *R);
 class CodeGenTarget {
   Record *TargetRec;
 
-  mutable std::map<std::string, CodeGenInstruction> Instructions;
+  mutable DenseMap<const Record*, CodeGenInstruction*> Instructions;
   mutable std::vector<CodeGenRegister> Registers;
   mutable std::vector<CodeGenRegisterClass> RegisterClasses;
   mutable std::vector<MVT::SimpleValueType> LegalValueTypes;
@@ -70,6 +71,8 @@ class CodeGenTarget {
   void ReadRegisterClasses() const;
   void ReadInstructions() const;
   void ReadLegalValueTypes() const;
+  
+  mutable std::vector<const CodeGenInstruction*> InstrsByEnum;
 public:
   CodeGenTarget();
 
@@ -183,37 +186,40 @@ public:
     return false;    
   }
 
-  /// getInstructions - Return all of the instructions defined for this target.
-  ///
-  const std::map<std::string, CodeGenInstruction> &getInstructions() const {
+private:
+  DenseMap<const Record*, CodeGenInstruction*> &getInstructions() const {
     if (Instructions.empty()) ReadInstructions();
     return Instructions;
   }
-  std::map<std::string, CodeGenInstruction> &getInstructions() {
+public:
+  
+  CodeGenInstruction &getInstruction(const Record *InstRec) const {
     if (Instructions.empty()) ReadInstructions();
-    return Instructions;
+    DenseMap<const Record*, CodeGenInstruction*>::iterator I =
+      Instructions.find(InstRec);
+    assert(I != Instructions.end() && "Not an instruction");
+    return *I->second;
   }
-
-  CodeGenInstruction &getInstruction(const std::string &Name) const {
-    const std::map<std::string, CodeGenInstruction> &Insts = getInstructions();
-    assert(Insts.count(Name) && "Not an instruction!");
-    return const_cast<CodeGenInstruction&>(Insts.find(Name)->second);
-  }
-
-  typedef std::map<std::string,
-                   CodeGenInstruction>::const_iterator inst_iterator;
-  inst_iterator inst_begin() const { return getInstructions().begin(); }
-  inst_iterator inst_end() const { return Instructions.end(); }
 
   /// getInstructionsByEnumValue - Return all of the instructions defined by the
   /// target, ordered by their enum value.
-  void getInstructionsByEnumValue(std::vector<const CodeGenInstruction*>
-                                                &NumberedInstructions);
+  const std::vector<const CodeGenInstruction*> &
+  getInstructionsByEnumValue() const {
+    if (InstrsByEnum.empty()) ComputeInstrsByEnum();
+    return InstrsByEnum;
+  }
 
-
+  typedef std::vector<const CodeGenInstruction*>::const_iterator inst_iterator;
+  inst_iterator inst_begin() const{return getInstructionsByEnumValue().begin();}
+  inst_iterator inst_end() const { return getInstructionsByEnumValue().end(); }
+  
+  
   /// isLittleEndianEncoding - are instruction bit patterns defined as  [0..n]?
   ///
   bool isLittleEndianEncoding() const;
+  
+private:
+  void ComputeInstrsByEnum() const;
 };
 
 /// ComplexPattern - ComplexPattern info, corresponding to the ComplexPattern

@@ -29,7 +29,8 @@ def BfinCallseqEnd   : SDNode<"ISD::CALLSEQ_END",   SDT_BfinCallSeqEnd,
 
 def SDT_BfinCall  : SDTypeProfile<0, 1, [SDTCisPtrTy<0>]>;
 def BfinCall      : SDNode<"BFISD::CALL", SDT_BfinCall,
-                           [SDNPHasChain, SDNPOptInFlag, SDNPOutFlag]>;
+                           [SDNPHasChain, SDNPOptInFlag, SDNPOutFlag,
+                            SDNPVariadic]>;
 
 def BfinRet: SDNode<"BFISD::RET_FLAG", SDTNone,
                     [SDNPHasChain, SDNPOptInFlag]>;
@@ -610,7 +611,7 @@ def MOVE_ncccc : F1<(outs NotCC:$cc), (ins JustCC:$sb),
 
 def MOVECC_zext : F1<(outs D:$dst), (ins JustCC:$cc),
                       "$dst = $cc;",
-                      [(set D:$dst, (zext JustCC:$cc))]>;
+                     [/*(set D:$dst, (zext JustCC:$cc))*/]>;
 
 def MOVENCC_z : F1<(outs D:$dst), (ins NotCC:$cc),
                    "$dst = cc;", []>;
@@ -859,10 +860,10 @@ def : Pat<(BfinCall (i32 tglobaladdr:$dst)),
 def : Pat<(BfinCall (i32 texternalsym:$dst)),
           (CALLa texternalsym:$dst)>;
 
-def : Pat<(sext JustCC:$cc),
-          (NEG (MOVECC_zext JustCC:$cc))>;
-def : Pat<(anyext JustCC:$cc),
-          (MOVECC_zext JustCC:$cc)>;
+//def : Pat<(sext JustCC:$cc),
+//          (NEG (MOVECC_zext JustCC:$cc))>;
+//def : Pat<(anyext JustCC:$cc),
+//          (MOVECC_zext JustCC:$cc)>;
 def : Pat<(i16 (zext JustCC:$cc)),
           (EXTRACT_SUBREG (MOVECC_zext JustCC:$cc), bfin_subreg_lo16)>;
 def : Pat<(i16 (sext JustCC:$cc)),

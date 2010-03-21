@@ -35,6 +35,10 @@ namespace ARM_AM {
     add = '+', sub = '-'
   };
 
+  static inline const char *getAddrOpcStr(AddrOpc Op) {
+    return Op == sub ? "-" : "";
+  }
+
   static inline const char *getShiftOpcStr(ShiftOpc Op) {
     switch (Op) {
     default: assert(0 && "Unknown shift opc!");
@@ -75,16 +79,6 @@ namespace ARM_AM {
     case ARM_AM::ib: return "ib";
     case ARM_AM::da: return "da";
     case ARM_AM::db: return "db";
-    }
-  }
-
-  static inline const char *getAMSubModeAltStr(AMSubMode Mode, bool isLD) {
-    switch (Mode) {
-    default: assert(0 && "Unknown addressing sub-mode!");
-    case ARM_AM::ia: return isLD ? "fd" : "ea";
-    case ARM_AM::ib: return isLD ? "ed" : "fa";
-    case ARM_AM::da: return isLD ? "fa" : "ed";
-    case ARM_AM::db: return isLD ? "ea" : "fd";
     }
   }
 
@@ -473,20 +467,13 @@ namespace ARM_AM {
   //    IB - Increment before
   //    DA - Decrement after
   //    DB - Decrement before
-  //
-  // If the 4th bit (writeback)is set, then the base register is updated after
-  // the memory transfer.
 
   static inline AMSubMode getAM4SubMode(unsigned Mode) {
     return (AMSubMode)(Mode & 0x7);
   }
 
-  static inline unsigned getAM4ModeImm(AMSubMode SubMode, bool WB = false) {
-    return (int)SubMode | ((int)WB << 3);
-  }
-
-  static inline bool getAM4WBFlag(unsigned Mode) {
-    return (Mode >> 3) & 1;
+  static inline unsigned getAM4ModeImm(AMSubMode SubMode) {
+    return (int)SubMode;
   }
 
   //===--------------------------------------------------------------------===//
@@ -501,9 +488,9 @@ namespace ARM_AM {
   // operation in bit 8 and the immediate in bits 0-7.
   //
   // This is also used for FP load/store multiple ops. The second operand
-  // encodes the writeback mode in bit 8 and the number of registers (or 2
-  // times the number of registers for DPR ops) in bits 0-7. In addition,
-  // bits 9-11 encode one of the following two sub-modes:
+  // encodes the number of registers (or 2 times the number of registers
+  // for DPR ops) in bits 0-7. In addition, bits 8-10 encode one of the
+  // following two sub-modes:
   //
   //    IA - Increment after
   //    DB - Decrement before
@@ -522,17 +509,13 @@ namespace ARM_AM {
 
   /// getAM5Opc - This function encodes the addrmode5 opc field for VLDM and
   /// VSTM instructions.
-  static inline unsigned getAM5Opc(AMSubMode SubMode, bool WB,
-                                   unsigned char Offset) {
+  static inline unsigned getAM5Opc(AMSubMode SubMode, unsigned char Offset) {
     assert((SubMode == ia || SubMode == db) &&
            "Illegal addressing mode 5 sub-mode!");
-    return ((int)SubMode << 9) | ((int)WB << 8) | Offset;
+    return ((int)SubMode << 8) | Offset;
   }
   static inline AMSubMode getAM5SubMode(unsigned AM5Opc) {
-    return (AMSubMode)((AM5Opc >> 9) & 0x7);
-  }
-  static inline bool getAM5WBFlag(unsigned AM5Opc) {
-    return ((AM5Opc >> 8) & 1);
+    return (AMSubMode)((AM5Opc >> 8) & 0x7);
   }
 
   //===--------------------------------------------------------------------===//
@@ -541,23 +524,11 @@ namespace ARM_AM {
   //
   // This is used for NEON load / store instructions.
   //
-  // addrmode6 := reg with optional writeback and alignment
+  // addrmode6 := reg with optional alignment
   //
-  // This is stored in four operands [regaddr, regupdate, opc, align].  The
-  // first is the address register.  The second register holds the value of
-  // a post-access increment for writeback or reg0 if no writeback or if the
-  // writeback increment is the size of the memory access.  The third
-  // operand encodes whether there is writeback to the address register. The
-  // fourth operand is the value of the alignment specifier to use or zero if
-  // no explicit alignment.
-
-  static inline unsigned getAM6Opc(bool WB = false) {
-    return (int)WB;
-  }
-
-  static inline bool getAM6WBFlag(unsigned Mode) {
-    return Mode & 1;
-  }
+  // This is stored in two operands [regaddr, align].  The first is the
+  // address register.  The second operand is the value of the alignment
+  // specifier to use or zero if no explicit alignment.
 
 } // end namespace ARM_AM
 } // end namespace llvm
