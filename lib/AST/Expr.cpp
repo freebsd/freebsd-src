@@ -227,7 +227,12 @@ std::string PredefinedExpr::ComputeName(IdentType IT, const Decl *CurrentDecl) {
     llvm::raw_svector_ostream Out(Name);
     Out << (MD->isInstanceMethod() ? '-' : '+');
     Out << '[';
-    Out << MD->getClassInterface()->getNameAsString();
+
+    // For incorrect code, there might not be an ObjCInterfaceDecl.  Do
+    // a null check to avoid a crash.
+    if (const ObjCInterfaceDecl *ID = MD->getClassInterface())
+      Out << ID->getNameAsString();
+
     if (const ObjCCategoryImplDecl *CID =
         dyn_cast<ObjCCategoryImplDecl>(MD->getDeclContext())) {
       Out << '(';
@@ -1104,11 +1109,11 @@ Expr::isLvalueResult Expr::isLvalueInternal(ASTContext &Ctx) const {
     if (m->isArrow())
       return LV_Valid;
     Expr *BaseExp = m->getBase();
-    if (BaseExp->getStmtClass() == ObjCPropertyRefExprClass)
+    if (BaseExp->getStmtClass() == ObjCPropertyRefExprClass ||
+        BaseExp->getStmtClass() == ObjCImplicitSetterGetterRefExprClass)
           return LV_SubObjCPropertySetting;
     return 
-      (BaseExp->getStmtClass() == ObjCImplicitSetterGetterRefExprClass) ?
-       LV_SubObjCPropertyGetterSetting : BaseExp->isLvalue(Ctx);        
+       BaseExp->isLvalue(Ctx);        
   }
   case UnaryOperatorClass:
     if (cast<UnaryOperator>(this)->getOpcode() == UnaryOperator::Deref)
@@ -1324,8 +1329,6 @@ Expr::isModifiableLvalue(ASTContext &Ctx, SourceLocation *Loc) const {
     return MLV_InvalidExpression;
   case LV_MemberFunction: return MLV_MemberFunction;
   case LV_SubObjCPropertySetting: return MLV_SubObjCPropertySetting;
-  case LV_SubObjCPropertyGetterSetting: 
-    return MLV_SubObjCPropertyGetterSetting;
   case LV_ClassTemporary:
     return MLV_ClassTemporary;
   }

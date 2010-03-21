@@ -31,6 +31,7 @@
 #include "clang/Lex/HeaderSearch.h"
 #include "clang/Lex/MacroInfo.h"
 #include "clang/Lex/Pragma.h"
+#include "clang/Lex/PreprocessingRecord.h"
 #include "clang/Lex/ScratchBuffer.h"
 #include "clang/Lex/LexDiagnostic.h"
 #include "clang/Basic/SourceManager.h"
@@ -53,7 +54,7 @@ Preprocessor::Preprocessor(Diagnostic &diags, const LangOptions &opts,
   : Diags(&diags), Features(opts), Target(target),FileMgr(Headers.getFileMgr()),
     SourceMgr(SM), HeaderInfo(Headers), ExternalSource(0),
     Identifiers(opts, IILookup), BuiltinInfo(Target), CodeCompletionFile(0),
-    CurPPLexer(0), CurDirLookup(0), Callbacks(0), MacroArgCache(0) {
+    CurPPLexer(0), CurDirLookup(0), Callbacks(0), MacroArgCache(0), Record(0) {
   ScratchBuf = new ScratchBuffer(SourceMgr);
   CounterValue = 0; // __COUNTER__ starts at 0.
   OwnsHeaderSearch = OwnsHeaders;
@@ -232,8 +233,9 @@ bool Preprocessor::SetCodeCompletionPoint(const FileEntry *File,
     return false;
 
   // Load the actual file's contents.
-  const MemoryBuffer *Buffer = SourceMgr.getMemoryBufferForFile(File);
-  if (!Buffer)
+  bool Invalid = false;
+  const MemoryBuffer *Buffer = SourceMgr.getMemoryBufferForFile(File, &Invalid);
+  if (Invalid)
     return true;
 
   // Find the byte position of the truncation point.
@@ -427,10 +429,11 @@ SourceLocation Preprocessor::AdvanceToTokenCharacter(SourceLocation TokStart,
   // Figure out how many physical characters away the specified instantiation
   // character is.  This needs to take into consideration newlines and
   // trigraphs.
-  const char *TokPtr = SourceMgr.getCharacterData(TokStart);
+  bool Invalid = false;
+  const char *TokPtr = SourceMgr.getCharacterData(TokStart, &Invalid);
 
   // If they request the first char of the token, we're trivially done.
-  if (CharNo == 0 && Lexer::isObviouslySimpleCharacter(*TokPtr))
+  if (Invalid || (CharNo == 0 && Lexer::isObviouslySimpleCharacter(*TokPtr)))
     return TokStart;
 
   unsigned PhysOffset = 0;
@@ -486,7 +489,7 @@ SourceLocation Preprocessor::getLocForEndOfToken(SourceLocation Loc,
 
 /// EnterMainSourceFile - Enter the specified FileID as the main source file,
 /// which implicitly adds the builtin defines etc.
-void Preprocessor::EnterMainSourceFile() {
+bool Preprocessor::EnterMainSourceFile() {
   // We do not allow the preprocessor to reenter the main file.  Doing so will
   // cause FileID's to accumulate information from both runs (e.g. #line
   // information) and predefined macros aren't guaranteed to be set properly.
@@ -495,8 +498,8 @@ void Preprocessor::EnterMainSourceFile() {
 
   // Enter the main file source buffer.
   std::string ErrorStr;
-  bool Res = EnterSourceFile(MainFileID, 0, ErrorStr);
-  assert(!Res && "Entering main file should not fail!");
+  if (EnterSourceFile(MainFileID, 0, ErrorStr))
+    return true;
 
   // Tell the header info that the main file was entered.  If the file is later
   // #imported, it won't be re-entered.
@@ -513,8 +516,7 @@ void Preprocessor::EnterMainSourceFile() {
   assert(!FID.isInvalid() && "Could not create FileID for predefines?");
 
   // Start parsing the predefines.
-  Res = EnterSourceFile(FID, 0, ErrorStr);
-  assert(!Res && "Entering predefines should not fail!");
+  return EnterSourceFile(FID, 0, ErrorStr);
 }
 
 
@@ -626,3 +628,11 @@ bool Preprocessor::HandleComment(Token &result, SourceRange Comment) {
 }
 
 CommentHandler::~CommentHandler() { }
+
+void Preprocessor::createPreprocessingRecord() {
+  if (Record)
+    return;
+  
+  Record = new PreprocessingRecord;
+  addPPCallbacks(Record);
+}

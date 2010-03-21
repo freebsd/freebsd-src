@@ -912,6 +912,8 @@ bool Sema::FindAllocationFunctions(SourceLocation StartLoc, SourceRange Range,
       = cast<CXXRecordDecl>(AllocType->getAs<RecordType>()->getDecl());
     LookupQualifiedName(FoundDelete, RD);
   }
+  if (FoundDelete.isAmbiguous())
+    return true; // FIXME: clean up expressions?
 
   if (FoundDelete.empty()) {
     DeclareGlobalNewDelete();
@@ -919,8 +921,10 @@ bool Sema::FindAllocationFunctions(SourceLocation StartLoc, SourceRange Range,
   }
 
   FoundDelete.suppressDiagnostics();
-  llvm::SmallVector<NamedDecl *, 4> Matches;
-  if (NumPlaceArgs > 1) {
+
+  llvm::SmallVector<std::pair<DeclAccessPair,FunctionDecl*>, 2> Matches;
+
+  if (NumPlaceArgs > 0) {
     // C++ [expr.new]p20:
     //   A declaration of a placement deallocation function matches the
     //   declaration of a placement allocation function if it has the
@@ -962,7 +966,7 @@ bool Sema::FindAllocationFunctions(SourceLocation StartLoc, SourceRange Range,
         Fn = cast<FunctionDecl>((*D)->getUnderlyingDecl());
 
       if (Context.hasSameType(Fn->getType(), ExpectedFunctionType))
-        Matches.push_back(Fn);
+        Matches.push_back(std::make_pair(D.getPair(), Fn));
     }
   } else {
     // C++ [expr.new]p20:
@@ -973,7 +977,7 @@ bool Sema::FindAllocationFunctions(SourceLocation StartLoc, SourceRange Range,
          D != DEnd; ++D) {
       if (FunctionDecl *Fn = dyn_cast<FunctionDecl>((*D)->getUnderlyingDecl()))
         if (isNonPlacementDeallocationFunction(Fn))
-          Matches.push_back(*D);
+          Matches.push_back(std::make_pair(D.getPair(), Fn));
     }
   }
 
@@ -982,8 +986,7 @@ bool Sema::FindAllocationFunctions(SourceLocation StartLoc, SourceRange Range,
   //   function, that function will be called; otherwise, no
   //   deallocation function will be called.
   if (Matches.size() == 1) {
-    // FIXME: Drops access, using-declaration info!
-    OperatorDelete = cast<FunctionDecl>(Matches[0]->getUnderlyingDecl());
+    OperatorDelete = Matches[0].second;
 
     // C++0x [expr.new]p20:
     //   If the lookup finds the two-parameter form of a usual
@@ -998,6 +1001,9 @@ bool Sema::FindAllocationFunctions(SourceLocation StartLoc, SourceRange Range,
                        PlaceArgs[NumPlaceArgs - 1]->getLocEnd());
       Diag(OperatorDelete->getLocation(), diag::note_previous_decl)
         << DeleteName;
+    } else {
+      CheckAllocationAccess(StartLoc, Range, FoundDelete.getNamingClass(),
+                            Matches[0].first);
     }
   }
 
@@ -1019,25 +1025,28 @@ bool Sema::FindAllocationOverload(SourceLocation StartLoc, SourceRange Range,
       << Name << Range;
   }
 
-  // FIXME: handle ambiguity
+  if (R.isAmbiguous())
+    return true;
+
+  R.suppressDiagnostics();
 
   OverloadCandidateSet Candidates(StartLoc);
   for (LookupResult::iterator Alloc = R.begin(), AllocEnd = R.end(); 
        Alloc != AllocEnd; ++Alloc) {
     // Even member operator new/delete are implicitly treated as
     // static, so don't use AddMemberCandidate.
+    NamedDecl *D = (*Alloc)->getUnderlyingDecl();
 
-    if (FunctionTemplateDecl *FnTemplate = 
-          dyn_cast<FunctionTemplateDecl>((*Alloc)->getUnderlyingDecl())) {
-      AddTemplateOverloadCandidate(FnTemplate, Alloc.getAccess(),
+    if (FunctionTemplateDecl *FnTemplate = dyn_cast<FunctionTemplateDecl>(D)) {
+      AddTemplateOverloadCandidate(FnTemplate, Alloc.getPair(),
                                    /*ExplicitTemplateArgs=*/0, Args, NumArgs,
                                    Candidates,
                                    /*SuppressUserConversions=*/false);
       continue;
     }
 
-    FunctionDecl *Fn = cast<FunctionDecl>((*Alloc)->getUnderlyingDecl());
-    AddOverloadCandidate(Fn, Alloc.getAccess(), Args, NumArgs, Candidates,
+    FunctionDecl *Fn = cast<FunctionDecl>(D);
+    AddOverloadCandidate(Fn, Alloc.getPair(), Args, NumArgs, Candidates,
                          /*SuppressUserConversions=*/false);
   }
 
@@ -1050,7 +1059,7 @@ bool Sema::FindAllocationOverload(SourceLocation StartLoc, SourceRange Range,
     // The first argument is size_t, and the first parameter must be size_t,
     // too. This is checked on declaration and can be assumed. (It can't be
     // asserted on, though, since invalid decls are left in there.)
-    // Whatch out for variadic allocator function.
+    // Watch out for variadic allocator function.
     unsigned NumArgsInFnDecl = FnDecl->getNumParams();
     for (unsigned i = 0; (i < NumArgs && i < NumArgsInFnDecl); ++i) {
       if (PerformCopyInitialization(Args[i],
@@ -1059,6 +1068,7 @@ bool Sema::FindAllocationOverload(SourceLocation StartLoc, SourceRange Range,
         return true;
     }
     Operator = FnDecl;
+    CheckAllocationAccess(StartLoc, Range, R.getNamingClass(), Best->FoundDecl);
     return false;
   }
 

@@ -14,7 +14,7 @@
 #include "Sema.h"
 #include "SemaInit.h"
 #include "Lookup.h"
-#include "clang/Analysis/AnalysisContext.h"
+#include "AnalysisBasedWarnings.h"
 #include "clang/AST/ASTContext.h"
 #include "clang/AST/DeclObjC.h"
 #include "clang/AST/DeclTemplate.h"
@@ -1691,7 +1691,7 @@ Sema::BuildDeclarationNameExpr(const CXXScopeSpec &SS,
       return ExprError();
     }
 
-    if (VD->getType()->isArrayType() && !VD->hasAttr<BlocksAttr>()) {
+    if (VD->getType()->isArrayType()) {
       Diag(Loc, diag::err_ref_array_type);
       Diag(D->getLocation(), diag::note_declared_at);
       return ExprError();
@@ -1751,7 +1751,10 @@ Sema::OwningExprResult Sema::ActOnPredefinedExpr(SourceLocation Loc,
 
 Sema::OwningExprResult Sema::ActOnCharacterConstant(const Token &Tok) {
   llvm::SmallString<16> CharBuffer;
-  llvm::StringRef ThisTok = PP.getSpelling(Tok, CharBuffer);
+  bool Invalid = false;
+  llvm::StringRef ThisTok = PP.getSpelling(Tok, CharBuffer, &Invalid);
+  if (Invalid)
+    return ExprError();
 
   CharLiteralParser Literal(ThisTok.begin(), ThisTok.end(), Tok.getLocation(),
                             PP);
@@ -1789,7 +1792,10 @@ Action::OwningExprResult Sema::ActOnNumericConstant(const Token &Tok) {
   const char *ThisTokBegin = &IntegerBuffer[0];
 
   // Get the spelling of the token, which eliminates trigraphs, etc.
-  unsigned ActualLength = PP.getSpelling(Tok, ThisTokBegin);
+  bool Invalid = false;
+  unsigned ActualLength = PP.getSpelling(Tok, ThisTokBegin, &Invalid);
+  if (Invalid)
+    return ExprError();
 
   NumericLiteralParser Literal(ThisTokBegin, ThisTokBegin+ActualLength,
                                Tok.getLocation(), PP);
@@ -4573,7 +4579,11 @@ Sema::CheckBlockPointerTypesForAssignment(QualType lhsType,
   if (lhptee.getLocalCVRQualifiers() != rhptee.getLocalCVRQualifiers())
     ConvTy = CompatiblePointerDiscardsQualifiers;
 
-  if (!Context.typesAreCompatible(lhptee, rhptee))
+  if (!getLangOptions().CPlusPlus) {
+    if (!Context.typesAreBlockPointerCompatible(lhsType, rhsType))
+      return IncompatibleBlockPointer;
+  }
+  else if (!Context.typesAreCompatible(lhptee, rhptee))
     return IncompatibleBlockPointer;
   return ConvTy;
 }
@@ -4582,8 +4592,18 @@ Sema::CheckBlockPointerTypesForAssignment(QualType lhsType,
 /// for assignment compatibility.
 Sema::AssignConvertType
 Sema::CheckObjCPointerTypesForAssignment(QualType lhsType, QualType rhsType) {
-  if (lhsType->isObjCBuiltinType() || rhsType->isObjCBuiltinType())
+  if (lhsType->isObjCBuiltinType()) {
+    // Class is not compatible with ObjC object pointers.
+    if (lhsType->isObjCClassType() && !rhsType->isObjCBuiltinType())
+      return IncompatiblePointer;
     return Compatible;
+  }
+  if (rhsType->isObjCBuiltinType()) {
+    // Class is not compatible with ObjC object pointers.
+    if (rhsType->isObjCClassType() && !lhsType->isObjCBuiltinType())
+      return IncompatiblePointer;
+    return Compatible;
+  }
   QualType lhptee =
   lhsType->getAs<ObjCObjectPointerType>()->getPointeeType();
   QualType rhptee =
@@ -5779,9 +5799,6 @@ static bool CheckForModifiableLvalue(Expr *E, SourceLocation Loc, Sema &S) {
     break;
   case Expr::MLV_SubObjCPropertySetting:
     Diag = diag::error_no_subobject_property_setting;
-    break;
-  case Expr::MLV_SubObjCPropertyGetterSetting:
-    Diag = diag::error_no_subobject_property_getter_setting;
     break;
   }
 
@@ -6986,9 +7003,10 @@ Sema::OwningExprResult Sema::ActOnBlockStmtExpr(SourceLocation CaretLoc,
     return ExprError();
   }
 
-  AnalysisContext AC(BSI->TheDecl);
-  CheckFallThroughForBlock(BlockTy, BSI->TheDecl->getBody(), AC);
-  CheckUnreachable(AC);
+  // Issue any analysis-based warnings.
+  sema::AnalysisBasedWarnings W(*this);
+  W.IssueWarnings(BSI->TheDecl, BlockTy);
+
   Expr *Result = new (Context) BlockExpr(BSI->TheDecl, BlockTy,
                                          BSI->hasBlockDeclRefExprs);
   PopFunctionOrBlockScope();

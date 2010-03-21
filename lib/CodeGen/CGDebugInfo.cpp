@@ -104,11 +104,19 @@ llvm::DIFile CGDebugInfo::getOrCreateFile(SourceLocation Loc) {
 void CGDebugInfo::CreateCompileUnit() {
 
   // Get absolute path name.
+  SourceManager &SM = CGM.getContext().getSourceManager();
   std::string MainFileName = CGM.getCodeGenOpts().MainFileName;
   if (MainFileName.empty())
     MainFileName = "<unknown>";
+
   llvm::sys::Path AbsFileName(MainFileName);
   AbsFileName.makeAbsolute();
+
+  std::string MainFileDir;
+  if (const FileEntry *MainFile = SM.getFileEntryForID(SM.getMainFileID()))
+    MainFileDir = MainFile->getDir()->getName();
+  else
+    MainFileDir = AbsFileName.getDirname();
 
   unsigned LangTag;
   const LangOptions &LO = CGM.getLangOptions();
@@ -138,7 +146,7 @@ void CGDebugInfo::CreateCompileUnit() {
 
   // Create new compile unit.
   TheCU = DebugFactory.CreateCompileUnit(
-    LangTag, AbsFileName.getLast(), AbsFileName.getDirname(), Producer, true,
+    LangTag, AbsFileName.getLast(), MainFileDir, Producer, true,
     LO.Optimize, CGM.getCodeGenOpts().DwarfDebugFlags, RuntimeVers);
 }
 
@@ -561,13 +569,13 @@ CGDebugInfo::CreateCXXMemberFunction(const CXXMethodDecl *Method,
     isa<CXXConstructorDecl>(Method) || isa<CXXDestructorDecl>(Method);
   
   llvm::StringRef MethodName = getFunctionName(Method);
-  llvm::StringRef MethodLinkageName;
   llvm::DIType MethodTy = getOrCreateMethodType(Method, Unit);
   
   // Since a single ctor/dtor corresponds to multiple functions, it doesn't
   // make sense to give a single ctor/dtor a linkage name.
+  MangleBuffer MethodLinkageName;
   if (!IsCtorOrDtor)
-    MethodLinkageName = CGM.getMangledName(Method);
+    CGM.getMangledName(MethodLinkageName, Method);
 
   SourceManager &SM = CGM.getContext().getSourceManager();
 
@@ -1299,7 +1307,7 @@ void CGDebugInfo::EmitFunctionStart(GlobalDecl GD, QualType FnType,
                                     CGBuilderTy &Builder) {
 
   llvm::StringRef Name;
-  llvm::StringRef LinkageName;
+  MangleBuffer LinkageName;
 
   const Decl *D = GD.getDecl();
   if (const FunctionDecl *FD = dyn_cast<FunctionDecl>(D)) {
@@ -1318,11 +1326,11 @@ void CGDebugInfo::EmitFunctionStart(GlobalDecl GD, QualType FnType,
     if (!Name.empty() && Name[0] == '\01')
       Name = Name.substr(1);
     // Use mangled name as linkage name for c/c++ functions.
-    LinkageName = CGM.getMangledName(GD);
+    CGM.getMangledName(LinkageName, GD);
   } else {
     // Use llvm function name as linkage name.
     Name = Fn->getName();
-    LinkageName = Name;
+    LinkageName.setString(Name);
     if (!Name.empty() && Name[0] == '\01')
       Name = Name.substr(1);
   }

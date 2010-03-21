@@ -154,6 +154,10 @@ static void CodeGenOptsToArgs(const CodeGenOptions &Opts,
     Res.push_back("-mcode-model");
     Res.push_back(Opts.CodeModel);
   }
+  if (!Opts.CXAAtExit)
+    Res.push_back("-fno-use-cxa-atexit");
+  if (Opts.CXXCtorDtorAliases)
+    Res.push_back("-mconstructor-aliases");
   if (!Opts.DebugPass.empty()) {
     Res.push_back("-mdebug-pass");
     Res.push_back(Opts.DebugPass);
@@ -180,8 +184,6 @@ static void CodeGenOptsToArgs(const CodeGenOptions &Opts,
     Res.push_back("-mrelocation-model");
     Res.push_back(Opts.RelocationModel);
   }
-  if (Opts.CXXCtorDtorAliases)
-    Res.push_back("-mconstructor-aliases");
   if (!Opts.VerifyModule)
     Res.push_back("-disable-llvm-verifier");
 }
@@ -288,6 +290,7 @@ static const char *getActionName(frontend::ActionKind Kind) {
   case frontend::FixIt:                  return "-fixit";
   case frontend::GeneratePCH:            return "-emit-pch";
   case frontend::GeneratePTH:            return "-emit-pth";
+  case frontend::InitOnly:               return "-init-only";
   case frontend::ParseNoop:              return "-parse-noop";
   case frontend::ParsePrintCallbacks:    return "-parse-print-callbacks";
   case frontend::ParseSyntaxOnly:        return "-fsyntax-only";
@@ -310,8 +313,6 @@ static void FrontendOptsToArgs(const FrontendOptions &Opts,
     Res.push_back("-no-code-completion-debug-printer");
   if (Opts.DisableFree)
     Res.push_back("-disable-free");
-  if (Opts.EmptyInputOnly)
-    Res.push_back("-empty-input-only");
   if (Opts.RelocatablePCH)
     Res.push_back("-relocatable-pch");
   if (Opts.ShowHelp)
@@ -575,6 +576,8 @@ static void PreprocessorOptsToArgs(const PreprocessorOptions &Opts,
   }
   if (!Opts.UsePredefines)
     Res.push_back("-undef");
+  if (Opts.DetailedRecord)
+    Res.push_back("-detailed-preprocessing-record");
   if (!Opts.ImplicitPCHInclude.empty()) {
     Res.push_back("-include-pch");
     Res.push_back(Opts.ImplicitPCHInclude);
@@ -783,6 +786,8 @@ static void ParseCodeGenArgs(CodeGenOptions &Opts, ArgList &Args,
   Opts.UnrollLoops = (Opts.OptimizationLevel > 1 && !Opts.OptimizeSize);
 
   Opts.AsmVerbose = Args.hasArg(OPT_masm_verbose);
+  Opts.CXAAtExit = !Args.hasArg(OPT_fno_use_cxa_atexit);
+  Opts.CXXCtorDtorAliases = Args.hasArg(OPT_mconstructor_aliases);
   Opts.CodeModel = getLastArgValue(Args, OPT_mcode_model);
   Opts.DebugPass = getLastArgValue(Args, OPT_mdebug_pass);
   Opts.DisableFPElim = Args.hasArg(OPT_mdisable_fp_elim);
@@ -793,7 +798,6 @@ static void ParseCodeGenArgs(CodeGenOptions &Opts, ArgList &Args,
   Opts.SoftFloat = Args.hasArg(OPT_msoft_float);
   Opts.UnwindTables = Args.hasArg(OPT_munwind_tables);
   Opts.RelocationModel = getLastArgValue(Args, OPT_mrelocation_model, "pic");
-  Opts.CXXCtorDtorAliases = Args.hasArg(OPT_mconstructor_aliases);
 
   Opts.MainFileName = getLastArgValue(Args, OPT_main_file_name);
   Opts.VerifyModule = !Args.hasArg(OPT_disable_llvm_verifier);
@@ -876,6 +880,8 @@ ParseFrontendArgs(FrontendOptions &Opts, ArgList &Args, Diagnostic &Diags) {
       Opts.ProgramAction = frontend::GeneratePCH; break;
     case OPT_emit_pth:
       Opts.ProgramAction = frontend::GeneratePTH; break;
+    case OPT_init_only:
+      Opts.ProgramAction = frontend::InitOnly; break;
     case OPT_parse_noop:
       Opts.ProgramAction = frontend::ParseNoop; break;
     case OPT_parse_print_callbacks:
@@ -913,7 +919,6 @@ ParseFrontendArgs(FrontendOptions &Opts, ArgList &Args, Diagnostic &Diags) {
   Opts.DebugCodeCompletionPrinter =
     !Args.hasArg(OPT_no_code_completion_debug_printer);
   Opts.DisableFree = Args.hasArg(OPT_disable_free);
-  Opts.EmptyInputOnly = Args.hasArg(OPT_empty_input_only);
 
   Opts.FixItLocations.clear();
   for (arg_iterator it = Args.filtered_begin(OPT_fixit_at),
@@ -1232,7 +1237,7 @@ static void ParsePreprocessorArgs(PreprocessorOptions &Opts, ArgList &Args,
   else
     Opts.TokenCache = Opts.ImplicitPTHInclude;
   Opts.UsePredefines = !Args.hasArg(OPT_undef);
-
+  Opts.DetailedRecord = Args.hasArg(OPT_detailed_preprocessing_record);
   // Add macros from the command line.
   for (arg_iterator it = Args.filtered_begin(OPT_D, OPT_U),
          ie = Args.filtered_end(); it != ie; ++it) {
