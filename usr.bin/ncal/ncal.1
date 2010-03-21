@@ -60,6 +60,10 @@
 .Op Fl A Ar number
 .Op Fl B Ar number
 .Op Ar year
+.Nm ncal
+.Op Fl CN
+.Op Fl H Ar yyyy-mm-dd
+.Op Fl d Ar yyyy-mm
 .Sh DESCRIPTION
 The
 .Nm
@@ -127,8 +131,14 @@ of months after the current month.
 Display the
 .Ar number
 of months before the current month.
-.It Fl b
-Switch to backwards compatibility mode (for debugging).
+.It Fl C
+Switch to
+.Nm cal
+mode.
+.It Fl N
+Switch to
+.Nm ncal
+mode.
 .It Fl d Ar yyyy-mm
 Use
 .Ar yyyy-mm
