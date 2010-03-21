@@ -128,6 +128,8 @@ linux_common_open(struct thread *td, int dirfd, char *path, int l_flags, int mod
 	bsd_flags |= O_DIRECT;
     if (l_flags & LINUX_O_NOFOLLOW)
 	bsd_flags |= O_NOFOLLOW;
+    if (l_flags & LINUX_O_DIRECTORY)
+	bsd_flags |= O_DIRECTORY;
     /* XXX LINUX_O_NOATIME: unable to be easily implemented. */
 
     error = kern_openat(td, dirfd, path, UIO_SYSSPACE, bsd_flags, mode);
@@ -153,12 +155,6 @@ linux_common_open(struct thread *td, int dirfd, char *path, int l_flags, int mod
 		    } else {
 			    PROC_UNLOCK(p);
 			    sx_sunlock(&proctree_lock);
-		    }
-		    if (l_flags & LINUX_O_DIRECTORY) {
-			    if (fp->f_type != DTYPE_VNODE ||
-				fp->f_vnode->v_type != VDIR) {
-				    error = ENOTDIR;
-			    }
 		    }
 		    fdrop(fp, td);
 		    /*
