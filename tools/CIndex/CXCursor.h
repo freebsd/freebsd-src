@@ -25,6 +25,8 @@ class ASTUnit;
 class Attr;
 class Decl;
 class Expr;
+class MacroDefinition;
+class MacroInstantiation;
 class NamedDecl;
 class ObjCInterfaceDecl;
 class ObjCProtocolDecl;
@@ -72,6 +74,26 @@ CXCursor MakeCursorTypeRef(TypeDecl *Type, SourceLocation Loc, ASTUnit *TU);
 /// \brief Unpack a TypeRef cursor into the class it references
 /// and optionally the location where the reference occurred.
 std::pair<TypeDecl *, SourceLocation> getCursorTypeRef(CXCursor C);
+
+/// \brief Create a preprocessing directive cursor.
+CXCursor MakePreprocessingDirectiveCursor(SourceRange Range, ASTUnit *TU);
+
+/// \brief Unpack a given preprocessing directive to retrieve its source range.
+SourceRange getCursorPreprocessingDirective(CXCursor C);
+
+/// \brief Create a macro definition cursor.
+CXCursor MakeMacroDefinitionCursor(MacroDefinition *, ASTUnit *TU);
+
+/// \brief Unpack a given macro definition cursor to retrieve its
+/// source range.
+MacroDefinition *getCursorMacroDefinition(CXCursor C);
+
+/// \brief Create a macro instantiation cursor.
+CXCursor MakeMacroInstantiationCursor(MacroInstantiation *, ASTUnit *TU);
+
+/// \brief Unpack a given macro instantiation cursor to retrieve its
+/// source range.
+MacroInstantiation *getCursorMacroInstantiation(CXCursor C);
 
 Decl *getCursorDecl(CXCursor Cursor);
 Expr *getCursorExpr(CXCursor Cursor);

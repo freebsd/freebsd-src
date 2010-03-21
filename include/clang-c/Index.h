@@ -728,7 +728,8 @@ enum CXCursorKind {
   CXCursor_InvalidFile                   = 70,
   CXCursor_NoDeclFound                   = 71,
   CXCursor_NotImplemented                = 72,
-  CXCursor_LastInvalid                   = 72,
+  CXCursor_InvalidCode                   = 73,
+  CXCursor_LastInvalid                   = CXCursor_InvalidCode,
 
   /* Expressions */
   CXCursor_FirstExpr                     = 100,
@@ -796,7 +797,14 @@ enum CXCursorKind {
 
   CXCursor_IBActionAttr                  = 401,
   CXCursor_IBOutletAttr                  = 402,
-  CXCursor_LastAttr                      = CXCursor_IBOutletAttr
+  CXCursor_LastAttr                      = CXCursor_IBOutletAttr,
+     
+  /* Preprocessing */
+  CXCursor_PreprocessingDirective        = 500,
+  CXCursor_MacroDefinition               = 501,
+  CXCursor_MacroInstantiation            = 502,
+  CXCursor_FirstPreprocessing            = CXCursor_PreprocessingDirective,
+  CXCursor_LastPreprocessing             = CXCursor_MacroInstantiation
 };
 
 /**
@@ -888,6 +896,12 @@ CINDEX_LINKAGE unsigned clang_isInvalid(enum CXCursorKind);
  */
 CINDEX_LINKAGE unsigned clang_isTranslationUnit(enum CXCursorKind);
 
+/***
+ * \brief Determine whether the given cursor represents a preprocessing
+ * element, such as a preprocessor directive or macro instantiation.
+ */
+CINDEX_LINKAGE unsigned clang_isPreprocessing(enum CXCursorKind);
+  
 /***
  * \brief Determine whether the given cursor represents a currently
  *  unexposed piece of the AST (e.g., CXCursor_UnexposedStmt).

@@ -14,12 +14,14 @@
 #ifndef LLVM_CLANG_FRONTEND_ASTUNIT_H
 #define LLVM_CLANG_FRONTEND_ASTUNIT_H
 
+#include "clang/Lex/PreprocessingRecord.h"
 #include "clang/Basic/SourceManager.h"
 #include "llvm/ADT/OwningPtr.h"
 #include "clang/Basic/FileManager.h"
 #include "clang/Index/ASTLocation.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/System/Path.h"
+#include <map>
 #include <string>
 #include <vector>
 #include <cassert>
@@ -46,6 +48,11 @@ using namespace idx;
 /// \brief Utility class for loading a ASTContext from a PCH file.
 ///
 class ASTUnit {
+public:
+  typedef std::map<FileID, std::vector<PreprocessedEntity *> > 
+    PreprocessedEntitiesByFileMap;
+private:
+  
   FileManager FileMgr;
 
   SourceManager                     SourceMgr;
@@ -53,7 +60,7 @@ class ASTUnit {
   llvm::OwningPtr<TargetInfo>       Target;
   llvm::OwningPtr<Preprocessor>     PP;
   llvm::OwningPtr<ASTContext>       Ctx;
-
+  
   /// Optional owned invocation, just used to make the invocation used in
   /// LoadFromCommandLine available.
   llvm::OwningPtr<CompilerInvocation> Invocation;
@@ -89,6 +96,15 @@ class ASTUnit {
   /// destroyed.
   llvm::SmallVector<llvm::sys::Path, 4> TemporaryFiles;
 
+  /// \brief A mapping from file IDs to the set of preprocessed entities
+  /// stored in that file. 
+  ///
+  /// FIXME: This is just an optimization hack to avoid searching through
+  /// many preprocessed entities during cursor traversal in the CIndex library.
+  /// Ideally, we would just be able to perform a binary search within the
+  /// list of preprocessed entities.
+  PreprocessedEntitiesByFileMap PreprocessedEntitiesByFile;
+  
   /// \brief Simple hack to allow us to assert that ASTUnit is not being
   /// used concurrently, which is not supported.
   ///
@@ -162,6 +178,12 @@ public:
     return TopLevelDecls;
   }
 
+  /// \brief Retrieve the mapping from File IDs to the preprocessed entities
+  /// within that file.
+  PreprocessedEntitiesByFileMap &getPreprocessedEntitiesByFile() {
+    return PreprocessedEntitiesByFile;
+  }
+  
   // Retrieve the diagnostics associated with this AST
   typedef const StoredDiagnostic * diag_iterator;
   diag_iterator diag_begin() const { return Diagnostics.begin(); }

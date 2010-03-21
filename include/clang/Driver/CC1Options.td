@@ -227,8 +227,6 @@ def code_completion_macros : Flag<"-code-completion-macros">,
   HelpText<"Include macros in code-completion results">;
 def disable_free : Flag<"-disable-free">,
   HelpText<"Disable freeing of memory on exit">;
-def empty_input_only : Flag<"-empty-input-only">,
-  HelpText<"Force running on an empty input file">;
 def help : Flag<"-help">,
   HelpText<"Print this help text">;
 def _help : Flag<"--help">, Alias<help>;
@@ -262,6 +260,8 @@ def analyze : Flag<"-analyze">,
   HelpText<"Run static analysis engine">;
 def dump_tokens : Flag<"-dump-tokens">,
   HelpText<"Run preprocessor, dump internal rep of tokens">;
+def init_only : Flag<"-init-only">,
+  HelpText<"Only execute frontend initialization">;
 def parse_noop : Flag<"-parse-noop">,
   HelpText<"Run parser with noop callbacks (for timings)">;
 def fsyntax_only : Flag<"-fsyntax-only">,
@@ -355,10 +355,12 @@ def fno_elide_constructors : Flag<"-fno-elide-constructors">,
   HelpText<"Disable C++ copy constructor elision">;
 def fno_lax_vector_conversions : Flag<"-fno-lax-vector-conversions">,
   HelpText<"Disallow implicit conversions between vectors with a different number of elements or different element types">;
-def fno_signed_char : Flag<"-fno-signed-char">,
-  HelpText<"Char is unsigned">;
 def fno_operator_names : Flag<"-fno-operator-names">,
   HelpText<"Do not treat C++ operator name keywords as synonyms for operators">;
+def fno_signed_char : Flag<"-fno-signed-char">,
+  HelpText<"Char is unsigned">;
+def fno_use_cxa_atexit : Flag<"-fno-use-cxa-atexit">,
+  HelpText<"Don't use __cxa_atexit for calling destructors">;
 def fconstant_string_class : Separate<"-fconstant-string-class">,
   MetaVarName<"<class name>">,
   HelpText<"Specify the class to use for constant Objective-C string objects.">;
@@ -448,7 +450,9 @@ def U : JoinedOrSeparate<"-U">, MetaVarName<"<macro>">,
   HelpText<"Undefine the specified macro">;
 def undef : Flag<"-undef">, MetaVarName<"<macro>">,
   HelpText<"undef all system defines">;
-
+def detailed_preprocessing_record : Flag<"-detailed-preprocessing-record">,
+  HelpText<"include a detailed record of preprocessing actions">;
+  
 //===----------------------------------------------------------------------===//
 // Preprocessed Output Options
 //===----------------------------------------------------------------------===//

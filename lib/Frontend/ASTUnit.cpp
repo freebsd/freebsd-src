@@ -83,7 +83,7 @@ public:
     return false;
   }
 
-  virtual void ReadHeaderFileInfo(const HeaderFileInfo &HFI) {
+  virtual void ReadHeaderFileInfo(const HeaderFileInfo &HFI, unsigned ID) {
     HSI.setHeaderFileInfoForUID(HFI, NumHeaderInfos++);
   }
 
@@ -293,8 +293,6 @@ ASTUnit *ASTUnit::LoadFromCompilerInvocation(CompilerInvocation *CI,
   Clang.setTarget(TargetInfo::CreateTargetInfo(Clang.getDiagnostics(),
                                                Clang.getTargetOpts()));
   if (!Clang.hasTarget()) {
-    Clang.takeSourceManager();
-    Clang.takeFileManager();
     Clang.takeDiagnosticClient();
     Clang.takeDiagnostics();
     return 0;

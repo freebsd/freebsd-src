@@ -42,7 +42,6 @@ namespace llvm {
 }
 
 namespace clang {
-  class AnalysisContext;
   class ASTContext;
   class ASTConsumer;
   class CodeCompleteConsumer;
@@ -318,6 +317,14 @@ public:
                    NamedDecl *Target)
       : Access(Access), IsMember(true), 
         Target(Target), NamingClass(NamingClass),
+        Diag(0) {
+    }
+
+    AccessedEntity(MemberNonce _,
+                   CXXRecordDecl *NamingClass,
+                   DeclAccessPair FoundDecl)
+      : Access(FoundDecl.getAccess()), IsMember(true), 
+        Target(FoundDecl.getDecl()), NamingClass(NamingClass),
         Diag(0) {
     }
 
@@ -678,8 +685,6 @@ public:
   /// WeakTopLevelDeclDecls - access to #pragma weak-generated Decls
   llvm::SmallVector<Decl*,2> &WeakTopLevelDecls() { return WeakTopLevelDecl; }
 
-  virtual void ActOnComment(SourceRange Comment);
-
   //===--------------------------------------------------------------------===//
   // Type Analysis / Processing: SemaType.cpp.
   //
@@ -778,6 +783,7 @@ public:
                                         const LookupResult &Previous,
                                         Scope *S);
   void DiagnoseFunctionSpecifiers(Declarator& D);
+  void DiagnoseShadow(Scope *S, Declarator &D, const LookupResult& R);
   NamedDecl* ActOnTypedefDeclarator(Scope* S, Declarator& D, DeclContext* DC,
                                     QualType R, TypeSourceInfo *TInfo,
                                     LookupResult &Previous, bool &Redeclaration);
@@ -937,6 +943,10 @@ public:
   /// the definition of a tag (enumeration, class, struct, or union).
   virtual void ActOnTagFinishDefinition(Scope *S, DeclPtrTy TagDecl,
                                         SourceLocation RBraceLoc);
+
+  /// ActOnTagDefinitionError - Invoked when there was an unrecoverable
+  /// error parsing the definition of a tag.
+  virtual void ActOnTagDefinitionError(Scope *S, DeclPtrTy TagDecl);
 
   EnumConstantDecl *CheckEnumConstant(EnumDecl *Enum,
                                       EnumConstantDecl *LastEnumConst,
@@ -1126,12 +1136,12 @@ public:
   typedef llvm::SmallPtrSet<CXXRecordDecl *, 16> AssociatedClassSet;
 
   void AddOverloadCandidate(NamedDecl *Function,
-                            AccessSpecifier Access,
+                            DeclAccessPair FoundDecl,
                             Expr **Args, unsigned NumArgs,
                             OverloadCandidateSet &CandidateSet);
 
   void AddOverloadCandidate(FunctionDecl *Function,
-                            AccessSpecifier Access,
+                            DeclAccessPair FoundDecl,
                             Expr **Args, unsigned NumArgs,
                             OverloadCandidateSet& CandidateSet,
                             bool SuppressUserConversions = false,
@@ -1141,20 +1151,21 @@ public:
                              Expr **Args, unsigned NumArgs,
                              OverloadCandidateSet& CandidateSet,
                              bool SuppressUserConversions = false);
-  void AddMethodCandidate(NamedDecl *Decl, AccessSpecifier Access,
+  void AddMethodCandidate(DeclAccessPair FoundDecl,
                           QualType ObjectType,
                           Expr **Args, unsigned NumArgs,
                           OverloadCandidateSet& CandidateSet,
                           bool SuppressUserConversion = false,
                           bool ForceRValue = false);
-  void AddMethodCandidate(CXXMethodDecl *Method, AccessSpecifier Access,
+  void AddMethodCandidate(CXXMethodDecl *Method,
+                          DeclAccessPair FoundDecl,
                           CXXRecordDecl *ActingContext, QualType ObjectType,
                           Expr **Args, unsigned NumArgs,
                           OverloadCandidateSet& CandidateSet,
                           bool SuppressUserConversions = false,
                           bool ForceRValue = false);
   void AddMethodTemplateCandidate(FunctionTemplateDecl *MethodTmpl,
-                                  AccessSpecifier Access,
+                                  DeclAccessPair FoundDecl,
                                   CXXRecordDecl *ActingContext,
                          const TemplateArgumentListInfo *ExplicitTemplateArgs,
                                   QualType ObjectType,
@@ -1163,24 +1174,24 @@ public:
                                   bool SuppressUserConversions = false,
                                   bool ForceRValue = false);
   void AddTemplateOverloadCandidate(FunctionTemplateDecl *FunctionTemplate,
-                                    AccessSpecifier Access,
+                                    DeclAccessPair FoundDecl,
                       const TemplateArgumentListInfo *ExplicitTemplateArgs,
                                     Expr **Args, unsigned NumArgs,
                                     OverloadCandidateSet& CandidateSet,
                                     bool SuppressUserConversions = false,
                                     bool ForceRValue = false);
   void AddConversionCandidate(CXXConversionDecl *Conversion,
-                              AccessSpecifier Access,
+                              DeclAccessPair FoundDecl,
                               CXXRecordDecl *ActingContext,
                               Expr *From, QualType ToType,
                               OverloadCandidateSet& CandidateSet);
   void AddTemplateConversionCandidate(FunctionTemplateDecl *FunctionTemplate,
-                                      AccessSpecifier Access,
+                                      DeclAccessPair FoundDecl,
                                       CXXRecordDecl *ActingContext,
                                       Expr *From, QualType ToType,
                                       OverloadCandidateSet &CandidateSet);
   void AddSurrogateCandidate(CXXConversionDecl *Conversion,
-                             AccessSpecifier Access,
+                             DeclAccessPair FoundDecl,
                              CXXRecordDecl *ActingContext,
                              const FunctionProtoType *Proto,
                              QualType ObjectTy, Expr **Args, unsigned NumArgs,
@@ -1284,9 +1295,6 @@ public:
   OwningExprResult BuildOverloadedArrowExpr(Scope *S, ExprArg Base,
                                             SourceLocation OpLoc);
 
-  /// CheckUnreachable - Check for unreachable code.
-  void CheckUnreachable(AnalysisContext &);
-
   /// CheckCallReturnType - Checks that a call expression's return type is
   /// complete. Returns true on failure. The location passed in is the location
   /// that best represents the call.
@@ -1294,15 +1302,9 @@ public:
                            CallExpr *CE, FunctionDecl *FD);
                            
   /// Helpers for dealing with blocks and functions.
-  void CheckFallThroughForFunctionDef(Decl *D, Stmt *Body, AnalysisContext &);
-  void CheckFallThroughForBlock(QualType BlockTy, Stmt *, AnalysisContext &);
   bool CheckParmsForFunctionDef(FunctionDecl *FD);
   void CheckCXXDefaultArguments(FunctionDecl *FD);
   void CheckExtraCXXDefaultArguments(Declarator &D);
-  enum ControlFlowKind { NeverFallThrough = 0, MaybeFallThrough = 1,
-                         AlwaysFallThrough = 2, NeverFallThroughOrReturn = 3 };
-  ControlFlowKind CheckFallThrough(AnalysisContext &);
-
   Scope *getNonFieldDeclScope(Scope *S);
 
   /// \name Name lookup
@@ -2473,10 +2475,11 @@ public:
                                    bool IsImplicitConstructor,
                                    bool AnyErrors);
 
-  /// MarkBaseAndMemberDestructorsReferenced - Given a destructor decl,
-  /// mark all its non-trivial member and base destructor declarations
-  /// as referenced.
-  void MarkBaseAndMemberDestructorsReferenced(CXXDestructorDecl *Destructor);
+  /// MarkBaseAndMemberDestructorsReferenced - Given a record decl,
+  /// mark all the non-trivial destructors of its members and bases as
+  /// referenced.
+  void MarkBaseAndMemberDestructorsReferenced(SourceLocation Loc,
+                                              CXXRecordDecl *Record);
 
   /// ClassesWithUnmarkedVirtualMembers - Contains record decls whose virtual
   /// members need to be marked as referenced at the end of the translation
@@ -2617,11 +2620,13 @@ public:
                                 AccessSpecifier LexicalAS);
 
   AccessResult CheckUnresolvedMemberAccess(UnresolvedMemberExpr *E,
-                                           NamedDecl *D,
-                                           AccessSpecifier Access);
+                                           DeclAccessPair FoundDecl);
   AccessResult CheckUnresolvedLookupAccess(UnresolvedLookupExpr *E,
-                                           NamedDecl *D,
-                                           AccessSpecifier Access);
+                                           DeclAccessPair FoundDecl);
+  AccessResult CheckAllocationAccess(SourceLocation OperatorLoc,
+                                     SourceRange PlacementRange,
+                                     CXXRecordDecl *NamingClass,
+                                     DeclAccessPair FoundDecl);
   AccessResult CheckConstructorAccess(SourceLocation Loc,
                                       CXXConstructorDecl *D,
                                       AccessSpecifier Access);
@@ -2634,8 +2639,7 @@ public:
   AccessResult CheckMemberOperatorAccess(SourceLocation Loc,
                                          Expr *ObjectExpr,
                                          Expr *ArgExpr,
-                                         NamedDecl *D,
-                                         AccessSpecifier Access);
+                                         DeclAccessPair FoundDecl);
   AccessResult CheckBaseClassAccess(SourceLocation AccessLoc,
                                     QualType Base, QualType Derived,
                                     const CXXBasePath &Path,

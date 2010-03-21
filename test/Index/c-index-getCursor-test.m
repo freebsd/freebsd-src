@@ -1,4 +1,4 @@
-// RUN: %clang_cc1 -triple x86_64-apple-darwin10 -fobjc-nonfragile-abi -fblocks -emit-pch -x objective-c %s -o %t.ast
+// RUN: %clang_cc1 -triple x86_64-apple-darwin10 -fobjc-nonfragile-abi -fblocks -emit-pch -x objective-c %s -detailed-preprocessing-record -o %t.ast
 // RUN: c-index-test -test-file-scan %t.ast %s | FileCheck %s
 @interface Foo 
 {
@@ -51,6 +51,13 @@ int main (int argc, const char * argv[]) {
 	[bee catMethodWithFloat:[bee floatMethod]];
   main(someEnum, (const char **)bee);
 }
+
+#define CONCAT(X, Y) X##Y
+
+void f() {
+   int CONCAT(my,_var);
+}
+#undef CONCAT
 
 // CHECK: [1:1 - 3:1] Invalid Cursor => NoDeclFound
 // CHECK: [3:1 - 7:1] ObjCInterfaceDecl=Foo:3:12
@@ -155,3 +162,7 @@ int main (int argc, const char * argv[]) {
 // CHECK: [52:33 - 52:36] DeclRefExpr=bee:45:8
 // CHECK: [52:36 - 52:37] CallExpr=main:44:5
 // CHECK: [52:37 - 53:2] UnexposedStmt=
+// CHECK: [55:9 - 55:26] macro definition=CONCAT
+// CHECK: [57:6 - 57:10] FunctionDecl=f:57:6 (Definition)
+// CHECK: [58:4 - 58:8] VarDecl=my_var:58:8 (Definition)
+// CHECK: [58:8 - 58:14] macro instantiation=CONCAT:55:9
