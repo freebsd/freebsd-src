@@ -62,6 +62,14 @@ struct g_command class_commands[] = {
 		"clear", G_FLAG_VERBOSE, mp_main, G_NULL_OPTS,
 		NULL, "[-v] prov ..."
 	},
+	{
+		"rotate", G_FLAG_VERBOSE, NULL, G_NULL_OPTS,
+		NULL, "[-v] prov ..."
+	},
+	{
+		"getactive", G_FLAG_VERBOSE, NULL, G_NULL_OPTS,
+		NULL, "[-v] prov ..."
+	},
 	G_CMD_SENTINEL
 };
 
