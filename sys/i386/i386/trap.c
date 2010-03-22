@@ -540,6 +540,10 @@ trap(struct trapframe *frame)
 			 * XXX this should be fatal unless the kernel has
 			 * registered such use.
 			 */
+			printf("npxdna in kernel mode!\n");
+#ifdef KDB
+			kdb_backtrace();
+#endif
 			if (npxdna())
 				goto out;
 #endif
