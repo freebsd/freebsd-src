@@ -288,30 +288,32 @@ void
 ia64_handle_intr(struct trapframe *tf)
 {
 	struct thread *td;
-	u_int rfi, xiv;
+	u_int xiv;
 
 	td = curthread;
 	ia64_set_fpsr(IA64_FPSR_DEFAULT);
 	PCPU_INC(cnt.v_intr);
 
-	xiv = tf->tf_special.ifa;
+	xiv = ia64_get_ivr();
+	ia64_srlz_d();
 	if (xiv == 15) {
 		PCPU_INC(md.stats.pcs_nstrays);
 		goto out;
 	}
 
-	while (xiv != 15) {
-		CTR1(KTR_INTR, "INTR: XIV=%u", xiv);
-		critical_enter();
-		rfi = (ia64_handler[xiv])(td, xiv, tf);
-		if (rfi) {
-			critical_exit();
-			return;
-		}
-		xiv = ia64_get_ivr();
-		critical_exit();
+	critical_enter();
+
+	do {
+		CTR2(KTR_INTR, "INTR: ITC=%u, XIV=%u",
+		    (u_int)tf->tf_special.ifa, xiv);
+		(ia64_handler[xiv])(td, xiv, tf);
+		ia64_set_eoi(0);
 		ia64_srlz_d();
-	}
+		xiv = ia64_get_ivr();
+		ia64_srlz_d();
+	} while (xiv != 15);
+
+	critical_exit();
 
  out:
 	if (TRAPF_USERMODE(tf)) {
@@ -327,10 +329,8 @@ static u_int
 ia64_ih_invalid(struct thread *td, u_int xiv, struct trapframe *tf)
 {
 
-	ia64_set_eoi(0);
-	ia64_srlz_d();
 	panic("invalid XIV: %u", xiv);
-	return (1);
+	return (0);
 }
 
 static u_int
@@ -354,8 +354,7 @@ ia64_ih_irq(struct thread *td, u_int xiv, struct trapframe *tf)
 		ia64_intr_mask((void *)(uintptr_t)xiv);
 		log(LOG_ERR, "stray irq%u\n", i->irq);
 	}
-	ia64_set_eoi(0);
-	ia64_srlz_d();
+
 	return (0);
 }
 
