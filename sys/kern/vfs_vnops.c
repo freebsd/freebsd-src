@@ -200,6 +200,10 @@ restart:
 		error = EOPNOTSUPP;
 		goto bad;
 	}
+	if (vp->v_type != VDIR && fmode & O_DIRECTORY) {
+		error = ENOTDIR;
+		goto bad;
+	}
 	accmode = 0;
 	if (fmode & (FWRITE | O_TRUNC)) {
 		if (vp->v_type == VDIR) {

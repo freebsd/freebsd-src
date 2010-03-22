@@ -576,8 +576,6 @@ pmap_bootstrap(vm_paddr_t *firstaddr)
 
 	virtual_avail = va;
 
-	invltlb();
-
 	/* Initialize the PAT MSR. */
 	pmap_init_pat();
 }
@@ -1123,7 +1121,7 @@ pmap_invalidate_cache_range(vm_offset_t sva, vm_offset_t eva)
 
 		/*
 		 * No targeted cache flush methods are supported by CPU,
-		 * or the supplied range is bigger then 2MB.
+		 * or the supplied range is bigger than 2MB.
 		 * Globally invalidate cache.
 		 */
 		pmap_invalidate_cache();
