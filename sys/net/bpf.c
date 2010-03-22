@@ -611,6 +611,7 @@ bpf_dtor(void *data)
 	mac_bpfdesc_destroy(d);
 #endif /* MAC */
 	knlist_destroy(&d->bd_sel.si_note);
+	callout_drain(&d->bd_callout);
 	bpf_freed(d);
 	free(d, M_BPF);
 }
@@ -648,7 +649,7 @@ bpfopen(struct cdev *dev, int flags, int fmt, struct thread *td)
 	mac_bpfdesc_create(td->td_ucred, d);
 #endif
 	mtx_init(&d->bd_mtx, devtoname(dev), "bpf cdev lock", MTX_DEF);
-	callout_init(&d->bd_callout, CALLOUT_MPSAFE);
+	callout_init_mtx(&d->bd_callout, &d->bd_mtx, 0);
 	knlist_init_mtx(&d->bd_sel.si_note, &d->bd_mtx);
 
 	return (0);
@@ -804,13 +805,15 @@ bpf_timed_out(void *arg)
 {
 	struct bpf_d *d = (struct bpf_d *)arg;
 
-	BPFD_LOCK(d);
+	BPFD_LOCK_ASSERT(d);
+
+	if (callout_pending(&d->bd_callout) || !callout_active(&d->bd_callout))
+		return;
 	if (d->bd_state == BPF_WAITING) {
 		d->bd_state = BPF_TIMED_OUT;
 		if (d->bd_slen != 0)
 			bpf_wakeup(d);
 	}
-	BPFD_UNLOCK(d);
 }
 
 static int
