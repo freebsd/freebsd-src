@@ -90,10 +90,8 @@ static u_int
 ia64_ih_ast(struct thread *td, u_int xiv, struct trapframe *tf)
 {
 
-	ia64_set_eoi(0);
 	PCPU_INC(md.stats.pcs_nasts);
 	CTR1(KTR_SMP, "IPI_AST, cpuid=%d", PCPU_GET(cpuid));
-	ia64_srlz_d();
 	return (0);
 }
 
@@ -101,10 +99,8 @@ static u_int
 ia64_ih_highfp(struct thread *td, u_int xiv, struct trapframe *tf)
 {
 
-	ia64_set_eoi(0);
 	PCPU_INC(md.stats.pcs_nhighfps);
 	ia64_highfp_save_ipi();
-	ia64_srlz_d();
 	return (0);
 }
 
@@ -112,11 +108,9 @@ static u_int
 ia64_ih_preempt(struct thread *td, u_int xiv, struct trapframe *tf)
 {
 
-	ia64_set_eoi(0);
 	PCPU_INC(md.stats.pcs_npreempts);
 	CTR1(KTR_SMP, "IPI_PREEMPT, cpuid=%d", PCPU_GET(cpuid));
 	sched_preempt(curthread);
-	ia64_srlz_d();
 	return (0);
 }
 
@@ -124,11 +118,9 @@ static u_int
 ia64_ih_rndzvs(struct thread *td, u_int xiv, struct trapframe *tf)
 {
 
-	ia64_set_eoi(0);
 	PCPU_INC(md.stats.pcs_nrdvs);
 	CTR1(KTR_SMP, "IPI_RENDEZVOUS, cpuid=%d", PCPU_GET(cpuid));
 	smp_rendezvous_action();
-	ia64_srlz_d();
 	return (0);
 }
 
@@ -137,10 +129,8 @@ ia64_ih_stop(struct thread *td, u_int xiv, struct trapframe *tf)
 {
 	cpumask_t mybit;
 
-	ia64_set_eoi(0);
 	PCPU_INC(md.stats.pcs_nstops);
 	mybit = PCPU_GET(cpumask);
-	ia64_srlz_d();
 
 	savectx(PCPU_PTR(md.pcb));
 

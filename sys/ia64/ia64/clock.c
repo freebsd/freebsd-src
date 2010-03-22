@@ -90,12 +90,8 @@ ia64_ih_clock(struct thread *td, u_int xiv, struct trapframe *tf)
 	int64_t delta;
 	int count;
 
-	ia64_set_eoi(0);
-
 	PCPU_INC(md.stats.pcs_nclks);
 	intrcnt[INTRCNT_CLOCK]++;
-
-	ia64_srlz_d();
 
 	itc = ia64_get_itc();
 
@@ -120,6 +116,7 @@ ia64_ih_clock(struct thread *td, u_int xiv, struct trapframe *tf)
 		count++;
 	}
 	ia64_set_itm(ia64_get_itc() + ia64_clock_reload - adj);
+	ia64_srlz_d();
 	if (count > 0) {
 		adjust_lost += count - 1;
 		if (delta > (ia64_clock_reload >> 3)) {
@@ -134,7 +131,6 @@ ia64_ih_clock(struct thread *td, u_int xiv, struct trapframe *tf)
 	}
 	PCPU_SET(md.clock, clk);
 	PCPU_SET(md.clockadj, adj);
-	ia64_srlz_d();
 	return (0);
 }
 
@@ -150,7 +146,7 @@ pcpu_initclock(void)
 }
 
 /*
- * Start the real-time and statistics clocks. We use cr.itc and cr.itm
+ * Start the real-time and statistics clocks. We use ar.itc and cr.itm
  * to implement a 1000hz clock.
  */
 void
