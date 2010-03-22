@@ -682,6 +682,8 @@ static int
 bridge_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 {
 	struct bridge_softc *sc = ifp->if_softc;
+	struct ifreq *ifr = (struct ifreq *)data;
+	struct bridge_iflist *bif;
 	struct thread *td = curthread;
 	union {
 		struct ifbreq ifbreq;
@@ -771,10 +773,29 @@ bridge_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		break;
 
 	case SIOCSIFMTU:
-		/* Do not allow the MTU to be changed on the bridge */
-		error = EINVAL;
+		if (ifr->ifr_mtu < 576) {
+			error = EINVAL;
+			break;
+		}
+		if (LIST_EMPTY(&sc->sc_iflist)) {
+			sc->sc_ifp->if_mtu = ifr->ifr_mtu;
+			break;
+		}
+		BRIDGE_LOCK(sc);
+		LIST_FOREACH(bif, &sc->sc_iflist, bif_next) {
+			if (bif->bif_ifp->if_mtu != ifr->ifr_mtu) {
+				log(LOG_NOTICE, "%s: invalid MTU: %lu(%s)"
+				    " != %d\n", sc->sc_ifp->if_xname,
+				    bif->bif_ifp->if_mtu,
+				    bif->bif_ifp->if_xname, ifr->ifr_mtu);
+				error = EINVAL;
+				break;
+			}
+		}
+		if (!error)
+			sc->sc_ifp->if_mtu = ifr->ifr_mtu;
+		BRIDGE_UNLOCK(sc);
 		break;
-
 	default:
 		/*
 		 * drop the lock as ether_ioctl() will call bridge_start() and
@@ -987,17 +1008,6 @@ bridge_ioctl_add(struct bridge_softc *sc, void *arg)
 		if (ifs == bif->bif_ifp)
 			return (EBUSY);
 
-	/* Allow the first Ethernet member to define the MTU */
-	if (ifs->if_type != IFT_GIF) {
-		if (LIST_EMPTY(&sc->sc_iflist))
-			sc->sc_ifp->if_mtu = ifs->if_mtu;
-		else if (sc->sc_ifp->if_mtu != ifs->if_mtu) {
-			if_printf(sc->sc_ifp, "invalid MTU for %s\n",
-			    ifs->if_xname);
-			return (EINVAL);
-		}
-	}
-
 	if (ifs->if_bridge == sc)
 		return (EEXIST);
 
@@ -1019,6 +1029,16 @@ bridge_ioctl_add(struct bridge_softc *sc, void *arg)
 		/* permitted interface types */
 		break;
 	default:
+		error = EINVAL;
+		goto out;
+	}
+
+	/* Allow the first Ethernet member to define the MTU */
+	if (LIST_EMPTY(&sc->sc_iflist))
+		sc->sc_ifp->if_mtu = ifs->if_mtu;
+	else if (sc->sc_ifp->if_mtu != ifs->if_mtu) {
+		if_printf(sc->sc_ifp, "invalid MTU: %lu(%s) != %lu\n",
+		    ifs->if_mtu, ifs->if_xname, sc->sc_ifp->if_mtu);
 		error = EINVAL;
 		goto out;
 	}
