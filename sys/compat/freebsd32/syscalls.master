@@ -309,11 +309,11 @@
 				    struct rtprio *rtp); }
 167	AUE_NULL	UNIMPL	nosys
 168	AUE_NULL	UNIMPL	nosys
-169	AUE_SEMSYS	STD	{ int freebsd32_semsys(int which, int a2, \
+169	AUE_SEMSYS	NOSTD	{ int freebsd32_semsys(int which, int a2, \
 				    int a3, int a4, int a5); }
-170	AUE_MSGSYS	STD	{ int freebsd32_msgsys(int which, int a2, \
+170	AUE_MSGSYS	NOSTD	{ int freebsd32_msgsys(int which, int a2, \
 				    int a3, int a4, int a5, int a6); }
-171	AUE_SHMSYS	STD	{ int freebsd32_shmsys(uint32_t which, uint32_t a2, \
+171	AUE_SHMSYS	NOSTD	{ int freebsd32_shmsys(uint32_t which, uint32_t a2, \
 				    uint32_t a3, uint32_t a4); }
 172	AUE_NULL	UNIMPL	nosys
 173	AUE_PREAD	COMPAT6	{ ssize_t freebsd32_pread(int fd, void *buf, \
@@ -401,26 +401,29 @@
 ; The following were introduced with NetBSD/4.4Lite-2
 ; They are initialized by their respective modules/sysinits
 ; XXX PROBLEM!!
-220	AUE_SEMCTL	COMPAT7	{ int freebsd32_semctl(int semid, int semnum, \
+220	AUE_SEMCTL	COMPAT7|NOSTD	{ int freebsd32_semctl( \
+				    int semid, int semnum, \
 				    int cmd, union semun32 *arg); }
-221	AUE_SEMGET	NOPROTO	{ int semget(key_t key, int nsems, \
+221	AUE_SEMGET	NOSTD|NOPROTO	{ int semget(key_t key, int nsems, \
 				    int semflg); }
-222	AUE_SEMOP	NOPROTO	{ int semop(int semid, struct sembuf *sops, \
-				    u_int nsops); }
+222	AUE_SEMOP	NOSTD|NOPROTO	{ int semop(int semid, \
+				    struct sembuf *sops, u_int nsops); }
 223	AUE_NULL	UNIMPL	semconfig
-224	AUE_MSGCTL	COMPAT7	{ int freebsd32_msgctl(int msqid, int cmd, \
+224	AUE_MSGCTL	COMPAT7|NOSTD	{ int freebsd32_msgctl( \
+				    int msqid, int cmd, \
 				    struct msqid_ds32_old *buf); }
-225	AUE_MSGGET	NOPROTO	{ int msgget(key_t key, int msgflg); }
-226	AUE_MSGSND	STD	{ int freebsd32_msgsnd(int msqid, void *msgp, \
+225	AUE_MSGGET	NOSTD|NOPROTO	{ int msgget(key_t key, int msgflg); }
+226	AUE_MSGSND	NOSTD	{ int freebsd32_msgsnd(int msqid, void *msgp, \
 				    size_t msgsz, int msgflg); }
-227	AUE_MSGRCV	STD	{ int freebsd32_msgrcv(int msqid, void *msgp, \
+227	AUE_MSGRCV	NOSTD	{ int freebsd32_msgrcv(int msqid, void *msgp, \
 				    size_t msgsz, long msgtyp, int msgflg); }
-228	AUE_SHMAT	NOPROTO	{ int shmat(int shmid, void *shmaddr, \
+228	AUE_SHMAT	NOSTD|NOPROTO	{ int shmat(int shmid, void *shmaddr, \
 				    int shmflg); }
-229	AUE_SHMCTL	COMPAT7	{ int freebsd32_shmctl(int shmid, int cmd, \
+229	AUE_SHMCTL	COMPAT7|NOSTD	{ int freebsd32_shmctl( \
+				    int shmid, int cmd, \
 				    struct shmid_ds32_old *buf); }
-230	AUE_SHMDT	NOPROTO	{ int shmdt(void *shmaddr); }
-231	AUE_SHMGET	NOPROTO	{ int shmget(key_t key, int size, \
+230	AUE_SHMDT	NOSTD|NOPROTO	{ int shmdt(void *shmaddr); }
+231	AUE_SHMGET	NOSTD|NOPROTO	{ int shmget(key_t key, int size, \
 				    int shmflg); }
 ;
 232	AUE_NULL	STD 	{ int freebsd32_clock_gettime(clockid_t clock_id, \
@@ -694,16 +697,19 @@
 398	AUE_FHSTATFS	NOPROTO	{ int fhstatfs(const struct fhandle *u_fhp, \
 				    struct statfs *buf); }
 399	AUE_NULL	UNIMPL	nosys
-; XXX implement these?
-400	AUE_NULL	UNIMPL	ksem_close
-401	AUE_NULL	UNIMPL	ksem_post
-402	AUE_NULL	UNIMPL	ksem_wait
-403	AUE_NULL	UNIMPL	ksem_trywait
-404	AUE_NULL	UNIMPL	ksem_init
-405	AUE_NULL	UNIMPL	ksem_open
-406	AUE_NULL	UNIMPL	ksem_unlink
-407	AUE_NULL	UNIMPL	ksem_getvalue
-408	AUE_NULL	UNIMPL	ksem_destroy
+400	AUE_NULL	NOSTD|NOPROTO	{ int ksem_close(semid_t id); }
+401	AUE_NULL	NOSTD|NOPROTO	{ int ksem_post(semid_t id); }
+402	AUE_NULL	NOSTD|NOPROTO	{ int ksem_wait(semid_t id); }
+403	AUE_NULL	NOSTD|NOPROTO	{ int ksem_trywait(semid_t id); }
+404	AUE_NULL	NOSTD	{ int freebsd32_ksem_init(semid_t *idp, \
+				    unsigned int value); }
+405	AUE_NULL	NOSTD	{ int freebsd32_ksem_open(semid_t *idp, \
+				    const char *name, int oflag, \
+				    mode_t mode, unsigned int value); }
+406	AUE_NULL	NOSTD|NOPROTO	{ int ksem_unlink(const char *name); }
+407	AUE_NULL	NOSTD|NOPROTO	{ int ksem_getvalue(semid_t id, \
+				    int *val); }
+408	AUE_NULL	NOSTD|NOPROTO	{ int ksem_destroy(semid_t id); }
 409	AUE_NULL	UNIMPL	__mac_get_pid
 410	AUE_NULL	UNIMPL	__mac_get_link
 411	AUE_NULL	UNIMPL	__mac_set_link
@@ -762,7 +768,8 @@
 				    const char *path, int attrnamespace, \
 				    void *data, size_t nbytes); }
 440	AUE_NULL	UNIMPL	kse_switchin
-441	AUE_NULL	UNIMPL	ksem_timedwait
+441	AUE_NULL	NOSTD	{ int freebsd32_ksem_timedwait(semid_t id, \
+				    const struct timespec32 *abstime); }
 442	AUE_NULL	STD	{ int freebsd32_thr_suspend( \
 				    const struct timespec32 *timeout); }
 443	AUE_NULL	NOPROTO	{ int thr_wake(long id); }
@@ -790,12 +797,23 @@
 				    int param_size); }
 456	AUE_NULL	NOPROTO	{ int sigqueue(pid_t pid, int signum, \
 				    void *value); }
-457	AUE_NULL	UNIMPL	kmq_open
-458	AUE_NULL	UNIMPL	kmq_setattr
-459	AUE_NULL	UNIMPL	kmq_timedreceive
-460	AUE_NULL	UNIMPL  kmq_timedsend
-461	AUE_NULL	UNIMPL	kmq_notify
-462	AUE_NULL	UNIMPL	kmq_unlink
+457	AUE_NULL	NOSTD	{ int freebsd32_kmq_open( \
+				    const char *path, int flags, mode_t mode, \
+				    const struct mq_attr32 *attr); }
+458	AUE_NULL	NOSTD	{ int freebsd32_kmq_setattr(int mqd, \
+				    const struct mq_attr32 *attr,	\
+				    struct mq_attr32 *oattr); }
+459	AUE_NULL	NOSTD	{ int freebsd32_kmq_timedreceive(int mqd, \
+				    char *msg_ptr, size_t msg_len,	\
+				    unsigned *msg_prio,			\
+				    const struct timespec32 *abs_timeout); }
+460	AUE_NULL	NOSTD	{ int freebsd32_kmq_timedsend(int mqd,	\
+				    const char *msg_ptr, size_t msg_len,\
+				    unsigned msg_prio,			\
+				    const struct timespec32 *abs_timeout);}
+461	AUE_NULL	NOPROTO|NOSTD	{ int kmq_notify(int mqd,	\
+				    const struct sigevent *sigev); }
+462	AUE_NULL	NOPROTO|NOSTD	{ int kmq_unlink(const char *path); }
 463	AUE_NULL	NOPROTO	{ int abort2(const char *why, int nargs, void **args); }
 464	AUE_NULL 	NOPROTO	{ int thr_set_name(long id, const char *name); }
 465	AUE_NULL	NOSTD	{ int freebsd32_aio_fsync(int op, \
@@ -925,11 +943,11 @@
 				    unsigned int iovcnt, int flags); }
 508	AUE_NULL	NOPROTO	{ int jail_remove(int jid); }
 509	AUE_CLOSEFROM	NOPROTO	{ int closefrom(int lowfd); }
-510	AUE_SEMCTL	STD { int freebsd32_semctl(int semid, int semnum, \
+510	AUE_SEMCTL	NOSTD { int freebsd32_semctl(int semid, int semnum, \
 				    int cmd, union semun32 *arg); }
-511	AUE_MSGCTL	STD	{ int freebsd32_msgctl(int msqid, int cmd, \
+511	AUE_MSGCTL	NOSTD	{ int freebsd32_msgctl(int msqid, int cmd, \
 				    struct msqid_ds32 *buf); }
-512	AUE_SHMCTL	STD	{ int freebsd32_shmctl(int shmid, int cmd, \
+512	AUE_SHMCTL	NOSTD	{ int freebsd32_shmctl(int shmid, int cmd, \
 				    struct shmid_ds32 *buf); }
 513	AUE_LPATHCONF	NOPROTO	{ int lpathconf(char *path, int name); }
 514	AUE_CAP_NEW	UNIMPL	cap_new

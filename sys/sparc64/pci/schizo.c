@@ -402,9 +402,22 @@ schizo_attach(device_t dev)
 	 */
 	i = OF_getprop(node, "ino-bitmap", (void *)prop_array,
 	    sizeof(prop_array));
-	if (i == -1)
-		panic("%s: could not get ino-bitmap", __func__);
-	ino_bitmap = ((uint64_t)prop_array[1] << 32) | prop_array[0];
+	if (i != -1)
+		ino_bitmap = ((uint64_t)prop_array[1] << 32) | prop_array[0];
+	else {
+		/*
+		 * If the ino-bitmap property is missing, just provide the
+		 * default set of interrupts for this controller and let
+		 * schizo_setup_intr() take care of child interrupts.
+		 */
+		if (sc->sc_half == 0)
+			ino_bitmap = (1ULL << STX_UE_INO) |
+			    (1ULL << STX_CE_INO) |
+			    (1ULL << STX_PCIERR_A_INO) |
+			    (1ULL << STX_BUS_INO);
+		else
+			ino_bitmap = 1ULL << STX_PCIERR_B_INO;
+	}
 	for (i = 0; i <= STX_MAX_INO; i++) {
 		if ((ino_bitmap & (1ULL << i)) == 0)
 			continue;
@@ -684,6 +697,14 @@ schizo_attach(device_t dev)
 
 	ofw_bus_setup_iinfo(node, &sc->sc_pci_iinfo, sizeof(ofw_pci_intr_t));
 
+	/*
+	 * At least when booting Fire V890 from disk a Schizo comes up with
+	 * a PCI bus error residing which triggers as soon as we register
+	 * schizo_pci_bus() even when clearing it from all involved registers
+	 * beforehand (but is quiet once it has fired).  Thus we make PCI bus
+	 * errors non-fatal until we actually touch the bus.
+	 */
+	sc->sc_flags |= SCHIZO_FLAGS_ARMED;
 	device_add_child(dev, "pci", -1);
 	return (bus_generic_attach(dev));
 }
@@ -787,6 +808,8 @@ schizo_pci_bus(void *arg)
 	iommu = SCHIZO_PCI_READ_8(sc, STX_PCI_IOMMU);
 	status = PCIB_READ_CONFIG(sc->sc_dev, sc->sc_pci_secbus,
 	    STX_CS_DEVICE, STX_CS_FUNC, PCIR_STATUS, 2);
+	if ((sc->sc_flags & SCHIZO_FLAGS_ARMED) == 0)
+			goto clear_error;
 	if ((csr & STX_PCI_CTRL_MMU_ERR) != 0) {
 		if ((iommu & TOM_PCI_IOMMU_ERR) == 0)
 			goto clear_error;

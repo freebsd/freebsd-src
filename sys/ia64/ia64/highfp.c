@@ -92,8 +92,6 @@ ia64_highfp_enable(struct thread *td, struct trapframe *tf)
 	pcb = td->td_pcb;
 
 	mtx_lock_spin(&ia64_highfp_mtx);
-	KASSERT((tf->tf_special.psr & IA64_PSR_DFH) != 0,
-	    ("(tf->tf_special.psr & IA64_PSR_DFH) == 0"));
 	cpu = pcb->pcb_fpcpu;
 #ifdef SMP
 	if (cpu != NULL && cpu != pcpup) {
