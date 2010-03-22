@@ -1303,7 +1303,7 @@ IVT_END(Break_Instruction)
 
 IVT_ENTRY(External_Interrupt, 0x3000)
 {	.mib
-	mov		r17=cr.ivr	// Put the XIV in the trapframe.
+	mov		r17=ar.itc	// Put the ITC in the trapframe.
 	mov		r16=ip
 	br.sptk		exception_save
 	;;
