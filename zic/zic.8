@@ -109,6 +109,9 @@ Any line that is blank (after comment stripping) is ignored.
 Non-blank lines are expected to be of one of three types:
 rule lines, zone lines, and link lines.
 .PP
+Names (such as month names) must be in English and are case insensitive.
+Abbreviations, if used, must be unambiguous in context.
+.PP
 A rule line has the form
 .nf
 .ti +.5i
@@ -490,6 +493,6 @@ specifying transition instants using universal time.
 /usr/local/etc/zoneinfo	standard directory used for created files
 .SH "SEE ALSO"
 newctime(3), tzfile(5), zdump(8)
-.\" @(#)zic.8	8.5
+.\" @(#)zic.8	8.6
 .\" This file is in the public domain, so clarified as of
 .\" 2009-05-17 by Arthur David Olson.

@@ -68,6 +68,10 @@ DESCRIPTION
      expected to be of one of three types: rule lines, zone
      lines, and link lines.
 
+     Names (such as month names) must be in English and are case
+     insensitive.  Abbreviations, if used, must be unambiguous in
+     context.
+
      A rule line has the form
 
           Rule  NAME  FROM  TO    TYPE  IN   ON       AT    SAVE  LETTER/S
@@ -122,6 +126,7 @@ DESCRIPTION
              Names of days of the week may be abbreviated or
              spelled out in full.  Note that there must be no
              spaces within the ON field.
+
      AT      Gives the time of day at which the rule takes
              effect.  Recognized forms include:
 
