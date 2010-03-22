@@ -162,7 +162,11 @@ struct uma_hash {
 /*
  * align field or structure to cache line
  */
+#if defined(__amd64__)
+#define UMA_ALIGN	__aligned(CACHE_LINE_SIZE)
+#else
 #define UMA_ALIGN
+#endif
 
 /*
  * Structures for per cpu queues.
@@ -173,7 +177,7 @@ struct uma_bucket {
 	int16_t	ub_cnt;				/* Count of free items. */
 	int16_t	ub_entries;			/* Max items. */
 	void	*ub_bucket[];			/* actual allocation storage */
-} UMA_ALIGN;
+};
 
 typedef struct uma_bucket * uma_bucket_t;
 
@@ -330,7 +334,7 @@ struct uma_zone {
 	 * This HAS to be the last item because we adjust the zone size
 	 * based on NCPU and then allocate the space for the zones.
 	 */
-	struct uma_cache	uz_cpu[1] UMA_ALIGN; /* Per cpu caches */
+	struct uma_cache	uz_cpu[1]; /* Per cpu caches */
 };
 
 /*
