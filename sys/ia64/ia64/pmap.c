@@ -238,7 +238,7 @@ static pv_entry_t get_pv_entry(pmap_t locked_pmap);
 static void	pmap_enter_quick_locked(pmap_t pmap, vm_offset_t va,
 		    vm_page_t m, vm_prot_t prot);
 static void	pmap_free_pte(struct ia64_lpte *pte, vm_offset_t va);
-static void	pmap_invalidate_all(pmap_t pmap);
+static void	pmap_invalidate_all(void);
 static int	pmap_remove_pte(pmap_t pmap, struct ia64_lpte *pte,
 		    vm_offset_t va, pv_entry_t pv, int freepte);
 static int	pmap_remove_vhpt(vm_offset_t va);
@@ -475,7 +475,7 @@ pmap_bootstrap()
 	/*
 	 * Clear out any random TLB entries left over from booting.
 	 */
-	pmap_invalidate_all(kernel_pmap);
+	pmap_invalidate_all();
 
 	map_gateway_page();
 }
@@ -575,16 +575,14 @@ pmap_invalidate_all_1(void *arg)
 }
 
 static void
-pmap_invalidate_all(pmap_t pmap)
+pmap_invalidate_all(void)
 {
 
-	KASSERT((pmap == kernel_pmap || pmap == PCPU_GET(md.current_pmap)),
-		("invalidating TLB for non-current pmap"));
-
 #ifdef SMP
-	if (mp_ncpus > 1)
+	if (mp_ncpus > 1) {
 		smp_rendezvous(NULL, pmap_invalidate_all_1, NULL, NULL);
-	else
+		return;
+	}
 #endif
 	pmap_invalidate_all_1(NULL);
 }
@@ -1158,9 +1156,6 @@ pmap_remove_pte(pmap_t pmap, struct ia64_lpte *pte, vm_offset_t va,
 	int error;
 	vm_page_t m;
 
-	KASSERT((pmap == kernel_pmap || pmap == PCPU_GET(md.current_pmap)),
-		("removing pte for non-current pmap"));
-
 	/*
 	 * First remove from the VHPT.
 	 */
@@ -1319,23 +1314,6 @@ pmap_map(vm_offset_t *virt, vm_offset_t start, vm_offset_t end, int prot)
 }
 
 /*
- * Remove a single page from a process address space
- */
-static void
-pmap_remove_page(pmap_t pmap, vm_offset_t va)
-{
-	struct ia64_lpte *pte;
-
-	KASSERT((pmap == kernel_pmap || pmap == PCPU_GET(md.current_pmap)),
-		("removing page for non-current pmap"));
-
-	pte = pmap_find_vhpt(va);
-	if (pte != NULL)
-		pmap_remove_pte(pmap, pte, va, 0, 1);
-	return;
-}
-
-/*
  *	Remove the given range of addresses from the specified map.
  *
  *	It is assumed that the start and end are properly
@@ -1362,7 +1340,9 @@ pmap_remove(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 	 * code.
 	 */
 	if (sva + PAGE_SIZE == eva) {
-		pmap_remove_page(pmap, sva);
+		pte = pmap_find_vhpt(sva);
+		if (pte != NULL)
+			pmap_remove_pte(pmap, pte, sva, 0, 1);
 		goto out;
 	}
 
@@ -1927,7 +1907,8 @@ pmap_remove_pages(pmap_t pmap)
 	pv_entry_t pv, npv;
 
 	if (pmap != vmspace_pmap(curthread->td_proc->p_vmspace)) {
-		printf("warning: pmap_remove_pages called with non-current pmap\n");
+		printf("warning: %s called with non-current pmap\n",
+		    __func__);
 		return;
 	}
 
