@@ -1,4 +1,4 @@
-# @(#)asia	8.55
+# @(#)asia	8.56
 # This file is in the public domain, so clarified as of
 # 2009-05-17 by Arthur David Olson.
 
@@ -2438,9 +2438,18 @@ Rule	Syria	2007	only	-	Nov	 Fri>=1	0:00	0	-
 # Thursday of the month or the start of the last Friday of the month or
 # something else. For now, use the start of the last Friday.
 
+# From Steffen Thorsen (2010-03-17):
+# The "Syrian News Station" reported on 2010-03-16 that the Council of
+# Ministers has decided that Syria will start DST on midnight Thursday
+# 2010-04-01: (midnight between Thursday and Friday):
+# <a href="http://sns.sy/sns/?path=news/read/11421">
+# http://sns.sy/sns/?path=news/read/11421 (Arabic)
+# </a>
+
 Rule	Syria	2008	only	-	Apr	Fri>=1	0:00	1:00	S
 Rule	Syria	2008	only	-	Nov	1	0:00	0	-
-Rule	Syria	2009	max	-	Mar	lastFri	0:00	1:00	S
+Rule	Syria	2009	only	-	Mar	lastFri	0:00	1:00	S
+Rule	Syria	2010	max	-	Apr	Fri>=1	0:00	1:00	S
 Rule	Syria	2009	max	-	Oct	lastFri	0:00	0	-
 
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
