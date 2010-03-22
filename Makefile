@@ -47,6 +47,10 @@ SRCS+=		gvmat64.S
 CFLAGS+=	-DASMV -DNO_UNDERLINE
 .endif
 
+VERSION_DEF=	${.CURDIR}/Versions.def
+SYMBOL_MAPS=	${.CURDIR}/Symbol.map
+CFLAGS+=	-DSYMBOL_VERSIONING
+
 INCS=		zconf.h zlib.h
 
 minigzip:	all minigzip.o
