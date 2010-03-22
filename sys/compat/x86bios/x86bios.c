@@ -555,7 +555,7 @@ x86bios_map_mem(void)
 		printf("x86bios:   ROM 0x%06x-0x%06x at %p\n",
 		    X86BIOS_ROM_BASE, X86BIOS_MEM_SIZE - X86BIOS_SEG_SIZE - 1,
 		    (void *)((vm_offset_t)x86bios_rom + X86BIOS_ROM_BASE -
-		    x86bios_rom_phys));
+		    (vm_offset_t)x86bios_rom_phys));
 		printf("x86bios: HIMEM 0x%06x-0x%06x at %p\n",
 		    X86BIOS_MEM_SIZE - X86BIOS_SEG_SIZE, X86BIOS_MEM_SIZE - 1,
 		    (void *)((vm_offset_t)x86bios_rom + X86BIOS_ROM_SIZE -
