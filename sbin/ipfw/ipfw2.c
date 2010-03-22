@@ -895,9 +895,9 @@ print_icmptypes(ipfw_insn_u32 *cmd)
 #define	HAVE_DSTIP	0x0004
 #define	HAVE_PROTO4	0x0008
 #define	HAVE_PROTO6	0x0010
+#define	HAVE_IP		0x0100
 #define	HAVE_OPTIONS	0x8000
 
-#define	HAVE_IP		(HAVE_PROTO | HAVE_SRCIP | HAVE_DSTIP)
 static void
 show_prerequisites(int *flags, int want, int cmd __unused)
 {
@@ -998,7 +998,9 @@ show_ipfw(struct ip_fw *rule, int pcwidth, int bcwidth)
 		switch(cmd->opcode) {
 		case O_CHECK_STATE:
 			printf("check-state");
-			flags = HAVE_IP; /* avoid printing anything else */
+			/* avoid printing anything else */
+			flags = HAVE_PROTO | HAVE_SRCIP |
+				HAVE_DSTIP | HAVE_IP;
 			break;
 
 		case O_ACCEPT:
@@ -1136,7 +1138,8 @@ show_ipfw(struct ip_fw *rule, int pcwidth, int bcwidth)
 			show_prerequisites(&flags, HAVE_PROTO, 0);
 			printf(" from any to any");
 		}
-		flags |= HAVE_IP | HAVE_OPTIONS;
+		flags |= HAVE_IP | HAVE_OPTIONS | HAVE_PROTO |
+			 HAVE_SRCIP | HAVE_DSTIP;
 	}
 
 	if (co.comment_only)
@@ -1225,9 +1228,12 @@ show_ipfw(struct ip_fw *rule, int pcwidth, int bcwidth)
 		break;
 
 		case O_IP_DSTPORT:
-			show_prerequisites(&flags, HAVE_IP, 0);
+			show_prerequisites(&flags,
+				HAVE_PROTO | HAVE_SRCIP |
+				HAVE_DSTIP | HAVE_IP, 0);
 		case O_IP_SRCPORT:
-			show_prerequisites(&flags, HAVE_PROTO|HAVE_SRCIP, 0);
+			show_prerequisites(&flags,
+				HAVE_PROTO | HAVE_SRCIP, 0);
 			if ((cmd->len & F_OR) && !or_block)
 				printf(" {");
 			if (cmd->len & F_NOT)
@@ -1248,7 +1254,8 @@ show_ipfw(struct ip_fw *rule, int pcwidth, int bcwidth)
 			if ((flags & (HAVE_PROTO4 | HAVE_PROTO6)) &&
 			    !(flags & HAVE_PROTO))
 				show_prerequisites(&flags,
-				    HAVE_IP | HAVE_OPTIONS, 0);
+				    HAVE_PROTO | HAVE_IP | HAVE_SRCIP |
+				    HAVE_DSTIP | HAVE_OPTIONS, 0);
 			if (flags & HAVE_OPTIONS)
 				printf(" proto");
 			if (pe)
@@ -1266,7 +1273,8 @@ show_ipfw(struct ip_fw *rule, int pcwidth, int bcwidth)
 				    ((cmd->opcode == O_IP4) &&
 				    (flags & HAVE_PROTO4)))
 					break;
-			show_prerequisites(&flags, HAVE_IP | HAVE_OPTIONS, 0);
+			show_prerequisites(&flags, HAVE_PROTO | HAVE_SRCIP |
+				    HAVE_DSTIP | HAVE_IP | HAVE_OPTIONS, 0);
 			if ((cmd->len & F_OR) && !or_block)
 				printf(" {");
 			if (cmd->len & F_NOT && cmd->opcode != O_IN)
@@ -1520,7 +1528,8 @@ show_ipfw(struct ip_fw *rule, int pcwidth, int bcwidth)
 			or_block = 0;
 		}
 	}
-	show_prerequisites(&flags, HAVE_IP, 0);
+	show_prerequisites(&flags, HAVE_PROTO | HAVE_SRCIP | HAVE_DSTIP
+				              | HAVE_IP, 0);
 	if (comment)
 		printf(" // %s", comment);
 	printf("\n");
