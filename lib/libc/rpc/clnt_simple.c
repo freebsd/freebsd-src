@@ -76,7 +76,11 @@ struct rpc_call_private {
 	char	nettype[NETIDLEN];	/* Network type */
 };
 static struct rpc_call_private *rpc_call_private_main;
+static thread_key_t rpc_call_key;
+static once_t rpc_call_once = ONCE_INITIALIZER;
+static int rpc_call_key_error;
 
+static void rpc_call_key_init(void);
 static void rpc_call_destroy(void *);
 
 static void
@@ -89,6 +93,13 @@ rpc_call_destroy(void *vp)
 			CLNT_DESTROY(rcp->client);
 		free(rcp);
 	}
+}
+
+static void
+rpc_call_key_init(void)
+{
+
+	rpc_call_key_error = thr_keycreate(&rpc_call_key, rpc_call_destroy);
 }
 
 /*
@@ -112,17 +123,16 @@ rpc_call(host, prognum, versnum, procnum, inproc, in, outproc, out, nettype)
 	struct rpc_call_private *rcp = (struct rpc_call_private *) 0;
 	enum clnt_stat clnt_stat;
 	struct timeval timeout, tottimeout;
-	static thread_key_t rpc_call_key;
 	int main_thread = 1;
 
 	if ((main_thread = thr_main())) {
 		rcp = rpc_call_private_main;
 	} else {
-		if (rpc_call_key == 0) {
-			mutex_lock(&tsd_lock);
-			if (rpc_call_key == 0)
-				thr_keycreate(&rpc_call_key, rpc_call_destroy);
-			mutex_unlock(&tsd_lock);
+		if (thr_once(&rpc_call_once, rpc_call_key_init) != 0 ||
+		    rpc_call_key_error != 0) {
+			rpc_createerr.cf_stat = RPC_SYSTEMERROR;
+			rpc_createerr.cf_error.re_errno = rpc_call_key_error;
+			return (rpc_createerr.cf_stat);
 		}
 		rcp = (struct rpc_call_private *)thr_getspecific(rpc_call_key);
 	}
