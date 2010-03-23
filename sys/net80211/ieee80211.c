@@ -404,6 +404,7 @@ ieee80211_vap_setup(struct ieee80211com *ic, struct ieee80211vap *vap,
 	vap->iv_flags_ven = ic->ic_flags_ven;
 	vap->iv_caps = ic->ic_caps &~ IEEE80211_C_OPMODE;
 	vap->iv_htcaps = ic->ic_htcaps;
+	vap->iv_htextcaps = ic->ic_htextcaps;
 	vap->iv_opmode = opmode;
 	vap->iv_caps |= ieee80211_opcap[opmode];
 	switch (opmode) {
