@@ -137,6 +137,7 @@ struct ieee80211com {
 	uint32_t		ic_flags_ven;	/* vendor state flags */
 	uint32_t		ic_caps;	/* capabilities */
 	uint32_t		ic_htcaps;	/* HT capabilities */
+	uint32_t		ic_htextcaps;	/* HT extended capabilities */
 	uint32_t		ic_cryptocaps;	/* crypto capabilities */
 	uint8_t			ic_modecaps[2];	/* set of mode capabilities */
 	uint8_t			ic_promisc;	/* vap's needing promisc mode */
@@ -313,7 +314,8 @@ struct ieee80211com {
 				    int batimeout, int baseqctl);
 	void			(*ic_ampdu_rx_stop)(struct ieee80211_node *,
 				    struct ieee80211_rx_ampdu *);
-	uint64_t		ic_spare[8];
+	uint64_t		ic_spare[7];
+	uint32_t		ic_spare2;
 };
 
 struct ieee80211_aclator;
@@ -340,6 +342,7 @@ struct ieee80211vap {
 	uint32_t		iv_flags_ven;	/* vendor state flags */
 	uint32_t		iv_caps;	/* capabilities */
 	uint32_t		iv_htcaps;	/* HT capabilities */
+	uint32_t		iv_htextcaps;	/* HT extended capabilities */
 	enum ieee80211_opmode	iv_opmode;	/* operation mode */
 	enum ieee80211_state	iv_state;	/* state machine state */
 	enum ieee80211_state	iv_nstate;	/* pending state */

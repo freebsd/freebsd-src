@@ -2346,7 +2346,7 @@ ieee80211_add_htcap_body(uint8_t *frm, struct ieee80211_node *ni)
 	frm += 2;				\
 } while (0)
 	struct ieee80211vap *vap = ni->ni_vap;
-	uint16_t caps;
+	uint16_t caps, extcaps;
 	int rxmax, density;
 
 	/* HT capabilities */
@@ -2404,8 +2404,17 @@ ieee80211_add_htcap_body(uint8_t *frm, struct ieee80211_node *ni)
 	 */
 	ieee80211_set_htrates(frm, &ieee80211_rateset_11n);
 
-	frm += sizeof(struct ieee80211_ie_htcap) -
+	frm += __offsetof(struct ieee80211_ie_htcap, hc_extcap) -
 		__offsetof(struct ieee80211_ie_htcap, hc_mcsset);
+
+	/* HT extended capabilities */
+	extcaps = vap->iv_htextcaps & 0xffff;
+
+	ADDSHORT(frm, extcaps);
+
+	frm += sizeof(struct ieee80211_ie_htcap) -
+		__offsetof(struct ieee80211_ie_htcap, hc_txbf);
+
 	return frm;
 #undef ADDSHORT
 }
