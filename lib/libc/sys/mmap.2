@@ -105,7 +105,7 @@ The file descriptor used for creating
 must be \-1.
 The
 .Fa offset
-argument is ignored.
+argument must be 0.
 .\".It Dv MAP_FILE
 .\"Mapped from a regular file or character-special device memory.
 .It Dv MAP_ANONYMOUS
@@ -316,6 +316,11 @@ was equal to zero.
 was specified and the
 .Fa fd
 argument was not -1.
+.It Bq Er EINVAL
+.Dv MAP_ANON
+was specified and the
+.Fa offset
+argument was not 0.
 .It Bq Er ENODEV
 .Dv MAP_ANON
 has not been specified and
