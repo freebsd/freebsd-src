@@ -1,4 +1,4 @@
-.\"     $OpenBSD: nc.1,v 1.50 2009/06/05 06:47:12 jmc Exp $
+.\"     $OpenBSD: nc.1,v 1.53 2010/02/23 23:00:52 schwarze Exp $
 .\"
 .\" Copyright (c) 1996 David Sacerdote
 .\" All rights reserved.
@@ -25,7 +25,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.Dd $Mdocdate: June 5 2009 $
+.Dd $Mdocdate: February 23 2010 $
 .Dt NC 1
 .Os
 .Sh NAME
@@ -47,8 +47,8 @@
 .Op Fl X Ar proxy_protocol
 .Oo Xo
 .Fl x Ar proxy_address Ns Oo : Ns
-.Ar port Oc Oc
-.Xc
+.Ar port Oc
+.Xc Oc
 .Op Ar hostname
 .Op Ar port
 .Ek
@@ -174,7 +174,9 @@ This makes it possible to use
 .Nm
 to script telnet sessions.
 .It Fl U
-Specifies to use Unix Domain Sockets.
+Specifies to use
+.Ux Ns -domain
+sockets.
 .It Fl u
 Use UDP instead of the default option of TCP.
 .It Fl V Ar rdomain
@@ -386,7 +388,9 @@ IP for the local end of the connection:
 .Pp
 .Dl $ nc -s 10.1.2.3 host.example.com 42
 .Pp
-Create and listen on a Unix Domain Socket:
+Create and listen on a
+.Ux Ns -domain
+socket:
 .Pp
 .Dl $ nc -lU /var/tmp/dsocket
 .Pp
