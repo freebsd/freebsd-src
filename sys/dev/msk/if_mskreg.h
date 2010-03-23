@@ -2361,6 +2361,7 @@ struct msk_chain_data {
 	bus_dmamap_t		msk_jumbo_rx_ring_map;
 	bus_dmamap_t		msk_jumbo_rx_sparemap;
 	uint16_t		msk_tso_mtu;
+	uint32_t		msk_last_csum;
 	int			msk_tx_prod;
 	int			msk_tx_cons;
 	int			msk_tx_cnt;
@@ -2467,14 +2468,16 @@ struct msk_hw_stats {
 struct msk_softc {
 	struct resource		*msk_res[1];	/* I/O resource */
 	struct resource_spec	*msk_res_spec;
-	struct resource		*msk_irq[2];	/* IRQ resources */
+	struct resource		*msk_irq[1];	/* IRQ resources */
 	struct resource_spec	*msk_irq_spec;
-	void			*msk_intrhand[2]; /* irq handler handle */
+	void			*msk_intrhand; /* irq handler handle */
 	device_t		msk_dev;
 	uint8_t			msk_hw_id;
 	uint8_t			msk_hw_rev;
 	uint8_t			msk_bustype;
 	uint8_t			msk_num_port;
+	int			msk_expcap;
+	int			msk_pcixcap;
 	int			msk_ramsize;	/* amount of SRAM on NIC */
 	uint32_t		msk_pmd;	/* physical media type */
 	uint32_t		msk_intrmask;
