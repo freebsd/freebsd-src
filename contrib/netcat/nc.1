@@ -1,4 +1,4 @@
-.\"     $OpenBSD: nc.1,v 1.44 2006/12/02 01:08:30 jmc Exp $
+.\"     $OpenBSD: nc.1,v 1.50 2009/06/05 06:47:12 jmc Exp $
 .\"
 .\" Copyright (c) 1996 David Sacerdote
 .\" All rights reserved.
@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 21, 2006
+.Dd June 5 2009
 .Dt NC 1
 .Os
 .Sh NAME
@@ -36,13 +36,17 @@
 .Sh SYNOPSIS
 .Nm nc
 .Bk -words
-.Op Fl 46DEdhklnorStUuvz
+.Op Fl 46DdEhklnorStUuvz
 .Op Fl e Ar IPsec_policy
+.Op Fl I Ar length
 .Op Fl i Ar interval
+.Op Fl -no-tcpopt
+.Op Fl O Ar length
 .Op Fl P Ar proxy_username
 .Op Fl p Ar source_port
 .Op Fl s Ar source_ip_address
 .Op Fl T Ar ToS
+.Op Fl V Ar fib
 .Op Fl w Ar timeout
 .Op Fl X Ar proxy_protocol
 .Oo Xo
@@ -50,7 +54,7 @@
 .Ar port Oc Oc
 .Xc
 .Op Ar hostname
-.Op Ar port Ns Bq Ar s
+.Op Ar port
 .Ek
 .Sh DESCRIPTION
 The
@@ -100,10 +104,6 @@ to use IPv6 addresses only.
 Enable debugging on the socket.
 .It Fl d
 Do not attempt to read from stdin.
-.It Fl h
-Prints out
-.Nm
-help.
 .It Fl E
 Shortcut for
 .Qo
@@ -118,6 +118,12 @@ to be used using the syntax described in
 .Xr ipsec_set_policy 3 .
 This flag can be specified up to two times, as typically one policy for
 each direction is needed.
+.It Fl h
+Prints out
+.Nm
+help.
+.It Fl I Ar length
+Specifies the size of the TCP receive buffer.
 .It Fl i Ar interval
 Specifies a delay time interval between lines of text sent and received.
 Also causes a delay time between connections to multiple ports.
@@ -146,6 +152,13 @@ option are ignored.
 .It Fl n
 Do not do any DNS or service lookups on any specified addresses,
 hostnames or ports.
+.It Fl -no-tcpopt
+Disables the use of TCP options on the socket, by setting the boolean
+TCP_NOOPT
+socket option.
+.It Fl O Ar length
+Specifies the size of the TCP send buffer.
+When
 .It Fl o
 .Dq Once-only mode .
 By default,
@@ -196,6 +209,9 @@ to script telnet sessions.
 Specifies to use Unix Domain Sockets.
 .It Fl u
 Use UDP instead of the default option of TCP.
+.It Fl V Ar fib
+Set the routing table (FIB).
+The default is 0.
 .It Fl v
 Have
 .Nm
@@ -263,8 +279,8 @@ unless the
 option is given
 (in which case the local host is used).
 .Pp
-.Ar port Ns Op Ar s
-can be single integers or ranges.
+.Ar port
+can be a single integer or a range of ports.
 Ranges are in the form nn-mm.
 In general,
 a destination port must be specified,
@@ -437,7 +453,9 @@ if the proxy requires it:
 .Ex -std
 .Sh SEE ALSO
 .Xr cat 1 ,
-.Xr ssh 1
+.Xr setfib 1 ,
+.Xr ssh 1 ,
+.Xr tcp 4
 .Sh AUTHORS
 Original implementation by *Hobbit*
 .Aq hobbit@avian.org .
