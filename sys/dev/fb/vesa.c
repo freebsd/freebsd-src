@@ -1209,7 +1209,7 @@ vesa_set_mode(video_adapter_t *adp, int mode)
 			int10_set_mode(adp->va_initial_bios_mode);
 			if (adp->va_info.vi_flags & V_INFO_LINEAR)
 				pmap_unmapdev(adp->va_buffer,
-				    adp->va_buffer_size);
+				    vesa_adp_info->v_memsize * 64 * 1024);
 			/* 
 			 * Once (*prevvidsw->get_info)() succeeded, 
 			 * (*prevvidsw->set_mode)() below won't fail...
@@ -1246,7 +1246,8 @@ vesa_set_mode(video_adapter_t *adp, int mode)
 		adp->va_flags |= V_ADP_DAC8;
 
 	if (adp->va_info.vi_flags & V_INFO_LINEAR)
-		pmap_unmapdev(adp->va_buffer, adp->va_buffer_size);
+		pmap_unmapdev(adp->va_buffer,
+		    vesa_adp_info->v_memsize * 64 * 1024);
 
 #if VESA_DEBUG > 0
 	printf("VESA: mode set!\n");
@@ -1263,7 +1264,7 @@ vesa_set_mode(video_adapter_t *adp, int mode)
 #endif
 		vesa_adp->va_buffer =
 		    (vm_offset_t)pmap_mapdev_attr(info.vi_buffer,
-		    info.vi_buffer_size, PAT_WRITE_COMBINING);
+		    vesa_adp_info->v_memsize * 64 * 1024, PAT_WRITE_COMBINING);
 		vesa_adp->va_window = vesa_adp->va_buffer;
 		vesa_adp->va_window_size = info.vi_buffer_size / info.vi_planes;
 		vesa_adp->va_window_gran = info.vi_buffer_size / info.vi_planes;
