@@ -706,6 +706,7 @@ cpu_idle (int busy)
 	register_t msr;
 
 	msr = mfmsr();
+
 #ifdef INVARIANTS
 	if ((msr & PSL_EE) != PSL_EE) {
 		struct thread *td = curthread;
@@ -713,19 +714,10 @@ cpu_idle (int busy)
 		panic("ints disabled in idleproc!");
 	}
 #endif
-#if 0
-	/*
-	 * Freescale E500 core RM section 6.4.1
-	 */
-	msr = msr | PSL_WE;
 
-	__asm__("	msync;"
-		"	mtmsr	%0;"
-		"	isync;"
-		"loop:	b	loop" :
-		/* no output */	:
-		"r" (msr));
-#endif
+	/* Freescale E500 core RM section 6.4.1. */
+	msr = msr | PSL_WE;
+	__asm __volatile("msync; mtmsr %0; isync" :: "r" (msr));
 }
 
 int
