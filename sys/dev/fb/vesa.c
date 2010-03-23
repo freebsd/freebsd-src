@@ -1,5 +1,6 @@
 /*-
  * Copyright (c) 1998 Kazutaka YOKOTA and Michael Smith
+ * Copyright (c) 2009-2010 Jung-uk Kim <jkim@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
