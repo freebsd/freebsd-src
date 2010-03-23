@@ -1,5 +1,5 @@
 # $FreeBSD$
 Project:	netcat (aka src/usr.bin/nc in OpenBSD)
 ProjectURL:	http://www.openbsd.org/
-Version:	4.6
+Version:	4.7
 License:	BSD
