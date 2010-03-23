@@ -403,6 +403,7 @@ static void bce_fill_pg_chain		(struct bce_softc *);
 static void bce_free_pg_chain		(struct bce_softc *);
 #endif
 
+static struct mbuf *bce_tso_setup	(struct bce_softc *, struct mbuf **, u16 *);
 static int  bce_tx_encap			(struct bce_softc *, struct mbuf **);
 static void bce_start_locked		(struct ifnet *);
 static void bce_start				(struct ifnet *);
@@ -1057,7 +1058,8 @@ bce_attach(device_t dev)
 
 	if (bce_tso_enable) {
 		ifp->if_hwassist = BCE_IF_HWASSIST | CSUM_TSO;
-		ifp->if_capabilities = BCE_IF_CAPABILITIES | IFCAP_TSO4;
+		ifp->if_capabilities = BCE_IF_CAPABILITIES | IFCAP_TSO4 |
+		    IFCAP_VLAN_HWTSO;
 	} else {
 		ifp->if_hwassist = BCE_IF_HWASSIST;
 		ifp->if_capabilities = BCE_IF_CAPABILITIES;
@@ -6585,6 +6587,110 @@ bce_init(void *xsc)
 }
 
 
+static struct mbuf *
+bce_tso_setup(struct bce_softc *sc, struct mbuf **m_head, u16 *flags)
+{
+	struct mbuf *m;
+	struct ether_header *eh;
+	struct ip *ip;
+	struct tcphdr *th;
+	u16 etype;
+	int hdr_len, ip_hlen = 0, tcp_hlen = 0, ip_len = 0;
+
+	DBRUN(sc->requested_tso_frames++);
+	/* Controller requires to monify mbuf chains. */
+	if (M_WRITABLE(*m_head) == 0) {
+		m = m_dup(*m_head, M_DONTWAIT);
+		m_freem(*m_head);
+		if (m == NULL) {
+			sc->mbuf_alloc_failed_count++;
+			*m_head = NULL;
+			return (NULL);
+		}
+		*m_head = m;
+	}
+	/*
+	 * For TSO the controller needs two pieces of info,
+	 * the MSS and the IP+TCP options length.
+	 */
+	m = m_pullup(*m_head, sizeof(struct ether_header) + sizeof(struct ip));
+	if (m == NULL) {
+		*m_head = NULL;
+		return (NULL);
+	}
+	eh = mtod(m, struct ether_header *);
+	etype = ntohs(eh->ether_type);
+
+	/* Check for supported TSO Ethernet types (only IPv4 for now) */
+	switch (etype) {
+	case ETHERTYPE_IP:
+		ip = (struct ip *)(m->m_data + sizeof(struct ether_header));
+		/* TSO only supported for TCP protocol. */
+		if (ip->ip_p != IPPROTO_TCP) {
+			BCE_PRINTF("%s(%d): TSO enabled for non-TCP frame!.\n",
+			    __FILE__, __LINE__);
+			m_freem(*m_head);
+			*m_head = NULL;
+			return (NULL);
+		}
+
+		/* Get IP header length in bytes (min 20) */
+		ip_hlen = ip->ip_hl << 2;
+		m = m_pullup(*m_head, sizeof(struct ether_header) + ip_hlen +
+		    sizeof(struct tcphdr));
+		if (m == NULL) {
+			*m_head = NULL;
+			return (NULL);
+		}
+
+		/* Get the TCP header length in bytes (min 20) */
+		th = (struct tcphdr *)((caddr_t)ip + ip_hlen);
+		tcp_hlen = (th->th_off << 2);
+
+		/* Make sure all IP/TCP options live in the same buffer. */
+		m = m_pullup(*m_head,  sizeof(struct ether_header)+ ip_hlen +
+		    tcp_hlen);
+		if (m == NULL) {
+			*m_head = NULL;
+			return (NULL);
+		}
+
+		/* IP header length and checksum will be calc'd by hardware */
+		ip_len = ip->ip_len;
+		ip->ip_len = 0;
+		ip->ip_sum = 0;
+		break;
+	case ETHERTYPE_IPV6:
+		BCE_PRINTF("%s(%d): TSO over IPv6 not supported!.\n",
+		    __FILE__, __LINE__);
+		m_freem(*m_head);
+		*m_head = NULL;
+		return (NULL);
+		/* NOT REACHED */
+	default:
+		BCE_PRINTF("%s(%d): TSO enabled for unsupported protocol!.\n",
+		    __FILE__, __LINE__);
+		m_freem(*m_head);
+		*m_head = NULL;
+		return (NULL);
+	}
+
+	hdr_len = sizeof(struct ether_header) + ip_hlen + tcp_hlen;
+
+	DBPRINT(sc, BCE_EXTREME_SEND, "%s(): hdr_len = %d, e_hlen = %d, "
+	    "ip_hlen = %d, tcp_hlen = %d, ip_len = %d\n",
+	    __FUNCTION__, hdr_len, sizeof(struct ether_header), ip_hlen,
+	    tcp_hlen, ip_len);
+
+	/* Set the LSO flag in the TX BD */
+	*flags |= TX_BD_FLAGS_SW_LSO;
+	/* Set the length of IP + TCP options (in 32 bit words) */
+	*flags |= (((ip_hlen + tcp_hlen - sizeof(struct ip) -
+	    sizeof(struct tcphdr)) >> 2) << 8);
+	return (*m_head);
+}
+
+
 /****************************************************************************/
 /* Encapsultes an mbuf cluster into the tx_bd chain structure and makes the */
 /* memory visible to the controller.                                        */
@@ -6601,12 +6707,8 @@ bce_tx_encap(struct bce_softc *sc, struct mbuf **m_head)
 	bus_dmamap_t map;
 	struct tx_bd *txbd = NULL;
 	struct mbuf *m0;
-	struct ether_vlan_header *eh;
-	struct ip *ip;
-	struct tcphdr *th;
-	u16 prod, chain_prod, etype, mss = 0, vlan_tag = 0, flags = 0;
+	u16 prod, chain_prod, mss = 0, vlan_tag = 0, flags = 0;
 	u32 prod_bseq;
-	int hdr_len = 0, e_hlen = 0, ip_hlen = 0, tcp_hlen = 0, ip_len = 0;
 
 #ifdef BCE_DEBUG
 	u16 debug_prod;
@@ -6623,72 +6725,16 @@ bce_tx_encap(struct bce_softc *sc, struct mbuf **m_head)
 	/* Transfer any checksum offload flags to the bd. */
 	m0 = *m_head;
 	if (m0->m_pkthdr.csum_flags) {
-		if (m0->m_pkthdr.csum_flags & CSUM_IP)
-			flags |= TX_BD_FLAGS_IP_CKSUM;
-		if (m0->m_pkthdr.csum_flags & (CSUM_TCP | CSUM_UDP))
-			flags |= TX_BD_FLAGS_TCP_UDP_CKSUM;
 		if (m0->m_pkthdr.csum_flags & CSUM_TSO) {
-			/* For TSO the controller needs two pieces of info, */
-			/* the MSS and the IP+TCP options length.           */
+			m0 = bce_tso_setup(sc, m_head, &flags);
+			if (m0 == NULL)
+				goto bce_tx_encap_exit;
 			mss = htole16(m0->m_pkthdr.tso_segsz);
-
-			/* Map the header and find the Ethernet type & header length */
-			eh = mtod(m0, struct ether_vlan_header *);
-			if (eh->evl_encap_proto == htons(ETHERTYPE_VLAN)) {
-				etype = ntohs(eh->evl_proto);
-				e_hlen = ETHER_HDR_LEN + ETHER_VLAN_ENCAP_LEN;
-			} else {
-				etype = ntohs(eh->evl_encap_proto);
-				e_hlen = ETHER_HDR_LEN;
-			}
-
-			/* Check for supported TSO Ethernet types (only IPv4 for now) */
-			switch (etype) {
-				case ETHERTYPE_IP:
-					ip = (struct ip *)(m0->m_data + e_hlen);
-
-					/* TSO only supported for TCP protocol */
-					if (ip->ip_p != IPPROTO_TCP) {
-						BCE_PRINTF("%s(%d): TSO enabled for non-TCP frame!.\n",
-							__FILE__, __LINE__);
-						goto bce_tx_encap_skip_tso;
-					}
-
-					/* Get IP header length in bytes (min 20) */
-					ip_hlen = ip->ip_hl << 2;
-
-					/* Get the TCP header length in bytes (min 20) */
-					th = (struct tcphdr *)((caddr_t)ip + ip_hlen);
-					tcp_hlen = (th->th_off << 2);
-
-					/* IP header length and checksum will be calc'd by hardware */
-					ip_len = ip->ip_len;
-					ip->ip_len = 0;
-					ip->ip_sum = 0;
-					break;
-				case ETHERTYPE_IPV6:
-					BCE_PRINTF("%s(%d): TSO over IPv6 not supported!.\n",
-						__FILE__, __LINE__);
-					goto bce_tx_encap_skip_tso;
-				default:
-					BCE_PRINTF("%s(%d): TSO enabled for unsupported protocol!.\n",
-						__FILE__, __LINE__);
-					goto bce_tx_encap_skip_tso;
-			}
-
-			hdr_len = e_hlen + ip_hlen + tcp_hlen;
-
-			DBPRINT(sc, BCE_EXTREME_SEND,
-				"%s(): hdr_len = %d, e_hlen = %d, ip_hlen = %d, tcp_hlen = %d, ip_len = %d\n",
-				 __FUNCTION__, hdr_len, e_hlen, ip_hlen, tcp_hlen, ip_len);
-
-			/* Set the LSO flag in the TX BD */
-			flags |= TX_BD_FLAGS_SW_LSO;
-			/* Set the length of IP + TCP options (in 32 bit words) */
-			flags |= (((ip_hlen + tcp_hlen - 40) >> 2) << 8);
-
-bce_tx_encap_skip_tso:
-			DBRUN(sc->requested_tso_frames++);
+		} else {
+			if (m0->m_pkthdr.csum_flags & CSUM_IP)
+				flags |= TX_BD_FLAGS_IP_CKSUM;
+			if (m0->m_pkthdr.csum_flags & (CSUM_TCP | CSUM_UDP))
+				flags |= TX_BD_FLAGS_TCP_UDP_CKSUM;
 		}
 	}
 
@@ -7131,6 +7177,9 @@ bce_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 			    ifp->if_capabilities & IFCAP_VLAN_HWCSUM)
 				ifp->if_capenable ^= IFCAP_VLAN_HWCSUM;
 
+			if ((mask & IFCAP_VLAN_HWTSO) != 0 &&
+			    (ifp->if_capabilities & IFCAP_VLAN_HWTSO) != 0)
+				ifp->if_capenable ^= IFCAP_VLAN_HWTSO;
 			/*
 			 * Don't actually disable VLAN tag stripping as
 			 * management firmware (ASF/IPMI/UMP) requires the
@@ -7139,8 +7188,12 @@ bce_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 			 * appending stripped VLAN tag.
 			 */
 			if ((mask & IFCAP_VLAN_HWTAGGING) != 0 &&
-			    (ifp->if_capabilities & IFCAP_VLAN_HWTAGGING))
+			    (ifp->if_capabilities & IFCAP_VLAN_HWTAGGING)) {
 				ifp->if_capenable ^= IFCAP_VLAN_HWTAGGING;
+				if ((ifp->if_capenable & IFCAP_VLAN_HWTAGGING)
+				    == 0)
+					ifp->if_capenable &= ~IFCAP_VLAN_HWTSO;
+			}
 			VLAN_CAPABILITIES(ifp);
 			break;
 		default:
