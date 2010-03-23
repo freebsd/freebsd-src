@@ -5886,6 +5886,7 @@ bce_rx_intr(struct bce_softc *sc)
 {
 	struct ifnet *ifp = sc->bce_ifp;
 	struct l2_fhdr *l2fhdr;
+	struct ether_vlan_header *vh;
 	unsigned int pkt_len;
 	u16 sw_rx_cons, sw_rx_cons_idx, hw_rx_cons;
 	u32 status;
@@ -6141,12 +6142,37 @@ bce_rx_intr(struct bce_softc *sc)
 
 		/* Attach the VLAN tag.	*/
 		if (status & L2_FHDR_STATUS_L2_VLAN_TAG) {
+			if (ifp->if_capenable & IFCAP_VLAN_HWTAGGING) {
 #if __FreeBSD_version < 700000
-			VLAN_INPUT_TAG(ifp, m0, l2fhdr->l2_fhdr_vlan_tag, continue);
+				VLAN_INPUT_TAG(ifp, m0,
+				    l2fhdr->l2_fhdr_vlan_tag, continue);
 #else
-			m0->m_pkthdr.ether_vtag = l2fhdr->l2_fhdr_vlan_tag;
-			m0->m_flags |= M_VLANTAG;
+				m0->m_pkthdr.ether_vtag =
+				    l2fhdr->l2_fhdr_vlan_tag;
+				m0->m_flags |= M_VLANTAG;
 #endif
+			} else {
+				/*
+				 * bce(4) controllers can't disable VLAN
+				 * tag stripping if management firmware
+				 * (ASF/IPMI/UMP) is running. So we always
+				 * strip VLAN tag and manually reconstruct
+				 * the VLAN frame by appending stripped
+				 * VLAN tag in driver if VLAN tag stripping
+				 * was disabled.
+				 *
+				 * TODO: LLC SNAP handling.
+				 */
+				bcopy(mtod(m0, uint8_t *),
+				    mtod(m0, uint8_t *) - ETHER_VLAN_ENCAP_LEN,
+				    ETHER_ADDR_LEN * 2);
+				m0->m_data -= ETHER_VLAN_ENCAP_LEN;
+				vh = mtod(m0, struct ether_vlan_header *);
+				vh->evl_encap_proto = htons(ETHERTYPE_VLAN);
+				vh->evl_tag = htons(l2fhdr->l2_fhdr_vlan_tag);
+				m0->m_pkthdr.len += ETHER_VLAN_ENCAP_LEN;
+				m0->m_len += ETHER_VLAN_ENCAP_LEN;
+			}
 		}
 
 		/* Increment received packet statistics. */
@@ -6687,7 +6713,7 @@ bce_tx_encap_skip_tso:
 		sc->fragmented_mbuf_count++;
 
 		/* Try to defrag the mbuf. */
-		m0 = m_defrag(*m_head, M_DONTWAIT);
+		m0 = m_collapse(*m_head, M_DONTWAIT, BCE_MAX_SEGMENTS);
 		if (m0 == NULL) {
 			/* Defrag was unsuccessful */
 			m_freem(*m_head);
@@ -6963,7 +6989,7 @@ bce_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 	struct bce_softc *sc = ifp->if_softc;
 	struct ifreq *ifr = (struct ifreq *) data;
 	struct mii_data *mii;
-	int mask, error = 0;
+	int mask, error = 0, reinit;
 
 	DBENTER(BCE_VERBOSE_MISC);
 
@@ -6984,7 +7010,16 @@ bce_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 
 			BCE_LOCK(sc);
 			ifp->if_mtu = ifr->ifr_mtu;
-			ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
+			reinit = 0;
+			if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
+				/*
+				 * Because allocation size is used in RX
+				 * buffer allocation, stop controller if
+				 * it is already running.
+				 */
+				bce_stop(sc);
+				reinit = 1;
+			}
 #ifdef BCE_JUMBO_HDRSPLIT
 			/* No buffer allocation size changes are necessary. */
 #else
@@ -7002,7 +7037,8 @@ bce_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 			}
 #endif
 
-			bce_init_locked(sc);
+			if (reinit != 0)
+				bce_init_locked(sc);
 			BCE_UNLOCK(sc);
 			break;
 
@@ -7036,7 +7072,6 @@ bce_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 			}
 
 			BCE_UNLOCK(sc);
-			error = 0;
 
 			break;
 
@@ -7046,10 +7081,8 @@ bce_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 			DBPRINT(sc, BCE_VERBOSE_MISC, "Received SIOCADDMULTI/SIOCDELMULTI\n");
 
 			BCE_LOCK(sc);
-			if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
+			if (ifp->if_drv_flags & IFF_DRV_RUNNING)
 				bce_set_rx_mode(sc);
-				error = 0;
-			}
 			BCE_UNLOCK(sc);
 
 			break;
@@ -7069,50 +7102,46 @@ bce_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 			mask = ifr->ifr_reqcap ^ ifp->if_capenable;
 			DBPRINT(sc, BCE_INFO_MISC, "Received SIOCSIFCAP = 0x%08X\n", (u32) mask);
 
-			/* Toggle the TX checksum capabilites enable flag. */
-			if (mask & IFCAP_TXCSUM) {
+			/* Toggle the TX checksum capabilities enable flag. */
+			if (mask & IFCAP_TXCSUM &&
+			    ifp->if_capabilities & IFCAP_TXCSUM) {
 				ifp->if_capenable ^= IFCAP_TXCSUM;
 				if (IFCAP_TXCSUM & ifp->if_capenable)
-					ifp->if_hwassist = BCE_IF_HWASSIST;
+					ifp->if_hwassist |= BCE_IF_HWASSIST;
 				else
-					ifp->if_hwassist = 0;
+					ifp->if_hwassist &= ~BCE_IF_HWASSIST;
 			}
 
 			/* Toggle the RX checksum capabilities enable flag. */
-			if (mask & IFCAP_RXCSUM) {
+			if (mask & IFCAP_RXCSUM &&
+			    ifp->if_capabilities & IFCAP_RXCSUM)
 				ifp->if_capenable ^= IFCAP_RXCSUM;
-				if (IFCAP_RXCSUM & ifp->if_capenable)
-					ifp->if_hwassist = BCE_IF_HWASSIST;
-				else
-					ifp->if_hwassist = 0;
-			}
 
 			/* Toggle the TSO capabilities enable flag. */
-			if (bce_tso_enable && (mask & IFCAP_TSO4)) {
+			if (bce_tso_enable && (mask & IFCAP_TSO4) &&
+			    ifp->if_capabilities & IFCAP_TSO4) {
 				ifp->if_capenable ^= IFCAP_TSO4;
-				if (IFCAP_RXCSUM & ifp->if_capenable)
-					ifp->if_hwassist = BCE_IF_HWASSIST;
+				if (IFCAP_TSO4 & ifp->if_capenable)
+					ifp->if_hwassist |= CSUM_TSO;
 				else
-					ifp->if_hwassist = 0;
+					ifp->if_hwassist &= ~CSUM_TSO;
 			}
 
-			/* Toggle VLAN_MTU capabilities enable flag. */
-			if (mask & IFCAP_VLAN_MTU) {
-				BCE_PRINTF("%s(%d): Changing VLAN_MTU not supported.\n",
-					__FILE__, __LINE__);
-			}
+			if (mask & IFCAP_VLAN_HWCSUM &&
+			    ifp->if_capabilities & IFCAP_VLAN_HWCSUM)
+				ifp->if_capenable ^= IFCAP_VLAN_HWCSUM;
 
-			/* Toggle VLANHWTAG capabilities enabled flag. */
-			if (mask & IFCAP_VLAN_HWTAGGING) {
-				if (sc->bce_flags & BCE_MFW_ENABLE_FLAG)
-					BCE_PRINTF("%s(%d): Cannot change VLAN_HWTAGGING while "
-						"management firmware (ASF/IPMI/UMP) is running!\n",
-						__FILE__, __LINE__);
-				else
-					BCE_PRINTF("%s(%d): Changing VLAN_HWTAGGING not supported!\n",
-						__FILE__, __LINE__);
-			}
-
+			/*
+			 * Don't actually disable VLAN tag stripping as
+			 * management firmware (ASF/IPMI/UMP) requires the
+			 * feature. If VLAN tag stripping is disabled driver
+			 * will manually reconstruct the VLAN frame by
+			 * appending stripped VLAN tag.
+			 */
+			if ((mask & IFCAP_VLAN_HWTAGGING) != 0 &&
+			    (ifp->if_capabilities & IFCAP_VLAN_HWTAGGING))
+				ifp->if_capenable ^= IFCAP_VLAN_HWTAGGING;
+			VLAN_CAPABILITIES(ifp);
 			break;
 		default:
 			/* We don't know how to handle the IOCTL, pass it on. */
