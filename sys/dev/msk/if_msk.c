@@ -1006,11 +1006,6 @@ msk_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 		if ((mask & IFCAP_RXCSUM) != 0 &&
 		    (IFCAP_RXCSUM & ifp->if_capabilities) != 0)
 			ifp->if_capenable ^= IFCAP_RXCSUM;
-		if ((mask & IFCAP_VLAN_HWTAGGING) != 0 &&
-		    (IFCAP_VLAN_HWTAGGING & ifp->if_capabilities) != 0) {
-			ifp->if_capenable ^= IFCAP_VLAN_HWTAGGING;
-			msk_setvlan(sc_if, ifp);
-		}
 		if ((mask & IFCAP_VLAN_HWCSUM) != 0 &&
 		    (IFCAP_VLAN_HWCSUM & ifp->if_capabilities) != 0)
 			ifp->if_capenable ^= IFCAP_VLAN_HWCSUM;
@@ -1021,6 +1016,16 @@ msk_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 				ifp->if_hwassist |= CSUM_TSO;
 			else
 				ifp->if_hwassist &= ~CSUM_TSO;
+		}
+		if ((mask & IFCAP_VLAN_HWTSO) != 0 &&
+		    (IFCAP_VLAN_HWTSO & ifp->if_capabilities) != 0)
+			ifp->if_capenable ^= IFCAP_VLAN_HWTSO;
+		if ((mask & IFCAP_VLAN_HWTAGGING) != 0 &&
+		    (IFCAP_VLAN_HWTAGGING & ifp->if_capabilities) != 0) {
+			ifp->if_capenable ^= IFCAP_VLAN_HWTAGGING;
+			if ((IFCAP_VLAN_HWTAGGING & ifp->if_capenable) == 0)
+				ifp->if_capenable &= ~IFCAP_VLAN_HWTSO;
+			msk_setvlan(sc_if, ifp);
 		}
 		if (ifp->if_mtu > ETHERMTU &&
 		    (sc_if->msk_flags & MSK_FLAG_JUMBO_NOCSUM) != 0) {
@@ -1561,7 +1566,7 @@ msk_attach(device_t dev)
 		 * this workaround does not work so disable checksum offload
 		 * for VLAN interface.
 		 */
-        	ifp->if_capabilities |= IFCAP_VLAN_HWTAGGING;
+        	ifp->if_capabilities |= IFCAP_VLAN_HWTAGGING | IFCAP_VLAN_HWTSO;
 		/*
 		 * Enable Rx checksum offloading for VLAN taggedd frames
 		 * if controller support new descriptor format.
@@ -2688,7 +2693,7 @@ msk_encap(struct msk_if_softc *sc_if, struct mbuf **m_head)
 	}
 	/* Check if we have a VLAN tag to insert. */
 	if ((m->m_flags & M_VLANTAG) != 0) {
-		if (tso == 0) {
+		if (tx_le == NULL) {
 			tx_le = &sc_if->msk_rdata.msk_tx_ring[prod];
 			tx_le->msk_addr = htole32(0);
 			tx_le->msk_control = htole32(OP_VLAN | HW_OWNER |
