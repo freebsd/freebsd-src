@@ -2656,9 +2656,11 @@ bge_attach(device_t dev)
 		/*
 		 * BCM5754 and BCM5787 shares the same ASIC id so
 		 * explicit device id check is required.
+		 * Due to unknown reason TSO does not work on BCM5755M.
 		 */
 		if (pci_get_device(dev) != BCOM_DEVICEID_BCM5754 &&
-		    pci_get_device(dev) != BCOM_DEVICEID_BCM5754M)
+		    pci_get_device(dev) != BCOM_DEVICEID_BCM5754M &&
+		    pci_get_device(dev) != BCOM_DEVICEID_BCM5755M)
 			sc->bge_flags |= BGE_FLAG_TSO;
 	}
 
