@@ -80,14 +80,18 @@ VNET_DEFINE(struct inpcbinfo, ripcbinfo);
 #define	V_ripcbinfo		VNET(ripcbinfo)
 
 /*
- * Control and data hooks for ipfw and dummynet.
+ * Control and data hooks for ipfw, dummynet, divert and so on.
  * The data hooks are not used here but it is convenient
  * to keep them all in one place.
  */
 VNET_DEFINE(ip_fw_chk_ptr_t, ip_fw_chk_ptr) = NULL;
 VNET_DEFINE(ip_fw_ctl_ptr_t, ip_fw_ctl_ptr) = NULL;
-int (*ip_dn_ctl_ptr)(struct sockopt *) = NULL;
-int (*ip_dn_io_ptr)(struct mbuf **m, int dir, struct ip_fw_args *fwa) = NULL;
+
+int	(*ip_dn_ctl_ptr)(struct sockopt *);
+int	(*ip_dn_io_ptr)(struct mbuf **, int, struct ip_fw_args *);
+void	(*ip_divert_ptr)(struct mbuf *, int);
+int	(*ng_ipfw_input_p)(struct mbuf **, int,
+			struct ip_fw_args *, int);
 
 /*
  * Hooks for multicast routing. They all default to NULL, so leave them not
