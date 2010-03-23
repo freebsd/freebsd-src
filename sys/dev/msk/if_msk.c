@@ -393,12 +393,6 @@ static struct resource_spec msk_irq_spec_msi[] = {
 	{ -1,			0,		0 }
 };
 
-static struct resource_spec msk_irq_spec_msi2[] = {
-	{ SYS_RES_IRQ,		1,		RF_ACTIVE },
-	{ SYS_RES_IRQ,		2,		RF_ACTIVE },
-	{ -1,			0,		0 }
-};
-
 static int
 msk_miibus_readreg(device_t dev, int phy, int reg)
 {
@@ -538,28 +532,25 @@ msk_miibus_statchg(device_t dev)
 			break;
 		}
 
-		if (((mii->mii_media_active & IFM_GMASK) & IFM_FDX) != 0)
-			gmac |= GM_GPCR_DUP_FULL;
 		/* Disable Rx flow control. */
-		if (((mii->mii_media_active & IFM_GMASK) & IFM_FLAG0) == 0)
+		if ((IFM_OPTIONS(mii->mii_media_active) & IFM_FLAG0) == 0)
 			gmac |= GM_GPCR_FC_RX_DIS;
 		/* Disable Tx flow control. */
-		if (((mii->mii_media_active & IFM_GMASK) & IFM_FLAG1) == 0)
+		if ((IFM_OPTIONS(mii->mii_media_active) & IFM_FLAG1) == 0)
 			gmac |= GM_GPCR_FC_TX_DIS;
+		if ((IFM_OPTIONS(mii->mii_media_active) & IFM_FDX) != 0)
+			gmac |= GM_GPCR_DUP_FULL;
+		else
+			gmac |= GM_GPCR_FC_RX_DIS | GM_GPCR_FC_TX_DIS;
 		gmac |= GM_GPCR_RX_ENA | GM_GPCR_TX_ENA;
 		GMAC_WRITE_2(sc, sc_if->msk_port, GM_GP_CTRL, gmac);
 		/* Read again to ensure writing. */
 		GMAC_READ_2(sc, sc_if->msk_port, GM_GP_CTRL);
-
-		gmac = GMC_PAUSE_ON;
-		if (((mii->mii_media_active & IFM_GMASK) &
-		    (IFM_FLAG0 | IFM_FLAG1)) == 0)
-			gmac = GMC_PAUSE_OFF;
-		/* Diable pause for 10/100 Mbps in half-duplex mode. */
-		if ((((mii->mii_media_active & IFM_GMASK) & IFM_FDX) == 0) &&
-		    (IFM_SUBTYPE(mii->mii_media_active) == IFM_100_TX ||
-		    IFM_SUBTYPE(mii->mii_media_active) == IFM_10_T))
-			gmac = GMC_PAUSE_OFF;
+		gmac = GMC_PAUSE_OFF;
+		if ((IFM_OPTIONS(mii->mii_media_active) & IFM_FDX) != 0) {
+			if ((IFM_OPTIONS(mii->mii_media_active) & IFM_FLAG0) != 0)
+				gmac = GMC_PAUSE_ON;
+		}
 		CSR_WRITE_4(sc, MR_ADDR(sc_if->msk_port, GMAC_CTRL), gmac);
 
 		/* Enable PHY interrupt for FIFO underrun/overflow. */
@@ -738,6 +729,7 @@ msk_init_tx_ring(struct msk_if_softc *sc_if)
 	int i;
 
 	sc_if->msk_cdata.msk_tso_mtu = 0;
+	sc_if->msk_cdata.msk_last_csum = 0;
 	sc_if->msk_cdata.msk_tx_prod = 0;
 	sc_if->msk_cdata.msk_tx_cons = 0;
 	sc_if->msk_cdata.msk_tx_cnt = 0;
@@ -1355,35 +1347,22 @@ mskc_reset(struct msk_softc *sc)
          * On dual port PCI-X card, there is an problem where status
          * can be received out of order due to split transactions.
          */
-	if (sc->msk_bustype == MSK_PCIX_BUS && sc->msk_num_port > 1) {
-		int pcix;
+	if (sc->msk_pcixcap != 0 && sc->msk_num_port > 1) {
 		uint16_t pcix_cmd;
 
-		if (pci_find_extcap(sc->msk_dev, PCIY_PCIX, &pcix) == 0) {
-			pcix_cmd = pci_read_config(sc->msk_dev, pcix + 2, 2);
-			/* Clear Max Outstanding Split Transactions. */
-			pcix_cmd &= ~0x70;
-			CSR_WRITE_1(sc, B2_TST_CTRL1, TST_CFG_WRITE_ON);
-			pci_write_config(sc->msk_dev, pcix + 2, pcix_cmd, 2);
-			CSR_WRITE_1(sc, B2_TST_CTRL1, TST_CFG_WRITE_OFF);
-		}
+		pcix_cmd = pci_read_config(sc->msk_dev,
+		    sc->msk_pcixcap + PCIXR_COMMAND, 2);
+		/* Clear Max Outstanding Split Transactions. */
+		pcix_cmd &= ~PCIXM_COMMAND_MAX_SPLITS;
+		CSR_WRITE_1(sc, B2_TST_CTRL1, TST_CFG_WRITE_ON);
+		pci_write_config(sc->msk_dev,
+		    sc->msk_pcixcap + PCIXR_COMMAND, pcix_cmd, 2);
+		CSR_WRITE_1(sc, B2_TST_CTRL1, TST_CFG_WRITE_OFF);
         }
-	if (sc->msk_bustype == MSK_PEX_BUS) {
-		uint16_t v, width;
-
-		v = pci_read_config(sc->msk_dev, PEX_DEV_CTRL, 2);
-		/* Change Max. Read Request Size to 4096 bytes. */
-		v &= ~PEX_DC_MAX_RRS_MSK;
-		v |= PEX_DC_MAX_RD_RQ_SIZE(5);
-		pci_write_config(sc->msk_dev, PEX_DEV_CTRL, v, 2);
-		width = pci_read_config(sc->msk_dev, PEX_LNK_STAT, 2);
-		width = (width & PEX_LS_LINK_WI_MSK) >> 4;
-		v = pci_read_config(sc->msk_dev, PEX_LNK_CAP, 2);
-		v = (v & PEX_LS_LINK_WI_MSK) >> 4;
-		if (v != width)
-			device_printf(sc->msk_dev,
-			    "negotiated width of link(x%d) != "
-			    "max. width of link(x%d)\n", width, v); 
+	if (sc->msk_expcap != 0) {
+		/* Change Max. Read Request Size to 2048 bytes. */
+		if (pci_get_max_read_req(sc->msk_dev) == 512)
+			pci_set_max_read_req(sc->msk_dev, 2048);
 	}
 
 	/* Clear status list. */
@@ -1521,7 +1500,7 @@ msk_attach(device_t dev)
 	 * Enable Rx checksum offloading if controller support new
 	 * descriptor format.
 	 */
-	if ((sc_if->msk_flags & MSK_FLAG_DESCV2) != 0 && 
+	if ((sc_if->msk_flags & MSK_FLAG_DESCV2) != 0 &&
 	    (sc_if->msk_flags & MSK_FLAG_NORX_CSUM) == 0)
 		ifp->if_capabilities |= IFCAP_RXCSUM;
 	ifp->if_hwassist = MSK_CSUM_FEATURES | CSUM_TSO;
@@ -1571,7 +1550,7 @@ msk_attach(device_t dev)
 		 * Enable Rx checksum offloading for VLAN taggedd frames
 		 * if controller support new descriptor format.
 		 */
-		if ((sc_if->msk_flags & MSK_FLAG_DESCV2) != 0 && 
+		if ((sc_if->msk_flags & MSK_FLAG_DESCV2) != 0 &&
 		    (sc_if->msk_flags & MSK_FLAG_NORX_CSUM) == 0)
 			ifp->if_capabilities |= IFCAP_VLAN_HWCSUM;
 	}
@@ -1695,11 +1674,13 @@ mskc_attach(device_t dev)
 	}
 
 	/* Check bus type. */
-	if (pci_find_extcap(sc->msk_dev, PCIY_EXPRESS, &reg) == 0)
+	if (pci_find_extcap(sc->msk_dev, PCIY_EXPRESS, &reg) == 0) {
 		sc->msk_bustype = MSK_PEX_BUS;
-	else if (pci_find_extcap(sc->msk_dev, PCIY_PCIX, &reg) == 0)
+		sc->msk_expcap = reg;
+	} else if (pci_find_extcap(sc->msk_dev, PCIY_PCIX, &reg) == 0) {
 		sc->msk_bustype = MSK_PCIX_BUS;
-	else
+		sc->msk_pcixcap = reg;
+	} else
 		sc->msk_bustype = MSK_PCI_BUS;
 
 	switch (sc->msk_hw_id) {
@@ -1769,37 +1750,16 @@ mskc_attach(device_t dev)
 	msic = pci_msi_count(dev);
 	if (bootverbose)
 		device_printf(dev, "MSI count : %d\n", msic);
-	/*
-	 * The Yukon II reports it can handle two messages, one for each
-	 * possible port.  We go ahead and allocate two messages and only
-	 * setup a handler for both if we have a dual port card.
-	 *
-	 * XXX: I haven't untangled the interrupt handler to handle dual
-	 * port cards with separate MSI messages, so for now I disable MSI
-	 * on dual port cards.
-	 */
 	if (legacy_intr != 0)
 		msi_disable = 1;
-	if (msi_disable == 0) {
-		switch (msic) {
-		case 2:
-		case 1: /* 88E8058 reports 1 MSI message */
-			msir = msic;
-			if (sc->msk_num_port == 1 &&
-			    pci_alloc_msi(dev, &msir) == 0) {
-				if (msic == msir) {
-					sc->msk_pflags |= MSK_FLAG_MSI;
-					sc->msk_irq_spec = msic == 2 ?
-					    msk_irq_spec_msi2 :
-					    msk_irq_spec_msi;
-				} else
-					pci_release_msi(dev);
-			}
-			break;
-		default:
-			device_printf(dev,
-			    "Unexpected number of MSI messages : %d\n", msic);
-			break;
+	if (msi_disable == 0 && msic > 0) {
+		msir = 1;
+		if (pci_alloc_msi(dev, &msir) == 0) {
+			if (msir == 1) {
+				sc->msk_pflags |= MSK_FLAG_MSI;
+				sc->msk_irq_spec = msk_irq_spec_msi;
+			} else
+				pci_release_msi(dev);
 		}
 	}
 
@@ -1873,7 +1833,7 @@ mskc_attach(device_t dev)
 	if (legacy_intr)
 		error = bus_setup_intr(dev, sc->msk_irq[0], INTR_TYPE_NET |
 		    INTR_MPSAFE, NULL, msk_legacy_intr, sc,
-		    &sc->msk_intrhand[0]);
+		    &sc->msk_intrhand);
 	else {
 		TASK_INIT(&sc->msk_int_task, 0, msk_int_task, sc);
 		sc->msk_tq = taskqueue_create_fast("msk_taskq", M_WAITOK,
@@ -1881,7 +1841,7 @@ mskc_attach(device_t dev)
 		taskqueue_start_threads(&sc->msk_tq, 1, PI_NET, "%s taskq",
 		    device_get_nameunit(sc->msk_dev));
 		error = bus_setup_intr(dev, sc->msk_irq[0], INTR_TYPE_NET |
-		    INTR_MPSAFE, msk_intr, NULL, sc, &sc->msk_intrhand[0]);
+		    INTR_MPSAFE, msk_intr, NULL, sc, &sc->msk_intrhand);
 	}
 
 	if (error != 0) {
@@ -1995,13 +1955,9 @@ mskc_detach(device_t dev)
 		taskqueue_free(sc->msk_tq);
 		sc->msk_tq = NULL;
 	}
-	if (sc->msk_intrhand[0]) {
-		bus_teardown_intr(dev, sc->msk_irq[0], sc->msk_intrhand[0]);
-		sc->msk_intrhand[0] = NULL;
-	}
-	if (sc->msk_intrhand[1]) {
-		bus_teardown_intr(dev, sc->msk_irq[0], sc->msk_intrhand[0]);
-		sc->msk_intrhand[1] = NULL;
+	if (sc->msk_intrhand) {
+		bus_teardown_intr(dev, sc->msk_irq[0], sc->msk_intrhand);
+		sc->msk_intrhand = NULL;
 	}
 	bus_release_resources(dev, sc->msk_irq_spec, sc->msk_irq);
 	if ((sc->msk_pflags & MSK_FLAG_MSI) != 0)
@@ -2532,7 +2488,7 @@ msk_encap(struct msk_if_softc *sc_if, struct mbuf **m_head)
 	struct mbuf *m;
 	bus_dmamap_t map;
 	bus_dma_segment_t txsegs[MSK_MAXTXSEGS];
-	uint32_t control, prod, si;
+	uint32_t control, csum, prod, si;
 	uint16_t offset, tcp_offset, tso_mtu;
 	int error, i, nseg, tso;
 
@@ -2711,17 +2667,22 @@ msk_encap(struct msk_if_softc *sc_if, struct mbuf **m_head)
 		if ((sc_if->msk_flags & MSK_FLAG_AUTOTX_CSUM) != 0)
 			control |= CALSUM;
 		else {
-			tx_le = &sc_if->msk_rdata.msk_tx_ring[prod];
-			tx_le->msk_addr = htole32(((tcp_offset +
-			    m->m_pkthdr.csum_data) & 0xffff) |
-			    ((uint32_t)tcp_offset << 16));
-			tx_le->msk_control = htole32(1 << 16 |
-			    (OP_TCPLISW | HW_OWNER));
-			control = CALSUM | WR_SUM | INIT_SUM | LOCK_SUM;
+			control |= CALSUM | WR_SUM | INIT_SUM | LOCK_SUM;
 			if ((m->m_pkthdr.csum_flags & CSUM_UDP) != 0)
 				control |= UDPTCP;
-			sc_if->msk_cdata.msk_tx_cnt++;
-			MSK_INC(prod, MSK_TX_RING_CNT);
+			/* Checksum write position. */
+			csum = (tcp_offset + m->m_pkthdr.csum_data) & 0xffff;
+			/* Checksum start position. */
+			csum |= (uint32_t)tcp_offset << 16;
+			if (csum != sc_if->msk_cdata.msk_last_csum) {
+				tx_le = &sc_if->msk_rdata.msk_tx_ring[prod];
+				tx_le->msk_addr = htole32(csum);
+				tx_le->msk_control = htole32(1 << 16 |
+				    (OP_TCPLISW | HW_OWNER));
+				sc_if->msk_cdata.msk_tx_cnt++;
+				MSK_INC(prod, MSK_TX_RING_CNT);
+				sc_if->msk_cdata.msk_last_csum = csum;
+			}
 		}
 	}
 
@@ -3414,7 +3375,6 @@ msk_handle_events(struct msk_softc *sc)
 	/* Sync status LEs. */
 	bus_dmamap_sync(sc->msk_stat_tag, sc->msk_stat_map,
 	    BUS_DMASYNC_POSTREAD | BUS_DMASYNC_POSTWRITE);
-	/* XXX Sync Rx LEs here. */
 
 	rxput[MSK_PORT_A] = rxput[MSK_PORT_B] = 0;
 
@@ -3424,13 +3384,6 @@ msk_handle_events(struct msk_softc *sc)
 		control = le32toh(sd->msk_control);
 		if ((control & HW_OWNER) == 0)
 			break;
-		/*
-		 * Marvell's FreeBSD driver updates status LE after clearing
-		 * HW_OWNER. However we don't have a way to sync single LE
-		 * with bus_dma(9) API. bus_dma(9) provides a way to sync
-		 * an entire DMA map. So don't sync LE until we have a better
-		 * way to sync LEs.
-		 */
 		control &= ~HW_OWNER;
 		sd->msk_control = htole32(control);
 		status = le32toh(sd->msk_status);
@@ -3491,7 +3444,8 @@ msk_handle_events(struct msk_softc *sc)
 	}
 
 	sc->msk_stat_cons = cons;
-	/* XXX We should sync status LEs here. See above notes. */
+	bus_dmamap_sync(sc->msk_stat_tag, sc->msk_stat_map,
+	    BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
 
 	if (rxput[MSK_PORT_A] > 0)
 		msk_rxput(sc->msk_if[MSK_PORT_A]);
@@ -3757,7 +3711,7 @@ msk_init_locked(struct msk_if_softc *sc_if)
 		CSR_WRITE_4(sc, MR_ADDR(sc_if->msk_port, GMAC_CTRL),
 		    GMC_BYP_MACSECRX_ON | GMC_BYP_MACSECTX_ON |
 		    GMC_BYP_RETR_ON);
- 
+
 	/*
 	 * Initialize GMAC first such that speed/duplex/flow-control
 	 * parameters are renegotiated when interface is brought up.
@@ -3805,7 +3759,7 @@ msk_init_locked(struct msk_if_softc *sc_if)
 	    eaddr[2] | (eaddr[3] << 8));
 	GMAC_WRITE_2(sc, sc_if->msk_port, GM_SRC_ADDR_2H,
 	    eaddr[4] | (eaddr[5] << 8));
-	
+
 	/* Disable interrupts for counter overflows. */
 	GMAC_WRITE_2(sc, sc_if->msk_port, GM_TX_IRQ_MSK, 0);
 	GMAC_WRITE_2(sc, sc_if->msk_port, GM_RX_IRQ_MSK, 0);
