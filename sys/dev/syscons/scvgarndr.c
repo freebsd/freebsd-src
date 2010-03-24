@@ -184,8 +184,13 @@ static u_short mouse_or_mask[16] = {
 			writel(pos, vga_palette32[color]);		\
 			break;						\
 		case 24:						\
-			writew(pos, vga_palette32[color]);		\
-			writeb(pos + 2, vga_palette32[color] >> 16);	\
+			if (((pos) & 1) == 0) {				\
+				writew(pos, vga_palette32[color]);	\
+				writeb(pos + 2, vga_palette32[color] >> 16);\
+			} else {					\
+				writeb(pos, vga_palette32[color]);	\
+				writew(pos + 1, vga_palette32[color] >> 8);\
+			}						\
 			break;						\
 		case 16:						\
 			if (scp->sc->adp->va_info.vi_pixel_fsizes[1] == 5)\
