@@ -941,7 +941,8 @@ pmap_invalidate_cache_range(vm_offset_t sva, vm_offset_t eva)
 
 	if (cpu_feature & CPUID_SS)
 		; /* If "Self Snoop" is supported, do nothing. */
-	else if (cpu_feature & CPUID_CLFSH) {
+	else if ((cpu_feature & CPUID_CLFSH) != 0 &&
+		 eva - sva < 2 * 1024 * 1024) {
 
 		/*
 		 * Otherwise, do per-cache line flush.  Use the mfence
@@ -958,7 +959,8 @@ pmap_invalidate_cache_range(vm_offset_t sva, vm_offset_t eva)
 
 		/*
 		 * No targeted cache flush methods are supported by CPU,
-		 * globally invalidate cache as a last resort.
+		 * or the supplied range is bigger than 2MB.
+		 * Globally invalidate cache.
 		 */
 		pmap_invalidate_cache();
 	}
