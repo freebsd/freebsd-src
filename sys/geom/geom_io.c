@@ -443,7 +443,10 @@ g_io_request(struct bio *bp, struct g_consumer *cp)
 	    ("Bio already on queue bp=%p", bp));
 	bp->bio_flags |= BIO_ONQUEUE;
 
-	binuptime(&bp->bio_t0);
+	if (g_collectstats)
+		binuptime(&bp->bio_t0);
+	else
+		getbinuptime(&bp->bio_t0);
 
 	/*
 	 * The statistics collection is lockless, as such, but we
