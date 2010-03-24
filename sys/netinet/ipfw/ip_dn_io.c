@@ -762,7 +762,11 @@ dummynet_io(struct mbuf **m0, int dir, struct ip_fw_args *fwa)
 	 *     
 	 */
 	if (/*dn_cfg.io_fast &&*/ m == *m0 && (dir & PROTO_LAYER2) == 0 ) {
-		/* fast io */
+		/* fast io, rename the tag * to carry reinject info. */
+		struct m_tag *tag = m_tag_first(m);
+
+		tag->m_tag_cookie = MTAG_IPFW_RULE;
+		tag->m_tag_id = 0;
 		io_pkt_fast++;
 		if (m->m_nextpkt != NULL) {
 			printf("dummynet: fast io: pkt chain detected!\n");
