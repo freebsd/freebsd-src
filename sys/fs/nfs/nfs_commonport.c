@@ -117,7 +117,7 @@ struct mtx nfs_slock_mutex;
 /* local functions */
 static int nfssvc_call(struct thread *, struct nfssvc_args *, struct ucred *);
 
-#if defined(__i386__)
+#ifdef __NO_STRICT_ALIGNMENT
 /*
  * These architectures don't need re-alignment, so just return.
  */
@@ -127,7 +127,7 @@ newnfs_realign(struct mbuf **pm)
 
 	return;
 }
-#else
+#else	/* !__NO_STRICT_ALIGNMENT */
 /*
  *	newnfs_realign:
  *
@@ -185,7 +185,7 @@ newnfs_realign(struct mbuf **pm)
 		pm = &m->m_next;
 	}
 }
-#endif	/* !__i386__ */
+#endif	/* __NO_STRICT_ALIGNMENT */
 
 #ifdef notdef
 static void
