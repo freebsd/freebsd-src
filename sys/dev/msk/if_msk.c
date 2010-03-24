@@ -1125,7 +1125,7 @@ msk_phy_power(struct msk_softc *sc, int mode)
 		 */
 		CSR_WRITE_1(sc, B2_Y2_CLK_GATE, val);
 
-		val = pci_read_config(sc->msk_dev, PCI_OUR_REG_1, 4);
+		val = CSR_PCI_READ_4(sc, PCI_OUR_REG_1);
 		val &= ~(PCI_Y2_PHY1_POWD | PCI_Y2_PHY2_POWD);
 		if (sc->msk_hw_id == CHIP_ID_YUKON_XL) {
 			if (sc->msk_hw_rev > CHIP_REV_YU_XL_A1) {
@@ -1136,7 +1136,7 @@ msk_phy_power(struct msk_softc *sc, int mode)
 			}
 		}
 		/* Release PHY from PowerDown/COMA mode. */
-		pci_write_config(sc->msk_dev, PCI_OUR_REG_1, val, 4);
+		CSR_PCI_WRITE_4(sc, PCI_OUR_REG_1, val);
 		switch (sc->msk_hw_id) {
 		case CHIP_ID_YUKON_EC_U:
 		case CHIP_ID_YUKON_EX:
@@ -1145,16 +1145,16 @@ msk_phy_power(struct msk_softc *sc, int mode)
 			CSR_WRITE_2(sc, B0_CTST, Y2_HW_WOL_OFF);
 
 			/* Enable all clocks. */
-			pci_write_config(sc->msk_dev, PCI_OUR_REG_3, 0, 4);
-			our = pci_read_config(sc->msk_dev, PCI_OUR_REG_4, 4);
+			CSR_PCI_WRITE_4(sc, PCI_OUR_REG_3, 0);
+			our = CSR_PCI_READ_4(sc, PCI_OUR_REG_4);
 			our &= (PCI_FORCE_ASPM_REQUEST|PCI_ASPM_GPHY_LINK_DOWN|
 			    PCI_ASPM_INT_FIFO_EMPTY|PCI_ASPM_CLKRUN_REQUEST);
 			/* Set all bits to 0 except bits 15..12. */
-			pci_write_config(sc->msk_dev, PCI_OUR_REG_4, our, 4);
-			our = pci_read_config(sc->msk_dev, PCI_OUR_REG_5, 4);
+			CSR_PCI_WRITE_4(sc, PCI_OUR_REG_4, our);
+			our = CSR_PCI_READ_4(sc, PCI_OUR_REG_5);
 			our &= PCI_CTL_TIM_VMAIN_AV_MSK;
-			pci_write_config(sc->msk_dev, PCI_OUR_REG_5, our, 4);
-			pci_write_config(sc->msk_dev, PCI_CFG_REG_1, 0, 4);
+			CSR_PCI_WRITE_4(sc, PCI_OUR_REG_5, our);
+			CSR_PCI_WRITE_4(sc, PCI_CFG_REG_1, 0);
 			/*
 			 * Disable status race, workaround for
 			 * Yukon EC Ultra & Yukon EX.
@@ -1175,7 +1175,7 @@ msk_phy_power(struct msk_softc *sc, int mode)
 		}
 		break;
 	case MSK_PHY_POWERDOWN:
-		val = pci_read_config(sc->msk_dev, PCI_OUR_REG_1, 4);
+		val = CSR_PCI_READ_4(sc, PCI_OUR_REG_1);
 		val |= PCI_Y2_PHY1_POWD | PCI_Y2_PHY2_POWD;
 		if (sc->msk_hw_id == CHIP_ID_YUKON_XL &&
 		    sc->msk_hw_rev > CHIP_REV_YU_XL_A1) {
@@ -1183,7 +1183,7 @@ msk_phy_power(struct msk_softc *sc, int mode)
 			if (sc->msk_num_port > 1)
 				val &= ~PCI_Y2_PHY2_COMA;
 		}
-		pci_write_config(sc->msk_dev, PCI_OUR_REG_1, val, 4);
+		CSR_PCI_WRITE_4(sc, PCI_OUR_REG_1, val);
 
 		val = Y2_PCI_CLK_LNK1_DIS | Y2_COR_CLK_LNK1_DIS |
 		      Y2_CLK_GAT_LNK1_DIS | Y2_PCI_CLK_LNK2_DIS |
