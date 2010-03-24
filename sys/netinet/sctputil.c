@@ -1175,7 +1175,7 @@ sctp_init_asoc(struct sctp_inpcb *m, struct sctp_tcb *stcb,
 	asoc->discontinuity_time = asoc->start_time;
 	/*
 	 * sa_ignore MEMLEAK {memory is put in the assoc mapping array and
-	 * freed later whe the association is freed.
+	 * freed later when the association is freed.
 	 */
 	return (0);
 }
@@ -1183,7 +1183,7 @@ sctp_init_asoc(struct sctp_inpcb *m, struct sctp_tcb *stcb,
 void
 sctp_print_mapping_array(struct sctp_association *asoc)
 {
-	int i;
+	int i, limit;
 
 	printf("Mapping size:%d baseTSN:%8.8x cumAck:%8.8x highestTSN:%8.8x\n",
 	    asoc->mapping_array_size,
@@ -1191,9 +1191,39 @@ sctp_print_mapping_array(struct sctp_association *asoc)
 	    asoc->cumulative_tsn,
 	    asoc->highest_tsn_inside_map
 	    );
-	for (i = 0; i < asoc->mapping_array_size; i++) {
-		printf("%8.8x ", asoc->mapping_array[i]);
-		if (((i + 1) % 8) == 0)
+	limit = asoc->mapping_array_size;
+	for (i = asoc->mapping_array_size; i >= 0; i--) {
+		if (asoc->mapping_array[i]) {
+			limit = i;
+			break;
+		}
+	}
+	if (limit == 0)
+		limit = 1;
+	for (i = 0; i < limit; i++) {
+		printf("%2.2x ", asoc->mapping_array[i]);
+		if (((i + 1) % 16) == 0)
+			printf("\n");
+	}
+	printf("\n");
+	printf("NR Mapping size:%d baseTSN:%8.8x highestTSN:%8.8x\n",
+	    asoc->nr_mapping_array_size,
+	    asoc->nr_mapping_array_base_tsn,
+	    asoc->highest_tsn_inside_nr_map
+	    );
+	limit = asoc->nr_mapping_array_size;
+	for (i = asoc->nr_mapping_array_size; i >= 0; i--) {
+		if (asoc->nr_mapping_array[i]) {
+			limit = i;
+			break;
+		}
+	}
+	if (limit == 0)
+		limit = 1;
+
+	for (i = 0; i < limit; i++) {
+		printf("%2.2x ", asoc->nr_mapping_array[i]);
+		if (((i + 1) % 16) == 0)
 			printf("\n");
 	}
 	printf("\n");

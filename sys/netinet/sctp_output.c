@@ -7871,19 +7871,8 @@ again_one_more_time:
 						pf_hbflag = 1;
 					}
 					/* remove these chunks at the end */
-					if (chk->rec.chunk_id.id == SCTP_SELECTIVE_ACK) {
-						/* turn off the timer */
-						if (SCTP_OS_TIMER_PENDING(&stcb->asoc.dack_timer.timer)) {
-							sctp_timer_stop(SCTP_TIMER_TYPE_RECV,
-							    inp, stcb, net, SCTP_FROM_SCTP_OUTPUT + SCTP_LOC_1);
-						}
-					}
-					/*
-					 * EY -Nr-sack version of the above
-					 * if statement
-					 */
-					if ((SCTP_BASE_SYSCTL(sctp_nr_sack_on_off) && asoc->peer_supports_nr_sack) &&
-					    (chk->rec.chunk_id.id == SCTP_NR_SELECTIVE_ACK)) {	/* EY !?! */
+					if ((chk->rec.chunk_id.id == SCTP_SELECTIVE_ACK) ||
+					    (chk->rec.chunk_id.id == SCTP_NR_SELECTIVE_ACK)) {
 						/* turn off the timer */
 						if (SCTP_OS_TIMER_PENDING(&stcb->asoc.dack_timer.timer)) {
 							sctp_timer_stop(SCTP_TIMER_TYPE_RECV,
@@ -9885,6 +9874,7 @@ sctp_send_sack(struct sctp_tcb *stcb)
 	unsigned int num_gap_blocks = 0, space;
 	int num_dups = 0;
 	int space_req;
+	uint32_t highest_tsn;
 
 	a_chk = NULL;
 	asoc = &stcb->asoc;
@@ -9970,7 +9960,12 @@ sctp_send_sack(struct sctp_tcb *stcb)
 	if (a_chk->whoTo) {
 		atomic_add_int(&a_chk->whoTo->ref_count, 1);
 	}
-	if (asoc->highest_tsn_inside_map == asoc->cumulative_tsn) {
+	if (compare_with_wrap(asoc->highest_tsn_inside_map, asoc->highest_tsn_inside_nr_map, MAX_TSN)) {
+		highest_tsn = asoc->highest_tsn_inside_map;
+	} else {
+		highest_tsn = asoc->highest_tsn_inside_nr_map;
+	}
+	if (highest_tsn == asoc->cumulative_tsn) {
 		/* no gaps */
 		space_req = sizeof(struct sctp_sack_chunk);
 	} else {
@@ -10043,10 +10038,10 @@ sctp_send_sack(struct sctp_tcb *stcb)
 
 	gap_descriptor = (struct sctp_gap_ack_block *)((caddr_t)sack + sizeof(struct sctp_sack_chunk));
 
-	if (asoc->highest_tsn_inside_map > asoc->mapping_array_base_tsn)
-		siz = (((asoc->highest_tsn_inside_map - asoc->mapping_array_base_tsn) + 1) + 7) / 8;
+	if (highest_tsn > asoc->mapping_array_base_tsn)
+		siz = (((highest_tsn - asoc->mapping_array_base_tsn) + 1) + 7) / 8;
 	else
-		siz = (((MAX_TSN - asoc->mapping_array_base_tsn) + 1) + asoc->highest_tsn_inside_map + 7) / 8;
+		siz = (((MAX_TSN - highest_tsn) + 1) + highest_tsn + 7) / 8;
 
 	if (compare_with_wrap(asoc->mapping_array_base_tsn, asoc->cumulative_tsn, MAX_TSN)) {
 		offset = 1;
@@ -10063,10 +10058,10 @@ sctp_send_sack(struct sctp_tcb *stcb)
 		 */
 		jstart = 1;
 	}
-	if (compare_with_wrap(asoc->highest_tsn_inside_map, asoc->cumulative_tsn, MAX_TSN)) {
+	if (compare_with_wrap(highest_tsn, asoc->cumulative_tsn, MAX_TSN)) {
 		/* we have a gap .. maybe */
 		for (i = 0; i < siz; i++) {
-			selector = &sack_array[asoc->mapping_array[i]];
+			selector = &sack_array[(asoc->mapping_array[i] | asoc->nr_mapping_array[i])];
 			if (mergeable && selector->right_edge) {
 				/*
 				 * Backup, left and right edges were ok to
@@ -10120,8 +10115,6 @@ sctp_send_sack(struct sctp_tcb *stcb)
 			 */
 			int abort_flag = 0;
 
-			asoc->cumulative_tsn = asoc->highest_tsn_inside_map;
-			sack->sack.cum_tsn_ack = htonl(asoc->cumulative_tsn);
 			sctp_sack_check(stcb, 0, 0, &abort_flag);
 		}
 	}
@@ -10180,13 +10173,13 @@ sctp_send_nr_sack(struct sctp_tcb *stcb)
 	int mergeable = 0;
 	int offset;
 	caddr_t limit;
-	uint32_t *dup;
+	uint32_t *dup, highest_tsn;
 	int limit_reached = 0;
+	int seen_non_zero = 0;
 	unsigned int i, jstart, siz, j;
 	unsigned int num_gap_blocks = 0, num_nr_gap_blocks = 0, space;
 	int num_dups = 0;
 	int space_req;
-	unsigned int reserved = 0;
 
 	a_chk = NULL;
 	asoc = &stcb->asoc;
@@ -10272,7 +10265,12 @@ sctp_send_nr_sack(struct sctp_tcb *stcb)
 	if (a_chk->whoTo) {
 		atomic_add_int(&a_chk->whoTo->ref_count, 1);
 	}
-	if (asoc->highest_tsn_inside_map == asoc->cumulative_tsn) {
+	if (compare_with_wrap(asoc->highest_tsn_inside_map, asoc->highest_tsn_inside_nr_map, MAX_TSN)) {
+		highest_tsn = asoc->highest_tsn_inside_map;
+	} else {
+		highest_tsn = asoc->highest_tsn_inside_nr_map;
+	}
+	if (highest_tsn == asoc->cumulative_tsn) {
 		/* no gaps */
 		space_req = sizeof(struct sctp_nr_sack_chunk);
 	} else {
@@ -10371,6 +10369,7 @@ sctp_send_nr_sack(struct sctp_tcb *stcb)
 	if (compare_with_wrap(asoc->highest_tsn_inside_map, asoc->cumulative_tsn, MAX_TSN)) {
 		/* we have a gap .. maybe */
 		for (i = 0; i < siz; i++) {
+			seen_non_zero = 1;
 			selector = &sack_array[asoc->mapping_array[i]];
 			if (mergeable && selector->right_edge) {
 				/*
@@ -10418,22 +10417,8 @@ sctp_send_nr_sack(struct sctp_tcb *stcb)
 			jstart = 0;
 			offset += 8;
 		}
-		if (num_gap_blocks == 0) {
-			/*
-			 * slide not yet happened, and somehow we got called
-			 * to send a sack. Cumack needs to move up.
-			 */
-			int abort_flag = 0;
-
-			asoc->cumulative_tsn = asoc->highest_tsn_inside_map;
-			nr_sack->nr_sack.cum_tsn_ack = htonl(asoc->cumulative_tsn);
-			sctp_sack_check(stcb, 0, 0, &abort_flag);
-		}
 	}
-	/*---------------------------------------------------------filling the nr_gap_ack blocks----------------------------------------------------*/
-
-	/* EY - there will be gaps + nr_gaps if draining is possible */
-	if ((SCTP_BASE_SYSCTL(sctp_do_drain)) && (limit_reached == 0)) {
+	if (limit_reached == 0) {
 
 		mergeable = 0;
 
@@ -10510,9 +10495,6 @@ sctp_send_nr_sack(struct sctp_tcb *stcb)
 			}
 		}
 	}
-	/*---------------------------------------------End of---filling the nr_gap_ack blocks----------------------------------------------------*/
-
-	/* now we must add any dups we are going to report. */
 	if ((limit_reached == 0) && (asoc->numduptsns)) {
 		dup = (uint32_t *) gap_descriptor;
 		for (i = 0; i < asoc->numduptsns; i++) {
@@ -10530,10 +10512,6 @@ sctp_send_nr_sack(struct sctp_tcb *stcb)
 	 * now that the chunk is prepared queue it to the control chunk
 	 * queue.
 	 */
-	if (SCTP_BASE_SYSCTL(sctp_do_drain) == 0) {
-		num_nr_gap_blocks = num_gap_blocks;
-		num_gap_blocks = 0;
-	}
 	a_chk->send_size = sizeof(struct sctp_nr_sack_chunk) +
 	    (num_gap_blocks + num_nr_gap_blocks) * sizeof(struct sctp_gap_ack_block) +
 	    num_dups * sizeof(int32_t);
@@ -10542,7 +10520,7 @@ sctp_send_nr_sack(struct sctp_tcb *stcb)
 	nr_sack->nr_sack.num_gap_ack_blks = htons(num_gap_blocks);
 	nr_sack->nr_sack.num_nr_gap_ack_blks = htons(num_nr_gap_blocks);
 	nr_sack->nr_sack.num_dup_tsns = htons(num_dups);
-	nr_sack->nr_sack.reserved = htons(reserved);
+	nr_sack->nr_sack.reserved = 0;
 	nr_sack->ch.chunk_length = htons(a_chk->send_size);
 	TAILQ_INSERT_TAIL(&asoc->control_send_queue, a_chk, sctp_next);
 	asoc->ctrl_queue_cnt++;
