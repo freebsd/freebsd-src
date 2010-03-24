@@ -383,10 +383,9 @@ msdosfs_mount(struct mount *mp)
 		pmp = VFSTOMSDOSFS(mp);
 #endif
 	} else {
+		vput(devvp);
 		if (devvp != pmp->pm_devvp)
-			error = EINVAL;	/* XXX needs translation */
-		else
-			vput(devvp);
+			return (EINVAL);	/* XXX needs translation */
 	}
 	if (error) {
 		vrele(devvp);
