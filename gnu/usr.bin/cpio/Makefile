@@ -58,6 +58,7 @@ SRCS=   copyin.c \
 	xstrndup.c \
 	alloca.h \
 	getopt.h
+CSTD=gnu89
 
 CLEANFILES+= alloca.h getopt.h
 
