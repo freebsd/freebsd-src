@@ -1182,7 +1182,7 @@ static void ParseLangArgs(LangOptions &Opts, ArgList &Args,
   Opts.Freestanding = Args.hasArg(OPT_ffreestanding);
   Opts.NoBuiltin = Args.hasArg(OPT_fno_builtin) || Opts.Freestanding;
   Opts.AssumeSaneOperatorNew = !Args.hasArg(OPT_fno_assume_sane_operator_new);
-  Opts.HeinousExtensions = Args.hasArg(OPT_fheinous_gnu_extensions);
+  Opts.HeinousExtensions = true;
   Opts.AccessControl = Args.hasArg(OPT_faccess_control);
   Opts.ElideConstructors = !Args.hasArg(OPT_fno_elide_constructors);
   Opts.MathErrno = Args.hasArg(OPT_fmath_errno);
