@@ -593,7 +593,7 @@ msdosfs_inactive(ap)
 	/*
 	 * Ignore denodes related to stale file handles.
 	 */
-	if (dep->de_Name[0] == SLOT_DELETED)
+	if (dep->de_Name[0] == SLOT_DELETED || dep->de_Name[0] == SLOT_EMPTY)
 		goto out;
 
 	/*
@@ -621,7 +621,7 @@ out:
 	printf("msdosfs_inactive(): v_usecount %d, de_Name[0] %x\n",
 	       vrefcnt(vp), dep->de_Name[0]);
 #endif
-	if (dep->de_Name[0] == SLOT_DELETED)
+	if (dep->de_Name[0] == SLOT_DELETED || dep->de_Name[0] == SLOT_EMPTY)
 		vrecycle(vp, td);
 	return (error);
 }
