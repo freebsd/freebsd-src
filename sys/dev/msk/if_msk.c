@@ -1661,6 +1661,14 @@ mskc_attach(device_t dev)
 		}
 	}
 
+	sc->msk_int_holdoff = MSK_INT_HOLDOFF_DEFAULT;
+	SYSCTL_ADD_INT(device_get_sysctl_ctx(dev),
+	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)), OID_AUTO,
+	    "int_holdoff", CTLFLAG_RW, &sc->msk_int_holdoff, 0,
+	    "Maximum number of time to delay interrupts");
+	resource_int_value(device_get_name(dev), device_get_unit(dev),
+	    "int_holdoff", &sc->msk_int_holdoff);
+
 	/* Soft reset. */
 	CSR_WRITE_2(sc, B0_CTST, CS_RST_SET);
 	CSR_WRITE_2(sc, B0_CTST, CS_RST_CLR);
@@ -2803,8 +2811,6 @@ static void
 msk_watchdog(struct msk_if_softc *sc_if)
 {
 	struct ifnet *ifp;
-	uint32_t ridx;
-	int idx;
 
 	MSK_IF_LOCK_ASSERT(sc_if);
 
@@ -2819,24 +2825,6 @@ msk_watchdog(struct msk_if_softc *sc_if)
 		ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 		msk_init_locked(sc_if);
 		return;
-	}
-
-	/*
-	 * Reclaim first as there is a possibility of losing Tx completion
-	 * interrupts.
-	 */
-	ridx = sc_if->msk_port == MSK_PORT_A ? STAT_TXA1_RIDX : STAT_TXA2_RIDX;
-	idx = CSR_READ_2(sc_if->msk_softc, ridx);
-	if (sc_if->msk_cdata.msk_tx_cons != idx) {
-		msk_txeof(sc_if, idx);
-		if (sc_if->msk_cdata.msk_tx_cnt == 0) {
-			if_printf(ifp, "watchdog timeout (missed Tx interrupts) "
-			    "-- recovering\n");
-			if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
-				taskqueue_enqueue(taskqueue_fast,
-				    &sc_if->msk_tx_task);
-			return;
-		}
 	}
 
 	if_printf(ifp, "watchdog timeout\n");
@@ -3168,6 +3156,7 @@ msk_tick(void *xsc_if)
 	mii_tick(mii);
 	if ((sc_if->msk_flags & MSK_FLAG_LINK) == 0)
 		msk_miibus_statchg(sc_if->msk_if_dev);
+	msk_handle_events(sc_if->msk_softc);
 	msk_watchdog(sc_if);
 	callout_reset(&sc_if->msk_tick_ch, hz, msk_tick, sc_if);
 }
@@ -3905,6 +3894,17 @@ msk_init_locked(struct msk_if_softc *sc_if)
 	} else {
 		sc->msk_intrmask |= Y2_IS_PORT_B;
 		sc->msk_intrhwemask |= Y2_HWE_L2_MASK;
+	}
+	/* Configure IRQ moderation mask. */
+	CSR_WRITE_4(sc, B2_IRQM_MSK, sc->msk_intrmask);
+	if (sc->msk_int_holdoff > 0) {
+		/* Configure initial IRQ moderation timer value. */
+		CSR_WRITE_4(sc, B2_IRQM_INI,
+		    MSK_USECS(sc, sc->msk_int_holdoff));
+		CSR_WRITE_4(sc, B2_IRQM_VAL,
+		    MSK_USECS(sc, sc->msk_int_holdoff));
+		/* Start IRQ moderation. */
+		CSR_WRITE_1(sc, B2_IRQM_CTRL, TIM_START);
 	}
 	CSR_WRITE_4(sc, B0_HWE_IMSK, sc->msk_intrhwemask);
 	CSR_READ_4(sc, B0_HWE_IMSK);
