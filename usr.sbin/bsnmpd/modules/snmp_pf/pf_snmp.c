@@ -85,6 +85,19 @@ static int pft_table_count;
 
 #define PFT_TABLE_MAXAGE	5
 
+struct pfa_entry {
+	struct pfr_astats pfas;
+	u_int		index;
+	TAILQ_ENTRY(pfa_entry) link;
+};
+TAILQ_HEAD(pfa_table, pfa_entry);
+
+static struct pfa_table pfa_table;
+static time_t pfa_table_age;
+static int pfa_table_count;
+
+#define	PFA_TABLE_MAXAGE	5
+
 struct pfq_entry {
 	struct pf_altq	altq;
 	u_int		index;
@@ -121,10 +134,12 @@ static int pfi_refresh(void);
 static int pfq_refresh(void);
 static int pfs_refresh(void);
 static int pft_refresh(void);
+static int pfa_refresh(void);
 static int pfl_refresh(void);
 static struct pfi_entry * pfi_table_find(u_int idx);
 static struct pfq_entry * pfq_table_find(u_int idx);
 static struct pft_entry * pft_table_find(u_int idx);
+static struct pfa_entry * pfa_table_find(u_int idx);
 static struct pfl_entry * pfl_table_find(u_int idx);
 
 static int altq_is_enabled(int pfdevice);
@@ -794,7 +809,98 @@ int
 pf_tbladdr(struct snmp_context __unused *ctx, struct snmp_value __unused *val,
 	u_int __unused sub, u_int __unused vindex, enum snmp_op __unused op)
 {
-	return (SNMP_ERR_GENERR);
+	asn_subid_t	which = val->var.subs[sub - 1];
+	struct pfa_entry *e = NULL;
+
+	if ((time(NULL) - pfa_table_age) > PFA_TABLE_MAXAGE)
+		pfa_refresh();
+
+	switch (op) {
+		case SNMP_OP_SET:
+			return (SNMP_ERR_NOT_WRITEABLE);
+		case SNMP_OP_GETNEXT:
+			if ((e = NEXT_OBJECT_INT(&pfa_table,
+			    &val->var, sub)) == NULL)
+				return (SNMP_ERR_NOSUCHNAME);
+			val->var.len = sub + 1;
+			val->var.subs[sub] = e->index;
+			break;
+		case SNMP_OP_GET:
+			if (val->var.len - sub != 1)
+				return (SNMP_ERR_NOSUCHNAME);
+			if ((e = pfa_table_find(val->var.subs[sub])) == NULL)
+				return (SNMP_ERR_NOSUCHNAME);
+			break;
+
+		case SNMP_OP_COMMIT:
+		case SNMP_OP_ROLLBACK:
+		default:
+			abort();
+	}
+
+	switch (which) {
+		case LEAF_pfTablesAddrNetType:
+			if (e->pfas.pfras_a.pfra_af == AF_INET)
+				val->v.integer = pfTablesAddrNetType_ipv4;
+			else if (e->pfas.pfras_a.pfra_af == AF_INET6)
+				val->v.integer = pfTablesAddrNetType_ipv6;
+			else
+				return (SNMP_ERR_GENERR);
+			break;
+		case LEAF_pfTablesAddrNet:
+			if (e->pfas.pfras_a.pfra_af == AF_INET) {
+				return (string_get(val,
+				    (u_char *)&e->pfas.pfras_a.pfra_ip4addr, 4));
+			} else if (e->pfas.pfras_a.pfra_af == AF_INET6)
+				return (string_get(val,
+				    (u_char *)&e->pfas.pfras_a.pfra_ip6addr, 16));
+			else
+				return (SNMP_ERR_GENERR);
+			break;
+		case LEAF_pfTablesAddrPrefix:
+			val->v.integer = (int32_t) e->pfas.pfras_a.pfra_net;
+			break;
+		case LEAF_pfTablesAddrTZero:
+			val->v.uint32 =
+			    (time(NULL) - e->pfas.pfras_tzero) * 100;
+			break;
+		case LEAF_pfTablesAddrBytesInPass:
+			val->v.counter64 =
+			    e->pfas.pfras_bytes[PFR_DIR_IN][PFR_OP_PASS];
+			break;
+		case LEAF_pfTablesAddrBytesInBlock:
+			val->v.counter64 =
+			    e->pfas.pfras_bytes[PFR_DIR_IN][PFR_OP_BLOCK];
+			break;
+		case LEAF_pfTablesAddrBytesOutPass:
+			val->v.counter64 =
+			    e->pfas.pfras_bytes[PFR_DIR_OUT][PFR_OP_PASS];
+			break;
+		case LEAF_pfTablesAddrBytesOutBlock:
+			val->v.counter64 =
+			    e->pfas.pfras_bytes[PFR_DIR_OUT][PFR_OP_BLOCK];
+			break;
+		case LEAF_pfTablesAddrPktsInPass:
+			val->v.counter64 =
+			    e->pfas.pfras_packets[PFR_DIR_IN][PFR_OP_PASS];
+			break;
+		case LEAF_pfTablesAddrPktsInBlock:
+			val->v.counter64 =
+			    e->pfas.pfras_packets[PFR_DIR_IN][PFR_OP_BLOCK];
+			break;
+		case LEAF_pfTablesAddrPktsOutPass:
+			val->v.counter64 =
+			    e->pfas.pfras_packets[PFR_DIR_OUT][PFR_OP_PASS];
+			break;
+		case LEAF_pfTablesAddrPktsOutBlock:
+			val->v.counter64 =
+			    e->pfas.pfras_packets[PFR_DIR_OUT][PFR_OP_BLOCK];
+			break;
+		default:
+			return (SNMP_ERR_NOSUCHNAME);
+	}
+
+	return (SNMP_ERR_NOERROR);
 }
 
 int
@@ -803,9 +909,8 @@ pf_altq(struct snmp_context __unused *ctx, struct snmp_value *val,
 {
 	asn_subid_t	which = val->var.subs[sub - 1];
 
-	if (!altq_enabled) {
-	   return (SNMP_ERR_NOERROR);
-	}
+	if (!altq_enabled)
+	   return (SNMP_ERR_NOSUCHNAME);
 
 	if (op == SNMP_OP_SET)
 		return (SNMP_ERR_NOT_WRITEABLE);
@@ -838,9 +943,8 @@ pf_altqq(struct snmp_context __unused *ctx, struct snmp_value *val,
 	asn_subid_t	which = val->var.subs[sub - 1];
 	struct pfq_entry *e = NULL;
 
-	if (!altq_enabled) {
-	   return (SNMP_ERR_NOERROR);
-	}
+	if (!altq_enabled)
+	   return (SNMP_ERR_NOSUCHNAME);
 
 	if ((time(NULL) - pfq_table_age) > PFQ_TABLE_MAXAGE)
 		pfq_refresh();
@@ -1009,6 +1113,17 @@ pft_table_find(u_int idx)
 	struct pft_entry *e;
 
 	TAILQ_FOREACH(e, &pft_table, link)
+		if (e->index == idx)
+			return (e);
+	return (NULL);
+}
+
+static struct pfa_entry *
+pfa_table_find(u_int idx)
+{
+	struct pfa_entry *e;
+
+	TAILQ_FOREACH(e, &pfa_table, link)
 		if (e->index == idx)
 			return (e);
 	return (NULL);
@@ -1249,6 +1364,149 @@ err2:
 }
 
 static int
+pfa_table_addrs(u_int sidx, struct pfr_table *pt)
+{
+	struct pfioc_table io;
+	struct pfr_astats *t = NULL;
+	struct pfa_entry *e;
+	int i, numaddrs = 1;
+
+	if (pt == NULL)
+		return (-1);
+
+	memset(&io, 0, sizeof(io));
+	strlcpy(io.pfrio_table.pfrt_name, pt->pfrt_name,
+	    sizeof(io.pfrio_table.pfrt_name));
+
+	for (;;) {
+		t = reallocf(t, numaddrs * sizeof(struct pfr_astats));
+		if (t == NULL) {
+			syslog(LOG_ERR, "pfa_table_addrs(): reallocf(): %s",
+			    strerror(errno));
+			numaddrs = -1;
+			goto error;
+		}
+
+		memset(t, 0, sizeof(*t));
+		io.pfrio_size = numaddrs;
+		io.pfrio_buffer = t;
+		io.pfrio_esize = sizeof(struct pfr_astats);
+
+		if (ioctl(dev, DIOCRGETASTATS, &io)) {
+			syslog(LOG_ERR, "pfa_table_addrs(): ioctl() on %s: %s",
+			    pt->pfrt_name, strerror(errno));
+			numaddrs = -1;
+			break;
+		}
+
+		if (numaddrs >= io.pfrio_size)
+			break;
+
+		numaddrs = io.pfrio_size;
+	}
+
+	for (i = 0; i < numaddrs; i++) {
+		if ((t + i)->pfras_a.pfra_af != AF_INET &&
+		    (t + i)->pfras_a.pfra_af != AF_INET6) {
+			numaddrs = i;
+			break;
+		}
+
+		e = (struct pfa_entry *)malloc(sizeof(struct pfa_entry));
+		if (e == NULL) {
+			syslog(LOG_ERR, "pfa_table_addrs(): malloc(): %s",
+			    strerror(errno));
+			numaddrs = -1;
+			break;
+		}
+		e->index = sidx + i;
+		memcpy(&e->pfas, t + i, sizeof(struct pfr_astats));
+		TAILQ_INSERT_TAIL(&pfa_table, e, link);
+	}
+
+	free(t);
+error:
+	return (numaddrs);
+}
+
+static int
+pfa_refresh(void)
+{
+	struct pfioc_table io;
+	struct pfr_table *pt = NULL, *it = NULL;
+	struct pfa_entry *e;
+	int i, numtbls = 1, cidx, naddrs;
+
+	if (started && this_tick <= pf_tick)
+		return (0);
+
+	while (!TAILQ_EMPTY(&pfa_table)) {
+		e = TAILQ_FIRST(&pfa_table);
+		TAILQ_REMOVE(&pfa_table, e, link);
+		free(e);
+	}
+
+	memset(&io, 0, sizeof(io));
+	io.pfrio_esize = sizeof(struct pfr_table);
+
+	for (;;) {
+		pt = reallocf(pt, numtbls * sizeof(struct pfr_table));
+		if (pt == NULL) {
+			syslog(LOG_ERR, "pfa_refresh(): reallocf() %s",
+			    strerror(errno));
+			return (-1);
+		}
+		memset(pt, 0, sizeof(*pt));
+		io.pfrio_size = numtbls;
+		io.pfrio_buffer = pt;
+
+		if (ioctl(dev, DIOCRGETTABLES, &io)) {
+			syslog(LOG_ERR, "pfa_refresh(): ioctl(): %s",
+			    strerror(errno));
+			goto err2;
+		}
+
+		if (numtbls >= io.pfrio_size)
+			break;
+
+		numtbls = io.pfrio_size;
+	}
+
+	cidx = 1;
+
+	for (it = pt, i = 0; i < numtbls; it++, i++) {
+		/*
+		 * Skip the table if not active - ioctl(DIOCRGETASTATS) will
+		 * return ESRCH for this entry anyway.
+		 */
+		if (!(it->pfrt_flags & PFR_TFLAG_ACTIVE))
+			continue;
+
+		if ((naddrs = pfa_table_addrs(cidx, it)) < 0)
+			goto err1;
+
+		cidx += naddrs;
+	}
+
+	pfa_table_age = time(NULL);
+	pfa_table_count = cidx;
+	pf_tick = this_tick;
+
+	free(pt);
+	return (0);
+err1:
+	while (!TAILQ_EMPTY(&pfa_table)) {
+		e = TAILQ_FIRST(&pfa_table);
+		TAILQ_REMOVE(&pfa_table, e, link);
+		free(e);
+	}
+
+err2:
+	free(pt);
+	return (-1);
+}
+
+static int
 pfl_scan_ruleset(const char *path)
 {
 	struct pfioc_rule pr;
@@ -1423,6 +1681,7 @@ pf_init(struct lmodule *mod, int __unused argc, char __unused *argv[])
 	TAILQ_INIT(&pfi_table);
 	TAILQ_INIT(&pfq_table);
 	TAILQ_INIT(&pft_table);
+	TAILQ_INIT(&pfa_table);
 	TAILQ_INIT(&pfl_table);
 
 	pfi_refresh();
@@ -1432,6 +1691,7 @@ pf_init(struct lmodule *mod, int __unused argc, char __unused *argv[])
 
 	pfs_refresh();
 	pft_refresh();
+	pfa_refresh();
 	pfl_refresh();
 
 	started = 1;
@@ -1445,6 +1705,7 @@ pf_fini(void)
 	struct pfi_entry *i1, *i2;
 	struct pfq_entry *q1, *q2;
 	struct pft_entry *t1, *t2;
+	struct pfa_entry *a1, *a2;
 	struct pfl_entry *l1, *l2;
 
 	/* Empty the list of interfaces */
@@ -1471,6 +1732,14 @@ pf_fini(void)
 		t1 = t2;
 	}
 
+	/* List of table addresses */
+	a1 = TAILQ_FIRST(&pfa_table);
+	while (a1 != NULL) {
+		a2 = TAILQ_NEXT(a1, link);
+		free(a1);
+		a1 = a2;
+	}
+
 	/* And the list of labeled filter rules */
 	l1 = TAILQ_FIRST(&pfl_table);
 	while (l1 != NULL) {
@@ -1491,6 +1760,7 @@ pf_dump(void)
 		pfq_refresh();
 	}
 	pft_refresh();
+	pfa_refresh();
 	pfl_refresh();
 
 	syslog(LOG_ERR, "Dump: pfi_table_age = %jd",
@@ -1507,6 +1777,11 @@ pf_dump(void)
 	    (intmax_t)pft_table_age);
 	syslog(LOG_ERR, "Dump: pft_table_count = %d",
 	    pft_table_count);
+
+	syslog(LOG_ERR, "Dump: pfa_table_age = %jd",
+	    (intmax_t)pfa_table_age);
+	syslog(LOG_ERR, "Dump: pfa_table_count = %d",
+	    pfa_table_count);
 
 	syslog(LOG_ERR, "Dump: pfl_table_age = %jd",
 	    (intmax_t)pfl_table_age);
