@@ -2501,8 +2501,6 @@ struct msk_softc {
 	int			msk_int_holdoff;
 	int			msk_process_limit;
 	int			msk_stat_cons;
-	struct taskqueue	*msk_tq;
-	struct task		msk_int_task;
 	struct mtx		msk_mtx;
 };
 
@@ -2547,7 +2545,6 @@ struct msk_if_softc {
 	struct msk_ring_data	msk_rdata;
 	struct msk_softc	*msk_softc;	/* parent controller */
 	struct msk_hw_stats	msk_stats;
-	struct task		msk_tx_task;
 	int			msk_if_flags;
 	uint16_t		msk_vtag;	/* VLAN tag id. */
 };
