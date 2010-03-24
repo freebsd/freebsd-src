@@ -139,12 +139,9 @@ pcbmap(dep, findcn, bnp, cnp, sp)
 	struct msdosfsmount *pmp = dep->de_pmp;
 	u_long bsize;
 
-	/*
-	 * If they don't give us someplace to return a value then don't
-	 * bother doing anything.
-	 */
-	if (bnp == NULL && cnp == NULL && sp == NULL)
-		return (0);
+	KASSERT(bnp != NULL || cnp != NULL || sp != NULL,
+	    ("pcbmap: extra call"));
+	ASSERT_VOP_ELOCKED(DETOV(dep), "pcbmap");
 
 	cn = dep->de_StartCluster;
 	/*
@@ -270,6 +267,8 @@ fc_lookup(dep, findcn, frcnp, fsrcnp)
 	u_long cn;
 	struct fatcache *closest = 0;
 
+	ASSERT_VOP_LOCKED(DETOV(dep), "fc_lookup");
+
 	for (i = 0; i < FC_SIZE; i++) {
 		cn = dep->de_fc[i].fc_frcn;
 		if (cn != FCE_EMPTY && cn <= findcn) {
@@ -294,6 +293,8 @@ fc_purge(dep, frcn)
 {
 	int i;
 	struct fatcache *fcp;
+
+	ASSERT_VOP_ELOCKED(DETOV(dep), "fc_purge");
 
 	fcp = dep->de_fc;
 	for (i = 0; i < FC_SIZE; i++, fcp++) {
