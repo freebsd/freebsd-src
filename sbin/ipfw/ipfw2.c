@@ -2656,7 +2656,7 @@ ipfw_add(char *av[])
 	}
 
 	/* [set N]	-- set number (0..RESVD_SET), optional */
-	if (av[0] && !av[1] && _substrcmp(*av, "set") == 0) {
+	if (av[0] && av[1] && _substrcmp(*av, "set") == 0) {
 		int set = strtoul(av[1], NULL, 10);
 		if (set < 0 || set > RESVD_SET)
 			errx(EX_DATAERR, "illegal set %s", av[1]);
