@@ -60,10 +60,19 @@ static int mca_count;		/* Number of records stored. */
 
 SYSCTL_NODE(_hw, OID_AUTO, mca, CTLFLAG_RD, NULL, "Machine Check Architecture");
 
-static int mca_enabled = 0;
+static int mca_enabled = 1;
 TUNABLE_INT("hw.mca.enabled", &mca_enabled);
 SYSCTL_INT(_hw_mca, OID_AUTO, enabled, CTLFLAG_RDTUN, &mca_enabled, 0,
     "Administrative toggle for machine check support");
+
+static int amd10h_L1TP = 1;
+TUNABLE_INT("hw.mca.amd10h_L1TP", &amd10h_L1TP);
+SYSCTL_INT(_hw_mca, OID_AUTO, amd10h_L1TP, CTLFLAG_RDTUN, &amd10h_L1TP, 0,
+    "Administrative toggle for logging of level one TLB parity (L1TP) errors");
+
+int workaround_erratum383;
+SYSCTL_INT(_hw_mca, OID_AUTO, erratum383, CTLFLAG_RD, &workaround_erratum383, 0,
+    "Is the workaround for Erratum 383 on AMD Family 10h processors enabled?");
 
 static STAILQ_HEAD(, mca_internal) mca_records;
 static struct callout mca_timer;
@@ -527,13 +536,22 @@ void
 mca_init(void)
 {
 	uint64_t mcg_cap;
-	uint64_t ctl;
+	uint64_t ctl, mask;
 	int skip;
 	int i;
 
 	/* MCE is required. */
 	if (!mca_enabled || !(cpu_feature & CPUID_MCE))
 		return;
+
+	/*
+	 * On AMD Family 10h processors, unless logging of level one TLB
+	 * parity (L1TP) errors is disabled, enable the recommended workaround
+	 * for Erratum 383.
+	 */
+	if (cpu_vendor_id == CPU_VENDOR_AMD &&
+	    CPUID_TO_FAMILY(cpu_id) == 0x10 && amd10h_L1TP)
+		workaround_erratum383 = 1;
 
 	if (cpu_feature & CPUID_MCA) {
 		if (PCPU_GET(cpuid) == 0)
@@ -545,6 +563,19 @@ mca_init(void)
 			/* Enable MCA features. */
 			wrmsr(MSR_MCG_CTL, MCG_CTL_ENABLE);
 
+		/*
+		 * Disable logging of level one TLB parity (L1TP) errors by
+		 * the data cache as an alternative workaround for AMD Family
+		 * 10h Erratum 383.  Unlike the recommended workaround, there
+		 * is no performance penalty to this workaround.  However,
+		 * L1TP errors will go unreported.
+		 */
+		if (cpu_vendor_id == CPU_VENDOR_AMD &&
+		    CPUID_TO_FAMILY(cpu_id) == 0x10 && !amd10h_L1TP) {
+			mask = rdmsr(MSR_MC0_CTL_MASK);
+			if ((mask & (1UL << 5)) == 0)
+				wrmsr(MSR_MC0_CTL_MASK, mask | (1UL << 5));
+		}
 		for (i = 0; i < (mcg_cap & MCG_CAP_COUNT); i++) {
 			/* By default enable logging of all errors. */
 			ctl = 0xffffffffffffffffUL;
