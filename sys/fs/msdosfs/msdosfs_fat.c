@@ -413,7 +413,12 @@ usemap_alloc(pmp, cn)
 {
 
 	MSDOSFS_ASSERT_MP_LOCKED(pmp);
+
+	KASSERT((pmp->pm_inusemap[cn / N_INUSEBITS] & (1 << (cn % N_INUSEBITS)))
+	    == 0, ("Allocating used sector %ld %ld %x", cn, cn % N_INUSEBITS,
+		(unsigned)pmp->pm_inusemap[cn / N_INUSEBITS]));
 	pmp->pm_inusemap[cn / N_INUSEBITS] |= 1 << (cn % N_INUSEBITS);
+	KASSERT(pmp->pm_freeclustercount > 0, ("usemap_alloc: too little"));
 	pmp->pm_freeclustercount--;
 }
 
@@ -425,6 +430,9 @@ usemap_free(pmp, cn)
 
 	MSDOSFS_ASSERT_MP_LOCKED(pmp);
 	pmp->pm_freeclustercount++;
+	KASSERT((pmp->pm_inusemap[cn / N_INUSEBITS] & (1 << (cn % N_INUSEBITS)))
+	    != 0, ("Freeing unused sector %ld %ld %x", cn, cn % N_INUSEBITS,
+		(unsigned)pmp->pm_inusemap[cn / N_INUSEBITS]));
 	pmp->pm_inusemap[cn / N_INUSEBITS] &= ~(1 << (cn % N_INUSEBITS));
 }
 
