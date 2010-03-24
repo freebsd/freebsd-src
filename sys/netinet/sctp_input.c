@@ -1860,9 +1860,7 @@ sctp_process_cookie_existing(struct mbuf *m, int iphlen, int offset,
 			memset(asoc->mapping_array, 0,
 			    asoc->mapping_array_size);
 		}
-		/* EY 05/13/08 - nr_sack version of the above if statement */
-		if (asoc->nr_mapping_array && SCTP_BASE_SYSCTL(sctp_nr_sack_on_off)
-		    && asoc->peer_supports_nr_sack) {
+		if (asoc->nr_mapping_array) {
 			memset(asoc->nr_mapping_array, 0,
 			    asoc->nr_mapping_array_size);
 		}
@@ -3515,16 +3513,10 @@ sctp_handle_stream_reset_response(struct sctp_tcb *stcb,
 					stcb->asoc.mapping_array_base_tsn = ntohl(resp->senders_next_tsn);
 					memset(stcb->asoc.mapping_array, 0, stcb->asoc.mapping_array_size);
 
-					/*
-					 * EY 05/13/08 - nr_sack: to keep
-					 * nr_mapping array be consistent
-					 * with mapping_array
-					 */
-					if (SCTP_BASE_SYSCTL(sctp_nr_sack_on_off) && stcb->asoc.peer_supports_nr_sack) {
-						stcb->asoc.highest_tsn_inside_nr_map = stcb->asoc.highest_tsn_inside_map;
-						stcb->asoc.nr_mapping_array_base_tsn = stcb->asoc.mapping_array_base_tsn;
-						memset(stcb->asoc.nr_mapping_array, 0, stcb->asoc.nr_mapping_array_size);
-					}
+					stcb->asoc.highest_tsn_inside_nr_map = stcb->asoc.highest_tsn_inside_map;
+					stcb->asoc.nr_mapping_array_base_tsn = stcb->asoc.mapping_array_base_tsn;
+					memset(stcb->asoc.nr_mapping_array, 0, stcb->asoc.nr_mapping_array_size);
+
 					stcb->asoc.sending_seq = ntohl(resp->receivers_next_tsn);
 					stcb->asoc.last_acked_seq = stcb->asoc.cumulative_tsn;
 
@@ -3631,15 +3623,9 @@ sctp_handle_str_reset_request_tsn(struct sctp_tcb *stcb,
 		stcb->asoc.tsn_last_delivered = stcb->asoc.cumulative_tsn = stcb->asoc.highest_tsn_inside_map;
 		stcb->asoc.mapping_array_base_tsn = stcb->asoc.highest_tsn_inside_map + 1;
 		memset(stcb->asoc.mapping_array, 0, stcb->asoc.mapping_array_size);
-		/*
-		 * EY 05/13/08 -nr_sack: to keep nr_mapping array consistent
-		 * with mapping array
-		 */
-		if (SCTP_BASE_SYSCTL(sctp_nr_sack_on_off) && stcb->asoc.peer_supports_nr_sack) {
-			stcb->asoc.highest_tsn_inside_nr_map = stcb->asoc.highest_tsn_inside_map;
-			stcb->asoc.nr_mapping_array_base_tsn = stcb->asoc.highest_tsn_inside_map + 1;
-			memset(stcb->asoc.nr_mapping_array, 0, stcb->asoc.nr_mapping_array_size);
-		}
+		stcb->asoc.highest_tsn_inside_nr_map = stcb->asoc.highest_tsn_inside_map;
+		stcb->asoc.nr_mapping_array_base_tsn = stcb->asoc.highest_tsn_inside_map + 1;
+		memset(stcb->asoc.nr_mapping_array, 0, stcb->asoc.nr_mapping_array_size);
 		atomic_add_int(&stcb->asoc.sending_seq, 1);
 		/* save off historical data for retrans */
 		stcb->asoc.last_sending_seq[1] = stcb->asoc.last_sending_seq[0];
