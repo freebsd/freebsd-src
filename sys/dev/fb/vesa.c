@@ -1370,8 +1370,6 @@ vesa_save_palette(video_adapter_t *adp, u_char *palette)
 		bits = (adp->va_flags & V_ADP_DAC8) != 0 ? 8 : 6;
 		if (vesa_bios_save_palette(0, 256, palette, bits) == 0)
 			return (0);
-		if (bits > 6)
-			return (1);
 	}
 
 	return ((*prevvidsw->save_palette)(adp, palette));
@@ -1386,8 +1384,6 @@ vesa_load_palette(video_adapter_t *adp, u_char *palette)
 		bits = (adp->va_flags & V_ADP_DAC8) != 0 ? 8 : 6;
 		if (vesa_bios_load_palette(0, 256, palette, bits) == 0)
 			return (0);
-		if (bits > 6)
-			return (1);
 	}
 
 	return ((*prevvidsw->load_palette)(adp, palette));
