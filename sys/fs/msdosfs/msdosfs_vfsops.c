@@ -75,6 +75,8 @@
 #include <fs/msdosfs/fat.h>
 #include <fs/msdosfs/msdosfsmount.h>
 
+static const char msdosfs_lock_msg[] = "fatlk";
+
 /* Mount options that we support. */
 static const char *msdosfs_opts[] = {
 	"async", "noatime", "noclusterr", "noclusterw",
@@ -466,6 +468,8 @@ mountmsdosfs(struct vnode *devvp, struct mount *mp)
 	pmp->pm_cp = cp;
 	pmp->pm_bo = bo;
 
+	lockinit(&pmp->pm_fatlock, 0, msdosfs_lock_msg, 0, 0);
+
 	/*
 	 * Initialize ownerships and permissions, since nothing else will
 	 * initialize them iff we are mounting root.
@@ -763,6 +767,7 @@ error_exit:
 		PICKUP_GIANT();
 	}
 	if (pmp) {
+		lockdestroy(&pmp->pm_fatlock);
 		if (pmp->pm_inusemap)
 			free(pmp->pm_inusemap, M_MSDOSFSFAT);
 		free(pmp, M_MSDOSFSMNT);
@@ -837,6 +842,7 @@ msdosfs_unmount(struct mount *mp, int mntflags)
 	free(pmp->pm_inusemap, M_MSDOSFSFAT);
 	if (pmp->pm_flags & MSDOSFS_LARGEFS)
 		msdosfs_fileno_free(mp);
+	lockdestroy(&pmp->pm_fatlock);
 	free(pmp, M_MSDOSFSMNT);
 	mp->mnt_data = NULL;
 	MNT_ILOCK(mp);
