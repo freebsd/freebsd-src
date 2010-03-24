@@ -1235,11 +1235,13 @@ linprocfs_dofilesystems(PFS_FILL_ARGS)
 {
 	struct vfsconf *vfsp;
 
+	mtx_lock(&Giant);
 	TAILQ_FOREACH(vfsp, &vfsconf, vfc_list) {
 		if (vfsp->vfc_flags & VFCF_SYNTHETIC)
 			sbuf_printf(sb, "nodev");
 		sbuf_printf(sb, "\t%s\n", vfsp->vfc_name);
 	}
+	mtx_unlock(&Giant);
 	return(0);
 }
 
