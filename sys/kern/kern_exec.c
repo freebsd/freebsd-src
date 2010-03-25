@@ -372,6 +372,7 @@ do_execve(td, args, mac_p)
 	imgp->execlabel = NULL;
 	imgp->attr = &attr;
 	imgp->entry_addr = 0;
+	imgp->reloc_base = 0;
 	imgp->vmspace_destroyed = 0;
 	imgp->interpreted = 0;
 	imgp->opened = 0;

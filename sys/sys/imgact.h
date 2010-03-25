@@ -56,6 +56,7 @@ struct image_params {
 	struct vattr *attr;	/* attributes of file */
 	const char *image_header; /* head of file to exec */
 	unsigned long entry_addr; /* entry address of target executable */
+	unsigned long reloc_base; /* load address of image */
 	char vmspace_destroyed;	/* flag - we've blown away original vm space */
 	char interpreted;	/* flag - this executable is interpreted */
 	char opened;		/* flag - we have opened executable vnode */
