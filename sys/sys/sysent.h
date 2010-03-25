@@ -98,7 +98,8 @@ struct sysentvec {
 	vm_offset_t	sv_psstrings;	/* PS_STRINGS */
 	int		sv_stackprot;	/* vm protection for stack */
 	register_t	*(*sv_copyout_strings)(struct image_params *);
-	void		(*sv_setregs)(struct thread *, u_long, u_long, u_long);
+	void		(*sv_setregs)(struct thread *, struct image_params *,
+			    u_long);
 	void		(*sv_fixlimit)(struct rlimit *, int);
 	u_long		*sv_maxssiz;
 	u_int		sv_flags;
