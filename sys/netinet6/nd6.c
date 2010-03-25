@@ -1168,7 +1168,7 @@ nd6_nud_hint(struct rtentry *rt, struct in6_addr *dst6, int force)
 
  	ln->ln_state = ND6_LLINFO_REACHABLE;
 	if (!ND6_LLINFO_PERMANENT(ln)) {
-		nd6_llinfo_settimer(ln,
+		nd6_llinfo_settimer_locked(ln,
 		    (long)ND_IFINFO(rt->rt_ifp)->reachable * hz);
 	}
 done:
