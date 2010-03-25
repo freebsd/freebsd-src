@@ -112,17 +112,16 @@ x86bios_set_fault(struct x86emu *emu, uint32_t addr)
 static void *
 x86bios_get_pages(uint32_t offset, size_t size)
 {
-	int i;
+	vm_offset_t page;
 
 	if (offset + size > X86BIOS_MEM_SIZE + X86BIOS_IVT_SIZE)
 		return (NULL);
 
 	if (offset >= X86BIOS_MEM_SIZE)
 		offset -= X86BIOS_MEM_SIZE;
-	i = offset / X86BIOS_PAGE_SIZE;
-	if (x86bios_map[i] != 0)
-		return ((void *)(x86bios_map[i] + offset -
-		    i * X86BIOS_PAGE_SIZE));
+	page = x86bios_map[offset / X86BIOS_PAGE_SIZE];
+	if (page != 0)
+		return ((void *)(page + offset % X86BIOS_PAGE_SIZE));
 
 	return (NULL);
 }
