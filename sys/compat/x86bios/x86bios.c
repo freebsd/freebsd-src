@@ -68,7 +68,6 @@ __FBSDID("$FreeBSD$");
 
 #define	X86BIOS_R_DS		_pad1
 #define	X86BIOS_R_SS		_pad2
-#define	X86BIOS_R_SP		_pad3.I16_reg.x_reg
 
 static struct x86emu x86bios_emu;
 
@@ -354,7 +353,6 @@ x86bios_init_regs(struct x86regs *regs)
 	bzero(regs, sizeof(*regs));
 	regs->X86BIOS_R_DS = 0x40;
 	regs->X86BIOS_R_SS = x86bios_seg_phys >> 4;
-	regs->X86BIOS_R_SP = 0xfffe;
 }
 
 void
