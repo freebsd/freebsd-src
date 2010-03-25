@@ -15,6 +15,10 @@ MKMODULESENV+=	DESTDIR="${DESTDIR}"
 SYSDIR?= ${S:C;^[^/];${.CURDIR}/&;}
 MKMODULESENV+=	KERNBUILDDIR="${.CURDIR}" SYSDIR="${SYSDIR}"
 
+.if defined(CONF_CFLAGS)
+MKMODULESENV+=	CONF_CFLAGS="${CONF_CFLAGS}"
+.endif
+
 .MAIN: all
 
 .for target in all clean cleandepend cleandir clobber depend install \
