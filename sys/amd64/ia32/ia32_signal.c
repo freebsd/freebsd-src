@@ -701,11 +701,7 @@ freebsd32_sigreturn(td, uap)
  * Clear registers on exec
  */
 void
-ia32_setregs(td, entry, stack, ps_strings)
-	struct thread *td;
-	u_long entry;
-	u_long stack;
-	u_long ps_strings;
+ia32_setregs(struct thread *td, struct image_params *imgp, u_long stack)
 {
 	struct trapframe *regs = td->td_frame;
 	struct pcb *pcb = td->td_pcb;
@@ -721,12 +717,12 @@ ia32_setregs(td, entry, stack, ps_strings)
 	pcb->pcb_initial_fpucw = __INITIAL_FPUCW_I386__;
 
 	bzero((char *)regs, sizeof(struct trapframe));
-	regs->tf_rip = entry;
+	regs->tf_rip = imgp->entry_addr;
 	regs->tf_rsp = stack;
 	regs->tf_rflags = PSL_USER | (regs->tf_rflags & PSL_T);
 	regs->tf_ss = _udatasel;
 	regs->tf_cs = _ucode32sel;
-	regs->tf_rbx = ps_strings;
+	regs->tf_rbx = imgp->ps_strings;
 	regs->tf_ds = _udatasel;
 	regs->tf_es = _udatasel;
 	regs->tf_fs = _ufssel;
