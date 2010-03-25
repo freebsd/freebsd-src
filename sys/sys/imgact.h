@@ -80,7 +80,7 @@ struct thread;
 int	exec_check_permissions(struct image_params *);
 register_t *exec_copyout_strings(struct image_params *);
 int	exec_new_vmspace(struct image_params *, struct sysentvec *);
-void	exec_setregs(struct thread *, u_long, u_long, u_long);
+void	exec_setregs(struct thread *, struct image_params *, u_long);
 int	exec_shell_imgact(struct image_params *);
 int	exec_copyin_args(struct image_args *, char *, enum uio_seg,
 	char **, char **);

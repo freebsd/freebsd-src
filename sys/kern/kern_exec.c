@@ -799,11 +799,10 @@ interpret:
 
 	/* Set values passed into the program in registers. */
 	if (p->p_sysent->sv_setregs)
-		(*p->p_sysent->sv_setregs)(td, imgp->entry_addr,
-		    (u_long)(uintptr_t)stack_base, imgp->ps_strings);
+		(*p->p_sysent->sv_setregs)(td, imgp, 
+		    (u_long)(uintptr_t)stack_base);
 	else
-		exec_setregs(td, imgp->entry_addr,
-		    (u_long)(uintptr_t)stack_base, imgp->ps_strings);
+		exec_setregs(td, imgp, (u_long)(uintptr_t)stack_base);
 
 	vfs_mark_atime(imgp->vp, td->td_ucred);
 
