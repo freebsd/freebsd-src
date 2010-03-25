@@ -189,7 +189,9 @@ static int vesa_bios_load_palette2(int start, int colors, u_char *r, u_char *g,
 #define STATE_ALL	(STATE_HW | STATE_DATA | STATE_DAC | STATE_REG)
 static ssize_t vesa_bios_state_buf_size(void);
 static int vesa_bios_save_restore(int code, void *p, size_t size);
+#ifdef MODE_TABLE_BROKEN
 static int vesa_bios_get_line_length(void);
+#endif
 static int vesa_bios_set_line_length(int pixel, int *bytes, int *lines);
 #if 0
 static int vesa_bios_get_start(int *x, int *y);
@@ -558,6 +560,7 @@ vesa_bios_save_restore(int code, void *p, size_t size)
 	return (regs.R_AX != 0x004f);
 }
 
+#ifdef MODE_TABLE_BROKEN
 static int
 vesa_bios_get_line_length(void)
 {
@@ -574,6 +577,7 @@ vesa_bios_get_line_length(void)
 
 	return (regs.R_BX);
 }
+#endif
 
 static int
 vesa_bios_set_line_length(int pixel, int *bytes, int *lines)
@@ -1213,7 +1217,6 @@ static int
 vesa_set_mode(video_adapter_t *adp, int mode)
 {
 	video_info_t info;
-	int bpsl;
 
 	if (adp != vesa_adp)
 		return ((*prevvidsw->set_mode)(adp, mode));
@@ -1295,14 +1298,18 @@ vesa_set_mode(video_adapter_t *adp, int mode)
 	if ((info.vi_flags & V_INFO_GRAPHICS) != 0)
 		vesa_adp->va_line_width /= info.vi_planes;
 
+#ifdef MODE_TABLE_BROKEN
 	/* If VBE function returns bigger bytes per scan line, use it. */
-	bpsl = vesa_bios_get_line_length();
-	if (bpsl > vesa_adp->va_line_width) {
-		vesa_adp->va_line_width = bpsl;
-		info.vi_buffer_size = bpsl * info.vi_height;
-		if ((info.vi_flags & V_INFO_GRAPHICS) != 0)
-			info.vi_buffer_size *= info.vi_planes;
+	{
+		int bpsl = vesa_bios_get_line_length();
+		if (bpsl > vesa_adp->va_line_width) {
+			vesa_adp->va_line_width = bpsl;
+			info.vi_buffer_size = bpsl * info.vi_height;
+			if ((info.vi_flags & V_INFO_GRAPHICS) != 0)
+				info.vi_buffer_size *= info.vi_planes;
+		}
 	}
+#endif
 
 	if (info.vi_flags & V_INFO_LINEAR) {
 #if VESA_DEBUG > 1
