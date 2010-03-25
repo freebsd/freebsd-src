@@ -943,6 +943,7 @@ __CONCAT(exec_, __elfN(imgact))(struct image_params *imgp)
 
 	imgp->auxargs = elf_auxargs;
 	imgp->interpreted = 0;
+	imgp->reloc_base = addr;
 	imgp->proc->p_osrel = osrel;
 
 	return (error);
