@@ -41,10 +41,6 @@ __FBSDID("$FreeBSD$");
 
 #include "uart_if.h"
 
-#define	SAL_SGISN_PUTC	0x02000021
-#define	SAL_SGISN_GETC	0x02000022
-#define	SAL_SGISN_POLL	0x02000026
-
 /*
  * Low-level UART interface.
  */
@@ -67,9 +63,10 @@ static struct uart_ops uart_sgisn_ops = {
 static int
 sgisn_probe(struct uart_bas *bas)
 {
+	struct ia64_sal_result result;
 
-	/* XXX Check that we're running on the Altix 350 */
-	return (0);
+	result = ia64_sal_entry(SAL_SGISN_INFO, 0, 0, 0, 0, 0, 0, 0);
+	return ((result.sal_status != 0) ? ENXIO : 0);
 }
 
 static void
