@@ -366,7 +366,7 @@ pmcpl_ct_node_cleartag(void)
 
 static int
 pmcpl_ct_node_dumptop(int pmcin, struct pmcpl_ct_node *ct,
-    struct pmcpl_ct_sample *rsamples, int x, int *y)
+    struct pmcpl_ct_sample *rsamples, int x, int *y, int maxy)
 {
 	int i;
 
@@ -387,7 +387,7 @@ pmcpl_ct_node_dumptop(int pmcin, struct pmcpl_ct_node *ct,
 	if (ct->pct_narc == 0) {
 		pmcpl_ct_topscreen[x+1][*y] = NULL;
 		if (*y >= PMCPL_CT_MAXLINE ||
-		    *y >= pmcstat_displayheight)
+		    *y >= maxy)
 			return 1;
 		*y = *y + 1;
 		for (i=0; i < x; i++)
@@ -407,7 +407,7 @@ pmcpl_ct_node_dumptop(int pmcin, struct pmcpl_ct_node *ct,
 		    &ct->pct_arc[i].pcta_samples) > pmcstat_threshold) {
 			if (pmcpl_ct_node_dumptop(pmcin,
 			        ct->pct_arc[i].pcta_child,
-			        rsamples, x+1, y))
+			        rsamples, x+1, y, maxy))
 				return 1;
 		}
 	}
@@ -472,6 +472,9 @@ pmcpl_ct_node_printtop(struct pmcpl_ct_sample *rsamples, int pmcin, int maxy)
 			/* Check for line wrap. */
 			width += ns_len + is_len + vs_len + 1;
 			if (width >= pmcstat_displaywidth) {
+				maxy--;
+				if (y >= maxy)
+					break;
 				PMCSTAT_PRINTW("\n%*s", indentwidth, space);
 				width = indentwidth + ns_len + is_len + vs_len;
 			}
@@ -515,7 +518,7 @@ pmcpl_ct_topdisplay(void)
 		for (i = 0; i < pmcpl_ct_root->pct_narc; i++) {
 			if (pmcpl_ct_node_dumptop(pmcin,
 			        pmcpl_ct_root->pct_arc[i].pcta_child,
-			        &rsamples, x, &y)) {
+			        &rsamples, x, &y, pmcstat_displayheight - 2)) {
 				break;
 			}
 		}
