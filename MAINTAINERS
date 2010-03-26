@@ -57,9 +57,9 @@ libfetch	des	Advance notification requested.
 fetch		des	Advance notification requested.
 libpam		des	Pre-commit review requested.
 openssh		des	Pre-commit review requested.
-pseudofs	des	Advance notification requested.
-procfs		des	Advance notification requested.
-linprocfs	des	Advance notification requested.
+pseudofs	des	Pre-commit review requested.
+procfs		des	Pre-commit review requested.
+linprocfs	des	Pre-commit review requested.
 lpr		gad	Pre-commit review requested, particularly for
 			lpd/recvjob.c and lpd/printjob.c.
 newsyslog(8)	gad	Heads-up appreciated.  I'm going thru the PR's for it.
