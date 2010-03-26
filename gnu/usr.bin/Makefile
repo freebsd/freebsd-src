@@ -4,7 +4,6 @@
 
 SUBDIR= ${_binutils} \
 	${_cc} \
-	${_cpio} \
 	${_cvs} \
 	dialog \
 	diff \
@@ -26,10 +25,6 @@ _gperf=		gperf
 .if ${MK_GROFF} != "no"
 _groff=		groff
 .endif
-.endif
-
-.if ${MK_GNU_CPIO} == "yes"
-_cpio=		cpio
 .endif
 
 .if ${MK_CVS} != "no"
