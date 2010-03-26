@@ -56,13 +56,13 @@ breakpoint(void)
 
 
 static __inline void
-disable_intr(void)
+ia64_disable_intr(void)
 {
 	__asm __volatile ("rsm psr.i");
 }
 
 static __inline void
-enable_intr(void)
+ia64_enable_intr(void)
 {
 	__asm __volatile ("ssm psr.i;; srlz.d");
 }
@@ -71,8 +71,9 @@ static __inline register_t
 intr_disable(void)
 {
 	register_t psr;
+
 	__asm __volatile ("mov %0=psr;;" : "=r"(psr));
-	disable_intr();
+	ia64_disable_intr();
 	return ((psr & IA64_PSR_I) ? 1 : 0);
 }
 
@@ -80,7 +81,7 @@ static __inline void
 intr_restore(register_t ie)
 {
 	if (ie)
-		enable_intr();
+		ia64_enable_intr();
 }
 
 #endif /* __GNUCLIKE_ASM */
