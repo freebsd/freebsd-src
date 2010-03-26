@@ -114,6 +114,11 @@ struct sal_ap_wakeup_descriptor {
 #define SAL_FREQ_BASE		0x01000012
 #define SAL_UPDATE_PAL		0x01000020
 
+#define	SAL_SGISN_INFO		0x0200001e
+#define	SAL_SGISN_PUTC		0x02000021
+#define	SAL_SGISN_GETC		0x02000022
+#define	SAL_SGISN_POLL		0x02000026
+
 /* SAL_SET_VECTORS event handler types */
 #define	SAL_OS_MCA		0
 #define	SAL_OS_INIT		1
