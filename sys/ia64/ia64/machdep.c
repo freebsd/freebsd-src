@@ -1381,7 +1381,7 @@ exec_setregs(struct thread *td, struct image_params *imgp, u_long stack)
 		 * Assumes that (bspstore & 0x1f8) < 0x1e0.
 		 */
 		suword((caddr_t)tf->tf_special.bspstore - 24, stack);
-		suword((caddr_t)tf->tf_special.bspstore - 16, ps_strings);
+		suword((caddr_t)tf->tf_special.bspstore - 16, imgp->ps_strings);
 		suword((caddr_t)tf->tf_special.bspstore -  8, 0);
 	}
 
