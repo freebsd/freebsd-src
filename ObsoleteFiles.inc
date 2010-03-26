@@ -14,6 +14,11 @@
 # The file is partitioned: OLD_FILES first, then OLD_LIBS and OLD_DIRS last.
 #
 
+# 20100326: gcpio removal
+OLD_FILES+=usr/bin/gcpio
+OLD_FILES+=usr/share/info/cpio.info.gz
+OLD_FILES+=usr/share/man/man1/gcpio.1.gz
+
 # 20100322: libz update
 OLD_LIBS+=lib/libz.so.5
 .if ${TARGET_ARCH} == "amd64"
