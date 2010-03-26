@@ -43,6 +43,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/intr.h>
 #include <machine/intrcnt.h>
 #include <machine/md_var.h>
+#include <machine/smp.h>
 
 SYSCTL_NODE(_debug, OID_AUTO, clock, CTLFLAG_RW, 0, "clock statistics");
 
@@ -91,58 +92,61 @@ ia64_ih_clock(struct thread *td, u_int xiv, struct trapframe *tf)
 	int count;
 
 	PCPU_INC(md.stats.pcs_nclks);
-	intrcnt[INTRCNT_CLOCK]++;
 
-	itc = ia64_get_itc();
+	if (PCPU_GET(cpuid) == 0) {
+		/*
+		 * Clock processing on the BSP.
+		 */
+		intrcnt[INTRCNT_CLOCK]++;
 
-	adj = PCPU_GET(md.clockadj);
-	clk = PCPU_GET(md.clock);
+		itc = ia64_get_itc();
 
-	delta = itc - clk;
-	count = 0;
-	while (delta >= ia64_clock_reload) {
-		/* Only the BSP runs the real clock */
-		if (PCPU_GET(cpuid) == 0)
+		adj = PCPU_GET(md.clockadj);
+		clk = PCPU_GET(md.clock);
+
+		delta = itc - clk;
+		count = 0;
+		while (delta >= ia64_clock_reload) {
+#ifdef SMP
+			ipi_all_but_self(ia64_clock_xiv);
+#endif
 			hardclock(TRAPF_USERMODE(tf), TRAPF_PC(tf));
-		else
-			hardclock_cpu(TRAPF_USERMODE(tf));
+			if (profprocs != 0)
+				profclock(TRAPF_USERMODE(tf), TRAPF_PC(tf));
+			statclock(TRAPF_USERMODE(tf));
+			delta -= ia64_clock_reload;
+			clk += ia64_clock_reload;
+			if (adj != 0)
+				adjust_ticks++;
+			count++;
+		}
+		ia64_set_itm(ia64_get_itc() + ia64_clock_reload - adj);
+		ia64_srlz_d();
+		if (count > 0) {
+			adjust_lost += count - 1;
+			if (delta > (ia64_clock_reload >> 3)) {
+				if (adj == 0)
+					adjust_edges++;
+				adj = ia64_clock_reload >> 4;
+			} else
+				adj = 0;
+		} else {
+			adj = 0;
+			adjust_excess++;
+		}
+		PCPU_SET(md.clock, clk);
+		PCPU_SET(md.clockadj, adj);
+	} else {
+		/*
+		 * Clock processing on the BSP.
+		 */
+		hardclock_cpu(TRAPF_USERMODE(tf));
 		if (profprocs != 0)
 			profclock(TRAPF_USERMODE(tf), TRAPF_PC(tf));
 		statclock(TRAPF_USERMODE(tf));
-		delta -= ia64_clock_reload;
-		clk += ia64_clock_reload;
-		if (adj != 0)
-			adjust_ticks++;
-		count++;
 	}
-	ia64_set_itm(ia64_get_itc() + ia64_clock_reload - adj);
-	ia64_srlz_d();
-	if (count > 0) {
-		adjust_lost += count - 1;
-		if (delta > (ia64_clock_reload >> 3)) {
-			if (adj == 0)
-				adjust_edges++;
-			adj = ia64_clock_reload >> 4;
-		} else
-			adj = 0;
-	} else {
-		adj = 0;
-		adjust_excess++;
-	}
-	PCPU_SET(md.clock, clk);
-	PCPU_SET(md.clockadj, adj);
+
 	return (0);
-}
-
-void
-pcpu_initclock(void)
-{
-
-	PCPU_SET(md.clockadj, 0);
-	PCPU_SET(md.clock, ia64_get_itc());
-	ia64_set_itm(PCPU_GET(md.clock) + ia64_clock_reload);
-	ia64_set_itv(ia64_clock_xiv);
-	ia64_srlz_d();
 }
 
 /*
@@ -154,7 +158,7 @@ cpu_initclocks()
 {
 	u_long itc_freq;
 
-	ia64_clock_xiv = ia64_xiv_alloc(PI_REALTIME, IA64_XIV_IRQ,
+	ia64_clock_xiv = ia64_xiv_alloc(PI_REALTIME, IA64_XIV_IPI,
 	    ia64_ih_clock);
 	if (ia64_clock_xiv == 0)
 		panic("No XIV for clock interrupts");
@@ -169,7 +173,11 @@ cpu_initclocks()
 	tc_init(&ia64_timecounter);
 #endif
 
-	pcpu_initclock();
+	PCPU_SET(md.clockadj, 0);
+	PCPU_SET(md.clock, ia64_get_itc());
+	ia64_set_itm(PCPU_GET(md.clock) + ia64_clock_reload);
+	ia64_set_itv(ia64_clock_xiv);
+	ia64_srlz_d();
 }
 
 void
