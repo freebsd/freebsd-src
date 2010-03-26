@@ -5432,6 +5432,20 @@ isp_prt(ispsoftc_t *isp, int level, const char *fmt, ...)
 	printf("\n");
 }
 
+void
+isp_xs_prt(ispsoftc_t *isp, XS_T *xs, int level, const char *fmt, ...)
+{
+	va_list ap;
+	if (level != ISP_LOGALL && (level & isp->isp_dblev) == 0) {
+		return;
+	}
+	xpt_print_path(xs->ccb_h.path);
+	va_start(ap, fmt);
+	vprintf(fmt, ap);
+	va_end(ap);
+	printf("\n");
+}
+
 uint64_t
 isp_nanotime_sub(struct timespec *b, struct timespec *a)
 {
