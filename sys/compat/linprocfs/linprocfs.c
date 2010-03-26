@@ -110,35 +110,12 @@ __FBSDID("$FreeBSD$");
 /*
  * Various conversion macros
  */
-
-/* The LINUX_USER_HZ is assumed 100 for now */
-
-#if defined(__i386__) && defined(__GNUCLIKE_ASM)
-/* we need intermediate result as 64 bit, otherwise it overflows too early */
-#define DO64_MULDIV(v,m,d)       \
-({                              \
-   unsigned long rv0;           \
-   unsigned long rv1;           \
-   __asm__ __volatile__(        \
-                "mull %1\n\t"   \
-                "divl %2\n\t"   \
-                :"=a" (rv0), "=d" (rv1) \
-                :"r" (d), "0" (v), "1" (m) \
-                :"cc" ); \
-  rv0; \
-})
-
-#define T2J(x) DO64_MULDIV((x), 100UL, (stathz ? stathz : hz)) /* ticks to jiffies */
-#else
 #define T2J(x) (((x) * 100UL) / (stathz ? stathz : hz))	/* ticks to jiffies */
-#endif
 #define T2S(x) ((x) / (stathz ? stathz : hz))		/* ticks to seconds */
 #define B2K(x) ((x) >> 10)				/* bytes to kbytes */
 #define B2P(x) ((x) >> PAGE_SHIFT)			/* bytes to pages */
 #define P2B(x) ((x) << PAGE_SHIFT)			/* pages to bytes */
 #define P2K(x) ((x) << (PAGE_SHIFT - 10))		/* pages to kbytes */
-
-#define TV2J(x)	(((x)->tv_sec) * 100UL + ((x)->tv_usec) / 10000)
 
 /**
  * @brief Mapping of ki_stat in struct kinfo_proc to the linux state
@@ -525,24 +502,12 @@ linprocfs_douptime(PFS_FILL_ARGS)
 {
 	long cp_time[CPUSTATES];
 	struct timeval tv;
-	int cnt, i;
 
 	getmicrouptime(&tv);
 	read_cpu_time(cp_time);
-
-	for (cnt = 0, i = 0; i <= mp_maxid; ++i)
-		if (!(CPU_ABSENT(i)))
-		    cnt++;
-
-	if (!cnt)
-	    cnt = 1;
-
-	i = ((cp_time[CP_IDLE])/cnt) % (stathz ? stathz : hz);
-	i = (i * 100) / (stathz ? stathz : hz);
-
-	sbuf_printf(sb, "%lld.%02ld %ld.%02d\n",
+	sbuf_printf(sb, "%lld.%02ld %ld.%02ld\n",
 	    (long long)tv.tv_sec, tv.tv_usec / 10000,
-	    T2S((cp_time[CP_IDLE]/cnt)), i);
+	    T2S(cp_time[CP_IDLE]), T2J(cp_time[CP_IDLE]) % 100);
 	return (0);
 }
 
@@ -648,17 +613,9 @@ linprocfs_doprocstat(PFS_FILL_ARGS)
 	struct kinfo_proc kp;
 	char state;
 	static int ratelimit = 0;
-	unsigned long startcode, startdata;
 
 	PROC_LOCK(p);
 	fill_kinfo_proc(p, &kp);
-	if (p->p_vmspace) {
-	   startcode = (unsigned long) p->p_vmspace->vm_taddr;
-	   startdata = (unsigned long) p->p_vmspace->vm_daddr;
-	} else {
-	   startcode = 0;
-	   startdata = 0;
-	};
 	sbuf_printf(sb, "%d", p->p_pid);
 #define PS_ADD(name, fmt, arg) sbuf_printf(sb, " " fmt, arg)
 	PS_ADD("comm",		"(%s)",	p->p_comm);
@@ -677,27 +634,30 @@ linprocfs_doprocstat(PFS_FILL_ARGS)
 	PS_ADD("pgrp",		"%d",	p->p_pgid);
 	PS_ADD("session",	"%d",	p->p_session->s_sid);
 	PROC_UNLOCK(p);
-	PS_ADD("tty",		"%d",	kp.ki_tdev);
+	PS_ADD("tty",		"%d",	0); /* XXX */
 	PS_ADD("tpgid",		"%d",	kp.ki_tpgid);
 	PS_ADD("flags",		"%u",	0); /* XXX */
 	PS_ADD("minflt",	"%lu",	kp.ki_rusage.ru_minflt);
 	PS_ADD("cminflt",	"%lu",	kp.ki_rusage_ch.ru_minflt);
 	PS_ADD("majflt",	"%lu",	kp.ki_rusage.ru_majflt);
 	PS_ADD("cmajflt",	"%lu",	kp.ki_rusage_ch.ru_majflt);
-	PS_ADD("utime",		"%ld",	TV2J((&kp.ki_rusage.ru_utime)));
-	PS_ADD("stime",		"%ld",	TV2J((&kp.ki_rusage.ru_stime)));
-	PS_ADD("cutime",	"%ld",	TV2J((&kp.ki_rusage_ch.ru_utime)));
-	PS_ADD("cstime",	"%ld",	TV2J((&kp.ki_rusage_ch.ru_stime)));
+	PS_ADD("utime",		"%ld",	T2J(tvtohz(&kp.ki_rusage.ru_utime)));
+	PS_ADD("stime",		"%ld",	T2J(tvtohz(&kp.ki_rusage.ru_stime)));
+	PS_ADD("cutime",	"%ld",	T2J(tvtohz(&kp.ki_rusage_ch.ru_utime)));
+	PS_ADD("cstime",	"%ld",	T2J(tvtohz(&kp.ki_rusage_ch.ru_stime)));
 	PS_ADD("priority",	"%d",	kp.ki_pri.pri_user);
 	PS_ADD("nice",		"%d",	kp.ki_nice); /* 19 (nicest) to -19 */
 	PS_ADD("0",		"%d",	0); /* removed field */
 	PS_ADD("itrealvalue",	"%d",	0); /* XXX */
-	PS_ADD("starttime",	"%lu",	TV2J((&kp.ki_start)) - TV2J((&boottime)));
+	/* XXX: starttime is not right, it is the _same_ for _every_ process.
+	   It should be the number of jiffies between system boot and process
+	   start. */
+	PS_ADD("starttime",	"%lu",	T2J(tvtohz(&kp.ki_start)));
 	PS_ADD("vsize",		"%ju",	P2K((uintmax_t)kp.ki_size));
 	PS_ADD("rss",		"%ju",	(uintmax_t)kp.ki_rssize);
 	PS_ADD("rlim",		"%lu",	kp.ki_rusage.ru_maxrss);
-	PS_ADD("startcode",	"%lu",	startcode);
-	PS_ADD("endcode",	"%lu",	startdata);
+	PS_ADD("startcode",	"%u",	(unsigned)0);
+	PS_ADD("endcode",	"%u",	0); /* XXX */
 	PS_ADD("startstack",	"%u",	0); /* XXX */
 	PS_ADD("kstkesp",	"%u",	0); /* XXX */
 	PS_ADD("kstkeip",	"%u",	0); /* XXX */
@@ -840,7 +800,7 @@ linprocfs_doprocstatus(PFS_FILL_ARGS)
 	 */
 	sbuf_printf(sb, "VmSize:\t%8ju kB\n",	B2K((uintmax_t)kp.ki_size));
 	sbuf_printf(sb, "VmLck:\t%8u kB\n",	P2K(0)); /* XXX */
-	sbuf_printf(sb, "VmRSS:\t%8ju kB\n",	P2K((uintmax_t)kp.ki_rssize));
+	sbuf_printf(sb, "VmRss:\t%8ju kB\n",	P2K((uintmax_t)kp.ki_rssize));
 	sbuf_printf(sb, "VmData:\t%8ju kB\n",	P2K((uintmax_t)kp.ki_dsize));
 	sbuf_printf(sb, "VmStk:\t%8ju kB\n",	P2K((uintmax_t)kp.ki_ssize));
 	sbuf_printf(sb, "VmExe:\t%8ju kB\n",	P2K((uintmax_t)kp.ki_tsize));
