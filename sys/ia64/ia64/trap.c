@@ -334,11 +334,11 @@ int
 do_ast(struct trapframe *tf)
 {
 
-	disable_intr();
+	ia64_disable_intr();
 	while (curthread->td_flags & (TDF_ASTPENDING|TDF_NEEDRESCHED)) {
-		enable_intr();
+		ia64_enable_intr();
 		ast(tf);
-		disable_intr();
+		ia64_disable_intr();
 	}
 	/*
 	 * Keep interrupts disabled. We return r10 as a favor to the EPC
