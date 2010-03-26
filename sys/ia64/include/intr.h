@@ -65,6 +65,7 @@ typedef u_int (ia64_ihtype)(struct thread *, u_int, struct trapframe *);
 
 extern struct ia64_pib *ia64_pib;
 
+void	ia64_finalize_intr(void);
 void	ia64_handle_intr(struct trapframe *);
 int	ia64_setup_intr(const char *, int, driver_filter_t, driver_intr_t,
 	    void *, enum intr_type, void **);

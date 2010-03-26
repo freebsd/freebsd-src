@@ -210,7 +210,7 @@ ia64_ap_startup(void)
 	ia64_set_itv(0x10000);
 	ia64_set_tpr(0);
 	ia64_srlz_d();
-	enable_intr();
+	ia64_enable_intr();
 
 	sched_throw(NULL);
 	/* NOTREACHED */

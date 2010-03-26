@@ -280,6 +280,13 @@ ia64_teardown_intr(void *cookie)
 	return (intr_event_remove_handler(cookie));
 }
 
+void
+ia64_finalize_intr(void)
+{
+
+	ia64_enable_intr();
+}
+
 /*
  * Interrupt handlers.
  */
@@ -318,9 +325,9 @@ ia64_handle_intr(struct trapframe *tf)
  out:
 	if (TRAPF_USERMODE(tf)) {
 		while (td->td_flags & (TDF_ASTPENDING|TDF_NEEDRESCHED)) {
-			enable_intr();
+			ia64_enable_intr();
 			ast(tf);
-			disable_intr();
+			ia64_disable_intr();
 		}
 	}
 }
