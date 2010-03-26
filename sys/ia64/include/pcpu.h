@@ -91,8 +91,6 @@ __curthread(void)
 #define	PCPU_PTR(member)	(&pcpup->pc_ ## member)
 #define	PCPU_SET(member,value)	(pcpup->pc_ ## member = (value))
 
-void pcpu_initclock(void);
-
 #endif	/* _KERNEL */
 
 #endif	/* !_MACHINE_PCPU_H_ */
