@@ -145,12 +145,12 @@ SYSTEM_OBJS+= ${SYSTEM_CFILES:.c=.o}
 SYSTEM_CTFMERGE= ${CTFMERGE} ${CTFFLAGS} -o ${.TARGET} ${SYSTEM_OBJS} vers.o
 LD+= -g
 .endif
-.if ${MACHINE_ARCH} != ia64
+.if ${MACHINE_ARCH} == XXX_ALTIX_TODO
+SYSTEM_LDFLAGS= -r
+.else
 SYSTEM_OBJS+= hack.So
 SYSTEM_LDFLAGS= -Bdynamic -T ${LDSCRIPT} -export-dynamic \
 	-dynamic-linker /red/herring
-.else
-SYSTEM_LDFLAGS= -r
 .endif
 SYSTEM_LD= @${LD} ${SYSTEM_LDFLAGS} -warn-common \
 	-o ${.TARGET} -X ${SYSTEM_OBJS} vers.o
