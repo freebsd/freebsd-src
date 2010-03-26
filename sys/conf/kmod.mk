@@ -325,7 +325,7 @@ ${_src}:
 .endfor
 .endif
 
-# Repsect configuration-specific C flags.
+# Respect configuration-specific C flags.
 CFLAGS+=	${CONF_CFLAGS}
 
 MFILES?= dev/acpica/acpi_if.m dev/acpi_support/acpi_wmi_if.m \
