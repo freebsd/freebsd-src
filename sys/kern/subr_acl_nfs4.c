@@ -82,6 +82,13 @@ _access_mask_from_accmode(accmode_t accmode)
 			access_mask |= accmode2mask[i].mask;
 	}
 
+	/*
+	 * VAPPEND is just a modifier for VWRITE; if the caller asked
+	 * for 'VAPPEND | VWRITE', we want to check for ACL_APPEND_DATA only.
+	 */
+	if (access_mask & ACL_APPEND_DATA)
+		access_mask &= ~ACL_WRITE_DATA;
+
 	return (access_mask);
 }
 
