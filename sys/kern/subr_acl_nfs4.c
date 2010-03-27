@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2008 Edward Tomasz Napierała <trasz@FreeBSD.org>
+ * Copyright (c) 2008-2009 Edward Tomasz Napierała <trasz@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -49,7 +49,213 @@ __FBSDID("$FreeBSD$");
 #include <sys/stat.h>
 #define KASSERT(a, b) assert(a)
 #define CTASSERT(a)
-#endif
+#endif /* _KERNEL */
+
+#ifdef _KERNEL
+
+static struct {
+	accmode_t accmode;
+	int mask;
+} accmode2mask[] = {{VREAD, ACL_READ_DATA},
+		    {VWRITE, ACL_WRITE_DATA},
+		    {VAPPEND, ACL_APPEND_DATA},
+		    {VEXEC, ACL_EXECUTE},
+		    {VREAD_NAMED_ATTRS, ACL_READ_NAMED_ATTRS},
+		    {VWRITE_NAMED_ATTRS, ACL_WRITE_NAMED_ATTRS},
+		    {VDELETE_CHILD, ACL_DELETE_CHILD},
+		    {VREAD_ATTRIBUTES, ACL_READ_ATTRIBUTES},
+		    {VWRITE_ATTRIBUTES, ACL_WRITE_ATTRIBUTES},
+		    {VDELETE, ACL_DELETE},
+		    {VREAD_ACL, ACL_READ_ACL},
+		    {VWRITE_ACL, ACL_WRITE_ACL},
+		    {VWRITE_OWNER, ACL_WRITE_OWNER},
+		    {VSYNCHRONIZE, ACL_SYNCHRONIZE},
+		    {0, 0}};
+
+static int
+_access_mask_from_accmode(accmode_t accmode)
+{
+	int access_mask = 0, i;
+
+	for (i = 0; accmode2mask[i].accmode != 0; i++) {
+		if (accmode & accmode2mask[i].accmode)
+			access_mask |= accmode2mask[i].mask;
+	}
+
+	return (access_mask);
+}
+
+/*
+ * Return 0, iff access is allowed, 1 otherwise.
+ */
+static int
+_acl_denies(const struct acl *aclp, int access_mask, struct ucred *cred,
+    int file_uid, int file_gid, int *denied_explicitly)
+{
+	int i;
+	const struct acl_entry *entry;
+
+	if (denied_explicitly != NULL)
+		*denied_explicitly = 0;
+
+	KASSERT(aclp->acl_cnt > 0, ("aclp->acl_cnt > 0"));
+	KASSERT(aclp->acl_cnt <= ACL_MAX_ENTRIES,
+	    ("aclp->acl_cnt <= ACL_MAX_ENTRIES"));
+
+	for (i = 0; i < aclp->acl_cnt; i++) {
+		entry = &(aclp->acl_entry[i]);
+
+		if (entry->ae_entry_type != ACL_ENTRY_TYPE_ALLOW &&
+		    entry->ae_entry_type != ACL_ENTRY_TYPE_DENY)
+			continue;
+		if (entry->ae_flags & ACL_ENTRY_INHERIT_ONLY)
+			continue;
+		switch (entry->ae_tag) {
+		case ACL_USER_OBJ:
+			if (file_uid != cred->cr_uid)
+				continue;
+			break;
+		case ACL_USER:
+			if (entry->ae_id != cred->cr_uid)
+				continue;
+			break;
+		case ACL_GROUP_OBJ:
+			if (!groupmember(file_gid, cred))
+				continue;
+			break;
+		case ACL_GROUP:
+			if (!groupmember(entry->ae_id, cred))
+				continue;
+			break;
+		default:
+			KASSERT(entry->ae_tag == ACL_EVERYONE,
+			    ("entry->ae_tag == ACL_EVERYONE"));
+		}
+
+		if (entry->ae_entry_type == ACL_ENTRY_TYPE_DENY) {
+			if (entry->ae_perm & access_mask) {
+				if (denied_explicitly != NULL)
+					*denied_explicitly = 1;
+				return (1);
+			}
+		}
+
+		access_mask &= ~(entry->ae_perm);
+		if (access_mask == 0)
+			return (0);
+	}
+
+	return (1);
+}
+
+int
+vaccess_acl_nfs4(enum vtype type, uid_t file_uid, gid_t file_gid,
+    struct acl *aclp, accmode_t accmode, struct ucred *cred, int *privused)
+{
+	accmode_t priv_granted = 0;
+	int denied, explicitly_denied, access_mask, is_directory,
+	    must_be_owner = 0;
+
+	if (privused != NULL)
+		*privused = 0;
+
+	if (accmode & VADMIN)
+		must_be_owner = 1;
+
+	/*
+	 * Ignore VSYNCHRONIZE permission.
+	 */
+	accmode &= ~VSYNCHRONIZE;
+
+	access_mask = _access_mask_from_accmode(accmode);
+
+	if (type == VDIR)
+		is_directory = 1;
+	else
+		is_directory = 0;
+
+	/*
+	 * File owner is always allowed to read and write the ACL
+	 * and basic attributes.  This is to prevent a situation
+	 * where user would change ACL in a way that prevents him
+	 * from undoing the change.
+	 */
+	if (file_uid == cred->cr_uid)
+		access_mask &= ~(ACL_READ_ACL | ACL_WRITE_ACL |
+		    ACL_READ_ATTRIBUTES | ACL_WRITE_ATTRIBUTES);
+
+	/*
+	 * Ignore append permission for regular files; use write
+	 * permission instead.
+	 */
+	if (!is_directory && (access_mask & ACL_APPEND_DATA)) {
+		access_mask &= ~ACL_APPEND_DATA;
+		access_mask |= ACL_WRITE_DATA;
+	}
+
+	denied = _acl_denies(aclp, access_mask, cred, file_uid, file_gid,
+	    &explicitly_denied);
+
+	if (must_be_owner) {
+		if (file_uid != cred->cr_uid)
+			denied = EPERM;
+	}
+
+	if (!denied)
+		return (0);
+
+	/*
+	 * Access failed.  Iff it was not denied explicitly and
+	 * VEXPLICIT_DENY flag was specified, allow access.
+	 */
+	if ((accmode & VEXPLICIT_DENY) && explicitly_denied == 0)
+		return (0);
+
+	accmode &= ~VEXPLICIT_DENY;
+
+	/*
+	 * No match.  Try to use privileges, if there are any.
+	 */
+	if (is_directory) {
+		if ((accmode & VEXEC) && !priv_check_cred(cred,
+		    PRIV_VFS_LOOKUP, 0))
+			priv_granted |= VEXEC;
+	} else {
+		if ((accmode & VEXEC) && !priv_check_cred(cred,
+		    PRIV_VFS_EXEC, 0))
+			priv_granted |= VEXEC;
+	}
+
+	if ((accmode & VREAD) && !priv_check_cred(cred, PRIV_VFS_READ, 0))
+		priv_granted |= VREAD;
+
+	if ((accmode & (VWRITE | VAPPEND | VDELETE_CHILD)) &&
+	    !priv_check_cred(cred, PRIV_VFS_WRITE, 0))
+		priv_granted |= (VWRITE | VAPPEND | VDELETE_CHILD);
+
+	if ((accmode & VADMIN_PERMS) &&
+	    !priv_check_cred(cred, PRIV_VFS_ADMIN, 0))
+		priv_granted |= VADMIN_PERMS;
+
+	if ((accmode & VSTAT_PERMS) &&
+	    !priv_check_cred(cred, PRIV_VFS_STAT, 0))
+		priv_granted |= VSTAT_PERMS;
+
+	if ((accmode & priv_granted) == accmode) {
+		if (privused != NULL)
+			*privused = 1;
+
+		return (0);
+	}
+
+	if (accmode & (VADMIN_PERMS | VDELETE_CHILD | VDELETE))
+		denied = EPERM;
+	else
+		denied = EACCES;
+
+	return (denied);
+}
+#endif /* _KERNEL */
 
 static int
 _acl_entry_matches(struct acl_entry *entry, acl_tag_t tag, acl_perm_t perm,
@@ -576,4 +782,291 @@ acl_nfs4_sync_mode_from_acl(mode_t *_mode, const struct acl *aclp)
 	}
 
 	*_mode = mode | (old_mode & ACL_PRESERVE_MASK);
+}
+
+void		
+acl_nfs4_compute_inherited_acl(const struct acl *parent_aclp,
+    struct acl *child_aclp, mode_t mode, int file_owner_id,
+    int is_directory)
+{
+	int i, flags;
+	const struct acl_entry *parent_entry;
+	struct acl_entry *entry, *copy;
+
+	KASSERT(child_aclp->acl_cnt == 0, ("child_aclp->acl_cnt == 0"));
+	KASSERT(parent_aclp->acl_cnt > 0, ("parent_aclp->acl_cnt > 0"));
+	KASSERT(parent_aclp->acl_cnt <= ACL_MAX_ENTRIES,
+	    ("parent_aclp->acl_cnt <= ACL_MAX_ENTRIES"));
+
+	/*
+	 * NFSv4 Minor Version 1, draft-ietf-nfsv4-minorversion1-03.txt
+	 *
+	 * 3.16.6.2. Applying the mode given to CREATE or OPEN
+	 *           to an inherited ACL
+	 */
+
+	/*
+	 * 1. Form an ACL that is the concatenation of all inheritable ACEs.
+	 */
+	for (i = 0; i < parent_aclp->acl_cnt; i++) {
+		parent_entry = &(parent_aclp->acl_entry[i]);
+		flags = parent_entry->ae_flags;
+
+		/*
+		 * Entry is not inheritable at all.
+		 */
+		if ((flags & (ACL_ENTRY_DIRECTORY_INHERIT |
+		    ACL_ENTRY_FILE_INHERIT)) == 0)
+			continue;
+
+		/*
+		 * We're creating a file, but entry is not inheritable
+		 * by files.
+		 */
+		if (!is_directory && (flags & ACL_ENTRY_FILE_INHERIT) == 0)
+			continue;
+
+		/*
+		 * Entry is inheritable only by files, but has NO_PROPAGATE
+		 * flag set, and we're creating a directory, so it wouldn't
+		 * propagate to any file in that directory anyway.
+		 */
+		if (is_directory &&
+		    (flags & ACL_ENTRY_DIRECTORY_INHERIT) == 0 &&
+		    (flags & ACL_ENTRY_NO_PROPAGATE_INHERIT))
+			continue;
+
+		KASSERT(child_aclp->acl_cnt + 1 <= ACL_MAX_ENTRIES,
+		    ("child_aclp->acl_cnt + 1 <= ACL_MAX_ENTRIES"));
+		child_aclp->acl_entry[child_aclp->acl_cnt] = *parent_entry;
+		child_aclp->acl_cnt++;
+	}
+
+	/*
+	 * 2. For each entry in the new ACL, adjust its flags, possibly
+	 *    creating two entries in place of one.
+	 */
+	for (i = 0; i < child_aclp->acl_cnt; i++) {
+		entry = &(child_aclp->acl_entry[i]);
+
+		/*
+		 * This is not in the specification, but SunOS
+		 * apparently does that.
+		 */
+		if (((entry->ae_flags & ACL_ENTRY_NO_PROPAGATE_INHERIT) ||
+		    !is_directory) &&
+		    entry->ae_entry_type == ACL_ENTRY_TYPE_ALLOW)
+			entry->ae_perm &= ~(ACL_WRITE_ACL | ACL_WRITE_OWNER);
+
+		/*
+		 * 2.A. If the ACL_ENTRY_NO_PROPAGATE_INHERIT is set, or if the object
+		 *      being created is not a directory, then clear the
+		 *      following flags: ACL_ENTRY_NO_PROPAGATE_INHERIT,
+		 *      ACL_ENTRY_FILE_INHERIT, ACL_ENTRY_DIRECTORY_INHERIT,
+		 *      ACL_ENTRY_INHERIT_ONLY.
+		 */
+		if (entry->ae_flags & ACL_ENTRY_NO_PROPAGATE_INHERIT ||
+		    !is_directory) {
+			entry->ae_flags &= ~(ACL_ENTRY_NO_PROPAGATE_INHERIT |
+			ACL_ENTRY_FILE_INHERIT | ACL_ENTRY_DIRECTORY_INHERIT |
+			ACL_ENTRY_INHERIT_ONLY);
+
+			/*
+			 * Continue on to the next ACE.
+			 */
+			continue;
+		}
+
+		/*
+		 * 2.B. If the object is a directory and ACL_ENTRY_FILE_INHERIT
+		 *      is set, but ACL_ENTRY_NO_PROPAGATE_INHERIT is not set, ensure
+		 *      that ACL_ENTRY_INHERIT_ONLY is set.  Continue to the
+		 *      next ACE.  Otherwise...
+		 */
+		/*
+		 * XXX: Read it again and make sure what does the "otherwise"
+		 *      apply to.
+		 */
+		if (is_directory &&
+		    (entry->ae_flags & ACL_ENTRY_FILE_INHERIT) &&
+		    ((entry->ae_flags & ACL_ENTRY_DIRECTORY_INHERIT) == 0)) {
+			entry->ae_flags |= ACL_ENTRY_INHERIT_ONLY;
+			continue;
+		}
+
+		/*
+		 * 2.C. If the type of the ACE is neither ALLOW nor deny,
+		 *      then continue.
+		 */
+		if (entry->ae_entry_type != ACL_ENTRY_TYPE_ALLOW &&
+		    entry->ae_entry_type != ACL_ENTRY_TYPE_DENY)
+			continue;
+
+		/*
+		 * 2.D. Copy the original ACE into a second, adjacent ACE.
+		 */
+		copy = _acl_duplicate_entry(child_aclp, i);
+
+		/*
+		 * 2.E. On the first ACE, ensure that ACL_ENTRY_INHERIT_ONLY
+		 *      is set.
+		 */
+		entry->ae_flags |= ACL_ENTRY_INHERIT_ONLY;
+
+		/*
+		 * 2.F. On the second ACE, clear the following flags:
+		 *      ACL_ENTRY_NO_PROPAGATE_INHERIT, ACL_ENTRY_FILE_INHERIT,
+		 *      ACL_ENTRY_DIRECTORY_INHERIT, ACL_ENTRY_INHERIT_ONLY.
+		 */
+		copy->ae_flags &= ~(ACL_ENTRY_NO_PROPAGATE_INHERIT |
+		    ACL_ENTRY_FILE_INHERIT | ACL_ENTRY_DIRECTORY_INHERIT |
+		    ACL_ENTRY_INHERIT_ONLY);
+
+		/*
+		 * 2.G. On the second ACE, if the type is ALLOW,
+		 *      an implementation MAY clear the following
+		 *      mask bits: ACL_WRITE_ACL, ACL_WRITE_OWNER.
+		 */
+		if (copy->ae_entry_type == ACL_ENTRY_TYPE_ALLOW)
+			copy->ae_perm &= ~(ACL_WRITE_ACL | ACL_WRITE_OWNER);
+
+		/*
+		 * Increment the counter to skip the copied entry.
+		 */
+		i++;
+	}
+
+	/*
+	 * 3. To ensure that the mode is honored, apply the algorithm describe
+	 *    in Section 2.16.6.3, using the mode that is to be used for file
+	 *    creation.
+	 */
+	acl_nfs4_sync_acl_from_mode(child_aclp, mode, file_owner_id);
+}
+
+#ifdef _KERNEL
+static int
+_acls_are_equal(const struct acl *a, const struct acl *b)
+{
+	int i;
+	const struct acl_entry *entrya, *entryb;
+
+	if (a->acl_cnt != b->acl_cnt)
+		return (0);
+
+	for (i = 0; i < b->acl_cnt; i++) {
+		entrya = &(a->acl_entry[i]);
+		entryb = &(b->acl_entry[i]);
+
+		if (entrya->ae_tag != entryb->ae_tag ||
+		    entrya->ae_id != entryb->ae_id ||
+		    entrya->ae_perm != entryb->ae_perm ||
+		    entrya->ae_entry_type != entryb->ae_entry_type ||
+		    entrya->ae_flags != entryb->ae_flags)
+			return (0);
+	}
+
+	return (1);
+}
+
+/*
+ * This routine is used to determine whether to remove entry_type attribute
+ * that stores ACL contents.
+ */
+int
+acl_nfs4_is_trivial(const struct acl *aclp, int file_owner_id)
+{
+	int trivial;
+	mode_t tmpmode = 0;
+	struct acl *tmpaclp;
+
+	if (aclp->acl_cnt != 6)
+		return (0);
+
+	/*
+	 * Compute the mode from the ACL, then compute new ACL from that mode.
+	 * If the ACLs are identical, then the ACL is trivial.
+	 *
+	 * XXX: I guess there is a faster way to do this.  However, even
+	 *      this slow implementation significantly speeds things up
+	 *      for files that don't have any entry_type ACL entries - it's
+	 *      critical for performance to not use EA when they are not
+	 *      needed.
+	 */
+	tmpaclp = acl_alloc(M_WAITOK | M_ZERO);
+	acl_nfs4_sync_mode_from_acl(&tmpmode, aclp);
+	acl_nfs4_sync_acl_from_mode(tmpaclp, tmpmode, file_owner_id);
+	trivial = _acls_are_equal(aclp, tmpaclp);
+	acl_free(tmpaclp);
+
+	return (trivial);
+}
+#endif /* _KERNEL */
+
+int
+acl_nfs4_check(const struct acl *aclp, int is_directory)
+{
+	int i;
+	const struct acl_entry *entry;
+
+	/*
+	 * The spec doesn't seem to say anything about ACL validity.
+	 * It seems there is not much to do here.  There is even no need
+	 * to count "owner@" or "everyone@" (ACL_USER_OBJ and ACL_EVERYONE)
+	 * entries, as there can be several of them and that's perfectly
+	 * valid.  There can be none of them too.  Really.
+	 */
+
+	if (aclp->acl_cnt > ACL_MAX_ENTRIES || aclp->acl_cnt <= 0)
+		return (EINVAL);
+
+	for (i = 0; i < aclp->acl_cnt; i++) {
+		entry = &(aclp->acl_entry[i]);
+
+		switch (entry->ae_tag) {
+		case ACL_USER_OBJ:
+		case ACL_GROUP_OBJ:
+		case ACL_EVERYONE:
+			if (entry->ae_id != ACL_UNDEFINED_ID)
+				return (EINVAL);
+			break;
+
+		case ACL_USER:
+		case ACL_GROUP:
+			if (entry->ae_id == ACL_UNDEFINED_ID)
+				return (EINVAL);
+			break;
+
+		default:
+			return (EINVAL);
+		}
+
+		if ((entry->ae_perm | ACL_NFS4_PERM_BITS) != ACL_NFS4_PERM_BITS)
+			return (EINVAL);
+
+		/*
+		 * Disallow ACL_ENTRY_TYPE_AUDIT and ACL_ENTRY_TYPE_ALARM for now.
+		 */
+		if (entry->ae_entry_type != ACL_ENTRY_TYPE_ALLOW &&
+		    entry->ae_entry_type != ACL_ENTRY_TYPE_DENY)
+			return (EINVAL);
+
+		if ((entry->ae_flags | ACL_FLAGS_BITS) != ACL_FLAGS_BITS)
+			return (EINVAL);
+
+		/* Disallow unimplemented flags. */
+		if (entry->ae_flags & (ACL_ENTRY_SUCCESSFUL_ACCESS |
+		    ACL_ENTRY_FAILED_ACCESS))
+			return (EINVAL);
+
+		/* Disallow flags not allowed for ordinary files. */
+		if (!is_directory) {
+			if (entry->ae_flags & (ACL_ENTRY_FILE_INHERIT |
+			    ACL_ENTRY_DIRECTORY_INHERIT |
+			    ACL_ENTRY_NO_PROPAGATE_INHERIT | ACL_ENTRY_INHERIT_ONLY))
+				return (EINVAL);
+		}
+	}
+
+	return (0);
 }
