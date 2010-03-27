@@ -1102,7 +1102,7 @@ tcp_pcblist(SYSCTL_HANDLER_ARGS)
 	INP_INFO_RLOCK(&V_tcbinfo);
 	for (inp = LIST_FIRST(V_tcbinfo.ipi_listhead), i = 0;
 	    inp != NULL && i < n; inp = LIST_NEXT(inp, inp_list)) {
-		INP_RLOCK(inp);
+		INP_WLOCK(inp);
 		if (inp->inp_gencnt <= gencnt) {
 			/*
 			 * XXX: This use of cr_cansee(), introduced with
@@ -1117,10 +1117,12 @@ tcp_pcblist(SYSCTL_HANDLER_ARGS)
 					error = EINVAL;	/* Skip this inp. */
 			} else
 				error = cr_canseeinpcb(req->td->td_ucred, inp);
-			if (error == 0)
+			if (error == 0) {
+				in_pcbref(inp);
 				inp_list[i++] = inp;
+			}
 		}
-		INP_RUNLOCK(inp);
+		INP_WUNLOCK(inp);
 	}
 	INP_INFO_RUNLOCK(&V_tcbinfo);
 	n = i;
@@ -1156,8 +1158,16 @@ tcp_pcblist(SYSCTL_HANDLER_ARGS)
 			error = SYSCTL_OUT(req, &xt, sizeof xt);
 		} else
 			INP_RUNLOCK(inp);
-	
 	}
+	INP_INFO_WLOCK(&V_tcbinfo);
+	for (i = 0; i < n; i++) {
+		inp = inp_list[i];
+		INP_WLOCK(inp);
+		if (!in_pcbrele(inp))
+			INP_WUNLOCK(inp);
+	}
+	INP_INFO_WUNLOCK(&V_tcbinfo);
+
 	if (!error) {
 		/*
 		 * Give the user an updated idea of our state.
