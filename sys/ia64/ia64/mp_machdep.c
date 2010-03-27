@@ -382,6 +382,12 @@ cpu_mp_unleash(void *dummy)
 
 	smp_active = 1;
 	smp_started = 1;
+
+	/*
+	 * Now that all CPUs are up and running, bind interrupts to each of
+	 * them.
+	 */
+	ia64_bind_intr();
 }
 
 /*
