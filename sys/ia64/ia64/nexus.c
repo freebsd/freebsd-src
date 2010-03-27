@@ -50,6 +50,7 @@
 #include <machine/bus.h>
 #include <sys/rman.h>
 #include <sys/interrupt.h>
+#include <sys/pcpu.h>
 
 #include <vm/vm.h>
 #include <vm/pmap.h>
@@ -101,6 +102,7 @@ static	int nexus_set_resource(device_t, device_t, int, int, u_long, u_long);
 static	int nexus_get_resource(device_t, device_t, int, int, u_long *,
 			       u_long *);
 static void nexus_delete_resource(device_t, device_t, int, int);
+static int nexus_bind_intr(device_t, device_t, struct resource *, int);
 static	int nexus_config_intr(device_t, int, enum intr_trigger,
 			      enum intr_polarity);
 
@@ -129,6 +131,7 @@ static device_method_t nexus_methods[] = {
 	DEVMETHOD(bus_set_resource,	nexus_set_resource),
 	DEVMETHOD(bus_get_resource,	nexus_get_resource),
 	DEVMETHOD(bus_delete_resource,	nexus_delete_resource),
+	DEVMETHOD(bus_bind_intr,	nexus_bind_intr),
 	DEVMETHOD(bus_config_intr,	nexus_config_intr),
 
 	/* Clock interface */
@@ -459,6 +462,17 @@ nexus_config_intr(device_t dev, int irq, enum intr_trigger trig,
 {
 
 	return (sapic_config_intr(irq, trig, pol));
+}
+
+static int
+nexus_bind_intr(device_t dev, device_t child, struct resource *irq, int cpu)
+{
+	struct pcpu *pc;
+
+	pc = cpuid_to_pcpu[cpu];
+	if (pc == NULL)
+		return (EINVAL);
+	return (sapic_bind_intr(rman_get_start(irq), pc));
 }
 
 static int
