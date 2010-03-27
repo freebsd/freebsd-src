@@ -445,15 +445,21 @@ void
 tcp_destroy(void)
 {
 
-	tcp_tw_destroy();
+	tcp_reass_destroy();
 	tcp_hc_destroy();
 	syncache_destroy();
+	tcp_tw_destroy();
 
 	/* XXX check that hashes are empty! */
 	hashdestroy(V_tcbinfo.ipi_hashbase, M_PCB,
 	    V_tcbinfo.ipi_hashmask);
 	hashdestroy(V_tcbinfo.ipi_porthashbase, M_PCB,
 	    V_tcbinfo.ipi_porthashmask);
+
+	uma_zdestroy(V_sack_hole_zone);
+	uma_zdestroy(V_tcpcb_zone);
+	uma_zdestroy(V_tcbinfo.ipi_zone);
+
 	INP_INFO_LOCK_DESTROY(&V_tcbinfo);
 }
 #endif
