@@ -29,6 +29,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <sys/param.h>
 #include <assert.h>
 #include <stdlib.h>
 #include "usbhid.h"
@@ -36,18 +37,27 @@ __FBSDID("$FreeBSD$");
 int
 hid_get_data(const void *p, const hid_item_t *h)
 {
-	const unsigned char *buf;
-	unsigned int hpos;
-	unsigned int hsize;
-	int data;
+	const uint8_t *buf;
+	uint32_t hpos;
+	uint32_t hsize;
+	uint32_t data;
 	int i, end, offs;
 
 	buf = p;
+
+	/* Skip report ID byte. */
+	if (h->report_ID > 0)
+		buf++;
+
 	hpos = h->pos;			/* bit position of data */
 	hsize = h->report_size;		/* bit length of data */
 
+	/* Range check and limit */
 	if (hsize == 0)
 		return (0);
+	if (hsize > 32)
+		hsize = 32;
+
 	offs = hpos / 8;
 	end = (hpos + hsize) / 8 - offs;
 	data = 0;
@@ -66,12 +76,17 @@ hid_get_data(const void *p, const hid_item_t *h)
 void
 hid_set_data(void *p, const hid_item_t *h, int data)
 {
-	unsigned char *buf;
-	unsigned int hpos;
-	unsigned int hsize;
+	uint8_t *buf;
+	uint32_t hpos;
+	uint32_t hsize;
 	int i, end, offs, mask;
 
 	buf = p;
+
+	/* Set report ID byte. */
+	if (h->report_ID > 0)
+		*buf++ = h->report_ID & 0xff;
+
 	hpos = h->pos;			/* bit position of data */
 	hsize = h->report_size;		/* bit length of data */
 
@@ -90,5 +105,5 @@ hid_set_data(void *p, const hid_item_t *h, int data)
 
 	for (i = 0; i <= end; i++)
 		buf[offs + i] = (buf[offs + i] & (mask >> (i*8))) |
-			((data >> (i*8)) & 0xff);
+		    ((data >> (i*8)) & 0xff);
 }
