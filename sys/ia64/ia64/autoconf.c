@@ -93,7 +93,7 @@ configure_final(void *dummy)
 
 	cninit_finish();
 
-	ia64_finalize_intr();
+	ia64_enable_intr();
 
 	cold = 0;
 }
