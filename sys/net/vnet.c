@@ -57,6 +57,7 @@ __FBSDID("$FreeBSD$");
 
 #ifdef DDB
 #include <ddb/ddb.h>
+#include <ddb/db_sym.h>
 #endif
 
 #include <net/if.h>
@@ -218,6 +219,10 @@ SDT_PROBE_DEFINE2(vnet, functions, vnet_alloc, alloc, "int", "struct vnet *");
 SDT_PROBE_DEFINE2(vnet, functions, vnet_alloc, return, "int", "struct vnet *");
 SDT_PROBE_DEFINE2(vnet, functions, vnet_destroy, entry, "int", "struct vnet *");
 SDT_PROBE_DEFINE1(vnet, functions, vnet_destroy, return, "int");
+
+#ifdef DDB
+static void db_show_vnet_print_vs(struct vnet_sysinit *, int);
+#endif
 
 /*
  * Allocate a virtual network stack.
@@ -708,6 +713,64 @@ DB_SHOW_COMMAND(vnets, db_show_vnets)
 		db_printf(" vnet_data_base = 0x%jx\n",
 		    (uintmax_t)vnet_iter->vnet_data_base);
 		db_printf("\n");
+		if (db_pager_quit)
+			break;
+	}
+}
+
+static void
+db_show_vnet_print_vs(struct vnet_sysinit *vs, int ddb)
+{
+	const char *vsname, *funcname;
+	c_db_sym_t sym;
+	db_expr_t  offset;
+
+#define xprint(...)							\
+	if (ddb)							\
+		db_printf(__VA_ARGS__);					\
+	else								\
+		printf(__VA_ARGS__)
+
+	if (vs == NULL) {
+		xprint("%s: no vnet_sysinit * given\n", __func__);
+		return;
+	}
+
+	sym = db_search_symbol((vm_offset_t)vs, DB_STGY_ANY, &offset);
+	db_symbol_values(sym, &vsname, NULL);
+	sym = db_search_symbol((vm_offset_t)vs->func, DB_STGY_PROC, &offset);
+	db_symbol_values(sym, &funcname, NULL);
+	xprint("%s(%p)\n", (vsname != NULL) ? vsname : "", vs);
+	xprint("  0x%08x 0x%08x\n", vs->subsystem, vs->order);
+	xprint("  %p(%s)(%p)\n",
+	    vs->func, (funcname != NULL) ? funcname : "", vs->arg);
+#undef xprint
+}
+
+DB_SHOW_COMMAND(vnet_sysinit, db_show_vnet_sysinit)
+{
+	struct vnet_sysinit *vs;
+
+	db_printf("VNET_SYSINIT vs Name(Ptr)\n");
+	db_printf("  Subsystem  Order\n");
+	db_printf("  Function(Name)(Arg)\n");
+	TAILQ_FOREACH(vs, &vnet_constructors, link) {
+		db_show_vnet_print_vs(vs, 1);
+		if (db_pager_quit)
+			break;
+	}
+}
+
+DB_SHOW_COMMAND(vnet_sysuninit, db_show_vnet_sysuninit)
+{
+	struct vnet_sysinit *vs;
+
+	db_printf("VNET_SYSUNINIT vs Name(Ptr)\n");
+	db_printf("  Subsystem  Order\n");
+	db_printf("  Function(Name)(Arg)\n");
+	TAILQ_FOREACH_REVERSE(vs, &vnet_destructors, vnet_sysuninit_head,
+	    link) {
+		db_show_vnet_print_vs(vs, 1);
 		if (db_pager_quit)
 			break;
 	}
