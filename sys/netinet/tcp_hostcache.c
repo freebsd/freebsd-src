@@ -115,6 +115,7 @@ static VNET_DEFINE(struct callout, tcp_hc_callout);
 static struct hc_metrics *tcp_hc_lookup(struct in_conninfo *);
 static struct hc_metrics *tcp_hc_insert(struct in_conninfo *);
 static int sysctl_tcp_hc_list(SYSCTL_HANDLER_ARGS);
+static void tcp_hc_purge_internal(int);
 static void tcp_hc_purge(void *);
 
 SYSCTL_NODE(_net_inet_tcp, OID_AUTO, hostcache, CTLFLAG_RW, 0,
@@ -235,10 +236,19 @@ tcp_hc_init(void)
 void
 tcp_hc_destroy(void)
 {
-
-	/* XXX TODO walk the hashtable and free all entries  */
+	int i;
 
 	callout_drain(&V_tcp_hc_callout);
+
+	/* Purge all hc entries. */
+	tcp_hc_purge_internal(1);
+
+	/* Free the uma zone and the allocated hash table. */
+	uma_zdestroy(V_tcp_hostcache.zone);
+
+	for (i = 0; i < V_tcp_hostcache.hashsize; i++)
+		mtx_destroy(&V_tcp_hostcache.hashbase[i].hch_mtx);
+	free(V_tcp_hostcache.hashbase, M_HOSTCACHE);
 }
 #endif
 
@@ -633,21 +643,13 @@ sysctl_tcp_hc_list(SYSCTL_HANDLER_ARGS)
 }
 
 /*
- * Expire and purge (old|all) entries in the tcp_hostcache.  Runs
- * periodically from the callout.
+ * Caller has to make sure the curvnet is set properly.
  */
 static void
-tcp_hc_purge(void *arg)
+tcp_hc_purge_internal(int all)
 {
-	CURVNET_SET((struct vnet *) arg);
 	struct hc_metrics *hc_entry, *hc_next;
-	int all = 0;
 	int i;
-
-	if (V_tcp_hostcache.purgeall) {
-		all = 1;
-		V_tcp_hostcache.purgeall = 0;
-	}
 
 	for (i = 0; i < V_tcp_hostcache.hashsize; i++) {
 		THC_LOCK(&V_tcp_hostcache.hashbase[i].hch_mtx);
@@ -664,6 +666,24 @@ tcp_hc_purge(void *arg)
 		}
 		THC_UNLOCK(&V_tcp_hostcache.hashbase[i].hch_mtx);
 	}
+}
+
+/*
+ * Expire and purge (old|all) entries in the tcp_hostcache.  Runs
+ * periodically from the callout.
+ */
+static void
+tcp_hc_purge(void *arg)
+{
+	CURVNET_SET((struct vnet *) arg);
+	int all = 0;
+
+	if (V_tcp_hostcache.purgeall) {
+		all = 1;
+		V_tcp_hostcache.purgeall = 0;
+	}
+
+	tcp_hc_purge_internal(all);
 
 	callout_reset(&V_tcp_hc_callout, V_tcp_hostcache.prune * hz,
 	    tcp_hc_purge, arg);
