@@ -38,11 +38,13 @@ __FBSDID("$FreeBSD$");
 
 #include "opt_ddb.h"
 #include "opt_kdb.h"
+#include "opt_kdtrace.h"
 
 #include <sys/param.h>
 #include <sys/kdb.h>
 #include <sys/kernel.h>
 #include <sys/jail.h>
+#include <sys/sdt.h>
 #include <sys/systm.h>
 #include <sys/sysctl.h>
 #include <sys/linker_set.h>
@@ -210,6 +212,13 @@ static TAILQ_HEAD(, vnet_data_free) vnet_data_free_head =
 	    TAILQ_HEAD_INITIALIZER(vnet_data_free_head);
 static struct sx vnet_data_free_lock;
 
+SDT_PROVIDER_DEFINE(vnet);
+SDT_PROBE_DEFINE1(vnet, functions, vnet_alloc, entry, "int");
+SDT_PROBE_DEFINE2(vnet, functions, vnet_alloc, alloc, "int", "struct vnet *");
+SDT_PROBE_DEFINE2(vnet, functions, vnet_alloc, return, "int", "struct vnet *");
+SDT_PROBE_DEFINE2(vnet, functions, vnet_destroy, entry, "int", "struct vnet *");
+SDT_PROBE_DEFINE1(vnet, functions, vnet_destroy, return, "int");
+
 /*
  * Allocate a virtual network stack.
  */
@@ -218,8 +227,10 @@ vnet_alloc(void)
 {
 	struct vnet *vnet;
 
+	SDT_PROBE1(vnet, functions, vnet_alloc, entry, __LINE__);
 	vnet = malloc(sizeof(struct vnet), M_VNET, M_WAITOK | M_ZERO);
 	vnet->vnet_magic_n = VNET_MAGIC_N;
+	SDT_PROBE2(vnet, functions, vnet_alloc, alloc, __LINE__, vnet);
 
 	/*
 	 * Allocate storage for virtualized global variables and copy in
@@ -244,6 +255,7 @@ vnet_alloc(void)
 	LIST_INSERT_HEAD(&vnet_head, vnet, vnet_le);
 	VNET_LIST_WUNLOCK();
 
+	SDT_PROBE2(vnet, functions, vnet_alloc, return, __LINE__, vnet);
 	return (vnet);
 }
 
@@ -255,6 +267,7 @@ vnet_destroy(struct vnet *vnet)
 {
 	struct ifnet *ifp, *nifp;
 
+	SDT_PROBE2(vnet, functions, vnet_destroy, entry, __LINE__, vnet);
 	KASSERT(vnet->vnet_sockcnt == 0,
 	    ("%s: vnet still has sockets", __func__));
 
@@ -281,6 +294,7 @@ vnet_destroy(struct vnet *vnet)
 	vnet->vnet_data_base = 0;
 	vnet->vnet_magic_n = 0xdeadbeef;
 	free(vnet, M_VNET);
+	SDT_PROBE1(vnet, functions, vnet_destroy, return, __LINE__);
 }
 
 /*
