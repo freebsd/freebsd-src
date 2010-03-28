@@ -323,8 +323,8 @@ setfile(struct stat *fs, int fd)
 	fs->st_mode &= S_ISUID | S_ISGID | S_ISVTX |
 		       S_IRWXU | S_IRWXG | S_IRWXO;
 
-	TIMESPEC_TO_TIMEVAL(&tv[0], &fs->st_atimespec);
-	TIMESPEC_TO_TIMEVAL(&tv[1], &fs->st_mtimespec);
+	TIMESPEC_TO_TIMEVAL(&tv[0], &fs->st_atim);
+	TIMESPEC_TO_TIMEVAL(&tv[1], &fs->st_mtim);
 	if (islink ? lutimes(to.p_path, tv) : utimes(to.p_path, tv)) {
 		warn("%sutimes: %s", islink ? "l" : "", to.p_path);
 		rval = 1;
