@@ -390,7 +390,7 @@ wait_for_pids()
 		_list=$_nlist
 		echo -n ${_prefix:-"Waiting for PIDS: "}$_list
 		_prefix=", "
-		sleep 2
+		pwait $_list 2>/dev/null || sleep 2
 	done
 	if [ -n "$_prefix" ]; then
 		echo "."
