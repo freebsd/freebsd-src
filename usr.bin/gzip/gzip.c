@@ -1088,8 +1088,8 @@ copymodes(int fd, const struct stat *sbp, const char *file)
 	if (fchmod(fd, sb.st_mode) < 0)
 		maybe_warn("couldn't fchmod: %s", file);
 
-	TIMESPEC_TO_TIMEVAL(&times[0], &sb.st_atimespec);
-	TIMESPEC_TO_TIMEVAL(&times[1], &sb.st_mtimespec);
+	TIMESPEC_TO_TIMEVAL(&times[0], &sb.st_atim);
+	TIMESPEC_TO_TIMEVAL(&times[1], &sb.st_mtim);
 	if (futimes(fd, times) < 0)
 		maybe_warn("couldn't utimes: %s", file);
 
