@@ -2516,12 +2516,14 @@ product QUALCOMMINC E2003	0x2003	3G modem
 
 /* Quanta products */
 /* Quanta products */
+product QUANTA RW6815_1		0x00ce	HP iPAQ rw6815
 product QUANTA RT3070		0x0304	RT3070
 product QUANTA Q101		0xea02	HSDPA modem
 product QUANTA Q111		0xea03	HSDPA modem
 product QUANTA GLX		0xea04	HSDPA modem
 product QUANTA GKE		0xea05	HSDPA modem
 product QUANTA GLE		0xea06	HSDPA modem
+product QUANTA RW6815_2		0xf003	HP iPAQ rw6815
 
 /* Qtronix products */
 product QTRONIX 980N		0x2011	Scorpion-980N keyboard
@@ -2729,6 +2731,7 @@ product SIERRA AIRCARD875	0x6820	Aircard 875 HSDPA
 product SIERRA TRUINSTALL	0x0fff	Aircard Tru Installer
 
 /* Sigmatel products */
+product SIGMATEL WBT_3052	0x4200	WBT-3052 IrDA/USB Bridge
 product SIGMATEL I_BEAD100	0x8008	i-Bead 100 MP3 Player
 
 /* SIIG products */
