@@ -1049,7 +1049,6 @@ pmcstat_pmcindex_to_name(int pmcin)
 		if (pr->pr_pmcin == pmcin)
 			return pmcstat_string_unintern(pr->pr_pmcname);
 
-	err(EX_SOFTWARE, "ERROR: cannot find pmcid name");
 	return NULL;
 }
 
@@ -1789,19 +1788,23 @@ static void
 pmcstat_refresh_top(void)
 {
 	char pmcname[40];
+	const char *s;
 
 	/* If in pause mode do not refresh display. */
 	if (pmcstat_pause)
 		return;
 
+	/* Wait until PMC pop in the log. */
+	s = pmcstat_pmcindex_to_name(pmcstat_pmcinfilter);
+	if (s == NULL)
+		return;
+
 	/* Format PMC name. */
 	if (pmcstat_mergepmc)
-		snprintf(pmcname, sizeof(pmcname), "[%s]",
-		    pmcstat_pmcindex_to_name(pmcstat_pmcinfilter));
+		snprintf(pmcname, sizeof(pmcname), "[%s]", s);
 	else
 		snprintf(pmcname, sizeof(pmcname), "%s.%d",
-		    pmcstat_pmcindex_to_name(pmcstat_pmcinfilter),
-		    pmcstat_pmcinfilter);
+		    s, pmcstat_pmcinfilter);
 
 	PMCSTAT_PRINTBEGIN();
 	PMCSTAT_PRINTW("PMC: %s Samples: %u processed, %u invalid\n\n",
