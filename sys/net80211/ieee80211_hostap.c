@@ -883,6 +883,11 @@ hostap_input(struct ieee80211_node *ni, struct mbuf *m, int rssi, int nf)
 			wh = mtod(m, struct ieee80211_frame *);
 			wh->i_fc[1] &= ~IEEE80211_FC1_WEP;
 		}
+		/*
+		 * Pass the packet to radiotap before calling iv_recv_mgmt().
+		 * Otherwise iv_recv_mgmt() might pass another packet to
+		 * radiotap, resulting in out of order packet captures.
+		 */
 		if (ieee80211_radiotap_active_vap(vap))
 			ieee80211_radiotap_rx(vap, m);
 		need_tap = 0;
