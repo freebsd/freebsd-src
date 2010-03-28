@@ -7779,7 +7779,8 @@ void
 key_destroy(void)
 {
 	struct secpolicy *sp, *nextsp;
-	struct secspacq *acq, *nextacq;
+	struct secacq *acq, *nextacq;
+	struct secspacq *spacq, *nextspacq;
 	struct secashead *sah, *nextsah;
 	struct secreg *reg;
 	int i;
@@ -7820,7 +7821,7 @@ key_destroy(void)
 	REGTREE_UNLOCK();
 
 	ACQ_LOCK();
-	for (acq = LIST_FIRST(&V_spacqtree); acq != NULL; acq = nextacq) {
+	for (acq = LIST_FIRST(&V_acqtree); acq != NULL; acq = nextacq) {
 		nextacq = LIST_NEXT(acq, chain);
 		if (__LIST_CHAINED(acq)) {
 			LIST_REMOVE(acq, chain);
@@ -7830,11 +7831,12 @@ key_destroy(void)
 	ACQ_UNLOCK();
 
 	SPACQ_LOCK();
-	for (acq = LIST_FIRST(&V_spacqtree); acq != NULL; acq = nextacq) {
-		nextacq = LIST_NEXT(acq, chain);
-		if (__LIST_CHAINED(acq)) {
-			LIST_REMOVE(acq, chain);
-			free(acq, M_IPSEC_SAQ);
+	for (spacq = LIST_FIRST(&V_spacqtree); spacq != NULL;
+	    spacq = nextspacq) {
+		nextspacq = LIST_NEXT(spacq, chain);
+		if (__LIST_CHAINED(spacq)) {
+			LIST_REMOVE(spacq, chain);
+			free(spacq, M_IPSEC_SAQ);
 		}
 	}
 	SPACQ_UNLOCK();
