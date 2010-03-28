@@ -26,7 +26,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 20, 2003
+.Dd February 9, 2010
 .Os
 .Dt VNODE 9
 .Sh NAME
@@ -161,6 +161,38 @@ interlock, will cause a LOR (Lock Order Reversal) due to the
 intertwining of VM Objects and Vnodes.
 .Sh SEE ALSO
 .Xr malloc 9 ,
+.Xr VOP_ACCESS 9 ,
+.Xr VOP_ACLCHECK 9 ,
+.Xr VOP_ADVLOCK 9 ,
+.Xr VOP_ATTRIB 9 ,
+.Xr VOP_BWRITE 9 ,
+.Xr VOP_CREATE 9 ,
+.Xr VOP_FSYNC 9 ,
+.Xr VOP_GETACL 9 ,
+.Xr VOP_GETEXTATTR 9 ,
+.Xr VOP_GETPAGES 9 ,
+.Xr VOP_GETVOBJECT 9 ,
+.Xr VOP_INACTIVE 9 ,
+.Xr VOP_IOCTL 9 ,
+.Xr VOP_LINK 9 ,
+.Xr VOP_LISTEXTATTR 9 ,
+.Xr VOP_LOCK 9 ,
+.Xr VOP_LOOKUP 9 ,
+.Xr VOP_OPENCLOSE 9 ,
+.Xr VOP_PATHCONF 9 ,
+.Xr VOP_PRINT 9 ,
+.Xr VOP_RDWR 9 ,
+.Xr VOP_READDIR 9 ,
+.Xr VOP_READLINK 9 ,
+.Xr VOP_REALLOCBLKS 9 ,
+.Xr VOP_REMOVE 9 ,
+.Xr VOP_RENAME 9 ,
+.Xr VOP_REVOKE 9 ,
+.Xr VOP_SETACL 9 ,
+.Xr VOP_SETEXTATTR 9 ,
+.Xr VOP_STRATEGY 9 ,
+.Xr VOP_VPTOCNP 9 ,
+.Xr VOP_VPTOFH 9 ,
 .Xr VFS 9
 .Sh AUTHORS
 This manual page was written by
