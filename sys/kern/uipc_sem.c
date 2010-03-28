@@ -219,10 +219,10 @@ ksem_stat(struct file *fp, struct stat *sb, struct ucred *active_cred,
 	bzero(sb, sizeof(*sb));
 	sb->st_mode = S_IFREG | ks->ks_mode;		/* XXX */
 
-	sb->st_atimespec = ks->ks_atime;
-	sb->st_ctimespec = ks->ks_ctime;
-	sb->st_mtimespec = ks->ks_mtime;
-	sb->st_birthtimespec = ks->ks_birthtime;	
+	sb->st_atim = ks->ks_atime;
+	sb->st_ctim = ks->ks_ctime;
+	sb->st_mtim = ks->ks_mtime;
+	sb->st_birthtim = ks->ks_birthtime;	
 	sb->st_uid = ks->ks_uid;
 	sb->st_gid = ks->ks_gid;
 
