@@ -219,10 +219,10 @@ shm_stat(struct file *fp, struct stat *sb, struct ucred *active_cred,
 	sb->st_blksize = PAGE_SIZE;
 	sb->st_size = shmfd->shm_size;
 	sb->st_blocks = (sb->st_size + sb->st_blksize - 1) / sb->st_blksize;
-	sb->st_atimespec = shmfd->shm_atime;
-	sb->st_ctimespec = shmfd->shm_ctime;
-	sb->st_mtimespec = shmfd->shm_mtime;
-	sb->st_birthtimespec = shmfd->shm_birthtime;	
+	sb->st_atim = shmfd->shm_atime;
+	sb->st_ctim = shmfd->shm_ctime;
+	sb->st_mtim = shmfd->shm_mtime;
+	sb->st_birthtim = shmfd->shm_birthtime;	
 	sb->st_uid = shmfd->shm_uid;
 	sb->st_gid = shmfd->shm_gid;
 
