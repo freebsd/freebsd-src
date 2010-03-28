@@ -58,6 +58,7 @@ $FreeBSD$
 vendor UNKNOWN1		0x0053	Unknown vendor
 vendor UNKNOWN2		0x0105	Unknown vendor
 vendor EGALAX2		0x0123	eGalax, Inc.
+vendor UNKNOWN4		0x0204	Unknown vendor
 vendor HUMAX		0x02ad	HUMAX
 vendor LTS		0x0386	LTS
 vendor BWCT		0x03da	Bernd Walter Computer Technology
@@ -1098,6 +1099,7 @@ product BROADCOM BCM2033	0x2033	BCM2033 Bluetooth USB dongle
 
 /* Brother Industries products */
 product BROTHER HL1050		0x0002	HL-1050 laser printer
+product BROTHER MFC8600_9650	0x0100	MFC8600/9650 multifunction device
 
 /* Behavior Technology Computer products */
 product BTC BTC7932		0x6782	Keyboard with mouse port
@@ -1812,6 +1814,7 @@ product JABLOTRON PC60B		0x0001	PC-60B
 product JATON EDA		0x5704	Ethernet
 
 /* JMicron products */
+product JMICRON JM20336		0x2336	USB to SATA Bridge
 product JMICRON JM20337		0x2338	USB to ATA/ATAPI Bridge
 
 /* JVC products */
@@ -2127,6 +2130,7 @@ product MUSTEK 1200UB		0x0006	1200 UB scanner
 product MUSTEK 1200USBPLUS	0x0007	1200 USB Plus scanner
 product MUSTEK 1200CUPLUS	0x0008	1200 CU Plus scanner
 product MUSTEK BEARPAW1200F	0x0010	BearPaw 1200F scanner
+product MUSTEK BEARPAW2400TA	0x0218	BearPaw 2400TA scanner
 product MUSTEK BEARPAW1200TA	0x021e	BearPaw 1200TA scanner
 product MUSTEK 600USB		0x0873	600 USB scanner
 product MUSTEK MDC800		0xa800	MDC-800 digital camera
@@ -2412,6 +2416,7 @@ product PROLIFIC PL2303		0x2303	PL2303 Serial (ATEN/IOGEAR UC232A)
 product PROLIFIC PL2305		0x2305	Parallel printer
 product PROLIFIC ATAPI4		0x2307	ATAPI-4 Controller
 product PROLIFIC PL2501		0x2501	PL2501 Host-Host interface
+product PROLIFIC PL2506		0x2506	PL2506 USB to IDE Bridge
 product PROLIFIC PHAROS		0xaaa0	Prolific Pharos
 product PROLIFIC RSAQ3		0xaaa2	PL2303 Serial Adapter (IODATA USB-RSAQ3)
 product PROLIFIC2 WSIM		0x2001	Willcom WSIM
@@ -2512,12 +2517,14 @@ product QUALCOMMINC E2003	0x2003	3G modem
 
 /* Quanta products */
 /* Quanta products */
+product QUANTA RW6815_1		0x00ce	HP iPAQ rw6815
 product QUANTA RT3070		0x0304	RT3070
 product QUANTA Q101		0xea02	HSDPA modem
 product QUANTA Q111		0xea03	HSDPA modem
 product QUANTA GLX		0xea04	HSDPA modem
 product QUANTA GKE		0xea05	HSDPA modem
 product QUANTA GLE		0xea06	HSDPA modem
+product QUANTA RW6815_2		0xf003	HP iPAQ rw6815
 
 /* Qtronix products */
 product QTRONIX 980N		0x2011	Scorpion-980N keyboard
@@ -2725,6 +2732,7 @@ product SIERRA AIRCARD875	0x6820	Aircard 875 HSDPA
 product SIERRA TRUINSTALL	0x0fff	Aircard Tru Installer
 
 /* Sigmatel products */
+product SIGMATEL WBT_3052	0x4200	WBT-3052 IrDA/USB Bridge
 product SIGMATEL I_BEAD100	0x8008	i-Bead 100 MP3 Player
 
 /* SIIG products */
@@ -3022,6 +3030,9 @@ product UMEDIA AR5523_2_NF	0x3206	AR5523 (no firmware)
 
 /* Universal Access products */
 product UNIACCESS PANACHE	0x0101	Panache Surf USB ISDN Adapter
+
+/* Unknown vendors */
+product UNKNOWN4 USBMEMSTICK	0x6025	Flash Disk CBM
 
 /* U.S. Robotics products */
 product USR USR5423		0x0121	USR5423 WLAN

@@ -1328,7 +1328,7 @@ set_mcontext(struct thread *td, const mcontext_t *mc)
  * Clear registers on exec.
  */
 void
-exec_setregs(struct thread *td, u_long entry, u_long stack, u_long ps_strings)
+exec_setregs(struct thread *td, struct image_params *imgp, u_long stack)
 {
 	struct trapframe *tf;
 	uint64_t *ksttop, *kst;
@@ -1366,7 +1366,7 @@ exec_setregs(struct thread *td, u_long entry, u_long stack, u_long ps_strings)
 		*kst-- = 0;
 		if (((uintptr_t)kst & 0x1ff) == 0x1f8)
 			*kst-- = 0;
-		*kst-- = ps_strings;
+		*kst-- = imgp->ps_strings;
 		if (((uintptr_t)kst & 0x1ff) == 0x1f8)
 			*kst-- = 0;
 		*kst = stack;
@@ -1381,11 +1381,11 @@ exec_setregs(struct thread *td, u_long entry, u_long stack, u_long ps_strings)
 		 * Assumes that (bspstore & 0x1f8) < 0x1e0.
 		 */
 		suword((caddr_t)tf->tf_special.bspstore - 24, stack);
-		suword((caddr_t)tf->tf_special.bspstore - 16, ps_strings);
+		suword((caddr_t)tf->tf_special.bspstore - 16, imgp->ps_strings);
 		suword((caddr_t)tf->tf_special.bspstore -  8, 0);
 	}
 
-	tf->tf_special.iip = entry;
+	tf->tf_special.iip = imgp->entry_addr;
 	tf->tf_special.sp = (stack & ~15) - 16;
 	tf->tf_special.rsc = 0xf;
 	tf->tf_special.fpsr = IA64_FPSR_DEFAULT;

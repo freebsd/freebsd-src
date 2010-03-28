@@ -328,6 +328,9 @@ ${_src}:
 .endfor
 .endif
 
+# Respect configuration-specific C flags.
+CFLAGS+=	${CONF_CFLAGS}
+
 MFILES?= dev/acpica/acpi_if.m dev/acpi_support/acpi_wmi_if.m \
 	dev/agp/agp_if.m dev/ata/ata_if.m dev/eisa/eisa_if.m \
 	dev/iicbus/iicbb_if.m dev/iicbus/iicbus_if.m \

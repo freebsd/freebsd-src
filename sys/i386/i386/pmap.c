@@ -5,7 +5,7 @@
  * All rights reserved.
  * Copyright (c) 1994 David Greenman
  * All rights reserved.
- * Copyright (c) 2005-2008 Alan L. Cox <alc@cs.rice.edu>
+ * Copyright (c) 2005-2010 Alan L. Cox <alc@cs.rice.edu>
  * All rights reserved.
  *
  * This code is derived from software contributed to Berkeley by
@@ -207,8 +207,8 @@ vm_offset_t virtual_end;	/* VA of last avail page (end of kernel AS) */
 int pgeflag = 0;		/* PG_G or-in */
 int pseflag = 0;		/* PG_PS or-in */
 
-static int nkpt;
-vm_offset_t kernel_vm_end;
+static int nkpt = NKPT;
+vm_offset_t kernel_vm_end = KERNBASE + NKPT * NBPDR;
 extern u_int32_t KERNend;
 extern u_int32_t KPTphys;
 
@@ -297,6 +297,7 @@ static void pmap_insert_pt_page(pmap_t pmap, vm_page_t mpte);
 static void pmap_fill_ptp(pt_entry_t *firstpte, pt_entry_t newpte);
 static boolean_t pmap_is_modified_pvh(struct md_page *pvh);
 static void pmap_kenter_attr(vm_offset_t va, vm_paddr_t pa, int mode);
+static void pmap_kenter_pde(vm_offset_t va, pd_entry_t newpde);
 static vm_page_t pmap_lookup_pt_page(pmap_t pmap, vm_offset_t va);
 static void pmap_pde_attr(pd_entry_t *pde, int cache_bits);
 static void pmap_promote_pde(pmap_t pmap, pd_entry_t *pde, vm_offset_t va);
@@ -315,6 +316,9 @@ static void pmap_remove_entry(struct pmap *pmap, vm_page_t m,
 static void pmap_insert_entry(pmap_t pmap, vm_offset_t va, vm_page_t m);
 static boolean_t pmap_try_insert_pv_entry(pmap_t pmap, vm_offset_t va,
     vm_page_t m);
+static void pmap_update_pde(pmap_t pmap, vm_offset_t va, pd_entry_t *pde,
+    pd_entry_t newpde);
+static void pmap_update_pde_invalidate(vm_offset_t va, pd_entry_t newpde);
 
 static vm_page_t pmap_allocpte(pmap_t pmap, vm_offset_t va, int flags);
 
@@ -380,11 +384,17 @@ pmap_bootstrap(vm_paddr_t firstaddr)
 	kernel_pmap->pm_active = -1;	/* don't allow deactivation */
 	TAILQ_INIT(&kernel_pmap->pm_pvchunk);
 	LIST_INIT(&allpmaps);
+
+	/*
+	 * Request a spin mutex so that changes to allpmaps cannot be
+	 * preempted by smp_rendezvous_cpus().  Otherwise,
+	 * pmap_update_pde_kernel() could access allpmaps while it is
+	 * being changed.
+	 */
 	mtx_init(&allpmaps_lock, "allpmaps", NULL, MTX_SPIN);
 	mtx_lock_spin(&allpmaps_lock);
 	LIST_INSERT_HEAD(&allpmaps, kernel_pmap, pm_list);
 	mtx_unlock_spin(&allpmaps_lock);
-	nkpt = NKPT;
 
 	/*
 	 * Reserve some special page table entries/VA space for temporary
@@ -692,19 +702,21 @@ pmap_init(void)
 	pv_entry_high_water = 9 * (pv_entry_max / 10);
 
 	/*
-	 * Disable large page mappings by default if the kernel is running in
-	 * a virtual machine on an AMD Family 10h processor.  This is a work-
-	 * around for Erratum 383.
+	 * If the kernel is running in a virtual machine on an AMD Family 10h
+	 * processor, then it must assume that MCA is enabled by the virtual
+	 * machine monitor.
 	 */
 	if (vm_guest == VM_GUEST_VM && cpu_vendor_id == CPU_VENDOR_AMD &&
 	    CPUID_TO_FAMILY(cpu_id) == 0x10)
-		pg_ps_enabled = 0;
+		workaround_erratum383 = 1;
 
 	/*
-	 * Are large page mappings enabled?
+	 * Are large page mappings supported and enabled?
 	 */
 	TUNABLE_INT_FETCH("vm.pmap.pg_ps_enabled", &pg_ps_enabled);
-	if (pg_ps_enabled) {
+	if (pseflag == 0)
+		pg_ps_enabled = 0;
+	else if (pg_ps_enabled) {
 		KASSERT(MAXPAGESIZES > 1 && pagesizes[1] == 0,
 		    ("pmap_init: can't assign to pagesizes[1]"));
 		pagesizes[1] = NBPDR;
@@ -850,6 +862,69 @@ pmap_cache_bits(int mode, boolean_t is_pde)
 		cache_bits |= PG_NC_PWT;
 	return (cache_bits);
 }
+
+/*
+ * The caller is responsible for maintaining TLB consistency.
+ */
+static void
+pmap_kenter_pde(vm_offset_t va, pd_entry_t newpde)
+{
+	pd_entry_t *pde;
+	pmap_t pmap;
+	boolean_t PTD_updated;
+
+	PTD_updated = FALSE;
+	mtx_lock_spin(&allpmaps_lock);
+	LIST_FOREACH(pmap, &allpmaps, pm_list) {
+		if ((pmap->pm_pdir[PTDPTDI] & PG_FRAME) == (PTDpde[0] &
+		    PG_FRAME))
+			PTD_updated = TRUE;
+		pde = pmap_pde(pmap, va);
+		pde_store(pde, newpde);
+	}
+	mtx_unlock_spin(&allpmaps_lock);
+	KASSERT(PTD_updated,
+	    ("pmap_kenter_pde: current page table is not in allpmaps"));
+}
+
+/*
+ * After changing the page size for the specified virtual address in the page
+ * table, flush the corresponding entries from the processor's TLB.  Only the
+ * calling processor's TLB is affected.
+ *
+ * The calling thread must be pinned to a processor.
+ */
+static void
+pmap_update_pde_invalidate(vm_offset_t va, pd_entry_t newpde)
+{
+	u_long cr4;
+
+	if ((newpde & PG_PS) == 0)
+		/* Demotion: flush a specific 2MB page mapping. */
+		invlpg(va);
+	else if ((newpde & PG_G) == 0)
+		/*
+		 * Promotion: flush every 4KB page mapping from the TLB
+		 * because there are too many to flush individually.
+		 */
+		invltlb();
+	else {
+		/*
+		 * Promotion: flush every 4KB page mapping from the TLB,
+		 * including any global (PG_G) mappings.
+		 */
+		cr4 = rcr4();
+		load_cr4(cr4 & ~CR4_PGE);
+		/*
+		 * Although preemption at this point could be detrimental to
+		 * performance, it would not lead to an error.  PG_G is simply
+		 * ignored if CR4.PGE is clear.  Moreover, in case this block
+		 * is re-entered, the load_cr4() either above or below will
+		 * modify CR4.PGE flushing the TLB.
+		 */
+		load_cr4(cr4 | CR4_PGE);
+	}
+}
 #ifdef SMP
 /*
  * For SMP, these functions have to use the IPI mechanism for coherence.
@@ -946,6 +1021,92 @@ pmap_invalidate_cache(void)
 	smp_cache_flush();
 	sched_unpin();
 }
+
+struct pde_action {
+	cpumask_t store;	/* processor that updates the PDE */
+	cpumask_t invalidate;	/* processors that invalidate their TLB */
+	vm_offset_t va;
+	pd_entry_t *pde;
+	pd_entry_t newpde;
+};
+
+static void
+pmap_update_pde_kernel(void *arg)
+{
+	struct pde_action *act = arg;
+	pd_entry_t *pde;
+	pmap_t pmap;
+
+	if (act->store == PCPU_GET(cpumask))
+		/*
+		 * Elsewhere, this operation requires allpmaps_lock for
+		 * synchronization.  Here, it does not because it is being
+		 * performed in the context of an all_cpus rendezvous.
+		 */
+		LIST_FOREACH(pmap, &allpmaps, pm_list) {
+			pde = pmap_pde(pmap, act->va);
+			pde_store(pde, act->newpde);
+		}
+}
+
+static void
+pmap_update_pde_user(void *arg)
+{
+	struct pde_action *act = arg;
+
+	if (act->store == PCPU_GET(cpumask))
+		pde_store(act->pde, act->newpde);
+}
+
+static void
+pmap_update_pde_teardown(void *arg)
+{
+	struct pde_action *act = arg;
+
+	if ((act->invalidate & PCPU_GET(cpumask)) != 0)
+		pmap_update_pde_invalidate(act->va, act->newpde);
+}
+
+/*
+ * Change the page size for the specified virtual address in a way that
+ * prevents any possibility of the TLB ever having two entries that map the
+ * same virtual address using different page sizes.  This is the recommended
+ * workaround for Erratum 383 on AMD Family 10h processors.  It prevents a
+ * machine check exception for a TLB state that is improperly diagnosed as a
+ * hardware error.
+ */
+static void
+pmap_update_pde(pmap_t pmap, vm_offset_t va, pd_entry_t *pde, pd_entry_t newpde)
+{
+	struct pde_action act;
+	cpumask_t active, cpumask;
+
+	sched_pin();
+	cpumask = PCPU_GET(cpumask);
+	if (pmap == kernel_pmap)
+		active = all_cpus;
+	else
+		active = pmap->pm_active;
+	if ((active & PCPU_GET(other_cpus)) != 0) {
+		act.store = cpumask;
+		act.invalidate = active;
+		act.va = va;
+		act.pde = pde;
+		act.newpde = newpde;
+		smp_rendezvous_cpus(cpumask | active,
+		    smp_no_rendevous_barrier, pmap == kernel_pmap ?
+		    pmap_update_pde_kernel : pmap_update_pde_user,
+		    pmap_update_pde_teardown, &act);
+	} else {
+		if (pmap == kernel_pmap)
+			pmap_kenter_pde(va, newpde);
+		else
+			pde_store(pde, newpde);
+		if ((active & cpumask) != 0)
+			pmap_update_pde_invalidate(va, newpde);
+	}
+	sched_unpin();
+}
 #else /* !SMP */
 /*
  * Normal, non-SMP, 486+ invalidation functions.
@@ -982,6 +1143,18 @@ pmap_invalidate_cache(void)
 {
 
 	wbinvd();
+}
+
+static void
+pmap_update_pde(pmap_t pmap, vm_offset_t va, pd_entry_t *pde, pd_entry_t newpde)
+{
+
+	if (pmap == kernel_pmap)
+		pmap_kenter_pde(va, newpde);
+	else
+		pde_store(pde, newpde);
+	if (pmap == kernel_pmap || pmap->pm_active)
+		pmap_update_pde_invalidate(va, newpde);
 }
 #endif /* !SMP */
 
@@ -1856,32 +2029,17 @@ SYSCTL_PROC(_vm, OID_AUTO, kvm_free, CTLTYPE_LONG|CTLFLAG_RD,
 void
 pmap_growkernel(vm_offset_t addr)
 {
-	struct pmap *pmap;
 	vm_paddr_t ptppaddr;
 	vm_page_t nkpg;
 	pd_entry_t newpdir;
-	pt_entry_t *pde;
-	boolean_t updated_PTD;
 
 	mtx_assert(&kernel_map->system_mtx, MA_OWNED);
-	if (kernel_vm_end == 0) {
-		kernel_vm_end = KERNBASE;
-		nkpt = 0;
-		while (pdir_pde(PTD, kernel_vm_end)) {
-			kernel_vm_end = (kernel_vm_end + PAGE_SIZE * NPTEPG) & ~(PAGE_SIZE * NPTEPG - 1);
-			nkpt++;
-			if (kernel_vm_end - 1 >= kernel_map->max_offset) {
-				kernel_vm_end = kernel_map->max_offset;
-				break;
-			}
-		}
-	}
-	addr = roundup2(addr, PAGE_SIZE * NPTEPG);
+	addr = roundup2(addr, NBPDR);
 	if (addr - 1 >= kernel_map->max_offset)
 		addr = kernel_map->max_offset;
 	while (kernel_vm_end < addr) {
 		if (pdir_pde(PTD, kernel_vm_end)) {
-			kernel_vm_end = (kernel_vm_end + PAGE_SIZE * NPTEPG) & ~(PAGE_SIZE * NPTEPG - 1);
+			kernel_vm_end = (kernel_vm_end + NBPDR) & ~PDRMASK;
 			if (kernel_vm_end - 1 >= kernel_map->max_offset) {
 				kernel_vm_end = kernel_map->max_offset;
 				break;
@@ -1903,19 +2061,8 @@ pmap_growkernel(vm_offset_t addr)
 		newpdir = (pd_entry_t) (ptppaddr | PG_V | PG_RW | PG_A | PG_M);
 		pdir_pde(KPTD, kernel_vm_end) = pgeflag | newpdir;
 
-		updated_PTD = FALSE;
-		mtx_lock_spin(&allpmaps_lock);
-		LIST_FOREACH(pmap, &allpmaps, pm_list) {
-			if ((pmap->pm_pdir[PTDPTDI] & PG_FRAME) == (PTDpde[0] &
-			    PG_FRAME))
-				updated_PTD = TRUE;
-			pde = pmap_pde(pmap, kernel_vm_end);
-			pde_store(pde, newpdir);
-		}
-		mtx_unlock_spin(&allpmaps_lock);
-		KASSERT(updated_PTD,
-		    ("pmap_growkernel: current page table is not in allpmaps"));
-		kernel_vm_end = (kernel_vm_end + PAGE_SIZE * NPTEPG) & ~(PAGE_SIZE * NPTEPG - 1);
+		pmap_kenter_pde(kernel_vm_end, newpdir);
+		kernel_vm_end = (kernel_vm_end + NBPDR) & ~PDRMASK;
 		if (kernel_vm_end - 1 >= kernel_map->max_offset) {
 			kernel_vm_end = kernel_map->max_offset;
 			break;
@@ -2358,7 +2505,6 @@ static boolean_t
 pmap_demote_pde(pmap_t pmap, pd_entry_t *pde, vm_offset_t va)
 {
 	pd_entry_t newpde, oldpde;
-	pmap_t allpmaps_entry;
 	pt_entry_t *firstpte, newpte;
 	vm_paddr_t mptepa;
 	vm_page_t free, mpte;
@@ -2464,25 +2610,11 @@ pmap_demote_pde(pmap_t pmap, pd_entry_t *pde, vm_offset_t va)
 	 * processor changing the setting of PG_A and/or PG_M between
 	 * the read above and the store below. 
 	 */
-	if (pmap == kernel_pmap) {
-		/*
-		 * A harmless race exists between this loop and the bcopy()
-		 * in pmap_pinit() that initializes the kernel segment of
-		 * the new page table directory.  Specifically, that bcopy()
-		 * may copy the new PDE from the PTD to the new page table
-		 * before this loop updates that new page table.
-		 */
-		mtx_lock_spin(&allpmaps_lock);
-		LIST_FOREACH(allpmaps_entry, &allpmaps, pm_list) {
-			pde = pmap_pde(allpmaps_entry, va);
-			KASSERT(*pde == newpde || (*pde & PG_PTE_PROMOTE) ==
-			    (oldpde & PG_PTE_PROMOTE),
-			    ("pmap_demote_pde: pde was %#jx, expected %#jx",
-			    (uintmax_t)*pde, (uintmax_t)oldpde));
-			pde_store(pde, newpde);
-		}
-		mtx_unlock_spin(&allpmaps_lock);
-	} else
+	if (workaround_erratum383)
+		pmap_update_pde(pmap, va, pde, newpde);
+	else if (pmap == kernel_pmap)
+		pmap_kenter_pde(va, newpde);
+	else
 		pde_store(pde, newpde);	
 	if (firstpte == PADDR2)
 		mtx_unlock(&PMAP2mutex);
@@ -3001,7 +3133,6 @@ static void
 pmap_promote_pde(pmap_t pmap, pd_entry_t *pde, vm_offset_t va)
 {
 	pd_entry_t newpde;
-	pmap_t allpmaps_entry;
 	pt_entry_t *firstpte, oldpte, pa, *pte;
 	vm_offset_t oldpteva;
 	vm_page_t mpte;
@@ -3013,7 +3144,7 @@ pmap_promote_pde(pmap_t pmap, pd_entry_t *pde, vm_offset_t va)
 	 * either invalid, unused, or does not map the first 4KB physical page
 	 * within a 2- or 4MB page.
 	 */
-	firstpte = vtopte(trunc_4mpage(va));
+	firstpte = pmap_pte_quick(pmap, trunc_4mpage(va));
 setpde:
 	newpde = *firstpte;
 	if ((newpde & ((PG_FRAME & PDRMASK) | PG_A | PG_V)) != (PG_A | PG_V)) {
@@ -3105,14 +3236,11 @@ setpte:
 	/*
 	 * Map the superpage.
 	 */
-	if (pmap == kernel_pmap) {
-		mtx_lock_spin(&allpmaps_lock);
-		LIST_FOREACH(allpmaps_entry, &allpmaps, pm_list) {
-			pde = pmap_pde(allpmaps_entry, va);
-			pde_store(pde, PG_PS | newpde);
-		}
-		mtx_unlock_spin(&allpmaps_lock);
-	} else
+	if (workaround_erratum383)
+		pmap_update_pde(pmap, va, pde, PG_PS | newpde);
+	else if (pmap == kernel_pmap)
+		pmap_kenter_pde(va, PG_PS | newpde);
+	else
 		pde_store(pde, PG_PS | newpde);
 
 	pmap_pde_promotions++;

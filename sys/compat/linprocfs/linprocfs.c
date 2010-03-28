@@ -1227,6 +1227,24 @@ linprocfs_docmdline(PFS_FILL_ARGS)
 	return (0);
 }
 
+/*
+ * Filler function for proc/filesystems
+ */
+static int
+linprocfs_dofilesystems(PFS_FILL_ARGS)
+{
+	struct vfsconf *vfsp;
+
+	mtx_lock(&Giant);
+	TAILQ_FOREACH(vfsp, &vfsconf, vfc_list) {
+		if (vfsp->vfc_flags & VFCF_SYNTHETIC)
+			sbuf_printf(sb, "nodev");
+		sbuf_printf(sb, "\t%s\n", vfsp->vfc_name);
+	}
+	mtx_unlock(&Giant);
+	return(0);
+}
+
 #if 0
 /*
  * Filler function for proc/modules
@@ -1275,6 +1293,8 @@ linprocfs_init(PFS_INIT_ARGS)
 	pfs_create_file(root, "cpuinfo", &linprocfs_docpuinfo,
 	    NULL, NULL, NULL, PFS_RD);
 	pfs_create_file(root, "devices", &linprocfs_dodevices,
+	    NULL, NULL, NULL, PFS_RD);
+	pfs_create_file(root, "filesystems", &linprocfs_dofilesystems,
 	    NULL, NULL, NULL, PFS_RD);
 	pfs_create_file(root, "loadavg", &linprocfs_doloadavg,
 	    NULL, NULL, NULL, PFS_RD);

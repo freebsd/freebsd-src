@@ -50,13 +50,13 @@
 #include <machine/bus.h>
 #include <sys/rman.h>
 #include <sys/interrupt.h>
+#include <sys/pcpu.h>
 
 #include <vm/vm.h>
 #include <vm/pmap.h>
 
 #include <machine/efi.h>
 #include <machine/intr.h>
-#include <machine/nexusvar.h>
 #include <machine/pmap.h>
 #include <machine/resource.h>
 #include <machine/vmparam.h>
@@ -73,7 +73,6 @@
 static MALLOC_DEFINE(M_NEXUSDEV, "nexusdev", "Nexus device");
 struct nexus_device {
 	struct resource_list	nx_resources;
-	int			nx_pcibus;
 };
 
 #define DEVTONX(dev)	((struct nexus_device *)device_get_ivars(dev))
@@ -87,8 +86,6 @@ static device_t nexus_add_child(device_t bus, int order, const char *name,
 				int unit);
 static	struct resource *nexus_alloc_resource(device_t, device_t, int, int *,
 					      u_long, u_long, u_long, u_int);
-static	int nexus_read_ivar(device_t, device_t, int, uintptr_t *);
-static	int nexus_write_ivar(device_t, device_t, int, uintptr_t);
 static	int nexus_activate_resource(device_t, device_t, int, int,
 				    struct resource *);
 static	int nexus_deactivate_resource(device_t, device_t, int, int,
@@ -105,6 +102,7 @@ static	int nexus_set_resource(device_t, device_t, int, int, u_long, u_long);
 static	int nexus_get_resource(device_t, device_t, int, int, u_long *,
 			       u_long *);
 static void nexus_delete_resource(device_t, device_t, int, int);
+static int nexus_bind_intr(device_t, device_t, struct resource *, int);
 static	int nexus_config_intr(device_t, int, enum intr_trigger,
 			      enum intr_polarity);
 
@@ -123,8 +121,6 @@ static device_method_t nexus_methods[] = {
 	/* Bus interface */
 	DEVMETHOD(bus_print_child,	nexus_print_child),
 	DEVMETHOD(bus_add_child,	nexus_add_child),
-	DEVMETHOD(bus_read_ivar,	nexus_read_ivar),
-	DEVMETHOD(bus_write_ivar,	nexus_write_ivar),
 	DEVMETHOD(bus_alloc_resource,	nexus_alloc_resource),
 	DEVMETHOD(bus_release_resource,	nexus_release_resource),
 	DEVMETHOD(bus_activate_resource, nexus_activate_resource),
@@ -135,6 +131,7 @@ static device_method_t nexus_methods[] = {
 	DEVMETHOD(bus_set_resource,	nexus_set_resource),
 	DEVMETHOD(bus_get_resource,	nexus_get_resource),
 	DEVMETHOD(bus_delete_resource,	nexus_delete_resource),
+	DEVMETHOD(bus_bind_intr,	nexus_bind_intr),
 	DEVMETHOD(bus_config_intr,	nexus_config_intr),
 
 	/* Clock interface */
@@ -215,8 +212,6 @@ nexus_print_child(device_t bus, device_t child)
 	retval += resource_list_print_type(rl, "port", SYS_RES_IOPORT, "%#lx");
 	retval += resource_list_print_type(rl, "iomem", SYS_RES_MEMORY, "%#lx");
 	retval += resource_list_print_type(rl, "irq", SYS_RES_IRQ, "%ld");
-	if (ndev->nx_pcibus != -1)
-		retval += printf(" pcibus %d", ndev->nx_pcibus);
 	if (device_get_flags(child))
 		retval += printf(" flags %#x", device_get_flags(child));
 	retval += printf(" on motherboard\n");	/* XXX "motherboard", ick */
@@ -234,7 +229,6 @@ nexus_add_child(device_t bus, int order, const char *name, int unit)
 	if (!ndev)
 		return(0);
 	resource_list_init(&ndev->nx_resources);
-	ndev->nx_pcibus = -1;
 
 	child = device_add_child_ordered(bus, order, name, unit); 
 
@@ -242,37 +236,6 @@ nexus_add_child(device_t bus, int order, const char *name, int unit)
 	device_set_ivars(child, ndev);
 
 	return(child);
-}
-
-static int
-nexus_read_ivar(device_t dev, device_t child, int which, uintptr_t *result)
-{
-	struct	nexus_device *ndev = DEVTONX(child);
-
-	switch (which) {
-	case NEXUS_IVAR_PCIBUS:
-		*result = ndev->nx_pcibus;
-		break;
-	default:
-		return ENOENT;
-	}
-	return 0;
-}
-	
-
-static int
-nexus_write_ivar(device_t dev, device_t child, int which, uintptr_t value)
-{
-	struct	nexus_device *ndev = DEVTONX(child);
-
-	switch (which) {
-	case NEXUS_IVAR_PCIBUS:
-		ndev->nx_pcibus = value;
-		break;
-	default:
-		return ENOENT;
-	}
-	return 0;
 }
 
 
@@ -499,6 +462,17 @@ nexus_config_intr(device_t dev, int irq, enum intr_trigger trig,
 {
 
 	return (sapic_config_intr(irq, trig, pol));
+}
+
+static int
+nexus_bind_intr(device_t dev, device_t child, struct resource *irq, int cpu)
+{
+	struct pcpu *pc;
+
+	pc = cpuid_to_pcpu[cpu];
+	if (pc == NULL)
+		return (EINVAL);
+	return (sapic_bind_intr(rman_get_start(irq), pc));
 }
 
 static int

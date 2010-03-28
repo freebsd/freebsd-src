@@ -1,5 +1,6 @@
 /*-
  * Copyright (c) 1998 Kazutaka YOKOTA and Michael Smith
+ * Copyright (c) 2009-2010 Jung-uk Kim <jkim@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -188,7 +189,7 @@ static int vesa_bios_load_palette2(int start, int colors, u_char *r, u_char *g,
 #define STATE_ALL	(STATE_HW | STATE_DATA | STATE_DAC | STATE_REG)
 static ssize_t vesa_bios_state_buf_size(void);
 static int vesa_bios_save_restore(int code, void *p, size_t size);
-#if 0
+#ifdef MODE_TABLE_BROKEN
 static int vesa_bios_get_line_length(void);
 #endif
 static int vesa_bios_set_line_length(int pixel, int *bytes, int *lines);
@@ -199,6 +200,7 @@ static int vesa_bios_set_start(int x, int y);
 static int vesa_map_gen_mode_num(int type, int color, int mode);
 static int vesa_translate_flags(u_int16_t vflags);
 static int vesa_translate_mmodel(u_int8_t vmodel);
+static int vesa_get_bpscanline(struct vesa_mode *vmode);
 static int vesa_bios_init(void);
 static void vesa_clear_modes(video_info_t *info, int color);
 
@@ -558,7 +560,7 @@ vesa_bios_save_restore(int code, void *p, size_t size)
 	return (regs.R_AX != 0x004f);
 }
 
-#if 0
+#ifdef MODE_TABLE_BROKEN
 static int
 vesa_bios_get_line_length(void)
 {
@@ -709,6 +711,43 @@ vesa_translate_mmodel(u_int8_t vmodel)
 	return (V_INFO_MM_OTHER);
 }
 
+static int
+vesa_get_bpscanline(struct vesa_mode *vmode)
+{
+	int bpsl;
+
+	if ((vmode->v_modeattr & V_MODEGRAPHICS) != 0) {
+		/* Find the minimum length. */
+		switch (vmode->v_bpp / vmode->v_planes) {
+		case 1:
+			bpsl = vmode->v_width / 8;
+			break;
+		case 2:
+			bpsl = vmode->v_width / 4;
+			break;
+		case 4:
+			bpsl = vmode->v_width / 2;
+			break;
+		default:
+			bpsl = vmode->v_width * ((vmode->v_bpp + 7) / 8);
+			bpsl /= vmode->v_planes;
+			break;
+		}
+
+		/* Use VBE 3.0 information if it looks sane. */
+		if ((vmode->v_modeattr & V_MODELFB) != 0 &&
+		    vesa_adp_info->v_version >= 0x0300 &&
+		    vmode->v_linbpscanline > bpsl)
+			return (vmode->v_linbpscanline);
+
+		/* Return the minimum if the mode table looks absurd. */
+		if (vmode->v_bpscanline < bpsl)
+			return (bpsl);
+	}
+
+	return (vmode->v_bpscanline);
+}
+
 #define	VESA_MAXSTR		256
 
 #define	VESA_STRCPY(dst, src)	do {				\
@@ -733,7 +772,6 @@ vesa_bios_init(void)
 	void *vmbuf;
 	uint32_t offs;
 	uint16_t vers;
-	int bpsl;
 	int is_via_cle266;
 	int modes;
 	int i;
@@ -858,9 +896,7 @@ vesa_bios_init(void)
 		}
 #endif
 
-		bpsl = (vmode.v_modeattr & V_MODELFB) != 0 && vers >= 0x0300 ?
-		    vmode.v_linbpscanline : vmode.v_bpscanline;
-		bsize = bpsl * vmode.v_height;
+		bsize = vesa_get_bpscanline(&vmode) * vmode.v_height;
 		if ((vmode.v_modeattr & V_MODEGRAPHICS) != 0)
 			bsize *= vmode.v_planes;
 
@@ -1209,7 +1245,7 @@ vesa_set_mode(video_adapter_t *adp, int mode)
 			int10_set_mode(adp->va_initial_bios_mode);
 			if (adp->va_info.vi_flags & V_INFO_LINEAR)
 				pmap_unmapdev(adp->va_buffer,
-				    adp->va_buffer_size);
+				    vesa_adp_info->v_memsize * 64 * 1024);
 			/* 
 			 * Once (*prevvidsw->get_info)() succeeded, 
 			 * (*prevvidsw->set_mode)() below won't fail...
@@ -1241,12 +1277,12 @@ vesa_set_mode(video_adapter_t *adp, int mode)
 
 	if ((vesa_adp_info->v_flags & V_DAC8) != 0 &&
 	    (info.vi_flags & V_INFO_GRAPHICS) != 0 &&
-	    (info.vi_flags & V_INFO_NONVGA) != 0 &&
 	    vesa_bios_set_dac(8) > 6)
 		adp->va_flags |= V_ADP_DAC8;
 
 	if (adp->va_info.vi_flags & V_INFO_LINEAR)
-		pmap_unmapdev(adp->va_buffer, adp->va_buffer_size);
+		pmap_unmapdev(adp->va_buffer,
+		    vesa_adp_info->v_memsize * 64 * 1024);
 
 #if VESA_DEBUG > 0
 	printf("VESA: mode set!\n");
@@ -1257,13 +1293,31 @@ vesa_set_mode(video_adapter_t *adp, int mode)
 		(info.vi_flags & V_INFO_COLOR) ? V_ADP_COLOR : 0;
 	vesa_adp->va_crtc_addr =
 		(vesa_adp->va_flags & V_ADP_COLOR) ? COLOR_CRTC : MONO_CRTC;
+
+	vesa_adp->va_line_width = info.vi_buffer_size / info.vi_height;
+	if ((info.vi_flags & V_INFO_GRAPHICS) != 0)
+		vesa_adp->va_line_width /= info.vi_planes;
+
+#ifdef MODE_TABLE_BROKEN
+	/* If VBE function returns bigger bytes per scan line, use it. */
+	{
+		int bpsl = vesa_bios_get_line_length();
+		if (bpsl > vesa_adp->va_line_width) {
+			vesa_adp->va_line_width = bpsl;
+			info.vi_buffer_size = bpsl * info.vi_height;
+			if ((info.vi_flags & V_INFO_GRAPHICS) != 0)
+				info.vi_buffer_size *= info.vi_planes;
+		}
+	}
+#endif
+
 	if (info.vi_flags & V_INFO_LINEAR) {
 #if VESA_DEBUG > 1
 		printf("VESA: setting up LFB\n");
 #endif
 		vesa_adp->va_buffer =
 		    (vm_offset_t)pmap_mapdev_attr(info.vi_buffer,
-		    info.vi_buffer_size, PAT_WRITE_COMBINING);
+		    vesa_adp_info->v_memsize * 64 * 1024, PAT_WRITE_COMBINING);
 		vesa_adp->va_window = vesa_adp->va_buffer;
 		vesa_adp->va_window_size = info.vi_buffer_size / info.vi_planes;
 		vesa_adp->va_window_gran = info.vi_buffer_size / info.vi_planes;
@@ -1275,9 +1329,6 @@ vesa_set_mode(video_adapter_t *adp, int mode)
 	}
 	vesa_adp->va_buffer_size = info.vi_buffer_size;
 	vesa_adp->va_window_orig = 0;
-	vesa_adp->va_line_width = info.vi_buffer_size / info.vi_height;
-	if ((info.vi_flags & V_INFO_GRAPHICS) != 0)
-		vesa_adp->va_line_width /= info.vi_planes;
 	vesa_adp->va_disp_start.x = 0;
 	vesa_adp->va_disp_start.y = 0;
 #if VESA_DEBUG > 0
@@ -1322,10 +1373,10 @@ vesa_save_palette(video_adapter_t *adp, u_char *palette)
 {
 	int bits;
 
-	if (adp == vesa_adp && VESA_MODE(adp->va_mode) &&
-	    (adp->va_info.vi_flags & V_INFO_NONVGA) != 0) {
+	if (adp == vesa_adp && VESA_MODE(adp->va_mode)) {
 		bits = (adp->va_flags & V_ADP_DAC8) != 0 ? 8 : 6;
-		return (vesa_bios_save_palette(0, 256, palette, bits));
+		if (vesa_bios_save_palette(0, 256, palette, bits) == 0)
+			return (0);
 	}
 
 	return ((*prevvidsw->save_palette)(adp, palette));
@@ -1336,10 +1387,10 @@ vesa_load_palette(video_adapter_t *adp, u_char *palette)
 {
 	int bits;
 
-	if (adp == vesa_adp && VESA_MODE(adp->va_mode) &&
-	    (adp->va_info.vi_flags & V_INFO_NONVGA) != 0) {
+	if (adp == vesa_adp && VESA_MODE(adp->va_mode)) {
 		bits = (adp->va_flags & V_ADP_DAC8) != 0 ? 8 : 6;
-		return (vesa_bios_load_palette(0, 256, palette, bits));
+		if (vesa_bios_load_palette(0, 256, palette, bits) == 0)
+			return (0);
 	}
 
 	return ((*prevvidsw->load_palette)(adp, palette));
@@ -1544,8 +1595,6 @@ get_palette(video_adapter_t *adp, int base, int count,
 		return (1);
 	if (!VESA_MODE(adp->va_mode))
 		return (1);
-	if ((adp->va_info.vi_flags & V_INFO_NONVGA) == 0)
-		return (1);
 
 	bits = (adp->va_flags & V_ADP_DAC8) != 0 ? 8 : 6;
 	r = malloc(count * 3, M_DEVBUF, M_WAITOK);
@@ -1581,8 +1630,6 @@ set_palette(video_adapter_t *adp, int base, int count,
 	if ((base + count) > 256)
 		return (1);
 	if (!VESA_MODE(adp->va_mode))
-		return (1);
-	if ((adp->va_info.vi_flags & V_INFO_NONVGA) == 0)
 		return (1);
 
 	bits = (adp->va_flags & V_ADP_DAC8) != 0 ? 8 : 6;

@@ -832,13 +832,8 @@ __CONCAT(exec_, __elfN(imgact))(struct image_params *imgp)
 			    phdr[i].p_vaddr + et_dyn_addr - seg_addr);
 
 			/*
-			 * Is this .text or .data?  We can't use
-			 * VM_PROT_WRITE or VM_PROT_EXEC, it breaks the
-			 * alpha terribly and possibly does other bad
-			 * things so we stick to the old way of figuring
-			 * it out:  If the segment contains the program
-			 * entry point, it's a text segment, otherwise it
-			 * is a data segment.
+			 * Make the largest executable segment the official
+			 * text segment and all others data.
 			 *
 			 * Note that obreak() assumes that data_addr + 
 			 * data_size == end of data load area, and the ELF
@@ -846,12 +841,10 @@ __CONCAT(exec_, __elfN(imgact))(struct image_params *imgp)
 			 * address.  If multiple data segments exist, the
 			 * last one will be used.
 			 */
-			if (hdr->e_entry >= phdr[i].p_vaddr &&
-			    hdr->e_entry < (phdr[i].p_vaddr +
-			    phdr[i].p_memsz)) {
+
+			if (phdr[i].p_flags & PF_X && text_size < seg_size) {
 				text_size = seg_size;
 				text_addr = seg_addr;
-				entry = (u_long)hdr->e_entry + et_dyn_addr;
 			} else {
 				data_size = seg_size;
 				data_addr = seg_addr;
@@ -870,6 +863,8 @@ __CONCAT(exec_, __elfN(imgact))(struct image_params *imgp)
 		data_addr = text_addr;
 		data_size = text_size;
 	}
+
+	entry = (u_long)hdr->e_entry + et_dyn_addr;
 
 	/*
 	 * Check limits.  It should be safe to check the
@@ -948,6 +943,7 @@ __CONCAT(exec_, __elfN(imgact))(struct image_params *imgp)
 
 	imgp->auxargs = elf_auxargs;
 	imgp->interpreted = 0;
+	imgp->reloc_base = addr;
 	imgp->proc->p_osrel = osrel;
 
 	return (error);
