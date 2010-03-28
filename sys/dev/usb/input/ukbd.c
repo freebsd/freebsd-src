@@ -896,8 +896,7 @@ ukbd_attach(device_t dev)
 		    hid_input, 0, &sc->sc_loc_apple_fn, &flags,
 		    &temp_id)) {
 			if (flags & HIO_VARIABLE)
-				sc->sc_flags |= UKBD_FLAG_APPLE_FN |
-				    UKBD_FLAG_APPLE_SWAP;
+				sc->sc_flags |= UKBD_FLAG_APPLE_FN;
 			DPRINTFN(1, "Found Apple FN-key\n");
 			apple_keys = 1;
 			sc->sc_kbd_id = temp_id;
