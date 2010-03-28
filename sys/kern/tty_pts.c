@@ -556,9 +556,9 @@ ptsdev_stat(struct file *fp, struct stat *sb, struct ucred *active_cred,
 #endif /* PTS_EXTERNAL */
 		sb->st_ino = sb->st_rdev = tty_udev(tp);
 
-	sb->st_atimespec = dev->si_atime;
-	sb->st_ctimespec = dev->si_ctime;
-	sb->st_mtimespec = dev->si_mtime;
+	sb->st_atim = dev->si_atime;
+	sb->st_ctim = dev->si_ctime;
+	sb->st_mtim = dev->si_mtime;
 	sb->st_uid = dev->si_uid;
 	sb->st_gid = dev->si_gid;
 	sb->st_mode = dev->si_mode | S_IFCHR;

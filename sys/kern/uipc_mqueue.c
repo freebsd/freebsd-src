@@ -2447,10 +2447,10 @@ mqf_stat(struct file *fp, struct stat *st, struct ucred *active_cred,
 	struct mqfs_node *pn = fp->f_data;
 
 	bzero(st, sizeof *st);
-	st->st_atimespec = pn->mn_atime;
-	st->st_mtimespec = pn->mn_mtime;
-	st->st_ctimespec = pn->mn_ctime;
-	st->st_birthtimespec = pn->mn_birth;
+	st->st_atim = pn->mn_atime;
+	st->st_mtim = pn->mn_mtime;
+	st->st_ctim = pn->mn_ctime;
+	st->st_birthtim = pn->mn_birth;
 	st->st_uid = pn->mn_uid;
 	st->st_gid = pn->mn_gid;
 	st->st_mode = S_IFIFO | pn->mn_mode;

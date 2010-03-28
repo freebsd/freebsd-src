@@ -1634,9 +1634,9 @@ copy_stat( struct stat *in, struct stat32 *out)
 	CP(*in, *out, st_uid);
 	CP(*in, *out, st_gid);
 	CP(*in, *out, st_rdev);
-	TS_CP(*in, *out, st_atimespec);
-	TS_CP(*in, *out, st_mtimespec);
-	TS_CP(*in, *out, st_ctimespec);
+	TS_CP(*in, *out, st_atim);
+	TS_CP(*in, *out, st_mtim);
+	TS_CP(*in, *out, st_ctim);
 	CP(*in, *out, st_size);
 	CP(*in, *out, st_blocks);
 	CP(*in, *out, st_blksize);

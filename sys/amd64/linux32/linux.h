@@ -203,9 +203,9 @@ struct l_newstat {
 	l_ulong		st_size;
 	l_ulong		st_blksize;
 	l_ulong		st_blocks;
-	struct l_timespec	st_atimespec;
-	struct l_timespec	st_mtimespec;
-	struct l_timespec	st_ctimespec;
+	struct l_timespec	st_atim;
+	struct l_timespec	st_mtim;
+	struct l_timespec	st_ctim;
 	l_ulong		__unused4;
 	l_ulong		__unused5;
 } __packed;
@@ -219,9 +219,9 @@ struct l_stat {
 	l_ushort	st_gid;
 	l_ushort	st_rdev;
 	l_long		st_size;
-	struct l_timespec	st_atimespec;
-	struct l_timespec	st_mtimespec;
-	struct l_timespec	st_ctimespec;
+	struct l_timespec	st_atim;
+	struct l_timespec	st_mtim;
+	struct l_timespec	st_ctim;
 	l_long		st_blksize;
 	l_long		st_blocks;
 	l_ulong		st_flags;
@@ -242,9 +242,9 @@ struct l_stat64 {
 	l_ulong		st_blksize;
 	l_ulong		st_blocks;
 	l_ulong		__pad4;
-	struct l_timespec	st_atimespec;
-	struct l_timespec	st_mtimespec;
-	struct l_timespec	st_ctimespec;
+	struct l_timespec	st_atim;
+	struct l_timespec	st_mtim;
+	struct l_timespec	st_ctim;
 	l_ulonglong	st_ino;
 } __packed;
 
