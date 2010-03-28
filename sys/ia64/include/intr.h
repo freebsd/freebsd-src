@@ -35,6 +35,7 @@
 
 #define	IA64_MAX_HWPRIO		14
 
+struct pcpu;
 struct sapic;
 struct thread;
 struct trapframe;
@@ -65,6 +66,7 @@ typedef u_int (ia64_ihtype)(struct thread *, u_int, struct trapframe *);
 
 extern struct ia64_pib *ia64_pib;
 
+void	ia64_bind_intr(void);
 void	ia64_handle_intr(struct trapframe *);
 int	ia64_setup_intr(const char *, int, driver_filter_t, driver_intr_t,
 	    void *, enum intr_type, void **);
@@ -75,6 +77,7 @@ u_int	ia64_xiv_alloc(u_int, enum ia64_xiv_use, ia64_ihtype);
 int	ia64_xiv_free(u_int, enum ia64_xiv_use);
 int	ia64_xiv_reserve(u_int, enum ia64_xiv_use, ia64_ihtype);
 
+int	sapic_bind_intr(u_int, struct pcpu *);
 int	sapic_config_intr(u_int, enum intr_trigger, enum intr_polarity);
 struct sapic *sapic_create(u_int, u_int, uint64_t);
 int	sapic_enable(struct sapic *, u_int, u_int);

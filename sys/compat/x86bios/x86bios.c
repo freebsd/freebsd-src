@@ -56,8 +56,7 @@ __FBSDID("$FreeBSD$");
 
 #define	X86BIOS_IVT_SIZE	0x00000500	/* 1K + 256 (BDA) */
 #define	X86BIOS_SEG_SIZE	0x00010000	/* 64K */
-#define	X86BIOS_MEM_SIZE	(0x00100000 + X86BIOS_SEG_SIZE)
-						/* 1M + 64K (high memory) */
+#define	X86BIOS_MEM_SIZE	0x00100000	/* 1M */
 
 #define	X86BIOS_IVT_BASE	0x00000000
 #define	X86BIOS_RAM_BASE	0x00001000
@@ -69,7 +68,6 @@ __FBSDID("$FreeBSD$");
 
 #define	X86BIOS_R_DS		_pad1
 #define	X86BIOS_R_SS		_pad2
-#define	X86BIOS_R_SP		_pad3.I16_reg.x_reg
 
 static struct x86emu x86bios_emu;
 
@@ -113,15 +111,16 @@ x86bios_set_fault(struct x86emu *emu, uint32_t addr)
 static void *
 x86bios_get_pages(uint32_t offset, size_t size)
 {
-	int i;
+	vm_offset_t page;
 
-	if (offset + size > X86BIOS_MEM_SIZE)
+	if (offset + size > X86BIOS_MEM_SIZE + X86BIOS_IVT_SIZE)
 		return (NULL);
 
-	i = offset / X86BIOS_PAGE_SIZE;
-	if (x86bios_map[i] != 0)
-		return ((void *)(x86bios_map[i] + offset -
-		    i * X86BIOS_PAGE_SIZE));
+	if (offset >= X86BIOS_MEM_SIZE)
+		offset -= X86BIOS_MEM_SIZE;
+	page = x86bios_map[offset / X86BIOS_PAGE_SIZE];
+	if (page != 0)
+		return ((void *)(page + offset % X86BIOS_PAGE_SIZE));
 
 	return (NULL);
 }
@@ -306,8 +305,8 @@ x86bios_emu_get_intr(struct x86emu *emu, int intno)
 	sp[2] = htole16(emu->x86.R_FLG);
 
 	iv = x86bios_get_intr(intno);
-	emu->x86.R_IP = iv & 0x000f;
-	emu->x86.R_CS = (iv >> 12) & 0xffff;
+	emu->x86.R_IP = iv & 0xffff;
+	emu->x86.R_CS = (iv >> 16) & 0xffff;
 	emu->x86.R_FLG &= ~(F_IF | F_TF);
 }
 
@@ -354,7 +353,6 @@ x86bios_init_regs(struct x86regs *regs)
 	bzero(regs, sizeof(*regs));
 	regs->X86BIOS_R_DS = 0x40;
 	regs->X86BIOS_R_SS = x86bios_seg_phys >> 4;
-	regs->X86BIOS_R_SP = 0xfffe;
 }
 
 void
@@ -526,13 +524,6 @@ x86bios_map_mem(void)
 		return (1);
 	}
 #endif
-	/* Change attribute for high memory. */
-	if (pmap_change_attr((vm_offset_t)x86bios_rom + X86BIOS_ROM_SIZE -
-	    X86BIOS_SEG_SIZE, X86BIOS_SEG_SIZE, PAT_WRITE_BACK) != 0) {
-		pmap_unmapdev((vm_offset_t)x86bios_ivt, X86BIOS_IVT_SIZE);
-		pmap_unmapdev((vm_offset_t)x86bios_rom, X86BIOS_ROM_SIZE);
-		return (1);
-	}
 
 	x86bios_seg = contigmalloc(X86BIOS_SEG_SIZE, M_DEVBUF, M_WAITOK,
 	    X86BIOS_RAM_BASE, x86bios_rom_phys, X86BIOS_PAGE_SIZE, 0);
@@ -556,10 +547,6 @@ x86bios_map_mem(void)
 		    X86BIOS_ROM_BASE, X86BIOS_MEM_SIZE - X86BIOS_SEG_SIZE - 1,
 		    (void *)((vm_offset_t)x86bios_rom + X86BIOS_ROM_BASE -
 		    (vm_offset_t)x86bios_rom_phys));
-		printf("x86bios: HIMEM 0x%06x-0x%06x at %p\n",
-		    X86BIOS_MEM_SIZE - X86BIOS_SEG_SIZE, X86BIOS_MEM_SIZE - 1,
-		    (void *)((vm_offset_t)x86bios_rom + X86BIOS_ROM_SIZE -
-		    X86BIOS_SEG_SIZE));
 	}
 
 	return (0);

@@ -122,7 +122,7 @@ ia64_xiv_reserve(u_int xiv, enum ia64_xiv_use what, ia64_ihtype ih)
 		return (EBUSY);
 	ia64_xiv[xiv] = what;
 	ia64_handler[xiv] = (ih == NULL) ? ia64_ih_invalid: ih;
-	if (1 || bootverbose)
+	if (bootverbose)
 		printf("XIV %u: use=%u, IH=%p\n", xiv, what, ih);
 	return (0);
 }
@@ -139,7 +139,7 @@ ia64_xiv_alloc(u_int prio, enum ia64_xiv_use what, ia64_ihtype ih)
 
 	xiv0 = IA64_NXIVS - (hwprio + 1) * 16;
 
-	KASSERT(xiv0 > IA64_MIN_XIV, ("%s: min XIV", __func__));
+	KASSERT(xiv0 >= IA64_MIN_XIV, ("%s: min XIV", __func__));
 	KASSERT(xiv0 < IA64_NXIVS, ("%s: max XIV", __func__));
 
 	xiv = xiv0;
@@ -280,6 +280,27 @@ ia64_teardown_intr(void *cookie)
 	return (intr_event_remove_handler(cookie));
 }
 
+void
+ia64_bind_intr(void)
+{
+	struct ia64_intr *i;
+	struct pcpu *pc;
+	u_int xiv;
+	int cpu;
+
+	cpu = MAXCPU;
+	for (xiv = IA64_NXIVS - 1; xiv >= IA64_MIN_XIV; xiv--) {
+		if (ia64_xiv[xiv] != IA64_XIV_IRQ)
+			continue;
+		i = ia64_intrs[xiv];
+		do {
+			cpu = (cpu == 0) ? MAXCPU - 1 : cpu - 1;
+			pc = cpuid_to_pcpu[cpu];
+		} while (pc == NULL || !pc->pc_md.awake);
+		sapic_bind_intr(i->irq, pc);
+	}
+}
+
 /*
  * Interrupt handlers.
  */
@@ -318,9 +339,9 @@ ia64_handle_intr(struct trapframe *tf)
  out:
 	if (TRAPF_USERMODE(tf)) {
 		while (td->td_flags & (TDF_ASTPENDING|TDF_NEEDRESCHED)) {
-			enable_intr();
+			ia64_enable_intr();
 			ast(tf);
-			disable_intr();
+			ia64_disable_intr();
 		}
 	}
 }

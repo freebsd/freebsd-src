@@ -421,7 +421,6 @@ static uint32_t bge_readreg_ind(struct bge_softc *, int);
 #endif
 static void bge_writemem_direct(struct bge_softc *, int, int);
 static void bge_writereg_ind(struct bge_softc *, int, int);
-static void bge_set_max_readrq(struct bge_softc *);
 
 static int bge_miibus_readreg(device_t, int, int);
 static int bge_miibus_writereg(device_t, int, int, int);
@@ -559,32 +558,6 @@ bge_writemem_ind(struct bge_softc *sc, int off, int val)
 	pci_write_config(dev, BGE_PCI_MEMWIN_BASEADDR, off, 4);
 	pci_write_config(dev, BGE_PCI_MEMWIN_DATA, val, 4);
 	pci_write_config(dev, BGE_PCI_MEMWIN_BASEADDR, 0, 4);
-}
-
-/*
- * PCI Express only
- */
-static void
-bge_set_max_readrq(struct bge_softc *sc)
-{
-	device_t dev;
-	uint16_t val;
-
-	dev = sc->bge_dev;
-
-	val = pci_read_config(dev, sc->bge_expcap + PCIR_EXPRESS_DEVICE_CTL, 2);
-	if ((val & PCIM_EXP_CTL_MAX_READ_REQUEST) !=
-	    BGE_PCIE_DEVCTL_MAX_READRQ_4096) {
-		if (bootverbose)
-			device_printf(dev, "adjust device control 0x%04x ",
-			    val);
-		val &= ~PCIM_EXP_CTL_MAX_READ_REQUEST;
-		val |= BGE_PCIE_DEVCTL_MAX_READRQ_4096;
-		pci_write_config(dev, sc->bge_expcap + PCIR_EXPRESS_DEVICE_CTL,
-		    val, 2);
-		if (bootverbose)
-			printf("-> 0x%04x\n", val);
-	}
 }
 
 #ifdef notdef
@@ -2695,7 +2668,8 @@ bge_attach(device_t dev)
 		 */
 		sc->bge_flags |= BGE_FLAG_PCIE;
 		sc->bge_expcap = reg;
-		bge_set_max_readrq(sc);
+		if (pci_get_max_read_req(dev) != 4096)
+			pci_set_max_read_req(dev, 4096);
 	} else {
 		/*
 		 * Check if the device is in PCI-X Mode.
