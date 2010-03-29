@@ -1218,7 +1218,6 @@ aac_bio_command(struct aac_softc *sc, struct aac_command **cmp)
 	cm->cm_complete = aac_bio_complete;
 	cm->cm_private = bp;
 	cm->cm_timestamp = time_uptime;
-	cm->cm_queue = AAC_ADAP_NORM_CMD_QUEUE;
 
 	/* build the FIB */
 	fib = cm->cm_fib;
@@ -1373,7 +1372,6 @@ aac_wait_command(struct aac_command *cm)
 	fwprintf(sc, HBA_FLAGS_DBG_FUNCTION_ENTRY_B, "");
 
 	/* Put the command on the ready queue and get things going */
-	cm->cm_queue = AAC_ADAP_NORM_CMD_QUEUE;
 	aac_enqueue_ready(cm);
 	aac_startio(sc);
 	error = msleep(cm, &sc->aac_io_lock, PRIBIO, "aacwait", 0);
@@ -1423,6 +1421,7 @@ aac_release_command(struct aac_command *cm)
 	cm->cm_flags = 0;
 	cm->cm_complete = NULL;
 	cm->cm_private = NULL;
+	cm->cm_queue = AAC_ADAP_NORM_CMD_QUEUE;
 	cm->cm_fib->Header.XferState = AAC_FIBSTATE_EMPTY;
 	cm->cm_fib->Header.StructType = AAC_FIBTYPE_TFIB;
 	cm->cm_fib->Header.Flags = 0;
