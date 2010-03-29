@@ -109,7 +109,7 @@ struct dbreg {
 #define	DBREG_DR7_EXEC		0x00	/* break on execute       */
 #define	DBREG_DR7_WRONLY	0x01	/* break on write         */
 #define	DBREG_DR7_RDWR		0x03	/* break on read or write */
-#define	DBREG_DR7_MASK(i)	((u_long)0xf << ((i) * 4 + 16) | 0x3 << (i) * 2)
+#define	DBREG_DR7_MASK(i)	(0xful << ((i) * 4 + 16) | 0x3 << (i) * 2)
 #define	DBREG_DR7_SET(i, len, access, enable)				\
 	((u_long)((len) << 2 | (access)) << ((i) * 4 + 16) | (enable) << (i) * 2)
 #define	DBREG_DR7_GD		0x2000
