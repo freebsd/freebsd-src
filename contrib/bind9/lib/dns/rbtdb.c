@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2009  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2010  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: rbtdb.c,v 1.196.18.59 2009/11/26 23:46:11 tbox Exp $ */
+/* $Id: rbtdb.c,v 1.196.18.61 2010/02/26 23:46:36 tbox Exp $ */
 
 /*! \file */
 
@@ -414,6 +414,8 @@ static isc_result_t rdataset_putadditional(dns_acache_t *acache,
 					   dns_rdataset_t *rdataset,
 					   dns_rdatasetadditional_t type,
 					   dns_rdatatype_t qtype);
+static void rdataset_settrust(dns_rdataset_t *rdataset, dns_trust_t trust);
+static void rdataset_expire(dns_rdataset_t *rdataset);
 
 static dns_rdatasetmethods_t rdataset_methods = {
 	rdataset_disassociate,
@@ -426,7 +428,9 @@ static dns_rdatasetmethods_t rdataset_methods = {
 	rdataset_getnoqname,
 	rdataset_getadditional,
 	rdataset_setadditional,
-	rdataset_putadditional
+	rdataset_putadditional,
+	rdataset_settrust,
+	rdataset_expire
 };
 
 static void rdatasetiter_destroy(dns_rdatasetiter_t **iteratorp);
@@ -5821,6 +5825,36 @@ rdataset_getnoqname(dns_rdataset_t *rdataset, dns_name_t *name,
 	dns_name_clone(&noqname->name, name);
 
 	return (ISC_R_SUCCESS);
+}
+
+static void
+rdataset_settrust(dns_rdataset_t *rdataset, dns_trust_t trust) {
+	dns_rbtdb_t *rbtdb = rdataset->private1;
+	dns_rbtnode_t *rbtnode = rdataset->private2;
+	rdatasetheader_t *header = rdataset->private3;
+
+	header--;
+	NODE_LOCK(&rbtdb->node_locks[rbtnode->locknum].lock,
+		  isc_rwlocktype_write);
+	header->trust = rdataset->trust = trust;
+	NODE_UNLOCK(&rbtdb->node_locks[rbtnode->locknum].lock,
+		  isc_rwlocktype_write);
+}
+
+static void
+rdataset_expire(dns_rdataset_t *rdataset) {
+	dns_rbtdb_t *rbtdb = rdataset->private1;
+	dns_rbtnode_t *rbtnode = rdataset->private2;
+	rdatasetheader_t *header = rdataset->private3;
+
+	header--;
+	NODE_LOCK(&rbtdb->node_locks[rbtnode->locknum].lock,
+		  isc_rwlocktype_write);
+	header->ttl = 0;
+	header->attributes |= RDATASET_ATTR_STALE;
+	rbtnode->dirty = 1;
+	NODE_UNLOCK(&rbtdb->node_locks[rbtnode->locknum].lock,
+		  isc_rwlocktype_write);
 }
 
 /*

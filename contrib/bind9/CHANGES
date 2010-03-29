@@ -1,3 +1,7 @@
+	--- 9.4-ESV-R1 released ---
+
+2852.	[bug]		Handle broken DNSSEC trust chains better. [RT #15619]
+
 	--- 9.4-ESV released ---
 
 2831.	[security]	Do not attempt to validate or cache
