@@ -330,6 +330,8 @@ _siba_bwn=	siba_bwn
 _sym=		sym
 # no uart_cpu_$MACHINE_ARCH
 _uart=		uart
+# intr_disable() is a macro, causes problems
+_cxgb=		cxgb
 .endif
 
 .if ${MK_CRYPT} != "no" || defined(ALL_MODULES)
