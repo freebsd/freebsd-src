@@ -2131,7 +2131,7 @@ restore_scrn_saver_mode(scr_stat *scp, int changemode)
     if (set_mode(scp) == 0) {
 #ifndef SC_NO_PALETTE_LOADING
 #ifdef SC_PIXEL_MODE
-	if ((scp->sc->adp->va_flags & V_ADP_DAC8) != 0)
+	if (scp->sc->adp->va_info.vi_mem_model == V_INFO_MM_DIRECT)
 	    vidd_load_palette(scp->sc->adp, scp->sc->palette2);
 	else
 #endif
@@ -2540,7 +2540,7 @@ exchange_scr(sc_softc_t *sc)
 #ifndef SC_NO_PALETTE_LOADING
     if (ISGRAPHSC(sc->old_scp)) {
 #ifdef SC_PIXEL_MODE
-	if ((sc->adp->va_flags & V_ADP_DAC8) != 0)
+	if (sc->adp->va_info.vi_mem_model == V_INFO_MM_DIRECT)
 	    vidd_load_palette(sc->adp, sc->palette2);
 	else
 #endif
