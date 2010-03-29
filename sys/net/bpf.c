@@ -1867,13 +1867,14 @@ bpf_freed(struct bpf_d *d)
 	 * free.
 	 */
 	bpf_free(d);
-	if (d->bd_rfilter) {
+	if (d->bd_rfilter != NULL) {
 		free((caddr_t)d->bd_rfilter, M_BPF);
 #ifdef BPF_JITTER
-		bpf_destroy_jit_filter(d->bd_bfilter);
+		if (d->bd_bfilter != NULL)
+			bpf_destroy_jit_filter(d->bd_bfilter);
 #endif
 	}
-	if (d->bd_wfilter)
+	if (d->bd_wfilter != NULL)
 		free((caddr_t)d->bd_wfilter, M_BPF);
 	mtx_destroy(&d->bd_mtx);
 }
