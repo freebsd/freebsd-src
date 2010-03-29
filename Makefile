@@ -295,6 +295,7 @@ universe_${target}:
 	    "check _.${target}.buildworld for details")
 	@echo ">> ${target} buildworld completed on `LC_ALL=C date`"
 .endif
+.if !defined(MAKE_JUST_WORLDS)
 .if exists(${.CURDIR}/sys/${target}/conf/NOTES)
 	@(cd ${.CURDIR}/sys/${target}/conf && env __MAKE_CONF=/dev/null \
 	    ${MAKE} LINT > ${.CURDIR}/_.${target}.makeLINT 2>&1 || \
@@ -310,6 +311,7 @@ universe_${target}:
 	    echo "${target} ${kernel} kernel failed," \
 	    "check _.${target}.${kernel} for details")
 .endfor
+.endif
 	@echo ">> ${target} completed on `LC_ALL=C date`"
 .endfor
 universe: universe_epilogue
