@@ -289,7 +289,9 @@ static s32 e1000_init_mac_params_82575(struct e1000_hw *hw)
 		mac->rar_entry_count = E1000_RAR_ENTRIES_82580;
 	/* Set if part includes ASF firmware */
 	mac->asf_firmware_present = TRUE;
-	/* Set if manageability features are enabled. */
+	/* FWSM register */
+	mac->has_fwsm = TRUE;
+	/* ARC supported; valid only if manageability features are enabled. */
 	mac->arc_subsystem_valid =
 	        (E1000_READ_REG(hw, E1000_FWSM) & E1000_FWSM_MODE_MASK)
 	                ? TRUE : FALSE;
@@ -1435,13 +1437,12 @@ static void e1000_config_collision_dist_82575(struct e1000_hw *hw)
 static void e1000_power_down_phy_copper_82575(struct e1000_hw *hw)
 {
 	struct e1000_phy_info *phy = &hw->phy;
-	struct e1000_mac_info *mac = &hw->mac;
 
 	if (!(phy->ops.check_reset_block))
 		return;
 
 	/* If the management interface is not enabled, then power down */
-	if (!(mac->ops.check_mng_mode(hw) || phy->ops.check_reset_block(hw)))
+	if (!(e1000_enable_mng_pass_thru(hw) || phy->ops.check_reset_block(hw)))
 		e1000_power_down_phy_copper(hw);
 
 	return;
@@ -1646,14 +1647,23 @@ out:
  **/
 void e1000_vmdq_set_loopback_pf(struct e1000_hw *hw, bool enable)
 {
-	u32 dtxswc = E1000_READ_REG(hw, E1000_DTXSWC);
+	u32 dtxswc;
 
-	if (enable)
-		dtxswc |= E1000_DTXSWC_VMDQ_LOOPBACK_EN;
-	else
-		dtxswc &= ~E1000_DTXSWC_VMDQ_LOOPBACK_EN;
+	switch (hw->mac.type) {
+	case e1000_82576:
+		dtxswc = E1000_READ_REG(hw, E1000_DTXSWC);
+		if (enable)
+			dtxswc |= E1000_DTXSWC_VMDQ_LOOPBACK_EN;
+		else
+			dtxswc &= ~E1000_DTXSWC_VMDQ_LOOPBACK_EN;
+		E1000_WRITE_REG(hw, E1000_DTXSWC, dtxswc);
+		break;
+	default:
+		/* Currently no other hardware supports loopback */
+		break;
+	}
 
-	E1000_WRITE_REG(hw, E1000_DTXSWC, dtxswc);
+
 }
 
 /**
