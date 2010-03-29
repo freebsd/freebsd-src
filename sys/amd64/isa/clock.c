@@ -91,7 +91,7 @@ static	u_int32_t i8254_offset;
 static	int	(*i8254_pending)(struct intsrc *);
 static	int	i8254_ticked;
 static	int	using_atrtc_timer;
-static	int	using_lapic_timer;
+static	enum lapic_clock using_lapic_timer = LAPIC_CLOCK_NONE;
 
 /* Values for timerX_state: */
 #define	RELEASED	0
@@ -160,7 +160,8 @@ clkintr(struct trapframe *frame)
 		clkintr_pending = 0;
 		mtx_unlock_spin(&clock_lock);
 	}
-	KASSERT(!using_lapic_timer, ("clk interrupt enabled with lapic timer"));
+	KASSERT(using_lapic_timer == LAPIC_CLOCK_NONE,
+	    ("clk interrupt enabled with lapic timer"));
 
 	if (using_atrtc_timer) {
 #ifdef SMP
@@ -422,7 +423,7 @@ set_i8254_freq(u_int freq, int intr_freq)
 	i8254_timecounter.tc_frequency = freq;
 	mtx_lock_spin(&clock_lock);
 	i8254_freq = freq;
-	if (using_lapic_timer)
+	if (using_lapic_timer != LAPIC_CLOCK_NONE)
 		new_i8254_real_max_count = 0x10000;
 	else
 		new_i8254_real_max_count = TIMER_DIV(intr_freq);
@@ -485,7 +486,7 @@ cpu_initclocks()
 	 * that it can drive hardclock().  Otherwise, change the 8254
 	 * timecounter to user a simpler algorithm.
 	 */
-	if (!using_lapic_timer) {
+	if (using_lapic_timer == LAPIC_CLOCK_NONE) {
 		intr_add_handler("clk", 0, (driver_filter_t *)clkintr, NULL,
 		    NULL, INTR_TYPE_CLK, NULL);
 		i8254_intsrc = intr_lookup_source(0);
@@ -508,7 +509,7 @@ cpu_initclocks()
 	 * kernel clocks, then setup the RTC to periodically interrupt to
 	 * drive statclock() and profclock().
 	 */
-	if (!using_lapic_timer) {
+	if (using_lapic_timer != LAPIC_CLOCK_ALL) {
 		using_atrtc_timer = atrtc_setup_clock();
 		if (using_atrtc_timer) {
 			/* Enable periodic interrupts from the RTC. */
@@ -532,7 +533,7 @@ void
 cpu_startprofclock(void)
 {
 
-	if (using_lapic_timer || !using_atrtc_timer)
+	if (using_lapic_timer == LAPIC_CLOCK_ALL || !using_atrtc_timer)
 		return;
 	atrtc_rate(RTCSA_PROF);
 	psdiv = pscnt = psratio;
@@ -542,7 +543,7 @@ void
 cpu_stopprofclock(void)
 {
 
-	if (using_lapic_timer || !using_atrtc_timer)
+	if (using_lapic_timer == LAPIC_CLOCK_ALL || !using_atrtc_timer)
 		return;
 	atrtc_rate(RTCSA_NOPROF);
 	psdiv = pscnt = 1;

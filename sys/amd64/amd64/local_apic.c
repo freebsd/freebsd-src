@@ -160,6 +160,9 @@ static uint32_t	lvt_mode(struct lapic *la, u_int pin, uint32_t value);
 
 struct pic lapic_pic = { .pic_resume = lapic_resume };
 
+static int lapic_allclocks;
+TUNABLE_INT("machdep.lapic_allclocks", &lapic_allclocks);
+
 static uint32_t
 lvt_mode(struct lapic *la, u_int pin, uint32_t value)
 {
@@ -415,10 +418,11 @@ lapic_disable_pmc(void)
 /*
  * Called by cpu_initclocks() on the BSP to setup the local APIC timer so
  * that it can drive hardclock, statclock, and profclock.  This function
- * returns true if it is able to use the local APIC timer to drive the
- * clocks and false if it is not able.
+ * returns a positive integer if it is convenient to use the local APIC
+ * for all the clocks, a negative integer if it is convenient to use the
+ * local APIC only for the hardclock and 0 if none of them can be handled.
  */
-int
+enum lapic_clock
 lapic_setup_clock(void)
 {
 	u_long value;
@@ -426,10 +430,10 @@ lapic_setup_clock(void)
 
 	/* Can't drive the timer without a local APIC. */
 	if (lapic == NULL)
-		return (0);
+		return (LAPIC_CLOCK_NONE);
 
 	if (resource_int_value("apic", 0, "clock", &i) == 0 && i == 0)
-		return (0);
+		return (LAPIC_CLOCK_NONE);
 
 	/* Start off with a divisor of 2 (power on reset default). */
 	lapic_timer_divisor = 2;
@@ -461,19 +465,27 @@ lapic_setup_clock(void)
 	 * (and profhz) run at hz.  If 'hz' is below 1500 but above
 	 * 750, then we let the lapic timer run at 2 * 'hz'.  If 'hz'
 	 * is below 750 then we let the lapic timer run at 4 * 'hz'.
+	 *
+	 * Please note that stathz and profhz are set only if all the
+	 * clocks are handled through the local APIC.
 	 */
-	if (hz >= 1500)
+	if (lapic_allclocks != 0) {
+		if (hz >= 1500)
+			lapic_timer_hz = hz;
+		else if (hz >= 750)
+			lapic_timer_hz = hz * 2;
+		else
+			lapic_timer_hz = hz * 4;
+	} else
 		lapic_timer_hz = hz;
-	else if (hz >= 750)
-		lapic_timer_hz = hz * 2;
-	else
-		lapic_timer_hz = hz * 4;
-	if (lapic_timer_hz < 128)
-		stathz = lapic_timer_hz;
-	else
-		stathz = lapic_timer_hz / (lapic_timer_hz / 128);
-	profhz = lapic_timer_hz;
 	lapic_timer_period = value / lapic_timer_hz;
+	if (lapic_allclocks != 0) {
+		if (lapic_timer_hz < 128)
+			stathz = lapic_timer_hz;
+		else
+			stathz = lapic_timer_hz / (lapic_timer_hz / 128);
+		profhz = lapic_timer_hz;
+	}
 
 	/*
 	 * Start up the timer on the BSP.  The APs will kick off their
@@ -481,7 +493,7 @@ lapic_setup_clock(void)
 	 */
 	lapic_timer_periodic(lapic_timer_period);
 	lapic_timer_enable_intr();
-	return (1);
+	return (lapic_allclocks == 0 ? LAPIC_CLOCK_HARDCLOCK : LAPIC_CLOCK_ALL);
 }
 
 void
@@ -784,20 +796,23 @@ lapic_handle_timer(struct trapframe *frame)
 		else
 			hardclock_cpu(TRAPF_USERMODE(frame));
 	}
+	if (lapic_allclocks != 0) {
 
-	/* Fire statclock at stathz. */
-	la->la_stat_ticks += stathz;
-	if (la->la_stat_ticks >= lapic_timer_hz) {
-		la->la_stat_ticks -= lapic_timer_hz;
-		statclock(TRAPF_USERMODE(frame));
-	}
+		/* Fire statclock at stathz. */
+		la->la_stat_ticks += stathz;
+		if (la->la_stat_ticks >= lapic_timer_hz) {
+			la->la_stat_ticks -= lapic_timer_hz;
+			statclock(TRAPF_USERMODE(frame));
+		}
 
-	/* Fire profclock at profhz, but only when needed. */
-	la->la_prof_ticks += profhz;
-	if (la->la_prof_ticks >= lapic_timer_hz) {
-		la->la_prof_ticks -= lapic_timer_hz;
-		if (profprocs != 0)
-			profclock(TRAPF_USERMODE(frame), TRAPF_PC(frame));
+		/* Fire profclock at profhz, but only when needed. */
+		la->la_prof_ticks += profhz;
+		if (la->la_prof_ticks >= lapic_timer_hz) {
+			la->la_prof_ticks -= lapic_timer_hz;
+			if (profprocs != 0)
+				profclock(TRAPF_USERMODE(frame),
+				    TRAPF_PC(frame));
+		}
 	}
 	critical_exit();
 }
