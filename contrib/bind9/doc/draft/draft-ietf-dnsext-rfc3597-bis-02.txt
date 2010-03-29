@@ -6,13 +6,20 @@
 
 INTERNET-DRAFT                                             A. Gustafsson
                                           Araneus Information Systems Oy
-                                                      September 23, 2009
+                                                       February 24, 2010
 
 Intended status: Draft Standard
 Obsoletes: RFC3597
 
            Handling of Unknown DNS Resource Record (RR) Types
-                  draft-ietf-dnsext-rfc3597-bis-00.txt
+                  draft-ietf-dnsext-rfc3597-bis-02.txt
+
+Abstract
+
+   Extending the Domain Name System (DNS) with new Resource Record (RR)
+   types should not requires changes to name server software.  This
+   document specifies how new RR types are transparently handled by DNS
+   software.
 
 Status of this Memo
 
@@ -36,29 +43,26 @@ Status of this Memo
 
 Copyright Notice
 
-   Copyright (c) 2009 IETF Trust and the persons identified as the
-   document authors. All rights reserved.
+   Copyright (c) 2010 IETF Trust and the persons identified as the
+   document authors.  All rights reserved.
 
    This document is subject to BCP 78 and the IETF Trust's Legal
-   Provisions Relating to IETF Documents in effect on the date of
-   publication of this document (http://trustee.ietf.org/license-info).
-   Please review these documents carefully, as they describe your rights
-   and restrictions with respect to this document.
-
-Abstract
-
-   Extending the Domain Name System (DNS) with new Resource Record (RR)
-   types should not requires changes to name server software.  This
-   document specifies how new RR types are transparently handled by DNS
-   software.
+   Provisions Relating to IETF Documents
+   (http://trustee.ietf.org/license-info) in effect on the date of
+   publication of this document. Please review these documents
+   carefully, as they describe your rights and restrictions with respect
+   to this document. Code Components extracted from this document must
 
 
 
-
-Expires March 2010           Standards Track                    [Page 1]
+Expires August 2010          Standards Track                    [Page 1]
 
-draft-ietf-dnsext-rfc3597-bis-00.txt                           July 2009
+draft-ietf-dnsext-rfc3597-bis-02.txt                       February 2010
 
+
+   include Simplified BSD License text as described in Section 4.e of
+   the Trust Legal Provisions and are provided without warranty as
+   described in the Simplified BSD License.
 
 1.  Introduction
 
@@ -78,10 +82,13 @@ draft-ietf-dnsext-rfc3597-bis-00.txt                           July 2009
    types by allowing them to be treated transparently by existing
    implementations.  Thanks to the widespread adoption of that
    specification, much of the DNS is now capable of handling new record
-   types without software changes.
+   types without software changes.  Another development that has
+   simplified the introduction of new DNS RR types is the adoption of a
+   simpler IANA allocation procedure for RR types [RFC5395].
 
    This document is a self-contained revised specification supplanting
-   and obsoleting [RFC3597].
+   and obsoleting RFC 3597, with the aim of allowing the specification
+   to advance on the Standards Track.
 
 2.  Definitions
 
@@ -96,25 +103,24 @@ draft-ietf-dnsext-rfc3597-bis-00.txt                           July 2009
    Meta-TYPEs.  Such an RR cannot be converted to a type-specific text
    format, compressed, or otherwise handled in a type-specific way.
 
-   In the case of a type whose RDATA format is class specific, an RR is
-   considered to be of unknown type when the RDATA format for that
-   combination of type and class is not known.
+   In the case of a type whose RDATA format is known to be class
+   specific, an RR is considered to be of unknown type when the RDATA
+   format for that combination of type and class is not known.
 
 3.  Transparency
 
+
+
+Expires August 2010          Standards Track                    [Page 2]
+
+draft-ietf-dnsext-rfc3597-bis-02.txt                       February 2010
+
+
    To enable new RR types to be deployed without server changes, name
    servers and resolvers MUST handle RRs of unknown type transparently.
-   That is, they must treat the RDATA section of such RRs as
-   unstructured binary data, storing and transmitting it without change
-   [RFC1123].
-
-
-
-
-Expires March 2010           Standards Track                    [Page 2]
-
-draft-ietf-dnsext-rfc3597-bis-00.txt                           July 2009
-
+   The RDATA section of RRs of unknown type must be treated as
+   unstructured binary data, and must be stored and transmitted without
+   change ([RFC1123], section 6.1.3.5).
 
    To ensure the correct operation of equality comparison (section 6)
    and of the DNSSEC canonical form (section 7) when an RR type is known
@@ -142,7 +148,7 @@ draft-ietf-dnsext-rfc3597-bis-00.txt                           July 2009
 
    Receiving servers MUST decompress domain names in RRs of well-known
    type, and SHOULD also decompress RRs of type RP, AFSDB, RT, SIG, PX,
-   NXT, NAPTR, and SRV to ensure interoperability with implementations
+   NXT, SRV, and NAPTR to ensure interoperability with implementations
    predating [RFC3597].
 
    Specifications for new RR types that contain domain names within
@@ -158,75 +164,38 @@ draft-ietf-dnsext-rfc3597-bis-00.txt                           July 2009
    In the "type" field of a master file line, an unknown RR type is
    represented by the word "TYPE" immediately followed by the decimal RR
    type number, with no intervening whitespace.  In the "class" field,
+
+
+
+Expires August 2010          Standards Track                    [Page 3]
+
+draft-ietf-dnsext-rfc3597-bis-02.txt                       February 2010
+
+
    an unknown class is similarly represented as the word "CLASS"
    immediately followed by the decimal class number.
 
    This convention allows types and classes to be distinguished from
    each other and from TTL values, allowing the "[<TTL>] [<class>]
    <type> <RDATA>" and "[<class>] [<TTL>] <type> <RDATA>" forms of
-
-
-
-Expires March 2010           Standards Track                    [Page 3]
-
-draft-ietf-dnsext-rfc3597-bis-00.txt                           July 2009
-
-
-   [RFC1035] to both be unambiguously parsed.
+   [RFC1035] section 5.1 to both be unambiguously parsed.
 
    The RDATA section of an RR of unknown type is represented as a
-   sequence of white space separated words as follows:
+   sequence of items separated by any combination of tabs and spaces, as
+   follows:
 
-      The special token \# (a backslash immediately followed by a hash
-      sign), which identifies the RDATA as having the generic encoding
-      defined herein rather than a traditional type-specific encoding.
+     - The special token \# (a backslash immediately followed by a hash
+       sign), which identifies the RDATA as having the generic encoding
+       defined herein rather than a traditional type-specific encoding.
 
-      An unsigned decimal integer specifying the RDATA length in octets.
+     - An unsigned decimal integer specifying the RDATA length in
+       octets.
 
-      Zero or more words of hexadecimal data encoding the actual RDATA
-      field, each containing an even number of hexadecimal digits.
+     - Zero or more items of hexadecimal data encoding the actual RDATA
+       field, each item containing an even number of hexadecimal digits.
 
    If the RDATA is of zero length, the text representation contains only
    the \# token and the single zero representing the length.
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-Expires March 2010           Standards Track                    [Page 4]
-
-draft-ietf-dnsext-rfc3597-bis-00.txt                           July 2009
-
 
    An implementation MAY also choose to represent some RRs of known type
    using the above generic representations for the type, class and/or
@@ -251,6 +220,14 @@ draft-ietf-dnsext-rfc3597-bis-00.txt                           July 2009
 
       a.example.   CLASS32     TYPE731         \# 6 abcd (
                                                ef 01 23 45 )
+
+
+
+Expires August 2010          Standards Track                    [Page 4]
+
+draft-ietf-dnsext-rfc3597-bis-02.txt                       February 2010
+
+
       b.example.   HS          TYPE62347       \# 0
       e.example.   IN          A               \# 4 C0000201
       e.example.   CLASS1      TYPE1           192.0.2.1
@@ -273,16 +250,6 @@ draft-ietf-dnsext-rfc3597-bis-00.txt                           July 2009
    name(s).  This is similar to the existing possibility of multiple TXT
    records differing only in character case, and not expected to cause
    any problems in practice.
-
-
-
-
-
-
-Expires March 2010           Standards Track                    [Page 5]
-
-draft-ietf-dnsext-rfc3597-bis-00.txt                           July 2009
-
 
 7.  DNSSEC Considerations
 
@@ -309,6 +276,14 @@ draft-ietf-dnsext-rfc3597-bis-00.txt                           July 2009
    This specification is not believed to cause any new security
    problems, nor to solve any existing ones.
 
+
+
+
+Expires August 2010          Standards Track                    [Page 5]
+
+draft-ietf-dnsext-rfc3597-bis-02.txt                       February 2010
+
+
 11.  Normative References
 
    [RFC1034]   Mockapetris, P., "Domain Names - Concepts and
@@ -332,14 +307,6 @@ draft-ietf-dnsext-rfc3597-bis-00.txt                           July 2009
                Means for Expressing Location Information in the Domain
                Name System", RFC 1876, January 1996.
 
-
-
-
-Expires March 2010           Standards Track                    [Page 6]
-
-draft-ietf-dnsext-rfc3597-bis-00.txt                           July 2009
-
-
    [RFC2136]   Vixie, P., Ed., Thomson, S., Rekhter, Y. and J. Bound,
                "Dynamic Updates in the Domain Name System (DNS UPDATE)",
                RFC 2136, April 1997.
@@ -362,6 +329,112 @@ draft-ietf-dnsext-rfc3597-bis-00.txt                           July 2009
    Phone: +358 40 547 2099
    EMail: gson@araneus.fi
 
+Appendix A. Summary of Changes Since RFC3597
+
+   This section summarizes the major changes between RFC3597 and this
+
+
+
+Expires August 2010          Standards Track                    [Page 6]
+
+draft-ietf-dnsext-rfc3597-bis-02.txt                       February 2010
+
+
+   document.  In addition to the changes listed below, there has also
+   been a number of editorial changes, such as updates to the text in
+   the Abstract and Introduction to better reflect the current state of
+   implementation, updates to boilerplate text, and minor
+   clarifications.
+
+   The reference to the DNS IANA Considerations BCP (BCP42) has been
+   changed from RFC2929 to the current version, RFC5395.
+
+   Downward references have been eliminated; specifically, the document
+   no longer refers to RFC2163 or RFC2535.
+
+   IP addresses in examples have been changed to use the 192.0.2.0/24
+   range per RFC3330.
+
+   The document no longer specifies changes to the DNSSEC canonical form
+   and ordering, as those changes have now been incorporated into the
+   base DNSSEC specification.
+
+Appendix B. Detailed Change Log
+
+   [NOTE TO RFC EDITOR:  PLEASE REMOVE THIS APPENDIX ON PUBLICATION.]
+
+B.1.  Changes between RFC3597 and -00
+
+   The reference to the DNS IANA Considerations BCP (BCP42) has been
+   changed from RFC2929 to the current version, RFC5395.
+
+   Downward references have been eliminated; specifically, the document
+   no longer refers to RFC2163 or RFC2535.
+
+   IP addresses in examples have been changed to use the 192.0.2.0/24
+   range per RFC3330.
+
+   The document no longer specifies changes to the DNSSEC canonical form
+   and ordering, as those changes have now been incorporated into the
+   base DNSSEC specification.
+
+   There has also been a number of editorial changes, such as updates to
+   the text in the Abstract and Introduction to better reflect the
+   current state of implementation.
+
+B.2.  Changes between -00 and -01
+
+   Moved the Abstract to immediately following the document title.
+
+   Updated boilerplate to the current version.
+
+
+
+
+Expires August 2010          Standards Track                    [Page 7]
+
+draft-ietf-dnsext-rfc3597-bis-02.txt                       February 2010
+
+
+   In the Introduction, the text "Another development that has
+   simplified the introduction of new DNS RR types is the adoption of a
+   simpler IANA allocation procedure for RR types" and a reference to
+   [RFC5395] were added.
+
+   In the Introduction, the text "with the aim of allowing the
+   specification to advance on the Standards Track" was added to explain
+   the motivation for the draft.
+
+   In section 2, the text "is class specific" was replaced by "is known
+   to be class specific".
+
+   In section 3, the words "That is" were removed so as not to imply
+   that the transparent treatment of RRs of unknown type is only a
+   matter of how the RDATA field is handled.  The remainder of the
+   sentence was rephrased.
+
+   In section 4, the entries for SRV and NAPTR in the list of RR types
+   to decompress were swapped to make the list consistently ordered by
+   ascending numerical RR type.
+
+   References to RFC 1035 and RFC 1123 now include the specific section
+   numbers being referenced.
+
+   A Change History was added as Appendix A.
+
+B.3. Changes between -01 and -02
+
+   In section 5, the term "white space" was replaced by "any combination
+   of tabs and spaces", and the term "word" was replaced by "item", for
+   consistency with RFC1035 terminology.
+
+   In section 5, hyphens were added to mark the beginning of each item
+   in the the list of items comprising the RDATA text representation.
+
+   The Change History was split into a Summary of Changes Since RFC3597
+   (Appendix A) intended to remain in the document when published as an
+   RFC, and a Detailed Change Log (Appendix B) to be deleted on
+   publication.
 
 
 
@@ -374,22 +447,5 @@ draft-ietf-dnsext-rfc3597-bis-00.txt                           July 2009
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-Expires March 2010           Standards Track                    [Page 7]
+Expires August 2010          Standards Track                    [Page 8]
 

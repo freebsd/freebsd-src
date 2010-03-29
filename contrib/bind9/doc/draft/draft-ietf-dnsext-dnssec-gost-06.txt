@@ -1,12 +1,12 @@
 DNS Extensions working group                             V.Dolmatov, Ed.  
 Internet-Draft                                            Cryptocom Ltd.    
-Intended status: Standards Track                      November 30, 2009
-Expires: May 30, 2010                                 
+Intended status: Standards Track                      December 12, 2009
+Expires: June 12, 2010                                 
 
 
  Use of GOST signature algorithms in DNSKEY and RRSIG Resource Records
                                for DNSSEC
-                 draft-ietf-dnsext-dnssec-gost-05
+                 draft-ietf-dnsext-dnssec-gost-06
 
 Status of this Memo
 
@@ -29,7 +29,7 @@ Status of this Memo
    The list of Internet-Draft Shadow Directories can be accessed at
    http://www.ietf.org/shadow.html.
 
-   This Internet-Draft will expire on May  10 2010.
+   This Internet-Draft will expire on June 12 2010.
 
 Copyright Notice
 
@@ -49,7 +49,7 @@ Abstract
    resource records for use in the Domain Name System Security 
    Extensions (DNSSEC, RFC 4033, RFC 4034, and RFC 4035).
 
-V.Dolmatov              Expires May  30, 2010               [Page 1]
+V.Dolmatov              Expires June 12, 2010               [Page 1]
 
 Table of Contents
 
@@ -106,7 +106,7 @@ Table of Contents
    "SHOULD", "SHOULD NOT", "RECOMMENDED", "MAY", and "OPTIONAL" in this
    document are to be interpreted as described in [RFC2119].
 
-V.Dolmatov              Expires May  30, 2010                [Page 2]
+V.Dolmatov              Expires June 12, 2010                [Page 2]
 
 2.  DNSKEY Resource Records
 
@@ -121,17 +121,13 @@ V.Dolmatov              Expires May  30, 2010                [Page 2]
    According to [GOST3410], a public key is a point on the elliptic
    curve Q = (x,y).
 
-   The wire representation of a public key MUST contain 66 octets, 
-   where the first octet designates public key parameters, the second
-   octet designates digest parameters next 32 octets contain the 
-   little-endian representation of x and the second 32 octets contain
-   the little-endian representation of y. 
+   The wire representation of a public key MUST contain 64 octets, 
+   where the first 32 octets contain the little-endian representation
+   of x and the second 32 octets contain the little-endian 
+   representation of y. 
    This corresponds to the binary representation of (<y>256||<x>256) 
    from [GOST3410], ch.  5.3.
 
-   The only valid value for both parameters octets is 0.
-   Other parameters octets values are reserved for future use.
-   
    Corresponding public key parameters are those identified by
    id-GostR3410-2001-CryptoPro-A-ParamSet (1.2.643.2.2.35.1) [RFC4357],
    and the digest parameters are those identified by
@@ -145,9 +141,8 @@ V.Dolmatov              Expires May  30, 2010                [Page 2]
    section 2.3.2.
 
    To make this encoding from the wire format of a GOST public key 
-   with the parameters used in this document, prepend the last 64 octets
-   of key data (in other words, substitute first two parameter octets)
-   with the following 37-byte sequence:
+   with the parameters used in this document, prepend the 64 octets
+   of key data with the following 37-byte sequence:
 
    0x30 0x63 0x30 0x1c 0x06 0x06 0x2a 0x85 0x03 0x02 0x02 0x13 0x30 
    0x12 0x06 0x07 0x2a 0x85 0x03 0x02 0x02 0x23 0x01 0x06 0x07 0x2a
@@ -161,18 +156,19 @@ V.Dolmatov              Expires May  30, 2010                [Page 2]
 
    Private-key-format: v1.2
    Algorithm: {TBA1} (GOST)
-   GostAsn1: MEUCAQAwHAYGKoUDAgITMBIGByqFAwICIwEGByqFAwICHgEEIgQgV/S
-             2FXdMtzKJBehZvjF4lVSx6m66TwqSe/MFwKSH/3E=
+   GostAsn1: MEUCAQAwHAYGKoUDAgITMBIGByqFAwICIwEGByqFAwICHgEEIgQgp9c
+             t2LQaNS1vMKPLEN9zHYjLPNMIQN6QB9vt3AghZFA=
+ 
 
-V.Dolmatov              Expires May  30, 2010                [Page 3]
+V.Dolmatov              Expires June 12, 2010                [Page 3]
 
    The following DNSKEY RR stores a DNS zone key for example.net
  
    example.net. 86400 IN DNSKEY 256 3 {TBA1} (
-                                AADMrbi2vAs4hklTmmzGE3WWNtJ8Dll0u0jq
-                                tGRbNKeJguZQj/9EpGWmQK9hekPiPlzH2Ph6
-                                yB7i836EfzmJo5LP
-                                ) ; key id = 15820
+                                GtTJjmZKUXV+lHLG/6crB6RCR+EJR51Islpa
+                                6FqfT0MUfKhSn1yAo92+LJ0GDssTiAnj0H0I
+                                9Jrfial/yyc5Og==
+                                ) ; key id = 10805
 
 3.  RRSIG Resource Records
 
@@ -214,12 +210,12 @@ V.Dolmatov              Expires May  30, 2010                [Page 3]
    assigned by IANA)
 
    www.example.net. 3600 IN RRSIG A {TBA1} 3 3600 20300101000000 (
-                                  20000101000000 15820 example.net.
-                                  2MIsZWtEx6pcfQrdl376B8sFg0qxsR8XMHpl
-                                  jHh+V6U7Qte7WwI4C3Z1nFMRVf//C9rO2dGB
-                                  rdp+C7wVoOHBqA== )
+                                  20000101000000 10805 example.net.
+                                  k3m0r5bm6kFQmcRlHshY3jIj7KL6KTUsPIAp
+                                  Vy466khKuWEUoVvSkqI+9tvMQySQgZcEmS0W
+                                  HRFSm0XS5YST5g== )
  
-V.Dolmatov              Expires May  30, 2010                [Page 4]
+V.Dolmatov              Expires June 12, 2010                [Page 4]
 
   Note: Several GOST signatures calculated for the same message text 
    differ because of using of a random element is used in signature 
@@ -241,16 +237,16 @@ V.Dolmatov              Expires May  30, 2010                [Page 4]
    assigned by IANA)
 
    example.net. 86400   DNSKEY  257 3 {TBA1} (
-                                AAADr5vmKVdXo780hSRU1YZYWuMZUbEe9R7C
-                                RRLc7Wj2osDXv2XbCnIpTUx8dVLnLKmDBquu
-                                9tCz5oSsZl0cL0R2
-                                ) ; key id = 21649
-
+                                1aYdqrVz3JJXEURLMdmeI7H1CyTFfPVFBIGA
+                                EabZFP+7NT5KPYXzjDkRbPWleEFbBilDNQNi
+                                q/q4CwA4WR+ovg==
+                                ) ; key id = 6204
+ 
    The DS RR will be
 
-   example.net. 3600 IN DS 21649 {TBA1} {TBA2} (
-             A8146F448569F30B91255BA8E98DE14B18569A524C49593ADCA4103A
-             A44649C6 )
+   example.net. 3600 IN DS 6204 {TBA1} {TBA2} (
+             0E6D6CB303F89DBCF614DA6E21984F7A62D08BDD0A05B3A22CC63D1B
+             553BC61E )
 
 5.  Deployment Considerations
 
@@ -277,7 +273,7 @@ V.Dolmatov              Expires May  30, 2010                [Page 4]
    DNSKEY resource records created with the GOST algorithms as
    defined in this document.
 
-V.Dolmatov              Expires May  30, 2010                [Page 5]
+V.Dolmatov              Expires June 12, 2010                [Page 5]
 
 6.2.  Support for NSEC3 Denial of Existence
 
@@ -333,7 +329,7 @@ V.Dolmatov              Expires May  30, 2010                [Page 5]
    contributors to these documents are gratefully acknowledged for 
    their hard work.
 
-V.Dolmatov              Expires May  30, 2010                [Page 6]
+V.Dolmatov              Expires June 12, 2010                [Page 6]
 
    The following people provided additional feedback and text: Dmitry 
    Burkov, Jaap Akkerhuis, Olafur Gundmundsson, Jelte Jansen 
@@ -389,7 +385,7 @@ V.Dolmatov              Expires May  30, 2010                [Page 6]
              Infrastructure Certificate and CRL Profile", RFC 4491,
              May 2006. 
 
-V.Dolmatov              Expires May  30, 2010               [Page 7]
+V.Dolmatov              Expires June 12, 2010               [Page 7]
 
 
 10.2.  Informative References
@@ -399,21 +395,21 @@ V.Dolmatov              Expires May  30, 2010               [Page 7]
 
    [DRAFT1]   Dolmatov V., Kabelev D., Ustinov I., Vyshensky S.,
               "GOST R 34.10-2001 digital signature algorithm"
-              draft-dolmatov-cryptocom-gost34102001-06, 11.10.09
+              draft-dolmatov-cryptocom-gost34102001-07, 12.12.09
               work in progress.
 
 
    [DRAFT2]   Dolmatov V., Kabelev D., Ustinov I., Vyshensky S.,
               "GOST R 34.11-94 Hash function algorithm"
-              draft-dolmatov-cryptocom-gost341194-04, 11.10.09
+              draft-dolmatov-cryptocom-gost341194-06, 12.12.09
               work in progress.
 
    [DRAFT3]   Dolmatov V., Kabelev D., Ustinov I., Emelyanova I.,
               "GOST 28147-89 encryption, decryption and MAC algorithms"
-              draft-dolmatov-cryptocom-gost2814789-04, 11.10.09
+              draft-dolmatov-cryptocom-gost2814789-06, 12.12.09
               work in progress.
 
-V.Dolmatov              Expires May  30, 2010                [Page 8]
+V.Dolmatov              Expires June 12, 2010                [Page 8]
 
 
 Authors' Addresses
@@ -440,7 +436,7 @@ Moscow, 117218, Russian Federation
 
 EMail: igus@cryptocom.ru
 
-V.Dolmatov              Expires May  30, 2010                [Page 9]
+V.Dolmatov              Expires June 12, 2010                [Page 9]
 
 
 

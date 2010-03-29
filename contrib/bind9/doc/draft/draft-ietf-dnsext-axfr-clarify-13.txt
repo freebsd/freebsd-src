@@ -5,13 +5,13 @@
 
 DNS Extensions Working Group                                Edward Lewis
 Internet-Draft                                             NeuStar, Inc.
-Updates: 1034, 1035 (if approved)                              A. Hoenes
+Updates: 1034, 1035 (if approved)                         A. Hoenes, Ed.
 Intended status: Standards Track                                  TR-Sys
-Expires: June  6, 2010                                 December  6, 2009
+Expires: July 18, 2010                                  January 18, 2010
 
 
                     DNS Zone Transfer Protocol (AXFR)
-                    draft-ietf-dnsext-axfr-clarify-12
+                    draft-ietf-dnsext-axfr-clarify-13
 
 Abstract
 
@@ -22,12 +22,12 @@ Abstract
    forcing implementations intended to be compliant to make assumptions,
    impeding interoperability.  Yet today we have a satisfactory set of
    implementations that do interoperate.  This document is a new
-   definition of AXFR -- new in the sense that is it recording an
-   accurate definition of an interoperable AXFR mechanism.
+   definition of AXFR -- new in the sense that it records an accurate
+   definition of an interoperable AXFR mechanism.
 
 Status of this Memo
 
-   This Internet-Draft is submitted to IETF in full conformance with the
+   This Internet-Draft is submitted in full conformance with the
    provisions of BCP 78 and BCP 79. This document may contain material
    from IETF Documents or IETF Contributions published or made publicly
    available before November 10, 2008.  The person(s) controlling the
@@ -55,26 +55,30 @@ Status of this Memo
 
 
 
-Lewis & Hoenes             Expires June 6, 2010                 [Page 1]
+Lewis & Hoenes            Expires July 18, 2010                 [Page 1]
 
-Internet-Draft      DNS Zone Transfer Protocol (AXFR)      December 2009
+Internet-Draft      DNS Zone Transfer Protocol (AXFR)       January 2010
 
 
    The list of Internet-Draft Shadow Directories can be accessed at
    http://www.ietf.org/shadow.html
 
-   This Internet-Draft will expire on June 6, 2010.
+   This Internet-Draft will expire on July 18, 2010.
 
 Copyright Notice
 
-   Copyright (c) 2009 IETF Trust and the persons identified as the
+   Copyright (c) 2010 IETF Trust and the persons identified as the
    document authors.  All rights reserved.
 
    This document is subject to BCP 78 and the IETF Trust's Legal
-   Provisions Relating to IETF Documents in effect on the date of
-   publication of this document (http://trustee.ietf.org/license-info).
-   Please review these documents carefully, as they describe your rights
-   and restrictions with respect to this document.
+   Provisions Relating to IETF Documents
+   (http://trustee.ietf.org/license-info) in effect on the date of
+   publication of this document.  Please review these documents
+   carefully, as they describe your rights and restrictions with respect
+   to this document.  Code Components extracted from this document must
+   include Simplified BSD License text as described in Section 4.e of
+   the Trust Legal Provisions and are provided without warranty as
+   described in the Simplified BSD License.
 
 
 
@@ -107,13 +111,9 @@ Copyright Notice
 
 
 
-
-
-
-
-Lewis & Hoenes             Expires June 6, 2010                 [Page 2]
+Lewis & Hoenes            Expires July 18, 2010                 [Page 2]
 
-Internet-Draft      DNS Zone Transfer Protocol (AXFR)      December 2009
+Internet-Draft      DNS Zone Transfer Protocol (AXFR)       January 2010
 
 
 Table of Contents
@@ -131,13 +131,12 @@ Table of Contents
    2.1.4.  Authority Section  . . . . . . . . . . . . . . . . . . . 10
    2.1.5.  Additional Section . . . . . . . . . . . . . . . . . . . 10
    2.2.  AXFR Response  . . . . . . . . . . . . . . . . . . . . . . 11
-   2.2.1.  "0 Message" Response . . . . . . . . . . . . . . . . . . 11
-   2.2.2.  Header Values  . . . . . . . . . . . . . . . . . . . . . 12
-   2.2.3.  Question Section . . . . . . . . . . . . . . . . . . . . 14
-   2.2.4.  Answer Section . . . . . . . . . . . . . . . . . . . . . 14
-   2.2.5.  Authority Section  . . . . . . . . . . . . . . . . . . . 14
-   2.2.6.  Additional Section . . . . . . . . . . . . . . . . . . . 14
-   2.3.  TCP Connection Aborts  . . . . . . . . . . . . . . . . . . 14
+   2.2.1.  Header Values  . . . . . . . . . . . . . . . . . . . . . 12
+   2.2.2.  Question Section . . . . . . . . . . . . . . . . . . . . 14
+   2.2.3.  Answer Section . . . . . . . . . . . . . . . . . . . . . 14
+   2.2.4.  Authority Section  . . . . . . . . . . . . . . . . . . . 14
+   2.2.5.  Additional Section . . . . . . . . . . . . . . . . . . . 14
+   2.3.  TCP Connection Aborts  . . . . . . . . . . . . . . . . . . 15
    3.  Zone Contents  . . . . . . . . . . . . . . . . . . . . . . . 15
    3.1.  Records to Include . . . . . . . . . . . . . . . . . . . . 15
    3.2.  Delegation Records . . . . . . . . . . . . . . . . . . . . 16
@@ -148,28 +147,29 @@ Table of Contents
    4.1.  TCP  . . . . . . . . . . . . . . . . . . . . . . . . . . . 20
    4.1.1.  AXFR client TCP  . . . . . . . . . . . . . . . . . . . . 20
    4.1.2.  AXFR server TCP  . . . . . . . . . . . . . . . . . . . . 21
-   4.2.  UDP  . . . . . . . . . . . . . . . . . . . . . . . . . . . 21
+   4.2.  UDP  . . . . . . . . . . . . . . . . . . . . . . . . . . . 22
    5.  Authorization  . . . . . . . . . . . . . . . . . . . . . . . 22
    6.  Zone Integrity . . . . . . . . . . . . . . . . . . . . . . . 23
    7.  Backwards Compatibility  . . . . . . . . . . . . . . . . . . 24
-   7.1.  Server . . . . . . . . . . . . . . . . . . . . . . . . . . 24
+   7.1.  Server . . . . . . . . . . ..  . . . . . . . . . . . . . . 24
    7.2.  Client . . . . . . . . . . . . . . . . . . . . . . . . . . 24
    8.  Security Considerations  . . . . . . . . . . . . . . . . . . 25
    9.  IANA Considerations  . . . . . . . . . . . . . . . . . . . . 25
    10.  Internationalization Considerations . . . . . . . . . . . . 25
    11.  Acknowledgments . . . . . . . . . . . . . . . . . . . . . . 25
    12.  References  . . . . . . . . . . . . . . . . . . . . . . . . 25
-   12.1.  Normative References  . . . . . . . . . . . . . . . . . . 26
+   12.1.  Normative References  . ..  . . . . . . . . . . . . . . . 26
    12.2.  Informative References  . . . . . . . . . . . . . . . . . 27
-   13.  Editor's Address  . . . . . . . . . . . . . . . . . . . . . 28
+   Authors' Addresses . . . . . . . . . . . . . . . . . . . . . . . 28
 
 
 
 
 
-Lewis & Hoenes             Expires June 6, 2010                 [Page 3]
+
+Lewis & Hoenes            Expires July 18, 2010                 [Page 3]
 
-Internet-Draft      DNS Zone Transfer Protocol (AXFR)      December 2009
+Internet-Draft      DNS Zone Transfer Protocol (AXFR)       January 2010
 
 
 1.  Introduction
@@ -201,7 +201,7 @@ Internet-Draft      DNS Zone Transfer Protocol (AXFR)      December 2009
    written after and prior to the publication of this document.
 
    "General purpose DNS implementation" refers to DNS software developed
-   for wide-spread use.  This includes resolvers and servers freely
+   for widespread use.  This includes resolvers and servers freely
    accessible as libraries and standalone processes.  This also includes
    proprietary implementations used only in support of DNS service
    offerings.
@@ -223,9 +223,9 @@ Internet-Draft      DNS Zone Transfer Protocol (AXFR)      December 2009
    data stored in relational databases (as opposed to master files),
 
 
-Lewis & Hoenes             Expires June 6, 2010                 [Page 4]
+Lewis & Hoenes            Expires July 18, 2010                 [Page 4]
 
-Internet-Draft      DNS Zone Transfer Protocol (AXFR)      December 2009
+Internet-Draft      DNS Zone Transfer Protocol (AXFR)       January 2010
 
 
    relying on the database's non-DNS means to synchronize the database
@@ -270,18 +270,18 @@ Internet-Draft      DNS Zone Transfer Protocol (AXFR)      December 2009
    AXFR protocol; Section 5.5 of RFC 2181 has corrected a significant
    flaw in that specification.  Section 3.2.3 of RFC 1035 has assigned
    the code point for the AXFR QTYPE (see Section 2.1.2 below for more
-   details).  Section 4.2 of RFC 1035 discusses the transport layer use
-   of DNS and shortly explains why UDP transport is deemed inappropriate
-   for AXFR; the last paragraph of Section 4.2.2 gives details for the
-   TCP connection management with AXFR.  Finally, the second paragraph
-   of Section 6.3 in RFC 1035 mandates server behavior when zone data
-   changes occur during an ongoing zone transfer using AXFR.
+   details).  Section 4.2 of RFC 1035 discusses how the DNS uses the
+   transport layer and briefly explains why UDP transport is deemed
+   inappropriate for AXFR; the last paragraph of Section 4.2.2 gives
+   details regarding TCP connection management for AXFR.  Finally, the
+   second paragraph of Section 6.3 in RFC 1035 mandates server behavior
+   when zone data changes occur during an ongoing zone transfer using
+   AXFR.
 
 
-
-Lewis & Hoenes             Expires June 6, 2010                 [Page 5]
+Lewis & Hoenes            Expires July 18, 2010                 [Page 5]
 
-Internet-Draft      DNS Zone Transfer Protocol (AXFR)      December 2009
+Internet-Draft      DNS Zone Transfer Protocol (AXFR)       January 2010
 
 
    This document will update the specification of AXFR.  To this end, it
@@ -335,9 +335,9 @@ Internet-Draft      DNS Zone Transfer Protocol (AXFR)      December 2009
 
 
 
-Lewis & Hoenes             Expires June 6, 2010                 [Page 6]
+Lewis & Hoenes            Expires July 18, 2010                 [Page 6]
 
-Internet-Draft      DNS Zone Transfer Protocol (AXFR)      December 2009
+Internet-Draft      DNS Zone Transfer Protocol (AXFR)       January 2010
 
 
 2.  AXFR Messages
@@ -346,13 +346,13 @@ Internet-Draft      DNS Zone Transfer Protocol (AXFR)      December 2009
    AXFR response messages returned for it.  In this document, the AXFR
    client is the sender of the AXFR query and the AXFR server is the
    responder.  (Use of terms such as master, slave, primary, secondary
-   are not important to defining AXFR.)  The use of the word "session"
+   are not important for defining AXFR.)  The use of the word "session"
    without qualification refers to an AXFR session.
 
    An important aspect to keep in mind is that the definition of AXFR is
-   restricted to TCP [RFC0793].  The design of the AXFR process has
-   certain inherent features that are not easily ported to UDP
-   [RFC0768].
+   restricted to TCP [RFC0793] (see Section 4 for details).  The design
+   of the AXFR process has certain inherent features that are not easily
+   ported to UDP [RFC0768].
 
    The basic format of an AXFR message is the DNS message as defined in
    Section 4 ("MESSAGES") of RFC 1035 [RFC1035], updated by the
@@ -391,9 +391,9 @@ Internet-Draft      DNS Zone Transfer Protocol (AXFR)      December 2009
 
 
 
-Lewis & Hoenes             Expires June 6, 2010                 [Page 7]
+Lewis & Hoenes            Expires July 18, 2010                 [Page 7]
 
-Internet-Draft      DNS Zone Transfer Protocol (AXFR)      December 2009
+Internet-Draft      DNS Zone Transfer Protocol (AXFR)       January 2010
 
 
    For convenience, the synopsis of the DNS message header from
@@ -447,9 +447,9 @@ Internet-Draft      DNS Zone Transfer Protocol (AXFR)      December 2009
 
 
 
-Lewis & Hoenes             Expires June 6, 2010                 [Page 8]
+Lewis & Hoenes            Expires July 18, 2010                 [Page 8]
 
-Internet-Draft      DNS Zone Transfer Protocol (AXFR)      December 2009
+Internet-Draft      DNS Zone Transfer Protocol (AXFR)       January 2010
 
 
 2.1.1.  Header Values
@@ -490,7 +490,7 @@ Internet-Draft      DNS Zone Transfer Protocol (AXFR)      December 2009
 
       A server MUST reply using messages that use the same message ID to
       allow a client to have multiple queries outstanding concurrently
-      over the same TCP connection -- see Note a) in Section 2.2.2 for
+      over the same TCP connection -- see Note a) in Section 2.2.1 for
       more details.
 
    b) 'n/a' -- The value in this field has no meaning in the context of
@@ -503,28 +503,21 @@ Internet-Draft      DNS Zone Transfer Protocol (AXFR)      December 2009
 
 
 
-Lewis & Hoenes             Expires June 6, 2010                 [Page 9]
+Lewis & Hoenes            Expires July 18, 2010                 [Page 9]
 
-Internet-Draft      DNS Zone Transfer Protocol (AXFR)      December 2009
+Internet-Draft      DNS Zone Transfer Protocol (AXFR)       January 2010
 
 
    d) The client MUST set this field to the number of resource records
-      appearing in the Additional section.  See Section 2.1.5
-      "Additional Section" for details.
-
-      The value MAY be 0, 1 or 2.  If it is 2, the Additional section
-      MUST contain both an EDNS0 [RFC2671] OPT resource record and a
-      record carrying transaction integrity and authentication data,
-      currently a choice of TSIG [RFC2845] and SIG(0) [RFC2931].  If the
-      value is 1, then the Additional section MUST contain either only
-      an EDNS0 OPT resource record or a record carrying transaction
-      integrity and authentication data.  If the value is 0, the
-      Additional section MUST be empty.
+      it places into the Additional section.  In the absense of explicit
+      specification of new RRs to be carried in the Additional section
+      of AXFR queries, the value MAY be 0, 1 or 2.  See Section 2.1.5
+      "Additional Section" for details on the currently applicable RRs.
 
 2.1.2.  Question Section
 
-   The Query section of the AXFR query MUST conform to Section 4.1.2 of
-   RFC 1035, and contain a single resource record with the following
+   The Question Section of the AXFR query MUST conform to Section 4.1.2
+   of RFC 1035, and contain a single resource record with the following
    values:
 
       QNAME       the name of the zone requested
@@ -544,26 +537,36 @@ Internet-Draft      DNS Zone Transfer Protocol (AXFR)      December 2009
 
 2.1.5.  Additional Section
 
-   The client MAY include an EDNS0 OPT [RFC2671] resource record.  If
+   Currently, two kinds of resource records are defined that can appear
+   in the Additional section of AXFR queries and responses: EDNS and DNS
+   transaction security.  Future specifications defining RRs that can be
+   carried in the Additional section of normal DNS transactions need to
+   explicitly describe their use with AXFR, should that be desired.
+
+   The client MAY include one EDNS0 OPT [RFC2671] resource record.  If
    the server does not support EDNS0, the client MUST send this section
    without an EDNS0 OPT resource record if there is a retry.  However,
    the protocol does not define an explicit indication that the server
    does not support EDNS0; that needs to be inferred by the client.
    Often, the server will return a FormErr(1) which might be related to
-   the OPT resource record.
+   the OPT resource record.  Note that, at the time of this writing,
+   only the EXTENDED-RCODE field of the EDNS0 OPT RR is meaningful in
+   the context of AXFR; future specifications of EDNS0 flags and/or
+   EDNS0 options must describe their usage in the context of AXFR, if
+   applicable.
 
-   The client MAY include a transaction integrity and authentication
+   The client MAY include one transaction integrity and authentication
    resource record, currently a choice of TSIG [RFC2845] or SIG(0)
+
+
+Lewis & Hoenes            Expires July 18, 2010                [Page 10]
+
+Internet-Draft      DNS Zone Transfer Protocol (AXFR)       January 2010
+
+
    [RFC2931].  If the server has indicated that it does not recognize
    the resource record, and that the error is indeed caused by the
    resource record, the client probably should not try again.  Removing
-
-
-Lewis & Hoenes             Expires June 6, 2010                [Page 10]
-
-Internet-Draft      DNS Zone Transfer Protocol (AXFR)      December 2009
-
-
    the security data in the face of an obstacle ought to only be done
    with full awareness of the implication of doing so.
 
@@ -577,16 +580,17 @@ Internet-Draft      DNS Zone Transfer Protocol (AXFR)      December 2009
    Additional section might change over time.  If either a change to an
    existing resource record (like the OPT RR for EDNS0) is made or a new
    Additional section record is created, the new definitions ought to
-   include a discussion on the impact upon AXFR.  Future resource
-   records residing in the Additional section might have an effect that
-   is orthogonal to AXFR, so can ride through the session as opaque
-   data.  In this case, a "wise" implementation ought to be able to pass
-   these records through without disruption.
+   include a discussion on the applicability and impact upon AXFR.
+   Future resource records residing in the Additional section might have
+   an effect that is orthogonal to AXFR, so can ride through the session
+   as opaque data.  In this case, a "wise" implementation ought to be
+   able to pass these records through without disruption.
 
 2.2.  AXFR Response
 
-   The AXFR response will consist of 0 or more messages.  A "0 message"
-   response is covered in Section 2.2.1.
+   The AXFR response will consist of one or more messages.  The special
+   case of a server closing the TCP connection without sending an AXFR
+   response is covered in section 2.3.
 
    An AXFR response that is transferring the zone's contents will
    consist of a series (which could be a series of length 1) of DNS
@@ -594,47 +598,50 @@ Internet-Draft      DNS Zone Transfer Protocol (AXFR)      December 2009
    SOA resource record of the zone, the last message MUST conclude with
    the same SOA resource record.  Intermediate messages MUST NOT contain
    the SOA resource record.  The AXFR server MUST copy the Question
-   section from the corresponding AXFR query message in to the first
-   response message's Question section.  Subsequent messages MAY do the
-   same or contain an empty Question section.
+   section from the corresponding AXFR query message into the first
+   response message's Question section.  For subsequent messages, it MAY
+   do the same or leave the Question section empty.
 
-   An AXFR response indicates an error via a single DNS message with the
-   return code set to the appropriate value for the condition
-   encountered, sent once the error condition is detected.  Such a
-   message terminates the AXFR session; it MUST copy the Query Section
-   from the AXFR query into its Query Section, but the inclusion of the
-   terminating SOA resource record is not necessary.
+   The AXFR protocol treats the zone contents as an unordered collection
+   (or to use the mathematical term, a "set") of RRs.  Except for the
+   requirement that the transfer must begin and end with the SOA RR,
+   there is no requirement to send the RRs in any particular order or
+   grouped into response messages in any particular way.  Although
+   servers typically do attempt to send related RRs (such as the RRs
+   forming an RRset, and the RRsets of a name) as a contiguous group or,
+   when message space allows, in the same response message, they are not
+   required to do so, and clients MUST accept any ordering and grouping
+   of the non-SOA RRs.  Each RR SHOULD be transmitted only once, and
+   AXFR clients MUST ignore any duplicate RRs received.
+
+
+Lewis & Hoenes            Expires July 18, 2010                [Page 11]
+
+Internet-Draft      DNS Zone Transfer Protocol (AXFR)       January 2010
+
+
+   Each AXFR response message SHOULD contain a sufficient number of RRs
+   to reasonably amortize the per-message overhead, up to the largest
+   number that will fit within a DNS message (taking the required
+   content of the other sections into account, as described below).
+   Some old AXFR clients expect each response message to contain only a
+   single RR.  To interoperate with such clients, the server MAY
+   restrict response messages to a single RR.  As there is no standard
+   way to automatically detect such clients, this typically requires
+   manual configuration at the server.
+
+   To indicate an error in an AXFR response, the AXFR server sends a
+   single DNS message when the error condition is detected, with the
+   response code set to the appropriate value for the condition
+   encountered, Such a message terminates the AXFR session; it MUST
+   contain a copy of the Question section from the AXFR query in its
+   Question section, but the inclusion of the terminating SOA resource
+   record is not necessary.
 
    An AXFR server may send a number of AXFR response messages free of an
    error condition before it sends the message indicating an error.
 
-2.2.1.  "0 Message" Response
-
-   A legitimate "0 message" response, i.e., the client sees no response
-   whatsoever, is very exceptional and controversial.  Unquestionably it
-   is unhealthy for there to be 0 responses in a protocol that is
-
-
-Lewis & Hoenes             Expires June 6, 2010                [Page 11]
-
-Internet-Draft      DNS Zone Transfer Protocol (AXFR)      December 2009
-
-
-   designed around a query - response paradigm over an unreliable
-   transport.  The lack of a response could be a sign of underlying
-   network problems and cause the protocol state machine to react
-   accordingly.  However, AXFR uses TCP and not UDP, eliminating
-   undetectable network errors.
-
-   A "0 message response" is reserved for situations in which the server
-   has a reason to suspect that the query is sent for the purpose of
-   abuse.  Due to the use of this being so controversial, a "0 message
-   response" is not being defined as a legitimate part of the protocol
-   but the use of it is being acknowledged as a warning to AXFR client
-   implementations.  Any earnest query has the expectation of some
-   response but nevertheless may not get one.
-
-2.2.2.  Header Values
+2.2.1.  Header Values
 
    These are the DNS message header values for AXFR responses.
 
@@ -650,31 +657,26 @@ Internet-Draft      DNS Zone Transfer Protocol (AXFR)      December 2009
          RD       RECOMMENDED: copy request's value, MAY be set to 0
          RA       SHOULD be 0 -- see Note c)
          Z        'mbz' -- see Note d)
-         AD       covered by DNSSEC rules -- see Note e)
-         CD       covered by DNSSEC rules -- see Note e)
+         AD       'mbz' -- see Note d)
+         CD       'mbz' -- see Note d)
 
-      RCODE       See Note f)
+      RCODE       See Note e)
 
       QDCOUNT     MUST be 1 in the first message;
                   MUST be 0 or 1 in all following messages;
                   MUST be 1 if RCODE indicates an error
 
-      ANCOUNT     See Note g)
+      ANCOUNT     See Note f)
 
       NSCOUNT     MUST be 0
 
-      ARCOUNT     See Note h)
 
-
-
-
-
-
-
-Lewis & Hoenes             Expires June 6, 2010                [Page 12]
+Lewis & Hoenes            Expires July 18, 2010                [Page 12]
 
-Internet-Draft      DNS Zone Transfer Protocol (AXFR)      December 2009
+Internet-Draft      DNS Zone Transfer Protocol (AXFR)       January 2010
 
+
+      ARCOUNT     See Note g)
 
    Notes:
 
@@ -713,43 +715,38 @@ Internet-Draft      DNS Zone Transfer Protocol (AXFR)      December 2009
    d) 'mbz' -- The server MUST set this bit to 0, the client MUST ignore
       it.
 
-   e) If the implementation supports the DNS Security Extensions (DNSSEC
-      -- see Section 2), then this value MUST be set according to the
-      rules in RFC 4035, Section 3.1.6, "The AD and CD Bits in an
-      Authoritative Response".  If the implementation does not support
-      the DNS Security Extensions, then this value MUST be set to 0 and
-      MUST be ignored upon receipt.
-
-   f) In the absence of an error, the server MUST set the value of this
+   e) In the absence of an error, the server MUST set the value of this
       field to NoError(0).  If a server is not authoritative for the
       queried zone, the server SHOULD set the value to NotAuth(9).
       (Reminder, consult the appropriate IANA registry [DNSVALS].)  If a
       client receives any other value in response, it MUST act according
-
-
-Lewis & Hoenes             Expires June 6, 2010                [Page 13]
-
-Internet-Draft      DNS Zone Transfer Protocol (AXFR)      December 2009
-
-
       to the error.  For example, a malformed AXFR query or the presence
-      of an EDNS0 OPT resource record sent to an old server will garner
-      a FormErr(1) value.  This value is not set as part of the AXFR-
+      of an EDNS0 OPT resource record sent to an old server will result
+      in a FormErr(1) value.  This value is not set as part of the AXFR-
       specific response processing.  The same is true for other values
       indicating an error.
 
-   g) The count of answer records MUST equal the number of resource
+
+Lewis & Hoenes            Expires July 18, 2010                [Page 13]
+
+Internet-Draft      DNS Zone Transfer Protocol (AXFR)       January 2010
+
+
+   f) The count of answer records MUST equal the number of resource
       records in the AXFR Answer Section.  When a server is aware that a
-      client will only accept one resource record per response message,
-      then the value MUST be 1.  A server MAY be made aware of a
+      client will only accept response messages with a single resource
+      record, then the value MUST be 1.  A server MAY be made aware of a
       client's limitations via configuration data.
 
-   h) The client MUST set this field to the number of resource records
-      appearing in the Additional section.  The considerations of Note
-      d) in Section 2.1.1 apply equally; see Section 2.2.6 "Additional
-      Section" below for more details.
+   g) The server MUST set this field to the number of resource records
+      it places into the Additional section.  In the absense of explicit
+      specification of new RRs to be carried in the Additional section
+      of AXFR response messages, the value MAY be 0, 1 or 2.  See
+      Section 2.1.5 above for details on the currently applicable RRs
+      and Section 2.2.5 for additional considerations specific to AXFR
+      servers.
 
-2.2.3.  Question Section
+2.2.2.  Question Section
 
    In the first response message, this section MUST be copied from the
    query.  In subsequent messages, this section MAY be copied from the
@@ -758,20 +755,41 @@ Internet-Draft      DNS Zone Transfer Protocol (AXFR)      December 2009
    this section MAY be used to determine the context of the message,
    that is, the name of the zone being transferred.
 
-2.2.4.  Answer Section
+2.2.3.  Answer Section
 
-   MUST be populated with the zone contents.  See Section 3 below on
-   encoding zone contents.
+   The Answer section MUST be populated with the zone contents.  See
+   Section 3 below on encoding zone contents.
 
-2.2.5.  Authority Section
+2.2.4.  Authority Section
 
    The Authority section MUST be empty.
 
-2.2.6.  Additional Section
+2.2.5.  Additional Section
 
    The contents of this section MUST follow the guidelines for EDNS0 and
    TSIG, SIG(0), or whatever other future record is possible here.  The
    contents of Section 2.1.5 apply analogously as well.
+
+   The following considerations specifically apply to AXFR responses:
+
+   If the client has supplied an EDNS0 OPT RR in the AXFR query and if
+   the server supports ENDS0 as well, it SHOULD include one EDNS0 OPT RR
+   in the first response message and MAY do so in subsequent response
+   messages (see Section 2.2); the specifications of EDNS0 options to be
+   carried in the OPT RR may impose stronger requirements.
+
+   If the client has supplied a transaction security resource record
+   (currently a choice of TSIG and SIG(0)) and the server supports the
+   method chosen by the client, it MUST place the corresponding resource
+
+
+Lewis & Hoenes            Expires July 18, 2010                [Page 14]
+
+Internet-Draft      DNS Zone Transfer Protocol (AXFR)       January 2010
+
+
+   record into the AXFR response message(s), according to the rules
+   specified for that method.
 
 2.3.  TCP Connection Aborts
 
@@ -780,22 +798,14 @@ Internet-Draft      DNS Zone Transfer Protocol (AXFR)      December 2009
    AXFR session terminated.  The message ID MAY be used again on a new
    connection, even if the question and AXFR server are the same.
 
-
-
-
-Lewis & Hoenes             Expires June 6, 2010                [Page 14]
-
-Internet-Draft      DNS Zone Transfer Protocol (AXFR)      December 2009
-
-
    Facing a dropped connection, a client SHOULD try to make some
-   determination whether the connection closure was the result of
-   network activity or a decision by the AXFR server.  This
+   determination as to whether the connection closure was the result of
+   network activity or due to a decision by the AXFR server.  This
    determination is not an exact science.  It is up to the AXFR client
-   implementor to react, but the reaction SHOULD NOT be an endless cycle
-   of retries nor an increasing (in frequency) retry rate.
+   to react, but the implemented reaction SHOULD NOT be either an
+   endless cycle of retries or an increasing (in frequency) retry rate.
 
-   An AXFR server implementor SHOULD take into consideration the dilemma
+   An AXFR server implementor should take into consideration the dilemma
    described above when a connection is closed with an outstanding query
    in the pipeline.  For this reason, a server ought to reserve this
    course of action for situations in which it believes beyond a doubt
@@ -805,44 +815,40 @@ Internet-Draft      DNS Zone Transfer Protocol (AXFR)      December 2009
 3.  Zone Contents
 
    The objective of the AXFR session is to request and transfer the
-   contents of a zone.  The objective is to permit the AXFR client to
-   reconstruct the zone as it exists at the server for the given zone
-   serial number.  Over time the definition of a zone has evolved from
-   denoting a static set of records to also cover a dynamically updated
-   set of records, and then a potentially continually regenerated set of
-   records (e.g., RRs synthesized "on the fly" from rule sets or
-   database lookup results in other forms than RR format) as well.
+   contents of a zone, in order to permit the AXFR client to faithfully
+   reconstruct the zone as it exists at the primary server for the given
+   zone serial number.  The word "exists" here designates the externally
+   visible behavior, i.e., the zone content that is being served (handed
+   out to clients) -- not its persistent representation in a zone file
+   or database used by the server -- and that for consistency should be
+   served subsequently by the AXFR client in an identical manner.
+
+   Over time the definition of a zone has evolved from denoting a static
+   set of records to also cover a dynamically updated set of records,
+   and then a potentially continually regenerated set of records (e.g.,
+   RRs synthesized "on the fly" from rule sets or database lookup
+   results in other forms than RR format) as well.
 
 3.1.  Records to Include
 
-   In the Answer section of AXFR response messages the resource records
+   In the Answer section of AXFR response messages, the resource records
    within a zone for the given serial number MUST appear.  The
    definition of what belongs in a zone is described in RFC 1034,
    Section 4.2, "How the database is divided into zones" (in particular
    Section 4.2.1, "Technical considerations"), and it has been clarified
    in Section 6 of RFC 2181.
 
-   Unless the AXFR server knows that the AXFR client is old and expects
-   just one resource record per AXFR response message, an AXFR server
-   SHOULD populate an AXFR response message with as many complete
-   resource record sets as will fit within a DNS message.
+
+Lewis & Hoenes            Expires July 18, 2010                [Page 15]
+
+Internet-Draft      DNS Zone Transfer Protocol (AXFR)       January 2010
+
 
    Zones for which it is impractical to list the entire zone for a
    serial number are not suitable for AXFR retrieval.  A typical (but
    not limiting) description of such a zone is a zone consisting of
    responses generated via other database lookups and/or computed based
    upon ever changing data.
-
-
-
-
-
-
-
-Lewis & Hoenes             Expires June 6, 2010                [Page 15]
-
-Internet-Draft      DNS Zone Transfer Protocol (AXFR)      December 2009
-
 
 3.2.  Delegation Records
 
@@ -865,13 +871,12 @@ Internet-Draft      DNS Zone Transfer Protocol (AXFR)      December 2009
    occurrence at a zone cut and the apex of a zone.  This was first
    described in Sections 5.3 ff. and 6.2 of RFC 2181 (for the initial
    specification of DNSSEC), which parts of RFC 2181 now in fact are
-   historical.  The current DNSSEC core document set (see Note e) in
-   Section 2.2.2 above) gives the full details for DNSSEC(bis) resource
+   historical.  The current DNSSEC core document set (see second bullet
+   in Section 2 above) gives the full details for DNSSEC(bis) resource
    record placement, and Section 3.1.5 of RFC 4035 normatively specifies
    their treatment during AXFR; the alternate NSEC3 resource record
    defined later in RFC 5155 behaves identically as the NSEC RR, for the
    purpose of AXFR.
-
    Informally:
 
    o  The DS RRSet only occurs at the parental side of a zone cut and is
@@ -889,23 +894,23 @@ Internet-Draft      DNS Zone Transfer Protocol (AXFR)      December 2009
       does not occur for AXFR, since each such RRSIG RRset belongs to a
       single zone.
 
+
+Lewis & Hoenes            Expires July 18, 2010                [Page 16]
+
+Internet-Draft      DNS Zone Transfer Protocol (AXFR)       January 2010
+
+
    o  Different NSEC [RFC4034] (or NSEC3 [RFC5155]) resource records
       equally may occur at the parental side of a zone cut and at the
       apex of a zone; each such resource record belongs to exactly one
       of these zones and is to be included in the AXFR of that zone.
-
-
-Lewis & Hoenes             Expires June 6, 2010                [Page 16]
-
-Internet-Draft      DNS Zone Transfer Protocol (AXFR)      December 2009
-
 
    One issue is that in operations there are times when the NS resource
    records for a zone might be different at a cut point in the parent
    and at the apex of a zone.  Sometimes this is the result of an error
    and sometimes it is part of an ongoing change in name servers.  The
    DNS protocol is robust enough to overcome inconsistencies up to (but
-   not including) there being no parent indicated NS resource record
+   not including) there being no parent-indicated NS resource record
    referencing a server that is able to serve the child zone.  This
    robustness is one quality that has fueled the success of the DNS.
    Still, the inconsistency is an error state and steps need to be taken
@@ -945,16 +950,14 @@ Internet-Draft      DNS Zone Transfer Protocol (AXFR)      December 2009
    authoritative for both halves would otherwise always answer from the
    more authoritative set, concealing the error.)
 
+
+Lewis & Hoenes            Expires July 18, 2010                [Page 17]
+
+Internet-Draft      DNS Zone Transfer Protocol (AXFR)       January 2010
+
+
    3) The inconsistent NS resource record set might indicate a problem
    in a registration database.
-
-
-
-
-Lewis & Hoenes             Expires June 6, 2010                [Page 17]
-
-Internet-Draft      DNS Zone Transfer Protocol (AXFR)      December 2009
-
 
    4) This requirement is necessary to ensure that retrieving a given
    (zone,serial) pair by AXFR yields the exact same set of resource
@@ -962,10 +965,10 @@ Internet-Draft      DNS Zone Transfer Protocol (AXFR)      December 2009
    as the source of the transfer.
 
    If an AXFR server were allowed to respond with the authoritative NS
-   RRset of a child zone instead of a glue NS RRset in the zone being
-   transferred, the set of records returned could vary depending on
-   whether or not the server happens to be authoritative for the child
-   zone as well.
+   RRset of a child zone instead of a parent-side NS RRset in the zone
+   being transferred, the set of records returned could vary depending
+   on whether or not the server happened to be authoritative for the
+   child zone as well.
 
    The property that a given (zone,serial) pair corresponds to a single,
    well-defined set of records is necessary for the correct operation of
@@ -1002,19 +1005,24 @@ Internet-Draft      DNS Zone Transfer Protocol (AXFR)      December 2009
    name or label, you should preserve its case."  ("Should" in the quote
    predates [BCP14].)
 
-   Name compression in an AXFR message MUST preserve the case of the
-   original domain name.  That is, although when comparing a domain
-   name, "a" equals "A", when comparing for the purposes of message
 
 
-Lewis & Hoenes             Expires June 6, 2010                [Page 18]
+Lewis & Hoenes            Expires July 18, 2010                [Page 18]
 
-Internet-Draft      DNS Zone Transfer Protocol (AXFR)      December 2009
+Internet-Draft      DNS Zone Transfer Protocol (AXFR)       January 2010
 
 
-   compression, "a" is not equal to "A".  Note that this is not the
-   usual definition of name comparison in the DNS protocol and
-   represents a new requirement on AXFR servers.
+   Since the primary objective of AXFR is to enable the client to serve
+   the same zone content as the server, unlike such normal DNS responses
+   that are expected to preserve the case in the query, the actual zone
+   transfer needs to retain the case of the labels in the zone content.
+   Hence, name compression in an AXFR message SHOULD be performed in a
+   case-preserving manner, unlike how it is done for 'normal' DNS
+   responses.  That is, although when comparing a domain name for
+   matching, "a" equals "A", when comparing for the purposes of message
+   compression for AXFR, "a" is not equal to "A".  Note that this is not
+   the usual definition of name comparison in the DNS protocol and
+   represents a new understanding of the requirement on AXFR servers.
 
    Rules governing name compression of RDATA in an AXFR message MUST
    abide by the specification in "Handling of Unknown DNS Resource
@@ -1047,10 +1055,18 @@ Internet-Draft      DNS Zone Transfer Protocol (AXFR)      December 2009
 
    The most common scenario is for an AXFR client to open a TCP
    connection to the AXFR server, send an AXFR query, receive the AXFR
-   response, and then close the connection.  But variations of that
-   most simple scenario are legitimate and likely, in particular sending
-   a query for the zone's SOA resource record first over the same TCP
+   response, and then close the connection.  But variations of that most
+   simple scenario are legitimate and likely: in particular, sending a
+   query for the zone's SOA resource record first over the same TCP
    connection, and reusing an existing TCP connection for other queries.
+
+
+
+
+Lewis & Hoenes            Expires July 18, 2010                [Page 19]
+
+Internet-Draft      DNS Zone Transfer Protocol (AXFR)       January 2010
+
 
    Therefore, the assumption that a TCP connection is dedicated to a
    single AXFR session is incorrect.  This wrong assumption has led to
@@ -1061,27 +1077,21 @@ Internet-Draft      DNS Zone Transfer Protocol (AXFR)      December 2009
    servers that are authoritative for a common set of zones found it
    desirable to be able to have multiple concurrent zone transfers in
    progress; this way a name server does not have to wait for one zone
-
-
-Lewis & Hoenes             Expires June 6, 2010                [Page 19]
-
-Internet-Draft      DNS Zone Transfer Protocol (AXFR)      December 2009
-
-
-   transfer to complete before the next could begin.  RFC 1035 did not
-   exclude this possibility, but legacy implementations missed to
-   support this functionality.  The remaining presence of such legacy
-   implementations makes it necessary that new general purpose server
-   implementation still provide options for gracefull fallback to the
-   old behavior in their support of concurrent DNS transactions and AXFR
-   sessions on a single TCP connection.
+   transfer to complete before the next can begin.  RFC 1035 did not
+   exclude this possibility, but legacy implementations failed to
+   support this functionality efficiently, over a single TCP connection.
+   The remaining presence of such legacy implementations makes it
+   necessary that new general purpose client implementations still
+   provide options for graceful fallback to the old behavior in their
+   support of concurrent DNS transactions and AXFR sessions on a single
+   TCP connection.
 
 4.1.  TCP
 
    In the original definition there arguably is an implicit assumption
    (probably unintentional) that a TCP connection is used for one and
    only one AXFR session.  This is evidenced in the lack of an explicit
-   requirement to copy the Query section and/or the message ID into
+   requirement to copy the Question Section and/or the message ID into
    responses, no explicit ordering information within the AXFR response
    messages, and the lack of an explicit notice indicating that a zone
    transfer continues in the next message.
@@ -1100,13 +1110,19 @@ Internet-Draft      DNS Zone Transfer Protocol (AXFR)      December 2009
    An AXFR client MAY request a connection to an AXFR server for any
    reason.  An AXFR client SHOULD close the connection when there is no
    apparent need to use the connection for some time period.  The AXFR
-   server ought not have to maintain idle connections, the burden of
+   server ought not have to maintain idle connections; the burden of
    connection closure ought to be on the client.  "Apparent need" for
    the connection is a judgment for the AXFR client and the DNS client.
    If the connection is used for multiple sessions, or if it is known
    sessions will be coming, or if there is other query/response traffic
    anticipated or currently on the open connection, then there is
    "apparent need".
+
+
+Lewis & Hoenes            Expires July 18, 2010                [Page 20]
+
+Internet-Draft      DNS Zone Transfer Protocol (AXFR)       January 2010
+
 
    An AXFR client can cancel the delivery of a zone only by closing the
    connection.  However, this action will also cancel all other
@@ -1117,22 +1133,17 @@ Internet-Draft      DNS Zone Transfer Protocol (AXFR)      December 2009
    whether by the AXFR server or due to a network event, the AXFR client
    MUST cancel all outstanding sessions and non-AXFR transactions.
    Recovery from this situation is not straightforward.  If the
-
-
-Lewis & Hoenes             Expires June 6, 2010                [Page 20]
-
-Internet-Draft      DNS Zone Transfer Protocol (AXFR)      December 2009
-
-
    disruption was a spurious event, attempting to restart the connection
    would be proper.  If the disruption was caused by a failure that
-   proved to be persistent, the AXFR client would be wise to not spend
+   proved to be persistent, the AXFR client would be wise not to spend
    too many resources trying to rebuild the connection.  Finally, if the
    connection was dropped because of a policy at the AXFR server (as can
    be the case with older AXFR servers), the AXFR client would be wise
-   to not retry the connection.  Unfortunately, knowing which of the
+   not to retry the connection.  Unfortunately, knowing which of the
    three cases above (momentary disruption, failure, policy) applies is
    not possible with certainty, and can only be assessed by heuristics.
+   This exemplifies the general complications for clients in connection-
+   oriented protocols not receiving meaningful error responses.
 
    An AXFR client MAY use an already opened TCP connection to start an
    AXFR session.  Using an existing open connection is RECOMMENDED over
@@ -1147,7 +1158,7 @@ Internet-Draft      DNS Zone Transfer Protocol (AXFR)      December 2009
 4.1.2.  AXFR server TCP
 
    An AXFR server MUST be able to handle multiple AXFR sessions on a
-   single TCP connection, as well as handle other query/response
+   single TCP connection, as well as to handle other query/response
    transactions over it.
 
    If a TCP connection is closed remotely, the AXFR server MUST cancel
@@ -1160,8 +1171,14 @@ Internet-Draft      DNS Zone Transfer Protocol (AXFR)      December 2009
    response to a suspected security event SHOULD be done only in extreme
    cases, when the server is certain the action is warranted.  An
    isolated request for a zone not on the AXFR server SHOULD receive a
-   response with the appropriate return code and not see the connection
-   broken.
+   response with the appropriate response code and not see the
+   connection broken.
+
+
+Lewis & Hoenes            Expires July 18, 2010                [Page 21]
+
+Internet-Draft      DNS Zone Transfer Protocol (AXFR)       January 2010
+
 
 4.2.  UDP
 
@@ -1172,12 +1189,6 @@ Internet-Draft      DNS Zone Transfer Protocol (AXFR)      December 2009
 
    Therefore, this document does not update RFC 1035 in this respect:
    AXFR sessions over UDP transport are not defined.
-
-
-
-Lewis & Hoenes             Expires June 6, 2010                [Page 21]
-
-Internet-Draft      DNS Zone Transfer Protocol (AXFR)      December 2009
 
 
 5.  Authorization
@@ -1220,20 +1231,9 @@ Internet-Draft      DNS Zone Transfer Protocol (AXFR)      December 2009
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-Lewis & Hoenes             Expires June 6, 2010                [Page 22]
+Lewis & Hoenes            Expires July 18, 2010                [Page 22]
 
-Internet-Draft      DNS Zone Transfer Protocol (AXFR)      December 2009
+Internet-Draft      DNS Zone Transfer Protocol (AXFR)       January 2010
 
 
 6.  Zone Integrity
@@ -1287,9 +1287,9 @@ Internet-Draft      DNS Zone Transfer Protocol (AXFR)      December 2009
 
 
 
-Lewis & Hoenes             Expires June 6, 2010                [Page 23]
+Lewis & Hoenes            Expires July 18, 2010                [Page 23]
 
-Internet-Draft      DNS Zone Transfer Protocol (AXFR)      December 2009
+Internet-Draft      DNS Zone Transfer Protocol (AXFR)       January 2010
 
 
 7.  Backwards Compatibility
@@ -1343,9 +1343,9 @@ Internet-Draft      DNS Zone Transfer Protocol (AXFR)      December 2009
 
 
 
-Lewis & Hoenes             Expires June 6, 2010                [Page 24]
+Lewis & Hoenes            Expires July 18, 2010                [Page 24]
 
-Internet-Draft      DNS Zone Transfer Protocol (AXFR)      December 2009
+Internet-Draft      DNS Zone Transfer Protocol (AXFR)       January 2010
 
 
 8.  Security Considerations
@@ -1358,7 +1358,6 @@ Internet-Draft      DNS Zone Transfer Protocol (AXFR)      December 2009
 9.  IANA Considerations
 
    [[ Note to RFC-Ed: this section may be deleted before publication. ]]
-
    No new registries or new registrations are included in this document.
 
 
@@ -1384,8 +1383,8 @@ Internet-Draft      DNS Zone Transfer Protocol (AXFR)      December 2009
 
    Comments since the -05 version have come from these individuals:
    Mark Andrews, Paul Vixie, Wouter Wijngaards, Iain Calder, Tony Finch,
-   Ian Jackson, Andreas Gustafsson, Brian Wellington, and other
-   participants of the DNSEXT working group.
+   Ian Jackson, Andreas Gustafsson, Brian Wellington, Niall O'Reilly,
+   Bill Manning, and other participants of the DNSEXT working group.
 
    Edward Lewis served as a patiently listening sole document editor for
    two years.
@@ -1399,9 +1398,10 @@ Internet-Draft      DNS Zone Transfer Protocol (AXFR)      December 2009
    URL:               http://rfc-editor.org/
 
 
-Lewis & Hoenes             Expires June 6, 2010                [Page 25]
+
+Lewis & Hoenes            Expires July 18, 2010                [Page 25]
 
-Internet-Draft      DNS Zone Transfer Protocol (AXFR)      December 2009
+Internet-Draft      DNS Zone Transfer Protocol (AXFR)       January 2010
 
 
 12.1.  Normative References
@@ -1455,9 +1455,9 @@ Internet-Draft      DNS Zone Transfer Protocol (AXFR)      December 2009
 
 
 
-Lewis & Hoenes             Expires June 6, 2010                [Page 26]
+Lewis & Hoenes            Expires July 18, 2010                [Page 26]
 
-Internet-Draft      DNS Zone Transfer Protocol (AXFR)      December 2009
+Internet-Draft      DNS Zone Transfer Protocol (AXFR)       January 2010
 
 
    [RFC3425]  Lawrence, D., "Obsoleting IQUERY", RFC 3425,
@@ -1511,9 +1511,9 @@ Internet-Draft      DNS Zone Transfer Protocol (AXFR)      December 2009
 
 
 
-Lewis & Hoenes             Expires June 6, 2010                [Page 27]
+Lewis & Hoenes            Expires July 18, 2010                [Page 27]
 
-Internet-Draft      DNS Zone Transfer Protocol (AXFR)      December 2009
+Internet-Draft      DNS Zone Transfer Protocol (AXFR)       January 2010
 
 
    [RFC3490]  Faltstrom, P., Hoffman, P., and A. Costello,
@@ -1526,7 +1526,7 @@ Internet-Draft      DNS Zone Transfer Protocol (AXFR)      December 2009
               progress), September 2009.
 
 
-13.  Editors' Addresses
+Authors' Addresses
 
    Edward Lewis
    46000 Center Oak Plaza
@@ -1535,7 +1535,7 @@ Internet-Draft      DNS Zone Transfer Protocol (AXFR)      December 2009
    Email: ed.lewis@neustar.biz
 
 
-   Alfred Hoenes
+   Alfred Hoenes, Editor
    TR-Sys
    Gerlinger Str. 12
    Ditzingen  D-71254
@@ -1567,13 +1567,5 @@ Editorial Note: Discussion  [[ to be removed by RFC-Editor ]]
 
 
 
-
-
-
-
-
-
-
-
-Lewis & Hoenes             Expires June 6, 2010                [Page 28]
+Lewis & Hoenes            Expires July 18, 2010                [Page 28]
 
