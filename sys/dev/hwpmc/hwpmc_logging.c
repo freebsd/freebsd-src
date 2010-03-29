@@ -298,7 +298,6 @@ pmclog_loop(void *arg)
 
 		mtx_unlock(&pmc_kthread_mtx);
 
-sigpipe_retry:
 		/* process the request */
 		PMCDBG(LOG,WRI,2, "po=%p base=%p ptr=%p", po,
 		    lb->plb_base, lb->plb_ptr);
@@ -322,9 +321,6 @@ sigpipe_retry:
 
 		if (error) {
 			/* XXX some errors are recoverable */
-			if (error == EPIPE)
-				goto sigpipe_retry;
-
 			/* send a SIGIO to the owner and exit */
 			PROC_LOCK(p);
 			psignal(p, SIGIO);
