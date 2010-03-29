@@ -731,7 +731,6 @@ dummynet_io(struct mbuf **m0, int dir, struct ip_fw_args *fwa)
 			goto dropit;
 	}
 	if (fs->sched->fp->enqueue(si, q, m)) {
-		printf("%s dropped by enqueue\n", __FUNCTION__);
 		/* packet was dropped by enqueue() */
 		m = *m0 = NULL;
 		goto dropit;
