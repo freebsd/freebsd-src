@@ -2698,7 +2698,7 @@ SBP_DEBUG(0)
 #else
 					"segment length(%zd) is less than 16."
 #endif
-					"(seg=%d/%d)\n", s->ds_len, i+1, seg);
+					"(seg=%d/%d)\n", (size_t)s->ds_len, i+1, seg);
 END_DEBUG
 			if (s->ds_len > SBP_SEG_MAX)
 				panic("ds_len > SBP_SEG_MAX, fix busdma code");
