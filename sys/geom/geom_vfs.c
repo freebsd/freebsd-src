@@ -179,7 +179,7 @@ g_vfs_open(struct vnode *vp, struct g_consumer **cpp, const char *fsname, int wr
 	bo = &vp->v_bufobj;
 	bo->bo_ops = g_vfs_bufops;
 	bo->bo_private = cp;
-	bo->bo_bsize = pp->sectorsize;
+	bo->bo_bsize = DEV_BSIZE;
 	gp->softc = bo;
 
 	return (error);
