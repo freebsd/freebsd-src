@@ -270,23 +270,24 @@ del_entry(struct ip_fw_chain *chain, u_int32_t arg)
 			return EINVAL;
 	}
 
-	IPFW_UH_WLOCK(chain); /* prevent conflicts among the writers */
+	IPFW_UH_WLOCK(chain);	/* arbitrate writers */
 	chain->reap = NULL;	/* prepare for deletions */
 
 	switch (cmd) {
-	case 0:	/* delete rules with given number (0 is special means all) */
-	case 1:	/* delete all rules with given set number, rule->set == rulenum */
-	case 5: /* delete rules with given number and with given set number.
-		 * rulenum - given rule number;
-		 * new_set - given set number.
-		 */
-		/* locate first rule to delete (start), the one after the
-		 * last one (end), and count how many rules to delete (n)
+	case 0:	/* delete rules number N (N == 0 means all) */
+	case 1:	/* delete all rules in set N */
+	case 5: /* delete rules with number N and set "new_set". */
+
+		/*
+		 * Locate first rule to delete (start), the rule after
+		 * the last one to delete (end), and count how many
+		 * rules to delete (n)
 		 */
 		n = 0;
 		if (cmd == 1) { /* look for a specific set, must scan all */
+			new_set = rulenum;
 			for (start = -1, i = 0; i < chain->n_rules; i++) {
-				if (chain->map[start]->set != rulenum)
+				if (chain->map[i]->set != rulenum)
 					continue;
 				if (start < 0)
 					start = i;
@@ -314,32 +315,42 @@ del_entry(struct ip_fw_chain *chain, u_int32_t arg)
 			error = EINVAL;
 			break;
 		}
-		/* copy the initial part of the map */
+		/*
+		 * bcopy the initial part of the map, then individually
+		 * copy all matching entries between start and end,
+		 * and then bcopy the final part.
+		 * Once we are done we can swap maps and clean up the
+		 * deleted rules (unfortunately we need to repeat a
+		 * convoluted test).
+		 */
 		if (start > 0)
 			bcopy(chain->map, map, start * sizeof(struct ip_fw *));
-		/* copy active rules between start and end */
 		for (i = ofs = start; i < end; i++) {
 			rule = chain->map[i];
-			if (!(rule->set != RESVD_SET &&
-			    (cmd == 0 || rule->set == new_set) ))
+			if (rule->set == RESVD_SET || cmd == 0 ||
+			    (rule->set == new_set &&
+			     (cmd == 1 || rule->rulenum == rulenum)))
 				map[ofs++] = chain->map[i];
 		}
-		/* finally the tail */
 		bcopy(chain->map + end, map + ofs,
 			(chain->n_rules - end) * sizeof(struct ip_fw *));
+
 		map = swap_map(chain, map, chain->n_rules - n);
 		/* now remove the rules deleted */
 		for (i = start; i < end; i++) {
+			int l;
 			rule = map[i];
-			if (rule->set != RESVD_SET &&
-			    (cmd == 0 || rule->set == new_set) ) {
-				int l = RULESIZE(rule);
+			/* same test as above */
+                        if (rule->set == RESVD_SET || cmd == 0 ||
+                            (rule->set == new_set && 
+                             (cmd == 1 || rule->rulenum == rulenum)))
+				continue;
 
-				chain->static_len -= l;
-				ipfw_remove_dyn_children(rule);
-				rule->x_next = chain->reap;
-				chain->reap = rule;
-			}
+			l = RULESIZE(rule);
+			chain->static_len -= l;
+			ipfw_remove_dyn_children(rule);
+			rule->x_next = chain->reap;
+			chain->reap = rule;
 		}
 		break;
 
@@ -446,7 +457,7 @@ zero_entry(struct ip_fw_chain *chain, u_int32_t arg, int log_only)
 				break;
 		}
 		if (!cleared) {	/* we did not find any matching rules */
-			IPFW_WUNLOCK(chain);
+			IPFW_UH_RUNLOCK(chain);
 			return (EINVAL);
 		}
 		msg = log_only ? "logging count reset" : "cleared";
