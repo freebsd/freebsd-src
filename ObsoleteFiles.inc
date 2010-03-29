@@ -14,6 +14,10 @@
 # The file is partitioned: OLD_FILES first, then OLD_LIBS and OLD_DIRS last.
 #
 
+# 20100329: gcpio removal
+OLD_FILES+=usr/bin/gcpio
+OLD_FILES+=usr/share/info/cpio.info.gz
+OLD_FILES+=usr/share/man/man1/gcpio.1.gz
 # 20100301: vesa and dpms promoted to be i386/amd64 common
 OLD_FILES+=usr/include/machine/pc/vesa.h
 OLD_FILES+=usr/share/man/man4/i386/dpms.4.gz
