@@ -1,4 +1,4 @@
-/*
+/*-
  * Copyright (c) 2001 Katsurajima Naoto <raven@katsurajima.seya.yokohama.jp>
  * All rights reserved.
  *
