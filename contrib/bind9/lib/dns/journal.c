@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: journal.c,v 1.103.48.2 2009/01/18 23:47:37 tbox Exp $ */
+/* $Id: journal.c,v 1.103.48.6 2009/11/04 23:47:25 tbox Exp $ */
 
 #include <config.h>
 
@@ -1218,7 +1218,9 @@ dns_journal_destroy(dns_journal_t **journalp) {
 /* XXX Share code with incoming IXFR? */
 
 static isc_result_t
-roll_forward(dns_journal_t *j, dns_db_t *db, unsigned int options) {
+roll_forward(dns_journal_t *j, dns_db_t *db, unsigned int options,
+	     isc_uint32_t resign)
+{
 	isc_buffer_t source;		/* Transaction data from disk */
 	isc_buffer_t target;		/* Ditto after _fromwire check */
 	isc_uint32_t db_serial;		/* Database SOA serial */
@@ -1235,6 +1237,7 @@ roll_forward(dns_journal_t *j, dns_db_t *db, unsigned int options) {
 	REQUIRE(DNS_DB_VALID(db));
 
 	dns_diff_init(j->mctx, &diff);
+	diff.resign = resign;
 
 	/*
 	 * Set up empty initial buffers for unchecked and checked
@@ -1353,6 +1356,14 @@ isc_result_t
 dns_journal_rollforward(isc_mem_t *mctx, dns_db_t *db,
 			unsigned int options, const char *filename)
 {
+	REQUIRE((options & DNS_JOURNALOPT_RESIGN) == 0);
+	return (dns_journal_rollforward2(mctx, db, options, 0, filename));
+}
+
+isc_result_t
+dns_journal_rollforward2(isc_mem_t *mctx, dns_db_t *db, unsigned int options,
+			 isc_uint32_t resign, const char *filename)
+{
 	dns_journal_t *j;
 	isc_result_t result;
 
@@ -1371,7 +1382,7 @@ dns_journal_rollforward(isc_mem_t *mctx, dns_db_t *db,
 	if (JOURNAL_EMPTY(&j->header))
 		result = DNS_R_UPTODATE;
 	else
-		result = roll_forward(j, db, options);
+		result = roll_forward(j, db, options, resign);
 
 	dns_journal_destroy(&j);
 
@@ -1850,18 +1861,11 @@ dns_diff_subtract(dns_diff_t diff[2], dns_diff_t *r) {
 	return (result);
 }
 
-/*
- * Compare the databases 'dba' and 'dbb' and generate a journal
- * entry containing the changes to make 'dba' from 'dbb' (note
- * the order).  This journal entry will consist of a single,
- * possibly very large transaction.
- */
-
-isc_result_t
-dns_db_diff(isc_mem_t *mctx,
-	    dns_db_t *dba, dns_dbversion_t *dbvera,
-	    dns_db_t *dbb, dns_dbversion_t *dbverb,
-	    const char *journal_filename)
+static isc_result_t
+diff_namespace(isc_mem_t *mctx,
+	       dns_db_t *dba, dns_dbversion_t *dbvera,
+	       dns_db_t *dbb, dns_dbversion_t *dbverb,
+	       unsigned int options, dns_diff_t *resultdiff)
 {
 	dns_db_t *db[2];
 	dns_dbversion_t *ver[2];
@@ -1869,30 +1873,24 @@ dns_db_diff(isc_mem_t *mctx,
 	isc_boolean_t have[2] = { ISC_FALSE, ISC_FALSE };
 	dns_fixedname_t fixname[2];
 	isc_result_t result, itresult[2];
-	dns_diff_t diff[2], resultdiff;
+	dns_diff_t diff[2];
 	int i, t;
-	dns_journal_t *journal = NULL;
 
 	db[0] = dba, db[1] = dbb;
 	ver[0] = dbvera, ver[1] = dbverb;
 
 	dns_diff_init(mctx, &diff[0]);
 	dns_diff_init(mctx, &diff[1]);
-	dns_diff_init(mctx, &resultdiff);
 
 	dns_fixedname_init(&fixname[0]);
 	dns_fixedname_init(&fixname[1]);
 
-	result = dns_journal_open(mctx, journal_filename, ISC_TRUE, &journal);
+	result = dns_db_createiterator(db[0], options, &dbit[0]);
 	if (result != ISC_R_SUCCESS)
 		return (result);
-
-	result = dns_db_createiterator(db[0], 0, &dbit[0]);
+	result = dns_db_createiterator(db[1], options, &dbit[1]);
 	if (result != ISC_R_SUCCESS)
-		goto cleanup_journal;
-	result = dns_db_createiterator(db[1], 0, &dbit[1]);
-	if (result != ISC_R_SUCCESS)
-		goto cleanup_interator0;
+		goto cleanup_iterator;
 
 	itresult[0] = dns_dbiterator_first(dbit[0]);
 	itresult[1] = dns_dbiterator_first(dbit[1]);
@@ -1919,7 +1917,7 @@ dns_db_diff(isc_mem_t *mctx,
 
 		for (i = 0; i < 2; i++) {
 			if (! have[!i]) {
-				ISC_LIST_APPENDLIST(resultdiff.tuples,
+				ISC_LIST_APPENDLIST(resultdiff->tuples,
 						    diff[i].tuples, link);
 				INSIST(ISC_LIST_EMPTY(diff[i].tuples));
 				have[i] = ISC_FALSE;
@@ -1930,21 +1928,21 @@ dns_db_diff(isc_mem_t *mctx,
 		t = dns_name_compare(dns_fixedname_name(&fixname[0]),
 				     dns_fixedname_name(&fixname[1]));
 		if (t < 0) {
-			ISC_LIST_APPENDLIST(resultdiff.tuples,
+			ISC_LIST_APPENDLIST(resultdiff->tuples,
 					    diff[0].tuples, link);
 			INSIST(ISC_LIST_EMPTY(diff[0].tuples));
 			have[0] = ISC_FALSE;
 			continue;
 		}
 		if (t > 0) {
-			ISC_LIST_APPENDLIST(resultdiff.tuples,
+			ISC_LIST_APPENDLIST(resultdiff->tuples,
 					    diff[1].tuples, link);
 			INSIST(ISC_LIST_EMPTY(diff[1].tuples));
 			have[1] = ISC_FALSE;
 			continue;
 		}
 		INSIST(t == 0);
-		CHECK(dns_diff_subtract(diff, &resultdiff));
+		CHECK(dns_diff_subtract(diff, resultdiff));
 		INSIST(ISC_LIST_EMPTY(diff[0].tuples));
 		INSIST(ISC_LIST_EMPTY(diff[1].tuples));
 		have[0] = have[1] = ISC_FALSE;
@@ -1955,20 +1953,49 @@ dns_db_diff(isc_mem_t *mctx,
 	if (itresult[1] != ISC_R_NOMORE)
 		FAIL(itresult[1]);
 
+	INSIST(ISC_LIST_EMPTY(diff[0].tuples));
+	INSIST(ISC_LIST_EMPTY(diff[1].tuples));
+
+ failure:
+	dns_dbiterator_destroy(&dbit[1]);
+ cleanup_iterator:
+	dns_dbiterator_destroy(&dbit[0]);
+	return (result);
+}
+
+/*
+ * Compare the databases 'dba' and 'dbb' and generate a journal
+ * entry containing the changes to make 'dba' from 'dbb' (note
+ * the order).  This journal entry will consist of a single,
+ * possibly very large transaction.
+ */
+isc_result_t
+dns_db_diff(isc_mem_t *mctx,
+	    dns_db_t *dba, dns_dbversion_t *dbvera,
+	    dns_db_t *dbb, dns_dbversion_t *dbverb,
+	    const char *journal_filename)
+{
+	isc_result_t result;
+	dns_journal_t *journal = NULL;
+	dns_diff_t resultdiff;
+
+	result = dns_journal_open(mctx, journal_filename, ISC_TRUE, &journal);
+	if (result != ISC_R_SUCCESS)
+		return (result);
+
+	dns_diff_init(mctx, &resultdiff);
+
+	CHECK(diff_namespace(mctx, dba, dbvera, dbb, dbverb,
+			     DNS_DB_NONSEC3, &resultdiff));
+	CHECK(diff_namespace(mctx, dba, dbvera, dbb, dbverb,
+			     DNS_DB_NSEC3ONLY, &resultdiff));
 	if (ISC_LIST_EMPTY(resultdiff.tuples)) {
 		isc_log_write(JOURNAL_DEBUG_LOGARGS(3), "no changes");
 	} else {
 		CHECK(dns_journal_write_transaction(journal, &resultdiff));
 	}
-	INSIST(ISC_LIST_EMPTY(diff[0].tuples));
-	INSIST(ISC_LIST_EMPTY(diff[1].tuples));
-
  failure:
 	dns_diff_clear(&resultdiff);
-	dns_dbiterator_destroy(&dbit[1]);
- cleanup_interator0:
-	dns_dbiterator_destroy(&dbit[0]);
- cleanup_journal:
 	dns_journal_destroy(&journal);
 	return (result);
 }
