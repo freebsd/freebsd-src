@@ -267,8 +267,8 @@ x86bios_emu_get_intr(struct x86emu *emu, int intno)
 	sp[2] = htole16(emu->x86.R_FLG);
 
 	iv = x86bios_get_intr(intno);
-	emu->x86.R_IP = iv & 0x000f;
-	emu->x86.R_CS = (iv >> 12) & 0xffff;
+	emu->x86.R_IP = iv & 0xffff;
+	emu->x86.R_CS = (iv >> 16) & 0xffff;
 	emu->x86.R_FLG &= ~(F_IF | F_TF);
 }
 
