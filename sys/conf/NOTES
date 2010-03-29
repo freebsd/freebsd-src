@@ -2091,6 +2091,7 @@ device		ath_hal		# pci/cardbus chip support
 options 	AH_SUPPORT_AR5416	# enable AR5416 tx/rx descriptors
 #device		ath_ar9160	# AR9160 chips
 #device		ath_ar9280	# AR9280 chips
+#device		ath_ar9285	# AR9285 chips
 device		ath_rate_sample	# SampleRate tx rate control for ath
 device		bwi		# Broadcom BCM430* BCM431*
 device		bwn		# Broadcom BCM43xx
