@@ -1,5 +1,6 @@
 /*-
- * Copyright (c) 2009-2010 Edwin Groothuis. All rights reserved.
+ * Copyright (c) 2009-2010 Edwin Groothuis <edwin@FreeBSD.org>.
+ * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
