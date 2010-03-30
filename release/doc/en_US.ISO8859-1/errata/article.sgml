@@ -167,6 +167,18 @@
   <sect1 id="late-news">
     <title>Late-Breaking News and Corrections</title>
 
+    <para>[20100330] The <filename>libc</filename> of &os; 7.3-RELEASE
+      has the &man.fdopendir.3; function but
+      <filename>&lt;dirent.h&gt;</filename> header file does not
+      contain the function prototype.  This could cause programs
+      compiled on the system to crash on platforms such as
+      &os;/&arch.amd64;, where <literal>sizeof(void *)</literal> is
+      greater than <literal>sizeof(int)</literal>.  This problem has
+      been fixed in <ulink
+	url="http://svn.freebsd.org/changeset/base/205265">r205265
+	(RELENG_7)</ulink>.  An Errata Notice for 7.3-RELEASE is
+      planned.</para>
+
     <para>[20100330] It turns out that the
       <filename>zfsloader</filename> in 7.3-RELEASE, a new boot loader
       similar to &man.loader.8; but it supports ZFS, does not work
