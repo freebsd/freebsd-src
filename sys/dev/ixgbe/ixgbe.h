@@ -179,7 +179,13 @@
 #define IXGBE_RX_HDR			128
 #define IXGBE_VFTA_SIZE			128
 #define IXGBE_BR_SIZE			4096
-#define CSUM_OFFLOAD			7	/* Bits in csum flags */
+
+/* Offload bits in mbuf flag */
+#if __FreeBSD_version >= 800000
+#define CSUM_OFFLOAD		(CSUM_IP|CSUM_TCP|CSUM_UDP|CSUM_SCTP)
+#else
+#define CSUM_OFFLOAD		(CSUM_IP|CSUM_TCP|CSUM_UDP)
+#endif
 
 /* For 6.X code compatibility */
 #if !defined(ETHER_BPF_MTAP)
