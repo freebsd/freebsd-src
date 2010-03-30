@@ -84,6 +84,9 @@ TUNABLE_INT("hw.i8254.freq", &i8254_freq);
 int	i8254_max_count;
 static int i8254_real_max_count;
 
+static int lapic_allclocks;
+TUNABLE_INT("machdep.lapic_allclocks", &lapic_allclocks);
+
 struct mtx clock_lock;
 static	struct intsrc *i8254_intsrc;
 static	u_int32_t i8254_lastcount;
@@ -478,8 +481,22 @@ startrtclock()
 void
 cpu_initclocks()
 {
+	enum lapic_clock tlsca;
+	int tasc;
 
-	using_lapic_timer = lapic_setup_clock();
+	/* Initialize RTC. */
+	atrtc_start();
+	tasc = atrtc_setup_clock();
+
+	/*
+	 * If the atrtc successfully initialized and the users didn't force
+	 * otherwise use the LAPIC in order to cater hardclock only, otherwise
+	 * take in charge all the clock sources.
+	 */
+	tlsca = (lapic_allclocks == 0 && tasc != 0) ? LAPIC_CLOCK_HARDCLOCK :
+	    LAPIC_CLOCK_ALL;
+	using_lapic_timer = lapic_setup_clock(tlsca);
+
 	/*
 	 * If we aren't using the local APIC timer to drive the kernel
 	 * clocks, setup the interrupt handler for the 8254 timer 0 so
@@ -500,9 +517,6 @@ cpu_initclocks()
 		set_i8254_freq(i8254_freq, hz);
 	}
 
-	/* Initialize RTC. */
-	atrtc_start();
-
 	/*
 	 * If the separate statistics clock hasn't been explicility disabled
 	 * and we aren't already using the local APIC timer to drive the
@@ -510,7 +524,7 @@ cpu_initclocks()
 	 * drive statclock() and profclock().
 	 */
 	if (using_lapic_timer != LAPIC_CLOCK_ALL) {
-		using_atrtc_timer = atrtc_setup_clock();
+		using_atrtc_timer = tasc; 
 		if (using_atrtc_timer) {
 			/* Enable periodic interrupts from the RTC. */
 			intr_add_handler("rtc", 8,
