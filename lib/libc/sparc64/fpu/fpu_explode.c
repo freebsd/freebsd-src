@@ -49,6 +49,10 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 
+#ifdef FPU_DEBUG
+#include <stdio.h>
+#endif
+
 #include <machine/frame.h>
 #include <machine/fp.h>
 #include <machine/fsr.h>
