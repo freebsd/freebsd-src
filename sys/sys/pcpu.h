@@ -165,7 +165,7 @@ struct pcpu {
 	 * if only to make kernel debugging easier.
 	 */
 	PCPU_MD_FIELDS;
-} __aligned(128);
+} __aligned(CACHE_LINE_SIZE);
 
 #ifdef _KERNEL
 
