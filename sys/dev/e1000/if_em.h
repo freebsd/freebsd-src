@@ -291,8 +291,8 @@ struct tx_ring {
         bus_dma_tag_t           txtag;
 	void                    *tag;
 	struct resource         *res;
-        u64                     tx_irq;
-        u64                     no_desc_avail;
+        unsigned long		tx_irq;
+        unsigned long		no_desc_avail;
 };
 
 /*
@@ -310,8 +310,8 @@ struct rx_ring {
         struct taskqueue        *tq;
         struct e1000_rx_desc	*rx_base;
         struct em_dma_alloc	rxdma;
-        unsigned int            next_to_refresh;
-        unsigned int            next_to_check;
+        u32			next_to_refresh;
+        u32			next_to_check;
         struct em_buffer	*rx_buffers;
 	struct mbuf		*fmp;
 	struct mbuf		*lmp;
@@ -323,9 +323,9 @@ struct rx_ring {
         bus_dmamap_t            rx_sparemap;
 
         /* Soft stats */
-        u64                     rx_irq;
-        u64                     rx_packets;
-        u64                     rx_bytes;
+        unsigned long		rx_irq;
+        unsigned long		rx_packets;
+        unsigned long		rx_bytes;
 };
 
 

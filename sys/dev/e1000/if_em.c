@@ -4823,16 +4823,18 @@ em_print_debug_info(struct adapter *adapter)
 		device_printf(dev, "Queue(%d) tdh = %d, tdt = %d\n", i,
 		    E1000_READ_REG(&adapter->hw, E1000_TDH(i)),
 		    E1000_READ_REG(&adapter->hw, E1000_TDT(i)));
-		device_printf(dev, "TX(%d) no descriptors avail event = %lld\n",
-		    txr->me, (long long)txr->no_desc_avail);
-		device_printf(dev, "TX(%d) MSIX IRQ Handled = %lld\n", txr->me,
-		    (long long)txr->tx_irq);
+		device_printf(dev, "TX(%d) no descriptors avail event = %ld\n",
+		    txr->me, txr->no_desc_avail);
+		device_printf(dev, "TX(%d) MSIX IRQ Handled = %ld\n",
+		    txr->me, txr->tx_irq);
 		device_printf(dev, "Num Tx descriptors avail = %d\n",
 		    txr->tx_avail);
 		device_printf(dev, "Tx Descriptors not avail1 = %ld\n",
 		    txr->no_desc_avail);
 	}
 	for (int i = 0; i < adapter->num_queues; i++, rxr++) {
+		device_printf(dev, "RX(%d) MSIX IRQ Handled = %ld\n",
+		    rxr->me, rxr->rx_irq);
 		device_printf(dev, "hw rdh = %d, hw rdt = %d\n",
 		    E1000_READ_REG(&adapter->hw, E1000_RDH(i)),
 		    E1000_READ_REG(&adapter->hw, E1000_RDT(i)));
