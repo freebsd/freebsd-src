@@ -26,13 +26,27 @@ Oct/MonFirst	Labour Day (ACT, NSW, SA)
 Mar/MonSecond	Labour Day (VIC)
 Nov/TueFirst	Melbourne Cup (VIC)
 
-/* Tasmania */
-Feb 11		Regatta Day (TAS)
-Feb 27		Launceston Cup (TAS)
-Mar 11		Eight Hours Day (TAS)
-Oct 10		Launceston Show Day (TAS)
-Oct 24		Hobart Show Day (TAS)
-Nov 04		Recreation Day (N TAS)
+/* Tasmania
+ * http://www.wst.tas.gov.au/employment_info/public_holidays/html/2010
+ */
+Feb/MonSecond	Regatta Day (TAS)
+Feb/WedLast	Launceston Cup (TAS)
+Mar/TueFirst	King Island show (TAS)
+Mar/MonSecond	Eight Hours Day (TAS)
+Oct 10		Launceston Show Day (TAS)	/* Thursday preceding second Saturday in October */
+Oct 24		Hobart Show Day (TAS)		/* Thursday preceding fourth Saturday in October */
+Nov/MonFirst	Recreation Day (N TAS)		
+
+/*
+Oct/SatSecond-2	Launceston Show Day (TAS)	// Thursday preceding second Sat in October
+Oct/SatFourth-2	Hobart Show Day (TAS)		// Thursday preceding fourth Sat in October
+May/ThuFirst+1	Agfest (Circular Head only)	// Friday following the first Thursday in May
+Oct/SatFirst-1	Burnie Show			// Friday preceding first Saturday in October
+Oct/SatThird-1	Flinders Island Show		// Friday preceding third Saturday in October
+
+DEVONPORT CUP Wednesday not earlier than fifth and not later than eleventh day of January
+DEVONPORT SHOW Friday nearest last day in November, but not later than first day of December
+*/
 
 /* South Australia */
 May/MonThird	Adelaide Cup (SA)
@@ -53,6 +67,6 @@ Aug/MonFirst	Picnic Day (NT)
 
 /* Queensland */
 May/MonFirst	Labour Day (QLD)
-Aug 14		RNA Show Day (Brisbane metro)
+Aug/WedSecond	RNA Show Day (Brisbane metro)	/* Second Last Wednesday */
 
 #endif
