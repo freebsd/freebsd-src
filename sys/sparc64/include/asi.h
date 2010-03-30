@@ -33,7 +33,7 @@
 #define	_MACHINE_ASI_H_
 
 /*
- * Standard v9 asis
+ * Standard v9 ASIs
  */
 #define	ASI_N					0x4
 #define	ASI_NL					0xc
@@ -51,7 +51,7 @@
 #define	ASI_SNFL				0x8b
 
 /*
- * UltraSPARC extensions. ASIs limited to a certain family are annotated.
+ * UltraSPARC extensions - ASIs limited to a certain family are annotated.
  */
 #define	ASI_PHYS_USE_EC				0x14
 #define	ASI_PHYS_BYPASS_EC_WITH_EBIT		0x15
@@ -91,9 +91,12 @@
 #define	ASI_INTR_RECEIVE			0x49
 #define	ASI_UPA_CONFIG_REG			0x4a	/* US-I, II */
 
-#define	ASI_FIREPLANE_CONFIG_REG		0x4a	/* US-III Cu */
-#define		AA_FIREPLANE_CONFIG		0x0	/* US-III Cu */
-#define		AA_FIREPLANE_ADDRESS		0x8	/* US-III Cu */
+#define	ASI_FIREPLANE_CONFIG_REG		0x4a	/* US-III{,+}, IV{,+} */
+#define		AA_FIREPLANE_CONFIG		0x0	/* US-III{,+}, IV{,+} */
+#define		AA_FIREPLANE_ADDRESS		0x8	/* US-III{,+}, IV{,+} */
+#define		AA_FIREPLANE_CONFIG_2		0x10	/* US-IV{,+} */
+
+#define	ASI_JBUS_CONFIG_REG			0x4a	/* US-IIIi{,+} */
 
 #define	ASI_ESTATE_ERROR_EN_REG			0x4b
 #define		AA_ESTATE_CEEN			0x1
@@ -153,6 +156,11 @@
 
 #define	ASI_IIU_INST_TRAP			0x60	/* US-III family */
 
+#define	ASI_INTR_ID				0x63	/* US-IV{,+} */
+#define		AA_INTR_ID			0x0	/* US-IV{,+} */
+#define		AA_CORE_ID			0x10	/* US-IV{,+} */
+#define		AA_CESR_ID			0x40	/* US-IV{,+} */
+
 #define	ASI_ICACHE_INSTR			0x66
 #define	ASI_ICACHE_TAG				0x67
 #define	ASI_ICACHE_SNOOP_TAG			0x68	/* US-III family */
@@ -179,7 +187,7 @@
 
 /*
  * With the advent of the US-III, the numbering has changed, as additional
- * registers were inserted in between. We retain the original ordering for
+ * registers were inserted in between.  We retain the original ordering for
  * now, and append an A to the inserted registers.
  * Exceptions are AA_SDB_INTR_D6 and AA_SDB_INTR_D7, which were appended
  * at the end.
