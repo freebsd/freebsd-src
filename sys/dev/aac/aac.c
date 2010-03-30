@@ -3127,11 +3127,7 @@ aac_ioctl_send_raw_srb(struct aac_softc *sc, caddr_t arg)
 		sge = srbcmd->sg_map.SgEntry;
 		sge64 = NULL;
 		srb_sg_bytecount = sge->SgByteCount;
-#ifdef __amd64__
-		srb_sg_address = (void *)(uint64_t)sge->SgAddress;
-#else
-		srb_sg_address = (void *)sge->SgAddress;
-#endif
+		srb_sg_address = (void *)(uintptr_t)sge->SgAddress;
 	}
 #ifdef __amd64__
 	else if (fibsize == (sizeof(struct aac_srb) +
