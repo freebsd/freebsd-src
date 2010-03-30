@@ -33,7 +33,6 @@ __FBSDID("$FreeBSD$");
 #include <machine/ktr.h>
 #include <machine/pstate.h>
 #include <machine/smp.h>
-#include <machine/upa.h>
 #include <machine/ver.h>
 
 #include "assym.s"
@@ -212,14 +211,8 @@ ENTRY(mp_startup)
 	 nop
 	wr	%l1, 0, %asr24
 
-3:	UPA_GET_MID(%o0)
-
-#if KTR_COMPILE & KTR_SMP
-	CATR(KTR_SMP, "mp_start: CPU %d entered kernel"
-	    , %g1, %g2, %g3, 7, 8, 9)
-	stx	%o0, [%g1 + KTR_PARM1]
-9:
-#endif
+3:	call	cpu_get_mid
+	 nop
 
 	/*
 	 * Inform the boot processor we have inited.
@@ -235,13 +228,6 @@ ENTRY(mp_startup)
 	cmp	%l1, %o0
 	bne	%xcc, 4b
 	 nop
-
-#if KTR_COMPILE & KTR_SMP
-	CATR(KTR_SMP, "_mp_start: CPU %d got start signal"
-	    , %g1, %g2, %g3, 7, 8, 9)
-	stx	%o0, [%g1 + KTR_PARM1]
-9:
-#endif
 
 	add	%l0, CSA_TTES, %l1
 	clr	%l2
@@ -283,7 +269,7 @@ ENTRY(mp_startup)
 
 #if KTR_COMPILE & KTR_SMP
 	CATR(KTR_SMP,
-	    "_mp_start: bootstrap cpuid=%d mid=%d pcpu=%#lx data=%#lx sp=%#lx"
+	    "mp_startup: bootstrap cpuid=%d mid=%d pcpu=%#lx data=%#lx sp=%#lx"
 	    , %g1, %g2, %g3, 7, 8, 9)
 	lduw	[%l1 + PC_CPUID], %g2
 	stx	%g2, [%g1 + KTR_PARM1]
