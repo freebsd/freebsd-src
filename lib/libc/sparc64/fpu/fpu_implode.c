@@ -252,8 +252,8 @@ __fpu_ftox(fe, fp, res)
 	sign = fp->fp_sign;
 	switch (fp->fp_class) {
 	case FPC_ZERO:
-		res[1] = 0;
-		return (0);
+		i = 0;
+		goto done;
 
 	case FPC_NUM:
 		/*
@@ -277,15 +277,17 @@ __fpu_ftox(fe, fp, res)
 			break;
 		if (sign)
 			i = -i;
-		res[1] = (int)i;
-		return (i >> 32);
+		goto done;
 
 	default:		/* Inf, qNaN, sNaN */
 		break;
 	}
 	/* overflow: replace any inexact exception with invalid */
 	fe->fe_cx = (fe->fe_cx & ~FSR_NX) | FSR_NV;
-	return (0x7fffffffffffffffLL + sign);
+	i = 0x7fffffffffffffffLL + sign;
+done:
+	res[1] = i & 0xffffffff;
+	return (i >> 32);
 }
 
 /*
