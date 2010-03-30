@@ -167,6 +167,14 @@
   <sect1 id="late-news">
     <title>Late-Breaking News and Corrections</title>
 
+    <para>[20100330] It turns out that the
+      <filename>zfsloader</filename> in 7.3-RELEASE, a new boot loader
+      similar to &man.loader.8; but it supports ZFS, does not work
+      properly.  This problem has been fixed in <ulink
+	url="http://svn.freebsd.org/changeset/base/205539">r205539
+	(RELENG_7)</ulink>.  An Errata Notice for 7.3-RELEASE is
+      planned.</para>
+
     <para>[20100323] The &os; 7.3-RELEASE Release Notes incorrectly
       mentioned that the hwpmc(4) driver has been added though this
       driver has already been added in 7.0-RELEASE.  The changes in
