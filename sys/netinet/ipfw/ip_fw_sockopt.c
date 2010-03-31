@@ -239,12 +239,12 @@ ipfw_reap_rules(struct ip_fw *head)
  * The argument is an u_int32_t. The low 16 bit are the rule or set number,
  * the next 8 bits are the new set, the top 8 bits are the command:
  *
- *	0	delete rules with given number
- *	1	delete rules with given set number
- *	2	move rules with given number to new set
- *	3	move rules with given set number to new set
- *	4	swap sets with given numbers
- *	5	delete rules with given number and with given set number
+ *	0	delete rules numbered "rulenum"
+ *	1	delete rules in set "rulenum"
+ *	2	move rules "rulenum" to set "new_set"
+ *	3	move rules from set "rulenum" to set "new_set"
+ *	4	swap sets "rulenum" and "new_set"
+ *	5	delete rules "rulenum" and set "new_set"
  */
 static int
 del_entry(struct ip_fw_chain *chain, u_int32_t arg)
@@ -274,7 +274,7 @@ del_entry(struct ip_fw_chain *chain, u_int32_t arg)
 	chain->reap = NULL;	/* prepare for deletions */
 
 	switch (cmd) {
-	case 0:	/* delete rules number N (N == 0 means all) */
+	case 0:	/* delete rules "rulenum" (rulenum == 0 matches all) */
 	case 1:	/* delete all rules in set N */
 	case 5: /* delete rules with number N and set "new_set". */
 
@@ -287,7 +287,7 @@ del_entry(struct ip_fw_chain *chain, u_int32_t arg)
 		if (cmd == 1) { /* look for a specific set, must scan all */
 			new_set = rulenum;
 			for (start = -1, i = 0; i < chain->n_rules; i++) {
-				if (chain->map[i]->set != rulenum)
+				if (chain->map[i]->set != new_set)
 					continue;
 				if (start < 0)
 					start = i;
@@ -321,16 +321,21 @@ del_entry(struct ip_fw_chain *chain, u_int32_t arg)
 		 * and then bcopy the final part.
 		 * Once we are done we can swap maps and clean up the
 		 * deleted rules (unfortunately we need to repeat a
-		 * convoluted test).
+		 * convoluted test). Rules to keep are
+		 *	(set == RESVD_SET || !match_set || !match_rule)
+		 * where
+		 *   match_set ::= (cmd == 0 || rule->set == new_set)
+		 *   match_rule ::= (cmd == 1 || rule->rulenum == rulenum)
 		 */
 		if (start > 0)
 			bcopy(chain->map, map, start * sizeof(struct ip_fw *));
 		for (i = ofs = start; i < end; i++) {
 			rule = chain->map[i];
-			if (rule->set == RESVD_SET || cmd == 0 ||
-			    (rule->set == new_set &&
-			     (cmd == 1 || rule->rulenum == rulenum)))
+			if (rule->set == RESVD_SET ||
+			    !(cmd == 0 || rule->set == new_set) ||
+			    !(cmd == 1 || rule->rulenum == rulenum) ) {
 				map[ofs++] = chain->map[i];
+			}
 		}
 		bcopy(chain->map + end, map + ofs,
 			(chain->n_rules - end) * sizeof(struct ip_fw *));
@@ -341,9 +346,9 @@ del_entry(struct ip_fw_chain *chain, u_int32_t arg)
 			int l;
 			rule = map[i];
 			/* same test as above */
-                        if (rule->set == RESVD_SET || cmd == 0 ||
-                            (rule->set == new_set && 
-                             (cmd == 1 || rule->rulenum == rulenum)))
+			if (rule->set == RESVD_SET ||
+			    !(cmd == 0 || rule->set == new_set) ||
+			    !(cmd == 1 || rule->rulenum == rulenum) )
 				continue;
 
 			l = RULESIZE(rule);
