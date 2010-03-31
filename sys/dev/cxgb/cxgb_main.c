@@ -2423,6 +2423,7 @@ cxgb_tick_handler(void *arg, int count)
 		struct ifnet *ifp = pi->ifp;
 		struct cmac *mac = &pi->mac;
 		struct mac_stats *mstats = &mac->stats;
+		int drops, j;
 
 		if (!isset(&sc->open_device_map, pi->port_id))
 			continue;
@@ -2431,34 +2432,20 @@ cxgb_tick_handler(void *arg, int count)
 		t3_mac_update_stats(mac);
 		PORT_UNLOCK(pi);
 
-		ifp->if_opackets =
-		    mstats->tx_frames_64 +
-		    mstats->tx_frames_65_127 +
-		    mstats->tx_frames_128_255 +
-		    mstats->tx_frames_256_511 +
-		    mstats->tx_frames_512_1023 +
-		    mstats->tx_frames_1024_1518 +
-		    mstats->tx_frames_1519_max;
-		
-		ifp->if_ipackets =
-		    mstats->rx_frames_64 +
-		    mstats->rx_frames_65_127 +
-		    mstats->rx_frames_128_255 +
-		    mstats->rx_frames_256_511 +
-		    mstats->rx_frames_512_1023 +
-		    mstats->rx_frames_1024_1518 +
-		    mstats->rx_frames_1519_max;
-
+		ifp->if_opackets = mstats->tx_frames;
+		ifp->if_ipackets = mstats->rx_frames;
 		ifp->if_obytes = mstats->tx_octets;
 		ifp->if_ibytes = mstats->rx_octets;
 		ifp->if_omcasts = mstats->tx_mcast_frames;
 		ifp->if_imcasts = mstats->rx_mcast_frames;
-		
-		ifp->if_collisions =
-		    mstats->tx_total_collisions;
-
+		ifp->if_collisions = mstats->tx_total_collisions;
 		ifp->if_iqdrops = mstats->rx_cong_drops;
-		
+
+		drops = 0;
+		for (j = pi->first_qset; j < pi->first_qset + pi->nqsets; j++)
+			drops += sc->sge.qs[j].txq[TXQ_ETH].txq_mr->br_drops;
+		ifp->if_snd.ifq_drops = drops;
+
 		ifp->if_oerrors =
 		    mstats->tx_excess_collisions +
 		    mstats->tx_underrun +
