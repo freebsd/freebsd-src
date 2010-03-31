@@ -237,7 +237,7 @@ ENTRY(cpu_switch)
 	stxa	%i4, [%i5] ASI_DMMU
 	mov	AA_IMMU_TSB, %i5
 	stxa	%i4, [%i5] ASI_IMMU
-	setx	TLB_PCXR_PGSZ_MASK, %i5, %i4
+	setx	TLB_CXR_PGSZ_MASK, %i5, %i4
 	mov	AA_DMMU_PCXR, %i5
 	ldxa	[%i5] ASI_DMMU, %l1
 	and	%l1, %i4, %l1
