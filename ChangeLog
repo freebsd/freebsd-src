@@ -1,6 +1,30 @@
 
                 ChangeLog file for zlib
 
+Changes in 1.2.4.1 (28 Mar 2010)
+- Remove the use of [a-z] constructs for sed in configure [gentoo 310225]
+- Remove $(SHAREDLIB) from LIBS in Makefile.in [Creech]
+- Restore "for debugging" comment on sprintf() in gzlib.c
+- Remove fdopen for MVS from gzguts.h
+- Put new README-WIN32.txt in win32 [Rowe]
+- Add check for shell to configure and invoke another shell if needed
+- Fix big fat stinking bug in gzseek() on uncompressed files
+- Remove vestigial F_OPEN64 define in zutil.h
+- Set and check the value of _LARGEFILE_SOURCE and _LARGEFILE64_SOURCE
+- Avoid errors on non-LFS systems when applications define LFS macros
+- Set EXE to ".exe" in configure for MINGW [Kahle]
+- Match crc32() in crc32.c exactly to the prototype in zlib.h [Sherrill]
+- Add prefix for cross-compilation in win32/makefile.gcc [Bar-Lev]
+- Add DLL install in win32/makefile.gcc [Bar-Lev]
+- Allow Linux* or linux* from uname in configure [Bar-Lev]
+- Allow ldconfig to be redefined in configure and Makefile.in [Bar-Lev]
+- Add cross-compilation prefixes to configure [Bar-Lev]
+- Match type exactly in gz_load() invocation in gzread.c
+- Match type exactly of zcalloc() in zutil.c to zlib.h alloc_func
+- Provide prototypes for *64 functions when building zlib without LFS
+- Don't use -lc when linking shared library on MinGW
+- Remove errno.h check in configure and vestigial errno code in zutil.h
+
 Changes in 1.2.4 (14 Mar 2010)
 - Fix VER3 extraction in configure for no fourth subversion
 - Update zlib.3, add docs to Makefile.in to make .pdf out of it
