@@ -58,7 +58,7 @@ __FBSDID("$FreeBSD$");
  * CPU-specific initialization
  */
 void
-cheetah_init(void)
+cheetah_init(u_int cpu_impl)
 {
 	register_t s;
 
@@ -119,7 +119,7 @@ cheetah_init(void)
  * Enable level 1 caches.
  */
 void
-cheetah_cache_enable(void)
+cheetah_cache_enable(u_int cpu_impl)
 {
 	u_long lsu;
 

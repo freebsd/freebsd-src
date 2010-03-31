@@ -130,7 +130,7 @@ cache_init(struct pcpu *pcpu)
 	if ((set & ~(1UL << (ffs(set) - 1))) != 0)
 		panic("cache_init: E$ set size not a power of 2");
 
-	if (cpu_impl >= CPU_IMPL_ULTRASPARCIII) {
+	if (pcpu->pc_impl >= CPU_IMPL_ULTRASPARCIII) {
 		cache_enable = cheetah_cache_enable;
 		cache_flush = cheetah_cache_flush;
 		dcache_page_inval = cheetah_dcache_page_inval;

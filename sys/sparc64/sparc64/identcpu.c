@@ -15,7 +15,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/sysctl.h>
 
-#include <machine/cpufunc.h>
 #include <machine/md_var.h>
 #include <machine/ver.h>
 
@@ -26,8 +25,6 @@ SYSCTL_STRING(_hw, HW_MACHINE, machine, CTLFLAG_RD,
 static char cpu_model[128];
 SYSCTL_STRING(_hw, HW_MODEL, model, CTLFLAG_RD,
     cpu_model, 0, "Machine model");
-
-int cpu_impl;
 
 void
 cpu_identify(u_long vers, u_int freq, u_int id)
