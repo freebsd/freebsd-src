@@ -14,6 +14,12 @@
 # The file is partitioned: OLD_FILES first, then OLD_LIBS and OLD_DIRS last.
 #
 
+# 20100330: [ia64] Sync with 9-current
+.if ${TARGET_ARCH} == "ia64"
+OLD_FILES+=usr/include/machine/nexusvar.h
+OLD_FILES+=usr/include/machine/sapicreg.h
+OLD_FILES+=usr/include/machine/sapicvar.h
+.endif
 # 20100329: gcpio removal
 OLD_FILES+=usr/bin/gcpio
 OLD_FILES+=usr/share/info/cpio.info.gz
