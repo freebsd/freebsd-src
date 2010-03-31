@@ -79,6 +79,7 @@
 #include <netinet/udp.h>
 
 #include <machine/in_cksum.h>
+#include <dev/led/led.h>
 #include <dev/pci/pcivar.h>
 #include <dev/pci/pcireg.h>
 
@@ -253,6 +254,7 @@ static void     lem_release_hw_control(struct adapter *);
 static void	lem_get_wakeup(device_t);
 static void     lem_enable_wakeup(device_t);
 static int	lem_enable_phy_wakeup(struct adapter *);
+static void	lem_led_func(void *, int);
 
 #ifdef EM_LEGACY_IRQ
 static void	lem_intr(void *);
@@ -667,6 +669,9 @@ lem_attach(device_t dev)
 	/* Tell the stack that the interface is not active */
 	adapter->ifp->if_drv_flags &= ~(IFF_DRV_RUNNING | IFF_DRV_OACTIVE);
 
+	adapter->led_dev = led_create(lem_led_func, adapter,
+	    device_get_nameunit(dev));
+
 	INIT_DEBUGOUT("lem_attach: end");
 
 	return (0);
@@ -721,6 +726,9 @@ lem_detach(device_t dev)
 	if (ifp->if_capenable & IFCAP_POLLING)
 		ether_poll_deregister(ifp);
 #endif
+
+	if (adapter->led_dev != NULL)
+		led_destroy(adapter->led_dev);
 
 	EM_CORE_LOCK(adapter);
 	EM_TX_LOCK(adapter);
@@ -2252,6 +2260,9 @@ lem_stop(void *arg)
 	e1000_reset_hw(&adapter->hw);
 	if (adapter->hw.mac.type >= e1000_82544)
 		E1000_WRITE_REG(&adapter->hw, E1000_WUC, 0);
+
+	e1000_led_off(&adapter->hw);
+	e1000_cleanup_led(&adapter->hw);
 }
 
 
@@ -4126,7 +4137,7 @@ lem_get_wakeup(device_t dev)
 /*
  * Enable PCI Wake On Lan capability
  */
-void
+static void
 lem_enable_wakeup(device_t dev)
 {
 	struct adapter	*adapter = device_get_softc(dev);
@@ -4268,6 +4279,21 @@ out:
 	return ret;
 }
 
+static void
+lem_led_func(void *arg, int onoff)
+{
+	struct adapter	*adapter = arg;
+
+	EM_CORE_LOCK(adapter);
+	if (onoff) {
+		e1000_setup_led(&adapter->hw);
+		e1000_led_on(&adapter->hw);
+	} else {
+		e1000_led_off(&adapter->hw);
+		e1000_cleanup_led(&adapter->hw);
+	}
+	EM_CORE_UNLOCK(adapter);
+}
 
 /*********************************************************************
 * 82544 Coexistence issue workaround.

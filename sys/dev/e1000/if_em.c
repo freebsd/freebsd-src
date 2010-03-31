@@ -77,6 +77,7 @@
 #include <netinet/udp.h>
 
 #include <machine/in_cksum.h>
+#include <dev/led/led.h>
 #include <dev/pci/pcivar.h>
 #include <dev/pci/pcireg.h>
 
@@ -267,6 +268,7 @@ static void     em_release_hw_control(struct adapter *);
 static void	em_get_wakeup(device_t);
 static void     em_enable_wakeup(device_t);
 static int	em_enable_phy_wakeup(struct adapter *);
+static void	em_led_func(void *, int);
 
 static int	em_irq_fast(void *);
 
@@ -656,6 +658,9 @@ em_attach(device_t dev)
 	/* Tell the stack that the interface is not active */
 	adapter->ifp->if_drv_flags &= ~(IFF_DRV_RUNNING | IFF_DRV_OACTIVE);
 
+	adapter->led_dev = led_create(em_led_func, adapter,
+	    device_get_nameunit(dev));
+
 	INIT_DEBUGOUT("em_attach: end");
 
 	return (0);
@@ -768,6 +773,9 @@ em_resume(device_t dev)
 {
 	struct adapter *adapter = device_get_softc(dev);
 	struct ifnet *ifp = adapter->ifp;
+
+	if (adapter->led_dev != NULL)
+		led_destroy(adapter->led_dev);
 
 	EM_CORE_LOCK(adapter);
 	em_init_locked(adapter);
@@ -2163,6 +2171,9 @@ em_stop(void *arg)
 
 	e1000_reset_hw(&adapter->hw);
 	E1000_WRITE_REG(&adapter->hw, E1000_WUC, 0);
+
+	e1000_led_off(&adapter->hw);
+	e1000_cleanup_led(&adapter->hw);
 }
 
 
@@ -4538,7 +4549,7 @@ em_get_wakeup(device_t dev)
 /*
  * Enable PCI Wake On Lan capability
  */
-void
+static void
 em_enable_wakeup(device_t dev)
 {
 	struct adapter	*adapter = device_get_softc(dev);
@@ -4688,6 +4699,22 @@ out:
 	hw->phy.ops.release(hw);
 
 	return ret;
+}
+
+static void
+em_led_func(void *arg, int onoff)
+{
+	struct adapter	*adapter = arg;
+ 
+	EM_CORE_LOCK(adapter);
+	if (onoff) {
+		e1000_setup_led(&adapter->hw);
+		e1000_led_on(&adapter->hw);
+	} else {
+		e1000_led_off(&adapter->hw);
+		e1000_cleanup_led(&adapter->hw);
+	}
+	EM_CORE_UNLOCK(adapter);
 }
 
 /**********************************************************************
