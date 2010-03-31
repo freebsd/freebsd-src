@@ -54,7 +54,7 @@
   extern int unlink OF((const char *));
 #endif
 
-#if defined(UNDER_CE) && defined(NO_ERRNO_H)
+#if defined(UNDER_CE)
 #  include <windows.h>
 #  define perror(s) pwinerror(s)
 
@@ -116,7 +116,7 @@ static void pwinerror (s)
         fprintf(stderr, "%s\n", strwinerror(GetLastError ()));
 }
 
-#endif /* UNDER_CE && NO_ERRNO_H */
+#endif /* UNDER_CE */
 
 #ifndef GZ_SUFFIX
 #  define GZ_SUFFIX ".gz"
