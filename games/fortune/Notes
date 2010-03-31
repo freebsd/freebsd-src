@@ -19,13 +19,13 @@ Warning:
 /usr/share/games/fortune.  A fortune file has two parts: the source file
 (which contains the fortunes themselves) and the data file which describes
 the fortunes.  The data file always has the same name as the fortune file
-with the string ".dat" concatenated, i.e. "fort" is the standard fortune
-database, and "fort.dat" is the data file which describes it.  See
+with the string ".dat" concatenated, i.e. "fortunes" is the standard fortune
+database, and "fortunes.dat" is the data file which describes it.  See
 strfile(8) for more information on creating the data files.
 	Fortunes are split into potentially offensive and not potentially
 offensive parts.  The offensive version of a file has the same name as the
-non-offensive version with "-o" concatenated, i.e. "fort" is the standard
-fortune database, and "fort-o" is the standard offensive database.  The
+non-offensive version with "-o" concatenated, i.e. "fortunes" is the standard
+fortune database, and "fortunes-o" is the standard offensive database.  The
 fortune program automatically assumes that any file with a name ending in
 "-o" is potentially offensive, and should therefore only be displayed if
 explicitly requested, either with the -o option or by specifying a file name
@@ -42,10 +42,10 @@ MUST be in the potentially offensive database.  Fortunes containing any
 explicit language (see George Carlin's recent updated list) MUST be in the
 potentially offensive database.  Political and religious opinions are often
 sequestered in the potentially offensive section as well.  Anything which
-assumes as a world view blatantly racist, mysogynist (sexist), or homophobic
+assumes as a world view blatantly racist, misogynist (sexist), or homophobic
 ideas should not be in either, since they are not really funny unless *you*
-are racist, mysogynist, or homophobic.
-	The point of this is that people have should have a reasonable
+are racist, misogynist, or homophobic.
+	The point of this is that people should have a reasonable
 expectation that, should they just run "fortune", they will not be offended.
 We know that some people take offense at anything, but normal people do have
 opinions, too, and have a right not to have their sensibilities offended by
@@ -53,7 +53,7 @@ a program which is supposed to be entertaining.  People who run "fortune
 -o" or "fortune -a" are saying, in effect, that they are willing to have
 their sensibilities tweaked.  However, they should not have their personal
 worth seriously (i.e., not in jest) assaulted.  Jokes which depend for their
-humor on racist, mysogynist, or homophobic stereotypes *do* seriously
+humor on racist, misogynist, or homophobic stereotypes *do* seriously
 assault individual personal worth, and in a general entertainment medium
 we should be able to get by without it.
 
