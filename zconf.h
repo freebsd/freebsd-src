@@ -364,7 +364,7 @@ typedef uLong FAR uLongf;
 #  define Z_HAVE_UNISTD_H
 #endif
 
-#ifdef Z_HAVE_UNISTD_H
+#if defined(Z_HAVE_UNISTD_H) || _LARGEFILE64_SOURCE == 1
 #  include <sys/types.h>    /* for off_t */
 #  include <unistd.h>       /* for SEEK_* and off_t */
 #  ifdef VMS
@@ -375,15 +375,12 @@ typedef uLong FAR uLongf;
 #  endif
 #endif
 
-#ifdef _LARGEFILE64_SOURCE
-#  include <sys/types.h>
-#endif
-
 #ifndef SEEK_SET
 #  define SEEK_SET        0       /* Seek from beginning of file.  */
 #  define SEEK_CUR        1       /* Seek from current position.  */
 #  define SEEK_END        2       /* Set file pointer to EOF plus "offset" */
 #endif
+
 #ifndef z_off_t
 #  define z_off_t long
 #endif
