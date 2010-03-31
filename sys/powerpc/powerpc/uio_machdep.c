@@ -107,9 +107,6 @@ uiomove_fromphys(vm_page_t ma[], vm_offset_t offset, int n, struct uio *uio)
 					sf_buf_free(sf);
 					goto out;
 				}
-				if (uio->uio_rw == UIO_WRITE &&
-				    pmap_page_executable(m))
-					__syncicache(cp, cnt);
 				break;
 			case UIO_SYSSPACE:
 				if (uio->uio_rw == UIO_READ)

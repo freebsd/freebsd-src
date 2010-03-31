@@ -309,6 +309,13 @@ vm_imgact_unmap_page(struct sf_buf *sf)
 	vm_page_unlock_queues();
 }
 
+void
+vm_sync_icache(vm_map_t map, vm_offset_t va, vm_offset_t sz)
+{
+
+	pmap_sync_icache(map->pmap, va, sz);
+}
+
 struct kstack_cache_entry {
 	vm_object_t ksobj;
 	struct kstack_cache_entry *next_ks_entry;
