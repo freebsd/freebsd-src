@@ -30,6 +30,8 @@ POSSIBILITY OF SUCH DAMAGE.
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_inet.h"
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
@@ -2060,7 +2062,9 @@ t3_free_qset(adapter_t *sc, struct sge_qset *q)
 		MTX_DESTROY(&q->rspq.lock);
 	}
 
+#ifdef INET
 	tcp_lro_free(&q->lro.ctrl);
+#endif
 
 	bzero(q, sizeof(*q));
 }
@@ -2647,11 +2651,13 @@ t3_sge_alloc_qset(adapter_t *sc, u_int id, int nports, int irq_vec_idx,
 
 	/* Allocate and setup the lro_ctrl structure */
 	q->lro.enabled = !!(pi->ifp->if_capenable & IFCAP_LRO);
+#ifdef INET
 	ret = tcp_lro_init(&q->lro.ctrl);
 	if (ret) {
 		printf("error %d from tcp_lro_init\n", ret);
 		goto err;
 	}
+#endif
 	q->lro.ctrl.ifp = pi->ifp;
 
 	mtx_lock_spin(&sc->sge.reg_lock);
@@ -3059,8 +3065,11 @@ process_responses(adapter_t *adap, struct sge_qset *qs, int budget)
 			 */
 			skip_lro = __predict_false(qs->port->ifp != m->m_pkthdr.rcvif);
 
-			if (lro_enabled && lro_ctrl->lro_cnt && !skip_lro &&
-			    (tcp_lro_rx(lro_ctrl, m, 0) == 0)) {
+			if (lro_enabled && lro_ctrl->lro_cnt && !skip_lro
+#ifdef INET
+			    && (tcp_lro_rx(lro_ctrl, m, 0) == 0)
+#endif
+			    ) {
 				/* successfully queue'd for LRO */
 			} else {
 				/*
@@ -3081,12 +3090,14 @@ process_responses(adapter_t *adap, struct sge_qset *qs, int budget)
 
 	deliver_partial_bundle(&adap->tdev, rspq, offload_mbufs, ngathered);
 
+#ifdef INET
 	/* Flush LRO */
 	while (!SLIST_EMPTY(&lro_ctrl->lro_active)) {
 		struct lro_entry *queued = SLIST_FIRST(&lro_ctrl->lro_active);
 		SLIST_REMOVE_HEAD(&lro_ctrl->lro_active, next);
 		tcp_lro_flush(lro_ctrl, queued);
 	}
+#endif
 
 	if (sleeping)
 		check_ring_db(adap, qs, sleeping);
