@@ -141,6 +141,8 @@ enum {
 #define JUMBO_Q_SIZE	1024
 #define RSPQ_Q_SIZE	1024
 #define TX_ETH_Q_SIZE	1024
+#define TX_OFLD_Q_SIZE	1024
+#define TX_CTRL_Q_SIZE	256
 
 enum { TXQ_ETH = 0,
        TXQ_OFLD = 1,
