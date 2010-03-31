@@ -3599,10 +3599,9 @@ t3_add_configured_sysctls(adapter_t *sc)
 			    CTLTYPE_STRING | CTLFLAG_RD, &qs->rspq,
 			    0, t3_dump_rspq, "A", "dump of the response queue");
 
-
-			SYSCTL_ADD_INT(ctx, txqpoidlist, OID_AUTO, "dropped",
-			    CTLFLAG_RD, &qs->txq[TXQ_ETH].txq_drops,
-			    0, "#tunneled packets dropped");
+			SYSCTL_ADD_QUAD(ctx, txqpoidlist, OID_AUTO, "dropped",
+			    CTLFLAG_RD, &qs->txq[TXQ_ETH].txq_mr->br_drops,
+			    "#tunneled packets dropped");
 			SYSCTL_ADD_INT(ctx, txqpoidlist, OID_AUTO, "sendqlen",
 			    CTLFLAG_RD, &qs->txq[TXQ_ETH].sendq.qlen,
 			    0, "#tunneled packets waiting to be sent");
