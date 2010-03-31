@@ -55,6 +55,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/systm.h>
+#include <sys/pcpu.h>
 #include <sys/pioctl.h>
 #include <sys/ptrace.h>
 #include <sys/proc.h>
@@ -391,7 +392,7 @@ trap(struct trapframe *tf)
 			if (tf->tf_tpc > (u_long)fas_nofault_begin &&
 			    tf->tf_tpc < (u_long)fas_nofault_end) {
 				cache_flush();
-				cache_enable();
+				cache_enable(PCPU_GET(impl));
 				tf->tf_tpc = (u_long)fas_fault;
 				tf->tf_tnpc = tf->tf_tpc + 4;
 				error = 0;
