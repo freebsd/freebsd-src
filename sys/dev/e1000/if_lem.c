@@ -269,7 +269,7 @@ static void	lem_add_rx_process_limit(struct adapter *, const char *,
 #endif /* ~EM_LEGACY_IRQ */
 
 #ifdef DEVICE_POLLING
-static poll_handler_t em_poll;
+static poll_handler_t lem_poll;
 #endif /* POLLING */
 
 /*********************************************************************
