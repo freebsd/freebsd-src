@@ -83,6 +83,7 @@
 #include <netinet/udp.h>
 
 #include <machine/in_cksum.h>
+#include <dev/led/led.h>
 #include <dev/pci/pcivar.h>
 #include <dev/pci/pcireg.h>
 
@@ -234,6 +235,7 @@ static void	igb_release_manageability(struct adapter *);
 static void     igb_get_hw_control(struct adapter *);
 static void     igb_release_hw_control(struct adapter *);
 static void     igb_enable_wakeup(device_t);
+static void     igb_led_func(void *, int);
 
 static int	igb_irq_fast(void *);
 static void	igb_add_rx_process_limit(struct adapter *, const char *,
@@ -585,6 +587,9 @@ igb_attach(device_t dev)
 	/* Tell the stack that the interface is not active */
 	adapter->ifp->if_drv_flags &= ~(IFF_DRV_RUNNING | IFF_DRV_OACTIVE);
 
+	adapter->led_dev = led_create(igb_led_func, adapter,
+	    device_get_nameunit(dev));
+
 	INIT_DEBUGOUT("igb_attach: end");
 
 	return (0);
@@ -623,6 +628,9 @@ igb_detach(device_t dev)
 		device_printf(dev,"Vlan in use, detach first\n");
 		return (EBUSY);
 	}
+
+	if (adapter->led_dev != NULL)
+		led_destroy(adapter->led_dev);
 
 #ifdef DEVICE_POLLING
 	if (ifp->if_capenable & IFCAP_POLLING)
@@ -2002,6 +2010,9 @@ igb_stop(void *arg)
 
 	e1000_reset_hw(&adapter->hw);
 	E1000_WRITE_REG(&adapter->hw, E1000_WUC, 0);
+
+	e1000_led_off(&adapter->hw);
+	e1000_cleanup_led(&adapter->hw);
 }
 
 
@@ -4613,7 +4624,7 @@ igb_is_valid_ether_addr(uint8_t *addr)
 /*
  * Enable PCI Wake On Lan capability
  */
-void
+static void
 igb_enable_wakeup(device_t dev)
 {
 	u16     cap, status;
@@ -4634,6 +4645,21 @@ igb_enable_wakeup(device_t dev)
 	return;
 }
 
+static void
+igb_led_func(void *arg, int onoff)
+{
+	struct adapter	*adapter = arg;
+
+	IGB_CORE_LOCK(adapter);
+	if (onoff) {
+		e1000_setup_led(&adapter->hw);
+		e1000_led_on(&adapter->hw);
+	} else {
+		e1000_led_off(&adapter->hw);
+		e1000_cleanup_led(&adapter->hw);
+	}
+	IGB_CORE_UNLOCK(adapter);
+}
 
 /**********************************************************************
  *
