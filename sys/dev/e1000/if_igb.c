@@ -1316,7 +1316,8 @@ igb_irq_fast(void *arg)
 #ifdef DEVICE_POLLING
 /*********************************************************************
  *
- *  Legacy polling routine  
+ *  Legacy polling routine : if using this code you MUST be sure that
+ *  multiqueue is not defined, ie, set igb_num_queues to 1.
  *
  *********************************************************************/
 #if __FreeBSD_version >= 800000
@@ -1328,12 +1329,12 @@ static void
 #endif
 igb_poll(struct ifnet *ifp, enum poll_cmd cmd, int count)
 {
-	struct adapter *adapter = ifp->if_softc;
-	struct rx_ring	*rxr = adapter->rx_rings;
-	struct tx_ring	*txr = adapter->tx_rings;
-	u32		reg_icr, rx_done = 0;
-	u32		loop = IGB_MAX_LOOP;
-	bool		more;
+	struct adapter		*adapter = ifp->if_softc;
+	struct igb_queue	*que = adapter->queues;
+	struct tx_ring		*txr = adapter->tx_rings;
+	u32			reg_icr, rx_done = 0;
+	u32			loop = IGB_MAX_LOOP;
+	bool			more;
 
 	IGB_CORE_LOCK(adapter);
 	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0) {
@@ -1353,7 +1354,7 @@ igb_poll(struct ifnet *ifp, enum poll_cmd cmd, int count)
 	IGB_CORE_UNLOCK(adapter);
 
 	/* TODO: rx_count */
-	rx_done = igb_rxeof(rxr, count) ? 1 : 0;
+	rx_done = igb_rxeof(que, count) ? 1 : 0;
 
 	IGB_TX_LOCK(txr);
 	do {
