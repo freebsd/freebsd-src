@@ -35,81 +35,105 @@
 #include <sys/bus.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
+#include <sys/pcpu.h>
 #include <sys/sysctl.h>
 
 #include <machine/intr.h>
 #include <machine/pal.h>
-#include <machine/sapicreg.h>
-#include <machine/sapicvar.h>
 
 #include <vm/vm.h>
 #include <vm/pmap.h>
 
-static MALLOC_DEFINE(M_SAPIC, "sapic", "I/O SAPIC devices");
+/*
+ * Offsets from the SAPIC base in memory. Most registers are accessed
+ * by indexing using the SAPIC_IO_SELECT register.
+ */
+#define	SAPIC_IO_SELECT		0x00
+#define	SAPIC_IO_WINDOW		0x10
+#define	SAPIC_APIC_EOI		0x40
+
+/*
+ * Indexed registers.
+ */
+#define SAPIC_ID		0x00
+#define SAPIC_VERSION		0x01
+#define SAPIC_ARBITRATION_ID	0x02
+#define SAPIC_RTE_BASE		0x10
+
+/* Interrupt polarity. */
+#define	SAPIC_POLARITY_HIGH	0
+#define	SAPIC_POLARITY_LOW	1
+
+/* Interrupt trigger. */
+#define	SAPIC_TRIGGER_EDGE	0
+#define	SAPIC_TRIGGER_LEVEL	1
+
+/* Interrupt delivery mode. */
+#define	SAPIC_DELMODE_FIXED	0
+#define	SAPIC_DELMODE_LOWPRI	1
+#define	SAPIC_DELMODE_PMI	2
+#define	SAPIC_DELMODE_NMI	4
+#define	SAPIC_DELMODE_INIT	5
+#define	SAPIC_DELMODE_EXTINT	7
+
+struct sapic {
+	struct mtx	sa_mtx;
+	uint64_t	sa_registers;	/* virtual address of sapic */
+	u_int		sa_id;		/* I/O SAPIC Id */
+	u_int		sa_base;	/* ACPI vector base */
+	u_int		sa_limit;	/* last ACPI vector handled here */
+};
+
+struct sapic_rte {
+	uint64_t	rte_vector		:8;
+	uint64_t	rte_delivery_mode	:3;
+	uint64_t	rte_destination_mode	:1;
+	uint64_t	rte_delivery_status	:1;
+	uint64_t	rte_polarity		:1;
+	uint64_t	rte_rirr		:1;
+	uint64_t	rte_trigger_mode	:1;
+	uint64_t	rte_mask		:1;
+	uint64_t	rte_flushen		:1;
+	uint64_t	rte_reserved		:30;
+	uint64_t	rte_destination_eid	:8;
+	uint64_t	rte_destination_id	:8;
+};
+
+MALLOC_DEFINE(M_SAPIC, "sapic", "I/O SAPIC devices");
+
+struct sapic *ia64_sapics[16];		/* XXX make this resizable */
+int ia64_sapic_count;
 
 static int sysctl_machdep_apic(SYSCTL_HANDLER_ARGS);
 
 SYSCTL_OID(_machdep, OID_AUTO, apic, CTLTYPE_STRING|CTLFLAG_RD,
     NULL, 0, sysctl_machdep_apic, "A", "(x)APIC redirection table entries");
 
-struct sapic *ia64_sapics[16]; /* XXX make this resizable */
-int ia64_sapic_count;
-
-struct sapic_rte {
-	u_int64_t	rte_vector		:8;
-	u_int64_t	rte_delivery_mode	:3;
-	u_int64_t	rte_destination_mode	:1;
-	u_int64_t	rte_delivery_status	:1;
-	u_int64_t	rte_polarity		:1;
-	u_int64_t	rte_rirr		:1;
-	u_int64_t	rte_trigger_mode	:1;
-	u_int64_t	rte_mask		:1;
-	u_int64_t	rte_flushen		:1;
-	u_int64_t	rte_reserved		:30;
-	u_int64_t	rte_destination_eid	:8;
-	u_int64_t	rte_destination_id	:8;
-};
-
-struct sapic *
-sapic_lookup(u_int irq)
-{
-	struct sapic *sa;
-	int i;
-
-	for (i = 0; i < ia64_sapic_count; i++) {
-		sa = ia64_sapics[i];
-		if (irq >= sa->sa_base && irq <= sa->sa_limit)
-			return (sa);
-	}
-
-	return (NULL);
-}
-
-static __inline u_int32_t
+static __inline uint32_t
 sapic_read(struct sapic *sa, int which)
 {
-	vm_offset_t reg = sa->sa_registers;
+	uint32_t value;
 
-	*(volatile u_int32_t *) (reg + SAPIC_IO_SELECT) = which;
-	ia64_mf();
-	return *(volatile u_int32_t *) (reg + SAPIC_IO_WINDOW);
+	ia64_st4((void *)(sa->sa_registers + SAPIC_IO_SELECT), which);
+	ia64_mf_a();
+	value = ia64_ld4((void *)(sa->sa_registers + SAPIC_IO_WINDOW));
+	return (value);
 }
 
 static __inline void
-sapic_write(struct sapic *sa, int which, u_int32_t value)
+sapic_write(struct sapic *sa, int which, uint32_t value)
 {
-	vm_offset_t reg = sa->sa_registers;
 
-	*(volatile u_int32_t *) (reg + SAPIC_IO_SELECT) = which;
-	ia64_mf();
-	*(volatile u_int32_t *) (reg + SAPIC_IO_WINDOW) = value;
-	ia64_mf();
+	ia64_st4((void *)(sa->sa_registers + SAPIC_IO_SELECT), which);
+	ia64_mf_a();
+	ia64_st4((void *)(sa->sa_registers + SAPIC_IO_WINDOW), value);
+	ia64_mf_a();
 }
 
 static __inline void
 sapic_read_rte(struct sapic *sa, int which, struct sapic_rte *rte)
 {
-	u_int32_t *p = (u_int32_t *) rte;
+	uint32_t *p = (uint32_t *) rte;
 
 	p[0] = sapic_read(sa, SAPIC_RTE_BASE + 2 * which);
 	p[1] = sapic_read(sa, SAPIC_RTE_BASE + 2 * which + 1);
@@ -118,10 +142,54 @@ sapic_read_rte(struct sapic *sa, int which, struct sapic_rte *rte)
 static __inline void
 sapic_write_rte(struct sapic *sa, int which, struct sapic_rte *rte)
 {
-	u_int32_t *p = (u_int32_t *) rte;
+	uint32_t *p = (uint32_t *) rte;
 
-	sapic_write(sa, SAPIC_RTE_BASE + 2 *which, p[0]);
-	sapic_write(sa, SAPIC_RTE_BASE + 2 *which + 1, p[1]);
+	sapic_write(sa, SAPIC_RTE_BASE + 2 * which, p[0]);
+	sapic_write(sa, SAPIC_RTE_BASE + 2 * which + 1, p[1]);
+}
+
+struct sapic *
+sapic_lookup(u_int irq, u_int *vecp)
+{
+	struct sapic_rte rte;
+	struct sapic *sa;
+	int i;
+
+	for (i = 0; i < ia64_sapic_count; i++) {
+		sa = ia64_sapics[i];
+		if (irq >= sa->sa_base && irq <= sa->sa_limit) {
+			if (vecp != NULL) {
+				mtx_lock_spin(&sa->sa_mtx);
+				sapic_read_rte(sa, irq - sa->sa_base, &rte);
+				mtx_unlock_spin(&sa->sa_mtx);
+				*vecp = rte.rte_vector;
+			}
+			return (sa);
+		}
+	}
+
+	return (NULL);
+}
+
+
+int
+sapic_bind_intr(u_int irq, struct pcpu *pc)
+{
+	struct sapic_rte rte;
+	struct sapic *sa;
+
+	sa = sapic_lookup(irq, NULL);
+	if (sa == NULL)
+		return (EINVAL);
+
+	mtx_lock_spin(&sa->sa_mtx);
+	sapic_read_rte(sa, irq - sa->sa_base, &rte);
+	rte.rte_destination_id = (pc->pc_md.lid >> 24) & 255;
+	rte.rte_destination_eid = (pc->pc_md.lid >> 16) & 255;
+	rte.rte_delivery_mode = SAPIC_DELMODE_FIXED;
+	sapic_write_rte(sa, irq - sa->sa_base, &rte);
+	mtx_unlock_spin(&sa->sa_mtx);
+	return (0);
 }
 
 int
@@ -130,7 +198,7 @@ sapic_config_intr(u_int irq, enum intr_trigger trig, enum intr_polarity pol)
 	struct sapic_rte rte;
 	struct sapic *sa;
 
-	sa = sapic_lookup(irq);
+	sa = sapic_lookup(irq, NULL);
 	if (sa == NULL)
 		return (EINVAL);
 
@@ -154,7 +222,7 @@ sapic_config_intr(u_int irq, enum intr_trigger trig, enum intr_polarity pol)
 }
 
 struct sapic *
-sapic_create(u_int id, u_int base, u_int64_t address)
+sapic_create(u_int id, u_int base, uint64_t address)
 {
 	struct sapic_rte rte;
 	struct sapic *sa;
@@ -214,10 +282,9 @@ sapic_enable(struct sapic *sa, u_int irq, u_int vector)
 void
 sapic_eoi(struct sapic *sa, u_int vector)
 {
-	vm_offset_t reg = sa->sa_registers;
 
-	*(volatile u_int32_t *)(reg + SAPIC_APIC_EOI) = vector;
-	ia64_mf();
+	ia64_st4((void *)(sa->sa_registers + SAPIC_APIC_EOI), vector);
+	ia64_mf_a();
 }
 
 /* Expected to be called with interrupts disabled. */

@@ -334,11 +334,11 @@ int
 do_ast(struct trapframe *tf)
 {
 
-	disable_intr();
+	ia64_disable_intr();
 	while (curthread->td_flags & (TDF_ASTPENDING|TDF_NEEDRESCHED)) {
-		enable_intr();
+		ia64_enable_intr();
 		ast(tf);
-		disable_intr();
+		ia64_disable_intr();
 	}
 	/*
 	 * Keep interrupts disabled. We return r10 as a favor to the EPC
@@ -804,7 +804,7 @@ trap(int vector, struct trapframe *tf)
 		 * out of the gateway page we'll get back into the kernel
 		 * and then we enable single stepping.
 		 * Since this a rather round-about way of enabling single
-		 * stepping, don't make things complicated even more by
+		 * stepping, don't make things even more complicated by
 		 * calling userret() and do_ast(). We do that later...
 		 */
 		tf->tf_special.psr &= ~IA64_PSR_LP;
@@ -815,13 +815,14 @@ trap(int vector, struct trapframe *tf)
 		/*
 		 * Don't assume there aren't any branches other than the
 		 * branch that takes us out of the gateway page. Check the
-		 * iip and raise SIGTRAP only when it's an user address.
+		 * iip and enable single stepping only when it's an user
+		 * address.
 		 */
 		if (tf->tf_special.iip >= VM_MAX_ADDRESS)
 			return;
 		tf->tf_special.psr &= ~IA64_PSR_TB;
-		sig = SIGTRAP;
-		break;
+		tf->tf_special.psr |= IA64_PSR_SS;
+		return;
 
 	case IA64_VEC_IA32_EXCEPTION:
 	case IA64_VEC_IA32_INTERCEPT:
