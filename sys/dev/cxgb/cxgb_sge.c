@@ -119,13 +119,9 @@ SYSCTL_UINT(_hw_cxgb, OID_AUTO, tx_reclaim_threshold, CTLFLAG_RW,
  * we have an m_ext
  */
 static int recycle_enable = 0;
-int cxgb_ext_freed = 0;
-int cxgb_ext_inited = 0;
-int fl_q_size = 0;
-int jumbo_q_size = 0;
 
 extern int cxgb_use_16k_clusters;
-extern int nmbjumbo4;
+extern int nmbjumbop;
 extern int nmbjumbo9;
 extern int nmbjumbo16;
 
@@ -532,21 +528,30 @@ t3_sge_err_intr_handler(adapter_t *adapter)
 void
 t3_sge_prep(adapter_t *adap, struct sge_params *p)
 {
-	int i, nqsets;
+	int i, nqsets, fl_q_size, jumbo_q_size, use_16k, jumbo_buf_size;
 
-	nqsets = min(SGE_QSETS, mp_ncpus*4);
+	nqsets = min(SGE_QSETS / adap->params.nports, mp_ncpus);
+	nqsets *= adap->params.nports;
 
 	fl_q_size = min(nmbclusters/(3*nqsets), FL_Q_SIZE);
 
 	while (!powerof2(fl_q_size))
 		fl_q_size--;
+
+	use_16k = cxgb_use_16k_clusters != -1 ? cxgb_use_16k_clusters :
+	    is_offload(adap);
+
 #if __FreeBSD_version >= 700111
-	if (cxgb_use_16k_clusters) 
+	if (use_16k) {
 		jumbo_q_size = min(nmbjumbo16/(3*nqsets), JUMBO_Q_SIZE);
-	else
+		jumbo_buf_size = MJUM16BYTES;
+	} else {
 		jumbo_q_size = min(nmbjumbo9/(3*nqsets), JUMBO_Q_SIZE);
+		jumbo_buf_size = MJUM9BYTES;
+	}
 #else
-	jumbo_q_size = min(nmbjumbo4/(3*nqsets), JUMBO_Q_SIZE);
+	jumbo_q_size = min(nmbjumbop/(3*nqsets), JUMBO_Q_SIZE);
+	jumbo_buf_size = MJUMPAGESIZE;
 #endif
 	while (!powerof2(jumbo_q_size))
 		jumbo_q_size--;
@@ -555,8 +560,7 @@ t3_sge_prep(adapter_t *adap, struct sge_params *p)
 		device_printf(adap->dev,
 		    "Insufficient clusters and/or jumbo buffers.\n");
 
-	/* XXX Does ETHER_ALIGN need to be accounted for here? */
-	p->max_pkt_size = adap->sge.qs[0].fl[1].buf_size - sizeof(struct cpl_rx_data);
+	p->max_pkt_size = jumbo_buf_size - sizeof(struct cpl_rx_data);
 
 	for (i = 0; i < SGE_QSETS; ++i) {
 		struct qset_params *q = p->qset + i;
@@ -574,9 +578,10 @@ t3_sge_prep(adapter_t *adap, struct sge_params *p)
 		q->rspq_size = RSPQ_Q_SIZE;
 		q->fl_size = fl_q_size;
 		q->jumbo_size = jumbo_q_size;
+		q->jumbo_buf_size = jumbo_buf_size;
 		q->txq_size[TXQ_ETH] = TX_ETH_Q_SIZE;
-		q->txq_size[TXQ_OFLD] = 1024;
-		q->txq_size[TXQ_CTRL] = 256;
+		q->txq_size[TXQ_OFLD] = is_offload(adap) ? TX_OFLD_Q_SIZE : 16;
+		q->txq_size[TXQ_CTRL] = TX_CTRL_Q_SIZE;
 		q->cong_thres = 0;
 	}
 }
@@ -2004,15 +2009,13 @@ t3_free_qset(adapter_t *sc, struct sge_qset *q)
 	int i;
 	
 	reclaim_completed_tx(q, 0, TXQ_ETH);
-	for (i = 0; i < SGE_TXQ_PER_SET; i++) {
-		if (q->txq[i].txq_mr != NULL) 
-			buf_ring_free(q->txq[i].txq_mr, M_DEVBUF);
-		if (q->txq[i].txq_ifq != NULL) {
-			ifq_delete(q->txq[i].txq_ifq);
-			free(q->txq[i].txq_ifq, M_DEVBUF);
-		}
+	if (q->txq[TXQ_ETH].txq_mr != NULL) 
+		buf_ring_free(q->txq[TXQ_ETH].txq_mr, M_DEVBUF);
+	if (q->txq[TXQ_ETH].txq_ifq != NULL) {
+		ifq_delete(q->txq[TXQ_ETH].txq_ifq);
+		free(q->txq[TXQ_ETH].txq_ifq, M_DEVBUF);
 	}
-	
+
 	for (i = 0; i < SGE_RXQ_PER_SET; ++i) {
 		if (q->fl[i].desc) {
 			mtx_lock_spin(&sc->sge.reg_lock);
@@ -2549,25 +2552,22 @@ t3_sge_alloc_qset(adapter_t *sc, u_int id, int nports, int irq_vec_idx,
 	MTX_INIT(&q->lock, q->namebuf, NULL, MTX_DEF);
 	q->port = pi;
 
-	for (i = 0; i < SGE_TXQ_PER_SET; i++) {
-		
-		if ((q->txq[i].txq_mr = buf_ring_alloc(cxgb_txq_buf_ring_size,
-			    M_DEVBUF, M_WAITOK, &q->lock)) == NULL) {
-			device_printf(sc->dev, "failed to allocate mbuf ring\n");
-			goto err;
-		}
-		if ((q->txq[i].txq_ifq =
-			malloc(sizeof(struct ifaltq), M_DEVBUF, M_NOWAIT|M_ZERO))
-		    == NULL) {
-			device_printf(sc->dev, "failed to allocate ifq\n");
-			goto err;
-		}
-		ifq_init(q->txq[i].txq_ifq, pi->ifp);	
-		callout_init(&q->txq[i].txq_timer, 1);
-		callout_init(&q->txq[i].txq_watchdog, 1);
-		q->txq[i].txq_timer.c_cpu = id % mp_ncpus;
-		q->txq[i].txq_watchdog.c_cpu = id % mp_ncpus;
+	if ((q->txq[TXQ_ETH].txq_mr = buf_ring_alloc(cxgb_txq_buf_ring_size,
+	    M_DEVBUF, M_WAITOK, &q->lock)) == NULL) {
+		device_printf(sc->dev, "failed to allocate mbuf ring\n");
+		goto err;
 	}
+	if ((q->txq[TXQ_ETH].txq_ifq = malloc(sizeof(struct ifaltq), M_DEVBUF,
+	    M_NOWAIT | M_ZERO)) == NULL) {
+		device_printf(sc->dev, "failed to allocate ifq\n");
+		goto err;
+	}
+	ifq_init(q->txq[TXQ_ETH].txq_ifq, pi->ifp);	
+	callout_init(&q->txq[TXQ_ETH].txq_timer, 1);
+	callout_init(&q->txq[TXQ_ETH].txq_watchdog, 1);
+	q->txq[TXQ_ETH].txq_timer.c_cpu = id % mp_ncpus;
+	q->txq[TXQ_ETH].txq_watchdog.c_cpu = id % mp_ncpus;
+
 	init_qset_cntxt(q, id);
 	q->idx = id;
 	if ((ret = alloc_ring(sc, p->fl_size, sizeof(struct rx_desc),
@@ -2632,21 +2632,22 @@ t3_sge_alloc_qset(adapter_t *sc, u_int id, int nports, int irq_vec_idx,
 	q->fl[0].buf_size = MCLBYTES;
 	q->fl[0].zone = zone_pack;
 	q->fl[0].type = EXT_PACKET;
-#if __FreeBSD_version > 800000
-	if (cxgb_use_16k_clusters) {		
-		q->fl[1].buf_size = MJUM16BYTES;
+
+	if (p->jumbo_buf_size ==  MJUM16BYTES) {
 		q->fl[1].zone = zone_jumbo16;
 		q->fl[1].type = EXT_JUMBO16;
-	} else {
-		q->fl[1].buf_size = MJUM9BYTES;
+	} else if (p->jumbo_buf_size ==  MJUM9BYTES) {
 		q->fl[1].zone = zone_jumbo9;
 		q->fl[1].type = EXT_JUMBO9;		
+	} else if (p->jumbo_buf_size ==  MJUMPAGESIZE) {
+		q->fl[1].zone = zone_jumbop;
+		q->fl[1].type = EXT_JUMBOP;
+	} else {
+		KASSERT(0, ("can't deal with jumbo_buf_size %d.", p->jumbo_buf_size));
+		ret = EDOOFUS;
+		goto err;
 	}
-#else
-	q->fl[1].buf_size = MJUMPAGESIZE;
-	q->fl[1].zone = zone_jumbop;
-	q->fl[1].type = EXT_JUMBOP;
-#endif
+	q->fl[1].buf_size = p->jumbo_buf_size;
 
 	/* Allocate and setup the lro_ctrl structure */
 	q->lro.enabled = !!(pi->ifp->if_capenable & IFCAP_LRO);
