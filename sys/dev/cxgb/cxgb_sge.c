@@ -1638,12 +1638,9 @@ cxgb_start_locked(struct sge_qset *qs)
 {
 	struct mbuf *m_head = NULL;
 	struct sge_txq *txq = &qs->txq[TXQ_ETH];
-	int avail, txmax;
 	int in_use_init = txq->in_use;
 	struct port_info *pi = qs->port;
 	struct ifnet *ifp = pi->ifp;
-	avail = txq->size - txq->in_use - 4;
-	txmax = min(TX_START_MAX_DESC, avail);
 
 	if (qs->qs_flags & (QS_FLUSHING|QS_TIMEOUT))
 		reclaim_completed_tx(qs, 0, TXQ_ETH);
@@ -1653,11 +1650,13 @@ cxgb_start_locked(struct sge_qset *qs)
 		return;
 	}
 	TXQ_LOCK_ASSERT(qs);
-	while ((txq->in_use - in_use_init < txmax) &&
-	    !TXQ_RING_EMPTY(qs) &&
-	    (ifp->if_drv_flags & IFF_DRV_RUNNING) &&
+	while ((txq->in_use - in_use_init < TX_START_MAX_DESC) &&
+	    !TXQ_RING_EMPTY(qs) && (ifp->if_drv_flags & IFF_DRV_RUNNING) &&
 	    pi->link_config.link_ok) {
 		reclaim_completed_tx(qs, cxgb_tx_reclaim_threshold, TXQ_ETH);
+
+		if (txq->size - txq->in_use <= TX_MAX_DESC)
+			break;
 
 		if ((m_head = cxgb_dequeue(qs)) == NULL)
 			break;
@@ -1697,7 +1696,7 @@ cxgb_transmit_locked(struct ifnet *ifp, struct sge_qset *qs, struct mbuf *m)
 	 * - there is space in hardware transmit queue 
 	 */
 	if (check_pkt_coalesce(qs) == 0 &&
-	    !TXQ_RING_NEEDS_ENQUEUE(qs) && avail > 4) {
+	    !TXQ_RING_NEEDS_ENQUEUE(qs) && avail > TX_MAX_DESC) {
 		if (t3_encap(qs, &m)) {
 			if (m != NULL &&
 			    (error = drbr_enqueue(ifp, br, m)) != 0) 
