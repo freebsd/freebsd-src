@@ -361,6 +361,7 @@ struct adapter {
 
 	struct e1000_osdep osdep;
 	struct device	*dev;
+	struct cdev	*led_dev;
 
 	struct resource *pci_mem;
 	struct resource *msix_mem;
