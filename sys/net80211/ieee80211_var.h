@@ -852,10 +852,10 @@ ieee80211_htchanflags(const struct ieee80211_channel *c)
 	if (ieee80211_msg(_vap, _m))					\
 		ieee80211_note_frame(_vap, _wh, _fmt, __VA_ARGS__);	\
 } while (0)
-void	ieee80211_note(struct ieee80211vap *, const char *, ...);
-void	ieee80211_note_mac(struct ieee80211vap *,
+void	ieee80211_note(const struct ieee80211vap *, const char *, ...);
+void	ieee80211_note_mac(const struct ieee80211vap *,
 		const uint8_t mac[IEEE80211_ADDR_LEN], const char *, ...);
-void	ieee80211_note_frame(struct ieee80211vap *,
+void	ieee80211_note_frame(const struct ieee80211vap *,
 		const struct ieee80211_frame *, const char *, ...);
 #define	ieee80211_msg_debug(_vap) \
 	((_vap)->iv_debug & IEEE80211_MSG_DEBUG)
@@ -893,11 +893,11 @@ void	ieee80211_note_frame(struct ieee80211vap *,
 		ieee80211_discard_mac(_vap, _mac, _type, _fmt, __VA_ARGS__);\
 } while (0)
 
-void ieee80211_discard_frame(struct ieee80211vap *,
+void ieee80211_discard_frame(const struct ieee80211vap *,
 	const struct ieee80211_frame *, const char *type, const char *fmt, ...);
-void ieee80211_discard_ie(struct ieee80211vap *,
+void ieee80211_discard_ie(const struct ieee80211vap *,
 	const struct ieee80211_frame *, const char *type, const char *fmt, ...);
-void ieee80211_discard_mac(struct ieee80211vap *,
+void ieee80211_discard_mac(const struct ieee80211vap *,
 	const uint8_t mac[IEEE80211_ADDR_LEN], const char *type,
 	const char *fmt, ...);
 #else
