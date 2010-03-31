@@ -56,7 +56,7 @@ PMAP_STATS_VAR(spitfire_icache_npage_inval_match);
  * Enable the level 1 caches.
  */
 void
-spitfire_cache_enable(void)
+spitfire_cache_enable(u_int cpu_impl __unused)
 {
 	u_long lsu;
 

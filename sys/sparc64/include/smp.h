@@ -93,7 +93,7 @@ void	cpu_mp_shutdown(void);
 typedef	void cpu_ipi_selected_t(u_int, u_long, u_long, u_long);
 extern	cpu_ipi_selected_t *cpu_ipi_selected;
 
-void	mp_init(void);
+void	mp_init(u_int cpu_impl);
 
 extern	struct mtx ipi_mtx;
 extern	struct ipi_cache_args ipi_cache_args;

@@ -119,11 +119,11 @@ static u_int cpuid_to_mid[MAXCPU];
 static int isjbus;
 static volatile u_int shutdown_cpus;
 
-static void ap_count(phandle_t node, u_int mid);
-static void ap_start(phandle_t node, u_int mid);
+static void ap_count(phandle_t node, u_int mid, u_int cpu_impl);
+static void ap_start(phandle_t node, u_int mid, u_int cpu_impl);
 static void cpu_mp_unleash(void *v);
 static void foreach_ap(phandle_t node, void (*func)(phandle_t node,
-    u_int mid));
+    u_int mid, u_int cpu_impl));
 static void spitfire_ipi_send(u_int mid, u_long d0, u_long d1, u_long d2);
 static void sun4u_startcpu(phandle_t cpu, void *func, u_long arg);
 
@@ -137,7 +137,7 @@ CTASSERT(MAXCPU <= sizeof(u_int) * NBBY);
 CTASSERT(MAXCPU <= sizeof(int) * NBBY);
 
 void
-mp_init(void)
+mp_init(u_int cpu_impl)
 {
 	struct tte *tp;
 	int i;
@@ -171,11 +171,13 @@ mp_init(void)
 }
 
 static void
-foreach_ap(phandle_t node, void (*func)(phandle_t node, u_int mid))
+foreach_ap(phandle_t node, void (*func)(phandle_t node, u_int mid,
+    u_int cpu_impl))
 {
 	char type[sizeof("cpu")];
 	phandle_t child;
 	u_int cpuid;
+	uint32_t cpu_impl;
  
 	/* There's no need to traverse the whole OFW tree twice. */
 	if (mp_maxid > 0 && mp_ncpus >= mp_maxid + 1)
@@ -191,12 +193,17 @@ foreach_ap(phandle_t node, void (*func)(phandle_t node, u_int mid))
 				continue;
 			if (strcmp(type, "cpu") != 0)
 				continue;
-			if (OF_getprop(node, cpu_cpuid_prop(), &cpuid,
-			    sizeof(cpuid)) <= 0)
-			panic("%s: can't get module ID", __func__);
+			if (OF_getprop(node, "implementation#", &cpu_impl,
+			    sizeof(cpu_impl)) <= 0)
+				panic("%s: couldn't determine CPU "
+				    "implementation", __func__);
+			if (OF_getprop(node, cpu_cpuid_prop(cpu_impl), &cpuid,
+			     sizeof(cpuid)) <= 0)
+				panic("%s: couldn't determine CPU module ID",
+				    __func__);
 			if (cpuid == PCPU_GET(mid))
 				continue;
-			(*func)(node, cpuid);
+			(*func)(node, cpuid, cpu_impl);
 		}
 	}
 }
@@ -216,7 +223,7 @@ cpu_mp_setmaxid()
 }
 
 static void
-ap_count(phandle_t node __unused, u_int mid __unused)
+ap_count(phandle_t node __unused, u_int mid __unused, u_int cpu_impl __unused)
 {
 
 	mp_maxid++;
@@ -276,20 +283,20 @@ cpu_mp_start(void)
 }
 
 static void
-ap_start(phandle_t node, u_int mid)
+ap_start(phandle_t node, u_int mid, u_int cpu_impl)
 {
 	volatile struct cpu_start_args *csa;
 	struct pcpu *pc;
 	register_t s;
 	vm_offset_t va;
-	u_int clock;
 	u_int cpuid;
+	uint32_t clock;
 
 	if (mp_ncpus > MAXCPU)
 		return;
 
 	if (OF_getprop(node, "clock-frequency", &clock, sizeof(clock)) <= 0)
-		panic("%s: can't get clock", __func__);
+		panic("%s: couldn't determine CPU frequency", __func__);
 	if (clock != PCPU_GET(clock))
 		hardclock_use_stick = 1;
 
@@ -321,6 +328,7 @@ ap_start(phandle_t node, u_int mid)
 	pcpu_init(pc, cpuid, sizeof(*pc));
 	pc->pc_addr = va;
 	pc->pc_clock = clock;
+	pc->pc_impl = cpu_impl;
 	pc->pc_mid = mid;
 	pc->pc_node = node;
 
@@ -393,9 +401,9 @@ cpu_mp_bootstrap(struct pcpu *pc)
 	volatile struct cpu_start_args *csa;
 
 	csa = &cpu_start_args;
-	if (cpu_impl >= CPU_IMPL_ULTRASPARCIII)
-		cheetah_init();
-	cache_enable();
+	if (pc->pc_impl >= CPU_IMPL_ULTRASPARCIII)
+		cheetah_init(pc->pc_impl);
+	cache_enable(pc->pc_impl);
 	pmap_map_tsb();
 	/*
 	 * Flush all non-locked TLB entries possibly left over by the

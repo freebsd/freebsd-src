@@ -278,7 +278,7 @@ om_cmp(const void *a, const void *b)
  * Bootstrap the system enough to run with virtual memory.
  */
 void
-pmap_bootstrap(void)
+pmap_bootstrap(u_int cpu_impl)
 {
 	struct pmap *pm;
 	struct tte *tp;
@@ -1538,7 +1538,7 @@ pmap_copy_tte(pmap_t src_pmap, pmap_t dst_pmap, struct tte *tp,
 
 void
 pmap_copy(pmap_t dst_pmap, pmap_t src_pmap, vm_offset_t dst_addr,
-	  vm_size_t len, vm_offset_t src_addr)
+    vm_size_t len, vm_offset_t src_addr)
 {
 	struct tte *tp;
 	vm_offset_t va;
