@@ -24,19 +24,6 @@
 #  include <stdlib.h>
 #endif
 
-#if defined(UNDER_CE) && defined(NO_ERRNO_H)
-#  define zseterrno(ERR) SetLastError((DWORD)(ERR))
-#  define zerrno() ((int)GetLastError())
-#else
-#  ifdef NO_ERRNO_H
-     extern int errno;
-#  else
-#    include <errno.h>
-#  endif
-#  define zseterrno(ERR) do { errno = (ERR); } while (0)
-#  define zerrno() errno
-#endif
-
 #ifndef local
 #  define local static
 #endif
@@ -167,10 +154,20 @@ extern const char * const z_errmsg[10]; /* indexed by 2-zlib_error */
   #pragma warn -8066
 #endif
 
-#ifdef _LARGEFILE64_SOURCE
+#if _LARGEFILE64_SOURCE == 1 && _LFS64_LARGEFILE == 1
 #  define z_off64_t off64_t
 #else
 #  define z_off64_t z_off_t
+#endif
+
+/* provide prototypes for these when building zlib without LFS */
+#if _LARGEFILE64_SOURCE != 1 || _LFS64_LARGEFILE != 1
+    ZEXTERN gzFile ZEXPORT gzopen64 OF((const char *, const char *));
+    ZEXTERN off_t ZEXPORT gzseek64 OF((gzFile, off_t, int));
+    ZEXTERN off_t ZEXPORT gztell64 OF((gzFile));
+    ZEXTERN off_t ZEXPORT gzoffset64 OF((gzFile));
+    ZEXTERN uLong ZEXPORT adler32_combine64 OF((uLong, uLong, off_t));
+    ZEXTERN uLong ZEXPORT crc32_combine64 OF((uLong, uLong, off_t));
 #endif
 
         /* common defaults */
@@ -181,12 +178,6 @@ extern const char * const z_errmsg[10]; /* indexed by 2-zlib_error */
 
 #ifndef F_OPEN
 #  define F_OPEN(name, mode) fopen((name), (mode))
-#endif
-
-#ifdef _LARGEFILE64_SOURCE
-#  define F_OPEN64(name, mode) fopen64((name), (mode))
-#else
-#  define F_OPEN64(name, mode) fopen((name), (mode))
 #endif
 
          /* functions */
