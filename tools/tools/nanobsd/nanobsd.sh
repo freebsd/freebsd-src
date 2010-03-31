@@ -134,7 +134,7 @@ PPLEVEL=3
 #######################################################################
 # Not a variable at this time
 
-NANO_ARCH=i386
+NANO_ARCH=`uname -p`
 
 #######################################################################
 #
@@ -495,6 +495,11 @@ create_i386_diskimage ( ) (
 	trap - 1 2 15 EXIT
 
 	) > ${NANO_OBJ}/_.di 2>&1
+)
+
+# i386 and amd64 are identical for disk images
+create_amd64_diskimage ( ) (
+	create_i386_diskimage
 )
 
 last_orders () (
