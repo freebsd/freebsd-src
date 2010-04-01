@@ -31,10 +31,13 @@ __FBSDID("$FreeBSD$");
 Boolean
 fexists(const char *fname)
 {
-    struct stat dummy;
-    if (!lstat(fname, &dummy))
-	return TRUE;
-    return FALSE;
+    int fd;
+
+    if ((fd = open(fname, O_RDONLY)) == -1)
+	return FALSE;
+
+    close(fd);
+    return TRUE;
 }
 
 /* Quick check to see if something is a directory or symlink to a directory */
@@ -279,17 +282,23 @@ copy_file(const char *dir, const char *fname, const char *to)
 }
 
 void
-move_file(const char *dir, const char *fname, const char *to)
+move_file(const char *dir, const char *fname, const char *tdir)
 {
-    char cmd[FILENAME_MAX];
+    char from[FILENAME_MAX];
+    char to[FILENAME_MAX];
 
     if (fname[0] == '/')
-	snprintf(cmd, FILENAME_MAX, "/bin/mv %s %s", fname, to);
+	strncpy(from, fname, FILENAME_MAX);
     else
-	snprintf(cmd, FILENAME_MAX, "/bin/mv %s/%s %s", dir, fname, to);
-    if (vsystem(cmd)) {
-	cleanup(0);
-	errx(2, "%s: could not perform '%s'", __func__, cmd);
+	snprintf(from, FILENAME_MAX, "%s/%s", dir, fname);
+
+    snprintf(to, FILENAME_MAX, "%s/%s", tdir, fname);
+
+    if (rename(from, to) == -1) {
+        if (vsystem("/bin/mv %s %s", from, to)) {
+	    cleanup(0);
+	    errx(2, "%s: could not move '%s' to '%s'", __func__, from, to);
+	}
     }
 }
 

@@ -108,6 +108,10 @@ fileGetURL(const char *base, const char *spec, int keep_package)
     if ((ftp = fetchGetURL(fname, Verbose ? "v" : NULL)) == NULL) {
 	printf("Error: Unable to get %s: %s\n",
 	       fname, fetchLastErrString);
+	/* If the fetch fails, yank the package. */
+	if (keep_package && unlink(pkg) < 0 && Verbose) {
+	    warnx("failed to remove partially fetched package: %s", pkg);
+	}
 	return NULL;
     }
 
