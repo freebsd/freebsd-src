@@ -78,7 +78,7 @@ main(int argc, char *argv[])
 	char rhost[MAXHOSTNAMELEN];
 
 	prog = _PATH_FINGER;
-	logging = kflag = pflag = secure = 0;
+	debug = logging = kflag = pflag = secure = 0;
 	openlog("fingerd", LOG_PID | LOG_CONS, LOG_DAEMON);
 	opterr = 0;
 	while ((ch = getopt(argc, argv, "dklp:s")) != -1)
