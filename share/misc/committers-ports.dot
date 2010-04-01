@@ -67,6 +67,7 @@ cperciva [label="Colin Percival\ncperciva@FreeBSD.org\n2006/01/31"]
 daichi [label="Daichi Goto\ndaichi@FreeBSD.org\n2002/10/17"]
 danfe [label="Alexey Dokuchaev\ndanfe@FreeBSD.org\n2004/08/20"]
 db [label="Diane Bruce\ndb@FreeBSD.org\n2007/01/18"]
+decke [label="Bernhard Froehlich\ndecke@FreeBSD.org\n2010/03/21"]
 delphij [label="Xin Li\ndelphij@FreeBSD.org\n2006/05/01"]
 demon [label="Dmitry Sivachenko\ndemon@FreeBSD.org\n2000/11/13"]
 dryice [label="Dryice Dong Liu\ndryice@FreeBSD.org\n2006/12/25"]
@@ -181,6 +182,8 @@ arved -> stefan
 
 asami -> obrien
 
+beat -> decke
+
 beech -> glarkin
 beech -> mva
 
@@ -283,6 +286,7 @@ mezz -> tmclaugh
 miwi -> amdmi3
 miwi -> avilla
 miwi -> beat
+miwi -> decke
 miwi -> farrokhi
 miwi -> gahr
 miwi -> makc
