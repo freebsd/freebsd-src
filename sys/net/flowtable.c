@@ -598,6 +598,8 @@ flowtable_lookup_mbuf4(struct flowtable *ft, struct mbuf *m)
 
 	dsin = (struct sockaddr_in *)&dsa;
 	ssin = (struct sockaddr_in *)&ssa;
+	bzero(dsin, sizeof(*dsin));
+	bzero(ssin, sizeof(*ssin));
 	flags = ft->ft_flags;
 	if (ipv4_mbuf_demarshal(ft, m, ssin, dsin, &flags) != 0)
 		return (NULL);
@@ -801,6 +803,8 @@ flowtable_lookup_mbuf6(struct flowtable *ft, struct mbuf *m)
 
 	dsin6 = (struct sockaddr_in6 *)&dsa;
 	ssin6 = (struct sockaddr_in6 *)&ssa;
+	bzero(dsin6, sizeof(*dsin6));
+	bzero(ssin6, sizeof(*ssin6));
 	flags = ft->ft_flags;
 	
 	if (ipv6_mbuf_demarshal(ft, m, ssin6, dsin6, &flags) != 0)
@@ -1130,6 +1134,14 @@ flowtable_lookup(struct flowtable *ft, struct sockaddr_storage *ssa,
 
 		ro = &sro;
 		memcpy(&ro->ro_dst, dsa, sizeof(struct sockaddr_in));
+		/*
+		 * The harvested source and destination addresses
+		 * may contain port information if the packet is 
+		 * from a transport protocol (e.g. TCP/UDP). The 
+		 * port field must be cleared before performing 
+		 * a route lookup.
+		 */
+		((struct sockaddr_in *)&ro->ro_dst)->sin_port = 0;
 		dsin = (struct sockaddr_in *)dsa;
 		ssin = (struct sockaddr_in *)ssa;
 		if ((dsin->sin_addr.s_addr == ssin->sin_addr.s_addr) ||
@@ -1147,6 +1159,7 @@ flowtable_lookup(struct flowtable *ft, struct sockaddr_storage *ssa,
 		ro = (struct route *)&sro6;
 		memcpy(&sro6.ro_dst, dsa,
 		    sizeof(struct sockaddr_in6));
+		((struct sockaddr_in6 *)&ro->ro_dst)->sin6_port = 0;
 		dsin6 = (struct sockaddr_in6 *)dsa;
 		ssin6 = (struct sockaddr_in6 *)ssa;
 
