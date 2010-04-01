@@ -3,7 +3,6 @@
 
 .include <bsd.own.mk>
 
-# XXX MISSING:		mkproto
 SUBDIR=	${_ac} \
 	${_accton} \
 	${_acpi} \
