@@ -2246,7 +2246,7 @@ moea64_pvo_to_pte(const struct pvo_entry *pvo, int pteidx)
 		}
 
 		if (((pt->pte_lo ^ pvo->pvo_pte.lpte.pte_lo) & 
-		    ~(LPTE_CHG|LPTE_REF)) != 0) {
+		    ~(LPTE_M|LPTE_CHG|LPTE_REF)) != 0) {
 			panic("moea64_pvo_to_pte: pvo %p pte does not match "
 			    "pte %p in moea64_pteg_table difference is %#x", 
 			    pvo, pt,
@@ -2488,7 +2488,7 @@ moea64_sync_icache(mmu_t mmu, pmap_t pm, vm_offset_t va, vm_size_t sz)
 		len = MIN(lim - va, sz);
 		pvo = moea64_pvo_find_va(pm, va & ~ADDR_POFF, NULL);
 		if (pvo != NULL) {
-			pa = (pvo->pvo_pte.pte.pte_lo & PTE_RPGN) |
+			pa = (pvo->pvo_pte.pte.pte_lo & LPTE_RPGN) |
 			    (va & ADDR_POFF);
 			moea64_syncicache(pm, va, pa, len);
 		}
