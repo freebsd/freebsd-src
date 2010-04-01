@@ -116,13 +116,13 @@ llentry_free(struct llentry *lle)
 
 /*
  * Update an llentry for address dst (equivalent to rtalloc for new-arp)
- * Caller must pass in a valid struct llentry *
+ * Caller must pass in a valid struct llentry * (or NULL)
  *
  * if found the llentry * is returned referenced and unlocked
  */
 int
 llentry_update(struct llentry **llep, struct lltable *lt,
-    struct sockaddr *dst, struct ifnet *ifp)
+    struct sockaddr_storage *dst, struct ifnet *ifp)
 {
 	struct llentry *la;
 
