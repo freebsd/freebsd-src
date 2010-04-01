@@ -1556,38 +1556,13 @@ ZEXTERN int ZEXPORT inflateBackInit_ OF((z_streamp strm, int windowBits,
         inflateBackInit_((strm), (windowBits), (window), \
                                             ZLIB_VERSION, sizeof(z_stream))
 
-#if _LARGEFILE64_SOURCE == 1 && _LFS64_LARGEFILE == 1
-   ZEXTERN gzFile ZEXPORT gzopen64 OF((const char *, const char *));
-   ZEXTERN off64_t ZEXPORT gzseek64 OF((gzFile, off64_t, int));
-   ZEXTERN off64_t ZEXPORT gztell64 OF((gzFile));
-   ZEXTERN off64_t ZEXPORT gzoffset64 OF((gzFile));
-   ZEXTERN uLong ZEXPORT adler32_combine64 OF((uLong, uLong, off64_t));
-   ZEXTERN uLong ZEXPORT crc32_combine64 OF((uLong, uLong, off64_t));
-#endif
 
-#if !defined(ZLIB_INTERNAL) && _FILE_OFFSET_BITS == 64 && _LFS64_LARGEFILE == 1
-#  define gzopen gzopen64
-#  define gzseek gzseek64
-#  define gztell gztell64
-#  define gzoffset gzoffset64
-#  define adler32_combine adler32_combine64
-#  define crc32_combine crc32_combine64
-#  if _LARGEFILE64_SOURCE != 1
-     ZEXTERN gzFile ZEXPORT gzopen64 OF((const char *, const char *));
-     ZEXTERN off_t ZEXPORT gzseek64 OF((gzFile, off_t, int));
-     ZEXTERN off_t ZEXPORT gztell64 OF((gzFile));
-     ZEXTERN off_t ZEXPORT gzoffset64 OF((gzFile));
-     ZEXTERN uLong ZEXPORT adler32_combine64 OF((uLong, uLong, off_t));
-     ZEXTERN uLong ZEXPORT crc32_combine64 OF((uLong, uLong, off_t));
-#  endif
-#else
    ZEXTERN gzFile ZEXPORT gzopen OF((const char *, const char *));
    ZEXTERN z_off_t ZEXPORT gzseek OF((gzFile, z_off_t, int));
    ZEXTERN z_off_t ZEXPORT gztell OF((gzFile));
    ZEXTERN z_off_t ZEXPORT gzoffset OF((gzFile));
    ZEXTERN uLong ZEXPORT adler32_combine OF((uLong, uLong, z_off_t));
    ZEXTERN uLong ZEXPORT crc32_combine OF((uLong, uLong, z_off_t));
-#endif
 
 #if !defined(ZUTIL_H) && !defined(NO_DUMMY_DECL)
     struct internal_state {int dummy;}; /* hack for buggy compilers */
