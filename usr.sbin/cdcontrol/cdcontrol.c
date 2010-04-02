@@ -241,7 +241,7 @@ int main (int argc, char **argv)
 
 	if (argc > 0) {
 		char buf[80], *p;
-		int len;
+		int len, rc;
 
 		for (p=buf; argc-->0; ++argv) {
 			len = strlen (*argv);
@@ -257,7 +257,11 @@ int main (int argc, char **argv)
 		}
 		*p = 0;
 		arg = parse (buf, &cmd);
-		return (run (cmd, arg));
+		rc = run (cmd, arg);
+		if (rc < 0 && verbose)
+			warn(NULL);
+
+		return (rc);
 	}
 
 	if (verbose == 1)
