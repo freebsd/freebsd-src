@@ -2398,25 +2398,33 @@ cxgb_tick_handler(void *arg, int count)
 	if (p->rev == T3_REV_B2 && p->nports < 4 && sc->open_device_map) 
 		check_t3b2_mac(sc);
 
-	cause = t3_read_reg(sc, A_SG_INT_CAUSE);
-	reset = 0;
-	if (cause & F_FLEMPTY) {
+	cause = t3_read_reg(sc, A_SG_INT_CAUSE) & (F_RSPQSTARVE | F_FLEMPTY);
+	if (cause) {
 		struct sge_qset *qs = &sc->sge.qs[0];
+		uint32_t mask, v;
 
-		i = 0;
-		reset |= F_FLEMPTY;
+		v = t3_read_reg(sc, A_SG_RSPQ_FL_STATUS) & ~0xff00;
 
-		cause = (t3_read_reg(sc, A_SG_RSPQ_FL_STATUS) >>
-			 S_FL0EMPTY) & 0xffff;
-		while (cause) {
-			qs->fl[i].empty += (cause & 1);
-			if (i)
-				qs++;
-			i ^= 1;
-			cause >>= 1;
+		mask = 1;
+		for (i = 0; i < SGE_QSETS; i++) {
+			if (v & mask)
+				qs[i].rspq.starved++;
+			mask <<= 1;
 		}
+
+		mask <<= SGE_QSETS; /* skip RSPQXDISABLED */
+
+		for (i = 0; i < SGE_QSETS * 2; i++) {
+			if (v & mask) {
+				qs[i / 2].fl[i % 2].empty++;
+			}
+			mask <<= 1;
+		}
+
+		/* clear */
+		t3_write_reg(sc, A_SG_RSPQ_FL_STATUS, v);
+		t3_write_reg(sc, A_SG_INT_CAUSE, cause);
 	}
-	t3_write_reg(sc, A_SG_INT_CAUSE, reset);
 
 	for (i = 0; i < sc->params.nports; i++) {
 		struct port_info *pi = &sc->port[i];
