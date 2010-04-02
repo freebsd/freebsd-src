@@ -2625,7 +2625,6 @@ sctp_generic_recvmsg(td, uap)
 	error = mac_socket_check_receive(td->td_ucred, so);
 	if (error) {
 		goto out;
-		return (error);
 	}
 #endif /* MAC */
 
