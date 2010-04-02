@@ -905,8 +905,15 @@ PCHReader::PCHReadResult PCHReader::ReadSLocEntryRecord(unsigned ID) {
       return Failure;
     }
 
-    if (Record.size() < 8) {
+    if (Record.size() < 10) {
       Error("source location entry is incorrect");
+      return Failure;
+    }
+
+    if ((off_t)Record[4] != File->getSize() ||
+        (time_t)Record[5] != File->getModificationTime()) {
+      Diag(diag::err_fe_pch_file_modified)
+        << Filename;
       return Failure;
     }
 
@@ -920,10 +927,10 @@ PCHReader::PCHReadResult PCHReader::ReadSLocEntryRecord(unsigned ID) {
 
     // Reconstruct header-search information for this file.
     HeaderFileInfo HFI;
-    HFI.isImport = Record[4];
-    HFI.DirInfo = Record[5];
-    HFI.NumIncludes = Record[6];
-    HFI.ControllingMacroID = Record[7];
+    HFI.isImport = Record[6];
+    HFI.DirInfo = Record[7];
+    HFI.NumIncludes = Record[8];
+    HFI.ControllingMacroID = Record[9];
     if (Listener)
       Listener->ReadHeaderFileInfo(HFI, File->getUID());
     break;
@@ -2068,20 +2075,21 @@ QualType PCHReader::ReadTypeRecord(uint64_t Offset) {
   }
 
   case pch::TYPE_FUNCTION_NO_PROTO: {
-    if (Record.size() != 3) {
+    if (Record.size() != 4) {
       Error("incorrect encoding of no-proto function type");
       return QualType();
     }
     QualType ResultType = GetType(Record[0]);
-    return Context->getFunctionNoProtoType(ResultType, Record[1],
-                                           (CallingConv)Record[2]);
+    FunctionType::ExtInfo Info(Record[1], Record[2], (CallingConv)Record[3]);
+    return Context->getFunctionNoProtoType(ResultType, Info);
   }
 
   case pch::TYPE_FUNCTION_PROTO: {
     QualType ResultType = GetType(Record[0]);
     bool NoReturn = Record[1];
-    CallingConv CallConv = (CallingConv)Record[2];
-    unsigned Idx = 3;
+    unsigned RegParm = Record[2];
+    CallingConv CallConv = (CallingConv)Record[3];
+    unsigned Idx = 4;
     unsigned NumParams = Record[Idx++];
     llvm::SmallVector<QualType, 16> ParamTypes;
     for (unsigned I = 0; I != NumParams; ++I)
@@ -2097,7 +2105,9 @@ QualType PCHReader::ReadTypeRecord(uint64_t Offset) {
     return Context->getFunctionType(ResultType, ParamTypes.data(), NumParams,
                                     isVariadic, Quals, hasExceptionSpec,
                                     hasAnyExceptionSpec, NumExceptions,
-                                    Exceptions.data(), NoReturn, CallConv);
+                                    Exceptions.data(),
+                                    FunctionType::ExtInfo(NoReturn, RegParm,
+                                                          CallConv));
   }
 
   case pch::TYPE_UNRESOLVED_USING:
@@ -2341,7 +2351,7 @@ void TypeLocReader::VisitQualifiedNameTypeLoc(QualifiedNameTypeLoc TL) {
 void TypeLocReader::VisitInjectedClassNameTypeLoc(InjectedClassNameTypeLoc TL) {
   TL.setNameLoc(SourceLocation::getFromRawEncoding(Record[Idx++]));
 }
-void TypeLocReader::VisitTypenameTypeLoc(TypenameTypeLoc TL) {
+void TypeLocReader::VisitDependentNameTypeLoc(DependentNameTypeLoc TL) {
   TL.setNameLoc(SourceLocation::getFromRawEncoding(Record[Idx++]));
 }
 void TypeLocReader::VisitObjCInterfaceTypeLoc(ObjCInterfaceTypeLoc TL) {

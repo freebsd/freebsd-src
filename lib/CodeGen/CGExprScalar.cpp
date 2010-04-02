@@ -769,6 +769,9 @@ Value *ScalarExprEmitter::VisitInitListExpr(InitListExpr *E) {
 
 static bool ShouldNullCheckClassCastValue(const CastExpr *CE) {
   const Expr *E = CE->getSubExpr();
+
+  if (CE->getCastKind() == CastExpr::CK_UncheckedDerivedToBase)
+    return false;
   
   if (isa<CXXThisExpr>(E)) {
     // We always assume that 'this' is never null.
@@ -826,6 +829,7 @@ Value *ScalarExprEmitter::EmitCastExpr(CastExpr *CE) {
     return CGF.GetAddressOfDerivedClass(Src, BaseClassDecl, DerivedClassDecl, 
                                         NullCheckValue);
   }
+  case CastExpr::CK_UncheckedDerivedToBase:
   case CastExpr::CK_DerivedToBase: {
     const RecordType *DerivedClassTy = 
       E->getType()->getAs<PointerType>()->getPointeeType()->getAs<RecordType>();
@@ -1337,6 +1341,11 @@ Value *ScalarExprEmitter::EmitSub(const BinOpInfo &Ops) {
 
     if (Ops.LHS->getType()->isFPOrFPVectorTy())
       return Builder.CreateFSub(Ops.LHS, Ops.RHS, "sub");
+
+    // Signed integer overflow is undefined behavior.
+    if (Ops.Ty->isSignedIntegerType())
+      return Builder.CreateNSWSub(Ops.LHS, Ops.RHS, "sub");
+
     return Builder.CreateSub(Ops.LHS, Ops.RHS, "sub");
   }
 

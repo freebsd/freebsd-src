@@ -2,6 +2,7 @@ set(LLVM_NO_RTTI 1)
 
 add_clang_library(clangChecker
   AdjustedReturnValueChecker.cpp
+  AggExprVisitor.cpp
   ArrayBoundChecker.cpp
   AttrNonNullChecker.cpp
   BasicConstraintManager.cpp
@@ -11,16 +12,16 @@ add_clang_library(clangChecker
   BugReporter.cpp
   BugReporterVisitors.cpp
   BuiltinFunctionChecker.cpp
-  CFRefCount.cpp
   CallAndMessageChecker.cpp
   CallInliner.cpp
   CastToStructChecker.cpp
+  CFRefCount.cpp
   CheckDeadStores.cpp
+  Checker.cpp
   CheckObjCDealloc.cpp
   CheckObjCInstMethSignature.cpp
   CheckSecuritySyntaxOnly.cpp
   CheckSizeofPointer.cpp
-  Checker.cpp
   CocoaConventions.cpp
   DereferenceChecker.cpp
   DivZeroChecker.cpp
@@ -38,11 +39,11 @@ add_clang_library(clangChecker
   MallocChecker.cpp
   ManagerRegistry.cpp
   MemRegion.cpp
+  NoReturnFunctionChecker.cpp
   NSAutoreleasePoolChecker.cpp
   NSErrorChecker.cpp
-  NoReturnFunctionChecker.cpp
-  OSAtomicChecker.cpp
   ObjCUnusedIVarsChecker.cpp
+  OSAtomicChecker.cpp
   PathDiagnostic.cpp
   PointerArithChecker.cpp
   PointerSubChecker.cpp
@@ -52,18 +53,18 @@ add_clang_library(clangChecker
   ReturnPointerRangeChecker.cpp
   ReturnStackAddressChecker.cpp
   ReturnUndefChecker.cpp
-  SVals.cpp
-  SValuator.cpp
   SimpleConstraintManager.cpp
   SimpleSValuator.cpp
   Store.cpp
+  SVals.cpp
+  SValuator.cpp
   SymbolManager.cpp
   UndefBranchChecker.cpp
   UndefCapturedBlockVarChecker.cpp
-  UndefResultChecker.cpp
   UndefinedArraySubscriptChecker.cpp
   UndefinedAssignmentChecker.cpp
+  UndefResultChecker.cpp
   UnixAPIChecker.cpp
-  VLASizeChecker.cpp
   ValueManager.cpp
+  VLASizeChecker.cpp
   )

@@ -988,7 +988,7 @@ void Parser::ParseObjCClassInstanceVariables(DeclPtrTy interfaceDecl,
     // Check for extraneous top-level semicolon.
     if (Tok.is(tok::semi)) {
       Diag(Tok, diag::ext_extra_struct_semi)
-        << CodeModificationHint::CreateRemoval(Tok.getLocation());
+        << FixItHint::CreateRemoval(Tok.getLocation());
       ConsumeToken();
       continue;
     }
@@ -1236,7 +1236,7 @@ Parser::DeclPtrTy Parser::ParseObjCAtImplementationDeclaration(
 
   if (Tok.is(tok::l_brace)) // we have ivars
     ParseObjCClassInstanceVariables(ImplClsType/*FIXME*/, 
-                                    tok::objc_protected, atLoc);
+                                    tok::objc_private, atLoc);
   ObjCImpDecl = ImplClsType;
   PendingObjCImpDecl.push_back(ObjCImpDecl);
   
@@ -1571,7 +1571,7 @@ Parser::DeclPtrTy Parser::ParseObjCMethodDefinition() {
   if (Tok.is(tok::semi)) {
     if (ObjCImpDecl) {
       Diag(Tok, diag::warn_semicolon_before_method_body)
-        << CodeModificationHint::CreateRemoval(Tok.getLocation());
+        << FixItHint::CreateRemoval(Tok.getLocation());
     }
     ConsumeToken();
   }
@@ -1817,9 +1817,12 @@ Parser::ParseObjCMessageExpressionBody(SourceLocation LBracLoc,
     SkipUntil(tok::r_square);
     return ExprError();
   }
-
+    
   if (Tok.isNot(tok::r_square)) {
-    Diag(Tok, diag::err_expected_rsquare);
+    if (Tok.is(tok::identifier))
+      Diag(Tok, diag::err_expected_colon);
+    else
+      Diag(Tok, diag::err_expected_rsquare);
     // We must manually skip to a ']', otherwise the expression skipper will
     // stop at the ']' when it skips to the ';'.  We want it to skip beyond
     // the enclosing expression.

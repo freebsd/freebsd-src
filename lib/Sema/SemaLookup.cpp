@@ -304,6 +304,23 @@ void LookupResult::configure() {
                  SemaRef.getLangOptions().CPlusPlus,
                  isForRedeclaration());
   IsAcceptableFn = getResultFilter(LookupKind);
+
+  // If we're looking for one of the allocation or deallocation
+  // operators, make sure that the implicitly-declared new and delete
+  // operators can be found.
+  if (!isForRedeclaration()) {
+    switch (Name.getCXXOverloadedOperator()) {
+    case OO_New:
+    case OO_Delete:
+    case OO_Array_New:
+    case OO_Array_Delete:
+      SemaRef.DeclareGlobalNewDelete();
+      break;
+
+    default:
+      break;
+    }
+  }
 }
 
 // Necessary because CXXBasePaths is not complete in Sema.h
@@ -539,13 +556,13 @@ static bool LookupDirect(Sema &S, LookupResult &R, const DeclContext *DC) {
     // Compute the type of the function that we would expect the conversion
     // function to have, if it were to match the name given.
     // FIXME: Calling convention!
+    FunctionType::ExtInfo ConvProtoInfo = ConvProto->getExtInfo();
     QualType ExpectedType
       = R.getSema().Context.getFunctionType(R.getLookupName().getCXXNameType(),
                                             0, 0, ConvProto->isVariadic(),
                                             ConvProto->getTypeQuals(),
                                             false, false, 0, 0,
-                                            ConvProto->getNoReturnAttr(),
-                                            CC_Default);
+                                    ConvProtoInfo.withCallingConv(CC_Default));
  
     // Perform template argument deduction against the type that we would
     // expect the function to have.

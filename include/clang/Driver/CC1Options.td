@@ -156,6 +156,7 @@ def dependency_file : Separate<"-dependency-file">,
   HelpText<"Filename (or -) to write dependency output to">;
 def sys_header_deps : Flag<"-sys-header-deps">,
   HelpText<"Include system headers in dependency output">;
+def MQ : Separate<"-MQ">, HelpText<"Specify target to quote for dependency">;
 def MT : Separate<"-MT">, HelpText<"Specify target for dependency">;
 def MP : Flag<"-MP">,
   HelpText<"Create phony target for each dependency (other than main file)">;
@@ -407,6 +408,8 @@ def fwritable_strings : Flag<"-fwritable-strings">,
 
 def nostdinc : Flag<"-nostdinc">,
   HelpText<"Disable standard #include directories">;
+def nostdincxx : Flag<"-nostdinc++">,
+  HelpText<"Disable standard #include directories for the C++ standard library">;
 def nobuiltininc : Flag<"-nobuiltininc">,
   HelpText<"Disable builtin #include directories">;
 def F : JoinedOrSeparate<"-F">, MetaVarName<"<directory>">,

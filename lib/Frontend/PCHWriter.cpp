@@ -141,9 +141,11 @@ void PCHTypeWriter::VisitExtVectorType(const ExtVectorType *T) {
 
 void PCHTypeWriter::VisitFunctionType(const FunctionType *T) {
   Writer.AddTypeRef(T->getResultType(), Record);
-  Record.push_back(T->getNoReturnAttr());
+  FunctionType::ExtInfo C = T->getExtInfo();
+  Record.push_back(C.getNoReturn());
+  Record.push_back(C.getRegParm());
   // FIXME: need to stabilize encoding of calling convention...
-  Record.push_back(T->getCallConv());
+  Record.push_back(C.getCC());
 }
 
 void PCHTypeWriter::VisitFunctionNoProtoType(const FunctionNoProtoType *T) {
@@ -404,7 +406,7 @@ void TypeLocWriter::VisitQualifiedNameTypeLoc(QualifiedNameTypeLoc TL) {
 void TypeLocWriter::VisitInjectedClassNameTypeLoc(InjectedClassNameTypeLoc TL) {
   Writer.AddSourceLocation(TL.getNameLoc(), Record);
 }
-void TypeLocWriter::VisitTypenameTypeLoc(TypenameTypeLoc TL) {
+void TypeLocWriter::VisitDependentNameTypeLoc(DependentNameTypeLoc TL) {
   Writer.AddSourceLocation(TL.getNameLoc(), Record);
 }
 void TypeLocWriter::VisitObjCInterfaceTypeLoc(ObjCInterfaceTypeLoc TL) {
@@ -921,6 +923,9 @@ static unsigned CreateSLocFileAbbrev(llvm::BitstreamWriter &Stream) {
   Abbrev->Add(BitCodeAbbrevOp(BitCodeAbbrevOp::VBR, 8)); // Include location
   Abbrev->Add(BitCodeAbbrevOp(BitCodeAbbrevOp::Fixed, 2)); // Characteristic
   Abbrev->Add(BitCodeAbbrevOp(BitCodeAbbrevOp::Fixed, 1)); // Line directives
+  // FileEntry fields.
+  Abbrev->Add(BitCodeAbbrevOp(BitCodeAbbrevOp::VBR, 12)); // Size
+  Abbrev->Add(BitCodeAbbrevOp(BitCodeAbbrevOp::VBR, 32)); // Modification time
   // HeaderFileInfo fields.
   Abbrev->Add(BitCodeAbbrevOp(BitCodeAbbrevOp::Fixed, 1)); // isImport
   Abbrev->Add(BitCodeAbbrevOp(BitCodeAbbrevOp::Fixed, 2)); // DirInfo
@@ -1062,6 +1067,10 @@ void PCHWriter::WriteSourceManagerBlock(SourceManager &SourceMgr,
       if (Content->Entry) {
         // The source location entry is a file. The blob associated
         // with this entry is the file name.
+
+        // Emit size/modification time for this file.
+        Record.push_back(Content->Entry->getSize());
+        Record.push_back(Content->Entry->getModificationTime());
 
         // Emit header-search information associated with this file.
         HeaderFileInfo HFI;

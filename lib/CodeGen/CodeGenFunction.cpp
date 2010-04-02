@@ -199,8 +199,8 @@ void CodeGenFunction::StartFunction(GlobalDecl GD, QualType RetTy,
 
   QualType FnType = getContext().getFunctionType(RetTy, 0, 0, false, 0,
                                                  false, false, 0, 0,
-                                                 /*FIXME?*/false,
-                                                 /*FIXME?*/CC_Default);
+                                                 /*FIXME?*/
+                                                 FunctionType::ExtInfo());
 
   // Emit subprogram debug descriptor.
   if (CGDebugInfo *DI = getDebugInfo()) {
@@ -211,7 +211,7 @@ void CodeGenFunction::StartFunction(GlobalDecl GD, QualType RetTy,
   // FIXME: Leaked.
   // CC info is ignored, hopefully?
   CurFnInfo = &CGM.getTypes().getFunctionInfo(FnRetTy, Args,
-                                              CC_Default, false);
+                                              FunctionType::ExtInfo());
 
   if (RetTy->isVoidType()) {
     // Void type; nothing to return.
@@ -279,7 +279,7 @@ void CodeGenFunction::GenerateCode(GlobalDecl GD, llvm::Function *Fn) {
       Args.push_back(std::make_pair(CXXThisDecl, CXXThisDecl->getType()));
       
       // Check if we need a VTT parameter as well.
-      if (CGVtableInfo::needsVTTParameter(GD)) {
+      if (CodeGenVTables::needsVTTParameter(GD)) {
         // FIXME: The comment about using a fake decl above applies here too.
         QualType T = getContext().getPointerType(getContext().VoidPtrTy);
         CXXVTTDecl = 

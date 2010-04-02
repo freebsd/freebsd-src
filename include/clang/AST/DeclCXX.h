@@ -33,6 +33,7 @@ class CXXDestructorDecl;
 class CXXMethodDecl;
 class CXXRecordDecl;
 class CXXMemberLookupCriteria;
+class CXXFinalOverriderMap;
 class FriendDecl;
   
 /// \brief Represents any kind of function declaration, whether it is a
@@ -328,6 +329,10 @@ class CXXRecordDecl : public RecordDecl {
   /// instantiated or specialized.
   llvm::PointerUnion<ClassTemplateDecl*, MemberSpecializationInfo*>
     TemplateOrInstantiation;
+
+#ifndef NDEBUG
+  void CheckConversionFunction(NamedDecl *D);
+#endif
   
 protected:
   CXXRecordDecl(Kind K, TagKind TK, DeclContext *DC,
@@ -549,17 +554,26 @@ public:
     return getConversionFunctions()->replace(Old, New);
   }
 
+  /// Removes a conversion function from this class.  The conversion
+  /// function must currently be a member of this class.  Furthermore,
+  /// this class must currently be in the process of being defined.
+  void removeConversion(const NamedDecl *Old);
+
   /// getVisibleConversionFunctions - get all conversion functions visible
   /// in current class; including conversion function templates.
   const UnresolvedSetImpl *getVisibleConversionFunctions();
 
-  /// addConversionFunction - Add a new conversion function to the
-  /// list of conversion functions.
-  void addConversionFunction(CXXConversionDecl *ConvDecl);
+  /// addConversionFunction - Registers a conversion function which
+  /// this class declares directly.
+  void addConversionFunction(NamedDecl *Decl) {
+#ifndef NDEBUG
+    CheckConversionFunction(Decl);
+#endif
 
-  /// \brief Add a new conversion function template to the list of conversion
-  /// functions.
-  void addConversionFunction(FunctionTemplateDecl *ConvDecl);
+    // We intentionally don't use the decl's access here because it
+    // hasn't been set yet.  That's really just a misdesign in Sema.
+    data().Conversions.addDecl(Decl);
+  }
 
   /// isAggregate - Whether this class is an aggregate (C++
   /// [dcl.init.aggr]), which is a class with no user-declared
@@ -879,7 +893,12 @@ public:
   static bool FindNestedNameSpecifierMember(const CXXBaseSpecifier *Specifier,
                                             CXXBasePath &Path,
                                             void *UserData);
-  
+
+  /// \brief Retrieve the final overriders for each virtual member
+  /// function in the class hierarchy where this class is the
+  /// most-derived class in the class hierarchy.
+  void getFinalOverriders(CXXFinalOverriderMap &FinaOverriders) const;
+
   /// viewInheritance - Renders and displays an inheritance diagram
   /// for this C++ class and all of its base classes (transitively) using
   /// GraphViz.
@@ -935,7 +954,7 @@ public:
     
     return (CD->begin_overridden_methods() != CD->end_overridden_methods());
   }
-  
+
   /// \brief Determine whether this is a usual deallocation function
   /// (C++ [basic.stc.dynamic.deallocation]p2), which is an overloaded
   /// delete or delete[] operator with a particular signature.

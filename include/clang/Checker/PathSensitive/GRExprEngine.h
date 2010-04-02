@@ -16,7 +16,6 @@
 #ifndef LLVM_CLANG_ANALYSIS_GREXPRENGINE
 #define LLVM_CLANG_ANALYSIS_GREXPRENGINE
 
-#include "clang/Checker/PathSensitive/AnalysisManager.h"
 #include "clang/Checker/PathSensitive/GRSubEngine.h"
 #include "clang/Checker/PathSensitive/GRCoreEngine.h"
 #include "clang/Checker/PathSensitive/GRState.h"
@@ -28,11 +27,9 @@
 #include "clang/AST/ExprCXX.h"
 
 namespace clang {
-
-  class PathDiagnosticClient;
-  class Diagnostic;
-  class ObjCForCollectionStmt;
-  class Checker;
+class AnalysisManager;
+class Checker;
+class ObjCForCollectionStmt;
 
 class GRExprEngine : public GRSubEngine {
   AnalysisManager &AMgr;
@@ -153,7 +150,7 @@ public:
   /// ProcessBlockEntrance - Called by GRCoreEngine when start processing
   ///  a CFGBlock.  This method returns true if the analysis should continue
   ///  exploring the given path, and false otherwise.
-  bool ProcessBlockEntrance(CFGBlock* B, const GRState* St,
+  bool ProcessBlockEntrance(CFGBlock* B, const ExplodedNode *Pred,
                             GRBlockCounter BC);
 
   /// ProcessBranch - Called by GRCoreEngine.  Used to generate successor
@@ -216,7 +213,7 @@ public:
                          const GRState* St,
                          ProgramPoint::Kind K = ProgramPoint::PostStmtKind,
                          const void *tag = 0);
-protected:
+
   /// CheckerVisit - Dispatcher for performing checker-specific logic
   ///  at specific statements.
   void CheckerVisit(Stmt *S, ExplodedNodeSet &Dst, ExplodedNodeSet &Src, 
@@ -351,9 +348,20 @@ protected:
   void VisitCXXConstructExpr(const CXXConstructExpr *E, SVal Dest,
                              ExplodedNode *Pred,
                              ExplodedNodeSet &Dst);
+
+  void VisitCXXMemberCallExpr(const CXXMemberCallExpr *MCE, ExplodedNode *Pred,
+                              ExplodedNodeSet &Dst);
+
+  void VisitAggExpr(const Expr *E, SVal Dest, ExplodedNode *Pred,
+                    ExplodedNodeSet &Dst);
+
   /// Create a C++ temporary object for an rvalue.
   void CreateCXXTemporaryObject(Expr *Ex, ExplodedNode *Pred, 
                                 ExplodedNodeSet &Dst);
+
+  /// Synthesize CXXThisRegion.
+  const CXXThisRegion *getCXXThisRegion(const CXXMethodDecl *MD,
+                                        const StackFrameContext *SFC);
 
   /// EvalEagerlyAssume - Given the nodes in 'Src', eagerly assume symbolic
   ///  expressions of the form 'x != 0' and generate new nodes (stored in Dst)

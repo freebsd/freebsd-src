@@ -184,13 +184,11 @@ Sema::CheckBuiltinFunctionCall(unsigned BuiltinID, CallExpr *TheCall) {
   case Builtin::BI__sync_fetch_and_or:
   case Builtin::BI__sync_fetch_and_and:
   case Builtin::BI__sync_fetch_and_xor:
-  case Builtin::BI__sync_fetch_and_nand:
   case Builtin::BI__sync_add_and_fetch:
   case Builtin::BI__sync_sub_and_fetch:
   case Builtin::BI__sync_and_and_fetch:
   case Builtin::BI__sync_or_and_fetch:
   case Builtin::BI__sync_xor_and_fetch:
-  case Builtin::BI__sync_nand_and_fetch:
   case Builtin::BI__sync_val_compare_and_swap:
   case Builtin::BI__sync_bool_compare_and_swap:
   case Builtin::BI__sync_lock_test_and_set:
@@ -222,11 +220,6 @@ bool Sema::CheckFunctionCall(FunctionDecl *FDecl, CallExpr *TheCall) {
   if (const FormatAttr *Format = FDecl->getAttr<FormatAttr>()) {
     if (CheckablePrintfAttr(Format, TheCall)) {
       bool HasVAListArg = Format->getFirstArg() == 0;
-      if (!HasVAListArg) {
-        if (const FunctionProtoType *Proto
-            = FDecl->getType()->getAs<FunctionProtoType>())
-          HasVAListArg = !Proto->isVariadic();
-      }
       CheckPrintfArguments(TheCall, HasVAListArg, Format->getFormatIdx() - 1,
                            HasVAListArg ? 0 : Format->getFirstArg() - 1);
     }
@@ -257,12 +250,6 @@ bool Sema::CheckBlockCall(NamedDecl *NDecl, CallExpr *TheCall) {
     return false;
 
   bool HasVAListArg = Format->getFirstArg() == 0;
-  if (!HasVAListArg) {
-    const FunctionType *FT =
-      Ty->getAs<BlockPointerType>()->getPointeeType()->getAs<FunctionType>();
-    if (const FunctionProtoType *Proto = dyn_cast<FunctionProtoType>(FT))
-      HasVAListArg = !Proto->isVariadic();
-  }
   CheckPrintfArguments(TheCall, HasVAListArg, Format->getFormatIdx() - 1,
                        HasVAListArg ? 0 : Format->getFirstArg() - 1);
 
@@ -315,14 +302,12 @@ bool Sema::SemaBuiltinAtomicOverloaded(CallExpr *TheCall) {
     BUILTIN_ROW(__sync_fetch_and_or),
     BUILTIN_ROW(__sync_fetch_and_and),
     BUILTIN_ROW(__sync_fetch_and_xor),
-    BUILTIN_ROW(__sync_fetch_and_nand),
 
     BUILTIN_ROW(__sync_add_and_fetch),
     BUILTIN_ROW(__sync_sub_and_fetch),
     BUILTIN_ROW(__sync_and_and_fetch),
     BUILTIN_ROW(__sync_or_and_fetch),
     BUILTIN_ROW(__sync_xor_and_fetch),
-    BUILTIN_ROW(__sync_nand_and_fetch),
 
     BUILTIN_ROW(__sync_val_compare_and_swap),
     BUILTIN_ROW(__sync_bool_compare_and_swap),
@@ -357,26 +342,24 @@ bool Sema::SemaBuiltinAtomicOverloaded(CallExpr *TheCall) {
   case Builtin::BI__sync_fetch_and_or:  BuiltinIndex = 2; break;
   case Builtin::BI__sync_fetch_and_and: BuiltinIndex = 3; break;
   case Builtin::BI__sync_fetch_and_xor: BuiltinIndex = 4; break;
-  case Builtin::BI__sync_fetch_and_nand:BuiltinIndex = 5; break;
 
-  case Builtin::BI__sync_add_and_fetch: BuiltinIndex = 6; break;
-  case Builtin::BI__sync_sub_and_fetch: BuiltinIndex = 7; break;
-  case Builtin::BI__sync_and_and_fetch: BuiltinIndex = 8; break;
-  case Builtin::BI__sync_or_and_fetch:  BuiltinIndex = 9; break;
-  case Builtin::BI__sync_xor_and_fetch: BuiltinIndex =10; break;
-  case Builtin::BI__sync_nand_and_fetch:BuiltinIndex =11; break;
+  case Builtin::BI__sync_add_and_fetch: BuiltinIndex = 5; break;
+  case Builtin::BI__sync_sub_and_fetch: BuiltinIndex = 6; break;
+  case Builtin::BI__sync_and_and_fetch: BuiltinIndex = 7; break;
+  case Builtin::BI__sync_or_and_fetch:  BuiltinIndex = 8; break;
+  case Builtin::BI__sync_xor_and_fetch: BuiltinIndex = 9; break;
 
   case Builtin::BI__sync_val_compare_and_swap:
-    BuiltinIndex = 12;
+    BuiltinIndex = 10;
     NumFixed = 2;
     break;
   case Builtin::BI__sync_bool_compare_and_swap:
-    BuiltinIndex = 13;
+    BuiltinIndex = 11;
     NumFixed = 2;
     break;
-  case Builtin::BI__sync_lock_test_and_set: BuiltinIndex = 14; break;
+  case Builtin::BI__sync_lock_test_and_set: BuiltinIndex = 12; break;
   case Builtin::BI__sync_lock_release:
-    BuiltinIndex = 15;
+    BuiltinIndex = 13;
     NumFixed = 0;
     break;
   }
@@ -1045,6 +1028,7 @@ class CheckPrintfHandler : public analyze_printf::FormatStringHandler {
   Sema &S;
   const StringLiteral *FExpr;
   const Expr *OrigFormatExpr;
+  const unsigned FirstDataArg;
   const unsigned NumDataArgs;
   const bool IsObjCLiteral;
   const char *Beg; // Start of format string.
@@ -1056,11 +1040,12 @@ class CheckPrintfHandler : public analyze_printf::FormatStringHandler {
   bool atFirstArg;
 public:
   CheckPrintfHandler(Sema &s, const StringLiteral *fexpr,
-                     const Expr *origFormatExpr,
+                     const Expr *origFormatExpr, unsigned firstDataArg,
                      unsigned numDataArgs, bool isObjCLiteral,
                      const char *beg, bool hasVAListArg,
                      const CallExpr *theCall, unsigned formatIdx)
     : S(s), FExpr(fexpr), OrigFormatExpr(origFormatExpr),
+      FirstDataArg(firstDataArg),
       NumDataArgs(numDataArgs),
       IsObjCLiteral(isObjCLiteral), Beg(beg),
       HasVAListArg(hasVAListArg),
@@ -1183,10 +1168,8 @@ void CheckPrintfHandler::HandleNullChar(const char *nullCharacter) {
 }
 
 const Expr *CheckPrintfHandler::getDataArg(unsigned i) const {
-  return TheCall->getArg(FormatIdx + i + 1);
+  return TheCall->getArg(FirstDataArg + i);
 }
-
-
 
 void CheckPrintfHandler::HandleFlags(const analyze_printf::FormatSpecifier &FS,
                                      llvm::StringRef flag,
@@ -1329,9 +1312,18 @@ CheckPrintfHandler::HandleFormatSpecifier(const analyze_printf::FormatSpecifier
     return true;
 
   if (argIndex >= NumDataArgs) {
-    S.Diag(getLocationOfByte(CS.getStart()),
-           diag::warn_printf_insufficient_data_args)
-      << getFormatSpecifierRange(startSpecifier, specifierLen);
+    if (FS.usesPositionalArg())  {
+      S.Diag(getLocationOfByte(CS.getStart()),
+             diag::warn_printf_positional_arg_exceeds_data_args)
+        << (argIndex+1) << NumDataArgs
+        << getFormatSpecifierRange(startSpecifier, specifierLen);
+    }
+    else {
+      S.Diag(getLocationOfByte(CS.getStart()),
+             diag::warn_printf_insufficient_data_args)
+        << getFormatSpecifierRange(startSpecifier, specifierLen);
+    }
+
     // Don't do any more checking.
     return false;
   }
@@ -1400,7 +1392,7 @@ void Sema::CheckPrintfString(const StringLiteral *FExpr,
     return;
   }
 
-  CheckPrintfHandler H(*this, FExpr, OrigFormatExpr,
+  CheckPrintfHandler H(*this, FExpr, OrigFormatExpr, firstDataArg,
                        TheCall->getNumArgs() - firstDataArg,
                        isa<ObjCStringLiteral>(OrigFormatExpr), Str,
                        HasVAListArg, TheCall, format_idx);
@@ -2262,10 +2254,6 @@ bool Sema::CheckParmsForFunctionDef(FunctionDecl *FD) {
         Diag(Param->getLocation(), diag::err_array_star_in_function_definition);
       }
     }
-
-    if (getLangOptions().CPlusPlus)
-      if (const RecordType *RT = Param->getType()->getAs<RecordType>())
-        FinalizeVarWithDestructor(Param, RT);
   }
 
   return HasInvalidParm;

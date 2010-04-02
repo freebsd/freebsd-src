@@ -1,5 +1,6 @@
 // RUN: %clang_cc1 -faccess-control -verify -emit-llvm-only %s
 
+namespace test0 {
 template <typename T> struct Num {
   T value_;
 
@@ -54,6 +55,7 @@ int calc2() {
   Num<int> result = x * n;
   return result.get();
 }
+}
 
 // Reduced from GNU <locale>
 namespace test1 {
@@ -84,4 +86,133 @@ namespace test2 {
       return a->b; // expected-error {{'b' is a private member of 'test2::A'}}
     }
   };
+}
+
+namespace test3 {
+  class Bool;
+  template <class T> class User;
+  template <class T> T transform(class Bool, T);
+
+  class Bool {
+    friend class User<bool>;
+    friend bool transform<>(Bool, bool);
+
+    bool value; // expected-note 2 {{declared private here}}
+  };
+
+  template <class T> class User {
+    static T compute(Bool b) {
+      return b.value; // expected-error {{'value' is a private member of 'test3::Bool'}}
+    }
+  };
+
+  template <class T> T transform(Bool b, T value) {
+    if (b.value) // expected-error {{'value' is a private member of 'test3::Bool'}}
+      return value;
+    return value + 1;
+  }
+
+  template bool transform(Bool, bool);
+  template int transform(Bool, int); // expected-note {{requested here}}
+
+  template class User<bool>;
+  template class User<int>; // expected-note {{requested here}}
+}
+
+namespace test4 {
+  template <class T> class A {
+    template <class T0> friend class B;
+    bool foo(const A<T> *) const;
+  };
+
+  template <class T> class B {
+    bool bar(const A<T> *a, const A<T> *b) {
+      return a->foo(b);
+    }
+  };
+
+  template class B<int>;
+}
+
+namespace test5 {
+  template <class T, class U=int> class A {};
+  template <class T> class B {
+    template <class X, class Y> friend class A;
+  };
+  template class B<int>;
+  template class A<int>;
+}
+
+namespace Dependent {
+  template<typename T, typename Traits> class X;
+  template<typename T, typename Traits> 
+  X<T, Traits> operator+(const X<T, Traits>&, const T*);
+
+  template<typename T, typename Traits> class X {
+    typedef typename Traits::value_type value_type;
+    friend X operator+<>(const X&, const value_type*);
+  };
+}
+
+namespace test7 {
+  template <class T> class A { // expected-note {{previous definition is here}}
+    friend class B;
+    int x; // expected-note {{declared private here}}
+  };
+
+  class B {
+    int foo(A<int> &a) {
+      return a.x;
+    }
+  };
+
+  class C {
+    int foo(A<int> &a) {
+      return a.x; // expected-error {{'x' is a private member of 'test7::A<int>'}}
+    }
+  };
+
+  // This shouldn't crash.
+  template <class T> class D {
+    friend class A; // expected-error {{redefinition of 'A' as different kind of symbol}}
+  };
+  template class D<int>;
+}
+
+namespace test8 {
+  template <class N> class A {
+    static int x;
+    template <class T> friend void foo();
+  };
+  template class A<int>;
+
+  template <class T> void foo() {
+    A<int>::x = 0;
+  }
+  template void foo<int>();
+}
+
+namespace test9 {
+  template <class T> class A {
+    class B; class C;
+
+    int foo(B *b) {
+      return b->x;
+    }
+
+    int foo(C *c) {
+      return c->x; // expected-error {{'x' is a private member}}
+    }
+
+    class B {
+      int x;
+      friend int A::foo(B*);
+    };
+
+    class C {
+      int x; // expected-note {{declared private here}}
+    };
+  };
+
+  template class A<int>; // expected-note {{in instantiation}}
 }

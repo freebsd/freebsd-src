@@ -537,18 +537,22 @@ public:
 
   /// \brief Build a new typename type that refers to a template-id.
   ///
-  /// By default, builds a new TypenameType type from the nested-name-specifier
+  /// By default, builds a new DependentNameType type from the 
+  /// nested-name-specifier
   /// and the given type. Subclasses may override this routine to provide
   /// different behavior.
-  QualType RebuildTypenameType(NestedNameSpecifier *NNS, QualType T) {
+  QualType RebuildDependentNameType(ElaboratedTypeKeyword Keyword,
+                                    NestedNameSpecifier *NNS, QualType T) {
     if (NNS->isDependent()) {
+      // If the name is still dependent, just build a new dependent name type.
       CXXScopeSpec SS;
       SS.setScopeRep(NNS);
       if (!SemaRef.computeDeclContext(SS))
-        return SemaRef.Context.getTypenameType(NNS,
+        return SemaRef.Context.getDependentNameType(Keyword, NNS,
                                           cast<TemplateSpecializationType>(T));
     }
-
+    
+    // FIXME: Handle elaborated-type-specifiers separately.
     return SemaRef.Context.getQualifiedNameType(NNS, T);
   }
 
@@ -557,10 +561,80 @@ public:
   /// By default, performs semantic analysis when building the typename type
   /// (or qualified name type). Subclasses may override this routine to provide
   /// different behavior.
-  QualType RebuildTypenameType(NestedNameSpecifier *NNS,
-                               const IdentifierInfo *Id,
-                               SourceRange SR) {
-    return SemaRef.CheckTypenameType(NNS, *Id, SR);
+  QualType RebuildDependentNameType(ElaboratedTypeKeyword Keyword, 
+                                    NestedNameSpecifier *NNS,
+                                    const IdentifierInfo *Id,
+                                    SourceRange SR) {
+    CXXScopeSpec SS;
+    SS.setScopeRep(NNS);
+    
+    if (NNS->isDependent()) {
+      // If the name is still dependent, just build a new dependent name type.
+      if (!SemaRef.computeDeclContext(SS))
+        return SemaRef.Context.getDependentNameType(Keyword, NNS, Id);
+    }
+
+    TagDecl::TagKind Kind = TagDecl::TK_enum;
+    switch (Keyword) {
+      case ETK_None:
+        // FIXME: Note the lack of the "typename" specifier!
+        // Fall through
+      case ETK_Typename:
+        return SemaRef.CheckTypenameType(NNS, *Id, SR);
+        
+      case ETK_Class: Kind = TagDecl::TK_class; break;
+      case ETK_Struct: Kind = TagDecl::TK_struct; break;
+      case ETK_Union: Kind = TagDecl::TK_union; break;
+      case ETK_Enum: Kind = TagDecl::TK_enum; break;
+    }
+    
+    // We had a dependent elaborated-type-specifier that as been transformed
+    // into a non-dependent elaborated-type-specifier. Find the tag we're
+    // referring to.
+    LookupResult Result(SemaRef, Id, SR.getEnd(), Sema::LookupTagName);
+    DeclContext *DC = SemaRef.computeDeclContext(SS, false);
+    if (!DC)
+      return QualType();
+
+    TagDecl *Tag = 0;
+    SemaRef.LookupQualifiedName(Result, DC);
+    switch (Result.getResultKind()) {
+      case LookupResult::NotFound:
+      case LookupResult::NotFoundInCurrentInstantiation:
+        break;
+        
+      case LookupResult::Found:
+        Tag = Result.getAsSingle<TagDecl>();
+        break;
+        
+      case LookupResult::FoundOverloaded:
+      case LookupResult::FoundUnresolvedValue:
+        llvm_unreachable("Tag lookup cannot find non-tags");
+        return QualType();
+        
+      case LookupResult::Ambiguous:
+        // Let the LookupResult structure handle ambiguities.
+        return QualType();
+    }
+
+    if (!Tag) {
+      // FIXME: Would be nice to highlight just the source range.
+      SemaRef.Diag(SR.getEnd(), diag::err_not_tag_in_scope)
+        << Kind << Id << DC;
+      return QualType();
+    }
+    
+    // FIXME: Terrible location information
+    if (!SemaRef.isAcceptableTagRedeclaration(Tag, Kind, SR.getEnd(), *Id)) {
+      SemaRef.Diag(SR.getBegin(), diag::err_use_with_wrong_tag) << Id;
+      SemaRef.Diag(Tag->getLocation(), diag::note_previous_use);
+      return QualType();
+    }
+
+    // Build the elaborated-type-specifier type.
+    QualType T = SemaRef.Context.getTypeDeclType(Tag);
+    T = SemaRef.Context.getQualifiedNameType(NNS, T);
+    return SemaRef.Context.getElaboratedType(T, Kind);
   }
 
   /// \brief Build a new nested-name-specifier given the prefix and an
@@ -977,6 +1051,7 @@ public:
                                      SourceRange QualifierRange,
                                      SourceLocation MemberLoc,
                                      ValueDecl *Member,
+                                     NamedDecl *FoundDecl,
                         const TemplateArgumentListInfo *ExplicitTemplateArgs,
                                      NamedDecl *FirstQualifierInScope) {
     if (!Member->getDeclName()) {
@@ -984,7 +1059,8 @@ public:
       assert(!Qualifier && "Can't have an unnamed field with a qualifier!");
 
       Expr *BaseExpr = Base.takeAs<Expr>();
-      if (getSema().PerformObjectMemberConversion(BaseExpr, Qualifier, Member))
+      if (getSema().PerformObjectMemberConversion(BaseExpr, Qualifier,
+                                                  FoundDecl, Member))
         return getSema().ExprError();
 
       MemberExpr *ME =
@@ -1002,9 +1078,11 @@ public:
 
     QualType BaseType = ((Expr*) Base.get())->getType();
 
+    // FIXME: this involves duplicating earlier analysis in a lot of
+    // cases; we should avoid this when possible.
     LookupResult R(getSema(), Member->getDeclName(), MemberLoc,
                    Sema::LookupMemberName);
-    R.addDecl(Member);
+    R.addDecl(FoundDecl);
     R.resolveKind();
 
     return getSema().BuildMemberReferenceExpr(move(Base), BaseType,
@@ -2992,10 +3070,10 @@ TreeTransform<Derived>::TransformQualifiedNameType(TypeLocBuilder &TLB,
 }
 
 template<typename Derived>
-QualType TreeTransform<Derived>::TransformTypenameType(TypeLocBuilder &TLB,
-                                                       TypenameTypeLoc TL,
+QualType TreeTransform<Derived>::TransformDependentNameType(TypeLocBuilder &TLB,
+                                                       DependentNameTypeLoc TL,
                                                        QualType ObjectType) {
-  TypenameType *T = TL.getTypePtr();
+  DependentNameType *T = TL.getTypePtr();
 
   /* FIXME: preserve source information better than this */
   SourceRange SR(TL.getNameLoc());
@@ -3019,14 +3097,16 @@ QualType TreeTransform<Derived>::TransformTypenameType(TypeLocBuilder &TLB,
         NewTemplateId == QualType(TemplateId, 0))
       return QualType(T, 0);
 
-    Result = getDerived().RebuildTypenameType(NNS, NewTemplateId);
+    Result = getDerived().RebuildDependentNameType(T->getKeyword(), NNS, 
+                                                   NewTemplateId);
   } else {
-    Result = getDerived().RebuildTypenameType(NNS, T->getIdentifier(), SR);
+    Result = getDerived().RebuildDependentNameType(T->getKeyword(), NNS, 
+                                                   T->getIdentifier(), SR);
   }
   if (Result.isNull())
     return QualType();
 
-  TypenameTypeLoc NewTL = TLB.push<TypenameTypeLoc>(Result);
+  DependentNameTypeLoc NewTL = TLB.push<DependentNameTypeLoc>(Result);
   NewTL.setNameLoc(TL.getNameLoc());
 
   return Result;
@@ -3868,10 +3948,21 @@ TreeTransform<Derived>::TransformMemberExpr(MemberExpr *E) {
   if (!Member)
     return SemaRef.ExprError();
 
+  NamedDecl *FoundDecl = E->getFoundDecl();
+  if (FoundDecl == E->getMemberDecl()) {
+    FoundDecl = Member;
+  } else {
+    FoundDecl = cast_or_null<NamedDecl>(
+                   getDerived().TransformDecl(E->getMemberLoc(), FoundDecl));
+    if (!FoundDecl)
+      return SemaRef.ExprError();
+  }
+
   if (!getDerived().AlwaysRebuild() &&
       Base.get() == E->getBase() &&
       Qualifier == E->getQualifier() &&
       Member == E->getMemberDecl() &&
+      FoundDecl == E->getFoundDecl() &&
       !E->hasExplicitTemplateArgumentList()) {
     
     // Mark it referenced in the new context regardless.
@@ -3908,6 +3999,7 @@ TreeTransform<Derived>::TransformMemberExpr(MemberExpr *E) {
                                         E->getQualifierRange(),
                                         E->getMemberLoc(),
                                         Member,
+                                        FoundDecl,
                                         (E->hasExplicitTemplateArgumentList()
                                            ? &TransArgs : 0),
                                         FirstQualifierInScope);
@@ -5118,7 +5210,7 @@ TreeTransform<Derived>::TransformCXXTemporaryObjectExpr(
       !ArgumentChanged) {
     // FIXME: Instantiation-specific
     SemaRef.MarkDeclarationReferenced(E->getTypeBeginLoc(), Constructor);
-    return SemaRef.Owned(E->Retain());
+    return SemaRef.MaybeBindToTemporary(E->Retain());
   }
 
   // FIXME: Bogus location information

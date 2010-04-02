@@ -64,6 +64,12 @@ public:
   /// The path to the compiler resource directory.
   std::string ResourceDir;
 
+  /// A prefix directory used to emulated a limited subset of GCC's '-Bprefix'
+  /// functionality.
+  /// FIXME: This type of customization should be removed in favor of the
+  /// universal driver when it is ready.
+  std::string PrefixDir;
+
   /// Default host triple.
   std::string DefaultHostTriple;
 
@@ -133,7 +139,8 @@ public:
   Driver(llvm::StringRef _Name, llvm::StringRef _Dir,
          llvm::StringRef _DefaultHostTriple,
          llvm::StringRef _DefaultImageName,
-         bool IsProduction, Diagnostic &_Diags);
+         bool IsProduction, bool CXXIsProduction,
+         Diagnostic &_Diags);
   ~Driver();
 
   /// @name Accessors

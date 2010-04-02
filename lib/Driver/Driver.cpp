@@ -45,7 +45,8 @@ using namespace clang;
 Driver::Driver(llvm::StringRef _Name, llvm::StringRef _Dir,
                llvm::StringRef _DefaultHostTriple,
                llvm::StringRef _DefaultImageName,
-               bool IsProduction, Diagnostic &_Diags)
+               bool IsProduction, bool CXXIsProduction,
+               Diagnostic &_Diags)
   : Opts(createDriverOptTable()), Diags(_Diags),
     Name(_Name), Dir(_Dir), DefaultHostTriple(_DefaultHostTriple),
     DefaultImageName(_DefaultImageName),
@@ -66,7 +67,8 @@ Driver::Driver(llvm::StringRef _Name, llvm::StringRef _Dir,
     CCCClangArchs.insert(llvm::Triple::x86_64);
     CCCClangArchs.insert(llvm::Triple::arm);
 
-    CCCUseClangCXX = false;
+    if (!CXXIsProduction)
+      CCCUseClangCXX = false;
   }
 
   // Compute the path to the resource directory.
@@ -172,6 +174,8 @@ Compilation *Driver::BuildCompilation(int argc, const char **argv) {
     HostTriple = A->getValue(*Args);
   if (const Arg *A = Args->getLastArg(options::OPT_ccc_install_dir))
     Dir = A->getValue(*Args);
+  if (const Arg *A = Args->getLastArg(options::OPT_B))
+    PrefixDir = A->getValue(*Args);
 
   Host = GetHostInfo(HostTriple);
 
@@ -1088,6 +1092,15 @@ const char *Driver::GetNamedOutputPath(Compilation &C,
 }
 
 std::string Driver::GetFilePath(const char *Name, const ToolChain &TC) const {
+  // Respect a limited subset of the '-Bprefix' functionality in GCC by
+  // attempting to use this prefix when lokup up program paths.
+  if (!PrefixDir.empty()) {
+    llvm::sys::Path P(PrefixDir);
+    P.appendComponent(Name);
+    if (P.exists())
+      return P.str();
+  }
+
   const ToolChain::path_list &List = TC.getFilePaths();
   for (ToolChain::path_list::const_iterator
          it = List.begin(), ie = List.end(); it != ie; ++it) {
@@ -1102,6 +1115,15 @@ std::string Driver::GetFilePath(const char *Name, const ToolChain &TC) const {
 
 std::string Driver::GetProgramPath(const char *Name, const ToolChain &TC,
                                    bool WantFile) const {
+  // Respect a limited subset of the '-Bprefix' functionality in GCC by
+  // attempting to use this prefix when lokup up program paths.
+  if (!PrefixDir.empty()) {
+    llvm::sys::Path P(PrefixDir);
+    P.appendComponent(Name);
+    if (WantFile ? P.exists() : P.canExecute())
+      return P.str();
+  }
+
   const ToolChain::path_list &List = TC.getProgramPaths();
   for (ToolChain::path_list::const_iterator
          it = List.begin(), ie = List.end(); it != ie; ++it) {

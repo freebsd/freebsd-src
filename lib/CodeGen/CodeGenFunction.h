@@ -22,7 +22,6 @@
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/Support/ValueHandle.h"
-#include <map>
 #include "CodeGenModule.h"
 #include "CGBlocks.h"
 #include "CGBuilder.h"
@@ -253,6 +252,27 @@ public:
       PerformCleanup = false;
     }
   };
+
+  /// CXXTemporariesCleanupScope - Enters a new scope for catching live
+  /// temporaries, all of which will be popped once the scope is exited.
+  class CXXTemporariesCleanupScope {
+    CodeGenFunction &CGF;
+    size_t NumLiveTemporaries;
+    
+    // DO NOT IMPLEMENT
+    CXXTemporariesCleanupScope(const CXXTemporariesCleanupScope &); 
+    CXXTemporariesCleanupScope &operator=(const CXXTemporariesCleanupScope &);
+    
+  public:
+    explicit CXXTemporariesCleanupScope(CodeGenFunction &CGF)
+      : CGF(CGF), NumLiveTemporaries(CGF.LiveTemporaries.size()) { }
+    
+    ~CXXTemporariesCleanupScope() {
+      while (CGF.LiveTemporaries.size() > NumLiveTemporaries)
+        CGF.PopCXXTemporary();
+    }
+  };
+
 
   /// EmitCleanupBlocks - Takes the old cleanup stack size and emits the cleanup
   /// blocks that have been added.
@@ -504,30 +524,29 @@ public:
   /// legal to call this function even if there is no current insertion point.
   void FinishFunction(SourceLocation EndLoc=SourceLocation());
 
-  /// DynamicTypeAdjust - Do the non-virtual and virtual adjustments on an
-  /// object pointer to alter the dynamic type of the pointer.  Used by
-  /// GenerateCovariantThunk for building thunks.
-  llvm::Value *DynamicTypeAdjust(llvm::Value *V, 
-                                 const ThunkAdjustment &Adjustment);
-
-  /// GenerateThunk - Generate a thunk for the given method
-  llvm::Constant *GenerateThunk(llvm::Function *Fn, GlobalDecl GD,
-                                bool Extern, 
-                                const ThunkAdjustment &ThisAdjustment);
-  llvm::Constant *
-  GenerateCovariantThunk(llvm::Function *Fn, GlobalDecl GD,
-                         bool Extern,
-                         const CovariantThunkAdjustment &Adjustment);
-
+  /// GenerateThunk - Generate a thunk for the given method.
+  void GenerateThunk(llvm::Function *Fn, GlobalDecl GD, const ThunkInfo &Thunk);
+  
   void EmitCtorPrologue(const CXXConstructorDecl *CD, CXXCtorType Type);
 
-  void InitializeVtablePtrs(const CXXRecordDecl *ClassDecl);
+  /// InitializeVTablePointer - Initialize the vtable pointer of the given
+  /// subobject.
+  ///
+  /// \param BaseIsMorallyVirtual - Whether the base subobject is a virtual base
+  /// or a direct or indirect base of a virtual base.
+  void InitializeVTablePointer(BaseSubobject Base, bool BaseIsMorallyVirtual,
+                               llvm::Constant *VTable,
+                               const CXXRecordDecl *VTableClass);
 
-  void InitializeVtablePtrsRecursive(const CXXRecordDecl *ClassDecl,
-                                     llvm::Constant *Vtable,
-                                     CGVtableInfo::AddrSubMap_t& AddressPoints,
-                                     llvm::Value *ThisPtr,
-                                     uint64_t Offset);
+  typedef llvm::SmallPtrSet<const CXXRecordDecl *, 4> VisitedVirtualBasesSetTy;
+  void InitializeVTablePointers(BaseSubobject Base, bool BaseIsMorallyVirtual,
+                                bool BaseIsNonVirtualPrimaryBase,
+                                llvm::Constant *VTable,
+                                const CXXRecordDecl *VTableClass,
+                                VisitedVirtualBasesSetTy& VBases);
+
+  void InitializeVTablePointers(const CXXRecordDecl *ClassDecl);
+
 
   void SynthesizeCXXCopyConstructor(const FunctionArgList &Args);
   void SynthesizeCXXCopyAssignment(const FunctionArgList &Args);
@@ -1272,6 +1291,10 @@ public:
   /// getTrapBB - Create a basic block that will call the trap intrinsic.  We'll
   /// generate a branch around the created basic block as necessary.
   llvm::BasicBlock* getTrapBB();
+  
+  /// EmitCallArg - Emit a single call argument.
+  RValue EmitCallArg(const Expr *E, QualType ArgType);
+
 private:
 
   void EmitReturnOfRValue(RValue RV, QualType Ty);
@@ -1302,9 +1325,6 @@ private:
   /// AddBranchFixup - adds a branch instruction to the list of fixups for the
   /// current cleanup scope.
   void AddBranchFixup(llvm::BranchInst *BI);
-
-  /// EmitCallArg - Emit a single call argument.
-  RValue EmitCallArg(const Expr *E, QualType ArgType);
 
   /// EmitCallArgs - Emit call arguments for a function.
   /// The CallArgTypeInfo parameter is used for iterating over the known
