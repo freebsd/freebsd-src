@@ -235,7 +235,7 @@ AcpiExDoDebugObject (
 
         AcpiOsPrintf ("[0x%.2X]\n", (UINT32) SourceDesc->Buffer.Length);
         AcpiUtDumpBuffer2 (SourceDesc->Buffer.Pointer,
-            (SourceDesc->Buffer.Length < 256) ? 
+            (SourceDesc->Buffer.Length < 256) ?
                 SourceDesc->Buffer.Length : 256, DB_BYTE_DISPLAY);
         break;
 
