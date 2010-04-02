@@ -341,6 +341,7 @@ pmcpl_cg_process(struct pmcstat_process *pp, struct pmcstat_pmcrecord *pmcr,
 	parent = pmcstat_cgnode_hash_lookup_pc(pp, pmcid, pc, usermode);
 	if (parent == NULL) {
 		pmcstat_stats.ps_callchain_dubious_frames++;
+		pmcr->pr_dubious_frames++;
 		return;
 	}
 
