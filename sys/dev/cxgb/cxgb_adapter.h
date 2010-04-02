@@ -141,6 +141,8 @@ enum {
 #define JUMBO_Q_SIZE	1024
 #define RSPQ_Q_SIZE	1024
 #define TX_ETH_Q_SIZE	1024
+#define TX_OFLD_Q_SIZE	1024
+#define TX_CTRL_Q_SIZE	256
 
 enum { TXQ_ETH = 0,
        TXQ_OFLD = 1,
@@ -248,7 +250,6 @@ struct sge_txq {
 	struct callout	txq_timer;
 	struct callout	txq_watchdog;
 	uint64_t        txq_coalesced;
-	uint32_t        txq_drops;
 	uint32_t        txq_skipped;
 	uint32_t        txq_enqueued;
 	uint32_t	txq_dump_start;

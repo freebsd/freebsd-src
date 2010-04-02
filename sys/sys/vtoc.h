@@ -97,7 +97,7 @@ struct vtoc8 {
 	} map[VTOC8_NPARTS];
 	uint16_t	magic;
 	uint16_t	cksum;
-};
+} __packed;
 
 #ifdef CTASSERT
 CTASSERT(sizeof(struct vtoc8) == 512);

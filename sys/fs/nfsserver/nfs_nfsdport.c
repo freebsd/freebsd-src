@@ -869,6 +869,7 @@ nfsvno_mkdir(struct nameidata *ndp, struct nfsvattr *nvap, uid_t saved_uid,
 		else
 			vput(ndp->ni_dvp);
 		vrele(ndp->ni_vp);
+		nfsvno_relpathbuf(ndp);
 		return (EEXIST);
 	}
 	error = VOP_MKDIR(ndp->ni_dvp, &ndp->ni_vp, &ndp->ni_cnd,
