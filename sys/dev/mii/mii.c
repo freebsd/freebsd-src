@@ -180,6 +180,8 @@ miibus_attach(device_t dev)
 	 * XXX: EVIL HACK!
 	 */
 	mii->mii_ifp = *(struct ifnet**)device_get_softc(device_get_parent(dev));
+	mii->mii_ifp->if_capabilities |= IFCAP_LINKSTATE;
+	mii->mii_ifp->if_capenable |= IFCAP_LINKSTATE;
 	ivars = device_get_ivars(dev);
 	ifmedia_init(&mii->mii_media, IFM_IMASK, ivars->ifmedia_upd,
 	    ivars->ifmedia_sts);
