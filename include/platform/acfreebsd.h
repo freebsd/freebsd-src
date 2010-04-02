@@ -124,9 +124,10 @@
 #include <machine/acpica_machdep.h>
 
 #define ACPI_UINTPTR_T      uintptr_t
+
+#define ACPI_USE_DO_WHILE_0
 #define ACPI_USE_LOCAL_CACHE
 #define ACPI_USE_SYSTEM_CLIBRARY
-#define __cdecl
 
 #ifdef _KERNEL
 
@@ -139,6 +140,7 @@
 #include "opt_acpi.h"
 
 #define ACPI_THREAD_ID      lwpid_t
+#define ACPI_MUTEX_TYPE     ACPI_OSL_MUTEX
 
 #ifdef ACPI_DEBUG
 #define ACPI_DEBUG_OUTPUT   /* for backward compatibility */
@@ -166,11 +168,10 @@
 
 #define ACPI_THREAD_ID      pthread_t
 
-/* Not building kernel code, so use libc */
 #define ACPI_USE_STANDARD_HEADERS
+
 #define ACPI_FLUSH_CPU_CACHE()
-#define __cli()
-#define __sti()
+#define __cdecl
 
 #endif /* _KERNEL */
 
