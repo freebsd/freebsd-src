@@ -676,17 +676,13 @@ void Verifier::visitFunction(Function &F) {
               "blockaddress may not be used with the entry block!", Entry);
     }
   }
-  
+ 
   // If this function is actually an intrinsic, verify that it is only used in
   // direct call/invokes, never having its "address taken".
   if (F.getIntrinsicID()) {
-    for (Value::use_iterator UI = F.use_begin(), E = F.use_end(); UI != E;++UI){
-      User *U = cast<User>(UI);
-      if ((isa<CallInst>(U) || isa<InvokeInst>(U)) && UI.getOperandNo() == 0)
-        continue;  // Direct calls/invokes are ok.
-      
+    const User *U;
+    if (F.hasAddressTaken(&U))
       Assert1(0, "Invalid user of intrinsic instruction!", U); 
-    }
   }
 }
 
@@ -1483,7 +1479,7 @@ void Verifier::visitInstruction(Instruction &I) {
                 "Instruction does not dominate all uses!", Op, &I);
       }
     } else if (isa<InlineAsm>(I.getOperand(i))) {
-      Assert1(i == 0 && (isa<CallInst>(I) || isa<InvokeInst>(I)),
+      Assert1((i == 0 && isa<CallInst>(I)) || (i + 3 == e && isa<InvokeInst>(I)),
               "Cannot take the address of an inline asm!", &I);
     }
   }
@@ -1683,13 +1679,11 @@ void Verifier::visitIntrinsicFunctionCall(Intrinsic::ID ID, CallInst &CI) {
 /// parameters beginning with NumRets.
 ///
 static std::string IntrinsicParam(unsigned ArgNo, unsigned NumRets) {
-  if (ArgNo < NumRets) {
-    if (NumRets == 1)
-      return "Intrinsic result type";
-    else
-      return "Intrinsic result type #" + utostr(ArgNo);
-  } else
+  if (ArgNo >= NumRets)
     return "Intrinsic parameter #" + utostr(ArgNo - NumRets);
+  if (NumRets == 1)
+    return "Intrinsic result type";
+  return "Intrinsic result type #" + utostr(ArgNo);
 }
 
 bool Verifier::PerformTypeCheck(Intrinsic::ID ID, Function *F, const Type *Ty,
@@ -1706,9 +1700,13 @@ bool Verifier::PerformTypeCheck(Intrinsic::ID ID, Function *F, const Type *Ty,
 
   const Type *RetTy = FTy->getReturnType();
   const StructType *ST = dyn_cast<StructType>(RetTy);
-  unsigned NumRets = 1;
-  if (ST)
-    NumRets = ST->getNumElements();
+  unsigned NumRetVals;
+  if (RetTy->isVoidTy())
+    NumRetVals = 0;
+  else if (ST)
+    NumRetVals = ST->getNumElements();
+  else
+    NumRetVals = 1;
 
   if (VT < 0) {
     int Match = ~VT;
@@ -1720,7 +1718,7 @@ bool Verifier::PerformTypeCheck(Intrinsic::ID ID, Function *F, const Type *Ty,
                   TruncatedElementVectorType)) != 0) {
       const IntegerType *IEltTy = dyn_cast<IntegerType>(EltTy);
       if (!VTy || !IEltTy) {
-        CheckFailed(IntrinsicParam(ArgNo, NumRets) + " is not "
+        CheckFailed(IntrinsicParam(ArgNo, NumRetVals) + " is not "
                     "an integral vector type.", F);
         return false;
       }
@@ -1728,7 +1726,7 @@ bool Verifier::PerformTypeCheck(Intrinsic::ID ID, Function *F, const Type *Ty,
       // the type being matched against.
       if ((Match & ExtendedElementVectorType) != 0) {
         if ((IEltTy->getBitWidth() & 1) != 0) {
-          CheckFailed(IntrinsicParam(ArgNo, NumRets) + " vector "
+          CheckFailed(IntrinsicParam(ArgNo, NumRetVals) + " vector "
                       "element bit-width is odd.", F);
           return false;
         }
@@ -1738,25 +1736,25 @@ bool Verifier::PerformTypeCheck(Intrinsic::ID ID, Function *F, const Type *Ty,
       Match &= ~(ExtendedElementVectorType | TruncatedElementVectorType);
     }
 
-    if (Match <= static_cast<int>(NumRets - 1)) {
+    if (Match <= static_cast<int>(NumRetVals - 1)) {
       if (ST)
         RetTy = ST->getElementType(Match);
 
       if (Ty != RetTy) {
-        CheckFailed(IntrinsicParam(ArgNo, NumRets) + " does not "
+        CheckFailed(IntrinsicParam(ArgNo, NumRetVals) + " does not "
                     "match return type.", F);
         return false;
       }
     } else {
-      if (Ty != FTy->getParamType(Match - NumRets)) {
-        CheckFailed(IntrinsicParam(ArgNo, NumRets) + " does not "
-                    "match parameter %" + utostr(Match - NumRets) + ".", F);
+      if (Ty != FTy->getParamType(Match - NumRetVals)) {
+        CheckFailed(IntrinsicParam(ArgNo, NumRetVals) + " does not "
+                    "match parameter %" + utostr(Match - NumRetVals) + ".", F);
         return false;
       }
     }
   } else if (VT == MVT::iAny) {
     if (!EltTy->isIntegerTy()) {
-      CheckFailed(IntrinsicParam(ArgNo, NumRets) + " is not "
+      CheckFailed(IntrinsicParam(ArgNo, NumRetVals) + " is not "
                   "an integer type.", F);
       return false;
     }
@@ -1781,7 +1779,7 @@ bool Verifier::PerformTypeCheck(Intrinsic::ID ID, Function *F, const Type *Ty,
     }
   } else if (VT == MVT::fAny) {
     if (!EltTy->isFloatingPointTy()) {
-      CheckFailed(IntrinsicParam(ArgNo, NumRets) + " is not "
+      CheckFailed(IntrinsicParam(ArgNo, NumRetVals) + " is not "
                   "a floating-point type.", F);
       return false;
     }
@@ -1794,13 +1792,14 @@ bool Verifier::PerformTypeCheck(Intrinsic::ID ID, Function *F, const Type *Ty,
     Suffix += EVT::getEVT(EltTy).getEVTString();
   } else if (VT == MVT::vAny) {
     if (!VTy) {
-      CheckFailed(IntrinsicParam(ArgNo, NumRets) + " is not a vector type.", F);
+      CheckFailed(IntrinsicParam(ArgNo, NumRetVals) + " is not a vector type.",
+                  F);
       return false;
     }
     Suffix += ".v" + utostr(NumElts) + EVT::getEVT(EltTy).getEVTString();
   } else if (VT == MVT::iPTR) {
     if (!Ty->isPointerTy()) {
-      CheckFailed(IntrinsicParam(ArgNo, NumRets) + " is not a "
+      CheckFailed(IntrinsicParam(ArgNo, NumRetVals) + " is not a "
                   "pointer and a pointer is required.", F);
       return false;
     }
@@ -1812,7 +1811,7 @@ bool Verifier::PerformTypeCheck(Intrinsic::ID ID, Function *F, const Type *Ty,
       Suffix += ".p" + utostr(PTyp->getAddressSpace()) + 
         EVT::getEVT(PTyp->getElementType()).getEVTString();
     } else {
-      CheckFailed(IntrinsicParam(ArgNo, NumRets) + " is not a "
+      CheckFailed(IntrinsicParam(ArgNo, NumRetVals) + " is not a "
                   "pointer and a pointer is required.", F);
       return false;
     }
@@ -1832,10 +1831,10 @@ bool Verifier::PerformTypeCheck(Intrinsic::ID ID, Function *F, const Type *Ty,
     }
   } else if (EVT((MVT::SimpleValueType)VT).getTypeForEVT(Ty->getContext()) != 
              EltTy) {
-    CheckFailed(IntrinsicParam(ArgNo, NumRets) + " is wrong!", F);
+    CheckFailed(IntrinsicParam(ArgNo, NumRetVals) + " is wrong!", F);
     return false;
   } else if (EltTy != Ty) {
-    CheckFailed(IntrinsicParam(ArgNo, NumRets) + " is a vector "
+    CheckFailed(IntrinsicParam(ArgNo, NumRetVals) + " is a vector "
                 "and a scalar is required.", F);
     return false;
   }
@@ -1847,10 +1846,10 @@ bool Verifier::PerformTypeCheck(Intrinsic::ID ID, Function *F, const Type *Ty,
 /// Intrinsics.gen.  This implements a little state machine that verifies the
 /// prototype of intrinsics.
 void Verifier::VerifyIntrinsicPrototype(Intrinsic::ID ID, Function *F,
-                                        unsigned RetNum,
-                                        unsigned ParamNum, ...) {
+                                        unsigned NumRetVals,
+                                        unsigned NumParams, ...) {
   va_list VA;
-  va_start(VA, ParamNum);
+  va_start(VA, NumParams);
   const FunctionType *FTy = F->getFunctionType();
 
   // For overloaded intrinsics, the Suffix of the function name must match the
@@ -1858,7 +1857,7 @@ void Verifier::VerifyIntrinsicPrototype(Intrinsic::ID ID, Function *F,
   // suffix, to be checked at the end.
   std::string Suffix;
 
-  if (FTy->getNumParams() + FTy->isVarArg() != ParamNum) {
+  if (FTy->getNumParams() + FTy->isVarArg() != NumParams) {
     CheckFailed("Intrinsic prototype has incorrect number of arguments!", F);
     return;
   }
@@ -1866,23 +1865,27 @@ void Verifier::VerifyIntrinsicPrototype(Intrinsic::ID ID, Function *F,
   const Type *Ty = FTy->getReturnType();
   const StructType *ST = dyn_cast<StructType>(Ty);
 
+  if (NumRetVals == 0 && !Ty->isVoidTy()) {
+    CheckFailed("Intrinsic should return void", F);
+    return;
+  }
+  
   // Verify the return types.
-  if (ST && ST->getNumElements() != RetNum) {
+  if (ST && ST->getNumElements() != NumRetVals) {
     CheckFailed("Intrinsic prototype has incorrect number of return types!", F);
     return;
   }
-
-  for (unsigned ArgNo = 0; ArgNo < RetNum; ++ArgNo) {
+  
+  for (unsigned ArgNo = 0; ArgNo != NumRetVals; ++ArgNo) {
     int VT = va_arg(VA, int); // An MVT::SimpleValueType when non-negative.
 
     if (ST) Ty = ST->getElementType(ArgNo);
-
     if (!PerformTypeCheck(ID, F, Ty, VT, ArgNo, Suffix))
       break;
   }
 
   // Verify the parameter types.
-  for (unsigned ArgNo = 0; ArgNo < ParamNum; ++ArgNo) {
+  for (unsigned ArgNo = 0; ArgNo != NumParams; ++ArgNo) {
     int VT = va_arg(VA, int); // An MVT::SimpleValueType when non-negative.
 
     if (VT == MVT::isVoid && ArgNo > 0) {
@@ -1891,8 +1894,8 @@ void Verifier::VerifyIntrinsicPrototype(Intrinsic::ID ID, Function *F,
       break;
     }
 
-    if (!PerformTypeCheck(ID, F, FTy->getParamType(ArgNo), VT, ArgNo + RetNum,
-                          Suffix))
+    if (!PerformTypeCheck(ID, F, FTy->getParamType(ArgNo), VT,
+                          ArgNo + NumRetVals, Suffix))
       break;
   }
 

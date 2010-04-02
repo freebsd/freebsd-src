@@ -18,6 +18,8 @@
 #include "llvm/MC/MCSymbol.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/raw_ostream.h"
+#include "llvm/Target/TargetAsmBackend.h"
+
 using namespace llvm;
 
 namespace {
@@ -57,12 +59,23 @@ private:
     return 0;
   }
 
+  /// Get a data fragment to write into, creating a new one if the current
+  /// fragment is not a data fragment.
+  MCDataFragment *getOrCreateDataFragment() const {
+    MCDataFragment *F = dyn_cast_or_null<MCDataFragment>(getCurrentFragment());
+    if (!F)
+      F = new MCDataFragment(CurSectionData);
+    return F;
+  }
+
 public:
   MCMachOStreamer(MCContext &Context, TargetAsmBackend &TAB,
                   raw_ostream &_OS, MCCodeEmitter *_Emitter)
     : MCStreamer(Context), Assembler(Context, TAB, *_Emitter, _OS),
       CurSectionData(0) {}
   ~MCMachOStreamer() {}
+
+  MCAssembler &getAssembler() { return Assembler; }
 
   const MCExpr *AddValueSymbols(const MCExpr *Value) {
     switch (Value->getKind()) {
@@ -150,11 +163,11 @@ void MCMachOStreamer::SwitchSection(const MCSection *Section) {
 void MCMachOStreamer::EmitLabel(MCSymbol *Symbol) {
   assert(Symbol->isUndefined() && "Cannot define a symbol twice!");
 
-  // FIXME: We should also use offsets into Fill fragments.
-  MCDataFragment *F = dyn_cast_or_null<MCDataFragment>(getCurrentFragment());
-  if (!F)
-    F = new MCDataFragment(CurSectionData);
-
+  // FIXME: This is wasteful, we don't necessarily need to create a data
+  // fragment. Instead, we should mark the symbol as pointing into the data
+  // fragment if it exists, otherwise we should just queue the label and set its
+  // fragment pointer when we emit the next fragment.
+  MCDataFragment *F = getOrCreateDataFragment();
   MCSymbolData &SD = Assembler.getOrCreateSymbolData(*Symbol);
   assert(!SD.getFragment() && "Unexpected fragment on symbol data!");
   SD.setFragment(F);
@@ -307,17 +320,12 @@ void MCMachOStreamer::EmitZerofill(const MCSection *Section, MCSymbol *Symbol,
 }
 
 void MCMachOStreamer::EmitBytes(StringRef Data, unsigned AddrSpace) {
-  MCDataFragment *DF = dyn_cast_or_null<MCDataFragment>(getCurrentFragment());
-  if (!DF)
-    DF = new MCDataFragment(CurSectionData);
-  DF->getContents().append(Data.begin(), Data.end());
+  getOrCreateDataFragment()->getContents().append(Data.begin(), Data.end());
 }
 
 void MCMachOStreamer::EmitValue(const MCExpr *Value, unsigned Size,
                                 unsigned AddrSpace) {
-  MCDataFragment *DF = dyn_cast_or_null<MCDataFragment>(getCurrentFragment());
-  if (!DF)
-    DF = new MCDataFragment(CurSectionData);
+  MCDataFragment *DF = getOrCreateDataFragment();
 
   // Avoid fixups when possible.
   int64_t AbsValue;
@@ -349,8 +357,7 @@ void MCMachOStreamer::EmitCodeAlignment(unsigned ByteAlignment,
                                         unsigned MaxBytesToEmit) {
   if (MaxBytesToEmit == 0)
     MaxBytesToEmit = ByteAlignment;
-  // FIXME the 0x90 is the default x86 1 byte nop opcode.
-  new MCAlignFragment(ByteAlignment, 0x90, 1, MaxBytesToEmit,
+  new MCAlignFragment(ByteAlignment, 0, 1, MaxBytesToEmit,
                       true /* EmitNops */, CurSectionData);
 
   // Update the maximum alignment on the current section if necessary.
@@ -371,20 +378,54 @@ void MCMachOStreamer::EmitInstruction(const MCInst &Inst) {
 
   CurSectionData->setHasInstructions(true);
 
+  // FIXME-PERF: Common case is that we don't need to relax, encode directly
+  // onto the data fragments buffers.
+
   SmallVector<MCFixup, 4> Fixups;
   SmallString<256> Code;
   raw_svector_ostream VecOS(Code);
   Assembler.getEmitter().EncodeInstruction(Inst, VecOS, Fixups);
   VecOS.flush();
 
-  // Add the fixups and data.
-  MCDataFragment *DF = dyn_cast_or_null<MCDataFragment>(getCurrentFragment());
-  if (!DF)
-    DF = new MCDataFragment(CurSectionData);
+  // FIXME: Eliminate this copy.
+  SmallVector<MCAsmFixup, 4> AsmFixups;
   for (unsigned i = 0, e = Fixups.size(); i != e; ++i) {
     MCFixup &F = Fixups[i];
-    DF->addFixup(MCAsmFixup(DF->getContents().size()+F.getOffset(),
-                            *F.getValue(), F.getKind()));
+    AsmFixups.push_back(MCAsmFixup(F.getOffset(), *F.getValue(),
+                                   F.getKind()));
+  }
+
+  // See if we might need to relax this instruction, if so it needs its own
+  // fragment.
+  //
+  // FIXME-PERF: Support target hook to do a fast path that avoids the encoder,
+  // when we can immediately tell that we will get something which might need
+  // relaxation (and compute its size).
+  //
+  // FIXME-PERF: We should also be smart about immediately relaxing instructions
+  // which we can already show will never possibly fit (we can also do a very
+  // good job of this before we do the first relaxation pass, because we have
+  // total knowledge about undefined symbols at that point). Even now, though,
+  // we can do a decent job, especially on Darwin where scattering means that we
+  // are going to often know that we can never fully resolve a fixup.
+  if (Assembler.getBackend().MayNeedRelaxation(Inst, AsmFixups)) {
+    MCInstFragment *IF = new MCInstFragment(Inst, CurSectionData);
+
+    // Add the fixups and data.
+    //
+    // FIXME: Revisit this design decision when relaxation is done, we may be
+    // able to get away with not storing any extra data in the MCInst.
+    IF->getCode() = Code;
+    IF->getFixups() = AsmFixups;
+
+    return;
+  }
+
+  // Add the fixups and data.
+  MCDataFragment *DF = getOrCreateDataFragment();
+  for (unsigned i = 0, e = AsmFixups.size(); i != e; ++i) {
+    AsmFixups[i].Offset += DF->getContents().size();
+    DF->addFixup(AsmFixups[i]);
   }
   DF->getContents().append(Code.begin(), Code.end());
 }
@@ -394,6 +435,10 @@ void MCMachOStreamer::Finish() {
 }
 
 MCStreamer *llvm::createMachOStreamer(MCContext &Context, TargetAsmBackend &TAB,
-                                      raw_ostream &OS, MCCodeEmitter *CE) {
-  return new MCMachOStreamer(Context, TAB, OS, CE);
+                                      raw_ostream &OS, MCCodeEmitter *CE,
+                                      bool RelaxAll) {
+  MCMachOStreamer *S = new MCMachOStreamer(Context, TAB, OS, CE);
+  if (RelaxAll)
+    S->getAssembler().setRelaxAll(true);
+  return S;
 }

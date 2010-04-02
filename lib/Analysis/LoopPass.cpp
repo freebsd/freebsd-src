@@ -14,6 +14,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "llvm/Analysis/LoopPass.h"
+#include "llvm/Support/Timer.h"
 using namespace llvm;
 
 //===----------------------------------------------------------------------===//
@@ -221,22 +222,22 @@ bool LPPassManager::runOnFunction(Function &F) {
       LoopPass *P = (LoopPass*)getContainedPass(Index);
 
       dumpPassInfo(P, EXECUTION_MSG, ON_LOOP_MSG,
-                   CurrentLoop->getHeader()->getNameStr());
+                   CurrentLoop->getHeader()->getName());
       dumpRequiredSet(P);
 
       initializeAnalysisImpl(P);
 
       {
         PassManagerPrettyStackEntry X(P, *CurrentLoop->getHeader());
-        Timer *T = StartPassTimer(P);
+        TimeRegion PassTimer(getPassTimer(P));
+
         Changed |= P->runOnLoop(CurrentLoop, *this);
-        StopPassTimer(P, T);
       }
 
       if (Changed)
         dumpPassInfo(P, MODIFICATION_MSG, ON_LOOP_MSG,
                      skipThisLoop ? "<deleted>" :
-                                    CurrentLoop->getHeader()->getNameStr());
+                                    CurrentLoop->getHeader()->getName());
       dumpPreservedSet(P);
 
       if (!skipThisLoop) {
@@ -245,9 +246,10 @@ bool LPPassManager::runOnFunction(Function &F) {
         // is a function pass and it's really expensive to verify every
         // loop in the function every time. That level of checking can be
         // enabled with the -verify-loop-info option.
-        Timer *T = StartPassTimer(LI);
-        CurrentLoop->verifyLoop();
-        StopPassTimer(LI, T);
+        {
+          TimeRegion PassTimer(getPassTimer(LI));
+          CurrentLoop->verifyLoop();
+        }
 
         // Then call the regular verifyAnalysis functions.
         verifyPreservedAnalysis(P);
@@ -257,7 +259,7 @@ bool LPPassManager::runOnFunction(Function &F) {
       recordAvailableAnalysis(P);
       removeDeadPasses(P,
                        skipThisLoop ? "<deleted>" :
-                                      CurrentLoop->getHeader()->getNameStr(),
+                                      CurrentLoop->getHeader()->getName(),
                        ON_LOOP_MSG);
 
       if (skipThisLoop)

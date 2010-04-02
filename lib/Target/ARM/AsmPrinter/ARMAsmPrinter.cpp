@@ -841,7 +841,7 @@ GetARMSetPICJumpTableLabel2(unsigned uid, unsigned uid2,
   raw_svector_ostream(Name) << MAI->getPrivateGlobalPrefix()
     << getFunctionNumber() << '_' << uid << '_' << uid2
     << "_set_" << MBB->getNumber();
-  return OutContext.GetOrCreateTemporarySymbol(Name.str());
+  return OutContext.GetOrCreateSymbol(Name.str());
 }
 
 MCSymbol *ARMAsmPrinter::
@@ -849,7 +849,7 @@ GetARMJTIPICJumpTableLabel2(unsigned uid, unsigned uid2) const {
   SmallString<60> Name;
   raw_svector_ostream(Name) << MAI->getPrivateGlobalPrefix() << "JTI"
     << getFunctionNumber() << '_' << uid << '_' << uid2;
-  return OutContext.GetOrCreateTemporarySymbol(Name.str());
+  return OutContext.GetOrCreateSymbol(Name.str());
 }
 
 void ARMAsmPrinter::printJTBlockOperand(const MachineInstr *MI, int OpNum) {
@@ -1132,6 +1132,11 @@ void ARMAsmPrinter::EmitEndOfAsmFile(Module &M) {
           OutStreamer.EmitIntValue(0, 4/*size*/, 0/*addrspace*/);
         else
           // Internal to current translation unit.
+          //
+          // When we place the LSDA into the TEXT section, the type info pointers
+          // need to be indirect and pc-rel. We accomplish this by using NLPs.
+          // However, sometimes the types are local to the file. So we need to
+          // fill in the value for the NLP in those cases.
           OutStreamer.EmitValue(MCSymbolRefExpr::Create(MCSym.getPointer(),
                                                         OutContext),
                                 4/*size*/, 0/*addrspace*/);
@@ -1186,7 +1191,7 @@ void ARMAsmPrinter::printInstructionThroughMCStreamer(const MachineInstr *MI) {
     // FIXME: MOVE TO SHARED PLACE.
     unsigned Id = (unsigned)MI->getOperand(2).getImm();
     const char *Prefix = MAI->getPrivateGlobalPrefix();
-    MCSymbol *Label =OutContext.GetOrCreateTemporarySymbol(Twine(Prefix)
+    MCSymbol *Label =OutContext.GetOrCreateSymbol(Twine(Prefix)
                          + "PC" + Twine(getFunctionNumber()) + "_" + Twine(Id));
     OutStreamer.EmitLabel(Label);
     

@@ -1090,8 +1090,8 @@ def FADDS : AForm_2&lt;59, 21,
 <p>The portion of the instruction definition in bold indicates the pattern used
    to match the instruction.  The DAG operators
    (like <tt>fmul</tt>/<tt>fadd</tt>) are defined in
-   the <tt>lib/Target/TargetSelectionDAG.td</tt> file.  "<tt>F4RC</tt>" is the
-   register class of the input and result values.</p>
+   the <tt>include/llvm/Target/TargetSelectionDAG.td</tt> file.  "
+   <tt>F4RC</tt>" is the register class of the input and result values.</p>
 
 <p>The TableGen DAG instruction selector generator reads the instruction
    patterns in the <tt>.td</tt> file and automatically builds parts of the
@@ -2162,7 +2162,7 @@ MOVSX32rm16 -&gt; movsx, 32-bit register, 16-bit memory
 
   <a href="mailto:sabre@nondot.org">Chris Lattner</a><br>
   <a href="http://llvm.org">The LLVM Compiler Infrastructure</a><br>
-  Last modified: $Date: 2010-03-11 01:22:57 +0100 (Thu, 11 Mar 2010) $
+  Last modified: $Date: 2010-03-25 01:03:04 +0100 (Thu, 25 Mar 2010) $
 </address>
 
 </body>

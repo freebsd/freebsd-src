@@ -50,7 +50,7 @@ namespace {
     /// argument.  Used so that arguments and return values can be used
     /// interchangably.
     struct RetOrArg {
-      RetOrArg(const Function* F, unsigned Idx, bool IsArg) : F(F), Idx(Idx),
+      RetOrArg(const Function *F, unsigned Idx, bool IsArg) : F(F), Idx(Idx),
                IsArg(IsArg) {}
       const Function *F;
       unsigned Idx;
@@ -72,7 +72,7 @@ namespace {
       }
 
       std::string getDescription() const {
-        return std::string((IsArg ? "Argument #" : "Return value #")) 
+        return std::string((IsArg ? "Argument #" : "Return value #"))
                + utostr(Idx) + " of function " + F->getNameStr();
       }
     };
@@ -129,11 +129,11 @@ namespace {
 
   private:
     Liveness MarkIfNotLive(RetOrArg Use, UseVector &MaybeLiveUses);
-    Liveness SurveyUse(Value::use_iterator U, UseVector &MaybeLiveUses,
+    Liveness SurveyUse(Value::const_use_iterator U, UseVector &MaybeLiveUses,
                        unsigned RetValNum = 0);
-    Liveness SurveyUses(Value *V, UseVector &MaybeLiveUses);
+    Liveness SurveyUses(const Value *V, UseVector &MaybeLiveUses);
 
-    void SurveyFunction(Function &F);
+    void SurveyFunction(const Function &F);
     void MarkValue(const RetOrArg &RA, Liveness L,
                    const UseVector &MaybeLiveUses);
     void MarkLive(const RetOrArg &RA);
@@ -196,7 +196,7 @@ bool DAE::DeleteDeadVarargs(Function &Fn) {
   // Start by computing a new prototype for the function, which is the same as
   // the old function, but doesn't have isVarArg set.
   const FunctionType *FTy = Fn.getFunctionType();
-  
+
   std::vector<const Type*> Params(FTy->param_begin(), FTy->param_end());
   FunctionType *NFTy = FunctionType::get(FTy->getReturnType(),
                                                 Params, false);
@@ -225,7 +225,7 @@ bool DAE::DeleteDeadVarargs(Function &Fn) {
       SmallVector<AttributeWithIndex, 8> AttributesVec;
       for (unsigned i = 0; PAL.getSlot(i).Index <= NumArgs; ++i)
         AttributesVec.push_back(PAL.getSlot(i));
-      if (Attributes FnAttrs = PAL.getFnAttributes()) 
+      if (Attributes FnAttrs = PAL.getFnAttributes())
         AttributesVec.push_back(AttributeWithIndex::get(~0, FnAttrs));
       PAL = AttrListPtr::get(AttributesVec.begin(), AttributesVec.end());
     }
@@ -280,7 +280,7 @@ bool DAE::DeleteDeadVarargs(Function &Fn) {
 /// for void functions and 1 for functions not returning a struct. It returns
 /// the number of struct elements for functions returning a struct.
 static unsigned NumRetVals(const Function *F) {
-  if (F->getReturnType() == Type::getVoidTy(F->getContext()))
+  if (F->getReturnType()->isVoidTy())
     return 0;
   else if (const StructType *STy = dyn_cast<StructType>(F->getReturnType()))
     return STy->getNumElements();
@@ -305,15 +305,15 @@ DAE::Liveness DAE::MarkIfNotLive(RetOrArg Use, UseVector &MaybeLiveUses) {
 
 /// SurveyUse - This looks at a single use of an argument or return value
 /// and determines if it should be alive or not. Adds this use to MaybeLiveUses
-/// if it causes the used value to become MaybeAlive.
+/// if it causes the used value to become MaybeLive.
 ///
 /// RetValNum is the return value number to use when this use is used in a
 /// return instruction. This is used in the recursion, you should always leave
 /// it at 0.
-DAE::Liveness DAE::SurveyUse(Value::use_iterator U, UseVector &MaybeLiveUses,
-                             unsigned RetValNum) {
-    Value *V = *U;
-    if (ReturnInst *RI = dyn_cast<ReturnInst>(V)) {
+DAE::Liveness DAE::SurveyUse(Value::const_use_iterator U,
+                             UseVector &MaybeLiveUses, unsigned RetValNum) {
+    const User *V = *U;
+    if (const ReturnInst *RI = dyn_cast<ReturnInst>(V)) {
       // The value is returned from a function. It's only live when the
       // function's return value is live. We use RetValNum here, for the case
       // that U is really a use of an insertvalue instruction that uses the
@@ -322,7 +322,7 @@ DAE::Liveness DAE::SurveyUse(Value::use_iterator U, UseVector &MaybeLiveUses,
       // We might be live, depending on the liveness of Use.
       return MarkIfNotLive(Use, MaybeLiveUses);
     }
-    if (InsertValueInst *IV = dyn_cast<InsertValueInst>(V)) {
+    if (const InsertValueInst *IV = dyn_cast<InsertValueInst>(V)) {
       if (U.getOperandNo() != InsertValueInst::getAggregateOperandIndex()
           && IV->hasIndices())
         // The use we are examining is inserted into an aggregate. Our liveness
@@ -334,7 +334,7 @@ DAE::Liveness DAE::SurveyUse(Value::use_iterator U, UseVector &MaybeLiveUses,
       // we don't change RetValNum, but do survey all our uses.
 
       Liveness Result = MaybeLive;
-      for (Value::use_iterator I = IV->use_begin(),
+      for (Value::const_use_iterator I = IV->use_begin(),
            E = V->use_end(); I != E; ++I) {
         Result = SurveyUse(I, MaybeLiveUses, RetValNum);
         if (Result == Live)
@@ -342,24 +342,24 @@ DAE::Liveness DAE::SurveyUse(Value::use_iterator U, UseVector &MaybeLiveUses,
       }
       return Result;
     }
-    CallSite CS = CallSite::get(V);
-    if (CS.getInstruction()) {
-      Function *F = CS.getCalledFunction();
+
+    if (ImmutableCallSite CS = V) {
+      const Function *F = CS.getCalledFunction();
       if (F) {
         // Used in a direct call.
-  
+
         // Find the argument number. We know for sure that this use is an
         // argument, since if it was the function argument this would be an
         // indirect call and the we know can't be looking at a value of the
         // label type (for the invoke instruction).
-        unsigned ArgNo = CS.getArgumentNo(U.getOperandNo());
+        unsigned ArgNo = CS.getArgumentNo(U);
 
         if (ArgNo >= F->getFunctionType()->getNumParams())
           // The value is passed in through a vararg! Must be live.
           return Live;
 
-        assert(CS.getArgument(ArgNo) 
-               == CS.getInstruction()->getOperand(U.getOperandNo()) 
+        assert(CS.getArgument(ArgNo)
+               == CS->getOperand(U.getOperandNo())
                && "Argument is not where we expected it");
 
         // Value passed to a normal call. It's only live when the corresponding
@@ -378,11 +378,11 @@ DAE::Liveness DAE::SurveyUse(Value::use_iterator U, UseVector &MaybeLiveUses,
 /// Adds all uses that cause the result to be MaybeLive to MaybeLiveRetUses. If
 /// the result is Live, MaybeLiveUses might be modified but its content should
 /// be ignored (since it might not be complete).
-DAE::Liveness DAE::SurveyUses(Value *V, UseVector &MaybeLiveUses) {
+DAE::Liveness DAE::SurveyUses(const Value *V, UseVector &MaybeLiveUses) {
   // Assume it's dead (which will only hold if there are no uses at all..).
   Liveness Result = MaybeLive;
   // Check each use.
-  for (Value::use_iterator I = V->use_begin(),
+  for (Value::const_use_iterator I = V->use_begin(),
        E = V->use_end(); I != E; ++I) {
     Result = SurveyUse(I, MaybeLiveUses);
     if (Result == Live)
@@ -399,7 +399,7 @@ DAE::Liveness DAE::SurveyUses(Value *V, UseVector &MaybeLiveUses) {
 // We consider arguments of non-internal functions to be intrinsically alive as
 // well as arguments to functions which have their "address taken".
 //
-void DAE::SurveyFunction(Function &F) {
+void DAE::SurveyFunction(const Function &F) {
   unsigned RetCount = NumRetVals(&F);
   // Assume all return values are dead
   typedef SmallVector<Liveness, 5> RetVals;
@@ -411,8 +411,8 @@ void DAE::SurveyFunction(Function &F) {
   // MaybeLive. Initialized to a list of RetCount empty lists.
   RetUses MaybeLiveRetUses(RetCount);
 
-  for (Function::iterator BB = F.begin(), E = F.end(); BB != E; ++BB)
-    if (ReturnInst *RI = dyn_cast<ReturnInst>(BB->getTerminator()))
+  for (Function::const_iterator BB = F.begin(), E = F.end(); BB != E; ++BB)
+    if (const ReturnInst *RI = dyn_cast<ReturnInst>(BB->getTerminator()))
       if (RI->getNumOperands() != 0 && RI->getOperand(0)->getType()
           != F.getFunctionType()->getReturnType()) {
         // We don't support old style multiple return values.
@@ -431,17 +431,18 @@ void DAE::SurveyFunction(Function &F) {
   unsigned NumLiveRetVals = 0;
   const Type *STy = dyn_cast<StructType>(F.getReturnType());
   // Loop all uses of the function.
-  for (Value::use_iterator I = F.use_begin(), E = F.use_end(); I != E; ++I) {
+  for (Value::const_use_iterator I = F.use_begin(), E = F.use_end();
+       I != E; ++I) {
     // If the function is PASSED IN as an argument, its address has been
     // taken.
-    CallSite CS = CallSite::get(*I);
-    if (!CS.getInstruction() || !CS.isCallee(I)) {
+    ImmutableCallSite CS(*I);
+    if (!CS || !CS.isCallee(I)) {
       MarkLive(F);
       return;
     }
 
     // If this use is anything other than a call site, the function is alive.
-    Instruction *TheCall = CS.getInstruction();
+    const Instruction *TheCall = CS.getInstruction();
     if (!TheCall) {   // Not a direct call site?
       MarkLive(F);
       return;
@@ -454,9 +455,9 @@ void DAE::SurveyFunction(Function &F) {
     if (NumLiveRetVals != RetCount) {
       if (STy) {
         // Check all uses of the return value.
-        for (Value::use_iterator I = TheCall->use_begin(),
+        for (Value::const_use_iterator I = TheCall->use_begin(),
              E = TheCall->use_end(); I != E; ++I) {
-          ExtractValueInst *Ext = dyn_cast<ExtractValueInst>(*I);
+          const ExtractValueInst *Ext = dyn_cast<ExtractValueInst>(*I);
           if (Ext && Ext->hasIndices()) {
             // This use uses a part of our return value, survey the uses of
             // that part and store the results for this index only.
@@ -493,7 +494,7 @@ void DAE::SurveyFunction(Function &F) {
   // Now, check all of our arguments.
   unsigned i = 0;
   UseVector MaybeLiveArgUses;
-  for (Function::arg_iterator AI = F.arg_begin(),
+  for (Function::const_arg_iterator AI = F.arg_begin(),
        E = F.arg_end(); AI != E; ++AI, ++i) {
     // See what the effect of this use is (recording any uses that cause
     // MaybeLive in MaybeLiveArgUses).
@@ -599,12 +600,12 @@ bool DAE::RemoveDeadStuffFromFunction(Function *F) {
   const Type *RetTy = FTy->getReturnType();
   const Type *NRetTy = NULL;
   unsigned RetCount = NumRetVals(F);
-  
+
   // -1 means unused, other numbers are the new index
   SmallVector<int, 5> NewRetIdxs(RetCount, -1);
   std::vector<const Type*> RetTypes;
-  if (RetTy == Type::getVoidTy(F->getContext())) {
-    NRetTy = Type::getVoidTy(F->getContext());
+  if (RetTy->isVoidTy()) {
+    NRetTy = RetTy;
   } else {
     const StructType *STy = dyn_cast<StructType>(RetTy);
     if (STy)
@@ -653,10 +654,10 @@ bool DAE::RemoveDeadStuffFromFunction(Function *F) {
   // values. Otherwise, ensure that we don't have any conflicting attributes
   // here. Currently, this should not be possible, but special handling might be
   // required when new return value attributes are added.
-  if (NRetTy == Type::getVoidTy(F->getContext()))
+  if (NRetTy->isVoidTy())
     RAttrs &= ~Attribute::typeIncompatible(NRetTy);
   else
-    assert((RAttrs & Attribute::typeIncompatible(NRetTy)) == 0 
+    assert((RAttrs & Attribute::typeIncompatible(NRetTy)) == 0
            && "Return attributes no longer compatible?");
 
   if (RAttrs)
@@ -686,11 +687,12 @@ bool DAE::RemoveDeadStuffFromFunction(Function *F) {
     }
   }
 
-  if (FnAttrs != Attribute::None) 
+  if (FnAttrs != Attribute::None)
     AttributesVec.push_back(AttributeWithIndex::get(~0, FnAttrs));
 
   // Reconstruct the AttributesList based on the vector we constructed.
-  AttrListPtr NewPAL = AttrListPtr::get(AttributesVec.begin(), AttributesVec.end());
+  AttrListPtr NewPAL = AttrListPtr::get(AttributesVec.begin(),
+                                        AttributesVec.end());
 
   // Work around LLVM bug PR56: the CWriter cannot emit varargs functions which
   // have zero fixed arguments.
@@ -705,8 +707,7 @@ bool DAE::RemoveDeadStuffFromFunction(Function *F) {
   }
 
   // Create the new function type based on the recomputed parameters.
-  FunctionType *NFTy = FunctionType::get(NRetTy, Params,
-                                                FTy->isVarArg());
+  FunctionType *NFTy = FunctionType::get(NRetTy, Params, FTy->isVarArg());
 
   // No change?
   if (NFTy == FTy)
@@ -791,7 +792,7 @@ bool DAE::RemoveDeadStuffFromFunction(Function *F) {
         // Return type not changed? Just replace users then.
         Call->replaceAllUsesWith(New);
         New->takeName(Call);
-      } else if (New->getType() == Type::getVoidTy(F->getContext())) {
+      } else if (New->getType()->isVoidTy()) {
         // Our return value has uses, but they will get removed later on.
         // Replace by null for now.
         Call->replaceAllUsesWith(Constant::getNullValue(Call->getType()));
@@ -805,7 +806,7 @@ bool DAE::RemoveDeadStuffFromFunction(Function *F) {
           while (isa<PHINode>(IP)) ++IP;
           InsertPt = IP;
         }
-          
+
         // We used to return a struct. Instead of doing smart stuff with all the
         // uses of this struct, we will just rebuild it using
         // extract/insertvalue chaining and let instcombine clean that up.
@@ -929,11 +930,11 @@ bool DAE::runOnModule(Module &M) {
   DEBUG(dbgs() << "DAE - Determining liveness\n");
   for (Module::iterator I = M.begin(), E = M.end(); I != E; ++I)
     SurveyFunction(*I);
-  
+
   // Now, remove all dead arguments and return values from each function in
-  // turn
+  // turn.
   for (Module::iterator I = M.begin(), E = M.end(); I != E; ) {
-    // Increment now, because the function will probably get removed (ie
+    // Increment now, because the function will probably get removed (ie.
     // replaced by a new one).
     Function *F = I++;
     Changed |= RemoveDeadStuffFromFunction(F);

@@ -303,9 +303,7 @@ void LiveInterval::removeRange(SlotIndex Start, SlotIndex End,
           // otherwise mark it as ~1U so it can be nuked later.
           if (ValNo->id == getNumValNums()-1) {
             do {
-              VNInfo *VNI = valnos.back();
               valnos.pop_back();
-              VNI->~VNInfo();
             } while (!valnos.empty() && valnos.back()->isUnused());
           } else {
             ValNo->setIsUnused(true);
@@ -351,9 +349,7 @@ void LiveInterval::removeValNo(VNInfo *ValNo) {
   // otherwise mark it as ~1U so it can be nuked later.
   if (ValNo->id == getNumValNums()-1) {
     do {
-      VNInfo *VNI = valnos.back();
       valnos.pop_back();
-      VNI->~VNInfo();
     } while (!valnos.empty() && valnos.back()->isUnused());
   } else {
     ValNo->setIsUnused(true);
@@ -579,9 +575,7 @@ void LiveInterval::MergeValueInAsValue(
         // mark it as ~1U so it can be nuked later.
         if (V1->id == getNumValNums()-1) {
           do {
-            VNInfo *VNI = valnos.back();
             valnos.pop_back();
-            VNI->~VNInfo();
           } while (!valnos.empty() && valnos.back()->isUnused());
         } else {
           V1->setIsUnused(true);
@@ -597,7 +591,7 @@ void LiveInterval::MergeValueInAsValue(
 /// used with an unknown definition value.
 void LiveInterval::MergeInClobberRanges(LiveIntervals &li_,
                                         const LiveInterval &Clobbers,
-                                        BumpPtrAllocator &VNInfoAllocator) {
+                                        VNInfo::Allocator &VNInfoAllocator) {
   if (Clobbers.empty()) return;
   
   DenseMap<VNInfo*, VNInfo*> ValNoMaps;
@@ -658,14 +652,13 @@ void LiveInterval::MergeInClobberRanges(LiveIntervals &li_,
   if (UnusedValNo) {
     // Delete the last unused val#.
     valnos.pop_back();
-    UnusedValNo->~VNInfo();
   }
 }
 
 void LiveInterval::MergeInClobberRange(LiveIntervals &li_,
                                        SlotIndex Start,
                                        SlotIndex End,
-                                       BumpPtrAllocator &VNInfoAllocator) {
+                                       VNInfo::Allocator &VNInfoAllocator) {
   // Find a value # to use for the clobber ranges.  If there is already a value#
   // for unknown values, use it.
   VNInfo *ClobberValNo =
@@ -749,9 +742,7 @@ VNInfo* LiveInterval::MergeValueNumberInto(VNInfo *V1, VNInfo *V2) {
   // ~1U so it can be nuked later.
   if (V1->id == getNumValNums()-1) {
     do {
-      VNInfo *VNI = valnos.back();
       valnos.pop_back();
-      VNI->~VNInfo();
     } while (valnos.back()->isUnused());
   } else {
     V1->setIsUnused(true);
@@ -762,7 +753,7 @@ VNInfo* LiveInterval::MergeValueNumberInto(VNInfo *V1, VNInfo *V2) {
 
 void LiveInterval::Copy(const LiveInterval &RHS,
                         MachineRegisterInfo *MRI,
-                        BumpPtrAllocator &VNInfoAllocator) {
+                        VNInfo::Allocator &VNInfoAllocator) {
   ranges.clear();
   valnos.clear();
   std::pair<unsigned, unsigned> Hint = MRI->getRegAllocationHint(RHS.reg);

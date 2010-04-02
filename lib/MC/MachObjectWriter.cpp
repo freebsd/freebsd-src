@@ -11,6 +11,7 @@
 #include "llvm/ADT/StringMap.h"
 #include "llvm/ADT/Twine.h"
 #include "llvm/MC/MCAssembler.h"
+#include "llvm/MC/MCAsmLayout.h"
 #include "llvm/MC/MCExpr.h"
 #include "llvm/MC/MCObjectWriter.h"
 #include "llvm/MC/MCSectionMachO.h"
@@ -271,12 +272,14 @@ public:
     assert(OS.tell() - Start == SegmentLoadCommandSize);
   }
 
-  void WriteSection(const MCAssembler &Asm, const MCSectionData &SD,
-                    uint64_t FileOffset, uint64_t RelocationsStart,
-                    unsigned NumRelocations) {
+  void WriteSection(const MCAssembler &Asm, const MCAsmLayout &Layout,
+                    const MCSectionData &SD, uint64_t FileOffset,
+                    uint64_t RelocationsStart, unsigned NumRelocations) {
+    uint64_t SectionSize = Layout.getSectionSize(&SD);
+
     // The offset is unused for virtual sections.
     if (Asm.getBackend().isVirtualSection(SD.getSection())) {
-      assert(SD.getFileSize() == 0 && "Invalid file size!");
+      assert(Layout.getSectionFileSize(&SD) == 0 && "Invalid file size!");
       FileOffset = 0;
     }
 
@@ -292,11 +295,11 @@ public:
     WriteBytes(Section.getSectionName(), 16);
     WriteBytes(Section.getSegmentName(), 16);
     if (Is64Bit) {
-      Write64(SD.getAddress()); // address
-      Write64(SD.getSize()); // size
+      Write64(Layout.getSectionAddress(&SD)); // address
+      Write64(SectionSize); // size
     } else {
-      Write32(SD.getAddress()); // address
-      Write32(SD.getSize()); // size
+      Write32(Layout.getSectionAddress(&SD)); // address
+      Write32(SectionSize); // size
     }
     Write32(FileOffset);
 
@@ -372,7 +375,7 @@ public:
     assert(OS.tell() - Start == DysymtabLoadCommandSize);
   }
 
-  void WriteNlist(MachSymbolData &MSD) {
+  void WriteNlist(MachSymbolData &MSD, const MCAsmLayout &Layout) {
     MCSymbolData &Data = *MSD.SymbolData;
     const MCSymbol &Symbol = Data.getSymbol();
     uint8_t Type = 0;
@@ -403,7 +406,7 @@ public:
       if (Symbol.isAbsolute()) {
         llvm_unreachable("FIXME: Not yet implemented!");
       } else {
-        Address = Data.getAddress();
+        Address = Layout.getSymbolAddress(&Data);
       }
     } else if (Data.isCommon()) {
       // Common symbols are encoded with the size in the address
@@ -437,8 +440,22 @@ public:
       Write32(Address);
   }
 
-  void RecordX86_64Relocation(const MCAssembler &Asm,
-                              const MCDataFragment &Fragment,
+  // FIXME: We really need to improve the relocation validation. Basically, we
+  // want to implement a separate computation which evaluates the relocation
+  // entry as the linker would, and verifies that the resultant fixup value is
+  // exactly what the encoder wanted. This will catch several classes of
+  // problems:
+  //
+  //  - Relocation entry bugs, the two algorithms are unlikely to have the same
+  //    exact bug.
+  //
+  //  - Relaxation issues, where we forget to relax something.
+  //
+  //  - Input errors, where something cannot be correctly encoded. 'as' allows
+  //    these through in many cases.
+
+  void RecordX86_64Relocation(const MCAssembler &Asm, const MCAsmLayout &Layout,
+                              const MCFragment *Fragment,
                               const MCAsmFixup &Fixup, MCValue Target,
                               uint64_t &FixedValue) {
     unsigned IsPCRel = isFixupKindPCRel(Fixup.Kind);
@@ -446,7 +463,7 @@ public:
     unsigned Log2Size = getFixupKindLog2Size(Fixup.Kind);
 
     // See <reloc.h>.
-    uint32_t Address = Fragment.getOffset() + Fixup.Offset;
+    uint32_t Address = Layout.getFragmentOffset(Fragment) + Fixup.Offset;
     int64_t Value = 0;
     unsigned Index = 0;
     unsigned IsExtern = 0;
@@ -480,11 +497,11 @@ public:
     } else if (Target.getSymB()) { // A - B + constant
       const MCSymbol *A = &Target.getSymA()->getSymbol();
       MCSymbolData &A_SD = Asm.getSymbolData(*A);
-      const MCSymbolData *A_Base = Asm.getAtom(&A_SD);
+      const MCSymbolData *A_Base = Asm.getAtom(Layout, &A_SD);
 
       const MCSymbol *B = &Target.getSymB()->getSymbol();
       MCSymbolData &B_SD = Asm.getSymbolData(*B);
-      const MCSymbolData *B_Base = Asm.getAtom(&B_SD);
+      const MCSymbolData *B_Base = Asm.getAtom(Layout, &B_SD);
 
       // Neither symbol can be modified.
       if (Target.getSymA()->getKind() != MCSymbolRefExpr::VK_None ||
@@ -507,8 +524,8 @@ public:
       if (A_Base == B_Base)
         llvm_report_error("unsupported relocation with identical base");
 
-      Value += A_SD.getAddress() - A_Base->getAddress();
-      Value -= B_SD.getAddress() - B_Base->getAddress();
+      Value += Layout.getSymbolAddress(&A_SD) - Layout.getSymbolAddress(A_Base);
+      Value -= Layout.getSymbolAddress(&B_SD) - Layout.getSymbolAddress(B_Base);
 
       Index = A_Base->getIndex();
       IsExtern = 1;
@@ -521,7 +538,7 @@ public:
                    (Log2Size  << 25) |
                    (IsExtern  << 27) |
                    (Type      << 28));
-      Relocations[Fragment.getParent()].push_back(MRE);
+      Relocations[Fragment->getParent()].push_back(MRE);
 
       Index = B_Base->getIndex();
       IsExtern = 1;
@@ -529,7 +546,7 @@ public:
     } else {
       const MCSymbol *Symbol = &Target.getSymA()->getSymbol();
       MCSymbolData &SD = Asm.getSymbolData(*Symbol);
-      const MCSymbolData *Base = Asm.getAtom(&SD);
+      const MCSymbolData *Base = Asm.getAtom(Layout, &SD);
 
       // x86_64 almost always uses external relocations, except when there is no
       // symbol to use as a base address (a local symbol with no preceeding
@@ -540,19 +557,12 @@ public:
 
         // Add the local offset, if needed.
         if (Base != &SD)
-          Value += SD.getAddress() - Base->getAddress();
+          Value += Layout.getSymbolAddress(&SD) - Layout.getSymbolAddress(Base);
       } else {
-        // The index is the section ordinal.
-        //
-        // FIXME: O(N)
-        Index = 1;
-        MCAssembler::const_iterator it = Asm.begin(), ie = Asm.end();
-        for (; it != ie; ++it, ++Index)
-          if (&*it == SD.getFragment()->getParent())
-            break;
-        assert(it != ie && "Unable to find section index!");
+        // The index is the section ordinal (1-based).
+        Index = SD.getFragment()->getParent()->getOrdinal() + 1;
         IsExtern = 0;
-        Value += SD.getAddress();
+        Value += Layout.getSymbolAddress(&SD);
 
         if (IsPCRel)
           Value -= Address + (1 << Log2Size);
@@ -602,9 +612,16 @@ public:
           }
         }
       } else {
-        if (Modifier == MCSymbolRefExpr::VK_GOT)
+        if (Modifier == MCSymbolRefExpr::VK_GOT) {
           Type = RIT_X86_64_GOT;
-        else if (Modifier != MCSymbolRefExpr::VK_None)
+        } else if (Modifier == MCSymbolRefExpr::VK_GOTPCREL) {
+          // GOTPCREL is allowed as a modifier on non-PCrel instructions, in
+          // which case all we do is set the PCrel bit in the relocation entry;
+          // this is used with exception handling, for example. The source is
+          // required to include any necessary offset directly.
+          Type = RIT_X86_64_GOT;
+          IsPCRel = 1;
+        } else if (Modifier != MCSymbolRefExpr::VK_None)
           llvm_report_error("unsupported symbol modifier in relocation");
         else
           Type = RIT_X86_64_Unsigned;
@@ -622,14 +639,15 @@ public:
                  (Log2Size  << 25) |
                  (IsExtern  << 27) |
                  (Type      << 28));
-    Relocations[Fragment.getParent()].push_back(MRE);
+    Relocations[Fragment->getParent()].push_back(MRE);
   }
 
   void RecordScatteredRelocation(const MCAssembler &Asm,
-                                 const MCFragment &Fragment,
+                                 const MCAsmLayout &Layout,
+                                 const MCFragment *Fragment,
                                  const MCAsmFixup &Fixup, MCValue Target,
                                  uint64_t &FixedValue) {
-    uint32_t Address = Fragment.getOffset() + Fixup.Offset;
+    uint32_t Address = Layout.getFragmentOffset(Fragment) + Fixup.Offset;
     unsigned IsPCRel = isFixupKindPCRel(Fixup.Kind);
     unsigned Log2Size = getFixupKindLog2Size(Fixup.Kind);
     unsigned Type = RIT_Vanilla;
@@ -642,7 +660,7 @@ public:
       llvm_report_error("symbol '" + A->getName() +
                         "' can not be undefined in a subtraction expression");
 
-    uint32_t Value = A_SD->getAddress();
+    uint32_t Value = Layout.getSymbolAddress(A_SD);
     uint32_t Value2 = 0;
 
     if (const MCSymbolRefExpr *B = Target.getSymB()) {
@@ -658,7 +676,7 @@ public:
       // relocation types from the linkers point of view, this is done solely
       // for pedantic compatibility with 'as'.
       Type = A_SD->isExternal() ? RIT_Difference : RIT_LocalDifference;
-      Value2 = B_SD->getAddress();
+      Value2 = Layout.getSymbolAddress(B_SD);
     }
 
     // Relocations are written out in reverse order, so the PAIR comes first.
@@ -670,7 +688,7 @@ public:
                    (IsPCRel   << 30) |
                    RF_Scattered);
       MRE.Word1 = Value2;
-      Relocations[Fragment.getParent()].push_back(MRE);
+      Relocations[Fragment->getParent()].push_back(MRE);
     }
 
     MachRelocationEntry MRE;
@@ -680,14 +698,14 @@ public:
                  (IsPCRel   << 30) |
                  RF_Scattered);
     MRE.Word1 = Value;
-    Relocations[Fragment.getParent()].push_back(MRE);
+    Relocations[Fragment->getParent()].push_back(MRE);
   }
 
-  void RecordRelocation(const MCAssembler &Asm, const MCDataFragment &Fragment,
-                        const MCAsmFixup &Fixup, MCValue Target,
-                        uint64_t &FixedValue) {
+  void RecordRelocation(const MCAssembler &Asm, const MCAsmLayout &Layout,
+                        const MCFragment *Fragment, const MCAsmFixup &Fixup,
+                        MCValue Target, uint64_t &FixedValue) {
     if (Is64Bit) {
-      RecordX86_64Relocation(Asm, Fragment, Fixup, Target, FixedValue);
+      RecordX86_64Relocation(Asm, Layout, Fragment, Fixup, Target, FixedValue);
       return;
     }
 
@@ -702,12 +720,12 @@ public:
     if (Target.getSymB() ||
         (Target.getSymA() && !Target.getSymA()->getSymbol().isUndefined() &&
          Offset)) {
-      RecordScatteredRelocation(Asm, Fragment, Fixup, Target, FixedValue);
+      RecordScatteredRelocation(Asm, Layout, Fragment, Fixup,Target,FixedValue);
       return;
     }
 
     // See <reloc.h>.
-    uint32_t Address = Fragment.getOffset() + Fixup.Offset;
+    uint32_t Address = Layout.getFragmentOffset(Fragment) + Fixup.Offset;
     uint32_t Value = 0;
     unsigned Index = 0;
     unsigned IsExtern = 0;
@@ -729,16 +747,9 @@ public:
         Index = SD->getIndex();
         Value = 0;
       } else {
-        // The index is the section ordinal.
-        //
-        // FIXME: O(N)
-        Index = 1;
-        MCAssembler::const_iterator it = Asm.begin(), ie = Asm.end();
-        for (; it != ie; ++it, ++Index)
-          if (&*it == SD->getFragment()->getParent())
-            break;
-        assert(it != ie && "Unable to find section index!");
-        Value = SD->getAddress();
+        // The index is the section ordinal (1-based).
+        Index = SD->getFragment()->getParent()->getOrdinal() + 1;
+        Value = Layout.getSymbolAddress(SD);
       }
 
       Type = RIT_Vanilla;
@@ -752,7 +763,7 @@ public:
                  (Log2Size  << 25) |
                  (IsExtern  << 27) |
                  (Type      << 28));
-    Relocations[Fragment.getParent()].push_back(MRE);
+    Relocations[Fragment->getParent()].push_back(MRE);
   }
 
   void BindIndirectSymbols(MCAssembler &Asm) {
@@ -920,7 +931,7 @@ public:
                        UndefinedSymbolData);
   }
 
-  void WriteObject(const MCAssembler &Asm) {
+  void WriteObject(const MCAssembler &Asm, const MCAsmLayout &Layout) {
     unsigned NumSections = Asm.size();
 
     // The section data starts after the header, the segment load command (and
@@ -948,16 +959,17 @@ public:
     for (MCAssembler::const_iterator it = Asm.begin(),
            ie = Asm.end(); it != ie; ++it) {
       const MCSectionData &SD = *it;
+      uint64_t Address = Layout.getSectionAddress(&SD);
+      uint64_t Size = Layout.getSectionSize(&SD);
+      uint64_t FileSize = Layout.getSectionFileSize(&SD);
 
-      VMSize = std::max(VMSize, SD.getAddress() + SD.getSize());
+      VMSize = std::max(VMSize, Address + Size);
 
       if (Asm.getBackend().isVirtualSection(SD.getSection()))
         continue;
 
-      SectionDataSize = std::max(SectionDataSize,
-                                 SD.getAddress() + SD.getSize());
-      SectionDataFileSize = std::max(SectionDataFileSize,
-                                     SD.getAddress() + SD.getFileSize());
+      SectionDataSize = std::max(SectionDataSize, Address + Size);
+      SectionDataFileSize = std::max(SectionDataFileSize, Address + FileSize);
     }
 
     // The section data is padded to 4 bytes.
@@ -978,8 +990,8 @@ public:
            ie = Asm.end(); it != ie; ++it) {
       std::vector<MachRelocationEntry> &Relocs = Relocations[it];
       unsigned NumRelocs = Relocs.size();
-      uint64_t SectionStart = SectionDataStart + it->getAddress();
-      WriteSection(Asm, *it, SectionStart, RelocTableEnd, NumRelocs);
+      uint64_t SectionStart = SectionDataStart + Layout.getSectionAddress(it);
+      WriteSection(Asm, Layout, *it, SectionStart, RelocTableEnd, NumRelocs);
       RelocTableEnd += NumRelocs * RelocationInfoSize;
     }
 
@@ -1020,7 +1032,7 @@ public:
     // Write the actual section data.
     for (MCAssembler::const_iterator it = Asm.begin(),
            ie = Asm.end(); it != ie; ++it)
-      Asm.WriteSectionData(it, Writer);
+      Asm.WriteSectionData(it, Layout, Writer);
 
     // Write the extra padding.
     WriteZeros(SectionDataPadding);
@@ -1066,11 +1078,11 @@ public:
 
       // Write the symbol table entries.
       for (unsigned i = 0, e = LocalSymbolData.size(); i != e; ++i)
-        WriteNlist(LocalSymbolData[i]);
+        WriteNlist(LocalSymbolData[i], Layout);
       for (unsigned i = 0, e = ExternalSymbolData.size(); i != e; ++i)
-        WriteNlist(ExternalSymbolData[i]);
+        WriteNlist(ExternalSymbolData[i], Layout);
       for (unsigned i = 0, e = UndefinedSymbolData.size(); i != e; ++i)
-        WriteNlist(UndefinedSymbolData[i]);
+        WriteNlist(UndefinedSymbolData[i], Layout);
 
       // Write the string table.
       OS << StringTable.str();
@@ -1097,13 +1109,15 @@ void MachObjectWriter::ExecutePostLayoutBinding(MCAssembler &Asm) {
 }
 
 void MachObjectWriter::RecordRelocation(const MCAssembler &Asm,
-                                        const MCDataFragment &Fragment,
+                                        const MCAsmLayout &Layout,
+                                        const MCFragment *Fragment,
                                         const MCAsmFixup &Fixup, MCValue Target,
                                         uint64_t &FixedValue) {
-  ((MachObjectWriterImpl*) Impl)->RecordRelocation(Asm, Fragment, Fixup,
+  ((MachObjectWriterImpl*) Impl)->RecordRelocation(Asm, Layout, Fragment, Fixup,
                                                    Target, FixedValue);
 }
 
-void MachObjectWriter::WriteObject(const MCAssembler &Asm) {
-  ((MachObjectWriterImpl*) Impl)->WriteObject(Asm);
+void MachObjectWriter::WriteObject(const MCAssembler &Asm,
+                                   const MCAsmLayout &Layout) {
+  ((MachObjectWriterImpl*) Impl)->WriteObject(Asm, Layout);
 }

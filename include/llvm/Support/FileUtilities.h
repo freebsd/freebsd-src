@@ -40,6 +40,8 @@ namespace llvm {
     sys::Path Filename;
     bool DeleteIt;
   public:
+    FileRemover() : DeleteIt(false) {}
+
     explicit FileRemover(const sys::Path &filename, bool deleteIt = true)
       : Filename(filename), DeleteIt(deleteIt) {}
 
@@ -48,6 +50,17 @@ namespace llvm {
         // Ignore problems deleting the file.
         Filename.eraseFromDisk();
       }
+    }
+
+    /// setFile - Give ownership of the file to the FileRemover so it will
+    /// be removed when the object is destroyed.  If the FileRemover already
+    /// had ownership of a file, remove it first.
+    void setFile(const sys::Path &filename, bool deleteIt = true) {
+      if (DeleteIt)
+        Filename.eraseFromDisk();
+
+      Filename = filename;
+      DeleteIt = deleteIt;
     }
 
     /// releaseFile - Take ownership of the file away from the FileRemover so it

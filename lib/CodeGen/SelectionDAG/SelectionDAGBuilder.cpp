@@ -3800,7 +3800,7 @@ SelectionDAGBuilder::visitIntrinsicCall(CallInst &I, unsigned Intrinsic) {
     int FI = SI->second;
 
     if (MachineModuleInfo *MMI = DAG.getMachineModuleInfo())
-      if (MDNode *Dbg = DI.getMetadata("dbg"))
+      if (MDNode *Dbg = DI.getDbgMetadata())
         MMI->setVariableDbgInfo(Variable, FI, Dbg);
     return 0;
   }
@@ -3824,22 +3824,19 @@ SelectionDAGBuilder::visitIntrinsicCall(CallInst &I, unsigned Intrinsic) {
     // debug info exists.
     ++SDNodeOrder;
     if (isa<ConstantInt>(V) || isa<ConstantFP>(V)) {
-      SDDbgValue* dv = new SDDbgValue(Variable, V, Offset, dl, SDNodeOrder);
-      DAG.RememberDbgInfo(dv);
+      DAG.AddDbgValue(DAG.getDbgValue(Variable, V, Offset, dl, SDNodeOrder));
     } else {
       SDValue &N = NodeMap[V];
-      if (N.getNode()) {
-        SDDbgValue *dv = new SDDbgValue(Variable, N.getNode(),
-                                        N.getResNo(), Offset, dl, SDNodeOrder);
-        DAG.AssignDbgInfo(N.getNode(), dv);
-      } else {
+      if (N.getNode())
+        DAG.AddDbgValue(DAG.getDbgValue(Variable, N.getNode(),
+                                        N.getResNo(), Offset, dl, SDNodeOrder),
+                        N.getNode());
+      else
         // We may expand this to cover more cases.  One case where we have no
         // data available is an unreferenced parameter; we need this fallback.
-        SDDbgValue* dv = new SDDbgValue(Variable, 
+        DAG.AddDbgValue(DAG.getDbgValue(Variable, 
                                         UndefValue::get(V->getType()),
-                                        Offset, dl, SDNodeOrder);
-        DAG.RememberDbgInfo(dv);
-      }
+                                        Offset, dl, SDNodeOrder));
     }
 
     // Build a debug info table entry.
@@ -3855,7 +3852,7 @@ SelectionDAGBuilder::visitIntrinsicCall(CallInst &I, unsigned Intrinsic) {
       return 0; // VLAs.
     int FI = SI->second;
     if (MachineModuleInfo *MMI = DAG.getMachineModuleInfo())
-      if (MDNode *Dbg = DI.getMetadata("dbg"))
+      if (MDNode *Dbg = DI.getDbgMetadata())
         MMI->setVariableDbgInfo(Variable, FI, Dbg);
     return 0;
   }
@@ -6054,8 +6051,10 @@ void SelectionDAGISel::LowerArguments(BasicBlock *LLVMBB) {
     }
 
     if (!I->use_empty()) {
-      SDValue Res = DAG.getMergeValues(&ArgValues[0], NumValues,
-                                       SDB->getCurDebugLoc());
+      SDValue Res;
+      if (!ArgValues.empty())
+        Res = DAG.getMergeValues(&ArgValues[0], NumValues,
+                                 SDB->getCurDebugLoc());
       SDB->setValue(I, Res);
 
       // If this argument is live outside of the entry block, insert a copy from

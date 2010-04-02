@@ -1,4 +1,4 @@
-//===-- LLVMContextImpl.h - The LLVMContextImpl opaque class --------------===//
+//===-- LLVMContextImpl.h - The LLVMContextImpl opaque class ----*- C++ -*-===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -19,9 +19,9 @@
 #include "LeaksContext.h"
 #include "TypesContext.h"
 #include "llvm/LLVMContext.h"
-#include "llvm/Metadata.h"
 #include "llvm/Constants.h"
 #include "llvm/DerivedTypes.h"
+#include "llvm/Metadata.h"
 #include "llvm/Assembly/Writer.h"
 #include "llvm/Support/ValueHandle.h"
 #include "llvm/ADT/APFloat.h"
@@ -36,8 +36,6 @@ namespace llvm {
 
 class ConstantInt;
 class ConstantFP;
-class MDString;
-class MDNode;
 class LLVMContext;
 class Type;
 class Value;
@@ -92,6 +90,29 @@ struct DenseMapAPFloatKeyInfo {
   }
 };
 
+/// DebugRecVH - This is a CallbackVH used to keep the Scope -> index maps
+/// up to date as MDNodes mutate.  This class is implemented in DebugLoc.cpp.
+class DebugRecVH : public CallbackVH {
+  /// Ctx - This is the LLVM Context being referenced.
+  LLVMContextImpl *Ctx;
+  
+  /// Idx - The index into either ScopeRecordIdx or ScopeInlinedAtRecords that
+  /// this reference lives in.  If this is zero, then it represents a
+  /// non-canonical entry that has no DenseMap value.  This can happen due to
+  /// RAUW.
+  int Idx;
+public:
+  DebugRecVH(MDNode *n, LLVMContextImpl *ctx, int idx)
+    : CallbackVH(n), Ctx(ctx), Idx(idx) {}
+  
+  MDNode *get() const {
+    return cast_or_null<MDNode>(getValPtr());
+  }
+  
+  virtual void deleted();
+  virtual void allUsesReplacedWith(Value *VNew);
+};
+  
 class LLVMContextImpl {
 public:
   typedef DenseMap<DenseMapAPIntKeyInfo::KeyTy, ConstantInt*, 
@@ -130,11 +151,12 @@ public:
   VectorConstantsTy VectorConstants;
   
   ConstantUniqueMap<char, PointerType, ConstantPointerNull> NullPtrConstants;
-  
   ConstantUniqueMap<char, Type, UndefValue> UndefValueConstants;
   
   DenseMap<std::pair<Function*, BasicBlock*> , BlockAddress*> BlockAddresses;
   ConstantUniqueMap<ExprMapKeyType, Type, ConstantExpr> ExprConstants;
+
+  ConstantUniqueMap<InlineAsmKeyType, PointerType, InlineAsm> InlineAsms;
   
   ConstantInt *TheTrueVal;
   ConstantInt *TheFalseVal;
@@ -195,72 +217,29 @@ public:
   /// context.
   DenseMap<const Instruction *, MDMapTy> MetadataStore;
   
+  /// ScopeRecordIdx - This is the index in ScopeRecords for an MDNode scope
+  /// entry with no "inlined at" element.
+  DenseMap<MDNode*, int> ScopeRecordIdx;
   
-  LLVMContextImpl(LLVMContext &C) : TheTrueVal(0), TheFalseVal(0),
-    VoidTy(C, Type::VoidTyID),
-    LabelTy(C, Type::LabelTyID),
-    FloatTy(C, Type::FloatTyID),
-    DoubleTy(C, Type::DoubleTyID),
-    MetadataTy(C, Type::MetadataTyID),
-    X86_FP80Ty(C, Type::X86_FP80TyID),
-    FP128Ty(C, Type::FP128TyID),
-    PPC_FP128Ty(C, Type::PPC_FP128TyID),
-    Int1Ty(C, 1),
-    Int8Ty(C, 8),
-    Int16Ty(C, 16),
-    Int32Ty(C, 32),
-    Int64Ty(C, 64),
-    AlwaysOpaqueTy(new OpaqueType(C)) {
-    // Make sure the AlwaysOpaqueTy stays alive as long as the Context.
-    AlwaysOpaqueTy->addRef();
-    OpaqueTypes.insert(AlwaysOpaqueTy);
-  }
-
-  ~LLVMContextImpl() {
-    ExprConstants.freeConstants();
-    ArrayConstants.freeConstants();
-    StructConstants.freeConstants();
-    VectorConstants.freeConstants();
-    AggZeroConstants.freeConstants();
-    NullPtrConstants.freeConstants();
-    UndefValueConstants.freeConstants();
-    for (IntMapTy::iterator I = IntConstants.begin(), E = IntConstants.end(); 
-         I != E; ++I) {
-      if (I->second->use_empty())
-        delete I->second;
-    }
-    for (FPMapTy::iterator I = FPConstants.begin(), E = FPConstants.end(); 
-         I != E; ++I) {
-      if (I->second->use_empty())
-        delete I->second;
-    }
-    AlwaysOpaqueTy->dropRef();
-    for (OpaqueTypesTy::iterator I = OpaqueTypes.begin(), E = OpaqueTypes.end();
-        I != E; ++I) {
-      (*I)->AbstractTypeUsers.clear();
-      delete *I;
-    }
-    // Destroy MDNodes.  ~MDNode can move and remove nodes between the MDNodeSet
-    // and the NonUniquedMDNodes sets, so copy the values out first.
-    SmallVector<MDNode*, 8> MDNodes;
-    MDNodes.reserve(MDNodeSet.size() + NonUniquedMDNodes.size());
-    for (FoldingSetIterator<MDNode> I = MDNodeSet.begin(), E = MDNodeSet.end();
-         I != E; ++I) {
-      MDNodes.push_back(&*I);
-    }
-    MDNodes.append(NonUniquedMDNodes.begin(), NonUniquedMDNodes.end());
-    for (SmallVector<MDNode*, 8>::iterator I = MDNodes.begin(),
-           E = MDNodes.end(); I != E; ++I) {
-      (*I)->destroy();
-    }
-    assert(MDNodeSet.empty() && NonUniquedMDNodes.empty() &&
-           "Destroying all MDNodes didn't empty the Context's sets.");
-    // Destroy MDStrings.
-    for (StringMap<MDString*>::iterator I = MDStringCache.begin(),
-           E = MDStringCache.end(); I != E; ++I) {
-      delete I->second;
-    }
-  }
+  /// ScopeRecords - These are the actual mdnodes (in a value handle) for an
+  /// index.  The ValueHandle ensures that ScopeRecordIdx stays up to date if
+  /// the MDNode is RAUW'd.
+  std::vector<DebugRecVH> ScopeRecords;
+  
+  /// ScopeInlinedAtIdx - This is the index in ScopeInlinedAtRecords for an
+  /// scope/inlined-at pair.
+  DenseMap<std::pair<MDNode*, MDNode*>, int> ScopeInlinedAtIdx;
+  
+  /// ScopeInlinedAtRecords - These are the actual mdnodes (in value handles)
+  /// for an index.  The ValueHandle ensures that ScopeINlinedAtIdx stays up
+  /// to date.
+  std::vector<std::pair<DebugRecVH, DebugRecVH> > ScopeInlinedAtRecords;
+  
+  int getOrAddScopeRecordIdxEntry(MDNode *N, int ExistingIdx);
+  int getOrAddScopeInlinedAtIdxEntry(MDNode *Scope, MDNode *IA,int ExistingIdx);
+  
+  LLVMContextImpl(LLVMContext &C);
+  ~LLVMContextImpl();
 };
 
 }

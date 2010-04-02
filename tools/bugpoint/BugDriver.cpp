@@ -21,7 +21,6 @@
 #include "llvm/Support/IRReader.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/FileUtilities.h"
-#include "llvm/Support/MemoryBuffer.h"
 #include "llvm/Support/SourceMgr.h"
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/System/Host.h"
@@ -74,6 +73,10 @@ BugDriver::BugDriver(const char *toolname, bool as_child, bool find_bugs,
     Program(0), Interpreter(0), SafeInterpreter(0), gcc(0),
     run_as_child(as_child), run_find_bugs(find_bugs), Timeout(timeout), 
     MemoryLimit(memlimit), UseValgrind(use_valgrind) {}
+
+BugDriver::~BugDriver() {
+  delete Program;
+}
 
 
 /// ParseInputFile - Given a bitcode or assembly input filename, parse and

@@ -1899,7 +1899,7 @@ LSRInstance::CollectLoopInvariantFixupsAndFormulae() {
       const Value *V = U->getValue();
       if (const Instruction *Inst = dyn_cast<Instruction>(V))
         if (L->contains(Inst)) continue;
-      for (Value::use_const_iterator UI = V->use_begin(), UE = V->use_end();
+      for (Value::const_use_iterator UI = V->use_begin(), UE = V->use_end();
            UI != UE; ++UI) {
         const Instruction *UserInst = dyn_cast<Instruction>(*UI);
         // Ignore non-instructions.
@@ -2827,6 +2827,7 @@ Value *LSRInstance::Expand(const LSRFixup &LF,
       IP = Tentative;
   }
   while (isa<PHINode>(IP)) ++IP;
+  while (isa<DbgInfoIntrinsic>(IP)) ++IP;
 
   // Inform the Rewriter if we have a post-increment use, so that it can
   // perform an advantageous expansion.
@@ -2864,8 +2865,10 @@ Value *LSRInstance::Expand(const LSRFixup &LF,
         // so that it is dominated by its operand. If the original insert point
         // was already dominated by the increment, keep it, because there may
         // be loop-variant operands that need to be respected also.
-        if (L->contains(LF.UserInst) && !DT.dominates(IVIncInsertPos, IP))
+        if (L->contains(LF.UserInst) && !DT.dominates(IVIncInsertPos, IP)) {
           IP = IVIncInsertPos;
+          while (isa<DbgInfoIntrinsic>(IP)) ++IP;
+        }
         break;
       }
       Start = AR->getStart();

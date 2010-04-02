@@ -350,10 +350,16 @@ struct StrNCmpOpt : public LibCallOptimization {
 // 'strcpy' Optimizations
 
 struct StrCpyOpt : public LibCallOptimization {
+  bool OptChkCall;  // True if it's optimizing a __strcpy_chk libcall.
+
+  StrCpyOpt(bool c) : OptChkCall(c) {}
+
   virtual Value *CallOptimizer(Function *Callee, CallInst *CI, IRBuilder<> &B) {
     // Verify the "strcpy" function prototype.
+    unsigned NumParams = OptChkCall ? 3 : 2;
     const FunctionType *FT = Callee->getFunctionType();
-    if (FT->getNumParams() != 2 || FT->getReturnType() != FT->getParamType(0) ||
+    if (FT->getNumParams() != NumParams ||
+        FT->getReturnType() != FT->getParamType(0) ||
         FT->getParamType(0) != FT->getParamType(1) ||
         FT->getParamType(0) != Type::getInt8PtrTy(*Context))
       return 0;
@@ -371,8 +377,13 @@ struct StrCpyOpt : public LibCallOptimization {
 
     // We have enough information to now generate the memcpy call to do the
     // concatenation for us.  Make a memcpy to copy the nul byte with align = 1.
-    EmitMemCpy(Dst, Src,
-               ConstantInt::get(TD->getIntPtrType(*Context), Len), 1, B, TD);
+    if (OptChkCall)
+      EmitMemCpyChk(Dst, Src,
+                    ConstantInt::get(TD->getIntPtrType(*Context), Len),
+                    CI->getOperand(3), B, TD);
+    else
+      EmitMemCpy(Dst, Src,
+                 ConstantInt::get(TD->getIntPtrType(*Context), Len), 1, B, TD);
     return Dst;
   }
 };
@@ -1162,7 +1173,8 @@ namespace {
     StringMap<LibCallOptimization*> Optimizations;
     // String and Memory LibCall Optimizations
     StrCatOpt StrCat; StrNCatOpt StrNCat; StrChrOpt StrChr; StrCmpOpt StrCmp;
-    StrNCmpOpt StrNCmp; StrCpyOpt StrCpy; StrNCpyOpt StrNCpy; StrLenOpt StrLen;
+    StrNCmpOpt StrNCmp; StrCpyOpt StrCpy; StrCpyOpt StrCpyChk;
+    StrNCpyOpt StrNCpy; StrLenOpt StrLen;
     StrToOpt StrTo; StrStrOpt StrStr;
     MemCmpOpt MemCmp; MemCpyOpt MemCpy; MemMoveOpt MemMove; MemSetOpt MemSet;
     // Math Library Optimizations
@@ -1177,8 +1189,7 @@ namespace {
     bool Modified;  // This is only used by doInitialization.
   public:
     static char ID; // Pass identification
-    SimplifyLibCalls() : FunctionPass(&ID) {}
-
+    SimplifyLibCalls() : FunctionPass(&ID), StrCpy(false), StrCpyChk(true) {}
     void InitOptimizations();
     bool runOnFunction(Function &F);
 
@@ -1227,6 +1238,9 @@ void SimplifyLibCalls::InitOptimizations() {
   Optimizations["memcpy"] = &MemCpy;
   Optimizations["memmove"] = &MemMove;
   Optimizations["memset"] = &MemSet;
+
+  // _chk variants of String and Memory LibCall Optimizations.
+  Optimizations["__strcpy_chk"] = &StrCpyChk;
 
   // Math Library Optimizations
   Optimizations["powf"] = &Pow;

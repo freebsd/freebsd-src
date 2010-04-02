@@ -1681,7 +1681,7 @@ void AssemblyWriter::printBasicBlock(const BasicBlock *BB) {
     // Output predecessors for the block...
     Out.PadToColumn(50);
     Out << ";";
-    pred_const_iterator PI = pred_begin(BB), PE = pred_end(BB);
+    const_pred_iterator PI = pred_begin(BB), PE = pred_end(BB);
 
     if (PI == PE) {
       Out << " No predecessors!";
@@ -1875,6 +1875,7 @@ void AssemblyWriter::printInstruction(const Instruction &I) {
     if (PAL.getFnAttributes() != Attribute::None)
       Out << ' ' << Attribute::getAsString(PAL.getFnAttributes());
   } else if (const InvokeInst *II = dyn_cast<InvokeInst>(&I)) {
+    Operand = II->getCalledValue();
     const PointerType    *PTy = cast<PointerType>(Operand->getType());
     const FunctionType   *FTy = cast<FunctionType>(PTy->getElementType());
     const Type         *RetTy = FTy->getReturnType();
@@ -1912,10 +1913,10 @@ void AssemblyWriter::printInstruction(const Instruction &I) {
       writeOperand(Operand, true);
     }
     Out << '(';
-    for (unsigned op = 3, Eop = I.getNumOperands(); op < Eop; ++op) {
-      if (op > 3)
+    for (unsigned op = 0, Eop = I.getNumOperands() - 3; op < Eop; ++op) {
+      if (op)
         Out << ", ";
-      writeParamOperand(I.getOperand(op), PAL.getParamAttributes(op-2));
+      writeParamOperand(I.getOperand(op), PAL.getParamAttributes(op + 1));
     }
 
     Out << ')';

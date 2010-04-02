@@ -456,6 +456,9 @@ ARMTargetLowering::ARMTargetLowering(TargetMachine &TM)
     // Generic (and overly aggressive) if-conversion limits.
     setIfCvtBlockSizeLimit(10);
     setIfCvtDupBlockSizeLimit(2);
+  } else if (Subtarget->hasV7Ops()) {
+    setIfCvtBlockSizeLimit(3);
+    setIfCvtDupBlockSizeLimit(1);
   } else if (Subtarget->hasV6Ops()) {
     setIfCvtBlockSizeLimit(2);
     setIfCvtDupBlockSizeLimit(1);

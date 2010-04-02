@@ -32,6 +32,7 @@ OmitComments("omit-comments", cl::desc("Do not generate comments"),
 
 namespace {
 class MatcherTableEmitter {
+  const CodeGenDAGPatterns &CGP;
   StringMap<unsigned> NodePredicateMap, PatternPredicateMap;
   std::vector<std::string> NodePredicates, PatternPredicates;
 
@@ -43,13 +44,12 @@ class MatcherTableEmitter {
   std::vector<Record*> NodeXForms;
 
 public:
-  MatcherTableEmitter() {}
+  MatcherTableEmitter(const CodeGenDAGPatterns &cgp) : CGP(cgp) {}
 
   unsigned EmitMatcherList(const Matcher *N, unsigned Indent,
                            unsigned StartIdx, formatted_raw_ostream &OS);
   
-  void EmitPredicateFunctions(const CodeGenDAGPatterns &CGP,
-                              formatted_raw_ostream &OS);
+  void EmitPredicateFunctions(formatted_raw_ostream &OS);
   
   void EmitHistogram(const Matcher *N, formatted_raw_ostream &OS);
 private:
@@ -255,9 +255,9 @@ EmitMatcher(const Matcher *N, unsigned Indent, unsigned CurrentIdx,
   }
 
   case Matcher::CheckOpcode:
-    OS << "OPC_CheckOpcode, "
-       << cast<CheckOpcodeMatcher>(N)->getOpcode().getEnumName() << ",\n";
-    return 2;
+    OS << "OPC_CheckOpcode, TARGET_OPCODE("
+       << cast<CheckOpcodeMatcher>(N)->getOpcode().getEnumName() << "),\n";
+    return 3;
       
   case Matcher::SwitchOpcode:
   case Matcher::SwitchType: {
@@ -280,10 +280,14 @@ EmitMatcher(const Matcher *N, unsigned Indent, unsigned CurrentIdx,
     // For each case we emit the size, then the opcode, then the matcher.
     for (unsigned i = 0, e = NumCases; i != e; ++i) {
       const Matcher *Child;
-      if (const SwitchOpcodeMatcher *SOM = dyn_cast<SwitchOpcodeMatcher>(N))
+      unsigned IdxSize;
+      if (const SwitchOpcodeMatcher *SOM = dyn_cast<SwitchOpcodeMatcher>(N)) {
         Child = SOM->getCaseMatcher(i);
-      else
+        IdxSize = 2;  // size of opcode in table is 2 bytes.
+      } else {
         Child = cast<SwitchTypeMatcher>(N)->getCaseMatcher(i);
+        IdxSize = 1;  // size of type in table is 1 byte.
+      }
       
       // We need to encode the opcode and the offset of the case code before
       // emitting the case code.  Handle this by buffering the output into a
@@ -299,7 +303,8 @@ EmitMatcher(const Matcher *N, unsigned Indent, unsigned CurrentIdx,
         TmpBuf.clear();
         raw_svector_ostream OS(TmpBuf);
         formatted_raw_ostream FOS(OS);
-        ChildSize = EmitMatcherList(Child, Indent+1, CurrentIdx+VBRSize+1, FOS);
+        ChildSize = EmitMatcherList(Child, Indent+1, CurrentIdx+VBRSize+IdxSize,
+                                    FOS);
       } while (GetVBRSize(ChildSize) != VBRSize);
       
       assert(ChildSize != 0 && "Should not have a zero-sized child!");
@@ -316,15 +321,15 @@ EmitMatcher(const Matcher *N, unsigned Indent, unsigned CurrentIdx,
       
       OS << ' ';
       if (const SwitchOpcodeMatcher *SOM = dyn_cast<SwitchOpcodeMatcher>(N))
-        OS << SOM->getCaseOpcode(i).getEnumName();
+        OS << "TARGET_OPCODE(" << SOM->getCaseOpcode(i).getEnumName() << "),";
       else
-        OS << getEnumName(cast<SwitchTypeMatcher>(N)->getCaseType(i));
-      OS << ',';
-      
+        OS << getEnumName(cast<SwitchTypeMatcher>(N)->getCaseType(i)) << ',';
+
+      CurrentIdx += IdxSize;
+
       if (!OmitComments)
-        OS << "// ->" << CurrentIdx+ChildSize+1;
+        OS << "// ->" << CurrentIdx+ChildSize;
       OS << '\n';
-      ++CurrentIdx;
       OS << TmpBuf.str();
       CurrentIdx += ChildSize;
     }
@@ -341,6 +346,8 @@ EmitMatcher(const Matcher *N, unsigned Indent, unsigned CurrentIdx,
   }
 
  case Matcher::CheckType:
+    assert(cast<CheckTypeMatcher>(N)->getResNo() == 0 &&
+           "FIXME: Add support for CheckType of resno != 0");
     OS << "OPC_CheckType, "
        << getEnumName(cast<CheckTypeMatcher>(N)->getType()) << ",\n";
     return 2;
@@ -442,6 +449,13 @@ EmitMatcher(const Matcher *N, unsigned Indent, unsigned CurrentIdx,
   case Matcher::EmitMergeInputChains: {
     const EmitMergeInputChainsMatcher *MN =
       cast<EmitMergeInputChainsMatcher>(N);
+    
+    // Handle the specialized forms OPC_EmitMergeInputChains1_0 and 1_1.
+    if (MN->getNumNodes() == 1 && MN->getNode(0) < 2) {
+      OS << "OPC_EmitMergeInputChains1_" << MN->getNode(0) << ",\n";
+      return 1;
+    }
+    
     OS << "OPC_EmitMergeInputChains, " << MN->getNumNodes() << ", ";
     for (unsigned i = 0, e = MN->getNumNodes(); i != e; ++i)
       OS << MN->getNode(i) << ", ";
@@ -507,7 +521,8 @@ EmitMatcher(const Matcher *N, unsigned Indent, unsigned CurrentIdx,
 
       if (const MorphNodeToMatcher *SNT = dyn_cast<MorphNodeToMatcher>(N)) {
         OS.PadToColumn(Indent*2) << "// Src: "
-          << *SNT->getPattern().getSrcPattern() << '\n';
+          << *SNT->getPattern().getSrcPattern() << " - Complexity = " 
+          << SNT->getPattern().getPatternComplexity(CGP) << '\n';
         OS.PadToColumn(Indent*2) << "// Dst: "
           << *SNT->getPattern().getDstPattern() << '\n';
       }
@@ -534,7 +549,8 @@ EmitMatcher(const Matcher *N, unsigned Indent, unsigned CurrentIdx,
     OS << '\n';
     if (!OmitComments) {
       OS.PadToColumn(Indent*2) << "// Src: "
-        << *CM->getPattern().getSrcPattern() << '\n';
+        << *CM->getPattern().getSrcPattern() << " - Complexity = " 
+        << CM->getPattern().getPatternComplexity(CGP) << '\n';
       OS.PadToColumn(Indent*2) << "// Dst: "
         << *CM->getPattern().getDstPattern();
     }
@@ -565,8 +581,7 @@ EmitMatcherList(const Matcher *N, unsigned Indent, unsigned CurrentIdx,
   return Size;
 }
 
-void MatcherTableEmitter::EmitPredicateFunctions(const CodeGenDAGPatterns &CGP,
-                                                 formatted_raw_ostream &OS) {
+void MatcherTableEmitter::EmitPredicateFunctions(formatted_raw_ostream &OS) {
   // Emit pattern predicates.
   if (!PatternPredicates.empty()) {
     OS << "bool CheckPatternPredicate(unsigned PredNo) const {\n";
@@ -760,7 +775,7 @@ void llvm::EmitMatcherTable(const Matcher *TheMatcher,
   OS << "// The main instruction selector code.\n";
   OS << "SDNode *SelectCode(SDNode *N) {\n";
 
-  MatcherTableEmitter MatcherEmitter;
+  MatcherTableEmitter MatcherEmitter(CGP);
 
   OS << "  // Opcodes are emitted as 2 bytes, TARGET_OPCODE handles this.\n";
   OS << "  #define TARGET_OPCODE(X) X & 255, unsigned(X) >> 8\n";
@@ -775,5 +790,5 @@ void llvm::EmitMatcherTable(const Matcher *TheMatcher,
   OS << '\n';
   
   // Next up, emit the function for node and pattern predicates:
-  MatcherEmitter.EmitPredicateFunctions(CGP, OS);
+  MatcherEmitter.EmitPredicateFunctions(OS);
 }

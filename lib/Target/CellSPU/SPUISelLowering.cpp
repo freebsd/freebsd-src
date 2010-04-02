@@ -1107,7 +1107,8 @@ SPUTargetLowering::LowerFormalArguments(SDValue Chain,
       VarArgsFrameIndex = MFI->CreateFixedObject(StackSlotSize, ArgOffset,
                                                  true, false);
       SDValue FIN = DAG.getFrameIndex(VarArgsFrameIndex, PtrVT);
-      SDValue ArgVal = DAG.getRegister(ArgRegs[ArgRegIdx], MVT::v16i8);
+      unsigned VReg = MF.addLiveIn(ArgRegs[ArgRegIdx], &SPU::R32CRegClass);
+      SDValue ArgVal = DAG.getRegister(VReg, MVT::v16i8);
       SDValue Store = DAG.getStore(Chain, dl, ArgVal, FIN, NULL, 0,
                                    false, false, 0);
       Chain = Store.getOperand(0);
@@ -1491,7 +1492,7 @@ SDValue SPU::get_vec_i10imm(SDNode *N, SelectionDAG &DAG,
         return SDValue();
       Value = Value >> 32;
     }
-    if (isS10Constant(Value))
+    if (isInt<10>(Value))
       return DAG.getTargetConstant(Value, ValueType);
   }
 
