@@ -507,7 +507,7 @@ char                        *AslMessages [] = {
 /*    ASL_MSG_RESERVED_ARG_COUNT_HI */      "Reserved method has too many arguments",
 /*    ASL_MSG_RESERVED_ARG_COUNT_LO */      "Reserved method has too few arguments",
 /*    ASL_MSG_RESERVED_METHOD */            "Reserved name must be a control method",
-/*    ASL_MSG_RESERVED_OPERAND_TYPE */      "Invalid object type for reserved name, must be",
+/*    ASL_MSG_RESERVED_OPERAND_TYPE */      "Invalid object type for reserved name",
 /*    ASL_MSG_RESERVED_RETURN_VALUE */      "Reserved method must return a value",
 /*    ASL_MSG_RESERVED_USE */               "Invalid use of reserved name",
 /*    ASL_MSG_RESERVED_WORD */              "Use of reserved name",

@@ -461,6 +461,11 @@ ApCheckForPredefinedMethod (
     ACPI_PARSE_OBJECT       *Op,
     ASL_METHOD_INFO         *MethodInfo);
 
+void
+ApCheckPredefinedReturnValue (
+    ACPI_PARSE_OBJECT       *Op,
+    ASL_METHOD_INFO         *MethodInfo);
+
 UINT32
 ApCheckForPredefinedName (
     ACPI_PARSE_OBJECT       *Op,
