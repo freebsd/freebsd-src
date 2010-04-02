@@ -552,24 +552,27 @@ AcpiTbLoadNamespace (
     (void) AcpiUtAcquireMutex (ACPI_MTX_TABLES);
 
     /*
-     * Save the DSDT pointer for simple access. This is the mapped memory
-     * address. We must take care here because the address of the .Tables
-     * array can change dynamically as tables are loaded at run-time
-     */
-    AcpiGbl_DSDT = AcpiGbl_RootTableList.Tables[ACPI_TABLE_INDEX_DSDT].Pointer;
-
-    /*
      * Load the namespace. The DSDT is required, but any SSDT and
      * PSDT tables are optional. Verify the DSDT.
      */
     if (!AcpiGbl_RootTableList.Count ||
-        !ACPI_COMPARE_NAME (AcpiGbl_DSDT->Signature, ACPI_SIG_DSDT) ||
+        !ACPI_COMPARE_NAME (
+            &(AcpiGbl_RootTableList.Tables[ACPI_TABLE_INDEX_DSDT].Signature),
+            ACPI_SIG_DSDT) ||
          ACPI_FAILURE (AcpiTbVerifyTable (
             &AcpiGbl_RootTableList.Tables[ACPI_TABLE_INDEX_DSDT])))
     {
         Status = AE_NO_ACPI_TABLES;
         goto UnlockAndExit;
     }
+
+    /*
+     * Save the DSDT pointer for simple access. This is the mapped memory
+     * address. We must take care here because the address of the .Tables
+     * array can change dynamically as tables are loaded at run-time. Note:
+     * .Pointer field is not validated until after call to AcpiTbVerifyTable.
+     */
+    AcpiGbl_DSDT = AcpiGbl_RootTableList.Tables[ACPI_TABLE_INDEX_DSDT].Pointer;
 
     /*
      * Optionally copy the entire DSDT to local memory (instead of simply
