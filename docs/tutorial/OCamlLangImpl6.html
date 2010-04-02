@@ -821,7 +821,7 @@ ocaml_lib ~extern:true "llvm_executionengine";;
 ocaml_lib ~extern:true "llvm_target";;
 ocaml_lib ~extern:true "llvm_scalar_opts";;
 
-flag ["link"; "ocaml"; "g++"] (S[A"-cc"; A"g++"]);;
+flag ["link"; "ocaml"; "g++"] (S[A"-cc"; A"g++"; A"-cclib"; A"-rdynamic"]);;
 dep ["link"; "ocaml"; "use_bindings"] ["bindings.o"];;
 </pre>
 </dd>
@@ -1568,7 +1568,7 @@ SSA construction</a>
   <a href="mailto:sabre@nondot.org">Chris Lattner</a><br>
   <a href="mailto:idadesub@users.sourceforge.net">Erick Tryzelaar</a><br>
   <a href="http://llvm.org">The LLVM Compiler Infrastructure</a><br>
-  Last modified: $Date: 2010-03-08 20:32:18 +0100 (Mon, 08 Mar 2010) $
+  Last modified: $Date: 2010-03-22 00:15:13 +0100 (Mon, 22 Mar 2010) $
 </address>
 </body>
 </html>

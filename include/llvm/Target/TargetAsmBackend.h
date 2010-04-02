@@ -15,8 +15,12 @@
 namespace llvm {
 class MCAsmFixup;
 class MCDataFragment;
+class MCInst;
+class MCInstFragment;
 class MCObjectWriter;
 class MCSection;
+template<typename T>
+class SmallVectorImpl;
 class Target;
 class raw_ostream;
 
@@ -95,6 +99,27 @@ public:
   /// fixup kind as appropriate.
   virtual void ApplyFixup(const MCAsmFixup &Fixup, MCDataFragment &Fragment,
                           uint64_t Value) const = 0;
+
+  /// MayNeedRelaxation - Check whether the given instruction may need
+  /// relaxation.
+  ///
+  /// \arg Inst - The instruction to test.
+  /// \arg Fixups - The actual fixups this instruction encoded to, for potential
+  /// use by the target backend.
+  virtual bool MayNeedRelaxation(const MCInst &Inst,
+                           const SmallVectorImpl<MCAsmFixup> &Fixups) const = 0;
+
+  /// RelaxInstruction - Relax the instruction in the given fragment to the next
+  /// wider instruction.
+  virtual void RelaxInstruction(const MCInstFragment *IF,
+                                MCInst &Res) const = 0;
+
+  /// WriteNopData - Write an (optimal) nop sequence of Count bytes to the given
+  /// output. If the target cannot generate such a sequence, it should return an
+  /// error.
+  ///
+  /// \return - True on success.
+  virtual bool WriteNopData(uint64_t Count, MCObjectWriter *OW) const = 0;
 };
 
 } // End llvm namespace

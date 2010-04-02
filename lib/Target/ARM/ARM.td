@@ -43,6 +43,21 @@ def FeatureThumb2 : SubtargetFeature<"thumb2", "ThumbMode", "Thumb2",
 def FeatureFP16   : SubtargetFeature<"fp16", "HasFP16", "true",
                                      "Enable half-precision floating point">;
 
+// Some processors have multiply-accumulate instructions that don't
+// play nicely with other VFP instructions, and it's generally better
+// to just not use them.
+// FIXME: Currently, this is only flagged for Cortex-A8. It may be true for
+// others as well. We should do more benchmarking and confirm one way or
+// the other.
+def FeatureHasSlowVMLx   : SubtargetFeature<"vmlx", "SlowVMLx", "true",
+                                            "Disable VFP MAC instructions">;
+// Some processors benefit from using NEON instructions for scalar
+// single-precision FP operations.
+def FeatureNEONForFP : SubtargetFeature<"neonfp", "UseNEONForSinglePrecisionFP",
+                                        "true",
+                                        "Use NEON for single precision FP">;
+
+
 //===----------------------------------------------------------------------===//
 // ARM Processors supported.
 //
@@ -92,7 +107,8 @@ def : ProcNoItin<"iwmmxt",          [ArchV5TE]>;
 
 // V6 Processors.
 def : Processor<"arm1136j-s",       ARMV6Itineraries, [ArchV6]>;
-def : Processor<"arm1136jf-s",      ARMV6Itineraries, [ArchV6, FeatureVFP2]>;
+def : Processor<"arm1136jf-s",      ARMV6Itineraries, [ArchV6, FeatureVFP2,
+                                                       FeatureHasSlowVMLx]>;
 def : Processor<"arm1176jz-s",      ARMV6Itineraries, [ArchV6]>;
 def : Processor<"arm1176jzf-s",     ARMV6Itineraries, [ArchV6, FeatureVFP2]>;
 def : Processor<"mpcorenovfp",      ARMV6Itineraries, [ArchV6]>;
@@ -106,7 +122,8 @@ def : Processor<"arm1156t2f-s",    ARMV6Itineraries,
 
 // V7 Processors.
 def : Processor<"cortex-a8",        CortexA8Itineraries,
-                [ArchV7A, FeatureThumb2, FeatureNEON]>;
+                [ArchV7A, FeatureThumb2, FeatureNEON, FeatureHasSlowVMLx,
+                 FeatureNEONForFP]>;
 def : ProcNoItin<"cortex-a9",       [ArchV7A, FeatureThumb2, FeatureNEON]>;
 
 //===----------------------------------------------------------------------===//

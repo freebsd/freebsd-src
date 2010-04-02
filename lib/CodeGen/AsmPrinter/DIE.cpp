@@ -19,6 +19,7 @@
 #include "llvm/MC/MCStreamer.h"
 #include "llvm/MC/MCSymbol.h"
 #include "llvm/Target/TargetData.h"
+#include "llvm/Support/Allocator.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/Format.h"
@@ -114,10 +115,11 @@ DIE::~DIE() {
 
 /// addSiblingOffset - Add a sibling offset field to the front of the DIE.
 ///
-void DIE::addSiblingOffset() {
-  DIEInteger *DI = new DIEInteger(0);
+DIEValue *DIE::addSiblingOffset(BumpPtrAllocator &A) {
+  DIEInteger *DI = new (A) DIEInteger(0);
   Values.insert(Values.begin(), DI);
   Abbrev.AddFirstAttribute(dwarf::DW_AT_sibling, dwarf::DW_FORM_ref4);
+  return DI;
 }
 
 #ifndef NDEBUG
@@ -273,31 +275,6 @@ unsigned DIELabel::SizeOf(const TargetData *TD, unsigned Form) const {
 #ifndef NDEBUG
 void DIELabel::print(raw_ostream &O) {
   O << "Lbl: " << Label->getName();
-}
-#endif
-
-//===----------------------------------------------------------------------===//
-// DIESectionOffset Implementation
-//===----------------------------------------------------------------------===//
-
-/// EmitValue - Emit delta value.
-///
-void DIESectionOffset::EmitValue(DwarfPrinter *D, unsigned Form) const {
-  bool IsSmall = Form == dwarf::DW_FORM_data4;
-  D->EmitSectionOffset(Label, Section, IsSmall, IsEH);
-}
-
-/// SizeOf - Determine size of delta value in bytes.
-///
-unsigned DIESectionOffset::SizeOf(const TargetData *TD, unsigned Form) const {
-  if (Form == dwarf::DW_FORM_data4) return 4;
-  return TD->getPointerSize();
-}
-
-#ifndef NDEBUG
-void DIESectionOffset::print(raw_ostream &O) {
-  O << "Off: " << Label->getName() << "-" << Section->getName()
-    << "-" << IsEH;
 }
 #endif
 

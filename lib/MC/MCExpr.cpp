@@ -7,7 +7,9 @@
 //
 //===----------------------------------------------------------------------===//
 
+#define DEBUG_TYPE "mcexpr"
 #include "llvm/MC/MCExpr.h"
+#include "llvm/ADT/Statistic.h"
 #include "llvm/ADT/StringSwitch.h"
 #include "llvm/MC/MCAsmLayout.h"
 #include "llvm/MC/MCAssembler.h"
@@ -18,6 +20,12 @@
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/Target/TargetAsmBackend.h"
 using namespace llvm;
+
+namespace {
+namespace stats {
+STATISTIC(MCExprEvaluate, "Number of MCExpr evaluations");
+}
+}
 
 void MCExpr::print(raw_ostream &OS) const {
   switch (getKind()) {
@@ -146,12 +154,6 @@ const MCSymbolRefExpr *MCSymbolRefExpr::Create(StringRef Name, VariantKind Kind,
   return Create(Ctx.GetOrCreateSymbol(Name), Kind, Ctx);
 }
 
-const MCSymbolRefExpr *MCSymbolRefExpr::CreateTemp(StringRef Name,
-                                                   VariantKind Kind,
-                                                   MCContext &Ctx) {
-  return Create(Ctx.GetOrCreateTemporarySymbol(Name), Kind, Ctx);
-}
-
 StringRef MCSymbolRefExpr::getVariantKindName(VariantKind Kind) {
   switch (Kind) {
   default:
@@ -194,6 +196,12 @@ void MCTargetExpr::Anchor() {}
 bool MCExpr::EvaluateAsAbsolute(int64_t &Res, const MCAsmLayout *Layout) const {
   MCValue Value;
 
+  // Fast path constants.
+  if (const MCConstantExpr *CE = dyn_cast<MCConstantExpr>(this)) {
+    Res = CE->getValue();
+    return true;
+  }
+
   if (!EvaluateAsRelocatable(Value, Layout) || !Value.isAbsolute())
     return false;
 
@@ -225,6 +233,8 @@ static bool EvaluateSymbolicAdd(const MCValue &LHS,const MCSymbolRefExpr *RHS_A,
 
 bool MCExpr::EvaluateAsRelocatable(MCValue &Res,
                                    const MCAsmLayout *Layout) const {
+  ++stats::MCExprEvaluate;
+
   switch (getKind()) {
   case Target:
     return cast<MCTargetExpr>(this)->EvaluateAsRelocatableImpl(Res, Layout);
@@ -252,8 +262,8 @@ bool MCExpr::EvaluateAsRelocatable(MCValue &Res,
           Layout->getAssembler().getSymbolData(Res.getSymA()->getSymbol());
         MCSymbolData &B =
           Layout->getAssembler().getSymbolData(Res.getSymB()->getSymbol());
-        Res = MCValue::get(+ A.getFragment()->getAddress() + A.getOffset()
-                           - B.getFragment()->getAddress() - B.getOffset()
+        Res = MCValue::get(+ Layout->getSymbolAddress(&A)
+                           - Layout->getSymbolAddress(&B)
                            + Res.getConstant());
       }
 

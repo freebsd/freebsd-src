@@ -503,7 +503,8 @@ struct Init {
   /// initializer for the specified field.  If getFieldType returns non-null
   /// this method should return non-null, otherwise it returns null.
   ///
-  virtual Init *getFieldInit(Record &R, const std::string &FieldName) const {
+  virtual Init *getFieldInit(Record &R, const RecordVal *RV,
+                             const std::string &FieldName) const {
     return 0;
   }
 
@@ -950,7 +951,8 @@ public:
                                             unsigned Elt);
 
   virtual RecTy *getFieldType(const std::string &FieldName) const;
-  virtual Init *getFieldInit(Record &R, const std::string &FieldName) const;
+  virtual Init *getFieldInit(Record &R, const RecordVal *RV,
+                             const std::string &FieldName) const;
 
   /// resolveReferences - This method is used by classes that refer to other
   /// variables which may not be defined at the time they expression is formed.
@@ -1035,7 +1037,8 @@ public:
   //virtual Init *convertInitializerBitRange(const std::vector<unsigned> &Bits);
 
   virtual RecTy *getFieldType(const std::string &FieldName) const;
-  virtual Init *getFieldInit(Record &R, const std::string &FieldName) const;
+  virtual Init *getFieldInit(Record &R, const RecordVal *RV,
+                             const std::string &FieldName) const;
 
   virtual std::string getAsString() const;
 
@@ -1258,6 +1261,9 @@ public:
       if (Values[i].getName() == Name) return &Values[i];
     return 0;
   }
+
+  // Like getValue, but allow dotting into members: X.Y
+  RecordVal *getDottedValue(StringRef Name);
 
   void addTemplateArg(StringRef Name) {
     assert(!isTemplateArg(Name) && "Template arg already defined!");

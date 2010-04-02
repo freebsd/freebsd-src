@@ -16,6 +16,7 @@
 #include "llvm/IntrinsicInst.h"
 #include "llvm/LLVMContext.h"
 #include "llvm/CodeGen/ValueTypes.h"
+#include "llvm/Support/CallSite.h"
 #include "llvm/Support/LeakDetector.h"
 #include "llvm/Support/ManagedStatic.h"
 #include "llvm/Support/StringPool.h"
@@ -400,13 +401,16 @@ Function *Intrinsic::getDeclaration(Module *M, ID id, const Type **Tys,
 #include "llvm/Intrinsics.gen"
 #undef GET_LLVM_INTRINSIC_FOR_GCC_BUILTIN
 
-  /// hasAddressTaken - returns true if there are any uses of this function
-  /// other than direct calls or invokes to it.
-bool Function::hasAddressTaken() const {
-  for (Value::use_const_iterator I = use_begin(), E = use_end(); I != E; ++I) {
-    if (I.getOperandNo() != 0 ||
-        (!isa<CallInst>(*I) && !isa<InvokeInst>(*I)))
-      return true;
+/// hasAddressTaken - returns true if there are any uses of this function
+/// other than direct calls or invokes to it.
+bool Function::hasAddressTaken(const User* *PutOffender) const {
+  for (Value::const_use_iterator I = use_begin(), E = use_end(); I != E; ++I) {
+    const User *U = *I;
+    if (!isa<CallInst>(U) && !isa<InvokeInst>(U))
+      return PutOffender ? (*PutOffender = U, true) : true;
+    ImmutableCallSite CS(cast<Instruction>(U));
+    if (!CS.isCallee(I))
+      return PutOffender ? (*PutOffender = U, true) : true;
   }
   return false;
 }

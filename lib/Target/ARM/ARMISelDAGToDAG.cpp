@@ -124,17 +124,17 @@ private:
   /// SelectDYN_ALLOC - Select dynamic alloc for Thumb.
   SDNode *SelectDYN_ALLOC(SDNode *N);
 
-  /// SelectVLD - Select NEON load intrinsics.  NumVecs should
-  /// be 2, 3 or 4.  The opcode arrays specify the instructions used for
+  /// SelectVLD - Select NEON load intrinsics.  NumVecs should be
+  /// 1, 2, 3 or 4.  The opcode arrays specify the instructions used for
   /// loads of D registers and even subregs and odd subregs of Q registers.
-  /// For NumVecs == 2, QOpcodes1 is not used.
+  /// For NumVecs <= 2, QOpcodes1 is not used.
   SDNode *SelectVLD(SDNode *N, unsigned NumVecs, unsigned *DOpcodes,
                     unsigned *QOpcodes0, unsigned *QOpcodes1);
 
   /// SelectVST - Select NEON store intrinsics.  NumVecs should
-  /// be 2, 3 or 4.  The opcode arrays specify the instructions used for
+  /// be 1, 2, 3 or 4.  The opcode arrays specify the instructions used for
   /// stores of D registers and even subregs and odd subregs of Q registers.
-  /// For NumVecs == 2, QOpcodes1 is not used.
+  /// For NumVecs <= 2, QOpcodes1 is not used.
   SDNode *SelectVST(SDNode *N, unsigned NumVecs, unsigned *DOpcodes,
                     unsigned *QOpcodes0, unsigned *QOpcodes1);
 
@@ -1022,7 +1022,7 @@ static EVT GetNEONSubregVT(EVT VT) {
 SDNode *ARMDAGToDAGISel::SelectVLD(SDNode *N, unsigned NumVecs,
                                    unsigned *DOpcodes, unsigned *QOpcodes0,
                                    unsigned *QOpcodes1) {
-  assert(NumVecs >=2 && NumVecs <= 4 && "VLD NumVecs out-of-range");
+  assert(NumVecs >= 1 && NumVecs <= 4 && "VLD NumVecs out-of-range");
   DebugLoc dl = N->getDebugLoc();
 
   SDValue MemAddr, Align;
@@ -1047,6 +1047,9 @@ SDNode *ARMDAGToDAGISel::SelectVLD(SDNode *N, unsigned NumVecs,
   case MVT::v8i16: OpcodeIndex = 1; break;
   case MVT::v4f32:
   case MVT::v4i32: OpcodeIndex = 2; break;
+  case MVT::v2i64: OpcodeIndex = 3;
+    assert(NumVecs == 1 && "v2i64 type only supported for VLD1");
+    break;
   }
 
   SDValue Pred = CurDAG->getTargetConstant(14, MVT::i32);
@@ -1060,15 +1063,15 @@ SDNode *ARMDAGToDAGISel::SelectVLD(SDNode *N, unsigned NumVecs,
   }
 
   EVT RegVT = GetNEONSubregVT(VT);
-  if (NumVecs == 2) {
-    // Quad registers are directly supported for VLD2,
-    // loading 2 pairs of D regs.
+  if (NumVecs <= 2) {
+    // Quad registers are directly supported for VLD1 and VLD2,
+    // loading pairs of D regs.
     unsigned Opc = QOpcodes0[OpcodeIndex];
     const SDValue Ops[] = { MemAddr, Align, Pred, Reg0, Chain };
-    std::vector<EVT> ResTys(4, VT);
+    std::vector<EVT> ResTys(2 * NumVecs, RegVT);
     ResTys.push_back(MVT::Other);
     SDNode *VLd = CurDAG->getMachineNode(Opc, dl, ResTys, Ops, 5);
-    Chain = SDValue(VLd, 4);
+    Chain = SDValue(VLd, 2 * NumVecs);
 
     // Combine the even and odd subregs to produce the result.
     for (unsigned Vec = 0; Vec < NumVecs; ++Vec) {
@@ -1109,7 +1112,7 @@ SDNode *ARMDAGToDAGISel::SelectVLD(SDNode *N, unsigned NumVecs,
 SDNode *ARMDAGToDAGISel::SelectVST(SDNode *N, unsigned NumVecs,
                                    unsigned *DOpcodes, unsigned *QOpcodes0,
                                    unsigned *QOpcodes1) {
-  assert(NumVecs >=2 && NumVecs <= 4 && "VST NumVecs out-of-range");
+  assert(NumVecs >=1 && NumVecs <= 4 && "VST NumVecs out-of-range");
   DebugLoc dl = N->getDebugLoc();
 
   SDValue MemAddr, Align;
@@ -1134,6 +1137,9 @@ SDNode *ARMDAGToDAGISel::SelectVST(SDNode *N, unsigned NumVecs,
   case MVT::v8i16: OpcodeIndex = 1; break;
   case MVT::v4f32:
   case MVT::v4i32: OpcodeIndex = 2; break;
+  case MVT::v2i64: OpcodeIndex = 3;
+    assert(NumVecs == 1 && "v2i64 type only supported for VST1");
+    break;
   }
 
   SDValue Pred = CurDAG->getTargetConstant(14, MVT::i32);
@@ -1154,9 +1160,9 @@ SDNode *ARMDAGToDAGISel::SelectVST(SDNode *N, unsigned NumVecs,
   }
 
   EVT RegVT = GetNEONSubregVT(VT);
-  if (NumVecs == 2) {
-    // Quad registers are directly supported for VST2,
-    // storing 2 pairs of D regs.
+  if (NumVecs <= 2) {
+    // Quad registers are directly supported for VST1 and VST2,
+    // storing pairs of D regs.
     unsigned Opc = QOpcodes0[OpcodeIndex];
     for (unsigned Vec = 0; Vec < NumVecs; ++Vec) {
       Ops.push_back(CurDAG->getTargetExtractSubreg(ARM::DSUBREG_0, dl, RegVT,
@@ -1167,7 +1173,8 @@ SDNode *ARMDAGToDAGISel::SelectVST(SDNode *N, unsigned NumVecs,
     Ops.push_back(Pred);
     Ops.push_back(Reg0); // predicate register
     Ops.push_back(Chain);
-    return CurDAG->getMachineNode(Opc, dl, MVT::Other, Ops.data(), 9);
+    return CurDAG->getMachineNode(Opc, dl, MVT::Other, Ops.data(),
+                                  5 + 2 * NumVecs);
   }
 
   // Otherwise, quad registers are stored with two separate instructions,
@@ -1694,6 +1701,35 @@ SDNode *ARMDAGToDAGISel::Select(SDNode *N) {
       ResNode = SelectARMIndexedLoad(N);
     if (ResNode)
       return ResNode;
+
+    // VLDMQ must be custom-selected for "v2f64 load" to set the AM5Opc value.
+    if (Subtarget->hasVFP2() &&
+        N->getValueType(0).getSimpleVT().SimpleTy == MVT::v2f64) {
+      SDValue Chain = N->getOperand(0);
+      SDValue AM5Opc =
+        CurDAG->getTargetConstant(ARM_AM::getAM5Opc(ARM_AM::ia, 4), MVT::i32);
+      SDValue Pred = CurDAG->getTargetConstant(14, MVT::i32);
+      SDValue PredReg = CurDAG->getRegister(0, MVT::i32);
+      SDValue Ops[] = { N->getOperand(1), AM5Opc, Pred, PredReg, Chain };
+      return CurDAG->getMachineNode(ARM::VLDMQ, dl, MVT::v2f64, MVT::Other,
+                                    Ops, 5);
+    }
+    // Other cases are autogenerated.
+    break;
+  }
+  case ISD::STORE: {
+    // VSTMQ must be custom-selected for "v2f64 store" to set the AM5Opc value.
+    if (Subtarget->hasVFP2() &&
+        N->getOperand(1).getValueType().getSimpleVT().SimpleTy == MVT::v2f64) {
+      SDValue Chain = N->getOperand(0);
+      SDValue AM5Opc =
+        CurDAG->getTargetConstant(ARM_AM::getAM5Opc(ARM_AM::ia, 4), MVT::i32);
+      SDValue Pred = CurDAG->getTargetConstant(14, MVT::i32);
+      SDValue PredReg = CurDAG->getRegister(0, MVT::i32);
+      SDValue Ops[] = { N->getOperand(1), N->getOperand(2),
+                        AM5Opc, Pred, PredReg, Chain };
+      return CurDAG->getMachineNode(ARM::VSTMQ, dl, MVT::Other, Ops, 6);
+    }
     // Other cases are autogenerated.
     break;
   }
@@ -1831,16 +1867,24 @@ SDNode *ARMDAGToDAGISel::Select(SDNode *N) {
     default:
       break;
 
+    case Intrinsic::arm_neon_vld1: {
+      unsigned DOpcodes[] = { ARM::VLD1d8, ARM::VLD1d16,
+                              ARM::VLD1d32, ARM::VLD1d64 };
+      unsigned QOpcodes[] = { ARM::VLD1q8, ARM::VLD1q16,
+                              ARM::VLD1q32, ARM::VLD1q64 };
+      return SelectVLD(N, 1, DOpcodes, QOpcodes, 0);
+    }
+
     case Intrinsic::arm_neon_vld2: {
       unsigned DOpcodes[] = { ARM::VLD2d8, ARM::VLD2d16,
-                              ARM::VLD2d32, ARM::VLD2d64 };
+                              ARM::VLD2d32, ARM::VLD1q64 };
       unsigned QOpcodes[] = { ARM::VLD2q8, ARM::VLD2q16, ARM::VLD2q32 };
       return SelectVLD(N, 2, DOpcodes, QOpcodes, 0);
     }
 
     case Intrinsic::arm_neon_vld3: {
       unsigned DOpcodes[] = { ARM::VLD3d8, ARM::VLD3d16,
-                              ARM::VLD3d32, ARM::VLD3d64 };
+                              ARM::VLD3d32, ARM::VLD1d64T };
       unsigned QOpcodes0[] = { ARM::VLD3q8_UPD,
                                ARM::VLD3q16_UPD,
                                ARM::VLD3q32_UPD };
@@ -1852,7 +1896,7 @@ SDNode *ARMDAGToDAGISel::Select(SDNode *N) {
 
     case Intrinsic::arm_neon_vld4: {
       unsigned DOpcodes[] = { ARM::VLD4d8, ARM::VLD4d16,
-                              ARM::VLD4d32, ARM::VLD4d64 };
+                              ARM::VLD4d32, ARM::VLD1d64Q };
       unsigned QOpcodes0[] = { ARM::VLD4q8_UPD,
                                ARM::VLD4q16_UPD,
                                ARM::VLD4q32_UPD };
@@ -1883,16 +1927,24 @@ SDNode *ARMDAGToDAGISel::Select(SDNode *N) {
       return SelectVLDSTLane(N, true, 4, DOpcodes, QOpcodes0, QOpcodes1);
     }
 
+    case Intrinsic::arm_neon_vst1: {
+      unsigned DOpcodes[] = { ARM::VST1d8, ARM::VST1d16,
+                              ARM::VST1d32, ARM::VST1d64 };
+      unsigned QOpcodes[] = { ARM::VST1q8, ARM::VST1q16,
+                              ARM::VST1q32, ARM::VST1q64 };
+      return SelectVST(N, 1, DOpcodes, QOpcodes, 0);
+    }
+
     case Intrinsic::arm_neon_vst2: {
       unsigned DOpcodes[] = { ARM::VST2d8, ARM::VST2d16,
-                              ARM::VST2d32, ARM::VST2d64 };
+                              ARM::VST2d32, ARM::VST1q64 };
       unsigned QOpcodes[] = { ARM::VST2q8, ARM::VST2q16, ARM::VST2q32 };
       return SelectVST(N, 2, DOpcodes, QOpcodes, 0);
     }
 
     case Intrinsic::arm_neon_vst3: {
       unsigned DOpcodes[] = { ARM::VST3d8, ARM::VST3d16,
-                              ARM::VST3d32, ARM::VST3d64 };
+                              ARM::VST3d32, ARM::VST1d64T };
       unsigned QOpcodes0[] = { ARM::VST3q8_UPD,
                                ARM::VST3q16_UPD,
                                ARM::VST3q32_UPD };
@@ -1904,7 +1956,7 @@ SDNode *ARMDAGToDAGISel::Select(SDNode *N) {
 
     case Intrinsic::arm_neon_vst4: {
       unsigned DOpcodes[] = { ARM::VST4d8, ARM::VST4d16,
-                              ARM::VST4d32, ARM::VST4d64 };
+                              ARM::VST4d32, ARM::VST1d64Q };
       unsigned QOpcodes0[] = { ARM::VST4q8_UPD,
                                ARM::VST4q16_UPD,
                                ARM::VST4q32_UPD };

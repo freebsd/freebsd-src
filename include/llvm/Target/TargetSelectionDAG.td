@@ -92,6 +92,10 @@ def SDTIntBinOp : SDTypeProfile<1, 2, [     // add, and, or, xor, udiv, etc.
 def SDTIntShiftOp : SDTypeProfile<1, 2, [   // shl, sra, srl
   SDTCisSameAs<0, 1>, SDTCisInt<0>, SDTCisInt<2>
 ]>;
+def SDTIntBinHiLoOp : SDTypeProfile<2, 2, [ // mulhi, mullo, sdivrem, udivrem
+  SDTCisSameAs<0, 1>, SDTCisSameAs<0, 2>, SDTCisSameAs<0, 3>,SDTCisInt<0>
+]>;
+
 def SDTFPBinOp : SDTypeProfile<1, 2, [      // fadd, fmul, etc.
   SDTCisSameAs<0, 1>, SDTCisSameAs<0, 2>, SDTCisFP<0>
 ]>;
@@ -235,7 +239,6 @@ class SDNode<string opcode, SDTypeProfile typeprof,
 // Special TableGen-recognized dag nodes
 def set;
 def implicit;
-def parallel;
 def node;
 def srcvalue;
 
@@ -282,10 +285,14 @@ def mul        : SDNode<"ISD::MUL"       , SDTIntBinOp,
                         [SDNPCommutative, SDNPAssociative]>;
 def mulhs      : SDNode<"ISD::MULHS"     , SDTIntBinOp, [SDNPCommutative]>;
 def mulhu      : SDNode<"ISD::MULHU"     , SDTIntBinOp, [SDNPCommutative]>;
+def smullohi   : SDNode<"ISD::SMUL_LOHI" , SDTIntBinHiLoOp, [SDNPCommutative]>;
+def umullohi   : SDNode<"ISD::UMUL_LOHI" , SDTIntBinHiLoOp, [SDNPCommutative]>;
 def sdiv       : SDNode<"ISD::SDIV"      , SDTIntBinOp>;
 def udiv       : SDNode<"ISD::UDIV"      , SDTIntBinOp>;
 def srem       : SDNode<"ISD::SREM"      , SDTIntBinOp>;
 def urem       : SDNode<"ISD::UREM"      , SDTIntBinOp>;
+def sdivrem    : SDNode<"ISD::SDIVREM"   , SDTIntBinHiLoOp>;
+def udivrem    : SDNode<"ISD::UDIVREM"   , SDTIntBinHiLoOp>;
 def srl        : SDNode<"ISD::SRL"       , SDTIntShiftOp>;
 def sra        : SDNode<"ISD::SRA"       , SDTIntShiftOp>;
 def shl        : SDNode<"ISD::SHL"       , SDTIntShiftOp>;
@@ -485,13 +492,7 @@ def vtFP       : PatLeaf<(vt),  [{ return N->getVT().isFloatingPoint(); }]>;
 def immAllOnesV: PatLeaf<(build_vector), [{
   return ISD::isBuildVectorAllOnes(N);
 }]>;
-def immAllOnesV_bc: PatLeaf<(bitconvert), [{
-  return ISD::isBuildVectorAllOnes(N);
-}]>;
 def immAllZerosV: PatLeaf<(build_vector), [{
-  return ISD::isBuildVectorAllZeros(N);
-}]>;
-def immAllZerosV_bc: PatLeaf<(bitconvert), [{
   return ISD::isBuildVectorAllZeros(N);
 }]>;
 
@@ -500,7 +501,6 @@ def immAllZerosV_bc: PatLeaf<(bitconvert), [{
 // Other helper fragments.
 def not  : PatFrag<(ops node:$in), (xor node:$in, -1)>;
 def vnot : PatFrag<(ops node:$in), (xor node:$in, immAllOnesV)>;
-def vnot_conv : PatFrag<(ops node:$in), (xor node:$in, immAllOnesV_bc)>;
 def ineg : PatFrag<(ops node:$in), (sub 0, node:$in)>;
 
 // load fragments.
