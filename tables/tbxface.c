@@ -300,10 +300,14 @@ AcpiReallocateRootTable (
 
     ACPI_MEMCPY (Tables, AcpiGbl_RootTableList.Tables, CurrentSize);
 
-    /* Update the root table descriptor */
-
+    /*
+     * Update the root table descriptor. The new size will be the current
+     * number of tables plus the increment, independent of the reserved
+     * size of the original table list.
+     */
     AcpiGbl_RootTableList.Tables = Tables;
-    AcpiGbl_RootTableList.Size += ACPI_ROOT_TABLE_SIZE_INCREMENT;
+    AcpiGbl_RootTableList.Size =
+        AcpiGbl_RootTableList.Count + ACPI_ROOT_TABLE_SIZE_INCREMENT;
     AcpiGbl_RootTableList.Flags =
         ACPI_ROOT_ORIGIN_ALLOCATED | ACPI_ROOT_ALLOW_RESIZE;
 
