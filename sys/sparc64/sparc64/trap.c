@@ -106,6 +106,7 @@ void trap(struct trapframe *tf);
 void syscall(struct trapframe *tf);
 
 static int fetch_syscall_args(struct thread *td, struct syscall_args *sa);
+static int trap_cecc(void);
 static int trap_pfault(struct thread *td, struct trapframe *tf);
 
 extern char copy_fault[];
@@ -240,6 +241,10 @@ int debugger_on_signal = 0;
 SYSCTL_INT(_debug, OID_AUTO, debugger_on_signal, CTLFLAG_RW,
     &debugger_on_signal, 0, "");
 
+u_int corrected_ecc = 0;
+SYSCTL_UINT(_machdep, OID_AUTO, corrected_ecc, CTLFLAG_RD, &corrected_ecc, 0,
+    "corrected ECC errors");
+
 /*
  * SUNW,set-trap-table allows to take over %tba from the PROM, which
  * will turn off interrupts and handle outstanding ones while doing so,
@@ -308,10 +313,16 @@ trap(struct trapframe *tf)
 		case T_SPILL:
 			sig = rwindow_save(td);
 			break;
+		case T_CORRECTED_ECC_ERROR:
+			sig = trap_cecc();
+			break;
 		default:
-			if (tf->tf_type < 0 || tf->tf_type >= T_MAX ||
-			    trap_sig[tf->tf_type] == -1)
-				panic("trap: bad trap type");
+			if (tf->tf_type < 0 || tf->tf_type >= T_MAX)
+				panic("trap: bad trap type %#lx (user)",
+				    tf->tf_type);
+			else if (trap_sig[tf->tf_type] == -1)
+				panic("trap: %s (user)",
+				    trap_msg[tf->tf_type]);
 			sig = trap_sig[tf->tf_type];
 			break;
 		}
@@ -400,15 +411,50 @@ trap(struct trapframe *tf)
 			}
 			error = 1;
 			break;
+		case T_CORRECTED_ECC_ERROR:
+			error = trap_cecc();
+			break;
 		default:
 			error = 1;
 			break;
 		}
 
-		if (error != 0)
-			panic("trap: %s", trap_msg[tf->tf_type & ~T_KERNEL]);
+		if (error != 0) {
+			tf->tf_type &= ~T_KERNEL;
+			if (tf->tf_type < 0 || tf->tf_type >= T_MAX)
+				panic("trap: bad trap type %#lx (kernel)",
+				    tf->tf_type);
+			else if (trap_sig[tf->tf_type] == -1)
+				panic("trap: %s (kernel)",
+				    trap_msg[tf->tf_type]);
+		}
 	}
 	CTR1(KTR_TRAP, "trap: td=%p return", td);
+}
+
+static int
+trap_cecc(void)
+{
+	u_long eee;
+
+	/*
+	 * Turn off (non-)correctable error reporting while we're dealing
+	 * with the error.
+	 */
+	eee = ldxa(0, ASI_ESTATE_ERROR_EN_REG);
+	stxa_sync(0, ASI_ESTATE_ERROR_EN_REG, eee & ~(AA_ESTATE_NCEEN |
+	    AA_ESTATE_CEEN));
+	/* Flush the caches in order ensure no corrupt data got installed. */
+	cache_flush();
+	/* Ensure the caches are still turned on (should be). */
+	cache_enable(PCPU_GET(impl));
+	/* Clear the the error from the AFSR. */
+	stxa_sync(0, ASI_AFSR, ldxa(0, ASI_AFSR));
+	corrected_ecc++;
+	printf("corrected ECC error\n");
+	/* Turn (non-)correctable error reporting back on. */
+	stxa_sync(0, ASI_ESTATE_ERROR_EN_REG, eee);
+	return (0);
 }
 
 static int
@@ -664,7 +710,7 @@ syscall(struct trapframe *tf)
 	 */
 	WITNESS_WARN(WARN_PANIC, NULL, "System call %s returning",
 	    (sa.code >= 0 && sa.code < SYS_MAXSYSCALL) ?
-	     syscallnames[sa.code] : "???");
+	    syscallnames[sa.code] : "???");
 	KASSERT(td->td_critnest == 0,
 	    ("System call %s returning in a critical section",
 	    (sa.code >= 0 && sa.code < SYS_MAXSYSCALL) ?
