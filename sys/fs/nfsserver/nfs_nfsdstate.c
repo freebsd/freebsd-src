@@ -65,11 +65,11 @@ static void nfsrv_dumpaclient(struct nfsclient *clp,
     struct nfsd_dumpclients *dumpp);
 static void nfsrv_freeopenowner(struct nfsstate *stp, int cansleep,
     NFSPROC_T *p);
-static int nfsrv_freeopen(struct nfsstate *stp, int *freedlockp,
-    int cansleep, NFSPROC_T *p);
-static int nfsrv_freelockowner(struct nfsstate *stp, int *freedlockp,
-    int cansleep, NFSPROC_T *p);
-static int nfsrv_freeallnfslocks(struct nfsstate *stp, int *freedlockp,
+static int nfsrv_freeopen(struct nfsstate *stp, vnode_t vp, int cansleep,
+    NFSPROC_T *p);
+static void nfsrv_freelockowner(struct nfsstate *stp, vnode_t vp, int cansleep,
+    NFSPROC_T *p);
+static void nfsrv_freeallnfslocks(struct nfsstate *stp, vnode_t vp,
     int cansleep, NFSPROC_T *p);
 static void nfsrv_freenfslock(struct nfslock *lop);
 static void nfsrv_freenfslockfile(struct nfslockfile *lfp);
@@ -80,8 +80,8 @@ static void nfsrv_getowner(struct nfsstatehead *hp, struct nfsstate *new_stp,
     struct nfsstate **stpp);
 static int nfsrv_getlockfh(vnode_t vp, u_short flags,
     struct nfslockfile **new_lfpp, fhandle_t *nfhp, NFSPROC_T *p);
-static int nfsrv_getlockfile(u_short flags,
-    struct nfslockfile **new_lfpp, struct nfslockfile **lfpp, fhandle_t *nfhp);
+static int nfsrv_getlockfile(u_short flags, struct nfslockfile **new_lfpp,
+    struct nfslockfile **lfpp, fhandle_t *nfhp, int lockit);
 static void nfsrv_insertlock(struct nfslock *new_lop,
     struct nfslock *insert_lop, struct nfsstate *stp, struct nfslockfile *lfp);
 static void nfsrv_updatelock(struct nfsstate *stp, struct nfslock **new_lopp,
@@ -109,9 +109,20 @@ static time_t nfsrv_leaseexpiry(void);
 static void nfsrv_delaydelegtimeout(struct nfsstate *stp);
 static int nfsrv_checkseqid(struct nfsrv_descript *nd, u_int32_t seqid,
     struct nfsstate *stp, struct nfsrvcache *op);
-static void nfsrv_locallocks(vnode_t vp, struct nfslockfile *lfp,
-    NFSPROC_T *p);
 static int nfsrv_nootherstate(struct nfsstate *stp);
+static int nfsrv_locallock(vnode_t vp, struct nfslockfile *lfp, int flags,
+    uint64_t first, uint64_t end, struct nfslockconflict *cfp, NFSPROC_T *p);
+static void nfsrv_localunlock(vnode_t vp, struct nfslockfile *lfp,
+    uint64_t init_first, uint64_t init_end, NFSPROC_T *p);
+static int nfsrv_dolocal(vnode_t vp, struct nfslockfile *lfp, int flags,
+    int oldflags, uint64_t first, uint64_t end, struct nfslockconflict *cfp,
+    NFSPROC_T *p);
+static void nfsrv_locallock_rollback(vnode_t vp, struct nfslockfile *lfp,
+    NFSPROC_T *p);
+static void nfsrv_locallock_commit(struct nfslockfile *lfp, int flags,
+    uint64_t first, uint64_t end);
+static void nfsrv_locklf(struct nfslockfile *lfp);
+static void nfsrv_unlocklf(struct nfslockfile *lfp);
 
 /*
  * Scan the client list for a match and either return the current one,
@@ -683,7 +694,7 @@ nfsrv_dumplocks(vnode_t vp, struct nfsd_dumplocks *ldumpp, int maxcnt,
 	ret = nfsrv_getlockfh(vp, 0, NULL, &nfh, p);
 	NFSLOCKSTATE();
 	if (!ret)
-		ret = nfsrv_getlockfile(0, NULL, &lfp, &nfh);
+		ret = nfsrv_getlockfile(0, NULL, &lfp, &nfh, 0);
 	if (ret) {
 		ldumpp[0].ndlck_clid.nclid_idlen = 0;
 		NFSUNLOCKSTATE();
@@ -927,9 +938,8 @@ nfsrv_cleanclient(struct nfsclient *clp, NFSPROC_T *p)
 {
 	struct nfsstate *stp, *nstp;
 
-	LIST_FOREACH_SAFE(stp, &clp->lc_open, ls_list, nstp) {
+	LIST_FOREACH_SAFE(stp, &clp->lc_open, ls_list, nstp)
 		nfsrv_freeopenowner(stp, 1, p);
-	}
 }
 
 /*
@@ -993,7 +1003,10 @@ nfsrv_freedeleg(struct nfsstate *stp)
 	LIST_REMOVE(stp, ls_file);
 	lfp = stp->ls_lfp;
 	if (LIST_EMPTY(&lfp->lf_open) &&
-	    LIST_EMPTY(&lfp->lf_lock) && LIST_EMPTY(&lfp->lf_deleg))
+	    LIST_EMPTY(&lfp->lf_lock) && LIST_EMPTY(&lfp->lf_deleg) &&
+	    LIST_EMPTY(&lfp->lf_locallock) && LIST_EMPTY(&lfp->lf_rollback) &&
+	    lfp->lf_usecount == 0 &&
+	    nfsv4_testlock(&lfp->lf_locallock_lck) == 0)
 		nfsrv_freenfslockfile(lfp);
 	FREE((caddr_t)stp, M_NFSDSTATE);
 	newnfsstats.srvdelegates--;
@@ -1031,16 +1044,14 @@ nfsrv_freeopenowner(struct nfsstate *stp, int cansleep, NFSPROC_T *p)
  * This function frees an open (nfsstate open structure) with all associated
  * lock_owners and locks. It also frees the nfslockfile structure iff there
  * are no other opens on the file.
- * Must be called with soft clock interrupts disabled.
  * Returns 1 if it free'd the nfslockfile, 0 otherwise.
  */
 static int
-nfsrv_freeopen(struct nfsstate *stp, int *freedlockp, int cansleep,
-    NFSPROC_T *p)
+nfsrv_freeopen(struct nfsstate *stp, vnode_t vp, int cansleep, NFSPROC_T *p)
 {
 	struct nfsstate *nstp, *tstp;
 	struct nfslockfile *lfp;
-	int ret = 0, ret2;
+	int ret;
 
 	LIST_REMOVE(stp, ls_hash);
 	LIST_REMOVE(stp, ls_list);
@@ -1048,28 +1059,27 @@ nfsrv_freeopen(struct nfsstate *stp, int *freedlockp, int cansleep,
 
 	lfp = stp->ls_lfp;
 	/*
+	 * Now, free all lockowners associated with this open.
+	 */
+	LIST_FOREACH_SAFE(tstp, &stp->ls_open, ls_list, nstp)
+		nfsrv_freelockowner(tstp, vp, cansleep, p);
+
+	/*
 	 * The nfslockfile is freed here if there are no locks
 	 * associated with the open.
 	 * If there are locks associated with the open, the
 	 * nfslockfile structure can be freed via nfsrv_freelockowner().
 	 * (That is why the call must be here instead of after the loop.)
 	 */
-	if (LIST_EMPTY(&lfp->lf_open) && LIST_EMPTY(&lfp->lf_lock) &&
-	    LIST_EMPTY(&lfp->lf_deleg)) {
+	if (lfp != NULL && LIST_EMPTY(&lfp->lf_open) &&
+	    LIST_EMPTY(&lfp->lf_deleg) && LIST_EMPTY(&lfp->lf_lock) &&
+	    LIST_EMPTY(&lfp->lf_locallock) && LIST_EMPTY(&lfp->lf_rollback) &&
+	    lfp->lf_usecount == 0 &&
+	    (cansleep != 0 || nfsv4_testlock(&lfp->lf_locallock_lck) == 0)) {
 		nfsrv_freenfslockfile(lfp);
 		ret = 1;
-	}
-	/*
-	 * Now, free all lockowners associated with this open.
-	 */
-	nstp = LIST_FIRST(&stp->ls_open);
-	while (nstp != LIST_END(&stp->ls_open)) {
-		tstp = nstp;
-		nstp = LIST_NEXT(nstp, ls_list);
-		ret2 = nfsrv_freelockowner(tstp, freedlockp, cansleep, p);
-		if (ret == 0 && ret2 != 0)
-			ret = ret2;
-	}
+	} else
+		ret = 0;
 	FREE((caddr_t)stp, M_NFSDSTATE);
 	newnfsstats.srvopens--;
 	nfsrv_openpluslock--;
@@ -1078,79 +1088,76 @@ nfsrv_freeopen(struct nfsstate *stp, int *freedlockp, int cansleep,
 
 /*
  * Frees a lockowner and all associated locks.
- * It also frees the nfslockfile structure, if there are no more
- * references to it.
- * Must be called with soft clock interrupts disabled.
- * Returns 1 if it free'd the nfslockfile structure, 1 otherwise.
  */
-static int
-nfsrv_freelockowner(struct nfsstate *stp, int *freedlockp, int cansleep,
+static void
+nfsrv_freelockowner(struct nfsstate *stp, vnode_t vp, int cansleep,
     NFSPROC_T *p)
 {
-	int ret;
 
 	LIST_REMOVE(stp, ls_hash);
 	LIST_REMOVE(stp, ls_list);
-	ret = nfsrv_freeallnfslocks(stp, freedlockp, cansleep, p);
+	nfsrv_freeallnfslocks(stp, vp, cansleep, p);
 	if (stp->ls_op)
 		nfsrvd_derefcache(stp->ls_op);
 	FREE((caddr_t)stp, M_NFSDSTATE);
 	newnfsstats.srvlockowners--;
 	nfsrv_openpluslock--;
-	return (ret);
 }
 
 /*
  * Free all the nfs locks on a lockowner.
- * Returns 1 if it free'd the nfslockfile structure, 0 otherwise.
- * If any byte range lock is free'd, *freedlockp is set to 1.
  */
-static int
-nfsrv_freeallnfslocks(struct nfsstate *stp, int *freedlockp, int cansleep,
+static void
+nfsrv_freeallnfslocks(struct nfsstate *stp, vnode_t vp, int cansleep,
     NFSPROC_T *p)
 {
 	struct nfslock *lop, *nlop;
-	struct nfslockfile *lfp = NULL, *olfp = NULL;
-	int ret = 0;
+	struct nfsrollback *rlp, *nrlp;
+	struct nfslockfile *lfp = NULL;
+	int gottvp = 0;
+	vnode_t tvp = NULL;
 
 	lop = LIST_FIRST(&stp->ls_lock);
 	while (lop != LIST_END(&stp->ls_lock)) {
 		nlop = LIST_NEXT(lop, lo_lckowner);
 		/*
-		 * Since locks off a lockowner are ordered by
-		 * file, you should update the local locks when
-		 * you hit the next file OR the end of the lock
-		 * list. If there are no locks for other owners,
-		 * it must be done before the lockowner is discarded.
-		 * (All this only applies if cansleep == 1.)
+		 * Since all locks should be for the same file, lfp should
+		 * not change.
 		 */
-		olfp = lfp;
-		lfp = lop->lo_lfp;
-		nfsrv_freenfslock(lop);
-		if (freedlockp)
-			*freedlockp = 1;
-		if (LIST_EMPTY(&lfp->lf_open) && LIST_EMPTY(&lfp->lf_lock) &&
-		    LIST_EMPTY(&lfp->lf_deleg)) {
-			if (cansleep)
-				nfsrv_locallocks(NULL, lfp, p);
-			nfsrv_freenfslockfile(lfp);
-			/*
-			 * Set the pointer(s) to this lockowner NULL,
-			 * to indicate it has been free'd and local
-			 * locks discarded already.
-			 */
-			if (olfp == lfp)
-				olfp = NULL;
-			lfp = NULL;
-			ret = 1;
+		if (lfp == NULL)
+			lfp = lop->lo_lfp;
+		else if (lfp != lop->lo_lfp)
+			panic("allnfslocks");
+		/*
+		 * If vp is NULL and cansleep != 0, a vnode must be acquired
+		 * from the file handle. This only occurs when called from
+		 * nfsrv_cleanclient().
+		 */
+		if (gottvp == 0) {
+			if (nfsrv_dolocallocks == 0)
+				tvp = NULL;
+			else if (vp == NULL && cansleep != 0)
+				tvp = nfsvno_getvp(&lfp->lf_fh);
+			else
+				tvp = vp;
+			gottvp = 1;
 		}
-		if (cansleep && olfp != lfp && olfp != NULL)
-			nfsrv_locallocks(NULL, olfp, p);
+
+		if (tvp != NULL) {
+			if (cansleep == 0)
+				panic("allnfs2");
+			nfsrv_localunlock(tvp, lfp, lop->lo_first,
+			    lop->lo_end, p);
+			LIST_FOREACH_SAFE(rlp, &lfp->lf_rollback, rlck_list,
+			    nrlp)
+				free(rlp, M_NFSDROLLBACK);
+			LIST_INIT(&lfp->lf_rollback);
+		}
+		nfsrv_freenfslock(lop);
 		lop = nlop;
 	}
-	if (cansleep && lfp != NULL)
-		nfsrv_locallocks(NULL, olfp, p);
-	return (ret);
+	if (vp == NULL && tvp != NULL)
+		vput(tvp);
 }
 
 /*
@@ -1161,11 +1168,13 @@ static void
 nfsrv_freenfslock(struct nfslock *lop)
 {
 
-	LIST_REMOVE(lop, lo_lckfile);
+	if (lop->lo_lckfile.le_prev != NULL) {
+		LIST_REMOVE(lop, lo_lckfile);
+		newnfsstats.srvlocks--;
+		nfsrv_openpluslock--;
+	}
 	LIST_REMOVE(lop, lo_lckowner);
 	FREE((caddr_t)lop, M_NFSDLOCK);
-	newnfsstats.srvlocks--;
-	nfsrv_openpluslock--;
 }
 
 /*
@@ -1240,7 +1249,8 @@ nfsrv_getowner(struct nfsstatehead *hp, struct nfsstate *new_stp,
 APPLESTATIC int
 nfsrv_lockctrl(vnode_t vp, struct nfsstate **new_stpp,
     struct nfslock **new_lopp, struct nfslockconflict *cfp,
-    nfsquad_t clientid, nfsv4stateid_t *stateidp, __unused struct nfsexstuff *exp,
+    nfsquad_t clientid, nfsv4stateid_t *stateidp,
+    __unused struct nfsexstuff *exp,
     struct nfsrv_descript *nd, NFSPROC_T *p)
 {
 	struct nfslock *lop;
@@ -1253,9 +1263,11 @@ nfsrv_lockctrl(vnode_t vp, struct nfsstate **new_stpp,
 	struct nfsstate *stp, *lckstp = NULL;
 	struct nfsclient *clp = NULL;
 	u_int32_t bits;
-	int error = 0, haslock = 0, ret;
-	int getlckret, delegation = 0;
+	int error = 0, haslock = 0, ret, reterr;
+	int getlckret, delegation = 0, filestruct_locked;
 	fhandle_t nfh;
+	uint64_t first, end;
+	uint32_t lock_flags;
 
 	if (new_stp->ls_flags & (NFSLCK_CHECK | NFSLCK_SETATTR)) {
 		/*
@@ -1290,23 +1302,6 @@ nfsrv_lockctrl(vnode_t vp, struct nfsstate **new_stpp,
 		return (NFSERR_RESOURCE);
 
 	/*
-	 * For Lock, check for a conflict with a lock held by
-	 * a process running locally on the server now, before
-	 * monkeying with nfsd state. Since the vp is locked, any
-	 * other local calls are blocked during this Op.
-	 */
-	if (new_stp->ls_flags & NFSLCK_LOCK) {
-		if (new_lop->lo_flags & NFSLCK_WRITE)
-			error = nfsvno_localconflict(vp, F_WRLCK,
-			    new_lop->lo_first, new_lop->lo_end, cfp, p);
-		else
-			error = nfsvno_localconflict(vp, F_RDLCK,
-			    new_lop->lo_first, new_lop->lo_end, cfp, p);
-		if (error)
-			return (error);
-	}
-
-	/*
 	 * For the lock case, get another nfslock structure,
 	 * just in case we need it.
 	 * Malloc now, before we start sifting through the linked lists,
@@ -1316,6 +1311,9 @@ tryagain:
 	if (new_stp->ls_flags & NFSLCK_LOCK)
 		MALLOC(other_lop, struct nfslock *, sizeof (struct nfslock),
 		    M_NFSDLOCK, M_WAITOK);
+	filestruct_locked = 0;
+	reterr = 0;
+	lfp = NULL;
 
 	/*
 	 * Get the lockfile structure for CFH now, so we can do a sanity
@@ -1324,22 +1322,41 @@ tryagain:
 	 * shouldn't be incremented for this case.
 	 * If nfsrv_getlockfile() returns -1, it means "not found", which
 	 * will be handled later.
+	 * If we are doing Lock/LockU and local locking is enabled, sleep
+	 * lock the nfslockfile structure.
 	 */
 	getlckret = nfsrv_getlockfh(vp, new_stp->ls_flags, NULL, &nfh, p);
 	NFSLOCKSTATE();
-	if (!getlckret)
-		getlckret = nfsrv_getlockfile(new_stp->ls_flags, NULL,
-		    &lfp, &nfh);
-	if (getlckret != 0 && getlckret != -1) {
-		NFSUNLOCKSTATE();
-		if (other_lop)
-			FREE((caddr_t)other_lop, M_NFSDLOCK);
-		if (haslock) {
-			NFSLOCKV4ROOTMUTEX();
-			nfsv4_unlock(&nfsv4rootfs_lock, 1);
-			NFSUNLOCKV4ROOTMUTEX();
+	if (getlckret == 0) {
+		if ((new_stp->ls_flags & (NFSLCK_LOCK | NFSLCK_UNLOCK)) != 0 &&
+		    nfsrv_dolocallocks != 0 && nd->nd_repstat == 0) {
+			getlckret = nfsrv_getlockfile(new_stp->ls_flags, NULL,
+			    &lfp, &nfh, 1);
+			if (getlckret == 0)
+				filestruct_locked = 1;
+		} else
+			getlckret = nfsrv_getlockfile(new_stp->ls_flags, NULL,
+			    &lfp, &nfh, 0);
+	}
+	if (getlckret != 0 && getlckret != -1)
+		reterr = getlckret;
+
+	if (filestruct_locked != 0) {
+		LIST_INIT(&lfp->lf_rollback);
+		if ((new_stp->ls_flags & NFSLCK_LOCK)) {
+			/*
+			 * For local locking, do the advisory locking now, so
+			 * that any conflict can be detected. A failure later
+			 * can be rolled back locally. If an error is returned,
+			 * struct nfslockfile has been unlocked and any local
+			 * locking rolled back.
+			 */
+			NFSUNLOCKSTATE();
+			reterr = nfsrv_locallock(vp, lfp,
+			    (new_lop->lo_flags & (NFSLCK_READ | NFSLCK_WRITE)),
+			    new_lop->lo_first, new_lop->lo_end, cfp, p);
+			NFSLOCKSTATE();
 		}
-		return (getlckret);
 	}
 
 	/*
@@ -1381,11 +1398,11 @@ tryagain:
 	       */
 	      if (error == 0 && (stp->ls_flags & NFSLCK_OPEN) &&
 		  ((stp->ls_openowner->ls_flags & NFSLCK_NEEDSCONFIRM) ||
-		   (getlckret != -1 && stp->ls_lfp != lfp)))
+		   (getlckret == 0 && stp->ls_lfp != lfp)))
 			error = NFSERR_BADSTATEID;
 	      if (error == 0 &&
 		  (stp->ls_flags & (NFSLCK_DELEGREAD | NFSLCK_DELEGWRITE)) &&
-		  getlckret != -1 && stp->ls_lfp != lfp)
+		  getlckret == 0 && stp->ls_lfp != lfp)
 			error = NFSERR_BADSTATEID;
 
 	      /*
@@ -1398,7 +1415,7 @@ tryagain:
 	       */
 	      if (error == 0 && (stp->ls_flags &
 		  (NFSLCK_OPEN | NFSLCK_DELEGREAD | NFSLCK_DELEGWRITE)) == 0 &&
-		  getlckret != -1 && stp->ls_lfp != lfp) {
+		  getlckret == 0 && stp->ls_lfp != lfp) {
 #ifdef DIAGNOSTIC
 		  printf("Got a lock statid for different file open\n");
 #endif
@@ -1478,12 +1495,30 @@ tryagain:
 		nfsrv_markstable(clp);
 
 	/*
-	 * If nd_repstat is set, we can return that now, since the
-	 * seqid# has been incremented.
+	 * At this point, either error == NFSERR_BADSTATEID or the
+	 * seqid# has been updated, so we can return any error.
+	 * If error == 0, there may be an error in:
+	 *    nd_repstat - Set by the calling function.
+	 *    reterr - Set above, if getting the nfslockfile structure
+	 *       or acquiring the local lock failed.
+	 *    (If both of these are set, nd_repstat should probably be
+	 *     returned, since that error was detected before this
+	 *     function call.)
 	 */
-	if (nd->nd_repstat && !error)
-		error = nd->nd_repstat;
-	if (error) {
+	if (error != 0 || nd->nd_repstat != 0 || reterr != 0) {
+		if (error == 0) {
+			if (nd->nd_repstat != 0)
+				error = nd->nd_repstat;
+			else
+				error = reterr;
+		}
+		if (filestruct_locked != 0) {
+			/* Roll back local locks. */
+			NFSUNLOCKSTATE();
+			nfsrv_locallock_rollback(vp, lfp, p);
+			NFSLOCKSTATE();
+			nfsrv_unlocklf(lfp);
+		}
 		NFSUNLOCKSTATE();
 		if (other_lop)
 			FREE((caddr_t)other_lop, M_NFSDLOCK);
@@ -1569,6 +1604,13 @@ tryagain:
 		    ((new_stp->ls_flags & (NFSLCK_CHECK|NFSLCK_WRITEACCESS)) ==
 		      (NFSLCK_CHECK | NFSLCK_WRITEACCESS) &&
 		     !(mystp->ls_flags & NFSLCK_WRITEACCESS))) {
+			if (filestruct_locked != 0) {
+				/* Roll back local locks. */
+				NFSUNLOCKSTATE();
+				nfsrv_locallock_rollback(vp, lfp, p);
+				NFSLOCKSTATE();
+				nfsrv_unlocklf(lfp);
+			}
 			NFSUNLOCKSTATE();
 			if (other_lop)
 				FREE((caddr_t)other_lop, M_NFSDLOCK);
@@ -1680,11 +1722,18 @@ tryagain:
 		   (new_lop->lo_flags & NFSLCK_WRITE) &&
 		  (clp != tstp->ls_clp ||
 		   (tstp->ls_flags & NFSLCK_DELEGREAD)))) {
+		if (filestruct_locked != 0) {
+			/* Roll back local locks. */
+			NFSUNLOCKSTATE();
+			nfsrv_locallock_rollback(vp, lfp, p);
+			NFSLOCKSTATE();
+			nfsrv_unlocklf(lfp);
+		}
 		ret = nfsrv_delegconflict(tstp, &haslock, p, vp);
 		if (ret) {
 		    /*
 		     * nfsrv_delegconflict unlocks state when it
-		     * returns non-zero.
+		     * returns non-zero, which it always does.
 		     */
 		    if (other_lop) {
 			FREE((caddr_t)other_lop, M_NFSDLOCK);
@@ -1696,6 +1745,7 @@ tryagain:
 		    }
 		    return (ret);
 		}
+		/* Never gets here. */
 	    }
 	    tstp = nstp;
 	}
@@ -1706,32 +1756,21 @@ tryagain:
 	 *  just let it happen.)
 	 */
 	if (new_stp->ls_flags & NFSLCK_UNLOCK) {
+		first = new_lop->lo_first;
+		end = new_lop->lo_end;
 		nfsrv_updatelock(stp, new_lopp, &other_lop, lfp);
 		stateidp->seqid = ++(stp->ls_stateid.seqid);
 		stateidp->other[0] = stp->ls_stateid.other[0];
 		stateidp->other[1] = stp->ls_stateid.other[1];
 		stateidp->other[2] = stp->ls_stateid.other[2];
-		/*
-		 * For a non-empty flp->lf_lock list, I believe
-		 * nfsrv_locallocks() can safely traverse the list, including
-		 * sleeping, for two reasons:
-		 * 1 - The Lock/LockU/Close Ops all require a locked
-		 *     vnode for the file and we currently have that.
-		 * 2 - The only other thing that modifies a non-empty
-		 *     list is nfsrv_cleanclient() and it is always
-		 *     done with the exclusive nfsv4rootfs_lock held.
-		 *     Since this Op in progress holds either a shared or
-		 *     exclusive lock on nfsv4rootfs_lock, that can't
-		 *     happen now.
-		 * However, the structure pointed to by lfp can go
-		 * in many places for an empty list, so that is handled
-		 * by passing a NULL pointer to nfsrv_locallocks().
-		 * Do that check now, while we are still SMP safe.
-		 */
-		if (LIST_EMPTY(&lfp->lf_lock))
-			lfp = NULL;
+		if (filestruct_locked != 0) {
+			NFSUNLOCKSTATE();
+			/* Update the local locks. */
+			nfsrv_localunlock(vp, lfp, first, end, p);
+			NFSLOCKSTATE();
+			nfsrv_unlocklf(lfp);
+		}
 		NFSUNLOCKSTATE();
-		nfsrv_locallocks(vp, lfp, p);
 		if (haslock) {
 			NFSLOCKV4ROOTMUTEX();
 			nfsv4_unlock(&nfsv4rootfs_lock, 1);
@@ -1763,6 +1802,13 @@ tryagain:
 		}
 		ret = nfsrv_clientconflict(lop->lo_stp->ls_clp,&haslock,vp,p);
 		if (ret) {
+		    if (filestruct_locked != 0) {
+			/* Roll back local locks. */
+			nfsrv_locallock_rollback(vp, lfp, p);
+			NFSLOCKSTATE();
+			nfsrv_unlocklf(lfp);
+			NFSUNLOCKSTATE();
+		    }
 		    /*
 		     * nfsrv_clientconflict() unlocks state when it
 		     * returns non-zero.
@@ -1790,6 +1836,13 @@ tryagain:
 		    error = NFSERR_LOCKED;
 		else
 		    error = NFSERR_DENIED;
+		if (filestruct_locked != 0) {
+			/* Roll back local locks. */
+			NFSUNLOCKSTATE();
+			nfsrv_locallock_rollback(vp, lfp, p);
+			NFSLOCKSTATE();
+			nfsrv_unlocklf(lfp);
+		}
 		NFSUNLOCKSTATE();
 		if (haslock) {
 			NFSLOCKV4ROOTMUTEX();
@@ -1820,6 +1873,9 @@ tryagain:
 	 * - exist_lock_owner where lock_owner exists
 	 * - open_to_lock_owner with new lock_owner
 	 */
+	first = new_lop->lo_first;
+	end = new_lop->lo_end;
+	lock_flags = new_lop->lo_flags;
 	if (!(new_stp->ls_flags & NFSLCK_OPENTOLOCK)) {
 		nfsrv_updatelock(lckstp, new_lopp, &other_lop, lfp);
 		stateidp->seqid = ++(lckstp->ls_stateid.seqid);
@@ -1854,11 +1910,13 @@ tryagain:
 		newnfsstats.srvlockowners++;
 		nfsrv_openpluslock++;
 	}
-	/* See comment above, w.r.t. nfsrv_locallocks(). */
-	if (LIST_EMPTY(&lfp->lf_lock))
-		lfp = NULL;
+	if (filestruct_locked != 0) {
+		NFSUNLOCKSTATE();
+		nfsrv_locallock_commit(lfp, lock_flags, first, end);
+		NFSLOCKSTATE();
+		nfsrv_unlocklf(lfp);
+	}
 	NFSUNLOCKSTATE();
-	nfsrv_locallocks(vp, lfp, p);
 	if (haslock) {
 		NFSLOCKV4ROOTMUTEX();
 		nfsv4_unlock(&nfsv4rootfs_lock, 1);
@@ -1984,7 +2042,7 @@ tryagain:
 		error = getfhret;
 	else
 		error = nfsrv_getlockfile(new_stp->ls_flags, &new_lfp, &lfp,
-		    NULL);
+		    NULL, 0);
 	if (new_lfp)
 		FREE((caddr_t)new_lfp, M_NFSDLOCKFILE);
 	if (error) {
@@ -2227,7 +2285,7 @@ tryagain:
 		error = getfhret;
 	else
 		error = nfsrv_getlockfile(new_stp->ls_flags, &new_lfp, &lfp,
-		    NULL);
+		    NULL, 0);
 	if (new_lfp)
 		FREE((caddr_t)new_lfp, M_NFSDLOCKFILE);
 	if (error) {
@@ -2775,7 +2833,7 @@ nfsrv_openupdate(vnode_t vp, struct nfsstate *new_stp, nfsquad_t clientid,
 	struct nfsclient *clp;
 	struct nfslockfile *lfp;
 	u_int32_t bits;
-	int error, gotstate = 0, len = 0, ret, freedlock;
+	int error, gotstate = 0, len = 0;
 	u_char client[NFSV4_OPAQUELIMIT];
 
 	/*
@@ -2863,26 +2921,19 @@ nfsrv_openupdate(vnode_t vp, struct nfsstate *new_stp, nfsquad_t clientid,
 	} else if (new_stp->ls_flags & NFSLCK_CLOSE) {
 		ownerstp = stp->ls_openowner;
 		lfp = stp->ls_lfp;
-		freedlock = 0;
-		ret = nfsrv_freeopen(stp, &freedlock, 0, p);
-		/* See comment on nfsrv_lockctrl() w.r.t. locallocks. */
-		if (ret) {
-			lfp = NULL;
+		if (nfsrv_dolocallocks != 0 && !LIST_EMPTY(&stp->ls_open)) {
+			/* Get the lf lock */
+			nfsrv_locklf(lfp);
+			NFSUNLOCKSTATE();
+			if (nfsrv_freeopen(stp, vp, 1, p) == 0) {
+				NFSLOCKSTATE();
+				nfsrv_unlocklf(lfp);
+				NFSUNLOCKSTATE();
+			}
 		} else {
-			if (LIST_EMPTY(&lfp->lf_lock))
-				lfp = NULL;
+			(void) nfsrv_freeopen(stp, NULL, 0, p);
+			NFSUNLOCKSTATE();
 		}
-		/*
-		 * For now, I won't do this. The openowner should be
-		 * free'd in NFSNOOPEN seconds and it will be deref'd then.
-		if (LIST_EMPTY(&ownerstp->ls_open) && ownerstp->ls_op) {
-			nfsrvd_derefcache(ownerstp->ls_op);
-			ownerstp->ls_op = NULL;
-		}
-		 */
-		NFSUNLOCKSTATE();
-		if (freedlock && lfp != NULL)
-			nfsrv_locallocks(vp, lfp, p);
 	} else {
 		/*
 		 * Update the share bits, making sure that the new set are a
@@ -3024,7 +3075,7 @@ nfsrv_releaselckown(struct nfsstate *new_stp, nfsquad_t clientid,
 			!NFSBCMP(stp->ls_owner, new_stp->ls_owner,
 			 stp->ls_ownerlen)){
 			if (LIST_EMPTY(&stp->ls_lock)) {
-			    (void) nfsrv_freelockowner(stp, NULL, 0, p);
+			    nfsrv_freelockowner(stp, NULL, 0, p);
 			} else {
 			    NFSUNLOCKSTATE();
 			    return (NFSERR_LOCKSHELD);
@@ -3072,7 +3123,7 @@ nfsrv_getlockfh(vnode_t vp, u_short flags,
  */
 static int
 nfsrv_getlockfile(u_short flags, struct nfslockfile **new_lfpp,
-    struct nfslockfile **lfpp, fhandle_t *nfhp)
+    struct nfslockfile **lfpp, fhandle_t *nfhp, int lockit)
 {
 	struct nfslockfile *lfp;
 	fhandle_t *fhp = NULL, *tfhp;
@@ -3096,6 +3147,8 @@ nfsrv_getlockfile(u_short flags, struct nfslockfile **new_lfpp,
 	LIST_FOREACH(lfp, hp, lf_hash) {
 		tfhp = &lfp->lf_fh;
 		if (NFSVNO_CMPFH(fhp, tfhp)) {
+			if (lockit)
+				nfsrv_locklf(lfp);
 			*lfpp = lfp;
 			return (0);
 		}
@@ -3109,6 +3162,11 @@ nfsrv_getlockfile(u_short flags, struct nfslockfile **new_lfpp,
 	LIST_INIT(&new_lfp->lf_open);
 	LIST_INIT(&new_lfp->lf_lock);
 	LIST_INIT(&new_lfp->lf_deleg);
+	LIST_INIT(&new_lfp->lf_locallock);
+	LIST_INIT(&new_lfp->lf_rollback);
+	new_lfp->lf_locallock_lck.nfslock_usecnt = 0;
+	new_lfp->lf_locallock_lck.nfslock_lock = 0;
+	new_lfp->lf_usecount = 0;
 	LIST_INSERT_HEAD(hp, new_lfp, lf_hash);
 	*lfpp = new_lfp;
 	*new_lfpp = NULL;
@@ -3130,31 +3188,39 @@ nfsrv_insertlock(struct nfslock *new_lop, struct nfslock *insert_lop,
 	new_lop->lo_stp = stp;
 	new_lop->lo_lfp = lfp;
 
-	/* Insert in increasing lo_first order */
-	lop = LIST_FIRST(&lfp->lf_lock);
-	if (lop == LIST_END(&lfp->lf_lock) ||
-	    new_lop->lo_first <= lop->lo_first) {
-		LIST_INSERT_HEAD(&lfp->lf_lock, new_lop, lo_lckfile);
-	} else {
-		nlop = LIST_NEXT(lop, lo_lckfile);
-		while (nlop != LIST_END(&lfp->lf_lock) &&
-		       nlop->lo_first < new_lop->lo_first) {
-			lop = nlop;
+	if (stp != NULL) {
+		/* Insert in increasing lo_first order */
+		lop = LIST_FIRST(&lfp->lf_lock);
+		if (lop == LIST_END(&lfp->lf_lock) ||
+		    new_lop->lo_first <= lop->lo_first) {
+			LIST_INSERT_HEAD(&lfp->lf_lock, new_lop, lo_lckfile);
+		} else {
 			nlop = LIST_NEXT(lop, lo_lckfile);
+			while (nlop != LIST_END(&lfp->lf_lock) &&
+			       nlop->lo_first < new_lop->lo_first) {
+				lop = nlop;
+				nlop = LIST_NEXT(lop, lo_lckfile);
+			}
+			LIST_INSERT_AFTER(lop, new_lop, lo_lckfile);
 		}
-		LIST_INSERT_AFTER(lop, new_lop, lo_lckfile);
+	} else {
+		new_lop->lo_lckfile.le_prev = NULL;	/* list not used */
 	}
 
 	/*
-	 * Insert after insert_lop, which is overloaded as stp for
+	 * Insert after insert_lop, which is overloaded as stp or lfp for
 	 * an empty list.
 	 */
-	if ((struct nfsstate *)insert_lop == stp)
+	if (stp == NULL && (struct nfslockfile *)insert_lop == lfp)
+		LIST_INSERT_HEAD(&lfp->lf_locallock, new_lop, lo_lckowner);
+	else if ((struct nfsstate *)insert_lop == stp)
 		LIST_INSERT_HEAD(&stp->ls_lock, new_lop, lo_lckowner);
 	else
 		LIST_INSERT_AFTER(insert_lop, new_lop, lo_lckowner);
-	newnfsstats.srvlocks++;
-	nfsrv_openpluslock++;
+	if (stp != NULL) {
+		newnfsstats.srvlocks++;
+		nfsrv_openpluslock++;
+	}
 }
 
 /*
@@ -3180,9 +3246,14 @@ nfsrv_updatelock(struct nfsstate *stp, struct nfslock **new_lopp,
 	 */
 	if (new_lop->lo_flags & NFSLCK_UNLOCK)
 		unlock = 1;
-	ilop = (struct nfslock *)stp;
-	lop = LIST_FIRST(&stp->ls_lock);
-	while (lop != LIST_END(&stp->ls_lock)) {
+	if (stp != NULL) {
+		ilop = (struct nfslock *)stp;
+		lop = LIST_FIRST(&stp->ls_lock);
+	} else {
+		ilop = (struct nfslock *)lfp;
+		lop = LIST_FIRST(&lfp->lf_locallock);
+	}
+	while (lop != NULL) {
 	    /*
 	     * Only check locks for this file that aren't before the start of
 	     * new lock's range.
@@ -3278,8 +3349,7 @@ nfsrv_updatelock(struct nfsstate *stp, struct nfslock **new_lopp,
 	    }
 	    ilop = lop;
 	    lop = LIST_NEXT(lop, lo_lckowner);
-	    if (myfile && (lop == LIST_END(&stp->ls_lock) ||
-		lop->lo_lfp != lfp))
+	    if (myfile && (lop == NULL || lop->lo_lfp != lfp))
 		break;
 	}
 
@@ -4362,7 +4432,7 @@ nfsrv_checkremove(vnode_t vp, int remove, NFSPROC_T *p)
 tryagain:
 	NFSLOCKSTATE();
 	if (!error)
-		error = nfsrv_getlockfile(NFSLCK_CHECK, NULL, &lfp, &nfh);
+		error = nfsrv_getlockfile(NFSLCK_CHECK, NULL, &lfp, &nfh, 0);
 	if (error) {
 		NFSUNLOCKSTATE();
 		if (haslock) {
@@ -4612,7 +4682,7 @@ nfsrv_checkgetattr(struct nfsrv_descript *nd, vnode_t vp,
 	error = nfsrv_getlockfh(vp, NFSLCK_CHECK, NULL, &nfh, p);
 	NFSLOCKSTATE();
 	if (!error)
-		error = nfsrv_getlockfile(NFSLCK_CHECK, NULL, &lfp, &nfh);
+		error = nfsrv_getlockfile(NFSLCK_CHECK, NULL, &lfp, &nfh, 0);
 	if (error) {
 		NFSUNLOCKSTATE();
 		if (error == -1)
@@ -4783,99 +4853,6 @@ nfsrv_delaydelegtimeout(struct nfsstate *stp)
 }
 
 /*
- * Go through a lock list and set local locks for all ranges.
- * This assumes that the lock list is sorted on increasing
- * lo_first and that the list won't change, despite the possibility
- * of sleeps.
- */
-static void
-nfsrv_locallocks(vnode_t vp, struct nfslockfile *lfp,
-    NFSPROC_T *p)
-{
-	struct nfslock *lop, *nlop;
-	vnode_t tvp;
-	int newcollate, flags = 0;
-	u_int64_t first = 0x0ull, end = 0x0ull;
-
-	if (!nfsrv_dolocallocks)
-		return;
-	/*
-	 * If vp is NULL, a vnode must be aquired from the file
-	 * handle.
-	 */
-	if (vp == NULL) {
-		if (lfp == NULL)
-			panic("nfsrv_locallocks");
-		tvp = nfsvno_getvp(&lfp->lf_fh);
-		if (tvp == NULL)
-			return;
-	} else {
-		tvp = vp;
-	}
-
-	/*
-	 * If lfp == NULL, the lock list is empty, so just unlock
-	 * everything.
-	 */
-	if (lfp == NULL) {
-		(void) nfsvno_advlock(tvp, F_UNLCK, (u_int64_t)0,
-		    NFS64BITSSET, p);
-		/* vp can't be NULL */
-		return;
-	}
-
-	/* handle whole file case first */
-	lop = LIST_FIRST(&lfp->lf_lock);
-	if (lop != LIST_END(&lfp->lf_lock) &&
-	    lop->lo_first == (u_int64_t)0 &&
-	    lop->lo_end == NFS64BITSSET) {
-		if (lop->lo_flags & NFSLCK_WRITE)
-			(void) nfsvno_advlock(tvp, F_WRLCK, lop->lo_first,
-			    lop->lo_end, p);
-		else
-			(void) nfsvno_advlock(tvp, F_RDLCK, lop->lo_first,
-			    lop->lo_end, p);
-		if (vp == NULL)
-			vput(tvp);
-		return;
-	}
-
-	/*
-	 * Now, handle the separate byte ranges cases.
-	 */
-	(void) nfsvno_advlock(tvp, F_UNLCK, (u_int64_t)0,
-	    NFS64BITSSET, p);
-	newcollate = 1;
-	while (lop != LIST_END(&lfp->lf_lock)) {
-		nlop = LIST_NEXT(lop, lo_lckfile);
-		if (newcollate) {
-			first = lop->lo_first;
-			end = lop->lo_end;
-			flags = lop->lo_flags;
-			newcollate = 0;
-		}
-		if (nlop != LIST_END(&lfp->lf_lock) &&
-		    flags == nlop->lo_flags &&
-		    end >= nlop->lo_first) {
-			/* can collate this one */
-			end = nlop->lo_end;
-		} else {
-			/* do the local lock and start again */
-			if (flags & NFSLCK_WRITE)
-				(void) nfsvno_advlock(tvp, F_WRLCK, first,
-				    end, p);
-			else
-				(void) nfsvno_advlock(tvp, F_RDLCK, first,
-				    end, p);
-			newcollate = 1;
-		}
-		lop = nlop;
-	}
-	if (vp == NULL)
-		vput(tvp);
-}
-
-/*
  * This function checks to see if there is any other state associated
  * with the openowner for this Open.
  * It returns 1 if there is no other state, 0 otherwise.
@@ -4890,5 +4867,238 @@ nfsrv_nootherstate(struct nfsstate *stp)
 			return (0);
 	}
 	return (1);
+}
+
+/*
+ * Create a list of lock deltas (changes to local byte range locking
+ * that can be rolled back using the list) and apply the changes via
+ * nfsvno_advlock(). Optionally, lock the list. It is expected that either
+ * the rollback or update function will be called after this.
+ * It returns an error (and rolls back, as required), if any nfsvno_advlock()
+ * call fails. If it returns an error, it will unlock the list.
+ */
+static int
+nfsrv_locallock(vnode_t vp, struct nfslockfile *lfp, int flags,
+    uint64_t first, uint64_t end, struct nfslockconflict *cfp, NFSPROC_T *p)
+{
+	struct nfslock *lop, *nlop;
+	int error = 0;
+
+	/* Loop through the list of locks. */
+	lop = LIST_FIRST(&lfp->lf_locallock);
+	while (first < end && lop != NULL) {
+		nlop = LIST_NEXT(lop, lo_lckowner);
+		if (first >= lop->lo_end) {
+			/* not there yet */
+			lop = nlop;
+		} else if (first < lop->lo_first) {
+			/* new one starts before entry in list */
+			if (end <= lop->lo_first) {
+				/* no overlap between old and new */
+				error = nfsrv_dolocal(vp, lfp, flags,
+				    NFSLCK_UNLOCK, first, end, cfp, p);
+				if (error != 0)
+					break;
+				first = end;
+			} else {
+				/* handle fragment overlapped with new one */
+				error = nfsrv_dolocal(vp, lfp, flags,
+				    NFSLCK_UNLOCK, first, lop->lo_first, cfp,
+				    p);
+				if (error != 0)
+					break;
+				first = lop->lo_first;
+			}
+		} else {
+			/* new one overlaps this entry in list */
+			if (end <= lop->lo_end) {
+				/* overlaps all of new one */
+				error = nfsrv_dolocal(vp, lfp, flags,
+				    lop->lo_flags, first, end, cfp, p);
+				if (error != 0)
+					break;
+				first = end;
+			} else {
+				/* handle fragment overlapped with new one */
+				error = nfsrv_dolocal(vp, lfp, flags,
+				    lop->lo_flags, first, lop->lo_end, cfp, p);
+				if (error != 0)
+					break;
+				first = lop->lo_end;
+				lop = nlop;
+			}
+		}
+	}
+	if (first < end && error == 0)
+		/* handle fragment past end of list */
+		error = nfsrv_dolocal(vp, lfp, flags, NFSLCK_UNLOCK, first,
+		    end, cfp, p);
+	return (error);
+}
+
+/*
+ * Local lock unlock. Unlock all byte ranges that are no longer locked
+ * by NFSv4.
+ */
+static void
+nfsrv_localunlock(vnode_t vp, struct nfslockfile *lfp, uint64_t init_first,
+    uint64_t init_end, NFSPROC_T *p)
+{
+	struct nfslock *lop;
+
+	uint64_t first, end;
+
+	first = init_first;
+	end = init_end;
+	while (first < init_end) {
+		/* Loop through all nfs locks, adjusting first and end */
+		LIST_FOREACH(lop, &lfp->lf_lock, lo_lckfile) {
+			if (first >= lop->lo_first &&
+			    first < lop->lo_end)
+				/* Overlaps initial part */
+				first = lop->lo_end;
+			else if (end > lop->lo_first &&
+			    lop->lo_first >= first)
+				/* Begins before end and past first */
+				end = lop->lo_first;
+			if (first >= end)
+				/* shrunk to 0 so this iteration is done */
+				break;
+		}
+		if (first < end) {
+			/* Unlock this segment */
+			(void) nfsrv_dolocal(vp, lfp, NFSLCK_UNLOCK,
+			    NFSLCK_READ, first, end, NULL, p);
+			nfsrv_locallock_commit(lfp, NFSLCK_UNLOCK,
+			    first, end);
+		}
+		/* and move on to the rest of the range */
+		first = end;
+		end = init_end;
+	}
+}
+
+/*
+ * Do the local lock operation and update the rollback list, as required.
+ * Perform the rollback and return the error if nfsvno_advlock() fails.
+ */
+static int
+nfsrv_dolocal(vnode_t vp, struct nfslockfile *lfp, int flags, int oldflags,
+    uint64_t first, uint64_t end, struct nfslockconflict *cfp, NFSPROC_T *p)
+{
+	struct nfsrollback *rlp;
+	int error, ltype, oldltype;
+
+	if (flags & NFSLCK_WRITE)
+		ltype = F_WRLCK;
+	else if (flags & NFSLCK_READ)
+		ltype = F_RDLCK;
+	else
+		ltype = F_UNLCK;
+	if (oldflags & NFSLCK_WRITE)
+		oldltype = F_WRLCK;
+	else if (oldflags & NFSLCK_READ)
+		oldltype = F_RDLCK;
+	else
+		oldltype = F_UNLCK;
+	if (ltype == oldltype || (oldltype == F_WRLCK && ltype == F_RDLCK))
+		/* nothing to do */
+		return (0);
+	error = nfsvno_advlock(vp, ltype, first, end, p);
+	if (error != 0) {
+		if (cfp != NULL) {
+			cfp->cl_clientid.lval[0] = 0;
+			cfp->cl_clientid.lval[1] = 0;
+			cfp->cl_first = 0;
+			cfp->cl_end = NFS64BITSSET;
+			cfp->cl_flags = NFSLCK_WRITE;
+			cfp->cl_ownerlen = 5;
+			NFSBCOPY("LOCAL", cfp->cl_owner, 5);
+		}
+		nfsrv_locallock_rollback(vp, lfp, p);
+	} else if (ltype != F_UNLCK) {
+		rlp = malloc(sizeof (struct nfsrollback), M_NFSDROLLBACK,
+		    M_WAITOK);
+		rlp->rlck_first = first;
+		rlp->rlck_end = end;
+		rlp->rlck_type = oldltype;
+		LIST_INSERT_HEAD(&lfp->lf_rollback, rlp, rlck_list);
+	}
+	return (error);
+}
+
+/*
+ * Roll back local lock changes and free up the rollback list.
+ */
+static void
+nfsrv_locallock_rollback(vnode_t vp, struct nfslockfile *lfp, NFSPROC_T *p)
+{
+	struct nfsrollback *rlp, *nrlp;
+
+	LIST_FOREACH_SAFE(rlp, &lfp->lf_rollback, rlck_list, nrlp) {
+		(void) nfsvno_advlock(vp, rlp->rlck_type, rlp->rlck_first,
+		    rlp->rlck_end, p);
+		free(rlp, M_NFSDROLLBACK);
+	}
+	LIST_INIT(&lfp->lf_rollback);
+}
+
+/*
+ * Update local lock list and delete rollback list (ie now committed to the
+ * local locks). Most of the work is done by the internal function.
+ */
+static void
+nfsrv_locallock_commit(struct nfslockfile *lfp, int flags, uint64_t first,
+    uint64_t end)
+{
+	struct nfsrollback *rlp, *nrlp;
+	struct nfslock *new_lop, *other_lop;
+
+	new_lop = malloc(sizeof (struct nfslock), M_NFSDLOCK, M_WAITOK);
+	if (flags & (NFSLCK_READ | NFSLCK_WRITE))
+		other_lop = malloc(sizeof (struct nfslock), M_NFSDLOCK,
+		    M_WAITOK);
+	else
+		other_lop = NULL;
+	new_lop->lo_flags = flags;
+	new_lop->lo_first = first;
+	new_lop->lo_end = end;
+	nfsrv_updatelock(NULL, &new_lop, &other_lop, lfp);
+	if (new_lop != NULL)
+		free(new_lop, M_NFSDLOCK);
+	if (other_lop != NULL)
+		free(other_lop, M_NFSDLOCK);
+
+	/* and get rid of the rollback list */
+	LIST_FOREACH_SAFE(rlp, &lfp->lf_rollback, rlck_list, nrlp)
+		free(rlp, M_NFSDROLLBACK);
+	LIST_INIT(&lfp->lf_rollback);
+}
+
+/*
+ * Lock the struct nfslockfile for local lock updating.
+ */
+static void
+nfsrv_locklf(struct nfslockfile *lfp)
+{
+	int gotlock;
+
+	/* lf_usecount ensures *lfp won't be free'd */
+	lfp->lf_usecount++;
+	do {
+		gotlock = nfsv4_lock(&lfp->lf_locallock_lck, 1, NULL,
+		    NFSSTATEMUTEXPTR);
+	} while (gotlock == 0);
+	lfp->lf_usecount--;
+}
+
+/*
+ * Unlock the struct nfslockfile after local lock updating.
+ */
+static void
+nfsrv_unlocklf(struct nfslockfile *lfp)
+{
+
+	nfsv4_unlock(&lfp->lf_locallock_lck, 0);
 }
 

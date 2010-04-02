@@ -46,7 +46,7 @@ int             ixgbe_display_debug_stats = 0;
 /*********************************************************************
  *  Driver version
  *********************************************************************/
-char ixgbe_driver_version[] = "2.1.6";
+char ixgbe_driver_version[] = "2.1.7";
 
 /*********************************************************************
  *  PCI Device ID Table
@@ -106,8 +106,8 @@ static int	ixgbe_mq_start_locked(struct ifnet *,
 static void	ixgbe_qflush(struct ifnet *);
 #endif
 static int      ixgbe_ioctl(struct ifnet *, u_long, caddr_t);
-static void     ixgbe_init(void *);
-static void     ixgbe_init_locked(struct adapter *);
+static void	ixgbe_init(void *);
+static int	ixgbe_init_locked(struct adapter *);
 static void     ixgbe_stop(void *);
 static void     ixgbe_media_status(struct ifnet *, struct ifmediareq *);
 static int      ixgbe_media_change(struct ifnet *);
@@ -142,7 +142,7 @@ static void     ixgbe_disable_intr(struct adapter *);
 static void     ixgbe_update_stats_counters(struct adapter *);
 static bool	ixgbe_txeof(struct tx_ring *);
 static bool	ixgbe_rxeof(struct ix_queue *, int);
-static void	ixgbe_rx_checksum(u32, struct mbuf *);
+static void	ixgbe_rx_checksum(u32, struct mbuf *, u32);
 static void     ixgbe_set_promisc(struct adapter *);
 static void     ixgbe_disable_promisc(struct adapter *);
 static void     ixgbe_set_multi(struct adapter *);
@@ -827,9 +827,13 @@ ixgbe_mq_start_locked(struct ifnet *ifp, struct tx_ring *txr, struct mbuf *m)
 	}
 
 	enqueued = 0;
-	if (m == NULL)
+	if (m == NULL) {
 		next = drbr_dequeue(ifp, txr->br);
-	else
+	} else if (drbr_needs_enqueue(ifp, txr->br)) {
+		if ((err = drbr_enqueue(ifp, txr->br, m)) != 0)
+			return (err);
+		next = drbr_dequeue(ifp, txr->br);
+	} else
 		next = m;
 
 	/* Process the queue */
@@ -905,7 +909,7 @@ ixgbe_ioctl(struct ifnet * ifp, u_long command, caddr_t data)
 			ifp->if_mtu = ifr->ifr_mtu;
 			adapter->max_frame_size =
 				ifp->if_mtu + ETHER_HDR_LEN + ETHER_CRC_LEN;
-			ixgbe_init_locked(adapter);
+			error = ixgbe_init_locked(adapter);
 			IXGBE_CORE_UNLOCK(adapter);
 		}
 		break;
@@ -920,7 +924,7 @@ ixgbe_ioctl(struct ifnet * ifp, u_long command, caddr_t data)
 					ixgbe_set_promisc(adapter);
                                 }
 			} else
-				ixgbe_init_locked(adapter);
+				error = ixgbe_init_locked(adapter);
 		} else
 			if (ifp->if_drv_flags & IFF_DRV_RUNNING)
 				ixgbe_stop(adapter);
@@ -955,8 +959,11 @@ ixgbe_ioctl(struct ifnet * ifp, u_long command, caddr_t data)
 			ifp->if_capenable ^= IFCAP_LRO;
 		if (mask & IFCAP_VLAN_HWTAGGING)
 			ifp->if_capenable ^= IFCAP_VLAN_HWTAGGING;
-		if (ifp->if_drv_flags & IFF_DRV_RUNNING)
-			ixgbe_init(adapter);
+		if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
+			IXGBE_CORE_LOCK(adapter);
+			error = ixgbe_init_locked(adapter);
+			IXGBE_CORE_UNLOCK(adapter);
+		}
 		VLAN_CAPABILITIES(ifp);
 		break;
 	}
@@ -982,7 +989,7 @@ ixgbe_ioctl(struct ifnet * ifp, u_long command, caddr_t data)
  **********************************************************************/
 #define IXGBE_MHADD_MFS_SHIFT 16
 
-static void
+static int
 ixgbe_init_locked(struct adapter *adapter)
 {
 	struct ifnet   *ifp = adapter->ifp;
@@ -990,7 +997,6 @@ ixgbe_init_locked(struct adapter *adapter)
 	struct ixgbe_hw *hw = &adapter->hw;
 	u32		k, txdctl, mhadd, gpie;
 	u32		rxdctl, rxctrl;
-	int		err;
 
 	mtx_assert(&adapter->core_mtx, MA_OWNED);
 	INIT_DEBUGOUT("ixgbe_init: begin");
@@ -1012,7 +1018,7 @@ ixgbe_init_locked(struct adapter *adapter)
 	if (ixgbe_setup_transmit_structures(adapter)) {
 		device_printf(dev,"Could not setup transmit structures\n");
 		ixgbe_stop(adapter);
-		return;
+		return (ENOMEM);
 	}
 
 	ixgbe_init_hw(hw);
@@ -1034,7 +1040,7 @@ ixgbe_init_locked(struct adapter *adapter)
 	if (ixgbe_setup_receive_structures(adapter)) {
 		device_printf(dev,"Could not setup receive structures\n");
 		ixgbe_stop(adapter);
-		return;
+		return (ENOMEM);
 	}
 
 	/* Configure RX settings */
@@ -1064,8 +1070,11 @@ ixgbe_init_locked(struct adapter *adapter)
 	if (ifp->if_capenable & IFCAP_TSO4)
 		ifp->if_hwassist |= CSUM_TSO;
 	if (ifp->if_capenable & IFCAP_TXCSUM)
-		ifp->if_hwassist = (CSUM_TCP | CSUM_UDP);
-
+		ifp->if_hwassist |= (CSUM_TCP | CSUM_UDP);
+#if __FreeBSD_version >= 800000
+	if (hw->mac.type == ixgbe_mac_82599EB)
+		ifp->if_hwassist |= CSUM_SCTP;
+#endif
 	/* Set MTU size */
 	if (ifp->if_mtu > ETHERMTU) {
 		mhadd = IXGBE_READ_REG(hw, IXGBE_MHADD);
@@ -1130,7 +1139,7 @@ ixgbe_init_locked(struct adapter *adapter)
 
 #ifdef IXGBE_FDIR
 	/* Init Flow director */
-	if (adapter->hw.mac.type == ixgbe_mac_82599EB)
+	if (hw->mac.type == ixgbe_mac_82599EB)
 		ixgbe_init_fdir_signature_82599(&adapter->hw, fdir_pballoc);
 #endif
 
@@ -1138,13 +1147,14 @@ ixgbe_init_locked(struct adapter *adapter)
 	** Check on any SFP devices that
 	** need to be kick-started
 	*/
-	err = hw->phy.ops.identify(hw);
-	if (err == IXGBE_ERR_SFP_NOT_SUPPORTED) {
-                device_printf(dev,
-		    "Unsupported SFP+ module type was detected.\n");
-		ixgbe_detach(dev);
-		return;
-        }
+	if (hw->phy.type == ixgbe_phy_none) {
+		int err = hw->phy.ops.identify(hw);
+		if (err == IXGBE_ERR_SFP_NOT_SUPPORTED) {
+                	device_printf(dev,
+			    "Unsupported SFP+ module type was detected.\n");
+			return (EIO);
+        	}
+	}
 
 	/* Config/Enable Link */
 	ixgbe_config_link(adapter);
@@ -1156,7 +1166,7 @@ ixgbe_init_locked(struct adapter *adapter)
 	ifp->if_drv_flags |= IFF_DRV_RUNNING;
 	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 
-	return;
+	return (0);
 }
 
 static void
@@ -3003,6 +3013,12 @@ ixgbe_tx_ctx_setup(struct tx_ring *txr, struct mbuf *mp)
 				type_tucmd_mlhl |= IXGBE_ADVTXD_TUCMD_L4T_UDP;
 			break;
 
+#if __FreeBSD_version >= 800000
+		case IPPROTO_SCTP:
+			if (mp->m_pkthdr.csum_flags & CSUM_SCTP)
+				type_tucmd_mlhl |= IXGBE_ADVTXD_TUCMD_L4T_SCTP;
+			break;
+#endif
 		default:
 			offload = FALSE;
 			break;
@@ -3956,16 +3972,16 @@ ixgbe_rxeof(struct ix_queue *que, int count)
 
 	IXGBE_RX_LOCK(rxr);
 
+	/* Sync the ring. */
+	bus_dmamap_sync(rxr->rxdma.dma_tag, rxr->rxdma.dma_map,
+	    BUS_DMASYNC_POSTREAD | BUS_DMASYNC_POSTWRITE);
+
 	for (i = rxr->next_to_check; count != 0;) {
 		struct mbuf	*sendmp, *mh, *mp;
 		u32		rsc, ptype;
 		u16		hlen, plen, hdr, vtag;
 		bool		eop;
  
-		/* Sync the ring. */
-		bus_dmamap_sync(rxr->rxdma.dma_tag, rxr->rxdma.dma_map,
-		    BUS_DMASYNC_POSTREAD | BUS_DMASYNC_POSTWRITE);
-
 		cur = &rxr->rx_base[i];
 		staterr = le32toh(cur->wb.upper.status_error);
 
@@ -4138,7 +4154,7 @@ ixgbe_rxeof(struct ix_queue *que, int count)
 			rxr->bytes += sendmp->m_pkthdr.len;
 			rxr->rx_bytes += sendmp->m_pkthdr.len;
 			if ((ifp->if_capenable & IFCAP_RXCSUM) != 0)
-				ixgbe_rx_checksum(staterr, sendmp);
+				ixgbe_rx_checksum(staterr, sendmp, ptype);
 #if __FreeBSD_version >= 800000
 			sendmp->m_pkthdr.flowid = que->msix;
 			sendmp->m_flags |= M_FLOWID;
@@ -4202,10 +4218,15 @@ next_desc:
  *
  *********************************************************************/
 static void
-ixgbe_rx_checksum(u32 staterr, struct mbuf * mp)
+ixgbe_rx_checksum(u32 staterr, struct mbuf * mp, u32 ptype)
 {
-	u16 status = (u16) staterr;
-	u8  errors = (u8) (staterr >> 24);
+	u16	status = (u16) staterr;
+	u8	errors = (u8) (staterr >> 24);
+	bool	sctp = FALSE;
+
+	if ((ptype & IXGBE_RXDADV_PKTTYPE_ETQF) == 0 &&
+	    (ptype & IXGBE_RXDADV_PKTTYPE_SCTP) != 0)
+		sctp = TRUE;
 
 	if (status & IXGBE_RXD_STAT_IPCS) {
 		if (!(errors & IXGBE_RXD_ERR_IPE)) {
@@ -4217,10 +4238,15 @@ ixgbe_rx_checksum(u32 staterr, struct mbuf * mp)
 			mp->m_pkthdr.csum_flags = 0;
 	}
 	if (status & IXGBE_RXD_STAT_L4CS) {
+		u16 type = (CSUM_DATA_VALID | CSUM_PSEUDO_HDR);
+#if __FreeBSD_version >= 800000
+		if (sctp)
+			type = CSUM_SCTP_VALID;
+#endif
 		if (!(errors & IXGBE_RXD_ERR_TCPE)) {
-			mp->m_pkthdr.csum_flags |=
-				(CSUM_DATA_VALID | CSUM_PSEUDO_HDR);
-			mp->m_pkthdr.csum_data = htons(0xffff);
+			mp->m_pkthdr.csum_flags |= type;
+			if (!sctp)
+				mp->m_pkthdr.csum_data = htons(0xffff);
 		} 
 	}
 	return;

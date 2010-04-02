@@ -15,7 +15,7 @@ files		"../atheros/files.ar71xx"
 hints		"AR71XX.hints"
 
 makeoptions	DEBUG=-g		#Build kernel with gdb(1) debug symbols
-makeoptions	MODULES_OVERRIDE=""
+#makeoptions	MODULES_OVERRIDE=""
 
 options		DDB
 options		KDB

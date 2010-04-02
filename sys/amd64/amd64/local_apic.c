@@ -115,14 +115,12 @@ struct lapic {
 	int la_ioint_irqs[APIC_NUM_IOINTS + 1];
 } static lapics[MAX_APIC_ID + 1];
 
-/* XXX: should thermal be an NMI? */
-
 /* Global defaults for local APIC LVT entries. */
 static struct lvt lvts[LVT_MAX + 1] = {
 	{ 1, 1, 1, 1, APIC_LVT_DM_EXTINT, 0 },	/* LINT0: masked ExtINT */
 	{ 1, 1, 0, 1, APIC_LVT_DM_NMI, 0 },	/* LINT1: NMI */
 	{ 1, 1, 1, 1, APIC_LVT_DM_FIXED, APIC_TIMER_INT },	/* Timer */
-	{ 1, 1, 1, 1, APIC_LVT_DM_FIXED, APIC_ERROR_INT },	/* Error */
+	{ 1, 1, 0, 1, APIC_LVT_DM_FIXED, APIC_ERROR_INT },	/* Error */
 	{ 1, 1, 1, 1, APIC_LVT_DM_NMI, 0 },	/* PMC */
 	{ 1, 1, 1, 1, APIC_LVT_DM_FIXED, APIC_THERMAL_INT },	/* Thermal */
 };
@@ -225,7 +223,10 @@ lapic_init(vm_paddr_t addr)
 	/* Local APIC timer interrupt. */
 	setidt(APIC_TIMER_INT, IDTVEC(timerint), SDT_SYSIGT, SEL_KPL, 0);
 
-	/* XXX: error/thermal interrupts */
+	/* Local APIC error interrupt. */
+	setidt(APIC_ERROR_INT, IDTVEC(errorint), SDT_SYSIGT, SEL_KPL, 0);
+
+	/* XXX: Thermal interrupt */
 }
 
 /*
@@ -278,7 +279,7 @@ lapic_dump(const char* str)
 	    lapic->id, lapic->version, lapic->ldr, lapic->dfr);
 	printf("  lint0: 0x%08x lint1: 0x%08x TPR: 0x%08x SVR: 0x%08x\n",
 	    lapic->lvt_lint0, lapic->lvt_lint1, lapic->tpr, lapic->svr);
-	printf("  timer: 0x%08x therm: 0x%08x err: 0x%08x pcm: 0x%08x\n",
+	printf("  timer: 0x%08x therm: 0x%08x err: 0x%08x pmc: 0x%08x\n",
 	    lapic->lvt_timer, lapic->lvt_thermal, lapic->lvt_error,
 	    lapic->lvt_pcint);
 }
@@ -326,7 +327,11 @@ lapic_setup(int boot)
 		lapic_timer_enable_intr();
 	}
 
-	/* XXX: Error and thermal LVTs */
+	/* Program error LVT and clear any existing errors. */
+	lapic->lvt_error = lvt_mode(la, LVT_ERROR, lapic->lvt_error);
+	lapic->esr = 0;
+
+	/* XXX: Thermal LVT */
 
 	intr_restore(eflags);
 }
@@ -725,18 +730,6 @@ lapic_eoi(void)
 	lapic->eoi = 0;
 }
 
-/*
- * Read the contents of the error status register.  We have to write
- * to the register first before reading from it.
- */
-u_int
-lapic_error(void)
-{
-
-	lapic->esr = 0;
-	return (lapic->esr);
-}
-
 void
 lapic_handle_intr(int vector, struct trapframe *frame)
 {
@@ -861,6 +854,24 @@ lapic_timer_enable_intr(void)
 	value = lapic->lvt_timer;
 	value &= ~APIC_LVT_M;
 	lapic->lvt_timer = value;
+}
+
+void
+lapic_handle_error(void)
+{
+	u_int32_t esr;
+
+	/*
+	 * Read the contents of the error status register.  Write to
+	 * the register first before reading from it to force the APIC
+	 * to update its value to indicate any errors that have
+	 * occurred since the previous write to the register.
+	 */
+	lapic->esr = 0;
+	esr = lapic->esr;
+
+	printf("CPU%d: local APIC error 0x%x\n", PCPU_GET(cpuid), esr);
+	lapic_eoi();
 }
 
 u_int

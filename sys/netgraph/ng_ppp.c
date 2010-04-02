@@ -97,6 +97,7 @@
 #include <sys/time.h>
 #include <sys/mbuf.h>
 #include <sys/malloc.h>
+#include <sys/endian.h>
 #include <sys/errno.h>
 #include <sys/ctype.h>
 
@@ -860,8 +861,8 @@ ng_ppp_rcvdata_bypass(hook_p hook, item_p item)
 		NG_FREE_ITEM(item);
 		return (ENOBUFS);
 	}
-	linkNum = ntohs(mtod(m, uint16_t *)[0]);
-	proto = ntohs(mtod(m, uint16_t *)[1]);
+	linkNum = be16dec(mtod(m, uint8_t *));
+	proto = be16dec(mtod(m, uint8_t *) + 2);
 	m_adj(m, 4);
 	NGI_M(item) = m;
 
@@ -907,7 +908,21 @@ ng_ppp_proto_recv(node_p node, item_p item, uint16_t proto, uint16_t linkNum)
 	const priv_p priv = NG_NODE_PRIVATE(node);
 	hook_p outHook = NULL;
 	int error;
+#ifdef ALIGNED_POINTER
+	struct mbuf *m, *n;
 
+	NGI_GET_M(item, m);
+	if (!ALIGNED_POINTER(mtod(m, caddr_t), uint32_t)) {
+		n = m_defrag(m, M_NOWAIT);
+		if (n == NULL) {
+			m_freem(m);
+			NG_FREE_ITEM(item);
+			return (ENOBUFS);
+		}
+		m = n;
+	}
+	NGI_M(item) = m;
+#endif /* ALIGNED_POINTER */
 	switch (proto) {
 	    case PROT_IP:
 		if (priv->conf.enableIP)
@@ -1530,7 +1545,7 @@ ng_ppp_mp_recv(node_p node, item_p item, uint16_t proto, uint16_t linkNum)
 		if (m->m_len < 2 && (m = m_pullup(m, 2)) == NULL)
 			ERROUT(ENOBUFS);
 
-		shdr = ntohs(*mtod(m, uint16_t *));
+		shdr = be16dec(mtod(m, void *));
 		frag->seq = MP_SHORT_EXTEND(shdr);
 		frag->first = (shdr & MP_SHORT_FIRST_FLAG) != 0;
 		frag->last = (shdr & MP_SHORT_LAST_FLAG) != 0;
@@ -1547,7 +1562,7 @@ ng_ppp_mp_recv(node_p node, item_p item, uint16_t proto, uint16_t linkNum)
 		if (m->m_len < 4 && (m = m_pullup(m, 4)) == NULL)
 			ERROUT(ENOBUFS);
 
-		lhdr = ntohl(*mtod(m, uint32_t *));
+		lhdr = be32dec(mtod(m, void *));
 		frag->seq = MP_LONG_EXTEND(lhdr);
 		frag->first = (lhdr & MP_LONG_FIRST_FLAG) != 0;
 		frag->last = (lhdr & MP_LONG_LAST_FLAG) != 0;
