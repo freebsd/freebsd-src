@@ -120,6 +120,7 @@
 #include "acparser.h"
 #include "acdispat.h"
 #include "acinterp.h"
+#include "actables.h"
 #include "amlcode.h"
 
 
@@ -333,6 +334,10 @@ AcpiPsExecuteMethod (
 
     ACPI_FUNCTION_TRACE (PsExecuteMethod);
 
+
+    /* Quick validation of DSDT header */
+
+    AcpiTbCheckDsdtHeader ();
 
     /* Validate the Info and method Node */
 

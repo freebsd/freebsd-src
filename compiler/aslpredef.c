@@ -296,12 +296,100 @@ ApCheckForPredefinedMethod (
         if (MethodInfo->NumReturnNoValue &&
             PredefinedNames[Index].Info.ExpectedBtypes)
         {
-            sprintf (MsgBuffer, "%4.4s", PredefinedNames[Index].Info.Name);
+            ApGetExpectedTypes (StringBuffer,
+                PredefinedNames[Index].Info.ExpectedBtypes);
+
+            sprintf (MsgBuffer, "%s required for %4.4s",
+                StringBuffer, PredefinedNames[Index].Info.Name);
 
             AslError (ASL_WARNING, ASL_MSG_RESERVED_RETURN_VALUE, Op,
                 MsgBuffer);
         }
         break;
+    }
+}
+
+
+/*******************************************************************************
+ *
+ * FUNCTION:    ApCheckPredefinedReturnValue
+ *
+ * PARAMETERS:  Op              - A parse node of type "RETURN".
+ *              MethodInfo      - Saved info about this method
+ *
+ * RETURN:      None
+ *
+ * DESCRIPTION: If method is a predefined name, attempt to validate the return
+ *              value. Only "static" types can be validated - a simple return
+ *              of an integer/string/buffer/package or a named reference to
+ *              a static object. Values such as a Localx or Argx or a control
+ *              method invocation are not checked.
+ *
+ ******************************************************************************/
+
+void
+ApCheckPredefinedReturnValue (
+    ACPI_PARSE_OBJECT       *Op,
+    ASL_METHOD_INFO         *MethodInfo)
+{
+    UINT32                  Index;
+    ACPI_PARSE_OBJECT       *ReturnValueOp;
+
+
+    /* Check parent method for a match against the predefined name list */
+
+    Index = ApCheckForPredefinedName (MethodInfo->Op,
+                MethodInfo->Op->Asl.NameSeg);
+
+    switch (Index)
+    {
+    case ACPI_NOT_RESERVED_NAME:        /* No underscore or _Txx or _xxx name not matched */
+    case ACPI_PREDEFINED_NAME:          /* Resource Name or reserved scope name */
+    case ACPI_COMPILER_RESERVED_NAME:   /* A _Txx that was not emitted by compiler */
+    case ACPI_EVENT_RESERVED_NAME:      /* _Lxx, _Exx, and _Qxx methods */
+
+        /* Just return, nothing to do */
+        return;
+
+    default: /* a real predefined ACPI name */
+
+        /* Exit if no return value expected */
+
+        if (!PredefinedNames[Index].Info.ExpectedBtypes)
+        {
+            return;
+        }
+
+        /* Get the object returned, it is the next argument */
+
+        ReturnValueOp = Op->Asl.Child;
+        switch (ReturnValueOp->Asl.ParseOpcode)
+        {
+        case PARSEOP_ZERO:
+        case PARSEOP_ONE:
+        case PARSEOP_ONES:
+        case PARSEOP_INTEGER:
+        case PARSEOP_STRING_LITERAL:
+        case PARSEOP_BUFFER:
+        case PARSEOP_PACKAGE:
+
+            /* Static data return object - check against expected type */
+
+            ApCheckObjectType (ReturnValueOp,
+                PredefinedNames[Index].Info.ExpectedBtypes);
+            break;
+
+        default:
+
+            /*
+             * All other ops are very difficult or impossible to typecheck at
+             * compile time. These include all Localx, Argx, and method
+             * invocations. Also, NAMESEG and NAMESTRING because the type of
+             * any named object can be changed at runtime (for example,
+             * CopyObject will change the type of the target object.)
+             */
+            break;
+        }
     }
 }
 
@@ -441,7 +529,7 @@ ApCheckForPredefinedName (
  *
  * RETURN:      None
  *
- * DESCRIPTION: Check for the "special" predefined names - 
+ * DESCRIPTION: Check for the "special" predefined names -
  *              _Lxx, _Exx, _Qxx, and _T_x
  *
  ******************************************************************************/
@@ -512,7 +600,7 @@ ApCheckForSpecialName (
  *
  * FUNCTION:    ApCheckObjectType
  *
- * PARAMETERS:  Op              - A parse node
+ * PARAMETERS:  Op              - Current parse node
  *              ExpectedBtypes  - Bitmap of expected return type(s)
  *
  * RETURN:      None
@@ -529,11 +617,13 @@ ApCheckObjectType (
     UINT32                  ExpectedBtypes)
 {
     UINT32                  ReturnBtype;
-    char                    TypeBuffer[48]; /* Room for 5 types */
 
 
     switch (Op->Asl.ParseOpcode)
     {
+    case PARSEOP_ZERO:
+    case PARSEOP_ONE:
+    case PARSEOP_ONES:
     case PARSEOP_INTEGER:
         ReturnBtype = ACPI_RTYPE_INTEGER;
         break;
@@ -552,11 +642,11 @@ ApCheckObjectType (
 
     default:
         /* Not one of the supported object types */
-        
+
         goto TypeErrorExit;
     }
 
-    /* Is the object one of the expected types? */
+    /* Exit if the object is one of the expected types */
 
     if (ReturnBtype & ExpectedBtypes)
     {
@@ -568,10 +658,13 @@ TypeErrorExit:
 
     /* Format the expected types and emit an error message */
 
-    ApGetExpectedTypes (TypeBuffer, ExpectedBtypes);
+    ApGetExpectedTypes (StringBuffer, ExpectedBtypes);
+
+    sprintf (MsgBuffer, "found %s, requires %s",
+        UtGetOpName (Op->Asl.ParseOpcode), StringBuffer);
 
     AslError (ASL_ERROR, ASL_MSG_RESERVED_OPERAND_TYPE, Op,
-        TypeBuffer);
+        MsgBuffer);
 }
 
 

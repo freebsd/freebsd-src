@@ -204,7 +204,8 @@ AeSetupConfiguration (
  *
  * RETURN:      None
  *
- * DESCRIPTION: Various GPE initialization
+ * DESCRIPTION: Test GPE block device initialization. Requires test ASL with
+ *              A \GPE2 device.
  *
  *****************************************************************************/
 
@@ -226,23 +227,18 @@ AfInstallGpeBlock (
         return;
     }
 
-    BlockAddress.SpaceId = 0;
+    ACPI_MEMSET (&BlockAddress, 0, sizeof (ACPI_GENERIC_ADDRESS));
+    BlockAddress.SpaceId = ACPI_ADR_SPACE_SYSTEM_MEMORY;
     BlockAddress.Address = 0x76540000;
-
-#ifdef _OBSOLETE
-    Status = AcpiInstallGpeBlock (Handle, &BlockAddress, 4, 8);
-#endif
-
-    /* Above should fail, ignore */
 
     Status = AcpiGetHandle (NULL, "\\GPE2", &Handle2);
     if (ACPI_SUCCESS (Status))
     {
-        Status = AcpiInstallGpeBlock (Handle2, &BlockAddress, 8, 8);
+        Status = AcpiInstallGpeBlock (Handle2, &BlockAddress, 7, 8);
+        Status = AcpiInstallGpeBlock (Handle2, &BlockAddress, 2, 0);
 
         AcpiInstallGpeHandler (Handle2, 8, ACPI_GPE_LEVEL_TRIGGERED, AeGpeHandler, NULL);
-        AcpiSetGpeType (Handle2, 8, ACPI_GPE_TYPE_WAKE);
-        AcpiEnableGpe (Handle2, 8, 0);
+        AcpiEnableGpe (Handle2, 8, ACPI_GPE_TYPE_RUNTIME);
 
         Status = AcpiGetGpeDevice (0x30, &GpeDevice);
         Status = AcpiGetGpeDevice (0x42, &GpeDevice);
@@ -250,8 +246,6 @@ AfInstallGpeBlock (
         Status = AcpiGetGpeDevice (AcpiCurrentGpeCount, &GpeDevice);
 
         AcpiRemoveGpeHandler (Handle2, 8, AeGpeHandler);
-
-        Status = AcpiRemoveGpeBlock (Handle2);
     }
 
     Status = AcpiGetHandle (NULL, "\\GPE3", &Handle3);
@@ -259,12 +253,6 @@ AfInstallGpeBlock (
     {
         Status = AcpiInstallGpeBlock (Handle3, &BlockAddress, 8, 11);
     }
-
-#ifdef _OBSOLETE
-    Status = AcpiRemoveGpeBlock (Handle);
-    Status = AcpiRemoveGpeBlock (Handle2);
-    Status = AcpiRemoveGpeBlock (Handle3);
-#endif
 }
 
 
@@ -540,35 +528,34 @@ AeMiscellaneousTests (
     AcpiGetName (AcpiGbl_RootNode, ACPI_FULL_PATHNAME, &ReturnBuf);
     AcpiEnableEvent (ACPI_EVENT_GLOBAL, 0);
 
+    /*
+     * GPEs: Handlers, enable/disable, etc.
+     */
     AcpiInstallGpeHandler (NULL, 0, ACPI_GPE_LEVEL_TRIGGERED, AeGpeHandler, NULL);
-    AcpiSetGpeType (NULL, 0, ACPI_GPE_TYPE_WAKE_RUN);
-    AcpiEnableGpe (NULL, 0, ACPI_NOT_ISR);
+    AcpiEnableGpe (NULL, 0, ACPI_GPE_TYPE_RUNTIME);
     AcpiRemoveGpeHandler (NULL, 0, AeGpeHandler);
 
     AcpiInstallGpeHandler (NULL, 0, ACPI_GPE_LEVEL_TRIGGERED, AeGpeHandler, NULL);
-    AcpiSetGpeType (NULL, 0, ACPI_GPE_TYPE_WAKE_RUN);
-    AcpiEnableGpe (NULL, 0, ACPI_NOT_ISR);
+    AcpiEnableGpe (NULL, 0, ACPI_GPE_TYPE_RUNTIME);
+    AcpiSetGpe (NULL, 0, ACPI_GPE_DISABLE);
+    AcpiSetGpe (NULL, 0, ACPI_GPE_ENABLE);
 
     AcpiInstallGpeHandler (NULL, 1, ACPI_GPE_EDGE_TRIGGERED, AeGpeHandler, NULL);
-    AcpiSetGpeType (NULL, 1, ACPI_GPE_TYPE_RUNTIME);
-    AcpiEnableGpe (NULL, 1, ACPI_NOT_ISR);
+    AcpiEnableGpe (NULL, 1, ACPI_GPE_TYPE_RUNTIME);
 
     AcpiInstallGpeHandler (NULL, 2, ACPI_GPE_LEVEL_TRIGGERED, AeGpeHandler, NULL);
-    AcpiSetGpeType (NULL, 2, ACPI_GPE_TYPE_WAKE);
-    AcpiEnableGpe (NULL, 2, ACPI_NOT_ISR);
+    AcpiEnableGpe (NULL, 2, ACPI_GPE_TYPE_RUNTIME);
 
     AcpiInstallGpeHandler (NULL, 3, ACPI_GPE_EDGE_TRIGGERED, AeGpeHandler, NULL);
-    AcpiSetGpeType (NULL, 3, ACPI_GPE_TYPE_WAKE_RUN);
-
     AcpiInstallGpeHandler (NULL, 4, ACPI_GPE_LEVEL_TRIGGERED, AeGpeHandler, NULL);
-    AcpiSetGpeType (NULL, 4, ACPI_GPE_TYPE_RUNTIME);
-
     AcpiInstallGpeHandler (NULL, 5, ACPI_GPE_EDGE_TRIGGERED, AeGpeHandler, NULL);
-    AcpiSetGpeType (NULL, 5, ACPI_GPE_TYPE_WAKE);
 
     AcpiInstallGpeHandler (NULL, 0x19, ACPI_GPE_LEVEL_TRIGGERED, AeGpeHandler, NULL);
-    AcpiSetGpeType (NULL, 0x19, ACPI_GPE_TYPE_WAKE_RUN);
-    AcpiEnableGpe (NULL, 0x19, ACPI_NOT_ISR);
+    AcpiEnableGpe (NULL, 0x19, ACPI_GPE_TYPE_RUNTIME);
+
+    AcpiInstallGpeHandler (NULL, 0x62, ACPI_GPE_LEVEL_TRIGGERED, AeGpeHandler, NULL);
+    AcpiEnableGpe (NULL, 0x62, ACPI_GPE_TYPE_RUNTIME);
+    AcpiDisableGpe (NULL, 0x62, ACPI_GPE_TYPE_RUNTIME);
 
     AfInstallGpeBlock ();
 

@@ -336,7 +336,7 @@ AcpiOsTableOverride (
     *NewTable = OsGetTable (TableName);
     if (*NewTable)
     {
-        AcpiOsPrintf ("Table %s obtained from registry, %d bytes\n",
+        AcpiOsPrintf ("Table [%s] obtained from registry, %d bytes\n",
             TableName, (*NewTable)->Length);
     }
     else
@@ -1415,7 +1415,7 @@ AcpiOsSignal (
  * FUNCTION:    Local cache interfaces
  *
  * DESCRIPTION: Implements cache interfaces via malloc/free for testing
- *              purposes only. 
+ *              purposes only.
  *
  *****************************************************************************/
 
@@ -1470,7 +1470,7 @@ AcpiOsAcquireObject (
 
     NewObject = malloc (((ACPI_MEMORY_LIST *) Cache)->ObjectSize);
     memset (NewObject, 0, ((ACPI_MEMORY_LIST *) Cache)->ObjectSize);
-    
+
     return (NewObject);
 }
 
