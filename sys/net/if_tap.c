@@ -443,6 +443,8 @@ tapcreate(struct cdev *dev)
 	ifp->if_mtu = ETHERMTU;
 	ifp->if_flags = (IFF_BROADCAST|IFF_SIMPLEX|IFF_MULTICAST);
 	ifp->if_snd.ifq_maxlen = ifqmaxlen;
+	ifp->if_capabilities |= IFCAP_LINKSTATE;
+	ifp->if_capenable |= IFCAP_LINKSTATE;
 
 	dev->si_drv1 = tp;
 	tp->tap_dev = dev;
