@@ -208,6 +208,8 @@ again:
 	 */
 	rte = ro->ro_rt;
 	if (rte && ((rte->rt_flags & RTF_UP) == 0 ||
+		    rte->rt_ifp == NULL ||
+		    !RT_LINK_IS_UP(rte->rt_ifp) ||
 			  dst->sin_family != AF_INET ||
 			  dst->sin_addr.s_addr != ip->ip_dst.s_addr)) {
 		if (!nortfree)
@@ -279,7 +281,9 @@ again:
 #endif
 			rte = ro->ro_rt;
 		}
-		if (rte == NULL) {
+		if (rte == NULL ||
+		    rte->rt_ifp == NULL ||
+		    !RT_LINK_IS_UP(rte->rt_ifp)) {
 #ifdef IPSEC
 			/*
 			 * There is no route for this packet, but it is
