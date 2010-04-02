@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 31, 2010
+.Dd April 02, 2010
 .Dt BUILD 7
 .Os
 .Sh NAME
@@ -341,6 +341,15 @@ or the command line.
 .It Va NO_WERROR
 If defined, compiler warnings will not cause the build to halt,
 even if the makefile says otherwise.
+.It Va WITH_CTF
+If defined, the build process will run the DTrace CTF conversion
+tools on built objects.
+Please note that this WITH_ option is handled differently than all
+other WITH_ options (there is no
+.Va WITHOUT_CTF ,
+or corresponding
+.Va MK_CTF
+in the build system).
 .El
 .Pp
 Additionally, builds in
