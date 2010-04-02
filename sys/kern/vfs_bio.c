@@ -2678,7 +2678,7 @@ loop:
 		 */
 		if (flags & GB_NOCREAT)
 			return NULL;
-		bsize = bo->bo_bsize;
+		bsize = vn_isdisk(vp, NULL) ? DEV_BSIZE : bo->bo_bsize;
 		offset = blkno * bsize;
 		vmio = vp->v_object != NULL;
 		maxsize = vmio ? size + (offset & PAGE_MASK) : size;
