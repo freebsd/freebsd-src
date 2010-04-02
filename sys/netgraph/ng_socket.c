@@ -156,6 +156,11 @@ static u_long ngpdg_recvspace = 20 * 1024;
 SYSCTL_INT(_net_graph, OID_AUTO, recvspace, CTLFLAG_RW,
     &ngpdg_recvspace , 0, "Maximum space for incoming Netgraph datagrams");
 
+/* List of all sockets (for netstat -f netgraph) */
+static LIST_HEAD(, ngpcb) ngsocklist;
+
+static struct mtx	ngsocketlist_mtx;
+
 #define sotongpcb(so) ((struct ngpcb *)(so)->so_pcb)
 
 /* If getting unexplained errors returned, set this to "kdb_enter("X"); */
@@ -547,6 +552,9 @@ ng_attach_cntl(struct socket *so)
 		return (error);
 	}
 
+	/* Store a hint for netstat(1). */
+	priv->node_id = priv->node->nd_ID;
+
 	/* Link the node and the private data. */
 	NG_NODE_SET_PRIVATE(priv->node, priv);
 	NG_NODE_REF(priv->node);
@@ -584,6 +592,10 @@ ng_attach_common(struct socket *so, int type)
 	so->so_pcb = (caddr_t)pcbp;
 	pcbp->ng_socket = so;
 
+	/* Add the socket to linked list */
+	mtx_lock(&ngsocketlist_mtx);
+	LIST_INSERT_HEAD(&ngsocklist, pcbp, socks);
+	mtx_unlock(&ngsocketlist_mtx);
 	return (0);
 }
 
@@ -617,6 +629,9 @@ ng_detach_common(struct ngpcb *pcbp, int which)
 	}
 
 	pcbp->ng_socket->so_pcb = NULL;
+	mtx_lock(&ngsocketlist_mtx);
+	LIST_REMOVE(pcbp, socks);
+	mtx_unlock(&ngsocketlist_mtx);
 	free(pcbp, M_PCB);
 }
 
@@ -1115,8 +1130,14 @@ ngs_mod_event(module_t mod, int event, void *data)
 
 	switch (event) {
 	case MOD_LOAD:
+		mtx_init(&ngsocketlist_mtx, "ng_socketlist", NULL, MTX_DEF);
 		break;
 	case MOD_UNLOAD:
+		/* Ensure there are no open netgraph sockets. */
+		if (!LIST_EMPTY(&ngsocklist)) {
+			error = EBUSY;
+			break;
+		}
 #ifdef NOTYET
 		/* Unregister protocol domain XXX can't do this yet.. */
 #endif

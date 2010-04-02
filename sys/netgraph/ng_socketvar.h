@@ -61,6 +61,7 @@ struct ngsock {
 	int    refs;
 	struct mtx	mtx;		/* mtx to wait on */
 	int		error;		/* place to store error */
+	ng_ID_t		node_id;	/* a hint for netstat(1) to find the node */
 };
 #define	NGS_FLAG_NOLINGER	1	/* close with last hook */
 
