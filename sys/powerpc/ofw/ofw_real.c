@@ -737,6 +737,7 @@ ofw_real_close(ofw_t ofw, ihandle_t instance)
 	} args = {
 		(cell_t)"close",
 		1,
+		0,
 	};
 
 	args.instance = instance;
@@ -876,6 +877,7 @@ ofw_real_release(ofw_t ofw, void *virt, size_t size)
 	} args = {
 		(cell_t)"release",
 		2,
+		0,
 	};
 
 	args.virt = (cell_t)virt;
@@ -897,6 +899,8 @@ ofw_real_enter(ofw_t ofw)
 		cell_t nreturns;
 	} args = {
 		(cell_t)"enter",
+		0,
+		0,
 	};
 
 	openfirmware(&args);
@@ -913,6 +917,8 @@ ofw_real_exit(ofw_t ofw)
 		cell_t nreturns;
 	} args = {
 		(cell_t)"exit",
+		0,
+		0,
 	};
 
 	openfirmware(&args);
