@@ -147,3 +147,11 @@ void f(int &a) {
 struct s0;
 struct s1 { struct s0 &s0; };
 void f0(s1 a) { s1 b = a; }
+
+// PR6024
+// CHECK: @_Z2f2v()
+// CHECK: alloca
+// CHECK: store
+// CHECK: load
+// CHECK: ret
+const int &f2() { return 0; }

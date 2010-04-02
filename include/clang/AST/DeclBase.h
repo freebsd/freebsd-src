@@ -41,6 +41,8 @@ class LinkageSpecDecl;
 class BlockDecl;
 class DeclarationName;
 class CompoundStmt;
+class StoredDeclsMap;
+class DependentDiagnostic;
 }
 
 namespace llvm {
@@ -450,15 +452,23 @@ public:
   /// same entity may not (and probably don't) share this property.
   void setObjectOfFriendDecl(bool PreviouslyDeclared) {
     unsigned OldNS = IdentifierNamespace;
-    assert((OldNS == IDNS_Tag || OldNS == IDNS_Ordinary ||
-            OldNS == (IDNS_Tag | IDNS_Ordinary))
-           && "unsupported namespace for undeclared friend");
-    if (!PreviouslyDeclared) IdentifierNamespace = 0;
+    assert((OldNS & (IDNS_Tag | IDNS_Ordinary |
+                     IDNS_TagFriend | IDNS_OrdinaryFriend)) &&
+           "namespace includes neither ordinary nor tag");
+    assert(!(OldNS & ~(IDNS_Tag | IDNS_Ordinary |
+                       IDNS_TagFriend | IDNS_OrdinaryFriend)) &&
+           "namespace includes other than ordinary or tag");
 
-    if (OldNS == IDNS_Tag)
+    IdentifierNamespace = 0;
+    if (OldNS & (IDNS_Tag | IDNS_TagFriend)) {
       IdentifierNamespace |= IDNS_TagFriend;
-    else
+      if (PreviouslyDeclared) IdentifierNamespace |= IDNS_Tag;
+    }
+
+    if (OldNS & (IDNS_Ordinary | IDNS_OrdinaryFriend)) {
       IdentifierNamespace |= IDNS_OrdinaryFriend;
+      if (PreviouslyDeclared) IdentifierNamespace |= IDNS_Ordinary;
+    }
   }
 
   enum FriendObjectKind {
@@ -545,9 +555,9 @@ class DeclContext {
   mutable bool ExternalVisibleStorage : 1;
 
   /// \brief Pointer to the data structure used to lookup declarations
-  /// within this context, which is a DenseMap<DeclarationName,
-  /// StoredDeclsList>.
-  mutable void* LookupPtr;
+  /// within this context (or a DependentStoredDeclsMap if this is a
+  /// dependent context).
+  mutable StoredDeclsMap *LookupPtr;
 
   /// FirstDecl - The first declaration stored within this declaration
   /// context.
@@ -674,6 +684,9 @@ public:
   /// "primary" DeclContext structure, which will contain the
   /// information needed to perform name lookup into this context.
   DeclContext *getPrimaryContext();
+  const DeclContext *getPrimaryContext() const {
+    return const_cast<DeclContext*>(this)->getPrimaryContext();
+  }
 
   /// getLookupContext - Retrieve the innermost non-transparent
   /// context of this context, which corresponds to the innermost
@@ -976,10 +989,15 @@ public:
     return getUsingDirectives().second;
   }
 
+  // These are all defined in DependentDiagnostic.h.
+  class ddiag_iterator;
+  inline ddiag_iterator ddiag_begin() const;
+  inline ddiag_iterator ddiag_end() const;
+
   // Low-level accessors
 
   /// \brief Retrieve the internal representation of the lookup structure.
-  void* getLookupPtr() const { return LookupPtr; }
+  StoredDeclsMap* getLookupPtr() const { return LookupPtr; }
 
   /// \brief Whether this DeclContext has external storage containing
   /// additional declarations that are lexically in this context.
@@ -1012,6 +1030,9 @@ public:
 private:
   void LoadLexicalDeclsFromExternalStorage() const;
   void LoadVisibleDeclsFromExternalStorage() const;
+
+  friend class DependentDiagnostic;
+  StoredDeclsMap *CreateStoredDeclsMap(ASTContext &C) const;
 
   void buildLookup(DeclContext *DCtx);
   void makeDeclVisibleInContextImpl(NamedDecl *D);

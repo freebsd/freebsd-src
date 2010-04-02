@@ -13,6 +13,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "clang/Checker/BugReporter/BugReporter.h"
+#include "clang/Checker/BugReporter/BugType.h"
 #include "clang/Checker/PathSensitive/GRExprEngine.h"
 #include "clang/AST/ASTContext.h"
 #include "clang/Analysis/CFG.h"
@@ -1139,12 +1140,9 @@ void EdgeBuilder::addContext(const Stmt *S) {
 static void GenerateExtensivePathDiagnostic(PathDiagnostic& PD,
                                             PathDiagnosticBuilder &PDB,
                                             const ExplodedNode *N) {
-
-
   EdgeBuilder EB(PD, PDB);
 
-  const ExplodedNode* NextNode = N->pred_empty()
-                                        ? NULL : *(N->pred_begin());
+  const ExplodedNode* NextNode = N->pred_empty() ? NULL : *(N->pred_begin());
   while (NextNode) {
     N = NextNode;
     NextNode = GetPredecessorNode(N);

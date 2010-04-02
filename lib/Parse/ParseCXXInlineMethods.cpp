@@ -122,6 +122,9 @@ void Parser::ParseLexedMethodDeclarations(ParsingClass &Class) {
       Actions.ActOnDelayedCXXMethodParameter(CurScope, LM.DefaultArgs[I].Param);
 
       if (CachedTokens *Toks = LM.DefaultArgs[I].Toks) {
+        // Save the current token position.
+        SourceLocation origLoc = Tok.getLocation();
+
         // Parse the default argument from its saved token stream.
         Toks->push_back(Tok); // So that the current token doesn't get lost
         PP.EnterTokenStream(&Toks->front(), Toks->size(), true, false);
@@ -139,6 +142,15 @@ void Parser::ParseLexedMethodDeclarations(ParsingClass &Class) {
         else
           Actions.ActOnParamDefaultArgument(LM.DefaultArgs[I].Param, EqualLoc,
                                             move(DefArgResult));
+
+        assert(!PP.getSourceManager().isBeforeInTranslationUnit(origLoc,
+                                                           Tok.getLocation()) &&
+               "ParseAssignmentExpression went over the default arg tokens!");
+        // There could be leftover tokens (e.g. because of an error).
+        // Skip through until we reach the original token position.
+        while (Tok.getLocation() != origLoc)
+          ConsumeAnyToken();
+
         delete Toks;
         LM.DefaultArgs[I].Toks = 0;
       }
@@ -177,6 +189,9 @@ void Parser::ParseLexedMethodDefs(ParsingClass &Class) {
     if (LM.TemplateScope)
       Actions.ActOnReenterTemplateScope(CurScope, LM.D);
 
+    // Save the current token position.
+    SourceLocation origLoc = Tok.getLocation();
+
     assert(!LM.Toks.empty() && "Empty body!");
     // Append the current token at the end of the new token stream so that it
     // doesn't get lost.
@@ -195,6 +210,11 @@ void Parser::ParseLexedMethodDefs(ParsingClass &Class) {
 
     if (Tok.is(tok::kw_try)) {
       ParseFunctionTryBlock(LM.D);
+      assert(!PP.getSourceManager().isBeforeInTranslationUnit(origLoc,
+                                                           Tok.getLocation()) &&
+             "ParseFunctionTryBlock went over the cached tokens!");
+      assert(Tok.getLocation() == origLoc &&
+             "ParseFunctionTryBlock left tokens in the token stream!");
       continue;
     }
     if (Tok.is(tok::colon))
@@ -204,6 +224,11 @@ void Parser::ParseLexedMethodDefs(ParsingClass &Class) {
 
     // FIXME: What if ParseConstructorInitializer doesn't leave us with a '{'??
     ParseFunctionStatementBody(LM.D);
+    assert(!PP.getSourceManager().isBeforeInTranslationUnit(origLoc,
+                                                           Tok.getLocation()) &&
+           "We consumed more than the cached tokens!");
+    assert(Tok.getLocation() == origLoc &&
+           "Tokens were left in the token stream!");
   }
 
   for (unsigned I = 0, N = Class.NestedClasses.size(); I != N; ++I)

@@ -490,6 +490,9 @@ static bool HandleCommonNoReturnAttr(Decl *d, const AttributeList &Attr,
 }
 
 static void HandleNoReturnAttr(Decl *d, const AttributeList &Attr, Sema &S) {
+  // NOTE: We don't add the attribute to a FunctionDecl because the noreturn
+  //  trait will be part of the function's type.
+
   // Don't apply as a decl attribute to ValueDecl.
   // FIXME: probably ought to diagnose this.
   if (isa<ValueDecl>(d))
@@ -521,7 +524,8 @@ static void HandleUnusedAttr(Decl *d, const AttributeList &Attr, Sema &S) {
     return;
   }
 
-  if (!isa<VarDecl>(d) && !isa<ObjCIvarDecl>(d) && !isFunctionOrMethod(d)) {
+  if (!isa<VarDecl>(d) && !isa<ObjCIvarDecl>(d) && !isFunctionOrMethod(d) &&
+      !isa<TypeDecl>(d)) {
     S.Diag(Attr.getLoc(), diag::warn_attribute_wrong_decl_type)
       << Attr.getName() << 2 /*variable and function*/;
     return;
@@ -834,18 +838,24 @@ static void HandleWarnUnusedResult(Decl *D, const AttributeList &Attr, Sema &S) 
     return;
   }
 
-  if (!isFunction(D)) {
+  if (!isFunction(D) && !isa<ObjCMethodDecl>(D)) {
     S.Diag(Attr.getLoc(), diag::warn_attribute_wrong_decl_type)
       << Attr.getName() << 0 /*function*/;
     return;
   }
 
-  if (getFunctionType(D)->getResultType()->isVoidType()) {
-    S.Diag(Attr.getLoc(), diag::warn_attribute_void_function)
-      << Attr.getName();
+  if (isFunction(D) && getFunctionType(D)->getResultType()->isVoidType()) {
+    S.Diag(Attr.getLoc(), diag::warn_attribute_void_function_method)
+      << Attr.getName() << 0;
     return;
   }
-
+  if (const ObjCMethodDecl *MD = dyn_cast<ObjCMethodDecl>(D))
+    if (MD->getResultType()->isVoidType()) {
+      S.Diag(Attr.getLoc(), diag::warn_attribute_void_function_method)
+      << Attr.getName() << 1;
+      return;
+    }
+  
   D->addAttr(::new (S.Context) WarnUnusedResultAttr());
 }
 
@@ -1115,6 +1125,7 @@ enum FormatAttrKind {
   NSStringFormat,
   StrftimeFormat,
   SupportedFormat,
+  IgnoredFormat,
   InvalidFormat
 };
 
@@ -1136,6 +1147,10 @@ static FormatAttrKind getFormatAttrKind(llvm::StringRef Format) {
       Format == "zcmn_err")
     return SupportedFormat;
 
+  if (Format == "gcc_diag" || Format == "gcc_cdiag" ||
+      Format == "gcc_cxxdiag" || Format == "gcc_tdiag")
+    return IgnoredFormat;
+  
   return InvalidFormat;
 }
 
@@ -1171,6 +1186,10 @@ static void HandleFormatAttr(Decl *d, const AttributeList &Attr, Sema &S) {
 
   // Check for supported formats.
   FormatAttrKind Kind = getFormatAttrKind(Format);
+  
+  if (Kind == IgnoredFormat)
+    return;
+  
   if (Kind == InvalidFormat) {
     S.Diag(Attr.getLoc(), diag::warn_attribute_type_not_supported)
       << "format" << Attr.getParameterName()->getName();

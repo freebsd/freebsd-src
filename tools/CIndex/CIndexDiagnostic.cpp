@@ -201,7 +201,7 @@ CXString clang_getDiagnosticFixIt(CXDiagnostic Diagnostic, unsigned FixIt,
     return createCXString("");
   }
 
-  const CodeModificationHint &Hint = StoredDiag->Diag.fixit_begin()[FixIt];
+  const FixItHint &Hint = StoredDiag->Diag.fixit_begin()[FixIt];
   if (ReplacementRange) {
     if (Hint.RemoveRange.isInvalid())  {
       // Create an empty range that refers to a single source
@@ -265,6 +265,7 @@ void clang::LoadSerializedDiagnostics(const llvm::sys::Path &DiagnosticsPath,
     }
     
     SourceMgr.overrideFileContents(File, Buffer);
+    SourceMgr.createFileID(File, SourceLocation(), SrcMgr::C_User);
   }
 
   // Parse the diagnostics, emitting them one by one until we've

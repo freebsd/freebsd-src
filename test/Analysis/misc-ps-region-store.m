@@ -910,3 +910,48 @@ int rdar_7770737_pos(void)
   struct rdar_7770737_s f = { .p = (intptr_t)&x };
   return x; // expected-warning{{Undefined or garbage value returned to caller}}
 }
+
+//===----------------------------------------------------------------------===//
+// Test handling of the implicit 'isa' field.  For now we don't do anything
+// interesting.
+//===----------------------------------------------------------------------===//
+
+void pr6302(id x, Class y) {
+  // This previously crashed the analyzer (reported in PR 6302)
+  x->isa  = y;
+}
+
+//===----------------------------------------------------------------------===//
+// Specially handle global variables that are declared constant.  In the
+// example below, this forces the loop to take exactly 2 iterations.
+//===----------------------------------------------------------------------===//
+
+const int pr6288_L_N = 2;
+void pr6288_(void) {
+  int x[2];
+  int *px[2];
+  int i;
+  for (i = 0; i < pr6288_L_N; i++)
+    px[i] = &x[i];
+  *(px[0]) = 0; // no-warning
+}
+
+void pr6288_pos(int z) {
+  int x[2];
+  int *px[2];
+  int i;
+  for (i = 0; i < z; i++)
+    px[i] = &x[i]; // expected-warning{{Access out-of-bound array element (buffer overflow)}}
+  *(px[0]) = 0; // expected-warning{{Dereference of undefined pointer value}}
+}
+
+void pr6288_b(void) {
+  const int L_N = 2;
+  int x[2];
+  int *px[2];
+  int i;
+  for (i = 0; i < L_N; i++)
+    px[i] = &x[i];
+  *(px[0]) = 0; // no-warning
+}
+

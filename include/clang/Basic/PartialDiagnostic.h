@@ -15,19 +15,18 @@
 #ifndef LLVM_CLANG_PARTIALDIAGNOSTIC_H
 #define LLVM_CLANG_PARTIALDIAGNOSTIC_H
 
-#include "clang/AST/Type.h"
 #include "clang/Basic/Diagnostic.h"
 #include "clang/Basic/SourceLocation.h"
 #include "llvm/ADT/STLExtras.h"
+#include "llvm/System/DataTypes.h"
+#include <cassert>
 
 namespace clang {
 
-class DeclarationName;
-  
 class PartialDiagnostic {
+public:
   struct Storage {
-    Storage() : NumDiagArgs(0), NumDiagRanges(0), NumCodeModificationHints(0) {
-    }
+    Storage() : NumDiagArgs(0), NumDiagRanges(0), NumFixItHints(0) { }
 
     enum {
         /// MaxArguments - The maximum number of arguments we can hold. We 
@@ -44,8 +43,8 @@ class PartialDiagnostic {
     unsigned char NumDiagRanges;
 
     /// \brief The number of code modifications hints in the
-    /// CodeModificationHints array.
-    unsigned char NumCodeModificationHints;
+    /// FixItHints array.
+    unsigned char NumFixItHints;
     
     /// DiagArgumentsKind - This is an array of ArgumentKind::ArgumentKind enum
     /// values, with one for each argument.  This specifies whether the argument
@@ -62,13 +61,49 @@ class PartialDiagnostic {
     /// only support 10 ranges, could easily be extended if needed.
     SourceRange DiagRanges[10];
     
-    enum { MaxCodeModificationHints = 3 };
+    enum { MaxFixItHints = 3 };
     
-    /// CodeModificationHints - If valid, provides a hint with some code
+    /// FixItHints - If valid, provides a hint with some code
     /// to insert, remove, or modify at a particular position.
-    CodeModificationHint CodeModificationHints[MaxCodeModificationHints];    
+    FixItHint FixItHints[MaxFixItHints];    
   };
 
+  /// \brief An allocator for Storage objects, which uses a small cache to 
+  /// objects, used to reduce malloc()/free() traffic for partial diagnostics.
+  class StorageAllocator {
+    static const unsigned NumCached = 4;
+    Storage Cached[NumCached];
+    Storage *FreeList[NumCached];
+    unsigned NumFreeListEntries;
+    
+  public:
+    StorageAllocator();
+    ~StorageAllocator();
+    
+    /// \brief Allocate new storage.
+    Storage *Allocate() {
+      if (NumFreeListEntries == 0)
+        return new Storage;
+      
+      Storage *Result = FreeList[--NumFreeListEntries];
+      Result->NumDiagArgs = 0;
+      Result->NumDiagRanges = 0;
+      Result->NumFixItHints = 0;
+      return Result;
+    }
+    
+    /// \brief Free the given storage object.
+    void Deallocate(Storage *S) {
+      if (S >= Cached && S <= Cached + NumCached) {
+        FreeList[NumFreeListEntries++] = S;
+        return;
+      }
+      
+      delete S;
+    }
+  };
+  
+private:
   // NOTE: Sema assumes that PartialDiagnostic is location-invariant
   // in the sense that its bits can be safely memcpy'ed and destructed
   // in the new location.
@@ -76,22 +111,40 @@ class PartialDiagnostic {
   /// DiagID - The diagnostic ID.
   mutable unsigned DiagID;
   
-  /// DiagStorare - Storge for args and ranges.
+  /// DiagStorage - Storage for args and ranges.
   mutable Storage *DiagStorage;
 
-  void AddTaggedVal(intptr_t V, Diagnostic::ArgumentKind Kind) const {
-    if (!DiagStorage)
-      DiagStorage = new Storage;
+  /// \brief Allocator used to allocate storage for this diagnostic.
+  StorageAllocator *Allocator;
+  
+  /// \brief Retrieve storage for this particular diagnostic.
+  Storage *getStorage() const {
+    if (DiagStorage)
+      return DiagStorage;
     
-    assert(DiagStorage->NumDiagArgs < Storage::MaxArguments &&
-           "Too many arguments to diagnostic!");
-    DiagStorage->DiagArgumentsKind[DiagStorage->NumDiagArgs] = Kind;
-    DiagStorage->DiagArgumentsVal[DiagStorage->NumDiagArgs++] = V;
+    if (Allocator)
+      DiagStorage = Allocator->Allocate();
+    else {
+      assert(Allocator != reinterpret_cast<StorageAllocator *>(~uintptr_t(0)));
+      DiagStorage = new Storage;
+    }
+    return DiagStorage;
   }
-
+  
+  void freeStorage() { 
+    if (!DiagStorage)
+      return;
+    
+    if (Allocator)
+      Allocator->Deallocate(DiagStorage);
+    else if (Allocator != reinterpret_cast<StorageAllocator *>(~uintptr_t(0)))
+      delete DiagStorage;
+    DiagStorage = 0;
+  }
+  
   void AddSourceRange(const SourceRange &R) const {
     if (!DiagStorage)
-      DiagStorage = new Storage;
+      DiagStorage = getStorage();
 
     assert(DiagStorage->NumDiagRanges < 
            llvm::array_lengthof(DiagStorage->DiagRanges) &&
@@ -99,52 +152,69 @@ class PartialDiagnostic {
     DiagStorage->DiagRanges[DiagStorage->NumDiagRanges++] = R;
   }  
 
-  void AddCodeModificationHint(const CodeModificationHint &Hint) const {
+  void AddFixItHint(const FixItHint &Hint) const {
     if (Hint.isNull())
       return;
     
     if (!DiagStorage)
-      DiagStorage = new Storage;
+      DiagStorage = getStorage();
 
-    assert(DiagStorage->NumCodeModificationHints < 
-             Storage::MaxCodeModificationHints &&
+    assert(DiagStorage->NumFixItHints < Storage::MaxFixItHints &&
            "Too many code modification hints!");
-    DiagStorage->CodeModificationHints[DiagStorage->NumCodeModificationHints++]
+    DiagStorage->FixItHints[DiagStorage->NumFixItHints++]
       = Hint;
   }
   
 public:
-  PartialDiagnostic(unsigned DiagID)
-    : DiagID(DiagID), DiagStorage(0) { }
-
+  PartialDiagnostic(unsigned DiagID, StorageAllocator &Allocator)
+    : DiagID(DiagID), DiagStorage(0), Allocator(&Allocator) { }
+  
   PartialDiagnostic(const PartialDiagnostic &Other) 
-    : DiagID(Other.DiagID), DiagStorage(0) 
+    : DiagID(Other.DiagID), DiagStorage(0), Allocator(Other.Allocator)
   {
-    if (Other.DiagStorage)
-      DiagStorage = new Storage(*Other.DiagStorage);
+    if (Other.DiagStorage) {
+      DiagStorage = getStorage();
+      *DiagStorage = *Other.DiagStorage;
+    }
   }
 
+  PartialDiagnostic(const PartialDiagnostic &Other, Storage *DiagStorage) 
+    : DiagID(Other.DiagID), DiagStorage(DiagStorage), 
+      Allocator(reinterpret_cast<StorageAllocator *>(~uintptr_t(0)))
+  {
+    if (Other.DiagStorage)
+      *this->DiagStorage = *Other.DiagStorage;
+  }
+  
   PartialDiagnostic &operator=(const PartialDiagnostic &Other) {
     DiagID = Other.DiagID;
     if (Other.DiagStorage) {
-      if (DiagStorage)
-        *DiagStorage = *Other.DiagStorage;
-      else
-        DiagStorage = new Storage(*Other.DiagStorage);
+      if (!DiagStorage)
+        DiagStorage = getStorage();
+      
+      *DiagStorage = *Other.DiagStorage;
     } else {
-      delete DiagStorage;
-      DiagStorage = 0;
+      freeStorage();
     }
 
     return *this;
   }
 
   ~PartialDiagnostic() {
-    delete DiagStorage;
+    freeStorage();
   }
 
-
   unsigned getDiagID() const { return DiagID; }
+
+  void AddTaggedVal(intptr_t V, Diagnostic::ArgumentKind Kind) const {
+    if (!DiagStorage)
+      DiagStorage = getStorage();
+
+    assert(DiagStorage->NumDiagArgs < Storage::MaxArguments &&
+           "Too many arguments to diagnostic!");
+    DiagStorage->DiagArgumentsKind[DiagStorage->NumDiagArgs] = Kind;
+    DiagStorage->DiagArgumentsVal[DiagStorage->NumDiagArgs++] = V;
+  }
 
   void Emit(const DiagnosticBuilder &DB) const {
     if (!DiagStorage)
@@ -161,17 +231,19 @@ public:
       DB.AddSourceRange(DiagStorage->DiagRanges[i]);
     
     // Add all code modification hints
-    for (unsigned i = 0, e = DiagStorage->NumCodeModificationHints; i != e; ++i)
-      DB.AddCodeModificationHint(DiagStorage->CodeModificationHints[i]);
+    for (unsigned i = 0, e = DiagStorage->NumFixItHints; i != e; ++i)
+      DB.AddFixItHint(DiagStorage->FixItHints[i]);
   }
   
-  friend const PartialDiagnostic &operator<<(const PartialDiagnostic &PD,
-                                             QualType T) {
-    PD.AddTaggedVal(reinterpret_cast<intptr_t>(T.getAsOpaquePtr()),
-                    Diagnostic::ak_qualtype);
-    return PD;
+  /// \brief Clear out this partial diagnostic, giving it a new diagnostic ID
+  /// and removing all of its arguments, ranges, and fix-it hints.
+  void Reset(unsigned DiagID = 0) {
+    this->DiagID = DiagID;
+    freeStorage();
   }
-
+  
+  bool hasStorage() const { return DiagStorage != 0; }
+  
   friend const PartialDiagnostic &operator<<(const PartialDiagnostic &PD,
                                              unsigned I) {
     PD.AddTaggedVal(I, Diagnostic::ak_uint);
@@ -197,19 +269,12 @@ public:
   }
 
   friend const PartialDiagnostic &operator<<(const PartialDiagnostic &PD,
-                                             DeclarationName N);
-  
-  friend const PartialDiagnostic &operator<<(const PartialDiagnostic &PD,
-                                             const CodeModificationHint &Hint) {
-    PD.AddCodeModificationHint(Hint);
+                                             const FixItHint &Hint) {
+    PD.AddFixItHint(Hint);
     return PD;
   }
   
 };
-
-inline PartialDiagnostic PDiag(unsigned DiagID = 0) {
-  return PartialDiagnostic(DiagID);
-}
 
 inline const DiagnosticBuilder &operator<<(const DiagnosticBuilder &DB,
                                            const PartialDiagnostic &PD) {
@@ -219,4 +284,4 @@ inline const DiagnosticBuilder &operator<<(const DiagnosticBuilder &DB,
   
 
 }  // end namespace clang
-#endif 
+#endif

@@ -17,6 +17,7 @@
 #include "clang/Basic/Diagnostic.h"
 #include "clang/Basic/IdentifierTable.h"
 #include "clang/Basic/Linkage.h"
+#include "clang/Basic/PartialDiagnostic.h"
 #include "clang/AST/NestedNameSpecifier.h"
 #include "clang/AST/TemplateName.h"
 #include "llvm/Support/Casting.h"
@@ -678,14 +679,6 @@ public:
     return getObjCGCAttr() == Qualifiers::Strong;
   }
 
-  /// getNoReturnAttr - Returns true if the type has the noreturn attribute,
-  /// false otherwise.
-  bool getNoReturnAttr() const;
-
-  /// getCallConv - Returns the calling convention of the type if the type
-  /// is a function type, CC_Default otherwise.
-  CallingConv getCallConv() const;
-
 private:
   // These methods are implemented in a separate translation unit;
   // "static"-ize them to avoid creating temporary QualTypes in the
@@ -902,6 +895,9 @@ public:
   bool isDependentType() const { return Dependent; }
   bool isOverloadableType() const;
 
+  /// \brief Determine wither this type is a C++ elaborated-type-specifier.
+  bool isElaboratedTypeSpecifier() const;
+  
   /// hasPointerRepresentation - Whether this type is represented
   /// natively as a pointer; this includes pointers, references, block
   /// pointers, and Objective-C interface, qualified id, and qualified
@@ -1747,25 +1743,101 @@ class FunctionType : public Type {
   /// NoReturn - Indicates if the function type is attribute noreturn.
   unsigned NoReturn : 1;
 
+  /// RegParm - How many arguments to pass inreg.
+  unsigned RegParm : 3;
+
   /// CallConv - The calling convention used by the function.
   unsigned CallConv : 2;
 
   // The type returned by the function.
   QualType ResultType;
+
+ public:
+  // This class is used for passing arround the information needed to
+  // construct a call. It is not actually used for storage, just for
+  // factoring together common arguments.
+  // If you add a field (say Foo), other than the obvious places (both, constructors,
+  // compile failures), what you need to update is
+  // * Operetor==
+  // * getFoo
+  // * withFoo
+  // * functionType. Add Foo, getFoo.
+  // * ASTContext::getFooType
+  // * ASTContext::mergeFunctionTypes
+  // * FunctionNoProtoType::Profile
+  // * FunctionProtoType::Profile
+  // * TypePrinter::PrintFunctionProto
+  // * PCH read and write
+  // * Codegen
+
+  class ExtInfo {
+   public:
+    // Constructor with no defaults. Use this when you know that you
+    // have all the elements (when reading a PCH file for example).
+    ExtInfo(bool noReturn, unsigned regParm, CallingConv cc) :
+        NoReturn(noReturn), RegParm(regParm), CC(cc) {}
+
+    // Constructor with all defaults. Use when for example creating a
+    // function know to use defaults.
+    ExtInfo() : NoReturn(false), RegParm(0), CC(CC_Default) {}
+
+    bool getNoReturn() const { return NoReturn; }
+    unsigned getRegParm() const { return RegParm; }
+    CallingConv getCC() const { return CC; }
+
+    bool operator==(const ExtInfo &Other) const {
+      return getNoReturn() == Other.getNoReturn() &&
+          getRegParm() == Other.getRegParm() &&
+          getCC() == Other.getCC();
+    }
+    bool operator!=(const ExtInfo &Other) const {
+      return !(*this == Other);
+    }
+
+    // Note that we don't have setters. That is by design, use
+    // the following with methods instead of mutating these objects.
+
+    ExtInfo withNoReturn(bool noReturn) const {
+      return ExtInfo(noReturn, getRegParm(), getCC());
+    }
+
+    ExtInfo withRegParm(unsigned RegParm) const {
+      return ExtInfo(getNoReturn(), RegParm, getCC());
+    }
+
+    ExtInfo withCallingConv(CallingConv cc) const {
+      return ExtInfo(getNoReturn(), getRegParm(), cc);
+    }
+
+   private:
+    // True if we have __attribute__((noreturn))
+    bool NoReturn;
+    // The value passed to __attribute__((regparm(x)))
+    unsigned RegParm;
+    // The calling convention as specified via
+    // __attribute__((cdecl|stdcall||fastcall))
+    CallingConv CC;
+  };
+
 protected:
   FunctionType(TypeClass tc, QualType res, bool SubclassInfo,
                unsigned typeQuals, QualType Canonical, bool Dependent,
-               bool noReturn = false, CallingConv callConv = CC_Default)
+               const ExtInfo &Info)
     : Type(tc, Canonical, Dependent),
-      SubClassData(SubclassInfo), TypeQuals(typeQuals), NoReturn(noReturn),
-      CallConv(callConv), ResultType(res) {}
+      SubClassData(SubclassInfo), TypeQuals(typeQuals),
+      NoReturn(Info.getNoReturn()),
+      RegParm(Info.getRegParm()), CallConv(Info.getCC()), ResultType(res) {}
   bool getSubClassData() const { return SubClassData; }
   unsigned getTypeQuals() const { return TypeQuals; }
 public:
 
   QualType getResultType() const { return ResultType; }
+  unsigned getRegParmType() const { return RegParm; }
   bool getNoReturnAttr() const { return NoReturn; }
   CallingConv getCallConv() const { return (CallingConv)CallConv; }
+  ExtInfo getExtInfo() const {
+    return ExtInfo(NoReturn, RegParm, (CallingConv)CallConv);
+  }
 
   static llvm::StringRef getNameForCallConv(CallingConv CC);
 
@@ -1780,9 +1852,9 @@ public:
 /// no information available about its arguments.
 class FunctionNoProtoType : public FunctionType, public llvm::FoldingSetNode {
   FunctionNoProtoType(QualType Result, QualType Canonical,
-                      bool NoReturn = false, CallingConv CallConv = CC_Default)
+                      const ExtInfo &Info)
     : FunctionType(FunctionNoProto, Result, false, 0, Canonical,
-                   /*Dependent=*/false, NoReturn, CallConv) {}
+                   /*Dependent=*/false, Info) {}
   friend class ASTContext;  // ASTContext creates these.
 public:
   // No additional state past what FunctionType provides.
@@ -1791,12 +1863,13 @@ public:
   QualType desugar() const { return QualType(this, 0); }
 
   void Profile(llvm::FoldingSetNodeID &ID) {
-    Profile(ID, getResultType(), getNoReturnAttr(), getCallConv());
+    Profile(ID, getResultType(), getExtInfo());
   }
   static void Profile(llvm::FoldingSetNodeID &ID, QualType ResultType,
-                      bool NoReturn, CallingConv CallConv) {
-    ID.AddInteger(CallConv);
-    ID.AddInteger(NoReturn);
+                      const ExtInfo &Info) {
+    ID.AddInteger(Info.getCC());
+    ID.AddInteger(Info.getRegParm());
+    ID.AddInteger(Info.getNoReturn());
     ID.AddPointer(ResultType.getAsOpaquePtr());
   }
 
@@ -1827,12 +1900,12 @@ class FunctionProtoType : public FunctionType, public llvm::FoldingSetNode {
   FunctionProtoType(QualType Result, const QualType *ArgArray, unsigned numArgs,
                     bool isVariadic, unsigned typeQuals, bool hasExs,
                     bool hasAnyExs, const QualType *ExArray,
-                    unsigned numExs, QualType Canonical, bool NoReturn,
-                    CallingConv CallConv)
+                    unsigned numExs, QualType Canonical,
+                    const ExtInfo &Info)
     : FunctionType(FunctionProto, Result, isVariadic, typeQuals, Canonical,
                    (Result->isDependentType() ||
-                    hasAnyDependentType(ArgArray, numArgs)), NoReturn,
-                   CallConv),
+                    hasAnyDependentType(ArgArray, numArgs)),
+                   Info),
       NumArgs(numArgs), NumExceptions(numExs), HasExceptionSpec(hasExs),
       AnyExceptionSpec(hasAnyExs) {
     // Fill in the trailing argument array.
@@ -1918,7 +1991,7 @@ public:
                       bool isVariadic, unsigned TypeQuals,
                       bool hasExceptionSpec, bool anyExceptionSpec,
                       unsigned NumExceptions, exception_iterator Exs,
-                      bool NoReturn, CallingConv CallConv);
+                      const ExtInfo &ExtInfo);
 };
 
 
@@ -2481,6 +2554,24 @@ public:
   static bool classof(const InjectedClassNameType *T) { return true; }
 };
 
+/// \brief The elaboration keyword that precedes a qualified type name or
+/// introduces an elaborated-type-specifier.
+enum ElaboratedTypeKeyword {
+  /// \brief No keyword precedes the qualified type name.
+  ETK_None,
+  /// \brief The "typename" keyword precedes the qualified type name, e.g.,
+  /// \c typename T::type.
+  ETK_Typename,
+  /// \brief The "class" keyword introduces the elaborated-type-specifier.
+  ETK_Class,
+  /// \brief The "struct" keyword introduces the elaborated-type-specifier.
+  ETK_Struct,
+  /// \brief The "union" keyword introduces the elaborated-type-specifier.
+  ETK_Union,
+  /// \brief The "enum" keyword introduces the elaborated-type-specifier.
+  ETK_Enum
+};
+  
 /// \brief Represents a type that was referred to via a qualified
 /// name, e.g., N::M::type.
 ///
@@ -2531,19 +2622,19 @@ public:
   static bool classof(const QualifiedNameType *T) { return true; }
 };
 
-/// \brief Represents a 'typename' specifier that names a type within
-/// a dependent type, e.g., "typename T::type".
+/// \brief Represents a qualified type name for which the type name is
+/// dependent. 
 ///
-/// TypenameType has a very similar structure to QualifiedNameType,
-/// which also involves a nested-name-specifier following by a type,
-/// and (FIXME!) both can even be prefixed by the 'typename'
-/// keyword. However, the two types serve very different roles:
-/// QualifiedNameType is a non-semantic type that serves only as sugar
-/// to show how a particular type was written in the source
-/// code. TypenameType, on the other hand, only occurs when the
-/// nested-name-specifier is dependent, such that we cannot resolve
-/// the actual type until after instantiation.
-class TypenameType : public Type, public llvm::FoldingSetNode {
+/// DependentNameType represents a class of dependent types that involve a 
+/// dependent nested-name-specifier (e.g., "T::") followed by a (dependent) 
+/// name of a type. The DependentNameType may start with a "typename" (for a
+/// typename-specifier), "class", "struct", "union", or "enum" (for a 
+/// dependent elaborated-type-specifier), or nothing (in contexts where we
+/// know that we must be referring to a type, e.g., in a base class specifier).
+class DependentNameType : public Type, public llvm::FoldingSetNode {
+  /// \brief The keyword used to elaborate this type.
+  ElaboratedTypeKeyword Keyword;
+  
   /// \brief The nested name specifier containing the qualifier.
   NestedNameSpecifier *NNS;
 
@@ -2553,23 +2644,28 @@ class TypenameType : public Type, public llvm::FoldingSetNode {
   /// \brief The type that this typename specifier refers to.
   NameType Name;
 
-  TypenameType(NestedNameSpecifier *NNS, const IdentifierInfo *Name,
-               QualType CanonType)
-    : Type(Typename, CanonType, true), NNS(NNS), Name(Name) {
+  DependentNameType(ElaboratedTypeKeyword Keyword, NestedNameSpecifier *NNS, 
+                    const IdentifierInfo *Name, QualType CanonType)
+    : Type(DependentName, CanonType, true), 
+      Keyword(Keyword), NNS(NNS), Name(Name) {
     assert(NNS->isDependent() &&
-           "TypenameType requires a dependent nested-name-specifier");
+           "DependentNameType requires a dependent nested-name-specifier");
   }
 
-  TypenameType(NestedNameSpecifier *NNS, const TemplateSpecializationType *Ty,
-               QualType CanonType)
-    : Type(Typename, CanonType, true), NNS(NNS), Name(Ty) {
+  DependentNameType(ElaboratedTypeKeyword Keyword, NestedNameSpecifier *NNS,
+                    const TemplateSpecializationType *Ty, QualType CanonType)
+    : Type(DependentName, CanonType, true), 
+      Keyword(Keyword), NNS(NNS), Name(Ty) {
     assert(NNS->isDependent() &&
-           "TypenameType requires a dependent nested-name-specifier");
+           "DependentNameType requires a dependent nested-name-specifier");
   }
 
   friend class ASTContext;  // ASTContext creates these
 
 public:
+  /// \brief Retrieve the keyword used to elaborate this type.
+  ElaboratedTypeKeyword getKeyword() const { return Keyword; }
+  
   /// \brief Retrieve the qualification on this type.
   NestedNameSpecifier *getQualifier() const { return NNS; }
 
@@ -2593,19 +2689,20 @@ public:
   QualType desugar() const { return QualType(this, 0); }
 
   void Profile(llvm::FoldingSetNodeID &ID) {
-    Profile(ID, NNS, Name);
+    Profile(ID, Keyword, NNS, Name);
   }
 
-  static void Profile(llvm::FoldingSetNodeID &ID, NestedNameSpecifier *NNS,
-                      NameType Name) {
+  static void Profile(llvm::FoldingSetNodeID &ID, ElaboratedTypeKeyword Keyword,
+                      NestedNameSpecifier *NNS, NameType Name) {
+    ID.AddInteger(Keyword);
     ID.AddPointer(NNS);
     ID.AddPointer(Name.getOpaqueValue());
   }
 
   static bool classof(const Type *T) {
-    return T->getTypeClass() == Typename;
+    return T->getTypeClass() == DependentName;
   }
-  static bool classof(const TypenameType *T) { return true; }
+  static bool classof(const DependentNameType *T) { return true; }
 };
 
 /// ObjCInterfaceType - Interfaces are the core concept in Objective-C for
@@ -2936,37 +3033,18 @@ inline Qualifiers::GC QualType::getObjCGCAttr() const {
   return Qualifiers::GCNone;
 }
 
-  /// getNoReturnAttr - Returns true if the type has the noreturn attribute,
-  /// false otherwise.
-inline bool QualType::getNoReturnAttr() const {
-  QualType CT = getTypePtr()->getCanonicalTypeInternal();
-  if (const PointerType *PT = getTypePtr()->getAs<PointerType>()) {
+inline FunctionType::ExtInfo getFunctionExtInfo(const Type &t) {
+  if (const PointerType *PT = t.getAs<PointerType>()) {
     if (const FunctionType *FT = PT->getPointeeType()->getAs<FunctionType>())
-      return FT->getNoReturnAttr();
-  } else if (const FunctionType *FT = getTypePtr()->getAs<FunctionType>())
-    return FT->getNoReturnAttr();
+      return FT->getExtInfo();
+  } else if (const FunctionType *FT = t.getAs<FunctionType>())
+    return FT->getExtInfo();
 
-  return false;
+  return FunctionType::ExtInfo();
 }
 
-/// getCallConv - Returns the calling convention of the type if the type
-/// is a function type, CC_Default otherwise.
-inline CallingConv QualType::getCallConv() const {
-  if (const PointerType *PT = getTypePtr()->getAs<PointerType>())
-    return PT->getPointeeType().getCallConv();
-  else if (const ReferenceType *RT = getTypePtr()->getAs<ReferenceType>())
-    return RT->getPointeeType().getCallConv();
-  else if (const MemberPointerType *MPT =
-           getTypePtr()->getAs<MemberPointerType>())
-    return MPT->getPointeeType().getCallConv();
-  else if (const BlockPointerType *BPT =
-           getTypePtr()->getAs<BlockPointerType>()) {
-    if (const FunctionType *FT = BPT->getPointeeType()->getAs<FunctionType>())
-      return FT->getCallConv();
-  } else if (const FunctionType *FT = getTypePtr()->getAs<FunctionType>())
-    return FT->getCallConv();
-
-  return CC_Default;
+inline FunctionType::ExtInfo getFunctionExtInfo(QualType t) {
+  return getFunctionExtInfo(*t);
 }
 
 /// isMoreQualifiedThan - Determine whether this type is more
@@ -3150,6 +3228,15 @@ inline const DiagnosticBuilder &operator<<(const DiagnosticBuilder &DB,
   DB.AddTaggedVal(reinterpret_cast<intptr_t>(T.getAsOpaquePtr()),
                   Diagnostic::ak_qualtype);
   return DB;
+}
+
+/// Insertion operator for partial diagnostics.  This allows sending QualType's
+/// into a diagnostic with <<.
+inline const PartialDiagnostic &operator<<(const PartialDiagnostic &PD,
+                                           QualType T) {
+  PD.AddTaggedVal(reinterpret_cast<intptr_t>(T.getAsOpaquePtr()),
+                  Diagnostic::ak_qualtype);
+  return PD;
 }
 
 // Helper class template that is used by Type::getAs to ensure that one does

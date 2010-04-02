@@ -149,3 +149,46 @@ namespace test2 {
     // expected-error {{'getNext' is a private member of 'test2::ilist_node'}}
   };  
 }
+
+namespace test3 {
+  class A { protected: int x; }; // expected-note {{declared protected here}}
+
+  class B : public A {
+    friend int foo(B*);
+  };
+
+  int foo(B *p) {
+    return p->x;
+  }
+
+  int foo(const B *p) {
+    return p->x; // expected-error {{'x' is a protected member of 'test3::A'}}
+  }
+}
+
+namespace test3a {
+  class A { protected: int x; };
+
+  class B : public A {
+    friend int foo(B*);
+  };
+
+  int foo(B * const p) {
+    return p->x;
+  }
+}
+
+namespace test4 {
+  template <class T> class Holder {
+    T object;
+    friend bool operator==(Holder &a, Holder &b) {
+      return a.object == b.object; // expected-error {{invalid operands to binary expression}}
+    }
+  };
+
+  struct Inequal {};
+  bool test() {
+    Holder<Inequal> a, b;
+    return a == b; // expected-note {{requested here}}
+  }
+}

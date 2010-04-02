@@ -504,13 +504,11 @@ void InitListChecker::CheckImplicitInitList(const InitializedEntity &Entity,
     SemaRef.Diag(StructuredSubobjectInitList->getLocStart(),
                  diag::warn_missing_braces)
     << StructuredSubobjectInitList->getSourceRange()
-    << CodeModificationHint::CreateInsertion(
-                                    StructuredSubobjectInitList->getLocStart(), 
-                                    "{")
-    << CodeModificationHint::CreateInsertion(
-                                    SemaRef.PP.getLocForEndOfToken(
+    << FixItHint::CreateInsertion(StructuredSubobjectInitList->getLocStart(), 
+                                  "{")
+    << FixItHint::CreateInsertion(SemaRef.PP.getLocForEndOfToken(
                                       StructuredSubobjectInitList->getLocEnd()), 
-                                      "}");
+                                  "}");
   }
 }
 
@@ -571,8 +569,8 @@ void InitListChecker::CheckExplicitInitList(const InitializedEntity &Entity,
   if (T->isScalarType() && !TopLevelObject)
     SemaRef.Diag(IList->getLocStart(), diag::warn_braces_around_scalar_init)
       << IList->getSourceRange()
-      << CodeModificationHint::CreateRemoval(IList->getLocStart())
-      << CodeModificationHint::CreateRemoval(IList->getLocEnd());
+      << FixItHint::CreateRemoval(IList->getLocStart())
+      << FixItHint::CreateRemoval(IList->getLocEnd());
 }
 
 void InitListChecker::CheckListElementTypes(const InitializedEntity &Entity,
@@ -1363,8 +1361,8 @@ InitListChecker::CheckDesignatedInitializer(const InitializedEntity &Entity,
           SemaRef.Diag(D->getFieldLoc(), 
                        diag::err_field_designator_unknown_suggest)
             << FieldName << CurrentObjectType << R.getLookupName()
-            << CodeModificationHint::CreateReplacement(D->getFieldLoc(),
-                                               R.getLookupName().getAsString());
+            << FixItHint::CreateReplacement(D->getFieldLoc(),
+                                            R.getLookupName().getAsString());
           SemaRef.Diag(ReplacementField->getLocation(), 
                        diag::note_previous_decl)
             << ReplacementField->getDeclName();
@@ -2001,14 +1999,48 @@ void InitializationSequence::Step::Destroy() {
   }
 }
 
+bool InitializationSequence::isDirectReferenceBinding() const {
+  return getKind() == ReferenceBinding && Steps.back().Kind == SK_BindReference;
+}
+
+bool InitializationSequence::isAmbiguous() const {
+  if (getKind() != FailedSequence)
+    return false;
+  
+  switch (getFailureKind()) {
+  case FK_TooManyInitsForReference:
+  case FK_ArrayNeedsInitList:
+  case FK_ArrayNeedsInitListOrStringLiteral:
+  case FK_AddressOfOverloadFailed: // FIXME: Could do better
+  case FK_NonConstLValueReferenceBindingToTemporary:
+  case FK_NonConstLValueReferenceBindingToUnrelated:
+  case FK_RValueReferenceBindingToLValue:
+  case FK_ReferenceInitDropsQualifiers:
+  case FK_ReferenceInitFailed:
+  case FK_ConversionFailed:
+  case FK_TooManyInitsForScalar:
+  case FK_ReferenceBindingToInitList:
+  case FK_InitListBadDestinationType:
+  case FK_DefaultInitOfConst:
+    return false;
+    
+  case FK_ReferenceInitOverloadFailed:
+  case FK_UserConversionOverloadFailed:
+  case FK_ConstructorOverloadFailed:
+    return FailedOverloadResult == OR_Ambiguous;
+  }
+  
+  return false;
+}
+
 void InitializationSequence::AddAddressOverloadResolutionStep(
-                                                      FunctionDecl *Function) {
+                                                      FunctionDecl *Function,
+                                                      DeclAccessPair Found) {
   Step S;
   S.Kind = SK_ResolveAddressOfOverloadedFunction;
   S.Type = Function->getType();
-  // Access is currently ignored for these.
   S.Function.Function = Function;
-  S.Function.FoundDecl = DeclAccessPair::make(Function, AS_none);
+  S.Function.FoundDecl = Found;
   Steps.push_back(S);
 }
 
@@ -2341,15 +2373,17 @@ static void TryReferenceInitialization(Sema &S,
   // to resolve the overloaded function. If all goes well, T2 is the
   // type of the resulting function.
   if (S.Context.getCanonicalType(T2) == S.Context.OverloadTy) {
+    DeclAccessPair Found;
     FunctionDecl *Fn = S.ResolveAddressOfOverloadedFunction(Initializer, 
                                                             T1,
-                                                            false);
+                                                            false,
+                                                            Found);
     if (!Fn) {
       Sequence.SetFailed(InitializationSequence::FK_AddressOfOverloadFailed);
       return;
     }
     
-    Sequence.AddAddressOverloadResolutionStep(Fn);
+    Sequence.AddAddressOverloadResolutionStep(Fn, Found);
     cv2T2 = Fn->getType();
     T2 = cv2T2.getUnqualifiedType();
   }
@@ -2802,7 +2836,7 @@ static void TryUserDefinedConversion(Sema &S,
         if (ConvTemplate)
           Conv = cast<CXXConversionDecl>(ConvTemplate->getTemplatedDecl());
         else
-          Conv = cast<CXXConversionDecl>(*I);
+          Conv = cast<CXXConversionDecl>(D);
         
         if (AllowExplicit || !Conv->isExplicit()) {
           if (ConvTemplate)
@@ -3314,8 +3348,9 @@ InitializationSequence::Perform(Sema &S,
     case SK_ResolveAddressOfOverloadedFunction:
       // Overload resolution determined which function invoke; update the 
       // initializer to reflect that choice.
-      // Access control was done in overload resolution.
+      S.CheckAddressOfMemberAccess(CurInitExpr, Step->Function.FoundDecl);
       CurInit = S.FixOverloadedFunctionReference(move(CurInit),
+                                                 Step->Function.FoundDecl,
                                                  Step->Function.Function);
       break;
         
@@ -3382,6 +3417,7 @@ InitializationSequence::Perform(Sema &S,
       bool IsCopy = false;
       FunctionDecl *Fn = Step->Function.Function;
       DeclAccessPair FoundFn = Step->Function.FoundDecl;
+      bool IsLvalue = false;
       if (CXXConstructorDecl *Constructor = dyn_cast<CXXConstructorDecl>(Fn)) {
         // Build a call to the selected constructor.
         ASTOwningVector<&ActionBase::DeleteExpr> ConstructorArgs(S);
@@ -3414,7 +3450,7 @@ InitializationSequence::Perform(Sema &S,
       } else {
         // Build a call to the conversion function.
         CXXConversionDecl *Conversion = cast<CXXConversionDecl>(Fn);
-
+        IsLvalue = Conversion->getResultType()->isLValueReferenceType();
         S.CheckMemberOperatorAccess(Kind.getLocation(), CurInitExpr, 0,
                                     FoundFn);
         
@@ -3422,7 +3458,7 @@ InitializationSequence::Perform(Sema &S,
         // derived-to-base conversion? I believe the answer is "no", because
         // we don't want to turn off access control here for c-style casts.
         if (S.PerformObjectArgumentInitialization(CurInitExpr, /*Qualifier=*/0,
-                                                  Conversion))
+                                                  FoundFn, Conversion))
           return S.ExprError();
 
         // Do a little dance to make sure that CurInit has the proper
@@ -3430,7 +3466,8 @@ InitializationSequence::Perform(Sema &S,
         CurInit.release();
         
         // Build the actual call to the conversion function.
-        CurInit = S.Owned(S.BuildCXXMemberCallExpr(CurInitExpr, Conversion));
+        CurInit = S.Owned(S.BuildCXXMemberCallExpr(CurInitExpr, FoundFn,
+                                                   Conversion));
         if (CurInit.isInvalid() || !CurInit.get())
           return S.ExprError();
         
@@ -3444,7 +3481,7 @@ InitializationSequence::Perform(Sema &S,
       CurInit = S.Owned(new (S.Context) ImplicitCastExpr(CurInitExpr->getType(),
                                                          CastKind, 
                                                          CurInitExpr,
-                                                         false));
+                                                         IsLvalue));
       
       if (!IsCopy)
         CurInit = CopyIfRequiredForEntity(S, Entity, Kind, move(CurInit));
@@ -3614,11 +3651,14 @@ bool InitializationSequence::Diagnose(Sema &S,
       << (Failure == FK_ArrayNeedsInitListOrStringLiteral);
     break;
       
-  case FK_AddressOfOverloadFailed:
+  case FK_AddressOfOverloadFailed: {
+    DeclAccessPair Found;
     S.ResolveAddressOfOverloadedFunction(Args[0], 
                                          DestType.getNonReferenceType(),
-                                         true);
+                                         true,
+                                         Found);
     break;
+  }
       
   case FK_ReferenceInitOverloadFailed:
   case FK_UserConversionOverloadFailed:

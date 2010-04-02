@@ -119,7 +119,13 @@ void Sema::DiagnoseUnusedExprResult(const Stmt *S) {
       }
     }        
   }
-
+  else if (const ObjCMessageExpr *ME = dyn_cast<ObjCMessageExpr>(E)) {
+    const ObjCMethodDecl *MD = ME->getMethodDecl();
+    if (MD && MD->getAttr<WarnUnusedResultAttr>()) {
+      Diag(Loc, diag::warn_unused_call) << R1 << R2 << "warn_unused_result";
+      return;
+    }
+  }
   Diag(Loc, DiagID) << R1 << R2;
 }
 
@@ -427,48 +433,50 @@ static bool CheckCXXSwitchCondition(Sema &S, SourceLocation SwitchLoc,
   // Make sure that the condition expression has a complete type,
   // otherwise we'll never find any conversions.
   if (S.RequireCompleteType(SwitchLoc, CondType,
-                            PDiag(diag::err_switch_incomplete_class_type)
+                            S.PDiag(diag::err_switch_incomplete_class_type)
                               << CondExpr->getSourceRange()))
     return true;
 
-  llvm::SmallVector<CXXConversionDecl *, 4> ViableConversions;
-  llvm::SmallVector<CXXConversionDecl *, 4> ExplicitConversions;
+  UnresolvedSet<4> ViableConversions;
+  UnresolvedSet<4> ExplicitConversions;
   if (const RecordType *RecordTy = CondType->getAs<RecordType>()) {
     const UnresolvedSetImpl *Conversions
       = cast<CXXRecordDecl>(RecordTy->getDecl())
                                              ->getVisibleConversionFunctions();
     for (UnresolvedSetImpl::iterator I = Conversions->begin(),
            E = Conversions->end(); I != E; ++I) {
-      if (CXXConversionDecl *Conversion = dyn_cast<CXXConversionDecl>(*I))
+      if (CXXConversionDecl *Conversion
+            = dyn_cast<CXXConversionDecl>((*I)->getUnderlyingDecl()))
         if (Conversion->getConversionType().getNonReferenceType()
               ->isIntegralType()) {
           if (Conversion->isExplicit())
-            ExplicitConversions.push_back(Conversion);
+            ExplicitConversions.addDecl(I.getDecl(), I.getAccess());
           else
-          ViableConversions.push_back(Conversion);
+            ViableConversions.addDecl(I.getDecl(), I.getAccess());
         }
     }
 
     switch (ViableConversions.size()) {
     case 0:
       if (ExplicitConversions.size() == 1) {
+        DeclAccessPair Found = ExplicitConversions[0];
+        CXXConversionDecl *Conversion =
+          cast<CXXConversionDecl>(Found->getUnderlyingDecl());
         // The user probably meant to invoke the given explicit
         // conversion; use it.
         QualType ConvTy
-          = ExplicitConversions[0]->getConversionType()
-                        .getNonReferenceType();
+          = Conversion->getConversionType().getNonReferenceType();
         std::string TypeStr;
         ConvTy.getAsStringInternal(TypeStr, S.Context.PrintingPolicy);
 
         S.Diag(SwitchLoc, diag::err_switch_explicit_conversion)
           << CondType << ConvTy << CondExpr->getSourceRange()
-          << CodeModificationHint::CreateInsertion(CondExpr->getLocStart(),
-                                         "static_cast<" + TypeStr + ">(")
-          << CodeModificationHint::CreateInsertion(
+          << FixItHint::CreateInsertion(CondExpr->getLocStart(),
+                                        "static_cast<" + TypeStr + ">(")
+          << FixItHint::CreateInsertion(
                             S.PP.getLocForEndOfToken(CondExpr->getLocEnd()),
                                ")");
-        S.Diag(ExplicitConversions[0]->getLocation(),
-             diag::note_switch_conversion)
+        S.Diag(Conversion->getLocation(), diag::note_switch_conversion)
           << ConvTy->isEnumeralType() << ConvTy;
 
         // If we aren't in a SFINAE context, build a call to the 
@@ -476,25 +484,32 @@ static bool CheckCXXSwitchCondition(Sema &S, SourceLocation SwitchLoc,
         if (S.isSFINAEContext())
           return true;
 
-        CondExpr = S.BuildCXXMemberCallExpr(CondExpr, ExplicitConversions[0]);
+        S.CheckMemberOperatorAccess(CondExpr->getExprLoc(),
+                                    CondExpr, 0, Found);
+        CondExpr = S.BuildCXXMemberCallExpr(CondExpr, Found, Conversion);
       }
 
       // We'll complain below about a non-integral condition type.
       break;
 
-    case 1:
+    case 1: {
       // Apply this conversion.
-      CondExpr = S.BuildCXXMemberCallExpr(CondExpr, ViableConversions[0]);
+      DeclAccessPair Found = ViableConversions[0];
+      S.CheckMemberOperatorAccess(CondExpr->getExprLoc(),
+                                  CondExpr, 0, Found);
+      CondExpr = S.BuildCXXMemberCallExpr(CondExpr, Found,
+                        cast<CXXConversionDecl>(Found->getUnderlyingDecl()));
       break;
+    }
 
     default:
       S.Diag(SwitchLoc, diag::err_switch_multiple_conversions)
         << CondType << CondExpr->getSourceRange();
       for (unsigned I = 0, N = ViableConversions.size(); I != N; ++I) {
-        QualType ConvTy
-          = ViableConversions[I]->getConversionType().getNonReferenceType();
-        S.Diag(ViableConversions[I]->getLocation(),
-             diag::note_switch_conversion)
+        CXXConversionDecl *Conv
+          = cast<CXXConversionDecl>(ViableConversions[I]->getUnderlyingDecl());
+        QualType ConvTy = Conv->getConversionType().getNonReferenceType();
+        S.Diag(Conv->getLocation(), diag::note_switch_conversion)
           << ConvTy->isEnumeralType() << ConvTy;
       }
       return true;

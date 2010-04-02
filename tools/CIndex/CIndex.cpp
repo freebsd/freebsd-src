@@ -1078,9 +1078,8 @@ clang_createTranslationUnitFromSourceFile(CXIndex CIdx,
         // stderr and stdout in the file system, all with different buffers
         // but writing to the same device.
         fflush(stderr);
-#endif        
+#endif
       }
-      return 0;
     }
 
     return Unit.take();
@@ -1737,7 +1736,7 @@ CXSourceLocation clang_getCursorLocation(CXCursor C) {
   SourceLocation Loc = D->getLocation();
   if (ObjCInterfaceDecl *Class = dyn_cast<ObjCInterfaceDecl>(D))
     Loc = Class->getClassLoc();
-  return cxloc::translateSourceLocation(D->getASTContext(), Loc);
+  return cxloc::translateSourceLocation(getCursorContext(C), Loc);
 }
 
 CXSourceRange clang_getCursorExtent(CXCursor C) {
@@ -1800,7 +1799,7 @@ CXSourceRange clang_getCursorExtent(CXCursor C) {
     return clang_getNullRange();
 
   Decl *D = getCursorDecl(C);
-  return cxloc::translateSourceRange(D->getASTContext(), D->getSourceRange());
+  return cxloc::translateSourceRange(getCursorContext(C), D->getSourceRange());
 }
 
 CXCursor clang_getCursorReferenced(CXCursor C) {

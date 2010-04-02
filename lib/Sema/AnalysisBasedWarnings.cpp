@@ -154,7 +154,7 @@ static ControlFlowKind CheckFallThrough(AnalysisContext &AC) {
         continue;
       }
       Expr *CEE = C->getCallee()->IgnoreParenCasts();
-      if (CEE->getType().getNoReturnAttr()) {
+      if (getFunctionExtInfo(CEE->getType()).getNoReturn()) {
         NoReturnEdge = true;
         HasFakeEdge = true;
       } else if (DeclRefExpr *DRE = dyn_cast<DeclRefExpr>(CEE)) {
@@ -189,7 +189,7 @@ struct CheckFallThroughDiagnostics {
   unsigned diag_AlwaysFallThrough_ReturnsNonVoid;
   unsigned diag_NeverFallThroughOrReturn;
   bool funMode;
-  
+
   static CheckFallThroughDiagnostics MakeForFunction() {
     CheckFallThroughDiagnostics D;
     D.diag_MaybeFallThrough_HasNoReturn =
@@ -205,7 +205,7 @@ struct CheckFallThroughDiagnostics {
     D.funMode = true;
     return D;
   }
-  
+
   static CheckFallThroughDiagnostics MakeForBlock() {
     CheckFallThroughDiagnostics D;
     D.diag_MaybeFallThrough_HasNoReturn =
@@ -221,7 +221,7 @@ struct CheckFallThroughDiagnostics {
     D.funMode = false;
     return D;
   }
-  
+
   bool checkDiagnostics(Diagnostic &D, bool ReturnsVoid,
                         bool HasNoReturn) const {
     if (funMode) {
@@ -232,7 +232,7 @@ struct CheckFallThroughDiagnostics {
         && (D.getDiagnosticLevel(diag::warn_suggest_noreturn_block)
               == Diagnostic::Ignored || !ReturnsVoid);
     }
-    
+
     // For blocks.
     return  ReturnsVoid && !HasNoReturn
             && (D.getDiagnosticLevel(diag::warn_suggest_noreturn_block)
@@ -255,14 +255,14 @@ static void CheckFallThroughForBody(Sema &S, const Decl *D, const Stmt *Body,
   if (const FunctionDecl *FD = dyn_cast<FunctionDecl>(D)) {
     ReturnsVoid = FD->getResultType()->isVoidType();
     HasNoReturn = FD->hasAttr<NoReturnAttr>() ||
-                  FD->getType()->getAs<FunctionType>()->getNoReturnAttr();
+       FD->getType()->getAs<FunctionType>()->getNoReturnAttr();
   }
   else if (const ObjCMethodDecl *MD = dyn_cast<ObjCMethodDecl>(D)) {
     ReturnsVoid = MD->getResultType()->isVoidType();
     HasNoReturn = MD->hasAttr<NoReturnAttr>();
   }
   else if (isa<BlockDecl>(D)) {
-    if (const FunctionType *FT = 
+    if (const FunctionType *FT =
           BlockTy->getPointeeType()->getAs<FunctionType>()) {
       if (FT->getResultType()->isVoidType())
         ReturnsVoid = true;
@@ -276,7 +276,7 @@ static void CheckFallThroughForBody(Sema &S, const Decl *D, const Stmt *Body,
   // Short circuit for compilation speed.
   if (CD.checkDiagnostics(Diags, ReturnsVoid, HasNoReturn))
       return;
-  
+
   // FIXME: Function try block
   if (const CompoundStmt *Compound = dyn_cast<CompoundStmt>(Body)) {
     switch (CheckFallThrough(AC)) {
@@ -312,25 +312,23 @@ static void CheckFallThroughForBody(Sema &S, const Decl *D, const Stmt *Body,
 //  warnings on a function, method, or block.
 //===----------------------------------------------------------------------===//
 
+clang::sema::AnalysisBasedWarnings::Policy::Policy() {
+  enableCheckFallThrough = 1;
+  enableCheckUnreachable = 0;
+}
+
 clang::sema::AnalysisBasedWarnings::AnalysisBasedWarnings(Sema &s) : S(s) {
   Diagnostic &D = S.getDiagnostics();
-
-  enableCheckFallThrough = 1;
-
-  enableCheckUnreachable = (unsigned)
+  DefaultPolicy.enableCheckUnreachable = (unsigned)
     (D.getDiagnosticLevel(diag::warn_unreachable) != Diagnostic::Ignored);
 }
 
-void clang::sema::AnalysisBasedWarnings::IssueWarnings(const Decl *D,
-                                                       QualType BlockTy) {
-  
+void clang::sema::
+AnalysisBasedWarnings::IssueWarnings(sema::AnalysisBasedWarnings::Policy P,
+                                     const Decl *D, QualType BlockTy,
+                                     const bool analyzeStaticInline) {
+
   assert(BlockTy.isNull() || isa<BlockDecl>(D));
-  
-  // Do not do any analysis for declarations in system headers if we are
-  // going to just ignore them.
-  if (S.getDiagnostics().getSuppressSystemWarnings() &&
-      S.SourceMgr.isInSystemHeader(D->getLocation()))
-    return;
 
   // We avoid doing analysis-based warnings when there are errors for
   // two reasons:
@@ -339,13 +337,30 @@ void clang::sema::AnalysisBasedWarnings::IssueWarnings(const Decl *D,
   // (2) The code already has problems; running the analysis just takes more
   //     time.
   if (S.getDiagnostics().hasErrorOccurred())
-      return;
-  
+    return;
+
+  // Do not do any analysis for declarations in system headers if we are
+  // going to just ignore them.
+  if (S.getDiagnostics().getSuppressSystemWarnings() &&
+      S.SourceMgr.isInSystemHeader(D->getLocation()))
+    return;
+
   if (const FunctionDecl *FD = dyn_cast<FunctionDecl>(D)) {
     // For function templates, class templates and member function templates
     // we'll do the analysis at instantiation time.
     if (FD->isDependentContext())
       return;
+
+    // Only analyze 'static inline' functions when explicitly asked.
+    if (!analyzeStaticInline && FD->isInlineSpecified() &&
+        FD->getStorageClass() == FunctionDecl::Static) {
+      FD = FD->getCanonicalDecl();
+      VisitFlag &visitFlag = VisitedFD[FD];
+      if (visitFlag == Pending)
+        visitFlag = Visited;
+      else
+        return;
+    }
   }
 
   const Stmt *Body = D->getBody();
@@ -354,16 +369,61 @@ void clang::sema::AnalysisBasedWarnings::IssueWarnings(const Decl *D,
   // Don't generate EH edges for CallExprs as we'd like to avoid the n^2
   // explosion for destrutors that can result and the compile time hit.
   AnalysisContext AC(D, false);
+  bool performedCheck = false;
 
   // Warning: check missing 'return'
-  if (enableCheckFallThrough) {
+  if (P.enableCheckFallThrough) {
     const CheckFallThroughDiagnostics &CD =
       (isa<BlockDecl>(D) ? CheckFallThroughDiagnostics::MakeForBlock()
                          : CheckFallThroughDiagnostics::MakeForFunction());
     CheckFallThroughForBody(S, D, Body, BlockTy, CD, AC);
+    performedCheck = true;
   }
 
   // Warning: check for unreachable code
-  if (enableCheckUnreachable)
+  if (P.enableCheckUnreachable) {
     CheckUnreachable(S, AC);
+    performedCheck = true;
+  }
+
+  // If this block or function calls a 'static inline' function,
+  // we should analyze those functions as well.
+  if (performedCheck) {
+    // The CFG should already be constructed, so this should not
+    // incur any extra cost.  We might not have a CFG, however, for
+    // invalid code.
+    if (const CFG *cfg = AC.getCFG()) {
+      // All CallExprs are block-level expressions in the CFG.  This means
+      // that walking the basic blocks in the CFG is more efficient
+      // than walking the entire AST to find all calls.
+      for (CFG::const_iterator I=cfg->begin(), E=cfg->end(); I!=E; ++I) {
+        const CFGBlock *B = *I;
+        for (CFGBlock::const_iterator BI=B->begin(), BE=B->end(); BI!=BE; ++BI)
+          if (const CallExpr *CE = dyn_cast<CallExpr>(*BI))
+            if (const DeclRefExpr *DR =
+                dyn_cast<DeclRefExpr>(CE->getCallee()->IgnoreParenCasts()))
+              if (const FunctionDecl *calleeD =
+                  dyn_cast<FunctionDecl>(DR->getDecl())) {
+                calleeD = calleeD->getCanonicalDecl();
+                if (calleeD->isInlineSpecified() &&
+                    calleeD->getStorageClass() == FunctionDecl::Static) {
+                  // Have we analyzed this static inline function before?
+                  VisitFlag &visitFlag = VisitedFD[calleeD];
+                  if (visitFlag == NotVisited) {
+                    // Mark the callee visited prior to analyzing it
+                    // so we terminate in case of recursion.
+                    if (calleeD->getBody()) {
+                      visitFlag = Visited;
+                      IssueWarnings(DefaultPolicy, calleeD, QualType(), true);
+                    }
+                    else {
+                      // Delay warnings until we encounter the definition.
+                      visitFlag = Pending;
+                    }
+                  }
+                }
+              }
+      }
+    }
+  }
 }

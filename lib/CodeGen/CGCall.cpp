@@ -67,8 +67,7 @@ const CGFunctionInfo &
 CodeGenTypes::getFunctionInfo(CanQual<FunctionNoProtoType> FTNP) {
   return getFunctionInfo(FTNP->getResultType().getUnqualifiedType(),
                          llvm::SmallVector<CanQualType, 16>(),
-                         FTNP->getCallConv(),
-                         FTNP->getNoReturnAttr());
+                         FTNP->getExtInfo());
 }
 
 /// \param Args - contains any initial parameters besides those
@@ -81,8 +80,7 @@ static const CGFunctionInfo &getFunctionInfo(CodeGenTypes &CGT,
     ArgTys.push_back(FTP->getArgType(i));
   CanQualType ResTy = FTP->getResultType().getUnqualifiedType();
   return CGT.getFunctionInfo(ResTy, ArgTys,
-                             FTP->getCallConv(),
-                             FTP->getNoReturnAttr());
+                             FTP->getExtInfo());
 }
 
 const CGFunctionInfo &
@@ -175,8 +173,10 @@ const CGFunctionInfo &CodeGenTypes::getFunctionInfo(const ObjCMethodDecl *MD) {
   }
   return getFunctionInfo(GetReturnType(MD->getResultType()),
                          ArgTys,
-                         getCallingConventionForDecl(MD),
-                         /*NoReturn*/ false);
+                         FunctionType::ExtInfo(
+                             /*NoReturn*/ false,
+                             /*RegParm*/ 0,
+                             getCallingConventionForDecl(MD)));
 }
 
 const CGFunctionInfo &CodeGenTypes::getFunctionInfo(GlobalDecl GD) {
@@ -194,43 +194,40 @@ const CGFunctionInfo &CodeGenTypes::getFunctionInfo(GlobalDecl GD) {
 
 const CGFunctionInfo &CodeGenTypes::getFunctionInfo(QualType ResTy,
                                                     const CallArgList &Args,
-                                                    CallingConv CC,
-                                                    bool NoReturn) {
+                                            const FunctionType::ExtInfo &Info) {
   // FIXME: Kill copy.
   llvm::SmallVector<CanQualType, 16> ArgTys;
   for (CallArgList::const_iterator i = Args.begin(), e = Args.end();
        i != e; ++i)
     ArgTys.push_back(Context.getCanonicalParamType(i->second));
-  return getFunctionInfo(GetReturnType(ResTy), ArgTys, CC, NoReturn);
+  return getFunctionInfo(GetReturnType(ResTy), ArgTys, Info);
 }
 
 const CGFunctionInfo &CodeGenTypes::getFunctionInfo(QualType ResTy,
                                                     const FunctionArgList &Args,
-                                                    CallingConv CC,
-                                                    bool NoReturn) {
+                                            const FunctionType::ExtInfo &Info) {
   // FIXME: Kill copy.
   llvm::SmallVector<CanQualType, 16> ArgTys;
   for (FunctionArgList::const_iterator i = Args.begin(), e = Args.end();
        i != e; ++i)
     ArgTys.push_back(Context.getCanonicalParamType(i->second));
-  return getFunctionInfo(GetReturnType(ResTy), ArgTys, CC, NoReturn);
+  return getFunctionInfo(GetReturnType(ResTy), ArgTys, Info);
 }
 
 const CGFunctionInfo &CodeGenTypes::getFunctionInfo(CanQualType ResTy,
                            const llvm::SmallVectorImpl<CanQualType> &ArgTys,
-                                                    CallingConv CallConv,
-                                                    bool NoReturn) {
+                                            const FunctionType::ExtInfo &Info) {
 #ifndef NDEBUG
   for (llvm::SmallVectorImpl<CanQualType>::const_iterator
          I = ArgTys.begin(), E = ArgTys.end(); I != E; ++I)
     assert(I->isCanonicalAsParam());
 #endif
 
-  unsigned CC = ClangCallConvToLLVMCallConv(CallConv);
+  unsigned CC = ClangCallConvToLLVMCallConv(Info.getCC());
 
   // Lookup or create unique function info.
   llvm::FoldingSetNodeID ID;
-  CGFunctionInfo::Profile(ID, CC, NoReturn, ResTy,
+  CGFunctionInfo::Profile(ID, Info, ResTy,
                           ArgTys.begin(), ArgTys.end());
 
   void *InsertPos = 0;
@@ -239,7 +236,7 @@ const CGFunctionInfo &CodeGenTypes::getFunctionInfo(CanQualType ResTy,
     return *FI;
 
   // Construct the function info.
-  FI = new CGFunctionInfo(CC, NoReturn, ResTy, ArgTys);
+  FI = new CGFunctionInfo(CC, Info.getNoReturn(), Info.getRegParm(), ResTy, ArgTys);
   FunctionInfos.InsertNode(FI, InsertPos);
 
   // Compute ABI information.
@@ -250,11 +247,12 @@ const CGFunctionInfo &CodeGenTypes::getFunctionInfo(CanQualType ResTy,
 
 CGFunctionInfo::CGFunctionInfo(unsigned _CallingConvention,
                                bool _NoReturn,
+                               unsigned _RegParm,
                                CanQualType ResTy,
                                const llvm::SmallVectorImpl<CanQualType> &ArgTys)
   : CallingConvention(_CallingConvention),
     EffectiveCallingConvention(_CallingConvention),
-    NoReturn(_NoReturn)
+    NoReturn(_NoReturn), RegParm(_RegParm)
 {
   NumArgs = ArgTys.size();
   Args = new ArgInfo[1 + NumArgs];
@@ -610,11 +608,7 @@ void CodeGenModule::ConstructAttributeList(const CGFunctionInfo &FI,
   // FIXME: we need to honour command line settings also...
   // FIXME: RegParm should be reduced in case of nested functions and/or global
   // register variable.
-  signed RegParm = 0;
-  if (TargetDecl)
-    if (const RegparmAttr *RegParmAttr
-          = TargetDecl->getAttr<RegparmAttr>())
-      RegParm = RegParmAttr->getNumParams();
+  signed RegParm = FI.getRegParm();
 
   unsigned PointerWidth = getContext().Target.getPointerWidth(0);
   for (CGFunctionInfo::const_arg_iterator it = FI.arg_begin(),
@@ -623,8 +617,9 @@ void CodeGenModule::ConstructAttributeList(const CGFunctionInfo &FI,
     const ABIArgInfo &AI = it->info;
     unsigned Attributes = 0;
 
-    if (ParamType.isRestrictQualified())
-      Attributes |= llvm::Attribute::NoAlias;
+    // 'restrict' -> 'noalias' is done in EmitFunctionProlog when we
+    // have the corresponding parameter variable.  It doesn't make
+    // sense to do it here because parameters are so fucked up.
 
     switch (AI.getKind()) {
     case ABIArgInfo::Coerce:
@@ -749,6 +744,9 @@ void CodeGenFunction::EmitFunctionProlog(const CGFunctionInfo &FI,
         V = CreateMemTemp(Ty);
         Builder.CreateStore(AI, V);
       } else {
+        if (Arg->getType().isRestrictQualified())
+          AI->addAttr(llvm::Attribute::NoAlias);
+
         if (!getContext().typesAreCompatible(Ty, Arg->getType())) {
           // This must be a promotion, for something like
           // "void a(x) short x; {..."

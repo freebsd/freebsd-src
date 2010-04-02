@@ -522,13 +522,21 @@ EmitCompoundAssign(const CompoundAssignOperator *E,
   // scalar.
   OpInfo.Ty = E->getComputationResultType();
   OpInfo.RHS = EmitCast(E->getRHS(), OpInfo.Ty);
-
+  
   LValue LHSLV = CGF.EmitLValue(E->getLHS());
-
-
   // We know the LHS is a complex lvalue.
-  OpInfo.LHS=EmitLoadOfComplex(LHSLV.getAddress(), LHSLV.isVolatileQualified());
-  OpInfo.LHS=EmitComplexToComplexCast(OpInfo.LHS, LHSTy, OpInfo.Ty);
+  ComplexPairTy LHSComplexPair;
+  if (LHSLV.isPropertyRef())
+    LHSComplexPair = 
+      CGF.EmitObjCPropertyGet(LHSLV.getPropertyRefExpr()).getComplexVal();
+  else if (LHSLV.isKVCRef())
+    LHSComplexPair = 
+      CGF.EmitObjCPropertyGet(LHSLV.getKVCRefExpr()).getComplexVal();
+  else
+    LHSComplexPair = EmitLoadOfComplex(LHSLV.getAddress(), 
+                                       LHSLV.isVolatileQualified());
+  
+  OpInfo.LHS=EmitComplexToComplexCast(LHSComplexPair, LHSTy, OpInfo.Ty);
 
   // Expand the binary operator.
   ComplexPairTy Result = (this->*Func)(OpInfo);
@@ -537,12 +545,22 @@ EmitCompoundAssign(const CompoundAssignOperator *E,
   Result = EmitComplexToComplexCast(Result, OpInfo.Ty, LHSTy);
 
   // Store the result value into the LHS lvalue.
-  EmitStoreOfComplex(Result, LHSLV.getAddress(), LHSLV.isVolatileQualified());
+  if (LHSLV.isPropertyRef())
+    CGF.EmitObjCPropertySet(LHSLV.getPropertyRefExpr(), 
+                            RValue::getComplex(Result));
+  else if (LHSLV.isKVCRef())
+    CGF.EmitObjCPropertySet(LHSLV.getKVCRefExpr(), RValue::getComplex(Result));
+  else
+    EmitStoreOfComplex(Result, LHSLV.getAddress(), LHSLV.isVolatileQualified());
   // And now return the LHS
   IgnoreReal = ignreal;
   IgnoreImag = ignimag;
   IgnoreRealAssign = ignreal;
   IgnoreImagAssign = ignimag;
+  if (LHSLV.isPropertyRef())
+    return CGF.EmitObjCPropertyGet(LHSLV.getPropertyRefExpr()).getComplexVal();
+  else if (LHSLV.isKVCRef())
+    return CGF.EmitObjCPropertyGet(LHSLV.getKVCRefExpr()).getComplexVal();
   return EmitLoadOfComplex(LHSLV.getAddress(), LHSLV.isVolatileQualified());
 }
 

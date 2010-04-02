@@ -19,6 +19,7 @@
 #include "CXXFieldCollector.h"
 #include "SemaOverload.h"
 #include "SemaTemplate.h"
+#include "AnalysisBasedWarnings.h"
 #include "clang/AST/Attr.h"
 #include "clang/AST/DeclBase.h"
 #include "clang/AST/Decl.h"
@@ -298,7 +299,7 @@ public:
 
   /// \brief The set of static functions seen so far that have not been used.
   std::vector<FunctionDecl*> UnusedStaticFuncs;
-  
+
   class AccessedEntity {
   public:
     /// A member declaration found through lookup.  The target is the
@@ -311,30 +312,33 @@ public:
 
     bool isMemberAccess() const { return IsMember; }
 
-    AccessedEntity(MemberNonce _,
+    AccessedEntity(ASTContext &Context, 
+                   MemberNonce _,
                    CXXRecordDecl *NamingClass,
                    AccessSpecifier Access,
                    NamedDecl *Target)
       : Access(Access), IsMember(true), 
         Target(Target), NamingClass(NamingClass),
-        Diag(0) {
+        Diag(0, Context.getDiagAllocator()) {
     }
 
-    AccessedEntity(MemberNonce _,
+    AccessedEntity(ASTContext &Context, 
+                   MemberNonce _,
                    CXXRecordDecl *NamingClass,
                    DeclAccessPair FoundDecl)
       : Access(FoundDecl.getAccess()), IsMember(true), 
         Target(FoundDecl.getDecl()), NamingClass(NamingClass),
-        Diag(0) {
+        Diag(0, Context.getDiagAllocator()) {
     }
 
-    AccessedEntity(BaseNonce _,
+    AccessedEntity(ASTContext &Context, 
+                   BaseNonce _,
                    CXXRecordDecl *BaseClass,
                    CXXRecordDecl *DerivedClass,
                    AccessSpecifier Access)
       : Access(Access), IsMember(false),
         Target(BaseClass), NamingClass(DerivedClass),
-        Diag(0) {
+        Diag(0, Context.getDiagAllocator()) {
     }
 
     bool isQuiet() const { return Diag.getDiagID() == 0; }
@@ -362,7 +366,7 @@ public:
     PartialDiagnostic &setDiag(unsigned DiagID) {
       assert(isQuiet() && "partial diagnostic already defined");
       assert(DiagID && "creating null diagnostic");
-      Diag = PartialDiagnostic(DiagID);
+      Diag.Reset(DiagID);
       return Diag;
     }
     const PartialDiagnostic &getDiag() const {
@@ -609,23 +613,16 @@ public:
   };
 
   /// \brief Emit a diagnostic.
-  SemaDiagnosticBuilder Diag(SourceLocation Loc, unsigned DiagID) {
-    if (isSFINAEContext() && Diagnostic::isBuiltinSFINAEDiag(DiagID)) {
-      // If we encountered an error during template argument
-      // deduction, and that error is one of the SFINAE errors,
-      // suppress the diagnostic.
-      ++NumSFINAEErrors;
-      Diags.setLastDiagnosticIgnored();
-      return SemaDiagnosticBuilder(*this);
-    }
-
-    DiagnosticBuilder DB = Diags.Report(FullSourceLoc(Loc, SourceMgr), DiagID);
-    return SemaDiagnosticBuilder(DB, *this, DiagID);
-  }
+  SemaDiagnosticBuilder Diag(SourceLocation Loc, unsigned DiagID);
 
   /// \brief Emit a partial diagnostic.
   SemaDiagnosticBuilder Diag(SourceLocation Loc, const PartialDiagnostic& PD);
 
+  /// \brief Build a partial diagnostic. 
+  PartialDiagnostic PDiag(unsigned DiagID = 0) {
+    return PartialDiagnostic(DiagID, Context.getDiagAllocator());
+  }
+  
   virtual void DeleteExpr(ExprTy *E);
   virtual void DeleteStmt(StmtTy *S);
 
@@ -727,6 +724,7 @@ public:
       const PartialDiagnostic &DiagID, const PartialDiagnostic & NoteID,
       const FunctionProtoType *Old, SourceLocation OldLoc,
       const FunctionProtoType *New, SourceLocation NewLoc,
+      bool *MissingExceptionSpecification = 0,
       bool *MissingEmptyExceptionSpecification = 0);
   bool CheckExceptionSpecSubset(
       const PartialDiagnostic &DiagID, const PartialDiagnostic & NoteID,
@@ -742,10 +740,12 @@ public:
 
   bool RequireCompleteType(SourceLocation Loc, QualType T,
                            const PartialDiagnostic &PD,
-                           std::pair<SourceLocation,
-                                     PartialDiagnostic> Note =
-                            std::make_pair(SourceLocation(), PDiag()));
-
+                           std::pair<SourceLocation, PartialDiagnostic> Note);
+  bool RequireCompleteType(SourceLocation Loc, QualType T,
+                           const PartialDiagnostic &PD);
+  bool RequireCompleteType(SourceLocation Loc, QualType T,
+                           unsigned DiagID);
+  
   QualType getQualifiedNameType(const CXXScopeSpec &SS, QualType T);
 
   QualType BuildTypeofExprType(Expr *E);
@@ -783,7 +783,8 @@ public:
                                         const LookupResult &Previous,
                                         Scope *S);
   void DiagnoseFunctionSpecifiers(Declarator& D);
-  void DiagnoseShadow(Scope *S, Declarator &D, const LookupResult& R);
+  void CheckShadow(Scope *S, VarDecl *D, const LookupResult& R);
+  void CheckShadow(Scope *S, VarDecl *D);
   NamedDecl* ActOnTypedefDeclarator(Scope* S, Declarator& D, DeclContext* DC,
                                     QualType R, TypeSourceInfo *TInfo,
                                     LookupResult &Previous, bool &Redeclaration);
@@ -827,6 +828,7 @@ public:
   virtual void AddInitializerToDecl(DeclPtrTy dcl, ExprArg init);
   void AddInitializerToDecl(DeclPtrTy dcl, ExprArg init, bool DirectInit);
   void ActOnUninitializedDecl(DeclPtrTy dcl, bool TypeContainsUndeducedAuto);
+  virtual void ActOnInitializerError(DeclPtrTy Dcl);
   virtual void SetDeclDeleted(DeclPtrTy dcl, SourceLocation DelLoc);
   virtual DeclGroupPtrTy FinalizeDeclaratorGroup(Scope *S, const DeclSpec &DS,
                                                  DeclPtrTy *Group,
@@ -1110,9 +1112,6 @@ public:
                         bool SuppressUserConversions, bool ForceRValue,
                         bool InOverloadResolution);
   
-  bool PerformCopyInitialization(Expr *&From, QualType ToType,
-                                 AssignmentAction Action, bool Elidable = false);
-
   OwningExprResult PerformCopyInitialization(const InitializedEntity &Entity,
                                              SourceLocation EqualLoc,
                                              OwningExprResult Init);
@@ -1121,6 +1120,7 @@ public:
                                   CXXRecordDecl *ActingContext);
   bool PerformObjectArgumentInitialization(Expr *&From, 
                                            NestedNameSpecifier *Qualifier,
+                                           NamedDecl *FoundDecl,
                                            CXXMethodDecl *Method);
 
   ImplicitConversionSequence TryContextuallyConvertToBool(Expr *From);
@@ -1128,6 +1128,7 @@ public:
 
   bool PerformObjectMemberConversion(Expr *&From, 
                                      NestedNameSpecifier *Qualifier,
+                                     NamedDecl *FoundDecl,
                                      NamedDecl *Member);
 
   // Members have to be NamespaceDecl* or TranslationUnitDecl*.
@@ -1248,11 +1249,15 @@ public:
                                    const PartialDiagnostic &PDiag);
 
   FunctionDecl *ResolveAddressOfOverloadedFunction(Expr *From, QualType ToType,
-                                                   bool Complain);
+                                                   bool Complain,
+                                                   DeclAccessPair &Found);
   FunctionDecl *ResolveSingleFunctionTemplateSpecialization(Expr *From);
 
-  Expr *FixOverloadedFunctionReference(Expr *E, FunctionDecl *Fn);
+  Expr *FixOverloadedFunctionReference(Expr *E,
+                                       NamedDecl *FoundDecl,
+                                       FunctionDecl *Fn);
   OwningExprResult FixOverloadedFunctionReference(OwningExprResult, 
+                                                  NamedDecl *FoundDecl,
                                                   FunctionDecl *Fn);
 
   void AddOverloadedCallCandidates(UnresolvedLookupExpr *ULE,
@@ -1448,7 +1453,7 @@ public:
   void ProcessDeclAttributeList(Scope *S, Decl *D, const AttributeList *AttrList);
 
   void WarnUndefinedMethod(SourceLocation ImpLoc, ObjCMethodDecl *method,
-                           bool &IncompleteImpl);
+                           bool &IncompleteImpl, unsigned DiagID);
   void WarnConflictingTypedMethods(ObjCMethodDecl *ImpMethod,
                                    ObjCMethodDecl *IntfMethod);
 
@@ -1464,7 +1469,7 @@ public:
                                bool& IncompleteImpl,
                                const llvm::DenseSet<Selector> &InsMap,
                                const llvm::DenseSet<Selector> &ClsMap,
-                               ObjCInterfaceDecl *IDecl);
+                               ObjCContainerDecl *CDecl);
 
   /// CheckImplementationIvars - This routine checks if the instance variables
   /// listed in the implelementation match those listed in the interface.
@@ -2397,7 +2402,9 @@ public:
   Expr *BuildObjCEncodeExpression(SourceLocation AtLoc,
                                   QualType EncodedType,
                                   SourceLocation RParenLoc);
-  CXXMemberCallExpr *BuildCXXMemberCallExpr(Expr *Exp, CXXMethodDecl *Method);
+  CXXMemberCallExpr *BuildCXXMemberCallExpr(Expr *Exp,
+                                            NamedDecl *FoundDecl,
+                                            CXXMethodDecl *Method);
 
   virtual ExprResult ParseObjCEncodeExpression(SourceLocation AtLoc,
                                                SourceLocation EncodeLoc,
@@ -2471,9 +2478,7 @@ public:
 
   bool SetBaseOrMemberInitializers(CXXConstructorDecl *Constructor,
                                    CXXBaseOrMemberInitializer **Initializers,
-                                   unsigned NumInitializers,
-                                   bool IsImplicitConstructor,
-                                   bool AnyErrors);
+                                   unsigned NumInitializers, bool AnyErrors);
 
   /// MarkBaseAndMemberDestructorsReferenced - Given a record decl,
   /// mark all the non-trivial destructors of its members and bases as
@@ -2495,7 +2500,8 @@ public:
   
   /// MarkVirtualMembersReferenced - Will mark all virtual members of the given
   /// CXXRecordDecl referenced.
-  void MarkVirtualMembersReferenced(SourceLocation Loc, CXXRecordDecl *RD);
+  void MarkVirtualMembersReferenced(SourceLocation Loc,
+                                    const CXXRecordDecl *RD);
 
   /// ProcessPendingClassesWithUnmarkedVirtualMembers - Will process classes 
   /// that might need to have their virtual members marked as referenced.
@@ -2513,7 +2519,8 @@ public:
   virtual void ActOnFinishCXXMemberSpecification(Scope* S, SourceLocation RLoc,
                                                  DeclPtrTy TagDecl,
                                                  SourceLocation LBrac,
-                                                 SourceLocation RBrac);
+                                                 SourceLocation RBrac,
+                                                 AttributeList *AttrList);
 
   virtual void ActOnReenterTemplateScope(Scope *S, DeclPtrTy Template);
   virtual void ActOnStartDelayedMemberDeclarations(Scope *S,
@@ -2640,14 +2647,20 @@ public:
                                          Expr *ObjectExpr,
                                          Expr *ArgExpr,
                                          DeclAccessPair FoundDecl);
+  AccessResult CheckAddressOfMemberAccess(Expr *OvlExpr,
+                                          DeclAccessPair FoundDecl);
   AccessResult CheckBaseClassAccess(SourceLocation AccessLoc,
                                     QualType Base, QualType Derived,
                                     const CXXBasePath &Path,
                                     unsigned DiagID,
                                     bool ForceCheck = false,
                                     bool ForceUnprivileged = false);
-                            
   void CheckLookupAccess(const LookupResult &R);
+
+  void HandleDependentAccessCheck(const DependentDiagnostic &DD,
+                         const MultiLevelTemplateArgumentList &TemplateArgs);
+  void PerformDependentDiagnostics(const DeclContext *Pattern,
+                        const MultiLevelTemplateArgumentList &TemplateArgs);
 
   void HandleDelayedAccessCheck(DelayedDiagnostic &DD, Decl *Ctx);
 
@@ -2869,12 +2882,29 @@ public:
                                           Decl *Param,
                                       TemplateArgumentListBuilder &Converted);
 
+  /// \brief Specifies the context in which a particular template
+  /// argument is being checked.
+  enum CheckTemplateArgumentKind {
+    /// \brief The template argument was specified in the code or was
+    /// instantiated with some deduced template arguments.
+    CTAK_Specified,
+
+    /// \brief The template argument was deduced via template argument
+    /// deduction.
+    CTAK_Deduced,
+
+    /// \brief The template argument was deduced from an array bound
+    /// via template argument deduction.
+    CTAK_DeducedFromArrayBound
+  };
+
   bool CheckTemplateArgument(NamedDecl *Param,
                              const TemplateArgumentLoc &Arg,
                              TemplateDecl *Template,
                              SourceLocation TemplateLoc,
                              SourceLocation RAngleLoc,
-                             TemplateArgumentListBuilder &Converted);
+                             TemplateArgumentListBuilder &Converted,
+                             CheckTemplateArgumentKind CTAK = CTAK_Specified);
   
   bool CheckTemplateArgumentList(TemplateDecl *Template,
                                  SourceLocation TemplateLoc,
@@ -2888,15 +2918,22 @@ public:
 
   bool CheckTemplateArgument(TemplateTypeParmDecl *Param,
                              TypeSourceInfo *Arg);
-  bool CheckTemplateArgumentAddressOfObjectOrFunction(Expr *Arg,
-                                                      NamedDecl *&Entity);
   bool CheckTemplateArgumentPointerToMember(Expr *Arg, 
                                             TemplateArgument &Converted);
   bool CheckTemplateArgument(NonTypeTemplateParmDecl *Param,
                              QualType InstantiatedParamType, Expr *&Arg,
-                             TemplateArgument &Converted);
+                             TemplateArgument &Converted,
+                             CheckTemplateArgumentKind CTAK = CTAK_Specified);
   bool CheckTemplateArgument(TemplateTemplateParmDecl *Param, 
                              const TemplateArgumentLoc &Arg);
+
+  OwningExprResult 
+  BuildExpressionFromDeclTemplateArgument(const TemplateArgument &Arg,
+                                          QualType ParamType,
+                                          SourceLocation Loc);
+  OwningExprResult 
+  BuildExpressionFromIntegralTemplateArgument(const TemplateArgument &Arg,
+                                              SourceLocation Loc);
   
   /// \brief Enumeration describing how template parameter lists are compared
   /// for equality.
@@ -3119,14 +3156,15 @@ public:
   TemplateDeductionResult
   SubstituteExplicitTemplateArguments(FunctionTemplateDecl *FunctionTemplate,
                         const TemplateArgumentListInfo &ExplicitTemplateArgs,
-                            llvm::SmallVectorImpl<TemplateArgument> &Deduced,
+                      llvm::SmallVectorImpl<DeducedTemplateArgument> &Deduced,
                                  llvm::SmallVectorImpl<QualType> &ParamTypes,
                                       QualType *FunctionType,
                                       TemplateDeductionInfo &Info);
 
   TemplateDeductionResult
   FinishTemplateArgumentDeduction(FunctionTemplateDecl *FunctionTemplate,
-                             llvm::SmallVectorImpl<TemplateArgument> &Deduced,
+                      llvm::SmallVectorImpl<DeducedTemplateArgument> &Deduced,
+                                  unsigned NumExplicitlySpecified,
                                   FunctionDecl *&Specialization,
                                   TemplateDeductionInfo &Info);
 
@@ -3480,15 +3518,27 @@ public:
     /// \brief Whether we have already exited this scope.
     bool Exited;
 
+    /// \brief Whether this scope is temporary, meaning that we should
+    /// remove any additions we make once we exit this
+    /// scope. Temporary scopes are always combined with their outer
+    /// scopes.
+    bool Temporary;
+
+    /// \brief List of the declarations that we have added into this
+    /// temporary scope. They will be removed when we exit the
+    /// temporary scope.
+    llvm::SmallVector<const Decl *, 4> AddedTemporaryDecls;
+
     // This class is non-copyable
     LocalInstantiationScope(const LocalInstantiationScope &);
     LocalInstantiationScope &operator=(const LocalInstantiationScope &);
 
   public:
-    LocalInstantiationScope(Sema &SemaRef, bool CombineWithOuterScope = false)
+    LocalInstantiationScope(Sema &SemaRef, bool CombineWithOuterScope = false,
+                            bool Temporary = false)
       : SemaRef(SemaRef), Outer(SemaRef.CurrentInstantiationScope), 
-        Exited(false) {
-      if (!CombineWithOuterScope)
+        Exited(false), Temporary(Temporary) {
+      if (!CombineWithOuterScope && !Temporary)
         SemaRef.CurrentInstantiationScope = this;
       else
         assert(SemaRef.CurrentInstantiationScope && 
@@ -3496,8 +3546,11 @@ public:
     }
 
     ~LocalInstantiationScope() {
-      if (!Exited)
+      if (!Exited) {
         SemaRef.CurrentInstantiationScope = Outer;
+        for (unsigned I = 0, N = AddedTemporaryDecls.size(); I != N; ++I)
+          LocalDecls.erase(AddedTemporaryDecls[I]);
+      }
     }
 
     /// \brief Exit this local instantiation scope early.
@@ -3530,6 +3583,10 @@ public:
     void InstantiatedLocal(const Decl *D, Decl *Inst) {
       Decl *&Stored = LocalDecls[D];
       assert((!Stored || Stored == Inst) && "Already instantiated this local");
+
+      if (Temporary && !Stored)
+        AddedTemporaryDecls.push_back(D);
+
       Stored = Inst;
     }
   };
@@ -3540,6 +3597,9 @@ public:
 
   /// \brief The number of typos corrected by CorrectTypo.
   unsigned TyposCorrected;
+
+  /// \brief Worker object for performing CFG-based warnings.
+  sema::AnalysisBasedWarnings AnalysisWarnings;
 
   /// \brief An entity for which implicit template instantiation is required.
   ///
@@ -3714,7 +3774,7 @@ public:
   /// Ensure attributes are consistent with type.
   /// \param [in, out] Attributes The attributes to check; they will
   /// be modified to be consistent with \arg PropertyTy.
-  void CheckObjCPropertyAttributes(QualType PropertyTy,
+  void CheckObjCPropertyAttributes(DeclPtrTy PropertyPtrTy,
                                    SourceLocation Loc,
                                    unsigned &Attributes);
   void ProcessPropertyDecl(ObjCPropertyDecl *property, ObjCContainerDecl *DC);
