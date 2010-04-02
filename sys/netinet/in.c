@@ -34,6 +34,7 @@
 __FBSDID("$FreeBSD$");
 
 #include "opt_carp.h"
+#include "opt_mpath.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -1040,6 +1041,13 @@ in_addprefix(struct in_ifaddr *target, int flags)
 		 * interface address, we are done here.
 		 */
 		if (ia->ia_flags & IFA_ROUTE) {
+#ifdef RADIX_MPATH
+			if (ia->ia_addr.sin_addr.s_addr == 
+			    target->ia_addr.sin_addr.s_addr)
+				return (EEXIST);
+			else
+				break;
+#endif
 			if (V_sameprefixcarponly &&
 			    target->ia_ifp->if_type != IFT_CARP &&
 			    ia->ia_ifp->if_type != IFT_CARP) {
