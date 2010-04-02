@@ -2528,7 +2528,7 @@ sctp_generic_sendmsg_iov(td, uap)
 		goto sctp_bad;
 #endif /* MAC */
 
-	auio.uio_iov =  iov;
+	auio.uio_iov = iov;
 	auio.uio_iovcnt = uap->iovlen;
 	auio.uio_segflg = UIO_USERSPACE;
 	auio.uio_rw = UIO_WRITE;
@@ -2638,7 +2638,7 @@ sctp_generic_recvmsg(td, uap)
 	} else {
 		fromlen = 0;
 	}
-	if(uap->msg_flags) {
+	if (uap->msg_flags) {
 		error = copyin(uap->msg_flags, &msg_flags, sizeof (int));
 		if (error) {
 			goto out;
