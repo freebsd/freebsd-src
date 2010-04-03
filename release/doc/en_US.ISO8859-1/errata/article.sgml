@@ -167,6 +167,18 @@
   <sect1 id="late-news">
     <title>Late-Breaking News and Corrections</title>
 
+    <para>[20100402] The &os; 7.3-RELEASE Release Notes incorrectly
+      mentioned that a <option>-p</option> flag has been added to the
+      &man.ps.1; utility.  It should have been a <option>-d</option>
+      flag.  The correct entry is:</para>
+
+    <blockquote>
+      <para>The &man.ps.1; command now supports a new flag
+	<option>-d</option>.  This displays descendant info with the
+	output similar to Linux's <option>-H</option> (or
+	<option>-f</option>).</para>
+    </blockquote>
+
     <para>[20100330] The <filename>libc</filename> of &os; 7.3-RELEASE
       has the &man.fdopendir.3; function but
       <filename>&lt;dirent.h&gt;</filename> header file does not
@@ -188,9 +200,9 @@
       planned.</para>
 
     <para>[20100323] The &os; 7.3-RELEASE Release Notes incorrectly
-      mentioned that the hwpmc(4) driver has been added though this
+      mentioned that the &man.hwpmc.4; driver has been added though this
       driver has already been added in 7.0-RELEASE.  The changes in
-      7.3-RELEASE are that pmcannotate(8) utility and support for
+      7.3-RELEASE are that &man.pmcannotate.8; utility and support for
       Intel Core 2 and Core i7 have been added.</para>
   </sect1>
 </article>
