@@ -180,6 +180,7 @@ struct ia32_sigframe3 {
 #endif
 
 struct ksiginfo;
+struct image_params;
 extern char ia32_sigcode[];
 extern char freebsd4_ia32_sigcode[];
 extern int sz_ia32_sigcode;
