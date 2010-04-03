@@ -2990,7 +2990,7 @@ pmap_promote_pde(pmap_t pmap, pd_entry_t *pde, vm_offset_t va)
 	 * either invalid, unused, or does not map the first 4KB physical page
 	 * within a 2- or 4MB page.
 	 */
-	firstpte = vtopte(trunc_4mpage(va));
+	firstpte = pmap_pte_quick(pmap, trunc_4mpage(va));
 setpde:
 	newpde = *firstpte;
 	if ((newpde & ((PG_FRAME & PDRMASK) | PG_A | PG_V)) != (PG_A | PG_V)) {
