@@ -42,41 +42,15 @@ using namespace CodeGen;
 // don't belong in CGObjCRuntime either so we will live with it for
 // now.
 
-/// FindIvarInterface - Find the interface containing the ivar.
-///
-/// FIXME: We shouldn't need to do this, the containing context should
-/// be fixed.
-static const ObjCInterfaceDecl *FindIvarInterface(ASTContext &Context,
-                                                  const ObjCInterfaceDecl *OID,
-                                                  const ObjCIvarDecl *OIVD,
-                                                  unsigned &Index) {
-  // FIXME: The index here is closely tied to how
-  // ASTContext::getObjCLayout is implemented. This should be fixed to
-  // get the information from the layout directly.
-  Index = 0;
-  llvm::SmallVector<ObjCIvarDecl*, 16> Ivars;
-  Context.ShallowCollectObjCIvars(OID, Ivars);
-  for (unsigned k = 0, e = Ivars.size(); k != e; ++k) {
-    if (OIVD == Ivars[k])
-      return OID;
-    ++Index;
-  }
-
-  // Otherwise check in the super class.
-  if (const ObjCInterfaceDecl *Super = OID->getSuperClass())
-    return FindIvarInterface(Context, Super, OIVD, Index);
-
-  return 0;
-}
-
 static uint64_t LookupFieldBitOffset(CodeGen::CodeGenModule &CGM,
                                      const ObjCInterfaceDecl *OID,
                                      const ObjCImplementationDecl *ID,
                                      const ObjCIvarDecl *Ivar) {
-  unsigned Index;
-  const ObjCInterfaceDecl *Container =
-    FindIvarInterface(CGM.getContext(), OID, Ivar, Index);
-  assert(Container && "Unable to find ivar container");
+  const ObjCInterfaceDecl *Container = Ivar->getContainingInterface();
+
+  // FIXME: We should eliminate the need to have ObjCImplementationDecl passed
+  // in here; it should never be necessary because that should be the lexical
+  // decl context for the ivar.
 
   // If we know have an implementation (and the ivar is in it) then
   // look up in the implementation layout.
@@ -85,6 +59,22 @@ static uint64_t LookupFieldBitOffset(CodeGen::CodeGenModule &CGM,
     RL = &CGM.getContext().getASTObjCImplementationLayout(ID);
   else
     RL = &CGM.getContext().getASTObjCInterfaceLayout(Container);
+
+  // Compute field index.
+  //
+  // FIXME: The index here is closely tied to how ASTContext::getObjCLayout is
+  // implemented. This should be fixed to get the information from the layout
+  // directly.
+  unsigned Index = 0;
+  llvm::SmallVector<ObjCIvarDecl*, 16> Ivars;
+  CGM.getContext().ShallowCollectObjCIvars(Container, Ivars);
+  for (unsigned k = 0, e = Ivars.size(); k != e; ++k) {
+    if (Ivar == Ivars[k])
+      break;
+    ++Index;
+  }
+  assert(Index != Ivars.size() && "Ivar is not inside container!");
+
   return RL->getFieldOffset(Index);
 }
 
@@ -4727,14 +4717,10 @@ llvm::Constant *CGObjCNonFragileABIMac::EmitMethodList(llvm::Twine Name,
 
 /// ObjCIvarOffsetVariable - Returns the ivar offset variable for
 /// the given ivar.
-llvm::GlobalVariable * CGObjCNonFragileABIMac::ObjCIvarOffsetVariable(
-  const ObjCInterfaceDecl *ID,
-  const ObjCIvarDecl *Ivar) {
-  // FIXME: We shouldn't need to do this lookup.
-  unsigned Index;
-  const ObjCInterfaceDecl *Container =
-    FindIvarInterface(CGM.getContext(), ID, Ivar, Index);
-  assert(Container && "Unable to find ivar container!");
+llvm::GlobalVariable *
+CGObjCNonFragileABIMac::ObjCIvarOffsetVariable(const ObjCInterfaceDecl *ID,
+                                               const ObjCIvarDecl *Ivar) {
+  const ObjCInterfaceDecl *Container = Ivar->getContainingInterface();
   std::string Name = "OBJC_IVAR_$_" + Container->getNameAsString() +
     '.' + Ivar->getNameAsString();
   llvm::GlobalVariable *IvarOffsetGV =
@@ -4749,10 +4735,10 @@ llvm::GlobalVariable * CGObjCNonFragileABIMac::ObjCIvarOffsetVariable(
   return IvarOffsetGV;
 }
 
-llvm::Constant * CGObjCNonFragileABIMac::EmitIvarOffsetVar(
-  const ObjCInterfaceDecl *ID,
-  const ObjCIvarDecl *Ivar,
-  unsigned long int Offset) {
+llvm::Constant *
+CGObjCNonFragileABIMac::EmitIvarOffsetVar(const ObjCInterfaceDecl *ID,
+                                          const ObjCIvarDecl *Ivar,
+                                          unsigned long int Offset) {
   llvm::GlobalVariable *IvarOffsetGV = ObjCIvarOffsetVariable(ID, Ivar);
   IvarOffsetGV->setInitializer(llvm::ConstantInt::get(ObjCTypes.LongTy,
                                                       Offset));
