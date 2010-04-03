@@ -624,16 +624,22 @@ public:
   };
 
 private:
-  ObjCIvarDecl(DeclContext *DC, SourceLocation L, IdentifierInfo *Id,
+  ObjCIvarDecl(ObjCContainerDecl *DC, SourceLocation L, IdentifierInfo *Id,
                QualType T, TypeSourceInfo *TInfo, AccessControl ac, Expr *BW)
     : FieldDecl(ObjCIvar, DC, L, Id, T, TInfo, BW, /*Mutable=*/false),
       DeclAccess(ac) {}
 
 public:
-  static ObjCIvarDecl *Create(ASTContext &C, DeclContext *DC, SourceLocation L,
-                              IdentifierInfo *Id, QualType T,
+  static ObjCIvarDecl *Create(ASTContext &C, ObjCContainerDecl *DC,
+                              SourceLocation L, IdentifierInfo *Id, QualType T,
                               TypeSourceInfo *TInfo,
                               AccessControl ac, Expr *BW = NULL);
+
+  /// \brief Return the class interface that this ivar is logically contained
+  /// in; this is either the interface where the ivar was declared, or the
+  /// interface the ivar is conceptually a part of in the case of synthesized
+  /// ivars.
+  const ObjCInterfaceDecl *getContainingInterface() const;
 
   void setAccessControl(AccessControl ac) { DeclAccess = ac; }
 
