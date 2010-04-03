@@ -29,12 +29,12 @@ testcase 'set -- x~'				'1|x~'
 testcase 'set -- ~root'				"1|$roothome"
 h=~
 testcase 'set -- "$h"'				'1|/tmp'
-oIFS=$IFS
+ooIFS=$IFS
 IFS=m
 testcase 'set -- ~'				'1|/tmp'
 testcase 'set -- ~/foo'				'1|/tmp/foo'
 testcase 'set -- $h'				'2|/t|p'
-IFS=$oIFS
+IFS=$ooIFS
 t=\~
 testcase 'set -- $t'				'1|~'
 r=$(cat <<EOF
