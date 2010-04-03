@@ -477,7 +477,6 @@ struct sctp_asconf_addr {
 	struct sctp_ifa *ifa;	/* save the ifa for add/del ip */
 	uint8_t sent;		/* has this been sent yet? */
 	uint8_t special_del;	/* not to be used in lookup */
-
 };
 
 struct sctp_scoping {
@@ -771,9 +770,7 @@ struct sctp_association {
 
 	/* EY - new NR variables used for nr_sack based on mapping_array */
 	uint8_t *nr_mapping_array;
-	uint32_t nr_mapping_array_base_tsn;
 	uint32_t highest_tsn_inside_nr_map;
-	uint16_t nr_mapping_array_size;
 
 	uint32_t last_echo_tsn;
 	uint32_t last_cwr_tsn;
