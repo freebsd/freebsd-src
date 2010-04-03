@@ -794,8 +794,7 @@ unsigned SelectionDAG::getEVTAlignment(EVT VT) const {
 // EntryNode could meaningfully have debug info if we can find it...
 SelectionDAG::SelectionDAG(TargetLowering &tli, FunctionLoweringInfo &fli)
   : TLI(tli), FLI(fli), DW(0),
-    EntryNode(ISD::EntryToken, DebugLoc::getUnknownLoc(),
-              getVTList(MVT::Other)),
+    EntryNode(ISD::EntryToken, DebugLoc(), getVTList(MVT::Other)),
     Root(getEntryNode()), Ordering(0) {
   AllNodes.push_back(&EntryNode);
   Ordering = new SDNodeOrdering();
@@ -919,8 +918,7 @@ SDValue SelectionDAG::getConstant(const ConstantInt &Val, EVT VT, bool isT) {
   if (VT.isVector()) {
     SmallVector<SDValue, 8> Ops;
     Ops.assign(VT.getVectorNumElements(), Result);
-    Result = getNode(ISD::BUILD_VECTOR, DebugLoc::getUnknownLoc(),
-                     VT, &Ops[0], Ops.size());
+    Result = getNode(ISD::BUILD_VECTOR, DebugLoc(), VT, &Ops[0], Ops.size());
   }
   return Result;
 }
@@ -963,8 +961,7 @@ SDValue SelectionDAG::getConstantFP(const ConstantFP& V, EVT VT, bool isTarget){
     SmallVector<SDValue, 8> Ops;
     Ops.assign(VT.getVectorNumElements(), Result);
     // FIXME DebugLoc info might be appropriate here
-    Result = getNode(ISD::BUILD_VECTOR, DebugLoc::getUnknownLoc(),
-                     VT, &Ops[0], Ops.size());
+    Result = getNode(ISD::BUILD_VECTOR, DebugLoc(), VT, &Ops[0], Ops.size());
   }
   return Result;
 }
@@ -3094,6 +3091,8 @@ SDValue SelectionDAG::getStackArgumentTokenFactor(SDValue Chain) {
 /// operand.
 static SDValue getMemsetValue(SDValue Value, EVT VT, SelectionDAG &DAG,
                               DebugLoc dl) {
+  assert(Value.getOpcode() != ISD::UNDEF);
+
   unsigned NumBits = VT.getScalarType().getSizeInBits();
   if (ConstantSDNode *C = dyn_cast<ConstantSDNode>(Value)) {
     APInt Val = APInt(NumBits, C->getZExtValue() & 255);
@@ -3197,7 +3196,7 @@ static bool isMemSrcFromString(SDValue Src, std::string &Str) {
 static bool FindOptimalMemOpLowering(std::vector<EVT> &MemOps,
                                      unsigned Limit, uint64_t Size,
                                      unsigned DstAlign, unsigned SrcAlign,
-                                     bool SafeToUseFP,
+                                     bool NonScalarIntSafe,
                                      SelectionDAG &DAG,
                                      const TargetLowering &TLI) {
   assert((SrcAlign == 0 || SrcAlign >= DstAlign) &&
@@ -3207,7 +3206,8 @@ static bool FindOptimalMemOpLowering(std::vector<EVT> &MemOps,
   // the inferred alignment of the source. 'DstAlign', on the other hand, is the
   // specified alignment of the memory operation. If it is zero, that means
   // it's possible to change the alignment of the destination.
-  EVT VT = TLI.getOptimalMemOpType(Size, DstAlign, SrcAlign, SafeToUseFP, DAG);
+  EVT VT = TLI.getOptimalMemOpType(Size, DstAlign, SrcAlign,
+                                   NonScalarIntSafe, DAG);
 
   if (VT == MVT::Other) {
     VT = TLI.getPointerTy();
@@ -3266,10 +3266,13 @@ static SDValue getMemcpyLoadsAndStores(SelectionDAG &DAG, DebugLoc dl,
                                        unsigned Align, bool AlwaysInline,
                                        const Value *DstSV, uint64_t DstSVOff,
                                        const Value *SrcSV, uint64_t SrcSVOff) {
-  const TargetLowering &TLI = DAG.getTargetLoweringInfo();
+  // Turn a memcpy of undef to nop.
+  if (Src.getOpcode() == ISD::UNDEF)
+    return Chain;
 
   // Expand memcpy to a series of load and store ops if the size operand falls
   // below a certain threshold.
+  const TargetLowering &TLI = DAG.getTargetLoweringInfo();
   std::vector<EVT> MemOps;
   uint64_t Limit = -1ULL;
   if (!AlwaysInline)
@@ -3352,10 +3355,13 @@ static SDValue getMemmoveLoadsAndStores(SelectionDAG &DAG, DebugLoc dl,
                                         unsigned Align,bool AlwaysInline,
                                         const Value *DstSV, uint64_t DstSVOff,
                                         const Value *SrcSV, uint64_t SrcSVOff) {
-  const TargetLowering &TLI = DAG.getTargetLoweringInfo();
+  // Turn a memmove of undef to nop.
+  if (Src.getOpcode() == ISD::UNDEF)
+    return Chain;
 
   // Expand memmove to a series of load and store ops if the size operand falls
   // below a certain threshold.
+  const TargetLowering &TLI = DAG.getTargetLoweringInfo();
   std::vector<EVT> MemOps;
   uint64_t Limit = -1ULL;
   if (!AlwaysInline)
@@ -3426,21 +3432,24 @@ static SDValue getMemsetStores(SelectionDAG &DAG, DebugLoc dl,
                                SDValue Src, uint64_t Size,
                                unsigned Align,
                                const Value *DstSV, uint64_t DstSVOff) {
-  const TargetLowering &TLI = DAG.getTargetLoweringInfo();
+  // Turn a memset of undef to nop.
+  if (Src.getOpcode() == ISD::UNDEF)
+    return Chain;
 
   // Expand memset to a series of load/store ops if the size operand
   // falls below a certain threshold.
+  const TargetLowering &TLI = DAG.getTargetLoweringInfo();
   std::vector<EVT> MemOps;
   bool DstAlignCanChange = false;
   MachineFrameInfo *MFI = DAG.getMachineFunction().getFrameInfo();
   FrameIndexSDNode *FI = dyn_cast<FrameIndexSDNode>(Dst);
   if (FI && !MFI->isFixedObjectIndex(FI->getIndex()))
     DstAlignCanChange = true;
-  bool IsZero = isa<ConstantSDNode>(Src) &&
-    cast<ConstantSDNode>(Src)->isNullValue();
+  bool NonScalarIntSafe =
+    isa<ConstantSDNode>(Src) && cast<ConstantSDNode>(Src)->isNullValue();
   if (!FindOptimalMemOpLowering(MemOps, TLI.getMaxStoresPerMemset(),
                                 Size, (DstAlignCanChange ? 0 : Align), 0,
-                                IsZero, DAG, TLI))
+                                NonScalarIntSafe, DAG, TLI))
     return SDValue();
 
   if (DstAlignCanChange) {
@@ -3592,9 +3601,9 @@ SDValue SelectionDAG::getMemset(SDValue Chain, DebugLoc dl, SDValue Dst,
     if (ConstantSize->isNullValue())
       return Chain;
 
-    SDValue Result =
-      getMemsetStores(*this, dl, Chain, Dst, Src, ConstantSize->getZExtValue(),
-                      Align, DstSV, DstSVOff);
+    SDValue Result = getMemsetStores(*this, dl, Chain, Dst, Src,
+                                     ConstantSize->getZExtValue(),
+                                     Align, DstSV, DstSVOff);
     if (Result.getNode())
       return Result;
   }
@@ -5323,8 +5332,7 @@ HandleSDNode::~HandleSDNode() {
 
 GlobalAddressSDNode::GlobalAddressSDNode(unsigned Opc, const GlobalValue *GA,
                                          EVT VT, int64_t o, unsigned char TF)
-  : SDNode(Opc, DebugLoc::getUnknownLoc(), getSDVTList(VT)),
-    Offset(o), TargetFlags(TF) {
+  : SDNode(Opc, DebugLoc(), getSDVTList(VT)), Offset(o), TargetFlags(TF) {
   TheGlobal = const_cast<GlobalValue*>(GA);
 }
 

@@ -12,11 +12,8 @@
 // 
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_DEBUGLOC_H
-#define LLVM_DEBUGLOC_H
-
-#include "llvm/ADT/DenseMap.h"
-#include <vector>
+#ifndef LLVM_SUPPORT_DEBUGLOC_H
+#define LLVM_SUPPORT_DEBUGLOC_H
 
 namespace llvm {
   class MDNode;
@@ -25,7 +22,7 @@ namespace llvm {
   /// DebugLoc - Debug location id.  This is carried by Instruction, SDNode,
   /// and MachineInstr to compactly encode file/line/scope information for an
   /// operation.
-  class NewDebugLoc {
+  class DebugLoc {
     /// LineCol - This 32-bit value encodes the line and column number for the
     /// location, encoded as 24-bits for line and 8 bits for col.  A value of 0
     /// for either means unknown.
@@ -35,15 +32,15 @@ namespace llvm {
     /// decoded by LLVMContext.  0 is unknown.
     int ScopeIdx;
   public:
-    NewDebugLoc() : LineCol(0), ScopeIdx(0) {}  // Defaults to unknown.
+    DebugLoc() : LineCol(0), ScopeIdx(0) {}  // Defaults to unknown.
     
     /// get - Get a new DebugLoc that corresponds to the specified line/col
     /// scope/inline location.
-    static NewDebugLoc get(unsigned Line, unsigned Col,
-                           MDNode *Scope, MDNode *InlinedAt = 0);
+    static DebugLoc get(unsigned Line, unsigned Col,
+                        MDNode *Scope, MDNode *InlinedAt = 0);
     
-    /// getFromDILocation - Translate the DILocation quad into a NewDebugLoc.
-    static NewDebugLoc getFromDILocation(MDNode *N);
+    /// getFromDILocation - Translate the DILocation quad into a DebugLoc.
+    static DebugLoc getFromDILocation(MDNode *N);
     
     /// isUnknown - Return true if this is an unknown location.
     bool isUnknown() const { return ScopeIdx == 0; }
@@ -73,48 +70,11 @@ namespace llvm {
     /// DILocation compatible MDNode.
     MDNode *getAsMDNode(const LLVMContext &Ctx) const;
     
-    bool operator==(const NewDebugLoc &DL) const {
+    bool operator==(const DebugLoc &DL) const {
       return LineCol == DL.LineCol && ScopeIdx == DL.ScopeIdx;
     }
-    bool operator!=(const NewDebugLoc &DL) const { return !(*this == DL); }
-  };
-  
-  
-
-  /// DebugLoc - Debug location id. This is carried by SDNode and MachineInstr
-  /// to index into a vector of unique debug location tuples.
-  class DebugLoc {
-    unsigned Idx;
-  public:
-    DebugLoc() : Idx(~0U) {}  // Defaults to invalid.
-
-    static DebugLoc getUnknownLoc()   { DebugLoc L; L.Idx = ~0U; return L; }
-    static DebugLoc get(unsigned idx) { DebugLoc L; L.Idx = idx; return L; }
-
-    unsigned getIndex() const { return Idx; }
-
-    /// isUnknown - Return true if there is no debug info for the SDNode /
-    /// MachineInstr.
-    bool isUnknown() const { return Idx == ~0U; }
-
-    bool operator==(const DebugLoc &DL) const { return Idx == DL.Idx; }
     bool operator!=(const DebugLoc &DL) const { return !(*this == DL); }
   };
-
-  /// DebugLocTracker - This class tracks debug location information.
-  ///
-  struct DebugLocTracker {
-    /// DebugLocations - A vector of unique DebugLocTuple's.
-    ///
-    std::vector<MDNode *> DebugLocations;
-
-    /// DebugIdMap - This maps DebugLocTuple's to indices into the
-    /// DebugLocations vector.
-    DenseMap<MDNode *, unsigned> DebugIdMap;
-
-    DebugLocTracker() {}
-  };
-  
 } // end namespace llvm
 
 #endif /* LLVM_DEBUGLOC_H */

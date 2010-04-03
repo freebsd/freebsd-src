@@ -16,6 +16,7 @@
 
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/Support/DebugLoc.h"
+#include "llvm/System/DataTypes.h"
 
 namespace llvm {
 
