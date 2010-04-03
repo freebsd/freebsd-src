@@ -36,7 +36,7 @@
 #else /* !(__FreeBSD__ && _KERNEL) */
 #include <sys/types.h>
 #include <assert.h>
-#include <inttypes.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <string.h>
 #define	teken_assert(x)		assert(x)
