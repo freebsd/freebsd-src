@@ -506,7 +506,9 @@ subevalvar(char *p, char *str, int strloc, int subtype, int startloc,
 	int amount;
 
 	herefd = -1;
-	argstr(p, 0);
+	argstr(p, subtype == VSTRIMLEFT || subtype == VSTRIMLEFTMAX ||
+	    subtype == VSTRIMRIGHT || subtype == VSTRIMRIGHTMAX ?
+	    EXP_CASE : 0);
 	STACKSTRNUL(expdest);
 	herefd = saveherefd;
 	argbackq = saveargbackq;
