@@ -1223,10 +1223,7 @@ readtoken1(int firstc, char const *initialsyntax, char *eofmark, int striptabs)
 				if (eofmark != NULL && newvarnest == 0)
 					USTPUTC(c, out);
 				else {
-					if (state[level].category == TSTATE_ARITH)
-						state[level].syntax = ARISYNTAX;
-					else
-						state[level].syntax = BASESYNTAX;
+					state[level].syntax = BASESYNTAX;
 					quotef++;
 				}
 				break;
