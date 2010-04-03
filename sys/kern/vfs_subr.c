@@ -1378,7 +1378,7 @@ restartsync:
 
 /*
  * buf_splay() - splay tree core for the clean/dirty list of buffers in
- * 		 a vnode.
+ *		 a vnode.
  *
  *	NOTE: We have to deal with the special case of a background bitmap
  *	buffer, a situation where two buffers will have the same logical
@@ -2100,13 +2100,13 @@ vget(struct vnode *vp, int flags, struct thread *td)
 	/* Upgrade our holdcnt to a usecount. */
 	v_upgrade_usecount(vp);
 	/*
- 	 * We don't guarantee that any particular close will
+	 * We don't guarantee that any particular close will
 	 * trigger inactive processing so just make a best effort
 	 * here at preventing a reference to a removed file.  If
 	 * we don't succeed no harm is done.
 	 */
 	if (vp->v_iflag & VI_OWEINACT) {
-		if (VOP_ISLOCKED(vp) == LK_EXCLUSIVE && 
+		if (VOP_ISLOCKED(vp) == LK_EXCLUSIVE &&
 		    (flags & LK_NOWAIT) == 0)
 			vinactive(vp, td);
 		vp->v_iflag &= ~VI_OWEINACT;
@@ -2362,7 +2362,7 @@ SYSCTL_INT(_debug, OID_AUTO, busyprt, CTLFLAG_RW, &busyprt, 0, "");
 #endif
 
 int
-vflush( struct mount *mp, int rootrefs, int flags, struct thread *td)
+vflush(struct mount *mp, int rootrefs, int flags, struct thread *td)
 {
 	struct vnode *vp, *mvp, *rootvp = NULL;
 	struct vattr vattr;
@@ -2383,12 +2383,10 @@ vflush( struct mount *mp, int rootrefs, int flags, struct thread *td)
 			return (error);
 		}
 		vput(rootvp);
-
 	}
 	MNT_ILOCK(mp);
 loop:
 	MNT_VNODE_FOREACH(vp, mp, mvp) {
-
 		VI_LOCK(vp);
 		vholdl(vp);
 		MNT_IUNLOCK(mp);
@@ -3530,7 +3528,7 @@ vaccess(enum vtype type, mode_t file_mode, uid_t file_uid, gid_t file_gid,
 	KASSERT((accmode & ~(VEXEC | VWRITE | VREAD | VADMIN | VAPPEND)) == 0,
 	    ("invalid bit in accmode"));
 	KASSERT((accmode & VAPPEND) == 0 || (accmode & VWRITE),
-	    	("VAPPEND without VWRITE"));
+	    ("VAPPEND without VWRITE"));
 
 	/*
 	 * Look for a normal, non-privileged way to access the file/directory
