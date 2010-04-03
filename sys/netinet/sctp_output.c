@@ -3709,7 +3709,7 @@ sctp_lowlevel_chunk_output(struct sctp_inpcb *inp,
 			    (stcb) &&
 			    (stcb->asoc.loopback_scope))) {
 				m->m_pkthdr.csum_flags = CSUM_SCTP;
-				m->m_pkthdr.csum_data = 0;	/* FIXME MT */
+				m->m_pkthdr.csum_data = 0;
 				SCTP_STAT_INCR(sctps_sendhwcrc);
 			} else {
 				SCTP_STAT_INCR(sctps_sendnocrc);
@@ -4021,7 +4021,7 @@ sctp_lowlevel_chunk_output(struct sctp_inpcb *inp,
 			    (stcb) &&
 			    (stcb->asoc.loopback_scope))) {
 				m->m_pkthdr.csum_flags = CSUM_SCTP;
-				m->m_pkthdr.csum_data = 0;	/* FIXME MT */
+				m->m_pkthdr.csum_data = 0;
 				SCTP_STAT_INCR(sctps_sendhwcrc);
 			} else {
 				SCTP_STAT_INCR(sctps_sendnocrc);
@@ -10542,7 +10542,7 @@ sctp_send_shutdown_complete2(struct mbuf *m, int iphlen, struct sctphdr *sh,
 			SCTP_ENABLE_UDP_CSUM(mout);
 		} else {
 			mout->m_pkthdr.csum_flags = CSUM_SCTP;
-			mout->m_pkthdr.csum_data = 0;	/* FIXME MT */
+			mout->m_pkthdr.csum_data = 0;
 			SCTP_STAT_INCR(sctps_sendhwcrc);
 		}
 		SCTP_ATTACH_CHAIN(o_pak, mout, mlen);
@@ -10566,13 +10566,28 @@ sctp_send_shutdown_complete2(struct mbuf *m, int iphlen, struct sctphdr *sh,
 		if (SCTP_BASE_SYSCTL(sctp_logging_level) & SCTP_LAST_PACKET_TRACING)
 			sctp_packet_log(mout, mlen);
 #endif
-		comp_cp->sh.checksum = sctp_calculate_cksum(mout, offset_out);
-		SCTP_STAT_INCR(sctps_sendswcrc);
 		SCTP_ATTACH_CHAIN(o_pak, mout, mlen);
 		if (port) {
-			if ((udp->uh_sum = in6_cksum(o_pak, IPPROTO_UDP, sizeof(struct ip6_hdr),
-			    sizeof(struct sctp_shutdown_complete_msg) + sizeof(struct udphdr))) == 0) {
+			if (!(SCTP_BASE_SYSCTL(sctp_no_csum_on_loopback) &&
+			    (stcb) &&
+			    (stcb->asoc.loopback_scope))) {
+				comp_cp->sh.checksum = sctp_calculate_cksum(mout, sizeof(struct ip6_hdr) + sizeof(struct udphdr));
+				SCTP_STAT_INCR(sctps_sendswcrc);
+			} else {
+				SCTP_STAT_INCR(sctps_sendnocrc);
+			}
+			if ((udp->uh_sum = in6_cksum(o_pak, IPPROTO_UDP, sizeof(struct ip6_hdr), mlen - sizeof(struct ip6_hdr))) == 0) {
 				udp->uh_sum = 0xffff;
+			}
+		} else {
+			if (!(SCTP_BASE_SYSCTL(sctp_no_csum_on_loopback) &&
+			    (stcb) &&
+			    (stcb->asoc.loopback_scope))) {
+				mout->m_pkthdr.csum_flags = CSUM_SCTP;
+				mout->m_pkthdr.csum_data = 0;
+				SCTP_STAT_INCR(sctps_sendhwcrc);
+			} else {
+				SCTP_STAT_INCR(sctps_sendnocrc);
 			}
 		}
 		SCTP_IP6_OUTPUT(ret, o_pak, &ro, &ifp, stcb, vrf_id);
@@ -11593,7 +11608,7 @@ sctp_send_abort(struct mbuf *m, int iphlen, struct sctphdr *sh, uint32_t vtag,
 			SCTP_ENABLE_UDP_CSUM(o_pak);
 		} else {
 			mout->m_pkthdr.csum_flags = CSUM_SCTP;
-			mout->m_pkthdr.csum_data = 0;	/* FIXME MT */
+			mout->m_pkthdr.csum_data = 0;
 			SCTP_STAT_INCR(sctps_sendhwcrc);
 		}
 		SCTP_IP_OUTPUT(ret, o_pak, &ro, stcb, vrf_id);
@@ -11621,12 +11636,28 @@ sctp_send_abort(struct mbuf *m, int iphlen, struct sctphdr *sh, uint32_t vtag,
 		if (SCTP_BASE_SYSCTL(sctp_logging_level) & SCTP_LAST_PACKET_TRACING)
 			sctp_packet_log(mout, len);
 #endif
-		abm->sh.checksum = sctp_calculate_cksum(mout, iphlen_out);
-		SCTP_STAT_INCR(sctps_sendswcrc);
 		SCTP_ATTACH_CHAIN(o_pak, mout, len);
 		if (port) {
+			if (!(SCTP_BASE_SYSCTL(sctp_no_csum_on_loopback) &&
+			    (stcb) &&
+			    (stcb->asoc.loopback_scope))) {
+				abm->sh.checksum = sctp_calculate_cksum(mout, sizeof(struct ip6_hdr) + sizeof(struct udphdr));
+				SCTP_STAT_INCR(sctps_sendswcrc);
+			} else {
+				SCTP_STAT_INCR(sctps_sendnocrc);
+			}
 			if ((udp->uh_sum = in6_cksum(o_pak, IPPROTO_UDP, sizeof(struct ip6_hdr), len - sizeof(struct ip6_hdr))) == 0) {
 				udp->uh_sum = 0xffff;
+			}
+		} else {
+			if (!(SCTP_BASE_SYSCTL(sctp_no_csum_on_loopback) &&
+			    (stcb) &&
+			    (stcb->asoc.loopback_scope))) {
+				mout->m_pkthdr.csum_flags = CSUM_SCTP;
+				mout->m_pkthdr.csum_data = 0;
+				SCTP_STAT_INCR(sctps_sendhwcrc);
+			} else {
+				SCTP_STAT_INCR(sctps_sendnocrc);
 			}
 		}
 		SCTP_IP6_OUTPUT(ret, o_pak, &ro, &ifp, stcb, vrf_id);
@@ -11815,7 +11846,7 @@ sctp_send_operr_to(struct mbuf *m, int iphlen, struct mbuf *scm, uint32_t vtag,
 			SCTP_ENABLE_UDP_CSUM(o_pak);
 		} else {
 			mout->m_pkthdr.csum_flags = CSUM_SCTP;
-			mout->m_pkthdr.csum_data = 0;	/* FIXME MT */
+			mout->m_pkthdr.csum_data = 0;
 			SCTP_STAT_INCR(sctps_sendhwcrc);
 		}
 		SCTP_IP_OUTPUT(ret, o_pak, &ro, stcb, vrf_id);
@@ -11841,12 +11872,28 @@ sctp_send_operr_to(struct mbuf *m, int iphlen, struct mbuf *scm, uint32_t vtag,
 		if (SCTP_BASE_SYSCTL(sctp_logging_level) & SCTP_LAST_PACKET_TRACING)
 			sctp_packet_log(mout, len);
 #endif
-		sh_out->checksum = sctp_calculate_cksum(mout, iphlen_out);
-		SCTP_STAT_INCR(sctps_sendswcrc);
 		SCTP_ATTACH_CHAIN(o_pak, mout, len);
 		if (port) {
+			if (!(SCTP_BASE_SYSCTL(sctp_no_csum_on_loopback) &&
+			    (stcb) &&
+			    (stcb->asoc.loopback_scope))) {
+				sh_out->checksum = sctp_calculate_cksum(mout, sizeof(struct ip6_hdr) + sizeof(struct udphdr));
+				SCTP_STAT_INCR(sctps_sendswcrc);
+			} else {
+				SCTP_STAT_INCR(sctps_sendnocrc);
+			}
 			if ((udp->uh_sum = in6_cksum(o_pak, IPPROTO_UDP, sizeof(struct ip6_hdr), len - sizeof(struct ip6_hdr))) == 0) {
 				udp->uh_sum = 0xffff;
+			}
+		} else {
+			if (!(SCTP_BASE_SYSCTL(sctp_no_csum_on_loopback) &&
+			    (stcb) &&
+			    (stcb->asoc.loopback_scope))) {
+				mout->m_pkthdr.csum_flags = CSUM_SCTP;
+				mout->m_pkthdr.csum_data = 0;
+				SCTP_STAT_INCR(sctps_sendhwcrc);
+			} else {
+				SCTP_STAT_INCR(sctps_sendnocrc);
 			}
 		}
 		SCTP_IP6_OUTPUT(ret, o_pak, &ro, &ifp, stcb, vrf_id);
