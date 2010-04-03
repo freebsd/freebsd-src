@@ -1071,18 +1071,21 @@ unsigned X86TargetLowering::getByValTypeAlignment(const Type *Ty) const {
 /// If DstAlign is zero that means it's safe to destination alignment can
 /// satisfy any constraint. Similarly if SrcAlign is zero it means there
 /// isn't a need to check it against alignment requirement, probably because
-/// the source does not need to be loaded. It returns EVT::Other if
-/// SelectionDAG should be responsible for determining it.
+/// the source does not need to be loaded. If 'NonScalarIntSafe' is true, that
+/// means it's safe to return a non-scalar-integer type, e.g. constant string
+/// source or loaded from memory. It returns EVT::Other if SelectionDAG should
+/// be responsible for determining it.
 EVT
 X86TargetLowering::getOptimalMemOpType(uint64_t Size,
                                        unsigned DstAlign, unsigned SrcAlign,
-                                       bool SafeToUseFP,
+                                       bool NonScalarIntSafe,
                                        SelectionDAG &DAG) const {
   // FIXME: This turns off use of xmm stores for memset/memcpy on targets like
   // linux.  This is because the stack realignment code can't handle certain
   // cases like PR2962.  This should be removed when PR2962 is fixed.
   const Function *F = DAG.getMachineFunction().getFunction();
-  if (!F->hasFnAttr(Attribute::NoImplicitFloat)) {
+  if (NonScalarIntSafe &&
+      !F->hasFnAttr(Attribute::NoImplicitFloat)) {
     if (Size >= 16 &&
         (Subtarget->isUnalignedMemAccessFast() ||
          ((DstAlign == 0 || DstAlign >= 16) &&
@@ -1090,10 +1093,9 @@ X86TargetLowering::getOptimalMemOpType(uint64_t Size,
         Subtarget->getStackAlignment() >= 16) {
       if (Subtarget->hasSSE2())
         return MVT::v4i32;
-      if (SafeToUseFP && Subtarget->hasSSE1())
+      if (Subtarget->hasSSE1())
         return MVT::v4f32;
-    } else if (SafeToUseFP &&
-               Size >= 8 &&
+    } else if (Size >= 8 &&
                !Subtarget->is64Bit() &&
                Subtarget->getStackAlignment() >= 8 &&
                Subtarget->hasSSE2())
@@ -1147,8 +1149,7 @@ SDValue X86TargetLowering::getPICJumpTableRelocBase(SDValue Table,
   if (!Subtarget->is64Bit())
     // This doesn't have DebugLoc associated with it, but is not really the
     // same as a Register.
-    return DAG.getNode(X86ISD::GlobalBaseReg, DebugLoc::getUnknownLoc(),
-                       getPointerTy());
+    return DAG.getNode(X86ISD::GlobalBaseReg, DebugLoc(), getPointerTy());
   return Table;
 }
 
@@ -1929,8 +1930,7 @@ X86TargetLowering::LowerCall(SDValue Chain, SDValue Callee,
     if (!isTailCall) {
       Chain = DAG.getCopyToReg(Chain, dl, X86::EBX,
                                DAG.getNode(X86ISD::GlobalBaseReg,
-                                           DebugLoc::getUnknownLoc(),
-                                           getPointerTy()),
+                                           DebugLoc(), getPointerTy()),
                                InFlag);
       InFlag = Chain.getValue(1);
     } else {
@@ -5059,7 +5059,7 @@ X86TargetLowering::LowerConstantPool(SDValue Op, SelectionDAG &DAG) {
   if (OpFlag) {
     Result = DAG.getNode(ISD::ADD, DL, getPointerTy(),
                          DAG.getNode(X86ISD::GlobalBaseReg,
-                                     DebugLoc::getUnknownLoc(), getPointerTy()),
+                                     DebugLoc(), getPointerTy()),
                          Result);
   }
 
@@ -5092,7 +5092,7 @@ SDValue X86TargetLowering::LowerJumpTable(SDValue Op, SelectionDAG &DAG) {
   if (OpFlag) {
     Result = DAG.getNode(ISD::ADD, DL, getPointerTy(),
                          DAG.getNode(X86ISD::GlobalBaseReg,
-                                     DebugLoc::getUnknownLoc(), getPointerTy()),
+                                     DebugLoc(), getPointerTy()),
                          Result);
   }
 
@@ -5128,8 +5128,7 @@ X86TargetLowering::LowerExternalSymbol(SDValue Op, SelectionDAG &DAG) {
       !Subtarget->is64Bit()) {
     Result = DAG.getNode(ISD::ADD, DL, getPointerTy(),
                          DAG.getNode(X86ISD::GlobalBaseReg,
-                                     DebugLoc::getUnknownLoc(),
-                                     getPointerTy()),
+                                     DebugLoc(), getPointerTy()),
                          Result);
   }
 
@@ -5251,8 +5250,7 @@ LowerToTLSGeneralDynamicModel32(GlobalAddressSDNode *GA, SelectionDAG &DAG,
   DebugLoc dl = GA->getDebugLoc();  // ? function entry point might be better
   SDValue Chain = DAG.getCopyToReg(DAG.getEntryNode(), dl, X86::EBX,
                                      DAG.getNode(X86ISD::GlobalBaseReg,
-                                                 DebugLoc::getUnknownLoc(),
-                                                 PtrVT), InFlag);
+                                                 DebugLoc(), PtrVT), InFlag);
   InFlag = Chain.getValue(1);
 
   return GetTLSADDR(DAG, Chain, GA, &InFlag, PtrVT, X86::EAX, X86II::MO_TLSGD);
@@ -5274,7 +5272,7 @@ static SDValue LowerToTLSExecModel(GlobalAddressSDNode *GA, SelectionDAG &DAG,
   DebugLoc dl = GA->getDebugLoc();
   // Get the Thread Pointer
   SDValue Base = DAG.getNode(X86ISD::SegmentBaseAddress,
-                             DebugLoc::getUnknownLoc(), PtrVT,
+                             DebugLoc(), PtrVT,
                              DAG.getRegister(is64Bit? X86::FS : X86::GS,
                                              MVT::i32));
 

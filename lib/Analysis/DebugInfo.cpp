@@ -24,7 +24,6 @@
 #include "llvm/ADT/SmallPtrSet.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/Dwarf.h"
-#include "llvm/Support/DebugLoc.h"
 #include "llvm/Support/raw_ostream.h"
 using namespace llvm;
 using namespace llvm::dwarf;
@@ -1147,16 +1146,31 @@ Instruction *DIFactory::InsertDbgValueIntrinsic(Value *V, uint64_t Offset,
 
 /// processModule - Process entire module and collect debug info.
 void DebugInfoFinder::processModule(Module &M) {
-  unsigned MDDbgKind = M.getMDKindID("dbg");
-
   for (Module::iterator I = M.begin(), E = M.end(); I != E; ++I)
     for (Function::iterator FI = (*I).begin(), FE = (*I).end(); FI != FE; ++FI)
       for (BasicBlock::iterator BI = (*FI).begin(), BE = (*FI).end(); BI != BE;
            ++BI) {
-        if (DbgDeclareInst *DDI = dyn_cast<DbgDeclareInst>(BI))
+        if (DbgDeclareInst *DDI = dyn_cast<DbgDeclareInst>(BI)) {
           processDeclare(DDI);
-        else if (MDNode *L = BI->getMetadata(MDDbgKind)) 
-          processLocation(DILocation(L));
+          continue;
+        }
+        
+        DebugLoc Loc = BI->getDebugLoc();
+        if (Loc.isUnknown())
+          continue;
+        
+        LLVMContext &Ctx = BI->getContext();
+        DIDescriptor Scope(Loc.getScope(Ctx));
+        
+        if (Scope.isCompileUnit())
+          addCompileUnit(DICompileUnit(Scope.getNode()));
+        else if (Scope.isSubprogram())
+          processSubprogram(DISubprogram(Scope.getNode()));
+        else if (Scope.isLexicalBlock())
+          processLexicalBlock(DILexicalBlock(Scope.getNode()));
+        
+        if (MDNode *IA = Loc.getInlinedAt(Ctx))
+          processLocation(DILocation(IA));
       }
 
   NamedMDNode *NMD = M.getNamedMetadata("llvm.dbg.gv");
@@ -1370,23 +1384,6 @@ bool llvm::getLocationInfo(const Value *V, std::string &DisplayName,
   if (!D.empty())
     Dir = D;
   return true;
-}
-
-/// ExtractDebugLocation - Extract debug location information
-/// from DILocation.
-DebugLoc llvm::ExtractDebugLocation(DILocation &Loc,
-                                    DebugLocTracker &DebugLocInfo) {
-  DenseMap<MDNode *, unsigned>::iterator II
-    = DebugLocInfo.DebugIdMap.find(Loc.getNode());
-  if (II != DebugLocInfo.DebugIdMap.end())
-    return DebugLoc::get(II->second);
-
-  // Add a new location entry.
-  unsigned Id = DebugLocInfo.DebugLocations.size();
-  DebugLocInfo.DebugLocations.push_back(Loc.getNode());
-  DebugLocInfo.DebugIdMap[Loc.getNode()] = Id;
-
-  return DebugLoc::get(Id);
 }
 
 /// getDISubprogram - Find subprogram that is enclosing this scope.
