@@ -1401,6 +1401,8 @@ parsesub: {
 				subtype = VSERROR;
 				if (c == '}')
 					pungetc();
+				else if (c == '\n' || c == PEOF)
+					synerror("Unexpected end of line in substitution");
 				else
 					USTPUTC(c, out);
 			} else {
@@ -1417,6 +1419,8 @@ parsesub: {
 			default:
 				p = strchr(types, c);
 				if (p == NULL) {
+					if (c == '\n' || c == PEOF)
+						synerror("Unexpected end of line in substitution");
 					if (flags == VSNUL)
 						STPUTC(':', out);
 					STPUTC(c, out);
