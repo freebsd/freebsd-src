@@ -17,6 +17,7 @@
 #include "clang/Basic/IdentifierTable.h"
 #include "clang/Basic/LangOptions.h"
 #include "clang/Basic/OperatorKinds.h"
+#include "clang/Basic/PartialDiagnostic.h"
 #include "clang/AST/Attr.h"
 #include "clang/AST/Decl.h"
 #include "clang/AST/NestedNameSpecifier.h"
@@ -57,6 +58,7 @@ namespace clang {
   class ObjCIvarRefExpr;
   class ObjCPropertyDecl;
   class RecordDecl;
+  class StoredDeclsMap;
   class TagDecl;
   class TemplateTypeParmDecl;
   class TranslationUnitDecl;
@@ -115,7 +117,7 @@ class ASTContext {
   llvm::FoldingSet<SubstTemplateTypeParmType> SubstTemplateTypeParmTypes;
   llvm::FoldingSet<TemplateSpecializationType> TemplateSpecializationTypes;
   llvm::FoldingSet<QualifiedNameType> QualifiedNameTypes;
-  llvm::FoldingSet<TypenameType> TypenameTypes;
+  llvm::FoldingSet<DependentNameType> DependentNameTypes;
   llvm::FoldingSet<ObjCInterfaceType> ObjCInterfaceTypes;
   llvm::FoldingSet<ObjCObjectPointerType> ObjCObjectPointerTypes;
   llvm::FoldingSet<ElaboratedType> ElaboratedTypes;
@@ -264,6 +266,9 @@ class ASTContext {
   llvm::MallocAllocator MallocAlloc;
   llvm::BumpPtrAllocator BumpAlloc;
 
+  /// \brief Allocator for partial diagnostics.
+  PartialDiagnostic::StorageAllocator DiagAllocator;
+  
 public:
   const TargetInfo &Target;
   IdentifierTable &Idents;
@@ -289,6 +294,11 @@ public:
     if (FreeMemory)
       MallocAlloc.Deallocate(Ptr);
   }
+  
+  PartialDiagnostic::StorageAllocator &getDiagAllocator() {
+    return DiagAllocator;
+  }
+
   const LangOptions& getLangOptions() const { return LangOpts; }
 
   FullSourceLoc getFullLoc(SourceLocation Loc) const {
@@ -437,6 +447,11 @@ public:
   /// allowable type.
   QualType getCallConvType(QualType T, CallingConv CallConv);
 
+  /// getRegParmType - Sets the specified regparm attribute to
+  /// the given type, which must be a FunctionType or a pointer to an
+  /// allowable type.
+  QualType getRegParmType(QualType T, unsigned RegParm);
+
   /// getComplexType - Return the uniqued reference to the type for a complex
   /// number with the specified element type.
   QualType getComplexType(QualType T);
@@ -554,8 +569,12 @@ public:
 
   /// getFunctionNoProtoType - Return a K&R style C function type like 'int()'.
   ///
-  QualType getFunctionNoProtoType(QualType ResultTy, bool NoReturn = false,
-                                  CallingConv CallConv = CC_Default);
+  QualType getFunctionNoProtoType(QualType ResultTy,
+                                  const FunctionType::ExtInfo &Info);
+
+  QualType getFunctionNoProtoType(QualType ResultTy) {
+    return getFunctionNoProtoType(ResultTy, FunctionType::ExtInfo());
+  }
 
   /// getFunctionType - Return a normal function type with a typed argument
   /// list.  isVariadic indicates whether the argument list includes '...'.
@@ -564,8 +583,7 @@ public:
                            unsigned TypeQuals, bool hasExceptionSpec,
                            bool hasAnyExceptionSpec,
                            unsigned NumExs, const QualType *ExArray,
-                           bool NoReturn,
-                           CallingConv CallConv);
+                           const FunctionType::ExtInfo &Info);
 
   /// getTypeDeclType - Return the unique reference to the type for
   /// the specified type declaration.
@@ -612,12 +630,14 @@ public:
 
   QualType getQualifiedNameType(NestedNameSpecifier *NNS,
                                 QualType NamedType);
-  QualType getTypenameType(NestedNameSpecifier *NNS,
-                           const IdentifierInfo *Name,
-                           QualType Canon = QualType());
-  QualType getTypenameType(NestedNameSpecifier *NNS,
-                           const TemplateSpecializationType *TemplateId,
-                           QualType Canon = QualType());
+  QualType getDependentNameType(ElaboratedTypeKeyword Keyword,
+                                NestedNameSpecifier *NNS,
+                                const IdentifierInfo *Name,
+                                QualType Canon = QualType());
+  QualType getDependentNameType(ElaboratedTypeKeyword Keyword,
+                                NestedNameSpecifier *NNS,
+                                const TemplateSpecializationType *TemplateId,
+                                QualType Canon = QualType());
   QualType getElaboratedType(QualType UnderlyingType,
                              ElaboratedType::TagKind Tag);
 
@@ -937,8 +957,7 @@ public:
                                llvm::SmallVectorImpl<ObjCIvarDecl*> &Ivars);
   void CollectNonClassIvars(const ObjCInterfaceDecl *OI,
                                llvm::SmallVectorImpl<ObjCIvarDecl*> &Ivars);
-  unsigned CountSynthesizedIvars(const ObjCInterfaceDecl *OI);
-  unsigned CountProtocolSynthesizedIvars(const ObjCProtocolDecl *PD);
+  unsigned CountNonClassIvars(const ObjCInterfaceDecl *OI);
   void CollectInheritedProtocols(const Decl *CDecl,
                           llvm::SmallPtrSet<ObjCProtocolDecl*, 8> &Protocols);
 
@@ -1273,9 +1292,8 @@ private:
   // FIXME: This currently contains the set of StoredDeclMaps used
   // by DeclContext objects.  This probably should not be in ASTContext,
   // but we include it here so that ASTContext can quickly deallocate them.
-  std::vector<void*> SDMs; 
+  llvm::PointerIntPair<StoredDeclsMap*,1> LastSDM;
   friend class DeclContext;
-  void *CreateStoredDeclsMap();
   void ReleaseDeclContextMaps();
 };
   

@@ -14,6 +14,7 @@
 #include "CodeGenFunction.h"
 #include "CodeGenModule.h"
 #include "CGObjCRuntime.h"
+#include "CGRecordLayout.h"
 #include "clang/AST/APValue.h"
 #include "clang/AST/ASTContext.h"
 #include "clang/AST/RecordLayout.h"
@@ -417,7 +418,7 @@ public:
     
     // Get the function pointer (or index if this is a virtual function).
     if (MD->isVirtual()) {
-      uint64_t Index = CGM.getVtableInfo().getMethodVtableIndex(MD);
+      uint64_t Index = CGM.getVTables().getMethodVtableIndex(MD);
 
       // Itanium C++ ABI 2.3:
       //   For a non-virtual function, this field is a simple function pointer. 
@@ -1011,7 +1012,9 @@ llvm::Constant *CodeGenModule::EmitNullConstant(QualType T) {
          E = RD->field_end(); I != E; ++I) {
       const FieldDecl *FD = *I;
       
-      unsigned FieldNo = getTypes().getLLVMFieldNo(FD);
+      const CGRecordLayout &RL =
+        getTypes().getCGRecordLayout(FD->getParent());
+      unsigned FieldNo = RL.getLLVMFieldNo(FD);
       Elements[FieldNo] = EmitNullConstant(FD->getType());
     }
     
@@ -1047,7 +1050,9 @@ CodeGenModule::EmitPointerToDataMember(const FieldDecl *FD) {
   const llvm::StructType *ClassLTy =
     cast<llvm::StructType>(getTypes().ConvertType(ClassType));
 
-  unsigned FieldNo = getTypes().getLLVMFieldNo(FD);
+  const CGRecordLayout &RL =
+    getTypes().getCGRecordLayout(FD->getParent());
+  unsigned FieldNo = RL.getLLVMFieldNo(FD);
   uint64_t Offset = 
     getTargetData().getStructLayout(ClassLTy)->getElementOffset(FieldNo);
 

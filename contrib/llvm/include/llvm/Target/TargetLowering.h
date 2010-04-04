@@ -469,29 +469,6 @@ public:
        getIndexedStoreAction(IdxMode, VT) == Custom);
   }
 
-  /// getConvertAction - Return how the conversion should be treated:
-  /// either it is legal, needs to be promoted to a larger size, needs to be
-  /// expanded to some other code sequence, or the target has a custom expander
-  /// for it.
-  LegalizeAction
-  getConvertAction(EVT FromVT, EVT ToVT) const {
-    assert((unsigned)FromVT.getSimpleVT().SimpleTy <
-              array_lengthof(ConvertActions) &&
-           (unsigned)ToVT.getSimpleVT().SimpleTy <
-              sizeof(ConvertActions[0])*4 &&
-           "Table isn't big enough!");
-    return (LegalizeAction)((ConvertActions[FromVT.getSimpleVT().SimpleTy] >>
-                             (2*ToVT.getSimpleVT().SimpleTy)) & 3);
-  }
-
-  /// isConvertLegal - Return true if the specified conversion is legal
-  /// on this target.
-  bool isConvertLegal(EVT FromVT, EVT ToVT) const {
-    return isTypeLegal(FromVT) && isTypeLegal(ToVT) &&
-      (getConvertAction(FromVT, ToVT) == Legal ||
-       getConvertAction(FromVT, ToVT) == Custom);
-  }
-
   /// getCondCodeAction - Return how the condition code should be treated:
   /// either it is legal, needs to be expanded to some other code sequence,
   /// or the target has a custom expander for it.
@@ -545,7 +522,7 @@ public:
   /// counterpart (e.g. structs), otherwise it will assert.
   EVT getValueType(const Type *Ty, bool AllowUnknown = false) const {
     EVT VT = EVT::getEVT(Ty, AllowUnknown);
-    return VT == MVT:: iPTR ? PointerTy : VT;
+    return VT == MVT::iPTR ? PointerTy : VT;
   }
 
   /// getByValTypeAlignment - Return the desired alignment for ByVal aggregate
@@ -656,11 +633,18 @@ public:
   }
 
   /// getOptimalMemOpType - Returns the target specific optimal type for load
-  /// and store operations as a result of memset, memcpy, and memmove lowering.
-  /// It returns EVT::Other if SelectionDAG should be responsible for
-  /// determining it.
-  virtual EVT getOptimalMemOpType(uint64_t Size, unsigned Align,
-                                  bool isSrcConst, bool isSrcStr,
+  /// and store operations as a result of memset, memcpy, and memmove
+  /// lowering. If DstAlign is zero that means it's safe to destination
+  /// alignment can satisfy any constraint. Similarly if SrcAlign is zero it
+  /// means there isn't a need to check it against alignment requirement,
+  /// probably because the source does not need to be loaded. If
+  /// 'NonScalarIntSafe' is true, that means it's safe to return a
+  /// non-scalar-integer type, e.g. empty string source, constant, or loaded
+  /// from memory. It returns EVT::Other if SelectionDAG should be responsible
+  /// for determining it.
+  virtual EVT getOptimalMemOpType(uint64_t Size,
+                                  unsigned DstAlign, unsigned SrcAlign,
+                                  bool NonScalarIntSafe,
                                   SelectionDAG &DAG) const {
     return MVT::Other;
   }
@@ -990,7 +974,7 @@ protected:
   }
   
   /// setLoadExtAction - Indicate that the specified load with extension does
-  /// not work with the with specified type and indicate what to do about it.
+  /// not work with the specified type and indicate what to do about it.
   void setLoadExtAction(unsigned ExtType, MVT VT,
                       LegalizeAction Action) {
     assert((unsigned)VT.SimpleTy*2 < 63 &&
@@ -1001,7 +985,7 @@ protected:
   }
   
   /// setTruncStoreAction - Indicate that the specified truncating store does
-  /// not work with the with specified type and indicate what to do about it.
+  /// not work with the specified type and indicate what to do about it.
   void setTruncStoreAction(MVT ValVT, MVT MemVT,
                            LegalizeAction Action) {
     assert((unsigned)ValVT.SimpleTy < array_lengthof(TruncStoreActions) &&
@@ -1012,7 +996,7 @@ protected:
   }
 
   /// setIndexedLoadAction - Indicate that the specified indexed load does or
-  /// does not work with the with specified type and indicate what to do abort
+  /// does not work with the specified type and indicate what to do abort
   /// it. NOTE: All indexed mode loads are initialized to Expand in
   /// TargetLowering.cpp
   void setIndexedLoadAction(unsigned IdxMode, MVT VT,
@@ -1024,7 +1008,7 @@ protected:
   }
   
   /// setIndexedStoreAction - Indicate that the specified indexed store does or
-  /// does not work with the with specified type and indicate what to do about
+  /// does not work with the specified type and indicate what to do about
   /// it. NOTE: All indexed mode stores are initialized to Expand in
   /// TargetLowering.cpp
   void setIndexedStoreAction(unsigned IdxMode, MVT VT,
@@ -1035,17 +1019,6 @@ protected:
     IndexedModeActions[(unsigned)VT.SimpleTy][1][IdxMode] = (uint8_t)Action;
   }
   
-  /// setConvertAction - Indicate that the specified conversion does or does
-  /// not work with the with specified type and indicate what to do about it.
-  void setConvertAction(MVT FromVT, MVT ToVT,
-                        LegalizeAction Action) {
-    assert((unsigned)FromVT.SimpleTy < array_lengthof(ConvertActions) &&
-           (unsigned)ToVT.SimpleTy < MVT::LAST_VALUETYPE &&
-           "Table isn't big enough!");
-    ConvertActions[FromVT.SimpleTy] &= ~(uint64_t(3UL)  << ToVT.SimpleTy*2);
-    ConvertActions[FromVT.SimpleTy] |= (uint64_t)Action << ToVT.SimpleTy*2;
-  }
-
   /// setCondCodeAction - Indicate that the specified condition code is or isn't
   /// supported on the target and indicate what to do about it.
   void setCondCodeAction(ISD::CondCode CC, MVT VT,
@@ -1674,13 +1647,6 @@ private:
   /// represents the various modes for load store.
   uint8_t IndexedModeActions[MVT::LAST_VALUETYPE][2][ISD::LAST_INDEXED_MODE];
   
-  /// ConvertActions - For each conversion from source type to destination type,
-  /// keep a LegalizeAction that indicates how instruction selection should
-  /// deal with the conversion.
-  /// Currently, this is used only for floating->floating conversions
-  /// (FP_EXTEND and FP_ROUND).
-  uint64_t ConvertActions[MVT::LAST_VALUETYPE];
-
   /// CondCodeActions - For each condition code (ISD::CondCode) keep a
   /// LegalizeAction that indicates how instruction selection should
   /// deal with the condition code.

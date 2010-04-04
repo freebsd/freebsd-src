@@ -13,6 +13,8 @@
 //
 //===----------------------------------------------------------------------===//
 #include "GRExprEngineInternalChecks.h"
+#include "clang/Checker/BugReporter/BugType.h"
+#include "clang/Checker/PathSensitive/AnalysisManager.h"
 #include "clang/Checker/PathSensitive/GRExprEngine.h"
 #include "clang/Checker/PathSensitive/GRExprEngineBuilders.h"
 #include "clang/Checker/PathSensitive/Checker.h"
@@ -582,7 +584,6 @@ void GRExprEngine::Visit(Stmt* S, ExplodedNode* Pred, ExplodedNodeSet& Dst) {
 
   switch (S->getStmtClass()) {
     // C++ stuff we don't support yet.
-    case Stmt::CXXMemberCallExprClass:
     case Stmt::CXXNamedCastExprClass:
     case Stmt::CXXStaticCastExprClass:
     case Stmt::CXXDynamicCastExprClass:
@@ -668,6 +669,12 @@ void GRExprEngine::Visit(Stmt* S, ExplodedNode* Pred, ExplodedNodeSet& Dst) {
     case Stmt::CXXOperatorCallExprClass: {
       CallExpr* C = cast<CallExpr>(S);
       VisitCall(C, Pred, C->arg_begin(), C->arg_end(), Dst, false);
+      break;
+    }
+
+    case Stmt::CXXMemberCallExprClass: {
+      CXXMemberCallExpr *MCE = cast<CXXMemberCallExpr>(S);
+      VisitCXXMemberCallExpr(MCE, Pred, Dst);
       break;
     }
 
@@ -895,6 +902,11 @@ void GRExprEngine::VisitLValue(Expr* Ex, ExplodedNode* Pred,
       return;
     }
 
+    case Stmt::ObjCIsaExprClass:
+      // FIXME: Do something more intelligent with 'x->isa = ...'.
+      //  For now, just ignore the assignment.
+      return;
+
     case Stmt::ObjCPropertyRefExprClass:
     case Stmt::ObjCImplicitSetterGetterRefExprClass:
       // FIXME: Property assignments are lvalues, but not really "locations".
@@ -944,10 +956,11 @@ void GRExprEngine::VisitLValue(Expr* Ex, ExplodedNode* Pred,
 // Block entrance.  (Update counters).
 //===----------------------------------------------------------------------===//
 
-bool GRExprEngine::ProcessBlockEntrance(CFGBlock* B, const GRState*,
+bool GRExprEngine::ProcessBlockEntrance(CFGBlock* B, const ExplodedNode *Pred,
                                         GRBlockCounter BC) {
 
-  return BC.getNumVisited(B->getBlockID()) < 3;
+  return BC.getNumVisited(Pred->getLocationContext()->getCurrentStackFrame(), 
+                          B->getBlockID()) < 3;
 }
 
 //===----------------------------------------------------------------------===//
@@ -1328,6 +1341,22 @@ void GRExprEngine::ProcessCallExit(GRCallExitNodeBuilder &B) {
   if (ReturnedExpr) {
     SVal RetVal = state->getSVal(ReturnedExpr);
     state = state->BindExpr(CE, RetVal);
+    // Clear the return expr GDM.
+    state = state->remove<ReturnExpr>();
+  }
+
+  // Bind the constructed object value to CXXConstructExpr.
+  if (const CXXConstructExpr *CCE = dyn_cast<CXXConstructExpr>(CE)) {
+    const CXXThisRegion *ThisR = getCXXThisRegion(CCE->getConstructor(),LocCtx);
+    // We might not have 'this' region in the binding if we didn't inline
+    // the ctor call.
+    SVal ThisV = state->getSVal(ThisR);
+    loc::MemRegionVal *V = dyn_cast<loc::MemRegionVal>(&ThisV);
+    if (V) {
+      SVal ObjVal = state->getSVal(V->getRegion());
+      assert(isa<nonloc::LazyCompoundVal>(ObjVal));
+      state = state->BindExpr(CCE, ObjVal);
+    }
   }
 
   B.GenerateNode(state);
@@ -2282,6 +2311,7 @@ void GRExprEngine::VisitCast(CastExpr *CastE, Expr *Ex, ExplodedNode *Pred,
   case CastExpr::CK_AnyPointerToObjCPointerCast:
   case CastExpr::CK_AnyPointerToBlockPointerCast:
   case CastExpr::CK_DerivedToBase:
+  case CastExpr::CK_UncheckedDerivedToBase:
     // Delegate to SValuator to process.
     for (ExplodedNodeSet::iterator I = S2.begin(), E = S2.end(); I != E; ++I) {
       ExplodedNode* N = *I;
@@ -2338,8 +2368,10 @@ void GRExprEngine::VisitDeclStmt(DeclStmt *DS, ExplodedNode *Pred,
   ExplodedNodeSet Tmp;
 
   if (InitEx) {
-    if (const CXXConstructExpr *E = dyn_cast<CXXConstructExpr>(InitEx)) {
-      VisitCXXConstructExpr(E, GetState(Pred)->getLValue(VD,
+    QualType InitTy = InitEx->getType();
+    if (getContext().getLangOptions().CPlusPlus && InitTy->isRecordType()) {
+      // Delegate expressions of C++ record type evaluation to AggExprVisitor.
+      VisitAggExpr(InitEx, GetState(Pred)->getLValue(VD,
                                        Pred->getLocationContext()), Pred, Dst);
       return;
     } else if (VD->getType()->isReferenceType())
@@ -2908,7 +2940,8 @@ void GRExprEngine::VisitReturnStmt(ReturnStmt *RS, ExplodedNode *Pred,
                                    ExplodedNodeSet &Dst) {
   ExplodedNodeSet Src;
   if (Expr *RetE = RS->getRetValue()) {
-    // Record the returned expression in the state.
+    // Record the returned expression in the state. It will be used in
+    // ProcessCallExit to bind the return value to the call expr.
     {
       static int Tag = 0;
       SaveAndRestore<const void *> OldTag(Builder->Tag, &Tag);
@@ -3137,6 +3170,10 @@ void GRExprEngine::CreateCXXTemporaryObject(Expr *Ex, ExplodedNode *Pred,
 void GRExprEngine::VisitCXXConstructExpr(const CXXConstructExpr *E, SVal Dest,
                                          ExplodedNode *Pred,
                                          ExplodedNodeSet &Dst) {
+  if (E->isElidable()) {
+    VisitAggExpr(E->getArg(0), Dest, Pred, Dst);
+    return;
+  }
 
   const CXXConstructorDecl *CD = E->getConstructor();
   assert(CD);
@@ -3190,10 +3227,7 @@ void GRExprEngine::VisitCXXConstructExpr(const CXXConstructExpr *E, SVal Dest,
                                                     Pred->getLocationContext(),
                                    E, Builder->getBlock(), Builder->getIndex());
 
-  Type *T = CD->getParent()->getTypeForDecl();
-  QualType PT = getContext().getPointerType(QualType(T,0));
-  const CXXThisRegion *ThisR = ValMgr.getRegionManager().getCXXThisRegion(PT,
-                                                                          SFC);
+  const CXXThisRegion *ThisR = getCXXThisRegion(E->getConstructor(), SFC);
 
   CallEnter Loc(E, CD, Pred->getLocationContext());
   for (ExplodedNodeSet::iterator NI = ArgsEvaluated.begin(),
@@ -3206,6 +3240,91 @@ void GRExprEngine::VisitCXXConstructExpr(const CXXConstructExpr *E, SVal Dest,
       Dst.Add(N);
   }
 }
+
+void GRExprEngine::VisitCXXMemberCallExpr(const CXXMemberCallExpr *MCE, 
+                                          ExplodedNode *Pred, 
+                                          ExplodedNodeSet &Dst) {
+  // Get the method type.
+  const FunctionProtoType *FnType = 
+                       MCE->getCallee()->getType()->getAs<FunctionProtoType>();
+  assert(FnType && "Method type not available");
+
+  // Evaluate explicit arguments with a worklist.
+  CallExpr::arg_iterator AB = const_cast<CXXMemberCallExpr*>(MCE)->arg_begin(),
+                         AE = const_cast<CXXMemberCallExpr*>(MCE)->arg_end();
+  llvm::SmallVector<CallExprWLItem, 20> WorkList;
+  WorkList.reserve(AE - AB);
+  WorkList.push_back(CallExprWLItem(AB, Pred));
+  ExplodedNodeSet ArgsEvaluated;
+
+  while (!WorkList.empty()) {
+    CallExprWLItem Item = WorkList.back();
+    WorkList.pop_back();
+
+    if (Item.I == AE) {
+      ArgsEvaluated.insert(Item.N);
+      continue;
+    }
+
+    ExplodedNodeSet Tmp;
+    const unsigned ParamIdx = Item.I - AB;
+    bool VisitAsLvalue = FnType->getArgType(ParamIdx)->isReferenceType();
+
+    if (VisitAsLvalue)
+      VisitLValue(*Item.I, Item.N, Tmp);
+    else
+      Visit(*Item.I, Item.N, Tmp);
+
+    ++(Item.I);
+    for (ExplodedNodeSet::iterator NI=Tmp.begin(), NE=Tmp.end(); NI != NE; ++NI)
+      WorkList.push_back(CallExprWLItem(Item.I, *NI));
+  }
+  // Evaluate the implicit object argument.
+  ExplodedNodeSet AllArgsEvaluated;
+  const MemberExpr *ME = dyn_cast<MemberExpr>(MCE->getCallee()->IgnoreParens());
+  if (!ME)
+    return;
+  Expr *ObjArgExpr = ME->getBase();
+  for (ExplodedNodeSet::iterator I = ArgsEvaluated.begin(), 
+                                 E = ArgsEvaluated.end(); I != E; ++I) {
+    if (ME->isArrow())
+      Visit(ObjArgExpr, *I, AllArgsEvaluated);
+    else
+      VisitLValue(ObjArgExpr, *I, AllArgsEvaluated);
+  }
+
+  const CXXMethodDecl *MD = cast<CXXMethodDecl>(ME->getMemberDecl());
+  assert(MD && "not a CXXMethodDecl?");
+
+  if (!MD->isThisDeclarationADefinition())
+    // FIXME: conservative method call evaluation.
+    return;
+
+  const StackFrameContext *SFC = AMgr.getStackFrame(MD, 
+                                                    Pred->getLocationContext(),
+                                                    MCE, 
+                                                    Builder->getBlock(), 
+                                                    Builder->getIndex());
+  const CXXThisRegion *ThisR = getCXXThisRegion(MD, SFC);
+  CallEnter Loc(MCE, MD, Pred->getLocationContext());
+  for (ExplodedNodeSet::iterator I = AllArgsEvaluated.begin(),
+         E = AllArgsEvaluated.end(); I != E; ++I) {
+    // Set up 'this' region.
+    const GRState *state = GetState(*I);
+    state = state->bindLoc(loc::MemRegionVal(ThisR),state->getSVal(ObjArgExpr));
+    ExplodedNode *N = Builder->generateNode(Loc, state, *I);
+    if (N)
+      Dst.Add(N);
+  }
+}
+
+const CXXThisRegion *GRExprEngine::getCXXThisRegion(const CXXMethodDecl *D,
+                                                 const StackFrameContext *SFC) {
+  Type *T = D->getParent()->getTypeForDecl();
+  QualType PT = getContext().getPointerType(QualType(T,0));
+  return ValMgr.getRegionManager().getCXXThisRegion(PT, SFC);
+}
+
 //===----------------------------------------------------------------------===//
 // Checker registration/lookup.
 //===----------------------------------------------------------------------===//

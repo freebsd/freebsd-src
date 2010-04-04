@@ -44,9 +44,8 @@ RValue CodeGenFunction::EmitCXXMemberCall(const CXXMethodDecl *MD,
 
   QualType ResultType = FPT->getResultType();
   return EmitCall(CGM.getTypes().getFunctionInfo(ResultType, Args,
-                                                 FPT->getCallConv(),
-                                                 FPT->getNoReturnAttr()), Callee, 
-                  ReturnValue, Args, MD);
+                                                 FPT->getExtInfo()),
+                  Callee, ReturnValue, Args, MD);
 }
 
 /// canDevirtualizeMemberFunctionCalls - Checks whether virtual calls on given
@@ -308,23 +307,7 @@ CodeGenFunction::EmitCXXConstructExpr(llvm::Value *Dest,
   // Code gen optimization to eliminate copy constructor and return
   // its first argument instead.
   if (getContext().getLangOptions().ElideConstructors && E->isElidable()) {
-    const Expr *Arg = E->getArg(0);
-    
-    if (const ImplicitCastExpr *ICE = dyn_cast<ImplicitCastExpr>(Arg)) {
-      assert((ICE->getCastKind() == CastExpr::CK_NoOp ||
-              ICE->getCastKind() == CastExpr::CK_ConstructorConversion ||
-              ICE->getCastKind() == CastExpr::CK_UserDefinedConversion) &&
-             "Unknown implicit cast kind in constructor elision");
-      Arg = ICE->getSubExpr();
-    }
-    
-    if (const CXXFunctionalCastExpr *FCE = dyn_cast<CXXFunctionalCastExpr>(Arg))
-      Arg = FCE->getSubExpr();
-    
-    if (const CXXBindTemporaryExpr *BindExpr = 
-        dyn_cast<CXXBindTemporaryExpr>(Arg))
-      Arg = BindExpr->getSubExpr();
-    
+    const Expr *Arg = E->getArg(0)->getTemporaryObject();
     EmitAggExpr(Arg, Dest, false);
     return;
   }
@@ -411,7 +394,8 @@ static CharUnits CalculateCookiePadding(ASTContext &Ctx, const CXXNewExpr *E) {
   return CalculateCookiePadding(Ctx, E->getAllocatedType());
 }
 
-static llvm::Value *EmitCXXNewAllocSize(CodeGenFunction &CGF, 
+static llvm::Value *EmitCXXNewAllocSize(ASTContext &Context,
+                                        CodeGenFunction &CGF, 
                                         const CXXNewExpr *E,
                                         llvm::Value *& NumElements) {
   QualType Type = E->getAllocatedType();
@@ -432,6 +416,15 @@ static llvm::Value *EmitCXXNewAllocSize(CodeGenFunction &CGF,
     
     NumElements = 
       llvm::ConstantInt::get(SizeTy, Result.Val.getInt().getZExtValue());
+    while (const ArrayType *AType = Context.getAsArrayType(Type)) {
+      const llvm::ArrayType *llvmAType =
+        cast<llvm::ArrayType>(CGF.ConvertType(Type));
+      NumElements =
+        CGF.Builder.CreateMul(NumElements, 
+                              llvm::ConstantInt::get(
+                                        SizeTy, llvmAType->getNumElements()));
+      Type = AType->getElementType();
+    }
     
     return llvm::ConstantInt::get(SizeTy, AllocSize.getQuantity());
   }
@@ -444,6 +437,16 @@ static llvm::Value *EmitCXXNewAllocSize(CodeGenFunction &CGF,
     CGF.Builder.CreateMul(NumElements, 
                           llvm::ConstantInt::get(SizeTy, 
                                                  TypeSize.getQuantity()));
+  
+  while (const ArrayType *AType = Context.getAsArrayType(Type)) {
+    const llvm::ArrayType *llvmAType =
+      cast<llvm::ArrayType>(CGF.ConvertType(Type));
+    NumElements =
+      CGF.Builder.CreateMul(NumElements, 
+                            llvm::ConstantInt::get(
+                                          SizeTy, llvmAType->getNumElements()));
+    Type = AType->getElementType();
+  }
 
   // And add the cookie padding if necessary.
   if (!CookiePadding.isZero())
@@ -504,7 +507,8 @@ llvm::Value *CodeGenFunction::EmitCXXNewExpr(const CXXNewExpr *E) {
   QualType SizeTy = getContext().getSizeType();
 
   llvm::Value *NumElements = 0;
-  llvm::Value *AllocSize = EmitCXXNewAllocSize(*this, E, NumElements);
+  llvm::Value *AllocSize = EmitCXXNewAllocSize(getContext(),
+                                               *this, E, NumElements);
   
   NewArgs.push_back(std::make_pair(RValue::get(AllocSize), SizeTy));
 
@@ -590,10 +594,20 @@ llvm::Value *CodeGenFunction::EmitCXXNewExpr(const CXXNewExpr *E) {
                                                 CookiePadding.getQuantity());
   }
   
-  NewPtr = Builder.CreateBitCast(NewPtr, ConvertType(E->getType()));
-
-  EmitNewInitializer(*this, E, NewPtr, NumElements);
-
+  if (AllocType->isArrayType()) {
+    while (const ArrayType *AType = getContext().getAsArrayType(AllocType))
+      AllocType = AType->getElementType();
+    NewPtr = 
+      Builder.CreateBitCast(NewPtr, 
+                          ConvertType(getContext().getPointerType(AllocType)));
+    EmitNewInitializer(*this, E, NewPtr, NumElements);
+    NewPtr = Builder.CreateBitCast(NewPtr, ConvertType(E->getType()));
+  }
+  else {
+    NewPtr = Builder.CreateBitCast(NewPtr, ConvertType(E->getType()));
+    EmitNewInitializer(*this, E, NewPtr, NumElements);
+  }
+  
   if (NullCheckResult) {
     Builder.CreateBr(NewEnd);
     NewNotNull = Builder.GetInsertBlock();

@@ -101,14 +101,14 @@ namespace test2 {
 namespace test3 {
   class A {
   private:
-    ~A(); // expected-note 3 {{declared private here}}
+    ~A(); // expected-note 2 {{declared private here}}
     static A foo;
   };
 
   A a; // expected-error {{variable of type 'test3::A' has private destructor}}
   A A::foo;
 
-  void foo(A param) { // expected-error {{variable of type 'test3::A' has private destructor}}
+  void foo(A param) { // okay
     A local; // expected-error {{variable of type 'test3::A' has private destructor}}
   }
 
@@ -261,4 +261,69 @@ namespace test9 {
   class C : public B {
     static int getX() { return x; } // expected-error {{'x' is a private member of 'test9::A'}}
   };
+}
+
+namespace test10 {
+  class A {
+    enum {
+      value = 10 // expected-note {{declared private here}}
+    };
+    friend class C;
+  };
+
+  class B {
+    enum {
+      value = A::value // expected-error {{'value' is a private member of 'test10::A'}}
+    };
+  };
+
+  class C {
+    enum {
+      value = A::value
+    };
+  };
+}
+
+namespace test11 {
+  class A {
+    protected: virtual ~A();
+  };
+
+  class B : public A {
+    ~B();
+  };
+
+  B::~B() {};
+}
+
+namespace test12 {
+  class A {
+    int x;
+
+    void foo() {
+      class Local {
+        int foo(A *a) {
+          return a->x;
+        }
+      };
+    }
+  };
+}
+
+namespace test13 {
+  struct A {
+    int x;
+    unsigned foo() const;
+  };
+
+  struct B : protected A {
+    using A::foo;
+    using A::x;
+  };
+
+  void test() {
+    A *d;
+    d->foo();
+    (void) d->x;
+  }
 }

@@ -10,10 +10,14 @@
 #include "llvm/Target/TargetAsmBackend.h"
 #include "X86.h"
 #include "X86FixupKinds.h"
+#include "llvm/ADT/Twine.h"
 #include "llvm/MC/MCAssembler.h"
+#include "llvm/MC/MCObjectWriter.h"
 #include "llvm/MC/MCSectionELF.h"
 #include "llvm/MC/MCSectionMachO.h"
 #include "llvm/MC/MachObjectWriter.h"
+#include "llvm/Support/ErrorHandling.h"
+#include "llvm/Support/raw_ostream.h"
 #include "llvm/Target/TargetRegistry.h"
 #include "llvm/Target/TargetAsmBackend.h"
 using namespace llvm;
@@ -48,7 +52,134 @@ public:
     for (unsigned i = 0; i != Size; ++i)
       DF.getContents()[Fixup.Offset + i] = uint8_t(Value >> (i * 8));
   }
+
+  bool MayNeedRelaxation(const MCInst &Inst,
+                         const SmallVectorImpl<MCAsmFixup> &Fixups) const;
+
+  void RelaxInstruction(const MCInstFragment *IF, MCInst &Res) const;
+
+  bool WriteNopData(uint64_t Count, MCObjectWriter *OW) const;
 };
+
+static unsigned getRelaxedOpcode(unsigned Op) {
+  switch (Op) {
+  default:
+    return Op;
+
+  case X86::JAE_1: return X86::JAE_4;
+  case X86::JA_1:  return X86::JA_4;
+  case X86::JBE_1: return X86::JBE_4;
+  case X86::JB_1:  return X86::JB_4;
+  case X86::JE_1:  return X86::JE_4;
+  case X86::JGE_1: return X86::JGE_4;
+  case X86::JG_1:  return X86::JG_4;
+  case X86::JLE_1: return X86::JLE_4;
+  case X86::JL_1:  return X86::JL_4;
+  case X86::JMP_1: return X86::JMP_4;
+  case X86::JNE_1: return X86::JNE_4;
+  case X86::JNO_1: return X86::JNO_4;
+  case X86::JNP_1: return X86::JNP_4;
+  case X86::JNS_1: return X86::JNS_4;
+  case X86::JO_1:  return X86::JO_4;
+  case X86::JP_1:  return X86::JP_4;
+  case X86::JS_1:  return X86::JS_4;
+  }
+}
+
+bool X86AsmBackend::MayNeedRelaxation(const MCInst &Inst,
+                              const SmallVectorImpl<MCAsmFixup> &Fixups) const {
+  // Check for a 1byte pcrel fixup, and enforce that we would know how to relax
+  // this instruction.
+  for (unsigned i = 0, e = Fixups.size(); i != e; ++i) {
+    if (unsigned(Fixups[i].Kind) == X86::reloc_pcrel_1byte) {
+      assert(getRelaxedOpcode(Inst.getOpcode()) != Inst.getOpcode());
+      return true;
+    }
+  }
+
+  return false;
+}
+
+// FIXME: Can tblgen help at all here to verify there aren't other instructions
+// we can relax?
+void X86AsmBackend::RelaxInstruction(const MCInstFragment *IF,
+                                     MCInst &Res) const {
+  // The only relaxations X86 does is from a 1byte pcrel to a 4byte pcrel.
+  unsigned RelaxedOp = getRelaxedOpcode(IF->getInst().getOpcode());
+
+  if (RelaxedOp == IF->getInst().getOpcode()) {
+    SmallString<256> Tmp;
+    raw_svector_ostream OS(Tmp);
+    IF->getInst().dump_pretty(OS);
+    llvm_report_error("unexpected instruction to relax: " + OS.str());
+  }
+
+  Res = IF->getInst();
+  Res.setOpcode(RelaxedOp);
+}
+
+/// WriteNopData - Write optimal nops to the output file for the \arg Count
+/// bytes.  This returns the number of bytes written.  It may return 0 if
+/// the \arg Count is more than the maximum optimal nops.
+///
+/// FIXME this is X86 32-bit specific and should move to a better place.
+bool X86AsmBackend::WriteNopData(uint64_t Count, MCObjectWriter *OW) const {
+  static const uint8_t Nops[16][16] = {
+    // nop
+    {0x90},
+    // xchg %ax,%ax
+    {0x66, 0x90},
+    // nopl (%[re]ax)
+    {0x0f, 0x1f, 0x00},
+    // nopl 0(%[re]ax)
+    {0x0f, 0x1f, 0x40, 0x00},
+    // nopl 0(%[re]ax,%[re]ax,1)
+    {0x0f, 0x1f, 0x44, 0x00, 0x00},
+    // nopw 0(%[re]ax,%[re]ax,1)
+    {0x66, 0x0f, 0x1f, 0x44, 0x00, 0x00},
+    // nopl 0L(%[re]ax)
+    {0x0f, 0x1f, 0x80, 0x00, 0x00, 0x00, 0x00},
+    // nopl 0L(%[re]ax,%[re]ax,1)
+    {0x0f, 0x1f, 0x84, 0x00, 0x00, 0x00, 0x00, 0x00},
+    // nopw 0L(%[re]ax,%[re]ax,1)
+    {0x66, 0x0f, 0x1f, 0x84, 0x00, 0x00, 0x00, 0x00, 0x00},
+    // nopw %cs:0L(%[re]ax,%[re]ax,1)
+    {0x66, 0x2e, 0x0f, 0x1f, 0x84, 0x00, 0x00, 0x00, 0x00, 0x00},
+    // nopl 0(%[re]ax,%[re]ax,1)
+    // nopw 0(%[re]ax,%[re]ax,1)
+    {0x0f, 0x1f, 0x44, 0x00, 0x00,
+     0x66, 0x0f, 0x1f, 0x44, 0x00, 0x00},
+    // nopw 0(%[re]ax,%[re]ax,1)
+    // nopw 0(%[re]ax,%[re]ax,1)
+    {0x66, 0x0f, 0x1f, 0x44, 0x00, 0x00,
+     0x66, 0x0f, 0x1f, 0x44, 0x00, 0x00},
+    // nopw 0(%[re]ax,%[re]ax,1)
+    // nopl 0L(%[re]ax) */
+    {0x66, 0x0f, 0x1f, 0x44, 0x00, 0x00,
+     0x0f, 0x1f, 0x80, 0x00, 0x00, 0x00, 0x00},
+    // nopl 0L(%[re]ax)
+    // nopl 0L(%[re]ax)
+    {0x0f, 0x1f, 0x80, 0x00, 0x00, 0x00, 0x00,
+     0x0f, 0x1f, 0x80, 0x00, 0x00, 0x00, 0x00},
+    // nopl 0L(%[re]ax)
+    // nopl 0L(%[re]ax,%[re]ax,1)
+    {0x0f, 0x1f, 0x80, 0x00, 0x00, 0x00, 0x00,
+     0x0f, 0x1f, 0x84, 0x00, 0x00, 0x00, 0x00, 0x00}
+  };
+
+  // Write an optimal sequence for the first 15 bytes.
+  uint64_t OptimalCount = (Count < 16) ? Count : 15;
+  for (uint64_t i = 0, e = OptimalCount; i != e; i++)
+    OW->Write8(Nops[OptimalCount - 1][i]);
+
+  // Finish with single byte nops.
+  for (uint64_t i = OptimalCount, e = Count; i != e; ++i)
+   OW->Write8(0x90);
+
+  return true;
+}
+
+/* *** */
 
 class ELFX86AsmBackend : public X86AsmBackend {
 public:

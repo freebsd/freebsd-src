@@ -282,7 +282,8 @@ void TypePrinter::PrintFunctionProto(const FunctionProtoType *T,
   
   S += ")";
 
-  switch(T->getCallConv()) {
+  FunctionType::ExtInfo Info = T->getExtInfo();
+  switch(Info.getCC()) {
   case CC_Default:
   default: break;
   case CC_C:
@@ -295,9 +296,11 @@ void TypePrinter::PrintFunctionProto(const FunctionProtoType *T,
     S += " __attribute__((fastcall))";
     break;
   }
-  if (T->getNoReturnAttr())
+  if (Info.getNoReturn())
     S += " __attribute__((noreturn))";
-
+  if (Info.getRegParm())
+    S += " __attribute__((regparm (" +
+        llvm::utostr_32(Info.getRegParm()) + ")))";
   
   if (T->hasExceptionSpec()) {
     S += " throw(";
@@ -564,12 +567,20 @@ void TypePrinter::PrintQualifiedName(const QualifiedNameType *T,
     S = MyString + ' ' + S;  
 }
 
-void TypePrinter::PrintTypename(const TypenameType *T, std::string &S) { 
+void TypePrinter::PrintDependentName(const DependentNameType *T, std::string &S) { 
   std::string MyString;
   
   {
     llvm::raw_string_ostream OS(MyString);
-    OS << "typename ";
+    switch (T->getKeyword()) {
+    case ETK_None: break;
+    case ETK_Typename: OS << "typename "; break;
+    case ETK_Class: OS << "class "; break;
+    case ETK_Struct: OS << "struct "; break;
+    case ETK_Union: OS << "union "; break;
+    case ETK_Enum: OS << "enum "; break;
+    }
+    
     T->getQualifier()->print(OS, Policy);
     
     if (const IdentifierInfo *Ident = T->getIdentifier())
@@ -819,4 +830,3 @@ void QualType::getAsStringInternal(std::string &S,
   TypePrinter Printer(Policy);
   Printer.Print(*this, S);
 }
-

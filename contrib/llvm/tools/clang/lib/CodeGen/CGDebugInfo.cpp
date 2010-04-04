@@ -88,17 +88,35 @@ llvm::StringRef CGDebugInfo::getFunctionName(const FunctionDecl *FD) {
 
 /// getOrCreateFile - Get the file debug info descriptor for the input location.
 llvm::DIFile CGDebugInfo::getOrCreateFile(SourceLocation Loc) {
-  if (!Loc.isValid()) 
+  if (!Loc.isValid())
     // If Location is not valid then use main input file.
     return DebugFactory.CreateFile(TheCU.getFilename(), TheCU.getDirectory(),
                                    TheCU);
   SourceManager &SM = CGM.getContext().getSourceManager();
   PresumedLoc PLoc = SM.getPresumedLoc(Loc);
+
+  // Cache the results.
+  const char *fname = PLoc.getFilename();
+  llvm::DenseMap<const char *, llvm::WeakVH>::iterator it =
+    DIFileCache.find(fname);
+
+  if (it != DIFileCache.end()) {
+    // Verify that the information still exists.
+    if (&*it->second)
+      return llvm::DIFile(cast<llvm::MDNode>(it->second));
+  }
+
+  // FIXME: We shouldn't even need to call 'makeAbsolute()' in the cases
+  // where we can consult the FileEntry.
   llvm::sys::Path AbsFileName(PLoc.getFilename());
   AbsFileName.makeAbsolute();
 
-  return DebugFactory.CreateFile(AbsFileName.getLast(),
-                                 AbsFileName.getDirname(), TheCU);
+  llvm::DIFile F = DebugFactory.CreateFile(AbsFileName.getLast(),
+                                           AbsFileName.getDirname(), TheCU);
+
+  DIFileCache[fname] = F.getNode();
+  return F;
+
 }
 /// CreateCompileUnit - Create new compile unit.
 void CGDebugInfo::CreateCompileUnit() {
@@ -112,6 +130,10 @@ void CGDebugInfo::CreateCompileUnit() {
   llvm::sys::Path AbsFileName(MainFileName);
   AbsFileName.makeAbsolute();
 
+  // The main file name provided via the "-main-file-name" option contains just
+  // the file name itself with no path information. This file name may have had
+  // a relative path, so we look into the actual file entry for the main
+  // file to determine the real absolute path for the file.
   std::string MainFileDir;
   if (const FileEntry *MainFile = SM.getFileEntryForID(SM.getMainFileID()))
     MainFileDir = MainFile->getDir()->getName();
@@ -604,7 +626,7 @@ CGDebugInfo::CreateCXXMemberFunction(const CXXMethodDecl *Method,
     // It doesn't make sense to give a virtual destructor a vtable index,
     // since a single destructor has two entries in the vtable.
     if (!isa<CXXDestructorDecl>(Method))
-      VIndex = CGM.getVtableInfo().getMethodVtableIndex(Method);
+      VIndex = CGM.getVTables().getMethodVtableIndex(Method);
     ContainingType = RecordTy;
   }
 
@@ -662,7 +684,7 @@ CollectCXXBases(const CXXRecordDecl *RD, llvm::DIFile Unit,
     if (BI->isVirtual()) {
       // virtual base offset offset is -ve. The code generator emits dwarf
       // expression where it expects +ve number.
-      BaseOffset = 0 - CGM.getVtableInfo().getVirtualBaseOffsetOffset(RD, Base);
+      BaseOffset = 0 - CGM.getVTables().getVirtualBaseOffsetOffset(RD, Base);
       BFlags = llvm::DIType::FlagVirtual;
     } else
       BaseOffset = RL.getBaseClassOffset(Base);
@@ -692,10 +714,8 @@ llvm::DIType CGDebugInfo::getOrCreateVTablePtrType(llvm::DIFile Unit) {
   ASTContext &Context = CGM.getContext();
 
   /* Function type */
-  llvm::SmallVector<llvm::DIDescriptor, 16> STys;
-  STys.push_back(getOrCreateType(Context.IntTy, Unit));
-  llvm::DIArray SElements =
-    DebugFactory.GetOrCreateArray(STys.data(), STys.size());
+  llvm::DIDescriptor STy = getOrCreateType(Context.IntTy, Unit);
+  llvm::DIArray SElements = DebugFactory.GetOrCreateArray(&STy, 1);
   llvm::DIType SubTy =
     DebugFactory.CreateCompositeType(llvm::dwarf::DW_TAG_subroutine_type,
                                      Unit, "", Unit,
@@ -1048,11 +1068,9 @@ llvm::DIType CGDebugInfo::CreateType(const VectorType *Ty,
   uint64_t NumElems = Ty->getNumElements();
   if (NumElems > 0)
     --NumElems;
-  llvm::SmallVector<llvm::DIDescriptor, 8> Subscripts;
-  Subscripts.push_back(DebugFactory.GetOrCreateSubrange(0, NumElems));
 
-  llvm::DIArray SubscriptArray =
-    DebugFactory.GetOrCreateArray(Subscripts.data(), Subscripts.size());
+  llvm::DIDescriptor Subscript = DebugFactory.GetOrCreateSubrange(0, NumElems);
+  llvm::DIArray SubscriptArray = DebugFactory.GetOrCreateArray(&Subscript, 1);
 
   uint64_t Size = CGM.getContext().getTypeSize(Ty);
   uint64_t Align = CGM.getContext().getTypeAlign(Ty);
@@ -1208,7 +1226,7 @@ llvm::DIType CGDebugInfo::getOrCreateType(QualType Ty,
   Ty = UnwrapTypeForDebugInfo(Ty);
   
   // Check for existing entry.
-  std::map<void *, llvm::WeakVH>::iterator it =
+  llvm::DenseMap<void *, llvm::WeakVH>::iterator it =
     TypeCache.find(Ty.getAsOpaquePtr());
   if (it != TypeCache.end()) {
     // Verify that the debug info still exists.
@@ -1371,13 +1389,10 @@ void CGDebugInfo::EmitStopPoint(llvm::Function *Fn, CGBuilderTy &Builder) {
   llvm::DIFile Unit = getOrCreateFile(CurLoc);
   PresumedLoc PLoc = SM.getPresumedLoc(CurLoc);
 
-  llvm::DIDescriptor DR(RegionStack.back());
-  llvm::DIScope DS = llvm::DIScope(DR.getNode());
-  llvm::DILocation DO(NULL);
-  llvm::DILocation DL = 
-    DebugFactory.CreateLocation(PLoc.getLine(), PLoc.getColumn(),
-                                DS, DO);
-  Builder.SetCurrentDebugLocation(DL.getNode());
+  llvm::MDNode *Scope = RegionStack.back();
+  Builder.SetCurrentDebugLocation(llvm::DebugLoc::get(PLoc.getLine(),
+                                                      PLoc.getColumn(),
+                                                      Scope));
 }
 
 /// EmitRegionStart- Constructs the debug code for entering a declarative
@@ -1580,11 +1595,8 @@ void CGDebugInfo::EmitDeclare(const VarDecl *VD, unsigned Tag,
   llvm::Instruction *Call =
     DebugFactory.InsertDeclare(Storage, D, Builder.GetInsertBlock());
 
-  llvm::DIScope DS(RegionStack.back());
-  llvm::DILocation DO(NULL);
-  llvm::DILocation DL = DebugFactory.CreateLocation(Line, Column, DS, DO);
-  
-  Call->setMetadata("dbg", DL.getNode());
+  llvm::MDNode *Scope = RegionStack.back();
+  Call->setDebugLoc(llvm::DebugLoc::get(Line, Column, Scope));
 }
 
 /// EmitDeclare - Emit local variable declaration debug info.
@@ -1646,13 +1658,9 @@ void CGDebugInfo::EmitDeclare(const BlockDeclRefExpr *BDRE, unsigned Tag,
   // Insert an llvm.dbg.declare into the current block.
   llvm::Instruction *Call = 
     DebugFactory.InsertDeclare(Storage, D, Builder.GetInsertBlock());
-
-  llvm::DIScope DS(RegionStack.back());
-  llvm::DILocation DO(NULL);
-  llvm::DILocation DL = 
-    DebugFactory.CreateLocation(Line, PLoc.getColumn(), DS, DO);
   
-  Call->setMetadata("dbg", DL.getNode());
+  llvm::MDNode *Scope = RegionStack.back();
+  Call->setDebugLoc(llvm::DebugLoc::get(Line, PLoc.getColumn(), Scope));
 }
 
 void CGDebugInfo::EmitDeclareOfAutoVariable(const VarDecl *VD,

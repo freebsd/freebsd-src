@@ -44,9 +44,6 @@ Sema::DeclPtrTy Sema::ActOnProperty(Scope *S, SourceLocation AtLoc,
     Diag(AtLoc, diag::error_reference_property);
     return DeclPtrTy();
   }
-  // Validate the attributes on the @property.
-  CheckObjCPropertyAttributes(T, AtLoc, Attributes);
-
   // Proceed with constructing the ObjCPropertDecls.
   ObjCContainerDecl *ClassDecl =
     cast<ObjCContainerDecl>(ClassCategory.getAs<Decl>());
@@ -60,10 +57,13 @@ Sema::DeclPtrTy Sema::ActOnProperty(Scope *S, SourceLocation AtLoc,
                                             isOverridingProperty, T,
                                             MethodImplKind);
 
-  return DeclPtrTy::make(CreatePropertyDecl(S, ClassDecl, AtLoc, FD,
+  DeclPtrTy Res =  DeclPtrTy::make(CreatePropertyDecl(S, ClassDecl, AtLoc, FD,
                                             GetterSel, SetterSel,
                                             isAssign, isReadWrite,
                                             Attributes, T, MethodImplKind));
+  // Validate the attributes on the @property.
+  CheckObjCPropertyAttributes(Res, AtLoc, Attributes);
+  return Res;
 }
 
 Sema::DeclPtrTy
@@ -93,6 +93,11 @@ Sema::HandlePropertyInClassExtension(Scope *S, ObjCCategoryDecl *CDecl,
   ObjCPropertyDecl *PDecl =
     ObjCPropertyDecl::Create(Context, DC, FD.D.getIdentifierLoc(),
                              PropertyId, AtLoc, T);
+  if (Attributes & ObjCDeclSpec::DQ_PR_readonly)
+    PDecl->setPropertyAttributes(ObjCPropertyDecl::OBJC_PR_readonly);
+  if (Attributes & ObjCDeclSpec::DQ_PR_readwrite)
+    PDecl->setPropertyAttributes(ObjCPropertyDecl::OBJC_PR_readwrite);
+
   DC->addDecl(PDecl);
 
   // We need to look in the @interface to see if the @property was
@@ -276,7 +281,7 @@ Sema::DeclPtrTy Sema::ActOnPropertyImplDecl(SourceLocation AtLoc,
                                             DeclPtrTy ClassCatImpDecl,
                                             IdentifierInfo *PropertyId,
                                             IdentifierInfo *PropertyIvar) {
-  Decl *ClassImpDecl = ClassCatImpDecl.getAs<Decl>();
+  ObjCContainerDecl *ClassImpDecl = ClassCatImpDecl.getAs<ObjCContainerDecl>();
   // Make sure we have a context for the property implementation declaration.
   if (!ClassImpDecl) {
     Diag(AtLoc, diag::error_missing_property_context);
@@ -348,14 +353,11 @@ Sema::DeclPtrTy Sema::ActOnPropertyImplDecl(SourceLocation AtLoc,
     ObjCInterfaceDecl *ClassDeclared;
     Ivar = IDecl->lookupInstanceVariable(PropertyIvar, ClassDeclared);
     if (!Ivar) {
-      DeclContext *EnclosingContext = cast_or_null<DeclContext>(ClassImpDecl);
-      assert(EnclosingContext &&
-             "null DeclContext for synthesized ivar - ActOnPropertyImplDecl");
-      Ivar = ObjCIvarDecl::Create(Context, EnclosingContext, PropertyLoc,
+      Ivar = ObjCIvarDecl::Create(Context, ClassImpDecl, PropertyLoc,
                                   PropertyIvar, PropType, /*Dinfo=*/0,
                                   ObjCIvarDecl::Public,
                                   (Expr *)0);
-      EnclosingContext->addDecl(Ivar);
+      ClassImpDecl->addDecl(Ivar);
       IDecl->makeDeclVisibleInContext(Ivar, false);
       property->setPropertyIvarDecl(Ivar);
 
@@ -378,7 +380,9 @@ Sema::DeclPtrTy Sema::ActOnPropertyImplDecl(SourceLocation AtLoc,
     if (PropType != IvarType) {
       if (CheckAssignmentConstraints(PropType, IvarType) != Compatible) {
         Diag(PropertyLoc, diag::error_property_ivar_type)
-        << property->getDeclName() << Ivar->getDeclName();
+          << property->getDeclName() << PropType
+          << Ivar->getDeclName() << IvarType;
+        Diag(Ivar->getLocation(), diag::note_ivar_decl);
         // Note! I deliberately want it to fall thru so, we have a
         // a property implementation and to avoid future warnings.
       }
@@ -391,7 +395,9 @@ Sema::DeclPtrTy Sema::ActOnPropertyImplDecl(SourceLocation AtLoc,
       if (lhsType != rhsType &&
           lhsType->isArithmeticType()) {
         Diag(PropertyLoc, diag::error_property_ivar_type)
-        << property->getDeclName() << Ivar->getDeclName();
+          << property->getDeclName() << PropType
+          << Ivar->getDeclName() << IvarType;
+        Diag(Ivar->getLocation(), diag::note_ivar_decl);
         // Fall thru - see previous comment
       }
       // __weak is explicit. So it works on Canonical type.
@@ -973,10 +979,13 @@ void Sema::ProcessPropertyDecl(ObjCPropertyDecl *property,
     AddInstanceMethodToGlobalPool(SetterMethod);
 }
 
-void Sema::CheckObjCPropertyAttributes(QualType PropertyTy,
+void Sema::CheckObjCPropertyAttributes(DeclPtrTy PropertyPtrTy,
                                        SourceLocation Loc,
                                        unsigned &Attributes) {
   // FIXME: Improve the reported location.
+  Decl *PDecl = PropertyPtrTy.getAs<Decl>();
+  ObjCPropertyDecl *PropertyDecl = dyn_cast_or_null<ObjCPropertyDecl>(PDecl);
+  QualType PropertyTy = PropertyDecl->getType(); 
 
   // readonly and readwrite/assign/retain/copy conflict.
   if ((Attributes & ObjCDeclSpec::DQ_PR_readonly) &&
@@ -1001,7 +1010,8 @@ void Sema::CheckObjCPropertyAttributes(QualType PropertyTy,
   if ((Attributes & (ObjCDeclSpec::DQ_PR_copy | ObjCDeclSpec::DQ_PR_retain)) &&
       !PropertyTy->isObjCObjectPointerType() &&
       !PropertyTy->isBlockPointerType() &&
-      !Context.isObjCNSObjectType(PropertyTy)) {
+      !Context.isObjCNSObjectType(PropertyTy) &&
+      !PropertyDecl->getAttr<ObjCNSObjectAttr>()) {
     Diag(Loc, diag::err_objc_property_requires_object)
       << (Attributes & ObjCDeclSpec::DQ_PR_copy ? "copy" : "retain");
     Attributes &= ~(ObjCDeclSpec::DQ_PR_copy | ObjCDeclSpec::DQ_PR_retain);
@@ -1059,15 +1069,10 @@ Sema::SynthesizeNewPropertyIvar(ObjCInterfaceDecl *IDecl,
   ObjCIvarDecl *Ivar = 0;
   ObjCPropertyDecl *Prop = LookupPropertyDecl(IDecl, NameII);
   if (Prop && !Prop->isInvalidDecl()) {
-    DeclContext *EnclosingContext = cast_or_null<DeclContext>(IDecl);
     QualType PropType = Context.getCanonicalType(Prop->getType());
-    assert(EnclosingContext &&
-           "null DeclContext for synthesized ivar - SynthesizeNewPropertyIvar");
-    Ivar = ObjCIvarDecl::Create(Context, EnclosingContext,
-                                              Prop->getLocation(),
-                                              NameII, PropType, /*Dinfo=*/0,
-                                              ObjCIvarDecl::Public,
-                                              (Expr *)0);
+    Ivar = ObjCIvarDecl::Create(Context, IDecl, Prop->getLocation(), NameII,
+                                PropType, /*Dinfo=*/0,
+                                ObjCIvarDecl::Public, (Expr *)0);
     Ivar->setLexicalDeclContext(IDecl);
     IDecl->addDecl(Ivar);
     Prop->setPropertyIvarDecl(Ivar);

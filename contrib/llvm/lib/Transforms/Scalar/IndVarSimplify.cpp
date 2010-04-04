@@ -510,6 +510,13 @@ void IndVarSimplify::RewriteIVExpressions(Loop *L, SCEVExpander &Rewriter) {
     // Now expand it into actual Instructions and patch it into place.
     Value *NewVal = Rewriter.expandCodeFor(AR, UseTy, InsertPt);
 
+    // Inform ScalarEvolution that this value is changing. The change doesn't
+    // affect its value, but it does potentially affect which use lists the
+    // value will be on after the replacement, which affects ScalarEvolution's
+    // ability to walk use lists and drop dangling pointers when a value is
+    // deleted.
+    SE->forgetValue(User);
+
     // Patch the new value into place.
     if (Op->hasName())
       NewVal->takeName(Op);
@@ -553,22 +560,26 @@ void IndVarSimplify::SinkUnusedInvariants(Loop *L) {
     // New instructions were inserted at the end of the preheader.
     if (isa<PHINode>(I))
       break;
+
     // Don't move instructions which might have side effects, since the side
-    // effects need to complete before instructions inside the loop.  Also
-    // don't move instructions which might read memory, since the loop may
-    // modify memory. Note that it's okay if the instruction might have
-    // undefined behavior: LoopSimplify guarantees that the preheader
-    // dominates the exit block.
+    // effects need to complete before instructions inside the loop.  Also don't
+    // move instructions which might read memory, since the loop may modify
+    // memory. Note that it's okay if the instruction might have undefined
+    // behavior: LoopSimplify guarantees that the preheader dominates the exit
+    // block.
     if (I->mayHaveSideEffects() || I->mayReadFromMemory())
       continue;
+
     // Skip debug info intrinsics.
     if (isa<DbgInfoIntrinsic>(I))
       continue;
+
     // Don't sink static AllocaInsts out of the entry block, which would
     // turn them into dynamic allocas!
     if (AllocaInst *AI = dyn_cast<AllocaInst>(I))
       if (AI->isStaticAlloca())
         continue;
+
     // Determine if there is a use in or before the loop (direct or
     // otherwise).
     bool UsedInLoop = false;
@@ -585,53 +596,45 @@ void IndVarSimplify::SinkUnusedInvariants(Loop *L) {
         break;
       }
     }
+
     // If there is, the def must remain in the preheader.
     if (UsedInLoop)
       continue;
+
     // Otherwise, sink it to the exit block.
     Instruction *ToMove = I;
     bool Done = false;
-    if (I != Preheader->begin())
-      --I;
-    else
+
+    if (I != Preheader->begin()) {
+      // Skip debug info intrinsics.
+      do {
+        --I;
+      } while (isa<DbgInfoIntrinsic>(I) && I != Preheader->begin());
+
+      if (isa<DbgInfoIntrinsic>(I) && I == Preheader->begin())
+        Done = true;
+    } else {
       Done = true;
+    }
+
     ToMove->moveBefore(InsertPt);
-    if (Done)
-      break;
+    if (Done) break;
     InsertPt = ToMove;
   }
 }
 
-/// Return true if it is OK to use SIToFPInst for an induction variable
-/// with given initial and exit values.
-static bool useSIToFPInst(ConstantFP &InitV, ConstantFP &ExitV,
-                          uint64_t intIV, uint64_t intEV) {
-
-  if (InitV.getValueAPF().isNegative() || ExitV.getValueAPF().isNegative())
-    return true;
-
-  // If the iteration range can be handled by SIToFPInst then use it.
-  APInt Max = APInt::getSignedMaxValue(32);
-  if (Max.getZExtValue() > static_cast<uint64_t>(abs64(intEV - intIV)))
-    return true;
-
-  return false;
-}
-
-/// convertToInt - Convert APF to an integer, if possible.
-static bool convertToInt(const APFloat &APF, uint64_t *intVal) {
-
+/// ConvertToSInt - Convert APF to an integer, if possible.
+static bool ConvertToSInt(const APFloat &APF, int64_t &IntVal) {
   bool isExact = false;
   if (&APF.getSemantics() == &APFloat::PPCDoubleDouble)
     return false;
-  if (APF.convertToInteger(intVal, 32, APF.isNegative(),
-                           APFloat::rmTowardZero, &isExact)
-      != APFloat::opOK)
+  // See if we can convert this to an int64_t
+  uint64_t UIntVal;
+  if (APF.convertToInteger(&UIntVal, 64, true, APFloat::rmTowardZero,
+                           &isExact) != APFloat::opOK || !isExact)
     return false;
-  if (!isExact)
-    return false;
+  IntVal = UIntVal;
   return true;
-
 }
 
 /// HandleFloatingPointIV - If the loop has floating induction variable
@@ -643,144 +646,200 @@ static bool convertToInt(const APFloat &APF, uint64_t *intVal) {
 /// for(int i = 0; i < 10000; ++i)
 ///   bar((double)i);
 ///
-void IndVarSimplify::HandleFloatingPointIV(Loop *L, PHINode *PH) {
-
-  unsigned IncomingEdge = L->contains(PH->getIncomingBlock(0));
+void IndVarSimplify::HandleFloatingPointIV(Loop *L, PHINode *PN) {
+  unsigned IncomingEdge = L->contains(PN->getIncomingBlock(0));
   unsigned BackEdge     = IncomingEdge^1;
 
   // Check incoming value.
-  ConstantFP *InitValue = dyn_cast<ConstantFP>(PH->getIncomingValue(IncomingEdge));
-  if (!InitValue) return;
-  uint64_t newInitValue =
-              Type::getInt32Ty(PH->getContext())->getPrimitiveSizeInBits();
-  if (!convertToInt(InitValue->getValueAPF(), &newInitValue))
+  ConstantFP *InitValueVal =
+    dyn_cast<ConstantFP>(PN->getIncomingValue(IncomingEdge));
+
+  int64_t InitValue;
+  if (!InitValueVal || !ConvertToSInt(InitValueVal->getValueAPF(), InitValue))
     return;
 
-  // Check IV increment. Reject this PH if increment operation is not
+  // Check IV increment. Reject this PN if increment operation is not
   // an add or increment value can not be represented by an integer.
   BinaryOperator *Incr =
-    dyn_cast<BinaryOperator>(PH->getIncomingValue(BackEdge));
-  if (!Incr) return;
-  if (Incr->getOpcode() != Instruction::FAdd) return;
-  ConstantFP *IncrValue = NULL;
-  unsigned IncrVIndex = 1;
-  if (Incr->getOperand(1) == PH)
-    IncrVIndex = 0;
-  IncrValue = dyn_cast<ConstantFP>(Incr->getOperand(IncrVIndex));
-  if (!IncrValue) return;
-  uint64_t newIncrValue =
-              Type::getInt32Ty(PH->getContext())->getPrimitiveSizeInBits();
-  if (!convertToInt(IncrValue->getValueAPF(), &newIncrValue))
+    dyn_cast<BinaryOperator>(PN->getIncomingValue(BackEdge));
+  if (Incr == 0 || Incr->getOpcode() != Instruction::FAdd) return;
+  
+  // If this is not an add of the PHI with a constantfp, or if the constant fp
+  // is not an integer, bail out.
+  ConstantFP *IncValueVal = dyn_cast<ConstantFP>(Incr->getOperand(1));
+  int64_t IncValue;
+  if (IncValueVal == 0 || Incr->getOperand(0) != PN ||
+      !ConvertToSInt(IncValueVal->getValueAPF(), IncValue))
     return;
 
-  // Check Incr uses. One user is PH and the other users is exit condition used
-  // by the conditional terminator.
+  // Check Incr uses. One user is PN and the other user is an exit condition
+  // used by the conditional terminator.
   Value::use_iterator IncrUse = Incr->use_begin();
   Instruction *U1 = cast<Instruction>(IncrUse++);
   if (IncrUse == Incr->use_end()) return;
   Instruction *U2 = cast<Instruction>(IncrUse++);
   if (IncrUse != Incr->use_end()) return;
 
-  // Find exit condition.
-  FCmpInst *EC = dyn_cast<FCmpInst>(U1);
-  if (!EC)
-    EC = dyn_cast<FCmpInst>(U2);
-  if (!EC) return;
-
-  if (BranchInst *BI = dyn_cast<BranchInst>(EC->getParent()->getTerminator())) {
-    if (!BI->isConditional()) return;
-    if (BI->getCondition() != EC) return;
-  }
-
-  // Find exit value. If exit value can not be represented as an integer then
-  // do not handle this floating point PH.
-  ConstantFP *EV = NULL;
-  unsigned EVIndex = 1;
-  if (EC->getOperand(1) == Incr)
-    EVIndex = 0;
-  EV = dyn_cast<ConstantFP>(EC->getOperand(EVIndex));
-  if (!EV) return;
-  uint64_t intEV = Type::getInt32Ty(PH->getContext())->getPrimitiveSizeInBits();
-  if (!convertToInt(EV->getValueAPF(), &intEV))
+  // Find exit condition, which is an fcmp.  If it doesn't exist, or if it isn't
+  // only used by a branch, we can't transform it.
+  FCmpInst *Compare = dyn_cast<FCmpInst>(U1);
+  if (!Compare)
+    Compare = dyn_cast<FCmpInst>(U2);
+  if (Compare == 0 || !Compare->hasOneUse() ||
+      !isa<BranchInst>(Compare->use_back()))
     return;
+  
+  BranchInst *TheBr = cast<BranchInst>(Compare->use_back());
 
+  // We need to verify that the branch actually controls the iteration count
+  // of the loop.  If not, the new IV can overflow and no one will notice.
+  // The branch block must be in the loop and one of the successors must be out
+  // of the loop.
+  assert(TheBr->isConditional() && "Can't use fcmp if not conditional");
+  if (!L->contains(TheBr->getParent()) ||
+      (L->contains(TheBr->getSuccessor(0)) &&
+       L->contains(TheBr->getSuccessor(1))))
+    return;
+  
+  
+  // If it isn't a comparison with an integer-as-fp (the exit value), we can't
+  // transform it.
+  ConstantFP *ExitValueVal = dyn_cast<ConstantFP>(Compare->getOperand(1));
+  int64_t ExitValue;
+  if (ExitValueVal == 0 ||
+      !ConvertToSInt(ExitValueVal->getValueAPF(), ExitValue))
+    return;
+  
   // Find new predicate for integer comparison.
   CmpInst::Predicate NewPred = CmpInst::BAD_ICMP_PREDICATE;
-  switch (EC->getPredicate()) {
+  switch (Compare->getPredicate()) {
+  default: return;  // Unknown comparison.
   case CmpInst::FCMP_OEQ:
-  case CmpInst::FCMP_UEQ:
-    NewPred = CmpInst::ICMP_EQ;
-    break;
+  case CmpInst::FCMP_UEQ: NewPred = CmpInst::ICMP_EQ; break;
+  case CmpInst::FCMP_ONE:
+  case CmpInst::FCMP_UNE: NewPred = CmpInst::ICMP_NE; break;
   case CmpInst::FCMP_OGT:
-  case CmpInst::FCMP_UGT:
-    NewPred = CmpInst::ICMP_UGT;
-    break;
+  case CmpInst::FCMP_UGT: NewPred = CmpInst::ICMP_SGT; break;
   case CmpInst::FCMP_OGE:
-  case CmpInst::FCMP_UGE:
-    NewPred = CmpInst::ICMP_UGE;
-    break;
+  case CmpInst::FCMP_UGE: NewPred = CmpInst::ICMP_SGE; break;
   case CmpInst::FCMP_OLT:
-  case CmpInst::FCMP_ULT:
-    NewPred = CmpInst::ICMP_ULT;
-    break;
+  case CmpInst::FCMP_ULT: NewPred = CmpInst::ICMP_SLT; break;
   case CmpInst::FCMP_OLE:
-  case CmpInst::FCMP_ULE:
-    NewPred = CmpInst::ICMP_ULE;
-    break;
-  default:
-    break;
+  case CmpInst::FCMP_ULE: NewPred = CmpInst::ICMP_SLE; break;
   }
-  if (NewPred == CmpInst::BAD_ICMP_PREDICATE) return;
+  
+  // We convert the floating point induction variable to a signed i32 value if
+  // we can.  This is only safe if the comparison will not overflow in a way
+  // that won't be trapped by the integer equivalent operations.  Check for this
+  // now.
+  // TODO: We could use i64 if it is native and the range requires it.
+  
+  // The start/stride/exit values must all fit in signed i32.
+  if (!isInt<32>(InitValue) || !isInt<32>(IncValue) || !isInt<32>(ExitValue))
+    return;
+
+  // If not actually striding (add x, 0.0), avoid touching the code.
+  if (IncValue == 0)
+    return;
+
+  // Positive and negative strides have different safety conditions.
+  if (IncValue > 0) {
+    // If we have a positive stride, we require the init to be less than the
+    // exit value and an equality or less than comparison.
+    if (InitValue >= ExitValue ||
+        NewPred == CmpInst::ICMP_SGT || NewPred == CmpInst::ICMP_SGE)
+      return;
+    
+    uint32_t Range = uint32_t(ExitValue-InitValue);
+    if (NewPred == CmpInst::ICMP_SLE) {
+      // Normalize SLE -> SLT, check for infinite loop.
+      if (++Range == 0) return;  // Range overflows.
+    }
+    
+    unsigned Leftover = Range % uint32_t(IncValue);
+    
+    // If this is an equality comparison, we require that the strided value
+    // exactly land on the exit value, otherwise the IV condition will wrap
+    // around and do things the fp IV wouldn't.
+    if ((NewPred == CmpInst::ICMP_EQ || NewPred == CmpInst::ICMP_NE) &&
+        Leftover != 0)
+      return;
+    
+    // If the stride would wrap around the i32 before exiting, we can't
+    // transform the IV.
+    if (Leftover != 0 && int32_t(ExitValue+IncValue) < ExitValue)
+      return;
+    
+  } else {
+    // If we have a negative stride, we require the init to be greater than the
+    // exit value and an equality or greater than comparison.
+    if (InitValue >= ExitValue ||
+        NewPred == CmpInst::ICMP_SLT || NewPred == CmpInst::ICMP_SLE)
+      return;
+    
+    uint32_t Range = uint32_t(InitValue-ExitValue);
+    if (NewPred == CmpInst::ICMP_SGE) {
+      // Normalize SGE -> SGT, check for infinite loop.
+      if (++Range == 0) return;  // Range overflows.
+    }
+    
+    unsigned Leftover = Range % uint32_t(-IncValue);
+    
+    // If this is an equality comparison, we require that the strided value
+    // exactly land on the exit value, otherwise the IV condition will wrap
+    // around and do things the fp IV wouldn't.
+    if ((NewPred == CmpInst::ICMP_EQ || NewPred == CmpInst::ICMP_NE) &&
+        Leftover != 0)
+      return;
+    
+    // If the stride would wrap around the i32 before exiting, we can't
+    // transform the IV.
+    if (Leftover != 0 && int32_t(ExitValue+IncValue) > ExitValue)
+      return;
+  }
+  
+  const IntegerType *Int32Ty = Type::getInt32Ty(PN->getContext());
 
   // Insert new integer induction variable.
-  PHINode *NewPHI = PHINode::Create(Type::getInt32Ty(PH->getContext()),
-                                    PH->getName()+".int", PH);
-  NewPHI->addIncoming(ConstantInt::get(Type::getInt32Ty(PH->getContext()),
-                                       newInitValue),
-                      PH->getIncomingBlock(IncomingEdge));
+  PHINode *NewPHI = PHINode::Create(Int32Ty, PN->getName()+".int", PN);
+  NewPHI->addIncoming(ConstantInt::get(Int32Ty, InitValue),
+                      PN->getIncomingBlock(IncomingEdge));
 
-  Value *NewAdd = BinaryOperator::CreateAdd(NewPHI,
-                           ConstantInt::get(Type::getInt32Ty(PH->getContext()),
-                                                             newIncrValue),
-                                            Incr->getName()+".int", Incr);
-  NewPHI->addIncoming(NewAdd, PH->getIncomingBlock(BackEdge));
+  Value *NewAdd =
+    BinaryOperator::CreateAdd(NewPHI, ConstantInt::get(Int32Ty, IncValue),
+                              Incr->getName()+".int", Incr);
+  NewPHI->addIncoming(NewAdd, PN->getIncomingBlock(BackEdge));
 
-  // The back edge is edge 1 of newPHI, whatever it may have been in the
-  // original PHI.
-  ConstantInt *NewEV = ConstantInt::get(Type::getInt32Ty(PH->getContext()),
-                                        intEV);
-  Value *LHS = (EVIndex == 1 ? NewPHI->getIncomingValue(1) : NewEV);
-  Value *RHS = (EVIndex == 1 ? NewEV : NewPHI->getIncomingValue(1));
-  ICmpInst *NewEC = new ICmpInst(EC->getParent()->getTerminator(),
-                                 NewPred, LHS, RHS, EC->getName());
+  ICmpInst *NewCompare = new ICmpInst(TheBr, NewPred, NewAdd,
+                                      ConstantInt::get(Int32Ty, ExitValue),
+                                      Compare->getName());
 
-  // In the following deletions, PH may become dead and may be deleted.
+  // In the following deletions, PN may become dead and may be deleted.
   // Use a WeakVH to observe whether this happens.
-  WeakVH WeakPH = PH;
+  WeakVH WeakPH = PN;
 
-  // Delete old, floating point, exit comparison instruction.
-  NewEC->takeName(EC);
-  EC->replaceAllUsesWith(NewEC);
-  RecursivelyDeleteTriviallyDeadInstructions(EC);
+  // Delete the old floating point exit comparison.  The branch starts using the
+  // new comparison.
+  NewCompare->takeName(Compare);
+  Compare->replaceAllUsesWith(NewCompare);
+  RecursivelyDeleteTriviallyDeadInstructions(Compare);
 
-  // Delete old, floating point, increment instruction.
+  // Delete the old floating point increment.
   Incr->replaceAllUsesWith(UndefValue::get(Incr->getType()));
   RecursivelyDeleteTriviallyDeadInstructions(Incr);
 
-  // Replace floating induction variable, if it isn't already deleted.
-  // Give SIToFPInst preference over UIToFPInst because it is faster on
-  // platforms that are widely used.
-  if (WeakPH && !PH->use_empty()) {
-    if (useSIToFPInst(*InitValue, *EV, newInitValue, intEV)) {
-      SIToFPInst *Conv = new SIToFPInst(NewPHI, PH->getType(), "indvar.conv",
-                                        PH->getParent()->getFirstNonPHI());
-      PH->replaceAllUsesWith(Conv);
-    } else {
-      UIToFPInst *Conv = new UIToFPInst(NewPHI, PH->getType(), "indvar.conv",
-                                        PH->getParent()->getFirstNonPHI());
-      PH->replaceAllUsesWith(Conv);
-    }
-    RecursivelyDeleteTriviallyDeadInstructions(PH);
+  // If the FP induction variable still has uses, this is because something else
+  // in the loop uses its value.  In order to canonicalize the induction
+  // variable, we chose to eliminate the IV and rewrite it in terms of an
+  // int->fp cast.
+  //
+  // We give preference to sitofp over uitofp because it is faster on most
+  // platforms.
+  if (WeakPH) {
+    Value *Conv = new SIToFPInst(NewPHI, PN->getType(), "indvar.conv",
+                                 PN->getParent()->getFirstNonPHI());
+    PN->replaceAllUsesWith(Conv);
+    RecursivelyDeleteTriviallyDeadInstructions(PN);
   }
 
   // Add a new IVUsers entry for the newly-created integer PHI.

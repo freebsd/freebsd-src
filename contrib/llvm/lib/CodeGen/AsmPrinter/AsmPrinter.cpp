@@ -62,7 +62,7 @@ AsmPrinter::AsmPrinter(formatted_raw_ostream &o, TargetMachine &tm,
     TM(tm), MAI(tm.getMCAsmInfo()), TRI(tm.getRegisterInfo()),
     OutContext(Streamer.getContext()),
     OutStreamer(Streamer),
-    LastMI(0), LastFn(0), Counter(~0U), SetCounter(0), PrevDLT(NULL) {
+    LastMI(0), LastFn(0), Counter(~0U), SetCounter(0) {
   DW = 0; MMI = 0;
   VerboseAsm = Streamer.isVerboseAsm();
 }
@@ -340,19 +340,17 @@ static void EmitComments(const MachineInstr &MI, raw_ostream &CommentOS) {
   const MachineFunction *MF = MI.getParent()->getParent();
   const TargetMachine &TM = MF->getTarget();
   
-  if (!MI.getDebugLoc().isUnknown()) {
-    DILocation DLT = MF->getDILocation(MI.getDebugLoc());
-    
-    // Print source line info.
-    DIScope Scope = DLT.getScope();
+  DebugLoc DL = MI.getDebugLoc();
+  if (!DL.isUnknown()) {          // Print source line info.
+    DIScope Scope(DL.getScope(MF->getFunction()->getContext()));
     // Omit the directory, because it's likely to be long and uninteresting.
     if (Scope.Verify())
       CommentOS << Scope.getFilename();
     else
       CommentOS << "<unknown>";
-    CommentOS << ':' << DLT.getLineNumber();
-    if (DLT.getColumnNumber() != 0)
-      CommentOS << ':' << DLT.getColumnNumber();
+    CommentOS << ':' << DL.getLine();
+    if (DL.getCol() != 0)
+      CommentOS << ':' << DL.getCol();
     CommentOS << '\n';
   }
   
@@ -922,8 +920,8 @@ void AsmPrinter::EmitLabelDifference(const MCSymbol *Hi, const MCSymbol *Lo,
 
   // Otherwise, emit with .set (aka assignment).
   MCSymbol *SetLabel =
-    OutContext.GetOrCreateTemporarySymbol(Twine(MAI->getPrivateGlobalPrefix()) +
-                                          "set" + Twine(SetCounter++));
+    OutContext.GetOrCreateSymbol(Twine(MAI->getPrivateGlobalPrefix()) +
+                                 "set" + Twine(SetCounter++));
   OutStreamer.EmitAssignment(SetLabel, Diff);
   OutStreamer.EmitSymbolValue(SetLabel, Size, 0/*AddrSpace*/);
 }
@@ -1337,25 +1335,12 @@ void AsmPrinter::processDebugLoc(const MachineInstr *MI,
   if (!MAI || !DW || !MAI->doesSupportDebugInformation()
       || !DW->ShouldEmitDwarfDebug())
     return;
-  if (MI->getOpcode() == TargetOpcode::DBG_VALUE)
-    return;
-  DebugLoc DL = MI->getDebugLoc();
-  if (DL.isUnknown())
-    return;
-  DILocation CurDLT = MF->getDILocation(DL);
-  if (!CurDLT.getScope().Verify())
-    return;
 
-  if (!BeforePrintingInsn) {
+  if (!BeforePrintingInsn)
     // After printing instruction
     DW->EndScope(MI);
-  } else if (CurDLT.getNode() != PrevDLT) {
-    MCSymbol *L = DW->RecordSourceLine(CurDLT.getLineNumber(), 
-                                       CurDLT.getColumnNumber(),
-                                       CurDLT.getScope().getNode());
-    DW->BeginScope(MI, L);
-    PrevDLT = CurDLT.getNode();
-  }
+  else
+    DW->BeginScope(MI);
 }
 
 
@@ -1612,7 +1597,7 @@ MCSymbol *AsmPrinter::GetBlockAddressSymbol(const BasicBlock *BB) const {
 
 /// GetCPISymbol - Return the symbol for the specified constant pool entry.
 MCSymbol *AsmPrinter::GetCPISymbol(unsigned CPID) const {
-  return OutContext.GetOrCreateTemporarySymbol
+  return OutContext.GetOrCreateSymbol
     (Twine(MAI->getPrivateGlobalPrefix()) + "CPI" + Twine(getFunctionNumber())
      + "_" + Twine(CPID));
 }
@@ -1625,7 +1610,7 @@ MCSymbol *AsmPrinter::GetJTISymbol(unsigned JTID, bool isLinkerPrivate) const {
 /// GetJTSetSymbol - Return the symbol for the specified jump table .set
 /// FIXME: privatize to AsmPrinter.
 MCSymbol *AsmPrinter::GetJTSetSymbol(unsigned UID, unsigned MBBID) const {
-  return OutContext.GetOrCreateTemporarySymbol
+  return OutContext.GetOrCreateSymbol
   (Twine(MAI->getPrivateGlobalPrefix()) + Twine(getFunctionNumber()) + "_" +
    Twine(UID) + "_set_" + Twine(MBBID));
 }
@@ -1639,9 +1624,7 @@ MCSymbol *AsmPrinter::GetSymbolWithGlobalValueBase(const GlobalValue *GV,
   SmallString<60> NameStr;
   Mang->getNameWithPrefix(NameStr, GV, ForcePrivate);
   NameStr.append(Suffix.begin(), Suffix.end());
-  if (!GV->hasPrivateLinkage() && !ForcePrivate)
-    return OutContext.GetOrCreateSymbol(NameStr.str());
-  return OutContext.GetOrCreateTemporarySymbol(NameStr.str());
+  return OutContext.GetOrCreateSymbol(NameStr.str());
 }
 
 /// GetExternalSymbolSymbol - Return the MCSymbol for the specified

@@ -61,6 +61,7 @@
 using namespace llvm;
 
 STATISTIC(NumFastIselFailures, "Number of instructions fast isel failed on");
+STATISTIC(NumDAGIselRetries,"Number of times dag isel has to try another path");
 
 static cl::opt<bool>
 EnableFastISelVerbose("fast-isel-verbose", cl::Hidden,
@@ -365,30 +366,27 @@ bool SelectionDAGISel::runOnMachineFunction(MachineFunction &mf) {
 
 /// SetDebugLoc - Update MF's and SDB's DebugLocs if debug information is
 /// attached with this instruction.
-static void SetDebugLoc(unsigned MDDbgKind, Instruction *I,
-                        SelectionDAGBuilder *SDB,
+static void SetDebugLoc(Instruction *I, SelectionDAGBuilder *SDB,
                         FastISel *FastIS, MachineFunction *MF) {
-  if (MDNode *Dbg = I->getMetadata(MDDbgKind)) {
-    DILocation DILoc(Dbg);
-    DebugLoc Loc = ExtractDebugLocation(DILoc, MF->getDebugLocInfo());
+  DebugLoc DL = I->getDebugLoc();
+  if (DL.isUnknown()) return;
+  
+  SDB->setCurDebugLoc(DL);
 
-    SDB->setCurDebugLoc(Loc);
+  if (FastIS)
+    FastIS->setCurDebugLoc(DL);
 
-    if (FastIS)
-      FastIS->setCurDebugLoc(Loc);
-
-    // If the function doesn't have a default debug location yet, set
-    // it. This is kind of a hack.
-    if (MF->getDefaultDebugLoc().isUnknown())
-      MF->setDefaultDebugLoc(Loc);
-  }
+  // If the function doesn't have a default debug location yet, set
+  // it. This is kind of a hack.
+  if (MF->getDefaultDebugLoc().isUnknown())
+    MF->setDefaultDebugLoc(DL);
 }
 
 /// ResetDebugLoc - Set MF's and SDB's DebugLocs to Unknown.
 static void ResetDebugLoc(SelectionDAGBuilder *SDB, FastISel *FastIS) {
-  SDB->setCurDebugLoc(DebugLoc::getUnknownLoc());
+  SDB->setCurDebugLoc(DebugLoc());
   if (FastIS)
-    FastIS->setCurDebugLoc(DebugLoc::getUnknownLoc());
+    FastIS->setCurDebugLoc(DebugLoc());
 }
 
 void SelectionDAGISel::SelectBasicBlock(BasicBlock *LLVMBB,
@@ -396,12 +394,11 @@ void SelectionDAGISel::SelectBasicBlock(BasicBlock *LLVMBB,
                                         BasicBlock::iterator End,
                                         bool &HadTailCall) {
   SDB->setCurrentBasicBlock(BB);
-  unsigned MDDbgKind = LLVMBB->getContext().getMDKindID("dbg");
 
   // Lower all of the non-terminator instructions. If a call is emitted
   // as a tail call, cease emitting nodes for this block.
   for (BasicBlock::iterator I = Begin; I != End && !SDB->HasTailCall; ++I) {
-    SetDebugLoc(MDDbgKind, I, SDB, 0, MF);
+    SetDebugLoc(I, SDB, 0, MF);
 
     if (!isa<TerminatorInst>(I)) {
       SDB->visit(*I);
@@ -424,7 +421,7 @@ void SelectionDAGISel::SelectBasicBlock(BasicBlock *LLVMBB,
       HandlePHINodesInSuccessorBlocks(LLVMBB);
 
       // Lower the terminator after the copies are emitted.
-      SetDebugLoc(MDDbgKind, LLVMBB->getTerminator(), SDB, 0, MF);
+      SetDebugLoc(LLVMBB->getTerminator(), SDB, 0, MF);
       SDB->visit(*LLVMBB->getTerminator());
       ResetDebugLoc(SDB, 0);
     }
@@ -842,9 +839,6 @@ void SelectionDAGISel::DoInstructionSelection() {
   DEBUG(errs() << "===== Instruction selection ends:\n");
 
   PostprocessISelDAG();
-  
-  // FIXME: This shouldn't be needed, remove it.
-  CurDAG->RemoveDeadNodes();
 }
 
 
@@ -864,8 +858,6 @@ void SelectionDAGISel::SelectAllBasicBlocks(Function &Fn,
                                 , FuncInfo->CatchInfoLost
 #endif
                                 );
-
-  unsigned MDDbgKind = Fn.getContext().getMDKindID("dbg");
 
   // Iterate over all basic blocks in the function.
   for (Function::iterator I = Fn.begin(), E = Fn.end(); I != E; ++I) {
@@ -964,7 +956,7 @@ void SelectionDAGISel::SelectAllBasicBlocks(Function &Fn,
             break;
           }
 
-        SetDebugLoc(MDDbgKind, BI, SDB, FastIS, &MF);
+        SetDebugLoc(BI, SDB, FastIS, &MF);
 
         // Try to select the instruction with FastISel.
         if (FastIS->SelectInstruction(BI)) {
@@ -1592,8 +1584,9 @@ UpdateChainsAndFlags(SDNode *NodeToMatch, SDValue InputChain,
       assert(ChainVal.getValueType() == MVT::Other && "Not a chain?");
       CurDAG->ReplaceAllUsesOfValueWith(ChainVal, InputChain, &ISU);
       
-      // If the node became dead, delete it.
-      if (ChainNode->use_empty())
+      // If the node became dead and we haven't already seen it, delete it.
+      if (ChainNode->use_empty() &&
+          !std::count(NowDeadNodes.begin(), NowDeadNodes.end(), ChainNode))
         NowDeadNodes.push_back(ChainNode);
     }
   }
@@ -1614,8 +1607,9 @@ UpdateChainsAndFlags(SDNode *NodeToMatch, SDValue InputChain,
       CurDAG->ReplaceAllUsesOfValueWith(SDValue(FRN, FRN->getNumValues()-1),
                                         InputFlag, &ISU);
       
-      // If the node became dead, delete it.
-      if (FRN->use_empty())
+      // If the node became dead and we haven't already seen it, delete it.
+      if (FRN->use_empty() &&
+          !std::count(NowDeadNodes.begin(), NowDeadNodes.end(), FRN))
         NowDeadNodes.push_back(FRN);
     }
   }
@@ -1810,9 +1804,9 @@ MorphNode(SDNode *Node, unsigned TargetOpc, SDVTList VTList,
   // It is possible we're using MorphNodeTo to replace a node with no
   // normal results with one that has a normal result (or we could be
   // adding a chain) and the input could have flags and chains as well.
-  // In this case we need to shifting the operands down.
+  // In this case we need to shift the operands down.
   // FIXME: This is a horrible hack and broken in obscure cases, no worse
-  // than the old isel though.  We should sink this into MorphNodeTo.
+  // than the old isel though.
   int OldFlagResultNo = -1, OldChainResultNo = -1;
 
   unsigned NTMNumResults = Node->getNumValues();
@@ -1888,7 +1882,9 @@ CheckNodePredicate(const unsigned char *MatcherTable, unsigned &MatcherIndex,
 ALWAYS_INLINE static bool
 CheckOpcode(const unsigned char *MatcherTable, unsigned &MatcherIndex,
             SDNode *N) {
-  return N->getOpcode() == MatcherTable[MatcherIndex++];
+  uint16_t Opc = MatcherTable[MatcherIndex++];
+  Opc |= (unsigned short)MatcherTable[MatcherIndex++] << 8;
+  return N->getOpcode() == Opc;
 }
 
 ALWAYS_INLINE static bool
@@ -2142,7 +2138,8 @@ SelectCodeCommon(SDNode *NodeToMatch, const unsigned char *MatcherTable,
       if (CaseSize == 0) break;
 
       // Get the opcode, add the index to the table.
-      unsigned Opc = MatcherTable[Idx++];
+      uint16_t Opc = MatcherTable[Idx++];
+      Opc |= (unsigned short)MatcherTable[Idx++] << 8;
       if (Opc >= OpcodeOffset.size())
         OpcodeOffset.resize((Opc+1)*2);
       OpcodeOffset[Opc] = Idx;
@@ -2181,6 +2178,9 @@ SelectCodeCommon(SDNode *NodeToMatch, const unsigned char *MatcherTable,
         
         FailIndex = MatcherIndex+NumToSkip;
         
+        unsigned MatcherIndexOfPredicate = MatcherIndex;
+        (void)MatcherIndexOfPredicate; // silence warning.
+        
         // If we can't evaluate this predicate without pushing a scope (e.g. if
         // it is a 'MoveParent') or if the predicate succeeds on this node, we
         // push the scope and evaluate the full predicate chain.
@@ -2190,9 +2190,10 @@ SelectCodeCommon(SDNode *NodeToMatch, const unsigned char *MatcherTable,
         if (!Result)
           break;
         
-        DEBUG(errs() << "  Skipped scope entry at index " << MatcherIndex
-              << " continuing at " << FailIndex << "\n");
-
+        DEBUG(errs() << "  Skipped scope entry (due to false predicate) at "
+                     << "index " << MatcherIndexOfPredicate
+                     << ", continuing at " << FailIndex << "\n");
+        ++NumDAGIselRetries;
         
         // Otherwise, we know that this case of the Scope is guaranteed to fail,
         // move to the next case.
@@ -2298,8 +2299,11 @@ SelectCodeCommon(SDNode *NodeToMatch, const unsigned char *MatcherTable,
           CaseSize = GetVBR(CaseSize, MatcherTable, MatcherIndex);
         if (CaseSize == 0) break;
 
+        uint16_t Opc = MatcherTable[MatcherIndex++];
+        Opc |= (unsigned short)MatcherTable[MatcherIndex++] << 8;
+
         // If the opcode matches, then we will execute this case.
-        if (CurNodeOpcode == MatcherTable[MatcherIndex++])
+        if (CurNodeOpcode == Opc)
           break;
       
         // Otherwise, skip over this case.
@@ -2425,6 +2429,35 @@ SelectCodeCommon(SDNode *NodeToMatch, const unsigned char *MatcherTable,
       }
       
       RecordedNodes.push_back(Imm);
+      continue;
+    }
+        
+    case OPC_EmitMergeInputChains1_0:    // OPC_EmitMergeInputChains, 1, 0
+    case OPC_EmitMergeInputChains1_1: {  // OPC_EmitMergeInputChains, 1, 1
+      // These are space-optimized forms of OPC_EmitMergeInputChains.
+      assert(InputChain.getNode() == 0 &&
+             "EmitMergeInputChains should be the first chain producing node");
+      assert(ChainNodesMatched.empty() &&
+             "Should only have one EmitMergeInputChains per match");
+      
+      // Read all of the chained nodes.
+      unsigned RecNo = Opcode == OPC_EmitMergeInputChains1_1;
+      assert(RecNo < RecordedNodes.size() && "Invalid CheckSame");
+      ChainNodesMatched.push_back(RecordedNodes[RecNo].getNode());
+        
+      // FIXME: What if other value results of the node have uses not matched
+      // by this pattern?
+      if (ChainNodesMatched.back() != NodeToMatch &&
+          !RecordedNodes[RecNo].hasOneUse()) {
+        ChainNodesMatched.clear();
+        break;
+      }
+      
+      // Merge the input chains if they are not intra-pattern references.
+      InputChain = HandleMergeInputChains(ChainNodesMatched, CurDAG);
+      
+      if (InputChain.getNode() == 0)
+        break;  // Failed to merge.
       continue;
     }
         
@@ -2646,14 +2679,10 @@ SelectCodeCommon(SDNode *NodeToMatch, const unsigned char *MatcherTable,
         assert(ResSlot < RecordedNodes.size() && "Invalid CheckSame");
         SDValue Res = RecordedNodes[ResSlot];
         
-        // FIXME2: Eliminate this horrible hack by fixing the 'Gen' program
-        // after (parallel) on input patterns are removed.  This would also
-        // allow us to stop encoding #results in OPC_CompleteMatch's table
-        // entry.
-        if (NodeToMatch->getNumValues() <= i ||
-            NodeToMatch->getValueType(i) == MVT::Other ||
-            NodeToMatch->getValueType(i) == MVT::Flag)
-          break;
+        assert(i < NodeToMatch->getNumValues() &&
+               NodeToMatch->getValueType(i) != MVT::Other &&
+               NodeToMatch->getValueType(i) != MVT::Flag &&
+               "Invalid number of results to complete!");
         assert((NodeToMatch->getValueType(i) == Res.getValueType() ||
                 NodeToMatch->getValueType(i) == MVT::iPTR ||
                 Res.getValueType() == MVT::iPTR ||
@@ -2685,6 +2714,7 @@ SelectCodeCommon(SDNode *NodeToMatch, const unsigned char *MatcherTable,
     // another child to try in the current 'Scope', otherwise pop it until we
     // find a case to check.
     DEBUG(errs() << "  Match failed at index " << CurrentOpcodeIndex << "\n");
+    ++NumDAGIselRetries;
     while (1) {
       if (MatchScopes.empty()) {
         CannotYetSelect(NodeToMatch);

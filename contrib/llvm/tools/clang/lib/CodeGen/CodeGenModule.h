@@ -31,7 +31,6 @@
 #include "llvm/ADT/StringSet.h"
 #include "llvm/ADT/SmallPtrSet.h"
 #include "llvm/Support/ValueHandle.h"
-#include <list>
 
 namespace llvm {
   class Module;
@@ -93,8 +92,8 @@ class CodeGenModule : public BlockModule {
   CodeGenTypes Types;
   MangleContext MangleCtx;
 
-  /// VtableInfo - Holds information about C++ vtables.
-  CGVtableInfo VtableInfo;
+  /// VTables - Holds information about C++ vtables.
+  CodeGenVTables VTables;
   
   CGObjCRuntime* Runtime;
   CGDebugInfo* DebugInfo;
@@ -181,7 +180,7 @@ public:
   llvm::Module &getModule() const { return TheModule; }
   CodeGenTypes &getTypes() { return Types; }
   MangleContext &getMangleContext() { return MangleCtx; }
-  CGVtableInfo &getVtableInfo() { return VtableInfo; }
+  CodeGenVTables &getVTables() { return VTables; }
   Diagnostic &getDiags() const { return Diags; }
   const llvm::TargetData &getTargetData() const { return TheTargetData; }
   llvm::LLVMContext &getLLVMContext() { return VMContext; }
@@ -225,24 +224,11 @@ public:
   /// for the given type.
   llvm::Constant *GetAddrOfRTTIDescriptor(QualType Ty);
 
-  llvm::Constant *GetAddrOfThunk(GlobalDecl GD,
-                                 const ThunkAdjustment &ThisAdjustment);
-  llvm::Constant *GetAddrOfCovariantThunk(GlobalDecl GD,
-                                const CovariantThunkAdjustment &ThisAdjustment);
-  void BuildThunksForVirtual(GlobalDecl GD);
-  void BuildThunksForVirtualRecursive(GlobalDecl GD, GlobalDecl BaseOGD);
+  /// GetAddrOfThunk - Get the address of the thunk for the given global decl.
+  llvm::Constant *GetAddrOfThunk(GlobalDecl GD, const ThunkInfo &Thunk);
 
   /// GetWeakRefReference - Get a reference to the target of VD.
   llvm::Constant *GetWeakRefReference(const ValueDecl *VD);
-
-  /// BuildThunk - Build a thunk for the given method.
-  llvm::Constant *BuildThunk(GlobalDecl GD, bool Extern, 
-                             const ThunkAdjustment &ThisAdjustment);
-
-  /// BuildCoVariantThunk - Build a thunk for the given method
-  llvm::Constant *
-  BuildCovariantThunk(const GlobalDecl &GD, bool Extern,
-                      const CovariantThunkAdjustment &Adjustment);
 
   /// GetNonVirtualBaseClassOffset - Returns the offset from a derived class to 
   /// its base class. Returns null if the offset is 0. 
@@ -250,11 +236,6 @@ public:
   GetNonVirtualBaseClassOffset(const CXXRecordDecl *ClassDecl,
                                const CXXRecordDecl *BaseClassDecl);
 
-  /// ComputeThunkAdjustment - Returns the two parts required to compute the
-  /// offset for an object.
-  ThunkAdjustment ComputeThunkAdjustment(const CXXRecordDecl *ClassDecl,
-                                         const CXXRecordDecl *BaseClassDecl);
-  
   /// GetStringForStringLiteral - Return the appropriate bytes for a string
   /// literal, properly padded to match the literal type. If only the address of
   /// a constant is needed consider using GetAddrOfConstantStringLiteral.
@@ -522,6 +503,14 @@ private:
   void EmitCtorList(const CtorList &Fns, const char *GlobalName);
 
   void EmitAnnotations(void);
+
+  /// EmitFundamentalRTTIDescriptor - Emit the RTTI descriptors for the
+  /// given type.
+  void EmitFundamentalRTTIDescriptor(QualType Type);
+
+  /// EmitFundamentalRTTIDescriptors - Emit the RTTI descriptors for the
+  /// builtin types.
+  void EmitFundamentalRTTIDescriptors();
 
   /// EmitDeferred - Emit any needed decls for which code generation
   /// was deferred.

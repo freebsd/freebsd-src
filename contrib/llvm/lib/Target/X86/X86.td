@@ -59,6 +59,9 @@ def Feature64Bit   : SubtargetFeature<"64bit", "HasX86_64", "true",
                                       [FeatureCMOV]>;
 def FeatureSlowBTMem : SubtargetFeature<"slow-bt-mem", "IsBTMemSlow", "true",
                                        "Bit testing of memory is slow">;
+def FeatureFastUAMem : SubtargetFeature<"fast-unaligned-mem",
+                                        "IsUAMemFast", "true",
+                                        "Fast unaligned memory access">;
 def FeatureSSE4A   : SubtargetFeature<"sse4a", "HasSSE4A", "true",
                                       "Support SSE 4a instructions">;
 
@@ -71,6 +74,8 @@ def FeatureFMA4    : SubtargetFeature<"fma4", "HasFMA4", "true",
 def FeatureVectorUAMem : SubtargetFeature<"vector-unaligned-mem",
                                           "HasVectorUAMem", "true",
                  "Allow unaligned memory operands on vector/SIMD instructions">;
+def FeatureAES     : SubtargetFeature<"aes", "HasAES", "true",
+                                      "Enable AES instructions">;
 
 //===----------------------------------------------------------------------===//
 // X86 processors supported.
@@ -98,9 +103,17 @@ def : Proc<"nocona",          [FeatureSSE3,   Feature64Bit, FeatureSlowBTMem]>;
 def : Proc<"core2",           [FeatureSSSE3,  Feature64Bit, FeatureSlowBTMem]>;
 def : Proc<"penryn",          [FeatureSSE41,  Feature64Bit, FeatureSlowBTMem]>;
 def : Proc<"atom",            [FeatureSSE3,   Feature64Bit, FeatureSlowBTMem]>;
-def : Proc<"corei7",          [FeatureSSE42,  Feature64Bit, FeatureSlowBTMem]>;
-def : Proc<"nehalem",         [FeatureSSE42,  Feature64Bit, FeatureSlowBTMem]>;
+// "Arrandale" along with corei3 and corei5
+def : Proc<"corei7",          [FeatureSSE42,  Feature64Bit, FeatureSlowBTMem,
+                               FeatureFastUAMem, FeatureAES]>;
+def : Proc<"nehalem",         [FeatureSSE42,  Feature64Bit, FeatureSlowBTMem,
+                               FeatureFastUAMem]>;
+// Westmere is a similar machine to nehalem with some additional features.
+// Westmere is the corei3/i5/i7 path from nehalem to sandybridge
+def : Proc<"westmere",         [FeatureSSE42,  Feature64Bit, FeatureSlowBTMem,
+                                FeatureFastUAMem, FeatureAES]>;
 // Sandy Bridge does not have FMA
+// FIXME: Wikipedia says it does... it should have AES as well.
 def : Proc<"sandybridge",     [FeatureSSE42,  FeatureAVX,   Feature64Bit]>;
 
 def : Proc<"k6",              [FeatureMMX]>;
@@ -160,10 +173,11 @@ def X86InstrInfo : InstrInfo {
                        "hasAdSizePrefix",
                        "Prefix",
                        "hasREX_WPrefix",
-                       "ImmTypeBits",
-                       "FPFormBits",
+                       "ImmT.Value",
+                       "FPForm.Value",
                        "hasLockPrefix",
                        "SegOvrBits",
+                       "ExeDomain.Value",
                        "Opcode"];
   let TSFlagsShifts = [0,
                        6,
@@ -174,6 +188,7 @@ def X86InstrInfo : InstrInfo {
                        16,
                        19,
                        20,
+                       22,
                        24];
 }
 

@@ -3,8 +3,8 @@
 PROG_CXX=tblgen
 
 SRCDIR=	utils/TableGen
-SRCS=	AsmMatcherEmitter.cpp AsmWriterEmitter.cpp AsmWriterInst.cpp \
-	CallingConvEmitter.cpp \
+SRCS=	ARMDecoderEmitter.cpp AsmMatcherEmitter.cpp AsmWriterEmitter.cpp \
+	AsmWriterInst.cpp CallingConvEmitter.cpp \
 	ClangDiagnosticsEmitter.cpp CodeEmitterGen.cpp \
 	CodeGenDAGPatterns.cpp CodeGenInstruction.cpp \
 	CodeGenTarget.cpp DAGISelEmitter.cpp DAGISelMatcher.cpp \

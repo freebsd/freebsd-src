@@ -12,6 +12,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "clang/Basic/Diagnostic.h"
+#include "clang/Basic/PartialDiagnostic.h"
 
 #include "clang/Lex/LexDiagnostic.h"
 #include "clang/Parse/ParseDiagnostic.h"
@@ -124,10 +125,20 @@ const char *Diagnostic::getWarningOptionForDiag(unsigned DiagID) {
   return 0;
 }
 
-bool Diagnostic::isBuiltinSFINAEDiag(unsigned DiagID) {
-  if (const StaticDiagInfoRec *Info = GetDiagInfo(DiagID))
-    return Info->SFINAE && Info->Class == CLASS_ERROR;
-  return false;
+Diagnostic::SFINAEResponse 
+Diagnostic::getDiagnosticSFINAEResponse(unsigned DiagID) {
+  if (const StaticDiagInfoRec *Info = GetDiagInfo(DiagID)) {
+    if (!Info->SFINAE)
+      return SFINAE_Report;
+
+    if (Info->Class == CLASS_ERROR)
+      return SFINAE_SubstitutionFailure;
+    
+    // Suppress notes, warnings, and extensions;
+    return SFINAE_Suppress;
+  }
+  
+  return SFINAE_Report;
 }
 
 /// getDiagClass - Return the class field of the diagnostic.
@@ -222,6 +233,8 @@ Diagnostic::Diagnostic(DiagnosticClient *client) : Client(client) {
   ArgToStringFn = DummyArgToStringFn;
   ArgToStringCookie = 0;
 
+  DelayedDiagID = 0;
+
   // Set all mappings to 'unset'.
   DiagMappings BlankDiags(diag::DIAG_UPPER_LIMIT/2, 0);
   DiagMappingsStack.push_back(BlankDiags);
@@ -287,6 +300,23 @@ const char *Diagnostic::getDescription(unsigned DiagID) const {
   if (const StaticDiagInfoRec *Info = GetDiagInfo(DiagID))
     return Info->Description;
   return CustomDiagInfo->getDescription(DiagID);
+}
+
+void Diagnostic::SetDelayedDiagnostic(unsigned DiagID, llvm::StringRef Arg1,
+                                      llvm::StringRef Arg2) {
+  if (DelayedDiagID)
+    return;
+
+  DelayedDiagID = DiagID;
+  DelayedDiagArg1 = Arg1.str();
+  DelayedDiagArg2 = Arg2.str();
+}
+
+void Diagnostic::ReportDelayed() {
+  Report(DelayedDiagID) << DelayedDiagArg1 << DelayedDiagArg2;
+  DelayedDiagID = 0;
+  DelayedDiagArg1.clear();
+  DelayedDiagArg2.clear();
 }
 
 /// getDiagnosticLevel - Based on the way the client configured the Diagnostic
@@ -530,6 +560,35 @@ bool Diagnostic::ProcessDiag() {
   CurDiagID = ~0U;
 
   return true;
+}
+
+bool DiagnosticBuilder::Emit() {
+  // If DiagObj is null, then its soul was stolen by the copy ctor
+  // or the user called Emit().
+  if (DiagObj == 0) return false;
+
+  // When emitting diagnostics, we set the final argument count into
+  // the Diagnostic object.
+  DiagObj->NumDiagArgs = NumArgs;
+  DiagObj->NumDiagRanges = NumRanges;
+  DiagObj->NumFixItHints = NumFixItHints;
+
+  // Process the diagnostic, sending the accumulated information to the
+  // DiagnosticClient.
+  bool Emitted = DiagObj->ProcessDiag();
+
+  // Clear out the current diagnostic object.
+  unsigned DiagID = DiagObj->CurDiagID;
+  DiagObj->Clear();
+
+  // If there was a delayed diagnostic, emit it now.
+  if (DiagObj->DelayedDiagID && DiagObj->DelayedDiagID != DiagID)
+    DiagObj->ReportDelayed();
+
+  // This diagnostic is dead.
+  DiagObj = 0;
+
+  return Emitted;
 }
 
 
@@ -937,9 +996,9 @@ StoredDiagnostic::StoredDiagnostic(Diagnostic::Level Level,
   for (unsigned I = 0, N = Info.getNumRanges(); I != N; ++I)
     Ranges.push_back(Info.getRange(I));
 
-  FixIts.reserve(Info.getNumCodeModificationHints());
-  for (unsigned I = 0, N = Info.getNumCodeModificationHints(); I != N; ++I)
-    FixIts.push_back(Info.getCodeModificationHint(I));
+  FixIts.reserve(Info.getNumFixItHints());
+  for (unsigned I = 0, N = Info.getNumFixItHints(); I != N; ++I)
+    FixIts.push_back(Info.getFixItHint(I));
 }
 
 StoredDiagnostic::~StoredDiagnostic() { }
@@ -1172,7 +1231,7 @@ StoredDiagnostic::Deserialize(FileManager &FM, SourceManager &SM,
       return Diag;
     }
 
-    CodeModificationHint Hint;
+    FixItHint Hint;
     Hint.RemoveRange = SourceRange(RemoveBegin, RemoveEnd);
     Hint.InsertionLoc = InsertionLoc;
     Hint.CodeToInsert.assign(Memory, Memory + InsertLen);
@@ -1188,3 +1247,13 @@ StoredDiagnostic::Deserialize(FileManager &FM, SourceManager &SM,
 ///  DiagnosticClient should be included in the number of diagnostics
 ///  reported by Diagnostic.
 bool DiagnosticClient::IncludeInDiagnosticCounts() const { return true; }
+
+PartialDiagnostic::StorageAllocator::StorageAllocator() {
+  for (unsigned I = 0; I != NumCached; ++I)
+    FreeList[I] = Cached + I;
+  NumFreeListEntries = NumCached;
+}
+
+PartialDiagnostic::StorageAllocator::~StorageAllocator() {
+  assert(NumFreeListEntries == NumCached && "A partial is on the lamb");
+}

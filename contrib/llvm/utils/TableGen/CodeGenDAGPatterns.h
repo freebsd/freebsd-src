@@ -129,7 +129,7 @@ namespace EEVT {
     
     /// EnforceVectorEltTypeIs - 'this' is now constrainted to be a vector type
     /// whose element is VT.
-    bool EnforceVectorEltTypeIs(MVT::SimpleValueType VT, TreePattern &TP);
+    bool EnforceVectorEltTypeIs(EEVT::TypeSet &VT, TreePattern &TP);
     
     bool operator!=(const TypeSet &RHS) const { return TypeVec != RHS.TypeVec; }
     bool operator==(const TypeSet &RHS) const { return TypeVec == RHS.TypeVec; }
@@ -199,6 +199,9 @@ public:
   SDNodeInfo(Record *R);  // Parse the specified record.
   
   unsigned getNumResults() const { return NumResults; }
+  
+  /// getNumOperands - This is the number of operands required or -1 if
+  /// variadic.
   int getNumOperands() const { return NumOperands; }
   Record *getRecord() const { return Def; }
   const std::string &getEnumName() const { return EnumName; }
@@ -211,7 +214,7 @@ public:
   /// getKnownType - If the type constraints on this node imply a fixed type
   /// (e.g. all stores return void, etc), then return it as an
   /// MVT::SimpleValueType.  Otherwise, return MVT::Other.
-  MVT::SimpleValueType getKnownType() const;
+  MVT::SimpleValueType getKnownType(unsigned ResNo) const;
   
   /// hasProperty - Return true if this node has the specified property.
   ///
@@ -272,7 +275,7 @@ public:
   ~TreePatternNode();
   
   const std::string &getName() const { return Name; }
-  void setName(const std::string &N) { Name = N; }
+  void setName(StringRef N) { Name.assign(N.begin(), N.end()); }
   
   bool isLeaf() const { return Val != 0; }
   
@@ -510,7 +513,7 @@ public:
   void dump() const;
   
 private:
-  TreePatternNode *ParseTreePattern(DagInit *DI);
+  TreePatternNode *ParseTreePattern(Init *DI, StringRef OpName);
   void ComputeNamedNodes();
   void ComputeNamedNodes(TreePatternNode *N);
 };
@@ -595,6 +598,10 @@ public:
   unsigned         getAddedComplexity() const { return AddedComplexity; }
 
   std::string getPredicateCheck() const;
+  
+  /// Compute the complexity metric for the input pattern.  This roughly
+  /// corresponds to the number of nodes that are covered.
+  unsigned getPatternComplexity(const CodeGenDAGPatterns &CGP) const;
 };
 
 // Deterministic comparison of Record*.

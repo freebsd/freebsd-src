@@ -45,7 +45,8 @@ using namespace clang;
 Driver::Driver(llvm::StringRef _Name, llvm::StringRef _Dir,
                llvm::StringRef _DefaultHostTriple,
                llvm::StringRef _DefaultImageName,
-               bool IsProduction, Diagnostic &_Diags)
+               bool IsProduction, bool CXXIsProduction,
+               Diagnostic &_Diags)
   : Opts(createDriverOptTable()), Diags(_Diags),
     Name(_Name), Dir(_Dir), DefaultHostTriple(_DefaultHostTriple),
     DefaultImageName(_DefaultImageName),
@@ -66,7 +67,8 @@ Driver::Driver(llvm::StringRef _Name, llvm::StringRef _Dir,
     CCCClangArchs.insert(llvm::Triple::x86_64);
     CCCClangArchs.insert(llvm::Triple::arm);
 
-    CCCUseClangCXX = false;
+    if (!CXXIsProduction)
+      CCCUseClangCXX = false;
   }
 
   // Compute the path to the resource directory.
@@ -172,6 +174,8 @@ Compilation *Driver::BuildCompilation(int argc, const char **argv) {
     HostTriple = A->getValue(*Args);
   if (const Arg *A = Args->getLastArg(options::OPT_ccc_install_dir))
     Dir = A->getValue(*Args);
+  if (const Arg *A = Args->getLastArg(options::OPT_B))
+    PrefixDir = A->getValue(*Args);
 
   Host = GetHostInfo(HostTriple);
 
@@ -186,14 +190,6 @@ Compilation *Driver::BuildCompilation(int argc, const char **argv) {
 
   if (!HandleImmediateArgs(*C))
     return C;
-
-  // HACK
-  if (C->getArgs().hasArg(options::OPT_B)) {
-     Arg *B_dir = C->getArgs().getLastArg(options::OPT_B);
-     Prefix = B_dir->getValue(C->getArgs());
-  } else {
-     Prefix = "";
-  }
 
   // Construct the list of abstract actions to perform for this compilation. We
   // avoid passing a Compilation here simply to enforce the abstraction that
@@ -1044,10 +1040,6 @@ void Driver::BuildJobsForAction(Compilation &C,
   }
 }
 
-std::string Driver::GetPrefix() const {
-   return Prefix;
-}
-
 const char *Driver::GetNamedOutputPath(Compilation &C,
                                        const JobAction &JA,
                                        const char *BaseInput,
@@ -1100,13 +1092,16 @@ const char *Driver::GetNamedOutputPath(Compilation &C,
 }
 
 std::string Driver::GetFilePath(const char *Name, const ToolChain &TC) const {
-  const ToolChain::path_list &List = TC.getFilePaths();
-  if (!Prefix.empty()) {
-    llvm::sys::Path P(Prefix);
+  // Respect a limited subset of the '-Bprefix' functionality in GCC by
+  // attempting to use this prefix when lokup up program paths.
+  if (!PrefixDir.empty()) {
+    llvm::sys::Path P(PrefixDir);
     P.appendComponent(Name);
     if (P.exists())
       return P.str();
   }
+
+  const ToolChain::path_list &List = TC.getFilePaths();
   for (ToolChain::path_list::const_iterator
          it = List.begin(), ie = List.end(); it != ie; ++it) {
     llvm::sys::Path P(*it);
@@ -1120,13 +1115,16 @@ std::string Driver::GetFilePath(const char *Name, const ToolChain &TC) const {
 
 std::string Driver::GetProgramPath(const char *Name, const ToolChain &TC,
                                    bool WantFile) const {
-  const ToolChain::path_list &List = TC.getProgramPaths();
-  if (!Prefix.empty()) {
-    llvm::sys::Path P(Prefix);
+  // Respect a limited subset of the '-Bprefix' functionality in GCC by
+  // attempting to use this prefix when lokup up program paths.
+  if (!PrefixDir.empty()) {
+    llvm::sys::Path P(PrefixDir);
     P.appendComponent(Name);
     if (WantFile ? P.exists() : P.canExecute())
       return P.str();
   }
+
+  const ToolChain::path_list &List = TC.getProgramPaths();
   for (ToolChain::path_list::const_iterator
          it = List.begin(), ie = List.end(); it != ie; ++it) {
     llvm::sys::Path P(*it);

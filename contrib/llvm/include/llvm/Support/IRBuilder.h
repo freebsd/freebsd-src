@@ -40,8 +40,7 @@ protected:
 
 /// IRBuilderBase - Common base class shared among various IRBuilders.
 class IRBuilderBase {
-  unsigned DbgMDKind;
-  MDNode *CurDbgLocation;
+  DebugLoc CurDbgLocation;
 protected:
   BasicBlock *BB;
   BasicBlock::iterator InsertPt;
@@ -49,7 +48,7 @@ protected:
 public:
   
   IRBuilderBase(LLVMContext &context)
-    : DbgMDKind(0), CurDbgLocation(0), Context(context) {
+    : Context(context) {
     ClearInsertionPoint();
   }
   
@@ -65,6 +64,7 @@ public:
   
   BasicBlock *GetInsertBlock() const { return BB; }
   BasicBlock::iterator GetInsertPoint() const { return InsertPt; }
+  LLVMContext &getContext() const { return Context; }
   
   /// SetInsertPoint - This specifies that created instructions should be
   /// appended to the end of the specified block.
@@ -82,12 +82,20 @@ public:
   
   /// SetCurrentDebugLocation - Set location information used by debugging
   /// information.
-  void SetCurrentDebugLocation(MDNode *L);
-  MDNode *getCurrentDebugLocation() const { return CurDbgLocation; }
+  void SetCurrentDebugLocation(const DebugLoc &L) {
+    CurDbgLocation = L;
+  }
+  
+  /// getCurrentDebugLocation - Get location information used by debugging
+  /// information.
+  const DebugLoc &getCurrentDebugLocation() const { return CurDbgLocation; }
   
   /// SetInstDebugLocation - If this builder has a current debug location, set
   /// it on the specified instruction.
-  void SetInstDebugLocation(Instruction *I) const;
+  void SetInstDebugLocation(Instruction *I) const {
+    if (!CurDbgLocation.isUnknown())
+      I->setDebugLoc(CurDbgLocation);
+  }
 
   //===--------------------------------------------------------------------===//
   // Miscellaneous creation methods.
@@ -208,7 +216,7 @@ public:
   template<typename InstTy>
   InstTy *Insert(InstTy *I, const Twine &Name = "") const {
     this->InsertHelper(I, Name, BB, InsertPt);
-    if (getCurrentDebugLocation() != 0)
+    if (!getCurrentDebugLocation().isUnknown())
       this->SetInstDebugLocation(I);
     return I;
   }

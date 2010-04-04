@@ -142,25 +142,25 @@ let TargetPrefix = "x86" in {  // All intrinsics start with "llvm.x86.".
 // SIMD store ops
 let TargetPrefix = "x86" in {  // All intrinsics start with "llvm.x86.".
   def int_x86_sse_storeu_ps : GCCBuiltin<"__builtin_ia32_storeups">,
-              Intrinsic<[llvm_void_ty], [llvm_ptr_ty,
+              Intrinsic<[], [llvm_ptr_ty,
                          llvm_v4f32_ty], [IntrWriteMem]>;
 }
 
 // Cacheability support ops
 let TargetPrefix = "x86" in {  // All intrinsics start with "llvm.x86.".
   def int_x86_sse_movnt_ps : GCCBuiltin<"__builtin_ia32_movntps">,
-              Intrinsic<[llvm_void_ty], [llvm_ptr_ty,
+              Intrinsic<[], [llvm_ptr_ty,
                          llvm_v4f32_ty], [IntrWriteMem]>;
   def int_x86_sse_sfence : GCCBuiltin<"__builtin_ia32_sfence">,
-              Intrinsic<[llvm_void_ty], [], [IntrWriteMem]>;
+              Intrinsic<[], [], [IntrWriteMem]>;
 }
 
 // Control register.
 let TargetPrefix = "x86" in {  // All intrinsics start with "llvm.x86.".
   def int_x86_sse_stmxcsr :
-              Intrinsic<[llvm_void_ty], [llvm_ptr_ty], [IntrWriteMem]>;
+              Intrinsic<[], [llvm_ptr_ty], [IntrWriteMem]>;
   def int_x86_sse_ldmxcsr :
-              Intrinsic<[llvm_void_ty], [llvm_ptr_ty], [IntrWriteMem]>;
+              Intrinsic<[], [llvm_ptr_ty], [IntrWriteMem]>;
 }
 
 // Misc.
@@ -458,26 +458,26 @@ let TargetPrefix = "x86" in {  // All intrinsics start with "llvm.x86.".
 // SIMD store ops
 let TargetPrefix = "x86" in {  // All intrinsics start with "llvm.x86.".
   def int_x86_sse2_storeu_pd : GCCBuiltin<"__builtin_ia32_storeupd">,
-              Intrinsic<[llvm_void_ty], [llvm_ptr_ty,
+              Intrinsic<[], [llvm_ptr_ty,
                          llvm_v2f64_ty], [IntrWriteMem]>;
   def int_x86_sse2_storeu_dq : GCCBuiltin<"__builtin_ia32_storedqu">,
-              Intrinsic<[llvm_void_ty], [llvm_ptr_ty,
+              Intrinsic<[], [llvm_ptr_ty,
                          llvm_v16i8_ty], [IntrWriteMem]>;
   def int_x86_sse2_storel_dq : GCCBuiltin<"__builtin_ia32_storelv4si">,
-              Intrinsic<[llvm_void_ty], [llvm_ptr_ty,
+              Intrinsic<[], [llvm_ptr_ty,
                          llvm_v4i32_ty], [IntrWriteMem]>;
 }
 
 // Cacheability support ops
 let TargetPrefix = "x86" in {  // All intrinsics start with "llvm.x86.".
   def int_x86_sse2_movnt_dq : GCCBuiltin<"__builtin_ia32_movntdq">,
-              Intrinsic<[llvm_void_ty], [llvm_ptr_ty,
+              Intrinsic<[], [llvm_ptr_ty,
                          llvm_v2i64_ty], [IntrWriteMem]>;
   def int_x86_sse2_movnt_pd : GCCBuiltin<"__builtin_ia32_movntpd">,
-              Intrinsic<[llvm_void_ty], [llvm_ptr_ty,
+              Intrinsic<[], [llvm_ptr_ty,
                          llvm_v2f64_ty], [IntrWriteMem]>;
   def int_x86_sse2_movnt_i : GCCBuiltin<"__builtin_ia32_movnti">,
-              Intrinsic<[llvm_void_ty], [llvm_ptr_ty,
+              Intrinsic<[], [llvm_ptr_ty,
                          llvm_i32_ty], [IntrWriteMem]>;
 }
 
@@ -497,14 +497,14 @@ let TargetPrefix = "x86" in {  // All intrinsics start with "llvm.x86.".
   def int_x86_sse2_pmovmskb_128 : GCCBuiltin<"__builtin_ia32_pmovmskb128">,
               Intrinsic<[llvm_i32_ty], [llvm_v16i8_ty], [IntrNoMem]>;
   def int_x86_sse2_maskmov_dqu : GCCBuiltin<"__builtin_ia32_maskmovdqu">,
-              Intrinsic<[llvm_void_ty], [llvm_v16i8_ty,
+              Intrinsic<[], [llvm_v16i8_ty,
                          llvm_v16i8_ty, llvm_ptr_ty], [IntrWriteMem]>;
   def int_x86_sse2_clflush : GCCBuiltin<"__builtin_ia32_clflush">,
-              Intrinsic<[llvm_void_ty], [llvm_ptr_ty], [IntrWriteMem]>;
+              Intrinsic<[], [llvm_ptr_ty], [IntrWriteMem]>;
   def int_x86_sse2_lfence : GCCBuiltin<"__builtin_ia32_lfence">,
-              Intrinsic<[llvm_void_ty], [], [IntrWriteMem]>;
+              Intrinsic<[], [], [IntrWriteMem]>;
   def int_x86_sse2_mfence : GCCBuiltin<"__builtin_ia32_mfence">,
-              Intrinsic<[llvm_void_ty], [], [IntrWriteMem]>;
+              Intrinsic<[], [], [IntrWriteMem]>;
 }
 
 //===----------------------------------------------------------------------===//
@@ -545,10 +545,10 @@ let TargetPrefix = "x86" in {  // All intrinsics start with "llvm.x86.".
 // Thread synchronization ops.
 let TargetPrefix = "x86" in {  // All intrinsics start with "llvm.x86.".
   def int_x86_sse3_monitor : GCCBuiltin<"__builtin_ia32_monitor">,
-              Intrinsic<[llvm_void_ty], [llvm_ptr_ty,
+              Intrinsic<[], [llvm_ptr_ty,
                          llvm_i32_ty, llvm_i32_ty], [IntrWriteMem]>;
   def int_x86_sse3_mwait : GCCBuiltin<"__builtin_ia32_mwait">,
-              Intrinsic<[llvm_void_ty], [llvm_i32_ty,
+              Intrinsic<[], [llvm_i32_ty,
                          llvm_i32_ty], [IntrWriteMem]>;
 }
 
@@ -779,6 +779,29 @@ let TargetPrefix = "x86" in {  // All intrinsics start with "llvm.x86.".
                         [IntrNoMem, Commutative]>;
 }
 
+// Advanced Encryption Standard (AES) Instructions
+let TargetPrefix = "x86" in {  // All intrinsics start with "llvm.x86.".
+  def int_x86_aesni_aesimc          : GCCBuiltin<"__builtin_ia32_aesimc128">,
+              Intrinsic<[llvm_v2i64_ty], [llvm_v2i64_ty],
+                        [IntrNoMem]>;
+  def int_x86_aesni_aesenc          : GCCBuiltin<"__builtin_ia32_aesenc128">,
+              Intrinsic<[llvm_v2i64_ty], [llvm_v2i64_ty, llvm_v2i64_ty],
+                        [IntrNoMem]>;
+  def int_x86_aesni_aesenclast : GCCBuiltin<"__builtin_ia32_aesenclast128">,
+              Intrinsic<[llvm_v2i64_ty], [llvm_v2i64_ty, llvm_v2i64_ty],
+                        [IntrNoMem]>;
+  def int_x86_aesni_aesdec          : GCCBuiltin<"__builtin_ia32_aesdec128">,
+              Intrinsic<[llvm_v2i64_ty], [llvm_v2i64_ty, llvm_v2i64_ty],
+                        [IntrNoMem]>;
+  def int_x86_aesni_aesdeclast : GCCBuiltin<"__builtin_ia32_aesdeclast128">,
+              Intrinsic<[llvm_v2i64_ty], [llvm_v2i64_ty, llvm_v2i64_ty],
+                        [IntrNoMem]>;
+  def int_x86_aesni_aeskeygenassist : 
+              GCCBuiltin<"__builtin_ia32_aeskeygenassist128">,
+              Intrinsic<[llvm_v2i64_ty], [llvm_v2i64_ty, llvm_i32_ty],
+                        [IntrNoMem]>;
+}
+
 // Vector pack
 let TargetPrefix = "x86" in {  // All intrinsics start with "llvm.x86.".
   def int_x86_sse41_packusdw        : GCCBuiltin<"__builtin_ia32_packusdw128">,
@@ -790,9 +813,6 @@ let TargetPrefix = "x86" in {  // All intrinsics start with "llvm.x86.".
 let TargetPrefix = "x86" in {  // All intrinsics start with "llvm.x86.".
   def int_x86_sse41_pmuldq          : GCCBuiltin<"__builtin_ia32_pmuldq128">,
               Intrinsic<[llvm_v2i64_ty], [llvm_v4i32_ty, llvm_v4i32_ty],
-                        [IntrNoMem, Commutative]>;
-  def int_x86_sse41_pmulld          : GCCBuiltin<"__builtin_ia32_pmulld128">,
-              Intrinsic<[llvm_v4i32_ty], [llvm_v4i32_ty, llvm_v4i32_ty],
                         [IntrNoMem, Commutative]>;
 }
 
@@ -973,9 +993,9 @@ let TargetPrefix = "x86" in { // All intrinsics start with "llvm.x86.".
 // Empty MMX state op.
 let TargetPrefix = "x86" in {  // All intrinsics start with "llvm.x86.".
   def int_x86_mmx_emms  : GCCBuiltin<"__builtin_ia32_emms">,
-              Intrinsic<[llvm_void_ty], [], [IntrWriteMem]>;
+              Intrinsic<[], [], [IntrWriteMem]>;
   def int_x86_mmx_femms : GCCBuiltin<"__builtin_ia32_femms">,
-              Intrinsic<[llvm_void_ty], [], [IntrWriteMem]>;
+              Intrinsic<[], [], [IntrWriteMem]>;
 }
 
 // Integer arithmetic ops.
@@ -1151,7 +1171,7 @@ let TargetPrefix = "x86" in {  // All intrinsics start with "llvm.x86.".
 // Misc.
 let TargetPrefix = "x86" in {  // All intrinsics start with "llvm.x86.".
   def int_x86_mmx_maskmovq : GCCBuiltin<"__builtin_ia32_maskmovq">,
-              Intrinsic<[llvm_void_ty],
+              Intrinsic<[],
                         [llvm_v8i8_ty, llvm_v8i8_ty, llvm_ptr_ty],
                         [IntrWriteMem]>;
 
@@ -1159,6 +1179,6 @@ let TargetPrefix = "x86" in {  // All intrinsics start with "llvm.x86.".
               Intrinsic<[llvm_i32_ty], [llvm_v8i8_ty], [IntrNoMem]>;
 
   def int_x86_mmx_movnt_dq : GCCBuiltin<"__builtin_ia32_movntq">,
-              Intrinsic<[llvm_void_ty], [llvm_ptr_ty,
+              Intrinsic<[], [llvm_ptr_ty,
                          llvm_v1i64_ty], [IntrWriteMem]>;
 }

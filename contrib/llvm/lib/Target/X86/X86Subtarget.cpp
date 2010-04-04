@@ -259,6 +259,7 @@ void X86Subtarget::AutoDetectSubtargetFeatures() {
 
   HasFMA3 = IsIntel && ((ECX >> 12) & 0x1);
   HasAVX = ((ECX >> 28) & 0x1);
+  HasAES = IsIntel && ((ECX >> 25) & 0x1);
 
   if (IsIntel || IsAMD) {
     // Determine if bit test memory instructions are slow.
@@ -266,6 +267,9 @@ void X86Subtarget::AutoDetectSubtargetFeatures() {
     unsigned Model  = 0;
     DetectFamilyModel(EAX, Family, Model);
     IsBTMemSlow = IsAMD || (Family == 6 && Model >= 13);
+    // If it's Nehalem, unaligned memory access is fast.
+    if (Family == 15 && Model == 26)
+      IsUAMemFast = true;
 
     GetCpuIDAndInfo(0x80000001, &EAX, &EBX, &ECX, &EDX);
     HasX86_64 = (EDX >> 29) & 0x1;
@@ -283,9 +287,11 @@ X86Subtarget::X86Subtarget(const std::string &TT, const std::string &FS,
   , HasX86_64(false)
   , HasSSE4A(false)
   , HasAVX(false)
+  , HasAES(false)
   , HasFMA3(false)
   , HasFMA4(false)
   , IsBTMemSlow(false)
+  , IsUAMemFast(false)
   , HasVectorUAMem(false)
   , DarwinVers(0)
   , stackAlignment(8)

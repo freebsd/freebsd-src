@@ -15,7 +15,6 @@
 #define CLANG_CODEGEN_CGVTABLE_H
 
 #include "llvm/ADT/DenseMap.h"
-#include "llvm/ADT/DenseSet.h"
 #include "llvm/GlobalVariable.h"
 #include "GlobalDecl.h"
 
@@ -25,41 +24,93 @@ namespace clang {
 namespace CodeGen {
   class CodeGenModule;
 
-/// ThunkAdjustment - Virtual and non-virtual adjustment for thunks.
-class ThunkAdjustment {
-public:
-  ThunkAdjustment(int64_t NonVirtual, int64_t Virtual)
-  : NonVirtual(NonVirtual),
-    Virtual(Virtual) { }
+/// ReturnAdjustment - A return adjustment.
+struct ReturnAdjustment {
+  /// NonVirtual - The non-virtual adjustment from the derived object to its
+  /// nearest virtual base.
+  int64_t NonVirtual;
+  
+  /// VBaseOffsetOffset - The offset (in bytes), relative to the address point 
+  /// of the virtual base class offset.
+  int64_t VBaseOffsetOffset;
+  
+  ReturnAdjustment() : NonVirtual(0), VBaseOffsetOffset(0) { }
+  
+  bool isEmpty() const { return !NonVirtual && !VBaseOffsetOffset; }
 
-  ThunkAdjustment()
-    : NonVirtual(0), Virtual(0) { }
-
-  // isEmpty - Return whether this thunk adjustment is empty.
-  bool isEmpty() const {
-    return NonVirtual == 0 && Virtual == 0;
+  friend bool operator==(const ReturnAdjustment &LHS, 
+                         const ReturnAdjustment &RHS) {
+    return LHS.NonVirtual == RHS.NonVirtual && 
+      LHS.VBaseOffsetOffset == RHS.VBaseOffsetOffset;
   }
 
-  /// NonVirtual - The non-virtual adjustment.
+  friend bool operator<(const ReturnAdjustment &LHS,
+                        const ReturnAdjustment &RHS) {
+    if (LHS.NonVirtual < RHS.NonVirtual)
+      return true;
+    
+    return LHS.NonVirtual == RHS.NonVirtual && 
+      LHS.VBaseOffsetOffset < RHS.VBaseOffsetOffset;
+  }
+};
+  
+/// ThisAdjustment - A 'this' pointer adjustment.
+struct ThisAdjustment {
+  /// NonVirtual - The non-virtual adjustment from the derived object to its
+  /// nearest virtual base.
   int64_t NonVirtual;
 
-  /// Virtual - The virtual adjustment.
-  int64_t Virtual;
+  /// VCallOffsetOffset - The offset (in bytes), relative to the address point,
+  /// of the virtual call offset.
+  int64_t VCallOffsetOffset;
+  
+  ThisAdjustment() : NonVirtual(0), VCallOffsetOffset(0) { }
+
+  bool isEmpty() const { return !NonVirtual && !VCallOffsetOffset; }
+
+  friend bool operator==(const ThisAdjustment &LHS, 
+                         const ThisAdjustment &RHS) {
+    return LHS.NonVirtual == RHS.NonVirtual && 
+      LHS.VCallOffsetOffset == RHS.VCallOffsetOffset;
+  }
+  
+  friend bool operator<(const ThisAdjustment &LHS,
+                        const ThisAdjustment &RHS) {
+    if (LHS.NonVirtual < RHS.NonVirtual)
+      return true;
+    
+    return LHS.NonVirtual == RHS.NonVirtual && 
+      LHS.VCallOffsetOffset < RHS.VCallOffsetOffset;
+  }
 };
 
-/// CovariantThunkAdjustment - Adjustment of the 'this' pointer and the
-/// return pointer for covariant thunks.
-class CovariantThunkAdjustment {
-public:
-  CovariantThunkAdjustment(const ThunkAdjustment &ThisAdjustment,
-                           const ThunkAdjustment &ReturnAdjustment)
-  : ThisAdjustment(ThisAdjustment), ReturnAdjustment(ReturnAdjustment) { }
+/// ThunkInfo - The 'this' pointer adjustment as well as an optional return
+/// adjustment for a thunk.
+struct ThunkInfo {
+  /// This - The 'this' pointer adjustment.
+  ThisAdjustment This;
+    
+  /// Return - The return adjustment.
+  ReturnAdjustment Return;
 
-  CovariantThunkAdjustment() { }
+  ThunkInfo() { }
 
-  ThunkAdjustment ThisAdjustment;
-  ThunkAdjustment ReturnAdjustment;
-};
+  ThunkInfo(const ThisAdjustment &This, const ReturnAdjustment &Return)
+    : This(This), Return(Return) { }
+
+  friend bool operator==(const ThunkInfo &LHS, const ThunkInfo &RHS) {
+    return LHS.This == RHS.This && LHS.Return == RHS.Return;
+  }
+
+  friend bool operator<(const ThunkInfo &LHS, const ThunkInfo &RHS) {
+    if (LHS.This < RHS.This)
+      return true;
+      
+    return LHS.This == RHS.This && LHS.Return < RHS.Return;
+  }
+
+  bool isEmpty() const { return This.isEmpty() && Return.isEmpty(); }
+};  
 
 // BaseSubobject - Uniquely identifies a direct or indirect base class. 
 // Stores both the base class decl and the offset from the most derived class to
@@ -126,19 +177,7 @@ template <> struct isPodLike<clang::CodeGen::BaseSubobject> {
 namespace clang {
 namespace CodeGen {
 
-class CGVtableInfo {
-public:
-  typedef std::vector<std::pair<GlobalDecl, ThunkAdjustment> >
-      AdjustmentVectorTy;
-
-  typedef std::pair<const CXXRecordDecl *, uint64_t> CtorVtable_t;
-  typedef llvm::DenseMap<CtorVtable_t, int64_t> AddrSubMap_t;
-  typedef llvm::DenseMap<const CXXRecordDecl *, AddrSubMap_t *> AddrMap_t;
-  llvm::DenseMap<const CXXRecordDecl *, AddrMap_t*> AddressPoints;
-
-  typedef llvm::DenseMap<BaseSubobject, uint64_t> AddressPointsMapTy;
-
-private:
+class CodeGenVTables {
   CodeGenModule &CGM;
 
   /// MethodVtableIndices - Contains the index (relative to the vtable address
@@ -163,31 +202,97 @@ private:
   /// pointers in the vtable for a given record decl.
   llvm::DenseMap<const CXXRecordDecl *, uint64_t> NumVirtualFunctionPointers;
 
-  typedef llvm::DenseMap<GlobalDecl, AdjustmentVectorTy> SavedAdjustmentsTy;
-  SavedAdjustmentsTy SavedAdjustments;
-  llvm::DenseSet<const CXXRecordDecl*> SavedAdjustmentRecords;
+  typedef llvm::SmallVector<ThunkInfo, 1> ThunkInfoVectorTy;
+  typedef llvm::DenseMap<const CXXMethodDecl *, ThunkInfoVectorTy> ThunksMapTy;
+  
+  /// Thunks - Contains all thunks that a given method decl will need.
+  ThunksMapTy Thunks;
+  
+  typedef llvm::DenseMap<const CXXRecordDecl *, uint64_t *> VTableLayoutMapTy;
+  
+  /// VTableLayoutMap - Stores the vtable layout for all record decls.
+  /// The layout is stored as an array of 64-bit integers, where the first
+  /// integer is the number of vtable entries in the layout, and the subsequent
+  /// integers are the vtable components.
+  VTableLayoutMapTy VTableLayoutMap;
 
-  typedef llvm::DenseMap<ClassPairTy, uint64_t> SubVTTIndiciesTy;
-  SubVTTIndiciesTy SubVTTIndicies;
+  typedef llvm::DenseMap<std::pair<const CXXRecordDecl *, 
+                                   BaseSubobject>, uint64_t> AddressPointsMapTy;
+  
+  /// Address points - Address points for all vtables.
+  AddressPointsMapTy AddressPoints;
+
+  /// VTableAddressPointsMapTy - Address points for a single vtable.
+  typedef llvm::DenseMap<BaseSubobject, uint64_t> VTableAddressPointsMapTy;
+
+  typedef llvm::SmallVector<std::pair<uint64_t, ThunkInfo>, 1> 
+    VTableThunksTy;
+  
+  typedef llvm::DenseMap<const CXXRecordDecl *, VTableThunksTy>
+    VTableThunksMapTy;
+  
+  /// VTableThunksMap - Contains thunks needed by vtables.
+  VTableThunksMapTy VTableThunksMap;
+  
+  uint64_t getNumVTableComponents(const CXXRecordDecl *RD) const {
+    assert(VTableLayoutMap.count(RD) && "No vtable layout for this class!");
+    
+    return VTableLayoutMap.lookup(RD)[0];
+  }
+
+  const uint64_t *getVTableComponentsData(const CXXRecordDecl *RD) const {
+    assert(VTableLayoutMap.count(RD) && "No vtable layout for this class!");
+
+    uint64_t *Components = VTableLayoutMap.lookup(RD);
+    return &Components[1];
+  }
+
+  typedef llvm::DenseMap<ClassPairTy, uint64_t> SubVTTIndiciesMapTy;
+  
+  /// SubVTTIndicies - Contains indices into the various sub-VTTs.
+  SubVTTIndiciesMapTy SubVTTIndicies;
+
+   
+  typedef llvm::DenseMap<std::pair<const CXXRecordDecl *, 
+                                   BaseSubobject>, uint64_t>
+    SecondaryVirtualPointerIndicesMapTy;
+
+  /// SecondaryVirtualPointerIndices - Contains the secondary virtual pointer
+  /// indices.
+  SecondaryVirtualPointerIndicesMapTy SecondaryVirtualPointerIndices;
 
   /// getNumVirtualFunctionPointers - Return the number of virtual function
   /// pointers in the vtable for a given record decl.
   uint64_t getNumVirtualFunctionPointers(const CXXRecordDecl *RD);
   
   void ComputeMethodVtableIndices(const CXXRecordDecl *RD);
-   
-  llvm::GlobalVariable *
-  GenerateVtable(llvm::GlobalVariable::LinkageTypes Linkage,
-                 bool GenerateDefinition, const CXXRecordDecl *LayoutClass, 
-                 const CXXRecordDecl *RD, uint64_t Offset, bool IsVirtual,
-                 AddressPointsMapTy& AddressPoints);
 
   llvm::GlobalVariable *GenerateVTT(llvm::GlobalVariable::LinkageTypes Linkage,
                                     bool GenerateDefinition,
                                     const CXXRecordDecl *RD);
 
+  /// EmitThunk - Emit a single thunk.
+  void EmitThunk(GlobalDecl GD, const ThunkInfo &Thunk);
+  
+  /// EmitThunks - Emit the associated thunks for the given global decl.
+  void EmitThunks(GlobalDecl GD);
+  
+  /// ComputeVTableRelatedInformation - Compute and store all vtable related
+  /// information (vtable layout, vbase offset offsets, thunks etc) for the
+  /// given record decl.
+  void ComputeVTableRelatedInformation(const CXXRecordDecl *RD);
+
+  /// CreateVTableInitializer - Create a vtable initializer for the given record
+  /// decl.
+  /// \param Components - The vtable components; this is really an array of
+  /// VTableComponents.
+  llvm::Constant *CreateVTableInitializer(const CXXRecordDecl *RD,
+                                          const uint64_t *Components, 
+                                          unsigned NumComponents,
+                                          const VTableThunksTy &VTableThunks);
+
 public:
-  CGVtableInfo(CodeGenModule &CGM)
+  CodeGenVTables(CodeGenModule &CGM)
     : CGM(CGM) { }
 
   /// needsVTTParameter - Return whether the given global decl needs a VTT
@@ -199,6 +304,11 @@ public:
   /// given record decl.
   uint64_t getSubVTTIndex(const CXXRecordDecl *RD, const CXXRecordDecl *Base);
   
+  /// getSecondaryVirtualPointerIndex - Return the index in the VTT where the
+  /// virtual pointer for the given subobject is located.
+  uint64_t getSecondaryVirtualPointerIndex(const CXXRecordDecl *RD,
+                                           BaseSubobject Base);
+
   /// getMethodVtableIndex - Return the index (relative to the vtable address
   /// point) where the function pointer for the given virtual function is
   /// stored.
@@ -212,35 +322,32 @@ public:
   int64_t getVirtualBaseOffsetOffset(const CXXRecordDecl *RD,
                                      const CXXRecordDecl *VBase);
 
-  AdjustmentVectorTy *getAdjustments(GlobalDecl GD);
+  /// getAddressPoint - Get the address point of the given subobject in the
+  /// class decl.
+  uint64_t getAddressPoint(BaseSubobject Base, const CXXRecordDecl *RD);
+  
+  /// GetAddrOfVTable - Get the address of the vtable for the given record decl.
+  llvm::GlobalVariable *GetAddrOfVTable(const CXXRecordDecl *RD);
 
-  /// getVtableAddressPoint - returns the address point of the vtable for the
-  /// given record decl.
-  /// FIXME: This should return a list of address points.
-  uint64_t getVtableAddressPoint(const CXXRecordDecl *RD);
+  /// EmitVTableDefinition - Emit the definition of the given vtable.
+  void EmitVTableDefinition(llvm::GlobalVariable *VTable,
+                            llvm::GlobalVariable::LinkageTypes Linkage,
+                            const CXXRecordDecl *RD);
   
-  llvm::GlobalVariable *getVtable(const CXXRecordDecl *RD);
-  
-  /// CtorVtableInfo - Information about a constructor vtable.
-  struct CtorVtableInfo {
-    /// Vtable - The vtable itself.
-    llvm::GlobalVariable *Vtable;
-  
-    /// AddressPoints - The address points in this constructor vtable.
-    AddressPointsMapTy AddressPoints;
-    
-    CtorVtableInfo() : Vtable(0) { }
-  };
-  
-  CtorVtableInfo getCtorVtable(const CXXRecordDecl *RD, 
-                               const BaseSubobject &Base,
-                               bool BaseIsVirtual);
+  /// GenerateConstructionVTable - Generate a construction vtable for the given 
+  /// base subobject.
+  llvm::GlobalVariable *
+  GenerateConstructionVTable(const CXXRecordDecl *RD, const BaseSubobject &Base, 
+                             bool BaseIsVirtual, 
+                             VTableAddressPointsMapTy& AddressPoints);
   
   llvm::GlobalVariable *getVTT(const CXXRecordDecl *RD);
   
-  void MaybeEmitVtable(GlobalDecl GD);
+  // EmitVTableRelatedData - Will emit any thunks that the global decl might
+  // have, as well as the vtable itself if the global decl is the key function.
+  void EmitVTableRelatedData(GlobalDecl GD);
 
-  /// GenerateClassData - Generate all the class data requires to be generated
+  /// GenerateClassData - Generate all the class data required to be generated
   /// upon definition of a KeyFunction.  This includes the vtable, the
   /// rtti data structure and the VTT.
   ///

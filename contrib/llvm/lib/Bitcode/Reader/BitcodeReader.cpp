@@ -1527,11 +1527,15 @@ bool BitcodeReader::ParseModule() {
 bool BitcodeReader::ParseBitcodeInto(Module *M) {
   TheModule = 0;
 
-  if (Buffer->getBufferSize() & 3)
-    return Error("Bitcode stream should be a multiple of 4 bytes in length");
-
   unsigned char *BufPtr = (unsigned char *)Buffer->getBufferStart();
   unsigned char *BufEnd = BufPtr+Buffer->getBufferSize();
+
+  if (Buffer->getBufferSize() & 3) {
+    if (!isRawBitcode(BufPtr, BufEnd) && !isBitcodeWrapper(BufPtr, BufEnd))
+      return Error("Invalid bitcode signature");
+    else
+      return Error("Bitcode stream should be a multiple of 4 bytes in length");
+  }
 
   // If we have a wrapper header, parse it and ignore the non-bc file contents.
   // The magic number is 0x0B17C0DE stored in little endian.
@@ -1640,6 +1644,8 @@ bool BitcodeReader::ParseFunctionBody(Function *F) {
   BasicBlock *CurBB = 0;
   unsigned CurBBNo = 0;
 
+  DebugLoc LastLoc;
+  
   // Read all the records.
   SmallVector<uint64_t, 64> Record;
   while (1) {
@@ -1694,6 +1700,46 @@ bool BitcodeReader::ParseFunctionBody(Function *F) {
         FunctionBBs[i] = BasicBlock::Create(Context, "", F);
       CurBB = FunctionBBs[0];
       continue;
+
+        
+    case bitc::FUNC_CODE_DEBUG_LOC_AGAIN:  // DEBUG_LOC_AGAIN
+      // This record indicates that the last instruction is at the same
+      // location as the previous instruction with a location.
+      I = 0;
+        
+      // Get the last instruction emitted.
+      if (CurBB && !CurBB->empty())
+        I = &CurBB->back();
+      else if (CurBBNo && FunctionBBs[CurBBNo-1] &&
+               !FunctionBBs[CurBBNo-1]->empty())
+        I = &FunctionBBs[CurBBNo-1]->back();
+        
+      if (I == 0) return Error("Invalid DEBUG_LOC_AGAIN record");
+      I->setDebugLoc(LastLoc);
+      I = 0;
+      continue;
+        
+    case bitc::FUNC_CODE_DEBUG_LOC: {      // DEBUG_LOC: [line, col, scope, ia]
+      I = 0;     // Get the last instruction emitted.
+      if (CurBB && !CurBB->empty())
+        I = &CurBB->back();
+      else if (CurBBNo && FunctionBBs[CurBBNo-1] &&
+               !FunctionBBs[CurBBNo-1]->empty())
+        I = &FunctionBBs[CurBBNo-1]->back();
+      if (I == 0 || Record.size() < 4)
+        return Error("Invalid FUNC_CODE_DEBUG_LOC record");
+      
+      unsigned Line = Record[0], Col = Record[1];
+      unsigned ScopeID = Record[2], IAID = Record[3];
+      
+      MDNode *Scope = 0, *IA = 0;
+      if (ScopeID) Scope = cast<MDNode>(MDValueList.getValueFwdRef(ScopeID-1));
+      if (IAID)    IA = cast<MDNode>(MDValueList.getValueFwdRef(IAID-1));
+      LastLoc = DebugLoc::get(Line, Col, Scope, IA);
+      I->setDebugLoc(LastLoc);
+      I = 0;
+      continue;
+    }
 
     case bitc::FUNC_CODE_INST_BINOP: {    // BINOP: [opval, ty, opval, opcode]
       unsigned OpNum = 0;
@@ -2281,8 +2327,6 @@ bool BitcodeReader::ParseFunctionBody(Function *F) {
 
   // See if anything took the address of blocks in this function.  If so,
   // resolve them now.
-  /// BlockAddrFwdRefs - These are blockaddr references to basic blocks.  These
-  /// are resolved lazily when functions are loaded.
   DenseMap<Function*, std::vector<BlockAddrRefTy> >::iterator BAFRI =
     BlockAddrFwdRefs.find(F);
   if (BAFRI != BlockAddrFwdRefs.end()) {

@@ -47,7 +47,7 @@ CodeGenModule::CodeGenModule(ASTContext &C, const CodeGenOptions &CGO,
     Features(C.getLangOptions()), CodeGenOpts(CGO), TheModule(M),
     TheTargetData(TD), TheTargetCodeGenInfo(0), Diags(diags),
     Types(C, M, TD, getTargetCodeGenInfo().getABIInfo()),
-    MangleCtx(C), VtableInfo(*this), Runtime(0),
+    MangleCtx(C), VTables(*this), Runtime(0),
     MemCpyFn(0), MemMoveFn(0), MemSetFn(0), CFConstantStringClassRef(0),
     VMContext(M.getContext()) {
 
@@ -79,6 +79,7 @@ void CodeGenModule::createObjCRuntime() {
 }
 
 void CodeGenModule::Release() {
+  EmitFundamentalRTTIDescriptors();
   EmitDeferred();
   EmitCXXGlobalInitFunc();
   EmitCXXGlobalDtorFunc();
@@ -495,7 +496,7 @@ void CodeGenModule::EmitDeferred() {
     if (!DeferredVtables.empty()) {
       const CXXRecordDecl *RD = DeferredVtables.back();
       DeferredVtables.pop_back();
-      getVtableInfo().GenerateClassData(getVtableLinkage(RD), RD);
+      getVTables().GenerateClassData(getVtableLinkage(RD), RD);
       continue;
     }
 
@@ -714,20 +715,9 @@ void CodeGenModule::EmitGlobalDefinition(GlobalDecl GD) {
                                  Context.getSourceManager(),
                                  "Generating code for declaration");
   
-  if (const CXXMethodDecl *MD = dyn_cast<CXXMethodDecl>(D)) {
-    getVtableInfo().MaybeEmitVtable(GD);
-    if (MD->isVirtual() && MD->isOutOfLine() &&
-        (!isa<CXXDestructorDecl>(D) || GD.getDtorType() != Dtor_Base)) {
-      if (isa<CXXDestructorDecl>(D)) {
-        GlobalDecl CanonGD(cast<CXXDestructorDecl>(D->getCanonicalDecl()),
-                           GD.getDtorType());
-        BuildThunksForVirtual(CanonGD);
-      } else {
-        BuildThunksForVirtual(MD->getCanonicalDecl());
-      }
-    }
-  }
-  
+  if (isa<CXXMethodDecl>(D))
+    getVTables().EmitVTableRelatedData(GD);
+
   if (const CXXConstructorDecl *CD = dyn_cast<CXXConstructorDecl>(D))
     EmitCXXConstructor(CD, GD.getCtorType());
   else if (const CXXDestructorDecl *DD = dyn_cast<CXXDestructorDecl>(D))
@@ -758,7 +748,7 @@ CodeGenModule::GetOrCreateLLVMFunction(llvm::StringRef MangledName,
     if (WeakRefReferences.count(Entry)) {
       const FunctionDecl *FD = cast_or_null<FunctionDecl>(D.getDecl());
       if (FD && !FD->hasAttr<WeakAttr>())
-	Entry->setLinkage(llvm::Function::ExternalLinkage);
+        Entry->setLinkage(llvm::Function::ExternalLinkage);
 
       WeakRefReferences.erase(Entry);
     }
@@ -873,7 +863,7 @@ CodeGenModule::GetOrCreateLLVMGlobal(llvm::StringRef MangledName,
   if (Entry) {
     if (WeakRefReferences.count(Entry)) {
       if (D && !D->hasAttr<WeakAttr>())
-	Entry->setLinkage(llvm::Function::ExternalLinkage);
+        Entry->setLinkage(llvm::Function::ExternalLinkage);
 
       WeakRefReferences.erase(Entry);
     }
@@ -1255,9 +1245,9 @@ static void ReplaceUsesOfNonProtoTypeWithRealFunction(llvm::GlobalValue *Old,
     if (!CI->use_empty())
       CI->replaceAllUsesWith(NewCall);
 
-    // Copy any custom metadata attached with CI.
-    if (llvm::MDNode *DbgNode = CI->getMetadata("dbg"))
-      NewCall->setMetadata("dbg", DbgNode);
+    // Copy debug location attached to CI.
+    if (!CI->getDebugLoc().isUnknown())
+      NewCall->setDebugLoc(CI->getDebugLoc());
     CI->eraseFromParent();
   }
 }

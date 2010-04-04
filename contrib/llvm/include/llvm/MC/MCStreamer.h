@@ -88,7 +88,7 @@ class TargetAsmBackend;
     /// @name Symbol & Section Management
     /// @{
     
-    /// getCurrentSection - Return the current seciton that the streamer is
+    /// getCurrentSection - Return the current section that the streamer is
     /// emitting code to.
     const MCSection *getCurrentSection() const { return CurSection; }
 
@@ -308,7 +308,8 @@ class TargetAsmBackend;
   /// createMachOStream - Create a machine code streamer which will generative
   /// Mach-O format object files.
   MCStreamer *createMachOStreamer(MCContext &Ctx, TargetAsmBackend &TAB,
-                                  raw_ostream &OS, MCCodeEmitter *CE);
+                                  raw_ostream &OS, MCCodeEmitter *CE,
+                                  bool RelaxAll = false);
 
 } // end namespace llvm
 

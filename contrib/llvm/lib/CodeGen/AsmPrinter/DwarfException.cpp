@@ -419,23 +419,24 @@ bool DwarfException::CallToNoUnwindFunction(const MachineInstr *MI) {
   for (unsigned I = 0, E = MI->getNumOperands(); I != E; ++I) {
     const MachineOperand &MO = MI->getOperand(I);
 
-    if (MO.isGlobal()) {
-      if (Function *F = dyn_cast<Function>(MO.getGlobal())) {
-        if (SawFunc) {
-          // Be conservative. If we have more than one function operand for this
-          // call, then we can't make the assumption that it's the callee and
-          // not a parameter to the call.
-          // 
-          // FIXME: Determine if there's a way to say that `F' is the callee or
-          // parameter.
-          MarkedNoUnwind = false;
-          break;
-        }
+    if (!MO.isGlobal()) continue;
+    
+    Function *F = dyn_cast<Function>(MO.getGlobal());
+    if (F == 0) continue;
 
-        MarkedNoUnwind = F->doesNotThrow();
-        SawFunc = true;
-      }
+    if (SawFunc) {
+      // Be conservative. If we have more than one function operand for this
+      // call, then we can't make the assumption that it's the callee and
+      // not a parameter to the call.
+      // 
+      // FIXME: Determine if there's a way to say that `F' is the callee or
+      // parameter.
+      MarkedNoUnwind = false;
+      break;
     }
+
+    MarkedNoUnwind = F->doesNotThrow();
+    SawFunc = true;
   }
 
   return MarkedNoUnwind;
@@ -504,7 +505,10 @@ ComputeCallSiteTable(SmallVectorImpl<CallSiteEntry> &CallSites,
       LastLabel = LandingPad->EndLabels[P.RangeIndex];
       assert(BeginLabel && LastLabel && "Invalid landing pad!");
 
-      if (LandingPad->LandingPadLabel) {
+      if (!LandingPad->LandingPadLabel) {
+        // Create a gap.
+        PreviousIsInvoke = false;
+      } else {
         // This try-range is for an invoke.
         CallSiteEntry Site = {
           BeginLabel,
@@ -536,9 +540,6 @@ ComputeCallSiteTable(SmallVectorImpl<CallSiteEntry> &CallSites,
           CallSites[SiteNo - 1] = Site;
         }
         PreviousIsInvoke = true;
-      } else {
-        // Create a gap.
-        PreviousIsInvoke = false;
       }
     }
   }
@@ -885,8 +886,7 @@ void DwarfException::EndModule() {
   if (!shouldEmitMovesModule && !shouldEmitTableModule)
     return;
 
-  if (TimePassesIsEnabled)
-    ExceptionTimer->startTimer();
+  TimeRegion Timer(ExceptionTimer);
 
   const std::vector<Function *> Personalities = MMI->getPersonalities();
 
@@ -896,9 +896,6 @@ void DwarfException::EndModule() {
   for (std::vector<FunctionEHFrameInfo>::iterator
          I = EHFrames.begin(), E = EHFrames.end(); I != E; ++I)
     EmitFDE(*I);
-
-  if (TimePassesIsEnabled)
-    ExceptionTimer->stopTimer();
 }
 
 /// BeginFunction - Gather pre-function exception information. Assumes it's
@@ -906,9 +903,7 @@ void DwarfException::EndModule() {
 void DwarfException::BeginFunction(const MachineFunction *MF) {
   if (!MMI || !MAI->doesSupportExceptionHandling()) return;
 
-  if (TimePassesIsEnabled)
-    ExceptionTimer->startTimer();
-
+  TimeRegion Timer(ExceptionTimer);
   this->MF = MF;
   shouldEmitTable = shouldEmitMoves = false;
 
@@ -924,9 +919,6 @@ void DwarfException::BeginFunction(const MachineFunction *MF) {
 
   shouldEmitTableModule |= shouldEmitTable;
   shouldEmitMovesModule |= shouldEmitMoves;
-
-  if (TimePassesIsEnabled)
-    ExceptionTimer->stopTimer();
 }
 
 /// EndFunction - Gather and emit post-function exception information.
@@ -934,9 +926,7 @@ void DwarfException::BeginFunction(const MachineFunction *MF) {
 void DwarfException::EndFunction() {
   if (!shouldEmitMoves && !shouldEmitTable) return;
 
-  if (TimePassesIsEnabled)
-    ExceptionTimer->startTimer();
-
+  TimeRegion Timer(ExceptionTimer);
   Asm->OutStreamer.EmitLabel(getDWLabel("eh_func_end", SubprogramCount));
 
   // Record if this personality index uses a landing pad.
@@ -961,7 +951,4 @@ void DwarfException::EndFunction() {
                                          !MMI->getLandingPads().empty(),
                                          MMI->getFrameMoves(),
                                          MF->getFunction()));
-
-  if (TimePassesIsEnabled)
-    ExceptionTimer->stopTimer();
 }

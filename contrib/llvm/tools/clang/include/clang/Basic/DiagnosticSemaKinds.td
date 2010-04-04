@@ -68,7 +68,7 @@ def err_designator_into_flexible_array_member : Error<
 def note_flexible_array_member : Note<
   "initialized flexible array member %0 is here">;
 def ext_flexible_array_init : Extension<
-  "flexible array initialization is a GNU extension">;
+  "flexible array initialization is a GNU extension">, InGroup<GNU>;
 
 // Declarations.
 def ext_vla : Extension<
@@ -256,6 +256,10 @@ def warn_property_attribute : Warning<
 def warn_property_types_are_incompatible : Warning<
   "property type %0 is incompatible with type %1 inherited from %2">;
 def err_undef_interface : Error<"cannot find interface declaration for %0">;
+def err_class_extension_after_impl : Error<
+  "cannot declare class extension for %0 after class implementation">;
+def note_implementation_declared : Note<
+  "class implementation is declared here">;
 def warn_dup_category_def : Warning<
   "duplicate definition of category %1 on interface %0">;
 def err_conflicting_super_class : Error<"conflicting super class name %0">;
@@ -268,8 +272,6 @@ def err_duplicate_ivar_declaration : Error<
   "instance variable is already declared">;
 def warn_on_superclass_use : Warning<
   "class implementation may not have super class">;
-def err_non_private_ivar_declaration : Error<
-  "only private ivars may be declared in implementation">;
 def err_conflicting_ivar_bitwidth : Error<
   "instance variable %0 has conflicting bit-field width">;
 def err_conflicting_ivar_name : Error<
@@ -277,7 +279,9 @@ def err_conflicting_ivar_name : Error<
 def err_inconsistant_ivar_count : Error<
   "inconsistent number of instance variables specified">;
 def warn_incomplete_impl : Warning<"incomplete implementation">;
-def warn_undef_method_impl : Warning<"method definition for %0 not found">;
+def note_undef_method_impl : Note<"method definition for %0 not found">;
+def note_required_for_protocol_at : 
+  Note<"required for direct or indirect protocol %0">;
 
 def warn_conflicting_ret_types : Warning<
   "conflicting return type in implementation of %0: %1 vs %2">;
@@ -350,7 +354,7 @@ def error_synthesized_ivar_yet_not_supported : Error<
   " (need to declare %0 explicitly)">;
 
 def error_property_ivar_type : Error<
-  "type of property %0 does not match type of ivar %1">;
+  "type of property %0 (%1) does not match type of ivar %2 (%3)">;
 def error_ivar_in_superclass_use : Error<
   "property %0 attempting to use ivar %1 declared in super class %2">;
 def error_weak_property : Error<
@@ -367,6 +371,8 @@ def warn_objc_property_attr_mutually_exclusive : Warning<
   InGroup<ReadOnlySetterAttrs>, DefaultIgnore;
 def warn_undeclared_selector : Warning<
   "undeclared selector %0">, InGroup<UndeclaredSelector>, DefaultIgnore;
+def warn_unimplemented_protocol_method : Warning<
+  "method in protocol not implemented">, InGroup<Protocol>;
 
 // C++ declarations
 def err_static_assert_expression_is_not_constant : Error<
@@ -393,7 +399,11 @@ def err_abstract_type_in_decl : Error<
   "%select{return|parameter|variable|field}0 type %1 is an abstract class">;
 def err_allocation_of_abstract_type : Error<
   "allocation of an object of abstract type %0">;
-  
+
+def err_multiple_final_overriders : Error<
+  "virtual function %q0 has more than one final overrider in %1">; 
+def note_final_overrider : Note<"final overrider of %q0 in %1">;
+
 def err_type_defined_in_type_specifier : Error<
   "%0 can not be defined in a type specifier">;
 def err_type_defined_in_result_type : Error<
@@ -432,6 +442,8 @@ def err_incompatible_exception_specs : Error<
   "target exception specification is not superset of source">;
 def err_deep_exception_specs_differ : Error<
   "exception specifications of %select{return|argument}0 types differ">;
+def warn_missing_exception_specification : Warning<
+  "%0 is missing exception specification '%1'">;
 
 // C++ access checking
 def err_class_redeclared_with_different_access : Error<
@@ -532,6 +544,7 @@ def err_implicit_object_parameter_init : Error<
   "of type %1">;
 
 def note_field_decl : Note<"member is declared here">;
+def note_ivar_decl : Note<"ivar is declared here">;
 def note_bitfield_decl : Note<"bit-field is declared here">;
 def note_previous_decl : Note<"%0 declared here">;
 def note_member_synthesized_at : Note<
@@ -776,8 +789,9 @@ def warn_redeclaration_without_attribute_prev_attribute_ignored : Warning<
 def warn_attribute_ignored : Warning<"%0 attribute ignored">;
 def warn_attribute_precede_definition : Warning<
   "attribute declaration must precede definition">;
-def warn_attribute_void_function : Warning<
-  "attribute %0 cannot be applied to functions without return value">;
+def warn_attribute_void_function_method : Warning<
+  "attribute %0 cannot be applied to "
+  "%select{functions|Objective-C method}1 without return value">;
 def warn_attribute_weak_on_field : Warning<
   "__weak attribute cannot be specified on a field declaration">;
 def warn_attribute_weak_on_local : Warning<
@@ -1199,26 +1213,40 @@ def err_template_arg_not_integral_or_enumeral : Error<
 def err_template_arg_not_ice : Error<
   "non-type template argument of type %0 is not an integral constant "
   "expression">;
+def err_deduced_non_type_template_arg_type_mismatch : Error<
+  "deduced non-type template argument does not have the same type as the "
+  "its corresponding template parameter (%0 vs %1)">;
 def err_template_arg_not_convertible : Error<
   "non-type template argument of type %0 cannot be converted to a value "
   "of type %1">;
-def err_template_arg_negative : Error<
-  "non-type template argument provides negative value '%0' for unsigned "
-  "template parameter of type %1">;
-def err_template_arg_too_large : Error<
-  "non-type template argument value '%0' is too large for template "
-  "parameter of type %1">;
+def warn_template_arg_negative : Warning<
+  "non-type template argument with value '%0' converted to '%1' for unsigned "
+  "template parameter of type %2">;
+def warn_template_arg_too_large : Warning<
+  "non-type template argument value '%0' truncated to '%1' for "
+  "template parameter of type %2">;
 def err_template_arg_no_ref_bind : Error<
   "non-type template parameter of reference type %0 cannot bind to template "
   "argument of type %1">;
 def err_template_arg_ref_bind_ignores_quals : Error<
   "reference binding of non-type template parameter of type %0 to template "
   "argument of type %1 ignores qualifiers">;
+def err_template_arg_unresolved_overloaded_function : Error<
+  "overloaded function cannot be resolved to a non-type template parameter of "
+  "type %0">;
 def err_template_arg_not_decl_ref : Error<
   "non-type template argument does not refer to any declaration">;
 def err_template_arg_not_object_or_func_form : Error<
   "non-type template argument does not directly refer to an object or "
   "function">;
+def err_template_arg_not_address_of : Error<
+  "non-type template argument for template parameter of pointer type %0 must "
+  "have its address taken">;
+def err_template_arg_address_of_non_pointer : Error<
+  "address taken in non-type template argument for template parameter of "
+  "reference type %0">;
+def err_template_arg_reference_var : Error<
+  "non-type template argument of reference type %0 is not an object">;
 def err_template_arg_field : Error<
   "non-type template argument refers to non-static data member %0">;
 def err_template_arg_method : Error<
@@ -1251,6 +1279,8 @@ def err_template_spec_decl_function_scope : Error<
   "explicit specialization of %0 in function scope">;
 def err_template_spec_decl_class_scope : Error<
   "explicit specialization of %0 in class scope">;
+def err_template_spec_decl_friend : Error<
+  "cannot declare an explicit specialization in a friend">;
 def err_template_spec_decl_out_of_scope_global : Error<
   "%select{class template|class template partial|function template|member "
   "function|static data member|member class}0 specialization of %1 must "
@@ -1372,13 +1402,13 @@ def note_default_function_arg_instantiation_here : Note<
   "for '%0' required here">;
 def note_explicit_template_arg_substitution_here : Note<
   "while substituting explicitly-specified template arguments into function "
-  "template %f, here">;
+  "template %0 %1">;
 def note_function_template_deduction_instantiation_here : Note<
-  "while substituting deduced template arguments into function template %0, "
-  "here">;
+  "while substituting deduced template arguments into function template %0 "
+  "%1">;
 def note_partial_spec_deduct_instantiation_here : Note<
   "during template argument deduction for class template partial "
-  "specialization %0, here">;
+  "specialization %0 %1">;
 def note_prior_template_arg_substitution : Note<
   "while substituting prior template arguments into %select{non-type|template}0"
   " template parameter%1 %2">;
@@ -1537,7 +1567,8 @@ def err_forward_ref_enum : Error<
   "ISO C++ forbids forward references to 'enum' types">;
 def err_redefinition_of_enumerator : Error<"redefinition of enumerator %0">;
 def err_duplicate_member : Error<"duplicate member %0">;
-def err_misplaced_ivar : Error<"ivars may not be placed in categories">;
+def err_misplaced_ivar : Error<
+  "ivars may not be placed in %select{categories|class extension}0">;
 def ext_enum_value_not_int : Extension<
   "ISO C restricts enumerator values to range of 'int' (%0 is too "
   "%select{small|large}1)">;
@@ -1575,6 +1606,8 @@ def err_typecheck_invalid_restrict_invalid_pointee : Error<
   "pointer to function type %0 may not be 'restrict' qualified">;
 def ext_typecheck_zero_array_size : Extension<
   "zero size arrays are an extension">;
+def err_typecheck_zero_array_size : Error<
+  "zero-length arrays are not permitted in C++">;
 def err_at_least_one_initializer_needed_to_size_array : Error<
   "at least one initializer value required to size array">;
 def err_array_size_non_int : Error<"size of array has non-integer type %0">;
@@ -1664,7 +1697,7 @@ def err_field_declared_as_function : Error<"field %0 declared as a function">;
 def err_field_incomplete : Error<"field has incomplete type %0">;
 def ext_variable_sized_type_in_struct : ExtWarn<
   "field %0 with variable sized type %1 not at the end of a struct or class is"
-  " a GNU extension">;
+  " a GNU extension">, InGroup<GNU>;
 
 def err_flexible_array_empty_struct : Error<
   "flexible array %0 not allowed in otherwise empty struct">;
@@ -2164,7 +2197,7 @@ def err_invalid_declarator_global_scope : Error<
 def err_invalid_declarator_in_function : Error<
   "definition or redeclaration of %0 not allowed inside a function">;
 def err_not_tag_in_scope : Error<
-  "%0 does not name a tag member in the specified scope">;
+  "no %select{struct|union|class|enum}0 named %1 in %2">;
 
 def err_cannot_form_pointer_to_member_of_reference_type : Error<
   "cannot form a pointer-to-member to member %0 of reference type %1">;
@@ -2322,7 +2355,8 @@ def warn_typecheck_cond_pointer_integer_mismatch : ExtWarn<
 def err_typecheck_choose_expr_requires_constant : Error<
   "'__builtin_choose_expr' requires a constant expression">;
 def ext_typecheck_expression_not_constant_but_accepted : Extension<
-  "expression is not a constant, but is accepted as one by GNU extensions">;
+  "expression is not a constant, but is accepted as one by GNU extensions">, 
+  InGroup<GNU>;
 def warn_unused_expr : Warning<"expression result unused">,
   InGroup<UnusedValue>;
 def warn_unused_property_expr : Warning<
@@ -2334,6 +2368,7 @@ def warn_unused_call : Warning<
 
 def err_incomplete_type_used_in_type_trait_expr : Error<
   "incomplete type %0 used in type trait expression">;
+def err_expected_ident_or_lparen : Error<"expected identifier or '('">;
   
 // inline asm.
 def err_asm_wide_character : Error<"wide string is invalid in 'asm'">;
@@ -2413,9 +2448,9 @@ def err_in_class_initializer_non_constant : Error<
 
 // C++ anonymous unions and GNU anonymous structs/unions
 def ext_anonymous_union : Extension<
-  "anonymous unions are a GNU extension in C">;
+  "anonymous unions are a GNU extension in C">, InGroup<GNU>;
 def ext_anonymous_struct : Extension<
-  "anonymous structs are a GNU extension">;
+  "anonymous structs are a GNU extension">, InGroup<GNU>;
 def err_anonymous_union_not_static : Error<
   "anonymous unions at namespace or global scope must be declared 'static'">;
 def err_anonymous_union_with_storage_spec : Error<
@@ -2583,6 +2618,9 @@ def warn_printf_missing_format_string : Warning<
   "format string missing">, InGroup<Format>;
 def warn_printf_conversion_argument_type_mismatch : Warning<
   "conversion specifies type %0 but the argument has type %1">,
+  InGroup<Format>;
+def warn_printf_positional_arg_exceeds_data_args : Warning <
+  "data argument position '%0' exceeds the number of data arguments (%1)">,
   InGroup<Format>;
 def warn_printf_zero_positional_specifier : Warning<
   "position arguments in format strings start counting at 1 (not 0)">,

@@ -561,14 +561,53 @@ bool ObjCInterfaceDecl::ClassImplementsProtocol(ObjCProtocolDecl *lProto,
 // ObjCIvarDecl
 //===----------------------------------------------------------------------===//
 
-ObjCIvarDecl *ObjCIvarDecl::Create(ASTContext &C, DeclContext *DC,
+ObjCIvarDecl *ObjCIvarDecl::Create(ASTContext &C, ObjCContainerDecl *DC,
                                    SourceLocation L, IdentifierInfo *Id,
                                    QualType T, TypeSourceInfo *TInfo,
                                    AccessControl ac, Expr *BW) {
+  if (DC) {
+    // Ivar's can only appear in interfaces, implementations (via synthesized
+    // properties), and class extensions (via direct declaration, or synthesized
+    // properties).
+    //
+    // FIXME: This should really be asserting this:
+    //   (isa<ObjCCategoryDecl>(DC) &&
+    //    cast<ObjCCategoryDecl>(DC)->IsClassExtension()))
+    // but unfortunately we sometimes place ivars into non-class extension
+    // categories on error. This breaks an AST invariant, and should not be
+    // fixed.
+    assert((isa<ObjCInterfaceDecl>(DC) || isa<ObjCImplementationDecl>(DC) ||
+            isa<ObjCCategoryDecl>(DC)) &&
+           "Invalid ivar decl context!");
+  }
+
   return new (C) ObjCIvarDecl(DC, L, Id, T, TInfo, ac, BW);
 }
 
+const ObjCInterfaceDecl *ObjCIvarDecl::getContainingInterface() const {
+  const ObjCContainerDecl *DC = cast<ObjCContainerDecl>(getDeclContext());
 
+  switch (DC->getKind()) {
+  default:
+  case ObjCCategoryImpl:
+  case ObjCProtocol:
+    assert(0 && "invalid ivar container!");
+    return 0;
+
+    // Ivars can only appear in class extension categories.
+  case ObjCCategory: {
+    const ObjCCategoryDecl *CD = cast<ObjCCategoryDecl>(DC);
+    assert(CD->IsClassExtension() && "invalid container for ivar!");
+    return CD->getClassInterface();
+  }
+
+  case ObjCImplementation:
+    return cast<ObjCImplementationDecl>(DC)->getClassInterface();
+
+  case ObjCInterface:
+    return cast<ObjCInterfaceDecl>(DC);
+  }
+}
 
 //===----------------------------------------------------------------------===//
 // ObjCAtDefsFieldDecl

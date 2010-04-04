@@ -3,7 +3,7 @@
 LIB=	clangchecker
 
 SRCDIR=	tools/clang/lib/Checker
-SRCS=	AdjustedReturnValueChecker.cpp ArrayBoundChecker.cpp \
+SRCS=	AdjustedReturnValueChecker.cpp AggExprVisitor.cpp ArrayBoundChecker.cpp \
 	AttrNonNullChecker.cpp BasicConstraintManager.cpp \
 	BasicObjCFoundationChecks.cpp BasicStore.cpp BasicValueFactory.cpp \
 	BugReporter.cpp BugReporterVisitors.cpp BuiltinFunctionChecker.cpp \

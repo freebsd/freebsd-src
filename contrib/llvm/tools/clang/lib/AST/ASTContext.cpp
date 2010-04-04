@@ -45,7 +45,8 @@ ASTContext::ASTContext(const LangOptions& LOpts, SourceManager &SM,
   sigjmp_bufDecl(0), BlockDescriptorType(0), BlockDescriptorExtendedType(0),
   SourceMgr(SM), LangOpts(LOpts), FreeMemory(FreeMem), Target(t),
   Idents(idents), Selectors(sels),
-  BuiltinInfo(builtins), ExternalSource(0), PrintingPolicy(LOpts) {
+  BuiltinInfo(builtins), ExternalSource(0), PrintingPolicy(LOpts),
+  LastSDM(0, 0) {
   ObjCIdRedefinitionType = QualType();
   ObjCClassRedefinitionType = QualType();
   ObjCSelRedefinitionType = QualType();
@@ -858,34 +859,22 @@ void ASTContext::CollectInheritedProtocols(const Decl *CDecl,
   }
 }
 
-unsigned ASTContext::CountProtocolSynthesizedIvars(const ObjCProtocolDecl *PD) {
-  unsigned count = 0;
-  for (ObjCContainerDecl::prop_iterator I = PD->prop_begin(),
-       E = PD->prop_end(); I != E; ++I)
-    if ((*I)->getPropertyIvarDecl())
+unsigned ASTContext::CountNonClassIvars(const ObjCInterfaceDecl *OI) {
+  unsigned count = 0;  
+  // Count ivars declared in class extension.
+  if (const ObjCCategoryDecl *CDecl = OI->getClassExtension()) {
+    for (ObjCCategoryDecl::ivar_iterator I = CDecl->ivar_begin(),
+         E = CDecl->ivar_end(); I != E; ++I) {
       ++count;
-
-  // Also look into nested protocols.
-  for (ObjCProtocolDecl::protocol_iterator P = PD->protocol_begin(),
-       E = PD->protocol_end(); P != E; ++P)
-    count += CountProtocolSynthesizedIvars(*P);
-  return count;
-}
-
-unsigned ASTContext::CountSynthesizedIvars(const ObjCInterfaceDecl *OI) {
-  unsigned count = 0;
-  for (ObjCInterfaceDecl::prop_iterator I = OI->prop_begin(),
-       E = OI->prop_end(); I != E; ++I) {
-    if ((*I)->getPropertyIvarDecl())
+    }
+  }
+  
+  // Count ivar defined in this class's implementation.  This
+  // includes synthesized ivars.
+  if (ObjCImplementationDecl *ImplDecl = OI->getImplementation())
+    for (ObjCImplementationDecl::ivar_iterator I = ImplDecl->ivar_begin(),
+         E = ImplDecl->ivar_end(); I != E; ++I)
       ++count;
-  }
-  // Also look into interface's protocol list for properties declared
-  // in the protocol and whose ivars are synthesized.
-  for (ObjCInterfaceDecl::protocol_iterator P = OI->protocol_begin(),
-       PE = OI->protocol_end(); P != PE; ++P) {
-    ObjCProtocolDecl *PD = (*P);
-    count += CountProtocolSynthesizedIvars(PD);
-  }
   return count;
 }
 
@@ -966,7 +955,7 @@ ASTContext::getObjCLayout(const ObjCInterfaceDecl *D,
 
   // Add in synthesized ivar count if laying out an implementation.
   if (Impl) {
-    unsigned SynthCount = CountSynthesizedIvars(D);
+    unsigned SynthCount = CountNonClassIvars(D);
     // If there aren't any sythesized ivars then reuse the interface
     // entry. Note we can't cache this because we simply free all
     // entries later; however we shouldn't look up implementations
@@ -1108,14 +1097,12 @@ QualType ASTContext::getObjCGCQualType(QualType T,
   return getExtQualType(TypeNode, Quals);
 }
 
-static QualType getNoReturnCallConvType(ASTContext& Context, QualType T,
-                                        bool AddNoReturn,
-                                        CallingConv CallConv) {
+static QualType getExtFunctionType(ASTContext& Context, QualType T,
+                                        const FunctionType::ExtInfo &Info) {
   QualType ResultType;
   if (const PointerType *Pointer = T->getAs<PointerType>()) {
     QualType Pointee = Pointer->getPointeeType();
-    ResultType = getNoReturnCallConvType(Context, Pointee, AddNoReturn,
-                                         CallConv);
+    ResultType = getExtFunctionType(Context, Pointee, Info);
     if (ResultType == Pointee)
       return T;
 
@@ -1123,19 +1110,18 @@ static QualType getNoReturnCallConvType(ASTContext& Context, QualType T,
   } else if (const BlockPointerType *BlockPointer
                                               = T->getAs<BlockPointerType>()) {
     QualType Pointee = BlockPointer->getPointeeType();
-    ResultType = getNoReturnCallConvType(Context, Pointee, AddNoReturn,
-                                         CallConv);
+    ResultType = getExtFunctionType(Context, Pointee, Info);
     if (ResultType == Pointee)
       return T;
 
     ResultType = Context.getBlockPointerType(ResultType);
    } else if (const FunctionType *F = T->getAs<FunctionType>()) {
-    if (F->getNoReturnAttr() == AddNoReturn && F->getCallConv() == CallConv)
+    if (F->getExtInfo() == Info)
       return T;
 
     if (const FunctionNoProtoType *FNPT = dyn_cast<FunctionNoProtoType>(F)) {
       ResultType = Context.getFunctionNoProtoType(FNPT->getResultType(),
-                                                  AddNoReturn, CallConv);
+                                                  Info);
     } else {
       const FunctionProtoType *FPT = cast<FunctionProtoType>(F);
       ResultType
@@ -1146,7 +1132,7 @@ static QualType getNoReturnCallConvType(ASTContext& Context, QualType T,
                                   FPT->hasAnyExceptionSpec(),
                                   FPT->getNumExceptions(),
                                   FPT->exception_begin(),
-                                  AddNoReturn, CallConv);
+                                  Info);
     }
   } else
     return T;
@@ -1155,11 +1141,21 @@ static QualType getNoReturnCallConvType(ASTContext& Context, QualType T,
 }
 
 QualType ASTContext::getNoReturnType(QualType T, bool AddNoReturn) {
-  return getNoReturnCallConvType(*this, T, AddNoReturn, T.getCallConv());
+  FunctionType::ExtInfo Info = getFunctionExtInfo(T);
+  return getExtFunctionType(*this, T,
+                                 Info.withNoReturn(AddNoReturn));
 }
 
 QualType ASTContext::getCallConvType(QualType T, CallingConv CallConv) {
-  return getNoReturnCallConvType(*this, T, T.getNoReturnAttr(), CallConv);
+  FunctionType::ExtInfo Info = getFunctionExtInfo(T);
+  return getExtFunctionType(*this, T,
+                            Info.withCallingConv(CallConv));
+}
+
+QualType ASTContext::getRegParmType(QualType T, unsigned RegParm) {
+  FunctionType::ExtInfo Info = getFunctionExtInfo(T);
+  return getExtFunctionType(*this, T,
+                                 Info.withRegParm(RegParm));
 }
 
 /// getComplexType - Return the uniqued reference to the type for a complex
@@ -1617,12 +1613,13 @@ QualType ASTContext::getDependentSizedExtVectorType(QualType vecType,
 
 /// getFunctionNoProtoType - Return a K&R style C function type like 'int()'.
 ///
-QualType ASTContext::getFunctionNoProtoType(QualType ResultTy, bool NoReturn,
-                                            CallingConv CallConv) {
+QualType ASTContext::getFunctionNoProtoType(QualType ResultTy,
+                                            const FunctionType::ExtInfo &Info) {
+  const CallingConv CallConv = Info.getCC();
   // Unique functions, to guarantee there is only one function of a particular
   // structure.
   llvm::FoldingSetNodeID ID;
-  FunctionNoProtoType::Profile(ID, ResultTy, NoReturn, CallConv);
+  FunctionNoProtoType::Profile(ID, ResultTy, Info);
 
   void *InsertPos = 0;
   if (FunctionNoProtoType *FT =
@@ -1632,8 +1629,9 @@ QualType ASTContext::getFunctionNoProtoType(QualType ResultTy, bool NoReturn,
   QualType Canonical;
   if (!ResultTy.isCanonical() ||
       getCanonicalCallConv(CallConv) != CallConv) {
-    Canonical = getFunctionNoProtoType(getCanonicalType(ResultTy), NoReturn,
-                                       getCanonicalCallConv(CallConv));
+    Canonical =
+      getFunctionNoProtoType(getCanonicalType(ResultTy),
+                     Info.withCallingConv(getCanonicalCallConv(CallConv)));
 
     // Get the new insert position for the node we care about.
     FunctionNoProtoType *NewIP =
@@ -1642,7 +1640,7 @@ QualType ASTContext::getFunctionNoProtoType(QualType ResultTy, bool NoReturn,
   }
 
   FunctionNoProtoType *New = new (*this, TypeAlignment)
-    FunctionNoProtoType(ResultTy, Canonical, NoReturn, CallConv);
+    FunctionNoProtoType(ResultTy, Canonical, Info);
   Types.push_back(New);
   FunctionNoProtoTypes.InsertNode(New, InsertPos);
   return QualType(New, 0);
@@ -1654,14 +1652,15 @@ QualType ASTContext::getFunctionType(QualType ResultTy,const QualType *ArgArray,
                                      unsigned NumArgs, bool isVariadic,
                                      unsigned TypeQuals, bool hasExceptionSpec,
                                      bool hasAnyExceptionSpec, unsigned NumExs,
-                                     const QualType *ExArray, bool NoReturn,
-                                     CallingConv CallConv) {
+                                     const QualType *ExArray,
+                                     const FunctionType::ExtInfo &Info) {
+  const CallingConv CallConv= Info.getCC();
   // Unique functions, to guarantee there is only one function of a particular
   // structure.
   llvm::FoldingSetNodeID ID;
   FunctionProtoType::Profile(ID, ResultTy, ArgArray, NumArgs, isVariadic,
                              TypeQuals, hasExceptionSpec, hasAnyExceptionSpec,
-                             NumExs, ExArray, NoReturn, CallConv);
+                             NumExs, ExArray, Info);
 
   void *InsertPos = 0;
   if (FunctionProtoType *FTP =
@@ -1686,8 +1685,8 @@ QualType ASTContext::getFunctionType(QualType ResultTy,const QualType *ArgArray,
     Canonical = getFunctionType(getCanonicalType(ResultTy),
                                 CanonicalArgs.data(), NumArgs,
                                 isVariadic, TypeQuals, false,
-                                false, 0, 0, NoReturn,
-                                getCanonicalCallConv(CallConv));
+                                false, 0, 0,
+                     Info.withCallingConv(getCanonicalCallConv(CallConv)));
 
     // Get the new insert position for the node we care about.
     FunctionProtoType *NewIP =
@@ -1704,7 +1703,7 @@ QualType ASTContext::getFunctionType(QualType ResultTy,const QualType *ArgArray,
                                  NumExs*sizeof(QualType), TypeAlignment);
   new (FTP) FunctionProtoType(ResultTy, ArgArray, NumArgs, isVariadic,
                               TypeQuals, hasExceptionSpec, hasAnyExceptionSpec,
-                              ExArray, NumExs, Canonical, NoReturn, CallConv);
+                              ExArray, NumExs, Canonical, Info);
   Types.push_back(FTP);
   FunctionProtoTypes.InsertNode(FTP, InsertPos);
   return QualType(FTP, 0);
@@ -1963,66 +1962,76 @@ ASTContext::getQualifiedNameType(NestedNameSpecifier *NNS,
   return QualType(T, 0);
 }
 
-QualType ASTContext::getTypenameType(NestedNameSpecifier *NNS,
-                                     const IdentifierInfo *Name,
-                                     QualType Canon) {
+QualType ASTContext::getDependentNameType(ElaboratedTypeKeyword Keyword,
+                                          NestedNameSpecifier *NNS,
+                                          const IdentifierInfo *Name,
+                                          QualType Canon) {
   assert(NNS->isDependent() && "nested-name-specifier must be dependent");
 
   if (Canon.isNull()) {
     NestedNameSpecifier *CanonNNS = getCanonicalNestedNameSpecifier(NNS);
-    if (CanonNNS != NNS)
-      Canon = getTypenameType(CanonNNS, Name);
+    ElaboratedTypeKeyword CanonKeyword = Keyword;
+    if (Keyword == ETK_None)
+      CanonKeyword = ETK_Typename;
+    
+    if (CanonNNS != NNS || CanonKeyword != Keyword)
+      Canon = getDependentNameType(CanonKeyword, CanonNNS, Name);
   }
 
   llvm::FoldingSetNodeID ID;
-  TypenameType::Profile(ID, NNS, Name);
+  DependentNameType::Profile(ID, Keyword, NNS, Name);
 
   void *InsertPos = 0;
-  TypenameType *T
-    = TypenameTypes.FindNodeOrInsertPos(ID, InsertPos);
+  DependentNameType *T
+    = DependentNameTypes.FindNodeOrInsertPos(ID, InsertPos);
   if (T)
     return QualType(T, 0);
 
-  T = new (*this) TypenameType(NNS, Name, Canon);
+  T = new (*this) DependentNameType(Keyword, NNS, Name, Canon);
   Types.push_back(T);
-  TypenameTypes.InsertNode(T, InsertPos);
+  DependentNameTypes.InsertNode(T, InsertPos);
   return QualType(T, 0);
 }
 
 QualType
-ASTContext::getTypenameType(NestedNameSpecifier *NNS,
-                            const TemplateSpecializationType *TemplateId,
-                            QualType Canon) {
+ASTContext::getDependentNameType(ElaboratedTypeKeyword Keyword,
+                                 NestedNameSpecifier *NNS,
+                                 const TemplateSpecializationType *TemplateId,
+                                 QualType Canon) {
   assert(NNS->isDependent() && "nested-name-specifier must be dependent");
 
   llvm::FoldingSetNodeID ID;
-  TypenameType::Profile(ID, NNS, TemplateId);
+  DependentNameType::Profile(ID, Keyword, NNS, TemplateId);
 
   void *InsertPos = 0;
-  TypenameType *T
-    = TypenameTypes.FindNodeOrInsertPos(ID, InsertPos);
+  DependentNameType *T
+    = DependentNameTypes.FindNodeOrInsertPos(ID, InsertPos);
   if (T)
     return QualType(T, 0);
 
   if (Canon.isNull()) {
     NestedNameSpecifier *CanonNNS = getCanonicalNestedNameSpecifier(NNS);
     QualType CanonType = getCanonicalType(QualType(TemplateId, 0));
-    if (CanonNNS != NNS || CanonType != QualType(TemplateId, 0)) {
+    ElaboratedTypeKeyword CanonKeyword = Keyword;
+    if (Keyword == ETK_None)
+      CanonKeyword = ETK_Typename;
+    if (CanonNNS != NNS || CanonKeyword != Keyword ||
+        CanonType != QualType(TemplateId, 0)) {
       const TemplateSpecializationType *CanonTemplateId
         = CanonType->getAs<TemplateSpecializationType>();
       assert(CanonTemplateId &&
              "Canonical type must also be a template specialization type");
-      Canon = getTypenameType(CanonNNS, CanonTemplateId);
+      Canon = getDependentNameType(CanonKeyword, CanonNNS, CanonTemplateId);
     }
 
-    TypenameType *CheckT
-      = TypenameTypes.FindNodeOrInsertPos(ID, InsertPos);
+    DependentNameType *CheckT
+      = DependentNameTypes.FindNodeOrInsertPos(ID, InsertPos);
     assert(!CheckT && "Typename canonical type is broken"); (void)CheckT;
   }
 
-  T = new (*this) TypenameType(NNS, TemplateId, Canon);
+  T = new (*this) DependentNameType(Keyword, NNS, TemplateId, Canon);
   Types.push_back(T);
-  TypenameTypes.InsertNode(T, InsertPos);
+  DependentNameTypes.InsertNode(T, InsertPos);
   return QualType(T, 0);
 }
 
@@ -4127,14 +4136,15 @@ bool ASTContext::canAssignObjCInterfaces(const ObjCObjectPointerType *LHSOPT,
 bool ASTContext::canAssignObjCInterfacesInBlockPointer(
                                          const ObjCObjectPointerType *LHSOPT,
                                          const ObjCObjectPointerType *RHSOPT) {
-  if (RHSOPT->isObjCBuiltinType())
+  if (RHSOPT->isObjCBuiltinType() || 
+      LHSOPT->isObjCIdType() || LHSOPT->isObjCQualifiedIdType())
     return true;
   
   if (LHSOPT->isObjCBuiltinType()) {
     return RHSOPT->isObjCBuiltinType() || RHSOPT->isObjCQualifiedIdType();
   }
   
-  if (LHSOPT->isObjCQualifiedIdType() || RHSOPT->isObjCQualifiedIdType())
+  if (RHSOPT->isObjCQualifiedIdType())
     return ObjCQualifiedIdTypesAreCompatible(QualType(LHSOPT,0),
                                              QualType(RHSOPT,0),
                                              false);
@@ -4315,13 +4325,22 @@ QualType ASTContext::mergeFunctionTypes(QualType lhs, QualType rhs,
   if (getCanonicalType(retType) != getCanonicalType(rbase->getResultType()))
     allRTypes = false;
   // FIXME: double check this
-  bool NoReturn = lbase->getNoReturnAttr() || rbase->getNoReturnAttr();
-  if (NoReturn != lbase->getNoReturnAttr())
+  // FIXME: should we error if lbase->getRegParmAttr() != 0 &&
+  //                           rbase->getRegParmAttr() != 0 &&
+  //                           lbase->getRegParmAttr() != rbase->getRegParmAttr()?
+  FunctionType::ExtInfo lbaseInfo = lbase->getExtInfo();
+  FunctionType::ExtInfo rbaseInfo = rbase->getExtInfo();
+  unsigned RegParm = lbaseInfo.getRegParm() == 0 ? rbaseInfo.getRegParm() :
+      lbaseInfo.getRegParm();
+  bool NoReturn = lbaseInfo.getNoReturn() || rbaseInfo.getNoReturn();
+  if (NoReturn != lbaseInfo.getNoReturn() ||
+      RegParm != lbaseInfo.getRegParm())
     allLTypes = false;
-  if (NoReturn != rbase->getNoReturnAttr())
+  if (NoReturn != rbaseInfo.getNoReturn() ||
+      RegParm != rbaseInfo.getRegParm())
     allRTypes = false;
-  CallingConv lcc = lbase->getCallConv();
-  CallingConv rcc = rbase->getCallConv();
+  CallingConv lcc = lbaseInfo.getCC();
+  CallingConv rcc = rbaseInfo.getCC();
   // Compatible functions must have compatible calling conventions
   if (!isSameCallConv(lcc, rcc))
     return QualType();
@@ -4360,7 +4379,8 @@ QualType ASTContext::mergeFunctionTypes(QualType lhs, QualType rhs,
     if (allRTypes) return rhs;
     return getFunctionType(retType, types.begin(), types.size(),
                            lproto->isVariadic(), lproto->getTypeQuals(),
-                           false, false, 0, 0, NoReturn, lcc);
+                           false, false, 0, 0,
+                           FunctionType::ExtInfo(NoReturn, RegParm, lcc));
   }
 
   if (lproto) allRTypes = false;
@@ -4393,13 +4413,15 @@ QualType ASTContext::mergeFunctionTypes(QualType lhs, QualType rhs,
     if (allRTypes) return rhs;
     return getFunctionType(retType, proto->arg_type_begin(),
                            proto->getNumArgs(), proto->isVariadic(),
-                           proto->getTypeQuals(), 
-                           false, false, 0, 0, NoReturn, lcc);
+                           proto->getTypeQuals(),
+                           false, false, 0, 0,
+                           FunctionType::ExtInfo(NoReturn, RegParm, lcc));
   }
 
   if (allLTypes) return lhs;
   if (allRTypes) return rhs;
-  return getFunctionNoProtoType(retType, NoReturn, lcc);
+  FunctionType::ExtInfo Info(NoReturn, RegParm, lcc);
+  return getFunctionNoProtoType(retType, Info);
 }
 
 QualType ASTContext::mergeTypes(QualType LHS, QualType RHS, 
@@ -4903,7 +4925,7 @@ QualType ASTContext::GetBuiltinType(unsigned id,
   // FIXME: Should we create noreturn types?
   return getFunctionType(ResType, ArgTypes.data(), ArgTypes.size(),
                          TypeStr[0] == '.', 0, false, false, 0, 0,
-                         false, CC_Default);
+                         FunctionType::ExtInfo());
 }
 
 QualType

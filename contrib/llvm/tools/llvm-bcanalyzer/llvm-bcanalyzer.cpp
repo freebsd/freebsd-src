@@ -237,6 +237,8 @@ static const char *GetCodeName(unsigned CodeID, unsigned BlockID,
     case bitc::FUNC_CODE_INST_INSERTVAL:    return "INST_INSERTVAL";
     case bitc::FUNC_CODE_INST_CMP2:         return "INST_CMP2";
     case bitc::FUNC_CODE_INST_VSELECT:      return "INST_VSELECT";
+    case bitc::FUNC_CODE_DEBUG_LOC:         return "DEBUG_LOC";
+    case bitc::FUNC_CODE_DEBUG_LOC_AGAIN:   return "DEBUG_LOC_AGAIN";
     }
   case bitc::TYPE_SYMTAB_BLOCK_ID:
     switch (CodeID) {
@@ -259,9 +261,11 @@ static const char *GetCodeName(unsigned CodeID, unsigned BlockID,
     default:return 0;
     case bitc::METADATA_STRING:      return "MDSTRING";
     case bitc::METADATA_NODE:        return "MDNODE";
+    case bitc::METADATA_FN_NODE:     return "FN_MDNODE";
     case bitc::METADATA_NAME:        return "METADATA_NAME";
     case bitc::METADATA_NAMED_NODE:  return "NAMEDMDNODE";
     case bitc::METADATA_KIND:        return "METADATA_KIND";
+    case bitc::METADATA_ATTACHMENT:  return "METADATA_ATTACHMENT";
     }
   }
 }

@@ -31,6 +31,7 @@ def : DiagGroup<"char-align">;
 def Comment : DiagGroup<"comment">;
 def : DiagGroup<"ctor-dtor-privacy">;
 def : DiagGroup<"declaration-after-statement">;
+def GNUDesignator : DiagGroup<"gnu-designator">;
 def Deprecated : DiagGroup<"deprecated">;
 def : DiagGroup<"disabled-optimization">;
 def : DiagGroup<"discard-qual">;
@@ -115,6 +116,7 @@ def UnusedVariable : DiagGroup<"unused-variable">;
 def ReadOnlySetterAttrs : DiagGroup<"readonly-setter-attrs">;
 def Reorder : DiagGroup<"reorder">;
 def UndeclaredSelector : DiagGroup<"undeclared-selector">;
+def Protocol : DiagGroup<"protocol">;
 def SuperSubClassMismatch : DiagGroup<"super-class-method-mismatch">;
 def : DiagGroup<"variadic-macros">;
 def VariadicMacros : DiagGroup<"variadic-macros">;
@@ -185,3 +187,6 @@ def : DiagGroup<"comments", [Comment]>;         // -Wcomments = -Wcomment
 // but which aren't on by default in GCC.
 def NonGCC : DiagGroup<"non-gcc",
     [SignCompare, Conversion, LiteralRange]>;
+
+// A warning group for warnings about GCC extensions.
+def GNU : DiagGroup<"gnu", [GNUDesignator]>;

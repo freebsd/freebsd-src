@@ -596,7 +596,8 @@ static void WriteFunctionLocalMetadata(const Function &F,
 static void WriteMetadataAttachment(const Function &F,
                                     const ValueEnumerator &VE,
                                     BitstreamWriter &Stream) {
-  bool StartedMetadataBlock = false;
+  Stream.EnterSubblock(bitc::METADATA_ATTACHMENT_ID, 3);
+
   SmallVector<uint64_t, 64> Record;
 
   // Write metadata attachments
@@ -607,7 +608,7 @@ static void WriteMetadataAttachment(const Function &F,
     for (BasicBlock::const_iterator I = BB->begin(), E = BB->end();
          I != E; ++I) {
       MDs.clear();
-      I->getAllMetadata(MDs);
+      I->getAllMetadataOtherThanDebugLoc(MDs);
       
       // If no metadata, ignore instruction.
       if (MDs.empty()) continue;
@@ -618,16 +619,11 @@ static void WriteMetadataAttachment(const Function &F,
         Record.push_back(MDs[i].first);
         Record.push_back(VE.getValueID(MDs[i].second));
       }
-      if (!StartedMetadataBlock)  {
-        Stream.EnterSubblock(bitc::METADATA_ATTACHMENT_ID, 3);
-        StartedMetadataBlock = true;
-      }
       Stream.EmitRecord(bitc::METADATA_ATTACHMENT, Record, 0);
       Record.clear();
     }
 
-  if (StartedMetadataBlock)
-    Stream.ExitBlock();
+  Stream.ExitBlock();
 }
 
 static void WriteModuleMetadataStore(const Module *M, BitstreamWriter &Stream) {
@@ -1090,11 +1086,11 @@ static void WriteInstruction(const Instruction &I, unsigned InstID,
 
     // Emit value #'s for the fixed parameters.
     for (unsigned i = 0, e = FTy->getNumParams(); i != e; ++i)
-      Vals.push_back(VE.getValueID(I.getOperand(i+3)));  // fixed param.
+      Vals.push_back(VE.getValueID(I.getOperand(i)));  // fixed param.
 
     // Emit type/value pairs for varargs params.
     if (FTy->isVarArg()) {
-      for (unsigned i = 3+FTy->getNumParams(), e = I.getNumOperands();
+      for (unsigned i = FTy->getNumParams(), e = I.getNumOperands()-3;
            i != e; ++i)
         PushValueAndType(I.getOperand(i), InstID, Vals, VE); // vararg
     }
@@ -1256,19 +1252,49 @@ static void WriteFunction(const Function &F, ValueEnumerator &VE,
   // Keep a running idea of what the instruction ID is.
   unsigned InstID = CstEnd;
 
+  bool NeedsMetadataAttachment = false;
+  
+  DebugLoc LastDL;
+  
   // Finally, emit all the instructions, in order.
   for (Function::const_iterator BB = F.begin(), E = F.end(); BB != E; ++BB)
     for (BasicBlock::const_iterator I = BB->begin(), E = BB->end();
          I != E; ++I) {
       WriteInstruction(*I, InstID, VE, Stream, Vals);
+      
       if (!I->getType()->isVoidTy())
         ++InstID;
+      
+      // If the instruction has metadata, write a metadata attachment later.
+      NeedsMetadataAttachment |= I->hasMetadataOtherThanDebugLoc();
+      
+      // If the instruction has a debug location, emit it.
+      DebugLoc DL = I->getDebugLoc();
+      if (DL.isUnknown()) {
+        // nothing todo.
+      } else if (DL == LastDL) {
+        // Just repeat the same debug loc as last time.
+        Stream.EmitRecord(bitc::FUNC_CODE_DEBUG_LOC_AGAIN, Vals);
+      } else {
+        MDNode *Scope, *IA;
+        DL.getScopeAndInlinedAt(Scope, IA, I->getContext());
+        
+        Vals.push_back(DL.getLine());
+        Vals.push_back(DL.getCol());
+        Vals.push_back(Scope ? VE.getValueID(Scope)+1 : 0);
+        Vals.push_back(IA ? VE.getValueID(IA)+1 : 0);
+        Stream.EmitRecord(bitc::FUNC_CODE_DEBUG_LOC, Vals);
+        Vals.clear();
+        
+        LastDL = DL;
+      }
     }
 
   // Emit names for all the instructions etc.
   WriteValueSymbolTable(F.getValueSymbolTable(), VE, Stream);
 
-  WriteMetadataAttachment(F, VE, Stream);
+  if (NeedsMetadataAttachment)
+    WriteMetadataAttachment(F, VE, Stream);
   VE.purgeFunction();
   Stream.ExitBlock();
 }

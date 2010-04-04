@@ -174,7 +174,7 @@ bool CodeGenPrepare::CanMergeBlocks(const BasicBlock *BB,
   // don't mess around with them.
   BasicBlock::const_iterator BBI = BB->begin();
   while (const PHINode *PN = dyn_cast<PHINode>(BBI++)) {
-    for (Value::use_const_iterator UI = PN->use_begin(), E = PN->use_end();
+    for (Value::const_use_iterator UI = PN->use_begin(), E = PN->use_end();
          UI != E; ++UI) {
       const Instruction *User = cast<Instruction>(*UI);
       if (User->getParent() != DestBB || !isa<PHINode>(User))
@@ -714,8 +714,12 @@ bool CodeGenPrepare::OptimizeMemoryInst(Instruction *MemoryInst, Value *Addr,
 
   MemoryInst->replaceUsesOfWith(Addr, SunkAddr);
 
-  if (Addr->use_empty())
+  if (Addr->use_empty()) {
     RecursivelyDeleteTriviallyDeadInstructions(Addr);
+    // This address is now available for reassignment, so erase the table entry;
+    // we don't want to match some completely different instruction.
+    SunkAddrs[Addr] = 0;
+  }
   return true;
 }
 

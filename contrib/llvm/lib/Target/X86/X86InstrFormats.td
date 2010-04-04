@@ -68,6 +68,16 @@ def CompareFP  : FPFormat<5>;
 def CondMovFP  : FPFormat<6>;
 def SpecialFP  : FPFormat<7>;
 
+// Class specifying the SSE execution domain, used by the SSEDomainFix pass.
+// Keep in sync with tables in X86InstrInfo.cpp.
+class Domain<bits<2> val> {
+  bits<2> Value = val;
+}
+def GenericDomain   : Domain<0>;
+def SSEPackedSingle : Domain<1>;
+def SSEPackedDouble : Domain<2>;
+def SSEPackedInt    : Domain<3>;
+
 // Prefix byte classes which are used to indicate to the ad-hoc machine code
 // emitter that various prefix bytes are required.
 class OpSize { bit hasOpSizePrefix = 1; }
@@ -93,7 +103,7 @@ class TA     { bits<4> Prefix = 14; }
 class TF     { bits<4> Prefix = 15; }
 
 class X86Inst<bits<8> opcod, Format f, ImmType i, dag outs, dag ins,
-              string AsmStr>
+              string AsmStr, Domain d = GenericDomain>
   : Instruction {
   let Namespace = "X86";
 
@@ -101,7 +111,6 @@ class X86Inst<bits<8> opcod, Format f, ImmType i, dag outs, dag ins,
   Format Form = f;
   bits<6> FormBits = Form.Value;
   ImmType ImmT = i;
-  bits<3> ImmTypeBits = ImmT.Value;
 
   dag OutOperandList = outs;
   dag InOperandList = ins;
@@ -115,20 +124,21 @@ class X86Inst<bits<8> opcod, Format f, ImmType i, dag outs, dag ins,
 
   bits<4> Prefix = 0;       // Which prefix byte does this inst have?
   bit hasREX_WPrefix  = 0;  // Does this inst requires the REX.W prefix?
-  FPFormat FPForm;          // What flavor of FP instruction is this?
-  bits<3> FPFormBits = 0;
+  FPFormat FPForm = NotFP;  // What flavor of FP instruction is this?
   bit hasLockPrefix = 0;    // Does this inst have a 0xF0 prefix?
   bits<2> SegOvrBits = 0;   // Segment override prefix.
+  Domain ExeDomain = d;
 }
 
-class I<bits<8> o, Format f, dag outs, dag ins, string asm, list<dag> pattern>
-  : X86Inst<o, f, NoImm, outs, ins, asm> {
+class I<bits<8> o, Format f, dag outs, dag ins, string asm,
+        list<dag> pattern, Domain d = GenericDomain>
+  : X86Inst<o, f, NoImm, outs, ins, asm, d> {
   let Pattern = pattern;
   let CodeSize = 3;
 }
 class Ii8 <bits<8> o, Format f, dag outs, dag ins, string asm, 
-           list<dag> pattern>
-  : X86Inst<o, f, Imm8 , outs, ins, asm> {
+           list<dag> pattern, Domain d = GenericDomain>
+  : X86Inst<o, f, Imm8, outs, ins, asm, d> {
   let Pattern = pattern;
   let CodeSize = 3;
 }
@@ -166,7 +176,7 @@ class FPI<bits<8> o, Format F, dag outs, dag ins, string asm>
 // FpI_ - Floating Point Psuedo Instruction template. Not Predicated.
 class FpI_<dag outs, dag ins, FPFormat fp, list<dag> pattern>
   : X86Inst<0, Pseudo, NoImm, outs, ins, ""> {
-  let FPForm = fp; let FPFormBits = FPForm.Value;
+  let FPForm = fp;
   let Pattern = pattern;
 }
 
@@ -196,14 +206,16 @@ class Iseg32 <bits<8> o, Format f, dag outs, dag ins, string asm,
 
 class SSI<bits<8> o, Format F, dag outs, dag ins, string asm, list<dag> pattern>
       : I<o, F, outs, ins, asm, pattern>, XS, Requires<[HasSSE1]>;
-class SSIi8<bits<8> o, Format F, dag outs, dag ins, string asm, 
+class SSIi8<bits<8> o, Format F, dag outs, dag ins, string asm,
             list<dag> pattern>
       : Ii8<o, F, outs, ins, asm, pattern>, XS, Requires<[HasSSE1]>;
 class PSI<bits<8> o, Format F, dag outs, dag ins, string asm, list<dag> pattern>
-      : I<o, F, outs, ins, asm, pattern>, TB, Requires<[HasSSE1]>;
+      : I<o, F, outs, ins, asm, pattern, SSEPackedSingle>, TB,
+        Requires<[HasSSE1]>;
 class PSIi8<bits<8> o, Format F, dag outs, dag ins, string asm,
             list<dag> pattern>
-      : Ii8<o, F, outs, ins, asm, pattern>, TB, Requires<[HasSSE1]>;
+      : Ii8<o, F, outs, ins, asm, pattern, SSEPackedSingle>, TB,
+        Requires<[HasSSE1]>;
 
 // SSE2 Instruction Templates:
 // 
@@ -222,10 +234,12 @@ class SSDIi8<bits<8> o, Format F, dag outs, dag ins, string asm,
              list<dag> pattern>
       : Ii8<o, F, outs, ins, asm, pattern>, XS, Requires<[HasSSE2]>;
 class PDI<bits<8> o, Format F, dag outs, dag ins, string asm, list<dag> pattern>
-      : I<o, F, outs, ins, asm, pattern>, TB, OpSize, Requires<[HasSSE2]>;
+      : I<o, F, outs, ins, asm, pattern, SSEPackedDouble>, TB, OpSize,
+        Requires<[HasSSE2]>;
 class PDIi8<bits<8> o, Format F, dag outs, dag ins, string asm,
             list<dag> pattern>
-      : Ii8<o, F, outs, ins, asm, pattern>, TB, OpSize, Requires<[HasSSE2]>;
+      : Ii8<o, F, outs, ins, asm, pattern, SSEPackedDouble>, TB, OpSize,
+        Requires<[HasSSE2]>;
 
 // SSE3 Instruction Templates:
 // 
@@ -235,12 +249,15 @@ class PDIi8<bits<8> o, Format F, dag outs, dag ins, string asm,
 
 class S3SI<bits<8> o, Format F, dag outs, dag ins, string asm, 
            list<dag> pattern>
-      : I<o, F, outs, ins, asm, pattern>, XS, Requires<[HasSSE3]>;
+      : I<o, F, outs, ins, asm, pattern, SSEPackedSingle>, XS,
+        Requires<[HasSSE3]>;
 class S3DI<bits<8> o, Format F, dag outs, dag ins, string asm, 
            list<dag> pattern>
-      : I<o, F, outs, ins, asm, pattern>, XD, Requires<[HasSSE3]>;
+      : I<o, F, outs, ins, asm, pattern, SSEPackedDouble>, XD,
+        Requires<[HasSSE3]>;
 class S3I<bits<8> o, Format F, dag outs, dag ins, string asm, list<dag> pattern>
-      : I<o, F, outs, ins, asm, pattern>, TB, OpSize, Requires<[HasSSE3]>;
+      : I<o, F, outs, ins, asm, pattern, SSEPackedDouble>, TB, OpSize,
+        Requires<[HasSSE3]>;
 
 
 // SSSE3 Instruction Templates:
@@ -254,10 +271,12 @@ class S3I<bits<8> o, Format F, dag outs, dag ins, string asm, list<dag> pattern>
 
 class SS38I<bits<8> o, Format F, dag outs, dag ins, string asm,
             list<dag> pattern>
-      : Ii8<o, F, outs, ins, asm, pattern>, T8, Requires<[HasSSSE3]>;
+      : Ii8<o, F, outs, ins, asm, pattern, SSEPackedInt>, T8,
+        Requires<[HasSSSE3]>;
 class SS3AI<bits<8> o, Format F, dag outs, dag ins, string asm,
             list<dag> pattern>
-      : Ii8<o, F, outs, ins, asm, pattern>, TA, Requires<[HasSSSE3]>;
+      : Ii8<o, F, outs, ins, asm, pattern, SSEPackedInt>, TA,
+        Requires<[HasSSSE3]>;
 
 // SSE4.1 Instruction Templates:
 // 
@@ -266,17 +285,20 @@ class SS3AI<bits<8> o, Format F, dag outs, dag ins, string asm,
 //
 class SS48I<bits<8> o, Format F, dag outs, dag ins, string asm,
             list<dag> pattern>
-      : I<o, F, outs, ins, asm, pattern>, T8, Requires<[HasSSE41]>;
+      : I<o, F, outs, ins, asm, pattern, SSEPackedInt>, T8,
+        Requires<[HasSSE41]>;
 class SS4AIi8<bits<8> o, Format F, dag outs, dag ins, string asm,
             list<dag> pattern>
-      : Ii8<o, F, outs, ins, asm, pattern>, TA, Requires<[HasSSE41]>;
+      : Ii8<o, F, outs, ins, asm, pattern, SSEPackedInt>, TA,
+        Requires<[HasSSE41]>;
 
 // SSE4.2 Instruction Templates:
 // 
 //   SS428I - SSE 4.2 instructions with T8 prefix.
 class SS428I<bits<8> o, Format F, dag outs, dag ins, string asm,
              list<dag> pattern>
-      : I<o, F, outs, ins, asm, pattern>, T8, Requires<[HasSSE42]>;
+      : I<o, F, outs, ins, asm, pattern, SSEPackedInt>, T8,
+        Requires<[HasSSE42]>;
 
 //   SS42FI - SSE 4.2 instructions with TF prefix.
 class SS42FI<bits<8> o, Format F, dag outs, dag ins, string asm,
@@ -286,7 +308,23 @@ class SS42FI<bits<8> o, Format F, dag outs, dag ins, string asm,
 //   SS42AI = SSE 4.2 instructions with TA prefix
 class SS42AI<bits<8> o, Format F, dag outs, dag ins, string asm,
              list<dag> pattern>
-      : I<o, F, outs, ins, asm, pattern>, TA, Requires<[HasSSE42]>;
+      : Ii8<o, F, outs, ins, asm, pattern, SSEPackedInt>, TA,
+        Requires<[HasSSE42]>;
+
+// AES Instruction Templates:
+//
+// AES8I
+// FIXME: Verify these, they appear to use the same encoding as the SSE4.2 T8
+// and TA encodings.
+class AES8I<bits<8> o, Format F, dag outs, dag ins, string asm,
+            list<dag>pattern>
+      : I<o, F, outs, ins, asm, pattern, SSEPackedInt>, T8,
+        Requires<[HasAES]>;
+
+class AESAI<bits<8> o, Format F, dag outs, dag ins, string asm,
+            list<dag> pattern>
+      : Ii8<o, F, outs, ins, asm, pattern, SSEPackedInt>, TA,
+        Requires<[HasAES]>;
 
 // X86-64 Instruction templates...
 //

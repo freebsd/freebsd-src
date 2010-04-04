@@ -148,7 +148,7 @@ public:
   };
   
   /// BuildTypeInfo - Build the RTTI type info struct for the given type.
-  llvm::Constant *BuildTypeInfo(QualType Ty);
+  llvm::Constant *BuildTypeInfo(QualType Ty, bool Force = false);
 };
 }
 
@@ -327,83 +327,20 @@ static llvm::GlobalVariable::LinkageTypes getTypeInfoLinkage(QualType Ty) {
   if (ContainsIncompleteClassType(Ty))
     return llvm::GlobalValue::InternalLinkage;
   
-  switch (Ty->getTypeClass()) {
-  default:   
-    // FIXME: We need to add code to handle all types.
-    assert(false && "Unhandled type!");
-    break;
+  switch (Ty->getLinkage()) {
+  case NoLinkage:
+  case InternalLinkage:
+  case UniqueExternalLinkage:
+    return llvm::GlobalValue::InternalLinkage;
 
-  case Type::Pointer: {
-    const PointerType *PointerTy = cast<PointerType>(Ty);
- 
-    // If the pointee type has internal linkage, then the pointer type needs to
-    // have it as well.
-    if (getTypeInfoLinkage(PointerTy->getPointeeType()) == 
-        llvm::GlobalVariable::InternalLinkage)
-      return llvm::GlobalVariable::InternalLinkage;
-    
-    return llvm::GlobalVariable::WeakODRLinkage;
-  }
-
-  case Type::Enum: {
-    const EnumType *EnumTy = cast<EnumType>(Ty);
-    const EnumDecl *ED = EnumTy->getDecl();
-    
-    // If we're in an anonymous namespace, then we always want internal linkage.
-    if (ED->isInAnonymousNamespace() || !ED->hasLinkage())
-      return llvm::GlobalVariable::InternalLinkage;
-    
-    return llvm::GlobalValue::WeakODRLinkage;
-  }
-
-  case Type::Record: {
-    const RecordType *RecordTy = cast<RecordType>(Ty);
-    const CXXRecordDecl *RD = cast<CXXRecordDecl>(RecordTy->getDecl());
-
-    // If we're in an anonymous namespace, then we always want internal linkage.
-    if (RD->isInAnonymousNamespace() || !RD->hasLinkage())
-      return llvm::GlobalVariable::InternalLinkage;
-
-    // If this class does not have a vtable, we want weak linkage.
-    if (!RD->isDynamicClass())
-      return llvm::GlobalValue::WeakODRLinkage;
-    
-    return CodeGenModule::getVtableLinkage(RD);
-  }
-
-  case Type::Vector:
-  case Type::ExtVector:
-  case Type::Builtin:
-    return llvm::GlobalValue::WeakODRLinkage;
-
-  case Type::FunctionProto: {
-    const FunctionProtoType *FPT = cast<FunctionProtoType>(Ty);
-
-    // Check the return type.
-    if (getTypeInfoLinkage(FPT->getResultType()) == 
-        llvm::GlobalValue::InternalLinkage)
-      return llvm::GlobalValue::InternalLinkage;
-    
-    // Check the parameter types.
-    for (unsigned i = 0; i != FPT->getNumArgs(); ++i) {
-      if (getTypeInfoLinkage(FPT->getArgType(i)) == 
-          llvm::GlobalValue::InternalLinkage)
-        return llvm::GlobalValue::InternalLinkage;
+  case ExternalLinkage:
+    if (const RecordType *Record = dyn_cast<RecordType>(Ty)) {
+      const CXXRecordDecl *RD = cast<CXXRecordDecl>(Record->getDecl());
+      if (RD->isDynamicClass())
+        return CodeGenModule::getVtableLinkage(RD);
     }
-    
+
     return llvm::GlobalValue::WeakODRLinkage;
-  }
-  
-  case Type::ConstantArray: 
-  case Type::IncompleteArray: {
-    const ArrayType *AT = cast<ArrayType>(Ty);
-
-    // Check the element type.
-    if (getTypeInfoLinkage(AT->getElementType()) ==
-        llvm::GlobalValue::InternalLinkage)
-      return llvm::GlobalValue::InternalLinkage;
-  }
-
   }
 
   return llvm::GlobalValue::WeakODRLinkage;
@@ -444,6 +381,7 @@ void RTTIBuilder::BuildVtablePointer(const Type *Ty) {
   switch (Ty->getTypeClass()) {
   default: assert(0 && "Unhandled type!");
 
+  case Type::Builtin:
   // GCC treats vector types as fundamental types.
   case Type::Vector:
   case Type::ExtVector:
@@ -511,7 +449,7 @@ void RTTIBuilder::BuildVtablePointer(const Type *Ty) {
   Fields.push_back(Vtable);
 }
 
-llvm::Constant *RTTIBuilder::BuildTypeInfo(QualType Ty) {
+llvm::Constant *RTTIBuilder::BuildTypeInfo(QualType Ty, bool Force) {
   // We want to operate on the canonical type.
   Ty = CGM.getContext().getCanonicalType(Ty);
 
@@ -525,7 +463,7 @@ llvm::Constant *RTTIBuilder::BuildTypeInfo(QualType Ty) {
     return llvm::ConstantExpr::getBitCast(OldGV, Int8PtrTy);
   
   // Check if there is already an external RTTI descriptor for this type.
-  if (ShouldUseExternalRTTIDescriptor(Ty))
+  if (!Force && ShouldUseExternalRTTIDescriptor(Ty))
     return GetAddrOfExternalRTTIDescriptor(Ty);
 
   llvm::GlobalVariable::LinkageTypes Linkage = getTypeInfoLinkage(Ty);
@@ -538,11 +476,9 @@ llvm::Constant *RTTIBuilder::BuildTypeInfo(QualType Ty) {
   
   switch (Ty->getTypeClass()) {
   default: assert(false && "Unhandled type class!");
-  case Type::Builtin:
-    assert(false && "Builtin type info must be in the standard library!");
-    break;
 
   // GCC treats vector types as fundamental types.
+  case Type::Builtin:
   case Type::Vector:
   case Type::ExtVector:
     // Itanium C++ ABI 2.9.5p4:
@@ -760,7 +696,7 @@ void RTTIBuilder::BuildVMIClassTypeInfo(const CXXRecordDecl *RD) {
     // subobject. For a virtual base, this is the offset in the virtual table of
     // the virtual base offset for the virtual base referenced (negative).
     if (Base->isVirtual())
-      OffsetFlags = CGM.getVtableInfo().getVirtualBaseOffsetOffset(RD, BaseDecl);
+      OffsetFlags = CGM.getVTables().getVirtualBaseOffsetOffset(RD, BaseDecl);
     else {
       const ASTRecordLayout &Layout = CGM.getContext().getASTRecordLayout(RD);
       OffsetFlags = Layout.getBaseClassOffset(BaseDecl) / 8;
@@ -853,4 +789,62 @@ llvm::Constant *CodeGenModule::GetAddrOfRTTIDescriptor(QualType Ty) {
   }
   
   return RTTIBuilder(*this).BuildTypeInfo(Ty);
+}
+
+// Try to find the magic class __cxxabiv1::__fundamental_type_info. If
+// exists and has a destructor, we will emit the typeinfo for the fundamental
+// types. This is the same behaviour as GCC.
+static CXXRecordDecl *FindMagicClass(ASTContext &AC) {
+  const IdentifierInfo &NamespaceII = AC.Idents.get("__cxxabiv1");
+  DeclarationName NamespaceDN = AC.DeclarationNames.getIdentifier(&NamespaceII);
+  TranslationUnitDecl *TUD = AC.getTranslationUnitDecl();
+  DeclContext::lookup_result NamespaceLookup = TUD->lookup(NamespaceDN);
+  if (NamespaceLookup.first == NamespaceLookup.second)
+    return NULL;
+  const NamespaceDecl *Namespace =
+    dyn_cast<NamespaceDecl>(*NamespaceLookup.first);
+  if (!Namespace)
+    return NULL;
+
+  const IdentifierInfo &ClassII = AC.Idents.get("__fundamental_type_info");
+  DeclarationName ClassDN =  AC.DeclarationNames.getIdentifier(&ClassII);
+  DeclContext::lookup_const_result ClassLookup =  Namespace->lookup(ClassDN);
+  if (ClassLookup.first == ClassLookup.second)
+    return NULL;
+  CXXRecordDecl *Class = dyn_cast<CXXRecordDecl>(*ClassLookup.first);
+
+  if (Class->hasDefinition() && Class->isDynamicClass() &&
+      Class->getDestructor(AC))
+    return Class;
+
+  return NULL;
+}
+
+void CodeGenModule::EmitFundamentalRTTIDescriptor(QualType Type) {
+  QualType PointerType = Context.getPointerType(Type);
+  QualType PointerTypeConst = Context.getPointerType(Type.withConst());
+  RTTIBuilder(*this).BuildTypeInfo(Type, true);
+  RTTIBuilder(*this).BuildTypeInfo(PointerType, true);
+  RTTIBuilder(*this).BuildTypeInfo(PointerTypeConst, true);
+}
+
+void CodeGenModule::EmitFundamentalRTTIDescriptors() {
+  CXXRecordDecl *RD = FindMagicClass(getContext());
+  if (!RD)
+    return;
+
+  getVTables().GenerateClassData(getVtableLinkage(RD), RD);
+
+  QualType FundamentalTypes[] = { Context.VoidTy, Context.Char32Ty,
+                                  Context.Char16Ty, Context.UnsignedLongLongTy,
+                                  Context.LongLongTy, Context.WCharTy,
+                                  Context.UnsignedShortTy, Context.ShortTy,
+                                  Context.UnsignedLongTy, Context.LongTy,
+                                  Context.UnsignedIntTy, Context.IntTy,
+                                  Context.UnsignedCharTy, Context.FloatTy,
+                                  Context.LongDoubleTy, Context.DoubleTy,
+                                  Context.CharTy, Context.BoolTy,
+                                  Context.SignedCharTy };
+  for (unsigned i = 0; i < sizeof(FundamentalTypes)/sizeof(QualType); ++i)
+    EmitFundamentalRTTIDescriptor(FundamentalTypes[i]);
 }

@@ -153,7 +153,7 @@ namespace llvm {
     unsigned getOffset() const { return Offset; }
     unsigned getSize() const { return Size; }
     const std::vector<DIE *> &getChildren() const { return Children; }
-    SmallVector<DIEValue*, 32> &getValues() { return Values; }
+    const SmallVector<DIEValue*, 32> &getValues() const { return Values; }
     DIE *getParent() const { return Parent; }
     void setTag(unsigned Tag) { Abbrev.setTag(Tag); }
     void setOffset(unsigned O) { Offset = O; }
@@ -171,8 +171,10 @@ namespace llvm {
     unsigned getSiblingOffset() const { return Offset + Size; }
 
     /// addSiblingOffset - Add a sibling offset field to the front of the DIE.
+    /// The caller is responsible for deleting the return value at or after the
+    /// same time it destroys this DIE.
     ///
-    void addSiblingOffset();
+    DIEValue *addSiblingOffset(BumpPtrAllocator &A);
 
     /// addChild - Add a child to the DIE.
     ///
@@ -321,38 +323,6 @@ namespace llvm {
     // Implement isa/cast/dyncast.
     static bool classof(const DIELabel *)  { return true; }
     static bool classof(const DIEValue *L) { return L->getType() == isLabel; }
-
-#ifndef NDEBUG
-    virtual void print(raw_ostream &O);
-#endif
-  };
-
-  //===--------------------------------------------------------------------===//
-  /// DIESectionOffset - A section offset DIE.
-  ///
-  class DIESectionOffset : public DIEValue {
-    const MCSymbol *Label;
-    const MCSymbol *Section;
-    bool IsEH : 1;
-  public:
-    DIESectionOffset(const MCSymbol *Lab, const MCSymbol *Sec,
-                     bool isEH = false)
-      : DIEValue(isSectionOffset), Label(Lab), Section(Sec),
-        IsEH(isEH) {}
-
-    /// EmitValue - Emit section offset.
-    ///
-    virtual void EmitValue(DwarfPrinter *D, unsigned Form) const;
-
-    /// SizeOf - Determine size of section offset value in bytes.
-    ///
-    virtual unsigned SizeOf(const TargetData *TD, unsigned Form) const;
-
-    // Implement isa/cast/dyncast.
-    static bool classof(const DIESectionOffset *)  { return true; }
-    static bool classof(const DIEValue *D) {
-      return D->getType() == isSectionOffset;
-    }
 
 #ifndef NDEBUG
     virtual void print(raw_ostream &O);

@@ -11,10 +11,10 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include "clang/Analysis/CFG.h"
 #include "clang/Checker/PathSensitive/GRStateTrait.h"
 #include "clang/Checker/PathSensitive/GRState.h"
 #include "clang/Checker/PathSensitive/GRTransferFuncs.h"
-#include "llvm/ADT/SmallSet.h"
 #include "llvm/Support/raw_ostream.h"
 
 using namespace clang;
@@ -225,6 +225,18 @@ const GRState* GRStateManager::addGDM(const GRState* St, void* Key, void* Data){
   GRState NewSt = *St;
   NewSt.GDM = M2;
   return getPersistentState(NewSt);
+}
+
+const GRState *GRStateManager::removeGDM(const GRState *state, void *Key) {
+  GRState::GenericDataMap OldM = state->getGDM();
+  GRState::GenericDataMap NewM = GDMFactory.Remove(OldM, Key);
+
+  if (NewM == OldM)
+    return state;
+
+  GRState NewState = *state;
+  NewState.GDM = NewM;
+  return getPersistentState(NewState);
 }
 
 //===----------------------------------------------------------------------===//

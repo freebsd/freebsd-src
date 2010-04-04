@@ -750,7 +750,7 @@ bool Type::isSpecifierType() const {
   case SubstTemplateTypeParm:
   case TemplateSpecialization:
   case QualifiedName:
-  case Typename:
+  case DependentName:
   case ObjCInterface:
   case ObjCObjectPointer:
   case Elaborated:
@@ -758,6 +758,27 @@ bool Type::isSpecifierType() const {
   default:
     return false;
   }
+}
+
+bool Type::isElaboratedTypeSpecifier() const {
+  if (getTypeClass() == Elaborated)
+    return true;
+  
+  if (const DependentNameType *Dependent = dyn_cast<DependentNameType>(this)) {
+    switch (Dependent->getKeyword()) {
+    case ETK_None:
+    case ETK_Typename:
+      return false;
+        
+    case ETK_Class:
+    case ETK_Struct:
+    case ETK_Union:
+    case ETK_Enum:
+      return true;
+    }
+  }
+  
+  return false;
 }
 
 const char *Type::getTypeClassName() const {
@@ -820,8 +841,8 @@ void FunctionProtoType::Profile(llvm::FoldingSetNodeID &ID, QualType Result,
                                 unsigned NumArgs, bool isVariadic,
                                 unsigned TypeQuals, bool hasExceptionSpec,
                                 bool anyExceptionSpec, unsigned NumExceptions,
-                                exception_iterator Exs, bool NoReturn,
-                                CallingConv CallConv) {
+                                exception_iterator Exs,
+                                const FunctionType::ExtInfo &Info) {
   ID.AddPointer(Result.getAsOpaquePtr());
   for (unsigned i = 0; i != NumArgs; ++i)
     ID.AddPointer(ArgTys[i].getAsOpaquePtr());
@@ -833,15 +854,16 @@ void FunctionProtoType::Profile(llvm::FoldingSetNodeID &ID, QualType Result,
     for (unsigned i = 0; i != NumExceptions; ++i)
       ID.AddPointer(Exs[i].getAsOpaquePtr());
   }
-  ID.AddInteger(NoReturn);
-  ID.AddInteger(CallConv);
+  ID.AddInteger(Info.getNoReturn());
+  ID.AddInteger(Info.getRegParm());
+  ID.AddInteger(Info.getCC());
 }
 
 void FunctionProtoType::Profile(llvm::FoldingSetNodeID &ID) {
   Profile(ID, getResultType(), arg_type_begin(), NumArgs, isVariadic(),
           getTypeQuals(), hasExceptionSpec(), hasAnyExceptionSpec(),
-          getNumExceptions(), exception_begin(), getNoReturnAttr(),
-          getCallConv());
+          getNumExceptions(), exception_begin(),
+          getExtInfo());
 }
 
 void ObjCObjectPointerType::Profile(llvm::FoldingSetNodeID &ID,

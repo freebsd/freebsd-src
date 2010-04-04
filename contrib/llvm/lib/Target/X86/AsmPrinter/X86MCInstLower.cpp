@@ -83,7 +83,7 @@ GetSymbolFromOperand(const MachineOperand &MO) const {
   case X86II::MO_DARWIN_NONLAZY:
   case X86II::MO_DARWIN_NONLAZY_PIC_BASE: {
     Name += "$non_lazy_ptr";
-    MCSymbol *Sym = Ctx.GetOrCreateTemporarySymbol(Name.str());
+    MCSymbol *Sym = Ctx.GetOrCreateSymbol(Name.str());
 
     MachineModuleInfoImpl::StubValueTy &StubSym =
       getMachOMMI().getGVStubEntry(Sym);
@@ -98,7 +98,7 @@ GetSymbolFromOperand(const MachineOperand &MO) const {
   }
   case X86II::MO_DARWIN_HIDDEN_NONLAZY_PIC_BASE: {
     Name += "$non_lazy_ptr";
-    MCSymbol *Sym = Ctx.GetOrCreateTemporarySymbol(Name.str());
+    MCSymbol *Sym = Ctx.GetOrCreateSymbol(Name.str());
     MachineModuleInfoImpl::StubValueTy &StubSym =
       getMachOMMI().getHiddenGVStubEntry(Sym);
     if (StubSym.getPointer() == 0) {
@@ -112,7 +112,7 @@ GetSymbolFromOperand(const MachineOperand &MO) const {
   }
   case X86II::MO_DARWIN_STUB: {
     Name += "$stub";
-    MCSymbol *Sym = Ctx.GetOrCreateTemporarySymbol(Name.str());
+    MCSymbol *Sym = Ctx.GetOrCreateSymbol(Name.str());
     MachineModuleInfoImpl::StubValueTy &StubSym =
       getMachOMMI().getFnStubEntry(Sym);
     if (StubSym.getPointer())
@@ -127,7 +127,7 @@ GetSymbolFromOperand(const MachineOperand &MO) const {
       Name.erase(Name.end()-5, Name.end());
       StubSym =
         MachineModuleInfoImpl::
-        StubValueTy(Ctx.GetOrCreateTemporarySymbol(Name.str()), false);
+        StubValueTy(Ctx.GetOrCreateSymbol(Name.str()), false);
     }
     return Sym;
   }
@@ -287,7 +287,9 @@ void X86MCInstLower::Lower(const MachineInstr *MI, MCInst &OutMI) const {
     LowerUnaryToTwoAddr(OutMI, X86::MMX_PCMPEQDrr); break;
   case X86::FsFLD0SS:     LowerUnaryToTwoAddr(OutMI, X86::PXORrr); break;
   case X86::FsFLD0SD:     LowerUnaryToTwoAddr(OutMI, X86::PXORrr); break;
-  case X86::V_SET0:       LowerUnaryToTwoAddr(OutMI, X86::XORPSrr); break;
+  case X86::V_SET0PS:     LowerUnaryToTwoAddr(OutMI, X86::XORPSrr); break;
+  case X86::V_SET0PD:     LowerUnaryToTwoAddr(OutMI, X86::XORPDrr); break;
+  case X86::V_SET0PI:     LowerUnaryToTwoAddr(OutMI, X86::PXORrr); break;
   case X86::V_SETALLONES: LowerUnaryToTwoAddr(OutMI, X86::PCMPEQDrr); break;
 
   case X86::MOV16r0:

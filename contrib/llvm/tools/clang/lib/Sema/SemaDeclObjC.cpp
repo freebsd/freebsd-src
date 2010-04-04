@@ -431,6 +431,11 @@ ActOnStartCategoryInterface(SourceLocation AtInterfaceLoc,
     // Class extensions require a special treatment. Use an existing one.
     // Note that 'getClassExtension()' can return NULL.
     CDecl = IDecl->getClassExtension();
+    if (IDecl->getImplementation()) {
+      Diag(ClassLoc, diag::err_class_extension_after_impl) << ClassName;
+      Diag(IDecl->getImplementation()->getLocation(), 
+           diag::note_implementation_declared);
+    }
   }
 
   if (!CDecl) {
@@ -559,8 +564,8 @@ Sema::DeclPtrTy Sema::ActOnStartClassImplementation(
         << ClassName << R.getLookupName();
       Diag(IDecl->getLocation(), diag::note_previous_decl)
         << R.getLookupName()
-        << CodeModificationHint::CreateReplacement(ClassLoc,
-                                               R.getLookupName().getAsString());
+        << FixItHint::CreateReplacement(ClassLoc,
+                                        R.getLookupName().getAsString());
       IDecl = 0;
     } else {
       Diag(ClassLoc, diag::warn_undef_interface) << ClassName;
@@ -667,8 +672,6 @@ void Sema::CheckImplementationIvars(ObjCImplementationDecl *ImpDecl,
         Diag(ClsIvar->getLocation(), diag::note_previous_definition);
         continue;
       }
-      if (ImplIvar->getAccessControl() != ObjCIvarDecl::Private)
-        Diag(ImplIvar->getLocation(), diag::err_non_private_ivar_declaration); 
       // Instance ivar to Implementation's DeclContext.
       ImplIvar->setLexicalDeclContext(ImpDecl);
       IDecl->makeDeclVisibleInContext(ImplIvar, false);
@@ -721,12 +724,13 @@ void Sema::CheckImplementationIvars(ObjCImplementationDecl *ImpDecl,
 }
 
 void Sema::WarnUndefinedMethod(SourceLocation ImpLoc, ObjCMethodDecl *method,
-                               bool &IncompleteImpl) {
+                               bool &IncompleteImpl, unsigned DiagID) {
   if (!IncompleteImpl) {
     Diag(ImpLoc, diag::warn_incomplete_impl);
     IncompleteImpl = true;
   }
-  Diag(ImpLoc, diag::warn_undef_method_impl) << method->getDeclName();
+  Diag(method->getLocation(), DiagID) 
+    << method->getDeclName();
 }
 
 void Sema::WarnConflictingTypedMethods(ObjCMethodDecl *ImpMethodDecl,
@@ -770,7 +774,14 @@ void Sema::CheckProtocolMethodDefs(SourceLocation ImpLoc,
                                    bool& IncompleteImpl,
                                    const llvm::DenseSet<Selector> &InsMap,
                                    const llvm::DenseSet<Selector> &ClsMap,
-                                   ObjCInterfaceDecl *IDecl) {
+                                   ObjCContainerDecl *CDecl) {
+  ObjCInterfaceDecl *IDecl;
+  if (ObjCCategoryDecl *C = dyn_cast<ObjCCategoryDecl>(CDecl))
+    IDecl = C->getClassInterface();
+  else
+    IDecl = dyn_cast<ObjCInterfaceDecl>(CDecl);
+  assert (IDecl && "CheckProtocolMethodDefs - IDecl is null");
+  
   ObjCInterfaceDecl *Super = IDecl->getSuperClass();
   ObjCInterfaceDecl *NSIDecl = 0;
   if (getLangOptions().NeXTRuntime) {
@@ -808,8 +819,14 @@ void Sema::CheckProtocolMethodDefs(SourceLocation ImpLoc,
             // uses the protocol.
             ObjCMethodDecl *MethodInClass =
             IDecl->lookupInstanceMethod(method->getSelector());
-            if (!MethodInClass || !MethodInClass->isSynthesized())
-              WarnUndefinedMethod(ImpLoc, method, IncompleteImpl);
+            if (!MethodInClass || !MethodInClass->isSynthesized()) {
+              unsigned DIAG = diag::warn_unimplemented_protocol_method;
+              if (Diags.getDiagnosticLevel(DIAG) != Diagnostic::Ignored) {
+                WarnUndefinedMethod(ImpLoc, method, IncompleteImpl, DIAG);
+                Diag(CDecl->getLocation(), diag::note_required_for_protocol_at)
+                  << PDecl->getDeclName();
+              }
+            }
           }
     }
   // check unimplemented class methods
@@ -819,8 +836,14 @@ void Sema::CheckProtocolMethodDefs(SourceLocation ImpLoc,
     ObjCMethodDecl *method = *I;
     if (method->getImplementationControl() != ObjCMethodDecl::Optional &&
         !ClsMap.count(method->getSelector()) &&
-        (!Super || !Super->lookupClassMethod(method->getSelector())))
-      WarnUndefinedMethod(ImpLoc, method, IncompleteImpl);
+        (!Super || !Super->lookupClassMethod(method->getSelector()))) {
+      unsigned DIAG = diag::warn_unimplemented_protocol_method;
+      if (Diags.getDiagnosticLevel(DIAG) != Diagnostic::Ignored) {
+        WarnUndefinedMethod(ImpLoc, method, IncompleteImpl, DIAG);
+        Diag(IDecl->getLocation(), diag::note_required_for_protocol_at) <<
+          PDecl->getDeclName();
+      }
+    }
   }
   // Check on this protocols's referenced protocols, recursively.
   for (ObjCProtocolDecl::protocol_iterator PI = PDecl->protocol_begin(),
@@ -849,7 +872,8 @@ void Sema::MatchAllMethodDeclarations(const llvm::DenseSet<Selector> &InsMap,
     if (!(*I)->isSynthesized() &&
         !InsMap.count((*I)->getSelector())) {
       if (ImmediateClass)
-        WarnUndefinedMethod(IMPDecl->getLocation(), *I, IncompleteImpl);
+        WarnUndefinedMethod(IMPDecl->getLocation(), *I, IncompleteImpl,
+                            diag::note_undef_method_impl);
       continue;
     } else {
       ObjCMethodDecl *ImpMethodDecl =
@@ -873,7 +897,8 @@ void Sema::MatchAllMethodDeclarations(const llvm::DenseSet<Selector> &InsMap,
      ClsMapSeen.insert((*I)->getSelector());
     if (!ClsMap.count((*I)->getSelector())) {
       if (ImmediateClass)
-        WarnUndefinedMethod(IMPDecl->getLocation(), *I, IncompleteImpl);
+        WarnUndefinedMethod(IMPDecl->getLocation(), *I, IncompleteImpl,
+                            diag::note_undef_method_impl);
     } else {
       ObjCMethodDecl *ImpMethodDecl =
         IMPDecl->getClassMethod((*I)->getSelector());
@@ -950,7 +975,7 @@ void Sema::ImplMethodsVsClassMethods(ObjCImplDecl* IMPDecl,
       for (ObjCCategoryDecl::protocol_iterator PI = C->protocol_begin(),
            E = C->protocol_end(); PI != E; ++PI)
         CheckProtocolMethodDefs(IMPDecl->getLocation(), *PI, IncompleteImpl,
-                                InsMap, ClsMap, C->getClassInterface());
+                                InsMap, ClsMap, CDecl);
       // Report unimplemented properties in the category as well.
       // When reporting on missing setter/getters, do not report when
       // setter/getter is implemented in category's primary class 

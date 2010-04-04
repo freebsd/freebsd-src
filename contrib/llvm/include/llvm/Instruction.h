@@ -17,6 +17,7 @@
 
 #include "llvm/User.h"
 #include "llvm/ADT/ilist_node.h"
+#include "llvm/Support/DebugLoc.h"
 
 namespace llvm {
 
@@ -31,6 +32,7 @@ class Instruction : public User, public ilist_node<Instruction> {
   Instruction(const Instruction &);        // Do not implement
 
   BasicBlock *Parent;
+  DebugLoc DbgLoc;                         // 'dbg' Metadata cache.
   
   enum {
     /// HasMetadataBit - This is a bit stored in the SubClassData field which
@@ -123,7 +125,13 @@ public:
   /// hasMetadata() - Return true if this instruction has any metadata attached
   /// to it.
   bool hasMetadata() const {
-    return (getSubclassDataFromValue() & HasMetadataBit) != 0;
+    return !DbgLoc.isUnknown() || hasMetadataHashEntry();
+  }
+  
+  /// hasMetadataOtherThanDebugLoc - Return true if this instruction has
+  /// metadata attached to it other than a debug location.
+  bool hasMetadataOtherThanDebugLoc() const {
+    return hasMetadataHashEntry();
   }
   
   /// getMetadata - Get the metadata of given kind attached to this Instruction.
@@ -148,17 +156,49 @@ public:
       getAllMetadataImpl(MDs);
   }
   
+  /// getAllMetadataOtherThanDebugLoc - This does the same thing as
+  /// getAllMetadata, except that it filters out the debug location.
+  void getAllMetadataOtherThanDebugLoc(SmallVectorImpl<std::pair<unsigned,
+                                       MDNode*> > &MDs) const {
+    if (hasMetadataOtherThanDebugLoc())
+      getAllMetadataOtherThanDebugLocImpl(MDs);
+  }
+  
   /// setMetadata - Set the metadata of the specified kind to the specified
   /// node.  This updates/replaces metadata if already present, or removes it if
   /// Node is null.
   void setMetadata(unsigned KindID, MDNode *Node);
   void setMetadata(const char *Kind, MDNode *Node);
 
+  /// setDbgMetadata - This is just an optimized helper function that is
+  /// equivalent to setMetadata("dbg", Node);
+  void setDbgMetadata(MDNode *Node);
+  
+  /// getDbgMetadata - This is just an optimized helper function that is
+  /// equivalent to calling getMetadata("dbg").
+  MDNode *getDbgMetadata() const {
+    return DbgLoc.getAsMDNode(getContext());
+  }
+
+  /// setDebugLoc - Set the debug location information for this instruction.
+  void setDebugLoc(const DebugLoc &Loc) { DbgLoc = Loc; }
+  
+  /// getDebugLoc - Return the debug location for this node as a DebugLoc.
+  const DebugLoc &getDebugLoc() const { return DbgLoc; }
+  
 private:
+  /// hasMetadataHashEntry - Return true if we have an entry in the on-the-side
+  /// metadata hash.
+  bool hasMetadataHashEntry() const {
+    return (getSubclassDataFromValue() & HasMetadataBit) != 0;
+  }
+  
   // These are all implemented in Metadata.cpp.
   MDNode *getMetadataImpl(unsigned KindID) const;
   MDNode *getMetadataImpl(const char *Kind) const;
   void getAllMetadataImpl(SmallVectorImpl<std::pair<unsigned,MDNode*> > &)const;
+  void getAllMetadataOtherThanDebugLocImpl(SmallVectorImpl<std::pair<unsigned,
+                                           MDNode*> > &) const;
   void removeAllMetadata();
 public:
   //===--------------------------------------------------------------------===//
@@ -315,7 +355,7 @@ private:
     return Value::getSubclassDataFromValue();
   }
   
-  void setHasMetadata(bool V) {
+  void setHasMetadataHashEntry(bool V) {
     setValueSubclassData((getSubclassDataFromValue() & ~HasMetadataBit) |
                          (V ? HasMetadataBit : 0));
   }

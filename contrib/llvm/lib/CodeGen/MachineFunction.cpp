@@ -39,40 +39,6 @@
 #include "llvm/Support/raw_ostream.h"
 using namespace llvm;
 
-namespace {
-  struct Printer : public MachineFunctionPass {
-    static char ID;
-
-    raw_ostream &OS;
-    const std::string Banner;
-
-    Printer(raw_ostream &os, const std::string &banner) 
-      : MachineFunctionPass(&ID), OS(os), Banner(banner) {}
-
-    const char *getPassName() const { return "MachineFunction Printer"; }
-
-    virtual void getAnalysisUsage(AnalysisUsage &AU) const {
-      AU.setPreservesAll();
-      MachineFunctionPass::getAnalysisUsage(AU);
-    }
-
-    bool runOnMachineFunction(MachineFunction &MF) {
-      OS << "# " << Banner << ":\n";
-      MF.print(OS);
-      return false;
-    }
-  };
-  char Printer::ID = 0;
-}
-
-/// Returns a newly-created MachineFunction Printer pass. The default banner is
-/// empty.
-///
-FunctionPass *llvm::createMachineFunctionPrinterPass(raw_ostream &OS,
-                                                     const std::string &Banner){
-  return new Printer(OS, Banner);
-}
-
 //===----------------------------------------------------------------------===//
 // MachineFunction implementation
 //===----------------------------------------------------------------------===//
@@ -436,15 +402,6 @@ unsigned MachineFunction::addLiveIn(unsigned PReg,
   return VReg;
 }
 
-/// getDILocation - Get the DILocation for a given DebugLoc object.
-DILocation MachineFunction::getDILocation(DebugLoc DL) const {
-  unsigned Idx = DL.getIndex();
-  assert(Idx < DebugLocInfo.DebugLocations.size() &&
-         "Invalid index into debug locations!");
-  return DILocation(DebugLocInfo.DebugLocations[Idx]);
-}
-
-
 /// getJTISymbol - Return the MCSymbol for the specified non-empty jump table.
 /// If isLinkerPrivate is specified, an 'l' label is returned, otherwise a
 /// normal 'L' label is returned.
@@ -460,9 +417,7 @@ MCSymbol *MachineFunction::getJTISymbol(unsigned JTI, MCContext &Ctx,
   SmallString<60> Name;
   raw_svector_ostream(Name)
     << Prefix << "JTI" << getFunctionNumber() << '_' << JTI;
-  if (isLinkerPrivate)
-    return Ctx.GetOrCreateSymbol(Name.str());
-  return Ctx.GetOrCreateTemporarySymbol(Name.str());
+  return Ctx.GetOrCreateSymbol(Name.str());
 }
 
 

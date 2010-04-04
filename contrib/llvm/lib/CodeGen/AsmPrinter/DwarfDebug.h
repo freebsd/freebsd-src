@@ -19,6 +19,7 @@
 #include "llvm/CodeGen/AsmPrinter.h"
 #include "llvm/CodeGen/MachineLocation.h"
 #include "llvm/Analysis/DebugInfo.h"
+#include "llvm/Support/Allocator.h"
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/FoldingSet.h"
@@ -98,9 +99,11 @@ class DwarfDebug : public DwarfPrinter {
   /// Lines - List of source line correspondence.
   std::vector<SrcLineInfo> Lines;
 
-  /// DIEValues - A list of all the unique values in use.
-  ///
-  std::vector<DIEValue *> DIEValues;
+  /// DIEBlocks - A list of all the DIEBlocks in use.
+  std::vector<DIEBlock *> DIEBlocks;
+
+  // DIEValueAllocator - All DIEValues are allocated through this allocator.
+  BumpPtrAllocator DIEValueAllocator;
 
   /// StringPool - A String->Symbol mapping of strings used by indirect
   /// references.
@@ -141,11 +144,20 @@ class DwarfDebug : public DwarfPrinter {
   /// AbstractScopes - Tracks the abstract scopes a module. These scopes are
   /// not included DbgScopeMap.  AbstractScopes owns its DbgScope*s.
   DenseMap<MDNode *, DbgScope *> AbstractScopes;
+
+  /// AbstractScopesList - Tracks abstract scopes constructed while processing
+  /// a function. This list is cleared during endFunction().
   SmallVector<DbgScope *, 4>AbstractScopesList;
 
   /// AbstractVariables - Collection on abstract variables.  Owned by the
   /// DbgScopes in AbstractScopes.
   DenseMap<MDNode *, DbgVariable *> AbstractVariables;
+
+  /// DbgValueStartMap - Tracks starting scope of variable DIEs.
+  /// If the scope of an object begins sometime after the low pc value for the 
+  /// scope most closely enclosing the object, the object entry may have a 
+  /// DW_AT_start_scope attribute.
+  DenseMap<const MachineInstr *, DbgVariable *> DbgValueStartMap;
 
   /// InliendSubprogramDIEs - Collection of subprgram DIEs that are marked
   /// (at the end of the module) as DW_AT_inline.
@@ -180,6 +192,10 @@ class DwarfDebug : public DwarfPrinter {
   /// used when calculating the "origin" of a concrete instance of an inlined
   /// function.
   DenseMap<CompileUnit *, unsigned> CompileUnitOffsets;
+
+  /// Previous instruction's location information. This is used to determine
+  /// label location to indicate scope boundries in dwarf debug info.
+  DebugLoc PrevInstLoc;
 
   /// DebugTimer - Timer for the Dwarf debug writer.
   Timer *DebugTimer;
@@ -249,12 +265,6 @@ class DwarfDebug : public DwarfPrinter {
   ///
   void addLabel(DIE *Die, unsigned Attribute, unsigned Form,
                 const MCSymbol *Label);
-
-  /// addSectionOffset - Add a section offset label attribute data and value.
-  ///
-  void addSectionOffset(DIE *Die, unsigned Attribute, unsigned Form,
-                        const MCSymbol *Label, const MCSymbol *Section,
-                        bool isEH = false);
 
   /// addDelta - Add a label delta attribute data and value.
   ///
@@ -351,7 +361,8 @@ class DwarfDebug : public DwarfPrinter {
 
   /// getUpdatedDbgScope - Find or create DbgScope assicated with 
   /// the instruction. Initialize scope and update scope hierarchy.
-  DbgScope *getUpdatedDbgScope(MDNode *N, const MachineInstr *MI, MDNode *InlinedAt);
+  DbgScope *getUpdatedDbgScope(MDNode *N, const MachineInstr *MI,
+                               MDNode *InlinedAt);
 
   /// createDbgScope - Create DbgScope for the scope.
   void createDbgScope(MDNode *Scope, MDNode *InlinedAt);
@@ -360,9 +371,9 @@ class DwarfDebug : public DwarfPrinter {
 
   /// findAbstractVariable - Find abstract variable associated with Var.
   DbgVariable *findAbstractVariable(DIVariable &Var, unsigned FrameIdx, 
-                                    DILocation &Loc);
+                                    DebugLoc Loc);
   DbgVariable *findAbstractVariable(DIVariable &Var, const MachineInstr *MI,
-                                    DILocation &Loc);
+                                    DebugLoc Loc);
 
   /// updateSubprogramScopeDIE - Find DIE for the given subprogram and 
   /// attach appropriate DW_AT_low_pc and DW_AT_high_pc attributes.
@@ -545,8 +556,8 @@ public:
   /// collectVariableInfo - Populate DbgScope entries with variables' info.
   void collectVariableInfo();
 
-  /// beginScope - Process beginning of a scope starting at Label.
-  void beginScope(const MachineInstr *MI, MCSymbol *Label);
+  /// beginScope - Process beginning of a scope.
+  void beginScope(const MachineInstr *MI);
 
   /// endScope - Prcess end of a scope.
   void endScope(const MachineInstr *MI);

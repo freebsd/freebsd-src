@@ -182,19 +182,6 @@ MDNode *MDNode::getMDNode(LLVMContext &Context, Value *const *Vals,
                           unsigned NumVals, FunctionLocalness FL,
                           bool Insert) {
   LLVMContextImpl *pImpl = Context.pImpl;
-  FoldingSetNodeID ID;
-  for (unsigned i = 0; i != NumVals; ++i)
-    ID.AddPointer(Vals[i]);
-
-  void *InsertPoint;
-  MDNode *N = NULL;
-  
-  if ((N = pImpl->MDNodeSet.FindNodeOrInsertPos(ID, InsertPoint)))
-    return N;
-    
-  if (!Insert)
-    return NULL;
-    
   bool isFunctionLocal = false;
   switch (FL) {
   case FL_Unknown:
@@ -216,6 +203,20 @@ MDNode *MDNode::getMDNode(LLVMContext &Context, Value *const *Vals,
     break;
   }
 
+  FoldingSetNodeID ID;
+  for (unsigned i = 0; i != NumVals; ++i)
+    ID.AddPointer(Vals[i]);
+  ID.AddBoolean(isFunctionLocal);
+
+  void *InsertPoint;
+  MDNode *N = NULL;
+  
+  if ((N = pImpl->MDNodeSet.FindNodeOrInsertPos(ID, InsertPoint)))
+    return N;
+    
+  if (!Insert)
+    return NULL;
+    
   // Coallocate space for the node and Operands together, then placement new.
   void *Ptr = malloc(sizeof(MDNode)+NumVals*sizeof(MDNodeOperand));
   N = new (Ptr) MDNode(Context, Vals, NumVals, isFunctionLocal);
@@ -248,6 +249,7 @@ Value *MDNode::getOperand(unsigned i) const {
 void MDNode::Profile(FoldingSetNodeID &ID) const {
   for (unsigned i = 0, e = getNumOperands(); i != e; ++i)
     ID.AddPointer(getOperand(i));
+  ID.AddBoolean(isFunctionLocal());
 }
 
 void MDNode::setIsNotUniqued() {
@@ -410,50 +412,6 @@ StringRef NamedMDNode::getName() const {
 }
 
 //===----------------------------------------------------------------------===//
-// LLVMContext MDKind naming implementation.
-//
-
-#ifndef NDEBUG
-/// isValidName - Return true if Name is a valid custom metadata handler name.
-static bool isValidName(StringRef MDName) {
-  if (MDName.empty())
-    return false;
-
-  if (!isalpha(MDName[0]))
-    return false;
-
-  for (StringRef::iterator I = MDName.begin() + 1, E = MDName.end(); I != E;
-       ++I) {
-    if (!isalnum(*I) && *I != '_' && *I != '-' && *I != '.')
-        return false;
-  }
-  return true;
-}
-#endif
-
-/// getMDKindID - Return a unique non-zero ID for the specified metadata kind.
-unsigned LLVMContext::getMDKindID(StringRef Name) const {
-  assert(isValidName(Name) && "Invalid MDNode name");
-
-  unsigned &Entry = pImpl->CustomMDKindNames[Name];
-
-  // If this is new, assign it its ID.
-  if (Entry == 0) Entry = pImpl->CustomMDKindNames.size();
-  return Entry;
-}
-
-/// getHandlerNames - Populate client supplied smallvector using custome
-/// metadata name and ID.
-void LLVMContext::getMDKindNames(SmallVectorImpl<StringRef> &Names) const {
-  Names.resize(pImpl->CustomMDKindNames.size()+1);
-  Names[0] = "";
-  for (StringMap<unsigned>::const_iterator I = pImpl->CustomMDKindNames.begin(),
-       E = pImpl->CustomMDKindNames.end(); I != E; ++I)
-    // MD Handlers are numbered from 1.
-    Names[I->second] = I->first();
-}
-
-//===----------------------------------------------------------------------===//
 // Instruction Metadata method implementations.
 //
 
@@ -466,18 +424,29 @@ MDNode *Instruction::getMetadataImpl(const char *Kind) const {
   return getMetadataImpl(getContext().getMDKindID(Kind));
 }
 
+void Instruction::setDbgMetadata(MDNode *Node) {
+  DbgLoc = DebugLoc::getFromDILocation(Node);
+}
+
 /// setMetadata - Set the metadata of of the specified kind to the specified
 /// node.  This updates/replaces metadata if already present, or removes it if
 /// Node is null.
 void Instruction::setMetadata(unsigned KindID, MDNode *Node) {
   if (Node == 0 && !hasMetadata()) return;
 
+  // Handle 'dbg' as a special case since it is not stored in the hash table.
+  if (KindID == LLVMContext::MD_dbg) {
+    DbgLoc = DebugLoc::getFromDILocation(Node);
+    return;
+  }
+  
   // Handle the case when we're adding/updating metadata on an instruction.
   if (Node) {
     LLVMContextImpl::MDMapTy &Info = getContext().pImpl->MetadataStore[this];
-    assert(!Info.empty() == hasMetadata() && "HasMetadata bit is wonked");
+    assert(!Info.empty() == hasMetadataHashEntry() &&
+           "HasMetadata bit is wonked");
     if (Info.empty()) {
-      setHasMetadata(true);
+      setHasMetadataHashEntry(true);
     } else {
       // Handle replacement of an existing value.
       for (unsigned i = 0, e = Info.size(); i != e; ++i)
@@ -493,18 +462,19 @@ void Instruction::setMetadata(unsigned KindID, MDNode *Node) {
   }
 
   // Otherwise, we're removing metadata from an instruction.
-  assert(hasMetadata() && getContext().pImpl->MetadataStore.count(this) &&
+  assert(hasMetadataHashEntry() &&
+         getContext().pImpl->MetadataStore.count(this) &&
          "HasMetadata bit out of date!");
   LLVMContextImpl::MDMapTy &Info = getContext().pImpl->MetadataStore[this];
 
   // Common case is removing the only entry.
   if (Info.size() == 1 && Info[0].first == KindID) {
     getContext().pImpl->MetadataStore.erase(this);
-    setHasMetadata(false);
+    setHasMetadataHashEntry(false);
     return;
   }
 
-  // Handle replacement of an existing value.
+  // Handle removal of an existing value.
   for (unsigned i = 0, e = Info.size(); i != e; ++i)
     if (Info[i].first == KindID) {
       Info[i] = Info.back();
@@ -516,8 +486,14 @@ void Instruction::setMetadata(unsigned KindID, MDNode *Node) {
 }
 
 MDNode *Instruction::getMetadataImpl(unsigned KindID) const {
+  // Handle 'dbg' as a special case since it is not stored in the hash table.
+  if (KindID == LLVMContext::MD_dbg)
+    return DbgLoc.getAsMDNode(getContext());
+  
+  if (!hasMetadataHashEntry()) return 0;
+  
   LLVMContextImpl::MDMapTy &Info = getContext().pImpl->MetadataStore[this];
-  assert(hasMetadata() && !Info.empty() && "Shouldn't have called this");
+  assert(!Info.empty() && "bit out of sync with hash table");
 
   for (LLVMContextImpl::MDMapTy::iterator I = Info.begin(), E = Info.end();
        I != E; ++I)
@@ -527,14 +503,23 @@ MDNode *Instruction::getMetadataImpl(unsigned KindID) const {
 }
 
 void Instruction::getAllMetadataImpl(SmallVectorImpl<std::pair<unsigned,
-                                       MDNode*> > &Result)const {
-  assert(hasMetadata() && getContext().pImpl->MetadataStore.count(this) &&
+                                       MDNode*> > &Result) const {
+  Result.clear();
+  
+  // Handle 'dbg' as a special case since it is not stored in the hash table.
+  if (!DbgLoc.isUnknown()) {
+    Result.push_back(std::make_pair((unsigned)LLVMContext::MD_dbg,
+                                    DbgLoc.getAsMDNode(getContext())));
+    if (!hasMetadataHashEntry()) return;
+  }
+  
+  assert(hasMetadataHashEntry() &&
+         getContext().pImpl->MetadataStore.count(this) &&
          "Shouldn't have called this");
   const LLVMContextImpl::MDMapTy &Info =
     getContext().pImpl->MetadataStore.find(this)->second;
   assert(!Info.empty() && "Shouldn't have called this");
 
-  Result.clear();
   Result.append(Info.begin(), Info.end());
 
   // Sort the resulting array so it is stable.
@@ -542,10 +527,32 @@ void Instruction::getAllMetadataImpl(SmallVectorImpl<std::pair<unsigned,
     array_pod_sort(Result.begin(), Result.end());
 }
 
+void Instruction::
+getAllMetadataOtherThanDebugLocImpl(SmallVectorImpl<std::pair<unsigned,
+                                    MDNode*> > &Result) const {
+  Result.clear();
+  assert(hasMetadataHashEntry() &&
+         getContext().pImpl->MetadataStore.count(this) &&
+         "Shouldn't have called this");
+  const LLVMContextImpl::MDMapTy &Info =
+  getContext().pImpl->MetadataStore.find(this)->second;
+  assert(!Info.empty() && "Shouldn't have called this");
+  
+  Result.append(Info.begin(), Info.end());
+  
+  // Sort the resulting array so it is stable.
+  if (Result.size() > 1)
+    array_pod_sort(Result.begin(), Result.end());
+}
+
+
 /// removeAllMetadata - Remove all metadata from this instruction.
 void Instruction::removeAllMetadata() {
   assert(hasMetadata() && "Caller should check");
-  getContext().pImpl->MetadataStore.erase(this);
-  setHasMetadata(false);
+  DbgLoc = DebugLoc();
+  if (hasMetadataHashEntry()) {
+    getContext().pImpl->MetadataStore.erase(this);
+    setHasMetadataHashEntry(false);
+  }
 }
 

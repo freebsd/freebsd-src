@@ -127,8 +127,21 @@ development.  Here we include updates on these subprojects.
 <p>In the LLVM 2.7 time-frame, the Clang team has made many improvements:</p>
 
 <ul>
-<li>...</li>
-include a link to cxx_compatibility.html
+<li>FIXME: C++! Include a link to cxx_compatibility.html</li>
+
+<li>FIXME: Static Analyzer improvements?</li>
+
+<li>CIndex API and Python bindings: Clang now includes a C API as part of the
+CIndex library. Although we make make some changes to the API in the future, it
+is intended to be stable and has been designed for use by external projects. See
+the Clang
+doxygen <a href="http://clang.llvm.org/doxygen/group__CINDEX.html">CIndex</a>
+documentation for more details. The CIndex API also includings an preliminary
+set of Python bindings.</li>
+
+<li>ARM Support: Clang now has ABI support for both the Darwin and Linux ARM
+ABIs. Coupled with many improvements to the LLVM ARM backend, Clang is now
+suitable for use as a a beta quality ARM compiler.</li>
 </ul>
 </div>
 
@@ -162,13 +175,23 @@ implementation of the CLI) using LLVM for static and just-in-time
 compilation.</p>
 
 <p>
-VMKit version ?? builds with LLVM 2.7 and you can find it on its
-<a href="http://vmkit.llvm.org/releases/">web page</a>. The release includes
-bug fixes, cleanup and new features. The major changes are:</p>
+With the release of LLVM 2.7, VMKit has shifted to a great framework for writing
+virtual machines. VMKit now offers precise and efficient garbage collection with
+multi-threading support, thanks to the MMTk memory management toolkit, as well
+as just in time and ahead of time compilation with LLVM.  The major changes in
+VMKit 0.27 are:</p>
 
 <ul>
 
-<li>...</li>
+<li>Garbage collection: VMKit now uses the MMTk toolkit for garbage collectors.
+  The first collector to be ported is the MarkSweep collector, which is precise,
+  and drastically improves the performance of VMKit.</li>
+<li>Line number information in the JVM: by using the debug metadata of LLVM, the
+ JVM now supports precise line number information, useful when printing a stack
+ trace.</li>
+<li>Interface calls in the JVM: we implemented a variant of the Interface Method
+  Table technique for interface calls in the JVM.
+</li>
 
 </ul>
 </div>
@@ -198,15 +221,35 @@ License, a "BSD-style" license.</p>
 
 <!--=========================================================================-->
 <div class="doc_subsection">
-<a name="dragonegg">DragonEgg: GCC-4.5 as an LLVM frontend</a>
+<a name="dragonegg">DragonEgg: llvm-gcc ported to gcc-4.5</a>
 </div>
 
 <div class="doc_text">
 <p>
-The goal of <a href="http://dragonegg.llvm.org/">DragonEgg</a> is to make
-gcc-4.5 act like llvm-gcc without requiring any gcc modifications whatsoever.
-<a href="http://dragonegg.llvm.org/">DragonEgg</a> is a shared library (dragonegg.so)
-that is loaded by gcc at runtime.  It ...
+<a href="http://dragonegg.llvm.org/">DragonEgg</a> is a port of llvm-gcc to
+gcc-4.5.  Unlike llvm-gcc, which makes many intrusive changes to the underlying
+gcc-4.2 code, dragonegg in theory does not require any gcc-4.5 modifications
+whatsoever (currently one small patch is needed).  This is thanks to the new
+<a href="http://gcc.gnu.org/wiki/plugins">gcc plugin architecture</a>, which
+makes it possible to modify the behaviour of gcc at runtime by loading a plugin,
+which is nothing more than a dynamic library which conforms to the gcc plugin
+interface.  DragonEgg is a gcc plugin that causes the LLVM optimizers to be run
+instead of the gcc optimizers, and the LLVM code generators instead of the gcc
+code generators, just like llvm-gcc.  To use it, you add
+"-fplugin=path/dragonegg.so" to the gcc-4.5 command line, and gcc-4.5 magically
+becomes llvm-gcc-4.5!
+</p>
+
+<p>
+DragonEgg is still a work in progress.  Currently C works very well, while C++,
+Ada and Fortran work fairly well.  All other languages either don't work at all,
+or only work poorly.  For the moment only the x86-32 and x86-64 targets are
+supported, and only on linux.
+</p>
+
+<p>
+DragonEgg has not yet been released.  Once gcc-4.5 has been released, dragonegg
+will probably be released as part of the following LLVM release.
 </p>
 
 </div>
@@ -391,6 +434,27 @@ code.-->
 </div>
 
 
+<!--=========================================================================-->
+<div class="doc_subsection">
+<a name="tce">TTA-based Codesign Environment (TCE)</a>
+</div>
+
+<div class="doc_text">
+<p>
+<a href="http://tce.cs.tut.fi/">TCE</a> is a toolset for designing
+application-specific processors (ASP) based on the Transport triggered
+architecture (TTA). The toolset provides a complete co-design flow from C/C++
+programs down to synthesizable VHDL and parallel program binaries. Processor
+customization points include the register files, function units, supported
+operations, and the interconnection network.</p>
+
+<p>TCE uses llvm-gcc/Clang and LLVM for C/C++ language support, target
+independent optimizations and also for parts of code generation. It generates
+new LLVM-based code generators "on the fly" for the designed TTA processors and
+loads them in to the compiler backend as runtime libraries to avoid per-target
+recompilation of larger parts of the compiler chain.</p>
+
+</div>
 
 <!-- *********************************************************************** -->
 <div class="doc_section">
@@ -439,7 +503,7 @@ New llvm/Support/Regex.h API.  FileCheck now does regex's
 Many subtle pointer invalidation bugs in Callgraph have been fixed and it now uses asserting value handles.
 MC Disassembler (with blog post), MCInstPrinter.  Many X86 backend and AsmPrinter simplifications
 Various tools like llc and opt now read either .ll or .bc files as input.
-Malloc and free instructions got removed.
+Malloc and free instructions got removed, along with LowerAllocations pass.
 compiler-rt support for ARM.
 completely llvm-gcc NEON support.
 Can transcode from GAS to intel syntax with "llvm-mc foo.s -output-asm-variant=1"
@@ -456,8 +520,12 @@ x86 sibcall optimization
 New LSR with full strength reduction mode
 The most awesome sext / zext optimization pass. ?
 
+The ARM backend now has good support for ARMv4 backend (tested on StrongARM
+  hardware), previously only supported ARMv4T and newer.
 
 
+
+Defaults to RTTI off, packagers should build with make REQUIRE_RTTI=1.
 CondProp pass removed (functionality merged into jump threading).
 AndersAA got removed (from 2.7 or mainline?)
 PredSimplify, LoopVR, GVNPRE got removed.
@@ -978,20 +1046,6 @@ ignored</a>.</li>
 </ul>
 </div>
 
-<!-- ======================================================================= -->
-<div class="doc_subsection">
-	<a name="ocaml-bindings">Known problems with the O'Caml bindings</a>
-</div>
-
-<div class="doc_text">
-
-<p>The <tt>Llvm.Linkage</tt> module is broken, and has incorrect values. Only
-<tt>Llvm.Linkage.External</tt>, <tt>Llvm.Linkage.Available_externally</tt>, and
-<tt>Llvm.Linkage.Link_once</tt> will be correct. If you need any of the other linkage
-modes, you'll have to write an external C library in order to expose the
-functionality. This has been fixed in the trunk.</p>
-</div>
-
 <!-- *********************************************************************** -->
 <div class="doc_section">
   <a name="additionalinfo">Additional Information</a>
@@ -1024,7 +1078,7 @@ lists</a>.</p>
   src="http://www.w3.org/Icons/valid-html401-blue" alt="Valid HTML 4.01"></a>
 
   <a href="http://llvm.org/">LLVM Compiler Infrastructure</a><br>
-  Last modified: $Date: 2010-03-19 04:18:05 +0100 (Fri, 19 Mar 2010) $
+  Last modified: $Date: 2010-04-02 11:23:15 +0200 (Fri, 02 Apr 2010) $
 </address>
 
 </body>

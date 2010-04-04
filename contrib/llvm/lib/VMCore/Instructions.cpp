@@ -31,23 +31,18 @@ using namespace llvm;
 //===----------------------------------------------------------------------===//
 
 #define CALLSITE_DELEGATE_GETTER(METHOD) \
-  Instruction *II(getInstruction());     \
+  Instruction *II = getInstruction();    \
   return isCall()                        \
     ? cast<CallInst>(II)->METHOD         \
     : cast<InvokeInst>(II)->METHOD
 
 #define CALLSITE_DELEGATE_SETTER(METHOD) \
-  Instruction *II(getInstruction());     \
+  Instruction *II = getInstruction();    \
   if (isCall())                          \
     cast<CallInst>(II)->METHOD;          \
   else                                   \
     cast<InvokeInst>(II)->METHOD
 
-CallSite::CallSite(Instruction *C) {
-  assert((isa<CallInst>(C) || isa<InvokeInst>(C)) && "Not a call!");
-  I.setPointer(C);
-  I.setInt(isa<CallInst>(C));
-}
 CallingConv::ID CallSite::getCallingConv() const {
   CALLSITE_DELEGATE_GETTER(getCallingConv());
 }
@@ -66,6 +61,17 @@ bool CallSite::paramHasAttr(uint16_t i, Attributes attr) const {
 uint16_t CallSite::getParamAlignment(uint16_t i) const {
   CALLSITE_DELEGATE_GETTER(getParamAlignment(i));
 }
+
+/// @brief Return true if the call should not be inlined.
+bool CallSite::isNoInline() const {
+  CALLSITE_DELEGATE_GETTER(isNoInline());
+}
+
+void CallSite::setIsNoInline(bool Value) {
+  CALLSITE_DELEGATE_GETTER(setIsNoInline(Value));
+}
+
+
 bool CallSite::doesNotAccessMemory() const {
   CALLSITE_DELEGATE_GETTER(doesNotAccessMemory());
 }
@@ -96,6 +102,13 @@ bool CallSite::hasArgument(const Value *Arg) const {
     if (AI->get() == Arg)
       return true;
   return false;
+}
+
+User::op_iterator CallSite::getCallee() const {
+  Instruction *II(getInstruction());
+  return isCall()
+    ? cast<CallInst>(II)->op_begin()
+    : cast<InvokeInst>(II)->op_end() - 3; // Skip BB, BB, Function
 }
 
 #undef CALLSITE_DELEGATE_GETTER
@@ -611,24 +624,24 @@ Instruction* CallInst::CreateFree(Value* Source, BasicBlock *InsertAtEnd) {
 void InvokeInst::init(Value *Fn, BasicBlock *IfNormal, BasicBlock *IfException,
                       Value* const *Args, unsigned NumArgs) {
   assert(NumOperands == 3+NumArgs && "NumOperands not set up?");
-  Use *OL = OperandList;
-  OL[0] = Fn;
-  OL[1] = IfNormal;
-  OL[2] = IfException;
+  Op<-3>() = Fn;
+  Op<-2>() = IfNormal;
+  Op<-1>() = IfException;
   const FunctionType *FTy =
     cast<FunctionType>(cast<PointerType>(Fn->getType())->getElementType());
   FTy = FTy;  // silence warning.
 
   assert(((NumArgs == FTy->getNumParams()) ||
           (FTy->isVarArg() && NumArgs > FTy->getNumParams())) &&
-         "Calling a function with bad signature");
+         "Invoking a function with bad signature");
 
+  Use *OL = OperandList;
   for (unsigned i = 0, e = NumArgs; i != e; i++) {
     assert((i >= FTy->getNumParams() || 
             FTy->getParamType(i) == Args[i]->getType()) &&
            "Invoking a function with a bad signature!");
     
-    OL[i+3] = Args[i];
+    OL[i] = Args[i];
   }
 }
 

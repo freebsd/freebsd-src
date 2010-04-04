@@ -16,16 +16,63 @@
 #define LLVM_SUPPORT_TIMER_H
 
 #include "llvm/System/DataTypes.h"
-#include "llvm/System/Mutex.h"
+#include "llvm/ADT/StringRef.h"
+#include <cassert>
 #include <string>
 #include <vector>
-#include <cassert>
+#include <utility>
 
 namespace llvm {
 
+class Timer;
 class TimerGroup;
 class raw_ostream;
 
+class TimeRecord {
+  double WallTime;       // Wall clock time elapsed in seconds
+  double UserTime;       // User time elapsed
+  double SystemTime;     // System time elapsed
+  ssize_t MemUsed;       // Memory allocated (in bytes)
+public:
+  TimeRecord() : WallTime(0), UserTime(0), SystemTime(0), MemUsed(0) {}
+  
+  /// getCurrentTime - Get the current time and memory usage.  If Start is true
+  /// we get the memory usage before the time, otherwise we get time before
+  /// memory usage.  This matters if the time to get the memory usage is
+  /// significant and shouldn't be counted as part of a duration.
+  static TimeRecord getCurrentTime(bool Start = true);
+  
+  double getProcessTime() const { return UserTime+SystemTime; }
+  double getUserTime() const { return UserTime; }
+  double getSystemTime() const { return SystemTime; }
+  double getWallTime() const { return WallTime; }
+  ssize_t getMemUsed() const { return MemUsed; }
+  
+  
+  // operator< - Allow sorting.
+  bool operator<(const TimeRecord &T) const {
+    // Sort by Wall Time elapsed, as it is the only thing really accurate
+    return WallTime < T.WallTime;
+  }
+  
+  void operator+=(const TimeRecord &RHS) {
+    WallTime   += RHS.WallTime;
+    UserTime   += RHS.UserTime;
+    SystemTime += RHS.SystemTime;
+    MemUsed    += RHS.MemUsed;
+  }
+  void operator-=(const TimeRecord &RHS) {
+    WallTime   -= RHS.WallTime;
+    UserTime   -= RHS.UserTime;
+    SystemTime -= RHS.SystemTime;
+    MemUsed    -= RHS.MemUsed;
+  }
+  
+  /// print - Print the current timer to standard error, and reset the "Started"
+  /// flag.
+  void print(const TimeRecord &Total, raw_ostream &OS) const;
+};
+  
 /// Timer - This class is used to track the amount of time spent between
 /// invocations of its startTimer()/stopTimer() methods.  Given appropriate OS
 /// support it can also keep track of the RSS of the program at various points.
@@ -35,65 +82,32 @@ class raw_ostream;
 /// if they are never started.
 ///
 class Timer {
-  double Elapsed;        // Wall clock time elapsed in seconds
-  double UserTime;       // User time elapsed
-  double SystemTime;     // System time elapsed
-  ssize_t MemUsed;       // Memory allocated (in bytes)
-  size_t PeakMem;        // Peak memory used
-  size_t PeakMemBase;    // Temporary for peak calculation...
-  std::string Name;      // The name of this time variable
+  TimeRecord Time;
+  std::string Name;      // The name of this time variable.
   bool Started;          // Has this time variable ever been started?
   TimerGroup *TG;        // The TimerGroup this Timer is in.
-  mutable sys::SmartMutex<true> Lock; // Mutex for the contents of this Timer.
+  
+  Timer **Prev, *Next;   // Doubly linked list of timers in the group.
 public:
-  explicit Timer(const std::string &N);
-  Timer(const std::string &N, TimerGroup &tg);
-  Timer(const Timer &T);
-  ~Timer();
-
-  double getProcessTime() const { return UserTime+SystemTime; }
-  double getWallTime() const { return Elapsed; }
-  ssize_t getMemUsed() const { return MemUsed; }
-  size_t getPeakMem() const { return PeakMem; }
-  std::string getName() const { return Name; }
-
+  explicit Timer(StringRef N) : TG(0) { init(N); }
+  Timer(StringRef N, TimerGroup &tg) : TG(0) { init(N, tg); }
+  Timer(const Timer &RHS) : TG(0) {
+    assert(RHS.TG == 0 && "Can only copy uninitialized timers");
+  }
   const Timer &operator=(const Timer &T) {
-    if (&T < this) {
-      T.Lock.acquire();
-      Lock.acquire();
-    } else {
-      Lock.acquire();
-      T.Lock.acquire();
-    }
-    
-    Elapsed = T.Elapsed;
-    UserTime = T.UserTime;
-    SystemTime = T.SystemTime;
-    MemUsed = T.MemUsed;
-    PeakMem = T.PeakMem;
-    PeakMemBase = T.PeakMemBase;
-    Name = T.Name;
-    Started = T.Started;
-    assert(TG == T.TG && "Can only assign timers in the same TimerGroup!");
-    
-    if (&T < this) {
-      T.Lock.release();
-      Lock.release();
-    } else {
-      Lock.release();
-      T.Lock.release();
-    }
-    
+    assert(TG == 0 && T.TG == 0 && "Can only assign uninit timers");
     return *this;
   }
+  ~Timer();
 
-  // operator< - Allow sorting...
-  bool operator<(const Timer &T) const {
-    // Sort by Wall Time elapsed, as it is the only thing really accurate
-    return Elapsed < T.Elapsed;
-  }
-  bool operator>(const Timer &T) const { return T.operator<(*this); }
-
+  // Create an uninitialized timer, client must use 'init'.
+  explicit Timer() : TG(0) {}
+  void init(StringRef N);
+  void init(StringRef N, TimerGroup &tg);
+  
+  const std::string &getName() const { return Name; }
+  bool isInitialized() const { return TG != 0; }
+  
   /// startTimer - Start the timer running.  Time between calls to
   /// startTimer/stopTimer is counted by the Timer class.  Note that these calls
   /// must be correctly paired.
@@ -104,25 +118,8 @@ public:
   ///
   void stopTimer();
 
-  /// addPeakMemoryMeasurement - This method should be called whenever memory
-  /// usage needs to be checked.  It adds a peak memory measurement to the
-  /// currently active timers, which will be printed when the timer group prints
-  ///
-  static void addPeakMemoryMeasurement();
-
-  /// print - Print the current timer to standard error, and reset the "Started"
-  /// flag.
-  void print(const Timer &Total, raw_ostream &OS);
-
 private:
   friend class TimerGroup;
-
-  // Copy ctor, initialize with no TG member.
-  Timer(bool, const Timer &T);
-
-  /// sum - Add the time accumulated in the specified timer into this timer.
-  ///
-  void sum(const Timer &T);
 };
 
 
@@ -139,12 +136,10 @@ public:
     T->startTimer();
   }
   explicit TimeRegion(Timer *t) : T(t) {
-    if (T)
-      T->startTimer();
+    if (T) T->startTimer();
   }
   ~TimeRegion() {
-    if (T)
-      T->stopTimer();
+    if (T) T->stopTimer();
   }
 };
 
@@ -155,9 +150,8 @@ public:
 /// is primarily used for debugging and for hunting performance problems.
 ///
 struct NamedRegionTimer : public TimeRegion {
-  explicit NamedRegionTimer(const std::string &Name);
-  explicit NamedRegionTimer(const std::string &Name,
-                            const std::string &GroupName);
+  explicit NamedRegionTimer(StringRef Name);
+  explicit NamedRegionTimer(StringRef Name, StringRef GroupName);
 };
 
 
@@ -168,20 +162,29 @@ struct NamedRegionTimer : public TimeRegion {
 ///
 class TimerGroup {
   std::string Name;
-  unsigned NumTimers;
-  std::vector<Timer> TimersToPrint;
+  Timer *FirstTimer;   // First timer in the group.
+  std::vector<std::pair<TimeRecord, std::string> > TimersToPrint;
+  
+  TimerGroup **Prev, *Next; // Doubly linked list of TimerGroup's.
+  TimerGroup(const TimerGroup &TG);      // DO NOT IMPLEMENT
+  void operator=(const TimerGroup &TG);  // DO NOT IMPLEMENT
 public:
-  explicit TimerGroup(const std::string &name) : Name(name), NumTimers(0) {}
-  ~TimerGroup() {
-    assert(NumTimers == 0 &&
-           "TimerGroup destroyed before all contained timers!");
-  }
+  explicit TimerGroup(StringRef name);
+  ~TimerGroup();
 
+  void setName(StringRef name) { Name.assign(name.begin(), name.end()); }
+
+  /// print - Print any started timers in this group and zero them.
+  void print(raw_ostream &OS);
+  
+  /// printAll - This static method prints all timers and clears them all out.
+  static void printAll(raw_ostream &OS);
+  
 private:
   friend class Timer;
-  void addTimer();
-  void removeTimer();
-  void addTimerToPrint(const Timer &T);
+  void addTimer(Timer &T);
+  void removeTimer(Timer &T);
+  void PrintQueuedTimers(raw_ostream &OS);
 };
 
 } // End llvm namespace

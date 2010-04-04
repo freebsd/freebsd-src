@@ -13,6 +13,7 @@
 
 
 #include "llvm/PassManagers.h"
+#include "llvm/Assembly/PrintModulePass.h"
 #include "llvm/Assembly/Writer.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Debug.h"
@@ -20,6 +21,7 @@
 #include "llvm/Module.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/ManagedStatic.h"
+#include "llvm/Support/PassNameParser.h"
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/System/Mutex.h"
 #include "llvm/System/Threading.h"
@@ -55,6 +57,57 @@ PassDebugging("debug-pass", cl::Hidden,
   clEnumVal(Executions, "print pass name before it is executed"),
   clEnumVal(Details   , "print pass details when it is executed"),
                              clEnumValEnd));
+
+typedef llvm::cl::list<const llvm::PassInfo *, bool, PassNameParser>
+PassOptionList;
+
+// Print IR out before/after specified passes.
+static PassOptionList
+PrintBefore("print-before",
+            llvm::cl::desc("Print IR before specified passes"));
+
+static PassOptionList
+PrintAfter("print-after",
+           llvm::cl::desc("Print IR after specified passes"));
+
+static cl::opt<bool>
+PrintBeforeAll("print-before-all",
+               llvm::cl::desc("Print IR before each pass"),
+               cl::init(false));
+static cl::opt<bool>
+PrintAfterAll("print-after-all",
+              llvm::cl::desc("Print IR after each pass"),
+              cl::init(false));
+
+/// This is a helper to determine whether to print IR before or
+/// after a pass.
+
+static bool ShouldPrintBeforeOrAfterPass(Pass *P,
+                                         PassOptionList &PassesToPrint) {
+  for (unsigned i = 0, ie = PassesToPrint.size(); i < ie; ++i) {
+    const llvm::PassInfo *PassInf = PassesToPrint[i];
+    if (PassInf && P->getPassInfo())
+      if (PassInf->getPassArgument() ==
+          P->getPassInfo()->getPassArgument()) {
+        return true;
+      }
+  }
+  return false;
+}
+  
+
+/// This is a utility to check whether a pass should have IR dumped
+/// before it.
+static bool ShouldPrintBeforePass(Pass *P) {
+  return PrintBeforeAll || ShouldPrintBeforeOrAfterPass(P, PrintBefore);
+}
+
+/// This is a utility to check whether a pass should have IR dumped
+/// after it.
+static bool ShouldPrintAfterPass(Pass *P) {
+  return PrintAfterAll || ShouldPrintBeforeOrAfterPass(P, PrintAfter);
+}
+
 } // End of llvm namespace
 
 /// isPassDebuggingExecutionsOrMore - Return true if -debug-pass=Executions
@@ -182,6 +235,11 @@ public:
     schedulePass(P);
   }
  
+  /// createPrinterPass - Get a function printer pass. 
+  Pass *createPrinterPass(raw_ostream &O, const std::string &Banner) const {
+    return createPrintFunctionPass(Banner, &O);
+  }
+
   // Prepare for running an on the fly pass, freeing memory if needed
   // from a previous run.
   void releaseMemoryOnTheFly();
@@ -250,6 +308,11 @@ public:
       FunctionPassManagerImpl *FPP = I->second;
       delete FPP;
     }
+  }
+
+  /// createPrinterPass - Get a module printer pass. 
+  Pass *createPrinterPass(raw_ostream &O, const std::string &Banner) const {
+    return createPrintModulePass(&O, false, Banner);
   }
 
   /// run - Execute all of the passes scheduled for execution.  Keep track of
@@ -331,6 +394,11 @@ public:
     schedulePass(P);
   }
  
+  /// createPrinterPass - Get a module printer pass. 
+  Pass *createPrinterPass(raw_ostream &O, const std::string &Banner) const {
+    return createPrintModulePass(&O, false, Banner);
+  }
+
   /// run - Execute all of the passes scheduled for execution.  Keep track of
   /// whether any of the passes modifies the module, and if so, return true.
   bool run(Module &M);
@@ -378,17 +446,19 @@ namespace {
 static ManagedStatic<sys::SmartMutex<true> > TimingInfoMutex;
 
 class TimingInfo {
-  std::map<Pass*, Timer> TimingData;
+  DenseMap<Pass*, Timer*> TimingData;
   TimerGroup TG;
-
 public:
   // Use 'create' member to get this.
   TimingInfo() : TG("... Pass execution timing report ...") {}
   
   // TimingDtor - Print out information about timing information
   ~TimingInfo() {
-    // Delete all of the timers...
-    TimingData.clear();
+    // Delete all of the timers, which accumulate their info into the
+    // TimerGroup.
+    for (DenseMap<Pass*, Timer*>::iterator I = TimingData.begin(),
+         E = TimingData.end(); I != E; ++I)
+      delete I->second;
     // TimerGroup is deleted next, printing the report.
   }
 
@@ -397,18 +467,15 @@ public:
   // null.  It may be called multiple times.
   static void createTheTimeInfo();
 
-  /// passStarted - This method creates a timer for the given pass if it doesn't
-  /// already have one, and starts the timer.
-  Timer *passStarted(Pass *P) {
+  /// getPassTimer - Return the timer for the specified pass if it exists.
+  Timer *getPassTimer(Pass *P) {
     if (P->getAsPMDataManager()) 
       return 0;
 
     sys::SmartScopedLock<true> Lock(*TimingInfoMutex);
-    std::map<Pass*, Timer>::iterator I = TimingData.find(P);
-    if (I == TimingData.end())
-      I=TimingData.insert(std::make_pair(P, Timer(P->getPassName(), TG))).first;
-    Timer *T = &I->second;
-    T->startTimer();
+    Timer *&T = TimingData[P];
+    if (T == 0)
+      T = new Timer(P->getPassName(), TG);
     return T;
   }
 };
@@ -704,11 +771,8 @@ void PMDataManager::verifyPreservedAnalysis(Pass *P) {
          E = PreservedSet.end(); I != E; ++I) {
     AnalysisID AID = *I;
     if (Pass *AP = findAnalysisPass(AID, true)) {
-
-      Timer *T = 0;
-      if (TheTimeInfo) T = TheTimeInfo->passStarted(AP);
+      TimeRegion PassTimer(getPassTimer(AP));
       AP->verifyAnalysis();
-      if (T) T->stopTimer();
     }
   }
 }
@@ -792,10 +856,9 @@ void PMDataManager::freePass(Pass *P, StringRef Msg,
   {
     // If the pass crashes releasing memory, remember this.
     PassManagerPrettyStackEntry X(P);
-    
-    Timer *T = StartPassTimer(P);
+    TimeRegion PassTimer(getPassTimer(P));
+
     P->releaseMemory();
-    StopPassTimer(P, T);
   }
 
   if (const PassInfo *PI = P->getPassInfo()) {
@@ -1128,10 +1191,9 @@ bool BBPassManager::runOnFunction(Function &F) {
       {
         // If the pass crashes, remember this.
         PassManagerPrettyStackEntry X(BP, *I);
-      
-        Timer *T = StartPassTimer(BP);
+        TimeRegion PassTimer(getPassTimer(BP));
+
         LocalChanged |= BP->runOnBasicBlock(*I);
-        StopPassTimer(BP, T);
       }
 
       Changed |= LocalChanged;
@@ -1214,7 +1276,14 @@ FunctionPassManager::~FunctionPassManager() {
 /// there is no need to delete the pass. (TODO delete passes.)
 /// This implies that all passes MUST be allocated with 'new'.
 void FunctionPassManager::add(Pass *P) { 
+  if (ShouldPrintBeforePass(P))
+    add(P->createPrinterPass(dbgs(), std::string("*** IR Dump Before ")
+                             + P->getPassName() + " ***"));
   FPM->add(P);
+
+  if (ShouldPrintAfterPass(P))
+    add(P->createPrinterPass(dbgs(), std::string("*** IR Dump After ")
+                             + P->getPassName() + " ***"));
 }
 
 /// run - Execute all of the passes scheduled for execution.  Keep
@@ -1345,10 +1414,9 @@ bool FPPassManager::runOnFunction(Function &F) {
 
     {
       PassManagerPrettyStackEntry X(FP, F);
+      TimeRegion PassTimer(getPassTimer(FP));
 
-      Timer *T = StartPassTimer(FP);
       LocalChanged |= FP->runOnFunction(F);
-      StopPassTimer(FP, T);
     }
 
     Changed |= LocalChanged;
@@ -1420,9 +1488,9 @@ MPPassManager::runOnModule(Module &M) {
 
     {
       PassManagerPrettyStackEntry X(MP, M);
-      Timer *T = StartPassTimer(MP);
+      TimeRegion PassTimer(getPassTimer(MP));
+
       LocalChanged |= MP->runOnModule(M);
-      StopPassTimer(MP, T);
     }
 
     Changed |= LocalChanged;
@@ -1526,7 +1594,15 @@ PassManager::~PassManager() {
 /// will be destroyed as well, so there is no need to delete the pass.  This
 /// implies that all passes MUST be allocated with 'new'.
 void PassManager::add(Pass *P) {
+  if (ShouldPrintBeforePass(P))
+    add(P->createPrinterPass(dbgs(), std::string("*** IR Dump Before ")
+                             + P->getPassName() + " ***"));
+
   PM->add(P);
+
+  if (ShouldPrintAfterPass(P))
+    add(P->createPrinterPass(dbgs(), std::string("*** IR Dump After ")
+                             + P->getPassName() + " ***"));
 }
 
 /// run - Execute all of the passes scheduled for execution.  Keep track of
@@ -1559,15 +1635,10 @@ void TimingInfo::createTheTimeInfo() {
 }
 
 /// If TimingInfo is enabled then start pass timer.
-Timer *llvm::StartPassTimer(Pass *P) {
+Timer *llvm::getPassTimer(Pass *P) {
   if (TheTimeInfo) 
-    return TheTimeInfo->passStarted(P);
+    return TheTimeInfo->getPassTimer(P);
   return 0;
-}
-
-/// If TimingInfo is enabled then stop pass timer.
-void llvm::StopPassTimer(Pass *P, Timer *T) {
-  if (T) T->stopTimer();
 }
 
 //===----------------------------------------------------------------------===//

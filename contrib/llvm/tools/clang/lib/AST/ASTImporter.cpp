@@ -73,7 +73,7 @@ namespace {
     // FIXME: SubstTemplateTypeParmType
     // FIXME: TemplateSpecializationType
     QualType VisitQualifiedNameType(QualifiedNameType *T);
-    // FIXME: TypenameType
+    // FIXME: DependentNameType
     QualType VisitObjCInterfaceType(ObjCInterfaceType *T);
     QualType VisitObjCObjectPointerType(ObjCObjectPointerType *T);
                             
@@ -484,10 +484,8 @@ static bool IsStructurallyEquivalent(StructuralEquivalenceContext &Context,
                                   Function1->getResultType(),
                                   Function2->getResultType()))
       return false;
-    if (Function1->getNoReturnAttr() != Function2->getNoReturnAttr())
-      return false;
-    if (Function1->getCallConv() != Function2->getCallConv())
-      return false;
+      if (Function1->getExtInfo() != Function2->getExtInfo())
+        return false;
     break;
   }
    
@@ -620,9 +618,9 @@ static bool IsStructurallyEquivalent(StructuralEquivalenceContext &Context,
     break;
   }
 
-  case Type::Typename: {
-    const TypenameType *Typename1 = cast<TypenameType>(T1);
-    const TypenameType *Typename2 = cast<TypenameType>(T2);
+  case Type::DependentName: {
+    const DependentNameType *Typename1 = cast<DependentNameType>(T1);
+    const DependentNameType *Typename2 = cast<DependentNameType>(T2);
     if (!IsStructurallyEquivalent(Context, 
                                   Typename1->getQualifier(),
                                   Typename2->getQualifier()))
@@ -1200,10 +1198,9 @@ QualType ASTNodeImporter::VisitFunctionNoProtoType(FunctionNoProtoType *T) {
   QualType ToResultType = Importer.Import(T->getResultType());
   if (ToResultType.isNull())
     return QualType();
-  
+
   return Importer.getToContext().getFunctionNoProtoType(ToResultType,
-                                                        T->getNoReturnAttr(), 
-                                                        T->getCallConv());
+                                                        T->getExtInfo());
 }
 
 QualType ASTNodeImporter::VisitFunctionProtoType(FunctionProtoType *T) {
@@ -1241,8 +1238,7 @@ QualType ASTNodeImporter::VisitFunctionProtoType(FunctionProtoType *T) {
                                                  T->hasAnyExceptionSpec(),
                                                  ExceptionTypes.size(),
                                                  ExceptionTypes.data(),
-                                                 T->getNoReturnAttr(),
-                                                 T->getCallConv());
+                                                 T->getExtInfo());
 }
 
 QualType ASTNodeImporter::VisitTypedefType(TypedefType *T) {
@@ -2017,7 +2013,8 @@ Decl *ASTNodeImporter::VisitObjCIvarDecl(ObjCIvarDecl *D) {
   if (!BitWidth && D->getBitWidth())
     return 0;
   
-  ObjCIvarDecl *ToIvar = ObjCIvarDecl::Create(Importer.getToContext(), DC, 
+  ObjCIvarDecl *ToIvar = ObjCIvarDecl::Create(Importer.getToContext(),
+                                              cast<ObjCContainerDecl>(DC),
                                               Loc, Name.getAsIdentifierInfo(),
                                               T, TInfo, D->getAccessControl(),
                                               BitWidth);

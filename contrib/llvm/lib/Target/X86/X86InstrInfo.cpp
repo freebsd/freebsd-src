@@ -597,7 +597,6 @@ X86InstrInfo::X86InstrInfo(X86TargetMachine &tm)
     { X86::PMULHUWrr,       X86::PMULHUWrm, 16 },
     { X86::PMULHWrr,        X86::PMULHWrm, 16 },
     { X86::PMULLDrr,        X86::PMULLDrm, 16 },
-    { X86::PMULLDrr_int,    X86::PMULLDrm_int, 16 },
     { X86::PMULLWrr,        X86::PMULLWrm, 16 },
     { X86::PMULUDQrr,       X86::PMULUDQrm, 16 },
     { X86::PORrr,           X86::PORrm, 16 },
@@ -992,8 +991,10 @@ X86InstrInfo::isReallyTriviallyReMaterializable(const MachineInstr *MI,
 /// a few instructions in each direction it assumes it's not safe.
 static bool isSafeToClobberEFLAGS(MachineBasicBlock &MBB,
                                   MachineBasicBlock::iterator I) {
+  MachineBasicBlock::iterator E = MBB.end();
+
   // It's always safe to clobber EFLAGS at the end of a block.
-  if (I == MBB.end())
+  if (I == E)
     return true;
 
   // For compile time consideration, if we are not able to determine the
@@ -1017,20 +1018,28 @@ static bool isSafeToClobberEFLAGS(MachineBasicBlock &MBB,
       // This instruction defines EFLAGS, no need to look any further.
       return true;
     ++Iter;
+    // Skip over DBG_VALUE.
+    while (Iter != E && Iter->isDebugValue())
+      ++Iter;
 
     // If we make it to the end of the block, it's safe to clobber EFLAGS.
-    if (Iter == MBB.end())
+    if (Iter == E)
       return true;
   }
 
+  MachineBasicBlock::iterator B = MBB.begin();
   Iter = I;
   for (unsigned i = 0; i < 4; ++i) {
     // If we make it to the beginning of the block, it's safe to clobber
     // EFLAGS iff EFLAGS is not live-in.
-    if (Iter == MBB.begin())
+    if (Iter == B)
       return !MBB.isLiveIn(X86::EFLAGS);
 
     --Iter;
+    // Skip over DBG_VALUE.
+    while (Iter != B && Iter->isDebugValue())
+      --Iter;
+
     bool SawKill = false;
     for (unsigned j = 0, e = Iter->getNumOperands(); j != e; ++j) {
       MachineOperand &MO = Iter->getOperand(j);
@@ -1677,6 +1686,8 @@ bool X86InstrInfo::AnalyzeBranch(MachineBasicBlock &MBB,
   MachineBasicBlock::iterator I = MBB.end();
   while (I != MBB.begin()) {
     --I;
+    if (I->isDebugValue())
+      continue;
 
     // Working from the bottom, when we see a non-terminator instruction, we're
     // done.
@@ -1773,6 +1784,8 @@ unsigned X86InstrInfo::RemoveBranch(MachineBasicBlock &MBB) const {
 
   while (I != MBB.begin()) {
     --I;
+    if (I->isDebugValue())
+      continue;
     if (I->getOpcode() != X86::JMP_4 &&
         GetCondFromBranchOpc(I->getOpcode()) == X86::COND_INVALID)
       break;
@@ -1790,7 +1803,7 @@ X86InstrInfo::InsertBranch(MachineBasicBlock &MBB, MachineBasicBlock *TBB,
                            MachineBasicBlock *FBB,
                            const SmallVectorImpl<MachineOperand> &Cond) const {
   // FIXME this should probably have a DebugLoc operand
-  DebugLoc dl = DebugLoc::getUnknownLoc();
+  DebugLoc dl;
   // Shouldn't be a fall through.
   assert(TBB && "InsertBranch must not be told to insert a fallthrough");
   assert((Cond.size() == 1 || Cond.size() == 0) &&
@@ -2094,7 +2107,7 @@ void X86InstrInfo::storeRegToAddr(MachineFunction &MF, unsigned SrcReg,
                                   SmallVectorImpl<MachineInstr*> &NewMIs) const {
   bool isAligned = (*MMOBegin)->getAlignment() >= 16;
   unsigned Opc = getStoreRegOpcode(SrcReg, RC, isAligned, TM);
-  DebugLoc DL = DebugLoc::getUnknownLoc();
+  DebugLoc DL;
   MachineInstrBuilder MIB = BuildMI(MF, DL, get(Opc));
   for (unsigned i = 0, e = Addr.size(); i != e; ++i)
     MIB.addOperand(Addr[i]);
@@ -2189,7 +2202,7 @@ void X86InstrInfo::loadRegFromAddr(MachineFunction &MF, unsigned DestReg,
                                  SmallVectorImpl<MachineInstr*> &NewMIs) const {
   bool isAligned = (*MMOBegin)->getAlignment() >= 16;
   unsigned Opc = getLoadRegOpcode(DestReg, RC, isAligned, TM);
-  DebugLoc DL = DebugLoc::getUnknownLoc();
+  DebugLoc DL;
   MachineInstrBuilder MIB = BuildMI(MF, DL, get(Opc), DestReg);
   for (unsigned i = 0, e = Addr.size(); i != e; ++i)
     MIB.addOperand(Addr[i]);
@@ -2505,7 +2518,9 @@ MachineInstr* X86InstrInfo::foldMemoryOperandImpl(MachineFunction &MF,
     Alignment = (*LoadMI->memoperands_begin())->getAlignment();
   else
     switch (LoadMI->getOpcode()) {
-    case X86::V_SET0:
+    case X86::V_SET0PS:
+    case X86::V_SET0PD:
+    case X86::V_SET0PI:
     case X86::V_SETALLONES:
       Alignment = 16;
       break;
@@ -2535,11 +2550,13 @@ MachineInstr* X86InstrInfo::foldMemoryOperandImpl(MachineFunction &MF,
 
   SmallVector<MachineOperand,X86AddrNumOperands> MOs;
   switch (LoadMI->getOpcode()) {
-  case X86::V_SET0:
+  case X86::V_SET0PS:
+  case X86::V_SET0PD:
+  case X86::V_SET0PI:
   case X86::V_SETALLONES:
   case X86::FsFLD0SD:
   case X86::FsFLD0SS: {
-    // Folding a V_SET0 or V_SETALLONES as a load, to ease register pressure.
+    // Folding a V_SET0P? or V_SETALLONES as a load, to ease register pressure.
     // Create a constant-pool entry and operands to load from it.
 
     // Medium and large mode can't fold loads this way.
@@ -3647,4 +3664,52 @@ unsigned X86InstrInfo::getGlobalBaseReg(MachineFunction *MF) const {
 
   X86FI->setGlobalBaseReg(GlobalBaseReg);
   return GlobalBaseReg;
+}
+
+// These are the replaceable SSE instructions. Some of these have Int variants
+// that we don't include here. We don't want to replace instructions selected
+// by intrinsics.
+static const unsigned ReplaceableInstrs[][3] = {
+  //PackedInt       PackedSingle     PackedDouble
+  { X86::MOVAPSmr,   X86::MOVAPDmr,  X86::MOVDQAmr  },
+  { X86::MOVAPSrm,   X86::MOVAPDrm,  X86::MOVDQArm  },
+  { X86::MOVAPSrr,   X86::MOVAPDrr,  X86::MOVDQArr  },
+  { X86::MOVUPSmr,   X86::MOVUPDmr,  X86::MOVDQUmr  },
+  { X86::MOVUPSrm,   X86::MOVUPDrm,  X86::MOVDQUrm  },
+  { X86::MOVNTPSmr,  X86::MOVNTPDmr, X86::MOVNTDQmr },
+  { X86::ANDNPSrm,   X86::ANDNPDrm,  X86::PANDNrm   },
+  { X86::ANDNPSrr,   X86::ANDNPDrr,  X86::PANDNrr   },
+  { X86::ANDPSrm,    X86::ANDPDrm,   X86::PANDrm    },
+  { X86::ANDPSrr,    X86::ANDPDrr,   X86::PANDrr    },
+  { X86::ORPSrm,     X86::ORPDrm,    X86::PORrm     },
+  { X86::ORPSrr,     X86::ORPDrr,    X86::PORrr     },
+  { X86::V_SET0PS,   X86::V_SET0PD,  X86::V_SET0PI  },
+  { X86::XORPSrm,    X86::XORPDrm,   X86::PXORrm    },
+  { X86::XORPSrr,    X86::XORPDrr,   X86::PXORrr    },
+};
+
+// FIXME: Some shuffle and unpack instructions have equivalents in different
+// domains, but they require a bit more work than just switching opcodes.
+
+static const unsigned *lookup(unsigned opcode, unsigned domain) {
+  for (unsigned i = 0, e = array_lengthof(ReplaceableInstrs); i != e; ++i)
+    if (ReplaceableInstrs[i][domain-1] == opcode)
+      return ReplaceableInstrs[i];
+  return 0;
+}
+
+std::pair<uint16_t, uint16_t>
+X86InstrInfo::GetSSEDomain(const MachineInstr *MI) const {
+  uint16_t domain = (MI->getDesc().TSFlags >> X86II::SSEDomainShift) & 3;
+  return std::make_pair(domain,
+                        domain && lookup(MI->getOpcode(), domain) ? 0xe : 0);
+}
+
+void X86InstrInfo::SetSSEDomain(MachineInstr *MI, unsigned Domain) const {
+  assert(Domain>0 && Domain<4 && "Invalid execution domain");
+  uint16_t dom = (MI->getDesc().TSFlags >> X86II::SSEDomainShift) & 3;
+  assert(dom && "Not an SSE instruction");
+  const unsigned *table = lookup(MI->getOpcode(), dom);
+  assert(table && "Cannot change domain");
+  MI->setDesc(get(table[Domain-1]));
 }

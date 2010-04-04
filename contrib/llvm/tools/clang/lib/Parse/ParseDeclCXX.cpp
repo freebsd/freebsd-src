@@ -837,7 +837,7 @@ void Parser::ParseClassSpecifier(tok::TokenKind TagTokKind,
         Diag(TemplateId->TemplateNameLoc,
              diag::err_explicit_instantiation_with_definition)
           << SourceRange(TemplateInfo.TemplateLoc)
-          << CodeModificationHint::CreateInsertion(LAngleLoc, "<>");
+          << FixItHint::CreateInsertion(LAngleLoc, "<>");
 
         // Create a fake template parameter list that contains only
         // "template<>", so that we treat this construct as a class
@@ -1079,7 +1079,7 @@ Parser::BaseResult Parser::ParseBaseSpecifier(DeclPtrTy ClassDecl) {
     if (IsVirtual) {
       // Complain about duplicate 'virtual'
       Diag(VirtualLoc, diag::err_dup_virtual)
-        << CodeModificationHint::CreateRemoval(VirtualLoc);
+        << FixItHint::CreateRemoval(VirtualLoc);
     }
 
     IsVirtual = true;
@@ -1554,7 +1554,7 @@ void Parser::ParseCXXMemberSpecification(SourceLocation RecordLoc,
     // Check for extraneous top-level semicolon.
     if (Tok.is(tok::semi)) {
       Diag(Tok, diag::ext_extra_struct_semi)
-        << CodeModificationHint::CreateRemoval(Tok.getLocation());
+        << FixItHint::CreateRemoval(Tok.getLocation());
       ConsumeToken();
       continue;
     }
@@ -1579,10 +1579,11 @@ void Parser::ParseCXXMemberSpecification(SourceLocation RecordLoc,
   // If attributes exist after class contents, parse them.
   llvm::OwningPtr<AttributeList> AttrList;
   if (Tok.is(tok::kw___attribute))
-    AttrList.reset(ParseGNUAttributes()); // FIXME: where should I put them?
+    AttrList.reset(ParseGNUAttributes());
 
   Actions.ActOnFinishCXXMemberSpecification(CurScope, RecordLoc, TagDecl,
-                                            LBraceLoc, RBraceLoc);
+                                            LBraceLoc, RBraceLoc,
+                                            AttrList.get());
 
   // C++ 9.2p2: Within the class member-specification, the class is regarded as
   // complete within function bodies, default arguments,

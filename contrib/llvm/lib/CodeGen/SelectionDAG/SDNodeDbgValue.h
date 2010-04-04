@@ -16,6 +16,7 @@
 
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/Support/DebugLoc.h"
+#include "llvm/System/DataTypes.h"
 
 namespace llvm {
 
@@ -47,10 +48,12 @@ private:
   uint64_t Offset;
   DebugLoc DL;
   unsigned Order;
+  bool Invalid;
 public:
   // Constructor for non-constants.
   SDDbgValue(MDNode *mdP, SDNode *N, unsigned R, uint64_t off, DebugLoc dl,
-             unsigned O) : mdPtr(mdP), Offset(off), DL(dl), Order(O) {
+             unsigned O) : mdPtr(mdP), Offset(off), DL(dl), Order(O),
+                           Invalid(false) {
     kind = SDNODE;
     u.s.Node = N;
     u.s.ResNo = R;
@@ -58,14 +61,14 @@ public:
 
   // Constructor for constants.
   SDDbgValue(MDNode *mdP, Value *C, uint64_t off, DebugLoc dl, unsigned O) : 
-    mdPtr(mdP), Offset(off), DL(dl), Order(O) {
+    mdPtr(mdP), Offset(off), DL(dl), Order(O), Invalid(false) {
     kind = CONST;
     u.Const = C;
   }
 
   // Constructor for frame indices.
   SDDbgValue(MDNode *mdP, unsigned FI, uint64_t off, DebugLoc dl, unsigned O) : 
-    mdPtr(mdP), Offset(off), DL(dl), Order(O) {
+    mdPtr(mdP), Offset(off), DL(dl), Order(O), Invalid(false) {
     kind = FRAMEIX;
     u.FrameIx = FI;
   }
@@ -97,6 +100,12 @@ public:
   // Returns the SDNodeOrder.  This is the order of the preceding node in the
   // input.
   unsigned getOrder() { return Order; }
+
+  // setIsInvalidated / isInvalidated - Setter / getter of the "Invalidated"
+  // property. A SDDbgValue is invalid if the SDNode that produces the value is
+  // deleted.
+  void setIsInvalidated() { Invalid = true; }
+  bool isInvalidated() { return Invalid; }
 };
 
 } // end llvm namespace

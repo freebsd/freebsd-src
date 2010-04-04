@@ -802,6 +802,7 @@ X86TargetLowering::X86TargetLowering(X86TargetMachine &TM)
       if (!VT.is128BitVector()) {
         continue;
       }
+      
       setOperationAction(ISD::AND,    SVT, Promote);
       AddPromotedToType (ISD::AND,    SVT, MVT::v2i64);
       setOperationAction(ISD::OR,     SVT, Promote);
@@ -1008,7 +1009,7 @@ X86TargetLowering::X86TargetLowering(X86TargetMachine &TM)
   // FIXME: These should be based on subtarget info. Plus, the values should
   // be smaller when we are in optimizing for size mode.
   maxStoresPerMemset = 16; // For @llvm.memset -> sequence of stores
-  maxStoresPerMemcpy = 16; // For @llvm.memcpy -> sequence of stores
+  maxStoresPerMemcpy = 8; // For @llvm.memcpy -> sequence of stores
   maxStoresPerMemmove = 3; // For @llvm.memmove -> sequence of stores
   setPrefLoopAlignment(16);
   benefitFromCodePlacementOpt = true;
@@ -1066,23 +1067,39 @@ unsigned X86TargetLowering::getByValTypeAlignment(const Type *Ty) const {
 }
 
 /// getOptimalMemOpType - Returns the target specific optimal type for load
-/// and store operations as a result of memset, memcpy, and memmove
-/// lowering. It returns MVT::iAny if SelectionDAG should be responsible for
-/// determining it.
+/// and store operations as a result of memset, memcpy, and memmove lowering.
+/// If DstAlign is zero that means it's safe to destination alignment can
+/// satisfy any constraint. Similarly if SrcAlign is zero it means there
+/// isn't a need to check it against alignment requirement, probably because
+/// the source does not need to be loaded. If 'NonScalarIntSafe' is true, that
+/// means it's safe to return a non-scalar-integer type, e.g. constant string
+/// source or loaded from memory. It returns EVT::Other if SelectionDAG should
+/// be responsible for determining it.
 EVT
-X86TargetLowering::getOptimalMemOpType(uint64_t Size, unsigned Align,
-                                       bool isSrcConst, bool isSrcStr,
+X86TargetLowering::getOptimalMemOpType(uint64_t Size,
+                                       unsigned DstAlign, unsigned SrcAlign,
+                                       bool NonScalarIntSafe,
                                        SelectionDAG &DAG) const {
   // FIXME: This turns off use of xmm stores for memset/memcpy on targets like
   // linux.  This is because the stack realignment code can't handle certain
   // cases like PR2962.  This should be removed when PR2962 is fixed.
   const Function *F = DAG.getMachineFunction().getFunction();
-  bool NoImplicitFloatOps = F->hasFnAttr(Attribute::NoImplicitFloat);
-  if (!NoImplicitFloatOps && Subtarget->getStackAlignment() >= 16) {
-    if ((isSrcConst || isSrcStr) && Subtarget->hasSSE2() && Size >= 16)
-      return MVT::v4i32;
-    if ((isSrcConst || isSrcStr) && Subtarget->hasSSE1() && Size >= 16)
-      return MVT::v4f32;
+  if (NonScalarIntSafe &&
+      !F->hasFnAttr(Attribute::NoImplicitFloat)) {
+    if (Size >= 16 &&
+        (Subtarget->isUnalignedMemAccessFast() ||
+         ((DstAlign == 0 || DstAlign >= 16) &&
+          (SrcAlign == 0 || SrcAlign >= 16))) &&
+        Subtarget->getStackAlignment() >= 16) {
+      if (Subtarget->hasSSE2())
+        return MVT::v4i32;
+      if (Subtarget->hasSSE1())
+        return MVT::v4f32;
+    } else if (Size >= 8 &&
+               !Subtarget->is64Bit() &&
+               Subtarget->getStackAlignment() >= 8 &&
+               Subtarget->hasSSE2())
+      return MVT::f64;
   }
   if (Subtarget->is64Bit() && Size >= 8)
     return MVT::i64;
@@ -1108,8 +1125,8 @@ MCSymbol *
 X86TargetLowering::getPICBaseSymbol(const MachineFunction *MF,
                                     MCContext &Ctx) const {
   const MCAsmInfo &MAI = *getTargetMachine().getMCAsmInfo();
-  return Ctx.GetOrCreateTemporarySymbol(Twine(MAI.getPrivateGlobalPrefix())+
-                                        Twine(MF->getFunctionNumber())+"$pb");
+  return Ctx.GetOrCreateSymbol(Twine(MAI.getPrivateGlobalPrefix())+
+                               Twine(MF->getFunctionNumber())+"$pb");
 }
 
 
@@ -1132,8 +1149,7 @@ SDValue X86TargetLowering::getPICJumpTableRelocBase(SDValue Table,
   if (!Subtarget->is64Bit())
     // This doesn't have DebugLoc associated with it, but is not really the
     // same as a Register.
-    return DAG.getNode(X86ISD::GlobalBaseReg, DebugLoc::getUnknownLoc(),
-                       getPointerTy());
+    return DAG.getNode(X86ISD::GlobalBaseReg, DebugLoc(), getPointerTy());
   return Table;
 }
 
@@ -1914,8 +1930,7 @@ X86TargetLowering::LowerCall(SDValue Chain, SDValue Callee,
     if (!isTailCall) {
       Chain = DAG.getCopyToReg(Chain, dl, X86::EBX,
                                DAG.getNode(X86ISD::GlobalBaseReg,
-                                           DebugLoc::getUnknownLoc(),
-                                           getPointerTy()),
+                                           DebugLoc(), getPointerTy()),
                                InFlag);
       InFlag = Chain.getValue(1);
     } else {
@@ -2290,6 +2305,7 @@ X86TargetLowering::IsEligibleForTailCallOptimization(SDValue Callee,
     return false;
 
   // If -tailcallopt is specified, make fastcc functions tail-callable.
+  const MachineFunction &MF = DAG.getMachineFunction();
   const Function *CallerF = DAG.getMachineFunction().getFunction();
   if (GuaranteedTailCallOpt) {
     if (IsTailCallConvention(CalleeCC) &&
@@ -2301,8 +2317,14 @@ X86TargetLowering::IsEligibleForTailCallOptimization(SDValue Callee,
   // Look for obvious safe cases to perform tail call optimization that does not
   // requite ABI changes. This is what gcc calls sibcall.
 
-  // Do not sibcall optimize vararg calls for now.
-  if (isVarArg)
+  // Can't do sibcall if stack needs to be dynamically re-aligned. PEI needs to
+  // emit a special epilogue.
+  if (RegInfo->needsStackRealignment(MF))
+    return false;
+
+  // Do not sibcall optimize vararg calls unless the call site is not passing any
+  // arguments.
+  if (isVarArg && !Outs.empty())
     return false;
 
   // Also avoid sibcall optimization if either caller or callee uses struct
@@ -2417,7 +2439,7 @@ SDValue X86TargetLowering::getReturnAddressFrameIndex(SelectionDAG &DAG) {
 bool X86::isOffsetSuitableForCodeModel(int64_t Offset, CodeModel::Model M,
                                        bool hasSymbolicDisplacement) {
   // Offset should fit into 32 bit immediate field.
-  if (!isInt32(Offset))
+  if (!isInt<32>(Offset))
     return false;
 
   // If we don't have a symbolic displacement - we don't have any extra
@@ -3613,6 +3635,69 @@ X86TargetLowering::LowerAsSplatVectorLoad(SDValue SrcOp, EVT VT, DebugLoc dl,
   return SDValue();
 }
 
+/// EltsFromConsecutiveLoads - Given the initializing elements 'Elts' of a 
+/// vector of type 'VT', see if the elements can be replaced by a single large 
+/// load which has the same value as a build_vector whose operands are 'elts'.
+///
+/// Example: <load i32 *a, load i32 *a+4, undef, undef> -> zextload a
+/// 
+/// FIXME: we'd also like to handle the case where the last elements are zero
+/// rather than undef via VZEXT_LOAD, but we do not detect that case today.
+/// There's even a handy isZeroNode for that purpose.
+static SDValue EltsFromConsecutiveLoads(EVT VT, SmallVectorImpl<SDValue> &Elts,
+                                        DebugLoc &dl, SelectionDAG &DAG) {
+  EVT EltVT = VT.getVectorElementType();
+  unsigned NumElems = Elts.size();
+  
+  LoadSDNode *LDBase = NULL;
+  unsigned LastLoadedElt = -1U;
+  
+  // For each element in the initializer, see if we've found a load or an undef.
+  // If we don't find an initial load element, or later load elements are 
+  // non-consecutive, bail out.
+  for (unsigned i = 0; i < NumElems; ++i) {
+    SDValue Elt = Elts[i];
+    
+    if (!Elt.getNode() ||
+        (Elt.getOpcode() != ISD::UNDEF && !ISD::isNON_EXTLoad(Elt.getNode())))
+      return SDValue();
+    if (!LDBase) {
+      if (Elt.getNode()->getOpcode() == ISD::UNDEF)
+        return SDValue();
+      LDBase = cast<LoadSDNode>(Elt.getNode());
+      LastLoadedElt = i;
+      continue;
+    }
+    if (Elt.getOpcode() == ISD::UNDEF)
+      continue;
+
+    LoadSDNode *LD = cast<LoadSDNode>(Elt);
+    if (!DAG.isConsecutiveLoad(LD, LDBase, EltVT.getSizeInBits()/8, i))
+      return SDValue();
+    LastLoadedElt = i;
+  }
+
+  // If we have found an entire vector of loads and undefs, then return a large
+  // load of the entire vector width starting at the base pointer.  If we found
+  // consecutive loads for the low half, generate a vzext_load node.
+  if (LastLoadedElt == NumElems - 1) {
+    if (DAG.InferPtrAlignment(LDBase->getBasePtr()) >= 16)
+      return DAG.getLoad(VT, dl, LDBase->getChain(), LDBase->getBasePtr(),
+                         LDBase->getSrcValue(), LDBase->getSrcValueOffset(),
+                         LDBase->isVolatile(), LDBase->isNonTemporal(), 0);
+    return DAG.getLoad(VT, dl, LDBase->getChain(), LDBase->getBasePtr(),
+                       LDBase->getSrcValue(), LDBase->getSrcValueOffset(),
+                       LDBase->isVolatile(), LDBase->isNonTemporal(),
+                       LDBase->getAlignment());
+  } else if (NumElems == 4 && LastLoadedElt == 1) {
+    SDVTList Tys = DAG.getVTList(MVT::v2i64, MVT::Other);
+    SDValue Ops[] = { LDBase->getChain(), LDBase->getBasePtr() };
+    SDValue ResNode = DAG.getNode(X86ISD::VZEXT_LOAD, dl, Tys, Ops, 2);
+    return DAG.getNode(ISD::BIT_CONVERT, dl, VT, ResNode);
+  }
+  return SDValue();
+}
+
 SDValue
 X86TargetLowering::LowerBUILD_VECTOR(SDValue Op, SelectionDAG &DAG) {
   DebugLoc dl = Op.getDebugLoc();
@@ -3841,14 +3926,18 @@ X86TargetLowering::LowerBUILD_VECTOR(SDValue Op, SelectionDAG &DAG) {
     return DAG.getVectorShuffle(VT, dl, V[0], V[1], &MaskVec[0]);
   }
 
-  if (Values.size() > 2) {
-    // If we have SSE 4.1, Expand into a number of inserts unless the number of
-    // values to be inserted is equal to the number of elements, in which case
-    // use the unpack code below in the hopes of matching the consecutive elts
-    // load merge pattern for shuffles.
-    // FIXME: We could probably just check that here directly.
-    if (Values.size() < NumElems && VT.getSizeInBits() == 128 &&
-        getSubtarget()->hasSSE41()) {
+  if (Values.size() > 1 && VT.getSizeInBits() == 128) {
+    // Check for a build vector of consecutive loads.
+    for (unsigned i = 0; i < NumElems; ++i)
+      V[i] = Op.getOperand(i);
+    
+    // Check for elements which are consecutive loads.
+    SDValue LD = EltsFromConsecutiveLoads(VT, V, dl, DAG);
+    if (LD.getNode())
+      return LD;
+    
+    // For SSE 4.1, use inserts into undef.  
+    if (getSubtarget()->hasSSE41()) {
       V[0] = DAG.getUNDEF(VT);
       for (unsigned i = 0; i < NumElems; ++i)
         if (Op.getOperand(i).getOpcode() != ISD::UNDEF)
@@ -3856,7 +3945,8 @@ X86TargetLowering::LowerBUILD_VECTOR(SDValue Op, SelectionDAG &DAG) {
                              Op.getOperand(i), DAG.getIntPtrConstant(i));
       return V[0];
     }
-    // Expand into a number of unpckl*.
+    
+    // Otherwise, expand into a number of unpckl*
     // e.g. for v4f32
     //   Step 1: unpcklps 0, 2 ==> X: <?, ?, 2, 0>
     //         : unpcklps 1, 3 ==> Y: <?, ?, 3, 1>
@@ -3871,7 +3961,6 @@ X86TargetLowering::LowerBUILD_VECTOR(SDValue Op, SelectionDAG &DAG) {
     }
     return V[0];
   }
-
   return SDValue();
 }
 
@@ -4970,7 +5059,7 @@ X86TargetLowering::LowerConstantPool(SDValue Op, SelectionDAG &DAG) {
   if (OpFlag) {
     Result = DAG.getNode(ISD::ADD, DL, getPointerTy(),
                          DAG.getNode(X86ISD::GlobalBaseReg,
-                                     DebugLoc::getUnknownLoc(), getPointerTy()),
+                                     DebugLoc(), getPointerTy()),
                          Result);
   }
 
@@ -5003,7 +5092,7 @@ SDValue X86TargetLowering::LowerJumpTable(SDValue Op, SelectionDAG &DAG) {
   if (OpFlag) {
     Result = DAG.getNode(ISD::ADD, DL, getPointerTy(),
                          DAG.getNode(X86ISD::GlobalBaseReg,
-                                     DebugLoc::getUnknownLoc(), getPointerTy()),
+                                     DebugLoc(), getPointerTy()),
                          Result);
   }
 
@@ -5039,8 +5128,7 @@ X86TargetLowering::LowerExternalSymbol(SDValue Op, SelectionDAG &DAG) {
       !Subtarget->is64Bit()) {
     Result = DAG.getNode(ISD::ADD, DL, getPointerTy(),
                          DAG.getNode(X86ISD::GlobalBaseReg,
-                                     DebugLoc::getUnknownLoc(),
-                                     getPointerTy()),
+                                     DebugLoc(), getPointerTy()),
                          Result);
   }
 
@@ -5162,8 +5250,7 @@ LowerToTLSGeneralDynamicModel32(GlobalAddressSDNode *GA, SelectionDAG &DAG,
   DebugLoc dl = GA->getDebugLoc();  // ? function entry point might be better
   SDValue Chain = DAG.getCopyToReg(DAG.getEntryNode(), dl, X86::EBX,
                                      DAG.getNode(X86ISD::GlobalBaseReg,
-                                                 DebugLoc::getUnknownLoc(),
-                                                 PtrVT), InFlag);
+                                                 DebugLoc(), PtrVT), InFlag);
   InFlag = Chain.getValue(1);
 
   return GetTLSADDR(DAG, Chain, GA, &InFlag, PtrVT, X86::EAX, X86II::MO_TLSGD);
@@ -5185,7 +5272,7 @@ static SDValue LowerToTLSExecModel(GlobalAddressSDNode *GA, SelectionDAG &DAG,
   DebugLoc dl = GA->getDebugLoc();
   // Get the Thread Pointer
   SDValue Base = DAG.getNode(X86ISD::SegmentBaseAddress,
-                             DebugLoc::getUnknownLoc(), PtrVT,
+                             DebugLoc(), PtrVT,
                              DAG.getRegister(is64Bit? X86::FS : X86::GS,
                                              MVT::i32));
 
@@ -8797,83 +8884,24 @@ bool X86TargetLowering::isGAPlusOffset(SDNode *N,
   return TargetLowering::isGAPlusOffset(N, GA, Offset);
 }
 
-static bool EltsFromConsecutiveLoads(ShuffleVectorSDNode *N, unsigned NumElems,
-                                     EVT EltVT, LoadSDNode *&LDBase,
-                                     unsigned &LastLoadedElt,
-                                     SelectionDAG &DAG, MachineFrameInfo *MFI,
-                                     const TargetLowering &TLI) {
-  LDBase = NULL;
-  LastLoadedElt = -1U;
-  for (unsigned i = 0; i < NumElems; ++i) {
-    if (N->getMaskElt(i) < 0) {
-      if (!LDBase)
-        return false;
-      continue;
-    }
-
-    SDValue Elt = DAG.getShuffleScalarElt(N, i);
-    if (!Elt.getNode() ||
-        (Elt.getOpcode() != ISD::UNDEF && !ISD::isNON_EXTLoad(Elt.getNode())))
-      return false;
-    if (!LDBase) {
-      if (Elt.getNode()->getOpcode() == ISD::UNDEF)
-        return false;
-      LDBase = cast<LoadSDNode>(Elt.getNode());
-      LastLoadedElt = i;
-      continue;
-    }
-    if (Elt.getOpcode() == ISD::UNDEF)
-      continue;
-
-    LoadSDNode *LD = cast<LoadSDNode>(Elt);
-    if (!DAG.isConsecutiveLoad(LD, LDBase, EltVT.getSizeInBits()/8, i))
-      return false;
-    LastLoadedElt = i;
-  }
-  return true;
-}
-
 /// PerformShuffleCombine - Combine a vector_shuffle that is equal to
 /// build_vector load1, load2, load3, load4, <0, 1, 2, 3> into a 128-bit load
 /// if the load addresses are consecutive, non-overlapping, and in the right
-/// order.  In the case of v2i64, it will see if it can rewrite the
-/// shuffle to be an appropriate build vector so it can take advantage of
-// performBuildVectorCombine.
+/// order.
 static SDValue PerformShuffleCombine(SDNode *N, SelectionDAG &DAG,
                                      const TargetLowering &TLI) {
   DebugLoc dl = N->getDebugLoc();
   EVT VT = N->getValueType(0);
-  EVT EltVT = VT.getVectorElementType();
   ShuffleVectorSDNode *SVN = cast<ShuffleVectorSDNode>(N);
-  unsigned NumElems = VT.getVectorNumElements();
 
   if (VT.getSizeInBits() != 128)
     return SDValue();
 
-  // Try to combine a vector_shuffle into a 128-bit load.
-  MachineFrameInfo *MFI = DAG.getMachineFunction().getFrameInfo();
-  LoadSDNode *LD = NULL;
-  unsigned LastLoadedElt;
-  if (!EltsFromConsecutiveLoads(SVN, NumElems, EltVT, LD, LastLoadedElt, DAG,
-                                MFI, TLI))
-    return SDValue();
-
-  if (LastLoadedElt == NumElems - 1) {
-    if (DAG.InferPtrAlignment(LD->getBasePtr()) >= 16)
-      return DAG.getLoad(VT, dl, LD->getChain(), LD->getBasePtr(),
-                         LD->getSrcValue(), LD->getSrcValueOffset(),
-                         LD->isVolatile(), LD->isNonTemporal(), 0);
-    return DAG.getLoad(VT, dl, LD->getChain(), LD->getBasePtr(),
-                       LD->getSrcValue(), LD->getSrcValueOffset(),
-                       LD->isVolatile(), LD->isNonTemporal(),
-                       LD->getAlignment());
-  } else if (NumElems == 4 && LastLoadedElt == 1) {
-    SDVTList Tys = DAG.getVTList(MVT::v2i64, MVT::Other);
-    SDValue Ops[] = { LD->getChain(), LD->getBasePtr() };
-    SDValue ResNode = DAG.getNode(X86ISD::VZEXT_LOAD, dl, Tys, Ops, 2);
-    return DAG.getNode(ISD::BIT_CONVERT, dl, VT, ResNode);
-  }
-  return SDValue();
+  SmallVector<SDValue, 16> Elts;
+  for (unsigned i = 0, e = VT.getVectorNumElements(); i != e; ++i)
+    Elts.push_back(DAG.getShuffleScalarElt(SVN, i));
+  
+  return EltsFromConsecutiveLoads(VT, Elts, dl, DAG);
 }
 
 /// PerformShuffleCombine - Detect vector gather/scatter index generation

@@ -315,7 +315,7 @@ CheckDynamicCast(Sema &Self, Expr *&SrcExpr, QualType DestType,
     assert(DestPointer && "Reference to void is not possible");
   } else if (DestRecord) {
     if (Self.RequireCompleteType(OpRange.getBegin(), DestPointee,
-                                 PDiag(diag::err_bad_dynamic_cast_incomplete)
+                               Self.PDiag(diag::err_bad_dynamic_cast_incomplete)
                                    << DestRange))
       return;
   } else {
@@ -353,7 +353,7 @@ CheckDynamicCast(Sema &Self, Expr *&SrcExpr, QualType DestType,
   const RecordType *SrcRecord = SrcPointee->getAs<RecordType>();
   if (SrcRecord) {
     if (Self.RequireCompleteType(OpRange.getBegin(), SrcPointee,
-                                 PDiag(diag::err_bad_dynamic_cast_incomplete)
+                             Self.PDiag(diag::err_bad_dynamic_cast_incomplete)
                                    << SrcExpr->getSourceRange()))
       return;
   } else {
@@ -621,8 +621,8 @@ TryLValueToRValueCast(Sema &Self, Expr *SrcExpr, QualType DestType,
     return TC_Failed;
   }
 
-  // FIXME: Similar to CheckReferenceInit, we actually need more AST annotation
-  // than nothing.
+  // FIXME: We should probably have an AST node for lvalue-to-rvalue 
+  // conversions.
   return TC_Success;
 }
 
@@ -698,8 +698,8 @@ TryStaticDowncast(Sema &Self, CanQualType SrcType, CanQualType DestType,
                   QualType OrigDestType, unsigned &msg, 
                   CastExpr::CastKind &Kind) {
   // We can only work with complete types. But don't complain if it doesn't work
-  if (Self.RequireCompleteType(OpRange.getBegin(), SrcType, PDiag(0)) ||
-      Self.RequireCompleteType(OpRange.getBegin(), DestType, PDiag(0)))
+  if (Self.RequireCompleteType(OpRange.getBegin(), SrcType, Self.PDiag(0)) ||
+      Self.RequireCompleteType(OpRange.getBegin(), DestType, Self.PDiag(0)))
     return TC_NotApplicable;
 
   // Downcast can only happen in class hierarchies, so we need classes.
@@ -808,8 +808,10 @@ TryStaticMemberPointerUpcast(Sema &Self, Expr *&SrcExpr, QualType SrcType,
     return TC_NotApplicable;
 
   bool WasOverloadedFunction = false;
+  DeclAccessPair FoundOverload;
   if (FunctionDecl *Fn
-          = Self.ResolveAddressOfOverloadedFunction(SrcExpr, DestType, false)) {
+        = Self.ResolveAddressOfOverloadedFunction(SrcExpr, DestType, false,
+                                                  FoundOverload)) {
     CXXMethodDecl *M = cast<CXXMethodDecl>(Fn);
     SrcType = Self.Context.getMemberPointerType(Fn->getType(),
                     Self.Context.getTypeDeclType(M->getParent()).getTypePtr());
@@ -870,13 +872,14 @@ TryStaticMemberPointerUpcast(Sema &Self, Expr *&SrcExpr, QualType SrcType,
     // allowing complaints if something goes wrong.
     FunctionDecl *Fn = Self.ResolveAddressOfOverloadedFunction(SrcExpr, 
                                                                DestType, 
-                                                               true);
+                                                               true,
+                                                               FoundOverload);
     if (!Fn) {
       msg = 0;
       return TC_Failed;
     }
 
-    SrcExpr = Self.FixOverloadedFunctionReference(SrcExpr, Fn);
+    SrcExpr = Self.FixOverloadedFunctionReference(SrcExpr, FoundOverload, Fn);
     if (!SrcExpr) {
       msg = 0;
       return TC_Failed;
@@ -913,27 +916,24 @@ TryStaticImplicitCast(Sema &Self, Expr *&SrcExpr, QualType DestType,
     // At this point of CheckStaticCast, if the destination is a reference,
     // this has to work. There is no other way that works.
     // On the other hand, if we're checking a C-style cast, we've still got
-    // the reinterpret_cast way. So in C-style mode, we first try the call
-    // with an ICS to suppress errors.
-    if (CStyle) {
-      ImplicitConversionSequence ICS;
-      if(Self.CheckReferenceInit(SrcExpr, DestType, OpRange.getBegin(),
-                                 /*SuppressUserConversions=*/false,
-                                 /*AllowExplicit=*/false, /*ForceRValue=*/false,
-                                 &ICS))
-        return TC_NotApplicable;
+    // the reinterpret_cast way.
+    InitializedEntity Entity = InitializedEntity::InitializeTemporary(DestType);
+    InitializationKind InitKind = InitializationKind::CreateCast(OpRange, 
+                                                                 CStyle);    
+    InitializationSequence InitSeq(Self, Entity, InitKind, &SrcExpr, 1);
+    if (InitSeq.getKind() == InitializationSequence::FailedSequence && CStyle)
+      return TC_NotApplicable;
+    
+    Sema::OwningExprResult Result
+      = InitSeq.Perform(Self, Entity, InitKind,
+                        Action::MultiExprArg(Self, (void**)&SrcExpr, 1));
+    if (Result.isInvalid()) {
+      msg = 0;
+      return TC_Failed;
     }
-    // Now we're committed either way.
-    if(!Self.CheckReferenceInit(SrcExpr, DestType, OpRange.getBegin(),
-                                /*SuppressUserConversions=*/false,
-                                /*AllowExplicit=*/false,
-                                /*ForceRValue=*/false, 0,
-                                /*IgnoreBaseAccess=*/CStyle))
-      return TC_Success;
-
-    // We already got an error message.
-    msg = 0;
-    return TC_Failed;
+    
+    SrcExpr = Result.takeAs<Expr>();
+    return TC_Success;
   }
 
   if (DestType->isRecordType()) {

@@ -22,7 +22,7 @@ def err_fe_stdout_binary : Error<"unable to change standard output to binary">,
 def err_fe_stderr_binary : Error<"unable to change standard error to binary">,
   DefaultFatal;
 def err_fe_dependency_file_requires_MT : Error<
-    "-dependency-file requires at least one -MT option">;
+    "-dependency-file requires at least one -MT or -MQ option">;
 def err_fe_incompatible_options : Error<
     "'%0' cannot be used with '%1'">, DefaultFatal;
 def err_fe_no_fixit_and_codegen : Error<
@@ -57,6 +57,9 @@ def err_fe_pch_malformed_block : Error<
     "malformed block record in PCH file: '%0'">, DefaultFatal;
 def err_fe_pch_error_at_end_block : Error<
     "error at end of module block in PCH file: '%0'">, DefaultFatal;
+def err_fe_pch_file_modified : Error<
+    "file '%0' has been modified since the precompiled header was built">,
+    DefaultFatal;
 def err_fe_unable_to_open_output : Error<
     "unable to open output file '%0': '%1'">;
 def err_fe_unable_to_open_logfile : Error<

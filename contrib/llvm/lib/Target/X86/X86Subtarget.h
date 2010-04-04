@@ -69,6 +69,9 @@ protected:
   /// HasAVX - Target has AVX instructions
   bool HasAVX;
 
+  /// HasAES - Target has AES instructions
+  bool HasAES;
+
   /// HasFMA3 - Target has 3-operand fused multiply-add
   bool HasFMA3;
 
@@ -77,6 +80,9 @@ protected:
 
   /// IsBTMemSlow - True if BT (bit test) of memory instructions are slow.
   bool IsBTMemSlow;
+
+  /// IsUAMemFast - True if unaligned memory access is fast.
+  bool IsUAMemFast;
 
   /// HasVectorUAMem - True if SIMD operations can have unaligned memory
   ///                  operands. This may require setting a feature bit in the
@@ -145,9 +151,11 @@ public:
   bool has3DNow() const { return X863DNowLevel >= ThreeDNow; }
   bool has3DNowA() const { return X863DNowLevel >= ThreeDNowA; }
   bool hasAVX() const { return HasAVX; }
+  bool hasAES() const { return HasAES; }
   bool hasFMA3() const { return HasFMA3; }
   bool hasFMA4() const { return HasFMA4; }
   bool isBTMemSlow() const { return IsBTMemSlow; }
+  bool isUnalignedMemAccessFast() const { return IsUAMemFast; }
   bool hasVectorUAMem() const { return HasVectorUAMem; }
 
   bool isTargetDarwin() const { return TargetType == isDarwin; }

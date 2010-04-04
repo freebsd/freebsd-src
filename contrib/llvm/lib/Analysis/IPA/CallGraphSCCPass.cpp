@@ -17,12 +17,13 @@
 
 #define DEBUG_TYPE "cgscc-passmgr"
 #include "llvm/CallGraphSCCPass.h"
+#include "llvm/IntrinsicInst.h"
+#include "llvm/Function.h"
+#include "llvm/PassManagers.h"
 #include "llvm/Analysis/CallGraph.h"
 #include "llvm/ADT/SCCIterator.h"
-#include "llvm/PassManagers.h"
-#include "llvm/Function.h"
 #include "llvm/Support/Debug.h"
-#include "llvm/IntrinsicInst.h"
+#include "llvm/Support/Timer.h"
 #include "llvm/Support/raw_ostream.h"
 using namespace llvm;
 
@@ -86,9 +87,39 @@ private:
                         bool IsCheckingMode);
 };
 
+/// PrintCallGraphPass - Print a Module corresponding to a call graph.
+///
+class PrintCallGraphPass : public CallGraphSCCPass {
+private:
+  std::string Banner;
+  raw_ostream &Out;       // raw_ostream to print on.
+
+public:
+  static char ID;
+  PrintCallGraphPass() : CallGraphSCCPass(&ID), Out(dbgs()) {}
+  PrintCallGraphPass(const std::string &B, raw_ostream &o)
+      : CallGraphSCCPass(&ID), Banner(B), Out(o) {}
+
+  virtual void getAnalysisUsage(AnalysisUsage &AU) const {
+    AU.setPreservesAll();
+  }
+
+  bool runOnSCC(std::vector<CallGraphNode *> &SCC) {
+    Out << Banner;
+    for (std::vector<CallGraphNode *>::iterator n = SCC.begin(), ne = SCC.end();
+         n != ne;
+         ++n) {
+      (*n)->getFunction()->print(Out);
+    }
+    return false;
+  }
+};
+
 } // end anonymous namespace.
 
 char CGPassManager::ID = 0;
+
+char PrintCallGraphPass::ID = 0;
 
 bool CGPassManager::RunPassOnSCC(Pass *P, std::vector<CallGraphNode*> &CurSCC,
                                  CallGraph &CG, bool &CallGraphUpToDate) {
@@ -102,9 +133,10 @@ bool CGPassManager::RunPassOnSCC(Pass *P, std::vector<CallGraphNode*> &CurSCC,
       CallGraphUpToDate = true;
     }
 
-    Timer *T = StartPassTimer(CGSP);
-    Changed = CGSP->runOnSCC(CurSCC);
-    StopPassTimer(CGSP, T);
+    {
+      TimeRegion PassTimer(getPassTimer(CGSP));
+      Changed = CGSP->runOnSCC(CurSCC);
+    }
     
     // After the CGSCCPass is done, when assertions are enabled, use
     // RefreshCallGraph to verify that the callgraph was correctly updated.
@@ -125,9 +157,8 @@ bool CGPassManager::RunPassOnSCC(Pass *P, std::vector<CallGraphNode*> &CurSCC,
   for (unsigned i = 0, e = CurSCC.size(); i != e; ++i) {
     if (Function *F = CurSCC[i]->getFunction()) {
       dumpPassInfo(P, EXECUTION_MSG, ON_FUNCTION_MSG, F->getName());
-      Timer *T = StartPassTimer(FPP);
+      TimeRegion PassTimer(getPassTimer(FPP));
       Changed |= FPP->runOnFunction(*F);
-      StopPassTimer(FPP, T);
     }
   }
   
@@ -393,6 +424,11 @@ bool CGPassManager::doFinalization(CallGraph &CG) {
     }
   }
   return Changed;
+}
+
+Pass *CallGraphSCCPass::createPrinterPass(raw_ostream &O,
+                                          const std::string &Banner) const {
+  return new PrintCallGraphPass(Banner, O);
 }
 
 /// Assign pass manager to manage this pass.

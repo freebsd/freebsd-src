@@ -63,6 +63,7 @@ def executeShCmd(cmd, cfg, cwd, results):
     procs = []
     input = subprocess.PIPE
     stderrTempFiles = []
+    opened_files = []
     # To avoid deadlock, we use a single stderr stream for piped
     # output. This is null until we have seen some output using
     # stderr.
@@ -113,8 +114,11 @@ def executeShCmd(cmd, cfg, cwd, results):
                     else:
                         r[2] = open(r[0], r[1])
                     # Workaround a Win32 and/or subprocess bug when appending.
+                    #
+                    # FIXME: Actually, this is probably an instance of PR6753.
                     if r[1] == 'a':
                         r[2].seek(0, 2)
+                    opened_files.append(r[2])
                 result = r[2]
             final_redirects.append(result)
 
@@ -176,7 +180,7 @@ def executeShCmd(cmd, cfg, cwd, results):
         else:
             err = ''
         procData[i] = (out,err)
-        
+
     # Read stderr out of the temp files.
     for i,f in stderrTempFiles:
         f.seek(0, 0)
@@ -198,6 +202,10 @@ def executeShCmd(cmd, cfg, cwd, results):
                 exitCode = max(exitCode, res)
         else:
             exitCode = res
+
+    # Explicitly close any redirected files.
+    for f in opened_files:
+        f.close()
 
     if cmd.negate:
         exitCode = not exitCode

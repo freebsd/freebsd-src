@@ -7,7 +7,8 @@
 struct ToBool { explicit operator bool(); };
 
 struct B;
-struct A { A(); A(const B&); }; // expected-note 2 {{candidate constructor}}
+struct A { A(); A(const B&); }; // expected-note 2 {{candidate constructor}} \
+               // expected-note 2 {{candidate is the implicit copy constructor}}
 struct B { operator A() const; }; // expected-note 2 {{candidate function}}
 struct I { operator int(); };
 struct J { operator I(); };
@@ -196,4 +197,46 @@ void test()
   // Note the thing that this does not test: since DR446, various situations
   // *must* create a separate temporary copy of class objects. This can only
   // be properly tested at runtime, though.
+}
+
+namespace PR6595 {
+  struct String {
+    String(const char *);
+    operator const char*() const;
+  };
+
+  void f(bool Cond, String S) {
+    (void)(Cond? S : "");
+    (void)(Cond? "" : S);
+    const char a[1] = {'a'};
+    (void)(Cond? S : a);
+    (void)(Cond? a : S);
+  }
+}
+
+namespace PR6757 {
+  struct Foo1 {
+    Foo1();
+    Foo1(const Foo1&);
+  };
+
+  struct Foo2 { };
+
+  struct Foo3 {
+    Foo3();
+    Foo3(Foo3&);
+  };
+
+  struct Bar {
+    operator const Foo1&() const;
+    operator const Foo2&() const;
+    operator const Foo3&() const;
+  };
+
+  void f() {
+    (void)(true ? Bar() : Foo1()); // okay
+    (void)(true ? Bar() : Foo2()); // okay
+    // FIXME: Diagnostic below could be improved
+    (void)(true ? Bar() : Foo3()); // expected-error{{incompatible operand types ('PR6757::Bar' and 'PR6757::Foo3')}}
+  }
 }

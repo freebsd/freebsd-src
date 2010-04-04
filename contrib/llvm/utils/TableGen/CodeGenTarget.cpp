@@ -18,6 +18,7 @@
 #include "CodeGenIntrinsics.h"
 #include "Record.h"
 #include "llvm/ADT/StringExtras.h"
+#include "llvm/ADT/STLExtras.h"
 #include "llvm/Support/CommandLine.h"
 #include <algorithm>
 using namespace llvm;
@@ -194,6 +195,10 @@ getRegisterVTs(Record *R) const {
       }
     }
   }
+  
+  // Remove duplicates.
+  array_pod_sort(Result.begin(), Result.end());
+  Result.erase(std::unique(Result.begin(), Result.end()), Result.end());
   return Result;
 }
 
@@ -488,15 +493,17 @@ CodeGenIntrinsic::CodeGenIntrinsic(Record *R) {
     }
     if (EVT(VT).isOverloaded()) {
       OverloadedVTs.push_back(VT);
-      isOverloaded |= true;
+      isOverloaded = true;
     }
+
+    // Reject invalid types.
+    if (VT == MVT::isVoid)
+      throw "Intrinsic '" + DefName + " has void in result type list!";
+    
     IS.RetVTs.push_back(VT);
     IS.RetTypeDefs.push_back(TyEl);
   }
-
-  if (IS.RetVTs.size() == 0)
-    throw "Intrinsic '"+DefName+"' needs at least a type for the ret value!";
-
+  
   // Parse the list of parameter types.
   TypeList = R->getValueAsListInit("ParamTypes");
   for (unsigned i = 0, e = TypeList->getSize(); i != e; ++i) {
@@ -517,10 +524,16 @@ CodeGenIntrinsic::CodeGenIntrinsic(Record *R) {
              "Expected iAny or vAny type");
     } else
       VT = getValueType(TyEl->getValueAsDef("VT"));
+    
     if (EVT(VT).isOverloaded()) {
       OverloadedVTs.push_back(VT);
-      isOverloaded |= true;
+      isOverloaded = true;
     }
+    
+    // Reject invalid types.
+    if (VT == MVT::isVoid && i != e-1 /*void at end means varargs*/)
+      throw "Intrinsic '" + DefName + " has void in result type list!";
+    
     IS.ParamVTs.push_back(VT);
     IS.ParamTypeDefs.push_back(TyEl);
   }

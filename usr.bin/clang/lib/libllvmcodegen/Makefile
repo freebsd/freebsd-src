@@ -14,7 +14,7 @@ SRCS=	AggressiveAntiDepBreaker.cpp BranchFolding.cpp CalcSpillWeights.cpp \
 	LiveVariables.cpp LowerSubregs.cpp \
 	MachineBasicBlock.cpp MachineCSE.cpp MachineDominators.cpp \
 	MachineFunction.cpp MachineFunctionAnalysis.cpp MachineFunctionPass.cpp \
-	MachineInstr.cpp MachineLICM.cpp \
+	MachineFunctionPrinterPass.cpp MachineInstr.cpp MachineLICM.cpp \
 	MachineLoopInfo.cpp MachineModuleInfo.cpp MachineModuleInfoImpls.cpp \
 	MachinePassRegistry.cpp MachineRegisterInfo.cpp MachineSSAUpdater.cpp \
 	MachineSink.cpp MachineVerifier.cpp \

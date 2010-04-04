@@ -66,10 +66,39 @@ ExecutionEngine::~ExecutionEngine() {
     delete Modules[i];
 }
 
+namespace {
+// This class automatically deletes the memory block when the GlobalVariable is
+// destroyed.
+class GVMemoryBlock : public CallbackVH {
+  GVMemoryBlock(const GlobalVariable *GV)
+    : CallbackVH(const_cast<GlobalVariable*>(GV)) {}
+
+public:
+  // Returns the address the GlobalVariable should be written into.  The
+  // GVMemoryBlock object prefixes that.
+  static char *Create(const GlobalVariable *GV, const TargetData& TD) {
+    const Type *ElTy = GV->getType()->getElementType();
+    size_t GVSize = (size_t)TD.getTypeAllocSize(ElTy);
+    void *RawMemory = ::operator new(
+      TargetData::RoundUpAlignment(sizeof(GVMemoryBlock),
+                                   TD.getPreferredAlignment(GV))
+      + GVSize);
+    new(RawMemory) GVMemoryBlock(GV);
+    return static_cast<char*>(RawMemory) + sizeof(GVMemoryBlock);
+  }
+
+  virtual void deleted() {
+    // We allocated with operator new and with some extra memory hanging off the
+    // end, so don't just delete this.  I'm not sure if this is actually
+    // required.
+    this->~GVMemoryBlock();
+    ::operator delete(this);
+  }
+};
+}  // anonymous namespace
+
 char* ExecutionEngine::getMemoryForGV(const GlobalVariable* GV) {
-  const Type *ElTy = GV->getType()->getElementType();
-  size_t GVSize = (size_t)getTargetData()->getTypeAllocSize(ElTy);
-  return new char[GVSize];
+  return GVMemoryBlock::Create(GV, *getTargetData());
 }
 
 /// removeModule - Remove a Module from the list of modules.
@@ -221,35 +250,55 @@ const GlobalValue *ExecutionEngine::getGlobalValueAtAddress(void *Addr) {
   return I != EEState.getGlobalAddressReverseMap(locked).end() ? I->second : 0;
 }
 
-// CreateArgv - Turn a vector of strings into a nice argv style array of
-// pointers to null terminated strings.
-//
-static void *CreateArgv(LLVMContext &C, ExecutionEngine *EE,
-                        const std::vector<std::string> &InputArgv) {
+namespace {
+class ArgvArray {
+  char *Array;
+  std::vector<char*> Values;
+public:
+  ArgvArray() : Array(NULL) {}
+  ~ArgvArray() { clear(); }
+  void clear() {
+    delete[] Array;
+    Array = NULL;
+    for (size_t I = 0, E = Values.size(); I != E; ++I) {
+      delete[] Values[I];
+    }
+    Values.clear();
+  }
+  /// Turn a vector of strings into a nice argv style array of pointers to null
+  /// terminated strings.
+  void *reset(LLVMContext &C, ExecutionEngine *EE,
+              const std::vector<std::string> &InputArgv);
+};
+}  // anonymous namespace
+void *ArgvArray::reset(LLVMContext &C, ExecutionEngine *EE,
+                       const std::vector<std::string> &InputArgv) {
+  clear();  // Free the old contents.
   unsigned PtrSize = EE->getTargetData()->getPointerSize();
-  char *Result = new char[(InputArgv.size()+1)*PtrSize];
+  Array = new char[(InputArgv.size()+1)*PtrSize];
 
-  DEBUG(dbgs() << "JIT: ARGV = " << (void*)Result << "\n");
+  DEBUG(dbgs() << "JIT: ARGV = " << (void*)Array << "\n");
   const Type *SBytePtr = Type::getInt8PtrTy(C);
 
   for (unsigned i = 0; i != InputArgv.size(); ++i) {
     unsigned Size = InputArgv[i].size()+1;
     char *Dest = new char[Size];
+    Values.push_back(Dest);
     DEBUG(dbgs() << "JIT: ARGV[" << i << "] = " << (void*)Dest << "\n");
 
     std::copy(InputArgv[i].begin(), InputArgv[i].end(), Dest);
     Dest[Size-1] = 0;
 
-    // Endian safe: Result[i] = (PointerTy)Dest;
-    EE->StoreValueToMemory(PTOGV(Dest), (GenericValue*)(Result+i*PtrSize),
+    // Endian safe: Array[i] = (PointerTy)Dest;
+    EE->StoreValueToMemory(PTOGV(Dest), (GenericValue*)(Array+i*PtrSize),
                            SBytePtr);
   }
 
   // Null terminate it
   EE->StoreValueToMemory(PTOGV(0),
-                         (GenericValue*)(Result+InputArgv.size()*PtrSize),
+                         (GenericValue*)(Array+InputArgv.size()*PtrSize),
                          SBytePtr);
-  return Result;
+  return Array;
 }
 
 
@@ -353,11 +402,13 @@ int ExecutionEngine::runFunctionAsMain(Function *Fn,
    llvm_report_error("Invalid number of arguments of main() supplied");
   }
   
+  ArgvArray CArgv;
+  ArgvArray CEnv;
   if (NumArgs) {
     GVArgs.push_back(GVArgc); // Arg #0 = argc.
     if (NumArgs > 1) {
       // Arg #1 = argv.
-      GVArgs.push_back(PTOGV(CreateArgv(Fn->getContext(), this, argv))); 
+      GVArgs.push_back(PTOGV(CArgv.reset(Fn->getContext(), this, argv)));
       assert(!isTargetNullPtr(this, GVTOP(GVArgs[1])) &&
              "argv[0] was null after CreateArgv");
       if (NumArgs > 2) {
@@ -365,7 +416,7 @@ int ExecutionEngine::runFunctionAsMain(Function *Fn,
         for (unsigned i = 0; envp[i]; ++i)
           EnvVars.push_back(envp[i]);
         // Arg #2 = envp.
-        GVArgs.push_back(PTOGV(CreateArgv(Fn->getContext(), this, EnvVars)));
+        GVArgs.push_back(PTOGV(CEnv.reset(Fn->getContext(), this, EnvVars)));
       }
     }
   }

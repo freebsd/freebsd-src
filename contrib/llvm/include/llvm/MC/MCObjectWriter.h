@@ -16,8 +16,9 @@
 
 namespace llvm {
 class MCAsmFixup;
+class MCAsmLayout;
 class MCAssembler;
-class MCDataFragment;
+class MCFragment;
 class MCValue;
 class raw_ostream;
 
@@ -69,7 +70,8 @@ public:
   /// information about the relocation so that it can be emitted during
   /// WriteObject().
   virtual void RecordRelocation(const MCAssembler &Asm,
-                                const MCDataFragment &Fragment,
+                                const MCAsmLayout &Layout,
+                                const MCFragment *Fragment,
                                 const MCAsmFixup &Fixup, MCValue Target,
                                 uint64_t &FixedValue) = 0;
 
@@ -78,7 +80,8 @@ public:
   /// This routine is called by the assembler after layout and relaxation is
   /// complete, fixups have been evaluate and applied, and relocations
   /// generated.
-  virtual void WriteObject(const MCAssembler &Asm) = 0;
+  virtual void WriteObject(const MCAssembler &Asm,
+                           const MCAsmLayout &Layout) = 0;
 
   /// @}
   /// @name Binary Output

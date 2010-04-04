@@ -504,13 +504,11 @@ void InitListChecker::CheckImplicitInitList(const InitializedEntity &Entity,
     SemaRef.Diag(StructuredSubobjectInitList->getLocStart(),
                  diag::warn_missing_braces)
     << StructuredSubobjectInitList->getSourceRange()
-    << CodeModificationHint::CreateInsertion(
-                                    StructuredSubobjectInitList->getLocStart(), 
-                                    "{")
-    << CodeModificationHint::CreateInsertion(
-                                    SemaRef.PP.getLocForEndOfToken(
+    << FixItHint::CreateInsertion(StructuredSubobjectInitList->getLocStart(), 
+                                  "{")
+    << FixItHint::CreateInsertion(SemaRef.PP.getLocForEndOfToken(
                                       StructuredSubobjectInitList->getLocEnd()), 
-                                      "}");
+                                  "}");
   }
 }
 
@@ -571,8 +569,8 @@ void InitListChecker::CheckExplicitInitList(const InitializedEntity &Entity,
   if (T->isScalarType() && !TopLevelObject)
     SemaRef.Diag(IList->getLocStart(), diag::warn_braces_around_scalar_init)
       << IList->getSourceRange()
-      << CodeModificationHint::CreateRemoval(IList->getLocStart())
-      << CodeModificationHint::CreateRemoval(IList->getLocEnd());
+      << FixItHint::CreateRemoval(IList->getLocStart())
+      << FixItHint::CreateRemoval(IList->getLocEnd());
 }
 
 void InitListChecker::CheckListElementTypes(const InitializedEntity &Entity,
@@ -1363,8 +1361,8 @@ InitListChecker::CheckDesignatedInitializer(const InitializedEntity &Entity,
           SemaRef.Diag(D->getFieldLoc(), 
                        diag::err_field_designator_unknown_suggest)
             << FieldName << CurrentObjectType << R.getLookupName()
-            << CodeModificationHint::CreateReplacement(D->getFieldLoc(),
-                                               R.getLookupName().getAsString());
+            << FixItHint::CreateReplacement(D->getFieldLoc(),
+                                            R.getLookupName().getAsString());
           SemaRef.Diag(ReplacementField->getLocation(), 
                        diag::note_previous_decl)
             << ReplacementField->getDeclName();
@@ -2001,14 +1999,48 @@ void InitializationSequence::Step::Destroy() {
   }
 }
 
+bool InitializationSequence::isDirectReferenceBinding() const {
+  return getKind() == ReferenceBinding && Steps.back().Kind == SK_BindReference;
+}
+
+bool InitializationSequence::isAmbiguous() const {
+  if (getKind() != FailedSequence)
+    return false;
+  
+  switch (getFailureKind()) {
+  case FK_TooManyInitsForReference:
+  case FK_ArrayNeedsInitList:
+  case FK_ArrayNeedsInitListOrStringLiteral:
+  case FK_AddressOfOverloadFailed: // FIXME: Could do better
+  case FK_NonConstLValueReferenceBindingToTemporary:
+  case FK_NonConstLValueReferenceBindingToUnrelated:
+  case FK_RValueReferenceBindingToLValue:
+  case FK_ReferenceInitDropsQualifiers:
+  case FK_ReferenceInitFailed:
+  case FK_ConversionFailed:
+  case FK_TooManyInitsForScalar:
+  case FK_ReferenceBindingToInitList:
+  case FK_InitListBadDestinationType:
+  case FK_DefaultInitOfConst:
+    return false;
+    
+  case FK_ReferenceInitOverloadFailed:
+  case FK_UserConversionOverloadFailed:
+  case FK_ConstructorOverloadFailed:
+    return FailedOverloadResult == OR_Ambiguous;
+  }
+  
+  return false;
+}
+
 void InitializationSequence::AddAddressOverloadResolutionStep(
-                                                      FunctionDecl *Function) {
+                                                      FunctionDecl *Function,
+                                                      DeclAccessPair Found) {
   Step S;
   S.Kind = SK_ResolveAddressOfOverloadedFunction;
   S.Type = Function->getType();
-  // Access is currently ignored for these.
   S.Function.Function = Function;
-  S.Function.FoundDecl = DeclAccessPair::make(Function, AS_none);
+  S.Function.FoundDecl = Found;
   Steps.push_back(S);
 }
 
@@ -2341,15 +2373,17 @@ static void TryReferenceInitialization(Sema &S,
   // to resolve the overloaded function. If all goes well, T2 is the
   // type of the resulting function.
   if (S.Context.getCanonicalType(T2) == S.Context.OverloadTy) {
+    DeclAccessPair Found;
     FunctionDecl *Fn = S.ResolveAddressOfOverloadedFunction(Initializer, 
                                                             T1,
-                                                            false);
+                                                            false,
+                                                            Found);
     if (!Fn) {
       Sequence.SetFailed(InitializationSequence::FK_AddressOfOverloadFailed);
       return;
     }
     
-    Sequence.AddAddressOverloadResolutionStep(Fn);
+    Sequence.AddAddressOverloadResolutionStep(Fn, Found);
     cv2T2 = Fn->getType();
     T2 = cv2T2.getUnqualifiedType();
   }
@@ -2549,10 +2583,7 @@ static void TryConstructorInitialization(Sema &S,
                                          Expr **Args, unsigned NumArgs,
                                          QualType DestType,
                                          InitializationSequence &Sequence) {
-  if (Kind.getKind() == InitializationKind::IK_Copy)
-    Sequence.setSequenceKind(InitializationSequence::UserDefinedConversion);
-  else
-    Sequence.setSequenceKind(InitializationSequence::ConstructorInitialization);
+  Sequence.setSequenceKind(InitializationSequence::ConstructorInitialization);
   
   // Build the candidate set directly in the initialization sequence
   // structure, so that it will persist if we fail.
@@ -2563,7 +2594,7 @@ static void TryConstructorInitialization(Sema &S,
   // explicit conversion operators.
   bool AllowExplicit = (Kind.getKind() == InitializationKind::IK_Direct ||
                         Kind.getKind() == InitializationKind::IK_Value ||
-                        Kind.getKind() == InitializationKind::IK_Default);                      
+                        Kind.getKind() == InitializationKind::IK_Default);
   
   // The type we're converting to is a class type. Enumerate its constructors
   // to see if one is suitable.
@@ -2627,14 +2658,10 @@ static void TryConstructorInitialization(Sema &S,
 
   // Add the constructor initialization step. Any cv-qualification conversion is
   // subsumed by the initialization.
-  if (Kind.getKind() == InitializationKind::IK_Copy) {
-    Sequence.AddUserConversionStep(Best->Function, Best->FoundDecl, DestType);
-  } else {
-    Sequence.AddConstructorInitializationStep(
+  Sequence.AddConstructorInitializationStep(
                                       cast<CXXConstructorDecl>(Best->Function), 
                                       Best->FoundDecl.getAccess(),
                                       DestType);
-  }
 }
 
 /// \brief Attempt value initialization (C++ [dcl.init]p7).
@@ -2802,7 +2829,7 @@ static void TryUserDefinedConversion(Sema &S,
         if (ConvTemplate)
           Conv = cast<CXXConversionDecl>(ConvTemplate->getTemplatedDecl());
         else
-          Conv = cast<CXXConversionDecl>(*I);
+          Conv = cast<CXXConversionDecl>(D);
         
         if (AllowExplicit || !Conv->isExplicit()) {
           if (ConvTemplate)
@@ -3051,14 +3078,11 @@ getAssignmentAction(const InitializedEntity &Entity) {
   return Sema::AA_Converting;
 }
 
-static bool shouldBindAsTemporary(const InitializedEntity &Entity,
-                                  bool IsCopy) {
+static bool shouldBindAsTemporary(const InitializedEntity &Entity) {
   switch (Entity.getKind()) {
-  case InitializedEntity::EK_Result:
   case InitializedEntity::EK_ArrayElement:
   case InitializedEntity::EK_Member:
-    return !IsCopy;
-      
+  case InitializedEntity::EK_Result:
   case InitializedEntity::EK_New:
   case InitializedEntity::EK_Variable:
   case InitializedEntity::EK_Base:
@@ -3074,21 +3098,38 @@ static bool shouldBindAsTemporary(const InitializedEntity &Entity,
   llvm_unreachable("missed an InitializedEntity kind?");
 }
 
-/// \brief If we need to perform an additional copy of the initialized object
-/// for this kind of entity (e.g., the result of a function or an object being
-/// thrown), make the copy. 
-static Sema::OwningExprResult CopyIfRequiredForEntity(Sema &S,
-                                            const InitializedEntity &Entity,
-                                             const InitializationKind &Kind,
-                                             Sema::OwningExprResult CurInit) {
+static Sema::OwningExprResult CopyObject(Sema &S,
+                                         const InitializedEntity &Entity,
+                                         const InitializationKind &Kind,
+                                         Sema::OwningExprResult CurInit) {
+  // Determine which class type we're copying.
   Expr *CurInitExpr = (Expr *)CurInit.get();
-  
+  CXXRecordDecl *Class = 0; 
+  if (const RecordType *Record = CurInitExpr->getType()->getAs<RecordType>())
+    Class = cast<CXXRecordDecl>(Record->getDecl());
+  if (!Class)
+    return move(CurInit);
+
+  // C++0x [class.copy]p34:
+  //   When certain criteria are met, an implementation is allowed to
+  //   omit the copy/move construction of a class object, even if the
+  //   copy/move constructor and/or destructor for the object have
+  //   side effects. [...]
+  //     - when a temporary class object that has not been bound to a
+  //       reference (12.2) would be copied/moved to a class object
+  //       with the same cv-unqualified type, the copy/move operation
+  //       can be omitted by constructing the temporary object
+  //       directly into the target of the omitted copy/move
+  // 
+  // Note that the other three bullets are handled elsewhere. Copy
+  // elision for return statements and throw expressions are (FIXME:
+  // not yet) handled as part of constructor initialization, while
+  // copy elision for exception handlers is handled by the run-time.
+  bool Elidable = CurInitExpr->isTemporaryObject() &&
+    S.Context.hasSameUnqualifiedType(Entity.getType(), CurInitExpr->getType());
   SourceLocation Loc;
-  
   switch (Entity.getKind()) {
   case InitializedEntity::EK_Result:
-    if (Entity.getType()->isReferenceType())
-      return move(CurInit);
     Loc = Entity.getReturnLoc();
     break;
       
@@ -3097,38 +3138,20 @@ static Sema::OwningExprResult CopyIfRequiredForEntity(Sema &S,
     break;
     
   case InitializedEntity::EK_Variable:
-    if (Entity.getType()->isReferenceType() ||
-        Kind.getKind() != InitializationKind::IK_Copy)
-      return move(CurInit);
     Loc = Entity.getDecl()->getLocation();
     break;
 
   case InitializedEntity::EK_ArrayElement:
   case InitializedEntity::EK_Member:
-    if (Entity.getType()->isReferenceType() ||
-        Kind.getKind() != InitializationKind::IK_Copy)
-      return move(CurInit);
-    Loc = CurInitExpr->getLocStart();
-    break;
-
   case InitializedEntity::EK_Parameter:
-    // FIXME: Do we need this initialization for a parameter?
-    return move(CurInit);
-
-  case InitializedEntity::EK_New:
   case InitializedEntity::EK_Temporary:
+  case InitializedEntity::EK_New:
   case InitializedEntity::EK_Base:
   case InitializedEntity::EK_VectorElement:
-    // We don't need to copy for any of these initialized entities.
-    return move(CurInit);
+    Loc = CurInitExpr->getLocStart();
+    break;
   }
-  
-  CXXRecordDecl *Class = 0; 
-  if (const RecordType *Record = CurInitExpr->getType()->getAs<RecordType>())
-    Class = cast<CXXRecordDecl>(Record->getDecl());
-  if (!Class)
-    return move(CurInit);
-  
+    
   // Perform overload resolution using the class's copy constructors.
   DeclarationName ConstructorName
     = S.Context.DeclarationNames.getCXXConstructorName(
@@ -3137,7 +3160,7 @@ static Sema::OwningExprResult CopyIfRequiredForEntity(Sema &S,
   OverloadCandidateSet CandidateSet(Loc);
   for (llvm::tie(Con, ConEnd) = Class->lookup(ConstructorName);
        Con != ConEnd; ++Con) {
-    // Find the constructor (which may be a template).
+    // Only consider copy constructors.
     CXXConstructorDecl *Constructor = dyn_cast<CXXConstructorDecl>(*Con);
     if (!Constructor || Constructor->isInvalidDecl() ||
         !Constructor->isCopyConstructor())
@@ -3147,7 +3170,7 @@ static Sema::OwningExprResult CopyIfRequiredForEntity(Sema &S,
       = DeclAccessPair::make(Constructor, Constructor->getAccess());
     S.AddOverloadCandidate(Constructor, FoundDecl,
                            &CurInitExpr, 1, CandidateSet);
-  }    
+  }
   
   OverloadCandidateSet::iterator Best;
   switch (S.BestViableFunction(CandidateSet, Loc, Best)) {
@@ -3184,9 +3207,9 @@ static Sema::OwningExprResult CopyIfRequiredForEntity(Sema &S,
                            Best->FoundDecl.getAccess());
 
   CurInit.release();
-  return S.BuildCXXConstructExpr(Loc, CurInitExpr->getType(),
+  return S.BuildCXXConstructExpr(Loc, Entity.getType().getNonReferenceType(),
                                  cast<CXXConstructorDecl>(Best->Function),
-                                 /*Elidable=*/true,
+                                 Elidable,
                                  Sema::MultiExprArg(S, 
                                                     (void**)&CurInitExpr, 1));
 }
@@ -3314,8 +3337,9 @@ InitializationSequence::Perform(Sema &S,
     case SK_ResolveAddressOfOverloadedFunction:
       // Overload resolution determined which function invoke; update the 
       // initializer to reflect that choice.
-      // Access control was done in overload resolution.
+      S.CheckAddressOfMemberAccess(CurInitExpr, Step->Function.FoundDecl);
       CurInit = S.FixOverloadedFunctionReference(move(CurInit),
+                                                 Step->Function.FoundDecl,
                                                  Step->Function.Function);
       break;
         
@@ -3382,6 +3406,7 @@ InitializationSequence::Perform(Sema &S,
       bool IsCopy = false;
       FunctionDecl *Fn = Step->Function.Function;
       DeclAccessPair FoundFn = Step->Function.FoundDecl;
+      bool IsLvalue = false;
       if (CXXConstructorDecl *Constructor = dyn_cast<CXXConstructorDecl>(Fn)) {
         // Build a call to the selected constructor.
         ASTOwningVector<&ActionBase::DeleteExpr> ConstructorArgs(S);
@@ -3414,7 +3439,7 @@ InitializationSequence::Perform(Sema &S,
       } else {
         // Build a call to the conversion function.
         CXXConversionDecl *Conversion = cast<CXXConversionDecl>(Fn);
-
+        IsLvalue = Conversion->getResultType()->isLValueReferenceType();
         S.CheckMemberOperatorAccess(Kind.getLocation(), CurInitExpr, 0,
                                     FoundFn);
         
@@ -3422,7 +3447,7 @@ InitializationSequence::Perform(Sema &S,
         // derived-to-base conversion? I believe the answer is "no", because
         // we don't want to turn off access control here for c-style casts.
         if (S.PerformObjectArgumentInitialization(CurInitExpr, /*Qualifier=*/0,
-                                                  Conversion))
+                                                  FoundFn, Conversion))
           return S.ExprError();
 
         // Do a little dance to make sure that CurInit has the proper
@@ -3430,24 +3455,27 @@ InitializationSequence::Perform(Sema &S,
         CurInit.release();
         
         // Build the actual call to the conversion function.
-        CurInit = S.Owned(S.BuildCXXMemberCallExpr(CurInitExpr, Conversion));
+        CurInit = S.Owned(S.BuildCXXMemberCallExpr(CurInitExpr, FoundFn,
+                                                   Conversion));
         if (CurInit.isInvalid() || !CurInit.get())
           return S.ExprError();
         
         CastKind = CastExpr::CK_UserDefinedConversion;
       }
       
-      if (shouldBindAsTemporary(Entity, IsCopy))
+      bool RequiresCopy = !IsCopy && 
+        getKind() != InitializationSequence::ReferenceBinding;
+      if (RequiresCopy || shouldBindAsTemporary(Entity))
         CurInit = S.MaybeBindToTemporary(CurInit.takeAs<Expr>());
 
       CurInitExpr = CurInit.takeAs<Expr>();
       CurInit = S.Owned(new (S.Context) ImplicitCastExpr(CurInitExpr->getType(),
                                                          CastKind, 
                                                          CurInitExpr,
-                                                         false));
+                                                         IsLvalue));
       
-      if (!IsCopy)
-        CurInit = CopyIfRequiredForEntity(S, Entity, Kind, move(CurInit));
+      if (RequiresCopy)
+        CurInit = CopyObject(S, Entity, Kind, move(CurInit));
       break;
     }
         
@@ -3523,13 +3551,9 @@ InitializationSequence::Perform(Sema &S,
       S.CheckConstructorAccess(Loc, Constructor,
                                Step->Function.FoundDecl.getAccess());
       
-      bool Elidable 
-        = cast<CXXConstructExpr>((Expr *)CurInit.get())->isElidable();
-      if (shouldBindAsTemporary(Entity, Elidable))
+      if (shouldBindAsTemporary(Entity))
         CurInit = S.MaybeBindToTemporary(CurInit.takeAs<Expr>());
-      
-      if (!Elidable)
-        CurInit = CopyIfRequiredForEntity(S, Entity, Kind, move(CurInit));
+
       break;
     }
         
@@ -3614,11 +3638,14 @@ bool InitializationSequence::Diagnose(Sema &S,
       << (Failure == FK_ArrayNeedsInitListOrStringLiteral);
     break;
       
-  case FK_AddressOfOverloadFailed:
+  case FK_AddressOfOverloadFailed: {
+    DeclAccessPair Found;
     S.ResolveAddressOfOverloadedFunction(Args[0], 
                                          DestType.getNonReferenceType(),
-                                         true);
+                                         true,
+                                         Found);
     break;
+  }
       
   case FK_ReferenceInitOverloadFailed:
   case FK_UserConversionOverloadFailed:

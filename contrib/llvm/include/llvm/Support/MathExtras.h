@@ -32,34 +32,42 @@ inline uint32_t Lo_32(uint64_t Value) {
   return static_cast<uint32_t>(Value);
 }
 
-/// is?Type - these functions produce optimal testing for integer data types.
-inline bool isInt8  (int64_t Value) {
-  return static_cast<int8_t>(Value) == Value;
-}
-inline bool isUInt8 (int64_t Value) {
-  return static_cast<uint8_t>(Value) == Value;
-}
-inline bool isInt16 (int64_t Value) {
-  return static_cast<int16_t>(Value) == Value;
-}
-inline bool isUInt16(int64_t Value) {
-  return static_cast<uint16_t>(Value) == Value;
-}
-inline bool isInt32 (int64_t Value) {
-  return static_cast<int32_t>(Value) == Value;
-}
-inline bool isUInt32(int64_t Value) {
-  return static_cast<uint32_t>(Value) == Value;
-}
-
+/// isInt - Checks if an integer fits into the given bit width.
 template<unsigned N>
 inline bool isInt(int64_t x) {
   return N >= 64 || (-(INT64_C(1)<<(N-1)) <= x && x < (INT64_C(1)<<(N-1)));
 }
+// Template specializations to get better code for common cases.
+template<>
+inline bool isInt<8>(int64_t x) {
+  return static_cast<int8_t>(x) == x;
+}
+template<>
+inline bool isInt<16>(int64_t x) {
+  return static_cast<int16_t>(x) == x;
+}
+template<>
+inline bool isInt<32>(int64_t x) {
+  return static_cast<int32_t>(x) == x;
+}
 
+/// isUInt - Checks if an unsigned integer fits into the given bit width.
 template<unsigned N>
-inline bool isUint(uint64_t x) {
+inline bool isUInt(uint64_t x) {
   return N >= 64 || x < (UINT64_C(1)<<N);
+}
+// Template specializations to get better code for common cases.
+template<>
+inline bool isUInt<8>(uint64_t x) {
+  return static_cast<uint8_t>(x) == x;
+}
+template<>
+inline bool isUInt<16>(uint64_t x) {
+  return static_cast<uint16_t>(x) == x;
+}
+template<>
+inline bool isUInt<32>(uint64_t x) {
+  return static_cast<uint32_t>(x) == x;
 }
 
 /// isMask_32 - This function returns true if the argument is a sequence of ones
@@ -447,6 +455,18 @@ inline uint64_t OffsetToAlignment(uint64_t Value, uint64_t Align) {
 /// value of the largest negative number is undefined, as with "abs".
 inline int64_t abs64(int64_t x) {
   return (x < 0) ? -x : x;
+}
+
+/// SignExtend32 - Sign extend B-bit number x to 32-bit int.
+/// Usage int32_t r = SignExtend32<5>(x);
+template <unsigned B> inline int32_t SignExtend32(int32_t x) {
+  return (x << (32 - B)) >> (32 - B);
+}
+
+/// SignExtend64 - Sign extend B-bit number x to 64-bit int.
+/// Usage int64_t r = SignExtend64<5>(x);
+template <unsigned B> inline int64_t SignExtend64(int32_t x) {
+  return (x << (64 - B)) >> (64 - B);
 }
 
 } // End llvm namespace
