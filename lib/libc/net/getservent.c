@@ -315,28 +315,8 @@ files_servent(void *retval, void *mdata, va_list ap)
 				break;
 			}
 
-			if (*line=='+') {
-				if (serv_mdata->compat_mode != 0)
-					st->compat_mode_active = 1;
-			} else {
-				if (bufsize <= linesize + _ALIGNBYTES +
-				    sizeof(char *)) {
-					*errnop = ERANGE;
-					rv = NS_RETURN;
-					break;
-				}
-				aliases = (char **)_ALIGN(&buffer[linesize+1]);
-				aliases_size = (buffer + bufsize -
-				    (char *)aliases) / sizeof(char *);
-				if (aliases_size < 1) {
-					*errnop = ERANGE;
-					rv = NS_RETURN;
-					break;
-				}
-
-				memcpy(buffer, line, linesize);
-				buffer[linesize] = '\0';
-			}
+			if (*line=='+' && serv_mdata->compat_mode != 0)
+				st->compat_mode_active = 1;
 		}
 
 		if (st->compat_mode_active != 0) {
@@ -366,6 +346,23 @@ files_servent(void *retval, void *mdata, va_list ap)
 
 			continue;
 		}
+
+		if (bufsize <= linesize + _ALIGNBYTES + sizeof(char *)) {
+			*errnop = ERANGE;
+			rv = NS_RETURN;
+			break;
+		}
+		aliases = (char **)_ALIGN(&buffer[linesize + 1]);
+		aliases_size = (buffer + bufsize -
+		    (char *)aliases) / sizeof(char *);
+		if (aliases_size < 1) {
+			*errnop = ERANGE;
+			rv = NS_RETURN;
+			break;
+		}
+
+		memcpy(buffer, line, linesize);
+		buffer[linesize] = '\0';
 
 		rv = servent_unpack(buffer, serv, aliases, aliases_size,
 		    errnop);
