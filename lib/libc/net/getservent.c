@@ -594,15 +594,13 @@ nis_servent(void *retval, void *mdata, va_list ap)
 			break;
 		};
 
-		/* we need a room for additional \n symbol */
-		if (bufsize <=
-		    resultbuflen + 1 + _ALIGNBYTES + sizeof(char *)) {
+		if (bufsize <= resultbuflen + _ALIGNBYTES + sizeof(char *)) {
 			*errnop = ERANGE;
 			rv = NS_RETURN;
 			break;
 		}
 
-		aliases = (char **)_ALIGN(&buffer[resultbuflen + 2]);
+		aliases = (char **)_ALIGN(&buffer[resultbuflen + 1]);
 		aliases_size =
 		    (buffer + bufsize - (char *)aliases) / sizeof(char *);
 		if (aliases_size < 1) {
@@ -611,13 +609,8 @@ nis_servent(void *retval, void *mdata, va_list ap)
 			break;
 		}
 
-		/*
-		 * servent_unpack expects lines terminated with \n --
-		 * make it happy
-		 */
 		memcpy(buffer, resultbuf, resultbuflen);
-		buffer[resultbuflen] = '\n';
-		buffer[resultbuflen + 1] = '\0';
+		buffer[resultbuflen] = '\0';
 
 		if (servent_unpack(buffer, serv, aliases, aliases_size,
 		    errnop) != 0) {
