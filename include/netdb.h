@@ -82,6 +82,7 @@ typedef	__uint32_t	uint32_t;
 #define	_PATH_NETWORKS	"/etc/networks"
 #define	_PATH_PROTOCOLS	"/etc/protocols"
 #define	_PATH_SERVICES	"/etc/services"
+#define	_PATH_SERVICES_DB "/var/db/services.db"
 
 #define	h_errno (*__h_errno())
 
