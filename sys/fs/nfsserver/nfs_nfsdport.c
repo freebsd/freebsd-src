@@ -1397,24 +1397,16 @@ nfsvno_fillattr(struct nfsrv_descript *nd, struct vnode *vp,
  * nfs readdir service
  * - mallocs what it thinks is enough to read
  *	count rounded up to a multiple of DIRBLKSIZ <= NFS_MAXREADDIR
- * - calls nfsvno_readdir()
+ * - calls VOP_READDIR()
  * - loops around building the reply
  *	if the output generated exceeds count break out of loop
  *	The NFSM_CLGET macro is used here so that the reply will be packed
  *	tightly in mbuf clusters.
- * - it only knows that it has encountered eof when the nfsvno_readdir()
- *	reads nothing
- * - as such one readdir rpc will return eof false although you are there
- *	and then the next will return eof
  * - it trims out records with d_fileno == 0
  *	this doesn't matter for Unix clients, but they might confuse clients
  *	for other os'.
  * - it trims out records with d_type == DT_WHT
  *	these cannot be seen through NFS (unless we extend the protocol)
- * NB: It is tempting to set eof to true if the nfsvno_readdir() reads less
- *	than requested, but this may not apply to all filesystems. For
- *	example, client NFS does not { although it is never remote mounted
- *	anyhow }
  *     The alternate call nfsrvd_readdirplus() does lookups as well.
  * PS: The NFS protocol spec. does not clarify what the "count" byte
  *	argument is a count of.. just name strings and file id's or the
@@ -1456,7 +1448,7 @@ nfsrvd_readdir(struct nfsrv_descript *nd, int isdgram,
 	}
 	toff = off;
 	cnt = fxdr_unsigned(int, *tl);
-	if (cnt > NFS_SRVMAXDATA(nd))
+	if (cnt > NFS_SRVMAXDATA(nd) || cnt < 0)
 		cnt = NFS_SRVMAXDATA(nd);
 	siz = ((cnt + DIRBLKSIZ - 1) & ~(DIRBLKSIZ - 1));
 	fullsiz = siz;
@@ -1473,6 +1465,13 @@ nfsrvd_readdir(struct nfsrv_descript *nd, int isdgram,
 		if (!nd->nd_repstat && toff && verf != at.na_filerev)
 			nd->nd_repstat = NFSERR_BAD_COOKIE;
 #endif
+	}
+	if (nd->nd_repstat == 0 && cnt == 0) {
+		if (nd->nd_flag & ND_NFSV2)
+			/* NFSv2 does not have NFSERR_TOOSMALL */
+			nd->nd_repstat = EPERM;
+		else
+			nd->nd_repstat = NFSERR_TOOSMALL;
 	}
 	if (!nd->nd_repstat)
 		nd->nd_repstat = nfsvno_accchk(vp, VEXEC,
@@ -1696,7 +1695,7 @@ nfsrvd_readdirplus(struct nfsrv_descript *nd, int isdgram,
 	 * Use the server's maximum data transfer size as the upper bound
 	 * on reply datalen.
 	 */
-	if (cnt > NFS_SRVMAXDATA(nd))
+	if (cnt > NFS_SRVMAXDATA(nd) || cnt < 0)
 		cnt = NFS_SRVMAXDATA(nd);
 
 	/*
@@ -1705,7 +1704,7 @@ nfsrvd_readdirplus(struct nfsrv_descript *nd, int isdgram,
 	 * so I set it to cnt for that case. I also round it up to the
 	 * next multiple of DIRBLKSIZ.
 	 */
-	if (siz == 0)
+	if (siz <= 0)
 		siz = cnt;
 	siz = ((siz + DIRBLKSIZ - 1) & ~(DIRBLKSIZ - 1));
 
