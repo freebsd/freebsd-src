@@ -219,7 +219,7 @@ parseservices(const char *fname, StringList *sl)
 
 	line = 0;
 	if ((svc = calloc(PMASK + 1, sizeof(StringList **))) == NULL)
-		err(1, "Cannot allocate %zu bytes", PMASK + 1);
+		err(1, "Cannot allocate %zu bytes", (size_t)(PMASK + 1));
 
 	/* XXX: change NULL to "\0\0#" when fparseln fixed */
 	for (; (p = fparseln(fp, &len, &line, NULL, 0)) != NULL; free(p)) {
@@ -271,7 +271,8 @@ parseservices(const char *fname, StringList *sl)
 		if (svc[pnum] == NULL) {
 			svc[pnum] = calloc(PROTOMAX, sizeof(StringList *));
 			if (svc[pnum] == NULL)
-				err(1, "Cannot allocate %zu bytes", PROTOMAX);
+				err(1, "Cannot allocate %zu bytes",
+				    (size_t)PROTOMAX);
 		}
 
 		pindex = getprotoindex(sl, proto);
