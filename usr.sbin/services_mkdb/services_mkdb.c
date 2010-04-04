@@ -282,11 +282,11 @@ parseservices(const char *fname, StringList *sl)
 
 		/* build list of aliases */
 		if (sl_find(s, name) == NULL) {
-			char *p;
+			char *p2;
 
-			if ((p = strdup(name)) == NULL)
+			if ((p2 = strdup(name)) == NULL)
 				err(1, "Cannot copy string");
-			(void)sl_add(s, p);
+			(void)sl_add(s, p2);
 		}
 
 		if (aliases) {
@@ -294,11 +294,11 @@ parseservices(const char *fname, StringList *sl)
 				if (alias[0] == '\0')
 					continue;
 				if (sl_find(s, alias) == NULL) {
-					char *p;
+					char *p2;
 
-					if ((p = strdup(alias)) == NULL)
+					if ((p2 = strdup(alias)) == NULL)
 						err(1, "Cannot copy string");
-					(void)sl_add(s, p);
+					(void)sl_add(s, p2);
 				}
 			}
 		}
