@@ -32,7 +32,7 @@
 .\"	from: @(#)sh.1	8.6 (Berkeley) 5/4/95
 .\" $FreeBSD$
 .\"
-.Dd April 4, 2010
+.Dd April 5, 2010
 .Dt SH 1
 .Os
 .Sh NAME
@@ -210,7 +210,8 @@ Enable the built-in
 .Xr emacs 1
 command line editor (disables the
 .Fl V
-option if it has been set).
+option if it has been set;
+set automatically when interactive on terminals).
 .It Fl e Li errexit
 Exit immediately if any untested command fails in non-interactive mode.
 The exit status of a command is considered to be
