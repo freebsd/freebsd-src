@@ -803,7 +803,7 @@ schizo_pci_bus(void *arg)
 	}
 
 	panic("%s: PCI bus %c error AFAR %#llx AFSR %#llx PCI CSR %#llx "
-	    "IOMMU %#llx STATUS %#llx", device_get_name(sc->sc_dev),
+	    "IOMMU %#llx STATUS %#llx", device_get_nameunit(sc->sc_dev),
 	    'A' + sc->sc_half, (unsigned long long)afar,
 	    (unsigned long long)afsr, (unsigned long long)csr,
 	    (unsigned long long)iommu, (unsigned long long)status);
@@ -838,7 +838,7 @@ schizo_ue(void *arg)
 			break;
 	mtx_unlock_spin(sc->sc_mtx);
 	panic("%s: uncorrectable DMA error AFAR %#llx AFSR %#llx",
-	    device_get_name(sc->sc_dev), (unsigned long long)afar,
+	    device_get_nameunit(sc->sc_dev), (unsigned long long)afar,
 	    (unsigned long long)afsr);
 	return (FILTER_HANDLED);
 }
@@ -872,7 +872,7 @@ schizo_host_bus(void *arg)
 	uint64_t errlog;
 
 	errlog = SCHIZO_CTRL_READ_8(sc, STX_CTRL_BUS_ERRLOG);
-	panic("%s: %s error %#llx", device_get_name(sc->sc_dev),
+	panic("%s: %s error %#llx", device_get_nameunit(sc->sc_dev),
 	    sc->sc_mode == SCHIZO_MODE_TOM ? "JBus" : "Safari",
 	    (unsigned long long)errlog);
 	return (FILTER_HANDLED);
