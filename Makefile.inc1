@@ -443,10 +443,10 @@ build32:
 	mtree -deU -f ${.CURDIR}/etc/mtree/BSD.include.dist \
 	    -p ${LIB32TMP}/usr/include >/dev/null
 	mkdir -p ${WORLDTMP}
-	# relink /usr/bin to the lib32 tmp so the -B can pick up
+	# relink /usr/bin/{as,ld} to the lib32 tmp so the -B can pick 'em up
 	# the /usr/bin/ld and /usr/bin/as
-	rm -rf ${LIB32TMP}/usr/bin/
-	ln -sf ${WORLDTMP}/usr/bin/ ${LIB32TMP}/usr/bin
+	ln -sf ${WORLDTMP}/usr/bin/as ${LIB32TMP}/as
+	ln -sf ${WORLDTMP}/usr/bin/ld ${LIB32TMP}/ld
 	ln -sf ${.CURDIR}/sys ${WORLDTMP}
 .if ${MK_KERBEROS} != "no"
 .for _t in obj depend all
