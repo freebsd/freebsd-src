@@ -21,7 +21,10 @@ CFLAGS+=	-I${GCCLIB}/include -I${SRCDIR}/include -I.
 CFLAGS+=	-frandom-seed=RepeatabilityConsideredGood
 CXXFLAGS+=	-fno-implicit-templates -ffunction-sections -fdata-sections \
 		-Wno-deprecated
+.if ${CC:M*lib32*}
+# See: http://llvm.org/bugs/show_bug.cgi?id=6780
 CXX:=${CXX:C/^c\+\+|^clang\+\+/g++/}
+.endif
 PO_CXXFLAGS=	${CXXFLAGS:N-ffunction-sections}
 
 DPADD=		${LIBM}
