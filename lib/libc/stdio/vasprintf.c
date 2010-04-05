@@ -36,16 +36,13 @@ __FBSDID("$FreeBSD$");
 #include "local.h"
 
 int
-vasprintf(str, fmt, ap)
-	char **str;
-	const char *fmt;
-	__va_list ap;
+vasprintf(char **str, const char *fmt, __va_list ap)
 {
-	int ret;
 	FILE f = FAKE_FILE;
+	int ret;
 
 	f._flags = __SWR | __SSTR | __SALC;
-	f._bf._base = f._p = (unsigned char *)malloc(128);
+	f._bf._base = f._p = malloc(128);
 	if (f._bf._base == NULL) {
 		*str = NULL;
 		errno = ENOMEM;
