@@ -506,6 +506,7 @@
 #define	MSR_TOP_MEM	0xc001001a	/* boundary for ram below 4G */
 #define	MSR_TOP_MEM2	0xc001001d	/* boundary for ram above 4G */
 #define	MSR_K8_UCODE_UPDATE	0xc0010020	/* update microcode */
+#define	MSR_MC0_CTL_MASK	0xc0010044
 
 /* VIA ACE crypto featureset: for via_feature_rng */
 #define	VIA_HAS_RNG		1	/* cpu has RNG */
