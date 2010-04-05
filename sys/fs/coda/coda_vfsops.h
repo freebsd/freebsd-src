@@ -42,7 +42,7 @@
 struct cfid {
 	u_short	cfid_len;
 	u_short	padding;
-	CodaFid	cfid_fid;
+	struct CodaFid	cfid_fid;
 };
 
 struct mbuf;
