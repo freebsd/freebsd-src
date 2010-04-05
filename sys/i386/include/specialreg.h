@@ -551,6 +551,7 @@
 /* AMD64 MSR's */
 #define	MSR_EFER	0xc0000080	/* extended features */
 #define	MSR_K8_UCODE_UPDATE	0xc0010020	/* update microcode */
+#define	MSR_MC0_CTL_MASK	0xc0010044
 
 /* VIA ACE crypto featureset: for via_feature_rng */
 #define	VIA_HAS_RNG		1	/* cpu has RNG */
