@@ -4288,7 +4288,12 @@ zfs_prune_proplist(zfs_handle_t *zhp, uint8_t *props)
 		zfs_prop_t zfs_prop = zfs_name_to_prop(nvpair_name(curr));
 		nvpair_t *next = nvlist_next_nvpair(zhp->zfs_props, curr);
 
-		if (props[zfs_prop] == B_FALSE)
+		/*
+		 * We leave user:props in the nvlist, so there will be
+		 * some ZPROP_INVAL.  To be extra safe, don't prune
+		 * those.
+		 */
+		if (zfs_prop != ZPROP_INVAL && props[zfs_prop] == B_FALSE)
 			(void) nvlist_remove(zhp->zfs_props,
 			    nvpair_name(curr), nvpair_type(curr));
 		curr = next;
