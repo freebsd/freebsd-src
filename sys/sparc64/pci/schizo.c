@@ -189,26 +189,26 @@ struct schizo_dma_sync {
 
 #define	SCHIZO_PERF_CNT_QLTY	100
 
-#define	SCHIZO_SPC_READ_8(spc, sc, offs) \
+#define	SCHIZO_SPC_READ_8(spc, sc, offs)				\
 	bus_read_8((sc)->sc_mem_res[(spc)], (offs))
-#define	SCHIZO_SPC_WRITE_8(spc, sc, offs, v) \
+#define	SCHIZO_SPC_WRITE_8(spc, sc, offs, v)				\
 	bus_write_8((sc)->sc_mem_res[(spc)], (offs), (v))
 
-#define	SCHIZO_PCI_READ_8(sc, offs) \
+#define	SCHIZO_PCI_READ_8(sc, offs)					\
 	SCHIZO_SPC_READ_8(STX_PCI, (sc), (offs))
-#define	SCHIZO_PCI_WRITE_8(sc, offs, v) \
+#define	SCHIZO_PCI_WRITE_8(sc, offs, v)					\
 	SCHIZO_SPC_WRITE_8(STX_PCI, (sc), (offs), (v))
-#define	SCHIZO_CTRL_READ_8(sc, offs) \
+#define	SCHIZO_CTRL_READ_8(sc, offs)					\
 	SCHIZO_SPC_READ_8(STX_CTRL, (sc), (offs))
-#define	SCHIZO_CTRL_WRITE_8(sc, offs, v) \
+#define	SCHIZO_CTRL_WRITE_8(sc, offs, v)				\
 	SCHIZO_SPC_WRITE_8(STX_CTRL, (sc), (offs), (v))
-#define	SCHIZO_PCICFG_READ_8(sc, offs) \
+#define	SCHIZO_PCICFG_READ_8(sc, offs)					\
 	SCHIZO_SPC_READ_8(STX_PCICFG, (sc), (offs))
-#define	SCHIZO_PCICFG_WRITE_8(sc, offs, v) \
+#define	SCHIZO_PCICFG_WRITE_8(sc, offs, v)				\
 	SCHIZO_SPC_WRITE_8(STX_PCICFG, (sc), (offs), (v))
-#define	SCHIZO_ICON_READ_8(sc, offs) \
+#define	SCHIZO_ICON_READ_8(sc, offs)					\
 	SCHIZO_SPC_READ_8(STX_ICON, (sc), (offs))
-#define	SCHIZO_ICON_WRITE_8(sc, offs, v) \
+#define	SCHIZO_ICON_WRITE_8(sc, offs, v)				\
 	SCHIZO_SPC_WRITE_8(STX_ICON, (sc), (offs), (v))
 
 struct schizo_desc {
@@ -1054,7 +1054,7 @@ schizo_dma_sync_stub(void *arg)
 	for (; atomic_cmpset_acq_32(&sc->sc_cdma_state,
 	    SCHIZO_CDMA_STATE_DONE, SCHIZO_CDMA_STATE_PENDING) == 0;)
 		;
-	SCHIZO_PCI_WRITE_8(sc, sc->sc_cdma_clr, 1);
+	SCHIZO_PCI_WRITE_8(sc, sc->sc_cdma_clr, INTCLR_RECEIVED);
 	microuptime(&cur);
 	end.tv_sec = 1;
 	end.tv_usec = 0;
@@ -1139,7 +1139,7 @@ schizo_intr_clear(void *arg)
 	struct intr_vector *iv = arg;
 	struct schizo_icarg *sica = iv->iv_icarg;
 
-	SCHIZO_PCI_WRITE_8(sica->sica_sc, sica->sica_clr, 0);
+	SCHIZO_PCI_WRITE_8(sica->sica_sc, sica->sica_clr, INTCLR_IDLE);
 }
 
 static int
