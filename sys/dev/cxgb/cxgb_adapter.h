@@ -46,6 +46,7 @@ $FreeBSD$
 #include <net/if.h>
 #include <net/if_media.h>
 #include <net/if_dl.h>
+#include <netinet/tcp_lro.h>
 
 #include <machine/bus.h>
 #include <machine/resource.h>
@@ -57,10 +58,6 @@ $FreeBSD$
 #include <cxgb_osdep.h>
 #include <t3cdev.h>
 #include <sys/mbufq.h>
-
-#ifdef LRO_SUPPORTED
-#include <netinet/tcp_lro.h>
-#endif
 
 struct adapter;
 struct sge_qset;
@@ -142,8 +139,10 @@ enum {
 
 #define FL_Q_SIZE	4096
 #define JUMBO_Q_SIZE	1024
-#define RSPQ_Q_SIZE	1024
+#define RSPQ_Q_SIZE	2048
 #define TX_ETH_Q_SIZE	1024
+#define TX_OFLD_Q_SIZE	1024
+#define TX_CTRL_Q_SIZE	256
 
 enum { TXQ_ETH = 0,
        TXQ_OFLD = 1,
@@ -156,12 +155,10 @@ enum { TXQ_ETH = 0,
 #define WR_LEN (WR_FLITS * 8)
 #define PIO_LEN (WR_LEN - sizeof(struct cpl_tx_pkt_lso))
 
-#ifdef LRO_SUPPORTED
 struct lro_state {
 	unsigned short enabled;
 	struct lro_ctrl ctrl;
 };
-#endif
 
 #define RX_BUNDLE_SIZE 8
 
@@ -182,6 +179,7 @@ struct sge_rspq {
 	uint32_t        offload_bundles;
 	uint32_t        pure_rsps;
 	uint32_t        unhandled_irqs;
+	uint32_t        starved;
 
 	bus_addr_t	phys_addr;
 	bus_dma_tag_t	desc_tag;
@@ -253,7 +251,6 @@ struct sge_txq {
 	struct callout	txq_timer;
 	struct callout	txq_watchdog;
 	uint64_t        txq_coalesced;
-	uint32_t        txq_drops;
 	uint32_t        txq_skipped;
 	uint32_t        txq_enqueued;
 	uint32_t	txq_dump_start;
@@ -284,9 +281,7 @@ enum {
 struct sge_qset {
 	struct sge_rspq		rspq;
 	struct sge_fl		fl[SGE_RXQ_PER_SET];
-#ifdef LRO_SUPPORTED
 	struct lro_state        lro;
-#endif
 	struct sge_txq		txq[SGE_TXQ_PER_SET];
 	uint32_t                txq_stopped;       /* which Tx queues are stopped */
 	uint64_t                port_stats[SGE_PSTAT_MAX];

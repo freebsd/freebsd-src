@@ -314,6 +314,7 @@ struct qset_params {                   /* SGE queue set parameters */
 	unsigned int rspq_size;        /* # of entries in response queue */
 	unsigned int fl_size;          /* # of entries in regular free list */
 	unsigned int jumbo_size;       /* # of entries in jumbo free list */
+	unsigned int jumbo_buf_size;   /* buffer size of jumbo entry */
 	unsigned int txq_size[SGE_TXQ_PER_SET];  /* Tx queue sizes */
 	unsigned int cong_thres;       /* FL congestion threshold */
 	unsigned int vector;           /* Interrupt (line or vector) number */
@@ -392,11 +393,9 @@ struct adapter_params {
 
 	const struct adapter_info *info;
 
-#ifdef CONFIG_CHELSIO_T3_CORE
 	unsigned short mtus[NMTUS];
 	unsigned short a_wnd[NCCTRL_WIN];
 	unsigned short b_wnd[NCCTRL_WIN];
-#endif
 	unsigned int   nports;              /* # of ethernet ports */
 	unsigned int   chan_map;            /* bitmap of in-use Tx channels */
 	unsigned int   stats_update_period; /* MAC stats accumulation period */
@@ -650,11 +649,7 @@ static inline int is_10G(const adapter_t *adap)
 
 static inline int is_offload(const adapter_t *adap)
 {
-#if defined(CONFIG_CHELSIO_T3_CORE)
 	return adap->params.offload;
-#else
-	return 0;
-#endif
 }
 
 static inline unsigned int core_ticks_per_usec(const adapter_t *adap)
@@ -772,7 +767,6 @@ void t3_mc5_intr_handler(struct mc5 *mc5);
 int t3_read_mc5_range(const struct mc5 *mc5, unsigned int start, unsigned int n,
 		      u32 *buf);
 
-#ifdef CONFIG_CHELSIO_T3_CORE
 int t3_tp_set_coalescing_size(adapter_t *adap, unsigned int size, int psh);
 void t3_tp_set_max_rxsize(adapter_t *adap, unsigned int size);
 void t3_tp_get_mib_stats(adapter_t *adap, struct tp_mib_stats *tps);
@@ -793,7 +787,6 @@ void t3_get_tx_sched(adapter_t *adap, unsigned int sched, unsigned int *kbps,
 void t3_read_pace_tbl(adapter_t *adap, unsigned int pace_vals[NTX_SCHED]);
 void t3_set_pace_tbl(adapter_t *adap, unsigned int *pace_vals,
 		     unsigned int start, unsigned int n);
-#endif
 
 int t3_get_up_la(adapter_t *adapter, u32 *stopped, u32 *index,
 		 u32 *size, void *data);
