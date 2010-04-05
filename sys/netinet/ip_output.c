@@ -589,7 +589,7 @@ passout:
 	}
 #ifdef SCTP
 	if (sw_csum & CSUM_SCTP) {
-		sctp_delayed_cksum(m);
+		sctp_delayed_cksum(m, (uint32_t)(ip->ip_hl << 2));
 		sw_csum &= ~CSUM_SCTP;
 	}
 #endif
@@ -731,7 +731,7 @@ ip_fragment(struct ip *ip, struct mbuf **m_frag, int mtu,
 #ifdef SCTP
 	if (m0->m_pkthdr.csum_flags & CSUM_SCTP &&
 	    (if_hwassist_flags & CSUM_IP_FRAGS) == 0) {
-		sctp_delayed_cksum(m0);
+		sctp_delayed_cksum(m0, hlen);
 		m0->m_pkthdr.csum_flags &= ~CSUM_SCTP;
 	}
 #endif
