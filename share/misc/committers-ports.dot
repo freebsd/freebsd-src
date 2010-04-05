@@ -86,6 +86,7 @@ glewis [label="Greg Lewis\nglewis@FreeBSD.org\n2002/04/08"]
 hq [label="Herve Quiroz\nhq@FreeBSD.org\n2004/08/05"]
 ijliao [label="Ying-Chieh Liao\nijliao@FreeBSD.org\n2001/01/20"]
 itetcu [label="Ion-Mihai Tetcu\nitetcu@FreeBSD.org\n2006/06/07"]
+jacula [label="Giuseppe Pilichi\njacula@FreeBSD.org\n2010/04/05"]
 jadawin [label="Philippe Audeoud\njadawin@FreeBSD.org\n2008/03/02"]
 jkim [label="Jung-uk Kim\njkim@FreeBSD.org\n2007/09/12"]
 jmelo [label="Jean Milanez Melo\njmelo@FreeBSD.org\n2006/03/31"]
@@ -316,6 +317,8 @@ pav -> josef
 pav -> kwm
 pav -> mnag
 
+pgj -> jacula
+
 philip -> koitsu
 
 rafan -> chinsan
@@ -341,6 +344,7 @@ steve -> netchild
 
 tabthorpe -> avilla
 tabthorpe -> avl
+tabthorpe -> jacula
 tabthorpe -> jadawin
 tabthorpe -> pgj
 
