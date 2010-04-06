@@ -2010,9 +2010,6 @@ product MSI RT3070_7		0x899a	RT3070
 product MSI RT2573_3		0xa861	RT2573
 product MSI RT2573_4		0xa874	RT2573
 
-/* Microdia products */
-product MICRODIA TWINKLECAM	0x600d	TwinkleCam USB camera
-
 /* Microsoft products */
 product MICROSOFT SIDEPREC	0x0008	SideWinder Precision Pro
 product MICROSOFT INTELLIMOUSE	0x0009	IntelliMouse
