@@ -4516,6 +4516,7 @@ end:
 		} else {
 			LINE_BREAK();
 			list_roam(s);
+			LINE_BREAK();
 		}
 	}
 
