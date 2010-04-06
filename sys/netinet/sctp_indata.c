@@ -2275,8 +2275,7 @@ sctp_slide_mapping_arrays(struct sctp_tcb *stcb)
 	asoc->cumulative_tsn = asoc->mapping_array_base_tsn + (at - 1);
 
 	if (compare_with_wrap(asoc->cumulative_tsn, asoc->highest_tsn_inside_map, MAX_TSN) &&
-	    compare_with_wrap(asoc->cumulative_tsn, asoc->highest_tsn_inside_nr_map, MAX_TSN)
-	    ) {
+	    compare_with_wrap(asoc->cumulative_tsn, asoc->highest_tsn_inside_nr_map, MAX_TSN)) {
 #ifdef INVARIANTS
 		panic("huh, cumack 0x%x greater than high-tsn 0x%x in map",
 		    asoc->cumulative_tsn, asoc->highest_tsn_inside_map);
@@ -2378,7 +2377,7 @@ sctp_slide_mapping_arrays(struct sctp_tcb *stcb)
 				    asoc->nr_mapping_array[slide_from + ii];
 
 			}
-			for (ii = distance; ii <= asoc->mapping_array_size; ii++) {
+			for (ii = distance; ii < asoc->mapping_array_size; ii++) {
 				asoc->mapping_array[ii] = 0;
 				asoc->nr_mapping_array[ii] = 0;
 			}
