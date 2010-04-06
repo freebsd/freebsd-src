@@ -2419,6 +2419,7 @@ product PROLIFIC PL2303		0x2303	PL2303 Serial (ATEN/IOGEAR UC232A)
 product PROLIFIC PL2305		0x2305	Parallel printer
 product PROLIFIC ATAPI4		0x2307	ATAPI-4 Controller
 product PROLIFIC PL2501		0x2501	PL2501 Host-Host interface
+product PROLIFIC PL2506		0x2506	PL2506 USB to IDE Bridge
 product PROLIFIC PHAROS		0xaaa0	Prolific Pharos
 product PROLIFIC RSAQ3		0xaaa2	PL2303 Serial Adapter (IODATA USB-RSAQ3)
 product PROLIFIC2 WSIM		0x2001	Willcom WSIM
