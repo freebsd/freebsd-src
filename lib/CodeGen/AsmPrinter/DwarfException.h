@@ -14,25 +14,34 @@
 #ifndef LLVM_CODEGEN_ASMPRINTER_DWARFEXCEPTION_H
 #define LLVM_CODEGEN_ASMPRINTER_DWARFEXCEPTION_H
 
-#include "DIE.h"
-#include "DwarfPrinter.h"
-#include "llvm/CodeGen/AsmPrinter.h"
 #include "llvm/ADT/DenseMap.h"
-#include <string>
+#include <vector>
 
 namespace llvm {
 
+template <typename T> class SmallVectorImpl;
 struct LandingPadInfo;
 class MachineModuleInfo;
+class MachineMove;
+class MachineInstr;
+class MachineFunction;
 class MCAsmInfo;
 class MCExpr;
+class MCSymbol;
 class Timer;
-class raw_ostream;
+class Function;
+class AsmPrinter;
 
 //===----------------------------------------------------------------------===//
 /// DwarfException - Emits Dwarf exception handling directives.
 ///
-class DwarfException : public DwarfPrinter {
+class DwarfException {
+  /// Asm - Target of Dwarf emission.
+  AsmPrinter *Asm;
+
+  /// MMI - Collected machine module information.
+  MachineModuleInfo *MMI;
+
   struct FunctionEHFrameInfo {
     MCSymbol *FunctionEHSym;  // L_foo.eh
     unsigned Number;
@@ -166,15 +175,8 @@ public:
   //===--------------------------------------------------------------------===//
   // Main entry points.
   //
-  DwarfException(raw_ostream &OS, AsmPrinter *A, const MCAsmInfo *T);
-  virtual ~DwarfException();
-
-  /// BeginModule - Emit all exception information that should come prior to the
-  /// content.
-  void BeginModule(Module *m, MachineModuleInfo *mmi) {
-    this->M = m;
-    this->MMI = mmi;
-  }
+  DwarfException(AsmPrinter *A);
+  ~DwarfException();
 
   /// EndModule - Emit all exception information that should come after the
   /// content.

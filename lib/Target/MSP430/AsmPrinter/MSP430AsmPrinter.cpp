@@ -24,7 +24,6 @@
 #include "llvm/Module.h"
 #include "llvm/Assembly/Writer.h"
 #include "llvm/CodeGen/AsmPrinter.h"
-#include "llvm/CodeGen/DwarfWriter.h"
 #include "llvm/CodeGen/MachineModuleInfo.h"
 #include "llvm/CodeGen/MachineFunctionPass.h"
 #include "llvm/CodeGen/MachineConstantPool.h"
@@ -36,50 +35,36 @@
 #include "llvm/Target/TargetData.h"
 #include "llvm/Target/TargetLoweringObjectFile.h"
 #include "llvm/Target/TargetRegistry.h"
-#include "llvm/Support/FormattedStream.h"
+#include "llvm/Support/raw_ostream.h"
 using namespace llvm;
 
 namespace {
   class MSP430AsmPrinter : public AsmPrinter {
   public:
-    MSP430AsmPrinter(formatted_raw_ostream &O, TargetMachine &TM,
-                     MCStreamer &Streamer)
-      : AsmPrinter(O, TM, Streamer) {}
+    MSP430AsmPrinter(TargetMachine &TM, MCStreamer &Streamer)
+      : AsmPrinter(TM, Streamer) {}
 
     virtual const char *getPassName() const {
       return "MSP430 Assembly Printer";
     }
 
-    void printMCInst(const MCInst *MI) {
-      MSP430InstPrinter(O, *MAI).printInstruction(MI);
-    }
     void printOperand(const MachineInstr *MI, int OpNum,
-                      const char* Modifier = 0);
-    void printPCRelImmOperand(const MachineInstr *MI, int OpNum) {
-      printOperand(MI, OpNum);
-    }
+                      raw_ostream &O, const char* Modifier = 0);
     void printSrcMemOperand(const MachineInstr *MI, int OpNum,
-                            const char* Modifier = 0);
-    void printCCOperand(const MachineInstr *MI, int OpNum);
-    void printMachineInstruction(const MachineInstr * MI);
+                            raw_ostream &O);
     bool PrintAsmOperand(const MachineInstr *MI, unsigned OpNo,
-                         unsigned AsmVariant,
-                         const char *ExtraCode);
+                         unsigned AsmVariant, const char *ExtraCode,
+                         raw_ostream &O);
     bool PrintAsmMemoryOperand(const MachineInstr *MI,
                                unsigned OpNo, unsigned AsmVariant,
-                               const char *ExtraCode);
+                               const char *ExtraCode, raw_ostream &O);
     void EmitInstruction(const MachineInstr *MI);
-
-    void getAnalysisUsage(AnalysisUsage &AU) const {
-      AsmPrinter::getAnalysisUsage(AU);
-      AU.setPreservesAll();
-    }
   };
 } // end of anonymous namespace
 
 
 void MSP430AsmPrinter::printOperand(const MachineInstr *MI, int OpNum,
-                                    const char* Modifier) {
+                                    raw_ostream &O, const char *Modifier) {
   const MachineOperand &MO = MI->getOperand(OpNum);
   switch (MO.getType()) {
   default: assert(0 && "Not implemented yet!");
@@ -126,7 +111,7 @@ void MSP430AsmPrinter::printOperand(const MachineInstr *MI, int OpNum,
 }
 
 void MSP430AsmPrinter::printSrcMemOperand(const MachineInstr *MI, int OpNum,
-                                          const char* Modifier) {
+                                          raw_ostream &O) {
   const MachineOperand &Base = MI->getOperand(OpNum);
   const MachineOperand &Disp = MI->getOperand(OpNum+1);
 
@@ -135,25 +120,13 @@ void MSP430AsmPrinter::printSrcMemOperand(const MachineInstr *MI, int OpNum,
   // Imm here is in fact global address - print extra modifier.
   if (Disp.isImm() && !Base.getReg())
     O << '&';
-  printOperand(MI, OpNum+1, "nohash");
+  printOperand(MI, OpNum+1, O, "nohash");
 
   // Print register base field
   if (Base.getReg()) {
     O << '(';
-    printOperand(MI, OpNum);
+    printOperand(MI, OpNum, O);
     O << ')';
-  }
-}
-
-void MSP430AsmPrinter::printCCOperand(const MachineInstr *MI, int OpNum) {
-  switch (MI->getOperand(OpNum).getImm()) {
-  default: assert(0 && "Unknown cond");
-  case MSP430CC::COND_E:  O << "eq"; break;
-  case MSP430CC::COND_NE: O << "ne"; break;
-  case MSP430CC::COND_HS: O << "hs"; break;
-  case MSP430CC::COND_LO: O << "lo"; break;
-  case MSP430CC::COND_GE: O << "ge"; break;
-  case MSP430CC::COND_L:  O << 'l';  break;
   }
 }
 
@@ -161,22 +134,23 @@ void MSP430AsmPrinter::printCCOperand(const MachineInstr *MI, int OpNum) {
 ///
 bool MSP430AsmPrinter::PrintAsmOperand(const MachineInstr *MI, unsigned OpNo,
                                        unsigned AsmVariant,
-                                       const char *ExtraCode) {
+                                       const char *ExtraCode, raw_ostream &O) {
   // Does this asm operand have a single letter operand modifier?
   if (ExtraCode && ExtraCode[0])
     return true; // Unknown modifier.
 
-  printOperand(MI, OpNo);
+  printOperand(MI, OpNo, O);
   return false;
 }
 
 bool MSP430AsmPrinter::PrintAsmMemoryOperand(const MachineInstr *MI,
                                              unsigned OpNo, unsigned AsmVariant,
-                                             const char *ExtraCode) {
+                                             const char *ExtraCode,
+                                             raw_ostream &O) {
   if (ExtraCode && ExtraCode[0]) {
     return true; // Unknown modifier.
   }
-  printSrcMemOperand(MI, OpNo);
+  printSrcMemOperand(MI, OpNo, O);
   return false;
 }
 
@@ -191,10 +165,9 @@ void MSP430AsmPrinter::EmitInstruction(const MachineInstr *MI) {
 
 static MCInstPrinter *createMSP430MCInstPrinter(const Target &T,
                                                 unsigned SyntaxVariant,
-                                                const MCAsmInfo &MAI,
-                                                raw_ostream &O) {
+                                                const MCAsmInfo &MAI) {
   if (SyntaxVariant == 0)
-    return new MSP430InstPrinter(O, MAI);
+    return new MSP430InstPrinter(MAI);
   return 0;
 }
 
