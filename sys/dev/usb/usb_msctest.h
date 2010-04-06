@@ -31,7 +31,8 @@ enum {
 	MSC_EJECT_STOPUNIT,
 	MSC_EJECT_REZERO,
 	MSC_EJECT_ZTESTOR,
-	MSC_EJECT_CMOTECH
+	MSC_EJECT_CMOTECH,
+	MSC_EJECT_HUAWEI,
 };
 
 int usb_iface_is_cdrom(struct usb_device *udev,
