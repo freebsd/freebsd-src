@@ -996,11 +996,8 @@ CXTranslationUnit clang_createTranslationUnit(CXIndex CIdx,
 
   CIndexer *CXXIdx = static_cast<CIndexer *>(CIdx);
 
-  // Configure the diagnostics.
-  DiagnosticOptions DiagOpts;
-  llvm::OwningPtr<Diagnostic> Diags;
-  Diags.reset(CompilerInstance::createDiagnostics(DiagOpts, 0, 0));
-  return ASTUnit::LoadFromPCHFile(ast_filename, *Diags,
+  llvm::IntrusiveRefCntPtr<Diagnostic> Diags;
+  return ASTUnit::LoadFromPCHFile(ast_filename, Diags,
                                   CXXIdx->getOnlyLocalDecls(),
                                   0, 0, true);
 }
@@ -1019,15 +1016,14 @@ clang_createTranslationUnitFromSourceFile(CXIndex CIdx,
 
   // Configure the diagnostics.
   DiagnosticOptions DiagOpts;
-  llvm::OwningPtr<Diagnostic> Diags;
-  Diags.reset(CompilerInstance::createDiagnostics(DiagOpts, 0, 0));
+  llvm::IntrusiveRefCntPtr<Diagnostic> Diags;
+  Diags = CompilerInstance::createDiagnostics(DiagOpts, 0, 0);
 
   llvm::SmallVector<ASTUnit::RemappedFile, 4> RemappedFiles;
   for (unsigned I = 0; I != num_unsaved_files; ++I) {
+    llvm::StringRef Data(unsaved_files[I].Contents, unsaved_files[I].Length);
     const llvm::MemoryBuffer *Buffer
-      = llvm::MemoryBuffer::getMemBufferCopy(unsaved_files[I].Contents,
-                          unsaved_files[I].Contents + unsaved_files[I].Length,
-                                         unsaved_files[I].Filename);
+      = llvm::MemoryBuffer::getMemBufferCopy(Data, unsaved_files[I].Filename);
     RemappedFiles.push_back(std::make_pair(unsaved_files[I].Filename,
                                            Buffer));
   }
@@ -1052,7 +1048,7 @@ clang_createTranslationUnitFromSourceFile(CXIndex CIdx,
 
     llvm::OwningPtr<ASTUnit> Unit(
       ASTUnit::LoadFromCommandLine(Args.data(), Args.data() + Args.size(),
-                                   *Diags,
+                                   Diags,
                                    CXXIdx->getClangResourcesPath(),
                                    CXXIdx->getOnlyLocalDecls(),
                                    RemappedFiles.data(),
@@ -1064,8 +1060,8 @@ clang_createTranslationUnitFromSourceFile(CXIndex CIdx,
     if (NumErrors != Diags->getNumErrors()) {
       // Make sure to check that 'Unit' is non-NULL.
       if (CXXIdx->getDisplayDiagnostics() && Unit.get()) {
-        for (ASTUnit::diag_iterator D = Unit->diag_begin(), 
-                                 DEnd = Unit->diag_end();
+        for (ASTUnit::stored_diag_iterator D = Unit->stored_diag_begin(), 
+                                        DEnd = Unit->stored_diag_end();
              D != DEnd; ++D) {
           CXStoredDiagnostic Diag(*D, Unit->getASTContext().getLangOptions());
           CXString Msg = clang_formatDiagnostic(&Diag,
@@ -1169,7 +1165,7 @@ clang_createTranslationUnitFromSourceFile(CXIndex CIdx,
     Diags->Report(diag::err_fe_invoking) << AllArgs << ErrMsg;
   }
 
-  ASTUnit *ATU = ASTUnit::LoadFromPCHFile(astTmpFile, *Diags,
+  ASTUnit *ATU = ASTUnit::LoadFromPCHFile(astTmpFile, Diags,
                                           CXXIdx->getOnlyLocalDecls(),
                                           RemappedFiles.data(),
                                           RemappedFiles.size(),
@@ -1179,7 +1175,7 @@ clang_createTranslationUnitFromSourceFile(CXIndex CIdx,
                               num_unsaved_files, unsaved_files,
                               ATU->getFileManager(),
                               ATU->getSourceManager(),
-                              ATU->getDiagnostics());
+                              ATU->getStoredDiagnostics());
   } else if (CXXIdx->getDisplayDiagnostics()) {
     // We failed to load the ASTUnit, but we can still deserialize the
     // diagnostics and emit them.
@@ -2333,7 +2329,7 @@ void clang_annotateTokens(CXTranslationUnit TU,
   RegionOfInterest.setBegin(
         cxloc::translateSourceLocation(clang_getTokenLocation(TU, Tokens[0])));
   SourceLocation End
-  = cxloc::translateSourceLocation(clang_getTokenLocation(TU,
+    = cxloc::translateSourceLocation(clang_getTokenLocation(TU,
                                                         Tokens[NumTokens - 1]));
   RegionOfInterest.setEnd(CXXUnit->getPreprocessor().getLocForEndOfToken(End));
 

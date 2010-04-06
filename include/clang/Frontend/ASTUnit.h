@@ -16,6 +16,7 @@
 
 #include "clang/Lex/PreprocessingRecord.h"
 #include "clang/Basic/SourceManager.h"
+#include "llvm/ADT/IntrusiveRefCntPtr.h"
 #include "llvm/ADT/OwningPtr.h"
 #include "clang/Basic/FileManager.h"
 #include "clang/Index/ASTLocation.h"
@@ -52,10 +53,9 @@ public:
   typedef std::map<FileID, std::vector<PreprocessedEntity *> > 
     PreprocessedEntitiesByFileMap;
 private:
-  
-  FileManager FileMgr;
-
-  SourceManager                     SourceMgr;
+  llvm::IntrusiveRefCntPtr<Diagnostic> Diagnostics;
+  llvm::OwningPtr<FileManager>      FileMgr;
+  llvm::OwningPtr<SourceManager>    SourceMgr;
   llvm::OwningPtr<HeaderSearch>     HeaderInfo;
   llvm::OwningPtr<TargetInfo>       Target;
   llvm::OwningPtr<Preprocessor>     PP;
@@ -90,7 +90,7 @@ private:
 
   /// \brief The set of diagnostics produced when creating this
   /// translation unit.
-  llvm::SmallVector<StoredDiagnostic, 4> Diagnostics;
+  llvm::SmallVector<StoredDiagnostic, 4> StoredDiagnostics;
 
   /// \brief Temporary files that should be removed when the ASTUnit is 
   /// destroyed.
@@ -118,6 +118,8 @@ private:
   ASTUnit(const ASTUnit&); // DO NOT IMPLEMENT
   ASTUnit &operator=(const ASTUnit &); // DO NOT IMPLEMENT
   
+  explicit ASTUnit(bool MainFileIsAST);
+
 public:
   class ConcurrencyCheck {
     volatile ASTUnit &Self;
@@ -137,13 +139,15 @@ public:
   };
   friend class ConcurrencyCheck;
   
-  ASTUnit(Diagnostic &Diag, bool MainFileIsAST);
   ~ASTUnit();
 
   bool isMainFileAST() const { return MainFileIsAST; }
 
-  const SourceManager &getSourceManager() const { return SourceMgr; }
-        SourceManager &getSourceManager()       { return SourceMgr; }
+  const Diagnostic &getDiagnostics() const { return *Diagnostics; }
+  Diagnostic &getDiagnostics()             { return *Diagnostics; }
+  
+  const SourceManager &getSourceManager() const { return *SourceMgr; }
+        SourceManager &getSourceManager()       { return *SourceMgr; }
 
   const Preprocessor &getPreprocessor() const { return *PP.get(); }
         Preprocessor &getPreprocessor()       { return *PP.get(); }
@@ -151,8 +155,8 @@ public:
   const ASTContext &getASTContext() const { return *Ctx.get(); }
         ASTContext &getASTContext()       { return *Ctx.get(); }
 
-  const FileManager &getFileManager() const { return FileMgr; }
-        FileManager &getFileManager()       { return FileMgr; }
+  const FileManager &getFileManager() const { return *FileMgr; }
+        FileManager &getFileManager()       { return *FileMgr; }
 
   const std::string &getOriginalSourceFileName();
   const std::string &getPCHFileName();
@@ -185,12 +189,17 @@ public:
   }
   
   // Retrieve the diagnostics associated with this AST
-  typedef const StoredDiagnostic * diag_iterator;
-  diag_iterator diag_begin() const { return Diagnostics.begin(); }
-  diag_iterator diag_end() const { return Diagnostics.end(); }
-  unsigned diag_size() const { return Diagnostics.size(); }
-  llvm::SmallVector<StoredDiagnostic, 4> &getDiagnostics() { 
-    return Diagnostics; 
+  typedef const StoredDiagnostic *stored_diag_iterator;
+  stored_diag_iterator stored_diag_begin() const { 
+    return StoredDiagnostics.begin(); 
+  }
+  stored_diag_iterator stored_diag_end() const { 
+    return StoredDiagnostics.end(); 
+  }
+  unsigned stored_diag_size() const { return StoredDiagnostics.size(); }
+  
+  llvm::SmallVector<StoredDiagnostic, 4> &getStoredDiagnostics() { 
+    return StoredDiagnostics; 
   }
 
   /// \brief A mapping from a file name to the memory buffer that stores the
@@ -206,7 +215,7 @@ public:
   ///
   /// \returns - The initialized ASTUnit or null if the PCH failed to load.
   static ASTUnit *LoadFromPCHFile(const std::string &Filename,
-                                  Diagnostic &Diags,
+                                  llvm::IntrusiveRefCntPtr<Diagnostic> Diags,
                                   bool OnlyLocalDecls = false,
                                   RemappedFile *RemappedFiles = 0,
                                   unsigned NumRemappedFiles = 0,
@@ -224,7 +233,7 @@ public:
   // FIXME: Move OnlyLocalDecls, UseBumpAllocator to setters on the ASTUnit, we
   // shouldn't need to specify them at construction time.
   static ASTUnit *LoadFromCompilerInvocation(CompilerInvocation *CI,
-                                             Diagnostic &Diags,
+                                     llvm::IntrusiveRefCntPtr<Diagnostic> Diags,
                                              bool OnlyLocalDecls = false,
                                              bool CaptureDiagnostics = false);
 
@@ -244,7 +253,7 @@ public:
   // shouldn't need to specify them at construction time.
   static ASTUnit *LoadFromCommandLine(const char **ArgBegin,
                                       const char **ArgEnd,
-                                      Diagnostic &Diags,
+                                    llvm::IntrusiveRefCntPtr<Diagnostic> Diags,
                                       llvm::StringRef ResourceFilesPath,
                                       bool OnlyLocalDecls = false,
                                       RemappedFile *RemappedFiles = 0,
