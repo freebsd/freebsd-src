@@ -386,16 +386,25 @@ upgrade_fw(adapter_t *sc)
 	struct firmware *fw;
 #endif	
 	int status;
+	u32 vers;
 	
 	if ((fw = firmware_get(FW_FNAME)) == NULL)  {
 		device_printf(sc->dev, "Could not find firmware image %s\n", FW_FNAME);
 		return (ENOENT);
 	} else
-		device_printf(sc->dev, "updating firmware on card\n");
+		device_printf(sc->dev, "installing firmware on card\n");
 	status = t3_load_fw(sc, (const uint8_t *)fw->data, fw->datasize);
 
-	device_printf(sc->dev, "firmware update returned %s %d\n", (status == 0) ? "success" : "fail", status);
-	
+	if (status != 0) {
+		device_printf(sc->dev, "failed to install firmware: %d\n",
+		    status);
+	} else {
+		t3_get_fw_version(sc, &vers);
+		snprintf(&sc->fw_version[0], sizeof(sc->fw_version), "%d.%d.%d",
+		    G_FW_VERSION_MAJOR(vers), G_FW_VERSION_MINOR(vers),
+		    G_FW_VERSION_MICRO(vers));
+	}
+
 	firmware_put(fw, FIRMWARE_UNLOAD);
 
 	return (status);	
@@ -1272,7 +1281,7 @@ t3_os_link_changed(adapter_t *adapter, int port_id, int link_status, int speed,
 void t3_os_phymod_changed(struct adapter *adap, int port_id)
 {
 	static const char *mod_str[] = {
-		NULL, "SR", "LR", "LRM", "TWINAX", "TWINAX", "unknown"
+		NULL, "SR", "LR", "LRM", "TWINAX", "TWINAX-L", "unknown"
 	};
 	struct port_info *pi = &adap->port[port_id];
 	int mod = pi->phy.modtype;
@@ -2742,7 +2751,9 @@ cxgb_extension_ioctl(struct cdev *dev, unsigned long cmd, caddr_t data,
 		t->cong_thres  = q->cong_thres;
 		t->qnum        = i;
 
-		if (sc->flags & USING_MSIX)
+		if ((sc->flags & FULL_INIT_DONE) == 0)
+			t->vector = 0;
+		else if (sc->flags & USING_MSIX)
 			t->vector = rman_get_start(sc->msix_irq_res[i]);
 		else
 			t->vector = rman_get_start(sc->irq_res);
