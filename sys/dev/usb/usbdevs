@@ -1117,6 +1117,7 @@ product CCYU ED1064		0x2136	EasyDisk ED1064
 
 /* Century products */
 product CENTURY EX35QUAT	0x011e	Century USB Disk Enclosure
+product CENTURY EX35SW4_SB4	0x011f	Century USB Disk Enclosure
 
 /* Cherry products */
 product CHERRY MY3000KBD	0x0001	My3000 keyboard
@@ -1336,6 +1337,7 @@ product DLINK3 DWM652		0x3e04	DWM-652
 
 /* DMI products */
 product DMI CFSM_RW		0xa109	CF/SM Reader/Writer
+product DMI DISK		0x2bcf	Generic Disk
 
 /* DrayTek products */
 product DRAYTEK VIGOR550	0x0550	Vigor550
@@ -2147,6 +2149,7 @@ product NETGEAR3 WG111T		0x4250	WG111T
 product NETGEAR3 WG111T_NF	0x4251	WG111T (no firmware)
 product NETGEAR3 WPN111		0x5f00	WPN111
 product NETGEAR3 WPN111_NF	0x5f01	WPN111 (no firmware)
+product NETGEAR3 WPN111_2	0x5f02	WPN111
 
 /* Nikon products */
 product NIKON E990		0x0102	Digital Camera E990
