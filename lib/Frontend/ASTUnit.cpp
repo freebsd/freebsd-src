@@ -35,10 +35,9 @@
 #include "llvm/System/Path.h"
 using namespace clang;
 
-ASTUnit::ASTUnit(Diagnostic &Diag, bool _MainFileIsAST)
-  : SourceMgr(Diag), MainFileIsAST(_MainFileIsAST), 
-    ConcurrencyCheckValue(CheckUnlocked) {
-}
+ASTUnit::ASTUnit(bool _MainFileIsAST)
+  : MainFileIsAST(_MainFileIsAST), ConcurrencyCheckValue(CheckUnlocked) { }
+
 ASTUnit::~ASTUnit() {
   ConcurrencyCheckValue = CheckLocked;
   for (unsigned I = 0, N = TemporaryFiles.size(); I != N; ++I)
@@ -142,18 +141,29 @@ const std::string &ASTUnit::getPCHFileName() {
 }
 
 ASTUnit *ASTUnit::LoadFromPCHFile(const std::string &Filename,
-                                  Diagnostic &Diags,
+                                  llvm::IntrusiveRefCntPtr<Diagnostic> Diags,
                                   bool OnlyLocalDecls,
                                   RemappedFile *RemappedFiles,
                                   unsigned NumRemappedFiles,
                                   bool CaptureDiagnostics) {
-  llvm::OwningPtr<ASTUnit> AST(new ASTUnit(Diags, true));
+  llvm::OwningPtr<ASTUnit> AST(new ASTUnit(true));
+  
+  if (!Diags.getPtr()) {
+    // No diagnostics engine was provided, so create our own diagnostics object
+    // with the default options.
+    DiagnosticOptions DiagOpts;
+    Diags = CompilerInstance::createDiagnostics(DiagOpts, 0, 0);
+  }
+  
   AST->OnlyLocalDecls = OnlyLocalDecls;
+  AST->Diagnostics = Diags;
+  AST->FileMgr.reset(new FileManager);
+  AST->SourceMgr.reset(new SourceManager(AST->getDiagnostics()));
   AST->HeaderInfo.reset(new HeaderSearch(AST->getFileManager()));
 
   // If requested, capture diagnostics in the ASTUnit.
-  CaptureDroppedDiagnostics Capture(CaptureDiagnostics, Diags, 
-                                    AST->Diagnostics);
+  CaptureDroppedDiagnostics Capture(CaptureDiagnostics, AST->getDiagnostics(),
+                                    AST->StoredDiagnostics);
 
   for (unsigned I = 0; I != NumRemappedFiles; ++I) {
     // Create the file entry for the file that we're mapping from.
@@ -162,7 +172,7 @@ ASTUnit *ASTUnit::LoadFromPCHFile(const std::string &Filename,
                                     RemappedFiles[I].second->getBufferSize(),
                                              0);
     if (!FromFile) {
-      Diags.Report(diag::err_fe_remap_missing_from_file)
+      AST->getDiagnostics().Report(diag::err_fe_remap_missing_from_file)
         << RemappedFiles[I].first;
       delete RemappedFiles[I].second;
       continue;
@@ -186,7 +196,7 @@ ASTUnit *ASTUnit::LoadFromPCHFile(const std::string &Filename,
   llvm::OwningPtr<ExternalASTSource> Source;
 
   Reader.reset(new PCHReader(AST->getSourceManager(), AST->getFileManager(),
-                             Diags));
+                             AST->getDiagnostics()));
   Reader->setListener(new PCHInfoCollector(LangInfo, HeaderInfo, TargetTriple,
                                            Predefines, Counter));
 
@@ -196,7 +206,7 @@ ASTUnit *ASTUnit::LoadFromPCHFile(const std::string &Filename,
 
   case PCHReader::Failure:
   case PCHReader::IgnorePCH:
-    Diags.Report(diag::err_fe_unable_to_load_pch);
+    AST->getDiagnostics().Report(diag::err_fe_unable_to_load_pch);
     return NULL;
   }
 
@@ -212,8 +222,10 @@ ASTUnit *ASTUnit::LoadFromPCHFile(const std::string &Filename,
   TargetOpts.CPU = "";
   TargetOpts.Features.clear();
   TargetOpts.Triple = TargetTriple;
-  AST->Target.reset(TargetInfo::CreateTargetInfo(Diags, TargetOpts));
-  AST->PP.reset(new Preprocessor(Diags, LangInfo, *AST->Target.get(),
+  AST->Target.reset(TargetInfo::CreateTargetInfo(AST->getDiagnostics(),
+                                                 TargetOpts));
+  AST->PP.reset(new Preprocessor(AST->getDiagnostics(), LangInfo, 
+                                 *AST->Target.get(),
                                  AST->getSourceManager(), HeaderInfo));
   Preprocessor &PP = *AST->PP.get();
 
@@ -276,7 +288,7 @@ public:
 }
 
 ASTUnit *ASTUnit::LoadFromCompilerInvocation(CompilerInvocation *CI,
-                                             Diagnostic &Diags,
+                                   llvm::IntrusiveRefCntPtr<Diagnostic> Diags,
                                              bool OnlyLocalDecls,
                                              bool CaptureDiagnostics) {
   // Create the compiler instance to use for building the AST.
@@ -284,17 +296,23 @@ ASTUnit *ASTUnit::LoadFromCompilerInvocation(CompilerInvocation *CI,
   llvm::OwningPtr<ASTUnit> AST;
   llvm::OwningPtr<TopLevelDeclTrackerAction> Act;
 
+  if (!Diags.getPtr()) {
+    // No diagnostics engine was provided, so create our own diagnostics object
+    // with the default options.
+    DiagnosticOptions DiagOpts;
+    Diags = CompilerInstance::createDiagnostics(DiagOpts, 0, 0);
+  }
+  
   Clang.setInvocation(CI);
 
-  Clang.setDiagnostics(&Diags);
-  Clang.setDiagnosticClient(Diags.getClient());
+  Clang.setDiagnostics(Diags.getPtr());
+  Clang.setDiagnosticClient(Diags->getClient());
 
   // Create the target instance.
   Clang.setTarget(TargetInfo::CreateTargetInfo(Clang.getDiagnostics(),
                                                Clang.getTargetOpts()));
   if (!Clang.hasTarget()) {
     Clang.takeDiagnosticClient();
-    Clang.takeDiagnostics();
     return 0;
   }
 
@@ -310,14 +328,17 @@ ASTUnit *ASTUnit::LoadFromCompilerInvocation(CompilerInvocation *CI,
          "FIXME: AST inputs not yet supported here!");
 
   // Create the AST unit.
-  AST.reset(new ASTUnit(Diags, false));
+  AST.reset(new ASTUnit(false));
+  AST->Diagnostics = Diags;
+  AST->FileMgr.reset(new FileManager);
+  AST->SourceMgr.reset(new SourceManager(AST->getDiagnostics()));
   AST->OnlyLocalDecls = OnlyLocalDecls;
   AST->OriginalSourceFile = Clang.getFrontendOpts().Inputs[0].second;
 
   // Capture any diagnostics that would otherwise be dropped.
   CaptureDroppedDiagnostics Capture(CaptureDiagnostics, 
                                     Clang.getDiagnostics(),
-                                    AST->Diagnostics);
+                                    AST->StoredDiagnostics);
 
   // Create a file manager object to provide access to and cache the filesystem.
   Clang.setFileManager(&AST->getFileManager());
@@ -346,7 +367,6 @@ ASTUnit *ASTUnit::LoadFromCompilerInvocation(CompilerInvocation *CI,
   Act->EndSourceFile();
 
   Clang.takeDiagnosticClient();
-  Clang.takeDiagnostics();
   Clang.takeInvocation();
 
   AST->Invocation.reset(Clang.takeInvocation());
@@ -356,18 +376,24 @@ error:
   Clang.takeSourceManager();
   Clang.takeFileManager();
   Clang.takeDiagnosticClient();
-  Clang.takeDiagnostics();
   return 0;
 }
 
 ASTUnit *ASTUnit::LoadFromCommandLine(const char **ArgBegin,
                                       const char **ArgEnd,
-                                      Diagnostic &Diags,
+                                    llvm::IntrusiveRefCntPtr<Diagnostic> Diags,
                                       llvm::StringRef ResourceFilesPath,
                                       bool OnlyLocalDecls,
                                       RemappedFile *RemappedFiles,
                                       unsigned NumRemappedFiles,
                                       bool CaptureDiagnostics) {
+  if (!Diags.getPtr()) {
+    // No diagnostics engine was provided, so create our own diagnostics object
+    // with the default options.
+    DiagnosticOptions DiagOpts;
+    Diags = CompilerInstance::createDiagnostics(DiagOpts, 0, 0);
+  }
+  
   llvm::SmallVector<const char *, 16> Args;
   Args.push_back("<clang>"); // FIXME: Remove dummy argument.
   Args.insert(Args.end(), ArgBegin, ArgEnd);
@@ -378,7 +404,7 @@ ASTUnit *ASTUnit::LoadFromCommandLine(const char **ArgBegin,
 
   // FIXME: We shouldn't have to pass in the path info.
   driver::Driver TheDriver("clang", "/", llvm::sys::getHostTriple(),
-                           "a.out", false, false, Diags);
+                           "a.out", false, false, *Diags);
 
   // Don't check that inputs exist, they have been remapped.
   TheDriver.setCheckInputsExist(false);
@@ -393,13 +419,13 @@ ASTUnit *ASTUnit::LoadFromCommandLine(const char **ArgBegin,
     llvm::SmallString<256> Msg;
     llvm::raw_svector_ostream OS(Msg);
     C->PrintJob(OS, C->getJobs(), "; ", true);
-    Diags.Report(diag::err_fe_expected_compiler_job) << OS.str();
+    Diags->Report(diag::err_fe_expected_compiler_job) << OS.str();
     return 0;
   }
 
   const driver::Command *Cmd = cast<driver::Command>(*Jobs.begin());
   if (llvm::StringRef(Cmd->getCreator().getName()) != "clang") {
-    Diags.Report(diag::err_fe_expected_clang_command);
+    Diags->Report(diag::err_fe_expected_clang_command);
     return 0;
   }
 
@@ -407,7 +433,7 @@ ASTUnit *ASTUnit::LoadFromCommandLine(const char **ArgBegin,
   llvm::OwningPtr<CompilerInvocation> CI(new CompilerInvocation);
   CompilerInvocation::CreateFromArgs(*CI, (const char**) CCArgs.data(),
                                      (const char**) CCArgs.data()+CCArgs.size(),
-                                     Diags);
+                                     *Diags);
 
   // Override any files that need remapping
   for (unsigned I = 0; I != NumRemappedFiles; ++I)

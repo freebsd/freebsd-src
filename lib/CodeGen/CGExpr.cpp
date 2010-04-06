@@ -345,7 +345,7 @@ EmitScalarPrePostIncDec(const UnaryOperator *E, LValue LV,
   }
   
   // Store the updated result through the lvalue.
-  if (LV.isBitfield())
+  if (LV.isBitField())
     EmitStoreThroughBitfieldLValue(RValue::get(NextVal), LV, ValTy, &NextVal);
   else
     EmitStoreThroughLValue(RValue::get(NextVal), LV, ValTy);
@@ -429,7 +429,7 @@ LValue CodeGenFunction::EmitUnsupportedLValue(const Expr *E,
 
 LValue CodeGenFunction::EmitCheckedLValue(const Expr *E) {
   LValue LV = EmitLValue(E);
-  if (!isa<DeclRefExpr>(E) && !LV.isBitfield() && LV.isSimple())
+  if (!isa<DeclRefExpr>(E) && !LV.isBitField() && LV.isSimple())
     EmitCheck(LV.getAddress(), getContext().getTypeSize(E->getType()) / 8);
   return LV;
 }
@@ -593,7 +593,7 @@ RValue CodeGenFunction::EmitLoadOfLValue(LValue LV, QualType ExprType) {
   if (LV.isExtVectorElt())
     return EmitLoadOfExtVectorElementLValue(LV, ExprType);
 
-  if (LV.isBitfield())
+  if (LV.isBitField())
     return EmitLoadOfBitfieldLValue(LV, ExprType);
 
   if (LV.isPropertyRef())
@@ -605,9 +605,10 @@ RValue CodeGenFunction::EmitLoadOfLValue(LValue LV, QualType ExprType) {
 
 RValue CodeGenFunction::EmitLoadOfBitfieldLValue(LValue LV,
                                                  QualType ExprType) {
-  unsigned StartBit = LV.getBitfieldStartBit();
-  unsigned BitfieldSize = LV.getBitfieldSize();
-  llvm::Value *Ptr = LV.getBitfieldAddr();
+  const CGBitFieldInfo &Info = LV.getBitFieldInfo();
+  unsigned StartBit = Info.Start;
+  unsigned BitfieldSize = Info.Size;
+  llvm::Value *Ptr = LV.getBitFieldAddr();
 
   const llvm::Type *EltTy =
     cast<llvm::PointerType>(Ptr->getType())->getElementType();
@@ -650,7 +651,7 @@ RValue CodeGenFunction::EmitLoadOfBitfieldLValue(LValue LV,
   }
 
   // Sign extend if necessary.
-  if (LV.isBitfieldSigned()) {
+  if (Info.IsSigned) {
     llvm::Value *ExtraBits = llvm::ConstantInt::get(EltTy,
                                                     EltTySize - BitfieldSize);
     Val = Builder.CreateAShr(Builder.CreateShl(Val, ExtraBits),
@@ -733,7 +734,7 @@ void CodeGenFunction::EmitStoreThroughLValue(RValue Src, LValue Dst,
     if (Dst.isExtVectorElt())
       return EmitStoreThroughExtVectorComponentLValue(Src, Dst, Ty);
 
-    if (Dst.isBitfield())
+    if (Dst.isBitField())
       return EmitStoreThroughBitfieldLValue(Src, Dst, Ty);
 
     if (Dst.isPropertyRef())
@@ -781,9 +782,10 @@ void CodeGenFunction::EmitStoreThroughLValue(RValue Src, LValue Dst,
 void CodeGenFunction::EmitStoreThroughBitfieldLValue(RValue Src, LValue Dst,
                                                      QualType Ty,
                                                      llvm::Value **Result) {
-  unsigned StartBit = Dst.getBitfieldStartBit();
-  unsigned BitfieldSize = Dst.getBitfieldSize();
-  llvm::Value *Ptr = Dst.getBitfieldAddr();
+  const CGBitFieldInfo &Info = Dst.getBitFieldInfo();
+  unsigned StartBit = Info.Start;
+  unsigned BitfieldSize = Info.Size;
+  llvm::Value *Ptr = Dst.getBitFieldAddr();
 
   const llvm::Type *EltTy =
     cast<llvm::PointerType>(Ptr->getType())->getElementType();
@@ -805,7 +807,7 @@ void CodeGenFunction::EmitStoreThroughBitfieldLValue(RValue Src, LValue Dst,
                                                   "bf.reload.val");
 
     // Sign extend if necessary.
-    if (Dst.isBitfieldSigned()) {
+    if (Info.IsSigned) {
       unsigned SrcTySize = CGM.getTargetData().getTypeSizeInBits(SrcTy);
       llvm::Value *ExtraBits = llvm::ConstantInt::get(SrcTy,
                                                       SrcTySize - BitfieldSize);
@@ -1471,7 +1473,7 @@ LValue CodeGenFunction::EmitLValueForBitfield(llvm::Value* BaseValue,
                                               unsigned CVRQualifiers) {
   const CGRecordLayout &RL =
     CGM.getTypes().getCGRecordLayout(Field->getParent());
-  const CGRecordLayout::BitFieldInfo &Info = RL.getBitFieldInfo(Field);
+  const CGBitFieldInfo &Info = RL.getBitFieldInfo(Field);
 
   // FIXME: CodeGenTypes should expose a method to get the appropriate type for
   // FieldTy (the appropriate type is ABI-dependent).
@@ -1481,16 +1483,11 @@ LValue CodeGenFunction::EmitLValueForBitfield(llvm::Value* BaseValue,
   cast<llvm::PointerType>(BaseValue->getType());
   unsigned AS = BaseTy->getAddressSpace();
   BaseValue = Builder.CreateBitCast(BaseValue,
-                                    llvm::PointerType::get(FieldTy, AS),
-                                    "tmp");
+                                    llvm::PointerType::get(FieldTy, AS));
+  llvm::Value *V = Builder.CreateConstGEP1_32(BaseValue, Info.FieldNo);
 
-  llvm::Value *Idx =
-    llvm::ConstantInt::get(llvm::Type::getInt32Ty(VMContext), Info.FieldNo);
-  llvm::Value *V = Builder.CreateGEP(BaseValue, Idx, "tmp");
-
-  return LValue::MakeBitfield(V, Info.Start, Info.Size,
-                              Field->getType()->isSignedIntegerType(),
-                            Field->getType().getCVRQualifiers()|CVRQualifiers);
+  return LValue::MakeBitfield(V, Info,
+                             Field->getType().getCVRQualifiers()|CVRQualifiers);
 }
 
 LValue CodeGenFunction::EmitLValueForField(llvm::Value* BaseValue,
