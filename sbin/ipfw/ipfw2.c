@@ -1740,6 +1740,8 @@ ipfw_sysctl_handler(char *av[], int which)
 	} else if (_substrcmp(*av, "firewall") == 0) {
 		sysctlbyname("net.inet.ip.fw.enable", NULL, 0,
 		    &which, sizeof(which));
+		sysctlbyname("net.inet6.ip6.fw.enable", NULL, 0,
+		    &which, sizeof(which));
 	} else if (_substrcmp(*av, "one_pass") == 0) {
 		sysctlbyname("net.inet.ip.fw.one_pass", NULL, 0,
 		    &which, sizeof(which));
