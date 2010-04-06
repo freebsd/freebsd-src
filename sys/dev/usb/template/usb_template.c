@@ -162,15 +162,23 @@ usb_make_endpoint_desc(struct usb_temp_setup *temp,
 	const void **rd;
 	uint16_t old_size;
 	uint16_t mps;
-	uint8_t ea = 0;			/* Endpoint Address */
-	uint8_t et = 0;			/* Endpiont Type */
+	uint8_t ea;			/* Endpoint Address */
+	uint8_t et;			/* Endpiont Type */
 
 	/* Reserve memory */
 	old_size = temp->size;
-	temp->size += sizeof(*ed);
+
+	ea = (ted->bEndpointAddress & (UE_ADDR | UE_DIR_IN | UE_DIR_OUT));
+	et = (ted->bmAttributes & UE_XFERTYPE);
+
+	if (et == UE_ISOCHRONOUS) {
+		/* account for extra byte fields */
+		temp->size += sizeof(*ed) + 2;
+	} else {
+		temp->size += sizeof(*ed);
+	}
 
 	/* Scan all Raw Descriptors first */
-
 	rd = ted->ppRawDesc;
 	if (rd) {
 		while (*rd) {
@@ -192,8 +200,6 @@ usb_make_endpoint_desc(struct usb_temp_setup *temp,
 		/* escape for Zero Max Packet Size */
 		mps = 0;
 	}
-	ea = (ted->bEndpointAddress & (UE_ADDR | UE_DIR_IN | UE_DIR_OUT));
-	et = (ted->bmAttributes & UE_XFERTYPE);
 
 	/*
 	 * Fill out the real USB endpoint descriptor
@@ -201,7 +207,10 @@ usb_make_endpoint_desc(struct usb_temp_setup *temp,
 	 */
 	if (temp->buf) {
 		ed = USB_ADD_BYTES(temp->buf, old_size);
-		ed->bLength = sizeof(*ed);
+		if (et == UE_ISOCHRONOUS)
+			ed->bLength = sizeof(*ed) + 2;
+		else
+			ed->bLength = sizeof(*ed);
 		ed->bDescriptorType = UDESC_ENDPOINT;
 		ed->bEndpointAddress = ea;
 		ed->bmAttributes = ted->bmAttributes;
