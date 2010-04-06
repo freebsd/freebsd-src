@@ -91,8 +91,6 @@ SYSCTL_INT(_hw_usb_uftdi, OID_AUTO, debug, CTLFLAG_RW,
 #define	UFTDI_CONFIG_INDEX	0
 #define	UFTDI_IFACE_INDEX	0
 
-#define	UFTDI_IBUFSIZE 64		/* bytes, maximum number of bytes per
-					 * frame */
 #define	UFTDI_OBUFSIZE 64		/* bytes, cannot be increased due to
 					 * do size encoding */
 
@@ -173,7 +171,7 @@ static const struct usb_config uftdi_config[UFTDI_N_TRANSFER] = {
 		.type = UE_BULK,
 		.endpoint = UE_ADDR_ANY,
 		.direction = UE_DIR_IN,
-		.bufsize = UFTDI_IBUFSIZE,
+		.bufsize = 0,		/* use wMaxPacketSize */
 		.flags = {.pipe_bof = 1,.short_xfer_ok = 1,},
 		.callback = &uftdi_read_callback,
 	},
