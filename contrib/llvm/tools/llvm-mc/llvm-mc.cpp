@@ -18,6 +18,13 @@
 #include "llvm/MC/MCInstPrinter.h"
 #include "llvm/MC/MCSectionMachO.h"
 #include "llvm/MC/MCStreamer.h"
+#include "llvm/MC/MCParser/AsmParser.h"
+#include "llvm/Target/TargetAsmBackend.h"
+#include "llvm/Target/TargetAsmParser.h"
+#include "llvm/Target/TargetData.h"
+#include "llvm/Target/TargetRegistry.h"
+#include "llvm/Target/TargetMachine.h"  // FIXME.
+#include "llvm/Target/TargetSelect.h"
 #include "llvm/ADT/OwningPtr.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/FormattedStream.h"
@@ -28,13 +35,6 @@
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/System/Host.h"
 #include "llvm/System/Signals.h"
-#include "llvm/Target/TargetAsmBackend.h"
-#include "llvm/Target/TargetAsmParser.h"
-#include "llvm/Target/TargetData.h"
-#include "llvm/Target/TargetRegistry.h"
-#include "llvm/Target/TargetMachine.h"  // FIXME.
-#include "llvm/Target/TargetSelect.h"
-#include "llvm/MC/MCParser/AsmParser.h"
 #include "Disassembler.h"
 using namespace llvm;
 
@@ -158,7 +158,7 @@ static int AsLexInput(const char *ProgName) {
   if (!TheTarget)
     return 1;
 
-  llvm::OwningPtr<MCAsmInfo> MAI((MCAsmInfo*) TheTarget->createAsmInfo(TripleName));
+  llvm::OwningPtr<MCAsmInfo> MAI(TheTarget->createAsmInfo(TripleName));
   assert(MAI && "Unable to create target asm info!");
 
   AsmLexer Lexer(*MAI);
@@ -266,7 +266,7 @@ static int AssembleInput(const char *ProgName) {
   SrcMgr.setIncludeDirs(IncludeDirs);
   
   
-  llvm::OwningPtr<MCAsmInfo> MAI((MCAsmInfo*) TheTarget->createAsmInfo(TripleName));
+  llvm::OwningPtr<MCAsmInfo> MAI(TheTarget->createAsmInfo(TripleName));
   assert(MAI && "Unable to create target asm info!");
   
   MCContext Ctx(*MAI);
@@ -290,7 +290,7 @@ static int AssembleInput(const char *ProgName) {
 
   if (FileType == OFT_AssemblyFile) {
     MCInstPrinter *IP =
-      TheTarget->createMCInstPrinter(OutputAsmVariant, *MAI, *Out);
+      TheTarget->createMCInstPrinter(OutputAsmVariant, *MAI);
     if (ShowEncoding)
       CE.reset(TheTarget->createCodeEmitter(*TM, Ctx));
     Str.reset(createAsmStreamer(Ctx, *Out,TM->getTargetData()->isLittleEndian(),

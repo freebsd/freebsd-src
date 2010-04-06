@@ -14,19 +14,14 @@
 #ifndef CODEGEN_ASMPRINTER_DWARFDEBUG_H__
 #define CODEGEN_ASMPRINTER_DWARFDEBUG_H__
 
-#include "DIE.h"
-#include "DwarfPrinter.h"
 #include "llvm/CodeGen/AsmPrinter.h"
-#include "llvm/CodeGen/MachineLocation.h"
-#include "llvm/Analysis/DebugInfo.h"
-#include "llvm/Support/Allocator.h"
-#include "llvm/Support/raw_ostream.h"
+#include "DIE.h"
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/FoldingSet.h"
-#include "llvm/ADT/SmallSet.h"
+#include "llvm/ADT/SmallPtrSet.h"
 #include "llvm/ADT/StringMap.h"
 #include "llvm/ADT/UniqueVector.h"
-#include <string>
+#include "llvm/Support/Allocator.h"
 
 namespace llvm {
 
@@ -35,9 +30,27 @@ class DbgConcreteScope;
 class DbgScope;
 class DbgVariable;
 class MachineFrameInfo;
+class MachineLocation;
 class MachineModuleInfo;
 class MCAsmInfo;
 class Timer;
+class DIEAbbrev;
+class DIE;
+class DIEBlock;
+class DIEEntry;
+
+class DIEnumerator;
+class DIDescriptor;
+class DIVariable;
+class DIGlobal;
+class DIGlobalVariable;
+class DISubprogram;
+class DIBasicType;
+class DIDerivedType;
+class DIType;
+class DINameSpace;
+class DISubrange;
+class DICompositeType;
 
 //===----------------------------------------------------------------------===//
 /// SrcLineInfo - This class is used to record source line correspondence.
@@ -58,7 +71,13 @@ public:
   MCSymbol *getLabel() const { return Label; }
 };
 
-class DwarfDebug : public DwarfPrinter {
+class DwarfDebug {
+  /// Asm - Target of Dwarf emission.
+  AsmPrinter *Asm;
+
+  /// MMI - Collected machine module information.
+  MachineModuleInfo *MMI;
+
   //===--------------------------------------------------------------------===//
   // Attributes used to construct specific Dwarf sections.
   //
@@ -119,14 +138,6 @@ class DwarfDebug : public DwarfPrinter {
   /// SectionSourceLines - Tracks line numbers per text section.
   ///
   std::vector<std::vector<SrcLineInfo> > SectionSourceLines;
-
-  /// didInitial - Flag to indicate if initial emission has been done.
-  ///
-  bool didInitial;
-
-  /// shouldEmit - Flag to indicate if debug information should be emitted.
-  ///
-  bool shouldEmit;
 
   // CurrentFnDbgScope - Top level scope for the current function.
   //
@@ -210,6 +221,14 @@ class DwarfDebug : public DwarfPrinter {
 
   std::vector<FunctionDebugFrameInfo> DebugFrames;
 
+  // Section Symbols: these are assembler temporary labels that are emitted at
+  // the beginning of each supported dwarf section.  These are used to form
+  // section offsets and are created by EmitSectionLabels.
+  MCSymbol *DwarfFrameSectionSym, *DwarfInfoSectionSym, *DwarfAbbrevSectionSym;
+  MCSymbol *DwarfStrSectionSym, *TextSectionSym;
+  
+private:
+  
   /// getSourceDirectoryAndFileIds - Return the directory and file ids that
   /// maps to the source id. Source id starts at 1.
   std::pair<unsigned, unsigned>
@@ -273,10 +292,8 @@ class DwarfDebug : public DwarfPrinter {
 
   /// addDIEEntry - Add a DIE attribute data and value.
   ///
-  void addDIEEntry(DIE *Die, unsigned Attribute, unsigned Form, DIE *Entry) {
-    Die->addValue(Attribute, Form, createDIEEntry(Entry));
-  }
-
+  void addDIEEntry(DIE *Die, unsigned Attribute, unsigned Form, DIE *Entry);
+  
   /// addBlock - Add block data.
   ///
   void addBlock(DIE *Die, unsigned Attribute, unsigned Form, DIEBlock *Block);
@@ -396,9 +413,9 @@ class DwarfDebug : public DwarfPrinter {
   /// constructScopeDIE - Construct a DIE for this scope.
   DIE *constructScopeDIE(DbgScope *Scope);
 
-  /// emitInitial - Emit initial Dwarf declarations.  This is necessary for cc
-  /// tools to recognize the object file contains Dwarf information.
-  void emitInitial();
+  /// EmitSectionLabels - Emit initial Dwarf sections with a label at
+  /// the start of each one.
+  void EmitSectionLabels();
 
   /// emitDIE - Recusively Emits a debug information entry.
   ///
@@ -487,8 +504,8 @@ class DwarfDebug : public DwarfPrinter {
 
   /// GetOrCreateSourceID - Look up the source id with the given directory and
   /// source file names. If none currently exists, create a new id and insert it
-  /// in the SourceIds map. This can update DirectoryNames and SourceFileNames maps
-  /// as well.
+  /// in the SourceIds map. This can update DirectoryNames and SourceFileNames
+  /// maps as well.
   unsigned GetOrCreateSourceID(StringRef DirName, StringRef FileName);
 
   void constructCompileUnit(MDNode *N);
@@ -503,20 +520,42 @@ class DwarfDebug : public DwarfPrinter {
   ///
   DIType getBlockByrefType(DIType Ty, std::string Name);
 
+  /// recordSourceLine - Register a source line with debug info. Returns the
+  /// unique label that was emitted and which provides correspondence to
+  /// the source line list.
+  MCSymbol *recordSourceLine(unsigned Line, unsigned Col, MDNode *Scope);
+  
+  /// getSourceLineCount - Return the number of source lines in the debug
+  /// info.
+  unsigned getSourceLineCount() const {
+    return Lines.size();
+  }
+  
+  /// getOrCreateSourceID - Public version of GetOrCreateSourceID. This can be
+  /// timed. Look up the source id with the given directory and source file
+  /// names. If none currently exists, create a new id and insert it in the
+  /// SourceIds map. This can update DirectoryNames and SourceFileNames maps as
+  /// well.
+  unsigned getOrCreateSourceID(const std::string &DirName,
+                               const std::string &FileName);
+  
+  /// extractScopeInformation - Scan machine instructions in this function
+  /// and collect DbgScopes. Return true, if atleast one scope was found.
+  bool extractScopeInformation();
+  
+  /// collectVariableInfo - Populate DbgScope entries with variables' info.
+  void collectVariableInfo();
+  
 public:
   //===--------------------------------------------------------------------===//
   // Main entry points.
   //
-  DwarfDebug(raw_ostream &OS, AsmPrinter *A, const MCAsmInfo *T);
-  virtual ~DwarfDebug();
-
-  /// ShouldEmitDwarfDebug - Returns true if Dwarf debugging declarations should
-  /// be emitted.
-  bool ShouldEmitDwarfDebug() const { return shouldEmit; }
+  DwarfDebug(AsmPrinter *A, Module *M);
+  ~DwarfDebug();
 
   /// beginModule - Emit all Dwarf sections that should come prior to the
   /// content.
-  void beginModule(Module *M, MachineModuleInfo *MMI);
+  void beginModule(Module *M);
 
   /// endModule - Emit all Dwarf sections that should come after the content.
   ///
@@ -529,32 +568,6 @@ public:
   /// endFunction - Gather and emit post-function debug information.
   ///
   void endFunction(const MachineFunction *MF);
-
-  /// recordSourceLine - Register a source line with debug info. Returns the
-  /// unique label that was emitted and which provides correspondence to
-  /// the source line list.
-  MCSymbol *recordSourceLine(unsigned Line, unsigned Col, MDNode *Scope);
-
-  /// getSourceLineCount - Return the number of source lines in the debug
-  /// info.
-  unsigned getSourceLineCount() const {
-    return Lines.size();
-  }
-                            
-  /// getOrCreateSourceID - Public version of GetOrCreateSourceID. This can be
-  /// timed. Look up the source id with the given directory and source file
-  /// names. If none currently exists, create a new id and insert it in the
-  /// SourceIds map. This can update DirectoryNames and SourceFileNames maps as
-  /// well.
-  unsigned getOrCreateSourceID(const std::string &DirName,
-                               const std::string &FileName);
-
-  /// extractScopeInformation - Scan machine instructions in this function
-  /// and collect DbgScopes. Return true, if atleast one scope was found.
-  bool extractScopeInformation();
-
-  /// collectVariableInfo - Populate DbgScope entries with variables' info.
-  void collectVariableInfo();
 
   /// beginScope - Process beginning of a scope.
   void beginScope(const MachineInstr *MI);

@@ -47,10 +47,8 @@ namespace llvm {
   class MachineFrameInfo;
   class MachineInstr;
   class MachineJumpTableInfo;
-  class MachineModuleInfo;
   class MCContext;
   class MCExpr;
-  class DwarfWriter;
   class SDNode;
   class SDValue;
   class SelectionDAG;
@@ -1191,7 +1189,7 @@ public:
   EmitTargetCodeForMemcpy(SelectionDAG &DAG, DebugLoc dl,
                           SDValue Chain,
                           SDValue Op1, SDValue Op2,
-                          SDValue Op3, unsigned Align,
+                          SDValue Op3, unsigned Align, bool isVolatile,
                           bool AlwaysInline,
                           const Value *DstSV, uint64_t DstOff,
                           const Value *SrcSV, uint64_t SrcOff) {
@@ -1208,7 +1206,7 @@ public:
   EmitTargetCodeForMemmove(SelectionDAG &DAG, DebugLoc dl,
                            SDValue Chain,
                            SDValue Op1, SDValue Op2,
-                           SDValue Op3, unsigned Align,
+                           SDValue Op3, unsigned Align, bool isVolatile,
                            const Value *DstSV, uint64_t DstOff,
                            const Value *SrcSV, uint64_t SrcOff) {
     return SDValue();
@@ -1224,7 +1222,7 @@ public:
   EmitTargetCodeForMemset(SelectionDAG &DAG, DebugLoc dl,
                           SDValue Chain,
                           SDValue Op1, SDValue Op2,
-                          SDValue Op3, unsigned Align,
+                          SDValue Op3, unsigned Align, bool isVolatile,
                           const Value *DstSV, uint64_t DstOff) {
     return SDValue();
   }
@@ -1274,7 +1272,6 @@ public:
   /// or null if the target does not support "fast" ISel.
   virtual FastISel *
   createFastISel(MachineFunction &,
-                 MachineModuleInfo *, DwarfWriter *,
                  DenseMap<const Value *, unsigned> &,
                  DenseMap<const BasicBlock *, MachineBasicBlock *> &,
                  DenseMap<const AllocaInst *, int> &

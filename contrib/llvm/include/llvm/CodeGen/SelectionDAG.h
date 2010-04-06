@@ -29,11 +29,9 @@
 namespace llvm {
 
 class AliasAnalysis;
-class DwarfWriter;
 class FunctionLoweringInfo;
 class MachineConstantPoolValue;
 class MachineFunction;
-class MachineModuleInfo;
 class MDNode;
 class SDNodeOrdering;
 class SDDbgValue;
@@ -122,9 +120,7 @@ class SelectionDAG {
   TargetLowering &TLI;
   MachineFunction *MF;
   FunctionLoweringInfo &FLI;
-  MachineModuleInfo *MMI;
-  DwarfWriter *DW;
-  LLVMContext* Context;
+  LLVMContext *Context;
 
   /// EntryNode - The starting token.
   SDNode EntryNode;
@@ -182,7 +178,7 @@ public:
   /// init - Prepare this SelectionDAG to process code in the given
   /// MachineFunction.
   ///
-  void init(MachineFunction &mf, MachineModuleInfo *mmi, DwarfWriter *dw);
+  void init(MachineFunction &mf);
 
   /// clear - Clear state and free memory necessary to make this
   /// SelectionDAG ready to process a new block.
@@ -193,8 +189,6 @@ public:
   const TargetMachine &getTarget() const;
   TargetLowering &getTargetLoweringInfo() const { return TLI; }
   FunctionLoweringInfo &getFunctionLoweringInfo() const { return FLI; }
-  MachineModuleInfo *getMachineModuleInfo() const { return MMI; }
-  DwarfWriter *getDwarfWriter() const { return DW; }
   LLVMContext *getContext() const {return Context; }
 
   /// viewGraph - Pop up a GraphViz/gv window with the DAG rendered using 'dot'.
@@ -532,17 +526,17 @@ public:
   SDValue getStackArgumentTokenFactor(SDValue Chain);
 
   SDValue getMemcpy(SDValue Chain, DebugLoc dl, SDValue Dst, SDValue Src,
-                    SDValue Size, unsigned Align, bool AlwaysInline,
+                    SDValue Size, unsigned Align, bool isVol, bool AlwaysInline,
                     const Value *DstSV, uint64_t DstSVOff,
                     const Value *SrcSV, uint64_t SrcSVOff);
 
   SDValue getMemmove(SDValue Chain, DebugLoc dl, SDValue Dst, SDValue Src,
-                     SDValue Size, unsigned Align,
+                     SDValue Size, unsigned Align, bool isVol,
                      const Value *DstSV, uint64_t DstOSVff,
                      const Value *SrcSV, uint64_t SrcSVOff);
 
   SDValue getMemset(SDValue Chain, DebugLoc dl, SDValue Dst, SDValue Src,
-                    SDValue Size, unsigned Align,
+                    SDValue Size, unsigned Align, bool isVol,
                     const Value *DstSV, uint64_t DstSVOff);
 
   /// getSetCC - Helper function to make it easier to build SetCC's if you just

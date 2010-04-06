@@ -575,7 +575,6 @@ namespace llvm {
     /// or null if the target does not support "fast" ISel.
     virtual FastISel *
     createFastISel(MachineFunction &mf,
-                   MachineModuleInfo *mmi, DwarfWriter *dw,
                    DenseMap<const Value *, unsigned> &,
                    DenseMap<const BasicBlock *, MachineBasicBlock *> &,
                    DenseMap<const AllocaInst *, int> &
@@ -741,12 +740,13 @@ namespace llvm {
                                     SDValue Chain,
                                     SDValue Dst, SDValue Src,
                                     SDValue Size, unsigned Align,
+                                    bool isVolatile,
                                     const Value *DstSV, uint64_t DstSVOff);
     SDValue EmitTargetCodeForMemcpy(SelectionDAG &DAG, DebugLoc dl,
                                     SDValue Chain,
                                     SDValue Dst, SDValue Src,
                                     SDValue Size, unsigned Align,
-                                    bool AlwaysInline,
+                                    bool isVolatile, bool AlwaysInline,
                                     const Value *DstSV, uint64_t DstSVOff,
                                     const Value *SrcSV, uint64_t SrcSVOff);
     
@@ -756,7 +756,7 @@ namespace llvm {
     /// block, the number of args, and whether or not the second arg is
     /// in memory or not.
     MachineBasicBlock *EmitPCMP(MachineInstr *BInstr, MachineBasicBlock *BB,
-				unsigned argNum, bool inMem) const;
+                                unsigned argNum, bool inMem) const;
 
     /// Utility function to emit atomic bitwise operations (and, or, xor).
     /// It takes the bitwise instruction to expand, the associated machine basic
@@ -815,7 +815,6 @@ namespace llvm {
 
   namespace X86 {
     FastISel *createFastISel(MachineFunction &mf,
-                           MachineModuleInfo *mmi, DwarfWriter *dw,
                            DenseMap<const Value *, unsigned> &,
                            DenseMap<const BasicBlock *, MachineBasicBlock *> &,
                            DenseMap<const AllocaInst *, int> &

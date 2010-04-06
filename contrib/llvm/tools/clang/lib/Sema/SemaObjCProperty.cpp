@@ -160,7 +160,7 @@ Sema::HandlePropertyInClassExtension(Scope *S, ObjCCategoryDecl *CDecl,
                       PIDecl->getSetterName(),
                       DeclPtrTy::make(CCPrimary), isOverridingProperty,
                       MethodImplKind);
-      PIDecl = ProtocolPtrTy.getAs<ObjCPropertyDecl>();
+      PIDecl = cast<ObjCPropertyDecl>(ProtocolPtrTy.getAs<Decl>());
     }
     PIDecl->makeitReadWriteAttribute();
     if (Attributes & ObjCDeclSpec::DQ_PR_retain)
@@ -281,7 +281,8 @@ Sema::DeclPtrTy Sema::ActOnPropertyImplDecl(SourceLocation AtLoc,
                                             DeclPtrTy ClassCatImpDecl,
                                             IdentifierInfo *PropertyId,
                                             IdentifierInfo *PropertyIvar) {
-  ObjCContainerDecl *ClassImpDecl = ClassCatImpDecl.getAs<ObjCContainerDecl>();
+  ObjCContainerDecl *ClassImpDecl =
+    cast_or_null<ObjCContainerDecl>(ClassCatImpDecl.getAs<Decl>());
   // Make sure we have a context for the property implementation declaration.
   if (!ClassImpDecl) {
     Diag(AtLoc, diag::error_missing_property_context);
@@ -984,7 +985,10 @@ void Sema::CheckObjCPropertyAttributes(DeclPtrTy PropertyPtrTy,
                                        unsigned &Attributes) {
   // FIXME: Improve the reported location.
   Decl *PDecl = PropertyPtrTy.getAs<Decl>();
-  ObjCPropertyDecl *PropertyDecl = dyn_cast_or_null<ObjCPropertyDecl>(PDecl);
+  if (!PDecl)
+    return;
+
+  ObjCPropertyDecl *PropertyDecl = cast<ObjCPropertyDecl>(PDecl);
   QualType PropertyTy = PropertyDecl->getType(); 
 
   // readonly and readwrite/assign/retain/copy conflict.
