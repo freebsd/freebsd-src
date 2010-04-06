@@ -27,6 +27,29 @@ OLD_FILES+=usr/share/man/man1/gcpio.1.gz
 # 20100301: vesa and dpms promoted to be i386/amd64 common
 OLD_FILES+=usr/include/machine/pc/vesa.h
 OLD_FILES+=usr/share/man/man4/i386/dpms.4.gz
+# 20091229: remove no longer relevant examples
+OLD_FILES+=usr/share/examples/pppd/auth-down.sample
+OLD_FILES+=usr/share/examples/pppd/auth-up.sample
+OLD_FILES+=usr/share/examples/pppd/chap-secrets.sample
+OLD_FILES+=usr/share/examples/pppd/chat.sh.sample
+OLD_FILES+=usr/share/examples/pppd/ip-down.sample
+OLD_FILES+=usr/share/examples/pppd/ip-up.sample
+OLD_FILES+=usr/share/examples/pppd/options.sample
+OLD_FILES+=usr/share/examples/pppd/pap-secrets.sample
+OLD_FILES+=usr/share/examples/pppd/ppp.deny.sample
+OLD_FILES+=usr/share/examples/pppd/ppp.shells.sample
+OLD_DIRS+=usr/share/examples/pppd
+OLD_FILES+=usr/share/examples/slattach/unit-command.sh
+OLD_DIRS+=usr/share/examples/slattach
+OLD_FILES+=usr/share/examples/sliplogin/slip.hosts
+OLD_FILES+=usr/share/examples/sliplogin/slip.login
+OLD_FILES+=usr/share/examples/sliplogin/slip.logout
+OLD_FILES+=usr/share/examples/sliplogin/slip.slparms
+OLD_DIRS+=usr/share/examples/sliplogin
+OLD_FILES+=usr/share/examples/startslip/sldown.sh
+OLD_FILES+=usr/share/examples/startslip/slip.sh
+OLD_FILES+=usr/share/examples/startslip/slup.sh
+OLD_DIRS+=usr/share/examples/startslip
 # 20091218: removal of rc.early(8) link
 OLD_FILES+=usr/share/man/man8/rc.early.8.gz
 # 20091027: pselect.3 implemented as syscall

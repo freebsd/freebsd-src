@@ -1,8 +1,0 @@
-#!/bin/sh
-#
-# $FreeBSD$
-#
-# Example for /etc/ppp/ip-up file.
-
-/usr/bin/logger -p daemon.notice -t pppd "$1 is up"
-/usr/sbin/ntpdate ntpserver
