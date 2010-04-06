@@ -154,8 +154,6 @@ struct run_softc {
 	int				(*sc_srom_read)(struct run_softc *,
 					    uint16_t, uint16_t *);
 
-	const struct firmware		*fwp;
-
 	uint32_t			mac_rev;
 	uint8_t				rf_rev;
 	uint8_t				freq;
