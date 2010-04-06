@@ -489,10 +489,8 @@ static int
 db_servent(void *retval, void *mdata, va_list ap)
 {
 	char buf[BUFSIZ];
-	DBT key, data;
+	DBT key, data, *result;
 	DB *db;
-
-	char *resultbuf;
 
 	struct db_state *st;
 	int rv;
@@ -565,7 +563,7 @@ db_servent(void *retval, void *mdata, va_list ap)
 				rv = NS_NOTFOUND;
 				goto db_fin;
 			}
-			resultbuf = key.data;
+			result = &key;
 			break;
 		case nss_lt_id:
 			key.data = buf;
@@ -582,7 +580,7 @@ db_servent(void *retval, void *mdata, va_list ap)
 				rv = NS_NOTFOUND;
 				goto db_fin;
 			}
-			resultbuf = key.data;
+			result = &key;
 			break;
 		case nss_lt_all:
 			key.data = buf;
@@ -594,12 +592,12 @@ db_servent(void *retval, void *mdata, va_list ap)
 				rv = NS_NOTFOUND;
 				goto db_fin;
 			}
-			resultbuf = data.data;
+			result = &data;
 			break;
 		}
 
-		rv = parse_result(serv, buffer, bufsize, resultbuf,
-		    strlen(resultbuf), errnop);
+		rv = parse_result(serv, buffer, bufsize, result->data,
+		    result->size - 1, errnop);
 
 	} while (!(rv & NS_TERMINATE) && how == nss_lt_all);
 
