@@ -132,7 +132,10 @@ NANO_MD_BACKING="file"
 PPLEVEL=3
 
 #######################################################################
-# Not a variable at this time
+# Architecture to build.  Corresponds to TARGET_ARCH in a buildworld.
+# Unfortunately, there's no way to set TARGET at this time, and it 
+# conflates the two, so architectures where TARGET != TARGET_ARCH do
+# not work.  This defaults to the arch of the current machine.
 
 NANO_ARCH=`uname -p`
 
