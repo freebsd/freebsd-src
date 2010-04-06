@@ -40,7 +40,6 @@
 #include "llvm/CodeGen/MachineRegisterInfo.h"
 #include "llvm/CodeGen/PseudoSourceValue.h"
 #include "llvm/CodeGen/SelectionDAG.h"
-#include "llvm/CodeGen/DwarfWriter.h"
 #include "llvm/Analysis/DebugInfo.h"
 #include "llvm/Target/TargetRegisterInfo.h"
 #include "llvm/Target/TargetData.h"
@@ -3731,28 +3730,50 @@ SelectionDAGBuilder::visitIntrinsicCall(CallInst &I, unsigned Intrinsic) {
   case Intrinsic::longjmp:
     return "_longjmp"+!TLI.usesUnderscoreLongJmp();
   case Intrinsic::memcpy: {
+    // Assert for address < 256 since we support only user defined address
+    // spaces.
+    assert(cast<PointerType>(I.getOperand(1)->getType())->getAddressSpace()
+           < 256 &&
+           cast<PointerType>(I.getOperand(2)->getType())->getAddressSpace()
+           < 256 &&
+           "Unknown address space");
     SDValue Op1 = getValue(I.getOperand(1));
     SDValue Op2 = getValue(I.getOperand(2));
     SDValue Op3 = getValue(I.getOperand(3));
     unsigned Align = cast<ConstantInt>(I.getOperand(4))->getZExtValue();
-    DAG.setRoot(DAG.getMemcpy(getRoot(), dl, Op1, Op2, Op3, Align, false,
+    bool isVol = cast<ConstantInt>(I.getOperand(5))->getZExtValue();
+    DAG.setRoot(DAG.getMemcpy(getRoot(), dl, Op1, Op2, Op3, Align, isVol, false,
                               I.getOperand(1), 0, I.getOperand(2), 0));
     return 0;
   }
   case Intrinsic::memset: {
+    // Assert for address < 256 since we support only user defined address
+    // spaces.
+    assert(cast<PointerType>(I.getOperand(1)->getType())->getAddressSpace()
+           < 256 &&
+           "Unknown address space");
     SDValue Op1 = getValue(I.getOperand(1));
     SDValue Op2 = getValue(I.getOperand(2));
     SDValue Op3 = getValue(I.getOperand(3));
     unsigned Align = cast<ConstantInt>(I.getOperand(4))->getZExtValue();
-    DAG.setRoot(DAG.getMemset(getRoot(), dl, Op1, Op2, Op3, Align,
+    bool isVol = cast<ConstantInt>(I.getOperand(5))->getZExtValue();
+    DAG.setRoot(DAG.getMemset(getRoot(), dl, Op1, Op2, Op3, Align, isVol,
                               I.getOperand(1), 0));
     return 0;
   }
   case Intrinsic::memmove: {
+    // Assert for address < 256 since we support only user defined address
+    // spaces.
+    assert(cast<PointerType>(I.getOperand(1)->getType())->getAddressSpace()
+           < 256 &&
+           cast<PointerType>(I.getOperand(2)->getType())->getAddressSpace()
+           < 256 &&
+           "Unknown address space");
     SDValue Op1 = getValue(I.getOperand(1));
     SDValue Op2 = getValue(I.getOperand(2));
     SDValue Op3 = getValue(I.getOperand(3));
     unsigned Align = cast<ConstantInt>(I.getOperand(4))->getZExtValue();
+    bool isVol = cast<ConstantInt>(I.getOperand(5))->getZExtValue();
 
     // If the source and destination are known to not be aliases, we can
     // lower memmove as memcpy.
@@ -3761,12 +3782,12 @@ SelectionDAGBuilder::visitIntrinsicCall(CallInst &I, unsigned Intrinsic) {
       Size = C->getZExtValue();
     if (AA->alias(I.getOperand(1), Size, I.getOperand(2), Size) ==
         AliasAnalysis::NoAlias) {
-      DAG.setRoot(DAG.getMemcpy(getRoot(), dl, Op1, Op2, Op3, Align, false,
-                                I.getOperand(1), 0, I.getOperand(2), 0));
+      DAG.setRoot(DAG.getMemcpy(getRoot(), dl, Op1, Op2, Op3, Align, isVol, 
+                                false, I.getOperand(1), 0, I.getOperand(2), 0));
       return 0;
     }
 
-    DAG.setRoot(DAG.getMemmove(getRoot(), dl, Op1, Op2, Op3, Align,
+    DAG.setRoot(DAG.getMemmove(getRoot(), dl, Op1, Op2, Op3, Align, isVol,
                                I.getOperand(1), 0, I.getOperand(2), 0));
     return 0;
   }
@@ -3775,9 +3796,6 @@ SelectionDAGBuilder::visitIntrinsicCall(CallInst &I, unsigned Intrinsic) {
     // The real handling of this intrinsic is in FastISel.
     if (OptLevel != CodeGenOpt::None)
       // FIXME: Variable debug info is not supported here.
-      return 0;
-    DwarfWriter *DW = DAG.getDwarfWriter();
-    if (!DW)
       return 0;
     DbgDeclareInst &DI = cast<DbgDeclareInst>(I);
     if (!DIDescriptor::ValidDebugInfo(DI.getVariable(), CodeGenOpt::None))
@@ -3799,15 +3817,12 @@ SelectionDAGBuilder::visitIntrinsicCall(CallInst &I, unsigned Intrinsic) {
       return 0; // VLAs.
     int FI = SI->second;
 
-    if (MachineModuleInfo *MMI = DAG.getMachineModuleInfo())
-      if (!DI.getDebugLoc().isUnknown())
-        MMI->setVariableDbgInfo(Variable, FI, DI.getDebugLoc());
+    MachineModuleInfo &MMI = DAG.getMachineFunction().getMMI();
+    if (!DI.getDebugLoc().isUnknown() && MMI.hasDebugInfo())
+      MMI.setVariableDbgInfo(Variable, FI, DI.getDebugLoc());
     return 0;
   }
   case Intrinsic::dbg_value: {
-    DwarfWriter *DW = DAG.getDwarfWriter();
-    if (!DW)
-      return 0;
     DbgValueInst &DI = cast<DbgValueInst>(I);
     if (!DIDescriptor::ValidDebugInfo(DI.getVariable(), CodeGenOpt::None))
       return 0;
@@ -3852,9 +3867,9 @@ SelectionDAGBuilder::visitIntrinsicCall(CallInst &I, unsigned Intrinsic) {
       return 0; // VLAs.
     int FI = SI->second;
     
-    if (MachineModuleInfo *MMI = DAG.getMachineModuleInfo())
-      if (!DI.getDebugLoc().isUnknown())
-        MMI->setVariableDbgInfo(Variable, FI, DI.getDebugLoc());
+    MachineModuleInfo &MMI = DAG.getMachineFunction().getMMI();
+    if (!DI.getDebugLoc().isUnknown() && MMI.hasDebugInfo())
+      MMI.setVariableDbgInfo(Variable, FI, DI.getDebugLoc());
     return 0;
   }
   case Intrinsic::eh_exception: {
@@ -3870,10 +3885,9 @@ SelectionDAGBuilder::visitIntrinsicCall(CallInst &I, unsigned Intrinsic) {
   }
 
   case Intrinsic::eh_selector: {
-    MachineModuleInfo *MMI = DAG.getMachineModuleInfo();
-
+    MachineModuleInfo &MMI = DAG.getMachineFunction().getMMI();
     if (CurMBB->isLandingPad())
-      AddCatchInfo(I, MMI, CurMBB);
+      AddCatchInfo(I, &MMI, CurMBB);
     else {
 #ifndef NDEBUG
       FuncInfo.CatchInfoLost.insert(&I);
@@ -3895,40 +3909,25 @@ SelectionDAGBuilder::visitIntrinsicCall(CallInst &I, unsigned Intrinsic) {
   }
 
   case Intrinsic::eh_typeid_for: {
-    MachineModuleInfo *MMI = DAG.getMachineModuleInfo();
-
-    if (MMI) {
-      // Find the type id for the given typeinfo.
-      GlobalVariable *GV = ExtractTypeInfo(I.getOperand(1));
-      unsigned TypeID = MMI->getTypeIDFor(GV);
-      Res = DAG.getConstant(TypeID, MVT::i32);
-    } else {
-      // Return something different to eh_selector.
-      Res = DAG.getConstant(1, MVT::i32);
-    }
-
+    // Find the type id for the given typeinfo.
+    GlobalVariable *GV = ExtractTypeInfo(I.getOperand(1));
+    unsigned TypeID = DAG.getMachineFunction().getMMI().getTypeIDFor(GV);
+    Res = DAG.getConstant(TypeID, MVT::i32);
     setValue(&I, Res);
     return 0;
   }
 
   case Intrinsic::eh_return_i32:
   case Intrinsic::eh_return_i64:
-    if (MachineModuleInfo *MMI = DAG.getMachineModuleInfo()) {
-      MMI->setCallsEHReturn(true);
-      DAG.setRoot(DAG.getNode(ISD::EH_RETURN, dl,
-                              MVT::Other,
-                              getControlRoot(),
-                              getValue(I.getOperand(1)),
-                              getValue(I.getOperand(2))));
-    } else {
-      setValue(&I, DAG.getConstant(0, TLI.getPointerTy()));
-    }
-
+    DAG.getMachineFunction().getMMI().setCallsEHReturn(true);
+    DAG.setRoot(DAG.getNode(ISD::EH_RETURN, dl,
+                            MVT::Other,
+                            getControlRoot(),
+                            getValue(I.getOperand(1)),
+                            getValue(I.getOperand(2))));
     return 0;
   case Intrinsic::eh_unwind_init:
-    if (MachineModuleInfo *MMI = DAG.getMachineModuleInfo()) {
-      MMI->setCallsUnwindInit(true);
-    }
+    DAG.getMachineFunction().getMMI().setCallsUnwindInit(true);
     return 0;
   case Intrinsic::eh_dwarf_cfa: {
     EVT VT = getValue(I.getOperand(1)).getValueType();
@@ -3947,12 +3946,12 @@ SelectionDAGBuilder::visitIntrinsicCall(CallInst &I, unsigned Intrinsic) {
     return 0;
   }
   case Intrinsic::eh_sjlj_callsite: {
-    MachineModuleInfo *MMI = DAG.getMachineModuleInfo();
+    MachineModuleInfo &MMI = DAG.getMachineFunction().getMMI();
     ConstantInt *CI = dyn_cast<ConstantInt>(I.getOperand(1));
     assert(CI && "Non-constant call site value in eh.sjlj.callsite!");
-    assert(MMI->getCurrentCallSite() == 0 && "Overlapping call sites!");
+    assert(MMI.getCurrentCallSite() == 0 && "Overlapping call sites!");
 
-    MMI->setCurrentCallSite(CI->getZExtValue());
+    MMI.setCurrentCallSite(CI->getZExtValue());
     return 0;
   }
 
@@ -4337,7 +4336,7 @@ void SelectionDAGBuilder::LowerCallTo(CallSite CS, SDValue Callee,
   const PointerType *PT = cast<PointerType>(CS.getCalledValue()->getType());
   const FunctionType *FTy = cast<FunctionType>(PT->getElementType());
   const Type *RetTy = FTy->getReturnType();
-  MachineModuleInfo *MMI = DAG.getMachineModuleInfo();
+  MachineModuleInfo &MMI = DAG.getMachineFunction().getMMI();
   MCSymbol *BeginLabel = 0;
 
   TargetLowering::ArgListTy Args;
@@ -4395,18 +4394,18 @@ void SelectionDAGBuilder::LowerCallTo(CallSite CS, SDValue Callee,
     Args.push_back(Entry);
   }
 
-  if (LandingPad && MMI) {
+  if (LandingPad) {
     // Insert a label before the invoke call to mark the try range.  This can be
     // used to detect deletion of the invoke via the MachineModuleInfo.
-    BeginLabel = MMI->getContext().CreateTempSymbol();
+    BeginLabel = MMI.getContext().CreateTempSymbol();
 
     // For SjLj, keep track of which landing pads go with which invokes
     // so as to maintain the ordering of pads in the LSDA.
-    unsigned CallSiteIndex = MMI->getCurrentCallSite();
+    unsigned CallSiteIndex = MMI.getCurrentCallSite();
     if (CallSiteIndex) {
-      MMI->setCallSiteBeginLabel(BeginLabel, CallSiteIndex);
+      MMI.setCallSiteBeginLabel(BeginLabel, CallSiteIndex);
       // Now that the call site is handled, stop tracking it.
-      MMI->setCurrentCallSite(0);
+      MMI.setCurrentCallSite(0);
     }
 
     // Both PendingLoads and PendingExports must be flushed here;
@@ -4497,14 +4496,14 @@ void SelectionDAGBuilder::LowerCallTo(CallSite CS, SDValue Callee,
   else
     HasTailCall = true;
 
-  if (LandingPad && MMI) {
+  if (LandingPad) {
     // Insert a label at the end of the invoke call to mark the try range.  This
     // can be used to detect deletion of the invoke via the MachineModuleInfo.
-    MCSymbol *EndLabel = MMI->getContext().CreateTempSymbol();
+    MCSymbol *EndLabel = MMI.getContext().CreateTempSymbol();
     DAG.setRoot(DAG.getEHLabel(getCurDebugLoc(), getRoot(), EndLabel));
 
     // Inform MachineModuleInfo of range.
-    MMI->addInvoke(LandingPad, BeginLabel, EndLabel);
+    MMI.addInvoke(LandingPad, BeginLabel, EndLabel);
   }
 }
 

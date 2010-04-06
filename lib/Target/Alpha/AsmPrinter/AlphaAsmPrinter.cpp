@@ -20,7 +20,6 @@
 #include "llvm/Type.h"
 #include "llvm/Assembly/Writer.h"
 #include "llvm/CodeGen/AsmPrinter.h"
-#include "llvm/CodeGen/DwarfWriter.h"
 #include "llvm/MC/MCStreamer.h"
 #include "llvm/MC/MCAsmInfo.h"
 #include "llvm/MC/MCSymbol.h"
@@ -28,8 +27,8 @@
 #include "llvm/Target/TargetLoweringObjectFile.h"
 #include "llvm/Target/TargetMachine.h"
 #include "llvm/Target/TargetRegistry.h"
-#include "llvm/Support/ErrorHandling.h"
-#include "llvm/Support/FormattedStream.h"
+#include "llvm/ADT/SmallString.h"
+#include "llvm/Support/raw_ostream.h"
 using namespace llvm;
 
 namespace {
@@ -37,40 +36,42 @@ namespace {
     /// Unique incrementer for label values for referencing Global values.
     ///
 
-    explicit AlphaAsmPrinter(formatted_raw_ostream &o, TargetMachine &tm,
-                             MCStreamer &Streamer)
-      : AsmPrinter(o, tm, Streamer) {}
+    explicit AlphaAsmPrinter(TargetMachine &tm, MCStreamer &Streamer)
+      : AsmPrinter(tm, Streamer) {}
 
     virtual const char *getPassName() const {
       return "Alpha Assembly Printer";
     }
-    void printInstruction(const MachineInstr *MI);
+    void printInstruction(const MachineInstr *MI, raw_ostream &O);
     void EmitInstruction(const MachineInstr *MI) {
-      printInstruction(MI);
-      OutStreamer.AddBlankLine();
+      SmallString<128> Str;
+      raw_svector_ostream OS(Str);
+      printInstruction(MI, OS);
+      OutStreamer.EmitRawText(OS.str());
     }
     static const char *getRegisterName(unsigned RegNo);
 
-    void printOp(const MachineOperand &MO, bool IsCallOp = false);
-    void printOperand(const MachineInstr *MI, int opNum);
-    void printBaseOffsetPair(const MachineInstr *MI, int i, bool brackets=true);
+    void printOp(const MachineOperand &MO, raw_ostream &O);
+    void printOperand(const MachineInstr *MI, int opNum, raw_ostream &O);
+    void printBaseOffsetPair(const MachineInstr *MI, int i, raw_ostream &O,
+                             bool brackets=true);
     virtual void EmitFunctionBodyStart();
     virtual void EmitFunctionBodyEnd(); 
     void EmitStartOfAsmFile(Module &M);
 
     bool PrintAsmOperand(const MachineInstr *MI, unsigned OpNo,
-                         unsigned AsmVariant, const char *ExtraCode);
+                         unsigned AsmVariant, const char *ExtraCode,
+                         raw_ostream &O);
     bool PrintAsmMemoryOperand(const MachineInstr *MI,
-                               unsigned OpNo,
-                               unsigned AsmVariant,
-                               const char *ExtraCode);
+                               unsigned OpNo, unsigned AsmVariant,
+                               const char *ExtraCode, raw_ostream &O);
   };
 } // end of anonymous namespace
 
 #include "AlphaGenAsmWriter.inc"
 
-void AlphaAsmPrinter::printOperand(const MachineInstr *MI, int opNum)
-{
+void AlphaAsmPrinter::printOperand(const MachineInstr *MI, int opNum,
+                                   raw_ostream &O) {
   const MachineOperand &MO = MI->getOperand(opNum);
   if (MO.getType() == MachineOperand::MO_Register) {
     assert(TargetRegisterInfo::isPhysicalRegister(MO.getReg()) &&
@@ -80,12 +81,12 @@ void AlphaAsmPrinter::printOperand(const MachineInstr *MI, int opNum)
     O << MO.getImm();
     assert(MO.getImm() < (1 << 30));
   } else {
-    printOp(MO);
+    printOp(MO, O);
   }
 }
 
 
-void AlphaAsmPrinter::printOp(const MachineOperand &MO, bool IsCallOp) {
+void AlphaAsmPrinter::printOp(const MachineOperand &MO, raw_ostream &O) {
   switch (MO.getType()) {
   case MachineOperand::MO_Register:
     O << getRegisterName(MO.getReg());
@@ -126,40 +127,37 @@ void AlphaAsmPrinter::printOp(const MachineOperand &MO, bool IsCallOp) {
 /// EmitFunctionBodyStart - Targets can override this to emit stuff before
 /// the first basic block in the function.
 void AlphaAsmPrinter::EmitFunctionBodyStart() {
-  O << "\t.ent " << *CurrentFnSym << "\n";
+  OutStreamer.EmitRawText("\t.ent " + Twine(CurrentFnSym->getName()));
 }
 
 /// EmitFunctionBodyEnd - Targets can override this to emit stuff after
 /// the last basic block in the function.
 void AlphaAsmPrinter::EmitFunctionBodyEnd() {
-  O << "\t.end " << *CurrentFnSym << "\n";
+  OutStreamer.EmitRawText("\t.end " + Twine(CurrentFnSym->getName()));
 }
 
 void AlphaAsmPrinter::EmitStartOfAsmFile(Module &M) {
-  if (TM.getSubtarget<AlphaSubtarget>().hasCT())
-    O << "\t.arch ev6\n"; //This might need to be ev67, so leave this test here
-  else
-    O << "\t.arch ev6\n";
-  O << "\t.set noat\n";
+  OutStreamer.EmitRawText(StringRef("\t.arch ev6"));
+  OutStreamer.EmitRawText(StringRef("\t.set noat"));
 }
 
 /// PrintAsmOperand - Print out an operand for an inline asm expression.
 ///
 bool AlphaAsmPrinter::PrintAsmOperand(const MachineInstr *MI, unsigned OpNo,
                                       unsigned AsmVariant,
-                                      const char *ExtraCode) {
-  printOperand(MI, OpNo);
+                                      const char *ExtraCode, raw_ostream &O) {
+  printOperand(MI, OpNo, O);
   return false;
 }
 
 bool AlphaAsmPrinter::PrintAsmMemoryOperand(const MachineInstr *MI,
-                                            unsigned OpNo,
-                                            unsigned AsmVariant,
-                                            const char *ExtraCode) {
+                                            unsigned OpNo, unsigned AsmVariant,
+                                            const char *ExtraCode,
+                                            raw_ostream &O) {
   if (ExtraCode && ExtraCode[0])
     return true; // Unknown modifier.
   O << "0(";
-  printOperand(MI, OpNo);
+  printOperand(MI, OpNo, O);
   O << ")";
   return false;
 }

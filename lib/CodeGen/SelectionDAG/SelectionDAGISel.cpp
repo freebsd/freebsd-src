@@ -41,7 +41,6 @@
 #include "llvm/CodeGen/ScheduleHazardRecognizer.h"
 #include "llvm/CodeGen/SchedulerRegistry.h"
 #include "llvm/CodeGen/SelectionDAG.h"
-#include "llvm/CodeGen/DwarfWriter.h"
 #include "llvm/Target/TargetRegisterInfo.h"
 #include "llvm/Target/TargetData.h"
 #include "llvm/Target/TargetFrameInfo.h"
@@ -303,8 +302,6 @@ void SelectionDAGISel::getAnalysisUsage(AnalysisUsage &AU) const {
   AU.addPreserved<AliasAnalysis>();
   AU.addRequired<GCModuleInfo>();
   AU.addPreserved<GCModuleInfo>();
-  AU.addRequired<DwarfWriter>();
-  AU.addPreserved<DwarfWriter>();
   MachineFunctionPass::getAnalysisUsage(AU);
 }
 
@@ -331,9 +328,7 @@ bool SelectionDAGISel::runOnMachineFunction(MachineFunction &mf) {
   RegInfo = &MF->getRegInfo();
   DEBUG(dbgs() << "\n\n\n=== " << Fn.getName() << "\n");
 
-  MachineModuleInfo *MMI = getAnalysisIfAvailable<MachineModuleInfo>();
-  DwarfWriter *DW = getAnalysisIfAvailable<DwarfWriter>();
-  CurDAG->init(*MF, MMI, DW);
+  CurDAG->init(*MF);
   FuncInfo->set(Fn, *MF, EnableFastISel);
   SDB->init(GFI, *AA);
 
@@ -342,7 +337,7 @@ bool SelectionDAGISel::runOnMachineFunction(MachineFunction &mf) {
       // Mark landing pad.
       FuncInfo->MBBMap[Invoke->getSuccessor(1)]->setIsLandingPad();
 
-  SelectAllBasicBlocks(Fn, *MF, MMI, DW, TII);
+  SelectAllBasicBlocks(Fn, *MF, TII);
 
   // If the first basic block in the function has live ins that need to be
   // copied into vregs, emit the copies into the top of the block before
@@ -844,15 +839,11 @@ void SelectionDAGISel::DoInstructionSelection() {
 
 void SelectionDAGISel::SelectAllBasicBlocks(Function &Fn,
                                             MachineFunction &MF,
-                                            MachineModuleInfo *MMI,
-                                            DwarfWriter *DW,
                                             const TargetInstrInfo &TII) {
   // Initialize the Fast-ISel state, if needed.
   FastISel *FastIS = 0;
   if (EnableFastISel)
-    FastIS = TLI.createFastISel(MF, MMI, DW,
-                                FuncInfo->ValueMap,
-                                FuncInfo->MBBMap,
+    FastIS = TLI.createFastISel(MF, FuncInfo->ValueMap, FuncInfo->MBBMap,
                                 FuncInfo->StaticAllocaMap
 #ifndef NDEBUG
                                 , FuncInfo->CatchInfoLost
@@ -888,10 +879,10 @@ void SelectionDAGISel::SelectAllBasicBlocks(Function &Fn,
       }
     }
 
-    if (MMI && BB->isLandingPad()) {
+    if (BB->isLandingPad()) {
       // Add a label to mark the beginning of the landing pad.  Deletion of the
       // landing pad can thus be detected via the MachineModuleInfo.
-      MCSymbol *Label = MMI->addLandingPad(BB);
+      MCSymbol *Label = MF.getMMI().addLandingPad(BB);
 
       const TargetInstrDesc &II = TII.get(TargetOpcode::EH_LABEL);
       BuildMI(BB, SDB->getCurDebugLoc(), II).addSym(Label);
@@ -925,7 +916,7 @@ void SelectionDAGISel::SelectAllBasicBlocks(Function &Fn,
 
         if (I == E)
           // No catch info found - try to extract some from the successor.
-          CopyCatchInfo(Br->getSuccessor(0), LLVMBB, MMI, *FuncInfo);
+          CopyCatchInfo(Br->getSuccessor(0), LLVMBB, &MF.getMMI(), *FuncInfo);
       }
     }
 

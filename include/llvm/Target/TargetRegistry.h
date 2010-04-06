@@ -38,7 +38,6 @@ namespace llvm {
   class TargetAsmLexer;
   class TargetAsmParser;
   class TargetMachine;
-  class formatted_raw_ostream;
   class raw_ostream;
 
   /// Target - Wrapper for Target specific information.
@@ -60,8 +59,7 @@ namespace llvm {
     typedef TargetMachine *(*TargetMachineCtorTy)(const Target &T,
                                                   const std::string &TT,
                                                   const std::string &Features);
-    typedef AsmPrinter *(*AsmPrinterCtorTy)(formatted_raw_ostream &OS,
-                                            TargetMachine &TM,
+    typedef AsmPrinter *(*AsmPrinterCtorTy)(TargetMachine &TM,
                                             MCStreamer &Streamer);
     typedef TargetAsmBackend *(*AsmBackendCtorTy)(const Target &T,
                                                   const std::string &TT);
@@ -71,8 +69,7 @@ namespace llvm {
     typedef MCDisassembler *(*MCDisassemblerCtorTy)(const Target &T);
     typedef MCInstPrinter *(*MCInstPrinterCtorTy)(const Target &T,
                                                   unsigned SyntaxVariant,
-                                                  const MCAsmInfo &MAI,
-                                                  raw_ostream &O);
+                                                  const MCAsmInfo &MAI);
     typedef MCCodeEmitter *(*CodeEmitterCtorTy)(const Target &T,
                                                 TargetMachine &TM,
                                                 MCContext &Ctx);
@@ -234,11 +231,10 @@ namespace llvm {
 
     /// createAsmPrinter - Create a target specific assembly printer pass.  This
     /// takes ownership of the MCStreamer object.
-    AsmPrinter *createAsmPrinter(formatted_raw_ostream &OS, TargetMachine &TM,
-                                 MCStreamer &Streamer) const {
+    AsmPrinter *createAsmPrinter(TargetMachine &TM, MCStreamer &Streamer) const{
       if (!AsmPrinterCtorFn)
         return 0;
-      return AsmPrinterCtorFn(OS, TM, Streamer);
+      return AsmPrinterCtorFn(TM, Streamer);
     }
 
     MCDisassembler *createMCDisassembler() const {
@@ -248,11 +244,10 @@ namespace llvm {
     }
 
     MCInstPrinter *createMCInstPrinter(unsigned SyntaxVariant,
-                                       const MCAsmInfo &MAI,
-                                       raw_ostream &O) const {
+                                       const MCAsmInfo &MAI) const {
       if (!MCInstPrinterCtorFn)
         return 0;
-      return MCInstPrinterCtorFn(*this, SyntaxVariant, MAI, O);
+      return MCInstPrinterCtorFn(*this, SyntaxVariant, MAI);
     }
 
 
@@ -646,9 +641,8 @@ namespace llvm {
     }
 
   private:
-    static AsmPrinter *Allocator(formatted_raw_ostream &OS, TargetMachine &TM,
-                                 MCStreamer &Streamer) {
-      return new AsmPrinterImpl(OS, TM, Streamer);
+    static AsmPrinter *Allocator(TargetMachine &TM, MCStreamer &Streamer) {
+      return new AsmPrinterImpl(TM, Streamer);
     }
   };
 
