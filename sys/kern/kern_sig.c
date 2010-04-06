@@ -2809,6 +2809,7 @@ killproc(p, why)
 		p, p->p_pid, p->p_comm);
 	log(LOG_ERR, "pid %d (%s), uid %d, was killed: %s\n", p->p_pid, p->p_comm,
 		p->p_ucred ? p->p_ucred->cr_uid : -1, why);
+	p->p_flag |= P_WKILLED;
 	psignal(p, SIGKILL);
 }
 
