@@ -535,8 +535,8 @@ run_attach(device_t self)
 		run_delay(sc, 10);
 	}
 	if (ntries == 100) {
-		printf("%s: timeout waiting for NIC to initialize\n",
-		    device_get_nameunit(sc->sc_dev));
+		device_printf(sc->sc_dev,
+		    "timeout waiting for NIC to initialize\n");
 		RUN_UNLOCK(sc);
 		goto detach;
 	}
@@ -544,14 +544,13 @@ run_attach(device_t self)
 	/* retrieve RF rev. no and various other things from EEPROM */
 	run_read_eeprom(sc);
 
-	printf("%s: MAC/BBP RT%04X (rev 0x%04X), RF %s (MIMO %dT%dR), "
-	    "address %s\n", device_get_nameunit(sc->sc_dev), sc->mac_rev >> 16,
-	    sc->mac_rev & 0xffff, run_get_rf(sc->rf_rev), sc->ntxchains,
-	    sc->nrxchains, ether_sprintf(sc->sc_bssid));
+	device_printf(sc->sc_dev,
+	    "MAC/BBP RT%04X (rev 0x%04X), RF %s (MIMO %dT%dR), address %s\n",
+	    sc->mac_rev >> 16, sc->mac_rev & 0xffff, run_get_rf(sc->rf_rev),
+	    sc->ntxchains, sc->nrxchains, ether_sprintf(sc->sc_bssid));
 
 	if ((error = run_load_microcode(sc)) != 0) {
-		printf("%s: could not load 8051 microcode\n",
-		    device_get_nameunit(sc->sc_dev));
+		device_printf(sc->sc_dev, "could not load 8051 microcode\n");
 		RUN_UNLOCK(sc);
 		goto detach;
 	}
@@ -560,8 +559,7 @@ run_attach(device_t self)
 
 	ifp = sc->sc_ifp = if_alloc(IFT_IEEE80211);
 	if(ifp == NULL){
-		printf("%s: can not if_alloc()\n",
-		    device_get_nameunit(sc->sc_dev));
+		device_printf(sc->sc_dev, "can not if_alloc()\n");
 		goto detach;
 	}
 	ic = ifp->if_l2com;
@@ -812,14 +810,14 @@ run_load_microcode(struct run_softc *sc)
 
 	fw = firmware_get("runfw");
 	if(fw == NULL){
-		printf("%s: failed loadfirmware of file %s (error %d)\n",
-		    device_get_nameunit(sc->sc_dev), "runfw", ENOENT);
+		device_printf(sc->sc_dev,
+		    "failed loadfirmware of file %s\n", "runfw");
 		return ENOENT;
 	}
 
 	if (fw->datasize != 8192) {
-		printf("%s: invalid firmware size (should be 8KB)\n",
-		    device_get_nameunit(sc->sc_dev));
+		device_printf(sc->sc_dev,
+		    "invalid firmware size (should be 8KB)\n");
 		error = EINVAL;
 		goto fail;
 	}
@@ -836,18 +834,15 @@ run_load_microcode(struct run_softc *sc)
 	    (sc->mac_rev >> 16) != 0x3070 &&
 	    (sc->mac_rev >> 16) != 0x3572){
 		base += 4096;
-		printf("%s: You are using firmware RT3071.\n",
-		    device_get_nameunit(sc->sc_dev));
+		device_printf(sc->sc_dev, "loading RT3071 firmware\n");
 	} else
-		printf("%s: You are using firmware RT2870.\n",
-		    device_get_nameunit(sc->sc_dev));
+		device_printf(sc->sc_dev, "loading RT2870 firmware\n");
 
 	/* cheap sanity check */
 	temp = fw->data;
 	bytes = *temp;
 	if(bytes != be64toh(0xffffff0210280210)) {
-		printf("%s: firmware checksum failed\n",
-		    device_get_nameunit(sc->sc_dev));
+		device_printf(sc->sc_dev, "firmware checksum failed\n");
 		error = EINVAL;
 		goto fail;
 	}
@@ -864,8 +859,7 @@ run_load_microcode(struct run_softc *sc)
 	USETW(req.wIndex, 0);
 	USETW(req.wLength, 0);
 	if ((error = usbd_do_request(sc->sc_udev, &sc->sc_mtx, &req, NULL)) != 0) {
-		printf("%s: firmware reset failed\n",
-		    device_get_nameunit(sc->sc_dev));
+		device_printf(sc->sc_dev, "firmware reset failed\n");
 		goto fail;
 	}
 
@@ -885,8 +879,8 @@ run_load_microcode(struct run_softc *sc)
 		run_delay(sc, 10);
 	}
 	if (ntries == 1000) {
-		printf("%s: timeout waiting for MCU to initialize\n",
-		    device_get_nameunit(sc->sc_dev));
+		device_printf(sc->sc_dev,
+		    "timeout waiting for MCU to initialize\n");
 		error = ETIMEDOUT;
 		goto fail;
 	}
@@ -3892,8 +3886,7 @@ run_init_locked(struct run_softc *sc)
 		run_delay(sc, 10);
 	}
 	if (ntries == 100) {
-		printf("%s: timeout waiting for DMA engine\n",
-		    device_get_nameunit(sc->sc_dev));
+		device_printf(sc->sc_dev, "timeout waiting for DMA engine\n");
 		goto fail;
 	}
 	tmp &= 0xff0;
@@ -3909,8 +3902,7 @@ run_init_locked(struct run_softc *sc)
 	run_write(sc, RT2860_USB_DMA_CFG, 0);
 
 	if (run_reset(sc) != 0) {
-		printf("%s: could not reset chipset\n",
-		    device_get_nameunit(sc->sc_dev));
+		device_printf(sc->sc_dev, "could not reset chipset\n");
 		goto fail;
 	}
 
@@ -3954,8 +3946,7 @@ run_init_locked(struct run_softc *sc)
 	run_delay(sc, 10);
 
 	if (run_bbp_init(sc) != 0) {
-		printf("%s: could not initialize BBP\n",
-		    device_get_nameunit(sc->sc_dev));
+		device_printf(sc->sc_dev, "could not initialize BBP\n");
 		goto fail;
 	}
 
