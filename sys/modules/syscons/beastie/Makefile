@@ -2,7 +2,7 @@
 
 .PATH:	${.CURDIR}/../../../dev/syscons/logo
 
-KMOD=	logo_saver
-SRCS=	logo_saver.c logo.c
+KMOD=	beastie_saver
+SRCS=	beastie.c logo_saver.c
 
 .include <bsd.kmod.mk>
