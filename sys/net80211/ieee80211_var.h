@@ -436,6 +436,9 @@ struct ieee80211vap {
 	const struct ieee80211_aclator *iv_acl;	/* acl glue */
 	void			*iv_as;		/* private aclator state */
 
+	const struct ieee80211_ratectl *iv_rate;
+	void			*iv_rs;		/* private ratectl state */
+
 	struct ieee80211_tdma_state *iv_tdma;	/* tdma state */
 	struct ieee80211_mesh_state *iv_mesh;	/* MBSS state */
 	struct ieee80211_hwmp_state *iv_hwmp;	/* HWMP state */
@@ -471,7 +474,7 @@ struct ieee80211vap {
 	/* 802.3 output method for raw frame xmit */
 	int			(*iv_output)(struct ifnet *, struct mbuf *,
 				    struct sockaddr *, struct route *);
-	uint64_t		iv_spare[8];
+	uint64_t		iv_spare[6];
 };
 MALLOC_DECLARE(M_80211_VAP);
 
