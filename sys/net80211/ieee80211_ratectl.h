@@ -94,7 +94,7 @@ ieee80211_ratectl_rate(struct ieee80211_node *ni, void *arg, uint32_t iarg)
 	const struct ieee80211vap *vap = ni->ni_vap;
 
 	if (ni->ni_rctls == NULL)	/* ratectl not setup */
-		return;
+		return 0;
 	return vap->iv_rate->ir_rate(ni, arg, iarg);
 }
 
