@@ -218,7 +218,8 @@ struct ieee80211_node {
 	struct ieee80211_nodestats ni_stats;	/* per-node statistics */
 
 	struct ieee80211vap	*ni_wdsvap;	/* associated WDS vap */
-	uint64_t		ni_spare[4];
+	void			*ni_rctls;	/* private ratectl state */
+	uint64_t		ni_spare[3];
 };
 MALLOC_DECLARE(M_80211_NODE);
 MALLOC_DECLARE(M_80211_NODE_IE);

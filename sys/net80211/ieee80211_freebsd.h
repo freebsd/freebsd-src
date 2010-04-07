@@ -386,14 +386,19 @@ TEXT_SET(auth_set, name##_modevent)
 /*
  * Rate control modules provide tx rate control support.
  */
-#define	IEEE80211_RATE_MODULE(alg, version)				\
-_IEEE80211_POLICY_MODULE(rate, alg, version);				\
+#define	IEEE80211_RATECTL_MODULE(alg, version)				\
+	_IEEE80211_POLICY_MODULE(ratectl, alg, version);		\
+
+#define	IEEE80211_RATECTL_ALG(name, alg, v)				\
 static void								\
 alg##_modevent(int type)						\
 {									\
-	/* XXX nothing to do until the rate control framework arrives */\
+	if (type == MOD_LOAD)						\
+		ieee80211_ratectl_register(alg, &v);			\
+	else								\
+		ieee80211_ratectl_unregister(alg);			\
 }									\
-TEXT_SET(rate##_set, alg##_modevent)
+TEXT_SET(ratectl##_set, alg##_modevent)
 
 struct ieee80211req;
 typedef int ieee80211_ioctl_getfunc(struct ieee80211vap *,
