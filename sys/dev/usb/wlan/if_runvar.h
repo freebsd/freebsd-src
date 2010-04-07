@@ -107,13 +107,11 @@ struct run_node {
 struct run_vap {
 	struct ieee80211vap             vap;
 	struct ieee80211_beacon_offsets bo;
-	struct ieee80211_amrr           amrr;
-	struct ieee80211_amrr_node	amn[RT2870_WCID_MAX + 1];
-	struct usb_callout              amrr_ch;
-	struct task                     amrr_task;
-	uint8_t				amrr_run;
-#define RUN_AMRR_ON	1
-#define RUN_AMRR_OFF	0
+	struct usb_callout              ratectl_ch;
+	struct task                     ratectl_task;
+	uint8_t				ratectl_run;
+#define RUN_RATECTL_ON	1
+#define RUN_RATECTL_OFF	0
 
 	int                             (*newstate)(struct ieee80211vap *,
                                             enum ieee80211_state, int);
