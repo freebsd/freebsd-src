@@ -1008,7 +1008,6 @@ rt2560_tx_intr(struct rt2560_softc *sc)
 		data->m = NULL;
 		ieee80211_free_node(data->ni);
 		data->ni = NULL;
-		ni = NULL;
 
 		/* descriptor is no longer valid */
 		desc->flags &= ~htole32(RT2560_TX_VALID);
