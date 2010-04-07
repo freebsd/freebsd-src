@@ -80,7 +80,6 @@
 static void	usb_init_endpoint(struct usb_device *, uint8_t,
 		    struct usb_endpoint_descriptor *, struct usb_endpoint *);
 static void	usb_unconfigure(struct usb_device *, uint8_t);
-static void	usb_detach_device(struct usb_device *, uint8_t, uint8_t);
 static void	usb_detach_device_sub(struct usb_device *, device_t *,
 		    uint8_t);
 static uint8_t	usb_probe_and_attach_sub(struct usb_device *,
