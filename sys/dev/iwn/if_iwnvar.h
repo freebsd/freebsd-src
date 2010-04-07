@@ -99,7 +99,6 @@ struct iwn_rx_ring {
 
 struct iwn_node {
 	struct	ieee80211_node		ni;	/* must be the first */
-	struct	ieee80211_amrr_node	amn;
 	uint16_t			disable_tid;
 	uint8_t				id;
 	uint8_t				ridx[IEEE80211_RATE_MAXSIZE];
@@ -193,8 +192,6 @@ struct iwn_hal {
 
 struct iwn_vap {
 	struct ieee80211vap	iv_vap;
-	struct ieee80211_amrr	iv_amrr;
-	struct callout		iv_amrr_to;
 	uint8_t			iv_ridx;
 
 	int			(*iv_newstate)(struct ieee80211vap *,
