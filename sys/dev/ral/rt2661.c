@@ -900,11 +900,12 @@ rt2661_tx_intr(struct rt2661_softc *sc)
 		data->m = NULL;
 		ni = data->ni;
 		data->ni = NULL;
-		vap = ni->ni_vap;
 
 		/* if no frame has been sent, ignore */
 		if (ni == NULL)
 			continue;
+		else
+			vap = ni->ni_vap;
 
 		switch (RT2661_TX_RESULT(val)) {
 		case RT2661_TX_SUCCESS:
