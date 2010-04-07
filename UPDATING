@@ -15,6 +15,19 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 8.x IS SLOW ON IA64 OR SUN4V:
 	debugging tools present in HEAD were left in place because
 	sun4v support still needs work to become production ready.
 
+20100408:
+	The rc.firewall and rc.firewall6 were unified, and
+	rc.firewall6 and rc.d/ip6fw were removed.
+	According to the removal of rc.d/ip6fw, ipv6_firewall_* rc
+	variables are obsoleted.  Instead, the following new rc
+	variables are added to rc.d/ipfw:
+
+		firewall_client_net_ipv6, firewall_simple_iif_ipv6,
+		firewall_simple_inet_ipv6, firewall_simple_oif_ipv6,
+		firewall_simple_onet_ipv6
+
+	The meanings correspond to the relevant IPv4 variables.
+
 20100406:
 	The kernel option COMPAT_IA32 has been replaced with COMPAT_FREEBSD32
 	to allow 32-bit compatibility on non-x86 platforms. All kernel
