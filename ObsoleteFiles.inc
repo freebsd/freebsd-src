@@ -14,6 +14,9 @@
 # The file is partitioned: OLD_FILES first, then OLD_LIBS and OLD_DIRS last.
 #
 
+# 20100408: unify rc.firewall and rc.firewall6.
+OLD_FILES+=etc/rc.d/ip6fw
+OLD_FILES+=etc/rc.firewall6
 # 20100330: [ia64] Sync with 9-current
 .if ${TARGET_ARCH} == "ia64"
 OLD_FILES+=usr/include/machine/nexusvar.h
