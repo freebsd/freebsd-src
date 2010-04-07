@@ -2375,6 +2375,7 @@ xpt_action_default(union ccb *start_ccb)
 		if (start_ccb->ccb_h.func_code == XPT_ATA_IO) {
 			start_ccb->ataio.resid = 0;
 		}
+		/* FALLTHROUGH */
 	case XPT_RESET_DEV:
 	case XPT_ENG_EXEC:
 	{
@@ -2883,6 +2884,9 @@ xpt_action_default(union ccb *start_ccb)
 	case XPT_ENG_INQ:
 		/* XXX Implement */
 		start_ccb->ccb_h.status = CAM_PROVIDE_FAIL;
+		if (start_ccb->ccb_h.func_code & XPT_FC_DEV_QUEUED) {
+			xpt_done(start_ccb);
+		}
 		break;
 	}
 }
@@ -3925,7 +3929,7 @@ xpt_dev_async_default(u_int32_t async_code, struct cam_eb *bus,
 		      struct cam_et *target, struct cam_ed *device,
 		      void *async_arg)
 {
-	printf("xpt_dev_async called\n");
+	printf("%s called\n", __func__);
 }
 
 u_int32_t
@@ -4827,4 +4831,3 @@ camisr_runqueue(void *V_queue)
 		(*ccb_h->cbfcnp)(ccb_h->path->periph, (union ccb *)ccb_h);
 	}
 }
-
