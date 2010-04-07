@@ -762,6 +762,7 @@ static int		urtw_compute_txtime(uint16_t, uint16_t, uint8_t,
 			    uint8_t);
 static void		urtw_updateslot(struct ifnet *);
 static void		urtw_updateslottask(void *, int);
+static void		urtw_sysctl_node(struct urtw_softc *);
 
 static int
 urtw_match(device_t dev)
@@ -905,6 +906,8 @@ urtw_attach(device_t dev)
 	    URTW_TX_RADIOTAP_PRESENT,
 	    &sc->sc_rxtap.wr_ihdr, sizeof(sc->sc_rxtap),
 	    URTW_RX_RADIOTAP_PRESENT);
+
+	urtw_sysctl_node(sc);
 
 	if (bootverbose)
 		ieee80211_announce(ic);
@@ -1702,6 +1705,8 @@ urtw_tx_start(struct urtw_softc *sc, struct ieee80211_node *ni, struct mbuf *m0,
 		else
 			rate = urtw_rtl2rate(sc->sc_currate);
 	}
+
+	sc->sc_stats.txrates[sc->sc_currate]++;
 
 	if (IEEE80211_IS_MULTICAST(wh->i_addr1))
 		txdur = pkttime = urtw_compute_txtime(m0->m_pkthdr.len +
@@ -4370,6 +4375,54 @@ urtw_updateslottask(void *arg, int pending)
 	}
 fail:
 	URTW_UNLOCK(sc);
+}
+
+static void
+urtw_sysctl_node(struct urtw_softc *sc)
+{
+#define	URTW_SYSCTL_STAT_ADD32(c, h, n, p, d)	\
+	SYSCTL_ADD_UINT(c, h, OID_AUTO, n, CTLFLAG_RD, p, 0, d)
+	struct sysctl_ctx_list *ctx;
+	struct sysctl_oid_list *child, *parent;
+	struct sysctl_oid *tree;
+	struct urtw_stats *stats = &sc->sc_stats;
+
+	ctx = device_get_sysctl_ctx(sc->sc_dev);
+	child = SYSCTL_CHILDREN(device_get_sysctl_tree(sc->sc_dev));
+
+	tree = SYSCTL_ADD_NODE(ctx, child, OID_AUTO, "stats", CTLFLAG_RD,
+	    NULL, "URTW statistics");
+	parent = SYSCTL_CHILDREN(tree);
+
+	/* Tx statistics. */
+	tree = SYSCTL_ADD_NODE(ctx, parent, OID_AUTO, "tx", CTLFLAG_RD,
+	    NULL, "Tx MAC statistics");
+	child = SYSCTL_CHILDREN(tree);
+	URTW_SYSCTL_STAT_ADD32(ctx, child, "1m", &stats->txrates[0],
+	    "1 Mbit/s");
+	URTW_SYSCTL_STAT_ADD32(ctx, child, "2m", &stats->txrates[1],
+	    "2 Mbit/s");
+	URTW_SYSCTL_STAT_ADD32(ctx, child, "5.5m", &stats->txrates[2],
+	    "5.5 Mbit/s");
+	URTW_SYSCTL_STAT_ADD32(ctx, child, "6m", &stats->txrates[4],
+	    "6 Mbit/s");
+	URTW_SYSCTL_STAT_ADD32(ctx, child, "9m", &stats->txrates[5],
+	    "9 Mbit/s");
+	URTW_SYSCTL_STAT_ADD32(ctx, child, "11m", &stats->txrates[3],
+	    "11 Mbit/s");
+	URTW_SYSCTL_STAT_ADD32(ctx, child, "12m", &stats->txrates[6],
+	    "12 Mbit/s");
+	URTW_SYSCTL_STAT_ADD32(ctx, child, "18m", &stats->txrates[7],
+	    "18 Mbit/s");
+	URTW_SYSCTL_STAT_ADD32(ctx, child, "24m", &stats->txrates[8],
+	    "24 Mbit/s");
+	URTW_SYSCTL_STAT_ADD32(ctx, child, "36m", &stats->txrates[9],
+	    "36 Mbit/s");
+	URTW_SYSCTL_STAT_ADD32(ctx, child, "48m", &stats->txrates[10],
+	    "48 Mbit/s");
+	URTW_SYSCTL_STAT_ADD32(ctx, child, "54m", &stats->txrates[11],
+	    "54 Mbit/s");
+#undef URTW_SYSCTL_STAT_ADD32
 }
 
 static device_method_t urtw_methods[] = {
