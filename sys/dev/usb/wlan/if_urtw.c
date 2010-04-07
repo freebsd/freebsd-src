@@ -62,7 +62,6 @@ __FBSDID("$FreeBSD$");
 #include <dev/usb/wlan/if_urtwvar.h>
 
 SYSCTL_NODE(_hw_usb, OID_AUTO, urtw, CTLFLAG_RW, 0, "USB Realtek 8187L");
-#define URTW_DEBUG
 #ifdef URTW_DEBUG
 int urtw_debug = 0;
 SYSCTL_INT(_hw_usb_urtw, OID_AUTO, debug, CTLFLAG_RW, &urtw_debug, 0,
