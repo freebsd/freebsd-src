@@ -136,7 +136,7 @@ __FBSDID("$FreeBSD$");
 
 #include <vm/uma.h>
 
-#ifdef COMPAT_IA32
+#ifdef COMPAT_FREEBSD32
 #include <sys/mount.h>
 #include <sys/sysent.h>
 #include <compat/freebsd32/freebsd32.h>
@@ -2496,7 +2496,7 @@ sosetopt(struct socket *so, struct sockopt *sopt)
 
 		case SO_SNDTIMEO:
 		case SO_RCVTIMEO:
-#ifdef COMPAT_IA32
+#ifdef COMPAT_FREEBSD32
 			if (SV_CURPROC_FLAG(SV_ILP32)) {
 				struct timeval32 tv32;
 
@@ -2677,7 +2677,7 @@ integer:
 
 			tv.tv_sec = optval / hz;
 			tv.tv_usec = (optval % hz) * tick;
-#ifdef COMPAT_IA32
+#ifdef COMPAT_FREEBSD32
 			if (SV_CURPROC_FLAG(SV_ILP32)) {
 				struct timeval32 tv32;
 

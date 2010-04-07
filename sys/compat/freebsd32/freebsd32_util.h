@@ -83,4 +83,6 @@ int    syscall32_register(int *offset, struct sysent *new_sysent,
 int    syscall32_deregister(int *offset, struct sysent *old_sysent);
 int    syscall32_module_handler(struct module *mod, int what, void *arg);
 
+register_t *freebsd32_copyout_strings(struct image_params *imgp);
+
 #endif /* !_COMPAT_FREEBSD32_FREEBSD32_UTIL_H_ */

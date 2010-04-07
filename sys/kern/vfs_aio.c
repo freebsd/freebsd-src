@@ -2524,7 +2524,7 @@ filt_lio(struct knote *kn, long hint)
 	return (lj->lioj_flags & LIOJ_KEVENT_POSTED);
 }
 
-#ifdef COMPAT_IA32
+#ifdef COMPAT_FREEBSD32
 #include <sys/mount.h>
 #include <sys/socket.h>
 #include <compat/freebsd32/freebsd32.h>
