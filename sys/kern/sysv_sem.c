@@ -70,7 +70,7 @@ static MALLOC_DEFINE(M_SEM, "sem", "SVID compatible semaphores");
 #define DPRINTF(a)
 #endif
 
-static void seminit(void);
+static int seminit(void);
 static int sysvsem_modload(struct module *, int, void *);
 static int semunload(void);
 static void semexit_myhook(void *arg, struct proc *p);
@@ -214,10 +214,43 @@ SYSCTL_INT(_kern_ipc, OID_AUTO, semaem, CTLFLAG_RW, &seminfo.semaem, 0,
 SYSCTL_PROC(_kern_ipc, OID_AUTO, sema, CTLFLAG_RD,
     NULL, 0, sysctl_sema, "", "");
 
-static void
+static struct syscall_helper_data sem_syscalls[] = {
+	SYSCALL_INIT_HELPER(__semctl),
+	SYSCALL_INIT_HELPER(semget),
+	SYSCALL_INIT_HELPER(semop),
+#if defined(COMPAT_FREEBSD4) || defined(COMPAT_FREEBSD5) || \
+    defined(COMPAT_FREEBSD6) || defined(COMPAT_FREEBSD7)
+	SYSCALL_INIT_HELPER(semsys),
+	SYSCALL_INIT_HELPER(freebsd7___semctl),
+#endif
+	SYSCALL_INIT_LAST
+};
+
+#ifdef COMPAT_FREEBSD32
+#include <compat/freebsd32/freebsd32.h>
+#include <compat/freebsd32/freebsd32_ipc.h>
+#include <compat/freebsd32/freebsd32_proto.h>
+#include <compat/freebsd32/freebsd32_signal.h>
+#include <compat/freebsd32/freebsd32_syscall.h>
+#include <compat/freebsd32/freebsd32_util.h>
+
+static struct syscall_helper_data sem32_syscalls[] = {
+	SYSCALL32_INIT_HELPER(freebsd32_semctl),
+	SYSCALL32_INIT_HELPER(semget),
+	SYSCALL32_INIT_HELPER(semop),
+	SYSCALL32_INIT_HELPER(freebsd32_semsys),
+#if defined(COMPAT_FREEBSD4) || defined(COMPAT_FREEBSD5) || \
+    defined(COMPAT_FREEBSD6) || defined(COMPAT_FREEBSD7)
+	SYSCALL32_INIT_HELPER(freebsd7_freebsd32_semctl),
+#endif
+	SYSCALL_INIT_LAST
+};
+#endif
+
+static int
 seminit(void)
 {
-	int i;
+	int i, error;
 
 	TUNABLE_INT_FETCH("kern.ipc.semmap", &seminfo.semmap);
 	TUNABLE_INT_FETCH("kern.ipc.semmni", &seminfo.semmni);
@@ -258,6 +291,16 @@ seminit(void)
 	mtx_init(&sem_undo_mtx, "semu", NULL, MTX_DEF);
 	semexit_tag = EVENTHANDLER_REGISTER(process_exit, semexit_myhook, NULL,
 	    EVENTHANDLER_PRI_ANY);
+
+	error = syscall_helper_register(sem_syscalls);
+	if (error != 0)
+		return (error);
+#ifdef COMPAT_FREEBSD32
+	error = syscall32_helper_register(sem32_syscalls);
+	if (error != 0)
+		return (error);
+#endif
+	return (0);
 }
 
 static int
@@ -269,6 +312,10 @@ semunload(void)
 	if (semtot != 0)
 		return (EBUSY);
 
+#ifdef COMPAT_FREEBSD32
+	syscall32_helper_unregister(sem32_syscalls);
+#endif
+	syscall_helper_unregister(sem_syscalls);
 	EVENTHANDLER_DEREGISTER(process_exit, semexit_tag);
 #ifdef MAC
 	for (i = 0; i < seminfo.semmni; i++)
@@ -292,7 +339,9 @@ sysvsem_modload(struct module *module, int cmd, void *arg)
 
 	switch (cmd) {
 	case MOD_LOAD:
-		seminit();
+		error = seminit();
+		if (error != 0)
+			semunload();
 		break;
 	case MOD_UNLOAD:
 		error = semunload();
@@ -311,10 +360,6 @@ static moduledata_t sysvsem_mod = {
 	&sysvsem_modload,
 	NULL
 };
-
-SYSCALL_MODULE_HELPER(__semctl);
-SYSCALL_MODULE_HELPER(semget);
-SYSCALL_MODULE_HELPER(semop);
 
 DECLARE_MODULE(sysvsem, sysvsem_mod, SI_SUB_SYSV_SEM, SI_ORDER_FIRST);
 MODULE_VERSION(sysvsem, 1);
@@ -1316,8 +1361,6 @@ sysctl_sema(SYSCTL_HANDLER_ARGS)
 
 #if defined(COMPAT_FREEBSD4) || defined(COMPAT_FREEBSD5) || \
     defined(COMPAT_FREEBSD6) || defined(COMPAT_FREEBSD7)
-SYSCALL_MODULE_HELPER(semsys);
-SYSCALL_MODULE_HELPER(freebsd7___semctl);
 
 /* XXX casting to (sy_call_t *) is bogus, as usual. */
 static sy_call_t *semcalls[] = {
@@ -1351,7 +1394,9 @@ semsys(td, uap)
 	return (error);
 }
 
+#ifndef CP
 #define CP(src, dst, fld)	do { (dst).fld = (src).fld; } while (0)
+#endif
 
 #ifndef _SYS_SYSPROTO_H_
 struct freebsd7___semctl_args {
@@ -1432,7 +1477,172 @@ freebsd7___semctl(struct thread *td, struct freebsd7___semctl_args *uap)
 	return (error);
 }
 
-#undef CP
+#endif /* COMPAT_FREEBSD{4,5,6,7} */
 
-#endif	/* COMPAT_FREEBSD4 || COMPAT_FREEBSD5 || COMPAT_FREEBSD6 ||
-	   COMPAT_FREEBSD7 */
+#ifdef COMPAT_FREEBSD32
+
+int
+freebsd32_semsys(struct thread *td, struct freebsd32_semsys_args *uap)
+{
+
+#if defined(COMPAT_FREEBSD4) || defined(COMPAT_FREEBSD5) || \
+    defined(COMPAT_FREEBSD6) || defined(COMPAT_FREEBSD7)
+	switch (uap->which) {
+	case 0:
+		return (freebsd7_freebsd32_semctl(td,
+		    (struct freebsd7_freebsd32_semctl_args *)&uap->a2));
+	default:
+		return (semsys(td, (struct semsys_args *)uap));
+	}
+#else
+	return (nosys(td, NULL));
+#endif
+}
+
+#if defined(COMPAT_FREEBSD4) || defined(COMPAT_FREEBSD5) || \
+    defined(COMPAT_FREEBSD6) || defined(COMPAT_FREEBSD7)
+int
+freebsd7_freebsd32_semctl(struct thread *td,
+    struct freebsd7_freebsd32_semctl_args *uap)
+{
+	struct semid_ds32_old dsbuf32;
+	struct semid_ds dsbuf;
+	union semun semun;
+	union semun32 arg;
+	register_t rval;
+	int error;
+
+	switch (uap->cmd) {
+	case SEM_STAT:
+	case IPC_SET:
+	case IPC_STAT:
+	case GETALL:
+	case SETVAL:
+	case SETALL:
+		error = copyin(uap->arg, &arg, sizeof(arg));
+		if (error)
+			return (error);		
+		break;
+	}
+
+	switch (uap->cmd) {
+	case SEM_STAT:
+	case IPC_STAT:
+		semun.buf = &dsbuf;
+		break;
+	case IPC_SET:
+		error = copyin(PTRIN(arg.buf), &dsbuf32, sizeof(dsbuf32));
+		if (error)
+			return (error);
+		freebsd32_ipcperm_old_in(&dsbuf32.sem_perm, &dsbuf.sem_perm);
+		PTRIN_CP(dsbuf32, dsbuf, sem_base);
+		CP(dsbuf32, dsbuf, sem_nsems);
+		CP(dsbuf32, dsbuf, sem_otime);
+		CP(dsbuf32, dsbuf, sem_ctime);
+		semun.buf = &dsbuf;
+		break;
+	case GETALL:
+	case SETALL:
+		semun.array = PTRIN(arg.array);
+		break;
+	case SETVAL:
+		semun.val = arg.val;
+		break;
+	}
+
+	error = kern_semctl(td, uap->semid, uap->semnum, uap->cmd, &semun,
+	    &rval);
+	if (error)
+		return (error);
+
+	switch (uap->cmd) {
+	case SEM_STAT:
+	case IPC_STAT:
+		bzero(&dsbuf32, sizeof(dsbuf32));
+		freebsd32_ipcperm_old_out(&dsbuf.sem_perm, &dsbuf32.sem_perm);
+		PTROUT_CP(dsbuf, dsbuf32, sem_base);
+		CP(dsbuf, dsbuf32, sem_nsems);
+		CP(dsbuf, dsbuf32, sem_otime);
+		CP(dsbuf, dsbuf32, sem_ctime);
+		error = copyout(&dsbuf32, PTRIN(arg.buf), sizeof(dsbuf32));
+		break;
+	}
+
+	if (error == 0)
+		td->td_retval[0] = rval;
+	return (error);
+}
+#endif
+
+int
+freebsd32_semctl(struct thread *td, struct freebsd32_semctl_args *uap)
+{
+	struct semid_ds32 dsbuf32;
+	struct semid_ds dsbuf;
+	union semun semun;
+	union semun32 arg;
+	register_t rval;
+	int error;
+
+	switch (uap->cmd) {
+	case SEM_STAT:
+	case IPC_SET:
+	case IPC_STAT:
+	case GETALL:
+	case SETVAL:
+	case SETALL:
+		error = copyin(uap->arg, &arg, sizeof(arg));
+		if (error)
+			return (error);		
+		break;
+	}
+
+	switch (uap->cmd) {
+	case SEM_STAT:
+	case IPC_STAT:
+		semun.buf = &dsbuf;
+		break;
+	case IPC_SET:
+		error = copyin(PTRIN(arg.buf), &dsbuf32, sizeof(dsbuf32));
+		if (error)
+			return (error);
+		freebsd32_ipcperm_in(&dsbuf32.sem_perm, &dsbuf.sem_perm);
+		PTRIN_CP(dsbuf32, dsbuf, sem_base);
+		CP(dsbuf32, dsbuf, sem_nsems);
+		CP(dsbuf32, dsbuf, sem_otime);
+		CP(dsbuf32, dsbuf, sem_ctime);
+		semun.buf = &dsbuf;
+		break;
+	case GETALL:
+	case SETALL:
+		semun.array = PTRIN(arg.array);
+		break;
+	case SETVAL:
+		semun.val = arg.val;
+		break;		
+	}
+
+	error = kern_semctl(td, uap->semid, uap->semnum, uap->cmd, &semun,
+	    &rval);
+	if (error)
+		return (error);
+
+	switch (uap->cmd) {
+	case SEM_STAT:
+	case IPC_STAT:
+		bzero(&dsbuf32, sizeof(dsbuf32));
+		freebsd32_ipcperm_out(&dsbuf.sem_perm, &dsbuf32.sem_perm);
+		PTROUT_CP(dsbuf, dsbuf32, sem_base);
+		CP(dsbuf, dsbuf32, sem_nsems);
+		CP(dsbuf, dsbuf32, sem_otime);
+		CP(dsbuf, dsbuf32, sem_ctime);
+		error = copyout(&dsbuf32, PTRIN(arg.buf), sizeof(dsbuf32));
+		break;
+	}
+
+	if (error == 0)
+		td->td_retval[0] = rval;
+	return (error);
+}
+
+#endif /* COMPAT_FREEBSD32 */
