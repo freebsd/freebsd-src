@@ -798,12 +798,23 @@
 				    int param_size); }
 456	AUE_NULL	NOPROTO	{ int sigqueue(pid_t pid, int signum, \
 				    void *value); }
-457	AUE_NULL	UNIMPL	kmq_open
-458	AUE_NULL	UNIMPL	kmq_setattr
-459	AUE_NULL	UNIMPL	kmq_timedreceive
-460	AUE_NULL	UNIMPL  kmq_timedsend
-461	AUE_NULL	UNIMPL	kmq_notify
-462	AUE_NULL	UNIMPL	kmq_unlink
+457	AUE_NULL	NOSTD	{ int freebsd32_kmq_open( \
+				    const char *path, int flags, mode_t mode, \
+				    const struct mq_attr32 *attr); }
+458	AUE_NULL	NOSTD	{ int freebsd32_kmq_setattr(int mqd, \
+				    const struct mq_attr32 *attr,	\
+				    struct mq_attr32 *oattr); }
+459	AUE_NULL	NOSTD	{ int freebsd32_kmq_timedreceive(int mqd, \
+				    char *msg_ptr, size_t msg_len,	\
+				    unsigned *msg_prio,			\
+				    const struct timespec32 *abs_timeout); }
+460	AUE_NULL	NOSTD	{ int freebsd32_kmq_timedsend(int mqd,	\
+				    const char *msg_ptr, size_t msg_len,\
+				    unsigned msg_prio,			\
+				    const struct timespec32 *abs_timeout);}
+461	AUE_NULL	NOPROTO|NOSTD	{ int kmq_notify(int mqd,	\
+				    const struct sigevent *sigev); }
+462	AUE_NULL	NOPROTO|NOSTD	{ int kmq_unlink(const char *path); }
 463	AUE_NULL	NOPROTO	{ int abort2(const char *why, int nargs, void **args); }
 464	AUE_NULL 	NOPROTO	{ int thr_set_name(long id, const char *name); }
 465	AUE_NULL	NOSTD	{ int freebsd32_aio_fsync(int op, \
