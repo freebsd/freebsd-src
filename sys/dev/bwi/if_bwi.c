@@ -3368,10 +3368,10 @@ _bwi_txeof(struct bwi_softc *sc, uint16_t tx_id, int acked, int data_txcnt)
 	bus_dmamap_unload(sc->sc_buf_dtag, tb->tb_dmap);
 
 	ni = tb->tb_ni;
-	vap = ni->ni_vap;
 	if (tb->tb_ni != NULL) {
 		const struct bwi_txbuf_hdr *hdr =
 		    mtod(tb->tb_mbuf, const struct bwi_txbuf_hdr *);
+		vap = ni->ni_vap;
 
 		/* NB: update rate control only for unicast frames */
 		if (hdr->txh_mac_ctrl & htole32(BWI_TXH_MAC_C_ACK)) {
