@@ -83,8 +83,9 @@ ext2_ei2i(ei, ip)
 	ip->i_mtime = ei->i_mtime;
 	ip->i_ctime = ei->i_ctime;
 	ip->i_flags = 0;
-	ip->i_flags |= (ei->i_flags & EXT2_APPEND_FL) ? APPEND : 0;
-	ip->i_flags |= (ei->i_flags & EXT2_IMMUTABLE_FL) ? IMMUTABLE : 0;
+	ip->i_flags |= (ei->i_flags & EXT2_APPEND_FL) ? SF_APPEND : 0;
+	ip->i_flags |= (ei->i_flags & EXT2_IMMUTABLE_FL) ? SF_IMMUTABLE : 0;
+	ip->i_flags |= (ei->i_flags & EXT2_NODUMP_FL) ? UF_NODUMP : 0;
 	ip->i_blocks = ei->i_blocks;
 	ip->i_gen = ei->i_generation;
 	ip->i_uid = ei->i_uid;
@@ -121,8 +122,9 @@ ext2_i2ei(ip, ei)
 	ei->i_ctime = ip->i_ctime;
 	ei->i_flags = ip->i_flags;
 	ei->i_flags = 0;
-	ei->i_flags |= (ip->i_flags & APPEND) ? EXT2_APPEND_FL: 0;
-	ei->i_flags |= (ip->i_flags & IMMUTABLE) ? EXT2_IMMUTABLE_FL: 0;
+	ei->i_flags |= (ip->i_flags & SF_APPEND) ? EXT2_APPEND_FL: 0;
+	ei->i_flags |= (ip->i_flags & SF_IMMUTABLE) ? EXT2_IMMUTABLE_FL: 0;
+	ei->i_flags |= (ip->i_flags & UF_NODUMP) ? EXT2_NODUMP_FL : 0;
 	ei->i_blocks = ip->i_blocks;
 	ei->i_generation = ip->i_gen;
 	ei->i_uid = ip->i_uid;
