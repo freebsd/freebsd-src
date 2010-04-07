@@ -171,4 +171,8 @@ static scrn_saver_t logo_module = {
 	NULL
 };
 
+#ifdef BEASTIE_LOGO
+SAVER_MODULE(beastie_saver, logo_module);
+#else
 SAVER_MODULE(logo_saver, logo_module);
+#endif
