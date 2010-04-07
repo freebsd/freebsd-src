@@ -84,5 +84,8 @@ int    syscall32_deregister(int *offset, struct sysent *old_sysent);
 int    syscall32_module_handler(struct module *mod, int what, void *arg);
 
 register_t *freebsd32_copyout_strings(struct image_params *imgp);
+struct iovec32;
+int	freebsd32_copyiniov(struct iovec32 *iovp, u_int iovcnt,
+	    struct iovec **iov, int error);
 
 #endif /* !_COMPAT_FREEBSD32_FREEBSD32_UTIL_H_ */
