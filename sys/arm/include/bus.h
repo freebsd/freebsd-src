@@ -721,6 +721,8 @@ bs_c_8_proto(f);
 #define BUS_SPACE_MAXSIZE_32BIT	0xFFFFFFFF
 #define BUS_SPACE_MAXSIZE 	0xFFFFFFFF
 
+#define BUS_SPACE_UNRESTRICTED	(~0)
+
 #include <machine/bus_dma.h>
 
 #endif /* _MACHINE_BUS_H_ */
