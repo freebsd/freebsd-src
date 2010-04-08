@@ -93,7 +93,7 @@ int	em_display_debug_stats = 0;
 /*********************************************************************
  *  Driver version:
  *********************************************************************/
-char em_driver_version[] = "7.0.1";
+char em_driver_version[] = "7.0.2";
 
 
 /*********************************************************************
@@ -813,9 +813,13 @@ em_mq_start_locked(struct ifnet *ifp, struct tx_ring *txr, struct mbuf *m)
 	}
 
 	enq = 0;
-	if (m == NULL)
+	if (m == NULL) {
 		next = drbr_dequeue(ifp, txr->br);
-	else
+	} else if (drbr_needs_enqueue(ifp, txr->br)) {
+		if ((err = drbr_enqueue(ifp, txr->br, m)) != 0)
+			return (err);
+		next = drbr_dequeue(ifp, txr->br);
+	} else
 		next = m;
 
 	/* Process the queue */
@@ -1720,13 +1724,6 @@ em_xmit(struct tx_ring *txr, struct mbuf **m_headp)
 	txd_upper = txd_lower = txd_used = txd_saved = 0;
 	do_tso = ((m_head->m_pkthdr.csum_flags & CSUM_TSO) != 0);
 
-        /*
-         * Force a cleanup if number of TX descriptors
-         * available hits the threshold
-         */
-	if (txr->tx_avail <= EM_TX_CLEANUP_THRESHOLD)
-		em_txeof(txr);
-
 	/*
 	 * TSO workaround: 
 	 *  If an mbuf is only header we need  
@@ -1915,6 +1912,11 @@ em_xmit(struct tx_ring *txr, struct mbuf **m_headp)
 	bus_dmamap_sync(txr->txdma.dma_tag, txr->txdma.dma_map,
 	    BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
 	E1000_WRITE_REG(&adapter->hw, E1000_TDT(txr->me), i);
+	txr->watchdog_time = ticks;
+
+        /* Call cleanup if number of TX descriptors low */
+	if (txr->tx_avail <= EM_TX_CLEANUP_THRESHOLD)
+		em_txeof(txr);
 
 	return (0);
 }
@@ -3706,6 +3708,8 @@ em_refresh_mbufs(struct rx_ring *rxr, int limit)
 		rxr->next_to_refresh = i;
 	}
 update:
+	bus_dmamap_sync(rxr->rxdma.dma_tag, rxr->rxdma.dma_map,
+	    BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
 	if (cleaned != -1) /* Update tail index */
 		E1000_WRITE_REG(&adapter->hw,
 		    E1000_RDT(rxr->me), cleaned);
@@ -4039,6 +4043,9 @@ em_initialize_receive_unit(struct adapter *adapter)
 	rctl |= E1000_RCTL_EN | E1000_RCTL_BAM |
 	    E1000_RCTL_LBM_NO | E1000_RCTL_RDMTS_HALF |
 	    (hw->mac.mc_filter_type << E1000_RCTL_MO_SHIFT);
+
+        /* Strip the CRC */
+        rctl |= E1000_RCTL_SECRC;
 
         /* Make sure VLAN Filters are off */
         rctl &= ~E1000_RCTL_VFE;
