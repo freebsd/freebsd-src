@@ -85,6 +85,8 @@ ieee80211_ratectl_node_deinit(struct ieee80211_node *ni)
 {
 	const struct ieee80211vap *vap = ni->ni_vap;
 
+	if (ni->ni_rctls == NULL)	/* ratectl not setup */
+		return;
 	vap->iv_rate->ir_node_deinit(ni);
 }
 
