@@ -2443,6 +2443,9 @@ nfsvno_fhtovp(struct mount *mp, fhandle_t *fhp, struct sockaddr *nam,
 	*credp = NULL;
 	exp->nes_numsecflavor = 0;
 	error = VFS_FHTOVP(mp, &fhp->fh_fid, vpp);
+	if (error != 0)
+		/* Make sure the server replies ESTALE to the client. */
+		error = ESTALE;
 	if (nam && !error) {
 		error = VFS_CHECKEXP(mp, nam, &exp->nes_exflag, credp,
 		    &exp->nes_numsecflavor, &secflavors);
