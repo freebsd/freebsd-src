@@ -38,8 +38,8 @@ __FBSDID("$FreeBSD$");
 #include "op.h"
 
 /* XXX - works for most systems, but the whole ALIGN thing needs to go away */
-#ifndef ALIGN
-#define ALIGN(x) (((x) + 7) & ~7)
+#ifndef LINT_ALIGN
+#define LINT_ALIGN(x) (((x) + 15) & ~15)
 #endif
 
 /*
