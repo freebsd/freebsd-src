@@ -33,8 +33,8 @@ enum ieee80211_ratealgs {
 	IEEE80211_RATECTL_MAX
 };
 
-#define	IEEE80211_RATECTL_TX_SUCCESS	0
-#define	IEEE80211_RATECTL_TX_FAILURE	1
+#define	IEEE80211_RATECTL_TX_SUCCESS	1
+#define	IEEE80211_RATECTL_TX_FAILURE	0
 
 struct ieee80211_ratectl {
 	const char *ir_name;
