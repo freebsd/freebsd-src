@@ -453,5 +453,6 @@ struct em_buffer {
 #define	EM_RX_UNLOCK(_sc)		mtx_unlock(&(_sc)->rx_mtx)
 #define	EM_CORE_LOCK_ASSERT(_sc)	mtx_assert(&(_sc)->core_mtx, MA_OWNED)
 #define	EM_TX_LOCK_ASSERT(_sc)		mtx_assert(&(_sc)->tx_mtx, MA_OWNED)
+#define	EM_RX_LOCK_ASSERT(_sc)		mtx_assert(&(_sc)->rx_mtx, MA_OWNED)
 
 #endif /* _EM_H_DEFINED_ */
