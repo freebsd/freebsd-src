@@ -110,9 +110,12 @@ amrr_init(struct ieee80211vap *vap)
 
 	KASSERT(vap->iv_rs == NULL, ("%s called multiple times", __func__));
 
-	vap->iv_rs = malloc(sizeof(struct ieee80211_amrr), M_80211_RATECTL,
-	    M_WAITOK|M_ZERO);
-	amrr = vap->iv_rs;
+	amrr = vap->iv_rs = malloc(sizeof(struct ieee80211_amrr),
+	    M_80211_RATECTL, M_NOWAIT|M_ZERO);
+	if (amrr == NULL) {
+		if_printf(vap->iv_ifp, "couldn't alloc ratectl structure\n");
+		return;
+	}
 	amrr->amrr_min_success_threshold = IEEE80211_AMRR_MIN_SUCCESS_THRESHOLD;
 	amrr->amrr_max_success_threshold = IEEE80211_AMRR_MAX_SUCCESS_THRESHOLD;
 	amrr_setinterval(vap, 500 /* ms */);
@@ -136,9 +139,13 @@ amrr_node_init(struct ieee80211_node *ni)
 	KASSERT(ni->ni_rctls == NULL, ("%s: ni_rctls already initialized",
 	    __func__));
 
-	ni->ni_rctls = malloc(sizeof(struct ieee80211_amrr_node),
-	    M_80211_RATECTL, M_WAITOK|M_ZERO);
-	amn = ni->ni_rctls;
+	ni->ni_rctls = amn = malloc(sizeof(struct ieee80211_amrr_node),
+	    M_80211_RATECTL, M_NOWAIT|M_ZERO);
+	if (amn == NULL) {
+		if_printf(vap->iv_ifp, "couldn't alloc per-node ratectl "
+		    "structure\n");
+		return;
+	}
 	amn->amn_amrr = amrr;
 	amn->amn_success = 0;
 	amn->amn_recovery = 0;
