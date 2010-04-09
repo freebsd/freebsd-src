@@ -81,5 +81,5 @@ MINIMALDOCPORTS+= \
 	ports/textproc/p5-PodParser
 .else
 MINIMALDOCPORTS+= \
-	ports/lang/perl5.8
+	ports/lang/perl5.10
 .endif
