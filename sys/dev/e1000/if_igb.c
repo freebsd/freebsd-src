@@ -1453,7 +1453,7 @@ igb_msix_que(void *arg)
         if (adapter->hw.mac.type == e1000_82575)
                 newitr |= newitr << 16;
         else
-                newitr |= 0x8000000;
+                newitr |= E1000_EITR_CNT_IGNR;
                  
         /* save for next interrupt */
         que->eitr_setting = newitr;
