@@ -3749,6 +3749,20 @@ assert_vop_slocked(struct vnode *vp, const char *str)
 #endif /* DEBUG_VFS_LOCKS */
 
 void
+vop_rename_fail(struct vop_rename_args *ap)
+{
+
+	if (ap->a_tvp != NULL)
+		vput(ap->a_tvp);
+	if (ap->a_tdvp == ap->a_tvp)
+		vrele(ap->a_tdvp);
+	else
+		vput(ap->a_tdvp);
+	vrele(ap->a_fdvp);
+	vrele(ap->a_fvp);
+}
+
+void
 vop_rename_pre(void *ap)
 {
 	struct vop_rename_args *a = ap;
