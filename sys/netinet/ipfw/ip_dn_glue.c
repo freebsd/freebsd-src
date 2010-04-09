@@ -553,7 +553,7 @@ dn_compat_configure(void *v)
 }
 
 int
-dn_compat_calc_size(struct dn_parms dn_cfg)
+dn_compat_calc_size(void)
 {
 	int need = 0;
 	/* XXX use FreeBSD 8 struct size */
