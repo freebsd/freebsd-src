@@ -1963,9 +1963,6 @@ run_ratectl_start(struct run_softc *sc, struct ieee80211_node *ni)
 	struct ieee80211vap *vap = ni->ni_vap;
 	struct run_vap *rvp = RUN_VAP(vap);
 	uint32_t sta[3];
-#if 0
-	uint8_t wcid;
-#endif
 
 	RUN_LOCK_ASSERT(sc, MA_OWNED);
 
@@ -1973,10 +1970,6 @@ run_ratectl_start(struct run_softc *sc, struct ieee80211_node *ni)
 	run_read_region_1(sc, RT2860_TX_STA_CNT0,
 	    (uint8_t *)sta, sizeof sta);
 
-#if 0
-	wcid = RUN_AID2WCID(ni == NULL ? 0 : ni->ni_associd);
-	ieee80211_amrr_node_init(&rvp->amrr, &rvp->amn[wcid], ni);
-#endif
 	ieee80211_ratectl_node_init(ni);
 
 	/* start at lowest available bit-rate, AMRR will raise */
@@ -2093,11 +2086,6 @@ run_iter_func(void *arg, struct ieee80211_node *ni)
 		DPRINTFN(3, "retrycnt=%d txcnt=%d failcnt=%d\n",
 		    le32toh(sta[1]) >> 16, le32toh(sta[1]) & 0xffff,
 		    le32toh(sta[0]) & 0xffff);
-
-#if 0
-		wcid = RUN_AID2WCID(ni == NULL ? 0 : ni->ni_associd);
-		amn = &rvp->amn[wcid];
-#endif
 
 		/* count failed TX as errors */
 		ifp->if_oerrors += le32toh(sta[0]) & 0xffff;
