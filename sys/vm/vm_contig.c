@@ -87,6 +87,8 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_phys.h>
 #include <vm/vm_extern.h>
 
+static void vm_contig_grow_cache(int tries);
+
 static int
 vm_contig_launder_page(vm_page_t m, vm_page_t *next)
 {
@@ -186,6 +188,99 @@ vm_page_release_contig(vm_page_t m, vm_pindex_t count)
 }
 
 /*
+ * Increase the number of cached pages.
+ */
+static void
+vm_contig_grow_cache(int tries)
+{
+	int actl, actmax, inactl, inactmax;
+
+	vm_page_lock_queues();
+	inactl = 0;
+	inactmax = tries < 1 ? 0 : cnt.v_inactive_count;
+	actl = 0;
+	actmax = tries < 2 ? 0 : cnt.v_active_count;
+again:
+	if (inactl < inactmax && vm_contig_launder(PQ_INACTIVE)) {
+		inactl++;
+		goto again;
+	}
+	if (actl < actmax && vm_contig_launder(PQ_ACTIVE)) {
+		actl++;
+		goto again;
+	}
+	vm_page_unlock_queues();
+}
+
+/*
+ * Allocates a region from the kernel address map and pages within the
+ * specified physical address range to the kernel object, creates a wired
+ * mapping from the region to these pages, and returns the region's starting
+ * virtual address.  The allocated pages are not necessarily physically
+ * contiguous.  If M_ZERO is specified through the given flags, then the pages
+ * are zeroed before they are mapped.
+ */
+vm_offset_t
+kmem_alloc_attr(vm_map_t map, vm_size_t size, int flags, vm_paddr_t low,
+    vm_paddr_t high, vm_memattr_t memattr)
+{
+	vm_object_t object = kernel_object;
+	vm_offset_t addr, i, offset;
+	vm_page_t m;
+	int tries;
+
+	size = round_page(size);
+	vm_map_lock(map);
+	if (vm_map_findspace(map, vm_map_min(map), size, &addr)) {
+		vm_map_unlock(map);
+		return (0);
+	}
+	offset = addr - VM_MIN_KERNEL_ADDRESS;
+	vm_object_reference(object);
+	vm_map_insert(map, object, offset, addr, addr + size, VM_PROT_ALL,
+	    VM_PROT_ALL, 0);
+	VM_OBJECT_LOCK(object);
+	for (i = 0; i < size; i += PAGE_SIZE) {
+		tries = 0;
+retry:
+		m = vm_phys_alloc_contig(1, low, high, PAGE_SIZE, 0);
+		if (m == NULL) {
+			if (tries < ((flags & M_NOWAIT) != 0 ? 1 : 3)) {
+				VM_OBJECT_UNLOCK(object);
+				vm_map_unlock(map);
+				vm_contig_grow_cache(tries);
+				vm_map_lock(map);
+				VM_OBJECT_LOCK(object);
+				goto retry;
+			}
+			while (i != 0) {
+				i -= PAGE_SIZE;
+				m = vm_page_lookup(object, OFF_TO_IDX(offset +
+				    i));
+				vm_page_lock_queues();
+				vm_page_free(m);
+				vm_page_unlock_queues();
+			}
+			VM_OBJECT_UNLOCK(object);
+			vm_map_delete(map, addr, addr + size);
+			vm_map_unlock(map);
+			return (0);
+		}
+		if (memattr != VM_MEMATTR_DEFAULT)
+			pmap_page_set_memattr(m, memattr);
+		vm_page_insert(m, object, OFF_TO_IDX(offset + i));
+		if ((flags & M_ZERO) && (m->flags & PG_ZERO) == 0)
+			pmap_zero_page(m);
+		m->valid = VM_PAGE_BITS_ALL;
+	}
+	VM_OBJECT_UNLOCK(object);
+	vm_map_unlock(map);
+	vm_map_wire(map, addr, addr + size, VM_MAP_WIRE_SYSTEM |
+	    VM_MAP_WIRE_NOHOLES);
+	return (addr);
+}
+
+/*
  *	Allocates a region from the kernel address map, inserts the
  *	given physically contiguous pages into the kernel object,
  *	creates a wired mapping from the region to the pages, and
@@ -253,7 +348,7 @@ kmem_alloc_contig(vm_map_t map, vm_size_t size, int flags, vm_paddr_t low,
 	vm_offset_t ret;
 	vm_page_t pages;
 	unsigned long npgs;
-	int actl, actmax, inactl, inactmax, tries;
+	int tries;
 
 	size = round_page(size);
 	npgs = size >> PAGE_SHIFT;
@@ -262,23 +357,7 @@ retry:
 	pages = vm_phys_alloc_contig(npgs, low, high, alignment, boundary);
 	if (pages == NULL) {
 		if (tries < ((flags & M_NOWAIT) != 0 ? 1 : 3)) {
-			vm_page_lock_queues();
-			inactl = 0;
-			inactmax = tries < 1 ? 0 : cnt.v_inactive_count;
-			actl = 0;
-			actmax = tries < 2 ? 0 : cnt.v_active_count;
-again:
-			if (inactl < inactmax &&
-			    vm_contig_launder(PQ_INACTIVE)) {
-				inactl++;
-				goto again;
-			}
-			if (actl < actmax &&
-			    vm_contig_launder(PQ_ACTIVE)) {
-				actl++;
-				goto again;
-			}
-			vm_page_unlock_queues();
+			vm_contig_grow_cache(tries);
 			tries++;
 			goto retry;
 		}
