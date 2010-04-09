@@ -184,6 +184,9 @@ uftdi_match(device_t self)
 	if (uaa->vendor == USB_VENDOR_MELCO &&
 	    (uaa->product == USB_PRODUCT_MELCO_PCOPRS1))
 		return (UMATCH_VENDOR_PRODUCT);
+	if (uaa->vendor == USB_VENDOR_MATRIXORBITAL &&
+	    (uaa->product == USB_PRODUCT_MATRIXORBITAL_MOUA))
+		return (UMATCH_VENDOR_PRODUCT);
 
 	return (UMATCH_NONE);
 }
@@ -227,94 +230,13 @@ uftdi_attach(device_t self)
 
 	id = usbd_get_interface_descriptor(iface);
 	ucom->sc_iface = iface;
-	switch( uaa->vendor ){
-	case USB_VENDOR_FTDI:
-		switch( uaa->product ){
-		case USB_PRODUCT_FTDI_SERIAL_8U100AX:
-			sc->sc_type = UFTDI_TYPE_SIO;
-			sc->sc_hdrlen = 1;
-			break;
-		case USB_PRODUCT_FTDI_SEMC_DSS20:
-		case USB_PRODUCT_FTDI_SERIAL_8U232AM:
-		case USB_PRODUCT_FTDI_SERIAL_2232C:
-		case USB_PRODUCT_FTDI_CFA_631:
-		case USB_PRODUCT_FTDI_CFA_632:
-		case USB_PRODUCT_FTDI_CFA_633:
-		case USB_PRODUCT_FTDI_CFA_634:
-		case USB_PRODUCT_FTDI_CFA_635:
-		case USB_PRODUCT_FTDI_USBSERIAL:
-		case USB_PRODUCT_FTDI_MX2_3:
-		case USB_PRODUCT_FTDI_MX4_5:
-		case USB_PRODUCT_FTDI_LK202:
-		case USB_PRODUCT_FTDI_LK204:
-		case USB_PRODUCT_FTDI_TACTRIX_OPENPORT_13M:
-		case USB_PRODUCT_FTDI_TACTRIX_OPENPORT_13S:
-		case USB_PRODUCT_FTDI_TACTRIX_OPENPORT_13U:
-		case USB_PRODUCT_FTDI_EISCOU:
-		case USB_PRODUCT_FTDI_UOPTBR:
-		case USB_PRODUCT_FTDI_EMCU2D:
-		case USB_PRODUCT_FTDI_PCMSFU:
-		case USB_PRODUCT_FTDI_EMCU2H:
-			sc->sc_type = UFTDI_TYPE_8U232AM;
-			sc->sc_hdrlen = 0;
-			break;
 
-		default:		/* Can't happen */
-			goto bad;
-		}
-		break;
-
-	case USB_VENDOR_INTREPIDCS:
-		switch( uaa->product ){
-		case USB_PRODUCT_INTREPIDCS_VALUECAN:
-		case USB_PRODUCT_INTREPIDCS_NEOVI:
-			sc->sc_type = UFTDI_TYPE_8U232AM;
-			sc->sc_hdrlen = 0;
-			break;
-
-		default:		/* Can't happen */
-			goto bad;
-		}
-		break;
-
-	case USB_VENDOR_SIIG2:
-		switch( uaa->product ){
-		case USB_PRODUCT_SIIG2_US2308:
-			sc->sc_type = UFTDI_TYPE_8U232AM;
-			sc->sc_hdrlen = 0;
-			break;
-
-		default:		/* Can't happen */
-			goto bad;
-		}
-		break;
-
-	case USB_VENDOR_BBELECTRONICS:
-		switch( uaa->product ){
-		case USB_PRODUCT_BBELECTRONICS_USOTL4:
-			sc->sc_type = UFTDI_TYPE_8U232AM;
-			sc->sc_hdrlen = 0;
-			break;
-
-		default:		/* Can't happen */
-			goto bad;
-		}
-		break;
-
-	case USB_VENDOR_MELCO:
-		switch( uaa->product ){
-		case USB_PRODUCT_MELCO_PCOPRS1:
-			sc->sc_type = UFTDI_TYPE_8U232AM;
-			sc->sc_hdrlen = 0;
-			break;
-
-		default:		/* Can't happen */
-			goto bad;
-		}
-		break;
-
-	default:		/* Can't happen */
-		goto bad;
+	if (uaa->vendor == USB_VENDOR_FTDI && uaa->product == USB_PRODUCT_FTDI_SERIAL_8U100AX) {
+		sc->sc_type = UFTDI_TYPE_SIO;
+		sc->sc_hdrlen = 1;
+	} else {
+		sc->sc_type = UFTDI_TYPE_8U232AM;
+		sc->sc_hdrlen = 0;
 	}
 
 	ucom->sc_bulkin_no = ucom->sc_bulkout_no = -1;
