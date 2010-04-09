@@ -171,7 +171,7 @@ NOPORTSATALL=	YES
 
 #
 # Doing 'make index' in /usr/ports requires Perl.
-MAKEINDEXPORTS=	lang/perl5.8
+MAKEINDEXPORTS=	lang/perl5.10
 DOCPORTS=	textproc/docproj
 # Set this to wherever the distfiles required by release procedures.
 .if defined(DOCDISTFILES)
