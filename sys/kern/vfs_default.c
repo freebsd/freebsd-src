@@ -67,6 +67,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/vnode_pager.h>
 
 static int	vop_nolookup(struct vop_lookup_args *);
+static int	vop_norename(struct vop_rename_args *);
 static int	vop_nostrategy(struct vop_strategy_args *);
 static int	get_next_dirent(struct vnode *vp, struct dirent **dpp,
 				char *dirbuf, int dirbuflen, off_t *off,
@@ -113,6 +114,7 @@ struct vop_vector default_vnodeops = {
 	.vop_poll =		vop_nopoll,
 	.vop_putpages =		vop_stdputpages,
 	.vop_readlink =		VOP_EINVAL,
+	.vop_rename =		vop_norename,
 	.vop_revoke =		VOP_PANIC,
 	.vop_strategy =		vop_nostrategy,
 	.vop_unlock =		vop_stdunlock,
@@ -203,6 +205,20 @@ vop_nolookup(ap)
 
 	*ap->a_vpp = NULL;
 	return (ENOTDIR);
+}
+
+/*
+ * vop_norename:
+ *
+ * Handle unlock and reference counting for arguments of vop_rename
+ * for filesystems that do not implement rename operation.
+ */
+static int
+vop_norename(struct vop_rename_args *ap)
+{
+
+	vop_rename_fail(ap);
+	return (EOPNOTSUPP);
 }
 
 /*
