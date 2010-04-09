@@ -392,7 +392,7 @@ int dn_c_copy_fs(struct dn_fsk *f, struct copy_args *a, int nq);
 int dn_compat_copy_queue(struct copy_args *a, void *_o);
 int dn_compat_copy_pipe(struct copy_args *a, void *_o);
 int copy_data_helper_compat(void *_o, void *_arg);
-int dn_compat_calc_size(struct dn_parms dn_cfg);
+int dn_compat_calc_size(void);
 int do_config(void *p, int l);
 
 /* function to drain idle object */

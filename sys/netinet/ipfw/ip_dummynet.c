@@ -1769,7 +1769,7 @@ compute_space(struct dn_id *cmd, struct copy_args *a)
 		x = DN_C_FS | DN_C_QUEUE;
 		break;
 	case DN_GET_COMPAT:	/* compatibility mode */
-		need =  dn_compat_calc_size(dn_cfg); 
+		need =  dn_compat_calc_size(); 
 		break;
 	}
 	a->flags = x;
