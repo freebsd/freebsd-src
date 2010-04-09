@@ -93,7 +93,7 @@ int	em_display_debug_stats = 0;
 /*********************************************************************
  *  Driver version:
  *********************************************************************/
-char em_driver_version[] = "7.0.3";
+char em_driver_version[] = "7.0.4";
 
 
 /*********************************************************************
@@ -1458,8 +1458,10 @@ em_handle_que(void *context, int pending)
 			em_start_locked(ifp, txr);
 #endif
 		EM_TX_UNLOCK(txr);
-		if (more_rx)
+		if (more_rx) {
 			taskqueue_enqueue(adapter->tq, &adapter->que_task);
+			return;
+		}
 	}
 
 	em_enable_intr(adapter);
@@ -1499,8 +1501,10 @@ em_msix_rx(void *arg)
 	struct adapter	*adapter = rxr->adapter;
 	bool		more;
 
+	EM_RX_LOCK(rxr);
 	++rxr->rx_irq;
 	more = em_rxeof(rxr, adapter->rx_process_limit);
+	EM_RX_UNLOCK(rxr);
 	if (more)
 		taskqueue_enqueue(rxr->tq, &rxr->rx_task);
 	else
@@ -1539,7 +1543,9 @@ em_handle_rx(void *context, int pending)
 	struct adapter	*adapter = rxr->adapter;
         bool            more;
 
+	EM_RX_LOCK(rxr);
 	more = em_rxeof(rxr, adapter->rx_process_limit);
+	EM_RX_UNLOCK(rxr);
 	if (more)
 		taskqueue_enqueue(rxr->tq, &rxr->rx_task);
 	else
@@ -3999,7 +4005,7 @@ em_initialize_receive_unit(struct adapter *adapter)
 	** When using MSIX interrupts we need to throttle
 	** using the EITR register (82574 only)
 	*/
-	if (adapter->msix)
+	if (hw->mac.type == e1000_82574)
 		for (int i = 0; i < 4; i++)
 			E1000_WRITE_REG(hw, E1000_EITR_82574(i),
 			    DEFAULT_ITR);
@@ -4084,7 +4090,7 @@ em_rxeof(struct rx_ring *rxr, int count)
 	bool			eop;
 	struct e1000_rx_desc	*cur;
 
-	EM_RX_LOCK(rxr);
+	EM_RX_LOCK_ASSERT(rxr);
 
 	for (i = rxr->next_to_check, processed = 0; count != 0;) {
 
@@ -4195,7 +4201,6 @@ skip:
 	}
 
 	rxr->next_to_check = i;
-	EM_RX_UNLOCK(rxr);
 
 #ifdef DEVICE_POLLING
 	return (rxdone);
@@ -4384,7 +4389,7 @@ em_enable_intr(struct adapter *adapter)
 	struct e1000_hw *hw = &adapter->hw;
 	u32 ims_mask = IMS_ENABLE_MASK;
 
-	if (adapter->msix) {
+	if (hw->mac.type == e1000_82574)
 		E1000_WRITE_REG(hw, EM_EIAC, EM_MSIX_MASK);
 		ims_mask |= EM_MSIX_MASK;
 	} 
@@ -4396,7 +4401,7 @@ em_disable_intr(struct adapter *adapter)
 {
 	struct e1000_hw *hw = &adapter->hw;
 
-	if (adapter->msix)
+	if (hw->mac.type == e1000_82574)
 		E1000_WRITE_REG(hw, EM_EIAC, 0);
 	E1000_WRITE_REG(&adapter->hw, E1000_IMC, 0xffffffff);
 }
