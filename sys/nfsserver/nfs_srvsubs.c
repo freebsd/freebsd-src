@@ -1128,6 +1128,9 @@ nfsrv_fhtovp(fhandle_t *fhp, int lockflag, struct vnode **vpp, int *vfslockedp,
 		}
 	}
 	error = VFS_FHTOVP(mp, &fhp->fh_fid, vpp);
+	if (error != 0)
+		/* Make sure the server replies ESTALE to the client. */
+		error = ESTALE;
 	vfs_unbusy(mp);
 	if (error)
 		goto out;
