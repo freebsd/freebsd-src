@@ -186,13 +186,10 @@ OF_decode_addr(phandle_t node, int bank, int *space, bus_addr_t *addr)
 			name[sizeof(name) - 1] = '\0';
 			goto skip;
 		}
-		if (lbus != bus) {
-			if (OF_getprop(bus, "#size-cells", &szc,
-			    sizeof(szc)) == -1)
-				szc = 1;
-			if (szc < 1 || szc > 2)
-				return (ENXIO);
-		}
+		if (OF_getprop(bus, "#size-cells", &szc, sizeof(szc)) == -1)
+			szc = 1;
+		if (szc < 1 || szc > 2)
+			return (ENXIO);
 		nbank /= sizeof(banks[0]) * (addrc + paddrc + szc);
 		bank = 0;
 		for (i = 0; i < nbank; i++) {
@@ -232,9 +229,9 @@ OF_decode_addr(phandle_t node, int bank, int *space, bus_addr_t *addr)
 		}
 		if (i == nbank)
 			return (ENXIO);
+		lbus = bus;
  skip:
 		addrc = paddrc;
-		lbus = bus;
 		bus = pbus;
 	}
 
