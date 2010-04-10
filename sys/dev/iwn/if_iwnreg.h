@@ -1,5 +1,5 @@
 /*	$FreeBSD$	*/
-/*	$OpenBSD: if_iwnreg.h,v 1.34 2009/11/08 11:54:48 damien Exp $	*/
+/*	$OpenBSD: if_iwnreg.h,v 1.37 2010/02/17 18:23:00 damien Exp $	*/
 
 /*-
  * Copyright (c) 2007, 2008
@@ -216,6 +216,7 @@
 #define IWN_GP_DRIVER_RADIO_3X3_HYB	(0 << 0)
 #define IWN_GP_DRIVER_RADIO_2X2_HYB	(1 << 0)
 #define IWN_GP_DRIVER_RADIO_2X2_IPA	(2 << 0)
+#define IWN_GP_DRIVER_CALIB_VER6	(1 << 2)
 
 /* Possible flags for register IWN_UCODE_GP1_CLR. */
 #define IWN_UCODE_GP1_RFKILL		(1 << 1)
@@ -832,10 +833,9 @@ struct iwn5000_cmd_txpower {
 /* Structure for command IWN_CMD_BLUETOOTH. */
 struct iwn_bluetooth {
 	uint8_t		flags;
-#define IWN_BT_COEX_DISABLE	0
-#define IWN_BT_COEX_MODE_2WIRE	1
-#define IWN_BT_COEX_MODE_3WIRE	2
-#define IWN_BT_COEX_MODE_4WIRE	3
+#define IWN_BT_COEX_CHAN_ANN	(1 << 0)
+#define IWN_BT_COEX_BT_PRIO	(1 << 1)
+#define IWN_BT_COEX_2_WIRE	(1 << 2)
 
 	uint8_t		lead_time;
 #define IWN_BT_LEAD_TIME_DEF	30
@@ -1326,6 +1326,12 @@ struct iwn_eeprom_enhinfo {
 	int8_t		mimo3;		/* max power in half-dBm */
 } __packed;
 
+struct iwn5000_eeprom_calib_hdr {
+	uint8_t		version;
+	uint8_t		pa_type;
+	uint16_t	volt;
+} __packed;
+
 #define IWN_NSAMPLES	3
 struct iwn4965_eeprom_chan_samples {
 	uint8_t	num;
@@ -1552,8 +1558,8 @@ static const struct iwn_sensitivity_limits iwn4965_sensitivity_limits = {
 };
 
 static const struct iwn_sensitivity_limits iwn5000_sensitivity_limits = {
-	120, 155,
-	240, 290,
+	120, 120,	/* min = max for performance bug in DSP. */
+	240, 240,	/* min = max for performance bug in DSP. */
 	 90, 120,
 	170, 210,
 	125, 200,
@@ -1575,8 +1581,20 @@ static const struct iwn_sensitivity_limits iwn5150_sensitivity_limits = {
 	 95
 };
 
+static const struct iwn_sensitivity_limits iwn1000_sensitivity_limits = {
+	120, 155,
+	240, 290,
+	90, 120,
+	170, 210,
+	125, 200,
+	170, 400,
+	95,
+	95,
+	95
+};
+
 static const struct iwn_sensitivity_limits iwn6000_sensitivity_limits = {
-	105, 145,
+	105, 110,
 	192, 232,
 	 80, 145,
 	128, 232,
@@ -1642,7 +1660,7 @@ static const char * const iwn_fw_errmsg[] = {
 	"DEBUG_1",
 	"DEBUG_2",
 	"DEBUG_3",
-	"UNKNOWN"
+	"ADVANCED_SYSASSERT"
 };
 
 /* Find least significant bit that is set. */
