@@ -562,12 +562,15 @@ iwn_attach(device_t dev)
 #if IWN_RBUF_SIZE == 8192
 	    IEEE80211_HTCAP_AMSDU7935 |
 #endif
-	    IEEE80211_HTCAP_SMPS_DIS |
 	    IEEE80211_HTCAP_CBW20_40 |
 	    IEEE80211_HTCAP_SGI20 |
 	    IEEE80211_HTCAP_SGI40;
 	if (sc->hw_type != IWN_HW_REV_TYPE_4965)
 		ic->ic_htcaps |= IEEE80211_HTCAP_GF;
+	if (sc->hw_type == IWN_HW_REV_TYPE_6050)
+		ic->ic_htcaps |= IEEE80211_HTCAP_SMPS_DYN;
+	else
+		ic->ic_htcaps |= IEEE80211_HTCAP_SMPS_DIS;
 #endif
 
 	/* Read MAC address, channels, etc from EEPROM. */
@@ -680,7 +683,7 @@ iwn_hal_attach(struct iwn_softc *sc)
 		break;
 	case IWN_HW_REV_TYPE_1000:
 		sc->sc_hal = &iwn5000_hal;
-		sc->limits = &iwn5000_sensitivity_limits;
+		sc->limits = &iwn1000_sensitivity_limits;
 		sc->fwname = "iwn1000fw";
 		sc->txchainmask = IWN_ANT_A;
 		sc->rxchainmask = IWN_ANT_AB;
@@ -1609,6 +1612,7 @@ iwn4965_print_power_group(struct iwn_softc *sc, int i)
 void
 iwn5000_read_eeprom(struct iwn_softc *sc)
 {
+	struct iwn5000_eeprom_calib_hdr hdr;
 	int32_t temp, volt;
 	uint32_t addr, base;
 	int i;
@@ -1632,6 +1636,12 @@ iwn5000_read_eeprom(struct iwn_softc *sc)
 
 	iwn_read_prom_data(sc, IWN5000_EEPROM_CAL, &val, 2);
 	base = le16toh(val);
+	iwn_read_prom_data(sc, base, &hdr, sizeof hdr);
+	DPRINTF(sc, IWN_DEBUG_CALIBRATE,
+	    "%s: calib version=%u pa type=%u voltage=%u\n",
+	    __func__, hdr.version, hdr.pa_type, le16toh(hdr.volt));
+	    sc->calib_ver = hdr.version;
+
 	if (sc->hw_type == IWN_HW_REV_TYPE_5150) {
 		/* Compute temperature offset. */
 		iwn_read_prom_data(sc, base + IWN5000_EEPROM_TEMP, &val, 2);
@@ -2138,7 +2148,8 @@ iwn5000_rx_calib_results(struct iwn_softc *sc, struct iwn_rx_desc *desc,
 
 	switch (calib->code) {
 	case IWN5000_PHY_CALIB_DC:
-		if (sc->hw_type == IWN_HW_REV_TYPE_5150)
+		if (sc->hw_type == IWN_HW_REV_TYPE_5150 ||
+		    sc->hw_type == IWN_HW_REV_TYPE_6050)
 			idx = 0;
 		break;
 	case IWN5000_PHY_CALIB_LO:
@@ -2668,8 +2679,10 @@ iwn_intr(void *arg)
 			sc->ict_cur = (sc->ict_cur + 1) % IWN_ICT_COUNT;
 		}
 		tmp = le32toh(tmp);
-		if (tmp == 0xffffffff)
-			tmp = 0;	/* Shouldn't happen. */
+		if (tmp == 0xffffffff)	/* Shouldn't happen. */
+			tmp = 0;
+		else if (tmp & 0xc0000)	/* Workaround a HW bug. */
+			tmp |= 0x8000;
 		r1 = (tmp & 0xff00) << 16 | (tmp & 0xff);
 		r2 = 0;	/* Unused. */
 	} else {
@@ -4022,7 +4035,7 @@ iwn_init_sensitivity(struct iwn_softc *sc)
 	/* Set initial correlation values. */
 	calib->ofdm_x1     = sc->limits->min_ofdm_x1;
 	calib->ofdm_mrc_x1 = sc->limits->min_ofdm_mrc_x1;
-	calib->ofdm_x4     = 90;
+	calib->ofdm_x4     = sc->limits->min_ofdm_x4;
 	calib->ofdm_mrc_x4 = sc->limits->min_ofdm_mrc_x4;
 	calib->cck_x4      = 125;
 	calib->cck_mrc_x4  = sc->limits->min_cck_mrc_x4;
@@ -4115,9 +4128,6 @@ iwn5000_init_gains(struct iwn_softc *sc)
 {
 	struct iwn_phy_calib cmd;
 
-	if (sc->hw_type == IWN_HW_REV_TYPE_6050)
-		return 0;
-
 	memset(&cmd, 0, sizeof cmd);
 	cmd.code = IWN5000_PHY_CALIB_RESET_NOISE_GAIN;
 	cmd.ngroups = 1;
@@ -4165,10 +4175,10 @@ iwn5000_set_gains(struct iwn_softc *sc)
 {
 	struct iwn_calib_state *calib = &sc->calib;
 	struct iwn_phy_calib_gain cmd;
-	int i, ant, delta;
+	int i, ant, delta, div;
 
-	if (sc->hw_type == IWN_HW_REV_TYPE_6050)
-		return 0;
+	/* We collected 20 beacons and !=6050 need a 1.5 factor. */
+	div = (sc->hw_type == IWN_HW_REV_TYPE_6050) ? 20 : 30;
 
 	memset(&cmd, 0, sizeof cmd);
 	cmd.code = IWN5000_PHY_CALIB_NOISE_GAIN;
@@ -4181,7 +4191,7 @@ iwn5000_set_gains(struct iwn_softc *sc)
 		if (sc->chainmask & (1 << i)) {
 			/* The delta is relative to antenna "ant". */
 			delta = ((int32_t)calib->noise[ant] -
-			    (int32_t)calib->noise[i]) / 30;
+			    (int32_t)calib->noise[i]) / div;
 			/* Limit to [-4.5dB,+4.5dB]. */
 			cmd.gain[i - 1] = MIN(abs(delta), 3);
 			if (delta < 0)
@@ -4464,7 +4474,7 @@ iwn_config(struct iwn_softc *sc)
 
 	/* Configure bluetooth coexistence. */
 	memset(&bluetooth, 0, sizeof bluetooth);
-	bluetooth.flags = IWN_BT_COEX_MODE_4WIRE;
+	bluetooth.flags = IWN_BT_COEX_CHAN_ANN | IWN_BT_COEX_BT_PRIO;
 	bluetooth.lead_time = IWN_BT_LEAD_TIME_DEF;
 	bluetooth.max_kill = IWN_BT_MAX_KILL_DEF;
 	DPRINTF(sc, IWN_DEBUG_RESET, "%s: config bluetooth coexistence\n",
@@ -5823,6 +5833,10 @@ iwn5000_nic_config(struct iwn_softc *sc)
 	if (sc->sc_flags & IWN_FLAG_INTERNAL_PA) {
 		/* Use internal power amplifier only. */
 		IWN_WRITE(sc, IWN_GP_DRIVER, IWN_GP_DRIVER_RADIO_2X2_IPA);
+	}
+	 if (sc->hw_type == IWN_HW_REV_TYPE_6050 && sc->calib_ver >= 6) {
+		 /* Indicate that ROM calibration version is >=6. */
+		 IWN_SETBITS(sc, IWN_GP_DRIVER, IWN_GP_DRIVER_CALIB_VER6);
 	}
 	return 0;
 }
