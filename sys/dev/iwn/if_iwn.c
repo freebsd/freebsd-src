@@ -839,7 +839,7 @@ iwn_nic_lock(struct iwn_softc *sc)
 	/* Spin until we actually get the lock. */
 	for (ntries = 0; ntries < 1000; ntries++) {
 		if ((IWN_READ(sc, IWN_GP_CNTRL) &
-		     (IWN_GP_CNTRL_MAC_ACCESS_ENA | IWN_GP_CNTRL_SLEEP)) ==
+		    (IWN_GP_CNTRL_MAC_ACCESS_ENA | IWN_GP_CNTRL_SLEEP)) ==
 		    IWN_GP_CNTRL_MAC_ACCESS_ENA)
 			return 0;
 		DELAY(10);
@@ -1092,8 +1092,7 @@ iwn_dma_contig_alloc(struct iwn_softc *sc, struct iwn_dma_info *dma,
 	    flags | BUS_DMA_ZERO, &dma->map);
 	if (error != 0) {
 		device_printf(sc->sc_dev,
-		   "%s: bus_dmamem_alloc failed, error %d\n",
-		   __func__, error);
+		    "%s: bus_dmamem_alloc failed, error %d\n", __func__, error);
 		goto fail;
 	}
 	error = bus_dmamap_load(dma->tag, dma->map, dma->vaddr,
@@ -1243,7 +1242,7 @@ iwn_alloc_rx_ring(struct iwn_softc *sc, struct iwn_rx_ring *ring)
 		data->m = m_getjcl(M_DONTWAIT, MT_DATA, M_PKTHDR, MJUMPAGESIZE);
 		if (data->m == NULL) {
 			device_printf(sc->sc_dev,
-			   "%s: could not allocate rx mbuf\n", __func__);
+			    "%s: could not allocate rx mbuf\n", __func__);
 			error = ENOMEM;
 			goto fail;
 		}
@@ -2788,7 +2787,7 @@ iwn5000_reset_sched(struct iwn_softc *sc, int qid, int idx)
 	if (idx < IWN_SCHED_WINSZ) {
 		*(w + IWN_TX_RING_COUNT) = *w;
 		bus_dmamap_sync(sc->sched_dma.tag, sc->sched_dma.map,
-		     BUS_DMASYNC_PREWRITE);
+		    BUS_DMASYNC_PREWRITE);
 	}
 }
 
@@ -2996,7 +2995,7 @@ iwn_tx_data(struct iwn_softc *sc, struct mbuf *m, struct ieee80211_node *ni,
 		if (error != 0) {
 			device_printf(sc->sc_dev,
 			    "%s: bus_dmamap_load_mbuf_sg failed, error %d\n",
-			     __func__, error);
+			    __func__, error);
 			m_freem(m);
 			return error;
 		}
@@ -3191,7 +3190,7 @@ iwn_tx_data_raw(struct iwn_softc *sc, struct mbuf *m,
 		if (error != 0) {
 			device_printf(sc->sc_dev,
 			    "%s: bus_dmamap_load_mbuf_sg failed, error %d\n",
-			     __func__, error);
+			    __func__, error);
 			m_freem(m);
 			return error;
 		}
@@ -4326,7 +4325,7 @@ iwn_tune_sensitivity(struct iwn_softc *sc, const struct iwn_rx_stats *stats)
 
 		if (calib->cck_state != IWN_CCK_STATE_INIT &&
 		    (((int32_t)calib->noise_ref - (int32_t)noise_ref) > 2 ||
-		     calib->low_fa > 100)) {
+		    calib->low_fa > 100)) {
 			inc(calib->energy_cck, 2, limits->min_energy_cck);
 			dec(calib->cck_x4,     3, limits->min_cck_x4);
 			dec(calib->cck_mrc_x4, 3, limits->min_cck_mrc_x4);
@@ -4886,7 +4885,6 @@ iwn_run(struct iwn_softc *sc, struct ieee80211vap *vap)
 		    __func__, error);
 		return error;
 	}
-	
 
 	/* Configuration has changed, set TX power accordingly. */
 	error = hal->set_txpower(sc, ni->ni_chan, 1);
@@ -5599,7 +5597,7 @@ iwn_read_firmware(struct iwn_softc *sc)
 	if (sc->fw_fp == NULL) {
 		device_printf(sc->sc_dev,
 		    "%s: could not load firmare image \"%s\"\n", __func__,
-		     sc->fwname);
+		    sc->fwname);
 		IWN_LOCK(sc);
 		return EINVAL;
 	}
