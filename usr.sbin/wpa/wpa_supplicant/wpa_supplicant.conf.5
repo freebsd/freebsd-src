@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 8, 2007
+.Dd April 10, 2010
 .Dt WPA_SUPPLICANT.CONF 5
 .Os
 .Sh NAME
@@ -153,7 +153,27 @@ Note that IBSS (adhoc) mode can only be used with
 .Va key_mgmt
 set to
 .Li NONE
-(plaintext and static WEP).
+(plaintext and static WEP), or
+.Va key_mgmt
+set to
+.Li WPA-NONE
+(fixed group key TKIP/CCMP).
+In addition,
+.Va ap_scan
+has to be set to 2 for IBSS.
+.Li WPA-NONE
+requires
+.Va proto
+set to WPA,
+.Va key_mgmt
+set to WPA-NONE,
+.Va pairwise
+set to NONE,
+.Va group
+set to either
+CCMP or TKIP (but not both), and
+.Va psk
+must also be set.
 .It Va proto
 List of acceptable protocols; one or more of:
 .Li WPA
