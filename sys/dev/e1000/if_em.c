@@ -1371,7 +1371,9 @@ em_poll(struct ifnet *ifp, enum poll_cmd cmd, int count)
 	}
 	EM_CORE_UNLOCK(adapter);
 
+	EM_RX_LOCK(rxr);
 	rx_done = em_rxeof(rxr, count);
+	EM_RX_UNLOCK(rxr);
 
 	EM_TX_LOCK(txr);
 	em_txeof(txr);
@@ -1447,7 +1449,10 @@ em_handle_que(void *context, int pending)
 
 
 	if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
+		EM_RX_LOCK(rxr);
 		more_rx = em_rxeof(rxr, adapter->rx_process_limit);
+		EM_RX_UNLOCK(rxr);
+
 		EM_TX_LOCK(txr);
 		em_txeof(txr);
 #ifdef EM_MULTIQUEUE
