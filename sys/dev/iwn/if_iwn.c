@@ -1711,6 +1711,10 @@ iwn_read_eeprom_band(struct iwn_softc *sc, int n)
 		c->ic_ieee = chan;
 		c->ic_maxregpower = channels[i].maxpwr;
 		c->ic_maxpower = 2*c->ic_maxregpower;
+
+		/* Save maximum allowed TX power for this channel. */
+		sc->maxpwr[chan] = channels[i].maxpwr;
+
 		if (n == 0) {	/* 2GHz band */
 			c->ic_freq = ieee80211_ieee2mhz(chan,
 			    IEEE80211_CHAN_G);
