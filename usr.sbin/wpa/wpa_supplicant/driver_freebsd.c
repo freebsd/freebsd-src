@@ -396,7 +396,7 @@ wpa_driver_bsd_associate(void *priv, struct wpa_driver_associate_params *params)
 {
 	struct wpa_driver_bsd_data *drv = priv;
 	struct ieee80211req_mlme mlme;
-	int privacy;
+	int flags, privacy;
 
 	wpa_printf(MSG_DEBUG,
 		"%s: ssid '%.*s' wpa ie len %u pairwise %u group %u key mgmt %u"
@@ -407,6 +407,17 @@ wpa_driver_bsd_associate(void *priv, struct wpa_driver_associate_params *params)
 		, params->group_suite
 		, params->key_mgmt_suite
 	);
+
+	/* NB: interface must be marked UP to associate */
+	if (getifflags(drv, &flags) != 0) {
+		wpa_printf(MSG_DEBUG, "%s did not mark interface UP", __func__);
+		return -1;
+	}
+	if ((flags & IFF_UP) == 0 && setifflags(drv, flags | IFF_UP) != 0) {
+		wpa_printf(MSG_DEBUG, "%s unable to mark interface UP",
+		    __func__);
+		return -1;
+	}
 
 	/* XXX error handling is wrong but unclear what to do... */
 	if (wpa_driver_bsd_set_wpa_ie(drv, params->wpa_ie, params->wpa_ie_len) < 0)

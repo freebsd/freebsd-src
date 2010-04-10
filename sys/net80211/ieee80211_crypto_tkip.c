@@ -281,7 +281,14 @@ tkip_decap(struct ieee80211_key *k, struct mbuf *m, int hdrlen)
 
 	tid = ieee80211_gettid(wh);
 	ctx->rx_rsc = READ_6(ivp[2], ivp[0], ivp[4], ivp[5], ivp[6], ivp[7]);
-	if (ctx->rx_rsc <= k->wk_keyrsc[tid]) {
+	/*
+	 * NB: Multiple stations are using the same key in
+	 * IBSS mode, there is currently no way to sync keyrsc
+	 * counters without discarding too many frames.
+	 */
+	if (vap->iv_opmode != IEEE80211_M_IBSS &&
+	    vap->iv_opmode != IEEE80211_M_AHDEMO &&
+	    ctx->rx_rsc <= k->wk_keyrsc[tid]) {
 		/*
 		 * Replay violation; notify upper layer.
 		 */
