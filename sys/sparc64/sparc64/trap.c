@@ -260,7 +260,8 @@ sun4u_set_traptable(void *tba_addr)
 		cell_t tba_addr;
 	} args = {
 		(cell_t)"SUNW,set-trap-table",
-		2,
+		1,
+		0,
 	};
 
 	args.tba_addr = (cell_t)tba_addr;
