@@ -45,8 +45,11 @@ __FBSDID("$FreeBSD$");
 #include <sys/socket.h>
 #include <sys/time.h>
 #include <sys/sysctl.h>
+
 #include <net/if.h>	/* IFNAMSIZ, struct ifaddr, ifq head, lock.h mutex.h */
 #include <net/netisr.h>
+#include <net/vnet.h>
+
 #include <netinet/in.h>
 #include <netinet/ip.h>		/* ip_len, ip_off */
 #include <netinet/ip_var.h>	/* ip_output(), IP_FORWARDING */
@@ -500,7 +503,7 @@ dummynet_task(void *context, int pending)
 	struct timeval t;
 	struct mq q = { NULL, NULL }; /* queue to accumulate results */
 
-	CURVNET_SET(context);
+	CURVNET_SET((struct vnet *)context);
 
 	DN_BH_WLOCK();
 
