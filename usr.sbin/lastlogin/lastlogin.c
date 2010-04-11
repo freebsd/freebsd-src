@@ -88,9 +88,12 @@ main(int argc, char *argv[])
 		while ((u = getutxent()) != NULL) {
 			if (u->ut_type != USER_PROCESS)
 				continue;
-			if ((ulistsize % 16) == 0)
+			if ((ulistsize % 16) == 0) {
 				ulist = realloc(ulist,
 				    (ulistsize + 16) * sizeof(struct utmpx));
+				if (ulist == NULL)
+					err(1, "malloc");
+			}
 			ulist[ulistsize++] = *u;
 		}
 		endutxent();
