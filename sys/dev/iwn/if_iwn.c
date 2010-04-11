@@ -787,8 +787,7 @@ iwn_vap_create(struct ieee80211com *ic,
 
 	ieee80211_ratectl_init(vap);
 	/* Complete setup. */
-	ieee80211_vap_attach(vap, ieee80211_media_change,
-	    ieee80211_media_status);
+	ieee80211_vap_attach(vap, iwn_media_change, ieee80211_media_status);
 	ic->ic_opmode = opmode;
 	return vap;
 }
