@@ -170,9 +170,12 @@ lltable_free(struct lltable *llt)
 
 	for (i=0; i < LLTBL_HASHTBL_SIZE; i++) {
 		LIST_FOREACH_SAFE(lle, &llt->lle_head[i], lle_next, next) {
+			int canceled;
 
-			callout_drain(&lle->la_timer);
+			canceled = callout_drain(&lle->la_timer);
 			LLE_WLOCK(lle);
+			if (canceled)
+				LLE_REMREF(lle);
 			llentry_free(lle);
 		}
 	}
