@@ -82,11 +82,12 @@ static struct ieee80211vap *iwn_vap_create(struct ieee80211com *,
 		    const uint8_t mac[IEEE80211_ADDR_LEN]);
 static void	iwn_vap_delete(struct ieee80211vap *);
 static int	iwn_cleanup(device_t);
-static int 	iwn_detach(device_t);
+static int	iwn_detach(device_t);
 int		iwn_nic_lock(struct iwn_softc *);
 int		iwn_eeprom_lock(struct iwn_softc *);
 int		iwn_init_otprom(struct iwn_softc *);
 int		iwn_read_prom_data(struct iwn_softc *, uint32_t, void *, int);
+static void	iwn_dma_map_addr(void *, bus_dma_segment_t *, int, int);
 static int	iwn_dma_contig_alloc(struct iwn_softc *, struct iwn_dma_info *,
 		    void **, bus_size_t, bus_size_t, int);
 static void	iwn_dma_contig_free(struct iwn_dma_info *);
@@ -111,6 +112,11 @@ int		iwn_read_eeprom(struct iwn_softc *,
 void		iwn4965_read_eeprom(struct iwn_softc *);
 void		iwn4965_print_power_group(struct iwn_softc *, int);
 void		iwn5000_read_eeprom(struct iwn_softc *);
+static uint32_t	iwn_eeprom_channel_flags(struct iwn_eeprom_chan *);
+static void	iwn_read_eeprom_band(struct iwn_softc *, int);
+#if 0	/* HT */
+static void	iwn_read_eeprom_ht40(struct iwn_softc *, int);
+#endif
 static void	iwn_read_eeprom_channels(struct iwn_softc *, int,
 		    uint32_t);
 void		iwn_read_eeprom_enhinfo(struct iwn_softc *);
@@ -150,6 +156,7 @@ void		iwn4965_update_sched(struct iwn_softc *, int, int, uint8_t,
 void		iwn5000_update_sched(struct iwn_softc *, int, int, uint8_t,
 		    uint16_t);
 void		iwn5000_reset_sched(struct iwn_softc *, int, int);
+static uint8_t	iwn_plcp_signal(int);
 int		iwn_tx_data(struct iwn_softc *, struct mbuf *,
 		    struct ieee80211_node *, struct iwn_tx_ring *);
 static int	iwn_raw_xmit(struct ieee80211_node *, struct mbuf *,
@@ -195,6 +202,22 @@ int		iwn_config(struct iwn_softc *);
 int		iwn_scan(struct iwn_softc *);
 int		iwn_auth(struct iwn_softc *, struct ieee80211vap *vap);
 int		iwn_run(struct iwn_softc *, struct ieee80211vap *vap);
+#if 0	/* HT */
+static int	iwn_ampdu_rx_start(struct ieee80211com *,
+		    struct ieee80211_node *, uint8_t);
+static void	iwn_ampdu_rx_stop(struct ieee80211com *,
+		    struct ieee80211_node *, uint8_t);
+static int	iwn_ampdu_tx_start(struct ieee80211com *,
+		    struct ieee80211_node *, uint8_t);
+static void	iwn_ampdu_tx_stop(struct ieee80211com *,
+		    struct ieee80211_node *, uint8_t);
+static void	iwn4965_ampdu_tx_start(struct iwn_softc *,
+		    struct ieee80211_node *, uint8_t, uint16_t);
+static void	iwn4965_ampdu_tx_stop(struct iwn_softc *, uint8_t, uint16_t);
+static void	iwn5000_ampdu_tx_start(struct iwn_softc *,
+		    struct ieee80211_node *, uint8_t, uint16_t);
+static void	iwn5000_ampdu_tx_stop(struct iwn_softc *, uint8_t, uint16_t);
+#endif
 int		iwn5000_query_calibration(struct iwn_softc *);
 int		iwn5000_send_calibration(struct iwn_softc *);
 int		iwn5000_send_wimax_coex(struct iwn_softc *);
@@ -225,6 +248,8 @@ static void 	iwn_scan_end(struct ieee80211com *);
 static void 	iwn_set_channel(struct ieee80211com *);
 static void 	iwn_scan_curchan(struct ieee80211_scan_state *, unsigned long);
 static void 	iwn_scan_mindwell(struct ieee80211_scan_state *);
+static struct iwn_eeprom_chan *iwn_find_eeprom_channel(struct iwn_softc *,
+		    struct ieee80211_channel *);
 static int	iwn_setregdomain(struct ieee80211com *,
 		    struct ieee80211_regdomain *, int,
 		    struct ieee80211_channel []);
