@@ -232,6 +232,7 @@ main(int argc __unused, char **argv __unused)
 	add("\n", "CNL");
 	add("\\", "CBACK");
 	add("`", "CBQUOTE");
+	add("\"", "CDQUOTE");
 	add("$", "CVAR");
 	add("}", "CENDVAR");
 	add("(", "CLP");
