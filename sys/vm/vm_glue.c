@@ -99,12 +99,6 @@ extern int maxslp;
 /*
  * System initialization
  *
- * Note: proc0 from proc.h
- */
-static void vm_init_limits(void *);
-SYSINIT(vm_limits, SI_SUB_VM_CONF, SI_ORDER_FIRST, vm_init_limits, &proc0);
-
-/*
  * THIS MUST BE THE LAST INITIALIZATION ITEM!!!
  *
  * Note: run scheduling should be divorced from the vm system.
@@ -115,6 +109,8 @@ SYSINIT(scheduler, SI_SUB_RUN_SCHEDULER, SI_ORDER_ANY, scheduler, NULL);
 #ifndef NO_SWAPPING
 static int swapout(struct proc *);
 static void swapclear(struct proc *);
+static void vm_thread_swapin(struct thread *td);
+static void vm_thread_swapout(struct thread *td);
 #endif
 
 /*
@@ -498,10 +494,11 @@ kstack_cache_init(void *nulll)
 MTX_SYSINIT(kstack_cache, &kstack_cache_mtx, "kstkch", MTX_DEF);
 SYSINIT(vm_kstacks, SI_SUB_KTHREAD_INIT, SI_ORDER_ANY, kstack_cache_init, NULL);
 
+#ifndef NO_SWAPPING
 /*
  * Allow a thread's kernel stack to be paged out.
  */
-void
+static void
 vm_thread_swapout(struct thread *td)
 {
 	vm_object_t ksobj;
@@ -528,7 +525,7 @@ vm_thread_swapout(struct thread *td)
 /*
  * Bring the kernel stack for a specified thread back in.
  */
-void
+static void
 vm_thread_swapin(struct thread *td)
 {
 	vm_object_t ksobj;
@@ -556,6 +553,7 @@ vm_thread_swapin(struct thread *td)
 	pmap_qenter(td->td_kstack, ma, pages);
 	cpu_thread_swapin(td);
 }
+#endif /* !NO_SWAPPING */
 
 /*
  * Implement fork's actions on an address space.
@@ -627,38 +625,6 @@ vm_waitproc(p)
 {
 
 	vmspace_exitfree(p);		/* and clean-out the vmspace */
-}
-
-/*
- * Set default limits for VM system.
- * Called for proc 0, and then inherited by all others.
- *
- * XXX should probably act directly on proc0.
- */
-static void
-vm_init_limits(udata)
-	void *udata;
-{
-	struct proc *p = udata;
-	struct plimit *limp;
-	int rss_limit;
-
-	/*
-	 * Set up the initial limits on process VM. Set the maximum resident
-	 * set size to be half of (reasonably) available memory.  Since this
-	 * is a soft limit, it comes into effect only when the system is out
-	 * of memory - half of main memory helps to favor smaller processes,
-	 * and reduces thrashing of the object cache.
-	 */
-	limp = p->p_limit;
-	limp->pl_rlimit[RLIMIT_STACK].rlim_cur = dflssiz;
-	limp->pl_rlimit[RLIMIT_STACK].rlim_max = maxssiz;
-	limp->pl_rlimit[RLIMIT_DATA].rlim_cur = dfldsiz;
-	limp->pl_rlimit[RLIMIT_DATA].rlim_max = maxdsiz;
-	/* limit the limit to no less than 2MB */
-	rss_limit = max(cnt.v_free_count, 512);
-	limp->pl_rlimit[RLIMIT_RSS].rlim_cur = ptoa(rss_limit);
-	limp->pl_rlimit[RLIMIT_RSS].rlim_max = RLIM_INFINITY;
 }
 
 void

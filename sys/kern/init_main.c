@@ -382,8 +382,9 @@ static void
 proc0_init(void *dummy __unused)
 {
 	struct proc *p;
-	unsigned i;
 	struct thread *td;
+	vm_paddr_t pageablemem;
+	int i;
 
 	GIANT_REQUIRED;
 	p = &proc0;
@@ -493,10 +494,16 @@ proc0_init(void *dummy __unused)
 	    p->p_limit->pl_rlimit[RLIMIT_NOFILE].rlim_max = maxfiles;
 	p->p_limit->pl_rlimit[RLIMIT_NPROC].rlim_cur =
 	    p->p_limit->pl_rlimit[RLIMIT_NPROC].rlim_max = maxproc;
-	i = ptoa(cnt.v_free_count);
-	p->p_limit->pl_rlimit[RLIMIT_RSS].rlim_max = i;
-	p->p_limit->pl_rlimit[RLIMIT_MEMLOCK].rlim_max = i;
-	p->p_limit->pl_rlimit[RLIMIT_MEMLOCK].rlim_cur = i / 3;
+	p->p_limit->pl_rlimit[RLIMIT_DATA].rlim_cur = dfldsiz;
+	p->p_limit->pl_rlimit[RLIMIT_DATA].rlim_max = maxdsiz;
+	p->p_limit->pl_rlimit[RLIMIT_STACK].rlim_cur = dflssiz;
+	p->p_limit->pl_rlimit[RLIMIT_STACK].rlim_max = maxssiz;
+	/* Cast to avoid overflow on i386/PAE. */
+	pageablemem = ptoa((vm_paddr_t)cnt.v_free_count);
+	p->p_limit->pl_rlimit[RLIMIT_RSS].rlim_cur =
+	    p->p_limit->pl_rlimit[RLIMIT_RSS].rlim_max = pageablemem;
+	p->p_limit->pl_rlimit[RLIMIT_MEMLOCK].rlim_cur = pageablemem / 3;
+	p->p_limit->pl_rlimit[RLIMIT_MEMLOCK].rlim_max = pageablemem;
 	p->p_cpulimit = RLIM_INFINITY;
 
 	p->p_stats = pstats_alloc();
