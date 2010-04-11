@@ -234,6 +234,7 @@ int
 if_clone_destroyif(struct if_clone *ifc, struct ifnet *ifp)
 {
 	int err;
+	struct ifnet *ifcifp;
 
 	if (ifc->ifc_destroy == NULL)
 		return(EOPNOTSUPP);
@@ -246,8 +247,17 @@ if_clone_destroyif(struct if_clone *ifc, struct ifnet *ifp)
 	CURVNET_SET_QUIET(ifp->if_vnet);
 
 	IF_CLONE_LOCK(ifc);
-	IFC_IFLIST_REMOVE(ifc, ifp);
+	LIST_FOREACH(ifcifp, &ifc->ifc_iflist, if_clones) {
+		if (ifcifp == ifp) {
+			IFC_IFLIST_REMOVE(ifc, ifp);
+			break;
+		}
+	}
 	IF_CLONE_UNLOCK(ifc);
+	if (ifcifp == NULL) {
+		CURVNET_RESTORE();
+		return (ENXIO);		/* ifp is not on the list. */
+	}
 
 	if_delgroup(ifp, ifc->ifc_name);
 
