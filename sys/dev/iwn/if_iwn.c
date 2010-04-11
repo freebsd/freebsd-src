@@ -74,8 +74,8 @@ __FBSDID("$FreeBSD$");
 
 static int	iwn_probe(device_t);
 static int	iwn_attach(device_t);
-const struct iwn_hal *iwn_hal_attach(struct iwn_softc *);
-void		iwn_radiotap_attach(struct iwn_softc *);
+static const struct iwn_hal *iwn_hal_attach(struct iwn_softc *);
+static void	iwn_radiotap_attach(struct iwn_softc *);
 static struct ieee80211vap *iwn_vap_create(struct ieee80211com *,
 		    const char name[IFNAMSIZ], int unit, int opmode,
 		    int flags, const uint8_t bssid[IEEE80211_ADDR_LEN],
@@ -83,35 +83,35 @@ static struct ieee80211vap *iwn_vap_create(struct ieee80211com *,
 static void	iwn_vap_delete(struct ieee80211vap *);
 static int	iwn_cleanup(device_t);
 static int	iwn_detach(device_t);
-int		iwn_nic_lock(struct iwn_softc *);
-int		iwn_eeprom_lock(struct iwn_softc *);
-int		iwn_init_otprom(struct iwn_softc *);
-int		iwn_read_prom_data(struct iwn_softc *, uint32_t, void *, int);
+static int	iwn_nic_lock(struct iwn_softc *);
+static int	iwn_eeprom_lock(struct iwn_softc *);
+static int	iwn_init_otprom(struct iwn_softc *);
+static int	iwn_read_prom_data(struct iwn_softc *, uint32_t, void *, int);
 static void	iwn_dma_map_addr(void *, bus_dma_segment_t *, int, int);
 static int	iwn_dma_contig_alloc(struct iwn_softc *, struct iwn_dma_info *,
 		    void **, bus_size_t, bus_size_t, int);
 static void	iwn_dma_contig_free(struct iwn_dma_info *);
-int		iwn_alloc_sched(struct iwn_softc *);
-void		iwn_free_sched(struct iwn_softc *);
-int		iwn_alloc_kw(struct iwn_softc *);
-void		iwn_free_kw(struct iwn_softc *);
-int		iwn_alloc_ict(struct iwn_softc *);
-void		iwn_free_ict(struct iwn_softc *);
-int		iwn_alloc_fwmem(struct iwn_softc *);
-void		iwn_free_fwmem(struct iwn_softc *);
-int		iwn_alloc_rx_ring(struct iwn_softc *, struct iwn_rx_ring *);
-void		iwn_reset_rx_ring(struct iwn_softc *, struct iwn_rx_ring *);
-void		iwn_free_rx_ring(struct iwn_softc *, struct iwn_rx_ring *);
-int		iwn_alloc_tx_ring(struct iwn_softc *, struct iwn_tx_ring *,
+static int	iwn_alloc_sched(struct iwn_softc *);
+static void	iwn_free_sched(struct iwn_softc *);
+static int	iwn_alloc_kw(struct iwn_softc *);
+static void	iwn_free_kw(struct iwn_softc *);
+static int	iwn_alloc_ict(struct iwn_softc *);
+static void	iwn_free_ict(struct iwn_softc *);
+static int	iwn_alloc_fwmem(struct iwn_softc *);
+static void	iwn_free_fwmem(struct iwn_softc *);
+static int	iwn_alloc_rx_ring(struct iwn_softc *, struct iwn_rx_ring *);
+static void	iwn_reset_rx_ring(struct iwn_softc *, struct iwn_rx_ring *);
+static void	iwn_free_rx_ring(struct iwn_softc *, struct iwn_rx_ring *);
+static int	iwn_alloc_tx_ring(struct iwn_softc *, struct iwn_tx_ring *,
 		    int);
-void		iwn_reset_tx_ring(struct iwn_softc *, struct iwn_tx_ring *);
-void		iwn_free_tx_ring(struct iwn_softc *, struct iwn_tx_ring *);
-void		iwn5000_ict_reset(struct iwn_softc *);
-int		iwn_read_eeprom(struct iwn_softc *,
+static void	iwn_reset_tx_ring(struct iwn_softc *, struct iwn_tx_ring *);
+static void	iwn_free_tx_ring(struct iwn_softc *, struct iwn_tx_ring *);
+static void	iwn5000_ict_reset(struct iwn_softc *);
+static int	iwn_read_eeprom(struct iwn_softc *,
 		    uint8_t macaddr[IEEE80211_ADDR_LEN]);
-void		iwn4965_read_eeprom(struct iwn_softc *);
-void		iwn4965_print_power_group(struct iwn_softc *, int);
-void		iwn5000_read_eeprom(struct iwn_softc *);
+static void	iwn4965_read_eeprom(struct iwn_softc *);
+static void	iwn4965_print_power_group(struct iwn_softc *, int);
+static void	iwn5000_read_eeprom(struct iwn_softc *);
 static uint32_t	iwn_eeprom_channel_flags(struct iwn_eeprom_chan *);
 static void	iwn_read_eeprom_band(struct iwn_softc *, int);
 #if 0	/* HT */
@@ -119,91 +119,91 @@ static void	iwn_read_eeprom_ht40(struct iwn_softc *, int);
 #endif
 static void	iwn_read_eeprom_channels(struct iwn_softc *, int,
 		    uint32_t);
-void		iwn_read_eeprom_enhinfo(struct iwn_softc *);
-struct ieee80211_node *iwn_node_alloc(struct ieee80211vap *,
+static void	iwn_read_eeprom_enhinfo(struct iwn_softc *);
+static struct ieee80211_node *iwn_node_alloc(struct ieee80211vap *,
 		    const uint8_t mac[IEEE80211_ADDR_LEN]);
-void		iwn_newassoc(struct ieee80211_node *, int);
-int		iwn_media_change(struct ifnet *);
-int		iwn_newstate(struct ieee80211vap *, enum ieee80211_state, int);
-void		iwn_rx_phy(struct iwn_softc *, struct iwn_rx_desc *,
+static void	iwn_newassoc(struct ieee80211_node *, int);
+static int	iwn_media_change(struct ifnet *);
+static int	iwn_newstate(struct ieee80211vap *, enum ieee80211_state, int);
+static void	iwn_rx_phy(struct iwn_softc *, struct iwn_rx_desc *,
 		    struct iwn_rx_data *);
 static void	iwn_timer_timeout(void *);
 static void	iwn_calib_reset(struct iwn_softc *);
-void		iwn_rx_done(struct iwn_softc *, struct iwn_rx_desc *,
+static void	iwn_rx_done(struct iwn_softc *, struct iwn_rx_desc *,
 		    struct iwn_rx_data *);
 #if 0	/* HT */
-void		iwn_rx_compressed_ba(struct iwn_softc *, struct iwn_rx_desc *,
+static void	iwn_rx_compressed_ba(struct iwn_softc *, struct iwn_rx_desc *,
 		    struct iwn_rx_data *);
 #endif
-void		iwn5000_rx_calib_results(struct iwn_softc *,
+static void	iwn5000_rx_calib_results(struct iwn_softc *,
 		    struct iwn_rx_desc *, struct iwn_rx_data *);
-void		iwn_rx_statistics(struct iwn_softc *, struct iwn_rx_desc *,
+static void	iwn_rx_statistics(struct iwn_softc *, struct iwn_rx_desc *,
 		    struct iwn_rx_data *);
-void		iwn4965_tx_done(struct iwn_softc *, struct iwn_rx_desc *,
+static void	iwn4965_tx_done(struct iwn_softc *, struct iwn_rx_desc *,
 		    struct iwn_rx_data *);
-void		iwn5000_tx_done(struct iwn_softc *, struct iwn_rx_desc *,
+static void	iwn5000_tx_done(struct iwn_softc *, struct iwn_rx_desc *,
 		    struct iwn_rx_data *);
-void		iwn_tx_done(struct iwn_softc *, struct iwn_rx_desc *, int,
+static void	iwn_tx_done(struct iwn_softc *, struct iwn_rx_desc *, int,
 		    uint8_t);
-void		iwn_cmd_done(struct iwn_softc *, struct iwn_rx_desc *);
-void		iwn_notif_intr(struct iwn_softc *);
-void		iwn_wakeup_intr(struct iwn_softc *);
-void		iwn_rftoggle_intr(struct iwn_softc *);
-void		iwn_fatal_intr(struct iwn_softc *);
-void		iwn_intr(void *);
-void		iwn4965_update_sched(struct iwn_softc *, int, int, uint8_t,
+static void	iwn_cmd_done(struct iwn_softc *, struct iwn_rx_desc *);
+static void	iwn_notif_intr(struct iwn_softc *);
+static void	iwn_wakeup_intr(struct iwn_softc *);
+static void	iwn_rftoggle_intr(struct iwn_softc *);
+static void	iwn_fatal_intr(struct iwn_softc *);
+static void	iwn_intr(void *);
+static void	iwn4965_update_sched(struct iwn_softc *, int, int, uint8_t,
 		    uint16_t);
-void		iwn5000_update_sched(struct iwn_softc *, int, int, uint8_t,
+static void	iwn5000_update_sched(struct iwn_softc *, int, int, uint8_t,
 		    uint16_t);
 #ifdef notyet
-void		iwn5000_reset_sched(struct iwn_softc *, int, int);
+static void	iwn5000_reset_sched(struct iwn_softc *, int, int);
 #endif
 static uint8_t	iwn_plcp_signal(int);
-int		iwn_tx_data(struct iwn_softc *, struct mbuf *,
+static int	iwn_tx_data(struct iwn_softc *, struct mbuf *,
 		    struct ieee80211_node *, struct iwn_tx_ring *);
 static int	iwn_raw_xmit(struct ieee80211_node *, struct mbuf *,
 		    const struct ieee80211_bpf_params *);
-void		iwn_start(struct ifnet *);
-void		iwn_start_locked(struct ifnet *);
+static void	iwn_start(struct ifnet *);
+static void	iwn_start_locked(struct ifnet *);
 static void	iwn_watchdog(struct iwn_softc *sc);
-int		iwn_ioctl(struct ifnet *, u_long, caddr_t);
-int		iwn_cmd(struct iwn_softc *, int, const void *, int, int);
-int		iwn4965_add_node(struct iwn_softc *, struct iwn_node_info *,
+static int	iwn_ioctl(struct ifnet *, u_long, caddr_t);
+static int	iwn_cmd(struct iwn_softc *, int, const void *, int, int);
+static int	iwn4965_add_node(struct iwn_softc *, struct iwn_node_info *,
 		    int);
-int		iwn5000_add_node(struct iwn_softc *, struct iwn_node_info *,
+static int	iwn5000_add_node(struct iwn_softc *, struct iwn_node_info *,
 		    int);
-int		iwn_set_link_quality(struct iwn_softc *, uint8_t, int);
-int		iwn_add_broadcast_node(struct iwn_softc *, int);
-int		iwn_wme_update(struct ieee80211com *);
+static int	iwn_set_link_quality(struct iwn_softc *, uint8_t, int);
+static int	iwn_add_broadcast_node(struct iwn_softc *, int);
+static int	iwn_wme_update(struct ieee80211com *);
 static void	iwn_update_mcast(struct ifnet *);
-void		iwn_set_led(struct iwn_softc *, uint8_t, uint8_t, uint8_t);
-int		iwn_set_critical_temp(struct iwn_softc *);
-int		iwn_set_timing(struct iwn_softc *, struct ieee80211_node *);
-void		iwn4965_power_calibration(struct iwn_softc *, int);
-int		iwn4965_set_txpower(struct iwn_softc *,
+static void	iwn_set_led(struct iwn_softc *, uint8_t, uint8_t, uint8_t);
+static int	iwn_set_critical_temp(struct iwn_softc *);
+static int	iwn_set_timing(struct iwn_softc *, struct ieee80211_node *);
+static void	iwn4965_power_calibration(struct iwn_softc *, int);
+static int	iwn4965_set_txpower(struct iwn_softc *,
 		    struct ieee80211_channel *, int);
-int		iwn5000_set_txpower(struct iwn_softc *,
+static int	iwn5000_set_txpower(struct iwn_softc *,
 		    struct ieee80211_channel *, int);
-int		iwn4965_get_rssi(struct iwn_softc *, struct iwn_rx_stat *);
-int		iwn5000_get_rssi(struct iwn_softc *, struct iwn_rx_stat *);
-int		iwn_get_noise(const struct iwn_rx_general_stats *);
-int		iwn4965_get_temperature(struct iwn_softc *);
-int		iwn5000_get_temperature(struct iwn_softc *);
-int		iwn_init_sensitivity(struct iwn_softc *);
-void		iwn_collect_noise(struct iwn_softc *,
+static int	iwn4965_get_rssi(struct iwn_softc *, struct iwn_rx_stat *);
+static int	iwn5000_get_rssi(struct iwn_softc *, struct iwn_rx_stat *);
+static int	iwn_get_noise(const struct iwn_rx_general_stats *);
+static int	iwn4965_get_temperature(struct iwn_softc *);
+static int	iwn5000_get_temperature(struct iwn_softc *);
+static int	iwn_init_sensitivity(struct iwn_softc *);
+static void	iwn_collect_noise(struct iwn_softc *,
 		    const struct iwn_rx_general_stats *);
-int		iwn4965_init_gains(struct iwn_softc *);
-int		iwn5000_init_gains(struct iwn_softc *);
-int		iwn4965_set_gains(struct iwn_softc *);
-int		iwn5000_set_gains(struct iwn_softc *);
-void		iwn_tune_sensitivity(struct iwn_softc *,
+static int	iwn4965_init_gains(struct iwn_softc *);
+static int	iwn5000_init_gains(struct iwn_softc *);
+static int	iwn4965_set_gains(struct iwn_softc *);
+static int	iwn5000_set_gains(struct iwn_softc *);
+static void	iwn_tune_sensitivity(struct iwn_softc *,
 		    const struct iwn_rx_stats *);
-int		iwn_send_sensitivity(struct iwn_softc *);
-int		iwn_set_pslevel(struct iwn_softc *, int, int, int);
-int		iwn_config(struct iwn_softc *);
-int		iwn_scan(struct iwn_softc *);
-int		iwn_auth(struct iwn_softc *, struct ieee80211vap *vap);
-int		iwn_run(struct iwn_softc *, struct ieee80211vap *vap);
+static int	iwn_send_sensitivity(struct iwn_softc *);
+static int	iwn_set_pslevel(struct iwn_softc *, int, int, int);
+static int	iwn_config(struct iwn_softc *);
+static int	iwn_scan(struct iwn_softc *);
+static int	iwn_auth(struct iwn_softc *, struct ieee80211vap *vap);
+static int	iwn_run(struct iwn_softc *, struct ieee80211vap *vap);
 #if 0	/* HT */
 static int	iwn_ampdu_rx_start(struct ieee80211com *,
 		    struct ieee80211_node *, uint8_t);
@@ -220,31 +220,31 @@ static void	iwn5000_ampdu_tx_start(struct iwn_softc *,
 		    struct ieee80211_node *, uint8_t, uint16_t);
 static void	iwn5000_ampdu_tx_stop(struct iwn_softc *, uint8_t, uint16_t);
 #endif
-int		iwn5000_query_calibration(struct iwn_softc *);
-int		iwn5000_send_calibration(struct iwn_softc *);
-int		iwn5000_send_wimax_coex(struct iwn_softc *);
-int		iwn4965_post_alive(struct iwn_softc *);
-int		iwn5000_post_alive(struct iwn_softc *);
-int		iwn4965_load_bootcode(struct iwn_softc *, const uint8_t *,
+static int	iwn5000_query_calibration(struct iwn_softc *);
+static int	iwn5000_send_calibration(struct iwn_softc *);
+static int	iwn5000_send_wimax_coex(struct iwn_softc *);
+static int	iwn4965_post_alive(struct iwn_softc *);
+static int	iwn5000_post_alive(struct iwn_softc *);
+static int	iwn4965_load_bootcode(struct iwn_softc *, const uint8_t *,
 		    int);
-int		iwn4965_load_firmware(struct iwn_softc *);
-int		iwn5000_load_firmware_section(struct iwn_softc *, uint32_t,
+static int	iwn4965_load_firmware(struct iwn_softc *);
+static int	iwn5000_load_firmware_section(struct iwn_softc *, uint32_t,
 		    const uint8_t *, int);
-int		iwn5000_load_firmware(struct iwn_softc *);
-int		iwn_read_firmware(struct iwn_softc *);
-int		iwn_clock_wait(struct iwn_softc *);
-int		iwn_apm_init(struct iwn_softc *);
-void		iwn_apm_stop_master(struct iwn_softc *);
-void		iwn_apm_stop(struct iwn_softc *);
-int		iwn4965_nic_config(struct iwn_softc *);
-int		iwn5000_nic_config(struct iwn_softc *);
-int		iwn_hw_prepare(struct iwn_softc *);
-int		iwn_hw_init(struct iwn_softc *);
-void		iwn_hw_stop(struct iwn_softc *);
-void		iwn_init_locked(struct iwn_softc *);
-void		iwn_init(void *);
-void		iwn_stop_locked(struct iwn_softc *);
-void		iwn_stop(struct iwn_softc *);
+static int	iwn5000_load_firmware(struct iwn_softc *);
+static int	iwn_read_firmware(struct iwn_softc *);
+static int	iwn_clock_wait(struct iwn_softc *);
+static int	iwn_apm_init(struct iwn_softc *);
+static void	iwn_apm_stop_master(struct iwn_softc *);
+static void	iwn_apm_stop(struct iwn_softc *);
+static int	iwn4965_nic_config(struct iwn_softc *);
+static int	iwn5000_nic_config(struct iwn_softc *);
+static int	iwn_hw_prepare(struct iwn_softc *);
+static int	iwn_hw_init(struct iwn_softc *);
+static void	iwn_hw_stop(struct iwn_softc *);
+static void	iwn_init_locked(struct iwn_softc *);
+static void	iwn_init(void *);
+static void	iwn_stop_locked(struct iwn_softc *);
+static void	iwn_stop(struct iwn_softc *);
 static void 	iwn_scan_start(struct ieee80211com *);
 static void 	iwn_scan_end(struct ieee80211com *);
 static void 	iwn_set_channel(struct ieee80211com *);
@@ -673,7 +673,7 @@ fail:
 	return error;
 }
 
-const struct iwn_hal *
+static const struct iwn_hal *
 iwn_hal_attach(struct iwn_softc *sc)
 {
 	sc->hw_type = (IWN_READ(sc, IWN_HW_REV) >> 4) & 0xf;
@@ -750,7 +750,7 @@ iwn_hal_attach(struct iwn_softc *sc)
 /*
  * Attach the interface to 802.11 radiotap.
  */
-void
+static void
 iwn_radiotap_attach(struct iwn_softc *sc)
 {
 	struct ifnet *ifp = sc->sc_ifp;
@@ -802,7 +802,7 @@ iwn_vap_delete(struct ieee80211vap *vap)
 	free(ivp, M_80211_VAP);
 }
 
-int
+static int
 iwn_cleanup(device_t dev)
 {
 	struct iwn_softc *sc = device_get_softc(dev);
@@ -857,7 +857,7 @@ iwn_detach(device_t dev)
 	return 0;
 }
 
-int
+static int
 iwn_nic_lock(struct iwn_softc *sc)
 {
 	int ntries;
@@ -963,7 +963,7 @@ iwn_mem_set_region_4(struct iwn_softc *sc, uint32_t addr, uint32_t val,
 		iwn_mem_write(sc, addr, val);
 }
 
-int
+static int
 iwn_eeprom_lock(struct iwn_softc *sc)
 {
 	int i, ntries;
@@ -994,7 +994,7 @@ iwn_eeprom_unlock(struct iwn_softc *sc)
  * Initialize access by host to One Time Programmable ROM.
  * NB: This kind of ROM can be found on 1000 or 6000 Series only.
  */
-int
+static int
 iwn_init_otprom(struct iwn_softc *sc)
 {
 	uint16_t prev, base, next;
@@ -1048,7 +1048,7 @@ iwn_init_otprom(struct iwn_softc *sc)
 	return 0;
 }
 
-int
+static int
 iwn_read_prom_data(struct iwn_softc *sc, uint32_t addr, void *data, int count)
 {
 	uint32_t val, tmp;
@@ -1140,7 +1140,7 @@ fail:
 	return error;
 }
 
-void
+static void
 iwn_dma_contig_free(struct iwn_dma_info *dma)
 {
 	if (dma->tag != NULL) {
@@ -1156,7 +1156,7 @@ iwn_dma_contig_free(struct iwn_dma_info *dma)
 	}
 }
 
-int
+static int
 iwn_alloc_sched(struct iwn_softc *sc)
 {
 	/* TX scheduler rings must be aligned on a 1KB boundary. */
@@ -1164,13 +1164,13 @@ iwn_alloc_sched(struct iwn_softc *sc)
 	    (void **)&sc->sched, sc->sc_hal->schedsz, 1024, BUS_DMA_NOWAIT);
 }
 
-void
+static void
 iwn_free_sched(struct iwn_softc *sc)
 {
 	iwn_dma_contig_free(&sc->sched_dma);
 }
 
-int
+static int
 iwn_alloc_kw(struct iwn_softc *sc)
 {
 	/* "Keep Warm" page must be aligned on a 4KB boundary. */
@@ -1178,13 +1178,13 @@ iwn_alloc_kw(struct iwn_softc *sc)
 	    BUS_DMA_NOWAIT);
 }
 
-void
+static void
 iwn_free_kw(struct iwn_softc *sc)
 {
 	iwn_dma_contig_free(&sc->kw_dma);
 }
 
-int
+static int
 iwn_alloc_ict(struct iwn_softc *sc)
 {
 	/* ICT table must be aligned on a 4KB boundary. */
@@ -1192,13 +1192,13 @@ iwn_alloc_ict(struct iwn_softc *sc)
 	    (void **)&sc->ict, IWN_ICT_SIZE, 4096, BUS_DMA_NOWAIT);
 }
 
-void
+static void
 iwn_free_ict(struct iwn_softc *sc)
 {
 	iwn_dma_contig_free(&sc->ict_dma);
 }
 
-int
+static int
 iwn_alloc_fwmem(struct iwn_softc *sc)
 {
 	/* Must be aligned on a 16-byte boundary. */
@@ -1206,13 +1206,13 @@ iwn_alloc_fwmem(struct iwn_softc *sc)
 	    sc->sc_hal->fwsz, 16, BUS_DMA_NOWAIT);
 }
 
-void
+static void
 iwn_free_fwmem(struct iwn_softc *sc)
 {
 	iwn_dma_contig_free(&sc->fw_dma);
 }
 
-int
+static int
 iwn_alloc_rx_ring(struct iwn_softc *sc, struct iwn_rx_ring *ring)
 {
 	bus_size_t size;
@@ -1302,7 +1302,7 @@ fail:
 	return error;
 }
 
-void
+static void
 iwn_reset_rx_ring(struct iwn_softc *sc, struct iwn_rx_ring *ring)
 {
 	int ntries;
@@ -1326,7 +1326,7 @@ iwn_reset_rx_ring(struct iwn_softc *sc, struct iwn_rx_ring *ring)
 	sc->last_rx_valid = 0;
 }
 
-void
+static void
 iwn_free_rx_ring(struct iwn_softc *sc, struct iwn_rx_ring *ring)
 {
 	int i;
@@ -1348,7 +1348,7 @@ iwn_free_rx_ring(struct iwn_softc *sc, struct iwn_rx_ring *ring)
 	}
 }
 
-int
+static int
 iwn_alloc_tx_ring(struct iwn_softc *sc, struct iwn_tx_ring *ring, int qid)
 {
 	bus_size_t size;
@@ -1422,7 +1422,7 @@ fail:
 	return error;
 }
 
-void
+static void
 iwn_reset_tx_ring(struct iwn_softc *sc, struct iwn_tx_ring *ring)
 {
 	int i;
@@ -1445,7 +1445,7 @@ iwn_reset_tx_ring(struct iwn_softc *sc, struct iwn_tx_ring *ring)
 	ring->cur = 0;
 }
 
-void
+static void
 iwn_free_tx_ring(struct iwn_softc *sc, struct iwn_tx_ring *ring)
 {
 	int i;
@@ -1467,7 +1467,7 @@ iwn_free_tx_ring(struct iwn_softc *sc, struct iwn_tx_ring *ring)
 	}
 }
 
-void
+static void
 iwn5000_ict_reset(struct iwn_softc *sc)
 {
 	/* Disable interrupts. */
@@ -1492,7 +1492,7 @@ iwn5000_ict_reset(struct iwn_softc *sc)
 	IWN_WRITE(sc, IWN_INT_MASK, sc->int_mask);
 }
 
-int
+static int
 iwn_read_eeprom(struct iwn_softc *sc, uint8_t macaddr[IEEE80211_ADDR_LEN])
 {
 	const struct iwn_hal *hal = sc->sc_hal;
@@ -1553,7 +1553,7 @@ iwn_read_eeprom(struct iwn_softc *sc, uint8_t macaddr[IEEE80211_ADDR_LEN])
 	return 0;
 }
 
-void
+static void
 iwn4965_read_eeprom(struct iwn_softc *sc)
 {
 	uint32_t addr;
@@ -1601,7 +1601,7 @@ iwn4965_read_eeprom(struct iwn_softc *sc)
 }
 
 #ifdef IWN_DEBUG
-void
+static void
 iwn4965_print_power_group(struct iwn_softc *sc, int i)
 {
 	struct iwn4965_eeprom_band *band = &sc->bands[i];
@@ -1635,7 +1635,7 @@ iwn4965_print_power_group(struct iwn_softc *sc, int i)
 }
 #endif
 
-void
+static void
 iwn5000_read_eeprom(struct iwn_softc *sc)
 {
 	struct iwn5000_eeprom_calib_hdr hdr;
@@ -1847,7 +1847,7 @@ iwn_read_eeprom_channels(struct iwn_softc *sc, int n, uint32_t addr)
 
 #define nitems(_a)	(sizeof((_a)) / sizeof((_a)[0]))
 
-void
+static void
 iwn_read_eeprom_enhinfo(struct iwn_softc *sc)
 {
 	struct iwn_eeprom_enhinfo enhinfo[35];
@@ -1884,20 +1884,20 @@ iwn_read_eeprom_enhinfo(struct iwn_softc *sc)
 	}
 }
 
-struct ieee80211_node *
+static struct ieee80211_node *
 iwn_node_alloc(struct ieee80211vap *vap, const uint8_t mac[IEEE80211_ADDR_LEN])
 {
 	return malloc(sizeof (struct iwn_node), M_80211_NODE,M_NOWAIT | M_ZERO);
 }
 
-void
+static void
 iwn_newassoc(struct ieee80211_node *ni, int isnew)
 {
 	/* XXX move */
 	ieee80211_ratectl_node_init(ni);
 }
 
-int
+static int
 iwn_media_change(struct ifnet *ifp)
 {
 	int error = ieee80211_media_change(ifp);
@@ -1905,7 +1905,7 @@ iwn_media_change(struct ifnet *ifp)
 	return (error == ENETRESET ? 0 : error);
 }
 
-int
+static int
 iwn_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 {
 	struct iwn_vap *ivp = IWN_VAP(vap);
@@ -1952,7 +1952,7 @@ iwn_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
  * Process an RX_PHY firmware notification.  This is usually immediately
  * followed by an MPDU_RX_DONE notification.
  */
-void
+static void
 iwn_rx_phy(struct iwn_softc *sc, struct iwn_rx_desc *desc,
     struct iwn_rx_data *data)
 {
@@ -1996,7 +1996,7 @@ iwn_calib_reset(struct iwn_softc *sc)
  * Process an RX_DONE (4965AGN only) or MPDU_RX_DONE firmware notification.
  * Each MPDU_RX_DONE notification must be preceded by an RX_PHY one.
  */
-void
+static void
 iwn_rx_done(struct iwn_softc *sc, struct iwn_rx_desc *desc,
     struct iwn_rx_data *data)
 {
@@ -2146,7 +2146,7 @@ iwn_rx_done(struct iwn_softc *sc, struct iwn_rx_desc *desc,
 
 #if 0	/* HT */
 /* Process an incoming Compressed BlockAck. */
-void
+static void
 iwn_rx_compressed_ba(struct iwn_softc *sc, struct iwn_rx_desc *desc,
     struct iwn_rx_data *data)
 {
@@ -2162,7 +2162,7 @@ iwn_rx_compressed_ba(struct iwn_softc *sc, struct iwn_rx_desc *desc,
  * Process a CALIBRATION_RESULT notification sent by the initialization
  * firmware on response to a CMD_CALIB_CONFIG command (5000 only.)
  */
-void
+static void
 iwn5000_rx_calib_results(struct iwn_softc *sc, struct iwn_rx_desc *desc,
     struct iwn_rx_data *data)
 {
@@ -2220,7 +2220,7 @@ iwn5000_rx_calib_results(struct iwn_softc *sc, struct iwn_rx_desc *desc,
  * Process an RX_STATISTICS or BEACON_STATISTICS firmware notification.
  * The latter is sent by the firmware after each received beacon.
  */
-void
+static void
 iwn_rx_statistics(struct iwn_softc *sc, struct iwn_rx_desc *desc,
     struct iwn_rx_data *data)
 {
@@ -2277,7 +2277,7 @@ iwn_rx_statistics(struct iwn_softc *sc, struct iwn_rx_desc *desc,
  * Process a TX_DONE firmware notification.  Unfortunately, the 4965AGN
  * and 5000 adapters have different incompatible TX status formats.
  */
-void
+static void
 iwn4965_tx_done(struct iwn_softc *sc, struct iwn_rx_desc *desc,
     struct iwn_rx_data *data)
 {
@@ -2293,7 +2293,7 @@ iwn4965_tx_done(struct iwn_softc *sc, struct iwn_rx_desc *desc,
 	iwn_tx_done(sc, desc, stat->ackfailcnt, le32toh(stat->status) & 0xff);
 }
 
-void
+static void
 iwn5000_tx_done(struct iwn_softc *sc, struct iwn_rx_desc *desc,
     struct iwn_rx_data *data)
 {
@@ -2317,7 +2317,7 @@ iwn5000_tx_done(struct iwn_softc *sc, struct iwn_rx_desc *desc,
 /*
  * Adapter-independent backend for TX_DONE firmware notifications.
  */
-void
+static void
 iwn_tx_done(struct iwn_softc *sc, struct iwn_rx_desc *desc, int ackfailcnt,
     uint8_t status)
 {
@@ -2389,7 +2389,7 @@ iwn_tx_done(struct iwn_softc *sc, struct iwn_rx_desc *desc, int ackfailcnt,
  * Process a "command done" firmware notification.  This is where we wakeup
  * processes waiting for a synchronous command completion.
  */
-void
+static void
 iwn_cmd_done(struct iwn_softc *sc, struct iwn_rx_desc *desc)
 {
 	struct iwn_tx_ring *ring = &sc->txq[4];
@@ -2412,7 +2412,7 @@ iwn_cmd_done(struct iwn_softc *sc, struct iwn_rx_desc *desc)
 /*
  * Process an INT_FH_RX or INT_SW_RX interrupt.
  */
-void
+static void
 iwn_notif_intr(struct iwn_softc *sc)
 {
 	struct ifnet *ifp = sc->sc_ifp;
@@ -2590,7 +2590,7 @@ iwn_notif_intr(struct iwn_softc *sc)
  * Process an INT_WAKEUP interrupt raised when the microcontroller wakes up
  * from power-down sleep mode.
  */
-void
+static void
 iwn_wakeup_intr(struct iwn_softc *sc)
 {
 	int qid;
@@ -2606,7 +2606,7 @@ iwn_wakeup_intr(struct iwn_softc *sc)
 	}
 }
 
-void
+static void
 iwn_rftoggle_intr(struct iwn_softc *sc)
 {
 	struct ifnet *ifp = sc->sc_ifp;
@@ -2628,7 +2628,7 @@ iwn_rftoggle_intr(struct iwn_softc *sc)
  * we can't debug the firmware because it is neither open source nor free, it
  * can help us to identify certain classes of problems.
  */
-void
+static void
 iwn_fatal_intr(struct iwn_softc *sc)
 {
 	const struct iwn_hal *hal = sc->sc_hal;
@@ -2688,7 +2688,7 @@ iwn_fatal_intr(struct iwn_softc *sc)
 	printf("  rx ring: cur=%d\n", sc->rxq.cur);
 }
 
-void
+static void
 iwn_intr(void *arg)
 {
 	struct iwn_softc *sc = arg;
@@ -2786,7 +2786,7 @@ done:
  * Update TX scheduler ring when transmitting an 802.11 frame (4965AGN and
  * 5000 adapters use a slightly different format.)
  */
-void
+static void
 iwn4965_update_sched(struct iwn_softc *sc, int qid, int idx, uint8_t id,
     uint16_t len)
 {
@@ -2802,7 +2802,7 @@ iwn4965_update_sched(struct iwn_softc *sc, int qid, int idx, uint8_t id,
 	}
 }
 
-void
+static void
 iwn5000_update_sched(struct iwn_softc *sc, int qid, int idx, uint8_t id,
     uint16_t len)
 {
@@ -2820,7 +2820,7 @@ iwn5000_update_sched(struct iwn_softc *sc, int qid, int idx, uint8_t id,
 }
 
 #ifdef notyet
-void
+static void
 iwn5000_reset_sched(struct iwn_softc *sc, int qid, int idx)
 {
 	uint16_t *w = &sc->sched[qid * IWN5000_SCHED_COUNT + idx];
@@ -2848,7 +2848,7 @@ iwn_plcp_signal(int rate) {
 	return 0;
 }
 
-int
+static int
 iwn_tx_data(struct iwn_softc *sc, struct mbuf *m, struct ieee80211_node *ni,
     struct iwn_tx_ring *ring)
 {
@@ -3326,7 +3326,7 @@ iwn_raw_xmit(struct ieee80211_node *ni, struct mbuf *m,
 	return error;
 }
 
-void
+static void
 iwn_start(struct ifnet *ifp)
 {
 	struct iwn_softc *sc = ifp->if_softc;
@@ -3336,7 +3336,7 @@ iwn_start(struct ifnet *ifp)
 	IWN_UNLOCK(sc);
 }
 
-void
+static void
 iwn_start_locked(struct ifnet *ifp)
 {
 	struct iwn_softc *sc = ifp->if_softc;
@@ -3379,7 +3379,7 @@ iwn_watchdog(struct iwn_softc *sc)
 	}
 }
 
-int
+static int
 iwn_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 {
 	struct iwn_softc *sc = ifp->if_softc;
@@ -3425,7 +3425,7 @@ iwn_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 /*
  * Send a command to the firmware.
  */
-int
+static int
 iwn_cmd(struct iwn_softc *sc, int code, const void *buf, int size, int async)
 {
 	struct iwn_tx_ring *ring = &sc->txq[4];
@@ -3498,7 +3498,7 @@ iwn_cmd(struct iwn_softc *sc, int code, const void *buf, int size, int async)
 	return async ? 0 : msleep(desc, &sc->sc_mtx, PCATCH, "iwncmd", hz);
 }
 
-int
+static int
 iwn4965_add_node(struct iwn_softc *sc, struct iwn_node_info *node, int async)
 {
 	struct iwn4965_node_info hnode;
@@ -3517,7 +3517,7 @@ iwn4965_add_node(struct iwn_softc *sc, struct iwn_node_info *node, int async)
 	return iwn_cmd(sc, IWN_CMD_ADD_NODE, &hnode, sizeof hnode, async);
 }
 
-int
+static int
 iwn5000_add_node(struct iwn_softc *sc, struct iwn_node_info *node, int async)
 {
 	/* Direct mapping. */
@@ -3548,7 +3548,7 @@ static const uint8_t iwn_prev_ridx[] = {
  * Configure hardware link parameters for the specified
  * node operating on the specified channel.
  */
-int
+static int
 iwn_set_link_quality(struct iwn_softc *sc, uint8_t id, int async)
 {
 	struct ifnet *ifp = sc->sc_ifp;
@@ -3621,7 +3621,7 @@ iwn_set_link_quality(struct iwn_softc *sc, uint8_t id, int async)
 /*
  * Broadcast node is used to send group-addressed and management frames.
  */
-int
+static int
 iwn_add_broadcast_node(struct iwn_softc *sc, int async)
 {
 	const struct iwn_hal *hal = sc->sc_hal;
@@ -3641,7 +3641,7 @@ iwn_add_broadcast_node(struct iwn_softc *sc, int async)
 	return error;
 }
 
-int
+static int
 iwn_wme_update(struct ieee80211com *ic)
 {
 #define IWN_EXP2(x)	((1 << (x)) - 1)	/* CWmin = 2^ECWmin - 1 */
@@ -3677,7 +3677,7 @@ iwn_update_mcast(struct ifnet *ifp)
 	/* Ignore */
 }
 
-void
+static void
 iwn_set_led(struct iwn_softc *sc, uint8_t which, uint8_t off, uint8_t on)
 {
 	struct iwn_cmd_led led;
@@ -3696,7 +3696,7 @@ iwn_set_led(struct iwn_softc *sc, uint8_t which, uint8_t off, uint8_t on)
  * Set the critical temperature at which the firmware will stop the radio
  * and notify us.
  */
-int
+static int
 iwn_set_critical_temp(struct iwn_softc *sc)
 {
 	struct iwn_critical_temp crit;
@@ -3717,7 +3717,7 @@ iwn_set_critical_temp(struct iwn_softc *sc)
 	return iwn_cmd(sc, IWN_CMD_SET_CRITICAL_TEMP, &crit, sizeof crit, 0);
 }
 
-int
+static int
 iwn_set_timing(struct iwn_softc *sc, struct ieee80211_node *ni)
 {
 	struct iwn_cmd_timing cmd;
@@ -3739,7 +3739,7 @@ iwn_set_timing(struct iwn_softc *sc, struct ieee80211_node *ni)
 	return iwn_cmd(sc, IWN_CMD_TIMING, &cmd, sizeof cmd, 1);
 }
 
-void
+static void
 iwn4965_power_calibration(struct iwn_softc *sc, int temp)
 {
 	struct ifnet *ifp = sc->sc_ifp;
@@ -3760,7 +3760,7 @@ iwn4965_power_calibration(struct iwn_softc *sc, int temp)
  * This function takes into account the regulatory information from EEPROM,
  * the current temperature and the current voltage.
  */
-int
+static int
 iwn4965_set_txpower(struct iwn_softc *sc, struct ieee80211_channel *ch,
     int async)
 {
@@ -3912,7 +3912,7 @@ iwn4965_set_txpower(struct iwn_softc *sc, struct ieee80211_channel *ch,
 #undef fdivround
 }
 
-int
+static int
 iwn5000_set_txpower(struct iwn_softc *sc, struct ieee80211_channel *ch,
     int async)
 {
@@ -3933,7 +3933,7 @@ iwn5000_set_txpower(struct iwn_softc *sc, struct ieee80211_channel *ch,
 /*
  * Retrieve the maximum RSSI (in dBm) among receivers.
  */
-int
+static int
 iwn4965_get_rssi(struct iwn_softc *sc, struct iwn_rx_stat *stat)
 {
 	struct iwn4965_rx_phystat *phy = (void *)stat->phybuf;
@@ -3964,7 +3964,7 @@ iwn4965_get_rssi(struct iwn_softc *sc, struct iwn_rx_stat *stat)
 	return rssi - agc - IWN_RSSI_TO_DBM;
 }
 
-int
+static int
 iwn5000_get_rssi(struct iwn_softc *sc, struct iwn_rx_stat *stat)
 {
 	struct iwn5000_rx_phystat *phy = (void *)stat->phybuf;
@@ -3987,7 +3987,7 @@ iwn5000_get_rssi(struct iwn_softc *sc, struct iwn_rx_stat *stat)
 /*
  * Retrieve the average noise (in dBm) among receivers.
  */
-int
+static int
 iwn_get_noise(const struct iwn_rx_general_stats *stats)
 {
 	int i, total, nbant, noise;
@@ -4006,7 +4006,7 @@ iwn_get_noise(const struct iwn_rx_general_stats *stats)
 /*
  * Compute temperature (in degC) from last received statistics.
  */
-int
+static int
 iwn4965_get_temperature(struct iwn_softc *sc)
 {
 	struct iwn_ucode_info *uc = &sc->ucode_info;
@@ -4031,7 +4031,7 @@ iwn4965_get_temperature(struct iwn_softc *sc)
 	return IWN_KTOC(temp);
 }
 
-int
+static int
 iwn5000_get_temperature(struct iwn_softc *sc)
 {
 	int32_t temp;
@@ -4052,7 +4052,7 @@ iwn5000_get_temperature(struct iwn_softc *sc)
 /*
  * Initialize sensitivity calibration state machine.
  */
-int
+static int
 iwn_init_sensitivity(struct iwn_softc *sc)
 {
 	const struct iwn_hal *hal = sc->sc_hal;
@@ -4094,7 +4094,7 @@ iwn_init_sensitivity(struct iwn_softc *sc)
  * after association and use them to determine connected antennas and
  * to set differential gains.
  */
-void
+static void
 iwn_collect_noise(struct iwn_softc *sc,
     const struct iwn_rx_general_stats *stats)
 {
@@ -4142,7 +4142,7 @@ iwn_collect_noise(struct iwn_softc *sc,
 #endif
 }
 
-int
+static int
 iwn4965_init_gains(struct iwn_softc *sc)
 {
 	struct iwn_phy_calib_gain cmd;
@@ -4155,7 +4155,7 @@ iwn4965_init_gains(struct iwn_softc *sc)
 	return iwn_cmd(sc, IWN_CMD_PHY_CALIB, &cmd, sizeof cmd, 1);
 }
 
-int
+static int
 iwn5000_init_gains(struct iwn_softc *sc)
 {
 	struct iwn_phy_calib cmd;
@@ -4169,7 +4169,7 @@ iwn5000_init_gains(struct iwn_softc *sc)
 	return iwn_cmd(sc, IWN_CMD_PHY_CALIB, &cmd, sizeof cmd, 1);
 }
 
-int
+static int
 iwn4965_set_gains(struct iwn_softc *sc)
 {
 	struct iwn_calib_state *calib = &sc->calib;
@@ -4202,7 +4202,7 @@ iwn4965_set_gains(struct iwn_softc *sc)
 	return iwn_cmd(sc, IWN_CMD_PHY_CALIB, &cmd, sizeof cmd, 1);
 }
 
-int
+static int
 iwn5000_set_gains(struct iwn_softc *sc)
 {
 	struct iwn_calib_state *calib = &sc->calib;
@@ -4240,7 +4240,7 @@ iwn5000_set_gains(struct iwn_softc *sc)
  * Tune RF RX sensitivity based on the number of false alarms detected
  * during the last beacon period.
  */
-void
+static void
 iwn_tune_sensitivity(struct iwn_softc *sc, const struct iwn_rx_stats *stats)
 {
 #define inc(val, inc, max)			\
@@ -4392,7 +4392,7 @@ iwn_tune_sensitivity(struct iwn_softc *sc, const struct iwn_rx_stats *stats)
 #undef inc
 }
 
-int
+static int
 iwn_send_sensitivity(struct iwn_softc *sc)
 {
 	struct iwn_calib_state *calib = &sc->calib;
@@ -4427,7 +4427,7 @@ iwn_send_sensitivity(struct iwn_softc *sc)
  * Set STA mode power saving level (between 0 and 5).
  * Level 0 is CAM (Continuously Aware Mode), 5 is for maximum power saving.
  */
-int
+static int
 iwn_set_pslevel(struct iwn_softc *sc, int dtim, int level, int async)
 {
 	const struct iwn_pmgt *pmgt;
@@ -4478,7 +4478,7 @@ iwn_set_pslevel(struct iwn_softc *sc, int dtim, int level, int async)
 	return iwn_cmd(sc, IWN_CMD_SET_POWER_MODE, &cmd, sizeof cmd, async);
 }
 
-int
+static int
 iwn_config(struct iwn_softc *sc)
 {
 	const struct iwn_hal *hal = sc->sc_hal;
@@ -4591,7 +4591,7 @@ iwn_config(struct iwn_softc *sc)
 	return 0;
 }
 
-int
+static int
 iwn_scan(struct iwn_softc *sc)
 {
 	struct ifnet *ifp = sc->sc_ifp;
@@ -4762,7 +4762,7 @@ iwn_scan(struct iwn_softc *sc)
 	return error;
 }
 
-int
+static int
 iwn_auth(struct iwn_softc *sc, struct ieee80211vap *vap)
 {
 	const struct iwn_hal *hal = sc->sc_hal;
@@ -4836,7 +4836,7 @@ iwn_auth(struct iwn_softc *sc, struct ieee80211vap *vap)
 /*
  * Configure the adapter for associated state.
  */
-int
+static int
 iwn_run(struct iwn_softc *sc, struct ieee80211vap *vap)
 {
 #define	MS(v,x)	(((v) & x) >> x##_S)
@@ -4985,7 +4985,7 @@ iwn_run(struct iwn_softc *sc, struct ieee80211vap *vap)
  * This function is called by upper layer when an ADDBA request is received
  * from another STA and before the ADDBA response is sent.
  */
-int
+static int
 iwn_ampdu_rx_start(struct ieee80211com *ic, struct ieee80211_node *ni,
     uint8_t tid)
 {
@@ -5009,7 +5009,7 @@ iwn_ampdu_rx_start(struct ieee80211com *ic, struct ieee80211_node *ni,
  * This function is called by upper layer on teardown of an HT-immediate
  * Block Ack agreement (eg. uppon receipt of a DELBA frame.)
  */
-void
+static void
 iwn_ampdu_rx_stop(struct ieee80211com *ic, struct ieee80211_node *ni,
     uint8_t tid)
 {
@@ -5030,7 +5030,7 @@ iwn_ampdu_rx_stop(struct ieee80211com *ic, struct ieee80211_node *ni,
  * This function is called by upper layer when an ADDBA response is received
  * from another STA.
  */
-int
+static int
 iwn_ampdu_tx_start(struct ieee80211com *ic, struct ieee80211_node *ni,
     uint8_t tid)
 {
@@ -5059,7 +5059,7 @@ iwn_ampdu_tx_start(struct ieee80211com *ic, struct ieee80211_node *ni,
 	return 0;
 }
 
-void
+static void
 iwn_ampdu_tx_stop(struct ieee80211com *ic, struct ieee80211_node *ni,
     uint8_t tid)
 {
@@ -5074,7 +5074,7 @@ iwn_ampdu_tx_stop(struct ieee80211com *ic, struct ieee80211_node *ni,
 	iwn_nic_unlock(sc);
 }
 
-void
+static void
 iwn4965_ampdu_tx_start(struct iwn_softc *sc, struct ieee80211_node *ni,
     uint8_t tid, uint16_t ssn)
 {
@@ -5112,7 +5112,7 @@ iwn4965_ampdu_tx_start(struct iwn_softc *sc, struct ieee80211_node *ni,
 	    iwn_tid2fifo[tid] << 1);
 }
 
-void
+static void
 iwn4965_ampdu_tx_stop(struct iwn_softc *sc, uint8_t tid, uint16_t ssn)
 {
 	int qid = 7 + tid;
@@ -5133,7 +5133,7 @@ iwn4965_ampdu_tx_stop(struct iwn_softc *sc, uint8_t tid, uint16_t ssn)
 	    IWN4965_TXQ_STATUS_INACTIVE | iwn_tid2fifo[tid] << 1);
 }
 
-void
+static void
 iwn5000_ampdu_tx_start(struct iwn_softc *sc, struct ieee80211_node *ni,
     uint8_t tid, uint16_t ssn)
 {
@@ -5170,7 +5170,7 @@ iwn5000_ampdu_tx_start(struct iwn_softc *sc, struct ieee80211_node *ni,
 	    IWN5000_TXQ_STATUS_ACTIVE | iwn_tid2fifo[tid]);
 }
 
-void
+static void
 iwn5000_ampdu_tx_stop(struct iwn_softc *sc, uint8_t tid, uint16_t ssn)
 {
 	int qid = 10 + tid;
@@ -5199,7 +5199,7 @@ iwn5000_ampdu_tx_stop(struct iwn_softc *sc, uint8_t tid, uint16_t ssn)
  * Query calibration tables from the initialization firmware.  We do this
  * only once at first boot.  Called from a process context.
  */
-int
+static int
 iwn5000_query_calibration(struct iwn_softc *sc)
 {
 	struct iwn5000_calib_config cmd;
@@ -5226,7 +5226,7 @@ iwn5000_query_calibration(struct iwn_softc *sc)
  * Send calibration results to the runtime firmware.  These results were
  * obtained on first boot from the initialization firmware.
  */
-int
+static int
 iwn5000_send_calibration(struct iwn_softc *sc)
 {
 	int idx, error;
@@ -5249,7 +5249,7 @@ iwn5000_send_calibration(struct iwn_softc *sc)
 	return 0;
 }
 
-int
+static int
 iwn5000_send_wimax_coex(struct iwn_softc *sc)
 {
 	struct iwn5000_wimax_coex wimax;
@@ -5280,7 +5280,7 @@ iwn5000_send_wimax_coex(struct iwn_softc *sc)
  * This function is called after the runtime firmware notifies us of its
  * readiness (called in a process context.)
  */
-int
+static int
 iwn4965_post_alive(struct iwn_softc *sc)
 {
 	int error, qid;
@@ -5333,7 +5333,7 @@ iwn4965_post_alive(struct iwn_softc *sc)
  * This function is called after the initialization or runtime firmware
  * notifies us of its readiness (called in a process context.)
  */
-int
+static int
 iwn5000_post_alive(struct iwn_softc *sc)
 {
 	int error, qid;
@@ -5439,7 +5439,7 @@ iwn5000_post_alive(struct iwn_softc *sc)
  * The firmware boot code is small and is intended to be copied directly into
  * the NIC internal memory (no DMA transfer.)
  */
-int
+static int
 iwn4965_load_bootcode(struct iwn_softc *sc, const uint8_t *ucode, int size)
 {
 	int error, ntries;
@@ -5482,7 +5482,7 @@ iwn4965_load_bootcode(struct iwn_softc *sc, const uint8_t *ucode, int size)
 	return 0;
 }
 
-int
+static int
 iwn4965_load_firmware(struct iwn_softc *sc)
 {
 	struct iwn_fw_info *fw = &sc->fw;
@@ -5553,7 +5553,7 @@ iwn4965_load_firmware(struct iwn_softc *sc)
 	return 0;
 }
 
-int
+static int
 iwn5000_load_firmware_section(struct iwn_softc *sc, uint32_t dst,
     const uint8_t *section, int size)
 {
@@ -5591,7 +5591,7 @@ iwn5000_load_firmware_section(struct iwn_softc *sc, uint32_t dst,
 	return msleep(sc, &sc->sc_mtx, PCATCH, "iwninit", hz);
 }
 
-int
+static int
 iwn5000_load_firmware(struct iwn_softc *sc)
 {
 	struct iwn_fw_part *fw;
@@ -5623,7 +5623,7 @@ iwn5000_load_firmware(struct iwn_softc *sc)
 	return 0;
 }
 
-int
+static int
 iwn_read_firmware(struct iwn_softc *sc)
 {
 	const struct iwn_hal *hal = sc->sc_hal;
@@ -5705,7 +5705,7 @@ iwn_read_firmware(struct iwn_softc *sc)
 	return 0;
 }
 
-int
+static int
 iwn_clock_wait(struct iwn_softc *sc)
 {
 	int ntries;
@@ -5724,7 +5724,7 @@ iwn_clock_wait(struct iwn_softc *sc)
 	return ETIMEDOUT;
 }
 
-int
+static int
 iwn_apm_init(struct iwn_softc *sc)
 {
 	uint32_t tmp;
@@ -5782,7 +5782,7 @@ iwn_apm_init(struct iwn_softc *sc)
 	return 0;
 }
 
-void
+static void
 iwn_apm_stop_master(struct iwn_softc *sc)
 {
 	int ntries;
@@ -5798,7 +5798,7 @@ iwn_apm_stop_master(struct iwn_softc *sc)
 	    __func__);
 }
 
-void
+static void
 iwn_apm_stop(struct iwn_softc *sc)
 {
 	iwn_apm_stop_master(sc);
@@ -5810,7 +5810,7 @@ iwn_apm_stop(struct iwn_softc *sc)
 	IWN_CLRBITS(sc, IWN_GP_CNTRL, IWN_GP_CNTRL_INIT_DONE);
 }
 
-int
+static int
 iwn4965_nic_config(struct iwn_softc *sc)
 {
 	if (IWN_RFCFG_TYPE(sc->rfcfg) == 1) {
@@ -5829,7 +5829,7 @@ iwn4965_nic_config(struct iwn_softc *sc)
 	return 0;
 }
 
-int
+static int
 iwn5000_nic_config(struct iwn_softc *sc)
 {
 	uint32_t tmp;
@@ -5876,7 +5876,7 @@ iwn5000_nic_config(struct iwn_softc *sc)
 /*
  * Take NIC ownership over Intel Active Management Technology (AMT).
  */
-int
+static int
 iwn_hw_prepare(struct iwn_softc *sc)
 {
 	int ntries;
@@ -5912,7 +5912,7 @@ iwn_hw_prepare(struct iwn_softc *sc)
 	return ETIMEDOUT;
 }
 
-int
+static int
 iwn_hw_init(struct iwn_softc *sc)
 {
 	const struct iwn_hal *hal = sc->sc_hal;
@@ -6023,7 +6023,7 @@ iwn_hw_init(struct iwn_softc *sc)
 	return hal->post_alive(sc);
 }
 
-void
+static void
 iwn_hw_stop(struct iwn_softc *sc)
 {
 	const struct iwn_hal *hal = sc->sc_hal;
@@ -6077,7 +6077,7 @@ iwn_hw_stop(struct iwn_softc *sc)
 	iwn_apm_stop(sc);
 }
 
-void
+static void
 iwn_init_locked(struct iwn_softc *sc)
 {
 	struct ifnet *ifp = sc->sc_ifp;
@@ -6145,7 +6145,7 @@ fail:
 	iwn_stop_locked(sc);
 }
 
-void
+static void
 iwn_init(void *arg)
 {
 	struct iwn_softc *sc = arg;
@@ -6160,7 +6160,7 @@ iwn_init(void *arg)
 		ieee80211_start_all(ic);
 }
 
-void
+static void
 iwn_stop_locked(struct iwn_softc *sc)
 {
 	struct ifnet *ifp = sc->sc_ifp;
@@ -6175,7 +6175,7 @@ iwn_stop_locked(struct iwn_softc *sc)
 	iwn_hw_stop(sc);
 }
 
-void
+static void
 iwn_stop(struct iwn_softc *sc)
 {
 	IWN_LOCK(sc);
