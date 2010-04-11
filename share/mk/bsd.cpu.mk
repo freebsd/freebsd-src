@@ -208,7 +208,7 @@ LD += -EB
 CFLAGS += -EL
 LD += -EL
 . endif
-CFLAGS += -msoft-float -G0 -mno-dsp -mabicalls
+CFLAGS += -G0
 .endif
 
 # NB: COPTFLAGS is handled in /usr/src/sys/conf/kern.pre.mk

@@ -129,7 +129,7 @@
 .\" ========================================================================
 .\"
 .IX Title "PKCS12_parse 3"
-.TH PKCS12_parse 3 "2009-06-14" "0.9.8k" "OpenSSL"
+.TH PKCS12_parse 3 "2010-03-24" "0.9.8n" "OpenSSL"
 .SH "NAME"
 PKCS12_parse \- parse a PKCS#12 structure
 .SH "SYNOPSIS"
@@ -148,23 +148,29 @@ If successful the private key will be written to \fB*pkey\fR, the corresponding
 certificate to \fB*cert\fR and any additional certificates to \fB*ca\fR.
 .SH "NOTES"
 .IX Header "NOTES"
-The parameters \fBpkey\fR and \fBcert\fR cannot be \fB\s-1NULL\s0\fR. \fBca\fR can be <\s-1NULL\s0>
-in which case additional certificates will be discarded. \fB*ca\fR can also
-be a valid \s-1STACK\s0 in which case additional certificates are appended to
-\&\fB*ca\fR. If \fB*ca\fR is \fB\s-1NULL\s0\fR a new \s-1STACK\s0 will be allocated.
+The parameters \fBpkey\fR and \fBcert\fR cannot be \fB\s-1NULL\s0\fR. \fBca\fR can be <\s-1NULL\s0> in
+which case additional certificates will be discarded. \fB*ca\fR can also be a
+valid \s-1STACK\s0 in which case additional certificates are appended to \fB*ca\fR. If
+\&\fB*ca\fR is \fB\s-1NULL\s0\fR a new \s-1STACK\s0 will be allocated.
 .PP
-The \fBfriendlyName\fR and \fBlocalKeyID\fR attributes (if present) on each certificate
-will be stored in the \fBalias\fR and \fBkeyid\fR attributes of the \fBX509\fR structure.
+The \fBfriendlyName\fR and \fBlocalKeyID\fR attributes (if present) on each
+certificate will be stored in the \fBalias\fR and \fBkeyid\fR attributes of the
+\&\fBX509\fR structure.
+.SH "RETURN VALUES"
+.IX Header "RETURN VALUES"
+\&\fIPKCS12_parse()\fR returns 1 for success and zero if an error occurred.
+.PP
+The error can be obtained from \fIERR_get_error\fR\|(3)
 .SH "BUGS"
 .IX Header "BUGS"
-Only a single private key and corresponding certificate is returned by this function.
-More complex PKCS#12 files with multiple private keys will only return the first
-match.
+Only a single private key and corresponding certificate is returned by this
+function. More complex PKCS#12 files with multiple private keys will only
+return the first match.
 .PP
-Only \fBfriendlyName\fR and \fBlocalKeyID\fR attributes are currently stored in certificates.
-Other attributes are discarded.
+Only \fBfriendlyName\fR and \fBlocalKeyID\fR attributes are currently stored in
+certificates. Other attributes are discarded.
 .PP
-Attributes currently cannot be store in the private key \fB\s-1EVP_PKEY\s0\fR structure.
+Attributes currently cannot be stored in the private key \fB\s-1EVP_PKEY\s0\fR structure.
 .SH "SEE ALSO"
 .IX Header "SEE ALSO"
 \&\fId2i_PKCS12\fR\|(3)

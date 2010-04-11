@@ -34,6 +34,7 @@ CPU_MIPS64	opt_global.h
 CPU_SENTRY5	opt_global.h
 CPU_HAVEFPU	opt_global.h
 CPU_SB1 	opt_global.h
+CPU_CNMIPS	opt_global.h
 
 ISA_MIPS1	opt_cputype.h
 ISA_MIPS3	opt_cputype.h

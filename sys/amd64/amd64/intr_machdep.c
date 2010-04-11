@@ -62,8 +62,8 @@
 #include <machine/segments.h>
 #include <machine/frame.h>
 #include <dev/ic/i8259.h>
-#include <amd64/isa/icu.h>
-#include <amd64/isa/isa.h>
+#include <x86/isa/icu.h>
+#include <x86/isa/isa.h>
 #endif
 
 #define	MAX_STRAY_LOG	5

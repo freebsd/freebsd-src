@@ -349,7 +349,7 @@ AcpiTbVerifyChecksum (
     if (Checksum)
     {
         ACPI_WARNING ((AE_INFO,
-            "Incorrect checksum in table [%4.4s] - %2.2X, should be %2.2X",
+            "Incorrect checksum in table [%4.4s] - 0x%2.2X, should be 0x%2.2X",
             Table->Signature, Table->Checksum,
             (UINT8) (Table->Checksum - Checksum)));
 
@@ -390,6 +390,88 @@ AcpiTbChecksum (
     }
 
     return Sum;
+}
+
+
+/*******************************************************************************
+ *
+ * FUNCTION:    AcpiTbCheckDsdtHeader
+ *
+ * PARAMETERS:  None
+ *
+ * RETURN:      None
+ *
+ * DESCRIPTION: Quick compare to check validity of the DSDT. This will detect
+ *              if the DSDT has been replaced from outside the OS and/or if
+ *              the DSDT header has been corrupted.
+ *
+ ******************************************************************************/
+
+void
+AcpiTbCheckDsdtHeader (
+    void)
+{
+
+    /* Compare original length and checksum to current values */
+
+    if (AcpiGbl_OriginalDsdtHeader.Length != AcpiGbl_DSDT->Length ||
+        AcpiGbl_OriginalDsdtHeader.Checksum != AcpiGbl_DSDT->Checksum)
+    {
+        ACPI_ERROR ((AE_INFO,
+            "The DSDT has been corrupted or replaced - old, new headers below"));
+        AcpiTbPrintTableHeader (0, &AcpiGbl_OriginalDsdtHeader);
+        AcpiTbPrintTableHeader (0, AcpiGbl_DSDT);
+
+        /* Disable further error messages */
+
+        AcpiGbl_OriginalDsdtHeader.Length = AcpiGbl_DSDT->Length;
+        AcpiGbl_OriginalDsdtHeader.Checksum = AcpiGbl_DSDT->Checksum;
+    }
+}
+
+
+/*******************************************************************************
+ *
+ * FUNCTION:    AcpiTbCopyDsdt
+ *
+ * PARAMETERS:  TableDesc           - Installed table to copy
+ *
+ * RETURN:      None
+ *
+ * DESCRIPTION: Implements a subsystem option to copy the DSDT to local memory.
+ *              Some very bad BIOSs are known to either corrupt the DSDT or
+ *              install a new, bad DSDT. This copy works around the problem.
+ *
+ ******************************************************************************/
+
+ACPI_TABLE_HEADER *
+AcpiTbCopyDsdt (
+    UINT32                  TableIndex)
+{
+    ACPI_TABLE_HEADER       *NewTable;
+    ACPI_TABLE_DESC         *TableDesc;
+
+
+    TableDesc = &AcpiGbl_RootTableList.Tables[TableIndex];
+
+    NewTable = ACPI_ALLOCATE (TableDesc->Length);
+    if (!NewTable)
+    {
+        ACPI_ERROR ((AE_INFO, "Could not copy DSDT of length 0x%X",
+            TableDesc->Length));
+        return (NULL);
+    }
+
+    ACPI_MEMCPY (NewTable, TableDesc->Pointer, TableDesc->Length);
+    AcpiTbDeleteTable (TableDesc);
+    TableDesc->Pointer = NewTable;
+    TableDesc->Flags = ACPI_TABLE_ORIGIN_ALLOCATED;
+
+    ACPI_INFO ((AE_INFO,
+        "Forced DSDT copy: length 0x%05X copied locally, original unmapped",
+        NewTable->Length));
+
+    return (NewTable);
 }
 
 
@@ -567,7 +649,7 @@ AcpiTbGetRootTableEntry (
             /* Will truncate 64-bit address to 32 bits, issue warning */
 
             ACPI_WARNING ((AE_INFO,
-                "64-bit Physical Address in XSDT is too large (%8.8X%8.8X),"
+                "64-bit Physical Address in XSDT is too large (0x%8.8X%8.8X),"
                 " truncating",
                 ACPI_FORMAT_UINT64 (Address64)));
         }

@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2006-2009 Broadcom Corporation
+ * Copyright (c) 2006-2010 Broadcom Corporation
  *	David Christensen <davidch@broadcom.com>.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -38,7 +38,9 @@ __FBSDID("$FreeBSD$");
  *   BCM5708C B1, B2
  *   BCM5708S B1, B2
  *   BCM5709C A1, C0
- * 	 BCM5716C C0
+ *   BCM5709S A1, C0
+ *   BCM5716C C0
+ *   BCM5716S C0
  *
  * The following controllers are not supported by this driver:
  *   BCM5706C A0, A1 (pre-production)
@@ -46,7 +48,7 @@ __FBSDID("$FreeBSD$");
  *   BCM5708C A0, B0 (pre-production)
  *   BCM5708S A0, B0 (pre-production)
  *   BCM5709C A0  B0, B1, B2 (pre-production)
- *   BCM5709S A0, A1, B0, B1, B2, C0 (pre-production)
+ *   BCM5709S A0, B0, B1, B2 (pre-production)
  */
 
 #include "opt_bce.h"
@@ -275,37 +277,41 @@ static struct flash_spec flash_5709 = {
 /****************************************************************************/
 /* FreeBSD device entry points.                                             */
 /****************************************************************************/
-static int  bce_probe				(device_t);
-static int  bce_attach				(device_t);
-static int  bce_detach				(device_t);
-static int  bce_shutdown			(device_t);
+static int  bce_probe			(device_t);
+static int  bce_attach			(device_t);
+static int  bce_detach			(device_t);
+static int  bce_shutdown		(device_t);
 
 
 /****************************************************************************/
 /* BCE Debug Data Structure Dump Routines                                   */
 /****************************************************************************/
 #ifdef BCE_DEBUG
-static u32	bce_reg_rd				(struct bce_softc *, u32);
-static void	bce_reg_wr				(struct bce_softc *, u32, u32);
-static void	bce_reg_wr16			(struct bce_softc *, u32, u16);
-static u32  bce_ctx_rd				(struct bce_softc *, u32, u32);
-static void bce_dump_enet           (struct bce_softc *, struct mbuf *);
-static void bce_dump_mbuf 			(struct bce_softc *, struct mbuf *);
+static u32  bce_reg_rd			(struct bce_softc *, u32);
+static void bce_reg_wr			(struct bce_softc *, u32, u32);
+static void bce_reg_wr16		(struct bce_softc *, u32, u16);
+static u32  bce_ctx_rd			(struct bce_softc *, u32, u32);
+static void bce_dump_enet		(struct bce_softc *, struct mbuf *);
+static void bce_dump_mbuf		(struct bce_softc *, struct mbuf *);
 static void bce_dump_tx_mbuf_chain	(struct bce_softc *, u16, int);
 static void bce_dump_rx_mbuf_chain	(struct bce_softc *, u16, int);
 #ifdef BCE_JUMBO_HDRSPLIT
 static void bce_dump_pg_mbuf_chain	(struct bce_softc *, u16, int);
 #endif
-static void bce_dump_txbd			(struct bce_softc *, int, struct tx_bd *);
-static void bce_dump_rxbd			(struct bce_softc *, int, struct rx_bd *);
+static void bce_dump_txbd		(struct bce_softc *,
+    int, struct tx_bd *);
+static void bce_dump_rxbd		(struct bce_softc *,
+    int, struct rx_bd *);
 #ifdef BCE_JUMBO_HDRSPLIT
-static void bce_dump_pgbd			(struct bce_softc *, int, struct rx_bd *);
+static void bce_dump_pgbd		(struct bce_softc *, 
+    int, struct rx_bd *);
 #endif
-static void bce_dump_l2fhdr			(struct bce_softc *, int, struct l2_fhdr *);
-static void bce_dump_ctx			(struct bce_softc *, u16);
-static void bce_dump_ftqs			(struct bce_softc *);
+static void bce_dump_l2fhdr		(struct bce_softc *,
+    int, struct l2_fhdr *);
+static void bce_dump_ctx		(struct bce_softc *, u16);
+static void bce_dump_ftqs		(struct bce_softc *);
 static void bce_dump_tx_chain		(struct bce_softc *, u16, int);
-static void bce_dump_rx_chain		(struct bce_softc *, u16, int);
+static void bce_dump_rx_bd_chain	(struct bce_softc *, u16, int);
 #ifdef BCE_JUMBO_HDRSPLIT
 static void bce_dump_pg_chain		(struct bce_softc *, u16, int);
 #endif
@@ -313,25 +319,26 @@ static void bce_dump_status_block	(struct bce_softc *);
 static void bce_dump_stats_block	(struct bce_softc *);
 static void bce_dump_driver_state	(struct bce_softc *);
 static void bce_dump_hw_state		(struct bce_softc *);
-static void bce_dump_mq_regs        (struct bce_softc *);
+static void bce_dump_mq_regs		(struct bce_softc *);
 static void bce_dump_bc_state		(struct bce_softc *);
 static void bce_dump_txp_state		(struct bce_softc *, int);
 static void bce_dump_rxp_state		(struct bce_softc *, int);
 static void bce_dump_tpat_state		(struct bce_softc *, int);
 static void bce_dump_cp_state		(struct bce_softc *, int);
 static void bce_dump_com_state		(struct bce_softc *, int);
-static void bce_breakpoint			(struct bce_softc *);
+static void bce_dump_rv2p_state		(struct bce_softc *);
+static void bce_breakpoint		(struct bce_softc *);
 #endif
 
 
 /****************************************************************************/
 /* BCE Register/Memory Access Routines                                      */
 /****************************************************************************/
-static u32  bce_reg_rd_ind			(struct bce_softc *, u32);
-static void bce_reg_wr_ind			(struct bce_softc *, u32, u32);
-static void bce_shmem_wr            (struct bce_softc *, u32, u32);
-static u32  bce_shmem_rd            (struct bce_softc *, u32);
-static void bce_ctx_wr				(struct bce_softc *, u32, u32, u32);
+static u32  bce_reg_rd_ind		(struct bce_softc *, u32);
+static void bce_reg_wr_ind		(struct bce_softc *, u32, u32);
+static void bce_shmem_wr		(struct bce_softc *, u32, u32);
+static u32  bce_shmem_rd		(struct bce_softc *, u32);
+static void bce_ctx_wr			(struct bce_softc *, u32, u32, u32);
 static int  bce_miibus_read_reg		(device_t, int, int);
 static int  bce_miibus_write_reg	(device_t, int, int, int);
 static void bce_miibus_statchg		(device_t);
@@ -343,94 +350,101 @@ static void bce_miibus_statchg		(device_t);
 static int  bce_acquire_nvram_lock	(struct bce_softc *);
 static int  bce_release_nvram_lock	(struct bce_softc *);
 static void bce_enable_nvram_access	(struct bce_softc *);
-static void	bce_disable_nvram_access(struct bce_softc *);
+static void bce_disable_nvram_access	(struct bce_softc *);
 static int  bce_nvram_read_dword	(struct bce_softc *, u32, u8 *, u32);
-static int  bce_init_nvram			(struct bce_softc *);
-static int  bce_nvram_read			(struct bce_softc *, u32, u8 *, int);
-static int  bce_nvram_test			(struct bce_softc *);
+static int  bce_init_nvram		(struct bce_softc *);
+static int  bce_nvram_read		(struct bce_softc *, u32, u8 *, int);
+static int  bce_nvram_test		(struct bce_softc *);
 #ifdef BCE_NVRAM_WRITE_SUPPORT
 static int  bce_enable_nvram_write	(struct bce_softc *);
 static void bce_disable_nvram_write	(struct bce_softc *);
 static int  bce_nvram_erase_page	(struct bce_softc *, u32);
 static int  bce_nvram_write_dword	(struct bce_softc *, u32, u8 *, u32);
-static int  bce_nvram_write			(struct bce_softc *, u32, u8 *, int);
+static int  bce_nvram_write		(struct bce_softc *, u32, u8 *, int);
 #endif
 
 /****************************************************************************/
 /*                                                                          */
 /****************************************************************************/
-static void bce_get_media			(struct bce_softc *);
-static void bce_dma_map_addr		(void *, bus_dma_segment_t *, int, int);
-static int  bce_dma_alloc			(device_t);
-static void bce_dma_free			(struct bce_softc *);
+static void bce_get_media		(struct bce_softc *);
+static void bce_init_media		(struct bce_softc *);
+static void bce_dma_map_addr		(void *, 
+    bus_dma_segment_t *, int, int);
+static int  bce_dma_alloc		(device_t);
+static void bce_dma_free		(struct bce_softc *);
 static void bce_release_resources	(struct bce_softc *);
 
 /****************************************************************************/
 /* BCE Firmware Synchronization and Load                                    */
 /****************************************************************************/
-static int  bce_fw_sync				(struct bce_softc *, u32);
+static int  bce_fw_sync			(struct bce_softc *, u32);
 static void bce_load_rv2p_fw		(struct bce_softc *, u32 *, u32, u32);
-static void bce_load_cpu_fw			(struct bce_softc *, struct cpu_reg *, struct fw_info *);
-static void bce_start_cpu           (struct bce_softc *, struct cpu_reg *);
-static void bce_halt_cpu            (struct bce_softc *, struct cpu_reg *);
-static void bce_start_rxp_cpu       (struct bce_softc *);
+static void bce_load_cpu_fw		(struct bce_softc *, 
+    struct cpu_reg *, struct fw_info *);
+static void bce_start_cpu		(struct bce_softc *, struct cpu_reg *);
+static void bce_halt_cpu		(struct bce_softc *, struct cpu_reg *);
+static void bce_start_rxp_cpu		(struct bce_softc *);
 static void bce_init_rxp_cpu		(struct bce_softc *);
 static void bce_init_txp_cpu 		(struct bce_softc *);
 static void bce_init_tpat_cpu		(struct bce_softc *);
-static void bce_init_cp_cpu		  	(struct bce_softc *);
+static void bce_init_cp_cpu	  	(struct bce_softc *);
 static void bce_init_com_cpu	  	(struct bce_softc *);
-static void bce_init_cpus			(struct bce_softc *);
+static void bce_init_cpus		(struct bce_softc *);
 
 static void	bce_print_adapter_info	(struct bce_softc *);
 static void bce_probe_pci_caps		(device_t, struct bce_softc *);
-static void bce_stop				(struct bce_softc *);
-static int  bce_reset				(struct bce_softc *, u32);
-static int  bce_chipinit 			(struct bce_softc *);
-static int  bce_blockinit 			(struct bce_softc *);
+static void bce_stop			(struct bce_softc *);
+static int  bce_reset			(struct bce_softc *, u32);
+static int  bce_chipinit 		(struct bce_softc *);
+static int  bce_blockinit 		(struct bce_softc *);
 
 static int  bce_init_tx_chain		(struct bce_softc *);
 static void bce_free_tx_chain		(struct bce_softc *);
 
-static int  bce_get_rx_buf			(struct bce_softc *, struct mbuf *, u16 *, u16 *, u32 *);
+static int  bce_get_rx_buf		(struct bce_softc *, 
+    struct mbuf *, u16 *, u16 *, u32 *);
 static int  bce_init_rx_chain		(struct bce_softc *);
 static void bce_fill_rx_chain		(struct bce_softc *);
 static void bce_free_rx_chain		(struct bce_softc *);
 
 #ifdef BCE_JUMBO_HDRSPLIT
-static int  bce_get_pg_buf			(struct bce_softc *, struct mbuf *, u16 *, u16 *);
+static int  bce_get_pg_buf		(struct bce_softc *, 
+    struct mbuf *, u16 *, u16 *);
 static int  bce_init_pg_chain		(struct bce_softc *);
 static void bce_fill_pg_chain		(struct bce_softc *);
 static void bce_free_pg_chain		(struct bce_softc *);
 #endif
 
-static int  bce_tx_encap			(struct bce_softc *, struct mbuf **);
+static struct mbuf *bce_tso_setup	(struct bce_softc *, 
+    struct mbuf **, u16 *);
+static int  bce_tx_encap		(struct bce_softc *, struct mbuf **);
 static void bce_start_locked		(struct ifnet *);
-static void bce_start				(struct ifnet *);
-static int  bce_ioctl				(struct ifnet *, u_long, caddr_t);
-static void bce_watchdog			(struct bce_softc *);
-static int  bce_ifmedia_upd			(struct ifnet *);
+static void bce_start			(struct ifnet *);
+static int  bce_ioctl			(struct ifnet *, u_long, caddr_t);
+static void bce_watchdog		(struct bce_softc *);
+static int  bce_ifmedia_upd		(struct ifnet *);
 static void bce_ifmedia_upd_locked	(struct ifnet *);
-static void bce_ifmedia_sts			(struct ifnet *, struct ifmediareq *);
-static void bce_init_locked			(struct bce_softc *);
-static void bce_init				(void *);
+static void bce_ifmedia_sts		(struct ifnet *, struct ifmediareq *);
+static void bce_init_locked		(struct bce_softc *);
+static void bce_init			(void *);
 static void bce_mgmt_init_locked	(struct bce_softc *sc);
 
-static void bce_init_ctx			(struct bce_softc *);
+static void bce_init_ctx		(struct bce_softc *);
 static void bce_get_mac_addr		(struct bce_softc *);
 static void bce_set_mac_addr		(struct bce_softc *);
-static void bce_phy_intr			(struct bce_softc *);
-static inline u16 bce_get_hw_rx_cons(struct bce_softc *);
-static void bce_rx_intr				(struct bce_softc *);
-static void bce_tx_intr				(struct bce_softc *);
+static void bce_phy_intr		(struct bce_softc *);
+static inline u16 bce_get_hw_rx_cons	(struct bce_softc *);
+static void bce_rx_intr			(struct bce_softc *);
+static void bce_tx_intr			(struct bce_softc *);
 static void bce_disable_intr		(struct bce_softc *);
-static void bce_enable_intr			(struct bce_softc *, int);
+static void bce_enable_intr		(struct bce_softc *, int);
 
-static void bce_intr				(void *);
-static void bce_set_rx_mode			(struct bce_softc *);
+static void bce_intr			(void *);
+static void bce_set_rx_mode		(struct bce_softc *);
 static void bce_stats_update		(struct bce_softc *);
-static void bce_tick				(void *);
-static void bce_pulse				(void *);
-static void bce_add_sysctls			(struct bce_softc *);
+static void bce_tick			(void *);
+static void bce_pulse			(void *);
+static void bce_add_sysctls		(struct bce_softc *);
 
 
 /****************************************************************************/
@@ -535,15 +549,15 @@ bce_probe(device_t dev)
 	sdid = pci_get_subdevice(dev);
 
 	DBPRINT(sc, BCE_EXTREME_LOAD,
-		"%s(); VID = 0x%04X, DID = 0x%04X, SVID = 0x%04X, "
-		"SDID = 0x%04X\n", __FUNCTION__, vid, did, svid, sdid);
+	    "%s(); VID = 0x%04X, DID = 0x%04X, SVID = 0x%04X, "
+	    "SDID = 0x%04X\n", __FUNCTION__, vid, did, svid, sdid);
 
 	/* Look through the list of known devices for a match. */
 	while(t->bce_name != NULL) {
 
 		if ((vid == t->bce_vid) && (did == t->bce_did) &&
-			((svid == t->bce_svid) || (t->bce_svid == PCI_ANY_ID)) &&
-			((sdid == t->bce_sdid) || (t->bce_sdid == PCI_ANY_ID))) {
+		    ((svid == t->bce_svid) || (t->bce_svid == PCI_ANY_ID)) &&
+		    ((sdid == t->bce_sdid) || (t->bce_sdid == PCI_ANY_ID))) {
 
 			descbuf = malloc(BCE_DEVDESC_MAX, M_TEMP, M_NOWAIT);
 
@@ -552,8 +566,8 @@ bce_probe(device_t dev)
 
 			/* Print out the device identity. */
 			snprintf(descbuf, BCE_DEVDESC_MAX, "%s (%c%d)",
-				t->bce_name,
-			    (((pci_read_config(dev, PCIR_REVID, 4) & 0xf0) >> 4) + 'A'),
+			    t->bce_name, (((pci_read_config(dev, 
+			    PCIR_REVID, 4) & 0xf0) >> 4) + 'A'),
 			    (pci_read_config(dev, PCIR_REVID, 4) & 0xf));
 
 			device_set_desc_copy(dev, descbuf);
@@ -585,21 +599,21 @@ bce_print_adapter_info(struct bce_softc *sc)
 
 	BCE_PRINTF("ASIC (0x%08X); ", sc->bce_chipid);
 	printf("Rev (%c%d); ", ((BCE_CHIP_ID(sc) & 0xf000) >> 12) + 'A',
-		((BCE_CHIP_ID(sc) & 0x0ff0) >> 4));
+	    ((BCE_CHIP_ID(sc) & 0x0ff0) >> 4));
 
 	/* Bus info. */
 	if (sc->bce_flags & BCE_PCIE_FLAG) {
 		printf("Bus (PCIe x%d, ", sc->link_width);
 		switch (sc->link_speed) {
-			case 1: printf("2.5Gbps); "); break;
-			case 2:	printf("5Gbps); "); break;
-			default: printf("Unknown link speed); ");
+		case 1: printf("2.5Gbps); "); break;
+		case 2:	printf("5Gbps); "); break;
+		default: printf("Unknown link speed); ");
 		}
 	} else {
 		printf("Bus (PCI%s, %s, %dMHz); ",
-			((sc->bce_flags & BCE_PCIX_FLAG) ? "-X" : ""),
-			((sc->bce_flags & BCE_PCI_32BIT_FLAG) ? "32-bit" : "64-bit"),
-			sc->bus_speed_mhz);
+		    ((sc->bce_flags & BCE_PCIX_FLAG) ? "-X" : ""),
+		    ((sc->bce_flags & BCE_PCI_32BIT_FLAG) ? 
+		    "32-bit" : "64-bit"), sc->bus_speed_mhz);
 	}
 
 	/* Firmware version and device features. */
@@ -607,30 +621,30 @@ bce_print_adapter_info(struct bce_softc *sc)
 
 #ifdef BCE_JUMBO_HDRSPLIT
 	printf("SPLT");
-    i++;
+	i++;
 #endif
 
-    if (sc->bce_flags & BCE_USING_MSI_FLAG) {
-        if (i > 0) printf("|");
+	if (sc->bce_flags & BCE_USING_MSI_FLAG) {
+		if (i > 0) printf("|");
 		printf("MSI"); i++;
-    }
+	}
 
-    if (sc->bce_flags & BCE_USING_MSIX_FLAG) {
-        if (i > 0) printf("|");
+	if (sc->bce_flags & BCE_USING_MSIX_FLAG) {
+		if (i > 0) printf("|");
 		printf("MSI-X"); i++;
-    }
+	}
 
-    if (sc->bce_phy_flags & BCE_PHY_2_5G_CAPABLE_FLAG) {
-        if (i > 0) printf("|");
+	if (sc->bce_phy_flags & BCE_PHY_2_5G_CAPABLE_FLAG) {
+		if (i > 0) printf("|");
 		printf("2.5G"); i++;
-    }
+	}
 
-    if (sc->bce_flags & BCE_MFW_ENABLE_FLAG) {
-        if (i > 0) printf("|");
-        printf("MFW); MFW (%s)\n", sc->bce_mfw_ver);
-    } else {
-        printf(")\n");
-    }
+	if (sc->bce_flags & BCE_MFW_ENABLE_FLAG) {
+		if (i > 0) printf("|");
+		printf("MFW); MFW (%s)\n", sc->bce_mfw_ver);
+	} else {
+		printf(")\n");
+	}
 
 	DBEXIT(BCE_VERBOSE_LOAD);
 }
@@ -662,8 +676,8 @@ bce_probe_pci_caps(device_t dev, struct bce_softc *sc)
 	if (pci_find_extcap(dev, PCIY_EXPRESS, &reg) == 0) {
 		if (reg != 0) {
 			u16 link_status = pci_read_config(dev, reg + 0x12, 2);
-			DBPRINT(sc, BCE_INFO_LOAD, "PCIe link_status = 0x%08X\n",
-				link_status);
+			DBPRINT(sc, BCE_INFO_LOAD, "PCIe link_status = "
+			    "0x%08X\n",	link_status);
 			sc->link_speed = link_status & 0xf;
 			sc->link_width = (link_status >> 4) & 0x3f;
 			sc->bce_cap_flags |= BCE_PCIE_CAPABLE_FLAG;
@@ -725,7 +739,7 @@ bce_attach(device_t dev)
 
 	if (sc->bce_res_mem == NULL) {
 		BCE_PRINTF("%s(%d): PCI memory allocation failed\n",
-			__FILE__, __LINE__);
+		    __FILE__, __LINE__);
 		rc = ENXIO;
 		goto bce_attach_fail;
 	}
@@ -796,14 +810,14 @@ bce_attach(device_t dev)
 	}
 
 	sc->bce_res_irq = bus_alloc_resource_any(dev, SYS_RES_IRQ,
-		&rid, RF_SHAREABLE | RF_ACTIVE);
+	    &rid, RF_SHAREABLE | RF_ACTIVE);
 
 	sc->bce_irq_rid = rid;
 
 	/* Report any IRQ allocation errors. */
 	if (sc->bce_res_irq == NULL) {
 		BCE_PRINTF("%s(%d): PCI map interrupt failed!\n",
-			__FILE__, __LINE__);
+		    __FILE__, __LINE__);
 		rc = ENXIO;
 		goto bce_attach_fail;
 	}
@@ -818,28 +832,28 @@ bce_attach(device_t dev)
 	 * valid until this is done.
 	 */
 	pci_write_config(dev, BCE_PCICFG_MISC_CONFIG,
-			       BCE_PCICFG_MISC_CONFIG_REG_WINDOW_ENA |
-			       BCE_PCICFG_MISC_CONFIG_TARGET_MB_WORD_SWAP, 4);
+	    BCE_PCICFG_MISC_CONFIG_REG_WINDOW_ENA |
+	    BCE_PCICFG_MISC_CONFIG_TARGET_MB_WORD_SWAP, 4);
 
 	/* Save ASIC revsion info. */
 	sc->bce_chipid =  REG_RD(sc, BCE_MISC_ID);
 
 	/* Weed out any non-production controller revisions. */
 	switch(BCE_CHIP_ID(sc)) {
-		case BCE_CHIP_ID_5706_A0:
-		case BCE_CHIP_ID_5706_A1:
-		case BCE_CHIP_ID_5708_A0:
-		case BCE_CHIP_ID_5708_B0:
-		case BCE_CHIP_ID_5709_A0:
-		case BCE_CHIP_ID_5709_B0:
-		case BCE_CHIP_ID_5709_B1:
-		case BCE_CHIP_ID_5709_B2:
-			BCE_PRINTF("%s(%d): Unsupported controller revision (%c%d)!\n",
-				__FILE__, __LINE__,
-				(((pci_read_config(dev, PCIR_REVID, 4) & 0xf0) >> 4) + 'A'),
-			    (pci_read_config(dev, PCIR_REVID, 4) & 0xf));
-			rc = ENODEV;
-			goto bce_attach_fail;
+	case BCE_CHIP_ID_5706_A0:
+	case BCE_CHIP_ID_5706_A1:
+	case BCE_CHIP_ID_5708_A0:
+	case BCE_CHIP_ID_5708_B0:
+	case BCE_CHIP_ID_5709_A0:
+	case BCE_CHIP_ID_5709_B0:
+	case BCE_CHIP_ID_5709_B1:
+	case BCE_CHIP_ID_5709_B2:
+		BCE_PRINTF("%s(%d): Unsupported controller revision (%c%d)!\n",
+		    __FILE__, __LINE__,
+		    (((pci_read_config(dev, PCIR_REVID, 4) & 0xf0) >> 4) + 'A'),
+		    (pci_read_config(dev, PCIR_REVID, 4) & 0xf));
+		rc = ENODEV;
+		goto bce_attach_fail;
 	}
 
 	/*
@@ -861,58 +875,67 @@ bce_attach(device_t dev)
 	if ((val & BCE_SHM_HDR_SIGNATURE_SIG_MASK) == BCE_SHM_HDR_SIGNATURE_SIG)
 		/* Multi-port devices use different offsets in shared memory. */
 		sc->bce_shmem_base = REG_RD_IND(sc, BCE_SHM_HDR_ADDR_0 +
-			(pci_get_function(sc->bce_dev) << 2));
+		    (pci_get_function(sc->bce_dev) << 2));
 	else
 		sc->bce_shmem_base = HOST_VIEW_SHMEM_BASE;
 
 	DBPRINT(sc, BCE_VERBOSE_FIRMWARE, "%s(): bce_shmem_base = 0x%08X\n",
-		__FUNCTION__, sc->bce_shmem_base);
+	    __FUNCTION__, sc->bce_shmem_base);
 
 	/* Fetch the bootcode revision. */
-    val = bce_shmem_rd(sc, BCE_DEV_INFO_BC_REV);
-    for (int i = 0, j = 0; i < 3; i++) {
-        u8 num;
+	val = bce_shmem_rd(sc, BCE_DEV_INFO_BC_REV);
+	for (int i = 0, j = 0; i < 3; i++) {
+		u8 num;
 
-        num = (u8) (val >> (24 - (i * 8)));
-        for (int k = 100, skip0 = 1; k >= 1; num %= k, k /= 10) {
-            if (num >= k || !skip0 || k == 1) {
-                sc->bce_bc_ver[j++] = (num / k) + '0';
-                skip0 = 0;
-            }
-        }
-        if (i != 2)
-            sc->bce_bc_ver[j++] = '.';
-    }
+		num = (u8) (val >> (24 - (i * 8)));
+		for (int k = 100, skip0 = 1; k >= 1; num %= k, k /= 10) {
+			if (num >= k || !skip0 || k == 1) {
+				sc->bce_bc_ver[j++] = (num / k) + '0';
+				skip0 = 0;
+			}
+		}
 
-    /* Check if any management firwmare is running. */
-    val = bce_shmem_rd(sc, BCE_PORT_FEATURE);
-    if (val & BCE_PORT_FEATURE_ASF_ENABLED) {
-        sc->bce_flags |= BCE_MFW_ENABLE_FLAG;
+		if (i != 2)
+			sc->bce_bc_ver[j++] = '.';
+	}
 
-        /* Allow time for firmware to enter the running state. */
-        for (int i = 0; i < 30; i++) {
-            val = bce_shmem_rd(sc, BCE_BC_STATE_CONDITION);
-            if (val & BCE_CONDITION_MFW_RUN_MASK)
-                break;
-            DELAY(10000);
-        }
-    }
+	/* Check if any management firwmare is enabled. */
+	val = bce_shmem_rd(sc, BCE_PORT_FEATURE);
+	if (val & BCE_PORT_FEATURE_ASF_ENABLED) {
+		sc->bce_flags |= BCE_MFW_ENABLE_FLAG;
 
-    /* Check the current bootcode state. */
-    val = bce_shmem_rd(sc, BCE_BC_STATE_CONDITION);
-    val &= BCE_CONDITION_MFW_RUN_MASK;
-    if (val != BCE_CONDITION_MFW_RUN_UNKNOWN &&
-        val != BCE_CONDITION_MFW_RUN_NONE) {
-        u32 addr = bce_shmem_rd(sc, BCE_MFW_VER_PTR);
-        int i = 0;
+		/* Allow time for firmware to enter the running state. */
+		for (int i = 0; i < 30; i++) {
+			val = bce_shmem_rd(sc, BCE_BC_STATE_CONDITION);
+			if (val & BCE_CONDITION_MFW_RUN_MASK)
+				break;
+			DELAY(10000);
+		}
 
-        for (int j = 0; j < 3; j++) {
-            val = bce_reg_rd_ind(sc, addr + j * 4);
-            val = bswap32(val);
-            memcpy(&sc->bce_mfw_ver[i], &val, 4);
-            i += 4;
-        }
-    }
+		/* Check if management firmware is running. */
+		val = bce_shmem_rd(sc, BCE_BC_STATE_CONDITION);
+		val &= BCE_CONDITION_MFW_RUN_MASK;
+		if ((val != BCE_CONDITION_MFW_RUN_UNKNOWN) &&
+		    (val != BCE_CONDITION_MFW_RUN_NONE)) {
+			u32 addr = bce_shmem_rd(sc, BCE_MFW_VER_PTR);
+			int i = 0;
+
+			/* Read the management firmware version string. */
+			for (int j = 0; j < 3; j++) {
+				val = bce_reg_rd_ind(sc, addr + j * 4);
+				val = bswap32(val);
+				memcpy(&sc->bce_mfw_ver[i], &val, 4);
+				i += 4;
+			}
+		} else {
+			/* May cause firmware synchronization timeouts. */
+			BCE_PRINTF("%s(%d): Management firmware enabled "
+			    "but not running!\n", __FILE__, __LINE__);
+			strcpy(sc->bce_mfw_ver, "NOT RUNNING!");
+
+			/* ToDo: Any action the driver should take? */
+		}
+	}
 
 	/* Get PCI bus information (speed and type). */
 	val = REG_RD(sc, BCE_PCICFG_MISC_STATUS);
@@ -959,10 +982,10 @@ bce_attach(device_t dev)
 	if (val & BCE_PCICFG_MISC_STATUS_32BIT_DET)
 		sc->bce_flags |= BCE_PCI_32BIT_FLAG;
 
-	/* Reset the controller and announce to bootcode that driver is present. */
+	/* Reset controller and announce to bootcode that driver is present. */
 	if (bce_reset(sc, BCE_DRV_MSG_CODE_RESET)) {
 		BCE_PRINTF("%s(%d): Controller reset failed!\n",
-			__FILE__, __LINE__);
+		    __FILE__, __LINE__);
 		rc = ENXIO;
 		goto bce_attach_fail;
 	}
@@ -970,7 +993,7 @@ bce_attach(device_t dev)
 	/* Initialize the controller. */
 	if (bce_chipinit(sc)) {
 		BCE_PRINTF("%s(%d): Controller initialization failed!\n",
-			__FILE__, __LINE__);
+		    __FILE__, __LINE__);
 		rc = ENXIO;
 		goto bce_attach_fail;
 	}
@@ -978,7 +1001,7 @@ bce_attach(device_t dev)
 	/* Perform NVRAM test. */
 	if (bce_nvram_test(sc)) {
 		BCE_PRINTF("%s(%d): NVRAM test failed!\n",
-			__FILE__, __LINE__);
+		    __FILE__, __LINE__);
 		rc = ENXIO;
 		goto bce_attach_fail;
 	}
@@ -1019,6 +1042,14 @@ bce_attach(device_t dev)
 	sc->bce_rx_ticks               = 18;
 #endif
 
+	/* Not used for L2. */
+	sc->bce_comp_prod_trip_int = 0;
+	sc->bce_comp_prod_trip = 0;
+	sc->bce_com_ticks_int = 0;
+	sc->bce_com_ticks = 0;
+	sc->bce_cmd_ticks_int = 0;
+	sc->bce_cmd_ticks = 0;
+
 	/* Update statistics once every second. */
 	sc->bce_stats_ticks = 1000000 & 0xffff00;
 
@@ -1057,7 +1088,8 @@ bce_attach(device_t dev)
 
 	if (bce_tso_enable) {
 		ifp->if_hwassist = BCE_IF_HWASSIST | CSUM_TSO;
-		ifp->if_capabilities = BCE_IF_CAPABILITIES | IFCAP_TSO4;
+		ifp->if_capabilities = BCE_IF_CAPABILITIES | IFCAP_TSO4 |
+		    IFCAP_VLAN_HWTSO;
 	} else {
 		ifp->if_hwassist = BCE_IF_HWASSIST;
 		ifp->if_capabilities = BCE_IF_CAPABILITIES;
@@ -1094,7 +1126,10 @@ bce_attach(device_t dev)
 	else
 		ifp->if_baudrate = IF_Mbps(1000);
 
-	/* Check for an MII child bus by probing the PHY. */
+    /* Handle any special PHY initialization for SerDes PHYs. */
+    bce_init_media(sc);
+
+	/* MII child bus by probing the PHY. */
 	if (mii_phy_probe(dev, &sc->bce_miibus, bce_ifmedia_upd,
 		bce_ifmedia_sts)) {
 		BCE_PRINTF("%s(%d): No PHY found on child MII bus!\n",
@@ -1498,11 +1533,22 @@ bce_miibus_read_reg(device_t dev, int phy, int reg)
 
 	/* Make sure we are accessing the correct PHY address. */
 	if (phy != sc->bce_phy_addr) {
-		DBPRINT(sc, BCE_INSANE_PHY, "Invalid PHY address %d for PHY read!\n", phy);
+		DBPRINT(sc, BCE_INSANE_PHY, "Invalid PHY address %d "
+		    "for PHY read!\n", phy);
 		return(0);
 	}
 
-	if (sc->bce_phy_flags & BCE_PHY_INT_MODE_AUTO_POLLING_FLAG) {
+    /*
+     * The 5709S PHY is an IEEE Clause 45 PHY
+     * with special mappings to work with IEEE
+     * Clause 22 register accesses.
+     */
+	if ((sc->bce_phy_flags & BCE_PHY_IEEE_CLAUSE_45_FLAG) != 0) {
+		if (reg >= MII_BMCR && reg <= MII_ANLPRNP)
+			reg += 0x10;
+	}
+
+    if (sc->bce_phy_flags & BCE_PHY_INT_MODE_AUTO_POLLING_FLAG) {
 		val = REG_RD(sc, BCE_EMAC_MDIO_MODE);
 		val &= ~BCE_EMAC_MDIO_MODE_AUTO_POLL;
 
@@ -1514,8 +1560,8 @@ bce_miibus_read_reg(device_t dev, int phy, int reg)
 
 
 	val = BCE_MIPHY(phy) | BCE_MIREG(reg) |
-		BCE_EMAC_MDIO_COMM_COMMAND_READ | BCE_EMAC_MDIO_COMM_DISEXT |
-		BCE_EMAC_MDIO_COMM_START_BUSY;
+	    BCE_EMAC_MDIO_COMM_COMMAND_READ | BCE_EMAC_MDIO_COMM_DISEXT |
+	    BCE_EMAC_MDIO_COMM_START_BUSY;
 	REG_WR(sc, BCE_EMAC_MDIO_COMM, val);
 
 	for (i = 0; i < BCE_PHY_TIMEOUT; i++) {
@@ -1533,8 +1579,8 @@ bce_miibus_read_reg(device_t dev, int phy, int reg)
 	}
 
 	if (val & BCE_EMAC_MDIO_COMM_START_BUSY) {
-		BCE_PRINTF("%s(%d): Error: PHY read timeout! phy = %d, reg = 0x%04X\n",
-			__FILE__, __LINE__, phy, reg);
+		BCE_PRINTF("%s(%d): Error: PHY read timeout! phy = %d, "
+		    "reg = 0x%04X\n", __FILE__, __LINE__, phy, reg);
 		val = 0x0;
 	} else {
 		val = REG_RD(sc, BCE_EMAC_MDIO_COMM);
@@ -1576,11 +1622,22 @@ bce_miibus_write_reg(device_t dev, int phy, int reg, int val)
 
 	/* Make sure we are accessing the correct PHY address. */
 	if (phy != sc->bce_phy_addr) {
-		DBPRINT(sc, BCE_INSANE_PHY, "Invalid PHY address %d for PHY write!\n", phy);
+		DBPRINT(sc, BCE_INSANE_PHY, "Invalid PHY address %d "
+		    "for PHY write!\n", phy);
 		return(0);
 	}
 
 	DB_PRINT_PHY_REG(reg, val);
+
+	/*
+	 * The 5709S PHY is an IEEE Clause 45 PHY
+	 * with special mappings to work with IEEE
+	 * Clause 22 register accesses.
+	 */
+	if ((sc->bce_phy_flags & BCE_PHY_IEEE_CLAUSE_45_FLAG) != 0) {
+		if (reg >= MII_BMCR && reg <= MII_ANLPRNP)
+			reg += 0x10;
+	}
 
 	if (sc->bce_phy_flags & BCE_PHY_INT_MODE_AUTO_POLLING_FLAG) {
 		val1 = REG_RD(sc, BCE_EMAC_MDIO_MODE);
@@ -1593,8 +1650,8 @@ bce_miibus_write_reg(device_t dev, int phy, int reg, int val)
 	}
 
 	val1 = BCE_MIPHY(phy) | BCE_MIREG(reg) | val |
-		BCE_EMAC_MDIO_COMM_COMMAND_WRITE |
-		BCE_EMAC_MDIO_COMM_START_BUSY | BCE_EMAC_MDIO_COMM_DISEXT;
+	    BCE_EMAC_MDIO_COMM_COMMAND_WRITE |
+	    BCE_EMAC_MDIO_COMM_START_BUSY | BCE_EMAC_MDIO_COMM_DISEXT;
 	REG_WR(sc, BCE_EMAC_MDIO_COMM, val1);
 
 	for (i = 0; i < BCE_PHY_TIMEOUT; i++) {
@@ -1609,7 +1666,7 @@ bce_miibus_write_reg(device_t dev, int phy, int reg, int val)
 
 	if (val1 & BCE_EMAC_MDIO_COMM_START_BUSY)
 		BCE_PRINTF("%s(%d): PHY write timeout!\n",
-			__FILE__, __LINE__);
+		    __FILE__, __LINE__);
 
 	if (sc->bce_phy_flags & BCE_PHY_INT_MODE_AUTO_POLLING_FLAG) {
 		val1 = REG_RD(sc, BCE_EMAC_MDIO_MODE);
@@ -2624,18 +2681,22 @@ bce_get_media(struct bce_softc *sc)
 		 * for Copper or SerDes operation.
 		 */
 		if (bond_id == BCE_MISC_DUAL_MEDIA_CTRL_BOND_ID_C) {
-			DBPRINT(sc, BCE_INFO_LOAD, "5709 bonded for copper.\n");
+			DBPRINT(sc, BCE_INFO_LOAD, "5709 bonded "
+			    "for copper.\n");
 			goto bce_get_media_exit;
 		} else if (bond_id == BCE_MISC_DUAL_MEDIA_CTRL_BOND_ID_S) {
-			DBPRINT(sc, BCE_INFO_LOAD, "5709 bonded for dual media.\n");
+			DBPRINT(sc, BCE_INFO_LOAD, "5709 bonded "
+			    "for dual media.\n");
 			sc->bce_phy_flags |= BCE_PHY_SERDES_FLAG;
 			goto bce_get_media_exit;
 		}
 
 		if (val & BCE_MISC_DUAL_MEDIA_CTRL_STRAP_OVERRIDE)
-			strap = (val & BCE_MISC_DUAL_MEDIA_CTRL_PHY_CTRL) >> 21;
+			strap = (val & 
+			    BCE_MISC_DUAL_MEDIA_CTRL_PHY_CTRL) >> 21;
 		else
-			strap = (val & BCE_MISC_DUAL_MEDIA_CTRL_PHY_CTRL_STRAP) >> 8;
+			strap = (val & 
+			    BCE_MISC_DUAL_MEDIA_CTRL_PHY_CTRL_STRAP) >> 8;
 
 		if (pci_get_function(sc->bce_dev) == 0) {
 			switch (strap) {
@@ -2643,11 +2704,13 @@ bce_get_media(struct bce_softc *sc)
 			case 0x5:
 			case 0x6:
 				DBPRINT(sc, BCE_INFO_LOAD,
-					"BCM5709 s/w configured for SerDes.\n");
+				    "BCM5709 s/w configured for SerDes.\n");
 				sc->bce_phy_flags |= BCE_PHY_SERDES_FLAG;
+				break;
 			default:
 				DBPRINT(sc, BCE_INFO_LOAD,
-					"BCM5709 s/w configured for Copper.\n");
+				    "BCM5709 s/w configured for Copper.\n");
+				break;
 			}
 		} else {
 			switch (strap) {
@@ -2655,11 +2718,13 @@ bce_get_media(struct bce_softc *sc)
 			case 0x2:
 			case 0x4:
 				DBPRINT(sc, BCE_INFO_LOAD,
-					"BCM5709 s/w configured for SerDes.\n");
+				    "BCM5709 s/w configured for SerDes.\n");
 				sc->bce_phy_flags |= BCE_PHY_SERDES_FLAG;
+				break;
 			default:
 				DBPRINT(sc, BCE_INFO_LOAD,
-					"BCM5709 s/w configured for Copper.\n");
+				    "BCM5709 s/w configured for Copper.\n");
+				break;
 			}
 		}
 
@@ -2667,17 +2732,26 @@ bce_get_media(struct bce_softc *sc)
 		sc->bce_phy_flags |= BCE_PHY_SERDES_FLAG;
 
 	if (sc->bce_phy_flags & BCE_PHY_SERDES_FLAG) {
+
 		sc->bce_flags |= BCE_NO_WOL_FLAG;
+
+		if (BCE_CHIP_NUM(sc) == BCE_CHIP_NUM_5709)
+			sc->bce_phy_flags |= BCE_PHY_IEEE_CLAUSE_45_FLAG;
+
 		if (BCE_CHIP_NUM(sc) != BCE_CHIP_NUM_5706) {
+			/* 5708S/09S/16S use a separate PHY for SerDes. */
 			sc->bce_phy_addr = 2;
+
 			val = bce_shmem_rd(sc, BCE_SHARED_HW_CFG_CONFIG);
 			if (val & BCE_SHARED_HW_CFG_PHY_2_5G) {
-				sc->bce_phy_flags |= BCE_PHY_2_5G_CAPABLE_FLAG;
-				DBPRINT(sc, BCE_INFO_LOAD, "Found 2.5Gb capable adapter\n");
+				sc->bce_phy_flags |= 
+				    BCE_PHY_2_5G_CAPABLE_FLAG;
+				DBPRINT(sc, BCE_INFO_LOAD, "Found 2.5Gb "
+				    "capable adapter\n");
 			}
 		}
 	} else if ((BCE_CHIP_NUM(sc) == BCE_CHIP_NUM_5706) ||
-		   (BCE_CHIP_NUM(sc) == BCE_CHIP_NUM_5708))
+	    (BCE_CHIP_NUM(sc) == BCE_CHIP_NUM_5708))
 		sc->bce_phy_flags |= BCE_PHY_CRC_FIX_FLAG;
 
 bce_get_media_exit:
@@ -2685,6 +2759,37 @@ bce_get_media_exit:
 		"Using PHY address %d.\n", sc->bce_phy_addr);
 
 	DBEXIT(BCE_VERBOSE);
+}
+
+
+/****************************************************************************/
+/* Performs PHY initialization required before MII drivers access the       */
+/* device.                                                                  */
+/*                                                                          */
+/* Returns:                                                                 */
+/*   Nothing.                                                               */
+/****************************************************************************/
+static void
+bce_init_media(struct bce_softc *sc)
+{
+	if ((sc->bce_phy_flags & BCE_PHY_IEEE_CLAUSE_45_FLAG) != 0) {
+		/*
+		 * Configure 5709S/5716S PHYs to use traditional IEEE
+		 * Clause 22 method. Otherwise we have no way to attach
+		 * the PHY in mii(4) layer. PHY specific configuration
+		 * is done in mii layer.
+		 */
+
+		/* Select auto-negotiation MMD of the PHY. */
+		bce_miibus_write_reg(sc->bce_dev, sc->bce_phy_addr,
+		    BRGPHY_BLOCK_ADDR, BRGPHY_BLOCK_ADDR_ADDR_EXT);
+		bce_miibus_write_reg(sc->bce_dev, sc->bce_phy_addr,
+		    BRGPHY_ADDR_EXT, BRGPHY_ADDR_EXT_AN_MMD);
+
+		/* Set IEEE0 block of AN MMD (assumed in brgphy(4) code). */
+		bce_miibus_write_reg(sc->bce_dev, sc->bce_phy_addr,
+		    BRGPHY_BLOCK_ADDR, BRGPHY_BLOCK_ADDR_COMBO_IEEE0);
+	}
 }
 
 
@@ -2707,7 +2812,7 @@ bce_dma_free(struct bce_softc *sc)
 	/* Free, unmap, and destroy the status block. */
 	if (sc->status_block != NULL) {
 		bus_dmamem_free(
-			sc->status_tag,
+		   sc->status_tag,
 		    sc->status_block,
 		    sc->status_map);
 		sc->status_block = NULL;
@@ -2715,7 +2820,7 @@ bce_dma_free(struct bce_softc *sc)
 
 	if (sc->status_map != NULL) {
 		bus_dmamap_unload(
-			sc->status_tag,
+		    sc->status_tag,
 		    sc->status_map);
 		bus_dmamap_destroy(sc->status_tag,
 		    sc->status_map);
@@ -2731,7 +2836,7 @@ bce_dma_free(struct bce_softc *sc)
 	/* Free, unmap, and destroy the statistics block. */
 	if (sc->stats_block != NULL) {
 		bus_dmamem_free(
-			sc->stats_tag,
+		    sc->stats_tag,
 		    sc->stats_block,
 		    sc->stats_map);
 		sc->stats_block = NULL;
@@ -2739,7 +2844,7 @@ bce_dma_free(struct bce_softc *sc)
 
 	if (sc->stats_map != NULL) {
 		bus_dmamap_unload(
-			sc->stats_tag,
+		    sc->stats_tag,
 		    sc->stats_map);
 		bus_dmamap_destroy(sc->stats_tag,
 		    sc->stats_map);
@@ -2758,7 +2863,7 @@ bce_dma_free(struct bce_softc *sc)
 		for (i = 0; i < sc->ctx_pages; i++ ) {
 			if (sc->ctx_block[i] != NULL) {
 				bus_dmamem_free(
-					sc->ctx_tag,
+				    sc->ctx_tag,
 				    sc->ctx_block[i],
 				    sc->ctx_map[i]);
 				sc->ctx_block[i] = NULL;
@@ -2766,10 +2871,10 @@ bce_dma_free(struct bce_softc *sc)
 
 			if (sc->ctx_map[i] != NULL) {
 				bus_dmamap_unload(
-					sc->ctx_tag,
-		    		sc->ctx_map[i]);
+				    sc->ctx_tag,
+				    sc->ctx_map[i]);
 				bus_dmamap_destroy(
-					sc->ctx_tag,
+				    sc->ctx_tag,
 				    sc->ctx_map[i]);
 				sc->ctx_map[i] = NULL;
 			}
@@ -2787,7 +2892,7 @@ bce_dma_free(struct bce_softc *sc)
 	for (i = 0; i < TX_PAGES; i++ ) {
 		if (sc->tx_bd_chain[i] != NULL) {
 			bus_dmamem_free(
-				sc->tx_bd_chain_tag,
+			    sc->tx_bd_chain_tag,
 			    sc->tx_bd_chain[i],
 			    sc->tx_bd_chain_map[i]);
 			sc->tx_bd_chain[i] = NULL;
@@ -2795,10 +2900,10 @@ bce_dma_free(struct bce_softc *sc)
 
 		if (sc->tx_bd_chain_map[i] != NULL) {
 			bus_dmamap_unload(
-				sc->tx_bd_chain_tag,
-		    	sc->tx_bd_chain_map[i]);
+			    sc->tx_bd_chain_tag,
+			    sc->tx_bd_chain_map[i]);
 			bus_dmamap_destroy(
-				sc->tx_bd_chain_tag,
+			    sc->tx_bd_chain_tag,
 			    sc->tx_bd_chain_map[i]);
 			sc->tx_bd_chain_map[i] = NULL;
 		}
@@ -2815,7 +2920,7 @@ bce_dma_free(struct bce_softc *sc)
 	for (i = 0; i < RX_PAGES; i++ ) {
 		if (sc->rx_bd_chain[i] != NULL) {
 			bus_dmamem_free(
-				sc->rx_bd_chain_tag,
+			    sc->rx_bd_chain_tag,
 			    sc->rx_bd_chain[i],
 			    sc->rx_bd_chain_map[i]);
 			sc->rx_bd_chain[i] = NULL;
@@ -2823,10 +2928,10 @@ bce_dma_free(struct bce_softc *sc)
 
 		if (sc->rx_bd_chain_map[i] != NULL) {
 			bus_dmamap_unload(
-				sc->rx_bd_chain_tag,
-		    	sc->rx_bd_chain_map[i]);
+			    sc->rx_bd_chain_tag,
+			    sc->rx_bd_chain_map[i]);
 			bus_dmamap_destroy(
-				sc->rx_bd_chain_tag,
+			    sc->rx_bd_chain_tag,
 			    sc->rx_bd_chain_map[i]);
 			sc->rx_bd_chain_map[i] = NULL;
 		}
@@ -2844,7 +2949,7 @@ bce_dma_free(struct bce_softc *sc)
 	for (i = 0; i < PG_PAGES; i++ ) {
 		if (sc->pg_bd_chain[i] != NULL) {
 			bus_dmamem_free(
-				sc->pg_bd_chain_tag,
+			    sc->pg_bd_chain_tag,
 			    sc->pg_bd_chain[i],
 			    sc->pg_bd_chain_map[i]);
 			sc->pg_bd_chain[i] = NULL;
@@ -2852,10 +2957,10 @@ bce_dma_free(struct bce_softc *sc)
 
 		if (sc->pg_bd_chain_map[i] != NULL) {
 			bus_dmamap_unload(
-				sc->pg_bd_chain_tag,
-		    	sc->pg_bd_chain_map[i]);
+			    sc->pg_bd_chain_tag,
+			    sc->pg_bd_chain_map[i]);
 			bus_dmamap_destroy(
-				sc->pg_bd_chain_tag,
+			    sc->pg_bd_chain_tag,
 			    sc->pg_bd_chain_map[i]);
 			sc->pg_bd_chain_map[i] = NULL;
 		}
@@ -2873,9 +2978,9 @@ bce_dma_free(struct bce_softc *sc)
 	for (i = 0; i < TOTAL_TX_BD; i++) {
 		if (sc->tx_mbuf_map[i] != NULL) {
 			bus_dmamap_unload(sc->tx_mbuf_tag,
-				sc->tx_mbuf_map[i]);
+			    sc->tx_mbuf_map[i]);
 			bus_dmamap_destroy(sc->tx_mbuf_tag,
-	 			sc->tx_mbuf_map[i]);
+	 		    sc->tx_mbuf_map[i]);
 			sc->tx_mbuf_map[i] = NULL;
 		}
 	}
@@ -2890,9 +2995,9 @@ bce_dma_free(struct bce_softc *sc)
 	for (i = 0; i < TOTAL_RX_BD; i++) {
 		if (sc->rx_mbuf_map[i] != NULL) {
 			bus_dmamap_unload(sc->rx_mbuf_tag,
-				sc->rx_mbuf_map[i]);
+			    sc->rx_mbuf_map[i]);
 			bus_dmamap_destroy(sc->rx_mbuf_tag,
-	 			sc->rx_mbuf_map[i]);
+	 		    sc->rx_mbuf_map[i]);
 			sc->rx_mbuf_map[i] = NULL;
 		}
 	}
@@ -2908,9 +3013,9 @@ bce_dma_free(struct bce_softc *sc)
 	for (i = 0; i < TOTAL_PG_BD; i++) {
 		if (sc->pg_mbuf_map[i] != NULL) {
 			bus_dmamap_unload(sc->pg_mbuf_tag,
-				sc->pg_mbuf_map[i]);
+			    sc->pg_mbuf_map[i]);
 			bus_dmamap_destroy(sc->pg_mbuf_tag,
-	 			sc->pg_mbuf_map[i]);
+	 		    sc->pg_mbuf_map[i]);
 			sc->pg_mbuf_map[i] = NULL;
 		}
 	}
@@ -3003,20 +3108,12 @@ bce_dma_alloc(device_t dev)
 	/*
 	 * Allocate the parent bus DMA tag appropriate for PCI.
 	 */
-	if (bus_dma_tag_create(NULL,
-			1,
-			BCE_DMA_BOUNDARY,
-			sc->max_bus_addr,
-			BUS_SPACE_MAXADDR,
-			NULL, NULL,
-			MAXBSIZE,
-			BUS_SPACE_UNRESTRICTED,
-			BUS_SPACE_MAXSIZE_32BIT,
-			0,
-			NULL, NULL,
-			&sc->parent_tag)) {
+	if (bus_dma_tag_create(NULL, 1,	BCE_DMA_BOUNDARY,
+	    sc->max_bus_addr, BUS_SPACE_MAXADDR, NULL, NULL,
+	    MAXBSIZE, BUS_SPACE_UNRESTRICTED, BUS_SPACE_MAXSIZE_32BIT,
+	    0, NULL, NULL, &sc->parent_tag)) {
 		BCE_PRINTF("%s(%d): Could not allocate parent DMA tag!\n",
-			__FILE__, __LINE__);
+		    __FILE__, __LINE__);
 		rc = ENOMEM;
 		goto bce_dma_alloc_exit;
 	}
@@ -3026,117 +3123,89 @@ bce_dma_alloc(device_t dev)
 	 * memory, map the memory into DMA space, and fetch the physical
 	 * address of the block.
 	 */
-	if (bus_dma_tag_create(sc->parent_tag,
-	    	BCE_DMA_ALIGN,
-	    	BCE_DMA_BOUNDARY,
-	    	sc->max_bus_addr,
-	    	BUS_SPACE_MAXADDR,
-	    	NULL, NULL,
-	    	BCE_STATUS_BLK_SZ,
-	    	1,
-	    	BCE_STATUS_BLK_SZ,
-	    	0,
-	    	NULL, NULL,
-	    	&sc->status_tag)) {
-		BCE_PRINTF("%s(%d): Could not allocate status block DMA tag!\n",
-			__FILE__, __LINE__);
+	if (bus_dma_tag_create(sc->parent_tag, BCE_DMA_ALIGN,
+	    BCE_DMA_BOUNDARY, sc->max_bus_addr,	BUS_SPACE_MAXADDR,
+	    NULL, NULL,	BCE_STATUS_BLK_SZ, 1, BCE_STATUS_BLK_SZ,
+	    0, NULL, NULL, &sc->status_tag)) {
+		BCE_PRINTF("%s(%d): Could not allocate status block "
+		    "DMA tag!\n", __FILE__, __LINE__);
 		rc = ENOMEM;
 		goto bce_dma_alloc_exit;
 	}
 
-	if(bus_dmamem_alloc(sc->status_tag,
-	    	(void **)&sc->status_block,
-	    	BUS_DMA_NOWAIT,
-	    	&sc->status_map)) {
-		BCE_PRINTF("%s(%d): Could not allocate status block DMA memory!\n",
-			__FILE__, __LINE__);
+	if(bus_dmamem_alloc(sc->status_tag, (void **)&sc->status_block,
+	    BUS_DMA_NOWAIT, &sc->status_map)) {
+		BCE_PRINTF("%s(%d): Could not allocate status block "
+		    "DMA memory!\n", __FILE__, __LINE__);
 		rc = ENOMEM;
 		goto bce_dma_alloc_exit;
 	}
 
 	bzero((char *)sc->status_block, BCE_STATUS_BLK_SZ);
 
-	error = bus_dmamap_load(sc->status_tag,
-	    	sc->status_map,
-	    	sc->status_block,
-	    	BCE_STATUS_BLK_SZ,
-	    	bce_dma_map_addr,
-	    	&sc->status_block_paddr,
-	    	BUS_DMA_NOWAIT);
+	error = bus_dmamap_load(sc->status_tag,	sc->status_map,
+	    sc->status_block, BCE_STATUS_BLK_SZ, bce_dma_map_addr,
+	    &sc->status_block_paddr, BUS_DMA_NOWAIT);
 
 	if (error) {
-		BCE_PRINTF("%s(%d): Could not map status block DMA memory!\n",
-			__FILE__, __LINE__);
+		BCE_PRINTF("%s(%d): Could not map status block "
+		    "DMA memory!\n", __FILE__, __LINE__);
 		rc = ENOMEM;
 		goto bce_dma_alloc_exit;
 	}
 
 	DBPRINT(sc, BCE_INFO, "%s(): status_block_paddr = 0x%jX\n",
-		__FUNCTION__, (uintmax_t) sc->status_block_paddr);
+	    __FUNCTION__, (uintmax_t) sc->status_block_paddr);
 
 	/*
 	 * Create a DMA tag for the statistics block, allocate and clear the
 	 * memory, map the memory into DMA space, and fetch the physical
 	 * address of the block.
 	 */
-	if (bus_dma_tag_create(sc->parent_tag,
-	    	BCE_DMA_ALIGN,
-	    	BCE_DMA_BOUNDARY,
-	    	sc->max_bus_addr,
-	    	BUS_SPACE_MAXADDR,
-	    	NULL, NULL,
-	    	BCE_STATS_BLK_SZ,
-	    	1,
-	    	BCE_STATS_BLK_SZ,
-	    	0,
-	    	NULL, NULL,
-	    	&sc->stats_tag)) {
-		BCE_PRINTF("%s(%d): Could not allocate statistics block DMA tag!\n",
-			__FILE__, __LINE__);
+	if (bus_dma_tag_create(sc->parent_tag, BCE_DMA_ALIGN,
+	    BCE_DMA_BOUNDARY, sc->max_bus_addr,	BUS_SPACE_MAXADDR,
+	    NULL, NULL,	BCE_STATS_BLK_SZ, 1, BCE_STATS_BLK_SZ,
+	    0, NULL, NULL, &sc->stats_tag)) {
+		BCE_PRINTF("%s(%d): Could not allocate statistics block "
+		    "DMA tag!\n", __FILE__, __LINE__);
 		rc = ENOMEM;
 		goto bce_dma_alloc_exit;
 	}
 
-	if (bus_dmamem_alloc(sc->stats_tag,
-	    	(void **)&sc->stats_block,
-	    	BUS_DMA_NOWAIT,
-	    	&sc->stats_map)) {
-		BCE_PRINTF("%s(%d): Could not allocate statistics block DMA memory!\n",
-			__FILE__, __LINE__);
+	if (bus_dmamem_alloc(sc->stats_tag, (void **)&sc->stats_block,
+	    BUS_DMA_NOWAIT,	&sc->stats_map)) {
+		BCE_PRINTF("%s(%d): Could not allocate statistics block "
+		    "DMA memory!\n", __FILE__, __LINE__);
 		rc = ENOMEM;
 		goto bce_dma_alloc_exit;
 	}
 
 	bzero((char *)sc->stats_block, BCE_STATS_BLK_SZ);
 
-	error = bus_dmamap_load(sc->stats_tag,
-	    	sc->stats_map,
-	    	sc->stats_block,
-	    	BCE_STATS_BLK_SZ,
-	    	bce_dma_map_addr,
-	    	&sc->stats_block_paddr,
-	    	BUS_DMA_NOWAIT);
+	error = bus_dmamap_load(sc->stats_tag, sc->stats_map,
+	    sc->stats_block, BCE_STATS_BLK_SZ, bce_dma_map_addr,
+	    &sc->stats_block_paddr, BUS_DMA_NOWAIT);
 
 	if(error) {
-		BCE_PRINTF("%s(%d): Could not map statistics block DMA memory!\n",
-			__FILE__, __LINE__);
+		BCE_PRINTF("%s(%d): Could not map statistics block "
+		    "DMA memory!\n", __FILE__, __LINE__);
 		rc = ENOMEM;
 		goto bce_dma_alloc_exit;
 	}
 
 	DBPRINT(sc, BCE_INFO, "%s(): stats_block_paddr = 0x%jX\n",
-		__FUNCTION__, (uintmax_t) sc->stats_block_paddr);
+	    __FUNCTION__, (uintmax_t) sc->stats_block_paddr);
 
 	/* BCM5709 uses host memory as cache for context memory. */
 	if ((BCE_CHIP_NUM(sc) == BCE_CHIP_NUM_5709) ||
-		(BCE_CHIP_NUM(sc) == BCE_CHIP_NUM_5716)) {
+	    (BCE_CHIP_NUM(sc) == BCE_CHIP_NUM_5716)) {
 		sc->ctx_pages = 0x2000 / BCM_PAGE_SIZE;
 		if (sc->ctx_pages == 0)
 			sc->ctx_pages = 1;
 
 		DBRUNIF((sc->ctx_pages > 512),
-			BCE_PRINTF("%s(%d): Too many CTX pages! %d > 512\n",
-				__FILE__, __LINE__, sc->ctx_pages));
+		    BCE_PRINTF("%s(%d): Too many CTX pages! %d > 512\n",
+		    __FILE__, __LINE__, sc->ctx_pages));
 
 		/*
 		 * Create a DMA tag for the context pages,
@@ -3144,20 +3213,12 @@ bce_dma_alloc(device_t dev)
 		 * memory into DMA space, and fetch the
 		 * physical address of the block.
 		 */
-		if(bus_dma_tag_create(sc->parent_tag,
-			BCM_PAGE_SIZE,
-		    BCE_DMA_BOUNDARY,
-			sc->max_bus_addr,
-			BUS_SPACE_MAXADDR,
-			NULL, NULL,
-			BCM_PAGE_SIZE,
-			1,
-			BCM_PAGE_SIZE,
-			0,
-			NULL, NULL,
-			&sc->ctx_tag)) {
+		if(bus_dma_tag_create(sc->parent_tag, BCM_PAGE_SIZE,
+		    BCE_DMA_BOUNDARY, sc->max_bus_addr,	BUS_SPACE_MAXADDR,
+		    NULL, NULL,	BCM_PAGE_SIZE, 1, BCM_PAGE_SIZE,
+		    0, NULL, NULL, &sc->ctx_tag)) {
 			BCE_PRINTF("%s(%d): Could not allocate CTX DMA tag!\n",
-				__FILE__, __LINE__);
+			    __FILE__, __LINE__);
 			rc = ENOMEM;
 			goto bce_dma_alloc_exit;
 		}
@@ -3165,34 +3226,30 @@ bce_dma_alloc(device_t dev)
 		for (i = 0; i < sc->ctx_pages; i++) {
 
 			if(bus_dmamem_alloc(sc->ctx_tag,
-		    		(void **)&sc->ctx_block[i],
-	    		BUS_DMA_NOWAIT,
-		    	&sc->ctx_map[i])) {
+			    (void **)&sc->ctx_block[i],
+			    BUS_DMA_NOWAIT,
+			    &sc->ctx_map[i])) {
 				BCE_PRINTF("%s(%d): Could not allocate CTX "
-					"DMA memory!\n", __FILE__, __LINE__);
+				    "DMA memory!\n", __FILE__, __LINE__);
 				rc = ENOMEM;
 				goto bce_dma_alloc_exit;
 			}
 
 			bzero((char *)sc->ctx_block[i], BCM_PAGE_SIZE);
 
-			error = bus_dmamap_load(sc->ctx_tag,
-	    		sc->ctx_map[i],
-	    		sc->ctx_block[i],
-		    	BCM_PAGE_SIZE,
-		    	bce_dma_map_addr,
-	    		&sc->ctx_paddr[i],
-	    		BUS_DMA_NOWAIT);
+			error = bus_dmamap_load(sc->ctx_tag, sc->ctx_map[i],
+			    sc->ctx_block[i], BCM_PAGE_SIZE, bce_dma_map_addr,
+			    &sc->ctx_paddr[i], BUS_DMA_NOWAIT);
 
 			if (error) {
-				BCE_PRINTF("%s(%d): Could not map CTX DMA memory!\n",
-					__FILE__, __LINE__);
+				BCE_PRINTF("%s(%d): Could not map CTX "
+				    "DMA memory!\n", __FILE__, __LINE__);
 				rc = ENOMEM;
 				goto bce_dma_alloc_exit;
 			}
 
 			DBPRINT(sc, BCE_INFO, "%s(): ctx_paddr[%d] = 0x%jX\n",
-				__FUNCTION__, i, (uintmax_t) sc->ctx_paddr[i]);
+			    __FUNCTION__, i, (uintmax_t) sc->ctx_paddr[i]);
 		}
 	}
 
@@ -3201,53 +3258,41 @@ bce_dma_alloc(device_t dev)
 	 * allocate and clear the  memory, and fetch the
 	 * physical address of the block.
 	 */
-	if(bus_dma_tag_create(sc->parent_tag,
-			BCM_PAGE_SIZE,
-		    BCE_DMA_BOUNDARY,
-			sc->max_bus_addr,
-			BUS_SPACE_MAXADDR,
-			NULL, NULL,
-			BCE_TX_CHAIN_PAGE_SZ,
-			1,
-			BCE_TX_CHAIN_PAGE_SZ,
-			0,
-			NULL, NULL,
-			&sc->tx_bd_chain_tag)) {
-		BCE_PRINTF("%s(%d): Could not allocate TX descriptor chain DMA tag!\n",
-			__FILE__, __LINE__);
+	if(bus_dma_tag_create(sc->parent_tag, BCM_PAGE_SIZE, BCE_DMA_BOUNDARY,
+	    sc->max_bus_addr, BUS_SPACE_MAXADDR, NULL, NULL,
+	    BCE_TX_CHAIN_PAGE_SZ, 1, BCE_TX_CHAIN_PAGE_SZ, 0,
+	    NULL, NULL,	&sc->tx_bd_chain_tag)) {
+		BCE_PRINTF("%s(%d): Could not allocate TX descriptor chain "
+		    "DMA tag!\n", __FILE__, __LINE__);
 		rc = ENOMEM;
 		goto bce_dma_alloc_exit;
 	}
 
 	for (i = 0; i < TX_PAGES; i++) {
 
-		if(bus_dmamem_alloc(sc->tx_bd_chain_tag,
-	    		(void **)&sc->tx_bd_chain[i],
-	    		BUS_DMA_NOWAIT,
-		    	&sc->tx_bd_chain_map[i])) {
+		if(bus_dmamem_alloc(sc->tx_bd_chain_tag, 
+		    (void **)&sc->tx_bd_chain[i], BUS_DMA_NOWAIT,
+		    &sc->tx_bd_chain_map[i])) {
 			BCE_PRINTF("%s(%d): Could not allocate TX descriptor "
-				"chain DMA memory!\n", __FILE__, __LINE__);
+			    "chain DMA memory!\n", __FILE__, __LINE__);
 			rc = ENOMEM;
 			goto bce_dma_alloc_exit;
 		}
 
 		error = bus_dmamap_load(sc->tx_bd_chain_tag,
-	    		sc->tx_bd_chain_map[i],
-	    		sc->tx_bd_chain[i],
-		    	BCE_TX_CHAIN_PAGE_SZ,
-		    	bce_dma_map_addr,
-	    		&sc->tx_bd_chain_paddr[i],
-	    		BUS_DMA_NOWAIT);
+		    sc->tx_bd_chain_map[i], sc->tx_bd_chain[i],
+		    BCE_TX_CHAIN_PAGE_SZ, bce_dma_map_addr,
+		    &sc->tx_bd_chain_paddr[i], BUS_DMA_NOWAIT);
 
 		if (error) {
-			BCE_PRINTF("%s(%d): Could not map TX descriptor chain DMA memory!\n",
-				__FILE__, __LINE__);
+			BCE_PRINTF("%s(%d): Could not map TX descriptor "
+			    "chain DMA memory!\n", __FILE__, __LINE__);
 			rc = ENOMEM;
 			goto bce_dma_alloc_exit;
 		}
 
 		DBPRINT(sc, BCE_INFO, "%s(): tx_bd_chain_paddr[%d] = 0x%jX\n",
-			__FUNCTION__, i, (uintmax_t) sc->tx_bd_chain_paddr[i]);
+		    __FUNCTION__, i, (uintmax_t) sc->tx_bd_chain_paddr[i]);
 	}
 
 	/* Check the required size before mapping to conserve resources. */
@@ -3262,20 +3307,11 @@ bce_dma_alloc(device_t dev)
 	}
 
 	/* Create a DMA tag for TX mbufs. */
-	if (bus_dma_tag_create(sc->parent_tag,
-			1,
-			BCE_DMA_BOUNDARY,
-			sc->max_bus_addr,
-			BUS_SPACE_MAXADDR,
-			NULL, NULL,
-			max_size,
-			max_segments,
-			max_seg_size,
-			0,
-			NULL, NULL,
-			&sc->tx_mbuf_tag)) {
+	if (bus_dma_tag_create(sc->parent_tag, 1, BCE_DMA_BOUNDARY,
+	    sc->max_bus_addr, BUS_SPACE_MAXADDR, NULL, NULL, max_size,
+	    max_segments, max_seg_size,	0, NULL, NULL, &sc->tx_mbuf_tag)) {
 		BCE_PRINTF("%s(%d): Could not allocate TX mbuf DMA tag!\n",
-			__FILE__, __LINE__);
+		    __FILE__, __LINE__);
 		rc = ENOMEM;
 		goto bce_dma_alloc_exit;
 	}
@@ -3284,8 +3320,8 @@ bce_dma_alloc(device_t dev)
 	for (i = 0; i < TOTAL_TX_BD; i++) {
 		if (bus_dmamap_create(sc->tx_mbuf_tag, BUS_DMA_NOWAIT,
 			&sc->tx_mbuf_map[i])) {
-			BCE_PRINTF("%s(%d): Unable to create TX mbuf DMA map!\n",
-				__FILE__, __LINE__);
+			BCE_PRINTF("%s(%d): Unable to create TX mbuf DMA "
+			    "map!\n", __FILE__, __LINE__);
 			rc = ENOMEM;
 			goto bce_dma_alloc_exit;
 		}
@@ -3296,20 +3332,13 @@ bce_dma_alloc(device_t dev)
 	 * allocate and clear the memory, and fetch the physical
 	 * address of the blocks.
 	 */
-	if (bus_dma_tag_create(sc->parent_tag,
-			BCM_PAGE_SIZE,
-			BCE_DMA_BOUNDARY,
-			BUS_SPACE_MAXADDR,
-			sc->max_bus_addr,
-			NULL, NULL,
-			BCE_RX_CHAIN_PAGE_SZ,
-			1,
-			BCE_RX_CHAIN_PAGE_SZ,
-			0,
-			NULL, NULL,
-			&sc->rx_bd_chain_tag)) {
-		BCE_PRINTF("%s(%d): Could not allocate RX descriptor chain DMA tag!\n",
-			__FILE__, __LINE__);
+	if (bus_dma_tag_create(sc->parent_tag, BCM_PAGE_SIZE,
+			BCE_DMA_BOUNDARY, BUS_SPACE_MAXADDR,
+			sc->max_bus_addr, NULL, NULL,
+			BCE_RX_CHAIN_PAGE_SZ, 1, BCE_RX_CHAIN_PAGE_SZ,
+			0, NULL, NULL, &sc->rx_bd_chain_tag)) {
+		BCE_PRINTF("%s(%d): Could not allocate RX descriptor chain "
+		    "DMA tag!\n", __FILE__, __LINE__);
 		rc = ENOMEM;
 		goto bce_dma_alloc_exit;
 	}
@@ -3317,11 +3346,10 @@ bce_dma_alloc(device_t dev)
 	for (i = 0; i < RX_PAGES; i++) {
 
 		if (bus_dmamem_alloc(sc->rx_bd_chain_tag,
-	    		(void **)&sc->rx_bd_chain[i],
-	    		BUS_DMA_NOWAIT,
-		    	&sc->rx_bd_chain_map[i])) {
-			BCE_PRINTF("%s(%d): Could not allocate RX descriptor chain "
-				"DMA memory!\n", __FILE__, __LINE__);
+		    (void **)&sc->rx_bd_chain[i], BUS_DMA_NOWAIT,
+		    &sc->rx_bd_chain_map[i])) {
+			BCE_PRINTF("%s(%d): Could not allocate RX descriptor "
+			    "chain DMA memory!\n", __FILE__, __LINE__);
 			rc = ENOMEM;
 			goto bce_dma_alloc_exit;
 		}
@@ -3329,22 +3357,19 @@ bce_dma_alloc(device_t dev)
 		bzero((char *)sc->rx_bd_chain[i], BCE_RX_CHAIN_PAGE_SZ);
 
 		error = bus_dmamap_load(sc->rx_bd_chain_tag,
-	    		sc->rx_bd_chain_map[i],
-	    		sc->rx_bd_chain[i],
-		    	BCE_RX_CHAIN_PAGE_SZ,
-		    	bce_dma_map_addr,
-	    		&sc->rx_bd_chain_paddr[i],
-	    		BUS_DMA_NOWAIT);
+		    sc->rx_bd_chain_map[i], sc->rx_bd_chain[i],
+		    BCE_RX_CHAIN_PAGE_SZ, bce_dma_map_addr,
+		    &sc->rx_bd_chain_paddr[i], BUS_DMA_NOWAIT);
 
 		if (error) {
-			BCE_PRINTF("%s(%d): Could not map RX descriptor chain DMA memory!\n",
-				__FILE__, __LINE__);
+			BCE_PRINTF("%s(%d): Could not map RX descriptor "
+			    "chain DMA memory!\n", __FILE__, __LINE__);
 			rc = ENOMEM;
 			goto bce_dma_alloc_exit;
 		}
 
 		DBPRINT(sc, BCE_INFO, "%s(): rx_bd_chain_paddr[%d] = 0x%jX\n",
-			__FUNCTION__, i, (uintmax_t) sc->rx_bd_chain_paddr[i]);
+		    __FUNCTION__, i, (uintmax_t) sc->rx_bd_chain_paddr[i]);
 	}
 
 	/*
@@ -3359,23 +3384,14 @@ bce_dma_alloc(device_t dev)
 	max_segments = 1;
 
 	DBPRINT(sc, BCE_INFO, "%s(): Creating rx_mbuf_tag (max size = 0x%jX "
-		"max segments = %d, max segment size = 0x%jX)\n", __FUNCTION__,
-		(uintmax_t) max_size, max_segments, (uintmax_t) max_seg_size);
+	    "max segments = %d, max segment size = 0x%jX)\n", __FUNCTION__,
+	    (uintmax_t) max_size, max_segments, (uintmax_t) max_seg_size);
 
-	if (bus_dma_tag_create(sc->parent_tag,
-			1,
-			BCE_DMA_BOUNDARY,
-			sc->max_bus_addr,
-			BUS_SPACE_MAXADDR,
-			NULL, NULL,
-			max_size,
-			max_segments,
-			max_seg_size,
-			0,
-			NULL, NULL,
-	    	&sc->rx_mbuf_tag)) {
+	if (bus_dma_tag_create(sc->parent_tag, 1, BCE_DMA_BOUNDARY,
+	    sc->max_bus_addr, BUS_SPACE_MAXADDR, NULL, NULL, max_size,
+	   max_segments, max_seg_size, 0, NULL, NULL, &sc->rx_mbuf_tag)) {
 		BCE_PRINTF("%s(%d): Could not allocate RX mbuf DMA tag!\n",
-			__FILE__, __LINE__);
+		    __FILE__, __LINE__);
 		rc = ENOMEM;
 		goto bce_dma_alloc_exit;
 	}
@@ -3383,9 +3399,9 @@ bce_dma_alloc(device_t dev)
 	/* Create DMA maps for the RX mbuf clusters. */
 	for (i = 0; i < TOTAL_RX_BD; i++) {
 		if (bus_dmamap_create(sc->rx_mbuf_tag, BUS_DMA_NOWAIT,
-				&sc->rx_mbuf_map[i])) {
-			BCE_PRINTF("%s(%d): Unable to create RX mbuf DMA map!\n",
-				__FILE__, __LINE__);
+		    &sc->rx_mbuf_map[i])) {
+			BCE_PRINTF("%s(%d): Unable to create RX mbuf "
+			    "DMA map!\n", __FILE__, __LINE__);
 			rc = ENOMEM;
 			goto bce_dma_alloc_exit;
 		}
@@ -3397,20 +3413,12 @@ bce_dma_alloc(device_t dev)
 	 * allocate and clear the memory, and fetch the physical
 	 * address of the blocks.
 	 */
-	if (bus_dma_tag_create(sc->parent_tag,
-			BCM_PAGE_SIZE,
-			BCE_DMA_BOUNDARY,
-			BUS_SPACE_MAXADDR,
-			sc->max_bus_addr,
-			NULL, NULL,
-			BCE_PG_CHAIN_PAGE_SZ,
-			1,
-			BCE_PG_CHAIN_PAGE_SZ,
-			0,
-			NULL, NULL,
-			&sc->pg_bd_chain_tag)) {
-		BCE_PRINTF("%s(%d): Could not allocate page descriptor chain DMA tag!\n",
-			__FILE__, __LINE__);
+	if (bus_dma_tag_create(sc->parent_tag, BCM_PAGE_SIZE,
+	    BCE_DMA_BOUNDARY, BUS_SPACE_MAXADDR, sc->max_bus_addr,
+	    NULL, NULL,	BCE_PG_CHAIN_PAGE_SZ, 1, BCE_PG_CHAIN_PAGE_SZ,
+	    0, NULL, NULL, &sc->pg_bd_chain_tag)) {
+		BCE_PRINTF("%s(%d): Could not allocate page descriptor "
+		    "chain DMA tag!\n",	__FILE__, __LINE__);
 		rc = ENOMEM;
 		goto bce_dma_alloc_exit;
 	}
@@ -3418,56 +3426,44 @@ bce_dma_alloc(device_t dev)
 	for (i = 0; i < PG_PAGES; i++) {
 
 		if (bus_dmamem_alloc(sc->pg_bd_chain_tag,
-	    		(void **)&sc->pg_bd_chain[i],
-	    		BUS_DMA_NOWAIT,
-		    	&sc->pg_bd_chain_map[i])) {
-			BCE_PRINTF("%s(%d): Could not allocate page descriptor chain "
-				"DMA memory!\n", __FILE__, __LINE__);
+		    (void **)&sc->pg_bd_chain[i], BUS_DMA_NOWAIT,
+		    &sc->pg_bd_chain_map[i])) {
+			BCE_PRINTF("%s(%d): Could not allocate page "
+			    "descriptor chain DMA memory!\n", 
+			    __FILE__, __LINE__);
 			rc = ENOMEM;
 			goto bce_dma_alloc_exit;
 		}
 
 		bzero((char *)sc->pg_bd_chain[i], BCE_PG_CHAIN_PAGE_SZ);
 
-		error = bus_dmamap_load(sc->pg_bd_chain_tag,
-	    		sc->pg_bd_chain_map[i],
-	    		sc->pg_bd_chain[i],
-		    	BCE_PG_CHAIN_PAGE_SZ,
-		    	bce_dma_map_addr,
-	    		&sc->pg_bd_chain_paddr[i],
-	    		BUS_DMA_NOWAIT);
+		error = bus_dmamap_load(sc->pg_bd_chain_tag, 
+		    sc->pg_bd_chain_map[i], sc->pg_bd_chain[i],
+		    BCE_PG_CHAIN_PAGE_SZ, bce_dma_map_addr,
+		    &sc->pg_bd_chain_paddr[i], BUS_DMA_NOWAIT);
 
 		if (error) {
-			BCE_PRINTF("%s(%d): Could not map page descriptor chain DMA memory!\n",
-				__FILE__, __LINE__);
+			BCE_PRINTF("%s(%d): Could not map page descriptor "
+			    "chain DMA memory!\n", __FILE__, __LINE__);
 			rc = ENOMEM;
 			goto bce_dma_alloc_exit;
 		}
 
 		DBPRINT(sc, BCE_INFO, "%s(): pg_bd_chain_paddr[%d] = 0x%jX\n",
-			__FUNCTION__, i, (uintmax_t) sc->pg_bd_chain_paddr[i]);
+		    __FUNCTION__, i, (uintmax_t) sc->pg_bd_chain_paddr[i]);
 	}
 
 	/*
 	 * Create a DMA tag for page mbufs.
 	 */
 	max_size = max_seg_size = ((sc->pg_bd_mbuf_alloc_size < MCLBYTES) ?
-		MCLBYTES : sc->pg_bd_mbuf_alloc_size);
+	    MCLBYTES : sc->pg_bd_mbuf_alloc_size);
 
-	if (bus_dma_tag_create(sc->parent_tag,
-			1,
-			BCE_DMA_BOUNDARY,
-			sc->max_bus_addr,
-			BUS_SPACE_MAXADDR,
-			NULL, NULL,
-			max_size,
-			1,
-			max_seg_size,
-			0,
-			NULL, NULL,
-	    	&sc->pg_mbuf_tag)) {
-		BCE_PRINTF("%s(%d): Could not allocate page mbuf DMA tag!\n",
-			__FILE__, __LINE__);
+	if (bus_dma_tag_create(sc->parent_tag, 1, BCE_DMA_BOUNDARY,
+	    sc->max_bus_addr, BUS_SPACE_MAXADDR, NULL, NULL,
+	    max_size, 1, max_seg_size, 0, NULL, NULL, &sc->pg_mbuf_tag)) {
+		BCE_PRINTF("%s(%d): Could not allocate page mbuf "
+		    "DMA tag!\n", __FILE__, __LINE__);
 		rc = ENOMEM;
 		goto bce_dma_alloc_exit;
 	}
@@ -3475,9 +3471,9 @@ bce_dma_alloc(device_t dev)
 	/* Create DMA maps for the page mbuf clusters. */
 	for (i = 0; i < TOTAL_PG_BD; i++) {
 		if (bus_dmamap_create(sc->pg_mbuf_tag, BUS_DMA_NOWAIT,
-				&sc->pg_mbuf_map[i])) {
-			BCE_PRINTF("%s(%d): Unable to create page mbuf DMA map!\n",
-				__FILE__, __LINE__);
+		    &sc->pg_mbuf_map[i])) {
+			BCE_PRINTF("%s(%d): Unable to create page mbuf "
+			    "DMA map!\n", __FILE__, __LINE__);
 			rc = ENOMEM;
 			goto bce_dma_alloc_exit;
 		}
@@ -3518,7 +3514,7 @@ bce_release_resources(struct bce_softc *sc)
 	if (sc->bce_res_irq != NULL) {
 		DBPRINT(sc, BCE_INFO_RESET, "Releasing IRQ.\n");
 		bus_release_resource(dev, SYS_RES_IRQ, sc->bce_irq_rid,
-			sc->bce_res_irq);
+		    sc->bce_res_irq);
 	}
 
 	if (sc->bce_flags & (BCE_USING_MSI_FLAG | BCE_USING_MSIX_FLAG)) {
@@ -3528,7 +3524,8 @@ bce_release_resources(struct bce_softc *sc)
 
 	if (sc->bce_res_mem != NULL) {
 		DBPRINT(sc, BCE_INFO_RESET, "Releasing PCI memory.\n");
-		bus_release_resource(dev, SYS_RES_MEMORY, PCIR_BAR(0), sc->bce_res_mem);
+		    bus_release_resource(dev, SYS_RES_MEMORY, PCIR_BAR(0), 
+		    sc->bce_res_mem);
 	}
 
 	if (sc->bce_ifp != NULL) {
@@ -3561,7 +3558,7 @@ bce_fw_sync(struct bce_softc *sc, u32 msg_data)
 	DBENTER(BCE_VERBOSE_RESET);
 
 	/* Don't waste any time if we've timed out before. */
-	if (sc->bce_fw_timed_out) {
+	if (sc->bce_fw_timed_out == TRUE) {
 		rc = EBUSY;
 		goto bce_fw_sync_exit;
 	}
@@ -3570,8 +3567,8 @@ bce_fw_sync(struct bce_softc *sc, u32 msg_data)
 	sc->bce_fw_wr_seq++;
 	msg_data |= sc->bce_fw_wr_seq;
 
- 	DBPRINT(sc, BCE_VERBOSE_FIRMWARE, "bce_fw_sync(): msg_data = 0x%08X\n",
- 		msg_data);
+ 	DBPRINT(sc, BCE_VERBOSE_FIRMWARE, "bce_fw_sync(): msg_data = "
+	    "0x%08X\n",	msg_data);
 
 	/* Send the message to the bootcode driver mailbox. */
 	bce_shmem_wr(sc, BCE_DRV_MB, msg_data);
@@ -3587,18 +3584,17 @@ bce_fw_sync(struct bce_softc *sc, u32 msg_data)
 
 	/* If we've timed out, tell the bootcode that we've stopped waiting. */
 	if (((val & BCE_FW_MSG_ACK) != (msg_data & BCE_DRV_MSG_SEQ)) &&
-		((msg_data & BCE_DRV_MSG_DATA) != BCE_DRV_MSG_DATA_WAIT0)) {
+	    ((msg_data & BCE_DRV_MSG_DATA) != BCE_DRV_MSG_DATA_WAIT0)) {
 
 		BCE_PRINTF("%s(%d): Firmware synchronization timeout! "
-			"msg_data = 0x%08X\n",
-			__FILE__, __LINE__, msg_data);
+		    "msg_data = 0x%08X\n", __FILE__, __LINE__, msg_data);
 
 		msg_data &= ~BCE_DRV_MSG_CODE;
 		msg_data |= BCE_DRV_MSG_CODE_FW_TIMEOUT;
 
 		bce_shmem_wr(sc, BCE_DRV_MB, msg_data);
 
-		sc->bce_fw_timed_out = 1;
+		sc->bce_fw_timed_out = TRUE;
 		rc = EBUSY;
 	}
 
@@ -3726,9 +3722,9 @@ bce_load_cpu_fw(struct bce_softc *sc, struct cpu_reg *cpu_reg,
 		}
 	}
 
-    /* Clear the pre-fetch instruction and set the FW start address. */
-    REG_WR_IND(sc, cpu_reg->inst, 0);
-    REG_WR_IND(sc, cpu_reg->pc, fw->start_addr);
+	/* Clear the pre-fetch instruction and set the FW start address. */
+	REG_WR_IND(sc, cpu_reg->inst, 0);
+	REG_WR_IND(sc, cpu_reg->pc, fw->start_addr);
 
 	DBEXIT(BCE_VERBOSE_RESET);
 }
@@ -3772,11 +3768,11 @@ bce_halt_cpu(struct bce_softc *sc, struct cpu_reg *cpu_reg)
 
 	DBENTER(BCE_VERBOSE_RESET);
 
-    /* Halt the CPU. */
-    val = REG_RD_IND(sc, cpu_reg->mode);
-    val |= cpu_reg->mode_value_halt;
-    REG_WR_IND(sc, cpu_reg->mode, val);
-    REG_WR_IND(sc, cpu_reg->state, cpu_reg->state_value_clear);
+	/* Halt the CPU. */
+	val = REG_RD_IND(sc, cpu_reg->mode);
+	val |= cpu_reg->mode_value_halt;
+	REG_WR_IND(sc, cpu_reg->mode, val);
+	REG_WR_IND(sc, cpu_reg->state, cpu_reg->state_value_clear);
 
 	DBEXIT(BCE_VERBOSE_RESET);
 }
@@ -4104,7 +4100,7 @@ bce_init_tpat_cpu(struct bce_softc *sc)
 
 	DBPRINT(sc, BCE_INFO_RESET, "Loading TPAT firmware.\n");
 	bce_load_cpu_fw(sc, &cpu_reg, &fw);
-    bce_start_cpu(sc, &cpu_reg);
+	bce_start_cpu(sc, &cpu_reg);
 
 	DBEXIT(BCE_VERBOSE_RESET);
 }
@@ -4202,7 +4198,7 @@ bce_init_cp_cpu(struct bce_softc *sc)
 
 	DBPRINT(sc, BCE_INFO_RESET, "Loading CP firmware.\n");
 	bce_load_cpu_fw(sc, &cpu_reg, &fw);
-    bce_start_cpu(sc, &cpu_reg);
+	bce_start_cpu(sc, &cpu_reg);
 
 	DBEXIT(BCE_VERBOSE_RESET);
 }
@@ -4300,7 +4296,7 @@ bce_init_com_cpu(struct bce_softc *sc)
 
 	DBPRINT(sc, BCE_INFO_RESET, "Loading COM firmware.\n");
 	bce_load_cpu_fw(sc, &cpu_reg, &fw);
-    bce_start_cpu(sc, &cpu_reg);
+	bce_start_cpu(sc, &cpu_reg);
 
 	DBEXIT(BCE_VERBOSE_RESET);
 }
@@ -4366,7 +4362,7 @@ bce_init_ctx(struct bce_softc *sc)
 	DBENTER(BCE_VERBOSE_RESET | BCE_VERBOSE_CTX);
 
 	if ((BCE_CHIP_NUM(sc) == BCE_CHIP_NUM_5709) ||
-		(BCE_CHIP_NUM(sc) == BCE_CHIP_NUM_5716)) {
+	    (BCE_CHIP_NUM(sc) == BCE_CHIP_NUM_5716)) {
 		int i, retry_cnt = CTX_INIT_RETRY_COUNT;
 		u32 val;
 
@@ -4377,7 +4373,8 @@ bce_init_ctx(struct bce_softc *sc)
 		 * in host memory so prepare the host memory
 		 * for access.
 		 */
-		val = BCE_CTX_COMMAND_ENABLED | BCE_CTX_COMMAND_MEM_INIT | (1 << 12);
+		val = BCE_CTX_COMMAND_ENABLED | 
+		    BCE_CTX_COMMAND_MEM_INIT | (1 << 12);
 		val |= (BCM_PAGE_BITS - 8) << 16;
 		REG_WR(sc, BCE_CTX_COMMAND, val);
 
@@ -4391,33 +4388,34 @@ bce_init_ctx(struct bce_softc *sc)
 
 		/* ToDo: Consider returning an error here. */
 		DBRUNIF((val & BCE_CTX_COMMAND_MEM_INIT),
-			BCE_PRINTF("%s(): Context memory initialization failed!\n",
-			__FUNCTION__));
+		    BCE_PRINTF("%s(): Context memory initialization "
+		    "failed!\n", __FUNCTION__));
 
 		for (i = 0; i < sc->ctx_pages; i++) {
 			int j;
 
-			/* Set the physical address of the context memory cache. */
+			/* Set the physical address of the context memory. */
 			REG_WR(sc, BCE_CTX_HOST_PAGE_TBL_DATA0,
-				BCE_ADDR_LO(sc->ctx_paddr[i] & 0xfffffff0) |
-				BCE_CTX_HOST_PAGE_TBL_DATA0_VALID);
+			    BCE_ADDR_LO(sc->ctx_paddr[i] & 0xfffffff0) |
+			    BCE_CTX_HOST_PAGE_TBL_DATA0_VALID);
 			REG_WR(sc, BCE_CTX_HOST_PAGE_TBL_DATA1,
-				BCE_ADDR_HI(sc->ctx_paddr[i]));
+			    BCE_ADDR_HI(sc->ctx_paddr[i]));
 			REG_WR(sc, BCE_CTX_HOST_PAGE_TBL_CTRL, i |
-				BCE_CTX_HOST_PAGE_TBL_CTRL_WRITE_REQ);
+			    BCE_CTX_HOST_PAGE_TBL_CTRL_WRITE_REQ);
 
-			/* Verify that the context memory write was successful. */
+			/* Verify the context memory write was successful. */
 			for (j = 0; j < retry_cnt; j++) {
 				val = REG_RD(sc, BCE_CTX_HOST_PAGE_TBL_CTRL);
-				if ((val & BCE_CTX_HOST_PAGE_TBL_CTRL_WRITE_REQ) == 0)
+				if ((val & 
+				    BCE_CTX_HOST_PAGE_TBL_CTRL_WRITE_REQ) == 0)
 					break;
 				DELAY(5);
 			}
 
 			/* ToDo: Consider returning an error here. */
 			DBRUNIF((val & BCE_CTX_HOST_PAGE_TBL_CTRL_WRITE_REQ),
-				BCE_PRINTF("%s(): Failed to initialize context page %d!\n",
-				__FUNCTION__, i));
+			    BCE_PRINTF("%s(): Failed to initialize "
+			    "context page %d!\n", __FUNCTION__, i));
 		}
 	} else {
 		u32 vcid_addr, offset;
@@ -4438,9 +4436,9 @@ bce_init_ctx(struct bce_softc *sc)
 			REG_WR(sc, BCE_CTX_VIRT_ADDR, 0);
 			REG_WR(sc, BCE_CTX_PAGE_TBL, vcid_addr);
 
-            for(offset = 0; offset < PHY_CTX_SIZE; offset += 4) {
-                CTX_WR(sc, 0x00, offset, 0);
-            }
+			for(offset = 0; offset < PHY_CTX_SIZE; offset += 4) {
+				CTX_WR(sc, 0x00, offset, 0);
+			}
 
 			REG_WR(sc, BCE_CTX_VIRT_ADDR, vcid_addr);
 			REG_WR(sc, BCE_CTX_PAGE_TBL, vcid_addr);
@@ -4583,7 +4581,7 @@ bce_stop(struct bce_softc *sc)
 	ifp->if_flags = itmp;
 	sc->watchdog_timer = 0;
 
-	sc->bce_link = 0;
+	sc->bce_link_up = FALSE;
 
 	ifp->if_drv_flags &= ~(IFF_DRV_RUNNING | IFF_DRV_OACTIVE);
 
@@ -4620,7 +4618,8 @@ bce_reset(struct bce_softc *sc, u32 reset_code)
 	}
 
 	/* Assume bootcode is running. */
-	sc->bce_fw_timed_out = 0;
+	sc->bce_fw_timed_out = FALSE;
+	sc->bce_drv_cardiac_arrest = FALSE;
 
 	/* Give the firmware a chance to prepare for the reset. */
 	rc = bce_fw_sync(sc, BCE_DRV_MSG_DATA_WAIT0 | reset_code);
@@ -4680,7 +4679,8 @@ bce_reset(struct bce_softc *sc, u32 reset_code)
 	}
 
 	/* Just completed a reset, assume that firmware is running again. */
-	sc->bce_fw_timed_out = 0;
+	sc->bce_fw_timed_out = FALSE;
+	sc->bce_drv_cardiac_arrest = FALSE;
 
 	/* Wait for the firmware to finish its initialization. */
 	rc = bce_fw_sync(sc, BCE_DRV_MSG_DATA_WAIT1 | reset_code);
@@ -4736,9 +4736,9 @@ bce_chipinit(struct bce_softc *sc)
 
 	/* Enable the RX_V2P and Context state machines before access. */
 	REG_WR(sc, BCE_MISC_ENABLE_SET_BITS,
-	       BCE_MISC_ENABLE_SET_BITS_HOST_COALESCE_ENABLE |
-	       BCE_MISC_ENABLE_STATUS_BITS_RX_V2P_ENABLE |
-	       BCE_MISC_ENABLE_STATUS_BITS_CONTEXT_ENABLE);
+	    BCE_MISC_ENABLE_SET_BITS_HOST_COALESCE_ENABLE |
+	    BCE_MISC_ENABLE_STATUS_BITS_RX_V2P_ENABLE |
+	    BCE_MISC_ENABLE_STATUS_BITS_CONTEXT_ENABLE);
 
 	/* Initialize context mapping and zero out the quick contexts. */
 	bce_init_ctx(sc);
@@ -4746,11 +4746,11 @@ bce_chipinit(struct bce_softc *sc)
 	/* Initialize the on-boards CPUs */
 	bce_init_cpus(sc);
 
-    /* Enable management frames (NC-SI) to flow to the MCP. */
-    if (sc->bce_flags & BCE_MFW_ENABLE_FLAG) {
-        val = REG_RD(sc, BCE_RPM_MGMT_PKT_CTRL) | BCE_RPM_MGMT_PKT_CTRL_MGMT_EN;
-        REG_WR(sc, BCE_RPM_MGMT_PKT_CTRL, val);
-    }
+	/* Enable management frames (NC-SI) to flow to the MCP. */
+	if (sc->bce_flags & BCE_MFW_ENABLE_FLAG) {
+		val = REG_RD(sc, BCE_RPM_MGMT_PKT_CTRL) | BCE_RPM_MGMT_PKT_CTRL_MGMT_EN;
+		REG_WR(sc, BCE_RPM_MGMT_PKT_CTRL, val);
+	}
 
 	/* Prepare NVRAM for access. */
 	if (bce_init_nvram(sc)) {
@@ -4828,56 +4828,56 @@ bce_blockinit(struct bce_softc *sc)
 
 	/* Program the physical address of the status block. */
 	REG_WR(sc, BCE_HC_STATUS_ADDR_L,
-		BCE_ADDR_LO(sc->status_block_paddr));
+	    BCE_ADDR_LO(sc->status_block_paddr));
 	REG_WR(sc, BCE_HC_STATUS_ADDR_H,
-		BCE_ADDR_HI(sc->status_block_paddr));
+	    BCE_ADDR_HI(sc->status_block_paddr));
 
 	/* Program the physical address of the statistics block. */
 	REG_WR(sc, BCE_HC_STATISTICS_ADDR_L,
-		BCE_ADDR_LO(sc->stats_block_paddr));
+	    BCE_ADDR_LO(sc->stats_block_paddr));
 	REG_WR(sc, BCE_HC_STATISTICS_ADDR_H,
-		BCE_ADDR_HI(sc->stats_block_paddr));
+	    BCE_ADDR_HI(sc->stats_block_paddr));
 
 	/* Program various host coalescing parameters. */
 	REG_WR(sc, BCE_HC_TX_QUICK_CONS_TRIP,
-		(sc->bce_tx_quick_cons_trip_int << 16) | sc->bce_tx_quick_cons_trip);
+	    (sc->bce_tx_quick_cons_trip_int << 16) | sc->bce_tx_quick_cons_trip);
 	REG_WR(sc, BCE_HC_RX_QUICK_CONS_TRIP,
-		(sc->bce_rx_quick_cons_trip_int << 16) | sc->bce_rx_quick_cons_trip);
+	    (sc->bce_rx_quick_cons_trip_int << 16) | sc->bce_rx_quick_cons_trip);
 	REG_WR(sc, BCE_HC_COMP_PROD_TRIP,
-		(sc->bce_comp_prod_trip_int << 16) | sc->bce_comp_prod_trip);
+	    (sc->bce_comp_prod_trip_int << 16) | sc->bce_comp_prod_trip);
 	REG_WR(sc, BCE_HC_TX_TICKS,
-		(sc->bce_tx_ticks_int << 16) | sc->bce_tx_ticks);
+	    (sc->bce_tx_ticks_int << 16) | sc->bce_tx_ticks);
 	REG_WR(sc, BCE_HC_RX_TICKS,
-		(sc->bce_rx_ticks_int << 16) | sc->bce_rx_ticks);
+	    (sc->bce_rx_ticks_int << 16) | sc->bce_rx_ticks);
 	REG_WR(sc, BCE_HC_COM_TICKS,
-		(sc->bce_com_ticks_int << 16) | sc->bce_com_ticks);
+	    (sc->bce_com_ticks_int << 16) | sc->bce_com_ticks);
 	REG_WR(sc, BCE_HC_CMD_TICKS,
-		(sc->bce_cmd_ticks_int << 16) | sc->bce_cmd_ticks);
+	    (sc->bce_cmd_ticks_int << 16) | sc->bce_cmd_ticks);
 	REG_WR(sc, BCE_HC_STATS_TICKS,
-		(sc->bce_stats_ticks & 0xffff00));
+	    (sc->bce_stats_ticks & 0xffff00));
 	REG_WR(sc, BCE_HC_STAT_COLLECT_TICKS, 0xbb8);  /* 3ms */
 
 	/* Configure the Host Coalescing block. */
 	val = BCE_HC_CONFIG_RX_TMR_MODE | BCE_HC_CONFIG_TX_TMR_MODE |
-		      BCE_HC_CONFIG_COLLECT_STATS;
+	    BCE_HC_CONFIG_COLLECT_STATS;
 
 #if 0
 	/* ToDo: Add MSI-X support. */
 	if (sc->bce_flags & BCE_USING_MSIX_FLAG) {
 		u32 base = ((BCE_TX_VEC - 1) * BCE_HC_SB_CONFIG_SIZE) +
-			   BCE_HC_SB_CONFIG_1;
+		    BCE_HC_SB_CONFIG_1;
 
 		REG_WR(sc, BCE_HC_MSIX_BIT_VECTOR, BCE_HC_MSIX_BIT_VECTOR_VAL);
 
 		REG_WR(sc, base, BCE_HC_SB_CONFIG_1_TX_TMR_MODE |
-			BCE_HC_SB_CONFIG_1_ONE_SHOT);
+		    BCE_HC_SB_CONFIG_1_ONE_SHOT);
 
 		REG_WR(sc, base + BCE_HC_TX_QUICK_CONS_TRIP_OFF,
-			(sc->tx_quick_cons_trip_int << 16) |
-			 sc->tx_quick_cons_trip);
+		    (sc->tx_quick_cons_trip_int << 16) |
+		     sc->tx_quick_cons_trip);
 
 		REG_WR(sc, base + BCE_HC_TX_TICKS_OFF,
-			(sc->tx_ticks_int << 16) | sc->tx_ticks);
+		    (sc->tx_ticks_int << 16) | sc->tx_ticks);
 
 		val |= BCE_HC_CONFIG_SB_ADDR_INC_128B;
 	}
@@ -4904,49 +4904,53 @@ bce_blockinit(struct bce_softc *sc)
 	reg = bce_shmem_rd(sc, BCE_DEV_INFO_SIGNATURE);
 
 	DBRUNIF(DB_RANDOMTRUE(bootcode_running_failure_sim_control),
-		BCE_PRINTF("%s(%d): Simulating bootcode failure.\n",
-			__FILE__, __LINE__);
-		reg = 0);
+	    BCE_PRINTF("%s(%d): Simulating bootcode failure.\n",
+	    __FILE__, __LINE__);
+	    reg = 0);
 
 	if ((reg & BCE_DEV_INFO_SIGNATURE_MAGIC_MASK) !=
 	    BCE_DEV_INFO_SIGNATURE_MAGIC) {
 		BCE_PRINTF("%s(%d): Bootcode not running! Found: 0x%08X, "
-			"Expected: 08%08X\n", __FILE__, __LINE__,
-			(reg & BCE_DEV_INFO_SIGNATURE_MAGIC_MASK),
-			BCE_DEV_INFO_SIGNATURE_MAGIC);
+		    "Expected: 08%08X\n", __FILE__, __LINE__,
+		    (reg & BCE_DEV_INFO_SIGNATURE_MAGIC_MASK),
+		    BCE_DEV_INFO_SIGNATURE_MAGIC);
 		rc = ENODEV;
 		goto bce_blockinit_exit;
 	}
 
 	/* Enable DMA */
 	if ((BCE_CHIP_NUM(sc) == BCE_CHIP_NUM_5709) ||
-		(BCE_CHIP_NUM(sc) == BCE_CHIP_NUM_5716)) {
+	    (BCE_CHIP_NUM(sc) == BCE_CHIP_NUM_5716)) {
 		val = REG_RD(sc, BCE_MISC_NEW_CORE_CTL);
 		val |= BCE_MISC_NEW_CORE_CTL_DMA_ENABLE;
 		REG_WR(sc, BCE_MISC_NEW_CORE_CTL, val);
 	}
 
-	/* Allow bootcode to apply any additional fixes before enabling MAC. */
-	rc = bce_fw_sync(sc, BCE_DRV_MSG_DATA_WAIT2 | BCE_DRV_MSG_CODE_RESET);
+	/* Allow bootcode to apply additional fixes before enabling MAC. */
+	rc = bce_fw_sync(sc, BCE_DRV_MSG_DATA_WAIT2 | 
+	    BCE_DRV_MSG_CODE_RESET);
 
 	/* Enable link state change interrupt generation. */
 	REG_WR(sc, BCE_HC_ATTN_BITS_ENABLE, STATUS_ATTN_BITS_LINK_STATE);
 
-    /* Enable the RXP. */
-    bce_start_rxp_cpu(sc);
+	/* Enable the RXP. */
+	bce_start_rxp_cpu(sc);
 
-    /* Disable management frames (NC-SI) from flowing to the MCP. */
-    if (sc->bce_flags & BCE_MFW_ENABLE_FLAG) {
-        val = REG_RD(sc, BCE_RPM_MGMT_PKT_CTRL) & ~BCE_RPM_MGMT_PKT_CTRL_MGMT_EN;
-        REG_WR(sc, BCE_RPM_MGMT_PKT_CTRL, val);
-    }
+	/* Disable management frames (NC-SI) from flowing to the MCP. */
+	if (sc->bce_flags & BCE_MFW_ENABLE_FLAG) {
+		val = REG_RD(sc, BCE_RPM_MGMT_PKT_CTRL) & 
+		    ~BCE_RPM_MGMT_PKT_CTRL_MGMT_EN;
+		REG_WR(sc, BCE_RPM_MGMT_PKT_CTRL, val);
+	}
 
 	/* Enable all remaining blocks in the MAC. */
-	if ((BCE_CHIP_NUM(sc) == BCE_CHIP_NUM_5709)	||
-		(BCE_CHIP_NUM(sc) == BCE_CHIP_NUM_5716))
-		REG_WR(sc, BCE_MISC_ENABLE_SET_BITS, BCE_MISC_ENABLE_DEFAULT_XI);
+	if ((BCE_CHIP_NUM(sc) == BCE_CHIP_NUM_5709) ||
+	    (BCE_CHIP_NUM(sc) == BCE_CHIP_NUM_5716))
+		REG_WR(sc, BCE_MISC_ENABLE_SET_BITS, 
+		    BCE_MISC_ENABLE_DEFAULT_XI);
 	else
-		REG_WR(sc, BCE_MISC_ENABLE_SET_BITS, BCE_MISC_ENABLE_DEFAULT);
+		REG_WR(sc, BCE_MISC_ENABLE_SET_BITS, 
+		    BCE_MISC_ENABLE_DEFAULT);
 
 	REG_RD(sc, BCE_MISC_ENABLE_SET_BITS);
 	DELAY(20);
@@ -4969,7 +4973,7 @@ bce_blockinit_exit:
 /****************************************************************************/
 static int
 bce_get_rx_buf(struct bce_softc *sc, struct mbuf *m, u16 *prod,
-	u16 *chain_prod, u32 *prod_bseq)
+    u16 *chain_prod, u32 *prod_bseq)
 {
 	bus_dmamap_t map;
 	bus_dma_segment_t segs[BCE_MAX_SEGMENTS];
@@ -4987,8 +4991,9 @@ bce_get_rx_buf(struct bce_softc *sc, struct mbuf *m, u16 *prod,
 		BCE_PRINTF("%s(%d): RX producer out of range: 0x%04X > 0x%04X\n",
 		__FILE__, __LINE__, *chain_prod, (u16) MAX_RX_BD));
 
-	DBPRINT(sc, BCE_EXTREME_RECV, "%s(enter): prod = 0x%04X, chain_prod = 0x%04X, "
-		"prod_bseq = 0x%08X\n", __FUNCTION__, *prod, *chain_prod, *prod_bseq);
+	DBPRINT(sc, BCE_EXTREME_RECV, "%s(enter): prod = 0x%04X, "
+	    "chain_prod = 0x%04X, prod_bseq = 0x%08X\n", __FUNCTION__,
+	    *prod, *chain_prod, *prod_bseq);
 
 	/* Update some debug statistic counters */
 	DBRUNIF((sc->free_rx_bd < sc->rx_low_watermark),
@@ -5000,10 +5005,10 @@ bce_get_rx_buf(struct bce_softc *sc, struct mbuf *m, u16 *prod,
 
 		/* Simulate an mbuf allocation failure. */
 		DBRUNIF(DB_RANDOMTRUE(mbuf_alloc_failed_sim_control),
-			sc->mbuf_alloc_failed_count++;
-			sc->mbuf_alloc_failed_sim_count++;
-			rc = ENOBUFS;
-			goto bce_get_rx_buf_exit);
+		    sc->mbuf_alloc_failed_count++;
+		    sc->mbuf_alloc_failed_sim_count++;
+		    rc = ENOBUFS;
+		    goto bce_get_rx_buf_exit);
 
 		/* This is a new mbuf allocation. */
 #ifdef BCE_JUMBO_HDRSPLIT
@@ -5012,7 +5017,8 @@ bce_get_rx_buf(struct bce_softc *sc, struct mbuf *m, u16 *prod,
 		if (sc->rx_bd_mbuf_alloc_size <= MCLBYTES)
 			m_new = m_getcl(M_DONTWAIT, MT_DATA, M_PKTHDR);
 		else
-			m_new = m_getjcl(M_DONTWAIT, MT_DATA, M_PKTHDR, sc->rx_bd_mbuf_alloc_size);
+			m_new = m_getjcl(M_DONTWAIT, MT_DATA, M_PKTHDR, 
+			    sc->rx_bd_mbuf_alloc_size);
 #endif
 
 		if (m_new == NULL) {
@@ -5044,7 +5050,7 @@ bce_get_rx_buf(struct bce_softc *sc, struct mbuf *m, u16 *prod,
 	/* Handle any mapping errors. */
 	if (error) {
 		BCE_PRINTF("%s(%d): Error mapping mbuf into RX chain (%d)!\n",
-			__FILE__, __LINE__, error);
+		    __FILE__, __LINE__, error);
 
 		sc->dma_map_addr_rx_failed_count++;
 		m_freem(m_new);
@@ -5057,9 +5063,7 @@ bce_get_rx_buf(struct bce_softc *sc, struct mbuf *m, u16 *prod,
 
 	/* All mbufs must map to a single segment. */
 	KASSERT(nsegs == 1, ("%s(): Too many segments returned (%d)!",
-		 __FUNCTION__, nsegs));
-
-	/* ToDo: Do we need bus_dmamap_sync(,,BUS_DMASYNC_PREREAD) here? */
+	    __FUNCTION__, nsegs));
 
 	/* Setup the rx_bd for the segment. */
 	rxbd = &sc->rx_bd_chain[RX_PAGE(*chain_prod)][RX_IDX(*chain_prod)];
@@ -5074,11 +5078,12 @@ bce_get_rx_buf(struct bce_softc *sc, struct mbuf *m, u16 *prod,
 	sc->rx_mbuf_ptr[*chain_prod] = m_new;
 	sc->free_rx_bd -= nsegs;
 
-	DBRUNMSG(BCE_INSANE_RECV, bce_dump_rx_mbuf_chain(sc, debug_chain_prod,
-		nsegs));
+	DBRUNMSG(BCE_INSANE_RECV, 
+	    bce_dump_rx_mbuf_chain(sc, debug_chain_prod, nsegs));
 
-	DBPRINT(sc, BCE_EXTREME_RECV, "%s(exit): prod = 0x%04X, chain_prod = 0x%04X, "
-		"prod_bseq = 0x%08X\n", __FUNCTION__, *prod, *chain_prod, *prod_bseq);
+	DBPRINT(sc, BCE_EXTREME_RECV, "%s(exit): prod = 0x%04X, "
+	    "chain_prod = 0x%04X, prod_bseq = 0x%08X\n", 
+	    __FUNCTION__, *prod, *chain_prod, *prod_bseq);
 
 bce_get_rx_buf_exit:
 	DBEXIT(BCE_EXTREME_RESET | BCE_EXTREME_RECV | BCE_EXTREME_LOAD);
@@ -5089,7 +5094,7 @@ bce_get_rx_buf_exit:
 
 #ifdef BCE_JUMBO_HDRSPLIT
 /****************************************************************************/
-/* Encapsulate an mbuf cluster into the page chain.                        */
+/* Encapsulate an mbuf cluster into the page chain.                         */
 /*                                                                          */
 /* Returns:                                                                 */
 /*   0 for success, positive value for failure.                             */
@@ -5111,15 +5116,15 @@ bce_get_pg_buf(struct bce_softc *sc, struct mbuf *m, u16 *prod,
 
 	/* Make sure the inputs are valid. */
 	DBRUNIF((*prod_idx > MAX_PG_BD),
-		BCE_PRINTF("%s(%d): page producer out of range: 0x%04X > 0x%04X\n",
-		__FILE__, __LINE__, *prod_idx, (u16) MAX_PG_BD));
+	    BCE_PRINTF("%s(%d): page producer out of range: 0x%04X > 0x%04X\n",
+	    __FILE__, __LINE__, *prod_idx, (u16) MAX_PG_BD));
 
 	DBPRINT(sc, BCE_EXTREME_RECV, "%s(enter): prod = 0x%04X, "
-		"chain_prod = 0x%04X\n", __FUNCTION__, *prod, *prod_idx);
+	    "chain_prod = 0x%04X\n", __FUNCTION__, *prod, *prod_idx);
 
 	/* Update counters if we've hit a new low or run out of pages. */
 	DBRUNIF((sc->free_pg_bd < sc->pg_low_watermark),
-		sc->pg_low_watermark = sc->free_pg_bd);
+	    sc->pg_low_watermark = sc->free_pg_bd);
 	DBRUNIF((sc->free_pg_bd == sc->max_pg_bd), sc->pg_empty_count++);
 
 	/* Check whether this is a new mbuf allocation. */
@@ -5127,10 +5132,10 @@ bce_get_pg_buf(struct bce_softc *sc, struct mbuf *m, u16 *prod,
 
 		/* Simulate an mbuf allocation failure. */
 		DBRUNIF(DB_RANDOMTRUE(mbuf_alloc_failed_sim_control),
-			sc->mbuf_alloc_failed_count++;
-			sc->mbuf_alloc_failed_sim_count++;
-			rc = ENOBUFS;
-			goto bce_get_pg_buf_exit);
+		    sc->mbuf_alloc_failed_count++;
+		    sc->mbuf_alloc_failed_sim_count++;
+		    rc = ENOBUFS;
+		    goto bce_get_pg_buf_exit);
 
 		/* This is a new mbuf allocation. */
 		m_new = m_getcl(M_DONTWAIT, MT_DATA, 0);
@@ -5154,12 +5159,13 @@ bce_get_pg_buf(struct bce_softc *sc, struct mbuf *m, u16 *prod,
 	/* Map the mbuf cluster into device memory. */
 	map = sc->pg_mbuf_map[*prod_idx];
 	error = bus_dmamap_load(sc->pg_mbuf_tag, map, mtod(m_new, void *),
-	    sc->pg_bd_mbuf_alloc_size, bce_dma_map_addr, &busaddr, BUS_DMA_NOWAIT);
+	    sc->pg_bd_mbuf_alloc_size, bce_dma_map_addr, 
+	    &busaddr, BUS_DMA_NOWAIT);
 
 	/* Handle any mapping errors. */
 	if (error) {
 		BCE_PRINTF("%s(%d): Error mapping mbuf into page chain!\n",
-			__FILE__, __LINE__);
+		    __FILE__, __LINE__);
 
 		m_freem(m_new);
 		DBRUN(sc->debug_pg_mbuf_alloc--);
@@ -5185,11 +5191,11 @@ bce_get_pg_buf(struct bce_softc *sc, struct mbuf *m, u16 *prod,
 	sc->pg_mbuf_ptr[*prod_idx] = m_new;
 	sc->free_pg_bd--;
 
-	DBRUNMSG(BCE_INSANE_RECV, bce_dump_pg_mbuf_chain(sc, debug_prod_idx,
-		1));
+	DBRUNMSG(BCE_INSANE_RECV, 
+	    bce_dump_pg_mbuf_chain(sc, debug_prod_idx, 1));
 
 	DBPRINT(sc, BCE_EXTREME_RECV, "%s(exit): prod = 0x%04X, "
-		"prod_idx = 0x%04X\n", __FUNCTION__, *prod, *prod_idx);
+	    "prod_idx = 0x%04X\n", __FUNCTION__, *prod, *prod_idx);
 
 bce_get_pg_buf_exit:
 	DBEXIT(BCE_EXTREME_RESET | BCE_EXTREME_RECV | BCE_EXTREME_LOAD);
@@ -5197,6 +5203,7 @@ bce_get_pg_buf_exit:
 	return(rc);
 }
 #endif /* BCE_JUMBO_HDRSPLIT */
+
 
 /****************************************************************************/
 /* Initialize the TX context memory.                                        */
@@ -5215,16 +5222,20 @@ bce_init_tx_context(struct bce_softc *sc)
 	if ((BCE_CHIP_NUM(sc) == BCE_CHIP_NUM_5709) ||
 		(BCE_CHIP_NUM(sc) == BCE_CHIP_NUM_5716)) {
 		/* Set the CID type to support an L2 connection. */
-		val = BCE_L2CTX_TX_TYPE_TYPE_L2_XI | BCE_L2CTX_TX_TYPE_SIZE_L2_XI;
+		val = BCE_L2CTX_TX_TYPE_TYPE_L2_XI | 
+		    BCE_L2CTX_TX_TYPE_SIZE_L2_XI;
 		CTX_WR(sc, GET_CID_ADDR(TX_CID), BCE_L2CTX_TX_TYPE_XI, val);
 		val = BCE_L2CTX_TX_CMD_TYPE_TYPE_L2_XI | (8 << 16);
-		CTX_WR(sc, GET_CID_ADDR(TX_CID), BCE_L2CTX_TX_CMD_TYPE_XI, val);
+		CTX_WR(sc, GET_CID_ADDR(TX_CID), 
+		    BCE_L2CTX_TX_CMD_TYPE_XI, val);
 
 		/* Point the hardware to the first page in the chain. */
 		val = BCE_ADDR_HI(sc->tx_bd_chain_paddr[0]);
-		CTX_WR(sc, GET_CID_ADDR(TX_CID), BCE_L2CTX_TX_TBDR_BHADDR_HI_XI, val);
+		CTX_WR(sc, GET_CID_ADDR(TX_CID), 
+		    BCE_L2CTX_TX_TBDR_BHADDR_HI_XI, val);
 		val = BCE_ADDR_LO(sc->tx_bd_chain_paddr[0]);
-		CTX_WR(sc, GET_CID_ADDR(TX_CID), BCE_L2CTX_TX_TBDR_BHADDR_LO_XI, val);
+		CTX_WR(sc, GET_CID_ADDR(TX_CID), 
+		    BCE_L2CTX_TX_TBDR_BHADDR_LO_XI, val);
 	} else {
 		/* Set the CID type to support an L2 connection. */
 		val = BCE_L2CTX_TX_TYPE_TYPE_L2 | BCE_L2CTX_TX_TYPE_SIZE_L2;
@@ -5234,9 +5245,11 @@ bce_init_tx_context(struct bce_softc *sc)
 
 		/* Point the hardware to the first page in the chain. */
 		val = BCE_ADDR_HI(sc->tx_bd_chain_paddr[0]);
-		CTX_WR(sc, GET_CID_ADDR(TX_CID), BCE_L2CTX_TX_TBDR_BHADDR_HI, val);
+		CTX_WR(sc, GET_CID_ADDR(TX_CID), 
+		    BCE_L2CTX_TX_TBDR_BHADDR_HI, val);
 		val = BCE_ADDR_LO(sc->tx_bd_chain_paddr[0]);
-		CTX_WR(sc, GET_CID_ADDR(TX_CID), BCE_L2CTX_TX_TBDR_BHADDR_LO, val);
+		CTX_WR(sc, GET_CID_ADDR(TX_CID), 
+		    BCE_L2CTX_TX_TBDR_BHADDR_LO, val);
 	}
 
 	DBEXIT(BCE_VERBOSE_RESET | BCE_VERBOSE_SEND | BCE_VERBOSE_CTX);
@@ -5263,7 +5276,7 @@ bce_init_tx_chain(struct bce_softc *sc)
 	sc->tx_prod_bseq   = 0;
 	sc->used_tx_bd     = 0;
 	sc->max_tx_bd      = USABLE_TX_BD;
-	DBRUN(sc->tx_hi_watermark = USABLE_TX_BD);
+	DBRUN(sc->tx_hi_watermark = 0);
 	DBRUN(sc->tx_full_count = 0);
 
 	/*
@@ -5318,8 +5331,9 @@ bce_free_tx_chain(struct bce_softc *sc)
 	for (i = 0; i < TOTAL_TX_BD; i++) {
 		if (sc->tx_mbuf_ptr[i] != NULL) {
 			if (sc->tx_mbuf_map[i] != NULL)
-				bus_dmamap_sync(sc->tx_mbuf_tag, sc->tx_mbuf_map[i],
-					BUS_DMASYNC_POSTWRITE);
+				bus_dmamap_sync(sc->tx_mbuf_tag, 
+				    sc->tx_mbuf_map[i],
+				    BUS_DMASYNC_POSTWRITE);
 			m_freem(sc->tx_mbuf_ptr[i]);
 			sc->tx_mbuf_ptr[i] = NULL;
 			DBRUN(sc->debug_tx_mbuf_alloc--);
@@ -5330,13 +5344,13 @@ bce_free_tx_chain(struct bce_softc *sc)
 	for (i = 0; i < TX_PAGES; i++)
 		bzero((char *)sc->tx_bd_chain[i], BCE_TX_CHAIN_PAGE_SZ);
 
-	sc->used_tx_bd     = 0;
+	sc->used_tx_bd = 0;
 
 	/* Check if we lost any mbufs in the process. */
 	DBRUNIF((sc->debug_tx_mbuf_alloc),
-		BCE_PRINTF("%s(%d): Memory leak! Lost %d mbufs "
-			"from tx chain!\n",
-			__FILE__, __LINE__, sc->debug_tx_mbuf_alloc));
+	    BCE_PRINTF("%s(%d): Memory leak! Lost %d mbufs "
+	    "from tx chain!\n",	__FILE__, __LINE__, 
+	    sc->debug_tx_mbuf_alloc));
 
 	DBEXIT(BCE_VERBOSE_RESET | BCE_VERBOSE_SEND | BCE_VERBOSE_UNLOAD);
 }
@@ -5355,10 +5369,10 @@ bce_init_rx_context(struct bce_softc *sc)
 
 	DBENTER(BCE_VERBOSE_RESET | BCE_VERBOSE_RECV | BCE_VERBOSE_CTX);
 
-	/* Initialize the type, size, and BD cache levels for the RX context. */
+	/* Init the type, size, and BD cache levels for the RX context. */
 	val = BCE_L2CTX_RX_CTX_TYPE_CTX_BD_CHN_TYPE_VALUE |
-		BCE_L2CTX_RX_CTX_TYPE_SIZE_L2 |
-		(0x02 << BCE_L2CTX_RX_BD_PRE_READ_SHIFT);
+	    BCE_L2CTX_RX_CTX_TYPE_SIZE_L2 |
+	    (0x02 << BCE_L2CTX_RX_BD_PRE_READ_SHIFT);
 
 	/*
 	 * Set the level for generating pause frames
@@ -5368,7 +5382,7 @@ bce_init_rx_context(struct bce_softc *sc)
 	 * watermark).
 	 */
 	if ((BCE_CHIP_NUM(sc) == BCE_CHIP_NUM_5709) ||
-		(BCE_CHIP_NUM(sc) == BCE_CHIP_NUM_5716)) {
+	    (BCE_CHIP_NUM(sc) == BCE_CHIP_NUM_5716)) {
 		u32 lo_water, hi_water;
 
 		lo_water = BCE_L2CTX_RX_LO_WATER_MARK_DEFAULT;
@@ -5389,7 +5403,7 @@ bce_init_rx_context(struct bce_softc *sc)
 
 	/* Setup the MQ BIN mapping for l2_ctx_host_bseq. */
 	if ((BCE_CHIP_NUM(sc) == BCE_CHIP_NUM_5709) ||
-		(BCE_CHIP_NUM(sc) == BCE_CHIP_NUM_5716)) {
+	    (BCE_CHIP_NUM(sc) == BCE_CHIP_NUM_5716)) {
 		val = REG_RD(sc, BCE_MQ_MAP_L2_5);
 		REG_WR(sc, BCE_MQ_MAP_L2_5, val | BCE_MQ_MAP_L2_5_ARM);
 	}
@@ -5417,7 +5431,7 @@ bce_init_rx_chain(struct bce_softc *sc)
 	int i, rc = 0;
 
 	DBENTER(BCE_VERBOSE_RESET | BCE_VERBOSE_RECV | BCE_VERBOSE_LOAD |
-		BCE_VERBOSE_CTX);
+	    BCE_VERBOSE_CTX);
 
 	/* Initialize the RX producer and consumer indices. */
 	sc->rx_prod        = 0;
@@ -5425,8 +5439,6 @@ bce_init_rx_chain(struct bce_softc *sc)
 	sc->rx_prod_bseq   = 0;
 	sc->free_rx_bd     = USABLE_RX_BD;
 	sc->max_rx_bd      = USABLE_RX_BD;
-	DBRUN(sc->rx_low_watermark = sc->max_rx_bd);
-	DBRUN(sc->rx_empty_count = 0);
 
 	/* Initialize the RX next pointer chain entries. */
 	for (i = 0; i < RX_PAGES; i++) {
@@ -5441,13 +5453,17 @@ bce_init_rx_chain(struct bce_softc *sc)
 			j = i + 1;
 
 		/* Setup the chain page pointers. */
-		rxbd->rx_bd_haddr_hi = htole32(BCE_ADDR_HI(sc->rx_bd_chain_paddr[j]));
-		rxbd->rx_bd_haddr_lo = htole32(BCE_ADDR_LO(sc->rx_bd_chain_paddr[j]));
+		rxbd->rx_bd_haddr_hi = 
+		    htole32(BCE_ADDR_HI(sc->rx_bd_chain_paddr[j]));
+		rxbd->rx_bd_haddr_lo = 
+		    htole32(BCE_ADDR_LO(sc->rx_bd_chain_paddr[j]));
 	}
 
 	/* Fill up the RX chain. */
 	bce_fill_rx_chain(sc);
 
+	DBRUN(sc->rx_low_watermark = USABLE_RX_BD);
+	DBRUN(sc->rx_empty_count = 0);
 	for (i = 0; i < RX_PAGES; i++) {
 		bus_dmamap_sync(sc->rx_bd_chain_tag, sc->rx_bd_chain_map[i],
 		    BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
@@ -5455,10 +5471,12 @@ bce_init_rx_chain(struct bce_softc *sc)
 
 	bce_init_rx_context(sc);
 
-	DBRUNMSG(BCE_EXTREME_RECV, bce_dump_rx_chain(sc, 0, TOTAL_RX_BD));
+	DBRUNMSG(BCE_EXTREME_RECV, bce_dump_rx_bd_chain(sc, 0, TOTAL_RX_BD));
 	DBEXIT(BCE_VERBOSE_RESET | BCE_VERBOSE_RECV | BCE_VERBOSE_LOAD |
-		BCE_VERBOSE_CTX);
+	    BCE_VERBOSE_CTX);
+
 	/* ToDo: Are there possible failure modes here? */
+
 	return(rc);
 }
 
@@ -5477,7 +5495,7 @@ bce_fill_rx_chain(struct bce_softc *sc)
 	u32 prod_bseq;
 
 	DBENTER(BCE_VERBOSE_RESET | BCE_EXTREME_RECV | BCE_VERBOSE_LOAD |
-		BCE_VERBOSE_CTX);
+	    BCE_VERBOSE_CTX);
 
 	/* Get the RX chain producer indices. */
 	prod      = sc->rx_prod;
@@ -5497,6 +5515,7 @@ bce_fill_rx_chain(struct bce_softc *sc)
 	sc->rx_prod      = prod;
 	sc->rx_prod_bseq = prod_bseq;
 
+	/* We should never end up pointing to a next page pointer. */
 	DBRUNIF(((prod & USABLE_RX_BD_PER_PAGE) == USABLE_RX_BD_PER_PAGE),
 		BCE_PRINTF("%s(): Invalid rx_prod value: 0x%04X\n",
 		__FUNCTION__, sc->rx_prod));
@@ -5508,7 +5527,7 @@ bce_fill_rx_chain(struct bce_softc *sc)
 		sc->rx_prod_bseq);
 
 	DBEXIT(BCE_VERBOSE_RESET | BCE_EXTREME_RECV | BCE_VERBOSE_LOAD |
-		BCE_VERBOSE_CTX);
+	    BCE_VERBOSE_CTX);
 }
 
 
@@ -5529,8 +5548,9 @@ bce_free_rx_chain(struct bce_softc *sc)
 	for (i = 0; i < TOTAL_RX_BD; i++) {
 		if (sc->rx_mbuf_ptr[i] != NULL) {
 			if (sc->rx_mbuf_map[i] != NULL)
-				bus_dmamap_sync(sc->rx_mbuf_tag, sc->rx_mbuf_map[i],
-					BUS_DMASYNC_POSTREAD);
+				bus_dmamap_sync(sc->rx_mbuf_tag, 
+				    sc->rx_mbuf_map[i],
+				    BUS_DMASYNC_POSTREAD);
 			m_freem(sc->rx_mbuf_ptr[i]);
 			sc->rx_mbuf_ptr[i] = NULL;
 			DBRUN(sc->debug_rx_mbuf_alloc--);
@@ -5539,14 +5559,17 @@ bce_free_rx_chain(struct bce_softc *sc)
 
 	/* Clear each RX chain page. */
 	for (i = 0; i < RX_PAGES; i++)
-		bzero((char *)sc->rx_bd_chain[i], BCE_RX_CHAIN_PAGE_SZ);
+		if (sc->rx_bd_chain[i] != NULL) {
+			bzero((char *)sc->rx_bd_chain[i], 
+			    BCE_RX_CHAIN_PAGE_SZ);
+		}
 
 	sc->free_rx_bd = sc->max_rx_bd;
 
 	/* Check if we lost any mbufs in the process. */
 	DBRUNIF((sc->debug_rx_mbuf_alloc),
-		BCE_PRINTF("%s(): Memory leak! Lost %d mbufs from rx chain!\n",
-			__FUNCTION__, sc->debug_rx_mbuf_alloc));
+	    BCE_PRINTF("%s(): Memory leak! Lost %d mbufs from rx chain!\n",
+	    __FUNCTION__, sc->debug_rx_mbuf_alloc));
 
 	DBEXIT(BCE_VERBOSE_RESET | BCE_VERBOSE_RECV | BCE_VERBOSE_UNLOAD);
 }
@@ -5761,12 +5784,12 @@ bce_ifmedia_upd_locked(struct ifnet *ifp)
 
 	/* Make sure the MII bus has been enumerated. */
 	if (mii) {
-		sc->bce_link = 0;
+		sc->bce_link_up = FALSE;
 		if (mii->mii_instance) {
 			struct mii_softc *miisc;
 
 			LIST_FOREACH(miisc, &mii->mii_phys, mii_list)
-				mii_phy_reset(miisc);
+			    mii_phy_reset(miisc);
 		}
 		mii_mediachg(mii);
 	}
@@ -5816,26 +5839,28 @@ bce_phy_intr(struct bce_softc *sc)
 
 	DBENTER(BCE_VERBOSE_PHY | BCE_VERBOSE_INTR);
 
+	DBRUN(sc->phy_interrupts++);
+
 	new_link_state = sc->status_block->status_attn_bits &
-		STATUS_ATTN_BITS_LINK_STATE;
+	    STATUS_ATTN_BITS_LINK_STATE;
 	old_link_state = sc->status_block->status_attn_bits_ack &
-		STATUS_ATTN_BITS_LINK_STATE;
+	    STATUS_ATTN_BITS_LINK_STATE;
 
 	/* Handle any changes if the link state has changed. */
 	if (new_link_state != old_link_state) {
 
-		/* Update the status_attn_bits_ack field in the status block. */
+		/* Update the status_attn_bits_ack field. */
 		if (new_link_state) {
 			REG_WR(sc, BCE_PCICFG_STATUS_BIT_SET_CMD,
-				STATUS_ATTN_BITS_LINK_STATE);
+			    STATUS_ATTN_BITS_LINK_STATE);
 			DBPRINT(sc, BCE_INFO_PHY, "%s(): Link is now UP.\n",
-				__FUNCTION__);
+			    __FUNCTION__);
 		}
 		else {
 			REG_WR(sc, BCE_PCICFG_STATUS_BIT_CLEAR_CMD,
-				STATUS_ATTN_BITS_LINK_STATE);
+			    STATUS_ATTN_BITS_LINK_STATE);
 			DBPRINT(sc, BCE_INFO_PHY, "%s(): Link is now DOWN.\n",
-				__FUNCTION__);
+			    __FUNCTION__);
 		}
 
 		/*
@@ -5843,7 +5868,7 @@ bce_phy_intr(struct bce_softc *sc)
 		 * tick routine to update the state
 		 * based on the actual media state.
 		 */
-		sc->bce_link = 0;
+		sc->bce_link_up = FALSE;
 		callout_stop(&sc->bce_tick_callout);
 		bce_tick(sc);
 	}
@@ -5886,6 +5911,7 @@ bce_rx_intr(struct bce_softc *sc)
 {
 	struct ifnet *ifp = sc->bce_ifp;
 	struct l2_fhdr *l2fhdr;
+	struct ether_vlan_header *vh;
 	unsigned int pkt_len;
 	u16 sw_rx_cons, sw_rx_cons_idx, hw_rx_cons;
 	u32 status;
@@ -5897,8 +5923,8 @@ bce_rx_intr(struct bce_softc *sc)
 	DBENTER(BCE_VERBOSE_RECV | BCE_VERBOSE_INTR);
 	DBRUN(sc->rx_interrupts++);
 	DBPRINT(sc, BCE_EXTREME_RECV, "%s(enter): rx_prod = 0x%04X, "
-		"rx_cons = 0x%04X, rx_prod_bseq = 0x%08X\n",
-		__FUNCTION__, sc->rx_prod, sc->rx_cons, sc->rx_prod_bseq);
+	    "rx_cons = 0x%04X, rx_prod_bseq = 0x%08X\n",
+	    __FUNCTION__, sc->rx_prod, sc->rx_cons, sc->rx_prod_bseq);
 
 	/* Prepare the RX chain pages to be accessed by the host CPU. */
 	for (int i = 0; i < RX_PAGES; i++)
@@ -5936,7 +5962,8 @@ bce_rx_intr(struct bce_softc *sc)
 		sw_rx_cons_idx = RX_CHAIN_IDX(sw_rx_cons);
 
 		/* Unmap the mbuf from DMA space. */
-		bus_dmamap_sync(sc->rx_mbuf_tag, sc->rx_mbuf_map[sw_rx_cons_idx],
+		bus_dmamap_sync(sc->rx_mbuf_tag, 
+		    sc->rx_mbuf_map[sw_rx_cons_idx],
 		    BUS_DMASYNC_POSTREAD);
 		bus_dmamap_unload(sc->rx_mbuf_tag,
 		    sc->rx_mbuf_map[sw_rx_cons_idx]);
@@ -5947,29 +5974,30 @@ bce_rx_intr(struct bce_softc *sc)
 		DBRUN(sc->debug_rx_mbuf_alloc--);
 		sc->free_rx_bd++;
 
-        if(m0 == NULL) {
-            DBPRINT(sc, BCE_EXTREME_RECV, "%s(): Oops! Empty mbuf pointer "
-                "found in sc->rx_mbuf_ptr[0x%04X]!\n",
-                __FUNCTION__, sw_rx_cons_idx);
-            goto bce_rx_int_next_rx;
-        }
+		if(m0 == NULL) {
+			DBPRINT(sc, BCE_EXTREME_RECV, 
+			    "%s(): Oops! Empty mbuf pointer "
+			    "found in sc->rx_mbuf_ptr[0x%04X]!\n",
+			    __FUNCTION__, sw_rx_cons_idx);
+			goto bce_rx_int_next_rx;
+		}
 
-        /*
-         * Frames received on the NetXteme II are prepended	with an
-         * l2_fhdr structure which provides status information about
-         * the received frame (including VLAN tags and checksum info).
-         * The frames are also automatically adjusted to align the IP
-         * header (i.e. two null bytes are inserted before the Ethernet
-         * header).  As a result the data DMA'd by the controller into
-         * the mbuf is as follows:
-         * 
-         * +---------+-----+---------------------+-----+
-         * | l2_fhdr | pad | packet data         | FCS |
-         * +---------+-----+---------------------+-----+
-         * 
-         * The l2_fhdr needs to be checked and skipped and the FCS needs
-         * to be stripped before sending the packet up the stack.
-         */
+		/*
+		 * Frames received on the NetXteme II are prepended	with an
+		 * l2_fhdr structure which provides status information about
+		 * the received frame (including VLAN tags and checksum info).
+		 * The frames are also automatically adjusted to align the IP
+		 * header (i.e. two null bytes are inserted before the Ethernet
+		 * header).  As a result the data DMA'd by the controller into
+		 * the mbuf is as follows:
+		 * 
+		 * +---------+-----+---------------------+-----+
+		 * | l2_fhdr | pad | packet data         | FCS |
+		 * +---------+-----+---------------------+-----+
+		 * 
+		 * The l2_fhdr needs to be checked and skipped and the FCS needs
+		 * to be stripped before sending the packet up the stack.
+		 */
 		l2fhdr  = mtod(m0, struct l2_fhdr *);
 
 		/* Get the packet data + FCS length and the status. */
@@ -6004,8 +6032,8 @@ bce_rx_intr(struct bce_softc *sc)
 			 * in the page chain.
 			 */
 
-			DBPRINT(sc, BCE_INFO_RECV, "%s(): Found a large packet.\n",
-				__FUNCTION__);
+			DBPRINT(sc, BCE_INFO_RECV, "%s(): Found a large "
+			    "packet.\n", __FUNCTION__);
 
 			/*
 			 * When the page chain is enabled and the TCP
@@ -6033,10 +6061,10 @@ bce_rx_intr(struct bce_softc *sc)
 
 				/* Unmap the page chain mbuf from DMA space. */
 				bus_dmamap_sync(sc->pg_mbuf_tag,
-					sc->pg_mbuf_map[sw_pg_cons_idx],
-					BUS_DMASYNC_POSTREAD);
+				    sc->pg_mbuf_map[sw_pg_cons_idx],
+				    BUS_DMASYNC_POSTREAD);
 				bus_dmamap_unload(sc->pg_mbuf_tag,
-					sc->pg_mbuf_map[sw_pg_cons_idx]);
+				    sc->pg_mbuf_map[sw_pg_cons_idx]);
 
 				/* Adjust the mbuf length. */
 				if (rem_len < m_pg->m_len) {
@@ -6065,8 +6093,8 @@ bce_rx_intr(struct bce_softc *sc)
 			 * 154 bytes or less in size.
 			 */
 
-			DBPRINT(sc, BCE_INFO_RECV, "%s(): Found a small packet.\n",
-				__FUNCTION__);
+			DBPRINT(sc, BCE_INFO_RECV, "%s(): Found a small "
+			    "packet.\n", __FUNCTION__);
 
 			/* Set the total packet length. */
 			m0->m_pkthdr.len = m0->m_len = pkt_len;
@@ -6082,19 +6110,19 @@ bce_rx_intr(struct bce_softc *sc)
 		/* Check that the resulting mbuf chain is valid. */
 		DBRUN(m_sanity(m0, FALSE));
 		DBRUNIF(((m0->m_len < ETHER_HDR_LEN) |
-			(m0->m_pkthdr.len > BCE_MAX_JUMBO_ETHER_MTU_VLAN)),
-			BCE_PRINTF("Invalid Ethernet frame size!\n");
-			m_print(m0, 128));
+		    (m0->m_pkthdr.len > BCE_MAX_JUMBO_ETHER_MTU_VLAN)),
+		     BCE_PRINTF("Invalid Ethernet frame size!\n");
+		     m_print(m0, 128));
 
 		DBRUNIF(DB_RANDOMTRUE(l2fhdr_error_sim_control),
-			BCE_PRINTF("Simulating l2_fhdr status error.\n");
-			sc->l2fhdr_error_sim_count++;
-			status = status | L2_FHDR_ERRORS_PHY_DECODE);
+		    BCE_PRINTF("Simulating l2_fhdr status error.\n");
+		    sc->l2fhdr_error_sim_count++;
+		    status = status | L2_FHDR_ERRORS_PHY_DECODE);
 
 		/* Check the received frame for errors. */
-		if (status & (L2_FHDR_ERRORS_BAD_CRC |
-			L2_FHDR_ERRORS_PHY_DECODE | L2_FHDR_ERRORS_ALIGNMENT |
-			L2_FHDR_ERRORS_TOO_SHORT  | L2_FHDR_ERRORS_GIANT_FRAME)) {
+		if (status & (L2_FHDR_ERRORS_BAD_CRC | 
+		    L2_FHDR_ERRORS_PHY_DECODE | L2_FHDR_ERRORS_ALIGNMENT |
+		    L2_FHDR_ERRORS_TOO_SHORT  | L2_FHDR_ERRORS_GIANT_FRAME)) {
 
 			/* Log the error and release the mbuf. */
 			ifp->if_ierrors++;
@@ -6121,32 +6149,59 @@ bce_rx_intr(struct bce_softc *sc)
 
 				/* Check if the IP checksum is valid. */
 				if ((l2fhdr->l2_fhdr_ip_xsum ^ 0xffff) == 0)
-					m0->m_pkthdr.csum_flags |= CSUM_IP_VALID;
+					m0->m_pkthdr.csum_flags |= 
+					    CSUM_IP_VALID;
 			}
 
 			/* Check for a valid TCP/UDP frame. */
 			if (status & (L2_FHDR_STATUS_TCP_SEGMENT |
-				L2_FHDR_STATUS_UDP_DATAGRAM)) {
+			    L2_FHDR_STATUS_UDP_DATAGRAM)) {
 
 				/* Check for a good TCP/UDP checksum. */
 				if ((status & (L2_FHDR_ERRORS_TCP_XSUM |
-					      L2_FHDR_ERRORS_UDP_XSUM)) == 0) {
+				    L2_FHDR_ERRORS_UDP_XSUM)) == 0) {
 					m0->m_pkthdr.csum_data =
 					    l2fhdr->l2_fhdr_tcp_udp_xsum;
-					m0->m_pkthdr.csum_flags |= (CSUM_DATA_VALID
-						| CSUM_PSEUDO_HDR);
+					m0->m_pkthdr.csum_flags |= 
+					    (CSUM_DATA_VALID
+					    | CSUM_PSEUDO_HDR);
 				}
 			}
 		}
 
 		/* Attach the VLAN tag.	*/
 		if (status & L2_FHDR_STATUS_L2_VLAN_TAG) {
+			if (ifp->if_capenable & IFCAP_VLAN_HWTAGGING) {
 #if __FreeBSD_version < 700000
-			VLAN_INPUT_TAG(ifp, m0, l2fhdr->l2_fhdr_vlan_tag, continue);
+				VLAN_INPUT_TAG(ifp, m0,
+				    l2fhdr->l2_fhdr_vlan_tag, continue);
 #else
-			m0->m_pkthdr.ether_vtag = l2fhdr->l2_fhdr_vlan_tag;
-			m0->m_flags |= M_VLANTAG;
+				m0->m_pkthdr.ether_vtag =
+				    l2fhdr->l2_fhdr_vlan_tag;
+				m0->m_flags |= M_VLANTAG;
 #endif
+			} else {
+				/*
+				 * bce(4) controllers can't disable VLAN
+				 * tag stripping if management firmware
+				 * (ASF/IPMI/UMP) is running. So we always
+				 * strip VLAN tag and manually reconstruct
+				 * the VLAN frame by appending stripped
+				 * VLAN tag in driver if VLAN tag stripping
+				 * was disabled.
+				 *
+				 * TODO: LLC SNAP handling.
+				 */
+				bcopy(mtod(m0, uint8_t *),
+				    mtod(m0, uint8_t *) - ETHER_VLAN_ENCAP_LEN,
+				    ETHER_ADDR_LEN * 2);
+				m0->m_data -= ETHER_VLAN_ENCAP_LEN;
+				vh = mtod(m0, struct ether_vlan_header *);
+				vh->evl_encap_proto = htons(ETHERTYPE_VLAN);
+				vh->evl_tag = htons(l2fhdr->l2_fhdr_vlan_tag);
+				m0->m_pkthdr.len += ETHER_VLAN_ENCAP_LEN;
+				m0->m_len += ETHER_VLAN_ENCAP_LEN;
+			}
 		}
 
 		/* Increment received packet statistics. */
@@ -6200,8 +6255,8 @@ bce_rx_int_next_rx:
 #endif
 
 	DBPRINT(sc, BCE_EXTREME_RECV, "%s(exit): rx_prod = 0x%04X, "
-		"rx_cons = 0x%04X, rx_prod_bseq = 0x%08X\n",
-		__FUNCTION__, sc->rx_prod, sc->rx_cons, sc->rx_prod_bseq);
+	    "rx_cons = 0x%04X, rx_prod_bseq = 0x%08X\n",
+	    __FUNCTION__, sc->rx_prod, sc->rx_cons, sc->rx_prod_bseq);
 	DBEXIT(BCE_VERBOSE_RECV | BCE_VERBOSE_INTR);
 }
 
@@ -6242,8 +6297,8 @@ bce_tx_intr(struct bce_softc *sc)
 	DBENTER(BCE_VERBOSE_SEND | BCE_VERBOSE_INTR);
 	DBRUN(sc->tx_interrupts++);
 	DBPRINT(sc, BCE_EXTREME_SEND, "%s(enter): tx_prod = 0x%04X, "
-		"tx_cons = 0x%04X, tx_prod_bseq = 0x%08X\n",
-		__FUNCTION__, sc->tx_prod, sc->tx_cons, sc->tx_prod_bseq);
+	    "tx_cons = 0x%04X, tx_prod_bseq = 0x%08X\n",
+	    __FUNCTION__, sc->tx_prod, sc->tx_cons, sc->tx_prod_bseq);
 
 	BCE_LOCK_ASSERT(sc);
 
@@ -6253,7 +6308,7 @@ bce_tx_intr(struct bce_softc *sc)
 
 	/* Prevent speculative reads from getting ahead of the status block. */
 	bus_space_barrier(sc->bce_btag, sc->bce_bhandle, 0, 0,
-		BUS_SPACE_BARRIER_READ);
+	    BUS_SPACE_BARRIER_READ);
 
 	/* Cycle through any completed TX chain page entries. */
 	while (sw_tx_cons != hw_tx_cons) {
@@ -6263,26 +6318,26 @@ bce_tx_intr(struct bce_softc *sc)
 		sw_tx_chain_cons = TX_CHAIN_IDX(sw_tx_cons);
 
 		DBPRINT(sc, BCE_INFO_SEND,
-			"%s(): hw_tx_cons = 0x%04X, sw_tx_cons = 0x%04X, "
-			"sw_tx_chain_cons = 0x%04X\n",
-			__FUNCTION__, hw_tx_cons, sw_tx_cons, sw_tx_chain_cons);
+		    "%s(): hw_tx_cons = 0x%04X, sw_tx_cons = 0x%04X, "
+		    "sw_tx_chain_cons = 0x%04X\n",
+		    __FUNCTION__, hw_tx_cons, sw_tx_cons, sw_tx_chain_cons);
 
 		DBRUNIF((sw_tx_chain_cons > MAX_TX_BD),
-			BCE_PRINTF("%s(%d): TX chain consumer out of range! "
-				" 0x%04X > 0x%04X\n", __FILE__, __LINE__, sw_tx_chain_cons,
-				(int) MAX_TX_BD);
-			bce_breakpoint(sc));
+		    BCE_PRINTF("%s(%d): TX chain consumer out of range! "
+		    " 0x%04X > 0x%04X\n", __FILE__, __LINE__, sw_tx_chain_cons,
+		    (int) MAX_TX_BD);
+		    bce_breakpoint(sc));
 
 		DBRUN(txbd = &sc->tx_bd_chain[TX_PAGE(sw_tx_chain_cons)]
-				[TX_IDX(sw_tx_chain_cons)]);
+		    [TX_IDX(sw_tx_chain_cons)]);
 
 		DBRUNIF((txbd == NULL),
-			BCE_PRINTF("%s(%d): Unexpected NULL tx_bd[0x%04X]!\n",
-				__FILE__, __LINE__, sw_tx_chain_cons);
-			bce_breakpoint(sc));
+		    BCE_PRINTF("%s(%d): Unexpected NULL tx_bd[0x%04X]!\n",
+		    __FILE__, __LINE__, sw_tx_chain_cons);
+		    bce_breakpoint(sc));
 
 		DBRUNMSG(BCE_INFO_SEND, BCE_PRINTF("%s(): ", __FUNCTION__);
-			bce_dump_txbd(sc, sw_tx_chain_cons, txbd));
+		    bce_dump_txbd(sc, sw_tx_chain_cons, txbd));
 
 		/*
 		 * Free the associated mbuf. Remember
@@ -6293,13 +6348,14 @@ bce_tx_intr(struct bce_softc *sc)
 
 			/* Validate that this is the last tx_bd. */
 			DBRUNIF((!(txbd->tx_bd_flags & TX_BD_FLAGS_END)),
-				BCE_PRINTF("%s(%d): tx_bd END flag not set but "
-				"txmbuf == NULL!\n", __FILE__, __LINE__);
-				bce_breakpoint(sc));
+			    BCE_PRINTF("%s(%d): tx_bd END flag not set but "
+			    "txmbuf == NULL!\n", __FILE__, __LINE__);
+			    bce_breakpoint(sc));
 
 			DBRUNMSG(BCE_INFO_SEND,
-				BCE_PRINTF("%s(): Unloading map/freeing mbuf "
-					"from tx_bd[0x%04X]\n", __FUNCTION__, sw_tx_chain_cons));
+			    BCE_PRINTF("%s(): Unloading map/freeing mbuf "
+			    "from tx_bd[0x%04X]\n", __FUNCTION__, 
+			    sw_tx_chain_cons));
 
 			/* Unmap the mbuf. */
 			bus_dmamap_unload(sc->tx_mbuf_tag,
@@ -6319,9 +6375,9 @@ bce_tx_intr(struct bce_softc *sc)
 		/* Refresh hw_cons to see if there's new work. */
 		hw_tx_cons = sc->hw_tx_cons = bce_get_hw_tx_cons(sc);
 
-		/* Prevent speculative reads from getting ahead of the status block. */
+		/* Prevent speculative reads of the status block. */
 		bus_space_barrier(sc->bce_btag, sc->bce_bhandle, 0, 0,
-			BUS_SPACE_BARRIER_READ);
+		    BUS_SPACE_BARRIER_READ);
 	}
 
 	/* Clear the TX timeout timer. */
@@ -6330,17 +6386,17 @@ bce_tx_intr(struct bce_softc *sc)
 	/* Clear the tx hardware queue full flag. */
 	if (sc->used_tx_bd < sc->max_tx_bd) {
 		DBRUNIF((ifp->if_drv_flags & IFF_DRV_OACTIVE),
-			DBPRINT(sc, BCE_INFO_SEND,
-				"%s(): Open TX chain! %d/%d (used/total)\n",
-				__FUNCTION__, sc->used_tx_bd, sc->max_tx_bd));
+		    DBPRINT(sc, BCE_INFO_SEND,
+		    "%s(): Open TX chain! %d/%d (used/total)\n",
+		    __FUNCTION__, sc->used_tx_bd, sc->max_tx_bd));
 		ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 	}
 
 	sc->tx_cons = sw_tx_cons;
 
 	DBPRINT(sc, BCE_EXTREME_SEND, "%s(exit): tx_prod = 0x%04X, "
-		"tx_cons = 0x%04X, tx_prod_bseq = 0x%08X\n",
-		__FUNCTION__, sc->tx_prod, sc->tx_cons, sc->tx_prod_bseq);
+	    "tx_cons = 0x%04X, tx_prod_bseq = 0x%08X\n",
+	    __FUNCTION__, sc->tx_prod, sc->tx_cons, sc->tx_prod_bseq);
 	DBEXIT(BCE_VERBOSE_SEND | BCE_VERBOSE_INTR);
 }
 
@@ -6375,11 +6431,11 @@ bce_enable_intr(struct bce_softc *sc, int coal_now)
 	DBENTER(BCE_VERBOSE_INTR);
 
 	REG_WR(sc, BCE_PCICFG_INT_ACK_CMD,
-	       BCE_PCICFG_INT_ACK_CMD_INDEX_VALID |
-	       BCE_PCICFG_INT_ACK_CMD_MASK_INT | sc->last_status_idx);
+	    BCE_PCICFG_INT_ACK_CMD_INDEX_VALID |
+	    BCE_PCICFG_INT_ACK_CMD_MASK_INT | sc->last_status_idx);
 
 	REG_WR(sc, BCE_PCICFG_INT_ACK_CMD,
-	       BCE_PCICFG_INT_ACK_CMD_INDEX_VALID | sc->last_status_idx);
+	    BCE_PCICFG_INT_ACK_CMD_INDEX_VALID | sc->last_status_idx);
 
 	/* Force an immediate interrupt (whether there is new data or not). */
 	if (coal_now)
@@ -6415,19 +6471,19 @@ bce_init_locked(struct bce_softc *sc)
 
 	if (bce_reset(sc, BCE_DRV_MSG_CODE_RESET)) {
 		BCE_PRINTF("%s(%d): Controller reset failed!\n",
-			__FILE__, __LINE__);
+		    __FILE__, __LINE__);
 		goto bce_init_locked_exit;
 	}
 
 	if (bce_chipinit(sc)) {
 		BCE_PRINTF("%s(%d): Controller initialization failed!\n",
-			__FILE__, __LINE__);
+		    __FILE__, __LINE__);
 		goto bce_init_locked_exit;
 	}
 
 	if (bce_blockinit(sc)) {
 		BCE_PRINTF("%s(%d): Block initialization failed!\n",
-			__FILE__, __LINE__);
+		    __FILE__, __LINE__);
 		goto bce_init_locked_exit;
 	}
 
@@ -6440,8 +6496,10 @@ bce_init_locked(struct bce_softc *sc)
 	 * size. Be generous on the receive if we have room.
 	 */
 #ifdef BCE_JUMBO_HDRSPLIT
-	if (ifp->if_mtu <= (sc->rx_bd_mbuf_data_len + sc->pg_bd_mbuf_alloc_size))
-		ether_mtu = sc->rx_bd_mbuf_data_len + sc->pg_bd_mbuf_alloc_size;
+	if (ifp->if_mtu <= (sc->rx_bd_mbuf_data_len + 
+	    sc->pg_bd_mbuf_alloc_size))
+		ether_mtu = sc->rx_bd_mbuf_data_len + 
+		    sc->pg_bd_mbuf_alloc_size;
 #else
 	if (ifp->if_mtu <= sc->rx_bd_mbuf_data_len)
 		ether_mtu = sc->rx_bd_mbuf_data_len;
@@ -6451,29 +6509,29 @@ bce_init_locked(struct bce_softc *sc)
 
 	ether_mtu += ETHER_HDR_LEN + ETHER_VLAN_ENCAP_LEN + ETHER_CRC_LEN;
 
-	DBPRINT(sc, BCE_INFO_MISC, "%s(): setting h/w mtu = %d\n", __FUNCTION__,
-		ether_mtu);
+	DBPRINT(sc, BCE_INFO_MISC, "%s(): setting h/w mtu = %d\n", 
+	    __FUNCTION__, ether_mtu);
 
 	/* Program the mtu, enabling jumbo frame support if necessary. */
 	if (ether_mtu > (ETHER_MAX_LEN + ETHER_VLAN_ENCAP_LEN))
 		REG_WR(sc, BCE_EMAC_RX_MTU_SIZE,
-			min(ether_mtu, BCE_MAX_JUMBO_ETHER_MTU) |
-			BCE_EMAC_RX_MTU_SIZE_JUMBO_ENA);
+		    min(ether_mtu, BCE_MAX_JUMBO_ETHER_MTU) |
+		    BCE_EMAC_RX_MTU_SIZE_JUMBO_ENA);
 	else
 		REG_WR(sc, BCE_EMAC_RX_MTU_SIZE, ether_mtu);
 
 	DBPRINT(sc, BCE_INFO_LOAD,
-		"%s(): rx_bd_mbuf_alloc_size = %d, rx_bce_mbuf_data_len = %d, "
-		"rx_bd_mbuf_align_pad = %d\n", __FUNCTION__, 
-		sc->rx_bd_mbuf_alloc_size, sc->rx_bd_mbuf_data_len,
-		sc->rx_bd_mbuf_align_pad);
+	    "%s(): rx_bd_mbuf_alloc_size = %d, rx_bce_mbuf_data_len = %d, "
+	    "rx_bd_mbuf_align_pad = %d\n", __FUNCTION__, 
+	    sc->rx_bd_mbuf_alloc_size, sc->rx_bd_mbuf_data_len,
+	    sc->rx_bd_mbuf_align_pad);
 
 	/* Program appropriate promiscuous/multicast filtering. */
 	bce_set_rx_mode(sc);
 
 #ifdef BCE_JUMBO_HDRSPLIT
 	DBPRINT(sc, BCE_INFO_LOAD, "%s(): pg_bd_mbuf_alloc_size = %d\n",
-		__FUNCTION__, sc->pg_bd_mbuf_alloc_size);
+	    __FUNCTION__, sc->pg_bd_mbuf_alloc_size);
 
 	/* Init page buffer descriptor chain. */
 	bce_init_pg_chain(sc);
@@ -6520,7 +6578,7 @@ bce_mgmt_init_locked(struct bce_softc *sc)
 	/* Bail out if management firmware is not running. */
 	if (!(sc->bce_flags & BCE_MFW_ENABLE_FLAG)) {
 		DBPRINT(sc, BCE_VERBOSE_SPECIAL,
-			"No management firmware running...\n");
+		    "No management firmware running...\n");
 		goto bce_mgmt_init_locked_exit;
 	}
 
@@ -6559,6 +6617,110 @@ bce_init(void *xsc)
 }
 
 
+static struct mbuf *
+bce_tso_setup(struct bce_softc *sc, struct mbuf **m_head, u16 *flags)
+{
+	struct mbuf *m;
+	struct ether_header *eh;
+	struct ip *ip;
+	struct tcphdr *th;
+	u16 etype;
+	int hdr_len, ip_hlen = 0, tcp_hlen = 0, ip_len = 0;
+
+	DBRUN(sc->requested_tso_frames++);
+	/* Controller requires to monify mbuf chains. */
+	if (M_WRITABLE(*m_head) == 0) {
+		m = m_dup(*m_head, M_DONTWAIT);
+		m_freem(*m_head);
+		if (m == NULL) {
+			sc->mbuf_alloc_failed_count++;
+			*m_head = NULL;
+			return (NULL);
+		}
+		*m_head = m;
+	}
+	/*
+	 * For TSO the controller needs two pieces of info,
+	 * the MSS and the IP+TCP options length.
+	 */
+	m = m_pullup(*m_head, sizeof(struct ether_header) + sizeof(struct ip));
+	if (m == NULL) {
+		*m_head = NULL;
+		return (NULL);
+	}
+	eh = mtod(m, struct ether_header *);
+	etype = ntohs(eh->ether_type);
+
+	/* Check for supported TSO Ethernet types (only IPv4 for now) */
+	switch (etype) {
+	case ETHERTYPE_IP:
+		ip = (struct ip *)(m->m_data + sizeof(struct ether_header));
+		/* TSO only supported for TCP protocol. */
+		if (ip->ip_p != IPPROTO_TCP) {
+			BCE_PRINTF("%s(%d): TSO enabled for non-TCP frame!.\n",
+			    __FILE__, __LINE__);
+			m_freem(*m_head);
+			*m_head = NULL;
+			return (NULL);
+		}
+
+		/* Get IP header length in bytes (min 20) */
+		ip_hlen = ip->ip_hl << 2;
+		m = m_pullup(*m_head, sizeof(struct ether_header) + ip_hlen +
+		    sizeof(struct tcphdr));
+		if (m == NULL) {
+			*m_head = NULL;
+			return (NULL);
+		}
+
+		/* Get the TCP header length in bytes (min 20) */
+		th = (struct tcphdr *)((caddr_t)ip + ip_hlen);
+		tcp_hlen = (th->th_off << 2);
+
+		/* Make sure all IP/TCP options live in the same buffer. */
+		m = m_pullup(*m_head,  sizeof(struct ether_header)+ ip_hlen +
+		    tcp_hlen);
+		if (m == NULL) {
+			*m_head = NULL;
+			return (NULL);
+		}
+
+		/* IP header length and checksum will be calc'd by hardware */
+		ip_len = ip->ip_len;
+		ip->ip_len = 0;
+		ip->ip_sum = 0;
+		break;
+	case ETHERTYPE_IPV6:
+		BCE_PRINTF("%s(%d): TSO over IPv6 not supported!.\n",
+		    __FILE__, __LINE__);
+		m_freem(*m_head);
+		*m_head = NULL;
+		return (NULL);
+		/* NOT REACHED */
+	default:
+		BCE_PRINTF("%s(%d): TSO enabled for unsupported protocol!.\n",
+		    __FILE__, __LINE__);
+		m_freem(*m_head);
+		*m_head = NULL;
+		return (NULL);
+	}
+
+	hdr_len = sizeof(struct ether_header) + ip_hlen + tcp_hlen;
+
+	DBPRINT(sc, BCE_EXTREME_SEND, "%s(): hdr_len = %d, e_hlen = %d, "
+	    "ip_hlen = %d, tcp_hlen = %d, ip_len = %d\n",
+	    __FUNCTION__, hdr_len, (int) sizeof(struct ether_header), ip_hlen,
+	    tcp_hlen, ip_len);
+
+	/* Set the LSO flag in the TX BD */
+	*flags |= TX_BD_FLAGS_SW_LSO;
+	/* Set the length of IP + TCP options (in 32 bit words) */
+	*flags |= (((ip_hlen + tcp_hlen - sizeof(struct ip) -
+	    sizeof(struct tcphdr)) >> 2) << 8);
+	return (*m_head);
+}
+
+
 /****************************************************************************/
 /* Encapsultes an mbuf cluster into the tx_bd chain structure and makes the */
 /* memory visible to the controller.                                        */
@@ -6575,12 +6737,8 @@ bce_tx_encap(struct bce_softc *sc, struct mbuf **m_head)
 	bus_dmamap_t map;
 	struct tx_bd *txbd = NULL;
 	struct mbuf *m0;
-	struct ether_vlan_header *eh;
-	struct ip *ip;
-	struct tcphdr *th;
-	u16 prod, chain_prod, etype, mss = 0, vlan_tag = 0, flags = 0;
+	u16 prod, chain_prod, mss = 0, vlan_tag = 0, flags = 0;
 	u32 prod_bseq;
-	int hdr_len = 0, e_hlen = 0, ip_hlen = 0, tcp_hlen = 0, ip_len = 0;
 
 #ifdef BCE_DEBUG
 	u16 debug_prod;
@@ -6589,80 +6747,24 @@ bce_tx_encap(struct bce_softc *sc, struct mbuf **m_head)
 
 	DBENTER(BCE_VERBOSE_SEND);
 	DBPRINT(sc, BCE_INFO_SEND,
-		"%s(enter): tx_prod = 0x%04X, tx_chain_prod = %04X, "
-		"tx_prod_bseq = 0x%08X\n",
-		__FUNCTION__, sc->tx_prod, (u16) TX_CHAIN_IDX(sc->tx_prod),
-		sc->tx_prod_bseq);
+	    "%s(enter): tx_prod = 0x%04X, tx_chain_prod = %04X, "
+	    "tx_prod_bseq = 0x%08X\n",
+	    __FUNCTION__, sc->tx_prod, (u16) TX_CHAIN_IDX(sc->tx_prod),
+	    sc->tx_prod_bseq);
 
 	/* Transfer any checksum offload flags to the bd. */
 	m0 = *m_head;
 	if (m0->m_pkthdr.csum_flags) {
-		if (m0->m_pkthdr.csum_flags & CSUM_IP)
-			flags |= TX_BD_FLAGS_IP_CKSUM;
-		if (m0->m_pkthdr.csum_flags & (CSUM_TCP | CSUM_UDP))
-			flags |= TX_BD_FLAGS_TCP_UDP_CKSUM;
 		if (m0->m_pkthdr.csum_flags & CSUM_TSO) {
-			/* For TSO the controller needs two pieces of info, */
-			/* the MSS and the IP+TCP options length.           */
+			m0 = bce_tso_setup(sc, m_head, &flags);
+			if (m0 == NULL)
+				goto bce_tx_encap_exit;
 			mss = htole16(m0->m_pkthdr.tso_segsz);
-
-			/* Map the header and find the Ethernet type & header length */
-			eh = mtod(m0, struct ether_vlan_header *);
-			if (eh->evl_encap_proto == htons(ETHERTYPE_VLAN)) {
-				etype = ntohs(eh->evl_proto);
-				e_hlen = ETHER_HDR_LEN + ETHER_VLAN_ENCAP_LEN;
-			} else {
-				etype = ntohs(eh->evl_encap_proto);
-				e_hlen = ETHER_HDR_LEN;
-			}
-
-			/* Check for supported TSO Ethernet types (only IPv4 for now) */
-			switch (etype) {
-				case ETHERTYPE_IP:
-					ip = (struct ip *)(m0->m_data + e_hlen);
-
-					/* TSO only supported for TCP protocol */
-					if (ip->ip_p != IPPROTO_TCP) {
-						BCE_PRINTF("%s(%d): TSO enabled for non-TCP frame!.\n",
-							__FILE__, __LINE__);
-						goto bce_tx_encap_skip_tso;
-					}
-
-					/* Get IP header length in bytes (min 20) */
-					ip_hlen = ip->ip_hl << 2;
-
-					/* Get the TCP header length in bytes (min 20) */
-					th = (struct tcphdr *)((caddr_t)ip + ip_hlen);
-					tcp_hlen = (th->th_off << 2);
-
-					/* IP header length and checksum will be calc'd by hardware */
-					ip_len = ip->ip_len;
-					ip->ip_len = 0;
-					ip->ip_sum = 0;
-					break;
-				case ETHERTYPE_IPV6:
-					BCE_PRINTF("%s(%d): TSO over IPv6 not supported!.\n",
-						__FILE__, __LINE__);
-					goto bce_tx_encap_skip_tso;
-				default:
-					BCE_PRINTF("%s(%d): TSO enabled for unsupported protocol!.\n",
-						__FILE__, __LINE__);
-					goto bce_tx_encap_skip_tso;
-			}
-
-			hdr_len = e_hlen + ip_hlen + tcp_hlen;
-
-			DBPRINT(sc, BCE_EXTREME_SEND,
-				"%s(): hdr_len = %d, e_hlen = %d, ip_hlen = %d, tcp_hlen = %d, ip_len = %d\n",
-				 __FUNCTION__, hdr_len, e_hlen, ip_hlen, tcp_hlen, ip_len);
-
-			/* Set the LSO flag in the TX BD */
-			flags |= TX_BD_FLAGS_SW_LSO;
-			/* Set the length of IP + TCP options (in 32 bit words) */
-			flags |= (((ip_hlen + tcp_hlen - 40) >> 2) << 8);
-
-bce_tx_encap_skip_tso:
-			DBRUN(sc->requested_tso_frames++);
+		} else {
+			if (m0->m_pkthdr.csum_flags & CSUM_IP)
+				flags |= TX_BD_FLAGS_IP_CKSUM;
+			if (m0->m_pkthdr.csum_flags & (CSUM_TCP | CSUM_UDP))
+				flags |= TX_BD_FLAGS_TCP_UDP_CKSUM;
 		}
 	}
 
@@ -6687,7 +6789,7 @@ bce_tx_encap_skip_tso:
 		sc->fragmented_mbuf_count++;
 
 		/* Try to defrag the mbuf. */
-		m0 = m_defrag(*m_head, M_DONTWAIT);
+		m0 = m_collapse(*m_head, M_DONTWAIT, BCE_MAX_SEGMENTS);
 		if (m0 == NULL) {
 			/* Defrag was unsuccessful */
 			m_freem(*m_head);
@@ -6709,10 +6811,9 @@ bce_tx_encap_skip_tso:
 			rc = error;
 			goto bce_tx_encap_exit;
 		} else if (error != 0) {
-			/* Still can't map the mbuf, release it and return an error. */
-			BCE_PRINTF(
-			    "%s(%d): Unknown error mapping mbuf into TX chain!\n",
-			    __FILE__, __LINE__);
+			/* Release it and return an error. */
+			BCE_PRINTF("%s(%d): Unknown error mapping mbuf into "
+			    "TX chain!\n", __FILE__, __LINE__);
 			m_freem(m0);
 			*m_head = NULL;
 			sc->dma_map_addr_tx_failed_count++;
@@ -6747,9 +6848,9 @@ bce_tx_encap_skip_tso:
 #endif
 
 	DBPRINT(sc, BCE_INFO_SEND,
-		"%s(start): prod = 0x%04X, chain_prod = 0x%04X, "
-		"prod_bseq = 0x%08X\n",
-		__FUNCTION__, prod, chain_prod, prod_bseq);
+	    "%s(start): prod = 0x%04X, chain_prod = 0x%04X, "
+	    "prod_bseq = 0x%08X\n",
+	    __FUNCTION__, prod, chain_prod, prod_bseq);
 
 	/*
 	 * Cycle through each mbuf segment that makes up
@@ -6760,11 +6861,13 @@ bce_tx_encap_skip_tso:
 	for (i = 0; i < nsegs ; i++) {
 
 		chain_prod = TX_CHAIN_IDX(prod);
-		txbd= &sc->tx_bd_chain[TX_PAGE(chain_prod)][TX_IDX(chain_prod)];
+		txbd= &sc->tx_bd_chain[TX_PAGE(chain_prod)]
+		    [TX_IDX(chain_prod)];
 
 		txbd->tx_bd_haddr_lo = htole32(BCE_ADDR_LO(segs[i].ds_addr));
 		txbd->tx_bd_haddr_hi = htole32(BCE_ADDR_HI(segs[i].ds_addr));
-		txbd->tx_bd_mss_nbytes = htole32(mss << 16) | htole16(segs[i].ds_len);
+		txbd->tx_bd_mss_nbytes = htole32(mss << 16) | 
+		    htole16(segs[i].ds_len);
 		txbd->tx_bd_vlan_tag = htole16(vlan_tag);
 		txbd->tx_bd_flags = htole16(flags);
 		prod_bseq += segs[i].ds_len;
@@ -6779,9 +6882,9 @@ bce_tx_encap_skip_tso:
 	DBRUNMSG(BCE_EXTREME_SEND, bce_dump_tx_chain(sc, debug_prod, nsegs));
 
 	DBPRINT(sc, BCE_INFO_SEND,
-		"%s( end ): prod = 0x%04X, chain_prod = 0x%04X, "
-		"prod_bseq = 0x%08X\n",
-		__FUNCTION__, prod, chain_prod, prod_bseq);
+	    "%s( end ): prod = 0x%04X, chain_prod = 0x%04X, "
+	    "prod_bseq = 0x%08X\n",
+	    __FUNCTION__, prod, chain_prod, prod_bseq);
 
 	/*
 	 * Ensure that the mbuf pointer for this transmission
@@ -6797,7 +6900,7 @@ bce_tx_encap_skip_tso:
 
 	/* Update some debug statistic counters */
 	DBRUNIF((sc->used_tx_bd > sc->tx_hi_watermark),
-		sc->tx_hi_watermark = sc->used_tx_bd);
+	    sc->tx_hi_watermark = sc->used_tx_bd);
 	DBRUNIF((sc->used_tx_bd == sc->max_tx_bd), sc->tx_full_count++);
 	DBRUNIF(sc->debug_tx_mbuf_alloc++);
 
@@ -6808,10 +6911,10 @@ bce_tx_encap_skip_tso:
 	sc->tx_prod_bseq = prod_bseq;
 
 	DBPRINT(sc, BCE_INFO_SEND,
-		"%s(exit): prod = 0x%04X, chain_prod = %04X, "
-		"prod_bseq = 0x%08X\n",
-		__FUNCTION__, sc->tx_prod, (u16) TX_CHAIN_IDX(sc->tx_prod),
-		sc->tx_prod_bseq);
+	    "%s(exit): prod = 0x%04X, chain_prod = %04X, "
+	    "prod_bseq = 0x%08X\n", __FUNCTION__, 
+	    sc->tx_prod, (u16) TX_CHAIN_IDX(sc->tx_prod),
+	    sc->tx_prod_bseq);
 
 bce_tx_encap_exit:
 	DBEXIT(BCE_VERBOSE_SEND);
@@ -6842,20 +6945,20 @@ bce_start_locked(struct ifnet *ifp)
 	tx_chain_prod = TX_CHAIN_IDX(tx_prod);
 
 	DBPRINT(sc, BCE_INFO_SEND,
-		"%s(enter): tx_prod = 0x%04X, tx_chain_prod = 0x%04X, "
-		"tx_prod_bseq = 0x%08X\n",
-		__FUNCTION__, tx_prod, tx_chain_prod, sc->tx_prod_bseq);
+	    "%s(enter): tx_prod = 0x%04X, tx_chain_prod = 0x%04X, "
+	    "tx_prod_bseq = 0x%08X\n",
+	    __FUNCTION__, tx_prod, tx_chain_prod, sc->tx_prod_bseq);
 
 	/* If there's no link or the transmit queue is empty then just exit. */
-	if (!sc->bce_link) {
+	if (sc->bce_link_up == FALSE) {
 		DBPRINT(sc, BCE_INFO_SEND, "%s(): No link.\n",
-			__FUNCTION__);
+		    __FUNCTION__);
 		goto bce_start_locked_exit;
 	}
 
 	if (IFQ_DRV_IS_EMPTY(&ifp->if_snd)) {
 		DBPRINT(sc, BCE_INFO_SEND, "%s(): Transmit queue empty.\n",
-			__FUNCTION__);
+		    __FUNCTION__);
 		goto bce_start_locked_exit;
 	}
 
@@ -6878,13 +6981,12 @@ bce_start_locked(struct ifnet *ifp)
 		 * to wait for the NIC to drain the chain.
 		 */
 		if (bce_tx_encap(sc, &m_head)) {
-			/* No room, put the frame back on the transmit queue. */
 			if (m_head != NULL)
 				IFQ_DRV_PREPEND(&ifp->if_snd, m_head);
 			ifp->if_drv_flags |= IFF_DRV_OACTIVE;
 			DBPRINT(sc, BCE_INFO_SEND,
-				"TX chain is closed for business! Total tx_bd used = %d\n",
-				sc->used_tx_bd);
+			    "TX chain is closed for business! Total "
+			    "tx_bd used = %d\n", sc->used_tx_bd);
 			break;
 		}
 
@@ -6896,26 +6998,29 @@ bce_start_locked(struct ifnet *ifp)
 
 	/* Exit if no packets were dequeued. */
 	if (count == 0) {
-		DBPRINT(sc, BCE_VERBOSE_SEND, "%s(): No packets were dequeued\n",
-			__FUNCTION__);
+		DBPRINT(sc, BCE_VERBOSE_SEND, "%s(): No packets were "
+		    "dequeued\n", __FUNCTION__);
 		goto bce_start_locked_exit;
 	}
 
-	DBPRINT(sc, BCE_VERBOSE_SEND, "%s(): Inserted %d frames into send queue.\n",
-		__FUNCTION__, count);
+	DBPRINT(sc, BCE_VERBOSE_SEND, "%s(): Inserted %d frames into "
+	    "send queue.\n", __FUNCTION__, count);
 
-	REG_WR(sc, BCE_MQ_COMMAND, REG_RD(sc, BCE_MQ_COMMAND) | BCE_MQ_COMMAND_NO_MAP_ERROR);
+	REG_WR(sc, BCE_MQ_COMMAND, REG_RD(sc, BCE_MQ_COMMAND) | 
+	    BCE_MQ_COMMAND_NO_MAP_ERROR);
 
 	/* Write the mailbox and tell the chip about the waiting tx_bd's. */
-	DBPRINT(sc, BCE_VERBOSE_SEND, "%s(): MB_GET_CID_ADDR(TX_CID) = 0x%08X; "
-		"BCE_L2MQ_TX_HOST_BIDX = 0x%08X, sc->tx_prod = 0x%04X\n",
-		__FUNCTION__,
-		MB_GET_CID_ADDR(TX_CID), BCE_L2MQ_TX_HOST_BIDX, sc->tx_prod);
-	REG_WR16(sc, MB_GET_CID_ADDR(TX_CID) + BCE_L2MQ_TX_HOST_BIDX, sc->tx_prod);
-	DBPRINT(sc, BCE_VERBOSE_SEND, "%s(): MB_GET_CID_ADDR(TX_CID) = 0x%08X; "
-		"BCE_L2MQ_TX_HOST_BSEQ = 0x%08X, sc->tx_prod_bseq = 0x%04X\n",
-		__FUNCTION__,
-		MB_GET_CID_ADDR(TX_CID), BCE_L2MQ_TX_HOST_BSEQ, sc->tx_prod_bseq);
+	DBPRINT(sc, BCE_VERBOSE_SEND, "%s(): MB_GET_CID_ADDR(TX_CID) = "
+	    "0x%08X; BCE_L2MQ_TX_HOST_BIDX = 0x%08X, sc->tx_prod = 0x%04X\n",
+	    __FUNCTION__, MB_GET_CID_ADDR(TX_CID), 
+	    BCE_L2MQ_TX_HOST_BIDX, sc->tx_prod);
+	REG_WR16(sc, MB_GET_CID_ADDR(TX_CID) + 
+	    BCE_L2MQ_TX_HOST_BIDX, sc->tx_prod);
+
+	DBPRINT(sc, BCE_VERBOSE_SEND, "%s(): MB_GET_CID_ADDR(TX_CID) = "
+	    "0x%08X; BCE_L2MQ_TX_HOST_BSEQ = 0x%08X, sc->tx_prod_bseq = "
+	    "0x%04X\n",	__FUNCTION__, MB_GET_CID_ADDR(TX_CID), 
+	    BCE_L2MQ_TX_HOST_BSEQ, sc->tx_prod_bseq);
 	REG_WR(sc, MB_GET_CID_ADDR(TX_CID) + BCE_L2MQ_TX_HOST_BSEQ, sc->tx_prod_bseq);
 
 	/* Set the tx timeout. */
@@ -6963,161 +7068,178 @@ bce_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 	struct bce_softc *sc = ifp->if_softc;
 	struct ifreq *ifr = (struct ifreq *) data;
 	struct mii_data *mii;
-	int mask, error = 0;
+	int mask, error = 0, reinit;
 
 	DBENTER(BCE_VERBOSE_MISC);
 
 	switch(command) {
 
-		/* Set the interface MTU. */
-		case SIOCSIFMTU:
-			/* Check that the MTU setting is supported. */
-			if ((ifr->ifr_mtu < BCE_MIN_MTU) ||
-				(ifr->ifr_mtu > BCE_MAX_JUMBO_MTU)) {
-				error = EINVAL;
-				break;
-			}
+	/* Set the interface MTU. */
+	case SIOCSIFMTU:
+		/* Check that the MTU setting is supported. */
+		if ((ifr->ifr_mtu < BCE_MIN_MTU) ||
+			(ifr->ifr_mtu > BCE_MAX_JUMBO_MTU)) {
+			error = EINVAL;
+			break;
+		}
 
-			DBPRINT(sc, BCE_INFO_MISC,
-				"SIOCSIFMTU: Changing MTU from %d to %d\n",
-				(int) ifp->if_mtu, (int) ifr->ifr_mtu);
+		DBPRINT(sc, BCE_INFO_MISC,
+		    "SIOCSIFMTU: Changing MTU from %d to %d\n",
+		    (int) ifp->if_mtu, (int) ifr->ifr_mtu);
 
-			BCE_LOCK(sc);
-			ifp->if_mtu = ifr->ifr_mtu;
-			ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
+		BCE_LOCK(sc);
+		ifp->if_mtu = ifr->ifr_mtu;
+		reinit = 0;
+		if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
+			/*
+			 * Because allocation size is used in RX
+			 * buffer allocation, stop controller if
+			 * it is already running.
+			 */
+			bce_stop(sc);
+			reinit = 1;
+		}
 #ifdef BCE_JUMBO_HDRSPLIT
-			/* No buffer allocation size changes are necessary. */
+		/* No buffer allocation size changes are necessary. */
 #else
-			/* Recalculate our buffer allocation sizes. */
-			if ((ifp->if_mtu + ETHER_HDR_LEN + ETHER_VLAN_ENCAP_LEN + ETHER_CRC_LEN) > MCLBYTES) {
-				sc->rx_bd_mbuf_alloc_size = MJUM9BYTES;
-				sc->rx_bd_mbuf_align_pad  = roundup2(MJUM9BYTES, 16) - MJUM9BYTES;
-				sc->rx_bd_mbuf_data_len   = sc->rx_bd_mbuf_alloc_size -
-					sc->rx_bd_mbuf_align_pad;
-			} else {
-				sc->rx_bd_mbuf_alloc_size = MCLBYTES;
-				sc->rx_bd_mbuf_align_pad  = roundup2(MCLBYTES, 16) - MCLBYTES;
-				sc->rx_bd_mbuf_data_len   = sc->rx_bd_mbuf_alloc_size -
-					sc->rx_bd_mbuf_align_pad;
-			}
+		/* Recalculate our buffer allocation sizes. */
+		if ((ifp->if_mtu + ETHER_HDR_LEN + ETHER_VLAN_ENCAP_LEN + 
+		     ETHER_CRC_LEN) > MCLBYTES) {
+			sc->rx_bd_mbuf_alloc_size = MJUM9BYTES;
+			sc->rx_bd_mbuf_align_pad  = 
+			    roundup2(MJUM9BYTES, 16) - MJUM9BYTES;
+			sc->rx_bd_mbuf_data_len = 
+			    sc->rx_bd_mbuf_alloc_size -
+			    sc->rx_bd_mbuf_align_pad;
+		} else {
+			sc->rx_bd_mbuf_alloc_size = MCLBYTES;
+			sc->rx_bd_mbuf_align_pad  = 
+			    roundup2(MCLBYTES, 16) - MCLBYTES;
+			sc->rx_bd_mbuf_data_len = 
+			    sc->rx_bd_mbuf_alloc_size -
+			    sc->rx_bd_mbuf_align_pad;
+		}
 #endif
 
+		if (reinit != 0)
 			bce_init_locked(sc);
-			BCE_UNLOCK(sc);
-			break;
+		BCE_UNLOCK(sc);
+		break;
 
-		/* Set interface flags. */
-		case SIOCSIFFLAGS:
-			DBPRINT(sc, BCE_VERBOSE_SPECIAL, "Received SIOCSIFFLAGS\n");
+	/* Set interface flags. */
+	case SIOCSIFFLAGS:
+		DBPRINT(sc, BCE_VERBOSE_SPECIAL, "Received SIOCSIFFLAGS\n");
 
-			BCE_LOCK(sc);
+		BCE_LOCK(sc);
 
-			/* Check if the interface is up. */
-			if (ifp->if_flags & IFF_UP) {
-				if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
-					/* Change promiscuous/multicast flags as necessary. */
-					bce_set_rx_mode(sc);
-				} else {
-					/* Start the HW */
-					bce_init_locked(sc);
-				}
-			} else {
-				/* The interface is down, check if driver is running. */
-				if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
-					bce_stop(sc);
-
-					/* If MFW is running, restart the controller a bit. */
-					if (sc->bce_flags & BCE_MFW_ENABLE_FLAG) {
-						bce_reset(sc, BCE_DRV_MSG_CODE_RESET);
-						bce_chipinit(sc);
-						bce_mgmt_init_locked(sc);
-					}
-				}
-			}
-
-			BCE_UNLOCK(sc);
-			error = 0;
-
-			break;
-
-		/* Add/Delete multicast address */
-		case SIOCADDMULTI:
-		case SIOCDELMULTI:
-			DBPRINT(sc, BCE_VERBOSE_MISC, "Received SIOCADDMULTI/SIOCDELMULTI\n");
-
-			BCE_LOCK(sc);
+		/* Check if the interface is up. */
+		if (ifp->if_flags & IFF_UP) {
 			if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
+				/* Change promiscuous/multicast flags as necessary. */
 				bce_set_rx_mode(sc);
-				error = 0;
+			} else {
+				/* Start the HW */
+				bce_init_locked(sc);
 			}
-			BCE_UNLOCK(sc);
+		} else {
+			/* The interface is down, check if driver is running. */
+			if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
+				bce_stop(sc);
 
-			break;
-
-		/* Set/Get Interface media */
-		case SIOCSIFMEDIA:
-		case SIOCGIFMEDIA:
-			DBPRINT(sc, BCE_VERBOSE_MISC, "Received SIOCSIFMEDIA/SIOCGIFMEDIA\n");
-
-			mii = device_get_softc(sc->bce_miibus);
-			error = ifmedia_ioctl(ifp, ifr,
-			    &mii->mii_media, command);
-			break;
-
-		/* Set interface capability */
-		case SIOCSIFCAP:
-			mask = ifr->ifr_reqcap ^ ifp->if_capenable;
-			DBPRINT(sc, BCE_INFO_MISC, "Received SIOCSIFCAP = 0x%08X\n", (u32) mask);
-
-			/* Toggle the TX checksum capabilites enable flag. */
-			if (mask & IFCAP_TXCSUM) {
-				ifp->if_capenable ^= IFCAP_TXCSUM;
-				if (IFCAP_TXCSUM & ifp->if_capenable)
-					ifp->if_hwassist = BCE_IF_HWASSIST;
-				else
-					ifp->if_hwassist = 0;
+				/* If MFW is running, restart the controller a bit. */
+				if (sc->bce_flags & BCE_MFW_ENABLE_FLAG) {
+					bce_reset(sc, BCE_DRV_MSG_CODE_RESET);
+					bce_chipinit(sc);
+					bce_mgmt_init_locked(sc);
+				}
 			}
+		}
 
-			/* Toggle the RX checksum capabilities enable flag. */
-			if (mask & IFCAP_RXCSUM) {
-				ifp->if_capenable ^= IFCAP_RXCSUM;
-				if (IFCAP_RXCSUM & ifp->if_capenable)
-					ifp->if_hwassist = BCE_IF_HWASSIST;
-				else
-					ifp->if_hwassist = 0;
-			}
+		BCE_UNLOCK(sc);
+		break;
 
-			/* Toggle the TSO capabilities enable flag. */
-			if (bce_tso_enable && (mask & IFCAP_TSO4)) {
-				ifp->if_capenable ^= IFCAP_TSO4;
-				if (IFCAP_RXCSUM & ifp->if_capenable)
-					ifp->if_hwassist = BCE_IF_HWASSIST;
-				else
-					ifp->if_hwassist = 0;
-			}
+	/* Add/Delete multicast address */
+	case SIOCADDMULTI:
+	case SIOCDELMULTI:
+		DBPRINT(sc, BCE_VERBOSE_MISC, 
+		    "Received SIOCADDMULTI/SIOCDELMULTI\n");
 
-			/* Toggle VLAN_MTU capabilities enable flag. */
-			if (mask & IFCAP_VLAN_MTU) {
-				BCE_PRINTF("%s(%d): Changing VLAN_MTU not supported.\n",
-					__FILE__, __LINE__);
-			}
+		BCE_LOCK(sc);
+		if (ifp->if_drv_flags & IFF_DRV_RUNNING)
+			bce_set_rx_mode(sc);
+		BCE_UNLOCK(sc);
 
-			/* Toggle VLANHWTAG capabilities enabled flag. */
-			if (mask & IFCAP_VLAN_HWTAGGING) {
-				if (sc->bce_flags & BCE_MFW_ENABLE_FLAG)
-					BCE_PRINTF("%s(%d): Cannot change VLAN_HWTAGGING while "
-						"management firmware (ASF/IPMI/UMP) is running!\n",
-						__FILE__, __LINE__);
-				else
-					BCE_PRINTF("%s(%d): Changing VLAN_HWTAGGING not supported!\n",
-						__FILE__, __LINE__);
-			}
+		break;
 
-			break;
-		default:
-			/* We don't know how to handle the IOCTL, pass it on. */
-			error = ether_ioctl(ifp, command, data);
-			break;
+	/* Set/Get Interface media */
+	case SIOCSIFMEDIA:
+	case SIOCGIFMEDIA:
+		DBPRINT(sc, BCE_VERBOSE_MISC, 
+		    "Received SIOCSIFMEDIA/SIOCGIFMEDIA\n");
+
+		mii = device_get_softc(sc->bce_miibus);
+		error = ifmedia_ioctl(ifp, ifr,
+		    &mii->mii_media, command);
+		break;
+
+	/* Set interface capability */
+	case SIOCSIFCAP:
+		mask = ifr->ifr_reqcap ^ ifp->if_capenable;
+		DBPRINT(sc, BCE_INFO_MISC, 
+		    "Received SIOCSIFCAP = 0x%08X\n", (u32) mask);
+
+		/* Toggle the TX checksum capabilities enable flag. */
+		if (mask & IFCAP_TXCSUM &&
+		    ifp->if_capabilities & IFCAP_TXCSUM) {
+			ifp->if_capenable ^= IFCAP_TXCSUM;
+			if (IFCAP_TXCSUM & ifp->if_capenable)
+				ifp->if_hwassist |= BCE_IF_HWASSIST;
+			else
+				ifp->if_hwassist &= ~BCE_IF_HWASSIST;
+		}
+
+		/* Toggle the RX checksum capabilities enable flag. */
+		if (mask & IFCAP_RXCSUM &&
+		    ifp->if_capabilities & IFCAP_RXCSUM)
+			ifp->if_capenable ^= IFCAP_RXCSUM;
+
+		/* Toggle the TSO capabilities enable flag. */
+		if (bce_tso_enable && (mask & IFCAP_TSO4) &&
+		    ifp->if_capabilities & IFCAP_TSO4) {
+			ifp->if_capenable ^= IFCAP_TSO4;
+			if (IFCAP_TSO4 & ifp->if_capenable)
+				ifp->if_hwassist |= CSUM_TSO;
+			else
+				ifp->if_hwassist &= ~CSUM_TSO;
+		}
+
+		if (mask & IFCAP_VLAN_HWCSUM &&
+		    ifp->if_capabilities & IFCAP_VLAN_HWCSUM)
+			ifp->if_capenable ^= IFCAP_VLAN_HWCSUM;
+
+		if ((mask & IFCAP_VLAN_HWTSO) != 0 &&
+		    (ifp->if_capabilities & IFCAP_VLAN_HWTSO) != 0)
+			ifp->if_capenable ^= IFCAP_VLAN_HWTSO;
+		/*
+		 * Don't actually disable VLAN tag stripping as
+		 * management firmware (ASF/IPMI/UMP) requires the
+		 * feature. If VLAN tag stripping is disabled driver
+		 * will manually reconstruct the VLAN frame by
+		 * appending stripped VLAN tag.
+		 */
+		if ((mask & IFCAP_VLAN_HWTAGGING) != 0 &&
+		    (ifp->if_capabilities & IFCAP_VLAN_HWTAGGING)) {
+			ifp->if_capenable ^= IFCAP_VLAN_HWTAGGING;
+			if ((ifp->if_capenable & IFCAP_VLAN_HWTAGGING)
+			    == 0)
+				ifp->if_capenable &= ~IFCAP_VLAN_HWTSO;
+		}
+		VLAN_CAPABILITIES(ifp);
+		break;
+	default:
+		/* We don't know how to handle the IOCTL, pass it on. */
+		error = ether_ioctl(ifp, command, data);
+		break;
 	}
 
 	DBEXIT(BCE_VERBOSE_MISC);
@@ -7151,15 +7273,15 @@ bce_watchdog(struct bce_softc *sc)
 		__FILE__, __LINE__);
 
 	DBRUNMSG(BCE_INFO,
-		bce_dump_driver_state(sc);
-		bce_dump_status_block(sc);
-		bce_dump_stats_block(sc);
-		bce_dump_ftqs(sc);
-		bce_dump_txp_state(sc, 0);
-		bce_dump_rxp_state(sc, 0);
-		bce_dump_tpat_state(sc, 0);
-		bce_dump_cp_state(sc, 0);
-		bce_dump_com_state(sc, 0));
+	    bce_dump_driver_state(sc);
+	    bce_dump_status_block(sc);
+	    bce_dump_stats_block(sc);
+	    bce_dump_ftqs(sc);
+	    bce_dump_txp_state(sc, 0);
+	    bce_dump_rxp_state(sc, 0);
+	    bce_dump_tpat_state(sc, 0);
+	    bce_dump_cp_state(sc, 0);
+	    bce_dump_com_state(sc, 0));
 
 	DBRUN(bce_breakpoint(sc));
 
@@ -7197,6 +7319,7 @@ bce_intr(void *xsc)
 
 	DBENTER(BCE_VERBOSE_SEND | BCE_VERBOSE_RECV | BCE_VERBOSE_INTR);
 	DBRUNMSG(BCE_VERBOSE_INTR, bce_dump_status_block(sc));
+	DBRUNMSG(BCE_VERBOSE_INTR, bce_dump_stats_block(sc));
 
 	BCE_LOCK(sc);
 
@@ -7213,16 +7336,17 @@ bce_intr(void *xsc)
 	 * interrupt then there's nothing to do.
 	 */
 	if ((sc->status_block->status_idx == sc->last_status_idx) &&
-		(REG_RD(sc, BCE_PCICFG_MISC_STATUS) & BCE_PCICFG_MISC_STATUS_INTA_VALUE)) {
-			DBPRINT(sc, BCE_VERBOSE_INTR, "%s(): Spurious interrupt.\n",
-				__FUNCTION__);
-			goto bce_intr_exit;
+	    (REG_RD(sc, BCE_PCICFG_MISC_STATUS) & 
+	     BCE_PCICFG_MISC_STATUS_INTA_VALUE)) {
+		DBPRINT(sc, BCE_VERBOSE_INTR, "%s(): Spurious interrupt.\n",
+		    __FUNCTION__);
+		goto bce_intr_exit;
 	}
 
 	/* Ack the interrupt and stop others from occuring. */
 	REG_WR(sc, BCE_PCICFG_INT_ACK_CMD,
-		BCE_PCICFG_INT_ACK_CMD_USE_INT_HC_PARAM |
-		BCE_PCICFG_INT_ACK_CMD_MASK_INT);
+	    BCE_PCICFG_INT_ACK_CMD_USE_INT_HC_PARAM |
+	    BCE_PCICFG_INT_ACK_CMD_MASK_INT);
 
 	/* Check if the hardware has finished any work. */
 	hw_rx_cons = bce_get_hw_rx_cons(sc);
@@ -7233,35 +7357,39 @@ bce_intr(void *xsc)
 
 		status_attn_bits = sc->status_block->status_attn_bits;
 
-	DBRUNIF(DB_RANDOMTRUE(unexpected_attention_sim_control),
-		BCE_PRINTF("Simulating unexpected status attention bit set.");
-		sc->unexpected_attention_sim_count++;
-		status_attn_bits = status_attn_bits | STATUS_ATTN_BITS_PARITY_ERROR);
+		DBRUNIF(DB_RANDOMTRUE(unexpected_attention_sim_control),
+		    BCE_PRINTF("Simulating unexpected status attention "
+		    "bit set.");
+		    sc->unexpected_attention_sim_count++;
+		    status_attn_bits = status_attn_bits | 
+		    STATUS_ATTN_BITS_PARITY_ERROR);
 
 		/* Was it a link change interrupt? */
 		if ((status_attn_bits & STATUS_ATTN_BITS_LINK_STATE) !=
-			(sc->status_block->status_attn_bits_ack & STATUS_ATTN_BITS_LINK_STATE)) {
+		    (sc->status_block->status_attn_bits_ack & 
+		     STATUS_ATTN_BITS_LINK_STATE)) {
 			bce_phy_intr(sc);
 
-			/* Clear any transient status updates during link state change. */
-			REG_WR(sc, BCE_HC_COMMAND,
-				sc->hc_command | BCE_HC_COMMAND_COAL_NOW_WO_INT);
+			/* Clear transient updates during link state change. */
+			REG_WR(sc, BCE_HC_COMMAND, sc->hc_command | 
+			    BCE_HC_COMMAND_COAL_NOW_WO_INT);
 			REG_RD(sc, BCE_HC_COMMAND);
 		}
 
-		/* If any other attention is asserted then the chip is toast. */
+		/* If any other attention is asserted, the chip is toast. */
 		if (((status_attn_bits & ~STATUS_ATTN_BITS_LINK_STATE) !=
-			(sc->status_block->status_attn_bits_ack &
-			~STATUS_ATTN_BITS_LINK_STATE))) {
+		    (sc->status_block->status_attn_bits_ack &
+		    ~STATUS_ATTN_BITS_LINK_STATE))) {
 
-		sc->unexpected_attention_count++;
+			sc->unexpected_attention_count++;
 
-			BCE_PRINTF("%s(%d): Fatal attention detected: 0x%08X\n",
-				__FILE__, __LINE__, sc->status_block->status_attn_bits);
+			BCE_PRINTF("%s(%d): Fatal attention detected: "
+			    "0x%08X\n",	__FILE__, __LINE__, 
+			    sc->status_block->status_attn_bits);
 
 			DBRUNMSG(BCE_FATAL,
-				if (unexpected_attention_sim_control == 0)
-					bce_breakpoint(sc));
+			    if (unexpected_attention_sim_control == 0)
+				bce_breakpoint(sc));
 
 			bce_init_locked(sc);
 			goto bce_intr_exit;
@@ -7275,18 +7403,25 @@ bce_intr(void *xsc)
 		if (hw_tx_cons != sc->hw_tx_cons)
 			bce_tx_intr(sc);
 
-		/* Save the status block index value for use during the next interrupt. */
+		/* Save status block index value for the next interrupt. */
 		sc->last_status_idx = sc->status_block->status_idx;
 
-		/* Prevent speculative reads from getting ahead of the status block. */
+ 		/*
+ 		 * Prevent speculative reads from getting
+ 		 * ahead of the status block.
+		 */
 		bus_space_barrier(sc->bce_btag, sc->bce_bhandle, 0, 0,
-			BUS_SPACE_BARRIER_READ);
+		    BUS_SPACE_BARRIER_READ);
 
-		/* If there's no work left then exit the interrupt service routine. */
+ 		/*
+ 		 * If there's no work left then exit the
+ 		 * interrupt service routine.
+		 */
 		hw_rx_cons = bce_get_hw_rx_cons(sc);
 		hw_tx_cons = bce_get_hw_tx_cons(sc);
 
-		if ((hw_rx_cons == sc->hw_rx_cons) && (hw_tx_cons == sc->hw_tx_cons))
+		if ((hw_rx_cons == sc->hw_rx_cons) && 
+		    (hw_tx_cons == sc->hw_tx_cons))
 			break;
 
 	}
@@ -7298,7 +7433,8 @@ bce_intr(void *xsc)
 	bce_enable_intr(sc, 0);
 
 	/* Handle any frames that arrived while handling the interrupt. */
-	if (ifp->if_drv_flags & IFF_DRV_RUNNING && !IFQ_DRV_IS_EMPTY(&ifp->if_snd))
+	if (ifp->if_drv_flags & IFF_DRV_RUNNING && 
+	    !IFQ_DRV_IS_EMPTY(&ifp->if_snd))
 		bce_start_locked(ifp);
 
 bce_intr_exit:
@@ -7331,7 +7467,7 @@ bce_set_rx_mode(struct bce_softc *sc)
 
 	/* Initialize receive mode default settings. */
 	rx_mode   = sc->rx_mode & ~(BCE_EMAC_RX_MODE_PROMISCUOUS |
-			    BCE_EMAC_RX_MODE_KEEP_VLAN_TAG);
+	    BCE_EMAC_RX_MODE_KEEP_VLAN_TAG);
 	sort_mode = 1 | BCE_RPM_SORT_USER0_BC_EN;
 
 	/*
@@ -7339,7 +7475,7 @@ bce_set_rx_mode(struct bce_softc *sc)
 	 * be enbled.
 	 */
 	if (!(BCE_IF_CAPABILITIES & IFCAP_VLAN_HWTAGGING) &&
-		(!(sc->bce_flags & BCE_MFW_ENABLE_FLAG)))
+	    (!(sc->bce_flags & BCE_MFW_ENABLE_FLAG)))
 		rx_mode |= BCE_EMAC_RX_MODE_KEEP_VLAN_TAG;
 
 	/*
@@ -7382,8 +7518,8 @@ bce_set_rx_mode(struct bce_softc *sc)
 
 	/* Only make changes if the recive mode has actually changed. */
 	if (rx_mode != sc->rx_mode) {
-		DBPRINT(sc, BCE_VERBOSE_MISC, "Enabling new receive mode: 0x%08X\n",
-			rx_mode);
+		DBPRINT(sc, BCE_VERBOSE_MISC, "Enabling new receive mode: "
+		    "0x%08X\n", rx_mode);
 
 		sc->rx_mode = rx_mode;
 		REG_WR(sc, BCE_EMAC_RX_MODE, rx_mode);
@@ -7424,183 +7560,187 @@ bce_stats_update(struct bce_softc *sc)
 	 */
 	if (!(BCE_CHIP_NUM(sc) == BCE_CHIP_NUM_5706) &&
 	    !(BCE_CHIP_ID(sc) == BCE_CHIP_ID_5708_A0))
-		ifp->if_oerrors += (u_long) stats->stat_Dot3StatsCarrierSenseErrors;
+		ifp->if_oerrors += 
+		    (u_long) stats->stat_Dot3StatsCarrierSenseErrors;
 
 	/*
 	 * Update the sysctl statistics from the
 	 * hardware statistics.
 	 */
 	sc->stat_IfHCInOctets =
-		((u64) stats->stat_IfHCInOctets_hi << 32) +
-		 (u64) stats->stat_IfHCInOctets_lo;
+	    ((u64) stats->stat_IfHCInOctets_hi << 32) +
+	     (u64) stats->stat_IfHCInOctets_lo;
 
 	sc->stat_IfHCInBadOctets =
-		((u64) stats->stat_IfHCInBadOctets_hi << 32) +
-		 (u64) stats->stat_IfHCInBadOctets_lo;
+	    ((u64) stats->stat_IfHCInBadOctets_hi << 32) +
+	     (u64) stats->stat_IfHCInBadOctets_lo;
 
 	sc->stat_IfHCOutOctets =
-		((u64) stats->stat_IfHCOutOctets_hi << 32) +
-		 (u64) stats->stat_IfHCOutOctets_lo;
+	    ((u64) stats->stat_IfHCOutOctets_hi << 32) +
+	     (u64) stats->stat_IfHCOutOctets_lo;
 
 	sc->stat_IfHCOutBadOctets =
-		((u64) stats->stat_IfHCOutBadOctets_hi << 32) +
-		 (u64) stats->stat_IfHCOutBadOctets_lo;
+	    ((u64) stats->stat_IfHCOutBadOctets_hi << 32) +
+	     (u64) stats->stat_IfHCOutBadOctets_lo;
 
 	sc->stat_IfHCInUcastPkts =
-		((u64) stats->stat_IfHCInUcastPkts_hi << 32) +
-		 (u64) stats->stat_IfHCInUcastPkts_lo;
+	    ((u64) stats->stat_IfHCInUcastPkts_hi << 32) +
+	     (u64) stats->stat_IfHCInUcastPkts_lo;
 
 	sc->stat_IfHCInMulticastPkts =
-		((u64) stats->stat_IfHCInMulticastPkts_hi << 32) +
-		 (u64) stats->stat_IfHCInMulticastPkts_lo;
+	    ((u64) stats->stat_IfHCInMulticastPkts_hi << 32) +
+	     (u64) stats->stat_IfHCInMulticastPkts_lo;
 
 	sc->stat_IfHCInBroadcastPkts =
-		((u64) stats->stat_IfHCInBroadcastPkts_hi << 32) +
-		 (u64) stats->stat_IfHCInBroadcastPkts_lo;
+	    ((u64) stats->stat_IfHCInBroadcastPkts_hi << 32) +
+	     (u64) stats->stat_IfHCInBroadcastPkts_lo;
 
 	sc->stat_IfHCOutUcastPkts =
-		((u64) stats->stat_IfHCOutUcastPkts_hi << 32) +
-		 (u64) stats->stat_IfHCOutUcastPkts_lo;
+	    ((u64) stats->stat_IfHCOutUcastPkts_hi << 32) +
+	     (u64) stats->stat_IfHCOutUcastPkts_lo;
 
 	sc->stat_IfHCOutMulticastPkts =
-		((u64) stats->stat_IfHCOutMulticastPkts_hi << 32) +
-		 (u64) stats->stat_IfHCOutMulticastPkts_lo;
+	    ((u64) stats->stat_IfHCOutMulticastPkts_hi << 32) +
+	     (u64) stats->stat_IfHCOutMulticastPkts_lo;
 
 	sc->stat_IfHCOutBroadcastPkts =
-		((u64) stats->stat_IfHCOutBroadcastPkts_hi << 32) +
-		 (u64) stats->stat_IfHCOutBroadcastPkts_lo;
+	    ((u64) stats->stat_IfHCOutBroadcastPkts_hi << 32) +
+	     (u64) stats->stat_IfHCOutBroadcastPkts_lo;
+
+	/* ToDo: Preserve counters beyond 32 bits? */
+	/* ToDo: Read the statistics from auto-clear regs? */
 
 	sc->stat_emac_tx_stat_dot3statsinternalmactransmiterrors =
-		stats->stat_emac_tx_stat_dot3statsinternalmactransmiterrors;
+	    stats->stat_emac_tx_stat_dot3statsinternalmactransmiterrors;
 
 	sc->stat_Dot3StatsCarrierSenseErrors =
-		stats->stat_Dot3StatsCarrierSenseErrors;
+	    stats->stat_Dot3StatsCarrierSenseErrors;
 
 	sc->stat_Dot3StatsFCSErrors =
-		stats->stat_Dot3StatsFCSErrors;
+	    stats->stat_Dot3StatsFCSErrors;
 
 	sc->stat_Dot3StatsAlignmentErrors =
-		stats->stat_Dot3StatsAlignmentErrors;
+	    stats->stat_Dot3StatsAlignmentErrors;
 
 	sc->stat_Dot3StatsSingleCollisionFrames =
-		stats->stat_Dot3StatsSingleCollisionFrames;
+	    stats->stat_Dot3StatsSingleCollisionFrames;
 
 	sc->stat_Dot3StatsMultipleCollisionFrames =
-		stats->stat_Dot3StatsMultipleCollisionFrames;
+	    stats->stat_Dot3StatsMultipleCollisionFrames;
 
 	sc->stat_Dot3StatsDeferredTransmissions =
-		stats->stat_Dot3StatsDeferredTransmissions;
+	    stats->stat_Dot3StatsDeferredTransmissions;
 
 	sc->stat_Dot3StatsExcessiveCollisions =
-		stats->stat_Dot3StatsExcessiveCollisions;
+	    stats->stat_Dot3StatsExcessiveCollisions;
 
 	sc->stat_Dot3StatsLateCollisions =
-		stats->stat_Dot3StatsLateCollisions;
+	    stats->stat_Dot3StatsLateCollisions;
 
 	sc->stat_EtherStatsCollisions =
-		stats->stat_EtherStatsCollisions;
+	    stats->stat_EtherStatsCollisions;
 
 	sc->stat_EtherStatsFragments =
-		stats->stat_EtherStatsFragments;
+	    stats->stat_EtherStatsFragments;
 
 	sc->stat_EtherStatsJabbers =
-		stats->stat_EtherStatsJabbers;
+	    stats->stat_EtherStatsJabbers;
 
 	sc->stat_EtherStatsUndersizePkts =
-		stats->stat_EtherStatsUndersizePkts;
+	    stats->stat_EtherStatsUndersizePkts;
 
 	sc->stat_EtherStatsOversizePkts =
-		stats->stat_EtherStatsOversizePkts;
+	     stats->stat_EtherStatsOversizePkts;
 
 	sc->stat_EtherStatsPktsRx64Octets =
-		stats->stat_EtherStatsPktsRx64Octets;
+	    stats->stat_EtherStatsPktsRx64Octets;
 
 	sc->stat_EtherStatsPktsRx65Octetsto127Octets =
-		stats->stat_EtherStatsPktsRx65Octetsto127Octets;
+	    stats->stat_EtherStatsPktsRx65Octetsto127Octets;
 
 	sc->stat_EtherStatsPktsRx128Octetsto255Octets =
-		stats->stat_EtherStatsPktsRx128Octetsto255Octets;
+	    stats->stat_EtherStatsPktsRx128Octetsto255Octets;
 
 	sc->stat_EtherStatsPktsRx256Octetsto511Octets =
-		stats->stat_EtherStatsPktsRx256Octetsto511Octets;
+	    stats->stat_EtherStatsPktsRx256Octetsto511Octets;
 
 	sc->stat_EtherStatsPktsRx512Octetsto1023Octets =
-		stats->stat_EtherStatsPktsRx512Octetsto1023Octets;
+	    stats->stat_EtherStatsPktsRx512Octetsto1023Octets;
 
 	sc->stat_EtherStatsPktsRx1024Octetsto1522Octets =
-		stats->stat_EtherStatsPktsRx1024Octetsto1522Octets;
+	    stats->stat_EtherStatsPktsRx1024Octetsto1522Octets;
 
 	sc->stat_EtherStatsPktsRx1523Octetsto9022Octets =
-		stats->stat_EtherStatsPktsRx1523Octetsto9022Octets;
+	    stats->stat_EtherStatsPktsRx1523Octetsto9022Octets;
 
 	sc->stat_EtherStatsPktsTx64Octets =
-		stats->stat_EtherStatsPktsTx64Octets;
+	    stats->stat_EtherStatsPktsTx64Octets;
 
 	sc->stat_EtherStatsPktsTx65Octetsto127Octets =
-		stats->stat_EtherStatsPktsTx65Octetsto127Octets;
+	    stats->stat_EtherStatsPktsTx65Octetsto127Octets;
 
 	sc->stat_EtherStatsPktsTx128Octetsto255Octets =
-		stats->stat_EtherStatsPktsTx128Octetsto255Octets;
+	    stats->stat_EtherStatsPktsTx128Octetsto255Octets;
 
 	sc->stat_EtherStatsPktsTx256Octetsto511Octets =
-		stats->stat_EtherStatsPktsTx256Octetsto511Octets;
+	    stats->stat_EtherStatsPktsTx256Octetsto511Octets;
 
 	sc->stat_EtherStatsPktsTx512Octetsto1023Octets =
-		stats->stat_EtherStatsPktsTx512Octetsto1023Octets;
+	    stats->stat_EtherStatsPktsTx512Octetsto1023Octets;
 
 	sc->stat_EtherStatsPktsTx1024Octetsto1522Octets =
-		stats->stat_EtherStatsPktsTx1024Octetsto1522Octets;
+	    stats->stat_EtherStatsPktsTx1024Octetsto1522Octets;
 
 	sc->stat_EtherStatsPktsTx1523Octetsto9022Octets =
-		stats->stat_EtherStatsPktsTx1523Octetsto9022Octets;
+	    stats->stat_EtherStatsPktsTx1523Octetsto9022Octets;
 
 	sc->stat_XonPauseFramesReceived =
-		stats->stat_XonPauseFramesReceived;
+	    stats->stat_XonPauseFramesReceived;
 
 	sc->stat_XoffPauseFramesReceived =
-		stats->stat_XoffPauseFramesReceived;
+	    stats->stat_XoffPauseFramesReceived;
 
 	sc->stat_OutXonSent =
-		stats->stat_OutXonSent;
+	    stats->stat_OutXonSent;
 
 	sc->stat_OutXoffSent =
-		stats->stat_OutXoffSent;
+	    stats->stat_OutXoffSent;
 
 	sc->stat_FlowControlDone =
-		stats->stat_FlowControlDone;
+	    stats->stat_FlowControlDone;
 
 	sc->stat_MacControlFramesReceived =
-		stats->stat_MacControlFramesReceived;
+	    stats->stat_MacControlFramesReceived;
 
 	sc->stat_XoffStateEntered =
-		stats->stat_XoffStateEntered;
+	    stats->stat_XoffStateEntered;
 
 	sc->stat_IfInFramesL2FilterDiscards =
-		stats->stat_IfInFramesL2FilterDiscards;
+	    stats->stat_IfInFramesL2FilterDiscards;
 
 	sc->stat_IfInRuleCheckerDiscards =
-		stats->stat_IfInRuleCheckerDiscards;
+	    stats->stat_IfInRuleCheckerDiscards;
 
 	sc->stat_IfInFTQDiscards =
-		stats->stat_IfInFTQDiscards;
+	    stats->stat_IfInFTQDiscards;
 
 	sc->stat_IfInMBUFDiscards =
-		stats->stat_IfInMBUFDiscards;
+	    stats->stat_IfInMBUFDiscards;
 
 	sc->stat_IfInRuleCheckerP4Hit =
-		stats->stat_IfInRuleCheckerP4Hit;
+	    stats->stat_IfInRuleCheckerP4Hit;
 
 	sc->stat_CatchupInRuleCheckerDiscards =
-		stats->stat_CatchupInRuleCheckerDiscards;
+	    stats->stat_CatchupInRuleCheckerDiscards;
 
 	sc->stat_CatchupInFTQDiscards =
-		stats->stat_CatchupInFTQDiscards;
+	    stats->stat_CatchupInFTQDiscards;
 
 	sc->stat_CatchupInMBUFDiscards =
-		stats->stat_CatchupInMBUFDiscards;
+	    stats->stat_CatchupInMBUFDiscards;
 
 	sc->stat_CatchupInRuleCheckerP4Hit =
-		stats->stat_CatchupInRuleCheckerP4Hit;
+	    stats->stat_CatchupInRuleCheckerP4Hit;
 
 	sc->com_no_buffers = REG_RD_IND(sc, 0x120084);
 
@@ -7609,26 +7749,26 @@ bce_stats_update(struct bce_softc *sc)
 	 * hardware statistics.
 	 */
 	ifp->if_collisions =
-		(u_long) sc->stat_EtherStatsCollisions;
+	    (u_long) sc->stat_EtherStatsCollisions;
 
 	/* ToDo: This method loses soft errors. */
 	ifp->if_ierrors =
-		(u_long) sc->stat_EtherStatsUndersizePkts +
-		(u_long) sc->stat_EtherStatsOversizePkts +
-		(u_long) sc->stat_IfInMBUFDiscards +
-		(u_long) sc->stat_Dot3StatsAlignmentErrors +
-		(u_long) sc->stat_Dot3StatsFCSErrors +
-		(u_long) sc->stat_IfInRuleCheckerDiscards +
-		(u_long) sc->stat_IfInFTQDiscards +
-		(u_long) sc->com_no_buffers;
+	    (u_long) sc->stat_EtherStatsUndersizePkts +
+	    (u_long) sc->stat_EtherStatsOversizePkts +
+	    (u_long) sc->stat_IfInMBUFDiscards +
+	    (u_long) sc->stat_Dot3StatsAlignmentErrors +
+	    (u_long) sc->stat_Dot3StatsFCSErrors +
+	    (u_long) sc->stat_IfInRuleCheckerDiscards +
+	    (u_long) sc->stat_IfInFTQDiscards +
+	    (u_long) sc->com_no_buffers;
 
 	/* ToDo: This method loses soft errors. */
 	ifp->if_oerrors =
-		(u_long) sc->stat_emac_tx_stat_dot3statsinternalmactransmiterrors +
-		(u_long) sc->stat_Dot3StatsExcessiveCollisions +
-		(u_long) sc->stat_Dot3StatsLateCollisions;
+	    (u_long) sc->stat_emac_tx_stat_dot3statsinternalmactransmiterrors +
+	    (u_long) sc->stat_Dot3StatsExcessiveCollisions +
+	    (u_long) sc->stat_Dot3StatsLateCollisions;
 
-	/* ToDo: Add additional statistics. */
+	/* ToDo: Add additional statistics? */
 
 	DBEXIT(BCE_EXTREME_MISC);
 }
@@ -7654,6 +7794,33 @@ bce_pulse(void *xsc)
 	/* Tell the firmware that the driver is still running. */
 	msg = (u32) ++sc->bce_fw_drv_pulse_wr_seq;
 	bce_shmem_wr(sc, BCE_DRV_PULSE_MB, msg);
+
+	/* Update the bootcode condition. */
+	sc->bc_state = bce_shmem_rd(sc, BCE_BC_STATE_CONDITION);
+
+	/* Report whether the bootcode still knows the driver is running. */
+	if (sc->bce_drv_cardiac_arrest == FALSE) {
+		if (!(sc->bc_state & BCE_CONDITION_DRV_PRESENT)) {
+			sc->bce_drv_cardiac_arrest = TRUE;
+			BCE_PRINTF("%s(): Bootcode lost the driver pulse! "
+			    "(bc_state = 0x%08X)\n", __FUNCTION__, 
+			    sc->bc_state);
+		}
+	} else {
+ 		/*
+ 		 * Not supported by all bootcode versions.
+ 		 * (v5.0.11+ and v5.2.1+)  Older bootcode
+ 		 * will require the driver to reset the
+ 		 * controller to clear this condition.
+		 */
+		if (sc->bc_state & BCE_CONDITION_DRV_PRESENT) {
+			sc->bce_drv_cardiac_arrest = FALSE;
+			BCE_PRINTF("%s(): Bootcode found the driver pulse! "
+			    "(bc_state = 0x%08X)\n", __FUNCTION__, 
+			    sc->bc_state);
+		}
+	}
+
 
 	/* Schedule the next pulse. */
 	callout_reset(&sc->bce_pulse_callout, hz, bce_pulse, sc);
@@ -7697,7 +7864,7 @@ bce_tick(void *xsc)
 	bce_watchdog(sc);
 
 	/* If link is up already up then we're done. */
-	if (sc->bce_link)
+	if (sc->bce_link_up == TRUE)
 		goto bce_tick_exit;
 
 	/* Link is down.  Check what the PHY's doing. */
@@ -7707,16 +7874,19 @@ bce_tick(void *xsc)
 	/* Check if the link has come up. */
 	if ((mii->mii_media_status & IFM_ACTIVE) &&
 	    (IFM_SUBTYPE(mii->mii_media_active) != IFM_NONE)) {
-		DBPRINT(sc, BCE_VERBOSE_MISC, "%s(): Link up!\n", __FUNCTION__);
-		sc->bce_link++;
+		DBPRINT(sc, BCE_VERBOSE_MISC, 
+		    "%s(): Link up!\n", __FUNCTION__);
+		sc->bce_link_up = TRUE;
 		if ((IFM_SUBTYPE(mii->mii_media_active) == IFM_1000_T ||
-		    IFM_SUBTYPE(mii->mii_media_active) == IFM_1000_SX) &&
+		    IFM_SUBTYPE(mii->mii_media_active) == IFM_1000_SX ||
+		    IFM_SUBTYPE(mii->mii_media_active) == IFM_2500_SX) &&
 		    bootverbose)
 			BCE_PRINTF("Gigabit link up!\n");
+
 		/* Now that link is up, handle any outstanding TX traffic. */
 		if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd)) {
-			DBPRINT(sc, BCE_VERBOSE_MISC, "%s(): Found pending TX traffic.\n",
-				 __FUNCTION__);
+			DBPRINT(sc, BCE_VERBOSE_MISC, "%s(): Found "
+			    "pending TX traffic.\n", __FUNCTION__);
 			bce_start_locked(ifp);
 		}
 	}
@@ -7737,22 +7907,22 @@ bce_tick_exit:
 static int
 bce_sysctl_driver_state(SYSCTL_HANDLER_ARGS)
 {
-        int error;
-        int result;
-        struct bce_softc *sc;
+	int error;
+	int result;
+	struct bce_softc *sc;
 
-        result = -1;
-        error = sysctl_handle_int(oidp, &result, 0, req);
+	result = -1;
+	error = sysctl_handle_int(oidp, &result, 0, req);
 
-        if (error || !req->newptr)
-                return (error);
+	if (error || !req->newptr)
+		return (error);
 
-        if (result == 1) {
-                sc = (struct bce_softc *)arg1;
-                bce_dump_driver_state(sc);
-        }
+	if (result == 1) {
+		sc = (struct bce_softc *)arg1;
+		bce_dump_driver_state(sc);
+	}
 
-        return error;
+	return error;
 }
 
 
@@ -7765,22 +7935,78 @@ bce_sysctl_driver_state(SYSCTL_HANDLER_ARGS)
 static int
 bce_sysctl_hw_state(SYSCTL_HANDLER_ARGS)
 {
-        int error;
-        int result;
-        struct bce_softc *sc;
+	int error;
+	int result;
+	struct bce_softc *sc;
 
-        result = -1;
-        error = sysctl_handle_int(oidp, &result, 0, req);
+	result = -1;
+	error = sysctl_handle_int(oidp, &result, 0, req);
 
-        if (error || !req->newptr)
-                return (error);
+	if (error || !req->newptr)
+		return (error);
 
-        if (result == 1) {
-                sc = (struct bce_softc *)arg1;
-                bce_dump_hw_state(sc);
-        }
+	if (result == 1) {
+		sc = (struct bce_softc *)arg1;
+		bce_dump_hw_state(sc);
+	}
 
-        return error;
+	return error;
+}
+
+
+/****************************************************************************/
+/* Allows the status block to be dumped through the sysctl interface.       */
+/*                                                                          */
+/* Returns:                                                                 */
+/*   0 for success, positive value for failure.                             */
+/****************************************************************************/
+static int
+bce_sysctl_status_block(SYSCTL_HANDLER_ARGS)
+{
+	int error;
+	int result;
+	struct bce_softc *sc;
+
+	result = -1;
+	error = sysctl_handle_int(oidp, &result, 0, req);
+
+	if (error || !req->newptr)
+		return (error);
+
+	if (result == 1) {
+		sc = (struct bce_softc *)arg1;
+		bce_dump_status_block(sc);
+	}
+
+	return error;
+}
+
+
+/****************************************************************************/
+/* Allows the stats block to be dumped through the sysctl interface.        */
+/*                                                                          */
+/* Returns:                                                                 */
+/*   0 for success, positive value for failure.                             */
+/****************************************************************************/
+static int
+bce_sysctl_stats_block(SYSCTL_HANDLER_ARGS)
+{
+	int error;
+	int result;
+	struct bce_softc *sc;
+
+	result = -1;
+	error = sysctl_handle_int(oidp, &result, 0, req);
+
+	if (error || !req->newptr)
+		return (error);
+
+	if (result == 1) {
+		sc = (struct bce_softc *)arg1;
+		bce_dump_stats_block(sc);
+	}
+
+	return error;
 }
 
 
@@ -7793,50 +8019,78 @@ bce_sysctl_hw_state(SYSCTL_HANDLER_ARGS)
 static int
 bce_sysctl_bc_state(SYSCTL_HANDLER_ARGS)
 {
-        int error;
-        int result;
-        struct bce_softc *sc;
+	int error;
+	int result;
+	struct bce_softc *sc;
 
-        result = -1;
-        error = sysctl_handle_int(oidp, &result, 0, req);
+	result = -1;
+	error = sysctl_handle_int(oidp, &result, 0, req);
 
-        if (error || !req->newptr)
-                return (error);
+	if (error || !req->newptr)
+		return (error);
 
-        if (result == 1) {
-                sc = (struct bce_softc *)arg1;
-                bce_dump_bc_state(sc);
-        }
+	if (result == 1) {
+		sc = (struct bce_softc *)arg1;
+		bce_dump_bc_state(sc);
+	}
 
-        return error;
+	return error;
 }
 
 
 /****************************************************************************/
-/* Provides a sysctl interface to allow dumping the RX chain.               */
+/* Provides a sysctl interface to allow dumping the RX BD chain.            */
 /*                                                                          */
 /* Returns:                                                                 */
 /*   0 for success, positive value for failure.                             */
 /****************************************************************************/
 static int
-bce_sysctl_dump_rx_chain(SYSCTL_HANDLER_ARGS)
+bce_sysctl_dump_rx_bd_chain(SYSCTL_HANDLER_ARGS)
 {
-        int error;
-        int result;
-        struct bce_softc *sc;
+	int error;
+	int result;
+	struct bce_softc *sc;
 
-        result = -1;
-        error = sysctl_handle_int(oidp, &result, 0, req);
+	result = -1;
+	error = sysctl_handle_int(oidp, &result, 0, req);
 
-        if (error || !req->newptr)
-                return (error);
+	if (error || !req->newptr)
+		return (error);
 
-        if (result == 1) {
-                sc = (struct bce_softc *)arg1;
-                bce_dump_rx_chain(sc, 0, TOTAL_RX_BD);
-        }
+	if (result == 1) {
+		sc = (struct bce_softc *)arg1;
+		bce_dump_rx_bd_chain(sc, 0, TOTAL_RX_BD);
+	}
 
-        return error;
+	return error;
+}
+
+
+/****************************************************************************/
+/* Provides a sysctl interface to allow dumping the RX MBUF chain.          */
+/*                                                                          */
+/* Returns:                                                                 */
+/*   0 for success, positive value for failure.                             */
+/****************************************************************************/
+static int
+bce_sysctl_dump_rx_mbuf_chain(SYSCTL_HANDLER_ARGS)
+{
+	int error;
+	int result;
+	struct bce_softc *sc;
+
+	result = -1;
+	error = sysctl_handle_int(oidp, &result, 0, req);
+
+	if (error || !req->newptr)
+		return (error);
+
+	if (result == 1) {
+		sc = (struct bce_softc *)arg1;
+		bce_dump_rx_mbuf_chain(sc, 0, USABLE_RX_BD);
+	}
+
+	return error;
 }
 
 
@@ -7849,22 +8103,22 @@ bce_sysctl_dump_rx_chain(SYSCTL_HANDLER_ARGS)
 static int
 bce_sysctl_dump_tx_chain(SYSCTL_HANDLER_ARGS)
 {
-        int error;
-        int result;
-        struct bce_softc *sc;
+	int error;
+	int result;
+	struct bce_softc *sc;
 
-        result = -1;
-        error = sysctl_handle_int(oidp, &result, 0, req);
+	result = -1;
+	error = sysctl_handle_int(oidp, &result, 0, req);
 
-        if (error || !req->newptr)
-                return (error);
+	if (error || !req->newptr)
+		return (error);
 
-        if (result == 1) {
-                sc = (struct bce_softc *)arg1;
-                bce_dump_tx_chain(sc, 0, USABLE_TX_BD);
-        }
+	if (result == 1) {
+		sc = (struct bce_softc *)arg1;
+		bce_dump_tx_chain(sc, 0, TOTAL_TX_BD);
+	}
 
-        return error;
+	return error;
 }
 
 
@@ -7878,22 +8132,22 @@ bce_sysctl_dump_tx_chain(SYSCTL_HANDLER_ARGS)
 static int
 bce_sysctl_dump_pg_chain(SYSCTL_HANDLER_ARGS)
 {
-        int error;
-        int result;
-        struct bce_softc *sc;
+	int error;
+	int result;
+	struct bce_softc *sc;
 
-        result = -1;
-        error = sysctl_handle_int(oidp, &result, 0, req);
+	result = -1;
+	error = sysctl_handle_int(oidp, &result, 0, req);
 
-        if (error || !req->newptr)
-                return (error);
+	if (error || !req->newptr)
+		return (error);
 
-        if (result == 1) {
-                sc = (struct bce_softc *)arg1;
-                bce_dump_pg_chain(sc, 0, TOTAL_PG_BD);
-        }
+	if (result == 1) {
+		sc = (struct bce_softc *)arg1;
+		bce_dump_pg_chain(sc, 0, TOTAL_PG_BD);
+	}
 
-        return error;
+	return error;
 }
 #endif
 
@@ -8026,22 +8280,22 @@ bce_sysctl_dump_ctx(SYSCTL_HANDLER_ARGS)
 static int
 bce_sysctl_breakpoint(SYSCTL_HANDLER_ARGS)
 {
-        int error;
-        int result;
-        struct bce_softc *sc;
+	int error;
+	int result;
+	struct bce_softc *sc;
 
-        result = -1;
-        error = sysctl_handle_int(oidp, &result, 0, req);
+	result = -1;
+	error = sysctl_handle_int(oidp, &result, 0, req);
 
-        if (error || !req->newptr)
-                return (error);
+	if (error || !req->newptr)
+		return (error);
 
-        if (result == 1) {
-                sc = (struct bce_softc *)arg1;
-                bce_breakpoint(sc);
-        }
+	if (result == 1) {
+		sc = (struct bce_softc *)arg1;
+		bce_breakpoint(sc);
+	}
 
-        return error;
+	return error;
 }
 #endif
 
@@ -8065,467 +8319,474 @@ bce_add_sysctls(struct bce_softc *sc)
 
 #ifdef BCE_DEBUG
 	SYSCTL_ADD_INT(ctx, children, OID_AUTO,
-		"l2fhdr_error_sim_control",
-		CTLFLAG_RW, &l2fhdr_error_sim_control,
-		0, "Debug control to force l2fhdr errors");
+	    "l2fhdr_error_sim_control",
+	    CTLFLAG_RW, &l2fhdr_error_sim_control,
+	    0, "Debug control to force l2fhdr errors");
 
 	SYSCTL_ADD_INT(ctx, children, OID_AUTO,
-		"l2fhdr_error_sim_count",
-		CTLFLAG_RD, &sc->l2fhdr_error_sim_count,
-		0, "Number of simulated l2_fhdr errors");
+	    "l2fhdr_error_sim_count",
+	    CTLFLAG_RD, &sc->l2fhdr_error_sim_count,
+	    0, "Number of simulated l2_fhdr errors");
 #endif
 
 	SYSCTL_ADD_INT(ctx, children, OID_AUTO,
-		"l2fhdr_error_count",
-		CTLFLAG_RD, &sc->l2fhdr_error_count,
-		0, "Number of l2_fhdr errors");
+	    "l2fhdr_error_count",
+	    CTLFLAG_RD, &sc->l2fhdr_error_count,
+	    0, "Number of l2_fhdr errors");
 
 #ifdef BCE_DEBUG
 	SYSCTL_ADD_INT(ctx, children, OID_AUTO,
-		"mbuf_alloc_failed_sim_control",
-		CTLFLAG_RW, &mbuf_alloc_failed_sim_control,
-		0, "Debug control to force mbuf allocation failures");
+	    "mbuf_alloc_failed_sim_control",
+	    CTLFLAG_RW, &mbuf_alloc_failed_sim_control,
+	    0, "Debug control to force mbuf allocation failures");
 
 	SYSCTL_ADD_INT(ctx, children, OID_AUTO,
-		"mbuf_alloc_failed_sim_count",
-		CTLFLAG_RD, &sc->mbuf_alloc_failed_sim_count,
-		0, "Number of simulated mbuf cluster allocation failures");
+	    "mbuf_alloc_failed_sim_count",
+	    CTLFLAG_RD, &sc->mbuf_alloc_failed_sim_count,
+	    0, "Number of simulated mbuf cluster allocation failures");
 #endif
 
 	SYSCTL_ADD_INT(ctx, children, OID_AUTO,
-		"mbuf_alloc_failed_count",
-		CTLFLAG_RD, &sc->mbuf_alloc_failed_count,
-		0, "Number of mbuf allocation failures");
+	    "mbuf_alloc_failed_count",
+	    CTLFLAG_RD, &sc->mbuf_alloc_failed_count,
+	    0, "Number of mbuf allocation failures");
 
 	SYSCTL_ADD_INT(ctx, children, OID_AUTO,
-		"fragmented_mbuf_count",
-		CTLFLAG_RD, &sc->fragmented_mbuf_count,
-		0, "Number of fragmented mbufs");
+	    "fragmented_mbuf_count",
+	    CTLFLAG_RD, &sc->fragmented_mbuf_count,
+	    0, "Number of fragmented mbufs");
 
 #ifdef BCE_DEBUG
 	SYSCTL_ADD_INT(ctx, children, OID_AUTO,
-		"dma_map_addr_failed_sim_control",
-		CTLFLAG_RW, &dma_map_addr_failed_sim_control,
-		0, "Debug control to force DMA mapping failures");
+	    "dma_map_addr_failed_sim_control",
+	    CTLFLAG_RW, &dma_map_addr_failed_sim_control,
+	    0, "Debug control to force DMA mapping failures");
 
 	/* ToDo: Figure out how to update this value in bce_dma_map_addr(). */
 	SYSCTL_ADD_INT(ctx, children, OID_AUTO,
-		"dma_map_addr_failed_sim_count",
-		CTLFLAG_RD, &sc->dma_map_addr_failed_sim_count,
-		0, "Number of simulated DMA mapping failures");
+	    "dma_map_addr_failed_sim_count",
+	    CTLFLAG_RD, &sc->dma_map_addr_failed_sim_count,
+	    0, "Number of simulated DMA mapping failures");
 	
 #endif
 
 	SYSCTL_ADD_INT(ctx, children, OID_AUTO,
-		"dma_map_addr_rx_failed_count",
-		CTLFLAG_RD, &sc->dma_map_addr_rx_failed_count,
-		0, "Number of RX DMA mapping failures");
+	    "dma_map_addr_rx_failed_count",
+	    CTLFLAG_RD, &sc->dma_map_addr_rx_failed_count,
+	    0, "Number of RX DMA mapping failures");
 
 	SYSCTL_ADD_INT(ctx, children, OID_AUTO,
-		"dma_map_addr_tx_failed_count",
-		CTLFLAG_RD, &sc->dma_map_addr_tx_failed_count,
-		0, "Number of TX DMA mapping failures");
+	    "dma_map_addr_tx_failed_count",
+	    CTLFLAG_RD, &sc->dma_map_addr_tx_failed_count,
+	    0, "Number of TX DMA mapping failures");
 
 #ifdef BCE_DEBUG
 	SYSCTL_ADD_INT(ctx, children, OID_AUTO,
-		"unexpected_attention_sim_control",
-		CTLFLAG_RW, &unexpected_attention_sim_control,
-		0, "Debug control to simulate unexpected attentions");
+	    "unexpected_attention_sim_control",
+	    CTLFLAG_RW, &unexpected_attention_sim_control,
+	    0, "Debug control to simulate unexpected attentions");
 
 	SYSCTL_ADD_INT(ctx, children, OID_AUTO,
-		"unexpected_attention_sim_count",
-		CTLFLAG_RW, &sc->unexpected_attention_sim_count,
-		0, "Number of simulated unexpected attentions");
+	    "unexpected_attention_sim_count",
+	    CTLFLAG_RW, &sc->unexpected_attention_sim_count,
+	    0, "Number of simulated unexpected attentions");
 #endif
 
 	SYSCTL_ADD_INT(ctx, children, OID_AUTO,
-		"unexpected_attention_count",
-		CTLFLAG_RW, &sc->unexpected_attention_count,
-		0, "Number of unexpected attentions");
+	    "unexpected_attention_count",
+	    CTLFLAG_RW, &sc->unexpected_attention_count,
+	    0, "Number of unexpected attentions");
 
 #ifdef BCE_DEBUG
 	SYSCTL_ADD_INT(ctx, children, OID_AUTO,
-		"debug_bootcode_running_failure",
-		CTLFLAG_RW, &bootcode_running_failure_sim_control,
-		0, "Debug control to force bootcode running failures");
+	    "debug_bootcode_running_failure",
+	    CTLFLAG_RW, &bootcode_running_failure_sim_control,
+	    0, "Debug control to force bootcode running failures");
 
 	SYSCTL_ADD_INT(ctx, children, OID_AUTO,
-		"rx_low_watermark",
-		CTLFLAG_RD, &sc->rx_low_watermark,
-		0, "Lowest level of free rx_bd's");
+	    "rx_low_watermark",
+	    CTLFLAG_RD, &sc->rx_low_watermark,
+	    0, "Lowest level of free rx_bd's");
 
 	SYSCTL_ADD_INT(ctx, children, OID_AUTO,
-		"rx_empty_count",
-		CTLFLAG_RD, &sc->rx_empty_count,
-		0, "Number of times the RX chain was empty");
+	    "rx_empty_count",
+	    CTLFLAG_RD, &sc->rx_empty_count,
+	    0, "Number of times the RX chain was empty");
 
 	SYSCTL_ADD_INT(ctx, children, OID_AUTO,
-		"tx_hi_watermark",
-		CTLFLAG_RD, &sc->tx_hi_watermark,
-		0, "Highest level of used tx_bd's");
+	    "tx_hi_watermark",
+	    CTLFLAG_RD, &sc->tx_hi_watermark,
+	    0, "Highest level of used tx_bd's");
 
 	SYSCTL_ADD_INT(ctx, children, OID_AUTO,
-		"tx_full_count",
-		CTLFLAG_RD, &sc->tx_full_count,
-		0, "Number of times the TX chain was full");
+	    "tx_full_count",
+	    CTLFLAG_RD, &sc->tx_full_count,
+	    0, "Number of times the TX chain was full");
 
 	SYSCTL_ADD_INT(ctx, children, OID_AUTO,
-		"requested_tso_frames",
-		CTLFLAG_RD, &sc->requested_tso_frames,
-		0, "Number of TSO frames received");
+	    "requested_tso_frames",
+	    CTLFLAG_RD, &sc->requested_tso_frames,
+	    0, "Number of TSO frames received");
 
 	SYSCTL_ADD_UINT(ctx, children, OID_AUTO,
-		"rx_interrupts",
-		CTLFLAG_RD, &sc->rx_interrupts,
-		0, "Number of RX interrupts");
+	    "rx_interrupts",
+	    CTLFLAG_RD, &sc->rx_interrupts,
+	    0, "Number of RX interrupts");
 
 	SYSCTL_ADD_UINT(ctx, children, OID_AUTO,
-		"tx_interrupts",
-		CTLFLAG_RD, &sc->tx_interrupts,
-		0, "Number of TX interrupts");
-
-	SYSCTL_ADD_ULONG(ctx, children, OID_AUTO,
-		"rx_intr_time",
-		CTLFLAG_RD, &sc->rx_intr_time,
-		"RX interrupt time");
-
-	SYSCTL_ADD_ULONG(ctx, children, OID_AUTO,
-		"tx_intr_time",
-		CTLFLAG_RD, &sc->tx_intr_time,
-		"TX interrupt time");
+	    "tx_interrupts",
+	    CTLFLAG_RD, &sc->tx_interrupts,
+	    0, "Number of TX interrupts");
 #endif
 
 	SYSCTL_ADD_ULONG(ctx, children, OID_AUTO,
-		"stat_IfHcInOctets",
-		CTLFLAG_RD, &sc->stat_IfHCInOctets,
-		"Bytes received");
+	    "stat_IfHcInOctets",
+	    CTLFLAG_RD, &sc->stat_IfHCInOctets,
+	    "Bytes received");
 
 	SYSCTL_ADD_ULONG(ctx, children, OID_AUTO,
-		"stat_IfHCInBadOctets",
-		CTLFLAG_RD, &sc->stat_IfHCInBadOctets,
-		"Bad bytes received");
+	    "stat_IfHCInBadOctets",
+	    CTLFLAG_RD, &sc->stat_IfHCInBadOctets,
+	    "Bad bytes received");
 
 	SYSCTL_ADD_ULONG(ctx, children, OID_AUTO,
-		"stat_IfHCOutOctets",
-		CTLFLAG_RD, &sc->stat_IfHCOutOctets,
-		"Bytes sent");
+	    "stat_IfHCOutOctets",
+	    CTLFLAG_RD, &sc->stat_IfHCOutOctets,
+	    "Bytes sent");
 
 	SYSCTL_ADD_ULONG(ctx, children, OID_AUTO,
-		"stat_IfHCOutBadOctets",
-		CTLFLAG_RD, &sc->stat_IfHCOutBadOctets,
-		"Bad bytes sent");
+	    "stat_IfHCOutBadOctets",
+	    CTLFLAG_RD, &sc->stat_IfHCOutBadOctets,
+	    "Bad bytes sent");
 
 	SYSCTL_ADD_ULONG(ctx, children, OID_AUTO,
-		"stat_IfHCInUcastPkts",
-		CTLFLAG_RD, &sc->stat_IfHCInUcastPkts,
-		"Unicast packets received");
+	    "stat_IfHCInUcastPkts",
+	    CTLFLAG_RD, &sc->stat_IfHCInUcastPkts,
+	    "Unicast packets received");
 
 	SYSCTL_ADD_ULONG(ctx, children, OID_AUTO,
-		"stat_IfHCInMulticastPkts",
-		CTLFLAG_RD, &sc->stat_IfHCInMulticastPkts,
-		"Multicast packets received");
+	    "stat_IfHCInMulticastPkts",
+	    CTLFLAG_RD, &sc->stat_IfHCInMulticastPkts,
+	    "Multicast packets received");
 
 	SYSCTL_ADD_ULONG(ctx, children, OID_AUTO,
-		"stat_IfHCInBroadcastPkts",
-		CTLFLAG_RD, &sc->stat_IfHCInBroadcastPkts,
-		"Broadcast packets received");
+	    "stat_IfHCInBroadcastPkts",
+	    CTLFLAG_RD, &sc->stat_IfHCInBroadcastPkts,
+	    "Broadcast packets received");
 
 	SYSCTL_ADD_ULONG(ctx, children, OID_AUTO,
-		"stat_IfHCOutUcastPkts",
-		CTLFLAG_RD, &sc->stat_IfHCOutUcastPkts,
-		"Unicast packets sent");
+	    "stat_IfHCOutUcastPkts",
+	    CTLFLAG_RD, &sc->stat_IfHCOutUcastPkts,
+	    "Unicast packets sent");
 
 	SYSCTL_ADD_ULONG(ctx, children, OID_AUTO,
-		"stat_IfHCOutMulticastPkts",
-		CTLFLAG_RD, &sc->stat_IfHCOutMulticastPkts,
-		"Multicast packets sent");
+	    "stat_IfHCOutMulticastPkts",
+	    CTLFLAG_RD, &sc->stat_IfHCOutMulticastPkts,
+	    "Multicast packets sent");
 
 	SYSCTL_ADD_ULONG(ctx, children, OID_AUTO,
-		"stat_IfHCOutBroadcastPkts",
-		CTLFLAG_RD, &sc->stat_IfHCOutBroadcastPkts,
-		"Broadcast packets sent");
+	    "stat_IfHCOutBroadcastPkts",
+	    CTLFLAG_RD, &sc->stat_IfHCOutBroadcastPkts,
+	    "Broadcast packets sent");
 
 	SYSCTL_ADD_UINT(ctx, children, OID_AUTO,
-		"stat_emac_tx_stat_dot3statsinternalmactransmiterrors",
-		CTLFLAG_RD, &sc->stat_emac_tx_stat_dot3statsinternalmactransmiterrors,
-		0, "Internal MAC transmit errors");
+	    "stat_emac_tx_stat_dot3statsinternalmactransmiterrors",
+	    CTLFLAG_RD, &sc->stat_emac_tx_stat_dot3statsinternalmactransmiterrors,
+	    0, "Internal MAC transmit errors");
 
 	SYSCTL_ADD_UINT(ctx, children, OID_AUTO,
-		"stat_Dot3StatsCarrierSenseErrors",
-		CTLFLAG_RD, &sc->stat_Dot3StatsCarrierSenseErrors,
-		0, "Carrier sense errors");
+	    "stat_Dot3StatsCarrierSenseErrors",
+	    CTLFLAG_RD, &sc->stat_Dot3StatsCarrierSenseErrors,
+	    0, "Carrier sense errors");
 
 	SYSCTL_ADD_UINT(ctx, children, OID_AUTO,
-		"stat_Dot3StatsFCSErrors",
-		CTLFLAG_RD, &sc->stat_Dot3StatsFCSErrors,
-		0, "Frame check sequence errors");
+	    "stat_Dot3StatsFCSErrors",
+	    CTLFLAG_RD, &sc->stat_Dot3StatsFCSErrors,
+	    0, "Frame check sequence errors");
 
 	SYSCTL_ADD_UINT(ctx, children, OID_AUTO,
-		"stat_Dot3StatsAlignmentErrors",
-		CTLFLAG_RD, &sc->stat_Dot3StatsAlignmentErrors,
-		0, "Alignment errors");
+	    "stat_Dot3StatsAlignmentErrors",
+	    CTLFLAG_RD, &sc->stat_Dot3StatsAlignmentErrors,
+	    0, "Alignment errors");
 
 	SYSCTL_ADD_UINT(ctx, children, OID_AUTO,
-		"stat_Dot3StatsSingleCollisionFrames",
-		CTLFLAG_RD, &sc->stat_Dot3StatsSingleCollisionFrames,
-		0, "Single Collision Frames");
+	    "stat_Dot3StatsSingleCollisionFrames",
+	    CTLFLAG_RD, &sc->stat_Dot3StatsSingleCollisionFrames,
+	    0, "Single Collision Frames");
 
 	SYSCTL_ADD_UINT(ctx, children, OID_AUTO,
-		"stat_Dot3StatsMultipleCollisionFrames",
-		CTLFLAG_RD, &sc->stat_Dot3StatsMultipleCollisionFrames,
-		0, "Multiple Collision Frames");
+	    "stat_Dot3StatsMultipleCollisionFrames",
+	    CTLFLAG_RD, &sc->stat_Dot3StatsMultipleCollisionFrames,
+	    0, "Multiple Collision Frames");
 
 	SYSCTL_ADD_UINT(ctx, children, OID_AUTO,
-		"stat_Dot3StatsDeferredTransmissions",
-		CTLFLAG_RD, &sc->stat_Dot3StatsDeferredTransmissions,
-		0, "Deferred Transmissions");
+	    "stat_Dot3StatsDeferredTransmissions",
+	    CTLFLAG_RD, &sc->stat_Dot3StatsDeferredTransmissions,
+	    0, "Deferred Transmissions");
 
 	SYSCTL_ADD_UINT(ctx, children, OID_AUTO,
-		"stat_Dot3StatsExcessiveCollisions",
-		CTLFLAG_RD, &sc->stat_Dot3StatsExcessiveCollisions,
-		0, "Excessive Collisions");
+	    "stat_Dot3StatsExcessiveCollisions",
+	    CTLFLAG_RD, &sc->stat_Dot3StatsExcessiveCollisions,
+	    0, "Excessive Collisions");
 
 	SYSCTL_ADD_UINT(ctx, children, OID_AUTO,
-		"stat_Dot3StatsLateCollisions",
-		CTLFLAG_RD, &sc->stat_Dot3StatsLateCollisions,
-		0, "Late Collisions");
+	    "stat_Dot3StatsLateCollisions",
+	    CTLFLAG_RD, &sc->stat_Dot3StatsLateCollisions,
+	    0, "Late Collisions");
 
 	SYSCTL_ADD_UINT(ctx, children, OID_AUTO,
-		"stat_EtherStatsCollisions",
-		CTLFLAG_RD, &sc->stat_EtherStatsCollisions,
-		0, "Collisions");
+	    "stat_EtherStatsCollisions",
+	    CTLFLAG_RD, &sc->stat_EtherStatsCollisions,
+	    0, "Collisions");
 
 	SYSCTL_ADD_UINT(ctx, children, OID_AUTO,
-		"stat_EtherStatsFragments",
-		CTLFLAG_RD, &sc->stat_EtherStatsFragments,
-		0, "Fragments");
+	    "stat_EtherStatsFragments",
+	    CTLFLAG_RD, &sc->stat_EtherStatsFragments,
+	    0, "Fragments");
 
 	SYSCTL_ADD_UINT(ctx, children, OID_AUTO,
-		"stat_EtherStatsJabbers",
-		CTLFLAG_RD, &sc->stat_EtherStatsJabbers,
-		0, "Jabbers");
+	    "stat_EtherStatsJabbers",
+	    CTLFLAG_RD, &sc->stat_EtherStatsJabbers,
+	    0, "Jabbers");
 
 	SYSCTL_ADD_UINT(ctx, children, OID_AUTO,
-		"stat_EtherStatsUndersizePkts",
-		CTLFLAG_RD, &sc->stat_EtherStatsUndersizePkts,
-		0, "Undersize packets");
+	    "stat_EtherStatsUndersizePkts",
+	    CTLFLAG_RD, &sc->stat_EtherStatsUndersizePkts,
+	    0, "Undersize packets");
 
 	SYSCTL_ADD_UINT(ctx, children, OID_AUTO,
-		"stat_EtherStatsOversizePkts",
-		CTLFLAG_RD, &sc->stat_EtherStatsOversizePkts,
-		0, "stat_EtherStatsOversizePkts");
+	    "stat_EtherStatsOversizePkts",
+	    CTLFLAG_RD, &sc->stat_EtherStatsOversizePkts,
+	    0, "stat_EtherStatsOversizePkts");
 
 	SYSCTL_ADD_UINT(ctx, children, OID_AUTO,
-		"stat_EtherStatsPktsRx64Octets",
-		CTLFLAG_RD, &sc->stat_EtherStatsPktsRx64Octets,
-		0, "Bytes received in 64 byte packets");
+	    "stat_EtherStatsPktsRx64Octets",
+	    CTLFLAG_RD, &sc->stat_EtherStatsPktsRx64Octets,
+	    0, "Bytes received in 64 byte packets");
 
 	SYSCTL_ADD_UINT(ctx, children, OID_AUTO,
-		"stat_EtherStatsPktsRx65Octetsto127Octets",
-		CTLFLAG_RD, &sc->stat_EtherStatsPktsRx65Octetsto127Octets,
-		0, "Bytes received in 65 to 127 byte packets");
+	    "stat_EtherStatsPktsRx65Octetsto127Octets",
+	    CTLFLAG_RD, &sc->stat_EtherStatsPktsRx65Octetsto127Octets,
+	    0, "Bytes received in 65 to 127 byte packets");
 
 	SYSCTL_ADD_UINT(ctx, children, OID_AUTO,
-		"stat_EtherStatsPktsRx128Octetsto255Octets",
-		CTLFLAG_RD, &sc->stat_EtherStatsPktsRx128Octetsto255Octets,
-		0, "Bytes received in 128 to 255 byte packets");
+	    "stat_EtherStatsPktsRx128Octetsto255Octets",
+	    CTLFLAG_RD, &sc->stat_EtherStatsPktsRx128Octetsto255Octets,
+	    0, "Bytes received in 128 to 255 byte packets");
 
 	SYSCTL_ADD_UINT(ctx, children, OID_AUTO,
-		"stat_EtherStatsPktsRx256Octetsto511Octets",
-		CTLFLAG_RD, &sc->stat_EtherStatsPktsRx256Octetsto511Octets,
-		0, "Bytes received in 256 to 511 byte packets");
+	    "stat_EtherStatsPktsRx256Octetsto511Octets",
+	    CTLFLAG_RD, &sc->stat_EtherStatsPktsRx256Octetsto511Octets,
+	    0, "Bytes received in 256 to 511 byte packets");
 
 	SYSCTL_ADD_UINT(ctx, children, OID_AUTO,
-		"stat_EtherStatsPktsRx512Octetsto1023Octets",
-		CTLFLAG_RD, &sc->stat_EtherStatsPktsRx512Octetsto1023Octets,
-		0, "Bytes received in 512 to 1023 byte packets");
+	    "stat_EtherStatsPktsRx512Octetsto1023Octets",
+	    CTLFLAG_RD, &sc->stat_EtherStatsPktsRx512Octetsto1023Octets,
+	    0, "Bytes received in 512 to 1023 byte packets");
 
 	SYSCTL_ADD_UINT(ctx, children, OID_AUTO,
-		"stat_EtherStatsPktsRx1024Octetsto1522Octets",
-		CTLFLAG_RD, &sc->stat_EtherStatsPktsRx1024Octetsto1522Octets,
-		0, "Bytes received in 1024 t0 1522 byte packets");
+	    "stat_EtherStatsPktsRx1024Octetsto1522Octets",
+	    CTLFLAG_RD, &sc->stat_EtherStatsPktsRx1024Octetsto1522Octets,
+	    0, "Bytes received in 1024 t0 1522 byte packets");
 
 	SYSCTL_ADD_UINT(ctx, children, OID_AUTO,
-		"stat_EtherStatsPktsRx1523Octetsto9022Octets",
-		CTLFLAG_RD, &sc->stat_EtherStatsPktsRx1523Octetsto9022Octets,
-		0, "Bytes received in 1523 to 9022 byte packets");
+	    "stat_EtherStatsPktsRx1523Octetsto9022Octets",
+	    CTLFLAG_RD, &sc->stat_EtherStatsPktsRx1523Octetsto9022Octets,
+	    0, "Bytes received in 1523 to 9022 byte packets");
 
 	SYSCTL_ADD_UINT(ctx, children, OID_AUTO,
-		"stat_EtherStatsPktsTx64Octets",
-		CTLFLAG_RD, &sc->stat_EtherStatsPktsTx64Octets,
-		0, "Bytes sent in 64 byte packets");
+	    "stat_EtherStatsPktsTx64Octets",
+	    CTLFLAG_RD, &sc->stat_EtherStatsPktsTx64Octets,
+	    0, "Bytes sent in 64 byte packets");
 
 	SYSCTL_ADD_UINT(ctx, children, OID_AUTO,
-		"stat_EtherStatsPktsTx65Octetsto127Octets",
-		CTLFLAG_RD, &sc->stat_EtherStatsPktsTx65Octetsto127Octets,
-		0, "Bytes sent in 65 to 127 byte packets");
+	    "stat_EtherStatsPktsTx65Octetsto127Octets",
+	    CTLFLAG_RD, &sc->stat_EtherStatsPktsTx65Octetsto127Octets,
+	    0, "Bytes sent in 65 to 127 byte packets");
 
 	SYSCTL_ADD_UINT(ctx, children, OID_AUTO,
-		"stat_EtherStatsPktsTx128Octetsto255Octets",
-		CTLFLAG_RD, &sc->stat_EtherStatsPktsTx128Octetsto255Octets,
-		0, "Bytes sent in 128 to 255 byte packets");
+	    "stat_EtherStatsPktsTx128Octetsto255Octets",
+	    CTLFLAG_RD, &sc->stat_EtherStatsPktsTx128Octetsto255Octets,
+	    0, "Bytes sent in 128 to 255 byte packets");
 
 	SYSCTL_ADD_UINT(ctx, children, OID_AUTO,
-		"stat_EtherStatsPktsTx256Octetsto511Octets",
-		CTLFLAG_RD, &sc->stat_EtherStatsPktsTx256Octetsto511Octets,
-		0, "Bytes sent in 256 to 511 byte packets");
+	    "stat_EtherStatsPktsTx256Octetsto511Octets",
+	    CTLFLAG_RD, &sc->stat_EtherStatsPktsTx256Octetsto511Octets,
+	    0, "Bytes sent in 256 to 511 byte packets");
 
 	SYSCTL_ADD_UINT(ctx, children, OID_AUTO,
-		"stat_EtherStatsPktsTx512Octetsto1023Octets",
-		CTLFLAG_RD, &sc->stat_EtherStatsPktsTx512Octetsto1023Octets,
-		0, "Bytes sent in 512 to 1023 byte packets");
+	    "stat_EtherStatsPktsTx512Octetsto1023Octets",
+	    CTLFLAG_RD, &sc->stat_EtherStatsPktsTx512Octetsto1023Octets,
+	    0, "Bytes sent in 512 to 1023 byte packets");
 
 	SYSCTL_ADD_UINT(ctx, children, OID_AUTO,
-		"stat_EtherStatsPktsTx1024Octetsto1522Octets",
-		CTLFLAG_RD, &sc->stat_EtherStatsPktsTx1024Octetsto1522Octets,
-		0, "Bytes sent in 1024 to 1522 byte packets");
+	    "stat_EtherStatsPktsTx1024Octetsto1522Octets",
+	    CTLFLAG_RD, &sc->stat_EtherStatsPktsTx1024Octetsto1522Octets,
+	    0, "Bytes sent in 1024 to 1522 byte packets");
 
 	SYSCTL_ADD_UINT(ctx, children, OID_AUTO,
-		"stat_EtherStatsPktsTx1523Octetsto9022Octets",
-		CTLFLAG_RD, &sc->stat_EtherStatsPktsTx1523Octetsto9022Octets,
-		0, "Bytes sent in 1523 to 9022 byte packets");
+	    "stat_EtherStatsPktsTx1523Octetsto9022Octets",
+	    CTLFLAG_RD, &sc->stat_EtherStatsPktsTx1523Octetsto9022Octets,
+	    0, "Bytes sent in 1523 to 9022 byte packets");
 
 	SYSCTL_ADD_UINT(ctx, children, OID_AUTO,
-		"stat_XonPauseFramesReceived",
-		CTLFLAG_RD, &sc->stat_XonPauseFramesReceived,
-		0, "XON pause frames receved");
+	    "stat_XonPauseFramesReceived",
+	    CTLFLAG_RD, &sc->stat_XonPauseFramesReceived,
+	    0, "XON pause frames receved");
 
 	SYSCTL_ADD_UINT(ctx, children, OID_AUTO,
-		"stat_XoffPauseFramesReceived",
-		CTLFLAG_RD, &sc->stat_XoffPauseFramesReceived,
-		0, "XOFF pause frames received");
+	    "stat_XoffPauseFramesReceived",
+	    CTLFLAG_RD, &sc->stat_XoffPauseFramesReceived,
+	    0, "XOFF pause frames received");
 
 	SYSCTL_ADD_UINT(ctx, children, OID_AUTO,
-		"stat_OutXonSent",
-		CTLFLAG_RD, &sc->stat_OutXonSent,
-		0, "XON pause frames sent");
+	    "stat_OutXonSent",
+	    CTLFLAG_RD, &sc->stat_OutXonSent,
+	    0, "XON pause frames sent");
 
 	SYSCTL_ADD_UINT(ctx, children, OID_AUTO,
-		"stat_OutXoffSent",
-		CTLFLAG_RD, &sc->stat_OutXoffSent,
-		0, "XOFF pause frames sent");
+	    "stat_OutXoffSent",
+	    CTLFLAG_RD, &sc->stat_OutXoffSent,
+	    0, "XOFF pause frames sent");
 
 	SYSCTL_ADD_UINT(ctx, children, OID_AUTO,
-		"stat_FlowControlDone",
-		CTLFLAG_RD, &sc->stat_FlowControlDone,
-		0, "Flow control done");
+	    "stat_FlowControlDone",
+	    CTLFLAG_RD, &sc->stat_FlowControlDone,
+	    0, "Flow control done");
 
 	SYSCTL_ADD_UINT(ctx, children, OID_AUTO,
-		"stat_MacControlFramesReceived",
-		CTLFLAG_RD, &sc->stat_MacControlFramesReceived,
-		0, "MAC control frames received");
+	    "stat_MacControlFramesReceived",
+	    CTLFLAG_RD, &sc->stat_MacControlFramesReceived,
+	    0, "MAC control frames received");
 
 	SYSCTL_ADD_UINT(ctx, children, OID_AUTO,
-		"stat_XoffStateEntered",
-		CTLFLAG_RD, &sc->stat_XoffStateEntered,
-		0, "XOFF state entered");
+	    "stat_XoffStateEntered",
+	    CTLFLAG_RD, &sc->stat_XoffStateEntered,
+	    0, "XOFF state entered");
 
 	SYSCTL_ADD_UINT(ctx, children, OID_AUTO,
-		"stat_IfInFramesL2FilterDiscards",
-		CTLFLAG_RD, &sc->stat_IfInFramesL2FilterDiscards,
-		0, "Received L2 packets discarded");
+	    "stat_IfInFramesL2FilterDiscards",
+	    CTLFLAG_RD, &sc->stat_IfInFramesL2FilterDiscards,
+	    0, "Received L2 packets discarded");
 
 	SYSCTL_ADD_UINT(ctx, children, OID_AUTO,
-		"stat_IfInRuleCheckerDiscards",
-		CTLFLAG_RD, &sc->stat_IfInRuleCheckerDiscards,
-		0, "Received packets discarded by rule");
+	    "stat_IfInRuleCheckerDiscards",
+	    CTLFLAG_RD, &sc->stat_IfInRuleCheckerDiscards,
+	    0, "Received packets discarded by rule");
 
 	SYSCTL_ADD_UINT(ctx, children, OID_AUTO,
-		"stat_IfInFTQDiscards",
-		CTLFLAG_RD, &sc->stat_IfInFTQDiscards,
-		0, "Received packet FTQ discards");
+	    "stat_IfInFTQDiscards",
+	    CTLFLAG_RD, &sc->stat_IfInFTQDiscards,
+	    0, "Received packet FTQ discards");
 
 	SYSCTL_ADD_UINT(ctx, children, OID_AUTO,
-		"stat_IfInMBUFDiscards",
-		CTLFLAG_RD, &sc->stat_IfInMBUFDiscards,
-		0, "Received packets discarded due to lack of controller buffer memory");
+	    "stat_IfInMBUFDiscards",
+	    CTLFLAG_RD, &sc->stat_IfInMBUFDiscards,
+	    0, "Received packets discarded due to lack "
+	    "of controller buffer memory");
 
 	SYSCTL_ADD_UINT(ctx, children, OID_AUTO,
-		"stat_IfInRuleCheckerP4Hit",
-		CTLFLAG_RD, &sc->stat_IfInRuleCheckerP4Hit,
-		0, "Received packets rule checker hits");
+	    "stat_IfInRuleCheckerP4Hit",
+	    CTLFLAG_RD, &sc->stat_IfInRuleCheckerP4Hit,
+	    0, "Received packets rule checker hits");
 
 	SYSCTL_ADD_UINT(ctx, children, OID_AUTO,
-		"stat_CatchupInRuleCheckerDiscards",
-		CTLFLAG_RD, &sc->stat_CatchupInRuleCheckerDiscards,
-		0, "Received packets discarded in Catchup path");
+	    "stat_CatchupInRuleCheckerDiscards",
+	    CTLFLAG_RD, &sc->stat_CatchupInRuleCheckerDiscards,
+	    0, "Received packets discarded in Catchup path");
 
 	SYSCTL_ADD_UINT(ctx, children, OID_AUTO,
-		"stat_CatchupInFTQDiscards",
-		CTLFLAG_RD, &sc->stat_CatchupInFTQDiscards,
-		0, "Received packets discarded in FTQ in Catchup path");
+	    "stat_CatchupInFTQDiscards",
+	    CTLFLAG_RD, &sc->stat_CatchupInFTQDiscards,
+	    0, "Received packets discarded in FTQ in Catchup path");
 
 	SYSCTL_ADD_UINT(ctx, children, OID_AUTO,
-		"stat_CatchupInMBUFDiscards",
-		CTLFLAG_RD, &sc->stat_CatchupInMBUFDiscards,
-		0, "Received packets discarded in controller buffer memory in Catchup path");
+	    "stat_CatchupInMBUFDiscards",
+	    CTLFLAG_RD, &sc->stat_CatchupInMBUFDiscards,
+	    0, "Received packets discarded in controller "
+	    "buffer memory in Catchup path");
 
 	SYSCTL_ADD_UINT(ctx, children, OID_AUTO,
-		"stat_CatchupInRuleCheckerP4Hit",
-		CTLFLAG_RD, &sc->stat_CatchupInRuleCheckerP4Hit,
-		0, "Received packets rule checker hits in Catchup path");
+	    "stat_CatchupInRuleCheckerP4Hit",
+	    CTLFLAG_RD, &sc->stat_CatchupInRuleCheckerP4Hit,
+	    0, "Received packets rule checker hits in Catchup path");
 
 	SYSCTL_ADD_UINT(ctx, children, OID_AUTO,
-		"com_no_buffers",
-		CTLFLAG_RD, &sc->com_no_buffers,
-		0, "Valid packets received but no RX buffers available");
+	    "com_no_buffers",
+	    CTLFLAG_RD, &sc->com_no_buffers,
+	    0, "Valid packets received but no RX buffers available");
 
 #ifdef BCE_DEBUG
 	SYSCTL_ADD_PROC(ctx, children, OID_AUTO,
-		"driver_state", CTLTYPE_INT | CTLFLAG_RW,
-		(void *)sc, 0,
-		bce_sysctl_driver_state, "I", "Drive state information");
+	    "driver_state", CTLTYPE_INT | CTLFLAG_RW,
+	    (void *)sc, 0,
+	    bce_sysctl_driver_state, "I", "Drive state information");
 
 	SYSCTL_ADD_PROC(ctx, children, OID_AUTO,
-		"hw_state", CTLTYPE_INT | CTLFLAG_RW,
-		(void *)sc, 0,
-		bce_sysctl_hw_state, "I", "Hardware state information");
+	    "hw_state", CTLTYPE_INT | CTLFLAG_RW,
+	    (void *)sc, 0,
+	    bce_sysctl_hw_state, "I", "Hardware state information");
 
 	SYSCTL_ADD_PROC(ctx, children, OID_AUTO,
-		"bc_state", CTLTYPE_INT | CTLFLAG_RW,
-		(void *)sc, 0,
-		bce_sysctl_bc_state, "I", "Bootcode state information");
+	    "status_block", CTLTYPE_INT | CTLFLAG_RW,
+	    (void *)sc, 0,
+	    bce_sysctl_status_block, "I", "Status block");
 
 	SYSCTL_ADD_PROC(ctx, children, OID_AUTO,
-		"dump_rx_chain", CTLTYPE_INT | CTLFLAG_RW,
-		(void *)sc, 0,
-		bce_sysctl_dump_rx_chain, "I", "Dump rx_bd chain");
+	    "stats_block", CTLTYPE_INT | CTLFLAG_RW,
+	    (void *)sc, 0,
+	    bce_sysctl_stats_block, "I", "Stats block");
 
 	SYSCTL_ADD_PROC(ctx, children, OID_AUTO,
-		"dump_tx_chain", CTLTYPE_INT | CTLFLAG_RW,
-		(void *)sc, 0,
-		bce_sysctl_dump_tx_chain, "I", "Dump tx_bd chain");
+	    "bc_state", CTLTYPE_INT | CTLFLAG_RW,
+	    (void *)sc, 0,
+	    bce_sysctl_bc_state, "I", "Bootcode state information");
+
+	SYSCTL_ADD_PROC(ctx, children, OID_AUTO,
+	    "dump_rx_bd_chain", CTLTYPE_INT | CTLFLAG_RW,
+	    (void *)sc, 0,
+	    bce_sysctl_dump_rx_bd_chain, "I", "Dump RX BD chain");
+
+	SYSCTL_ADD_PROC(ctx, children, OID_AUTO,
+	    "dump_rx_mbuf_chain", CTLTYPE_INT | CTLFLAG_RW,
+	    (void *)sc, 0,
+	    bce_sysctl_dump_rx_mbuf_chain, "I", "Dump RX MBUF chain");
+
+	SYSCTL_ADD_PROC(ctx, children, OID_AUTO,
+	    "dump_tx_chain", CTLTYPE_INT | CTLFLAG_RW,
+	    (void *)sc, 0,
+	    bce_sysctl_dump_tx_chain, "I", "Dump tx_bd chain");
 
 #ifdef BCE_JUMBO_HDRSPLIT
 	SYSCTL_ADD_PROC(ctx, children, OID_AUTO,
-		"dump_pg_chain", CTLTYPE_INT | CTLFLAG_RW,
-		(void *)sc, 0,
-		bce_sysctl_dump_pg_chain, "I", "Dump page chain");
+	    "dump_pg_chain", CTLTYPE_INT | CTLFLAG_RW,
+	    (void *)sc, 0,
+	    bce_sysctl_dump_pg_chain, "I", "Dump page chain");
 #endif
 	SYSCTL_ADD_PROC(ctx, children, OID_AUTO,
-		"dump_ctx", CTLTYPE_INT | CTLFLAG_RW,
-		(void *)sc, 0,
-		bce_sysctl_dump_ctx, "I", "Dump context memory");
+	    "dump_ctx", CTLTYPE_INT | CTLFLAG_RW,
+	    (void *)sc, 0,
+	    bce_sysctl_dump_ctx, "I", "Dump context memory");
 
 	SYSCTL_ADD_PROC(ctx, children, OID_AUTO,
-		"breakpoint", CTLTYPE_INT | CTLFLAG_RW,
-		(void *)sc, 0,
-		bce_sysctl_breakpoint, "I", "Driver breakpoint");
+	    "breakpoint", CTLTYPE_INT | CTLFLAG_RW,
+	    (void *)sc, 0,
+	    bce_sysctl_breakpoint, "I", "Driver breakpoint");
 
 	SYSCTL_ADD_PROC(ctx, children, OID_AUTO,
-		"reg_read", CTLTYPE_INT | CTLFLAG_RW,
-		(void *)sc, 0,
-		bce_sysctl_reg_read, "I", "Register read");
+	    "reg_read", CTLTYPE_INT | CTLFLAG_RW,
+	    (void *)sc, 0,
+	    bce_sysctl_reg_read, "I", "Register read");
 
 	SYSCTL_ADD_PROC(ctx, children, OID_AUTO,
-		"nvram_read", CTLTYPE_INT | CTLFLAG_RW,
-		(void *)sc, 0,
-		bce_sysctl_nvram_read, "I", "NVRAM read");
+	    "nvram_read", CTLTYPE_INT | CTLFLAG_RW,
+	    (void *)sc, 0,
+	    bce_sysctl_nvram_read, "I", "NVRAM read");
 
 	SYSCTL_ADD_PROC(ctx, children, OID_AUTO,
-		"phy_read", CTLTYPE_INT | CTLFLAG_RW,
-		(void *)sc, 0,
-		bce_sysctl_phy_read, "I", "PHY register read");
+	    "phy_read", CTLTYPE_INT | CTLFLAG_RW,
+	    (void *)sc, 0,
+	    bce_sysctl_phy_read, "I", "PHY register read");
 
 #endif
 
@@ -8544,7 +8805,7 @@ bce_add_sysctls(struct bce_softc *sc)
 /* Returns:                                                                 */
 /*   Nothing.                                                               */
 /****************************************************************************/
-static void
+static __attribute__ ((noinline)) void
 bce_freeze_controller(struct bce_softc *sc)
 {
 	u32 val;
@@ -8561,7 +8822,7 @@ bce_freeze_controller(struct bce_softc *sc)
 /* Returns:                                                                 */
 /*   Nothing.                                                               */
 /****************************************************************************/
-static void
+static __attribute__ ((noinline)) void
 bce_unfreeze_controller(struct bce_softc *sc)
 {
 	u32 val;
@@ -8579,7 +8840,7 @@ bce_unfreeze_controller(struct bce_softc *sc)
 /* Returns:                                                                 */
 /*   Nothing.                                                               */
 /****************************************************************************/
-static void
+static __attribute__ ((noinline)) void
 bce_dump_enet(struct bce_softc *sc, struct mbuf *m)
 {
 	struct ether_vlan_header *eh;
@@ -8590,10 +8851,10 @@ bce_dump_enet(struct bce_softc *sc, struct mbuf *m)
 	struct udphdr *uh;
 	struct arphdr *ah;
 
-		BCE_PRINTF(
-			"-----------------------------"
-			" Frame Decode "
-			"-----------------------------\n");
+	BCE_PRINTF(
+	    "-----------------------------"
+	    " Frame Decode "
+	    "-----------------------------\n");
 
 	eh = mtod(m, struct ether_vlan_header *);
 
@@ -8608,63 +8869,65 @@ bce_dump_enet(struct bce_softc *sc, struct mbuf *m)
 
 	/* ToDo: Add VLAN output. */
 	BCE_PRINTF("enet: dest = %6D, src = %6D, type = 0x%04X, hlen = %d\n",
-		eh->evl_dhost, ":", eh->evl_shost, ":", etype, ehlen);
+	    eh->evl_dhost, ":", eh->evl_shost, ":", etype, ehlen);
 
 	switch (etype) {
-		case ETHERTYPE_IP:
-			ip = (struct ip *)(m->m_data + ehlen);
-			BCE_PRINTF("--ip: dest = 0x%08X , src = 0x%08X, len = %d bytes, "
-				"protocol = 0x%02X, xsum = 0x%04X\n",
-				ntohl(ip->ip_dst.s_addr), ntohl(ip->ip_src.s_addr),
-				ntohs(ip->ip_len), ip->ip_p, ntohs(ip->ip_sum));
+	case ETHERTYPE_IP:
+		ip = (struct ip *)(m->m_data + ehlen);
+		BCE_PRINTF("--ip: dest = 0x%08X , src = 0x%08X, "
+		    "len = %d bytes, protocol = 0x%02X, xsum = 0x%04X\n",
+		    ntohl(ip->ip_dst.s_addr), ntohl(ip->ip_src.s_addr),
+		    ntohs(ip->ip_len), ip->ip_p, ntohs(ip->ip_sum));
 
-			switch (ip->ip_p) {
-				case IPPROTO_TCP:
-					th = (struct tcphdr *)((caddr_t)ip + (ip->ip_hl << 2));
-					BCE_PRINTF("-tcp: dest = %d, src = %d, hlen = %d bytes, "
-						"flags = 0x%b, csum = 0x%04X\n",
-						ntohs(th->th_dport), ntohs(th->th_sport), (th->th_off << 2),
-						th->th_flags, "\20\10CWR\07ECE\06URG\05ACK\04PSH\03RST\02SYN\01FIN",
-						ntohs(th->th_sum));
-					break;
-				case IPPROTO_UDP:
-        		    uh = (struct udphdr *)((caddr_t)ip + (ip->ip_hl << 2));
-					BCE_PRINTF("-udp: dest = %d, src = %d, len = %d bytes, "
-						"csum = 0x%04X\n", ntohs(uh->uh_dport), ntohs(uh->uh_sport),
-						ntohs(uh->uh_ulen), ntohs(uh->uh_sum));
-					break;
-				case IPPROTO_ICMP:
-					BCE_PRINTF("icmp:\n");
-					break;
-				default:
-					BCE_PRINTF("----: Other IP protocol.\n");
-			}
+		switch (ip->ip_p) {
+		case IPPROTO_TCP:
+			th = (struct tcphdr *)((caddr_t)ip + (ip->ip_hl << 2));
+			BCE_PRINTF("-tcp: dest = %d, src = %d, hlen = %d bytes, "
+			    "flags = 0x%b, csum = 0x%04X\n",
+			    ntohs(th->th_dport), ntohs(th->th_sport), 
+			    (th->th_off << 2), th->th_flags, 
+			    "\20\10CWR\07ECE\06URG\05ACK\04PSH\03RST"
+			    "\02SYN\01FIN", ntohs(th->th_sum));
 			break;
-		case ETHERTYPE_IPV6:
-			BCE_PRINTF("ipv6: No decode supported.\n");
+		case IPPROTO_UDP:
+			uh = (struct udphdr *)((caddr_t)ip + (ip->ip_hl << 2));
+			BCE_PRINTF("-udp: dest = %d, src = %d, len = %d "
+			    "bytes, csum = 0x%04X\n", ntohs(uh->uh_dport), 
+			    ntohs(uh->uh_sport), ntohs(uh->uh_ulen), 
+			    ntohs(uh->uh_sum));
 			break;
-		case ETHERTYPE_ARP:
-			BCE_PRINTF("-arp: ");
-			ah = (struct arphdr *) (m->m_data + ehlen);
-			switch (ntohs(ah->ar_op)) {
-				case ARPOP_REVREQUEST:
-					printf("reverse ARP request\n");
-					break;
-				case ARPOP_REVREPLY:
-					printf("reverse ARP reply\n");
-					break;
-				case ARPOP_REQUEST:
-					printf("ARP request\n");
-					break;
-				case ARPOP_REPLY:
-					printf("ARP reply\n");
-					break;
-				default:
-					printf("other ARP operation\n");
-			}
+		case IPPROTO_ICMP:
+			BCE_PRINTF("icmp:\n");
 			break;
 		default:
-			BCE_PRINTF("----: Other protocol.\n");
+			BCE_PRINTF("----: Other IP protocol.\n");
+			}
+		break;
+	case ETHERTYPE_IPV6:
+		BCE_PRINTF("ipv6: No decode supported.\n");
+		break;
+	case ETHERTYPE_ARP:
+		BCE_PRINTF("-arp: ");
+		ah = (struct arphdr *) (m->m_data + ehlen);
+		switch (ntohs(ah->ar_op)) {
+		case ARPOP_REVREQUEST:
+			printf("reverse ARP request\n");
+			break;
+		case ARPOP_REVREPLY:
+			printf("reverse ARP reply\n");
+			break;
+		case ARPOP_REQUEST:
+			printf("ARP request\n");
+			break;
+		case ARPOP_REPLY:
+			printf("ARP reply\n");
+			break;
+		default:
+			printf("other ARP operation\n");
+		}
+		break;
+	default:
+		BCE_PRINTF("----: Other protocol.\n");
 	}
 
 	BCE_PRINTF(
@@ -8691,37 +8954,49 @@ bce_dump_mbuf(struct bce_softc *sc, struct mbuf *m)
 	}
 
 	while (mp) {
-		BCE_PRINTF("mbuf: %p, m_len = %d, m_flags = 0x%b, m_data = %p\n",
-			mp, mp->m_len, mp->m_flags,
-			"\20\1M_EXT\2M_PKTHDR\3M_EOR\4M_RDONLY",
-			mp->m_data);
+		BCE_PRINTF("mbuf: %p, m_len = %d, m_flags = 0x%b, "
+		    "m_data = %p\n", mp, mp->m_len, mp->m_flags,
+		    "\20\1M_EXT\2M_PKTHDR\3M_EOR\4M_RDONLY", mp->m_data);
 
 		if (mp->m_flags & M_PKTHDR) {
-			BCE_PRINTF("- m_pkthdr: len = %d, flags = 0x%b, csum_flags = %b\n",
-				mp->m_pkthdr.len, mp->m_flags,
-				"\20\12M_BCAST\13M_MCAST\14M_FRAG\15M_FIRSTFRAG"
-				"\16M_LASTFRAG\21M_VLANTAG\22M_PROMISC\23M_NOFREE",
-				mp->m_pkthdr.csum_flags,
-				"\20\1CSUM_IP\2CSUM_TCP\3CSUM_UDP\4CSUM_IP_FRAGS"
-				"\5CSUM_FRAGMENT\6CSUM_TSO\11CSUM_IP_CHECKED"
-				"\12CSUM_IP_VALID\13CSUM_DATA_VALID\14CSUM_PSEUDO_HDR");
+			BCE_PRINTF("- m_pkthdr: len = %d, flags = 0x%b, "
+			    "csum_flags = %b\n", mp->m_pkthdr.len, 
+			    mp->m_flags, "\20\12M_BCAST\13M_MCAST\14M_FRAG"
+			    "\15M_FIRSTFRAG\16M_LASTFRAG\21M_VLANTAG"
+			    "\22M_PROMISC\23M_NOFREE", 
+			    mp->m_pkthdr.csum_flags,
+			    "\20\1CSUM_IP\2CSUM_TCP\3CSUM_UDP\4CSUM_IP_FRAGS"
+			    "\5CSUM_FRAGMENT\6CSUM_TSO\11CSUM_IP_CHECKED"
+			    "\12CSUM_IP_VALID\13CSUM_DATA_VALID"
+			    "\14CSUM_PSEUDO_HDR");
 		}
 
 		if (mp->m_flags & M_EXT) {
 			BCE_PRINTF("- m_ext: %p, ext_size = %d, type = ",
-				mp->m_ext.ext_buf, mp->m_ext.ext_size);
+			    mp->m_ext.ext_buf, mp->m_ext.ext_size);
 			switch (mp->m_ext.ext_type) {
-				case EXT_CLUSTER:    printf("EXT_CLUSTER\n"); break;
-				case EXT_SFBUF:      printf("EXT_SFBUF\n"); break;
-				case EXT_JUMBO9:     printf("EXT_JUMBO9\n"); break;
-				case EXT_JUMBO16:    printf("EXT_JUMBO16\n"); break;
-				case EXT_PACKET:     printf("EXT_PACKET\n"); break;
-				case EXT_MBUF:       printf("EXT_MBUF\n"); break;
-				case EXT_NET_DRV:    printf("EXT_NET_DRV\n"); break;
-				case EXT_MOD_TYPE:   printf("EXT_MDD_TYPE\n"); break;
-				case EXT_DISPOSABLE: printf("EXT_DISPOSABLE\n"); break;
-				case EXT_EXTREF:     printf("EXT_EXTREF\n"); break;
-				default:             printf("UNKNOWN\n");
+			case EXT_CLUSTER:
+				printf("EXT_CLUSTER\n"); break;
+			case EXT_SFBUF:
+				printf("EXT_SFBUF\n"); break;
+			case EXT_JUMBO9:
+				printf("EXT_JUMBO9\n"); break;
+			case EXT_JUMBO16:
+				printf("EXT_JUMBO16\n"); break;
+			case EXT_PACKET:
+				printf("EXT_PACKET\n"); break;
+			case EXT_MBUF:
+				printf("EXT_MBUF\n"); break;
+			case EXT_NET_DRV:
+				printf("EXT_NET_DRV\n"); break;
+			case EXT_MOD_TYPE:
+				printf("EXT_MDD_TYPE\n"); break;
+			case EXT_DISPOSABLE:
+				printf("EXT_DISPOSABLE\n"); break;
+			case EXT_EXTREF:
+				printf("EXT_EXTREF\n"); break;
+			default:             
+				printf("UNKNOWN\n");
 			}
 		}
 
@@ -8833,60 +9108,109 @@ bce_dump_pg_mbuf_chain(struct bce_softc *sc, u16 chain_prod, int count)
 static __attribute__ ((noinline)) void
 bce_dump_txbd(struct bce_softc *sc, int idx, struct tx_bd *txbd)
 {
+	int i = 0;
+
 	if (idx > MAX_TX_BD)
 		/* Index out of range. */
 		BCE_PRINTF("tx_bd[0x%04X]: Invalid tx_bd index!\n", idx);
 	else if ((idx & USABLE_TX_BD_PER_PAGE) == USABLE_TX_BD_PER_PAGE)
 		/* TX Chain page pointer. */
-		BCE_PRINTF("tx_bd[0x%04X]: haddr = 0x%08X:%08X, chain page pointer\n",
-			idx, txbd->tx_bd_haddr_hi, txbd->tx_bd_haddr_lo);
+		BCE_PRINTF("tx_bd[0x%04X]: haddr = 0x%08X:%08X, chain page "
+		    "pointer\n", idx, txbd->tx_bd_haddr_hi, 
+		    txbd->tx_bd_haddr_lo);
 	else {
-			/* Normal tx_bd entry. */
-			BCE_PRINTF("tx_bd[0x%04X]: haddr = 0x%08X:%08X, nbytes = 0x%08X, "
-				"vlan tag= 0x%04X, flags = 0x%04X (", idx,
-				txbd->tx_bd_haddr_hi, txbd->tx_bd_haddr_lo,
-				txbd->tx_bd_mss_nbytes, txbd->tx_bd_vlan_tag,
-				txbd->tx_bd_flags);
+		/* Normal tx_bd entry. */
+		BCE_PRINTF("tx_bd[0x%04X]: haddr = 0x%08X:%08X, "
+		    "mss_nbytes = 0x%08X, vlan tag = 0x%04X, flags = "
+		    "0x%04X (", idx, txbd->tx_bd_haddr_hi, 
+		    txbd->tx_bd_haddr_lo, txbd->tx_bd_mss_nbytes, 
+		    txbd->tx_bd_vlan_tag, txbd->tx_bd_flags);
 
-			if (txbd->tx_bd_flags & TX_BD_FLAGS_CONN_FAULT)
-				printf(" CONN_FAULT");
-
-			if (txbd->tx_bd_flags & TX_BD_FLAGS_TCP_UDP_CKSUM)
-				printf(" TCP_UDP_CKSUM");
-
-			if (txbd->tx_bd_flags & TX_BD_FLAGS_IP_CKSUM)
-				printf(" IP_CKSUM");
-
-			if (txbd->tx_bd_flags & TX_BD_FLAGS_VLAN_TAG)
-				printf("  VLAN");
-
-			if (txbd->tx_bd_flags & TX_BD_FLAGS_COAL_NOW)
-				printf(" COAL_NOW");
-
-			if (txbd->tx_bd_flags & TX_BD_FLAGS_DONT_GEN_CRC)
-				printf(" DONT_GEN_CRC");
-
-			if (txbd->tx_bd_flags & TX_BD_FLAGS_START)
-				printf(" START");
-
-			if (txbd->tx_bd_flags & TX_BD_FLAGS_END)
-				printf(" END");
-
-			if (txbd->tx_bd_flags & TX_BD_FLAGS_SW_LSO)
-				printf(" LSO");
-
-			if (txbd->tx_bd_flags & TX_BD_FLAGS_SW_OPTION_WORD)
-				printf(" OPTION_WORD");
-
-			if (txbd->tx_bd_flags & TX_BD_FLAGS_SW_FLAGS)
-				printf(" FLAGS");
-
-			if (txbd->tx_bd_flags & TX_BD_FLAGS_SW_SNAP)
-				printf(" SNAP");
-
-			printf(" )\n");
+		if (txbd->tx_bd_flags & TX_BD_FLAGS_CONN_FAULT) {
+			if (i>0) 
+				printf("|"); 
+			printf("CONN_FAULT"); 
+			i++;
 		}
 
+		if (txbd->tx_bd_flags & TX_BD_FLAGS_TCP_UDP_CKSUM) {
+			if (i>0) 
+				printf("|"); 
+			printf("TCP_UDP_CKSUM"); 
+			i++;
+		}
+
+		if (txbd->tx_bd_flags & TX_BD_FLAGS_IP_CKSUM) {
+			if (i>0) 
+				printf("|"); 
+			printf("IP_CKSUM"); 
+			i++;
+		}
+
+		if (txbd->tx_bd_flags & TX_BD_FLAGS_VLAN_TAG) {
+			if (i>0) 
+				printf("|"); 
+			printf("VLAN"); 
+			i++;
+		}
+
+		if (txbd->tx_bd_flags & TX_BD_FLAGS_COAL_NOW) {
+			if (i>0) 
+				printf("|"); 
+			printf("COAL_NOW"); 
+			i++;
+		}
+
+		if (txbd->tx_bd_flags & TX_BD_FLAGS_DONT_GEN_CRC) {
+			if (i>0) 
+				printf("|"); 
+			printf("DONT_GEN_CRC"); 
+			i++;
+		}
+
+		if (txbd->tx_bd_flags & TX_BD_FLAGS_START) {
+			if (i>0) 
+				printf("|"); 
+			printf("START"); 
+			i++;
+		}
+
+		if (txbd->tx_bd_flags & TX_BD_FLAGS_END) {
+			if (i>0) 
+				printf("|"); 
+			printf("END"); 
+			i++;
+		}
+
+		if (txbd->tx_bd_flags & TX_BD_FLAGS_SW_LSO) {
+			if (i>0) 
+				printf("|"); 
+			printf("LSO"); 
+			i++;
+		}
+
+		if (txbd->tx_bd_flags & TX_BD_FLAGS_SW_OPTION_WORD) {
+			if (i>0) 
+				printf("|"); 
+			printf("SW_OPTION=%d", ((txbd->tx_bd_flags & 
+			    TX_BD_FLAGS_SW_OPTION_WORD) >> 8)); i++;
+		}
+
+		if (txbd->tx_bd_flags & TX_BD_FLAGS_SW_FLAGS) {
+			if (i>0) 
+				printf("|"); 
+			printf("SW_FLAGS"); 
+			i++;
+		}
+
+		if (txbd->tx_bd_flags & TX_BD_FLAGS_SW_SNAP) {
+			if (i>0) 
+				printf("|"); 
+			printf("SNAP)");
+		} else {
+			printf(")\n");
+		}
+	}
 }
 
 
@@ -8904,14 +9228,15 @@ bce_dump_rxbd(struct bce_softc *sc, int idx, struct rx_bd *rxbd)
 		BCE_PRINTF("rx_bd[0x%04X]: Invalid rx_bd index!\n", idx);
 	else if ((idx & USABLE_RX_BD_PER_PAGE) == USABLE_RX_BD_PER_PAGE)
 		/* RX Chain page pointer. */
-		BCE_PRINTF("rx_bd[0x%04X]: haddr = 0x%08X:%08X, chain page pointer\n",
-			idx, rxbd->rx_bd_haddr_hi, rxbd->rx_bd_haddr_lo);
+		BCE_PRINTF("rx_bd[0x%04X]: haddr = 0x%08X:%08X, chain page "
+		    "pointer\n", idx, rxbd->rx_bd_haddr_hi, 
+		    rxbd->rx_bd_haddr_lo);
 	else
 		/* Normal rx_bd entry. */
-		BCE_PRINTF("rx_bd[0x%04X]: haddr = 0x%08X:%08X, nbytes = 0x%08X, "
-			"flags = 0x%08X\n", idx,
-			rxbd->rx_bd_haddr_hi, rxbd->rx_bd_haddr_lo,
-			rxbd->rx_bd_len, rxbd->rx_bd_flags);
+		BCE_PRINTF("rx_bd[0x%04X]: haddr = 0x%08X:%08X, nbytes = "
+		    "0x%08X, flags = 0x%08X\n", idx, rxbd->rx_bd_haddr_hi, 
+		    rxbd->rx_bd_haddr_lo, rxbd->rx_bd_len, 
+		    rxbd->rx_bd_flags);
 }
 
 
@@ -8969,104 +9294,117 @@ bce_dump_l2fhdr(struct bce_softc *sc, int idx, struct l2_fhdr *l2fhdr)
 static __attribute__ ((noinline)) void
 bce_dump_ctx(struct bce_softc *sc, u16 cid)
 {
-	if (cid <= TX_CID) {
-		BCE_PRINTF(
-			"----------------------------"
-			"    CTX Data    "
-			"----------------------------\n");
-
-		BCE_PRINTF("     0x%04X - (CID) Context ID\n", cid);
-
-		if (cid == RX_CID) {
-			BCE_PRINTF(" 0x%08X - (L2CTX_RX_HOST_BDIDX) host rx "
-				"producer index\n",
-				CTX_RD(sc, GET_CID_ADDR(cid), BCE_L2CTX_RX_HOST_BDIDX));
-			BCE_PRINTF(" 0x%08X - (L2CTX_RX_HOST_BSEQ) host byte sequence\n",
-				CTX_RD(sc, GET_CID_ADDR(cid), BCE_L2CTX_RX_HOST_BSEQ));
-			BCE_PRINTF(" 0x%08X - (L2CTX_RX_NX_BSEQ) h/w byte sequence\n",
-				CTX_RD(sc, GET_CID_ADDR(cid), BCE_L2CTX_RX_NX_BSEQ));
-			BCE_PRINTF(" 0x%08X - (L2CTX_RX_NX_BDHADDR_HI) h/w buffer "
-				"descriptor address\n",
- 				CTX_RD(sc, GET_CID_ADDR(cid), BCE_L2CTX_RX_NX_BDHADDR_HI));
-			BCE_PRINTF(" 0x%08X - (L2CTX_RX_NX_BDHADDR_LO) h/w buffer "
-				"descriptor address\n",
-				CTX_RD(sc, GET_CID_ADDR(cid), BCE_L2CTX_RX_NX_BDHADDR_LO));
-			BCE_PRINTF(" 0x%08X - (L2CTX_RX_NX_BDIDX) h/w rx consumer index\n",
-				CTX_RD(sc, GET_CID_ADDR(cid), BCE_L2CTX_RX_NX_BDIDX));
-			BCE_PRINTF(" 0x%08X - (L2CTX_RX_HOST_PG_BDIDX) host page "
-				"producer index\n",
-				CTX_RD(sc, GET_CID_ADDR(cid), BCE_L2CTX_RX_HOST_PG_BDIDX));
-			BCE_PRINTF(" 0x%08X - (L2CTX_RX_PG_BUF_SIZE) host rx_bd/page "
-				"buffer size\n",
-				CTX_RD(sc, GET_CID_ADDR(cid), BCE_L2CTX_RX_PG_BUF_SIZE));
-			BCE_PRINTF(" 0x%08X - (L2CTX_RX_NX_PG_BDHADDR_HI) h/w page "
-				"chain address\n",
-				CTX_RD(sc, GET_CID_ADDR(cid), BCE_L2CTX_RX_NX_PG_BDHADDR_HI));
-			BCE_PRINTF(" 0x%08X - (L2CTX_RX_NX_PG_BDHADDR_LO) h/w page "
-				"chain address\n",
-				CTX_RD(sc, GET_CID_ADDR(cid), BCE_L2CTX_RX_NX_PG_BDHADDR_LO));
-			BCE_PRINTF(" 0x%08X - (L2CTX_RX_NX_PG_BDIDX) h/w page "
-				"consumer index\n",
-				CTX_RD(sc, GET_CID_ADDR(cid), BCE_L2CTX_RX_NX_PG_BDIDX));
-		} else if (cid == TX_CID) {
-			if ((BCE_CHIP_NUM(sc) == BCE_CHIP_NUM_5709) ||
-				(BCE_CHIP_NUM(sc) == BCE_CHIP_NUM_5716)) {
-				BCE_PRINTF(" 0x%08X - (L2CTX_TX_TYPE_XI) ctx type\n",
-					CTX_RD(sc, GET_CID_ADDR(cid), BCE_L2CTX_TX_TYPE_XI));
-				BCE_PRINTF(" 0x%08X - (L2CTX_CMD_TX_TYPE_XI) ctx cmd\n",
-					CTX_RD(sc, GET_CID_ADDR(cid), BCE_L2CTX_TX_CMD_TYPE_XI));
-				BCE_PRINTF(" 0x%08X - (L2CTX_TX_TBDR_BDHADDR_HI_XI) h/w buffer "
-					"descriptor address\n",	CTX_RD(sc,
-					GET_CID_ADDR(cid), BCE_L2CTX_TX_TBDR_BHADDR_HI_XI));
-				BCE_PRINTF(" 0x%08X - (L2CTX_TX_TBDR_BHADDR_LO_XI) h/w buffer "
-					"descriptor address\n", CTX_RD(sc,
-					GET_CID_ADDR(cid), BCE_L2CTX_TX_TBDR_BHADDR_LO_XI));
-				BCE_PRINTF(" 0x%08X - (L2CTX_TX_HOST_BIDX_XI) host producer "
-					"index\n", CTX_RD(sc, GET_CID_ADDR(cid),
-					BCE_L2CTX_TX_HOST_BIDX_XI));
-				BCE_PRINTF(" 0x%08X - (L2CTX_TX_HOST_BSEQ_XI) host byte "
-					"sequence\n", CTX_RD(sc, GET_CID_ADDR(cid),
-					BCE_L2CTX_TX_HOST_BSEQ_XI));
-			} else {
-				BCE_PRINTF(" 0x%08X - (L2CTX_TX_TYPE) ctx type\n",
-					CTX_RD(sc, GET_CID_ADDR(cid), BCE_L2CTX_TX_TYPE));
-				BCE_PRINTF(" 0x%08X - (L2CTX_TX_CMD_TYPE) ctx cmd\n",
-					CTX_RD(sc, GET_CID_ADDR(cid), BCE_L2CTX_TX_CMD_TYPE));
-				BCE_PRINTF(" 0x%08X - (L2CTX_TX_TBDR_BDHADDR_HI) h/w buffer "
-					"descriptor address\n", CTX_RD(sc, GET_CID_ADDR(cid),
-					BCE_L2CTX_TX_TBDR_BHADDR_HI));
-				BCE_PRINTF(" 0x%08X - (L2CTX_TX_TBDR_BHADDR_LO) h/w buffer "
-					"descriptor address\n", CTX_RD(sc, GET_CID_ADDR(cid),
-					BCE_L2CTX_TX_TBDR_BHADDR_LO));
-				BCE_PRINTF(" 0x%08X - (L2CTX_TX_HOST_BIDX) host producer "
-					"index\n", CTX_RD(sc, GET_CID_ADDR(cid),
-					BCE_L2CTX_TX_HOST_BIDX));
-				BCE_PRINTF(" 0x%08X - (L2CTX_TX_HOST_BSEQ) host byte "
-					"sequence\n", CTX_RD(sc, GET_CID_ADDR(cid),
-					BCE_L2CTX_TX_HOST_BSEQ));
-			}
-		} else
-			BCE_PRINTF(" Unknown CID\n");
-
-		BCE_PRINTF(
-			"----------------------------"
-			"    Raw CTX     "
-			"----------------------------\n");
-
-		for (int i = 0x0; i < 0x300; i += 0x10) {
-			BCE_PRINTF("0x%04X: 0x%08X 0x%08X 0x%08X 0x%08X\n", i,
-				CTX_RD(sc, GET_CID_ADDR(cid), i),
-				CTX_RD(sc, GET_CID_ADDR(cid), i + 0x4),
-				CTX_RD(sc, GET_CID_ADDR(cid), i + 0x8),
-				CTX_RD(sc, GET_CID_ADDR(cid), i + 0xc));
-		}
-
-
-		BCE_PRINTF(
-			"----------------------------"
-			"----------------"
-			"----------------------------\n");
+	if (cid > TX_CID) {
+		BCE_PRINTF(" Unknown CID\n");
+		return;
 	}
+
+	BCE_PRINTF(
+	    "----------------------------"
+	    "    CTX Data    "
+	    "----------------------------\n");
+
+	BCE_PRINTF("     0x%04X - (CID) Context ID\n", cid);
+
+	if (cid == RX_CID) {
+		BCE_PRINTF(" 0x%08X - (L2CTX_RX_HOST_BDIDX) host rx "
+		   "producer index\n",
+		    CTX_RD(sc, GET_CID_ADDR(cid), BCE_L2CTX_RX_HOST_BDIDX));
+		BCE_PRINTF(" 0x%08X - (L2CTX_RX_HOST_BSEQ) host "
+		    "byte sequence\n", CTX_RD(sc, GET_CID_ADDR(cid),
+		    BCE_L2CTX_RX_HOST_BSEQ));
+		BCE_PRINTF(" 0x%08X - (L2CTX_RX_NX_BSEQ) h/w byte sequence\n",
+		    CTX_RD(sc, GET_CID_ADDR(cid), BCE_L2CTX_RX_NX_BSEQ));
+		BCE_PRINTF(" 0x%08X - (L2CTX_RX_NX_BDHADDR_HI) h/w buffer "
+		    "descriptor address\n",
+ 		    CTX_RD(sc, GET_CID_ADDR(cid), BCE_L2CTX_RX_NX_BDHADDR_HI));
+		BCE_PRINTF(" 0x%08X - (L2CTX_RX_NX_BDHADDR_LO) h/w buffer "
+		    "descriptor address\n",
+		    CTX_RD(sc, GET_CID_ADDR(cid), BCE_L2CTX_RX_NX_BDHADDR_LO));
+		BCE_PRINTF(" 0x%08X - (L2CTX_RX_NX_BDIDX) h/w rx consumer "
+		    "index\n", CTX_RD(sc, GET_CID_ADDR(cid),
+		    BCE_L2CTX_RX_NX_BDIDX));
+		BCE_PRINTF(" 0x%08X - (L2CTX_RX_HOST_PG_BDIDX) host page "
+		    "producer index\n", CTX_RD(sc, GET_CID_ADDR(cid), 
+		    BCE_L2CTX_RX_HOST_PG_BDIDX));
+		BCE_PRINTF(" 0x%08X - (L2CTX_RX_PG_BUF_SIZE) host rx_bd/page "
+		    "buffer size\n", CTX_RD(sc, GET_CID_ADDR(cid), 
+		    BCE_L2CTX_RX_PG_BUF_SIZE));
+		BCE_PRINTF(" 0x%08X - (L2CTX_RX_NX_PG_BDHADDR_HI) h/w page "
+		    "chain address\n", CTX_RD(sc, GET_CID_ADDR(cid), 
+		    BCE_L2CTX_RX_NX_PG_BDHADDR_HI));
+		BCE_PRINTF(" 0x%08X - (L2CTX_RX_NX_PG_BDHADDR_LO) h/w page "
+		    "chain address\n", CTX_RD(sc, GET_CID_ADDR(cid), 
+		    BCE_L2CTX_RX_NX_PG_BDHADDR_LO));
+		BCE_PRINTF(" 0x%08X - (L2CTX_RX_NX_PG_BDIDX) h/w page "
+		    "consumer index\n",	CTX_RD(sc, GET_CID_ADDR(cid), 
+		    BCE_L2CTX_RX_NX_PG_BDIDX));
+	} else if (cid == TX_CID) {
+		if ((BCE_CHIP_NUM(sc) == BCE_CHIP_NUM_5709) ||
+		    (BCE_CHIP_NUM(sc) == BCE_CHIP_NUM_5716)) {
+			BCE_PRINTF(" 0x%08X - (L2CTX_TX_TYPE_XI) ctx type\n",
+			    CTX_RD(sc, GET_CID_ADDR(cid), 
+			    BCE_L2CTX_TX_TYPE_XI));
+			BCE_PRINTF(" 0x%08X - (L2CTX_CMD_TX_TYPE_XI) ctx "
+			    "cmd\n", CTX_RD(sc, GET_CID_ADDR(cid), 
+			    BCE_L2CTX_TX_CMD_TYPE_XI));
+			BCE_PRINTF(" 0x%08X - (L2CTX_TX_TBDR_BDHADDR_HI_XI) "
+			    "h/w buffer descriptor address\n",	
+			    CTX_RD(sc, GET_CID_ADDR(cid), 
+			    BCE_L2CTX_TX_TBDR_BHADDR_HI_XI));
+			BCE_PRINTF(" 0x%08X - (L2CTX_TX_TBDR_BHADDR_LO_XI) "
+			    "h/w buffer	descriptor address\n", 
+			    CTX_RD(sc, GET_CID_ADDR(cid),
+			    BCE_L2CTX_TX_TBDR_BHADDR_LO_XI));
+			BCE_PRINTF(" 0x%08X - (L2CTX_TX_HOST_BIDX_XI) "
+			    "host producer index\n", 
+			    CTX_RD(sc, GET_CID_ADDR(cid),
+			    BCE_L2CTX_TX_HOST_BIDX_XI));
+			BCE_PRINTF(" 0x%08X - (L2CTX_TX_HOST_BSEQ_XI) "
+			    "host byte sequence\n", 
+			    CTX_RD(sc, GET_CID_ADDR(cid),
+			    BCE_L2CTX_TX_HOST_BSEQ_XI));
+		} else {
+			BCE_PRINTF(" 0x%08X - (L2CTX_TX_TYPE) ctx type\n",
+			    CTX_RD(sc, GET_CID_ADDR(cid), BCE_L2CTX_TX_TYPE));
+			BCE_PRINTF(" 0x%08X - (L2CTX_TX_CMD_TYPE) ctx cmd\n",
+			    CTX_RD(sc, GET_CID_ADDR(cid), 
+			    BCE_L2CTX_TX_CMD_TYPE));
+			BCE_PRINTF(" 0x%08X - (L2CTX_TX_TBDR_BDHADDR_HI) "
+			    "h/w buffer	descriptor address\n", 
+			    CTX_RD(sc, GET_CID_ADDR(cid),
+			    BCE_L2CTX_TX_TBDR_BHADDR_HI));
+			BCE_PRINTF(" 0x%08X - (L2CTX_TX_TBDR_BHADDR_LO) "
+			    "h/w buffer	descriptor address\n", 
+			    CTX_RD(sc, GET_CID_ADDR(cid),
+			    BCE_L2CTX_TX_TBDR_BHADDR_LO));
+			BCE_PRINTF(" 0x%08X - (L2CTX_TX_HOST_BIDX) host "
+			    "producer index\n", CTX_RD(sc, GET_CID_ADDR(cid),
+			    BCE_L2CTX_TX_HOST_BIDX));
+			BCE_PRINTF(" 0x%08X - (L2CTX_TX_HOST_BSEQ) host byte "
+			    "sequence\n", CTX_RD(sc, GET_CID_ADDR(cid),
+			    BCE_L2CTX_TX_HOST_BSEQ));
+		}
+	}
+
+	BCE_PRINTF(
+	   "----------------------------"
+	   "    Raw CTX     "
+	   "----------------------------\n");
+
+	for (int i = 0x0; i < 0x300; i += 0x10) {
+		BCE_PRINTF("0x%04X: 0x%08X 0x%08X 0x%08X 0x%08X\n", i,
+		   CTX_RD(sc, GET_CID_ADDR(cid), i),
+		   CTX_RD(sc, GET_CID_ADDR(cid), i + 0x4),
+		   CTX_RD(sc, GET_CID_ADDR(cid), i + 0x8),
+		   CTX_RD(sc, GET_CID_ADDR(cid), i + 0xc));
+	}
+
+
+	BCE_PRINTF(
+	   "----------------------------"
+	   "----------------"
+	   "----------------------------\n");
 }
 
 
@@ -9082,36 +9420,38 @@ bce_dump_ftqs(struct bce_softc *sc)
 	u32 cmd, ctl, cur_depth, max_depth, valid_cnt, val;
 
 	BCE_PRINTF(
-		"----------------------------"
-		"    FTQ Data    "
-		"----------------------------\n");
+	    "----------------------------"
+	    "    FTQ Data    "
+	    "----------------------------\n");
 
-	BCE_PRINTF("   FTQ    Command    Control   Depth_Now  Max_Depth  Valid_Cnt \n");
-	BCE_PRINTF(" ------- ---------- ---------- ---------- ---------- ----------\n");
+	BCE_PRINTF("   FTQ    Command    Control   Depth_Now  "
+	    "Max_Depth  Valid_Cnt \n");
+	BCE_PRINTF(" ------- ---------- ---------- ---------- "
+	    "---------- ----------\n");
 
 	/* Setup the generic statistic counters for the FTQ valid count. */
 	val = (BCE_HC_STAT_GEN_SEL_0_GEN_SEL_0_RV2PPQ_VALID_CNT << 24) |
-		(BCE_HC_STAT_GEN_SEL_0_GEN_SEL_0_RXPCQ_VALID_CNT  << 16) |
-		(BCE_HC_STAT_GEN_SEL_0_GEN_SEL_0_RXPQ_VALID_CNT   <<  8) |
-		(BCE_HC_STAT_GEN_SEL_0_GEN_SEL_0_RLUPQ_VALID_CNT);
+	    (BCE_HC_STAT_GEN_SEL_0_GEN_SEL_0_RXPCQ_VALID_CNT  << 16) |
+	    (BCE_HC_STAT_GEN_SEL_0_GEN_SEL_0_RXPQ_VALID_CNT   <<  8) |
+	    (BCE_HC_STAT_GEN_SEL_0_GEN_SEL_0_RLUPQ_VALID_CNT);
 	REG_WR(sc, BCE_HC_STAT_GEN_SEL_0, val);
 
 	val = (BCE_HC_STAT_GEN_SEL_0_GEN_SEL_0_TSCHQ_VALID_CNT  << 24) |
-		(BCE_HC_STAT_GEN_SEL_0_GEN_SEL_0_RDMAQ_VALID_CNT  << 16) |
-		(BCE_HC_STAT_GEN_SEL_0_GEN_SEL_0_RV2PTQ_VALID_CNT <<  8) |
-		(BCE_HC_STAT_GEN_SEL_0_GEN_SEL_0_RV2PMQ_VALID_CNT);
+	    (BCE_HC_STAT_GEN_SEL_0_GEN_SEL_0_RDMAQ_VALID_CNT  << 16) |
+	    (BCE_HC_STAT_GEN_SEL_0_GEN_SEL_0_RV2PTQ_VALID_CNT <<  8) |
+	    (BCE_HC_STAT_GEN_SEL_0_GEN_SEL_0_RV2PMQ_VALID_CNT);
 	REG_WR(sc, BCE_HC_STAT_GEN_SEL_1, val);
 
 	val = (BCE_HC_STAT_GEN_SEL_0_GEN_SEL_0_TPATQ_VALID_CNT  << 24) |
-		(BCE_HC_STAT_GEN_SEL_0_GEN_SEL_0_TDMAQ_VALID_CNT  << 16) |
-		(BCE_HC_STAT_GEN_SEL_0_GEN_SEL_0_TXPQ_VALID_CNT   <<  8) |
-		(BCE_HC_STAT_GEN_SEL_0_GEN_SEL_0_TBDRQ_VALID_CNT);
+	    (BCE_HC_STAT_GEN_SEL_0_GEN_SEL_0_TDMAQ_VALID_CNT  << 16) |
+	    (BCE_HC_STAT_GEN_SEL_0_GEN_SEL_0_TXPQ_VALID_CNT   <<  8) |
+	    (BCE_HC_STAT_GEN_SEL_0_GEN_SEL_0_TBDRQ_VALID_CNT);
 	REG_WR(sc, BCE_HC_STAT_GEN_SEL_2, val);
 
 	val = (BCE_HC_STAT_GEN_SEL_0_GEN_SEL_0_COMQ_VALID_CNT   << 24) |
-		(BCE_HC_STAT_GEN_SEL_0_GEN_SEL_0_COMTQ_VALID_CNT  << 16) |
-		(BCE_HC_STAT_GEN_SEL_0_GEN_SEL_0_COMXQ_VALID_CNT  <<  8) |
-		(BCE_HC_STAT_GEN_SEL_0_GEN_SEL_0_TASQ_VALID_CNT);
+	    (BCE_HC_STAT_GEN_SEL_0_GEN_SEL_0_COMTQ_VALID_CNT  << 16) |
+	    (BCE_HC_STAT_GEN_SEL_0_GEN_SEL_0_COMXQ_VALID_CNT  <<  8) |
+	    (BCE_HC_STAT_GEN_SEL_0_GEN_SEL_0_TASQ_VALID_CNT);
 	REG_WR(sc, BCE_HC_STAT_GEN_SEL_3, val);
 
 	/* Input queue to the Receive Lookup state machine */
@@ -9121,7 +9461,7 @@ bce_dump_ftqs(struct bce_softc *sc)
 	max_depth = (ctl & BCE_RLUP_FTQ_CTL_MAX_DEPTH) >> 12;
 	valid_cnt = REG_RD(sc, BCE_HC_STAT_GEN_STAT0);
 	BCE_PRINTF(" RLUP    0x%08X 0x%08X 0x%08X 0x%08X 0x%08X\n",
-		cmd, ctl, cur_depth, max_depth, valid_cnt);
+	    cmd, ctl, cur_depth, max_depth, valid_cnt);
 
 	/* Input queue to the Receive Processor */
 	cmd = REG_RD_IND(sc, BCE_RXP_FTQ_CMD);
@@ -9130,7 +9470,7 @@ bce_dump_ftqs(struct bce_softc *sc)
 	max_depth = (ctl & BCE_RXP_FTQ_CTL_MAX_DEPTH) >> 12;
 	valid_cnt = REG_RD(sc, BCE_HC_STAT_GEN_STAT1);
 	BCE_PRINTF(" RXP     0x%08X 0x%08X 0x%08X 0x%08X 0x%08X\n",
-		cmd, ctl, cur_depth, max_depth, valid_cnt);
+	    cmd, ctl, cur_depth, max_depth, valid_cnt);
 
 	/* Input queue to the Recevie Processor */
 	cmd = REG_RD_IND(sc, BCE_RXP_CFTQ_CMD);
@@ -9139,7 +9479,7 @@ bce_dump_ftqs(struct bce_softc *sc)
 	max_depth = (ctl & BCE_RXP_CFTQ_CTL_MAX_DEPTH) >> 12;
 	valid_cnt = REG_RD(sc, BCE_HC_STAT_GEN_STAT2);
 	BCE_PRINTF(" RXPC    0x%08X 0x%08X 0x%08X 0x%08X 0x%08X\n",
-		cmd, ctl, cur_depth, max_depth, valid_cnt);
+	    cmd, ctl, cur_depth, max_depth, valid_cnt);
 
 	/* Input queue to the Receive Virtual to Physical state machine */
 	cmd = REG_RD(sc, BCE_RV2P_PFTQ_CMD);
@@ -9148,7 +9488,7 @@ bce_dump_ftqs(struct bce_softc *sc)
 	max_depth = (ctl & BCE_RV2P_PFTQ_CTL_MAX_DEPTH) >> 12;
 	valid_cnt = REG_RD(sc, BCE_HC_STAT_GEN_STAT3);
 	BCE_PRINTF(" RV2PP   0x%08X 0x%08X 0x%08X 0x%08X 0x%08X\n",
-		cmd, ctl, cur_depth, max_depth, valid_cnt);
+	    cmd, ctl, cur_depth, max_depth, valid_cnt);
 
 	/* Input queue to the Recevie Virtual to Physical state machine */
 	cmd = REG_RD(sc, BCE_RV2P_MFTQ_CMD);
@@ -9157,7 +9497,7 @@ bce_dump_ftqs(struct bce_softc *sc)
 	max_depth = (ctl & BCE_RV2P_MFTQ_CTL_MAX_DEPTH) >> 12;
 	valid_cnt = REG_RD(sc, BCE_HC_STAT_GEN_STAT4);
 	BCE_PRINTF(" RV2PM   0x%08X 0x%08X 0x%08X 0x%08X 0x%08X\n",
-		cmd, ctl, cur_depth, max_depth, valid_cnt);
+	    cmd, ctl, cur_depth, max_depth, valid_cnt);
 
 	/* Input queue to the Receive Virtual to Physical state machine */
 	cmd = REG_RD(sc, BCE_RV2P_TFTQ_CMD);
@@ -9166,7 +9506,7 @@ bce_dump_ftqs(struct bce_softc *sc)
 	max_depth = (ctl & BCE_RV2P_TFTQ_CTL_MAX_DEPTH) >> 12;
 	valid_cnt = REG_RD(sc, BCE_HC_STAT_GEN_STAT5);
 	BCE_PRINTF(" RV2PT   0x%08X 0x%08X 0x%08X 0x%08X 0x%08X\n",
-		cmd, ctl, cur_depth, max_depth, valid_cnt);
+	    cmd, ctl, cur_depth, max_depth, valid_cnt);
 
 	/* Input queue to the Receive DMA state machine */
 	cmd = REG_RD(sc, BCE_RDMA_FTQ_CMD);
@@ -9175,7 +9515,7 @@ bce_dump_ftqs(struct bce_softc *sc)
 	max_depth = (ctl & BCE_RDMA_FTQ_CTL_MAX_DEPTH) >> 12;
 	valid_cnt = REG_RD(sc, BCE_HC_STAT_GEN_STAT6);
 	BCE_PRINTF(" RDMA    0x%08X 0x%08X 0x%08X 0x%08X 0x%08X\n",
-		cmd, ctl, cur_depth, max_depth, valid_cnt);
+	    cmd, ctl, cur_depth, max_depth, valid_cnt);
 
 	/* Input queue to the Transmit Scheduler state machine */
 	cmd = REG_RD(sc, BCE_TSCH_FTQ_CMD);
@@ -9184,7 +9524,7 @@ bce_dump_ftqs(struct bce_softc *sc)
 	max_depth = (ctl & BCE_TSCH_FTQ_CTL_MAX_DEPTH) >> 12;
 	valid_cnt = REG_RD(sc, BCE_HC_STAT_GEN_STAT7);
 	BCE_PRINTF(" TSCH    0x%08X 0x%08X 0x%08X 0x%08X 0x%08X\n",
-		cmd, ctl, cur_depth, max_depth, valid_cnt);
+	    cmd, ctl, cur_depth, max_depth, valid_cnt);
 
 	/* Input queue to the Transmit Buffer Descriptor state machine */
 	cmd = REG_RD(sc, BCE_TBDR_FTQ_CMD);
@@ -9193,7 +9533,7 @@ bce_dump_ftqs(struct bce_softc *sc)
 	max_depth = (ctl & BCE_TBDR_FTQ_CTL_MAX_DEPTH) >> 12;
 	valid_cnt = REG_RD(sc, BCE_HC_STAT_GEN_STAT8);
 	BCE_PRINTF(" TBDR    0x%08X 0x%08X 0x%08X 0x%08X 0x%08X\n",
-		cmd, ctl, cur_depth, max_depth, valid_cnt);
+	    cmd, ctl, cur_depth, max_depth, valid_cnt);
 
 	/* Input queue to the Transmit Processor */
 	cmd = REG_RD_IND(sc, BCE_TXP_FTQ_CMD);
@@ -9202,7 +9542,7 @@ bce_dump_ftqs(struct bce_softc *sc)
 	max_depth = (ctl & BCE_TXP_FTQ_CTL_MAX_DEPTH) >> 12;
 	valid_cnt = REG_RD(sc, BCE_HC_STAT_GEN_STAT9);
 	BCE_PRINTF(" TXP     0x%08X 0x%08X 0x%08X 0x%08X 0x%08X\n",
-		cmd, ctl, cur_depth, max_depth, valid_cnt);
+	    cmd, ctl, cur_depth, max_depth, valid_cnt);
 
 	/* Input queue to the Transmit DMA state machine */
 	cmd = REG_RD(sc, BCE_TDMA_FTQ_CMD);
@@ -9211,7 +9551,7 @@ bce_dump_ftqs(struct bce_softc *sc)
 	max_depth = (ctl & BCE_TDMA_FTQ_CTL_MAX_DEPTH) >> 12;
 	valid_cnt = REG_RD(sc, BCE_HC_STAT_GEN_STAT10);
 	BCE_PRINTF(" TDMA    0x%08X 0x%08X 0x%08X 0x%08X 0x%08X\n",
-		cmd, ctl, cur_depth, max_depth, valid_cnt);
+	    cmd, ctl, cur_depth, max_depth, valid_cnt);
 
 	/* Input queue to the Transmit Patch-Up Processor */
 	cmd = REG_RD_IND(sc, BCE_TPAT_FTQ_CMD);
@@ -9220,7 +9560,7 @@ bce_dump_ftqs(struct bce_softc *sc)
 	max_depth = (ctl & BCE_TPAT_FTQ_CTL_MAX_DEPTH) >> 12;
 	valid_cnt = REG_RD(sc, BCE_HC_STAT_GEN_STAT11);
 	BCE_PRINTF(" TPAT    0x%08X 0x%08X 0x%08X 0x%08X 0x%08X\n",
-		cmd, ctl, cur_depth, max_depth, valid_cnt);
+	    cmd, ctl, cur_depth, max_depth, valid_cnt);
 
 	/* Input queue to the Transmit Assembler state machine */
 	cmd = REG_RD_IND(sc, BCE_TAS_FTQ_CMD);
@@ -9229,7 +9569,7 @@ bce_dump_ftqs(struct bce_softc *sc)
 	max_depth = (ctl & BCE_TAS_FTQ_CTL_MAX_DEPTH) >> 12;
 	valid_cnt = REG_RD(sc, BCE_HC_STAT_GEN_STAT12);
 	BCE_PRINTF(" TAS     0x%08X 0x%08X 0x%08X 0x%08X 0x%08X\n",
-		cmd, ctl, cur_depth, max_depth, valid_cnt);
+	    cmd, ctl, cur_depth, max_depth, valid_cnt);
 
 	/* Input queue to the Completion Processor */
 	cmd = REG_RD_IND(sc, BCE_COM_COMXQ_FTQ_CMD);
@@ -9238,7 +9578,7 @@ bce_dump_ftqs(struct bce_softc *sc)
 	max_depth = (ctl & BCE_COM_COMXQ_FTQ_CTL_MAX_DEPTH) >> 12;
 	valid_cnt = REG_RD(sc, BCE_HC_STAT_GEN_STAT13);
 	BCE_PRINTF(" COMX    0x%08X 0x%08X 0x%08X 0x%08X 0x%08X\n",
-		cmd, ctl, cur_depth, max_depth, valid_cnt);
+	    cmd, ctl, cur_depth, max_depth, valid_cnt);
 
 	/* Input queue to the Completion Processor */
 	cmd = REG_RD_IND(sc, BCE_COM_COMTQ_FTQ_CMD);
@@ -9247,7 +9587,7 @@ bce_dump_ftqs(struct bce_softc *sc)
 	max_depth = (ctl & BCE_COM_COMTQ_FTQ_CTL_MAX_DEPTH) >> 12;
 	valid_cnt = REG_RD(sc, BCE_HC_STAT_GEN_STAT14);
 	BCE_PRINTF(" COMT    0x%08X 0x%08X 0x%08X 0x%08X 0x%08X\n",
-		cmd, ctl, cur_depth, max_depth, valid_cnt);
+	    cmd, ctl, cur_depth, max_depth, valid_cnt);
 
 	/* Input queue to the Completion Processor */
 	cmd = REG_RD_IND(sc, BCE_COM_COMQ_FTQ_CMD);
@@ -9256,17 +9596,19 @@ bce_dump_ftqs(struct bce_softc *sc)
 	max_depth = (ctl & BCE_COM_COMQ_FTQ_CTL_MAX_DEPTH) >> 12;
 	valid_cnt = REG_RD(sc, BCE_HC_STAT_GEN_STAT15);
 	BCE_PRINTF(" COMX    0x%08X 0x%08X 0x%08X 0x%08X 0x%08X\n",
-		cmd, ctl, cur_depth, max_depth, valid_cnt);
+	    cmd, ctl, cur_depth, max_depth, valid_cnt);
 
 	/* Setup the generic statistic counters for the FTQ valid count. */
 	val = (BCE_HC_STAT_GEN_SEL_0_GEN_SEL_0_CSQ_VALID_CNT  << 16) |
-		(BCE_HC_STAT_GEN_SEL_0_GEN_SEL_0_CPQ_VALID_CNT  <<  8) |
-		(BCE_HC_STAT_GEN_SEL_0_GEN_SEL_0_MGMQ_VALID_CNT);
+	    (BCE_HC_STAT_GEN_SEL_0_GEN_SEL_0_CPQ_VALID_CNT  <<  8) |
+	    (BCE_HC_STAT_GEN_SEL_0_GEN_SEL_0_MGMQ_VALID_CNT);
 
-	if ((BCE_CHIP_NUM(sc) == BCE_CHIP_NUM_5709)	||
-		(BCE_CHIP_NUM(sc) == BCE_CHIP_NUM_5716))
-		val = val | (BCE_HC_STAT_GEN_SEL_0_GEN_SEL_0_RV2PCSQ_VALID_CNT_XI << 24);
-		REG_WR(sc, BCE_HC_STAT_GEN_SEL_0, val);
+	if ((BCE_CHIP_NUM(sc) == BCE_CHIP_NUM_5709) ||
+	    (BCE_CHIP_NUM(sc) == BCE_CHIP_NUM_5716))
+		val = val | 
+		    (BCE_HC_STAT_GEN_SEL_0_GEN_SEL_0_RV2PCSQ_VALID_CNT_XI << 
+		     24);
+	REG_WR(sc, BCE_HC_STAT_GEN_SEL_0, val);
 
 	/* Input queue to the Management Control Processor */
 	cmd = REG_RD_IND(sc, BCE_MCP_MCPQ_FTQ_CMD);
@@ -9275,7 +9617,7 @@ bce_dump_ftqs(struct bce_softc *sc)
 	max_depth = (ctl & BCE_MCP_MCPQ_FTQ_CTL_MAX_DEPTH) >> 12;
 	valid_cnt = REG_RD(sc, BCE_HC_STAT_GEN_STAT0);
 	BCE_PRINTF(" MCP     0x%08X 0x%08X 0x%08X 0x%08X 0x%08X\n",
-		cmd, ctl, cur_depth, max_depth, valid_cnt);
+	    cmd, ctl, cur_depth, max_depth, valid_cnt);
 
 	/* Input queue to the Command Processor */
 	cmd = REG_RD_IND(sc, BCE_CP_CPQ_FTQ_CMD);
@@ -9284,7 +9626,7 @@ bce_dump_ftqs(struct bce_softc *sc)
 	max_depth = (ctl & BCE_CP_CPQ_FTQ_CTL_MAX_DEPTH) >> 12;
 	valid_cnt = REG_RD(sc, BCE_HC_STAT_GEN_STAT1);
 	BCE_PRINTF(" CP      0x%08X 0x%08X 0x%08X 0x%08X 0x%08X\n",
-		cmd, ctl, cur_depth, max_depth, valid_cnt);
+	    cmd, ctl, cur_depth, max_depth, valid_cnt);
 
 	/* Input queue to the Completion Scheduler state machine */
 	cmd = REG_RD(sc, BCE_CSCH_CH_FTQ_CMD);
@@ -9293,24 +9635,24 @@ bce_dump_ftqs(struct bce_softc *sc)
 	max_depth = (ctl & BCE_CSCH_CH_FTQ_CTL_MAX_DEPTH) >> 12;
 	valid_cnt = REG_RD(sc, BCE_HC_STAT_GEN_STAT2);
 	BCE_PRINTF(" CS      0x%08X 0x%08X 0x%08X 0x%08X 0x%08X\n",
-		cmd, ctl, cur_depth, max_depth, valid_cnt);
+	    cmd, ctl, cur_depth, max_depth, valid_cnt);
 
 	if ((BCE_CHIP_NUM(sc) == BCE_CHIP_NUM_5709) ||
-		(BCE_CHIP_NUM(sc) == BCE_CHIP_NUM_5716)) {
-		/* Input queue to the Receive Virtual to Physical Command Scheduler */
+	    (BCE_CHIP_NUM(sc) == BCE_CHIP_NUM_5716)) {
+		/* Input queue to the RV2P Command Scheduler */
 		cmd = REG_RD(sc, BCE_RV2PCSR_FTQ_CMD);
 		ctl = REG_RD(sc, BCE_RV2PCSR_FTQ_CTL);
 		cur_depth = (ctl & 0xFFC00000) >> 22;
 		max_depth = (ctl & 0x003FF000) >> 12;
 		valid_cnt = REG_RD(sc, BCE_HC_STAT_GEN_STAT3);
 		BCE_PRINTF(" RV2PCSR 0x%08X 0x%08X 0x%08X 0x%08X 0x%08X\n",
-			cmd, ctl, cur_depth, max_depth, valid_cnt);
+		    cmd, ctl, cur_depth, max_depth, valid_cnt);
 	}
 
 	BCE_PRINTF(
-		"----------------------------"
-		"----------------"
-		"----------------------------\n");
+	    "----------------------------"
+	    "----------------"
+	    "----------------------------\n");
 }
 
 
@@ -9327,34 +9669,32 @@ bce_dump_tx_chain(struct bce_softc *sc, u16 tx_prod, int count)
 
 	/* First some info about the tx_bd chain structure. */
 	BCE_PRINTF(
-		"----------------------------"
-		"  tx_bd  chain  "
-		"----------------------------\n");
+	    "----------------------------"
+	    "  tx_bd  chain  "
+	    "----------------------------\n");
 
 	BCE_PRINTF("page size      = 0x%08X, tx chain pages        = 0x%08X\n",
-		(u32) BCM_PAGE_SIZE, (u32) TX_PAGES);
-
+	    (u32) BCM_PAGE_SIZE, (u32) TX_PAGES);
 	BCE_PRINTF("tx_bd per page = 0x%08X, usable tx_bd per page = 0x%08X\n",
-		(u32) TOTAL_TX_BD_PER_PAGE, (u32) USABLE_TX_BD_PER_PAGE);
-
+	    (u32) TOTAL_TX_BD_PER_PAGE, (u32) USABLE_TX_BD_PER_PAGE);
 	BCE_PRINTF("total tx_bd    = 0x%08X\n", (u32) TOTAL_TX_BD);
 
 	BCE_PRINTF(
-		"----------------------------"
-		"   tx_bd data   "
-		"----------------------------\n");
+	    "----------------------------"
+	    "   tx_bd data   "
+	    "----------------------------\n");
 
-	/* Now print out the tx_bd's themselves. */
+	/* Now print out a decoded list of TX buffer descriptors. */
 	for (int i = 0; i < count; i++) {
 	 	txbd = &sc->tx_bd_chain[TX_PAGE(tx_prod)][TX_IDX(tx_prod)];
 		bce_dump_txbd(sc, tx_prod, txbd);
-		tx_prod = NEXT_TX_BD(tx_prod);
+		tx_prod++;
 	}
 
 	BCE_PRINTF(
-		"----------------------------"
-		"----------------"
-		"----------------------------\n");
+	    "----------------------------"
+	    "----------------"
+	    "----------------------------\n");
 }
 
 
@@ -9365,28 +9705,28 @@ bce_dump_tx_chain(struct bce_softc *sc, u16 tx_prod, int count)
 /*   Nothing.                                                               */
 /****************************************************************************/
 static __attribute__ ((noinline)) void
-bce_dump_rx_chain(struct bce_softc *sc, u16 rx_prod, int count)
+bce_dump_rx_bd_chain(struct bce_softc *sc, u16 rx_prod, int count)
 {
 	struct rx_bd *rxbd;
 
 	/* First some info about the rx_bd chain structure. */
 	BCE_PRINTF(
-		"----------------------------"
-		"  rx_bd  chain  "
-		"----------------------------\n");
+	    "----------------------------"
+	    "  rx_bd  chain  "
+	    "----------------------------\n");
 
 	BCE_PRINTF("page size      = 0x%08X, rx chain pages        = 0x%08X\n",
-		(u32) BCM_PAGE_SIZE, (u32) RX_PAGES);
+	    (u32) BCM_PAGE_SIZE, (u32) RX_PAGES);
 
 	BCE_PRINTF("rx_bd per page = 0x%08X, usable rx_bd per page = 0x%08X\n",
-		(u32) TOTAL_RX_BD_PER_PAGE, (u32) USABLE_RX_BD_PER_PAGE);
+	    (u32) TOTAL_RX_BD_PER_PAGE, (u32) USABLE_RX_BD_PER_PAGE);
 
 	BCE_PRINTF("total rx_bd    = 0x%08X\n", (u32) TOTAL_RX_BD);
 
 	BCE_PRINTF(
-		"----------------------------"
-		"   rx_bd data   "
-		"----------------------------\n");
+	    "----------------------------"
+	    "   rx_bd data   "
+	    "----------------------------\n");
 
 	/* Now print out the rx_bd's themselves. */
 	for (int i = 0; i < count; i++) {
@@ -9396,9 +9736,9 @@ bce_dump_rx_chain(struct bce_softc *sc, u16 rx_prod, int count)
 	}
 
 	BCE_PRINTF(
-		"----------------------------"
-		"----------------"
-		"----------------------------\n");
+	    "----------------------------"
+	    "----------------"
+	    "----------------------------\n");
 }
 
 
@@ -9416,23 +9756,23 @@ bce_dump_pg_chain(struct bce_softc *sc, u16 pg_prod, int count)
 
 	/* First some info about the page chain structure. */
 	BCE_PRINTF(
-		"----------------------------"
-		"   page chain   "
-		"----------------------------\n");
+	    "----------------------------"
+	    "   page chain   "
+	    "----------------------------\n");
 
 	BCE_PRINTF("page size      = 0x%08X, pg chain pages        = 0x%08X\n",
-		(u32) BCM_PAGE_SIZE, (u32) PG_PAGES);
+	    (u32) BCM_PAGE_SIZE, (u32) PG_PAGES);
 
 	BCE_PRINTF("rx_bd per page = 0x%08X, usable rx_bd per page = 0x%08X\n",
-		(u32) TOTAL_PG_BD_PER_PAGE, (u32) USABLE_PG_BD_PER_PAGE);
+	    (u32) TOTAL_PG_BD_PER_PAGE, (u32) USABLE_PG_BD_PER_PAGE);
 
 	BCE_PRINTF("total rx_bd    = 0x%08X, max_pg_bd             = 0x%08X\n",
-		(u32) TOTAL_PG_BD, (u32) MAX_PG_BD);
+	    (u32) TOTAL_PG_BD, (u32) MAX_PG_BD);
 
 	BCE_PRINTF(
-		"----------------------------"
-		"   page data    "
-		"----------------------------\n");
+	    "----------------------------"
+	    "   page data    "
+	    "----------------------------\n");
 
 	/* Now print out the rx_bd's themselves. */
 	for (int i = 0; i < count; i++) {
@@ -9442,12 +9782,27 @@ bce_dump_pg_chain(struct bce_softc *sc, u16 pg_prod, int count)
 	}
 
 	BCE_PRINTF(
-		"----------------------------"
-		"----------------"
-		"----------------------------\n");
+	    "----------------------------"
+	    "----------------"
+	    "----------------------------\n");
 }
 #endif
 
+
+#define BCE_PRINT_RX_CONS(arg)						\
+if (sblk->status_rx_quick_consumer_index##arg)				\
+	BCE_PRINTF("0x%04X(0x%04X) - rx_quick_consumer_index%d\n",	\
+	    sblk->status_rx_quick_consumer_index##arg, (u16)		\
+	    RX_CHAIN_IDX(sblk->status_rx_quick_consumer_index##arg),	\
+	    arg);
+
+
+#define BCE_PRINT_TX_CONS(arg)						\
+if (sblk->status_tx_quick_consumer_index##arg)				\
+	BCE_PRINTF("0x%04X(0x%04X) - tx_quick_consumer_index%d\n",	\
+	    sblk->status_tx_quick_consumer_index##arg, (u16)		\
+	    TX_CHAIN_IDX(sblk->status_tx_quick_consumer_index##arg),	\
+	    arg);
 
 /****************************************************************************/
 /* Prints out the status block from host memory.                            */
@@ -9462,106 +9817,54 @@ bce_dump_status_block(struct bce_softc *sc)
 
 	sblk = sc->status_block;
 
-   	BCE_PRINTF(
-		"----------------------------"
-		"  Status Block  "
-		"----------------------------\n");
+	BCE_PRINTF(
+	    "----------------------------"
+	    "  Status Block  "
+	    "----------------------------\n");
 
+	/* Theses indices are used for normal L2 drivers. */
 	BCE_PRINTF("    0x%08X - attn_bits\n",
-		sblk->status_attn_bits);
+	    sblk->status_attn_bits);
 
 	BCE_PRINTF("    0x%08X - attn_bits_ack\n",
-		sblk->status_attn_bits_ack);
+	    sblk->status_attn_bits_ack);
 
-	BCE_PRINTF("0x%04X(0x%04X) - rx_cons0\n",
-		sblk->status_rx_quick_consumer_index0,
-		(u16) RX_CHAIN_IDX(sblk->status_rx_quick_consumer_index0));
-
-	BCE_PRINTF("0x%04X(0x%04X) - tx_cons0\n",
-		sblk->status_tx_quick_consumer_index0,
-		(u16) TX_CHAIN_IDX(sblk->status_tx_quick_consumer_index0));
+	BCE_PRINT_RX_CONS(0);
+	BCE_PRINT_TX_CONS(0)
 
 	BCE_PRINTF("        0x%04X - status_idx\n", sblk->status_idx);
 
 	/* Theses indices are not used for normal L2 drivers. */
-	if (sblk->status_rx_quick_consumer_index1)
-		BCE_PRINTF("0x%04X(0x%04X) - rx_cons1\n",
-			sblk->status_rx_quick_consumer_index1,
-			(u16) RX_CHAIN_IDX(sblk->status_rx_quick_consumer_index1));
+	BCE_PRINT_RX_CONS(1);   BCE_PRINT_RX_CONS(2);   BCE_PRINT_RX_CONS(3);
+	BCE_PRINT_RX_CONS(4);   BCE_PRINT_RX_CONS(5);   BCE_PRINT_RX_CONS(6);
+	BCE_PRINT_RX_CONS(7);   BCE_PRINT_RX_CONS(8);   BCE_PRINT_RX_CONS(9);
+	BCE_PRINT_RX_CONS(10);  BCE_PRINT_RX_CONS(11);  BCE_PRINT_RX_CONS(12);
+	BCE_PRINT_RX_CONS(13);  BCE_PRINT_RX_CONS(14);  BCE_PRINT_RX_CONS(15);
 
-	if (sblk->status_tx_quick_consumer_index1)
-		BCE_PRINTF("0x%04X(0x%04X) - tx_cons1\n",
-			sblk->status_tx_quick_consumer_index1,
-			(u16) TX_CHAIN_IDX(sblk->status_tx_quick_consumer_index1));
-
-	if (sblk->status_rx_quick_consumer_index2)
-		BCE_PRINTF("0x%04X(0x%04X)- rx_cons2\n",
-			sblk->status_rx_quick_consumer_index2,
-			(u16) RX_CHAIN_IDX(sblk->status_rx_quick_consumer_index2));
-
-	if (sblk->status_tx_quick_consumer_index2)
-		BCE_PRINTF("0x%04X(0x%04X) - tx_cons2\n",
-			sblk->status_tx_quick_consumer_index2,
-			(u16) TX_CHAIN_IDX(sblk->status_tx_quick_consumer_index2));
-
-	if (sblk->status_rx_quick_consumer_index3)
-		BCE_PRINTF("0x%04X(0x%04X) - rx_cons3\n",
-			sblk->status_rx_quick_consumer_index3,
-			(u16) RX_CHAIN_IDX(sblk->status_rx_quick_consumer_index3));
-
-	if (sblk->status_tx_quick_consumer_index3)
-		BCE_PRINTF("0x%04X(0x%04X) - tx_cons3\n",
-			sblk->status_tx_quick_consumer_index3,
-			(u16) TX_CHAIN_IDX(sblk->status_tx_quick_consumer_index3));
-
-	if (sblk->status_rx_quick_consumer_index4 ||
-		sblk->status_rx_quick_consumer_index5)
-		BCE_PRINTF("rx_cons4  = 0x%08X, rx_cons5      = 0x%08X\n",
-			sblk->status_rx_quick_consumer_index4,
-			sblk->status_rx_quick_consumer_index5);
-
-	if (sblk->status_rx_quick_consumer_index6 ||
-		sblk->status_rx_quick_consumer_index7)
-		BCE_PRINTF("rx_cons6  = 0x%08X, rx_cons7      = 0x%08X\n",
-			sblk->status_rx_quick_consumer_index6,
-			sblk->status_rx_quick_consumer_index7);
-
-	if (sblk->status_rx_quick_consumer_index8 ||
-		sblk->status_rx_quick_consumer_index9)
-		BCE_PRINTF("rx_cons8  = 0x%08X, rx_cons9      = 0x%08X\n",
-			sblk->status_rx_quick_consumer_index8,
-			sblk->status_rx_quick_consumer_index9);
-
-	if (sblk->status_rx_quick_consumer_index10 ||
-		sblk->status_rx_quick_consumer_index11)
-		BCE_PRINTF("rx_cons10 = 0x%08X, rx_cons11     = 0x%08X\n",
-			sblk->status_rx_quick_consumer_index10,
-			sblk->status_rx_quick_consumer_index11);
-
-	if (sblk->status_rx_quick_consumer_index12 ||
-		sblk->status_rx_quick_consumer_index13)
-		BCE_PRINTF("rx_cons12 = 0x%08X, rx_cons13     = 0x%08X\n",
-			sblk->status_rx_quick_consumer_index12,
-			sblk->status_rx_quick_consumer_index13);
-
-	if (sblk->status_rx_quick_consumer_index14 ||
-		sblk->status_rx_quick_consumer_index15)
-		BCE_PRINTF("rx_cons14 = 0x%08X, rx_cons15     = 0x%08X\n",
-			sblk->status_rx_quick_consumer_index14,
-			sblk->status_rx_quick_consumer_index15);
+	BCE_PRINT_TX_CONS(1);   BCE_PRINT_TX_CONS(2);   BCE_PRINT_TX_CONS(3);
 
 	if (sblk->status_completion_producer_index ||
-		sblk->status_cmd_consumer_index)
+	    sblk->status_cmd_consumer_index)
 		BCE_PRINTF("com_prod  = 0x%08X, cmd_cons      = 0x%08X\n",
-			sblk->status_completion_producer_index,
-			sblk->status_cmd_consumer_index);
+		    sblk->status_completion_producer_index,
+		    sblk->status_cmd_consumer_index);
 
 	BCE_PRINTF(
-		"----------------------------"
-		"----------------"
-		"----------------------------\n");
+	    "----------------------------"
+	    "----------------"
+	    "----------------------------\n");
 }
 
+
+#define BCE_PRINT_64BIT_STAT(arg) 				\
+if (sblk->arg##_lo || sblk->arg##_hi)				\
+	BCE_PRINTF("0x%08X:%08X : %s\n", sblk->arg##_hi,	\
+	    sblk->arg##_lo, #arg);
+
+#define BCE_PRINT_32BIT_STAT(arg)				\
+if (sblk->arg)							\
+	BCE_PRINTF("         0x%08X : %s\n", 			\
+	    sblk->arg, #arg);
 
 /****************************************************************************/
 /* Prints out the statistics block from host memory.                        */
@@ -9577,261 +9880,70 @@ bce_dump_stats_block(struct bce_softc *sc)
 	sblk = sc->stats_block;
 
 	BCE_PRINTF(
-		"---------------"
-		" Stats Block  (All Stats Not Shown Are 0) "
-		"---------------\n");
+	    "---------------"
+	    " Stats Block  (All Stats Not Shown Are 0) "
+	    "---------------\n");
 
-	if (sblk->stat_IfHCInOctets_hi
-		|| sblk->stat_IfHCInOctets_lo)
-		BCE_PRINTF("0x%08X:%08X : "
-			"IfHcInOctets\n",
-			sblk->stat_IfHCInOctets_hi,
-			sblk->stat_IfHCInOctets_lo);
-
-	if (sblk->stat_IfHCInBadOctets_hi
-		|| sblk->stat_IfHCInBadOctets_lo)
-		BCE_PRINTF("0x%08X:%08X : "
-			"IfHcInBadOctets\n",
-			sblk->stat_IfHCInBadOctets_hi,
-			sblk->stat_IfHCInBadOctets_lo);
-
-	if (sblk->stat_IfHCOutOctets_hi
-		|| sblk->stat_IfHCOutOctets_lo)
-		BCE_PRINTF("0x%08X:%08X : "
-			"IfHcOutOctets\n",
-			sblk->stat_IfHCOutOctets_hi,
-			sblk->stat_IfHCOutOctets_lo);
-
-	if (sblk->stat_IfHCOutBadOctets_hi
-		|| sblk->stat_IfHCOutBadOctets_lo)
-		BCE_PRINTF("0x%08X:%08X : "
-			"IfHcOutBadOctets\n",
-			sblk->stat_IfHCOutBadOctets_hi,
-			sblk->stat_IfHCOutBadOctets_lo);
-
-	if (sblk->stat_IfHCInUcastPkts_hi
-		|| sblk->stat_IfHCInUcastPkts_lo)
-		BCE_PRINTF("0x%08X:%08X : "
-			"IfHcInUcastPkts\n",
-			sblk->stat_IfHCInUcastPkts_hi,
-			sblk->stat_IfHCInUcastPkts_lo);
-
-	if (sblk->stat_IfHCInBroadcastPkts_hi
-		|| sblk->stat_IfHCInBroadcastPkts_lo)
-		BCE_PRINTF("0x%08X:%08X : "
-			"IfHcInBroadcastPkts\n",
-			sblk->stat_IfHCInBroadcastPkts_hi,
-			sblk->stat_IfHCInBroadcastPkts_lo);
-
-	if (sblk->stat_IfHCInMulticastPkts_hi
-		|| sblk->stat_IfHCInMulticastPkts_lo)
-		BCE_PRINTF("0x%08X:%08X : "
-			"IfHcInMulticastPkts\n",
-			sblk->stat_IfHCInMulticastPkts_hi,
-			sblk->stat_IfHCInMulticastPkts_lo);
-
-	if (sblk->stat_IfHCOutUcastPkts_hi
-		|| sblk->stat_IfHCOutUcastPkts_lo)
-		BCE_PRINTF("0x%08X:%08X : "
-			"IfHcOutUcastPkts\n",
-			sblk->stat_IfHCOutUcastPkts_hi,
-			sblk->stat_IfHCOutUcastPkts_lo);
-
-	if (sblk->stat_IfHCOutBroadcastPkts_hi
-		|| sblk->stat_IfHCOutBroadcastPkts_lo)
-		BCE_PRINTF("0x%08X:%08X : "
-			"IfHcOutBroadcastPkts\n",
-			sblk->stat_IfHCOutBroadcastPkts_hi,
-			sblk->stat_IfHCOutBroadcastPkts_lo);
-
-	if (sblk->stat_IfHCOutMulticastPkts_hi
-		|| sblk->stat_IfHCOutMulticastPkts_lo)
-		BCE_PRINTF("0x%08X:%08X : "
-			"IfHcOutMulticastPkts\n",
-			sblk->stat_IfHCOutMulticastPkts_hi,
-			sblk->stat_IfHCOutMulticastPkts_lo);
-
-	if (sblk->stat_emac_tx_stat_dot3statsinternalmactransmiterrors)
-		BCE_PRINTF("         0x%08X : "
-			"emac_tx_stat_dot3statsinternalmactransmiterrors\n",
-			sblk->stat_emac_tx_stat_dot3statsinternalmactransmiterrors);
-
-	if (sblk->stat_Dot3StatsCarrierSenseErrors)
-		BCE_PRINTF("         0x%08X : Dot3StatsCarrierSenseErrors\n",
-			sblk->stat_Dot3StatsCarrierSenseErrors);
-
-	if (sblk->stat_Dot3StatsFCSErrors)
-		BCE_PRINTF("         0x%08X : Dot3StatsFCSErrors\n",
-			sblk->stat_Dot3StatsFCSErrors);
-
-	if (sblk->stat_Dot3StatsAlignmentErrors)
-		BCE_PRINTF("         0x%08X : Dot3StatsAlignmentErrors\n",
-			sblk->stat_Dot3StatsAlignmentErrors);
-
-	if (sblk->stat_Dot3StatsSingleCollisionFrames)
-		BCE_PRINTF("         0x%08X : Dot3StatsSingleCollisionFrames\n",
-			sblk->stat_Dot3StatsSingleCollisionFrames);
-
-	if (sblk->stat_Dot3StatsMultipleCollisionFrames)
-		BCE_PRINTF("         0x%08X : Dot3StatsMultipleCollisionFrames\n",
-			sblk->stat_Dot3StatsMultipleCollisionFrames);
-
-	if (sblk->stat_Dot3StatsDeferredTransmissions)
-		BCE_PRINTF("         0x%08X : Dot3StatsDeferredTransmissions\n",
-			sblk->stat_Dot3StatsDeferredTransmissions);
-
-	if (sblk->stat_Dot3StatsExcessiveCollisions)
-		BCE_PRINTF("         0x%08X : Dot3StatsExcessiveCollisions\n",
-			sblk->stat_Dot3StatsExcessiveCollisions);
-
-	if (sblk->stat_Dot3StatsLateCollisions)
-		BCE_PRINTF("         0x%08X : Dot3StatsLateCollisions\n",
-			sblk->stat_Dot3StatsLateCollisions);
-
-	if (sblk->stat_EtherStatsCollisions)
-		BCE_PRINTF("         0x%08X : EtherStatsCollisions\n",
-			sblk->stat_EtherStatsCollisions);
-
-	if (sblk->stat_EtherStatsFragments)
-		BCE_PRINTF("         0x%08X : EtherStatsFragments\n",
-			sblk->stat_EtherStatsFragments);
-
-	if (sblk->stat_EtherStatsJabbers)
-		BCE_PRINTF("         0x%08X : EtherStatsJabbers\n",
-			sblk->stat_EtherStatsJabbers);
-
-	if (sblk->stat_EtherStatsUndersizePkts)
-		BCE_PRINTF("         0x%08X : EtherStatsUndersizePkts\n",
-			sblk->stat_EtherStatsUndersizePkts);
-
-	if (sblk->stat_EtherStatsOversizePkts)
-		BCE_PRINTF("         0x%08X : EtherStatsOverrsizePkts\n",
-			sblk->stat_EtherStatsOversizePkts);
-
-	if (sblk->stat_EtherStatsPktsRx64Octets)
-		BCE_PRINTF("         0x%08X : EtherStatsPktsRx64Octets\n",
-			sblk->stat_EtherStatsPktsRx64Octets);
-
-	if (sblk->stat_EtherStatsPktsRx65Octetsto127Octets)
-		BCE_PRINTF("         0x%08X : EtherStatsPktsRx65Octetsto127Octets\n",
-			sblk->stat_EtherStatsPktsRx65Octetsto127Octets);
-
-	if (sblk->stat_EtherStatsPktsRx128Octetsto255Octets)
-		BCE_PRINTF("         0x%08X : EtherStatsPktsRx128Octetsto255Octets\n",
-			sblk->stat_EtherStatsPktsRx128Octetsto255Octets);
-
-	if (sblk->stat_EtherStatsPktsRx256Octetsto511Octets)
-		BCE_PRINTF("         0x%08X : EtherStatsPktsRx256Octetsto511Octets\n",
-			sblk->stat_EtherStatsPktsRx256Octetsto511Octets);
-
-	if (sblk->stat_EtherStatsPktsRx512Octetsto1023Octets)
-		BCE_PRINTF("         0x%08X : EtherStatsPktsRx512Octetsto1023Octets\n",
-			sblk->stat_EtherStatsPktsRx512Octetsto1023Octets);
-
-	if (sblk->stat_EtherStatsPktsRx1024Octetsto1522Octets)
-		BCE_PRINTF("         0x%08X : EtherStatsPktsRx1024Octetsto1522Octets\n",
-			sblk->stat_EtherStatsPktsRx1024Octetsto1522Octets);
-
-	if (sblk->stat_EtherStatsPktsRx1523Octetsto9022Octets)
-		BCE_PRINTF("         0x%08X : EtherStatsPktsRx1523Octetsto9022Octets\n",
-			sblk->stat_EtherStatsPktsRx1523Octetsto9022Octets);
-
-	if (sblk->stat_EtherStatsPktsTx64Octets)
-		BCE_PRINTF("         0x%08X : EtherStatsPktsTx64Octets\n",
-			sblk->stat_EtherStatsPktsTx64Octets);
-
-	if (sblk->stat_EtherStatsPktsTx65Octetsto127Octets)
-		BCE_PRINTF("         0x%08X : EtherStatsPktsTx65Octetsto127Octets\n",
-			sblk->stat_EtherStatsPktsTx65Octetsto127Octets);
-
-	if (sblk->stat_EtherStatsPktsTx128Octetsto255Octets)
-		BCE_PRINTF("         0x%08X : EtherStatsPktsTx128Octetsto255Octets\n",
-			sblk->stat_EtherStatsPktsTx128Octetsto255Octets);
-
-	if (sblk->stat_EtherStatsPktsTx256Octetsto511Octets)
-		BCE_PRINTF("         0x%08X : EtherStatsPktsTx256Octetsto511Octets\n",
-			sblk->stat_EtherStatsPktsTx256Octetsto511Octets);
-
-	if (sblk->stat_EtherStatsPktsTx512Octetsto1023Octets)
-		BCE_PRINTF("         0x%08X : EtherStatsPktsTx512Octetsto1023Octets\n",
-			sblk->stat_EtherStatsPktsTx512Octetsto1023Octets);
-
-	if (sblk->stat_EtherStatsPktsTx1024Octetsto1522Octets)
-		BCE_PRINTF("         0x%08X : EtherStatsPktsTx1024Octetsto1522Octets\n",
-			sblk->stat_EtherStatsPktsTx1024Octetsto1522Octets);
-
-	if (sblk->stat_EtherStatsPktsTx1523Octetsto9022Octets)
-		BCE_PRINTF("         0x%08X : EtherStatsPktsTx1523Octetsto9022Octets\n",
-			sblk->stat_EtherStatsPktsTx1523Octetsto9022Octets);
-
-	if (sblk->stat_XonPauseFramesReceived)
-		BCE_PRINTF("         0x%08X : XonPauseFramesReceived\n",
-			sblk->stat_XonPauseFramesReceived);
-
-	if (sblk->stat_XoffPauseFramesReceived)
-	   BCE_PRINTF("          0x%08X : XoffPauseFramesReceived\n",
-			sblk->stat_XoffPauseFramesReceived);
-
-	if (sblk->stat_OutXonSent)
-		BCE_PRINTF("         0x%08X : OutXonSent\n",
-			sblk->stat_OutXonSent);
-
-	if (sblk->stat_OutXoffSent)
-		BCE_PRINTF("         0x%08X : OutXoffSent\n",
-			sblk->stat_OutXoffSent);
-
-	if (sblk->stat_FlowControlDone)
-		BCE_PRINTF("         0x%08X : FlowControlDone\n",
-			sblk->stat_FlowControlDone);
-
-	if (sblk->stat_MacControlFramesReceived)
-		BCE_PRINTF("         0x%08X : MacControlFramesReceived\n",
-			sblk->stat_MacControlFramesReceived);
-
-	if (sblk->stat_XoffStateEntered)
-		BCE_PRINTF("         0x%08X : XoffStateEntered\n",
-			sblk->stat_XoffStateEntered);
-
-	if (sblk->stat_IfInFramesL2FilterDiscards)
-		BCE_PRINTF("         0x%08X : IfInFramesL2FilterDiscards\n",
-			sblk->stat_IfInFramesL2FilterDiscards);
-
-	if (sblk->stat_IfInRuleCheckerDiscards)
-		BCE_PRINTF("         0x%08X : IfInRuleCheckerDiscards\n",
-			sblk->stat_IfInRuleCheckerDiscards);
-
-	if (sblk->stat_IfInFTQDiscards)
-		BCE_PRINTF("         0x%08X : IfInFTQDiscards\n",
-			sblk->stat_IfInFTQDiscards);
-
-	if (sblk->stat_IfInMBUFDiscards)
-		BCE_PRINTF("         0x%08X : IfInMBUFDiscards\n",
-			sblk->stat_IfInMBUFDiscards);
-
-	if (sblk->stat_IfInRuleCheckerP4Hit)
-		BCE_PRINTF("         0x%08X : IfInRuleCheckerP4Hit\n",
-			sblk->stat_IfInRuleCheckerP4Hit);
-
-	if (sblk->stat_CatchupInRuleCheckerDiscards)
-		BCE_PRINTF("         0x%08X : CatchupInRuleCheckerDiscards\n",
-			sblk->stat_CatchupInRuleCheckerDiscards);
-
-	if (sblk->stat_CatchupInFTQDiscards)
-		BCE_PRINTF("         0x%08X : CatchupInFTQDiscards\n",
-			sblk->stat_CatchupInFTQDiscards);
-
-	if (sblk->stat_CatchupInMBUFDiscards)
-		BCE_PRINTF("         0x%08X : CatchupInMBUFDiscards\n",
-			sblk->stat_CatchupInMBUFDiscards);
-
-	if (sblk->stat_CatchupInRuleCheckerP4Hit)
-		BCE_PRINTF("         0x%08X : CatchupInRuleCheckerP4Hit\n",
-			sblk->stat_CatchupInRuleCheckerP4Hit);
+	BCE_PRINT_64BIT_STAT(stat_IfHCInOctets);
+	BCE_PRINT_64BIT_STAT(stat_IfHCInBadOctets);
+	BCE_PRINT_64BIT_STAT(stat_IfHCOutOctets);
+	BCE_PRINT_64BIT_STAT(stat_IfHCOutBadOctets);
+	BCE_PRINT_64BIT_STAT(stat_IfHCInUcastPkts);
+	BCE_PRINT_64BIT_STAT(stat_IfHCInBroadcastPkts);
+	BCE_PRINT_64BIT_STAT(stat_IfHCInMulticastPkts);
+	BCE_PRINT_64BIT_STAT(stat_IfHCOutUcastPkts);
+	BCE_PRINT_64BIT_STAT(stat_IfHCOutBroadcastPkts);
+	BCE_PRINT_64BIT_STAT(stat_IfHCOutMulticastPkts);
+	BCE_PRINT_32BIT_STAT(
+	    stat_emac_tx_stat_dot3statsinternalmactransmiterrors);
+	BCE_PRINT_32BIT_STAT(stat_Dot3StatsCarrierSenseErrors);
+	BCE_PRINT_32BIT_STAT(stat_Dot3StatsFCSErrors);
+	BCE_PRINT_32BIT_STAT(stat_Dot3StatsAlignmentErrors);
+	BCE_PRINT_32BIT_STAT(stat_Dot3StatsSingleCollisionFrames);
+	BCE_PRINT_32BIT_STAT(stat_Dot3StatsMultipleCollisionFrames);
+	BCE_PRINT_32BIT_STAT(stat_Dot3StatsDeferredTransmissions);
+	BCE_PRINT_32BIT_STAT(stat_Dot3StatsExcessiveCollisions);
+	BCE_PRINT_32BIT_STAT(stat_Dot3StatsLateCollisions);
+	BCE_PRINT_32BIT_STAT(stat_EtherStatsCollisions);
+	BCE_PRINT_32BIT_STAT(stat_EtherStatsFragments);
+	BCE_PRINT_32BIT_STAT(stat_EtherStatsJabbers);
+	BCE_PRINT_32BIT_STAT(stat_EtherStatsUndersizePkts);
+	BCE_PRINT_32BIT_STAT(stat_EtherStatsOversizePkts);
+	BCE_PRINT_32BIT_STAT(stat_EtherStatsPktsRx64Octets);
+	BCE_PRINT_32BIT_STAT(stat_EtherStatsPktsRx65Octetsto127Octets);
+	BCE_PRINT_32BIT_STAT(stat_EtherStatsPktsRx128Octetsto255Octets);
+	BCE_PRINT_32BIT_STAT(stat_EtherStatsPktsRx256Octetsto511Octets);
+	BCE_PRINT_32BIT_STAT(stat_EtherStatsPktsRx512Octetsto1023Octets);
+	BCE_PRINT_32BIT_STAT(stat_EtherStatsPktsRx1024Octetsto1522Octets);
+	BCE_PRINT_32BIT_STAT(stat_EtherStatsPktsRx1523Octetsto9022Octets);
+	BCE_PRINT_32BIT_STAT(stat_EtherStatsPktsTx64Octets);
+	BCE_PRINT_32BIT_STAT(stat_EtherStatsPktsTx65Octetsto127Octets);
+	BCE_PRINT_32BIT_STAT(stat_EtherStatsPktsTx128Octetsto255Octets);
+	BCE_PRINT_32BIT_STAT(stat_EtherStatsPktsTx256Octetsto511Octets);
+	BCE_PRINT_32BIT_STAT(stat_EtherStatsPktsTx512Octetsto1023Octets);
+	BCE_PRINT_32BIT_STAT(stat_EtherStatsPktsTx1024Octetsto1522Octets);
+	BCE_PRINT_32BIT_STAT(stat_EtherStatsPktsTx1523Octetsto9022Octets);
+	BCE_PRINT_32BIT_STAT(stat_XonPauseFramesReceived);
+	BCE_PRINT_32BIT_STAT(stat_XoffPauseFramesReceived);
+	BCE_PRINT_32BIT_STAT(stat_OutXonSent);
+	BCE_PRINT_32BIT_STAT(stat_OutXoffSent);
+	BCE_PRINT_32BIT_STAT(stat_FlowControlDone);
+	BCE_PRINT_32BIT_STAT(stat_MacControlFramesReceived);
+	BCE_PRINT_32BIT_STAT(stat_XoffStateEntered);
+	BCE_PRINT_32BIT_STAT(stat_IfInFramesL2FilterDiscards);
+	BCE_PRINT_32BIT_STAT(stat_IfInRuleCheckerDiscards);
+	BCE_PRINT_32BIT_STAT(stat_IfInFTQDiscards);
+	BCE_PRINT_32BIT_STAT(stat_IfInMBUFDiscards);
+	BCE_PRINT_32BIT_STAT(stat_IfInRuleCheckerP4Hit);
+	BCE_PRINT_32BIT_STAT(stat_CatchupInRuleCheckerDiscards);
+	BCE_PRINT_32BIT_STAT(stat_CatchupInFTQDiscards);
+	BCE_PRINT_32BIT_STAT(stat_CatchupInMBUFDiscards);
+	BCE_PRINT_32BIT_STAT(stat_CatchupInRuleCheckerP4Hit);
 
 	BCE_PRINTF(
-		"----------------------------"
-		"----------------"
-		"----------------------------\n");
+	    "----------------------------"
+	    "----------------"
+	    "----------------------------\n");
 }
 
 
@@ -9847,146 +9959,142 @@ bce_dump_driver_state(struct bce_softc *sc)
 	u32 val_hi, val_lo;
 
 	BCE_PRINTF(
-		"-----------------------------"
-		" Driver State "
-		"-----------------------------\n");
+	    "-----------------------------"
+	    " Driver State "
+	    "-----------------------------\n");
 
 	val_hi = BCE_ADDR_HI(sc);
 	val_lo = BCE_ADDR_LO(sc);
-	BCE_PRINTF("0x%08X:%08X - (sc) driver softc structure virtual address\n",
-		val_hi, val_lo);
+	BCE_PRINTF("0x%08X:%08X - (sc) driver softc structure virtual "
+	    "address\n", val_hi, val_lo);
 
 	val_hi = BCE_ADDR_HI(sc->bce_vhandle);
 	val_lo = BCE_ADDR_LO(sc->bce_vhandle);
-	BCE_PRINTF("0x%08X:%08X - (sc->bce_vhandle) PCI BAR virtual address\n",
-		val_hi, val_lo);
+	BCE_PRINTF("0x%08X:%08X - (sc->bce_vhandle) PCI BAR virtual "
+	    "address\n", val_hi, val_lo);
 
 	val_hi = BCE_ADDR_HI(sc->status_block);
 	val_lo = BCE_ADDR_LO(sc->status_block);
-	BCE_PRINTF("0x%08X:%08X - (sc->status_block) status block virtual address\n",
-		val_hi, val_lo);
+	BCE_PRINTF("0x%08X:%08X - (sc->status_block) status block "
+	    "virtual address\n",	val_hi, val_lo);
 
 	val_hi = BCE_ADDR_HI(sc->stats_block);
 	val_lo = BCE_ADDR_LO(sc->stats_block);
-	BCE_PRINTF("0x%08X:%08X - (sc->stats_block) statistics block virtual address\n",
-		val_hi, val_lo);
+	BCE_PRINTF("0x%08X:%08X - (sc->stats_block) statistics block "
+	    "virtual address\n", val_hi, val_lo);
 
 	val_hi = BCE_ADDR_HI(sc->tx_bd_chain);
 	val_lo = BCE_ADDR_LO(sc->tx_bd_chain);
-	BCE_PRINTF(
-		"0x%08X:%08X - (sc->tx_bd_chain) tx_bd chain virtual adddress\n",
-		val_hi, val_lo);
+	BCE_PRINTF("0x%08X:%08X - (sc->tx_bd_chain) tx_bd chain "
+	    "virtual adddress\n", val_hi, val_lo);
 
 	val_hi = BCE_ADDR_HI(sc->rx_bd_chain);
 	val_lo = BCE_ADDR_LO(sc->rx_bd_chain);
-	BCE_PRINTF(
-		"0x%08X:%08X - (sc->rx_bd_chain) rx_bd chain virtual address\n",
-		val_hi, val_lo);
+	BCE_PRINTF("0x%08X:%08X - (sc->rx_bd_chain) rx_bd chain "
+	    "virtual address\n", val_hi, val_lo);
 
 #ifdef BCE_JUMBO_HDRSPLIT
 	val_hi = BCE_ADDR_HI(sc->pg_bd_chain);
 	val_lo = BCE_ADDR_LO(sc->pg_bd_chain);
-	BCE_PRINTF(
-		"0x%08X:%08X - (sc->pg_bd_chain) page chain virtual address\n",
-		val_hi, val_lo);
+	BCE_PRINTF("0x%08X:%08X - (sc->pg_bd_chain) page chain "
+	    "virtual address\n", val_hi, val_lo);
 #endif
 
 	val_hi = BCE_ADDR_HI(sc->tx_mbuf_ptr);
 	val_lo = BCE_ADDR_LO(sc->tx_mbuf_ptr);
-	BCE_PRINTF(
-		"0x%08X:%08X - (sc->tx_mbuf_ptr) tx mbuf chain virtual address\n",
-		val_hi, val_lo);
+	BCE_PRINTF("0x%08X:%08X - (sc->tx_mbuf_ptr) tx mbuf chain "
+	    "virtual address\n",	val_hi, val_lo);
 
 	val_hi = BCE_ADDR_HI(sc->rx_mbuf_ptr);
 	val_lo = BCE_ADDR_LO(sc->rx_mbuf_ptr);
-	BCE_PRINTF(
-		"0x%08X:%08X - (sc->rx_mbuf_ptr) rx mbuf chain virtual address\n",
-		val_hi, val_lo);
+	BCE_PRINTF("0x%08X:%08X - (sc->rx_mbuf_ptr) rx mbuf chain "
+	    "virtual address\n", val_hi, val_lo);
 
 #ifdef BCE_JUMBO_HDRSPLIT
 	val_hi = BCE_ADDR_HI(sc->pg_mbuf_ptr);
 	val_lo = BCE_ADDR_LO(sc->pg_mbuf_ptr);
-	BCE_PRINTF(
-		"0x%08X:%08X - (sc->pg_mbuf_ptr) page mbuf chain virtual address\n",
-		val_hi, val_lo);
+	BCE_PRINTF("0x%08X:%08X - (sc->pg_mbuf_ptr) page mbuf chain "
+	    "virtual address\n", val_hi, val_lo);
 #endif
 
-	BCE_PRINTF("         0x%08X - (sc->interrupts_generated) h/w intrs\n",
-		sc->interrupts_generated);
+	BCE_PRINTF("         0x%08X - (sc->interrupts_generated) "
+	    "h/w intrs\n", sc->interrupts_generated);
 
-	BCE_PRINTF("         0x%08X - (sc->rx_interrupts) rx interrupts handled\n",
-		sc->rx_interrupts);
+	BCE_PRINTF("         0x%08X - (sc->rx_interrupts) "
+	    "rx interrupts handled\n", sc->rx_interrupts);
 
-	BCE_PRINTF("         0x%08X - (sc->tx_interrupts) tx interrupts handled\n",
-		sc->tx_interrupts);
+	BCE_PRINTF("         0x%08X - (sc->tx_interrupts) "
+	    "tx interrupts handled\n", sc->tx_interrupts);
 
-	BCE_PRINTF("         0x%08X - (sc->last_status_idx) status block index\n",
-		sc->last_status_idx);
+	BCE_PRINTF("         0x%08X - (sc->phy_interrupts) "
+	    "phy interrupts handled\n", sc->phy_interrupts);
 
-	BCE_PRINTF("     0x%04X(0x%04X) - (sc->tx_prod) tx producer index\n",
-		sc->tx_prod, (u16) TX_CHAIN_IDX(sc->tx_prod));
+	BCE_PRINTF("         0x%08X - (sc->last_status_idx) "
+	    "status block index\n", sc->last_status_idx);
 
-	BCE_PRINTF("     0x%04X(0x%04X) - (sc->tx_cons) tx consumer index\n",
-		sc->tx_cons, (u16) TX_CHAIN_IDX(sc->tx_cons));
+	BCE_PRINTF("     0x%04X(0x%04X) - (sc->tx_prod) tx producer "
+	    "index\n", sc->tx_prod, (u16) TX_CHAIN_IDX(sc->tx_prod));
 
-	BCE_PRINTF("         0x%08X - (sc->tx_prod_bseq) tx producer bseq index\n",
-		sc->tx_prod_bseq);
+	BCE_PRINTF("     0x%04X(0x%04X) - (sc->tx_cons) tx consumer "
+	    "index\n", sc->tx_cons, (u16) TX_CHAIN_IDX(sc->tx_cons));
 
-	BCE_PRINTF("         0x%08X - (sc->debug_tx_mbuf_alloc) tx mbufs allocated\n",
-		sc->debug_tx_mbuf_alloc);
+	BCE_PRINTF("         0x%08X - (sc->tx_prod_bseq) tx producer "
+	    "byte seq index\n",	sc->tx_prod_bseq);
 
-	BCE_PRINTF("         0x%08X - (sc->used_tx_bd) used tx_bd's\n",
-		sc->used_tx_bd);
+	BCE_PRINTF("         0x%08X - (sc->debug_tx_mbuf_alloc) tx "
+	    "mbufs allocated\n", sc->debug_tx_mbuf_alloc);
 
-	BCE_PRINTF("0x%08X/%08X - (sc->tx_hi_watermark) tx hi watermark\n",
-		sc->tx_hi_watermark, sc->max_tx_bd);
+	BCE_PRINTF("         0x%08X - (sc->used_tx_bd) used "
+	    "tx_bd's\n", sc->used_tx_bd);
 
-	BCE_PRINTF("     0x%04X(0x%04X) - (sc->rx_prod) rx producer index\n",
-		sc->rx_prod, (u16) RX_CHAIN_IDX(sc->rx_prod));
+	BCE_PRINTF("0x%08X/%08X - (sc->tx_hi_watermark) tx hi "
+	    "watermark\n", sc->tx_hi_watermark, sc->max_tx_bd);
 
-	BCE_PRINTF("     0x%04X(0x%04X) - (sc->rx_cons) rx consumer index\n",
-		sc->rx_cons, (u16) RX_CHAIN_IDX(sc->rx_cons));
+	BCE_PRINTF("     0x%04X(0x%04X) - (sc->rx_prod) rx producer "
+	    "index\n", sc->rx_prod, (u16) RX_CHAIN_IDX(sc->rx_prod));
 
-	BCE_PRINTF("         0x%08X - (sc->rx_prod_bseq) rx producer bseq index\n",
-		sc->rx_prod_bseq);
+	BCE_PRINTF("     0x%04X(0x%04X) - (sc->rx_cons) rx consumer "
+	    "index\n", sc->rx_cons, (u16) RX_CHAIN_IDX(sc->rx_cons));
 
-	BCE_PRINTF("         0x%08X - (sc->debug_rx_mbuf_alloc) rx mbufs allocated\n",
-		sc->debug_rx_mbuf_alloc);
+	BCE_PRINTF("         0x%08X - (sc->rx_prod_bseq) rx producer "
+	    "byte seq index\n",	sc->rx_prod_bseq);
 
-	BCE_PRINTF("         0x%08X - (sc->free_rx_bd) free rx_bd's\n",
-		sc->free_rx_bd);
+	BCE_PRINTF("         0x%08X - (sc->debug_rx_mbuf_alloc) rx "
+	    "mbufs allocated\n", sc->debug_rx_mbuf_alloc);
+
+	BCE_PRINTF("         0x%08X - (sc->free_rx_bd) free "
+	    "rx_bd's\n", sc->free_rx_bd);
 
 #ifdef BCE_JUMBO_HDRSPLIT
-	BCE_PRINTF("     0x%04X(0x%04X) - (sc->pg_prod) page producer index\n",
-		sc->pg_prod, (u16) PG_CHAIN_IDX(sc->pg_prod));
+	BCE_PRINTF("     0x%04X(0x%04X) - (sc->pg_prod) page producer "
+	    "index\n", sc->pg_prod, (u16) PG_CHAIN_IDX(sc->pg_prod));
 
-	BCE_PRINTF("     0x%04X(0x%04X) - (sc->pg_cons) page consumer index\n",
-		sc->pg_cons, (u16) PG_CHAIN_IDX(sc->pg_cons));
+	BCE_PRINTF("     0x%04X(0x%04X) - (sc->pg_cons) page consumer "
+	    "index\n", sc->pg_cons, (u16) PG_CHAIN_IDX(sc->pg_cons));
 
-	BCE_PRINTF("         0x%08X - (sc->debug_pg_mbuf_alloc) page mbufs allocated\n",
-		sc->debug_pg_mbuf_alloc);
+	BCE_PRINTF("         0x%08X - (sc->debug_pg_mbuf_alloc) page "
+	    "mbufs allocated\n", sc->debug_pg_mbuf_alloc);
 
-	BCE_PRINTF("         0x%08X - (sc->free_pg_bd) free page rx_bd's\n",
-		sc->free_pg_bd);
+	BCE_PRINTF("         0x%08X - (sc->free_pg_bd) free page "
+	    "rx_bd's\n", sc->free_pg_bd);
 
-	BCE_PRINTF("0x%08X/%08X - (sc->pg_low_watermark) page low watermark\n",
-		sc->pg_low_watermark, sc->max_pg_bd);
+	BCE_PRINTF("0x%08X/%08X - (sc->pg_low_watermark) page low "
+	    "watermark\n", sc->pg_low_watermark, sc->max_pg_bd);
 #endif
 
 	BCE_PRINTF("         0x%08X - (sc->mbuf_alloc_failed_count) "
-		"mbuf alloc failures\n",
-		sc->mbuf_alloc_failed_count);
+	    "mbuf alloc failures\n", sc->mbuf_alloc_failed_count);
 
-	BCE_PRINTF("         0x%08X - (sc->bce_flags) bce mac flags\n",
-		sc->bce_flags);
+	BCE_PRINTF("         0x%08X - (sc->bce_flags) "
+	    "bce mac flags\n", sc->bce_flags);
 
-	BCE_PRINTF("         0x%08X - (sc->bce_phy_flags) bce phy flags\n",
-		sc->bce_phy_flags);
+	BCE_PRINTF("         0x%08X - (sc->bce_phy_flags) "
+	    "bce phy flags\n", sc->bce_phy_flags);
 
 	BCE_PRINTF(
-		"----------------------------"
-		"----------------"
-		"----------------------------\n");
+	    "----------------------------"
+	    "----------------"
+	    "----------------------------\n");
 }
 
 
@@ -10003,84 +10111,102 @@ bce_dump_hw_state(struct bce_softc *sc)
 	u32 val;
 
 	BCE_PRINTF(
-		"----------------------------"
-		" Hardware State "
-		"----------------------------\n");
+	    "----------------------------"
+	    " Hardware State "
+	    "----------------------------\n");
 
 	BCE_PRINTF("%s - bootcode version\n", sc->bce_bc_ver);
 
 	val = REG_RD(sc, BCE_MISC_ENABLE_STATUS_BITS);
 	BCE_PRINTF("0x%08X - (0x%06X) misc_enable_status_bits\n",
-		val, BCE_MISC_ENABLE_STATUS_BITS);
+	    val, BCE_MISC_ENABLE_STATUS_BITS);
 
 	val = REG_RD(sc, BCE_DMA_STATUS);
-	BCE_PRINTF("0x%08X - (0x%06X) dma_status\n", val, BCE_DMA_STATUS);
+	BCE_PRINTF("0x%08X - (0x%06X) dma_status\n", 
+	    val, BCE_DMA_STATUS);
 
 	val = REG_RD(sc, BCE_CTX_STATUS);
-	BCE_PRINTF("0x%08X - (0x%06X) ctx_status\n", val, BCE_CTX_STATUS);
+	BCE_PRINTF("0x%08X - (0x%06X) ctx_status\n", 
+	    val, BCE_CTX_STATUS);
 
 	val = REG_RD(sc, BCE_EMAC_STATUS);
-	BCE_PRINTF("0x%08X - (0x%06X) emac_status\n", val, BCE_EMAC_STATUS);
+	BCE_PRINTF("0x%08X - (0x%06X) emac_status\n", 
+	    val, BCE_EMAC_STATUS);
 
 	val = REG_RD(sc, BCE_RPM_STATUS);
-	BCE_PRINTF("0x%08X - (0x%06X) rpm_status\n", val, BCE_RPM_STATUS);
+	BCE_PRINTF("0x%08X - (0x%06X) rpm_status\n",
+	    val, BCE_RPM_STATUS);
 
+	/* ToDo: Create a #define for this constant. */
 	val = REG_RD(sc, 0x2004);
-	BCE_PRINTF("0x%08X - (0x%06X) rlup_status\n", val, 0x2004);
+	BCE_PRINTF("0x%08X - (0x%06X) rlup_status\n", 
+	    val, 0x2004);
 
 	val = REG_RD(sc, BCE_RV2P_STATUS);
-	BCE_PRINTF("0x%08X - (0x%06X) rv2p_status\n", val, BCE_RV2P_STATUS);
+	BCE_PRINTF("0x%08X - (0x%06X) rv2p_status\n", 
+	    val, BCE_RV2P_STATUS);
 
+	/* ToDo: Create a #define for this constant. */
 	val = REG_RD(sc, 0x2c04);
-	BCE_PRINTF("0x%08X - (0x%06X) rdma_status\n", val, 0x2c04);
+	BCE_PRINTF("0x%08X - (0x%06X) rdma_status\n", 
+	    val, 0x2c04);
 
 	val = REG_RD(sc, BCE_TBDR_STATUS);
-	BCE_PRINTF("0x%08X - (0x%06X) tbdr_status\n", val, BCE_TBDR_STATUS);
+	BCE_PRINTF("0x%08X - (0x%06X) tbdr_status\n",
+	    val, BCE_TBDR_STATUS);
 
 	val = REG_RD(sc, BCE_TDMA_STATUS);
-	BCE_PRINTF("0x%08X - (0x%06X) tdma_status\n", val, BCE_TDMA_STATUS);
+	BCE_PRINTF("0x%08X - (0x%06X) tdma_status\n", 
+	    val, BCE_TDMA_STATUS);
 
 	val = REG_RD(sc, BCE_HC_STATUS);
-	BCE_PRINTF("0x%08X - (0x%06X) hc_status\n", val, BCE_HC_STATUS);
+	BCE_PRINTF("0x%08X - (0x%06X) hc_status\n",
+	    val, BCE_HC_STATUS);
 
 	val = REG_RD_IND(sc, BCE_TXP_CPU_STATE);
-	BCE_PRINTF("0x%08X - (0x%06X) txp_cpu_state\n", val, BCE_TXP_CPU_STATE);
+	BCE_PRINTF("0x%08X - (0x%06X) txp_cpu_state\n", 
+	    val, BCE_TXP_CPU_STATE);
 
 	val = REG_RD_IND(sc, BCE_TPAT_CPU_STATE);
-	BCE_PRINTF("0x%08X - (0x%06X) tpat_cpu_state\n", val, BCE_TPAT_CPU_STATE);
+	BCE_PRINTF("0x%08X - (0x%06X) tpat_cpu_state\n", 
+	    val, BCE_TPAT_CPU_STATE);
 
 	val = REG_RD_IND(sc, BCE_RXP_CPU_STATE);
-	BCE_PRINTF("0x%08X - (0x%06X) rxp_cpu_state\n", val, BCE_RXP_CPU_STATE);
+	BCE_PRINTF("0x%08X - (0x%06X) rxp_cpu_state\n", 
+	    val, BCE_RXP_CPU_STATE);
 
 	val = REG_RD_IND(sc, BCE_COM_CPU_STATE);
-	BCE_PRINTF("0x%08X - (0x%06X) com_cpu_state\n", val, BCE_COM_CPU_STATE);
+	BCE_PRINTF("0x%08X - (0x%06X) com_cpu_state\n", 
+	    val, BCE_COM_CPU_STATE);
 
 	val = REG_RD_IND(sc, BCE_MCP_CPU_STATE);
-	BCE_PRINTF("0x%08X - (0x%06X) mcp_cpu_state\n", val, BCE_MCP_CPU_STATE);
+	BCE_PRINTF("0x%08X - (0x%06X) mcp_cpu_state\n", 
+	    val, BCE_MCP_CPU_STATE);
 
 	val = REG_RD_IND(sc, BCE_CP_CPU_STATE);
-	BCE_PRINTF("0x%08X - (0x%06X) cp_cpu_state\n", val, BCE_CP_CPU_STATE);
+	BCE_PRINTF("0x%08X - (0x%06X) cp_cpu_state\n", 
+	    val, BCE_CP_CPU_STATE);
 
 	BCE_PRINTF(
-		"----------------------------"
-		"----------------"
-		"----------------------------\n");
+	    "----------------------------"
+	    "----------------"
+	    "----------------------------\n");
 
 	BCE_PRINTF(
-		"----------------------------"
-		" Register  Dump "
-		"----------------------------\n");
+	    "----------------------------"
+	    " Register  Dump "
+	    "----------------------------\n");
 
 	for (int i = 0x400; i < 0x8000; i += 0x10) {
 		BCE_PRINTF("0x%04X: 0x%08X 0x%08X 0x%08X 0x%08X\n",
-			i, REG_RD(sc, i), REG_RD(sc, i + 0x4),
-			REG_RD(sc, i + 0x8), REG_RD(sc, i + 0xC));
+		    i, REG_RD(sc, i), REG_RD(sc, i + 0x4),
+		    REG_RD(sc, i + 0x8), REG_RD(sc, i + 0xC));
 	}
 
 	BCE_PRINTF(
-		"----------------------------"
-		"----------------"
-		"----------------------------\n");
+	    "----------------------------"
+	    "----------------"
+	    "----------------------------\n");
 }
 
 
@@ -10094,25 +10220,25 @@ static __attribute__ ((noinline)) void
 bce_dump_mq_regs(struct bce_softc *sc)
 {
 	BCE_PRINTF(
-		"----------------------------"
-		"    MQ Regs     "
-		"----------------------------\n");
+	    "----------------------------"
+	    "    MQ Regs     "
+	    "----------------------------\n");
 
 	BCE_PRINTF(
-		"----------------------------"
-		"----------------"
-		"----------------------------\n");
+	    "----------------------------"
+	    "----------------"
+	    "----------------------------\n");
 
 	for (int i = 0x3c00; i < 0x4000; i += 0x10) {
 		BCE_PRINTF("0x%04X: 0x%08X 0x%08X 0x%08X 0x%08X\n",
-			i, REG_RD(sc, i), REG_RD(sc, i + 0x4),
-			REG_RD(sc, i + 0x8), REG_RD(sc, i + 0xC));
+		    i, REG_RD(sc, i), REG_RD(sc, i + 0x4),
+		    REG_RD(sc, i + 0x8), REG_RD(sc, i + 0xC));
 	}
 
 	BCE_PRINTF(
-		"----------------------------"
-		"----------------"
-		"----------------------------\n");
+	    "----------------------------"
+	    "----------------"
+	    "----------------------------\n");
 }
 
 
@@ -10128,32 +10254,32 @@ bce_dump_bc_state(struct bce_softc *sc)
 	u32 val;
 
 	BCE_PRINTF(
-		"----------------------------"
-		" Bootcode State "
-		"----------------------------\n");
+	    "----------------------------"
+	    " Bootcode State "
+	    "----------------------------\n");
 
 	BCE_PRINTF("%s - bootcode version\n", sc->bce_bc_ver);
 
 	val = bce_shmem_rd(sc, BCE_BC_RESET_TYPE);
 	BCE_PRINTF("0x%08X - (0x%06X) reset_type\n",
-		val, BCE_BC_RESET_TYPE);
+	    val, BCE_BC_RESET_TYPE);
 
 	val = bce_shmem_rd(sc, BCE_BC_STATE);
 	BCE_PRINTF("0x%08X - (0x%06X) state\n",
-		val, BCE_BC_STATE);
+	    val, BCE_BC_STATE);
 
 	val = bce_shmem_rd(sc, BCE_BC_STATE_CONDITION);
 	BCE_PRINTF("0x%08X - (0x%06X) condition\n",
-		val, BCE_BC_STATE_CONDITION);
+	    val, BCE_BC_STATE_CONDITION);
 
 	val = bce_shmem_rd(sc, BCE_BC_STATE_DEBUG_CMD);
 	BCE_PRINTF("0x%08X - (0x%06X) debug_cmd\n",
-		val, BCE_BC_STATE_DEBUG_CMD);
+	    val, BCE_BC_STATE_DEBUG_CMD);
 
 	BCE_PRINTF(
-		"----------------------------"
-		"----------------"
-		"----------------------------\n");
+	    "----------------------------"
+	    "----------------"
+	    "----------------------------\n");
 }
 
 
@@ -10170,44 +10296,49 @@ bce_dump_txp_state(struct bce_softc *sc, int regs)
 	u32 fw_version[3];
 
 	BCE_PRINTF(
-		"----------------------------"
-		"   TXP  State   "
-		"----------------------------\n");
+	    "----------------------------"
+	    "   TXP  State   "
+	    "----------------------------\n");
 
 	for (int i = 0; i < 3; i++)
 		fw_version[i] = htonl(REG_RD_IND(sc,
-			(BCE_TXP_SCRATCH + 0x10 + i * 4)));
+		    (BCE_TXP_SCRATCH + 0x10 + i * 4)));
 	BCE_PRINTF("Firmware version - %s\n", (char *) fw_version);
 
 	val = REG_RD_IND(sc, BCE_TXP_CPU_MODE);
-	BCE_PRINTF("0x%08X - (0x%06X) txp_cpu_mode\n", val, BCE_TXP_CPU_MODE);
+	BCE_PRINTF("0x%08X - (0x%06X) txp_cpu_mode\n", 
+	    val, BCE_TXP_CPU_MODE);
 
 	val = REG_RD_IND(sc, BCE_TXP_CPU_STATE);
-	BCE_PRINTF("0x%08X - (0x%06X) txp_cpu_state\n", val, BCE_TXP_CPU_STATE);
+	BCE_PRINTF("0x%08X - (0x%06X) txp_cpu_state\n", 
+	    val, BCE_TXP_CPU_STATE);
 
 	val = REG_RD_IND(sc, BCE_TXP_CPU_EVENT_MASK);
-	BCE_PRINTF("0x%08X - (0x%06X) txp_cpu_event_mask\n", val,
-		BCE_TXP_CPU_EVENT_MASK);
+	BCE_PRINTF("0x%08X - (0x%06X) txp_cpu_event_mask\n", 
+	    val, BCE_TXP_CPU_EVENT_MASK);
 
 	if (regs) {
 		BCE_PRINTF(
-			"----------------------------"
-			" Register  Dump "
-			"----------------------------\n");
+		    "----------------------------"
+		    " Register  Dump "
+		    "----------------------------\n");
 
 		for (int i = BCE_TXP_CPU_MODE; i < 0x68000; i += 0x10) {
 			/* Skip the big blank spaces */
 			if (i < 0x454000 && i > 0x5ffff)
-				BCE_PRINTF("0x%04X: 0x%08X 0x%08X 0x%08X 0x%08X\n",
-					i, REG_RD_IND(sc, i), REG_RD_IND(sc, i + 0x4),
-					REG_RD_IND(sc, i + 0x8), REG_RD_IND(sc, i + 0xC));
+				BCE_PRINTF("0x%04X: 0x%08X 0x%08X "
+				    "0x%08X 0x%08X\n", i, 
+				    REG_RD_IND(sc, i), 
+				    REG_RD_IND(sc, i + 0x4),
+				    REG_RD_IND(sc, i + 0x8),
+				    REG_RD_IND(sc, i + 0xC));
 		}
 	}
 
 	BCE_PRINTF(
-		"----------------------------"
-		"----------------"
-		"----------------------------\n");
+	    "----------------------------"
+	    "----------------"
+	    "----------------------------\n");
 }
 
 
@@ -10224,44 +10355,50 @@ bce_dump_rxp_state(struct bce_softc *sc, int regs)
 	u32 fw_version[3];
 
 	BCE_PRINTF(
-		"----------------------------"
-		"   RXP  State   "
-		"----------------------------\n");
+	    "----------------------------"
+	    "   RXP  State   "
+	    "----------------------------\n");
 
 	for (int i = 0; i < 3; i++)
 		fw_version[i] = htonl(REG_RD_IND(sc,
-			(BCE_RXP_SCRATCH + 0x10 + i * 4)));
+		    (BCE_RXP_SCRATCH + 0x10 + i * 4)));
+
 	BCE_PRINTF("Firmware version - %s\n", (char *) fw_version);
 
 	val = REG_RD_IND(sc, BCE_RXP_CPU_MODE);
-	BCE_PRINTF("0x%08X - (0x%06X) rxp_cpu_mode\n", val, BCE_RXP_CPU_MODE);
+	BCE_PRINTF("0x%08X - (0x%06X) rxp_cpu_mode\n", 
+	    val, BCE_RXP_CPU_MODE);
 
 	val = REG_RD_IND(sc, BCE_RXP_CPU_STATE);
-	BCE_PRINTF("0x%08X - (0x%06X) rxp_cpu_state\n", val, BCE_RXP_CPU_STATE);
+	BCE_PRINTF("0x%08X - (0x%06X) rxp_cpu_state\n", 
+	    val, BCE_RXP_CPU_STATE);
 
 	val = REG_RD_IND(sc, BCE_RXP_CPU_EVENT_MASK);
-	BCE_PRINTF("0x%08X - (0x%06X) rxp_cpu_event_mask\n", val,
-		BCE_RXP_CPU_EVENT_MASK);
+	BCE_PRINTF("0x%08X - (0x%06X) rxp_cpu_event_mask\n", 
+	    val, BCE_RXP_CPU_EVENT_MASK);
 
 	if (regs) {
 		BCE_PRINTF(
-			"----------------------------"
-			" Register  Dump "
-			"----------------------------\n");
+		    "----------------------------"
+		    " Register  Dump "
+		    "----------------------------\n");
 
 		for (int i = BCE_RXP_CPU_MODE; i < 0xe8fff; i += 0x10) {
 			/* Skip the big blank sapces */
 			if (i < 0xc5400 && i > 0xdffff)
-				BCE_PRINTF("0x%04X: 0x%08X 0x%08X 0x%08X 0x%08X\n",
-	 				i, REG_RD_IND(sc, i), REG_RD_IND(sc, i + 0x4),
-					REG_RD_IND(sc, i + 0x8), REG_RD_IND(sc, i + 0xC));
+				BCE_PRINTF("0x%04X: 0x%08X 0x%08X "
+				    "0x%08X 0x%08X\n", i, 
+				    REG_RD_IND(sc, i), 
+				    REG_RD_IND(sc, i + 0x4),
+				    REG_RD_IND(sc, i + 0x8), 
+				    REG_RD_IND(sc, i + 0xC));
 		}
 	}
 
 	BCE_PRINTF(
-		"----------------------------"
-		"----------------"
-		"----------------------------\n");
+	    "----------------------------"
+	    "----------------"
+	    "----------------------------\n");
 }
 
 
@@ -10278,37 +10415,43 @@ bce_dump_tpat_state(struct bce_softc *sc, int regs)
 	u32 fw_version[3];
 
 	BCE_PRINTF(
-		"----------------------------"
-		"   TPAT State   "
-		"----------------------------\n");
+	    "----------------------------"
+	    "   TPAT State   "
+	    "----------------------------\n");
 
 	for (int i = 0; i < 3; i++)
 		fw_version[i] = htonl(REG_RD_IND(sc,
-			(BCE_TPAT_SCRATCH + 0x410 + i * 4)));
+		    (BCE_TPAT_SCRATCH + 0x410 + i * 4)));
+
 	BCE_PRINTF("Firmware version - %s\n", (char *) fw_version);
 
 	val = REG_RD_IND(sc, BCE_TPAT_CPU_MODE);
-	BCE_PRINTF("0x%08X - (0x%06X) tpat_cpu_mode\n", val, BCE_TPAT_CPU_MODE);
+	BCE_PRINTF("0x%08X - (0x%06X) tpat_cpu_mode\n", 
+	    val, BCE_TPAT_CPU_MODE);
 
 	val = REG_RD_IND(sc, BCE_TPAT_CPU_STATE);
-	BCE_PRINTF("0x%08X - (0x%06X) tpat_cpu_state\n", val, BCE_TPAT_CPU_STATE);
+	BCE_PRINTF("0x%08X - (0x%06X) tpat_cpu_state\n", 
+	    val, BCE_TPAT_CPU_STATE);
 
 	val = REG_RD_IND(sc, BCE_TPAT_CPU_EVENT_MASK);
-	BCE_PRINTF("0x%08X - (0x%06X) tpat_cpu_event_mask\n", val,
-		BCE_TPAT_CPU_EVENT_MASK);
+	BCE_PRINTF("0x%08X - (0x%06X) tpat_cpu_event_mask\n", 
+	    val, BCE_TPAT_CPU_EVENT_MASK);
 
 	if (regs) {
 		BCE_PRINTF(
-			"----------------------------"
-			" Register  Dump "
-			"----------------------------\n");
+		    "----------------------------"
+		    " Register  Dump "
+		    "----------------------------\n");
 
 		for (int i = BCE_TPAT_CPU_MODE; i < 0xa3fff; i += 0x10) {
 			/* Skip the big blank spaces */
 			if (i < 0x854000 && i > 0x9ffff)
-				BCE_PRINTF("0x%04X: 0x%08X 0x%08X 0x%08X 0x%08X\n",
-					i, REG_RD_IND(sc, i), REG_RD_IND(sc, i + 0x4),
-					REG_RD_IND(sc, i + 0x8), REG_RD_IND(sc, i + 0xC));
+				BCE_PRINTF("0x%04X: 0x%08X 0x%08X "
+				    "0x%08X 0x%08X\n", i,
+				    REG_RD_IND(sc, i), 
+				    REG_RD_IND(sc, i + 0x4),
+				    REG_RD_IND(sc, i + 0x8), 
+				    REG_RD_IND(sc, i + 0xC));
 		}
 	}
 
@@ -10332,44 +10475,50 @@ bce_dump_cp_state(struct bce_softc *sc, int regs)
 	u32 fw_version[3];
 
 	BCE_PRINTF(
-		"----------------------------"
-		"    CP State    "
-		"----------------------------\n");
+	    "----------------------------"
+	    "    CP State    "
+	    "----------------------------\n");
 
 	for (int i = 0; i < 3; i++)
 		fw_version[i] = htonl(REG_RD_IND(sc,
-			(BCE_CP_SCRATCH + 0x10 + i * 4)));
+		    (BCE_CP_SCRATCH + 0x10 + i * 4)));
+
 	BCE_PRINTF("Firmware version - %s\n", (char *) fw_version);
 
 	val = REG_RD_IND(sc, BCE_CP_CPU_MODE);
-	BCE_PRINTF("0x%08X - (0x%06X) cp_cpu_mode\n", val, BCE_CP_CPU_MODE);
+	BCE_PRINTF("0x%08X - (0x%06X) cp_cpu_mode\n", 
+	    val, BCE_CP_CPU_MODE);
 
 	val = REG_RD_IND(sc, BCE_CP_CPU_STATE);
-	BCE_PRINTF("0x%08X - (0x%06X) cp_cpu_state\n", val, BCE_CP_CPU_STATE);
+	BCE_PRINTF("0x%08X - (0x%06X) cp_cpu_state\n", 
+	    val, BCE_CP_CPU_STATE);
 
 	val = REG_RD_IND(sc, BCE_CP_CPU_EVENT_MASK);
 	BCE_PRINTF("0x%08X - (0x%06X) cp_cpu_event_mask\n", val,
-		BCE_CP_CPU_EVENT_MASK);
+	    BCE_CP_CPU_EVENT_MASK);
 
 	if (regs) {
 		BCE_PRINTF(
-			"----------------------------"
-			" Register  Dump "
-			"----------------------------\n");
+		    "----------------------------"
+		    " Register  Dump "
+		    "----------------------------\n");
 
 		for (int i = BCE_CP_CPU_MODE; i < 0x1aa000; i += 0x10) {
 			/* Skip the big blank spaces */
 			if (i < 0x185400 && i > 0x19ffff)
-				BCE_PRINTF("0x%04X: 0x%08X 0x%08X 0x%08X 0x%08X\n",
-					i, REG_RD_IND(sc, i), REG_RD_IND(sc, i + 0x4),
-					REG_RD_IND(sc, i + 0x8), REG_RD_IND(sc, i + 0xC));
+				BCE_PRINTF("0x%04X: 0x%08X 0x%08X "
+				    "0x%08X 0x%08X\n", i, 
+				    REG_RD_IND(sc, i), 
+				    REG_RD_IND(sc, i + 0x4),
+				    REG_RD_IND(sc, i + 0x8), 
+				    REG_RD_IND(sc, i + 0xC));
 		}
 	}
 
 	BCE_PRINTF(
-		"----------------------------"
-		"----------------"
-		"----------------------------\n");
+	    "----------------------------"
+	    "----------------"
+	    "----------------------------\n");
 }
 
 
@@ -10383,38 +10532,44 @@ static __attribute__ ((noinline)) void
 bce_dump_com_state(struct bce_softc *sc, int regs)
 {
 	u32 val;
-	u32 fw_version[3];
+	u32 fw_version[4];
 
 	BCE_PRINTF(
-		"----------------------------"
-		"   COM State    "
-		"----------------------------\n");
+	    "----------------------------"
+	    "   COM State    "
+	    "----------------------------\n");
 
 	for (int i = 0; i < 3; i++)
 		fw_version[i] = htonl(REG_RD_IND(sc,
-			(BCE_COM_SCRATCH + 0x10 + i * 4)));
+		    (BCE_COM_SCRATCH + 0x10 + i * 4)));
+
 	BCE_PRINTF("Firmware version - %s\n", (char *) fw_version);
 
 	val = REG_RD_IND(sc, BCE_COM_CPU_MODE);
-	BCE_PRINTF("0x%08X - (0x%06X) com_cpu_mode\n", val, BCE_COM_CPU_MODE);
+	BCE_PRINTF("0x%08X - (0x%06X) com_cpu_mode\n", 
+	    val, BCE_COM_CPU_MODE);
 
 	val = REG_RD_IND(sc, BCE_COM_CPU_STATE);
-	BCE_PRINTF("0x%08X - (0x%06X) com_cpu_state\n", val, BCE_COM_CPU_STATE);
+	BCE_PRINTF("0x%08X - (0x%06X) com_cpu_state\n", 
+	    val, BCE_COM_CPU_STATE);
 
 	val = REG_RD_IND(sc, BCE_COM_CPU_EVENT_MASK);
 	BCE_PRINTF("0x%08X - (0x%06X) com_cpu_event_mask\n", val,
-		BCE_COM_CPU_EVENT_MASK);
+	    BCE_COM_CPU_EVENT_MASK);
 
 	if (regs) {
 		BCE_PRINTF(
-			"----------------------------"
-			" Register  Dump "
-			"----------------------------\n");
+		    "----------------------------"
+		    " Register  Dump "
+		    "----------------------------\n");
 
 		for (int i = BCE_COM_CPU_MODE; i < 0x1053e8; i += 0x10) {
-			BCE_PRINTF("0x%04X: 0x%08X 0x%08X 0x%08X 0x%08X\n",
-				i, REG_RD_IND(sc, i), REG_RD_IND(sc, i + 0x4),
-				REG_RD_IND(sc, i + 0x8), REG_RD_IND(sc, i + 0xC));
+			BCE_PRINTF("0x%04X: 0x%08X 0x%08X "
+			    "0x%08X 0x%08X\n", i, 
+			    REG_RD_IND(sc, i), 
+			    REG_RD_IND(sc, i + 0x4),
+			    REG_RD_IND(sc, i + 0x8),
+			    REG_RD_IND(sc, i + 0xC));
 		}
 	}
 
@@ -10426,12 +10581,80 @@ bce_dump_com_state(struct bce_softc *sc, int regs)
 
 
 /****************************************************************************/
+/* Prints out the Receive Virtual 2 Physical (RV2P) state.                  */
+/*                                                                          */
+/* Returns:                                                                 */
+/*   Nothing.                                                               */
+/****************************************************************************/
+static __attribute__ ((noinline)) void
+bce_dump_rv2p_state(struct bce_softc *sc)
+{
+	u32 val, pc1, pc2, fw_ver_high, fw_ver_low;
+
+	BCE_PRINTF(
+	    "----------------------------"
+	    "   RV2P State   "
+	    "----------------------------\n");
+
+	/* Stall the RV2P processors. */
+	val = REG_RD_IND(sc, BCE_RV2P_CONFIG);
+	val |= BCE_RV2P_CONFIG_STALL_PROC1 | BCE_RV2P_CONFIG_STALL_PROC2;
+	REG_WR_IND(sc, BCE_RV2P_CONFIG, val);
+
+	/* Read the firmware version. */
+	val = 0x00000001;
+	REG_WR_IND(sc, BCE_RV2P_PROC1_ADDR_CMD, val);
+	fw_ver_low = REG_RD_IND(sc, BCE_RV2P_INSTR_LOW);
+	fw_ver_high = REG_RD_IND(sc, BCE_RV2P_INSTR_HIGH) & 
+	    BCE_RV2P_INSTR_HIGH_HIGH;
+	BCE_PRINTF("RV2P1 Firmware version - 0x%08X:0x%08X\n", 
+	    fw_ver_high, fw_ver_low);
+
+	val = 0x00000001;
+	REG_WR_IND(sc, BCE_RV2P_PROC2_ADDR_CMD, val);
+	fw_ver_low = REG_RD_IND(sc, BCE_RV2P_INSTR_LOW);
+	fw_ver_high = REG_RD_IND(sc, BCE_RV2P_INSTR_HIGH) & 
+	    BCE_RV2P_INSTR_HIGH_HIGH;
+	BCE_PRINTF("RV2P2 Firmware version - 0x%08X:0x%08X\n", 
+	    fw_ver_high, fw_ver_low);
+
+	/* Resume the RV2P processors. */
+	val = REG_RD_IND(sc, BCE_RV2P_CONFIG);
+	val &= ~(BCE_RV2P_CONFIG_STALL_PROC1 | BCE_RV2P_CONFIG_STALL_PROC2);
+	REG_WR_IND(sc, BCE_RV2P_CONFIG, val);
+
+	/* Fetch the program counter value. */
+	val = 0x68007800;
+	REG_WR_IND(sc, BCE_RV2P_DEBUG_VECT_PEEK, val);
+	val = REG_RD_IND(sc, BCE_RV2P_DEBUG_VECT_PEEK);
+	pc1 = (val & BCE_RV2P_DEBUG_VECT_PEEK_1_VALUE);
+	pc2 = (val & BCE_RV2P_DEBUG_VECT_PEEK_2_VALUE) >> 16;
+	BCE_PRINTF("0x%08X - RV2P1 program counter (1st read)\n", pc1);
+	BCE_PRINTF("0x%08X - RV2P2 program counter (1st read)\n", pc2);
+
+	/* Fetch the program counter value again to see if it is advancing. */
+	val = 0x68007800;
+	REG_WR_IND(sc, BCE_RV2P_DEBUG_VECT_PEEK, val);
+	val = REG_RD_IND(sc, BCE_RV2P_DEBUG_VECT_PEEK);
+	pc1 = (val & BCE_RV2P_DEBUG_VECT_PEEK_1_VALUE);
+	pc2 = (val & BCE_RV2P_DEBUG_VECT_PEEK_2_VALUE) >> 16;
+	BCE_PRINTF("0x%08X - RV2P1 program counter (2nd read)\n", pc1);
+	BCE_PRINTF("0x%08X - RV2P2 program counter (2nd read)\n", pc2);
+
+	BCE_PRINTF(
+	    "----------------------------"
+	    "----------------"
+	    "----------------------------\n");
+}
+
+
+/****************************************************************************/
 /* Prints out the driver state and then enters the debugger.                */
 /*                                                                          */
 /* Returns:                                                                 */
 /*   Nothing.                                                               */
 /****************************************************************************/
-static void
+static __attribute__ ((noinline)) void
 bce_breakpoint(struct bce_softc *sc)
 {
 
@@ -10443,7 +10666,7 @@ bce_breakpoint(struct bce_softc *sc)
 		bce_freeze_controller(sc);
 		bce_unfreeze_controller(sc);
 		bce_dump_enet(sc, NULL);
-   		bce_dump_txbd(sc, 0, NULL);
+		bce_dump_txbd(sc, 0, NULL);
 		bce_dump_rxbd(sc, 0, NULL);
 		bce_dump_tx_mbuf_chain(sc, 0, USABLE_TX_BD);
 		bce_dump_rx_mbuf_chain(sc, 0, USABLE_RX_BD);
@@ -10451,7 +10674,7 @@ bce_breakpoint(struct bce_softc *sc)
 		bce_dump_ctx(sc, RX_CID);
 		bce_dump_ftqs(sc);
 		bce_dump_tx_chain(sc, 0, USABLE_TX_BD);
-		bce_dump_rx_chain(sc, 0, USABLE_RX_BD);
+		bce_dump_rx_bd_chain(sc, 0, USABLE_RX_BD);
 		bce_dump_status_block(sc);
 		bce_dump_stats_block(sc);
 		bce_dump_driver_state(sc);
@@ -10462,6 +10685,8 @@ bce_breakpoint(struct bce_softc *sc)
 		bce_dump_tpat_state(sc, 0);
 		bce_dump_cp_state(sc, 0);
 		bce_dump_com_state(sc, 0);
+		bce_dump_rv2p_state(sc);
+
 #ifdef BCE_JUMBO_HDRSPLIT
 		bce_dump_pgbd(sc, 0, NULL);
 		bce_dump_pg_mbuf_chain(sc, 0, USABLE_PG_BD);

@@ -74,8 +74,8 @@ __FBSDID("$FreeBSD$");
 #include <machine/specialreg.h>
 #include <machine/timerreg.h>
 
-#include <i386/isa/icu.h>
-#include <i386/isa/isa.h>
+#include <x86/isa/icu.h>
+#include <x86/isa/isa.h>
 #include <isa/rtc.h>
 
 #include <xen/xen_intr.h>

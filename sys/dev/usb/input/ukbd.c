@@ -18,13 +18,6 @@ __FBSDID("$FreeBSD$");
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *        This product includes software developed by the NetBSD
- *        Foundation, Inc. and its contributors.
- * 4. Neither the name of The NetBSD Foundation nor the names of its
- *    contributors may be used to endorse or promote products derived
- *    from this software without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
  * ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
@@ -883,28 +876,32 @@ ukbd_attach(device_t dev)
 	err = usbd_req_get_hid_desc(uaa->device, NULL, &hid_ptr,
 	    &hid_len, M_TEMP, uaa->info.bIfaceIndex);
 	if (err == 0) {
+		uint8_t apple_keys = 0;
 		uint8_t temp_id;
 
 		/* investigate if this is an Apple Keyboard */
 		if (hid_locate(hid_ptr, hid_len,
 		    HID_USAGE2(HUP_CONSUMER, HUG_APPLE_EJECT),
 		    hid_input, 0, &sc->sc_loc_apple_eject, &flags,
-		    &sc->sc_kbd_id)) {
+		    &temp_id)) {
 			if (flags & HIO_VARIABLE)
 				sc->sc_flags |= UKBD_FLAG_APPLE_EJECT | 
 				    UKBD_FLAG_APPLE_SWAP;
-			if (hid_locate(hid_ptr, hid_len,
-			    HID_USAGE2(0xFFFF, 0x0003),
-			    hid_input, 0, &sc->sc_loc_apple_fn, &flags,
-			    &temp_id)) {
-				if (flags & HIO_VARIABLE)
-					sc->sc_flags |= UKBD_FLAG_APPLE_FN |
-					    UKBD_FLAG_APPLE_SWAP;
-				if (temp_id != sc->sc_kbd_id) {
-					DPRINTF("HID IDs mismatch\n");
-				}
-			}
-		} else {
+			DPRINTFN(1, "Found Apple eject-key\n");
+			apple_keys = 1;
+			sc->sc_kbd_id = temp_id;
+		}
+		if (hid_locate(hid_ptr, hid_len,
+		    HID_USAGE2(0xFFFF, 0x0003),
+		    hid_input, 0, &sc->sc_loc_apple_fn, &flags,
+		    &temp_id)) {
+			if (flags & HIO_VARIABLE)
+				sc->sc_flags |= UKBD_FLAG_APPLE_FN;
+			DPRINTFN(1, "Found Apple FN-key\n");
+			apple_keys = 1;
+			sc->sc_kbd_id = temp_id;
+		}
+		if (apple_keys == 0) {
 			/* 
 			 * Assume the first HID ID contains the
 			 * keyboard data

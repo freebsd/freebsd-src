@@ -237,7 +237,7 @@ pmclog_get_buffer(struct pmc_owner *po)
 static void
 pmclog_loop(void *arg)
 {
-	int error;
+	int error, last_buffer;
 	struct pmc_owner *po;
 	struct pmclog_buffer *lb;
 	struct proc *p;
@@ -252,6 +252,7 @@ pmclog_loop(void *arg)
 	p = po->po_owner;
 	td = curthread;
 	mycred = td->td_ucred;
+	last_buffer = 0;
 
 	PROC_LOCK(p);
 	ownercred = crhold(p->p_ucred);
@@ -284,22 +285,14 @@ pmclog_loop(void *arg)
 			if ((lb = TAILQ_FIRST(&po->po_logbuffers)) == NULL) {
 				mtx_unlock_spin(&po->po_mtx);
 
-				/*
-				 * Wakeup the thread waiting for the
-				 * PMC_OP_FLUSHLOG request to
-				 * complete.
-				 */
-				if (po->po_flags & PMC_PO_IN_FLUSH) {
-					po->po_flags &= ~PMC_PO_IN_FLUSH;
-					wakeup_one(po->po_kthread);
-				}
-
 				(void) msleep(po, &pmc_kthread_mtx, PWAIT,
 				    "pmcloop", 0);
 				continue;
 			}
 
 			TAILQ_REMOVE(&po->po_logbuffers, lb, plb_next);
+			if (po->po_flags & PMC_PO_SHUTDOWN)
+				last_buffer = TAILQ_EMPTY(&po->po_logbuffers);
 			mtx_unlock_spin(&po->po_mtx);
 		}
 
@@ -328,8 +321,6 @@ pmclog_loop(void *arg)
 
 		if (error) {
 			/* XXX some errors are recoverable */
-			/* XXX also check for SIGPIPE if a socket */
-
 			/* send a SIGIO to the owner and exit */
 			PROC_LOCK(p);
 			psignal(p, SIGIO);
@@ -342,6 +333,14 @@ pmclog_loop(void *arg)
 			PMCDBG(LOG,WRI,2, "po=%p error=%d", po, error);
 
 			break;
+		}
+
+		if (last_buffer) {
+			/*
+			 * Close the file to get PMCLOG_EOF error
+			 * in pmclog(3).
+			 */
+			fo_close(po->po_file, curthread);
 		}
 
 		mtx_lock(&pmc_kthread_mtx);
@@ -424,6 +423,12 @@ pmclog_reserve(struct pmc_owner *po, int length)
 	    ("[pmclog,%d] length not a multiple of word size", __LINE__));
 
 	mtx_lock_spin(&po->po_mtx);
+
+	/* No more data when shutdown in progress. */
+	if (po->po_flags & PMC_PO_SHUTDOWN) {
+		mtx_unlock_spin(&po->po_mtx);
+		return (NULL);
+	}
 
 	if (po->po_curbuf == NULL)
 		if (pmclog_get_buffer(po) != 0) {
@@ -686,7 +691,7 @@ pmclog_deconfigure_log(struct pmc_owner *po)
 int
 pmclog_flush(struct pmc_owner *po)
 {
-	int error, has_pending_buffers;
+	int error;
 
 	PMCDBG(LOG,FLS,1, "po=%p", po);
 
@@ -714,16 +719,13 @@ pmclog_flush(struct pmc_owner *po)
 	mtx_lock_spin(&po->po_mtx);
 	if (po->po_curbuf)
 		pmclog_schedule_io(po);
-	has_pending_buffers = !TAILQ_EMPTY(&po->po_logbuffers);
 	mtx_unlock_spin(&po->po_mtx);
 
-	if (has_pending_buffers) {
-		po->po_flags |= PMC_PO_IN_FLUSH; /* ask for a wakeup */
-		error = msleep(po->po_kthread, &pmc_kthread_mtx, PWAIT,
-		    "pmcflush", 0);
-		if (error == 0)
-			error = po->po_error;
-	}
+	/*
+	 * Initiate shutdown: no new data queued,
+	 * thread will close file on last block.
+	 */
+	po->po_flags |= PMC_PO_SHUTDOWN;
 
  error:
 	mtx_unlock(&pmc_kthread_mtx);

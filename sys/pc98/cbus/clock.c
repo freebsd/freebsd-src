@@ -93,6 +93,9 @@ TUNABLE_INT("hw.i8254.freq", &i8254_freq);
 int	i8254_max_count;
 static int i8254_real_max_count;
 
+static int lapic_allclocks = 1;
+TUNABLE_INT("machdep.lapic_allclocks", &lapic_allclocks);
+
 static	struct mtx clock_lock;
 static	struct intsrc *i8254_intsrc;
 static	u_int32_t i8254_lastcount;
@@ -432,9 +435,11 @@ startrtclock()
 void
 cpu_initclocks()
 {
+#if defined(DEV_APIC)
+	enum lapic_clock tlsca;
 
-#ifdef DEV_APIC
-	using_lapic_timer = lapic_setup_clock();
+	tlsca = lapic_allclocks == 0 ? LAPIC_CLOCK_HARDCLOCK : LAPIC_CLOCK_ALL;
+	using_lapic_timer = lapic_setup_clock(tlsca);
 #endif
 	/*
 	 * If we aren't using the local APIC timer to drive the kernel

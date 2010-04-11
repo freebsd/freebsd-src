@@ -65,14 +65,16 @@ struct bwn_mac;
 	((uint16_t)((((uint16_t)tq->tq_index + 1) << 12) | tp->tp_index))
 #define	BWN_DMA_COOKIE(dr, slot)					\
 	((uint16_t)(((uint16_t)dr->dr_index + 1) << 12) | (uint16_t)slot)
-#define	BWN_READ_2(mac, o)		(siba_read_2(mac->mac_sd, o))
-#define	BWN_READ_4(mac, o)		(siba_read_4(mac->mac_sd, o))
-#define	BWN_WRITE_2(mac, o, v)		(siba_write_2(mac->mac_sd, o, v))
-#define	BWN_WRITE_4(mac, o, v)		(siba_write_4(mac->mac_sd, o, v))
+#define	BWN_READ_2(mac, o)		(siba_read_2(mac->mac_sc->sc_dev, o))
+#define	BWN_READ_4(mac, o)		(siba_read_4(mac->mac_sc->sc_dev, o))
+#define	BWN_WRITE_2(mac, o, v)						\
+	(siba_write_2(mac->mac_sc->sc_dev, o, v))
+#define	BWN_WRITE_4(mac, o, v)						\
+	(siba_write_4(mac->mac_sc->sc_dev, o, v))
 #define	BWN_PIO_TXQOFFSET(mac)						\
-	((mac->mac_sd->sd_id.sd_rev >= 11) ? 0x18 : 0)
+	((siba_get_revid(mac->mac_sc->sc_dev) >= 11) ? 0x18 : 0)
 #define	BWN_PIO_RXQOFFSET(mac)						\
-	((mac->mac_sd->sd_id.sd_rev >= 11) ? 0x38 : 8)
+	((siba_get_revid(mac->mac_sc->sc_dev) >= 11) ? 0x38 : 8)
 #define	BWN_SEC_NEWAPI(mac)		(mac->mac_fw.rev >= 351)
 #define	BWN_SEC_KEY2FW(mac, idx)					\
 	(BWN_SEC_NEWAPI(mac) ? idx : ((idx >= 4) ? idx - 4 : idx))
@@ -141,7 +143,7 @@ struct bwn_mac;
 	(rate == BWN_CCK_RATE_1MB || rate == BWN_CCK_RATE_2MB ||	\
 	 rate == BWN_CCK_RATE_5MB || rate == BWN_CCK_RATE_11MB)
 #define	BWN_ISOFDMRATE(rate)		(!BWN_ISCCKRATE(rate))
-#define	BWN_BARRIER(mac, flags)		siba_barrier(mac->mac_sd, flags)
+#define	BWN_BARRIER(mac, flags)		siba_barrier(mac->mac_sc->sc_dev, flags)
 #define	BWN_DMA_READ(dr, offset)				\
 	(BWN_READ_4(dr->dr_mac, dr->dr_base + offset))
 #define	BWN_DMA_WRITE(dr, offset, value)			\
@@ -515,6 +517,8 @@ struct bwn_tx_radiotap_header {
 };
 
 struct bwn_stats {
+	int32_t				rtsfail;
+	int32_t				rts;
 	int32_t				link_noise;
 };
 
@@ -833,7 +837,6 @@ struct bwn_led {
 
 struct bwn_mac {
 	struct bwn_softc		*mac_sc;
-	struct siba_dev_softc		*mac_sd;
 	unsigned			mac_status;
 #define	BWN_MAC_STATUS_UNINIT		0
 #define	BWN_MAC_STATUS_INITED		1
@@ -880,18 +883,11 @@ struct bwn_mac {
 	TAILQ_ENTRY(bwn_mac)	mac_list;
 };
 
-struct bwn_node {
-	struct ieee80211_node		bn_node;	/* must be the first */
-	struct ieee80211_amrr_node	bn_amn;
-};
-#define	BWN_NODE(ni)			((struct bwn_node *)(ni))
-
 /*
  * Driver-specific vap state.
  */
 struct bwn_vap {
 	struct ieee80211vap		bv_vap;	/* base class */
-	struct ieee80211_amrr		bv_amrr;
 	int				(*bv_newstate)(struct ieee80211vap *,
 					    enum ieee80211_state, int);
 };
@@ -900,7 +896,6 @@ struct bwn_vap {
 
 struct bwn_softc {
 	device_t			sc_dev;
-	struct siba_dev_softc		*sc_sd;
 	struct mtx			sc_mtx;
 	struct ifnet			*sc_ifp;
 	unsigned			sc_flags;

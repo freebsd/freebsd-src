@@ -131,13 +131,6 @@ amd64/amd64/tsc.c		standard
 amd64/amd64/uio_machdep.c	standard
 amd64/amd64/uma_machdep.c	standard
 amd64/amd64/vm_machdep.c	standard
-amd64/isa/atpic.c		optional	atpic isa
-#amd64/isa/atpic_vector.S	optional	atpic isa
-amd64/isa/clock.c		standard
-amd64/isa/elcr.c		standard
-amd64/isa/isa.c			standard
-amd64/isa/isa_dma.c		standard
-amd64/isa/nmi.c			standard
 amd64/pci/pci_bus.c		optional	pci
 amd64/pci/pci_cfgreg.c		optional	pci
 crypto/blowfish/bf_enc.c	optional	crypto | ipsec 
@@ -205,6 +198,7 @@ dev/hptrr/hptrr_config.c	optional	hptrr
 dev/hwpmc/hwpmc_amd.c		optional	hwpmc
 dev/hwpmc/hwpmc_intel.c		optional	hwpmc
 dev/hwpmc/hwpmc_core.c		optional	hwpmc
+dev/hwpmc/hwpmc_uncore.c	optional	hwpmc
 dev/hwpmc/hwpmc_piv.c		optional	hwpmc
 dev/hwpmc/hwpmc_tsc.c		optional	hwpmc
 dev/hwpmc/hwpmc_x86.c		optional	hwpmc
@@ -228,28 +222,26 @@ dev/syscons/scvgarndr.c		optional	sc vga
 dev/syscons/scvtb.c		optional	sc
 dev/uart/uart_cpu_amd64.c	optional	uart
 dev/wpi/if_wpi.c		optional	wpi
-isa/atrtc.c			standard
-isa/orm.c			optional	isa
 isa/syscons_isa.c		optional	sc
 isa/vga_isa.c			optional	vga
 kern/link_elf_obj.c		standard
 #
 # IA32 binary support
 #
-#amd64/ia32/ia32_exception.S	optional	compat_ia32
-amd64/ia32/ia32_reg.c		optional	compat_ia32
-amd64/ia32/ia32_signal.c	optional	compat_ia32
-amd64/ia32/ia32_sigtramp.S	optional	compat_ia32
-amd64/ia32/ia32_syscall.c	optional	compat_ia32
-amd64/ia32/ia32_misc.c		optional	compat_ia32
-compat/freebsd32/freebsd32_ioctl.c	optional	compat_ia32
-compat/freebsd32/freebsd32_misc.c	optional	compat_ia32
-compat/freebsd32/freebsd32_syscalls.c	optional	compat_ia32
-compat/freebsd32/freebsd32_sysent.c	optional	compat_ia32
-compat/ia32/ia32_sysvec.c	optional	compat_ia32
+#amd64/ia32/ia32_exception.S	optional	compat_freebsd32
+amd64/ia32/ia32_reg.c		optional	compat_freebsd32
+amd64/ia32/ia32_signal.c	optional	compat_freebsd32
+amd64/ia32/ia32_sigtramp.S	optional	compat_freebsd32
+amd64/ia32/ia32_syscall.c	optional	compat_freebsd32
+amd64/ia32/ia32_misc.c		optional	compat_freebsd32
+compat/freebsd32/freebsd32_ioctl.c	optional	compat_freebsd32
+compat/freebsd32/freebsd32_misc.c	optional	compat_freebsd32
+compat/freebsd32/freebsd32_syscalls.c	optional	compat_freebsd32
+compat/freebsd32/freebsd32_sysent.c	optional	compat_freebsd32
+compat/ia32/ia32_sysvec.c	optional	compat_freebsd32
 compat/linprocfs/linprocfs.c	optional	linprocfs
 compat/linsysfs/linsysfs.c	optional	linsysfs
-kern/imgact_elf32.c		optional	compat_ia32
+kern/imgact_elf32.c		optional	compat_freebsd32
 #
 # Linux/i386 binary support
 #
@@ -289,12 +281,6 @@ compat/ndis/subr_ntoskrnl.c	optional	ndisapi pci
 compat/ndis/subr_pe.c		optional	ndisapi pci
 compat/ndis/subr_usbd.c		optional	ndisapi pci
 compat/ndis/winx64_wrap.S	optional	ndisapi pci
-i386/bios/smbios.c		optional	smbios
-i386/bios/vpd.c			optional	vpd
-i386/cpufreq/powernow.c		optional	cpufreq
-i386/cpufreq/est.c		optional	cpufreq
-i386/cpufreq/hwpstate.c		optional	cpufreq
-i386/cpufreq/p4tcc.c		optional	cpufreq
 #
 libkern/memmove.c		standard
 libkern/memset.c		standard
@@ -303,3 +289,20 @@ libkern/memset.c		standard
 #
 compat/x86bios/x86bios.c	optional x86bios | atkbd | dpms | vesa
 contrib/x86emu/x86emu.c		optional x86bios | atkbd | dpms | vesa
+#
+# x86 shared code between IA32, AMD64 and PC98 architectures
+#
+x86/bios/smbios.c		optional	smbios
+x86/bios/vpd.c			optional	vpd
+x86/cpufreq/powernow.c		optional	cpufreq
+x86/cpufreq/est.c		optional	cpufreq
+x86/cpufreq/hwpstate.c		optional	cpufreq
+x86/cpufreq/p4tcc.c		optional	cpufreq
+x86/isa/atpic.c			optional	atpic isa
+x86/isa/atrtc.c			standard
+x86/isa/clock.c			standard
+x86/isa/elcr.c			standard
+x86/isa/isa.c			standard
+x86/isa/isa_dma.c		standard
+x86/isa/nmi.c			standard
+x86/isa/orm.c			optional	isa

@@ -31,6 +31,8 @@ __FBSDID("$FreeBSD$");
 #include "opt_inet.h"
 #include "opt_inet6.h"
 
+#define __ELF_WORD_SIZE 32
+
 #include <sys/param.h>
 #include <sys/bus.h>
 #include <sys/clock.h>
@@ -44,6 +46,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/file.h>		/* Must come after sys/malloc.h */
+#include <sys/imgact.h>
 #include <sys/mbuf.h>
 #include <sys/mman.h>
 #include <sys/module.h>
@@ -91,6 +94,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_extern.h>
 
 #include <machine/cpu.h>
+#include <machine/elf.h>
 
 #include <security/audit/audit.h>
 
@@ -114,6 +118,16 @@ CTASSERT(sizeof(struct sigaction32) == 24);
 
 static int freebsd32_kevent_copyout(void *arg, struct kevent *kevp, int count);
 static int freebsd32_kevent_copyin(void *arg, struct kevent *kevp, int count);
+
+#if BYTE_ORDER == BIG_ENDIAN
+#define PAIR32TO64(type, name) ((name ## 2) | ((type)(name ## 1) << 32))
+#define RETVAL_HI 0	
+#define RETVAL_LO 1	
+#else
+#define PAIR32TO64(type, name) ((name ## 1) | ((type)(name ## 2) << 32))
+#define RETVAL_HI 1	
+#define RETVAL_LO 0	
+#endif
 
 int
 freebsd32_wait4(struct thread *td, struct freebsd32_wait4_args *uap)
@@ -426,8 +440,7 @@ freebsd32_mmap(struct thread *td, struct freebsd32_mmap_args *uap)
 	int prot	 = uap->prot;
 	int flags	 = uap->flags;
 	int fd		 = uap->fd;
-	off_t pos	 = (uap->poslo
-			    | ((off_t)uap->poshi << 32));
+	off_t pos	 = PAIR32TO64(off_t,uap->pos);
 #ifdef __ia64__
 	vm_size_t pageoff;
 	int error;
@@ -523,8 +536,8 @@ freebsd6_freebsd32_mmap(struct thread *td, struct freebsd6_freebsd32_mmap_args *
 	ap.prot = uap->prot;
 	ap.flags = uap->flags;
 	ap.fd = uap->fd;
-	ap.poslo = uap->poslo;
-	ap.poshi = uap->poshi;
+	ap.pos1 = uap->pos1;
+	ap.pos2 = uap->pos2;
 
 	return (freebsd32_mmap(td, &ap));
 }
@@ -586,7 +599,6 @@ freebsd32_select(struct thread *td, struct freebsd32_select_args *uap)
 	} else
 		tvp = NULL;
 	/*
-	 * XXX big-endian needs to convert the fd_sets too.
 	 * XXX Do pointers need PTRIN()?
 	 */
 	return (kern_select(td, uap->nd, uap->in, uap->ou, uap->ex, tvp,
@@ -620,7 +632,6 @@ freebsd32_pselect(struct thread *td, struct freebsd32_pselect_args *uap)
 	} else
 		uset = NULL;
 	/*
-	 * XXX big-endian needs to convert the fd_sets too.
 	 * XXX Do pointers need PTRIN()?
 	 */
 	error = kern_pselect(td, uap->nd, uap->in, uap->ou, uap->ex, tvp,
@@ -843,7 +854,7 @@ freebsd32_preadv(struct thread *td, struct freebsd32_preadv_args *uap)
 	error = freebsd32_copyinuio(uap->iovp, uap->iovcnt, &auio);
 	if (error)
 		return (error);
-	error = kern_preadv(td, uap->fd, auio, uap->offset);
+	error = kern_preadv(td, uap->fd, auio, PAIR32TO64(off_t,uap->offset));
 	free(auio, M_IOV);
 	return (error);
 }
@@ -857,12 +868,12 @@ freebsd32_pwritev(struct thread *td, struct freebsd32_pwritev_args *uap)
 	error = freebsd32_copyinuio(uap->iovp, uap->iovcnt, &auio);
 	if (error)
 		return (error);
-	error = kern_pwritev(td, uap->fd, auio, uap->offset);
+	error = kern_pwritev(td, uap->fd, auio, PAIR32TO64(off_t,uap->offset));
 	free(auio, M_IOV);
 	return (error);
 }
 
-static int
+int
 freebsd32_copyiniov(struct iovec32 *iovp32, u_int iovcnt, struct iovec **iovp,
     int error)
 {
@@ -1389,591 +1400,6 @@ freebsd4_freebsd32_fhstatfs(struct thread *td, struct freebsd4_freebsd32_fhstatf
 }
 #endif
 
-#if defined(COMPAT_FREEBSD4) || defined(COMPAT_FREEBSD5) || \
-    defined(COMPAT_FREEBSD6) || defined(COMPAT_FREEBSD7)
-static void
-freebsd32_ipcperm_old_in(struct ipc_perm32_old *ip32, struct ipc_perm *ip)
-{
-
-	CP(*ip32, *ip, cuid);
-	CP(*ip32, *ip, cgid);
-	CP(*ip32, *ip, uid);
-	CP(*ip32, *ip, gid);
-	CP(*ip32, *ip, mode);
-	CP(*ip32, *ip, seq);
-	CP(*ip32, *ip, key);
-}
-
-static void
-freebsd32_ipcperm_old_out(struct ipc_perm *ip, struct ipc_perm32_old *ip32)
-{
-
-	CP(*ip, *ip32, cuid);
-	CP(*ip, *ip32, cgid);
-	CP(*ip, *ip32, uid);
-	CP(*ip, *ip32, gid);
-	CP(*ip, *ip32, mode);
-	CP(*ip, *ip32, seq);
-	CP(*ip, *ip32, key);
-}
-#endif
-
-static void
-freebsd32_ipcperm_in(struct ipc_perm32 *ip32, struct ipc_perm *ip)
-{
-
-	CP(*ip32, *ip, cuid);
-	CP(*ip32, *ip, cgid);
-	CP(*ip32, *ip, uid);
-	CP(*ip32, *ip, gid);
-	CP(*ip32, *ip, mode);
-	CP(*ip32, *ip, seq);
-	CP(*ip32, *ip, key);
-}
-
-static void
-freebsd32_ipcperm_out(struct ipc_perm *ip, struct ipc_perm32 *ip32)
-{
-
-	CP(*ip, *ip32, cuid);
-	CP(*ip, *ip32, cgid);
-	CP(*ip, *ip32, uid);
-	CP(*ip, *ip32, gid);
-	CP(*ip, *ip32, mode);
-	CP(*ip, *ip32, seq);
-	CP(*ip, *ip32, key);
-}
-
-int
-freebsd32_semsys(struct thread *td, struct freebsd32_semsys_args *uap)
-{
-
-#if defined(COMPAT_FREEBSD4) || defined(COMPAT_FREEBSD5) || \
-    defined(COMPAT_FREEBSD6) || defined(COMPAT_FREEBSD7)
-	switch (uap->which) {
-	case 0:
-		return (freebsd7_freebsd32_semctl(td,
-		    (struct freebsd7_freebsd32_semctl_args *)&uap->a2));
-	default:
-		return (semsys(td, (struct semsys_args *)uap));
-	}
-#else
-	return (nosys(td, NULL));
-#endif
-}
-
-#if defined(COMPAT_FREEBSD4) || defined(COMPAT_FREEBSD5) || \
-    defined(COMPAT_FREEBSD6) || defined(COMPAT_FREEBSD7)
-int
-freebsd7_freebsd32_semctl(struct thread *td,
-    struct freebsd7_freebsd32_semctl_args *uap)
-{
-	struct semid_ds32_old dsbuf32;
-	struct semid_ds dsbuf;
-	union semun semun;
-	union semun32 arg;
-	register_t rval;
-	int error;
-
-	switch (uap->cmd) {
-	case SEM_STAT:
-	case IPC_SET:
-	case IPC_STAT:
-	case GETALL:
-	case SETVAL:
-	case SETALL:
-		error = copyin(uap->arg, &arg, sizeof(arg));
-		if (error)
-			return (error);		
-		break;
-	}
-
-	switch (uap->cmd) {
-	case SEM_STAT:
-	case IPC_STAT:
-		semun.buf = &dsbuf;
-		break;
-	case IPC_SET:
-		error = copyin(PTRIN(arg.buf), &dsbuf32, sizeof(dsbuf32));
-		if (error)
-			return (error);
-		freebsd32_ipcperm_old_in(&dsbuf32.sem_perm, &dsbuf.sem_perm);
-		PTRIN_CP(dsbuf32, dsbuf, sem_base);
-		CP(dsbuf32, dsbuf, sem_nsems);
-		CP(dsbuf32, dsbuf, sem_otime);
-		CP(dsbuf32, dsbuf, sem_ctime);
-		semun.buf = &dsbuf;
-		break;
-	case GETALL:
-	case SETALL:
-		semun.array = PTRIN(arg.array);
-		break;
-	case SETVAL:
-		semun.val = arg.val;
-		break;
-	}
-
-	error = kern_semctl(td, uap->semid, uap->semnum, uap->cmd, &semun,
-	    &rval);
-	if (error)
-		return (error);
-
-	switch (uap->cmd) {
-	case SEM_STAT:
-	case IPC_STAT:
-		bzero(&dsbuf32, sizeof(dsbuf32));
-		freebsd32_ipcperm_old_out(&dsbuf.sem_perm, &dsbuf32.sem_perm);
-		PTROUT_CP(dsbuf, dsbuf32, sem_base);
-		CP(dsbuf, dsbuf32, sem_nsems);
-		CP(dsbuf, dsbuf32, sem_otime);
-		CP(dsbuf, dsbuf32, sem_ctime);
-		error = copyout(&dsbuf32, PTRIN(arg.buf), sizeof(dsbuf32));
-		break;
-	}
-
-	if (error == 0)
-		td->td_retval[0] = rval;
-	return (error);
-}
-#endif
-
-int
-freebsd32_semctl(struct thread *td, struct freebsd32_semctl_args *uap)
-{
-	struct semid_ds32 dsbuf32;
-	struct semid_ds dsbuf;
-	union semun semun;
-	union semun32 arg;
-	register_t rval;
-	int error;
-
-	switch (uap->cmd) {
-	case SEM_STAT:
-	case IPC_SET:
-	case IPC_STAT:
-	case GETALL:
-	case SETVAL:
-	case SETALL:
-		error = copyin(uap->arg, &arg, sizeof(arg));
-		if (error)
-			return (error);		
-		break;
-	}
-
-	switch (uap->cmd) {
-	case SEM_STAT:
-	case IPC_STAT:
-		semun.buf = &dsbuf;
-		break;
-	case IPC_SET:
-		error = copyin(PTRIN(arg.buf), &dsbuf32, sizeof(dsbuf32));
-		if (error)
-			return (error);
-		freebsd32_ipcperm_in(&dsbuf32.sem_perm, &dsbuf.sem_perm);
-		PTRIN_CP(dsbuf32, dsbuf, sem_base);
-		CP(dsbuf32, dsbuf, sem_nsems);
-		CP(dsbuf32, dsbuf, sem_otime);
-		CP(dsbuf32, dsbuf, sem_ctime);
-		semun.buf = &dsbuf;
-		break;
-	case GETALL:
-	case SETALL:
-		semun.array = PTRIN(arg.array);
-		break;
-	case SETVAL:
-		semun.val = arg.val;
-		break;		
-	}
-
-	error = kern_semctl(td, uap->semid, uap->semnum, uap->cmd, &semun,
-	    &rval);
-	if (error)
-		return (error);
-
-	switch (uap->cmd) {
-	case SEM_STAT:
-	case IPC_STAT:
-		bzero(&dsbuf32, sizeof(dsbuf32));
-		freebsd32_ipcperm_out(&dsbuf.sem_perm, &dsbuf32.sem_perm);
-		PTROUT_CP(dsbuf, dsbuf32, sem_base);
-		CP(dsbuf, dsbuf32, sem_nsems);
-		CP(dsbuf, dsbuf32, sem_otime);
-		CP(dsbuf, dsbuf32, sem_ctime);
-		error = copyout(&dsbuf32, PTRIN(arg.buf), sizeof(dsbuf32));
-		break;
-	}
-
-	if (error == 0)
-		td->td_retval[0] = rval;
-	return (error);
-}
-
-int
-freebsd32_msgsys(struct thread *td, struct freebsd32_msgsys_args *uap)
-{
-
-#if defined(COMPAT_FREEBSD4) || defined(COMPAT_FREEBSD5) || \
-    defined(COMPAT_FREEBSD6) || defined(COMPAT_FREEBSD7)
-	switch (uap->which) {
-	case 0:
-		return (freebsd7_freebsd32_msgctl(td,
-		    (struct freebsd7_freebsd32_msgctl_args *)&uap->a2));
-	case 2:
-		return (freebsd32_msgsnd(td,
-		    (struct freebsd32_msgsnd_args *)&uap->a2));
-	case 3:
-		return (freebsd32_msgrcv(td,
-		    (struct freebsd32_msgrcv_args *)&uap->a2));
-	default:
-		return (msgsys(td, (struct msgsys_args *)uap));
-	}
-#else
-	return (nosys(td, NULL));
-#endif
-}
-
-#if defined(COMPAT_FREEBSD4) || defined(COMPAT_FREEBSD5) || \
-    defined(COMPAT_FREEBSD6) || defined(COMPAT_FREEBSD7)
-int
-freebsd7_freebsd32_msgctl(struct thread *td,
-    struct freebsd7_freebsd32_msgctl_args *uap)
-{
-	struct msqid_ds msqbuf;
-	struct msqid_ds32_old msqbuf32;
-	int error;
-
-	if (uap->cmd == IPC_SET) {
-		error = copyin(uap->buf, &msqbuf32, sizeof(msqbuf32));
-		if (error)
-			return (error);
-		freebsd32_ipcperm_old_in(&msqbuf32.msg_perm, &msqbuf.msg_perm);
-		PTRIN_CP(msqbuf32, msqbuf, msg_first);
-		PTRIN_CP(msqbuf32, msqbuf, msg_last);
-		CP(msqbuf32, msqbuf, msg_cbytes);
-		CP(msqbuf32, msqbuf, msg_qnum);
-		CP(msqbuf32, msqbuf, msg_qbytes);
-		CP(msqbuf32, msqbuf, msg_lspid);
-		CP(msqbuf32, msqbuf, msg_lrpid);
-		CP(msqbuf32, msqbuf, msg_stime);
-		CP(msqbuf32, msqbuf, msg_rtime);
-		CP(msqbuf32, msqbuf, msg_ctime);
-	}
-	error = kern_msgctl(td, uap->msqid, uap->cmd, &msqbuf);
-	if (error)
-		return (error);
-	if (uap->cmd == IPC_STAT) {
-		bzero(&msqbuf32, sizeof(msqbuf32));
-		freebsd32_ipcperm_old_out(&msqbuf.msg_perm, &msqbuf32.msg_perm);
-		PTROUT_CP(msqbuf, msqbuf32, msg_first);
-		PTROUT_CP(msqbuf, msqbuf32, msg_last);
-		CP(msqbuf, msqbuf32, msg_cbytes);
-		CP(msqbuf, msqbuf32, msg_qnum);
-		CP(msqbuf, msqbuf32, msg_qbytes);
-		CP(msqbuf, msqbuf32, msg_lspid);
-		CP(msqbuf, msqbuf32, msg_lrpid);
-		CP(msqbuf, msqbuf32, msg_stime);
-		CP(msqbuf, msqbuf32, msg_rtime);
-		CP(msqbuf, msqbuf32, msg_ctime);
-		error = copyout(&msqbuf32, uap->buf, sizeof(struct msqid_ds32));
-	}
-	return (error);
-}
-#endif
-
-int
-freebsd32_msgctl(struct thread *td, struct freebsd32_msgctl_args *uap)
-{
-	struct msqid_ds msqbuf;
-	struct msqid_ds32 msqbuf32;
-	int error;
-
-	if (uap->cmd == IPC_SET) {
-		error = copyin(uap->buf, &msqbuf32, sizeof(msqbuf32));
-		if (error)
-			return (error);
-		freebsd32_ipcperm_in(&msqbuf32.msg_perm, &msqbuf.msg_perm);
-		PTRIN_CP(msqbuf32, msqbuf, msg_first);
-		PTRIN_CP(msqbuf32, msqbuf, msg_last);
-		CP(msqbuf32, msqbuf, msg_cbytes);
-		CP(msqbuf32, msqbuf, msg_qnum);
-		CP(msqbuf32, msqbuf, msg_qbytes);
-		CP(msqbuf32, msqbuf, msg_lspid);
-		CP(msqbuf32, msqbuf, msg_lrpid);
-		CP(msqbuf32, msqbuf, msg_stime);
-		CP(msqbuf32, msqbuf, msg_rtime);
-		CP(msqbuf32, msqbuf, msg_ctime);
-	}
-	error = kern_msgctl(td, uap->msqid, uap->cmd, &msqbuf);
-	if (error)
-		return (error);
-	if (uap->cmd == IPC_STAT) {
-		freebsd32_ipcperm_out(&msqbuf.msg_perm, &msqbuf32.msg_perm);
-		PTROUT_CP(msqbuf, msqbuf32, msg_first);
-		PTROUT_CP(msqbuf, msqbuf32, msg_last);
-		CP(msqbuf, msqbuf32, msg_cbytes);
-		CP(msqbuf, msqbuf32, msg_qnum);
-		CP(msqbuf, msqbuf32, msg_qbytes);
-		CP(msqbuf, msqbuf32, msg_lspid);
-		CP(msqbuf, msqbuf32, msg_lrpid);
-		CP(msqbuf, msqbuf32, msg_stime);
-		CP(msqbuf, msqbuf32, msg_rtime);
-		CP(msqbuf, msqbuf32, msg_ctime);
-		error = copyout(&msqbuf32, uap->buf, sizeof(struct msqid_ds32));
-	}
-	return (error);
-}
-
-int
-freebsd32_msgsnd(struct thread *td, struct freebsd32_msgsnd_args *uap)
-{
-	const void *msgp;
-	long mtype;
-	int32_t mtype32;
-	int error;
-
-	msgp = PTRIN(uap->msgp);
-	if ((error = copyin(msgp, &mtype32, sizeof(mtype32))) != 0)
-		return (error);
-	mtype = mtype32;
-	return (kern_msgsnd(td, uap->msqid,
-	    (const char *)msgp + sizeof(mtype32),
-	    uap->msgsz, uap->msgflg, mtype));
-}
-
-int
-freebsd32_msgrcv(struct thread *td, struct freebsd32_msgrcv_args *uap)
-{
-	void *msgp;
-	long mtype;
-	int32_t mtype32;
-	int error;
-
-	msgp = PTRIN(uap->msgp);
-	if ((error = kern_msgrcv(td, uap->msqid,
-	    (char *)msgp + sizeof(mtype32), uap->msgsz,
-	    uap->msgtyp, uap->msgflg, &mtype)) != 0)
-		return (error);
-	mtype32 = (int32_t)mtype;
-	return (copyout(&mtype32, msgp, sizeof(mtype32)));
-}
-
-int
-freebsd32_shmsys(struct thread *td, struct freebsd32_shmsys_args *uap)
-{
-
-#if defined(COMPAT_FREEBSD4) || defined(COMPAT_FREEBSD5) || \
-    defined(COMPAT_FREEBSD6) || defined(COMPAT_FREEBSD7)
-	switch (uap->which) {
-	case 0:	{	/* shmat */
-		struct shmat_args ap;
-
-		ap.shmid = uap->a2;
-		ap.shmaddr = PTRIN(uap->a3);
-		ap.shmflg = uap->a4;
-		return (sysent[SYS_shmat].sy_call(td, &ap));
-	}
-	case 2: {	/* shmdt */
-		struct shmdt_args ap;
-
-		ap.shmaddr = PTRIN(uap->a2);
-		return (sysent[SYS_shmdt].sy_call(td, &ap));
-	}
-	case 3: {	/* shmget */
-		struct shmget_args ap;
-
-		ap.key = uap->a2;
-		ap.size = uap->a3;
-		ap.shmflg = uap->a4;
-		return (sysent[SYS_shmget].sy_call(td, &ap));
-	}
-	case 4: {	/* shmctl */
-		struct freebsd7_freebsd32_shmctl_args ap;
-
-		ap.shmid = uap->a2;
-		ap.cmd = uap->a3;
-		ap.buf = PTRIN(uap->a4);
-		return (freebsd7_freebsd32_shmctl(td, &ap));
-	}
-	case 1:		/* oshmctl */
-	default:
-		return (EINVAL);
-	}
-#else
-	return (nosys(td, NULL));
-#endif
-}
-
-#if defined(COMPAT_FREEBSD4) || defined(COMPAT_FREEBSD5) || \
-    defined(COMPAT_FREEBSD6) || defined(COMPAT_FREEBSD7)
-int
-freebsd7_freebsd32_shmctl(struct thread *td,
-    struct freebsd7_freebsd32_shmctl_args *uap)
-{
-	int error = 0;
-	union {
-		struct shmid_ds shmid_ds;
-		struct shm_info shm_info;
-		struct shminfo shminfo;
-	} u;
-	union {
-		struct shmid_ds32_old shmid_ds32;
-		struct shm_info32 shm_info32;
-		struct shminfo32 shminfo32;
-	} u32;
-	size_t sz;
-
-	if (uap->cmd == IPC_SET) {
-		if ((error = copyin(uap->buf, &u32.shmid_ds32,
-		    sizeof(u32.shmid_ds32))))
-			goto done;
-		freebsd32_ipcperm_old_in(&u32.shmid_ds32.shm_perm,
-		    &u.shmid_ds.shm_perm);
-		CP(u32.shmid_ds32, u.shmid_ds, shm_segsz);
-		CP(u32.shmid_ds32, u.shmid_ds, shm_lpid);
-		CP(u32.shmid_ds32, u.shmid_ds, shm_cpid);
-		CP(u32.shmid_ds32, u.shmid_ds, shm_nattch);
-		CP(u32.shmid_ds32, u.shmid_ds, shm_atime);
-		CP(u32.shmid_ds32, u.shmid_ds, shm_dtime);
-		CP(u32.shmid_ds32, u.shmid_ds, shm_ctime);
-	}
-	
-	error = kern_shmctl(td, uap->shmid, uap->cmd, (void *)&u, &sz);
-	if (error)
-		goto done;
-	
-	/* Cases in which we need to copyout */
-	switch (uap->cmd) {
-	case IPC_INFO:
-		CP(u.shminfo, u32.shminfo32, shmmax);
-		CP(u.shminfo, u32.shminfo32, shmmin);
-		CP(u.shminfo, u32.shminfo32, shmmni);
-		CP(u.shminfo, u32.shminfo32, shmseg);
-		CP(u.shminfo, u32.shminfo32, shmall);
-		error = copyout(&u32.shminfo32, uap->buf,
-		    sizeof(u32.shminfo32));
-		break;
-	case SHM_INFO:
-		CP(u.shm_info, u32.shm_info32, used_ids);
-		CP(u.shm_info, u32.shm_info32, shm_rss);
-		CP(u.shm_info, u32.shm_info32, shm_tot);
-		CP(u.shm_info, u32.shm_info32, shm_swp);
-		CP(u.shm_info, u32.shm_info32, swap_attempts);
-		CP(u.shm_info, u32.shm_info32, swap_successes);
-		error = copyout(&u32.shm_info32, uap->buf,
-		    sizeof(u32.shm_info32));
-		break;
-	case SHM_STAT:
-	case IPC_STAT:
-		freebsd32_ipcperm_old_out(&u.shmid_ds.shm_perm,
-		    &u32.shmid_ds32.shm_perm);
-		if (u.shmid_ds.shm_segsz > INT32_MAX)
-			u32.shmid_ds32.shm_segsz = INT32_MAX;
-		else
-			CP(u.shmid_ds, u32.shmid_ds32, shm_segsz);
-		CP(u.shmid_ds, u32.shmid_ds32, shm_lpid);
-		CP(u.shmid_ds, u32.shmid_ds32, shm_cpid);
-		CP(u.shmid_ds, u32.shmid_ds32, shm_nattch);
-		CP(u.shmid_ds, u32.shmid_ds32, shm_atime);
-		CP(u.shmid_ds, u32.shmid_ds32, shm_dtime);
-		CP(u.shmid_ds, u32.shmid_ds32, shm_ctime);
-		u32.shmid_ds32.shm_internal = 0;
-		error = copyout(&u32.shmid_ds32, uap->buf,
-		    sizeof(u32.shmid_ds32));
-		break;
-	}
-
-done:
-	if (error) {
-		/* Invalidate the return value */
-		td->td_retval[0] = -1;
-	}
-	return (error);
-}
-#endif
-
-int
-freebsd32_shmctl(struct thread *td, struct freebsd32_shmctl_args *uap)
-{
-	int error = 0;
-	union {
-		struct shmid_ds shmid_ds;
-		struct shm_info shm_info;
-		struct shminfo shminfo;
-	} u;
-	union {
-		struct shmid_ds32 shmid_ds32;
-		struct shm_info32 shm_info32;
-		struct shminfo32 shminfo32;
-	} u32;
-	size_t sz;
-	
-	if (uap->cmd == IPC_SET) {
-		if ((error = copyin(uap->buf, &u32.shmid_ds32,
-		    sizeof(u32.shmid_ds32))))
-			goto done;
-		freebsd32_ipcperm_in(&u32.shmid_ds32.shm_perm,
-		    &u.shmid_ds.shm_perm);
-		CP(u32.shmid_ds32, u.shmid_ds, shm_segsz);
-		CP(u32.shmid_ds32, u.shmid_ds, shm_lpid);
-		CP(u32.shmid_ds32, u.shmid_ds, shm_cpid);
-		CP(u32.shmid_ds32, u.shmid_ds, shm_nattch);
-		CP(u32.shmid_ds32, u.shmid_ds, shm_atime);
-		CP(u32.shmid_ds32, u.shmid_ds, shm_dtime);
-		CP(u32.shmid_ds32, u.shmid_ds, shm_ctime);
-	}
-	
-	error = kern_shmctl(td, uap->shmid, uap->cmd, (void *)&u, &sz);
-	if (error)
-		goto done;
-	
-	/* Cases in which we need to copyout */
-	switch (uap->cmd) {
-	case IPC_INFO:
-		CP(u.shminfo, u32.shminfo32, shmmax);
-		CP(u.shminfo, u32.shminfo32, shmmin);
-		CP(u.shminfo, u32.shminfo32, shmmni);
-		CP(u.shminfo, u32.shminfo32, shmseg);
-		CP(u.shminfo, u32.shminfo32, shmall);
-		error = copyout(&u32.shminfo32, uap->buf,
-		    sizeof(u32.shminfo32));
-		break;
-	case SHM_INFO:
-		CP(u.shm_info, u32.shm_info32, used_ids);
-		CP(u.shm_info, u32.shm_info32, shm_rss);
-		CP(u.shm_info, u32.shm_info32, shm_tot);
-		CP(u.shm_info, u32.shm_info32, shm_swp);
-		CP(u.shm_info, u32.shm_info32, swap_attempts);
-		CP(u.shm_info, u32.shm_info32, swap_successes);
-		error = copyout(&u32.shm_info32, uap->buf,
-		    sizeof(u32.shm_info32));
-		break;
-	case SHM_STAT:
-	case IPC_STAT:
-		freebsd32_ipcperm_out(&u.shmid_ds.shm_perm,
-		    &u32.shmid_ds32.shm_perm);
-		if (u.shmid_ds.shm_segsz > INT32_MAX)
-			u32.shmid_ds32.shm_segsz = INT32_MAX;
-		else
-			CP(u.shmid_ds, u32.shmid_ds32, shm_segsz);
-		CP(u.shmid_ds, u32.shmid_ds32, shm_lpid);
-		CP(u.shmid_ds, u32.shmid_ds32, shm_cpid);
-		CP(u.shmid_ds, u32.shmid_ds32, shm_nattch);
-		CP(u.shmid_ds, u32.shmid_ds32, shm_atime);
-		CP(u.shmid_ds, u32.shmid_ds32, shm_dtime);
-		CP(u.shmid_ds, u32.shmid_ds32, shm_ctime);
-		error = copyout(&u32.shmid_ds32, uap->buf,
-		    sizeof(u32.shmid_ds32));
-		break;
-	}
-
-done:
-	if (error) {
-		/* Invalidate the return value */
-		td->td_retval[0] = -1;
-	}
-	return (error);
-}
-
 int
 freebsd32_pread(struct thread *td, struct freebsd32_pread_args *uap)
 {
@@ -1982,7 +1408,7 @@ freebsd32_pread(struct thread *td, struct freebsd32_pread_args *uap)
 	ap.fd = uap->fd;
 	ap.buf = uap->buf;
 	ap.nbyte = uap->nbyte;
-	ap.offset = (uap->offsetlo | ((off_t)uap->offsethi << 32));
+	ap.offset = PAIR32TO64(off_t,uap->offset);
 	return (pread(td, &ap));
 }
 
@@ -1994,7 +1420,7 @@ freebsd32_pwrite(struct thread *td, struct freebsd32_pwrite_args *uap)
 	ap.fd = uap->fd;
 	ap.buf = uap->buf;
 	ap.nbyte = uap->nbyte;
-	ap.offset = (uap->offsetlo | ((off_t)uap->offsethi << 32));
+	ap.offset = PAIR32TO64(off_t,uap->offset);
 	return (pwrite(td, &ap));
 }
 
@@ -2006,13 +1432,13 @@ freebsd32_lseek(struct thread *td, struct freebsd32_lseek_args *uap)
 	off_t pos;
 
 	ap.fd = uap->fd;
-	ap.offset = (uap->offsetlo | ((off_t)uap->offsethi << 32));
+	ap.offset = PAIR32TO64(off_t,uap->offset);
 	ap.whence = uap->whence;
 	error = lseek(td, &ap);
 	/* Expand the quad return into two parts for eax and edx */
 	pos = *(off_t *)(td->td_retval);
-	td->td_retval[0] = pos & 0xffffffff;	/* %eax */
-	td->td_retval[1] = pos >> 32;		/* %edx */
+	td->td_retval[RETVAL_LO] = pos & 0xffffffff;	/* %eax */
+	td->td_retval[RETVAL_HI] = pos >> 32;		/* %edx */
 	return error;
 }
 
@@ -2022,7 +1448,7 @@ freebsd32_truncate(struct thread *td, struct freebsd32_truncate_args *uap)
 	struct truncate_args ap;
 
 	ap.path = uap->path;
-	ap.length = (uap->lengthlo | ((off_t)uap->lengthhi << 32));
+	ap.length = PAIR32TO64(off_t,uap->length);
 	return (truncate(td, &ap));
 }
 
@@ -2032,7 +1458,7 @@ freebsd32_ftruncate(struct thread *td, struct freebsd32_ftruncate_args *uap)
 	struct ftruncate_args ap;
 
 	ap.fd = uap->fd;
-	ap.length = (uap->lengthlo | ((off_t)uap->lengthhi << 32));
+	ap.length = PAIR32TO64(off_t,uap->length);
 	return (ftruncate(td, &ap));
 }
 
@@ -2064,7 +1490,7 @@ freebsd6_freebsd32_pread(struct thread *td, struct freebsd6_freebsd32_pread_args
 	ap.fd = uap->fd;
 	ap.buf = uap->buf;
 	ap.nbyte = uap->nbyte;
-	ap.offset = (uap->offsetlo | ((off_t)uap->offsethi << 32));
+	ap.offset = PAIR32TO64(off_t,uap->offset);
 	return (pread(td, &ap));
 }
 
@@ -2076,7 +1502,7 @@ freebsd6_freebsd32_pwrite(struct thread *td, struct freebsd6_freebsd32_pwrite_ar
 	ap.fd = uap->fd;
 	ap.buf = uap->buf;
 	ap.nbyte = uap->nbyte;
-	ap.offset = (uap->offsetlo | ((off_t)uap->offsethi << 32));
+	ap.offset = PAIR32TO64(off_t,uap->offset);
 	return (pwrite(td, &ap));
 }
 
@@ -2088,13 +1514,13 @@ freebsd6_freebsd32_lseek(struct thread *td, struct freebsd6_freebsd32_lseek_args
 	off_t pos;
 
 	ap.fd = uap->fd;
-	ap.offset = (uap->offsetlo | ((off_t)uap->offsethi << 32));
+	ap.offset = PAIR32TO64(off_t,uap->offset);
 	ap.whence = uap->whence;
 	error = lseek(td, &ap);
 	/* Expand the quad return into two parts for eax and edx */
 	pos = *(off_t *)(td->td_retval);
-	td->td_retval[0] = pos & 0xffffffff;	/* %eax */
-	td->td_retval[1] = pos >> 32;		/* %edx */
+	td->td_retval[RETVAL_LO] = pos & 0xffffffff;	/* %eax */
+	td->td_retval[RETVAL_HI] = pos >> 32;		/* %edx */
 	return error;
 }
 
@@ -2104,7 +1530,7 @@ freebsd6_freebsd32_truncate(struct thread *td, struct freebsd6_freebsd32_truncat
 	struct truncate_args ap;
 
 	ap.path = uap->path;
-	ap.length = (uap->lengthlo | ((off_t)uap->lengthhi << 32));
+	ap.length = PAIR32TO64(off_t,uap->length);
 	return (truncate(td, &ap));
 }
 
@@ -2114,7 +1540,7 @@ freebsd6_freebsd32_ftruncate(struct thread *td, struct freebsd6_freebsd32_ftrunc
 	struct ftruncate_args ap;
 
 	ap.fd = uap->fd;
-	ap.length = (uap->lengthlo | ((off_t)uap->lengthhi << 32));
+	ap.length = PAIR32TO64(off_t,uap->length);
 	return (ftruncate(td, &ap));
 }
 #endif /* COMPAT_FREEBSD6 */
@@ -2141,7 +1567,7 @@ freebsd32_do_sendfile(struct thread *td,
 
 	ap.fd = uap->fd;
 	ap.s = uap->s;
-	ap.offset = (uap->offsetlo | ((off_t)uap->offsethi << 32));
+	ap.offset = PAIR32TO64(off_t,uap->offset);
 	ap.nbytes = uap->nbytes;
 	ap.hdtr = (struct sf_hdtr *)uap->hdtr;		/* XXX not used */
 	ap.sbytes = uap->sbytes;
@@ -2208,9 +1634,9 @@ copy_stat( struct stat *in, struct stat32 *out)
 	CP(*in, *out, st_uid);
 	CP(*in, *out, st_gid);
 	CP(*in, *out, st_rdev);
-	TS_CP(*in, *out, st_atimespec);
-	TS_CP(*in, *out, st_mtimespec);
-	TS_CP(*in, *out, st_ctimespec);
+	TS_CP(*in, *out, st_atim);
+	TS_CP(*in, *out, st_mtim);
+	TS_CP(*in, *out, st_ctim);
 	CP(*in, *out, st_size);
 	CP(*in, *out, st_blocks);
 	CP(*in, *out, st_blksize);
@@ -2879,7 +2305,7 @@ freebsd32_cpuset_setid(struct thread *td,
 	struct cpuset_setid_args ap;
 
 	ap.which = uap->which;
-	ap.id = (uap->idlo | ((id_t)uap->idhi << 32));
+	ap.id = PAIR32TO64(id_t,uap->id);
 	ap.setid = uap->setid;
 
 	return (cpuset_setid(td, &ap));
@@ -2893,7 +2319,7 @@ freebsd32_cpuset_getid(struct thread *td,
 
 	ap.level = uap->level;
 	ap.which = uap->which;
-	ap.id = (uap->idlo | ((id_t)uap->idhi << 32));
+	ap.id = PAIR32TO64(id_t,uap->id);
 	ap.setid = uap->setid;
 
 	return (cpuset_getid(td, &ap));
@@ -2907,7 +2333,7 @@ freebsd32_cpuset_getaffinity(struct thread *td,
 
 	ap.level = uap->level;
 	ap.which = uap->which;
-	ap.id = (uap->idlo | ((id_t)uap->idhi << 32));
+	ap.id = PAIR32TO64(id_t,uap->id);
 	ap.cpusetsize = uap->cpusetsize;
 	ap.mask = uap->mask;
 
@@ -2922,7 +2348,7 @@ freebsd32_cpuset_setaffinity(struct thread *td,
 
 	ap.level = uap->level;
 	ap.which = uap->which;
-	ap.id = (uap->idlo | ((id_t)uap->idhi << 32));
+	ap.id = PAIR32TO64(id_t,uap->id);
 	ap.cpusetsize = uap->cpusetsize;
 	ap.mask = uap->mask;
 
@@ -3072,3 +2498,153 @@ syscall32_module_handler(struct module *mod, int what, void *arg)
 		return (error);
 	}
 }
+
+int
+syscall32_helper_register(struct syscall_helper_data *sd)
+{
+	struct syscall_helper_data *sd1;
+	int error;
+
+	for (sd1 = sd; sd1->syscall_no != NO_SYSCALL; sd1++) {
+		error = syscall32_register(&sd1->syscall_no, &sd1->new_sysent,
+		    &sd1->old_sysent);
+		if (error != 0) {
+			syscall32_helper_unregister(sd);
+			return (error);
+		}
+		sd1->registered = 1;
+	}
+	return (0);
+}
+
+int
+syscall32_helper_unregister(struct syscall_helper_data *sd)
+{
+	struct syscall_helper_data *sd1;
+
+	for (sd1 = sd; sd1->registered != 0; sd1++) {
+		syscall32_deregister(&sd1->syscall_no, &sd1->old_sysent);
+		sd1->registered = 0;
+	}
+	return (0);
+}
+
+register_t *
+freebsd32_copyout_strings(struct image_params *imgp)
+{
+	int argc, envc;
+	u_int32_t *vectp;
+	char *stringp, *destp;
+	u_int32_t *stack_base;
+	struct freebsd32_ps_strings *arginfo;
+	size_t execpath_len;
+	int szsigcode;
+
+	/*
+	 * Calculate string base and vector table pointers.
+	 * Also deal with signal trampoline code for this exec type.
+	 */
+	if (imgp->execpath != NULL && imgp->auxargs != NULL)
+		execpath_len = strlen(imgp->execpath) + 1;
+	else
+		execpath_len = 0;
+	arginfo = (struct freebsd32_ps_strings *)FREEBSD32_PS_STRINGS;
+	szsigcode = *(imgp->proc->p_sysent->sv_szsigcode);
+	destp =	(caddr_t)arginfo - szsigcode - SPARE_USRSPACE -
+		roundup(execpath_len, sizeof(char *)) -
+		roundup((ARG_MAX - imgp->args->stringspace), sizeof(char *));
+
+	/*
+	 * install sigcode
+	 */
+	if (szsigcode)
+		copyout(imgp->proc->p_sysent->sv_sigcode,
+			((caddr_t)arginfo - szsigcode), szsigcode);
+
+	/*
+	 * Copy the image path for the rtld.
+	 */
+	if (execpath_len != 0) {
+		imgp->execpathp = (uintptr_t)arginfo - szsigcode - execpath_len;
+		copyout(imgp->execpath, (void *)imgp->execpathp,
+		    execpath_len);
+	}
+
+	/*
+	 * If we have a valid auxargs ptr, prepare some room
+	 * on the stack.
+	 */
+	if (imgp->auxargs) {
+		/*
+		 * 'AT_COUNT*2' is size for the ELF Auxargs data. This is for
+		 * lower compatibility.
+		 */
+		imgp->auxarg_size = (imgp->auxarg_size) ? imgp->auxarg_size
+			: (AT_COUNT * 2);
+		/*
+		 * The '+ 2' is for the null pointers at the end of each of
+		 * the arg and env vector sets,and imgp->auxarg_size is room
+		 * for argument of Runtime loader.
+		 */
+		vectp = (u_int32_t *) (destp - (imgp->args->argc +
+		    imgp->args->envc + 2 + imgp->auxarg_size + execpath_len) *
+		    sizeof(u_int32_t));
+	} else
+		/*
+		 * The '+ 2' is for the null pointers at the end of each of
+		 * the arg and env vector sets
+		 */
+		vectp = (u_int32_t *)
+			(destp - (imgp->args->argc + imgp->args->envc + 2) * sizeof(u_int32_t));
+
+	/*
+	 * vectp also becomes our initial stack base
+	 */
+	stack_base = vectp;
+
+	stringp = imgp->args->begin_argv;
+	argc = imgp->args->argc;
+	envc = imgp->args->envc;
+	/*
+	 * Copy out strings - arguments and environment.
+	 */
+	copyout(stringp, destp, ARG_MAX - imgp->args->stringspace);
+
+	/*
+	 * Fill in "ps_strings" struct for ps, w, etc.
+	 */
+	suword32(&arginfo->ps_argvstr, (u_int32_t)(intptr_t)vectp);
+	suword32(&arginfo->ps_nargvstr, argc);
+
+	/*
+	 * Fill in argument portion of vector table.
+	 */
+	for (; argc > 0; --argc) {
+		suword32(vectp++, (u_int32_t)(intptr_t)destp);
+		while (*stringp++ != 0)
+			destp++;
+		destp++;
+	}
+
+	/* a null vector table pointer separates the argp's from the envp's */
+	suword32(vectp++, 0);
+
+	suword32(&arginfo->ps_envstr, (u_int32_t)(intptr_t)vectp);
+	suword32(&arginfo->ps_nenvstr, envc);
+
+	/*
+	 * Fill in environment portion of vector table.
+	 */
+	for (; envc > 0; --envc) {
+		suword32(vectp++, (u_int32_t)(intptr_t)destp);
+		while (*stringp++ != 0)
+			destp++;
+		destp++;
+	}
+
+	/* end of vector table is a null pointer */
+	suword32(vectp, 0);
+
+	return ((register_t *)stack_base);
+}
+

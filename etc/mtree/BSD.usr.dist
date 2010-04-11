@@ -193,8 +193,6 @@
             ..
             IPv6
             ..
-            bc
-            ..
             bootforth
             ..
             cvs

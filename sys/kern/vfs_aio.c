@@ -334,7 +334,7 @@ static TAILQ_HEAD(,aiocblist) aio_jobs;			/* (c) Async job list */
 static struct unrhdr *aiod_unr;
 
 void		aio_init_aioinfo(struct proc *p);
-static void	aio_onceonly(void);
+static int	aio_onceonly(void);
 static int	aio_free_entry(struct aiocblist *aiocbe);
 static void	aio_process(struct aiocblist *aiocbe);
 static int	aio_newproc(int *);
@@ -419,18 +419,47 @@ static moduledata_t aio_mod = {
 	NULL
 };
 
-SYSCALL_MODULE_HELPER(aio_cancel);
-SYSCALL_MODULE_HELPER(aio_error);
-SYSCALL_MODULE_HELPER(aio_fsync);
-SYSCALL_MODULE_HELPER(aio_read);
-SYSCALL_MODULE_HELPER(aio_return);
-SYSCALL_MODULE_HELPER(aio_suspend);
-SYSCALL_MODULE_HELPER(aio_waitcomplete);
-SYSCALL_MODULE_HELPER(aio_write);
-SYSCALL_MODULE_HELPER(lio_listio);
-SYSCALL_MODULE_HELPER(oaio_read);
-SYSCALL_MODULE_HELPER(oaio_write);
-SYSCALL_MODULE_HELPER(olio_listio);
+static struct syscall_helper_data aio_syscalls[] = {
+	SYSCALL_INIT_HELPER(aio_cancel),
+	SYSCALL_INIT_HELPER(aio_error),
+	SYSCALL_INIT_HELPER(aio_fsync),
+	SYSCALL_INIT_HELPER(aio_read),
+	SYSCALL_INIT_HELPER(aio_return),
+	SYSCALL_INIT_HELPER(aio_suspend),
+	SYSCALL_INIT_HELPER(aio_waitcomplete),
+	SYSCALL_INIT_HELPER(aio_write),
+	SYSCALL_INIT_HELPER(lio_listio),
+	SYSCALL_INIT_HELPER(oaio_read),
+	SYSCALL_INIT_HELPER(oaio_write),
+	SYSCALL_INIT_HELPER(olio_listio),
+	SYSCALL_INIT_LAST
+};
+
+#ifdef COMPAT_FREEBSD32
+#include <sys/mount.h>
+#include <sys/socket.h>
+#include <compat/freebsd32/freebsd32.h>
+#include <compat/freebsd32/freebsd32_proto.h>
+#include <compat/freebsd32/freebsd32_signal.h>
+#include <compat/freebsd32/freebsd32_syscall.h>
+#include <compat/freebsd32/freebsd32_util.h>
+
+static struct syscall_helper_data aio32_syscalls[] = {
+	SYSCALL32_INIT_HELPER(freebsd32_aio_return),
+	SYSCALL32_INIT_HELPER(freebsd32_aio_suspend),
+	SYSCALL32_INIT_HELPER(freebsd32_aio_cancel),
+	SYSCALL32_INIT_HELPER(freebsd32_aio_error),
+	SYSCALL32_INIT_HELPER(freebsd32_aio_fsync),
+	SYSCALL32_INIT_HELPER(freebsd32_aio_read),
+	SYSCALL32_INIT_HELPER(freebsd32_aio_write),
+	SYSCALL32_INIT_HELPER(freebsd32_aio_waitcomplete),
+	SYSCALL32_INIT_HELPER(freebsd32_lio_listio),
+	SYSCALL32_INIT_HELPER(freebsd32_oaio_read),
+	SYSCALL32_INIT_HELPER(freebsd32_oaio_write),
+	SYSCALL32_INIT_HELPER(freebsd32_olio_listio),
+	SYSCALL_INIT_LAST
+};
+#endif
 
 DECLARE_MODULE(aio, aio_mod,
 	SI_SUB_VFS, SI_ORDER_ANY);
@@ -439,9 +468,10 @@ MODULE_VERSION(aio, 1);
 /*
  * Startup initialization
  */
-static void
+static int
 aio_onceonly(void)
 {
+	int error;
 
 	/* XXX: should probably just use so->callback */
 	aio_swake = &aio_swake_cb;
@@ -474,6 +504,16 @@ aio_onceonly(void)
 	p31b_setcfg(CTL_P1003_1B_AIO_LISTIO_MAX, AIO_LISTIO_MAX);
 	p31b_setcfg(CTL_P1003_1B_AIO_MAX, MAX_AIO_QUEUE);
 	p31b_setcfg(CTL_P1003_1B_AIO_PRIO_DELTA_MAX, 0);
+
+	error = syscall_helper_register(aio_syscalls);
+	if (error)
+		return (error);
+#ifdef COMPAT_FREEBSD32
+	error = syscall32_helper_register(aio32_syscalls);
+	if (error)
+		return (error);
+#endif
+	return (0);
 }
 
 /*
@@ -494,6 +534,11 @@ aio_unload(void)
 	 */
 	if (!unloadable)
 		return (EOPNOTSUPP);
+
+#ifdef COMPAT_FREEBSD32
+	syscall32_helper_unregister(aio32_syscalls);
+#endif
+	syscall_helper_unregister(aio_syscalls);
 
 	error = kqueue_del_filteropts(EVFILT_AIO);
 	if (error)
@@ -2532,14 +2577,7 @@ filt_lio(struct knote *kn, long hint)
 	return (lj->lioj_flags & LIOJ_KEVENT_POSTED);
 }
 
-#ifdef COMPAT_IA32
-#include <sys/mount.h>
-#include <sys/socket.h>
-#include <compat/freebsd32/freebsd32.h>
-#include <compat/freebsd32/freebsd32_proto.h>
-#include <compat/freebsd32/freebsd32_signal.h>
-#include <compat/freebsd32/freebsd32_syscall.h>
-#include <compat/freebsd32/freebsd32_util.h>
+#ifdef COMPAT_FREEBSD32
 
 struct __aiocb_private32 {
 	int32_t	status;
@@ -2948,16 +2986,4 @@ freebsd32_lio_listio(struct thread *td, struct freebsd32_lio_listio_args *uap)
 	return (error);
 }
 
-SYSCALL32_MODULE_HELPER(freebsd32_aio_return);
-SYSCALL32_MODULE_HELPER(freebsd32_aio_suspend);
-SYSCALL32_MODULE_HELPER(freebsd32_aio_cancel);
-SYSCALL32_MODULE_HELPER(freebsd32_aio_error);
-SYSCALL32_MODULE_HELPER(freebsd32_aio_fsync);
-SYSCALL32_MODULE_HELPER(freebsd32_aio_read);
-SYSCALL32_MODULE_HELPER(freebsd32_aio_write);
-SYSCALL32_MODULE_HELPER(freebsd32_aio_waitcomplete);
-SYSCALL32_MODULE_HELPER(freebsd32_lio_listio);
-SYSCALL32_MODULE_HELPER(freebsd32_oaio_read);
-SYSCALL32_MODULE_HELPER(freebsd32_oaio_write);
-SYSCALL32_MODULE_HELPER(freebsd32_olio_listio);
 #endif

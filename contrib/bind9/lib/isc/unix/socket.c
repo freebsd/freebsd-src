@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2009  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2010  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1998-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: socket.c,v 1.308.12.8 2009/04/18 01:29:26 jinmei Exp $ */
+/* $Id: socket.c,v 1.308.12.12 2010/01/31 23:47:31 tbox Exp $ */
 
 /*! \file */
 
@@ -1520,12 +1520,22 @@ doio_recv(isc_socket_t *sock, isc_socketevent_t *dev) {
 	}
 
 	/*
-	 * On TCP, zero length reads indicate EOF, while on
-	 * UDP, zero length reads are perfectly valid, although
-	 * strange.
+	 * On TCP and UNIX sockets, zero length reads indicate EOF,
+	 * while on UDP sockets, zero length reads are perfectly valid,
+	 * although strange.
 	 */
-	if ((sock->type == isc_sockettype_tcp) && (cc == 0))
-		return (DOIO_EOF);
+	switch (sock->type) {
+	case isc_sockettype_tcp:
+	case isc_sockettype_unix:
+		if (cc == 0)
+			return (DOIO_EOF);
+		break;
+	case isc_sockettype_udp:
+		break;
+	case isc_sockettype_fdwatch:
+	default:
+		INSIST(0);
+	}
 
 	if (sock->type == isc_sockettype_udp) {
 		dev->address.length = msghdr.msg_namelen;
@@ -3645,7 +3655,7 @@ setup_watcher(isc_mem_t *mctx, isc_socketmgr_t *manager) {
 					  manager->maxsocks);
 	if (manager->fdpollinfo == NULL) {
 		isc_mem_put(mctx, manager->events,
-			    sizeof(pollinfo_t) * manager->maxsocks);
+			    sizeof(struct pollfd) * manager->nevents);
 		return (ISC_R_NOMEMORY);
 	}
 	memset(manager->fdpollinfo, 0, sizeof(pollinfo_t) * manager->maxsocks);
@@ -4851,6 +4861,7 @@ isc_socket_connect(isc_socket_t *sock, isc_sockaddr_t *addr,
 	isc_socketmgr_t *manager;
 	int cc;
 	char strbuf[ISC_STRERRORSIZE];
+	char addrbuf[ISC_SOCKADDR_FORMATSIZE];
 
 	REQUIRE(VALID_SOCKET(sock));
 	REQUIRE(addr != NULL);
@@ -4919,7 +4930,9 @@ isc_socket_connect(isc_socket_t *sock, isc_sockaddr_t *addr,
 		sock->connected = 0;
 
 		isc__strerror(errno, strbuf, sizeof(strbuf));
-		UNEXPECTED_ERROR(__FILE__, __LINE__, "%d/%s", errno, strbuf);
+		isc_sockaddr_format(addr, addrbuf, sizeof(addrbuf));
+		UNEXPECTED_ERROR(__FILE__, __LINE__, "connect(%s) %d/%s",
+				 addrbuf, errno, strbuf);
 
 		UNLOCK(&sock->lock);
 		inc_stats(sock->manager->stats,

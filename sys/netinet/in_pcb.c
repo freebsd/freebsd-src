@@ -184,6 +184,47 @@ SYSCTL_VNET_INT(_net_inet_ip_portrange, OID_AUTO, randomtime, CTLFLAG_RW,
  */
 
 /*
+ * Initialize an inpcbinfo -- we should be able to reduce the number of
+ * arguments in time.
+ */
+void
+in_pcbinfo_init(struct inpcbinfo *pcbinfo, const char *name,
+    struct inpcbhead *listhead, int hash_nelements, int porthash_nelements,
+    char *inpcbzone_name, uma_init inpcbzone_init, uma_fini inpcbzone_fini,
+    uint32_t inpcbzone_flags)
+{
+
+	INP_INFO_LOCK_INIT(pcbinfo, name);
+#ifdef VIMAGE
+	pcbinfo->ipi_vnet = curvnet;
+#endif
+	pcbinfo->ipi_listhead = listhead;
+	LIST_INIT(pcbinfo->ipi_listhead);
+	pcbinfo->ipi_hashbase = hashinit(hash_nelements, M_PCB,
+	    &pcbinfo->ipi_hashmask);
+	pcbinfo->ipi_porthashbase = hashinit(porthash_nelements, M_PCB,
+	    &pcbinfo->ipi_porthashmask);
+	pcbinfo->ipi_zone = uma_zcreate(inpcbzone_name, sizeof(struct inpcb),
+	    NULL, NULL, inpcbzone_init, inpcbzone_fini, UMA_ALIGN_PTR,
+	    inpcbzone_flags);
+	uma_zone_set_max(pcbinfo->ipi_zone, maxsockets);
+}
+
+/*
+ * Destroy an inpcbinfo.
+ */
+void
+in_pcbinfo_destroy(struct inpcbinfo *pcbinfo)
+{
+
+	hashdestroy(pcbinfo->ipi_hashbase, M_PCB, pcbinfo->ipi_hashmask);
+	hashdestroy(pcbinfo->ipi_porthashbase, M_PCB,
+	    pcbinfo->ipi_porthashmask);
+	uma_zdestroy(pcbinfo->ipi_zone);
+	INP_INFO_LOCK_DESTROY(pcbinfo);
+}
+
+/*
  * Allocate a PCB and associate it with the socket.
  * On success return with the PCB locked.
  */

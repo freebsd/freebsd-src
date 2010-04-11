@@ -179,6 +179,7 @@ dev/hptrr/hptrr_config.c	optional hptrr
 dev/hwpmc/hwpmc_amd.c		optional hwpmc
 dev/hwpmc/hwpmc_intel.c		optional hwpmc
 dev/hwpmc/hwpmc_core.c		optional hwpmc
+dev/hwpmc/hwpmc_uncore.c	optional hwpmc
 dev/hwpmc/hwpmc_pentium.c	optional hwpmc
 dev/hwpmc/hwpmc_piv.c		optional hwpmc
 dev/hwpmc/hwpmc_ppro.c		optional hwpmc
@@ -244,13 +245,6 @@ i386/bios/apm.c			optional apm
 i386/bios/mca_machdep.c		optional mca
 i386/bios/smapi.c		optional smapi
 i386/bios/smapi_bios.S		optional smapi
-i386/bios/smbios.c		optional smbios
-i386/bios/vpd.c			optional vpd
-i386/cpufreq/est.c		optional cpufreq
-i386/cpufreq/hwpstate.c		optional cpufreq
-i386/cpufreq/p4tcc.c		optional cpufreq
-i386/cpufreq/powernow.c		optional cpufreq
-i386/cpufreq/smist.c		optional cpufreq
 #i386/i386/apic_vector.s		optional apic
 i386/i386/atomic.c		standard		\
 	compile-with	"${CC} -c ${CFLAGS} ${DEFINED_PROF:S/^$/-fomit-frame-pointer/} ${.IMPSRC}"
@@ -329,17 +323,10 @@ i386/ibcs2/ibcs2_util.c		optional ibcs2
 i386/ibcs2/ibcs2_xenix.c	optional ibcs2
 i386/ibcs2/ibcs2_xenix_sysent.c	optional ibcs2
 i386/ibcs2/imgact_coff.c	optional ibcs2
-i386/isa/atpic.c		optional atpic	
-#i386/isa/atpic_vector.s		standard
-i386/isa/clock.c		optional native
 i386/xen/clock.c		optional xen
 i386/xen/xen_clock_util.c	optional xen
 i386/xen/xen_rtc.c		optional xen
-i386/isa/elcr.c			standard
 i386/isa/elink.c		optional ep | ie
-i386/isa/isa.c			optional isa
-i386/isa/isa_dma.c		optional isa
-i386/isa/nmi.c			standard
 i386/isa/npx.c			optional npx
 i386/isa/pmtimer.c		optional pmtimer
 i386/isa/prof_machdep.c		optional profiling-routine
@@ -362,8 +349,6 @@ i386/svr4/svr4_locore.s		optional compat_svr4	\
 	warning "COMPAT_SVR4 is broken and should be avoided"
 i386/svr4/svr4_machdep.c	optional compat_svr4
 #
-isa/atrtc.c			optional atpic
-isa/orm.c			optional isa
 isa/syscons_isa.c		optional sc
 isa/vga_isa.c			optional vga
 kern/imgact_aout.c		optional compat_aout
@@ -387,3 +372,21 @@ i386/xbox/pic16l.s		optional xbox
 #
 compat/x86bios/x86bios.c	optional x86bios | atkbd | dpms | vesa
 contrib/x86emu/x86emu.c		optional x86bios | atkbd | dpms | vesa
+#
+# x86 shared code between IA32, AMD64 and PC98 architectures
+#
+x86/bios/smbios.c		optional smbios
+x86/bios/vpd.c			optional vpd
+x86/cpufreq/est.c		optional cpufreq
+x86/cpufreq/hwpstate.c		optional cpufreq
+x86/cpufreq/p4tcc.c		optional cpufreq
+x86/cpufreq/powernow.c		optional cpufreq
+x86/cpufreq/smist.c		optional cpufreq
+x86/isa/atpic.c			optional atpic	
+x86/isa/atrtc.c			optional atpic
+x86/isa/clock.c			optional native
+x86/isa/elcr.c			standard
+x86/isa/isa.c			optional isa
+x86/isa/isa_dma.c		optional isa
+x86/isa/nmi.c			standard
+x86/isa/orm.c			optional isa

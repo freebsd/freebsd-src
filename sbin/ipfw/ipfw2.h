@@ -35,7 +35,7 @@ struct cmdline_opts {
 	int	do_resolv;	/* try to resolve all ip to names */
 	int	do_time;	/* Show time stamps */
 	int	do_quiet;	/* Be quiet in add and flush */
-	int	do_pipe;	/* this cmd refers to a pipe */
+	int	do_pipe;	/* this cmd refers to a pipe/queue/sched */
 	int	do_nat; 	/* this cmd refers to a nat config */
 	int	do_dynamic;	/* display dynamic rules */
 	int	do_expired;	/* display expired dynamic rules */
@@ -82,7 +82,10 @@ enum tokens {
 	TOK_ACCEPT,
 	TOK_COUNT,
 	TOK_PIPE,
+	TOK_LINK,
 	TOK_QUEUE,
+	TOK_FLOWSET,
+	TOK_SCHED,
 	TOK_DIVERT,
 	TOK_TEE,
 	TOK_NETGRAPH,
@@ -122,6 +125,7 @@ enum tokens {
 	TOK_IPLEN,
 	TOK_IPID,
 	TOK_IPPRECEDENCE,
+	TOK_DSCP,
 	TOK_IPTOS,
 	TOK_IPTTL,
 	TOK_IPVER,
@@ -151,15 +155,23 @@ enum tokens {
 	TOK_SRCPORT,
 	TOK_ALL,
 	TOK_MASK,
+	TOK_FLOW_MASK,
+	TOK_SCHED_MASK,
 	TOK_BW,
 	TOK_DELAY,
-	TOK_PIPE_PROFILE,
+	TOK_PROFILE,
 	TOK_BURST,
 	TOK_RED,
 	TOK_GRED,
 	TOK_DROPTAIL,
 	TOK_PROTO,
+	/* dummynet tokens */
 	TOK_WEIGHT,
+	TOK_LMAX,
+	TOK_PRI,
+	TOK_TYPE,
+	TOK_SLOTSIZE,
+
 	TOK_IP,
 	TOK_IF,
  	TOK_ALOG,
@@ -192,7 +204,8 @@ enum tokens {
  * the following macro returns an error message if we run out of
  * arguments.
  */
-#define NEED1(msg)      {if (!ac) errx(EX_USAGE, msg);}
+#define NEED(_p, msg)      {if (!_p) errx(EX_USAGE, msg);}
+#define NEED1(msg)      {if (!(*av)) errx(EX_USAGE, msg);}
 
 unsigned long long align_uint64(const uint64_t *pll);
 
@@ -236,14 +249,14 @@ struct _ipfw_insn_icmp6;
 extern int resvd_set_number;
 
 /* first-level command handlers */
-void ipfw_add(int ac, char *av[]);
+void ipfw_add(char *av[]);
 void ipfw_show_nat(int ac, char **av);
 void ipfw_config_pipe(int ac, char **av);
 void ipfw_config_nat(int ac, char **av);
-void ipfw_sets_handler(int ac, char *av[]);
+void ipfw_sets_handler(char *av[]);
 void ipfw_table_handler(int ac, char *av[]);
-void ipfw_sysctl_handler(int ac, char *av[], int which);
-void ipfw_delete(int ac, char *av[]);
+void ipfw_sysctl_handler(char *av[], int which);
+void ipfw_delete(char *av[]);
 void ipfw_flush(int force);
 void ipfw_zero(int ac, char *av[], int optname);
 void ipfw_list(int ac, char *av[], int show_counters);
@@ -255,7 +268,8 @@ u_int32_t altq_name_to_qid(const char *name);
 void print_altq_cmd(struct _ipfw_insn_altq *altqptr);
 
 /* dummynet.c */
-void ipfw_list_pipes(void *data, uint nbytes, int ac, char *av[]);
+void dummynet_list(int ac, char *av[], int show_counters);
+void dummynet_flush(void);
 int ipfw_delete_pipe(int pipe_or_queue, int n);
 
 /* ipv6.c */

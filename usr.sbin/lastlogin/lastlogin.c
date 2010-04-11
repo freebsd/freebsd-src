@@ -91,7 +91,7 @@ output(struct utmpx *u)
 {
 	time_t t = u->ut_tv.tv_sec;
 
-	printf("%-10s %-8s %-22s %s",
+	printf("%-10s %-8s %-22.22s %s",
 		u->ut_user, u->ut_line, u->ut_host, ctime(&t));
 }
 

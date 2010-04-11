@@ -264,13 +264,13 @@ SlowFault:
 	mfc0    a0, COP_0_STATUS_REG    ;\
 	li      a2, (MIPS_SR_KX | MIPS_SR_SX | MIPS_SR_UX) ; \
 	or      a0, a0, a2	        ; \
-	li      a2, ~(MIPS_SR_INT_IE|MIPS_SR_EXL)   ; \
+	li      a2, ~(MIPS_SR_INT_IE | MIPS_SR_EXL | SR_KSU_USER)   ; \
 	and     a0, a0, a2              ; \
         mtc0    a0, COP_0_STATUS_REG    
 #else
 #define CLEAR_STATUS \
 	mfc0    a0, COP_0_STATUS_REG    ;\
-	li      a2, ~(MIPS_SR_INT_IE|MIPS_SR_EXL)   ; \
+	li      a2, ~(MIPS_SR_INT_IE | MIPS_SR_EXL | SR_KSU_USER)   ; \
 	and     a0, a0, a2              ; \
 	mtc0	a0, COP_0_STATUS_REG
 #endif
@@ -827,177 +827,168 @@ NNON_LEAF(MipsUserIntr, STAND_FRAME_SIZE, ra)
 	.set	at
 END(MipsUserIntr)
 
-NLEAF(MipsKernTLBInvalidException)
-	.set	noat
-	mfc0	k0, COP_0_BAD_VADDR	# get the fault address
+NLEAF(MipsTLBInvalidException)
+	.set push
+	.set noat
+	.set noreorder
 
-
+	mfc0	k0, COP_0_BAD_VADDR
 	li	k1, VM_MAXUSER_ADDRESS
 	sltu	k1, k0, k1
-	beqz	k1, 1f
+	bnez	k1, 1f
 	nop
-	GET_CPU_PCPU(k1)
-	lw	k1, PC_SEGBASE(k1)		 # works for single cpu????
-	beqz	k1, _C_LABEL(MipsKernGenException)   # seg tab is null
-	nop
+
+	/* badvaddr = kernel address */
+	lui	k1, %hi(_C_LABEL(kernel_segmap))
 	b	2f
-	nop
+	lw	k1, %lo(_C_LABEL(kernel_segmap))(k1)
+
 1:
-	li	k1, (VM_MAX_KERNEL_ADDRESS)
-	bgez	k0, _C_LABEL(MipsKernGenException)	# full trap processing
-	sltu	k1, k1, k0			   # check fault address against
-	bnez	k1, _C_LABEL(MipsKernGenException)   # kernel_segmap upper bound
-	lui	k1, %hi(_C_LABEL(kernel_segmap))	# k1=hi of segbase
-	lw	k1, %lo(_C_LABEL(kernel_segmap))(k1)	# k1=segment tab base
-	beqz	k1, _C_LABEL(MipsKernGenException)	# seg tab is null
-2:
-	srl	k0, 20				# k0=seg offset (almost)
-	andi	k0, k0, 0xffc			# k0=seg offset (mask 0x3)
-#xxx mips64 unsafe?
-	addu	k1, k0, k1			# k1=seg entry address
-	lw	k1, 0(k1)			# k1=seg entry
-	mfc0	k0, COP_0_BAD_VADDR		# k0=bad address (again)
-	beq	k1, zero, _C_LABEL(MipsKernGenException)  # ==0 -- no page table
-	srl	k0, k0, PGSHIFT-2
-	andi	k0, k0, 0xffc			# compute offset from index
-	tlbp					# Probe the invalid entry
-#xxx mips64 unsafe?
-	addu	k1, k1, k0
-	and	k0, k0, 4			# check even/odd page
-	nop					# required for QED 5230
-	bne	k0, zero, KernTLBIOdd
-	nop
-
-	mfc0	k0, COP_0_TLB_INDEX
-	nop
-	bltz	k0, sys_stk_chk
-
-	sltiu	k0, k0, VMWIRED_ENTRIES		# index below wired entries?
-	bne	k0, zero, sys_stk_chk
-	lw	k0, 0(k1)			# get PTE entry
-
-	_SLL	k0, k0, WIRED_SHIFT		# get rid of "wired" bit
-	_SRL	k0, k0, WIRED_SHIFT
-	_MTC0	k0, COP_0_TLB_LO0		# load PTE entry
-	and	k0, k0, PTE_V			# check for valid entry
-	nop					# required for QED5230
-	beq	k0, zero, _C_LABEL(MipsKernGenException)  # PTE invalid
-	lw	k0, 4(k1)			# get odd PTE entry
-	_SLL	k0, k0, WIRED_SHIFT
-	_SRL	k0, k0, WIRED_SHIFT
-	_MTC0	k0, COP_0_TLB_LO1		# load PTE entry
-	HAZARD_DELAY
-	tlbwi					# write TLB
-	HAZARD_DELAY
-	eret
-
-KernTLBIOdd:
-	mfc0	k0, COP_0_TLB_INDEX
-	nop
-	bltz	k0, sys_stk_chk
-
-	sltiu	k0, k0, VMWIRED_ENTRIES		# index below wired entries?
-	bne	k0, zero, sys_stk_chk
-	lw	k0, 0(k1)			# get PTE entry
-
-	_SLL	k0, k0, WIRED_SHIFT		# get rid of wired bit
-	_SRL	k0, k0, WIRED_SHIFT
-	_MTC0	k0, COP_0_TLB_LO1		# save PTE entry
-	and	k0, k0, PTE_V			# check for valid entry
-	nop					# required for QED5230
-	beq	k0, zero, _C_LABEL(MipsKernGenException)  # PTE invalid
-	lw	k0, -4(k1)			# get even PTE entry
-	_SLL	k0, k0, WIRED_SHIFT
-	_SRL	k0, k0, WIRED_SHIFT
-	_MTC0	k0, COP_0_TLB_LO0		# save PTE entry
-	HAZARD_DELAY
-	tlbwi					# update TLB
-	HAZARD_DELAY
-	eret
-
-	.set	at
-END(MipsKernTLBInvalidException)
-
-
-NLEAF(MipsUserTLBInvalidException)
-	.set	noat
-	mfc0	k0, COP_0_BAD_VADDR		# get the fault address
-
-	li	k1, VM_MAXUSER_ADDRESS
-	sltu	k1, k0, k1
-	beqz	k1, _C_LABEL(MipsUserGenException)
-	nop
+	/* badvaddr = user address */
 	GET_CPU_PCPU(k1)
-	lw	k1, PC_SEGBASE(k1)		 # works for single cpu????
-	beqz	k1, _C_LABEL(MipsUserGenException)  # seg tab is null
-	nop
+	lw	k1, PC_SEGBASE(k1)
+
 2:
-	srl	k0, 20				# k0=seg offset (almost)
-	andi	k0, k0, 0xffc			# k0=seg offset (mask 0x3)
-#xxx mips64 unsafe?
-	addu	k1, k0, k1			# k1=seg entry address
-	lw	k1, 0(k1)			# k1=seg entry
-	mfc0	k0, COP_0_BAD_VADDR		# k0=bad address (again)
-	beq	k1, zero, _C_LABEL(MipsUserGenException)  # ==0 -- no page table
-	srl	k0, k0, PGSHIFT-2
-	andi	k0, k0, 0xffc			# compute offset from index
-	tlbp					# Probe the invalid entry
-#xxx mips64 unsafe?
+	beqz	k1, 3f			/* invalid page directory pointer */
+	nop
+
+	srl	k0, SEGSHIFT - 2
+	andi	k0, 0xffc
 	addu	k1, k1, k0
-	and	k0, k0, 4			# check even/odd page
-	nop					# required for QED 5230
-	bne	k0, zero, UserTLBIOdd
+	lw	k1, 0(k1)
+	beqz	k1, 3f			/* invalid page table page pointer */
 	nop
 
-	mfc0	k0, COP_0_TLB_INDEX
+	mfc0	k0, COP_0_BAD_VADDR
+	srl	k0, PGSHIFT - 2
+	andi	k0, 0xffc
+	addu	k1, k1, k0
+
+	lw	k0, 0(k1)
+	andi	k0, PTE_V
+	beqz	k0, 3f			/* invalid page table entry */
 	nop
-	bltz	k0, _C_LABEL(MipsUserGenException)
 
-	sltiu	k0, k0, VMWIRED_ENTRIES		# index below wired entries?
-	bne	k0, zero, _C_LABEL(MipsUserGenException)
-	lw	k0, 0(k1)			# get PTE entry
+	andi	k0, k1, 4
+	bnez	k0, odd_page
+	nop
 
-	_SLL	k0, k0, WIRED_SHIFT		# get rid of "wired" bit
-	_SRL	k0, k0, WIRED_SHIFT
-	_MTC0	k0, COP_0_TLB_LO0		# load PTE entry
-	and	k0, k0, PTE_V			# check for valid entry
-	nop					# required for QED5230
-	beq	k0, zero, _C_LABEL(MipsUserGenException)  # PTE invalid
-	lw	k0, 4(k1)			# get odd PTE entry
+even_page:
+	lw	k0, 0(k1)
 	_SLL	k0, k0, WIRED_SHIFT
 	_SRL	k0, k0, WIRED_SHIFT
-	_MTC0	k0, COP_0_TLB_LO1		# load PTE entry
-	HAZARD_DELAY
-	tlbwi					# write TLB
-	HAZARD_DELAY
-	eret
+	_MTC0	k0, COP_0_TLB_LO0
 
-UserTLBIOdd:
-	mfc0	k0, COP_0_TLB_INDEX
-	nop
-	bltz	k0, _C_LABEL(MipsUserGenException)
-	sltiu	k0, k0, VMWIRED_ENTRIES		# index below wired entries?
-
-	bne	k0, zero, _C_LABEL(MipsUserGenException)
-	lw	k0, 0(k1)			# get PTE entry
-
-	_SLL	k0, k0, WIRED_SHIFT		# get rid of wired bit
-	_SRL	k0, k0, WIRED_SHIFT
-	_MTC0	k0, COP_0_TLB_LO1		# save PTE entry
-	and	k0, k0, PTE_V			# check for valid entry
-	nop					# required for QED5230
-	beq	k0, zero, _C_LABEL(MipsUserGenException)  # PTE invalid
-	lw	k0, -4(k1)			# get even PTE entry
+	lw	k0, 4(k1)
 	_SLL	k0, k0, WIRED_SHIFT
 	_SRL	k0, k0, WIRED_SHIFT
-	_MTC0	k0, COP_0_TLB_LO0		# save PTE entry
-	HAZARD_DELAY
-	tlbwi					# update TLB
-	HAZARD_DELAY
-	eret
+	_MTC0	k0, COP_0_TLB_LO1
 
-	.set	at
-END(MipsUserTLBInvalidException)
+	b	tlb_insert_entry
+	nop
+
+odd_page:
+	lw	k0, 0(k1)
+	_SLL	k0, k0, WIRED_SHIFT
+	_SRL	k0, k0, WIRED_SHIFT
+	_MTC0	k0, COP_0_TLB_LO1
+
+	lw	k0, -4(k1)
+	_SLL	k0, k0, WIRED_SHIFT
+	_SRL	k0, k0, WIRED_SHIFT
+	_MTC0	k0, COP_0_TLB_LO0
+
+tlb_insert_entry:
+	tlbp
+	HAZARD_DELAY
+	mfc0	k0, COP_0_TLB_INDEX
+	HAZARD_DELAY
+	bltz	k0, tlb_insert_random
+	nop
+	tlbwi
+	eret
+	ssnop
+
+tlb_insert_random:
+	tlbwr
+	eret
+	ssnop
+
+3:
+	/*
+	 * Branch to the comprehensive exception processing.
+	 */
+	mfc0	k1, COP_0_STATUS_REG
+	andi	k1, k1, SR_KSU_USER
+	bnez	k1, _C_LABEL(MipsUserGenException)
+	nop
+
+	/*
+	 * Check for kernel stack overflow.
+	 */
+	GET_CPU_PCPU(k1)
+	lw	k0, PC_CURTHREAD(k1)
+	lw	k0, TD_REALKSTACK(k0)
+	sltu	k0, k0, sp
+	bnez	k0, _C_LABEL(MipsKernGenException)
+	nop
+
+	/*
+	 * Kernel stack overflow.
+	 *
+	 * Move to a valid stack before we call panic. We use the boot stack
+	 * for this purpose.
+	 */
+	GET_CPU_PCPU(k1)
+	lw	k1, PC_CPUID(k1)
+	sll	k1, k1, PAGE_SHIFT + 1
+
+	PTR_LA	k0, _C_LABEL(pcpu_space)
+	addiu	k0, (NBPG * 2)
+	addu	k0, k0, k1
+
+	/*
+	 * Stash the original value of 'sp' so we can update trapframe later.
+	 * We assume that SAVE_CPU does not trash 'k1'.
+	 */
+	move	k1, sp
+
+	move	sp, k0
+	subu	sp, sp, KERN_EXC_FRAME_SIZE
+
+	move	k0, ra
+	move	ra, zero
+	sw	ra, CALLFRAME_RA(sp)	/* stop the ddb backtrace right here */
+	sw	zero, CALLFRAME_SP(sp)
+	move	ra, k0
+
+	SAVE_CPU
+
+	/*
+	 * Now restore the value of 'sp' at the time of the tlb exception in
+	 * the trapframe.
+	 */
+	SAVE_REG(k1, SP, sp)
+
+	/*
+	 * Squelch any more overflow checks by setting the stack base to 0.
+	 */
+	GET_CPU_PCPU(k1)
+	lw	k0, PC_CURTHREAD(k1)
+	sw	zero, TD_REALKSTACK(k0)
+
+	move	a1, a0
+	PANIC("kernel stack overflow - trapframe at %p")
+
+	/*
+	 * This nop is necessary so that the 'ra' remains within the bounds
+	 * of this handler. Otherwise the ddb backtrace code will think that
+	 * the panic() was called from MipsTLBMissException.
+	 */
+	nop
+
+	.set pop
+END(MipsTLBInvalidException)
 
 /*----------------------------------------------------------------------------
  *
@@ -1048,68 +1039,6 @@ NLEAF(MipsTLBMissException)
 	tlbwr					# write to tlb
 	HAZARD_DELAY
 	eret					# return from exception
-
-sys_stk_chk:
-	GET_CPU_PCPU(k0)
-	lw	k0, PC_CURTHREAD(k0)
-	lw	k0, TD_REALKSTACK(k0)
-	sltu	k0, sp, k0			# check for stack overflow
-	beqz	k0, _C_LABEL(MipsKernGenException)  # not stack overflow
-	nop
-
-# stack overflow
-	PTR_LA	a0, _C_LABEL(_start) - START_FRAME - 8  # set sp to a valid place
-	sw	sp, 24(a0)
-	move	sp, a0
-	PTR_LA	a0, 1f
-	mfc0	a2, COP_0_STATUS_REG
-	mfc0	a3, COP_0_CAUSE_REG
-	_MFC0	a1, COP_0_EXC_PC
-	sw	a2, 16(sp)
-	sw	a3, 20(sp)
-	move	a2, ra
-	PTR_LA	k0, _C_LABEL(printf)
-	jalr	k0
-	mfc0	a3, COP_0_BAD_VADDR
-
-	PTR_LA	sp, _C_LABEL(_start) - START_FRAME  # set sp to a valid place
-
-#if !defined(SMP) && defined(DDB)
-	PTR_LA	a0, 2f
-	PTR_LA	k0, _C_LABEL(trapDump)
-	jalr	k0
-	nop
-
-	li	a0, 0
-	lw	a1, _C_LABEL(num_tlbentries)
-	PTR_LA	k0, _C_LABEL(db_dump_tlb)
-	jalr	k0
-	addu	a1, -1
-
-3:
-	b 3b
-	nop
-#endif
-
-	PANIC("kernel stack overflow")
-
-	.data
-	.globl	lastktlbmiss
-lastktlbmiss:
-	.word	0
-lastktlbmisspc:
-	.word	0
-lastutlbmiss:
-	.word	0
-lastutlbmisspc:
-	.word	0
-
-1:
-	.asciiz "ktlbmiss: PC %x RA %x ADR %x\nSR %x CR %x SP %x\n"
-2:
-	.asciiz "stack ovf"
-	.text
-
 	.set	at
 END(MipsTLBMissException)
 
@@ -1253,7 +1182,7 @@ VECTOR(MipsCache, unknown)
 	PTR_LA	k0, _C_LABEL(MipsCacheException)
 	li	k1, MIPS_PHYS_MASK
 	and	k0, k1
-	li	k1, MIPS_UNCACHED_MEMORY_ADDR
+	li	k1, MIPS_KSEG1_START
 	or	k0, k1
 	j	k0
 	nop

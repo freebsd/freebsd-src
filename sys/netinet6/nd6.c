@@ -764,22 +764,25 @@ regen_tmpaddr(struct in6_ifaddr *ia6)
 		 */
 		if (!IFA6_IS_DEPRECATED(it6))
 		    public_ifa6 = it6;
+
+		if (public_ifa6 != NULL)
+			ifa_ref(&public_ifa6->ia_ifa);
 	}
+	IF_ADDR_UNLOCK(ifp);
 
 	if (public_ifa6 != NULL) {
 		int e;
 
 		if ((e = in6_tmpifadd(public_ifa6, 0, 0)) != 0) {
-			IF_ADDR_UNLOCK(ifp);
+			ifa_free(&public_ifa6->ia_ifa);
 			log(LOG_NOTICE, "regen_tmpaddr: failed to create a new"
 			    " tmp addr,errno=%d\n", e);
 			return (-1);
 		}
-		IF_ADDR_UNLOCK(ifp);
+		ifa_free(&public_ifa6->ia_ifa);
 		return (0);
 	}
 
-	IF_ADDR_UNLOCK(ifp);
 	return (-1);
 }
 
@@ -1165,7 +1168,7 @@ nd6_nud_hint(struct rtentry *rt, struct in6_addr *dst6, int force)
 
  	ln->ln_state = ND6_LLINFO_REACHABLE;
 	if (!ND6_LLINFO_PERMANENT(ln)) {
-		nd6_llinfo_settimer(ln,
+		nd6_llinfo_settimer_locked(ln,
 		    (long)ND_IFINFO(rt->rt_ifp)->reachable * hz);
 	}
 done:

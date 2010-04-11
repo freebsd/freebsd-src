@@ -17,13 +17,6 @@ $FreeBSD$
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the NetBSD
- *	Foundation, Inc. and its contributors.
- * 4. Neither the name of The NetBSD Foundation nor the names of its
- *    contributors may be used to endorse or promote products derived
- *    from this software without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
  * ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
@@ -157,6 +150,7 @@ model xxBROADCOM_ALT1 BCM5722	0x002d BCM5722 10/100/1000baseTX PHY
 model xxBROADCOM_ALT1 BCM5784	0x003a BCM5784 10/100/1000baseTX PHY
 model xxBROADCOM_ALT1 BCM5709C	0x003c BCM5709C 10/100/1000baseTX PHY
 model xxBROADCOM_ALT1 BCM5761	0x003d BCM5761 10/100/1000baseTX PHY
+model xxBROADCOM_ALT1 BCM5709S	0x003f BCM5709S 1000/2500baseSX PHY
 model BROADCOM2 BCM5906		0x0004 BCM5906 10/100baseTX PHY
 
 /* Cicada Semiconductor PHYs (now owned by Vitesse?) */

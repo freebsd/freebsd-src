@@ -142,6 +142,13 @@ static int	isp_2500_multi_loaded;
 #endif
 
 #define	ISPFW_VERSION	1
+
+#if	!defined(KLD_MODULE)
+#define	ISPFW_KLD	0
+#else
+#define	ISPFW_KLD	1
+#endif
+
 #define	RMACRO(token)	do {						\
 	if (token##_loaded)						\
 		break;							\
@@ -153,7 +160,9 @@ static int	isp_2500_multi_loaded;
 		break;							\
 	}								\
 	token##_loaded++;						\
-	printf("%s: registered firmware <%s>\n", MODULE_NAME, #token);	\
+	if (bootverbose || ISPFW_KLD)					\
+		printf("%s: registered firmware <%s>\n", MODULE_NAME, 	\
+		    #token);						\
 } while (0)
 
 #define	UMACRO(token)	do {						\
@@ -165,7 +174,9 @@ static int	isp_2500_multi_loaded;
 		break;							\
 	}								\
 	token##_loaded--;						\
-	printf("%s: unregistered firmware <%s>\n", MODULE_NAME, #token);\
+	if (bootverbose || ISPFW_KLD)					\
+		printf("%s: unregistered firmware <%s>\n", MODULE_NAME,	\
+		    #token);						\
 } while (0)
 
 static void

@@ -1096,7 +1096,7 @@ xpt_announce_periph(struct cam_periph *periph, char *announce_string)
 	/* Announce command queueing. */
 	if (path->device->inq_flags & SID_CmdQue
 	 || path->device->flags & CAM_DEV_TAG_AFTER_COUNT) {
-		printf("\n%s%d: Command Queueing enabled",
+		printf("%s%d: Command Queueing enabled\n",
 		       periph->periph_name, periph->unit_number);
 	}
 	/* Announce caller's details if they've passed in. */
@@ -2380,6 +2380,7 @@ xpt_action_default(union ccb *start_ccb)
 		if (start_ccb->ccb_h.func_code == XPT_ATA_IO) {
 			start_ccb->ataio.resid = 0;
 		}
+		/* FALLTHROUGH */
 	case XPT_RESET_DEV:
 	case XPT_ENG_EXEC:
 	{
@@ -2888,6 +2889,9 @@ xpt_action_default(union ccb *start_ccb)
 	case XPT_ENG_INQ:
 		/* XXX Implement */
 		start_ccb->ccb_h.status = CAM_PROVIDE_FAIL;
+		if (start_ccb->ccb_h.func_code & XPT_FC_DEV_QUEUED) {
+			xpt_done(start_ccb);
+		}
 		break;
 	}
 }
@@ -3930,7 +3934,7 @@ xpt_dev_async_default(u_int32_t async_code, struct cam_eb *bus,
 		      struct cam_et *target, struct cam_ed *device,
 		      void *async_arg)
 {
-	printf("xpt_dev_async called\n");
+	printf("%s called\n", __func__);
 }
 
 u_int32_t
@@ -4919,4 +4923,3 @@ camisr_runqueue(void *V_queue)
 		(*ccb_h->cbfcnp)(ccb_h->path->periph, (union ccb *)ccb_h);
 	}
 }
-

@@ -38,8 +38,15 @@ __FBSDID("$FreeBSD$");
 
 #include "sb_scd.h"
 
-extern void	sb_store64(uint32_t addr, uint64_t val);
-extern uint64_t	sb_load64(uint32_t addr);
+/*
+ * We compile a 32-bit kernel to run on the SB-1 processor which is a 64-bit
+ * processor. It has some registers that must be accessed using 64-bit load
+ * and store instructions.
+ *
+ * We use the mips_ld() and mips_sd() functions to do this for us.
+ */
+#define	sb_store64(addr, val)	mips3_sd((uint64_t *)(addr), (val))
+#define	sb_load64(addr)		mips3_ld((uint64_t *)(addr))
 
 /*
  * System Control and Debug (SCD) unit on the Sibyte ZBbus.
@@ -55,6 +62,8 @@ extern uint64_t	sb_load64(uint32_t addr);
 
 #define	SYSCFG_ADDR		MIPS_PHYS_TO_KSEG1(0x10020008)
 #define SYSCFG_PLLDIV(x)	GET_VAL_64((x), 7, 5)
+
+#define	ZBBUS_CYCLE_COUNT_ADDR	MIPS_PHYS_TO_KSEG1(0x10030000)
 
 #define	INTSRC_MASK_ADDR(cpu)	\
 	(MIPS_PHYS_TO_KSEG1(0x10020028) | ((cpu) << 13))
@@ -80,6 +89,13 @@ sb_write_syscfg(uint64_t val)
 {
 	
 	sb_store64(SYSCFG_ADDR, val);
+}
+
+uint64_t
+sb_zbbus_cycle_count(void)
+{
+
+	return (sb_load64(ZBBUS_CYCLE_COUNT_ADDR));
 }
 
 uint64_t

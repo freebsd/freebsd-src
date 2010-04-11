@@ -142,6 +142,11 @@ ipfw_nat_cfg_t *ipfw_nat_get_cfg_ptr;
 ipfw_nat_cfg_t *ipfw_nat_get_log_ptr;
 
 #ifdef SYSCTL_NODE
+uint32_t dummy_def = IPFW_DEFAULT_RULE;
+uint32_t dummy_tables_max = IPFW_TABLES_MAX;
+
+SYSBEGIN(f3)
+
 SYSCTL_NODE(_net_inet_ip, OID_AUTO, fw, CTLFLAG_RW, 0, "Firewall");
 SYSCTL_VNET_INT(_net_inet_ip_fw, OID_AUTO, one_pass,
     CTLFLAG_RW | CTLFLAG_SECURE3, &VNET_NAME(fw_one_pass), 0,
@@ -156,10 +161,10 @@ SYSCTL_VNET_INT(_net_inet_ip_fw, OID_AUTO, verbose_limit,
     CTLFLAG_RW, &VNET_NAME(verbose_limit), 0,
     "Set upper limit of matches of ipfw rules logged");
 SYSCTL_UINT(_net_inet_ip_fw, OID_AUTO, default_rule, CTLFLAG_RD,
-    NULL, IPFW_DEFAULT_RULE,
+    &dummy_def, 0,
     "The default/max possible rule number.");
 SYSCTL_UINT(_net_inet_ip_fw, OID_AUTO, tables_max, CTLFLAG_RD,
-    NULL, IPFW_TABLES_MAX,
+    &dummy_tables_max, 0,
     "The maximum number of tables.");
 SYSCTL_INT(_net_inet_ip_fw, OID_AUTO, default_to_accept, CTLFLAG_RDTUN,
     &default_to_accept, 0,
@@ -176,6 +181,8 @@ SYSCTL_VNET_INT(_net_inet6_ip6_fw, OID_AUTO, deny_unknown_exthdrs,
     CTLFLAG_RW | CTLFLAG_SECURE, &VNET_NAME(fw_deny_unknown_exthdrs), 0,
     "Deny packets with unknown IPv6 Extension Headers");
 #endif /* INET6 */
+
+SYSEND
 
 #endif /* SYSCTL_NODE */
 
@@ -344,6 +351,7 @@ iface_match(struct ifnet *ifp, ipfw_insn_if *cmd)
 				return(1);
 		}
 	} else {
+#ifdef	__FreeBSD__	/* and OSX too ? */
 		struct ifaddr *ia;
 
 		if_addr_rlock(ifp);
@@ -357,6 +365,7 @@ iface_match(struct ifnet *ifp, ipfw_insn_if *cmd)
 			}
 		}
 		if_addr_runlock(ifp);
+#endif /* __FreeBSD__ */
 	}
 	return(0);	/* no match, fail ... */
 }
@@ -385,6 +394,9 @@ iface_match(struct ifnet *ifp, ipfw_insn_if *cmd)
 static int
 verify_path(struct in_addr src, struct ifnet *ifp, u_int fib)
 {
+#ifndef __FreeBSD__
+	return 0;
+#else
 	struct route ro;
 	struct sockaddr_in *dst;
 
@@ -427,6 +439,7 @@ verify_path(struct in_addr src, struct ifnet *ifp, u_int fib)
 	/* found valid route */
 	RTFREE(ro.ro_rt);
 	return 1;
+#endif /* __FreeBSD__ */
 }
 
 #ifdef INET6
@@ -634,9 +647,14 @@ send_reject(struct ip_fw_args *args, int code, int iplen, struct ip *ip)
 static int
 check_uidgid(ipfw_insn_u32 *insn, int proto, struct ifnet *oif,
     struct in_addr dst_ip, u_int16_t dst_port, struct in_addr src_ip,
-    u_int16_t src_port, struct ucred **uc, int *ugid_lookupp,
-    struct inpcb *inp)
+    u_int16_t src_port, int *ugid_lookupp,
+    struct ucred **uc, struct inpcb *inp)
 {
+#ifndef __FreeBSD__
+	return cred_check(insn, proto, oif,
+	    dst_ip, dst_port, src_ip, src_port,
+	    (struct bsd_ucred *)uc, ugid_lookupp, ((struct mbuf *)inp)->m_skb);
+#else  /* FreeBSD */
 	struct inpcbinfo *pi;
 	int wildcard;
 	struct inpcb *pcb;
@@ -703,6 +721,7 @@ check_uidgid(ipfw_insn_u32 *insn, int proto, struct ifnet *oif,
 	else if (insn->o.opcode == O_JAIL)
 		match = ((*uc)->cr_prison->pr_id == (int)insn->d[0]);
 	return match;
+#endif /* __FreeBSD__ */
 }
 
 /*
@@ -794,7 +813,11 @@ ipfw_chk(struct ip_fw_args *args)
 	 * these types of constraints, as well as decrease contention
 	 * on pcb related locks.
 	 */
+#ifndef __FreeBSD__
+	struct bsd_ucred ucred_cache;
+#else
 	struct ucred *ucred_cache = NULL;
+#endif
 	int ucred_lookup = 0;
 
 	/*
@@ -863,10 +886,13 @@ ipfw_chk(struct ip_fw_args *args)
 	 * ulp is NULL if not found.
 	 */
 	void *ulp = NULL;		/* upper layer protocol pointer. */
+
 	/* XXX ipv6 variables */
 	int is_ipv6 = 0;
-	u_int16_t ext_hd = 0;	/* bits vector for extension header filtering */
+	uint8_t	icmp6_type = 0;
+	uint16_t ext_hd = 0;	/* bits vector for extension header filtering */
 	/* end of ipv6 variables */
+
 	int is_ipv4 = 0;
 
 	int done = 0;		/* flag to exit the outer loop */
@@ -918,14 +944,15 @@ do {								\
 			switch (proto) {
 			case IPPROTO_ICMPV6:
 				PULLUP_TO(hlen, ulp, struct icmp6_hdr);
-				args->f_id.flags = ICMP6(ulp)->icmp6_type;
+				icmp6_type = ICMP6(ulp)->icmp6_type;
 				break;
 
 			case IPPROTO_TCP:
 				PULLUP_TO(hlen, ulp, struct tcphdr);
 				dst_port = TCP(ulp)->th_dport;
 				src_port = TCP(ulp)->th_sport;
-				args->f_id.flags = TCP(ulp)->th_flags;
+				/* save flags for dynamic rules */
+				args->f_id._flags = TCP(ulp)->th_flags;
 				break;
 
 			case IPPROTO_SCTP:
@@ -989,7 +1016,7 @@ do {								\
 					    return (IP_FW_DENY);
 					break;
 				}
-				args->f_id.frag_id6 =
+				args->f_id.extra =
 				    ntohl(((struct ip6_frag *)ulp)->ip6f_ident);
 				ulp = NULL;
 				break;
@@ -1092,7 +1119,8 @@ do {								\
 				PULLUP_TO(hlen, ulp, struct tcphdr);
 				dst_port = TCP(ulp)->th_dport;
 				src_port = TCP(ulp)->th_sport;
-				args->f_id.flags = TCP(ulp)->th_flags;
+				/* save flags for dynamic rules */
+				args->f_id._flags = TCP(ulp)->th_flags;
 				break;
 
 			case IPPROTO_UDP:
@@ -1103,7 +1131,7 @@ do {								\
 
 			case IPPROTO_ICMP:
 				PULLUP_TO(hlen, ulp, struct icmphdr);
-				args->f_id.flags = ICMP(ulp)->icmp_type;
+				//args->f_id.flags = ICMP(ulp)->icmp_type;
 				break;
 
 			default:
@@ -1233,8 +1261,13 @@ do {								\
 						    (ipfw_insn_u32 *)cmd,
 						    proto, oif,
 						    dst_ip, dst_port,
-						    src_ip, src_port, &ucred_cache,
-						    &ucred_lookup, args->inp);
+						    src_ip, src_port, &ucred_lookup,
+#ifdef __FreeBSD__
+						    &ucred_cache, args->inp);
+#else
+						    (void *)&ucred_cache,
+						    (struct inpcb *)args->m);
+#endif
 				break;
 
 			case O_RECV:
@@ -1334,6 +1367,8 @@ do {								\
 					    key = dst_ip.s_addr;
 					else if (v == 1)
 					    key = src_ip.s_addr;
+					else if (v == 6) /* dscp */
+					    key = (ip->ip_tos >> 2) & 0x3f;
 					else if (offset != 0)
 					    break;
 					else if (proto != IPPROTO_TCP &&
@@ -1348,12 +1383,21 @@ do {								\
 						(ipfw_insn_u32 *)cmd,
 						proto, oif,
 						dst_ip, dst_port,
-						src_ip, src_port, &ucred_cache,
-						&ucred_lookup, args->inp);
+						src_ip, src_port, &ucred_lookup,
+#ifdef __FreeBSD__
+						&ucred_cache, args->inp);
 					    if (v == 4 /* O_UID */)
 						key = ucred_cache->cr_uid;
 					    else if (v == 5 /* O_JAIL */)
 						key = ucred_cache->cr_prison->pr_id;
+#else /* !__FreeBSD__ */
+						(void *)&ucred_cache,
+						(struct inpcb *)args->m);
+					    if (v ==4 /* O_UID */)
+						key = ucred_cache.uid;
+					    else if (v == 5 /* O_JAIL */)
+						key = ucred_cache.xid;
+#endif /* !__FreeBSD__ */
 					    key = htonl(key);
 					} else
 					    break;
@@ -1392,11 +1436,10 @@ do {								\
 					match = (tif != NULL);
 					break;
 				}
-				/* FALLTHROUGH */
 #ifdef INET6
+				/* FALLTHROUGH */
 			case O_IP6_SRC_ME:
-				match = is_ipv6 &&
-				    search_ip6_addr_net(&args->f_id.src_ip6);
+				match= is_ipv6 && search_ip6_addr_net(&args->f_id.src_ip6);
 #endif
 				break;
 
@@ -1432,13 +1475,13 @@ do {								\
 					match = (tif != NULL);
 					break;
 				}
-				/* FALLTHROUGH */
 #ifdef INET6
+				/* FALLTHROUGH */
 			case O_IP6_DST_ME:
-				match = is_ipv6 &&
-				    search_ip6_addr_net(&args->f_id.dst_ip6);
+				match= is_ipv6 && search_ip6_addr_net(&args->f_id.dst_ip6);
 #endif
 				break;
+
 
 			case O_IP_SRCPORT:
 			case O_IP_DSTPORT:
@@ -1998,7 +2041,7 @@ do {								\
 				if (hlen > 0 && is_ipv6 &&
 				    ((offset & IP6F_OFF_MASK) == 0) &&
 				    (proto != IPPROTO_ICMPV6 ||
-				     (is_icmp6_query(args->f_id.flags) == 1)) &&
+				     (is_icmp6_query(icmp6_type) == 1)) &&
 				    !(m->m_flags & (M_BCAST|M_MCAST)) &&
 				    !IN6_IS_ADDR_MULTICAST(&args->f_id.dst_ip6)) {
 					send_reject6(
@@ -2164,8 +2207,10 @@ do {								\
 		printf("ipfw: ouch!, skip past end of rules, denying packet\n");
 	}
 	IPFW_RUNLOCK(chain);
+#ifdef __FreeBSD__
 	if (ucred_cache != NULL)
 		crfree(ucred_cache);
+#endif
 	return (retval);
 
 pullup_failed:
@@ -2354,7 +2399,7 @@ vnet_ipfw_uninit(const void *unused)
 	IPFW_WLOCK(chain);
 
 	ipfw_dyn_uninit(0);	/* run the callout_drain */
-	ipfw_flush_tables(chain);
+	ipfw_destroy_tables(chain);
 	reap = NULL;
 	for (i = 0; i < chain->n_rules; i++) {
 		rule = chain->map[i];

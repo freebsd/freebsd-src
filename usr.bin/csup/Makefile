@@ -1,7 +1,5 @@
 # $FreeBSD$
 
-.PATH: ${.CURDIR}/../../contrib/csup
-
 PROG=	csup
 SRCS=	attrstack.c \
 	auth.c \
@@ -31,7 +29,7 @@ SRCS=	attrstack.c \
 	token.l \
 	updater.c
 
-CFLAGS+= -I. -I${.CURDIR}/../../contrib/csup
+CFLAGS+= -I. -I${.CURDIR}
 CFLAGS+= -DHAVE_FFLAGS -DNDEBUG
 WARNS?=	1
 

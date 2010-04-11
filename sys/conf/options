@@ -71,6 +71,7 @@ COMPAT_FREEBSD5	opt_compat.h
 COMPAT_FREEBSD6	opt_compat.h
 COMPAT_FREEBSD7	opt_compat.h
 COMPILING_LINT	opt_global.h
+COMPRESS_USER_CORES opt_core.h
 CY_PCI_FASTINTR
 DEADLKRES	opt_watchdog.h
 DIRECTIO
@@ -436,6 +437,7 @@ SCTP_MBCNT_LOGGING	opt_sctp.h # Log to KTR mbcnt activity
 SCTP_PACKET_LOGGING	opt_sctp.h # Log to a packet buffer last N packets
 SCTP_LTRACE_CHUNKS	opt_sctp.h # Log to KTR chunks processed
 SCTP_LTRACE_ERRORS	opt_sctp.h # Log to KTR error returns.
+SCTP_USE_PERCPU_STAT    opt_sctp.h # Use per cpu stats.
 #
 #
 #

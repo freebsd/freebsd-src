@@ -99,6 +99,7 @@ dev/fe/if_fe_cbus.c		optional fe isa
 dev/hwpmc/hwpmc_amd.c		optional hwpmc
 dev/hwpmc/hwpmc_intel.c		optional hwpmc
 dev/hwpmc/hwpmc_core.c		optional hwpmc
+dev/hwpmc/hwpmc_uncore.c	optional hwpmc
 dev/hwpmc/hwpmc_pentium.c	optional hwpmc
 dev/hwpmc/hwpmc_piv.c		optional hwpmc
 dev/hwpmc/hwpmc_ppro.c		optional hwpmc
@@ -194,10 +195,7 @@ i386/ibcs2/ibcs2_util.c		optional ibcs2
 i386/ibcs2/ibcs2_xenix.c	optional ibcs2
 i386/ibcs2/ibcs2_xenix_sysent.c	optional ibcs2
 i386/ibcs2/imgact_coff.c	optional ibcs2
-i386/isa/atpic.c		optional atpic	
-#i386/isa/atpic_vector.s		standard
 i386/isa/elink.c		optional ep | ie
-i386/isa/isa.c			optional isa
 i386/isa/npx.c			optional npx
 i386/isa/pmtimer.c		optional pmtimer
 i386/isa/prof_machdep.c		optional profiling-routine
@@ -255,3 +253,8 @@ pc98/pc98/canbus.c		optional canbus
 pc98/pc98/canbus_if.m		optional canbus
 pc98/pc98/machdep.c		standard
 pc98/pc98/pc98_machdep.c	standard
+#
+# x86 shared code between IA32, AMD64 and PC98 architectures
+#
+x86/isa/atpic.c			optional atpic	
+x86/isa/isa.c			optional isa

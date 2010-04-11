@@ -2361,6 +2361,7 @@ struct msk_chain_data {
 	bus_dmamap_t		msk_jumbo_rx_ring_map;
 	bus_dmamap_t		msk_jumbo_rx_sparemap;
 	uint16_t		msk_tso_mtu;
+	uint32_t		msk_last_csum;
 	int			msk_tx_prod;
 	int			msk_tx_cons;
 	int			msk_tx_cnt;
@@ -2404,6 +2405,8 @@ struct msk_ring_data {
 #define	MSK_PROC_DEFAULT	(MSK_RX_RING_CNT / 2)
 #define	MSK_PROC_MIN		30
 #define	MSK_PROC_MAX		(MSK_RX_RING_CNT - 1)
+
+#define	MSK_INT_HOLDOFF_DEFAULT	100
 
 #define	MSK_TX_TIMEOUT		5
 #define	MSK_PUT_WM	10
@@ -2467,14 +2470,16 @@ struct msk_hw_stats {
 struct msk_softc {
 	struct resource		*msk_res[1];	/* I/O resource */
 	struct resource_spec	*msk_res_spec;
-	struct resource		*msk_irq[2];	/* IRQ resources */
+	struct resource		*msk_irq[1];	/* IRQ resources */
 	struct resource_spec	*msk_irq_spec;
-	void			*msk_intrhand[2]; /* irq handler handle */
+	void			*msk_intrhand; /* irq handler handle */
 	device_t		msk_dev;
 	uint8_t			msk_hw_id;
 	uint8_t			msk_hw_rev;
 	uint8_t			msk_bustype;
 	uint8_t			msk_num_port;
+	int			msk_expcap;
+	int			msk_pcixcap;
 	int			msk_ramsize;	/* amount of SRAM on NIC */
 	uint32_t		msk_pmd;	/* physical media type */
 	uint32_t		msk_intrmask;
@@ -2493,10 +2498,9 @@ struct msk_softc {
 	bus_dmamap_t		msk_stat_map;
 	struct msk_stat_desc	*msk_stat_ring;
 	bus_addr_t		msk_stat_ring_paddr;
+	int			msk_int_holdoff;
 	int			msk_process_limit;
 	int			msk_stat_cons;
-	struct taskqueue	*msk_tq;
-	struct task		msk_int_task;
 	struct mtx		msk_mtx;
 };
 
@@ -2541,9 +2545,9 @@ struct msk_if_softc {
 	struct msk_ring_data	msk_rdata;
 	struct msk_softc	*msk_softc;	/* parent controller */
 	struct msk_hw_stats	msk_stats;
-	struct task		msk_tx_task;
 	int			msk_if_flags;
 	uint16_t		msk_vtag;	/* VLAN tag id. */
+	uint32_t		msk_csum;
 };
 
 #define MSK_TIMEOUT	1000

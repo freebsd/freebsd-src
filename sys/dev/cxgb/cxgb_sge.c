@@ -30,6 +30,8 @@ POSSIBILITY OF SUCH DAMAGE.
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_inet.h"
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
@@ -50,8 +52,12 @@ __FBSDID("$FreeBSD$");
 #include <sys/smp.h>
 #include <sys/systm.h>
 #include <sys/syslog.h>
+#include <sys/socket.h>
 
 #include <net/bpf.h>	
+#include <net/ethernet.h>
+#include <net/if.h>
+#include <net/if_vlan_var.h>
 
 #include <netinet/in_systm.h>
 #include <netinet/in.h>
@@ -113,13 +119,9 @@ SYSCTL_UINT(_hw_cxgb, OID_AUTO, tx_reclaim_threshold, CTLFLAG_RW,
  * we have an m_ext
  */
 static int recycle_enable = 0;
-int cxgb_ext_freed = 0;
-int cxgb_ext_inited = 0;
-int fl_q_size = 0;
-int jumbo_q_size = 0;
 
 extern int cxgb_use_16k_clusters;
-extern int nmbjumbo4;
+extern int nmbjumbop;
 extern int nmbjumbo9;
 extern int nmbjumbo16;
 
@@ -526,21 +528,30 @@ t3_sge_err_intr_handler(adapter_t *adapter)
 void
 t3_sge_prep(adapter_t *adap, struct sge_params *p)
 {
-	int i, nqsets;
+	int i, nqsets, fl_q_size, jumbo_q_size, use_16k, jumbo_buf_size;
 
-	nqsets = min(SGE_QSETS, mp_ncpus*4);
+	nqsets = min(SGE_QSETS / adap->params.nports, mp_ncpus);
+	nqsets *= adap->params.nports;
 
 	fl_q_size = min(nmbclusters/(3*nqsets), FL_Q_SIZE);
 
 	while (!powerof2(fl_q_size))
 		fl_q_size--;
+
+	use_16k = cxgb_use_16k_clusters != -1 ? cxgb_use_16k_clusters :
+	    is_offload(adap);
+
 #if __FreeBSD_version >= 700111
-	if (cxgb_use_16k_clusters) 
+	if (use_16k) {
 		jumbo_q_size = min(nmbjumbo16/(3*nqsets), JUMBO_Q_SIZE);
-	else
+		jumbo_buf_size = MJUM16BYTES;
+	} else {
 		jumbo_q_size = min(nmbjumbo9/(3*nqsets), JUMBO_Q_SIZE);
+		jumbo_buf_size = MJUM9BYTES;
+	}
 #else
-	jumbo_q_size = min(nmbjumbo4/(3*nqsets), JUMBO_Q_SIZE);
+	jumbo_q_size = min(nmbjumbop/(3*nqsets), JUMBO_Q_SIZE);
+	jumbo_buf_size = MJUMPAGESIZE;
 #endif
 	while (!powerof2(jumbo_q_size))
 		jumbo_q_size--;
@@ -549,8 +560,7 @@ t3_sge_prep(adapter_t *adap, struct sge_params *p)
 		device_printf(adap->dev,
 		    "Insufficient clusters and/or jumbo buffers.\n");
 
-	/* XXX Does ETHER_ALIGN need to be accounted for here? */
-	p->max_pkt_size = adap->sge.qs[0].fl[1].buf_size - sizeof(struct cpl_rx_data);
+	p->max_pkt_size = jumbo_buf_size - sizeof(struct cpl_rx_data);
 
 	for (i = 0; i < SGE_QSETS; ++i) {
 		struct qset_params *q = p->qset + i;
@@ -568,9 +578,10 @@ t3_sge_prep(adapter_t *adap, struct sge_params *p)
 		q->rspq_size = RSPQ_Q_SIZE;
 		q->fl_size = fl_q_size;
 		q->jumbo_size = jumbo_q_size;
+		q->jumbo_buf_size = jumbo_buf_size;
 		q->txq_size[TXQ_ETH] = TX_ETH_Q_SIZE;
-		q->txq_size[TXQ_OFLD] = 1024;
-		q->txq_size[TXQ_CTRL] = 256;
+		q->txq_size[TXQ_OFLD] = is_offload(adap) ? TX_OFLD_Q_SIZE : 16;
+		q->txq_size[TXQ_CTRL] = TX_CTRL_Q_SIZE;
 		q->cong_thres = 0;
 	}
 }
@@ -1145,10 +1156,9 @@ calc_tx_descs(const struct mbuf *m, int nsegs)
 		return 1;
 
 	flits = sgl_len(nsegs) + 2;
-#ifdef TSO_SUPPORTED
 	if (m->m_pkthdr.csum_flags & CSUM_TSO)
 		flits++;
-#endif	
+
 	return flits_to_desc(flits);
 }
 
@@ -1363,19 +1373,14 @@ write_wr_hdr_sgl(unsigned int ndesc, struct tx_desc *txd, struct txq_state *txqs
 	}
 }
 
-/* sizeof(*eh) + sizeof(*vhdr) + sizeof(*ip) + sizeof(*tcp) */
-#define TCPPKTHDRSIZE (ETHER_HDR_LEN + ETHER_VLAN_ENCAP_LEN + 20 + 20)
+/* sizeof(*eh) + sizeof(*ip) + sizeof(*tcp) */
+#define TCPPKTHDRSIZE (ETHER_HDR_LEN + 20 + 20)
 
-#ifdef VLAN_SUPPORTED
 #define GET_VTAG(cntrl, m) \
 do { \
 	if ((m)->m_flags & M_VLANTAG)					            \
 		cntrl |= F_TXPKT_VLAN_VLD | V_TXPKT_VLAN((m)->m_pkthdr.ether_vtag); \
 } while (0)
-
-#else
-#define GET_VTAG(cntrl, m)
-#endif
 
 static int
 t3_encap(struct sge_qset *qs, struct mbuf **m)
@@ -1405,19 +1410,15 @@ t3_encap(struct sge_qset *qs, struct mbuf **m)
 
 	prefetch(txd);
 	m0 = *m;
-	
-	DPRINTF("t3_encap port_id=%d qsidx=%d ", pi->port_id, pi->first_qset);
-	DPRINTF("mlen=%d txpkt_intf=%d tx_chan=%d\n", m[0]->m_pkthdr.len, pi->txpkt_intf, pi->tx_chan);
-	
+
 	mtx_assert(&qs->lock, MA_OWNED);
 	cntrl = V_TXPKT_INTF(pi->txpkt_intf);
 	KASSERT(m0->m_flags & M_PKTHDR, ("not packet header\n"));
 	
-#ifdef VLAN_SUPPORTED
 	if  (m0->m_nextpkt == NULL && m0->m_next != NULL &&
 	    m0->m_pkthdr.csum_flags & (CSUM_TSO))
 		tso_info = V_LSO_MSS(m0->m_pkthdr.tso_segsz);
-#endif
+
 	if (m0->m_nextpkt != NULL) {
 		busdma_map_sg_vec(txq->entry_tag, txsd->map, m0, segs, &nsegs);
 		ndesc = 1;
@@ -1477,15 +1478,16 @@ t3_encap(struct sge_qset *qs, struct mbuf **m)
 		    V_WR_GEN(txqs.gen)) | htonl(V_WR_TID(txq->token));
 		set_wr_hdr(wrp, wr_hi, wr_lo);
 		wmb();
+		ETHER_BPF_MTAP(pi->ifp, m0);
 		wr_gen2(txd, txqs.gen);
 		check_ring_tx_db(sc, txq);
 		return (0);		
 	} else if (tso_info) {
-		int min_size = TCPPKTHDRSIZE, eth_type, tagged;
+		int eth_type;
 		struct cpl_tx_pkt_lso *hdr = (struct cpl_tx_pkt_lso *)txd;
+		struct ether_header *eh;
 		struct ip *ip;
 		struct tcphdr *tcp;
-		char *pkthdr;
 
 		txd->flit[2] = 0;
 		GET_VTAG(cntrl, m0);
@@ -1493,13 +1495,7 @@ t3_encap(struct sge_qset *qs, struct mbuf **m)
 		hdr->cntrl = htonl(cntrl);
 		hdr->len = htonl(mlen | 0x80000000);
 
-		DPRINTF("tso buf len=%d\n", mlen);
-
-		tagged = m0->m_flags & M_VLANTAG;
-		if (!tagged)
-			min_size -= ETHER_VLAN_ENCAP_LEN;
-
-		if (__predict_false(mlen < min_size)) {
+		if (__predict_false(mlen < TCPPKTHDRSIZE)) {
 			printf("mbuf=%p,len=%d,tso_segsz=%d,csum_flags=%#x,flags=%#x",
 			    m0, mlen, m0->m_pkthdr.tso_segsz,
 			    m0->m_pkthdr.csum_flags, m0->m_flags);
@@ -1507,25 +1503,23 @@ t3_encap(struct sge_qset *qs, struct mbuf **m)
 		}
 
 		/* Make sure that ether, ip, tcp headers are all in m0 */
-		if (__predict_false(m0->m_len < min_size)) {
-			m0 = m_pullup(m0, min_size);
+		if (__predict_false(m0->m_len < TCPPKTHDRSIZE)) {
+			m0 = m_pullup(m0, TCPPKTHDRSIZE);
 			if (__predict_false(m0 == NULL)) {
 				/* XXX panic probably an overreaction */
 				panic("couldn't fit header into mbuf");
 			}
 		}
-		pkthdr = m0->m_data;
 
-		if (tagged) {
+		eh = mtod(m0, struct ether_header *);
+		if (eh->ether_type == htons(ETHERTYPE_VLAN)) {
 			eth_type = CPL_ETH_II_VLAN;
-			ip = (struct ip *)(pkthdr + ETHER_HDR_LEN +
-			    ETHER_VLAN_ENCAP_LEN);
+			ip = (struct ip *)((struct ether_vlan_header *)eh + 1);
 		} else {
 			eth_type = CPL_ETH_II;
-			ip = (struct ip *)(pkthdr + ETHER_HDR_LEN);
+			ip = (struct ip *)(eh + 1);
 		}
-		tcp = (struct tcphdr *)((uint8_t *)ip +
-		    sizeof(*ip)); 
+		tcp = (struct tcphdr *)(ip + 1);
 
 		tso_info |= V_LSO_ETH_TYPE(eth_type) |
 			    V_LSO_IPHDR_WORDS(ip->ip_hl) |
@@ -1533,12 +1527,10 @@ t3_encap(struct sge_qset *qs, struct mbuf **m)
 		hdr->lso_info = htonl(tso_info);
 
 		if (__predict_false(mlen <= PIO_LEN)) {
-			/* pkt not undersized but fits in PIO_LEN
+			/*
+			 * pkt not undersized but fits in PIO_LEN
 			 * Indicates a TSO bug at the higher levels.
-			 *
 			 */
-			DPRINTF("**5592 Fix** mbuf=%p,len=%d,tso_segsz=%d,csum_flags=%#x,flags=%#x",
-			    m0, mlen, m0->m_pkthdr.tso_segsz, m0->m_pkthdr.csum_flags, m0->m_flags);
 			txsd->m = NULL;
 			m_copydata(m0, 0, mlen, (caddr_t)&txd->flit[3]);
 			flits = (mlen + 7) / 8 + 3;
@@ -1549,8 +1541,10 @@ t3_encap(struct sge_qset *qs, struct mbuf **m)
 			    V_WR_GEN(txqs.gen) | V_WR_TID(txq->token));
 			set_wr_hdr(&hdr->wr, wr_hi, wr_lo);
 			wmb();
+			ETHER_BPF_MTAP(pi->ifp, m0);
 			wr_gen2(txd, txqs.gen);
 			check_ring_tx_db(sc, txq);
+			m_freem(m0);
 			return (0);
 		}
 		flits = 3;	
@@ -1578,8 +1572,10 @@ t3_encap(struct sge_qset *qs, struct mbuf **m)
 			    V_WR_GEN(txqs.gen) | V_WR_TID(txq->token));
 			set_wr_hdr(&cpl->wr, wr_hi, wr_lo);
 			wmb();
+			ETHER_BPF_MTAP(pi->ifp, m0);
 			wr_gen2(txd, txqs.gen);
 			check_ring_tx_db(sc, txq);
+			m_freem(m0);
 			return (0);
 		}
 		flits = 2;
@@ -1590,12 +1586,14 @@ t3_encap(struct sge_qset *qs, struct mbuf **m)
 
 	sgl_flits = sgl_len(nsegs);
 
+	ETHER_BPF_MTAP(pi->ifp, m0);
+
 	KASSERT(ndesc <= 4, ("ndesc too large %d", ndesc));
 	wr_hi = htonl(V_WR_OP(FW_WROPCODE_TUNNEL_TX_PKT) | txqs.compl);
 	wr_lo = htonl(V_WR_TID(txq->token));
 	write_wr_hdr_sgl(ndesc, txd, &txqs, txq, sgl, flits,
 	    sgl_flits, wr_hi, wr_lo);
-	check_ring_tx_db(pi->adapter, txq);
+	check_ring_tx_db(sc, txq);
 
 	return (0);
 }
@@ -1645,12 +1643,9 @@ cxgb_start_locked(struct sge_qset *qs)
 {
 	struct mbuf *m_head = NULL;
 	struct sge_txq *txq = &qs->txq[TXQ_ETH];
-	int avail, txmax;
 	int in_use_init = txq->in_use;
 	struct port_info *pi = qs->port;
 	struct ifnet *ifp = pi->ifp;
-	avail = txq->size - txq->in_use - 4;
-	txmax = min(TX_START_MAX_DESC, avail);
 
 	if (qs->qs_flags & (QS_FLUSHING|QS_TIMEOUT))
 		reclaim_completed_tx(qs, 0, TXQ_ETH);
@@ -1660,11 +1655,13 @@ cxgb_start_locked(struct sge_qset *qs)
 		return;
 	}
 	TXQ_LOCK_ASSERT(qs);
-	while ((txq->in_use - in_use_init < txmax) &&
-	    !TXQ_RING_EMPTY(qs) &&
-	    (ifp->if_drv_flags & IFF_DRV_RUNNING) &&
+	while ((txq->in_use - in_use_init < TX_START_MAX_DESC) &&
+	    !TXQ_RING_EMPTY(qs) && (ifp->if_drv_flags & IFF_DRV_RUNNING) &&
 	    pi->link_config.link_ok) {
 		reclaim_completed_tx(qs, cxgb_tx_reclaim_threshold, TXQ_ETH);
+
+		if (txq->size - txq->in_use <= TX_MAX_DESC)
+			break;
 
 		if ((m_head = cxgb_dequeue(qs)) == NULL)
 			break;
@@ -1674,16 +1671,6 @@ cxgb_start_locked(struct sge_qset *qs)
 		 */
 		if (t3_encap(qs, &m_head) || m_head == NULL)
 			break;
-		
-		/* Send a copy of the frame to the BPF listener */
-		ETHER_BPF_MTAP(ifp, m_head);
-
-		/*
-		 * We sent via PIO, no longer need a copy
-		 */
-		if (m_head->m_nextpkt == NULL &&
-		    m_head->m_pkthdr.len <= PIO_LEN)
-			m_freem(m_head);
 
 		m_head = NULL;
 	}
@@ -1714,7 +1701,7 @@ cxgb_transmit_locked(struct ifnet *ifp, struct sge_qset *qs, struct mbuf *m)
 	 * - there is space in hardware transmit queue 
 	 */
 	if (check_pkt_coalesce(qs) == 0 &&
-	    !TXQ_RING_NEEDS_ENQUEUE(qs) && avail > 4) {
+	    !TXQ_RING_NEEDS_ENQUEUE(qs) && avail > TX_MAX_DESC) {
 		if (t3_encap(qs, &m)) {
 			if (m != NULL &&
 			    (error = drbr_enqueue(ifp, br, m)) != 0) 
@@ -1726,17 +1713,6 @@ cxgb_transmit_locked(struct ifnet *ifp, struct sge_qset *qs, struct mbuf *m)
 			 */
 			txq->txq_direct_packets++;
 			txq->txq_direct_bytes += m->m_pkthdr.len;
-			/*
-			** Send a copy of the frame to the BPF
-			** listener and set the watchdog on.
-			*/
-			ETHER_BPF_MTAP(ifp, m);
-			/*
-			 * We sent via PIO, no longer need a copy
-			 */
-			if (m->m_pkthdr.len <= PIO_LEN)
-				m_freem(m);
-
 		}
 	} else if ((error = drbr_enqueue(ifp, br, m)) != 0)
 		return (error);
@@ -2033,15 +2009,13 @@ t3_free_qset(adapter_t *sc, struct sge_qset *q)
 	int i;
 	
 	reclaim_completed_tx(q, 0, TXQ_ETH);
-	for (i = 0; i < SGE_TXQ_PER_SET; i++) {
-		if (q->txq[i].txq_mr != NULL) 
-			buf_ring_free(q->txq[i].txq_mr, M_DEVBUF);
-		if (q->txq[i].txq_ifq != NULL) {
-			ifq_delete(q->txq[i].txq_ifq);
-			free(q->txq[i].txq_ifq, M_DEVBUF);
-		}
+	if (q->txq[TXQ_ETH].txq_mr != NULL) 
+		buf_ring_free(q->txq[TXQ_ETH].txq_mr, M_DEVBUF);
+	if (q->txq[TXQ_ETH].txq_ifq != NULL) {
+		ifq_delete(q->txq[TXQ_ETH].txq_ifq);
+		free(q->txq[TXQ_ETH].txq_ifq, M_DEVBUF);
 	}
-	
+
 	for (i = 0; i < SGE_RXQ_PER_SET; ++i) {
 		if (q->fl[i].desc) {
 			mtx_lock_spin(&sc->sge.reg_lock);
@@ -2090,7 +2064,7 @@ t3_free_qset(adapter_t *sc, struct sge_qset *q)
 		MTX_DESTROY(&q->rspq.lock);
 	}
 
-#ifdef LRO_SUPPORTED
+#ifdef INET
 	tcp_lro_free(&q->lro.ctrl);
 #endif
 
@@ -2578,25 +2552,22 @@ t3_sge_alloc_qset(adapter_t *sc, u_int id, int nports, int irq_vec_idx,
 	MTX_INIT(&q->lock, q->namebuf, NULL, MTX_DEF);
 	q->port = pi;
 
-	for (i = 0; i < SGE_TXQ_PER_SET; i++) {
-		
-		if ((q->txq[i].txq_mr = buf_ring_alloc(cxgb_txq_buf_ring_size,
-			    M_DEVBUF, M_WAITOK, &q->lock)) == NULL) {
-			device_printf(sc->dev, "failed to allocate mbuf ring\n");
-			goto err;
-		}
-		if ((q->txq[i].txq_ifq =
-			malloc(sizeof(struct ifaltq), M_DEVBUF, M_NOWAIT|M_ZERO))
-		    == NULL) {
-			device_printf(sc->dev, "failed to allocate ifq\n");
-			goto err;
-		}
-		ifq_init(q->txq[i].txq_ifq, pi->ifp);	
-		callout_init(&q->txq[i].txq_timer, 1);
-		callout_init(&q->txq[i].txq_watchdog, 1);
-		q->txq[i].txq_timer.c_cpu = id % mp_ncpus;
-		q->txq[i].txq_watchdog.c_cpu = id % mp_ncpus;
+	if ((q->txq[TXQ_ETH].txq_mr = buf_ring_alloc(cxgb_txq_buf_ring_size,
+	    M_DEVBUF, M_WAITOK, &q->lock)) == NULL) {
+		device_printf(sc->dev, "failed to allocate mbuf ring\n");
+		goto err;
 	}
+	if ((q->txq[TXQ_ETH].txq_ifq = malloc(sizeof(struct ifaltq), M_DEVBUF,
+	    M_NOWAIT | M_ZERO)) == NULL) {
+		device_printf(sc->dev, "failed to allocate ifq\n");
+		goto err;
+	}
+	ifq_init(q->txq[TXQ_ETH].txq_ifq, pi->ifp);	
+	callout_init(&q->txq[TXQ_ETH].txq_timer, 1);
+	callout_init(&q->txq[TXQ_ETH].txq_watchdog, 1);
+	q->txq[TXQ_ETH].txq_timer.c_cpu = id % mp_ncpus;
+	q->txq[TXQ_ETH].txq_watchdog.c_cpu = id % mp_ncpus;
+
 	init_qset_cntxt(q, id);
 	q->idx = id;
 	if ((ret = alloc_ring(sc, p->fl_size, sizeof(struct rx_desc),
@@ -2661,32 +2632,33 @@ t3_sge_alloc_qset(adapter_t *sc, u_int id, int nports, int irq_vec_idx,
 	q->fl[0].buf_size = MCLBYTES;
 	q->fl[0].zone = zone_pack;
 	q->fl[0].type = EXT_PACKET;
-#if __FreeBSD_version > 800000
-	if (cxgb_use_16k_clusters) {		
-		q->fl[1].buf_size = MJUM16BYTES;
+
+	if (p->jumbo_buf_size ==  MJUM16BYTES) {
 		q->fl[1].zone = zone_jumbo16;
 		q->fl[1].type = EXT_JUMBO16;
-	} else {
-		q->fl[1].buf_size = MJUM9BYTES;
+	} else if (p->jumbo_buf_size ==  MJUM9BYTES) {
 		q->fl[1].zone = zone_jumbo9;
 		q->fl[1].type = EXT_JUMBO9;		
+	} else if (p->jumbo_buf_size ==  MJUMPAGESIZE) {
+		q->fl[1].zone = zone_jumbop;
+		q->fl[1].type = EXT_JUMBOP;
+	} else {
+		KASSERT(0, ("can't deal with jumbo_buf_size %d.", p->jumbo_buf_size));
+		ret = EDOOFUS;
+		goto err;
 	}
-#else
-	q->fl[1].buf_size = MJUMPAGESIZE;
-	q->fl[1].zone = zone_jumbop;
-	q->fl[1].type = EXT_JUMBOP;
-#endif
+	q->fl[1].buf_size = p->jumbo_buf_size;
 
-#ifdef LRO_SUPPORTED
 	/* Allocate and setup the lro_ctrl structure */
 	q->lro.enabled = !!(pi->ifp->if_capenable & IFCAP_LRO);
+#ifdef INET
 	ret = tcp_lro_init(&q->lro.ctrl);
 	if (ret) {
 		printf("error %d from tcp_lro_init\n", ret);
 		goto err;
 	}
-	q->lro.ctrl.ifp = pi->ifp;
 #endif
+	q->lro.ctrl.ifp = pi->ifp;
 
 	mtx_lock_spin(&sc->sge.reg_lock);
 	ret = -t3_sge_init_rspcntxt(sc, q->rspq.cntxt_id, irq_vec_idx,
@@ -2787,16 +2759,12 @@ t3_rx_eth(struct adapter *adap, struct sge_rspq *rq, struct mbuf *m, int ethpad)
 		m->m_pkthdr.csum_flags = (CSUM_IP_CHECKED|CSUM_IP_VALID|CSUM_DATA_VALID|CSUM_PSEUDO_HDR);
 		m->m_pkthdr.csum_data = 0xffff;
 	}
-	/* 
-	 * XXX need to add VLAN support for 6.x
-	 */
-#ifdef VLAN_SUPPORTED
-	if (__predict_false(cpl->vlan_valid)) {
+
+	if (cpl->vlan_valid) {
 		m->m_pkthdr.ether_vtag = ntohs(cpl->vlan);
 		m->m_flags |= M_VLANTAG;
 	} 
-#endif
-	
+
 	m->m_pkthdr.rcvif = ifp;
 	m->m_pkthdr.header = mtod(m, uint8_t *) + sizeof(*cpl) + ethpad;
 	/*
@@ -2976,11 +2944,9 @@ process_responses(adapter_t *adap, struct sge_qset *qs, int budget)
 	struct rsp_desc *r = &rspq->desc[rspq->cidx];
 	int budget_left = budget;
 	unsigned int sleeping = 0;
-#ifdef LRO_SUPPORTED
 	int lro_enabled = qs->lro.enabled;
 	int skip_lro;
 	struct lro_ctrl *lro_ctrl = &qs->lro.ctrl;
-#endif
 	struct mbuf *offload_mbufs[RX_BUNDLE_SIZE];
 	int ngathered = 0;
 #ifdef DEBUG	
@@ -3089,7 +3055,6 @@ process_responses(adapter_t *adap, struct sge_qset *qs, int budget)
 
 			t3_rx_eth(adap, rspq, m, ethpad);
 
-#ifdef LRO_SUPPORTED
 			/*
 			 * The T304 sends incoming packets on any qset.  If LRO
 			 * is also enabled, we could end up sending packet up
@@ -3100,12 +3065,13 @@ process_responses(adapter_t *adap, struct sge_qset *qs, int budget)
 			 */
 			skip_lro = __predict_false(qs->port->ifp != m->m_pkthdr.rcvif);
 
-			if (lro_enabled && lro_ctrl->lro_cnt && !skip_lro &&
-			    (tcp_lro_rx(lro_ctrl, m, 0) == 0)) {
-				/* successfully queue'd for LRO */
-			} else
+			if (lro_enabled && lro_ctrl->lro_cnt && !skip_lro
+#ifdef INET
+			    && (tcp_lro_rx(lro_ctrl, m, 0) == 0)
 #endif
-			{
+			    ) {
+				/* successfully queue'd for LRO */
+			} else {
 				/*
 				 * LRO not enabled, packet unsuitable for LRO,
 				 * or unable to queue.  Pass it up right now in
@@ -3124,7 +3090,7 @@ process_responses(adapter_t *adap, struct sge_qset *qs, int budget)
 
 	deliver_partial_bundle(&adap->tdev, rspq, offload_mbufs, ngathered);
 
-#ifdef LRO_SUPPORTED
+#ifdef INET
 	/* Flush LRO */
 	while (!SLIST_EMPTY(&lro_ctrl->lro_active)) {
 		struct lro_entry *queued = SLIST_FIRST(&lro_ctrl->lro_active);
@@ -3620,6 +3586,9 @@ t3_add_configured_sysctls(adapter_t *sc)
 			SYSCTL_ADD_UINT(ctx, rspqpoidlist, OID_AUTO, "credits",
 			    CTLFLAG_RD, &qs->rspq.credits,
 			    0, "#credits");
+			SYSCTL_ADD_UINT(ctx, rspqpoidlist, OID_AUTO, "starved",
+			    CTLFLAG_RD, &qs->rspq.starved,
+			    0, "#times starved");
 			SYSCTL_ADD_XLONG(ctx, rspqpoidlist, OID_AUTO, "phys_addr",
 			    CTLFLAG_RD, &qs->rspq.phys_addr,
 			    "physical_address_of the queue");
@@ -3633,10 +3602,9 @@ t3_add_configured_sysctls(adapter_t *sc)
 			    CTLTYPE_STRING | CTLFLAG_RD, &qs->rspq,
 			    0, t3_dump_rspq, "A", "dump of the response queue");
 
-
-			SYSCTL_ADD_INT(ctx, txqpoidlist, OID_AUTO, "dropped",
-			    CTLFLAG_RD, &qs->txq[TXQ_ETH].txq_drops,
-			    0, "#tunneled packets dropped");
+			SYSCTL_ADD_QUAD(ctx, txqpoidlist, OID_AUTO, "dropped",
+			    CTLFLAG_RD, &qs->txq[TXQ_ETH].txq_mr->br_drops,
+			    "#tunneled packets dropped");
 			SYSCTL_ADD_INT(ctx, txqpoidlist, OID_AUTO, "sendqlen",
 			    CTLFLAG_RD, &qs->txq[TXQ_ETH].sendq.qlen,
 			    0, "#tunneled packets waiting to be sent");
@@ -3704,7 +3672,6 @@ t3_add_configured_sysctls(adapter_t *sc)
 			    CTLTYPE_STRING | CTLFLAG_RD, &qs->txq[TXQ_CTRL],
 			    0, t3_dump_txq_ctrl, "A", "dump of the transmit queue");
 
-#ifdef LRO_SUPPORTED
 			SYSCTL_ADD_INT(ctx, lropoidlist, OID_AUTO, "lro_queued",
 			    CTLFLAG_RD, &qs->lro.ctrl.lro_queued, 0, NULL);
 			SYSCTL_ADD_INT(ctx, lropoidlist, OID_AUTO, "lro_flushed",
@@ -3713,7 +3680,6 @@ t3_add_configured_sysctls(adapter_t *sc)
 			    CTLFLAG_RD, &qs->lro.ctrl.lro_bad_csum, 0, NULL);
 			SYSCTL_ADD_INT(ctx, lropoidlist, OID_AUTO, "lro_cnt",
 			    CTLFLAG_RD, &qs->lro.ctrl.lro_cnt, 0, NULL);
-#endif
 		}
 
 		/* Now add a node for mac stats. */

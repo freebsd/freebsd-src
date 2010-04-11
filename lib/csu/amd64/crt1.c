@@ -43,7 +43,6 @@ typedef void (*fptr)(void);
 extern void _fini(void);
 extern void _init(void);
 extern int main(int, char **, char **);
-extern void _start(char **, void (*)(void));
 
 #ifdef GCRT
 extern void _mcleanup(void);
@@ -54,6 +53,8 @@ extern int etext;
 
 char **environ;
 const char *__progname = "";
+
+void _start(char **, void (*)(void));
 
 /* The entry function. */
 void

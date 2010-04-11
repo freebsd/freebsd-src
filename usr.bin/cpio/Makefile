@@ -5,7 +5,6 @@
 PROG=	bsdcpio
 BSDCPIO_VERSION_STRING=2.7.0
 SRCS=	cpio.c cmdline.c err.c matching.c pathmatch.c
-DPADD=	${LIBARCHIVE} ${LIBZ} ${LIBBZ2}
 CFLAGS+= -DBSDCPIO_VERSION_STRING=\"${BSDCPIO_VERSION_STRING}\"
 CFLAGS+= -DPLATFORM_CONFIG_H=\"config_freebsd.h\"
 .ifdef RELEASE_CRUNCH
@@ -13,15 +12,15 @@ CFLAGS+= -DPLATFORM_CONFIG_H=\"config_freebsd.h\"
 # statically linked, cannot use -lcrypto, and are size sensitive.
 CFLAGS+= -DSMALLER
 .endif
-LDADD+=	-larchive -lz -lbz2 -lmd
+DPADD=	${LIBARCHIVE} ${LIBZ} ${LIBBZ2} ${LIBMD}
+LDADD=	-larchive -lz -lbz2 -lmd
 .if ${MK_OPENSSL} != "no"
+DPADD+=	${LIBCRYPTO}
 LDADD+= -lcrypto
 .endif
 
-.if ${MK_GNU_CPIO} != "yes"
 SYMLINKS=bsdcpio ${BINDIR}/cpio
 MLINKS= bsdcpio.1 cpio.1
-.endif
 
 .PHONY: check test
 

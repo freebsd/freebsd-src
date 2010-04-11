@@ -129,7 +129,7 @@
 .\" ========================================================================
 .\"
 .IX Title "ASN1_generate_nconf 3"
-.TH ASN1_generate_nconf 3 "2009-06-14" "0.9.8k" "OpenSSL"
+.TH ASN1_generate_nconf 3 "2010-03-24" "0.9.8n" "OpenSSL"
 .SH "NAME"
 ASN1_generate_nconf, ASN1_generate_v3 \- ASN1 generation functions
 .SH "SYNOPSIS"
@@ -277,7 +277,7 @@ An IA5String explicitly tagged using \s-1APPLICATION\s0 tagging:
 A \s-1BITSTRING\s0 with bits 1 and 5 set and all others zero:
 .PP
 .Vb 1
-\& FORMAT=BITLIST,BITSTRING:1,5
+\& FORMAT:BITLIST,BITSTRING:1,5
 .Ve
 .PP
 A more complex example using a config file to produce a

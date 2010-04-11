@@ -547,10 +547,10 @@ isp_get_specific_options(device_t dev, int chan, ispsoftc_t *isp)
 	}
 
 	if (IS_SCSI(isp)) {
-		ISP_SPI_PC(isp, chan)->role = tval;
+		ISP_SPI_PC(isp, chan)->def_role = tval;
 		return;
 	}
-	ISP_FC_PC(isp, chan)->role = tval;
+	ISP_FC_PC(isp, chan)->def_role = tval;
 
 	tval = 0;
 	if (resource_int_value(device_get_name(dev), device_get_unit(dev), "fullduplex", &tval) == 0 && tval != 0) {
@@ -833,7 +833,7 @@ isp_pci_attach(device_t dev)
 	 * The 'it' suffix really only matters for SCSI cards in target mode.
 	 */
 	isp->isp_osinfo.fw = NULL;
-	if (IS_SCSI(isp) && (ISP_SPI_PC(isp, 0)->role & ISP_ROLE_TARGET)) {
+	if (IS_SCSI(isp) && (ISP_SPI_PC(isp, 0)->def_role & ISP_ROLE_TARGET)) {
 		snprintf(fwname, sizeof (fwname), "isp_%04x_it", did);
 		isp->isp_osinfo.fw = firmware_get(fwname);
 	} else if (IS_24XX(isp) && (isp->isp_nchan > 1 || isp->isp_osinfo.forcemulti)) {
@@ -1068,8 +1068,7 @@ isp_pci_rd_isr(ispsoftc_t *isp, uint32_t *isrp, uint16_t *semap, uint16_t *mbp)
 }
 
 static int
-isp_pci_rd_isr_2300(ispsoftc_t *isp, uint32_t *isrp,
-    uint16_t *semap, uint16_t *mbox0p)
+isp_pci_rd_isr_2300(ispsoftc_t *isp, uint32_t *isrp, uint16_t *semap, uint16_t *mbox0p)
 {
 	uint32_t hccr;
 	uint32_t r2hisr;
@@ -1096,7 +1095,7 @@ isp_pci_rd_isr_2300(ispsoftc_t *isp, uint32_t *isrp,
 		return (1);
 	case ISPR2HST_RIO_16:
 		*isrp = r2hisr & 0xffff;
-		*mbox0p = ASYNC_RIO1;
+		*mbox0p = ASYNC_RIO16_1;
 		*semap = 1;
 		return (1);
 	case ISPR2HST_FPOST:
@@ -1118,21 +1117,17 @@ isp_pci_rd_isr_2300(ispsoftc_t *isp, uint32_t *isrp,
 		hccr = ISP_READ(isp, HCCR);
 		if (hccr & HCCR_PAUSE) {
 			ISP_WRITE(isp, HCCR, HCCR_RESET);
-			isp_prt(isp, ISP_LOGERR,
-			    "RISC paused at interrupt (%x->%x)", hccr,
-			    ISP_READ(isp, HCCR));
+			isp_prt(isp, ISP_LOGERR, "RISC paused at interrupt (%x->%x)", hccr, ISP_READ(isp, HCCR));
 			ISP_WRITE(isp, BIU_ICR, 0);
 		} else {
-			isp_prt(isp, ISP_LOGERR, "unknown interrupt 0x%x\n",
-			    r2hisr);
+			isp_prt(isp, ISP_LOGERR, "unknown interrupt 0x%x\n", r2hisr);
 		}
 		return (0);
 	}
 }
 
 static int
-isp_pci_rd_isr_2400(ispsoftc_t *isp, uint32_t *isrp,
-    uint16_t *semap, uint16_t *mbox0p)
+isp_pci_rd_isr_2400(ispsoftc_t *isp, uint32_t *isrp, uint16_t *semap, uint16_t *mbox0p)
 {
 	uint32_t r2hisr;
 
@@ -1177,8 +1172,7 @@ isp_pci_rd_reg(ispsoftc_t *isp, int regoff)
 		 * We will assume that someone has paused the RISC processor.
 		 */
 		oldconf = BXR2(isp, IspVirt2Off(isp, BIU_CONF1));
-		BXW2(isp, IspVirt2Off(isp, BIU_CONF1),
-		    oldconf | BIU_PCI_CONF1_SXP);
+		BXW2(isp, IspVirt2Off(isp, BIU_CONF1), oldconf | BIU_PCI_CONF1_SXP);
 		MEMORYBARRIER(isp, SYNC_REG, IspVirt2Off(isp, BIU_CONF1), 2);
 	}
 	rv = BXR2(isp, IspVirt2Off(isp, regoff));
@@ -1529,7 +1523,7 @@ isp_pci_mbxdma(ispsoftc_t *isp)
 	}
 	isp->isp_xffree = isp->isp_xflist;
 #ifdef	ISP_TARGET_MODE
-	len = sizeof (isp_hdl_t *) * isp->isp_maxcmds;
+	len = sizeof (isp_hdl_t) * isp->isp_maxcmds;
 	isp->isp_tgtlist = (isp_hdl_t *) malloc(len, M_DEVBUF, M_WAITOK | M_ZERO);
 	if (isp->isp_tgtlist == NULL) {
 		free(isp->isp_osinfo.pcmd_pool, M_DEVBUF);

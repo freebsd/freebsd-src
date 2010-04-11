@@ -1,13 +1,15 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 24, 2009
+.Dd March 20, 2010
 .Dt IPFW 8
 .Os
 .Sh NAME
 .Nm ipfw
-.Nd IP firewall and traffic shaper control program
+.Nd User interface for firewall, traffic shaper, packet scheduler,
+in-kernel NAT.
 .Sh SYNOPSIS
+.Ss FIREWALL CONFIGURATION
 .Nm
 .Op Fl cq
 .Cm add
@@ -26,12 +28,6 @@
 .Op Cm set Ar N
 .Brq Cm delete | zero | resetlog
 .Op Ar number ...
-.Nm
-.Cm enable
-.Brq Cm firewall | altq | one_pass | debug | verbose | dyn_keepalive
-.Nm
-.Cm disable
-.Brq Cm firewall | altq | one_pass | debug | verbose | dyn_keepalive
 .Pp
 .Nm
 .Cm set Oo Cm disable Ar number ... Oc Op Cm enable Ar number ...
@@ -43,7 +39,16 @@
 .Cm set swap Ar number number
 .Nm
 .Cm set show
+.Ss SYSCTL SHORTCUTS
 .Pp
+.Nm
+.Cm enable
+.Brq Cm firewall | altq | one_pass | debug | verbose | dyn_keepalive
+.Nm
+.Cm disable
+.Brq Cm firewall | altq | one_pass | debug | verbose | dyn_keepalive
+.Pp
+.Ss LOOKUP TABLES
 .Nm
 .Cm table Ar number Cm add Ar addr Ns Oo / Ns Ar masklen Oc Op Ar value
 .Nm
@@ -57,17 +62,19 @@
 .Brq Ar number | all
 .Cm list
 .Pp
+.Ss DUMMYNET CONFIGURATION (TRAFFIC SHAPER AND PACKET SCHEDULER)
 .Nm
-.Brq Cm pipe | queue
+.Brq Cm pipe | queue | sched
 .Ar number
 .Cm config
 .Ar config-options
 .Nm
 .Op Fl s Op Ar field
-.Brq Cm pipe | queue
+.Brq Cm pipe | queue | sched
 .Brq Cm delete | list | show
 .Op Ar number ...
 .Pp
+.Ss IN-KERNEL NAT
 .Nm
 .Op Fl q
 .Cm nat
@@ -89,28 +96,27 @@ The
 .Nm
 utility is the user interface for controlling the
 .Xr ipfw 4
-firewall and the
+firewall, the
 .Xr dummynet 4
-traffic shaper in
-.Fx .
+traffic shaper/packet scheduler, and the
+in-kernel NAT services.
 .Pp
-An
-.Nm
-configuration, or
+A firewall configuration, or
 .Em ruleset ,
 is made of a list of
 .Em rules
 numbered from 1 to 65535.
-Packets are passed to
-.Nm
+Packets are passed to the firewall
 from a number of different places in the protocol stack
 (depending on the source and destination of the packet,
-it is possible that
-.Nm
-is invoked multiple times on the same packet).
+it is possible for the firewall to be
+invoked multiple times on the same packet).
 The packet passed to the firewall is compared
-against each of the rules in the firewall
-.Em ruleset .
+against each of the rules in the
+.Em ruleset ,
+in rule-number order
+(multiple rules with the same number are permitted, in which case
+they are processed in order of insertion).
 When a match is found, the action corresponding to the
 matching rule is performed.
 .Pp
@@ -118,9 +124,7 @@ Depending on the action and certain system settings, packets
 can be reinjected into the firewall at some rule after the
 matching one for further processing.
 .Pp
-An
-.Nm
-ruleset always includes a
+A ruleset always includes a
 .Em default
 rule (numbered 65535) which cannot be modified or deleted,
 and matches all packets.
@@ -137,14 +141,14 @@ If the ruleset includes one or more rules with the
 or
 .Cm limit
 option,
-.Nm
-will have a
+the firewall will have a
 .Em stateful
-behaviour, i.e., upon a match it will create dynamic rules matching
-the exact parameters (source and destination addresses and ports)
-of the matching packet.
-.Pp
-These dynamic rules, which have a limited lifetime, are checked
+behaviour, i.e., upon a match it will create
+.Em dynamic rules ,
+i.e. rules that match packets with the same 5-tuple
+(protocol, source and destination addresses and ports)
+as the packet which caused their creation.
+Dynamic rules, which have a limited lifetime, are checked
 at the first occurrence of a
 .Cm check-state ,
 .Cm keep-state
@@ -283,6 +287,7 @@ When listing, show last match timestamp as seconds from the epoch.
 This form can be more convenient for postprocessing by scripts.
 .El
 .Pp
+.Ss LIST OF RULES AND PREPROCESSING
 To ease configuration, rules can be put into a file which is
 processed using
 .Nm
@@ -322,14 +327,16 @@ This allows for flexible configuration files (like conditionalizing
 them on the local hostname) and the use of macros to centralize
 frequently required arguments like IP addresses.
 .Pp
+.Ss TRAFFIC SHAPER CONFIGURATION
 The
 .Nm
-.Cm pipe
+.Cm pipe , queue
 and
-.Cm queue
-commands are used to configure the traffic shaper, as shown in the
+.Cm sched
+commands are used to configure the traffic shaper and packet scheduler.
+See the
 .Sx TRAFFIC SHAPER (DUMMYNET) CONFIGURATION
-Section below.
+Section below for details.
 .Pp
 If the world and the kernel get out of sync the
 .Nm
@@ -362,7 +369,7 @@ have this picture in mind in order to design a correct ruleset.
        |      to devices       |
 .Ed
 .Pp
-As can be noted from the above picture, the number of
+The number of
 times the same packet goes through the firewall can
 vary between 0 and 4 depending on packet source and
 destination, and system configuration.
@@ -421,9 +428,9 @@ Keywords are case-sensitive, whereas arguments may
 or may not be case-sensitive depending on their nature
 (e.g.\& uid's are, hostnames are not).
 .Pp
-In
-.Nm ipfw2
-you can introduce spaces after commas ',' to make
+Some arguments (e.g. port or address lists) are comma-separated
+lists of values.
+In this case, spaces after commas ',' are allowed to make
 the line more readable.
 You can also put the entire
 command (including flags) into a single argument.
@@ -434,9 +441,7 @@ ipfw -q add deny src-ip 10.0.0.0/24, 127.0.0.1/8
 ipfw "-q add deny src-ip 10.0.0.0/24, 127.0.0.1/8"
 .Ed
 .Sh RULE FORMAT
-The format of
-.Nm
-rules is the following:
+The format of firewall rules is the following:
 .Bd -ragged -offset indent
 .Bk -words
 .Op Ar rule_number
@@ -496,7 +501,7 @@ in future forwarding decisions.
 .El
 .Pp
 Note that some of the above information, e.g.\& source MAC or IP addresses and
-TCP/UDP ports, could easily be spoofed, so filtering on those fields
+TCP/UDP ports, can be easily spoofed, so filtering on those fields
 alone might not guarantee the desired results.
 .Bl -tag -width indent
 .It Ar rule_number
@@ -1399,7 +1404,7 @@ If not found, the match fails.
 Otherwise, the match succeeds and
 .Cm tablearg
 is set to the value extracted from the table.
-.Br
+.Pp
 This option can be useful to quickly dispatch traffic based on
 certain packet fields.
 See the
@@ -1496,7 +1501,7 @@ is invalid) whenever
 .Cm xmit
 is used.
 .Pp
-A packet may not have a receive or transmit interface: packets
+A packet might not have a receive or transmit interface: packets
 originating from the local host have no receive interface,
 while packets destined for the local host have no transmit
 interface.
@@ -1643,15 +1648,17 @@ because it engages only on packets with source addresses of directly
 connected networks instead of all source addresses.
 .El
 .Sh LOOKUP TABLES
-Lookup tables are useful to handle large sparse address sets,
-typically from a hundred to several thousands of entries.
+Lookup tables are useful to handle large sparse sets of
+addresses or other search keys (e.g. ports, jail IDs).
+In the rest of this section we will use the term ``address''
+to mean any unsigned value of up to 32-bit.
 There may be up to 128 different lookup tables, numbered 0 to 127.
 .Pp
 Each entry is represented by an
 .Ar addr Ns Op / Ns Ar masklen
 and will match all addresses with base
 .Ar addr
-(specified as an IP address or a hostname)
+(specified as an IP address, a hostname or an unsigned integer)
 and mask width of
 .Ar masklen
 bits.
@@ -1669,9 +1676,9 @@ is not specified, it defaults to 0.
 .Pp
 An entry can be added to a table
 .Pq Cm add ,
-removed from a table
-.Pq Cm delete ,
-a table can be examined
+or removed from a table
+.Pq Cm delete .
+A table can be examined
 .Pq Cm list
 or flushed
 .Pq Cm flush .
@@ -1680,7 +1687,7 @@ Internally, each table is stored in a Radix tree, the same way as
 the routing table (see
 .Xr route 4 ) .
 .Pp
-Lookup tables currently support IPv4 addresses only.
+Lookup tables currently support only ports, jail IDs and IPv4 addresses.
 .Pp
 The
 .Cm tablearg
@@ -1838,9 +1845,9 @@ for more examples on how to use dynamic rules.
 .Nm
 is also the user interface for the
 .Nm dummynet
-traffic shaper and network emulator, a subsystem that
+traffic shaper, packet scheduler and network emulator, a subsystem that
 can artificially queue, delay or drop packets
-emulator the behaviour of certain network links
+emulating the behaviour of certain network links
 or queueing systems.
 .Pp
 .Nm dummynet
@@ -1852,26 +1859,33 @@ Matching packets are then passed to either of two
 different objects, which implement the traffic regulation:
 .Bl -hang -offset XXXX
 .It Em pipe
-A pipe emulates a link with given bandwidth, propagation delay,
+A
+.Em pipe
+emulates a
+.Em link
+with given bandwidth and propagation delay,
+driven by a FIFO scheduler and a single queue with programmable
 queue size and packet loss rate.
-Packets are queued in front of the pipe as they come out from the classifier,
-and then transferred to the pipe according to the pipe's parameters.
+Packets are appended to the queue as they come out from
+.Nm ipfw ,
+and then transferred in FIFO order to the link at the desired rate.
 .It Em queue
-A queue
-is an abstraction used to implement the WF2Q+
-(Worst-case Fair Weighted Fair Queueing) policy, which is
-an efficient variant of the WFQ policy.
-.Pp
-The queue associates a
-.Em weight
-and a reference pipe to each flow (a flow is a set of packets
-with the same addresses and ports after masking).
-All backlogged flows (i.e., those
-with packets queued) linked to the same pipe share the pipe's
-bandwidth proportionally to their weights.
-Note that weights are not priorities; a flow with a lower weight
-is still guaranteed to get its fraction of the bandwidth even if a
-flow with a higher weight is permanently backlogged.
+A
+.Em queue
+is an abstraction used to implement packet scheduling
+using one of several packet scheduling algorithms.
+Packets sent to a
+.Em queue
+are first grouped into flows according to a mask on the 5-tuple.
+Flows are then passed to the scheduler associated to the
+.Em queue ,
+and each flow uses scheduling parameters (weight and others)
+as configured in the
+.Em queue
+itself.
+A scheduler in turn is connected to an emulated link,
+and arbitrates the link's bandwidth among backlogged flows according to
+weights and to the features of the scheduling algorithm in use.
 .El
 .Pp
 In practice,
@@ -1879,6 +1893,52 @@ In practice,
 can be used to set hard limits to the bandwidth that a flow can use, whereas
 .Em queues
 can be used to determine how different flows share the available bandwidth.
+.Pp
+A graphical representation of the binding of queues,
+flows, schedulers and links is below.
+.Bd -literal -offset indent
+                 (flow_mask|sched_mask)  sched_mask
+         +---------+   weight Wx  +-------------+
+         |         |->-[flow]-->--|             |-+
+    -->--| QUEUE x |   ...        |             | |
+         |         |->-[flow]-->--| SCHEDuler N | |
+         +---------+              |             | |
+             ...                  |             +--[LINK N]-->--
+         +---------+   weight Wy  |             | +--[LINK N]-->--
+         |         |->-[flow]-->--|             | |
+    -->--| QUEUE y |   ...        |             | |
+         |         |->-[flow]-->--|             | |
+         +---------+              +-------------+ |
+                                    +-------------+
+.Ed
+It is important to understand the role of the SCHED_MASK
+and FLOW_MASK, which are configured through the commands
+.Dl "ipfw sched N config mask SCHED_MASK ..."
+and
+.Dl "ipfw queue X config mask FLOW_MASK ..." .
+.Pp
+The SCHED_MASK is used to assign flows to one or more
+scheduler instances, one for each
+value of the packet's 5-fuple after applying SCHED_MASK.
+As an example, using ``src-ip 0xffffff00'' creates one instance
+for each /24 destination subnet.
+.Pp
+The FLOW_MASK, together with the SCHED_MASK, is used to split
+packets into flows. As an example, using
+``src-ip 0x000000ff''
+together with the previous SCHED_MASK makes a flow for
+each individual source address. In turn, flows for each /24
+subnet will be sent to the same scheduler instance.
+.Pp
+The above diagram holds even for the
+.Em pipe
+case, with the only restriction that a
+.Em pipe
+only supports a SCHED_MASK, and forces the use of a FIFO
+scheduler (these are for backward compatibility reasons;
+in fact, internally, a
+.Nm dummynet's
+pipe is implemented exactly as above).
 .Pp
 There are two modes of
 .Nm dummynet
@@ -1911,16 +1971,19 @@ mode can be enabled by setting the
 .Xr sysctl 8
 variable to a non-zero value.
 .Pp
-.Ss PIPE AND QUEUE CONFIGURATION
+.Ss PIPE, QUEUE AND SCHEDULER CONFIGURATION
 The
-.Em pipe
-and
+.Em pipe ,
 .Em queue
+and
+.Em scheduler
 configuration commands are the following:
 .Bd -ragged -offset indent
 .Cm pipe Ar number Cm config Ar pipe-configuration
 .Pp
 .Cm queue Ar number Cm config Ar queue-configuration
+.Pp
+.Cm sched Ar number Cm config Ar sched-configuration
 .Ed
 .Pp
 The following parameters can be configured for a pipe:
@@ -2072,6 +2135,41 @@ the same pipe, which specifies the aggregate rate for the set of queues.
 Specifies the weight to be used for flows matching this queue.
 The weight must be in the range 1..100, and defaults to 1.
 .El
+.Pp
+The following parameters can be configured for a scheduler:
+.Pp
+.Bl -tag -width indent -compact
+.It Cm type Ar {fifo | wf2qp | rr | qfq}
+specifies the scheduling algorithm to use.
+.Bl -tag -width indent -compact
+.It cm fifo
+is just a FIFO scheduler (which means that all packets
+are stored in the same queue as they arrive to the scheduler).
+FIFO has O(1) per-packet time complexity, with very low
+constants (estimate 60-80ns on a 2Ghz desktop machine)
+but gives no service guarantees.
+.It Cm wf2qp
+implements the WF2Q+ algorithm, which is a Weighted Fair Queueing
+algorithm which permits flows to share bandwidth according to
+their weights. Note that weights are not priorities; even a flow
+with a minuscule weight will never starve.
+WF2Q+ has O(log N) per-packet processing cost, where N is the number
+of flows, and is the default algorithm used by previous versions
+dummynet's queues.
+.It Cm rr
+implements the Deficit Round Robin algorithm, which has O(1) processing
+costs (roughly, 100-150ns per packet)
+and permits bandwidth allocation according to weights, but
+with poor service guarantees.
+.It Cm qfq
+implements the QFQ algorithm, which is a very fast variant of
+WF2Q+, with similar service guarantees and O(1) processing
+costs (roughly, 200-250ns per packet).
+.El
+.El
+.Pp
+In addition to the type, all parameters allowed for a pipe can also
+be specified for a scheduler.
 .Pp
 Finally, the following parameters can be configured for both
 pipes and queues:

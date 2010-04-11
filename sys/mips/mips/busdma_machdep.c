@@ -55,6 +55,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/bus.h>
 #include <machine/cache.h>
 #include <machine/cpufunc.h>
+#include <machine/cpuinfo.h>
 #include <machine/md_var.h>
 
 #define MAX_BPAGES 64
@@ -124,7 +125,7 @@ SYSCTL_INT(_hw_busdma, OID_AUTO, total_bpages, CTLFLAG_RD, &total_bpages, 0,
 #define DMAMAP_MBUF		0x2
 #define DMAMAP_UIO		0x4
 #define DMAMAP_TYPE_MASK	(DMAMAP_LINEAR|DMAMAP_MBUF|DMAMAP_UIO)
-#define DMAMAP_COHERENT		0x8
+#define DMAMAP_UNCACHEABLE	0x8
 #define DMAMAP_ALLOCATED	0x10
 #define DMAMAP_MALLOCUSED	0x20
 
@@ -340,6 +341,8 @@ bus_dma_tag_create(bus_dma_tag_t parent, bus_size_t alignment,
         newtag->nsegments = nsegments;
 	newtag->maxsegsz = maxsegsz;
 	newtag->flags = flags;
+	if (cpuinfo.cache_coherent_dma)
+		newtag->flags |= BUS_DMA_COHERENT;
 	newtag->ref_count = 1; /* Count ourself */
 	newtag->map_count = 0;
 	if (lockfunc != NULL) {
@@ -517,9 +520,6 @@ bus_dmamap_create(bus_dma_tag_t dmat, int flags, bus_dmamap_t *mapp)
 		bz->map_count++;
 	}
 
-	if (flags & BUS_DMA_COHERENT)
-	    newmap->flags |= DMAMAP_COHERENT;
-
 	CTR4(KTR_BUSDMA, "%s: tag %p tag flags 0x%x error %d",
 	    __func__, dmat, dmat->flags, error);
 
@@ -577,13 +577,23 @@ bus_dmamem_alloc(bus_dma_tag_t dmat, void** vaddr, int flags,
 	*mapp = newmap;
 	newmap->dmat = dmat;
 
+	/*
+	 * If all the memory is coherent with DMA then we don't need to
+	 * do anything special for a coherent mapping request.
+	 */
+	if (dmat->flags & BUS_DMA_COHERENT)
+	    flags &= ~BUS_DMA_COHERENT;
+
+	/*
+	 * Allocate uncacheable memory if all else fails.
+	 */
 	if (flags & BUS_DMA_COHERENT)
-	    newmap->flags |= DMAMAP_COHERENT;
-	
+	    newmap->flags |= DMAMAP_UNCACHEABLE;
+
         if (dmat->maxsize <= PAGE_SIZE &&
 	   (dmat->alignment < dmat->maxsize) &&
 	   !_bus_dma_can_bounce(dmat->lowaddr, dmat->highaddr) && 
-	   !(flags & BUS_DMA_COHERENT)) {
+	   !(newmap->flags & DMAMAP_UNCACHEABLE)) {
                 *vaddr = malloc(dmat->maxsize, M_DEVBUF, mflags);
 		newmap->flags |= DMAMAP_MALLOCUSED;
         } else {
@@ -619,7 +629,7 @@ bus_dmamem_alloc(bus_dma_tag_t dmat, void** vaddr, int flags,
                 return (ENOMEM);
 	}
 
-	if (flags & BUS_DMA_COHERENT) {
+	if (newmap->flags & DMAMAP_UNCACHEABLE) {
 		void *tmpaddr = (void *)*vaddr;
 
 		if (tmpaddr) {
@@ -677,16 +687,21 @@ _bus_dmamap_count_pages(bus_dma_tag_t dmat, bus_dmamap_t map, pmap_t pmap,
 		 * Count the number of bounce pages
 		 * needed in order to complete this transfer
 		 */
-		vaddr = trunc_page((vm_offset_t)buf);
+		vaddr = (vm_offset_t)buf;
 		vendaddr = (vm_offset_t)buf + buflen;
 
 		while (vaddr < vendaddr) {
+			bus_size_t sg_len;
+
 			KASSERT(kernel_pmap == pmap, ("pmap is not kernel pmap"));
+			sg_len = PAGE_SIZE - ((vm_offset_t)vaddr & PAGE_MASK);
 			paddr = pmap_kextract(vaddr);
 			if (((dmat->flags & BUS_DMA_COULD_BOUNCE) != 0) &&
-			    run_filter(dmat, paddr) != 0)
+			    run_filter(dmat, paddr) != 0) {
+				sg_len = roundup2(sg_len, dmat->alignment);
 				map->pagesneeded++;
-			vaddr += PAGE_SIZE;
+			}
+			vaddr += sg_len;
 		}
 		CTR1(KTR_BUSDMA, "pagesneeded= %d\n", map->pagesneeded);
 	}
@@ -1177,8 +1192,13 @@ _bus_dmamap_sync(bus_dma_tag_t dmat, bus_dmamap_t map, bus_dmasync_op_t op)
 		return;
 	if (STAILQ_FIRST(&map->bpages))
 		_bus_dmamap_sync_bp(dmat, map, op);
-	if (map->flags & DMAMAP_COHERENT)
+
+	if (dmat->flags & BUS_DMA_COHERENT)
 		return;
+
+	if (map->flags & DMAMAP_UNCACHEABLE)
+		return;
+
 	CTR3(KTR_BUSDMA, "%s: op %x flags %x", __func__, op, map->flags);
 	switch(map->flags & DMAMAP_TYPE_MASK) {
 	case DMAMAP_LINEAR:

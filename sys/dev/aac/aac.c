@@ -1195,7 +1195,6 @@ aac_bio_command(struct aac_softc *sc, struct aac_command **cmp)
 	cm->cm_complete = aac_bio_complete;
 	cm->cm_private = bp;
 	cm->cm_timestamp = time_uptime;
-	cm->cm_queue = AAC_ADAP_NORM_CMD_QUEUE;
 
 	/* build the FIB */
 	fib = cm->cm_fib;
@@ -1350,7 +1349,6 @@ aac_wait_command(struct aac_command *cm)
 	fwprintf(sc, HBA_FLAGS_DBG_FUNCTION_ENTRY_B, "");
 
 	/* Put the command on the ready queue and get things going */
-	cm->cm_queue = AAC_ADAP_NORM_CMD_QUEUE;
 	aac_enqueue_ready(cm);
 	aac_startio(sc);
 	error = msleep(cm, &sc->aac_io_lock, PRIBIO, "aacwait", 0);
@@ -1400,6 +1398,7 @@ aac_release_command(struct aac_command *cm)
 	cm->cm_flags = 0;
 	cm->cm_complete = NULL;
 	cm->cm_private = NULL;
+	cm->cm_queue = AAC_ADAP_NORM_CMD_QUEUE;
 	cm->cm_fib->Header.XferState = AAC_FIBSTATE_EMPTY;
 	cm->cm_fib->Header.StructType = AAC_FIBTYPE_TFIB;
 	cm->cm_fib->Header.Flags = 0;
@@ -3064,7 +3063,143 @@ out:
 static int
 aac_ioctl_send_raw_srb(struct aac_softc *sc, caddr_t arg)
 {
-	return (EINVAL);
+	struct aac_command *cm;
+	struct aac_event *event;
+	struct aac_fib *fib;
+	struct aac_srb *srbcmd, *user_srb;
+	struct aac_sg_entry *sge;
+	struct aac_sg_entry64 *sge64;
+	void *srb_sg_address, *ureply;
+	uint32_t fibsize, srb_sg_bytecount;
+	int error, transfer_data;
+
+	fwprintf(sc, HBA_FLAGS_DBG_FUNCTION_ENTRY_B, "");
+
+	cm = NULL;
+	transfer_data = 0;
+	fibsize = 0;
+	user_srb = (struct aac_srb *)arg;
+
+	mtx_lock(&sc->aac_io_lock);
+	if (aac_alloc_command(sc, &cm)) {
+		 event = malloc(sizeof(struct aac_event), M_AACBUF,
+		    M_NOWAIT | M_ZERO);
+		if (event == NULL) {
+			error = EBUSY;
+			mtx_unlock(&sc->aac_io_lock);
+			goto out;
+		}
+		event->ev_type = AAC_EVENT_CMFREE;
+		event->ev_callback = aac_ioctl_event;
+		event->ev_arg = &cm;
+		aac_add_event(sc, event);
+		msleep(cm, &sc->aac_io_lock, 0, "aacraw", 0);
+	}
+	mtx_unlock(&sc->aac_io_lock);
+
+	cm->cm_data = NULL;
+	fib = cm->cm_fib;
+	srbcmd = (struct aac_srb *)fib->data;
+	error = copyin(&user_srb->data_len, &fibsize, sizeof(uint32_t));
+	if (error != 0)
+		goto out;
+	if (fibsize > (sc->aac_max_fib_size - sizeof(struct aac_fib_header))) {
+		error = EINVAL;
+		goto out;
+	}
+	error = copyin(user_srb, srbcmd, fibsize);
+	if (error != 0)
+		goto out;
+	srbcmd->function = 0;
+	srbcmd->retry_limit = 0;
+	if (srbcmd->sg_map.SgCount > 1) {
+		error = EINVAL;
+		goto out;
+	}
+
+	/* Retrieve correct SG entries. */
+	if (fibsize == (sizeof(struct aac_srb) +
+	    srbcmd->sg_map.SgCount * sizeof(struct aac_sg_entry))) {
+		sge = srbcmd->sg_map.SgEntry;
+		sge64 = NULL;
+		srb_sg_bytecount = sge->SgByteCount;
+		srb_sg_address = (void *)(uintptr_t)sge->SgAddress;
+	}
+#ifdef __amd64__
+	else if (fibsize == (sizeof(struct aac_srb) +
+	    srbcmd->sg_map.SgCount * sizeof(struct aac_sg_entry64))) {
+		sge = NULL;
+		sge64 = (struct aac_sg_entry64 *)srbcmd->sg_map.SgEntry;
+		srb_sg_bytecount = sge64->SgByteCount;
+		srb_sg_address = (void *)sge64->SgAddress;
+		if (sge64->SgAddress > 0xffffffffull &&
+		    (sc->flags & AAC_FLAGS_SG_64BIT) == 0) {
+			error = EINVAL;
+			goto out;
+		}
+	}
+#endif
+	else {
+		error = EINVAL;
+		goto out;
+	}
+	ureply = (char *)arg + fibsize;
+	srbcmd->data_len = srb_sg_bytecount;
+	if (srbcmd->sg_map.SgCount == 1)
+		transfer_data = 1;
+
+	cm->cm_sgtable = (struct aac_sg_table *)&srbcmd->sg_map;
+	if (transfer_data) {
+		cm->cm_datalen = srb_sg_bytecount;
+		cm->cm_data = malloc(cm->cm_datalen, M_AACBUF, M_NOWAIT);
+		if (cm->cm_data == NULL) {
+			error = ENOMEM;
+			goto out;
+		}
+		if (srbcmd->flags & AAC_SRB_FLAGS_DATA_IN)
+			cm->cm_flags |= AAC_CMD_DATAIN;
+		if (srbcmd->flags & AAC_SRB_FLAGS_DATA_OUT) {
+			cm->cm_flags |= AAC_CMD_DATAOUT;
+			error = copyin(srb_sg_address, cm->cm_data,
+			    cm->cm_datalen);
+			if (error != 0)
+				goto out;
+		}
+	}
+
+	fib->Header.Size = sizeof(struct aac_fib_header) +
+	    sizeof(struct aac_srb);
+	fib->Header.XferState =
+	    AAC_FIBSTATE_HOSTOWNED   |
+	    AAC_FIBSTATE_INITIALISED |
+	    AAC_FIBSTATE_EMPTY       |
+	    AAC_FIBSTATE_FROMHOST    |
+	    AAC_FIBSTATE_REXPECTED   |
+	    AAC_FIBSTATE_NORM        |
+	    AAC_FIBSTATE_ASYNC       |
+	    AAC_FIBSTATE_FAST_RESPONSE;
+	fib->Header.Command = (sc->flags & AAC_FLAGS_SG_64BIT) != 0 ?
+	    ScsiPortCommandU64 : ScsiPortCommand;
+
+	mtx_lock(&sc->aac_io_lock);
+	aac_wait_command(cm);
+	mtx_unlock(&sc->aac_io_lock);
+
+	if (transfer_data && (srbcmd->flags & AAC_SRB_FLAGS_DATA_IN) != 0) {
+		error = copyout(cm->cm_data, srb_sg_address, cm->cm_datalen);
+		if (error != 0)
+			goto out;
+	}
+	error = copyout(fib->data, ureply, sizeof(struct aac_srb_response));
+out:
+	if (cm != NULL) {
+		if (cm->cm_data != NULL)
+			free(cm->cm_data, M_AACBUF);
+		mtx_lock(&sc->aac_io_lock);
+		aac_release_command(cm);
+		mtx_unlock(&sc->aac_io_lock);
+	}
+	return(error);
 }
 
 /*

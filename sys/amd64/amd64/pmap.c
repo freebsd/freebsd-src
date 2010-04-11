@@ -7,7 +7,7 @@
  * All rights reserved.
  * Copyright (c) 2003 Peter Wemm
  * All rights reserved.
- * Copyright (c) 2005-2008 Alan L. Cox <alc@cs.rice.edu>
+ * Copyright (c) 2005-2010 Alan L. Cox <alc@cs.rice.edu>
  * All rights reserved.
  *
  * This code is derived from software contributed to Berkeley by
@@ -152,7 +152,7 @@ __FBSDID("$FreeBSD$");
 
 #if !defined(DIAGNOSTIC)
 #ifdef __GNUC_GNU_INLINE__
-#define PMAP_INLINE	inline
+#define PMAP_INLINE	__attribute__((__gnu_inline__)) inline
 #else
 #define PMAP_INLINE	extern inline
 #endif
@@ -255,6 +255,9 @@ static void pmap_remove_entry(struct pmap *pmap, vm_page_t m,
 static void pmap_insert_entry(pmap_t pmap, vm_offset_t va, vm_page_t m);
 static boolean_t pmap_try_insert_pv_entry(pmap_t pmap, vm_offset_t va,
     vm_page_t m);
+static void pmap_update_pde(pmap_t pmap, vm_offset_t va, pd_entry_t *pde,
+    pd_entry_t newpde);
+static void pmap_update_pde_invalidate(vm_offset_t va, pd_entry_t newpde);
 
 static vm_page_t pmap_allocpde(pmap_t pmap, vm_offset_t va, int flags);
 static vm_page_t pmap_allocpte(pmap_t pmap, vm_offset_t va, int flags);
@@ -573,8 +576,6 @@ pmap_bootstrap(vm_paddr_t *firstaddr)
 
 	virtual_avail = va;
 
-	invltlb();
-
 	/* Initialize the PAT MSR. */
 	pmap_init_pat();
 }
@@ -684,6 +685,15 @@ pmap_init(void)
 	pv_entry_max = shpgperproc * maxproc + cnt.v_page_count;
 	TUNABLE_INT_FETCH("vm.pmap.pv_entries", &pv_entry_max);
 	pv_entry_high_water = 9 * (pv_entry_max / 10);
+
+	/*
+	 * If the kernel is running in a virtual machine on an AMD Family 10h
+	 * processor, then it must assume that MCA is enabled by the virtual
+	 * machine monitor.
+	 */
+	if (vm_guest == VM_GUEST_VM && cpu_vendor_id == CPU_VENDOR_AMD &&
+	    CPUID_TO_FAMILY(cpu_id) == 0x10)
+		workaround_erratum383 = 1;
 
 	/*
 	 * Are large page mappings enabled?
@@ -839,6 +849,45 @@ pmap_cache_bits(int mode, boolean_t is_pde)
 		cache_bits |= PG_NC_PWT;
 	return (cache_bits);
 }
+
+/*
+ * After changing the page size for the specified virtual address in the page
+ * table, flush the corresponding entries from the processor's TLB.  Only the
+ * calling processor's TLB is affected.
+ *
+ * The calling thread must be pinned to a processor.
+ */
+static void
+pmap_update_pde_invalidate(vm_offset_t va, pd_entry_t newpde)
+{
+	u_long cr4;
+
+	if ((newpde & PG_PS) == 0)
+		/* Demotion: flush a specific 2MB page mapping. */
+		invlpg(va);
+	else if ((newpde & PG_G) == 0)
+		/*
+		 * Promotion: flush every 4KB page mapping from the TLB
+		 * because there are too many to flush individually.
+		 */
+		invltlb();
+	else {
+		/*
+		 * Promotion: flush every 4KB page mapping from the TLB,
+		 * including any global (PG_G) mappings.
+		 */
+		cr4 = rcr4();
+		load_cr4(cr4 & ~CR4_PGE);
+		/*
+		 * Although preemption at this point could be detrimental to
+		 * performance, it would not lead to an error.  PG_G is simply
+		 * ignored if CR4.PGE is clear.  Moreover, in case this block
+		 * is re-entered, the load_cr4() either above or below will
+		 * modify CR4.PGE flushing the TLB.
+		 */
+		load_cr4(cr4 | CR4_PGE);
+	}
+}
 #ifdef SMP
 /*
  * For SMP, these functions have to use the IPI mechanism for coherence.
@@ -935,6 +984,69 @@ pmap_invalidate_cache(void)
 	smp_cache_flush();
 	sched_unpin();
 }
+
+struct pde_action {
+	cpumask_t store;	/* processor that updates the PDE */
+	cpumask_t invalidate;	/* processors that invalidate their TLB */
+	vm_offset_t va;
+	pd_entry_t *pde;
+	pd_entry_t newpde;
+};
+
+static void
+pmap_update_pde_action(void *arg)
+{
+	struct pde_action *act = arg;
+
+	if (act->store == PCPU_GET(cpumask))
+		pde_store(act->pde, act->newpde);
+}
+
+static void
+pmap_update_pde_teardown(void *arg)
+{
+	struct pde_action *act = arg;
+
+	if ((act->invalidate & PCPU_GET(cpumask)) != 0)
+		pmap_update_pde_invalidate(act->va, act->newpde);
+}
+
+/*
+ * Change the page size for the specified virtual address in a way that
+ * prevents any possibility of the TLB ever having two entries that map the
+ * same virtual address using different page sizes.  This is the recommended
+ * workaround for Erratum 383 on AMD Family 10h processors.  It prevents a
+ * machine check exception for a TLB state that is improperly diagnosed as a
+ * hardware error.
+ */
+static void
+pmap_update_pde(pmap_t pmap, vm_offset_t va, pd_entry_t *pde, pd_entry_t newpde)
+{
+	struct pde_action act;
+	cpumask_t active, cpumask;
+
+	sched_pin();
+	cpumask = PCPU_GET(cpumask);
+	if (pmap == kernel_pmap)
+		active = all_cpus;
+	else
+		active = pmap->pm_active;
+	if ((active & PCPU_GET(other_cpus)) != 0) {
+		act.store = cpumask;
+		act.invalidate = active;
+		act.va = va;
+		act.pde = pde;
+		act.newpde = newpde;
+		smp_rendezvous_cpus(cpumask | active,
+		    smp_no_rendevous_barrier, pmap_update_pde_action,
+		    pmap_update_pde_teardown, &act);
+	} else {
+		pde_store(pde, newpde);
+		if ((active & cpumask) != 0)
+			pmap_update_pde_invalidate(va, newpde);
+	}
+	sched_unpin();
+}
 #else /* !SMP */
 /*
  * Normal, non-SMP, invalidation functions.
@@ -972,6 +1084,15 @@ pmap_invalidate_cache(void)
 
 	wbinvd();
 }
+
+static void
+pmap_update_pde(pmap_t pmap, vm_offset_t va, pd_entry_t *pde, pd_entry_t newpde)
+{
+
+	pde_store(pde, newpde);
+	if (pmap == kernel_pmap || pmap->pm_active)
+		pmap_update_pde_invalidate(va, newpde);
+}
 #endif /* !SMP */
 
 static void
@@ -985,7 +1106,8 @@ pmap_invalidate_cache_range(vm_offset_t sva, vm_offset_t eva)
 
 	if (cpu_feature & CPUID_SS)
 		; /* If "Self Snoop" is supported, do nothing. */
-	else if (cpu_feature & CPUID_CLFSH) {
+	else if ((cpu_feature & CPUID_CLFSH) != 0 &&
+		 eva - sva < 2 * 1024 * 1024) {
 
 		/*
 		 * Otherwise, do per-cache line flush.  Use the mfence
@@ -1002,7 +1124,8 @@ pmap_invalidate_cache_range(vm_offset_t sva, vm_offset_t eva)
 
 		/*
 		 * No targeted cache flush methods are supported by CPU,
-		 * globally invalidate cache as a last resort.
+		 * or the supplied range is bigger than 2MB.
+		 * Globally invalidate cache.
 		 */
 		pmap_invalidate_cache();
 	}
@@ -2352,7 +2475,10 @@ pmap_demote_pde(pmap_t pmap, pd_entry_t *pde, vm_offset_t va)
 	 * processor changing the setting of PG_A and/or PG_M between
 	 * the read above and the store below. 
 	 */
-	pde_store(pde, newpde);	
+	if (workaround_erratum383)
+		pmap_update_pde(pmap, va, pde, newpde);
+	else
+		pde_store(pde, newpde);
 
 	/*
 	 * Invalidate a stale recursive mapping of the page table page.
@@ -2968,7 +3094,10 @@ setpte:
 	/*
 	 * Map the superpage.
 	 */
-	pde_store(pde, PG_PS | newpde);
+	if (workaround_erratum383)
+		pmap_update_pde(pmap, va, pde, PG_PS | newpde);
+	else
+		pde_store(pde, PG_PS | newpde);
 
 	pmap_pde_promotions++;
 	CTR2(KTR_PMAP, "pmap_promote_pde: success for va %#lx"

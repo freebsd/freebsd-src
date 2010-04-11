@@ -4,6 +4,7 @@
 
 MOD=	pf
 SRCS=	pf_snmp.c
+CFLAGS+= -DSNMPTREE_TYPES
 
 XSYM=	begemotPf
 DEFS=	${MOD}_tree.def

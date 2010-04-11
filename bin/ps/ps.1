@@ -29,7 +29,7 @@
 .\"     @(#)ps.1	8.3 (Berkeley) 4/18/94
 .\" $FreeBSD$
 .\"
-.Dd July 9, 2009
+.Dd March 17, 2010
 .Dt PS 1
 .Os
 .Sh NAME
@@ -284,11 +284,10 @@ The percentage of real memory used by this process.
 The flags associated with the process as in
 the include file
 .In sys/proc.h :
-.Bl -column P_STOPPED_SINGLE 0x4000000
+.Bl -column P_SINGLE_BOUNDARY 0x40000000
 .It Dv "P_ADVLOCK" Ta No "0x00001	Process may hold a POSIX advisory lock"
 .It Dv "P_CONTROLT" Ta No "0x00002	Has a controlling terminal"
 .It Dv "P_KTHREAD" Ta No "0x00004	Kernel thread"
-.It Dv "P_NOLOAD" Ta No "0x00008	Ignore during load avg calculations"
 .It Dv "P_PPWAIT" Ta No "0x00010	Parent is waiting for child to exec/exit"
 .It Dv "P_PROFIL" Ta No "0x00020	Has started profiling"
 .It Dv "P_STOPPROF" Ta No "0x00040	Has thread in requesting to stop prof"
@@ -305,8 +304,14 @@ the include file
 .It Dv "P_STOPPED_SINGLE" Ta No "0x80000	Only one thread can continue"
 .It Dv "P_PROTECTED" Ta No "0x100000	Do not kill on memory overcommit"
 .It Dv "P_SIGEVENT" Ta No "0x200000	Process pending signals changed"
+.It Dv "P_SINGLE_BOUNDARY" Ta No "0x400000	Threads should suspend at user boundary"
+.It Dv "P_HWPMC" Ta No "0x800000	Process is using HWPMCs"
 .It Dv "P_JAILED" Ta No "0x1000000	Process is in jail"
 .It Dv "P_INEXEC" Ta No "0x4000000	Process is in execve()"
+.It Dv "P_STATCHILD" Ta No "0x8000000	Child process stopped or exited"
+.It Dv "P_INMEM" Ta No "0x10000000	Loaded into memory"
+.It Dv "P_SWAPPINGOUT" Ta No "0x20000000	Process is being swapped out"
+.It Dv "P_SWAPPINGIN" Ta No "0x40000000	Process is being swapped in"
 .El
 .It Cm label
 The MAC label of the process.
@@ -474,7 +479,12 @@ command and arguments
 .It Cm cpu
 short-term CPU usage factor (for scheduling)
 .It Cm etime
-elapsed running time
+elapsed running time, format
+.Op days- Ns
+.Op hours: Ns
+minutes:seconds.
+.It Cm etimes
+elapsed running time, in decimal integer seconds
 .It Cm flags
 the process flags, in hexadecimal (alias
 .Cm f )
@@ -615,6 +625,13 @@ wait channel (as a symbolic name)
 .It Cm xstat
 exit or stop status (valid only for stopped or zombie process)
 .El
+.Pp
+Note that the
+.Cm pending
+column displays bitmask of signals pending in the process queue when
+.Fl H
+option is not specified, otherwise the per-thread queue of pending signals
+is shown.
 .Sh ENVIRONMENT
 The following environment variables affect the execution of
 .Nm :

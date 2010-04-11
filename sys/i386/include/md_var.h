@@ -73,6 +73,7 @@ extern	int	szosigcode;
 #endif
 extern	uint32_t *vm_page_dump;
 extern	int	vm_page_dump_size;
+extern	int	workaround_erratum383;
 
 typedef void alias_for_inthand_t(u_int cs, u_int ef, u_int esp, u_int ss);
 struct	thread;

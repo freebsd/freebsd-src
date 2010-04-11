@@ -86,7 +86,7 @@ __opendir2(const char *name, int flags)
 		errno = ENOTDIR;
 		return (NULL);
 	}
-	if ((fd = _open(name, O_RDONLY | O_NONBLOCK)) == -1)
+	if ((fd = _open(name, O_RDONLY | O_NONBLOCK | O_DIRECTORY)) == -1)
 		return (NULL);
 
 	return __opendir_common(fd, name, flags);
@@ -200,7 +200,7 @@ __opendir_common(int fd, const char *name, int flags)
 		 */
 		if (flags & DTF_REWIND) {
 			(void)_close(fd);
-			if ((fd = _open(name, O_RDONLY)) == -1) {
+			if ((fd = _open(name, O_RDONLY | O_DIRECTORY)) == -1) {
 				saved_errno = errno;
 				free(buf);
 				free(dirp);

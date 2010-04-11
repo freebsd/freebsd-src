@@ -294,10 +294,10 @@ uint32_t
 isp_handle_index(ispsoftc_t *isp, uint32_t handle)
 {
 	if (!ISP_VALID_HANDLE(isp, handle)) {
-		return (handle & ISP_HANDLE_CMD_MASK);
-	} else {
 		isp_prt(isp, ISP_LOGERR, "%s: bad handle 0x%x", __func__, handle);
 		return (ISP_BAD_HANDLE_INDEX);
+	} else {
+		return (handle & ISP_HANDLE_CMD_MASK);
 	}
 }
 
@@ -668,7 +668,7 @@ isp_clear_commands(ispsoftc_t *isp)
 			ctio->ct_header.rqs_entry_type = RQSTYPE_CTIO2;
 		} else {
 			ct_entry_t *ctio = (ct_entry_t *) local;
-			ctio->ct_syshandle = hdp->handle & 0xffff;
+			ctio->ct_syshandle = hdp->handle;
 			ctio->ct_status = CT_HBA_RESET & 0xff;
 			ctio->ct_header.rqs_entry_type = RQSTYPE_CTIO;
 		}
@@ -1132,17 +1132,36 @@ isp_get_24xx_abrt(ispsoftc_t *isp, isp24xx_abrt_t *src, isp24xx_abrt_t *dst)
 
 
 void
+isp_get_rio1(ispsoftc_t *isp, isp_rio1_t *r1src, isp_rio1_t *r1dst)
+{
+	const int lim = sizeof (r1dst->req_handles) / sizeof (r1dst->req_handles[0]);
+	int i;
+	isp_get_hdr(isp, &r1src->req_header, &r1dst->req_header);
+	if (r1dst->req_header.rqs_seqno > lim) {
+		r1dst->req_header.rqs_seqno = lim;
+	}
+	for (i = 0; i < r1dst->req_header.rqs_seqno; i++) {
+		ISP_IOXGET_32(isp, &r1src->req_handles[i], r1dst->req_handles[i]);
+	}
+	while (i < lim) {
+		r1dst->req_handles[i++] = 0;
+	}
+}
+
+void
 isp_get_rio2(ispsoftc_t *isp, isp_rio2_t *r2src, isp_rio2_t *r2dst)
 {
+	const int lim = sizeof (r2dst->req_handles) / sizeof (r2dst->req_handles[0]);
 	int i;
+
 	isp_get_hdr(isp, &r2src->req_header, &r2dst->req_header);
-	if (r2dst->req_header.rqs_seqno > 30) {
-		r2dst->req_header.rqs_seqno = 30;
+	if (r2dst->req_header.rqs_seqno > lim) {
+		r2dst->req_header.rqs_seqno = lim;
 	}
 	for (i = 0; i < r2dst->req_header.rqs_seqno; i++) {
 		ISP_IOXGET_16(isp, &r2src->req_handles[i], r2dst->req_handles[i]);
 	}
-	while (i < 30) {
+	while (i < lim) {
 		r2dst->req_handles[i++] = 0;
 	}
 }
@@ -2240,7 +2259,13 @@ isp_allocate_xs_tgt(ispsoftc_t *isp, void *xs, uint32_t *handlep)
 	hdp->cmd = xs;
 	hdp->handle = (hdp - isp->isp_tgtlist);
 	hdp->handle |= (ISP_HANDLE_TARGET << ISP_HANDLE_USAGE_SHIFT);
-	hdp->handle |= (isp->isp_seqno++ << ISP_HANDLE_SEQ_SHIFT);
+	/*
+	 * Target handles for SCSI cards are only 16 bits, so
+	 * sequence number protection will be ommitted.
+	 */
+	if (IS_FC(isp)) {
+		hdp->handle |= (isp->isp_seqno++ << ISP_HANDLE_SEQ_SHIFT);
+	}
 	*handlep = hdp->handle;
 	return (0);
 }

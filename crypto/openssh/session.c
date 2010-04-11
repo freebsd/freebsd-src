@@ -1,4 +1,4 @@
-/* $OpenBSD: session.c,v 1.246 2009/04/17 19:23:06 stevesk Exp $ */
+/* $OpenBSD: session.c,v 1.252 2010/03/07 11:57:13 dtucker Exp $ */
 /*
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
  *                    All rights reserved
@@ -143,9 +143,10 @@ static int sessions_first_unused = -1;
 static int sessions_nalloc = 0;
 static Session *sessions = NULL;
 
-#define SUBSYSTEM_NONE		0
-#define SUBSYSTEM_EXT		1
-#define SUBSYSTEM_INT_SFTP	2
+#define SUBSYSTEM_NONE			0
+#define SUBSYSTEM_EXT			1
+#define SUBSYSTEM_INT_SFTP		2
+#define SUBSYSTEM_INT_SFTP_ERROR	3
 
 #ifdef HAVE_LOGIN_CAP
 login_cap_t *lc;
@@ -270,6 +271,8 @@ do_authenticated(Authctxt *authctxt)
 	/* setup the channel layer */
 	if (!no_port_forwarding_flag && options.allow_tcp_forwarding)
 		channel_permit_all_opens();
+
+	auth_debug_send();
 
 	if (compat20)
 		do_authenticated2(authctxt);
@@ -786,17 +789,19 @@ do_exec(Session *s, const char *command)
 	if (options.adm_forced_command) {
 		original_command = command;
 		command = options.adm_forced_command;
-		if (IS_INTERNAL_SFTP(command))
-			s->is_subsystem = SUBSYSTEM_INT_SFTP;
-		else if (s->is_subsystem)
+		if (IS_INTERNAL_SFTP(command)) {
+			s->is_subsystem = s->is_subsystem ?
+			    SUBSYSTEM_INT_SFTP : SUBSYSTEM_INT_SFTP_ERROR;
+		} else if (s->is_subsystem)
 			s->is_subsystem = SUBSYSTEM_EXT;
 		debug("Forced command (config) '%.900s'", command);
 	} else if (forced_command) {
 		original_command = command;
 		command = forced_command;
-		if (IS_INTERNAL_SFTP(command))
-			s->is_subsystem = SUBSYSTEM_INT_SFTP;
-		else if (s->is_subsystem)
+		if (IS_INTERNAL_SFTP(command)) {
+			s->is_subsystem = s->is_subsystem ?
+			    SUBSYSTEM_INT_SFTP : SUBSYSTEM_INT_SFTP_ERROR;
+		} else if (s->is_subsystem)
 			s->is_subsystem = SUBSYSTEM_EXT;
 		debug("Forced command (key option) '%.900s'", command);
 	}
@@ -1404,26 +1409,32 @@ static void
 do_nologin(struct passwd *pw)
 {
 	FILE *f = NULL;
-	char buf[1024];
+	char buf[1024], *nl, *def_nl = _PATH_NOLOGIN;
+	struct stat sb;
 
 #ifdef HAVE_LOGIN_CAP
-	if (!login_getcapbool(lc, "ignorenologin", 0) && pw->pw_uid)
-		f = fopen(login_getcapstr(lc, "nologin", _PATH_NOLOGIN,
-		    _PATH_NOLOGIN), "r");
+	if (login_getcapbool(lc, "ignorenologin", 0) && pw->pw_uid)
+		return;
+	nl = login_getcapstr(lc, "nologin", def_nl, def_nl);
 #else
-	if (pw->pw_uid)
-		f = fopen(_PATH_NOLOGIN, "r");
+	if (pw->pw_uid == 0)
+		return;
+	nl = def_nl;
 #endif
-	if (f) {
-		/* /etc/nologin exists.  Print its contents and exit. */
-		logit("User %.100s not allowed because %s exists",
-		    pw->pw_name, _PATH_NOLOGIN);
-		while (fgets(buf, sizeof(buf), f))
-			fputs(buf, stderr);
-		fclose(f);
-		fflush(NULL);
-		exit(254);
+	if (stat(nl, &sb) == -1) {
+		if (nl != def_nl)
+			xfree(nl);
+		return;
 	}
+
+	/* /etc/nologin exists.  Print its contents if we can and exit. */
+	logit("User %.100s not allowed because %s exists", pw->pw_name, nl);
+	if ((f = fopen(nl, "r")) != NULL) {
+ 		while (fgets(buf, sizeof(buf), f))
+ 			fputs(buf, stderr);
+ 		fclose(f);
+ 	}
+	exit(254);
 }
 
 /*
@@ -1551,6 +1562,24 @@ do_setusercontext(struct passwd *pw)
 		}
 # endif /* USE_LIBIAF */
 #endif
+#ifdef HAVE_SETPCRED
+		/*
+		 * If we have a chroot directory, we set all creds except real
+		 * uid which we will need for chroot.  If we don't have a
+		 * chroot directory, we don't override anything.
+		 */
+		{
+			char **creds = NULL, *chroot_creds[] =
+			    { "REAL_USER=root", NULL };
+
+			if (options.chroot_directory != NULL &&
+			    strcasecmp(options.chroot_directory, "none") != 0)
+				creds = chroot_creds;
+
+			if (setpcred(pw->pw_name, creds) == -1)
+				fatal("Failed to set process credentials");
+		}
+#endif /* HAVE_SETPCRED */
 
 		if (options.chroot_directory != NULL &&
 		    strcasecmp(options.chroot_directory, "none") != 0) {
@@ -1563,10 +1592,6 @@ do_setusercontext(struct passwd *pw)
 			free(chroot_path);
 		}
 
-#ifdef HAVE_SETPCRED
-		if (setpcred(pw->pw_name, (char **)NULL) == -1)
-			fatal("Failed to set process credentials");
-#endif /* HAVE_SETPCRED */
 #ifdef HAVE_LOGIN_CAP
 		if (setusercontext(lc, pw, pw->pw_uid, LOGIN_SETUSER) < 0) {
 			perror("unable to set user context (setuser)");
@@ -1813,7 +1838,11 @@ do_child(Session *s, const char *command)
 	/* restore SIGPIPE for child */
 	signal(SIGPIPE, SIG_DFL);
 
-	if (s->is_subsystem == SUBSYSTEM_INT_SFTP) {
+	if (s->is_subsystem == SUBSYSTEM_INT_SFTP_ERROR) {
+		printf("This service allows sftp connections only.\n");
+		fflush(NULL);
+		exit(1);
+	} else if (s->is_subsystem == SUBSYSTEM_INT_SFTP) {
 		extern int optind, optreset;
 		int i;
 		char *p, *args;
@@ -1826,8 +1855,13 @@ do_child(Session *s, const char *command)
 		argv[i] = NULL;
 		optind = optreset = 1;
 		__progname = argv[0];
+#ifdef WITH_SELINUX
+		ssh_selinux_change_context("sftpd_t");
+#endif
 		exit(sftp_server_main(i, argv, s->pw));
 	}
+
+	fflush(NULL);
 
 	if (options.use_login) {
 		launch_login(pw, hostname);
@@ -2139,16 +2173,16 @@ session_subsystem_req(Session *s)
 		if (strcmp(subsys, options.subsystem_name[i]) == 0) {
 			prog = options.subsystem_command[i];
 			cmd = options.subsystem_args[i];
-			if (!strcmp(INTERNAL_SFTP_NAME, prog)) {
+			if (strcmp(INTERNAL_SFTP_NAME, prog) == 0) {
 				s->is_subsystem = SUBSYSTEM_INT_SFTP;
-			} else if (stat(prog, &st) < 0) {
-				error("subsystem: cannot stat %s: %s", prog,
-				    strerror(errno));
-				break;
+				debug("subsystem: %s", prog);
 			} else {
+				if (stat(prog, &st) < 0)
+					debug("subsystem: cannot stat %s: %s",
+					    prog, strerror(errno));
 				s->is_subsystem = SUBSYSTEM_EXT;
+				debug("subsystem: exec() %s", cmd);
 			}
-			debug("subsystem: exec() %s", cmd);
 			success = do_exec(s, cmd) == 0;
 			break;
 		}

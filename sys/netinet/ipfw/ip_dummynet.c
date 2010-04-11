@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1998-2002 Luigi Rizzo, Universita` di Pisa
+ * Copyright (c) 1998-2002,2010 Luigi Rizzo, Universita` di Pisa
  * Portions Copyright (c) 2000 Akamba Corp.
  * All rights reserved
  *
@@ -28,31 +28,11 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#define	DUMMYNET_DEBUG
+/*
+ * Configuration and internal object management for dummynet.
+ */
 
 #include "opt_inet6.h"
-
-/*
- * This module implements IP dummynet, a bandwidth limiter/delay emulator
- * used in conjunction with the ipfw package.
- * Description of the data structures used is in ip_dummynet.h
- * Here you mainly find the following blocks of code:
- *  + variable declarations;
- *  + heap management functions;
- *  + scheduler and dummynet functions;
- *  + configuration and initialization.
- *
- * NOTA BENE: critical sections are protected by the "dummynet lock".
- *
- * Most important Changes:
- *
- * 011004: KLDable
- * 010124: Fixed WF2Q behaviour
- * 010122: Fixed spl protection.
- * 000601: WF2Q support
- * 000106: large rewrite, use heaps to handle very many pipes.
- * 980513:	initial release
- */
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -67,781 +47,35 @@ __FBSDID("$FreeBSD$");
 #include <sys/socket.h>
 #include <sys/socketvar.h>
 #include <sys/time.h>
-#include <sys/sysctl.h>
 #include <sys/taskqueue.h>
 #include <net/if.h>	/* IFNAMSIZ, struct ifaddr, ifq head, lock.h mutex.h */
-#include <net/netisr.h>
 #include <netinet/in.h>
-#include <netinet/ip.h>		/* ip_len, ip_off */
 #include <netinet/ip_var.h>	/* ip_output(), IP_FORWARDING */
 #include <netinet/ip_fw.h>
 #include <netinet/ipfw/ip_fw_private.h>
+#include <netinet/ipfw/dn_heap.h>
 #include <netinet/ip_dummynet.h>
+#include <netinet/ipfw/ip_dn_private.h>
+#include <netinet/ipfw/dn_sched.h>
 
-#include <netinet/if_ether.h> /* various ether_* routines */
+/* which objects to copy */
+#define DN_C_LINK 	0x01
+#define DN_C_SCH	0x02
+#define DN_C_FLOW	0x04
+#define DN_C_FS		0x08
+#define DN_C_QUEUE	0x10
 
-#include <netinet/ip6.h>       /* for ip6_input, ip6_output prototypes */
-#include <netinet6/ip6_var.h>
+/* we use this argument in case of a schk_new */
+struct schk_new_arg {
+	struct dn_alg *fp;
+	struct dn_sch *sch;
+};
 
-/*
- * We keep a private variable for the simulation time, but we could
- * probably use an existing one ("softticks" in sys/kern/kern_timeout.c)
- */
-static dn_key curr_time = 0 ; /* current simulation time */
-
-static int dn_hash_size = 64 ;	/* default hash size */
-
-/* statistics on number of queue searches and search steps */
-static long searches, search_steps ;
-static int pipe_expire = 1 ;   /* expire queue if empty */
-static int dn_max_ratio = 16 ; /* max queues/buckets ratio */
-
-static long pipe_slot_limit = 100; /* Foot shooting limit for pipe queues. */
-static long pipe_byte_limit = 1024 * 1024;
-
-static int red_lookup_depth = 256;	/* RED - default lookup table depth */
-static int red_avg_pkt_size = 512;      /* RED - default medium packet size */
-static int red_max_pkt_size = 1500;     /* RED - default max packet size */
-
-static struct timeval prev_t;
-static long tick_last;			/* Last tick duration (usec). */
-static long tick_delta;			/* Last vs standard tick diff (usec). */
-static long tick_delta_sum;		/* Accumulated tick difference (usec).*/
-static long tick_adjustment;		/* Tick adjustments done. */
-static long tick_lost;			/* Lost(coalesced) ticks number. */
-/* Adjusted vs non-adjusted curr_time difference (ticks). */
-static long tick_diff;
-
-static int		io_fast;
-static unsigned long	io_pkt;
-static unsigned long	io_pkt_fast;
-static unsigned long	io_pkt_drop;
-
-/*
- * Three heaps contain queues and pipes that the scheduler handles:
- *
- * ready_heap contains all dn_flow_queue related to fixed-rate pipes.
- *
- * wfq_ready_heap contains the pipes associated with WF2Q flows
- *
- * extract_heap contains pipes associated with delay lines.
- *
- */
-
-MALLOC_DEFINE(M_DUMMYNET, "dummynet", "dummynet heap");
-
-static struct dn_heap ready_heap, extract_heap, wfq_ready_heap ;
-
-static int	heap_init(struct dn_heap *h, int size);
-static int	heap_insert (struct dn_heap *h, dn_key key1, void *p);
-static void	heap_extract(struct dn_heap *h, void *obj);
-static void	transmit_event(struct dn_pipe *pipe, struct mbuf **head,
-		    struct mbuf **tail);
-static void	ready_event(struct dn_flow_queue *q, struct mbuf **head,
-		    struct mbuf **tail);
-static void	ready_event_wfq(struct dn_pipe *p, struct mbuf **head,
-		    struct mbuf **tail);
-
-#define	HASHSIZE	16
-#define	HASH(num)	((((num) >> 8) ^ ((num) >> 4) ^ (num)) & 0x0f)
-static struct dn_pipe_head	pipehash[HASHSIZE];	/* all pipes */
-static struct dn_flow_set_head	flowsethash[HASHSIZE];	/* all flowsets */
-
+/*---- callout hooks. ----*/
 static struct callout dn_timeout;
-
-extern	void (*bridge_dn_p)(struct mbuf *, struct ifnet *);
-
-#ifdef SYSCTL_NODE
-SYSCTL_DECL(_net_inet);
-SYSCTL_DECL(_net_inet_ip);
-
-SYSCTL_NODE(_net_inet_ip, OID_AUTO, dummynet, CTLFLAG_RW, 0, "Dummynet");
-SYSCTL_INT(_net_inet_ip_dummynet, OID_AUTO, hash_size,
-    CTLFLAG_RW, &dn_hash_size, 0, "Default hash table size");
-#if 0	/* curr_time is 64 bit */
-SYSCTL_LONG(_net_inet_ip_dummynet, OID_AUTO, curr_time,
-    CTLFLAG_RD, &curr_time, 0, "Current tick");
-#endif
-SYSCTL_INT(_net_inet_ip_dummynet, OID_AUTO, ready_heap,
-    CTLFLAG_RD, &ready_heap.size, 0, "Size of ready heap");
-SYSCTL_INT(_net_inet_ip_dummynet, OID_AUTO, extract_heap,
-    CTLFLAG_RD, &extract_heap.size, 0, "Size of extract heap");
-SYSCTL_LONG(_net_inet_ip_dummynet, OID_AUTO, searches,
-    CTLFLAG_RD, &searches, 0, "Number of queue searches");
-SYSCTL_LONG(_net_inet_ip_dummynet, OID_AUTO, search_steps,
-    CTLFLAG_RD, &search_steps, 0, "Number of queue search steps");
-SYSCTL_INT(_net_inet_ip_dummynet, OID_AUTO, expire,
-    CTLFLAG_RW, &pipe_expire, 0, "Expire queue if empty");
-SYSCTL_INT(_net_inet_ip_dummynet, OID_AUTO, max_chain_len,
-    CTLFLAG_RW, &dn_max_ratio, 0,
-    "Max ratio between dynamic queues and buckets");
-SYSCTL_INT(_net_inet_ip_dummynet, OID_AUTO, red_lookup_depth,
-    CTLFLAG_RD, &red_lookup_depth, 0, "Depth of RED lookup table");
-SYSCTL_INT(_net_inet_ip_dummynet, OID_AUTO, red_avg_pkt_size,
-    CTLFLAG_RD, &red_avg_pkt_size, 0, "RED Medium packet size");
-SYSCTL_INT(_net_inet_ip_dummynet, OID_AUTO, red_max_pkt_size,
-    CTLFLAG_RD, &red_max_pkt_size, 0, "RED Max packet size");
-SYSCTL_LONG(_net_inet_ip_dummynet, OID_AUTO, tick_delta,
-    CTLFLAG_RD, &tick_delta, 0, "Last vs standard tick difference (usec).");
-SYSCTL_LONG(_net_inet_ip_dummynet, OID_AUTO, tick_delta_sum,
-    CTLFLAG_RD, &tick_delta_sum, 0, "Accumulated tick difference (usec).");
-SYSCTL_LONG(_net_inet_ip_dummynet, OID_AUTO, tick_adjustment,
-    CTLFLAG_RD, &tick_adjustment, 0, "Tick adjustments done.");
-SYSCTL_LONG(_net_inet_ip_dummynet, OID_AUTO, tick_diff,
-    CTLFLAG_RD, &tick_diff, 0,
-    "Adjusted vs non-adjusted curr_time difference (ticks).");
-SYSCTL_LONG(_net_inet_ip_dummynet, OID_AUTO, tick_lost,
-    CTLFLAG_RD, &tick_lost, 0,
-    "Number of ticks coalesced by dummynet taskqueue.");
-SYSCTL_INT(_net_inet_ip_dummynet, OID_AUTO, io_fast,
-    CTLFLAG_RW, &io_fast, 0, "Enable fast dummynet io.");
-SYSCTL_ULONG(_net_inet_ip_dummynet, OID_AUTO, io_pkt,
-    CTLFLAG_RD, &io_pkt, 0,
-    "Number of packets passed to dummynet.");
-SYSCTL_ULONG(_net_inet_ip_dummynet, OID_AUTO, io_pkt_fast,
-    CTLFLAG_RD, &io_pkt_fast, 0,
-    "Number of packets bypassed dummynet scheduler.");
-SYSCTL_ULONG(_net_inet_ip_dummynet, OID_AUTO, io_pkt_drop,
-    CTLFLAG_RD, &io_pkt_drop, 0,
-    "Number of packets dropped by dummynet.");
-SYSCTL_LONG(_net_inet_ip_dummynet, OID_AUTO, pipe_slot_limit,
-    CTLFLAG_RW, &pipe_slot_limit, 0, "Upper limit in slots for pipe queue.");
-SYSCTL_LONG(_net_inet_ip_dummynet, OID_AUTO, pipe_byte_limit,
-    CTLFLAG_RW, &pipe_byte_limit, 0, "Upper limit in bytes for pipe queue.");
-#endif
-
-#ifdef DUMMYNET_DEBUG
-int	dummynet_debug = 0;
-#ifdef SYSCTL_NODE
-SYSCTL_INT(_net_inet_ip_dummynet, OID_AUTO, debug, CTLFLAG_RW, &dummynet_debug,
-	    0, "control debugging printfs");
-#endif
-#define	DPRINTF(X)	if (dummynet_debug) printf X
-#else
-#define	DPRINTF(X)
-#endif
-
 static struct task	dn_task;
 static struct taskqueue	*dn_tq = NULL;
-static void dummynet_task(void *, int);
 
-static struct mtx dummynet_mtx;
-#define	DUMMYNET_LOCK_INIT() \
-	mtx_init(&dummynet_mtx, "dummynet", NULL, MTX_DEF)
-#define	DUMMYNET_LOCK_DESTROY()	mtx_destroy(&dummynet_mtx)
-#define	DUMMYNET_LOCK()		mtx_lock(&dummynet_mtx)
-#define	DUMMYNET_UNLOCK()	mtx_unlock(&dummynet_mtx)
-#define	DUMMYNET_LOCK_ASSERT()	mtx_assert(&dummynet_mtx, MA_OWNED)
-
-static int	config_pipe(struct dn_pipe *p);
-static int	ip_dn_ctl(struct sockopt *sopt);
-
-static void	dummynet(void *);
-static void	dummynet_flush(void);
-static void	dummynet_send(struct mbuf *);
-static int	dummynet_io(struct mbuf **, int , struct ip_fw_args *);
-
-/*
- * Flow queue is idle if:
- *   1) it's empty for at least 1 tick
- *   2) it has invalid timestamp (WF2Q case)
- *   3) parent pipe has no 'exhausted' burst.
- */
-#define QUEUE_IS_IDLE(q) ((q)->head == NULL && (q)->S == (q)->F + 1 && \
-	curr_time > (q)->idle_time + 1 && \
-	((q)->numbytes + (curr_time - (q)->idle_time - 1) * \
-	(q)->fs->pipe->bandwidth >= (q)->fs->pipe->burst))
-
-/*
- * Heap management functions.
- *
- * In the heap, first node is element 0. Children of i are 2i+1 and 2i+2.
- * Some macros help finding parent/children so we can optimize them.
- *
- * heap_init() is called to expand the heap when needed.
- * Increment size in blocks of 16 entries.
- * XXX failure to allocate a new element is a pretty bad failure
- * as we basically stall a whole queue forever!!
- * Returns 1 on error, 0 on success
- */
-#define HEAP_FATHER(x) ( ( (x) - 1 ) / 2 )
-#define HEAP_LEFT(x) ( 2*(x) + 1 )
-#define HEAP_IS_LEFT(x) ( (x) & 1 )
-#define HEAP_RIGHT(x) ( 2*(x) + 2 )
-#define	HEAP_SWAP(a, b, buffer) { buffer = a ; a = b ; b = buffer ; }
-#define HEAP_INCREMENT	15
-
-static int
-heap_init(struct dn_heap *h, int new_size)
-{
-    struct dn_heap_entry *p;
-
-    if (h->size >= new_size ) {
-	printf("dummynet: %s, Bogus call, have %d want %d\n", __func__,
-		h->size, new_size);
-	return 0 ;
-    }
-    new_size = (new_size + HEAP_INCREMENT ) & ~HEAP_INCREMENT ;
-    p = malloc(new_size * sizeof(*p), M_DUMMYNET, M_NOWAIT);
-    if (p == NULL) {
-	printf("dummynet: %s, resize %d failed\n", __func__, new_size );
-	return 1 ; /* error */
-    }
-    if (h->size > 0) {
-	bcopy(h->p, p, h->size * sizeof(*p) );
-	free(h->p, M_DUMMYNET);
-    }
-    h->p = p ;
-    h->size = new_size ;
-    return 0 ;
-}
-
-/*
- * Insert element in heap. Normally, p != NULL, we insert p in
- * a new position and bubble up. If p == NULL, then the element is
- * already in place, and key is the position where to start the
- * bubble-up.
- * Returns 1 on failure (cannot allocate new heap entry)
- *
- * If offset > 0 the position (index, int) of the element in the heap is
- * also stored in the element itself at the given offset in bytes.
- */
-#define SET_OFFSET(heap, node) \
-    if (heap->offset > 0) \
-	    *((int *)((char *)(heap->p[node].object) + heap->offset)) = node ;
-/*
- * RESET_OFFSET is used for sanity checks. It sets offset to an invalid value.
- */
-#define RESET_OFFSET(heap, node) \
-    if (heap->offset > 0) \
-	    *((int *)((char *)(heap->p[node].object) + heap->offset)) = -1 ;
-static int
-heap_insert(struct dn_heap *h, dn_key key1, void *p)
-{
-    int son = h->elements ;
-
-    if (p == NULL)	/* data already there, set starting point */
-	son = key1 ;
-    else {		/* insert new element at the end, possibly resize */
-	son = h->elements ;
-	if (son == h->size) /* need resize... */
-	    if (heap_init(h, h->elements+1) )
-		return 1 ; /* failure... */
-	h->p[son].object = p ;
-	h->p[son].key = key1 ;
-	h->elements++ ;
-    }
-    while (son > 0) {				/* bubble up */
-	int father = HEAP_FATHER(son) ;
-	struct dn_heap_entry tmp  ;
-
-	if (DN_KEY_LT( h->p[father].key, h->p[son].key ) )
-	    break ; /* found right position */
-	/* son smaller than father, swap and repeat */
-	HEAP_SWAP(h->p[son], h->p[father], tmp) ;
-	SET_OFFSET(h, son);
-	son = father ;
-    }
-    SET_OFFSET(h, son);
-    return 0 ;
-}
-
-/*
- * remove top element from heap, or obj if obj != NULL
- */
-static void
-heap_extract(struct dn_heap *h, void *obj)
-{
-    int child, father, max = h->elements - 1 ;
-
-    if (max < 0) {
-	printf("dummynet: warning, extract from empty heap 0x%p\n", h);
-	return ;
-    }
-    father = 0 ; /* default: move up smallest child */
-    if (obj != NULL) { /* extract specific element, index is at offset */
-	if (h->offset <= 0)
-	    panic("dummynet: heap_extract from middle not supported on this heap!!!\n");
-	father = *((int *)((char *)obj + h->offset)) ;
-	if (father < 0 || father >= h->elements) {
-	    printf("dummynet: heap_extract, father %d out of bound 0..%d\n",
-		father, h->elements);
-	    panic("dummynet: heap_extract");
-	}
-    }
-    RESET_OFFSET(h, father);
-    child = HEAP_LEFT(father) ;		/* left child */
-    while (child <= max) {		/* valid entry */
-	if (child != max && DN_KEY_LT(h->p[child+1].key, h->p[child].key) )
-	    child = child+1 ;		/* take right child, otherwise left */
-	h->p[father] = h->p[child] ;
-	SET_OFFSET(h, father);
-	father = child ;
-	child = HEAP_LEFT(child) ;   /* left child for next loop */
-    }
-    h->elements-- ;
-    if (father != max) {
-	/*
-	 * Fill hole with last entry and bubble up, reusing the insert code
-	 */
-	h->p[father] = h->p[max] ;
-	heap_insert(h, father, NULL); /* this one cannot fail */
-    }
-}
-
-#if 0
-/*
- * change object position and update references
- * XXX this one is never used!
- */
-static void
-heap_move(struct dn_heap *h, dn_key new_key, void *object)
-{
-    int temp;
-    int i ;
-    int max = h->elements-1 ;
-    struct dn_heap_entry buf ;
-
-    if (h->offset <= 0)
-	panic("cannot move items on this heap");
-
-    i = *((int *)((char *)object + h->offset));
-    if (DN_KEY_LT(new_key, h->p[i].key) ) { /* must move up */
-	h->p[i].key = new_key ;
-	for (; i>0 && DN_KEY_LT(new_key, h->p[(temp = HEAP_FATHER(i))].key) ;
-		 i = temp ) { /* bubble up */
-	    HEAP_SWAP(h->p[i], h->p[temp], buf) ;
-	    SET_OFFSET(h, i);
-	}
-    } else {		/* must move down */
-	h->p[i].key = new_key ;
-	while ( (temp = HEAP_LEFT(i)) <= max ) { /* found left child */
-	    if ((temp != max) && DN_KEY_GT(h->p[temp].key, h->p[temp+1].key))
-		temp++ ; /* select child with min key */
-	    if (DN_KEY_GT(new_key, h->p[temp].key)) { /* go down */
-		HEAP_SWAP(h->p[i], h->p[temp], buf) ;
-		SET_OFFSET(h, i);
-	    } else
-		break ;
-	    i = temp ;
-	}
-    }
-    SET_OFFSET(h, i);
-}
-#endif /* heap_move, unused */
-
-/*
- * heapify() will reorganize data inside an array to maintain the
- * heap property. It is needed when we delete a bunch of entries.
- */
-static void
-heapify(struct dn_heap *h)
-{
-    int i ;
-
-    for (i = 0 ; i < h->elements ; i++ )
-	heap_insert(h, i , NULL) ;
-}
-
-/*
- * cleanup the heap and free data structure
- */
-static void
-heap_free(struct dn_heap *h)
-{
-    if (h->size >0 )
-	free(h->p, M_DUMMYNET);
-    bzero(h, sizeof(*h) );
-}
-
-/*
- * --- end of heap management functions ---
- */
-
-/*
- * Dispose a list of packet. Use an inline functions so if we
- * need to free extra state associated to a packet, this is a
- * central point to do it.
- */
-
-static __inline void dn_free_pkts(struct mbuf *mnext)
-{
-	struct mbuf *m;
-
-	while ((m = mnext) != NULL) {
-		mnext = m->m_nextpkt;
-		FREE_PKT(m);
-	}
-}
-
-/*
- * Return the mbuf tag holding the dummynet state.  As an optimization
- * this is assumed to be the first tag on the list.  If this turns out
- * wrong we'll need to search the list.
- */
-static struct dn_pkt_tag *
-dn_tag_get(struct mbuf *m)
-{
-    struct m_tag *mtag = m_tag_first(m);
-    KASSERT(mtag != NULL &&
-	    mtag->m_tag_cookie == MTAG_ABI_COMPAT &&
-	    mtag->m_tag_id == PACKET_TAG_DUMMYNET,
-	    ("packet on dummynet queue w/o dummynet tag!"));
-    return (struct dn_pkt_tag *)(mtag+1);
-}
-
-/*
- * Scheduler functions:
- *
- * transmit_event() is called when the delay-line needs to enter
- * the scheduler, either because of existing pkts getting ready,
- * or new packets entering the queue. The event handled is the delivery
- * time of the packet.
- *
- * ready_event() does something similar with fixed-rate queues, and the
- * event handled is the finish time of the head pkt.
- *
- * wfq_ready_event() does something similar with WF2Q queues, and the
- * event handled is the start time of the head pkt.
- *
- * In all cases, we make sure that the data structures are consistent
- * before passing pkts out, because this might trigger recursive
- * invocations of the procedures.
- */
-static void
-transmit_event(struct dn_pipe *pipe, struct mbuf **head, struct mbuf **tail)
-{
-	struct mbuf *m;
-	struct dn_pkt_tag *pkt;
-
-	DUMMYNET_LOCK_ASSERT();
-
-	while ((m = pipe->head) != NULL) {
-		pkt = dn_tag_get(m);
-		if (!DN_KEY_LEQ(pkt->output_time, curr_time))
-			break;
-
-		pipe->head = m->m_nextpkt;
-		if (*tail != NULL)
-			(*tail)->m_nextpkt = m;
-		else
-			*head = m;
-		*tail = m;
-	}
-	if (*tail != NULL)
-		(*tail)->m_nextpkt = NULL;
-
-	/* If there are leftover packets, put into the heap for next event. */
-	if ((m = pipe->head) != NULL) {
-		pkt = dn_tag_get(m);
-		/*
-		 * XXX Should check errors on heap_insert, by draining the
-		 * whole pipe p and hoping in the future we are more successful.
-		 */
-		heap_insert(&extract_heap, pkt->output_time, pipe);
-	}
-}
-
-#define div64(a, b)	((int64_t)(a) / (int64_t)(b))
-/*
- * Compute how many ticks we have to wait before being able to send
- * a packet. This is computed as the "wire time" for the packet
- * (length + extra bits), minus the credit available, scaled to ticks.
- * Check that the result is not be negative (it could be if we have
- * too much leftover credit in q->numbytes).
- */
-static inline dn_key
-set_ticks(struct mbuf *m, struct dn_flow_queue *q, struct dn_pipe *p)
-{
-	int64_t ret;
-
-	ret = div64( (m->m_pkthdr.len * 8 + q->extra_bits) * hz
-		- q->numbytes + p->bandwidth - 1 , p->bandwidth);
-	if (ret < 0)
-		ret = 0;
-	return ret;
-}
-
-/*
- * Convert the additional MAC overheads/delays into an equivalent
- * number of bits for the given data rate. The samples are in milliseconds
- * so we need to divide by 1000.
- */
-static dn_key
-compute_extra_bits(struct mbuf *pkt, struct dn_pipe *p)
-{
-	int index;
-	dn_key extra_bits;
-
-	if (!p->samples || p->samples_no == 0)
-		return 0;
-	index  = random() % p->samples_no;
-	extra_bits = div64((dn_key)p->samples[index] * p->bandwidth, 1000);
-	if (index >= p->loss_level) {
-		struct dn_pkt_tag *dt = dn_tag_get(pkt);
-		if (dt)
-			dt->dn_dir = DIR_DROP;
-	}
-	return extra_bits;
-}
-
-static void
-free_pipe(struct dn_pipe *p)
-{
-	if (p->samples)
-		free(p->samples, M_DUMMYNET);
-	free(p, M_DUMMYNET);
-}
-
-/*
- * extract pkt from queue, compute output time (could be now)
- * and put into delay line (p_queue)
- */
-static void
-move_pkt(struct mbuf *pkt, struct dn_flow_queue *q, struct dn_pipe *p,
-    int len)
-{
-    struct dn_pkt_tag *dt = dn_tag_get(pkt);
-
-    q->head = pkt->m_nextpkt ;
-    q->len-- ;
-    q->len_bytes -= len ;
-
-    dt->output_time = curr_time + p->delay ;
-
-    if (p->head == NULL)
-	p->head = pkt;
-    else
-	p->tail->m_nextpkt = pkt;
-    p->tail = pkt;
-    p->tail->m_nextpkt = NULL;
-}
-
-/*
- * ready_event() is invoked every time the queue must enter the
- * scheduler, either because the first packet arrives, or because
- * a previously scheduled event fired.
- * On invokation, drain as many pkts as possible (could be 0) and then
- * if there are leftover packets reinsert the pkt in the scheduler.
- */
-static void
-ready_event(struct dn_flow_queue *q, struct mbuf **head, struct mbuf **tail)
-{
-	struct mbuf *pkt;
-	struct dn_pipe *p = q->fs->pipe;
-	int p_was_empty;
-
-	DUMMYNET_LOCK_ASSERT();
-
-	if (p == NULL) {
-		printf("dummynet: ready_event- pipe is gone\n");
-		return;
-	}
-	p_was_empty = (p->head == NULL);
-
-	/*
-	 * Schedule fixed-rate queues linked to this pipe:
-	 * account for the bw accumulated since last scheduling, then
-	 * drain as many pkts as allowed by q->numbytes and move to
-	 * the delay line (in p) computing output time.
-	 * bandwidth==0 (no limit) means we can drain the whole queue,
-	 * setting len_scaled = 0 does the job.
-	 */
-	q->numbytes += (curr_time - q->sched_time) * p->bandwidth;
-	while ((pkt = q->head) != NULL) {
-		int len = pkt->m_pkthdr.len;
-		dn_key len_scaled = p->bandwidth ? len*8*hz
-			+ q->extra_bits*hz
-			: 0;
-
-		if (DN_KEY_GT(len_scaled, q->numbytes))
-			break;
-		q->numbytes -= len_scaled;
-		move_pkt(pkt, q, p, len);
-		if (q->head)
-			q->extra_bits = compute_extra_bits(q->head, p);
-	}
-	/*
-	 * If we have more packets queued, schedule next ready event
-	 * (can only occur when bandwidth != 0, otherwise we would have
-	 * flushed the whole queue in the previous loop).
-	 * To this purpose we record the current time and compute how many
-	 * ticks to go for the finish time of the packet.
-	 */
-	if ((pkt = q->head) != NULL) {	/* this implies bandwidth != 0 */
-		dn_key t = set_ticks(pkt, q, p); /* ticks i have to wait */
-
-		q->sched_time = curr_time;
-		heap_insert(&ready_heap, curr_time + t, (void *)q);
-		/*
-		 * XXX Should check errors on heap_insert, and drain the whole
-		 * queue on error hoping next time we are luckier.
-		 */
-	} else		/* RED needs to know when the queue becomes empty. */
-		q->idle_time = curr_time;
-
-	/*
-	 * If the delay line was empty call transmit_event() now.
-	 * Otherwise, the scheduler will take care of it.
-	 */
-	if (p_was_empty)
-		transmit_event(p, head, tail);
-}
-
-/*
- * Called when we can transmit packets on WF2Q queues. Take pkts out of
- * the queues at their start time, and enqueue into the delay line.
- * Packets are drained until p->numbytes < 0. As long as
- * len_scaled >= p->numbytes, the packet goes into the delay line
- * with a deadline p->delay. For the last packet, if p->numbytes < 0,
- * there is an additional delay.
- */
-static void
-ready_event_wfq(struct dn_pipe *p, struct mbuf **head, struct mbuf **tail)
-{
-	int p_was_empty = (p->head == NULL);
-	struct dn_heap *sch = &(p->scheduler_heap);
-	struct dn_heap *neh = &(p->not_eligible_heap);
-	int64_t p_numbytes = p->numbytes;
-
-	/*
-	 * p->numbytes is only 32bits in FBSD7, but we might need 64 bits.
-	 * Use a local variable for the computations, and write back the
-	 * results when done, saturating if needed.
-	 * The local variable has no impact on performance and helps
-	 * reducing diffs between the various branches.
-	 */
-
-	DUMMYNET_LOCK_ASSERT();
-
-	if (p->if_name[0] == 0)		/* tx clock is simulated */
-		p_numbytes += (curr_time - p->sched_time) * p->bandwidth;
-	else {	/*
-		 * tx clock is for real,
-		 * the ifq must be empty or this is a NOP.
-		 */
-		if (p->ifp && p->ifp->if_snd.ifq_head != NULL)
-			return;
-		else {
-			DPRINTF(("dummynet: pipe %d ready from %s --\n",
-			    p->pipe_nr, p->if_name));
-		}
-	}
-
-	/*
-	 * While we have backlogged traffic AND credit, we need to do
-	 * something on the queue.
-	 */
-	while (p_numbytes >= 0 && (sch->elements > 0 || neh->elements > 0)) {
-		if (sch->elements > 0) {
-			/* Have some eligible pkts to send out. */
-			struct dn_flow_queue *q = sch->p[0].object;
-			struct mbuf *pkt = q->head;
-			struct dn_flow_set *fs = q->fs;
-			uint64_t len = pkt->m_pkthdr.len;
-			int len_scaled = p->bandwidth ? len * 8 * hz : 0;
-
-			heap_extract(sch, NULL); /* Remove queue from heap. */
-			p_numbytes -= len_scaled;
-			move_pkt(pkt, q, p, len);
-
-			p->V += div64((len << MY_M), p->sum);	/* Update V. */
-			q->S = q->F;			/* Update start time. */
-			if (q->len == 0) {
-				/* Flow not backlogged any more. */
-				fs->backlogged--;
-				heap_insert(&(p->idle_heap), q->F, q);
-			} else {
-				/* Still backlogged. */
-
-				/*
-				 * Update F and position in backlogged queue,
-				 * then put flow in not_eligible_heap
-				 * (we will fix this later).
-				 */
-				len = (q->head)->m_pkthdr.len;
-				q->F += div64((len << MY_M), fs->weight);
-				if (DN_KEY_LEQ(q->S, p->V))
-					heap_insert(neh, q->S, q);
-				else
-					heap_insert(sch, q->F, q);
-			}
-		}
-		/*
-		 * Now compute V = max(V, min(S_i)). Remember that all elements
-		 * in sch have by definition S_i <= V so if sch is not empty,
-		 * V is surely the max and we must not update it. Conversely,
-		 * if sch is empty we only need to look at neh.
-		 */
-		if (sch->elements == 0 && neh->elements > 0)
-			p->V = MAX64(p->V, neh->p[0].key);
-		/* Move from neh to sch any packets that have become eligible */
-		while (neh->elements > 0 && DN_KEY_LEQ(neh->p[0].key, p->V)) {
-			struct dn_flow_queue *q = neh->p[0].object;
-			heap_extract(neh, NULL);
-			heap_insert(sch, q->F, q);
-		}
-
-		if (p->if_name[0] != '\0') { /* Tx clock is from a real thing */
-			p_numbytes = -1;	/* Mark not ready for I/O. */
-			break;
-		}
-	}
-	if (sch->elements == 0 && neh->elements == 0 && p_numbytes >= 0) {
-		p->idle_time = curr_time;
-		/*
-		 * No traffic and no events scheduled.
-		 * We can get rid of idle-heap.
-		 */
-		if (p->idle_heap.elements > 0) {
-			int i;
-
-			for (i = 0; i < p->idle_heap.elements; i++) {
-				struct dn_flow_queue *q;
-				
-				q = p->idle_heap.p[i].object;
-				q->F = 0;
-				q->S = q->F + 1;
-			}
-			p->sum = 0;
-			p->V = 0;
-			p->idle_heap.elements = 0;
-		}
-	}
-	/*
-	 * If we are getting clocks from dummynet (not a real interface) and
-	 * If we are under credit, schedule the next ready event.
-	 * Also fix the delivery time of the last packet.
-	 */
-	if (p->if_name[0]==0 && p_numbytes < 0) { /* This implies bw > 0. */
-		dn_key t = 0;		/* Number of ticks i have to wait. */
-
-		if (p->bandwidth > 0)
-			t = div64(p->bandwidth - 1 - p_numbytes, p->bandwidth);
-		dn_tag_get(p->tail)->output_time += t;
-		p->sched_time = curr_time;
-		heap_insert(&wfq_ready_heap, curr_time + t, (void *)p);
-		/*
-		 * XXX Should check errors on heap_insert, and drain the whole
-		 * queue on error hoping next time we are luckier.
-		 */
-	}
-
-	/* Write back p_numbytes (adjust 64->32bit if necessary). */
-	p->numbytes = p_numbytes;
-
-	/*
-	 * If the delay line was empty call transmit_event() now.
-	 * Otherwise, the scheduler will take care of it.
-	 */
-	if (p_was_empty)
-		transmit_event(p, head, tail);
-}
-
-/*
- * This is called one tick, after previous run. It is used to
- * schedule next run.
- */
 static void
 dummynet(void * __unused unused)
 {
@@ -849,1419 +83,2077 @@ dummynet(void * __unused unused)
 	taskqueue_enqueue(dn_tq, &dn_task);
 }
 
-/*
- * The timer handler for dummynet. Time is computed in ticks, but
- * but the code is tolerant to the actual rate at which this is called.
- * Once complete, the function reschedules itself for the next tick.
- */
-static void
-dummynet_task(void *context, int pending)
+void
+dn_reschedule(void)
 {
-	struct mbuf *head = NULL, *tail = NULL;
-	struct dn_pipe *pipe;
-	struct dn_heap *heaps[3];
-	struct dn_heap *h;
-	void *p;	/* generic parameter to handler */
-	int i;
-	struct timeval t;
-
-	DUMMYNET_LOCK();
-
-	heaps[0] = &ready_heap;			/* fixed-rate queues */
-	heaps[1] = &wfq_ready_heap;		/* wfq queues */
-	heaps[2] = &extract_heap;		/* delay line */
-
- 	/* Update number of lost(coalesced) ticks. */
- 	tick_lost += pending - 1;
- 
- 	getmicrouptime(&t);
- 	/* Last tick duration (usec). */
- 	tick_last = (t.tv_sec - prev_t.tv_sec) * 1000000 +
- 	    (t.tv_usec - prev_t.tv_usec);
- 	/* Last tick vs standard tick difference (usec). */
- 	tick_delta = (tick_last * hz - 1000000) / hz;
- 	/* Accumulated tick difference (usec). */
- 	tick_delta_sum += tick_delta;
- 
- 	prev_t = t;
- 
- 	/*
- 	 * Adjust curr_time if accumulated tick difference greater than
- 	 * 'standard' tick. Since curr_time should be monotonically increasing,
- 	 * we do positive adjustment as required and throttle curr_time in
- 	 * case of negative adjustment.
- 	 */
-  	curr_time++;
- 	if (tick_delta_sum - tick >= 0) {
- 		int diff = tick_delta_sum / tick;
- 
- 		curr_time += diff;
- 		tick_diff += diff;
- 		tick_delta_sum %= tick;
- 		tick_adjustment++;
- 	} else if (tick_delta_sum + tick <= 0) {
- 		curr_time--;
- 		tick_diff--;
- 		tick_delta_sum += tick;
- 		tick_adjustment++;
- 	}
-
-	for (i = 0; i < 3; i++) {
-		h = heaps[i];
-		while (h->elements > 0 && DN_KEY_LEQ(h->p[0].key, curr_time)) {
-			if (h->p[0].key > curr_time)
-				printf("dummynet: warning, "
-				    "heap %d is %d ticks late\n",
-				    i, (int)(curr_time - h->p[0].key));
-			/* store a copy before heap_extract */
-			p = h->p[0].object;
-			/* need to extract before processing */
-			heap_extract(h, NULL);
-			if (i == 0)
-				ready_event(p, &head, &tail);
-			else if (i == 1) {
-				struct dn_pipe *pipe = p;
-				if (pipe->if_name[0] != '\0')
-					printf("dummynet: bad ready_event_wfq "
-					    "for pipe %s\n", pipe->if_name);
-				else
-					ready_event_wfq(p, &head, &tail);
-			} else
-				transmit_event(p, &head, &tail);
-		}
-	}
-
-	/* Sweep pipes trying to expire idle flow_queues. */
-	for (i = 0; i < HASHSIZE; i++) {
-		SLIST_FOREACH(pipe, &pipehash[i], next) {
-			if (pipe->idle_heap.elements > 0 &&
-			    DN_KEY_LT(pipe->idle_heap.p[0].key, pipe->V)) {
-				struct dn_flow_queue *q =
-				    pipe->idle_heap.p[0].object;
-
-				heap_extract(&(pipe->idle_heap), NULL);
-				/* Mark timestamp as invalid. */
-				q->S = q->F + 1;
-				pipe->sum -= q->fs->weight;
-			}
-		}
-	}
-
-	DUMMYNET_UNLOCK();
-
-	if (head != NULL)
-		dummynet_send(head);
-
 	callout_reset(&dn_timeout, 1, dummynet, NULL);
 }
+/*----- end of callout hooks -----*/
 
-static void
-dummynet_send(struct mbuf *m)
+/* Return a scheduler descriptor given the type or name. */
+static struct dn_alg *
+find_sched_type(int type, char *name)
 {
-	struct mbuf *n;
+	struct dn_alg *d;
 
-	for (; m != NULL; m = n) {
-		struct ifnet *ifp;
-		int dst;
-        	struct m_tag *tag;
-
-		n = m->m_nextpkt;
-		m->m_nextpkt = NULL;
-		tag = m_tag_first(m);
-		if (tag == NULL) {
-			dst = DIR_DROP;
-		} else {
-			struct dn_pkt_tag *pkt = dn_tag_get(m);
-			/* extract the dummynet info, rename the tag */
-			dst = pkt->dn_dir;
-			ifp = pkt->ifp;
-			/* rename the tag so it carries reinject info */
-			tag->m_tag_cookie = MTAG_IPFW_RULE;
-			tag->m_tag_id = 0;
-		}
-
-		switch (dst) {
-		case DIR_OUT:
-			SET_HOST_IPLEN(mtod(m, struct ip *));
-			ip_output(m, NULL, NULL, IP_FORWARDING, NULL, NULL);
-			break ;
-		case DIR_IN :
-			/* put header in network format for ip_input() */
-			//SET_NET_IPLEN(mtod(m, struct ip *));
-			netisr_dispatch(NETISR_IP, m);
-			break;
-#ifdef INET6
-		case DIR_IN | PROTO_IPV6:
-			netisr_dispatch(NETISR_IPV6, m);
-			break;
-
-		case DIR_OUT | PROTO_IPV6:
-			SET_HOST_IPLEN(mtod(m, struct ip *));
-			ip6_output(m, NULL, NULL, IPV6_FORWARDING, NULL, NULL, NULL);
-			break;
-#endif
-		case DIR_FWD | PROTO_IFB: /* DN_TO_IFB_FWD: */
-			if (bridge_dn_p != NULL)
-				((*bridge_dn_p)(m, ifp));
-			else
-				printf("dummynet: if_bridge not loaded\n");
-
-			break;
-		case DIR_IN | PROTO_LAYER2: /* DN_TO_ETH_DEMUX: */
-			/*
-			 * The Ethernet code assumes the Ethernet header is
-			 * contiguous in the first mbuf header.
-			 * Insure this is true.
-			 */
-			if (m->m_len < ETHER_HDR_LEN &&
-			    (m = m_pullup(m, ETHER_HDR_LEN)) == NULL) {
-				printf("dummynet/ether: pullup failed, "
-				    "dropping packet\n");
-				break;
-			}
-			ether_demux(m->m_pkthdr.rcvif, m);
-			break;
-		case DIR_OUT | PROTO_LAYER2: /* N_TO_ETH_OUT: */
-			ether_output_frame(ifp, m);
-			break;
-
-		case DIR_DROP:
-			/* drop the packet after some time */
-			FREE_PKT(m);
-			break;
-
-		default:
-			printf("dummynet: bad switch %d!\n", dst);
-			FREE_PKT(m);
-			break;
-		}
+	SLIST_FOREACH(d, &dn_cfg.schedlist, next) {
+		if (d->type == type || (name && !strcmp(d->name, name)))
+			return d;
 	}
+	return NULL; /* not found */
 }
 
-/*
- * Unconditionally expire empty queues in case of shortage.
- * Returns the number of queues freed.
- */
-static int
-expire_queues(struct dn_flow_set *fs)
+int
+ipdn_bound_var(int *v, int dflt, int lo, int hi, const char *msg)
 {
-    struct dn_flow_queue *q, *prev ;
-    int i, initial_elements = fs->rq_elements ;
-
-    if (fs->last_expired == time_uptime)
-	return 0 ;
-    fs->last_expired = time_uptime ;
-    for (i = 0 ; i <= fs->rq_size ; i++) { /* last one is overflow */
-	for (prev=NULL, q = fs->rq[i] ; q != NULL ; ) {
-	    if (!QUEUE_IS_IDLE(q)) {
-  		prev = q ;
-  	        q = q->next ;
-  	    } else { /* entry is idle, expire it */
-		struct dn_flow_queue *old_q = q ;
-
-		if (prev != NULL)
-		    prev->next = q = q->next ;
-		else
-		    fs->rq[i] = q = q->next ;
-		fs->rq_elements-- ;
-		free(old_q, M_DUMMYNET);
-	    }
-	}
-    }
-    return initial_elements - fs->rq_elements ;
+	int oldv = *v;
+	const char *op = NULL;
+	if (oldv < lo) {
+		*v = dflt;
+		op = "Bump";
+	} else if (oldv > hi) {
+		*v = hi;
+		op = "Clamp";
+	} else
+		return *v;
+	if (op && msg)
+		printf("%s %s to %d (was %d)\n", op, msg, *v, oldv);
+	return *v;
 }
 
+/*---- flow_id mask, hash and compare functions ---*/
 /*
- * If room, create a new queue and put at head of slot i;
- * otherwise, create or use the default queue.
+ * The flow_id includes the 5-tuple, the queue/pipe number
+ * which we store in the extra area in host order,
+ * and for ipv6 also the flow_id6.
+ * XXX see if we want the tos byte (can store in 'flags')
  */
-static struct dn_flow_queue *
-create_queue(struct dn_flow_set *fs, int i)
+static struct ipfw_flow_id *
+flow_id_mask(struct ipfw_flow_id *mask, struct ipfw_flow_id *id)
 {
-	struct dn_flow_queue *q;
+	int is_v6 = IS_IP6_FLOW_ID(id);
 
-	if (fs->rq_elements > fs->rq_size * dn_max_ratio &&
-	    expire_queues(fs) == 0) {
-		/* No way to get room, use or create overflow queue. */
-		i = fs->rq_size;
-		if (fs->rq[i] != NULL)
-		    return fs->rq[i];
-	}
-	q = malloc(sizeof(*q), M_DUMMYNET, M_NOWAIT | M_ZERO);
-	if (q == NULL) {
-		printf("dummynet: sorry, cannot allocate queue for new flow\n");
-		return (NULL);
-	}
-	q->fs = fs;
-	q->hash_slot = i;
-	q->next = fs->rq[i];
-	q->S = q->F + 1;	/* hack - mark timestamp as invalid. */
-	q->numbytes = fs->pipe->burst + (io_fast ? fs->pipe->bandwidth : 0);
-	fs->rq[i] = q;
-	fs->rq_elements++;
-	return (q);
-}
-
-/*
- * Given a flow_set and a pkt in last_pkt, find a matching queue
- * after appropriate masking. The queue is moved to front
- * so that further searches take less time.
- */
-static struct dn_flow_queue *
-find_queue(struct dn_flow_set *fs, struct ipfw_flow_id *id)
-{
-    int i = 0 ; /* we need i and q for new allocations */
-    struct dn_flow_queue *q, *prev;
-    int is_v6 = IS_IP6_FLOW_ID(id);
-
-    if ( !(fs->flags_fs & DN_HAVE_FLOW_MASK) )
-	q = fs->rq[0] ;
-    else {
-	/* first, do the masking, then hash */
-	id->dst_port &= fs->flow_mask.dst_port ;
-	id->src_port &= fs->flow_mask.src_port ;
-	id->proto &= fs->flow_mask.proto ;
-	id->flags = 0 ; /* we don't care about this one */
+	id->dst_port &= mask->dst_port;
+	id->src_port &= mask->src_port;
+	id->proto &= mask->proto;
+	id->extra &= mask->extra;
 	if (is_v6) {
-	    APPLY_MASK(&id->dst_ip6, &fs->flow_mask.dst_ip6);
-	    APPLY_MASK(&id->src_ip6, &fs->flow_mask.src_ip6);
-	    id->flow_id6 &= fs->flow_mask.flow_id6;
-
-	    i = ((id->dst_ip6.__u6_addr.__u6_addr32[0]) & 0xffff)^
-		((id->dst_ip6.__u6_addr.__u6_addr32[1]) & 0xffff)^
-		((id->dst_ip6.__u6_addr.__u6_addr32[2]) & 0xffff)^
-		((id->dst_ip6.__u6_addr.__u6_addr32[3]) & 0xffff)^
-
-		((id->dst_ip6.__u6_addr.__u6_addr32[0] >> 15) & 0xffff)^
-		((id->dst_ip6.__u6_addr.__u6_addr32[1] >> 15) & 0xffff)^
-		((id->dst_ip6.__u6_addr.__u6_addr32[2] >> 15) & 0xffff)^
-		((id->dst_ip6.__u6_addr.__u6_addr32[3] >> 15) & 0xffff)^
-
-		((id->src_ip6.__u6_addr.__u6_addr32[0] << 1) & 0xfffff)^
-		((id->src_ip6.__u6_addr.__u6_addr32[1] << 1) & 0xfffff)^
-		((id->src_ip6.__u6_addr.__u6_addr32[2] << 1) & 0xfffff)^
-		((id->src_ip6.__u6_addr.__u6_addr32[3] << 1) & 0xfffff)^
-
-		((id->src_ip6.__u6_addr.__u6_addr32[0] << 16) & 0xffff)^
-		((id->src_ip6.__u6_addr.__u6_addr32[1] << 16) & 0xffff)^
-		((id->src_ip6.__u6_addr.__u6_addr32[2] << 16) & 0xffff)^
-		((id->src_ip6.__u6_addr.__u6_addr32[3] << 16) & 0xffff)^
-
-		(id->dst_port << 1) ^ (id->src_port) ^
-		(id->proto ) ^
-		(id->flow_id6);
+		APPLY_MASK(&id->dst_ip6, &mask->dst_ip6);
+		APPLY_MASK(&id->src_ip6, &mask->src_ip6);
+		id->flow_id6 &= mask->flow_id6;
 	} else {
-	    id->dst_ip &= fs->flow_mask.dst_ip ;
-	    id->src_ip &= fs->flow_mask.src_ip ;
-
-	    i = ( (id->dst_ip) & 0xffff ) ^
-		( (id->dst_ip >> 15) & 0xffff ) ^
-		( (id->src_ip << 1) & 0xffff ) ^
-		( (id->src_ip >> 16 ) & 0xffff ) ^
-		(id->dst_port << 1) ^ (id->src_port) ^
-		(id->proto );
+		id->dst_ip &= mask->dst_ip;
+		id->src_ip &= mask->src_ip;
 	}
-	i = i % fs->rq_size ;
-	/* finally, scan the current list for a match */
-	searches++ ;
-	for (prev=NULL, q = fs->rq[i] ; q ; ) {
-	    search_steps++;
-	    if (is_v6 &&
-		    IN6_ARE_ADDR_EQUAL(&id->dst_ip6,&q->id.dst_ip6) &&  
-		    IN6_ARE_ADDR_EQUAL(&id->src_ip6,&q->id.src_ip6) &&  
-		    id->dst_port == q->id.dst_port &&
-		    id->src_port == q->id.src_port &&
-		    id->proto == q->id.proto &&
-		    id->flags == q->id.flags &&
-		    id->flow_id6 == q->id.flow_id6)
-		break ; /* found */
+	return id;
+}
 
-	    if (!is_v6 && id->dst_ip == q->id.dst_ip &&
-		    id->src_ip == q->id.src_ip &&
-		    id->dst_port == q->id.dst_port &&
-		    id->src_port == q->id.src_port &&
-		    id->proto == q->id.proto &&
-		    id->flags == q->id.flags)
-		break ; /* found */
+/* computes an OR of two masks, result in dst and also returned */
+static struct ipfw_flow_id *
+flow_id_or(struct ipfw_flow_id *src, struct ipfw_flow_id *dst)
+{
+	int is_v6 = IS_IP6_FLOW_ID(dst);
 
-	    /* No match. Check if we can expire the entry */
-	    if (pipe_expire && QUEUE_IS_IDLE(q)) {
-		/* entry is idle and not in any heap, expire it */
-		struct dn_flow_queue *old_q = q ;
-
-		if (prev != NULL)
-		    prev->next = q = q->next ;
-		else
-		    fs->rq[i] = q = q->next ;
-		fs->rq_elements-- ;
-		free(old_q, M_DUMMYNET);
-		continue ;
-	    }
-	    prev = q ;
-	    q = q->next ;
+	dst->dst_port |= src->dst_port;
+	dst->src_port |= src->src_port;
+	dst->proto |= src->proto;
+	dst->extra |= src->extra;
+	if (is_v6) {
+#define OR_MASK(_d, _s)                          \
+    (_d)->__u6_addr.__u6_addr32[0] |= (_s)->__u6_addr.__u6_addr32[0]; \
+    (_d)->__u6_addr.__u6_addr32[1] |= (_s)->__u6_addr.__u6_addr32[1]; \
+    (_d)->__u6_addr.__u6_addr32[2] |= (_s)->__u6_addr.__u6_addr32[2]; \
+    (_d)->__u6_addr.__u6_addr32[3] |= (_s)->__u6_addr.__u6_addr32[3];
+		OR_MASK(&dst->dst_ip6, &src->dst_ip6);
+		OR_MASK(&dst->src_ip6, &src->src_ip6);
+#undef OR_MASK
+		dst->flow_id6 |= src->flow_id6;
+	} else {
+		dst->dst_ip |= src->dst_ip;
+		dst->src_ip |= src->src_ip;
 	}
-	if (q && prev != NULL) { /* found and not in front */
-	    prev->next = q->next ;
-	    q->next = fs->rq[i] ;
-	    fs->rq[i] = q ;
-	}
-    }
-    if (q == NULL) { /* no match, need to allocate a new entry */
-	q = create_queue(fs, i);
-	if (q != NULL)
-	q->id = *id ;
-    }
-    return q ;
+	return dst;
 }
 
 static int
-red_drops(struct dn_flow_set *fs, struct dn_flow_queue *q, int len)
+nonzero_mask(struct ipfw_flow_id *m)
 {
-	/*
-	 * RED algorithm
-	 *
-	 * RED calculates the average queue size (avg) using a low-pass filter
-	 * with an exponential weighted (w_q) moving average:
-	 * 	avg  <-  (1-w_q) * avg + w_q * q_size
-	 * where q_size is the queue length (measured in bytes or * packets).
-	 *
-	 * If q_size == 0, we compute the idle time for the link, and set
-	 *	avg = (1 - w_q)^(idle/s)
-	 * where s is the time needed for transmitting a medium-sized packet.
-	 *
-	 * Now, if avg < min_th the packet is enqueued.
-	 * If avg > max_th the packet is dropped. Otherwise, the packet is
-	 * dropped with probability P function of avg.
-	 */
-
-	int64_t p_b = 0;
-
-	/* Queue in bytes or packets? */
-	u_int q_size = (fs->flags_fs & DN_QSIZE_IS_BYTES) ?
-	    q->len_bytes : q->len;
-
-	DPRINTF(("\ndummynet: %d q: %2u ", (int)curr_time, q_size));
-
-	/* Average queue size estimation. */
-	if (q_size != 0) {
-		/* Queue is not empty, avg <- avg + (q_size - avg) * w_q */
-		int diff = SCALE(q_size) - q->avg;
-		int64_t v = SCALE_MUL((int64_t)diff, (int64_t)fs->w_q);
-
-		q->avg += (int)v;
+	if (m->dst_port || m->src_port || m->proto || m->extra)
+		return 1;
+	if (IS_IP6_FLOW_ID(m)) {
+		return
+			m->dst_ip6.__u6_addr.__u6_addr32[0] ||
+			m->dst_ip6.__u6_addr.__u6_addr32[1] ||
+			m->dst_ip6.__u6_addr.__u6_addr32[2] ||
+			m->dst_ip6.__u6_addr.__u6_addr32[3] ||
+			m->src_ip6.__u6_addr.__u6_addr32[0] ||
+			m->src_ip6.__u6_addr.__u6_addr32[1] ||
+			m->src_ip6.__u6_addr.__u6_addr32[2] ||
+			m->src_ip6.__u6_addr.__u6_addr32[3] ||
+			m->flow_id6;
 	} else {
-		/*
-		 * Queue is empty, find for how long the queue has been
-		 * empty and use a lookup table for computing
-		 * (1 - * w_q)^(idle_time/s) where s is the time to send a
-		 * (small) packet.
-		 * XXX check wraps...
-		 */
-		if (q->avg) {
-			u_int t = div64(curr_time - q->idle_time,
-			    fs->lookup_step);
-
-			q->avg = (t < fs->lookup_depth) ?
-			    SCALE_MUL(q->avg, fs->w_q_lookup[t]) : 0;
-		}
+		return m->dst_ip || m->src_ip;
 	}
-	DPRINTF(("dummynet: avg: %u ", SCALE_VAL(q->avg)));
-
-	/* Should i drop? */
-	if (q->avg < fs->min_th) {
-		q->count = -1;
-		return (0);	/* accept packet */
-	}
-	if (q->avg >= fs->max_th) {	/* average queue >=  max threshold */
-		if (fs->flags_fs & DN_IS_GENTLE_RED) {
-			/*
-			 * According to Gentle-RED, if avg is greater than
-			 * max_th the packet is dropped with a probability
-			 *	 p_b = c_3 * avg - c_4
-			 * where c_3 = (1 - max_p) / max_th
-			 *       c_4 = 1 - 2 * max_p
-			 */
-			p_b = SCALE_MUL((int64_t)fs->c_3, (int64_t)q->avg) -
-			    fs->c_4;
-		} else {
-			q->count = -1;
-			DPRINTF(("dummynet: - drop"));
-			return (1);
-		}
-	} else if (q->avg > fs->min_th) {
-		/*
-		 * We compute p_b using the linear dropping function
-		 *	 p_b = c_1 * avg - c_2
-		 * where c_1 = max_p / (max_th - min_th)
-		 * 	 c_2 = max_p * min_th / (max_th - min_th)
-		 */
-		p_b = SCALE_MUL((int64_t)fs->c_1, (int64_t)q->avg) - fs->c_2;
-	}
-
-	if (fs->flags_fs & DN_QSIZE_IS_BYTES)
-		p_b = div64(p_b * len, fs->max_pkt_size);
-	if (++q->count == 0)
-		q->random = random() & 0xffff;
-	else {
-		/*
-		 * q->count counts packets arrived since last drop, so a greater
-		 * value of q->count means a greater packet drop probability.
-		 */
-		if (SCALE_MUL(p_b, SCALE((int64_t)q->count)) > q->random) {
-			q->count = 0;
-			DPRINTF(("dummynet: - red drop"));
-			/* After a drop we calculate a new random value. */
-			q->random = random() & 0xffff;
-			return (1);	/* drop */
-		}
-	}
-	/* End of RED algorithm. */
-
-	return (0);	/* accept */
 }
 
-static __inline struct dn_flow_set *
-locate_flowset(int fs_nr)
+/* XXX we may want a better hash function */
+static uint32_t
+flow_id_hash(struct ipfw_flow_id *id)
 {
-	struct dn_flow_set *fs;
+    uint32_t i;
 
-	SLIST_FOREACH(fs, &flowsethash[HASH(fs_nr)], next)
-		if (fs->fs_nr == fs_nr)
-			return (fs);
-
-	return (NULL);
+    if (IS_IP6_FLOW_ID(id)) {
+	uint32_t *d = (uint32_t *)&id->dst_ip6;
+	uint32_t *s = (uint32_t *)&id->src_ip6;
+        i = (d[0]      ) ^ (d[1])       ^
+            (d[2]      ) ^ (d[3])       ^
+            (d[0] >> 15) ^ (d[1] >> 15) ^
+            (d[2] >> 15) ^ (d[3] >> 15) ^
+            (s[0] <<  1) ^ (s[1] <<  1) ^
+            (s[2] <<  1) ^ (s[3] <<  1) ^
+            (s[0] << 16) ^ (s[1] << 16) ^
+            (s[2] << 16) ^ (s[3] << 16) ^
+            (id->dst_port << 1) ^ (id->src_port) ^
+	    (id->extra) ^
+            (id->proto ) ^ (id->flow_id6);
+    } else {
+        i = (id->dst_ip)        ^ (id->dst_ip >> 15) ^
+            (id->src_ip << 1)   ^ (id->src_ip >> 16) ^
+	    (id->extra) ^
+            (id->dst_port << 1) ^ (id->src_port)     ^ (id->proto);
+    }
+    return i;
 }
 
-static __inline struct dn_pipe *
-locate_pipe(int pipe_nr)
+/* Like bcmp, returns 0 if ids match, 1 otherwise. */
+static int
+flow_id_cmp(struct ipfw_flow_id *id1, struct ipfw_flow_id *id2)
 {
-	struct dn_pipe *pipe;
+	int is_v6 = IS_IP6_FLOW_ID(id1);
 
-	SLIST_FOREACH(pipe, &pipehash[HASH(pipe_nr)], next)
-		if (pipe->pipe_nr == pipe_nr)
-			return (pipe);
+	if (!is_v6) {
+	    if (IS_IP6_FLOW_ID(id2))
+		return 1; /* different address families */
 
-	return (NULL);
+	    return (id1->dst_ip == id2->dst_ip &&
+		    id1->src_ip == id2->src_ip &&
+		    id1->dst_port == id2->dst_port &&
+		    id1->src_port == id2->src_port &&
+		    id1->proto == id2->proto &&
+		    id1->extra == id2->extra) ? 0 : 1;
+	}
+	/* the ipv6 case */
+	return (
+	    !bcmp(&id1->dst_ip6,&id2->dst_ip6, sizeof(id1->dst_ip6)) &&
+	    !bcmp(&id1->src_ip6,&id2->src_ip6, sizeof(id1->src_ip6)) &&
+	    id1->dst_port == id2->dst_port &&
+	    id1->src_port == id2->src_port &&
+	    id1->proto == id2->proto &&
+	    id1->extra == id2->extra &&
+	    id1->flow_id6 == id2->flow_id6) ? 0 : 1;
+}
+/*--------- end of flow-id mask, hash and compare ---------*/
+
+/*--- support functions for the qht hashtable ----
+ * Entries are hashed by flow-id
+ */
+static uint32_t
+q_hash(uintptr_t key, int flags, void *arg)
+{
+	/* compute the hash slot from the flow id */
+	struct ipfw_flow_id *id = (flags & DNHT_KEY_IS_OBJ) ?
+		&((struct dn_queue *)key)->ni.fid :
+		(struct ipfw_flow_id *)key;
+
+	return flow_id_hash(id);
+}
+
+static int
+q_match(void *obj, uintptr_t key, int flags, void *arg)
+{
+	struct dn_queue *o = (struct dn_queue *)obj;
+	struct ipfw_flow_id *id2;
+
+	if (flags & DNHT_KEY_IS_OBJ) {
+		/* compare pointers */
+		id2 = &((struct dn_queue *)key)->ni.fid;
+	} else {
+		id2 = (struct ipfw_flow_id *)key;
+	}
+	return (0 == flow_id_cmp(&o->ni.fid,  id2));
 }
 
 /*
- * dummynet hook for packets. Below 'pipe' is a pipe or a queue
- * depending on whether WF2Q or fixed bw is used.
+ * create a new queue instance for the given 'key'.
+ */
+static void *
+q_new(uintptr_t key, int flags, void *arg)
+{   
+	struct dn_queue *q, *template = arg;
+	struct dn_fsk *fs = template->fs;
+	int size = sizeof(*q) + fs->sched->fp->q_datalen;
+
+	q = malloc(size, M_DUMMYNET, M_NOWAIT | M_ZERO);
+	if (q == NULL) {
+		D("no memory for new queue");
+		return NULL;
+	}
+
+	set_oid(&q->ni.oid, DN_QUEUE, size);
+	if (fs->fs.flags & DN_QHT_HASH)
+		q->ni.fid = *(struct ipfw_flow_id *)key;
+	q->fs = fs;
+	q->_si = template->_si;
+	q->_si->q_count++;
+
+	if (fs->sched->fp->new_queue)
+		fs->sched->fp->new_queue(q);
+	dn_cfg.queue_count++;
+	return q;
+}
+
+/*
+ * Notify schedulers that a queue is going away.
+ * If (flags & DN_DESTROY), also free the packets.
+ * The version for callbacks is called q_delete_cb().
+ */
+static void
+dn_delete_queue(struct dn_queue *q, int flags)
+{
+	struct dn_fsk *fs = q->fs;
+
+	// D("fs %p si %p\n", fs, q->_si);
+	/* notify the parent scheduler that the queue is going away */
+	if (fs && fs->sched->fp->free_queue)
+		fs->sched->fp->free_queue(q);
+	q->_si->q_count--;
+	q->_si = NULL;
+	if (flags & DN_DESTROY) {
+		if (q->mq.head)
+			dn_free_pkts(q->mq.head);
+		bzero(q, sizeof(*q));	// safety
+		free(q, M_DUMMYNET);
+		dn_cfg.queue_count--;
+	}
+}
+
+static int
+q_delete_cb(void *q, void *arg)
+{
+	int flags = (int)(uintptr_t)arg;
+	dn_delete_queue(q, flags);
+	return (flags & DN_DESTROY) ? DNHT_SCAN_DEL : 0;
+}
+
+/*
+ * calls dn_delete_queue/q_delete_cb on all queues,
+ * which notifies the parent scheduler and possibly drains packets.
+ * flags & DN_DESTROY: drains queues and destroy qht;
+ */
+static void
+qht_delete(struct dn_fsk *fs, int flags)
+{
+	ND("fs %d start flags %d qht %p",
+		fs->fs.fs_nr, flags, fs->qht);
+	if (!fs->qht)
+		return;
+	if (fs->fs.flags & DN_QHT_HASH) {
+		dn_ht_scan(fs->qht, q_delete_cb, (void *)(uintptr_t)flags);
+		if (flags & DN_DESTROY) {
+			dn_ht_free(fs->qht, 0);
+			fs->qht = NULL;
+		}
+	} else {
+		dn_delete_queue((struct dn_queue *)(fs->qht), flags);
+		if (flags & DN_DESTROY)
+			fs->qht = NULL;
+	}
+}
+
+/*
+ * Find and possibly create the queue for a MULTIQUEUE scheduler.
+ * We never call it for !MULTIQUEUE (the queue is in the sch_inst).
+ */
+struct dn_queue *
+ipdn_q_find(struct dn_fsk *fs, struct dn_sch_inst *si,
+	struct ipfw_flow_id *id)
+{
+	struct dn_queue template;
+
+	template._si = si;
+	template.fs = fs;
+
+	if (fs->fs.flags & DN_QHT_HASH) {
+		struct ipfw_flow_id masked_id;
+		if (fs->qht == NULL) {
+			fs->qht = dn_ht_init(NULL, fs->fs.buckets,
+				offsetof(struct dn_queue, q_next),
+				q_hash, q_match, q_new);
+			if (fs->qht == NULL)
+				return NULL;
+		}
+		masked_id = *id;
+		flow_id_mask(&fs->fsk_mask, &masked_id);
+		return dn_ht_find(fs->qht, (uintptr_t)&masked_id,
+			DNHT_INSERT, &template);
+	} else {
+		if (fs->qht == NULL)
+			fs->qht = q_new(0, 0, &template);
+		return (struct dn_queue *)fs->qht;
+	}
+}
+/*--- end of queue hash table ---*/
+
+/*--- support functions for the sch_inst hashtable ----
  *
- * pipe_nr	pipe or queue the packet is destined for.
- * dir		where shall we send the packet after dummynet.
- * m		the mbuf with the packet
- * ifp		the 'ifp' parameter from the caller.
- *		NULL in ip_input, destination interface in ip_output,
- * rule		matching rule, in case of multiple passes
+ * These are hashed by flow-id
+ */
+static uint32_t
+si_hash(uintptr_t key, int flags, void *arg)
+{
+	/* compute the hash slot from the flow id */
+	struct ipfw_flow_id *id = (flags & DNHT_KEY_IS_OBJ) ?
+		&((struct dn_sch_inst *)key)->ni.fid :
+		(struct ipfw_flow_id *)key;
+
+	return flow_id_hash(id);
+}
+
+static int
+si_match(void *obj, uintptr_t key, int flags, void *arg)
+{
+	struct dn_sch_inst *o = obj;
+	struct ipfw_flow_id *id2;
+
+	id2 = (flags & DNHT_KEY_IS_OBJ) ?
+		&((struct dn_sch_inst *)key)->ni.fid :
+		(struct ipfw_flow_id *)key;
+	return flow_id_cmp(&o->ni.fid,  id2) == 0;
+}
+
+/*
+ * create a new instance for the given 'key'
+ * Allocate memory for instance, delay line and scheduler private data.
+ */
+static void *
+si_new(uintptr_t key, int flags, void *arg)
+{
+	struct dn_schk *s = arg;
+	struct dn_sch_inst *si;
+	int l = sizeof(*si) + s->fp->si_datalen;
+
+	si = malloc(l, M_DUMMYNET, M_NOWAIT | M_ZERO);
+	if (si == NULL)
+		goto error;
+	/* Set length only for the part passed up to userland. */
+	set_oid(&si->ni.oid, DN_SCH_I, sizeof(struct dn_flow));
+	set_oid(&(si->dline.oid), DN_DELAY_LINE,
+		sizeof(struct delay_line));
+	/* mark si and dline as outside the event queue */
+	si->ni.oid.id = si->dline.oid.id = -1;
+
+	si->sched = s;
+	si->dline.si = si;
+
+	if (s->fp->new_sched && s->fp->new_sched(si)) {
+		D("new_sched error");
+		goto error;
+	}
+	if (s->sch.flags & DN_HAVE_MASK)
+		si->ni.fid = *(struct ipfw_flow_id *)key;
+
+	dn_cfg.si_count++;
+	return si;
+
+error:
+	if (si) {
+		bzero(si, sizeof(*si)); // safety
+		free(si, M_DUMMYNET);
+	}
+        return NULL;
+}
+
+/*
+ * Callback from siht to delete all scheduler instances. Remove
+ * si and delay line from the system heap, destroy all queues.
+ * We assume that all flowset have been notified and do not
+ * point to us anymore.
  */
 static int
-dummynet_io(struct mbuf **m0, int dir, struct ip_fw_args *fwa)
+si_destroy(void *_si, void *arg)
 {
-	struct mbuf *m = *m0, *head = NULL, *tail = NULL;
-	struct dn_pkt_tag *pkt;
-	struct m_tag *mtag;
-	struct dn_flow_set *fs = NULL;
-	struct dn_pipe *pipe;
-	uint64_t len = m->m_pkthdr.len;
-	struct dn_flow_queue *q = NULL;
-	int is_pipe = fwa->rule.info & IPFW_IS_PIPE;
+	struct dn_sch_inst *si = _si;
+	struct dn_schk *s = si->sched;
+	struct delay_line *dl = &si->dline;
 
-	KASSERT(m->m_nextpkt == NULL,
-	    ("dummynet_io: mbuf queue passed to dummynet"));
+	if (dl->oid.subtype) /* remove delay line from event heap */
+		heap_extract(&dn_cfg.evheap, dl);
+	dn_free_pkts(dl->mq.head);	/* drain delay line */
+	if (si->kflags & DN_ACTIVE) /* remove si from event heap */
+		heap_extract(&dn_cfg.evheap, si);
+	if (s->fp->free_sched)
+		s->fp->free_sched(si);
+	bzero(si, sizeof(*si));	/* safety */
+	free(si, M_DUMMYNET);
+	dn_cfg.si_count--;
+	return DNHT_SCAN_DEL;
+}
 
-	DUMMYNET_LOCK();
-	io_pkt++;
-	/*
-	 * This is a dummynet rule, so we expect an O_PIPE or O_QUEUE rule.
+/*
+ * Find the scheduler instance for this packet. If we need to apply
+ * a mask, do on a local copy of the flow_id to preserve the original.
+ * Assume siht is always initialized if we have a mask.
+ */
+struct dn_sch_inst *
+ipdn_si_find(struct dn_schk *s, struct ipfw_flow_id *id)
+{
+
+	if (s->sch.flags & DN_HAVE_MASK) {
+		struct ipfw_flow_id id_t = *id;
+		flow_id_mask(&s->sch.sched_mask, &id_t);
+		return dn_ht_find(s->siht, (uintptr_t)&id_t,
+			DNHT_INSERT, s);
+	}
+	if (!s->siht)
+		s->siht = si_new(0, 0, s);
+	return (struct dn_sch_inst *)s->siht;
+}
+
+/* callback to flush credit for the scheduler instance */
+static int
+si_reset_credit(void *_si, void *arg)
+{
+	struct dn_sch_inst *si = _si;
+	struct dn_link *p = &si->sched->link;
+
+	si->credit = p->burst + (dn_cfg.io_fast ?  p->bandwidth : 0);
+	return 0;
+}
+
+static void
+schk_reset_credit(struct dn_schk *s)
+{
+	if (s->sch.flags & DN_HAVE_MASK)
+		dn_ht_scan(s->siht, si_reset_credit, NULL);
+	else if (s->siht)
+		si_reset_credit(s->siht, NULL);
+}
+/*---- end of sch_inst hashtable ---------------------*/
+
+/*-------------------------------------------------------
+ * flowset hash (fshash) support. Entries are hashed by fs_nr.
+ * New allocations are put in the fsunlinked list, from which
+ * they are removed when they point to a specific scheduler.
+ */
+static uint32_t
+fsk_hash(uintptr_t key, int flags, void *arg)
+{
+	uint32_t i = !(flags & DNHT_KEY_IS_OBJ) ? key :
+		((struct dn_fsk *)key)->fs.fs_nr;
+
+	return ( (i>>8)^(i>>4)^i );
+}
+
+static int
+fsk_match(void *obj, uintptr_t key, int flags, void *arg)
+{
+	struct dn_fsk *fs = obj;
+	int i = !(flags & DNHT_KEY_IS_OBJ) ? key :
+		((struct dn_fsk *)key)->fs.fs_nr;
+
+	return (fs->fs.fs_nr == i);
+}
+
+static void *
+fsk_new(uintptr_t key, int flags, void *arg)
+{
+	struct dn_fsk *fs;
+
+	fs = malloc(sizeof(*fs), M_DUMMYNET, M_NOWAIT | M_ZERO);
+	if (fs) {
+		set_oid(&fs->fs.oid, DN_FS, sizeof(fs->fs));
+		dn_cfg.fsk_count++;
+		fs->drain_bucket = 0;
+		SLIST_INSERT_HEAD(&dn_cfg.fsu, fs, sch_chain);
+	}
+	return fs;
+}
+
+/*
+ * detach flowset from its current scheduler. Flags as follows:
+ * DN_DETACH removes from the fsk_list
+ * DN_DESTROY deletes individual queues
+ * DN_DELETE_FS destroys the flowset (otherwise goes in unlinked).
+ */
+static void
+fsk_detach(struct dn_fsk *fs, int flags)
+{
+	if (flags & DN_DELETE_FS)
+		flags |= DN_DESTROY;
+	ND("fs %d from sched %d flags %s %s %s",
+		fs->fs.fs_nr, fs->fs.sched_nr,
+		(flags & DN_DELETE_FS) ? "DEL_FS":"",
+		(flags & DN_DESTROY) ? "DEL":"",
+		(flags & DN_DETACH) ? "DET":"");
+	if (flags & DN_DETACH) { /* detach from the list */
+		struct dn_fsk_head *h;
+		h = fs->sched ? &fs->sched->fsk_list : &dn_cfg.fsu;
+		SLIST_REMOVE(h, fs, dn_fsk, sch_chain);
+	}
+	/* Free the RED parameters, they will be recomputed on
+	 * subsequent attach if needed.
 	 */
-	if (is_pipe) {
-		pipe = locate_pipe(fwa->rule.info & IPFW_INFO_MASK);
-		if (pipe != NULL)
-			fs = &(pipe->fs);
-	} else
-		fs = locate_flowset(fwa->rule.info & IPFW_INFO_MASK);
+	if (fs->w_q_lookup)
+		free(fs->w_q_lookup, M_DUMMYNET);
+	fs->w_q_lookup = NULL;
+	qht_delete(fs, flags);
+	if (fs->sched && fs->sched->fp->free_fsk)
+		fs->sched->fp->free_fsk(fs);
+	fs->sched = NULL;
+	if (flags & DN_DELETE_FS) {
+		bzero(fs, sizeof(fs));	/* safety */
+		free(fs, M_DUMMYNET);
+		dn_cfg.fsk_count--;
+	} else {
+		SLIST_INSERT_HEAD(&dn_cfg.fsu, fs, sch_chain);
+	}
+}
 
-	if (fs == NULL)
-		goto dropit;	/* This queue/pipe does not exist! */
-	pipe = fs->pipe;
-	if (pipe == NULL) {	/* Must be a queue, try find a matching pipe. */
-		pipe = locate_pipe(fs->parent_nr);
-		if (pipe != NULL)
-			fs->pipe = pipe;
-		else {
-			printf("dummynet: no pipe %d for queue %d, drop pkt\n",
-			    fs->parent_nr, fs->fs_nr);
-			goto dropit;
+/*
+ * Detach or destroy all flowsets in a list.
+ * flags specifies what to do:
+ * DN_DESTROY:	flush all queues
+ * DN_DELETE_FS:	DN_DESTROY + destroy flowset
+ *	DN_DELETE_FS implies DN_DESTROY
+ */
+static void
+fsk_detach_list(struct dn_fsk_head *h, int flags)
+{
+	struct dn_fsk *fs;
+	int n = 0; /* only for stats */
+
+	ND("head %p flags %x", h, flags);
+	while ((fs = SLIST_FIRST(h))) {
+		SLIST_REMOVE_HEAD(h, sch_chain);
+		n++;
+		fsk_detach(fs, flags);
+	}
+	ND("done %d flowsets", n);
+}
+
+/*
+ * called on 'queue X delete' -- removes the flowset from fshash,
+ * deletes all queues for the flowset, and removes the flowset.
+ */
+static int
+delete_fs(int i, int locked)
+{
+	struct dn_fsk *fs;
+	int err = 0;
+
+	if (!locked)
+		DN_BH_WLOCK();
+	fs = dn_ht_find(dn_cfg.fshash, i, DNHT_REMOVE, NULL);
+	ND("fs %d found %p", i, fs);
+	if (fs) {
+		fsk_detach(fs, DN_DETACH | DN_DELETE_FS);
+		err = 0;
+	} else
+		err = EINVAL;
+	if (!locked)
+		DN_BH_WUNLOCK();
+	return err;
+}
+
+/*----- end of flowset hashtable support -------------*/
+
+/*------------------------------------------------------------
+ * Scheduler hash. When searching by index we pass sched_nr,
+ * otherwise we pass struct dn_sch * which is the first field in
+ * struct dn_schk so we can cast between the two. We use this trick
+ * because in the create phase (but it should be fixed).
+ */
+static uint32_t
+schk_hash(uintptr_t key, int flags, void *_arg)
+{
+	uint32_t i = !(flags & DNHT_KEY_IS_OBJ) ? key :
+		((struct dn_schk *)key)->sch.sched_nr;
+	return ( (i>>8)^(i>>4)^i );
+}
+
+static int
+schk_match(void *obj, uintptr_t key, int flags, void *_arg)
+{
+	struct dn_schk *s = (struct dn_schk *)obj;
+	int i = !(flags & DNHT_KEY_IS_OBJ) ? key :
+		((struct dn_schk *)key)->sch.sched_nr;
+	return (s->sch.sched_nr == i);
+}
+
+/*
+ * Create the entry and intialize with the sched hash if needed.
+ * Leave s->fp unset so we can tell whether a dn_ht_find() returns
+ * a new object or a previously existing one.
+ */
+static void *
+schk_new(uintptr_t key, int flags, void *arg)
+{
+	struct schk_new_arg *a = arg;
+	struct dn_schk *s;
+	int l = sizeof(*s) +a->fp->schk_datalen;
+
+	s = malloc(l, M_DUMMYNET, M_NOWAIT | M_ZERO);
+	if (s == NULL)
+		return NULL;
+	set_oid(&s->link.oid, DN_LINK, sizeof(s->link));
+	s->sch = *a->sch; // copy initial values
+	s->link.link_nr = s->sch.sched_nr;
+	SLIST_INIT(&s->fsk_list);
+	/* initialize the hash table or create the single instance */
+	s->fp = a->fp;	/* si_new needs this */
+	s->drain_bucket = 0;
+	if (s->sch.flags & DN_HAVE_MASK) {
+		s->siht = dn_ht_init(NULL, s->sch.buckets,
+			offsetof(struct dn_sch_inst, si_next),
+			si_hash, si_match, si_new);
+		if (s->siht == NULL) {
+			free(s, M_DUMMYNET);
+			return NULL;
 		}
 	}
-	q = find_queue(fs, &(fwa->f_id));
-	if (q == NULL)
-		goto dropit;		/* Cannot allocate queue. */
+	s->fp = NULL;	/* mark as a new scheduler */
+	dn_cfg.schk_count++;
+	return s;
+}
 
-	/* Update statistics, then check reasons to drop pkt. */
-	q->tot_bytes += len;
-	q->tot_pkts++;
-	if (fs->plr && random() < fs->plr)
-		goto dropit;		/* Random pkt drop. */
-	if (fs->flags_fs & DN_QSIZE_IS_BYTES) {
-		if (q->len_bytes > fs->qsize)
-			goto dropit;	/* Queue size overflow. */
-	} else {
-		if (q->len >= fs->qsize)
-			goto dropit;	/* Queue count overflow. */
+/*
+ * Callback for sched delete. Notify all attached flowsets to
+ * detach from the scheduler, destroy the internal flowset, and
+ * all instances. The scheduler goes away too.
+ * arg is 0 (only detach flowsets and destroy instances)
+ * DN_DESTROY (detach & delete queues, delete schk)
+ * or DN_DELETE_FS (delete queues and flowsets, delete schk)
+ */
+static int
+schk_delete_cb(void *obj, void *arg)
+{
+	struct dn_schk *s = obj;
+#if 0
+	int a = (int)arg;
+	ND("sched %d arg %s%s",
+		s->sch.sched_nr,
+		a&DN_DESTROY ? "DEL ":"",
+		a&DN_DELETE_FS ? "DEL_FS":"");
+#endif
+	fsk_detach_list(&s->fsk_list, arg ? DN_DESTROY : 0);
+	/* no more flowset pointing to us now */
+	if (s->sch.flags & DN_HAVE_MASK)
+		dn_ht_scan(s->siht, si_destroy, NULL);
+	else if (s->siht)
+		si_destroy(s->siht, NULL);
+	if (s->profile) {
+		free(s->profile, M_DUMMYNET);
+		s->profile = NULL;
 	}
-	if (fs->flags_fs & DN_IS_RED && red_drops(fs, q, len))
-		goto dropit;
+	s->siht = NULL;
+	if (s->fp->destroy)
+		s->fp->destroy(s);
+	bzero(s, sizeof(*s));	// safety
+	free(obj, M_DUMMYNET);
+	dn_cfg.schk_count--;
+	return DNHT_SCAN_DEL;
+}
 
-	/* XXX expensive to zero, see if we can remove it. */
-	mtag = m_tag_get(PACKET_TAG_DUMMYNET,
-	    sizeof(struct dn_pkt_tag), M_NOWAIT | M_ZERO);
-	if (mtag == NULL)
-		goto dropit;		/* Cannot allocate packet header. */
-	m_tag_prepend(m, mtag);		/* Attach to mbuf chain. */
+/*
+ * called on a 'sched X delete' command. Deletes a single scheduler.
+ * This is done by removing from the schedhash, unlinking all
+ * flowsets and deleting their traffic.
+ */
+static int
+delete_schk(int i)
+{
+	struct dn_schk *s;
 
-	pkt = (struct dn_pkt_tag *)(mtag + 1);
-	/*
-	 * Ok, i can handle the pkt now...
-	 * Build and enqueue packet + parameters.
-	 */
-	pkt->rule = fwa->rule;
-	pkt->rule.info &= IPFW_ONEPASS;	/* only keep this info */
-	pkt->dn_dir = dir;
-	pkt->ifp = fwa->oif;
+	s = dn_ht_find(dn_cfg.schedhash, i, DNHT_REMOVE, NULL);
+	ND("%d %p", i, s);
+	if (!s)
+		return EINVAL;
+	delete_fs(i + DN_MAX_ID, 1); /* first delete internal fs */
+	/* then detach flowsets, delete traffic */
+	schk_delete_cb(s, (void*)(uintptr_t)DN_DESTROY);
+	return 0;
+}
+/*--- end of schk hashtable support ---*/
 
-	if (q->head == NULL)
-		q->head = m;
+static int
+copy_obj(char **start, char *end, void *_o, const char *msg, int i)
+{
+	struct dn_id *o = _o;
+	int have = end - *start;
+
+	if (have < o->len || o->len == 0 || o->type == 0) {
+		D("(WARN) type %d %s %d have %d need %d",
+			o->type, msg, i, have, o->len);
+		return 1;
+	}
+	ND("type %d %s %d len %d", o->type, msg, i, o->len);
+	bcopy(_o, *start, o->len);
+	if (o->type == DN_LINK) {
+		/* Adjust burst parameter for link */
+		struct dn_link *l = (struct dn_link *)*start;
+		l->burst =  div64(l->burst, 8 * hz);
+	} else if (o->type == DN_SCH) {
+		/* Set id->id to the number of instances */
+		struct dn_schk *s = _o;
+		struct dn_id *id = (struct dn_id *)(*start);
+		id->id = (s->sch.flags & DN_HAVE_MASK) ?
+			dn_ht_entries(s->siht) : (s->siht ? 1 : 0);
+	}
+	*start += o->len;
+	return 0;
+}
+
+/* Specific function to copy a queue.
+ * Copies only the user-visible part of a queue (which is in
+ * a struct dn_flow), and sets len accordingly.
+ */
+static int
+copy_obj_q(char **start, char *end, void *_o, const char *msg, int i)
+{
+	struct dn_id *o = _o;
+	int have = end - *start;
+	int len = sizeof(struct dn_flow); /* see above comment */
+
+	if (have < len || o->len == 0 || o->type != DN_QUEUE) {
+		D("ERROR type %d %s %d have %d need %d",
+			o->type, msg, i, have, len);
+		return 1;
+	}
+	ND("type %d %s %d len %d", o->type, msg, i, len);
+	bcopy(_o, *start, len);
+	((struct dn_id*)(*start))->len = len;
+	*start += len;
+	return 0;
+}
+
+static int
+copy_q_cb(void *obj, void *arg)
+{
+	struct dn_queue *q = obj;
+	struct copy_args *a = arg;
+	struct dn_flow *ni = (struct dn_flow *)(*a->start);
+        if (copy_obj_q(a->start, a->end, &q->ni, "queue", -1))
+                return DNHT_SCAN_END;
+        ni->oid.type = DN_FLOW; /* override the DN_QUEUE */
+        ni->oid.id = si_hash((uintptr_t)&ni->fid, 0, NULL);
+        return 0;
+}
+
+static int
+copy_q(struct copy_args *a, struct dn_fsk *fs, int flags)
+{
+	if (!fs->qht)
+		return 0;
+	if (fs->fs.flags & DN_QHT_HASH)
+		dn_ht_scan(fs->qht, copy_q_cb, a);
 	else
-		q->tail->m_nextpkt = m;
-	q->tail = m;
-	q->len++;
-	q->len_bytes += len;
-
-	if (q->head != m)		/* Flow was not idle, we are done. */
-		goto done;
-
-	if (is_pipe) {			/* Fixed rate queues. */
-		if (q->idle_time < curr_time) {
-			/* Calculate available burst size. */
-			q->numbytes +=
-			    (curr_time - q->idle_time - 1) * pipe->bandwidth;
-			if (q->numbytes > pipe->burst)
-				q->numbytes = pipe->burst;
-			if (io_fast)
-				q->numbytes += pipe->bandwidth;
-		}
-	} else {			/* WF2Q. */
-		if (pipe->idle_time < curr_time &&
-		    pipe->scheduler_heap.elements == 0 &&
-		    pipe->not_eligible_heap.elements == 0) {
-			/* Calculate available burst size. */
-			pipe->numbytes +=
-			    (curr_time - pipe->idle_time - 1) * pipe->bandwidth;
-			if (pipe->numbytes > 0 && pipe->numbytes > pipe->burst)
-				pipe->numbytes = pipe->burst;
-			if (io_fast)
-				pipe->numbytes += pipe->bandwidth;
-		}
-		pipe->idle_time = curr_time;
-	}
-	/* Necessary for both: fixed rate & WF2Q queues. */
-	q->idle_time = curr_time;
-
-	/*
-	 * If we reach this point the flow was previously idle, so we need
-	 * to schedule it. This involves different actions for fixed-rate or
-	 * WF2Q queues.
-	 */
-	if (is_pipe) {
-		/* Fixed-rate queue: just insert into the ready_heap. */
-		dn_key t = 0;
-
-		if (pipe->bandwidth) {
-			q->extra_bits = compute_extra_bits(m, pipe);
-			t = set_ticks(m, q, pipe);
-		}
-		q->sched_time = curr_time;
-		if (t == 0)		/* Must process it now. */
-			ready_event(q, &head, &tail);
-		else
-			heap_insert(&ready_heap, curr_time + t , q);
-	} else {
-		/*
-		 * WF2Q. First, compute start time S: if the flow was
-		 * idle (S = F + 1) set S to the virtual time V for the
-		 * controlling pipe, and update the sum of weights for the pipe;
-		 * otherwise, remove flow from idle_heap and set S to max(F,V).
-		 * Second, compute finish time F = S + len / weight.
-		 * Third, if pipe was idle, update V = max(S, V).
-		 * Fourth, count one more backlogged flow.
-		 */
-		if (DN_KEY_GT(q->S, q->F)) { /* Means timestamps are invalid. */
-			q->S = pipe->V;
-			pipe->sum += fs->weight; /* Add weight of new queue. */
-		} else {
-			heap_extract(&(pipe->idle_heap), q);
-			q->S = MAX64(q->F, pipe->V);
-		}
-		q->F = q->S + div64(len << MY_M, fs->weight);
-
-		if (pipe->not_eligible_heap.elements == 0 &&
-		    pipe->scheduler_heap.elements == 0)
-			pipe->V = MAX64(q->S, pipe->V);
-		fs->backlogged++;
-		/*
-		 * Look at eligibility. A flow is not eligibile if S>V (when
-		 * this happens, it means that there is some other flow already
-		 * scheduled for the same pipe, so the scheduler_heap cannot be
-		 * empty). If the flow is not eligible we just store it in the
-		 * not_eligible_heap. Otherwise, we store in the scheduler_heap
-		 * and possibly invoke ready_event_wfq() right now if there is
-		 * leftover credit.
-		 * Note that for all flows in scheduler_heap (SCH), S_i <= V,
-		 * and for all flows in not_eligible_heap (NEH), S_i > V.
-		 * So when we need to compute max(V, min(S_i)) forall i in
-		 * SCH+NEH, we only need to look into NEH.
-		 */
-		if (DN_KEY_GT(q->S, pipe->V)) {		/* Not eligible. */
-			if (pipe->scheduler_heap.elements == 0)
-				printf("dummynet: ++ ouch! not eligible but empty scheduler!\n");
-			heap_insert(&(pipe->not_eligible_heap), q->S, q);
-		} else {
-			heap_insert(&(pipe->scheduler_heap), q->F, q);
-			if (pipe->numbytes >= 0) {	 /* Pipe is idle. */
-				if (pipe->scheduler_heap.elements != 1)
-					printf("dummynet: OUCH! pipe should have been idle!\n");
-				DPRINTF(("dummynet: waking up pipe %d at %d\n",
-				    pipe->pipe_nr, (int)(q->F >> MY_M)));
-				pipe->sched_time = curr_time;
-				ready_event_wfq(pipe, &head, &tail);
-			}
-		}
-	}
-done:
-	if (head == m && (dir & PROTO_LAYER2) == 0 ) {
-		/* Fast io. */
-		io_pkt_fast++;
-		if (m->m_nextpkt != NULL)
-			printf("dummynet: fast io: pkt chain detected!\n");
-		head = m->m_nextpkt = NULL;
-	} else
-		*m0 = NULL;		/* Normal io. */
-
-	DUMMYNET_UNLOCK();
-	if (head != NULL)
-		dummynet_send(head);
-	return (0);
-
-dropit:
-	io_pkt_drop++;
-	if (q)
-		q->drops++;
-	DUMMYNET_UNLOCK();
-	FREE_PKT(m);
-	*m0 = NULL;
-	return ((fs && (fs->flags_fs & DN_NOERROR)) ? 0 : ENOBUFS);
+		copy_q_cb(fs->qht, a);
+	return 0;
 }
 
 /*
- * Dispose all packets and flow_queues on a flow_set.
- * If all=1, also remove red lookup table and other storage,
- * including the descriptor itself.
- * For the one in dn_pipe MUST also cleanup ready_heap...
- */
-static void
-purge_flow_set(struct dn_flow_set *fs, int all)
-{
-	struct dn_flow_queue *q, *qn;
-	int i;
-
-	DUMMYNET_LOCK_ASSERT();
-
-	for (i = 0; i <= fs->rq_size; i++) {
-		for (q = fs->rq[i]; q != NULL; q = qn) {
-			dn_free_pkts(q->head);
-			qn = q->next;
-			free(q, M_DUMMYNET);
-		}
-		fs->rq[i] = NULL;
-	}
-
-	fs->rq_elements = 0;
-	if (all) {
-		/* RED - free lookup table. */
-		if (fs->w_q_lookup != NULL)
-			free(fs->w_q_lookup, M_DUMMYNET);
-		if (fs->rq != NULL)
-			free(fs->rq, M_DUMMYNET);
-		/* If this fs is not part of a pipe, free it. */
-		if (fs->pipe == NULL || fs != &(fs->pipe->fs))
-			free(fs, M_DUMMYNET);
-	}
-}
-
-/*
- * Dispose all packets queued on a pipe (not a flow_set).
- * Also free all resources associated to a pipe, which is about
- * to be deleted.
- */
-static void
-purge_pipe(struct dn_pipe *pipe)
-{
-
-    purge_flow_set( &(pipe->fs), 1 );
-
-    dn_free_pkts(pipe->head);
-
-    heap_free( &(pipe->scheduler_heap) );
-    heap_free( &(pipe->not_eligible_heap) );
-    heap_free( &(pipe->idle_heap) );
-}
-
-/*
- * Delete all pipes and heaps returning memory. Must also
- * remove references from all ipfw rules to all pipes.
- */
-static void
-dummynet_flush(void)
-{
-	struct dn_pipe *pipe, *pipe1;
-	struct dn_flow_set *fs, *fs1;
-	int i;
-
-	DUMMYNET_LOCK();
-	/* Free heaps so we don't have unwanted events. */
-	heap_free(&ready_heap);
-	heap_free(&wfq_ready_heap);
-	heap_free(&extract_heap);
-
-	/*
-	 * Now purge all queued pkts and delete all pipes.
-	 *
-	 * XXXGL: can we merge the for(;;) cycles into one or not?
-	 */
-	for (i = 0; i < HASHSIZE; i++)
-		SLIST_FOREACH_SAFE(fs, &flowsethash[i], next, fs1) {
-			SLIST_REMOVE(&flowsethash[i], fs, dn_flow_set, next);
-			purge_flow_set(fs, 1);
-		}
-	for (i = 0; i < HASHSIZE; i++)
-		SLIST_FOREACH_SAFE(pipe, &pipehash[i], next, pipe1) {
-			SLIST_REMOVE(&pipehash[i], pipe, dn_pipe, next);
-			purge_pipe(pipe);
-			free_pipe(pipe);
-		}
-	DUMMYNET_UNLOCK();
-}
-
-/*
- * setup RED parameters
+ * This routine only copies the initial part of a profile ? XXX
  */
 static int
-config_red(struct dn_flow_set *p, struct dn_flow_set *x)
+copy_profile(struct copy_args *a, struct dn_profile *p)
 {
-	int i;
+	int have = a->end - *a->start;
+	/* XXX here we check for max length */
+	int profile_len = sizeof(struct dn_profile) - 
+		ED_MAX_SAMPLES_NO*sizeof(int);
 
-	x->w_q = p->w_q;
-	x->min_th = SCALE(p->min_th);
-	x->max_th = SCALE(p->max_th);
-	x->max_p = p->max_p;
+	if (p == NULL)
+		return 0;
+	if (have < profile_len) {
+		D("error have %d need %d", have, profile_len);
+		return 1;
+	}
+	bcopy(p, *a->start, profile_len);
+	((struct dn_id *)(*a->start))->len = profile_len;
+	*a->start += profile_len;
+	return 0;
+}
 
-	x->c_1 = p->max_p / (p->max_th - p->min_th);
-	x->c_2 = SCALE_MUL(x->c_1, SCALE(p->min_th));
+static int
+copy_flowset(struct copy_args *a, struct dn_fsk *fs, int flags)
+{
+	struct dn_fs *ufs = (struct dn_fs *)(*a->start);
+	if (!fs)
+		return 0;
+	ND("flowset %d", fs->fs.fs_nr);
+	if (copy_obj(a->start, a->end, &fs->fs, "flowset", fs->fs.fs_nr))
+		return DNHT_SCAN_END;
+	ufs->oid.id = (fs->fs.flags & DN_QHT_HASH) ?
+		dn_ht_entries(fs->qht) : (fs->qht ? 1 : 0);
+	if (flags) {	/* copy queues */
+		copy_q(a, fs, 0);
+	}
+	return 0;
+}
 
-	if (x->flags_fs & DN_IS_GENTLE_RED) {
-		x->c_3 = (SCALE(1) - p->max_p) / p->max_th;
-		x->c_4 = SCALE(1) - 2 * p->max_p;
+static int
+copy_si_cb(void *obj, void *arg)
+{
+	struct dn_sch_inst *si = obj;
+	struct copy_args *a = arg;
+	struct dn_flow *ni = (struct dn_flow *)(*a->start);
+	if (copy_obj(a->start, a->end, &si->ni, "inst",
+			si->sched->sch.sched_nr))
+		return DNHT_SCAN_END;
+	ni->oid.type = DN_FLOW; /* override the DN_SCH_I */
+	ni->oid.id = si_hash((uintptr_t)si, DNHT_KEY_IS_OBJ, NULL);
+	return 0;
+}
+
+static int
+copy_si(struct copy_args *a, struct dn_schk *s, int flags)
+{
+	if (s->sch.flags & DN_HAVE_MASK)
+		dn_ht_scan(s->siht, copy_si_cb, a);
+	else if (s->siht)
+		copy_si_cb(s->siht, a);
+	return 0;
+}
+
+/*
+ * compute a list of children of a scheduler and copy up
+ */
+static int
+copy_fsk_list(struct copy_args *a, struct dn_schk *s, int flags)
+{
+	struct dn_fsk *fs;
+	struct dn_id *o;
+	uint32_t *p;
+
+	int n = 0, space = sizeof(*o);
+	SLIST_FOREACH(fs, &s->fsk_list, sch_chain) {
+		if (fs->fs.fs_nr < DN_MAX_ID)
+			n++;
+	}
+	space += n * sizeof(uint32_t);
+	DX(3, "sched %d has %d flowsets", s->sch.sched_nr, n);
+	if (a->end - *(a->start) < space)
+		return DNHT_SCAN_END;
+	o = (struct dn_id *)(*(a->start));
+	o->len = space;
+	*a->start += o->len;
+	o->type = DN_TEXT;
+	p = (uint32_t *)(o+1);
+	SLIST_FOREACH(fs, &s->fsk_list, sch_chain)
+		if (fs->fs.fs_nr < DN_MAX_ID)
+			*p++ = fs->fs.fs_nr;
+	return 0;
+}
+
+static int
+copy_data_helper(void *_o, void *_arg)
+{
+	struct copy_args *a = _arg;
+	uint32_t *r = a->extra->r; /* start of first range */
+	uint32_t *lim;	/* first invalid pointer */
+	int n;
+
+	lim = (uint32_t *)((char *)(a->extra) + a->extra->o.len);
+
+	if (a->type == DN_LINK || a->type == DN_SCH) {
+		/* pipe|sched show, we receive a dn_schk */
+		struct dn_schk *s = _o;
+
+		n = s->sch.sched_nr;
+		if (a->type == DN_SCH && n >= DN_MAX_ID)
+			return 0;	/* not a scheduler */
+		if (a->type == DN_LINK && n <= DN_MAX_ID)
+		    return 0;	/* not a pipe */
+
+		/* see if the object is within one of our ranges */
+		for (;r < lim; r += 2) {
+			if (n < r[0] || n > r[1])
+				continue;
+			/* Found a valid entry, copy and we are done */
+			if (a->flags & DN_C_LINK) {
+				if (copy_obj(a->start, a->end,
+				    &s->link, "link", n))
+					return DNHT_SCAN_END;
+				if (copy_profile(a, s->profile))
+					return DNHT_SCAN_END;
+				if (copy_flowset(a, s->fs, 0))
+					return DNHT_SCAN_END;
+			}
+			if (a->flags & DN_C_SCH) {
+				if (copy_obj(a->start, a->end,
+				    &s->sch, "sched", n))
+					return DNHT_SCAN_END;
+				/* list all attached flowsets */
+				if (copy_fsk_list(a, s, 0))
+					return DNHT_SCAN_END;
+			}
+			if (a->flags & DN_C_FLOW)
+				copy_si(a, s, 0);
+			break;
+		}
+	} else if (a->type == DN_FS) {
+		/* queue show, skip internal flowsets */
+		struct dn_fsk *fs = _o;
+
+		n = fs->fs.fs_nr;
+		if (n >= DN_MAX_ID)
+			return 0;
+		/* see if the object is within one of our ranges */
+		for (;r < lim; r += 2) {
+			if (n < r[0] || n > r[1])
+				continue;
+			if (copy_flowset(a, fs, 0))
+				return DNHT_SCAN_END;
+			copy_q(a, fs, 0);
+			break; /* we are done */
+		}
+	}
+	return 0;
+}
+
+static inline struct dn_schk *
+locate_scheduler(int i)
+{
+	return dn_ht_find(dn_cfg.schedhash, i, 0, NULL);
+}
+
+/*
+ * red parameters are in fixed point arithmetic.
+ */
+static int
+config_red(struct dn_fsk *fs)
+{
+	int64_t s, idle, weight, w0;
+	int t, i;
+
+	fs->w_q = fs->fs.w_q;
+	fs->max_p = fs->fs.max_p;
+	D("called");
+	/* Doing stuff that was in userland */
+	i = fs->sched->link.bandwidth;
+	s = (i <= 0) ? 0 :
+		hz * dn_cfg.red_avg_pkt_size * 8 * SCALE(1) / i;
+
+	idle = div64((s * 3) , fs->w_q); /* s, fs->w_q scaled; idle not scaled */
+	fs->lookup_step = div64(idle , dn_cfg.red_lookup_depth);
+	/* fs->lookup_step not scaled, */
+	if (!fs->lookup_step)
+		fs->lookup_step = 1;
+	w0 = weight = SCALE(1) - fs->w_q; //fs->w_q scaled
+
+	for (t = fs->lookup_step; t > 1; --t)
+		weight = SCALE_MUL(weight, w0);
+	fs->lookup_weight = (int)(weight); // scaled
+
+	/* Now doing stuff that was in kerneland */
+	fs->min_th = SCALE(fs->fs.min_th);
+	fs->max_th = SCALE(fs->fs.max_th);
+
+	fs->c_1 = fs->max_p / (fs->fs.max_th - fs->fs.min_th);
+	fs->c_2 = SCALE_MUL(fs->c_1, SCALE(fs->fs.min_th));
+
+	if (fs->fs.flags & DN_IS_GENTLE_RED) {
+		fs->c_3 = (SCALE(1) - fs->max_p) / fs->fs.max_th;
+		fs->c_4 = SCALE(1) - 2 * fs->max_p;
 	}
 
 	/* If the lookup table already exist, free and create it again. */
-	if (x->w_q_lookup) {
-		free(x->w_q_lookup, M_DUMMYNET);
-		x->w_q_lookup = NULL;
+	if (fs->w_q_lookup) {
+		free(fs->w_q_lookup, M_DUMMYNET);
+		fs->w_q_lookup = NULL;
 	}
-	if (red_lookup_depth == 0) {
+	if (dn_cfg.red_lookup_depth == 0) {
 		printf("\ndummynet: net.inet.ip.dummynet.red_lookup_depth"
 		    "must be > 0\n");
-		free(x, M_DUMMYNET);
+		fs->fs.flags &= ~DN_IS_RED;
+		fs->fs.flags &= ~DN_IS_GENTLE_RED;
 		return (EINVAL);
 	}
-	x->lookup_depth = red_lookup_depth;
-	x->w_q_lookup = (u_int *)malloc(x->lookup_depth * sizeof(int),
+	fs->lookup_depth = dn_cfg.red_lookup_depth;
+	fs->w_q_lookup = (u_int *)malloc(fs->lookup_depth * sizeof(int),
 	    M_DUMMYNET, M_NOWAIT);
-	if (x->w_q_lookup == NULL) {
+	if (fs->w_q_lookup == NULL) {
 		printf("dummynet: sorry, cannot allocate red lookup table\n");
-		free(x, M_DUMMYNET);
+		fs->fs.flags &= ~DN_IS_RED;
+		fs->fs.flags &= ~DN_IS_GENTLE_RED;
 		return(ENOSPC);
 	}
 
 	/* Fill the lookup table with (1 - w_q)^x */
-	x->lookup_step = p->lookup_step;
-	x->lookup_weight = p->lookup_weight;
-	x->w_q_lookup[0] = SCALE(1) - x->w_q;
+	fs->w_q_lookup[0] = SCALE(1) - fs->w_q;
 
-	for (i = 1; i < x->lookup_depth; i++)
-		x->w_q_lookup[i] =
-		    SCALE_MUL(x->w_q_lookup[i - 1], x->lookup_weight);
+	for (i = 1; i < fs->lookup_depth; i++)
+		fs->w_q_lookup[i] =
+		    SCALE_MUL(fs->w_q_lookup[i - 1], fs->lookup_weight);
 
-	if (red_avg_pkt_size < 1)
-		red_avg_pkt_size = 512;
-	x->avg_pkt_size = red_avg_pkt_size;
-	if (red_max_pkt_size < 1)
-		red_max_pkt_size = 1500;
-	x->max_pkt_size = red_max_pkt_size;
-	return (0);
+	if (dn_cfg.red_avg_pkt_size < 1)
+		dn_cfg.red_avg_pkt_size = 512;
+	fs->avg_pkt_size = dn_cfg.red_avg_pkt_size;
+	if (dn_cfg.red_max_pkt_size < 1)
+		dn_cfg.red_max_pkt_size = 1500;
+	fs->max_pkt_size = dn_cfg.red_max_pkt_size;
+	D("exit");
+	return 0;
 }
 
-static int
-alloc_hash(struct dn_flow_set *x, struct dn_flow_set *pfs)
-{
-    if (x->flags_fs & DN_HAVE_FLOW_MASK) {     /* allocate some slots */
-	int l = pfs->rq_size;
-
-	if (l == 0)
-	    l = dn_hash_size;
-	if (l < 4)
-	    l = 4;
-	else if (l > DN_MAX_HASH_SIZE)
-	    l = DN_MAX_HASH_SIZE;
-	x->rq_size = l;
-    } else                  /* one is enough for null mask */
-	x->rq_size = 1;
-    x->rq = malloc((1 + x->rq_size) * sizeof(struct dn_flow_queue *),
-	    M_DUMMYNET, M_NOWAIT | M_ZERO);
-    if (x->rq == NULL) {
-	printf("dummynet: sorry, cannot allocate queue\n");
-	return (ENOMEM);
-    }
-    x->rq_elements = 0;
-    return 0 ;
-}
-
+/* Scan all flowset attached to this scheduler and update red */
 static void
-set_fs_parms(struct dn_flow_set *x, struct dn_flow_set *src)
+update_red(struct dn_schk *s)
 {
-	x->flags_fs = src->flags_fs;
-	x->qsize = src->qsize;
-	x->plr = src->plr;
-	x->flow_mask = src->flow_mask;
-	if (x->flags_fs & DN_QSIZE_IS_BYTES) {
-		if (x->qsize > pipe_byte_limit)
-			x->qsize = 1024 * 1024;
-	} else {
-		if (x->qsize == 0)
-			x->qsize = 50;
-		if (x->qsize > pipe_slot_limit)
-			x->qsize = 50;
+	struct dn_fsk *fs;
+	SLIST_FOREACH(fs, &s->fsk_list, sch_chain) {
+		if (fs && (fs->fs.flags & DN_IS_RED))
+			config_red(fs);
 	}
-	/* Configuring RED. */
-	if (x->flags_fs & DN_IS_RED)
-		config_red(src, x);	/* XXX should check errors */
+}
+
+/* attach flowset to scheduler s, possibly requeue */
+static void
+fsk_attach(struct dn_fsk *fs, struct dn_schk *s)
+{
+	ND("remove fs %d from fsunlinked, link to sched %d",
+		fs->fs.fs_nr, s->sch.sched_nr);
+	SLIST_REMOVE(&dn_cfg.fsu, fs, dn_fsk, sch_chain);
+	fs->sched = s;
+	SLIST_INSERT_HEAD(&s->fsk_list, fs, sch_chain);
+	if (s->fp->new_fsk)
+		s->fp->new_fsk(fs);
+	/* XXX compute fsk_mask */
+	fs->fsk_mask = fs->fs.flow_mask;
+	if (fs->sched->sch.flags & DN_HAVE_MASK)
+		flow_id_or(&fs->sched->sch.sched_mask, &fs->fsk_mask);
+	if (fs->qht) {
+		/*
+		 * we must drain qht according to the old
+		 * type, and reinsert according to the new one.
+		 * The requeue is complex -- in general we need to
+		 * reclassify every single packet.
+		 * For the time being, let's hope qht is never set
+		 * when we reach this point.
+		 */
+		D("XXX TODO requeue from fs %d to sch %d",
+			fs->fs.fs_nr, s->sch.sched_nr);
+		fs->qht = NULL;
+	}
+	/* set the new type for qht */
+	if (nonzero_mask(&fs->fsk_mask))
+		fs->fs.flags |= DN_QHT_HASH;
+	else
+		fs->fs.flags &= ~DN_QHT_HASH;
+
+	/* XXX config_red() can fail... */
+	if (fs->fs.flags & DN_IS_RED)
+		config_red(fs);
+}
+
+/* update all flowsets which may refer to this scheduler */
+static void
+update_fs(struct dn_schk *s)
+{
+	struct dn_fsk *fs, *tmp;
+
+	SLIST_FOREACH_SAFE(fs, &dn_cfg.fsu, sch_chain, tmp) {
+		if (s->sch.sched_nr != fs->fs.sched_nr) {
+			D("fs %d for sch %d not %d still unlinked",
+				fs->fs.fs_nr, fs->fs.sched_nr,
+				s->sch.sched_nr);
+			continue;
+		}
+		fsk_attach(fs, s);
+	}
 }
 
 /*
- * Setup pipe or queue parameters.
+ * Configuration -- to preserve backward compatibility we use
+ * the following scheme (N is 65536)
+ *	NUMBER		SCHED	LINK	FLOWSET
+ *	   1 ..  N-1	(1)WFQ	(2)WFQ	(3)queue
+ *	 N+1 .. 2N-1	(4)FIFO (5)FIFO	(6)FIFO for sched 1..N-1
+ *	2N+1 .. 3N-1	--	--	(7)FIFO for sched N+1..2N-1
+ *
+ * "pipe i config" configures #1, #2 and #3
+ * "sched i config" configures #1 and possibly #6
+ * "queue i config" configures #3
+ * #1 is configured with 'pipe i config' or 'sched i config'
+ * #2 is configured with 'pipe i config', and created if not
+ *	existing with 'sched i config'
+ * #3 is configured with 'queue i config'
+ * #4 is automatically configured after #1, can only be FIFO
+ * #5 is automatically configured after #2
+ * #6 is automatically created when #1 is !MULTIQUEUE,
+ *	and can be updated.
+ * #7 is automatically configured after #2
+ */
+
+/*
+ * configure a link (and its FIFO instance)
  */
 static int
-config_pipe(struct dn_pipe *p)
+config_link(struct dn_link *p, struct dn_id *arg)
 {
-	struct dn_flow_set *pfs = &(p->fs);
-	struct dn_flow_queue *q;
-	int i, error;
+	int i;
 
+	if (p->oid.len != sizeof(*p)) {
+		D("invalid pipe len %d", p->oid.len);
+		return EINVAL;
+	}
+	i = p->link_nr;
+	if (i <= 0 || i >= DN_MAX_ID)
+		return EINVAL;
 	/*
 	 * The config program passes parameters as follows:
 	 * bw = bits/second (0 means no limits),
 	 * delay = ms, must be translated into ticks.
 	 * qsize = slots/bytes
+	 * burst ???
 	 */
 	p->delay = (p->delay * hz) / 1000;
 	/* Scale burst size: bytes -> bits * hz */
 	p->burst *= 8 * hz;
-	/* We need either a pipe number or a flow_set number. */
-	if (p->pipe_nr == 0 && pfs->fs_nr == 0)
-		return (EINVAL);
-	if (p->pipe_nr != 0 && pfs->fs_nr != 0)
-		return (EINVAL);
-	if (p->pipe_nr != 0) {			/* this is a pipe */
-		struct dn_pipe *pipe;
 
-		DUMMYNET_LOCK();
-		pipe = locate_pipe(p->pipe_nr);	/* locate pipe */
-
-		if (pipe == NULL) {		/* new pipe */
-			pipe = malloc(sizeof(struct dn_pipe), M_DUMMYNET,
-			    M_NOWAIT | M_ZERO);
-			if (pipe == NULL) {
-				DUMMYNET_UNLOCK();
-				printf("dummynet: no memory for new pipe\n");
-				return (ENOMEM);
-			}
-			pipe->pipe_nr = p->pipe_nr;
-			pipe->fs.pipe = pipe;
-			/*
-			 * idle_heap is the only one from which
-			 * we extract from the middle.
-			 */
-			pipe->idle_heap.size = pipe->idle_heap.elements = 0;
-			pipe->idle_heap.offset =
-			    offsetof(struct dn_flow_queue, heap_pos);
-		} else {
-			/* Flush accumulated credit for all queues. */
-			for (i = 0; i <= pipe->fs.rq_size; i++) {
-				for (q = pipe->fs.rq[i]; q; q = q->next) {
-					q->numbytes = p->burst +
-					    (io_fast ? p->bandwidth : 0);
-				}
-			}
-		}
-
-		pipe->bandwidth = p->bandwidth;
-		pipe->burst = p->burst;
-		pipe->numbytes = pipe->burst + (io_fast ? pipe->bandwidth : 0);
-		bcopy(p->if_name, pipe->if_name, sizeof(p->if_name));
-		pipe->ifp = NULL;		/* reset interface ptr */
-		pipe->delay = p->delay;
-		set_fs_parms(&(pipe->fs), pfs);
-
-		/* Handle changes in the delay profile. */
-		if (p->samples_no > 0) {
-			if (pipe->samples_no != p->samples_no) {
-				if (pipe->samples != NULL)
-					free(pipe->samples, M_DUMMYNET);
-				pipe->samples =
-				    malloc(p->samples_no*sizeof(dn_key),
-					M_DUMMYNET, M_NOWAIT | M_ZERO);
-				if (pipe->samples == NULL) {
-					DUMMYNET_UNLOCK();
-					printf("dummynet: no memory "
-						"for new samples\n");
-					return (ENOMEM);
-				}
-				pipe->samples_no = p->samples_no;
-			}
-
-			strncpy(pipe->name,p->name,sizeof(pipe->name));
-			pipe->loss_level = p->loss_level;
-			for (i = 0; i<pipe->samples_no; ++i)
-				pipe->samples[i] = p->samples[i];
-		} else if (pipe->samples != NULL) {
-			free(pipe->samples, M_DUMMYNET);
-			pipe->samples = NULL;
-			pipe->samples_no = 0;
-		}
-
-		if (pipe->fs.rq == NULL) {	/* a new pipe */
-			error = alloc_hash(&(pipe->fs), pfs);
-			if (error) {
-				DUMMYNET_UNLOCK();
-				free_pipe(pipe);
-				return (error);
-			}
-			SLIST_INSERT_HEAD(&pipehash[HASH(pipe->pipe_nr)],
-			    pipe, next);
-		}
-		DUMMYNET_UNLOCK();
-	} else {				/* config queue */
-		struct dn_flow_set *fs;
-
-		DUMMYNET_LOCK();
-		fs = locate_flowset(pfs->fs_nr); /* locate flow_set */
-
-		if (fs == NULL) {		/* new */
-			if (pfs->parent_nr == 0) { /* need link to a pipe */
-				DUMMYNET_UNLOCK();
-				return (EINVAL);
-			}
-			fs = malloc(sizeof(struct dn_flow_set), M_DUMMYNET,
-			    M_NOWAIT | M_ZERO);
-			if (fs == NULL) {
-				DUMMYNET_UNLOCK();
-				printf(
-				    "dummynet: no memory for new flow_set\n");
-				return (ENOMEM);
-			}
-			fs->fs_nr = pfs->fs_nr;
-			fs->parent_nr = pfs->parent_nr;
-			fs->weight = pfs->weight;
-			if (fs->weight == 0)
-				fs->weight = 1;
-			else if (fs->weight > 100)
-				fs->weight = 100;
-		} else {
-			/*
-			 * Change parent pipe not allowed;
-			 * must delete and recreate.
-			 */
-			if (pfs->parent_nr != 0 &&
-			    fs->parent_nr != pfs->parent_nr) {
-				DUMMYNET_UNLOCK();
-				return (EINVAL);
-			}
-		}
-
-		set_fs_parms(fs, pfs);
-
-		if (fs->rq == NULL) {		/* a new flow_set */
-			error = alloc_hash(fs, pfs);
-			if (error) {
-				DUMMYNET_UNLOCK();
-				free(fs, M_DUMMYNET);
-				return (error);
-			}
-			SLIST_INSERT_HEAD(&flowsethash[HASH(fs->fs_nr)],
-			    fs, next);
-		}
-		DUMMYNET_UNLOCK();
-	}
-	return (0);
-}
-
-/*
- * Helper function to remove from a heap queues which are linked to
- * a flow_set about to be deleted.
- */
-static void
-fs_remove_from_heap(struct dn_heap *h, struct dn_flow_set *fs)
-{
-    int i, found;
-
-    for (i = found = 0 ; i < h->elements ;) {
-	if ( ((struct dn_flow_queue *)h->p[i].object)->fs == fs) {
-	    h->elements-- ;
-	    h->p[i] = h->p[h->elements] ;
-	    found++ ;
-	} else
-	    i++ ;
-    }
-    if (found)
-	heapify(h);
-}
-
-/*
- * helper function to remove a pipe from a heap (can be there at most once)
- */
-static void
-pipe_remove_from_heap(struct dn_heap *h, struct dn_pipe *p)
-{
-	int i;
-
-	for (i=0; i < h->elements ; i++ ) {
-		if (h->p[i].object == p) { /* found it */
-			h->elements-- ;
-			h->p[i] = h->p[h->elements] ;
-			heapify(h);
-			break ;
-		}
-	}
-}
-
-/*
- * Fully delete a pipe or a queue, cleaning up associated info.
- */
-static int
-delete_pipe(struct dn_pipe *p)
-{
-
-    if (p->pipe_nr == 0 && p->fs.fs_nr == 0)
-	return EINVAL ;
-    if (p->pipe_nr != 0 && p->fs.fs_nr != 0)
-	return EINVAL ;
-    if (p->pipe_nr != 0) { /* this is an old-style pipe */
-	struct dn_pipe *pipe;
-	struct dn_flow_set *fs;
-	int i;
-
-	DUMMYNET_LOCK();
-	pipe = locate_pipe(p->pipe_nr);	/* locate pipe */
-
-	if (pipe == NULL) {
-	    DUMMYNET_UNLOCK();
-	    return (ENOENT);	/* not found */
-	}
-
-	/* Unlink from list of pipes. */
-	SLIST_REMOVE(&pipehash[HASH(pipe->pipe_nr)], pipe, dn_pipe, next);
-
-	/* Remove all references to this pipe from flow_sets. */
-	for (i = 0; i < HASHSIZE; i++) {
-	    SLIST_FOREACH(fs, &flowsethash[i], next) {
-		if (fs->pipe == pipe) {
-			printf("dummynet: ++ ref to pipe %d from fs %d\n",
-			    p->pipe_nr, fs->fs_nr);
-			fs->pipe = NULL ;
-			purge_flow_set(fs, 0);
-		}
+	DN_BH_WLOCK();
+	/* do it twice, base link and FIFO link */
+	for (; i < 2*DN_MAX_ID; i += DN_MAX_ID) {
+	    struct dn_schk *s = locate_scheduler(i);
+	    if (s == NULL) {
+		DN_BH_WUNLOCK();
+		D("sched %d not found", i);
+		return EINVAL;
 	    }
+	    /* remove profile if exists */
+	    if (s->profile) {
+		free(s->profile, M_DUMMYNET);
+		s->profile = NULL;
+	    }
+	    /* copy all parameters */
+	    s->link.oid = p->oid;
+	    s->link.link_nr = i;
+	    s->link.delay = p->delay;
+	    if (s->link.bandwidth != p->bandwidth) {
+		/* XXX bandwidth changes, need to update red params */
+	    s->link.bandwidth = p->bandwidth;
+		update_red(s);
+	    }
+	    s->link.burst = p->burst;
+	    schk_reset_credit(s);
 	}
-	fs_remove_from_heap(&ready_heap, &(pipe->fs));
-	purge_pipe(pipe); /* remove all data associated to this pipe */
-	/* remove reference to here from extract_heap and wfq_ready_heap */
-	pipe_remove_from_heap(&extract_heap, pipe);
-	pipe_remove_from_heap(&wfq_ready_heap, pipe);
-	DUMMYNET_UNLOCK();
-
-	free_pipe(pipe);
-    } else { /* this is a WF2Q queue (dn_flow_set) */
-	struct dn_flow_set *fs;
-
-	DUMMYNET_LOCK();
-	fs = locate_flowset(p->fs.fs_nr); /* locate set */
-
-	if (fs == NULL) {
-	    DUMMYNET_UNLOCK();
-	    return (ENOENT); /* not found */
-	}
-
-	/* Unlink from list of flowsets. */
-	SLIST_REMOVE( &flowsethash[HASH(fs->fs_nr)], fs, dn_flow_set, next);
-
-	if (fs->pipe != NULL) {
-	    /* Update total weight on parent pipe and cleanup parent heaps. */
-	    fs->pipe->sum -= fs->weight * fs->backlogged ;
-	    fs_remove_from_heap(&(fs->pipe->not_eligible_heap), fs);
-	    fs_remove_from_heap(&(fs->pipe->scheduler_heap), fs);
-#if 1	/* XXX should i remove from idle_heap as well ? */
-	    fs_remove_from_heap(&(fs->pipe->idle_heap), fs);
-#endif
-	}
-	purge_flow_set(fs, 1);
-	DUMMYNET_UNLOCK();
-    }
-    return 0 ;
+	dn_cfg.id++;
+	DN_BH_WUNLOCK();
+	return 0;
 }
 
 /*
- * helper function used to copy data from kernel in DUMMYNET_GET
+ * configure a flowset. Can be called from inside with locked=1,
  */
-static char *
-dn_copy_set(struct dn_flow_set *set, char *bp)
+static struct dn_fsk *
+config_fs(struct dn_fs *nfs, struct dn_id *arg, int locked)
 {
-    int i, copied = 0 ;
-    struct dn_flow_queue *q, *qp = (struct dn_flow_queue *)bp;
+	int i;
+	struct dn_fsk *fs;
 
-    DUMMYNET_LOCK_ASSERT();
-
-    for (i = 0 ; i <= set->rq_size ; i++) {
-	for (q = set->rq[i] ; q ; q = q->next, qp++ ) {
-	    if (q->hash_slot != i)
-		printf("dummynet: ++ at %d: wrong slot (have %d, "
-		    "should be %d)\n", copied, q->hash_slot, i);
-	    if (q->fs != set)
-		printf("dummynet: ++ at %d: wrong fs ptr (have %p, should be %p)\n",
-			i, q->fs, set);
-	    copied++ ;
-	    bcopy(q, qp, sizeof( *q ) );
-	    /* cleanup pointers */
-	    qp->next = NULL ;
-	    qp->head = qp->tail = NULL ;
-	    qp->fs = NULL ;
+	if (nfs->oid.len != sizeof(*nfs)) {
+		D("invalid flowset len %d", nfs->oid.len);
+		return NULL;
 	}
-    }
-    if (copied != set->rq_elements)
-	printf("dummynet: ++ wrong count, have %d should be %d\n",
-	    copied, set->rq_elements);
-    return (char *)qp ;
+	i = nfs->fs_nr;
+	if (i <= 0 || i >= 3*DN_MAX_ID)
+		return NULL;
+	ND("flowset %d", i);
+	/* XXX other sanity checks */
+        if (nfs->flags & DN_QSIZE_BYTES) {
+		ipdn_bound_var(&nfs->qsize, 16384,
+		    1500, dn_cfg.byte_limit, NULL); // "queue byte size");
+        } else {
+		ipdn_bound_var(&nfs->qsize, 50,
+		    1, dn_cfg.slot_limit, NULL); // "queue slot size");
+        }
+	if (nfs->flags & DN_HAVE_MASK) {
+		/* make sure we have some buckets */
+		ipdn_bound_var(&nfs->buckets, dn_cfg.hash_size,
+			1, dn_cfg.max_hash_size, "flowset buckets");
+	} else {
+		nfs->buckets = 1;	/* we only need 1 */
+	}
+	if (!locked)
+		DN_BH_WLOCK();
+	do { /* exit with break when done */
+	    struct dn_schk *s;
+	    int flags = nfs->sched_nr ? DNHT_INSERT : 0;
+	    int j;
+	    int oldc = dn_cfg.fsk_count;
+	    fs = dn_ht_find(dn_cfg.fshash, i, flags, NULL);
+	    if (fs == NULL) {
+		D("missing sched for flowset %d", i);
+	        break;
+	    }
+	    /* grab some defaults from the existing one */
+	    if (nfs->sched_nr == 0) /* reuse */
+		nfs->sched_nr = fs->fs.sched_nr;
+	    for (j = 0; j < sizeof(nfs->par)/sizeof(nfs->par[0]); j++) {
+		if (nfs->par[j] == -1) /* reuse */
+		    nfs->par[j] = fs->fs.par[j];
+	    }
+	    if (bcmp(&fs->fs, nfs, sizeof(*nfs)) == 0) {
+		ND("flowset %d unchanged", i);
+		break; /* no change, nothing to do */
+	    }
+	    if (oldc != dn_cfg.fsk_count)	/* new item */
+		dn_cfg.id++;
+	    s = locate_scheduler(nfs->sched_nr);
+	    /* detach from old scheduler if needed, preserving
+	     * queues if we need to reattach. Then update the
+	     * configuration, and possibly attach to the new sched.
+	     */
+	    DX(2, "fs %d changed sched %d@%p to %d@%p",
+		fs->fs.fs_nr,
+		fs->fs.sched_nr, fs->sched, nfs->sched_nr, s);
+	    if (fs->sched) {
+		int flags = s ? DN_DETACH : (DN_DETACH | DN_DESTROY);
+		flags |= DN_DESTROY; /* XXX temporary */
+		fsk_detach(fs, flags);
+	    }
+	    fs->fs = *nfs; /* copy configuration */
+	    if (s != NULL)
+		fsk_attach(fs, s);
+	} while (0);
+	if (!locked)
+		DN_BH_WUNLOCK();
+	return fs;
 }
 
-static size_t
-dn_calc_size(void)
+/*
+ * config/reconfig a scheduler and its FIFO variant.
+ * For !MULTIQUEUE schedulers, also set up the flowset.
+ *
+ * On reconfigurations (detected because s->fp is set),
+ * detach existing flowsets preserving traffic, preserve link,
+ * and delete the old scheduler creating a new one.
+ */
+static int
+config_sched(struct dn_sch *_nsch, struct dn_id *arg)
 {
-    struct dn_flow_set *fs;
-    struct dn_pipe *pipe;
-    size_t size = 0;
-    int i;
+	struct dn_schk *s;
+	struct schk_new_arg a; /* argument for schk_new */
+	int i;
+	struct dn_link p;	/* copy of oldlink */
+	struct dn_profile *pf = NULL;	/* copy of old link profile */
+	/* Used to preserv mask parameter */
+	struct ipfw_flow_id new_mask;
+	int new_buckets = 0;
+	int new_flags = 0;
+	int pipe_cmd;
+	int err = ENOMEM;
 
-    DUMMYNET_LOCK_ASSERT();
-    /*
-     * Compute size of data structures: list of pipes and flow_sets.
-     */
-    for (i = 0; i < HASHSIZE; i++) {
-	SLIST_FOREACH(pipe, &pipehash[i], next)
-		size += sizeof(*pipe) +
-		    pipe->fs.rq_elements * sizeof(struct dn_flow_queue);
-	SLIST_FOREACH(fs, &flowsethash[i], next)
-		size += sizeof (*fs) +
-		    fs->rq_elements * sizeof(struct dn_flow_queue);
-    }
-    return size;
+	a.sch = _nsch;
+	if (a.sch->oid.len != sizeof(*a.sch)) {
+		D("bad sched len %d", a.sch->oid.len);
+		return EINVAL;
+	}
+	i = a.sch->sched_nr;
+	if (i <= 0 || i >= DN_MAX_ID)
+		return EINVAL;
+	/* make sure we have some buckets */
+	if (a.sch->flags & DN_HAVE_MASK)
+		ipdn_bound_var(&a.sch->buckets, dn_cfg.hash_size,
+			1, dn_cfg.max_hash_size, "sched buckets");
+	/* XXX other sanity checks */
+	bzero(&p, sizeof(p));
+
+	pipe_cmd = a.sch->flags & DN_PIPE_CMD;
+	a.sch->flags &= ~DN_PIPE_CMD; //XXX do it even if is not set?
+	if (pipe_cmd) {
+		/* Copy mask parameter */
+		new_mask = a.sch->sched_mask;
+		new_buckets = a.sch->buckets;
+		new_flags = a.sch->flags;
+	}
+	DN_BH_WLOCK();
+again: /* run twice, for wfq and fifo */
+	/*
+	 * lookup the type. If not supplied, use the previous one
+	 * or default to WF2Q+. Otherwise, return an error.
+	 */
+	dn_cfg.id++;
+	a.fp = find_sched_type(a.sch->oid.subtype, a.sch->name);
+	if (a.fp != NULL) {
+		/* found. Lookup or create entry */
+		s = dn_ht_find(dn_cfg.schedhash, i, DNHT_INSERT, &a);
+	} else if (a.sch->oid.subtype == 0 && !a.sch->name[0]) {
+		/* No type. search existing s* or retry with WF2Q+ */
+		s = dn_ht_find(dn_cfg.schedhash, i, 0, &a);
+		if (s != NULL) {
+			a.fp = s->fp;
+			/* Scheduler exists, skip to FIFO scheduler 
+			 * if command was pipe config...
+			 */
+			if (pipe_cmd)
+				goto next;
+		} else {
+			/* New scheduler, create a wf2q+ with no mask
+			 * if command was pipe config...
+			 */
+			if (pipe_cmd) {
+				/* clear mask parameter */
+				bzero(&a.sch->sched_mask, sizeof(new_mask));
+				a.sch->buckets = 0;
+				a.sch->flags &= ~DN_HAVE_MASK;
+			}
+			a.sch->oid.subtype = DN_SCHED_WF2QP;
+			goto again;
+		}
+	} else {
+		D("invalid scheduler type %d %s",
+			a.sch->oid.subtype, a.sch->name);
+		err = EINVAL;
+		goto error;
+	}
+	/* normalize name and subtype */
+	a.sch->oid.subtype = a.fp->type;
+	bzero(a.sch->name, sizeof(a.sch->name));
+	strlcpy(a.sch->name, a.fp->name, sizeof(a.sch->name));
+	if (s == NULL) {
+		D("cannot allocate scheduler %d", i);
+		goto error;
+	}
+	/* restore existing link if any */
+	if (p.link_nr) {
+		s->link = p;
+		if (!pf || pf->link_nr != p.link_nr) { /* no saved value */
+			s->profile = NULL; /* XXX maybe not needed */
+		} else {
+			s->profile = malloc(sizeof(struct dn_profile),
+					     M_DUMMYNET, M_NOWAIT | M_ZERO);
+			if (s->profile == NULL) {
+				D("cannot allocate profile");
+				goto error; //XXX
+			}
+			bcopy(pf, s->profile, sizeof(*pf));
+		}
+	}
+	p.link_nr = 0;
+	if (s->fp == NULL) {
+		DX(2, "sched %d new type %s", i, a.fp->name);
+	} else if (s->fp != a.fp ||
+			bcmp(a.sch, &s->sch, sizeof(*a.sch)) ) {
+		/* already existing. */
+		DX(2, "sched %d type changed from %s to %s",
+			i, s->fp->name, a.fp->name);
+		DX(4, "   type/sub %d/%d -> %d/%d",
+			s->sch.oid.type, s->sch.oid.subtype, 
+			a.sch->oid.type, a.sch->oid.subtype);
+		if (s->link.link_nr == 0)
+			D("XXX WARNING link 0 for sched %d", i);
+		p = s->link;	/* preserve link */
+		if (s->profile) {/* preserve profile */
+			if (!pf)
+				pf = malloc(sizeof(*pf),
+				    M_DUMMYNET, M_NOWAIT | M_ZERO);
+			if (pf)	/* XXX should issue a warning otherwise */
+				bcopy(s->profile, pf, sizeof(*pf));
+		}
+		/* remove from the hash */
+		dn_ht_find(dn_cfg.schedhash, i, DNHT_REMOVE, NULL);
+		/* Detach flowsets, preserve queues. */
+		// schk_delete_cb(s, NULL);
+		// XXX temporarily, kill queues
+		schk_delete_cb(s, (void *)DN_DESTROY);
+		goto again;
+	} else {
+		DX(4, "sched %d unchanged type %s", i, a.fp->name);
+	}
+	/* complete initialization */
+	s->sch = *a.sch;
+	s->fp = a.fp;
+	s->cfg = arg;
+	// XXX schk_reset_credit(s);
+	/* create the internal flowset if needed,
+	 * trying to reuse existing ones if available
+	 */
+	if (!(s->fp->flags & DN_MULTIQUEUE) && !s->fs) {
+	        s->fs = dn_ht_find(dn_cfg.fshash, i, 0, NULL);
+		if (!s->fs) {
+			struct dn_fs fs;
+			bzero(&fs, sizeof(fs));
+			set_oid(&fs.oid, DN_FS, sizeof(fs));
+			fs.fs_nr = i + DN_MAX_ID;
+			fs.sched_nr = i;
+			s->fs = config_fs(&fs, NULL, 1 /* locked */);
+		}
+		if (!s->fs) {
+			schk_delete_cb(s, (void *)DN_DESTROY);
+			D("error creating internal fs for %d", i);
+			goto error;
+		}
+	}
+	/* call init function after the flowset is created */
+	if (s->fp->config)
+		s->fp->config(s);
+	update_fs(s);
+next:
+	if (i < DN_MAX_ID) { /* now configure the FIFO instance */
+		i += DN_MAX_ID;
+		if (pipe_cmd) {
+			/* Restore mask parameter for FIFO */
+			a.sch->sched_mask = new_mask;
+			a.sch->buckets = new_buckets;
+			a.sch->flags = new_flags;
+		} else {
+			/* sched config shouldn't modify the FIFO scheduler */
+			if (dn_ht_find(dn_cfg.schedhash, i, 0, &a) != NULL) {
+				/* FIFO already exist, don't touch it */
+				err = 0; /* and this is not an error */
+				goto error;
+			}
+		}
+		a.sch->sched_nr = i;
+		a.sch->oid.subtype = DN_SCHED_FIFO;
+		bzero(a.sch->name, sizeof(a.sch->name));
+		goto again;
+	}
+	err = 0;
+error:
+	DN_BH_WUNLOCK();
+	if (pf)
+		free(pf, M_DUMMYNET);
+	return err;
+}
+
+/*
+ * attach a profile to a link
+ */
+static int
+config_profile(struct dn_profile *pf, struct dn_id *arg)
+{
+	struct dn_schk *s;
+	int i, olen, err = 0;
+
+	if (pf->oid.len < sizeof(*pf)) {
+		D("short profile len %d", pf->oid.len);
+		return EINVAL;
+	}
+	i = pf->link_nr;
+	if (i <= 0 || i >= DN_MAX_ID)
+		return EINVAL;
+	/* XXX other sanity checks */
+	DN_BH_WLOCK();
+	for (; i < 2*DN_MAX_ID; i += DN_MAX_ID) {
+	s = locate_scheduler(i);
+
+	if (s == NULL) {
+			err = EINVAL;
+			break;
+	}
+	dn_cfg.id++;
+	/*
+	 * If we had a profile and the new one does not fit,
+	 * or it is deleted, then we need to free memory.
+	 */
+	if (s->profile && (pf->samples_no == 0 ||
+			s->profile->oid.len < pf->oid.len)) {
+		free(s->profile, M_DUMMYNET);
+		s->profile = NULL;
+	}
+		if (pf->samples_no == 0)
+			continue;
+	/*
+		 * new profile, possibly allocate memory
+	 * and copy data.
+	 */
+		if (s->profile == NULL)
+			s->profile = malloc(pf->oid.len,
+			    M_DUMMYNET, M_NOWAIT | M_ZERO);
+		if (s->profile == NULL) {
+			D("no memory for profile %d", i);
+			err = ENOMEM;
+			break;
+		}
+		/* preserve larger length XXX double check */
+		olen = s->profile->oid.len;
+		if (olen < pf->oid.len)
+			olen = pf->oid.len;
+		bcopy(pf, s->profile, pf->oid.len);
+		s->profile->oid.len = olen;
+	}
+	DN_BH_WUNLOCK();
+	return err;
+}
+
+/*
+ * Delete all objects:
+ */
+static void
+dummynet_flush(void)
+{
+
+	/* delete all schedulers and related links/queues/flowsets */
+	dn_ht_scan(dn_cfg.schedhash, schk_delete_cb,
+		(void *)(uintptr_t)DN_DELETE_FS);
+	/* delete all remaining (unlinked) flowsets */
+	DX(4, "still %d unlinked fs", dn_cfg.fsk_count);
+	dn_ht_free(dn_cfg.fshash, DNHT_REMOVE);
+	fsk_detach_list(&dn_cfg.fsu, DN_DELETE_FS);
+	/* Reinitialize system heap... */
+	heap_init(&dn_cfg.evheap, 16, offsetof(struct dn_id, id));
+}
+
+/*
+ * Main handler for configuration. We are guaranteed to be called
+ * with an oid which is at least a dn_id.
+ * - the first object is the command (config, delete, flush, ...)
+ * - config_link must be issued after the corresponding config_sched
+ * - parameters (DN_TXT) for an object must preceed the object
+ *   processed on a config_sched.
+ */
+int
+do_config(void *p, int l)
+{
+	struct dn_id *next, *o;
+	int err = 0, err2 = 0;
+	struct dn_id *arg = NULL;
+	uintptr_t *a;
+
+	o = p;
+	if (o->id != DN_API_VERSION) {
+		D("invalid api version got %d need %d",
+			o->id, DN_API_VERSION);
+		return EINVAL;
+	}
+	for (; l >= sizeof(*o); o = next) {
+		struct dn_id *prev = arg;
+		if (o->len < sizeof(*o) || l < o->len) {
+			D("bad len o->len %d len %d", o->len, l);
+			err = EINVAL;
+			break;
+		}
+		l -= o->len;
+		next = (struct dn_id *)((char *)o + o->len);
+		err = 0;
+		switch (o->type) {
+		default:
+			D("cmd %d not implemented", o->type);
+			break;
+#ifdef EMULATE_SYSCTL		
+		/* sysctl emulation.
+		 * if we recognize the command, jump to the correct
+		 * handler and return
+		 */
+		case DN_SYSCTL_SET:
+			err = kesysctl_emu_set(p, l);
+			return err;
+#endif
+		case DN_CMD_CONFIG: /* simply a header */
+			break;
+
+		case DN_CMD_DELETE:
+			/* the argument is in the first uintptr_t after o */
+			a = (uintptr_t *)(o+1);
+			if (o->len < sizeof(*o) + sizeof(*a)) {
+				err = EINVAL;
+				break;
+			}
+			switch (o->subtype) {
+			case DN_LINK:
+				/* delete base and derived schedulers */
+				DN_BH_WLOCK();
+				err = delete_schk(*a);
+				err2 = delete_schk(*a + DN_MAX_ID);
+				DN_BH_WUNLOCK();
+				if (!err)
+					err = err2;
+				break;
+
+			default:
+				D("invalid delete type %d",
+					o->subtype);
+				err = EINVAL;
+				break;
+
+			case DN_FS:
+				err = (*a <1 || *a >= DN_MAX_ID) ?
+					EINVAL : delete_fs(*a, 0) ;
+				break;
+			}
+			break;
+
+		case DN_CMD_FLUSH:
+			DN_BH_WLOCK();
+			dummynet_flush();
+			DN_BH_WUNLOCK();
+			break;
+		case DN_TEXT:	/* store argument the next block */
+			prev = NULL;
+			arg = o;
+			break;
+		case DN_LINK:
+			err = config_link((struct dn_link *)o, arg);
+			break;
+		case DN_PROFILE:
+			err = config_profile((struct dn_profile *)o, arg);
+			break;
+		case DN_SCH:
+			err = config_sched((struct dn_sch *)o, arg);
+			break;
+		case DN_FS:
+			err = (NULL==config_fs((struct dn_fs *)o, arg, 0));
+			break;
+		}
+		if (prev)
+			arg = NULL;
+		if (err != 0)
+			break;
+	}
+	return err;
 }
 
 static int
-dummynet_get(struct sockopt *sopt)
+compute_space(struct dn_id *cmd, struct copy_args *a)
 {
-    char *buf, *bp ; /* bp is the "copy-pointer" */
-    size_t size ;
-    struct dn_flow_set *fs;
-    struct dn_pipe *pipe;
-    int error=0, i ;
+	int x = 0, need = 0;
+	int profile_size = sizeof(struct dn_profile) - 
+		ED_MAX_SAMPLES_NO*sizeof(int);
 
-    /* XXX lock held too long */
-    DUMMYNET_LOCK();
-    /*
-     * XXX: Ugly, but we need to allocate memory with M_WAITOK flag and we
-     *      cannot use this flag while holding a mutex.
-     */
-    for (i = 0; i < 10; i++) {
-	size = dn_calc_size();
-	DUMMYNET_UNLOCK();
-	buf = malloc(size, M_TEMP, M_WAITOK);
-	DUMMYNET_LOCK();
-	if (size >= dn_calc_size())
+	/* NOTE about compute space:
+	 * NP 	= dn_cfg.schk_count
+	 * NSI 	= dn_cfg.si_count
+	 * NF 	= dn_cfg.fsk_count
+	 * NQ 	= dn_cfg.queue_count
+	 * - ipfw pipe show
+	 *   (NP/2)*(dn_link + dn_sch + dn_id + dn_fs) only half scheduler
+	 *                             link, scheduler template, flowset
+	 *                             integrated in scheduler and header
+	 *                             for flowset list
+	 *   (NSI)*(dn_flow) all scheduler instance (includes
+	 *                              the queue instance)
+	 * - ipfw sched show
+	 *   (NP/2)*(dn_link + dn_sch + dn_id + dn_fs) only half scheduler
+	 *                             link, scheduler template, flowset
+	 *                             integrated in scheduler and header
+	 *                             for flowset list
+	 *   (NSI * dn_flow) all scheduler instances
+	 *   (NF * sizeof(uint_32)) space for flowset list linked to scheduler
+	 *   (NQ * dn_queue) all queue [XXXfor now not listed]
+	 * - ipfw queue show
+	 *   (NF * dn_fs) all flowset
+	 *   (NQ * dn_queue) all queues
+	 */
+	switch (cmd->subtype) {
+	default:
+		return -1;
+	/* XXX where do LINK and SCH differ ? */
+	/* 'ipfw sched show' could list all queues associated to
+	 * a scheduler. This feature for now is disabled
+	 */
+	case DN_LINK:	/* pipe show */
+		x = DN_C_LINK | DN_C_SCH | DN_C_FLOW;
+		need += dn_cfg.schk_count *
+			(sizeof(struct dn_fs) + profile_size) / 2;
+		need += dn_cfg.fsk_count * sizeof(uint32_t);
 		break;
-	free(buf, M_TEMP);
-	buf = NULL;
-    }
-    if (buf == NULL) {
-	DUMMYNET_UNLOCK();
-	return ENOBUFS ;
-    }
-    bp = buf;
-    for (i = 0; i < HASHSIZE; i++) {
-	SLIST_FOREACH(pipe, &pipehash[i], next) {
-		struct dn_pipe *pipe_bp = (struct dn_pipe *)bp;
-
-		/*
-		 * Copy pipe descriptor into *bp, convert delay back to ms,
-		 * then copy the flow_set descriptor(s) one at a time.
-		 * After each flow_set, copy the queue descriptor it owns.
-		 */
-		bcopy(pipe, bp, sizeof(*pipe));
-		pipe_bp->delay = (pipe_bp->delay * 1000) / hz;
-		pipe_bp->burst = div64(pipe_bp->burst, 8 * hz);
-		/*
-		 * XXX the following is a hack based on ->next being the
-		 * first field in dn_pipe and dn_flow_set. The correct
-		 * solution would be to move the dn_flow_set to the beginning
-		 * of struct dn_pipe.
-		 */
-		pipe_bp->next.sle_next = (struct dn_pipe *)DN_IS_PIPE;
-		/* Clean pointers. */
-		pipe_bp->head = pipe_bp->tail = NULL;
-		pipe_bp->fs.next.sle_next = NULL;
-		pipe_bp->fs.pipe = NULL;
-		pipe_bp->fs.rq = NULL;
-		pipe_bp->samples = NULL;
-
-		bp += sizeof(*pipe) ;
-		bp = dn_copy_set(&(pipe->fs), bp);
+	case DN_SCH:	/* sched show */
+		need += dn_cfg.schk_count *
+			(sizeof(struct dn_fs) + profile_size) / 2;
+		need += dn_cfg.fsk_count * sizeof(uint32_t);
+		x = DN_C_SCH | DN_C_LINK | DN_C_FLOW;
+		break;
+	case DN_FS:	/* queue show */
+		x = DN_C_FS | DN_C_QUEUE;
+		break;
+	case DN_GET_COMPAT:	/* compatibility mode */
+		need =  dn_compat_calc_size(); 
+		break;
 	}
-    }
-
-    for (i = 0; i < HASHSIZE; i++) {
-	SLIST_FOREACH(fs, &flowsethash[i], next) {
-		struct dn_flow_set *fs_bp = (struct dn_flow_set *)bp;
-
-		bcopy(fs, bp, sizeof(*fs));
-		/* XXX same hack as above */
-		fs_bp->next.sle_next = (struct dn_flow_set *)DN_IS_QUEUE;
-		fs_bp->pipe = NULL;
-		fs_bp->rq = NULL;
-		bp += sizeof(*fs);
-		bp = dn_copy_set(fs, bp);
+	a->flags = x;
+	if (x & DN_C_SCH) {
+		need += dn_cfg.schk_count * sizeof(struct dn_sch) / 2;
+		/* NOT also, each fs might be attached to a sched */
+		need += dn_cfg.schk_count * sizeof(struct dn_id) / 2;
 	}
-    }
+	if (x & DN_C_FS)
+		need += dn_cfg.fsk_count * sizeof(struct dn_fs);
+	if (x & DN_C_LINK) {
+		need += dn_cfg.schk_count * sizeof(struct dn_link) / 2;
+	}
+	/*
+	 * When exporting a queue to userland, only pass up the
+	 * struct dn_flow, which is the only visible part.
+	 */
 
-    DUMMYNET_UNLOCK();
-
-    error = sooptcopyout(sopt, buf, size);
-    free(buf, M_TEMP);
-    return error ;
+	if (x & DN_C_QUEUE)
+		need += dn_cfg.queue_count * sizeof(struct dn_flow);
+	if (x & DN_C_FLOW)
+		need += dn_cfg.si_count * (sizeof(struct dn_flow));
+	return need;
 }
 
 /*
- * Handler for the various dummynet socket options (get, flush, config, del)
+ * If compat != NULL dummynet_get is called in compatibility mode.
+ * *compat will be the pointer to the buffer to pass to ipfw
+ */
+int
+dummynet_get(struct sockopt *sopt, void **compat)
+{
+	int have, i, need, error;
+	char *start = NULL, *buf;
+	size_t sopt_valsize;
+	struct dn_id *cmd;
+	struct copy_args a;
+	struct copy_range r;
+	int l = sizeof(struct dn_id);
+
+	bzero(&a, sizeof(a));
+	bzero(&r, sizeof(r));
+
+	/* save and restore original sopt_valsize around copyin */
+	sopt_valsize = sopt->sopt_valsize;
+
+	cmd = &r.o;
+
+	if (!compat) {
+		/* copy at least an oid, and possibly a full object */
+		error = sooptcopyin(sopt, cmd, sizeof(r), sizeof(*cmd));
+		sopt->sopt_valsize = sopt_valsize;
+		if (error)
+			goto done;
+		l = cmd->len;
+#ifdef EMULATE_SYSCTL
+		/* sysctl emulation. */
+		if (cmd->type == DN_SYSCTL_GET)
+			return kesysctl_emu_get(sopt);
+#endif
+		if (l > sizeof(r)) {
+			/* request larger than default, allocate buffer */
+			cmd = malloc(l,  M_DUMMYNET, M_WAIT);
+			if (cmd == NULL)
+				return ENOMEM; //XXX
+			error = sooptcopyin(sopt, cmd, l, l);
+			sopt->sopt_valsize = sopt_valsize;
+			if (error)
+				goto done;
+		}
+	} else { /* compatibility */
+		error = 0;
+		cmd->type = DN_CMD_GET;
+		cmd->len = sizeof(struct dn_id);
+		cmd->subtype = DN_GET_COMPAT;
+		// cmd->id = sopt_valsize;
+		D("compatibility mode");
+	}
+	a.extra = (struct copy_range *)cmd;
+	if (cmd->len == sizeof(*cmd)) { /* no range, create a default */
+		uint32_t *rp = (uint32_t *)(cmd + 1);
+		cmd->len += 2* sizeof(uint32_t);
+		rp[0] = 1;
+		rp[1] = DN_MAX_ID - 1;
+		if (cmd->subtype == DN_LINK) {
+			rp[0] += DN_MAX_ID;
+			rp[1] += DN_MAX_ID;
+		}
+	}
+	/* Count space (under lock) and allocate (outside lock).
+	 * Exit with lock held if we manage to get enough buffer.
+	 * Try a few times then give up.
+	 */
+	for (have = 0, i = 0; i < 10; i++) {
+		DN_BH_WLOCK();
+		need = compute_space(cmd, &a);
+
+		/* if there is a range, ignore value from compute_space() */
+		if (l > sizeof(*cmd))
+			need = sopt_valsize - sizeof(*cmd);
+
+		if (need < 0) {
+			DN_BH_WUNLOCK();
+			error = EINVAL;
+			goto done;
+		}
+		need += sizeof(*cmd);
+		cmd->id = need;
+		if (have >= need)
+			break;
+
+		DN_BH_WUNLOCK();
+		if (start)
+			free(start, M_DUMMYNET);
+		start = NULL;
+		if (need > sopt_valsize)
+			break;
+
+		have = need;
+		start = malloc(have, M_DUMMYNET, M_WAITOK | M_ZERO);
+		if (start == NULL) {
+			error = ENOMEM;
+			goto done;
+		}
+	}
+
+	if (start == NULL) {
+		if (compat) {
+			*compat = NULL;
+			error =  1; // XXX
+		} else {
+			error = sooptcopyout(sopt, cmd, sizeof(*cmd));
+		}
+		goto done;
+	}
+	ND("have %d:%d sched %d, %d:%d links %d, %d:%d flowsets %d, "
+		"%d:%d si %d, %d:%d queues %d",
+		dn_cfg.schk_count, sizeof(struct dn_sch), DN_SCH,
+		dn_cfg.schk_count, sizeof(struct dn_link), DN_LINK,
+		dn_cfg.fsk_count, sizeof(struct dn_fs), DN_FS,
+		dn_cfg.si_count, sizeof(struct dn_flow), DN_SCH_I,
+		dn_cfg.queue_count, sizeof(struct dn_queue), DN_QUEUE);
+	sopt->sopt_valsize = sopt_valsize;
+	a.type = cmd->subtype;
+
+	if (compat == NULL) {
+		bcopy(cmd, start, sizeof(*cmd));
+		((struct dn_id*)(start))->len = sizeof(struct dn_id);
+		buf = start + sizeof(*cmd);
+	} else
+		buf = start;
+	a.start = &buf;
+	a.end = start + have;
+	/* start copying other objects */
+	if (compat) {
+		a.type = DN_COMPAT_PIPE;
+		dn_ht_scan(dn_cfg.schedhash, copy_data_helper_compat, &a);
+		a.type = DN_COMPAT_QUEUE;
+		dn_ht_scan(dn_cfg.fshash, copy_data_helper_compat, &a);
+	} else if (a.type == DN_FS) {
+		dn_ht_scan(dn_cfg.fshash, copy_data_helper, &a);
+	} else {
+		dn_ht_scan(dn_cfg.schedhash, copy_data_helper, &a);
+	}
+	DN_BH_WUNLOCK();
+
+	if (compat) {
+		*compat = start;
+		sopt->sopt_valsize = buf - start;
+		/* free() is done by ip_dummynet_compat() */
+		start = NULL; //XXX hack
+	} else {
+		error = sooptcopyout(sopt, start, buf - start);
+	}
+done:
+	if (cmd && cmd != &r.o)
+		free(cmd, M_DUMMYNET);
+	if (start)
+		free(start, M_DUMMYNET);
+	return error;
+}
+
+/* Callback called on scheduler instance to delete it if idle */
+static int
+drain_scheduler_cb(void *_si, void *arg)
+{
+	struct dn_sch_inst *si = _si;
+
+	if ((si->kflags & DN_ACTIVE) || si->dline.mq.head != NULL)
+		return 0;
+
+	if (si->sched->fp->flags & DN_MULTIQUEUE) {
+		if (si->q_count == 0)
+			return si_destroy(si, NULL);
+		else
+			return 0;
+	} else { /* !DN_MULTIQUEUE */
+		if ((si+1)->ni.length == 0)
+			return si_destroy(si, NULL);
+		else
+			return 0;
+	}
+	return 0; /* unreachable */
+}
+
+/* Callback called on scheduler to check if it has instances */
+static int
+drain_scheduler_sch_cb(void *_s, void *arg)
+{
+	struct dn_schk *s = _s;
+
+	if (s->sch.flags & DN_HAVE_MASK) {
+		dn_ht_scan_bucket(s->siht, &s->drain_bucket,
+				drain_scheduler_cb, NULL);
+		s->drain_bucket++;
+	} else {
+		if (s->siht) {
+			if (drain_scheduler_cb(s->siht, NULL) == DNHT_SCAN_DEL)
+				s->siht = NULL;
+		}
+	}
+	return 0;
+}
+
+/* Called every tick, try to delete a 'bucket' of scheduler */
+void
+dn_drain_scheduler(void)
+{
+	dn_ht_scan_bucket(dn_cfg.schedhash, &dn_cfg.drain_sch,
+			   drain_scheduler_sch_cb, NULL);
+	dn_cfg.drain_sch++;
+}
+
+/* Callback called on queue to delete if it is idle */
+static int
+drain_queue_cb(void *_q, void *arg)
+{
+	struct dn_queue *q = _q;
+
+	if (q->ni.length == 0) {
+		dn_delete_queue(q, DN_DESTROY);
+		return DNHT_SCAN_DEL; /* queue is deleted */
+	}
+
+	return 0; /* queue isn't deleted */
+}
+
+/* Callback called on flowset used to check if it has queues */
+static int
+drain_queue_fs_cb(void *_fs, void *arg)
+{
+	struct dn_fsk *fs = _fs;
+
+	if (fs->fs.flags & DN_QHT_HASH) {
+		/* Flowset has a hash table for queues */
+		dn_ht_scan_bucket(fs->qht, &fs->drain_bucket,
+				drain_queue_cb, NULL);
+		fs->drain_bucket++;
+	} else {
+		/* No hash table for this flowset, null the pointer 
+		 * if the queue is deleted
+		 */
+		if (fs->qht) {
+			if (drain_queue_cb(fs->qht, NULL) == DNHT_SCAN_DEL)
+				fs->qht = NULL;
+		}
+	}
+	return 0;
+}
+
+/* Called every tick, try to delete a 'bucket' of queue */
+void
+dn_drain_queue(void)
+{
+	/* scan a bucket of flowset */
+	dn_ht_scan_bucket(dn_cfg.fshash, &dn_cfg.drain_fs,
+                               drain_queue_fs_cb, NULL);
+	dn_cfg.drain_fs++;
+}
+
+/*
+ * Handler for the various dummynet socket options
  */
 static int
 ip_dn_ctl(struct sockopt *sopt)
 {
-    int error;
-    struct dn_pipe *p = NULL;
+	void *p = NULL;
+	int error, l;
 
-    error = priv_check(sopt->sopt_td, PRIV_NETINET_DUMMYNET);
-    if (error)
-	return (error);
-
-    /* Disallow sets in really-really secure mode. */
-    if (sopt->sopt_dir == SOPT_SET) {
-#if __FreeBSD_version >= 500034
-	error =  securelevel_ge(sopt->sopt_td->td_ucred, 3);
+	error = priv_check(sopt->sopt_td, PRIV_NETINET_DUMMYNET);
 	if (error)
-	    return (error);
-#else
-	if (securelevel >= 3)
-	    return (EPERM);
-#endif
-    }
+		return (error);
 
-    switch (sopt->sopt_name) {
-    default :
-	printf("dummynet: -- unknown option %d", sopt->sopt_name);
-	error = EINVAL ;
-	break;
+	/* Disallow sets in really-really secure mode. */
+	if (sopt->sopt_dir == SOPT_SET) {
+		error =  securelevel_ge(sopt->sopt_td->td_ucred, 3);
+		if (error)
+			return (error);
+	}
 
-    case IP_DUMMYNET_GET :
-	error = dummynet_get(sopt);
-	break ;
+	switch (sopt->sopt_name) {
+	default :
+		D("dummynet: unknown option %d", sopt->sopt_name);
+		error = EINVAL;
+		break;
 
-    case IP_DUMMYNET_FLUSH :
-	dummynet_flush() ;
-	break ;
+	case IP_DUMMYNET_FLUSH:
+	case IP_DUMMYNET_CONFIGURE:
+	case IP_DUMMYNET_DEL:	/* remove a pipe or queue */
+	case IP_DUMMYNET_GET:
+		D("dummynet: compat option %d", sopt->sopt_name);
+		error = ip_dummynet_compat(sopt);
+		break;
 
-    case IP_DUMMYNET_CONFIGURE :
-	p = malloc(sizeof(struct dn_pipe_max), M_TEMP, M_WAITOK);
-	error = sooptcopyin(sopt, p, sizeof(struct dn_pipe_max), sizeof *p);
-	if (error)
-	    break ;
-	if (p->samples_no > 0)
-	    p->samples = &(((struct dn_pipe_max *)p)->samples[0]);
+	case IP_DUMMYNET3 :
+		if (sopt->sopt_dir == SOPT_GET) {
+			error = dummynet_get(sopt, NULL);
+			break;
+		}
+		l = sopt->sopt_valsize;
+		if (l < sizeof(struct dn_id) || l > 12000) {
+			D("argument len %d invalid", l);
+			break;
+		}
+		p = malloc(l, M_TEMP, M_WAITOK); // XXX can it fail ?
+		error = sooptcopyin(sopt, p, l, l);
+		if (error)
+			break ;
+		error = do_config(p, l);
+		break;
+	}
 
-	error = config_pipe(p);
-	break ;
+	if (p != NULL)
+		free(p, M_TEMP);
 
-    case IP_DUMMYNET_DEL :	/* remove a pipe or queue */
-	p = malloc(sizeof(struct dn_pipe), M_TEMP, M_WAITOK);
-	error = sooptcopyin(sopt, p, sizeof(struct dn_pipe), sizeof *p);
-	if (error)
-	    break ;
-
-	error = delete_pipe(p);
-	break ;
-    }
-
-    if (p != NULL)
-	free(p, M_TEMP);
-
-    return error ;
+	return error ;
 }
+
 
 static void
 ip_dn_init(void)
 {
-	int i;
+	if (dn_cfg.init_done)
+		return;
+	printf("DUMMYNET %p with IPv6 initialized (100409)\n", curvnet);
+	dn_cfg.init_done = 1;
+	/* Set defaults here. MSVC does not accept initializers,
+	 * and this is also useful for vimages
+	 */
+	/* queue limits */
+	dn_cfg.slot_limit = 100; /* Foot shooting limit for queues. */
+	dn_cfg.byte_limit = 1024 * 1024;
+	dn_cfg.expire = 1;
 
-	if (bootverbose)
-		printf("DUMMYNET with IPv6 initialized (040826)\n");
+	/* RED parameters */
+	dn_cfg.red_lookup_depth = 256;	/* default lookup table depth */
+	dn_cfg.red_avg_pkt_size = 512;	/* default medium packet size */
+	dn_cfg.red_max_pkt_size = 1500;	/* default max packet size */
 
-	DUMMYNET_LOCK_INIT();
+	/* hash tables */
+	dn_cfg.max_hash_size = 1024;	/* max in the hash tables */
+	dn_cfg.hash_size = 64;		/* default hash size */
 
-	for (i = 0; i < HASHSIZE; i++) {
-		SLIST_INIT(&pipehash[i]);
-		SLIST_INIT(&flowsethash[i]);
-	}
-	ready_heap.size = ready_heap.elements = 0;
-	ready_heap.offset = 0;
+	/* create hash tables for schedulers and flowsets.
+	 * In both we search by key and by pointer.
+	 */
+	dn_cfg.schedhash = dn_ht_init(NULL, dn_cfg.hash_size,
+		offsetof(struct dn_schk, schk_next),
+		schk_hash, schk_match, schk_new);
+	dn_cfg.fshash = dn_ht_init(NULL, dn_cfg.hash_size,
+		offsetof(struct dn_fsk, fsk_next),
+		fsk_hash, fsk_match, fsk_new);
 
-	wfq_ready_heap.size = wfq_ready_heap.elements = 0;
-	wfq_ready_heap.offset = 0;
+	/* bucket index to drain object */
+	dn_cfg.drain_fs = 0;
+	dn_cfg.drain_sch = 0;
 
-	extract_heap.size = extract_heap.elements = 0;
-	extract_heap.offset = 0;
+	heap_init(&dn_cfg.evheap, 16, offsetof(struct dn_id, id));
+	SLIST_INIT(&dn_cfg.fsu);
+	SLIST_INIT(&dn_cfg.schedlist);
 
-	ip_dn_ctl_ptr = ip_dn_ctl;
-	ip_dn_io_ptr = dummynet_io;
+	DN_LOCK_INIT();
 
-	TASK_INIT(&dn_task, 0, dummynet_task, NULL);
+	TASK_INIT(&dn_task, 0, dummynet_task, curvnet);
 	dn_tq = taskqueue_create_fast("dummynet", M_NOWAIT,
 	    taskqueue_thread_enqueue, &dn_tq);
 	taskqueue_start_threads(&dn_tq, 1, PI_NET, "dummynet");
@@ -2270,25 +2162,32 @@ ip_dn_init(void)
 	callout_reset(&dn_timeout, 1, dummynet, NULL);
 
 	/* Initialize curr_time adjustment mechanics. */
-	getmicrouptime(&prev_t);
+	getmicrouptime(&dn_cfg.prev_t);
 }
 
 #ifdef KLD_MODULE
 static void
-ip_dn_destroy(void)
+ip_dn_destroy(int last)
 {
-	ip_dn_ctl_ptr = NULL;
-	ip_dn_io_ptr = NULL;
+	callout_drain(&dn_timeout);
 
-	DUMMYNET_LOCK();
-	callout_stop(&dn_timeout);
-	DUMMYNET_UNLOCK();
+	DN_BH_WLOCK();
+	if (last) {
+		printf("%s removing last instance\n", __FUNCTION__);
+		ip_dn_ctl_ptr = NULL;
+		ip_dn_io_ptr = NULL;
+	}
+
+	dummynet_flush();
+	DN_BH_WUNLOCK();
 	taskqueue_drain(dn_tq, &dn_task);
 	taskqueue_free(dn_tq);
 
-	dummynet_flush();
+	dn_ht_free(dn_cfg.schedhash, 0);
+	dn_ht_free(dn_cfg.fshash, 0);
+	heap_free(&dn_cfg.evheap);
 
-	DUMMYNET_LOCK_DESTROY();
+	DN_LOCK_DESTROY();
 }
 #endif /* KLD_MODULE */
 
@@ -2296,36 +2195,116 @@ static int
 dummynet_modevent(module_t mod, int type, void *data)
 {
 
-	switch (type) {
-	case MOD_LOAD:
+	if (type == MOD_LOAD) {
 		if (ip_dn_io_ptr) {
-		    printf("DUMMYNET already loaded\n");
-		    return EEXIST ;
+			printf("DUMMYNET already loaded\n");
+			return EEXIST ;
 		}
 		ip_dn_init();
-		break;
-
-	case MOD_UNLOAD:
+		ip_dn_ctl_ptr = ip_dn_ctl;
+		ip_dn_io_ptr = dummynet_io;
+		return 0;
+	} else if (type == MOD_UNLOAD) {
 #if !defined(KLD_MODULE)
 		printf("dummynet statically compiled, cannot unload\n");
 		return EINVAL ;
 #else
-		ip_dn_destroy();
+		ip_dn_destroy(1 /* last */);
+		return 0;
 #endif
-		break ;
-	default:
+	} else
 		return EOPNOTSUPP;
-		break ;
+}
+
+/* modevent helpers for the modules */
+static int
+load_dn_sched(struct dn_alg *d)
+{
+	struct dn_alg *s;
+
+	if (d == NULL)
+		return 1; /* error */
+	ip_dn_init();	/* just in case, we need the lock */
+
+	/* Check that mandatory funcs exists */
+	if (d->enqueue == NULL || d->dequeue == NULL) {
+		D("missing enqueue or dequeue for %s", d->name);
+		return 1;
 	}
-	return 0 ;
+
+	/* Search if scheduler already exists */
+	DN_BH_WLOCK();
+	SLIST_FOREACH(s, &dn_cfg.schedlist, next) {
+		if (strcmp(s->name, d->name) == 0) {
+			D("%s already loaded", d->name);
+			break; /* scheduler already exists */
+		}
+	}
+	if (s == NULL)
+		SLIST_INSERT_HEAD(&dn_cfg.schedlist, d, next);
+	DN_BH_WUNLOCK();
+	D("dn_sched %s %sloaded", d->name, s ? "not ":"");
+	return s ? 1 : 0;
+}
+
+static int
+unload_dn_sched(struct dn_alg *s)
+{
+	struct dn_alg *tmp, *r;
+	int err = EINVAL;
+
+	D("called for %s", s->name);
+
+	DN_BH_WLOCK();
+	SLIST_FOREACH_SAFE(r, &dn_cfg.schedlist, next, tmp) {
+		if (strcmp(s->name, r->name) != 0)
+			continue;
+		D("ref_count = %d", r->ref_count);
+		err = (r->ref_count != 0) ? EBUSY : 0;
+		if (err == 0)
+			SLIST_REMOVE(&dn_cfg.schedlist, r, dn_alg, next);
+		break;
+	}
+	DN_BH_WUNLOCK();
+	D("dn_sched %s %sunloaded", s->name, err ? "not ":"");
+	return err;
+}
+
+int
+dn_sched_modevent(module_t mod, int cmd, void *arg)
+{
+	struct dn_alg *sch = arg;
+
+	if (cmd == MOD_LOAD)
+		return load_dn_sched(sch);
+	else if (cmd == MOD_UNLOAD)
+		return unload_dn_sched(sch);
+	else
+		return EINVAL;
 }
 
 static moduledata_t dummynet_mod = {
-	"dummynet",
-	dummynet_modevent,
-	NULL
+	"dummynet", dummynet_modevent, NULL
 };
-DECLARE_MODULE(dummynet, dummynet_mod, SI_SUB_PROTO_IFATTACHDOMAIN, SI_ORDER_ANY);
+
+#define	DN_SI_SUB	SI_SUB_PROTO_IFATTACHDOMAIN
+#define	DN_MODEV_ORD	(SI_ORDER_ANY - 128) /* after ipfw */
+DECLARE_MODULE(dummynet, dummynet_mod, DN_SI_SUB, DN_MODEV_ORD);
 MODULE_DEPEND(dummynet, ipfw, 2, 2, 2);
 MODULE_VERSION(dummynet, 1);
+
+/*
+ * Starting up. Done in order after dummynet_modevent() has been called.
+ * VNET_SYSINIT is also called for each existing vnet and each new vnet.
+ */
+//VNET_SYSINIT(vnet_dn_init, DN_SI_SUB, DN_MODEV_ORD+2, ip_dn_init, NULL);
+ 
+/*
+ * Shutdown handlers up shop. These are done in REVERSE ORDER, but still
+ * after dummynet_modevent() has been called. Not called on reboot.
+ * VNET_SYSUNINIT is also called for each exiting vnet as it exits.
+ * or when the module is unloaded.
+ */
+//VNET_SYSUNINIT(vnet_dn_uninit, DN_SI_SUB, DN_MODEV_ORD+2, ip_dn_destroy, NULL);
+
 /* end of file */

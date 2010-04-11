@@ -121,6 +121,8 @@ ar9285Attach(uint16_t devid, HAL_SOFTC sc,
 	AH5416(ah)->ah_writeIni		= ar9285WriteIni;
 	AH5416(ah)->ah_rx_chainmask	= AR9285_DEFAULT_RXCHAINMASK;
 	AH5416(ah)->ah_tx_chainmask	= AR9285_DEFAULT_TXCHAINMASK;
+	
+	ahp->ah_maxTxTrigLev		= MAX_TX_FIFO_THRESHOLD >> 1;
 
 	if (!ar5416SetResetReg(ah, HAL_RESET_POWER_ON)) {
 		/* reset chip */
@@ -376,8 +378,8 @@ ar9285SetAntennaSwitch(struct ath_hal *ah, HAL_ANT_SETTING settings)
 	case HAL_ANT_VARIABLE:
 		/* Restore original chainmask settings */
 		/* XXX */
-		ahp->ah_tx_chainmask = AR5416_DEFAULT_TXCHAINMASK;
-		ahp->ah_rx_chainmask = AR5416_DEFAULT_RXCHAINMASK;
+		ahp->ah_tx_chainmask = AR9285_DEFAULT_TXCHAINMASK;
+		ahp->ah_rx_chainmask = AR9285_DEFAULT_RXCHAINMASK;
 		break;
 	}
 	return AH_TRUE;

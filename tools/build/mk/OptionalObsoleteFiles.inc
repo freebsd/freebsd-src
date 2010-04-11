@@ -776,12 +776,6 @@ OLD_FILES+=usr/share/man/man1/gdbserver.1.gz
 OLD_FILES+=usr/share/man/man1/kgdb.1.gz
 .endif
 
-.if ${MK_GNU_CPIO} == no
-OLD_FILES+=usr/bin/gcpio
-OLD_FILES+=usr/share/info/cpio.info.gz
-OLD_FILES+=usr/share/man/man1/gcpio.1.gz
-.endif
-
 .if ${MK_GPIB} == no
 OLD_FILES+=usr/include/dev/ieee488/ibfoo_int.h
 OLD_FILES+=usr/include/dev/ieee488/ugpib.h
@@ -1510,6 +1504,8 @@ OLD_FILES+=usr/share/man/man8/verify_krb5_conf.8.gz
 #.endif
 
 .if ${MK_LPR} == no
+OLD_FILES+=etc/hosts.lpd
+OLD_FILES+=etc/printcap
 OLD_FILES+=usr/bin/lp
 OLD_FILES+=usr/bin/lpq
 OLD_FILES+=usr/bin/lpr
@@ -1524,6 +1520,8 @@ OLD_FILES+=usr/sbin/lpd
 OLD_FILES+=usr/sbin/lptest
 OLD_FILES+=usr/sbin/pac
 OLD_FILES+=usr/share/doc/smm/07.lpd/paper.ascii.gz
+OLD_FILES+=usr/share/examples/etc/hosts.lpd
+OLD_FILES+=usr/share/examples/etc/printcap
 OLD_FILES+=usr/share/man/man1/lp.1.gz
 OLD_FILES+=usr/share/man/man1/lpq.1.gz
 OLD_FILES+=usr/share/man/man1/lpr.1.gz
@@ -1547,7 +1545,6 @@ OLD_FILES+=usr/libexec/comsat
 OLD_FILES+=usr/share/examples/etc/mail.rc
 OLD_FILES+=usr/share/man/man1/Mail.1.gz
 OLD_FILES+=usr/share/man/man1/biff.1.gz
-OLD_FILES+=usr/share/man/man1/fmt.1.gz
 OLD_FILES+=usr/share/man/man1/from.1.gz
 OLD_FILES+=usr/share/man/man1/mail.1.gz
 OLD_FILES+=usr/share/man/man1/mailx.1.gz
@@ -1596,12 +1593,12 @@ OLD_FILES+=usr/include/netncp/nwerror.h
 #OLD_DIRS+=usr/include/netncp
 OLD_FILES+=usr/lib/libncp.a
 OLD_FILES+=usr/lib/libncp.so
-OLD_LIBS+=usr/lib/libncp.so.3
+OLD_LIBS+=usr/lib/libncp.so.4
 OLD_FILES+=usr/lib/libncp_p.a
 .if ${TARGET_ARCH} == "amd64"
 OLD_FILES+=usr/lib32/libncp.a
 OLD_FILES+=usr/lib32/libncp.so
-OLD_LIBS+=usr/lib32/libncp.so.3
+OLD_LIBS+=usr/lib32/libncp.so.4
 OLD_FILES+=usr/lib32/libncp_p.a
 .endif
 OLD_FILES+=usr/sbin/mount_nwfs
@@ -1609,6 +1606,14 @@ OLD_FILES+=usr/share/man/man1/ncplist.1.gz
 OLD_FILES+=usr/share/man/man1/ncplogin.1.gz
 OLD_FILES+=usr/share/man/man1/ncplogout.1.gz
 OLD_FILES+=usr/share/man/man8/mount_nwfs.8.gz
+.endif
+
+.if ${MK_NDIS} == no
+OLD_FILES+=usr/sbin/ndiscvt
+OLD_FILES+=usr/sbin/ndisgen
+OLD_FILES+=usr/share/man/man8/ndiscvt.8.gz
+OLD_FILES+=usr/share/man/man8/ndisgen.8.gz
+OLD_FILES+=usr/share/misc/windrv_stub.c
 .endif
 
 .if ${MK_NETCAT} == no
@@ -1624,6 +1629,93 @@ OLD_FILES+=usr/share/man/man1/nc.1.gz
 # to be filled in
 #.endif
 
+.if ${MK_NTP} == no
+OLD_FILES+=etc/ntp.conf
+OLD_FILES+=etc/periodic/daily/480.status-ntpd
+OLD_FILES+=usr/bin/ntpq
+OLD_FILES+=usr/sbin/ntp-keygen
+OLD_FILES+=usr/sbin/ntpd
+OLD_FILES+=usr/sbin/ntpdate
+OLD_FILES+=usr/sbin/ntpdc
+OLD_FILES+=usr/sbin/ntptime
+OLD_FILES+=usr/sbin/sntp
+OLD_FILES+=usr/share/doc/ntp/accopt.html
+OLD_FILES+=usr/share/doc/ntp/assoc.html
+OLD_FILES+=usr/share/doc/ntp/audio.html
+OLD_FILES+=usr/share/doc/ntp/authopt.html
+OLD_FILES+=usr/share/doc/ntp/build.html
+OLD_FILES+=usr/share/doc/ntp/clockopt.html
+OLD_FILES+=usr/share/doc/ntp/config.html
+OLD_FILES+=usr/share/doc/ntp/confopt.html
+OLD_FILES+=usr/share/doc/ntp/copyright.html
+OLD_FILES+=usr/share/doc/ntp/debug.html
+OLD_FILES+=usr/share/doc/ntp/driver1.html
+OLD_FILES+=usr/share/doc/ntp/driver10.html
+OLD_FILES+=usr/share/doc/ntp/driver11.html
+OLD_FILES+=usr/share/doc/ntp/driver12.html
+OLD_FILES+=usr/share/doc/ntp/driver16.html
+OLD_FILES+=usr/share/doc/ntp/driver18.html
+OLD_FILES+=usr/share/doc/ntp/driver19.html
+OLD_FILES+=usr/share/doc/ntp/driver2.html
+OLD_FILES+=usr/share/doc/ntp/driver20.html
+OLD_FILES+=usr/share/doc/ntp/driver22.html
+OLD_FILES+=usr/share/doc/ntp/driver26.html
+OLD_FILES+=usr/share/doc/ntp/driver27.html
+OLD_FILES+=usr/share/doc/ntp/driver28.html
+OLD_FILES+=usr/share/doc/ntp/driver29.html
+OLD_FILES+=usr/share/doc/ntp/driver3.html
+OLD_FILES+=usr/share/doc/ntp/driver30.html
+OLD_FILES+=usr/share/doc/ntp/driver32.html
+OLD_FILES+=usr/share/doc/ntp/driver33.html
+OLD_FILES+=usr/share/doc/ntp/driver34.html
+OLD_FILES+=usr/share/doc/ntp/driver35.html
+OLD_FILES+=usr/share/doc/ntp/driver36.html
+OLD_FILES+=usr/share/doc/ntp/driver37.html
+OLD_FILES+=usr/share/doc/ntp/driver4.html
+OLD_FILES+=usr/share/doc/ntp/driver5.html
+OLD_FILES+=usr/share/doc/ntp/driver6.html
+OLD_FILES+=usr/share/doc/ntp/driver7.html
+OLD_FILES+=usr/share/doc/ntp/driver8.html
+OLD_FILES+=usr/share/doc/ntp/driver9.html
+OLD_FILES+=usr/share/doc/ntp/extern.html
+OLD_FILES+=usr/share/doc/ntp/hints.html
+OLD_FILES+=usr/share/doc/ntp/howto.html
+OLD_FILES+=usr/share/doc/ntp/index.html
+OLD_FILES+=usr/share/doc/ntp/kern.html
+OLD_FILES+=usr/share/doc/ntp/ldisc.html
+OLD_FILES+=usr/share/doc/ntp/measure.html
+OLD_FILES+=usr/share/doc/ntp/miscopt.html
+OLD_FILES+=usr/share/doc/ntp/monopt.html
+OLD_FILES+=usr/share/doc/ntp/mx4200data.html
+OLD_FILES+=usr/share/doc/ntp/notes.html
+OLD_FILES+=usr/share/doc/ntp/ntpd.html
+OLD_FILES+=usr/share/doc/ntp/ntpdate.html
+OLD_FILES+=usr/share/doc/ntp/ntpdc.html
+OLD_FILES+=usr/share/doc/ntp/ntpq.html
+OLD_FILES+=usr/share/doc/ntp/ntptime.html
+OLD_FILES+=usr/share/doc/ntp/ntptrace.html
+OLD_FILES+=usr/share/doc/ntp/parsedata.html
+OLD_FILES+=usr/share/doc/ntp/parsenew.html
+OLD_FILES+=usr/share/doc/ntp/patches.html
+OLD_FILES+=usr/share/doc/ntp/porting.html
+OLD_FILES+=usr/share/doc/ntp/pps.html
+OLD_FILES+=usr/share/doc/ntp/prefer.html
+OLD_FILES+=usr/share/doc/ntp/quick.html
+OLD_FILES+=usr/share/doc/ntp/rdebug.html
+OLD_FILES+=usr/share/doc/ntp/refclock.html
+OLD_FILES+=usr/share/doc/ntp/release.html
+OLD_FILES+=usr/share/doc/ntp/tickadj.html
+OLD_FILES+=usr/share/examples/etc/ntp.conf
+OLD_FILES+=usr/share/man/man5/ntp.conf.5.gz
+OLD_FILES+=usr/share/man/man5/ntp.keys.5.gz
+OLD_FILES+=usr/share/man/man8/ntp-keygen.8.gz
+OLD_FILES+=usr/share/man/man8/ntpd.8.gz
+OLD_FILES+=usr/share/man/man8/ntpdate.8.gz
+OLD_FILES+=usr/share/man/man8/ntpdc.8.gz
+OLD_FILES+=usr/share/man/man8/ntpq.8.gz
+OLD_FILES+=usr/share/man/man8/ntptime.8.gz
+.endif
+
 #.if ${MK_OBJC} == no
 # to be filled in
 #.endif
@@ -1636,9 +1728,67 @@ OLD_FILES+=usr/share/man/man1/nc.1.gz
 # to be filled in
 #.endif
 
-#.if ${MK_PCVT} == no
-# to be filled in
-#.endif
+.if ${MK_PF} == no
+OLD_FILES+=etc/periodic/security/520.pfdenied
+OLD_FILES+=etc/pf.os
+OLD_FILES+=sbin/pfctl
+OLD_FILES+=sbin/pflogd
+OLD_FILES+=usr/libexec/tftp-proxy
+OLD_FILES+=usr/sbin/ftp-proxy
+OLD_FILES+=usr/share/examples/etc/pf.os
+OLD_FILES+=usr/share/examples/pf/ackpri
+OLD_FILES+=usr/share/examples/pf/faq-example1
+OLD_FILES+=usr/share/examples/pf/faq-example2
+OLD_FILES+=usr/share/examples/pf/faq-example3
+OLD_FILES+=usr/share/examples/pf/pf.conf
+OLD_FILES+=usr/share/examples/pf/queue1
+OLD_FILES+=usr/share/examples/pf/queue2
+OLD_FILES+=usr/share/examples/pf/queue3
+OLD_FILES+=usr/share/examples/pf/queue4
+OLD_FILES+=usr/share/examples/pf/spamd
+OLD_FILES+=usr/share/man/man4/pf.4.gz
+OLD_FILES+=usr/share/man/man4/pflog.4.gz
+OLD_FILES+=usr/share/man/man4/pfsync.4.gz
+OLD_FILES+=usr/share/man/man5/pf.conf.5.gz
+OLD_FILES+=usr/share/man/man5/pf.os.5.gz
+OLD_FILES+=usr/share/man/man8/ftp-proxy.8.gz
+OLD_FILES+=usr/share/man/man8/pfctl.8.gz
+OLD_FILES+=usr/share/man/man8/pflogd.8.gz
+OLD_FILES+=usr/share/man/man8/tftp-proxy.8.gz
+.endif
+
+.if ${MK_PKGTOOLS} == no
+OLD_FILES+=etc/periodic/weekly/400.status-pkg
+OLD_FILES+=usr/sbin/pkg_add
+OLD_FILES+=usr/sbin/pkg_create
+OLD_FILES+=usr/sbin/pkg_delete
+OLD_FILES+=usr/sbin/pkg_info
+OLD_FILES+=usr/sbin/pkg_updating
+OLD_FILES+=usr/sbin/pkg_version
+OLD_FILES+=usr/share/man/man1/pkg_add.1.gz
+OLD_FILES+=usr/share/man/man1/pkg_create.1.gz
+OLD_FILES+=usr/share/man/man1/pkg_delete.1.gz
+OLD_FILES+=usr/share/man/man1/pkg_info.1.gz
+OLD_FILES+=usr/share/man/man1/pkg_updating.1.gz
+OLD_FILES+=usr/share/man/man1/pkg_version.1.gz
+.endif
+
+.if ${MK_PORTSNAP} == no
+OLD_FILES+=etc/portsnap.conf
+OLD_FILES+=usr/libexec/make_index
+OLD_FILES+=usr/libexec/phttpget
+OLD_FILES+=usr/sbin/portsnap
+OLD_FILES+=usr/share/examples/etc/portsnap.conf
+OLD_FILES+=usr/share/man/man8/portsnap.8.gz
+.endif
+
+.if ${MK_PPP} == no
+OLD_FILES+=etc/ppp/ppp.conf
+OLD_FILES+=usr/sbin/ppp
+OLD_FILES+=usr/sbin/pppctl
+OLD_FILES+=usr/share/man/man8/ppp.8.gz
+OLD_FILES+=usr/share/man/man8/pppctl.8.gz
+.endif
 
 .if ${MK_PROFILE} == no
 OLD_FILES+=usr/lib/libalias_cuseeme_p.a
@@ -1755,25 +1905,61 @@ OLD_FILES+=usr/lib/libz_p.a
 
 .if ${MK_RCMDS} == no
 OLD_FILES+=bin/rcp
+OLD_FILES+=etc/periodic/daily/140.clean-rwho 
+OLD_FILES+=etc/periodic/daily/430.status-rwho
 OLD_FILES+=rescue/rcp
 OLD_FILES+=usr/bin/rlogin
 OLD_FILES+=usr/bin/rsh
+OLD_FILES+=usr/bin/ruptime
+OLD_FILES+=usr/bin/rwho
 OLD_FILES+=usr/libexec/rlogind
 OLD_FILES+=usr/libexec/rshd
+OLD_FILES+=usr/sbin/rwhod
 OLD_FILES+=usr/share/man/man1/rcp.1.gz
 OLD_FILES+=usr/share/man/man1/rlogin.1.gz
 OLD_FILES+=usr/share/man/man1/rsh.1.gz
+OLD_FILES+=usr/share/man/man1/ruptime.1.gz
+OLD_FILES+=usr/share/man/man1/rwho.1.gz
 OLD_FILES+=usr/share/man/man8/rlogind.8.gz
 OLD_FILES+=usr/share/man/man8/rshd.8.gz
+OLD_FILES+=usr/share/man/man8/rwhod.8.gz
 .endif
 
-#.if ${MK_RCS} == no
-# to be filled in
-#.endif
+.if ${MK_RCS} == no
+OLD_FILES+=usr/bin/ci
+OLD_FILES+=usr/bin/co
+OLD_FILES+=usr/bin/ident
+OLD_FILES+=usr/bin/merge
+OLD_FILES+=usr/bin/rcs
+OLD_FILES+=usr/bin/rcsclean
+OLD_FILES+=usr/bin/rcsdiff
+OLD_FILES+=usr/bin/rcsfreeze
+OLD_FILES+=usr/bin/rcsmerge
+OLD_FILES+=usr/bin/rlog
+OLD_FILES+=usr/share/man/man1/ci.1.gz
+OLD_FILES+=usr/share/man/man1/co.1.gz
+OLD_FILES+=usr/share/man/man1/ident.1.gz
+OLD_FILES+=usr/share/man/man1/merge.1.gz
+OLD_FILES+=usr/share/man/man1/rcs.1.gz
+OLD_FILES+=usr/share/man/man1/rcsclean.1.gz
+OLD_FILES+=usr/share/man/man1/rcsdiff.1.gz
+OLD_FILES+=usr/share/man/man1/rcsfreeze.1.gz
+OLD_FILES+=usr/share/man/man1/rcsintro.1.gz
+OLD_FILES+=usr/share/man/man1/rcsmerge.1.gz
+OLD_FILES+=usr/share/man/man1/rlog.1.gz
+OLD_FILES+=usr/share/man/man5/rcsfile.5.gz
+.endif
 
 #.if ${MK_RESCUE} == no
 # to be filled in or replaced with a special target
 #.endif
+
+.if ${MK_ROUTED} == no
+OLD_FILES+=sbin/routed
+OLD_FILES+=sbin/rtquery
+OLD_FILES+=usr/share/man/man8/routed.8.gz
+OLD_FILES+=usr/share/man/man8/rtquery.8.gz
+.endif
 
 .if ${MK_SENDMAIL} == no
 OLD_FILES+=bin/rmail
@@ -2036,6 +2222,13 @@ OLD_FILES+=usr/share/nls/ru_RU.KOI8-R/tcsh.cat
 OLD_FILES+=usr/share/nls/uk_UA.KOI8-U/tcsh.cat
 .endif
 
+.if ${MK_TELNET} == no
+OLD_FILES+=usr/bin/telnet
+OLD_FILES+=usr/libexec/telnetd
+OLD_FILES+=usr/share/man/man1/telnet.1.gz
+OLD_FILES+=usr/share/man/man8/telnetd.8.gz
+.endif
+
 #.if ${MK_TOOLCHAIN} == no
 # to be filled in
 #.endif
@@ -2043,3 +2236,32 @@ OLD_FILES+=usr/share/nls/uk_UA.KOI8-U/tcsh.cat
 #.if ${MK_USB} == no
 # to be filled in
 #.endif
+
+.if ${MK_WIRELESS} == no
+OLD_FILES+=etc/regdomain.xml
+OLD_FILES+=usr/sbin/ancontrol
+OLD_FILES+=usr/sbin/hostapd
+OLD_FILES+=usr/sbin/hostapd_cli
+OLD_FILES+=usr/sbin/ndis_events
+OLD_FILES+=usr/sbin/wlandebug
+OLD_FILES+=usr/sbin/wlconfig
+OLD_FILES+=usr/sbin/wpa_cli
+OLD_FILES+=usr/sbin/wpa_passphrase
+OLD_FILES+=usr/sbin/wpa_supplicant
+OLD_FILES+=usr/share/examples/etc/regdomain.xml
+OLD_FILES+=usr/share/examples/etc/wpa_supplicant.conf
+OLD_FILES+=usr/share/examples/hostapd/hostapd.conf
+OLD_FILES+=usr/share/examples/hostapd/hostapd.eap_user
+OLD_FILES+=usr/share/examples/hostapd/hostapd.wpa_psk
+OLD_FILES+=usr/share/man/man5/hostapd.conf.5.gz
+OLD_FILES+=usr/share/man/man5/wpa_supplicant.conf.5.gz
+OLD_FILES+=usr/share/man/man8/ancontrol.8.gz
+OLD_FILES+=usr/share/man/man8/hostapd.8.gz
+OLD_FILES+=usr/share/man/man8/hostapd_cli.8.gz
+OLD_FILES+=usr/share/man/man8/i386/wlconfig.8.gz
+OLD_FILES+=usr/share/man/man8/ndis_events.8.gz
+OLD_FILES+=usr/share/man/man8/wlandebug.8.gz
+OLD_FILES+=usr/share/man/man8/wpa_cli.8.gz
+OLD_FILES+=usr/share/man/man8/wpa_passphrase.8.gz
+OLD_FILES+=usr/share/man/man8/wpa_supplicant.8.gz
+.endif

@@ -15,7 +15,7 @@ mips/rmi/uart_cpu_mips_xlr.c			optional uart
 mips/rmi/perfmon_kern.c				optional xlr_perfmon
 mips/rmi/perfmon_percpu.c			optional xlr_perfmon
 mips/rmi/xlr_pci.c				optional pci
-#mips/rmi/xls_ehci.c				optional usb ehci
+mips/rmi/xls_ehci.c				optional usb ehci
 mips/rmi/bus_space_rmi.c			standard
 mips/rmi/bus_space_rmi_pci.c			optional pci
 mips/rmi/dev/sec/rmisec.c			optional rmisec

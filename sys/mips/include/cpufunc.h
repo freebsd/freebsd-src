@@ -244,6 +244,13 @@ MIPS_RDRW32_COP0(watchhi, MIPS_COP_0_WATCH_HI);
 MIPS_RDRW32_COP0_SEL(watchhi, MIPS_COP_0_WATCH_HI, 1);
 MIPS_RDRW32_COP0_SEL(watchhi, MIPS_COP_0_WATCH_HI, 2);
 MIPS_RDRW32_COP0_SEL(watchhi, MIPS_COP_0_WATCH_HI, 3);
+
+MIPS_RDRW32_COP0_SEL(perfcnt, MIPS_COP_0_PERFCNT, 0);
+MIPS_RDRW32_COP0_SEL(perfcnt, MIPS_COP_0_PERFCNT, 1);
+MIPS_RDRW32_COP0_SEL(perfcnt, MIPS_COP_0_PERFCNT, 2);
+MIPS_RDRW32_COP0_SEL(perfcnt, MIPS_COP_0_PERFCNT, 3);
+
+
 #undef	MIPS_RDRW32_COP0
 
 static __inline register_t
@@ -275,6 +282,35 @@ breakpoint(void)
 {
 	__asm __volatile ("break");
 }
+
+#if defined(__GNUC__) && !defined(__mips_o32)
+static inline uint64_t
+mips3_ld(const volatile uint64_t *va)
+{
+	uint64_t rv;
+
+#if defined(_LP64)
+	rv = *va;
+#else
+	__asm volatile("ld	%0,0(%1)" : "=d"(rv) : "r"(va));
+#endif
+
+	return (rv);
+}
+
+static inline void
+mips3_sd(volatile uint64_t *va, uint64_t v)
+{
+#if defined(_LP64)
+	*va = v;
+#else
+	__asm volatile("sd	%0,0(%1)" :: "r"(v), "r"(va));
+#endif
+}
+#else
+uint64_t mips3_ld(volatile uint64_t *va);
+void mips3_sd(volatile uint64_t *, uint64_t);
+#endif	/* __GNUC__ */
 
 #endif /* _KERNEL */
 

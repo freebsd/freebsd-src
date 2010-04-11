@@ -3,7 +3,6 @@
 
 .include <bsd.own.mk>
 
-# XXX MISSING:		mkproto
 SUBDIR=	${_ac} \
 	${_accton} \
 	${_acpi} \
@@ -168,6 +167,7 @@ SUBDIR=	${_ac} \
 	${_sade} \
 	${_sendmail} \
 	service \
+	services_mkdb \
 	setfib \
 	setfmac \
 	setpmac \
@@ -302,7 +302,6 @@ _jls=		jls
 .endif
 
 # XXX MK_SYSCONS
-# XXX is moused w/ usb useful?
 .if ${MK_LEGACY_CONSOLE} != "no"
 _kbdcontrol=	kbdcontrol
 _kbdmap=	kbdmap

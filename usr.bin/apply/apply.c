@@ -44,10 +44,12 @@ static char sccsid[] = "@(#)apply.c	8.4 (Berkeley) 4/4/94";
 __FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
+#include <sys/sbuf.h>
 #include <sys/wait.h>
 
 #include <ctype.h>
 #include <err.h>
+#include <errno.h>
 #include <paths.h>
 #include <signal.h>
 #include <stdio.h>
@@ -61,10 +63,13 @@ static int	exec_shell(const char *, char *, char *);
 static void	usage(void);
 
 int
-main(int argc, char *argv[]) {
+main(int argc, char *argv[])
+{
+	struct sbuf *cmdbuf;
+	long arg_max;
 	int ch, debug, i, magic, n, nargs, offset, rval;
-	size_t clen, cmdsize, l;
-	char *c, *cmd, *name, *p, *q, *shell, *slashp, *tmpshell;
+	size_t cmdsize;
+	char *cmd, *name, *p, *shell, *slashp, *tmpshell;
 
 	debug = 0;
 	magic = '%';		/* Default magic char is `%'. */
@@ -144,13 +149,13 @@ main(int argc, char *argv[]) {
 		p = cmd;
 		offset = snprintf(cmd, cmdsize, EXEC "%s", argv[0]);
 		if ((size_t)offset >= cmdsize)
-			err(1, "snprintf() failed");
+			errx(1, "snprintf() failed");
 		p += offset;
 		cmdsize -= offset;
 		for (i = 1; i <= nargs; i++) {
 			offset = snprintf(p, cmdsize, " %c%d", magic, i);
 			if ((size_t)offset >= cmdsize)
-				err(1, "snprintf() failed");
+				errx(1, "snprintf() failed");
 			p += offset;
 			cmdsize -= offset;
 		}
@@ -164,17 +169,15 @@ main(int argc, char *argv[]) {
 	} else {
 		offset = snprintf(cmd, cmdsize, EXEC "%s", argv[0]);
 		if ((size_t)offset >= cmdsize)
-			err(1, "snprintf() failed");
+			errx(1, "snprintf() failed");
 		nargs = n;
 	}
 
-	/*
-	 * Grab some space in which to build the command.  Allocate
-	 * as necessary later, but no reason to build it up slowly
-	 * for the normal case.
-	 */
-	if ((c = malloc(clen = 1024)) == NULL)
+	cmdbuf = sbuf_new(NULL, NULL, 1024, SBUF_AUTOEXTEND);
+	if (cmdbuf == NULL)
 		err(1, NULL);
+
+	arg_max = sysconf(_SC_ARG_MAX);
 
 	/*
 	 * (argc) and (argv) are still offset by one to make it simpler to
@@ -182,43 +185,37 @@ main(int argc, char *argv[]) {
 	 * equals 1 means that all the (argv) has been consumed.
 	 */
 	for (rval = 0; argc > nargs; argc -= nargs, argv += nargs) {
-		/*
-		 * Find a max value for the command length, and ensure
-		 * there's enough space to build it.
-		 */
-		for (l = strlen(cmd), i = 0; i < nargs; i++)
-			l += strlen(argv[i+1]);
-		if (l > clen && (c = realloc(c, clen = l)) == NULL)
-			err(1, NULL);
-
+		sbuf_clear(cmdbuf);
 		/* Expand command argv references. */
-		for (p = cmd, q = c; *p != '\0'; ++p)
+		for (p = cmd; *p != '\0'; ++p) {
 			if (p[0] == magic && isdigit(p[1]) && p[1] != '0') {
-				offset = snprintf(q, l, "%s",
-				    argv[(++p)[0] - '0']);
-				if ((size_t)offset >= l)
-					err(1, "snprintf() failed");
-				q += offset;
-				l -= offset;
-			} else
-				*q++ = *p;
+				if (sbuf_cat(cmdbuf, argv[(++p)[0] - '0'])
+				    == -1)
+					errc(1, ENOMEM, "sbuf");
+			} else {
+				if (sbuf_putc(cmdbuf, *p) == -1)
+					errc(1, ENOMEM, "sbuf");
+			}
+			if (sbuf_len(cmdbuf) > arg_max)
+				errc(1, E2BIG, NULL);
+		}
 
 		/* Terminate the command string. */
-		*q = '\0';
+		sbuf_finish(cmdbuf);
 
 		/* Run the command. */
 		if (debug)
-			(void)printf("%s\n", c);
+			(void)printf("%s\n", sbuf_data(cmdbuf));
 		else
-			if (exec_shell(c, shell, name))
+			if (exec_shell(sbuf_data(cmdbuf), shell, name))
 				rval = 1;
 	}
 
 	if (argc != 1)
 		errx(1, "expecting additional argument%s after \"%s\"",
-	    (nargs - argc) ? "s" : "", argv[argc - 1]);
+		    (nargs - argc) ? "s" : "", argv[argc - 1]);
 	free(cmd);
-	free(c);
+	sbuf_delete(cmdbuf);
 	free(shell);
 	exit(rval);
 }

@@ -56,6 +56,7 @@ struct mips_cpuinfo {
 	u_int8_t	tlb_type;
 	u_int16_t	tlb_nentries;
 	u_int8_t	icache_virtual;
+	boolean_t	cache_coherent_dma;
 	struct {
 		u_int32_t	ic_size;
 		u_int8_t	ic_linesize;
@@ -68,52 +69,7 @@ struct mips_cpuinfo {
 	} l1;
 };
 
-/* TODO: Merge above structure with NetBSD's below. */
-
-struct cpu_info {
-#ifdef notyet
-	struct schedstate_percpu ci_schedstate; /* scheduler state */
-#endif
-	u_long ci_cpu_freq;		/* CPU frequency */
-	u_long ci_cycles_per_hz;	/* CPU freq / hz */
-	u_long ci_divisor_delay;	/* for delay/DELAY */
-	u_long ci_divisor_recip;	/* scaled reciprocal of previous;
-					   see below */
-#if defined(DIAGNOSTIC) || defined(LOCKDEBUG)
-	u_long ci_spin_locks;		/* # of spin locks held */
-	u_long ci_simple_locks;		/* # of simple locks held */
-#endif
-};
-
-/*
- * To implement a more accurate microtime using the CP0 COUNT register
- * we need to divide that register by the number of cycles per MHz.
- * But...
- *
- * DIV and DIVU are expensive on MIPS (eg 75 clocks on the R4000).  MULT
- * and MULTU are only 12 clocks on the same CPU.
- *
- * The strategy we use is to calculate the reciprical of cycles per MHz,
- * scaled by 1<<32.  Then we can simply issue a MULTU and pluck of the
- * HI register and have the results of the division.
- */
-#define	MIPS_SET_CI_RECIPRICAL(cpu)					\
-do {									\
-	KASSERT((cpu)->ci_divisor_delay != 0, ("divisor delay"));		\
-	(cpu)->ci_divisor_recip = 0x100000000ULL / (cpu)->ci_divisor_delay; \
-} while (0)
-
-#define	MIPS_COUNT_TO_MHZ(cpu, count, res)				\
-	__asm __volatile ("multu %1,%2 ; mfhi %0"			\
-	    : "=r"((res)) : "r"((count)), "r"((cpu)->ci_divisor_recip))
-
-
-extern struct cpu_info cpu_info_store;
-
-#if 0
-#define	curcpu()	(&cpu_info_store)
-#define	cpu_number()	(0)
-#endif
+extern struct mips_cpuinfo cpuinfo;
 
 #endif /* !LOCORE */
 #endif /* _KERNEL */

@@ -167,9 +167,8 @@ deget(pmp, dirclust, diroffset, depp)
 	ldep->de_dirclust = dirclust;
 	ldep->de_diroffset = diroffset;
 	ldep->de_inode = inode;
-	fc_purge(ldep, 0);	/* init the fat cache for this denode */
-
 	lockmgr(nvp->v_vnlock, LK_EXCLUSIVE, NULL);
+	fc_purge(ldep, 0);	/* init the fat cache for this denode */
 	error = insmntque(nvp, mntp);
 	if (error != 0) {
 		free(ldep, M_MSDOSFSNODE);
@@ -183,9 +182,8 @@ deget(pmp, dirclust, diroffset, depp)
 		return (error);
 	}
 	if (xvp != NULL) {
-		/* XXX: Not sure this is right */
-		nvp = xvp;
-		ldep->de_vnode = nvp;
+		*depp = xvp->v_data;
+		return (0);
 	}
 
 	ldep->de_pmp = pmp;
@@ -594,7 +592,7 @@ msdosfs_inactive(ap)
 	/*
 	 * Ignore denodes related to stale file handles.
 	 */
-	if (dep->de_Name[0] == SLOT_DELETED)
+	if (dep->de_Name[0] == SLOT_DELETED || dep->de_Name[0] == SLOT_EMPTY)
 		goto out;
 
 	/*
@@ -622,7 +620,7 @@ out:
 	printf("msdosfs_inactive(): v_usecount %d, de_Name[0] %x\n",
 	       vrefcnt(vp), dep->de_Name[0]);
 #endif
-	if (dep->de_Name[0] == SLOT_DELETED)
+	if (dep->de_Name[0] == SLOT_DELETED || dep->de_Name[0] == SLOT_EMPTY)
 		vrecycle(vp, td);
 	return (error);
 }

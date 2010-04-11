@@ -265,6 +265,7 @@ AcpiReallocateRootTable (
 {
     ACPI_TABLE_DESC         *Tables;
     ACPI_SIZE               NewSize;
+    ACPI_SIZE               CurrentSize;
 
 
     ACPI_FUNCTION_TRACE (AcpiReallocateRootTable);
@@ -279,9 +280,15 @@ AcpiReallocateRootTable (
         return_ACPI_STATUS (AE_SUPPORT);
     }
 
-    NewSize = ((ACPI_SIZE) AcpiGbl_RootTableList.Count +
-                    ACPI_ROOT_TABLE_SIZE_INCREMENT) *
-                sizeof (ACPI_TABLE_DESC);
+    /*
+     * Get the current size of the root table and add the default
+     * increment to create the new table size.
+     */
+    CurrentSize = (ACPI_SIZE)
+        AcpiGbl_RootTableList.Count * sizeof (ACPI_TABLE_DESC);
+
+    NewSize = CurrentSize +
+        (ACPI_ROOT_TABLE_SIZE_INCREMENT * sizeof (ACPI_TABLE_DESC));
 
     /* Create new array and copy the old array */
 
@@ -291,10 +298,16 @@ AcpiReallocateRootTable (
         return_ACPI_STATUS (AE_NO_MEMORY);
     }
 
-    ACPI_MEMCPY (Tables, AcpiGbl_RootTableList.Tables, NewSize);
+    ACPI_MEMCPY (Tables, AcpiGbl_RootTableList.Tables, CurrentSize);
 
-    AcpiGbl_RootTableList.Size = AcpiGbl_RootTableList.Count;
+    /*
+     * Update the root table descriptor. The new size will be the current
+     * number of tables plus the increment, independent of the reserved
+     * size of the original table list.
+     */
     AcpiGbl_RootTableList.Tables = Tables;
+    AcpiGbl_RootTableList.Size =
+        AcpiGbl_RootTableList.Count + ACPI_ROOT_TABLE_SIZE_INCREMENT;
     AcpiGbl_RootTableList.Flags =
         ACPI_ROOT_ORIGIN_ALLOCATED | ACPI_ROOT_ALLOW_RESIZE;
 
@@ -534,6 +547,7 @@ AcpiTbLoadNamespace (
 {
     ACPI_STATUS             Status;
     UINT32                  i;
+    ACPI_TABLE_HEADER       *NewDsdt;
 
 
     ACPI_FUNCTION_TRACE (TbLoadNamespace);
@@ -542,29 +556,49 @@ AcpiTbLoadNamespace (
     (void) AcpiUtAcquireMutex (ACPI_MTX_TABLES);
 
     /*
-     * Load the namespace. The DSDT is required, but any SSDT and PSDT tables
-     * are optional.
+     * Load the namespace. The DSDT is required, but any SSDT and
+     * PSDT tables are optional. Verify the DSDT.
      */
     if (!AcpiGbl_RootTableList.Count ||
         !ACPI_COMPARE_NAME (
             &(AcpiGbl_RootTableList.Tables[ACPI_TABLE_INDEX_DSDT].Signature),
             ACPI_SIG_DSDT) ||
-        ACPI_FAILURE (AcpiTbVerifyTable (
+         ACPI_FAILURE (AcpiTbVerifyTable (
             &AcpiGbl_RootTableList.Tables[ACPI_TABLE_INDEX_DSDT])))
     {
         Status = AE_NO_ACPI_TABLES;
         goto UnlockAndExit;
     }
 
-    /* A valid DSDT is required */
+    /*
+     * Save the DSDT pointer for simple access. This is the mapped memory
+     * address. We must take care here because the address of the .Tables
+     * array can change dynamically as tables are loaded at run-time. Note:
+     * .Pointer field is not validated until after call to AcpiTbVerifyTable.
+     */
+    AcpiGbl_DSDT = AcpiGbl_RootTableList.Tables[ACPI_TABLE_INDEX_DSDT].Pointer;
 
-    Status = AcpiTbVerifyTable (
-        &AcpiGbl_RootTableList.Tables[ACPI_TABLE_INDEX_DSDT]);
-    if (ACPI_FAILURE (Status))
+    /*
+     * Optionally copy the entire DSDT to local memory (instead of simply
+     * mapping it.) There are some BIOSs that corrupt or replace the original
+     * DSDT, creating the need for this option. Default is FALSE, do not copy
+     * the DSDT.
+     */
+    if (AcpiGbl_CopyDsdtLocally)
     {
-        Status = AE_NO_ACPI_TABLES;
-        goto UnlockAndExit;
+        NewDsdt = AcpiTbCopyDsdt (ACPI_TABLE_INDEX_DSDT);
+        if (NewDsdt)
+        {
+            AcpiGbl_DSDT = NewDsdt;
+        }
     }
+
+    /*
+     * Save the original DSDT header for detection of table corruption
+     * and/or replacement of the DSDT from outside the OS.
+     */
+    ACPI_MEMCPY (&AcpiGbl_OriginalDsdtHeader, AcpiGbl_DSDT,
+        sizeof (ACPI_TABLE_HEADER));
 
     (void) AcpiUtReleaseMutex (ACPI_MTX_TABLES);
 

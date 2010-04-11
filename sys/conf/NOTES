@@ -122,10 +122,10 @@ options 	BLKDEV_IOSIZE=8192
 #
 # MAXPHYS and DFLTPHYS
 #
-# These are the max and default 'raw' I/O block device access sizes.
-# Reads and writes will be split into DFLTPHYS chunks. Some applications
-# have better performance with larger raw I/O access sizes. Typically
-# MAXPHYS should be twice the size of DFLTPHYS. Note that certain VM
+# These are the maximal and safe 'raw' I/O block device access sizes.
+# Reads and writes will be split into MAXPHYS chunks for known good
+# devices and DFLTPHYS for the rest. Some applications have better
+# performance with larger raw I/O access sizes. Note that certain VM
 # parameters are derived from these values and making them too large
 # can make an an unbootable kernel.
 #
@@ -1886,6 +1886,7 @@ device		xmphy		# XaQti XMAC II
 #	the Netgear GA302T, the SysKonnect SK-9D21 and SK-9D41, and
 #	the embedded gigE NICs on Dell PowerEdge 2550 servers.
 # bwi:	Broadcom BCM430* and BCM431* family of wireless adapters.
+# bwn:	Broadcom BCM43xx family of wireless adapters.
 # cas:	Sun Cassini/Cassini+ and National Semiconductor DP83065 Saturn
 # cm:	Arcnet SMC COM90c26 / SMC COM90c56
 #	(and SMC COM90c66 in '56 compatibility mode) adapters.
@@ -2090,8 +2091,10 @@ device		ath_hal		# pci/cardbus chip support
 options 	AH_SUPPORT_AR5416	# enable AR5416 tx/rx descriptors
 #device		ath_ar9160	# AR9160 chips
 #device		ath_ar9280	# AR9280 chips
+#device		ath_ar9285	# AR9285 chips
 device		ath_rate_sample	# SampleRate tx rate control for ath
 device		bwi		# Broadcom BCM430* BCM431*
+device		bwn		# Broadcom BCM43xx
 device		ral		# Ralink Technology RT2500 wireless NICs.
 
 # Use "private" jumbo buffers allocated exclusively for the ti(4) driver.
@@ -2815,6 +2818,11 @@ options 	SHMMNI=33
 # Maximum number of System V shared memory regions that can be attached to
 # a single process at one time.
 options 	SHMSEG=9
+
+# Compress user core dumps.
+options		COMPRESS_USER_CORES
+# required to compress file output from kernel for COMPRESS_USER_CORES.
+device		gzio	    
 
 # Set the amount of time (in seconds) the system will wait before
 # rebooting automatically when a kernel panic occurs.  If set to (-1),

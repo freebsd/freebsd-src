@@ -355,6 +355,8 @@ _find_processes()
 #
 wait_for_pids()
 {
+	local _list _prefix _nlist _j
+
 	_list="$@"
 	if [ -z "$_list" ]; then
 		return
@@ -365,6 +367,7 @@ wait_for_pids()
 		for _j in $_list; do
 			if kill -0 $_j 2>/dev/null; then
 				_nlist="${_nlist}${_nlist:+ }$_j"
+				[ -n "$_prefix" ] && sleep 1
 			fi
 		done
 		if [ -z "$_nlist" ]; then
@@ -373,7 +376,7 @@ wait_for_pids()
 		_list=$_nlist
 		echo -n ${_prefix:-"Waiting for PIDS: "}$_list
 		_prefix=", "
-		pwait $_list 2>/dev/null || sleep 2
+		pwait $_list 2>/dev/null
 	done
 	if [ -n "$_prefix" ]; then
 		echo "."

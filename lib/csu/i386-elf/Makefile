@@ -30,7 +30,7 @@ crt1.o:	crt1_c.o crt1_s.o
 	objcopy --localize-symbol _start1 crt1.o
 
 Scrt1_c.o:	crt1_c.c
-	${CC} ${CFLAGS} -DGCRT -fPIC -DPIC -c -o Scrt1_c.o ${.CURDIR}/crt1_c.c
+	${CC} ${CFLAGS} -fPIC -DPIC -c -o Scrt1_c.o ${.CURDIR}/crt1_c.c
 
 Scrt1.o: Scrt1_c.o crt1_s.o
 	${LD} ${LDFLAGS} -o Scrt1.o -r crt1_s.o Scrt1_c.o

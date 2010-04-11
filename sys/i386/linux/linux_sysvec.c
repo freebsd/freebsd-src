@@ -105,8 +105,8 @@ static int	elf_linux_fixup(register_t **stack_base,
 static void	linux_prepsyscall(struct trapframe *tf, int *args, u_int *code,
 		    caddr_t *params);
 static void     linux_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask);
-static void	exec_linux_setregs(struct thread *td, u_long entry,
-				   u_long stack, u_long ps_strings);
+static void	exec_linux_setregs(struct thread *td,
+		    struct image_params *imgp, u_long stack);
 static register_t *linux_copyout_strings(struct image_params *imgp);
 static boolean_t linux_trans_osrel(const Elf_Note *note, int32_t *osrel);
 
@@ -927,12 +927,11 @@ exec_linux_imgact_try(struct image_params *imgp)
  * override the exec_setregs default(s) here.
  */
 static void
-exec_linux_setregs(struct thread *td, u_long entry,
-		   u_long stack, u_long ps_strings)
+exec_linux_setregs(struct thread *td, struct image_params *imgp, u_long stack)
 {
 	struct pcb *pcb = td->td_pcb;
 
-	exec_setregs(td, entry, stack, ps_strings);
+	exec_setregs(td, imgp, stack);
 
 	/* Linux sets %gs to 0, we default to _udatasel */
 	pcb->pcb_gs = 0;

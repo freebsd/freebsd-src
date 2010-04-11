@@ -89,7 +89,8 @@ int tun;                          /* tunnel descriptor */
 
 static void usage(void);
 
-int Set_address(char *addr, struct sockaddr_in *sin)
+static int
+Set_address(char *addr, struct sockaddr_in *sin)
 {
   struct hostent *hp;
 
@@ -107,15 +108,16 @@ int Set_address(char *addr, struct sockaddr_in *sin)
   return 0;
 }
 
-int tun_open(char *devname, struct sockaddr *ouraddr, char *theiraddr)
+static int
+tun_open(char *dev_name, struct sockaddr *ouraddr, char *theiraddr)
 {
   int s;
   struct sockaddr_in *sin;
 
   /* Open tun device */
-  tun = open (devname, O_RDWR);
+  tun = open(dev_name, O_RDWR);
   if (tun < 0) {
-    syslog(LOG_ERR,"can't open %s - %m",devname);
+    syslog(LOG_ERR,"can't open %s - %m", dev_name);
     return(1);
   }
 
@@ -125,8 +127,8 @@ int tun_open(char *devname, struct sockaddr *ouraddr, char *theiraddr)
   bzero((char *)&ifra, sizeof(ifra));
   bzero((char *)&ifrq, sizeof(ifrq));
 
-  strncpy(ifrq.ifr_name, devname+5, IFNAMSIZ);
-  strncpy(ifra.ifra_name, devname+5, IFNAMSIZ);
+  strncpy(ifrq.ifr_name, dev_name+5, IFNAMSIZ);
+  strncpy(ifra.ifra_name, dev_name+5, IFNAMSIZ);
 
   s = socket(AF_INET, SOCK_DGRAM, 0);
   if (s < 0) {
@@ -189,7 +191,8 @@ tunc_return:
   return(1);
 }
 
-void Finish(int signum)
+static void
+Finish(int signum)
 {
   int s;
 
@@ -238,7 +241,7 @@ int main (int argc, char **argv)
 {
   int  c, len, ipoff;
 
-  char *devname = NULL;
+  char *dev_name = NULL;
   char *point_to = NULL;
   char *to_point = NULL;
   char *target;
@@ -268,7 +271,7 @@ int main (int argc, char **argv)
       point_to = optarg;
       break;
     case 't':
-      devname = optarg;
+      dev_name = optarg;
       break;
     case 'p':
       protocol = optarg;
@@ -278,7 +281,7 @@ int main (int argc, char **argv)
   argc -= optind;
   argv += optind;
 
-  if ((argc != 1 && argc != 2) || (devname == NULL) ||
+  if ((argc != 1 && argc != 2) || (dev_name == NULL) ||
       (point_to == NULL) || (to_point == NULL)) {
     usage();
   }
@@ -302,7 +305,7 @@ int main (int argc, char **argv)
     exit(2);
   }
 
-  if(tun_open(devname, &t_laddr, to_point)) {
+  if(tun_open(dev_name, &t_laddr, to_point)) {
     closelog();
     exit(3);
   }
@@ -386,7 +389,7 @@ int main (int argc, char **argv)
 }
 
 static void
-usage()
+usage(void)
 {
 	fprintf(stderr,
 "usage: nos-tun -t tunnel -s source -d destination -p protocol_number [source] target\n");

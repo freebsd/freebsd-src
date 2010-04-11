@@ -33,6 +33,7 @@
 
 #include <assert.h>
 #include <ctype.h>
+#include <err.h>
 #include <string.h>
 #include "y.tab.h"
 #include "config.h"
@@ -220,6 +221,8 @@ cfgfile_add(const char *fname)
 	struct cfgfile *cf;
 
 	cf = calloc(1, sizeof(*cf));
+	if (cf == NULL)
+		err(EXIT_FAILURE, "calloc");
 	assert(cf != NULL);
 	asprintf(&cf->cfg_path, "%s", fname);
 	STAILQ_INSERT_TAIL(&cfgfiles, cf, cfg_next);

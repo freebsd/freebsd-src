@@ -223,6 +223,8 @@
 #define	ASYNC_SECURITY_UPDATE		0x801B
 #define	ASYNC_CMD_CMPLT			0x8020
 #define	ASYNC_CTIO_DONE			0x8021
+#define	ASYNC_RIO32_1			0x8021
+#define	ASYNC_RIO32_2			0x8022
 #define	ASYNC_IP_XMIT_DONE		0x8022
 #define	ASYNC_IP_RECV_DONE		0x8023
 #define	ASYNC_IP_BROADCAST		0x8024
@@ -230,19 +232,19 @@
 #define	ASYNC_IP_RCVQ_EMPTY		0x8026
 #define	ASYNC_IP_RECV_DONE_ALIGNED	0x8027
 #define	ASYNC_PTPMODE			0x8030
-#define	ASYNC_RIO1			0x8031
-#define	ASYNC_RIO2			0x8032
-#define	ASYNC_RIO3			0x8033
-#define	ASYNC_RIO4			0x8034
-#define	ASYNC_RIO5			0x8035
+#define	ASYNC_RIO16_1			0x8031
+#define	ASYNC_RIO16_2			0x8032
+#define	ASYNC_RIO16_3			0x8033
+#define	ASYNC_RIO16_4			0x8034
+#define	ASYNC_RIO16_5			0x8035
 #define	ASYNC_CONNMODE			0x8036
 #define		ISP_CONN_LOOP		1
 #define		ISP_CONN_PTP		2
 #define		ISP_CONN_BADLIP		3
 #define		ISP_CONN_FATAL		4
 #define		ISP_CONN_LOOPBACK	5
-#define	ASYNC_RIO_RESP			0x8040
-#define	ASYNC_RIO_COMP			0x8042
+#define	ASYNC_RIOZIO_STALL		0x8040	/* there's a RIO/ZIO entry that hasn't been serviced */
+#define	ASYNC_RIO32_2_2200		0x8042	/* same as ASYNC_RIO32_2, but for 2100/2200 */
 #define	ASYNC_RCV_ERR			0x8048
 
 /*
@@ -860,7 +862,7 @@ typedef struct {
 	(ISP_CAP_MULTI_ID(isp) ? tag : 0)
 
 /*
- * Reduced Interrupt Operation Response Queue Entreis
+ * Reduced Interrupt Operation Response Queue Entries
  */
 
 typedef struct {

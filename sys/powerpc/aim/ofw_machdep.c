@@ -63,6 +63,8 @@ __FBSDID("$FreeBSD$");
 static struct mem_region OFmem[OFMEM_REGIONS + 1], OFavail[OFMEM_REGIONS + 3];
 static struct mem_region OFfree[OFMEM_REGIONS + 3];
 
+static struct mtx ofw_mutex;
+
 struct mem_region64 {
         vm_offset_t     mr_start_hi;
         vm_offset_t     mr_start_lo;
@@ -281,6 +283,8 @@ OF_bootstrap()
 {
 	boolean_t status = FALSE;
 
+	mtx_init(&ofw_mutex, "open firmware", NULL, MTX_DEF);
+
 	if (ofwcall != NULL) {
 		if (ofw_real_mode)
 			status = OF_install(OFW_STD_REAL, 0);
@@ -313,6 +317,8 @@ openfirmware(void *args)
 
 	if (pmap_bootstrapped && ofw_real_mode)
 		args = (void *)pmap_kextract((vm_offset_t)args);
+
+	mtx_lock(&ofw_mutex);
 
 	__asm __volatile(	"\t"
 		"sync\n\t"
@@ -365,6 +371,8 @@ openfirmware(void *args)
 		"isync\n"
 		: : "r" (oldmsr)
 	);
+
+	mtx_unlock(&ofw_mutex);
 
 	return (result);
 }

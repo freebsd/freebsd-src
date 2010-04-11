@@ -1,6 +1,6 @@
 /**************************************************************************
 
-Copyright (c) 2008-2009, BitGravity Inc.
+Copyright (c) 2008-2010, BitGravity Inc.
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -34,24 +34,49 @@ $FreeBSD$
 
 #ifdef	_KERNEL
 
-#define	FL_HASH_PORTS	(1<<0)	/* hash 4-tuple + protocol */
+#define	FL_HASH_ALL	(1<<0)	/* hash 4-tuple + protocol */
 #define	FL_PCPU		(1<<1)	/* pcpu cache */
+#define	FL_NOAUTO	(1<<2)	/* don't automatically add flentry on miss */
+
+#define	FL_TCP		(1<<11)
+#define	FL_SCTP		(1<<12)
+#define	FL_UDP		(1<<13)
+#define	FL_DEBUG	(1<<14)
+#define	FL_DEBUG_ALL	(1<<15)
 
 struct flowtable;
+struct flentry;
+struct route;
+struct route_in6;
+
 VNET_DECLARE(struct flowtable *, ip_ft);
 #define	V_ip_ft			VNET(ip_ft)
 
-struct flowtable *flowtable_alloc(int nentry, int flags);
+VNET_DECLARE(struct flowtable *, ip6_ft);
+#define	V_ip6_ft		VNET(ip6_ft)
+
+struct flowtable *flowtable_alloc(char *name, int nentry, int flags);
 
 /*
  * Given a flow table, look up the L3 and L2 information and
  * return it in the route.
  *
  */
-int flowtable_lookup(struct flowtable *ft, struct mbuf *m,
-    struct route *ro, uint32_t fibnum);
+struct flentry *flowtable_lookup_mbuf(struct flowtable *ft, struct mbuf *m, int af);
 
+struct flentry *flowtable_lookup(struct flowtable *ft, struct sockaddr_storage *ssa,
+    struct sockaddr_storage *dsa, uint32_t fibnum, int flags);
+
+int kern_flowtable_insert(struct flowtable *ft, struct sockaddr_storage *ssa,
+    struct sockaddr_storage *dsa, struct route *ro, uint32_t fibnum, int flags);
+
+void flow_invalidate(struct flentry *fl);
 void flowtable_route_flush(struct flowtable *ft, struct rtentry *rt);
+
+void flow_to_route(struct flentry *fl, struct route *ro);
+
+void flow_to_route_in6(struct flentry *fl, struct route_in6 *ro);
+
 
 #endif /* _KERNEL */
 #endif

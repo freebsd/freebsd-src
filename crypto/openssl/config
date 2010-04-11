@@ -48,10 +48,10 @@ done
 
 # First get uname entries that we use below
 
-MACHINE=`(uname -m) 2>/dev/null` || MACHINE="unknown"
-RELEASE=`(uname -r) 2>/dev/null` || RELEASE="unknown"
-SYSTEM=`(uname -s) 2>/dev/null`  || SYSTEM="unknown"
-VERSION=`(uname -v) 2>/dev/null` || VERSION="unknown"
+[ "$MACHINE" ] || MACHINE=`(uname -m) 2>/dev/null` || MACHINE="unknown"
+[ "$RELEASE" ] || RELEASE=`(uname -r) 2>/dev/null` || RELEASE="unknown"
+[ "$SYSTEM" ] || SYSTEM=`(uname -s) 2>/dev/null`  || SYSTEM="unknown"
+[ "$BUILD" ] || VERSION=`(uname -v) 2>/dev/null` || VERSION="unknown"
 
 
 # Now test for ISC and SCO, since it is has a braindamaged uname.
@@ -741,6 +741,10 @@ case "$GUESSOS" in
 	OBJECT_MODE=${OBJECT_MODE:-32}
 	if [ "$CC" = "gcc" ]; then
 	    OUT="aix-gcc"
+          if [ $OBJECT_MODE -eq 64 ]; then
+            echo 'Your $OBJECT_MODE was found to be set to 64'
+            OUT="aix64-gcc"
+          fi
 	elif [ $OBJECT_MODE -eq 64 ]; then
 	    echo 'Your $OBJECT_MODE was found to be set to 64' 
 	    OUT="aix64-cc"
@@ -769,6 +773,8 @@ case "$GUESSOS" in
   t3e-cray-unicosmk) OUT="cray-t3e" ;;
   j90-cray-unicos) OUT="cray-j90" ;;
   nsr-tandem-nsk) OUT="tandem-c89" ;;
+  x86pc-*-qnx6) OUT="QNX6-i386" ;;
+  *-*-qnx6) OUT="QNX6" ;;
   *) OUT=`echo $GUESSOS | awk -F- '{print $3}'`;;
 esac
 

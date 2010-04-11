@@ -76,6 +76,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/msgbuf.h>
 #include <sys/vmmeter.h>
 #include <sys/mman.h>
+#include <sys/smp.h>
 
 #include <vm/vm.h>
 #include <vm/vm_param.h>
@@ -149,6 +150,8 @@ unsigned pmap_max_asid;		/* max ASID supported by the system */
 
 vm_offset_t kernel_vm_end;
 
+static struct tlb tlbstash[MAXCPU][MIPS_MAX_TLB_ENTRIES];
+
 static void pmap_asid_alloc(pmap_t pmap);
 
 /*
@@ -205,7 +208,7 @@ struct local_sysmaps {
 
 /* This structure is for large memory
  * above 512Meg. We can't (in 32 bit mode)
- * just use the direct mapped MIPS_CACHED_TO_PHYS()
+ * just use the direct mapped MIPS_KSEG0_TO_PHYS()
  * macros since we can't see the memory and must
  * map it in when we need to access it. In 64
  * bit mode this goes away.
@@ -271,7 +274,7 @@ pmap_steal_memory(vm_size_t size)
 	if (pa >= MIPS_KSEG0_LARGEST_PHYS) {
 		panic("Out of memory below 512Meg?");
 	}
-	va = MIPS_PHYS_TO_CACHED(pa);
+	va = MIPS_PHYS_TO_KSEG0(pa);
 	bzero((caddr_t)va, size);
 	return va;
 }
@@ -946,10 +949,21 @@ pmap_unmap_fpage(vm_paddr_t pa, struct fpage *fp)
 static int
 _pmap_unwire_pte_hold(pmap_t pmap, vm_page_t m)
 {
+	vm_offset_t pteva;
 
 	/*
 	 * unmap the page table page
 	 */
+	pteva = (vm_offset_t)pmap->pm_segtab[m->pindex];
+	if (pteva >= VM_MIN_KERNEL_ADDRESS) {
+		pmap_kremove(pteva);
+		kmem_free(kernel_map, pteva, PAGE_SIZE);
+	} else {
+		KASSERT(MIPS_IS_KSEG0_ADDR(pteva),
+		    ("_pmap_unwire_pte_hold: 0x%0lx is not in kseg0",
+		    (long)pteva));
+	}
+
 	pmap->pm_segtab[m->pindex] = 0;
 	--pmap->pm_stats.resident_count;
 
@@ -994,7 +1008,7 @@ pmap_unuse_pt(pmap_t pmap, vm_offset_t va, vm_page_t mpte)
 			mpte = pmap->pm_ptphint;
 		} else {
 			pteva = *pmap_pde(pmap, va);
-			mpte = PHYS_TO_VM_PAGE(MIPS_CACHED_TO_PHYS(pteva));
+			mpte = PHYS_TO_VM_PAGE(vtophys(pteva));
 			pmap->pm_ptphint = mpte;
 		}
 	}
@@ -1026,6 +1040,8 @@ pmap_pinit0(pmap_t pmap)
 int
 pmap_pinit(pmap_t pmap)
 {
+	vm_offset_t ptdva;
+	vm_paddr_t ptdpa;
 	vm_page_t ptdpg;
 	int i;
 	int req;
@@ -1047,8 +1063,17 @@ pmap_pinit(pmap_t pmap)
 
 	ptdpg->valid = VM_PAGE_BITS_ALL;
 
-	pmap->pm_segtab = (pd_entry_t *)
-	    MIPS_PHYS_TO_CACHED(VM_PAGE_TO_PHYS(ptdpg));
+	ptdpa = VM_PAGE_TO_PHYS(ptdpg);
+	if (ptdpa < MIPS_KSEG0_LARGEST_PHYS) {
+		ptdva = MIPS_PHYS_TO_KSEG0(ptdpa);
+	} else {
+		ptdva = kmem_alloc_nofault(kernel_map, PAGE_SIZE);
+		if (ptdva == 0)
+			panic("pmap_pinit: unable to allocate kva");
+		pmap_kenter(ptdva, ptdpa);
+	}
+
+	pmap->pm_segtab = (pd_entry_t *)ptdva;
 	if ((ptdpg->flags & PG_ZERO) == 0)
 		bzero(pmap->pm_segtab, PAGE_SIZE);
 
@@ -1115,7 +1140,15 @@ _pmap_allocpte(pmap_t pmap, unsigned ptepindex, int flags)
 	pmap->pm_stats.resident_count++;
 
 	ptepa = VM_PAGE_TO_PHYS(m);
-	pteva = MIPS_PHYS_TO_CACHED(ptepa);
+	if (ptepa < MIPS_KSEG0_LARGEST_PHYS) {
+		pteva = MIPS_PHYS_TO_KSEG0(ptepa);
+	} else {
+		pteva = kmem_alloc_nofault(kernel_map, PAGE_SIZE);
+		if (pteva == 0)
+			panic("_pmap_allocpte: unable to allocate kva");
+		pmap_kenter(pteva, ptepa);
+	}
+
 	pmap->pm_segtab[ptepindex] = (pd_entry_t)pteva;
 
 	/*
@@ -1169,7 +1202,7 @@ retry:
 		    (pmap->pm_ptphint->pindex == ptepindex)) {
 			m = pmap->pm_ptphint;
 		} else {
-			m = PHYS_TO_VM_PAGE(MIPS_CACHED_TO_PHYS(pteva));
+			m = PHYS_TO_VM_PAGE(vtophys(pteva));
 			pmap->pm_ptphint = m;
 		}
 		m->wire_count++;
@@ -1209,13 +1242,24 @@ retry:
 void
 pmap_release(pmap_t pmap)
 {
+	vm_offset_t ptdva;
 	vm_page_t ptdpg;
 
 	KASSERT(pmap->pm_stats.resident_count == 0,
 	    ("pmap_release: pmap resident count %ld != 0",
 	    pmap->pm_stats.resident_count));
 
-	ptdpg = PHYS_TO_VM_PAGE(MIPS_CACHED_TO_PHYS(pmap->pm_segtab));
+	ptdva = (vm_offset_t)pmap->pm_segtab;
+	ptdpg = PHYS_TO_VM_PAGE(vtophys(ptdva));
+
+	if (ptdva >= VM_MIN_KERNEL_ADDRESS) {
+		pmap_kremove(ptdva);
+		kmem_free(kernel_map, ptdva, PAGE_SIZE);
+	} else {
+		KASSERT(MIPS_IS_KSEG0_ADDR(ptdva),
+		    ("pmap_release: 0x%0lx is not in kseg0", (long)ptdva));
+	}
+
 	ptdpg->wire_count--;
 	atomic_subtract_int(&cnt.v_wire_count, 1);
 	vm_page_free_zero(ptdpg);
@@ -1285,7 +1329,7 @@ pmap_growkernel(vm_offset_t addr)
 			 */
 			panic("Gak, can't handle a k-page table outside of lower 512Meg");
 		}
-		pte = (pt_entry_t *)MIPS_PHYS_TO_CACHED(ptppaddr);
+		pte = (pt_entry_t *)MIPS_PHYS_TO_KSEG0(ptppaddr);
 		segtab_pde(kernel_segmap, kernel_vm_end) = (pd_entry_t)pte;
 
 		/*
@@ -2027,7 +2071,7 @@ pmap_enter_quick_locked(pmap_t pmap, vm_offset_t va, vm_page_t m,
 				    (pmap->pm_ptphint->pindex == ptepindex)) {
 					mpte = pmap->pm_ptphint;
 				} else {
-					mpte = PHYS_TO_VM_PAGE(MIPS_CACHED_TO_PHYS(pteva));
+					mpte = PHYS_TO_VM_PAGE(vtophys(pteva));
 					pmap->pm_ptphint = mpte;
 				}
 				mpte->wire_count++;
@@ -2117,7 +2161,7 @@ pmap_kenter_temporary(vm_paddr_t pa, int i)
 	} else
 #endif
 	if (pa < MIPS_KSEG0_LARGEST_PHYS) {
-		va = MIPS_PHYS_TO_CACHED(pa);
+		va = MIPS_PHYS_TO_KSEG0(pa);
 	} else {
 		int cpu;
 		struct local_sysmaps *sysm;
@@ -2289,7 +2333,7 @@ pmap_zero_page(vm_page_t m)
 #endif
 	if (phys < MIPS_KSEG0_LARGEST_PHYS) {
 
-		va = MIPS_PHYS_TO_CACHED(phys);
+		va = MIPS_PHYS_TO_KSEG0(phys);
 
 		bzero((caddr_t)va, PAGE_SIZE);
 		mips_dcache_wbinv_range(va, PAGE_SIZE);
@@ -2347,7 +2391,7 @@ pmap_zero_page_area(vm_page_t m, int off, int size)
 	} else
 #endif
 	if (phys < MIPS_KSEG0_LARGEST_PHYS) {
-		va = MIPS_PHYS_TO_CACHED(phys);
+		va = MIPS_PHYS_TO_KSEG0(phys);
 		bzero((char *)(caddr_t)va + off, size);
 		mips_dcache_wbinv_range(va + off, size);
 	} else {
@@ -2388,7 +2432,7 @@ pmap_zero_page_idle(vm_page_t m)
 	} else
 #endif
 	if (phys < MIPS_KSEG0_LARGEST_PHYS) {
-		va = MIPS_PHYS_TO_CACHED(phys);
+		va = MIPS_PHYS_TO_KSEG0(phys);
 		bzero((caddr_t)va, PAGE_SIZE);
 		mips_dcache_wbinv_range(va, PAGE_SIZE);
 	} else {
@@ -2463,9 +2507,9 @@ pmap_copy_page(vm_page_t src, vm_page_t dst)
 			 */
 			pmap_flush_pvcache(src);
 			mips_dcache_wbinv_range_index(
-			    MIPS_PHYS_TO_CACHED(phy_dst), NBPG);
-			va_src = MIPS_PHYS_TO_CACHED(phy_src);
-			va_dst = MIPS_PHYS_TO_CACHED(phy_dst);
+			    MIPS_PHYS_TO_KSEG0(phy_dst), NBPG);
+			va_src = MIPS_PHYS_TO_KSEG0(phy_src);
+			va_dst = MIPS_PHYS_TO_KSEG0(phy_dst);
 			bcopy((caddr_t)va_src, (caddr_t)va_dst, PAGE_SIZE);
 			mips_dcache_wbinv_range(va_dst, PAGE_SIZE);
 		} else {
@@ -2479,14 +2523,14 @@ pmap_copy_page(vm_page_t src, vm_page_t dst)
 			int_level = disableintr();
 			if (phy_src < MIPS_KSEG0_LARGEST_PHYS) {
 				/* one side needs mapping - dest */
-				va_src = MIPS_PHYS_TO_CACHED(phy_src);
+				va_src = MIPS_PHYS_TO_KSEG0(phy_src);
 				sysm->CMAP2 = mips_paddr_to_tlbpfn(phy_dst) | PTE_RW | PTE_V | PTE_G | PTE_W | PTE_CACHE;
 				pmap_TLB_update_kernel((vm_offset_t)sysm->CADDR2, sysm->CMAP2);
 				sysm->valid2 = 1;
 				va_dst = (vm_offset_t)sysm->CADDR2;
 			} else if (phy_dst < MIPS_KSEG0_LARGEST_PHYS) {
 				/* one side needs mapping - src */
-				va_dst = MIPS_PHYS_TO_CACHED(phy_dst);
+				va_dst = MIPS_PHYS_TO_KSEG0(phy_dst);
 				sysm->CMAP1 = mips_paddr_to_tlbpfn(phy_src) | PTE_RW | PTE_V | PTE_G | PTE_W | PTE_CACHE;
 				pmap_TLB_update_kernel((vm_offset_t)sysm->CADDR1, sysm->CMAP1);
 				va_src = (vm_offset_t)sysm->CADDR1;
@@ -3168,18 +3212,6 @@ pmap_asid_alloc(pmap)
 		pmap->pm_asid[PCPU_GET(cpuid)].gen = PCPU_GET(asid_generation);
 		PCPU_SET(next_asid, PCPU_GET(next_asid) + 1);
 	}
-
-#ifdef DEBUG
-	if (pmapdebug & (PDB_FOLLOW | PDB_TLBPID)) {
-		if (curproc)
-			printf("pmap_asid_alloc: curproc %d '%s' ",
-			    curproc->p_pid, curproc->p_comm);
-		else
-			printf("pmap_asid_alloc: curproc <none> ");
-		printf("segtab %p asid %d\n", pmap->pm_segtab,
-		    pmap->pm_asid[PCPU_GET(cpuid)].asid);
-	}
-#endif
 }
 
 int
@@ -3248,53 +3280,6 @@ pmap_set_modified(vm_offset_t pa)
 	PHYS_TO_VM_PAGE(pa)->md.pv_flags |= (PV_TABLE_REF | PV_TABLE_MOD);
 }
 
-#include <machine/db_machdep.h>
-
-/*
- *  Dump the translation buffer (TLB) in readable form.
- */
-
-void
-db_dump_tlb(int first, int last)
-{
-	struct tlb tlb;
-	int tlbno;
-
-	tlbno = first;
-
-	while (tlbno <= last) {
-		MachTLBRead(tlbno, &tlb);
-		if (tlb.tlb_lo0 & PTE_V || tlb.tlb_lo1 & PTE_V) {
-			printf("TLB %2d vad 0x%08x ", tlbno, (tlb.tlb_hi & 0xffffff00));
-		} else {
-			printf("TLB*%2d vad 0x%08x ", tlbno, (tlb.tlb_hi & 0xffffff00));
-		}
-		printf("0=0x%08x ", pfn_to_vad(tlb.tlb_lo0));
-		printf("%c", tlb.tlb_lo0 & PTE_M ? 'M' : ' ');
-		printf("%c", tlb.tlb_lo0 & PTE_G ? 'G' : ' ');
-		printf(" atr %x ", (tlb.tlb_lo0 >> 3) & 7);
-		printf("1=0x%08x ", pfn_to_vad(tlb.tlb_lo1));
-		printf("%c", tlb.tlb_lo1 & PTE_M ? 'M' : ' ');
-		printf("%c", tlb.tlb_lo1 & PTE_G ? 'G' : ' ');
-		printf(" atr %x ", (tlb.tlb_lo1 >> 3) & 7);
-		printf(" sz=%x pid=%x\n", tlb.tlb_mask,
-		       (tlb.tlb_hi & 0x000000ff)
-		       );
-		tlbno++;
-	}
-}
-
-#ifdef DDB
-#include <sys/kernel.h>
-#include <ddb/ddb.h>
-
-DB_SHOW_COMMAND(tlb, ddb_dump_tlb)
-{
-	db_dump_tlb(0, num_tlbentries - 1);
-}
-
-#endif
-
 /*
  *	Routine:	pmap_kextract
  *	Function:
@@ -3306,7 +3291,7 @@ pmap_kextract(vm_offset_t va)
 {
 	vm_offset_t pa = 0;
 
-	if (va < MIPS_CACHED_MEMORY_ADDR) {
+	if (va < MIPS_KSEG0_START) {
 		/* user virtual address */
 		pt_entry_t *ptep;
 
@@ -3316,16 +3301,16 @@ pmap_kextract(vm_offset_t va)
 				pa = mips_tlbpfn_to_paddr(*ptep) |
 				    (va & PAGE_MASK);
 		}
-	} else if (va >= MIPS_CACHED_MEMORY_ADDR &&
-	    va < MIPS_UNCACHED_MEMORY_ADDR)
-		pa = MIPS_CACHED_TO_PHYS(va);
-	else if (va >= MIPS_UNCACHED_MEMORY_ADDR &&
+	} else if (va >= MIPS_KSEG0_START &&
+	    va < MIPS_KSEG1_START)
+		pa = MIPS_KSEG0_TO_PHYS(va);
+	else if (va >= MIPS_KSEG1_START &&
 	    va < MIPS_KSEG2_START)
-		pa = MIPS_UNCACHED_TO_PHYS(va);
+		pa = MIPS_KSEG1_TO_PHYS(va);
 #ifdef VM_ALLOC_WIRED_TLB_PG_POOL
 	else if (need_wired_tlb_page_pool && ((va >= VM_MIN_KERNEL_ADDRESS) &&
 	    (va < (VM_MIN_KERNEL_ADDRESS + VM_KERNEL_ALLOC_OFFSET))))
-		pa = MIPS_CACHED_TO_PHYS(va);
+		pa = MIPS_KSEG0_TO_PHYS(va);
 #endif
 	else if (va >= MIPS_KSEG2_START && va < VM_MAX_KERNEL_ADDRESS) {
 		pt_entry_t *ptep;
@@ -3377,3 +3362,61 @@ pmap_flush_pvcache(vm_page_t m)
 		}
 	}
 }
+
+void
+pmap_save_tlb(void)
+{
+	int tlbno, cpu;
+
+	cpu = PCPU_GET(cpuid);
+
+	for (tlbno = 0; tlbno < num_tlbentries; ++tlbno)
+		MachTLBRead(tlbno, &tlbstash[cpu][tlbno]);
+}
+
+#ifdef DDB
+#include <ddb/ddb.h>
+
+DB_SHOW_COMMAND(tlb, ddb_dump_tlb)
+{
+	int cpu, tlbno;
+	struct tlb *tlb;
+
+	if (have_addr)
+		cpu = ((addr >> 4) % 16) * 10 + (addr % 16);
+	else
+		cpu = PCPU_GET(cpuid);
+
+	if (cpu < 0 || cpu >= mp_ncpus) {
+		db_printf("Invalid CPU %d\n", cpu);
+		return;
+	} else
+		db_printf("CPU %d:\n", cpu);
+
+	if (cpu == PCPU_GET(cpuid))
+		pmap_save_tlb();
+
+	for (tlbno = 0; tlbno < num_tlbentries; ++tlbno) {
+		tlb = &tlbstash[cpu][tlbno];
+		if (tlb->tlb_lo0 & PTE_V || tlb->tlb_lo1 & PTE_V) {
+			printf("TLB %2d vad 0x%0lx ",
+				tlbno, (long)(tlb->tlb_hi & 0xffffff00));
+		} else {
+			printf("TLB*%2d vad 0x%0lx ",
+				tlbno, (long)(tlb->tlb_hi & 0xffffff00));
+		}
+		printf("0=0x%0lx ", pfn_to_vad((long)tlb->tlb_lo0));
+		printf("%c", tlb->tlb_lo0 & PTE_V ? 'V' : '-');
+		printf("%c", tlb->tlb_lo0 & PTE_M ? 'M' : '-');
+		printf("%c", tlb->tlb_lo0 & PTE_G ? 'G' : '-');
+		printf(" atr %x ", (tlb->tlb_lo0 >> 3) & 7);
+		printf("1=0x%0lx ", pfn_to_vad((long)tlb->tlb_lo1));
+		printf("%c", tlb->tlb_lo1 & PTE_V ? 'V' : '-');
+		printf("%c", tlb->tlb_lo1 & PTE_M ? 'M' : '-');
+		printf("%c", tlb->tlb_lo1 & PTE_G ? 'G' : '-');
+		printf(" atr %x ", (tlb->tlb_lo1 >> 3) & 7);
+		printf(" sz=%x pid=%x\n", tlb->tlb_mask,
+		       (tlb->tlb_hi & 0x000000ff));
+	}
+}
+#endif	/* DDB */

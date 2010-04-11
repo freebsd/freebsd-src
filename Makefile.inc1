@@ -286,6 +286,7 @@ LIB32WMAKEENV=	MAKEOBJDIRPREFIX=${OBJTREE}/lib32 \
 		VERSION="${VERSION}" \
 		MACHINE=i386 \
 		MACHINE_ARCH=i386 \
+		MACHINE_CPU="i686 mmx sse sse2" \
 		INSTALL="sh ${.CURDIR}/tools/install.sh" \
 		PATH=${TMPPATH} \
 		CC="${CC} ${LIB32FLAGS}" \
@@ -1279,7 +1280,7 @@ delete-old-files:
 	@echo ">>> Removing old files (only deletes safe to delete libs)"
 # Ask for every old file if the user really wants to remove it.
 # It's annoying, but better safe than sorry.
-	@for file in ${OLD_FILES}; do \
+	@for file in ${OLD_FILES} ${OLD_FILES:Musr/share/*.gz:R}; do \
 		if [ -f "${DESTDIR}/$${file}" -o -L "${DESTDIR}/$${file}" ]; then \
 			chflags noschg "${DESTDIR}/$${file}" 2>/dev/null || true; \
 			rm ${RM_I} "${DESTDIR}/$${file}"; \
@@ -1299,7 +1300,7 @@ delete-old-files:
 
 check-old-files:
 	@echo ">>> Checking for old files"
-	@for file in ${OLD_FILES}; do \
+	@for file in ${OLD_FILES} ${OLD_FILES:Musr/share/*.gz:R}; do \
 		if [ -f "${DESTDIR}/$${file}" -o -L "${DESTDIR}/$${file}" ]; then \
 		 	echo "${DESTDIR}/$${file}"; \
 		fi; \

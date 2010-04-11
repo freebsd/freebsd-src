@@ -421,7 +421,6 @@ static uint32_t bge_readreg_ind(struct bge_softc *, int);
 #endif
 static void bge_writemem_direct(struct bge_softc *, int, int);
 static void bge_writereg_ind(struct bge_softc *, int, int);
-static void bge_set_max_readrq(struct bge_softc *);
 
 static int bge_miibus_readreg(device_t, int, int);
 static int bge_miibus_writereg(device_t, int, int, int);
@@ -559,32 +558,6 @@ bge_writemem_ind(struct bge_softc *sc, int off, int val)
 	pci_write_config(dev, BGE_PCI_MEMWIN_BASEADDR, off, 4);
 	pci_write_config(dev, BGE_PCI_MEMWIN_DATA, val, 4);
 	pci_write_config(dev, BGE_PCI_MEMWIN_BASEADDR, 0, 4);
-}
-
-/*
- * PCI Express only
- */
-static void
-bge_set_max_readrq(struct bge_softc *sc)
-{
-	device_t dev;
-	uint16_t val;
-
-	dev = sc->bge_dev;
-
-	val = pci_read_config(dev, sc->bge_expcap + PCIR_EXPRESS_DEVICE_CTL, 2);
-	if ((val & PCIM_EXP_CTL_MAX_READ_REQUEST) !=
-	    BGE_PCIE_DEVCTL_MAX_READRQ_4096) {
-		if (bootverbose)
-			device_printf(dev, "adjust device control 0x%04x ",
-			    val);
-		val &= ~PCIM_EXP_CTL_MAX_READ_REQUEST;
-		val |= BGE_PCIE_DEVCTL_MAX_READRQ_4096;
-		pci_write_config(dev, sc->bge_expcap + PCIR_EXPRESS_DEVICE_CTL,
-		    val, 2);
-		if (bootverbose)
-			printf("-> 0x%04x\n", val);
-	}
 }
 
 #ifdef notdef
@@ -1342,6 +1315,7 @@ static int
 bge_chipinit(struct bge_softc *sc)
 {
 	uint32_t dma_rw_ctl;
+	uint16_t val;
 	int i;
 
 	/* Set endianness before we access any non-PCI registers. */
@@ -1362,6 +1336,17 @@ bge_chipinit(struct bge_softc *sc)
 	    i < BGE_STATUS_BLOCK_END + 1; i += sizeof(uint32_t))
 		BGE_MEMWIN_WRITE(sc, i, 0);
 
+	if (sc->bge_chiprev == BGE_CHIPREV_5704_BX) {
+		/*
+		 *  Fix data corruption caused by non-qword write with WB.
+		 *  Fix master abort in PCI mode.
+		 *  Fix PCI latency timer.
+		 */
+		val = pci_read_config(sc->bge_dev, BGE_PCI_MSI_DATA + 2, 2);
+		val |= (1 << 10) | (1 << 12) | (1 << 13);
+		pci_write_config(sc->bge_dev, BGE_PCI_MSI_DATA + 2, val, 2);
+	}
+
 	/*
 	 * Set up the PCI DMA control register.
 	 */
@@ -1378,6 +1363,15 @@ bge_chipinit(struct bge_softc *sc)
 			dma_rw_ctl |= (sc->bge_asicrev == BGE_ASICREV_BCM5780) ?
 			    BGE_PCIDMARWCTL_ONEDMA_ATONCE_GLOBAL :
 			    BGE_PCIDMARWCTL_ONEDMA_ATONCE_LOCAL;
+		} else if (sc->bge_asicrev == BGE_ASICREV_BCM5703) {
+			/*
+			 * In the BCM5703, the DMA read watermark should
+			 * be set to less than or equal to the maximum
+			 * memory read byte count of the PCI-X command
+			 * register.
+			 */
+			dma_rw_ctl |= BGE_PCIDMARWCTL_RD_WAT_SHIFT(4) |
+			    BGE_PCIDMARWCTL_WR_WAT_SHIFT(3);
 		} else if (sc->bge_asicrev == BGE_ASICREV_BCM5704) {
 			/* 1536 bytes for read, 384 bytes for write. */
 			dma_rw_ctl |= BGE_PCIDMARWCTL_RD_WAT_SHIFT(7) |
@@ -2656,9 +2650,11 @@ bge_attach(device_t dev)
 		/*
 		 * BCM5754 and BCM5787 shares the same ASIC id so
 		 * explicit device id check is required.
+		 * Due to unknown reason TSO does not work on BCM5755M.
 		 */
 		if (pci_get_device(dev) != BCOM_DEVICEID_BCM5754 &&
-		    pci_get_device(dev) != BCOM_DEVICEID_BCM5754M)
+		    pci_get_device(dev) != BCOM_DEVICEID_BCM5754M &&
+		    pci_get_device(dev) != BCOM_DEVICEID_BCM5755M)
 			sc->bge_flags |= BGE_FLAG_TSO;
 	}
 
@@ -2672,7 +2668,8 @@ bge_attach(device_t dev)
 		 */
 		sc->bge_flags |= BGE_FLAG_PCIE;
 		sc->bge_expcap = reg;
-		bge_set_max_readrq(sc);
+		if (pci_get_max_read_req(dev) != 4096)
+			pci_set_max_read_req(dev, 4096);
 	} else {
 		/*
 		 * Check if the device is in PCI-X Mode.
@@ -3156,7 +3153,26 @@ bge_reset(struct bge_softc *sc)
 	pci_write_config(dev, BGE_PCI_CACHESZ, cachesize, 4);
 	pci_write_config(dev, BGE_PCI_CMD, command, 4);
 	write_op(sc, BGE_MISC_CFG, BGE_32BITTIME_66MHZ);
-
+	/*
+	 * Disable PCI-X relaxed ordering to ensure status block update
+	 * comes first then packet buffer DMA. Otherwise driver may
+	 * read stale status block.
+	 */
+	if (sc->bge_flags & BGE_FLAG_PCIX) {
+		devctl = pci_read_config(dev,
+		    sc->bge_pcixcap + PCIXR_COMMAND, 2);
+		devctl &= ~PCIXM_COMMAND_ERO;
+		if (sc->bge_asicrev == BGE_ASICREV_BCM5703) {
+			devctl &= ~PCIXM_COMMAND_MAX_READ;
+			devctl |= PCIXM_COMMAND_MAX_READ_2048;
+		} else if (sc->bge_asicrev == BGE_ASICREV_BCM5704) {
+			devctl &= ~(PCIXM_COMMAND_MAX_SPLITS |
+			    PCIXM_COMMAND_MAX_READ);
+			devctl |= PCIXM_COMMAND_MAX_READ_2048;
+		}
+		pci_write_config(dev, sc->bge_pcixcap + PCIXR_COMMAND,
+		    devctl, 2);
+	}
 	/* Re-enable MSI, if neccesary, and enable the memory arbiter. */
 	if (BGE_IS_5714_FAMILY(sc)) {
 		/* This chip disables MSI on reset. */

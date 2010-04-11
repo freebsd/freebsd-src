@@ -136,7 +136,6 @@ struct rgmx_softc_dev {
 	u_int			idx;
         u_char                  ieee[6];
 
-        char const * typestr;   /* printable name of the interface.  */
         u_short txb_size;       /* size of TX buffer, in bytes  */
 
         /* Transmission buffer management.  */
@@ -182,7 +181,6 @@ static u_int get_rgmx_port_ordinal(u_int port);
 static void octeon_rgmx_set_mac(u_int port);
 static void octeon_rgmx_init_sc(struct rgmx_softc_dev *sc, device_t dev, u_int port, u_int num_devices);
 static int octeon_rgmx_init_ifnet(struct rgmx_softc_dev *sc);
-static void octeon_rgmx_mark_ready(struct rgmx_softc_dev *sc);
 static void octeon_rgmx_stop(struct rgmx_softc_dev *sc);
 static void octeon_rgmx_config_speed(u_int port, u_int);
 #ifdef DEBUG_RGMX_DUMP
@@ -211,6 +209,7 @@ static int octeon_rgmx_intr(void *arg);
 /* Standard driver entry points.  These can be static.  */
 static void  octeon_rgmx_init	      (void *);
 //static driver_intr_t    rgmx_intr;
+static void  octeon_rgmx_config_cam   (struct ifnet *);
 static int   octeon_rgmx_ioctl        (struct ifnet *, u_long, caddr_t);
 static void  octeon_rgmx_output_start (struct ifnet *);
 static void  octeon_rgmx_output_start_locked (struct ifnet *);
@@ -349,8 +348,6 @@ static int octeon_rgmx_init_ifnet (struct rgmx_softc_dev *sc)
         ifmedia_set(&sc->media, bit2media[0]);
 
         ether_ifattach(sc->ifp, sc->ieee);
-        /* Print additional info when attached.  */
-        device_printf(sc->sc_dev, "type %s, full duplex\n", sc->typestr);
 
         return (0);
 }
@@ -447,12 +444,6 @@ static int rgmii_attach (device_t dev)
                             	device_printf(dev, "  ifinit failed for rgmx port %u\n", port);
                                 return (ENOSPC);
                         }
-/*
- * Don't call octeon_rgmx_mark_ready()
- * ifnet will call it indirectly via  octeon_rgmx_init()
- *
- *                         octeon_rgmx_mark_ready(sc);
- */
                         num_devices++;
                 }
 	}
@@ -1024,10 +1015,9 @@ static u_int octeon_rgmx_pko_xmit_packet (struct rgmx_softc_dev *sc, void *out_b
          * 3 words or less are left. We write our 2nd word now and then put in a chain link
          * to new PKO cmd buf.
          */
-        void *pko_cmd_buf = octeon_fpa_alloc(OCTEON_FPA_TX_CMDBUF_POOL);
-        uint64_t phys_cmd_buf;
+        uint64_t phys_cmd_buf = octeon_fpa_alloc_phys(OCTEON_FPA_TX_CMDBUF_POOL);
 
-        if (!pko_cmd_buf) {
+        if (!phys_cmd_buf) {
             /*
              * FPA pool for xmit-buffer-commands is empty.
              */
@@ -1035,7 +1025,6 @@ static u_int octeon_rgmx_pko_xmit_packet (struct rgmx_softc_dev *sc, void *out_b
             octeon_spinlock_unlock(&(sc->outq_ptr[queue].lock));
             return (0);
         }
-        phys_cmd_buf = OCTEON_PTR2PHYS(pko_cmd_buf);
 
         xmit_cmd_ptr[1] = pko_pkt_word.word64;
         xmit_cmd_ptr[2] = phys_cmd_buf;
@@ -1234,6 +1223,8 @@ static void octeon_rgmx_output_start_locked (struct ifnet *ifp)
                 printf("\n"); printf("Out: ");
                 for (ii = 0; ii < len; ii++) printf(" %X", dc[ii]); printf("\n");
 #endif
+
+		ETHER_BPF_MTAP(ifp, m);
 
         	IF_ENQUEUE(&sc->tx_pending_queue, m);
 
@@ -1648,9 +1639,106 @@ static int octeon_rgmx_medchange (struct ifnet *ifp)
 
 static void octeon_rgmx_medstat (struct ifnet *ifp, struct ifmediareq *ifm)
 {
-    /*
-     * No support for Media Status callback
-     */
+    	struct rgmx_softc_dev *sc = ifp->if_softc;
+	octeon_rgmx_rxx_rx_inbnd_t link_status;
+
+	octeon_rgmx_config_speed(sc->port, 1);
+
+	RGMX_LOCK(sc);
+
+	ifm->ifm_status = IFM_AVALID;
+	ifm->ifm_active = IFM_ETHER;
+
+	/*
+	 * Parse link status.
+	 */
+	link_status.word64 = sc->link_status;
+
+	if (!link_status.bits.status) {
+		RGMX_UNLOCK(sc);
+		return;
+	}
+
+	ifm->ifm_status |= IFM_ACTIVE;
+
+	switch (link_status.bits.speed) {
+	case 0:
+		ifm->ifm_active |= IFM_10_T;
+		break;
+	case 1:
+		ifm->ifm_active |= IFM_100_TX;
+		break;
+	case 2:
+		ifm->ifm_active |= IFM_1000_T;;
+		break;
+	default:
+		/* Unknown!  */
+		break;
+	}
+
+	/*
+	 * Check duplex.
+	 */
+	if (link_status.bits.duplex == 1)
+		ifm->ifm_active |= IFM_FDX;
+	else
+		ifm->ifm_active |= IFM_HDX;
+
+	RGMX_UNLOCK(sc);
+}
+
+static void octeon_rgmx_config_cam(struct ifnet *ifp)
+{
+	struct rgmx_softc_dev *sc = ifp->if_softc;
+	u_int port = sc->port;
+	int index = INDEX(port);
+        int iface = INTERFACE(port);
+	u_int last_enabled;
+	uint64_t adr_ctl;
+
+	last_enabled = octeon_rgmx_stop_port(port);
+
+	adr_ctl = oct_read64(OCTEON_RGMX_RXX_ADR_CTL(index, iface));
+
+	/*
+	 * Always accept broadcast traffic.
+	 */
+	if ((adr_ctl & OCTEON_RGMX_ADRCTL_ACCEPT_BROADCAST) == 0)
+		adr_ctl |= OCTEON_RGMX_ADRCTL_ACCEPT_BROADCAST;
+
+	/*
+	 * Accept all multicast in all multicast mode and in
+	 * promiscuous mode.
+	 *
+	 * XXX Since we don't handle programming the CAM for
+	 * multicast filtering, always accept all multicast.
+	 */
+	adr_ctl &= ~OCTEON_RGMX_ADRCTL_REJECT_ALL_MULTICAST;
+	adr_ctl |= OCTEON_RGMX_ADRCTL_ACCEPT_ALL_MULTICAST;
+
+	/*
+	 * In promiscuous mode, the CAM is shut off, so reject everything.
+	 * Otherwise, filter using the CAM.
+	 */
+	if ((ifp->if_flags & IFF_PROMISC) != 0) {
+		adr_ctl &= ~OCTEON_RGMX_ADRCTL_CAM_MODE_ACCEPT_DMAC;
+		adr_ctl |= OCTEON_RGMX_ADRCTL_CAM_MODE_REJECT_DMAC;
+	} else {
+		adr_ctl &= ~OCTEON_RGMX_ADRCTL_CAM_MODE_REJECT_DMAC;
+		adr_ctl |= OCTEON_RGMX_ADRCTL_CAM_MODE_ACCEPT_DMAC;
+	}
+
+	oct_write64(OCTEON_RGMX_RXX_ADR_CTL(index, iface), adr_ctl);
+
+	/*
+	 * If in promiscuous mode, disable the CAM.
+	 */
+	if ((ifp->if_flags & IFF_PROMISC) != 0)
+		oct_write64(OCTEON_RGMX_RXX_ADR_CAM_EN(index, iface), 0);
+	else
+		oct_write64(OCTEON_RGMX_RXX_ADR_CAM_EN(index, iface), 1);
+
+	if (last_enabled) octeon_rgmx_start_port(port);
 }
 
 static int octeon_rgmx_ioctl (struct ifnet * ifp, u_long command, caddr_t data)
@@ -1671,28 +1759,21 @@ static int octeon_rgmx_ioctl (struct ifnet * ifp, u_long command, caddr_t data)
                      * "stopped", reflecting the UP flag.
                      */
                     if (ifp->if_flags & IFF_UP) {
-
-
                         /*
                          * New state is IFF_UP
                          * Restart or Start now, if driver is not running currently.
                          */
                         if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0) {
-                            printf(" SIOCSTIFFLAGS  UP/Not-running\n"); break;
                             octeon_rgmx_init(sc);
-                        } else {
-                            printf(" SIOCSTIFFLAGS  UP/Running\n"); break;
                         }
+			octeon_rgmx_config_cam(ifp);
                     } else {
                         /*
                          * New state is IFF_DOWN.
                          * Stop & shut it down now, if driver is running currently.
                          */
                         if ((ifp->if_drv_flags & IFF_DRV_RUNNING) != 0) {
-                            printf(" SIOCSTIFFLAGS  Down/Running\n"); break;
                             octeon_rgmx_stop(sc);
-                        } else {
-                            printf(" SIOCSTIFFLAGS  Down/Not-Running\n"); break;
                         }
                     }
                     break;
@@ -1734,17 +1815,9 @@ static int octeon_rgmx_ioctl (struct ifnet * ifp, u_long command, caddr_t data)
         return (error);
 }
 
-
-
-
-/*
- * octeon_rgmx_mark_ready
- *
- * Initialize the rgmx driver for this instance
- * Initialize device.
- */
-static void octeon_rgmx_mark_ready (struct rgmx_softc_dev *sc)
+static void  octeon_rgmx_init (void *xsc)
 {
+	struct rgmx_softc_dev *sc = xsc;
 
         /* Enable interrupts.  */
     	/* For RGMX they are already enabled earlier */
@@ -1763,21 +1836,9 @@ static void octeon_rgmx_mark_ready (struct rgmx_softc_dev *sc)
 
         /* Kick start the output */
         /* Hopefully PKO is running and will pick up packets via the timer  or receive loop */
-}
 
-
-static void  octeon_rgmx_init (void *xsc)
-{
-
-    /*
-     * Called mostly from ifnet interface  ifp->if_init();
-     * I think we can anchor most of our iniialization here and
-     * not do it in different places  from driver_attach().
-     */
-    /*
-     * For now, we only mark the interface ready
-     */
-    octeon_rgmx_mark_ready((struct rgmx_softc_dev *) xsc);
+	/* Set link status.  */
+	octeon_rgmx_config_speed(sc->port, 1);
 }
 
 
@@ -1792,7 +1853,6 @@ static void octeon_rgmx_config_speed (u_int port, u_int report_link)
         uint64_t			val64_tx_clk, val64_tx_slot, val64_tx_burst;
         u_int				last_enabled;
 
-
         sc = get_rgmx_softc(port);
         if (!sc) {
             printf(" config_speed didn't find sc int:%u port:%u", iface, port);
@@ -1804,79 +1864,96 @@ static void octeon_rgmx_config_speed (u_int port, u_int report_link)
          */
         link_status.word64 = oct_read64(OCTEON_RGMX_RXX_RX_INBND(index, iface));
 
+        RGMX_LOCK(sc);
+
         /*
          * Compre to prev known state. If same then nothing to do.
          */
         if (link_status.word64 == sc->link_status) {
+		RGMX_UNLOCK(sc);
             	return;
         }
-
-        RGMX_LOCK(sc);
-
         old_link_status.word64 = sc->link_status;
 
-        sc->link_status = link_status.word64;
+	/*
+	 * Compare to previous state modulo link status.  If only link
+	 * status is different, we don't need to change media.
+	 */
+	if (old_link_status.bits.duplex != link_status.bits.duplex ||
+	    old_link_status.bits.speed != link_status.bits.speed) {
+		last_enabled = octeon_rgmx_stop_port(port);
+		
+		gmx_cfg.word64 = oct_read64(OCTEON_RGMX_PRTX_CFG(index, iface));
 
-        last_enabled = octeon_rgmx_stop_port(port);
+		/*
+		 * Duplex
+		 * XXX Set based on link_status.bits.duplex?
+		 */
+		gmx_cfg.bits.duplex = 1;
+		
+		switch (link_status.bits.speed) {
+		case 0:	/* 10Mbps */
+			gmx_cfg.bits.speed = 0;
+			gmx_cfg.bits.slottime = 0;
+			val64_tx_clk = 50; val64_tx_slot = 0x40; val64_tx_burst = 0;
+			break;
 
-        gmx_cfg.word64 = oct_read64(OCTEON_RGMX_PRTX_CFG(index, iface));
+		case 1:	/* 100Mbps */
+			gmx_cfg.bits.speed = 0;
+			gmx_cfg.bits.slottime = 0;
+			val64_tx_clk = 5; val64_tx_slot = 0x40; val64_tx_burst = 0;
+			break;
 
-        /*
-         * Duplex
-         */
-        gmx_cfg.bits.duplex = 1;
+		case 2:	/* 1Gbps */
+			gmx_cfg.bits.speed = 1;
+			gmx_cfg.bits.slottime = 1;
+			val64_tx_clk = 1; val64_tx_slot = 0x200; val64_tx_burst = 0x2000;
+			break;
 
-        switch (link_status.bits.speed) {
-        case 0:	/* 10Mbps */
-            gmx_cfg.bits.speed = 0;
-            gmx_cfg.bits.slottime = 0;
-            val64_tx_clk = 50; val64_tx_slot = 0x40; val64_tx_burst = 0;
-            break;
-        case 1:	/* 100Mbps */
-            gmx_cfg.bits.speed = 0;
-            gmx_cfg.bits.slottime = 0;
-            val64_tx_clk = 5; val64_tx_slot = 0x40; val64_tx_burst = 0;
-            break;
+		case 3:	/* ?? */
+		default:
+			gmx_cfg.bits.speed = 1;
+			gmx_cfg.bits.slottime = 1;
+			val64_tx_clk = 1; val64_tx_slot = 0x200; val64_tx_burst = 0x2000;
+			break;
+		}
 
-        case 2:	/* 1Gbps */
-            gmx_cfg.bits.speed = 1;
-            gmx_cfg.bits.slottime = 1;
-            val64_tx_clk = 1; val64_tx_slot = 0x200; val64_tx_burst = 0x2000;
-            break;
+		oct_write64(OCTEON_RGMX_TXX_CLK(index, iface), val64_tx_clk);
+		oct_write64(OCTEON_RGMX_TXX_SLOT(index, iface), val64_tx_slot);
+		oct_write64(OCTEON_RGMX_TXX_BURST(index, iface), val64_tx_burst);
+		
+		oct_write64(OCTEON_RGMX_PRTX_CFG(index, iface), gmx_cfg.word64);
+		
+		if (last_enabled) octeon_rgmx_start_port(port);
+	}
 
-        case 3:	/* ?? */
-        default:
-            gmx_cfg.bits.speed = 1;
-            gmx_cfg.bits.slottime = 1;
-            val64_tx_clk = 1; val64_tx_slot = 0x200; val64_tx_burst = 0x2000;
-            break;
-        }
+	/*
+	 * Now check and possibly change link status.
+	 */
+	if (link_status.bits.status != old_link_status.bits.status) {
+		if (report_link) {
+			if (link_status.bits.status) {
+				if_link_state_change(sc->ifp, LINK_STATE_UP);
+			} else {
+				if_link_state_change(sc->ifp, LINK_STATE_DOWN);
+			}
+		}
+	}
 
-        oct_write64(OCTEON_RGMX_TXX_CLK(index, iface), val64_tx_clk);
-        oct_write64(OCTEON_RGMX_TXX_SLOT(index, iface), val64_tx_slot);
-        oct_write64(OCTEON_RGMX_TXX_BURST(index, iface), val64_tx_burst);
+	if (report_link) {
+		sc->link_status = link_status.word64;
+	} else {
+		/*
+		 * We can't update link status proper since we can't
+		 * change it in the interface, so keep the old link
+		 * status intact but note the current speed and duplex
+		 * settings.
+		 */
+		link_status.bits.status = old_link_status.bits.status;
+		sc->link_status = link_status.word64;
+	}
 
-        oct_write64(OCTEON_RGMX_PRTX_CFG(index, iface), gmx_cfg.word64);
-
-        if (last_enabled) octeon_rgmx_start_port(port);
-
-        if (link_status.bits.status != old_link_status.bits.status) {
-
-//#define DEBUG_LINESTATUS
-            if (link_status.bits.status) {
-#ifdef DEBUG_LINESTATUS
-                printf(" %u/%u: Interface is now alive\n", iface, port);
-#endif
-                if (report_link)  if_link_state_change(sc->ifp, LINK_STATE_UP);
-            } else {
-#ifdef DEBUG_LINESTATUS
-                printf(" %u/%u: Interface went down\n", iface, port);
-#endif
-                if (report_link)  if_link_state_change(sc->ifp, LINK_STATE_DOWN);
-            }
-        }
         RGMX_UNLOCK(sc);
-
 }
 
 
@@ -2096,7 +2173,6 @@ static void octeon_config_rgmii_port (u_int port)
         gmx_cfg.bits.en = 1;
         oct_write64(OCTEON_RGMX_PRTX_CFG(index, iface), gmx_cfg.word64);
 
-
         octeon_rgmx_config_speed(port, 0);
 
         oct_write64(OCTEON_RGMX_TXX_THRESH(index, iface), 32);
@@ -2181,7 +2257,7 @@ static int octeon_has_4ports (void)
     u_int chipid;
     int retcode = 1;
 
-    chipid = octeon_get_chipid() & 0xffffff00;
+    chipid = octeon_get_chipid();
 
     switch (chipid) {
         case OCTEON_CN31XX_CHIP:

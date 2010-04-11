@@ -101,3 +101,6 @@ dev/siba/siba_cc.c		optional	siba
 dev/siba/siba_core.c		optional	siba
 dev/siba/siba_pcib.c		optional	siba pci
 #mips/sentry5/siba_mips.c			optional siba # not yet
+
+dev/hwpmc/hwpmc_mips.c		optional hwpmc
+dev/hwpmc/hwpmc_mips24k.c	optional hwpmc

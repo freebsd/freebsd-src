@@ -184,6 +184,7 @@ contrib/dev/acpica/events/evxfregn.c		optional acpi
 contrib/dev/acpica/executer/exconfig.c		optional acpi
 contrib/dev/acpica/executer/exconvrt.c		optional acpi
 contrib/dev/acpica/executer/excreate.c		optional acpi
+contrib/dev/acpica/executer/exdebug.c		optional acpi
 contrib/dev/acpica/executer/exdump.c		optional acpi
 contrib/dev/acpica/executer/exfield.c		optional acpi
 contrib/dev/acpica/executer/exfldio.c		optional acpi
@@ -771,6 +772,7 @@ dev/bwi/bwiphy.c		optional bwi
 dev/bwi/bwirf.c			optional bwi
 dev/bwi/if_bwi.c		optional bwi
 dev/bwi/if_bwi_pci.c		optional bwi pci
+dev/bwn/if_bwn.c		optional bwn siba_bwn
 dev/cardbus/cardbus.c		optional cardbus
 dev/cardbus/cardbus_cis.c	optional cardbus
 dev/cardbus/cardbus_device.c	optional cardbus
@@ -909,6 +911,8 @@ dev/ed/if_ed_pci.c		optional ed pci
 dev/eisa/eisa_if.m		standard
 dev/eisa/eisaconf.c		optional eisa
 dev/e1000/if_em.c		optional em inet \
+	compile-with "${NORMAL_C} -I$S/dev/e1000"
+dev/e1000/if_lem.c		optional em inet \
 	compile-with "${NORMAL_C} -I$S/dev/e1000"
 dev/e1000/if_igb.c		optional igb inet \
 	compile-with "${NORMAL_C} -I$S/dev/e1000"
@@ -1186,7 +1190,7 @@ iwn6000fw.fwo			optional iwn6000fw | iwnfw		\
 	clean		"iwn6000fw.fwo"
 iwn6000.fw			optional iwn6000fw | iwnfw		\
 	dependency	".PHONY"					\
-	compile-with	"uudecode -o ${.TARGET} $S/contrib/dev/iwn/iwlwifi-6000-9.176.4.1.fw.uu" \
+	compile-with	"uudecode -o ${.TARGET} $S/contrib/dev/iwn/iwlwifi-6000-9.193.4.1.fw.uu" \
 	no-obj no-implicit-rule						\
 	clean		"iwn6000.fw"
 dev/ixgb/if_ixgb.c		optional ixgb
@@ -1492,6 +1496,8 @@ dev/si/si3_t225.c		optional si
 dev/si/si_eisa.c		optional si eisa
 dev/si/si_isa.c			optional si isa
 dev/si/si_pci.c			optional si pci
+dev/siba/siba_bwn.c		optional siba_bwn pci
+dev/siba/siba_core.c		optional siba_bwn pci
 dev/siis/siis.c			optional siis pci
 dev/sis/if_sis.c		optional sis pci
 dev/sk/if_sk.c			optional sk pci inet
@@ -2053,6 +2059,7 @@ kern/kern_exec.c		standard
 kern/kern_exit.c		standard
 kern/kern_fail.c		standard
 kern/kern_fork.c		standard
+kern/kern_gzio.c		optional gzio
 kern/kern_idle.c		standard
 kern/kern_intr.c		standard
 kern/kern_jail.c		standard
@@ -2315,7 +2322,7 @@ net/if_ethersubr.c		optional ether \
 net/if_faith.c			optional faith
 net/if_fddisubr.c		optional fddi
 net/if_fwsubr.c			optional fwip
-net/if_gif.c			optional gif
+net/if_gif.c			optional gif | netgraph_gif
 net/if_gre.c			optional gre inet
 net/if_iso88025subr.c		optional token
 net/if_lagg.c			optional lagg
@@ -2344,14 +2351,14 @@ net/slcompress.c		optional netgraph_vjc | sppp | \
 net/vnet.c			optional vimage
 net/zlib.c			optional crypto | geom_uzip | ipsec | \
 					 mxge | netgraph_deflate | \
-					 ddb_ctf
+					 ddb_ctf | gzio
 net80211/ieee80211.c		optional wlan
 net80211/ieee80211_acl.c	optional wlan wlan_acl
 net80211/ieee80211_action.c	optional wlan
 net80211/ieee80211_ageq.c	optional wlan
 net80211/ieee80211_adhoc.c	optional wlan
 net80211/ieee80211_ageq.c	optional wlan
-net80211/ieee80211_amrr.c	optional wlan wlan_amrr
+net80211/ieee80211_amrr.c	optional wlan | wlan_amrr
 net80211/ieee80211_crypto.c	optional wlan
 net80211/ieee80211_crypto_ccmp.c optional wlan wlan_ccmp
 net80211/ieee80211_crypto_none.c optional wlan
@@ -2373,6 +2380,7 @@ net80211/ieee80211_phy.c	optional wlan
 net80211/ieee80211_power.c	optional wlan
 net80211/ieee80211_proto.c	optional wlan
 net80211/ieee80211_radiotap.c	optional wlan
+net80211/ieee80211_ratectl.c	optional wlan
 net80211/ieee80211_regdomain.c	optional wlan
 net80211/ieee80211_rssadapt.c	optional wlan wlan_rssadapt
 net80211/ieee80211_scan.c	optional wlan
@@ -2478,7 +2486,7 @@ netinet/if_ether.c		optional inet ether
 netinet/igmp.c			optional inet
 netinet/in.c			optional inet
 netinet/ip_carp.c		optional inet carp | inet6 carp
-netinet/in_gif.c		optional gif inet
+netinet/in_gif.c		optional gif inet | netgraph_gif inet
 netinet/ip_gre.c		optional gre inet
 netinet/ip_id.c			optional inet
 netinet/in_mcast.c		optional inet
@@ -2487,7 +2495,15 @@ netinet/in_proto.c		optional inet \
 	compile-with "${NORMAL_C} -I$S/contrib/pf"
 netinet/in_rmx.c		optional inet
 netinet/ip_divert.c		optional inet ipdivert ipfirewall
+netinet/ipfw/dn_heap.c		optional inet dummynet
+netinet/ipfw/dn_sched_fifo.c	optional inet dummynet
+netinet/ipfw/dn_sched_prio.c	optional inet dummynet
+netinet/ipfw/dn_sched_qfq.c	optional inet dummynet 
+netinet/ipfw/dn_sched_rr.c	optional inet dummynet
+netinet/ipfw/dn_sched_wf2q.c	optional inet dummynet 
 netinet/ipfw/ip_dummynet.c	optional inet dummynet
+netinet/ipfw/ip_dn_io.c		optional inet dummynet
+netinet/ipfw/ip_dn_glue.c	optional inet dummynet
 netinet/ip_ecn.c		optional inet | inet6
 netinet/ip_encap.c		optional inet | inet6
 netinet/ip_fastfwd.c		optional inet
@@ -2545,7 +2561,7 @@ netinet6/frag6.c		optional inet6
 netinet6/icmp6.c		optional inet6
 netinet6/in6.c			optional inet6
 netinet6/in6_cksum.c		optional inet6
-netinet6/in6_gif.c		optional gif inet6
+netinet6/in6_gif.c		optional gif inet6 | netgraph_gif inet6
 netinet6/in6_ifattach.c		optional inet6
 netinet6/in6_mcast.c		optional inet6
 netinet6/in6_pcb.c		optional inet6

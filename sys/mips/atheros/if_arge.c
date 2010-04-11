@@ -171,7 +171,7 @@ extern uint32_t ar711_base_mac[ETHER_ADDR_LEN];
 
 static struct mtx miibus_mtx;
 
-MTX_SYSINIT(miibus_mtx, &miibus_mtx, "arge mii lock", MTX_SPIN);
+MTX_SYSINIT(miibus_mtx, &miibus_mtx, "arge mii lock", MTX_DEF);
 
 
 /*

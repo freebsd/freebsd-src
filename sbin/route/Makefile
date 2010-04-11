@@ -6,7 +6,7 @@
 PROG=	route
 MAN=	route.8
 SRCS=	route.c keywords.h
-WARNS?=	0
+WARNS?=	3
 CLEANFILES+=keywords.h _keywords.tmp
 
 CFLAGS+= -DNS

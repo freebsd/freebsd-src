@@ -29,13 +29,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *        This product includes software developed by the NetBSD
- *        Foundation, Inc. and its contributors.
- * 4. Neither the name of The NetBSD Foundation nor the names of its
- *    contributors may be used to endorse or promote products derived
- *    from this software without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
  * ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
@@ -263,6 +256,7 @@ MODULE_DEPEND(uvisor, usb, 1, 1, 1);
 static const struct usb_device_id uvisor_devs[] = {
 #define	UVISOR_DEV(v,p,i) { USB_VPI(USB_VENDOR_##v, USB_PRODUCT_##v##_##p, i) }
 	UVISOR_DEV(ACEECA, MEZ1000, UVISOR_FLAG_PALM4),
+	UVISOR_DEV(ALPHASMART, DANA_SYNC, UVISOR_FLAG_PALM4),
 	UVISOR_DEV(GARMIN, IQUE_3600, UVISOR_FLAG_PALM4),
 	UVISOR_DEV(FOSSIL, WRISTPDA, UVISOR_FLAG_PALM4),
 	UVISOR_DEV(HANDSPRING, VISOR, UVISOR_FLAG_VISOR),
@@ -345,11 +339,6 @@ uvisor_attach(device_t dev)
 		DPRINTF("could not allocate all pipes\n");
 		goto detach;
 	}
-	/* clear stall at first run */
-	mtx_lock(&sc->sc_mtx);
-	usbd_xfer_set_stall(sc->sc_xfer[UVISOR_BULK_DT_WR]);
-	usbd_xfer_set_stall(sc->sc_xfer[UVISOR_BULK_DT_RD]);
-	mtx_unlock(&sc->sc_mtx);
 
 	error = ucom_attach(&sc->sc_super_ucom, &sc->sc_ucom, 1, sc,
 	    &uvisor_callback, &sc->sc_mtx);

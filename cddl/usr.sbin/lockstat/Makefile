@@ -1,14 +1,13 @@
 # $FreeBSD$
 
-.include	"../../Makefile.inc"
+.PATH: ${.CURDIR}/../../../cddl/contrib/opensolaris/cmd/lockstat
 
 PROG=		lockstat
-
+NO_MAN=
+SRCS=		lockstat.c sym.c
 BINDIR?=	/usr/sbin
 
-SRCS=		lockstat.c sym.c
-
-WARNS=		1
+WARNS?=		1
 
 CFLAGS+=	-I${.CURDIR}/../../../sys/cddl/compat/opensolaris \
 		-I${.CURDIR}/../../../cddl/compat/opensolaris/include \
@@ -19,22 +18,11 @@ CFLAGS+=	-I${.CURDIR}/../../../sys/cddl/compat/opensolaris \
 		-I${OPENSOLARIS_SYS_DISTDIR}/compat \
 		-I${.CURDIR}/../../../sys
 
-.PATH:		${OPENSOLARIS_USR_DISTDIR}/cmd/lockstat
-
 CFLAGS+=	-DNEED_ERRLOC -g
 
 #YFLAGS+=	-d
 
-LDFLAGS+=	-pthread \
-		-L${.OBJDIR}/../../lib/libdtrace \
-		-L${.OBJDIR}/../../lib/libproc \
-		-L${.OBJDIR}/../../lib/libctf \
-		-L${.OBJDIR}/../../../lib/libelf
-
-LDADD+=		-ldtrace -ly -ll -lproc -lctf -lelf -lz -lrt
-
-#DPADD+= ${LIBDTRACE} ${LIBPTHREAD} ${LIBL} ${LIBY} ${LIBZ}
-
-NO_MAN=
+DPADD=		${LIBPTHREAD} ${LIBDTRACE} ${LIBY} ${LIBL} ${LIBPROC} ${LIBCTF} ${LIBELF} ${LIBZ} ${LIBRT}
+LDADD=		-lpthread -ldtrace -ly -ll -lproc -lctf -lelf -lz -lrt
 
 .include <bsd.prog.mk>

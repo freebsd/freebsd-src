@@ -35,6 +35,18 @@
 
 #ifdef _KERNEL
 
+/*
+ * For platforms that do not have SYSCTL support, we wrap the
+ * SYSCTL_* into a function (one per file) to collect the values
+ * into an array at module initialization. The wrapping macros,
+ * SYSBEGIN() and SYSEND, are empty in the default case.
+ */
+#ifndef SYSBEGIN
+#define SYSBEGIN(x)
+#endif
+#ifndef SYSEND
+#define SYSEND
+#endif
 
 /* Return values from ipfw_chk() */
 enum {
@@ -119,7 +131,13 @@ enum {
 };
 
 /* wrapper for freeing a packet, in case we need to do more work */
+#ifndef FREE_PKT
+#if defined(__linux__) || defined(_WIN32)
+#define FREE_PKT(m)	netisr_dispatch(-1, m)
+#else
 #define FREE_PKT(m)	m_freem(m)
+#endif
+#endif /* !FREE_PKT */
 
 /*
  * Function definitions.
@@ -199,8 +217,13 @@ struct ip_fw_chain {
 	struct ip_fw    **map;	/* array of rule ptrs to ease lookup */
 	LIST_HEAD(nat_list, cfg_nat) nat;       /* list of nat entries */
 	struct radix_node_head *tables[IPFW_TABLES_MAX];
+#if defined( __linux__ ) || defined( _WIN32 )
+	spinlock_t rwmtx;
+	spinlock_t uh_lock;
+#else
 	struct rwlock	rwmtx;
 	struct rwlock	uh_lock;	/* lock for upper half */
+#endif
 	uint32_t	id;		/* ruleset id */
 };
 
@@ -240,13 +263,17 @@ int ipfw_ctl(struct sockopt *sopt);
 int ipfw_chk(struct ip_fw_args *args);
 void ipfw_reap_rules(struct ip_fw *head);
 
+/* In ip_fw_pfil */
+int ipfw_check_hook(void *arg, struct mbuf **m0, struct ifnet *ifp, int dir,
+     struct inpcb *inp);
+
 /* In ip_fw_table.c */
 struct radix_node;
 int ipfw_lookup_table(struct ip_fw_chain *ch, uint16_t tbl, in_addr_t addr,
     uint32_t *val);
 int ipfw_init_tables(struct ip_fw_chain *ch);
+void ipfw_destroy_tables(struct ip_fw_chain *ch);
 int ipfw_flush_table(struct ip_fw_chain *ch, uint16_t tbl);
-void ipfw_flush_tables(struct ip_fw_chain *ch);
 int ipfw_add_table_entry(struct ip_fw_chain *ch, uint16_t tbl, in_addr_t addr,
     uint8_t mlen, uint32_t value);
 int ipfw_dump_table_entry(struct radix_node *rn, void *arg);

@@ -17,13 +17,6 @@ $FreeBSD$
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *        This product includes software developed by the NetBSD
- *        Foundation, Inc. and its contributors.
- * 4. Neither the name of The NetBSD Foundation nor the names of its
- *    contributors may be used to endorse or promote products derived
- *    from this software without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
  * ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
@@ -65,6 +58,7 @@ $FreeBSD$
 vendor UNKNOWN1		0x0053	Unknown vendor
 vendor UNKNOWN2		0x0105	Unknown vendor
 vendor EGALAX2		0x0123	eGalax, Inc.
+vendor UNKNOWN4		0x0204	Unknown vendor
 vendor HUMAX		0x02ad	HUMAX
 vendor LTS		0x0386	LTS
 vendor BWCT		0x03da	Bernd Walter Computer Technology
@@ -277,6 +271,7 @@ vendor LACIE		0x059f	LaCie
 vendor FUJIFILM		0x05a2	Fuji Film
 vendor ARC		0x05a3	ARC
 vendor ORTEK		0x05a4	Ortek
+vendor CISCOLINKSYS3	0x05a6	Cisco-Linksys
 vendor BOSE		0x05a7	Bose
 vendor OMNIVISION	0x05a9	OmniVision
 vendor INSYSTEM		0x05ab	In-System Design
@@ -407,6 +402,7 @@ vendor STSN		0x07ef	STSN
 vendor CENTURY		0x07f7	Century Corp
 vendor ZOOM		0x0803	Zoom Telephonics
 vendor PCS		0x0810	Personal Communication Systems
+vendor ALPHASMART	0x081e	AlphaSmart, Inc.
 vendor BROADLOGIC	0x0827	BroadLogic
 vendor HANDSPRING	0x082d	Handspring
 vendor PALM		0x0830	Palm Computing
@@ -544,6 +540,8 @@ vendor FALCOM		0x0f94	Falcom Wireless Communications GmbH
 vendor RIM		0x0fca	Research In Motion
 vendor DYNASTREAM	0x0fcf	Dynastream Innovations
 vendor QUALCOMM		0x1004	Qualcomm
+vendor APACER		0x1005	Apacer
+vendor MOTOROLA4	0x100d	Motorola
 vendor DESKNOTE		0x1019	Desknote
 vendor GIGABYTE		0x1044	GIGABYTE
 vendor WESTERN		0x1058	Western Digital
@@ -640,6 +638,7 @@ vendor LINKSYS3		0x1915	Linksys
 vendor QUALCOMMINC	0x19d2	Qualcomm, Incorporated
 vendor WCH2		0x1a86	QinHeng Electronics
 vendor STELERA		0x1a8d	Stelera Wireless
+vendor OVISLINK		0x1b75	OvisLink
 vendor TCTMOBILE	0x1bbb  TCT Mobile
 vendor TELIT		0x1bc7  Telit
 vendor MPMAN		0x1cae	MpMan
@@ -681,6 +680,7 @@ vendor 3COM2		0x6891	3Com
 vendor EDIMAX		0x7392	Edimax
 vendor INTEL		0x8086	Intel
 vendor INTEL2		0x8087	Intel
+vendor ALLWIN		0x8516	ALLWIN Tech
 vendor SITECOM2		0x9016	Sitecom
 vendor MOSCHIP		0x9710	MosChip Semiconductor
 vendor MARVELL		0x9e88	Marvell Technology Group Ltd.
@@ -760,6 +760,7 @@ product	ACCTON RT3070_1		0xa701	RT3070
 product	ACCTON RT3070_2		0xa702	RT3070
 product ACCTON RT2870_1		0xb522	RT2870
 product	ACCTON RT3070_3		0xc522	RT3070
+product	ACCTON RT3070_5		0xd522	RT3070
 product ACCTON ZD1211B		0xe501	ZD1211B
 
 /* Aceeca products */
@@ -892,6 +893,19 @@ product ALTEC ASC495		0xff05	ASC495 Speakers
 /* Allied Telesyn International products */
 product ALLIEDTELESYN ATUSB100	0xb100	AT-USB100
 
+/* ALLWIN Tech products */
+product ALLWIN RT2070		0x2070	RT2070
+product ALLWIN RT2770		0x2770	RT2770
+product ALLWIN RT2870		0x2870	RT2870
+product ALLWIN RT3070		0x3070	RT3070
+product ALLWIN RT3071		0x3071	RT3071
+product ALLWIN RT3072		0x3072	RT3072
+product ALLWIN RT3572		0x3572	RT3572
+
+/* AlphaSmart, Inc. products */
+product ALPHASMART DANA_KB	0xdbac	AlphaSmart Dana Keyboard
+product ALPHASMART DANA_SYNC	0xdf00	AlphaSmart Dana HotSync
+
 /* Amoi products */
 product AMOI H01		0x0800	H01 3G modem
 product AMOI H01A		0x7002	H01A 3G modem
@@ -990,7 +1004,8 @@ product ASUS RT2870_2		0x1732	RT2870
 product ASUS RT2870_3		0x1742	RT2870
 product ASUS RT2870_4		0x1760	RT2870
 product ASUS RT2870_5		0x1761	RT2870
-product	ASUS RT3070		0x1784	RT3070
+product	ASUS USBN13		0x1784	USB-N13
+product	ASUS RT3070_1		0x1790	RT3070
 product ASUS P535		0x420f	ASUS P535 PDA
 product	ASUS GMSC		0x422f	ASUS Generic Mass Storage
 product ASUS RT2570		0x1706	RT2500USB Wireless Adapter
@@ -1084,6 +1099,7 @@ product BROADCOM BCM2033	0x2033	BCM2033 Bluetooth USB dongle
 
 /* Brother Industries products */
 product BROTHER HL1050		0x0002	HL-1050 laser printer
+product BROTHER MFC8600_9650	0x0100	MFC8600/9650 multifunction device
 
 /* Behavior Technology Computer products */
 product BTC BTC7932		0x6782	Keyboard with mouse port
@@ -1148,7 +1164,8 @@ product CISCOLINKSYS HU200TS	0x001a	HU200TS Wireless Adapter
 product CISCOLINKSYS WUSB54GC	0x0020	WUSB54GC
 product CISCOLINKSYS WUSB54GR	0x0023	WUSB54GR
 product CISCOLINKSYS WUSBF54G	0x0024	WUSBF54G
-product	CISCOLINKSYS2	RT3070	0x4001	RT3070
+product	CISCOLINKSYS2 RT3070	0x4001	RT3070
+product	CISCOLINKSYS3 RT3070	0x0101	RT3070
 
 /* CMOTECH products */
 product CMOTECH CNU510		0x5141	CDMA Technologies USB modem
@@ -1175,6 +1192,8 @@ product CONCEPTRONIC AR5523_2	0x7811	AR5523
 product CONCEPTRONIC AR5523_2_NF	0x7812	AR5523 (no firmware)
 product CONCEPTRONIC2 C54RU	0x3c02	C54RU WLAN
 product CONCEPTRONIC2 C54RU2	0x3c22	C54RU
+product CONCEPTRONIC2 RT3070_1	0x3c08	RT3070
+product CONCEPTRONIC2 RT3070_2	0x3c11	RT3070
 product CONCEPTRONIC2 VIGORN61	0x3c25	VIGORN61
 product CONCEPTRONIC2 RT2870_1	0x3c06	RT2870
 product CONCEPTRONIC2 RT2870_2	0x3c07	RT2870
@@ -1327,12 +1346,14 @@ product DLINK2 DWA111		0x3c06	DWA-111
 product DLINK2 RT2870_1		0x3c09	RT2870
 product DLINK2 DWA110		0x3c07	DWA-110
 product DLINK2 RT3072		0x3c0a	RT3072
+product DLINK2 RT3072_1		0x3c0b	RT3072
 product DLINK2 RT3070_1		0x3c0d	RT3070
 product DLINK2 RT3070_2		0x3c0e	RT3070
 product DLINK2 RT3070_3		0x3c0f	RT3070
 product DLINK2 RT2870_2		0x3c11	RT2870
 product DLINK2 DWA130		0x3c13	DWA-130
 product DLINK2 RT3070_4		0x3c15	RT3070
+product DLINK2 RT3070_5		0x3c16	RT3070
 product DLINK3 DWM652		0x3e04	DWM-652
 
 /* DMI products */
@@ -1793,6 +1814,7 @@ product JABLOTRON PC60B		0x0001	PC-60B
 product JATON EDA		0x5704	Ethernet
 
 /* JMicron products */
+product JMICRON JM20336		0x2336	USB to SATA Bridge
 product JMICRON JM20337		0x2338	USB to ATA/ATAPI Bridge
 
 /* JVC products */
@@ -1903,6 +1925,7 @@ product LINKSYS4 WUSB100	0x0070	WUSB100
 product LINKSYS4 WUSB600N	0x0071	WUSB600N
 product LINKSYS4 WUSB54GCV2	0x0073	WUSB54GC v2
 product LINKSYS4 WUSB54GCV3	0x0077	WUSB54GC v3
+product LINKSYS4 RT3070		0x0078	RT3070
 product LINKSYS4 WUSB600NV2	0x0079	WUSB600N v2
 
 /* Logitech products */
@@ -1976,6 +1999,8 @@ product MELCO KG54L		0x00da	WLI-U2-KG54L
 product MELCO WLIUCG300N	0x00e8	WLI-UC-G300N
 product MELCO SG54HG		0x00f4	WLI-U2-SG54HG
 product MELCO WLIUCAG300N	0x012e	WLI-UC-AG300N
+product MELCO RT2870_1		0x0148	RT2870
+product MELCO RT2870_2		0x0150	RT2870
 product MELCO WLIUCGN		0x015d	WLI-UC-GN
 
 /* Merlin products */
@@ -1996,7 +2021,9 @@ product MGE UPS2		0xffff	MGE UPS SYSTEMS PROTECTIONCENTER 2
 product MSI BT_DONGLE		0x1967	Bluetooth USB dongle
 product MSI RT3070_1		0x3820	RT3070
 product MSI RT3070_2		0x3821	RT3070
+product MSI RT3070_8		0x3822	RT3070
 product MSI RT3070_3		0x3870	RT3070
+product MSI RT3070_9		0x3871	RT3070
 product MSI UB11B		0x6823	UB11B
 product MSI RT2570		0x6861	RT2570
 product MSI RT2570_2		0x6865	RT2570
@@ -2005,13 +2032,12 @@ product MSI RT2573_1		0x6874	RT2573
 product MSI RT2573_2		0x6877	RT2573
 product MSI RT3070_4		0x6899	RT3070
 product MSI RT3070_5		0x821a	RT3070
+product MSI RT3070_10		0x822a	RT3070
 product MSI RT3070_6		0x870a	RT3070
+product MSI RT3070_11		0x871a	RT3070
 product MSI RT3070_7		0x899a	RT3070
 product MSI RT2573_3		0xa861	RT2573
 product MSI RT2573_4		0xa874	RT2573
-
-/* Microdia products */
-product MICRODIA TWINKLECAM	0x600d	TwinkleCam USB camera
 
 /* Microsoft products */
 product MICROSOFT SIDEPREC	0x0008	SideWinder Precision Pro
@@ -2032,6 +2058,7 @@ product MICROSOFT WLNOTEBOOK2	0x00e1	Wireless Optical Mouse 3000 (Model 1056)
 product MICROSOFT WLNOTEBOOK3	0x00d2	Wireless Optical Mouse 3000 (Model 1049)
 product MICROSOFT WLUSBMOUSE	0x00b9	Wireless USB Mouse
 product MICROSOFT XBOX360	0x0292	XBOX 360 WLAN
+product MICROSOFT NATURAL4000	0x00db	Natural Ergonomic Keyboard 4000
 
 /* Microtech products */
 product MICROTECH SCSIDB25	0x0004	USB-SCSI-DB25
@@ -2089,6 +2116,8 @@ product MOTOROLA2 A41XV32X	0x2a22	A41x/V32x Mobile Phones
 product MOTOROLA2 E398		0x4810	E398 Mobile Phone
 product MOTOROLA2 USBLAN	0x600c	USBLAN
 product MOTOROLA2 USBLAN2	0x6027	USBLAN
+product MOTOROLA4 RT2770	0x9031	RT2770
+product MOTOROLA4 RT3070	0x9032	RT3070
 
 /* MultiTech products */
 product MULTITECH ATLAS		0xf101	MT5634ZBA-USB modem
@@ -2101,6 +2130,7 @@ product MUSTEK 1200UB		0x0006	1200 UB scanner
 product MUSTEK 1200USBPLUS	0x0007	1200 USB Plus scanner
 product MUSTEK 1200CUPLUS	0x0008	1200 CU Plus scanner
 product MUSTEK BEARPAW1200F	0x0010	BearPaw 1200F scanner
+product MUSTEK BEARPAW2400TA	0x0218	BearPaw 2400TA scanner
 product MUSTEK BEARPAW1200TA	0x021e	BearPaw 1200TA scanner
 product MUSTEK 600USB		0x0873	600 USB scanner
 product MUSTEK MDC800		0xa800	MDC-800 digital camera
@@ -2259,6 +2289,9 @@ product OPTION MODHSXPA		0xd013	Globetrotter HSUPA
 product OPTION ICON321		0xd031	Globetrotter HSUPA
 product OPTION ICON505		0xd055	Globetrotter iCON 505
 
+/* OvisLink product */
+product OVISLINK RT3072		0x3072	RT3072
+
 /* OQO */
 product OQO WIFI01		0x0002	model 01 WiFi interface
 product OQO BT01		0x0003	model 01 Bluetooth interface
@@ -2293,6 +2326,7 @@ product PARA RT3070		0x8888	RT3070
 product PEGATRON RT2870		0x0002	RT2870
 product PEGATRON RT3070		0x000c	RT3070
 product PEGATRON RT3070_2	0x000e	RT3070
+product PEGATRON RT3070_3	0x0010	RT3070
 
 /* Peracom products */
 product PERACOM SERIAL1		0x0001	Serial
@@ -2382,6 +2416,7 @@ product PROLIFIC PL2303		0x2303	PL2303 Serial (ATEN/IOGEAR UC232A)
 product PROLIFIC PL2305		0x2305	Parallel printer
 product PROLIFIC ATAPI4		0x2307	ATAPI-4 Controller
 product PROLIFIC PL2501		0x2501	PL2501 Host-Host interface
+product PROLIFIC PL2506		0x2506	PL2506 USB to IDE Bridge
 product PROLIFIC PHAROS		0xaaa0	Prolific Pharos
 product PROLIFIC RSAQ3		0xaaa2	PL2303 Serial Adapter (IODATA USB-RSAQ3)
 product PROLIFIC2 WSIM		0x2001	Willcom WSIM
@@ -2482,12 +2517,14 @@ product QUALCOMMINC E2003	0x2003	3G modem
 
 /* Quanta products */
 /* Quanta products */
+product QUANTA RW6815_1		0x00ce	HP iPAQ rw6815
 product QUANTA RT3070		0x0304	RT3070
 product QUANTA Q101		0xea02	HSDPA modem
 product QUANTA Q111		0xea03	HSDPA modem
 product QUANTA GLX		0xea04	HSDPA modem
 product QUANTA GKE		0xea05	HSDPA modem
 product QUANTA GLE		0xea06	HSDPA modem
+product QUANTA RW6815_2		0xf003	HP iPAQ rw6815
 
 /* Qtronix products */
 product QTRONIX 980N		0x2011	Scorpion-980N keyboard
@@ -2512,7 +2549,9 @@ product RALINK RT2870		0x2870	RT2870
 product RALINK RT3070		0x3070	RT3070
 product RALINK RT3071		0x3071	RT3071
 product RALINK RT3072		0x3072	RT3072
+product RALINK RT3370		0x3370	RT3370
 product RALINK RT3572		0x3572	RT3572
+product RALINK RT8070		0x8070	RT8070
 product RALINK RT2570_3		0x9020	RT2500USB Wireless Adapter
 product RALINK RT2573_2		0x9021	RT2501USB Wireless Adapter
 
@@ -2693,6 +2732,7 @@ product SIERRA AIRCARD875	0x6820	Aircard 875 HSDPA
 product SIERRA TRUINSTALL	0x0fff	Aircard Tru Installer
 
 /* Sigmatel products */
+product SIGMATEL WBT_3052	0x4200	WBT-3052 IrDA/USB Bridge
 product SIGMATEL I_BEAD100	0x8008	i-Bead 100 MP3 Player
 
 /* SIIG products */
@@ -2749,6 +2789,7 @@ product SITECOMEU RT3070_3	0x003c	RT3070
 product SITECOMEU RT3070_4	0x003d	RT3070
 product SITECOMEU RT3070	0x003e	RT3070
 product SITECOMEU WL608		0x003f	WL-608
+product SITECOMEU RT3071	0x0040	RT3071
 product SITECOMEU RT3072_1	0x0041	RT3072
 product SITECOMEU RT3072_2	0x0042	RT3072
 product SITECOMEU RT3072_3	0x0047	RT3072
@@ -2775,6 +2816,7 @@ product SMC 2202USB		0x0200	10/100 Ethernet
 product SMC 2206USB		0x0201	EZ Connect USB Ethernet
 product SMC 2862WG		0xee13	EZ Connect Wireless Adapter
 product SMC2 2020HUB		0x2020	USB Hub
+product SMC2 2514HUB		0x2514	USB Hub
 product SMC3 2662WUSB		0xa002	2662W-AR Wireless
 
 /* SOHOware products */
@@ -2884,6 +2926,7 @@ product SURECOM RT2573		0x31f3	RT2573
 
 /* Sweex products */
 product SWEEX ZD1211		0x1809	ZD1211
+product SWEEX2 LW153		0x0153	LW153
 product SWEEX2 LW303		0x0302	LW303
 product SWEEX2 LW313		0x0313	LW313
 
@@ -2939,6 +2982,7 @@ product TOPRE HHKB		0x0100	HHKB Professional
 
 /* Toshiba Corporation products */
 product TOSHIBA POCKETPC_E740	0x0706	PocketPC e740
+product TOSHIBA RT3070		0x0a07	RT3070
 product TOSHIBA G450		0x0d45	G450 modem
 product TOSHIBA HSDPA		0x1302	G450 modem
 
@@ -2986,6 +3030,9 @@ product UMEDIA AR5523_2_NF	0x3206	AR5523 (no firmware)
 
 /* Universal Access products */
 product UNIACCESS PANACHE	0x0101	Panache Surf USB ISDN Adapter
+
+/* Unknown vendors */
+product UNKNOWN4 USBMEMSTICK	0x6025	Flash Disk CBM
 
 /* U.S. Robotics products */
 product USR USR5423		0x0121	USR5423 WLAN
@@ -3119,3 +3166,4 @@ product ZYXEL M202		0x340a	M-202
 product ZYXEL G220V2		0x340f	G-220 v2
 product ZYXEL G202		0x3410	G-202
 product ZYXEL RT2870_1		0x3416	RT2870
+product ZYXEL RT2870_2		0x341a	RT2870

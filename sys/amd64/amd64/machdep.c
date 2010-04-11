@@ -128,7 +128,7 @@ __FBSDID("$FreeBSD$");
 #endif
 
 #ifdef DEV_ATPIC
-#include <amd64/isa/icu.h>
+#include <x86/isa/icu.h>
 #else
 #include <machine/apicvar.h>
 #endif
@@ -841,11 +841,7 @@ SYSCTL_PROC(_machdep, OID_AUTO, idle, CTLTYPE_STRING | CTLFLAG_RW, 0, 0,
  * Reset registers to default values on exec.
  */
 void
-exec_setregs(td, entry, stack, ps_strings)
-	struct thread *td;
-	u_long entry;
-	u_long stack;
-	u_long ps_strings;
+exec_setregs(struct thread *td, struct image_params *imgp, u_long stack)
 {
 	struct trapframe *regs = td->td_frame;
 	struct pcb *pcb = td->td_pcb;
@@ -863,7 +859,7 @@ exec_setregs(td, entry, stack, ps_strings)
 	pcb->pcb_full_iret = 1;
 
 	bzero((char *)regs, sizeof(struct trapframe));
-	regs->tf_rip = entry;
+	regs->tf_rip = imgp->entry_addr;
 	regs->tf_rsp = ((stack - 8) & ~0xFul) + 8;
 	regs->tf_rdi = stack;		/* argv */
 	regs->tf_rflags = PSL_USER | (regs->tf_rflags & PSL_T);
