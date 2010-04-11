@@ -155,7 +155,9 @@ void		iwn4965_update_sched(struct iwn_softc *, int, int, uint8_t,
 		    uint16_t);
 void		iwn5000_update_sched(struct iwn_softc *, int, int, uint8_t,
 		    uint16_t);
+#ifdef notyet
 void		iwn5000_reset_sched(struct iwn_softc *, int, int);
+#endif
 static uint8_t	iwn_plcp_signal(int);
 int		iwn_tx_data(struct iwn_softc *, struct mbuf *,
 		    struct ieee80211_node *, struct iwn_tx_ring *);
@@ -2818,6 +2820,7 @@ iwn5000_update_sched(struct iwn_softc *sc, int qid, int idx, uint8_t id,
 	}
 }
 
+#ifdef notyet
 void
 iwn5000_reset_sched(struct iwn_softc *sc, int qid, int idx)
 {
@@ -2832,6 +2835,7 @@ iwn5000_reset_sched(struct iwn_softc *sc, int qid, int idx)
 		    BUS_DMASYNC_PREWRITE);
 	}
 }
+#endif
 
 static uint8_t
 iwn_plcp_signal(int rate) {
