@@ -89,7 +89,7 @@ lafe_exclude_from_file(struct lafe_matching **matching, const char *pathname)
 	const char *p;
 	int ret = 0;
 
-	lr = lafe_line_reader(pathname, '\n');
+	lr = lafe_line_reader(pathname, 0);
 	while ((p = lafe_line_reader_next(lr)) != NULL) {
 		if (lafe_exclude(matching, p) != 0)
 			ret = -1;
