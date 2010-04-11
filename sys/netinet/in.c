@@ -1357,8 +1357,12 @@ in_lltable_prefix_free(struct lltable *llt,
 
 			if (IN_ARE_MASKED_ADDR_EQUAL((struct sockaddr_in *)L3_ADDR(lle), 
 						     pfx, msk)) {
-				callout_drain(&lle->la_timer);
+				int canceled;
+
+				canceled = callout_drain(&lle->la_timer);
 				LLE_WLOCK(lle);
+				if (canceled)
+					LLE_REMREF(lle);
 				llentry_free(lle);
 			}
 		}
