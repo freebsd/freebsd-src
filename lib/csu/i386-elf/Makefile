@@ -1,13 +1,6 @@
 # $FreeBSD$
 
-.include <bsd.own.mk>
-
 .PATH: ${.CURDIR}/../common
-
-# XXX: prevents infinite loop on startup
-.if ${MK_CLANG_IS_CC} != "no" && ${CC} == "cc"
-CC=		gcc
-.endif
 
 SRCS=		crti.S crtn.S
 FILES=		${SRCS:N*.h:R:S/$/.o/g} gcrt1.o crt1.o Scrt1.o
