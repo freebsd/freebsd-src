@@ -403,6 +403,10 @@ pmcpl_ct_node_dumptop(int pmcin, struct pmcpl_ct_node *ct,
 	    &pmcin, pmcpl_ct_arc_compare);
 
 	for (i = 0; i < ct->pct_narc; i++) {
+		/* Skip this arc if there is no sample at all. */
+		if (PMCPL_CT_SAMPLE(pmcin,
+		    &ct->pct_arc[i].pcta_samples) == 0)
+			continue;
 		if (PMCPL_CT_SAMPLEP(pmcin,
 		    &ct->pct_arc[i].pcta_samples) > pmcstat_threshold) {
 			if (pmcpl_ct_node_dumptop(pmcin,
@@ -516,6 +520,10 @@ pmcpl_ct_topdisplay(void)
 
 		x = y = 0;
 		for (i = 0; i < pmcpl_ct_root->pct_narc; i++) {
+			/* Skip this arc if there is no sample at all. */
+			if (PMCPL_CT_SAMPLE(pmcin,
+			    &pmcpl_ct_root->pct_arc[i].pcta_samples) == 0)
+				continue;
 			if (pmcpl_ct_node_dumptop(pmcin,
 			        pmcpl_ct_root->pct_arc[i].pcta_child,
 			        &rsamples, x, &y, pmcstat_displayheight - 2)) {
@@ -693,6 +701,7 @@ pmcpl_ct_process(struct pmcstat_process *pp, struct pmcstat_pmcrecord *pmcr,
 	}
 	if (n-- == 0) {
 		pmcstat_stats.ps_callchain_dubious_frames++;
+		pmcr->pr_dubious_frames++;
 		return;
 	}
 
