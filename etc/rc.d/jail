@@ -18,6 +18,8 @@
 
 name="jail"
 rcvar=`set_rcvar`
+
+start_precmd="jail_prestart"
 start_cmd="jail_start"
 stop_cmd="jail_stop"
 
@@ -545,6 +547,13 @@ jail_ips()
 	done
 }
 
+jail_prestart()
+{
+	if checkyesno jail_parallel_start; then
+		command_args='&'
+	fi
+}
+
 jail_start()
 {
 	echo -n 'Configuring jails:'
@@ -636,7 +645,8 @@ jail_start()
 		done
 
 		eval ${_setfib} jail ${_flags} -i ${_rootdir} ${_hostname} \
-			\"${_addrl}\" ${_exec_start} > ${_tmp_jail} 2>&1
+			\"${_addrl}\" ${_exec_start} > ${_tmp_jail} 2>&1 \
+			</dev/null
 
 		if [ "$?" -eq 0 ] ; then
 			_jail_id=$(head -1 ${_tmp_jail})
@@ -728,4 +738,5 @@ fi
 if [ -n "$*" ]; then
 	jail_list="$*"
 fi
-run_rc_command "${cmd}" &
+
+run_rc_command "${cmd}"

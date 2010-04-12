@@ -15,7 +15,7 @@ $FreeBSD$
  		    INT_STRLEN_BOUND (time_t) + 11)];
        struct tm const *tm = localtime (&inf->stat.st_mtime);
 -      int nsec = TIMESPEC_NS (inf->stat.st_mtim);
-+      long nsec = TIMESPEC_NS (inf->stat.st_mtimespec);
++      long nsec = TIMESPEC_NS (inf->stat.st_mtim);
        if (! (tm && nstrftime (buf, sizeof buf, time_format, tm, 0, nsec)))
  	{
 -	  long int sec = inf->stat.st_mtime;
