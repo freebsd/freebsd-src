@@ -2,6 +2,191 @@
  OpenSSL CHANGES
  _______________
 
+ Changes between 0.9.8m and 0.9.8n [24 Mar 2010]
+
+  *) When rejecting SSL/TLS records due to an incorrect version number, never
+     update s->server with a new major version number.  As of
+     - OpenSSL 0.9.8m if 'short' is a 16-bit type,
+     - OpenSSL 0.9.8f if 'short' is longer than 16 bits,
+     the previous behavior could result in a read attempt at NULL when
+     receiving specific incorrect SSL/TLS records once record payload
+     protection is active.  (CVE-2010-0740)
+     [Bodo Moeller, Adam Langley <agl@chromium.org>]
+
+  *) Fix for CVE-2010-0433 where some kerberos enabled versions of OpenSSL 
+     could be crashed if the relevant tables were not present (e.g. chrooted).
+     [Tomas Hoger <thoger@redhat.com>]
+
+ Changes between 0.9.8l and 0.9.8m [25 Feb 2010]
+
+  *) Always check bn_wexpend() return values for failure.  (CVE-2009-3245)
+     [Martin Olsson, Neel Mehta]
+
+  *) Fix X509_STORE locking: Every 'objs' access requires a lock (to
+     accommodate for stack sorting, always a write lock!).
+     [Bodo Moeller]
+
+  *) On some versions of WIN32 Heap32Next is very slow. This can cause
+     excessive delays in the RAND_poll(): over a minute. As a workaround
+     include a time check in the inner Heap32Next loop too.
+     [Steve Henson]
+
+  *) The code that handled flushing of data in SSL/TLS originally used the
+     BIO_CTRL_INFO ctrl to see if any data was pending first. This caused
+     the problem outlined in PR#1949. The fix suggested there however can
+     trigger problems with buggy BIO_CTRL_WPENDING (e.g. some versions
+     of Apache). So instead simplify the code to flush unconditionally.
+     This should be fine since flushing with no data to flush is a no op.
+     [Steve Henson]
+
+  *) Handle TLS versions 2.0 and later properly and correctly use the
+     highest version of TLS/SSL supported. Although TLS >= 2.0 is some way
+     off ancient servers have a habit of sticking around for a while...
+     [Steve Henson]
+
+  *) Modify compression code so it frees up structures without using the
+     ex_data callbacks. This works around a problem where some applications
+     call CRYPTO_cleanup_all_ex_data() before application exit (e.g. when
+     restarting) then use compression (e.g. SSL with compression) later.
+     This results in significant per-connection memory leaks and
+     has caused some security issues including CVE-2008-1678 and
+     CVE-2009-4355.
+     [Steve Henson]
+
+  *) Constify crypto/cast (i.e., <openssl/cast.h>): a CAST_KEY doesn't
+     change when encrypting or decrypting.
+     [Bodo Moeller]
+
+  *) Add option SSL_OP_LEGACY_SERVER_CONNECT which will allow clients to
+     connect and renegotiate with servers which do not support RI.
+     Until RI is more widely deployed this option is enabled by default.
+     [Steve Henson]
+
+  *) Add "missing" ssl ctrls to clear options and mode.
+     [Steve Henson]
+
+  *) If client attempts to renegotiate and doesn't support RI respond with
+     a no_renegotiation alert as required by RFC5746.  Some renegotiating
+     TLS clients will continue a connection gracefully when they receive
+     the alert. Unfortunately OpenSSL mishandled this alert and would hang
+     waiting for a server hello which it will never receive. Now we treat a
+     received no_renegotiation alert as a fatal error. This is because
+     applications requesting a renegotiation might well expect it to succeed
+     and would have no code in place to handle the server denying it so the
+     only safe thing to do is to terminate the connection.
+     [Steve Henson]
+
+  *) Add ctrl macro SSL_get_secure_renegotiation_support() which returns 1 if
+     peer supports secure renegotiation and 0 otherwise. Print out peer
+     renegotiation support in s_client/s_server.
+     [Steve Henson]
+
+  *) Replace the highly broken and deprecated SPKAC certification method with
+     the updated NID creation version. This should correctly handle UTF8.
+     [Steve Henson]
+
+  *) Implement RFC5746. Re-enable renegotiation but require the extension
+     as needed. Unfortunately, SSL3_FLAGS_ALLOW_UNSAFE_LEGACY_RENEGOTIATION
+     turns out to be a bad idea. It has been replaced by
+     SSL_OP_ALLOW_UNSAFE_LEGACY_RENEGOTIATION which can be set with
+     SSL_CTX_set_options(). This is really not recommended unless you
+     know what you are doing.
+     [Eric Rescorla <ekr@networkresonance.com>, Ben Laurie, Steve Henson]
+
+  *) Fixes to stateless session resumption handling. Use initial_ctx when
+     issuing and attempting to decrypt tickets in case it has changed during
+     servername handling. Use a non-zero length session ID when attempting
+     stateless session resumption: this makes it possible to determine if
+     a resumption has occurred immediately after receiving server hello
+     (several places in OpenSSL subtly assume this) instead of later in
+     the handshake.
+     [Steve Henson]
+
+  *) The functions ENGINE_ctrl(), OPENSSL_isservice(),
+     CMS_get1_RecipientRequest() and RAND_bytes() can return <=0 on error
+     fixes for a few places where the return code is not checked
+     correctly.
+     [Julia Lawall <julia@diku.dk>]
+
+  *) Add --strict-warnings option to Configure script to include devteam
+     warnings in other configurations.
+     [Steve Henson]
+
+  *) Add support for --libdir option and LIBDIR variable in makefiles. This
+     makes it possible to install openssl libraries in locations which
+     have names other than "lib", for example "/usr/lib64" which some
+     systems need.
+     [Steve Henson, based on patch from Jeremy Utley]
+
+  *) Don't allow the use of leading 0x80 in OIDs. This is a violation of
+     X690 8.9.12 and can produce some misleading textual output of OIDs.
+     [Steve Henson, reported by Dan Kaminsky]
+
+  *) Delete MD2 from algorithm tables. This follows the recommendation in
+     several standards that it is not used in new applications due to
+     several cryptographic weaknesses. For binary compatibility reasons
+     the MD2 API is still compiled in by default.
+     [Steve Henson]
+
+  *) Add compression id to {d2i,i2d}_SSL_SESSION so it is correctly saved
+     and restored.
+     [Steve Henson]
+
+  *) Rename uni2asc and asc2uni functions to OPENSSL_uni2asc and
+     OPENSSL_asc2uni conditionally on Netware platforms to avoid a name
+     clash.
+     [Guenter <lists@gknw.net>]
+
+  *) Fix the server certificate chain building code to use X509_verify_cert(),
+     it used to have an ad-hoc builder which was unable to cope with anything
+     other than a simple chain.
+     [David Woodhouse <dwmw2@infradead.org>, Steve Henson]
+
+  *) Don't check self signed certificate signatures in X509_verify_cert()
+     by default (a flag can override this): it just wastes time without
+     adding any security. As a useful side effect self signed root CAs
+     with non-FIPS digests are now usable in FIPS mode.
+     [Steve Henson]
+
+  *) In dtls1_process_out_of_seq_message() the check if the current message
+     is already buffered was missing. For every new message was memory
+     allocated, allowing an attacker to perform an denial of service attack
+     with sending out of seq handshake messages until there is no memory
+     left. Additionally every future messege was buffered, even if the
+     sequence number made no sense and would be part of another handshake.
+     So only messages with sequence numbers less than 10 in advance will be
+     buffered.  (CVE-2009-1378)
+     [Robin Seggelmann, discovered by Daniel Mentz] 	
+
+  *) Records are buffered if they arrive with a future epoch to be
+     processed after finishing the corresponding handshake. There is
+     currently no limitation to this buffer allowing an attacker to perform
+     a DOS attack with sending records with future epochs until there is no
+     memory left. This patch adds the pqueue_size() function to detemine
+     the size of a buffer and limits the record buffer to 100 entries.
+     (CVE-2009-1377)
+     [Robin Seggelmann, discovered by Daniel Mentz] 	
+
+  *) Keep a copy of frag->msg_header.frag_len so it can be used after the
+     parent structure is freed.  (CVE-2009-1379)
+     [Daniel Mentz] 	
+
+  *) Handle non-blocking I/O properly in SSL_shutdown() call.
+     [Darryl Miles <darryl-mailinglists@netbauds.net>]
+
+  *) Add 2.5.4.* OIDs
+     [Ilya O. <vrghost@gmail.com>]
+
+ Changes between 0.9.8k and 0.9.8l  [5 Nov 2009]
+
+  *) Disable renegotiation completely - this fixes a severe security
+     problem (CVE-2009-3555) at the cost of breaking all
+     renegotiation. Renegotiation can be re-enabled by setting
+     SSL3_FLAGS_ALLOW_UNSAFE_LEGACY_RENEGOTIATION in s3->flags at
+     run-time. This is really not recommended unless you know what
+     you're doing.
+     [Ben Laurie]
+
  Changes between 0.9.8j and 0.9.8k  [25 Mar 2009]
 
   *) Don't set val to NULL when freeing up structures, it is freed up by
@@ -85,6 +270,10 @@
      [Bodo Moeller]
 
  Changes between 0.9.8h and 0.9.8i  [15 Sep 2008]
+
+  *) Fix NULL pointer dereference if a DTLS server received
+     ChangeCipherSpec as first record (CVE-2009-1386).
+     [PR #1679]
 
   *) Fix a state transitition in s3_srvr.c and d1_srvr.c
      (was using SSL3_ST_CW_CLNT_HELLO_B, should be ..._ST_SW_SRVR_...).
@@ -1488,19 +1677,6 @@
      bn_sub_words() and bn_add_words() except they take arrays with
      differing sizes.
      [Richard Levitte]
-
- Changes between 0.9.7m and 0.9.7n  [xx XXX xxxx]
-
-  *) In the SSL/TLS server implementation, be strict about session ID
-     context matching (which matters if an application uses a single
-     external cache for different purposes).  Previously,
-     out-of-context reuse was forbidden only if SSL_VERIFY_PEER was
-     set.  This did ensure strict client verification, but meant that,
-     with applications using a single external cache for quite
-     different requirements, clients could circumvent ciphersuite
-     restrictions for a given session ID context by starting a session
-     in a different context.
-     [Bodo Moeller]
 
  Changes between 0.9.7l and 0.9.7m  [23 Feb 2007]
 

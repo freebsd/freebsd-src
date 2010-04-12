@@ -91,6 +91,7 @@ STATIC void evalloop(union node *, int);
 STATIC void evalfor(union node *, int);
 STATIC void evalcase(union node *, int);
 STATIC void evalsubshell(union node *, int);
+STATIC void evalredir(union node *, int);
 STATIC void expredir(union node *);
 STATIC void evalpipe(union node *);
 STATIC void evalcommand(union node *, int, struct backcmd *);
@@ -221,10 +222,7 @@ evaltree(union node *n, int flags)
 		evaltree(n->nbinary.ch2, flags);
 		break;
 	case NREDIR:
-		expredir(n->nredir.redirect);
-		redirect(n->nredir.redirect, REDIR_PUSH);
-		evaltree(n->nredir.n, flags);
-		popredir();
+		evalredir(n, flags);
 		break;
 	case NSUBSHELL:
 		evalsubshell(n, flags);
@@ -415,6 +413,46 @@ evalsubshell(union node *n, int flags)
 }
 
 
+/*
+ * Evaluate a redirected compound command.
+ */
+
+STATIC void
+evalredir(union node *n, int flags)
+{
+	struct jmploc jmploc;
+	struct jmploc *savehandler;
+	volatile int in_redirect = 1;
+
+	expredir(n->nredir.redirect);
+	savehandler = handler;
+	if (setjmp(jmploc.loc)) {
+		int e;
+
+		handler = savehandler;
+		e = exception;
+		if (e == EXERROR || e == EXEXEC) {
+			popredir();
+			if (in_redirect) {
+				exitstatus = 2;
+				return;
+			}
+		}
+		longjmp(handler->loc, 1);
+	} else {
+		INTOFF;
+		handler = &jmploc;
+		redirect(n->nredir.redirect, REDIR_PUSH);
+		in_redirect = 0;
+		INTON;
+		evaltree(n->nredir.n, flags);
+	}
+	INTOFF;
+	handler = savehandler;
+	popredir();
+	INTON;
+}
+
 
 /*
  * Compute the names of the files in a redirection list.
@@ -597,6 +635,7 @@ evalcommand(union node *cmd, int flags, struct backcmd *backcmd)
 	char *lastarg;
 	int realstatus;
 	int do_clearcmdentry;
+	char *path = pathval();
 
 	/* First expand the arguments. */
 	TRACE(("evalcommand(%p, %d) called\n", (void *)cmd, flags));
@@ -679,10 +718,10 @@ evalcommand(union node *cmd, int flags, struct backcmd *backcmd)
 		/* Variable assignment(s) without command */
 		cmdentry.cmdtype = CMDBUILTIN;
 		cmdentry.u.index = BLTINCMD;
-		cmdentry.special = 1;
+		cmdentry.special = 0;
 	} else {
 		static const char PATH[] = "PATH=";
-		char *path = pathval();
+		int cmd_flags = 0, bltinonly = 0;
 
 		/*
 		 * Modify the command lookup path, if a PATH= assignment
@@ -713,24 +752,68 @@ evalcommand(union node *cmd, int flags, struct backcmd *backcmd)
 				do_clearcmdentry = 1;
 			}
 
-		find_command(argv[0], &cmdentry, 0, path);
-		/* implement the bltin builtin here */
-		if (cmdentry.cmdtype == CMDBUILTIN && cmdentry.u.index == BLTINCMD) {
-			for (;;) {
-				argv++;
-				if (--argc == 0)
-					break;
-				if ((cmdentry.u.index = find_builtin(*argv,
-				    &cmdentry.special)) < 0) {
+		for (;;) {
+			if (bltinonly) {
+				cmdentry.u.index = find_builtin(*argv, &cmdentry.special);
+				if (cmdentry.u.index < 0) {
 					cmdentry.u.index = BLTINCMD;
 					argv--;
 					argc++;
 					break;
 				}
-				if (cmdentry.u.index != BLTINCMD)
+			} else
+				find_command(argv[0], &cmdentry, cmd_flags, path);
+			/* implement the bltin and command builtins here */
+			if (cmdentry.cmdtype != CMDBUILTIN)
+				break;
+			if (cmdentry.u.index == BLTINCMD) {
+				if (argc == 1)
 					break;
-			}
+				argv++;
+				argc--;
+				bltinonly = 1;
+			} else if (cmdentry.u.index == COMMANDCMD) {
+				if (argc == 1)
+					break;
+				if (!strcmp(argv[1], "-p")) {
+					if (argc == 2)
+						break;
+					if (argv[2][0] == '-') {
+						if (strcmp(argv[2], "--"))
+							break;
+						if (argc == 3)
+							break;
+						argv += 3;
+						argc -= 3;
+					} else {
+						argv += 2;
+						argc -= 2;
+					}
+					path = _PATH_STDPATH;
+					clearcmdentry(0);
+					do_clearcmdentry = 1;
+				} else if (!strcmp(argv[1], "--")) {
+					if (argc == 2)
+						break;
+					argv += 2;
+					argc -= 2;
+				} else if (argv[1][0] == '-')
+					break;
+				else {
+					argv++;
+					argc--;
+				}
+				cmd_flags |= DO_NOFUNC;
+				bltinonly = 0;
+			} else
+				break;
 		}
+		/*
+		 * Special builtins lose their special properties when
+		 * called via 'command'.
+		 */
+		if (cmd_flags & DO_NOFUNC)
+			cmdentry.special = 0;
 	}
 
 	/* Fork off a child process if necessary. */
@@ -741,9 +824,7 @@ evalcommand(union node *cmd, int flags, struct backcmd *backcmd)
 	    && (cmdentry.cmdtype != CMDBUILTIN
 		 || cmdentry.u.index == CDCMD
 		 || cmdentry.u.index == DOTCMD
-		 || cmdentry.u.index == EVALCMD))
-	 || (cmdentry.cmdtype == CMDBUILTIN &&
-	    cmdentry.u.index == COMMANDCMD)) {
+		 || cmdentry.u.index == EVALCMD))) {
 		jp = makejob(cmd, 1);
 		mode = cmd->ncmd.backgnd;
 		if (flags & EV_BACKCMD) {
@@ -770,7 +851,6 @@ evalcommand(union node *cmd, int flags, struct backcmd *backcmd)
 #ifdef DEBUG
 		trputs("Shell function:  ");  trargs(argv);
 #endif
-		redirect(cmd->ncmd.redirect, REDIR_PUSH);
 		saveparam = shellparam;
 		shellparam.malloc = 0;
 		shellparam.reset = 1;
@@ -788,6 +868,8 @@ evalcommand(union node *cmd, int flags, struct backcmd *backcmd)
 			else {
 				freeparam(&shellparam);
 				shellparam = saveparam;
+				if (exception == EXERROR || exception == EXEXEC)
+					popredir();
 			}
 			unreffunc(cmdentry.u.func);
 			poplocalvars();
@@ -798,6 +880,7 @@ evalcommand(union node *cmd, int flags, struct backcmd *backcmd)
 		}
 		handler = &jmploc;
 		funcnest++;
+		redirect(cmd->ncmd.redirect, REDIR_PUSH);
 		INTON;
 		for (sp = varlist.list ; sp ; sp = sp->next)
 			mklocal(sp->text);
@@ -846,6 +929,12 @@ evalcommand(union node *cmd, int flags, struct backcmd *backcmd)
 		}
 		handler = &jmploc;
 		redirect(cmd->ncmd.redirect, mode);
+		/*
+		 * If there is no command word, redirection errors should
+		 * not be fatal but assignment errors should.
+		 */
+		if (argc == 0 && !(flags & EV_BACKCMD))
+			cmdentry.special = 1;
 		if (cmdentry.special)
 			listsetvar(cmdenviron);
 		commandname = argv[0];
@@ -871,6 +960,9 @@ cmddone:
 			backcmd->nleft = memout.nextc - memout.buf;
 			memout.buf = NULL;
 		}
+		if (cmdentry.u.index != EXECCMD &&
+				(e == -1 || e == EXERROR || e == EXEXEC))
+			popredir();
 		if (e != -1) {
 			if ((e != EXERROR && e != EXEXEC)
 			    || cmdentry.special)
@@ -879,8 +971,6 @@ cmddone:
 			if (flags != EV_BACKCMD)
 				FORCEINTON;
 		}
-		if (cmdentry.u.index != EXECCMD)
-			popredir();
 	} else {
 #ifdef DEBUG
 		trputs("normal command:  ");  trargs(argv);
@@ -889,7 +979,7 @@ cmddone:
 		for (sp = varlist.list ; sp ; sp = sp->next)
 			setvareq(sp->text, VEXPORT|VSTACK);
 		envp = environment();
-		shellexec(argv, envp, pathval(), cmdentry.u.index);
+		shellexec(argv, envp, path, cmdentry.u.index);
 		/*NOTREACHED*/
 	}
 	goto out;
@@ -996,15 +1086,11 @@ int
 commandcmd(int argc, char **argv)
 {
 	static char stdpath[] = _PATH_STDPATH;
-	struct jmploc loc, *old;
-	struct strlist *sp;
 	char *path;
 	int ch;
 	int cmd = -1;
 
-	for (sp = cmdenviron; sp ; sp = sp->next)
-		setvareq(sp->text, VEXPORT|VSTACK);
-	path = pathval();
+	path = bltinlookup("PATH", 1);
 
 	optind = optreset = 1;
 	opterr = 0;
@@ -1032,22 +1118,14 @@ commandcmd(int argc, char **argv)
 			error("wrong number of arguments");
 		return typecmd_impl(2, argv - 1, cmd, path);
 	}
-	if (argc != 0) {
-		old = handler;
-		handler = &loc;
-		if (setjmp(handler->loc) == 0)
-			shellexec(argv, environment(), path, 0);
-		handler = old;
-		if (exception == EXEXEC)
-			exit(exerrno);
-		exraise(exception);
-	}
+	if (argc != 0)
+		error("commandcmd() called while it should not be");
 
 	/*
 	 * Do nothing successfully if no command was specified;
 	 * ksh also does this.
 	 */
-	exit(0);
+	return 0;
 }
 
 
