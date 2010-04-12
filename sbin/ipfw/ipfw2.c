@@ -231,7 +231,7 @@ static struct _s_x rule_action_params[] = {
  */
 static int lookup_key[] = {
 	TOK_DSTIP, TOK_SRCIP, TOK_DSTPORT, TOK_SRCPORT,
-	TOK_UID, TOK_JAIL, -1 };
+	TOK_UID, TOK_JAIL, TOK_DSCP, -1 };
 
 static struct _s_x rule_options[] = {
 	{ "tagged",		TOK_TAGGED },
@@ -258,6 +258,7 @@ static struct _s_x rule_options[] = {
 	{ "iplen",		TOK_IPLEN },
 	{ "ipid",		TOK_IPID },
 	{ "ipprecedence",	TOK_IPPRECEDENCE },
+	{ "dscp",		TOK_DSCP },
 	{ "iptos",		TOK_IPTOS },
 	{ "ipttl",		TOK_IPTTL },
 	{ "ipversion",		TOK_IPVER },
@@ -920,9 +921,9 @@ print_icmptypes(ipfw_insn_u32 *cmd)
 #define	HAVE_DSTIP	0x0004
 #define	HAVE_PROTO4	0x0008
 #define	HAVE_PROTO6	0x0010
+#define	HAVE_IP		0x0100
 #define	HAVE_OPTIONS	0x8000
 
-#define	HAVE_IP		(HAVE_PROTO | HAVE_SRCIP | HAVE_DSTIP)
 static void
 show_prerequisites(int *flags, int want, int cmd __unused)
 {
@@ -1023,7 +1024,9 @@ show_ipfw(struct ip_fw *rule, int pcwidth, int bcwidth)
 		switch(cmd->opcode) {
 		case O_CHECK_STATE:
 			printf("check-state");
-			flags = HAVE_IP; /* avoid printing anything else */
+			/* avoid printing anything else */
+			flags = HAVE_PROTO | HAVE_SRCIP |
+				HAVE_DSTIP | HAVE_IP;
 			break;
 
 		case O_ACCEPT:
@@ -1163,7 +1166,8 @@ show_ipfw(struct ip_fw *rule, int pcwidth, int bcwidth)
 			show_prerequisites(&flags, HAVE_PROTO, 0);
 			printf(" from any to any");
 		}
-		flags |= HAVE_IP | HAVE_OPTIONS;
+		flags |= HAVE_IP | HAVE_OPTIONS | HAVE_PROTO |
+			 HAVE_SRCIP | HAVE_DSTIP;
 	}
 
 	if (co.comment_only)
@@ -1252,9 +1256,12 @@ show_ipfw(struct ip_fw *rule, int pcwidth, int bcwidth)
 		break;
 
 		case O_IP_DSTPORT:
-			show_prerequisites(&flags, HAVE_IP, 0);
+			show_prerequisites(&flags,
+				HAVE_PROTO | HAVE_SRCIP |
+				HAVE_DSTIP | HAVE_IP, 0);
 		case O_IP_SRCPORT:
-			show_prerequisites(&flags, HAVE_PROTO|HAVE_SRCIP, 0);
+			show_prerequisites(&flags,
+				HAVE_PROTO | HAVE_SRCIP, 0);
 			if ((cmd->len & F_OR) && !or_block)
 				printf(" {");
 			if (cmd->len & F_NOT)
@@ -1275,7 +1282,8 @@ show_ipfw(struct ip_fw *rule, int pcwidth, int bcwidth)
 			if ((flags & (HAVE_PROTO4 | HAVE_PROTO6)) &&
 			    !(flags & HAVE_PROTO))
 				show_prerequisites(&flags,
-				    HAVE_IP | HAVE_OPTIONS, 0);
+				    HAVE_PROTO | HAVE_IP | HAVE_SRCIP |
+				    HAVE_DSTIP | HAVE_OPTIONS, 0);
 			if (flags & HAVE_OPTIONS)
 				printf(" proto");
 			if (pe)
@@ -1293,7 +1301,8 @@ show_ipfw(struct ip_fw *rule, int pcwidth, int bcwidth)
 				    ((cmd->opcode == O_IP4) &&
 				    (flags & HAVE_PROTO4)))
 					break;
-			show_prerequisites(&flags, HAVE_IP | HAVE_OPTIONS, 0);
+			show_prerequisites(&flags, HAVE_PROTO | HAVE_SRCIP |
+				    HAVE_DSTIP | HAVE_IP | HAVE_OPTIONS, 0);
 			if ((cmd->len & F_OR) && !or_block)
 				printf(" {");
 			if (cmd->len & F_NOT && cmd->opcode != O_IN)
@@ -1547,7 +1556,8 @@ show_ipfw(struct ip_fw *rule, int pcwidth, int bcwidth)
 			or_block = 0;
 		}
 	}
-	show_prerequisites(&flags, HAVE_IP, 0);
+	show_prerequisites(&flags, HAVE_PROTO | HAVE_SRCIP | HAVE_DSTIP
+				              | HAVE_IP, 0);
 	if (comment)
 		printf(" // %s", comment);
 	printf("\n");
@@ -1729,6 +1739,8 @@ ipfw_sysctl_handler(char *av[], int which)
 		warnx("missing keyword to enable/disable\n");
 	} else if (_substrcmp(*av, "firewall") == 0) {
 		sysctlbyname("net.inet.ip.fw.enable", NULL, 0,
+		    &which, sizeof(which));
+		sysctlbyname("net.inet6.ip6.fw.enable", NULL, 0,
 		    &which, sizeof(which));
 	} else if (_substrcmp(*av, "one_pass") == 0) {
 		sysctlbyname("net.inet.ip.fw.one_pass", NULL, 0,
@@ -2646,7 +2658,7 @@ ipfw_add(char *av[])
 	}
 
 	/* [set N]	-- set number (0..RESVD_SET), optional */
-	if (av[0] && !av[1] && _substrcmp(*av, "set") == 0) {
+	if (av[0] && av[1] && _substrcmp(*av, "set") == 0) {
 		int set = strtoul(av[1], NULL, 10);
 		if (set < 0 || set > RESVD_SET)
 			errx(EX_DATAERR, "illegal set %s", av[1]);
@@ -3519,7 +3531,7 @@ read_options:
 			char *p;
 			int j;
 
-			if (av[0] && av[1])
+			if (!av[0] || !av[1])
 				errx(EX_USAGE, "format: lookup argument tablenum");
 			cmd->opcode = O_IP_DST_LOOKUP;
 			cmd->len |= F_INSN_SIZE(ipfw_insn) + 2;
