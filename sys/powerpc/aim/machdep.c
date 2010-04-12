@@ -951,7 +951,7 @@ cpu_idle_wakeup(int cpu)
  * Set set up registers on exec.
  */
 void
-exec_setregs(struct thread *td, u_long entry, u_long stack, u_long ps_strings)
+exec_setregs(struct thread *td, struct image_params *imgp, u_long stack)
 {
 	struct trapframe	*tf;
 	struct ps_strings	arginfo;
@@ -995,7 +995,7 @@ exec_setregs(struct thread *td, u_long entry, u_long stack, u_long ps_strings)
 	tf->fixreg[7] = 0;			/* termination vector */
 	tf->fixreg[8] = (register_t)PS_STRINGS;	/* NetBSD extension */
 
-	tf->srr0 = entry;
+	tf->srr0 = imgp->entry_addr;
 	tf->srr1 = PSL_MBO | PSL_USERSET | PSL_FE_DFLT;
 	td->td_pcb->pcb_flags = 0;
 }

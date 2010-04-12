@@ -47,7 +47,6 @@ options 	PROCFS			# Process filesystem (requires PSEUDOFS)
 options 	PSEUDOFS		# Pseudo-filesystem framework
 options 	GEOM_PART_GPT		# GUID Partition Tables.
 options 	GEOM_LABEL		# Provides labelization
-options 	COMPAT_43TTY		# BSD 4.3 TTY compat (sgtty)
 options 	COMPAT_FREEBSD5		# Compatible with FreeBSD5
 options 	COMPAT_FREEBSD6		# Compatible with FreeBSD6
 options 	COMPAT_FREEBSD7		# Compatible with FreeBSD7
@@ -144,6 +143,9 @@ device		mk48txx		# Mostek MK48Txx clocks
 device		rtc		# rtc (really a front-end for the MC146818)
 device		mc146818	# Motorola MC146818 and compatible clocks
 device		epic		# Sun Fire V215/V245 LEDs
+device		sbbc		# Sun BootBus controller (time-of-day clock for
+				# Serengeti and StarCat, console for Serengeti,
+				# requires device uart)
 
 # Serial (COM) ports
 device		puc		# Multi-channel uarts
