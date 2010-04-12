@@ -566,6 +566,14 @@ trap(struct trapframe *frame)
 				frame->tf_gs = _ugssel;
 				goto out;
 			}
+			if (frame->tf_rip == (long)ld_gsbase) {
+				frame->tf_rip = (long)gsbase_load_fault;
+				goto out;
+			}
+			if (frame->tf_rip == (long)ld_fsbase) {
+				frame->tf_rip = (long)fsbase_load_fault;
+				goto out;
+			}
 			if (PCPU_GET(curpcb)->pcb_onfault != NULL) {
 				frame->tf_rip =
 				    (long)PCPU_GET(curpcb)->pcb_onfault;

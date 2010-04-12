@@ -173,9 +173,12 @@ newstat_copyout(struct stat *buf, void *ubuf)
 	tbuf.st_gid = buf->st_gid;
 	tbuf.st_rdev = buf->st_rdev;
 	tbuf.st_size = buf->st_size;
-	tbuf.st_atime = buf->st_atime;
-	tbuf.st_mtime = buf->st_mtime;
-	tbuf.st_ctime = buf->st_ctime;
+	tbuf.st_atim.tv_sec = buf->st_atim.tv_sec;
+	tbuf.st_atim.tv_nsec = buf->st_atim.tv_nsec;
+	tbuf.st_mtim.tv_sec = buf->st_mtim.tv_sec;
+	tbuf.st_mtim.tv_nsec = buf->st_mtim.tv_nsec;
+	tbuf.st_ctim.tv_sec = buf->st_ctim.tv_sec;
+	tbuf.st_ctim.tv_nsec = buf->st_ctim.tv_nsec;
 	tbuf.st_blksize = buf->st_blksize;
 	tbuf.st_blocks = buf->st_blocks;
 
@@ -260,9 +263,12 @@ stat_copyout(struct stat *buf, void *ubuf)
 		lbuf.st_size = buf->st_size;
 	else
 		lbuf.st_size = -2;
-	lbuf.st_atime = buf->st_atime;
-	lbuf.st_mtime = buf->st_mtime;
-	lbuf.st_ctime = buf->st_ctime;
+	lbuf.st_atim.tv_sec = buf->st_atim.tv_sec;
+	lbuf.st_atim.tv_nsec = buf->st_atim.tv_nsec;
+	lbuf.st_mtim.tv_sec = buf->st_mtim.tv_sec;
+	lbuf.st_mtim.tv_nsec = buf->st_mtim.tv_nsec;
+	lbuf.st_ctim.tv_sec = buf->st_ctim.tv_sec;
+	lbuf.st_ctim.tv_nsec = buf->st_ctim.tv_nsec;
 	lbuf.st_blksize = buf->st_blksize;
 	lbuf.st_blocks = buf->st_blocks;
 	lbuf.st_flags = buf->st_flags;
@@ -498,9 +504,12 @@ stat64_copyout(struct stat *buf, void *ubuf)
 	lbuf.st_gid = buf->st_gid;
 	lbuf.st_rdev = buf->st_rdev;
 	lbuf.st_size = buf->st_size;
-	lbuf.st_atime = buf->st_atime;
-	lbuf.st_mtime = buf->st_mtime;
-	lbuf.st_ctime = buf->st_ctime;
+	lbuf.st_atim.tv_sec = buf->st_atim.tv_sec;
+	lbuf.st_atim.tv_nsec = buf->st_atim.tv_nsec;
+	lbuf.st_mtim.tv_sec = buf->st_mtim.tv_sec;
+	lbuf.st_mtim.tv_nsec = buf->st_mtim.tv_nsec;
+	lbuf.st_ctim.tv_sec = buf->st_ctim.tv_sec;
+	lbuf.st_ctim.tv_nsec = buf->st_ctim.tv_nsec;
 	lbuf.st_blksize = buf->st_blksize;
 	lbuf.st_blocks = buf->st_blocks;
 

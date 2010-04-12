@@ -1086,7 +1086,7 @@ nfsrvd_mknod(struct nfsrv_descript *nd, __unused int isdgram,
 		case NFFIFO:
 			break;
 		case NFDIR:
-			cnflags = LOCKPARENT;
+			cnflags = (LOCKPARENT | SAVENAME);
 			break;
 		default:
 			nd->nd_repstat = NFSERR_BADTYPE;
@@ -1549,7 +1549,8 @@ nfsrvd_link(struct nfsrv_descript *nd, int isdgram,
 				NFSVOPUNLOCK(dp, 0, p);
 		}
 	}
-	NFSNAMEICNDSET(&named.ni_cnd, nd->nd_cred, CREATE, LOCKPARENT);
+	NFSNAMEICNDSET(&named.ni_cnd, nd->nd_cred, CREATE,
+	    LOCKPARENT | SAVENAME);
 	if (!nd->nd_repstat) {
 		nfsvno_setpathbuf(&named, &bufp, &hashp);
 		error = nfsrv_parsename(nd, bufp, hashp, &named.ni_pathlen);
@@ -1743,7 +1744,8 @@ nfsrvd_mkdir(struct nfsrv_descript *nd, __unused int isdgram,
 		nfsrv_wcc(nd, dirfor_ret, &dirfor, diraft_ret, &diraft);
 		return (0);
 	}
-	NFSNAMEICNDSET(&named.ni_cnd, nd->nd_cred, CREATE, LOCKPARENT);
+	NFSNAMEICNDSET(&named.ni_cnd, nd->nd_cred, CREATE,
+	    LOCKPARENT | SAVENAME);
 	nfsvno_setpathbuf(&named, &bufp, &hashp);
 	error = nfsrv_parsename(nd, bufp, hashp, &named.ni_pathlen);
 	if (error) {
@@ -2084,6 +2086,10 @@ nfsrvd_lock(struct nfsrv_descript *nd, __unused int isdgram,
 	if (flags & NFSLCK_OPENTOLOCK) {
 		NFSM_DISSECT(tl, u_int32_t *, 5 * NFSX_UNSIGNED + NFSX_STATEID);
 		i = fxdr_unsigned(int, *(tl+4+(NFSX_STATEID / NFSX_UNSIGNED)));
+		if (i <= 0 || i > NFSV4_OPAQUELIMIT) {
+			nd->nd_repstat = NFSERR_BADXDR;
+			goto nfsmout;
+		}
 		MALLOC(stp, struct nfsstate *, sizeof (struct nfsstate) + i,
 			M_NFSDSTATE, M_WAITOK);
 		stp->ls_ownerlen = i;
@@ -2227,6 +2233,10 @@ nfsrvd_lockt(struct nfsrv_descript *nd, __unused int isdgram,
 
 	NFSM_DISSECT(tl, u_int32_t *, 8 * NFSX_UNSIGNED);
 	i = fxdr_unsigned(int, *(tl + 7));
+	if (i <= 0 || i > NFSV4_OPAQUELIMIT) {
+		nd->nd_repstat = NFSERR_BADXDR;
+		goto nfsmout;
+	}
 	MALLOC(stp, struct nfsstate *, sizeof (struct nfsstate) + i,
 	    M_NFSDSTATE, M_WAITOK);
 	stp->ls_ownerlen = i;
@@ -2348,6 +2358,8 @@ nfsrvd_locku(struct nfsrv_descript *nd, __unused int isdgram,
 		break;
 	default:
 		nd->nd_repstat = NFSERR_BADXDR;
+		free(stp, M_NFSDSTATE);
+		free(lop, M_NFSDLOCK);
 		goto nfsmout;
 	};
 	stp->ls_ownerlen = 0;
@@ -2437,6 +2449,14 @@ nfsrvd_open(struct nfsrv_descript *nd, __unused int isdgram,
 	named.ni_cnd.cn_nameiop = 0;
 	NFSM_DISSECT(tl, u_int32_t *, 6 * NFSX_UNSIGNED);
 	i = fxdr_unsigned(int, *(tl + 5));
+	if (i <= 0 || i > NFSV4_OPAQUELIMIT) {
+		nd->nd_repstat = NFSERR_BADXDR;
+		vrele(dp);
+#ifdef NFS4_ACL_EXTATTR_NAME
+		acl_free(aclp);
+#endif
+		return (0);
+	}
 	MALLOC(stp, struct nfsstate *, sizeof (struct nfsstate) + i,
 	    M_NFSDSTATE, M_WAITOK);
 	stp->ls_ownerlen = i;
@@ -3389,6 +3409,10 @@ nfsrvd_releaselckown(struct nfsrv_descript *nd, __unused int isdgram,
 	}
 	NFSM_DISSECT(tl, u_int32_t *, 3 * NFSX_UNSIGNED);
 	len = fxdr_unsigned(int, *(tl + 2));
+	if (len <= 0 || len > NFSV4_OPAQUELIMIT) {
+		nd->nd_repstat = NFSERR_BADXDR;
+		return (0);
+	}
 	MALLOC(stp, struct nfsstate *, sizeof (struct nfsstate) + len,
 	    M_NFSDSTATE, M_WAITOK);
 	stp->ls_ownerlen = len;

@@ -3654,8 +3654,14 @@ ath_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m,
 	case IEEE80211_FC0_SUBTYPE_PROBE_RESP:
 		if (vap->iv_opmode == IEEE80211_M_IBSS &&
 		    vap->iv_state == IEEE80211_S_RUN) {
-			uint32_t rstamp = sc->sc_lastrs->rs_tstamp;
-			u_int64_t tsf = ath_extend_tsf(rstamp,
+			uint32_t rstamp;
+			uint64_t tsf;
+
+			if (sc->sc_lastrs == NULL)
+				break;
+
+			rstamp = sc->sc_lastrs->rs_tstamp;
+			tsf = ath_extend_tsf(rstamp,
 				ath_hal_gettsf64(sc->sc_ah));
 			/*
 			 * Handle ibss merge as needed; check the tsf on the

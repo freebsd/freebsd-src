@@ -162,6 +162,7 @@ static int	acpi_sname2sstate(const char *sname);
 static const char *acpi_sstate2sname(int sstate);
 static int	acpi_supported_sleep_state_sysctl(SYSCTL_HANDLER_ARGS);
 static int	acpi_sleep_state_sysctl(SYSCTL_HANDLER_ARGS);
+static int	acpi_debug_objects_sysctl(SYSCTL_HANDLER_ARGS);
 static int	acpi_pm_func(u_long cmd, void *arg, ...);
 static int	acpi_child_location_str_method(device_t acdev, device_t child,
 					       char *buf, size_t buflen);
@@ -252,6 +253,19 @@ SYSCTL_STRING(_debug_acpi, OID_AUTO, acpi_ca_version, CTLFLAG_RD,
  */
 static int acpi_serialize_methods;
 TUNABLE_INT("hw.acpi.serialize_methods", &acpi_serialize_methods);
+
+/* Allow users to dump Debug objects without ACPI debugger. */
+static int acpi_debug_objects;
+TUNABLE_INT("debug.acpi.enable_debug_objects", &acpi_debug_objects);
+SYSCTL_PROC(_debug_acpi, OID_AUTO, enable_debug_objects,
+    CTLFLAG_RW | CTLTYPE_INT, NULL, 0, acpi_debug_objects_sysctl, "I",
+    "Enable Debug objects");
+
+/* Allow the interpreter to ignore common mistakes in BIOS. */
+static int acpi_interpreter_slack = 1;
+TUNABLE_INT("debug.acpi.interpreter_slack", &acpi_interpreter_slack);
+SYSCTL_INT(_debug_acpi, OID_AUTO, interpreter_slack, CTLFLAG_RDTUN,
+    &acpi_interpreter_slack, 1, "Turn on interpreter slack mode.");
 
 /* Power devices off and on in suspend and resume.  XXX Remove once tested. */
 static int acpi_do_powerstate = 1;
@@ -452,8 +466,17 @@ acpi_attach(device_t dev)
      * Set the globals from our tunables.  This is needed because ACPI-CA
      * uses UINT8 for some values and we have no tunable_byte.
      */
-    AcpiGbl_AllMethodsSerialized = acpi_serialize_methods;
-    AcpiGbl_EnableInterpreterSlack = TRUE;
+    AcpiGbl_AllMethodsSerialized = acpi_serialize_methods ? TRUE : FALSE;
+    AcpiGbl_EnableInterpreterSlack = acpi_interpreter_slack ? TRUE : FALSE;
+    AcpiGbl_EnableAmlDebugObject = acpi_debug_objects ? TRUE : FALSE;
+
+#ifndef ACPI_DEBUG
+    /*
+     * Disable all debugging layers and levels.
+     */
+    AcpiDbgLayer = 0;
+    AcpiDbgLevel = 0;
+#endif
 
     /* Start up the ACPI CA subsystem. */
     status = AcpiInitializeSubsystem();
@@ -2617,25 +2640,6 @@ acpi_resync_clock(struct acpi_softc *sc)
     inittodr(time_second + sc->acpi_sleep_delay);
 }
 
-/* Initialize a device's wake GPE. */
-int
-acpi_wake_init(device_t dev, int type)
-{
-    struct acpi_prw_data prw;
-
-    /* Evaluate _PRW to find the GPE. */
-    if (acpi_parse_prw(acpi_get_handle(dev), &prw) != 0)
-	return (ENXIO);
-
-    /* Set the requested type for the GPE (runtime, wake, or both). */
-    if (ACPI_FAILURE(AcpiSetGpeType(prw.gpe_handle, prw.gpe_bit, type))) {
-	device_printf(dev, "set GPE type failed\n");
-	return (ENXIO);
-    }
-
-    return (0);
-}
-
 /* Enable or disable the device's wake GPE. */
 int
 acpi_wake_set_enable(device_t dev, int enable)
@@ -2650,14 +2654,16 @@ acpi_wake_set_enable(device_t dev, int enable)
 
     flags = acpi_get_flags(dev);
     if (enable) {
-	status = AcpiEnableGpe(prw.gpe_handle, prw.gpe_bit, ACPI_NOT_ISR);
+	status = AcpiEnableGpe(prw.gpe_handle, prw.gpe_bit,
+	    ACPI_GPE_TYPE_WAKE_RUN);
 	if (ACPI_FAILURE(status)) {
 	    device_printf(dev, "enable wake failed\n");
 	    return (ENXIO);
 	}
 	acpi_set_flags(dev, flags | ACPI_FLAG_WAKE_ENABLED);
     } else {
-	status = AcpiDisableGpe(prw.gpe_handle, prw.gpe_bit, ACPI_NOT_ISR);
+	status = AcpiDisableGpe(prw.gpe_handle, prw.gpe_bit,
+	    ACPI_GPE_TYPE_WAKE);
 	if (ACPI_FAILURE(status)) {
 	    device_printf(dev, "disable wake failed\n");
 	    return (ENXIO);
@@ -2687,7 +2693,7 @@ acpi_wake_sleep_prep(ACPI_HANDLE handle, int sstate)
      * and set _PSW.
      */
     if (sstate > prw.lowest_wake) {
-	AcpiDisableGpe(prw.gpe_handle, prw.gpe_bit, ACPI_NOT_ISR);
+	AcpiDisableGpe(prw.gpe_handle, prw.gpe_bit, ACPI_GPE_TYPE_WAKE);
 	if (bootverbose)
 	    device_printf(dev, "wake_prep disabled wake for %s (S%d)\n",
 		acpi_name(handle), sstate);
@@ -2724,7 +2730,7 @@ acpi_wake_run_prep(ACPI_HANDLE handle, int sstate)
      * clear _PSW and turn off any power resources it used.
      */
     if (sstate > prw.lowest_wake) {
-	AcpiEnableGpe(prw.gpe_handle, prw.gpe_bit, ACPI_NOT_ISR);
+	AcpiEnableGpe(prw.gpe_handle, prw.gpe_bit, ACPI_GPE_TYPE_WAKE_RUN);
 	if (bootverbose)
 	    device_printf(dev, "run_prep re-enabled %s\n", acpi_name(handle));
     } else {
@@ -3521,6 +3527,26 @@ SYSCTL_PROC(_debug_acpi, OID_AUTO, layer, CTLFLAG_RW | CTLTYPE_STRING,
 SYSCTL_PROC(_debug_acpi, OID_AUTO, level, CTLFLAG_RW | CTLTYPE_STRING,
 	    "debug.acpi.level", 0, acpi_debug_sysctl, "A", "");
 #endif /* ACPI_DEBUG */
+
+static int
+acpi_debug_objects_sysctl(SYSCTL_HANDLER_ARGS)
+{
+	int	error;
+	int	old;
+
+	old = acpi_debug_objects;
+	error = sysctl_handle_int(oidp, &acpi_debug_objects, 0, req);
+	if (error != 0 || req->newptr == NULL)
+		return (error);
+	if (old == acpi_debug_objects || (old && acpi_debug_objects))
+		return (0);
+
+	ACPI_SERIAL_BEGIN(acpi);
+	AcpiGbl_EnableAmlDebugObject = acpi_debug_objects ? TRUE : FALSE;
+	ACPI_SERIAL_END(acpi);
+
+	return (0);
+}
 
 static int
 acpi_pm_func(u_long cmd, void *arg, ...)

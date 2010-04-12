@@ -539,6 +539,7 @@ void nfsrvd_rcv(struct socket *, void *, int);
 #define	NFSSTATESPINLOCK	extern struct mtx nfs_state_mutex
 #define	NFSLOCKSTATE()		mtx_lock(&nfs_state_mutex)
 #define	NFSUNLOCKSTATE()	mtx_unlock(&nfs_state_mutex)
+#define	NFSSTATEMUTEXPTR	(&nfs_state_mutex)
 #define	NFSREQSPINLOCK		extern struct mtx nfs_req_mutex
 #define	NFSLOCKREQ()		mtx_lock(&nfs_req_mutex)
 #define	NFSUNLOCKREQ()		mtx_unlock(&nfs_req_mutex)
@@ -674,6 +675,7 @@ MALLOC_DECLARE(M_NEWNFSDIROFF);
 MALLOC_DECLARE(M_NEWNFSV4NODE);
 MALLOC_DECLARE(M_NEWNFSDIRECTIO);
 MALLOC_DECLARE(M_NEWNFSMNT);
+MALLOC_DECLARE(M_NEWNFSDROLLBACK);
 #define	M_NFSRVCACHE	M_NEWNFSRVCACHE
 #define	M_NFSDCLIENT	M_NEWNFSDCLIENT
 #define	M_NFSDSTATE	M_NEWNFSDSTATE
@@ -692,6 +694,7 @@ MALLOC_DECLARE(M_NEWNFSMNT);
 #define	M_NFSDIROFF	M_NEWNFSDIROFF
 #define	M_NFSV4NODE	M_NEWNFSV4NODE
 #define	M_NFSDIRECTIO	M_NEWNFSDIRECTIO
+#define	M_NFSDROLLBACK	M_NEWNFSDROLLBACK
 
 #define	NFSINT_SIGMASK(set) 						\
 	(SIGISMEMBER(set, SIGINT) || SIGISMEMBER(set, SIGTERM) ||	\

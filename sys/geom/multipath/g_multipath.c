@@ -70,6 +70,9 @@ static int g_multipath_destroy(struct g_geom *);
 static int
 g_multipath_destroy_geom(struct gctl_req *, struct g_class *, struct g_geom *);
 
+static struct g_geom *g_multipath_find_geom(struct g_class *, const char *);
+static int g_multipath_rotate(struct g_geom *);
+
 static g_taste_t g_multipath_taste;
 static g_ctl_req_t g_multipath_config;
 static g_init_t g_multipath_init;
@@ -406,6 +409,30 @@ g_multipath_destroy_geom(struct gctl_req *req, struct g_class *mp,
 	return (g_multipath_destroy(gp));
 }
 
+static int
+g_multipath_rotate(struct g_geom *gp)
+{
+	struct g_consumer *lcp;
+	struct g_multipath_softc *sc = gp->softc;
+
+	g_topology_assert();
+	if (sc == NULL)
+		return (ENXIO);
+	LIST_FOREACH(lcp, &gp->consumer, consumer) {
+		if ((lcp->index & MP_BAD) == 0) {
+			if (sc->cp_active != lcp) {
+				break;
+			}
+		}
+	}
+	if (lcp) {
+		sc->cp_active = lcp;
+		printf("GEOM_MULTIPATH: %s now active path in %s\n",
+		    lcp->provider->name, sc->sc_name);
+	}
+	return (0);
+}
+
 static void
 g_multipath_init(struct g_class *mp)
 {
@@ -576,14 +603,13 @@ g_multipath_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 }
 
 static void
-g_multipath_ctl_create(struct gctl_req *req, struct g_class *mp)
+g_multipath_ctl_add(struct gctl_req *req, struct g_class *mp)
 {
 	struct g_geom *gp;
-	struct g_provider *pp0, *pp1;
-	struct g_multipath_metadata md;
-	const char *name, *mpname, *uuid;
+	struct g_consumer *cp;
+	struct g_provider *pp, *pp0;
+	const char *name, *mpname;
 	static const char devpf[6] = "/dev/";
-	int *nargs, error;
 
 	g_topology_assert();
 
@@ -592,14 +618,9 @@ g_multipath_ctl_create(struct gctl_req *req, struct g_class *mp)
                 gctl_error(req, "No 'arg0' argument");
                 return;
         }
-
-	nargs = gctl_get_paraml(req, "nargs", sizeof(*nargs));
-	if (nargs == NULL) {
-		gctl_error(req, "No 'nargs' argument");
-		return;
-	}
-	if (*nargs != 4) {
-		gctl_error(req, "missing device or uuid arguments");
+	gp = g_multipath_find_geom(mp, mpname);
+	if (gp == NULL) {
+		gctl_error(req, "Device %s is invalid", mpname);
 		return;
 	}
 
@@ -610,78 +631,45 @@ g_multipath_ctl_create(struct gctl_req *req, struct g_class *mp)
 	}
 	if (strncmp(name, devpf, 5) == 0)
 		name += 5;
-	pp0 = g_provider_by_name(name);
-	if (pp0 == NULL) {
+	pp = g_provider_by_name(name);
+	if (pp == NULL) {
 		gctl_error(req, "Provider %s is invalid", name);
 		return;
 	}
 
-	name = gctl_get_asciiparam(req, "arg2");
-	if (name == NULL) {
-		gctl_error(req, "No 'arg2' argument");
-		return;
+	/*
+	 * Check to make sure parameters match, if we already have one.
+	 */
+	cp = LIST_FIRST(&gp->consumer);
+	if (cp) {
+		pp0 = cp->provider;
+	} else {
+		pp0 = NULL;
 	}
-	if (strncmp(name, devpf, 5) == 0)
-		name += 5;
-	pp1 = g_provider_by_name(name);
-	if (pp1 == NULL) {
-		gctl_error(req, "Provider %s is invalid", name);
-		return;
-	}
-
-	uuid = gctl_get_asciiparam(req, "arg3");
-	if (uuid == NULL) {
-		gctl_error(req, "No uuid argument");
-		return;
-	}
-	if (strlen(uuid) != 36) {
-		gctl_error(req, "Malformed uuid argument");
-		return;
+	if (pp0) {
+		if (pp0 == pp) {
+			gctl_error(req, "providers %s and %s are the same",
+			    pp0->name, pp->name);
+			return;
+		}
+		if (pp0->mediasize != pp->mediasize) {
+			gctl_error(req, "Provider %s is %jd; Provider %s is %jd",
+			    pp0->name, (intmax_t) pp0->mediasize,
+			    pp->name, (intmax_t) pp->mediasize);
+			return;
+		}
+		if (pp0->sectorsize != pp->sectorsize) {
+			gctl_error(req, "Provider %s has sectorsize %u; Provider %s "
+			    "has sectorsize %u", pp0->name, pp0->sectorsize,
+			    pp->name, pp->sectorsize);
+			return;
+		}
 	}
 
 	/*
-	 * Check to make sure parameters from the two providers are the same
+	 * Now add....
 	 */
-	if (pp0 == pp1) {
-		gctl_error(req, "providers %s and %s are the same",
-		    pp0->name, pp1->name);
-		return;
-	}
-    	if (pp0->mediasize != pp1->mediasize) {
-		gctl_error(req, "Provider %s is %jd; Provider %s is %jd",
-		    pp0->name, (intmax_t) pp0->mediasize,
-		    pp1->name, (intmax_t) pp1->mediasize);
-		return;
-	}
-    	if (pp0->sectorsize != pp1->sectorsize) {
-		gctl_error(req, "Provider %s has sectorsize %u; Provider %s "
-		    "has sectorsize %u", pp0->name, pp0->sectorsize,
-		    pp1->name, pp1->sectorsize);
-		return;
-	}
-
-	/*
-	 * cons up enough of a metadata structure to use.
-	 */
-	memset(&md, 0, sizeof(md));
-	md.md_size = pp0->mediasize;
-	md.md_sectorsize = pp0->sectorsize;
-	strlcpy(md.md_name, mpname, sizeof(md.md_name));
-	strlcpy(md.md_uuid, uuid, sizeof(md.md_uuid));
-
-	gp = g_multipath_create(mp, &md);
-	if (gp == NULL)
-		return;
-	error = g_multipath_add_disk(gp, pp0);
-	if (error) {
-		g_multipath_destroy(gp);
-		return;
-	}
-	error = g_multipath_add_disk(gp, pp1);
-	if (error) {
-		g_multipath_destroy(gp);
-		return;
-	}
+	(void) g_multipath_add_disk(gp, pp);
 }
 
 static struct g_geom *
@@ -723,6 +711,63 @@ g_multipath_ctl_destroy(struct gctl_req *req, struct g_class *mp)
 }
 
 static void
+g_multipath_ctl_rotate(struct gctl_req *req, struct g_class *mp)
+{
+	struct g_geom *gp;
+	const char *name;
+	int error;
+
+	g_topology_assert();
+
+	name = gctl_get_asciiparam(req, "arg0");
+        if (name == NULL) {
+                gctl_error(req, "No 'arg0' argument");
+                return;
+        }
+	gp = g_multipath_find_geom(mp, name);
+	if (gp == NULL) {
+		gctl_error(req, "Device %s is invalid", name);
+		return;
+	}
+	error = g_multipath_rotate(gp);
+	if (error != 0) {
+		gctl_error(req, "failed to rotate %s (err=%d)", name, error);
+	}
+}
+
+static void
+g_multipath_ctl_getactive(struct gctl_req *req, struct g_class *mp)
+{
+	struct sbuf *sb;
+	struct g_geom *gp;
+	struct g_multipath_softc *sc;
+	const char *name;
+
+	sb = sbuf_new_auto();
+
+	g_topology_assert();
+	name = gctl_get_asciiparam(req, "arg0");
+        if (name == NULL) {
+                gctl_error(req, "No 'arg0' argument");
+                return;
+        }
+	gp = g_multipath_find_geom(mp, name);
+	if (gp == NULL) {
+		gctl_error(req, "Device %s is invalid", name);
+		return;
+	}
+	sc = gp->softc;
+	if (sc->cp_active) {
+		sbuf_printf(sb, "%s\n", sc->cp_active->provider->name);
+	} else {
+		sbuf_printf(sb, "none\n");
+	}
+	sbuf_finish(sb);
+	gctl_set_param_err(req, "output", sbuf_data(sb), sbuf_len(sb) + 1);
+	sbuf_delete(sb);
+}
+
+static void
 g_multipath_config(struct gctl_req *req, struct g_class *mp, const char *verb)
 {
 	uint32_t *version;
@@ -732,10 +777,14 @@ g_multipath_config(struct gctl_req *req, struct g_class *mp, const char *verb)
 		gctl_error(req, "No 'version' argument");
 	} else if (*version != G_MULTIPATH_VERSION) {
 		gctl_error(req, "Userland and kernel parts are out of sync");
-	} else if (strcmp(verb, "create") == 0) {
-		g_multipath_ctl_create(req, mp);
+	} else if (strcmp(verb, "add") == 0) {
+		g_multipath_ctl_add(req, mp);
 	} else if (strcmp(verb, "destroy") == 0) {
 		g_multipath_ctl_destroy(req, mp);
+	} else if (strcmp(verb, "rotate") == 0) {
+		g_multipath_ctl_rotate(req, mp);
+	} else if (strcmp(verb, "getactive") == 0) {
+		g_multipath_ctl_getactive(req, mp);
 	} else {
 		gctl_error(req, "Unknown verb %s", verb);
 	}

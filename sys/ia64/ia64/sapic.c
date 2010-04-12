@@ -35,6 +35,7 @@
 #include <sys/bus.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
+#include <sys/pcpu.h>
 #include <sys/sysctl.h>
 
 #include <machine/intr.h>
@@ -170,6 +171,26 @@ sapic_lookup(u_int irq, u_int *vecp)
 	return (NULL);
 }
 
+
+int
+sapic_bind_intr(u_int irq, struct pcpu *pc)
+{
+	struct sapic_rte rte;
+	struct sapic *sa;
+
+	sa = sapic_lookup(irq, NULL);
+	if (sa == NULL)
+		return (EINVAL);
+
+	mtx_lock_spin(&sa->sa_mtx);
+	sapic_read_rte(sa, irq - sa->sa_base, &rte);
+	rte.rte_destination_id = (pc->pc_md.lid >> 24) & 255;
+	rte.rte_destination_eid = (pc->pc_md.lid >> 16) & 255;
+	rte.rte_delivery_mode = SAPIC_DELMODE_FIXED;
+	sapic_write_rte(sa, irq - sa->sa_base, &rte);
+	mtx_unlock_spin(&sa->sa_mtx);
+	return (0);
+}
 
 int
 sapic_config_intr(u_int irq, enum intr_trigger trig, enum intr_polarity pol)

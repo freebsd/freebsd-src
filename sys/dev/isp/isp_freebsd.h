@@ -175,7 +175,7 @@ struct isp_fc {
 		simqfrozen	: 3,
 		default_id	: 8,
 		hysteresis	: 8,
-		role		: 2,
+		def_role	: 2,	/* default role */
 		gdt_running	: 1,
 		loop_dead	: 1,
 		fcbsy		: 1,
@@ -203,7 +203,7 @@ struct isp_spi {
 		tm_enabled	: 1,
 #endif
 		simqfrozen	: 3,
-		role		: 3,
+		def_role	: 2,
 		iid		: 4;
 #ifdef	ISP_TARGET_MODE
 	struct tslist lun_hash[LUN_HASH_SIZE];
@@ -424,6 +424,8 @@ default:							\
 	imin((sizeof((ccb)->sense_data)), ccb->sense_len)
 
 #define	XS_SNSKEY(ccb)		((ccb)->sense_data.flags & 0xf)
+#define	XS_SNSASC(ccb)		((ccb)->sense_data.add_sense_code)
+#define	XS_SNSASCQ(ccb)		((ccb)->sense_data.add_sense_code_qual)
 #define	XS_TAG_P(ccb)	\
 	(((ccb)->ccb_h.flags & CAM_TAG_ACTION_VALID) && \
 	 (ccb)->tag_action != CAM_TAG_ACTION_NONE)
@@ -461,18 +463,18 @@ default:							\
 	(xs)->ccb_h.status |= CAM_AUTOSNS_VALID;	\
 	memcpy(&(xs)->sense_data, sense_ptr, imin(XS_SNSLEN(xs), sense_len))
 
-#define	XS_SET_STATE_STAT(a, b, c)
+#define	XS_SENSE_VALID(xs)	(((xs)->ccb_h.status & CAM_AUTOSNS_VALID) != 0)
 
 #define	DEFAULT_FRAMESIZE(isp)		isp->isp_osinfo.framesize
 #define	DEFAULT_EXEC_THROTTLE(isp)	isp->isp_osinfo.exec_throttle
 
 #define	GET_DEFAULT_ROLE(isp, chan)	\
-	(IS_FC(isp)? ISP_FC_PC(isp, chan)->role : ISP_SPI_PC(isp, chan)->role)
+	(IS_FC(isp)? ISP_FC_PC(isp, chan)->def_role : ISP_SPI_PC(isp, chan)->def_role)
 #define	SET_DEFAULT_ROLE(isp, chan, val)		\
 	if (IS_FC(isp)) { 				\
-		ISP_FC_PC(isp, chan)->role = val;	\
+		ISP_FC_PC(isp, chan)->def_role = val;	\
 	} else {					\
-		ISP_SPI_PC(isp, chan)->role = val;	\
+		ISP_SPI_PC(isp, chan)->def_role = val;	\
 	}
 
 #define	DEFAULT_IID(isp, chan)		isp->isp_osinfo.pc.spi[chan].iid
@@ -593,6 +595,7 @@ extern int isp_autoconfig;
  * Platform Library Functions
  */
 void isp_prt(ispsoftc_t *, int level, const char *, ...) __printflike(3, 4);
+void isp_xs_prt(ispsoftc_t *, XS_T *, int level, const char *, ...) __printflike(4, 5);
 uint64_t isp_nanotime_sub(struct timespec *, struct timespec *);
 int isp_mbox_acquire(ispsoftc_t *);
 void isp_mbox_wait_complete(ispsoftc_t *, mbreg_t *);

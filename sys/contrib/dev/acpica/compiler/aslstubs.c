@@ -243,11 +243,13 @@ AcpiEvInitializeRegion (
     return (AE_OK);
 }
 
-ACPI_STATUS
-AcpiEvCheckForWakeOnlyGpe (
-    ACPI_GPE_EVENT_INFO     *GpeEventInfo)
+void
+AcpiExDoDebugObject (
+    ACPI_OPERAND_OBJECT     *SourceDesc,
+    UINT32                  Level,
+    UINT32                  Index)
 {
-    return (AE_OK);
+    return;
 }
 
 ACPI_STATUS
@@ -275,7 +277,6 @@ AcpiExLoadTableOp (
 {
     return (AE_SUPPORT);
 }
-
 
 ACPI_STATUS
 AcpiExUnloadTable (

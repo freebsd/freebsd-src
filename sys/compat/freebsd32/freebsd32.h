@@ -29,6 +29,9 @@
 #ifndef _COMPAT_FREEBSD32_FREEBSD32_H_
 #define _COMPAT_FREEBSD32_FREEBSD32_H_
 
+#include <sys/procfs.h>
+#include <sys/socket.h>
+
 #define PTRIN(v)	(void *)(uintptr_t) (v)
 #define PTROUT(v)	(u_int32_t)(uintptr_t) (v)
 
@@ -140,15 +143,15 @@ struct stat32 {
 	uid_t	st_uid;
 	gid_t	st_gid;
 	dev_t	st_rdev;
-	struct timespec32 st_atimespec;
-	struct timespec32 st_mtimespec;
-	struct timespec32 st_ctimespec;
+	struct timespec32 st_atim;
+	struct timespec32 st_mtim;
+	struct timespec32 st_ctim;
 	off_t	st_size;
 	int64_t	st_blocks;
 	u_int32_t st_blksize;
 	u_int32_t st_flags;
 	u_int32_t st_gen;
-	struct timespec32 st_birthtimespec;
+	struct timespec32 st_birthtim;
 	unsigned int :(8 / 2) * (16 - (int)sizeof(struct timespec32));
 	unsigned int :(8 / 2) * (16 - (int)sizeof(struct timespec32));
 };
@@ -195,6 +198,35 @@ struct i386_ldt_args32 {
 	uint32_t start;
 	uint32_t descs;
 	uint32_t num;
+};
+
+/*
+ * Alternative layouts for <sys/procfs.h>
+ */
+struct prstatus32 {
+        int     pr_version;
+        u_int   pr_statussz;
+        u_int   pr_gregsetsz;
+        u_int   pr_fpregsetsz;
+        int     pr_osreldate;
+        int     pr_cursig;
+        pid_t   pr_pid;
+        struct reg32 pr_reg;
+};
+
+struct prpsinfo32 {
+        int     pr_version;
+        u_int   pr_psinfosz;
+        char    pr_fname[PRFNAMESZ+1];
+        char    pr_psargs[PRARGSZ+1];
+};
+
+struct mq_attr32 {
+	int	mq_flags;
+	int	mq_maxmsg;
+	int	mq_msgsize;
+	int	mq_curmsgs;
+	int	__reserved[4];
 };
 
 #endif /* !_COMPAT_FREEBSD32_FREEBSD32_H_ */
