@@ -730,8 +730,6 @@ platform_start(__register_t a0, __register_t a1, __register_t a2 __unused,
 {
 	uint64_t platform_counter_freq;
 
-	boothowto |= RB_SINGLE;
-
 	/* Initialize pcpu stuff */
 	mips_pcpu0_init();
 	mips_timer_early_init(OCTEON_CLOCK_DEFAULT);
@@ -873,8 +871,9 @@ int octeon_chip_rev_major = 0, octeon_chip_rev_minor = 0, octeon_chip_type = 0;
 static octeon_boot_descriptor_t *app_desc_ptr;
 static cvmx_bootinfo_t *cvmx_desc_ptr;
 
-#define OCTEON_BOARD_TYPE_NONE 0
-#define OCTEON_BOARD_TYPE_SIM  1
+#define OCTEON_BOARD_TYPE_NONE 			0
+#define OCTEON_BOARD_TYPE_SIM  			1
+#define	OCTEON_BOARD_TYPE_CN3010_EVB_HS5	11
 
 #define OCTEON_CLOCK_MIN     (100 * 1000 * 1000)
 #define OCTEON_CLOCK_MAX     (800 * 1000 * 1000)
@@ -886,11 +885,23 @@ static cvmx_bootinfo_t *cvmx_desc_ptr;
 int
 octeon_board_real(void)
 {
-	if ((octeon_board_type == OCTEON_BOARD_TYPE_NONE) ||
-	    (octeon_board_type == OCTEON_BOARD_TYPE_SIM) ||
-	    !octeon_board_rev_major)
+	switch (octeon_board_type) {
+	case OCTEON_BOARD_TYPE_NONE:
+	case OCTEON_BOARD_TYPE_SIM:
 		return 0;
-	return 1;
+	case OCTEON_BOARD_TYPE_CN3010_EVB_HS5:
+		/*
+		 * XXX
+		 * The CAM-0100 identifies itself as type 11, revision 0.0,
+		 * despite its being rather real.  Disable the revision check
+		 * for type 11.
+		 */
+		return 1;
+	default:
+		if (octeon_board_rev_major == 0)
+			return 0;
+		return 1;
+	}
 }
 
 static void

@@ -687,16 +687,21 @@ _bus_dmamap_count_pages(bus_dma_tag_t dmat, bus_dmamap_t map, pmap_t pmap,
 		 * Count the number of bounce pages
 		 * needed in order to complete this transfer
 		 */
-		vaddr = trunc_page((vm_offset_t)buf);
+		vaddr = (vm_offset_t)buf;
 		vendaddr = (vm_offset_t)buf + buflen;
 
 		while (vaddr < vendaddr) {
+			bus_size_t sg_len;
+
 			KASSERT(kernel_pmap == pmap, ("pmap is not kernel pmap"));
+			sg_len = PAGE_SIZE - ((vm_offset_t)vaddr & PAGE_MASK);
 			paddr = pmap_kextract(vaddr);
 			if (((dmat->flags & BUS_DMA_COULD_BOUNCE) != 0) &&
-			    run_filter(dmat, paddr) != 0)
+			    run_filter(dmat, paddr) != 0) {
+				sg_len = roundup2(sg_len, dmat->alignment);
 				map->pagesneeded++;
-			vaddr += PAGE_SIZE;
+			}
+			vaddr += sg_len;
 		}
 		CTR1(KTR_BUSDMA, "pagesneeded= %d\n", map->pagesneeded);
 	}

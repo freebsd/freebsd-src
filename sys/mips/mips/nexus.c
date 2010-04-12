@@ -73,7 +73,6 @@ struct nexus_device {
 
 #define DEVTONX(dev)	((struct nexus_device *)device_get_ivars(dev))
 #define NUM_MIPS_IRQS	6
-#define MIPS_MEM_RID	0x20
 
 static struct rman irq_rman;
 static struct rman mem_rman;
