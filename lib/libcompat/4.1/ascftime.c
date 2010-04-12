@@ -41,5 +41,6 @@
 int
 ascftime(char *s, const char *format, const struct tm *tmptr)
 {
-	return strftime(s, MAXLEN, format? format: "%C", tmptr);
+
+	return (strftime(s, MAXLEN, format? format: "%C", tmptr));
 }

@@ -239,10 +239,6 @@ FBSDprivate_1.0 {
 	__key_encryptsession_pk_LOCAL;
 	__key_decryptsession_pk_LOCAL;
 	__key_gendes_LOCAL;
-	__tsd_lock;	/*
-			 * Why does usr.bin/rpcinfo/Makefile need rpc_generic.c?
-			 * Remove this hack if rpcinfo stops building with it.
-			 */
 	__svc_clean_idle;
 	__rpc_gss_unwrap;
 	__rpc_gss_unwrap_stub;

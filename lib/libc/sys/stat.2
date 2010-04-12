@@ -28,7 +28,7 @@
 .\"     @(#)stat.2	8.4 (Berkeley) 5/1/95
 .\" $FreeBSD$
 .\"
-.Dd April 10, 2008
+.Dd March 28, 2010
 .Dt STAT 2
 .Os
 .Sh NAME
@@ -149,8 +149,8 @@ fields together identify the file uniquely within the system.
 The time-related fields of
 .Vt "struct stat"
 are as follows:
-.Bl -tag -width ".Va st_birthtime"
-.It Va st_atime
+.Bl -tag -width ".Va st_birthtim"
+.It Va st_atim
 Time when file data last accessed.
 Changed by the
 .Xr mknod 2 ,
@@ -159,7 +159,7 @@ Changed by the
 and
 .Xr readv 2
 system calls.
-.It Va st_mtime
+.It Va st_mtim
 Time when file data last modified.
 Changed by the
 .Xr mkdir 2 ,
@@ -170,7 +170,7 @@ Changed by the
 and
 .Xr writev 2
 system calls.
-.It Va st_ctime
+.It Va st_ctim
 Time when file status was last changed (inode data modification).
 Changed by the
 .Xr chflags 2 ,
@@ -191,18 +191,24 @@ Changed by the
 and
 .Xr writev 2
 system calls.
-.It Va st_birthtime
+.It Va st_birthtim
 Time when the inode was created.
 .El
 .Pp
-If
-.Dv _POSIX_SOURCE
-is not defined, the time-related fields are defined as:
+The following time-related macros are defined for compatibility:
 .Bd -literal
+#define	st_atime		st_atim.tv_sec
+#define	st_mtime		st_mtim.tv_sec
+#define	st_ctime		st_ctim.tv_sec
 #ifndef _POSIX_SOURCE
-#define st_atime st_atimespec.tv_sec
-#define st_mtime st_mtimespec.tv_sec
-#define st_ctime st_ctimespec.tv_sec
+#define	st_birthtime		st_birthtim.tv_sec
+#endif
+
+#ifndef _POSIX_SOURCE
+#define	st_atimespec		st_atim
+#define	st_mtimespec		st_mtim
+#define	st_ctimespec		st_ctim
+#define	st_birthtimespec	st_birthtim
 #endif
 .Ed
 .Pp

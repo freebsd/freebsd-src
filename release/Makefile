@@ -171,7 +171,7 @@ NOPORTSATALL=	YES
 
 #
 # Doing 'make index' in /usr/ports requires Perl.
-MAKEINDEXPORTS=	lang/perl5.8
+MAKEINDEXPORTS=	lang/perl5.10
 DOCPORTS=	textproc/docproj
 # Set this to wherever the distfiles required by release procedures.
 .if defined(DOCDISTFILES)
@@ -575,7 +575,7 @@ release rerelease:
 	echo "	for i in ${MAKEINDEXPORTS}"	>> ${_MK}
 	echo "	do"			>> ${_MK}
 	echo "		cd /usr/ports/\$${i}"	>> ${_MK}
-	echo "		env -i FTP_PASSIVE_MODE=$${FTP_PASSIVE_MODE:-no} PATH=$${PATH} \\" >> ${_MK}
+	echo "		env -i HTTP_PROXY=$${HTTP_PROXY} FTP_PROXY=$${FTP_PROXY} FTP_PASSIVE_MODE=$${FTP_PASSIVE_MODE:-no} PATH=$${PATH} \\" >> ${_MK}
 	echo "		make all install clean BATCH=yes FORCE_PKG_REGISTER=yes" >> ${_MK}
 	echo "	done"				>> ${_MK}
 	echo "	cd /usr/ports"			>> ${_MK}
