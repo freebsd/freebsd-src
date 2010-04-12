@@ -902,12 +902,24 @@ ng_ksocket_rcvdata(hook_p hook, item_p item)
 	struct sockaddr *sa = NULL;
 	int error;
 	struct mbuf *m;
+#ifdef ALIGNED_POINTER
+	struct mbuf *n;
+#endif /* ALIGNED_POINTER */
 	struct sa_tag *stag;
 
 	/* Extract data */
 	NGI_GET_M(item, m);
 	NG_FREE_ITEM(item);
-
+#ifdef ALIGNED_POINTER
+	if (!ALIGNED_POINTER(mtod(m, caddr_t), uint32_t)) {
+		n = m_defrag(m, M_NOWAIT);
+		if (n == NULL) {
+			m_freem(m);
+			return (ENOBUFS);
+		}
+		m = n;
+	}
+#endif /* ALIGNED_POINTER */
 	/*
 	 * Look if socket address is stored in packet tags.
 	 * If sockaddr is ours, or provided by a third party (zero id),

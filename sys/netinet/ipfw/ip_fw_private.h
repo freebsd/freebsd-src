@@ -272,8 +272,8 @@ struct radix_node;
 int ipfw_lookup_table(struct ip_fw_chain *ch, uint16_t tbl, in_addr_t addr,
     uint32_t *val);
 int ipfw_init_tables(struct ip_fw_chain *ch);
+void ipfw_destroy_tables(struct ip_fw_chain *ch);
 int ipfw_flush_table(struct ip_fw_chain *ch, uint16_t tbl);
-void ipfw_flush_tables(struct ip_fw_chain *ch);
 int ipfw_add_table_entry(struct ip_fw_chain *ch, uint16_t tbl, in_addr_t addr,
     uint8_t mlen, uint32_t value);
 int ipfw_dump_table_entry(struct radix_node *rn, void *arg);

@@ -1432,8 +1432,6 @@ ieee80211_swbmiss(void *arg)
 	} else if (vap->iv_swbmiss_count == 0) {
 		if (vap->iv_bmiss != NULL)
 			ieee80211_runtask(ic, &vap->iv_swbmiss_task);
-		if (vap->iv_bmiss_count == 0)	/* don't re-arm timer */
-			return;
 	} else
 		vap->iv_swbmiss_count = 0;
 	callout_reset(&vap->iv_swbmiss, vap->iv_swbmiss_period,

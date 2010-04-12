@@ -476,7 +476,7 @@ next:
 		V_ipfw_dyn_v[i] = q;
 	}
 	if (pkt->proto == IPPROTO_TCP) { /* update state according to flags */
-		u_char flags = pkt->flags & (TH_FIN|TH_SYN|TH_RST);
+		u_char flags = pkt->_flags & (TH_FIN|TH_SYN|TH_RST);
 
 #define BOTH_SYN	(TH_SYN | (TH_SYN << 8))
 #define BOTH_FIN	(TH_FIN | (TH_FIN << 8))

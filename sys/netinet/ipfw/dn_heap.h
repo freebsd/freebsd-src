@@ -119,7 +119,7 @@ int heap_scan(struct dn_heap *, int (*)(void *, uintptr_t), uintptr_t);
  *	hash(key, flags, arg) called to return a bucket index.
  *	match(obj, key, flags, arg) called to determine if key
  *		matches the current 'obj' in the heap
- *	new(key, flags, arg) optional, used to allocate a new
+ *	newh(key, flags, arg) optional, used to allocate a new
  *		object during insertions.
  *
  * dn_ht_free() frees the heap or unlink elements.
@@ -167,7 +167,7 @@ struct dn_ht;	/* should be opaque */
 struct dn_ht *dn_ht_init(struct dn_ht *, int buckets, int ofs, 
         uint32_t (*hash)(uintptr_t, int, void *),
         int (*match)(void *, uintptr_t, int, void *),
-        void *(*new)(uintptr_t, int, void *));
+        void *(*newh)(uintptr_t, int, void *));
 void dn_ht_free(struct dn_ht *, int flags);
 
 void *dn_ht_find(struct dn_ht *, uintptr_t, int, void *);

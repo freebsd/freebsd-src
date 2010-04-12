@@ -395,7 +395,7 @@ ipfw_log(struct ip_fw *f, u_int hlen, struct ip_fw_args *args,
 			if (offset & (IP6F_OFF_MASK | IP6F_MORE_FRAG))
 				snprintf(SNPARGS(fragment, 0),
 				    " (frag %08x:%d@%d%s)",
-				    args->f_id.frag_id6,
+				    args->f_id.extra,
 				    ntohs(ip6->ip6_plen) - hlen,
 				    ntohs(offset & IP6F_OFF_MASK) << 3,
 				    (offset & IP6F_MORE_FRAG) ? "+" : "");

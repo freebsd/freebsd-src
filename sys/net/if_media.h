@@ -462,6 +462,7 @@ struct ifmedia_description {
 	{ IFM_IEEE80211_OFDM3, "OFDM/3Mbps" },				\
 	{ IFM_IEEE80211_OFDM4, "OFDM/4.5Mbps" },			\
 	{ IFM_IEEE80211_OFDM27, "OFDM/27Mbps" },			\
+	{ IFM_IEEE80211_MCS, "MCS" },					\
 	{ 0, NULL },							\
 }
 
@@ -500,6 +501,7 @@ struct ifmedia_description {
 	{ IFM_IEEE80211_OFDM3, "OFDM3" },				\
 	{ IFM_IEEE80211_OFDM4, "OFDM4.5" },				\
 	{ IFM_IEEE80211_OFDM27, "OFDM27" },				\
+	{ IFM_IEEE80211_MCS, "MCS" },					\
 	{ 0, NULL },							\
 }
 
