@@ -632,7 +632,7 @@ relocked:
 		    ("%s: INP_TIMEWAIT ti_locked %d", __func__, ti_locked));
 
 		if (ti_locked == TI_RLOCKED) {
-			if (rw_try_upgrade(&V_tcbinfo.ipi_lock) == 0) {
+			if (INP_INFO_TRY_UPGRADE(&V_tcbinfo) == 0) {
 				in_pcbref(inp);
 				INP_WUNLOCK(inp);
 				INP_INFO_RUNLOCK(&V_tcbinfo);
@@ -683,7 +683,7 @@ relocked:
 		    ("%s: upgrade check ti_locked %d", __func__, ti_locked));
 
 		if (ti_locked == TI_RLOCKED) {
-			if (rw_try_upgrade(&V_tcbinfo.ipi_lock) == 0) {
+			if (INP_INFO_TRY_UPGRADE(&V_tcbinfo) == 0) {
 				in_pcbref(inp);
 				INP_WUNLOCK(inp);
 				INP_INFO_RUNLOCK(&V_tcbinfo);
@@ -1134,6 +1134,8 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 	 * TCP ECN processing.
 	 */
 	if (tp->t_flags & TF_ECN_PERMIT) {
+		if (thflags & TH_CWR)
+			tp->t_flags &= ~TF_ECN_SND_ECE;
 		switch (iptos & IPTOS_ECN_MASK) {
 		case IPTOS_ECN_CE:
 			tp->t_flags |= TF_ECN_SND_ECE;
@@ -1146,10 +1148,6 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 			TCPSTAT_INC(tcps_ecn_ect1);
 			break;
 		}
-
-		if (thflags & TH_CWR)
-			tp->t_flags &= ~TF_ECN_SND_ECE;
-
 		/*
 		 * Congestion experienced.
 		 * Ignore if we are already trying to recover.

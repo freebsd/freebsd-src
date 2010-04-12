@@ -6,16 +6,19 @@
 
 #ifndef _DN_TEST_H
 #define _DN_TEST_H
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include <inttypes.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <strings.h>	/* bzero, ffs, ... */
 #include <string.h>	/* strcmp */
 #include <errno.h>
-#include <inttypes.h>
 #include <sys/queue.h>
 #include <sys/time.h>
-
 
 extern int debug;
 #define ND(fmt, args...) do {} while (0)
@@ -26,7 +29,9 @@ extern int debug;
         if (debug > lev) D(fmt, ## args); } while (0)
 
 
+#ifndef offsetof
 #define offsetof(t,m) (int)((&((t *)0L)->m))
+#endif
 
 #include <mylist.h>
 
@@ -47,6 +52,7 @@ enum	{
 struct dn_id {
 	int type, subtype, len, id;
 };
+
 struct dn_fs {
 	int par[4];	/* flowset parameters */
 
@@ -67,8 +73,10 @@ struct dn_fs {
 	 */
 	int	cur;
 };
+
 struct dn_sch {
 };
+
 struct dn_flow {
 	struct dn_id oid;
 	int length;
@@ -78,6 +86,7 @@ struct dn_flow {
 	uint32_t flow_id;
 	struct list_head h;	/* used by the generator */
 };
+
 struct dn_link {
 };
 
@@ -100,12 +109,15 @@ struct ipfw_flow_id {
 };
 
 typedef void * module_t;
+
 struct _md_t {
 	const char *name;
 	int (*f)(module_t, int, void *);
 	void *p;
 };
+
 typedef struct _md_t moduledata_t;
+
 #define DECLARE_MODULE(name, b, c, d)	\
 	moduledata_t *_g_##name = & b
 #define MODULE_DEPEND(a, b, c, d, e)
@@ -141,6 +153,10 @@ struct dn_alg {
 
 #endif
 
+#ifndef __FreeBSD__
+int fls(int);
+#endif
+
 static inline void
 mq_append(struct mq *q, struct mbuf *m)
 {
@@ -151,5 +167,9 @@ mq_append(struct mq *q, struct mbuf *m)
         q->tail = m;
         m->m_nextpkt = NULL;
 }
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* _DN_TEST_H */

@@ -55,6 +55,7 @@ __FBSDID("$FreeBSD$");
 #define	SM(_v, _f)	(((_v) << _f##_S) & _f)
 
 const struct ieee80211_mcs_rates ieee80211_htrates[16] = {
+    /*  20Mhz  SGI 40Mhz  SGI */
 	{  13,  14,  27,  30 },	/* MCS 0 */
 	{  26,  29,  54,  60 },	/* MCS 1 */
 	{  39,  43,  81,  90 },	/* MCS 2 */
@@ -248,23 +249,58 @@ ieee80211_ht_vdetach(struct ieee80211vap *vap)
 }
 
 static void
-ht_announce(struct ieee80211com *ic, int mode,
-	const struct ieee80211_htrateset *rs)
+ht_rateprint(struct ieee80211com *ic, int mode,
+	const struct ieee80211_htrateset *rs, int maxmcs, int ratetype)
 {
-	struct ifnet *ifp = ic->ic_ifp;
 	int i, rate, mword;
 
-	if_printf(ifp, "%s MCS: ", ieee80211_phymode_name[mode]);
-	for (i = 0; i < rs->rs_nrates; i++) {
+	for (i = 0; i < rs->rs_nrates && i < maxmcs; i++) {
 		mword = ieee80211_rate2media(ic,
 		    rs->rs_rates[i] | IEEE80211_RATE_MCS, mode);
 		if (IFM_SUBTYPE(mword) != IFM_IEEE80211_MCS)
 			continue;
-		rate = ieee80211_htrates[rs->rs_rates[i]].ht40_rate_400ns;
+		switch (ratetype) {
+		case 0:
+			rate = ieee80211_htrates[
+			    rs->rs_rates[i]].ht20_rate_800ns;
+			break;
+		case 1:
+			rate = ieee80211_htrates[
+			    rs->rs_rates[i]].ht20_rate_400ns;
+			break;
+		case 2:
+			rate = ieee80211_htrates[
+			    rs->rs_rates[i]].ht40_rate_800ns;
+			break;
+		default:
+			rate = ieee80211_htrates[
+			    rs->rs_rates[i]].ht40_rate_400ns;
+			break;
+		}
 		printf("%s%d%sMbps", (i != 0 ? " " : ""),
 		    rate / 2, ((rate & 0x1) != 0 ? ".5" : ""));
 	}
 	printf("\n");
+}
+
+static void
+ht_announce(struct ieee80211com *ic, int mode,
+	const struct ieee80211_htrateset *rs)
+{
+	struct ifnet *ifp = ic->ic_ifp;
+	int maxmcs = 2 * 8;
+	const char *modestr = ieee80211_phymode_name[mode];
+	
+	KASSERT(maxmcs <= 16, ("maxmcs > 16"));
+	if_printf(ifp, "%d MCS rates\n", maxmcs);
+	if_printf(ifp, "%s MCS 20Mhz: ", modestr);
+	ht_rateprint(ic, mode, rs, maxmcs, 0);
+	if_printf(ifp, "%s MCS 20Mhz SGI: ", modestr);
+	ht_rateprint(ic, mode, rs, maxmcs, 1);
+	if_printf(ifp, "%s MCS 40Mhz: ", modestr);
+	ht_rateprint(ic, mode, rs, maxmcs, 2);
+	if_printf(ifp, "%s MCS 40Mhz SGI: ", modestr);
+	ht_rateprint(ic, mode, rs, maxmcs, 3);
 }
 
 void
@@ -396,6 +432,7 @@ ampdu_rx_start(struct ieee80211_node *ni, struct ieee80211_rx_ampdu *rap,
 static void
 ampdu_rx_stop(struct ieee80211_node *ni, struct ieee80211_rx_ampdu *rap)
 {
+
 	ampdu_rx_purge(rap);
 	rap->rxa_flags &= ~(IEEE80211_AGGR_RUNNING | IEEE80211_AGGR_XCHGPEND);
 }
@@ -656,7 +693,7 @@ again:
 	if (off < rap->rxa_wnd) {
 		/*
 		 * Common case (hopefully): in the BA window.
-		 * Sec 9.10.7.6 a) (D2.04 p.118 line 47)
+		 * Sec 9.10.7.6.2 a) (p.137)
 		 */
 #ifdef IEEE80211_AMPDU_AGE
 		/* 
@@ -721,7 +758,7 @@ again:
 		/*
 		 * Outside the BA window, but within range;
 		 * flush the reorder q and move the window.
-		 * Sec 9.10.7.6 b) (D2.04 p.118 line 60)
+		 * Sec 9.10.7.6.2 b) (p.138)
 		 */
 		IEEE80211_NOTE(vap, IEEE80211_MSG_11N, ni,
 		    "move BA win <%u:%u> (%u frames) rxseq %u tid %u",
@@ -745,7 +782,7 @@ again:
 	} else {
 		/*
 		 * Outside the BA window and out of range; toss.
-		 * Sec 9.10.7.6 c) (D2.04 p.119 line 16)
+		 * Sec 9.10.7.6.2 c) (p.138)
 		 */
 		IEEE80211_DISCARD_MAC(vap,
 		    IEEE80211_MSG_INPUT | IEEE80211_MSG_11N, ni->ni_macaddr,
@@ -809,7 +846,7 @@ ieee80211_recv_bar(struct ieee80211_node *ni, struct mbuf *m0)
 	if (off < IEEE80211_SEQ_BA_RANGE) {
 		/*
 		 * Flush the reorder q up to rxseq and move the window.
-		 * Sec 9.10.7.6 a) (D2.04 p.119 line 22)
+		 * Sec 9.10.7.6.3 a) (p.138)
 		 */
 		IEEE80211_NOTE(vap, IEEE80211_MSG_11N, ni,
 		    "BAR moves BA win <%u:%u> (%u frames) rxseq %u tid %u",
@@ -830,7 +867,7 @@ ieee80211_recv_bar(struct ieee80211_node *ni, struct mbuf *m0)
 	} else {
 		/*
 		 * Out of range; toss.
-		 * Sec 9.10.7.6 b) (D2.04 p.119 line 41)
+		 * Sec 9.10.7.6.3 b) (p.138)
 		 */
 		IEEE80211_DISCARD_MAC(vap,
 		    IEEE80211_MSG_INPUT | IEEE80211_MSG_11N, ni->ni_macaddr,
@@ -1621,7 +1658,7 @@ ht_recv_action_ba_addba_request(struct ieee80211_node *ni,
 	struct ieee80211_rx_ampdu *rap;
 	uint8_t dialogtoken;
 	uint16_t baparamset, batimeout, baseqctl;
-	uint16_t args[4];
+	uint16_t args[5];
 	int tid;
 
 	dialogtoken = frm[2];
@@ -1671,6 +1708,7 @@ ht_recv_action_ba_addba_request(struct ieee80211_node *ni,
 		| SM(rap->rxa_wnd, IEEE80211_BAPS_BUFSIZ)
 		;
 	args[3] = 0;
+	args[4] = 0;
 	ic->ic_send_action(ni, IEEE80211_ACTION_CAT_BA,
 		IEEE80211_ACTION_BA_ADDBA_RESPONSE, args);
 	return 0;
@@ -1874,7 +1912,7 @@ ieee80211_ampdu_request(struct ieee80211_node *ni,
 	struct ieee80211_tx_ampdu *tap)
 {
 	struct ieee80211com *ic = ni->ni_ic;
-	uint16_t args[4];
+	uint16_t args[5];
 	int tid, dialogtoken;
 	static int tokens = 0;	/* XXX */
 
@@ -1891,13 +1929,14 @@ ieee80211_ampdu_request(struct ieee80211_node *ni,
 	tap->txa_start = ni->ni_txseqs[tid];
 
 	args[0] = dialogtoken;
-	args[1]	= IEEE80211_BAPS_POLICY_IMMEDIATE
+	args[1] = 0;	/* NB: status code not used */
+	args[2]	= IEEE80211_BAPS_POLICY_IMMEDIATE
 		| SM(tid, IEEE80211_BAPS_TID)
 		| SM(IEEE80211_AGGR_BAWMAX, IEEE80211_BAPS_BUFSIZ)
 		;
-	args[2] = 0;	/* batimeout */
+	args[3] = 0;	/* batimeout */
 	/* NB: do first so there's no race against reply */
-	if (!ic->ic_addba_request(ni, tap, dialogtoken, args[1], args[2])) {
+	if (!ic->ic_addba_request(ni, tap, dialogtoken, args[2], args[3])) {
 		/* unable to setup state, don't make request */
 		IEEE80211_NOTE(ni->ni_vap, IEEE80211_MSG_11N,
 		    ni, "%s: could not setup BA stream for AC %d",
@@ -1911,7 +1950,7 @@ ieee80211_ampdu_request(struct ieee80211_node *ni,
 	}
 	tokens = dialogtoken;			/* allocate token */
 	/* NB: after calling ic_addba_request so driver can set txa_start */
-	args[3] = SM(tap->txa_start, IEEE80211_BASEQ_START)
+	args[4] = SM(tap->txa_start, IEEE80211_BASEQ_START)
 		| SM(0, IEEE80211_BASEQ_FRAG)
 		;
 	return ic->ic_send_action(ni, IEEE80211_ACTION_CAT_BA,
@@ -2157,12 +2196,12 @@ ht_send_action_ba_addba(struct ieee80211_node *ni,
 	uint8_t *frm;
 
 	IEEE80211_NOTE(vap, IEEE80211_MSG_ACTION | IEEE80211_MSG_11N, ni,
-	    "send ADDBA %s: dialogtoken %d "
+	    "send ADDBA %s: dialogtoken %d status %d "
 	    "baparamset 0x%x (tid %d) batimeout 0x%x baseqctl 0x%x",
 	    (action == IEEE80211_ACTION_BA_ADDBA_REQUEST) ?
 		"request" : "response",
-	    args[0], args[1], MS(args[1], IEEE80211_BAPS_TID),
-	    args[2], args[3]);
+	    args[0], args[1], args[2], MS(args[2], IEEE80211_BAPS_TID),
+	    args[3], args[4]);
 
 	IEEE80211_DPRINTF(vap, IEEE80211_MSG_NODE,
 	    "ieee80211_ref_node (%s:%u) %p<%s> refcnt %d\n", __func__, __LINE__,
@@ -2179,10 +2218,12 @@ ht_send_action_ba_addba(struct ieee80211_node *ni,
 		*frm++ = category;
 		*frm++ = action;
 		*frm++ = args[0];		/* dialog token */
-		ADDSHORT(frm, args[1]);		/* baparamset */
-		ADDSHORT(frm, args[2]);		/* batimeout */
+		if (action == IEEE80211_ACTION_BA_ADDBA_RESPONSE)
+			ADDSHORT(frm, args[1]);	/* status code */
+		ADDSHORT(frm, args[2]);		/* baparamset */
+		ADDSHORT(frm, args[3]);		/* batimeout */
 		if (action == IEEE80211_ACTION_BA_ADDBA_REQUEST)
-			ADDSHORT(frm, args[3]);	/* baseqctl */
+			ADDSHORT(frm, args[4]);	/* baseqctl */
 		m->m_pkthdr.len = m->m_len = frm - mtod(m, uint8_t *);
 		return ht_action_output(ni, m);
 	} else {
@@ -2305,7 +2346,7 @@ ieee80211_add_htcap_body(uint8_t *frm, struct ieee80211_node *ni)
 	frm += 2;				\
 } while (0)
 	struct ieee80211vap *vap = ni->ni_vap;
-	uint16_t caps;
+	uint16_t caps, extcaps;
 	int rxmax, density;
 
 	/* HT capabilities */
@@ -2363,8 +2404,17 @@ ieee80211_add_htcap_body(uint8_t *frm, struct ieee80211_node *ni)
 	 */
 	ieee80211_set_htrates(frm, &ieee80211_rateset_11n);
 
-	frm += sizeof(struct ieee80211_ie_htcap) -
+	frm += __offsetof(struct ieee80211_ie_htcap, hc_extcap) -
 		__offsetof(struct ieee80211_ie_htcap, hc_mcsset);
+
+	/* HT extended capabilities */
+	extcaps = vap->iv_htextcaps & 0xffff;
+
+	ADDSHORT(frm, extcaps);
+
+	frm += sizeof(struct ieee80211_ie_htcap) -
+		__offsetof(struct ieee80211_ie_htcap, hc_txbf);
+
 	return frm;
 #undef ADDSHORT
 }
