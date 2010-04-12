@@ -433,6 +433,8 @@ void InitHeaderSearch::AddDefaultCIncludePaths(const llvm::Triple &triple) {
   case llvm::Triple::MinGW32:
     AddPath("c:/mingw/include", System, true, false, false);
     break;
+  case llvm::Triple::FreeBSD:
+    AddPath("/usr/include/clang/1.5", System, true, false, false);
   default:
     break;
   }

@@ -252,14 +252,18 @@ XMAKE=		TOOLS_PREFIX=${WORLDTMP} ${BMAKE} \
 		TARGET=${TARGET} TARGET_ARCH=${TARGET_ARCH} \
 		-DWITHOUT_GDB
 
+.if ${CC} == "clang" || ${CXX} == "clang++"
+MMINTRIN_CLANG=	-isystem ${WORLDTMP}/usr/include/clang/1.5
+.endif
+
 # world stage
 WMAKEENV=	${CROSSENV} \
 		_SHLIBDIRPREFIX=${WORLDTMP} \
 		VERSION="${VERSION}" \
 		INSTALL="sh ${.CURDIR}/tools/install.sh" \
 		PATH=${TMPPATH} \
-		CC="${CC} -isystem ${WORLDTMP}/usr/include -B${WORLDTMP}/usr/bin/ -L${WORLDTMP}/usr/lib/" \
-		CXX="${CXX} -isystem ${WORLDTMP}/usr/include -isystem ${WORLDTMP}/include/c++/4.2 -isystem ${WORLDTMP}/include/c++/4.2/backward -B${WORLDTMP}/usr/bin/ -L${WORLDTMP}/usr/lib/"
+		CC="${CC} ${MMINTRIN_CLANG} -isystem ${WORLDTMP}/usr/include -B${WORLDTMP}/usr/bin/ -L${WORLDTMP}/usr/lib/" \
+		CXX="${CXX} ${MMINTRIN_CLANG} -isystem ${WORLDTMP}/usr/include -isystem ${WORLDTMP}/include/c++/4.2 -isystem ${WORLDTMP}/include/c++/4.2/backward -B${WORLDTMP}/usr/bin/ -L${WORLDTMP}/usr/lib/"
 
 .if ${MK_CDDL} == "no" || defined(NO_CTF)
 WMAKEENV+=	NO_CTF=1
