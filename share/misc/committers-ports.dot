@@ -140,6 +140,7 @@ rafan [label="Rong-En Fan\nrafan@FreeBSD.org\n2006/06/23"]
 rene [label="Rene Ladan\nrene@FreeBSD.org\n2010/04/11"]
 rnoland [label="Robert Noland\nrnoland@FreeBSD.org\n2008/07/21"]
 romain [label="Romain Tartiere\nromain@FreeBSD.org\n2010/01/24"]
+sahil [label="Sahil Tandon\nsahil@FreeBSD.org\n2010/04/11"]
 sat [label="Andrew Pantyukhin\nsat@FreeBSD.org\n2006/05/06"]
 sem [label="Sergey Matveychuk\nsem@FreeBSD.org\n2004/07/07"]
 sergei [label="Sergei Kolobov\nsergei@FreeBSD.org\n2003/10/21"]
@@ -251,6 +252,7 @@ ijliao -> leeym
 
 itetcu -> araujo
 itetcu -> dryice
+itetcu -> sahil
 
 joerg -> netchild
 
@@ -360,6 +362,7 @@ tmclaugh -> xride
 
 will -> lioux
 
+wxs -> sahil
 wxs -> skreuzer
 
 }
