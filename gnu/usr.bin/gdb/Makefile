@@ -3,8 +3,7 @@
 SUBDIR=	doc libgdb gdb gdbtui kgdb
 
 TARGET_ARCH?= ${MACHINE_ARCH}
-.if ${TARGET_ARCH} == "amd64" || ${TARGET_ARCH} == "arm" || \
-    ${TARGET_ARCH} == "i386" || ${TARGET_ARCH} == "powerpc"
+.if exists(${.CURDIR}/gdbserver/reg-${TARGET_ARCH}.c)
 SUBDIR+=gdbserver
 .endif
 
