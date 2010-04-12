@@ -1,0 +1,96 @@
+/*
+ * $FreeBSD$
+ */
+
+ZLIB_1.2.4.0 {
+	adler32;
+	adler32_combine64;
+	compress;
+	compress2;
+	compressBound;
+	crc32;
+	crc32_combine64;
+	deflate;
+	deflateBound;
+	deflateCopy;
+	deflateEnd;
+	deflateInit2_;
+	deflateInit_;
+	deflateParams;
+	deflatePrime;
+	deflateReset;
+	deflateSetDictionary;
+	deflateSetHeader;
+	deflateTune;
+	get_crc_table;
+	gzbuffer;
+	gzclearerr;
+	gzclose;
+	gzclose_r;
+	gzclose_w;
+	gzdirect;
+	gzdopen;
+	gzeof;
+	gzerror;
+	gzflush;
+	gzgetc;
+	gzgets;
+	gzoffset64;
+	gzopen64;
+	gzprintf;
+	gzputc;
+	gzputs;
+	gzread;
+	gzrewind;
+	gzseek64;
+	gzsetparams;
+	gztell64;
+	gzungetc;
+	gzwrite;
+	inflate;
+	inflateBack;
+	inflateBackEnd;
+	inflateBackInit_;
+	inflateCopy;
+	inflateEnd;
+	inflateGetHeader;
+	inflateInit2_;
+	inflateInit_;
+	inflateMark;
+	inflatePrime;
+	inflateReset;
+	inflateReset2;
+	inflateSetDictionary;
+	inflateSync;
+	inflateSyncPoint;
+	inflateUndermine;
+	uncompress;
+	zError;
+	zlibCompileFlags;
+	zlibVersion;
+};
+
+FBSD_1.2 {
+	zopen;
+};
+
+ZLIBprivate_1.0 {
+	_tr_align;
+	_tr_flush_block;
+	_tr_init;
+	_tr_stored_block;
+	_tr_tally;
+	adler32_combine;
+	crc32_combine;
+	gz_error;
+	gzoffset;
+	gzopen;
+	gzseek;
+	gztell;
+	inflate_fast;
+	inflate_table;
+	longest_match;
+	match_init;
+	zcalloc;
+	zcfree;
+};

@@ -38,7 +38,6 @@ __FBSDID("$FreeBSD$");
 #include <unistd.h>
 #include <sys/time.h>
 #include <sys/ioctl.h>
-
 #include <dev/usb/usb_ioctl.h>
 
 #include "usbhid.h"
@@ -59,9 +58,30 @@ hid_set_immed(int fd, int enable)
 int
 hid_get_report_id(int fd)
 {
+	report_desc_t rep;
+	hid_data_t d;
+	hid_item_t h;
+	int kindset;
 	int temp = -1;
 	int ret;
 
+	if ((rep = hid_get_report_desc(fd)) == NULL)
+		goto use_ioctl;
+	kindset = 1 << hid_input | 1 << hid_output | 1 << hid_feature;
+	for (d = hid_start_parse(rep, kindset, 0); hid_get_item(d, &h); ) {
+		/* Return the first report ID we met. */
+		if (h.report_ID != 0) {
+			temp = h.report_ID;
+			break;
+		}
+	}
+	hid_end_parse(d);
+	hid_dispose_report_desc(rep);
+
+	if (temp > 0)
+		return (temp);
+
+use_ioctl:
 	ret = ioctl(fd, USB_GET_REPORT_ID, &temp);
 #ifdef HID_COMPAT7
 	if (ret < 0)
