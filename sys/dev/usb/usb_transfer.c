@@ -2410,8 +2410,15 @@ usbd_pipe_start(struct usb_xfer_queue *pq)
 	 * Check if we are supposed to stall the endpoint:
 	 */
 	if (xfer->flags.stall_pipe) {
+		struct usb_device *udev;
+		struct usb_xfer_root *info;
+
 		/* clear stall command */
 		xfer->flags.stall_pipe = 0;
+
+		/* get pointer to USB device */
+		info = xfer->xroot;
+		udev = info->udev;
 
 		/*
 		 * Only stall BULK and INTERRUPT endpoints.
@@ -2419,12 +2426,8 @@ usbd_pipe_start(struct usb_xfer_queue *pq)
 		type = (ep->edesc->bmAttributes & UE_XFERTYPE);
 		if ((type == UE_BULK) ||
 		    (type == UE_INTERRUPT)) {
-			struct usb_device *udev;
-			struct usb_xfer_root *info;
 			uint8_t did_stall;
 
-			info = xfer->xroot;
-			udev = info->udev;
 			did_stall = 1;
 
 			if (udev->flags.usb_mode == USB_MODE_DEVICE) {
@@ -2451,6 +2454,17 @@ usbd_pipe_start(struct usb_xfer_queue *pq)
 				 */
 				ep->is_stalled = 1;
 				return;
+			}
+		} else if (type == UE_ISOCHRONOUS) {
+
+			/* 
+			 * Make sure any FIFO overflow or other FIFO
+			 * error conditions go away by resetting the
+			 * endpoint FIFO through the clear stall
+			 * method.
+			 */
+			if (udev->flags.usb_mode == USB_MODE_DEVICE) {
+				(udev->bus->methods->clear_stall) (udev, ep);
 			}
 		}
 	}

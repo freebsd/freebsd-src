@@ -1,23 +1,22 @@
+/* $FreeBSD$ */
+
 TARGET(elf64-tradbigmips)
 OUTPUT_FORMAT("elf64-tradbigmips", "elf64-tradbigmips", "elf64-tradlittlemips")
 OUTPUT_ARCH(mips)
 ENTRY(_start)
-/*   __DYNAMIC = 0;
+   __DYNAMIC = 0;
 PROVIDE (_DYNAMIC = 0);
-*/
-PHDRS {
-	text	PT_LOAD FLAGS ( 5 ) ;
-}
 
 SECTIONS {
+	. = KERNLOADADDR + SIZEOF_HEADERS;
 
-	.text _start : {
+	.text . : {
 	    	*(.text)
-		/*(.dynamic)*/
+		*(.dynamic)
 		etext = .;
 		_etext = .;
 		. = ALIGN(0x2000);
-	} : text
+	}
 
 	.rodata ALIGN(0x2000) : {
 		_fdata = .;

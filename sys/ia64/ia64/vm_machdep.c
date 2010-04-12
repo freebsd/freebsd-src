@@ -70,6 +70,7 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/proc.h>
+#include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/bio.h>
 #include <sys/buf.h>
@@ -89,13 +90,10 @@
 
 #include <vm/vm.h>
 #include <vm/vm_param.h>
-#include <sys/lock.h>
 #include <vm/vm_kern.h>
 #include <vm/vm_page.h>
 #include <vm/vm_map.h>
 #include <vm/vm_extern.h>
-
-#include <i386/include/psl.h>
 
 void
 cpu_thread_exit(struct thread *td)

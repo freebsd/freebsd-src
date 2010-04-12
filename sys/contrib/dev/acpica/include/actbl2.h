@@ -143,6 +143,7 @@
 #define ACPI_SIG_IBFT           "IBFT"      /* iSCSI Boot Firmware Table */
 #define ACPI_SIG_IVRS           "IVRS"      /* I/O Virtualization Reporting Structure */
 #define ACPI_SIG_MCFG           "MCFG"      /* PCI Memory Mapped Configuration table */
+#define ACPI_SIG_MCHI           "MCHI"      /* Management Controller Host Interface table */
 #define ACPI_SIG_SLIC           "SLIC"      /* Software Licensing Description Table */
 #define ACPI_SIG_SPCR           "SPCR"      /* Serial Port Console Redirection table */
 #define ACPI_SIG_SPMI           "SPMI"      /* Server Platform Management Interface table */
@@ -860,6 +861,35 @@ typedef struct acpi_mcfg_allocation
     UINT32                  Reserved;
 
 } ACPI_MCFG_ALLOCATION;
+
+
+/*******************************************************************************
+ *
+ * MCHI - Management Controller Host Interface Table
+ *        Version 1
+ *
+ * Conforms to "Management Component Transport Protocol (MCTP) Host
+ * Interface Specification", Revision 1.0.0a, October 13, 2009
+ *
+ ******************************************************************************/
+
+typedef struct acpi_table_mchi
+{
+    ACPI_TABLE_HEADER       Header;             /* Common ACPI table header */
+    UINT8                   InterfaceType;
+    UINT8                   Protocol;
+    UINT64                  ProtocolData;
+    UINT8                   InterruptType;
+    UINT8                   Gpe;
+    UINT8                   PciDeviceFlag;
+    UINT32                  GlobalInterrupt;
+    ACPI_GENERIC_ADDRESS    ControlRegister;
+    UINT8                   PciSegment;
+    UINT8                   PciBus;
+    UINT8                   PciDevice;
+    UINT8                   PciFunction;
+
+} ACPI_TABLE_MCHI;
 
 
 /*******************************************************************************

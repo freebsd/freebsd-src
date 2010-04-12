@@ -1060,8 +1060,8 @@ kern_openat(struct thread *td, int fd, char *path, enum uio_seg pathseg,
 	AUDIT_ARG_MODE(mode);
 	/* XXX: audit dirfd */
 	/*
-	 * Only one of the O_EXEC, O_RDONLY, O_WRONLY and O_RDWR may
-	 * be specified.
+	 * Only one of the O_EXEC, O_RDONLY, O_WRONLY and O_RDWR flags
+	 * may be specified.
 	 */
 	if (flags & O_EXEC) {
 		if (flags & O_ACCMODE)
@@ -2269,9 +2269,9 @@ cvtstat(st, ost)
 		ost->st_size = st->st_size;
 	else
 		ost->st_size = -2;
-	ost->st_atime = st->st_atime;
-	ost->st_mtime = st->st_mtime;
-	ost->st_ctime = st->st_ctime;
+	ost->st_atim = st->st_atim;
+	ost->st_mtim = st->st_mtim;
+	ost->st_ctim = st->st_ctim;
 	ost->st_blksize = st->st_blksize;
 	ost->st_blocks = st->st_blocks;
 	ost->st_flags = st->st_flags;
@@ -2431,15 +2431,15 @@ cvtnstat(sb, nsb)
 	nsb->st_uid = sb->st_uid;
 	nsb->st_gid = sb->st_gid;
 	nsb->st_rdev = sb->st_rdev;
-	nsb->st_atimespec = sb->st_atimespec;
-	nsb->st_mtimespec = sb->st_mtimespec;
-	nsb->st_ctimespec = sb->st_ctimespec;
+	nsb->st_atim = sb->st_atim;
+	nsb->st_mtim = sb->st_mtim;
+	nsb->st_ctim = sb->st_ctim;
 	nsb->st_size = sb->st_size;
 	nsb->st_blocks = sb->st_blocks;
 	nsb->st_blksize = sb->st_blksize;
 	nsb->st_flags = sb->st_flags;
 	nsb->st_gen = sb->st_gen;
-	nsb->st_birthtimespec = sb->st_birthtimespec;
+	nsb->st_birthtim = sb->st_birthtim;
 }
 
 #ifndef _SYS_SYSPROTO_H_
@@ -4426,6 +4426,10 @@ fhopen(td, uap)
 	}
 	if (vp->v_type == VSOCK) {
 		error = EOPNOTSUPP;
+		goto bad;
+	}
+	if (vp->v_type != VDIR && fmode & O_DIRECTORY) {
+		error = ENOTDIR;
 		goto bad;
 	}
 	accmode = 0;

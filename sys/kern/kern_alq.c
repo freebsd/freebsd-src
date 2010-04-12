@@ -1,6 +1,12 @@
 /*-
  * Copyright (c) 2002, Jeffrey Roberson <jeff@freebsd.org>
+ * Copyright (c) 2008-2009, Lawrence Stewart <lstewart@freebsd.org>
+ * Copyright (c) 2009-2010, The FreeBSD Foundation
  * All rights reserved.
+ *
+ * Portions of this software were developed at the Centre for Advanced
+ * Internet Architectures, Swinburne University of Technology, Melbourne,
+ * Australia by Lawrence Stewart under sponsorship from the FreeBSD Foundation.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -26,6 +32,8 @@
 
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
+
+#include "opt_mac.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -95,6 +103,7 @@ static void ald_deactivate(struct alq *);
 
 /* Internal queue functions */
 static void alq_shutdown(struct alq *);
+static void alq_destroy(struct alq *);
 static int alq_doio(struct alq *);
 
 
@@ -180,8 +189,15 @@ ald_daemon(void)
 	ALD_LOCK();
 
 	for (;;) {
-		while ((alq = LIST_FIRST(&ald_active)) == NULL)
-			msleep(&ald_active, &ald_mtx, PWAIT, "aldslp", 0);
+		while ((alq = LIST_FIRST(&ald_active)) == NULL &&
+		    !ald_shutingdown)
+			mtx_sleep(&ald_active, &ald_mtx, PWAIT, "aldslp", 0);
+
+		/* Don't shutdown until all active ALQs are flushed. */
+		if (ald_shutingdown && alq == NULL) {
+			ALD_UNLOCK();
+			break;
+		}
 
 		ALQ_LOCK(alq);
 		ald_deactivate(alq);
@@ -192,6 +208,8 @@ ald_daemon(void)
 			wakeup(alq);
 		ALD_LOCK();
 	}
+
+	kproc_exit(0);
 }
 
 static void
@@ -200,14 +218,29 @@ ald_shutdown(void *arg, int howto)
 	struct alq *alq;
 
 	ALD_LOCK();
+
+	/* Ensure no new queues can be created. */
 	ald_shutingdown = 1;
 
+	/* Shutdown all ALQs prior to terminating the ald_daemon. */
 	while ((alq = LIST_FIRST(&ald_queues)) != NULL) {
 		LIST_REMOVE(alq, aq_link);
 		ALD_UNLOCK();
 		alq_shutdown(alq);
 		ALD_LOCK();
 	}
+
+	/* At this point, all ALQs are flushed and shutdown. */
+
+	/*
+	 * Wake ald_daemon so that it exits. It won't be able to do
+	 * anything until we mtx_sleep because we hold the ald_mtx.
+	 */
+	wakeup(&ald_active);
+
+	/* Wait for ald_daemon to exit. */
+	mtx_sleep(ald_proc, &ald_mtx, PWAIT, "aldslp", 0);
+
 	ALD_UNLOCK();
 }
 
@@ -220,7 +253,7 @@ alq_shutdown(struct alq *alq)
 	alq->aq_flags |= AQ_SHUTDOWN;
 
 	/* Drain IO */
-	while (alq->aq_flags & (AQ_FLUSHING|AQ_ACTIVE)) {
+	while (alq->aq_flags & AQ_ACTIVE) {
 		alq->aq_flags |= AQ_WANTED;
 		msleep_spin(alq, &alq->aq_mtx, "aldclose", 0);
 	}
@@ -229,6 +262,18 @@ alq_shutdown(struct alq *alq)
 	vn_close(alq->aq_vp, FWRITE, alq->aq_cred,
 	    curthread);
 	crfree(alq->aq_cred);
+}
+
+void
+alq_destroy(struct alq *alq)
+{
+	/* Drain all pending IO. */
+	alq_shutdown(alq);
+
+	mtx_destroy(&alq->aq_mtx);
+	free(alq->aq_first, M_ALD);
+	free(alq->aq_entbuf, M_ALD);
+	free(alq, M_ALD);
 }
 
 /*
@@ -388,8 +433,11 @@ alq_open(struct alq **alqp, const char *file, struct ucred *cred, int cmode,
 
 	alp->ae_next = alq->aq_first;
 
-	if ((error = ald_add(alq)) != 0)
+	if ((error = ald_add(alq)) != 0) {
+		alq_destroy(alq);
 		return (error);
+	}
+
 	*alqp = alq;
 
 	return (0);
@@ -493,20 +541,57 @@ alq_flush(struct alq *alq)
 void
 alq_close(struct alq *alq)
 {
-	/*
-	 * If we're already shuting down someone else will flush and close
-	 * the vnode.
-	 */
-	if (ald_rem(alq) != 0)
-		return;
-
-	/*
-	 * Drain all pending IO.
-	 */
-	alq_shutdown(alq);
-
-	mtx_destroy(&alq->aq_mtx);
-	free(alq->aq_first, M_ALD);
-	free(alq->aq_entbuf, M_ALD);
-	free(alq, M_ALD);
+	/* Only flush and destroy alq if not already shutting down. */
+	if (ald_rem(alq) == 0)
+		alq_destroy(alq);
 }
+
+static int
+alq_load_handler(module_t mod, int what, void *arg)
+{
+	int ret;
+	
+	ret = 0;
+
+	switch (what) {
+	case MOD_LOAD:
+	case MOD_SHUTDOWN:
+		break;
+
+	case MOD_QUIESCE:
+		ALD_LOCK();
+		/* Only allow unload if there are no open queues. */
+		if (LIST_FIRST(&ald_queues) == NULL) {
+			ald_shutingdown = 1;
+			ALD_UNLOCK();
+			ald_shutdown(NULL, 0);
+			mtx_destroy(&ald_mtx);
+		} else {
+			ALD_UNLOCK();
+			ret = EBUSY;
+		}
+		break;
+
+	case MOD_UNLOAD:
+		/* If MOD_QUIESCE failed we must fail here too. */
+		if (ald_shutingdown == 0)
+			ret = EBUSY;
+		break;
+
+	default:
+		ret = EINVAL;
+		break;
+	}
+
+	return (ret);
+}
+
+static moduledata_t alq_mod =
+{
+	"alq",
+	alq_load_handler,
+	NULL
+};
+
+DECLARE_MODULE(alq, alq_mod, SI_SUB_SMP, SI_ORDER_ANY);
+MODULE_VERSION(alq, 1);

@@ -176,11 +176,11 @@ get_tclk(void)
 	/*
 	 * On Kirkwood TCLK is not configurable and depends on silicon
 	 * revision:
-	 * - A0 has TCLK hardcoded to 200 MHz.
+	 * - A0 and A1 have TCLK hardcoded to 200 MHz.
 	 * - Z0 and others have TCLK hardcoded to 166 MHz.
 	 */
 	soc_id(&dev, &rev);
-	if (dev == MV_DEV_88F6281 && rev == 2)
+	if (dev == MV_DEV_88F6281 && (rev == 2 || rev == 3))
 		return (TCLK_200MHZ);
 
 	return (TCLK_166MHZ);

@@ -438,7 +438,7 @@ AcpiUtAllocate (
         /* Report allocation error */
 
         ACPI_WARNING ((Module, Line,
-            "Could not allocate size %X", (UINT32) Size));
+            "Could not allocate size %u", (UINT32) Size));
 
         return_PTR (NULL);
     }

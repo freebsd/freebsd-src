@@ -570,7 +570,7 @@ AslDoOptions (
         case 'r':
             /* reserved names */
 
-            MpDisplayReservedNames ();
+            ApDisplayReservedNames ();
             exit (0);
 
         default:

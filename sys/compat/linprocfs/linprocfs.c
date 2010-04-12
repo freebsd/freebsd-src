@@ -110,12 +110,14 @@ __FBSDID("$FreeBSD$");
 /*
  * Various conversion macros
  */
-#define T2J(x) (((x) * 100UL) / (stathz ? stathz : hz))	/* ticks to jiffies */
+#define T2J(x) ((long)(((x) * 100ULL) / (stathz ? stathz : hz)))	/* ticks to jiffies */
+#define T2CS(x) ((unsigned long)(((x) * 100ULL) / (stathz ? stathz : hz)))	/* ticks to centiseconds */
 #define T2S(x) ((x) / (stathz ? stathz : hz))		/* ticks to seconds */
 #define B2K(x) ((x) >> 10)				/* bytes to kbytes */
 #define B2P(x) ((x) >> PAGE_SHIFT)			/* bytes to pages */
 #define P2B(x) ((x) << PAGE_SHIFT)			/* pages to bytes */
 #define P2K(x) ((x) << (PAGE_SHIFT - 10))		/* pages to kbytes */
+#define TV2J(x)	((x)->tv_sec * 100UL + (x)->tv_usec / 10000)
 
 /**
  * @brief Mapping of ki_stat in struct kinfo_proc to the linux state
@@ -505,9 +507,10 @@ linprocfs_douptime(PFS_FILL_ARGS)
 
 	getmicrouptime(&tv);
 	read_cpu_time(cp_time);
-	sbuf_printf(sb, "%lld.%02ld %ld.%02ld\n",
+	sbuf_printf(sb, "%lld.%02ld %ld.%02lu\n",
 	    (long long)tv.tv_sec, tv.tv_usec / 10000,
-	    T2S(cp_time[CP_IDLE]), T2J(cp_time[CP_IDLE]) % 100);
+	    T2S(cp_time[CP_IDLE] / mp_ncpus),
+	    T2CS(cp_time[CP_IDLE] / mp_ncpus) % 100);
 	return (0);
 }
 
@@ -613,9 +616,17 @@ linprocfs_doprocstat(PFS_FILL_ARGS)
 	struct kinfo_proc kp;
 	char state;
 	static int ratelimit = 0;
+	vm_offset_t startcode, startdata;
 
 	PROC_LOCK(p);
 	fill_kinfo_proc(p, &kp);
+	if (p->p_vmspace) {
+	   startcode = (vm_offset_t)p->p_vmspace->vm_taddr;
+	   startdata = (vm_offset_t)p->p_vmspace->vm_daddr;
+	} else {
+	   startcode = 0;
+	   startdata = 0;
+	};
 	sbuf_printf(sb, "%d", p->p_pid);
 #define PS_ADD(name, fmt, arg) sbuf_printf(sb, " " fmt, arg)
 	PS_ADD("comm",		"(%s)",	p->p_comm);
@@ -634,30 +645,27 @@ linprocfs_doprocstat(PFS_FILL_ARGS)
 	PS_ADD("pgrp",		"%d",	p->p_pgid);
 	PS_ADD("session",	"%d",	p->p_session->s_sid);
 	PROC_UNLOCK(p);
-	PS_ADD("tty",		"%d",	0); /* XXX */
+	PS_ADD("tty",		"%d",	kp.ki_tdev);
 	PS_ADD("tpgid",		"%d",	kp.ki_tpgid);
 	PS_ADD("flags",		"%u",	0); /* XXX */
 	PS_ADD("minflt",	"%lu",	kp.ki_rusage.ru_minflt);
 	PS_ADD("cminflt",	"%lu",	kp.ki_rusage_ch.ru_minflt);
 	PS_ADD("majflt",	"%lu",	kp.ki_rusage.ru_majflt);
 	PS_ADD("cmajflt",	"%lu",	kp.ki_rusage_ch.ru_majflt);
-	PS_ADD("utime",		"%ld",	T2J(tvtohz(&kp.ki_rusage.ru_utime)));
-	PS_ADD("stime",		"%ld",	T2J(tvtohz(&kp.ki_rusage.ru_stime)));
-	PS_ADD("cutime",	"%ld",	T2J(tvtohz(&kp.ki_rusage_ch.ru_utime)));
-	PS_ADD("cstime",	"%ld",	T2J(tvtohz(&kp.ki_rusage_ch.ru_stime)));
+	PS_ADD("utime",		"%ld",	TV2J(&kp.ki_rusage.ru_utime));
+	PS_ADD("stime",		"%ld",	TV2J(&kp.ki_rusage.ru_stime));
+	PS_ADD("cutime",	"%ld",	TV2J(&kp.ki_rusage_ch.ru_utime));
+	PS_ADD("cstime",	"%ld",	TV2J(&kp.ki_rusage_ch.ru_stime));
 	PS_ADD("priority",	"%d",	kp.ki_pri.pri_user);
 	PS_ADD("nice",		"%d",	kp.ki_nice); /* 19 (nicest) to -19 */
 	PS_ADD("0",		"%d",	0); /* removed field */
 	PS_ADD("itrealvalue",	"%d",	0); /* XXX */
-	/* XXX: starttime is not right, it is the _same_ for _every_ process.
-	   It should be the number of jiffies between system boot and process
-	   start. */
-	PS_ADD("starttime",	"%lu",	T2J(tvtohz(&kp.ki_start)));
+	PS_ADD("starttime",	"%lu",	TV2J(&kp.ki_start) - TV2J(&boottime));
 	PS_ADD("vsize",		"%ju",	P2K((uintmax_t)kp.ki_size));
 	PS_ADD("rss",		"%ju",	(uintmax_t)kp.ki_rssize);
 	PS_ADD("rlim",		"%lu",	kp.ki_rusage.ru_maxrss);
-	PS_ADD("startcode",	"%u",	(unsigned)0);
-	PS_ADD("endcode",	"%u",	0); /* XXX */
+	PS_ADD("startcode",	"%ju",	(uintmax_t)startcode);
+	PS_ADD("endcode",	"%ju",	(uintmax_t)startdata);
 	PS_ADD("startstack",	"%u",	0); /* XXX */
 	PS_ADD("kstkesp",	"%u",	0); /* XXX */
 	PS_ADD("kstkeip",	"%u",	0); /* XXX */
@@ -800,7 +808,7 @@ linprocfs_doprocstatus(PFS_FILL_ARGS)
 	 */
 	sbuf_printf(sb, "VmSize:\t%8ju kB\n",	B2K((uintmax_t)kp.ki_size));
 	sbuf_printf(sb, "VmLck:\t%8u kB\n",	P2K(0)); /* XXX */
-	sbuf_printf(sb, "VmRss:\t%8ju kB\n",	P2K((uintmax_t)kp.ki_rssize));
+	sbuf_printf(sb, "VmRSS:\t%8ju kB\n",	P2K((uintmax_t)kp.ki_rssize));
 	sbuf_printf(sb, "VmData:\t%8ju kB\n",	P2K((uintmax_t)kp.ki_dsize));
 	sbuf_printf(sb, "VmStk:\t%8ju kB\n",	P2K((uintmax_t)kp.ki_ssize));
 	sbuf_printf(sb, "VmExe:\t%8ju kB\n",	P2K((uintmax_t)kp.ki_tsize));
@@ -1227,6 +1235,24 @@ linprocfs_docmdline(PFS_FILL_ARGS)
 	return (0);
 }
 
+/*
+ * Filler function for proc/filesystems
+ */
+static int
+linprocfs_dofilesystems(PFS_FILL_ARGS)
+{
+	struct vfsconf *vfsp;
+
+	mtx_lock(&Giant);
+	TAILQ_FOREACH(vfsp, &vfsconf, vfc_list) {
+		if (vfsp->vfc_flags & VFCF_SYNTHETIC)
+			sbuf_printf(sb, "nodev");
+		sbuf_printf(sb, "\t%s\n", vfsp->vfc_name);
+	}
+	mtx_unlock(&Giant);
+	return(0);
+}
+
 #if 0
 /*
  * Filler function for proc/modules
@@ -1245,6 +1271,20 @@ linprocfs_domodules(PFS_FILL_ARGS)
 #endif
 
 /*
+ * Filler function for proc/pid/fd
+ */
+static int
+linprocfs_dofdescfs(PFS_FILL_ARGS)
+{
+
+	if (p == curproc)
+		sbuf_printf(sb, "/dev/fd");
+	else
+		sbuf_printf(sb, "unknown");
+	return (0);
+}
+
+/*
  * Constructor
  */
 static int
@@ -1261,6 +1301,8 @@ linprocfs_init(PFS_INIT_ARGS)
 	pfs_create_file(root, "cpuinfo", &linprocfs_docpuinfo,
 	    NULL, NULL, NULL, PFS_RD);
 	pfs_create_file(root, "devices", &linprocfs_dodevices,
+	    NULL, NULL, NULL, PFS_RD);
+	pfs_create_file(root, "filesystems", &linprocfs_dofilesystems,
 	    NULL, NULL, NULL, PFS_RD);
 	pfs_create_file(root, "loadavg", &linprocfs_doloadavg,
 	    NULL, NULL, NULL, PFS_RD);
@@ -1312,6 +1354,8 @@ linprocfs_init(PFS_INIT_ARGS)
 	    NULL, NULL, NULL, PFS_RD);
 	pfs_create_file(dir, "status", &linprocfs_doprocstatus,
 	    NULL, NULL, NULL, PFS_RD);
+	pfs_create_link(dir, "fd", &linprocfs_dofdescfs,
+	    NULL, NULL, NULL, 0);
 
 	/* /proc/scsi/... */
 	dir = pfs_create_dir(root, "scsi", NULL, NULL, NULL, 0);

@@ -2544,30 +2544,39 @@ ata_raid_intel_read_meta(device_t dev, struct ar_softc **raidp)
 
 	    /* clear out any old info */
 	    for (disk = 0; disk < raid->total_disks; disk++) {
+		u_int disk_idx = map->disk_idx[disk] & 0xffff;
+
 		raid->disks[disk].dev = NULL;
-		bcopy(meta->disk[map->disk_idx[disk]].serial,
+		bcopy(meta->disk[disk_idx].serial,
 		      raid->disks[disk].serial,
 		      sizeof(raid->disks[disk].serial));
 		raid->disks[disk].sectors =
-		    meta->disk[map->disk_idx[disk]].sectors;
+		    meta->disk[disk_idx].sectors;
 		raid->disks[disk].flags = 0;
-		if (meta->disk[map->disk_idx[disk]].flags & INTEL_F_ONLINE)
+		if (meta->disk[disk_idx].flags & INTEL_F_ONLINE)
 		    raid->disks[disk].flags |= AR_DF_ONLINE;
-		if (meta->disk[map->disk_idx[disk]].flags & INTEL_F_ASSIGNED)
+		if (meta->disk[disk_idx].flags & INTEL_F_ASSIGNED)
 		    raid->disks[disk].flags |= AR_DF_ASSIGNED;
-		if (meta->disk[map->disk_idx[disk]].flags & INTEL_F_SPARE) {
+		if (meta->disk[disk_idx].flags & INTEL_F_SPARE) {
 		    raid->disks[disk].flags &= ~(AR_DF_ONLINE | AR_DF_ASSIGNED);
 		    raid->disks[disk].flags |= AR_DF_SPARE;
 		}
-		if (meta->disk[map->disk_idx[disk]].flags & INTEL_F_DOWN)
+		if (meta->disk[disk_idx].flags & INTEL_F_DOWN)
 		    raid->disks[disk].flags &= ~AR_DF_ONLINE;
 	    }
 	}
 	if (meta->generation >= raid->generation) {
 	    for (disk = 0; disk < raid->total_disks; disk++) {
 		struct ata_device *atadev = device_get_softc(parent);
+		int len;
 
-		if (!strncmp(raid->disks[disk].serial, atadev->param.serial,
+		for (len = 0; len < sizeof(atadev->param.serial); len++) {
+		    if (atadev->param.serial[len] < 0x20)
+			break;
+		}
+		len = (len > sizeof(raid->disks[disk].serial)) ?
+		    len - sizeof(raid->disks[disk].serial) : 0;
+		if (!strncmp(raid->disks[disk].serial, atadev->param.serial + len,
 		    sizeof(raid->disks[disk].serial))) {
 		    raid->disks[disk].dev = parent;
 		    raid->disks[disk].flags |= (AR_DF_PRESENT | AR_DF_ONLINE);
@@ -2637,8 +2646,15 @@ ata_raid_intel_write_meta(struct ar_softc *rdp)
 		device_get_softc(device_get_parent(rdp->disks[disk].dev));
 	    struct ata_device *atadev =
 		device_get_softc(rdp->disks[disk].dev);
+	    int len;
 
-	    bcopy(atadev->param.serial, meta->disk[disk].serial,
+	    for (len = 0; len < sizeof(atadev->param.serial); len++) {
+		if (atadev->param.serial[len] < 0x20)
+		    break;
+	    }
+	    len = (len > sizeof(rdp->disks[disk].serial)) ?
+	        len - sizeof(rdp->disks[disk].serial) : 0;
+	    bcopy(atadev->param.serial + len, meta->disk[disk].serial,
 		  sizeof(rdp->disks[disk].serial));
 	    meta->disk[disk].sectors = rdp->disks[disk].sectors;
 	    meta->disk[disk].id = (ch->unit << 16) | atadev->unit;
