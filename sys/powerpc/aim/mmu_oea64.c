@@ -1507,10 +1507,10 @@ moea64_remove_write(mmu_t mmu, vm_page_t m)
 		return;
 	lo = moea64_attr_fetch(m);
 	SYNC();
-	LOCK_TABLE();
 	LIST_FOREACH(pvo, vm_page_to_pvoh(m), pvo_vlink) {
 		pmap = pvo->pvo_pmap;
 		PMAP_LOCK(pmap);
+		LOCK_TABLE();
 		if ((pvo->pvo_pte.lpte.pte_lo & LPTE_PP) != LPTE_BR) {
 			pt = moea64_pvo_to_pte(pvo, -1);
 			pvo->pvo_pte.lpte.pte_lo &= ~LPTE_PP;
@@ -1523,9 +1523,9 @@ moea64_remove_write(mmu_t mmu, vm_page_t m)
 				    pvo->pvo_pmap, PVO_VADDR(pvo));
 			}
 		}
+		UNLOCK_TABLE();
 		PMAP_UNLOCK(pmap);
 	}
-	UNLOCK_TABLE();
 	if ((lo & LPTE_CHG) != 0) {
 		moea64_attr_clear(m, LPTE_CHG);
 		vm_page_dirty(m);
@@ -1604,6 +1604,13 @@ moea64_kextract(mmu_t mmu, vm_offset_t va)
 	struct		pvo_entry *pvo;
 	vm_paddr_t pa;
 
+	/*
+	 * Shortcut the direct-mapped case when applicable.  We never put
+	 * anything but 1:1 mappings below VM_MIN_KERNEL_ADDRESS.
+	 */
+	if (va < VM_MIN_KERNEL_ADDRESS)
+		return (va);
+
 	PMAP_LOCK(kernel_pmap);
 	pvo = moea64_pvo_find_va(kernel_pmap, va & ~ADDR_POFF, NULL);
 	KASSERT(pvo != NULL, ("moea64_kextract: no addr found"));
@@ -1661,17 +1668,15 @@ moea64_page_exists_quick(mmu_t mmu, pmap_t pmap, vm_page_t m)
         if (!moea64_initialized || (m->flags & PG_FICTITIOUS))
                 return FALSE;
 
+	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
+
 	loops = 0;
-	LOCK_TABLE();
 	LIST_FOREACH(pvo, vm_page_to_pvoh(m), pvo_vlink) {
-		if (pvo->pvo_pmap == pmap) {
-			UNLOCK_TABLE();
+		if (pvo->pvo_pmap == pmap) 
 			return (TRUE);
-		}
 		if (++loops >= 16)
 			break;
 	}
-	UNLOCK_TABLE();
 
 	return (FALSE);
 }
@@ -1690,11 +1695,9 @@ moea64_page_wired_mappings(mmu_t mmu, vm_page_t m)
 	if (!moea64_initialized || (m->flags & PG_FICTITIOUS) != 0)
 		return (count);
 	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
-	LOCK_TABLE();
 	LIST_FOREACH(pvo, vm_page_to_pvoh(m), pvo_vlink)
 		if ((pvo->pvo_vaddr & PVO_WIRED) != 0)
 			count++;
-	UNLOCK_TABLE();
 	return (count);
 }
 
@@ -1913,7 +1916,6 @@ moea64_remove_all(mmu_t mmu, vm_page_t m)
 	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
 
 	pvo_head = vm_page_to_pvoh(m);
-	LOCK_TABLE();
 	for (pvo = LIST_FIRST(pvo_head); pvo != NULL; pvo = next_pvo) {
 		next_pvo = LIST_NEXT(pvo, pvo_vlink);
 
@@ -1923,7 +1925,6 @@ moea64_remove_all(mmu_t mmu, vm_page_t m)
 		moea64_pvo_remove(pvo, -1);
 		PMAP_UNLOCK(pmap);
 	}
-	UNLOCK_TABLE();
 	if ((m->flags & PG_WRITEABLE) && moea64_is_modified(mmu, m)) {
 		moea64_attr_clear(m, LPTE_CHG);
 		vm_page_dirty(m);
@@ -2268,7 +2269,7 @@ moea64_pvo_to_pte(const struct pvo_entry *pvo, int pteidx)
 		}
 
 		if (((pt->pte_lo ^ pvo->pvo_pte.lpte.pte_lo) & 
-		    ~(LPTE_CHG|LPTE_REF)) != 0) {
+		    ~(LPTE_M|LPTE_CHG|LPTE_REF)) != 0) {
 			panic("moea64_pvo_to_pte: pvo %p pte does not match "
 			    "pte %p in moea64_pteg_table difference is %#x", 
 			    pvo, pt,
@@ -2334,7 +2335,8 @@ moea64_query_bit(vm_page_t m, u_int64_t ptebit)
 	if (moea64_attr_fetch(m) & ptebit)
 		return (TRUE);
 
-	LOCK_TABLE();
+	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
+
 	LIST_FOREACH(pvo, vm_page_to_pvoh(m), pvo_vlink) {
 		MOEA_PVO_CHECK(pvo);	/* sanity check */
 
@@ -2344,7 +2346,6 @@ moea64_query_bit(vm_page_t m, u_int64_t ptebit)
 		 */
 		if (pvo->pvo_pte.lpte.pte_lo & ptebit) {
 			moea64_attr_save(m, ptebit);
-			UNLOCK_TABLE();
 			MOEA_PVO_CHECK(pvo);	/* sanity check */
 			return (TRUE);
 		}
@@ -2364,6 +2365,7 @@ moea64_query_bit(vm_page_t m, u_int64_t ptebit)
 		 * REF/CHG bits from the valid PTE.  If the appropriate
 		 * ptebit is set, cache it and return success.
 		 */
+		LOCK_TABLE();
 		pt = moea64_pvo_to_pte(pvo, -1);
 		if (pt != NULL) {
 			moea64_pte_synch(pt, &pvo->pvo_pte.lpte);
@@ -2375,8 +2377,8 @@ moea64_query_bit(vm_page_t m, u_int64_t ptebit)
 				return (TRUE);
 			}
 		}
+		UNLOCK_TABLE();
 	}
-	UNLOCK_TABLE();
 
 	return (FALSE);
 }
@@ -2388,6 +2390,8 @@ moea64_clear_bit(vm_page_t m, u_int64_t ptebit, u_int64_t *origbit)
 	struct	pvo_entry *pvo;
 	struct	lpte *pt;
 	uint64_t rv;
+
+	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
 
 	/*
 	 * Clear the cached value.
@@ -2409,10 +2413,10 @@ moea64_clear_bit(vm_page_t m, u_int64_t ptebit, u_int64_t *origbit)
 	 * valid pte clear the ptebit from the valid pte.
 	 */
 	count = 0;
-	LOCK_TABLE();
 	LIST_FOREACH(pvo, vm_page_to_pvoh(m), pvo_vlink) {
 		MOEA_PVO_CHECK(pvo);	/* sanity check */
 
+		LOCK_TABLE();
 		pt = moea64_pvo_to_pte(pvo, -1);
 		if (pt != NULL) {
 			moea64_pte_synch(pt, &pvo->pvo_pte.lpte);
@@ -2424,8 +2428,8 @@ moea64_clear_bit(vm_page_t m, u_int64_t ptebit, u_int64_t *origbit)
 		rv |= pvo->pvo_pte.lpte.pte_lo;
 		pvo->pvo_pte.lpte.pte_lo &= ~ptebit;
 		MOEA_PVO_CHECK(pvo);	/* sanity check */
+		UNLOCK_TABLE();
 	}
-	UNLOCK_TABLE();
 
 	if (origbit != NULL) {
 		*origbit = rv;
@@ -2511,7 +2515,7 @@ moea64_sync_icache(mmu_t mmu, pmap_t pm, vm_offset_t va, vm_size_t sz)
 		len = MIN(lim - va, sz);
 		pvo = moea64_pvo_find_va(pm, va & ~ADDR_POFF, NULL);
 		if (pvo != NULL) {
-			pa = (pvo->pvo_pte.pte.pte_lo & PTE_RPGN) |
+			pa = (pvo->pvo_pte.pte.pte_lo & LPTE_RPGN) |
 			    (va & ADDR_POFF);
 			moea64_syncicache(pm, va, pa, len);
 		}

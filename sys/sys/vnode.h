@@ -720,6 +720,8 @@ void	vop_symlink_post(void *a, int rc);
 void	vop_unlock_post(void *a, int rc);
 void	vop_unlock_pre(void *a);
 
+void	vop_rename_fail(struct vop_rename_args *ap);
+
 #define	VOP_WRITE_PRE(ap)						\
 	struct vattr va;						\
 	int error, osize, ooffset, noffset;				\

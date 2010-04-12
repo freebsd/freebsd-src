@@ -41,6 +41,8 @@ struct vnode;
 
 int kernacc(void *, int, int);
 vm_offset_t kmem_alloc(vm_map_t, vm_size_t);
+vm_offset_t kmem_alloc_attr(vm_map_t map, vm_size_t size, int flags,
+    vm_paddr_t low, vm_paddr_t high, vm_memattr_t memattr);
 vm_offset_t kmem_alloc_contig(vm_map_t map, vm_size_t size, int flags,
     vm_paddr_t low, vm_paddr_t high, unsigned long alignment,
     unsigned long boundary, vm_memattr_t memattr);
@@ -49,7 +51,7 @@ vm_offset_t kmem_alloc_wait(vm_map_t, vm_size_t);
 void kmem_free(vm_map_t, vm_offset_t, vm_size_t);
 void kmem_free_wakeup(vm_map_t, vm_offset_t, vm_size_t);
 void kmem_init(vm_offset_t, vm_offset_t);
-vm_offset_t kmem_malloc(vm_map_t, vm_size_t, boolean_t);
+vm_offset_t kmem_malloc(vm_map_t map, vm_size_t size, int flags);
 vm_map_t kmem_suballoc(vm_map_t, vm_offset_t *, vm_offset_t *, vm_size_t,
     boolean_t);
 void swapout_procs(int);
@@ -82,7 +84,5 @@ struct sf_buf *vm_imgact_map_page(vm_object_t object, vm_ooffset_t offset);
 void vm_imgact_unmap_page(struct sf_buf *sf);
 void vm_thread_dispose(struct thread *td);
 int vm_thread_new(struct thread *td, int pages);
-void vm_thread_swapin(struct thread *td);
-void vm_thread_swapout(struct thread *td);
 #endif				/* _KERNEL */
 #endif				/* !_VM_EXTERN_H_ */

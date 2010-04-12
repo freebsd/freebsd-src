@@ -188,13 +188,13 @@ struct psycho_dma_sync {
 	uint8_t			pds_func;	/* func. of farest PCI dev. */
 };
 
-#define	PSYCHO_READ8(sc, off) \
+#define	PSYCHO_READ8(sc, off)						\
 	bus_read_8((sc)->sc_mem_res, (off))
-#define	PSYCHO_WRITE8(sc, off, v) \
+#define	PSYCHO_WRITE8(sc, off, v)					\
 	bus_write_8((sc)->sc_mem_res, (off), (v))
-#define	PCICTL_READ8(sc, off) \
+#define	PCICTL_READ8(sc, off)						\
 	PSYCHO_READ8((sc), (sc)->sc_pcictl + (off))
-#define	PCICTL_WRITE8(sc, off, v) \
+#define	PCICTL_WRITE8(sc, off, v)					\
 	PSYCHO_WRITE8((sc), (sc)->sc_pcictl + (off), (v))
 
 /*
@@ -523,7 +523,7 @@ psycho_attach(device_t dev)
 			    (u_long)intrmap, (u_long)PSYCHO_READ8(sc,
 			    intrmap), (u_long)intrclr);
 			PSYCHO_WRITE8(sc, intrmap, INTMAP_VEC(sc->sc_ign, i));
-			PSYCHO_WRITE8(sc, intrclr, 0);
+			PSYCHO_WRITE8(sc, intrclr, INTCLR_IDLE);
 			PSYCHO_WRITE8(sc, intrmap,
 			    INTMAP_ENABLE(INTMAP_VEC(sc->sc_ign, i),
 			    PCPU_GET(mid)));
@@ -808,7 +808,7 @@ psycho_ue(void *arg)
 	if ((afsr & UEAFSR_P_DTE) != 0)
 		iommu_decode_fault(sc->sc_is, afar);
 	panic("%s: uncorrectable DMA error AFAR %#lx AFSR %#lx",
-	    device_get_name(sc->sc_dev), (u_long)afar, (u_long)afsr);
+	    device_get_nameunit(sc->sc_dev), (u_long)afar, (u_long)afsr);
 	return (FILTER_HANDLED);
 }
 
@@ -838,7 +838,7 @@ psycho_pci_bus(void *arg)
 	afar = PCICTL_READ8(sc, PCR_AFA);
 	afsr = PCICTL_READ8(sc, PCR_AFS);
 	panic("%s: PCI bus %c error AFAR %#lx AFSR %#lx",
-	    device_get_name(sc->sc_dev), 'A' + sc->sc_half, (u_long)afar,
+	    device_get_nameunit(sc->sc_dev), 'A' + sc->sc_half, (u_long)afar,
 	    (u_long)afsr);
 	return (FILTER_HANDLED);
 }
@@ -1137,7 +1137,7 @@ psycho_intr_clear(void *arg)
 	struct intr_vector *iv = arg;
 	struct psycho_icarg *pica = iv->iv_icarg;
 
-	PSYCHO_WRITE8(pica->pica_sc, pica->pica_clr, 0);
+	PSYCHO_WRITE8(pica->pica_sc, pica->pica_clr, INTCLR_IDLE);
 }
 
 static int
