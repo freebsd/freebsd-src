@@ -1,7 +1,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 24, 2009
+.Dd March 20, 2010
 .Dt IPFW 8
 .Os
 .Sh NAME
@@ -1404,7 +1404,7 @@ If not found, the match fails.
 Otherwise, the match succeeds and
 .Cm tablearg
 is set to the value extracted from the table.
-.Br
+.Pp
 This option can be useful to quickly dispatch traffic based on
 certain packet fields.
 See the
@@ -1501,7 +1501,7 @@ is invalid) whenever
 .Cm xmit
 is used.
 .Pp
-A packet may not have a receive or transmit interface: packets
+A packet might not have a receive or transmit interface: packets
 originating from the local host have no receive interface,
 while packets destined for the local host have no transmit
 interface.
@@ -1847,7 +1847,7 @@ is also the user interface for the
 .Nm dummynet
 traffic shaper, packet scheduler and network emulator, a subsystem that
 can artificially queue, delay or drop packets
-emulator the behaviour of certain network links
+emulating the behaviour of certain network links
 or queueing systems.
 .Pp
 .Nm dummynet
@@ -1859,26 +1859,33 @@ Matching packets are then passed to either of two
 different objects, which implement the traffic regulation:
 .Bl -hang -offset XXXX
 .It Em pipe
-A pipe emulates a link with given bandwidth, propagation delay,
+A
+.Em pipe
+emulates a
+.Em link
+with given bandwidth and propagation delay,
+driven by a FIFO scheduler and a single queue with programmable
 queue size and packet loss rate.
-Packets are queued in front of the pipe as they come out from the classifier,
-and then transferred to the pipe according to the pipe's parameters.
+Packets are appended to the queue as they come out from
+.Nm ipfw ,
+and then transferred in FIFO order to the link at the desired rate.
 .It Em queue
-A queue
+A
+.Em queue
 is an abstraction used to implement packet scheduling
 using one of several packet scheduling algorithms.
-.Pp
-The queue associates a
-.Em weight
-and a reference scheduler to each flow (a flow is a set of packets
-with the same addresses and ports after masking).
-A scheduler in turn is connected to a pipe, and arbitrates
-the pipe's bandwidth among backlogged flows according to
+Packets sent to a
+.Em queue
+are first grouped into flows according to a mask on the 5-tuple.
+Flows are then passed to the scheduler associated to the
+.Em queue ,
+and each flow uses scheduling parameters (weight and others)
+as configured in the
+.Em queue
+itself.
+A scheduler in turn is connected to an emulated link,
+and arbitrates the link's bandwidth among backlogged flows according to
 weights and to the features of the scheduling algorithm in use.
-.Pp
-Note that weights are not priorities; a flow with a lower weight
-is still guaranteed to get its fraction of the bandwidth even if a
-flow with a higher weight is permanently backlogged.
 .El
 .Pp
 In practice,
@@ -1886,6 +1893,52 @@ In practice,
 can be used to set hard limits to the bandwidth that a flow can use, whereas
 .Em queues
 can be used to determine how different flows share the available bandwidth.
+.Pp
+A graphical representation of the binding of queues,
+flows, schedulers and links is below.
+.Bd -literal -offset indent
+                 (flow_mask|sched_mask)  sched_mask
+         +---------+   weight Wx  +-------------+
+         |         |->-[flow]-->--|             |-+
+    -->--| QUEUE x |   ...        |             | |
+         |         |->-[flow]-->--| SCHEDuler N | |
+         +---------+              |             | |
+             ...                  |             +--[LINK N]-->--
+         +---------+   weight Wy  |             | +--[LINK N]-->--
+         |         |->-[flow]-->--|             | |
+    -->--| QUEUE y |   ...        |             | |
+         |         |->-[flow]-->--|             | |
+         +---------+              +-------------+ |
+                                    +-------------+
+.Ed
+It is important to understand the role of the SCHED_MASK
+and FLOW_MASK, which are configured through the commands
+.Dl "ipfw sched N config mask SCHED_MASK ..."
+and
+.Dl "ipfw queue X config mask FLOW_MASK ..." .
+.Pp
+The SCHED_MASK is used to assign flows to one or more
+scheduler instances, one for each
+value of the packet's 5-fuple after applying SCHED_MASK.
+As an example, using ``src-ip 0xffffff00'' creates one instance
+for each /24 destination subnet.
+.Pp
+The FLOW_MASK, together with the SCHED_MASK, is used to split
+packets into flows. As an example, using
+``src-ip 0x000000ff''
+together with the previous SCHED_MASK makes a flow for
+each individual source address. In turn, flows for each /24
+subnet will be sent to the same scheduler instance.
+.Pp
+The above diagram holds even for the
+.Em pipe
+case, with the only restriction that a
+.Em pipe
+only supports a SCHED_MASK, and forces the use of a FIFO
+scheduler (these are for backward compatibility reasons;
+in fact, internally, a
+.Nm dummynet's
+pipe is implemented exactly as above).
 .Pp
 There are two modes of
 .Nm dummynet
@@ -2087,9 +2140,36 @@ The following parameters can be configured for a scheduler:
 .Pp
 .Bl -tag -width indent -compact
 .It Cm type Ar {fifo | wf2qp | rr | qfq}
+specifies the scheduling algorithm to use.
+.Bl -tag -width indent -compact
+.It cm fifo
+is just a FIFO scheduler (which means that all packets
+are stored in the same queue as they arrive to the scheduler).
+FIFO has O(1) per-packet time complexity, with very low
+constants (estimate 60-80ns on a 2Ghz desktop machine)
+but gives no service guarantees.
+.It Cm wf2qp
+implements the WF2Q+ algorithm, which is a Weighted Fair Queueing
+algorithm which permits flows to share bandwidth according to
+their weights. Note that weights are not priorities; even a flow
+with a minuscule weight will never starve.
+WF2Q+ has O(log N) per-packet processing cost, where N is the number
+of flows, and is the default algorithm used by previous versions
+dummynet's queues.
+.It Cm rr
+implements the Deficit Round Robin algorithm, which has O(1) processing
+costs (roughly, 100-150ns per packet)
+and permits bandwidth allocation according to weights, but
+with poor service guarantees.
+.It Cm qfq
+implements the QFQ algorithm, which is a very fast variant of
+WF2Q+, with similar service guarantees and O(1) processing
+costs (roughly, 200-250ns per packet).
+.El
 .El
 .Pp
-plus all the parameters allowed for a pipe.
+In addition to the type, all parameters allowed for a pipe can also
+be specified for a scheduler.
 .Pp
 Finally, the following parameters can be configured for both
 pipes and queues:

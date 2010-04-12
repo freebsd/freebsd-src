@@ -191,8 +191,8 @@ restart:
 		exit(17);
 	}
 	if (sblock.fs_fsize < sectorsize) {
-		printf("increasing fragment size from %d to sector size (%jd)\n",
-		    sblock.fs_fsize, (intmax_t)sectorsize);
+		printf("increasing fragment size from %d to sector size (%d)\n",
+		    sblock.fs_fsize, sectorsize);
 		sblock.fs_fsize = sectorsize;
 	}
 	if (sblock.fs_bsize > MAXBSIZE) {
@@ -337,8 +337,8 @@ restart:
 	} else if (density < minfragsperinode * fsize) {
 		origdensity = density;
 		density = minfragsperinode * fsize;
-		fprintf(stderr, "density increased from %d to %jd\n",
-		    origdensity, (intmax_t)density);
+		fprintf(stderr, "density increased from %d to %d\n",
+		    origdensity, density);
 	}
 	origdensity = density;
 	for (;;) {
@@ -346,9 +346,8 @@ restart:
 		if (fragsperinode < minfragsperinode) {
 			bsize <<= 1;
 			fsize <<= 1;
-			printf("Block size too small for a file system %s %jd\n",
-			    "of this size. Increasing blocksize to",
-			    (intmax_t)bsize);
+			printf("Block size too small for a file system %s %d\n",
+			     "of this size. Increasing blocksize to", bsize);
 			goto restart;
 		}
 		minfpg = fragsperinode * INOPB(&sblock);
@@ -372,8 +371,7 @@ restart:
 		density -= sblock.fs_fsize;
 	}
 	if (density != origdensity)
-		printf("density reduced from %d to %jd\n", origdensity,
-		    (intmax_t)density);
+		printf("density reduced from %d to %d\n", origdensity, density);
 	/*
 	 * Start packing more blocks into the cylinder group until
 	 * it cannot grow any larger, the number of cylinder groups
