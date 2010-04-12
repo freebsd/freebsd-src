@@ -211,6 +211,11 @@ int ssl_get_new_session(SSL *s, int session)
 			ss->ssl_version=TLS1_VERSION;
 			ss->session_id_length=SSL3_SSL_SESSION_ID_LENGTH;
 			}
+		else if (s->version == DTLS1_BAD_VER)
+			{
+			ss->ssl_version=DTLS1_BAD_VER;
+			ss->session_id_length=SSL3_SSL_SESSION_ID_LENGTH;
+			}
 		else if (s->version == DTLS1_VERSION)
 			{
 			ss->ssl_version=DTLS1_VERSION;
@@ -418,7 +423,7 @@ int ssl_get_prev_session(SSL *s, unsigned char *session_id, int len,
 		p=buf;
 		l=ret->cipher_id;
 		l2n(l,p);
-		if ((ret->ssl_version>>8) == SSL3_VERSION_MAJOR)
+		if ((ret->ssl_version>>8) >= SSL3_VERSION_MAJOR)
 			ret->cipher=ssl_get_cipher_by_char(s,&(buf[2]));
 		else 
 			ret->cipher=ssl_get_cipher_by_char(s,&(buf[1]));

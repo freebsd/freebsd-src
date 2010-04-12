@@ -369,6 +369,7 @@ typedef struct zprop_list {
 } zprop_list_t;
 
 extern int zfs_expand_proplist(zfs_handle_t *, zprop_list_t **);
+extern void zfs_prune_proplist(zfs_handle_t *, uint8_t *);
 
 #define	ZFS_MOUNTPOINT_NONE	"none"
 #define	ZFS_MOUNTPOINT_LEGACY	"legacy"

@@ -248,7 +248,7 @@ hashcmd(int argc __unused, char **argv __unused)
 		 && (cmdp->cmdtype == CMDNORMAL
 		     || (cmdp->cmdtype == CMDBUILTIN && builtinloc >= 0)))
 			delete_cmd_entry();
-		find_command(name, &entry, 1, pathval());
+		find_command(name, &entry, DO_ERR, pathval());
 		if (verbose) {
 			if (entry.cmdtype != CMDUNKNOWN) {	/* if no error msg */
 				cmdp = cmdlookup(name, 0);
@@ -310,10 +310,10 @@ printentry(struct tblentry *cmdp, int verbose)
  */
 
 void
-find_command(const char *name, struct cmdentry *entry, int printerr,
+find_command(const char *name, struct cmdentry *entry, int act,
     const char *path)
 {
-	struct tblentry *cmdp;
+	struct tblentry *cmdp, loc_cmd;
 	int idx;
 	int prev;
 	char *fullname;
@@ -330,13 +330,19 @@ find_command(const char *name, struct cmdentry *entry, int printerr,
 	}
 
 	/* If name is in the table, and not invalidated by cd, we're done */
-	if ((cmdp = cmdlookup(name, 0)) != NULL && cmdp->rehash == 0)
-		goto success;
+	if ((cmdp = cmdlookup(name, 0)) != NULL && cmdp->rehash == 0) {
+		if (cmdp->cmdtype == CMDFUNCTION && act & DO_NOFUNC)
+			cmdp = NULL;
+		else
+			goto success;
+	}
 
 	/* If %builtin not in path, check for builtin next */
 	if (builtinloc < 0 && (i = find_builtin(name, &spec)) >= 0) {
 		INTOFF;
 		cmdp = cmdlookup(name, 1);
+		if (cmdp->cmdtype == CMDFUNCTION)
+			cmdp = &loc_cmd;
 		cmdp->cmdtype = CMDBUILTIN;
 		cmdp->param.index = i;
 		cmdp->special = spec;
@@ -365,6 +371,8 @@ loop:
 					goto loop;
 				INTOFF;
 				cmdp = cmdlookup(name, 1);
+				if (cmdp->cmdtype == CMDFUNCTION)
+					cmdp = &loc_cmd;
 				cmdp->cmdtype = CMDBUILTIN;
 				cmdp->param.index = i;
 				cmdp->special = spec;
@@ -414,6 +422,8 @@ loop:
 		TRACE(("searchexec \"%s\" returns \"%s\"\n", name, fullname));
 		INTOFF;
 		cmdp = cmdlookup(name, 1);
+		if (cmdp->cmdtype == CMDFUNCTION)
+			cmdp = &loc_cmd;
 		cmdp->cmdtype = CMDNORMAL;
 		cmdp->param.index = idx;
 		INTON;
@@ -421,9 +431,9 @@ loop:
 	}
 
 	/* We failed.  If there was an entry for this command, delete it */
-	if (cmdp)
+	if (cmdp && cmdp->cmdtype != CMDFUNCTION)
 		delete_cmd_entry();
-	if (printerr) {
+	if (act & DO_ERR) {
 		if (e == ENOENT || e == ENOTDIR)
 			outfmt(out2, "%s: not found\n", name);
 		else
