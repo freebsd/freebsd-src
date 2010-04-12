@@ -90,26 +90,212 @@ extern struct pcpu *cpuid_to_pcpu[];
 #define OCTEON_SYNCW	__asm __volatile (".word  0x10f" : : )
 #define OCTEON_SYNCWS	__asm __volatile (".word  0x14f" : : )
 
-#if defined(__mips_n32) || defined(__mips_n64)
+#if defined(__mips_n64)
+#define	oct_write64(a, v)	(*(volatile uint64_t *)(a) = (uint64_t)(v))
+#define	oct_write8_x8(a, v)	(*(volatile uint8_t *)(a) = (uint8_t)(v))
 
-static inline void oct_write64 (uint64_t csr_addr, uint64_t val64)
-{
-    uint64_t *ptr = (uint64_t *) csr_addr;
-    *ptr = val64;
+#define	OCT_READ(n, t)							\
+static inline t oct_read ## n(uintptr_t a)				\
+{									\
+	volatile t *p = (volatile t *)a;				\
+	return (*p);							\
 }
 
-static inline void oct_write64_int64 (uint64_t csr_addr, int64_t val64i)
+OCT_READ(8, uint8_t);
+OCT_READ(16, uint16_t);
+OCT_READ(32, uint32_t);
+OCT_READ(64, uint64_t);
+
+#elif defined(__mips_n32) || defined(__mips_o32)
+#if defined(__mips_n32)
+static inline void oct_write64 (uint64_t csr_addr, uint64_t val64)
 {
-    int64_t *ptr = (int64_t *) csr_addr;
-    *ptr = val64i;
+    __asm __volatile (
+	    ".set push\n"
+            ".set mips64\n"
+            "sd     %0, 0(%1)\n"
+            ".set pop\n"
+            :
+	    : "r"(val64), "r"(csr_addr));
 }
 
 static inline void oct_write8_x8 (uint64_t csr_addr, uint8_t val8)
 {
-    uint64_t *ptr = (uint64_t *) csr_addr;
-    *ptr = (uint64_t) val8;
+    __asm __volatile (
+	    ".set push\n"
+            ".set mips64\n"
+            "sb    %0, 0(%1)\n"
+            ".set pop\n"
+            :
+	    : "r"(val8), "r"(csr_addr));
 }
 
+#define	OCT_READ(n, t, insn)						\
+static inline t oct_read ## n(uint64_t a)				\
+{									\
+    uint64_t tmp;							\
+									\
+    __asm __volatile (							\
+	".set push\n"							\
+        ".set mips64\n"							\
+        insn "\t%0, 0(%1)\n"						\
+        ".set pop\n"							\
+        : "=r"(tmp)							\
+        : "r"(a));							\
+    return ((t)tmp);							\
+}
+
+OCT_READ(8, uint8_t, "lb");
+OCT_READ(16, uint16_t, "lh");
+OCT_READ(32, uint32_t, "lw");
+OCT_READ(64, uint64_t, "ld");
+#else
+
+/*
+ * XXX
+ * Add o32 variants that load the address into a register and the result out
+ * of a register properly, and simply disable interrupts before and after and
+ * hope that we don't need to refill or modify the TLB to access the address.
+ * I'd be a lot happier if csr_addr were a physical address and we mapped it
+ * into XKPHYS here so that we could guarantee that interrupts were the only
+ * kind of exception we needed to worry about.
+ *
+ * Also, some of this inline assembly is needlessly verbose.  Oh, well.
+ */
+static inline void oct_write64 (uint64_t csr_addr, uint64_t val64)
+{
+	uint32_t csr_addrh = csr_addr >> 32;
+	uint32_t csr_addrl = csr_addr;
+	uint32_t valh = val64 >> 32;
+	uint32_t vall = val64;
+	uint32_t tmp1;
+	uint32_t tmp2;
+	uint32_t tmp3;
+	register_t sr;
+
+	sr = intr_disable();
+
+	__asm __volatile (
+	    ".set push\n"
+            ".set mips64\n"
+	    ".set noreorder\n"
+	    ".set noat\n"
+	    "dsll   %0, %3, 32\n"
+	    "dsll   %1, %5, 32\n"
+	    "dsll   %2, %4, 32\n"
+	    "dsrl   %2, %2, 32\n"
+	    "or     %0, %0, %2\n"
+	    "dsll   %2, %6, 32\n"
+	    "dsrl   %2, %2, 32\n"
+	    "or     %1, %1, %2\n"
+	    "sd     %0, 0(%1)\n"
+            ".set pop\n"
+	    : "=&r" (tmp1), "=&r" (tmp2), "=&r" (tmp3)
+	    : "r" (valh), "r" (vall), "r" (csr_addrh), "r" (csr_addrl));
+
+	intr_restore(sr);
+}
+
+static inline void oct_write8_x8 (uint64_t csr_addr, uint8_t val8)
+{
+	uint32_t csr_addrh = csr_addr >> 32;
+	uint32_t csr_addrl = csr_addr;
+	uint32_t tmp1;
+	uint32_t tmp2;
+	register_t sr;
+
+	sr = intr_disable();
+
+	__asm __volatile (
+	    ".set push\n"
+            ".set mips64\n"
+	    ".set noreorder\n"
+	    ".set noat\n"
+	    "dsll   %0, %3, 32\n"
+	    "dsll   %1, %4, 32\n"
+	    "dsrl   %1, %1, 32\n"
+	    "or     %0, %0, %1\n"
+	    "sb     %2, 0(%0)\n"
+            ".set pop\n"
+	    : "=&r" (tmp1), "=&r" (tmp2)
+	    : "r" (val8), "r" (csr_addrh), "r" (csr_addrl));
+
+	intr_restore(sr);
+}
+
+#define	OCT_READ(n, t, insn)						\
+static inline t oct_read ## n(uint64_t csr_addr)			\
+{									\
+	uint32_t csr_addrh = csr_addr >> 32;				\
+	uint32_t csr_addrl = csr_addr;					\
+	uint32_t tmp1, tmp2;						\
+	register_t sr;							\
+									\
+	sr = intr_disable();						\
+									\
+	__asm __volatile (						\
+	    ".set push\n"						\
+            ".set mips64\n"						\
+	    ".set noreorder\n"						\
+	    ".set noat\n"						\
+	    "dsll   %1, %2, 32\n"					\
+	    "dsll   %0, %3, 32\n"					\
+	    "dsrl   %0, %0, 32\n"					\
+	    "or     %1, %1, %0\n"					\
+	    "lb     %1, 0(%1)\n"					\
+	    ".set pop\n"						\
+	    : "=&r" (tmp1), "=&r" (tmp2)				\
+	    : "r" (csr_addrh), "r" (csr_addrl));			\
+									\
+	intr_restore(sr);						\
+									\
+	return ((t)tmp2);						\
+}
+
+OCT_READ(8, uint8_t, "lb");
+OCT_READ(16, uint16_t, "lh");
+OCT_READ(32, uint32_t, "lw");
+
+static inline uint64_t oct_read64 (uint64_t csr_addr)
+{
+	uint32_t csr_addrh = csr_addr >> 32;
+	uint32_t csr_addrl = csr_addr;
+	uint32_t valh;
+	uint32_t vall;
+	register_t sr;
+
+	sr = intr_disable();
+
+	__asm __volatile (
+	    ".set push\n"
+            ".set mips64\n"
+	    ".set noreorder\n"
+	    ".set noat\n"
+	    "dsll   %0, %2, 32\n"
+	    "dsll   %1, %3, 32\n"
+	    "dsrl   %1, %1, 32\n"
+	    "or     %0, %0, %1\n"
+	    "ld     %1, 0(%0)\n"
+	    "dsrl   %0, %1, 32\n"
+	    "dsll   %1, %1, 32\n"
+	    "dsrl   %1, %1, 32\n"
+	    ".set pop\n"
+	    : "=&r" (valh), "=&r" (vall)
+	    : "r" (csr_addrh), "r" (csr_addrl));
+
+	intr_restore(sr);
+
+	return ((uint64_t)valh << 32) | vall;
+}
+#endif
+
+#endif
+
+#define	oct_write64_int64(a, v)	(oct_write64(a, (int64_t)(v)))
+
+/*
+ * Most write bus transactions are actually 64-bit on Octeon.
+ */
 static inline void oct_write8 (uint64_t csr_addr, uint8_t val8)
 {
     oct_write64(csr_addr, (uint64_t) val8);
@@ -125,315 +311,7 @@ static inline void oct_write32 (uint64_t csr_addr, uint32_t val32)
     oct_write64(csr_addr, (uint64_t) val32);
 }
 
-static inline uint8_t oct_read8 (uint64_t csr_addr)
-{
-    uint8_t *ptr = (uint8_t *) csr_addr;
-    return (*ptr);
-}
-
-static inline uint8_t oct_read16 (uint64_t csr_addr)
-{
-    uint16_t *ptr = (uint16_t *) csr_addr;
-    return (*ptr);
-}
-
-
-static inline uint32_t oct_read32 (uint64_t csr_addr)
-{
-    uint32_t *ptr = (uint32_t *) csr_addr;
-    return (*ptr);
-}
-
-static inline uint64_t oct_read64 (uint64_t csr_addr)
-{
-    uint64_t *ptr = (uint64_t *) csr_addr;
-    return (*ptr);
-}
-
-static inline int32_t oct_readint32 (uint64_t csr_addr)
-{
-    int32_t *ptr = (int32_t *) csr_addr;
-    return (*ptr);
-}
-
-
-
-#else
-
-
-/*  ABI o32 */
-
-
-/*
- * Read/write functions
- */
-static inline void oct_write64 (uint64_t csr_addr, uint64_t val64)
-{
-    uint32_t csr_addrh = csr_addr >> 32;
-    uint32_t csr_addrl = csr_addr;
-    uint32_t valh = (uint64_t)val64 >> 32;
-    uint32_t vall = val64;
-    uint32_t tmp1;
-    uint32_t tmp2;
-    uint32_t tmp3;
-
-    __asm __volatile (
-            ".set mips64\n"
-            "dsll   %0, %3, 32\n"
-            "dsll   %1, %5, 32\n"
-            "dsll   %2, %4, 32\n"
-            "dsrl   %2, %2, 32\n"
-            "or     %0, %0, %2\n"
-            "dsll   %2, %6, 32\n"
-            "dsrl   %2, %2, 32\n"
-            "or     %1, %1, %2\n"
-            "sd     %0, 0(%1)\n"
-            ".set mips0\n"
-            : "=&r" (tmp1), "=&r" (tmp2), "=&r" (tmp3)
-            : "r" (valh), "r" (vall),
-              "r" (csr_addrh), "r" (csr_addrl)
-        );
-}
-
-static inline void oct_write64_int64 (uint64_t csr_addr, int64_t val64i)
-{
-    uint32_t csr_addrh = csr_addr >> 32;
-    uint32_t csr_addrl = csr_addr;
-    int32_t valh = (uint64_t)val64i >> 32;
-    int32_t vall = val64i;
-    uint32_t tmp1;
-    uint32_t tmp2;
-    uint32_t tmp3;
-
-    __asm __volatile (
-            ".set mips64\n"
-            "dsll   %0, %3, 32\n"
-            "dsll   %1, %5, 32\n"
-            "dsll   %2, %4, 32\n"
-            "dsrl   %2, %2, 32\n"
-            "or     %0, %0, %2\n"
-            "dsll   %2, %6, 32\n"
-            "dsrl   %2, %2, 32\n"
-            "or     %1, %1, %2\n"
-            "sd     %0, 0(%1)\n"
-            ".set mips0\n"
-            : "=&r" (tmp1), "=&r" (tmp2), "=&r" (tmp3)
-            : "r" (valh), "r" (vall),
-              "r" (csr_addrh), "r" (csr_addrl)
-        );
-}
-
-
-/*
- * oct_write8_x8
- *
- * 8 bit data write into IO Space. Written using an 8 bit bus io transaction
- */
-static inline void oct_write8_x8 (uint64_t csr_addr, uint8_t val8)
-{
-    uint32_t csr_addrh = csr_addr>>32;
-    uint32_t csr_addrl = csr_addr;
-    uint32_t tmp1;
-    uint32_t tmp2;
-
-    __asm __volatile (
-        ".set mips64\n"
-        "dsll   %0, %3, 32\n"
-        "dsll   %1, %4, 32\n"
-        "dsrl   %1, %1, 32\n"
-        "or     %0, %0, %1\n"
-        "sb     %2, 0(%0)\n"
-	".set mips0\n"
-        : "=&r" (tmp1), "=&r" (tmp2)
-        : "r" (val8), "r" (csr_addrh), "r" (csr_addrl) );
-}
-
-/*
- * oct_write8
- *
- * 8 bit data write into IO Space. Written using a 64 bit bus io transaction
- */
-static inline void oct_write8 (uint64_t csr_addr, uint8_t val8)
-{
-#if 1
-    oct_write64(csr_addr, (uint64_t) val8);
-#else
-
-    uint32_t csr_addrh = csr_addr>>32;
-    uint32_t csr_addrl = csr_addr;
-    uint32_t tmp1;
-    uint32_t tmp2;
-
-    __asm __volatile (
-        ".set mips64\n"
-        "dsll   %0, %3, 32\n"
-        "dsll   %1, %4, 32\n"
-        "dsrl   %1, %1, 32\n"
-        "or     %0, %0, %1\n"
-        "sb     %2, 0(%0)\n"
-        ".set mips0\n"
-        : "=&r" (tmp1), "=&r" (tmp2)
-        : "r" (val8), "r" (csr_addrh), "r" (csr_addrl) );
-#endif
-}
-
-static inline void oct_write16 (uint64_t csr_addr, uint16_t val16)
-{
-#if 1
-    oct_write64(csr_addr, (uint64_t) val16);
-
-#else
-    uint32_t csr_addrh = csr_addr>>32;
-    uint32_t csr_addrl = csr_addr;
-    uint32_t tmp1;
-    uint32_t tmp2;
-
-    __asm __volatile (
-        ".set mips64\n"
-        "dsll   %0, %3, 32\n"
-        "dsll   %1, %4, 32\n"
-        "dsrl   %1, %1, 32\n"
-        "or     %0, %0, %1\n"
-        "sh     %2, 0(%0)\n"
-	".set mips0\n"
-        : "=&r" (tmp1), "=&r" (tmp2)
-        : "r" (val16), "r" (csr_addrh), "r" (csr_addrl) );
-#endif
-}
-
-static inline void oct_write32 (uint64_t csr_addr, uint32_t val32)
-{
-#if 1
-    oct_write64(csr_addr, (uint64_t) val32);
-#else
-
-    uint32_t csr_addrh = csr_addr>>32;
-    uint32_t csr_addrl = csr_addr;
-    uint32_t tmp1;
-    uint32_t tmp2;
-
-    __asm __volatile (
-        ".set mips64\n"
-        "dsll   %0, %3, 32\n"
-        "dsll   %1, %4, 32\n"
-        "dsrl   %1, %1, 32\n"
-        "or     %0, %0, %1\n"
-        "sw     %2, 0(%0)\n"
-	".set mips0\n"
-        : "=&r" (tmp1), "=&r" (tmp2)
-        : "r" (val32), "r" (csr_addrh), "r" (csr_addrl) );
-#endif
-}
-
-
-
-static inline uint8_t oct_read8 (uint64_t csr_addr)
-{
-    uint32_t csr_addrh = csr_addr>>32;
-    uint32_t csr_addrl = csr_addr;
-    uint32_t tmp1, tmp2;
-
-    __asm __volatile (
-        ".set mips64\n"
-        "dsll   %1, %2, 32\n"
-        "dsll   %0, %3, 32\n"
-        "dsrl   %0, %0, 32\n"
-        "or     %1, %1, %0\n"
-        "lb     %1, 0(%1)\n"
-        ".set mips0\n"
-        : "=&r" (tmp1), "=&r" (tmp2)
-        : "r" (csr_addrh), "r" (csr_addrl) );
-    return ((uint8_t) tmp2);
-}
-
-static inline uint8_t oct_read16 (uint64_t csr_addr)
-{
-    uint32_t csr_addrh = csr_addr>>32;
-    uint32_t csr_addrl = csr_addr;
-    uint32_t tmp1, tmp2;
-
-    __asm __volatile (
-        ".set mips64\n"
-        "dsll   %1, %2, 32\n"
-        "dsll   %0, %3, 32\n"
-        "dsrl   %0, %0, 32\n"
-        "or     %1, %1, %0\n"
-        "lh     %1, 0(%1)\n"
-        ".set mips0\n"
-        : "=&r" (tmp1), "=&r" (tmp2)
-        : "r" (csr_addrh), "r" (csr_addrl) );
-    return ((uint16_t) tmp2);
-}
-
-
-static inline uint32_t oct_read32 (uint64_t csr_addr)
-{
-    uint32_t csr_addrh = csr_addr>>32;
-    uint32_t csr_addrl = csr_addr;
-    uint32_t val32;
-    uint32_t tmp;
-
-    __asm __volatile (
-        ".set mips64\n"
-        "dsll   %0, %2, 32\n"
-        "dsll   %1, %3, 32\n"
-        "dsrl   %1, %1, 32\n"
-        "or     %0, %0, %1\n"
-        "lw    %0, 0(%0)\n"
-        ".set mips0\n"
-        : "=&r" (val32), "=&r" (tmp)
-        : "r" (csr_addrh), "r" (csr_addrl) );
-    return (val32);
-}
-
-
-static inline uint64_t oct_read64 (uint64_t csr_addr)
-{
-    uint32_t csr_addrh = csr_addr >> 32;
-    uint32_t csr_addrl = csr_addr;
-    uint32_t valh;
-    uint32_t vall;
-
-    __asm __volatile (
-        ".set mips64\n"
-        "dsll   %0, %2, 32\n"
-        "dsll   %1, %3, 32\n"
-        "dsrl   %1, %1, 32\n"
-        "or     %0, %0, %1\n"
-        "ld     %1, 0(%0)\n"
-        "dsrl   %0, %1, 32\n"
-        "dsll   %1, %1, 32\n"
-        "dsrl   %1, %1, 32\n"
-        ".set mips0\n"
-        : "=&r" (valh), "=&r" (vall)
-        : "r" (csr_addrh), "r" (csr_addrl)
-        );
-    return ((uint64_t)valh << 32) | vall;
-}
-
-
-static inline int32_t oct_readint32 (uint64_t csr_addr)
-{
-    uint32_t csr_addrh = csr_addr>>32;
-    uint32_t csr_addrl = csr_addr;
-    int32_t val32;
-    uint32_t tmp;
-
-    __asm __volatile (
-        ".set mips64\n"
-        "dsll   %0, %2, 32\n"
-        "dsll   %1, %3, 32\n"
-        "dsrl   %1, %1, 32\n"
-        "or     %0, %0, %1\n"
-        "lw    %0, 0(%0)\n"
-        : "=&r" (val32), "=&r" (tmp)
-        : "r" (csr_addrh), "r" (csr_addrl) );
-    return (val32);
-}
-
-
-#endif
-
+#define	oct_readint32(a)	((int32_t)oct_read32((a)))
 
 #define OCTEON_HW_BASE		((volatile uint64_t *) 0L)
 #define OCTEON_REG_OFFSET	(-4 * 1024ll)  /* local scratchpad reg base */
@@ -589,7 +467,7 @@ typedef enum {
 
 /*  PTR_SIZE == sizeof(uint32_t)  */
 
-#ifdef ISA_MIPS32
+#if defined(__mips_n32) || defined(__mips_o32)
 #define mipsx_addr_size				uint32_t	// u_int64
 #define MIPSX_ADDR_SIZE_KSEGX_BIT_SHIFT		30		// 62
 #define MIPSX_ADDR_SIZE_KSEGX_MASK_REMOVED	0x1fffffff	// 0x1fffffff

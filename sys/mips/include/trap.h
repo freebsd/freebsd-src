@@ -111,11 +111,10 @@ void trapDump(char *msg);
 void MipsFPTrap(u_int, u_int, u_int);
 void MipsKernGenException(void);
 void MipsKernIntr(void);
-void MipsKernTLBInvalidException(void);
+void MipsTLBInvalidException(void);
 void MipsTLBMissException(void);
 void MipsUserGenException(void);
 void MipsUserIntr(void);
-void MipsUserTLBInvalidException(void);
 
 u_int trap(struct trapframe *);
 

@@ -89,12 +89,6 @@
 #define MIPS_KSEG2_END			MIPS_KSSEG_END
 #define	MIPS_KSEG3_START		0xe0000000
 #define	MIPS_KSEG3_END			0xffffffff
-#define	MIPS_MAX_MEM_ADDR		0xbe000000
-#define	MIPS_RESERVED_ADDR		0xbfc80000
-
-/* Map virtual address to index in mips3 r4k virtually-indexed cache */
-#define	MIPS3_VA_TO_CINDEX(x) \
-		((unsigned)(x) & 0xffffff | MIPS_KSEG0_START)
 
 #define	MIPS_PHYS_TO_XKPHYS(cca,x) \
 	((0x2ULL << 62) | ((unsigned long long)(cca) << 59) | (x))
@@ -583,6 +577,8 @@
 
 #define MIPS_CONFIG1_TLBSZ_MASK		0x7E000000	/* bits 30..25 # tlb entries minus one */
 #define MIPS_CONFIG1_TLBSZ_SHIFT	25
+#define	MIPS_MAX_TLB_ENTRIES		64
+
 #define MIPS_CONFIG1_IS_MASK		0x01C00000	/* bits 24..22 icache sets per way */
 #define MIPS_CONFIG1_IS_SHIFT		22
 #define MIPS_CONFIG1_IL_MASK		0x00380000	/* bits 21..19 icache line size */
