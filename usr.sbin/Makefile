@@ -3,7 +3,6 @@
 
 .include <bsd.own.mk>
 
-# XXX MISSING:		mkproto
 SUBDIR= adduser \
 	arp \
 	bootparamd \
@@ -71,6 +70,7 @@ SUBDIR= adduser \
 	rpc.umntall \
 	rtprio \
 	service \
+	services_mkdb \
 	setfib \
 	setfmac \
 	setpmac \

@@ -80,6 +80,7 @@
 .Op Fl sob | Fl nsob
 .Ek
 .Op Fl \&st
+.Op Fl \&ta
 .Op Fl troff
 .Op Fl ut | Fl nut
 .Op Fl v | Fl \&nv
@@ -377,6 +378,9 @@ Default:
 Causes
 .Nm
 to take its input from stdin and put its output to stdout.
+.It Fl ta
+Automatically add all identifiers ending in "_t" to the list
+of type keywords.
 .It Fl T Ns Ar typename
 Adds
 .Ar typename

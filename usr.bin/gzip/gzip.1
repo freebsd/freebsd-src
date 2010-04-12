@@ -25,7 +25,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\" $FreeBSD$
-.Dd June 24, 2009
+.Dd April 7, 2010
 .Dt GZIP 1
 .Os
 .Sh NAME
@@ -205,14 +205,17 @@ This implementation of
 .Nm
 was ported based on the
 .Nx
-.Nm
-20090412, and first appeared in
+.Nm ,
+and first appeared in
 .Fx 7.0 .
 .Sh AUTHORS
+.An -nosplit
 This implementation of
 .Nm
 was written by
-.An Matthew R. Green Aq mrg@eterna.com.au .
+.An Matthew R. Green Aq mrg@eterna.com.au
+with unpack support written by
+.An Xin LI Aq delphij@FreeBSD.org .
 .Sh BUGS
 According to RFC 1952, the recorded file size is stored in a 32-bit
 integer and therefore it can not represent files that is bigger than

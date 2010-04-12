@@ -41,9 +41,6 @@
 .Op Fl f Ar spec
 .Ek
 .Bk -words
-.Op Fl f Ar spec
-.Ek
-.Bk -words
 .Op Fl K Ar keywords
 .Ek
 .Bk -words
@@ -119,7 +116,7 @@ Same as
 except a status of 2 is returned if the file hierarchy did not match
 the specification.
 .It Fl w
-Make some errorconditions non-fatal warnings.
+Make some errors non-fatal warnings.
 .It Fl x
 Do not descend below mount points in the file hierarchy.
 .It Fl f Ar file
@@ -260,10 +257,10 @@ socket
 The default set of keywords are
 .Cm flags ,
 .Cm gid ,
+.Cm link ,
 .Cm mode ,
 .Cm nlink ,
 .Cm size ,
-.Cm link ,
 .Cm time ,
 and
 .Cm uid .
