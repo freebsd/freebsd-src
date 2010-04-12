@@ -39,11 +39,11 @@
 .Nd stream editor
 .Sh SYNOPSIS
 .Nm
-.Op Fl Ealn
+.Op Fl Ealnr
 .Ar command
 .Op Ar
 .Nm
-.Op Fl Ealn
+.Op Fl Ealnr
 .Op Fl e Ar command
 .Op Fl f Ar command_file
 .Op Fl I Ar extension
@@ -144,6 +144,10 @@ all of the commands have been applied to it.
 The
 .Fl n
 option suppresses this behavior.
+.It Fl r
+Same as
+.Fl E 
+for compatibility with GNU sed.
 .El
 .Pp
 The form of a

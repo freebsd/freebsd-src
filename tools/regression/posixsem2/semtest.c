@@ -65,7 +65,8 @@ test_named(void)
 	if (s2 == SEM_FAILED)
 		err(2, "second sem_open call failed");
 	if (s != s2)
-		err(3, "two sem_open calls for same semaphore do not returm same address.");
+		errx(3,
+"two sem_open calls for same semaphore do not return same address");
 	if (sem_close(s2))
 		err(4, "sem_close failed");
 	if ((pid = fork()) == 0) {

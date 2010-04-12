@@ -132,6 +132,8 @@ pkg_do(char *pkg)
     const char *post_script, *pre_arg, *post_arg;
     struct reqr_by_entry *rb_entry;
     struct reqr_by_head *rb_list;
+    int fd;
+    struct stat sb;
 
     if (!pkg || !(len = strlen(pkg)))
 	return 1;
@@ -221,10 +223,12 @@ pkg_do(char *pkg)
 
     setenv(PKG_PREFIX_VNAME, p->name, 1);
 
-    if (fexists(REQUIRE_FNAME)) {
+    if ((fd = open(REQUIRE_FNAME, O_RDWR)) != -1) {
+	fstat(fd, &sb);
+	fchmod(fd, sb.st_mode | S_IXALL);       /* be sure, chmod a+x */
+	close(fd);
 	if (Verbose)
 	    printf("Executing 'require' script.\n");
-	vsystem("/bin/chmod +x %s", REQUIRE_FNAME);	/* be sure */
 	if (vsystem("./%s %s DEINSTALL", REQUIRE_FNAME, pkg)) {
 	    warnx("package %s fails requirements %s", pkg,
 		   Force ? "" : "- not deleted");
@@ -250,11 +254,13 @@ pkg_do(char *pkg)
 	post_script = pre_arg = post_arg = NULL;
     }
 
-    if (!NoDeInstall && pre_script != NULL && fexists(pre_script)) {
+    if (!NoDeInstall && pre_script != NULL && (fd = open(pre_script, O_RDWR)) != -1) {
 	if (Fake)
 	    printf("Would execute de-install script at this point.\n");
 	else {
-	    vsystem("/bin/chmod +x %s", pre_script);	/* make sure */
+	    fstat(fd, &sb);
+	    fchmod(fd, sb.st_mode | S_IXALL);       /* be sure, chmod a+x */
+	    close(fd);
 	    if (vsystem("./%s %s %s", pre_script, pkg, pre_arg)) {
 		warnx("deinstall script returned error status");
 		if (!Force)
@@ -326,11 +332,13 @@ pkg_do(char *pkg)
  	return 1;
     }
 
-    if (!NoDeInstall && post_script != NULL && fexists(post_script)) {
+    if (!NoDeInstall && post_script != NULL && (fd = open(post_script, O_RDWR)) != -1) {
  	if (Fake)
  	    printf("Would execute post-deinstall script at this point.\n");
  	else {
- 	    vsystem("/bin/chmod +x %s", post_script);	/* make sure */
+	    fstat(fd, &sb);
+	    fchmod(fd, sb.st_mode | S_IXALL);       /* be sure, chmod a+x */
+	    close(fd);
  	    if (vsystem("./%s %s %s", post_script, pkg, post_arg)) {
  		warnx("post-deinstall script returned error status");
  		if (!Force)

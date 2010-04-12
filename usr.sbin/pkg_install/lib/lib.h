@@ -28,6 +28,7 @@
 #include <sys/file.h>
 #include <sys/stat.h>
 #include <sys/queue.h>
+#include <sys/utsname.h>
 #include <ctype.h>
 #include <dirent.h>
 #include <stdarg.h>
@@ -50,6 +51,11 @@
 
 #define YES		2
 #define NO		1
+
+/* Some more stat macros. */
+#define S_IRALL		0000444
+#define S_IWALL		0000222
+#define S_IXALL		0000111
 
 /* Usually "rm", but often "echo" during debugging! */
 #define REMOVE_CMD	"/bin/rm"
@@ -84,18 +90,6 @@
 #define DISPLAY_FNAME		"+DISPLAY"
 #define MTREE_FNAME		"+MTREE_DIRS"
 
-#if defined(__FreeBSD_version) && __FreeBSD_version >= 900000
-#define INDEX_FNAME		"INDEX-9"
-#elif defined(__FreeBSD_version) && __FreeBSD_version >= 800000
-#define INDEX_FNAME		"INDEX-8"
-#elif defined(__FreeBSD_version) && __FreeBSD_version >= 700000
-#define INDEX_FNAME		"INDEX-7"
-#elif defined(__FreeBSD_version) && __FreeBSD_version >= 600000
-#define INDEX_FNAME		"INDEX-6"
-#else
-#define INDEX_FNAME		"INDEX"
-#endif
-
 #define CMD_CHAR		'@'	/* prefix for extended PLIST cmd */
 
 /* The name of the "prefix" environment variable given to scripts */
@@ -105,7 +99,7 @@
  * Version of the package tools - increase whenever you make a change
  * in the code that is not cosmetic only.
  */
-#define PKG_INSTALL_VERSION	20100122
+#define PKG_INSTALL_VERSION	20100403
 
 #define PKG_WRAPCONF_FNAME	"/var/db/pkg_install.conf"
 #define main(argc, argv)	real_main(argc, argv)

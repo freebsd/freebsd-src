@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 25, 2009
+.Dd Oct 12, 2009
 .Dt BSDTAR 1
 .Os
 .Sh NAME
@@ -336,6 +336,13 @@ This is enabled by default, use
 or
 .Cm iso9660:!joliet
 to disable.
+.It Cm iso9660:rockridge
+Support Rock Ridge extensions.
+This is enabled by default, use
+.Cm !rockridge
+or
+.Cm iso9660:!rockridge
+to disable.
 .It Cm gzip:compression-level
 A decimal integer from 0 to 9 specifying the gzip compression level.
 .It Cm xz:compression-level
@@ -359,7 +366,13 @@ Enable generation of
 .Cm /set
 lines in the output.
 .It Cm mtree:indent
-XXX need explanation XXX
+Produce human-readable output by indenting options and splitting lines
+to fit into 80 columns.
+.It Cm zip:compression Ns = Ns Ar type
+Use
+.Ar type
+as compression method.
+Supported values are store (uncompressed) and deflate (gzip algorithm).
 .El
 If a provided option is not supported by any module, that
 is a fatal error.
@@ -412,10 +425,20 @@ but before security checks.
 .It Fl s Ar pattern
 Modify file or archive member names according to
 .Pa pattern .
-The pattern has the format /old/new/[gps].
-old is a basic regular expression.
-If it doesn't apply, the pattern is skipped.
-new is the replacement string of the matched part.
+The pattern has the format
+.Ar /old/new/ Ns Op gps
+where
+.Ar old
+is a basic regular expression,
+.Ar new
+is the replacement string of the matched part,
+and the optional trailing letters modify
+how the replacement is handled.
+If
+.Ar old
+is not matched, the pattern is skipped.
+Within
+.Ar new ,
 ~ is substituted with the match, \1 to \9 with the content of
 the corresponding captured group.
 The optional trailing g specifies that matching should continue
