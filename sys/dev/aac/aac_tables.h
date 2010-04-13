@@ -57,6 +57,7 @@ static struct aac_code_lookup aac_command_status_table[] = {
 	{"quota exceeded",			69},
 	{"stale file handle",			70},
 	{"too many levels of remote in path",	71},
+	{"device busy (spinning up)",		72},
 	{"bad file handle",			10001},
 	{"not sync",				10002},
 	{"bad cookie",				10003},
@@ -68,6 +69,7 @@ static struct aac_code_lookup aac_command_status_table[] = {
 	{"not mounted",				10009},
 	{"in maintenance mode",			10010},
 	{"stale ACL",				10011},
+	{"bus reset - command aborted",		20001},
 	{NULL, 					0},
 	{"unknown command status",		0}
 };
