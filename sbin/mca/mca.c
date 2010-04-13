@@ -53,10 +53,12 @@ __FBSDID("$FreeBSD$");
 
 #define	BCD(x)	((x >> 4) * 10 + (x & 15))
 
+#define	HW_MCA_MAX_CPUID	255
+
 static char hw_mca_count[] = "hw.mca.count";
 static char hw_mca_first[] = "hw.mca.first";
 static char hw_mca_last[] = "hw.mca.last";
-static char hw_mca_recid[] = "hw.mca.%d";
+static char hw_mca_recid[] = "hw.mca.%lu.%u";
 
 static char default_dumpfile[] = "/var/log/mca.log";
 
@@ -372,9 +374,12 @@ show_section(struct mca_section_header *sh)
 }
 
 static void
-show(char *data)
+show(char *data, const char *mib)
 {
 	size_t reclen, seclen;
+
+	if (mib != NULL)
+		printf("<!-- MIB: %s -->\n", mib);
 
 	printf("<record>\n");
 	reclen = show_header((void*)data) - sizeof(struct mca_record_header);
@@ -402,7 +407,7 @@ showall(char *buf, size_t buflen)
 		if (buflen < reclen)
 			return;
 
-		show(buf);
+		show(buf, NULL);
 
 		buf += reclen;
 		buflen -= reclen;
@@ -442,7 +447,7 @@ main(int argc, char **argv)
 	char *buf;
 	size_t len;
 	int ch, error, fd;
-	int count, first, last;
+	int count, first, last, cpuid;
 
 	while ((ch = getopt(argc, argv, "df:")) != -1) {
 		switch(ch) {
@@ -481,12 +486,19 @@ main(int argc, char **argv)
 		if (error)
 			err(1, hw_mca_last);
 
+		cpuid = 0;
 		while (count && first <= last) {
-			sprintf(mib, hw_mca_recid, first);
-			len = 0;
-			error = sysctlbyname(mib, NULL, &len, NULL, 0);
-			if (error == ENOENT) {
+			do {
+				sprintf(mib, hw_mca_recid, first, cpuid);
+				len = 0;
+				error = sysctlbyname(mib, NULL, &len, NULL, 0);
+				if (error != ENOENT)
+					break;
+				cpuid++;
+			} while (cpuid <= HW_MCA_MAX_CPUID);
+			if (error == ENOENT && cpuid > HW_MCA_MAX_CPUID) {
 				first++;
+				cpuid = 0;
 				continue;
 			}
 			if (error)
@@ -503,11 +515,15 @@ main(int argc, char **argv)
 			if (fl_dump)
 				dump(buf);
 			else
-				show(buf);
+				show(buf, mib);
 
 			free(buf);
-			first++;
 			count--;
+			if (cpuid == HW_MCA_MAX_CPUID) {
+				first++;
+				cpuid = 0;
+			} else
+				cpuid++;
 		}
 	} else {
 		fd = open(file, O_RDONLY);
