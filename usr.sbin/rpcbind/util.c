@@ -58,13 +58,6 @@
 
 #include "rpcbind.h"
 
-#define	SA2SIN(sa)	((struct sockaddr_in *)(sa))
-#define	SA2SINADDR(sa)	(SA2SIN(sa)->sin_addr)
-#ifdef INET6
-#define	SA2SIN6(sa)	((struct sockaddr_in6 *)(sa))
-#define	SA2SIN6ADDR(sa)	(SA2SIN6(sa)->sin6_addr)
-#endif
-
 static struct sockaddr_in *local_in4;
 #ifdef INET6
 static struct sockaddr_in6 *local_in6;
@@ -176,9 +169,13 @@ addrmerge(struct netbuf *caller, char *serv_uaddr, char *clnt_uaddr,
 		goto freeit;
 
 	/*
-	 * Loop through all interfaces. For each interface, see if the
-	 * network portion of its address is equal to that of the client.
-	 * If so, we have found the interface that we want to use.
+	 * Loop through all interfaces. For each interface, see if it
+	 * is either the loopback interface (which we always listen
+	 * on) or is one of the addresses the program bound to (the
+	 * wildcard by default, or a subset if -h is specified) and
+	 * the network portion of its address is equal to that of the
+	 * client.  If so, we have found the interface that we want to
+	 * use.
 	 */
 	bestif = NULL;
 	for (ifap = ifp; ifap != NULL; ifap = ifap->ifa_next) {
@@ -187,6 +184,9 @@ addrmerge(struct netbuf *caller, char *serv_uaddr, char *clnt_uaddr,
 
 		if (ifsa == NULL || ifsa->sa_family != hint_sa->sa_family ||
 		    !(ifap->ifa_flags & IFF_UP))
+			continue;
+
+		if (!(ifap->ifa_flags & IFF_LOOPBACK) && !listen_addr(ifsa))
 			continue;
 
 		switch (hint_sa->sa_family) {
