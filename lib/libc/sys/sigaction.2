@@ -28,7 +28,7 @@
 .\"	From: @(#)sigaction.2	8.2 (Berkeley) 4/3/94
 .\" $FreeBSD$
 .\"
-.Dd June 7, 2004
+.Dd April 13, 2010
 .Dt SIGACTION 2
 .Os
 .Sh NAME
@@ -42,7 +42,7 @@
 struct  sigaction {
         union {
                 void    (*__sa_handler)(int);
-                void    (*__sa_sigaction)(int, struct __siginfo *, void *);
+                void    (*__sa_sigaction)(int, siginfo_t *, void *);
         } __sigaction_u;                /* signal handler */
         int     sa_flags;               /* see signal options below */
         sigset_t sa_mask;               /* signal mask to apply */
