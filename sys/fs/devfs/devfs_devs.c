@@ -408,6 +408,9 @@ devfs_populate_loop(struct devfs_mount *dm, int cleanup)
 			continue;
 		KASSERT((cdp->cdp_flags & CDP_ACTIVE), ("Bogons, I tell ya'!"));
 
+		if (cdp->cdp_flags & CDP_INVALID)
+			continue;
+
 		if (dm->dm_idx <= cdp->cdp_maxdirent &&
 		    cdp->cdp_dirents[dm->dm_idx] != NULL) {
 			de = cdp->cdp_dirents[dm->dm_idx];
@@ -425,6 +428,8 @@ devfs_populate_loop(struct devfs_mount *dm, int cleanup)
 		dd = dm->dm_rootdir;
 		s = cdp->cdp_c.si_name;
 		for (;;) {
+			while (*s == '/')
+				s++;
 			for (q = s; *q != '/' && *q != '\0'; q++)
 				continue;
 			if (*q != '/')
@@ -434,6 +439,24 @@ devfs_populate_loop(struct devfs_mount *dm, int cleanup)
 				de = devfs_vmkdir(dm, s, q - s, dd, 0);
 			s = q + 1;
 			dd = de;
+			if (dd->de_flags & (DE_DOT | DE_DOTDOT))
+				break;
+		}
+
+		/*
+		 * XXX: Ignore duplicate and empty device names.
+		 * XXX: Currently there is no way to report the error to
+		 * XXX: the make_dev(9) caller.
+		 */
+		if (dd->de_dirent->d_type != DT_DIR ||
+		    dd->de_flags & (DE_DOT | DE_DOTDOT) || q - s < 1 ||
+		    devfs_find(dd, s, q - s) != NULL) {
+			dev_lock();
+			cdp->cdp_flags |= CDP_INVALID;
+			dev_unlock();
+			printf("%s: %s: invalid or duplicate device name\n",
+			    __func__, cdp->cdp_c.si_name);
+			return (1);
 		}
 
 		de = devfs_newdirent(s, q - s);
