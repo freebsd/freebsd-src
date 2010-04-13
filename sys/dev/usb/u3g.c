@@ -58,10 +58,8 @@ SYSCTL_INT(_hw_usb_u3g, OID_AUTO, debug, CTLFLAG_RW,
 	   &u3gdebug, 0, "u3g debug level");
 #define DPRINTF(x...)		if (u3gdebug) device_printf(sc->sc_dev, ##x)
 
-#define U3G_MAXPORTS		6
-
 struct u3g_softc {
-	struct ucom_softc	sc_ucom[U3G_MAXPORTS];
+	struct ucom_softc	*sc_ucom;
 	device_t		sc_dev;
 	usbd_device_handle	sc_udev;
 	u_int8_t		sc_speed;
@@ -254,9 +252,8 @@ u3g_attach(device_t self)
 	sc->sc_init = u3g_dev_type->init;
 	sc->sc_speed = u3g_dev_type->speed;
 
-	sprintf(devnamefmt,"U%d.%%d", device_get_unit(self));
 	int portno = 0;
-	for (i = 0; i < uaa->nifaces && portno < U3G_MAXPORTS; i++) {
+	for (i = 0; i < uaa->nifaces; i++) {
 		DPRINTF("Interface %d of %d, %sin use\n",
 			i, uaa->nifaces,
 			(uaa->ifaces[i]? "not ":""));
@@ -279,7 +276,7 @@ u3g_attach(device_t self)
 
 		int bulkin_no = -1, bulkout_no = -1;
 		int claim_iface = 0;
-		for (n = 0; n < id->bNumEndpoints && portno < U3G_MAXPORTS; n++) {
+		for (n = 0; n < id->bNumEndpoints; n++) {
 			ed = usbd_interface2endpoint_descriptor(uaa->ifaces[i], n);
 			DPRINTF(" Endpoint %d of %d%s\n",
 				n, id->bNumEndpoints,
@@ -298,6 +295,7 @@ u3g_attach(device_t self)
 			 * the bulk-in and bulk-out endpoints appear in pairs.
 			 */
 			if (bulkin_no != -1 && bulkout_no != -1) {
+				sc->sc_ucom = realloc(sc->sc_ucom, (portno+1)*sizeof(struct ucom_softc), M_USBDEV, M_WAITOK);
 				struct ucom_softc *ucom = &sc->sc_ucom[portno];
 
 				ucom->sc_dev = self;
@@ -318,13 +316,6 @@ u3g_attach(device_t self)
 					 portno, i,
 					 ucom->sc_bulkin_no,
 					 ucom->sc_bulkout_no);
-#if __FreeBSD_version < 700000
-				ucom_attach_tty(ucom, MINOR_CALLOUT, devnamefmt, portno);
-#elif __FreeBSD_version < 800000
-				ucom_attach_tty(ucom, TS_CALLOUT, devnamefmt, portno);
-#else
-				ucom_attach_tty(ucom, devnamefmt, portno);
-#endif
 
 				claim_iface = 1;
 				portno++;
@@ -335,6 +326,19 @@ u3g_attach(device_t self)
 			uaa->ifaces[i] = NULL;		// claim the interface
 	}
 	sc->sc_numports = portno;
+
+	sprintf(devnamefmt,"U%d.%%d", device_get_unit(self));
+	for (portno = 0; portno < sc->sc_numports; portno++) {
+	    struct ucom_softc *ucom = &sc->sc_ucom[portno];
+
+#if __FreeBSD_version < 700000
+	    ucom_attach_tty(ucom, MINOR_CALLOUT, devnamefmt, portno);
+#elif __FreeBSD_version < 800000
+	    ucom_attach_tty(ucom, TS_CALLOUT, devnamefmt, portno);
+#else
+	    ucom_attach_tty(ucom, devnamefmt, portno);
+#endif
+	}
 
 	device_printf(self, "configured %d serial ports (%s)\n",
 		      sc->sc_numports, devnamefmt);
@@ -356,6 +360,9 @@ u3g_detach(device_t self)
 			return rv;
 		}
 	}
+
+	if (sc->sc_ucom)
+	    free(sc->sc_ucom, M_USBDEV);
 
 	return 0;
 }
