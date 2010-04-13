@@ -162,6 +162,11 @@ SYSCTL_PROC(_kern, OID_AUTO, cp_times, CTLTYPE_LONG|CTLFLAG_RD|CTLFLAG_MPSAFE,
     0,0, sysctl_kern_cp_times, "LU", "per-CPU time statistics");
 
 #ifdef DEADLKRES
+static const char *blessed[] = {
+	"so_snd_sx",
+	"so_rcv_sx",
+	NULL
+};
 static int slptime_threshold = 1800;
 static int blktime_threshold = 900;
 static int sleepfreq = 3;
@@ -172,7 +177,7 @@ deadlkres(void)
 	struct proc *p;
 	struct thread *td;
 	void *wchan;
-	int blkticks, slpticks, slptype, tryl, tticks;
+	int blkticks, i, slpticks, slptype, tryl, tticks;
 
 	tryl = 0;
 	for (;;) {
@@ -205,6 +210,10 @@ deadlkres(void)
 					 * turnstile channel is in good state.
 					 */
 					MPASS(td->td_blocked != NULL);
+
+					/* Handle ticks wrap-up. */
+					if (ticks < td->td_blktick)
+						continue;
 					tticks = ticks - td->td_blktick;
 					thread_unlock(td);
 					if (tticks > blkticks) {
@@ -221,6 +230,10 @@ deadlkres(void)
 						    __func__, td, tticks);
 					}
 				} else if (TD_IS_SLEEPING(td)) {
+
+					/* Handle ticks wrap-up. */
+					if (ticks < td->td_blktick)
+						continue;
 
 					/*
 					 * Check if the thread is sleeping on a
@@ -242,7 +255,24 @@ deadlkres(void)
 						 * thresholds, this thread is
 						 * stuck for too long on a
 						 * sleepqueue.
+						 * However, being on a
+						 * sleepqueue, we might still
+						 * check for the blessed
+						 * list.
 						 */
+						tryl = 0;
+						for (i = 0; blessed[i] != NULL;
+						    i++) {
+							if (!strcmp(blessed[i],
+							    td->td_wmesg)) {
+								tryl = 1;
+								break;
+							}
+						}
+						if (tryl != 0) {
+							tryl = 0;
+							continue;
+						}
 						PROC_UNLOCK(p);
 						sx_sunlock(&allproc_lock);
 	panic("%s: possible deadlock detected for %p, blocked for %d ticks\n",

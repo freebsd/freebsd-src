@@ -40,7 +40,7 @@
 
 #define	PMC_MODULE_NAME		"hwpmc"
 #define	PMC_NAME_MAX		16 /* HW counter name size */
-#define	PMC_CLASS_MAX		4  /* max #classes of PMCs per-system */
+#define	PMC_CLASS_MAX		6  /* max #classes of PMCs per-system */
 
 /*
  * Kernel<->userland API version number [MMmmpppp]
@@ -85,6 +85,7 @@
 	__PMC_CPU(INTEL_CORE2EXTREME,	0x89,	"Intel Core2 Extreme")	\
 	__PMC_CPU(INTEL_ATOM,	0x8A,	"Intel Atom") \
 	__PMC_CPU(INTEL_COREI7, 0x8B,   "Intel Core i7") \
+	__PMC_CPU(INTEL_WESTMERE, 0x8C,   "Intel Westmere") \
 	__PMC_CPU(INTEL_XSCALE,	0x100,	"Intel XScale") \
 	__PMC_CPU(MIPS_24K,     0x200,  "MIPS 24K") 
 
@@ -110,6 +111,8 @@ enum pmc_cputype {
 	__PMC_CLASS(P4)		/* Intel Pentium-IV counters */		\
 	__PMC_CLASS(IAF)	/* Intel Core2/Atom, fixed function */	\
 	__PMC_CLASS(IAP)	/* Intel Core...Atom, programmable */   \
+	__PMC_CLASS(UCF)	/* Intel Uncore programmable */		\
+	__PMC_CLASS(UCP)	/* Intel Uncore fixed function */	\
 	__PMC_CLASS(XSCALE)	/* Intel XScale counters */ \
 	__PMC_CLASS(MIPS24K)    /* MIPS 24K */
 

@@ -1190,7 +1190,7 @@ iwn6000fw.fwo			optional iwn6000fw | iwnfw		\
 	clean		"iwn6000fw.fwo"
 iwn6000.fw			optional iwn6000fw | iwnfw		\
 	dependency	".PHONY"					\
-	compile-with	"uudecode -o ${.TARGET} $S/contrib/dev/iwn/iwlwifi-6000-9.176.4.1.fw.uu" \
+	compile-with	"uudecode -o ${.TARGET} $S/contrib/dev/iwn/iwlwifi-6000-9.193.4.1.fw.uu" \
 	no-obj no-implicit-rule						\
 	clean		"iwn6000.fw"
 dev/ixgb/if_ixgb.c		optional ixgb
@@ -2358,7 +2358,7 @@ net80211/ieee80211_action.c	optional wlan
 net80211/ieee80211_ageq.c	optional wlan
 net80211/ieee80211_adhoc.c	optional wlan
 net80211/ieee80211_ageq.c	optional wlan
-net80211/ieee80211_amrr.c	optional wlan wlan_amrr
+net80211/ieee80211_amrr.c	optional wlan | wlan_amrr
 net80211/ieee80211_crypto.c	optional wlan
 net80211/ieee80211_crypto_ccmp.c optional wlan wlan_ccmp
 net80211/ieee80211_crypto_none.c optional wlan
@@ -2380,6 +2380,7 @@ net80211/ieee80211_phy.c	optional wlan
 net80211/ieee80211_power.c	optional wlan
 net80211/ieee80211_proto.c	optional wlan
 net80211/ieee80211_radiotap.c	optional wlan
+net80211/ieee80211_ratectl.c	optional wlan
 net80211/ieee80211_regdomain.c	optional wlan
 net80211/ieee80211_rssadapt.c	optional wlan wlan_rssadapt
 net80211/ieee80211_scan.c	optional wlan

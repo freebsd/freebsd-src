@@ -883,18 +883,11 @@ struct bwn_mac {
 	TAILQ_ENTRY(bwn_mac)	mac_list;
 };
 
-struct bwn_node {
-	struct ieee80211_node		bn_node;	/* must be the first */
-	struct ieee80211_amrr_node	bn_amn;
-};
-#define	BWN_NODE(ni)			((struct bwn_node *)(ni))
-
 /*
  * Driver-specific vap state.
  */
 struct bwn_vap {
 	struct ieee80211vap		bv_vap;	/* base class */
-	struct ieee80211_amrr		bv_amrr;
 	int				(*bv_newstate)(struct ieee80211vap *,
 					    enum ieee80211_state, int);
 };

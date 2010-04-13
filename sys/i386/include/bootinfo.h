@@ -65,6 +65,13 @@ struct bootinfo {
 	u_int32_t	bi_kernend;		/* end of kernel space */
 	u_int32_t	bi_envp;		/* environment */
 	u_int32_t	bi_modulep;		/* preloaded modules */
+	uint64_t	bi_hcdp;		/* DIG64 HCDP table */
+	uint64_t	bi_fpswa;		/* FPSWA interface */
+	uint64_t	bi_systab;		/* pa of EFI system table */
+	uint64_t	bi_memmap;		/* pa of EFI memory map */
+	uint64_t	bi_memmap_size;		/* size of EFI memory map */
+	uint64_t	bi_memdesc_size;	/* sizeof EFI memory desc */
+	uint32_t	bi_memdesc_version;	/* EFI memory desc version */
 };
 
 #ifdef _KERNEL

@@ -997,6 +997,11 @@ dacleanup(struct cam_periph *periph)
 		xpt_print(periph->path, "can't remove sysctl context\n");
 	}
 
+	/*
+	 * Nullify our periph pointer here to try and catch
+	 * race conditions in callbacks/downcalls.
+	 */
+	softc->disk->d_drv1 = NULL;
 	disk_destroy(softc->disk);
 	callout_drain(&softc->sendordered_c);
 	free(softc, M_DEVBUF);

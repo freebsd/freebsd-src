@@ -575,6 +575,15 @@ ptsdev_close(struct file *fp, struct thread *td)
 	tty_lock(tp);
 	tty_rel_gone(tp);
 
+	/*
+	 * Open of /dev/ptmx or /dev/ptyXX changes the type of file
+	 * from DTYPE_VNODE to DTYPE_PTS. vn_open() increases vnode
+	 * use count, we need to decrement it, and possibly do other
+	 * required cleanup.
+	 */
+	if (fp->f_vnode != NULL)
+		return (vnops.fo_close(fp, td));
+
 	return (0);
 }
 

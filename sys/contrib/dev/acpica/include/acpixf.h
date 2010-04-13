@@ -120,7 +120,7 @@
 
 /* Current ACPICA subsystem version in YYYYMMDD format */
 
-#define ACPI_CA_VERSION                 0x20100304
+#define ACPI_CA_VERSION                 0x20100331
 
 #include <contrib/dev/acpica/include/actypes.h>
 #include <contrib/dev/acpica/include/actbl.h>
@@ -146,6 +146,7 @@ extern UINT8                AcpiGbl_UseDefaultRegisterWidths;
 extern ACPI_NAME            AcpiGbl_TraceMethodName;
 extern UINT32               AcpiGbl_TraceFlags;
 extern UINT8                AcpiGbl_EnableAmlDebugObject;
+extern UINT8                AcpiGbl_CopyDsdtLocally;
 
 
 /*
@@ -463,34 +464,32 @@ AcpiGetEventStatus (
  * GPE Interfaces
  */
 ACPI_STATUS
-AcpiSetGpeType (
+AcpiSetGpe (
     ACPI_HANDLE             GpeDevice,
     UINT32                  GpeNumber,
-    UINT8                   Type);
+    UINT8                   Action);
 
 ACPI_STATUS
 AcpiEnableGpe (
     ACPI_HANDLE             GpeDevice,
     UINT32                  GpeNumber,
-    UINT32                  Flags);
+    UINT8                   GpeType);
 
 ACPI_STATUS
 AcpiDisableGpe (
     ACPI_HANDLE             GpeDevice,
     UINT32                  GpeNumber,
-    UINT32                  Flags);
+    UINT8                   GpeType);
 
 ACPI_STATUS
 AcpiClearGpe (
     ACPI_HANDLE             GpeDevice,
-    UINT32                  GpeNumber,
-    UINT32                  Flags);
+    UINT32                  GpeNumber);
 
 ACPI_STATUS
 AcpiGetGpeStatus (
     ACPI_HANDLE             GpeDevice,
     UINT32                  GpeNumber,
-    UINT32                  Flags,
     ACPI_EVENT_STATUS       *EventStatus);
 
 ACPI_STATUS

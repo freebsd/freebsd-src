@@ -897,14 +897,20 @@ if_detach_internal(struct ifnet *ifp, int vmove)
 		devctl_notify("IFNET", ifp->if_xname, "DETACH", NULL);
 	if_delgroups(ifp);
 
+	/*
+	 * We cannot hold the lock over dom_ifdetach calls as they might
+	 * sleep, for example trying to drain a callout, thus open up the
+	 * theoretical race with re-attaching.
+	 */
 	IF_AFDATA_LOCK(ifp);
-	for (dp = domains; dp; dp = dp->dom_next) {
+	i = ifp->if_afdata_initialized;
+	ifp->if_afdata_initialized = 0;
+	IF_AFDATA_UNLOCK(ifp);
+	for (dp = domains; i > 0 && dp; dp = dp->dom_next) {
 		if (dp->dom_ifdetach && ifp->if_afdata[dp->dom_family])
 			(*dp->dom_ifdetach)(ifp,
 			    ifp->if_afdata[dp->dom_family]);
 	}
-	ifp->if_afdata_initialized = 0;
-	IF_AFDATA_UNLOCK(ifp);
 }
 
 #ifdef VIMAGE

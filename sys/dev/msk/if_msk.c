@@ -3473,6 +3473,9 @@ msk_handle_events(struct msk_softc *sc)
 	uint32_t control, status;
 	int cons, len, port, rxprog;
 
+	if (sc->msk_stat_cons == CSR_READ_2(sc, STAT_PUT_IDX))
+		return (0);
+
 	/* Sync status LEs. */
 	bus_dmamap_sync(sc->msk_stat_tag, sc->msk_stat_map,
 	    BUS_DMASYNC_POSTREAD | BUS_DMASYNC_POSTWRITE);
@@ -3556,7 +3559,7 @@ msk_handle_events(struct msk_softc *sc)
 	if (rxput[MSK_PORT_B] > 0)
 		msk_rxput(sc->msk_if[MSK_PORT_B]);
 
-	return (rxprog > sc->msk_process_limit ? EAGAIN : 0);
+	return (sc->msk_stat_cons != CSR_READ_2(sc, STAT_PUT_IDX));
 }
 
 static void

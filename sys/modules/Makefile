@@ -35,15 +35,15 @@ SUBDIR=	${_3dfx} \
 	ata \
 	ath \
 	${_auxio} \
-	${_bce} \
+	bce \
 	bfe \
 	bge \
 	${_bios} \
 	${_bktr} \
 	${_bm} \
 	bridgestp \
-	${_bwi} \
-	${_bwn} \
+	bwi \
+	bwn \
 	cam \
 	${_canbepm} \
 	${_canbus} \
@@ -176,13 +176,13 @@ SUBDIR=	${_3dfx} \
 	mcd \
 	md \
 	mem \
-	${_mfi} \
+	mfi \
 	mii \
 	mlx \
 	${_mly} \
 	mmc \
 	mmcsd \
-	${_mpt} \
+	mpt \
 	mqueue \
 	msdosfs \
 	msdosfs_iconv \
@@ -252,7 +252,7 @@ SUBDIR=	${_3dfx} \
 	sdhci \
 	sem \
 	sf \
-	${_siba_bwn} \
+	siba_bwn \
 	siis \
 	sis \
 	sk \
@@ -280,7 +280,7 @@ SUBDIR=	${_3dfx} \
 	twe \
 	tx \
 	txp \
-	${_uart} \
+	uart \
 	ubsec \
 	udf \
 	udf_iconv \
@@ -321,16 +321,8 @@ _vpo=		vpo
 
 .if ${MACHINE_ARCH} != "arm" && ${MACHINE_ARCH} != "mips"
 # no BUS_SPACE_UNSPECIFIED
-_bce=		bce
-_bwi=		bwi
-_bwn=		bwn
-_mfi=		mfi
-_mpt=		mpt
-_siba_bwn=	siba_bwn
 # No barrier instruction support (specific to this driver)
 _sym=		sym
-# no uart_cpu_$MACHINE_ARCH
-_uart=		uart
 # intr_disable() is a macro, causes problems
 _cxgb=		cxgb
 .endif

@@ -3586,6 +3586,9 @@ t3_add_configured_sysctls(adapter_t *sc)
 			SYSCTL_ADD_UINT(ctx, rspqpoidlist, OID_AUTO, "credits",
 			    CTLFLAG_RD, &qs->rspq.credits,
 			    0, "#credits");
+			SYSCTL_ADD_UINT(ctx, rspqpoidlist, OID_AUTO, "starved",
+			    CTLFLAG_RD, &qs->rspq.starved,
+			    0, "#times starved");
 			SYSCTL_ADD_XLONG(ctx, rspqpoidlist, OID_AUTO, "phys_addr",
 			    CTLFLAG_RD, &qs->rspq.phys_addr,
 			    "physical_address_of the queue");

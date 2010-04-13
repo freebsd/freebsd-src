@@ -705,7 +705,7 @@ AcpiInstallGpeHandler (
 
     /* Parameter validation */
 
-    if ((!Address) || (Type > ACPI_GPE_XRUPT_TYPE_MASK))
+    if ((!Address) || (Type & ~ACPI_GPE_XRUPT_TYPE_MASK))
     {
         return_ACPI_STATUS (AE_BAD_PARAMETER);
     }
