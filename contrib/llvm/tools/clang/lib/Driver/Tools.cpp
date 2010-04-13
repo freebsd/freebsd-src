@@ -2734,7 +2734,6 @@ void freebsd::Link::ConstructJob(Compilation &C, const JobAction &JA,
                                  const char *LinkingOutput) const {
   const Driver &D = getToolChain().getDriver();
   ArgStringList CmdArgs;
-  std::string LibPrefix("/usr/lib/");
 
   if (Args.hasArg(options::OPT_static)) {
     CmdArgs.push_back("-Bstatic");
@@ -2753,8 +2752,6 @@ void freebsd::Link::ConstructJob(Compilation &C, const JobAction &JA,
   if (getToolChain().getArchName() == "i386") {
     CmdArgs.push_back("-m");
     CmdArgs.push_back("elf_i386_fbsd");
-    if (getToolChain().Lib32)
-      LibPrefix = "/usr/lib32/";
   }
 
   if (Output.isPipe()) {
@@ -2770,12 +2767,12 @@ void freebsd::Link::ConstructJob(Compilation &C, const JobAction &JA,
   if (!Args.hasArg(options::OPT_nostdlib) &&
       !Args.hasArg(options::OPT_nostartfiles)) {
     if (!Args.hasArg(options::OPT_shared)) {
-      CmdArgs.push_back(Args.MakeArgString(getToolChain().GetFilePath(C, (LibPrefix + "crt1.o").c_str())));
-      CmdArgs.push_back(Args.MakeArgString(getToolChain().GetFilePath(C, (LibPrefix + "crti.o").c_str())));
-      CmdArgs.push_back(Args.MakeArgString(getToolChain().GetFilePath(C, (LibPrefix + "crtbegin.o").c_str())));
+      CmdArgs.push_back(Args.MakeArgString(getToolChain().GetFilePath(C, "crt1.o")));
+      CmdArgs.push_back(Args.MakeArgString(getToolChain().GetFilePath(C, "crti.o")));
+      CmdArgs.push_back(Args.MakeArgString(getToolChain().GetFilePath(C, "crtbegin.o")));
     } else {
-      CmdArgs.push_back(Args.MakeArgString(getToolChain().GetFilePath(C, (LibPrefix + "crti.o").c_str())));
-      CmdArgs.push_back(Args.MakeArgString(getToolChain().GetFilePath(C, (LibPrefix + "crtbeginS.o").c_str())));
+      CmdArgs.push_back(Args.MakeArgString(getToolChain().GetFilePath(C, "crti.o")));
+      CmdArgs.push_back(Args.MakeArgString(getToolChain().GetFilePath(C, "crtbeginS.o")));
     }
   }
 
@@ -2834,10 +2831,10 @@ void freebsd::Link::ConstructJob(Compilation &C, const JobAction &JA,
   if (!Args.hasArg(options::OPT_nostdlib) &&
       !Args.hasArg(options::OPT_nostartfiles)) {
     if (!Args.hasArg(options::OPT_shared))
-      CmdArgs.push_back(Args.MakeArgString(getToolChain().GetFilePath(C, (LibPrefix + "crtend.o").c_str())));
+      CmdArgs.push_back(Args.MakeArgString(getToolChain().GetFilePath(C, "crtend.o")));
     else
-      CmdArgs.push_back(Args.MakeArgString(getToolChain().GetFilePath(C, (LibPrefix + "crtendS.o").c_str())));
-    CmdArgs.push_back(Args.MakeArgString(getToolChain().GetFilePath(C, (LibPrefix + "crtn.o").c_str())));
+      CmdArgs.push_back(Args.MakeArgString(getToolChain().GetFilePath(C, "crtendS.o")));
+    CmdArgs.push_back(Args.MakeArgString(getToolChain().GetFilePath(C, "crtn.o")));
   }
 
   const char *Exec =

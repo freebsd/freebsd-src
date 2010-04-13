@@ -28,7 +28,6 @@ namespace driver {
 /// ToolChain - Access to tools for a single platform.
 class ToolChain {
 public:
-  bool Lib32;
   typedef llvm::SmallVector<std::string, 4> path_list;
 
 private:

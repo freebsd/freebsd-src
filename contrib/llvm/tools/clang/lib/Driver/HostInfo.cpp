@@ -420,7 +420,6 @@ ToolChain *FreeBSDHostInfo::CreateToolChain(const ArgList &Args,
     TCTriple.setArchName(ArchName);
 
     TC = new toolchains::FreeBSD(*this, TCTriple, Lib32);
-    TC->Lib32 = Lib32;
   }
 
   return TC;

@@ -262,8 +262,8 @@ WMAKEENV=	${CROSSENV} \
 		VERSION="${VERSION}" \
 		INSTALL="sh ${.CURDIR}/tools/install.sh" \
 		PATH=${TMPPATH} \
-		CC="${CC} ${MMINTRIN_CLANG} -isystem ${WORLDTMP}/usr/include -B${WORLDTMP}/usr/bin/ -L${WORLDTMP}/usr/lib/" \
-		CXX="${CXX} ${MMINTRIN_CLANG} -isystem ${WORLDTMP}/usr/include -isystem ${WORLDTMP}/include/c++/4.2 -isystem ${WORLDTMP}/include/c++/4.2/backward -B${WORLDTMP}/usr/bin/ -L${WORLDTMP}/usr/lib/"
+		CC="${CC} ${MMINTRIN_CLANG} -isystem ${WORLDTMP}/usr/include -B${WORLDTMP}/usr/lib/ -L${WORLDTMP}/usr/lib/" \
+		CXX="${CXX} ${MMINTRIN_CLANG} -isystem ${WORLDTMP}/usr/include -isystem ${WORLDTMP}/include/c++/4.2 -isystem ${WORLDTMP}/include/c++/4.2/backward -B${WORLDTMP}/usr/lib/ -L${WORLDTMP}/usr/lib/"
 
 .if ${MK_CDDL} == "no" || defined(NO_CTF)
 WMAKEENV+=	NO_CTF=1
@@ -282,7 +282,7 @@ LIB32CPUFLAGS=	-march=${TARGET_CPUTYPE}
 LIB32FLAGS=	-m32 ${LIB32CPUFLAGS} -mfancy-math-387 -DCOMPAT_32BIT \
 		-isystem ${LIB32TMP}/usr/include/ \
 		-L${LIB32TMP}/usr/lib32 \
-		-B${LIB32TMP}
+		-B${LIB32TMP}/usr/lib32
 
 # Yes, the flags are redundant.
 LIB32WMAKEENV=	MAKEOBJDIRPREFIX=${OBJTREE}/lib32 \
@@ -435,6 +435,8 @@ everything:
 	@echo "--------------------------------------------------------------"
 	@echo ">>> stage 4.4: building everything"
 	@echo "--------------------------------------------------------------"
+	ln -sf ${WORLDTMP}/usr/bin/as ${WORLDTMP}/usr/lib/as
+	ln -sf ${WORLDTMP}/usr/bin/ld ${WORLDTMP}/usr/lib/ld
 	${_+_}cd ${.CURDIR}; ${WMAKE} par-all
 .if ${TARGET_ARCH} == "amd64"
 build32:
@@ -448,10 +450,10 @@ build32:
 	mtree -deU -f ${.CURDIR}/etc/mtree/BSD.include.dist \
 	    -p ${LIB32TMP}/usr/include >/dev/null
 	mkdir -p ${WORLDTMP}
-	# relink /usr/bin/{as,ld} to the lib32 tmp so the -B can pick 'em up
+	# relink /usr/bin/{as,ld} to the lib32 tmp so the -B can pick up
 	# the /usr/bin/ld and /usr/bin/as
-	ln -sf ${WORLDTMP}/usr/bin/as ${LIB32TMP}/as
-	ln -sf ${WORLDTMP}/usr/bin/ld ${LIB32TMP}/ld
+	ln -sf ${WORLDTMP}/usr/bin/as ${LIB32TMP}/usr/lib32/as
+	ln -sf ${WORLDTMP}/usr/bin/ld ${LIB32TMP}/usr/lib32/ld
 	ln -sf ${.CURDIR}/sys ${WORLDTMP}
 .if ${MK_KERBEROS} != "no"
 .for _t in obj depend all
