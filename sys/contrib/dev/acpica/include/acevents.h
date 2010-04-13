@@ -171,13 +171,11 @@ AcpiEvQueueNotifyRequest (
  */
 ACPI_STATUS
 AcpiEvUpdateGpeEnableMasks (
-    ACPI_GPE_EVENT_INFO     *GpeEventInfo,
-    UINT8                   Type);
+    ACPI_GPE_EVENT_INFO     *GpeEventInfo);
 
 ACPI_STATUS
 AcpiEvEnableGpe (
-    ACPI_GPE_EVENT_INFO     *GpeEventInfo,
-    BOOLEAN                 WriteToHardware);
+    ACPI_GPE_EVENT_INFO     *GpeEventInfo);
 
 ACPI_STATUS
 AcpiEvDisableGpe (
@@ -187,6 +185,11 @@ ACPI_GPE_EVENT_INFO *
 AcpiEvGetGpeEventInfo (
     ACPI_HANDLE             GpeDevice,
     UINT32                  GpeNumber);
+
+ACPI_GPE_EVENT_INFO *
+AcpiEvLowGetGpeInfo (
+    UINT32                  GpeNumber,
+    ACPI_GPE_BLOCK_INFO     *GpeBlock);
 
 
 /*
@@ -233,15 +236,6 @@ AcpiEvGpeDispatch (
 UINT32
 AcpiEvGpeDetect (
     ACPI_GPE_XRUPT_INFO     *GpeXruptList);
-
-ACPI_STATUS
-AcpiEvSetGpeType (
-    ACPI_GPE_EVENT_INFO     *GpeEventInfo,
-    UINT8                   Type);
-
-ACPI_STATUS
-AcpiEvCheckForWakeOnlyGpe (
-    ACPI_GPE_EVENT_INFO     *GpeEventInfo);
 
 ACPI_STATUS
 AcpiEvGpeInitialize (

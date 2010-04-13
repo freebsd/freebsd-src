@@ -223,7 +223,7 @@
 #define HW_DEBUGOUT1(S, A)          if (DEBUG_HW) printf(S "\n", A)
 #define HW_DEBUGOUT2(S, A, B)       if (DEBUG_HW) printf(S "\n", A, B)
 
-#define EM_MAX_SCATTER		64
+#define EM_MAX_SCATTER		32
 #define EM_VFTA_SIZE		128
 #define EM_TSO_SIZE		(65535 + sizeof(struct ether_vlan_header))
 #define EM_TSO_SEG_SIZE		4096	/* Max dma segment size */
@@ -453,5 +453,6 @@ struct em_buffer {
 #define	EM_RX_UNLOCK(_sc)		mtx_unlock(&(_sc)->rx_mtx)
 #define	EM_CORE_LOCK_ASSERT(_sc)	mtx_assert(&(_sc)->core_mtx, MA_OWNED)
 #define	EM_TX_LOCK_ASSERT(_sc)		mtx_assert(&(_sc)->tx_mtx, MA_OWNED)
+#define	EM_RX_LOCK_ASSERT(_sc)		mtx_assert(&(_sc)->rx_mtx, MA_OWNED)
 
 #endif /* _EM_H_DEFINED_ */

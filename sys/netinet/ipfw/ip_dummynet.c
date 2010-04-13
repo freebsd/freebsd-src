@@ -1769,7 +1769,7 @@ compute_space(struct dn_id *cmd, struct copy_args *a)
 		x = DN_C_FS | DN_C_QUEUE;
 		break;
 	case DN_GET_COMPAT:	/* compatibility mode */
-		need =  dn_compat_calc_size(dn_cfg); 
+		need =  dn_compat_calc_size(); 
 		break;
 	}
 	a->flags = x;
@@ -2112,14 +2112,10 @@ ip_dn_ctl(struct sockopt *sopt)
 static void
 ip_dn_init(void)
 {
-	static int init_done = 0;
-
-	if (init_done)
+	if (dn_cfg.init_done)
 		return;
-	init_done = 1;
-	if (bootverbose)
-		printf("DUMMYNET with IPv6 initialized (100131)\n");
-
+	printf("DUMMYNET %p with IPv6 initialized (100409)\n", curvnet);
+	dn_cfg.init_done = 1;
 	/* Set defaults here. MSVC does not accept initializers,
 	 * and this is also useful for vimages
 	 */
@@ -2156,10 +2152,8 @@ ip_dn_init(void)
 	SLIST_INIT(&dn_cfg.schedlist);
 
 	DN_LOCK_INIT();
-	ip_dn_ctl_ptr = ip_dn_ctl;
-	ip_dn_io_ptr = dummynet_io;
 
-	TASK_INIT(&dn_task, 0, dummynet_task, NULL);
+	TASK_INIT(&dn_task, 0, dummynet_task, curvnet);
 	dn_tq = taskqueue_create_fast("dummynet", M_NOWAIT,
 	    taskqueue_thread_enqueue, &dn_tq);
 	taskqueue_start_threads(&dn_tq, 1, PI_NET, "dummynet");
@@ -2173,13 +2167,16 @@ ip_dn_init(void)
 
 #ifdef KLD_MODULE
 static void
-ip_dn_destroy(void)
+ip_dn_destroy(int last)
 {
 	callout_drain(&dn_timeout);
 
 	DN_BH_WLOCK();
-	ip_dn_ctl_ptr = NULL;
-	ip_dn_io_ptr = NULL;
+	if (last) {
+		printf("%s removing last instance\n", __FUNCTION__);
+		ip_dn_ctl_ptr = NULL;
+		ip_dn_io_ptr = NULL;
+	}
 
 	dummynet_flush();
 	DN_BH_WUNLOCK();
@@ -2204,13 +2201,15 @@ dummynet_modevent(module_t mod, int type, void *data)
 			return EEXIST ;
 		}
 		ip_dn_init();
+		ip_dn_ctl_ptr = ip_dn_ctl;
+		ip_dn_io_ptr = dummynet_io;
 		return 0;
 	} else if (type == MOD_UNLOAD) {
 #if !defined(KLD_MODULE)
 		printf("dummynet statically compiled, cannot unload\n");
 		return EINVAL ;
 #else
-		ip_dn_destroy();
+		ip_dn_destroy(1 /* last */);
 		return 0;
 #endif
 	} else
@@ -2288,8 +2287,24 @@ static moduledata_t dummynet_mod = {
 	"dummynet", dummynet_modevent, NULL
 };
 
-DECLARE_MODULE(dummynet, dummynet_mod,
-	SI_SUB_PROTO_IFATTACHDOMAIN, SI_ORDER_ANY-1);
+#define	DN_SI_SUB	SI_SUB_PROTO_IFATTACHDOMAIN
+#define	DN_MODEV_ORD	(SI_ORDER_ANY - 128) /* after ipfw */
+DECLARE_MODULE(dummynet, dummynet_mod, DN_SI_SUB, DN_MODEV_ORD);
 MODULE_DEPEND(dummynet, ipfw, 2, 2, 2);
 MODULE_VERSION(dummynet, 1);
+
+/*
+ * Starting up. Done in order after dummynet_modevent() has been called.
+ * VNET_SYSINIT is also called for each existing vnet and each new vnet.
+ */
+//VNET_SYSINIT(vnet_dn_init, DN_SI_SUB, DN_MODEV_ORD+2, ip_dn_init, NULL);
+ 
+/*
+ * Shutdown handlers up shop. These are done in REVERSE ORDER, but still
+ * after dummynet_modevent() has been called. Not called on reboot.
+ * VNET_SYSUNINIT is also called for each exiting vnet as it exits.
+ * or when the module is unloaded.
+ */
+//VNET_SYSUNINIT(vnet_dn_uninit, DN_SI_SUB, DN_MODEV_ORD+2, ip_dn_destroy, NULL);
+
 /* end of file */

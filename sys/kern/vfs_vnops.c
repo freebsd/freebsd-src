@@ -792,11 +792,10 @@ vn_stat(vp, sb, active_cred, file_cred, td)
 	 *   "a filesystem-specific preferred I/O block size for this 
 	 *    object.  In some filesystem types, this may vary from file
 	 *    to file"
-	 * Default to PAGE_SIZE after much discussion.
-	 * XXX: min(PAGE_SIZE, vp->v_bufobj.bo_bsize) may be more correct.
+	 * Use miminum/default of PAGE_SIZE (e.g. for VCHR).
 	 */
 
-	sb->st_blksize = PAGE_SIZE;
+	sb->st_blksize = max(PAGE_SIZE, vap->va_blocksize);
 	
 	sb->st_flags = vap->va_flags;
 	if (priv_check(td, PRIV_VFS_GENERATION))

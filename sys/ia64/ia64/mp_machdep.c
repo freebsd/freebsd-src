@@ -152,13 +152,15 @@ cpu_topo(void)
 static void
 ia64_store_mca_state(void* arg)
 {
-	unsigned int ncpu = (unsigned int)(uintptr_t)arg;
-	struct thread* td;
+	struct pcpu *pc = arg;
+	struct thread *td = curthread;
 
-	/* ia64_mca_save_state() is CPU-sensitive, so bind ourself to our target CPU */
-	td = curthread;
+	/*
+	 * ia64_mca_save_state() is CPU-sensitive, so bind ourself to our
+	 * target CPU.
+	 */
 	thread_lock(td);
-	sched_bind(td, ncpu);
+	sched_bind(td, pc->pc_cpuid);
 	thread_unlock(td);
 
 	/*
@@ -362,8 +364,7 @@ cpu_mp_unleash(void *dummy)
 	SLIST_FOREACH(pc, &cpuhead, pc_allcpu) {
 		cpus++;
 		if (pc->pc_md.awake) {
-			kproc_create(ia64_store_mca_state,
-			    (void*)((uintptr_t)pc->pc_cpuid), NULL, 0, 0,
+			kproc_create(ia64_store_mca_state, pc, NULL, 0, 0,
 			    "mca %u", pc->pc_cpuid);
 			smp_cpus++;
 		}

@@ -93,7 +93,7 @@ int	em_display_debug_stats = 0;
 /*********************************************************************
  *  Driver version:
  *********************************************************************/
-char em_driver_version[] = "7.0.0";
+char em_driver_version[] = "7.0.4";
 
 
 /*********************************************************************
@@ -192,7 +192,7 @@ static int	em_suspend(device_t);
 static int	em_resume(device_t);
 static void	em_start(struct ifnet *);
 static void	em_start_locked(struct ifnet *, struct tx_ring *);
-#if __FreeBSD_version >= 800000
+#ifdef EM_MULTIQUEUE
 static int	em_mq_start(struct ifnet *, struct mbuf *);
 static int	em_mq_start_locked(struct ifnet *,
 		    struct tx_ring *, struct mbuf *);
@@ -797,7 +797,7 @@ em_resume(device_t dev)
  *  the packet is requeued.
  **********************************************************************/
 
-#if __FreeBSD_version >= 800000
+#ifdef EM_MULTIQUEUE
 static int
 em_mq_start_locked(struct ifnet *ifp, struct tx_ring *txr, struct mbuf *m)
 {
@@ -812,10 +812,18 @@ em_mq_start_locked(struct ifnet *ifp, struct tx_ring *txr, struct mbuf *m)
 		return (err);
 	}
 
+        /* Call cleanup if number of TX descriptors low */
+	if (txr->tx_avail <= EM_TX_CLEANUP_THRESHOLD)
+		em_txeof(txr);
+
 	enq = 0;
-	if (m == NULL)
+	if (m == NULL) {
 		next = drbr_dequeue(ifp, txr->br);
-	else
+	} else if (drbr_needs_enqueue(ifp, txr->br)) {
+		if ((err = drbr_enqueue(ifp, txr->br, m)) != 0)
+			return (err);
+		next = drbr_dequeue(ifp, txr->br);
+	} else
 		next = m;
 
 	/* Process the queue */
@@ -830,12 +838,17 @@ em_mq_start_locked(struct ifnet *ifp, struct tx_ring *txr, struct mbuf *m)
 		ETHER_BPF_MTAP(ifp, next);
 		if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0)
                         break;
+		if (txr->tx_avail < EM_MAX_SCATTER) {
+			ifp->if_drv_flags |= IFF_DRV_OACTIVE;
+			break;
+		}
 		next = drbr_dequeue(ifp, txr->br);
 	}
 
 	if (enq > 0) {
                 /* Set the watchdog */
                 txr->watchdog_check = TRUE;
+		txr->watchdog_time = ticks;
 	}
 	return (err);
 }
@@ -860,8 +873,7 @@ em_mq_start(struct ifnet *ifp, struct mbuf *m)
 	txr = &adapter->tx_rings[i];
 
 	if (EM_TX_TRYLOCK(txr)) {
-		if (ifp->if_drv_flags & IFF_DRV_RUNNING)
-			error = em_mq_start_locked(ifp, txr, m);
+		error = em_mq_start_locked(ifp, txr, m);
 		EM_TX_UNLOCK(txr);
 	} else 
 		error = drbr_enqueue(ifp, txr->br, m);
@@ -888,7 +900,7 @@ em_qflush(struct ifnet *ifp)
 	if_qflush(ifp);
 }
 
-#endif /* FreeBSD_version */
+#endif /* EM_MULTIQUEUE */
 
 static void
 em_start_locked(struct ifnet *ifp, struct tx_ring *txr)
@@ -905,8 +917,15 @@ em_start_locked(struct ifnet *ifp, struct tx_ring *txr)
 	if (!adapter->link_active)
 		return;
 
-	while (!IFQ_DRV_IS_EMPTY(&ifp->if_snd)) {
+        /* Call cleanup if number of TX descriptors low */
+	if (txr->tx_avail <= EM_TX_CLEANUP_THRESHOLD)
+		em_txeof(txr);
 
+	while (!IFQ_DRV_IS_EMPTY(&ifp->if_snd)) {
+		if (txr->tx_avail < EM_MAX_SCATTER) {
+			ifp->if_drv_flags |= IFF_DRV_OACTIVE;
+			break;
+		}
                 IFQ_DRV_DEQUEUE(&ifp->if_snd, m_head);
 		if (m_head == NULL)
 			break;
@@ -926,6 +945,7 @@ em_start_locked(struct ifnet *ifp, struct tx_ring *txr)
 		ETHER_BPF_MTAP(ifp, m_head);
 
 		/* Set timeout in case hardware has problems transmitting. */
+		txr->watchdog_time = ticks;
 		txr->watchdog_check = TRUE;
 	}
 
@@ -1118,6 +1138,10 @@ em_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 			ifp->if_capenable ^= IFCAP_VLAN_HWTAGGING;
 			reinit = 1;
 		}
+		if (mask & IFCAP_VLAN_HWFILTER) {
+			ifp->if_capenable ^= IFCAP_VLAN_HWFILTER;
+			reinit = 1;
+		}
 		if ((mask & IFCAP_WOL) &&
 		    (ifp->if_capabilities & IFCAP_WOL) != 0) {
 			if (mask & IFCAP_WOL_MCAST)
@@ -1228,8 +1252,18 @@ em_init_locked(struct adapter *adapter)
 	/* Setup VLAN support, basic and offload if available */
 	E1000_WRITE_REG(&adapter->hw, E1000_VET, ETHERTYPE_VLAN);
 
-	/* Use real VLAN Filter support */
-	em_setup_vlan_hw_support(adapter);
+	/* Use real VLAN Filter support? */
+	if (ifp->if_capenable & IFCAP_VLAN_HWTAGGING) {
+		if (ifp->if_capenable & IFCAP_VLAN_HWFILTER)
+			/* Use real VLAN Filter support */
+			em_setup_vlan_hw_support(adapter);
+		else {
+			u32 ctrl;
+			ctrl = E1000_READ_REG(&adapter->hw, E1000_CTRL);
+			ctrl |= E1000_CTRL_VME;
+			E1000_WRITE_REG(&adapter->hw, E1000_CTRL, ctrl);
+		}
+	}
 
 	/* Set hardware offload abilities */
 	ifp->if_hwassist = 0;
@@ -1337,11 +1371,13 @@ em_poll(struct ifnet *ifp, enum poll_cmd cmd, int count)
 	}
 	EM_CORE_UNLOCK(adapter);
 
+	EM_RX_LOCK(rxr);
 	rx_done = em_rxeof(rxr, count);
+	EM_RX_UNLOCK(rxr);
 
 	EM_TX_LOCK(txr);
 	em_txeof(txr);
-#if __FreeBSD_version >= 800000
+#ifdef EM_MULTIQUEUE
 	if (!drbr_empty(ifp, txr->br))
 		em_mq_start_locked(ifp, txr, NULL);
 #else
@@ -1409,28 +1445,28 @@ em_handle_que(void *context, int pending)
 	struct ifnet	*ifp = adapter->ifp;
 	struct tx_ring	*txr = adapter->tx_rings;
 	struct rx_ring	*rxr = adapter->rx_rings;
-	u32		loop = EM_MAX_LOOP;
-	bool		more_rx, more_tx;
+	bool		more_rx;
 
 
 	if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
-		EM_TX_LOCK(txr);
-		do {
-			more_rx = em_rxeof(rxr, adapter->rx_process_limit);
-			more_tx = em_txeof(txr);
-		} while (loop-- && (more_rx || more_tx));
+		EM_RX_LOCK(rxr);
+		more_rx = em_rxeof(rxr, adapter->rx_process_limit);
+		EM_RX_UNLOCK(rxr);
 
-#if __FreeBSD_version >= 800000
+		EM_TX_LOCK(txr);
+		em_txeof(txr);
+#ifdef EM_MULTIQUEUE
 		if (!drbr_empty(ifp, txr->br))
 			em_mq_start_locked(ifp, txr, NULL);
 #else
 		if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
 			em_start_locked(ifp, txr);
 #endif
-		if (more_rx || more_tx)
-			taskqueue_enqueue(adapter->tq, &adapter->que_task);
-
 		EM_TX_UNLOCK(txr);
+		if (more_rx) {
+			taskqueue_enqueue(adapter->tq, &adapter->que_task);
+			return;
+		}
 	}
 
 	em_enable_intr(adapter);
@@ -1448,17 +1484,12 @@ em_msix_tx(void *arg)
 {
 	struct tx_ring *txr = arg;
 	struct adapter *adapter = txr->adapter;
-	bool		more;
 
 	++txr->tx_irq;
 	EM_TX_LOCK(txr);
-	more = em_txeof(txr);
+	em_txeof(txr);
 	EM_TX_UNLOCK(txr);
-	if (more)
-		taskqueue_enqueue(txr->tq, &txr->tx_task);
-	else
-		/* Reenable this interrupt */
-		E1000_WRITE_REG(&adapter->hw, E1000_IMS, txr->ims);
+	E1000_WRITE_REG(&adapter->hw, E1000_IMS, txr->ims);
 	return;
 }
 
@@ -1475,8 +1506,10 @@ em_msix_rx(void *arg)
 	struct adapter	*adapter = rxr->adapter;
 	bool		more;
 
+	EM_RX_LOCK(rxr);
 	++rxr->rx_irq;
 	more = em_rxeof(rxr, adapter->rx_process_limit);
+	EM_RX_UNLOCK(rxr);
 	if (more)
 		taskqueue_enqueue(rxr->tq, &rxr->rx_task);
 	else
@@ -1513,14 +1546,16 @@ em_handle_rx(void *context, int pending)
 {
 	struct rx_ring	*rxr = context;
 	struct adapter	*adapter = rxr->adapter;
-	u32		loop = EM_MAX_LOOP;
         bool            more;
 
-        do {
-		more = em_rxeof(rxr, adapter->rx_process_limit);
-        } while (loop-- && more);
-        /* Reenable this interrupt */
-	E1000_WRITE_REG(&adapter->hw, E1000_IMS, rxr->ims);
+	EM_RX_LOCK(rxr);
+	more = em_rxeof(rxr, adapter->rx_process_limit);
+	EM_RX_UNLOCK(rxr);
+	if (more)
+		taskqueue_enqueue(rxr->tq, &rxr->rx_task);
+	else
+		/* Reenable this interrupt */
+		E1000_WRITE_REG(&adapter->hw, E1000_IMS, rxr->ims);
 }
 
 static void
@@ -1529,16 +1564,13 @@ em_handle_tx(void *context, int pending)
 	struct tx_ring	*txr = context;
 	struct adapter	*adapter = txr->adapter;
 	struct ifnet	*ifp = adapter->ifp;
-	u32		loop = EM_MAX_LOOP;
-        bool            more;
 
 	if (!EM_TX_TRYLOCK(txr))
 		return;
-	do {
-		more = em_txeof(txr);
-	} while (loop-- && more);
 
-#if __FreeBSD_version >= 800000
+	em_txeof(txr);
+
+#ifdef EM_MULTIQUEUE
 	if (!drbr_empty(ifp, txr->br))
 		em_mq_start_locked(ifp, txr, NULL);
 #else
@@ -1705,13 +1737,6 @@ em_xmit(struct tx_ring *txr, struct mbuf **m_headp)
 	m_head = *m_headp;
 	txd_upper = txd_lower = txd_used = txd_saved = 0;
 	do_tso = ((m_head->m_pkthdr.csum_flags & CSUM_TSO) != 0);
-
-        /*
-         * Force a cleanup if number of TX descriptors
-         * available hits the threshold
-         */
-	if (txr->tx_avail <= EM_TX_CLEANUP_THRESHOLD)
-		em_txeof(txr);
 
 	/*
 	 * TSO workaround: 
@@ -2642,7 +2667,7 @@ em_setup_interface(device_t dev, struct adapter *adapter)
 
 	ifp->if_capabilities = ifp->if_capenable = 0;
 
-#if __FreeBSD_version >= 800000
+#ifdef EM_MULTIQUEUE
 	/* Multiqueue tx functions */
 	ifp->if_transmit = em_mq_start;
 	ifp->if_qflush = em_qflush;
@@ -2656,11 +2681,22 @@ em_setup_interface(device_t dev, struct adapter *adapter)
 	ifp->if_capenable |= IFCAP_TSO4;
 
 	/*
-	 * Tell the upper layer(s) we support long frames.
+	 * Tell the upper layer(s) we
+	 * support full VLAN capability
 	 */
 	ifp->if_data.ifi_hdrlen = sizeof(struct ether_vlan_header);
 	ifp->if_capabilities |= IFCAP_VLAN_HWTAGGING | IFCAP_VLAN_MTU;
 	ifp->if_capenable |= IFCAP_VLAN_HWTAGGING | IFCAP_VLAN_MTU;
+
+	/*
+	** Dont turn this on by default, if vlans are
+	** created on another pseudo device (eg. lagg)
+	** then vlan events are not passed thru, breaking
+	** operation, but with HW FILTER off it works. If
+	** using vlans directly on the em driver you can
+	** enable this and get full hardware tag filtering.
+	*/
+	ifp->if_capabilities |= IFCAP_VLAN_HWFILTER;
 
 #ifdef DEVICE_POLLING
 	ifp->if_capabilities |= IFCAP_POLLING;
@@ -3681,6 +3717,8 @@ em_refresh_mbufs(struct rx_ring *rxr, int limit)
 		rxr->next_to_refresh = i;
 	}
 update:
+	bus_dmamap_sync(rxr->rxdma.dma_tag, rxr->rxdma.dma_map,
+	    BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
 	if (cleaned != -1) /* Update tail index */
 		E1000_WRITE_REG(&adapter->hw,
 		    E1000_RDT(rxr->me), cleaned);
@@ -3972,7 +4010,7 @@ em_initialize_receive_unit(struct adapter *adapter)
 	** When using MSIX interrupts we need to throttle
 	** using the EITR register (82574 only)
 	*/
-	if (adapter->msix)
+	if (hw->mac.type == e1000_82574)
 		for (int i = 0; i < 4; i++)
 			E1000_WRITE_REG(hw, E1000_EITR_82574(i),
 			    DEFAULT_ITR);
@@ -4015,6 +4053,9 @@ em_initialize_receive_unit(struct adapter *adapter)
 	    E1000_RCTL_LBM_NO | E1000_RCTL_RDMTS_HALF |
 	    (hw->mac.mc_filter_type << E1000_RCTL_MO_SHIFT);
 
+        /* Strip the CRC */
+        rctl |= E1000_RCTL_SECRC;
+
         /* Make sure VLAN Filters are off */
         rctl &= ~E1000_RCTL_VFE;
 	rctl &= ~E1000_RCTL_SBP;
@@ -4046,15 +4087,15 @@ static int
 em_rxeof(struct rx_ring *rxr, int count)
 {
 	struct adapter		*adapter = rxr->adapter;
-	struct ifnet		*ifp = adapter->ifp;;
+	struct ifnet		*ifp = adapter->ifp;
 	struct mbuf		*mp, *sendmp;
-	u8			status;
+	u8			status = 0;
 	u16 			len;
 	int			i, processed, rxdone = 0;
 	bool			eop;
 	struct e1000_rx_desc	*cur;
 
-	EM_RX_LOCK(rxr);
+	EM_RX_LOCK_ASSERT(rxr);
 
 	for (i = rxr->next_to_check, processed = 0; count != 0;) {
 
@@ -4109,6 +4150,10 @@ em_rxeof(struct rx_ring *rxr, int count)
 					    E1000_RXD_SPC_VLAN_MASK);
 					rxr->fmp->m_flags |= M_VLANTAG;
 				}
+#ifdef EM_MULTIQUEUE
+				rxr->fmp->m_pkthdr.flowid = curcpu;
+				rxr->fmp->m_flags |= M_FLOWID;
+#endif
 #ifndef __NO_STRICT_ALIGNMENT
 skip:
 #endif
@@ -4162,8 +4207,11 @@ skip:
 
 	rxr->next_to_check = i;
 
-	EM_RX_UNLOCK(rxr);
+#ifdef DEVICE_POLLING
 	return (rxdone);
+#else
+	return ((status & E1000_RXD_STAT_DD) ? TRUE : FALSE);
+#endif
 }
 
 #ifndef __NO_STRICT_ALIGNMENT
@@ -4346,7 +4394,7 @@ em_enable_intr(struct adapter *adapter)
 	struct e1000_hw *hw = &adapter->hw;
 	u32 ims_mask = IMS_ENABLE_MASK;
 
-	if (adapter->msix) {
+	if (hw->mac.type == e1000_82574) {
 		E1000_WRITE_REG(hw, EM_EIAC, EM_MSIX_MASK);
 		ims_mask |= EM_MSIX_MASK;
 	} 
@@ -4358,7 +4406,7 @@ em_disable_intr(struct adapter *adapter)
 {
 	struct e1000_hw *hw = &adapter->hw;
 
-	if (adapter->msix)
+	if (hw->mac.type == e1000_82574)
 		E1000_WRITE_REG(hw, EM_EIAC, 0);
 	E1000_WRITE_REG(&adapter->hw, E1000_IMC, 0xffffffff);
 }

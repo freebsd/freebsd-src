@@ -99,7 +99,7 @@ int	igb_display_debug_stats = 0;
 /*********************************************************************
  *  Driver version:
  *********************************************************************/
-char igb_driver_version[] = "version - 1.9.3";
+char igb_driver_version[] = "version - 1.9.4";
 
 
 /*********************************************************************
@@ -1055,6 +1055,10 @@ igb_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 			ifp->if_capenable ^= IFCAP_VLAN_HWTAGGING;
 			reinit = 1;
 		}
+		if (mask & IFCAP_VLAN_HWFILTER) {
+			ifp->if_capenable ^= IFCAP_VLAN_HWFILTER;
+			reinit = 1;
+		}
 		if (mask & IFCAP_LRO) {
 			ifp->if_capenable ^= IFCAP_LRO;
 			reinit = 1;
@@ -1110,6 +1114,19 @@ igb_init_locked(struct adapter *adapter)
 
 	E1000_WRITE_REG(&adapter->hw, E1000_VET, ETHERTYPE_VLAN);
 
+        /* Use real VLAN Filter support? */
+	if (ifp->if_capenable & IFCAP_VLAN_HWTAGGING) {
+		if (ifp->if_capenable & IFCAP_VLAN_HWFILTER)
+			/* Use real VLAN Filter support */
+			igb_setup_vlan_hw_support(adapter);
+		else {
+			u32 ctrl;
+			ctrl = E1000_READ_REG(&adapter->hw, E1000_CTRL);
+			ctrl |= E1000_CTRL_VME;
+			E1000_WRITE_REG(&adapter->hw, E1000_CTRL, ctrl);
+		}
+	}
+                                
 	/* Set hardware offload abilities */
 	ifp->if_hwassist = 0;
 	if (ifp->if_capenable & IFCAP_TXCSUM) {
@@ -1436,7 +1453,7 @@ igb_msix_que(void *arg)
         if (adapter->hw.mac.type == e1000_82575)
                 newitr |= newitr << 16;
         else
-                newitr |= 0x8000000;
+                newitr |= E1000_EITR_CNT_IGNR;
                  
         /* save for next interrupt */
         que->eitr_setting = newitr;
@@ -2340,7 +2357,7 @@ igb_configure_queues(struct adapter *adapter)
         if (hw->mac.type == e1000_82575)
                 newitr |= newitr << 16;
         else
-                newitr |= 0x8000000;
+                newitr |= E1000_EITR_CNT_IGNR;
 
 	for (int i = 0; i < adapter->num_queues; i++) {
 		que = &adapter->queues[i];
@@ -2669,11 +2686,22 @@ igb_setup_interface(device_t dev, struct adapter *adapter)
 #endif
 
 	/*
-	 * Tell the upper layer(s) we support long frames.
+	 * Tell the upper layer(s) we
+	 * support full VLAN capability.
 	 */
 	ifp->if_data.ifi_hdrlen = sizeof(struct ether_vlan_header);
 	ifp->if_capabilities |= IFCAP_VLAN_HWTAGGING | IFCAP_VLAN_MTU;
 	ifp->if_capenable |= IFCAP_VLAN_HWTAGGING | IFCAP_VLAN_MTU;
+
+	/*
+	** Dont turn this on by default, if vlans are
+	** created on another pseudo device (eg. lagg)
+	** then vlan events are not passed thru, breaking
+	** operation, but with HW FILTER off it works. If
+	** using vlans directly on the em driver you can
+	** enable this and get full hardware tag filtering.
+	*/
+	ifp->if_capabilities |= IFCAP_VLAN_HWFILTER;
 
 	/*
 	 * Specify the media types supported by this adapter and register
@@ -3779,6 +3807,9 @@ igb_setup_receive_ring(struct rx_ring *rxr)
 		/* Update descriptor */
 		rxr->rx_base[j].read.pkt_addr = htole64(pseg[0].ds_addr);
         }
+
+	/* Setup our descriptor indices */
+	rxr->next_to_check = 0;
 	rxr->next_to_refresh = 0;
 	rxr->lro_enabled = FALSE;
 
@@ -4672,10 +4703,12 @@ igb_update_stats_counters(struct adapter *adapter)
 {
 	struct ifnet   *ifp;
 
-	if(adapter->hw.phy.media_type == e1000_media_type_copper ||
+	if (adapter->hw.phy.media_type == e1000_media_type_copper ||
 	   (E1000_READ_REG(&adapter->hw, E1000_STATUS) & E1000_STATUS_LU)) {
-		adapter->stats.symerrs += E1000_READ_REG(&adapter->hw, E1000_SYMERRS);
-		adapter->stats.sec += E1000_READ_REG(&adapter->hw, E1000_SEC);
+		adapter->stats.symerrs +=
+		    E1000_READ_REG(&adapter->hw, E1000_SYMERRS);
+		adapter->stats.sec +=
+		    E1000_READ_REG(&adapter->hw, E1000_SEC);
 	}
 	adapter->stats.crcerrs += E1000_READ_REG(&adapter->hw, E1000_CRCERRS);
 	adapter->stats.mpc += E1000_READ_REG(&adapter->hw, E1000_MPC);

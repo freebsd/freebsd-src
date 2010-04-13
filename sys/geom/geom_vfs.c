@@ -161,6 +161,10 @@ g_vfs_open(struct vnode *vp, struct g_consumer **cpp, const char *fsname, int wr
 	g_topology_assert();
 
 	*cpp = NULL;
+	bo = &vp->v_bufobj;
+	if (bo->bo_private != vp)
+		return (EBUSY);
+
 	pp = g_dev_getprovider(vp->v_rdev);
 	if (pp == NULL)
 		return (ENOENT);
@@ -176,10 +180,10 @@ g_vfs_open(struct vnode *vp, struct g_consumer **cpp, const char *fsname, int wr
 	vnode_create_vobject(vp, pp->mediasize, curthread);
 	VFS_UNLOCK_GIANT(vfslocked);
 	*cpp = cp;
-	bo = &vp->v_bufobj;
+	cp->private = vp;
 	bo->bo_ops = g_vfs_bufops;
 	bo->bo_private = cp;
-	bo->bo_bsize = DEV_BSIZE;
+	bo->bo_bsize = pp->sectorsize;
 	gp->softc = bo;
 
 	return (error);
@@ -196,5 +200,6 @@ g_vfs_close(struct g_consumer *cp)
 	gp = cp->geom;
 	bo = gp->softc;
 	bufobj_invalbuf(bo, V_SAVE, 0, 0);
+	bo->bo_private = cp->private;
 	g_wither_geom_close(gp, ENXIO);
 }

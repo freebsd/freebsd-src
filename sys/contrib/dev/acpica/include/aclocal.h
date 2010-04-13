@@ -561,6 +561,8 @@ typedef struct acpi_gpe_event_info
     struct acpi_gpe_register_info   *RegisterInfo;  /* Backpointer to register info */
     UINT8                           Flags;          /* Misc info about this GPE */
     UINT8                           GpeNumber;      /* This GPE */
+    UINT8                           RuntimeCount;   /* References to a run GPE */
+    UINT8                           WakeupCount;    /* References to a wake GPE */
 
 } ACPI_GPE_EVENT_INFO;
 
@@ -590,6 +592,7 @@ typedef struct acpi_gpe_block_info
     ACPI_GPE_EVENT_INFO             *EventInfo;     /* One for each GPE */
     ACPI_GENERIC_ADDRESS            BlockAddress;   /* Base address of the block */
     UINT32                          RegisterCount;  /* Number of register pairs in block */
+    UINT16                          GpeCount;       /* Number of individual GPEs in block */
     UINT8                           BlockBaseNumber;/* Base GPE number for this block */
 
 } ACPI_GPE_BLOCK_INFO;

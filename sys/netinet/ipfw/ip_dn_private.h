@@ -150,6 +150,8 @@ struct dn_parms {
 	uint32_t expire;
 	uint32_t expire_cycle;	/* tick count */
 	
+	int init_done;
+
 	/* if the upper half is busy doing something long,
 	 * can set the busy flag and we will enqueue packets in
 	 * a queue for later processing.
@@ -354,6 +356,8 @@ enum {
 };
 
 extern struct dn_parms dn_cfg;
+//VNET_DECLARE(struct dn_parms, _base_dn_cfg);
+//#define dn_cfg              VNET(_base_dn_cfg)
 
 int dummynet_io(struct mbuf **, int , struct ip_fw_args *);
 void dummynet_task(void *context, int pending);
@@ -392,7 +396,7 @@ int dn_c_copy_fs(struct dn_fsk *f, struct copy_args *a, int nq);
 int dn_compat_copy_queue(struct copy_args *a, void *_o);
 int dn_compat_copy_pipe(struct copy_args *a, void *_o);
 int copy_data_helper_compat(void *_o, void *_arg);
-int dn_compat_calc_size(struct dn_parms dn_cfg);
+int dn_compat_calc_size(void);
 int do_config(void *p, int l);
 
 /* function to drain idle object */

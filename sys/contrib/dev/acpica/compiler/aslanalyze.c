@@ -1157,6 +1157,12 @@ AnMethodAnalysisWalkEnd (
     case PARSEOP_RETURN:
 
         /*
+         * If the parent is a predefined method name, attempt to typecheck
+         * the return value. Only static types can be validated.
+         */
+        ApCheckPredefinedReturnValue (Op, MethodInfo);
+
+        /*
          * The parent block does not "exit" and continue execution -- the
          * method is terminated here with the Return() statement.
          */
