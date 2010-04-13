@@ -277,7 +277,7 @@ trap(struct trapframe *frame)
 		 * enabled later.
 		 */
 		if (ISPL(frame->tf_cs) == SEL_UPL || (frame->tf_eflags & PSL_VM))
-			printf(
+			uprintf(
 			    "pid %ld (%s): trap %d with interrupts disabled\n",
 			    (long)curproc->p_pid, curthread->td_name, type);
 		else if (type != T_BPTFLT && type != T_TRCTRAP &&
@@ -507,7 +507,7 @@ trap(struct trapframe *frame)
 			if (npxdna())
 				goto userout;
 #endif
-			printf("pid %d killed due to lack of floating point\n",
+			uprintf("pid %d killed due to lack of floating point\n",
 				p->p_pid);
 			i = SIGKILL;
 			ucode = 0;
