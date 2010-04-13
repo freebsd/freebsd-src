@@ -668,7 +668,8 @@ ld_fs:	movw	%ax,%fs
 	movl	$MSR_FSBASE,%ecx
 	movl	PCB_FSBASE(%r8),%eax
 	movl	PCB_FSBASE+4(%r8),%edx
-	wrmsr
+	.globl	ld_fsbase
+ld_fsbase: wrmsr
 1:
 	/* Restore %gs and gsbase */
 	movw	TF_GS(%rsp),%si
@@ -685,7 +686,8 @@ ld_gs:	movw	%si,%gs
 	movl	$MSR_KGSBASE,%ecx
 	movl	PCB_GSBASE(%r8),%eax
 	movl	PCB_GSBASE+4(%r8),%edx
-	wrmsr
+	.globl	ld_gsbase
+ld_gsbase: wrmsr
 1:	.globl	ld_es
 ld_es:	movw	TF_ES(%rsp),%es
 	.globl	ld_ds
@@ -798,6 +800,30 @@ gs_load_fault:
 	call	trap
 	movw	$KUG32SEL,TF_GS(%rsp)
 	jmp	doreti
+
+	ALIGN_TEXT
+	.globl	fsbase_load_fault
+fsbase_load_fault:
+	movl	$T_PROTFLT,TF_TRAPNO(%rsp)
+	movq	%rsp, %rdi
+	call	trap
+	movq	PCPU(CURTHREAD),%r8
+	movq	TD_PCB(%r8),%r8
+	movq	$0,PCB_FSBASE(%r8)
+	jmp	doreti
+
+	ALIGN_TEXT
+	.globl	gsbase_load_fault
+gsbase_load_fault:
+	popfq
+	movl	$T_PROTFLT,TF_TRAPNO(%rsp)
+	movq	%rsp, %rdi
+	call	trap
+	movq	PCPU(CURTHREAD),%r8
+	movq	TD_PCB(%r8),%r8
+	movq	$0,PCB_GSBASE(%r8)
+	jmp	doreti
+
 #ifdef HWPMC_HOOKS
 	ENTRY(end_exceptions)
 #endif
