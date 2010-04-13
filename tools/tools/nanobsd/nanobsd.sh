@@ -134,7 +134,7 @@ PPLEVEL=3
 #######################################################################
 # Not a variable at this time
 
-NANO_ARCH=i386
+NANO_ARCH=`uname -p`
 
 #######################################################################
 #
@@ -238,6 +238,9 @@ install_etc ( ) (
 	${NANO_PMAKE} __MAKE_CONF=${NANO_MAKE_CONF_INSTALL} distribution \
 		DESTDIR=${NANO_WORLDDIR} \
 		> ${NANO_OBJ}/_.etc 2>&1
+	# make.conf doesn't get created by default, but some ports need it
+	# so they can spam it.
+	cp /dev/null ${NANO_WORLDDIR}/etc/make.conf
 )
 
 install_kernel ( ) (
@@ -495,6 +498,11 @@ create_i386_diskimage ( ) (
 	trap - 1 2 15 EXIT
 
 	) > ${NANO_OBJ}/_.di 2>&1
+)
+
+# i386 and amd64 are identical for disk images
+create_amd64_diskimage ( ) (
+	create_i386_diskimage
 )
 
 last_orders () (
