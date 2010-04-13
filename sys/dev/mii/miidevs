@@ -102,6 +102,7 @@ oui xxREALTEK			0x000732
  */
 
 /* Agere Systems PHYs */
+model AGERE ET1011		0x0001 ET1011 10/100/1000baseT PHY
 model AGERE ET1011C		0x0004 ET1011C 10/100/1000baseT PHY
 
 /* Altima Communications PHYs */
