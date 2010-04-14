@@ -99,7 +99,7 @@ int	igb_display_debug_stats = 0;
 /*********************************************************************
  *  Driver version:
  *********************************************************************/
-char igb_driver_version[] = "version - 1.9.4";
+char igb_driver_version[] = "version - 1.9.5";
 
 
 /*********************************************************************
@@ -758,8 +758,15 @@ igb_start_locked(struct tx_ring *txr, struct ifnet *ifp)
 	if (!adapter->link_active)
 		return;
 
-	while (!IFQ_DRV_IS_EMPTY(&ifp->if_snd)) {
+	/* Call cleanup if number of TX descriptors low */
+	if (txr->tx_avail <= IGB_TX_CLEANUP_THRESHOLD)
+		igb_txeof(txr);
 
+	while (!IFQ_DRV_IS_EMPTY(&ifp->if_snd)) {
+		if (txr->tx_avail <= IGB_TX_OP_THRESHOLD) {
+			ifp->if_drv_flags |= IFF_DRV_OACTIVE;
+			break;
+		}
 		IFQ_DRV_DEQUEUE(&ifp->if_snd, m_head);
 		if (m_head == NULL)
 			break;
@@ -779,6 +786,7 @@ igb_start_locked(struct tx_ring *txr, struct ifnet *ifp)
 		ETHER_BPF_MTAP(ifp, m_head);
 
 		/* Set watchdog on */
+		txr->watchdog_time = ticks;
 		txr->watchdog_check = TRUE;
 	}
 }
@@ -817,8 +825,6 @@ igb_mq_start(struct ifnet *ifp, struct mbuf *m)
 	/* Which queue to use */
 	if ((m->m_flags & M_FLOWID) != 0)
 		i = m->m_pkthdr.flowid % adapter->num_queues;
-	else
-		i = curcpu % adapter->num_queues;
 
 	txr = &adapter->tx_rings[i];
 
@@ -847,6 +853,10 @@ igb_mq_start_locked(struct ifnet *ifp, struct tx_ring *txr, struct mbuf *m)
 		return (err);
 	}
 
+	/* Call cleanup if number of TX descriptors low */
+	if (txr->tx_avail <= IGB_TX_CLEANUP_THRESHOLD)
+		igb_txeof(txr);
+
 	enq = 0;
 	if (m == NULL) {
 		next = drbr_dequeue(ifp, txr->br);
@@ -856,6 +866,7 @@ igb_mq_start_locked(struct ifnet *ifp, struct tx_ring *txr, struct mbuf *m)
 		next = drbr_dequeue(ifp, txr->br);
 	} else
 		next = m;
+
 	/* Process the queue */
 	while (next != NULL) {
 		if ((err = igb_xmit(txr, &next)) != 0) {
@@ -877,6 +888,7 @@ igb_mq_start_locked(struct ifnet *ifp, struct tx_ring *txr, struct mbuf *m)
 	if (enq > 0) {
 		/* Set the watchdog */
 		txr->watchdog_check = TRUE;
+		txr->watchdog_time = ticks;
 	}
 	return (err);
 }
@@ -1248,19 +1260,13 @@ igb_handle_que(void *context, int pending)
 	struct adapter *adapter = que->adapter;
 	struct tx_ring *txr = que->txr;
 	struct ifnet	*ifp = adapter->ifp;
-	u32		loop = IGB_MAX_LOOP;
 	bool		more;
 
-	/* RX first */
-	do {
+	if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
 		more = igb_rxeof(que, -1);
-	} while (loop-- && more);
 
-	if (IGB_TX_TRYLOCK(txr)) {
-		loop = IGB_MAX_LOOP;
-		do {
-			more = igb_txeof(txr);
-		} while (loop-- && more);
+		IGB_TX_LOCK(txr);
+		igb_txeof(txr);
 #if __FreeBSD_version >= 800000
 		igb_mq_start_locked(ifp, txr, NULL);
 #else
@@ -1268,6 +1274,10 @@ igb_handle_que(void *context, int pending)
 			igb_start_locked(txr, ifp);
 #endif
 		IGB_TX_UNLOCK(txr);
+		if (more) {
+			taskqueue_enqueue(que->tq, &que->que_task);
+			return;
+		}
 	}
 
 	/* Reenable this interrupt */
