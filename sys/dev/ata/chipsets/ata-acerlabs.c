@@ -184,8 +184,11 @@ ata_ali_ch_attach(device_t dev)
     if (ctlr->chip->cfg2 & ALI_NEW && ctlr->chip->chiprev < 0xc7)
 	ch->flags |= ATA_CHECKS_CABLE;
     /* older chips can't do 48bit DMA transfers */
-    if (ctlr->chip->chiprev <= 0xc4)
+    if (ctlr->chip->chiprev <= 0xc4) {
 	ch->flags |= ATA_NO_48BIT_DMA;
+	if (ch->dma.max_iosize > 256 * 512)
+		ch->dma.max_iosize = 256 * 512;
+    }
 
     return 0;
 }
