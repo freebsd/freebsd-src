@@ -1,5 +1,6 @@
 /*-
- * Copyright (c) 2009-2010 Fabio Checconi, Luigi Rizzo
+ * Copyright (c) 2009-2010 Fabio Checconi
+ * Copyright (c) 2009-2010 Luigi Rizzo, Universita` di Pisa
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -753,13 +754,6 @@ g_gsched_modevent(module_t mod, int cmd, void *arg)
 
 #ifdef KTR
 #define	TRC_BIO_EVENT(e, bp)	g_sched_trace_bio_ ## e (bp)
-static inline int
-g_sched_issuer_pid(struct bio *bp)
-{
-	struct thread *thread = g_sched_issuer(bp);
-
-	return (thread->td_tid);
-}
 
 static inline char
 g_sched_type(struct bio *bp)
@@ -776,7 +770,7 @@ static inline void
 g_sched_trace_bio_START(struct bio *bp)
 {
 
-	CTR5(KTR_GSCHED, "S %d %c %lu/%lu %lu", g_sched_issuer_pid(bp),
+	CTR5(KTR_GSCHED, "S %lu %c %lu/%lu %lu", g_sched_classify(bp),
 	    g_sched_type(bp), bp->bio_offset / ULONG_MAX,
 	    bp->bio_offset, bp->bio_length);
 }
@@ -785,13 +779,13 @@ static inline void
 g_sched_trace_bio_DONE(struct bio *bp)
 {
 
-	CTR5(KTR_GSCHED, "D %d %c %lu/%lu %lu", g_sched_issuer_pid(bp),
+	CTR5(KTR_GSCHED, "D %lu %c %lu/%lu %lu", g_sched_classify(bp),
 	    g_sched_type(bp), bp->bio_offset / ULONG_MAX,
 	    bp->bio_offset, bp->bio_length);
 }
-#else
+#else /* !KTR */
 #define	TRC_BIO_EVENT(e, bp)
-#endif
+#endif /* !KTR */
 
 /*
  * g_sched_done() and g_sched_start() dispatch the geom requests to
