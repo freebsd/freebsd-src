@@ -148,6 +148,16 @@ typedef struct mtx acl_lock_t;
 	mtx_assert((&(_as)->as_lock), MA_OWNED)
 
 /*
+ * Scan table definitions.
+ */
+typedef struct mtx ieee80211_scan_table_lock_t;
+#define	IEEE80211_SCAN_TABLE_LOCK_INIT(_st, _name) \
+	mtx_init(&(_st)->st_lock, _name, "802.11 scan table", MTX_DEF)
+#define	IEEE80211_SCAN_TABLE_LOCK_DESTROY(_st)	mtx_destroy(&(_st)->st_lock)
+#define	IEEE80211_SCAN_TABLE_LOCK(_st)		mtx_lock(&(_st)->st_lock)
+#define	IEEE80211_SCAN_TABLE_UNLOCK(_st)	mtx_unlock(&(_st)->st_lock)
+
+/*
  * Node reference counting definitions.
  *
  * ieee80211_node_initref	initialize the reference count to 1
