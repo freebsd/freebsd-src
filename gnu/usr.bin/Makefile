@@ -8,7 +8,6 @@ SUBDIR= ${_binutils} \
 	dialog \
 	diff \
 	diff3 \
-	dtc \
 	${_gdb} \
 	${_gperf} \
 	${_grep} \
