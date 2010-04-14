@@ -1,9 +1,8 @@
 # GEOM_LIBRARY_PATH
 # $FreeBSD$
 
-.PATH: /usr/src/sbin/geom/misc
-
-CFLAGS += -I/usr/src/sbin/geom
+.PATH: ${.CURDIR}/../../misc
+#CFLAGS += -I/usr/src/sbin/geom
 
 CLASS=sched
 

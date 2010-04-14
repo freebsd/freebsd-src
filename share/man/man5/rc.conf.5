@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 09, 2010
+.Dd April 14, 2010
 .Dt RC.CONF 5
 .Os
 .Sh NAME
@@ -427,27 +427,11 @@ the
 kernel module will be loaded.
 See also
 .Va ipfilter_enable .
-.It Va ipv6_firewall_enable
-.Pq Vt bool
-The IPv6 equivalent of
-.Va firewall_enable .
-Set to
-.Dq Li YES
-to load IPv6 firewall rules at startup.
-If the kernel was not built with
-.Cd "options IPV6FIREWALL" ,
-the
-.Pa ipfw.ko
-kernel module will be loaded.
 .It Va firewall_script
 .Pq Vt str
 This variable specifies the full path to the firewall script to run.
 The default is
 .Pa /etc/rc.firewall .
-.It Va ipv6_firewall_script
-.Pq Vt str
-The IPv6 equivalent of
-.Va firewall_script .
 .It Va firewall_type
 .Pq Vt str
 Names the firewall type from the selection in
@@ -471,19 +455,11 @@ basic protection for a LAN.
 .Pp
 If a filename is specified, the full path
 must be given.
-.It Va ipv6_firewall_type
-.Pq Vt str
-The IPv6 equivalent of
-.Va firewall_type .
 .It Va firewall_quiet
 .Pq Vt bool
 Set to
 .Dq Li YES
 to disable the display of firewall rules on the console during boot.
-.It Va ipv6_firewall_quiet
-.Pq Vt bool
-The IPv6 equivalent of
-.Va firewall_quiet .
 .It Va firewall_logging
 .Pq Vt bool
 Set to
@@ -492,10 +468,6 @@ to enable firewall event logging.
 This is equivalent to the
 .Dv IPFIREWALL_VERBOSE
 kernel option.
-.It Va ipv6_firewall_logging
-.Pq Vt bool
-The IPv6 equivalent of
-.Va firewall_logging .
 .It Va firewall_flags
 .Pq Vt str
 Flags passed to
@@ -503,10 +475,6 @@ Flags passed to
 if
 .Va firewall_type
 specifies a filename.
-.It Va ipv6_firewall_flags
-.Pq Vt str
-The IPv6 equivalent of
-.Va firewall_flags .
 .It Va firewall_coscripts
 .Pq Vt str
 List of executables and/or rc scripts to run after firewall starts/stops.

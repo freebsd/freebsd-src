@@ -424,13 +424,14 @@ sigreturn(td, uap)
 
 	error = copyin(uap->sigcntxp, &uc, sizeof(uc));
 	if (error != 0) {
-		printf("sigreturn (pid %d): copyin failed\n", p->p_pid);
+		uprintf("pid %d (%s): sigreturn copyin failed\n",
+		    p->p_pid, td->td_name);
 		return (error);
 	}
 	ucp = &uc;
 	if ((ucp->uc_mcontext.mc_flags & ~_MC_FLAG_MASK) != 0) {
-		printf("sigreturn (pid %d): mc_flags %x\n", p->p_pid,
-		    ucp->uc_mcontext.mc_flags);
+		uprintf("pid %d (%s): sigreturn mc_flags %x\n", p->p_pid,
+		    td->td_name, ucp->uc_mcontext.mc_flags);
 		return (EINVAL);
 	}
 	regs = td->td_frame;
@@ -449,8 +450,8 @@ sigreturn(td, uap)
 	 * one less debugger trap, so allowing it is fairly harmless.
 	 */
 	if (!EFL_SECURE(rflags & ~PSL_RF, regs->tf_rflags & ~PSL_RF)) {
-		printf("sigreturn (pid %d): rflags = 0x%lx\n", p->p_pid,
-		    rflags);
+		uprintf("pid %d (%s): sigreturn rflags = 0x%lx\n", p->p_pid,
+		    td->td_name, rflags);
 		return (EINVAL);
 	}
 
@@ -461,7 +462,8 @@ sigreturn(td, uap)
 	 */
 	cs = ucp->uc_mcontext.mc_cs;
 	if (!CS_SECURE(cs)) {
-		printf("sigreturn (pid %d): cs = 0x%x\n", p->p_pid, cs);
+		uprintf("pid %d (%s): sigreturn cs = 0x%x\n", p->p_pid,
+		    td->td_name, cs);
 		ksiginfo_init_trap(&ksi);
 		ksi.ksi_signo = SIGBUS;
 		ksi.ksi_code = BUS_OBJERR;
@@ -473,7 +475,8 @@ sigreturn(td, uap)
 
 	ret = set_fpcontext(td, &ucp->uc_mcontext);
 	if (ret != 0) {
-		printf("sigreturn (pid %d): set_fpcontext\n", p->p_pid);
+		uprintf("pid %d (%s): sigreturn set_fpcontext err %d\n",
+		    p->p_pid, td->td_name, ret);
 		return (ret);
 	}
 	bcopy(&ucp->uc_mcontext.mc_rdi, regs, sizeof(*regs));
