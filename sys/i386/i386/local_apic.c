@@ -111,14 +111,12 @@ struct lapic {
 	u_long la_prof_ticks;
 } static lapics[MAX_APIC_ID + 1];
 
-/* XXX: should thermal be an NMI? */
-
 /* Global defaults for local APIC LVT entries. */
 static struct lvt lvts[LVT_MAX + 1] = {
 	{ 1, 1, 1, 1, APIC_LVT_DM_EXTINT, 0 },	/* LINT0: masked ExtINT */
 	{ 1, 1, 0, 1, APIC_LVT_DM_NMI, 0 },	/* LINT1: NMI */
 	{ 1, 1, 1, 1, APIC_LVT_DM_FIXED, APIC_TIMER_INT },	/* Timer */
-	{ 1, 1, 1, 1, APIC_LVT_DM_FIXED, APIC_ERROR_INT },	/* Error */
+	{ 1, 1, 0, 1, APIC_LVT_DM_FIXED, APIC_ERROR_INT },	/* Error */
 	{ 1, 1, 1, 1, APIC_LVT_DM_NMI, 0 },	/* PMC */
 	{ 1, 1, 1, 1, APIC_LVT_DM_FIXED, APIC_THERMAL_INT },	/* Thermal */
 };
@@ -226,7 +224,11 @@ lapic_init(vm_paddr_t addr)
 	    GSEL(GCODE_SEL, SEL_KPL));
 	ioint_irqs[APIC_TIMER_INT - APIC_IO_INTS] = IRQ_TIMER;
 
-	/* XXX: error/thermal interrupts */
+	/* Local APIC error interrupt. */
+	setidt(APIC_ERROR_INT, IDTVEC(errorint), SDT_SYS386IGT, SEL_KPL,
+	    GSEL(GCODE_SEL, SEL_KPL));
+
+	/* XXX: Thermal interrupt */
 }
 
 /*
@@ -274,7 +276,7 @@ lapic_dump(const char* str)
 	    lapic->id, lapic->version, lapic->ldr, lapic->dfr);
 	printf("  lint0: 0x%08x lint1: 0x%08x TPR: 0x%08x SVR: 0x%08x\n",
 	    lapic->lvt_lint0, lapic->lvt_lint1, lapic->tpr, lapic->svr);
-	printf("  timer: 0x%08x therm: 0x%08x err: 0x%08x pcm: 0x%08x\n",
+	printf("  timer: 0x%08x therm: 0x%08x err: 0x%08x pmc: 0x%08x\n",
 	    lapic->lvt_timer, lapic->lvt_thermal, lapic->lvt_error,
 	    lapic->lvt_pcint);
 }
@@ -301,6 +303,7 @@ lapic_setup(int boot)
 	/* Program LINT[01] LVT entries. */
 	lapic->lvt_lint0 = lvt_mode(la, LVT_LINT0, lapic->lvt_lint0);
 	lapic->lvt_lint1 = lvt_mode(la, LVT_LINT1, lapic->lvt_lint1);
+
 	/* Program the PMC LVT entry if present. */
 	if (maxlvt >= LVT_PMC)
 		lapic->lvt_pcint = lvt_mode(la, LVT_PMC, lapic->lvt_pcint);
@@ -321,7 +324,11 @@ lapic_setup(int boot)
 		lapic_timer_enable_intr();
 	}
 
-	/* XXX: Error and thermal LVTs */
+	/* Program error LVT and clear any existing errors. */
+	lapic->lvt_error = lvt_mode(la, LVT_ERROR, lapic->lvt_error);
+	lapic->esr = 0;
+
+	/* XXX: Thermal LVT */
 
 	if (cpu_vendor_id == CPU_VENDOR_AMD) {
 		/*
@@ -846,6 +853,24 @@ lapic_timer_enable_intr(void)
 	value = lapic->lvt_timer;
 	value &= ~APIC_LVT_M;
 	lapic->lvt_timer = value;
+}
+
+void
+lapic_handle_error(void)
+{
+	u_int32_t esr;
+
+	/*
+	 * Read the contents of the error status register.  Write to
+	 * the register first before reading from it to force the APIC
+	 * to update its value to indicate any errors that have
+	 * occurred since the previous write to the register.
+	 */
+	lapic->esr = 0;
+	esr = lapic->esr;
+
+	printf("CPU%d: local APIC error 0x%x\n", PCPU_GET(cpuid), esr);
+	lapic_eoi();
 }
 
 /* Request a free IDT vector to be used by the specified IRQ. */
