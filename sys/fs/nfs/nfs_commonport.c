@@ -82,7 +82,8 @@ SYSCTL_STRING(_vfs_newnfs, OID_AUTO, callback_addr, CTLFLAG_RW,
  */
 MALLOC_DEFINE(M_NEWNFSRVCACHE, "NFSD srvcache", "NFSD Server Request Cache");
 MALLOC_DEFINE(M_NEWNFSDCLIENT, "NFSD V4client", "NFSD V4 Client Id");
-MALLOC_DEFINE(M_NEWNFSDSTATE, "NFSD V4state", "NFSD V4 State (Openowner, Open, Lockowner, Delegation");
+MALLOC_DEFINE(M_NEWNFSDSTATE, "NFSD V4state",
+    "NFSD V4 State (Openowner, Open, Lockowner, Delegation");
 MALLOC_DEFINE(M_NEWNFSDLOCK, "NFSD V4lock", "NFSD V4 byte range lock");
 MALLOC_DEFINE(M_NEWNFSDLOCKFILE, "NFSD lckfile", "NFSD Open/Lock file");
 MALLOC_DEFINE(M_NEWNFSSTRING, "NFSD string", "NFSD V4 long string");
@@ -97,7 +98,10 @@ MALLOC_DEFINE(M_NEWNFSCLLOCKOWNER, "NFSCL lckown", "NFSCL Lock Owner");
 MALLOC_DEFINE(M_NEWNFSCLLOCK, "NFSCL lck", "NFSCL Lock");
 MALLOC_DEFINE(M_NEWNFSV4NODE, "NEWNFSnode", "New nfs vnode");
 MALLOC_DEFINE(M_NEWNFSDIRECTIO, "NEWdirectio", "New nfs Direct IO buffer");
-MALLOC_DEFINE(M_NEWNFSDIROFF, "Newnfscl_diroff", "New NFS directory offset data");
+MALLOC_DEFINE(M_NEWNFSDIROFF, "NFSCL diroffdiroff",
+    "New NFS directory offset data");
+MALLOC_DEFINE(M_NEWNFSDROLLBACK, "NFSD rollback",
+    "New NFS local lock rollback");
 
 /*
  * Definition of mutex locks.

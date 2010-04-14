@@ -185,6 +185,17 @@ struct nfslockconflict {
 };
 
 /*
+ * This structure is used to keep track of local locks that might need
+ * to be rolled back.
+ */
+struct nfsrollback {
+	LIST_ENTRY(nfsrollback)	rlck_list;
+	uint64_t		rlck_first;
+	uint64_t		rlck_end;
+	int			rlck_type;
+};
+
+/*
  * This structure refers to a file for which lock(s) and/or open(s) exist.
  * Searched via hash table on file handle or found via the back pointer from an
  * open or lock owner.
@@ -193,8 +204,12 @@ struct nfslockfile {
 	LIST_HEAD(, nfsstate)	lf_open;	/* Open list */
 	LIST_HEAD(, nfsstate)	lf_deleg;	/* Delegation list */
 	LIST_HEAD(, nfslock)	lf_lock;	/* Lock list */
+	LIST_HEAD(, nfslock)	lf_locallock;	/* Local lock list */
+	LIST_HEAD(, nfsrollback) lf_rollback;	/* Local lock rollback list */
 	LIST_ENTRY(nfslockfile)	lf_hash;	/* Hash list entry */
 	fhandle_t		lf_fh;		/* The file handle */
+	struct nfsv4lock	lf_locallock_lck; /* serialize local locking */
+	int			lf_usecount;	/* Ref count for locking */
 };
 
 /*
