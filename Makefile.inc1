@@ -15,7 +15,7 @@
 #	-DNO_CTF do not run the DTrace CTF conversion tools on built objects
 #	LOCAL_DIRS="list of dirs" to add additional dirs to the SUBDIR list
 #	TARGET="machine" to crossbuild world for a different machine type
-#	TARGET_ARCH= may be required when a TARGET supports multiple endians.
+#	TARGET_ARCH= may be required when a TARGET supports multiple endians
 
 #
 # The intended user-driven targets are:
