@@ -14,20 +14,9 @@ SRCS=	inferiors.c mem-break.c regcache.c remote-utils.c	\
 	server.c signals.c target.c utils.c
 SRCS+=	fbsd-low.c
 
-.if ${MACHINE_ARCH} == "amd64"
-SRCS+= fbsd-amd64-low.c i387-fp.c reg-x86-64.c
-.endif
-
-.if ${MACHINE_ARCH} == "arm"
-SRCS+= fbsd-arm-low.c reg-arm.c
-.endif
-
-.if ${MACHINE_ARCH} == "i386"
-SRCS+= fbsd-i386-low.c i387-fp.c reg-i386.c
-.endif
-
-.if ${MACHINE_ARCH} == "powerpc"
-SRCS+= fbsd-ppc-low.c reg-ppc.c
+SRCS+= fbsd-${MACHINE_ARCH}-low.c reg-${MACHINE_ARCH}.c
+.if ${MACHINE_ARCH} == "amd64" || ${MACHINE_ARCH} == "i386"
+SRCS+= i387-fp.c
 .endif
 
 #CFLAGS+=	-I${.CURDIR}/../arch/${MACHINE_ARCH}
