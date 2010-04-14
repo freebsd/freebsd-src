@@ -251,6 +251,7 @@ int nfsv4_lock(struct nfsv4lock *, int, int *, void *);
 void nfsv4_unlock(struct nfsv4lock *, int);
 void nfsv4_relref(struct nfsv4lock *);
 void nfsv4_getref(struct nfsv4lock *, int *, void *);
+int nfsv4_testlock(struct nfsv4lock *);
 int nfsrv_mtostr(struct nfsrv_descript *, char *, int);
 int nfsrv_checkutf8(u_int8_t *, int);
 int newnfs_sndlock(int *);
