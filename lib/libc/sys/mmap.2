@@ -28,7 +28,7 @@
 .\"	@(#)mmap.2	8.4 (Berkeley) 5/11/95
 .\" $FreeBSD$
 .\"
-.Dd April 21, 2006
+.Dd October 24, 2008
 .Dt MMAP 2
 .Os
 .Sh NAME
@@ -252,6 +252,11 @@ In the future we may define an additional mapping type,
 in which
 the file descriptor argument specifies a file or device to which swapping
 should be done.
+.Sh NOTES
+Although this implementation does not impose any alignment restrictions on
+the
+.Fa offset
+argument, a portable program must only use page-aligned values.
 .Sh RETURN VALUES
 Upon successful completion,
 .Fn mmap
@@ -307,13 +312,6 @@ was negative.
 was specified and the
 .Fa fd
 argument was not -1.
-The
-.Fa offset
-argument
-was not page-aligned.
-(See
-.Sx BUGS
-below.)
 .It Bq Er ENODEV
 .Dv MAP_ANON
 has not been specified and
