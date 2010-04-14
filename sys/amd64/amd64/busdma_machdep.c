@@ -239,8 +239,7 @@ bus_dma_tag_create(bus_dma_tag_t parent, bus_size_t alignment,
 	newtag->alignment = alignment;
 	newtag->boundary = boundary;
 	newtag->lowaddr = trunc_page((vm_paddr_t)lowaddr) + (PAGE_SIZE - 1);
-	newtag->highaddr = trunc_page((vm_paddr_t)highaddr) +
-	    (PAGE_SIZE - 1);
+	newtag->highaddr = trunc_page((vm_paddr_t)highaddr) + (PAGE_SIZE - 1);
 	newtag->filter = filter;
 	newtag->filterarg = filterarg;
 	newtag->maxsize = maxsize;
@@ -605,13 +604,18 @@ _bus_dmamap_load_buffer(bus_dma_tag_t dmat,
 		vendaddr = (vm_offset_t)buf + buflen;
 
 		while (vaddr < vendaddr) {
+			bus_size_t sg_len;
+
+			sg_len = PAGE_SIZE - ((vm_offset_t)vaddr & PAGE_MASK);
 			if (pmap)
 				paddr = pmap_extract(pmap, vaddr);
 			else
 				paddr = pmap_kextract(vaddr);
-			if (run_filter(dmat, paddr) != 0)
+			if (run_filter(dmat, paddr) != 0) {
+				sg_len = roundup2(sg_len, dmat->alignment);
 				map->pagesneeded++;
-			vaddr += (PAGE_SIZE - ((vm_offset_t)vaddr & PAGE_MASK));
+			}
+			vaddr += sg_len;
 		}
 		CTR1(KTR_BUSDMA, "pagesneeded= %d\n", map->pagesneeded);
 	}
@@ -644,6 +648,8 @@ _bus_dmamap_load_buffer(bus_dma_tag_t dmat,
 	bmask = ~(dmat->boundary - 1);
 
 	for (seg = *segp; buflen > 0 ; ) {
+		bus_size_t max_sgsize;
+
 		/*
 		 * Get the physical address for this segment.
 		 */
@@ -655,11 +661,15 @@ _bus_dmamap_load_buffer(bus_dma_tag_t dmat,
 		/*
 		 * Compute the segment size, and adjust counts.
 		 */
-		sgsize = PAGE_SIZE - ((u_long)curaddr & PAGE_MASK);
-		if (sgsize > dmat->maxsegsz)
-			sgsize = dmat->maxsegsz;
-		if (buflen < sgsize)
-			sgsize = buflen;
+		max_sgsize = MIN(buflen, dmat->maxsegsz);
+		sgsize = PAGE_SIZE - ((vm_offset_t)curaddr & PAGE_MASK);
+		if (map->pagesneeded != 0 && run_filter(dmat, curaddr)) {
+			sgsize = roundup2(sgsize, dmat->alignment);
+			sgsize = MIN(sgsize, max_sgsize);
+			curaddr = add_bounce_page(dmat, map, vaddr, sgsize);
+		} else {
+			sgsize = MIN(sgsize, max_sgsize);
+		}
 
 		/*
 		 * Make sure we don't cross any boundaries.
@@ -669,9 +679,6 @@ _bus_dmamap_load_buffer(bus_dma_tag_t dmat,
 			if (sgsize > (baddr - curaddr))
 				sgsize = (baddr - curaddr);
 		}
-
-		if (map->pagesneeded != 0 && run_filter(dmat, curaddr))
-			curaddr = add_bounce_page(dmat, map, vaddr, sgsize);
 
 		/*
 		 * Insert chunk into a segment, coalescing with
