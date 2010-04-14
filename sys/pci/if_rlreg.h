@@ -133,6 +133,7 @@
 #define RL_GMEDIASTAT		0x006C	/* 8 bits */
 #define RL_MACDBG		0x006D	/* 8 bits, 8168C SPIN2 only */
 #define RL_GPIO			0x006E	/* 8 bits, 8168C SPIN2 only */
+#define RL_PMCH			0x006F	/* 8 bits */
 #define RL_MAXRXPKTLEN		0x00DA	/* 16 bits, chip multiplies by 8 */
 #define RL_GTXSTART		0x0038	/* 8 bits */
 
@@ -162,6 +163,7 @@
 #define RL_HWREV_8102EL_SPIN1	0x24c00000
 #define RL_HWREV_8168D		0x28000000
 #define RL_HWREV_8168DP		0x28800000
+#define RL_HWREV_8168E		0x2C000000
 #define RL_HWREV_8168_SPIN1	0x30000000
 #define RL_HWREV_8100E		0x30800000
 #define RL_HWREV_8101E		0x34000000
@@ -857,6 +859,7 @@ struct rl_softc {
 	uint32_t		rl_flags;
 #define	RL_FLAG_MSI		0x0001
 #define	RL_FLAG_AUTOPAD		0x0002
+#define	RL_FLAG_PHYWAKE_PM	0x0004
 #define	RL_FLAG_PHYWAKE		0x0008
 #define	RL_FLAG_NOJUMBO		0x0010
 #define	RL_FLAG_PAR		0x0020
