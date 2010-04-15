@@ -2318,7 +2318,9 @@ nfscl_renewthread(struct nfsclclient *clp, NFSPROC_T *p)
 	int error, cbpathdown, islept, igotlock, ret, clearok;
 
 	cred = newnfs_getcred();
+	NFSLOCKCLSTATE();
 	clp->nfsc_flags |= NFSCLFLAGS_HASTHREAD;
+	NFSUNLOCKCLSTATE();
 	for(;;) {
 		newnfs_setroot(cred);
 		cbpathdown = 0;
@@ -2331,9 +2333,11 @@ nfscl_renewthread(struct nfsclclient *clp, NFSPROC_T *p)
 			error = nfsrpc_renew(clp, cred, p);
 			if (error == NFSERR_CBPATHDOWN)
 			    cbpathdown = 1;
-			else if (error == NFSERR_STALECLIENTID)
+			else if (error == NFSERR_STALECLIENTID) {
+			    NFSLOCKCLSTATE();
 			    clp->nfsc_flags |= NFSCLFLAGS_RECOVER;
-			else if (error == NFSERR_EXPIRED)
+			    NFSUNLOCKCLSTATE();
+			} else if (error == NFSERR_EXPIRED)
 			    (void) nfscl_hasexpired(clp, clidrev, p);
 		}
 
