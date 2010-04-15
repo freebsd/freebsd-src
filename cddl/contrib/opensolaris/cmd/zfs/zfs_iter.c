@@ -368,7 +368,10 @@ zfs_for_each(int argc, char **argv, int flags, zfs_type_t types,
 	 * properties other than those listed in cb_proplist/sortcol are
 	 * accessed.
 	 *
-	 * If cb_proplist is NULL then we retain all the properties.
+	 * If cb_proplist is NULL then we retain all the properties.  We
+	 * always retain the zoned property, which some other properties
+	 * need (userquota & friends), and the createtxg property, which
+	 * we need to sort snapshots.
 	 */
 	if (cb.cb_proplist && *cb.cb_proplist) {
 		zprop_list_t *p = *cb.cb_proplist;
@@ -388,6 +391,9 @@ zfs_for_each(int argc, char **argv, int flags, zfs_type_t types,
 			}
 			sortcol = sortcol->sc_next;
 		}
+
+		cb.cb_props_table[ZFS_PROP_ZONED] = B_TRUE;
+		cb.cb_props_table[ZFS_PROP_CREATETXG] = B_TRUE;
 	} else {
 		(void) memset(cb.cb_props_table, B_TRUE,
 		    sizeof (cb.cb_props_table));
