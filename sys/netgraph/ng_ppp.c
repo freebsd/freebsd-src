@@ -907,7 +907,21 @@ ng_ppp_proto_recv(node_p node, item_p item, uint16_t proto, uint16_t linkNum)
 	const priv_p priv = NG_NODE_PRIVATE(node);
 	hook_p outHook = NULL;
 	int error;
+#ifdef ALIGNED_POINTER
+	struct mbuf *m, *n;
 
+	NGI_GET_M(item, m);
+	if (!ALIGNED_POINTER(mtod(m, caddr_t), uint32_t)) {
+		n = m_defrag(m, M_NOWAIT);
+		if (n == NULL) {
+			m_freem(m);
+			NG_FREE_ITEM(item);
+			return (ENOBUFS);
+		}
+		m = n;
+	}
+	NGI_M(item) = m;
+#endif /* ALIGNED_POINTER */
 	switch (proto) {
 	    case PROT_IP:
 		if (priv->conf.enableIP)
