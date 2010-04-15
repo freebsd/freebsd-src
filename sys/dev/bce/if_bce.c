@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2006-2009 Broadcom Corporation
+ * Copyright (c) 2006-2010 Broadcom Corporation
  *	David Christensen <davidch@broadcom.com>.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -38,7 +38,9 @@ __FBSDID("$FreeBSD$");
  *   BCM5708C B1, B2
  *   BCM5708S B1, B2
  *   BCM5709C A1, C0
+ *   BCM5709S A1, C0
  * 	 BCM5716C C0
+ * 	 BCM5716S C0
  *
  * The following controllers are not supported by this driver:
  *   BCM5706C A0, A1 (pre-production)
@@ -46,7 +48,7 @@ __FBSDID("$FreeBSD$");
  *   BCM5708C A0, B0 (pre-production)
  *   BCM5708S A0, B0 (pre-production)
  *   BCM5709C A0  B0, B1, B2 (pre-production)
- *   BCM5709S A0, A1, B0, B1, B2, C0 (pre-production)
+ *   BCM5709S A0, B0, B1, B2 (pre-production)
  */
 
 #include "opt_bce.h"
@@ -320,6 +322,7 @@ static void bce_dump_rxp_state		(struct bce_softc *, int);
 static void bce_dump_tpat_state		(struct bce_softc *, int);
 static void bce_dump_cp_state		(struct bce_softc *, int);
 static void bce_dump_com_state		(struct bce_softc *, int);
+static void bce_dump_rv2p_state		(struct bce_softc *);
 static void bce_breakpoint			(struct bce_softc *);
 #endif
 
@@ -360,6 +363,7 @@ static int  bce_nvram_write			(struct bce_softc *, u32, u8 *, int);
 /*                                                                          */
 /****************************************************************************/
 static void bce_get_media			(struct bce_softc *);
+static void bce_init_media			(struct bce_softc *);
 static void bce_dma_map_addr		(void *, bus_dma_segment_t *, int, int);
 static int  bce_dma_alloc			(device_t);
 static void bce_dma_free			(struct bce_softc *);
@@ -1096,7 +1100,10 @@ bce_attach(device_t dev)
 	else
 		ifp->if_baudrate = IF_Mbps(1000);
 
-	/* Check for an MII child bus by probing the PHY. */
+    /* Handle any special PHY initialization for SerDes PHYs. */
+    bce_init_media(sc);
+
+	/* MII child bus by probing the PHY. */
 	if (mii_phy_probe(dev, &sc->bce_miibus, bce_ifmedia_upd,
 		bce_ifmedia_sts)) {
 		BCE_PRINTF("%s(%d): No PHY found on child MII bus!\n",
@@ -1504,7 +1511,17 @@ bce_miibus_read_reg(device_t dev, int phy, int reg)
 		return(0);
 	}
 
-	if (sc->bce_phy_flags & BCE_PHY_INT_MODE_AUTO_POLLING_FLAG) {
+    /*
+     * The 5709S PHY is an IEEE Clause 45 PHY
+     * with special mappings to work with IEEE
+     * Clause 22 register accesses.
+     */
+	if ((sc->bce_phy_flags & BCE_PHY_IEEE_CLAUSE_45_FLAG) != 0) {
+		if (reg >= MII_BMCR && reg <= MII_ANLPRNP)
+			reg += 0x10;
+	}
+
+    if (sc->bce_phy_flags & BCE_PHY_INT_MODE_AUTO_POLLING_FLAG) {
 		val = REG_RD(sc, BCE_EMAC_MDIO_MODE);
 		val &= ~BCE_EMAC_MDIO_MODE_AUTO_POLL;
 
@@ -1583,6 +1600,16 @@ bce_miibus_write_reg(device_t dev, int phy, int reg, int val)
 	}
 
 	DB_PRINT_PHY_REG(reg, val);
+
+    /*
+     * The 5709S PHY is an IEEE Clause 45 PHY
+     * with special mappings to work with IEEE
+     * Clause 22 register accesses.
+     */
+	if ((sc->bce_phy_flags & BCE_PHY_IEEE_CLAUSE_45_FLAG) != 0) {
+		if (reg >= MII_BMCR && reg <= MII_ANLPRNP)
+			reg += 0x10;
+	}
 
 	if (sc->bce_phy_flags & BCE_PHY_INT_MODE_AUTO_POLLING_FLAG) {
 		val1 = REG_RD(sc, BCE_EMAC_MDIO_MODE);
@@ -2647,9 +2674,11 @@ bce_get_media(struct bce_softc *sc)
 				DBPRINT(sc, BCE_INFO_LOAD,
 					"BCM5709 s/w configured for SerDes.\n");
 				sc->bce_phy_flags |= BCE_PHY_SERDES_FLAG;
+                break;
 			default:
 				DBPRINT(sc, BCE_INFO_LOAD,
 					"BCM5709 s/w configured for Copper.\n");
+                break;
 			}
 		} else {
 			switch (strap) {
@@ -2659,9 +2688,11 @@ bce_get_media(struct bce_softc *sc)
 				DBPRINT(sc, BCE_INFO_LOAD,
 					"BCM5709 s/w configured for SerDes.\n");
 				sc->bce_phy_flags |= BCE_PHY_SERDES_FLAG;
+                break;
 			default:
 				DBPRINT(sc, BCE_INFO_LOAD,
 					"BCM5709 s/w configured for Copper.\n");
+                break;
 			}
 		}
 
@@ -2669,15 +2700,22 @@ bce_get_media(struct bce_softc *sc)
 		sc->bce_phy_flags |= BCE_PHY_SERDES_FLAG;
 
 	if (sc->bce_phy_flags & BCE_PHY_SERDES_FLAG) {
+
 		sc->bce_flags |= BCE_NO_WOL_FLAG;
-		if (BCE_CHIP_NUM(sc) != BCE_CHIP_NUM_5706) {
+
+		/* 5708S, 5709S, and 5716S use a separate PHY for SerDes. */
+		if (BCE_CHIP_NUM(sc) != BCE_CHIP_NUM_5706) 
 			sc->bce_phy_addr = 2;
+
+		if (BCE_CHIP_NUM(sc) == BCE_CHIP_NUM_5709) {
+			sc->bce_phy_flags |= BCE_PHY_IEEE_CLAUSE_45_FLAG;
+
 			val = bce_shmem_rd(sc, BCE_SHARED_HW_CFG_CONFIG);
 			if (val & BCE_SHARED_HW_CFG_PHY_2_5G) {
 				sc->bce_phy_flags |= BCE_PHY_2_5G_CAPABLE_FLAG;
 				DBPRINT(sc, BCE_INFO_LOAD, "Found 2.5Gb capable adapter\n");
 			}
-		}
+        }
 	} else if ((BCE_CHIP_NUM(sc) == BCE_CHIP_NUM_5706) ||
 		   (BCE_CHIP_NUM(sc) == BCE_CHIP_NUM_5708))
 		sc->bce_phy_flags |= BCE_PHY_CRC_FIX_FLAG;
@@ -2687,6 +2725,37 @@ bce_get_media_exit:
 		"Using PHY address %d.\n", sc->bce_phy_addr);
 
 	DBEXIT(BCE_VERBOSE);
+}
+
+
+/****************************************************************************/
+/* Performs PHY initialization required before MII drivers access the       */
+/* device.                                                                  */
+/*                                                                          */
+/* Returns:                                                                 */
+/*   Nothing.                                                               */
+/****************************************************************************/
+static void
+bce_init_media(struct bce_softc *sc)
+{
+	if ((sc->bce_phy_flags & BCE_PHY_IEEE_CLAUSE_45_FLAG) != 0) {
+		/*
+		 * Configure 5709S/5716S PHYs to use traditional IEEE
+		 * Clause 22 method. Otherwise we have no way to attach
+		 * the PHY in mii(4) layer. PHY specific configuration
+		 * is done in mii layer.
+		 */
+
+        /* Select auto-negotiation MMD of the PHY. */
+        bce_miibus_write_reg(sc->bce_dev, sc->bce_phy_addr,
+		    BRGPHY_BLOCK_ADDR, BRGPHY_BLOCK_ADDR_ADDR_EXT);
+		bce_miibus_write_reg(sc->bce_dev, sc->bce_phy_addr,
+		    BRGPHY_ADDR_EXT, BRGPHY_ADDR_EXT_AN_MMD);
+
+        /* Select IEEE0 block of AN MMD (assumed in all brgphy(4) code). */
+		bce_miibus_write_reg(sc->bce_dev, sc->bce_phy_addr,
+		    BRGPHY_BLOCK_ADDR, BRGPHY_BLOCK_ADDR_COMBO_IEEE0);
+	}
 }
 
 
@@ -6679,7 +6748,7 @@ bce_tso_setup(struct bce_softc *sc, struct mbuf **m_head, u16 *flags)
 
 	DBPRINT(sc, BCE_EXTREME_SEND, "%s(): hdr_len = %d, e_hlen = %d, "
 	    "ip_hlen = %d, tcp_hlen = %d, ip_len = %d\n",
-	    __FUNCTION__, hdr_len, sizeof(struct ether_header), ip_hlen,
+	    __FUNCTION__, hdr_len, (int) sizeof(struct ether_header), ip_hlen,
 	    tcp_hlen, ip_len);
 
 	/* Set the LSO flag in the TX BD */
@@ -7943,7 +8012,7 @@ bce_sysctl_dump_tx_chain(SYSCTL_HANDLER_ARGS)
 
         if (result == 1) {
                 sc = (struct bce_softc *)arg1;
-                bce_dump_tx_chain(sc, 0, USABLE_TX_BD);
+                bce_dump_tx_chain(sc, 0, TOTAL_TX_BD);
         }
 
         return error;
@@ -8626,7 +8695,7 @@ bce_add_sysctls(struct bce_softc *sc)
 /* Returns:                                                                 */
 /*   Nothing.                                                               */
 /****************************************************************************/
-static void
+static __attribute__ ((noinline)) void
 bce_freeze_controller(struct bce_softc *sc)
 {
 	u32 val;
@@ -8643,7 +8712,7 @@ bce_freeze_controller(struct bce_softc *sc)
 /* Returns:                                                                 */
 /*   Nothing.                                                               */
 /****************************************************************************/
-static void
+static __attribute__ ((noinline)) void
 bce_unfreeze_controller(struct bce_softc *sc)
 {
 	u32 val;
@@ -8661,7 +8730,7 @@ bce_unfreeze_controller(struct bce_softc *sc)
 /* Returns:                                                                 */
 /*   Nothing.                                                               */
 /****************************************************************************/
-static void
+static __attribute__ ((noinline)) void
 bce_dump_enet(struct bce_softc *sc, struct mbuf *m)
 {
 	struct ether_vlan_header *eh;
@@ -8915,7 +8984,9 @@ bce_dump_pg_mbuf_chain(struct bce_softc *sc, u16 chain_prod, int count)
 static __attribute__ ((noinline)) void
 bce_dump_txbd(struct bce_softc *sc, int idx, struct tx_bd *txbd)
 {
-	if (idx > MAX_TX_BD)
+    int i = 0;
+
+    if (idx > MAX_TX_BD)
 		/* Index out of range. */
 		BCE_PRINTF("tx_bd[0x%04X]: Invalid tx_bd index!\n", idx);
 	else if ((idx & USABLE_TX_BD_PER_PAGE) == USABLE_TX_BD_PER_PAGE)
@@ -8923,52 +8994,65 @@ bce_dump_txbd(struct bce_softc *sc, int idx, struct tx_bd *txbd)
 		BCE_PRINTF("tx_bd[0x%04X]: haddr = 0x%08X:%08X, chain page pointer\n",
 			idx, txbd->tx_bd_haddr_hi, txbd->tx_bd_haddr_lo);
 	else {
-			/* Normal tx_bd entry. */
-			BCE_PRINTF("tx_bd[0x%04X]: haddr = 0x%08X:%08X, nbytes = 0x%08X, "
-				"vlan tag= 0x%04X, flags = 0x%04X (", idx,
-				txbd->tx_bd_haddr_hi, txbd->tx_bd_haddr_lo,
-				txbd->tx_bd_mss_nbytes, txbd->tx_bd_vlan_tag,
-				txbd->tx_bd_flags);
+		/* Normal tx_bd entry. */
+		BCE_PRINTF("tx_bd[0x%04X]: haddr = 0x%08X:%08X, mss_nbytes = 0x%08X, "
+			"vlan tag = 0x%04X, flags = 0x%04X (", idx,
+			txbd->tx_bd_haddr_hi, txbd->tx_bd_haddr_lo,
+			txbd->tx_bd_mss_nbytes, txbd->tx_bd_vlan_tag,
+			txbd->tx_bd_flags);
 
-			if (txbd->tx_bd_flags & TX_BD_FLAGS_CONN_FAULT)
-				printf(" CONN_FAULT");
+		if (txbd->tx_bd_flags & TX_BD_FLAGS_CONN_FAULT) {
+			if (i>0) printf("|"); printf("CONN_FAULT"); i++;
+        }
 
-			if (txbd->tx_bd_flags & TX_BD_FLAGS_TCP_UDP_CKSUM)
-				printf(" TCP_UDP_CKSUM");
+		if (txbd->tx_bd_flags & TX_BD_FLAGS_TCP_UDP_CKSUM) {
+            if (i>0) printf("|"); printf("TCP_UDP_CKSUM"); i++;
+        }
 
-			if (txbd->tx_bd_flags & TX_BD_FLAGS_IP_CKSUM)
-				printf(" IP_CKSUM");
+        if (txbd->tx_bd_flags & TX_BD_FLAGS_IP_CKSUM) {
+            if (i>0) printf("|"); printf("IP_CKSUM"); i++;
+        }
 
-			if (txbd->tx_bd_flags & TX_BD_FLAGS_VLAN_TAG)
-				printf("  VLAN");
+		if (txbd->tx_bd_flags & TX_BD_FLAGS_VLAN_TAG) {
+            if (i>0) printf("|"); printf("VLAN"); i++;
+        }
 
-			if (txbd->tx_bd_flags & TX_BD_FLAGS_COAL_NOW)
-				printf(" COAL_NOW");
+		if (txbd->tx_bd_flags & TX_BD_FLAGS_COAL_NOW) {
+            if (i>0) printf("|"); printf("COAL_NOW"); i++;
+        }
 
-			if (txbd->tx_bd_flags & TX_BD_FLAGS_DONT_GEN_CRC)
-				printf(" DONT_GEN_CRC");
+        if (txbd->tx_bd_flags & TX_BD_FLAGS_DONT_GEN_CRC) {
+            if (i>0) printf("|"); printf("DONT_GEN_CRC"); i++;
+        }
 
-			if (txbd->tx_bd_flags & TX_BD_FLAGS_START)
-				printf(" START");
+        if (txbd->tx_bd_flags & TX_BD_FLAGS_START) {
+            if (i>0) printf("|"); printf("START"); i++;
+        }
 
-			if (txbd->tx_bd_flags & TX_BD_FLAGS_END)
-				printf(" END");
+		if (txbd->tx_bd_flags & TX_BD_FLAGS_END) {
+            if (i>0) printf("|"); printf("END"); i++;
+        }
 
-			if (txbd->tx_bd_flags & TX_BD_FLAGS_SW_LSO)
-				printf(" LSO");
+		if (txbd->tx_bd_flags & TX_BD_FLAGS_SW_LSO) {
+            if (i>0) printf("|"); printf("LSO"); i++;
+        }
 
-			if (txbd->tx_bd_flags & TX_BD_FLAGS_SW_OPTION_WORD)
-				printf(" OPTION_WORD");
+        if (txbd->tx_bd_flags & TX_BD_FLAGS_SW_OPTION_WORD) {
+            if (i>0) printf("|"); 
+            printf("SW_OPTION=%d", ((txbd->tx_bd_flags & 
+                TX_BD_FLAGS_SW_OPTION_WORD) >> 8)); i++;
+        }
 
-			if (txbd->tx_bd_flags & TX_BD_FLAGS_SW_FLAGS)
-				printf(" FLAGS");
+		if (txbd->tx_bd_flags & TX_BD_FLAGS_SW_FLAGS) {
+            if (i>0) printf("|"); printf("SW_FLAGS"); i++;
+        }
 
-			if (txbd->tx_bd_flags & TX_BD_FLAGS_SW_SNAP)
-				printf(" SNAP");
-
-			printf(" )\n");
-		}
-
+		if (txbd->tx_bd_flags & TX_BD_FLAGS_SW_SNAP) {
+            if (i>0) printf("|"); printf("SNAP)");
+        } else {
+            printf(")\n");
+        }
+    }
 }
 
 
@@ -9415,10 +9499,8 @@ bce_dump_tx_chain(struct bce_softc *sc, u16 tx_prod, int count)
 
 	BCE_PRINTF("page size      = 0x%08X, tx chain pages        = 0x%08X\n",
 		(u32) BCM_PAGE_SIZE, (u32) TX_PAGES);
-
 	BCE_PRINTF("tx_bd per page = 0x%08X, usable tx_bd per page = 0x%08X\n",
 		(u32) TOTAL_TX_BD_PER_PAGE, (u32) USABLE_TX_BD_PER_PAGE);
-
 	BCE_PRINTF("total tx_bd    = 0x%08X\n", (u32) TOTAL_TX_BD);
 
 	BCE_PRINTF(
@@ -9426,11 +9508,11 @@ bce_dump_tx_chain(struct bce_softc *sc, u16 tx_prod, int count)
 		"   tx_bd data   "
 		"----------------------------\n");
 
-	/* Now print out the tx_bd's themselves. */
+	/* Now print out a decoded list of TX buffer descriptors. */
 	for (int i = 0; i < count; i++) {
 	 	txbd = &sc->tx_bd_chain[TX_PAGE(tx_prod)][TX_IDX(tx_prod)];
 		bce_dump_txbd(sc, tx_prod, txbd);
-		tx_prod = NEXT_TX_BD(tx_prod);
+		tx_prod++;
 	}
 
 	BCE_PRINTF(
@@ -9530,6 +9612,17 @@ bce_dump_pg_chain(struct bce_softc *sc, u16 pg_prod, int count)
 }
 #endif
 
+#define BCE_PRINT_RX_CONS(arg)                                          \
+if (sblk->status_rx_quick_consumer_index##arg)                          \
+    BCE_PRINTF("0x%04X(0x%04X) - rx_quick_consumer_index##arg\n",       \
+		sblk->status_rx_quick_consumer_index##arg,                      \
+		(u16) RX_CHAIN_IDX(sblk->status_rx_quick_consumer_index##arg));
+
+#define BCE_PRINT_TX_CONS(arg)                                          \
+if (sblk->status_tx_quick_consumer_index##arg)                          \
+    BCE_PRINTF("0x%04X(0x%04X) - tx_quick_consumer_index##arg\n",       \
+        sblk->status_tx_quick_consumer_index##arg,                      \
+        (u16) TX_CHAIN_IDX(sblk->status_tx_quick_consumer_index##arg));
 
 /****************************************************************************/
 /* Prints out the status block from host memory.                            */
@@ -9549,90 +9642,28 @@ bce_dump_status_block(struct bce_softc *sc)
 		"  Status Block  "
 		"----------------------------\n");
 
+    /* Theses indices are used for normal L2 drivers. */
 	BCE_PRINTF("    0x%08X - attn_bits\n",
 		sblk->status_attn_bits);
 
 	BCE_PRINTF("    0x%08X - attn_bits_ack\n",
 		sblk->status_attn_bits_ack);
 
-	BCE_PRINTF("0x%04X(0x%04X) - rx_cons0\n",
-		sblk->status_rx_quick_consumer_index0,
-		(u16) RX_CHAIN_IDX(sblk->status_rx_quick_consumer_index0));
-
-	BCE_PRINTF("0x%04X(0x%04X) - tx_cons0\n",
-		sblk->status_tx_quick_consumer_index0,
-		(u16) TX_CHAIN_IDX(sblk->status_tx_quick_consumer_index0));
+    BCE_PRINT_RX_CONS(0);
+    BCE_PRINT_TX_CONS(0)
 
 	BCE_PRINTF("        0x%04X - status_idx\n", sblk->status_idx);
 
 	/* Theses indices are not used for normal L2 drivers. */
-	if (sblk->status_rx_quick_consumer_index1)
-		BCE_PRINTF("0x%04X(0x%04X) - rx_cons1\n",
-			sblk->status_rx_quick_consumer_index1,
-			(u16) RX_CHAIN_IDX(sblk->status_rx_quick_consumer_index1));
+    BCE_PRINT_RX_CONS(1);   BCE_PRINT_RX_CONS(2);   BCE_PRINT_RX_CONS(3);
+    BCE_PRINT_RX_CONS(4);   BCE_PRINT_RX_CONS(5);   BCE_PRINT_RX_CONS(6);
+    BCE_PRINT_RX_CONS(7);   BCE_PRINT_RX_CONS(8);   BCE_PRINT_RX_CONS(9);
+    BCE_PRINT_RX_CONS(10);  BCE_PRINT_RX_CONS(11);  BCE_PRINT_RX_CONS(12);
+    BCE_PRINT_RX_CONS(13);  BCE_PRINT_RX_CONS(14);  BCE_PRINT_RX_CONS(15);
 
-	if (sblk->status_tx_quick_consumer_index1)
-		BCE_PRINTF("0x%04X(0x%04X) - tx_cons1\n",
-			sblk->status_tx_quick_consumer_index1,
-			(u16) TX_CHAIN_IDX(sblk->status_tx_quick_consumer_index1));
+    BCE_PRINT_TX_CONS(1);   BCE_PRINT_TX_CONS(2);   BCE_PRINT_TX_CONS(3);
 
-	if (sblk->status_rx_quick_consumer_index2)
-		BCE_PRINTF("0x%04X(0x%04X)- rx_cons2\n",
-			sblk->status_rx_quick_consumer_index2,
-			(u16) RX_CHAIN_IDX(sblk->status_rx_quick_consumer_index2));
-
-	if (sblk->status_tx_quick_consumer_index2)
-		BCE_PRINTF("0x%04X(0x%04X) - tx_cons2\n",
-			sblk->status_tx_quick_consumer_index2,
-			(u16) TX_CHAIN_IDX(sblk->status_tx_quick_consumer_index2));
-
-	if (sblk->status_rx_quick_consumer_index3)
-		BCE_PRINTF("0x%04X(0x%04X) - rx_cons3\n",
-			sblk->status_rx_quick_consumer_index3,
-			(u16) RX_CHAIN_IDX(sblk->status_rx_quick_consumer_index3));
-
-	if (sblk->status_tx_quick_consumer_index3)
-		BCE_PRINTF("0x%04X(0x%04X) - tx_cons3\n",
-			sblk->status_tx_quick_consumer_index3,
-			(u16) TX_CHAIN_IDX(sblk->status_tx_quick_consumer_index3));
-
-	if (sblk->status_rx_quick_consumer_index4 ||
-		sblk->status_rx_quick_consumer_index5)
-		BCE_PRINTF("rx_cons4  = 0x%08X, rx_cons5      = 0x%08X\n",
-			sblk->status_rx_quick_consumer_index4,
-			sblk->status_rx_quick_consumer_index5);
-
-	if (sblk->status_rx_quick_consumer_index6 ||
-		sblk->status_rx_quick_consumer_index7)
-		BCE_PRINTF("rx_cons6  = 0x%08X, rx_cons7      = 0x%08X\n",
-			sblk->status_rx_quick_consumer_index6,
-			sblk->status_rx_quick_consumer_index7);
-
-	if (sblk->status_rx_quick_consumer_index8 ||
-		sblk->status_rx_quick_consumer_index9)
-		BCE_PRINTF("rx_cons8  = 0x%08X, rx_cons9      = 0x%08X\n",
-			sblk->status_rx_quick_consumer_index8,
-			sblk->status_rx_quick_consumer_index9);
-
-	if (sblk->status_rx_quick_consumer_index10 ||
-		sblk->status_rx_quick_consumer_index11)
-		BCE_PRINTF("rx_cons10 = 0x%08X, rx_cons11     = 0x%08X\n",
-			sblk->status_rx_quick_consumer_index10,
-			sblk->status_rx_quick_consumer_index11);
-
-	if (sblk->status_rx_quick_consumer_index12 ||
-		sblk->status_rx_quick_consumer_index13)
-		BCE_PRINTF("rx_cons12 = 0x%08X, rx_cons13     = 0x%08X\n",
-			sblk->status_rx_quick_consumer_index12,
-			sblk->status_rx_quick_consumer_index13);
-
-	if (sblk->status_rx_quick_consumer_index14 ||
-		sblk->status_rx_quick_consumer_index15)
-		BCE_PRINTF("rx_cons14 = 0x%08X, rx_cons15     = 0x%08X\n",
-			sblk->status_rx_quick_consumer_index14,
-			sblk->status_rx_quick_consumer_index15);
-
-	if (sblk->status_completion_producer_index ||
+    if (sblk->status_completion_producer_index ||
 		sblk->status_cmd_consumer_index)
 		BCE_PRINTF("com_prod  = 0x%08X, cmd_cons      = 0x%08X\n",
 			sblk->status_completion_producer_index,
@@ -9644,6 +9675,14 @@ bce_dump_status_block(struct bce_softc *sc)
 		"----------------------------\n");
 }
 
+
+#define BCE_PRINT_64BIT_STAT(arg)                                       \
+if (sblk->arg##_lo || sblk->arg##_hi)                               \
+	BCE_PRINTF("0x%08X:%08X : arg\n", sblk->arg##_hi, sblk->arg##_lo);
+
+#define BCE_PRINT_32BIT_STAT(arg)                                       \
+if (sblk->arg)                                                        \
+	BCE_PRINTF("         0x%08X : arg\n", sblk->arg);
 
 /****************************************************************************/
 /* Prints out the statistics block from host memory.                        */
@@ -9663,252 +9702,60 @@ bce_dump_stats_block(struct bce_softc *sc)
 		" Stats Block  (All Stats Not Shown Are 0) "
 		"---------------\n");
 
-	if (sblk->stat_IfHCInOctets_hi
-		|| sblk->stat_IfHCInOctets_lo)
-		BCE_PRINTF("0x%08X:%08X : "
-			"IfHcInOctets\n",
-			sblk->stat_IfHCInOctets_hi,
-			sblk->stat_IfHCInOctets_lo);
-
-	if (sblk->stat_IfHCInBadOctets_hi
-		|| sblk->stat_IfHCInBadOctets_lo)
-		BCE_PRINTF("0x%08X:%08X : "
-			"IfHcInBadOctets\n",
-			sblk->stat_IfHCInBadOctets_hi,
-			sblk->stat_IfHCInBadOctets_lo);
-
-	if (sblk->stat_IfHCOutOctets_hi
-		|| sblk->stat_IfHCOutOctets_lo)
-		BCE_PRINTF("0x%08X:%08X : "
-			"IfHcOutOctets\n",
-			sblk->stat_IfHCOutOctets_hi,
-			sblk->stat_IfHCOutOctets_lo);
-
-	if (sblk->stat_IfHCOutBadOctets_hi
-		|| sblk->stat_IfHCOutBadOctets_lo)
-		BCE_PRINTF("0x%08X:%08X : "
-			"IfHcOutBadOctets\n",
-			sblk->stat_IfHCOutBadOctets_hi,
-			sblk->stat_IfHCOutBadOctets_lo);
-
-	if (sblk->stat_IfHCInUcastPkts_hi
-		|| sblk->stat_IfHCInUcastPkts_lo)
-		BCE_PRINTF("0x%08X:%08X : "
-			"IfHcInUcastPkts\n",
-			sblk->stat_IfHCInUcastPkts_hi,
-			sblk->stat_IfHCInUcastPkts_lo);
-
-	if (sblk->stat_IfHCInBroadcastPkts_hi
-		|| sblk->stat_IfHCInBroadcastPkts_lo)
-		BCE_PRINTF("0x%08X:%08X : "
-			"IfHcInBroadcastPkts\n",
-			sblk->stat_IfHCInBroadcastPkts_hi,
-			sblk->stat_IfHCInBroadcastPkts_lo);
-
-	if (sblk->stat_IfHCInMulticastPkts_hi
-		|| sblk->stat_IfHCInMulticastPkts_lo)
-		BCE_PRINTF("0x%08X:%08X : "
-			"IfHcInMulticastPkts\n",
-			sblk->stat_IfHCInMulticastPkts_hi,
-			sblk->stat_IfHCInMulticastPkts_lo);
-
-	if (sblk->stat_IfHCOutUcastPkts_hi
-		|| sblk->stat_IfHCOutUcastPkts_lo)
-		BCE_PRINTF("0x%08X:%08X : "
-			"IfHcOutUcastPkts\n",
-			sblk->stat_IfHCOutUcastPkts_hi,
-			sblk->stat_IfHCOutUcastPkts_lo);
-
-	if (sblk->stat_IfHCOutBroadcastPkts_hi
-		|| sblk->stat_IfHCOutBroadcastPkts_lo)
-		BCE_PRINTF("0x%08X:%08X : "
-			"IfHcOutBroadcastPkts\n",
-			sblk->stat_IfHCOutBroadcastPkts_hi,
-			sblk->stat_IfHCOutBroadcastPkts_lo);
-
-	if (sblk->stat_IfHCOutMulticastPkts_hi
-		|| sblk->stat_IfHCOutMulticastPkts_lo)
-		BCE_PRINTF("0x%08X:%08X : "
-			"IfHcOutMulticastPkts\n",
-			sblk->stat_IfHCOutMulticastPkts_hi,
-			sblk->stat_IfHCOutMulticastPkts_lo);
-
-	if (sblk->stat_emac_tx_stat_dot3statsinternalmactransmiterrors)
-		BCE_PRINTF("         0x%08X : "
-			"emac_tx_stat_dot3statsinternalmactransmiterrors\n",
-			sblk->stat_emac_tx_stat_dot3statsinternalmactransmiterrors);
-
-	if (sblk->stat_Dot3StatsCarrierSenseErrors)
-		BCE_PRINTF("         0x%08X : Dot3StatsCarrierSenseErrors\n",
-			sblk->stat_Dot3StatsCarrierSenseErrors);
-
-	if (sblk->stat_Dot3StatsFCSErrors)
-		BCE_PRINTF("         0x%08X : Dot3StatsFCSErrors\n",
-			sblk->stat_Dot3StatsFCSErrors);
-
-	if (sblk->stat_Dot3StatsAlignmentErrors)
-		BCE_PRINTF("         0x%08X : Dot3StatsAlignmentErrors\n",
-			sblk->stat_Dot3StatsAlignmentErrors);
-
-	if (sblk->stat_Dot3StatsSingleCollisionFrames)
-		BCE_PRINTF("         0x%08X : Dot3StatsSingleCollisionFrames\n",
-			sblk->stat_Dot3StatsSingleCollisionFrames);
-
-	if (sblk->stat_Dot3StatsMultipleCollisionFrames)
-		BCE_PRINTF("         0x%08X : Dot3StatsMultipleCollisionFrames\n",
-			sblk->stat_Dot3StatsMultipleCollisionFrames);
-
-	if (sblk->stat_Dot3StatsDeferredTransmissions)
-		BCE_PRINTF("         0x%08X : Dot3StatsDeferredTransmissions\n",
-			sblk->stat_Dot3StatsDeferredTransmissions);
-
-	if (sblk->stat_Dot3StatsExcessiveCollisions)
-		BCE_PRINTF("         0x%08X : Dot3StatsExcessiveCollisions\n",
-			sblk->stat_Dot3StatsExcessiveCollisions);
-
-	if (sblk->stat_Dot3StatsLateCollisions)
-		BCE_PRINTF("         0x%08X : Dot3StatsLateCollisions\n",
-			sblk->stat_Dot3StatsLateCollisions);
-
-	if (sblk->stat_EtherStatsCollisions)
-		BCE_PRINTF("         0x%08X : EtherStatsCollisions\n",
-			sblk->stat_EtherStatsCollisions);
-
-	if (sblk->stat_EtherStatsFragments)
-		BCE_PRINTF("         0x%08X : EtherStatsFragments\n",
-			sblk->stat_EtherStatsFragments);
-
-	if (sblk->stat_EtherStatsJabbers)
-		BCE_PRINTF("         0x%08X : EtherStatsJabbers\n",
-			sblk->stat_EtherStatsJabbers);
-
-	if (sblk->stat_EtherStatsUndersizePkts)
-		BCE_PRINTF("         0x%08X : EtherStatsUndersizePkts\n",
-			sblk->stat_EtherStatsUndersizePkts);
-
-	if (sblk->stat_EtherStatsOversizePkts)
-		BCE_PRINTF("         0x%08X : EtherStatsOverrsizePkts\n",
-			sblk->stat_EtherStatsOversizePkts);
-
-	if (sblk->stat_EtherStatsPktsRx64Octets)
-		BCE_PRINTF("         0x%08X : EtherStatsPktsRx64Octets\n",
-			sblk->stat_EtherStatsPktsRx64Octets);
-
-	if (sblk->stat_EtherStatsPktsRx65Octetsto127Octets)
-		BCE_PRINTF("         0x%08X : EtherStatsPktsRx65Octetsto127Octets\n",
-			sblk->stat_EtherStatsPktsRx65Octetsto127Octets);
-
-	if (sblk->stat_EtherStatsPktsRx128Octetsto255Octets)
-		BCE_PRINTF("         0x%08X : EtherStatsPktsRx128Octetsto255Octets\n",
-			sblk->stat_EtherStatsPktsRx128Octetsto255Octets);
-
-	if (sblk->stat_EtherStatsPktsRx256Octetsto511Octets)
-		BCE_PRINTF("         0x%08X : EtherStatsPktsRx256Octetsto511Octets\n",
-			sblk->stat_EtherStatsPktsRx256Octetsto511Octets);
-
-	if (sblk->stat_EtherStatsPktsRx512Octetsto1023Octets)
-		BCE_PRINTF("         0x%08X : EtherStatsPktsRx512Octetsto1023Octets\n",
-			sblk->stat_EtherStatsPktsRx512Octetsto1023Octets);
-
-	if (sblk->stat_EtherStatsPktsRx1024Octetsto1522Octets)
-		BCE_PRINTF("         0x%08X : EtherStatsPktsRx1024Octetsto1522Octets\n",
-			sblk->stat_EtherStatsPktsRx1024Octetsto1522Octets);
-
-	if (sblk->stat_EtherStatsPktsRx1523Octetsto9022Octets)
-		BCE_PRINTF("         0x%08X : EtherStatsPktsRx1523Octetsto9022Octets\n",
-			sblk->stat_EtherStatsPktsRx1523Octetsto9022Octets);
-
-	if (sblk->stat_EtherStatsPktsTx64Octets)
-		BCE_PRINTF("         0x%08X : EtherStatsPktsTx64Octets\n",
-			sblk->stat_EtherStatsPktsTx64Octets);
-
-	if (sblk->stat_EtherStatsPktsTx65Octetsto127Octets)
-		BCE_PRINTF("         0x%08X : EtherStatsPktsTx65Octetsto127Octets\n",
-			sblk->stat_EtherStatsPktsTx65Octetsto127Octets);
-
-	if (sblk->stat_EtherStatsPktsTx128Octetsto255Octets)
-		BCE_PRINTF("         0x%08X : EtherStatsPktsTx128Octetsto255Octets\n",
-			sblk->stat_EtherStatsPktsTx128Octetsto255Octets);
-
-	if (sblk->stat_EtherStatsPktsTx256Octetsto511Octets)
-		BCE_PRINTF("         0x%08X : EtherStatsPktsTx256Octetsto511Octets\n",
-			sblk->stat_EtherStatsPktsTx256Octetsto511Octets);
-
-	if (sblk->stat_EtherStatsPktsTx512Octetsto1023Octets)
-		BCE_PRINTF("         0x%08X : EtherStatsPktsTx512Octetsto1023Octets\n",
-			sblk->stat_EtherStatsPktsTx512Octetsto1023Octets);
-
-	if (sblk->stat_EtherStatsPktsTx1024Octetsto1522Octets)
-		BCE_PRINTF("         0x%08X : EtherStatsPktsTx1024Octetsto1522Octets\n",
-			sblk->stat_EtherStatsPktsTx1024Octetsto1522Octets);
-
-	if (sblk->stat_EtherStatsPktsTx1523Octetsto9022Octets)
-		BCE_PRINTF("         0x%08X : EtherStatsPktsTx1523Octetsto9022Octets\n",
-			sblk->stat_EtherStatsPktsTx1523Octetsto9022Octets);
-
-	if (sblk->stat_XonPauseFramesReceived)
-		BCE_PRINTF("         0x%08X : XonPauseFramesReceived\n",
-			sblk->stat_XonPauseFramesReceived);
-
-	if (sblk->stat_XoffPauseFramesReceived)
-	   BCE_PRINTF("          0x%08X : XoffPauseFramesReceived\n",
-			sblk->stat_XoffPauseFramesReceived);
-
-	if (sblk->stat_OutXonSent)
-		BCE_PRINTF("         0x%08X : OutXonSent\n",
-			sblk->stat_OutXonSent);
-
-	if (sblk->stat_OutXoffSent)
-		BCE_PRINTF("         0x%08X : OutXoffSent\n",
-			sblk->stat_OutXoffSent);
-
-	if (sblk->stat_FlowControlDone)
-		BCE_PRINTF("         0x%08X : FlowControlDone\n",
-			sblk->stat_FlowControlDone);
-
-	if (sblk->stat_MacControlFramesReceived)
-		BCE_PRINTF("         0x%08X : MacControlFramesReceived\n",
-			sblk->stat_MacControlFramesReceived);
-
-	if (sblk->stat_XoffStateEntered)
-		BCE_PRINTF("         0x%08X : XoffStateEntered\n",
-			sblk->stat_XoffStateEntered);
-
-	if (sblk->stat_IfInFramesL2FilterDiscards)
-		BCE_PRINTF("         0x%08X : IfInFramesL2FilterDiscards\n",
-			sblk->stat_IfInFramesL2FilterDiscards);
-
-	if (sblk->stat_IfInRuleCheckerDiscards)
-		BCE_PRINTF("         0x%08X : IfInRuleCheckerDiscards\n",
-			sblk->stat_IfInRuleCheckerDiscards);
-
-	if (sblk->stat_IfInFTQDiscards)
-		BCE_PRINTF("         0x%08X : IfInFTQDiscards\n",
-			sblk->stat_IfInFTQDiscards);
-
-	if (sblk->stat_IfInMBUFDiscards)
-		BCE_PRINTF("         0x%08X : IfInMBUFDiscards\n",
-			sblk->stat_IfInMBUFDiscards);
-
-	if (sblk->stat_IfInRuleCheckerP4Hit)
-		BCE_PRINTF("         0x%08X : IfInRuleCheckerP4Hit\n",
-			sblk->stat_IfInRuleCheckerP4Hit);
-
-	if (sblk->stat_CatchupInRuleCheckerDiscards)
-		BCE_PRINTF("         0x%08X : CatchupInRuleCheckerDiscards\n",
-			sblk->stat_CatchupInRuleCheckerDiscards);
-
-	if (sblk->stat_CatchupInFTQDiscards)
-		BCE_PRINTF("         0x%08X : CatchupInFTQDiscards\n",
-			sblk->stat_CatchupInFTQDiscards);
-
-	if (sblk->stat_CatchupInMBUFDiscards)
-		BCE_PRINTF("         0x%08X : CatchupInMBUFDiscards\n",
-			sblk->stat_CatchupInMBUFDiscards);
-
-	if (sblk->stat_CatchupInRuleCheckerP4Hit)
-		BCE_PRINTF("         0x%08X : CatchupInRuleCheckerP4Hit\n",
-			sblk->stat_CatchupInRuleCheckerP4Hit);
+    BCE_PRINT_64BIT_STAT(stat_IfHCInOctets);
+    BCE_PRINT_64BIT_STAT(stat_IfHCInBadOctets);
+    BCE_PRINT_64BIT_STAT(stat_IfHCOutOctets);
+    BCE_PRINT_64BIT_STAT(stat_IfHCOutBadOctets);
+    BCE_PRINT_64BIT_STAT(stat_IfHCInUcastPkts);
+    BCE_PRINT_64BIT_STAT(stat_IfHCInBroadcastPkts);
+    BCE_PRINT_64BIT_STAT(stat_IfHCInMulticastPkts);
+    BCE_PRINT_64BIT_STAT(stat_IfHCOutUcastPkts);
+    BCE_PRINT_64BIT_STAT(stat_IfHCOutBroadcastPkts);
+    BCE_PRINT_64BIT_STAT(stat_IfHCOutMulticastPkts);
+    BCE_PRINT_32BIT_STAT(stat_emac_tx_stat_dot3statsinternalmactransmiterrors);
+    BCE_PRINT_32BIT_STAT(stat_Dot3StatsCarrierSenseErrors);
+    BCE_PRINT_32BIT_STAT(stat_Dot3StatsFCSErrors);
+    BCE_PRINT_32BIT_STAT(stat_Dot3StatsAlignmentErrors);
+    BCE_PRINT_32BIT_STAT(stat_Dot3StatsSingleCollisionFrames);
+    BCE_PRINT_32BIT_STAT(stat_Dot3StatsMultipleCollisionFrames);
+    BCE_PRINT_32BIT_STAT(stat_Dot3StatsDeferredTransmissions);
+    BCE_PRINT_32BIT_STAT(stat_Dot3StatsExcessiveCollisions);
+    BCE_PRINT_32BIT_STAT(stat_Dot3StatsLateCollisions);
+    BCE_PRINT_32BIT_STAT(stat_EtherStatsCollisions);
+    BCE_PRINT_32BIT_STAT(stat_EtherStatsFragments);
+    BCE_PRINT_32BIT_STAT(stat_EtherStatsJabbers);
+    BCE_PRINT_32BIT_STAT(stat_EtherStatsUndersizePkts);
+    BCE_PRINT_32BIT_STAT(stat_EtherStatsOversizePkts);
+    BCE_PRINT_32BIT_STAT(stat_EtherStatsPktsRx64Octets);
+    BCE_PRINT_32BIT_STAT(stat_EtherStatsPktsRx65Octetsto127Octets);
+    BCE_PRINT_32BIT_STAT(stat_EtherStatsPktsRx128Octetsto255Octets);
+    BCE_PRINT_32BIT_STAT(stat_EtherStatsPktsRx256Octetsto511Octets);
+    BCE_PRINT_32BIT_STAT(stat_EtherStatsPktsRx512Octetsto1023Octets);
+    BCE_PRINT_32BIT_STAT(stat_EtherStatsPktsRx1024Octetsto1522Octets);
+    BCE_PRINT_32BIT_STAT(stat_EtherStatsPktsRx1523Octetsto9022Octets);
+    BCE_PRINT_32BIT_STAT(stat_EtherStatsPktsTx64Octets);
+    BCE_PRINT_32BIT_STAT(stat_EtherStatsPktsTx65Octetsto127Octets);
+    BCE_PRINT_32BIT_STAT(stat_EtherStatsPktsTx128Octetsto255Octets);
+    BCE_PRINT_32BIT_STAT(stat_EtherStatsPktsTx256Octetsto511Octets);
+    BCE_PRINT_32BIT_STAT(stat_EtherStatsPktsTx512Octetsto1023Octets);
+    BCE_PRINT_32BIT_STAT(stat_EtherStatsPktsTx1024Octetsto1522Octets);
+    BCE_PRINT_32BIT_STAT(stat_EtherStatsPktsTx1523Octetsto9022Octets);
+    BCE_PRINT_32BIT_STAT(stat_XonPauseFramesReceived);
+    BCE_PRINT_32BIT_STAT(stat_XoffPauseFramesReceived);
+    BCE_PRINT_32BIT_STAT(stat_OutXonSent);
+    BCE_PRINT_32BIT_STAT(stat_OutXoffSent);
+    BCE_PRINT_32BIT_STAT(stat_FlowControlDone);
+    BCE_PRINT_32BIT_STAT(stat_MacControlFramesReceived);
+    BCE_PRINT_32BIT_STAT(stat_XoffStateEntered);
+    BCE_PRINT_32BIT_STAT(stat_IfInFramesL2FilterDiscards);
+    BCE_PRINT_32BIT_STAT(stat_IfInRuleCheckerDiscards);
+    BCE_PRINT_32BIT_STAT(stat_IfInFTQDiscards);
+    BCE_PRINT_32BIT_STAT(stat_IfInMBUFDiscards);
+    BCE_PRINT_32BIT_STAT(stat_IfInRuleCheckerP4Hit);
+    BCE_PRINT_32BIT_STAT(stat_CatchupInRuleCheckerDiscards);
+    BCE_PRINT_32BIT_STAT(stat_CatchupInFTQDiscards);
+    BCE_PRINT_32BIT_STAT(stat_CatchupInMBUFDiscards);
+    BCE_PRINT_32BIT_STAT(stat_CatchupInRuleCheckerP4Hit);
 
 	BCE_PRINTF(
 		"----------------------------"
@@ -10465,7 +10312,7 @@ static __attribute__ ((noinline)) void
 bce_dump_com_state(struct bce_softc *sc, int regs)
 {
 	u32 val;
-	u32 fw_version[3];
+	u32 fw_version[4];
 
 	BCE_PRINTF(
 		"----------------------------"
@@ -10508,12 +10355,76 @@ bce_dump_com_state(struct bce_softc *sc, int regs)
 
 
 /****************************************************************************/
+/* Prints out the Receive Virtual 2 Physical (RV2P) state.                  */
+/*                                                                          */
+/* Returns:                                                                 */
+/*   Nothing.                                                               */
+/****************************************************************************/
+static __attribute__ ((noinline)) void
+bce_dump_rv2p_state(struct bce_softc *sc)
+{
+	u32 val, pc1, pc2, fw_ver_high, fw_ver_low;
+
+	BCE_PRINTF(
+		"----------------------------"
+		"   RV2P State   "
+		"----------------------------\n");
+
+    /* Stall the RV2P processors. */
+    val = REG_RD_IND(sc, BCE_RV2P_CONFIG);
+    val |= BCE_RV2P_CONFIG_STALL_PROC1 | BCE_RV2P_CONFIG_STALL_PROC2;
+    REG_WR_IND(sc, BCE_RV2P_CONFIG, val);
+
+    /* Read the firmware version. */
+    val = 0x00000001;
+    REG_WR_IND(sc, BCE_RV2P_PROC1_ADDR_CMD, val);
+    fw_ver_low = REG_RD_IND(sc, BCE_RV2P_INSTR_LOW);
+    fw_ver_high = REG_RD_IND(sc, BCE_RV2P_INSTR_HIGH) & BCE_RV2P_INSTR_HIGH_HIGH;
+	BCE_PRINTF("RV2P1 Firmware version - 0x%08X:0x%08X\n", fw_ver_high, fw_ver_low);
+
+    val = 0x00000001;
+    REG_WR_IND(sc, BCE_RV2P_PROC2_ADDR_CMD, val);
+    fw_ver_low = REG_RD_IND(sc, BCE_RV2P_INSTR_LOW);
+    fw_ver_high = REG_RD_IND(sc, BCE_RV2P_INSTR_HIGH) & BCE_RV2P_INSTR_HIGH_HIGH;
+    BCE_PRINTF("RV2P2 Firmware version - 0x%08X:0x%08X\n", fw_ver_high, fw_ver_low);
+
+    /* Resume the RV2P processors. */
+    val = REG_RD_IND(sc, BCE_RV2P_CONFIG);
+    val &= ~(BCE_RV2P_CONFIG_STALL_PROC1 | BCE_RV2P_CONFIG_STALL_PROC2);
+    REG_WR_IND(sc, BCE_RV2P_CONFIG, val);
+
+    /* Fetch the program counter value. */
+	val = 0x68007800;
+    REG_WR_IND(sc, BCE_RV2P_DEBUG_VECT_PEEK, val);
+    val = REG_RD_IND(sc, BCE_RV2P_DEBUG_VECT_PEEK);
+    pc1 = (val & BCE_RV2P_DEBUG_VECT_PEEK_1_VALUE);
+    pc2 = (val & BCE_RV2P_DEBUG_VECT_PEEK_2_VALUE) >> 16;
+    BCE_PRINTF("0x%08X - RV2P1 program counter (1st read)\n", pc1);
+    BCE_PRINTF("0x%08X - RV2P2 program counter (1st read)\n", pc2);
+
+    /* Fetch the program counter value again to see if it is advancing. */
+    val = 0x68007800;
+    REG_WR_IND(sc, BCE_RV2P_DEBUG_VECT_PEEK, val);
+    val = REG_RD_IND(sc, BCE_RV2P_DEBUG_VECT_PEEK);
+    pc1 = (val & BCE_RV2P_DEBUG_VECT_PEEK_1_VALUE);
+    pc2 = (val & BCE_RV2P_DEBUG_VECT_PEEK_2_VALUE) >> 16;
+    BCE_PRINTF("0x%08X - RV2P1 program counter (2nd read)\n", pc1);
+    BCE_PRINTF("0x%08X - RV2P2 program counter (2nd read)\n", pc2);
+
+	BCE_PRINTF(
+		"----------------------------"
+		"----------------"
+		"----------------------------\n");
+}
+
+
+/****************************************************************************/
 /* Prints out the driver state and then enters the debugger.                */
 /*                                                                          */
 /* Returns:                                                                 */
 /*   Nothing.                                                               */
 /****************************************************************************/
-static void
+static __attribute__ ((noinline)) void
 bce_breakpoint(struct bce_softc *sc)
 {
 
@@ -10544,6 +10455,7 @@ bce_breakpoint(struct bce_softc *sc)
 		bce_dump_tpat_state(sc, 0);
 		bce_dump_cp_state(sc, 0);
 		bce_dump_com_state(sc, 0);
+        bce_dump_rv2p_state(sc);
 #ifdef BCE_JUMBO_HDRSPLIT
 		bce_dump_pgbd(sc, 0, NULL);
 		bce_dump_pg_mbuf_chain(sc, 0, USABLE_PG_BD);
