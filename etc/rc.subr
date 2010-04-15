@@ -646,12 +646,12 @@ run_rc_command()
 		if [ "$_elem" != "$rc_arg" ]; then
 			continue
 		fi
-					# if ${rcvar} is set, and $1 is not
-					# "rcvar", then run
+					# if ${rcvar} is set, $1 is not "rcvar"
+					# and ${rc_pid} is not set, then run
 					#	checkyesno ${rcvar}
 					# and return if that failed
 					#
-		if [ -n "${rcvar}" -a "$rc_arg" != "rcvar" ]; then
+		if [ -n "${rcvar}" -a "$rc_arg" != "rcvar" -a -z "${rc_pid}" ]; then
 			if ! checkyesno ${rcvar}; then
 				if [ -n "${rc_quiet}" ]; then
 					return 0
