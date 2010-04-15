@@ -278,7 +278,13 @@ else printf(" fhl=0\n");
 			error = EIO;
 		}
 		newnfs_copyincred(cred, &op->nfso_cred);
-	    }
+	    } else if (ret == NFSCLOPEN_SETCRED)
+		/*
+		 * This is a new local open on a delegation. It needs
+		 * to have credentials so that an open can be done
+		 * against the server during recovery.
+		 */
+		newnfs_copyincred(cred, &op->nfso_cred);
 
 	    /*
 	     * nfso_opencnt is the count of how many VOP_OPEN()s have
