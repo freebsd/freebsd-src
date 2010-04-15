@@ -610,7 +610,7 @@ cache_enter(dvp, vp, cnp)
 
 	CTR3(KTR_VFS, "cache_enter(%p, %p, %s)", dvp, vp, cnp->cn_nameptr);
 	VNASSERT(vp == NULL || (vp->v_iflag & VI_DOOMED) == 0, vp,
-	    ("cahe_enter: Adding a doomed vnode"));
+	    ("cache_enter: Adding a doomed vnode"));
 
 	if (!doingcache)
 		return;
