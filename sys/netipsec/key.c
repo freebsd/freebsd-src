@@ -1882,7 +1882,9 @@ key_spdadd(so, m, mhp)
 	newsp = key_getsp(&spidx);
 	if (mhp->msg->sadb_msg_type == SADB_X_SPDUPDATE) {
 		if (newsp) {
+			SPTREE_LOCK();
 			newsp->state = IPSEC_SPSTATE_DEAD;
+			SPTREE_UNLOCK();
 			KEY_FREESP(&newsp);
 		}
 	} else {
@@ -2117,7 +2119,9 @@ key_spddelete(so, m, mhp)
 	/* save policy id to buffer to be returned. */
 	xpl0->sadb_x_policy_id = sp->id;
 
+	SPTREE_LOCK();
 	sp->state = IPSEC_SPSTATE_DEAD;
+	SPTREE_UNLOCK();
 	KEY_FREESP(&sp);
 
     {
@@ -2184,7 +2188,9 @@ key_spddelete2(so, m, mhp)
 		return key_senderror(so, m, EINVAL);
 	}
 
+	SPTREE_LOCK();
 	sp->state = IPSEC_SPSTATE_DEAD;
+	SPTREE_UNLOCK();
 	KEY_FREESP(&sp);
 
     {
