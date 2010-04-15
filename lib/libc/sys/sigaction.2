@@ -496,6 +496,16 @@ or
 .Dv SIG_IGN
 this way.
 .Pp
+If preprocessing symbol
+.Va _POSIX_C_SOURCE
+with the value >= 199309 is not defined, the following declaration for
+the handler shall be used:
+.Bl -tag -offset indent -width short
+.It Tn POSIX Dv SA_SIGINFO :
+.Ft void
+.Fn handler int "struct __sigaction *" "void *" ;
+.El
+.Pp
 If the
 .Dv SA_SIGINFO
 flag is not set, the handler function should match
