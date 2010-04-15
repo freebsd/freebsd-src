@@ -868,13 +868,15 @@ zfs_root(vfs_t *vfsp, int flags, vnode_t **vpp)
 	ZFS_ENTER_NOERROR(zfsvfs);
 
 	error = zfs_zget(zfsvfs, zfsvfs->z_root, &rootzp);
+
+	ZFS_EXIT(zfsvfs);
+
 	if (error == 0) {
 		*vpp = ZTOV(rootzp);
 		error = vn_lock(*vpp, flags);
 		(*vpp)->v_vflag |= VV_ROOT;
 	}
 
-	ZFS_EXIT(zfsvfs);
 	return (error);
 }
 
@@ -1143,13 +1145,13 @@ zfs_vget(vfs_t *vfsp, ino_t ino, int flags, vnode_t **vpp)
 		VN_RELE(ZTOV(zp));
 		err = EINVAL;
 	}
+	ZFS_EXIT(zfsvfs);
 	if (err != 0)
 		*vpp = NULL;
 	else {
 		*vpp = ZTOV(zp);
 		vn_lock(*vpp, flags);
 	}
-	ZFS_EXIT(zfsvfs);
 	return (err);
 }
 
@@ -1237,8 +1239,8 @@ zfs_fhtovp(vfs_t *vfsp, fid_t *fidp, vnode_t **vpp)
 		} else {
 			VN_HOLD(*vpp);
 		}
-		vn_lock(*vpp, LK_EXCLUSIVE | LK_RETRY);
 		ZFS_EXIT(zfsvfs);
+		vn_lock(*vpp, LK_EXCLUSIVE | LK_RETRY);
 		return (0);
 	}
 
@@ -1259,10 +1261,11 @@ zfs_fhtovp(vfs_t *vfsp, fid_t *fidp, vnode_t **vpp)
 		return (EINVAL);
 	}
 
+	ZFS_EXIT(zfsvfs);
+
 	*vpp = ZTOV(zp);
 	vn_lock(*vpp, LK_EXCLUSIVE | LK_RETRY);
 	vnode_create_vobject(*vpp, zp->z_phys->zp_size, curthread);
-	ZFS_EXIT(zfsvfs);
 	return (0);
 }
 
