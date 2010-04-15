@@ -922,19 +922,20 @@ status(const struct afswtch *afp, const struct sockaddr_dl *sdl,
 			ifr.ifr_buffer.buffer = descr;
 			ifr.ifr_buffer.length = descrlen;
 			if (ioctl(s, SIOCGIFDESCR, &ifr) == 0) {
-				if (strlen(descr) > 0)
-					printf("\tdescription: %s\n", descr);
-				break;
-			} else if (errno == ENAMETOOLONG)
-				descrlen = ifr.ifr_buffer.length;
-			else
-				break;
-		} else {
+				if (ifr.ifr_buffer.buffer == descr) {
+					if (strlen(descr) > 0)
+						printf("\tdescription: %s\n",
+						    descr);
+				} else if (ifr.ifr_buffer.length > descrlen) {
+					descrlen = ifr.ifr_buffer.length;
+					continue;
+				}
+			}
+		} else
 			warn("unable to allocate memory for interface"
 			    "description");
-			break;
-		}
-	};
+		break;
+	}
 
 	if (ioctl(s, SIOCGIFCAP, (caddr_t)&ifr) == 0) {
 		if (ifr.ifr_curcap != 0) {

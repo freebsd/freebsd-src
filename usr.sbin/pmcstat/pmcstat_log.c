@@ -1050,7 +1050,6 @@ pmcstat_pmcid_to_name(pmc_id_t pmcid)
 	    if (pr->pr_pmcid == pmcid)
 		    return (pmcstat_string_unintern(pr->pr_pmcname));
 
-	err(EX_SOFTWARE, "ERROR: cannot find pmcid");
 	return NULL;
 }
 
@@ -1083,7 +1082,6 @@ pmcstat_pmcindex_to_pmcr(int pmcin)
 		if (pr->pr_pmcin == pmcin)
 			return pr;
 
-	err(EX_SOFTWARE, "ERROR: invalid pmcindex");
 	return NULL;
 }
 

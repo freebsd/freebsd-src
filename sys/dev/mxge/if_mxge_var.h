@@ -268,6 +268,8 @@ struct mxge_softc {
 	int num_slices;
 	int rx_ring_size;
 	int dying;
+	int connector;
+	int current_media;
 	mxge_dma_t dmabench_dma;
 	struct callout co_hdl;
 	struct taskqueue *tq;
@@ -292,6 +294,12 @@ struct mxge_softc {
 #define MXGE_SFP_COMPLIANCE_BYTE	  3
 #define MXGE_MIN_THROTTLE	416
 #define MXGE_MAX_THROTTLE	4096
+
+/* Types of connectors on NICs supported by this driver */
+#define MXGE_CX4 0
+#define MXGE_XFP 1
+#define MXGE_SFP 2
+#define MXGE_QRF 3
 
 #define MXGE_HIGHPART_TO_U32(X) \
 (sizeof (X) == 8) ? ((uint32_t)((uint64_t)(X) >> 32)) : (0)
