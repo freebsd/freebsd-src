@@ -359,6 +359,61 @@
 /* End: PHY register values for the 5708S SerDes PHY   */
 /*******************************************************/
 
+/*******************************************************/
+/* Begin: PHY register values for the 5709S SerDes PHY */
+/*******************************************************/
+
+/* 5709S SerDes "General Purpose Status" Registers */
+#define BRGPHY_BLOCK_ADDR_GP_STATUS		        0x8120
+#define BRGPHY_GP_STATUS_TOP_ANEG_STATUS	    0x1B
+#define BRGPHY_GP_STATUS_TOP_ANEG_SPEED_MASK	0x3F00
+#define BRGPHY_GP_STATUS_TOP_ANEG_SPEED_10	    0x0000
+#define BRGPHY_GP_STATUS_TOP_ANEG_SPEED_100	    0x0100
+#define BRGPHY_GP_STATUS_TOP_ANEG_SPEED_1G	    0x0200
+#define BRGPHY_GP_STATUS_TOP_ANEG_SPEED_25G	    0x0300
+#define BRGPHY_GP_STATUS_TOP_ANEG_SPEED_1GKX	0x0D00
+#define BRGPHY_GP_STATUS_TOP_ANEG_FDX		    0x0008
+#define BRGPHY_GP_STATUS_TOP_ANEG_LINK_UP	    0x0004
+#define BRGPHY_GP_STATUS_TOP_ANEG_CL73_COMP	    0x0001
+
+/* 5709S SerDes "SerDes Digital" Registers */
+#define BRGPHY_BLOCK_ADDR_SERDES_DIG		    0x8300
+#define	BRGPHY_SERDES_DIG_1000X_CTL1		    0x0010
+#define	BRGPHY_SD_DIG_1000X_CTL1_AUTODET	    0x0010
+#define	BRGPHY_SD_DIG_1000X_CTL1_FIBER		    0x0001
+
+/* 5709S SerDes "Over 1G" Registers */
+#define BRGPHY_BLOCK_ADDR_OVER_1G		        0x8320
+#define BRGPHY_OVER_1G_UNFORMAT_PG1		        0x19
+
+/* 5709S SerDes "Multi-Rate Backplane Ethernet" Registers */
+#define BRGPHY_BLOCK_ADDR_MRBE			        0x8350
+#define BRGPHY_MRBE_MSG_PG5_NP			        0x10
+#define BRGPHY_MRBE_MSG_PG5_NP_MBRE		        0x0001
+#define BRGPHY_MRBE_MSG_PG5_NP_T2		        0x0001
+
+/* 5709S SerDes "IEEE Clause 73 User B0" Registers */
+#define BRGPHY_BLOCK_ADDR_CL73_USER_B0		    0x8370
+#define BRGPHY_CL73_USER_B0_MBRE_CTL1		    0x12
+#define	BRGPHY_CL73_USER_B0_MBRE_CTL1_NP_AFT_BP	0x2000
+#define	BRGPHY_CL73_USER_B0_MBRE_CTL1_STA_MGR	0x4000
+#define	BRGPHY_CL73_USER_B0_MBRE_CTL1_ANEG	    0x8000
+
+/* 5709S SerDes "IEEE Clause 73 User B0" Registers */
+#define BRGPHY_BLOCK_ADDR_ADDR_EXT		        0xFFD0
+
+/* 5709S SerDes "Combo IEEE 0" Registers */
+#define BRGPHY_BLOCK_ADDR_COMBO_IEEE0		    0xFFE0
+
+#define BRGPHY_ADDR_EXT				            0x1E
+#define BRGPHY_BLOCK_ADDR			            0x1F
+
+#define BRGPHY_ADDR_EXT_AN_MMD			        0x3800
+
+/*******************************************************/
+/* End: PHY register values for the 5709S SerDes PHY   */
+/*******************************************************/
+
 #define	BRGPHY_INTRS	\
 	~(BRGPHY_IMR_LNK_CHG|BRGPHY_IMR_LSP_CHG|BRGPHY_IMR_DUP_CHG)
 
