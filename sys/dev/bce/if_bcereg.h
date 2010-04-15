@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2006-2009 Broadcom Corporation
+ * Copyright (c) 2006-2010 Broadcom Corporation
  *	David Christensen <davidch@broadcom.com>.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -453,24 +453,10 @@
 	}
 
 /* Announces function entry. */
-#if 0
-#define DBENTER(cond)								 			\
-	u32 start_time = REG_RD(sc, BCE_TIMER_25MHZ_FREE_RUN);		\
-	u32 end_time;										  		\
-	DBPRINT(sc, (cond), "%s(enter)\n", __FUNCTION__);
-#endif
-
 #define DBENTER(cond)									  		\
 	DBPRINT(sc, (cond), "%s(enter)\n", __FUNCTION__)
 
 /* Announces function exit. */
-#if 0
-#define DBEXIT(cond, val)								  		\
-	end_time = REG_RD(sc, BCE_TIMER_25MHZ_FREE_RUN);	  		\
-	val += (u64) BCE_TIME_DELTA(start_time, end_time);			\
-	DBPRINT(sc, (cond), "%s(exit)\n", __FUNCTION__);
-#endif
-
 #define DBEXIT(cond)											\
 	DBPRINT(sc, (cond), "%s(exit)\n", __FUNCTION__)
 
@@ -6451,6 +6437,7 @@ struct bce_softc
 #define BCE_PHY_INT_MODE_MASK_FLAG			0x00000300
 #define BCE_PHY_INT_MODE_AUTO_POLLING_FLAG	0x00000100
 #define BCE_PHY_INT_MODE_LINK_READY_FLAG	0x00000200
+#define BCE_PHY_IEEE_CLAUSE_45_FLAG     	0x00000400
 
 	/* Values that need to be shared with the PHY driver. */
 	u32					bce_shared_hw_cfg;
