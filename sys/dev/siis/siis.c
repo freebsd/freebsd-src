@@ -164,6 +164,7 @@ siis_attach(device_t dev)
 		rman_fini(&ctlr->sc_iomem);
 		return (error);
 	}
+	pci_enable_busmaster(dev);
 	/* Reset controller */
 	siis_resume(dev);
 	/* Number of HW channels */
