@@ -94,6 +94,17 @@ options(void)
 	SLIST_INSERT_HEAD(&opt, op, op_next);
 
 	read_options();
+	SLIST_FOREACH(op, &opt, op_next) {
+		SLIST_FOREACH(ol, &otab, o_next) {
+			if (eq(op->op_name, ol->o_name) &&
+			    (ol->o_flags & OL_ALIAS)) {
+				printf("Mapping option %s to %s.\n",
+				    op->op_name, ol->o_file);
+				op->op_name = ol->o_file;
+				break;
+			}
+		}
+	}
 	SLIST_FOREACH(ol, &otab, o_next)
 		do_option(ol->o_name);
 	SLIST_FOREACH(op, &opt, op_next) {
@@ -124,7 +135,6 @@ do_option(char *name)
 	int tidy;
 
 	file = tooption(name);
-
 	/*
 	 * Check to see if the option was specified..
 	 */
@@ -292,6 +302,7 @@ read_options(void)
 	struct opt_list *po;
 	int first = 1;
 	char genopt[MAXPATHLEN];
+	int flags = 0;
 
 	SLIST_INIT(&otab);
 	(void) snprintf(fname, sizeof(fname), "../../conf/options");
@@ -301,6 +312,7 @@ openit:
 		return;
 	}
 next:
+	flags = 0;
 	wd = get_word(fp);
 	if (wd == (char *)EOF) {
 		(void) fclose(fp);
@@ -332,6 +344,18 @@ next:
 		(void) snprintf(genopt, sizeof(genopt), "opt_%s.h", lower(s));
 		val = genopt;
 		free(s);
+	} else if (eq(val, "=")) {
+		val = get_word(fp);
+		if (val == (char *)EOF) {
+			printf("%s: unexpected end of file\n", fname);
+			exit(1);
+		}
+		if (val == 0) {
+			printf("%s: Expected a right hand side at %s\n", fname,
+			    this);
+			exit(1);
+		}
+		flags |= OL_ALIAS;
 	}
 	val = ns(val);
 
@@ -348,6 +372,7 @@ next:
 		err(EXIT_FAILURE, "calloc");
 	po->o_name = this;
 	po->o_file = val;
+	po->o_flags = flags;
 	SLIST_INSERT_HEAD(&otab, po, o_next);
 
 	goto next;
