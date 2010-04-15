@@ -190,8 +190,8 @@ get_usage(zfs_help_t idx)
 		return (gettext("\tdestroy [-rRf] "
 		    "<filesystem|volume|snapshot>\n"));
 	case HELP_GET:
-		return (gettext("\tget [-rHp] [-o field[,...]] "
-		    "[-s source[,...]]\n"
+		return (gettext("\tget [-rHp] [-d max] "
+		    "[-o field[,...]] [-s source[,...]]\n"
 		    "\t    <\"all\" | property[,...]> "
 		    "[filesystem|volume|snapshot] ...\n"));
 	case HELP_INHERIT:
@@ -205,8 +205,8 @@ get_usage(zfs_help_t idx)
 	case HELP_UNJAIL:
 		return (gettext("\tunjail <jailid> <filesystem>\n"));
 	case HELP_LIST:
-		return (gettext("\tlist [-rH] [-o property[,...]] "
-		    "[-t type[,...]] [-s property] ...\n"
+		return (gettext("\tlist [-rH][-d max] "
+		    "[-o property[,...]] [-t type[,...]] [-s property] ...\n"
 		    "\t    [-S property] ... "
 		    "[filesystem|volume|snapshot] ...\n"));
 	case HELP_MOUNT:
@@ -430,6 +430,27 @@ parseprop(nvlist_t *props)
 	}
 	return (0);
 
+}
+
+static int
+parse_depth(char *opt, int *flags)
+{
+	char *tmp;
+	int depth;
+
+	depth = (int)strtol(opt, &tmp, 0);
+	if (*tmp) {
+		(void) fprintf(stderr,
+		    gettext("%s is not an integer\n"), optarg);
+		usage(B_FALSE);
+	}
+	if (depth < 0) {
+		(void) fprintf(stderr,
+		    gettext("Depth can not be negative.\n"));
+		usage(B_FALSE);
+	}
+	*flags |= (ZFS_ITER_DEPTH_LIMIT|ZFS_ITER_RECURSE);
+	return (depth);
 }
 
 /*
@@ -1119,6 +1140,7 @@ zfs_do_get(int argc, char **argv)
 	int i, c, flags = 0;
 	char *value, *fields;
 	int ret;
+	int limit = 0;
 	zprop_list_t fake_name = { 0 };
 
 	/*
@@ -1132,10 +1154,13 @@ zfs_do_get(int argc, char **argv)
 	cb.cb_type = ZFS_TYPE_DATASET;
 
 	/* check options */
-	while ((c = getopt(argc, argv, ":o:s:rHp")) != -1) {
+	while ((c = getopt(argc, argv, ":d:o:s:rHp")) != -1) {
 		switch (c) {
 		case 'p':
 			cb.cb_literal = B_TRUE;
+			break;
+		case 'd':
+			limit = parse_depth(optarg, &flags);
 			break;
 		case 'r':
 			flags |= ZFS_ITER_RECURSE;
@@ -1267,7 +1292,7 @@ zfs_do_get(int argc, char **argv)
 
 	/* run for each object */
 	ret = zfs_for_each(argc, argv, flags, ZFS_TYPE_DATASET, NULL,
-	    &cb.cb_proplist, get_callback, &cb);
+	    &cb.cb_proplist, limit, get_callback, &cb);
 
 	if (cb.cb_proplist == &fake_name)
 		zprop_free_list(fake_name.pl_next);
@@ -1380,10 +1405,10 @@ zfs_do_inherit(int argc, char **argv)
 
 	if (flags & ZFS_ITER_RECURSE) {
 		ret = zfs_for_each(argc, argv, flags, ZFS_TYPE_DATASET,
-		    NULL, NULL, inherit_recurse_cb, propname);
+		    NULL, NULL, 0, inherit_recurse_cb, propname);
 	} else {
 		ret = zfs_for_each(argc, argv, flags, ZFS_TYPE_DATASET,
-		    NULL, NULL, inherit_cb, propname);
+		    NULL, NULL, 0, inherit_cb, propname);
 	}
 
 	return (ret);
@@ -1578,7 +1603,7 @@ zfs_do_upgrade(int argc, char **argv)
 		if (cb.cb_version == 0)
 			cb.cb_version = ZPL_VERSION;
 		ret = zfs_for_each(argc, argv, flags, ZFS_TYPE_FILESYSTEM,
-		    NULL, NULL, upgrade_set_callback, &cb);
+		    NULL, NULL, 0, upgrade_set_callback, &cb);
 		(void) printf(gettext("%llu filesystems upgraded\n"),
 		    cb.cb_numupgraded);
 		if (cb.cb_numsamegraded) {
@@ -1596,14 +1621,14 @@ zfs_do_upgrade(int argc, char **argv)
 
 		flags |= ZFS_ITER_RECURSE;
 		ret = zfs_for_each(0, NULL, flags, ZFS_TYPE_FILESYSTEM,
-		    NULL, NULL, upgrade_list_callback, &cb);
+		    NULL, NULL, 0, upgrade_list_callback, &cb);
 
 		found = cb.cb_foundone;
 		cb.cb_foundone = B_FALSE;
 		cb.cb_newer = B_TRUE;
 
 		ret = zfs_for_each(0, NULL, flags, ZFS_TYPE_FILESYSTEM,
-		    NULL, NULL, upgrade_list_callback, &cb);
+		    NULL, NULL, 0, upgrade_list_callback, &cb);
 
 		if (!cb.cb_foundone && !found) {
 			(void) printf(gettext("All filesystems are "
@@ -1615,11 +1640,12 @@ zfs_do_upgrade(int argc, char **argv)
 }
 
 /*
- * list [-rH] [-o property[,property]...] [-t type[,type]...]
+ * list [-r][-d max] [-H] [-o property[,property]...] [-t type[,type]...]
  *      [-s property [-s property]...] [-S property [-S property]...]
  *      <dataset> ...
  *
  * 	-r	Recurse over all children
+ * 	-d	Limit recursion by depth.
  * 	-H	Scripted mode; elide headers and separate columns by tabs
  * 	-o	Control which fields to display.
  * 	-t	Control which object types to display.
@@ -1769,15 +1795,19 @@ zfs_do_list(int argc, char **argv)
 	char *fields = NULL;
 	list_cbdata_t cb = { 0 };
 	char *value;
+	int limit = 0;
 	int ret;
 	zfs_sort_column_t *sortcol = NULL;
 	int flags = ZFS_ITER_PROP_LISTSNAPS | ZFS_ITER_ARGS_CAN_BE_PATHS;
 
 	/* check options */
-	while ((c = getopt(argc, argv, ":o:rt:Hs:S:")) != -1) {
+	while ((c = getopt(argc, argv, ":d:o:rt:Hs:S:")) != -1) {
 		switch (c) {
 		case 'o':
 			fields = optarg;
+			break;
+		case 'd':
+			limit = parse_depth(optarg, &flags);
 			break;
 		case 'r':
 			flags |= ZFS_ITER_RECURSE;
@@ -1869,7 +1899,7 @@ zfs_do_list(int argc, char **argv)
 	cb.cb_first = B_TRUE;
 
 	ret = zfs_for_each(argc, argv, flags, types, sortcol, &cb.cb_proplist,
-	    list_callback, &cb);
+	    limit, list_callback, &cb);
 
 	zprop_free_list(cb.cb_proplist);
 	zfs_free_sort_columns(sortcol);
@@ -2252,7 +2282,7 @@ zfs_do_set(int argc, char **argv)
 	}
 
 	ret = zfs_for_each(argc - 2, argv + 2, NULL,
-	    ZFS_TYPE_DATASET, NULL, NULL, set_callback, &cb);
+	    ZFS_TYPE_DATASET, NULL, NULL, 0, set_callback, &cb);
 
 	return (ret);
 }
@@ -2886,7 +2916,7 @@ zfs_do_unallow(int argc, char **argv)
 		flags |= ZFS_ITER_RECURSE;
 	error = zfs_for_each(argc, argv, flags,
 	    ZFS_TYPE_FILESYSTEM|ZFS_TYPE_VOLUME, NULL,
-	    NULL, unallow_callback, (void *)zperms);
+	    NULL, 0, unallow_callback, (void *)zperms);
 
 	if (zperms)
 		nvlist_free(zperms);
