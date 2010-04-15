@@ -140,6 +140,7 @@ struct nfsclopen {
 #define	NFSCLOPEN_OK		0
 #define	NFSCLOPEN_DOOPEN	1
 #define	NFSCLOPEN_DOOPENDOWNGRADE 2
+#define	NFSCLOPEN_SETCRED	3
 
 struct nfscllockowner {
 	LIST_ENTRY(nfscllockowner) nfsl_list;
