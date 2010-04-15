@@ -4759,7 +4759,7 @@ mxge_attach(device_t dev)
 
 	ifp->if_baudrate = IF_Gbps(10UL);
 	ifp->if_capabilities = IFCAP_RXCSUM | IFCAP_TXCSUM | IFCAP_TSO4 |
-		IFCAP_VLAN_MTU;
+		IFCAP_VLAN_MTU | IFCAP_LINKSTATE;
 #ifdef INET
 	ifp->if_capabilities |= IFCAP_LRO;
 #endif
