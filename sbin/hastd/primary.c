@@ -682,7 +682,7 @@ init_ggate(struct hast_resource *res)
 	ggiocreate.gctl_mediasize = res->hr_datasize;
 	ggiocreate.gctl_sectorsize = res->hr_local_sectorsize;
 	ggiocreate.gctl_flags = 0;
-	ggiocreate.gctl_maxcount = 128;
+	ggiocreate.gctl_maxcount = G_GATE_MAX_QUEUE_SIZE;
 	ggiocreate.gctl_timeout = 0;
 	ggiocreate.gctl_unit = G_GATE_NAME_GIVEN;
 	snprintf(ggiocreate.gctl_name, sizeof(ggiocreate.gctl_name), "hast/%s",
