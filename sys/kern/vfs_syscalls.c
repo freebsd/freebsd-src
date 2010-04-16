@@ -1124,7 +1124,12 @@ kern_openat(struct thread *td, int fd, char *path, enum uio_seg pathseg,
 	NDFREE(&nd, NDF_ONLY_PNBUF);
 	vp = nd.ni_vp;
 
-	fp->f_vnode = vp;	/* XXX Does devfs need this? */
+	/*
+	 * Store the vnode, for any f_type. Typically, the vnode use
+	 * count is decremented by direct call to vn_closefile() for
+	 * files that switched type in the cdevsw fdopen() method.
+	 */
+	fp->f_vnode = vp;
 	/*
 	 * If the file wasn't claimed by devfs bind it to the normal
 	 * vnode operations here.
