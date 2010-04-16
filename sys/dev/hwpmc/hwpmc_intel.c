@@ -131,8 +131,14 @@ pmc_intel_initialize(void)
 			nclasses = 3;
 			break;
 		case 0x1A:
+		case 0x2E:
 			cputype = PMC_CPU_INTEL_COREI7;
-			nclasses = 3;
+			nclasses = 5;
+			break;
+		case 0x25:	/* Per Intel document 253669-033US 12/2009. */
+		case 0x2C:	/* Per Intel document 253669-033US 12/2009. */
+			cputype = PMC_CPU_INTEL_WESTMERE;
+			nclasses = 5;
 			break;
 		}
 		break;
@@ -174,6 +180,7 @@ pmc_intel_initialize(void)
 	case PMC_CPU_INTEL_CORE2:
 	case PMC_CPU_INTEL_CORE2EXTREME:
 	case PMC_CPU_INTEL_COREI7:
+	case PMC_CPU_INTEL_WESTMERE:
 		error = pmc_core_initialize(pmc_mdep, ncpus);
 		break;
 
@@ -224,6 +231,22 @@ pmc_intel_initialize(void)
 		KASSERT(0, ("[intel,%d] Unknown CPU type", __LINE__));
 	}
 
+	/*
+	 * Init the uncore class.
+	 */
+#if	defined(__i386__) || defined(__amd64__)
+	switch (cputype) {
+		/*
+		 * Intel Corei7 and Westmere processors.
+		 */
+	case PMC_CPU_INTEL_COREI7:
+	case PMC_CPU_INTEL_WESTMERE:
+		error = pmc_uncore_initialize(pmc_mdep, ncpus);
+		break;
+	default:
+		break;
+	}
+#endif
 
   error:
 	if (error) {
@@ -245,6 +268,8 @@ pmc_intel_finalize(struct pmc_mdep *md)
 	case PMC_CPU_INTEL_CORE:
 	case PMC_CPU_INTEL_CORE2:
 	case PMC_CPU_INTEL_CORE2EXTREME:
+	case PMC_CPU_INTEL_COREI7:
+	case PMC_CPU_INTEL_WESTMERE:
 		pmc_core_finalize(md);
 		break;
 
@@ -267,4 +292,18 @@ pmc_intel_finalize(struct pmc_mdep *md)
 	default:
 		KASSERT(0, ("[intel,%d] unknown CPU type", __LINE__));
 	}
+
+	/*
+	 * Uncore.
+	 */
+#if	defined(__i386__) || defined(__amd64__)
+	switch (md->pmd_cputype) {
+	case PMC_CPU_INTEL_COREI7:
+	case PMC_CPU_INTEL_WESTMERE:
+		pmc_uncore_finalize(md);
+		break;
+	default:
+		break;
+	}
+#endif
 }
