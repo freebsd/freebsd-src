@@ -1,6 +1,34 @@
 
                 ChangeLog file for zlib
 
+Changes in 1.2.4.3 (10 Apr 2010)
+- Only use CROSS_PREFIX in configure for ar and ranlib if they exist
+- Use CROSS_PREFIX for nm [Bar-Lev]
+- Assume _LARGEFILE64_SOURCE defined is equivalent to true
+- Avoid use of undefined symbols in #if with && and ||
+- Make *64 prototypes in gzguts.h consistent with functions
+- Add -shared load option for MinGW in configure [Bowler]
+- Move z_off64_t to public interface, use instead of off64_t
+- Remove ! from shell test in configure (not portable to Solaris)
+- Change +0 macro tests to -0 for possibly increased portability
+
+Changes in 1.2.4.2 (9 Apr 2010)
+- Add consistent carriage returns to readme.txt's in masmx86 and masmx64
+- Really provide prototypes for *64 functions when building without LFS
+- Only define unlink() in minigzip.c if unistd.h not included
+- Update README to point to contrib/vstudio project files
+- Move projects/vc6 to old/ and remove projects/
+- Include stdlib.h in minigzip.c for setmode() definition under WinCE
+- Clean up assembler builds in win32/Makefile.msc [Rowe]
+- Include sys/types.h for Microsoft for off_t definition
+- Fix memory leak on error in gz_open()
+- Symbolize nm as $NM in configure [Weigelt]
+- Use TEST_LDSHARED instead of LDSHARED to link test programs [Weigelt]
+- Add +0 to _FILE_OFFSET_BITS and _LFS64_LARGEFILE in case not defined
+- Fix bug in gzeof() to take into account unused input data
+- Avoid initialization of structures with variables in puff.c
+- Updated win32/README-WIN32.txt [Rowe]
+
 Changes in 1.2.4.1 (28 Mar 2010)
 - Remove the use of [a-z] constructs for sed in configure [gentoo 310225]
 - Remove $(SHAREDLIB) from LIBS in Makefile.in [Creech]
