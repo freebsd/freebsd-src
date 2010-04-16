@@ -83,8 +83,6 @@ __FBSDID("$FreeBSD$");
 #include <machine/mips_opcode.h>
 #include <machine/frame.h>
 #include <machine/regnum.h>
-#include <machine/rm7000.h>
-#include <machine/archtype.h>
 #include <machine/asm.h>
 
 #ifdef DDB
