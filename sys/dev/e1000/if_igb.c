@@ -99,7 +99,7 @@ int	igb_display_debug_stats = 0;
 /*********************************************************************
  *  Driver version:
  *********************************************************************/
-char igb_driver_version[] = "version - 1.9.3";
+char igb_driver_version[] = "version - 1.9.5";
 
 
 /*********************************************************************
@@ -758,8 +758,15 @@ igb_start_locked(struct tx_ring *txr, struct ifnet *ifp)
 	if (!adapter->link_active)
 		return;
 
-	while (!IFQ_DRV_IS_EMPTY(&ifp->if_snd)) {
+	/* Call cleanup if number of TX descriptors low */
+	if (txr->tx_avail <= IGB_TX_CLEANUP_THRESHOLD)
+		igb_txeof(txr);
 
+	while (!IFQ_DRV_IS_EMPTY(&ifp->if_snd)) {
+		if (txr->tx_avail <= IGB_TX_OP_THRESHOLD) {
+			ifp->if_drv_flags |= IFF_DRV_OACTIVE;
+			break;
+		}
 		IFQ_DRV_DEQUEUE(&ifp->if_snd, m_head);
 		if (m_head == NULL)
 			break;
@@ -779,6 +786,7 @@ igb_start_locked(struct tx_ring *txr, struct ifnet *ifp)
 		ETHER_BPF_MTAP(ifp, m_head);
 
 		/* Set watchdog on */
+		txr->watchdog_time = ticks;
 		txr->watchdog_check = TRUE;
 	}
 }
@@ -817,8 +825,6 @@ igb_mq_start(struct ifnet *ifp, struct mbuf *m)
 	/* Which queue to use */
 	if ((m->m_flags & M_FLOWID) != 0)
 		i = m->m_pkthdr.flowid % adapter->num_queues;
-	else
-		i = curcpu % adapter->num_queues;
 
 	txr = &adapter->tx_rings[i];
 
@@ -847,6 +853,10 @@ igb_mq_start_locked(struct ifnet *ifp, struct tx_ring *txr, struct mbuf *m)
 		return (err);
 	}
 
+	/* Call cleanup if number of TX descriptors low */
+	if (txr->tx_avail <= IGB_TX_CLEANUP_THRESHOLD)
+		igb_txeof(txr);
+
 	enq = 0;
 	if (m == NULL) {
 		next = drbr_dequeue(ifp, txr->br);
@@ -856,6 +866,7 @@ igb_mq_start_locked(struct ifnet *ifp, struct tx_ring *txr, struct mbuf *m)
 		next = drbr_dequeue(ifp, txr->br);
 	} else
 		next = m;
+
 	/* Process the queue */
 	while (next != NULL) {
 		if ((err = igb_xmit(txr, &next)) != 0) {
@@ -877,6 +888,7 @@ igb_mq_start_locked(struct ifnet *ifp, struct tx_ring *txr, struct mbuf *m)
 	if (enq > 0) {
 		/* Set the watchdog */
 		txr->watchdog_check = TRUE;
+		txr->watchdog_time = ticks;
 	}
 	return (err);
 }
@@ -1055,6 +1067,10 @@ igb_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 			ifp->if_capenable ^= IFCAP_VLAN_HWTAGGING;
 			reinit = 1;
 		}
+		if (mask & IFCAP_VLAN_HWFILTER) {
+			ifp->if_capenable ^= IFCAP_VLAN_HWFILTER;
+			reinit = 1;
+		}
 		if (mask & IFCAP_LRO) {
 			ifp->if_capenable ^= IFCAP_LRO;
 			reinit = 1;
@@ -1110,6 +1126,19 @@ igb_init_locked(struct adapter *adapter)
 
 	E1000_WRITE_REG(&adapter->hw, E1000_VET, ETHERTYPE_VLAN);
 
+        /* Use real VLAN Filter support? */
+	if (ifp->if_capenable & IFCAP_VLAN_HWTAGGING) {
+		if (ifp->if_capenable & IFCAP_VLAN_HWFILTER)
+			/* Use real VLAN Filter support */
+			igb_setup_vlan_hw_support(adapter);
+		else {
+			u32 ctrl;
+			ctrl = E1000_READ_REG(&adapter->hw, E1000_CTRL);
+			ctrl |= E1000_CTRL_VME;
+			E1000_WRITE_REG(&adapter->hw, E1000_CTRL, ctrl);
+		}
+	}
+                                
 	/* Set hardware offload abilities */
 	ifp->if_hwassist = 0;
 	if (ifp->if_capenable & IFCAP_TXCSUM) {
@@ -1231,19 +1260,13 @@ igb_handle_que(void *context, int pending)
 	struct adapter *adapter = que->adapter;
 	struct tx_ring *txr = que->txr;
 	struct ifnet	*ifp = adapter->ifp;
-	u32		loop = IGB_MAX_LOOP;
 	bool		more;
 
-	/* RX first */
-	do {
+	if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
 		more = igb_rxeof(que, -1);
-	} while (loop-- && more);
 
-	if (IGB_TX_TRYLOCK(txr)) {
-		loop = IGB_MAX_LOOP;
-		do {
-			more = igb_txeof(txr);
-		} while (loop-- && more);
+		IGB_TX_LOCK(txr);
+		igb_txeof(txr);
 #if __FreeBSD_version >= 800000
 		igb_mq_start_locked(ifp, txr, NULL);
 #else
@@ -1251,6 +1274,10 @@ igb_handle_que(void *context, int pending)
 			igb_start_locked(txr, ifp);
 #endif
 		IGB_TX_UNLOCK(txr);
+		if (more) {
+			taskqueue_enqueue(que->tq, &que->que_task);
+			return;
+		}
 	}
 
 	/* Reenable this interrupt */
@@ -1436,7 +1463,7 @@ igb_msix_que(void *arg)
         if (adapter->hw.mac.type == e1000_82575)
                 newitr |= newitr << 16;
         else
-                newitr |= 0x8000000;
+                newitr |= E1000_EITR_CNT_IGNR;
                  
         /* save for next interrupt */
         que->eitr_setting = newitr;
@@ -2340,7 +2367,7 @@ igb_configure_queues(struct adapter *adapter)
         if (hw->mac.type == e1000_82575)
                 newitr |= newitr << 16;
         else
-                newitr |= 0x8000000;
+                newitr |= E1000_EITR_CNT_IGNR;
 
 	for (int i = 0; i < adapter->num_queues; i++) {
 		que = &adapter->queues[i];
@@ -2669,11 +2696,22 @@ igb_setup_interface(device_t dev, struct adapter *adapter)
 #endif
 
 	/*
-	 * Tell the upper layer(s) we support long frames.
+	 * Tell the upper layer(s) we
+	 * support full VLAN capability.
 	 */
 	ifp->if_data.ifi_hdrlen = sizeof(struct ether_vlan_header);
 	ifp->if_capabilities |= IFCAP_VLAN_HWTAGGING | IFCAP_VLAN_MTU;
 	ifp->if_capenable |= IFCAP_VLAN_HWTAGGING | IFCAP_VLAN_MTU;
+
+	/*
+	** Dont turn this on by default, if vlans are
+	** created on another pseudo device (eg. lagg)
+	** then vlan events are not passed thru, breaking
+	** operation, but with HW FILTER off it works. If
+	** using vlans directly on the em driver you can
+	** enable this and get full hardware tag filtering.
+	*/
+	ifp->if_capabilities |= IFCAP_VLAN_HWFILTER;
 
 	/*
 	 * Specify the media types supported by this adapter and register
@@ -3779,6 +3817,9 @@ igb_setup_receive_ring(struct rx_ring *rxr)
 		/* Update descriptor */
 		rxr->rx_base[j].read.pkt_addr = htole64(pseg[0].ds_addr);
         }
+
+	/* Setup our descriptor indices */
+	rxr->next_to_check = 0;
 	rxr->next_to_refresh = 0;
 	rxr->lro_enabled = FALSE;
 
@@ -4672,10 +4713,12 @@ igb_update_stats_counters(struct adapter *adapter)
 {
 	struct ifnet   *ifp;
 
-	if(adapter->hw.phy.media_type == e1000_media_type_copper ||
+	if (adapter->hw.phy.media_type == e1000_media_type_copper ||
 	   (E1000_READ_REG(&adapter->hw, E1000_STATUS) & E1000_STATUS_LU)) {
-		adapter->stats.symerrs += E1000_READ_REG(&adapter->hw, E1000_SYMERRS);
-		adapter->stats.sec += E1000_READ_REG(&adapter->hw, E1000_SEC);
+		adapter->stats.symerrs +=
+		    E1000_READ_REG(&adapter->hw, E1000_SYMERRS);
+		adapter->stats.sec +=
+		    E1000_READ_REG(&adapter->hw, E1000_SEC);
 	}
 	adapter->stats.crcerrs += E1000_READ_REG(&adapter->hw, E1000_CRCERRS);
 	adapter->stats.mpc += E1000_READ_REG(&adapter->hw, E1000_MPC);
