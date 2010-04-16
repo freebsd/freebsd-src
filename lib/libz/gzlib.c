@@ -8,7 +8,7 @@
 #include "gzguts.h"
 #include "zutil.h"
 
-#if _LARGEFILE64_SOURCE == 1 && _LFS64_LARGEFILE == 1
+#if defined(_LARGEFILE64_SOURCE) && _LFS64_LARGEFILE-0
 #  define LSEEK lseek64
 #else
 #  define LSEEK lseek
@@ -175,6 +175,7 @@ local gzFile gz_open(path, fd, mode)
                         O_APPEND))),
             0666);
     if (state->fd == -1) {
+        free(state->path);
         free(state);
         return NULL;
     }
@@ -435,7 +436,8 @@ int ZEXPORT gzeof(file)
         return 0;
 
     /* return end-of-file state */
-    return state->mode == GZ_READ ? (state->eof && state->have == 0) : 0;
+    return state->mode == GZ_READ ?
+        (state->eof && state->strm.avail_in == 0 && state->have == 0) : 0;
 }
 
 /* -- see zlib.h -- */
