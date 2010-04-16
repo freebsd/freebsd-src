@@ -39,9 +39,6 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#if __FreeBSD_version >= 800000
-#include <sys/buf_ring.h>
-#endif
 #include <sys/bus.h>
 #include <sys/endian.h>
 #include <sys/kernel.h>
@@ -94,7 +91,7 @@ int	lem_display_debug_stats = 0;
 /*********************************************************************
  *  Legacy Em Driver version:
  *********************************************************************/
-char lem_driver_version[] = "1.0.0";
+char lem_driver_version[] = "1.0.1";
 
 
 /*********************************************************************
@@ -177,11 +174,6 @@ static int	lem_suspend(device_t);
 static int	lem_resume(device_t);
 static void	lem_start(struct ifnet *);
 static void	lem_start_locked(struct ifnet *ifp);
-#if __FreeBSD_version >= 800000
-static int	lem_mq_start(struct ifnet *, struct mbuf *);
-static int	lem_mq_start_locked(struct ifnet *, struct mbuf *);
-static void	lem_qflush(struct ifnet *);
-#endif
 static int	lem_ioctl(struct ifnet *, u_long, caddr_t);
 static void	lem_init(void *);
 static void	lem_init_locked(struct adapter *);
@@ -304,12 +296,6 @@ MODULE_DEPEND(lem, ether, 1, 1, 1);
 
 #define EM_TICKS_TO_USECS(ticks)	((1024 * (ticks) + 500) / 1000)
 #define EM_USECS_TO_TICKS(usecs)	((1000 * (usecs) + 512) / 1024)
-#define M_TSO_LEN			66
-
-/* Allow common code without TSO */
-#ifndef CSUM_TSO
-#define CSUM_TSO	0
-#endif
 
 static int lem_tx_int_delay_dflt = EM_TICKS_TO_USECS(EM_TIDV);
 static int lem_rx_int_delay_dflt = EM_TICKS_TO_USECS(EM_RDTR);
@@ -827,118 +813,6 @@ lem_resume(device_t dev)
 }
 
 
-/*********************************************************************
- *  Transmit entry point
- *
- *  em_start is called by the stack to initiate a transmit.
- *  The driver will remain in this routine as long as there are
- *  packets to transmit and transmit resources are available.
- *  In case resources are not available stack is notified and
- *  the packet is requeued.
- **********************************************************************/
-
-#if __FreeBSD_version >= 800000
-static int
-lem_mq_start_locked(struct ifnet *ifp, struct mbuf *m)
-{
-	struct adapter	*adapter = ifp->if_softc;
-	struct mbuf	*next;
-	int error = E1000_SUCCESS;
-
-	EM_TX_LOCK_ASSERT(adapter);
-	/* To allow being called from a tasklet */
-	if (m == NULL)
-		goto process;
-
-	if (((ifp->if_drv_flags & (IFF_DRV_RUNNING|IFF_DRV_OACTIVE)) !=
-	    IFF_DRV_RUNNING)
-	    || (!adapter->link_active)) {
-		error = drbr_enqueue(ifp, adapter->br, m);
-		return (error);
-	} else if (drbr_empty(ifp, adapter->br) &&
-	    (adapter->num_tx_desc_avail > EM_TX_OP_THRESHOLD)) {
-		if ((error = lem_xmit(adapter, &m)) != 0) {
-			if (m)
-				error = drbr_enqueue(ifp, adapter->br, m);
-			return (error);
-		} else {
-			/*
-			 * We've bypassed the buf ring so we need to update
-			 * ifp directly
-			 */
-			drbr_stats_update(ifp, m->m_pkthdr.len, m->m_flags);
-			/*
-			** Send a copy of the frame to the BPF
-			** listener and set the watchdog on.
-			*/
-			ETHER_BPF_MTAP(ifp, m);
-			adapter->watchdog_check = TRUE;
-		}
-	} else if ((error = drbr_enqueue(ifp, adapter->br, m)) != 0)
-		return (error);
-	
-process:
-	if (drbr_empty(ifp, adapter->br))
-		return(error);
-        /* Process the queue */
-        while (TRUE) {
-                if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0)
-                        break;
-                next = drbr_dequeue(ifp, adapter->br);
-                if (next == NULL)
-                        break;
-                if ((error = lem_xmit(adapter, &next)) != 0) {
-			if (next != NULL)
-				error = drbr_enqueue(ifp, adapter->br, next);
-                        break;
-		}
-		drbr_stats_update(ifp, next->m_pkthdr.len, next->m_flags);
-                ETHER_BPF_MTAP(ifp, next);
-                /* Set the watchdog */
-		adapter->watchdog_check = TRUE;
-        }
-
-        if (adapter->num_tx_desc_avail <= EM_TX_OP_THRESHOLD)
-                ifp->if_drv_flags |= IFF_DRV_OACTIVE;
-
-	return (error);
-}
-
-/*
-** Multiqueue capable stack interface, this is not
-** yet truely multiqueue, but that is coming...
-*/
-static int
-lem_mq_start(struct ifnet *ifp, struct mbuf *m)
-{
-	
-	struct adapter *adapter = ifp->if_softc;
-	int error = 0;
-
-	if (EM_TX_TRYLOCK(adapter)) {
-		if (ifp->if_drv_flags & IFF_DRV_RUNNING)
-			error = lem_mq_start_locked(ifp, m);
-		EM_TX_UNLOCK(adapter);
-	} else 
-		error = drbr_enqueue(ifp, adapter->br, m);
-
-	return (error);
-}
-
-static void
-lem_qflush(struct ifnet *ifp)
-{
-	struct mbuf *m;
-	struct adapter *adapter = (struct adapter *)ifp->if_softc;
-
-	EM_TX_LOCK(adapter);
-	while ((m = buf_ring_dequeue_sc(adapter->br)) != NULL)
-		m_freem(m);
-	if_qflush(ifp);
-	EM_TX_UNLOCK(adapter);
-}
-#endif /* FreeBSD_version */
-
 static void
 lem_start_locked(struct ifnet *ifp)
 {
@@ -975,6 +849,7 @@ lem_start_locked(struct ifnet *ifp)
 
 		/* Set timeout in case hardware has problems transmitting. */
 		adapter->watchdog_check = TRUE;
+		adapter->watchdog_time = ticks;
 	}
 	if (adapter->num_tx_desc_avail <= EM_TX_OP_THRESHOLD)
 		ifp->if_drv_flags |= IFF_DRV_OACTIVE;
@@ -1151,12 +1026,6 @@ lem_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 			ifp->if_capenable ^= IFCAP_HWCSUM;
 			reinit = 1;
 		}
-#if __FreeBSD_version >= 700000
-		if (mask & IFCAP_TSO4) {
-			ifp->if_capenable ^= IFCAP_TSO4;
-			reinit = 1;
-		}
-#endif
 		if (mask & IFCAP_VLAN_HWTAGGING) {
 			ifp->if_capenable ^= IFCAP_VLAN_HWTAGGING;
 			reinit = 1;
@@ -1279,10 +1148,6 @@ lem_init_locked(struct adapter *adapter)
 	if (adapter->hw.mac.type >= e1000_82543) {
 		if (ifp->if_capenable & IFCAP_TXCSUM)
 			ifp->if_hwassist |= (CSUM_TCP | CSUM_UDP);
-#if __FreeBSD_version >= 700000
-		if (ifp->if_capenable & IFCAP_TSO4)
-			ifp->if_hwassist |= CSUM_TSO;
-#endif
 	}
 
 	/* Configure for OS presence */
@@ -1394,13 +1259,8 @@ lem_poll(struct ifnet *ifp, enum poll_cmd cmd, int count)
 
 	EM_TX_LOCK(adapter);
 	lem_txeof(adapter);
-#if __FreeBSD_version >= 800000
-	if (!drbr_empty(ifp, adapter->br))
-		lem_mq_start_locked(ifp, NULL);
-#else
 	if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
 		lem_start_locked(ifp);
-#endif
 	EM_TX_UNLOCK(adapter);
 	return (rx_done);
 }
@@ -1494,14 +1354,8 @@ lem_handle_rxtx(void *context, int pending)
 			taskqueue_enqueue(adapter->tq, &adapter->rxtx_task);
 		EM_TX_LOCK(adapter);
 		lem_txeof(adapter);
-
-#if __FreeBSD_version >= 800000
-		if (!drbr_empty(ifp, adapter->br))
-			lem_mq_start_locked(ifp, NULL);
-#else
 		if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
 			lem_start_locked(ifp);
-#endif
 		EM_TX_UNLOCK(adapter);
 	}
 
@@ -1852,15 +1706,17 @@ lem_xmit(struct adapter *adapter, struct mbuf **m_headp)
         if (mtag != NULL) {
                 ctxd->upper.fields.special =
                     htole16(VLAN_TAG_VALUE(mtag));
+                ctxd->lower.data |= htole32(E1000_TXD_CMD_VLE);
+	}
 #else /* FreeBSD 7 */
 	if (m_head->m_flags & M_VLANTAG) {
 		/* Set the vlan id. */
 		ctxd->upper.fields.special =
 		    htole16(m_head->m_pkthdr.ether_vtag);
-#endif
                 /* Tell hardware to add tag */
                 ctxd->lower.data |= htole32(E1000_TXD_CMD_VLE);
         }
+#endif
 
         tx_buffer->m_head = m_head;
 	tx_buffer_mapped->map = tx_buffer->map;
@@ -2544,12 +2400,6 @@ lem_setup_interface(device_t dev, struct adapter *adapter)
 
 	ifp->if_capabilities = ifp->if_capenable = 0;
 
-#if __FreeBSD_version >= 800000
-	/* Multiqueue tx functions */
-	ifp->if_transmit = lem_mq_start;
-	ifp->if_qflush = lem_qflush;
-	adapter->br = buf_ring_alloc(4096, M_DEVBUF, M_WAITOK, &adapter->tx_mtx);
-#endif	
 	if (adapter->hw.mac.type >= e1000_82543) {
 		int version_cap;
 #if __FreeBSD_version < 700000
@@ -4549,10 +4399,6 @@ lem_print_hw_stats(struct adapter *adapter)
 	    (long long)adapter->stats.gprc);
 	device_printf(dev, "Good Packets Xmtd = %lld\n",
 	    (long long)adapter->stats.gptc);
-	device_printf(dev, "TSO Contexts Xmtd = %lld\n",
-	    (long long)adapter->stats.tsctc);
-	device_printf(dev, "TSO Contexts Failed = %lld\n",
-	    (long long)adapter->stats.tsctfc);
 }
 
 /**********************************************************************
