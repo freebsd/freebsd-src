@@ -14,6 +14,14 @@
 # The file is partitioned: OLD_FILES first, then OLD_LIBS and OLD_DIRS last.
 #
 
+# 20100415: [mips] removed unused headers
+.if ${TARGET_ARCH} == "mips"
+OLD_FILES+=usr/include/machine/archtype.h
+OLD_FILES+=usr/include/machine/segments.h
+OLD_FILES+=usr/include/machine/rm7000.h
+OLD_FILES+=usr/include/machine/defs.h
+OLD_FILES+=usr/include/machine/queue.h
+.endif
 # 20100326: [ia64] removed <machine/nexusvar.h>
 .if ${TARGET_ARCH} == "ia64"
 OLD_FILES+=usr/include/machine/nexusvar.h
