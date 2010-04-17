@@ -1205,12 +1205,19 @@ shadowlookup:
 			goto unlock_tobject;
 		}
 		if ((m->oflags & VPO_BUSY) || m->busy) {
-			vm_page_flag_set(m, PG_REFERENCED);
+			if (advise == MADV_WILLNEED)
+				/*
+				 * Reference the page before unlocking and
+				 * sleeping so that the page daemon is less
+				 * likely to reclaim it. 
+				 */
+				vm_page_flag_set(m, PG_REFERENCED);
 			vm_page_unlock_queues();
 			if (object != tobject)
 				VM_OBJECT_UNLOCK(object);
 			m->oflags |= VPO_WANTED;
-			msleep(m, VM_OBJECT_MTX(tobject), PDROP | PVM, "madvpo", 0);
+			msleep(m, VM_OBJECT_MTX(tobject), PDROP | PVM, "madvpo",
+			    0);
 			VM_OBJECT_LOCK(object);
   			goto relookup;
 		}
