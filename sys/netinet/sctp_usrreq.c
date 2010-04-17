@@ -2008,7 +2008,7 @@ flags_out:
 				events->sctp_sender_dry_event = 1;
 
 			if (sctp_is_feature_on(inp, SCTP_PCB_FLAGS_STREAM_RESETEVNT))
-				events->sctp_stream_reset_events = 1;
+				events->sctp_stream_reset_event = 1;
 			SCTP_INP_RUNLOCK(inp);
 			*optsize = sizeof(struct sctp_event_subscribe);
 		}
@@ -3650,7 +3650,7 @@ sctp_setopt(struct socket *so, int optname, void *optval, size_t optsize,
 				sctp_feature_off(inp, SCTP_PCB_FLAGS_DRYEVNT);
 			}
 
-			if (events->sctp_stream_reset_events) {
+			if (events->sctp_stream_reset_event) {
 				sctp_feature_on(inp, SCTP_PCB_FLAGS_STREAM_RESETEVNT);
 			} else {
 				sctp_feature_off(inp, SCTP_PCB_FLAGS_STREAM_RESETEVNT);
