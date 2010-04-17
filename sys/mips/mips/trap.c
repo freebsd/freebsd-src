@@ -378,12 +378,12 @@ trap(struct trapframe *trapframe)
 			if (!(pte = pmap_segmap(kernel_pmap,
 			    trapframe->badvaddr)))
 				panic("trap: ktlbmod: invalid segmap");
-			pte += (trapframe->badvaddr >> PGSHIFT) & (NPTEPG - 1);
+			pte += (trapframe->badvaddr >> PAGE_SHIFT) & (NPTEPG - 1);
 			entry = *pte;
 #ifdef SMP
 			/* It is possible that some other CPU changed m-bit */
 			if (!mips_pg_v(entry) || (entry & mips_pg_m_bit())) {
-				trapframe->badvaddr &= ~PGOFSET;
+				trapframe->badvaddr &= ~PAGE_MASK;
 				pmap_update_page(kernel_pmap,
 				    trapframe->badvaddr, entry);
 				PMAP_UNLOCK(kernel_pmap);
@@ -401,7 +401,7 @@ trap(struct trapframe *trapframe)
 			}
 			entry |= mips_pg_m_bit();
 			*pte = entry;
-			trapframe->badvaddr &= ~PGOFSET;
+			trapframe->badvaddr &= ~PAGE_MASK;
 			pmap_update_page(kernel_pmap, trapframe->badvaddr, entry);
 			pa = mips_tlbpfn_to_paddr(entry);
 			if (!page_is_managed(pa))
@@ -421,12 +421,12 @@ trap(struct trapframe *trapframe)
 			PMAP_LOCK(pmap);
 			if (!(pte = pmap_segmap(pmap, trapframe->badvaddr)))
 				panic("trap: utlbmod: invalid segmap");
-			pte += (trapframe->badvaddr >> PGSHIFT) & (NPTEPG - 1);
+			pte += (trapframe->badvaddr >> PAGE_SHIFT) & (NPTEPG - 1);
 			entry = *pte;
 #ifdef SMP
 			/* It is possible that some other CPU changed m-bit */
 			if (!mips_pg_v(entry) || (entry & mips_pg_m_bit())) {
-				trapframe->badvaddr = (trapframe->badvaddr & ~PGOFSET);
+				trapframe->badvaddr = (trapframe->badvaddr & ~PAGE_MASK);
 				pmap_update_page(pmap, trapframe->badvaddr, entry);
 				PMAP_UNLOCK(pmap);
 				goto out;
@@ -445,7 +445,7 @@ trap(struct trapframe *trapframe)
 			}
 			entry |= mips_pg_m_bit();
 			*pte = entry;
-			trapframe->badvaddr = (trapframe->badvaddr & ~PGOFSET);
+			trapframe->badvaddr = (trapframe->badvaddr & ~PAGE_MASK);
 			pmap_update_page(pmap, trapframe->badvaddr, entry);
 			trapframe->badvaddr |= (pmap->pm_asid[PCPU_GET(cpuid)].asid << VMTLB_PID_SHIFT);
 			pa = mips_tlbpfn_to_paddr(entry);

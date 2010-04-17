@@ -219,7 +219,7 @@ cpu_thread_swapin(struct thread *td)
 	 */
 	if (!(pte = pmap_segmap(kernel_pmap, td->td_md.md_realstack)))
 		panic("cpu_thread_swapin: invalid segmap");
-	pte += ((vm_offset_t)td->td_md.md_realstack >> PGSHIFT) & (NPTEPG - 1);
+	pte += ((vm_offset_t)td->td_md.md_realstack >> PAGE_SHIFT) & (NPTEPG - 1);
 
 	for (i = 0; i < KSTACK_PAGES - 1; i++) {
 		td->td_md.md_upte[i] = *pte & ~(PTE_RO|PTE_WIRED);
@@ -249,7 +249,7 @@ cpu_thread_alloc(struct thread *td)
 
 	if (!(pte = pmap_segmap(kernel_pmap, td->td_md.md_realstack)))
 		panic("cpu_thread_alloc: invalid segmap");
-	pte += ((vm_offset_t)td->td_md.md_realstack >> PGSHIFT) & (NPTEPG - 1);
+	pte += ((vm_offset_t)td->td_md.md_realstack >> PAGE_SHIFT) & (NPTEPG - 1);
 
 	for (i = 0; i < KSTACK_PAGES - 1; i++) {
 		td->td_md.md_upte[i] = *pte & ~(PTE_RO|PTE_WIRED);
