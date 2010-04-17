@@ -1553,9 +1553,6 @@ vm_object_backing_scan(vm_object_t object, int op)
 				}
 			} else if (op & OBSC_COLLAPSE_WAIT) {
 				if ((p->oflags & VPO_BUSY) || p->busy) {
-					vm_page_lock_queues();
-					vm_page_flag_set(p, PG_REFERENCED);
-					vm_page_unlock_queues();
 					VM_OBJECT_UNLOCK(object);
 					p->oflags |= VPO_WANTED;
 					msleep(p, VM_OBJECT_MTX(backing_object),
