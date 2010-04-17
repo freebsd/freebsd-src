@@ -84,17 +84,17 @@
 #ifdef SMP
 extern int	mcount_lock;
 #define	MCOUNT_ENTER(s)	{					\
-	s = disable_intr();					\
+	s = intr_disable();					\
 	while (!atomic_cmpset_acq_int(&mcount_lock, 0, 1))	\
 		/* nothing */ ;					\
 }
 #define	MCOUNT_EXIT(s)	{					\
 	atomic_store_rel_int(&mcount_lock, 0);			\
-	enableintr(s);						\
+	intr_restore(s);						\
 }
 #else
-#define	MCOUNT_ENTER(s)	{ s = disable_intr(); }
-#define	MCOUNT_EXIT(s)	(enableintr(s))
+#define	MCOUNT_ENTER(s)	{ s = intr_disable(); }
+#define	MCOUNT_EXIT(s)	(intr_restore(s))
 #endif
 
 /* REVISIT for mips */
