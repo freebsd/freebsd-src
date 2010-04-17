@@ -126,6 +126,7 @@ static struct {
 	{0x26838086, 0x00, "Intel ESB2",	0},
 	{0x27c18086, 0x00, "Intel ICH7",	0},
 	{0x27c38086, 0x00, "Intel ICH7",	0},
+	{0x27c48086, 0x00, "Intel ICH7M",	0},
 	{0x27c58086, 0x00, "Intel ICH7M",	0},
 	{0x27c68086, 0x00, "Intel ICH7M",	0},
 	{0x28218086, 0x00, "Intel ICH8",	0},
