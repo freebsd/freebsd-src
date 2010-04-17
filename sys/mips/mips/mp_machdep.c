@@ -157,6 +157,8 @@ start_ap(int cpuid)
 	cpus = mp_naps;
 	dpcpu = (void *)kmem_alloc(kernel_map, DPCPU_SIZE);
 
+	mips_sync();
+
 	if (platform_start_ap(cpuid) != 0)
 		return (-1);			/* could not start AP */
 
@@ -245,6 +247,8 @@ smp_init_secondary(u_int32_t cpuid)
 	 */
 	mips_dcache_wbinv_all();
 	mips_icache_sync_all();
+
+	mips_sync();
 
 	MachSetPID(0);
 
