@@ -296,7 +296,7 @@ smp_init_secondary(u_int32_t cpuid)
 	 */
 	mips_wr_compare(mips_rd_count() + counter_freq / hz);
 
-	enableintr();
+	intr_enable();
 
 	/* enter the scheduler */
 	sched_throw(NULL);
