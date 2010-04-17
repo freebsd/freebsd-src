@@ -14,6 +14,10 @@
 # The file is partitioned: OLD_FILES first, then OLD_LIBS and OLD_DIRS last.
 #
 
+# 20100416: [mips] removed <machine/psl.h>
+.if ${TARGET_ARCH} == "mips"
+OLD_FILES+=usr/include/machine/psl.h
+.endif
 # 20100415: [mips] removed unused headers
 .if ${TARGET_ARCH} == "mips"
 OLD_FILES+=usr/include/machine/archtype.h

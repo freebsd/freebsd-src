@@ -75,7 +75,6 @@ __FBSDID("$FreeBSD$");
 #include <net/netisr.h>
 
 #include <machine/trap.h>
-#include <machine/psl.h>
 #include <machine/cpu.h>
 #include <machine/pte.h>
 #include <machine/pmap.h>
@@ -272,7 +271,7 @@ extern char *syscallnames[];
  * In the case of a kernel trap, we return the pc where to resume if
  * p->p_addr->u_pcb.pcb_onfault is set, otherwise, return old pc.
  */
-u_int
+register_t
 trap(struct trapframe *trapframe)
 {
 	int type, usermode;
@@ -293,7 +292,7 @@ trap(struct trapframe *trapframe)
 	trapdebug_enter(trapframe, 0);
 	
 	type = (trapframe->cause & CR_EXC_CODE) >> CR_EXC_CODE_SHIFT;
-	if (USERMODE(trapframe->sr)) {
+	if (TRAPF_USERMODE(trapframe)) {
 		type |= T_USER;
 		usermode = 1;
 	} else {
@@ -307,9 +306,9 @@ trap(struct trapframe *trapframe)
 	 */
 	if (trapframe->sr & SR_INT_ENAB) {
 		set_intr_mask(~(trapframe->sr & ALL_INT_MASK));
-		enableintr();
+		intr_enable();
 	} else {
-		disableintr();
+		intr_disable();
 	}
 
 #ifdef TRAP_DEBUG
@@ -983,9 +982,10 @@ out:
 void
 trapDump(char *msg)
 {
-	int i, s;
+	register_t s;
+	int i;
 
-	s = disableintr();
+	s = intr_disable();
 	printf("trapDump(%s)\n", msg);
 	for (i = 0; i < TRAPSIZE; i++) {
 		if (trp == trapdebug) {
@@ -1003,9 +1003,8 @@ trapDump(char *msg)
 
 		printf("   RA %x SP %x code %d\n", trp->ra, trp->sp, trp->code);
 	}
-	restoreintr(s);
+	intr_restore(s);
 }
-
 #endif
 
 
