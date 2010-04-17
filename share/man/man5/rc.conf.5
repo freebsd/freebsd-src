@@ -1303,6 +1303,13 @@ interface:
 ifconfig_ed0_ipv6="RTADV"
 .Ed
 .Pp
+To configure only a link-local address on the
+.Dq Li ed0
+interface:
+.Bd -literal
+ifconfig_ed0_ipv6="inet6 auto_linklocal"
+.Ed
+.Pp
 To disable RA the
 .Dq Li NORTADV
 option is available, although not required if manual
