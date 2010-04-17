@@ -888,10 +888,10 @@ ipw_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 			/*
 			 * XXX when joining an ibss network we are called
 			 * with a SCAN -> RUN transition on scan complete.
-			 * Use that to call ipw_auth_and_assoc.  On completing
-			 * the join we are then called again with an
-			 * AUTH -> RUN transition and we want to do nothing.
-			 * This is all totally bogus and needs to be redone.
+			 * Use that to call ipw_assoc.  On completing the
+			 * join we are then called again with an AUTH -> RUN
+			 * transition and we want to do nothing.  This is
+			 * all totally bogus and needs to be redone.
 			 */
 			if (ostate == IEEE80211_S_SCAN)
 				ipw_assoc(ic, vap);
@@ -909,7 +909,7 @@ ipw_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 
 	case IEEE80211_S_ASSOC:
 		/*
-		 * If we are not transitioning from AUTH the resend the
+		 * If we are not transitioning from AUTH then resend the
 		 * association request.
 		 */
 		if (ostate != IEEE80211_S_AUTH)
@@ -1070,7 +1070,7 @@ ipw_rx_newstate_intr(struct ipw_softc *sc, struct ipw_soft_buf *sbuf)
 
 	case IPW_STATE_DISABLED:
 		/* XXX? is this right? */
-		sc->flags &= ~(IPW_FLAG_HACK | IPW_FLAG_SCANNING | 
+		sc->flags &= ~(IPW_FLAG_HACK | IPW_FLAG_SCANNING |
 		    IPW_FLAG_ASSOCIATING | IPW_FLAG_ASSOCIATED);
 		DPRINTFN(2, ("Firmware disabled (%s flags 0x%x)\n",
 			IEEESTATE(vap), sc->flags));
