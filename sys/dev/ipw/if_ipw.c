@@ -1040,8 +1040,10 @@ ipw_rx_newstate_intr(struct ipw_softc *sc, struct ipw_soft_buf *sbuf)
 		 * we checked the 802.11 layer state.
 		 */
 		if (sc->flags & IPW_FLAG_ASSOCIATED) {
+			IPW_UNLOCK(sc);
 			/* XXX probably need to issue disassoc to fw */
 			ieee80211_beacon_miss(ic);
+			IPW_LOCK(sc);
 		}
 		break;
 
@@ -1060,7 +1062,9 @@ ipw_rx_newstate_intr(struct ipw_softc *sc, struct ipw_soft_buf *sbuf)
 			break;
 		}
 		if (sc->flags & IPW_FLAG_SCANNING) {
+			IPW_UNLOCK(sc);
 			ieee80211_scan_done(vap);
+			IPW_LOCK(sc);
 			sc->flags &= ~IPW_FLAG_SCANNING;
 			sc->sc_scan_timer = 0;
 		}
@@ -1070,8 +1074,11 @@ ipw_rx_newstate_intr(struct ipw_softc *sc, struct ipw_soft_buf *sbuf)
 		DPRINTFN(2, ("Association lost (%s flags 0x%x)\n",
 			IEEESTATE(vap), sc->flags));
 		sc->flags &= ~(IPW_FLAG_ASSOCIATING | IPW_FLAG_ASSOCIATED);
-		if (vap->iv_state == IEEE80211_S_RUN)
+		if (vap->iv_state == IEEE80211_S_RUN) {
+			IPW_UNLOCK(sc);
 			ieee80211_new_state(vap, IEEE80211_S_SCAN, -1);
+			IPW_LOCK(sc);
+		}
 		break;
 
 	case IPW_STATE_DISABLED:
@@ -1170,7 +1177,6 @@ ipw_rx_data_intr(struct ipw_softc *sc, struct ipw_status *status,
 	bus_addr_t physaddr;
 	int error;
 	int8_t rssi, nf;
-	IPW_LOCK_DECL;
 
 	DPRINTFN(5, ("received frame len=%u, rssi=%u\n", le32toh(status->len),
 	    status->rssi));
@@ -1384,8 +1390,11 @@ ipw_fatal_error_intr(struct ipw_softc *sc)
 	struct ieee80211vap *vap = TAILQ_FIRST(&ic->ic_vaps);
 
 	device_printf(sc->sc_dev, "firmware error\n");
-	if (vap != NULL)
+	if (vap != NULL) {
+		IPW_UNLOCK(sc);
 		ieee80211_cancel_scan(vap);
+		IPW_LOCK(sc);
+	}
 	ieee80211_runtask(ic, &sc->sc_init_task);
 }
 
@@ -1394,7 +1403,6 @@ ipw_intr(void *arg)
 {
 	struct ipw_softc *sc = arg;
 	uint32_t r;
-	IPW_LOCK_DECL;
 
 	IPW_LOCK(sc);
 
@@ -1724,7 +1732,6 @@ static void
 ipw_start(struct ifnet *ifp)
 {
 	struct ipw_softc *sc = ifp->if_softc;
-	IPW_LOCK_DECL;
 
 	IPW_LOCK(sc);
 	ipw_start_locked(ifp);
@@ -1781,7 +1788,9 @@ ipw_watchdog(void *arg)
 			DPRINTFN(3, ("Scan timeout\n"));
 			/* End the scan */
 			if (sc->flags & IPW_FLAG_SCANNING) {
+				IPW_UNLOCK(sc);
 				ieee80211_scan_done(TAILQ_FIRST(&ic->ic_vaps));
+				IPW_LOCK(sc);
 				sc->flags &= ~IPW_FLAG_SCANNING;
 			}
 		}
@@ -1797,7 +1806,6 @@ ipw_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 	struct ieee80211com *ic = ifp->if_l2com;
 	struct ifreq *ifr = (struct ifreq *) data;
 	int error = 0, startall = 0;
-	IPW_LOCK_DECL;
 
 	switch (cmd) {
 	case SIOCSIFFLAGS:
@@ -2207,7 +2215,6 @@ ipw_assoc(struct ieee80211com *ic, struct ieee80211vap *vap)
 	struct ipw_security security;
 	uint32_t data;
 	int error;
-	IPW_LOCK_DECL;
 
 	IPW_LOCK(sc);
 	error = ipw_disable(sc);
@@ -2297,7 +2304,6 @@ ipw_disassoc(struct ieee80211com *ic, struct ieee80211vap *vap)
 	struct ifnet *ifp = vap->iv_ic->ic_ifp;
 	struct ieee80211_node *ni = vap->iv_bss;
 	struct ipw_softc *sc = ifp->if_softc;
-	IPW_LOCK_DECL;
 
 	IPW_LOCK(sc);
 	DPRINTF(("Disassociate from %6D\n", ni->ni_bssid, ":"));
@@ -2333,7 +2339,6 @@ ipw_init(void *priv)
 	struct ipw_softc *sc = priv;
 	struct ifnet *ifp = sc->sc_ifp;
 	struct ieee80211com *ic = ifp->if_l2com;
-	IPW_LOCK_DECL;
 
 	IPW_LOCK(sc);
 	ipw_init_locked(sc);
@@ -2540,7 +2545,6 @@ static void
 ipw_stop(void *priv)
 {
 	struct ipw_softc *sc = priv;
-	IPW_LOCK_DECL;
 
 	IPW_LOCK(sc);
 	ipw_stop_locked(sc);
@@ -2667,7 +2671,6 @@ ipw_scan_start(struct ieee80211com *ic)
 {
 	struct ifnet *ifp = ic->ic_ifp;
 	struct ipw_softc *sc = ifp->if_softc;
-	IPW_LOCK_DECL;
 
 	IPW_LOCK(sc);
 	ipw_scan(sc);
@@ -2679,7 +2682,6 @@ ipw_set_channel(struct ieee80211com *ic)
 {
 	struct ifnet *ifp = ic->ic_ifp;
 	struct ipw_softc *sc = ifp->if_softc;
-	IPW_LOCK_DECL;
 
 	IPW_LOCK(sc);
 	if (ic->ic_opmode == IEEE80211_M_MONITOR) {
@@ -2707,7 +2709,6 @@ ipw_scan_end(struct ieee80211com *ic)
 {
 	struct ifnet *ifp = ic->ic_ifp;
 	struct ipw_softc *sc = ifp->if_softc;
-	IPW_LOCK_DECL;
 
 	IPW_LOCK(sc);
 	sc->flags &= ~IPW_FLAG_SCANNING;
