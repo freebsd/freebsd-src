@@ -142,10 +142,6 @@ vm_offset_t physmem_desc[PHYS_AVAIL_ENTRIES + 2];
 struct platform platform;
 #endif
 
-vm_paddr_t	mips_wired_tlb_physmem_start;
-vm_paddr_t	mips_wired_tlb_physmem_end;
-u_int		need_wired_tlb_page_pool;
-
 static void cpu_startup(void *);
 SYSINIT(cpu, SI_SUB_CPU, SI_ORDER_FIRST, cpu_startup, NULL);
 
