@@ -66,11 +66,9 @@ MALLOC_DEFINE(M_SMP, "SMP", "SMP related allocations");
 
 void ia64_ap_startup(void);
 
-#define	LID_SAPIC(x)		((u_int)((x) >> 16))
-#define	LID_SAPIC_ID(x)		((u_int)((x) >> 24) & 0xff)
-#define	LID_SAPIC_EID(x)	((u_int)((x) >> 16) & 0xff)
-#define	LID_SAPIC_SET(id,eid)	(((id & 0xff) << 8 | (eid & 0xff)) << 16);
-#define	LID_SAPIC_MASK		0xffff0000UL
+#define	SAPIC_ID_GET_ID(x)	((u_int)((x) >> 8) & 0xff)
+#define	SAPIC_ID_GET_EID(x)	((u_int)(x) & 0xff)
+#define	SAPIC_ID_SET(id, eid)	((u_int)(((id) & 0xff) << 8) | ((eid) & 0xff))
 
 /* Variables used by os_boot_rendez and ia64_ap_startup */
 struct pcpu *ap_pcpu;
@@ -251,18 +249,18 @@ cpu_mp_probe(void)
 }
 
 void
-cpu_mp_add(u_int acpiid, u_int apicid, u_int apiceid)
+cpu_mp_add(u_int acpi_id, u_int id, u_int eid)
 {
 	struct pcpu *pc;
-	u_int64_t lid;
 	void *dpcpu;
-	u_int cpuid;
+	u_int cpuid, sapic_id;
 
-	lid = LID_SAPIC_SET(apicid, apiceid);
-	cpuid = ((ia64_get_lid() & LID_SAPIC_MASK) == lid) ? 0 : smp_cpus++;
+	sapic_id = SAPIC_ID_SET(id, eid);
+	cpuid = (IA64_LID_GET_SAPIC_ID(ia64_get_lid()) == sapic_id)
+	    ? 0 : smp_cpus++;
 
 	KASSERT((all_cpus & (1UL << cpuid)) == 0,
-	    ("%s: cpu%d already in CPU map", __func__, acpiid));
+	    ("%s: cpu%d already in CPU map", __func__, acpi_id));
 
 	if (cpuid != 0) {
 		pc = (struct pcpu *)malloc(sizeof(*pc), M_SMP, M_WAITOK);
@@ -272,23 +270,25 @@ cpu_mp_add(u_int acpiid, u_int apicid, u_int apiceid)
 	} else
 		pc = pcpup;
 
-	pc->pc_acpi_id = acpiid;
-	pc->pc_md.lid = lid;
-	all_cpus |= (1UL << cpuid);
+	cpu_pcpu_setup(pc, acpi_id, sapic_id);
+ 
+	all_cpus |= (1UL << pc->pc_cpuid);
 }
 
 void
 cpu_mp_announce()
 {
 	struct pcpu *pc;
+	uint32_t sapic_id;
 	int i;
 
 	for (i = 0; i <= mp_maxid; i++) {
 		pc = pcpu_find(i);
 		if (pc != NULL) {
+			sapic_id = IA64_LID_GET_SAPIC_ID(pc->pc_md.lid);
 			printf("cpu%d: ACPI Id=%x, SAPIC Id=%x, SAPIC Eid=%x",
-			    i, pc->pc_acpi_id, LID_SAPIC_ID(pc->pc_md.lid),
-			    LID_SAPIC_EID(pc->pc_md.lid));
+			    i, pc->pc_acpi_id, SAPIC_ID_GET_ID(sapic_id),
+			    SAPIC_ID_GET_EID(sapic_id));
 			if (i == 0)
 				printf(" (BSP)\n");
 			else
@@ -420,21 +420,19 @@ ipi_all_but_self(int ipi)
 }
 
 /*
- * Send an IPI to the specified processor. The lid parameter holds the
- * cr.lid (CR64) contents of the target processor. Only the id and eid
- * fields are used here.
+ * Send an IPI to the specified processor.
  */
 void
 ipi_send(struct pcpu *cpu, int xiv)
 {
-	u_int lid;
+	u_int sapic_id;
 
 	KASSERT(xiv != 0, ("ipi_send"));
 
-	lid = LID_SAPIC(cpu->pc_md.lid);
+	sapic_id = IA64_LID_GET_SAPIC_ID(cpu->pc_md.lid);
 
 	ia64_mf();
-	ia64_st8(&(ia64_pib->ib_ipi[lid][0]), xiv);
+	ia64_st8(&(ia64_pib->ib_ipi[sapic_id][0]), xiv);
 	ia64_mf_a();
 	CTR3(KTR_SMP, "ipi_send(%p, %d): cpuid=%d", cpu, xiv, PCPU_GET(cpuid));
 }

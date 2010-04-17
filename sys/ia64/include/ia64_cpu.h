@@ -31,6 +31,12 @@
 #define _MACHINE_IA64_CPU_H_
 
 /*
+ * Local Interrupt ID.
+ */
+#define	IA64_LID_GET_SAPIC_ID(x)	((u_int)((x) >> 16) & 0xffff)
+#define	IA64_LID_SET_SAPIC_ID(x)	((u_int)((x) & 0xffff) << 16)
+
+/*
  * Definition of DCR bits.
  */
 #define	IA64_DCR_PP		0x0000000000000001

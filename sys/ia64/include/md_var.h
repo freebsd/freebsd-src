@@ -61,6 +61,7 @@ ia64_bsp_adjust(uint64_t bsp, int nslots)
 #ifdef _KERNEL
 
 struct _special;
+struct pcpu;
 struct thread;
 struct trapframe;
 
@@ -76,9 +77,11 @@ extern uint64_t ia64_lapic_addr;
 
 extern long Maxmem;
 
+void	*acpi_find_table(const char *sig);
 void	busdma_swi(void);
 int	copyout_regstack(struct thread *, uint64_t *, uint64_t *);
 void	cpu_mp_add(u_int, u_int, u_int);
+void	cpu_pcpu_setup(struct pcpu *, u_int, u_int);
 int	do_ast(struct trapframe *);
 void	ia32_trap(int, struct trapframe *);
 int	ia64_count_cpus(void);
