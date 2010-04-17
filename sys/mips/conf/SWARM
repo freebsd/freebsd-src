@@ -19,12 +19,7 @@ options		CFE_CONSOLE
 options		CFE_ENV
 options		ALT_BREAK_TO_DEBUGGER
 
-# Don't build any modules yet.
-makeoptions	MODULES_OVERRIDE=""
-makeoptions	TARGET_BIG_ENDIAN=defined
 makeoptions	LDSCRIPT_NAME=	ldscript.mips.cfe
-
-makeoptions	KERNLOADADDR=0x81000000
 
 #cpu		CPU_MIPS64
 #options 	ISA_MIPS64
