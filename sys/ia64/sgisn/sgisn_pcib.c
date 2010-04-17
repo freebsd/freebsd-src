@@ -44,10 +44,12 @@ __FBSDID("$FreeBSD$");
 #include <machine/sal.h>
 #include <machine/sgisn.h>
 
-static struct sgisn_hub sgisn_pcib_hub;
+static struct sgisn_hub sgisn_hub;
 
 struct sgisn_pcib_softc {
 	device_t	sc_dev;
+	void		*sc_promaddr;
+	u_int		sc_domain;
 	u_int		sc_busnr;
 };
 
@@ -113,12 +115,13 @@ static uint32_t
 sgisn_pcib_cfgread(device_t dev, u_int bus, u_int slot, u_int func,
     u_int reg, int bytes)
 {
-	u_int domain = device_get_unit(dev);
+	struct sgisn_pcib_softc *sc;
 	uint32_t val;
 
-	device_printf(dev, "%u:%u:%u: reg=%u", bus, slot, func, reg);
-	val = pci_cfgregread(domain << 8 | bus, slot, func, reg, bytes);
-	printf(" -> %u (%u bytes)\n", val, bytes);
+	sc = device_get_softc(dev);
+
+	val = pci_cfgregread((sc->sc_domain << 8) | bus, slot, func, reg,
+	    bytes);
 	return (val);
 }
 
@@ -126,39 +129,46 @@ static void
 sgisn_pcib_cfgwrite(device_t dev, u_int bus, u_int slot, u_int func,
     u_int reg, uint32_t val, int bytes)
 {
-	u_int domain = device_get_unit(dev);
+	struct sgisn_pcib_softc *sc;
 
-	device_printf(dev, "%u:%u:%u: reg=%u <- %u (%u bytes)\n", bus, slot,
-	    func, reg, val, bytes);
-	pci_cfgregwrite(domain << 8 | bus, slot, func, reg, val, bytes);
+	sc = device_get_softc(dev);
+
+	pci_cfgregwrite((sc->sc_domain << 8) | bus, slot, func, reg, val,
+	    bytes);
 }
 
 static void
 sgisn_pcib_identify(driver_t *drv, device_t bus)
 {
 	struct ia64_sal_result r;
+	device_t dev;
+	struct sgisn_pcib_softc *sc;
 	void *addr;
-	u_int seg;
+	u_int busno, segno;
 
-	sgisn_pcib_hub.hub_pci_maxseg = 0xffffffff;
-	sgisn_pcib_hub.hub_pci_maxbus = 0xff;
+	sgisn_hub.hub_pci_maxseg = 0xffffffff;
+	sgisn_hub.hub_pci_maxbus = 0xff;
 	r = ia64_sal_entry(SAL_SGISN_IOHUB_INFO, PCPU_GET(md.sgisn_nasid),
-	    ia64_tpa((uintptr_t)&sgisn_pcib_hub), 0, 0, 0, 0, 0);
+	    ia64_tpa((uintptr_t)&sgisn_hub), 0, 0, 0, 0, 0);
 	if (r.sal_status != 0)
 		return;
 
-	printf("XXX: %s: maxseg=%u, maxbus=%u\n", __func__,
-	    sgisn_pcib_hub.hub_pci_maxseg, sgisn_pcib_hub.hub_pci_maxbus);
+	for (segno = 0; segno <= sgisn_hub.hub_pci_maxseg; segno++) {
+		for (busno = 0; busno <= sgisn_hub.hub_pci_maxbus; busno++) {
+			r = ia64_sal_entry(SAL_SGISN_IOBUS_INFO, segno, busno,
+			    ia64_tpa((uintptr_t)&addr), 0, 0, 0, 0);
 
-	for (seg = 0; seg <= sgisn_pcib_hub.hub_pci_maxseg; seg++) {
-		r = ia64_sal_entry(SAL_SGISN_IOBUS_INFO, seg, 0,
-		    ia64_tpa((uintptr_t)&addr), 0, 0, 0, 0);
-
-		printf("XXX: %s: seg=%u: stat=%#lx, addr=%p\n", __func__, seg,
-		    r.sal_status, addr);
-
-		if (r.sal_status == 0)
-			BUS_ADD_CHILD(bus, 100 + seg, drv->name, seg);
+			if (r.sal_status == 0 && addr != NULL) {
+				dev = BUS_ADD_CHILD(bus, 0, drv->name, -1);
+				if (dev == NULL)
+					continue;
+				device_set_driver(dev, drv);
+				sc = device_get_softc(dev);
+				sc->sc_promaddr = addr;
+				sc->sc_domain = segno;
+				sc->sc_busnr = busno;
+			}
+		}
 	}
 }
 
@@ -192,7 +202,7 @@ sgisn_pcib_read_ivar(device_t dev, device_t child, int which, uintptr_t *res)
 		*res = sc->sc_busnr;
 		return (0);
 	case PCIB_IVAR_DOMAIN:
-		*res = device_get_unit(dev);
+		*res = sc->sc_domain;
 		return (0);
 	}
 	return (ENOENT);
