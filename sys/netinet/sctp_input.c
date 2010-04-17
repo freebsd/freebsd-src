@@ -918,7 +918,8 @@ sctp_handle_shutdown(struct sctp_shutdown_chunk *cp,
 
 static void
 sctp_handle_shutdown_ack(struct sctp_shutdown_ack_chunk *cp,
-    struct sctp_tcb *stcb, struct sctp_nets *net)
+    struct sctp_tcb *stcb,
+    struct sctp_nets *net)
 {
 	struct sctp_association *asoc;
 
@@ -934,6 +935,13 @@ sctp_handle_shutdown_ack(struct sctp_shutdown_ack_chunk *cp,
 
 	asoc = &stcb->asoc;
 	/* process according to association state */
+	if ((SCTP_GET_STATE(asoc) == SCTP_STATE_COOKIE_WAIT) ||
+	    (SCTP_GET_STATE(asoc) == SCTP_STATE_COOKIE_ECHOED)) {
+		/* unexpected SHUTDOWN-ACK... do OOTB handling... */
+		sctp_send_shutdown_complete(stcb, net, 1);
+		SCTP_TCB_UNLOCK(stcb);
+		return;
+	}
 	if ((SCTP_GET_STATE(asoc) != SCTP_STATE_SHUTDOWN_SENT) &&
 	    (SCTP_GET_STATE(asoc) != SCTP_STATE_SHUTDOWN_ACK_SENT)) {
 		/* unexpected SHUTDOWN-ACK... so ignore... */
@@ -975,7 +983,7 @@ sctp_handle_shutdown_ack(struct sctp_shutdown_ack_chunk *cp,
 	/* stop the timer */
 	sctp_timer_stop(SCTP_TIMER_TYPE_SHUTDOWN, stcb->sctp_ep, stcb, net, SCTP_FROM_SCTP_INPUT + SCTP_LOC_9);
 	/* send SHUTDOWN-COMPLETE */
-	sctp_send_shutdown_complete(stcb, net);
+	sctp_send_shutdown_complete(stcb, net, 0);
 	/* notify upper layer protocol */
 	if (stcb->sctp_socket) {
 		sctp_ulp_notify(SCTP_NOTIFY_ASSOC_DOWN, stcb, 0, NULL, SCTP_SO_NOT_LOCKED);
