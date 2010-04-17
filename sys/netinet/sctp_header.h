@@ -284,13 +284,6 @@ struct sctp_sack_chunk {
 	struct sctp_sack sack;
 }               SCTP_PACKED;
 
-
-/* EY Following 3 structs define NR Selective Ack (NR_SACK) chunk */
-struct sctp_nr_gap_ack_block {
-	uint16_t start;		/* NR Gap Ack block start */
-	uint16_t end;		/* NR Gap Ack block end */
-}                     SCTP_PACKED;
-
 struct sctp_nr_sack {
 	uint32_t cum_tsn_ack;	/* cumulative TSN Ack */
 	uint32_t a_rwnd;	/* updated a_rwnd of sender */
@@ -299,7 +292,6 @@ struct sctp_nr_sack {
 	uint16_t num_dup_tsns;	/* number of duplicate TSNs */
 	uint16_t reserved;	/* not currently used */
 	/* struct sctp_gap_ack_block's follow */
-	/* struct sctp_nr_gap_ack_block's follow */
 	/* uint32_t duplicate_tsn's follow */
 }            SCTP_PACKED;
 
