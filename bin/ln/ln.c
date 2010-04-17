@@ -172,6 +172,52 @@ main(int argc, char *argv[])
 	exit(exitval);
 }
 
+/*
+ * Two pathnames refer to the same directory entry if the directories match
+ * and the final components' names match.
+ */
+static int
+samedirent(const char *path1, const char *path2)
+{
+	const char *file1, *file2;
+	char pathbuf[PATH_MAX];
+	struct stat sb1, sb2;
+
+	if (strcmp(path1, path2) == 0)
+		return 1;
+	file1 = strrchr(path1, '/');
+	if (file1 != NULL)
+		file1++;
+	else
+		file1 = path1;
+	file2 = strrchr(path2, '/');
+	if (file2 != NULL)
+		file2++;
+	else
+		file2 = path2;
+	if (strcmp(file1, file2) != 0)
+		return 0;
+	if (file1 - path1 >= PATH_MAX || file2 - path2 >= PATH_MAX)
+		return 0;
+	if (file1 == path1)
+		memcpy(pathbuf, ".", 2);
+	else {
+		memcpy(pathbuf, path1, file1 - path1);
+		pathbuf[file1 - path1] = '\0';
+	}
+	if (stat(pathbuf, &sb1) != 0)
+		return 0;
+	if (file2 == path2)
+		memcpy(pathbuf, ".", 2);
+	else {
+		memcpy(pathbuf, path2, file2 - path2);
+		pathbuf[file2 - path2] = '\0';
+	}
+	if (stat(pathbuf, &sb2) != 0)
+		return 0;
+	return sb1.st_dev == sb2.st_dev && sb1.st_ino == sb2.st_ino;
+}
+
 int
 linkit(const char *source, const char *target, int isdir)
 {
@@ -215,7 +261,6 @@ linkit(const char *source, const char *target, int isdir)
 		target = path;
 	}
 
-	exists = !lstat(target, &sb);
 	/*
 	 * If the link source doesn't exist, and a symbolic link was
 	 * requested, and -w was specified, give a warning.
@@ -242,8 +287,20 @@ linkit(const char *source, const char *target, int isdir)
 				warn("warning: %s", source);
 		}
 	}
+
 	/*
-	 * If the file exists, then unlink it forcibly if -f was specified
+	 * If the file exists, first check it is not the same directory entry.
+	 */
+	exists = !lstat(target, &sb);
+	if (exists) {
+		if (!sflag && samedirent(source, target)) {
+			warnx("%s and %s are the same directory entry",
+			    source, target);
+			return (1);
+		}
+	}
+	/*
+	 * Then unlink it forcibly if -f was specified
 	 * and interactively if -i was specified.
 	 */
 	if (fflag && exists) {
