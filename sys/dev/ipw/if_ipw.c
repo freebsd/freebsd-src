@@ -904,6 +904,13 @@ ipw_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 		break;
 
 	case IEEE80211_S_AUTH:
+		/*
+		 * Move to ASSOC state after the ipw_assoc() call.  Firmware
+		 * takes care of authentication, after the call we'll receive
+		 * only an assoc response which would otherwise be discared
+		 * if we are still in AUTH state.
+		 */
+		nstate = IEEE80211_S_ASSOC;
 		ipw_assoc(ic, vap);
 		break;
 
@@ -1021,7 +1028,6 @@ ipw_rx_newstate_intr(struct ipw_softc *sc, struct ipw_soft_buf *sbuf)
 		}
 		sc->flags &= ~IPW_FLAG_ASSOCIATING;
 		sc->flags |= IPW_FLAG_ASSOCIATED;
-		ieee80211_new_state(vap, IEEE80211_S_RUN, -1);
 		break;
 
 	case IPW_STATE_SCANNING:
