@@ -647,7 +647,7 @@ DB_SHOW_COMMAND(pcb, ddb_dump_pcb)
 	DB_PRINT_REG_ARRAY(pcb, pcb_context, PCB_REG_GP);
 	DB_PRINT_REG_ARRAY(pcb, pcb_context, PCB_REG_PC);
 
-	db_printf("PCB onfault = %d\n", pcb->pcb_onfault);
+	db_printf("PCB onfault = %p\n", pcb->pcb_onfault);
 	db_printf("md_saved_intr = 0x%0lx\n", (long)td->td_md.md_saved_intr);
 	db_printf("md_spinlock_count = %d\n", td->td_md.md_spinlock_count);
 
