@@ -210,7 +210,7 @@ END(fillw)
  * mem_zero_page(addr);
  */
 LEAF(mem_zero_page)
-	li	v0, NBPG
+	li	v0, PAGE_SIZE
 1:
 	subu	v0, 8
 	sd	zero, 0(a0)

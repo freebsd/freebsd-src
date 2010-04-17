@@ -66,7 +66,7 @@ GLOBAL(mpentry)
 	 * Initialize stack and call machine startup
 	 */
 	PTR_LA	sp, _C_LABEL(pcpu_space)
-	addiu	sp, (NBPG * 2) - CALLFRAME_SIZ
+	addiu	sp, (PAGE_SIZE * 2) - CALLFRAME_SIZ
 	sll	t0, s0, PAGE_SHIFT + 1
 	addu	sp, sp, t0
 

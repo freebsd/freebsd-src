@@ -609,7 +609,7 @@ pmap_invalidate_page_action(void *arg)
 		pmap->pm_asid[PCPU_GET(cpuid)].gen = 0;
 		return;
 	}
-	va = pmap_va_asid(pmap, (va & ~PGOFSET));
+	va = pmap_va_asid(pmap, (va & ~PAGE_MASK));
 	mips_TBIS(va);
 }
 
@@ -765,7 +765,7 @@ pmap_kremove(vm_offset_t va)
 	/*
 	 * Write back all caches from the page being destroyed
 	 */
-	mips_dcache_wbinv_range_index(va, NBPG);
+	mips_dcache_wbinv_range_index(va, PAGE_SIZE);
 
 	pte = pmap_pte(kernel_pmap, va);
 	*pte = PTE_G;
@@ -1516,7 +1516,7 @@ pmap_remove_page(struct pmap *pmap, vm_offset_t va)
 	/*
 	 * Write back all caches from the page being destroyed
 	 */
-	mips_dcache_wbinv_range_index(va, NBPG);
+	mips_dcache_wbinv_range_index(va, PAGE_SIZE);
 
 	/*
 	 * get a local va for mappings for this pmap.
@@ -1603,7 +1603,7 @@ pmap_remove_all(vm_page_t m)
 		 * the page being destroyed
 	 	 */
 		if (m->md.pv_list_count == 1) 
-			mips_dcache_wbinv_range_index(pv->pv_va, NBPG);
+			mips_dcache_wbinv_range_index(pv->pv_va, PAGE_SIZE);
 
 		pv->pv_pmap->pm_stats.resident_count--;
 
@@ -1902,8 +1902,8 @@ validate:
 	 */
 	if (!is_kernel_pmap(pmap) && (pmap == &curproc->p_vmspace->vm_pmap) &&
 	    (prot & VM_PROT_EXECUTE)) {
-		mips_icache_sync_range(va, NBPG);
-		mips_dcache_wbinv_range(va, NBPG);
+		mips_icache_sync_range(va, PAGE_SIZE);
+		mips_dcache_wbinv_range(va, PAGE_SIZE);
 	}
 	vm_page_unlock_queues();
 	PMAP_UNLOCK(pmap);
@@ -2032,8 +2032,8 @@ pmap_enter_quick_locked(pmap_t pmap, vm_offset_t va, vm_page_t m,
 		 * unresolvable TLB miss may occur. */
 		if (pmap == &curproc->p_vmspace->vm_pmap) {
 			va &= ~PAGE_MASK;
-			mips_icache_sync_range(va, NBPG);
-			mips_dcache_wbinv_range(va, NBPG);
+			mips_icache_sync_range(va, PAGE_SIZE);
+			mips_dcache_wbinv_range(va, PAGE_SIZE);
 		}
 	}
 	return (mpte);
@@ -3078,7 +3078,7 @@ pmap_flush_pvcache(vm_page_t m)
 	if (m != NULL) {
 		for (pv = TAILQ_FIRST(&m->md.pv_list); pv;
 	    	    pv = TAILQ_NEXT(pv, pv_list)) {
-			mips_dcache_wbinv_range_index(pv->pv_va, NBPG);
+			mips_dcache_wbinv_range_index(pv->pv_va, PAGE_SIZE);
 		}
 	}
 }

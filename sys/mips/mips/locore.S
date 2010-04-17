@@ -178,7 +178,7 @@ VECTOR(_locore, unknown)
 	 * Initialize stack and call machine startup.
 	 */
 	PTR_LA	sp, _C_LABEL(pcpu_space)
-	addiu	sp, (NBPG * 2) - CALLFRAME_SIZ
+	addiu	sp, (PAGE_SIZE * 2) - CALLFRAME_SIZ
 
 	sw	zero, CALLFRAME_SIZ - 4(sp)	# Zero out old ra for debugger
 	sw	zero, CALLFRAME_SIZ - 8(sp)	# Zero out old fp for debugger
