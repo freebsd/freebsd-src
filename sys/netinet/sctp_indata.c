@@ -2533,15 +2533,7 @@ sctp_sack_check(struct sctp_tcb *stcb, int ok_to_sack, int was_a_gap, int *abort
 	/* int nr_at; */
 	/* int nr_last_all_ones = 0; */
 	/* int nr_slide_from, nr_slide_end, nr_lgap, nr_distance; */
-
 	uint32_t old_cumack, old_base, old_highest;
-	unsigned char aux_array[64];
-
-	/*
-	 * EY! Don't think this is required but I am immitating the code for
-	 * map just to make sure
-	 */
-	unsigned char nr_aux_array[64];
 
 	asoc = &stcb->asoc;
 	at = 0;
@@ -2549,33 +2541,6 @@ sctp_sack_check(struct sctp_tcb *stcb, int ok_to_sack, int was_a_gap, int *abort
 	old_cumack = asoc->cumulative_tsn;
 	old_base = asoc->mapping_array_base_tsn;
 	old_highest = asoc->highest_tsn_inside_map;
-	if (asoc->mapping_array_size < 64)
-		memcpy(aux_array, asoc->mapping_array,
-		    asoc->mapping_array_size);
-	else
-		memcpy(aux_array, asoc->mapping_array, 64);
-	/* EY do the same for nr_mapping_array */
-	if (SCTP_BASE_SYSCTL(sctp_nr_sack_on_off) && asoc->peer_supports_nr_sack) {
-		if (asoc->nr_mapping_array_size != asoc->mapping_array_size) {
-			/*
-			 * printf("\nEY-IN sack_check method: \nEY-" "The
-			 * size of map and nr_map are inconsitent")
-			 */ ;
-		}
-		if (asoc->nr_mapping_array_base_tsn != asoc->mapping_array_base_tsn) {
-			/*
-			 * printf("\nEY-IN sack_check method VERY CRUCIAL
-			 * error: \nEY-" "The base tsns of map and nr_map
-			 * are inconsitent")
-			 */ ;
-		}
-		/* EY! just immitating the above code */
-		if (asoc->nr_mapping_array_size < 64)
-			memcpy(nr_aux_array, asoc->nr_mapping_array,
-			    asoc->nr_mapping_array_size);
-		else
-			memcpy(aux_array, asoc->nr_mapping_array, 64);
-	}
 	/*
 	 * We could probably improve this a small bit by calculating the
 	 * offset of the current cum-ack as the starting point.
@@ -2611,6 +2576,7 @@ sctp_sack_check(struct sctp_tcb *stcb, int ok_to_sack, int was_a_gap, int *abort
 #else
 		SCTP_PRINTF("huh, cumack 0x%x greater than high-tsn 0x%x in map - should panic?\n",
 		    asoc->cumulative_tsn, asoc->highest_tsn_inside_map);
+		sctp_print_mapping_array(asoc);
 		if (SCTP_BASE_SYSCTL(sctp_logging_level) & SCTP_MAP_LOGGING_ENABLE) {
 			sctp_log_map(0, 6, asoc->highest_tsn_inside_map, SCTP_MAP_SLIDE_RESULT);
 		}
