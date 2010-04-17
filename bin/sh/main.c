@@ -153,10 +153,7 @@ main(int argc, char *argv[])
 	init();
 	setstackmark(&smark);
 	procargs(argc, argv);
-	if (getpwd() == NULL && iflag)
-		out2fmt_flush("sh: cannot determine working directory\n");
-	if (getpwd() != NULL)
-		setvar ("PWD", getpwd(), VEXPORT);
+	pwd_init(iflag);
 	if (iflag)
 		chkmail(1);
 	if (argv[0] && argv[0][0] == '-') {
