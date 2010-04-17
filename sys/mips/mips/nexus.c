@@ -166,16 +166,19 @@ static int
 nexus_setup_intr(device_t dev, device_t child, struct resource *res, int flags,
     driver_filter_t *filt, driver_intr_t *intr, void *arg, void **cookiep)
 {
+	register_t s;
 	int irq;
 
-	intrmask_t s = disableintr();
+	s = intr_disable();
 	irq = rman_get_start(res);
-	if (irq >= NUM_MIPS_IRQS)
+	if (irq >= NUM_MIPS_IRQS) {
+		intr_restore(s);
 		return (0);
+	}
 
 	cpu_establish_hardintr(device_get_nameunit(child), filt, intr, arg,
 	    irq, flags, cookiep);
-	restoreintr(s);
+	intr_restore(s);
 	return (0);
 }
 

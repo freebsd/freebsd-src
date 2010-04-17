@@ -370,11 +370,10 @@ mips_vector_init(void)
 	 * when handler is installed for it
 	 */
 	set_intr_mask(ALL_INT_MASK);
-	enableintr();
+	intr_enable();
 
 	/* Clear BEV in SR so we start handling our own exceptions */
-	mips_cp0_status_write(mips_cp0_status_read() & ~SR_BOOT_EXC_VEC);
-
+	mips_wr_status(mips_rd_status() & ~SR_BOOT_EXC_VEC);
 }
 
 /*
@@ -471,7 +470,7 @@ spinlock_enter(void)
 
 	td = curthread;
 	if (td->td_md.md_spinlock_count == 0)
-		td->td_md.md_saved_intr = disableintr();
+		td->td_md.md_saved_intr = intr_disable();
 	td->td_md.md_spinlock_count++;
 	critical_enter();
 }
@@ -485,16 +484,7 @@ spinlock_exit(void)
 	critical_exit();
 	td->td_md.md_spinlock_count--;
 	if (td->td_md.md_spinlock_count == 0)
-		restoreintr(td->td_md.md_saved_intr);
-}
-
-u_int32_t
-get_cyclecount(void)
-{
-	u_int32_t count;
-
-	mfc0_macro(count, 9);
-	return (count);
+		intr_restore(td->td_md.md_saved_intr);
 }
 
 /*
@@ -503,7 +493,7 @@ get_cyclecount(void)
 void
 cpu_idle(int busy)
 {
-	if (mips_cp0_status_read() & SR_INT_ENAB)
+	if (mips_rd_status() & SR_INT_ENAB)
 		__asm __volatile ("wait");
 	else
 		panic("ints disabled in idleproc!");

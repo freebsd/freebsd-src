@@ -46,9 +46,7 @@
 
 #include <sys/cdefs.h>
 #ifdef _KERNEL
-#ifdef _LOCORE
-#include <machine/psl.h>
-#else
+#ifndef _LOCORE
 #include <machine/cpu.h>
 #endif
 #endif
