@@ -849,7 +849,7 @@ retry:
 uint32_t
 sctp_select_a_tag(struct sctp_inpcb *inp, uint16_t lport, uint16_t rport, int save_in_twait)
 {
-	u_long x, not_done;
+	uint32_t x, not_done;
 	struct timeval now;
 
 	(void)SCTP_GETTIME_TIMEVAL(&now);
@@ -2770,8 +2770,6 @@ sctp_pad_lastmbuf(struct mbuf *m, int padval, struct mbuf *last_mbuf)
 	return (EFAULT);
 }
 
-int sctp_asoc_change_wake = 0;
-
 static void
 sctp_notify_assoc_change(uint32_t event, struct sctp_tcb *stcb,
     uint32_t error, void *data, int so_locked
@@ -2825,7 +2823,6 @@ sctp_notify_assoc_change(uint32_t event, struct sctp_tcb *stcb,
 			SCTP_SOCKET_UNLOCK(so, 1);
 		}
 #endif
-		sctp_asoc_change_wake++;
 	}
 	if (sctp_is_feature_off(stcb->sctp_ep, SCTP_PCB_FLAGS_RECVASSOCEVNT)) {
 		/* event not enabled */
