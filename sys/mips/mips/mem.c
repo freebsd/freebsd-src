@@ -120,21 +120,23 @@ memrw(struct cdev *dev, struct uio *uio, int flags)
 			 * Make sure that all the pages are currently resident
 			 * so that we don't create any zero-fill pages.
 			 */
+			if (va >= VM_MIN_KERNEL_ADDRESS &&
+			    eva <= VM_MAX_KERNEL_ADDRESS) {
+				for (; va < eva; va += PAGE_SIZE)
+					if (pmap_extract(kernel_pmap, va) == 0)
+						return (EFAULT);
 
-			for (; va < eva; va += PAGE_SIZE)
-				if (pmap_extract(kernel_pmap, va) == 0)
+				prot = (uio->uio_rw == UIO_READ)
+				    ? VM_PROT_READ : VM_PROT_WRITE;
+
+				va = uio->uio_offset;
+				if (kernacc((void *) va, iov->iov_len, prot)
+				    == FALSE)
 					return (EFAULT);
-
-			prot = (uio->uio_rw == UIO_READ)
-			    ? VM_PROT_READ : VM_PROT_WRITE;
+			}
 
 			va = uio->uio_offset;
-			if (kernacc((void *) va, iov->iov_len, prot)
-			    == FALSE)
-				return (EFAULT);
-
 			error = uiomove((void *)va, iov->iov_len, uio);
-
 			continue;
 		}
 	}
