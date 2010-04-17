@@ -1234,10 +1234,10 @@ ipw_rx_data_intr(struct ipw_softc *sc, struct ipw_status *status,
 	IPW_UNLOCK(sc);
 	ni = ieee80211_find_rxnode(ic, mtod(m, struct ieee80211_frame_min *));
 	if (ni != NULL) {
-		(void) ieee80211_input(ni, m, rssi, nf);
+		(void) ieee80211_input(ni, m, rssi - nf, nf);
 		ieee80211_free_node(ni);
 	} else
-		(void) ieee80211_input_all(ic, m, rssi, nf);
+		(void) ieee80211_input_all(ic, m, rssi - nf, nf);
 	IPW_LOCK(sc);
 
 	bus_dmamap_sync(sc->rbd_dmat, sc->rbd_map, BUS_DMASYNC_PREWRITE);
