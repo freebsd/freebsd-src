@@ -29,6 +29,6 @@
  * $FreeBSD$
  */
 
-char	*getpwd(void);
+void	 pwd_init(int);
 int	 cdcmd (int, char **);
 int	 pwdcmd(int, char **);
