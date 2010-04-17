@@ -210,7 +210,9 @@ ia64_setup_intr(const char *name, int irq, driver_filter_t filter,
 	sa = sapic_lookup(irq, &xiv);
 	if (sa == NULL) {
 		/* XXX unlock */
-		return (EINVAL);
+		printf("XXX %s: no I/O SAPIC -- can't setup IRQ %u\n",
+		    __func__, irq);
+		return (0);
 	}
 
 	if (xiv == 0) {

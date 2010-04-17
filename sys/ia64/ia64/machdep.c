@@ -174,6 +174,70 @@ struct kva_md_info kmi;
 #define	Mhz	1000000L
 #define	Ghz	(1000L*Mhz)
 
+#define	SN_SAL_SET_OS_FEATURE_SET	0x02000066
+
+#define	OSF_ACPI_ENABLE		2
+#define	OSF_PCISEGMENT_ENABLE	3
+
+#include <contrib/dev/acpica/include/acpi.h>
+#include <contrib/dev/acpica/include/actables.h>
+#include <dev/acpica/acpivar.h>
+
+static void
+srat_dump_entry(ACPI_SUBTABLE_HEADER *entry, void *arg)
+{
+	ACPI_SRAT_CPU_AFFINITY *cpu;
+	ACPI_SRAT_MEM_AFFINITY *mem;
+	uint32_t domain;
+	uint16_t sapicid;
+
+	switch (entry->Type) {
+	case ACPI_SRAT_TYPE_CPU_AFFINITY:
+		cpu = (ACPI_SRAT_CPU_AFFINITY *)entry;
+		domain = cpu->ProximityDomainLo |
+		    cpu->ProximityDomainHi[0] << 8 |
+		    cpu->ProximityDomainHi[1] << 16 |
+		    cpu->ProximityDomainHi[2] << 24;
+		sapicid = (cpu->ApicId << 8) | cpu->LocalSapicEid;
+		printf("SRAT: Sapic ID %u domain %d: %s\n", sapicid, domain,
+		    (cpu->Flags & ACPI_SRAT_CPU_ENABLED) ? "enabled" :
+		    "disabled");
+		break;
+	case ACPI_SRAT_TYPE_MEMORY_AFFINITY:
+		mem = (ACPI_SRAT_MEM_AFFINITY *)entry;
+		printf("SRAT: memory domain %d addr %lx len %lx: %s\n",
+		    mem->ProximityDomain, mem->BaseAddress, mem->Length,
+		    (mem->Flags & ACPI_SRAT_MEM_ENABLED) ? "enabled" :
+		    "disabled");
+		break;
+	default:
+		printf("SRAT: unknown type (%u)\n", entry->Type);
+		break;
+	}
+}
+
+static void
+check_sn_sal(void)
+{
+	struct ia64_sal_result r;
+	ACPI_TABLE_HEADER *tbl;
+	void *ptr;
+
+	r = ia64_sal_entry(SAL_SGISN_SN_INFO, 0, 0, 0, 0, 0, 0, 0);
+	printf("XXX: %s: stat=%ld, res0=%#lx, res1=%#lx, res2=%#lx\n",
+	    __func__, r.sal_status, r.sal_result[0], r.sal_result[1],
+	    r.sal_result[2]);
+	if (r.sal_status != 0)
+		return;
+
+	tbl = ptr = acpi_find_table(ACPI_SIG_SRAT);
+	printf("XXX: %s: SRAT table at %p\n", __func__, ptr);
+	acpi_walk_subtables((char *)ptr + sizeof(ACPI_TABLE_SRAT), 
+	    (char *)ptr + tbl->Length, srat_dump_entry, ptr);
+	tbl = acpi_find_table(ACPI_SIG_SLIT);
+	printf("XXX: %s: SLIT table at %p\n", __func__, tbl);
+}
+
 static void
 identifycpu(void)
 {
@@ -509,6 +573,22 @@ cpu_pcpu_init(struct pcpu *pcpu, int cpuid, size_t size)
 }
 
 void
+cpu_pcpu_setup(struct pcpu *pc, u_int acpi_id, u_int sapic_id)
+{
+	struct ia64_sal_result r;
+
+	pc->pc_acpi_id = acpi_id;
+	pc->pc_md.lid = IA64_LID_SET_SAPIC_ID(sapic_id);
+
+	r = ia64_sal_entry(SAL_SGISN_SAPIC_INFO, sapic_id, 0, 0, 0, 0, 0, 0);
+	if (r.sal_status == 0) {
+		pc->pc_md.sgisn_nasid = r.sal_result[0];
+		pc->pc_md.sgisn_subnode = r.sal_result[1];
+		pc->pc_md.sgisn_slice = r.sal_result[2];
+	}
+}
+ 
+void
 spinlock_enter(void)
 {
 	struct thread *td;
@@ -745,16 +825,11 @@ ia64_init(void)
 	ia64_set_k4((u_int64_t)pcpup);
 	pcpu_init(pcpup, 0, sizeof(pcpu0));
 	dpcpu_init((void *)kernend, 0);
+	cpu_pcpu_setup(pcpup, ~0U, ia64_get_lid());
 	kernend += DPCPU_SIZE;
 	PCPU_SET(curthread, &thread0);
 
-	/*
-	 * Initialize the console before we print anything out.
-	 */
-	cninit();
-
-	/* OUTPUT NOW ALLOWED */
-
+#if 0
 	if (ia64_pal_base != 0) {
 		ia64_pal_base &= ~IA64_ID_PAGE_MASK;
 		/*
@@ -765,6 +840,7 @@ ia64_init(void)
 			printf("PAL code mapped by the kernel's TR\n");
 	} else
 		printf("PAL code not found\n");
+#endif
 
 	/*
 	 * Wire things up so we can call the firmware.
@@ -775,8 +851,17 @@ ia64_init(void)
 	ia64_sal_init();
 	calculate_frequencies();
 
+	/*
+	 * Initialize the console before we print anything out.
+	 */
+	cninit();
+
+	/* OUTPUT NOW ALLOWED */
+
 	if (metadata_missing)
 		printf("WARNING: loader(8) metadata is missing!\n");
+
+	check_sn_sal();
 
 	/* Get FPSWA interface */
 	fpswa_iface = (bootinfo.bi_fpswa == 0) ? NULL :

@@ -65,7 +65,7 @@ sgisn_probe(struct uart_bas *bas)
 {
 	struct ia64_sal_result result;
 
-	result = ia64_sal_entry(SAL_SGISN_INFO, 0, 0, 0, 0, 0, 0, 0);
+	result = ia64_sal_entry(SAL_SGISN_SN_INFO, 0, 0, 0, 0, 0, 0, 0);
 	return ((result.sal_status != 0) ? ENXIO : 0);
 }
 
