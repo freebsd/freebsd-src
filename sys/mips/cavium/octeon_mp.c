@@ -25,42 +25,78 @@
  *
  * $FreeBSD$
  */
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
-#include <machine/asm.h>
+#include <sys/param.h>
+#include <sys/conf.h>
+#include <sys/kernel.h>
+#include <sys/systm.h>
 
-	.set noreorder
+#include <machine/hwfunc.h>
+#include <machine/smp.h>
 
-#ifdef SMP
-/*
- * This function must be implemented in assembly because it is called early
- * in AP boot without a valid stack.
- */
-LEAF(platform_processor_id)
-	.set push
-	.set mips32r2
-	jr	ra
-	rdhwr	v0, $0
-	.set pop
-END(platform_processor_id)
+#include <mips/cavium/octeon_pcmap_regs.h>
 
-/*
- * Called on APs to wait until they are told to launch.
- */
-LEAF(octeon_ap_wait)
-	jal	platform_processor_id
-	nop
+unsigned octeon_ap_boot = ~0;
 
-1:	ll	t0, octeon_ap_boot
-	bne	v0, t0, 1b
-	nop
+void
+platform_ipi_send(int cpuid)
+{
+	oct_write64(OCTEON_CIU_MBOX_SETX(cpuid), 1);
+	mips_wbflush();
+}
 
-	move	t0, zero
-	sc	t0, octeon_ap_boot
+void
+platform_ipi_clear(void)
+{
+	uint64_t action;
 
-	beqz	t0, 1b
-	nop
+	action = oct_read64(OCTEON_CIU_MBOX_CLRX(PCPU_GET(cpuid)));
+	KASSERT(action == 1, ("unexpected IPIs: %#jx", (uintmax_t)action));
+	oct_write64(OCTEON_CIU_MBOX_CLRX(PCPU_GET(cpuid)), action);
+}
 
-	j	mpentry
-	nop
-END(octeon_ap_wait)
-#endif
+int
+platform_ipi_intrnum(void)
+{
+	return (1);
+}
+
+void
+platform_init_ap(int cpuid)
+{
+	/*
+	 * Set the exception base.
+	 */
+	mips_wr_prid1(0x80000000 | cpuid);
+
+	/*
+	 * Set up interrupts, clear IPIs and unmask the IPI interrupt.
+	 */
+	octeon_ciu_reset();
+
+	oct_write64(OCTEON_CIU_MBOX_CLRX(cpuid), 0xffffffff);
+	ciu_enable_interrupts(cpuid, CIU_INT_1, CIU_EN_0, OCTEON_CIU_ENABLE_MBOX_INTR, CIU_MIPS_IP3);
+
+	mips_wbflush();
+}
+
+int
+platform_num_processors(void)
+{
+	return (fls(octeon_core_mask));
+}
+
+int
+platform_start_ap(int cpuid)
+{
+	if (atomic_cmpset_32(&octeon_ap_boot, ~0, cpuid) == 0)
+		return (-1);
+	for (;;) {
+		DELAY(1000);
+		if (atomic_cmpset_32(&octeon_ap_boot, 0, ~0) != 0)
+			return (0);
+		printf("Waiting for cpu%d to start\n", cpuid);
+	}
+}
