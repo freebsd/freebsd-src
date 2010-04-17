@@ -2266,8 +2266,8 @@ ipw_assoc(struct ieee80211com *ic, struct ieee80211vap *vap)
 	if (error != 0)
 		goto done;
 
-	if (vap->iv_appie_assocreq != NULL) {
-		struct ieee80211_appie *ie = vap->iv_appie_assocreq;
+	if (vap->iv_appie_wpa != NULL) {
+		struct ieee80211_appie *ie = vap->iv_appie_wpa;
 		error = ipw_setwpaie(sc, ie->ie_data, ie->ie_len);
 		if (error != 0)
 			goto done;
