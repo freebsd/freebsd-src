@@ -36,8 +36,21 @@
 	.set	noat
 	.set	noreorder
 
+#ifdef TARGET_OCTEON
+#define CLEAR_STATUS \
+	mfc0    a0, COP_0_STATUS_REG    ;\
+	li      a2, (MIPS_SR_KX | MIPS_SR_SX | MIPS_SR_UX) ; \
+	or      a0, a0, a2	        ; \
+	li      a2, ~(MIPS_SR_INT_IE | MIPS_SR_EXL | SR_KSU_USER | MIPS_SR_BEV)   ; \
+	and     a0, a0, a2              ; \
+        mtc0    a0, COP_0_STATUS_REG    
+#else
+#define CLEAR_STATUS \
+	mtc0	zero, COP_0_STATUS_REG
+#endif
+
 GLOBAL(mpentry)
-	mtc0	zero, COP_0_STATUS_REG	/* disable interrupts */
+	CLEAR_STATUS			/* disable interrupts */
 
 	mtc0	zero, COP_0_CAUSE_REG	/* clear soft interrupts */
 
