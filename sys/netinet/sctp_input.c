@@ -343,11 +343,6 @@ sctp_process_init(struct sctp_init_chunk *cp, struct sctp_tcb *stcb,
 	asoc->str_reset_seq_in = asoc->asconf_seq_in + 1;
 
 	asoc->mapping_array_base_tsn = ntohl(init->initial_tsn);
-	/*
-	 * EY 05/13/08 - nr_sack: initialize nr_mapping array's base tsn
-	 * like above
-	 */
-	asoc->nr_mapping_array_base_tsn = ntohl(init->initial_tsn);
 	asoc->tsn_last_delivered = asoc->cumulative_tsn = asoc->asconf_seq_in;
 	asoc->last_echo_tsn = asoc->asconf_seq_in;
 	asoc->advanced_peer_ack_point = asoc->last_acked_seq;
@@ -1862,7 +1857,7 @@ sctp_process_cookie_existing(struct mbuf *m, int iphlen, int offset,
 		}
 		if (asoc->nr_mapping_array) {
 			memset(asoc->nr_mapping_array, 0,
-			    asoc->nr_mapping_array_size);
+			    asoc->mapping_array_size);
 		}
 		SCTP_TCB_UNLOCK(stcb);
 		SCTP_INP_INFO_WLOCK();
@@ -2027,7 +2022,7 @@ sctp_process_cookie_new(struct mbuf *m, int iphlen, int offset,
 	 * socket is unbound and we must do an implicit bind. Since we are
 	 * getting a cookie, we cannot be unbound.
 	 */
-	stcb = sctp_aloc_assoc(inp, init_src, 0, &error,
+	stcb = sctp_aloc_assoc(inp, init_src, &error,
 	    ntohl(initack_cp->init.initiate_tag), vrf_id,
 	    (struct thread *)NULL
 	    );
@@ -3236,12 +3231,9 @@ process_chunk_drop(struct sctp_tcb *stcb, struct sctp_chunk_desc *desc,
 		}
 		break;
 	case SCTP_SELECTIVE_ACK:
+	case SCTP_NR_SELECTIVE_ACK:
 		/* resend the sack */
 		sctp_send_sack(stcb);
-		break;
-		/* EY for nr_sacks */
-	case SCTP_NR_SELECTIVE_ACK:
-		sctp_send_nr_sack(stcb);	/* EY resend the nr-sack */
 		break;
 	case SCTP_HEARTBEAT_REQUEST:
 		/* resend a demand HB */
@@ -3514,8 +3506,7 @@ sctp_handle_stream_reset_response(struct sctp_tcb *stcb,
 					memset(stcb->asoc.mapping_array, 0, stcb->asoc.mapping_array_size);
 
 					stcb->asoc.highest_tsn_inside_nr_map = stcb->asoc.highest_tsn_inside_map;
-					stcb->asoc.nr_mapping_array_base_tsn = stcb->asoc.mapping_array_base_tsn;
-					memset(stcb->asoc.nr_mapping_array, 0, stcb->asoc.nr_mapping_array_size);
+					memset(stcb->asoc.nr_mapping_array, 0, stcb->asoc.mapping_array_size);
 
 					stcb->asoc.sending_seq = ntohl(resp->receivers_next_tsn);
 					stcb->asoc.last_acked_seq = stcb->asoc.cumulative_tsn;
@@ -3624,8 +3615,7 @@ sctp_handle_str_reset_request_tsn(struct sctp_tcb *stcb,
 		stcb->asoc.mapping_array_base_tsn = stcb->asoc.highest_tsn_inside_map + 1;
 		memset(stcb->asoc.mapping_array, 0, stcb->asoc.mapping_array_size);
 		stcb->asoc.highest_tsn_inside_nr_map = stcb->asoc.highest_tsn_inside_map;
-		stcb->asoc.nr_mapping_array_base_tsn = stcb->asoc.highest_tsn_inside_map + 1;
-		memset(stcb->asoc.nr_mapping_array, 0, stcb->asoc.nr_mapping_array_size);
+		memset(stcb->asoc.nr_mapping_array, 0, stcb->asoc.mapping_array_size);
 		atomic_add_int(&stcb->asoc.sending_seq, 1);
 		/* save off historical data for retrans */
 		stcb->asoc.last_sending_seq[1] = stcb->asoc.last_sending_seq[0];
@@ -5636,7 +5626,7 @@ sctp_common_input_processing(struct mbuf **mm, int iphlen, int offset,
 			was_a_gap = 1;
 		}
 		stcb->asoc.send_sack = 1;
-		sctp_sack_check(stcb, 1, was_a_gap, &abort_flag);
+		sctp_sack_check(stcb, was_a_gap, &abort_flag);
 		if (abort_flag) {
 			/* Again, we aborted so NO UNLOCK needed */
 			goto out_now;

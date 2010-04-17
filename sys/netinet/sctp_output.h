@@ -155,9 +155,6 @@ void send_forward_tsn(struct sctp_tcb *, struct sctp_association *);
 
 void sctp_send_sack(struct sctp_tcb *);
 
-/* EY 05/07/08 if nr_sacks used, the following function will be called instead of sctp_send_sack */
-void sctp_send_nr_sack(struct sctp_tcb *);
-
 int sctp_send_hb(struct sctp_tcb *, int, struct sctp_nets *);
 
 void sctp_send_ecn_echo(struct sctp_tcb *, struct sctp_nets *, uint32_t);
