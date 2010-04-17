@@ -458,13 +458,9 @@ extern union cpuprid fpu_id;
 struct tlb;
 struct user;
 
-u_int32_t mips_cp0_config1_read(void);
 int Mips_ConfigCache(void);
 void Mips_SetWIRED(int);
 void Mips_SetPID(int);
-u_int Mips_GetCOUNT(void);
-void Mips_SetCOMPARE(u_int);
-u_int Mips_GetCOMPARE(void);
 
 void Mips_SyncCache(void);
 void Mips_SyncDCache(vm_offset_t, int);
