@@ -1792,8 +1792,6 @@ zfs_prop_set(zfs_handle_t *zhp, const char *propname, const char *propval)
 	switch (prop) {
 	case ZFS_PROP_SHAREISCSI:
 	case ZFS_PROP_DEVICES:
-	case ZFS_PROP_ACLMODE:
-	case ZFS_PROP_ACLINHERIT:
 	case ZFS_PROP_ISCSIOPTIONS:
 		(void) snprintf(errbuf, sizeof (errbuf),
 		    "property '%s' not supported on FreeBSD", propname);
