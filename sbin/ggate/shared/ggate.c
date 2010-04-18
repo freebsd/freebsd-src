@@ -10,7 +10,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHORS AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -159,7 +159,7 @@ g_gate_sectorsize(int fd)
 		g_gate_xlog("fstat(): %s.", strerror(errno));
 	if (S_ISCHR(sb.st_mode)) {
 		if (ioctl(fd, DIOCGSECTORSIZE, &secsize) == -1) {
-                        g_gate_xlog("Can't get sector size: %s.",
+			g_gate_xlog("Can't get sector size: %s.",
 			    strerror(errno));
 		}
 	} else if (S_ISREG(sb.st_mode)) {
@@ -174,7 +174,7 @@ void
 g_gate_open_device(void)
 {
 
-	g_gate_devfd = open("/dev/" G_GATE_CTL_NAME, O_RDWR, 0);
+	g_gate_devfd = open("/dev/" G_GATE_CTL_NAME, O_RDWR);
 	if (g_gate_devfd == -1)
 		err(EXIT_FAILURE, "open(/dev/%s)", G_GATE_CTL_NAME);
 }
@@ -281,7 +281,7 @@ g_gate_socket_settings(int sfd)
 	/* Socket settings. */
 	on = 1;
 	if (nagle) {
-		if (setsockopt(sfd, IPPROTO_TCP, TCP_NODELAY, &on, 
+		if (setsockopt(sfd, IPPROTO_TCP, TCP_NODELAY, &on,
 		    sizeof(on)) == -1) {
 			g_gate_xlog("setsockopt() error: %s.", strerror(errno));
 		}
