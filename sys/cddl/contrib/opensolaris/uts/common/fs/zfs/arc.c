@@ -1106,8 +1106,6 @@ add_reference(arc_buf_hdr_t *ab, kmutex_t *hash_lock, void *tag)
 		mutex_enter(lock);
 		ASSERT(list_link_active(&ab->b_arc_node));
 		list_remove(list, ab);
-		mutex_exit(lock);
-
 		if (GHOST_STATE(ab->b_state)) {
 			ASSERT3U(ab->b_datacnt, ==, 0);
 			ASSERT3P(ab->b_buf, ==, NULL);
@@ -1116,6 +1114,7 @@ add_reference(arc_buf_hdr_t *ab, kmutex_t *hash_lock, void *tag)
 		ASSERT(delta > 0);
 		ASSERT3U(*size, >=, delta);
 		atomic_add_64(size, -delta);
+		mutex_exit(lock);
 		/* remove the prefetch flag if we get a reference */
 		if (ab->b_flags & ARC_PREFETCH)
 			ab->b_flags &= ~ARC_PREFETCH;
@@ -1138,15 +1137,13 @@ remove_reference(arc_buf_hdr_t *ab, kmutex_t *hash_lock, void *tag)
 		kmutex_t *lock;
 
 		get_buf_info(ab, state, &list, &lock);
-
 		ASSERT(!MUTEX_HELD(lock));
 		mutex_enter(lock);
 		ASSERT(!list_link_active(&ab->b_arc_node));
 		list_insert_head(list, ab);
-		mutex_exit(lock);
-
 		ASSERT(ab->b_datacnt > 0);
 		atomic_add_64(size, ab->b_size * ab->b_datacnt);
+		mutex_exit(lock);
 	}
 	return (cnt);
 }
