@@ -2813,6 +2813,21 @@ pmap_align_superpage(vm_object_t object, vm_ooffset_t offset,
 		*addr = ((*addr + SEGOFSET) & ~SEGOFSET) + superpage_offset;
 }
 
+/*
+ * 	Increase the starting virtual address of the given mapping so
+ * 	that it is aligned to not be the second page in a TLB entry.
+ * 	This routine assumes that the length is appropriately-sized so
+ * 	that the allocation does not share a TLB entry at all if required.
+ */
+void
+pmap_align_tlb(vm_offset_t *addr)
+{
+	if ((*addr & PAGE_SIZE) == 0)
+		return;
+	*addr += PAGE_SIZE;
+	return;
+}
+
 int pmap_pid_dump(int pid);
 
 int

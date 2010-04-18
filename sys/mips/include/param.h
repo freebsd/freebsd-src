@@ -113,12 +113,9 @@
 
 /*
  * The kernel stack needs to be aligned on a (PAGE_SIZE * 2) boundary.
- *
- * Although we allocate 3 pages for the kernel stack we end up using
- * only the 2 pages that are aligned on a (PAGE_SIZE * 2) boundary.
  */
-#define	KSTACK_PAGES		3	/* kernel stack*/
-#define	KSTACK_GUARD_PAGES	1	/* pages of kstack guard; 0 disables */
+#define	KSTACK_PAGES		2	/* kernel stack*/
+#define	KSTACK_GUARD_PAGES	2	/* pages of kstack guard; 0 disables */
 
 #define	UPAGES			2
 
