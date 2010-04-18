@@ -1422,7 +1422,6 @@ retry:
 		 * not be changed by this operation.
 		 */
 		if ((m->oflags & VPO_BUSY) || m->busy) {
-			vm_page_flag_set(m, PG_REFERENCED);
 			vm_page_unlock_queues();
 			VM_OBJECT_UNLOCK(new_object);
 			m->oflags |= VPO_WANTED;
