@@ -74,6 +74,7 @@ struct nfsclclient {
 #define	NFSCLFLAGS_EXPIREIT	0x0040
 #define	NFSCLFLAGS_FIRSTDELEG	0x0080
 #define	NFSCLFLAGS_GOTDELEG	0x0100
+#define	NFSCLFLAGS_RECVRINPROG	0x0200
 
 struct nfsclowner {
 	LIST_ENTRY(nfsclowner)	nfsow_list;
