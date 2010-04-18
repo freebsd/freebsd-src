@@ -2064,10 +2064,18 @@ vget(struct vnode *vp, int flags, struct thread *td)
 		return (error);
 	}
 	VI_LOCK(vp);
+	/*
+	 * Deal with a timing window when the interlock is not held
+	 * and VI_DOOMED can be set, since we only have a holdcnt,
+	 * not a usecount.
+	 */
+	if (vp->v_iflag & VI_DOOMED && (flags & LK_RETRY) == 0) {
+	       KASSERT((flags & LK_TYPE_MASK) == 0, ("Unexpected flags %x", flags));
+	       vdropl(vp);
+	       return (ENOENT);
+	}
 	/* Upgrade our holdcnt to a usecount. */
 	v_upgrade_usecount(vp);
-	if (vp->v_iflag & VI_DOOMED && (flags & LK_RETRY) == 0)
-		panic("vget: vn_lock failed to return ENOENT\n");
 	if (oweinact) {
 		if (vp->v_iflag & VI_OWEINACT)
 			vinactive(vp, td);
