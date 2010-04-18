@@ -928,7 +928,7 @@ tlb_insert_random:
 	 */
 	GET_CPU_PCPU(k1)
 	lw	k0, PC_CURTHREAD(k1)
-	lw	k0, TD_REALKSTACK(k0)
+	lw	k0, TD_KSTACK(k0)
 	sltu	k0, k0, sp
 	bnez	k0, _C_LABEL(MipsKernGenException)
 	nop
@@ -975,7 +975,7 @@ tlb_insert_random:
 	 */
 	GET_CPU_PCPU(k1)
 	lw	k0, PC_CURTHREAD(k1)
-	sw	zero, TD_REALKSTACK(k0)
+	sw	zero, TD_KSTACK(k0)
 
 	move	a1, a0
 	PANIC("kernel stack overflow - trapframe at %p")

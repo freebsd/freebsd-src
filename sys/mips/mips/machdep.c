@@ -298,14 +298,13 @@ mips_proc0_init(void)
 		(long)kstack0));
 	thread0.td_kstack = kstack0;
 	thread0.td_kstack_pages = KSTACK_PAGES;
-	thread0.td_md.md_realstack = roundup2(thread0.td_kstack, PAGE_SIZE * 2);
 	/* 
 	 * Do not use cpu_thread_alloc to initialize these fields 
 	 * thread0 is the only thread that has kstack located in KSEG0 
 	 * while cpu_thread_alloc handles kstack allocated in KSEG2.
 	 */
-	thread0.td_pcb = (struct pcb *)(thread0.td_md.md_realstack +
-	    (thread0.td_kstack_pages - 1) * PAGE_SIZE) - 1;
+	thread0.td_pcb = (struct pcb *)(thread0.td_kstack +
+	    thread0.td_kstack_pages * PAGE_SIZE) - 1;
 	thread0.td_frame = &thread0.td_pcb->pcb_regs;
 
 	/* Steal memory for the dynamic per-cpu area. */
