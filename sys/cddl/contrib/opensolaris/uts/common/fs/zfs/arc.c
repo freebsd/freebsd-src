@@ -3850,12 +3850,14 @@ arc_fini(void)
 		list_destroy(&arc_mru_ghost->arcs_lists[i]);
 		list_destroy(&arc_mfu->arcs_lists[i]);
 		list_destroy(&arc_mfu_ghost->arcs_lists[i]);
+		list_destroy(&arc_l2c_only->arcs_lists[i]);
 
 		mutex_destroy(&arc_anon->arcs_locks[i].arcs_lock);
 		mutex_destroy(&arc_mru->arcs_locks[i].arcs_lock);
 		mutex_destroy(&arc_mru_ghost->arcs_locks[i].arcs_lock);
 		mutex_destroy(&arc_mfu->arcs_locks[i].arcs_lock);
 		mutex_destroy(&arc_mfu_ghost->arcs_locks[i].arcs_lock);
+		mutex_destroy(&arc_l2c_only->arcs_locks[i].arcs_lock);
 	}
 	
 	mutex_destroy(&zfs_write_limit_lock);
