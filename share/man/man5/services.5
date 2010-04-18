@@ -32,7 +32,7 @@
 .\"     @(#)services.5	8.1 (Berkeley) 6/5/93
 .\" $FreeBSD$
 .\"
-.Dd June 5, 1993
+.Dd April 4, 2010
 .Dt SERVICES 5
 .Os
 .Sh NAME
@@ -65,6 +65,18 @@ not interpreted by the routines which search the file.
 Service names may contain any printable
 character other than a field delimiter, newline,
 or comment character.
+.Pp
+If 
+.Dq db
+is specified as source in the
+.Xr nsswitch.conf 5 ,
+.Pa /var/db/services.db
+is searched.
+The database in
+.Pa /var/db/services.db
+needs to be updated with
+.Xr services_mkdb 8
+after changes to the services file have been applied.
 .Sh NIS INTERACTION
 Access to the NIS
 .Pa services.byname
@@ -84,6 +96,8 @@ file resides in
 .El
 .Sh SEE ALSO
 .Xr getservent 3
+.Xr nsswitch.conf 5
+.Xr services_mkdb 8
 .Sh HISTORY
 The
 .Nm
