@@ -91,8 +91,11 @@ sp_connect(void *ctx __unused)
 }
 
 static int
-sp_server(const char *addr __unused, void **ctxp __unused)
+sp_server(const char *addr, void **ctxp __unused)
 {
+
+	if (strcmp(addr, "socketpair://") != 0)
+		return (-1);
 
 	assert(!"proto_server() not supported on socketpairs");
 	abort();
