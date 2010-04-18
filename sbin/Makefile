@@ -36,6 +36,8 @@ SUBDIR=	adjkerntz \
 	ggate \
 	growfs \
 	gvinum \
+	hastctl \
+	hastd \
 	ifconfig \
 	init \
 	${_ipf} \

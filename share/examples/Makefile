@@ -13,6 +13,7 @@ LDIRS=	BSD_daemon \
 	drivers \
 	etc \
 	find_interface \
+	hast \
 	ibcs2 \
 	ipfw \
 	kld \
@@ -69,6 +70,11 @@ XFILES=	BSD_daemon/FreeBSD.pfa \
 	find_interface/Makefile \
 	find_interface/README \
 	find_interface/find_interface.c \
+	hast/ucarp.sh \
+	hast/ucarp_down.sh \
+	hast/ucarp_up.sh \
+	hast/vip-down.sh \
+	hast/vip-up.sh \
 	ibcs2/README \
 	ibcs2/hello.uu \
 	ipfw/change_rules.sh \

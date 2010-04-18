@@ -12,7 +12,7 @@ FILES=	DAEMON FILESYSTEMS LOGIN NETWORKING SERVERS \
 	encswap \
 	fsck ftp-proxy ftpd \
 	gbde geli geli2 gssd \
-	hcsecd \
+	hastd hcsecd \
 	hostapd hostid hostid_save hostname \
 	inetd initrandom \
 	ip6addrctl ipfilter ipfs ipfw ipmon \
