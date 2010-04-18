@@ -44,7 +44,7 @@
  */
 struct mdthread {
 	int	md_flags;		/* machine-dependent flags */
-	int	md_upte[KSTACK_PAGES - 1]; /* ptes for mapping u pcb */
+	int	md_upte[KSTACK_PAGES];	/* ptes for mapping u pcb */
 	int	md_ss_addr;		/* single step address for ptrace */
 	int	md_ss_instr;		/* single step instruction for ptrace */
 	register_t	md_saved_intr;
@@ -53,7 +53,6 @@ struct mdthread {
 	int	md_pc_ctrl;		/* performance counter control */
 	int	md_pc_count;		/* performance counter */
 	int	md_pc_spill;		/* performance counter spill */
-	vm_offset_t	md_realstack;
 	void	*md_tls;
 };
 
