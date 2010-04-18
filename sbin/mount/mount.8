@@ -120,11 +120,14 @@ takes effect.
 The following options are available:
 .Bl -tag -width indent
 .It Cm acls
-Enable Access Control Lists, or ACLS, which can be customized via the
+Enable POSIX.1e Access Control Lists, or ACLs, which can be customized via the
 .Xr setfacl 1
 and
 .Xr getfacl 1
 commands.
+This flag is mutually exclusive with
+.Cm nfsv4acls
+flag.
 .It Cm async
 All
 .Tn I/O
@@ -186,6 +189,15 @@ See
 .Xr mac 4
 for more information, which cause the multilabel mount flag to be set
 automatically at mount-time.
+.It Cm nfsv4acls
+Enable NFSv4 ACLs, which can be customized via the
+.Xr setfacl 1
+and
+.Xr getfacl 1
+commands.
+This flag is mutually exclusive with
+.Cm acls
+flag.
 .It Cm noasync
 Metadata I/O should be done synchronously, while data I/O should be done
 asynchronously.
