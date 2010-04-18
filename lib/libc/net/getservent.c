@@ -207,6 +207,32 @@ servent_unpack(char *p, struct servent *serv, char **aliases,
 	return 0;
 }
 
+static int
+parse_result(struct servent *serv, char *buffer, size_t bufsize,
+    char *resultbuf, size_t resultbuflen, int *errnop)
+{
+	char **aliases;
+	int aliases_size;
+
+	if (bufsize <= resultbuflen + _ALIGNBYTES + sizeof(char *)) {
+		*errnop = ERANGE;
+		return (NS_RETURN);
+	}
+	aliases = (char **)_ALIGN(&buffer[resultbuflen + 1]);
+	aliases_size = (buffer + bufsize - (char *)aliases) / sizeof(char *);
+	if (aliases_size < 1) {
+		*errnop = ERANGE;
+		return (NS_RETURN);
+	}
+
+	memcpy(buffer, resultbuf, resultbuflen);
+	buffer[resultbuflen] = '\0';
+
+	if (servent_unpack(buffer, serv, aliases, aliases_size, errnop) != 0)
+		return ((*errnop == 0) ? NS_NOTFOUND : NS_RETURN);
+	return (NS_SUCCESS);
+}
+
 /* files backend implementation */
 static	void
 files_endstate(void *p)
@@ -258,8 +284,6 @@ files_servent(void *retval, void *mdata, va_list ap)
 	size_t bufsize;
 	int *errnop;
 
-	char **aliases;
-	int aliases_size;
 	size_t linesize;
 	char *line;
 	char **cp;
@@ -315,28 +339,8 @@ files_servent(void *retval, void *mdata, va_list ap)
 				break;
 			}
 
-			if (*line=='+') {
-				if (serv_mdata->compat_mode != 0)
-					st->compat_mode_active = 1;
-			} else {
-				if (bufsize <= linesize + _ALIGNBYTES +
-				    sizeof(char *)) {
-					*errnop = ERANGE;
-					rv = NS_RETURN;
-					break;
-				}
-				aliases = (char **)_ALIGN(&buffer[linesize+1]);
-				aliases_size = (buffer + bufsize -
-				    (char *)aliases) / sizeof(char *);
-				if (aliases_size < 1) {
-					*errnop = ERANGE;
-					rv = NS_RETURN;
-					break;
-				}
-
-				memcpy(buffer, line, linesize);
-				buffer[linesize] = '\0';
-			}
+			if (*line=='+' && serv_mdata->compat_mode != 0)
+				st->compat_mode_active = 1;
 		}
 
 		if (st->compat_mode_active != 0) {
@@ -367,18 +371,12 @@ files_servent(void *retval, void *mdata, va_list ap)
 			continue;
 		}
 
-		rv = servent_unpack(buffer, serv, aliases, aliases_size,
+		rv = parse_result(serv, buffer, bufsize, line, linesize,
 		    errnop);
-		if (rv !=0 ) {
-			if (*errnop == 0) {
-				rv = NS_NOTFOUND;
-				continue;
-			}
-			else {
-				rv = NS_RETURN;
-				break;
-			}
-		}
+		if (rv == NS_NOTFOUND)
+			continue;
+		if (rv == NS_RETURN)
+			break;
 
 		rv = NS_NOTFOUND;
 		switch (serv_mdata->how) {
@@ -486,9 +484,6 @@ nis_servent(void *retval, void *mdata, va_list ap)
 	size_t bufsize;
 	int *errnop;
 
-	char **aliases;
-	int aliases_size;
-
 	name = NULL;
 	proto = NULL;
 	how = (enum nss_lookup_type)mdata;
@@ -594,39 +589,8 @@ nis_servent(void *retval, void *mdata, va_list ap)
 			break;
 		};
 
-		/* we need a room for additional \n symbol */
-		if (bufsize <=
-		    resultbuflen + 1 + _ALIGNBYTES + sizeof(char *)) {
-			*errnop = ERANGE;
-			rv = NS_RETURN;
-			break;
-		}
-
-		aliases = (char **)_ALIGN(&buffer[resultbuflen + 2]);
-		aliases_size =
-		    (buffer + bufsize - (char *)aliases) / sizeof(char *);
-		if (aliases_size < 1) {
-			*errnop = ERANGE;
-			rv = NS_RETURN;
-			break;
-		}
-
-		/*
-		 * servent_unpack expects lines terminated with \n --
-		 * make it happy
-		 */
-		memcpy(buffer, resultbuf, resultbuflen);
-		buffer[resultbuflen] = '\n';
-		buffer[resultbuflen + 1] = '\0';
-
-		if (servent_unpack(buffer, serv, aliases, aliases_size,
-		    errnop) != 0) {
-			if (*errnop == 0)
-				rv = NS_NOTFOUND;
-			else
-				rv = NS_RETURN;
-		} else
-			rv = NS_SUCCESS;
+		rv = parse_result(serv, buffer, bufsize, resultbuf,
+		    resultbuflen, errnop);
 		free(resultbuf);
 
 	} while (!(rv & NS_TERMINATE) && how == nss_lt_all);
