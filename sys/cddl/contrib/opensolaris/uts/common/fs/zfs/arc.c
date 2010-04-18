@@ -4562,6 +4562,7 @@ l2arc_write_buffers(spa_t *spa, l2arc_dev_t *dev, uint64_t target_sz)
 			hdrl2->b_dev = dev;
 			hdrl2->b_daddr = dev->l2ad_hand;
 
+			ab->b_flags |= ARC_L2_WRITING;
 			ab->b_l2hdr = hdrl2;
 			list_insert_head(dev->l2ad_buflist, ab);
 			buf_data = ab->b_buf->b_data;
