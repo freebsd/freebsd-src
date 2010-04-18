@@ -65,7 +65,7 @@ __FBSDID("$FreeBSD$");
 
 ASSYM(TD_PCB, offsetof(struct thread, td_pcb));
 ASSYM(TD_UPTE, offsetof(struct thread, td_md.md_upte));
-ASSYM(TD_REALKSTACK, offsetof(struct thread, td_md.md_realstack));
+ASSYM(TD_KSTACK, offsetof(struct thread, td_kstack));
 ASSYM(TD_FLAGS, offsetof(struct thread, td_flags));
 ASSYM(TD_LOCK, offsetof(struct thread, td_lock));
 ASSYM(TD_FRAME, offsetof(struct thread, td_frame));

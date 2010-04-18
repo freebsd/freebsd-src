@@ -339,7 +339,7 @@ blocked_loop:
 	sw	a1, PC_CURTHREAD(a3)
 	lw	a2, TD_PCB(a1)
 	sw	a2, PC_CURPCB(a3)
-	lw	v0, TD_REALKSTACK(a1)
+	lw	v0, TD_KSTACK(a1)
 	li	s0, MIPS_KSEG2_START		# If Uarea addr is below kseg2,
 	bltu	v0, s0, sw2			# no need to insert in TLB.
 	lw	a1, TD_UPTE+0(s7)		# t0 = first u. pte

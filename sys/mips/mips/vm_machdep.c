@@ -217,13 +217,9 @@ cpu_thread_swapin(struct thread *td)
 	 * part of the thread struct so cpu_switch() can quickly map in
 	 * the pcb struct and kernel stack.
 	 */
-	if (!(pte = pmap_segmap(kernel_pmap, td->td_md.md_realstack)))
-		panic("cpu_thread_swapin: invalid segmap");
-	pte += ((vm_offset_t)td->td_md.md_realstack >> PAGE_SHIFT) & (NPTEPG - 1);
-
-	for (i = 0; i < KSTACK_PAGES - 1; i++) {
+	for (i = 0; i < KSTACK_PAGES; i++) {
+		pte = pmap_pte(kernel_pmap, td->td_kstack + i * PAGE_SIZE);
 		td->td_md.md_upte[i] = *pte & ~(PTE_RO|PTE_WIRED);
-		pte++;
 	}
 }
 
@@ -238,22 +234,14 @@ cpu_thread_alloc(struct thread *td)
 	pt_entry_t *pte;
 	int i;
 
-	if (td->td_kstack & (1 << PAGE_SHIFT))
-		td->td_md.md_realstack = td->td_kstack + PAGE_SIZE;
-	else
-		td->td_md.md_realstack = td->td_kstack;
-
-	td->td_pcb = (struct pcb *)(td->td_md.md_realstack +
-	    (td->td_kstack_pages - 1) * PAGE_SIZE) - 1;
+	KASSERT((td->td_kstack & (1 << PAGE_SHIFT)) == 0, ("kernel stack must be aligned."));
+	td->td_pcb = (struct pcb *)(td->td_kstack +
+	    td->td_kstack_pages * PAGE_SIZE) - 1;
 	td->td_frame = &td->td_pcb->pcb_regs;
 
-	if (!(pte = pmap_segmap(kernel_pmap, td->td_md.md_realstack)))
-		panic("cpu_thread_alloc: invalid segmap");
-	pte += ((vm_offset_t)td->td_md.md_realstack >> PAGE_SHIFT) & (NPTEPG - 1);
-
-	for (i = 0; i < KSTACK_PAGES - 1; i++) {
+	for (i = 0; i < KSTACK_PAGES; i++) {
+		pte = pmap_pte(kernel_pmap, td->td_kstack + i * PAGE_SIZE);
 		td->td_md.md_upte[i] = *pte & ~(PTE_RO|PTE_WIRED);
-		pte++;
 	}
 }
 
