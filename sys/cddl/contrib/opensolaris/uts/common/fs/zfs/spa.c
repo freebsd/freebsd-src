@@ -62,6 +62,14 @@
 #include "zfs_prop.h"
 #include "zfs_comutil.h"
 
+/* Check hostid on import? */
+static int check_hostid = 1;
+
+SYSCTL_DECL(_vfs_zfs);
+TUNABLE_INT("vfs.zfs.check_hostid", &check_hostid);
+SYSCTL_INT(_vfs_zfs, OID_AUTO, check_hostid, CTLFLAG_RW, &check_hostid, 0,
+    "Check hostid on import?");
+
 int zio_taskq_threads[ZIO_TYPES][ZIO_TASKQ_TYPES] = {
 	/*	ISSUE	INTR					*/
 	{	1,	1	},	/* ZIO_TYPE_NULL	*/
@@ -1168,7 +1176,7 @@ spa_load(spa_t *spa, nvlist_t *config, spa_load_state_t state, int mosconfig)
 			    ZPOOL_CONFIG_HOSTNAME, &hostname) == 0);
 
 			(void) ddi_strtoul(hw_serial, NULL, 10, &myhostid);
-			if (hostid != 0 && myhostid != 0 &&
+			if (check_hostid && hostid != 0 && myhostid != 0 &&
 			    (unsigned long)hostid != myhostid) {
 				cmn_err(CE_WARN, "pool '%s' could not be "
 				    "loaded as it was last accessed by "
