@@ -251,8 +251,11 @@ dumpfs(const char *name)
 		printf("gjournal ");
 	if (fsflags & FS_FLAGS_UPDATED)
 		printf("fs_flags expanded ");
+	if (fsflags & FS_NFS4ACLS)
+		printf("nfsv4acls ");
 	fsflags &= ~(FS_UNCLEAN | FS_DOSOFTDEP | FS_NEEDSFSCK | FS_INDEXDIRS |
-		     FS_ACLS | FS_MULTILABEL | FS_GJOURNAL | FS_FLAGS_UPDATED);
+		     FS_ACLS | FS_MULTILABEL | FS_GJOURNAL | FS_FLAGS_UPDATED |
+		     FS_NFS4ACLS);
 	if (fsflags != 0)
 		printf("unknown flags (%#x)", fsflags);
 	putchar('\n');
