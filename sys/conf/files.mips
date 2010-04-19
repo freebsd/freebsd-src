@@ -50,7 +50,6 @@ mips/mips/bus_space_generic.c 	standard
 mips/mips/busdma_machdep.c 	standard
 mips/mips/cache.c		standard
 mips/mips/cache_mipsNN.c	standard
-#mips/mips/copystr.S		standard
 mips/mips/db_disasm.c		optional	ddb
 mips/mips/db_interface.c	optional	ddb
 mips/mips/db_trace.c		optional	ddb
