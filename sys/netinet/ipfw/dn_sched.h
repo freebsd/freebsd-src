@@ -140,9 +140,9 @@ struct dn_alg {
 
 /* MSVC does not support initializers so we need this ugly macro */
 #ifdef _WIN32
-#define _SI(fld)        
+#define _SI(fld)
 #else
-#define _SI(fld)        fld
+#define _SI(fld)	fld
 #endif
 
 /*
