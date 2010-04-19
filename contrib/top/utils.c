@@ -499,7 +499,7 @@ unsigned long long amt;
 	}
     }
 
-    p = strecpy(p, itoa(amt));
+    p = strecpy(p, itoa((int)amt));
     *p++ = tag;
     *p = '\0';
 
