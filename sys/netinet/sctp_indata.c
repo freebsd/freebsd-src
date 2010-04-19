@@ -2123,6 +2123,10 @@ failed_pdapi_express_del:
 		}
 	}
 finish_express_del:
+	if (tsn == (asoc->cumulative_tsn + 1)) {
+		/* Update cum-ack */
+		asoc->cumulative_tsn = tsn;
+	}
 	if (last_chunk) {
 		*m = NULL;
 	}
