@@ -144,7 +144,7 @@ cpu_fork(register struct thread *td1,register struct proc *p2,
 	pcb2->pcb_context[PCB_REG_RA] = (register_t)fork_trampoline;
 	/* Make sp 64-bit aligned */
 	pcb2->pcb_context[PCB_REG_SP] = (register_t)(((vm_offset_t)td2->td_pcb &
-	    ~(sizeof(__int64_t) - 1)) - STAND_FRAME_SIZE);
+	    ~(sizeof(__int64_t) - 1)) - CALLFRAME_SIZ);
 	pcb2->pcb_context[PCB_REG_S0] = (register_t)fork_return;
 	pcb2->pcb_context[PCB_REG_S1] = (register_t)td2;
 	pcb2->pcb_context[PCB_REG_S2] = (register_t)td2->td_frame;
@@ -339,7 +339,7 @@ cpu_set_upcall(struct thread *td, struct thread *td0)
 	pcb2->pcb_context[PCB_REG_RA] = (register_t)fork_trampoline;
 	/* Make sp 64-bit aligned */
 	pcb2->pcb_context[PCB_REG_SP] = (register_t)(((vm_offset_t)td->td_pcb &
-	    ~(sizeof(__int64_t) - 1)) - STAND_FRAME_SIZE);
+	    ~(sizeof(__int64_t) - 1)) - CALLFRAME_SIZ);
 	pcb2->pcb_context[PCB_REG_S0] = (register_t)fork_return;
 	pcb2->pcb_context[PCB_REG_S1] = (register_t)td;
 	pcb2->pcb_context[PCB_REG_S2] = (register_t)td->td_frame;
@@ -386,7 +386,7 @@ cpu_set_upcall_kse(struct thread *td, void (*entry)(void *), void *arg,
 	* in ``See MIPS Run'' by D. Sweetman, p. 269
 	* align stack */
 	sp = ((register_t)(stack->ss_sp + stack->ss_size) & ~0x7) -
-	    STAND_FRAME_SIZE;
+	    CALLFRAME_SIZ;
 
 	/*
 	 * Set the trap frame to point at the beginning of the uts
