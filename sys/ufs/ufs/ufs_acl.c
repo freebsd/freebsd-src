@@ -330,9 +330,6 @@ ufs_getacl_posix1e(struct vop_getacl_args *ap)
 			old->acl_cnt = 0;
 			break;
 		}
-
-		error = 0;
-
 		/* FALLTHROUGH */
 	case 0:
 		error = acl_copy_oldacl_into_acl(old, ap->a_aclp);
