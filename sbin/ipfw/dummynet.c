@@ -203,9 +203,9 @@ list_flow(struct dn_flow *ni)
 		    inet_ntop(AF_INET6, &(id->dst_ip6), buff, sizeof(buff)),
 		    id->dst_port);
 	}
-	printf("%4llu %8llu %2u %4u %3u\n",
-	    align_uint64(&ni->tot_pkts),
-	    align_uint64(&ni->tot_bytes),
+	pr_u64(&ni->tot_pkts, 4);
+	pr_u64(&ni->tot_bytes, 8);
+	printf("%2u %4u %3u\n",
 	    ni->length, ni->len_bytes, ni->drops);
 }
 
@@ -290,8 +290,8 @@ static void
 list_pipes(struct dn_id *oid, struct dn_id *end)
 {
     char buf[160];	/* pending buffer */
-    buf[0] = '\0';
 
+    buf[0] = '\0';
     for (; oid != end; oid = O_NEXT(oid, oid->len)) {
 	if (oid->len < sizeof(*oid))
 		errx(1, "invalid oid len %d\n", oid->len);
