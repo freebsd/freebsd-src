@@ -54,6 +54,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/pmap.h>
 #include <vm/vm_map.h>
 #include <sys/proc.h>
+#include <machine/cpuregs.h>
 #include <machine/pcb.h>
 #include <machine/sigframe.h>
 #include <machine/proc.h>
@@ -91,9 +92,14 @@ ASSYM(SIGF_UC, offsetof(struct sigframe, sf_uc));
 ASSYM(SIGFPE, SIGFPE);
 ASSYM(PAGE_SHIFT, PAGE_SHIFT);
 ASSYM(PAGE_SIZE, PAGE_SIZE);
+ASSYM(PAGE_MASK, PAGE_MASK);
 ASSYM(SEGSHIFT, SEGSHIFT);
 ASSYM(NPTEPG, NPTEPG);
 ASSYM(TDF_NEEDRESCHED, TDF_NEEDRESCHED);
 ASSYM(TDF_ASTPENDING, TDF_ASTPENDING);
 ASSYM(PCPU_SIZE, sizeof(struct pcpu));
 ASSYM(MAXCOMLEN, MAXCOMLEN);
+
+ASSYM(MIPS_KSEG0_START, MIPS_KSEG0_START);
+ASSYM(MIPS_KSEG1_START, MIPS_KSEG1_START);
+ASSYM(MIPS_KSEG2_START, MIPS_KSEG2_START);
