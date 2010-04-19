@@ -1417,60 +1417,6 @@ fxp_encap(struct fxp_softc *sc, struct mbuf **m_head)
 		    FXP_IPCB_HARDWAREPARSING_ENABLE;
 
 	m = *m_head;
-	/*
-	 * Deal with TCP/IP checksum offload. Note that
-	 * in order for TCP checksum offload to work,
-	 * the pseudo header checksum must have already
-	 * been computed and stored in the checksum field
-	 * in the TCP header. The stack should have
-	 * already done this for us.
-	 */
-	if (m->m_pkthdr.csum_flags & FXP_CSUM_FEATURES) {
-		txp->tx_cb->ipcb_ip_schedule = FXP_IPCB_TCPUDP_CHECKSUM_ENABLE;
-		if (m->m_pkthdr.csum_flags & CSUM_TCP)
-			txp->tx_cb->ipcb_ip_schedule |= FXP_IPCB_TCP_PACKET;
-
-#ifdef FXP_IP_CSUM_WAR
-		/*
-		 * XXX The 82550 chip appears to have trouble
-		 * dealing with IP header checksums in very small
-		 * datagrams, namely fragments from 1 to 3 bytes
-		 * in size. For example, say you want to transmit
-		 * a UDP packet of 1473 bytes. The packet will be
-		 * fragmented over two IP datagrams, the latter
-		 * containing only one byte of data. The 82550 will
-		 * botch the header checksum on the 1-byte fragment.
-		 * As long as the datagram contains 4 or more bytes
-		 * of data, you're ok.
-		 *
-                 * The following code attempts to work around this
-		 * problem: if the datagram is less than 38 bytes
-		 * in size (14 bytes ether header, 20 bytes IP header,
-		 * plus 4 bytes of data), we punt and compute the IP
-		 * header checksum by hand. This workaround doesn't
-		 * work very well, however, since it can be fooled
-		 * by things like VLAN tags and IP options that make
-		 * the header sizes/offsets vary.
-		 */
-
-		if (m->m_pkthdr.csum_flags & CSUM_IP) {
-			if (m->m_pkthdr.len < 38) {
-				struct ip *ip;
-				m->m_data += ETHER_HDR_LEN;
-				ip = mtod(m, struct ip *);
-				ip->ip_sum = in_cksum(m, ip->ip_hl << 2);
-				m->m_data -= ETHER_HDR_LEN;
-				m->m_pkthdr.csum_flags &= ~CSUM_IP;
-			} else {
-				txp->tx_cb->ipcb_ip_activation_high =
-				    FXP_IPCB_HARDWAREPARSING_ENABLE;
-				txp->tx_cb->ipcb_ip_schedule |=
-				    FXP_IPCB_IP_CHECKSUM_ENABLE;
-			}
-		}
-#endif
-	}
-
 	if (m->m_pkthdr.csum_flags & CSUM_TSO) {
 		/*
 		 * 82550/82551 requires ethernet/IP/TCP headers must be
@@ -1539,6 +1485,58 @@ fxp_encap(struct fxp_softc *sc, struct mbuf **m_head)
 		tcp_payload = m->m_pkthdr.len - ip_off - (ip->ip_hl << 2);
 		tcp_payload -= tcp->th_off << 2;
 		*m_head = m;
+	} else if (m->m_pkthdr.csum_flags & FXP_CSUM_FEATURES) {
+		/*
+		 * Deal with TCP/IP checksum offload. Note that
+		 * in order for TCP checksum offload to work,
+		 * the pseudo header checksum must have already
+		 * been computed and stored in the checksum field
+		 * in the TCP header. The stack should have
+		 * already done this for us.
+		 */
+		txp->tx_cb->ipcb_ip_schedule = FXP_IPCB_TCPUDP_CHECKSUM_ENABLE;
+		if (m->m_pkthdr.csum_flags & CSUM_TCP)
+			txp->tx_cb->ipcb_ip_schedule |= FXP_IPCB_TCP_PACKET;
+
+#ifdef FXP_IP_CSUM_WAR
+		/*
+		 * XXX The 82550 chip appears to have trouble
+		 * dealing with IP header checksums in very small
+		 * datagrams, namely fragments from 1 to 3 bytes
+		 * in size. For example, say you want to transmit
+		 * a UDP packet of 1473 bytes. The packet will be
+		 * fragmented over two IP datagrams, the latter
+		 * containing only one byte of data. The 82550 will
+		 * botch the header checksum on the 1-byte fragment.
+		 * As long as the datagram contains 4 or more bytes
+		 * of data, you're ok.
+		 *
+                 * The following code attempts to work around this
+		 * problem: if the datagram is less than 38 bytes
+		 * in size (14 bytes ether header, 20 bytes IP header,
+		 * plus 4 bytes of data), we punt and compute the IP
+		 * header checksum by hand. This workaround doesn't
+		 * work very well, however, since it can be fooled
+		 * by things like VLAN tags and IP options that make
+		 * the header sizes/offsets vary.
+		 */
+
+		if (m->m_pkthdr.csum_flags & CSUM_IP) {
+			if (m->m_pkthdr.len < 38) {
+				struct ip *ip;
+				m->m_data += ETHER_HDR_LEN;
+				ip = mtod(m, struct ip *);
+				ip->ip_sum = in_cksum(m, ip->ip_hl << 2);
+				m->m_data -= ETHER_HDR_LEN;
+				m->m_pkthdr.csum_flags &= ~CSUM_IP;
+			} else {
+				txp->tx_cb->ipcb_ip_activation_high =
+				    FXP_IPCB_HARDWAREPARSING_ENABLE;
+				txp->tx_cb->ipcb_ip_schedule |=
+				    FXP_IPCB_IP_CHECKSUM_ENABLE;
+			}
+		}
+#endif
 	}
 
 	error = bus_dmamap_load_mbuf_sg(sc->fxp_txmtag, txp->tx_map, *m_head,
