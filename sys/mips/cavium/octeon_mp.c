@@ -69,7 +69,7 @@ platform_init_ap(int cpuid)
 	/*
 	 * Set the exception base.
 	 */
-	mips_wr_prid1(0x80000000 | cpuid);
+	mips_wr_ebase(0x80000000 | cpuid);
 
 	/*
 	 * Set up interrupts, clear IPIs and unmask the IPI interrupt.
