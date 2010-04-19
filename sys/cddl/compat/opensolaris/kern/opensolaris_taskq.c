@@ -52,9 +52,9 @@ static void
 system_taskq_init(void *arg)
 {
 
-	system_taskq = (taskq_t *)taskqueue_thread;
 	taskq_zone = uma_zcreate("taskq_zone", sizeof(struct ostask),
 	    NULL, NULL, NULL, NULL, 0, 0);
+	system_taskq = taskq_create("system_taskq", mp_ncpus, 0, 0, 0, 0);
 }
 SYSINIT(system_taskq_init, SI_SUB_CONFIGURE, SI_ORDER_ANY, system_taskq_init, NULL);
 
@@ -62,6 +62,7 @@ static void
 system_taskq_fini(void *arg)
 {
 
+	taskq_destroy(system_taskq);
 	uma_zdestroy(taskq_zone);
 }
 SYSUNINIT(system_taskq_fini, SI_SUB_CONFIGURE, SI_ORDER_ANY, system_taskq_fini, NULL);
@@ -72,10 +73,8 @@ taskq_create(const char *name, int nthreads, pri_t pri, int minalloc __unused,
 {
 	taskq_t *tq;
 
-	if ((flags & TASKQ_THREADS_CPU_PCT) != 0) {
-		/* TODO: Calculate number od threads. */
-		printf("%s: TASKQ_THREADS_CPU_PCT\n", __func__);
-	}
+	if ((flags & TASKQ_THREADS_CPU_PCT) != 0)
+		nthreads = MAX((mp_ncpus * nthreads) / 100, 1);
 
 	tq = kmem_alloc(sizeof(*tq), KM_SLEEP);
 	tq->tq_queue = taskqueue_create(name, M_WAITOK, taskqueue_thread_enqueue,
@@ -83,6 +82,14 @@ taskq_create(const char *name, int nthreads, pri_t pri, int minalloc __unused,
 	(void) taskqueue_start_threads(&tq->tq_queue, nthreads, pri, name);
 
 	return ((taskq_t *)tq);
+}
+
+taskq_t *
+taskq_create_proc(const char *name, int nthreads, pri_t pri, int minalloc,
+    int maxalloc, proc_t *proc __unused, uint_t flags)
+{
+
+	return (taskq_create(name, nthreads, pri, minalloc, maxalloc, flags));
 }
 
 void
