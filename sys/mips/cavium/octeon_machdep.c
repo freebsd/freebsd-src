@@ -86,16 +86,6 @@ static void octeon_boot_params_init(register_t ptr);
 static uint64_t ciu_get_intr_sum_reg_addr(int core_num, int intx, int enx);
 static uint64_t ciu_get_intr_en_reg_addr(int core_num, int intx, int enx);
 
-static __inline void
-mips_wr_ebase(u_int32_t a0)
-{
-	__asm __volatile("mtc0 %[a0], $15, 1 ;"
-	    :
-	    :     [a0] "r"(a0));
-
-	mips_barrier();
-}
-
 void
 platform_cpu_init()
 {
