@@ -369,7 +369,6 @@ mips_vector_init(void)
 	 * when handler is installed for it
 	 */
 	set_intr_mask(ALL_INT_MASK);
-	intr_enable();
 
 	/* Clear BEV in SR so we start handling our own exceptions */
 	mips_wr_status(mips_rd_status() & ~SR_BOOT_EXC_VEC);
