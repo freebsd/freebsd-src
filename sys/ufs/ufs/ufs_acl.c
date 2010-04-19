@@ -465,7 +465,7 @@ ufs_setacl_nfs4(struct vop_setacl_args *ap)
 
 	error = ufs_setacl_nfs4_internal(ap->a_vp, ap->a_aclp, ap->a_td);
 
-	return (0);
+	return (error);
 }
 
 /*
