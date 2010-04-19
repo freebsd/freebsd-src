@@ -27,7 +27,7 @@
 .\"	$FreeBSD$
 .\"
 .\" The following commands are required for all man pages.
-.Dd November 12, 2005
+.Dd October 30, 2007
 .Os
 .Dt GSS_INQUIRE_CRED_BY_MECH 3 PRM
 .Sh NAME
@@ -67,9 +67,8 @@ after use with a call to
 .Fn gss_release_name .
 Specify
 .Dv NULL
-if not required. 
+if not required.
 .It initiator_lifetime
-                     
 The number of seconds for which the credential will remain capable of
 initiating security contexts under the specified mechanism.
 If the credential can no longer be used to initiate contexts,
@@ -136,7 +135,6 @@ it will be set to 0.
 Generic Security Service Application Program Interface Version 2, Update 1
 .It RFC 2744
 Generic Security Service API Version 2 : C-bindings
-.\" .Sh HISTORY
 .El
 .Sh HISTORY
 The
