@@ -328,9 +328,11 @@ pr_u64(uint64_t *pd, int width)
 #else
 #define U64_FMT "llu"
 #endif
-	uint64_t d;
+	uint64_t u;
+	unsigned long long d;
 
-	bcopy (pd, &d, sizeof(d));
+	bcopy (pd, &u, sizeof(u));
+	d = u;
 	return (width > 0) ?
 		printf("%*" U64_FMT " ", width, d) :
 		snprintf(NULL, 0, "%" U64_FMT, d) ;
