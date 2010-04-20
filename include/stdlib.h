@@ -201,7 +201,7 @@ int	 posix_openpt(int);
 char	*ptsname(int);
 int	 putenv(char *);
 long	 random(void);
-char	*realpath(const char *, char resolved_path[]);
+char	*realpath(const char * __restrict, char * __restrict);
 unsigned short
 	*seed48(unsigned short[3]);
 #ifndef _SETKEY_DECLARED
