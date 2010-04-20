@@ -1457,6 +1457,9 @@ siba_crc8(uint8_t crc, uint8_t data)
 	(((__x) & (__mask)) / SIBA_LOWEST_SET_BIT(__mask))
 #define	SIBA_SHIFTOUT(_var, _offset, _mask)				\
 	out->_var = SIBA_SHIFTOUT_SUB(in[SIBA_OFFSET(_offset)], (_mask))
+#define SIBA_SHIFTOUT_4(_var, _offset, _mask, _shift)			\
+	out->_var = ((((uint32_t)in[SIBA_OFFSET((_offset)+2)] << 16 |	\
+	    in[SIBA_OFFSET(_offset)]) & (_mask)) >> (_shift))
 
 static void
 siba_sprom_r123(struct siba_sprom *out, const uint16_t *in)
@@ -1511,6 +1514,7 @@ siba_sprom_r123(struct siba_sprom *out, const uint16_t *in)
 	SIBA_SHIFTOUT(gpio1, SIBA_SPROM1_GPIOA, SIBA_SPROM1_GPIOA_P1);
 	SIBA_SHIFTOUT(gpio2, SIBA_SPROM1_GPIOB, SIBA_SPROM1_GPIOB_P2);
 	SIBA_SHIFTOUT(gpio3, SIBA_SPROM1_GPIOB, SIBA_SPROM1_GPIOB_P3);
+
 	SIBA_SHIFTOUT(maxpwr_a, SIBA_SPROM1_MAXPWR, SIBA_SPROM1_MAXPWR_A);
 	SIBA_SHIFTOUT(maxpwr_bg, SIBA_SPROM1_MAXPWR, SIBA_SPROM1_MAXPWR_BG);
 	SIBA_SHIFTOUT(tssi_a, SIBA_SPROM1_TSSI, SIBA_SPROM1_TSSI_A);
@@ -1587,22 +1591,61 @@ siba_sprom_r8(struct siba_sprom *out, const uint16_t *in)
 	uint16_t v;
 
 	for (i = 0; i < 3; i++) {
-		v = in[SIBA_OFFSET(SIBA_SPROM1_MAC_80211BG) + i];
+		v = in[SIBA_OFFSET(SIBA_SPROM8_MAC_80211BG) + i];
 		*(((uint16_t *)out->mac_80211bg) + i) = htobe16(v);
 	}
 	SIBA_SHIFTOUT(ccode, SIBA_SPROM8_CCODE, 0xffff);
 	SIBA_SHIFTOUT(bf_lo, SIBA_SPROM8_BFLOW, 0xffff);
 	SIBA_SHIFTOUT(bf_hi, SIBA_SPROM8_BFHIGH, 0xffff);
+	SIBA_SHIFTOUT(bf2_lo, SIBA_SPROM8_BFL2LO, 0xffff);
+	SIBA_SHIFTOUT(bf2_hi, SIBA_SPROM8_BFL2HI, 0xffff);
 	SIBA_SHIFTOUT(ant_a, SIBA_SPROM8_ANTAVAIL, SIBA_SPROM8_ANTAVAIL_A);
 	SIBA_SHIFTOUT(ant_bg, SIBA_SPROM8_ANTAVAIL, SIBA_SPROM8_ANTAVAIL_BG);
 	SIBA_SHIFTOUT(maxpwr_bg, SIBA_SPROM8_MAXP_BG, SIBA_SPROM8_MAXP_BG_MASK);
 	SIBA_SHIFTOUT(tssi_bg, SIBA_SPROM8_MAXP_BG, SIBA_SPROM8_TSSI_BG);
 	SIBA_SHIFTOUT(maxpwr_a, SIBA_SPROM8_MAXP_A, SIBA_SPROM8_MAXP_A_MASK);
 	SIBA_SHIFTOUT(tssi_a, SIBA_SPROM8_MAXP_A, SIBA_SPROM8_TSSI_A);
+	SIBA_SHIFTOUT(maxpwr_ah, SIBA_SPROM8_MAXP_AHL,
+	    SIBA_SPROM8_MAXP_AH_MASK);
+	SIBA_SHIFTOUT(maxpwr_al, SIBA_SPROM8_MAXP_AHL,
+	    SIBA_SPROM8_MAXP_AL_MASK);
 	SIBA_SHIFTOUT(gpio0, SIBA_SPROM8_GPIOA, SIBA_SPROM8_GPIOA_P0);
 	SIBA_SHIFTOUT(gpio1, SIBA_SPROM8_GPIOA, SIBA_SPROM8_GPIOA_P1);
 	SIBA_SHIFTOUT(gpio2, SIBA_SPROM8_GPIOB, SIBA_SPROM8_GPIOB_P2);
 	SIBA_SHIFTOUT(gpio3, SIBA_SPROM8_GPIOB, SIBA_SPROM8_GPIOB_P3);
+	SIBA_SHIFTOUT(tri2g, SIBA_SPROM8_TRI25G, SIBA_SPROM8_TRI2G);
+	SIBA_SHIFTOUT(tri5g, SIBA_SPROM8_TRI25G, SIBA_SPROM8_TRI5G);
+	SIBA_SHIFTOUT(tri5gl, SIBA_SPROM8_TRI5GHL, SIBA_SPROM8_TRI5GL);
+	SIBA_SHIFTOUT(tri5gh, SIBA_SPROM8_TRI5GHL, SIBA_SPROM8_TRI5GH);
+	SIBA_SHIFTOUT(rxpo2g, SIBA_SPROM8_RXPO, SIBA_SPROM8_RXPO2G);
+	SIBA_SHIFTOUT(rxpo5g, SIBA_SPROM8_RXPO, SIBA_SPROM8_RXPO5G);
+	SIBA_SHIFTOUT(rssismf2g, SIBA_SPROM8_RSSIPARM2G, SIBA_SPROM8_RSSISMF2G);
+	SIBA_SHIFTOUT(rssismc2g, SIBA_SPROM8_RSSIPARM2G, SIBA_SPROM8_RSSISMC2G);
+	SIBA_SHIFTOUT(rssisav2g, SIBA_SPROM8_RSSIPARM2G, SIBA_SPROM8_RSSISAV2G);
+	SIBA_SHIFTOUT(bxa2g, SIBA_SPROM8_RSSIPARM2G, SIBA_SPROM8_BXA2G);
+	SIBA_SHIFTOUT(rssismf5g, SIBA_SPROM8_RSSIPARM5G, SIBA_SPROM8_RSSISMF5G);
+	SIBA_SHIFTOUT(rssismc5g, SIBA_SPROM8_RSSIPARM5G, SIBA_SPROM8_RSSISMC5G);
+	SIBA_SHIFTOUT(rssisav5g, SIBA_SPROM8_RSSIPARM5G, SIBA_SPROM8_RSSISAV5G);
+	SIBA_SHIFTOUT(bxa5g, SIBA_SPROM8_RSSIPARM5G, SIBA_SPROM8_BXA5G);
+
+	SIBA_SHIFTOUT(pa0b0, SIBA_SPROM8_PA0B0, 0xffff);
+	SIBA_SHIFTOUT(pa0b1, SIBA_SPROM8_PA0B1, 0xffff);
+	SIBA_SHIFTOUT(pa0b2, SIBA_SPROM8_PA0B2, 0xffff);
+	SIBA_SHIFTOUT(pa1b0, SIBA_SPROM8_PA1B0, 0xffff);
+	SIBA_SHIFTOUT(pa1b1, SIBA_SPROM8_PA1B1, 0xffff);
+	SIBA_SHIFTOUT(pa1b2, SIBA_SPROM8_PA1B2, 0xffff);
+	SIBA_SHIFTOUT(pa1lob0, SIBA_SPROM8_PA1LOB0, 0xffff);
+	SIBA_SHIFTOUT(pa1lob1, SIBA_SPROM8_PA1LOB1, 0xffff);
+	SIBA_SHIFTOUT(pa1lob2, SIBA_SPROM8_PA1LOB2, 0xffff);
+	SIBA_SHIFTOUT(pa1hib0, SIBA_SPROM8_PA1HIB0, 0xffff);
+	SIBA_SHIFTOUT(pa1hib1, SIBA_SPROM8_PA1HIB1, 0xffff);
+	SIBA_SHIFTOUT(pa1hib2, SIBA_SPROM8_PA1HIB2, 0xffff);
+	SIBA_SHIFTOUT(cck2gpo, SIBA_SPROM8_CCK2GPO, 0xffff);
+
+	SIBA_SHIFTOUT_4(ofdm2gpo, SIBA_SPROM8_OFDM2GPO, 0xffffffff, 0);
+	SIBA_SHIFTOUT_4(ofdm5glpo, SIBA_SPROM8_OFDM5GLPO, 0xffffffff, 0);
+	SIBA_SHIFTOUT_4(ofdm5gpo, SIBA_SPROM8_OFDM5GPO, 0xffffffff, 0);
+	SIBA_SHIFTOUT_4(ofdm5ghpo, SIBA_SPROM8_OFDM5GHPO, 0xffffffff, 0);
 
 	/* antenna gain */
 	SIBA_SHIFTOUT(again.ghz24.a0, SIBA_SPROM8_AGAIN01, SIBA_SPROM8_AGAIN0);
@@ -2004,4 +2047,80 @@ siba_core_resume(struct siba_softc *siba)
 	siba_powerdown(siba);
 
 	return (0);
+}
+
+static void
+siba_cc_regctl_setmask(struct siba_cc *cc, uint32_t offset, uint32_t mask,
+    uint32_t set)
+{
+
+	SIBA_CC_READ32(cc, SIBA_CC_REGCTL_ADDR);
+	SIBA_CC_WRITE32(cc, SIBA_CC_REGCTL_ADDR, offset);
+	SIBA_CC_READ32(cc, SIBA_CC_REGCTL_ADDR);
+	SIBA_CC_WRITE32(cc, SIBA_CC_REGCTL_DATA,
+	    (SIBA_CC_READ32(cc, SIBA_CC_REGCTL_DATA) & mask) | set);
+	SIBA_CC_READ32(cc, SIBA_CC_REGCTL_DATA);
+}
+
+void
+siba_cc_pmu_set_ldovolt(struct siba_cc *scc, int id, uint32_t volt)
+{
+	struct siba_softc *siba = scc->scc_dev->sd_bus;
+	uint32_t *p = NULL, info[5][3] = {
+		{ 2, 25,  0xf },
+		{ 3,  1,  0xf },
+		{ 3,  9,  0xf },
+		{ 3, 17, 0x3f },
+		{ 0, 21, 0x3f }
+	};
+
+	if (siba->siba_chipid == 0x4312) {
+		if (id != SIBA_LDO_PAREF)
+			return;
+		p = info[4];
+		siba_cc_regctl_setmask(scc, p[0], ~(p[2] << p[1]),
+		    (volt & p[2]) << p[1]);
+		return;
+	}
+	if (siba->siba_chipid == 0x4328 || siba->siba_chipid == 0x5354) {
+		switch (id) {
+		case SIBA_LDO_PAREF:
+			p = info[3];
+			break;
+		case SIBA_LDO_VOLT1:
+			p = info[0];
+			break;
+		case SIBA_LDO_VOLT2:
+			p = info[1];
+			break;
+		case SIBA_LDO_VOLT3:
+			p = info[2];
+			break;
+		default:
+			KASSERT(0 == 1,
+			    ("%s: unsupported voltage ID %#x", __func__, id));
+			return;
+		}
+		siba_cc_regctl_setmask(scc, p[0], ~(p[2] << p[1]),
+		    (volt & p[2]) << p[1]);
+	}
+}
+
+void
+siba_cc_pmu_set_ldoparef(struct siba_cc *scc, uint8_t on)
+{
+	struct siba_softc *siba = scc->scc_dev->sd_bus;
+	int ldo;
+
+	ldo = ((siba->siba_chipid == 0x4312) ? SIBA_CC_PMU_4312_PA_REF :
+	    ((siba->siba_chipid == 0x4328) ? SIBA_CC_PMU_4328_PA_REF :
+	    ((siba->siba_chipid == 0x5354) ? SIBA_CC_PMU_5354_PA_REF : -1)));
+	if (ldo == -1)
+		return;
+
+	if (on)
+		SIBA_CC_SET32(scc, SIBA_CC_PMU_MINRES, 1 << ldo);
+	else
+		SIBA_CC_MASK32(scc, SIBA_CC_PMU_MINRES, ~(1 << ldo));
+	SIBA_CC_READ32(scc, SIBA_CC_PMU_MINRES);
 }
