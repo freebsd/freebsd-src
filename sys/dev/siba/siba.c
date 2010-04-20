@@ -37,9 +37,9 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/bus.h>
 
-#include <dev/siba/sibavar.h>
-#include <dev/siba/sibareg.h>
 #include <dev/siba/siba_ids.h>
+#include <dev/siba/sibareg.h>
+#include <dev/siba/sibavar.h>
 
 /*
  * TODO: De-mipsify this code.
@@ -77,7 +77,7 @@ static struct siba_devid siba_devids[] = {
 	  "MIPS core" },
 	{ SIBA_VID_BROADCOM,	SIBA_DEVID_ETHERNET,	SIBA_REV_ANY,
 	  "Ethernet core" },
-	{ SIBA_VID_BROADCOM,	SIBA_DEVID_USB,		SIBA_REV_ANY,
+	{ SIBA_VID_BROADCOM,	SIBA_DEVID_USB11_HOSTDEV, SIBA_REV_ANY,
 	  "USB host controller" },
 	{ SIBA_VID_BROADCOM,	SIBA_DEVID_IPSEC,	SIBA_REV_ANY,
 	  "IPSEC accelerator" },
@@ -103,7 +103,6 @@ static struct siba_devid *
 static struct resource_list *
 		siba_get_reslist(device_t, device_t);
 static uint8_t	siba_getirq(uint16_t);
-static uint8_t	siba_getncores(uint16_t);
 static int	siba_print_all_resources(device_t dev);
 static int	siba_print_child(device_t, device_t);
 static int	siba_probe(device_t);
@@ -112,30 +111,7 @@ int		siba_read_ivar(device_t, device_t, int, uintptr_t *);
 static struct siba_devinfo *
 		siba_setup_devinfo(device_t, uint8_t);
 int		siba_write_ivar(device_t, device_t, int, uintptr_t);
-
-/*
- * Earlier ChipCommon revisions have hardcoded number of cores
- * present dependent on the ChipCommon ID.
- */
-static uint8_t
-siba_getncores(uint16_t ccid)
-{
-	uint8_t ncores;
-
-	switch (ccid) {
-	case SIBA_CCID_SENTRY5:
-		ncores = 7;
-		break;
-	case SIBA_CCID_BCM4710:
-	case SIBA_CCID_BCM4704:
-		ncores = 9;
-		break;
-	default:
-		ncores = 0;
-	}
-
-	return (ncores);
-}
+uint8_t		siba_getncores(device_t, uint16_t);
 
 /*
  * On the Sentry5, the system bus IRQs are the same as the
@@ -156,7 +132,7 @@ siba_getirq(uint16_t devid)
 	case SIBA_DEVID_IPSEC:
 		irq = 2;
 		break;
-	case SIBA_DEVID_USB:
+	case SIBA_DEVID_USB11_HOSTDEV:
 		irq = 3;
 		break;
 	case SIBA_DEVID_PCI:
@@ -188,7 +164,7 @@ siba_probe(device_t dev)
 	uint16_t ccid;
 	int rid;
 
-	sc->sc_dev = dev;
+	sc->siba_dev = dev;
 
 	//rman_debug = 1;	/* XXX */
 
@@ -197,24 +173,24 @@ siba_probe(device_t dev)
 	 * was compiled with.
 	 */
 	rid = MIPS_MEM_RID;
-	sc->sc_mem = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid,
+	sc->siba_mem_res = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid,
 	    RF_ACTIVE);
-	if (sc->sc_mem == NULL) {
+	if (sc->siba_mem_res == NULL) {
 		device_printf(dev, "unable to allocate probe aperture\n");
 		return (ENXIO);
 	}
-	sc->sc_bt = rman_get_bustag(sc->sc_mem);
-	sc->sc_bh = rman_get_bushandle(sc->sc_mem);
-	sc->sc_maddr = rman_get_start(sc->sc_mem);
-	sc->sc_msize = rman_get_size(sc->sc_mem);
+	sc->siba_mem_bt = rman_get_bustag(sc->siba_mem_res);
+	sc->siba_mem_bh = rman_get_bushandle(sc->siba_mem_res);
+	sc->siba_maddr = rman_get_start(sc->siba_mem_res);
+	sc->siba_msize = rman_get_size(sc->siba_mem_res);
 
 	if (siba_debug) {
 		device_printf(dev, "start %08x len %08x\n",
-		    sc->sc_maddr, sc->sc_msize);
+		    sc->siba_maddr, sc->siba_msize);
 	}
 
-	idlo = siba_read_4(sc, 0, SIBA_CORE_IDLO);
-	idhi = siba_read_4(sc, 0, SIBA_CORE_IDHI);
+	idlo = siba_mips_read_4(sc, 0, SIBA_IDLOW);
+	idhi = siba_mips_read_4(sc, 0, SIBA_IDHIGH);
 	ccid = ((idhi & 0x8ff0) >> 4);
 	if (siba_debug) {
 		device_printf(dev, "idlo = %08x\n", idlo);
@@ -256,7 +232,7 @@ siba_probe(device_t dev)
 	uint16_t cc_id;
 	uint16_t cc_rev;
 
-	ccidreg = siba_read_4(sc, 0, SIBA_CC_CCID);
+	ccidreg = siba_mips_read_4(sc, 0, SIBA_CC_CHIPID);
 	cc_id = (ccidreg & SIBA_CC_IDMASK);
 	cc_rev = (ccidreg & SIBA_CC_REVMASK) >> SIBA_CC_REVSHIFT;
 	if (siba_debug) {
@@ -264,9 +240,9 @@ siba_probe(device_t dev)
 		     ccidreg, cc_id, cc_rev);
 	}
 
-	sc->sc_ncores = siba_getncores(cc_id);
+	sc->siba_ncores = siba_getncores(dev, cc_id);
 	if (siba_debug) {
-		device_printf(dev, "%d cores detected.\n", sc->sc_ncores);
+		device_printf(dev, "%d cores detected.\n", sc->siba_ncores);
 	}
 
 	/*
@@ -275,36 +251,38 @@ siba_probe(device_t dev)
 	 */
 	rid = MIPS_MEM_RID;
 	int result;
-	result = bus_release_resource(dev, SYS_RES_MEMORY, rid, sc->sc_mem);
+	result = bus_release_resource(dev, SYS_RES_MEMORY, rid,
+	    sc->siba_mem_res);
 	if (result != 0) {
 		device_printf(dev, "error %d releasing resource\n", result);
 		return (ENXIO);
 	}
 
 	uint32_t total;
-	total = sc->sc_ncores * SIBA_CORE_LEN;
+	total = sc->siba_ncores * SIBA_CORE_LEN;
 
 	/* XXX Don't allocate the entire window until we
 	 * enumerate the bus. Once the bus has been enumerated,
 	 * and instance variables/children instantiated + populated,
 	 * release the resource so children may attach.
 	 */
-	sc->sc_mem = bus_alloc_resource(dev, SYS_RES_MEMORY, &rid,
-	    sc->sc_maddr, sc->sc_maddr + total - 1, total, RF_ACTIVE);
-	if (sc->sc_mem == NULL) {
+	sc->siba_mem_res = bus_alloc_resource(dev, SYS_RES_MEMORY, &rid,
+	    sc->siba_maddr, sc->siba_maddr + total - 1, total, RF_ACTIVE);
+	if (sc->siba_mem_res == NULL) {
 		device_printf(dev, "unable to allocate entire aperture\n");
 		return (ENXIO);
 	}
-	sc->sc_bt = rman_get_bustag(sc->sc_mem);
-	sc->sc_bh = rman_get_bushandle(sc->sc_mem);
-	sc->sc_maddr = rman_get_start(sc->sc_mem);
-	sc->sc_msize = rman_get_size(sc->sc_mem);
+	sc->siba_mem_bt = rman_get_bustag(sc->siba_mem_res);
+	sc->siba_mem_bh = rman_get_bushandle(sc->siba_mem_res);
+	sc->siba_maddr = rman_get_start(sc->siba_mem_res);
+	sc->siba_msize = rman_get_size(sc->siba_mem_res);
 
 	if (siba_debug) {
 		device_printf(dev, "after remapping: start %08x len %08x\n",
-		    sc->sc_maddr, sc->sc_msize);
+		    sc->siba_maddr, sc->siba_msize);
 	}
-	bus_set_resource(dev, SYS_RES_MEMORY, rid, sc->sc_maddr, sc->sc_msize);
+	bus_set_resource(dev, SYS_RES_MEMORY, rid, sc->siba_maddr,
+	    sc->siba_msize);
 
 	/*
 	 * We need a manager for the space we claim on nexus to
@@ -313,12 +291,13 @@ siba_probe(device_t dev)
 	 * otherwise it may be claimed elsewhere.
 	 * XXX move to softc
 	 */
-	mem_rman.rm_start = sc->sc_maddr;
-	mem_rman.rm_end = sc->sc_maddr + sc->sc_msize - 1;
+	mem_rman.rm_start = sc->siba_maddr;
+	mem_rman.rm_end = sc->siba_maddr + sc->siba_msize - 1;
 	mem_rman.rm_type = RMAN_ARRAY;
 	mem_rman.rm_descr = "SiBa I/O memory addresses";
 	if (rman_init(&mem_rman) != 0 ||
-	    rman_manage_region(&mem_rman, mem_rman.rm_start, mem_rman.rm_end) != 0) {
+	    rman_manage_region(&mem_rman, mem_rman.rm_start,
+		mem_rman.rm_end) != 0) {
 		panic("%s: mem_rman", __func__);
 	}
 
@@ -344,7 +323,7 @@ siba_attach(device_t dev)
 	 * NB: only one core may be mapped at any time if the siba bus
 	 * is the child of a PCI or PCMCIA bus.
 	 */
-	for (idx = 0; idx < sc->sc_ncores; idx++) {
+	for (idx = 0; idx < sc->siba_ncores; idx++) {
 		sdi = siba_setup_devinfo(dev, idx);
 		child = device_add_child(dev, NULL, -1);
 		if (child == NULL)
@@ -483,13 +462,14 @@ siba_setup_devinfo(device_t dev, uint8_t idx)
 	sdi = malloc(sizeof(*sdi), M_DEVBUF, M_WAITOK | M_ZERO);
 	resource_list_init(&sdi->sdi_rl);
 
-	idlo = siba_read_4(sc, idx, SIBA_CORE_IDLO);
-	idhi = siba_read_4(sc, idx, SIBA_CORE_IDHI);
+	idlo = siba_mips_read_4(sc, idx, SIBA_IDLOW);
+	idhi = siba_mips_read_4(sc, idx, SIBA_IDHIGH);
 
-	vendorid = (idhi & SIBA_IDHIGH_VC) >> SIBA_IDHIGH_VC_SHIFT;
+	vendorid = (idhi & SIBA_IDHIGH_VENDORMASK) >>
+	    SIBA_IDHIGH_VENDOR_SHIFT;
 	devid = ((idhi & 0x8ff0) >> 4);
-	rev = (idhi & SIBA_IDHIGH_RCLO);
-	rev |= (idhi & SIBA_IDHIGH_RCHI) >> SIBA_IDHIGH_RCHI_SHIFT;
+	rev = (idhi & SIBA_IDHIGH_REVLO);
+	rev |= (idhi & SIBA_IDHIGH_REVHI) >> SIBA_IDHIGH_REVHI_SHIFT;
 
 	sdi->sdi_vid = vendorid;
 	sdi->sdi_devid = devid;
@@ -500,7 +480,7 @@ siba_setup_devinfo(device_t dev, uint8_t idx)
 	/*
 	 * Determine memory window on bus and irq if one is needed.
 	 */
-	baseaddr = sc->sc_maddr + (idx * SIBA_CORE_LEN);
+	baseaddr = sc->siba_maddr + (idx * SIBA_CORE_LEN);
 	resource_list_add(&sdi->sdi_rl, SYS_RES_MEMORY,
 	    MIPS_MEM_RID, /* XXX */
 	    baseaddr, baseaddr + SIBA_CORE_LEN - 1, SIBA_CORE_LEN);
