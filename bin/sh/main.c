@@ -157,6 +157,8 @@ main(int argc, char *argv[])
 		out2str("sh: cannot determine working directory\n");
 	if (getpwd() != NULL)
 		setvar ("PWD", getpwd(), VEXPORT);
+	if (iflag)
+		chkmail(1);
 	if (argv[0] && argv[0][0] == '-') {
 		state = 1;
 		read_profile("/etc/profile");
