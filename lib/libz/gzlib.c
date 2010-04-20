@@ -29,7 +29,7 @@ local gzFile gz_open OF((const char *, int, const char *));
 
    The gz_strwinerror function does not change the current setting of
    GetLastError. */
-char ZEXPORT *gz_strwinerror (error)
+char ZLIB_INTERNAL *gz_strwinerror (error)
      DWORD error;
 {
     static char buf[1024];
@@ -485,7 +485,7 @@ void ZEXPORT gzclearerr(file)
    memory).  Simply save the error message as a static string.  If there is an
    allocation failure constructing the error message, then convert the error to
    out of memory. */
-void ZEXPORT gz_error(state, err, msg)
+void ZLIB_INTERNAL gz_error(state, err, msg)
     gz_statep state;
     int err;
     const char *msg;
@@ -525,7 +525,7 @@ void ZEXPORT gz_error(state, err, msg)
    available) -- we need to do this to cover cases where 2's complement not
    used, since C standard permits 1's complement and sign-bit representations,
    otherwise we could just use ((unsigned)-1) >> 1 */
-unsigned ZEXPORT gz_intmax()
+unsigned ZLIB_INTERNAL gz_intmax()
 {
     unsigned p, q;
 
