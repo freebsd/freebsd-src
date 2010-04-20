@@ -70,7 +70,7 @@ __FBSDID("$FreeBSD$");
 
 #ifdef KDTRACE_HOOKS
 #include <sys/dtrace_bsd.h>
-cyclic_clock_func_t	lapic_cyclic_clock_func[MAXCPU];
+cyclic_clock_func_t	cyclic_clock_func[MAXCPU];
 #endif
 
 /* Sanity checks on IDT vectors. */
@@ -778,8 +778,8 @@ lapic_handle_timer(struct trapframe *frame)
 	 * timers.
 	 */
 	int cpu = PCPU_GET(cpuid);
-	if (lapic_cyclic_clock_func[cpu] != NULL)
-		(*lapic_cyclic_clock_func[cpu])(frame);
+	if (cyclic_clock_func[cpu] != NULL)
+		(*cyclic_clock_func[cpu])(frame);
 #endif
 
 	/* Fire hardclock at hz. */
