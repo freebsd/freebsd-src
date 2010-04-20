@@ -536,6 +536,7 @@ static void	bwn_phy_lp_gaintbl_write_r2(struct bwn_mac *, int,
 		    struct bwn_txgain_entry);
 static void	bwn_phy_lp_gaintbl_write_r01(struct bwn_mac *, int,
 		    struct bwn_txgain_entry);
+static void	bwn_sysctl_node(struct bwn_softc *);
 
 static struct resource_spec bwn_res_spec_legacy[] = {
 	{ SYS_RES_IRQ,		0,		RF_ACTIVE | RF_SHAREABLE },
@@ -1066,9 +1067,6 @@ bwn_attach_post(struct bwn_softc *sc)
 	struct ifnet *ifp = sc->sc_ifp;
 	struct siba_dev_softc *sd = sc->sc_sd;
 	struct siba_sprom *sprom = &sd->sd_bus->siba_sprom;
-#ifdef BWN_DEBUG
-	device_t dev = sc->sc_dev;
-#endif
 
 	ic = ifp->if_l2com;
 	ic->ic_ifp = ifp;
@@ -1117,11 +1115,7 @@ bwn_attach_post(struct bwn_softc *sc)
 	    &sc->sc_rx_th.wr_ihdr, sizeof(sc->sc_rx_th),
 	    BWN_RX_RADIOTAP_PRESENT);
 
-#ifdef BWN_DEBUG
-	SYSCTL_ADD_UINT(device_get_sysctl_ctx(dev),
-	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)), OID_AUTO,
-	    "debug", CTLFLAG_RW, &sc->sc_debug, 0, "Debug flags");
-#endif
+	bwn_sysctl_node(sc);
 
 	if (bootverbose)
 		ieee80211_announce(ic);
@@ -9077,6 +9071,7 @@ bwn_handle_txeof(struct bwn_mac *mac, const struct bwn_txstatus *status)
 	struct bwn_pio_txqueue *tq;
 	struct bwn_pio_txpkt *tp = NULL;
 	struct bwn_softc *sc = mac->mac_sc;
+	struct bwn_stats *stats = &mac->mac_stats;
 	struct ieee80211_node *ni;
 	int slot;
 
@@ -9088,9 +9083,9 @@ bwn_handle_txeof(struct bwn_mac *mac, const struct bwn_txstatus *status)
 		device_printf(sc->sc_dev, "TODO: STATUS AMPDU\n");
 	if (status->rtscnt) {
 		if (status->rtscnt == 0xf)
-			device_printf(sc->sc_dev, "TODO: RTS fail\n");
+			stats->rtsfail++;
 		else
-			device_printf(sc->sc_dev, "TODO: RTS ok\n");
+			stats->rts++;
 	}
 
 	if (mac->mac_flags & BWN_MAC_FLAG_DMA) {
@@ -14283,6 +14278,36 @@ bwn_phy_lp_gaintbl_write_r01(struct bwn_mac *mac, int offset,
 	    (te.te_pad << 11) | (te.te_pga << 7) | (te.te_gm  << 4) |
 	    te.te_dac);
 	bwn_tab_write(mac, BWN_TAB_4(10, 0x140 + offset), te.te_bbmult << 20);
+}
+
+static void
+bwn_sysctl_node(struct bwn_softc *sc)
+{
+	device_t dev = sc->sc_dev;
+	struct bwn_mac *mac;
+	struct bwn_stats *stats;
+
+	/* XXX assume that count of MAC is only 1. */
+
+	if ((mac = sc->sc_curmac) == NULL)
+		return;
+	stats = &mac->mac_stats;
+
+	SYSCTL_ADD_UINT(device_get_sysctl_ctx(dev),
+	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)), OID_AUTO,
+	    "linknoise", CTLFLAG_RW, &stats->rts, 0, "Noise level");
+	SYSCTL_ADD_UINT(device_get_sysctl_ctx(dev),
+	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)), OID_AUTO,
+	    "rts", CTLFLAG_RW, &stats->rts, 0, "RTS");
+	SYSCTL_ADD_UINT(device_get_sysctl_ctx(dev),
+	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)), OID_AUTO,
+	    "rtsfail", CTLFLAG_RW, &stats->rtsfail, 0, "RTS failed to send");
+
+#ifdef BWN_DEBUG
+	SYSCTL_ADD_UINT(device_get_sysctl_ctx(dev),
+	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)), OID_AUTO,
+	    "debug", CTLFLAG_RW, &sc->sc_debug, 0, "Debug flags");
+#endif
 }
 
 static void
