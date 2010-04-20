@@ -170,6 +170,7 @@ roberto [label="Ollivier Robert\nroberto@FreeBSD.org\n1995/02/22"]
 rpaulo [label="Rui Paulo\nrpaulo@FreeBSD.org\n2007/09/25"]
 rrs [label="Randall R Stewart\nrrs@FreeBSD.org\n2007/02/08"]
 rse [label="Ralf S. Engelschall\nrse@FreeBSD.org\n1997/07/31"]
+rstone [label="Ryan Stone\nrstone@FreeBSD.org\n2010/04/19"]
 ru [label="Ruslan Ermilov\nru@FreeBSD.org\n1999/05/27"]
 rwatson [label="Robert N. M. Watson\nrwatson@FreeBSD.org\n1999/12/16"]
 sam [label="Sam Leffler\nsam@FreeBSD.org\n2002/07/02"]
@@ -271,6 +272,8 @@ ed -> uqs
 eivind -> des
 eivind -> rwatson
 
+emaste -> rstone
+
 emax -> markus
 
 gallatin -> ticso
@@ -342,6 +345,7 @@ jkh -> yar
 
 jkoshy -> kaiw
 jkoshy -> fabient
+jkoshy -> rstone
 
 jlemon -> bmilekic
 jlemon -> brooks
