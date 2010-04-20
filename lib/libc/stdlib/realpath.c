@@ -84,12 +84,10 @@ realpath(const char * __restrict path, char * __restrict resolved)
 		left_len = strlcpy(left, path + 1, sizeof(left));
 	} else {
 		if (getcwd(resolved, PATH_MAX) == NULL) {
-			strlcpy(resolved, ".", PATH_MAX);
-			if (m) {
-				serrno = errno;
+			if (m)
 				free(resolved);
-				errno = serrno;
-			}
+			else
+				strlcpy(resolved, ".", PATH_MAX);
 			return (NULL);
 		}
 		resolved_len = strlen(resolved);
@@ -168,11 +166,8 @@ realpath(const char * __restrict path, char * __restrict resolved)
 				errno = serrno;
 				return (resolved);
 			}
-			if (m) {
-				serrno = errno;
+			if (m)
 				free(resolved);
-				errno = serrno;
-			}
 			return (NULL);
 		}
 		if (S_ISLNK(sb.st_mode)) {
@@ -184,11 +179,8 @@ realpath(const char * __restrict path, char * __restrict resolved)
 			}
 			slen = readlink(resolved, symlink, sizeof(symlink) - 1);
 			if (slen < 0) {
-				if (m) {
-					serrno = errno;
+				if (m)
 					free(resolved);
-					errno = serrno;
-				}
 				return (NULL);
 			}
 			symlink[slen] = '\0';
