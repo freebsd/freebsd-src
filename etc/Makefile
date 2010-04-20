@@ -18,7 +18,7 @@ BIN1=	auth.conf \
 	rc rc.bsdextended rc.firewall rc.initdiskless \
 	rc.sendmail rc.shutdown \
 	rc.subr remote rpc services shells \
-	sysctl.conf syslog.conf \
+	sysctl.conf syslog.conf termcap.small \
 	etc.${MACHINE_ARCH}/ttys
 
 OPENBSMDIR=			${.CURDIR}/../contrib/openbsm
