@@ -295,7 +295,16 @@ clock_intr(void *arg)
 	 */
 	if (delta > cycles_per_hz)
 		delta = cycles_per_hz;
-
+#if KDTRACE_HOOKS
+	/*
+	 * If the DTrace hooks are configured and a callback function
+	 * has been registered, then call it to process the high speed
+	 * timers.
+	 */
+	int cpu = PCPU_GET(cpuid);
+	if (cyclic_clock_func[cpu] != NULL)
+		(*cyclic_clock_func[cpu])(tf);
+#endif
 	/* Fire hardclock at hz. */
 	cpu_ticks->hard_ticks += delta;
 	if (cpu_ticks->hard_ticks >= cycles_per_hz) {
