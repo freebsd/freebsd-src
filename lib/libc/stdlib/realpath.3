@@ -31,7 +31,7 @@
 .\"     @(#)realpath.3	8.2 (Berkeley) 2/16/94
 .\" $FreeBSD$
 .\"
-.Dd February 16, 1994
+.Dd April 19, 2010
 .Dt REALPATH 3
 .Os
 .Sh NAME
@@ -43,7 +43,7 @@
 .In sys/param.h
 .In stdlib.h
 .Ft "char *"
-.Fn realpath "const char *pathname" "char resolved_path[PATH_MAX]"
+.Fn realpath "const char *pathname" "char *resolved_path"
 .Sh DESCRIPTION
 The
 .Fn realpath
@@ -64,7 +64,8 @@ argument
 .Em must
 refer to a buffer capable of storing at least
 .Dv PATH_MAX
-characters.
+characters, or be
+.Dv NULL .
 .Pp
 The
 .Fn realpath
@@ -82,6 +83,13 @@ The
 function returns
 .Fa resolved_path
 on success.
+If the function was supplied
+.Dv NULL
+as
+.Fa resolved_path ,
+and operation did not cause errors, the returned value is
+a null-terminated string in a buffer allocated by a call to
+.Fn malloc 3 .
 If an error occurs,
 .Fn realpath
 returns
@@ -89,6 +97,11 @@ returns
 and
 .Fa resolved_path
 contains the pathname which caused the problem.
+If
+.Fa resolved_path
+was
+.Dv NULL ,
+then information of the failed pathname component is lost.
 .Sh ERRORS
 The function
 .Fn realpath
