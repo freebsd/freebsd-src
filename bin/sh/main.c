@@ -315,16 +315,12 @@ find_dot_file(char *basename)
 int
 dotcmd(int argc, char **argv)
 {
-	struct strlist *sp;
 	char *fullname;
 
 	if (argc < 2)
 		error("missing filename");
 
 	exitstatus = 0;
-
-	for (sp = cmdenviron; sp ; sp = sp->next)
-		setvareq(savestr(sp->text), VSTRFIXED|VTEXTFIXED);
 
 	fullname = find_dot_file(argv[1]);
 	setinputfile(fullname, 1);
