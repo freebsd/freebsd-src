@@ -191,6 +191,7 @@ struct tv32 {
 #define F_ONCE		0x200000
 #define F_AUDIBLE	0x400000
 #define F_MISSED	0x800000
+#define F_DONTFRAG	0x1000000
 #define F_NOUSERDATA	(F_NODEADDR | F_FQDN | F_FQDNOLD | F_SUPTYPES)
 u_int options;
 
@@ -349,7 +350,7 @@ main(argc, argv)
 #endif /*IPSEC_POLICY_IPSEC*/
 #endif
 	while ((ch = getopt(argc, argv,
-	    "a:b:c:dfHg:h:I:i:l:mnNop:qrRS:s:tvwW" ADDOPTS)) != -1) {
+	    "a:b:c:DdfHg:h:I:i:l:mnNop:qrRS:s:tvwW" ADDOPTS)) != -1) {
 #undef ADDOPTS
 		switch (ch) {
 		case 'a':
@@ -414,6 +415,9 @@ main(argc, argv)
 			if (npackets <= 0 || *optarg == '\0' || *e != '\0')
 				errx(1,
 				    "illegal number of packets -- %s", optarg);
+			break;
+		case 'D':
+			options |= F_DONTFRAG;
 			break;
 		case 'd':
 			options |= F_SO_DEBUG;
@@ -742,7 +746,11 @@ main(argc, argv)
 	for (i = 0; i < sizeof(nonce); i += sizeof(u_int32_t))
 		*((u_int32_t *)&nonce[i]) = arc4random();
 #endif
-
+	optval = 1;
+	if (options & F_DONTFRAG)
+		if (setsockopt(s, IPPROTO_IPV6, IPV6_DONTFRAG,
+		    &optval, sizeof(optval)) == -1)
+			err(1, "IPV6_DONTFRAG");
 	hold = 1;
 
 	if (options & F_SO_DEBUG)
@@ -2780,7 +2788,7 @@ usage()
 	    "A"
 #endif
 	    "usage: ping6 [-"
-	    "d"
+	    "Dd"
 #if defined(IPSEC) && !defined(IPSEC_POLICY_IPSEC)
 	    "E"
 #endif
