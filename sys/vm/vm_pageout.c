@@ -1122,7 +1122,8 @@ unlock_and_continue:
 			    m->act_count == 0) {
 				page_shortage--;
 				if (object->ref_count == 0) {
-					pmap_remove_all(m);
+					KASSERT(!pmap_page_is_mapped(m),
+				    ("vm_pageout_scan: page %p is mapped", m));
 					if (m->dirty == 0)
 						vm_page_cache(m);
 					else
