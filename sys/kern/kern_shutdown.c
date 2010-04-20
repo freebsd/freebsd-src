@@ -496,8 +496,14 @@ shutdown_reset(void *junk, int howto)
 	 *   generally, threads busy-waiting, with this spinlock held,
 	 *   and waiting for responses by threads on other CPUs
 	 *   (ie. smp_tlb_shootdown()).
+	 *
+	 * For the !SMP case it just needs to handle the former problem.
 	 */
+#ifdef SMP
 	mtx_lock_spin(&smp_ipi_mtx);
+#else
+	spinlock_enter();
+#endif
 
 	/* cpu_boot(howto); */ /* doesn't do anything at the moment */
 	cpu_reset();
