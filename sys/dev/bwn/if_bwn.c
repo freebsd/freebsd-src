@@ -1076,6 +1076,7 @@ bwn_attach_post(struct bwn_softc *sc)
 	ic->ic_caps =
 		  IEEE80211_C_STA		/* station mode supported */
 		| IEEE80211_C_MONITOR		/* monitor mode */
+		| IEEE80211_C_AHDEMO		/* adhoc demo mode */
 		| IEEE80211_C_SHPREAMBLE	/* short preamble supported */
 		| IEEE80211_C_SHSLOT		/* short slot time supported */
 		| IEEE80211_C_WME		/* WME/WMM supported */
@@ -8447,7 +8448,8 @@ bwn_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 		}
 	}
 
-	if (vap->iv_opmode == IEEE80211_M_MONITOR) {
+	if (vap->iv_opmode == IEEE80211_M_MONITOR ||
+	    vap->iv_opmode == IEEE80211_M_AHDEMO) {
 		/* XXX nothing to do? */
 	} else if (nstate == IEEE80211_S_RUN) {
 		memcpy(sc->sc_bssid, vap->iv_bss->ni_bssid, IEEE80211_ADDR_LEN);
