@@ -56,13 +56,13 @@ and
 in
 .Fa pathname ,
 and copies the resulting absolute pathname into
-the memory referenced by
+the memory pointed to by
 .Fa resolved_path .
 The
 .Fa resolved_path
 argument
 .Em must
-refer to a buffer capable of storing at least
+point to a buffer capable of storing at least
 .Dv PATH_MAX
 characters, or be
 .Dv NULL .
