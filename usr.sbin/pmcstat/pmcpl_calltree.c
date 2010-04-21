@@ -499,9 +499,10 @@ void
 pmcpl_ct_topdisplay(void)
 {
 	int i, x, y, pmcin;
-	struct pmcpl_ct_sample rsamples;
+	struct pmcpl_ct_sample r, *rsamples;
 
-	pmcpl_ct_samples_root(&rsamples);
+	rsamples = &r;
+	pmcpl_ct_samples_root(rsamples);
 
 	PMCSTAT_PRINTW("%-10.10s %s\n", "IMAGE", "CALLTREE");
 
@@ -524,16 +525,20 @@ pmcpl_ct_topdisplay(void)
 			if (PMCPL_CT_SAMPLE(pmcin,
 			    &pmcpl_ct_root->pct_arc[i].pcta_samples) == 0)
 				continue;
+			if (PMCPL_CT_SAMPLEP(pmcin,
+			    &pmcpl_ct_root->pct_arc[i].pcta_samples) <=
+			    pmcstat_threshold)
+				continue;
 			if (pmcpl_ct_node_dumptop(pmcin,
 			        pmcpl_ct_root->pct_arc[i].pcta_child,
-			        &rsamples, x, &y, pmcstat_displayheight - 2)) {
+			        rsamples, x, &y, pmcstat_displayheight - 2)) {
 				break;
 			}
 		}
 
-		pmcpl_ct_node_printtop(&rsamples, pmcin, y);
+		pmcpl_ct_node_printtop(rsamples, pmcin, y);
 	}
-	pmcpl_ct_samples_free(&rsamples);
+	pmcpl_ct_samples_free(rsamples);
 }
 
 /*
