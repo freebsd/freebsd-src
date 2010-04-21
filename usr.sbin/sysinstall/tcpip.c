@@ -683,6 +683,8 @@ tcpDeviceScan(void)
 		}
 	}
 
+	close(s);
+
 	freeifaddrs(ifap);
 
 	return (NULL);
