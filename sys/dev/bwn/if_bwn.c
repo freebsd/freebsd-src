@@ -12846,7 +12846,6 @@ bwn_phy_lp_clear_deaf(struct bwn_mac *mac, uint8_t user)
 static unsigned int
 bwn_sqrt(struct bwn_mac *mac, unsigned int x)
 {
-	struct bwn_softc *sc = mac->mac_sc;
 	/* Table holding (10 * sqrt(x)) for x between 1 and 256. */
 	static uint8_t sqrt_table[256] = {
 		10, 14, 17, 20, 22, 24, 26, 28,
@@ -12886,9 +12885,11 @@ bwn_sqrt(struct bwn_mac *mac, unsigned int x)
 	if (x == 0)
 		return (0);
 	if (x >= 256) {
-		device_printf(sc->sc_dev,
-		    "out of bounds of the square-root table (%d)\n", x);
-		return (16);
+		unsigned int tmp;
+
+		for (tmp = 0; x >= (2 * tmp) + 1; x -= (2 * tmp++) + 1)
+			/* do nothing */ ;
+		return (tmp);
 	}
 	return (sqrt_table[x - 1] / 10);
 }
