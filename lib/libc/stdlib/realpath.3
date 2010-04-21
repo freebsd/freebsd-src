@@ -94,14 +94,11 @@ If an error occurs,
 .Fn realpath
 returns
 .Dv NULL ,
-and
+and if
 .Fa resolved_path
-contains the pathname which caused the problem.
-If
-.Fa resolved_path
-was
+is not
 .Dv NULL ,
-then information of the failed pathname component is lost.
+the array that it points to contains the pathname which caused the problem.
 .Sh ERRORS
 The function
 .Fn realpath
@@ -126,6 +123,11 @@ when given a relative
 .Fa pathname .
 .Sh "SEE ALSO"
 .Xr getcwd 3
+.Sh STANDARDS
+The
+.Fn realpath
+function conforms to
+.St -p1003.1-2001 .
 .Sh HISTORY
 The
 .Fn realpath
