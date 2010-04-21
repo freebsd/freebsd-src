@@ -2427,6 +2427,7 @@ usb_notify_addq(const char *type, struct usb_device *udev)
 	    "devsubclass=0x%02x "
 	    "sernum=\"%s\" "
 	    "release=0x%04x "
+	    "mode=%s "
 	    "port=%u "
 	    "parent=%s\n",
 	    udev->ugen_name,
@@ -2436,6 +2437,7 @@ usb_notify_addq(const char *type, struct usb_device *udev)
 	    udev->ddesc.bDeviceSubClass,
 	    udev->serial,
 	    UGETW(udev->ddesc.bcdDevice),
+	    (udev->flags.usb_mode == USB_MODE_HOST) ? "host" : "device",
 	    udev->port_no,
 	    udev->parent_hub != NULL ?
 	    udev->parent_hub->ugen_name :
@@ -2461,6 +2463,7 @@ usb_notify_addq(const char *type, struct usb_device *udev)
 		    "devsubclass=0x%02x "
 		    "sernum=\"%s\" "
 		    "release=0x%04x "
+		    "mode=%s "
 		    "interface=%d "
 		    "endpoints=%d "
 		    "intclass=0x%02x "
@@ -2473,6 +2476,7 @@ usb_notify_addq(const char *type, struct usb_device *udev)
 		    udev->ddesc.bDeviceSubClass,
 		    udev->serial,
 		    UGETW(udev->ddesc.bcdDevice),
+		    (udev->flags.usb_mode == USB_MODE_HOST) ? "host" : "device",
 		    iface->idesc->bInterfaceNumber,
 		    iface->idesc->bNumEndpoints,
 		    iface->idesc->bInterfaceClass,
