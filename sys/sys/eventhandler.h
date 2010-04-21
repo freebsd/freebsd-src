@@ -41,6 +41,14 @@ struct eventhandler_entry {
 	void				*ee_arg;
 };
 
+#ifdef VIMAGE
+struct eventhandler_entry_vimage {
+	void	(* func)(void);		/* Original function registered. */
+	void	*ee_arg;		/* Original argument registered. */
+	void	*sparep[2];
+};
+#endif
+
 struct eventhandler_list {
 	char				*el_name;
 	int				el_flags;
@@ -141,6 +149,14 @@ void	eventhandler_deregister(struct eventhandler_list *list,
 	    eventhandler_tag tag);
 struct eventhandler_list *eventhandler_find_list(const char *name);
 void	eventhandler_prune_list(struct eventhandler_list *list);
+
+#ifdef VIMAGE
+typedef	void (*vimage_iterator_func_t)(void *, ...);
+
+eventhandler_tag vimage_eventhandler_register(struct eventhandler_list *list,
+	    const char *name, void *func, void *arg, int priority,
+	    vimage_iterator_func_t);
+#endif
 
 /*
  * Standard system event queues.
