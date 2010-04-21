@@ -931,7 +931,7 @@ if_detach_internal(struct ifnet *ifp, int vmove)
 	if_delgroups(ifp);
 
 	IF_AFDATA_LOCK(ifp);
-	for (dp = domains; dp; dp = dp->dom_next) {
+	for (dp = domains; ifp->if_afdata_initialized > 0 && dp; dp = dp->dom_next) {
 		if (dp->dom_ifdetach && ifp->if_afdata[dp->dom_family])
 			(*dp->dom_ifdetach)(ifp,
 			    ifp->if_afdata[dp->dom_family]);
