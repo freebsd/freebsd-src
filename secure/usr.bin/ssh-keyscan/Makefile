@@ -1,6 +1,7 @@
 # $FreeBSD$
 
 PROG=	ssh-keyscan
+SRCS=	ssh-keyscan.c roaming_dummy.c
 CFLAGS+=-I${SSHDIR} -include ssh_namespace.h
 
 DPADD=	${LIBSSH} ${LIBCRYPT} ${LIBCRYPTO} ${LIBZ}

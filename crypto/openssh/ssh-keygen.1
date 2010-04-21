@@ -1,4 +1,4 @@
-.\"	$OpenBSD: ssh-keygen.1,v 1.79 2008/07/24 23:55:30 sthen Exp $
+.\"	$OpenBSD: ssh-keygen.1,v 1.88 2010/03/08 00:28:55 djm Exp $
 .\"	$FreeBSD$
 .\"
 .\"  -*- nroff -*-
@@ -38,7 +38,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.Dd July 24 2008
+.Dd March 8 2010
 .Dt SSH-KEYGEN 1
 .Os
 .Sh NAME
@@ -53,7 +53,6 @@
 .Op Fl N Ar new_passphrase
 .Op Fl C Ar comment
 .Op Fl f Ar output_keyfile
-.Ek
 .Nm ssh-keygen
 .Fl p
 .Op Fl P Ar old_passphrase
@@ -80,7 +79,7 @@
 .Fl B
 .Op Fl f Ar input_keyfile
 .Nm ssh-keygen
-.Fl D Ar reader
+.Fl D Ar pkcs11
 .Nm ssh-keygen
 .Fl F Ar hostname
 .Op Fl f Ar known_hosts_file
@@ -91,9 +90,6 @@
 .Nm ssh-keygen
 .Fl R Ar hostname
 .Op Fl f Ar known_hosts_file
-.Nm ssh-keygen
-.Fl U Ar reader
-.Op Fl f Ar input_keyfile
 .Nm ssh-keygen
 .Fl r Ar hostname
 .Op Fl f Ar input_keyfile
@@ -110,6 +106,18 @@
 .Op Fl v
 .Op Fl a Ar num_trials
 .Op Fl W Ar generator
+.Nm ssh-keygen
+.Fl s Ar ca_key
+.Fl I Ar certificate_identity
+.Op Fl h
+.Op Fl n Ar principals
+.Op Fl O Ar constraint
+.Op Fl V Ar validity_interval
+.Ar
+.Nm ssh-keygen
+.Fl L
+.Op Fl f Ar input_keyfile
+.Ek
 .Sh DESCRIPTION
 .Nm
 generates, manages and converts authentication keys for
@@ -202,9 +210,9 @@ Requests changing the comment in the private and public key files.
 This operation is only supported for RSA1 keys.
 The program will prompt for the file containing the private keys, for
 the passphrase if the key has one, and for the new comment.
-.It Fl D Ar reader
-Download the RSA public key stored in the smartcard in
-.Ar reader .
+.It Fl D Ar pkcs11
+Download the RSA public keys provided by the PKCS#11 shared library
+.Ar pkcs11 .
 .It Fl e
 This option will read a private or public OpenSSH key file and
 print the key in
@@ -249,6 +257,17 @@ but they do not reveal identifying information should the file's contents
 be disclosed.
 This option will not modify existing hashed hostnames and is therefore safe
 to use on files that mix hashed and non-hashed names.
+.It Fl h
+When signing a key, create a host certificate instead of a user
+certificate.
+Please see the
+.Sx CERTIFICATES
+section for details.
+.It Fl I Ar certificate_identity
+Specify the key identity when signing a public key.
+Please see the
+.Sx CERTIFICATES
+section for details.
 .It Fl i
 This option will read an unencrypted private (or public) key file
 in SSH2-compatible format and print an OpenSSH compatible private
@@ -258,6 +277,8 @@ also reads the
 RFC 4716 SSH Public Key File Format.
 This option allows importing keys from several commercial
 SSH implementations.
+.It Fl L
+Prints the contents of a certificate.
 .It Fl l
 Show fingerprint of specified public key file.
 Private RSA1 keys are also supported.
@@ -272,6 +293,71 @@ Specify the amount of memory to use (in megabytes) when generating
 candidate moduli for DH-GEX.
 .It Fl N Ar new_passphrase
 Provides the new passphrase.
+.It Fl n Ar principals
+Specify one or more principals (user or host names) to be included in
+a certificate when signing a key.
+Multiple principals may be specified, separated by commas.
+Please see the
+.Sx CERTIFICATES
+section for details.
+.It Fl O Ar constraint
+Specify a certificate constraint when signing a key.
+This option may be specified multiple times.
+Please see the
+.Sx CERTIFICATES
+section for details.
+The constraints that are valid for user certificates are:
+.Bl -tag -width Ds
+.It Ic no-x11-forwarding
+Disable X11 forwarding (permitted by default).
+.It Ic no-agent-forwarding
+Disable
+.Xr ssh-agent 1
+forwarding (permitted by default).
+.It Ic no-port-forwarding
+Disable port forwarding (permitted by default).
+.It Ic no-pty
+Disable PTY allocation (permitted by default).
+.It Ic no-user-rc
+Disable execution of
+.Pa ~/.ssh/rc
+by
+.Xr sshd 8
+(permitted by default).
+.It Ic clear
+Clear all enabled permissions.
+This is useful for clearing the default set of permissions so permissions may
+be added individually.
+.It Ic permit-x11-forwarding
+Allows X11 forwarding.
+.It Ic permit-agent-forwarding
+Allows
+.Xr ssh-agent 1
+forwarding.
+.It Ic permit-port-forwarding
+Allows port forwarding.
+.It Ic permit-pty
+Allows PTY allocation.
+.It Ic permit-user-rc
+Allows execution of
+.Pa ~/.ssh/rc
+by
+.Xr sshd 8 .
+.It Ic force-command=command
+Forces the execution of
+.Ar command
+instead of any shell or command specified by the user when
+the certificate is used for authentication.
+.It Ic source-address=address_list
+Restrict the source addresses from which the certificate is considered valid
+from.
+The
+.Ar address_list
+is a comma-separated list of one or more address/netmask pairs in CIDR
+format.
+.El
+.Pp
+At present, no constraints are valid for host keys.
 .It Fl P Ar passphrase
 Provides the (old) passphrase.
 .It Fl p
@@ -301,6 +387,11 @@ Print the SSHFP fingerprint resource record named
 for the specified public key file.
 .It Fl S Ar start
 Specify start point (in hex) when generating candidate moduli for DH-GEX.
+.It Fl s Ar ca_key
+Certify (sign) a public key using the specified CA key.
+Please see the
+.Sx CERTIFICATES
+section for details.
 .It Fl T Ar output_file
 Test DH group exchange candidate primes (generated using the
 .Fl G
@@ -314,9 +405,29 @@ for protocol version 1 and
 or
 .Dq dsa
 for protocol version 2.
-.It Fl U Ar reader
-Upload an existing RSA private key into the smartcard in
-.Ar reader .
+.It Fl V Ar validity_interval
+Specify a validity interval when signing a certificate.
+A validity interval may consist of a single time, indicating that the
+certificate is valid beginning now and expiring at that time, or may consist
+of two times separated by a colon to indicate an explicit time interval.
+The start time may be specified as a date in YYYYMMDD format, a time
+in YYYYMMDDHHMMSS format or a relative time (to the current time) consisting
+of a minus sign followed by a relative time in the format described in the
+.Sx TIME FORMATS
+section of
+.Xr ssh_config 5 .
+The end time may be specified as a YYYYMMDD date, a YYYYMMDDHHMMSS time or
+a relative time starting with a plus character.
+.Pp
+For example:
+.Dq +52w1d
+(valid from now to 52 weeks and one day from now),
+.Dq -4w:+4w
+(valid from four weeks ago to four weeks from now),
+.Dq 20100101123000:20110101123000
+(valid from 12:30 PM, January 1st, 2010 to 12:30 PM, January 1st, 2011),
+.Dq -1d:20110101
+(valid from yesterday to midnight, January 1st, 2011).
 .It Fl v
 Verbose mode.
 Causes
@@ -387,6 +498,73 @@ Screened DH groups may be installed in
 .Pa /etc/moduli .
 It is important that this file contains moduli of a range of bit lengths and
 that both ends of a connection share common moduli.
+.Sh CERTIFICATES
+.Nm
+supports signing of keys to produce certificates that may be used for
+user or host authentication.
+Certificates consist of a public key, some identity information, zero or
+more principal (user or host) names and an optional set of constraints that
+are signed by a Certification Authority (CA) key.
+Clients or servers may then trust only the CA key and verify its signature
+on a certificate rather than trusting many user/host keys.
+Note that OpenSSH certificates are a different, and much simpler, format to
+the X.509 certificates used in
+.Xr ssl 8 .
+.Pp
+.Nm
+supports two types of certificates: user and host.
+User certificates authenticate users to servers, whereas host certificates
+authenticate server hosts to users.
+To generate a user certificate:
+.Pp
+.Dl $ ssh-keygen -s /path/to/ca_key -I key_id /path/to/user_key.pub
+.Pp
+The resultant certificate will be placed in
+.Pa /path/to/user_key_cert.pub .
+A host certificate requires the
+.Fl h
+option:
+.Pp
+.Dl $ ssh-keygen -s /path/to/ca_key -I key_id -h /path/to/host_key.pub
+.Pp
+The host certificate will be output to
+.Pa /path/to/host_key_cert.pub .
+In both cases,
+.Ar key_id
+is a "key identifier" that is logged by the server when the certificate
+is used for authentication.
+.Pp
+Certificates may be limited to be valid for a set of principal (user/host)
+names.
+By default, generated certificates are valid for all users or hosts.
+To generate a certificate for a specified set of principals:
+.Pp
+.Dl $ ssh-keygen -s ca_key -I key_id -n user1,user2 user_key.pub
+.Dl $ ssh-keygen -s ca_key -I key_id -h -n host.domain user_key.pub
+.Pp
+Additional limitations on the validity and use of user certificates may
+be specified through certificate constraints.
+A constrained certificate may disable features of the SSH session, may be
+valid only when presented from particular source addresses or may
+force the use of a specific command.
+For a list of valid certificate constraints, see the documentation for the
+.Fl O
+option above.
+.Pp
+Finally, certificates may be defined with a validity lifetime.
+The
+.Fl V
+option allows specification of certificate start and end times.
+A certificate that is presented at a time outside this range will not be
+considered valid.
+By default, certificates have a maximum validity interval.
+.Pp
+For certificates to be used for user or host authentication, the CA
+public key must be trusted by
+.Xr sshd 8
+or
+.Xr ssh 1 .
+Please refer to those manual pages for details.
 .Sh FILES
 .Bl -tag -width Ds
 .It Pa ~/.ssh/identity
@@ -394,7 +572,7 @@ Contains the protocol version 1 RSA authentication identity of the user.
 This file should not be readable by anyone but the user.
 It is possible to
 specify a passphrase when generating the key; that passphrase will be
-used to encrypt the private part of this file using 3DES.
+used to encrypt the private part of this file using 128-bit AES.
 This file is not automatically accessed by
 .Nm
 but it is offered as the default file for the private key.
@@ -412,7 +590,7 @@ Contains the protocol version 2 DSA authentication identity of the user.
 This file should not be readable by anyone but the user.
 It is possible to
 specify a passphrase when generating the key; that passphrase will be
-used to encrypt the private part of this file using 3DES.
+used to encrypt the private part of this file using 128-bit AES.
 This file is not automatically accessed by
 .Nm
 but it is offered as the default file for the private key.
@@ -430,7 +608,7 @@ Contains the protocol version 2 RSA authentication identity of the user.
 This file should not be readable by anyone but the user.
 It is possible to
 specify a passphrase when generating the key; that passphrase will be
-used to encrypt the private part of this file using 3DES.
+used to encrypt the private part of this file using 128-bit AES.
 This file is not automatically accessed by
 .Nm
 but it is offered as the default file for the private key.

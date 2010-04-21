@@ -208,10 +208,6 @@ are installed.
 --with-4in6 Check for IPv4 in IPv6 mapped addresses and convert them to
 real (AF_INET) IPv4 addresses. Works around some quirks on Linux.
 
---with-opensc=DIR
---with-sectok=DIR allows for OpenSC or sectok smartcard libraries to
-be used with OpenSSH.  See 'README.smartcard' for more details.
-
 If you need to pass special options to the compiler or linker, you
 can specify these as environment variables before running ./configure.
 For example:
@@ -266,4 +262,4 @@ Please refer to the "reporting bugs" section of the webpage at
 http://www.openssh.com/
 
 
-$Id: INSTALL,v 1.84 2007/08/17 12:52:05 dtucker Exp $
+$Id: INSTALL,v 1.85 2010/02/11 22:34:22 djm Exp $

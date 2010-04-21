@@ -1,4 +1,4 @@
-/* $OpenBSD: monitor.c,v 1.101 2009/02/12 03:26:22 djm Exp $ */
+/* $OpenBSD: monitor.c,v 1.106 2010/03/07 11:57:13 dtucker Exp $ */
 /*
  * Copyright 2002 Niels Provos <provos@citi.umich.edu>
  * Copyright 2002 Markus Friedl <markus@openbsd.org>
@@ -88,6 +88,7 @@
 #include "compat.h"
 #include "ssh2.h"
 #include "jpake.h"
+#include "roaming.h"
 
 #ifdef GSSAPI
 static Gssctxt *gsscontext = NULL;
@@ -100,7 +101,6 @@ extern Newkeys *current_keys[];
 extern z_stream incoming_stream;
 extern z_stream outgoing_stream;
 extern u_char session_id[];
-extern Buffer input, output;
 extern Buffer auth_debug;
 extern int auth_debug_init;
 extern Buffer loginmsg;
@@ -126,6 +126,8 @@ struct {
 	u_int ilen;
 	u_char *output;
 	u_int olen;
+	u_int64_t sent_bytes;
+	u_int64_t recv_bytes;
 } child_state;
 
 /* Functions on the monitor that answer unprivileged requests */
@@ -995,17 +997,6 @@ mm_answer_pam_free_ctx(int sock, Buffer *m)
 }
 #endif
 
-static void
-mm_append_debug(Buffer *m)
-{
-	if (auth_debug_init && buffer_len(&auth_debug)) {
-		debug3("%s: Appending debug messages for child", __func__);
-		buffer_append(m, buffer_ptr(&auth_debug),
-		    buffer_len(&auth_debug));
-		buffer_clear(&auth_debug);
-	}
-}
-
 int
 mm_answer_keyallowed(int sock, Buffer *m)
 {
@@ -1087,8 +1078,6 @@ mm_answer_keyallowed(int sock, Buffer *m)
 	buffer_clear(m);
 	buffer_put_int(m, allowed);
 	buffer_put_int(m, forced_command != NULL);
-
-	mm_append_debug(m);
 
 	mm_request_send(sock, MONITOR_ANS_KEYALLOWED, m);
 
@@ -1473,8 +1462,6 @@ mm_answer_rsa_keyallowed(int sock, Buffer *m)
 	if (key != NULL)
 		key_free(key);
 
-	mm_append_debug(m);
-
 	mm_request_send(sock, MONITOR_ANS_RSAKEYALLOWED, m);
 
 	monitor_permit(mon_dispatch, MONITOR_REQ_RSACHALLENGE, allowed);
@@ -1670,15 +1657,20 @@ monitor_apply_keystate(struct monitor *pmonitor)
 
 	/* Network I/O buffers */
 	/* XXX inefficient for large buffers, need: buffer_init_from_string */
-	buffer_clear(&input);
-	buffer_append(&input, child_state.input, child_state.ilen);
+	buffer_clear(packet_get_input());
+	buffer_append(packet_get_input(), child_state.input, child_state.ilen);
 	memset(child_state.input, 0, child_state.ilen);
 	xfree(child_state.input);
 
-	buffer_clear(&output);
-	buffer_append(&output, child_state.output, child_state.olen);
+	buffer_clear(packet_get_output());
+	buffer_append(packet_get_output(), child_state.output,
+		      child_state.olen);
 	memset(child_state.output, 0, child_state.olen);
 	xfree(child_state.output);
+
+	/* Roaming */
+	if (compat20)
+		roam_set_bytes(child_state.sent_bytes, child_state.recv_bytes);
 }
 
 static Kex *
@@ -1714,7 +1706,8 @@ mm_get_kex(Buffer *m)
 	kex->flags = buffer_get_int(m);
 	kex->client_version_string = buffer_get_string(m, NULL);
 	kex->server_version_string = buffer_get_string(m, NULL);
-	kex->load_host_key=&get_hostkey_by_type;
+	kex->load_host_public_key=&get_hostkey_public_by_type;
+	kex->load_host_private_key=&get_hostkey_private_by_type;
 	kex->host_key_index=&get_hostkey_index;
 
 	return (kex);
@@ -1793,6 +1786,12 @@ mm_get_keystate(struct monitor *pmonitor)
 	debug3("%s: Getting Network I/O buffers", __func__);
 	child_state.input = buffer_get_string(&m, &child_state.ilen);
 	child_state.output = buffer_get_string(&m, &child_state.olen);
+
+	/* Roaming */
+	if (compat20) {
+		child_state.sent_bytes = buffer_get_int64(&m);
+		child_state.recv_bytes = buffer_get_int64(&m);
+	}
 
 	buffer_free(&m);
 }

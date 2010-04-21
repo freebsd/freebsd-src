@@ -173,6 +173,15 @@ be added using the following request
 	string			key_comment
 	constraint[]		key_constraints
 
+DSA certificates may be added with:
+	byte			SSH2_AGENTC_ADD_IDENTITY or
+				SSH2_AGENTC_ADD_ID_CONSTRAINED
+	string			"ssh-dss-cert-v00@openssh.com"
+	string			certificate
+	mpint			dsa_private_key
+	string			key_comment
+	constraint[]		key_constraints
+
 RSA keys may be added with this request:
 
 	byte			SSH2_AGENTC_ADD_IDENTITY or
@@ -180,6 +189,19 @@ RSA keys may be added with this request:
 	string			"ssh-rsa"
 	mpint			rsa_n
 	mpint			rsa_e
+	mpint			rsa_d
+	mpint			rsa_iqmp
+	mpint			rsa_p
+	mpint			rsa_q
+	string			key_comment
+	constraint[]		key_constraints
+
+RSA certificates may be added with this request:
+
+	byte			SSH2_AGENTC_ADD_IDENTITY or
+				SSH2_AGENTC_ADD_ID_CONSTRAINED
+	string			"ssh-rsa-cert-v00@openssh.com"
+	string			certificate
 	mpint			rsa_d
 	mpint			rsa_iqmp
 	mpint			rsa_p
@@ -513,4 +535,4 @@ Locking and unlocking affects both protocol 1 and protocol 2 keys.
 	SSH_AGENT_CONSTRAIN_LIFETIME			1
 	SSH_AGENT_CONSTRAIN_CONFIRM			2
 
-$OpenBSD: PROTOCOL.agent,v 1.4 2008/07/01 23:12:47 stevesk Exp $
+$OpenBSD: PROTOCOL.agent,v 1.5 2010/02/26 20:29:54 djm Exp $

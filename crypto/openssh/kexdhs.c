@@ -1,4 +1,4 @@
-/* $OpenBSD: kexdhs.c,v 1.9 2006/11/06 21:25:28 markus Exp $ */
+/* $OpenBSD: kexdhs.c,v 1.11 2010/02/26 20:29:54 djm Exp $ */
 /*
  * Copyright (c) 2001 Markus Friedl.  All rights reserved.
  *
@@ -50,7 +50,7 @@ kexdh_server(Kex *kex)
 {
 	BIGNUM *shared_secret = NULL, *dh_client_pub = NULL;
 	DH *dh;
-	Key *server_host_key;
+	Key *server_host_public, *server_host_private;
 	u_char *kbuf, *hash, *signature = NULL, *server_host_key_blob = NULL;
 	u_int sbloblen, klen, hashlen, slen;
 	int kout;
@@ -71,11 +71,16 @@ kexdh_server(Kex *kex)
 	debug("expecting SSH2_MSG_KEXDH_INIT");
 	packet_read_expect(SSH2_MSG_KEXDH_INIT);
 
-	if (kex->load_host_key == NULL)
+	if (kex->load_host_public_key == NULL ||
+	    kex->load_host_private_key == NULL)
 		fatal("Cannot load hostkey");
-	server_host_key = kex->load_host_key(kex->hostkey_type);
-	if (server_host_key == NULL)
+	server_host_public = kex->load_host_public_key(kex->hostkey_type);
+	if (server_host_public == NULL)
 		fatal("Unsupported hostkey type %d", kex->hostkey_type);
+	server_host_private = kex->load_host_private_key(kex->hostkey_type);
+	if (server_host_private == NULL)
+		fatal("Missing private key for hostkey type %d",
+		    kex->hostkey_type);
 
 	/* key, cert */
 	if ((dh_client_pub = BN_new()) == NULL)
@@ -113,7 +118,7 @@ kexdh_server(Kex *kex)
 	memset(kbuf, 0, klen);
 	xfree(kbuf);
 
-	key_to_blob(server_host_key, &server_host_key_blob, &sbloblen);
+	key_to_blob(server_host_public, &server_host_key_blob, &sbloblen);
 
 	/* calc H */
 	kex_dh_hash(
@@ -137,7 +142,9 @@ kexdh_server(Kex *kex)
 	}
 
 	/* sign H */
-	PRIVSEP(key_sign(server_host_key, &signature, &slen, hash, hashlen));
+	if (PRIVSEP(key_sign(server_host_private, &signature, &slen, hash,
+	    hashlen)) < 0)
+		fatal("kexdh_server: key_sign failed");
 
 	/* destroy_sensitive_data(); */
 

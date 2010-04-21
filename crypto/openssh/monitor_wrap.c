@@ -1,4 +1,4 @@
-/* $OpenBSD: monitor_wrap.c,v 1.64 2008/11/04 08:22:13 djm Exp $ */
+/* $OpenBSD: monitor_wrap.c,v 1.69 2010/03/07 11:57:13 dtucker Exp $ */
 /*
  * Copyright 2002 Niels Provos <provos@citi.umich.edu>
  * Copyright 2002 Markus Friedl <markus@openbsd.org>
@@ -71,19 +71,19 @@
 #include "atomicio.h"
 #include "monitor_fdpass.h"
 #include "misc.h"
+#include "schnorr.h"
 #include "jpake.h"
 
 #include "channels.h"
 #include "session.h"
 #include "servconf.h"
+#include "roaming.h"
 
 /* Imports */
 extern int compat20;
-extern Newkeys *newkeys[];
 extern z_stream incoming_stream;
 extern z_stream outgoing_stream;
 extern struct monitor *pmonitor;
-extern Buffer input, output;
 extern Buffer loginmsg;
 extern ServerOptions options;
 
@@ -347,19 +347,6 @@ mm_auth_rhosts_rsa_key_allowed(struct passwd *pw, char *user,
 	return (ret);
 }
 
-static void
-mm_send_debug(Buffer *m)
-{
-	char *msg;
-
-	while (buffer_len(m)) {
-		msg = buffer_get_string(m, NULL);
-		debug3("%s: Sending debug: %s", __func__, msg);
-		packet_send_debug("%s", msg);
-		xfree(msg);
-	}
-}
-
 int
 mm_key_allowed(enum mm_keytype type, char *user, char *host, Key *key)
 {
@@ -392,9 +379,6 @@ mm_key_allowed(enum mm_keytype type, char *user, char *host, Key *key)
 	auth_clear_options();
 	have_forced = buffer_get_int(&m);
 	forced_command = have_forced ? xstrdup("true") : NULL;
-
-	/* Send potential debug messages */
-	mm_send_debug(&m);
 
 	buffer_free(&m);
 
@@ -508,7 +492,7 @@ mm_newkeys_to_blob(int mode, u_char **blobp, u_int *lenp)
 	Enc *enc;
 	Mac *mac;
 	Comp *comp;
-	Newkeys *newkey = newkeys[mode];
+	Newkeys *newkey = (Newkeys *)packet_get_newkeys(mode);
 
 	debug3("%s: converting %p", __func__, newkey);
 
@@ -570,7 +554,7 @@ mm_send_kex(Buffer *m, Kex *kex)
 void
 mm_send_keystate(struct monitor *monitor)
 {
-	Buffer m;
+	Buffer m, *input, *output;
 	u_char *blob, *p;
 	u_int bloblen, plen;
 	u_int32_t seqnr, packets;
@@ -608,7 +592,8 @@ mm_send_keystate(struct monitor *monitor)
 	}
 
 	debug3("%s: Sending new keys: %p %p",
-	    __func__, newkeys[MODE_OUT], newkeys[MODE_IN]);
+	    __func__, packet_get_newkeys(MODE_OUT),
+	    packet_get_newkeys(MODE_IN));
 
 	/* Keys from Kex */
 	if (!mm_newkeys_to_blob(MODE_OUT, &blob, &bloblen))
@@ -655,8 +640,16 @@ mm_send_keystate(struct monitor *monitor)
 	buffer_put_string(&m, &incoming_stream, sizeof(incoming_stream));
 
 	/* Network I/O buffers */
-	buffer_put_string(&m, buffer_ptr(&input), buffer_len(&input));
-	buffer_put_string(&m, buffer_ptr(&output), buffer_len(&output));
+	input = (Buffer *)packet_get_input();
+	output = (Buffer *)packet_get_output();
+	buffer_put_string(&m, buffer_ptr(input), buffer_len(input));
+	buffer_put_string(&m, buffer_ptr(output), buffer_len(output));
+
+	/* Roaming */
+	if (compat20) {
+		buffer_put_int64(&m, get_sent_bytes());
+		buffer_put_int64(&m, get_recv_bytes());
+	}
 
 	mm_request_send(monitor->m_recvfd, MONITOR_REQ_KEYEXPORT, &m);
 	debug3("%s: Finished sending state", __func__);
@@ -1076,7 +1069,6 @@ mm_auth_rsa_key_allowed(struct passwd *pw, BIGNUM *client_n, Key **rkey)
 		*rkey = key;
 		xfree(blob);
 	}
-	mm_send_debug(&m);
 	buffer_free(&m);
 
 	return (allowed);
@@ -1282,7 +1274,7 @@ mm_auth2_jpake_get_pwdata(Authctxt *authctxt, BIGNUM **s,
 }
 
 void
-mm_jpake_step1(struct jpake_group *grp,
+mm_jpake_step1(struct modp_group *grp,
     u_char **id, u_int *id_len,
     BIGNUM **priv1, BIGNUM **priv2, BIGNUM **g_priv1, BIGNUM **g_priv2,
     u_char **priv1_proof, u_int *priv1_proof_len,
@@ -1317,7 +1309,7 @@ mm_jpake_step1(struct jpake_group *grp,
 }
 
 void
-mm_jpake_step2(struct jpake_group *grp, BIGNUM *s,
+mm_jpake_step2(struct modp_group *grp, BIGNUM *s,
     BIGNUM *mypub1, BIGNUM *theirpub1, BIGNUM *theirpub2, BIGNUM *mypriv2,
     const u_char *theirid, u_int theirid_len,
     const u_char *myid, u_int myid_len,
@@ -1357,7 +1349,7 @@ mm_jpake_step2(struct jpake_group *grp, BIGNUM *s,
 }
 
 void
-mm_jpake_key_confirm(struct jpake_group *grp, BIGNUM *s, BIGNUM *step2_val,
+mm_jpake_key_confirm(struct modp_group *grp, BIGNUM *s, BIGNUM *step2_val,
     BIGNUM *mypriv2, BIGNUM *mypub1, BIGNUM *mypub2,
     BIGNUM *theirpub1, BIGNUM *theirpub2,
     const u_char *my_id, u_int my_id_len,

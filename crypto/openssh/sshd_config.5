@@ -34,9 +34,9 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $OpenBSD: sshd_config.5,v 1.102 2009/02/22 23:59:25 djm Exp $
+.\" $OpenBSD: sshd_config.5,v 1.120 2010/03/04 23:17:25 djm Exp $
 .\" $FreeBSD$
-.Dd February 22 2009
+.Dd March 4 2010
 .Dt SSHD_CONFIG 5
 .Os
 .Sh NAME
@@ -177,19 +177,22 @@ then no banner is displayed.
 This option is only available for protocol version 2.
 By default, no banner is displayed.
 .It Cm ChallengeResponseAuthentication
-Specifies whether challenge-response authentication is allowed.
-See also
-.Cm UsePAM .
+Specifies whether challenge-response authentication is allowed (e.g. via
+PAM or though authentication styles supported in
+.Xr login.conf 5 )
 The default is
 .Dq yes .
 .It Cm ChrootDirectory
-Specifies a path to
+Specifies the pathname of a directory to
 .Xr chroot 2
 to after authentication.
-This path, and all its components, must be root-owned directories that are
+All components of the pathname must be root-owned directories that are
 not writable by any other user or group.
+After the chroot,
+.Xr sshd 8
+changes the working directory to the user's home directory.
 .Pp
-The path may contain the following tokens that are expanded at runtime once
+The pathname may contain the following tokens that are expanded at runtime once
 the connecting user has been authenticated: %% is replaced by a literal '%',
 %h is replaced by the home directory of the user being authenticated, and
 %u is replaced by the username of that user.
@@ -197,7 +200,7 @@ the connecting user has been authenticated: %% is replaced by a literal '%',
 The
 .Cm ChrootDirectory
 must contain the necessary files and directories to support the
-users' session.
+user's session.
 For an interactive session this requires at least a shell, typically
 .Xr sh 1 ,
 and basic
@@ -215,8 +218,11 @@ devices.
 For file transfer sessions using
 .Dq sftp ,
 no additional configuration of the environment is necessary if the
-in-process sftp server is used (see
-.Cm Subsystem
+in-process sftp server is used,
+though sessions which use logging do require
+.Pa /dev/log
+inside the chroot directory (see
+.Xr sftp-server 8
 for details).
 .Pp
 The default is not to
@@ -406,6 +412,14 @@ uses the name supplied by the client rather than
 attempting to resolve the name from the TCP connection itself.
 The default is
 .Dq no .
+.It Cm HostCertificate
+Specifies a file containing a public host certificate.
+The certificate's public key must match a private host key already specified
+by
+.Cm HostKey .
+The default behaviour of
+.Xr sshd 8
+is not to load any certificates.
 .It Cm HostKey
 Specifies a file containing a private host key
 used by SSH.
@@ -609,6 +623,7 @@ Available keywords are
 .Cm PermitEmptyPasswords ,
 .Cm PermitOpen ,
 .Cm PermitRootLogin ,
+.Cm PubkeyAuthentication ,
 .Cm RhostsRSAAuthentication ,
 .Cm RSAAuthentication ,
 .Cm X11DisplayOffset ,
@@ -796,7 +811,7 @@ and
 .Sq 2 .
 Multiple versions must be comma-separated.
 The default is
-.Dq 2 .
+.Sq 2 .
 Note that the order of the protocol list does not indicate preference,
 because the client selects among multiple protocol versions offered
 by the server.
@@ -809,6 +824,11 @@ Specifies whether public key authentication is allowed.
 The default is
 .Dq yes .
 Note that this option applies to protocol version 2 only.
+.It Cm RevokedKeys
+Specifies a list of revoked public keys.
+Keys listed in this file will be refused for public key authentication.
+Note that if this file is not readable, then public key authentication will
+be refused for all users.
 .It Cm RhostsRSAAuthentication
 Specifies whether rhosts or
 .Pa /etc/hosts.equiv
@@ -834,6 +854,9 @@ This is normally desirable because novices sometimes accidentally leave their
 directory or files world-writable.
 The default is
 .Dq yes .
+Note that this does not apply to
+.Cm ChrootDirectory ,
+whose permissions and ownership are checked unconditionally.
 .It Cm Subsystem
 Configures an external subsystem (e.g. file transfer daemon).
 Arguments should be a subsystem name and a command (with optional arguments)
@@ -883,6 +906,22 @@ This avoids infinitely hanging sessions.
 .Pp
 To disable TCP keepalive messages, the value should be set to
 .Dq no .
+.It Cm TrustedUserCAKeys
+Specifies a file containing public keys of certificate authorities that are
+trusted to sign user certificates for authentication.
+Keys are listed one per line; empty lines and comments starting with
+.Ql #
+are allowed.
+If a certificate is presented for authentication and has its signing CA key
+listed in this file, then it may be used for authentication for any user
+listed in the certificate's principals list.
+Note that certificates that lack a list of principals will not be permitted
+for authentication using
+.Cm TrustedUserCAKeys .
+For more details on certificates, see the
+.Sx CERTIFICATES
+section in
+.Xr ssh-keygen 1 .
 .It Cm UseDNS
 Specifies whether
 .Xr sshd 8
@@ -949,7 +988,7 @@ The default is
 Specifies a string to append to the regular version string to identify
 OS- or site-specific modifications.
 The default is
-.Dq FreeBSD-20090522 .
+.Dq FreeBSD-20100308 .
 .It Cm X11DisplayOffset
 Specifies the first display number available for
 .Xr sshd 8 Ns 's
