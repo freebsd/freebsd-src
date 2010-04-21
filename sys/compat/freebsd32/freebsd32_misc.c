@@ -129,6 +129,28 @@ static int freebsd32_kevent_copyin(void *arg, struct kevent *kevp, int count);
 #define RETVAL_LO 0	
 #endif
 
+void
+freebsd32_rusage_out(const struct rusage *s, struct rusage32 *s32)
+{
+
+	TV_CP(*s, *s32, ru_utime);
+	TV_CP(*s, *s32, ru_stime);
+	CP(*s, *s32, ru_maxrss);
+	CP(*s, *s32, ru_ixrss);
+	CP(*s, *s32, ru_idrss);
+	CP(*s, *s32, ru_isrss);
+	CP(*s, *s32, ru_minflt);
+	CP(*s, *s32, ru_majflt);
+	CP(*s, *s32, ru_nswap);
+	CP(*s, *s32, ru_inblock);
+	CP(*s, *s32, ru_oublock);
+	CP(*s, *s32, ru_msgsnd);
+	CP(*s, *s32, ru_msgrcv);
+	CP(*s, *s32, ru_nsignals);
+	CP(*s, *s32, ru_nvcsw);
+	CP(*s, *s32, ru_nivcsw);
+}
+
 int
 freebsd32_wait4(struct thread *td, struct freebsd32_wait4_args *uap)
 {
@@ -146,22 +168,7 @@ freebsd32_wait4(struct thread *td, struct freebsd32_wait4_args *uap)
 	if (uap->status != NULL)
 		error = copyout(&status, uap->status, sizeof(status));
 	if (uap->rusage != NULL && error == 0) {
-		TV_CP(ru, ru32, ru_utime);
-		TV_CP(ru, ru32, ru_stime);
-		CP(ru, ru32, ru_maxrss);
-		CP(ru, ru32, ru_ixrss);
-		CP(ru, ru32, ru_idrss);
-		CP(ru, ru32, ru_isrss);
-		CP(ru, ru32, ru_minflt);
-		CP(ru, ru32, ru_majflt);
-		CP(ru, ru32, ru_nswap);
-		CP(ru, ru32, ru_inblock);
-		CP(ru, ru32, ru_oublock);
-		CP(ru, ru32, ru_msgsnd);
-		CP(ru, ru32, ru_msgrcv);
-		CP(ru, ru32, ru_nsignals);
-		CP(ru, ru32, ru_nvcsw);
-		CP(ru, ru32, ru_nivcsw);
+		freebsd32_rusage_out(&ru, &ru32);
 		error = copyout(&ru32, uap->rusage, sizeof(ru32));
 	}
 	return (error);
@@ -755,22 +762,7 @@ freebsd32_getrusage(struct thread *td, struct freebsd32_getrusage_args *uap)
 	if (error)
 		return (error);
 	if (uap->rusage != NULL) {
-		TV_CP(s, s32, ru_utime);
-		TV_CP(s, s32, ru_stime);
-		CP(s, s32, ru_maxrss);
-		CP(s, s32, ru_ixrss);
-		CP(s, s32, ru_idrss);
-		CP(s, s32, ru_isrss);
-		CP(s, s32, ru_minflt);
-		CP(s, s32, ru_majflt);
-		CP(s, s32, ru_nswap);
-		CP(s, s32, ru_inblock);
-		CP(s, s32, ru_oublock);
-		CP(s, s32, ru_msgsnd);
-		CP(s, s32, ru_msgrcv);
-		CP(s, s32, ru_nsignals);
-		CP(s, s32, ru_nvcsw);
-		CP(s, s32, ru_nivcsw);
+		freebsd32_rusage_out(&s, &s32);
 		error = copyout(&s32, uap->rusage, sizeof(s32));
 	}
 	return (error);
