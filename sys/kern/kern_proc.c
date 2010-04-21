@@ -1093,7 +1093,7 @@ static int
 sysctl_out_proc_copyout(struct kinfo_proc *ki, struct sysctl_req *req)
 {
 
-	return (SYSCTL_OUT(req, (caddr_t)&ki, sizeof(struct kinfo_proc)));
+	return (SYSCTL_OUT(req, (caddr_t)ki, sizeof(struct kinfo_proc)));
 }
 #endif
 
