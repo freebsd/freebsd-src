@@ -58,10 +58,6 @@ userauth_kbdint(Authctxt *authctxt)
 
 	xfree(devs);
 	xfree(lang);
-#ifdef HAVE_CYGWIN
-	if (check_nt_auth(0, authctxt->pw) == 0)
-		authenticated = 0;
-#endif
 	return authenticated;
 }
 

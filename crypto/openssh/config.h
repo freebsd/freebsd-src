@@ -69,6 +69,9 @@
 /* Define if your snprintf is busted */
 /* #undef BROKEN_SNPRINTF */
 
+/* tcgetattr with ICANON may hang */
+/* #undef BROKEN_TCGETATTR_ICANON */
+
 /* updwtmpx is broken (if present) */
 /* #undef BROKEN_UPDWTMPX */
 
@@ -120,11 +123,17 @@
 /* Define if you don't want to use wtmpx */
 #define DISABLE_WTMPX 1
 
+/* Enable for PKCS#11 support */
+#define ENABLE_PKCS11 
+
 /* Builtin PRNG command timeout */
 #define ENTROPY_TIMEOUT_MSEC 200
 
-/* f_fsid has members */
+/* fsid_t has member val */
 /* #undef FSID_HAS_VAL */
+
+/* fsid_t has member __val */
+/* #undef FSID_HAS___VAL */
 
 /* Define to 1 if the `getpgrp' function requires zero arguments. */
 #define GETPGRP_VOID 1
@@ -456,6 +465,9 @@
 /* Define to 1 if you have the <glob.h> header file. */
 #define HAVE_GLOB_H 1
 
+/* Define to 1 if you have the `group_from_gid' function. */
+#define HAVE_GROUP_FROM_GID 1
+
 /* Define to 1 if you have the <gssapi_generic.h> header file. */
 /* #undef HAVE_GSSAPI_GENERIC_H */
 
@@ -519,6 +531,9 @@
 /* Define to 1 if the system has the type `in_addr_t'. */
 #define HAVE_IN_ADDR_T 1
 
+/* Define to 1 if the system has the type `in_port_t'. */
+#define HAVE_IN_PORT_T 1
+
 /* Define to 1 if you have the <lastlog.h> header file. */
 /* #undef HAVE_LASTLOG_H */
 
@@ -542,9 +557,6 @@
 
 /* Define to 1 if you have the `pam' library (-lpam). */
 #define HAVE_LIBPAM 1
-
-/* Define to 1 if you have the `sectok' library (-lsectok). */
-/* #undef HAVE_LIBSECTOK */
 
 /* Define to 1 if you have the `socket' library (-lsocket). */
 /* #undef HAVE_LIBSOCKET */
@@ -727,9 +739,6 @@
 /* define if you have sa_family_t data type */
 #define HAVE_SA_FAMILY_T 1
 
-/* Define to 1 if you have the <sectok.h> header file. */
-/* #undef HAVE_SECTOK_H */
-
 /* Define if you have SecureWare-based protected password database */
 /* #undef HAVE_SECUREWARE */
 
@@ -754,6 +763,9 @@
 /* Define to 1 if you have the `seteuid' function. */
 #define HAVE_SETEUID 1
 
+/* Define to 1 if you have the `setgroupent' function. */
+#define HAVE_SETGROUPENT 1
+
 /* Define to 1 if you have the `setgroups' function. */
 #define HAVE_SETGROUPS 1
 
@@ -762,6 +774,9 @@
 
 /* Define to 1 if you have the `setluid' function. */
 /* #undef HAVE_SETLUID */
+
+/* Define to 1 if you have the `setpassent' function. */
+#define HAVE_SETPASSENT 1
 
 /* Define to 1 if you have the `setpcred' function. */
 /* #undef HAVE_SETPCRED */
@@ -1066,6 +1081,9 @@
 /* Define to 1 if you have the <usersec.h> header file. */
 /* #undef HAVE_USERSEC_H */
 
+/* Define to 1 if you have the `user_from_uid' function. */
+#define HAVE_USER_FROM_UID 1
+
 /* Define to 1 if you have the <util.h> header file. */
 /* #undef HAVE_UTIL_H */
 
@@ -1175,6 +1193,9 @@
    EOPNOTSUPP. */
 /* #undef LINK_OPNOTSUPP_ERRNO */
 
+/* Adjust Linux out-of-memory killer */
+/* #undef LINUX_OOM_ADJUST */
+
 /* max value of long long calculated by configure */
 /* #undef LLONG_MAX */
 
@@ -1226,6 +1247,9 @@
 
 /* Define if X11 doesn't support AF_UNIX sockets on that system */
 /* #undef NO_X11_UNIX_SOCKETS */
+
+/* Define if EVP_DigestUpdate returns void */
+/* #undef OPENSSL_EVP_DIGESTUPDATE_VOID */
 
 /* libcrypto is missing AES 192 and 256 bit functions */
 /* #undef OPENSSL_LOBOTOMISED_AES */
@@ -1291,9 +1315,6 @@
 /* Define if your skeychallenge() function takes 4 arguments (NetBSD) */
 /* #undef SKEYCHALLENGE_4ARG */
 
-/* Define if you want smartcard support */
-/* #undef SMARTCARD */
-
 /* Define as const if snprintf() can declare const char *fmt */
 #define SNPRINTF_CONST const
 
@@ -1309,6 +1330,9 @@
 
 /* Use audit debugging module */
 /* #undef SSH_AUDIT_EVENTS */
+
+/* Windows is sensitive to read buffer size */
+/* #undef SSH_IOBUFSZ */
 
 /* non-privileged user for privilege separation */
 #define SSH_PRIVSEP_USER "sshd"
@@ -1358,9 +1382,6 @@
 /* Use libedit for sftp */
 #define USE_LIBEDIT 1
 
-/* Define if you want smartcard support using OpenSC */
-/* #undef USE_OPENSC */
-
 /* Enable OpenSSL engine support */
 #define USE_OPENSSL_ENGINE 1
 
@@ -1369,9 +1390,6 @@
 
 /* Use PIPES instead of a socketpair() */
 /* #undef USE_PIPES */
-
-/* Define if you want smartcard support using sectok */
-/* #undef USE_SECTOK */
 
 /* Define if you have Solaris process contracts */
 /* #undef USE_SOLARIS_PROCESS_CONTRACTS */
@@ -1400,7 +1418,11 @@
 
 /* Define to 1 if your processor stores words with the most significant byte
    first (like Motorola and SPARC, unlike Intel and VAX). */
-/* #undef WORDS_BIGENDIAN */
+#if defined __BIG_ENDIAN__
+# define WORDS_BIGENDIAN 1
+#elif ! defined __LITTLE_ENDIAN__
+/* # undef WORDS_BIGENDIAN */
+#endif
 
 /* Define if xauth is found in your path */
 /* #undef XAUTH_PATH */

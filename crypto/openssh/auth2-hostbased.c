@@ -1,4 +1,4 @@
-/* $OpenBSD: auth2-hostbased.c,v 1.12 2008/07/17 08:51:07 djm Exp $ */
+/* $OpenBSD: auth2-hostbased.c,v 1.13 2010/03/04 10:36:03 djm Exp $ */
 /*
  * Copyright (c) 2000 Markus Friedl.  All rights reserved.
  *
@@ -144,6 +144,9 @@ hostbased_key_allowed(struct passwd *pw, const char *cuser, char *chost,
 	const char *resolvedname, *ipaddr, *lookup;
 	HostStatus host_status;
 	int len;
+
+	if (auth_key_is_revoked(key))
+		return 0;
 
 	resolvedname = get_canonical_hostname(options.use_dns);
 	ipaddr = get_remote_ipaddr();

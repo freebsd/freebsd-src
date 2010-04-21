@@ -1,4 +1,4 @@
-/* $OpenBSD: readconf.c,v 1.176 2009/02/12 03:00:56 djm Exp $ */
+/* $OpenBSD: readconf.c,v 1.183 2010/02/08 10:50:20 markus Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -126,14 +126,14 @@ typedef enum {
 	oGlobalKnownHostsFile2, oUserKnownHostsFile2, oPubkeyAuthentication,
 	oKbdInteractiveAuthentication, oKbdInteractiveDevices, oHostKeyAlias,
 	oDynamicForward, oPreferredAuthentications, oHostbasedAuthentication,
-	oHostKeyAlgorithms, oBindAddress, oSmartcardDevice,
+	oHostKeyAlgorithms, oBindAddress, oPKCS11Provider,
 	oClearAllForwardings, oNoHostAuthenticationForLocalhost,
 	oEnableSSHKeysign, oRekeyLimit, oVerifyHostKeyDNS, oConnectTimeout,
 	oAddressFamily, oGssAuthentication, oGssDelegateCreds,
 	oServerAliveInterval, oServerAliveCountMax, oIdentitiesOnly,
 	oSendEnv, oControlPath, oControlMaster, oHashKnownHosts,
 	oTunnel, oTunnelDevice, oLocalCommand, oPermitLocalCommand,
-	oVisualHostKey, oZeroKnowledgePasswordAuthentication,
+	oVisualHostKey, oUseRoaming, oZeroKnowledgePasswordAuthentication,
 	oVersionAddendum,
 	oDeprecated, oUnsupported
 } OpCodes;
@@ -209,10 +209,12 @@ static struct {
 	{ "preferredauthentications", oPreferredAuthentications },
 	{ "hostkeyalgorithms", oHostKeyAlgorithms },
 	{ "bindaddress", oBindAddress },
-#ifdef SMARTCARD
-	{ "smartcarddevice", oSmartcardDevice },
+#ifdef ENABLE_PKCS11
+	{ "smartcarddevice", oPKCS11Provider },
+	{ "pkcs11provider", oPKCS11Provider },
 #else
 	{ "smartcarddevice", oUnsupported },
+	{ "pkcs11provider", oUnsupported },
 #endif
 	{ "clearallforwardings", oClearAllForwardings },
 	{ "enablesshkeysign", oEnableSSHKeysign },
@@ -232,6 +234,7 @@ static struct {
 	{ "localcommand", oLocalCommand },
 	{ "permitlocalcommand", oPermitLocalCommand },
 	{ "visualhostkey", oVisualHostKey },
+	{ "useroaming", oUseRoaming },
 #ifdef JPAKE
 	{ "zeroknowledgepasswordauthentication",
 	    oZeroKnowledgePasswordAuthentication },
@@ -625,8 +628,8 @@ parse_string:
 		charptr = &options->bind_address;
 		goto parse_string;
 
-	case oSmartcardDevice:
-		charptr = &options->smartcard_device;
+	case oPKCS11Provider:
+		charptr = &options->pkcs11_provider;
 		goto parse_string;
 
 	case oProxyCommand:
@@ -931,6 +934,10 @@ parse_int:
 		intptr = &options->visual_host_key;
 		goto parse_flag;
 
+	case oUseRoaming:
+		intptr = &options->use_roaming;
+		goto parse_flag;
+
 	case oVersionAddendum:
 		ssh_version_set_addendum(strtok(s, "\n"));
 		do {
@@ -1070,7 +1077,7 @@ initialize_options(Options * options)
 	options->log_level = SYSLOG_LEVEL_NOT_SET;
 	options->preferred_authentications = NULL;
 	options->bind_address = NULL;
-	options->smartcard_device = NULL;
+	options->pkcs11_provider = NULL;
 	options->enable_ssh_keysign = - 1;
 	options->no_host_authentication_for_localhost = - 1;
 	options->identities_only = - 1;
@@ -1087,6 +1094,7 @@ initialize_options(Options * options)
 	options->tun_remote = -1;
 	options->local_command = NULL;
 	options->permit_local_command = -1;
+	options->use_roaming = -1;
 	options->visual_host_key = -1;
 	options->zero_knowledge_password_authentication = -1;
 }
@@ -1160,7 +1168,7 @@ fill_default_options(Options * options)
 	/* options->macs, default set in myproposals.h */
 	/* options->hostkeyalgorithms, default set in myproposals.h */
 	if (options->protocol == SSH_PROTO_UNKNOWN)
-		options->protocol = SSH_PROTO_1|SSH_PROTO_2;
+		options->protocol = SSH_PROTO_2;
 	if (options->num_identity_files == 0) {
 		if (options->protocol & SSH_PROTO_1) {
 			len = 2 + strlen(_PATH_SSH_CLIENT_IDENTITY) + 1;
@@ -1223,6 +1231,8 @@ fill_default_options(Options * options)
 		options->tun_remote = SSH_TUNID_ANY;
 	if (options->permit_local_command == -1)
 		options->permit_local_command = 0;
+	if (options->use_roaming == -1)
+		options->use_roaming = 1;
 	if (options->visual_host_key == -1)
 		options->visual_host_key = 0;
 	if (options->zero_knowledge_password_authentication == -1)

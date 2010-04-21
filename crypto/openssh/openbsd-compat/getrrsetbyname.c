@@ -143,7 +143,7 @@ u_int32_t _getlong(register const u_char *);
 
 /* ************** */
 
-#define ANSWER_BUFFER_SIZE 1024*64
+#define ANSWER_BUFFER_SIZE 0xffff
 
 struct dns_query {
 	char			*name;
