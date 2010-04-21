@@ -47,6 +47,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sdt.h>
 #include <sys/systm.h>
 #include <sys/sysctl.h>
+#include <sys/eventhandler.h>
 #include <sys/linker_set.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
@@ -54,6 +55,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/socket.h>
 #include <sys/sx.h>
 #include <sys/sysctl.h>
+
+#include <machine/stdarg.h>
 
 #ifdef DDB
 #include <ddb/ddb.h>
@@ -637,6 +640,39 @@ vnet_sysuninit(void)
 	VNET_SYSINIT_RUNLOCK();
 }
 
+/*
+ * EVENTHANDLER(9) extensions.
+ */
+/*
+ * Invoke the eventhandler function originally registered with the possibly
+ * registered argument for all virtual network stack instances.
+ *
+ * This iterator can only be used for eventhandlers that do not take any
+ * additional arguments, as we do ignore the variadic arguments from the
+ * EVENTHANDLER_INVOKE() call.
+ */
+void
+vnet_global_eventhandler_iterator_func(void *arg, ...)
+{
+	VNET_ITERATOR_DECL(vnet_iter);
+	struct eventhandler_entry_vimage *v_ee;
+
+	/*
+	 * There is a bug here in that we should actually cast things to
+	 * (struct eventhandler_entry_ ## name *)  but that's not easily
+	 * possible in here so just re-using the variadic version we
+	 * defined for the generic vimage case.
+	 */
+	v_ee = arg;
+	VNET_LIST_RLOCK();
+	VNET_FOREACH(vnet_iter) {
+		CURVNET_SET(vnet_iter);
+		((vimage_iterator_func_t)v_ee->func)(v_ee->ee_arg);
+		CURVNET_RESTORE();
+	}
+	VNET_LIST_RUNLOCK();
+}
+
 #ifdef VNET_DEBUG
 struct vnet_recursion {
 	SLIST_ENTRY(vnet_recursion)	 vnr_le;
@@ -696,6 +732,9 @@ vnet_log_recursion(struct vnet *old_vnet, const char *old_fn, int line)
 }
 #endif /* VNET_DEBUG */
 
+/*
+ * DDB(4).
+ */
 #ifdef DDB
 DB_SHOW_COMMAND(vnets, db_show_vnets)
 {
