@@ -196,10 +196,11 @@ if_clone_createif(struct if_clone *ifc, char *name, size_t len, caddr_t params)
 int
 if_clone_destroy(const char *name)
 {
+	int err;
 	struct if_clone *ifc;
 	struct ifnet *ifp;
 
-	ifp = ifunit(name);
+	ifp = ifunit_ref(name);
 	if (ifp == NULL)
 		return (ENXIO);
 
@@ -221,10 +222,14 @@ if_clone_destroy(const char *name)
 	}
 #endif
 	IF_CLONERS_UNLOCK();
-	if (ifc == NULL)
+	if (ifc == NULL) {
+		if_rele(ifp);
 		return (EINVAL);
+	}
 
-	return (if_clone_destroyif(ifc, ifp));
+	err = if_clone_destroyif(ifc, ifp);
+	if_rele(ifp);
+	return err;
 }
 
 /*
