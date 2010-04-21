@@ -162,6 +162,7 @@ pjd [label="Pawel Jakub Dawidek\npjd@FreeBSD.org\n2004/02/02"]
 ps [label="Paul Saab\nps@FreeBSD.org\n2000/02/23"]
 qingli [label="Qing Li\nqingli@FreeBSD.org\n2005/04/13"]
 rafan [label="Rong-En Fan\nrafan@FreeBSD.org\n2007/01/31"]
+randi [label="Randi Harper\nrandi@FreeBSD.org\n2010/04/20"]
 remko [label="Remko Lodder\nremko@FreeBSD.org\n2007/02/23"]
 rik [label="Roman Kurakin\nrik@FreeBSD.org\n2003/12/18"]
 rink [label="Rink Springer\nrink@FreeBSD.org\n2006/01/16"]
@@ -245,6 +246,7 @@ bz -> jamie
 bz -> syrinx
 
 cperciva -> flz
+cperciva -> randi
 cperciva -> simon
 
 csjp -> bushman
