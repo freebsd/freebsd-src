@@ -9395,8 +9395,6 @@ bwn_rxeof(struct bwn_mac *mac, struct mbuf *m, const void *_rxhdr)
 		device_printf(sc->sc_dev, "TODO RX: RX_FLAG_FAILED_FCS_CRC\n");
 	if (phystat0 & (BWN_RX_PHYST0_PLCPHCF | BWN_RX_PHYST0_PLCPFV))
 		device_printf(sc->sc_dev, "TODO RX: RX_FLAG_FAILED_PLCP_CRC\n");
-	if (phystat0 & BWN_RX_PHYST0_SHORTPRMBL)
-		device_printf(sc->sc_dev, "TODO RX: RX_FLAG_SHORTPRE\n");
 	if (macstat & BWN_RX_MAC_DECERR)
 		goto drop;
 
