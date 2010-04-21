@@ -133,8 +133,6 @@ static void	siba_pci_write_multi_4(struct siba_dev_softc *, const void *,
 		    size_t, uint16_t);
 static const char *siba_core_name(uint16_t);
 static void	siba_pcicore_init(struct siba_pci *);
-device_t	siba_add_child(device_t, struct siba_softc *, int, const char *,
-		    int);
 int		siba_core_attach(struct siba_softc *);
 int		siba_core_detach(struct siba_softc *);
 int		siba_core_suspend(struct siba_softc *);
@@ -206,8 +204,10 @@ siba_core_attach(struct siba_softc *siba)
 		return (error);
 	}
 
+	siba_pcicore_init(&siba->siba_pci);
 	siba_powerdown(siba);
-	return (0);
+	
+	return (bus_generic_attach(siba->siba_dev));
 }
 
 int
@@ -277,6 +277,7 @@ siba_scan(struct siba_softc *siba)
 {
 	struct siba_dev_softc *sd;
 	uint32_t idhi, tmp;
+	device_t child;
 	int base, dev_i = 0, error, i, is_pcie, n_80211 = 0, n_cc = 0,
 	    n_pci = 0;
 
@@ -387,6 +388,14 @@ siba_scan(struct siba_softc *siba)
 			break;
 		}
 		dev_i++;
+
+		child = device_add_child(siba->siba_dev, NULL, -1);
+		if (child == NULL) {
+			device_printf(siba->siba_dev, "child attach failed\n");
+			continue;
+		}
+
+		device_set_ivars(child, sd);
 	}
 	siba->siba_ndevs = dev_i;
 }
@@ -1962,52 +1971,6 @@ siba_barrier(struct siba_dev_softc *sd, int flags)
 	struct siba_softc *siba = sd->sd_bus;
 
 	SIBA_BARRIER(siba, flags);
-}
-
-/*
- * Attach it as child.
- */
-device_t
-siba_add_child(device_t dev, struct siba_softc *siba, int order,
-    const char *name, int unit)
-{
-	struct siba_dev_softc *sd;
-	device_t child;
-	int idx = 0, i;
-
-	child = device_add_child(dev, name, unit);
-	if (child == NULL)
-		return (NULL);
-
-	siba_powerup(siba, 0);
-	siba_pcicore_init(&siba->siba_pci);
-	siba_powerdown(siba);
-
-	for (i = 0; i < siba->siba_ndevs; i++) {
-		sd = &(siba->siba_devs[i]);
-
-		if (sd->sd_id.sd_device != SIBA_DEVID_80211) {
-			DPRINTF(siba, SIBA_DEBUG_CORE,
-			    "skip to register coreid %#x (%s)\n",
-			    sd->sd_id.sd_device,
-			    siba_core_name(sd->sd_id.sd_device));
-			continue;
-		}
-
-		DPRINTF(siba, SIBA_DEBUG_CORE,
-		    "siba: attaching coreid %#x (%s) idx %d\n",
-		    sd->sd_id.sd_device,
-		    siba_core_name(sd->sd_id.sd_device), idx);
-
-		KASSERT(sd->sd_id.sd_device == SIBA_DEVID_80211,
-		    ("%s:%d: SIBA_DEVID_80211 is only supportted currently.",
-			__func__, __LINE__));
-
-		device_set_ivars(child, sd);
-		device_probe_and_attach(child);
-		idx++;
-	}
-	return (child);
 }
 
 static void
