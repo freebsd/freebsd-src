@@ -2282,6 +2282,7 @@ iwn4965_tx_done(struct iwn_softc *sc, struct iwn_rx_desc *desc,
     struct iwn_rx_data *data)
 {
 	struct iwn4965_tx_stat *stat = (struct iwn4965_tx_stat *)(desc + 1);
+	struct iwn_tx_ring *ring = &sc->txq[desc->qid & 0xf];
 
 	DPRINTF(sc, IWN_DEBUG_XMIT, "%s: "
 	    "qid %d idx %d retries %d nkill %d rate %x duration %d status %x\n",
@@ -2289,7 +2290,7 @@ iwn4965_tx_done(struct iwn_softc *sc, struct iwn_rx_desc *desc,
 	    stat->btkillcnt, stat->rate, le16toh(stat->duration),
 	    le32toh(stat->status));
 
-	bus_dmamap_sync(sc->rxq.data_dmat, data->map, BUS_DMASYNC_POSTREAD);
+	bus_dmamap_sync(ring->data_dmat, data->map, BUS_DMASYNC_POSTREAD);
 	iwn_tx_done(sc, desc, stat->ackfailcnt, le32toh(stat->status) & 0xff);
 }
 
@@ -2298,6 +2299,7 @@ iwn5000_tx_done(struct iwn_softc *sc, struct iwn_rx_desc *desc,
     struct iwn_rx_data *data)
 {
 	struct iwn5000_tx_stat *stat = (struct iwn5000_tx_stat *)(desc + 1);
+	struct iwn_tx_ring *ring = &sc->txq[desc->qid & 0xf];
 
 	DPRINTF(sc, IWN_DEBUG_XMIT, "%s: "
 	    "qid %d idx %d retries %d nkill %d rate %x duration %d status %x\n",
@@ -2310,7 +2312,7 @@ iwn5000_tx_done(struct iwn_softc *sc, struct iwn_rx_desc *desc,
 	iwn5000_reset_sched(sc, desc->qid & 0xf, desc->idx);
 #endif
 
-	bus_dmamap_sync(sc->rxq.data_dmat, data->map, BUS_DMASYNC_POSTREAD);
+	bus_dmamap_sync(ring->data_dmat, data->map, BUS_DMASYNC_POSTREAD);
 	iwn_tx_done(sc, desc, stat->ackfailcnt, le16toh(stat->status) & 0xff);
 }
 
