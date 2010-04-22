@@ -1290,8 +1290,8 @@ set_shaders(struct drm_device *dev)
 	DRM_DEBUG("\n");
 
 	/* load shaders */
-	vs = (u32 *) ((char *)dev->agp_buffer_map->handle + dev_priv->blit_vb->offset);
-	ps = (u32 *) ((char *)dev->agp_buffer_map->handle + dev_priv->blit_vb->offset + 256);
+	vs = (u32 *) ((char *)dev->agp_buffer_map->virtual + dev_priv->blit_vb->offset);
+	ps = (u32 *) ((char *)dev->agp_buffer_map->virtual + dev_priv->blit_vb->offset + 256);
 
 	shader_size = sizeof(r6xx_vs) / 4;
 	for (i= 0; i < shader_size; i++)
@@ -1718,11 +1718,10 @@ r600_blit_copy(struct drm_device *dev,
 	u64 vb_addr;
 	u32 *vb;
 
-	vb = (u32 *) ((char *)dev->agp_buffer_map->handle +
+	vb = (u32 *) ((char *)dev->agp_buffer_map->virtual +
 	    dev_priv->blit_vb->offset + dev_priv->blit_vb->used);
-	DRM_DEBUG("src=0x%016llx, dst=0x%016llx, size=%d\n",
-	    (unsigned long long)src_gpu_addr,
-	    (unsigned long long)dst_gpu_addr, size_bytes);
+	DRM_DEBUG("src=0x%016jx, dst=0x%016jx, size=%d\n",
+	    src_gpu_addr, dst_gpu_addr, size_bytes);
 
 	if ((size_bytes & 3) || (src_gpu_addr & 3) || (dst_gpu_addr & 3)) {
 		max_bytes = 8192;
@@ -1759,7 +1758,7 @@ r600_blit_copy(struct drm_device *dev,
 				if (!dev_priv->blit_vb)
 					return;
 				set_shaders(dev);
-				vb = (u32 *) ((char *)dev->agp_buffer_map->handle +
+				vb = (u32 *) ((char *)dev->agp_buffer_map->virtual +
 				    dev_priv->blit_vb->offset + dev_priv->blit_vb->used);
 			}
 
@@ -1849,7 +1848,7 @@ r600_blit_copy(struct drm_device *dev,
 				if (!dev_priv->blit_vb)
 					return;
 				set_shaders(dev);
-				vb = (u32 *) ((char *)dev->agp_buffer_map->handle +
+				vb = (u32 *) ((char *)dev->agp_buffer_map->virtual +
 				    dev_priv->blit_vb->offset + dev_priv->blit_vb->used);
 			}
 
@@ -1928,7 +1927,7 @@ r600_blit_swap(struct drm_device *dev,
 			return;
 		set_shaders(dev);
 	}
-	vb = (u32 *) ((char *)dev->agp_buffer_map->handle +
+	vb = (u32 *) ((char *)dev->agp_buffer_map->virtual +
 	    dev_priv->blit_vb->offset + dev_priv->blit_vb->used);
 
 	sx2 = sx + w;

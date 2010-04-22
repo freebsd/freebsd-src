@@ -53,7 +53,7 @@ u32 radeon_read_ring_rptr(drm_radeon_private_t *dev_priv, u32 off)
 		val = DRM_READ32(dev_priv->ring_rptr, off);
 	} else {
 		val = *(((volatile u32 *)
-			 dev_priv->ring_rptr->handle) +
+			 dev_priv->ring_rptr->virtual) +
 			(off / sizeof(u32)));
 		val = le32_to_cpu(val);
 	}
@@ -77,7 +77,7 @@ void radeon_write_ring_rptr(drm_radeon_private_t *dev_priv, u32 off, u32 val)
 	if (dev_priv->flags & RADEON_IS_AGP)
 		DRM_WRITE32(dev_priv->ring_rptr, off, val);
 	else
-		*(((volatile u32 *) dev_priv->ring_rptr->handle) +
+		*(((volatile u32 *) dev_priv->ring_rptr->virtual) +
 		  (off / sizeof(u32))) = cpu_to_le32(val);
 }
 
@@ -1278,7 +1278,7 @@ static int radeon_do_init_cp(struct drm_device *dev, drm_radeon_init_t *init,
 	}
 
 	dev_priv->sarea_priv =
-	    (drm_radeon_sarea_t *) ((u8 *) dev_priv->sarea->handle +
+	    (drm_radeon_sarea_t *) ((u8 *) dev_priv->sarea->virtual +
 				    init->sarea_priv_offset);
 
 #if __OS_HAS_AGP
@@ -1286,9 +1286,9 @@ static int radeon_do_init_cp(struct drm_device *dev, drm_radeon_init_t *init,
 		drm_core_ioremap_wc(dev_priv->cp_ring, dev);
 		drm_core_ioremap_wc(dev_priv->ring_rptr, dev);
 		drm_core_ioremap_wc(dev->agp_buffer_map, dev);
-		if (!dev_priv->cp_ring->handle ||
-		    !dev_priv->ring_rptr->handle ||
-		    !dev->agp_buffer_map->handle) {
+		if (!dev_priv->cp_ring->virtual ||
+		    !dev_priv->ring_rptr->virtual ||
+		    !dev->agp_buffer_map->virtual) {
 			DRM_ERROR("could not find ioremap agp regions!\n");
 			radeon_do_cleanup_cp(dev);
 			return -EINVAL;
@@ -1296,19 +1296,19 @@ static int radeon_do_init_cp(struct drm_device *dev, drm_radeon_init_t *init,
 	} else
 #endif
 	{
-		dev_priv->cp_ring->handle =
+		dev_priv->cp_ring->virtual =
 			(void *)(unsigned long)dev_priv->cp_ring->offset;
-		dev_priv->ring_rptr->handle =
+		dev_priv->ring_rptr->virtual =
 			(void *)(unsigned long)dev_priv->ring_rptr->offset;
-		dev->agp_buffer_map->handle =
+		dev->agp_buffer_map->virtual =
 			(void *)(unsigned long)dev->agp_buffer_map->offset;
 
-		DRM_DEBUG("dev_priv->cp_ring->handle %p\n",
-			  dev_priv->cp_ring->handle);
-		DRM_DEBUG("dev_priv->ring_rptr->handle %p\n",
-			  dev_priv->ring_rptr->handle);
-		DRM_DEBUG("dev->agp_buffer_map->handle %p\n",
-			  dev->agp_buffer_map->handle);
+		DRM_DEBUG("dev_priv->cp_ring->virtual %p\n",
+			  dev_priv->cp_ring->virtual);
+		DRM_DEBUG("dev_priv->ring_rptr->virtual %p\n",
+			  dev_priv->ring_rptr->virtual);
+		DRM_DEBUG("dev->agp_buffer_map->virtual %p\n",
+			  dev->agp_buffer_map->virtual);
 	}
 
 	dev_priv->fb_location = (radeon_read_fb_location(dev_priv) & 0xffff) << 16;
@@ -1386,8 +1386,8 @@ static int radeon_do_init_cp(struct drm_device *dev, drm_radeon_init_t *init,
 	DRM_DEBUG("dev_priv->gart_buffers_offset 0x%lx\n",
 		  dev_priv->gart_buffers_offset);
 
-	dev_priv->ring.start = (u32 *) dev_priv->cp_ring->handle;
-	dev_priv->ring.end = ((u32 *) dev_priv->cp_ring->handle
+	dev_priv->ring.start = (u32 *) dev_priv->cp_ring->virtual;
+	dev_priv->ring.end = ((u32 *) dev_priv->cp_ring->virtual
 			      + init->ring_size / sizeof(u32));
 	dev_priv->ring.size = init->ring_size;
 	dev_priv->ring.size_l2qw = drm_order(init->ring_size / 8);
@@ -1423,7 +1423,7 @@ static int radeon_do_init_cp(struct drm_device *dev, drm_radeon_init_t *init,
 
 			drm_core_ioremap_wc(&dev_priv->gart_info.mapping, dev);
 			dev_priv->gart_info.addr =
-			    dev_priv->gart_info.mapping.handle;
+			    dev_priv->gart_info.mapping.virtual;
 
 			if (dev_priv->flags & RADEON_IS_PCIE)
 				dev_priv->gart_info.gart_reg_if = DRM_ATI_GART_PCIE;
