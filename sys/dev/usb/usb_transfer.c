@@ -1418,7 +1418,7 @@ usbd_transfer_submit(struct usb_xfer *xfer)
 	    xfer, xfer->endpoint, xfer->nframes, USB_GET_DATA_ISREAD(xfer) ?
 	    "read" : "write");
 
-#if USB_DEBUG
+#ifdef USB_DEBUG
 	if (USB_DEBUG_VAR > 0) {
 		USB_BUS_LOCK(bus);
 

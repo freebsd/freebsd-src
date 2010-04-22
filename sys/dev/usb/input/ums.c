@@ -74,7 +74,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/tty.h>
 #include <sys/mouse.h>
 
-#if USB_DEBUG
+#ifdef USB_DEBUG
 static int ums_debug = 0;
 
 SYSCTL_NODE(_hw_usb, OID_AUTO, ums, CTLFLAG_RW, 0, "USB ums");
@@ -494,7 +494,9 @@ ums_attach(device_t dev)
 	int err;
 	uint16_t d_len;
 	uint8_t i;
+#ifdef USB_DEBUG
 	uint8_t j;
+#endif
 
 	DPRINTFN(11, "sc=%p\n", sc);
 
@@ -588,7 +590,7 @@ ums_attach(device_t dev)
 	free(d_ptr, M_TEMP);
 	d_ptr = NULL;
 
-#if USB_DEBUG
+#ifdef USB_DEBUG
 	for (j = 0; j < UMS_INFO_MAX; j++) {
 		info = &sc->sc_info[j];
 
