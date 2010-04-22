@@ -25,8 +25,13 @@ CFLAGS+=-DINET6
 # This is needed to have WARNS > 1.
 CFLAGS+=-DYY_NO_UNPUT
 
-DPADD=	${LIBCRYPTO} ${LIBL}
-LDADD=	-lcrypto -ll
+DPADD=	${LIBL}
+LDADD=	-ll
+.if ${MK_OPENSSL} != "no"
+DPADD+=	${LIBCRYPTO}
+LDADD+=	-lcrypto
+CFLAGS+=-DHAVE_CRYPTO
+.endif
 
 YFLAGS+=-v
 
