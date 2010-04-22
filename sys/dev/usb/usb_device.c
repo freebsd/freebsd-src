@@ -1491,10 +1491,10 @@ usb_alloc_device(device_t parent_dev, struct usb_bus *bus,
 		return (NULL);
 	}
 	/* initialise our SX-lock */
-	sx_init(udev->default_sx, "0123456789ABCDEF - USB device SX lock" + depth);
+	sx_init_flags(udev->default_sx, "USB device SX lock", SX_DUPOK);
 
 	/* initialise our SX-lock */
-	sx_init(udev->default_sx + 1, "0123456789ABCDEF - USB config SX lock" + depth);
+	sx_init_flags(udev->default_sx + 1, "USB config SX lock", SX_DUPOK);
 
 	cv_init(udev->default_cv, "WCTRL");
 	cv_init(udev->default_cv + 1, "UGONE");
