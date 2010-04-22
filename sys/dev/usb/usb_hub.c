@@ -246,7 +246,7 @@ uhub_explore_sub(struct uhub_softc *sc, struct usb_port *up)
 	/* start control transfer, if device mode */
 
 	if (child->flags.usb_mode == USB_MODE_DEVICE) {
-		usbd_default_transfer_setup(child);
+		usbd_ctrl_transfer_setup(child);
 	}
 	/* if a HUB becomes present, do a recursive HUB explore */
 
