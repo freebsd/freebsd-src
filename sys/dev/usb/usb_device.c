@@ -655,7 +655,7 @@ usb_config_parse(struct usb_device *udev, uint8_t iface_index, uint8_t cmd)
 		goto cleanup;
 
 	if (cmd == USB_CFG_INIT) {
-		sx_assert(udev->default_sx + 1, SA_LOCKED);
+		sx_assert(&udev->enum_sx, SA_LOCKED);
 
 		/* check for in-use endpoints */
 
@@ -1062,7 +1062,7 @@ usb_detach_device(struct usb_device *udev, uint8_t iface_index,
 	}
 	DPRINTFN(4, "udev=%p\n", udev);
 
-	sx_assert(udev->default_sx + 1, SA_LOCKED);
+	sx_assert(&udev->enum_sx, SA_LOCKED);
 
 	/*
 	 * First detach the child to give the child's detach routine a
@@ -1380,7 +1380,7 @@ usb_suspend_resume(struct usb_device *udev, uint8_t do_suspend)
 	}
 	DPRINTFN(4, "udev=%p do_suspend=%d\n", udev, do_suspend);
 
-	sx_assert(udev->default_sx + 1, SA_LOCKED);
+	sx_assert(&udev->enum_sx, SA_LOCKED);
 
 	USB_BUS_LOCK(udev->bus);
 	/* filter the suspend events */
@@ -1419,13 +1419,13 @@ usbd_clear_stall_proc(struct usb_proc_msg *_pm)
 
 	/* Change lock */
 	USB_BUS_UNLOCK(udev->bus);
-	mtx_lock(udev->default_mtx);
+	mtx_lock(&udev->device_mtx);
 
 	/* Start clear stall callback */
 	usbd_transfer_start(udev->default_xfer[1]);
 
 	/* Change lock */
-	mtx_unlock(udev->default_mtx);
+	mtx_unlock(&udev->device_mtx);
 	USB_BUS_LOCK(udev->bus);
 }
 
@@ -1491,16 +1491,16 @@ usb_alloc_device(device_t parent_dev, struct usb_bus *bus,
 		return (NULL);
 	}
 	/* initialise our SX-lock */
-	sx_init_flags(udev->default_sx, "USB device SX lock", SX_DUPOK);
+	sx_init_flags(&udev->ctrl_sx, "USB device SX lock", SX_DUPOK);
 
 	/* initialise our SX-lock */
-	sx_init_flags(udev->default_sx + 1, "USB config SX lock", SX_DUPOK);
+	sx_init_flags(&udev->enum_sx, "USB config SX lock", SX_DUPOK);
 
-	cv_init(udev->default_cv, "WCTRL");
-	cv_init(udev->default_cv + 1, "UGONE");
+	cv_init(&udev->ctrlreq_cv, "WCTRL");
+	cv_init(&udev->ref_cv, "UGONE");
 
 	/* initialise our mutex */
-	mtx_init(udev->default_mtx, "USB device mutex", NULL, MTX_DEF);
+	mtx_init(&udev->device_mtx, "USB device mutex", NULL, MTX_DEF);
 
 	/* initialise generic clear stall */
 	udev->cs_msg[0].hdr.pm_callback = &usbd_clear_stall_proc;
@@ -2005,7 +2005,7 @@ usb_free_device(struct usb_device *udev, uint8_t flag)
 	mtx_lock(&usb_ref_lock);
 	udev->refcount--;
 	while (udev->refcount != 0) {
-		cv_wait(udev->default_cv + 1, &usb_ref_lock);
+		cv_wait(&udev->ref_cv, &usb_ref_lock);
 	}
 	mtx_unlock(&usb_ref_lock);
 
@@ -2036,13 +2036,13 @@ usb_free_device(struct usb_device *udev, uint8_t flag)
 	    &udev->cs_msg[0], &udev->cs_msg[1]);
 	USB_BUS_UNLOCK(udev->bus);
 
-	sx_destroy(udev->default_sx);
-	sx_destroy(udev->default_sx + 1);
+	sx_destroy(&udev->ctrl_sx);
+	sx_destroy(&udev->enum_sx);
 
-	cv_destroy(udev->default_cv);
-	cv_destroy(udev->default_cv + 1);
+	cv_destroy(&udev->ctrlreq_cv);
+	cv_destroy(&udev->ref_cv);
 
-	mtx_destroy(udev->default_mtx);
+	mtx_destroy(&udev->device_mtx);
 #if USB_HAVE_UGEN
 	KASSERT(LIST_FIRST(&udev->pd_list) == NULL, ("leaked cdev entries"));
 #endif
@@ -2588,7 +2588,7 @@ usbd_device_attached(struct usb_device *udev)
 void
 usbd_enum_lock(struct usb_device *udev)
 {
-	sx_xlock(udev->default_sx + 1);
+	sx_xlock(&udev->enum_sx);
 	/* 
 	 * NEWBUS LOCK NOTE: We should check if any parent SX locks
 	 * are locked before locking Giant. Else the lock can be
@@ -2603,7 +2603,7 @@ void
 usbd_enum_unlock(struct usb_device *udev)
 {
 	mtx_unlock(&Giant);
-	sx_xunlock(udev->default_sx + 1);
+	sx_xunlock(&udev->enum_sx);
 }
 
 /*
@@ -2614,5 +2614,5 @@ usbd_enum_unlock(struct usb_device *udev)
 uint8_t
 usbd_enum_is_locked(struct usb_device *udev)
 {
-	return (sx_xlocked(udev->default_sx + 1));
+	return (sx_xlocked(&udev->enum_sx));
 }

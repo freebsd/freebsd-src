@@ -113,9 +113,11 @@ struct usb_power_save {
 struct usb_device {
 	struct usb_clear_stall_msg cs_msg[2];	/* generic clear stall
 						 * messages */
-	struct sx default_sx[2];
-	struct mtx default_mtx[1];
-	struct cv default_cv[2];
+	struct sx ctrl_sx;
+	struct sx enum_sx;
+	struct mtx device_mtx;
+	struct cv ctrlreq_cv;
+	struct cv ref_cv;
 	struct usb_interface *ifaces;
 	struct usb_endpoint default_ep;	/* Control Endpoint 0 */
 	struct usb_endpoint *endpoints;
