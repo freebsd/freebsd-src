@@ -123,7 +123,7 @@ void	usbd_transfer_done(struct usb_xfer *xfer, usb_error_t error);
 void	usbd_transfer_enqueue(struct usb_xfer_queue *pq,
 	    struct usb_xfer *xfer);
 void	usbd_transfer_setup_sub(struct usb_setup_params *parm);
-void	usbd_default_transfer_setup(struct usb_device *udev);
+void	usbd_ctrl_transfer_setup(struct usb_device *udev);
 void	usbd_clear_data_toggle(struct usb_device *udev,
 	    struct usb_endpoint *ep);
 usb_callback_t usbd_do_request_callback;
