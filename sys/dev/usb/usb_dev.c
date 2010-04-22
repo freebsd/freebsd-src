@@ -284,7 +284,7 @@ error:
 		usbd_enum_unlock(cpd->udev);
 
 		if (--(cpd->udev->refcount) == 0) {
-			cv_signal(cpd->udev->default_cv + 1);
+			cv_signal(&cpd->udev->ref_cv);
 		}
 	}
 	mtx_unlock(&usb_ref_lock);
@@ -352,7 +352,7 @@ usb_unref_device(struct usb_cdev_privdata *cpd,
 	}
 	if (crd->is_uref) {
 		if (--(cpd->udev->refcount) == 0) {
-			cv_signal(cpd->udev->default_cv + 1);
+			cv_signal(&cpd->udev->ref_cv);
 		}
 		crd->is_uref = 0;
 	}
@@ -500,7 +500,7 @@ usb_fifo_create(struct usb_cdev_privdata *cpd,
 		/* update some fields */
 		f->fifo_index = n + USB_FIFO_TX;
 		f->dev_ep_index = e;
-		f->priv_mtx = udev->default_mtx;
+		f->priv_mtx = &udev->device_mtx;
 		f->priv_sc0 = ep;
 		f->methods = &usb_ugen_methods;
 		f->iface_index = ep->iface_index;
@@ -527,7 +527,7 @@ usb_fifo_create(struct usb_cdev_privdata *cpd,
 		/* update some fields */
 		f->fifo_index = n + USB_FIFO_RX;
 		f->dev_ep_index = e;
-		f->priv_mtx = udev->default_mtx;
+		f->priv_mtx = &udev->device_mtx;
 		f->priv_sc0 = ep;
 		f->methods = &usb_ugen_methods;
 		f->iface_index = ep->iface_index;

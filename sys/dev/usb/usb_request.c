@@ -99,7 +99,7 @@ usbd_do_request_callback(struct usb_xfer *xfer, usb_error_t error)
 		usbd_transfer_submit(xfer);
 		break;
 	default:
-		cv_signal(xfer->xroot->udev->default_cv);
+		cv_signal(&xfer->xroot->udev->ctrlreq_cv);
 		break;
 	}
 }
@@ -319,7 +319,7 @@ usbd_do_request_flags(struct usb_device *udev, struct mtx *mtx,
 	 * is achieved when multiple threads are involved:
 	 */
 
-	sx_xlock(udev->default_sx);
+	sx_xlock(&udev->ctrl_sx);
 
 	hr_func = usbd_get_hr_func(udev);
 
@@ -457,7 +457,7 @@ usbd_do_request_flags(struct usb_device *udev, struct mtx *mtx,
 		usbd_transfer_start(xfer);
 
 		while (usbd_transfer_pending(xfer)) {
-			cv_wait(udev->default_cv,
+			cv_wait(&udev->ctrlreq_cv,
 			    xfer->xroot->xfer_mtx);
 		}
 
@@ -534,7 +534,7 @@ usbd_do_request_flags(struct usb_device *udev, struct mtx *mtx,
 	USB_XFER_UNLOCK(xfer);
 
 done:
-	sx_xunlock(udev->default_sx);
+	sx_xunlock(&udev->ctrl_sx);
 
 	if (mtx) {
 		mtx_lock(mtx);
