@@ -1670,9 +1670,8 @@ static void r600_cp_init_ring_buffer(struct drm_device *dev,
 	} else
 #endif
 	{
-		rptr_addr = dev_priv->ring_rptr->offset
-			- ((unsigned long) dev->sg->virtual)
-			+ dev_priv->gart_vm_start;
+		rptr_addr = dev_priv->ring_rptr->offset - dev->sg->vaddr +
+		    dev_priv->gart_vm_start;
 	}
 	RADEON_WRITE(R600_CP_RB_RPTR_ADDR,
 		     rptr_addr & 0xffffffff);
@@ -1706,9 +1705,8 @@ static void r600_cp_init_ring_buffer(struct drm_device *dev,
 			      + dev_priv->gart_vm_start);
 	} else
 #endif
-		ring_start = (dev_priv->cp_ring->offset
-			      - (unsigned long)dev->sg->virtual
-			      + dev_priv->gart_vm_start);
+		ring_start = dev_priv->cp_ring->offset - dev->sg->vaddr +
+		    dev_priv->gart_vm_start;
 
 	RADEON_WRITE(R600_CP_RB_BASE, ring_start >> 8);
 
@@ -2012,9 +2010,8 @@ int r600_do_init_cp(struct drm_device *dev, drm_radeon_init_t *init,
 						 + dev_priv->gart_vm_start);
 	else
 #endif
-		dev_priv->gart_buffers_offset = (dev->agp_buffer_map->offset
-						 - (unsigned long)dev->sg->virtual
-						 + dev_priv->gart_vm_start);
+		dev_priv->gart_buffers_offset = dev->agp_buffer_map->offset -
+		    dev->sg->vaddr + dev_priv->gart_vm_start;
 
 	DRM_DEBUG("fb 0x%08x size %d\n",
 		  (unsigned int) dev_priv->fb_location,

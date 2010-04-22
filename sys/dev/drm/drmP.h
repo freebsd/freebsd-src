@@ -49,6 +49,7 @@ struct drm_file;
 #include <sys/module.h>
 #include <sys/systm.h>
 #include <sys/conf.h>
+#include <sys/sglist.h>
 #include <sys/stat.h>
 #if __FreeBSD_version >= 700000
 #include <sys/priv.h>
@@ -68,10 +69,13 @@ struct drm_file;
 #include <vm/vm.h>
 #include <vm/pmap.h>
 #include <vm/vm_extern.h>
+#include <vm/vm_kern.h>
 #include <vm/vm_map.h>
 #include <vm/vm_object.h>
 #include <vm/vm_page.h>
+#include <vm/vm_pager.h>
 #include <vm/vm_param.h>
+#include <vm/vm_phys.h>
 #include <machine/param.h>
 #include <machine/pmap.h>
 #include <machine/bus.h>
@@ -474,11 +478,10 @@ typedef struct drm_agp_head {
 } drm_agp_head_t;
 
 typedef struct drm_sg_mem {
-	unsigned long		  handle;
-	void			 *virtual;
-	int			  pages;
-	dma_addr_t		 *busaddr;
-	struct drm_dma_handle	 *dmah;		/* Handle to PCI memory  */
+	vm_offset_t vaddr;
+	vm_paddr_t *busaddr;
+	vm_pindex_t pages;
+	vm_object_t obj;
 } drm_sg_mem_t;
 
 #define DRM_MAP_HANDLE_BITS	(sizeof(void *) == 4 ? 4 : 24)
