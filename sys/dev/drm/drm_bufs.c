@@ -226,8 +226,8 @@ int drm_addmap(struct drm_device * dev, unsigned long offset,
 			DRM_LOCK();
 			return EINVAL;
 		}
-		map->virtual = (void *)(dev->sg->handle + offset);
-		map->offset = dev->sg->handle + offset;
+		map->virtual = (void *)(dev->sg->vaddr + offset);
+		map->offset = dev->sg->vaddr + offset;
 		break;
 	case _DRM_CONSISTENT:
 		/* Unfortunately, we don't get any alignment specification from
@@ -744,7 +744,7 @@ static int drm_do_addbufs_sg(struct drm_device *dev, struct drm_buf_desc *reques
 
 		buf->offset  = (dma->byte_count + offset);
 		buf->bus_address = agp_offset + offset;
-		buf->address = (void *)(agp_offset + offset + dev->sg->handle);
+		buf->address = (void *)(agp_offset + offset + dev->sg->vaddr);
 		buf->next    = NULL;
 		buf->pending = 0;
 		buf->file_priv = NULL;
