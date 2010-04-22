@@ -183,6 +183,7 @@ device		faith		# IPv6-to-IPv4 relaying (translation)
 device		bpf		# Berkeley packet filter
 
 # USB support
+options 	USB_DEBUG	# enable debug msgs
 #device		uhci		# UHCI PCI->USB interface
 #device		ohci		# OHCI PCI->USB interface
 device		usb		# USB Bus (required)

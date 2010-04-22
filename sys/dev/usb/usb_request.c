@@ -68,7 +68,7 @@
 #include <dev/usb/usb_bus.h>
 #include <sys/ctype.h>
 
-#if USB_DEBUG
+#ifdef USB_DEBUG
 static int usb_pr_poll_delay = USB_PORT_RESET_DELAY;
 static int usb_pr_recovery_delay = USB_PORT_RESET_RECOVERY;
 static int usb_ss_delay = 0;
@@ -433,7 +433,7 @@ usbd_do_request_flags(struct usb_device *udev, struct mtx *mtx,
 		} else {
 			if (xfer->frlengths[0] == 0) {
 				if (xfer->flags.manual_status) {
-#if USB_DEBUG
+#ifdef USB_DEBUG
 					int temp;
 
 					temp = usb_ss_delay;
@@ -603,7 +603,7 @@ usbd_req_reset_port(struct usb_device *udev, struct mtx *mtx, uint8_t port)
 	usb_error_t err;
 	uint16_t n;
 
-#if USB_DEBUG
+#ifdef USB_DEBUG
 	uint16_t pr_poll_delay;
 	uint16_t pr_recovery_delay;
 
@@ -612,7 +612,7 @@ usbd_req_reset_port(struct usb_device *udev, struct mtx *mtx, uint8_t port)
 	if (err) {
 		goto done;
 	}
-#if USB_DEBUG
+#ifdef USB_DEBUG
 	/* range check input parameters */
 	pr_poll_delay = usb_pr_poll_delay;
 	if (pr_poll_delay < 1) {
@@ -627,7 +627,7 @@ usbd_req_reset_port(struct usb_device *udev, struct mtx *mtx, uint8_t port)
 #endif
 	n = 0;
 	while (1) {
-#if USB_DEBUG
+#ifdef USB_DEBUG
 		/* wait for the device to recover from reset */
 		usb_pause_mtx(mtx, USB_MS_TO_TICKS(pr_poll_delay));
 		n += pr_poll_delay;
@@ -666,7 +666,7 @@ usbd_req_reset_port(struct usb_device *udev, struct mtx *mtx, uint8_t port)
 		err = USB_ERR_TIMEOUT;
 		goto done;
 	}
-#if USB_DEBUG
+#ifdef USB_DEBUG
 	/* wait for the device to recover from reset */
 	usb_pause_mtx(mtx, USB_MS_TO_TICKS(pr_recovery_delay));
 #else
