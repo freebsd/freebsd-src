@@ -100,10 +100,13 @@ drm_sg_alloc(struct drm_device *dev, struct drm_scatter_gather *request)
 	dev->sg = entry;
 	DRM_UNLOCK();
 
-	DRM_DEBUG("handle=%08lx, kva=%p, contents=%08lx\n", entry->handle,
-	    entry->virtual, *(unsigned long *)entry->virtual);
+	pmap_change_attr((vm_offset_t)dmah->vaddr, request->size,
+	    PAT_WRITE_COMBINING);
 
 	request->handle = entry->handle;
+
+	DRM_DEBUG("handle=%08lx, kva=%p, contents=%08lx\n", entry->handle,
+	    entry->virtual, *(unsigned long *)entry->virtual);
 
 	return 0;
 }
