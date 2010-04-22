@@ -180,7 +180,7 @@ int r600_page_table_init(struct drm_device *dev)
 		entry_addr = entry->busaddr[i];
 		for (j = 0; j < (PAGE_SIZE / ATI_PCIGART_PAGE_SIZE); j++) {
 			page_base = (u64) entry_addr & ATI_PCIGART_PAGE_MASK;
-			page_base |= R600_PTE_VALID | R600_PTE_SYSTEM | R600_PTE_SNOOPED;
+			page_base |= R600_PTE_VALID | R600_PTE_SYSTEM;
 			page_base |= R600_PTE_READABLE | R600_PTE_WRITEABLE;
 
 			*pci_gart = page_base;
