@@ -115,7 +115,7 @@ __FBSDID("$FreeBSD$");
 #define	VENDOR_SET_BREAK		0x02
 #define	VENDOR_CLEAR_BREAK		0x03
 
-#if USB_DEBUG
+#ifdef USB_DEBUG
 static int ubser_debug = 0;
 
 SYSCTL_NODE(_hw_usb, OID_AUTO, ubser, CTLFLAG_RW, 0, "USB ubser");

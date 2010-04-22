@@ -63,7 +63,7 @@
 
 #include <dev/usb/serial/usb_serial.h>
 
-#if USB_DEBUG
+#ifdef USB_DEBUG
 static int u3g_debug = 0;
 
 SYSCTL_NODE(_hw_usb, OID_AUTO, u3g, CTLFLAG_RW, 0, "USB 3g");
