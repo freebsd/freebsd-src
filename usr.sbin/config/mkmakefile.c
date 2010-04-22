@@ -741,7 +741,7 @@ do_rules(FILE *f)
 				printf("config: don't know rules for %s\n", np);
 				break;
 			}
-			snprintf(cmd, sizeof(cmd), "${%s_%c%s}\n.if defined(NORMAL_CTFCONVERT) && !empty(NORMAL_CTFCONVERT)\n\t${NORMAL_CTFCONVERT}\n.endif", ftype,
+			snprintf(cmd, sizeof(cmd), "${%s_%c%s}\n\t@${NORMAL_CTFCONVERT}", ftype,
 			    toupper(och),
 			    ftp->f_flags & NOWERROR ? "_NOWERROR" : "");
 			compilewith = cmd;
