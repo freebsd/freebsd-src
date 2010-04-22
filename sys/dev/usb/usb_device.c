@@ -179,9 +179,9 @@ usbd_get_ep_by_addr(struct usb_device *udev, uint8_t ea_val)
 	/*
 	 * The default endpoint is always present and is checked separately:
 	 */
-	if ((udev->default_ep.edesc) &&
-	    ((udev->default_ep.edesc->bEndpointAddress & EA_MASK) == ea_val)) {
-		ep = &udev->default_ep;
+	if ((udev->ctrl_ep.edesc) &&
+	    ((udev->ctrl_ep.edesc->bEndpointAddress & EA_MASK) == ea_val)) {
+		ep = &udev->ctrl_ep;
 		goto found;
 	}
 	return (NULL);
@@ -297,11 +297,11 @@ usbd_get_endpoint(struct usb_device *udev, uint8_t iface_index,
 	 * address" and "any direction" returns the first endpoint of the
 	 * interface. "iface_index" and "direction" is ignored:
 	 */
-	if ((udev->default_ep.edesc) &&
-	    ((udev->default_ep.edesc->bEndpointAddress & ea_mask) == ea_val) &&
-	    ((udev->default_ep.edesc->bmAttributes & type_mask) == type_val) &&
+	if ((udev->ctrl_ep.edesc) &&
+	    ((udev->ctrl_ep.edesc->bEndpointAddress & ea_mask) == ea_val) &&
+	    ((udev->ctrl_ep.edesc->bmAttributes & type_mask) == type_val) &&
 	    (!index)) {
-		ep = &udev->default_ep;
+		ep = &udev->ctrl_ep;
 		goto found;
 	}
 	return (NULL);
@@ -1422,7 +1422,7 @@ usbd_clear_stall_proc(struct usb_proc_msg *_pm)
 	mtx_lock(&udev->device_mtx);
 
 	/* Start clear stall callback */
-	usbd_transfer_start(udev->default_xfer[1]);
+	usbd_transfer_start(udev->ctrl_xfer[1]);
 
 	/* Change lock */
 	mtx_unlock(&udev->device_mtx);
@@ -1529,13 +1529,13 @@ usb_alloc_device(device_t parent_dev, struct usb_bus *bus,
 	udev->refcount = 1;
 
 	/* set up default endpoint descriptor */
-	udev->default_ep_desc.bLength = sizeof(udev->default_ep_desc);
-	udev->default_ep_desc.bDescriptorType = UDESC_ENDPOINT;
-	udev->default_ep_desc.bEndpointAddress = USB_CONTROL_ENDPOINT;
-	udev->default_ep_desc.bmAttributes = UE_CONTROL;
-	udev->default_ep_desc.wMaxPacketSize[0] = USB_MAX_IPACKET;
-	udev->default_ep_desc.wMaxPacketSize[1] = 0;
-	udev->default_ep_desc.bInterval = 0;
+	udev->ctrl_ep_desc.bLength = sizeof(udev->ctrl_ep_desc);
+	udev->ctrl_ep_desc.bDescriptorType = UDESC_ENDPOINT;
+	udev->ctrl_ep_desc.bEndpointAddress = USB_CONTROL_ENDPOINT;
+	udev->ctrl_ep_desc.bmAttributes = UE_CONTROL;
+	udev->ctrl_ep_desc.wMaxPacketSize[0] = USB_MAX_IPACKET;
+	udev->ctrl_ep_desc.wMaxPacketSize[1] = 0;
+	udev->ctrl_ep_desc.bInterval = 0;
 	udev->ddesc.bMaxPacketSize = USB_MAX_IPACKET;
 
 	udev->speed = speed;
@@ -1559,8 +1559,8 @@ usb_alloc_device(device_t parent_dev, struct usb_bus *bus,
 
 	/* init the default endpoint */
 	usb_init_endpoint(udev, 0,
-	    &udev->default_ep_desc,
-	    &udev->default_ep);
+	    &udev->ctrl_ep_desc,
+	    &udev->ctrl_ep);
 
 	/* set device index */
 	udev->device_index = device_index;
@@ -1573,10 +1573,10 @@ usb_alloc_device(device_t parent_dev, struct usb_bus *bus,
 	LIST_INIT(&udev->pd_list);
 
 	/* Create the control endpoint device */
-	udev->default_dev = usb_make_dev(udev, 0, FREAD|FWRITE);
+	udev->ctrl_dev = usb_make_dev(udev, 0, FREAD|FWRITE);
 
 	/* Create a link from /dev/ugenX.X to the default endpoint */
-	make_dev_alias(udev->default_dev, udev->ugen_name);
+	make_dev_alias(udev->ctrl_dev, udev->ugen_name);
 #endif
 	if (udev->flags.usb_mode == USB_MODE_HOST) {
 
@@ -2009,20 +2009,20 @@ usb_free_device(struct usb_device *udev, uint8_t flag)
 	}
 	mtx_unlock(&usb_ref_lock);
 
-	destroy_dev_sched_cb(udev->default_dev, usb_cdev_cleanup,
-	    udev->default_dev->si_drv1);
+	destroy_dev_sched_cb(udev->ctrl_dev, usb_cdev_cleanup,
+	    udev->ctrl_dev->si_drv1);
 #endif
 
 	if (udev->flags.usb_mode == USB_MODE_DEVICE) {
 		/* stop receiving any control transfers (Device Side Mode) */
-		usbd_transfer_unsetup(udev->default_xfer, USB_DEFAULT_XFER_MAX);
+		usbd_transfer_unsetup(udev->ctrl_xfer, USB_CTRL_XFER_MAX);
 	}
 
 	/* the following will get the device unconfigured in software */
 	usb_unconfigure(udev, USB_UNCFG_FLAG_FREE_EP0);
 
 	/* unsetup any leftover default USB transfers */
-	usbd_transfer_unsetup(udev->default_xfer, USB_DEFAULT_XFER_MAX);
+	usbd_transfer_unsetup(udev->ctrl_xfer, USB_CTRL_XFER_MAX);
 
 	/* template unsetup, if any */
 	(usb_temp_unsetup_p) (udev);

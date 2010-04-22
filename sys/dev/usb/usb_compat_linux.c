@@ -971,7 +971,7 @@ usb_linux_create_usb_device(struct usb_device *udev, device_t dev)
 			udev->devnum = device_get_unit(dev);
 			bcopy(&udev->ddesc, &udev->descriptor,
 			    sizeof(udev->descriptor));
-			bcopy(udev->default_ep.edesc, &udev->ep0.desc,
+			bcopy(udev->ctrl_ep.edesc, &udev->ep0.desc,
 			    sizeof(udev->ep0.desc));
 		}
 	}
