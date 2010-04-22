@@ -670,13 +670,13 @@ nfs_close(struct vop_close_args *ap)
 		     * traditional vnode locking implemented for Vnode Ops.
 		     */
 		    int cm = newnfs_commit_on_close ? 1 : 0;
-		    error = ncl_flush(vp, MNT_WAIT, cred, ap->a_td, cm);
+		    error = ncl_flush(vp, MNT_WAIT, cred, ap->a_td, cm, 0);
 		    /* np->n_flag &= ~NMODIFIED; */
 		} else if (NFS_ISV4(vp)) { 
 			if (nfscl_mustflush(vp)) {
 				int cm = newnfs_commit_on_close ? 1 : 0;
 				error = ncl_flush(vp, MNT_WAIT, cred, ap->a_td,
-				    cm);
+				    cm, 0);
 				/*
 				 * as above w.r.t races when clearing
 				 * NMODIFIED.
@@ -1306,7 +1306,7 @@ ncl_readrpc(struct vnode *vp, struct uio *uiop, struct ucred *cred)
  */
 int
 ncl_writerpc(struct vnode *vp, struct uio *uiop, struct ucred *cred,
-	     int *iomode, int *must_commit)
+    int *iomode, int *must_commit, int called_from_strategy)
 {
 	struct nfsvattr nfsva;
 	int error = 0, attrflag, ret;
@@ -1315,7 +1315,7 @@ ncl_writerpc(struct vnode *vp, struct uio *uiop, struct ucred *cred,
 
 	*must_commit = 0;
 	error = nfsrpc_write(vp, uiop, iomode, verf, cred,
-	    uiop->uio_td, &nfsva, &attrflag, NULL);
+	    uiop->uio_td, &nfsva, &attrflag, NULL, called_from_strategy);
 	NFSLOCKMNT(nmp);
 	if (!error && NFSHASWRITEVERF(nmp) &&
 	    NFSBCMP(verf, nmp->nm_verf, NFSX_VERF)) {
@@ -2473,7 +2473,7 @@ nfs_strategy(struct vop_strategy_args *ap)
 	 */
 	if ((bp->b_flags & B_ASYNC) == 0 ||
 	    ncl_asyncio(VFSTONFS(ap->a_vp->v_mount), bp, NOCRED, curthread))
-		(void)ncl_doio(ap->a_vp, bp, cr, curthread);
+		(void) ncl_doio(ap->a_vp, bp, cr, curthread, 1);
 	return (0);
 }
 
@@ -2484,17 +2484,20 @@ nfs_strategy(struct vop_strategy_args *ap)
 static int
 nfs_fsync(struct vop_fsync_args *ap)
 {
-	return (ncl_flush(ap->a_vp, ap->a_waitfor, NULL, ap->a_td, 1));
+	return (ncl_flush(ap->a_vp, ap->a_waitfor, NULL, ap->a_td, 1, 0));
 }
 
 /*
  * Flush all the blocks associated with a vnode.
  * 	Walk through the buffer pool and push any dirty pages
  *	associated with the vnode.
+ * If the called_from_renewthread argument is TRUE, it has been called
+ * from the NFSv4 renew thread and, as such, cannot block indefinitely
+ * waiting for a buffer write to complete.
  */
 int
 ncl_flush(struct vnode *vp, int waitfor, struct ucred *cred, struct thread *td,
-    int commit)
+    int commit, int called_from_renewthread)
 {
 	struct nfsnode *np = VTONFS(vp);
 	struct buf *bp;
@@ -2513,6 +2516,8 @@ ncl_flush(struct vnode *vp, int waitfor, struct ucred *cred, struct thread *td,
 	struct buf *bvec_on_stack[NFS_COMMITBVECSIZ];
 	int bvecsize = 0, bveccount;
 
+	if (called_from_renewthread != 0)
+		slptimeo = hz;
 	if (nmp->nm_flag & NFSMNT_INT)
 		slpflag = NFS_PCATCH;
 	if (!commit)
@@ -2708,6 +2713,14 @@ loop:
 				error = 0;
 				goto loop;
 			}
+			if (called_from_renewthread != 0) {
+				/*
+				 * Return EIO so the flush will be retried
+				 * later.
+				 */
+				error = EIO;
+				goto done;
+			}
 			if (newnfs_sigintr(nmp, td)) {
 				error = EINTR;
 				goto done;
@@ -2747,6 +2760,14 @@ loop:
 			error = bufobj_wwait(bo, slpflag, slptimeo);
 			if (error) {
 			    BO_UNLOCK(bo);
+			    if (called_from_renewthread != 0) {
+				/*
+				 * Return EIO so that the flush will be
+				 * retried later.
+				 */
+				error = EIO;
+				goto done;
+			    }
 			    error = newnfs_sigintr(nmp, td);
 			    if (error)
 				goto done;
@@ -2838,7 +2859,7 @@ nfs_advlock(struct vop_advlock_args *ap)
 		 */
 		if (ap->a_op == F_UNLCK &&
 		    nfscl_checkwritelocked(vp, ap->a_fl, cred, td))
-			(void) ncl_flush(vp, MNT_WAIT, cred, td, 1);
+			(void) ncl_flush(vp, MNT_WAIT, cred, td, 1, 0);
 
 		/*
 		 * Loop around doing the lock op, while a blocking lock

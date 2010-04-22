@@ -139,7 +139,7 @@ static void nfscl_freedeleg(struct nfscldeleghead *, struct nfscldeleg *);
 static int nfscl_errmap(struct nfsrv_descript *);
 static void nfscl_cleanup_common(struct nfsclclient *, u_int8_t *);
 static int nfscl_recalldeleg(struct nfsclclient *, struct nfsmount *,
-    struct nfscldeleg *, vnode_t, struct ucred *, NFSPROC_T *);
+    struct nfscldeleg *, vnode_t, struct ucred *, NFSPROC_T *, int);
 static void nfscl_freeopenowner(struct nfsclowner *, int);
 static void nfscl_cleandeleg(struct nfscldeleg *);
 static int nfscl_trydelegreturn(struct nfscldeleg *, struct ucred *,
@@ -2469,7 +2469,7 @@ tryagain:
 				NFSUNLOCKCLSTATE();
 				newnfs_copycred(&dp->nfsdl_cred, cred);
 				ret = nfscl_recalldeleg(clp, clp->nfsc_nmp, dp,
-				    NULL, cred, p);
+				    NULL, cred, p, 1);
 				if (!ret) {
 				    nfscl_cleandeleg(dp);
 				    TAILQ_REMOVE(&clp->nfsc_deleg, dp,
@@ -3309,7 +3309,8 @@ nfscl_lockt(vnode_t vp, struct nfsclclient *clp, u_int64_t off,
  */
 static int
 nfscl_recalldeleg(struct nfsclclient *clp, struct nfsmount *nmp,
-    struct nfscldeleg *dp, vnode_t vp, struct ucred *cred, NFSPROC_T *p)
+    struct nfscldeleg *dp, vnode_t vp, struct ucred *cred, NFSPROC_T *p,
+    int called_from_renewthread)
 {
 	struct nfsclowner *owp, *lowp, *nowp;
 	struct nfsclopen *op, *lop;
@@ -3343,6 +3344,7 @@ nfscl_recalldeleg(struct nfsclclient *clp, struct nfsmount *nmp,
 	 * Ok, if it's a write delegation, flush data to the server, so
 	 * that close/open consistency is retained.
 	 */
+	ret = 0;
 	NFSLOCKNODE(np);
 	if ((dp->nfsdl_flags & NFSCLDL_WRITE) && (np->n_flag & NMODIFIED)) {
 #ifdef APPLE
@@ -3351,7 +3353,8 @@ nfscl_recalldeleg(struct nfsclclient *clp, struct nfsmount *nmp,
 		np->n_flag |= NDELEGRECALL;
 #endif
 		NFSUNLOCKNODE(np);
-		(void) ncl_flush(vp, MNT_WAIT, cred, p, 1);
+		ret = ncl_flush(vp, MNT_WAIT, cred, p, 1,
+		    called_from_renewthread);
 		NFSLOCKNODE(np);
 #ifdef APPLE
 		OSBitAndAtomic((int32_t)~(NMODIFIED | NDELEGRECALL), (UInt32 *)&np->n_flag);
@@ -3360,6 +3363,16 @@ nfscl_recalldeleg(struct nfsclclient *clp, struct nfsmount *nmp,
 #endif
 	}
 	NFSUNLOCKNODE(np);
+	if (ret == EIO && called_from_renewthread != 0) {
+		/*
+		 * If the flush failed with EIO for the renew thread,
+		 * return now, so that the dirty buffer will be flushed
+		 * later.
+		 */
+		if (gotvp != 0)
+			vrele(vp);
+		return (ret);
+	}
 
 	/*
 	 * Now, for each openowner with opens issued locally, move them
@@ -3857,7 +3870,7 @@ nfscl_removedeleg(vnode_t vp, NFSPROC_T *p, nfsv4stateid_t *stp)
 			NFSUNLOCKCLSTATE();
 			cred = newnfs_getcred();
 			newnfs_copycred(&dp->nfsdl_cred, cred);
-			(void) nfscl_recalldeleg(clp, nmp, dp, vp, cred, p);
+			(void) nfscl_recalldeleg(clp, nmp, dp, vp, cred, p, 0);
 			NFSFREECRED(cred);
 			triedrecall = 1;
 			NFSLOCKCLSTATE();
@@ -3955,7 +3968,7 @@ nfscl_renamedeleg(vnode_t fvp, nfsv4stateid_t *fstp, int *gotfdp, vnode_t tvp,
 			NFSUNLOCKCLSTATE();
 			cred = newnfs_getcred();
 			newnfs_copycred(&dp->nfsdl_cred, cred);
-			(void) nfscl_recalldeleg(clp, nmp, dp, fvp, cred, p);
+			(void) nfscl_recalldeleg(clp, nmp, dp, fvp, cred, p, 0);
 			NFSFREECRED(cred);
 			triedrecall = 1;
 			NFSLOCKCLSTATE();
