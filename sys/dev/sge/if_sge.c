@@ -1551,10 +1551,13 @@ sge_init_locked(struct sge_softc *sc)
 	/*
 	 * XXX Try to mitigate interrupts.
 	 */
+	CSR_WRITE_4(sc, IntrControl, 0x08880000);
+#ifdef notyet
 	if (sc->sge_intrcontrol != 0)
 		CSR_WRITE_4(sc, IntrControl, sc->sge_intrcontrol);
 	if (sc->sge_intrtimer != 0)
 		CSR_WRITE_4(sc, IntrTimer, sc->sge_intrtimer);
+#endif
 
 	/*
 	 * Clear and enable interrupts.
