@@ -67,6 +67,7 @@ device		e1000phy
 device		bpf
 
 # USB
+options 	USB_DEBUG	# enable debug msgs
 device		usb
 device		ehci
 device		umass

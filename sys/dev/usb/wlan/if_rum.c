@@ -77,7 +77,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/usb/wlan/if_rumvar.h>
 #include <dev/usb/wlan/if_rumfw.h>
 
-#if USB_DEBUG
+#ifdef USB_DEBUG
 static int rum_debug = 0;
 
 SYSCTL_NODE(_hw_usb, OID_AUTO, rum, CTLFLAG_RW, 0, "USB rum");

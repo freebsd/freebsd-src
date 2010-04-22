@@ -78,7 +78,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/usb/wlan/if_uralreg.h>
 #include <dev/usb/wlan/if_uralvar.h>
 
-#if USB_DEBUG
+#ifdef USB_DEBUG
 static int ural_debug = 0;
 
 SYSCTL_NODE(_hw_usb, OID_AUTO, ural, CTLFLAG_RW, 0, "USB ural");
