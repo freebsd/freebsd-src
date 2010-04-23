@@ -1055,7 +1055,6 @@ ino_adjblks(struct suj_ino *sino)
 	if (visitlbn >= NDADDR) {
 		isize = DIP(ip, di_size);
 		size = lblktosize(fs, visitlbn + 1);
-		printf("ino %d isize %jd size %jd\n", ino, isize, size);
 		if (isize > size)
 			isize = size;
 		/* Always truncate to free any unpopulated indirects. */
