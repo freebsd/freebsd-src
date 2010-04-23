@@ -1948,6 +1948,7 @@ ffs_geom_strategy(struct bufobj *bo, struct buf *bp)
 	struct vnode *vp;
 	int error;
 	struct buf *tbp;
+	int nocopy;
 
 	vp = bo->__bo_vnode;
 	if (bp->b_iocmd == BIO_WRITE) {
@@ -1955,8 +1956,9 @@ ffs_geom_strategy(struct bufobj *bo, struct buf *bp)
 		    bp->b_vp != NULL && bp->b_vp->v_mount != NULL &&
 		    (bp->b_vp->v_mount->mnt_kern_flag & MNTK_SUSPENDED) != 0)
 			panic("ffs_geom_strategy: bad I/O");
-		bp->b_flags &= ~B_VALIDSUSPWRT;
-		if ((vp->v_vflag & VV_COPYONWRITE) &&
+		nocopy = bp->b_flags & B_NOCOPY;
+		bp->b_flags &= ~(B_VALIDSUSPWRT | B_NOCOPY);
+		if ((vp->v_vflag & VV_COPYONWRITE) && nocopy == 0 &&
 		    vp->v_rdev->si_snapdata != NULL) {
 			if ((bp->b_flags & B_CLUSTER) != 0) {
 				runningbufwakeup(bp);

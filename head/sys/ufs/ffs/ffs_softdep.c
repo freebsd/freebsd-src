@@ -2052,27 +2052,16 @@ jblocks_add(jblocks, daddr, blocks)
 	return;
 }
 
-/*
- * Open and verify the journal file.
- */
-static int
-journal_mount(mp, fs, cred)
+int
+softdep_journal_lookup(mp, vpp)
 	struct mount *mp;
-	struct fs *fs;
-	struct ucred *cred;
+	struct vnode **vpp;
 {
 	struct componentname cnp;
-	struct jblocks *jblocks;
 	struct vnode *dvp;
-	struct vnode *vp;
-	struct inode *ip;
-	ufs2_daddr_t blkno;
 	ino_t sujournal;
-	int bcount;
 	int error;
-	int i;
 
-	mp->mnt_kern_flag |= MNTK_SUJ;
 	error = VFS_VGET(mp, ROOTINO, LK_EXCLUSIVE, &dvp);
 	if (error)
 		return (error);
@@ -2086,13 +2075,35 @@ journal_mount(mp, fs, cred)
 	cnp.cn_namelen = strlen(SUJ_FILE);
 	error = ufs_lookup_ino(dvp, NULL, &cnp, &sujournal);
 	vput(dvp);
+	if (error != 0)
+		return (error);
+	error = VFS_VGET(mp, sujournal, LK_EXCLUSIVE, vpp);
+	return (error);
+}
+
+/*
+ * Open and verify the journal file.
+ */
+static int
+journal_mount(mp, fs, cred)
+	struct mount *mp;
+	struct fs *fs;
+	struct ucred *cred;
+{
+	struct jblocks *jblocks;
+	struct vnode *vp;
+	struct inode *ip;
+	ufs2_daddr_t blkno;
+	int bcount;
+	int error;
+	int i;
+
+	mp->mnt_kern_flag |= MNTK_SUJ;
+	error = softdep_journal_lookup(mp, &vp);
 	if (error != 0) {
 		printf("Failed to find journal.  Use tunefs to create one\n");
 		return (error);
 	}
-	error = VFS_VGET(mp, sujournal, LK_EXCLUSIVE, &vp);
-	if (error)
-		return (error);
 	ip = VTOI(vp);
 	if (ip->i_size < SUJ_MIN) {
 		error = ENOSPC;
@@ -2588,6 +2599,7 @@ softdep_process_journal(mp, flags)
 		bp->b_bcount = size;
 		bp->b_bufobj = &ump->um_devvp->v_bufobj;
 		bp->b_flags &= ~B_INVAL;
+		bp->b_flags |= B_VALIDSUSPWRT | B_NOCOPY;
 		/*
 		 * Initialize our jseg with cnt records.  Assign the next
 		 * sequence number to it and link it in-order.
