@@ -22,7 +22,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "lib.h"
+#include "pkg.h"
 
 /* These are global for all utils */
 Boolean	Quiet		= FALSE;
