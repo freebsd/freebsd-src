@@ -1113,7 +1113,7 @@ sctp_assoc_immediate_retrans(struct sctp_tcb *stcb, struct sctp_nets *dstnet)
 		}
 		SCTP_TCB_LOCK_ASSERT(stcb);
 #ifdef SCTP_AUDITING_ENABLED
-		sctp_auditing(4, stcb->sctp_ep, stcb->asoc.deleted_primary);
+		sctp_auditing(4, stcb->sctp_ep, stcb, stcb->asoc.deleted_primary);
 #endif
 		sctp_chunk_output(stcb->sctp_ep, stcb, SCTP_OUTPUT_FROM_T3, SCTP_SO_NOT_LOCKED);
 		if ((stcb->asoc.num_send_timers_up == 0) &&

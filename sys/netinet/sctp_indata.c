@@ -2823,25 +2823,7 @@ sctp_process_data(struct mbuf **mm, int iphlen, int *offset, int length,
 		stcb->asoc.send_sack = 1;
 	}
 	/* Start a sack timer or QUEUE a SACK for sending */
-	if ((stcb->asoc.cumulative_tsn == stcb->asoc.highest_tsn_inside_nr_map) &&
-	    (stcb->asoc.nr_mapping_array[0] != 0xff)) {
-		if ((stcb->asoc.data_pkts_seen >= stcb->asoc.sack_freq) ||
-		    (stcb->asoc.delayed_ack == 0) ||
-		    (stcb->asoc.numduptsns) ||
-		    (stcb->asoc.send_sack == 1)) {
-			if (SCTP_OS_TIMER_PENDING(&stcb->asoc.dack_timer.timer)) {
-				(void)SCTP_OS_TIMER_STOP(&stcb->asoc.dack_timer.timer);
-			}
-			sctp_send_sack(stcb);
-		} else {
-			if (!SCTP_OS_TIMER_PENDING(&stcb->asoc.dack_timer.timer)) {
-				sctp_timer_start(SCTP_TIMER_TYPE_RECV,
-				    stcb->sctp_ep, stcb, NULL);
-			}
-		}
-	} else {
-		sctp_sack_check(stcb, was_a_gap, &abort_flag);
-	}
+	sctp_sack_check(stcb, was_a_gap, &abort_flag);
 	if (abort_flag)
 		return (2);
 
@@ -3532,6 +3514,25 @@ sctp_strike_gap_ack_chunks(struct sctp_tcb *stcb, struct sctp_association *asoc,
 		if (tp1->sent == SCTP_DATAGRAM_RESEND) {
 			struct sctp_nets *alt;
 
+			if ((stcb->asoc.peer_supports_prsctp) &&
+			    (PR_SCTP_RTX_ENABLED(tp1->flags))) {
+				/*
+				 * Has it been retransmitted tv_sec times? -
+				 * we store the retran count there.
+				 */
+				if (tp1->snd_count > tp1->rec.data.timetodrop.tv_sec) {
+					/* Yes, so drop it */
+					if (tp1->data != NULL) {
+						(void)sctp_release_pr_sctp_chunk(stcb, tp1,
+						    (SCTP_RESPONSE_TO_USER_REQ | SCTP_NOTIFY_DATAGRAM_SENT),
+						    SCTP_SO_NOT_LOCKED);
+					}
+					/* Make sure to flag we had a FR */
+					tp1->whoTo->net_ack++;
+					tp1 = TAILQ_NEXT(tp1, sctp_next);
+					continue;
+				}
+			}
 			/* fix counts and things */
 			if (SCTP_BASE_SYSCTL(sctp_logging_level) & SCTP_FLIGHT_LOGGING_ENABLE) {
 				sctp_misc_ints(SCTP_FLIGHT_LOG_DOWN_RSND,
@@ -3554,25 +3555,6 @@ sctp_strike_gap_ack_chunks(struct sctp_tcb *stcb, struct sctp_association *asoc,
 			/* remove from the total flight */
 			sctp_total_flight_decrease(stcb, tp1);
 
-			if ((stcb->asoc.peer_supports_prsctp) &&
-			    (PR_SCTP_RTX_ENABLED(tp1->flags))) {
-				/*
-				 * Has it been retransmitted tv_sec times? -
-				 * we store the retran count there.
-				 */
-				if (tp1->snd_count > tp1->rec.data.timetodrop.tv_sec) {
-					/* Yes, so drop it */
-					if (tp1->data != NULL) {
-						(void)sctp_release_pr_sctp_chunk(stcb, tp1,
-						    (SCTP_RESPONSE_TO_USER_REQ | SCTP_NOTIFY_DATAGRAM_SENT),
-						    SCTP_SO_NOT_LOCKED);
-					}
-					/* Make sure to flag we had a FR */
-					tp1->whoTo->net_ack++;
-					tp1 = TAILQ_NEXT(tp1, sctp_next);
-					continue;
-				}
-			}
 			/* printf("OK, we are now ready to FR this guy\n"); */
 			if (SCTP_BASE_SYSCTL(sctp_logging_level) & SCTP_FR_LOGGING_ENABLE) {
 				sctp_log_fr(tp1->rec.data.TSN_seq, tp1->snd_count,
