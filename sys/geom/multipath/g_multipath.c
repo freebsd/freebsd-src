@@ -70,6 +70,8 @@ static int g_multipath_destroy(struct g_geom *);
 static int
 g_multipath_destroy_geom(struct gctl_req *, struct g_class *, struct g_geom *);
 
+static int g_multipath_rotate(struct g_geom *);
+
 static g_taste_t g_multipath_taste;
 static g_ctl_req_t g_multipath_config;
 static g_init_t g_multipath_init;
@@ -416,6 +418,30 @@ g_multipath_destroy_geom(struct gctl_req *req, struct g_class *mp,
 	return (g_multipath_destroy(gp));
 }
 
+static int
+g_multipath_rotate(struct g_geom *gp)
+{
+	struct g_consumer *lcp;
+	struct g_multipath_softc *sc = gp->softc;
+
+	g_topology_assert();
+	if (sc == NULL)
+		return (ENXIO);
+	LIST_FOREACH(lcp, &gp->consumer, consumer) {
+		if ((lcp->index & MP_BAD) == 0) {
+			if (sc->cp_active != lcp) {
+				break;
+			}
+		}
+	}
+	if (lcp) {
+		sc->cp_active = lcp;
+		printf("GEOM_MULTIPATH: %s now active path in %s\n",
+		    lcp->provider->name, sc->sc_name);
+	}
+	return (0);
+}
+
 static void
 g_multipath_init(struct g_class *mp)
 {
@@ -748,6 +774,63 @@ g_multipath_ctl_destroy(struct gctl_req *req, struct g_class *mp)
 }
 
 static void
+g_multipath_ctl_rotate(struct gctl_req *req, struct g_class *mp)
+{
+	struct g_geom *gp;
+	const char *name;
+	int error;
+
+	g_topology_assert();
+
+	name = gctl_get_asciiparam(req, "arg0");
+        if (name == NULL) {
+                gctl_error(req, "No 'arg0' argument");
+                return;
+        }
+	gp = g_multipath_find_geom(mp, name);
+	if (gp == NULL) {
+		gctl_error(req, "Device %s is invalid", name);
+		return;
+	}
+	error = g_multipath_rotate(gp);
+	if (error != 0) {
+		gctl_error(req, "failed to rotate %s (err=%d)", name, error);
+	}
+}
+
+static void
+g_multipath_ctl_getactive(struct gctl_req *req, struct g_class *mp)
+{
+	struct sbuf *sb;
+	struct g_geom *gp;
+	struct g_multipath_softc *sc;
+	const char *name;
+
+	sb = sbuf_new_auto();
+
+	g_topology_assert();
+	name = gctl_get_asciiparam(req, "arg0");
+        if (name == NULL) {
+                gctl_error(req, "No 'arg0' argument");
+                return;
+        }
+	gp = g_multipath_find_geom(mp, name);
+	if (gp == NULL) {
+		gctl_error(req, "Device %s is invalid", name);
+		return;
+	}
+	sc = gp->softc;
+	if (sc->cp_active) {
+		sbuf_printf(sb, "%s\n", sc->cp_active->provider->name);
+	} else {
+		sbuf_printf(sb, "none\n");
+	}
+	sbuf_finish(sb);
+	gctl_set_param_err(req, "output", sbuf_data(sb), sbuf_len(sb) + 1);
+	sbuf_delete(sb);
+}
+
+static void
 g_multipath_config(struct gctl_req *req, struct g_class *mp, const char *verb)
 {
 	uint32_t *version;
@@ -761,6 +844,10 @@ g_multipath_config(struct gctl_req *req, struct g_class *mp, const char *verb)
 		g_multipath_ctl_create(req, mp);
 	} else if (strcmp(verb, "destroy") == 0) {
 		g_multipath_ctl_destroy(req, mp);
+	} else if (strcmp(verb, "rotate") == 0) {
+		g_multipath_ctl_rotate(req, mp);
+	} else if (strcmp(verb, "getactive") == 0) {
+		g_multipath_ctl_getactive(req, mp);
 	} else {
 		gctl_error(req, "Unknown verb %s", verb);
 	}
