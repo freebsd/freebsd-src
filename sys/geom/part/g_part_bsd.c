@@ -73,6 +73,8 @@ static int g_part_bsd_read(struct g_part_table *, struct g_consumer *);
 static const char *g_part_bsd_type(struct g_part_table *, struct g_part_entry *,
     char *, size_t);
 static int g_part_bsd_write(struct g_part_table *, struct g_consumer *);
+static int g_part_bsd_resize(struct g_part_table *, struct g_part_entry *,
+    struct g_part_parms *);
 
 static kobj_method_t g_part_bsd_methods[] = {
 	KOBJMETHOD(g_part_add,		g_part_bsd_add),
@@ -82,6 +84,7 @@ static kobj_method_t g_part_bsd_methods[] = {
 	KOBJMETHOD(g_part_dumpconf,	g_part_bsd_dumpconf),
 	KOBJMETHOD(g_part_dumpto,	g_part_bsd_dumpto),
 	KOBJMETHOD(g_part_modify,	g_part_bsd_modify),
+	KOBJMETHOD(g_part_resize,	g_part_bsd_resize),
 	KOBJMETHOD(g_part_name,		g_part_bsd_name),
 	KOBJMETHOD(g_part_probe,	g_part_bsd_probe),
 	KOBJMETHOD(g_part_read,		g_part_bsd_read),
@@ -285,6 +288,19 @@ g_part_bsd_modify(struct g_part_table *basetable,
 	entry = (struct g_part_bsd_entry *)baseentry;
 	if (gpp->gpp_parms & G_PART_PARM_TYPE)
 		return (bsd_parse_type(gpp->gpp_type, &entry->part.p_fstype));
+	return (0);
+}
+
+static int
+g_part_bsd_resize(struct g_part_table *basetable,
+    struct g_part_entry *baseentry, struct g_part_parms *gpp)
+{
+	struct g_part_bsd_entry *entry;
+
+	entry = (struct g_part_bsd_entry *)baseentry;
+	baseentry->gpe_end = baseentry->gpe_start + gpp->gpp_size - 1;
+	entry->part.p_size = gpp->gpp_size;
+
 	return (0);
 }
 
