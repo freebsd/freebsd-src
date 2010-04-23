@@ -251,11 +251,11 @@ caddr_t virtual_sys_start = (caddr_t)0;
 #define	PMAP_LMEM_UNMAP()						\
 	pte = pmap_pte(kernel_pmap, sysm->base);			\
 	*pte = PTE_G;							\
-	pmap_invalidate_page(kernel_pmap, sysm->base);			\
+	pmap_TLB_invalidate_kernel(sysm->base);				\
 	sysm->valid1 = 0;						\
 	pte = pmap_pte(kernel_pmap, sysm->base + PAGE_SIZE);		\
 	*pte = PTE_G;							\
-	pmap_invalidate_page(kernel_pmap, sysm->base + PAGE_SIZE);	\
+	pmap_TLB_invalidate_kernel(sysm->base + PAGE_SIZE);		\
 	sysm->valid2 = 0;						\
 	sched_unpin();							\
 	intr_restore(intr);						\
