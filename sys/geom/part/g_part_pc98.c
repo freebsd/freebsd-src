@@ -77,6 +77,8 @@ static int g_part_pc98_setunset(struct g_part_table *, struct g_part_entry *,
 static const char *g_part_pc98_type(struct g_part_table *,
     struct g_part_entry *, char *, size_t);
 static int g_part_pc98_write(struct g_part_table *, struct g_consumer *);
+static int g_part_pc98_resize(struct g_part_table *, struct g_part_entry *,  
+    struct g_part_parms *);
 
 static kobj_method_t g_part_pc98_methods[] = {
 	KOBJMETHOD(g_part_add,		g_part_pc98_add),
@@ -86,6 +88,7 @@ static kobj_method_t g_part_pc98_methods[] = {
 	KOBJMETHOD(g_part_dumpconf,	g_part_pc98_dumpconf),
 	KOBJMETHOD(g_part_dumpto,	g_part_pc98_dumpto),
 	KOBJMETHOD(g_part_modify,	g_part_pc98_modify),
+	KOBJMETHOD(g_part_resize,	g_part_pc98_resize),
 	KOBJMETHOD(g_part_name,		g_part_pc98_name),
 	KOBJMETHOD(g_part_probe,	g_part_pc98_probe),
 	KOBJMETHOD(g_part_read,		g_part_pc98_read),
@@ -305,6 +308,31 @@ g_part_pc98_modify(struct g_part_table *basetable,
 	if (gpp->gpp_parms & G_PART_PARM_TYPE)
 		return (pc98_parse_type(gpp->gpp_type, &entry->ent.dp_mid,
 		    &entry->ent.dp_sid));
+	return (0);
+}
+
+static int
+g_part_pc98_resize(struct g_part_table *basetable,
+    struct g_part_entry *baseentry, struct g_part_parms *gpp)
+{
+	struct g_part_pc98_entry *entry;
+	uint32_t size, cyl;
+
+	cyl = basetable->gpt_heads * basetable->gpt_sectors;
+	size = gpp->gpp_size;
+
+	if (size < cyl)
+		return (EINVAL);
+	if (size % cyl)
+		size = size - (size % cyl);
+	if (size < cyl)
+		return (EINVAL);
+
+	entry = (struct g_part_pc98_entry *)baseentry;
+	baseentry->gpe_end = baseentry->gpe_start + size - 1;
+	pc98_set_chs(basetable, baseentry->gpe_end, &entry->ent.dp_ecyl,
+	    &entry->ent.dp_ehd, &entry->ent.dp_esect);
+
 	return (0);
 }
 

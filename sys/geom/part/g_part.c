@@ -971,9 +971,85 @@ g_part_ctl_recover(struct gctl_req *req, struct g_part_parms *gpp)
 static int
 g_part_ctl_resize(struct gctl_req *req, struct g_part_parms *gpp)
 {
-	gctl_error(req, "%d verb 'resize'", ENOSYS);
-	return (ENOSYS);
-} 
+	struct g_geom *gp;
+	struct g_provider *pp;
+	struct g_part_entry *pe, *entry;
+	struct g_part_table *table;
+	struct sbuf *sb;
+	quad_t end;
+	int error;
+
+	gp = gpp->gpp_geom;
+	G_PART_TRACE((G_T_TOPOLOGY, "%s(%s)", __func__, gp->name));
+	g_topology_assert();
+	table = gp->softc;
+
+	/* check gpp_index */
+	LIST_FOREACH(entry, &table->gpt_entry, gpe_entry) {
+		if (entry->gpe_deleted || entry->gpe_internal)
+			continue;
+		if (entry->gpe_index == gpp->gpp_index)
+			break;
+	}
+	if (entry == NULL) {
+		gctl_error(req, "%d index '%d'", ENOENT, gpp->gpp_index);
+		return (ENOENT);
+	}
+
+	/* check gpp_size */
+	end = entry->gpe_start + gpp->gpp_size - 1;
+	if (gpp->gpp_size < 1 || end > table->gpt_last) {
+		gctl_error(req, "%d size '%jd'", EINVAL,
+		    (intmax_t)gpp->gpp_size);
+		return (EINVAL);
+	}
+
+	LIST_FOREACH(pe, &table->gpt_entry, gpe_entry) {
+		if (pe->gpe_deleted || pe->gpe_internal || pe == entry)
+			continue;
+		if (end >= pe->gpe_start && end <= pe->gpe_end) {
+			gctl_error(req, "%d end '%jd'", ENOSPC,
+			    (intmax_t)end);
+			return (ENOSPC);
+		}
+		if (entry->gpe_start < pe->gpe_start && end > pe->gpe_end) {
+			gctl_error(req, "%d size '%jd'", ENOSPC,
+			    (intmax_t)gpp->gpp_size);
+			return (ENOSPC);
+		}
+	}
+
+	pp = entry->gpe_pp;
+	if ((g_debugflags & 16) == 0 &&
+	    (pp->acr > 0 || pp->acw > 0 || pp->ace > 0)) {
+		gctl_error(req, "%d", EBUSY);
+		return (EBUSY);
+	}
+
+	error = G_PART_RESIZE(table, entry, gpp);
+	if (error) {
+		gctl_error(req, "%d", error);
+		return (error);
+	}
+
+	if (!entry->gpe_created)
+		entry->gpe_modified = 1;
+
+	/* update mediasize of changed provider */
+	pp->mediasize = (entry->gpe_end - entry->gpe_start + 1) *
+		pp->sectorsize;
+
+	/* Provide feedback if so requested. */
+	if (gpp->gpp_parms & G_PART_PARM_OUTPUT) {
+		sb = sbuf_new_auto();
+		G_PART_FULLNAME(table, entry, sb, gp->name);
+		sbuf_cat(sb, " resized\n");
+		sbuf_finish(sb);
+		gctl_set_param(req, "output", sbuf_data(sb), sbuf_len(sb) + 1);
+		sbuf_delete(sb);
+	}
+	return (0);
+}
 
 static int
 g_part_ctl_setunset(struct gctl_req *req, struct g_part_parms *gpp,
@@ -1194,7 +1270,8 @@ g_part_ctlreq(struct gctl_req *req, struct g_class *mp, const char *verb)
 			mparms |= G_PART_PARM_GEOM;
 		} else if (!strcmp(verb, "resize")) {
 			ctlreq = G_PART_CTL_RESIZE;
-			mparms |= G_PART_PARM_GEOM | G_PART_PARM_INDEX;
+			mparms |= G_PART_PARM_GEOM | G_PART_PARM_INDEX |
+			    G_PART_PARM_SIZE;
 		}
 		break;
 	case 's':
