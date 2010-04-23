@@ -21,7 +21,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "lib.h"
+#include "pkg.h"
 #include <err.h>
 #include <paths.h>
 
@@ -61,12 +61,7 @@ y_or_n(Boolean def, const char *msg, ...)
 	else
 	    fprintf(stderr, " [no]? ");
 	fflush(stderr);
-	if (AutoAnswer) {
-	    ch = (AutoAnswer == YES) ? 'Y' : 'N';
-	    fprintf(stderr, "%c\n", ch);
-	}
-	else
-	    ch = toupper(fgetc(tty));
+	ch = toupper(fgetc(tty));
 	if (ch == '\n')
 	    ch = (def) ? 'Y' : 'N';
     }
