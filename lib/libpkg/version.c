@@ -19,8 +19,18 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "lib.h"
+#include "pkg.h"
 #include <err.h>
+
+/*
+ * This routine could easily go somewhere else.
+ *
+ */
+int
+libpkg_version(void)
+{
+	return LIBPKG_VERSION;
+}
 
 /*
  * Routines to assist with PLIST_FMT_VER numbers in the packing
