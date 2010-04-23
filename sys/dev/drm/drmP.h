@@ -228,7 +228,7 @@ enum {
 #define DRM_MTRR_WC		MDF_WRITECOMBINE
 #define jiffies			ticks
 
-typedef unsigned long dma_addr_t;
+typedef vm_paddr_t dma_addr_t;
 typedef u_int64_t u64;
 typedef u_int32_t u32;
 typedef u_int16_t u16;
