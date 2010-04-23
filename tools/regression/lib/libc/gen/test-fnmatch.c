@@ -174,6 +174,7 @@ struct testcase {
 	"*a", ".a/b", FNM_PATHNAME | FNM_LEADING_DIR, 0,
 	"*", ".a/b", FNM_PATHNAME | FNM_PERIOD | FNM_LEADING_DIR, FNM_NOMATCH,
 	"*a", ".a/b", FNM_PATHNAME | FNM_PERIOD | FNM_LEADING_DIR, FNM_NOMATCH,
+	"a*b/*", "abbb/.x", FNM_PATHNAME | FNM_PERIOD, FNM_NOMATCH,
 };
 
 static const char *
