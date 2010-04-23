@@ -526,6 +526,7 @@ journal_balloc(void)
 	ufs2_daddr_t blk;
 	struct cg *cgp;
 	int valid;
+	static int contig = 1;
 
 	cgp = &disk.d_cg;
 	for (;;) {
@@ -547,9 +548,21 @@ journal_balloc(void)
 			 */
 			if (cgp->cg_cs.cs_nbfree > blocks / 8)
 				break;
+			if (contig == 0 && cgp->cg_cs.cs_nbfree)
+				break;
 		}
 		if (valid)
 			continue;
+		/*
+		 * Try once through looking only for large contiguous regions
+		 * and again taking any space we can find.
+		 */
+		if (contig) {
+			contig = 0;
+			disk.d_ccg = 0;
+			warnx("Journal file fragmented.");
+			continue;
+		}
 		warnx("Failed to find sufficient free blocks for the journal");
 		return -1;
 	}
@@ -906,12 +919,6 @@ journal_alloc(int64_t size)
 	while (cgread(&disk) == 1) {
 		if (cgp->cg_cs.cs_nifree == 0)
 			continue;
-		/*
-		 * Try to minimize fragmentation by requiring at least a
-		 * 1/16th of the blocks be present in each cg we use.
-		 */
-		if (cgp->cg_cs.cs_nbfree < blocks / 16)
-			continue;
 		ino = cgialloc(&disk);
 		if (ino <= 0)
 			break;
@@ -992,7 +999,7 @@ journal_alloc(int64_t size)
 		sblock.fs_sujfree = 0;
 		return (0);
 	}
-	warnx("Insufficient contiguous free space for the journal.");
+	warnx("Insufficient free space for the journal.");
 out:
 	return (-1);
 }
