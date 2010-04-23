@@ -14,6 +14,7 @@ LDIRS=	BSD_daemon \
 	etc \
 	find_interface \
 	ibcs2 \
+	indent \
 	ipfw \
 	isdn \
 	kld \
@@ -76,6 +77,7 @@ XFILES=	BSD_daemon/FreeBSD.pfa \
 	find_interface/find_interface.c \
 	ibcs2/README \
 	ibcs2/hello.uu \
+	indent/indent.pro \
 	ipfw/change_rules.sh \
 	isdn/FAQ \
 	isdn/KERNEL \
