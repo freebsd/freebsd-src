@@ -37,6 +37,7 @@ lines in your kernel configuration file:
 .Bd -ragged -offset indent
 .Cd "options GEOM_PART_APM"
 .Cd "options GEOM_PART_BSD"
+.Cd "options GEOM_PART_EBR"
 .Cd "options GEOM_PART_GPT"
 .Cd "options GEOM_PART_MBR"
 .Cd "options GEOM_PART_PC98"
@@ -52,6 +53,10 @@ The
 option adds support for the traditional
 .Bx
 disklabel.
+The
+.Dv GEOM_PART_EBR
+option adds support for the Extended Boot Record (EBR),
+which is used to define a logical partition.
 The
 .Dv GEOM_PART_GPT
 option adds support for the GUID Partition Table (GPT)
