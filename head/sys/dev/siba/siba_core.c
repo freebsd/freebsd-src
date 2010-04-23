@@ -2031,11 +2031,13 @@ siba_pcie_mdio_write(struct siba_pci *spc, uint8_t device, uint8_t address,
 uint32_t
 siba_dma_translation(device_t dev)
 {
+#ifdef INVARIANTS
 	struct siba_dev_softc *sd = device_get_ivars(dev);
 	struct siba_softc *siba = sd->sd_bus;
 
 	KASSERT(siba->siba_type == SIBA_TYPE_PCI,
 	    ("unsupported bustype %d\n", siba->siba_type));
+#endif
 	return (SIBA_PCI_DMA);
 }
 

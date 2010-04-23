@@ -49,6 +49,7 @@ struct drm_file;
 #include <sys/module.h>
 #include <sys/systm.h>
 #include <sys/conf.h>
+#include <sys/sglist.h>
 #include <sys/stat.h>
 #if __FreeBSD_version >= 700000
 #include <sys/priv.h>
@@ -68,10 +69,13 @@ struct drm_file;
 #include <vm/vm.h>
 #include <vm/pmap.h>
 #include <vm/vm_extern.h>
+#include <vm/vm_kern.h>
 #include <vm/vm_map.h>
 #include <vm/vm_object.h>
 #include <vm/vm_page.h>
+#include <vm/vm_pager.h>
 #include <vm/vm_param.h>
+#include <vm/vm_phys.h>
 #include <machine/param.h>
 #include <machine/pmap.h>
 #include <machine/bus.h>
@@ -239,22 +243,22 @@ typedef u_int8_t u8;
 #define DRM_MEMORYBARRIER()		mb()
 
 #define DRM_READ8(map, offset)						\
-	*(volatile u_int8_t *)(((vm_offset_t)(map)->handle) +		\
+	*(volatile u_int8_t *)(((vm_offset_t)(map)->virtual) +		\
 	    (vm_offset_t)(offset))
 #define DRM_READ16(map, offset)						\
-	*(volatile u_int16_t *)(((vm_offset_t)(map)->handle) +		\
+	*(volatile u_int16_t *)(((vm_offset_t)(map)->virtual) +		\
 	    (vm_offset_t)(offset))
 #define DRM_READ32(map, offset)						\
-	*(volatile u_int32_t *)(((vm_offset_t)(map)->handle) +		\
+	*(volatile u_int32_t *)(((vm_offset_t)(map)->virtual) +		\
 	    (vm_offset_t)(offset))
 #define DRM_WRITE8(map, offset, val)					\
-	*(volatile u_int8_t *)(((vm_offset_t)(map)->handle) +		\
+	*(volatile u_int8_t *)(((vm_offset_t)(map)->virtual) +		\
 	    (vm_offset_t)(offset)) = val
 #define DRM_WRITE16(map, offset, val)					\
-	*(volatile u_int16_t *)(((vm_offset_t)(map)->handle) +		\
+	*(volatile u_int16_t *)(((vm_offset_t)(map)->virtual) +		\
 	    (vm_offset_t)(offset)) = val
 #define DRM_WRITE32(map, offset, val)					\
-	*(volatile u_int32_t *)(((vm_offset_t)(map)->handle) +		\
+	*(volatile u_int32_t *)(((vm_offset_t)(map)->virtual) +		\
 	    (vm_offset_t)(offset)) = val
 
 #define DRM_VERIFYAREA_READ( uaddr, size )		\
@@ -474,25 +478,27 @@ typedef struct drm_agp_head {
 } drm_agp_head_t;
 
 typedef struct drm_sg_mem {
-	unsigned long		  handle;
-	void			 *virtual;
-	int			  pages;
-	dma_addr_t		 *busaddr;
-	struct drm_dma_handle	 *dmah;		/* Handle to PCI memory  */
+	vm_offset_t vaddr;
+	vm_paddr_t *busaddr;
+	vm_pindex_t pages;
+	vm_object_t obj;
 } drm_sg_mem_t;
 
+#define DRM_MAP_HANDLE_BITS	(sizeof(void *) == 4 ? 4 : 24)
+#define DRM_MAP_HANDLE_SHIFT	(sizeof(void *) * 8 - DRM_MAP_HANDLE_BITS)
 typedef TAILQ_HEAD(drm_map_list, drm_local_map) drm_map_list_t;
 
 typedef struct drm_local_map {
-	unsigned long	offset;	 /* Physical address (0 for SAREA)*/
-	unsigned long	size;	 /* Physical size (bytes)	    */
-	enum drm_map_type	type;	 /* Type of memory mapped		    */
-	enum drm_map_flags	flags;	 /* Flags				    */
-	void		*handle; /* User-space: "Handle" to pass to mmap    */
-				 /* Kernel-space: kernel-virtual address    */
-	int		mtrr;	 /* Boolean: MTRR used */
-				 /* Private data			    */
-	int		rid;	 /* PCI resource ID for bus_space */
+	unsigned long offset;	  /* Physical address (0 for SAREA)       */
+	unsigned long size;	  /* Physical size (bytes)                */
+	enum drm_map_type type;	  /* Type of memory mapped                */
+	enum drm_map_flags flags; /* Flags                                */
+	void *handle;		  /* User-space: "Handle" to pass to mmap */
+				  /* Kernel-space: kernel-virtual address */
+	int mtrr;		  /* Boolean: MTRR used                   */
+				  /* Private data                         */
+	int rid;		  /* PCI resource ID for bus_space        */
+	void *virtual;		  /* Kernel-space: kernel-virtual address */
 	struct resource *bsr;
 	bus_space_tag_t bst;
 	bus_space_handle_t bsh;
@@ -643,6 +649,7 @@ struct drm_device {
 
 	/* Linked list of mappable regions. Protected by dev_lock */
 	drm_map_list_t	  maplist;
+	struct unrhdr	  *map_unrhdr;
 
 	drm_local_map_t	  **context_sareas;
 	int		  max_context;
@@ -973,17 +980,17 @@ drm_free(void *pt, size_t size, struct malloc_type *area)
 static __inline__ void
 drm_core_ioremap_wc(struct drm_local_map *map, struct drm_device *dev)
 {
-	map->handle = drm_ioremap_wc(dev, map);
+	map->virtual = drm_ioremap_wc(dev, map);
 }
 static __inline__ void
 drm_core_ioremap(struct drm_local_map *map, struct drm_device *dev)
 {
-	map->handle = drm_ioremap(dev, map);
+	map->virtual = drm_ioremap(dev, map);
 }
 static __inline__ void
 drm_core_ioremapfree(struct drm_local_map *map, struct drm_device *dev)
 {
-	if ( map->handle && map->size )
+	if ( map->virtual && map->size )
 		drm_ioremapfree(map);
 }
 
@@ -994,7 +1001,7 @@ drm_core_findmap(struct drm_device *dev, unsigned long offset)
 
 	DRM_SPINLOCK_ASSERT(&dev->dev_lock);
 	TAILQ_FOREACH(map, &dev->maplist, link) {
-		if (map->offset == offset)
+		if (offset == (unsigned long)map->handle)
 			return map;
 	}
 	return NULL;

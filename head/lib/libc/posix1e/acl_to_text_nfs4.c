@@ -167,7 +167,7 @@ format_additional_id(char *str, size_t size, const acl_entry_t entry)
 static int
 format_entry(char *str, size_t size, const acl_entry_t entry, int flags)
 {
-	size_t off = 0, padding_length, maximum_who_field_length = 18;
+	size_t off = 0, min_who_field_length = 18;
 	acl_permset_t permset;
 	acl_flagset_t flagset;
 	int error, len;
@@ -188,12 +188,9 @@ format_entry(char *str, size_t size, const acl_entry_t entry, int flags)
 	if (error)
 		return (error);
 	len = strlen(buf);
-	padding_length = maximum_who_field_length - len;
-	if (padding_length > 0) {
-		memset(str, ' ', padding_length);
-		off += padding_length;
-	}
-	off += snprintf(str + off, size - off, "%s:", buf);
+	if (len < min_who_field_length)
+		len = min_who_field_length;
+	off += snprintf(str + off, size - off, "%*s:", len, buf);
 
 	error = _nfs4_format_access_mask(buf, sizeof(buf), *permset,
 	    flags & ACL_TEXT_VERBOSE);

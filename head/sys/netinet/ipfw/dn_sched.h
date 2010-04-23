@@ -68,6 +68,18 @@ struct dn_alg {
 	 * enqueue	enqueue packet 'm' on scheduler 's', queue 'q'.
 	 *	q is NULL for !MULTIQUEUE.
 	 *	Return 0 on success, 1 on drop (packet consumed anyways).
+	 *	Note that q should be interpreted only as a hint
+	 *	on the flow that the mbuf belongs to: while a
+	 *	scheduler will normally enqueue m into q, it is ok
+	 *	to leave q alone and put the mbuf elsewhere.
+	 *	This function is called in two cases:
+	 *	 - when a new packet arrives to the scheduler;
+	 *	 - when a scheduler is reconfigured. In this case the
+	 *	   call is issued by the new_queue callback, with a 
+	 *	   non empty queue (q) and m pointing to the first
+	 *	   mbuf in the queue. For this reason, the function
+	 *	   should internally check for (m != q->mq.head)
+	 *	   before calling dn_enqueue().
 	 *
 	 * dequeue	Called when scheduler instance 's' can
 	 *	dequeue a packet. Return NULL if none are available.
@@ -94,8 +106,15 @@ struct dn_alg {
 	 *
 	 * new_queue	called to set the per-queue parameters,
 	 *	e.g. S and F, adjust sum of weights in the parent, etc.
-	 *	If the queue has packets in it, add them to the scheduler
-	 *	as well.
+	 *
+	 *	The new_queue callback is normally called from when
+	 *	creating a new queue. In some cases (such as a
+	 *	scheduler change or reconfiguration) it can be called
+	 *	with a non empty queue. In this case, the queue
+	 *	In case of non empty queue, the new_queue callback could
+	 *	need to call the enqueue function. In this case,
+	 *	the callback should eventually call enqueue() passing
+	 *	as m the first element in the queue.
 	 *
 	 * free_queue	actions related to a queue removal, e.g. undo
 	 *	all the above. If the queue has data in it, also remove
@@ -121,9 +140,9 @@ struct dn_alg {
 
 /* MSVC does not support initializers so we need this ugly macro */
 #ifdef _WIN32
-#define _SI(fld)        
+#define _SI(fld)
 #else
-#define _SI(fld)        fld
+#define _SI(fld)	fld
 #endif
 
 /*

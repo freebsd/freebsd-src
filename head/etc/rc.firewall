@@ -424,24 +424,21 @@ case ${firewall_type} in
 	# Configuration:
 	#  firewall_myservices:		List of TCP ports on which this host
 	#			 	 offers services.
-	#  firewall_allowservices:	List of IPs which has access to
+	#  firewall_allowservices:	List of IPv4 and/or IPv6 addresses
+	#				 that have access to
 	#				 $firewall_myservices.
-	#  firewall_trusted:		List of IPv4s which has full access 
-	#				 to this host. Be very carefull 
-	#				 when setting this. This option can
-	#				 seriously degrade the level of 
-	#				 protection provided by the firewall.
+	#  firewall_trusted:		List of IPv4 and/or IPv6 addresses
+	#				 that have full access to this host.
+	#				 Be very careful when setting this.
+	#				 This option can seriously degrade
+	#				 the level of protection provided by
+	#				 the firewall.
 	#  firewall_logdeny:		Boolean (YES/NO) specifying if the
 	#				 default denied packets should be
 	#				 logged (in /var/log/security).
 	#  firewall_nologports:		List of TCP/UDP ports for which
 	#				 denied incomming packets are not
 	#				 logged.
-	#  firewall_trusted_ipv6:	List of IPv6s which has full access 
-	#				 to this host. Be very carefull 
-	#				 when setting this. This option can
-	#				 seriously degrade the level of 
-	#				 protection provided by the firewall.
 
 	# Allow packets for which a state has been built.
 	${fwcmd} add check-state

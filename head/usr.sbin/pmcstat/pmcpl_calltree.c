@@ -366,7 +366,7 @@ pmcpl_ct_node_cleartag(void)
 
 static int
 pmcpl_ct_node_dumptop(int pmcin, struct pmcpl_ct_node *ct,
-    struct pmcpl_ct_sample *rsamples, int x, int *y)
+    struct pmcpl_ct_sample *rsamples, int x, int *y, int maxy)
 {
 	int i;
 
@@ -387,7 +387,7 @@ pmcpl_ct_node_dumptop(int pmcin, struct pmcpl_ct_node *ct,
 	if (ct->pct_narc == 0) {
 		pmcpl_ct_topscreen[x+1][*y] = NULL;
 		if (*y >= PMCPL_CT_MAXLINE ||
-		    *y >= pmcstat_displayheight)
+		    *y >= maxy)
 			return 1;
 		*y = *y + 1;
 		for (i=0; i < x; i++)
@@ -403,11 +403,15 @@ pmcpl_ct_node_dumptop(int pmcin, struct pmcpl_ct_node *ct,
 	    &pmcin, pmcpl_ct_arc_compare);
 
 	for (i = 0; i < ct->pct_narc; i++) {
+		/* Skip this arc if there is no sample at all. */
+		if (PMCPL_CT_SAMPLE(pmcin,
+		    &ct->pct_arc[i].pcta_samples) == 0)
+			continue;
 		if (PMCPL_CT_SAMPLEP(pmcin,
 		    &ct->pct_arc[i].pcta_samples) > pmcstat_threshold) {
 			if (pmcpl_ct_node_dumptop(pmcin,
 			        ct->pct_arc[i].pcta_child,
-			        rsamples, x+1, y))
+			        rsamples, x+1, y, maxy))
 				return 1;
 		}
 	}
@@ -472,6 +476,9 @@ pmcpl_ct_node_printtop(struct pmcpl_ct_sample *rsamples, int pmcin, int maxy)
 			/* Check for line wrap. */
 			width += ns_len + is_len + vs_len + 1;
 			if (width >= pmcstat_displaywidth) {
+				maxy--;
+				if (y >= maxy)
+					break;
 				PMCSTAT_PRINTW("\n%*s", indentwidth, space);
 				width = indentwidth + ns_len + is_len + vs_len;
 			}
@@ -492,9 +499,10 @@ void
 pmcpl_ct_topdisplay(void)
 {
 	int i, x, y, pmcin;
-	struct pmcpl_ct_sample rsamples;
+	struct pmcpl_ct_sample r, *rsamples;
 
-	pmcpl_ct_samples_root(&rsamples);
+	rsamples = &r;
+	pmcpl_ct_samples_root(rsamples);
 
 	PMCSTAT_PRINTW("%-10.10s %s\n", "IMAGE", "CALLTREE");
 
@@ -513,16 +521,24 @@ pmcpl_ct_topdisplay(void)
 
 		x = y = 0;
 		for (i = 0; i < pmcpl_ct_root->pct_narc; i++) {
+			/* Skip this arc if there is no sample at all. */
+			if (PMCPL_CT_SAMPLE(pmcin,
+			    &pmcpl_ct_root->pct_arc[i].pcta_samples) == 0)
+				continue;
+			if (PMCPL_CT_SAMPLEP(pmcin,
+			    &pmcpl_ct_root->pct_arc[i].pcta_samples) <=
+			    pmcstat_threshold)
+				continue;
 			if (pmcpl_ct_node_dumptop(pmcin,
 			        pmcpl_ct_root->pct_arc[i].pcta_child,
-			        &rsamples, x, &y)) {
+			        rsamples, x, &y, pmcstat_displayheight - 2)) {
 				break;
 			}
 		}
 
-		pmcpl_ct_node_printtop(&rsamples, pmcin, y);
+		pmcpl_ct_node_printtop(rsamples, pmcin, y);
 	}
-	pmcpl_ct_samples_free(&rsamples);
+	pmcpl_ct_samples_free(rsamples);
 }
 
 /*
@@ -690,6 +706,7 @@ pmcpl_ct_process(struct pmcstat_process *pp, struct pmcstat_pmcrecord *pmcr,
 	}
 	if (n-- == 0) {
 		pmcstat_stats.ps_callchain_dubious_frames++;
+		pmcr->pr_dubious_frames++;
 		return;
 	}
 

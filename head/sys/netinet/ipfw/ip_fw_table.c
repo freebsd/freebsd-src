@@ -176,14 +176,18 @@ ipfw_flush_table(struct ip_fw_chain *ch, uint16_t tbl)
 }
 
 void
-ipfw_flush_tables(struct ip_fw_chain *ch)
+ipfw_destroy_tables(struct ip_fw_chain *ch)
 {
 	uint16_t tbl;
+	struct radix_node_head *rnh;
 
 	IPFW_WLOCK_ASSERT(ch);
 
-	for (tbl = 0; tbl < IPFW_TABLES_MAX; tbl++)
+	for (tbl = 0; tbl < IPFW_TABLES_MAX; tbl++) {
 		ipfw_flush_table(ch, tbl);
+		rnh = ch->tables[tbl];
+		rn_detachhead((void **)&rnh);
+	}
 }
 
 int
@@ -201,21 +205,6 @@ ipfw_init_tables(struct ip_fw_chain *ch)
 		}
 	}
 	return (0);
-}
-
-void
-ipfw_destroy_tables(struct ip_fw_chain *ch)
-{
-	int tbl;
-	struct radix_node_head *rnh;
-
-	IPFW_WLOCK_ASSERT(ch);
-
-	ipfw_flush_tables(ch);
-	for (tbl = 0; tbl < IPFW_TABLES_MAX; tbl++) {
-		rnh = ch->tables[tbl];
-		rn_detachhead((void **)&rnh);
-	}
 }
 
 int

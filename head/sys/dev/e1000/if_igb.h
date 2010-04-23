@@ -47,8 +47,8 @@
  *   desscriptors should meet the following condition.
  *      (num_tx_desc * sizeof(struct e1000_tx_desc)) % 128 == 0
  */
-#define IGB_MIN_TXD		80
-#define IGB_DEFAULT_TXD		256
+#define IGB_MIN_TXD		256
+#define IGB_DEFAULT_TXD		1024
 #define IGB_MAX_TXD		4096
 
 /*
@@ -62,8 +62,8 @@
  *   desscriptors should meet the following condition.
  *      (num_tx_desc * sizeof(struct e1000_tx_desc)) % 128 == 0
  */
-#define IGB_MIN_RXD		80
-#define IGB_DEFAULT_RXD		256
+#define IGB_MIN_RXD		256
+#define IGB_DEFAULT_RXD		1024
 #define IGB_MAX_RXD		4096
 
 /*
@@ -333,13 +333,11 @@ struct rx_ring {
 	bool			discard;
 	struct mtx		rx_mtx;
 	char			mtx_name[16];
-	u32			last_cleaned;
+	u32			next_to_refresh;
 	u32			next_to_check;
 	struct igb_rx_buf	*rx_buffers;
-	bus_dma_tag_t		rx_htag;	/* dma tag for rx head */
-	bus_dmamap_t		rx_hspare_map;
-	bus_dma_tag_t		rx_ptag;	/* dma tag for rx packet */
-	bus_dmamap_t		rx_pspare_map;
+	bus_dma_tag_t		htag;		/* dma tag for rx head */
+	bus_dma_tag_t		ptag;		/* dma tag for rx packet */
 	/*
 	 * First/last mbuf pointers, for
 	 * collecting multisegment RX packets.
@@ -363,6 +361,7 @@ struct adapter {
 
 	struct e1000_osdep osdep;
 	struct device	*dev;
+	struct cdev	*led_dev;
 
 	struct resource *pci_mem;
 	struct resource *msix_mem;
@@ -468,8 +467,8 @@ struct igb_tx_buffer {
 struct igb_rx_buf {
         struct mbuf    *m_head;
         struct mbuf    *m_pack;
-	bus_dmamap_t	head_map;	/* bus_dma map for packet */
-	bus_dmamap_t	pack_map;	/* bus_dma map for packet */
+	bus_dmamap_t	hmap;	/* bus_dma map for header */
+	bus_dmamap_t	pmap;	/* bus_dma map for packet */
 };
 
 #define	IGB_CORE_LOCK_INIT(_sc, _name) \

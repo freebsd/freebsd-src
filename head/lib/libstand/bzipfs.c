@@ -81,14 +81,6 @@ struct fs_ops bzipfs_fsops = {
 };
 #endif
 
-#if 0
-void *
-calloc(int items, size_t size)
-{
-    return(malloc(items * size));
-}
-#endif
-
 static int
 bzf_fill(struct bz_file *bzf)
 {

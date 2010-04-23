@@ -91,13 +91,6 @@ zio_init(void)
 #ifdef ZIO_USE_UMA
 	size_t c;
 #endif
-#if 0
-	vmem_t *data_alloc_arena = NULL;
-
-#ifdef _KERNEL
-	data_alloc_arena = zio_alloc_arena;
-#endif
-#endif
 	zio_cache = kmem_cache_create("zio_cache", sizeof (zio_t), 0,
 	    NULL, NULL, NULL, NULL, NULL, 0);
 
@@ -132,8 +125,7 @@ zio_init(void)
 
 			(void) sprintf(name, "zio_data_buf_%lu", (ulong_t)size);
 			zio_data_buf_cache[c] = kmem_cache_create(name, size,
-			    align, NULL, NULL, NULL, NULL, data_alloc_arena,
-			    KMC_NODEBUG);
+			    align, NULL, NULL, NULL, NULL, NULL, KMC_NODEBUG);
 		}
 	}
 

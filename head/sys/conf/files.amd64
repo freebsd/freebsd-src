@@ -198,6 +198,7 @@ dev/hptrr/hptrr_config.c	optional	hptrr
 dev/hwpmc/hwpmc_amd.c		optional	hwpmc
 dev/hwpmc/hwpmc_intel.c		optional	hwpmc
 dev/hwpmc/hwpmc_core.c		optional	hwpmc
+dev/hwpmc/hwpmc_uncore.c	optional	hwpmc
 dev/hwpmc/hwpmc_piv.c		optional	hwpmc
 dev/hwpmc/hwpmc_tsc.c		optional	hwpmc
 dev/hwpmc/hwpmc_x86.c		optional	hwpmc
@@ -227,20 +228,20 @@ kern/link_elf_obj.c		standard
 #
 # IA32 binary support
 #
-#amd64/ia32/ia32_exception.S	optional	compat_ia32
-amd64/ia32/ia32_reg.c		optional	compat_ia32
-amd64/ia32/ia32_signal.c	optional	compat_ia32
-amd64/ia32/ia32_sigtramp.S	optional	compat_ia32
-amd64/ia32/ia32_syscall.c	optional	compat_ia32
-amd64/ia32/ia32_misc.c		optional	compat_ia32
-compat/freebsd32/freebsd32_ioctl.c	optional	compat_ia32
-compat/freebsd32/freebsd32_misc.c	optional	compat_ia32
-compat/freebsd32/freebsd32_syscalls.c	optional	compat_ia32
-compat/freebsd32/freebsd32_sysent.c	optional	compat_ia32
-compat/ia32/ia32_sysvec.c	optional	compat_ia32
+#amd64/ia32/ia32_exception.S	optional	compat_freebsd32
+amd64/ia32/ia32_reg.c		optional	compat_freebsd32
+amd64/ia32/ia32_signal.c	optional	compat_freebsd32
+amd64/ia32/ia32_sigtramp.S	optional	compat_freebsd32
+amd64/ia32/ia32_syscall.c	optional	compat_freebsd32
+amd64/ia32/ia32_misc.c		optional	compat_freebsd32
+compat/freebsd32/freebsd32_ioctl.c	optional	compat_freebsd32
+compat/freebsd32/freebsd32_misc.c	optional	compat_freebsd32
+compat/freebsd32/freebsd32_syscalls.c	optional	compat_freebsd32
+compat/freebsd32/freebsd32_sysent.c	optional	compat_freebsd32
+compat/ia32/ia32_sysvec.c	optional	compat_freebsd32
 compat/linprocfs/linprocfs.c	optional	linprocfs
 compat/linsysfs/linsysfs.c	optional	linsysfs
-kern/imgact_elf32.c		optional	compat_ia32
+kern/imgact_elf32.c		optional	compat_freebsd32
 #
 # Linux/i386 binary support
 #

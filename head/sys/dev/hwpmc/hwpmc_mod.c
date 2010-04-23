@@ -3972,9 +3972,11 @@ pmc_post_callchain_callback(void)
 
 	td = curthread;
 
-	KASSERT((td->td_pflags & TDP_CALLCHAIN) == 0,
-	    ("[pmc,%d] thread %p already marked for callchain capture",
-		__LINE__, (void *) td));
+	/*
+	 * If there is multiple PMCs for the same interrupt ignore new post
+	 */
+	if (td->td_pflags & TDP_CALLCHAIN)
+		return;
 
 	/*
 	 * Mark this thread as needing callchain capture.

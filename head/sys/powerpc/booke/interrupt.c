@@ -123,6 +123,7 @@ powerpc_decr_interrupt(struct trapframe *framep)
 	decr_intr(framep);
 	atomic_subtract_int(&td->td_intr_nesting_level, 1);
 	critical_exit();
+	framep->srr1 &= ~PSL_WE;
 }
 
 /*
@@ -135,4 +136,5 @@ powerpc_extr_interrupt(struct trapframe *framep)
 	critical_enter();
 	PIC_DISPATCH(pic, framep);
 	critical_exit();
+	framep->srr1 &= ~PSL_WE;
 }

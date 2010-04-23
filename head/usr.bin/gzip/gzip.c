@@ -1,4 +1,4 @@
-/*	$NetBSD: gzip.c,v 1.94 2009/04/12 10:31:14 lukem Exp $	*/
+/*	$NetBSD: gzip.c,v 1.97 2009/10/11 09:17:21 mrg Exp $	*/
 
 /*-
  * Copyright (c) 1997, 1998, 2003, 2004, 2006 Matthew R. Green
@@ -149,10 +149,9 @@ static suffixes_t suffixes[] = {
 #undef SUFFIX
 };
 #define NUM_SUFFIXES (sizeof suffixes / sizeof suffixes[0])
-
 #define SUFFIX_MAXLEN	30
 
-static	const char	gzip_version[] = "FreeBSD gzip 20090621";
+static	const char	gzip_version[] = "FreeBSD gzip 20100407";
 
 #ifndef SMALL
 static	const char	gzip_copyright[] = \
@@ -206,7 +205,7 @@ static	char	*infile;		/* name of file coming in */
 
 static	void	maybe_err(const char *fmt, ...) __dead2
     __attribute__((__format__(__printf__, 1, 2)));
-#ifndef NO_BZIP2_SUPPORT
+#if !defined(NO_BZIP2_SUPPORT) || !defined(NO_PACK_SUPPORT)
 static	void	maybe_errx(const char *fmt, ...) __dead2
     __attribute__((__format__(__printf__, 1, 2)));
 #endif
@@ -461,7 +460,7 @@ maybe_err(const char *fmt, ...)
 	exit(2);
 }
 
-#ifndef NO_BZIP2_SUPPORT
+#if !defined(NO_BZIP2_SUPPORT) || !defined(NO_PACK_SUPPORT)
 /* ... without an errno. */
 void
 maybe_errx(const char *fmt, ...)
@@ -1088,8 +1087,8 @@ copymodes(int fd, const struct stat *sbp, const char *file)
 	if (fchmod(fd, sb.st_mode) < 0)
 		maybe_warn("couldn't fchmod: %s", file);
 
-	TIMESPEC_TO_TIMEVAL(&times[0], &sb.st_atimespec);
-	TIMESPEC_TO_TIMEVAL(&times[1], &sb.st_mtimespec);
+	TIMESPEC_TO_TIMEVAL(&times[0], &sb.st_atim);
+	TIMESPEC_TO_TIMEVAL(&times[1], &sb.st_mtim);
 	if (futimes(fd, times) < 0)
 		maybe_warn("couldn't utimes: %s", file);
 
@@ -1319,6 +1318,7 @@ file_uncompress(char *file, char *outfile, size_t outsize)
 	enum filetype method;
 	int fd, ofd, zfd = -1;
 #ifndef SMALL
+	ssize_t rv;
 	time_t timestamp = 0;
 	unsigned char name[PATH_MAX + 1];
 #endif
@@ -1364,7 +1364,6 @@ file_uncompress(char *file, char *outfile, size_t outsize)
 #ifndef SMALL
 	if (method == FT_GZIP && Nflag) {
 		unsigned char ts[4];	/* timestamp */
-		ssize_t rv;
 
 		rv = pread(fd, ts, sizeof ts, GZIP_TIMESTAMP);
 		if (rv >= 0 && rv < (ssize_t)(sizeof ts))
@@ -2054,7 +2053,7 @@ static void
 display_license(void)
 {
 
-	fprintf(stderr, "%s (based on NetBSD gzip 20060927)\n", gzip_version);
+	fprintf(stderr, "%s (based on NetBSD gzip 20091011)\n", gzip_version);
 	fprintf(stderr, "%s\n", gzip_copyright);
 	exit(0);
 }
@@ -2100,4 +2099,3 @@ read_retry(int fd, void *buf, size_t sz)
 
 	return sz - left;
 }
-

@@ -243,13 +243,6 @@ AcpiEvInitializeRegion (
     return (AE_OK);
 }
 
-ACPI_STATUS
-AcpiEvCheckForWakeOnlyGpe (
-    ACPI_GPE_EVENT_INFO     *GpeEventInfo)
-{
-    return (AE_OK);
-}
-
 void
 AcpiExDoDebugObject (
     ACPI_OPERAND_OBJECT     *SourceDesc,

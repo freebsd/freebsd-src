@@ -216,7 +216,7 @@ vm_fault(vm_map_t map, vm_offset_t vaddr, vm_prot_t fault_type,
 	vm_object_t next_object;
 	vm_page_t marray[VM_FAULT_READ];
 	int hardfault;
-	int faultcount, ahead, behind;
+	int faultcount, ahead, behind, alloc_req;
 	struct faultstate fs;
 	struct vnode *vp;
 	int locked, error;
@@ -386,9 +386,14 @@ RetryFault:;
 
 			/*
 			 * Allocate a new page for this object/offset pair.
+			 *
+			 * Unlocked read of the p_flag is harmless. At
+			 * worst, the P_KILLED might be not observed
+			 * there, and allocation can fail, causing
+			 * restart and new reading of the p_flag.
 			 */
 			fs.m = NULL;
-			if (!vm_page_count_severe()) {
+			if (!vm_page_count_severe() || P_KILLED(curproc)) {
 #if VM_NRESERVLEVEL > 0
 				if ((fs.object->flags & OBJ_COLORED) == 0) {
 					fs.object->flags |= OBJ_COLORED;
@@ -396,10 +401,13 @@ RetryFault:;
 					    fs.pindex;
 				}
 #endif
+				alloc_req = P_KILLED(curproc) ?
+				    VM_ALLOC_SYSTEM : VM_ALLOC_NORMAL;
+				if (fs.object->type != OBJT_VNODE &&
+				    fs.object->backing_object == NULL)
+					alloc_req |= VM_ALLOC_ZERO;
 				fs.m = vm_page_alloc(fs.object, fs.pindex,
-				    (fs.object->type == OBJT_VNODE ||
-				     fs.object->backing_object != NULL) ?
-				    VM_ALLOC_NORMAL : VM_ALLOC_ZERO);
+				    alloc_req);
 			}
 			if (fs.m == NULL) {
 				unlock_and_deallocate(&fs);
@@ -424,7 +432,8 @@ readrest:
 			int reqpage = 0;
 			u_char behavior = vm_map_entry_behavior(fs.entry);
 
-			if (behavior == MAP_ENTRY_BEHAV_RANDOM) {
+			if (behavior == MAP_ENTRY_BEHAV_RANDOM ||
+			    P_KILLED(curproc)) {
 				ahead = 0;
 				behind = 0;
 			} else {

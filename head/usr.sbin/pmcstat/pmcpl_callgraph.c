@@ -341,6 +341,7 @@ pmcpl_cg_process(struct pmcstat_process *pp, struct pmcstat_pmcrecord *pmcr,
 	parent = pmcstat_cgnode_hash_lookup_pc(pp, pmcid, pc, usermode);
 	if (parent == NULL) {
 		pmcstat_stats.ps_callchain_dubious_frames++;
+		pmcr->pr_dubious_frames++;
 		return;
 	}
 
@@ -580,6 +581,8 @@ pmcpl_cg_topdisplay(void)
 	struct pmcstat_pmcrecord *pmcr;
 
 	pmcr = pmcstat_pmcindex_to_pmcr(pmcstat_pmcinfilter);
+	if (!pmcr)
+		err(EX_SOFTWARE, "ERROR: invalid pmcindex");
 
 	/*
 	 * We pull out all callgraph nodes in the top-level hash table

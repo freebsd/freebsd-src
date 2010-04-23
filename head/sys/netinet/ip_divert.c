@@ -147,35 +147,20 @@ static void
 div_init(void)
 {
 
-	INP_INFO_LOCK_INIT(&V_divcbinfo, "div");
-	LIST_INIT(&V_divcb);
-	V_divcbinfo.ipi_listhead = &V_divcb;
-#ifdef VIMAGE
-	V_divcbinfo.ipi_vnet = curvnet;
-#endif
 	/*
-	 * XXX We don't use the hash list for divert IP, but it's easier
-	 * to allocate a one entry hash list than it is to check all
-	 * over the place for hashbase == NULL.
+	 * XXX We don't use the hash list for divert IP, but it's easier to
+	 * allocate one-entry hash lists than it is to check all over the
+	 * place for hashbase == NULL.
 	 */
-	V_divcbinfo.ipi_hashbase = hashinit(1, M_PCB, &V_divcbinfo.ipi_hashmask);
-	V_divcbinfo.ipi_porthashbase = hashinit(1, M_PCB,
-	    &V_divcbinfo.ipi_porthashmask);
-	V_divcbinfo.ipi_zone = uma_zcreate("divcb", sizeof(struct inpcb),
-	    NULL, NULL, div_inpcb_init, div_inpcb_fini, UMA_ALIGN_PTR,
-	    UMA_ZONE_NOFREE);
-	uma_zone_set_max(V_divcbinfo.ipi_zone, maxsockets);
+	in_pcbinfo_init(&V_divcbinfo, "div", &V_divcb, 1, 1, "divcb",
+	    div_inpcb_init, div_inpcb_fini, UMA_ZONE_NOFREE);
 }
 
 static void
 div_destroy(void)
 {
 
-	INP_INFO_LOCK_DESTROY(&V_divcbinfo);
-	uma_zdestroy(V_divcbinfo.ipi_zone);
-	hashdestroy(V_divcbinfo.ipi_hashbase, M_PCB, V_divcbinfo.ipi_hashmask);
-	hashdestroy(V_divcbinfo.ipi_porthashbase, M_PCB,
-	    V_divcbinfo.ipi_porthashmask);
+	in_pcbinfo_destroy(&V_divcbinfo);
 }
 
 /*
@@ -227,7 +212,7 @@ divert_packet(struct mbuf *m, int incoming)
 #ifdef SCTP
 	if (m->m_pkthdr.csum_flags & CSUM_SCTP) {
 		ip->ip_len = ntohs(ip->ip_len);
-		sctp_delayed_cksum(m);
+		sctp_delayed_cksum(m, (uint32_t)(ip->ip_hl << 2));
 		m->m_pkthdr.csum_flags &= ~CSUM_SCTP;
 		ip->ip_len = htons(ip->ip_len);
 	}
@@ -643,11 +628,13 @@ div_pcblist(SYSCTL_HANDLER_ARGS)
 	INP_INFO_RLOCK(&V_divcbinfo);
 	for (inp = LIST_FIRST(V_divcbinfo.ipi_listhead), i = 0; inp && i < n;
 	     inp = LIST_NEXT(inp, inp_list)) {
-		INP_RLOCK(inp);
+		INP_WLOCK(inp);
 		if (inp->inp_gencnt <= gencnt &&
-		    cr_canseeinpcb(req->td->td_ucred, inp) == 0)
+		    cr_canseeinpcb(req->td->td_ucred, inp) == 0) {
+			in_pcbref(inp);
 			inp_list[i++] = inp;
-		INP_RUNLOCK(inp);
+		}
+		INP_WUNLOCK(inp);
 	}
 	INP_INFO_RUNLOCK(&V_divcbinfo);
 	n = i;
@@ -669,6 +656,15 @@ div_pcblist(SYSCTL_HANDLER_ARGS)
 		} else
 			INP_RUNLOCK(inp);
 	}
+	INP_INFO_WLOCK(&V_divcbinfo);
+	for (i = 0; i < n; i++) {
+		inp = inp_list[i];
+		INP_WLOCK(inp);
+		if (!in_pcbrele(inp))
+			INP_WUNLOCK(inp);
+	}
+	INP_INFO_WUNLOCK(&V_divcbinfo);
+
 	if (!error) {
 		/*
 		 * Give the user an updated idea of our state.

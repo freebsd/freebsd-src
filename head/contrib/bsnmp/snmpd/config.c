@@ -134,7 +134,7 @@ struct macro {
 	LIST_ENTRY(macro) link;
 	int	perm;
 };
-static LIST_HEAD(, macro) macros = LIST_HEAD_INITIALIZER(&macros);
+static LIST_HEAD(, macro) macros = LIST_HEAD_INITIALIZER(macros);
 
 enum {
 	TOK_EOF	= 0200,

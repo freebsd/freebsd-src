@@ -70,6 +70,8 @@ options(void)
 	/* Fake the cpu types as options. */
 	SLIST_FOREACH(cp, &cputype, cpu_next) {
 		op = (struct opt *)calloc(1, sizeof(*op));
+		if (op == NULL)
+			err(EXIT_FAILURE, "calloc");
 		op->op_name = ns(cp->cpu_name);
 		SLIST_INSERT_HEAD(&opt, op, op_next);
 	}	
@@ -84,12 +86,25 @@ options(void)
 
 	/* Fake MAXUSERS as an option. */
 	op = (struct opt *)calloc(1, sizeof(*op));
+	if (op == NULL)
+		err(EXIT_FAILURE, "calloc");
 	op->op_name = ns("MAXUSERS");
 	snprintf(buf, sizeof(buf), "%d", maxusers);
 	op->op_value = ns(buf);
 	SLIST_INSERT_HEAD(&opt, op, op_next);
 
 	read_options();
+	SLIST_FOREACH(op, &opt, op_next) {
+		SLIST_FOREACH(ol, &otab, o_next) {
+			if (eq(op->op_name, ol->o_name) &&
+			    (ol->o_flags & OL_ALIAS)) {
+				printf("Mapping option %s to %s.\n",
+				    op->op_name, ol->o_file);
+				op->op_name = ol->o_file;
+				break;
+			}
+		}
+	}
 	SLIST_FOREACH(ol, &otab, o_next)
 		do_option(ol->o_name);
 	SLIST_FOREACH(op, &opt, op_next) {
@@ -120,7 +135,6 @@ do_option(char *name)
 	int tidy;
 
 	file = tooption(name);
-
 	/*
 	 * Check to see if the option was specified..
 	 */
@@ -199,6 +213,8 @@ do_option(char *name)
 			tidy++;
 		} else {
 			op = (struct opt *) calloc(1, sizeof *op);
+			if (op == NULL)
+				err(EXIT_FAILURE, "calloc");
 			op->op_name = inw;
 			op->op_value = invalue;
 			SLIST_INSERT_HEAD(&op_head, op, op_next);
@@ -225,6 +241,8 @@ do_option(char *name)
 	if (value && !seen) {
 		/* New option appears */
 		op = (struct opt *) calloc(1, sizeof *op);
+		if (op == NULL)
+			err(EXIT_FAILURE, "calloc");
 		op->op_name = ns(name);
 		op->op_value = value ? ns(value) : NULL;
 		SLIST_INSERT_HEAD(&op_head, op, op_next);
@@ -284,6 +302,7 @@ read_options(void)
 	struct opt_list *po;
 	int first = 1;
 	char genopt[MAXPATHLEN];
+	int flags = 0;
 
 	SLIST_INIT(&otab);
 	(void) snprintf(fname, sizeof(fname), "../../conf/options");
@@ -293,6 +312,7 @@ openit:
 		return;
 	}
 next:
+	flags = 0;
 	wd = get_word(fp);
 	if (wd == (char *)EOF) {
 		(void) fclose(fp);
@@ -324,6 +344,18 @@ next:
 		(void) snprintf(genopt, sizeof(genopt), "opt_%s.h", lower(s));
 		val = genopt;
 		free(s);
+	} else if (eq(val, "=")) {
+		val = get_word(fp);
+		if (val == (char *)EOF) {
+			printf("%s: unexpected end of file\n", fname);
+			exit(1);
+		}
+		if (val == 0) {
+			printf("%s: Expected a right hand side at %s\n", fname,
+			    this);
+			exit(1);
+		}
+		flags |= OL_ALIAS;
 	}
 	val = ns(val);
 
@@ -336,8 +368,11 @@ next:
 	}
 	
 	po = (struct opt_list *) calloc(1, sizeof *po);
+	if (po == NULL)
+		err(EXIT_FAILURE, "calloc");
 	po->o_name = this;
 	po->o_file = val;
+	po->o_flags = flags;
 	SLIST_INSERT_HEAD(&otab, po, o_next);
 
 	goto next;

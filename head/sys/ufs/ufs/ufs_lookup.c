@@ -701,6 +701,14 @@ found:
 				vn_lock(vdp, LK_UPGRADE | LK_RETRY);
 			else /* if (ltype == LK_SHARED) */
 				vn_lock(vdp, LK_DOWNGRADE | LK_RETRY);
+			/*
+			 * Relock for the "." case may left us with
+			 * reclaimed vnode.
+			 */
+			if (vdp->v_iflag & VI_DOOMED) {
+				vrele(vdp);
+				return (ENOENT);
+			}
 		}
 		*vpp = vdp;
 	} else {

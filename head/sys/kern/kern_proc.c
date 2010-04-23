@@ -42,6 +42,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
+#include <sys/limits.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/mount.h>
@@ -78,6 +79,11 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_map.h>
 #include <vm/vm_object.h>
 #include <vm/uma.h>
+
+#ifdef COMPAT_FREEBSD32
+#include <compat/freebsd32/freebsd32.h>
+#include <compat/freebsd32/freebsd32_util.h>
+#endif
 
 SDT_PROVIDER_DEFINE(proc);
 SDT_PROBE_DEFINE(proc, kernel, ctor, entry);
@@ -969,6 +975,128 @@ zpfind(pid_t pid)
 #define KERN_PROC_ZOMBMASK	0x3
 #define KERN_PROC_NOTHREADS	0x4
 
+#ifdef COMPAT_FREEBSD32
+
+/*
+ * This function is typically used to copy out the kernel address, so
+ * it can be replaced by assignment of zero.
+ */
+static inline uint32_t
+ptr32_trim(void *ptr)
+{
+	uintptr_t uptr;
+
+	uptr = (uintptr_t)ptr;
+	return ((uptr > UINT_MAX) ? 0 : uptr);
+}
+
+#define PTRTRIM_CP(src,dst,fld) \
+	do { (dst).fld = ptr32_trim((src).fld); } while (0)
+
+static void
+freebsd32_kinfo_proc_out(const struct kinfo_proc *ki, struct kinfo_proc32 *ki32)
+{
+	int i;
+
+	bzero(ki32, sizeof(struct kinfo_proc32));
+	ki32->ki_structsize = sizeof(struct kinfo_proc32);
+	CP(*ki, *ki32, ki_layout);
+	PTRTRIM_CP(*ki, *ki32, ki_args);
+	PTRTRIM_CP(*ki, *ki32, ki_paddr);
+	PTRTRIM_CP(*ki, *ki32, ki_addr);
+	PTRTRIM_CP(*ki, *ki32, ki_tracep);
+	PTRTRIM_CP(*ki, *ki32, ki_textvp);
+	PTRTRIM_CP(*ki, *ki32, ki_fd);
+	PTRTRIM_CP(*ki, *ki32, ki_vmspace);
+	PTRTRIM_CP(*ki, *ki32, ki_wchan);
+	CP(*ki, *ki32, ki_pid);
+	CP(*ki, *ki32, ki_ppid);
+	CP(*ki, *ki32, ki_pgid);
+	CP(*ki, *ki32, ki_tpgid);
+	CP(*ki, *ki32, ki_sid);
+	CP(*ki, *ki32, ki_tsid);
+	CP(*ki, *ki32, ki_jobc);
+	CP(*ki, *ki32, ki_tdev);
+	CP(*ki, *ki32, ki_siglist);
+	CP(*ki, *ki32, ki_sigmask);
+	CP(*ki, *ki32, ki_sigignore);
+	CP(*ki, *ki32, ki_sigcatch);
+	CP(*ki, *ki32, ki_uid);
+	CP(*ki, *ki32, ki_ruid);
+	CP(*ki, *ki32, ki_svuid);
+	CP(*ki, *ki32, ki_rgid);
+	CP(*ki, *ki32, ki_svgid);
+	CP(*ki, *ki32, ki_ngroups);
+	for (i = 0; i < KI_NGROUPS; i++)
+		CP(*ki, *ki32, ki_groups[i]);
+	CP(*ki, *ki32, ki_size);
+	CP(*ki, *ki32, ki_rssize);
+	CP(*ki, *ki32, ki_swrss);
+	CP(*ki, *ki32, ki_tsize);
+	CP(*ki, *ki32, ki_dsize);
+	CP(*ki, *ki32, ki_ssize);
+	CP(*ki, *ki32, ki_xstat);
+	CP(*ki, *ki32, ki_acflag);
+	CP(*ki, *ki32, ki_pctcpu);
+	CP(*ki, *ki32, ki_estcpu);
+	CP(*ki, *ki32, ki_slptime);
+	CP(*ki, *ki32, ki_swtime);
+	CP(*ki, *ki32, ki_runtime);
+	TV_CP(*ki, *ki32, ki_start);
+	TV_CP(*ki, *ki32, ki_childtime);
+	CP(*ki, *ki32, ki_flag);
+	CP(*ki, *ki32, ki_kiflag);
+	CP(*ki, *ki32, ki_traceflag);
+	CP(*ki, *ki32, ki_stat);
+	CP(*ki, *ki32, ki_nice);
+	CP(*ki, *ki32, ki_lock);
+	CP(*ki, *ki32, ki_rqindex);
+	CP(*ki, *ki32, ki_oncpu);
+	CP(*ki, *ki32, ki_lastcpu);
+	bcopy(ki->ki_ocomm, ki32->ki_ocomm, OCOMMLEN + 1);
+	bcopy(ki->ki_wmesg, ki32->ki_wmesg, WMESGLEN + 1);
+	bcopy(ki->ki_login, ki32->ki_login, LOGNAMELEN + 1);
+	bcopy(ki->ki_lockname, ki32->ki_lockname, LOCKNAMELEN + 1);
+	bcopy(ki->ki_comm, ki32->ki_comm, COMMLEN + 1);
+	bcopy(ki->ki_emul, ki32->ki_emul, KI_EMULNAMELEN + 1);
+	CP(*ki, *ki32, ki_cr_flags);
+	CP(*ki, *ki32, ki_jid);
+	CP(*ki, *ki32, ki_numthreads);
+	CP(*ki, *ki32, ki_tid);
+	CP(*ki, *ki32, ki_pri);
+	freebsd32_rusage_out(&ki->ki_rusage, &ki32->ki_rusage);
+	freebsd32_rusage_out(&ki->ki_rusage_ch, &ki32->ki_rusage_ch);
+	PTRTRIM_CP(*ki, *ki32, ki_pcb);
+	PTRTRIM_CP(*ki, *ki32, ki_kstack);
+	PTRTRIM_CP(*ki, *ki32, ki_udata);
+	CP(*ki, *ki32, ki_sflag);
+	CP(*ki, *ki32, ki_tdflags);
+}
+
+static int
+sysctl_out_proc_copyout(struct kinfo_proc *ki, struct sysctl_req *req)
+{
+	struct kinfo_proc32 ki32;
+	int error;
+
+	if (req->flags & SCTL_MASK32) {
+		freebsd32_kinfo_proc_out(ki, &ki32);
+		error = SYSCTL_OUT(req, (caddr_t)&ki32,
+		    sizeof(struct kinfo_proc32));
+	} else
+		error = SYSCTL_OUT(req, (caddr_t)ki,
+		    sizeof(struct kinfo_proc));
+	return (error);
+}
+#else
+static int
+sysctl_out_proc_copyout(struct kinfo_proc *ki, struct sysctl_req *req)
+{
+
+	return (SYSCTL_OUT(req, (caddr_t)ki, sizeof(struct kinfo_proc)));
+}
+#endif
+
 /*
  * Must be called with the process locked and will return with it unlocked.
  */
@@ -986,13 +1114,11 @@ sysctl_out_proc(struct proc *p, struct sysctl_req *req, int flags)
 
 	fill_kinfo_proc(p, &kinfo_proc);
 	if (flags & KERN_PROC_NOTHREADS)
-		error = SYSCTL_OUT(req, (caddr_t)&kinfo_proc,
-		    sizeof(kinfo_proc));
+		error = sysctl_out_proc_copyout(&kinfo_proc, req);
 	else {
 		FOREACH_THREAD_IN_PROC(p, td) {
 			fill_kinfo_thread(td, &kinfo_proc, 1);
-			error = SYSCTL_OUT(req, (caddr_t)&kinfo_proc,
-			    sizeof(kinfo_proc));
+			error = sysctl_out_proc_copyout(&kinfo_proc, req);
 			if (error)
 				break;
 		}

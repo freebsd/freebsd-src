@@ -67,8 +67,8 @@ __FBSDID("$FreeBSD$");
 #include <net80211/ieee80211_var.h>
 #include <net80211/ieee80211_radiotap.h>
 #include <net80211/ieee80211_regdomain.h>
-#include <net80211/ieee80211_amrr.h>
 #include <net80211/ieee80211_phy.h>
+#include <net80211/ieee80211_ratectl.h>
 
 #include <dev/bwn/if_bwnreg.h>
 #include <dev/bwn/if_bwnvar.h>
@@ -180,18 +180,14 @@ static void	bwn_addchannels(struct ieee80211_channel [], int, int *,
 		    const struct bwn_channelinfo *, int);
 static int	bwn_raw_xmit(struct ieee80211_node *, struct mbuf *,
 		    const struct ieee80211_bpf_params *);
-static void	bwn_newassoc(struct ieee80211_node *, int);
 static void	bwn_updateslot(struct ifnet *);
 static void	bwn_update_promisc(struct ifnet *);
 static void	bwn_wme_init(struct bwn_mac *);
 static int	bwn_wme_update(struct ieee80211com *);
-static struct ieee80211_node *bwn_node_alloc(struct ieee80211vap *,
-		    const uint8_t [IEEE80211_ADDR_LEN]);
 static void	bwn_wme_clear(struct bwn_softc *);
 static void	bwn_wme_load(struct bwn_mac *);
 static void	bwn_wme_loadparams(struct bwn_mac *,
 		    const struct wmeParams *, uint16_t);
-static void	bwn_node_cleanup(struct ieee80211_node *);
 static void	bwn_scan_start(struct ieee80211com *);
 static void	bwn_scan_end(struct ieee80211com *);
 static void	bwn_set_channel(struct ieee80211com *);
@@ -1076,6 +1072,8 @@ bwn_attach_post(struct bwn_softc *sc)
 		| IEEE80211_C_TXPMGT		/* capable of txpow mgt */
 		;
 
+	ic->ic_flags_ext |= IEEE80211_FEXT_SWBMISS;	/* s/w bmiss */
+
 	/* call MI attach routine. */
 	ieee80211_ifattach(ic,
 	    bwn_is_valid_ether_addr(siba_sprom_get_mac_80211a(sc->sc_dev)) ?
@@ -1086,14 +1084,9 @@ bwn_attach_post(struct bwn_softc *sc)
 
 	/* override default methods */
 	ic->ic_raw_xmit = bwn_raw_xmit;
-	ic->ic_newassoc = bwn_newassoc;
 	ic->ic_updateslot = bwn_updateslot;
 	ic->ic_update_promisc = bwn_update_promisc;
 	ic->ic_wme.wme_update = bwn_wme_update;
-
-	ic->ic_node_alloc = bwn_node_alloc;
-	sc->sc_node_cleanup = ic->ic_node_cleanup;
-	ic->ic_node_cleanup = bwn_node_cleanup;
 
 	ic->ic_scan_start = bwn_scan_start;
 	ic->ic_scan_end = bwn_scan_end;
@@ -2770,20 +2763,6 @@ bwn_raw_xmit(struct ieee80211_node *ni, struct mbuf *m,
 }
 
 /*
- * Setup driver-specific state for a newly associated node.
- * Note that we're called also on a re-associate, the isnew
- * param tells us if this is the first time or not.
- */
-static void
-bwn_newassoc(struct ieee80211_node *ni, int isnew)
-{
-	struct ieee80211vap *vap = ni->ni_vap;
-
-	ieee80211_amrr_node_init(&BWN_VAP(vap)->bv_amrr,
-	    &BWN_NODE(ni)->bn_amn, ni);
-}
-
-/*
  * Callback from the 802.11 layer to update the slot time
  * based on the current setting.  We use it to notify the
  * firmware of ERP changes and the f/w takes care of things
@@ -2853,32 +2832,6 @@ bwn_wme_update(struct ieee80211com *ic)
 	}
 	BWN_UNLOCK(sc);
 	return (0);
-}
-
-static struct ieee80211_node *
-bwn_node_alloc(struct ieee80211vap *vap, const uint8_t mac[IEEE80211_ADDR_LEN])
-{
-	struct ieee80211com *ic = vap->iv_ic;
-	struct bwn_softc *sc = ic->ic_ifp->if_softc;
-	const size_t space = sizeof(struct bwn_node);
-	struct bwn_node *bn;
-
-	bn = malloc(space, M_80211_NODE, M_NOWAIT|M_ZERO);
-	if (bn == NULL) {
-		/* XXX stat+msg */
-		return (NULL);
-	}
-	DPRINTF(sc, BWN_DEBUG_NODE, "%s: bn %p\n", __func__, bn);
-	return (&bn->bn_node);
-}
-
-static void
-bwn_node_cleanup(struct ieee80211_node *ni)
-{
-	struct ieee80211com *ic = ni->ni_ic;
-	struct bwn_softc *sc = ic->ic_ifp->if_softc;
-
-	sc->sc_node_cleanup(ni);
 }
 
 static void
@@ -3016,10 +2969,7 @@ bwn_vap_create(struct ieee80211com *ic,
 	/* override max aid so sta's cannot assoc when we're out of sta id's */
 	vap->iv_max_aid = BWN_STAID_MAX;
 
-	ieee80211_amrr_init(&bvp->bv_amrr, vap,
-	    IEEE80211_AMRR_MIN_SUCCESS_THRESHOLD,
-	    IEEE80211_AMRR_MAX_SUCCESS_THRESHOLD,
-	    500 /*ms*/);
+	ieee80211_ratectl_init(vap);
 
 	/* complete setup */
 	ieee80211_vap_attach(vap, ieee80211_media_change,
@@ -3032,7 +2982,7 @@ bwn_vap_delete(struct ieee80211vap *vap)
 {
 	struct bwn_vap *bvp = BWN_VAP(vap);
 
-	ieee80211_amrr_cleanup(&bvp->bv_amrr);
+	ieee80211_ratectl_deinit(vap);
 	ieee80211_vap_detach(vap);
 	free(bvp, M_80211_VAP);
 }
@@ -9038,12 +8988,12 @@ bwn_handle_txeof(struct bwn_mac *mac, const struct bwn_txstatus *status)
 	struct bwn_dma_ring *dr;
 	struct bwn_dmadesc_generic *desc;
 	struct bwn_dmadesc_meta *meta;
-	struct bwn_node *bn;
 	struct bwn_pio_txqueue *tq;
 	struct bwn_pio_txpkt *tp = NULL;
 	struct bwn_softc *sc = mac->mac_sc;
 	struct bwn_stats *stats = &mac->mac_stats;
 	struct ieee80211_node *ni;
+	struct ieee80211vap *vap;
 	int slot;
 
 	BWN_ASSERT_LOCKED(mac->mac_sc);
@@ -9072,9 +9022,12 @@ bwn_handle_txeof(struct bwn_mac *mac, const struct bwn_txstatus *status)
 				dr->getdesc(dr, slot, &desc, &meta);
 				if (meta->mt_islast) {
 					ni = meta->mt_ni;
-					bn = (struct bwn_node *)ni;
-					ieee80211_amrr_tx_complete(&bn->bn_amn,
-					    status->ack, 0);
+					vap = ni->ni_vap;
+					ieee80211_ratectl_tx_complete(vap, ni,
+					    status->ack ?
+					      IEEE80211_RATECTL_TX_SUCCESS :
+					      IEEE80211_RATECTL_TX_FAILURE,
+					    NULL, 0);
 					break;
 				}
 				slot = bwn_dma_nextslot(dr, slot);
@@ -9090,8 +9043,12 @@ bwn_handle_txeof(struct bwn_mac *mac, const struct bwn_txstatus *status)
 				return;
 			}
 			ni = tp->tp_ni;
-			bn = (struct bwn_node *)ni;
-			ieee80211_amrr_tx_complete(&bn->bn_amn, status->ack, 0);
+			vap = ni->ni_vap;
+			ieee80211_ratectl_tx_complete(vap, ni,
+			    status->ack ?
+			      IEEE80211_RATECTL_TX_SUCCESS :
+			      IEEE80211_RATECTL_TX_FAILURE,
+			    NULL, 0);
 		}
 		bwn_pio_handle_txeof(mac, status);
 	}
@@ -9676,7 +9633,7 @@ bwn_set_txhdr(struct bwn_mac *mac, struct ieee80211_node *ni,
 	else if (tp->ucastrate != IEEE80211_FIXED_RATE_NONE)
 		rate = rate_fb = tp->ucastrate;
 	else {
-		rix = ieee80211_amrr_choose(ni, &BWN_NODE(ni)->bn_amn);
+		rix = ieee80211_ratectl_rate(ni, NULL, 0);
 		rate = ni->ni_txrate;
 
 		if (rix > 0)

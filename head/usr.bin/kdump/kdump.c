@@ -1270,50 +1270,50 @@ ktrstat(struct stat *statp)
 	printf("rdev=%ju, ", (uintmax_t)statp->st_rdev);
 	printf("atime=");
 	if (resolv == 0)
-		printf("%jd", (intmax_t)statp->st_atimespec.tv_sec);
+		printf("%jd", (intmax_t)statp->st_atim.tv_sec);
 	else {
-		tm = localtime(&statp->st_atimespec.tv_sec);
+		tm = localtime(&statp->st_atim.tv_sec);
 		(void)strftime(timestr, sizeof(timestr), TIME_FORMAT, tm);
 		printf("\"%s\"", timestr);
 	}
-	if (statp->st_atimespec.tv_nsec != 0)
-		printf(".%09ld, ", statp->st_atimespec.tv_nsec);
+	if (statp->st_atim.tv_nsec != 0)
+		printf(".%09ld, ", statp->st_atim.tv_nsec);
 	else
 		printf(", ");
 	printf("stime=");
 	if (resolv == 0)
-		printf("%jd", (intmax_t)statp->st_mtimespec.tv_sec);
+		printf("%jd", (intmax_t)statp->st_mtim.tv_sec);
 	else {
-		tm = localtime(&statp->st_mtimespec.tv_sec);
+		tm = localtime(&statp->st_mtim.tv_sec);
 		(void)strftime(timestr, sizeof(timestr), TIME_FORMAT, tm);
 		printf("\"%s\"", timestr);
 	}
-	if (statp->st_mtimespec.tv_nsec != 0)
-		printf(".%09ld, ", statp->st_mtimespec.tv_nsec);
+	if (statp->st_mtim.tv_nsec != 0)
+		printf(".%09ld, ", statp->st_mtim.tv_nsec);
 	else
 		printf(", ");
 	printf("ctime=");
 	if (resolv == 0)
-		printf("%jd", (intmax_t)statp->st_ctimespec.tv_sec);
+		printf("%jd", (intmax_t)statp->st_ctim.tv_sec);
 	else {
-		tm = localtime(&statp->st_ctimespec.tv_sec);
+		tm = localtime(&statp->st_ctim.tv_sec);
 		(void)strftime(timestr, sizeof(timestr), TIME_FORMAT, tm);
 		printf("\"%s\"", timestr);
 	}
-	if (statp->st_ctimespec.tv_nsec != 0)
-		printf(".%09ld, ", statp->st_ctimespec.tv_nsec);
+	if (statp->st_ctim.tv_nsec != 0)
+		printf(".%09ld, ", statp->st_ctim.tv_nsec);
 	else
 		printf(", ");
 	printf("birthtime=");
 	if (resolv == 0)
-		printf("%jd", (intmax_t)statp->st_birthtimespec.tv_sec);
+		printf("%jd", (intmax_t)statp->st_birthtim.tv_sec);
 	else {
-		tm = localtime(&statp->st_birthtimespec.tv_sec);
+		tm = localtime(&statp->st_birthtim.tv_sec);
 		(void)strftime(timestr, sizeof(timestr), TIME_FORMAT, tm);
 		printf("\"%s\"", timestr);
 	}
-	if (statp->st_birthtimespec.tv_nsec != 0)
-		printf(".%09ld, ", statp->st_birthtimespec.tv_nsec);
+	if (statp->st_birthtim.tv_nsec != 0)
+		printf(".%09ld, ", statp->st_birthtim.tv_nsec);
 	else
 		printf(", ");
 	printf("size=%jd, blksize=%ju, blocks=%jd, flags=0x%x",

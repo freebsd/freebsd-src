@@ -122,6 +122,12 @@ ipdn_bound_var(int *v, int dflt, int lo, int hi, const char *msg)
 }
 
 /*---- flow_id mask, hash and compare functions ---*/
+/*
+ * The flow_id includes the 5-tuple, the queue/pipe number
+ * which we store in the extra area in host order,
+ * and for ipv6 also the flow_id6.
+ * XXX see if we want the tos byte (can store in 'flags')
+ */
 static struct ipfw_flow_id *
 flow_id_mask(struct ipfw_flow_id *mask, struct ipfw_flow_id *id)
 {
@@ -130,7 +136,7 @@ flow_id_mask(struct ipfw_flow_id *mask, struct ipfw_flow_id *id)
 	id->dst_port &= mask->dst_port;
 	id->src_port &= mask->src_port;
 	id->proto &= mask->proto;
-	id->flags = 0; /* we don't care about this one */
+	id->extra &= mask->extra;
 	if (is_v6) {
 		APPLY_MASK(&id->dst_ip6, &mask->dst_ip6);
 		APPLY_MASK(&id->src_ip6, &mask->src_ip6);
@@ -151,7 +157,7 @@ flow_id_or(struct ipfw_flow_id *src, struct ipfw_flow_id *dst)
 	dst->dst_port |= src->dst_port;
 	dst->src_port |= src->src_port;
 	dst->proto |= src->proto;
-	dst->flags = 0; /* we don't care about this one */
+	dst->extra |= src->extra;
 	if (is_v6) {
 #define OR_MASK(_d, _s)                          \
     (_d)->__u6_addr.__u6_addr32[0] |= (_s)->__u6_addr.__u6_addr32[0]; \
@@ -172,7 +178,7 @@ flow_id_or(struct ipfw_flow_id *src, struct ipfw_flow_id *dst)
 static int
 nonzero_mask(struct ipfw_flow_id *m)
 {
-	if (m->dst_port || m->src_port || m->proto)
+	if (m->dst_port || m->src_port || m->proto || m->extra)
 		return 1;
 	if (IS_IP6_FLOW_ID(m)) {
 		return
@@ -208,10 +214,12 @@ flow_id_hash(struct ipfw_flow_id *id)
             (s[0] << 16) ^ (s[1] << 16) ^
             (s[2] << 16) ^ (s[3] << 16) ^
             (id->dst_port << 1) ^ (id->src_port) ^
+	    (id->extra) ^
             (id->proto ) ^ (id->flow_id6);
     } else {
         i = (id->dst_ip)        ^ (id->dst_ip >> 15) ^
             (id->src_ip << 1)   ^ (id->src_ip >> 16) ^
+	    (id->extra) ^
             (id->dst_port << 1) ^ (id->src_port)     ^ (id->proto);
     }
     return i;
@@ -223,29 +231,26 @@ flow_id_cmp(struct ipfw_flow_id *id1, struct ipfw_flow_id *id2)
 {
 	int is_v6 = IS_IP6_FLOW_ID(id1);
 
-	if (is_v6 != IS_IP6_FLOW_ID(id2))
-		return 1; /* a ipv4 and a ipv6 flow */
+	if (!is_v6) {
+	    if (IS_IP6_FLOW_ID(id2))
+		return 1; /* different address families */
 
-	if (!is_v6 && id1->dst_ip == id2->dst_ip &&
-	    id1->src_ip == id2->src_ip &&
-	    id1->dst_port == id2->dst_port &&
-	    id1->src_port == id2->src_port &&
-	    id1->proto == id2->proto &&
-	    id1->flags == id2->flags)
-		return 0;
-	    
-	if (is_v6 &&
+	    return (id1->dst_ip == id2->dst_ip &&
+		    id1->src_ip == id2->src_ip &&
+		    id1->dst_port == id2->dst_port &&
+		    id1->src_port == id2->src_port &&
+		    id1->proto == id2->proto &&
+		    id1->extra == id2->extra) ? 0 : 1;
+	}
+	/* the ipv6 case */
+	return (
 	    !bcmp(&id1->dst_ip6,&id2->dst_ip6, sizeof(id1->dst_ip6)) &&
 	    !bcmp(&id1->src_ip6,&id2->src_ip6, sizeof(id1->src_ip6)) &&
 	    id1->dst_port == id2->dst_port &&
 	    id1->src_port == id2->src_port &&
 	    id1->proto == id2->proto &&
-	    id1->flags == id2->flags &&
-	    id1->flow_id6 == id2->flow_id6)
-		return 0;
-     
-	/* Masks differ */
-	return 1;
+	    id1->extra == id2->extra &&
+	    id1->flow_id6 == id2->flow_id6) ? 0 : 1;
 }
 /*--------- end of flow-id mask, hash and compare ---------*/
 
@@ -787,7 +792,7 @@ copy_obj(char **start, char *end, void *_o, const char *msg, int i)
 	int have = end - *start;
 
 	if (have < o->len || o->len == 0 || o->type == 0) {
-		D("ERROR type %d %s %d have %d need %d",
+		D("(WARN) type %d %s %d have %d need %d",
 			o->type, msg, i, have, o->len);
 		return 1;
 	}
@@ -809,15 +814,15 @@ copy_obj(char **start, char *end, void *_o, const char *msg, int i)
 }
 
 /* Specific function to copy a queue.
- * It copies only the common part of a queue, and correctly set
- * the length
+ * Copies only the user-visible part of a queue (which is in
+ * a struct dn_flow), and sets len accordingly.
  */
 static int
 copy_obj_q(char **start, char *end, void *_o, const char *msg, int i)
 {
 	struct dn_id *o = _o;
 	int have = end - *start;
-	int len = sizeof(struct dn_queue);
+	int len = sizeof(struct dn_flow); /* see above comment */
 
 	if (have < len || o->len == 0 || o->type != DN_QUEUE) {
 		D("ERROR type %d %s %d have %d need %d",
@@ -954,43 +959,64 @@ static int
 copy_data_helper(void *_o, void *_arg)
 {
 	struct copy_args *a = _arg;
+	uint32_t *r = a->extra->r; /* start of first range */
+	uint32_t *lim;	/* first invalid pointer */
+	int n;
 
-	if (a->type == DN_LINK ||	/* pipe show */
-	    a->type == DN_SCH) {	/* sched show */
-		struct dn_schk *s = _o; /* we get only schedulers */
-		if (a->type == DN_SCH && s->sch.sched_nr >= DN_MAX_ID)
-			return 0;	/* not valid scheduler */
-		if (a->type == DN_LINK && s->sch.sched_nr <= DN_MAX_ID)
-			return 0;	/* not valid pipe */
-		if (a->flags & DN_C_LINK) {
-			if (copy_obj(a->start, a->end, &s->link,
-					"link", s->sch.sched_nr))
-				return DNHT_SCAN_END;
-			if (copy_profile(a, s->profile))
-				return DNHT_SCAN_END;
-			if (copy_flowset(a, s->fs, 0))
-				return DNHT_SCAN_END;
-		}
-		if (a->flags & DN_C_SCH) {
-			if (copy_obj(a->start, a->end, &s->sch,
-					"sched", s->sch.sched_nr))
-				return DNHT_SCAN_END;
+	lim = (uint32_t *)((char *)(a->extra) + a->extra->o.len);
 
-			/* list all attached flowsets */
-			if (copy_fsk_list(a, s, 0))
-				return DNHT_SCAN_END;
+	if (a->type == DN_LINK || a->type == DN_SCH) {
+		/* pipe|sched show, we receive a dn_schk */
+		struct dn_schk *s = _o;
+
+		n = s->sch.sched_nr;
+		if (a->type == DN_SCH && n >= DN_MAX_ID)
+			return 0;	/* not a scheduler */
+		if (a->type == DN_LINK && n <= DN_MAX_ID)
+		    return 0;	/* not a pipe */
+
+		/* see if the object is within one of our ranges */
+		for (;r < lim; r += 2) {
+			if (n < r[0] || n > r[1])
+				continue;
+			/* Found a valid entry, copy and we are done */
+			if (a->flags & DN_C_LINK) {
+				if (copy_obj(a->start, a->end,
+				    &s->link, "link", n))
+					return DNHT_SCAN_END;
+				if (copy_profile(a, s->profile))
+					return DNHT_SCAN_END;
+				if (copy_flowset(a, s->fs, 0))
+					return DNHT_SCAN_END;
+			}
+			if (a->flags & DN_C_SCH) {
+				if (copy_obj(a->start, a->end,
+				    &s->sch, "sched", n))
+					return DNHT_SCAN_END;
+				/* list all attached flowsets */
+				if (copy_fsk_list(a, s, 0))
+					return DNHT_SCAN_END;
+			}
+			if (a->flags & DN_C_FLOW)
+				copy_si(a, s, 0);
+			break;
 		}
-		if (a->flags & DN_C_FLOW) {
-			copy_si(a, s, 0);
-		}
-	}
-	if (a->type == DN_FS) {	/* queue show, skip internal flowsets */
+	} else if (a->type == DN_FS) {
+		/* queue show, skip internal flowsets */
 		struct dn_fsk *fs = _o;
-		if (fs->fs.fs_nr >= DN_MAX_ID)
+
+		n = fs->fs.fs_nr;
+		if (n >= DN_MAX_ID)
 			return 0;
-		if (copy_flowset(a, fs, 0))
-			return DNHT_SCAN_END;
-		copy_q(a, fs, 0);
+		/* see if the object is within one of our ranges */
+		for (;r < lim; r += 2) {
+			if (n < r[0] || n > r[1])
+				continue;
+			if (copy_flowset(a, fs, 0))
+				return DNHT_SCAN_END;
+			copy_q(a, fs, 0);
+			break; /* we are done */
+		}
 	}
 	return 0;
 }
@@ -1521,28 +1547,28 @@ config_profile(struct dn_profile *pf, struct dn_id *arg)
 	/* XXX other sanity checks */
 	DN_BH_WLOCK();
 	for (; i < 2*DN_MAX_ID; i += DN_MAX_ID) {
-	s = locate_scheduler(i);
+		s = locate_scheduler(i);
 
-	if (s == NULL) {
+		if (s == NULL) {
 			err = EINVAL;
 			break;
-	}
-	dn_cfg.id++;
-	/*
-	 * If we had a profile and the new one does not fit,
-	 * or it is deleted, then we need to free memory.
-	 */
-	if (s->profile && (pf->samples_no == 0 ||
-			s->profile->oid.len < pf->oid.len)) {
-		free(s->profile, M_DUMMYNET);
-		s->profile = NULL;
-	}
+		}
+		dn_cfg.id++;
+		/*
+		 * If we had a profile and the new one does not fit,
+		 * or it is deleted, then we need to free memory.
+		 */
+		if (s->profile && (pf->samples_no == 0 ||
+		    s->profile->oid.len < pf->oid.len)) {
+			free(s->profile, M_DUMMYNET);
+			s->profile = NULL;
+		}
 		if (pf->samples_no == 0)
 			continue;
-	/*
+		/*
 		 * new profile, possibly allocate memory
-	 * and copy data.
-	 */
+		 * and copy data.
+		 */
 		if (s->profile == NULL)
 			s->profile = malloc(pf->oid.len,
 			    M_DUMMYNET, M_NOWAIT | M_ZERO);
@@ -1616,7 +1642,8 @@ do_config(void *p, int l)
 		default:
 			D("cmd %d not implemented", o->type);
 			break;
-#ifdef EMULATE_SYSCTL		
+
+#ifdef EMULATE_SYSCTL
 		/* sysctl emulation.
 		 * if we recognize the command, jump to the correct
 		 * handler and return
@@ -1625,6 +1652,7 @@ do_config(void *p, int l)
 			err = kesysctl_emu_set(p, l);
 			return err;
 #endif
+
 		case DN_CMD_CONFIG: /* simply a header */
 			break;
 
@@ -1690,7 +1718,7 @@ do_config(void *p, int l)
 }
 
 static int
-compute_space(struct dn_id *cmd, int *to_copy)
+compute_space(struct dn_id *cmd, struct copy_args *a)
 {
 	int x = 0, need = 0;
 	int profile_size = sizeof(struct dn_profile) - 
@@ -1743,10 +1771,10 @@ compute_space(struct dn_id *cmd, int *to_copy)
 		x = DN_C_FS | DN_C_QUEUE;
 		break;
 	case DN_GET_COMPAT:	/* compatibility mode */
-		need =  dn_compat_calc_size(dn_cfg); 
+		need =  dn_compat_calc_size(); 
 		break;
 	}
-	*to_copy = x;
+	a->flags = x;
 	if (x & DN_C_SCH) {
 		need += dn_cfg.schk_count * sizeof(struct dn_sch) / 2;
 		/* NOT also, each fs might be attached to a sched */
@@ -1757,9 +1785,13 @@ compute_space(struct dn_id *cmd, int *to_copy)
 	if (x & DN_C_LINK) {
 		need += dn_cfg.schk_count * sizeof(struct dn_link) / 2;
 	}
-	/* XXX queue space might be variable */
+	/*
+	 * When exporting a queue to userland, only pass up the
+	 * struct dn_flow, which is the only visible part.
+	 */
+
 	if (x & DN_C_QUEUE)
-		need += dn_cfg.queue_count * sizeof(struct dn_queue);
+		need += dn_cfg.queue_count * sizeof(struct dn_flow);
 	if (x & DN_C_FLOW)
 		need += dn_cfg.si_count * (sizeof(struct dn_flow));
 	return need;
@@ -1775,28 +1807,59 @@ dummynet_get(struct sockopt *sopt, void **compat)
 	int have, i, need, error;
 	char *start = NULL, *buf;
 	size_t sopt_valsize;
-	struct dn_id cmd;
+	struct dn_id *cmd;
 	struct copy_args a;
+	struct copy_range r;
+	int l = sizeof(struct dn_id);
+
+	bzero(&a, sizeof(a));
+	bzero(&r, sizeof(r));
 
 	/* save and restore original sopt_valsize around copyin */
 	sopt_valsize = sopt->sopt_valsize;
+
+	cmd = &r.o;
+
 	if (!compat) {
-		error = sooptcopyin(sopt, &cmd, sizeof(cmd), sizeof(cmd));
-		if (error)
-			return error;
+		/* copy at least an oid, and possibly a full object */
+		error = sooptcopyin(sopt, cmd, sizeof(r), sizeof(*cmd));
 		sopt->sopt_valsize = sopt_valsize;
+		if (error)
+			goto done;
+		l = cmd->len;
 #ifdef EMULATE_SYSCTL
 		/* sysctl emulation. */
-		if (cmd.type == DN_SYSCTL_GET)
+		if (cmd->type == DN_SYSCTL_GET)
 			return kesysctl_emu_get(sopt);
 #endif
-	} else {
+		if (l > sizeof(r)) {
+			/* request larger than default, allocate buffer */
+			cmd = malloc(l,  M_DUMMYNET, M_WAIT);
+			if (cmd == NULL)
+				return ENOMEM; //XXX
+			error = sooptcopyin(sopt, cmd, l, l);
+			sopt->sopt_valsize = sopt_valsize;
+			if (error)
+				goto done;
+		}
+	} else { /* compatibility */
 		error = 0;
-		cmd.type = DN_CMD_GET;
-		cmd.len = sizeof(struct dn_id);
-		cmd.subtype = DN_GET_COMPAT;
-		// cmd.id = sopt_valsize;
+		cmd->type = DN_CMD_GET;
+		cmd->len = sizeof(struct dn_id);
+		cmd->subtype = DN_GET_COMPAT;
+		// cmd->id = sopt_valsize;
 		D("compatibility mode");
+	}
+	a.extra = (struct copy_range *)cmd;
+	if (cmd->len == sizeof(*cmd)) { /* no range, create a default */
+		uint32_t *rp = (uint32_t *)(cmd + 1);
+		cmd->len += 2* sizeof(uint32_t);
+		rp[0] = 1;
+		rp[1] = DN_MAX_ID - 1;
+		if (cmd->subtype == DN_LINK) {
+			rp[0] += DN_MAX_ID;
+			rp[1] += DN_MAX_ID;
+		}
 	}
 	/* Count space (under lock) and allocate (outside lock).
 	 * Exit with lock held if we manage to get enough buffer.
@@ -1804,32 +1867,45 @@ dummynet_get(struct sockopt *sopt, void **compat)
 	 */
 	for (have = 0, i = 0; i < 10; i++) {
 		DN_BH_WLOCK();
-		need = compute_space(&cmd, &a.flags);
+		need = compute_space(cmd, &a);
+
+		/* if there is a range, ignore value from compute_space() */
+		if (l > sizeof(*cmd))
+			need = sopt_valsize - sizeof(*cmd);
+
 		if (need < 0) {
 			DN_BH_WUNLOCK();
-			return EINVAL;
+			error = EINVAL;
+			goto done;
 		}
-		need += sizeof(cmd);
-		cmd.id = need;
+		need += sizeof(*cmd);
+		cmd->id = need;
 		if (have >= need)
 			break;
+
 		DN_BH_WUNLOCK();
 		if (start)
 			free(start, M_DUMMYNET);
 		start = NULL;
 		if (need > sopt_valsize)
 			break;
+
 		have = need;
 		start = malloc(have, M_DUMMYNET, M_WAITOK | M_ZERO);
-		if (start == NULL)
-			return ENOMEM;
+		if (start == NULL) {
+			error = ENOMEM;
+			goto done;
+		}
 	}
+
 	if (start == NULL) {
 		if (compat) {
 			*compat = NULL;
-			return 1; // XXX
+			error =  1; // XXX
+		} else {
+			error = sooptcopyout(sopt, cmd, sizeof(*cmd));
 		}
-		return sooptcopyout(sopt, &cmd, sizeof(cmd));
+		goto done;
 	}
 	ND("have %d:%d sched %d, %d:%d links %d, %d:%d flowsets %d, "
 		"%d:%d si %d, %d:%d queues %d",
@@ -1839,10 +1915,12 @@ dummynet_get(struct sockopt *sopt, void **compat)
 		dn_cfg.si_count, sizeof(struct dn_flow), DN_SCH_I,
 		dn_cfg.queue_count, sizeof(struct dn_queue), DN_QUEUE);
 	sopt->sopt_valsize = sopt_valsize;
-	a.type = cmd.subtype;
+	a.type = cmd->subtype;
+
 	if (compat == NULL) {
-		bcopy(&cmd, start, sizeof(cmd));
-		buf = start + sizeof(cmd);
+		bcopy(cmd, start, sizeof(*cmd));
+		((struct dn_id*)(start))->len = sizeof(struct dn_id);
+		buf = start + sizeof(*cmd);
 	} else
 		buf = start;
 	a.start = &buf;
@@ -1853,19 +1931,26 @@ dummynet_get(struct sockopt *sopt, void **compat)
 		dn_ht_scan(dn_cfg.schedhash, copy_data_helper_compat, &a);
 		a.type = DN_COMPAT_QUEUE;
 		dn_ht_scan(dn_cfg.fshash, copy_data_helper_compat, &a);
-	} else if (a.type == DN_FS)
+	} else if (a.type == DN_FS) {
 		dn_ht_scan(dn_cfg.fshash, copy_data_helper, &a);
-	else
+	} else {
 		dn_ht_scan(dn_cfg.schedhash, copy_data_helper, &a);
+	}
 	DN_BH_WUNLOCK();
+
 	if (compat) {
 		*compat = start;
 		sopt->sopt_valsize = buf - start;
 		/* free() is done by ip_dummynet_compat() */
+		start = NULL; //XXX hack
 	} else {
 		error = sooptcopyout(sopt, start, buf - start);
-		free(start, M_DUMMYNET);
 	}
+done:
+	if (cmd && cmd != &r.o)
+		free(cmd, M_DUMMYNET);
+	if (start)
+		free(start, M_DUMMYNET);
 	return error;
 }
 
@@ -1945,8 +2030,7 @@ drain_queue_fs_cb(void *_fs, void *arg)
 		dn_ht_scan_bucket(fs->qht, &fs->drain_bucket,
 				drain_queue_cb, NULL);
 		fs->drain_bucket++;
-	}
-	else {
+	} else {
 		/* No hash table for this flowset, null the pointer 
 		 * if the queue is deleted
 		 */
@@ -2030,18 +2114,17 @@ ip_dn_ctl(struct sockopt *sopt)
 static void
 ip_dn_init(void)
 {
-	static int init_done = 0;
-
-	if (init_done)
+	if (dn_cfg.init_done)
 		return;
-	init_done = 1;
-	if (bootverbose)
-		printf("DUMMYNET with IPv6 initialized (100131)\n");
-
-	/* init defaults here, MSVC does not accept initializers */
+	printf("DUMMYNET %p with IPv6 initialized (100409)\n", curvnet);
+	dn_cfg.init_done = 1;
+	/* Set defaults here. MSVC does not accept initializers,
+	 * and this is also useful for vimages
+	 */
 	/* queue limits */
 	dn_cfg.slot_limit = 100; /* Foot shooting limit for queues. */
 	dn_cfg.byte_limit = 1024 * 1024;
+	dn_cfg.expire = 1;
 
 	/* RED parameters */
 	dn_cfg.red_lookup_depth = 256;	/* default lookup table depth */
@@ -2071,10 +2154,8 @@ ip_dn_init(void)
 	SLIST_INIT(&dn_cfg.schedlist);
 
 	DN_LOCK_INIT();
-	ip_dn_ctl_ptr = ip_dn_ctl;
-	ip_dn_io_ptr = dummynet_io;
 
-	TASK_INIT(&dn_task, 0, dummynet_task, NULL);
+	TASK_INIT(&dn_task, 0, dummynet_task, curvnet);
 	dn_tq = taskqueue_create_fast("dummynet", M_NOWAIT,
 	    taskqueue_thread_enqueue, &dn_tq);
 	taskqueue_start_threads(&dn_tq, 1, PI_NET, "dummynet");
@@ -2088,13 +2169,16 @@ ip_dn_init(void)
 
 #ifdef KLD_MODULE
 static void
-ip_dn_destroy(void)
+ip_dn_destroy(int last)
 {
 	callout_drain(&dn_timeout);
 
 	DN_BH_WLOCK();
-	ip_dn_ctl_ptr = NULL;
-	ip_dn_io_ptr = NULL;
+	if (last) {
+		printf("%s removing last instance\n", __FUNCTION__);
+		ip_dn_ctl_ptr = NULL;
+		ip_dn_io_ptr = NULL;
+	}
 
 	dummynet_flush();
 	DN_BH_WUNLOCK();
@@ -2119,13 +2203,15 @@ dummynet_modevent(module_t mod, int type, void *data)
 			return EEXIST ;
 		}
 		ip_dn_init();
+		ip_dn_ctl_ptr = ip_dn_ctl;
+		ip_dn_io_ptr = dummynet_io;
 		return 0;
 	} else if (type == MOD_UNLOAD) {
 #if !defined(KLD_MODULE)
 		printf("dummynet statically compiled, cannot unload\n");
 		return EINVAL ;
 #else
-		ip_dn_destroy();
+		ip_dn_destroy(1 /* last */);
 		return 0;
 #endif
 	} else
@@ -2203,8 +2289,24 @@ static moduledata_t dummynet_mod = {
 	"dummynet", dummynet_modevent, NULL
 };
 
-DECLARE_MODULE(dummynet, dummynet_mod,
-	SI_SUB_PROTO_IFATTACHDOMAIN, SI_ORDER_ANY-1);
+#define	DN_SI_SUB	SI_SUB_PROTO_IFATTACHDOMAIN
+#define	DN_MODEV_ORD	(SI_ORDER_ANY - 128) /* after ipfw */
+DECLARE_MODULE(dummynet, dummynet_mod, DN_SI_SUB, DN_MODEV_ORD);
 MODULE_DEPEND(dummynet, ipfw, 2, 2, 2);
 MODULE_VERSION(dummynet, 1);
+
+/*
+ * Starting up. Done in order after dummynet_modevent() has been called.
+ * VNET_SYSINIT is also called for each existing vnet and each new vnet.
+ */
+//VNET_SYSINIT(vnet_dn_init, DN_SI_SUB, DN_MODEV_ORD+2, ip_dn_init, NULL);
+ 
+/*
+ * Shutdown handlers up shop. These are done in REVERSE ORDER, but still
+ * after dummynet_modevent() has been called. Not called on reboot.
+ * VNET_SYSUNINIT is also called for each exiting vnet as it exits.
+ * or when the module is unloaded.
+ */
+//VNET_SYSUNINIT(vnet_dn_uninit, DN_SI_SUB, DN_MODEV_ORD+2, ip_dn_destroy, NULL);
+
 /* end of file */

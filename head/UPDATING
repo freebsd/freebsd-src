@@ -22,6 +22,22 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 9.x IS SLOW:
 	machines to maximize performance.  (To disable malloc debugging, run
 	ln -s aj /etc/malloc.conf.)
 
+20100402:
+	WITH_CTF can now be specified in src.conf (not recommended, there
+	are some problems with static executables), make.conf (would also
+	affect ports which do not use GNU make and do not override the
+	compile targets) or in the kernel config (via "makeoptions
+	WITH_CTF=yes").
+	When WITH_CTF was specified there before this was silently ignored,
+	so make sure that WITH_CTF is not used in places which could lead
+	to unwanted behavior.
+
+20100311:
+	The kernel option COMPAT_IA32 has been replaced with COMPAT_FREEBSD32
+	to allow 32-bit compatibility on non-x86 platforms. All kernel
+	configurations on amd64 and ia64 platforms using these options must
+	be modified accordingly.
+
 20100113:
 	The utmp user accounting database has been replaced with utmpx,
 	the user accounting interface standardized by POSIX.

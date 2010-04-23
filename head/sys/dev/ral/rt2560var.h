@@ -95,16 +95,9 @@ struct rt2560_rx_ring {
 	int			cur_decrypt;
 };
 
-struct rt2560_node {
-	struct ieee80211_node	ni;
-	struct ieee80211_amrr_node amrr;
-};
-#define	RT2560_NODE(ni)		((struct rt2560_node *)(ni))
-
 struct rt2560_vap {
 	struct ieee80211vap	ral_vap;
 	struct ieee80211_beacon_offsets	ral_bo;
-	struct ieee80211_amrr	amrr;
 
 	int			(*ral_newstate)(struct ieee80211vap *,
 				    enum ieee80211_state, int);

@@ -17,6 +17,8 @@
 
 #ifdef _KERNEL
 
+#include <machine/pcb.h>
+
 /*
  * Interprocessor interrupts for SMP.
  */
@@ -30,6 +32,8 @@
 void	ipi_selected(cpumask_t cpus, int ipi);
 void	smp_init_secondary(u_int32_t cpuid);
 void	mpentry(void);
+
+extern struct pcb stoppcbs[];
 
 #endif /* !LOCORE */
 #endif /* _KERNEL */

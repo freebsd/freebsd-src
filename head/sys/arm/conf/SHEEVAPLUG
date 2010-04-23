@@ -61,6 +61,7 @@ options		DEVICE_POLLING
 device		vlan
 
 # USB
+options 	USB_DEBUG	# enable debug msgs
 device		usb
 device		ehci
 device		umass

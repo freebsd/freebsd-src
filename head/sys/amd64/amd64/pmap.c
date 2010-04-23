@@ -152,7 +152,7 @@ __FBSDID("$FreeBSD$");
 
 #if !defined(DIAGNOSTIC)
 #ifdef __GNUC_GNU_INLINE__
-#define PMAP_INLINE	inline
+#define PMAP_INLINE	__attribute__((__gnu_inline__)) inline
 #else
 #define PMAP_INLINE	extern inline
 #endif
@@ -576,8 +576,6 @@ pmap_bootstrap(vm_paddr_t *firstaddr)
 
 	virtual_avail = va;
 
-	invltlb();
-
 	/* Initialize the PAT MSR. */
 	pmap_init_pat();
 }
@@ -882,9 +880,12 @@ pmap_update_pde_invalidate(vm_offset_t va, pd_entry_t newpde)
 		load_cr4(cr4 & ~CR4_PGE);
 		/*
 		 * Although preemption at this point could be detrimental to
-		 * performance, it would not lead to an error.
+		 * performance, it would not lead to an error.  PG_G is simply
+		 * ignored if CR4.PGE is clear.  Moreover, in case this block
+		 * is re-entered, the load_cr4() either above or below will
+		 * modify CR4.PGE flushing the TLB.
 		 */
-		load_cr4(cr4);
+		load_cr4(cr4 | CR4_PGE);
 	}
 }
 #ifdef SMP
@@ -1123,7 +1124,7 @@ pmap_invalidate_cache_range(vm_offset_t sva, vm_offset_t eva)
 
 		/*
 		 * No targeted cache flush methods are supported by CPU,
-		 * or the supplied range is bigger then 2MB.
+		 * or the supplied range is bigger than 2MB.
 		 * Globally invalidate cache.
 		 */
 		pmap_invalidate_cache();

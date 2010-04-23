@@ -270,6 +270,15 @@ AcpiDmNormalizeParentPrefix (
     }
 
     Length = (ACPI_STRLEN (ParentPath) + ACPI_STRLEN (Path) + 1);
+    if (ParentPath[1])
+    {
+        /*
+         * If ParentPath is not just a simple '\', increment the length
+         * for the required dot separator (ParentPath.Path)
+         */
+        Length++;
+    }
+
     Fullpath = ACPI_ALLOCATE_ZEROED (Length);
     if (!Fullpath)
     {

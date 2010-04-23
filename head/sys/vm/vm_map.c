@@ -126,7 +126,8 @@ static int vmspace_zinit(void *mem, int size, int flags);
 static void vmspace_zfini(void *mem, int size);
 static int vm_map_zinit(void *mem, int ize, int flags);
 static void vm_map_zfini(void *mem, int size);
-static void _vm_map_init(vm_map_t map, vm_offset_t min, vm_offset_t max);
+static void _vm_map_init(vm_map_t map, pmap_t pmap, vm_offset_t min,
+    vm_offset_t max);
 static void vm_map_entry_dispose(vm_map_t map, vm_map_entry_t entry);
 #ifdef INVARIANTS
 static void vm_map_zdtor(void *mem, int size, void *arg);
@@ -281,8 +282,7 @@ vmspace_alloc(min, max)
 		return (NULL);
 	}
 	CTR1(KTR_VM, "vmspace_alloc: %p", vm);
-	_vm_map_init(&vm->vm_map, min, max);
-	vm->vm_map.pmap = vmspace_pmap(vm);		/* XXX */
+	_vm_map_init(&vm->vm_map, vmspace_pmap(vm), min, max);
 	vm->vm_refcnt = 1;
 	vm->vm_shm = NULL;
 	vm->vm_swrss = 0;
@@ -313,6 +313,7 @@ vm_init2(void)
 static inline void
 vmspace_dofree(struct vmspace *vm)
 {
+
 	CTR1(KTR_VM, "vmspace_free: %p", vm);
 
 	/*
@@ -329,12 +330,8 @@ vmspace_dofree(struct vmspace *vm)
 	(void)vm_map_remove(&vm->vm_map, vm->vm_map.min_offset,
 	    vm->vm_map.max_offset);
 
-	/*
-	 * XXX Comment out the pmap_release call for now. The
-	 * vmspace_zone is marked as UMA_ZONE_NOFREE, and bugs cause
-	 * pmap.resident_count to be != 0 on exit sometimes.
-	 */
-/* 	pmap_release(vmspace_pmap(vm)); */
+	pmap_release(vmspace_pmap(vm));
+	vm->vm_map.pmap = NULL;
 	uma_zfree(vmspace_zone, vm);
 }
 
@@ -681,23 +678,22 @@ vm_map_create(pmap_t pmap, vm_offset_t min, vm_offset_t max)
 
 	result = uma_zalloc(mapzone, M_WAITOK);
 	CTR1(KTR_VM, "vm_map_create: %p", result);
-	_vm_map_init(result, min, max);
-	result->pmap = pmap;
+	_vm_map_init(result, pmap, min, max);
 	return (result);
 }
 
 /*
  * Initialize an existing vm_map structure
  * such as that in the vmspace structure.
- * The pmap is set elsewhere.
  */
 static void
-_vm_map_init(vm_map_t map, vm_offset_t min, vm_offset_t max)
+_vm_map_init(vm_map_t map, pmap_t pmap, vm_offset_t min, vm_offset_t max)
 {
 
 	map->header.next = map->header.prev = &map->header;
 	map->needs_wakeup = FALSE;
 	map->system_map = 0;
+	map->pmap = pmap;
 	map->min_offset = min;
 	map->max_offset = max;
 	map->flags = 0;
@@ -707,9 +703,10 @@ _vm_map_init(vm_map_t map, vm_offset_t min, vm_offset_t max)
 }
 
 void
-vm_map_init(vm_map_t map, vm_offset_t min, vm_offset_t max)
+vm_map_init(vm_map_t map, pmap_t pmap, vm_offset_t min, vm_offset_t max)
 {
-	_vm_map_init(map, min, max);
+
+	_vm_map_init(map, pmap, min, max);
 	mtx_init(&map->system_mtx, "system map", NULL, MTX_DEF | MTX_DUPOK);
 	sx_init(&map->lock, "user map");
 }
@@ -1397,9 +1394,20 @@ vm_map_find(vm_map_t map, vm_object_t object, vm_ooffset_t offset,
 				vm_map_unlock(map);
 				return (KERN_NO_SPACE);
 			}
-			if (find_space == VMFS_ALIGNED_SPACE)
+			switch (find_space) {
+			case VMFS_ALIGNED_SPACE:
 				pmap_align_superpage(object, offset, addr,
 				    length);
+				break;
+#ifdef VMFS_TLB_ALIGNED_SPACE
+			case VMFS_TLB_ALIGNED_SPACE:
+				pmap_align_tlb(addr);
+				break;
+#endif
+			default:
+				break;
+			}
+
 			start = *addr;
 		}
 		result = vm_map_insert(map, object, offset, start, start +

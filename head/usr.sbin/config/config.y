@@ -166,6 +166,8 @@ Config_spec:
 	CPU Save_id {
 		struct cputype *cp =
 		    (struct cputype *)calloc(1, sizeof (struct cputype));
+		if (cp == NULL)
+			err(EXIT_FAILURE, "calloc");
 		cp->cpu_name = $2;
 		SLIST_INSERT_HEAD(&cputype, cp, cpu_next);
 	      } |
@@ -197,6 +199,8 @@ Config_spec:
 		struct hint *hint;
 
 		hint = (struct hint *)calloc(1, sizeof (struct hint));
+		if (hint == NULL)
+			err(EXIT_FAILURE, "calloc");	
 		hint->hint_name = $2;
 		STAILQ_INSERT_TAIL(&hints, hint, hint_next);
 		hintmode = 1;
@@ -331,6 +335,8 @@ newfile(char *name)
 	struct files_name *nl;
 	
 	nl = (struct files_name *) calloc(1, sizeof *nl);
+	if (nl == NULL)
+		err(EXIT_FAILURE, "calloc");
 	nl->f_name = name;
 	STAILQ_INSERT_TAIL(&fntab, nl, f_next);
 }
@@ -364,6 +370,8 @@ newdev(char *name)
 	}
 
 	np = (struct device *) calloc(1, sizeof *np);
+	if (np == NULL)
+		err(EXIT_FAILURE, "calloc");
 	np->d_name = name;
 	STAILQ_INSERT_TAIL(&dtab, np, d_next);
 }
@@ -422,6 +430,8 @@ newopt(struct opt_head *list, char *name, char *value, int append)
 	}
 
 	op = (struct opt *)calloc(1, sizeof (struct opt));
+	if (op == NULL)
+		err(EXIT_FAILURE, "calloc");
 	op->op_name = name;
 	op->op_ownfile = 0;
 	op->op_value = value;

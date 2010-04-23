@@ -672,9 +672,11 @@ printcpuinfo(void)
 	    cpu_vendor_id == CPU_VENDOR_NSC ||
 		(cpu_vendor_id == CPU_VENDOR_CYRIX &&
 		 ((cpu_id & 0xf00) > 0x500))) {
-		printf("  Stepping = %u", cpu_id & 0xf);
+		printf("  Family = %x", CPUID_TO_FAMILY(cpu_id));
+		printf("  Model = %x", CPUID_TO_MODEL(cpu_id));
+		printf("  Stepping = %u", cpu_id & CPUID_STEPPING);
 		if (cpu_vendor_id == CPU_VENDOR_CYRIX)
-			printf("  DIR=0x%04x", cyrix_did);
+			printf("\n  DIR=0x%04x", cyrix_did);
 		if (cpu_high > 0) {
 
 			/*

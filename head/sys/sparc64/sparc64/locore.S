@@ -30,6 +30,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/asi.h>
 #include <machine/asmacros.h>
 #include <machine/pstate.h>
+#include <machine/wstate.h>
 
 #include "assym.s"
 
@@ -139,8 +140,12 @@ ENTRY(cpu_setregs)
 	 * Force trap level 1 and take over the trap table.
 	 */
 	SET(tl0_base, %o2, %o1)
+	SET(tba_taken_over, %o3, %o2)
+	mov	1, %o3
+	wrpr	%g0, WSTATE_KERNEL, %wstate
 	wrpr	%g0, 1, %tl
 	wrpr	%o1, 0, %tba
+	stw	%o3, [%o2]
 
 	/*
 	 * Re-enable interrupts.

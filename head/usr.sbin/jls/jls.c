@@ -355,7 +355,7 @@ print_jail(int pflags, int jflags)
 			count = params[7].jp_valuelen / sizeof(struct in6_addr);
 			for (ai = 0; ai < count; ai++)
 				if (inet_ntop(AF_INET6,
-				    &((struct in_addr *)params[7].jp_value)[ai],
+				    &((struct in6_addr *)params[7].jp_value)[ai],
 				    ipbuf, sizeof(ipbuf)) == NULL)
 					err(1, "inet_ntop");
 				else

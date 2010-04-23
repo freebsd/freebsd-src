@@ -349,7 +349,7 @@ alter(name)
 		return;
 	(void)gettimeofday(&tv[0], (struct timezone *)NULL);
 	tv[0].tv_sec++;
-	TIMESPEC_TO_TIMEVAL(&tv[1], &sb.st_mtimespec);
+	TIMESPEC_TO_TIMEVAL(&tv[1], &sb.st_mtim);
 	(void)utimes(name, tv);
 }
 

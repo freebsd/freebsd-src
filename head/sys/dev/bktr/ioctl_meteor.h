@@ -50,27 +50,27 @@ struct meteor_capframe {
 
 /* structure for METEOR[GS]ETGEO - get/set geometry  */
 struct meteor_geomet {
-	u_short		rows;
-	u_short		columns;
-	u_short		frames;
-	u_long		oformat;
+	unsigned short		rows;
+	unsigned short		columns;
+	unsigned short		frames;
+	unsigned long		oformat;
 } ;
 
 /* structure for METEORGCOUNT-get count of frames, fifo errors and dma errors */
 struct meteor_counts {
-	u_long fifo_errors;	/* count of fifo errors since open */
-	u_long dma_errors;	/* count of dma errors since open */
-	u_long frames_captured;	/* count of frames captured since open */
-	u_long even_fields_captured; /* count of even fields captured */
-	u_long odd_fields_captured; /* count of odd fields captured */
+	unsigned long fifo_errors;	/* count of fifo errors since open */
+	unsigned long dma_errors;	/* count of dma errors since open */
+	unsigned long frames_captured;	/* count of frames captured since open */
+	unsigned long even_fields_captured; /* count of even fields captured */
+	unsigned long odd_fields_captured; /* count of odd fields captured */
 } ;
 
 /* structure for getting and setting direct transfers to vram */
 struct meteor_video {
-	u_long	addr;	/* Address of location to dma to */
-	u_long	width;	/* Width of memory area */
-	u_long	banksize;	/* Size of Vram bank */
-	u_long	ramsize;	/* Size of Vram */
+	unsigned long	addr;		/* Address of location to dma to */
+	unsigned long	width;		/* Width of memory area */
+	unsigned long	banksize;	/* Size of Vram bank */
+	unsigned long	ramsize;	/* Size of Vram */
 };
 
 #define METEORCAPTUR _IOW('x', 1, int)			 /* capture a frame */

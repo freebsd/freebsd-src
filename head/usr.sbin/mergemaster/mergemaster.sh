@@ -15,7 +15,7 @@ PATH=/bin:/usr/bin:/usr/sbin
 display_usage () {
   VERSION_NUMBER=`grep "[$]FreeBSD:" $0 | cut -d ' ' -f 4`
   echo "mergemaster version ${VERSION_NUMBER}"
-  echo 'Usage: mergemaster [-scrvahipFCPU]'
+  echo 'Usage: mergemaster [-scrvhpCP] [-a|[-iFU]]'
   echo '    [-m /path] [-t /path] [-d] [-u N] [-w N] [-A arch] [-D /path]'
   echo "Options:"
   echo "  -s  Strict comparison (diff every pair of files)"
@@ -336,6 +336,18 @@ while getopts ":ascrvhipCPm:t:du:w:D:A:FU" COMMAND_LINE_ARGUMENT ; do
     ;;
   esac
 done
+
+if [ -n "$AUTO_RUN" ]; then
+  if [ -n "$FREEBSD_ID" -o -n "$AUTO_UPGRADE" -o -n "$AUTO_INSTALL" ]; then
+    echo ''
+    echo "*** You have included the -a option along with one or more options"
+    echo '    that indicate that you wish mergemaster to actually make updates'
+    echo '    (-F, -U, or -i), however these options are not compatible.'
+    echo '    Please read mergemaster(8) for more information.'
+    echo ''
+    exit 1
+  fi
+fi
 
 # Assign the location of the mtree database
 #

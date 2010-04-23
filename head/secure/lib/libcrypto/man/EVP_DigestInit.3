@@ -129,7 +129,7 @@
 .\" ========================================================================
 .\"
 .IX Title "EVP_DigestInit 3"
-.TH EVP_DigestInit 3 "2009-06-14" "0.9.8k" "OpenSSL"
+.TH EVP_DigestInit 3 "2010-03-24" "0.9.8n" "OpenSSL"
 .SH "NAME"
 EVP_MD_CTX_init, EVP_MD_CTX_create, EVP_DigestInit_ex, EVP_DigestUpdate,
 EVP_DigestFinal_ex, EVP_MD_CTX_cleanup, EVP_MD_CTX_destroy, EVP_MAX_MD_SIZE,
@@ -214,9 +214,9 @@ EVP digest routines
 .IX Header "DESCRIPTION"
 The \s-1EVP\s0 digest routines are a high level interface to message digests.
 .PP
-\&\fIEVP_MD_CTX_init()\fR initializes digest contet \fBctx\fR.
+\&\fIEVP_MD_CTX_init()\fR initializes digest context \fBctx\fR.
 .PP
-\&\fIEVP_MD_CTX_create()\fR allocates, initializes and returns a digest contet.
+\&\fIEVP_MD_CTX_create()\fR allocates, initializes and returns a digest context.
 .PP
 \&\fIEVP_DigestInit_ex()\fR sets up digest context \fBctx\fR to use a digest
 \&\fBtype\fR from \s-1ENGINE\s0 \fBimpl\fR. \fBctx\fR must be initialized before calling this
@@ -252,7 +252,7 @@ the passed context \fBctx\fR does not have to be initialized, and it always
 uses the default digest implementation.
 .PP
 \&\fIEVP_DigestFinal()\fR is similar to \fIEVP_DigestFinal_ex()\fR except the digest
-contet \fBctx\fR is automatically cleaned up.
+context \fBctx\fR is automatically cleaned up.
 .PP
 \&\fIEVP_MD_CTX_copy()\fR is similar to \fIEVP_MD_CTX_copy_ex()\fR except the destination
 \&\fBout\fR does not have to be initialized.

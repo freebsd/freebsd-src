@@ -247,6 +247,7 @@ static int	pmcstat_string_compute_hash(const char *_string);
 static void pmcstat_string_initialize(void);
 static int	pmcstat_string_lookup_hash(pmcstat_interned_string _is);
 static void pmcstat_string_shutdown(void);
+static void pmcstat_stats_reset(void);
 
 /*
  * A simple implementation of interned strings.  Each interned string
@@ -273,6 +274,21 @@ int pmcstat_npmcs;
  * PMC Top mode pause state.
  */
 int pmcstat_pause;
+
+static void
+pmcstat_stats_reset(void)
+{
+	struct pmcstat_pmcrecord *pr;
+
+	/* Flush PMCs stats. */
+	LIST_FOREACH(pr, &pmcstat_pmcs, pr_next) {
+		pr->pr_samples = 0;
+		pr->pr_dubious_frames = 0;
+	}
+
+	/* Flush global stats. */
+	bzero(&pmcstat_stats, sizeof(struct pmcstat_stats));
+}
 
 /*
  * Compute a 'hash' value for a string.
@@ -1009,6 +1025,8 @@ pmcstat_pmcid_add(pmc_id_t pmcid, pmcstat_interned_string ps)
 	pr->pr_pmcid = pmcid;
 	pr->pr_pmcname = ps;
 	pr->pr_pmcin = pmcstat_npmcs++;
+	pr->pr_samples = 0;
+	pr->pr_dubious_frames = 0;
 	pr->pr_merge = prm == NULL ? pr : prm;
 
 	LIST_INSERT_HEAD(&pmcstat_pmcs, pr, pr_next);
@@ -1032,7 +1050,6 @@ pmcstat_pmcid_to_name(pmc_id_t pmcid)
 	    if (pr->pr_pmcid == pmcid)
 		    return (pmcstat_string_unintern(pr->pr_pmcname));
 
-	err(EX_SOFTWARE, "ERROR: cannot find pmcid");
 	return NULL;
 }
 
@@ -1049,7 +1066,6 @@ pmcstat_pmcindex_to_name(int pmcin)
 		if (pr->pr_pmcin == pmcin)
 			return pmcstat_string_unintern(pr->pr_pmcname);
 
-	err(EX_SOFTWARE, "ERROR: cannot find pmcid name");
 	return NULL;
 }
 
@@ -1066,7 +1082,6 @@ pmcstat_pmcindex_to_pmcr(int pmcin)
 		if (pr->pr_pmcin == pmcin)
 			return pr;
 
-	err(EX_SOFTWARE, "ERROR: invalid pmcindex");
 	return NULL;
 }
 
@@ -1388,6 +1403,7 @@ pmcstat_analyze_log(void)
 			/* Get PMC record. */
 			pmcr = pmcstat_lookup_pmcid(ev.pl_u.pl_s.pl_pmcid);
 			assert(pmcr != NULL);
+			pmcr->pr_samples++;
 
 			/*
 			 * Call the plugins processing
@@ -1421,6 +1437,7 @@ pmcstat_analyze_log(void)
 			/* Get PMC record. */
 			pmcr = pmcstat_lookup_pmcid(ev.pl_u.pl_cc.pl_pmcid);
 			assert(pmcr != NULL);
+			pmcr->pr_samples++;
 
 			/*
 			 * Call the plugins processing
@@ -1788,28 +1805,46 @@ pmcstat_process_log(void)
 static void
 pmcstat_refresh_top(void)
 {
+	int v_attrs;
+	float v;
 	char pmcname[40];
+	struct pmcstat_pmcrecord *pmcpr;
 
 	/* If in pause mode do not refresh display. */
 	if (pmcstat_pause)
 		return;
 
+	/* Wait until PMC pop in the log. */
+	pmcpr = pmcstat_pmcindex_to_pmcr(pmcstat_pmcinfilter);
+	if (pmcpr == NULL)
+		return;
+
 	/* Format PMC name. */
 	if (pmcstat_mergepmc)
 		snprintf(pmcname, sizeof(pmcname), "[%s]",
-		    pmcstat_pmcindex_to_name(pmcstat_pmcinfilter));
+		    pmcstat_string_unintern(pmcpr->pr_pmcname));
 	else
 		snprintf(pmcname, sizeof(pmcname), "%s.%d",
-		    pmcstat_pmcindex_to_name(pmcstat_pmcinfilter),
+		    pmcstat_string_unintern(pmcpr->pr_pmcname),
 		    pmcstat_pmcinfilter);
 
+	/* Format samples count. */
+	if (pmcstat_stats.ps_samples_total > 0)
+		v = (pmcpr->pr_samples * 100.0) /
+		    pmcstat_stats.ps_samples_total;
+	else
+		v = 0.;
+	v_attrs = PMCSTAT_ATTRPERCENT(v);
+
 	PMCSTAT_PRINTBEGIN();
-	PMCSTAT_PRINTW("PMC: %s Samples: %u processed, %u invalid\n\n",
+	PMCSTAT_PRINTW("PMC: %s Samples: %u ",
 	    pmcname,
-	    pmcstat_stats.ps_samples_total,
-	    pmcstat_stats.ps_samples_unknown_offset +
-	    pmcstat_stats.ps_samples_indeterminable +
-	    pmcstat_stats.ps_callchain_dubious_frames);
+	    pmcpr->pr_samples);
+	PMCSTAT_ATTRON(v_attrs);
+	PMCSTAT_PRINTW("(%.1f%%) ", v);
+	PMCSTAT_ATTROFF(v_attrs);
+	PMCSTAT_PRINTW(", %u unresolved\n\n",
+	    pmcpr->pr_dubious_frames);
 	if (plugins[args.pa_plugin].pl_topdisplay != NULL)
 		plugins[args.pa_plugin].pl_topdisplay();
 	PMCSTAT_PRINTEND();
@@ -1876,7 +1911,7 @@ pmcstat_keypress_log(void)
 		 */
 		if (plugins[args.pa_plugin].pl_shutdown != NULL)
 			plugins[args.pa_plugin].pl_shutdown(NULL);
-		bzero(&pmcstat_stats, sizeof(struct pmcstat_stats));
+		pmcstat_stats_reset();
 		if (plugins[args.pa_plugin].pl_init != NULL)
 			plugins[args.pa_plugin].pl_init();
 
@@ -1897,7 +1932,7 @@ pmcstat_keypress_log(void)
 		} while (plugins[args.pa_plugin].pl_topdisplay == NULL);
 
 		/* Open new plugin. */
-		bzero(&pmcstat_stats, sizeof(struct pmcstat_stats));
+		pmcstat_stats_reset();
 		if (plugins[args.pa_plugin].pl_init != NULL)
 			plugins[args.pa_plugin].pl_init();
 		wprintw(w, "switching to plugin %s",
@@ -1946,7 +1981,7 @@ pmcstat_display_log(void)
 	if (args.pa_topmode == PMCSTAT_TOP_DELTA) {
 		if (plugins[args.pa_plugin].pl_shutdown != NULL)
 			plugins[args.pa_plugin].pl_shutdown(NULL);
-		bzero(&pmcstat_stats, sizeof(struct pmcstat_stats));
+		pmcstat_stats_reset();
 		if (plugins[args.pa_plugin].pl_init != NULL)
 			plugins[args.pa_plugin].pl_init();
 	}

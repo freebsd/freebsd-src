@@ -286,15 +286,6 @@ ng_netflow_newhook(node_p node, hook_p hook, const char *name)
 
 		priv->export = hook;
 
-#if 0	/* TODO: profile & test first */
-		/*
-		 * We send export dgrams in interrupt handlers and in
-		 * callout threads. We'd better queue data for later
-		 * netgraph ISR processing.
-		 */
-		NG_HOOK_FORCE_QUEUE(NG_HOOK_PEER(hook));
-#endif
-
 		/* Exporter is ready. Let's schedule expiry. */
 		callout_reset(&priv->exp_callout, (1*hz), &ng_netflow_expire,
 		    (void *)priv);

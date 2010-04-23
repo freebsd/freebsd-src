@@ -50,6 +50,8 @@ __FBSDID("$FreeBSD$");
 #include <machine/intr_machdep.h>
 #include <machine/cache.h>
 
+struct pcb stoppcbs[MAXCPU];
+
 static void *dpcpu;
 static struct mtx ap_boot_mtx;
 
@@ -88,9 +90,13 @@ ipi_selected(cpumask_t cpus, int ipi)
 static int
 mips_ipi_handler(void *arg)
 {
+	int cpu;
 	cpumask_t cpumask;
 	u_int	ipi, ipi_bitmap;
 	int	bit;
+
+	cpu = PCPU_GET(cpuid);
+	cpumask = PCPU_GET(cpumask);
 
 	platform_ipi_clear();	/* quiesce the pending ipi interrupt */
 
@@ -120,10 +126,17 @@ mips_ipi_handler(void *arg)
 			 * necessary to add it in the switch.
 			 */
 			CTR0(KTR_SMP, "IPI_STOP or IPI_STOP_HARD");
-			cpumask = PCPU_GET(cpumask);
+
+			savectx(&stoppcbs[cpu]);
+			pmap_save_tlb();
+
+			/* Indicate we are stopped */
 			atomic_set_int(&stopped_cpus, cpumask);
+
+			/* Wait for restart */
 			while ((started_cpus & cpumask) == 0)
 				cpu_spinwait();
+
 			atomic_clear_int(&started_cpus, cpumask);
 			atomic_clear_int(&stopped_cpus, cpumask);
 			CTR0(KTR_SMP, "IPI_STOP (restart)");
@@ -143,6 +156,8 @@ start_ap(int cpuid)
 
 	cpus = mp_naps;
 	dpcpu = (void *)kmem_alloc(kernel_map, DPCPU_SIZE);
+
+	mips_sync();
 
 	if (platform_start_ap(cpuid) != 0)
 		return (-1);			/* could not start AP */
@@ -233,6 +248,8 @@ smp_init_secondary(u_int32_t cpuid)
 	mips_dcache_wbinv_all();
 	mips_icache_sync_all();
 
+	mips_sync();
+
 	MachSetPID(0);
 
 	pcpu_init(PCPU_ADDR(cpuid), cpuid, sizeof(struct pcpu));
@@ -283,7 +300,7 @@ smp_init_secondary(u_int32_t cpuid)
 	 */
 	mips_wr_compare(mips_rd_count() + counter_freq / hz);
 
-	enableintr();
+	intr_enable();
 
 	/* enter the scheduler */
 	sched_throw(NULL);

@@ -116,11 +116,11 @@ count_compare_clockhandler(struct trapframe *tf)
 		cycles += XLR_CPU_HZ / hz;
 		mips_wr_compare(cycles);
 
-		hardclock_cpu(USERMODE(tf->sr));
+		hardclock_cpu(TRAPF_USERMODE(tf));
 		if (count_scale_factor[cpu] == STAT_PROF_CLOCK_SCALE_FACTOR) {
-			statclock(USERMODE(tf->sr));
+			statclock(TRAPF_USERMODE(tf));
 			if (profprocs != 0) {
-				profclock(USERMODE(tf->sr), tf->pc);
+				profclock(TRAPF_USERMODE(tf), tf->pc);
 			}
 			count_scale_factor[cpu] = 0;
 		}
@@ -148,11 +148,11 @@ pic_hardclockhandler(struct trapframe *tf)
 			printf("Clock tick foo at %ld\n", clock_tick_foo);
 		}
 */
-		hardclock(USERMODE(tf->sr), tf->pc);
+		hardclock(TRAPF_USERMODE(tf), tf->pc);
 		if (scale_factor == STAT_PROF_CLOCK_SCALE_FACTOR) {
-			statclock(USERMODE(tf->sr));
+			statclock(TRAPF_USERMODE(tf));
 			if (profprocs != 0) {
-				profclock(USERMODE(tf->sr), tf->pc);
+				profclock(TRAPF_USERMODE(tf), tf->pc);
 			}
 			scale_factor = 0;
 		}

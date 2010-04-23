@@ -203,7 +203,7 @@ xgetblk(mbl_t **mbp, size_t s)
 	void	*p;
 	size_t	t = 0;
 
-	s = ALIGN(s);
+	s = LINT_ALIGN(s);
 	if ((mb = *mbp) == NULL || mb->nfree < s) {
 		if ((mb = frmblks) == NULL) {
 			if (s > mblklen) {

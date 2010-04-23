@@ -160,14 +160,8 @@ typedef struct pv_entry {
 extern vm_offset_t phys_avail[PHYS_AVAIL_ENTRIES + 2];
 extern vm_offset_t physmem_desc[PHYS_AVAIL_ENTRIES + 2];
 
-extern char *ptvmmap;		/* poor name! */
 extern vm_offset_t virtual_avail;
 extern vm_offset_t virtual_end;
-extern pd_entry_t *segbase;
-
-extern vm_paddr_t mips_wired_tlb_physmem_start;
-extern vm_paddr_t mips_wired_tlb_physmem_end;
-extern u_int need_wired_tlb_page_pool;
 
 #define	pmap_page_get_memattr(m)	VM_MEMATTR_DEFAULT
 #define	pmap_page_is_mapped(m)	(!TAILQ_EMPTY(&(m)->md.pv_list))
@@ -189,35 +183,9 @@ void pmap_update_page(pmap_t pmap, vm_offset_t va, pt_entry_t pte);
 void pmap_flush_pvcache(vm_page_t m);
 
 /*
- * floating virtual pages (FPAGES)
- *
- * These are the reserved virtual memory areas which can be
- * mapped to any physical memory.
+ * Function to save TLB contents so that they may be inspected in the debugger.
  */
-#define	FPAGES			2
-#define	FPAGES_SHARED		2
-#define	FSPACE			((FPAGES * MAXCPU + FPAGES_SHARED)  * PAGE_SIZE)
-#define	PMAP_FPAGE1		0x00	/* Used by pmap_zero_page &
-					 * pmap_copy_page */
-#define	PMAP_FPAGE2		0x01	/* Used by pmap_copy_page */
-
-#define	PMAP_FPAGE3		0x00	/* Used by pmap_zero_page_idle */
-#define	PMAP_FPAGE_KENTER_TEMP	0x01	/* Used by coredump */
-
-struct fpage {
-	vm_offset_t kva;
-	u_int state;
-};
-
-struct sysmaps {
-	struct mtx lock;
-	struct fpage fp[FPAGES];
-};
-
-vm_offset_t 
-pmap_map_fpage(vm_paddr_t pa, struct fpage *fp,
-    boolean_t check_unmaped);
-void pmap_unmap_fpage(vm_paddr_t pa, struct fpage *fp);
+extern void pmap_save_tlb(void);
 
 #endif				/* _KERNEL */
 

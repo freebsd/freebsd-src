@@ -84,7 +84,7 @@ below.
 The remaining
 .Fn KFAIL_POINT_*
 macros are wrappers around common error injection paths:
-.Bl -tag -width 8
+.Bl -inset
 .It Fn KFAIL_POINT_RETURN parent name
 is the equivalent of
 .Sy KFAIL_POINT_CODE(..., return RETURN_VALUE)
@@ -96,8 +96,7 @@ is the equivalent of
 .Sy KFAIL_POINT_CODE(..., error_var = RETURN_VALUE)
 .It Fn KFAIL_POINT_GOTO parent name error_var label
 is the equivalent of
-.Sy KFAIL_POINT_CODE(...,
-  { error_var = RETURN_VALUE; goto label;})
+.Sy KFAIL_POINT_CODE(..., { error_var = RETURN_VALUE; goto label;})
 .El
 .Sh SYSCTL VARIABLES
 The

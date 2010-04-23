@@ -39,15 +39,9 @@
 #include <sys/bus.h>
 #include <sys/cons.h>
 
-#include <machine/md_var.h>
 #include <machine/bootinfo.h>
-
-#include <cam/cam.h>
-#include <cam/cam_ccb.h>
-#include <cam/cam_sim.h>
-#include <cam/cam_periph.h>
-#include <cam/cam_xpt_sim.h>
-#include <cam/cam_debug.h>
+#include <machine/intr.h>
+#include <machine/md_var.h>
 
 static void	configure_first(void *);
 static void	configure(void *);
@@ -97,12 +91,9 @@ static void
 configure_final(void *dummy)
 {
 
-	/*
-	 * Now we're ready to handle (pending) interrupts.
-	 * XXX this is slightly misplaced.
-	 */
-	enable_intr();
-
 	cninit_finish();
+
+	ia64_enable_intr();
+
 	cold = 0;
 }

@@ -214,7 +214,7 @@ struct ip_fw_chain {
 	struct ip_fw	*default_rule;
 	int		n_rules;	/* number of static rules */
 	int		static_len;	/* total len of static rules */
-	struct ip_fw    **map;	/* array of rule ptrs to ease lookup */
+	struct ip_fw	**map;		/* array of rule ptrs to ease lookup */
 	LIST_HEAD(nat_list, cfg_nat) nat;       /* list of nat entries */
 	struct radix_node_head *tables[IPFW_TABLES_MAX];
 #if defined( __linux__ ) || defined( _WIN32 )
@@ -274,7 +274,6 @@ int ipfw_lookup_table(struct ip_fw_chain *ch, uint16_t tbl, in_addr_t addr,
 int ipfw_init_tables(struct ip_fw_chain *ch);
 void ipfw_destroy_tables(struct ip_fw_chain *ch);
 int ipfw_flush_table(struct ip_fw_chain *ch, uint16_t tbl);
-void ipfw_flush_tables(struct ip_fw_chain *ch);
 int ipfw_add_table_entry(struct ip_fw_chain *ch, uint16_t tbl, in_addr_t addr,
     uint8_t mlen, uint32_t value);
 int ipfw_dump_table_entry(struct radix_node *rn, void *arg);

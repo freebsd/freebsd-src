@@ -86,16 +86,6 @@ static void octeon_boot_params_init(register_t ptr);
 static uint64_t ciu_get_intr_sum_reg_addr(int core_num, int intx, int enx);
 static uint64_t ciu_get_intr_en_reg_addr(int core_num, int intx, int enx);
 
-static __inline void
-mips_wr_ebase(u_int32_t a0)
-{
-	__asm __volatile("mtc0 %[a0], $15, 1 ;"
-	    :
-	    :     [a0] "r"(a0));
-
-	mips_barrier();
-}
-
 void
 platform_cpu_init()
 {
@@ -110,25 +100,6 @@ platform_reset(void)
 {
 	oct_write64(OCTEON_CIU_SOFT_RST, 1);
 }
-
-
-static inline uint32_t
-octeon_disable_interrupts(void)
-{
-	uint32_t status_bits;
-
-	status_bits = mips_rd_status();
-	mips_wr_status(status_bits & ~MIPS_SR_INT_IE);
-	return (status_bits);
-}
-
-
-static inline void
-octeon_set_interrupts(uint32_t status_bits)
-{
-	mips_wr_status(status_bits);
-}
-
 
 void
 octeon_led_write_char(int char_position, char val)
@@ -203,82 +174,6 @@ octeon_led_run_wheel(int *prog_count, int led_position)
 	*prog_count &= 0x7;
 }
 
-#define LSR_DATAREADY        0x01    /* Data ready */
-#define LSR_THRE             0x20    /* Transmit holding register empty */
-#define LSR_TEMT	     0x40    /* Transmitter Empty. THR, TSR & FIFO */
-#define USR_TXFIFO_NOTFULL   0x02    /* Uart TX FIFO Not full */
-
-/*
- * octeon_uart_write_byte
- * 
- * Put out a single byte off of uart port.
- */
-
-void
-octeon_uart_write_byte(int uart_index, uint8_t ch)
-{
-	uint64_t val, val2;
-	if (uart_index < 0 || uart_index > 1)
-		return;
-
-	while (1) {
-		val = oct_read64(OCTEON_MIO_UART0_LSR + (uart_index * 0x400));
-		val2 = oct_read64(OCTEON_MIO_UART0_USR + (uart_index * 0x400));
-		if ((((uint8_t) val) & LSR_THRE) ||
-		    (((uint8_t) val2) & USR_TXFIFO_NOTFULL)) {
-			break;
-		}
-	}
-
-	/* Write the byte */
-	oct_write8(OCTEON_MIO_UART0_THR + (uart_index * 0x400), (uint64_t) ch);
-
-	/* Force Flush the IOBus */
-	oct_read64(OCTEON_MIO_BOOT_BIST_STAT);
-}
-
-
-void
-octeon_uart_write_byte0(uint8_t ch)
-{
-	uint64_t val, val2;
-
-	while (1) {
-		val = oct_read64(OCTEON_MIO_UART0_LSR);
-		val2 = oct_read64(OCTEON_MIO_UART0_USR);
-		if ((((uint8_t) val) & LSR_THRE) ||
-		    (((uint8_t) val2) & USR_TXFIFO_NOTFULL)) {
-			break;
-		}
-	}
-
-	/* Write the byte */
-	oct_write8(OCTEON_MIO_UART0_THR, (uint64_t) ch);
-
-	/* Force Flush the IOBus */
-	oct_read64(OCTEON_MIO_BOOT_BIST_STAT);
-}
-
-/*
- * octeon_uart_write_string
- * 
- */
-void
-octeon_uart_write_string(int uart_index, const char *str)
-{
-	/* Just loop writing one byte at a time */
-    
-	while (*str) {
-		octeon_uart_write_byte(uart_index, *str);
-		if (*str == '\n') {
-			octeon_uart_write_byte(uart_index, '\r');
-		}
-		str++;
-	}
-}
-
-static char wstr[30];
-
 void
 octeon_led_write_hex(uint32_t wl)
 {
@@ -286,44 +181,6 @@ octeon_led_write_hex(uint32_t wl)
 
 	sprintf(nbuf, "%X", wl);
 	octeon_led_write_string(nbuf);
-}
-
-
-void octeon_uart_write_hex2(uint32_t wl, uint32_t wh)
-{
-	sprintf(wstr, "0x%X-0x%X  ", wh, wl);
-	octeon_uart_write_string(0, wstr);
-}
-
-void
-octeon_uart_write_hex(uint32_t wl)
-{
-	sprintf(wstr, " 0x%X  ", wl);
-	octeon_uart_write_string(0, wstr);
-}
-
-/*
- * octeon_wait_uart_flush
- */
-void
-octeon_wait_uart_flush(int uart_index, uint8_t ch)
-{
-	uint64_t val;
-	int64_t val3;
-	uint32_t cpu_status_bits;
-
-	if (uart_index < 0 || uart_index > 1)
-		return;
-
-	cpu_status_bits = octeon_disable_interrupts();
-	/* Force Flush the IOBus */
-	oct_read64(OCTEON_MIO_BOOT_BIST_STAT);
-	for (val3 = 0xfffffffff; val3 > 0; val3--) {
-		val = oct_read64(OCTEON_MIO_UART0_LSR + (uart_index * 0x400));
-		if (((uint8_t) val) & LSR_TEMT)
-			break;
-	}
-	octeon_set_interrupts(cpu_status_bits);
 }
 
 
@@ -450,17 +307,17 @@ ciu_get_en_reg_addr_new(int corenum, int intx, int enx, int ciu_ip)
 	/* XXX kasserts? */
 	if (enx < CIU_EN_0 || enx > CIU_EN_1) {
 		printf("%s: invalid enx value %d, should be %d or %d\n",
-		    __FUNCTION__, enx, CIU_EN_0, CIU_EN_1);
+		    __func__, enx, CIU_EN_0, CIU_EN_1);
 		return 0;
 	}
 	if (intx < CIU_INT_0 || intx > CIU_INT_1) {
 		printf("%s: invalid intx value %d, should be %d or %d\n",
-		    __FUNCTION__, enx, CIU_INT_0, CIU_INT_1);
+		    __func__, enx, CIU_INT_0, CIU_INT_1);
 		return 0;
 	}
 	if (ciu_ip < CIU_MIPS_IP2 || ciu_ip > CIU_MIPS_IP3) {
 		printf("%s: invalid ciu_ip value %d, should be %d or %d\n",
-		    __FUNCTION__, ciu_ip, CIU_MIPS_IP2, CIU_MIPS_IP3);
+		    __func__, ciu_ip, CIU_MIPS_IP2, CIU_MIPS_IP3);
 		return 0;
 	}
 
@@ -517,7 +374,7 @@ ciu_clear_int_summary(int core_num, int intx, int enx, uint64_t write_bits)
 	    core_num, intx, enx, write_bits);
 #endif
 
-	cpu_status_bits = octeon_disable_interrupts();
+	cpu_status_bits = intr_disable();
 
 	ciu_intr_sum_reg_addr = ciu_get_intr_sum_reg_addr(core_num, intx, enx);
 
@@ -535,7 +392,7 @@ ciu_clear_int_summary(int core_num, int intx, int enx, uint64_t write_bits)
         printf(" Readback: 0x%llX\n\n   ", (uint64_t) oct_read64(ciu_intr_sum_reg_addr));
 #endif
     
-	octeon_set_interrupts(cpu_status_bits);
+	intr_restore(cpu_status_bits);
 }
 
 /*
@@ -550,7 +407,7 @@ ciu_disable_intr(int core_num, int intx, int enx)
 	if (core_num == CIU_THIS_CORE)
         	core_num = octeon_get_core_num();
 
-	cpu_status_bits = octeon_disable_interrupts();
+	cpu_status_bits = intr_disable();
     
 	ciu_intr_reg_addr = ciu_get_intr_en_reg_addr(core_num, intx, enx);
 
@@ -559,7 +416,7 @@ ciu_disable_intr(int core_num, int intx, int enx)
 	oct_write64(ciu_intr_reg_addr, 0LL);
 	oct_read64(OCTEON_MIO_BOOT_BIST_STAT);	/* Bus Barrier */
 
-	octeon_set_interrupts(cpu_status_bits);
+	intr_restore(cpu_status_bits);
 }
 
 void
@@ -580,7 +437,7 @@ ciu_dump_interrutps_enabled(int core_num, int intx, int enx, int ciu_ip)
 #endif
 
         if (!ciu_intr_reg_addr) {
-            printf("Bad call to %s\n", __FUNCTION__);
+            printf("Bad call to %s\n", __func__);
             while(1);
             return;
         }
@@ -612,7 +469,7 @@ void ciu_enable_interrupts(int core_num, int intx, int enx,
 	    core_num, intx, enx, ciu_ip, set_these_interrupt_bits);
 #endif
 
-	cpu_status_bits = octeon_disable_interrupts();
+	cpu_status_bits = intr_disable();
 
 #ifndef OCTEON_SMP_1
 	ciu_intr_reg_addr = ciu_get_intr_en_reg_addr(core_num, intx, enx);
@@ -621,7 +478,7 @@ void ciu_enable_interrupts(int core_num, int intx, int enx,
 #endif
 
         if (!ciu_intr_reg_addr) {
-		printf("Bad call to %s\n", __FUNCTION__);
+		printf("Bad call to %s\n", __func__);
 		while(1);
 		return;	/* XXX */
         }
@@ -634,7 +491,7 @@ void ciu_enable_interrupts(int core_num, int intx, int enx,
 #endif
 	ciu_intr_bits |=  set_these_interrupt_bits;
 	oct_write64(ciu_intr_reg_addr, ciu_intr_bits);
-#ifdef OCTEON_SMP
+#ifdef SMP
 	mips_wbflush();
 #endif
 	oct_read64(OCTEON_MIO_BOOT_BIST_STAT);	/* Bus Barrier */
@@ -644,7 +501,7 @@ void ciu_enable_interrupts(int core_num, int intx, int enx,
 	    (uint64_t)oct_read64(ciu_intr_reg_addr));
 #endif
 
-	octeon_set_interrupts(cpu_status_bits);
+	intr_restore(cpu_status_bits);
 }
 
 unsigned long
@@ -659,12 +516,8 @@ octeon_memory_init(void)
 	uint32_t realmem_bytes;
 
 	if (octeon_board_real()) {
-		printf("octeon_dram == %jx\n", (intmax_t)octeon_dram);
-		printf("reduced to ram: %u MB", (uint32_t)octeon_dram >> 20);
-
 		realmem_bytes = (octeon_dram - PAGE_SIZE);
 		realmem_bytes &= ~(PAGE_SIZE - 1);
-		printf("Real memory bytes is %x\n", realmem_bytes);
 	} else {
 		/* Simulator we limit to 96 meg */
 		realmem_bytes = (96 << 20);
@@ -678,8 +531,6 @@ octeon_memory_init(void)
 			phys_avail[1] = realmem_bytes;
 		realmem_bytes -= OCTEON_DRAM_FIRST_256_END;
 		realmem_bytes &= ~(PAGE_SIZE - 1);
-		printf("phys_avail[0] = %#lx phys_avail[1] = %#lx\n",
-		       (long)phys_avail[0], (long)phys_avail[1]);
 	} else {
 		/* Simulator gets 96Meg period. */
 		phys_avail[1] = (96 << 20);
@@ -705,23 +556,14 @@ octeon_memory_init(void)
 		realmem_bytes &= ~(PAGE_SIZE - 1);
 		/* Now map the rest of the memory */
 		phys_avail[2] = 0x20000000;
-		printf("realmem_bytes is now at %x\n", realmem_bytes);
 		phys_avail[3] = ((uint32_t) 0x20000000 + realmem_bytes);
-		printf("Next block of memory goes from %#lx to %#lx\n",
-		    (long)phys_avail[2], (long)phys_avail[3]);
 		physmem += btoc(phys_avail[3] - phys_avail[2]);
-	} else {
-		printf("realmem_bytes is %d\n", realmem_bytes);
 	}
 	realmem = physmem;
 
 	printf("Total DRAM Size %#X\n", (uint32_t) octeon_dram);
 	printf("Bank 0 = %#08lX   ->  %#08lX\n", (long)phys_avail[0], (long)phys_avail[1]);
 	printf("Bank 1 = %#08lX   ->  %#08lX\n", (long)phys_avail[2], (long)phys_avail[3]);
-	printf("physmem: %#lx\n", physmem);
-
-	Maxmem = physmem;
-
 }
 
 void
@@ -729,8 +571,6 @@ platform_start(__register_t a0, __register_t a1, __register_t a2 __unused,
     __register_t a3)
 {
 	uint64_t platform_counter_freq;
-
-	boothowto |= RB_SINGLE;
 
 	/* Initialize pcpu stuff */
 	mips_pcpu0_init();
@@ -762,7 +602,15 @@ platform_start(__register_t a0, __register_t a1, __register_t a2 __unused,
 		kdb_enter(KDB_WHY_BOOTFLAGS, "Boot flags requested debugger");
 #endif
 	platform_counter_freq = octeon_get_clock_rate();
-	mips_timer_init_params(platform_counter_freq, 1);
+	mips_timer_init_params(platform_counter_freq, 0);
+
+#ifdef SMP
+	/*
+	 * Clear any pending IPIs and enable the IPI interrupt.
+	 */
+	oct_write64(OCTEON_CIU_MBOX_CLRX(0), 0xffffffff);
+	ciu_enable_interrupts(0, CIU_INT_1, CIU_EN_0, OCTEON_CIU_ENABLE_MBOX_INTR, CIU_MIPS_IP3);
+#endif
 }
 
 /* impSTART: This stuff should move back into the Cavium SDK */
@@ -984,7 +832,7 @@ octeon_boot_params_init(register_t ptr)
 
         printf("Boot Descriptor Ver: %u -> %u/%u",
                octeon_bd_ver, octeon_cvmx_bd_ver/100, octeon_cvmx_bd_ver%100);
-        printf("  CPU clock: %uMHz\n", octeon_cpu_clock/1000000);
+        printf("  CPU clock: %uMHz  Core Mask: %#x\n", octeon_cpu_clock/1000000, octeon_core_mask);
         printf("  Dram: %u MB", (uint32_t)(octeon_dram >> 20));
         printf("  Board Type: %u  Revision: %u/%u\n",
                octeon_board_type, octeon_board_rev_major, octeon_board_rev_minor);

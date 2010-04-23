@@ -1330,10 +1330,6 @@ main(int ac, char **av)
 	/* Initialize configuration options to their default values. */
 	initialize_server_options(&options);
 
-	/* Avoid killing the process in high-pressure swapping environments. */
-	if (madvise(NULL, 0, MADV_PROTECT) != 0)
-		debug("madvise(): %.200s", strerror(errno));
-
 	/* Parse command-line arguments. */
 	while ((opt = getopt(ac, av, "f:p:b:k:h:g:u:o:C:dDeiqrtQRT46")) != -1) {
 		switch (opt) {
@@ -1748,6 +1744,10 @@ main(int ac, char **av)
 	}
 	/* Reinitialize the log (because of the fork above). */
 	log_init(__progname, options.log_level, options.log_facility, log_stderr);
+
+	/* Avoid killing the process in high-pressure swapping environments. */
+	if (!inetd_flag && madvise(NULL, 0, MADV_PROTECT) != 0)
+		debug("madvise(): %.200s", strerror(errno));
 
 	/* Initialize the random number generator. */
 	arc4random_stir();

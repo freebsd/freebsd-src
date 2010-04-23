@@ -55,6 +55,7 @@ node [color=lightblue2, style=filled, bgcolor=black];
 ache [label="Andrey Chernov\nache@FreeBSD.org\n1993/10/31"]
 akiyama [label="Shunsuke Akiyama\nakiyama@FreeBSD.org\n2000/06/19"]
 ambrisko [label="Doug Ambrisko\nambrisko@FreeBSD.org\n2001/12/19"]
+anchie [label="Ana Kukec\nanchie@FreeBSD.org\n2010/04/14"]
 andre [label="Andre Oppermann\nandre@FreeBSD.org\n2003/11/12"]
 anholt [label="Eric Anholt\nanholt@FreeBSD.org\n2002/04/22"]
 antoine [label="Antoine Brodin\nantoine@FreeBSD.org\n2008/02/03"]
@@ -161,6 +162,7 @@ pjd [label="Pawel Jakub Dawidek\npjd@FreeBSD.org\n2004/02/02"]
 ps [label="Paul Saab\nps@FreeBSD.org\n2000/02/23"]
 qingli [label="Qing Li\nqingli@FreeBSD.org\n2005/04/13"]
 rafan [label="Rong-En Fan\nrafan@FreeBSD.org\n2007/01/31"]
+randi [label="Randi Harper\nrandi@FreeBSD.org\n2010/04/20"]
 remko [label="Remko Lodder\nremko@FreeBSD.org\n2007/02/23"]
 rik [label="Roman Kurakin\nrik@FreeBSD.org\n2003/12/18"]
 rink [label="Rink Springer\nrink@FreeBSD.org\n2006/01/16"]
@@ -169,6 +171,7 @@ roberto [label="Ollivier Robert\nroberto@FreeBSD.org\n1995/02/22"]
 rpaulo [label="Rui Paulo\nrpaulo@FreeBSD.org\n2007/09/25"]
 rrs [label="Randall R Stewart\nrrs@FreeBSD.org\n2007/02/08"]
 rse [label="Ralf S. Engelschall\nrse@FreeBSD.org\n1997/07/31"]
+rstone [label="Ryan Stone\nrstone@FreeBSD.org\n2010/04/19"]
 ru [label="Ruslan Ermilov\nru@FreeBSD.org\n1999/05/27"]
 rwatson [label="Robert N. M. Watson\nrwatson@FreeBSD.org\n1999/12/16"]
 sam [label="Sam Leffler\nsam@FreeBSD.org\n2002/07/02"]
@@ -238,10 +241,12 @@ brian -> joe
 brooks -> bushman
 brooks -> jamie
 
+bz -> anchie
 bz -> jamie
 bz -> syrinx
 
 cperciva -> flz
+cperciva -> randi
 cperciva -> simon
 
 csjp -> bushman
@@ -268,6 +273,8 @@ ed -> uqs
 
 eivind -> des
 eivind -> rwatson
+
+emaste -> rstone
 
 emax -> markus
 
@@ -340,6 +347,7 @@ jkh -> yar
 
 jkoshy -> kaiw
 jkoshy -> fabient
+jkoshy -> rstone
 
 jlemon -> bmilekic
 jlemon -> brooks

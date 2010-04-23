@@ -19,10 +19,8 @@ DPADD+=	${LIBCRYPTO}
 LDADD+= -lcrypto
 .endif
 
-.if ${MK_GNU_CPIO} != "yes"
 SYMLINKS=bsdcpio ${BINDIR}/cpio
 MLINKS= bsdcpio.1 cpio.1
-.endif
 
 .PHONY: check test
 

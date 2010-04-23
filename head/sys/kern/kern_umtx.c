@@ -54,7 +54,7 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/cpu.h>
 
-#ifdef COMPAT_IA32
+#ifdef COMPAT_FREEBSD32
 #include <compat/freebsd32/freebsd32_proto.h>
 #endif
 
@@ -818,7 +818,7 @@ do_unlock_umtx(struct thread *td, struct umtx *umtx, u_long id)
 	return (0);
 }
 
-#ifdef COMPAT_IA32
+#ifdef COMPAT_FREEBSD32
 
 /*
  * Lock a umtx object.
@@ -3269,7 +3269,7 @@ _umtx_op(struct thread *td, struct _umtx_op_args *uap)
 	return (EINVAL);
 }
 
-#ifdef COMPAT_IA32
+#ifdef COMPAT_FREEBSD32
 int
 freebsd32_umtx_lock(struct thread *td, struct freebsd32_umtx_lock_args *uap)
     /* struct umtx *umtx */

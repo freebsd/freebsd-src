@@ -273,7 +273,6 @@ exptilde(char *p, int flag)
 		switch(c) {
 		case CTLESC: /* This means CTL* are always considered quoted. */
 		case CTLVAR:
-		case CTLENDVAR:
 		case CTLBACKQ:
 		case CTLBACKQ | CTLQUOTE:
 		case CTLARI:
@@ -285,6 +284,7 @@ exptilde(char *p, int flag)
 				goto done;
 			break;
 		case '/':
+		case CTLENDVAR:
 			goto done;
 		}
 		p++;
@@ -506,7 +506,9 @@ subevalvar(char *p, char *str, int strloc, int subtype, int startloc,
 	int amount;
 
 	herefd = -1;
-	argstr(p, 0);
+	argstr(p, (subtype == VSTRIMLEFT || subtype == VSTRIMLEFTMAX ||
+	    subtype == VSTRIMRIGHT || subtype == VSTRIMRIGHTMAX ?
+	    EXP_CASE : 0) | EXP_TILDE);
 	STACKSTRNUL(expdest);
 	herefd = saveherefd;
 	argbackq = saveargbackq;

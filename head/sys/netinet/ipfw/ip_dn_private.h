@@ -141,11 +141,17 @@ struct dn_parms {
 	struct dn_alg_head	schedlist;	/* list of algorithms */
 
 	/* Store the fs/sch to scan when draining. The value is the
-	 * bucket number of the hash table 
+	 * bucket number of the hash table. Expire can be disabled
+	 * with net.inet.ip.dummynet.expire=0, or it happens every
+	 * expire ticks.
 	 **/
 	int drain_fs;
 	int drain_sch;
-	
+	uint32_t expire;
+	uint32_t expire_cycle;	/* tick count */
+
+	int init_done;
+
 	/* if the upper half is busy doing something long,
 	 * can set the busy flag and we will enqueue packets in
 	 * a queue for later processing.
@@ -350,6 +356,8 @@ enum {
 };
 
 extern struct dn_parms dn_cfg;
+//VNET_DECLARE(struct dn_parms, _base_dn_cfg);
+//#define dn_cfg              VNET(_base_dn_cfg)
 
 int dummynet_io(struct mbuf **, int , struct ip_fw_args *);
 void dummynet_task(void *context, int pending);
@@ -359,13 +367,24 @@ struct dn_queue *ipdn_q_find(struct dn_fsk *, struct dn_sch_inst *,
         struct ipfw_flow_id *);
 struct dn_sch_inst *ipdn_si_find(struct dn_schk *, struct ipfw_flow_id *);
 
-/* helper structure to copy objects returned to userland */
+/*
+ * copy_range is a template for requests for ranges of pipes/queues/scheds.
+ * The number of ranges is variable and can be derived by o.len.
+ * As a default, we use a small number of entries so that the struct
+ * fits easily on the stack and is sufficient for most common requests.
+ */
+#define DEFAULT_RANGES	5
+struct copy_range {
+        struct dn_id o;
+        uint32_t	r[ 2 * DEFAULT_RANGES ];
+};
+
 struct copy_args {
 	char **start;
 	char *end;
 	int flags;
 	int type;
-	int extra;	/* extra filtering */
+	struct copy_range *extra;	/* extra filtering */
 };
 
 struct sockopt;
@@ -377,7 +396,7 @@ int dn_c_copy_fs(struct dn_fsk *f, struct copy_args *a, int nq);
 int dn_compat_copy_queue(struct copy_args *a, void *_o);
 int dn_compat_copy_pipe(struct copy_args *a, void *_o);
 int copy_data_helper_compat(void *_o, void *_arg);
-int dn_compat_calc_size(struct dn_parms dn_cfg);
+int dn_compat_calc_size(void);
 int do_config(void *p, int l);
 
 /* function to drain idle object */

@@ -166,6 +166,8 @@ ohci_pci_match(device_t self)
 	case 0x00d710de:
 		return ("nVidia nForce3 USB Controller");
 
+	case 0x036c10de:
+		return ("nVidia nForce MCP55 USB Controller");
 	case 0x03f110de:
 		return ("nVidia nForce MCP61 USB Controller");
 	case 0x0aa510de:

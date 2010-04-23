@@ -278,7 +278,13 @@ else printf(" fhl=0\n");
 			error = EIO;
 		}
 		newnfs_copyincred(cred, &op->nfso_cred);
-	    }
+	    } else if (ret == NFSCLOPEN_SETCRED)
+		/*
+		 * This is a new local open on a delegation. It needs
+		 * to have credentials so that an open can be done
+		 * against the server during recovery.
+		 */
+		newnfs_copyincred(cred, &op->nfso_cred);
 
 	    /*
 	     * nfso_opencnt is the count of how many VOP_OPEN()s have
@@ -1340,11 +1346,16 @@ nfsmout:
 
 /*
  * nfs write operation
+ * When called_from_strategy != 0, it should return EIO for an error that
+ * indicates recovery is in progress, so that the buffer will be left
+ * dirty and be written back to the server later. If it loops around,
+ * the recovery thread could get stuck waiting for the buffer and recovery
+ * will then deadlock.
  */
 APPLESTATIC int
 nfsrpc_write(vnode_t vp, struct uio *uiop, int *iomode, u_char *verfp,
     struct ucred *cred, NFSPROC_T *p, struct nfsvattr *nap, int *attrflagp,
-    void *stuff)
+    void *stuff, int called_from_strategy)
 {
 	int error, expireret = 0, retrycnt, nostateid;
 	u_int32_t clidrev = 0;
@@ -1404,12 +1415,15 @@ nfscl_dumpstate(nmp, 1, 1, 0, 0);
 			expireret = nfscl_hasexpired(nmp->nm_clp, clidrev, p);
 		}
 		retrycnt++;
-	} while (error == NFSERR_GRACE || error == NFSERR_STALESTATEID ||
-	    error == NFSERR_STALEDONTRECOVER || error == NFSERR_DELAY ||
+	} while (error == NFSERR_GRACE || error == NFSERR_DELAY ||
+	    ((error == NFSERR_STALESTATEID ||
+	      error == NFSERR_STALEDONTRECOVER) && called_from_strategy == 0) ||
 	    (error == NFSERR_OLDSTATEID && retrycnt < 20) ||
 	    ((error == NFSERR_EXPIRED || error == NFSERR_BADSTATEID) &&
 	     expireret == 0 && clidrev != 0 && retrycnt < 4));
-	if (error && retrycnt >= 4)
+	if (error != 0 && (retrycnt >= 4 ||
+	    ((error == NFSERR_STALESTATEID ||
+	      error == NFSERR_STALEDONTRECOVER) && called_from_strategy != 0)))
 		error = EIO;
 	if (NFSHASNFSV4(nmp) && p == NULL)
 		NFSFREECRED(newcred);

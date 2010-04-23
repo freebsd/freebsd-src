@@ -122,6 +122,7 @@ struct e1000_hw;
 #define E1000_DEV_ID_ICH10_R_BM_V             0x10CE
 #define E1000_DEV_ID_ICH10_D_BM_LM            0x10DE
 #define E1000_DEV_ID_ICH10_D_BM_LF            0x10DF
+
 #define E1000_DEV_ID_PCH_M_HV_LM              0x10EA
 #define E1000_DEV_ID_PCH_M_HV_LC              0x10EB
 #define E1000_DEV_ID_PCH_D_HV_DM              0x10EF
@@ -682,6 +683,7 @@ struct e1000_mac_info {
 	u8  forced_speed_duplex;
 
 	bool adaptive_ifs;
+	bool has_fwsm;
 	bool arc_subsystem_valid;
 	bool asf_firmware_present;
 	bool autoneg;

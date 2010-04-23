@@ -206,33 +206,6 @@ AcpiExOpcode_2A_0T_0R (
             break;
         }
 
-#ifdef ACPI_GPE_NOTIFY_CHECK
-        /*
-         * GPE method wake/notify check.  Here, we want to ensure that we
-         * don't receive any "DeviceWake" Notifies from a GPE _Lxx or _Exx
-         * GPE method during system runtime.  If we do, the GPE is marked
-         * as "wake-only" and disabled.
-         *
-         * 1) Is the Notify() value == DeviceWake?
-         * 2) Is this a GPE deferred method?  (An _Lxx or _Exx method)
-         * 3) Did the original GPE happen at system runtime?
-         *    (versus during wake)
-         *
-         * If all three cases are true, this is a wake-only GPE that should
-         * be disabled at runtime.
-         */
-        if (Value == 2)     /* DeviceWake */
-        {
-            Status = AcpiEvCheckForWakeOnlyGpe (WalkState->GpeEventInfo);
-            if (ACPI_FAILURE (Status))
-            {
-                /* AE_WAKE_ONLY_GPE only error, means ignore this notify */
-
-                return_ACPI_STATUS (AE_OK)
-            }
-        }
-#endif
-
         /*
          * Dispatch the notify to the appropriate handler
          * NOTE: the request is queued for execution after this method

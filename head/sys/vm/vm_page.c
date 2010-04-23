@@ -1084,6 +1084,7 @@ vm_page_alloc(vm_object_t object, vm_pindex_t pindex, int req)
 			return (NULL);
 #if VM_NRESERVLEVEL > 0
 		} else if (object == NULL || object->type == OBJT_DEVICE ||
+		    object->type == OBJT_SG ||
 		    (object->flags & OBJ_COLORED) == 0 ||
 		    (m = vm_reserv_alloc_page(object, pindex)) == NULL) {
 #else

@@ -236,6 +236,8 @@ PMAP_STATS_VAR(pmap_ncopy_page_soc);
 PMAP_STATS_VAR(pmap_nnew_thread);
 PMAP_STATS_VAR(pmap_nnew_thread_oc);
 
+static inline u_long dtlb_get_data(u_int slot);
+
 /*
  * Quick sort callout for comparing memory regions
  */
@@ -274,6 +276,18 @@ om_cmp(const void *a, const void *b)
 		return (0);
 }
 
+static inline u_long
+dtlb_get_data(u_int slot)
+{
+
+	/*
+	 * We read ASI_DTLB_DATA_ACCESS_REG twice in order to work
+	 * around errata of USIII and beyond.
+	 */
+	(void)ldxa(TLB_DAR_SLOT(slot), ASI_DTLB_DATA_ACCESS_REG);
+	return (ldxa(TLB_DAR_SLOT(slot), ASI_DTLB_DATA_ACCESS_REG));
+}
+
 /*
  * Bootstrap the system enough to run with virtual memory.
  */
@@ -287,11 +301,13 @@ pmap_bootstrap(u_int cpu_impl)
 	vm_paddr_t pa;
 	vm_size_t physsz;
 	vm_size_t virtsz;
+	u_long data;
 	phandle_t pmem;
 	phandle_t vmem;
-	int sz;
+	u_int dtlb_slots_avail;
 	int i;
 	int j;
+	int sz;
 
 	/*
 	 * Find out what physical memory is available from the PROM and
@@ -336,21 +352,29 @@ pmap_bootstrap(u_int cpu_impl)
 	/*
 	 * Calculate the size of kernel virtual memory, and the size and mask
 	 * for the kernel TSB based on the phsyical memory size but limited
-	 * by letting the kernel TSB take up no more than half of the dTLB
-	 * slots available for locked entries.
+	 * by the amount of dTLB slots available for locked entries (given
+	 * that for spitfire-class CPUs all of the dt64 slots can hold locked
+	 * entries but there is no large dTLB for unlocked ones, we don't use
+	 * more than half of it for locked entries).
 	 */
+	dtlb_slots_avail = 0;
+	for (i = 0; i < dtlb_slots; i++) {
+		data = dtlb_get_data(i);
+		if ((data & (TD_V | TD_L)) != (TD_V | TD_L))
+			dtlb_slots_avail++;
+	}
+#ifdef SMP
+	dtlb_slots_avail -= PCPU_PAGES;
+#endif
+	if (cpu_impl >= CPU_IMPL_ULTRASPARCI &&
+	    cpu_impl < CPU_IMPL_ULTRASPARCIII)
+		dtlb_slots_avail /= 2;
 	virtsz = roundup(physsz, PAGE_SIZE_4M << (PAGE_SHIFT - TTE_SHIFT));
 	virtsz = MIN(virtsz,
-	    (dtlb_slots / 2 * PAGE_SIZE_4M) << (PAGE_SHIFT - TTE_SHIFT));
+	    (dtlb_slots_avail * PAGE_SIZE_4M) << (PAGE_SHIFT - TTE_SHIFT));
 	vm_max_kernel_address = VM_MIN_KERNEL_ADDRESS + virtsz;
 	tsb_kernel_size = virtsz >> (PAGE_SHIFT - TTE_SHIFT);
 	tsb_kernel_mask = (tsb_kernel_size >> TTE_SHIFT) - 1;
-
-	if (kernel_tlb_slots + PCPU_PAGES + tsb_kernel_size / PAGE_SIZE_4M +
-	    1 /* PROM page */ + 1 /* spare */ > dtlb_slots)
-		panic("pmap_bootstrap: insufficient dTLB entries");
-	if (kernel_tlb_slots + 1 /* PROM page */ + 1 /* spare */ > itlb_slots)
-		panic("pmap_bootstrap: insufficient iTLB entries");
 
 	/*
 	 * Allocate the kernel TSB and lock it in the TLB.
@@ -572,7 +596,7 @@ pmap_map_tsb(void)
 	 * FP block operations in the kernel).
 	 */
 	stxa(AA_DMMU_SCXR, ASI_DMMU, (ldxa(AA_DMMU_SCXR, ASI_DMMU) &
-	    TLB_SCXR_PGSZ_MASK) | TLB_CTX_KERNEL);
+	    TLB_CXR_PGSZ_MASK) | TLB_CTX_KERNEL);
 	flush(KERNBASE);
 
 	intr_restore(s);
@@ -1989,7 +2013,7 @@ pmap_activate(struct thread *td)
 	stxa(AA_DMMU_TSB, ASI_DMMU, pm->pm_tsb);
 	stxa(AA_IMMU_TSB, ASI_IMMU, pm->pm_tsb);
 	stxa(AA_DMMU_PCXR, ASI_DMMU, (ldxa(AA_DMMU_PCXR, ASI_DMMU) &
-	    TLB_PCXR_PGSZ_MASK) | context);
+	    TLB_CXR_PGSZ_MASK) | context);
 	flush(KERNBASE);
 
 	mtx_unlock_spin(&sched_lock);

@@ -93,7 +93,7 @@ TUNABLE_INT("hw.i8254.freq", &i8254_freq);
 int	i8254_max_count;
 static int i8254_real_max_count;
 
-static int lapic_allclocks;
+static int lapic_allclocks = 1;
 TUNABLE_INT("machdep.lapic_allclocks", &lapic_allclocks);
 
 static	struct mtx clock_lock;
@@ -175,8 +175,8 @@ clkintr(struct trapframe *frame)
 	 * timers.
 	 */
 	int cpu = PCPU_GET(cpuid);
-	if (lapic_cyclic_clock_func[cpu] != NULL)
-		(*lapic_cyclic_clock_func[cpu])(frame);
+	if (cyclic_clock_func[cpu] != NULL)
+		(*cyclic_clock_func[cpu])(frame);
 #endif
 
 #ifdef SMP

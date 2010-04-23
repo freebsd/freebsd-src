@@ -1,11 +1,16 @@
 /* $FreeBSD$ */
-#include <stdio.h>
-#include <mqueue.h>
-#include <fcntl.h>
-#include <signal.h>
-#include <unistd.h>
-#include <sys/select.h>
+
+#include <sys/types.h>
 #include <sys/event.h>
+#include <sys/select.h>
+#include <sys/wait.h>
+#include <err.h>
+#include <fcntl.h>
+#include <mqueue.h>
+#include <signal.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
 
 #define MQNAME	"/mytstqueue4"
 #define LOOPS	1000

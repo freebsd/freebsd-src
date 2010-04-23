@@ -180,25 +180,11 @@ udp_init(void)
 {
 
 	V_udp_blackhole = 0;
-
-	INP_INFO_LOCK_INIT(&V_udbinfo, "udp");
-	LIST_INIT(&V_udb);
-#ifdef VIMAGE
-	V_udbinfo.ipi_vnet = curvnet;
-#endif
-	V_udbinfo.ipi_listhead = &V_udb;
-	V_udbinfo.ipi_hashbase = hashinit(UDBHASHSIZE, M_PCB,
-	    &V_udbinfo.ipi_hashmask);
-	V_udbinfo.ipi_porthashbase = hashinit(UDBHASHSIZE, M_PCB,
-	    &V_udbinfo.ipi_porthashmask);
-	V_udbinfo.ipi_zone = uma_zcreate("udp_inpcb", sizeof(struct inpcb),
-	    NULL, NULL, udp_inpcb_init, NULL, UMA_ALIGN_PTR, UMA_ZONE_NOFREE);
-	uma_zone_set_max(V_udbinfo.ipi_zone, maxsockets);
-
+	in_pcbinfo_init(&V_udbinfo, "udp", &V_udb, UDBHASHSIZE, UDBHASHSIZE,
+	    "udp_inpcb", udp_inpcb_init, NULL, UMA_ZONE_NOFREE);
 	V_udpcb_zone = uma_zcreate("udpcb", sizeof(struct udpcb),
 	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, UMA_ZONE_NOFREE);
 	uma_zone_set_max(V_udpcb_zone, maxsockets);
-
 	EVENTHANDLER_REGISTER(maxsockets_change, udp_zone_change, NULL,
 	    EVENTHANDLER_PRI_ANY);
 }
@@ -241,14 +227,8 @@ void
 udp_destroy(void)
 {
 
-	hashdestroy(V_udbinfo.ipi_hashbase, M_PCB,
-	    V_udbinfo.ipi_hashmask);
-	hashdestroy(V_udbinfo.ipi_porthashbase, M_PCB,
-	    V_udbinfo.ipi_porthashmask);
-
+	in_pcbinfo_destroy(&V_udbinfo);
 	uma_zdestroy(V_udpcb_zone);
-	uma_zdestroy(V_udbinfo.ipi_zone);
-	INP_INFO_LOCK_DESTROY(&V_udbinfo);
 }
 #endif
 
@@ -766,11 +746,13 @@ udp_pcblist(SYSCTL_HANDLER_ARGS)
 	INP_INFO_RLOCK(&V_udbinfo);
 	for (inp = LIST_FIRST(V_udbinfo.ipi_listhead), i = 0; inp && i < n;
 	     inp = LIST_NEXT(inp, inp_list)) {
-		INP_RLOCK(inp);
+		INP_WLOCK(inp);
 		if (inp->inp_gencnt <= gencnt &&
-		    cr_canseeinpcb(req->td->td_ucred, inp) == 0)
+		    cr_canseeinpcb(req->td->td_ucred, inp) == 0) {
+			in_pcbref(inp);
 			inp_list[i++] = inp;
-		INP_RUNLOCK(inp);
+		}
+		INP_WUNLOCK(inp);
 	}
 	INP_INFO_RUNLOCK(&V_udbinfo);
 	n = i;
@@ -781,6 +763,7 @@ udp_pcblist(SYSCTL_HANDLER_ARGS)
 		INP_RLOCK(inp);
 		if (inp->inp_gencnt <= gencnt) {
 			struct xinpcb xi;
+
 			bzero(&xi, sizeof(xi));
 			xi.xi_len = sizeof xi;
 			/* XXX should avoid extra copy */
@@ -793,6 +776,15 @@ udp_pcblist(SYSCTL_HANDLER_ARGS)
 		} else
 			INP_RUNLOCK(inp);
 	}
+	INP_INFO_WLOCK(&V_udbinfo);
+	for (i = 0; i < n; i++) {
+		inp = inp_list[i];
+		INP_WLOCK(inp);
+		if (!in_pcbrele(inp))
+			INP_WUNLOCK(inp);
+	}
+	INP_INFO_WUNLOCK(&V_udbinfo);
+
 	if (!error) {
 		/*
 		 * Give the user an updated idea of our state.  If the

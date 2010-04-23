@@ -2344,8 +2344,12 @@ in6_lltable_prefix_free(struct lltable *llt,
 				    &((struct sockaddr_in6 *)L3_ADDR(lle))->sin6_addr, 
 				    &pfx->sin6_addr, 
 				    &msk->sin6_addr)) {
-				callout_drain(&lle->la_timer);
+				int canceled;
+
+				canceled = callout_drain(&lle->la_timer);
 				LLE_WLOCK(lle);
+				if (canceled)
+					LLE_REMREF(lle);
 				llentry_free(lle);
 			}
 		}

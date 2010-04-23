@@ -91,6 +91,7 @@ STATIC void evalloop(union node *, int);
 STATIC void evalfor(union node *, int);
 STATIC void evalcase(union node *, int);
 STATIC void evalsubshell(union node *, int);
+STATIC void evalredir(union node *, int);
 STATIC void expredir(union node *);
 STATIC void evalpipe(union node *);
 STATIC void evalcommand(union node *, int, struct backcmd *);
@@ -221,10 +222,7 @@ evaltree(union node *n, int flags)
 		evaltree(n->nbinary.ch2, flags);
 		break;
 	case NREDIR:
-		expredir(n->nredir.redirect);
-		redirect(n->nredir.redirect, REDIR_PUSH);
-		evaltree(n->nredir.n, flags);
-		popredir();
+		evalredir(n, flags);
 		break;
 	case NSUBSHELL:
 		evalsubshell(n, flags);
@@ -414,6 +412,46 @@ evalsubshell(union node *n, int flags)
 	}
 }
 
+
+/*
+ * Evaluate a redirected compound command.
+ */
+
+STATIC void
+evalredir(union node *n, int flags)
+{
+	struct jmploc jmploc;
+	struct jmploc *savehandler;
+	volatile int in_redirect = 1;
+
+	expredir(n->nredir.redirect);
+	savehandler = handler;
+	if (setjmp(jmploc.loc)) {
+		int e;
+
+		handler = savehandler;
+		e = exception;
+		if (e == EXERROR || e == EXEXEC) {
+			popredir();
+			if (in_redirect) {
+				exitstatus = 2;
+				return;
+			}
+		}
+		longjmp(handler->loc, 1);
+	} else {
+		INTOFF;
+		handler = &jmploc;
+		redirect(n->nredir.redirect, REDIR_PUSH);
+		in_redirect = 0;
+		INTON;
+		evaltree(n->nredir.n, flags);
+	}
+	INTOFF;
+	handler = savehandler;
+	popredir();
+	INTON;
+}
 
 
 /*
@@ -680,7 +718,7 @@ evalcommand(union node *cmd, int flags, struct backcmd *backcmd)
 		/* Variable assignment(s) without command */
 		cmdentry.cmdtype = CMDBUILTIN;
 		cmdentry.u.index = BLTINCMD;
-		cmdentry.special = 1;
+		cmdentry.special = 0;
 	} else {
 		static const char PATH[] = "PATH=";
 		int cmd_flags = 0, bltinonly = 0;
@@ -891,6 +929,12 @@ evalcommand(union node *cmd, int flags, struct backcmd *backcmd)
 		}
 		handler = &jmploc;
 		redirect(cmd->ncmd.redirect, mode);
+		/*
+		 * If there is no command word, redirection errors should
+		 * not be fatal but assignment errors should.
+		 */
+		if (argc == 0 && !(flags & EV_BACKCMD))
+			cmdentry.special = 1;
 		if (cmdentry.special)
 			listsetvar(cmdenviron);
 		commandname = argv[0];

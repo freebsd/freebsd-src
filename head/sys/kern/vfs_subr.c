@@ -1378,7 +1378,7 @@ restartsync:
 
 /*
  * buf_splay() - splay tree core for the clean/dirty list of buffers in
- * 		 a vnode.
+ *		 a vnode.
  *
  *	NOTE: We have to deal with the special case of a background bitmap
  *	buffer, a situation where two buffers will have the same logical
@@ -2100,13 +2100,13 @@ vget(struct vnode *vp, int flags, struct thread *td)
 	/* Upgrade our holdcnt to a usecount. */
 	v_upgrade_usecount(vp);
 	/*
- 	 * We don't guarantee that any particular close will
+	 * We don't guarantee that any particular close will
 	 * trigger inactive processing so just make a best effort
 	 * here at preventing a reference to a removed file.  If
 	 * we don't succeed no harm is done.
 	 */
 	if (vp->v_iflag & VI_OWEINACT) {
-		if (VOP_ISLOCKED(vp) == LK_EXCLUSIVE && 
+		if (VOP_ISLOCKED(vp) == LK_EXCLUSIVE &&
 		    (flags & LK_NOWAIT) == 0)
 			vinactive(vp, td);
 		vp->v_iflag &= ~VI_OWEINACT;
@@ -2362,7 +2362,7 @@ SYSCTL_INT(_debug, OID_AUTO, busyprt, CTLFLAG_RW, &busyprt, 0, "");
 #endif
 
 int
-vflush( struct mount *mp, int rootrefs, int flags, struct thread *td)
+vflush(struct mount *mp, int rootrefs, int flags, struct thread *td)
 {
 	struct vnode *vp, *mvp, *rootvp = NULL;
 	struct vattr vattr;
@@ -2383,12 +2383,10 @@ vflush( struct mount *mp, int rootrefs, int flags, struct thread *td)
 			return (error);
 		}
 		vput(rootvp);
-
 	}
 	MNT_ILOCK(mp);
 loop:
 	MNT_VNODE_FOREACH(vp, mp, mvp) {
-
 		VI_LOCK(vp);
 		vholdl(vp);
 		MNT_IUNLOCK(mp);
@@ -2799,6 +2797,7 @@ DB_SHOW_COMMAND(mount, db_show_mount)
 	MNT_FLAG(MNT_NOATIME);
 	MNT_FLAG(MNT_NOCLUSTERR);
 	MNT_FLAG(MNT_NOCLUSTERW);
+	MNT_FLAG(MNT_NFS4ACLS);
 	MNT_FLAG(MNT_EXRDONLY);
 	MNT_FLAG(MNT_EXPORTED);
 	MNT_FLAG(MNT_DEFEXPORTED);
@@ -2840,14 +2839,18 @@ DB_SHOW_COMMAND(mount, db_show_mount)
 	MNT_KERN_FLAG(MNTK_ASYNC);
 	MNT_KERN_FLAG(MNTK_SOFTDEP);
 	MNT_KERN_FLAG(MNTK_NOINSMNTQ);
+	MNT_KERN_FLAG(MNTK_DRAINING);
+	MNT_KERN_FLAG(MNTK_REFEXPIRE);
+	MNT_KERN_FLAG(MNTK_EXTENDED_SHARED);
+	MNT_KERN_FLAG(MNTK_SHARED_WRITES);
 	MNT_KERN_FLAG(MNTK_UNMOUNT);
 	MNT_KERN_FLAG(MNTK_MWAIT);
 	MNT_KERN_FLAG(MNTK_SUSPEND);
 	MNT_KERN_FLAG(MNTK_SUSPEND2);
 	MNT_KERN_FLAG(MNTK_SUSPENDED);
 	MNT_KERN_FLAG(MNTK_MPSAFE);
-	MNT_KERN_FLAG(MNTK_NOKNOTE);
 	MNT_KERN_FLAG(MNTK_LOOKUP_SHARED);
+	MNT_KERN_FLAG(MNTK_NOKNOTE);
 #undef MNT_KERN_FLAG
 	if (flags != 0) {
 		if (buf[0] != '\0')
@@ -3527,7 +3530,7 @@ vaccess(enum vtype type, mode_t file_mode, uid_t file_uid, gid_t file_gid,
 	KASSERT((accmode & ~(VEXEC | VWRITE | VREAD | VADMIN | VAPPEND)) == 0,
 	    ("invalid bit in accmode"));
 	KASSERT((accmode & VAPPEND) == 0 || (accmode & VWRITE),
-	    	("VAPPEND without VWRITE"));
+	    ("VAPPEND without VWRITE"));
 
 	/*
 	 * Look for a normal, non-privileged way to access the file/directory
@@ -3750,6 +3753,20 @@ assert_vop_slocked(struct vnode *vp, const char *str)
 }
 #endif /* 0 */
 #endif /* DEBUG_VFS_LOCKS */
+
+void
+vop_rename_fail(struct vop_rename_args *ap)
+{
+
+	if (ap->a_tvp != NULL)
+		vput(ap->a_tvp);
+	if (ap->a_tdvp == ap->a_tvp)
+		vrele(ap->a_tdvp);
+	else
+		vput(ap->a_tdvp);
+	vrele(ap->a_fdvp);
+	vrele(ap->a_fvp);
+}
 
 void
 vop_rename_pre(void *ap)

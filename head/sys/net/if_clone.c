@@ -196,10 +196,11 @@ if_clone_createif(struct if_clone *ifc, char *name, size_t len, caddr_t params)
 int
 if_clone_destroy(const char *name)
 {
+	int err;
 	struct if_clone *ifc;
 	struct ifnet *ifp;
 
-	ifp = ifunit(name);
+	ifp = ifunit_ref(name);
 	if (ifp == NULL)
 		return (ENXIO);
 
@@ -221,10 +222,14 @@ if_clone_destroy(const char *name)
 	}
 #endif
 	IF_CLONERS_UNLOCK();
-	if (ifc == NULL)
+	if (ifc == NULL) {
+		if_rele(ifp);
 		return (EINVAL);
+	}
 
-	return (if_clone_destroyif(ifc, ifp));
+	err = if_clone_destroyif(ifc, ifp);
+	if_rele(ifp);
+	return err;
 }
 
 /*
@@ -234,6 +239,7 @@ int
 if_clone_destroyif(struct if_clone *ifc, struct ifnet *ifp)
 {
 	int err;
+	struct ifnet *ifcifp;
 
 	if (ifc->ifc_destroy == NULL)
 		return(EOPNOTSUPP);
@@ -246,8 +252,17 @@ if_clone_destroyif(struct if_clone *ifc, struct ifnet *ifp)
 	CURVNET_SET_QUIET(ifp->if_vnet);
 
 	IF_CLONE_LOCK(ifc);
-	IFC_IFLIST_REMOVE(ifc, ifp);
+	LIST_FOREACH(ifcifp, &ifc->ifc_iflist, if_clones) {
+		if (ifcifp == ifp) {
+			IFC_IFLIST_REMOVE(ifc, ifp);
+			break;
+		}
+	}
 	IF_CLONE_UNLOCK(ifc);
+	if (ifcifp == NULL) {
+		CURVNET_RESTORE();
+		return (ENXIO);		/* ifp is not on the list. */
+	}
 
 	if_delgroup(ifp, ifc->ifc_name);
 

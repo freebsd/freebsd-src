@@ -53,6 +53,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysent.h>
 #include <sys/sysproto.h>
 #include <sys/user.h>
+#include <sys/timetc.h>
 
 #include <vm/vm.h>
 #include <vm/vm_object.h>
@@ -364,6 +365,32 @@ platform_start_ap(int cpuid)
 }
 #endif	/* SMP */
 
+static u_int
+sb_get_timecount(struct timecounter *tc)
+{
+
+	return ((u_int)sb_zbbus_cycle_count());
+}
+
+static void
+sb_timecounter_init(void)
+{
+	static struct timecounter sb_timecounter = {
+		sb_get_timecount,
+		NULL,
+		~0u,
+		0,
+		"sibyte_zbbus_counter",
+		2000
+	};
+
+	/*
+	 * The ZBbus cycle counter runs at half the cpu frequency.
+	 */
+	sb_timecounter.tc_frequency = sb_cpu_speed() / 2;
+	platform_timecounter = &sb_timecounter;
+}
+
 void
 platform_start(__register_t a0, __register_t a1, __register_t a2,
 	       __register_t a3)
@@ -378,6 +405,7 @@ platform_start(__register_t a0, __register_t a1, __register_t a2,
 	mips_postboot_fixup();
 
 	sb_intr_init(0);
+	sb_timecounter_init();
 
 	/* Initialize pcpu stuff */
 	mips_pcpu0_init();
@@ -400,4 +428,6 @@ platform_start(__register_t a0, __register_t a1, __register_t a2,
 	mips_init();
 
 	mips_timer_init_params(sb_cpu_speed(), 0);
+
+	set_cputicker(sb_zbbus_cycle_count, sb_cpu_speed() / 2, 1);
 }

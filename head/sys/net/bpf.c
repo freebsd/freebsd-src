@@ -614,6 +614,7 @@ bpf_dtor(void *data)
 	mac_bpfdesc_destroy(d);
 #endif /* MAC */
 	knlist_destroy(&d->bd_sel.si_note);
+	callout_drain(&d->bd_callout);
 	bpf_freed(d);
 	free(d, M_BPF);
 }
@@ -651,7 +652,7 @@ bpfopen(struct cdev *dev, int flags, int fmt, struct thread *td)
 	mac_bpfdesc_create(td->td_ucred, d);
 #endif
 	mtx_init(&d->bd_mtx, devtoname(dev), "bpf cdev lock", MTX_DEF);
-	callout_init(&d->bd_callout, CALLOUT_MPSAFE);
+	callout_init_mtx(&d->bd_callout, &d->bd_mtx, 0);
 	knlist_init_mtx(&d->bd_sel.si_note, &d->bd_mtx);
 
 	return (0);
@@ -807,13 +808,15 @@ bpf_timed_out(void *arg)
 {
 	struct bpf_d *d = (struct bpf_d *)arg;
 
-	BPFD_LOCK(d);
+	BPFD_LOCK_ASSERT(d);
+
+	if (callout_pending(&d->bd_callout) || !callout_active(&d->bd_callout))
+		return;
 	if (d->bd_state == BPF_WAITING) {
 		d->bd_state = BPF_TIMED_OUT;
 		if (d->bd_slen != 0)
 			bpf_wakeup(d);
 	}
-	BPFD_UNLOCK(d);
 }
 
 static int
@@ -1577,8 +1580,7 @@ filt_bpfread(struct knote *kn, long hint)
 		kn->kn_data = d->bd_slen;
 		if (d->bd_hbuf)
 			kn->kn_data += d->bd_hlen;
-	}
-	else if (d->bd_rtout > 0 && d->bd_state == BPF_IDLE) {
+	} else if (d->bd_rtout > 0 && d->bd_state == BPF_IDLE) {
 		callout_reset(&d->bd_callout, d->bd_rtout,
 		    bpf_timed_out, d);
 		d->bd_state = BPF_WAITING;
@@ -1865,13 +1867,14 @@ bpf_freed(struct bpf_d *d)
 	 * free.
 	 */
 	bpf_free(d);
-	if (d->bd_rfilter) {
+	if (d->bd_rfilter != NULL) {
 		free((caddr_t)d->bd_rfilter, M_BPF);
 #ifdef BPF_JITTER
-		bpf_destroy_jit_filter(d->bd_bfilter);
+		if (d->bd_bfilter != NULL)
+			bpf_destroy_jit_filter(d->bd_bfilter);
 #endif
 	}
-	if (d->bd_wfilter)
+	if (d->bd_wfilter != NULL)
 		free((caddr_t)d->bd_wfilter, M_BPF);
 	mtx_destroy(&d->bd_mtx);
 }

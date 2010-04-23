@@ -223,8 +223,7 @@ apb_alloc_resource(device_t dev, device_t child, int type, int *rid,
 	 */
 	if (start == 0 && end == ~0) {
 		device_printf(dev, "can't decode default resource id %d for "
-		    "%s%d, bypassing\n", *rid, device_get_name(child),
-		    device_get_unit(child));
+		    "%s, bypassing\n", *rid, device_get_nameunit(child));
 		goto passup;
 	}
 
@@ -236,31 +235,28 @@ apb_alloc_resource(device_t dev, device_t child, int type, int *rid,
 	switch (type) {
 	case SYS_RES_IOPORT:
 		if (!apb_checkrange(sc->sc_iomap, APB_IO_SCALE, start, end)) {
-			device_printf(dev, "device %s%d requested unsupported "
-			    "I/O range 0x%lx-0x%lx\n", device_get_name(child),
-			    device_get_unit(child), start, end);
+			device_printf(dev, "device %s requested unsupported "
+			    "I/O range 0x%lx-0x%lx\n",
+			    device_get_nameunit(child), start, end);
 			return (NULL);
 		}
 		if (bootverbose)
 			device_printf(sc->sc_bsc.ops_pcib_sc.dev, "device "
-			    "%s%d requested decoded I/O range 0x%lx-0x%lx\n",
-			    device_get_name(child), device_get_unit(child),
-			    start, end);
+			    "%s requested decoded I/O range 0x%lx-0x%lx\n",
+			    device_get_nameunit(child), start, end);
 		break;
 
 	case SYS_RES_MEMORY:
 		if (!apb_checkrange(sc->sc_memmap, APB_MEM_SCALE, start, end)) {
-			device_printf(dev, "device %s%d requested unsupported "
+			device_printf(dev, "device %s requested unsupported "
 			    "memory range 0x%lx-0x%lx\n",
-			    device_get_name(child), device_get_unit(child),
-			    start, end);
+			    device_get_nameunit(child), start, end);
 			return (NULL);
 		}
 		if (bootverbose)
 			device_printf(sc->sc_bsc.ops_pcib_sc.dev, "device "
-			    "%s%d requested decoded memory range 0x%lx-0x%lx\n",
-			    device_get_name(child), device_get_unit(child),
-			    start, end);
+			    "%s requested decoded memory range 0x%lx-0x%lx\n",
+			    device_get_nameunit(child), start, end);
 		break;
 
 	default:

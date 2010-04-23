@@ -109,27 +109,17 @@ g_gate_destroy(struct g_gate_softc *sc, boolean_t force)
 	g_orphan_provider(pp, ENXIO);
 	callout_drain(&sc->sc_callout);
 	mtx_lock(&sc->sc_queue_mtx);
-	for (;;) {
-		bp = bioq_first(&sc->sc_inqueue);
-		if (bp != NULL) {
-			bioq_remove(&sc->sc_inqueue, bp);
-			sc->sc_queue_count--;
-			G_GATE_LOGREQ(1, bp, "Request canceled.");
-			g_io_deliver(bp, ENXIO);
-		} else {
-			break;
-		}
+	while ((bp = bioq_first(&sc->sc_inqueue)) != NULL) {
+		bioq_remove(&sc->sc_inqueue, bp);
+		sc->sc_queue_count--;
+		G_GATE_LOGREQ(1, bp, "Request canceled.");
+		g_io_deliver(bp, ENXIO);
 	}
-	for (;;) {
-		bp = bioq_first(&sc->sc_outqueue);
-		if (bp != NULL) {
-			bioq_remove(&sc->sc_outqueue, bp);
-			sc->sc_queue_count--;
-			G_GATE_LOGREQ(1, bp, "Request canceled.");
-			g_io_deliver(bp, ENXIO);
-		} else {
-			break;
-		}
+	while ((bp = bioq_first(&sc->sc_outqueue)) != NULL) {
+		bioq_remove(&sc->sc_outqueue, bp);
+		sc->sc_queue_count--;
+		G_GATE_LOGREQ(1, bp, "Request canceled.");
+		g_io_deliver(bp, ENXIO);
 	}
 	mtx_unlock(&sc->sc_queue_mtx);
 	g_topology_unlock();

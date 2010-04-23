@@ -881,7 +881,7 @@ unsetifdescr(const char *val, int value, int s, const struct afswtch *afp)
 #define	IFCAPBITS \
 "\020\1RXCSUM\2TXCSUM\3NETCONS\4VLAN_MTU\5VLAN_HWTAGGING\6JUMBO_MTU\7POLLING" \
 "\10VLAN_HWCSUM\11TSO4\12TSO6\13LRO\14WOL_UCAST\15WOL_MCAST\16WOL_MAGIC" \
-"\21VLAN_HWFILTER\23VLAN_HWTSO"
+"\21VLAN_HWFILTER\23VLAN_HWTSO\24LINKSTATE"
 
 /*
  * Print the status of the interface.  If an address family was
@@ -922,19 +922,20 @@ status(const struct afswtch *afp, const struct sockaddr_dl *sdl,
 			ifr.ifr_buffer.buffer = descr;
 			ifr.ifr_buffer.length = descrlen;
 			if (ioctl(s, SIOCGIFDESCR, &ifr) == 0) {
-				if (strlen(descr) > 0)
-					printf("\tdescription: %s\n", descr);
-				break;
-			} else if (errno == ENAMETOOLONG)
-				descrlen = ifr.ifr_buffer.length;
-			else
-				break;
-		} else {
+				if (ifr.ifr_buffer.buffer == descr) {
+					if (strlen(descr) > 0)
+						printf("\tdescription: %s\n",
+						    descr);
+				} else if (ifr.ifr_buffer.length > descrlen) {
+					descrlen = ifr.ifr_buffer.length;
+					continue;
+				}
+			}
+		} else
 			warn("unable to allocate memory for interface"
 			    "description");
-			break;
-		}
-	};
+		break;
+	}
 
 	if (ioctl(s, SIOCGIFCAP, (caddr_t)&ifr) == 0) {
 		if (ifr.ifr_curcap != 0) {

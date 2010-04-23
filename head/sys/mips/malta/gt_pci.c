@@ -109,8 +109,8 @@ struct gt_pci_softc {
 	struct rman		sc_mem_rman;
 	struct rman		sc_io_rman;
 	struct rman		sc_irq_rman;
-	uint32_t		sc_mem;
-	uint32_t		sc_io;
+	unsigned long		sc_mem;
+	bus_space_handle_t	sc_io;
 
 	struct resource		*sc_irq;
 	struct intr_event	*sc_eventstab[ICU_LEN];

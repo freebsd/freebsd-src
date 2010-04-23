@@ -174,8 +174,7 @@ static struct rl_type re_devs[] = {
 	{ RT_VENDORID, RT_DEVICEID_8101E, 0,
 	    "RealTek 8101E/8102E/8102EL/8103E PCIe 10/100baseTX" },
 	{ RT_VENDORID, RT_DEVICEID_8168, 0,
-	    "RealTek 8168/8168B/8168C/8168CP/8168D/8168DP/"
-	    "8111B/8111C/8111CP/8111DP PCIe Gigabit Ethernet" },
+	    "RealTek 8168/8111 B/C/CP/D/DP/E PCIe Gigabit Ethernet" },
 	{ RT_VENDORID, RT_DEVICEID_8169, 0,
 	    "RealTek 8169/8169S/8169SB(L)/8110S/8110SB(L) Gigabit Ethernet" },
 	{ RT_VENDORID, RT_DEVICEID_8169SC, 0,
@@ -220,6 +219,7 @@ static struct rl_hwrev re_hwrevs[] = {
 	{ RL_HWREV_8168CP, RL_8169, "8168CP/8111CP"},
 	{ RL_HWREV_8168D, RL_8169, "8168D/8111D"},
 	{ RL_HWREV_8168DP, RL_8169, "8168DP/8111DP"},
+	{ RL_HWREV_8168E, RL_8169, "8168E/8111E"},
 	{ 0, 0, NULL }
 };
 
@@ -1310,6 +1310,11 @@ re_attach(device_t dev)
 		 */
 		sc->rl_flags |= RL_FLAG_NOJUMBO;
 		break;
+	case RL_HWREV_8168E:
+		sc->rl_flags |= RL_FLAG_PHYWAKE | RL_FLAG_PHYWAKE_PM |
+		    RL_FLAG_PAR | RL_FLAG_DESCV2 | RL_FLAG_MACSTAT |
+		    RL_FLAG_CMDSTOP | RL_FLAG_AUTOPAD | RL_FLAG_NOJUMBO;
+		break;
 	case RL_HWREV_8169_8110SB:
 	case RL_HWREV_8169_8110SBL:
 	case RL_HWREV_8169_8110SC:
@@ -1393,6 +1398,8 @@ re_attach(device_t dev)
 	}
 
 	/* Take PHY out of power down mode. */
+	if ((sc->rl_flags & RL_FLAG_PHYWAKE_PM) != 0)
+		CSR_WRITE_1(sc, RL_PMCH, CSR_READ_1(sc, RL_PMCH) | 0x80);
 	if ((sc->rl_flags & RL_FLAG_PHYWAKE) != 0) {
 		re_gmii_writereg(dev, 1, 0x1f, 0);
 		re_gmii_writereg(dev, 1, 0x0e, 0);
@@ -3135,6 +3142,9 @@ re_setwol(struct rl_softc *sc)
 		v |= RL_CFG5_WOL_LANWAKE;
 	CSR_WRITE_1(sc, RL_CFG5, v);
 
+	if ((ifp->if_capenable & IFCAP_WOL) != 0 &&
+	    (sc->rl_flags & RL_FLAG_PHYWAKE_PM) != 0)
+		CSR_WRITE_1(sc, RL_PMCH, CSR_READ_1(sc, RL_PMCH) & ~0x80);
 	/*
 	 * It seems that hardware resets its link speed to 100Mbps in
 	 * power down mode so switching to 100Mbps in driver is not

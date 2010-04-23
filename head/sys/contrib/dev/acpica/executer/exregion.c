@@ -608,8 +608,10 @@ AcpiExDataTableSpaceHandler (
     ACPI_FUNCTION_TRACE (ExDataTableSpaceHandler);
 
 
-    /* Perform the memory read or write */
-
+    /*
+     * Perform the memory read or write. The BitWidth was already
+     * validated.
+     */
     switch (Function)
     {
     case ACPI_READ:
@@ -619,9 +621,14 @@ AcpiExDataTableSpaceHandler (
         break;
 
     case ACPI_WRITE:
+
+        ACPI_MEMCPY (ACPI_PHYSADDR_TO_PTR (Address), ACPI_CAST_PTR (char, Value),
+            ACPI_DIV_8 (BitWidth));
+        break;
+
     default:
 
-        return_ACPI_STATUS (AE_SUPPORT);
+        return_ACPI_STATUS (AE_BAD_PARAMETER);
     }
 
     return_ACPI_STATUS (AE_OK);

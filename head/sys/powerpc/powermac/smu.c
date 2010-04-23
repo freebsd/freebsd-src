@@ -34,6 +34,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/module.h>
 #include <sys/conf.h>
 #include <sys/cpu.h>
+#include <sys/clock.h>
 #include <sys/ctype.h>
 #include <sys/kernel.h>
 #include <sys/kthread.h>
@@ -50,6 +51,8 @@ __FBSDID("$FreeBSD$");
 #include <dev/ofw/openfirm.h>
 #include <dev/ofw/ofw_bus.h>
 #include <powerpc/powermac/macgpiovar.h>
+
+#include "clock_if.h"
 
 struct smu_cmd {
 	volatile uint8_t cmd;
@@ -140,6 +143,10 @@ static int	smu_attach(device_t);
 static void	smu_cpufreq_pre_change(device_t, const struct cf_level *level);
 static void	smu_cpufreq_post_change(device_t, const struct cf_level *level);
 
+/* clock interface */
+static int	smu_gettime(device_t dev, struct timespec *ts);
+static int	smu_settime(device_t dev, struct timespec *ts);
+
 /* utility functions */
 static int	smu_run_cmd(device_t dev, struct smu_cmd *cmd, int wait);
 static int	smu_get_datablock(device_t dev, int8_t id, uint8_t *buf,
@@ -160,6 +167,10 @@ static device_method_t  smu_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		smu_probe),
 	DEVMETHOD(device_attach,	smu_attach),
+
+	/* Clock interface */
+	DEVMETHOD(clock_gettime,	smu_gettime),
+	DEVMETHOD(clock_settime,	smu_settime),
 	{ 0, 0 },
 };
 
@@ -192,6 +203,9 @@ MALLOC_DEFINE(M_SMU, "smu", "SMU Sensor Information");
 #define  SMU_PWR_GET_POWERUP	0x00
 #define  SMU_PWR_SET_POWERUP	0x01
 #define  SMU_PWR_CLR_POWERUP	0x02
+#define SMU_RTC			0x8e
+#define  SMU_RTC_GET		0x81
+#define  SMU_RTC_SET		0x80
 
 /* Power event types */
 #define SMU_WAKEUP_KEYPRESS	0x01
@@ -348,6 +362,11 @@ smu_attach(device_t dev)
 	    &sc->sc_doorbellirqcookie);
 	powerpc_config_intr(rman_get_start(sc->sc_doorbellirq),
 	    INTR_TRIGGER_EDGE, INTR_POLARITY_LOW);
+
+	/*
+	 * Connect RTC interface.
+	 */
+	clock_register(dev, 1000);
 
 	return (0);
 }
@@ -1041,5 +1060,53 @@ smu_server_mode(SYSCTL_HANDLER_ARGS)
 	cmd.data[2] = SMU_WAKEUP_AC_INSERT;
 
 	return (smu_run_cmd(smu, &cmd, 1));
+}
+
+static int
+smu_gettime(device_t dev, struct timespec *ts)
+{
+	struct smu_cmd cmd;
+	struct clocktime ct;
+
+	cmd.cmd = SMU_RTC;
+	cmd.len = 1;
+	cmd.data[0] = SMU_RTC_GET;
+
+	if (smu_run_cmd(dev, &cmd, 1) != 0)
+		return (ENXIO);
+
+	ct.nsec	= 0;
+	ct.sec	= bcd2bin(cmd.data[0]);
+	ct.min	= bcd2bin(cmd.data[1]);
+	ct.hour	= bcd2bin(cmd.data[2]);
+	ct.dow	= bcd2bin(cmd.data[3]);
+	ct.day	= bcd2bin(cmd.data[4]);
+	ct.mon	= bcd2bin(cmd.data[5]);
+	ct.year	= bcd2bin(cmd.data[6]) + 2000;
+
+	return (clock_ct_to_ts(&ct, ts));
+}
+
+static int
+smu_settime(device_t dev, struct timespec *ts)
+{
+	struct smu_cmd cmd;
+	struct clocktime ct;
+
+	cmd.cmd = SMU_RTC;
+	cmd.len = 8;
+	cmd.data[0] = SMU_RTC_SET;
+
+	clock_ts_to_ct(ts, &ct);
+
+	cmd.data[1] = bin2bcd(ct.sec);
+	cmd.data[2] = bin2bcd(ct.min);
+	cmd.data[3] = bin2bcd(ct.hour);
+	cmd.data[4] = bin2bcd(ct.dow);
+	cmd.data[5] = bin2bcd(ct.day);
+	cmd.data[6] = bin2bcd(ct.mon);
+	cmd.data[7] = bin2bcd(ct.year - 2000);
+
+	return (smu_run_cmd(dev, &cmd, 1));
 }
 

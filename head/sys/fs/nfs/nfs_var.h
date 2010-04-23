@@ -251,6 +251,7 @@ int nfsv4_lock(struct nfsv4lock *, int, int *, void *);
 void nfsv4_unlock(struct nfsv4lock *, int);
 void nfsv4_relref(struct nfsv4lock *);
 void nfsv4_getref(struct nfsv4lock *, int *, void *);
+int nfsv4_testlock(struct nfsv4lock *);
 int nfsrv_mtostr(struct nfsrv_descript *, char *, int);
 int nfsrv_checkutf8(u_int8_t *, int);
 int newnfs_sndlock(int *);
@@ -368,7 +369,7 @@ int nfsrpc_readlink(vnode_t, struct uio *, struct ucred *,
 int nfsrpc_read(vnode_t, struct uio *, struct ucred *, NFSPROC_T *,
     struct nfsvattr *, int *, void *);
 int nfsrpc_write(vnode_t, struct uio *, int *, u_char *,
-    struct ucred *, NFSPROC_T *, struct nfsvattr *, int *, void *);
+    struct ucred *, NFSPROC_T *, struct nfsvattr *, int *, void *, int);
 int nfsrpc_mknod(vnode_t, char *, int, struct vattr *, u_int32_t,
     enum vtype, struct ucred *, NFSPROC_T *, struct nfsvattr *,
     struct nfsvattr *, struct nfsfh **, int *, int *, void *);
@@ -501,7 +502,7 @@ int nfscl_maperr(NFSPROC_T *, int, uid_t, gid_t);
 void nfscl_init(void);
 
 /* nfs_clbio.c */
-int ncl_flush(vnode_t, int, struct ucred *, NFSPROC_T *, int);
+int ncl_flush(vnode_t, int, struct ucred *, NFSPROC_T *, int, int);
 
 /* nfs_clnode.c */
 void ncl_invalcaches(vnode_t);

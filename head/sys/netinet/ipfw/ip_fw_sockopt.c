@@ -232,61 +232,103 @@ ipfw_reap_rules(struct ip_fw *head)
 	}
 }
 
-/**
- * Remove all rules with given number, and also do set manipulation.
- * Assumes chain != NULL && *chain != NULL.
+/*
+ * Used by del_entry() to check if a rule should be kept.
+ * Returns 1 if the rule must be kept, 0 otherwise.
  *
- * The argument is an u_int32_t. The low 16 bit are the rule or set number,
- * the next 8 bits are the new set, the top 8 bits are the command:
+ * Called with cmd = {0,1,5}.
+ * cmd == 0 matches on rule numbers, excludes rules in RESVD_SET if n == 0 ;
+ * cmd == 1 matches on set numbers only, rule numbers are ignored;
+ * cmd == 5 matches on rule and set numbers.
  *
- *	0	delete rules with given number
- *	1	delete rules with given set number
- *	2	move rules with given number to new set
- *	3	move rules with given set number to new set
- *	4	swap sets with given numbers
- *	5	delete rules with given number and with given set number
+ * n == 0 is a wildcard for rule numbers, there is no wildcard for sets.
+ *
+ * Rules to keep are
+ *	(default || reserved || !match_set || !match_number)
+ * where
+ *   default ::= (rule->rulenum == IPFW_DEFAULT_RULE)
+ *	// the default rule is always protected
+ *
+ *   reserved ::= (cmd == 0 && n == 0 && rule->set == RESVD_SET)
+ *	// RESVD_SET is protected only if cmd == 0 and n == 0 ("ipfw flush")
+ *
+ *   match_set ::= (cmd == 0 || rule->set == set)
+ *	// set number is ignored for cmd == 0
+ *
+ *   match_number ::= (cmd == 1 || n == 0 || n == rule->rulenum)
+ *	// number is ignored for cmd == 1 or n == 0
+ *
  */
 static int
-del_entry(struct ip_fw_chain *chain, u_int32_t arg)
+keep_rule(struct ip_fw *rule, uint8_t cmd, uint8_t set, uint32_t n)
+{
+	return
+		 (rule->rulenum == IPFW_DEFAULT_RULE)		||
+		 (cmd == 0 && n == 0 && rule->set == RESVD_SET)	||
+		!(cmd == 0 || rule->set == set)			||
+		!(cmd == 1 || n == 0 || n == rule->rulenum);
+}
+
+/**
+ * Remove all rules with given number, or do set manipulation.
+ * Assumes chain != NULL && *chain != NULL.
+ *
+ * The argument is an uint32_t. The low 16 bit are the rule or set number;
+ * the next 8 bits are the new set; the top 8 bits indicate the command:
+ *
+ *	0	delete rules numbered "rulenum"
+ *	1	delete rules in set "rulenum"
+ *	2	move rules "rulenum" to set "new_set"
+ *	3	move rules from set "rulenum" to set "new_set"
+ *	4	swap sets "rulenum" and "new_set"
+ *	5	delete rules "rulenum" and set "new_set"
+ */
+static int
+del_entry(struct ip_fw_chain *chain, uint32_t arg)
 {
 	struct ip_fw *rule;
-	uint32_t rulenum;	/* rule or old_set */
+	uint32_t num;	/* rule number or old_set */
 	uint8_t cmd, new_set;
-	int start, end = 0, i, ofs, n;
+	int start, end, i, ofs, n;
 	struct ip_fw **map = NULL;
 	int error = 0;
 
-	rulenum = arg & 0xffff;
+	num = arg & 0xffff;
 	cmd = (arg >> 24) & 0xff;
 	new_set = (arg >> 16) & 0xff;
 
 	if (cmd > 5 || new_set > RESVD_SET)
 		return EINVAL;
 	if (cmd == 0 || cmd == 2 || cmd == 5) {
-		if (rulenum >= IPFW_DEFAULT_RULE)
+		if (num >= IPFW_DEFAULT_RULE)
 			return EINVAL;
 	} else {
-		if (rulenum > RESVD_SET)	/* old_set */
+		if (num > RESVD_SET)	/* old_set */
 			return EINVAL;
 	}
 
-	IPFW_UH_WLOCK(chain); /* prevent conflicts among the writers */
+	IPFW_UH_WLOCK(chain);	/* arbitrate writers */
 	chain->reap = NULL;	/* prepare for deletions */
 
 	switch (cmd) {
-	case 0:	/* delete rules with given number (0 is special means all) */
-	case 1:	/* delete all rules with given set number, rule->set == rulenum */
-	case 5: /* delete rules with given number and with given set number.
-		 * rulenum - given rule number;
-		 * new_set - given set number.
-		 */
-		/* locate first rule to delete (start), the one after the
-		 * last one (end), and count how many rules to delete (n)
+	case 0:	/* delete rules "num" (num == 0 matches all) */
+	case 1:	/* delete all rules in set N */
+	case 5: /* delete rules with number N and set "new_set". */
+
+		/*
+		 * Locate first rule to delete (start), the rule after
+		 * the last one to delete (end), and count how many
+		 * rules to delete (n). Always use keep_rule() to
+		 * determine which rules to keep.
 		 */
 		n = 0;
-		if (cmd == 1) { /* look for a specific set, must scan all */
-			for (start = -1, i = 0; i < chain->n_rules; i++) {
-				if (chain->map[start]->set != rulenum)
+		if (cmd == 1) {
+			/* look for a specific set including RESVD_SET.
+			 * Must scan the entire range, ignore num.
+			 */
+			new_set = num;
+			for (start = -1, end = i = 0; i < chain->n_rules; i++) {
+				if (keep_rule(chain->map[i], cmd, new_set, 0))
 					continue;
 				if (start < 0)
 					start = i;
@@ -295,80 +337,94 @@ del_entry(struct ip_fw_chain *chain, u_int32_t arg)
 			}
 			end++;	/* first non-matching */
 		} else {
-			start = ipfw_find_rule(chain, rulenum, 0);
+			/* Optimized search on rule numbers */
+			start = ipfw_find_rule(chain, num, 0);
 			for (end = start; end < chain->n_rules; end++) {
 				rule = chain->map[end];
-				if (rulenum > 0 && rule->rulenum != rulenum)
+				if (num > 0 && rule->rulenum != num)
 					break;
-				if (rule->set != RESVD_SET &&
-				    (cmd == 0 || rule->set == new_set) )
+				if (!keep_rule(rule, cmd, new_set, num))
 					n++;
 			}
 		}
-		if (n == 0 && arg == 0)
-			break; /* special case, flush on empty ruleset */
-		/* allocate the map, if needed */
-		if (n > 0)
-			map = get_map(chain, -n, 1 /* locked */);
-		if (n == 0 || map == NULL) {
+
+		if (n == 0) {
+			/* A flush request (arg == 0) on empty ruleset
+			 * returns with no error. On the contrary,
+			 * if there is no match on a specific request,
+			 * we return EINVAL.
+			 */
+			error = (arg == 0) ? 0 : EINVAL;
+			break;
+		}
+
+		/* We have something to delete. Allocate the new map */
+		map = get_map(chain, -n, 1 /* locked */);
+		if (map == NULL) {
 			error = EINVAL;
 			break;
 		}
-		/* copy the initial part of the map */
+
+		/* 1. bcopy the initial part of the map */
 		if (start > 0)
 			bcopy(chain->map, map, start * sizeof(struct ip_fw *));
-		/* copy active rules between start and end */
+		/* 2. copy active rules between start and end */
 		for (i = ofs = start; i < end; i++) {
 			rule = chain->map[i];
-			if (!(rule->set != RESVD_SET &&
-			    (cmd == 0 || rule->set == new_set) ))
-				map[ofs++] = chain->map[i];
+			if (keep_rule(rule, cmd, new_set, num))
+				map[ofs++] = rule;
 		}
-		/* finally the tail */
+		/* 3. copy the final part of the map */
 		bcopy(chain->map + end, map + ofs,
 			(chain->n_rules - end) * sizeof(struct ip_fw *));
+		/* 4. swap the maps (under BH_LOCK) */
 		map = swap_map(chain, map, chain->n_rules - n);
-		/* now remove the rules deleted */
+		/* 5. now remove the rules deleted from the old map */
 		for (i = start; i < end; i++) {
+			int l;
 			rule = map[i];
-			if (rule->set != RESVD_SET &&
-			    (cmd == 0 || rule->set == new_set) ) {
-				int l = RULESIZE(rule);
-
-				chain->static_len -= l;
-				ipfw_remove_dyn_children(rule);
-				rule->x_next = chain->reap;
-				chain->reap = rule;
-			}
+			if (keep_rule(rule, cmd, new_set, num))
+				continue;
+			l = RULESIZE(rule);
+			chain->static_len -= l;
+			ipfw_remove_dyn_children(rule);
+			rule->x_next = chain->reap;
+			chain->reap = rule;
 		}
 		break;
 
-	case 2:	/* move rules with given number to new set */
-		for (i = 0; i < chain->n_rules; i++) {
+	/*
+	 * In the next 3 cases the loop stops at (n_rules - 1)
+	 * because the default rule is never eligible..
+	 */
+
+	case 2:	/* move rules with given RULE number to new set */
+		for (i = 0; i < chain->n_rules - 1; i++) {
 			rule = chain->map[i];
-			if (rule->rulenum == rulenum)
+			if (rule->rulenum == num)
 				rule->set = new_set;
 		}
 		break;
 
-	case 3: /* move rules with given set number to new set */
-		for (i = 0; i < chain->n_rules; i++) {
+	case 3: /* move rules with given SET number to new set */
+		for (i = 0; i < chain->n_rules - 1; i++) {
 			rule = chain->map[i];
-			if (rule->set == rulenum)
+			if (rule->set == num)
 				rule->set = new_set;
 		}
 		break;
 
 	case 4: /* swap two sets */
-		for (i = 0; i < chain->n_rules; i++) {
+		for (i = 0; i < chain->n_rules - 1; i++) {
 			rule = chain->map[i];
-			if (rule->set == rulenum)
+			if (rule->set == num)
 				rule->set = new_set;
 			else if (rule->set == new_set)
-				rule->set = rulenum;
+				rule->set = num;
 		}
 		break;
 	}
+
 	rule = chain->reap;
 	chain->reap = NULL;
 	IPFW_UH_WUNLOCK(chain);
@@ -446,7 +502,7 @@ zero_entry(struct ip_fw_chain *chain, u_int32_t arg, int log_only)
 				break;
 		}
 		if (!cleared) {	/* we did not find any matching rules */
-			IPFW_WUNLOCK(chain);
+			IPFW_UH_RUNLOCK(chain);
 			return (EINVAL);
 		}
 		msg = log_only ? "logging count reset" : "cleared";

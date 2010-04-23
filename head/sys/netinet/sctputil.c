@@ -52,8 +52,14 @@ __FBSDID("$FreeBSD$");
 #define NUMBER_OF_MTU_SIZES 18
 
 
+#if defined(__Windows__) && !defined(SCTP_LOCAL_TRACE_BUF)
+#include "eventrace_netinet.h"
+#include "sctputil.tmh"		/* this is the file that will be auto
+				 * generated */
+#else
 #ifndef KTR_SCTP
 #define KTR_SCTP KTR_SUBSYS
+#endif
 #endif
 
 void
@@ -668,7 +674,7 @@ sctp_auditing(int from, struct sctp_inpcb *inp, struct sctp_tcb *stcb,
 			sctp_audit_indx = 0;
 		}
 		rep = 1;
-		SCTP_PRINTF("tot_flt_book:%d\n", tot_book);
+		SCTP_PRINTF("tot_flt_book:%d\n", tot_book_cnt);
 
 		stcb->asoc.total_flight_count = tot_book_cnt;
 	}
@@ -697,8 +703,8 @@ sctp_auditing(int from, struct sctp_inpcb *inp, struct sctp_tcb *stcb,
 				}
 			}
 			if (lnet->flight_size != tot_out) {
-				SCTP_PRINTF("net:%x flight was %d corrected to %d\n",
-				    (uint32_t) lnet, lnet->flight_size,
+				SCTP_PRINTF("net:%p flight was %d corrected to %d\n",
+				    lnet, lnet->flight_size,
 				    tot_out);
 				lnet->flight_size = tot_out;
 			}
@@ -869,7 +875,7 @@ sctp_select_a_tag(struct sctp_inpcb *inp, uint16_t lport, uint16_t rport, int sa
 
 int
 sctp_init_asoc(struct sctp_inpcb *m, struct sctp_tcb *stcb,
-    int for_a_init, uint32_t override_tag, uint32_t vrf_id)
+    uint32_t override_tag, uint32_t vrf_id)
 {
 	struct sctp_association *asoc;
 
@@ -1132,9 +1138,7 @@ sctp_init_asoc(struct sctp_inpcb *m, struct sctp_tcb *stcb,
 		return (ENOMEM);
 	}
 	memset(asoc->mapping_array, 0, asoc->mapping_array_size);
-	/* EY  - initialize the nr_mapping_array just like mapping array */
-	asoc->nr_mapping_array_size = SCTP_INITIAL_NR_MAPPING_ARRAY;
-	SCTP_MALLOC(asoc->nr_mapping_array, uint8_t *, asoc->nr_mapping_array_size,
+	SCTP_MALLOC(asoc->nr_mapping_array, uint8_t *, asoc->mapping_array_size,
 	    SCTP_M_MAP);
 	if (asoc->nr_mapping_array == NULL) {
 		SCTP_FREE(asoc->strmout, SCTP_M_STRMO);
@@ -1142,7 +1146,7 @@ sctp_init_asoc(struct sctp_inpcb *m, struct sctp_tcb *stcb,
 		SCTP_LTRACE_ERR_RET(NULL, stcb, NULL, SCTP_FROM_SCTPUTIL, ENOMEM);
 		return (ENOMEM);
 	}
-	memset(asoc->nr_mapping_array, 0, asoc->nr_mapping_array_size);
+	memset(asoc->nr_mapping_array, 0, asoc->mapping_array_size);
 
 	/* Now the init of the other outqueues */
 	TAILQ_INIT(&asoc->free_chunks);
@@ -1175,46 +1179,78 @@ sctp_init_asoc(struct sctp_inpcb *m, struct sctp_tcb *stcb,
 	asoc->discontinuity_time = asoc->start_time;
 	/*
 	 * sa_ignore MEMLEAK {memory is put in the assoc mapping array and
-	 * freed later whe the association is freed.
+	 * freed later when the association is freed.
 	 */
 	return (0);
+}
+
+void
+sctp_print_mapping_array(struct sctp_association *asoc)
+{
+	unsigned int i, limit;
+
+	printf("Mapping array size: %d, baseTSN: %8.8x, cumAck: %8.8x, highestTSN: (%8.8x, %8.8x).\n",
+	    asoc->mapping_array_size,
+	    asoc->mapping_array_base_tsn,
+	    asoc->cumulative_tsn,
+	    asoc->highest_tsn_inside_map,
+	    asoc->highest_tsn_inside_nr_map);
+	for (limit = asoc->mapping_array_size; limit > 1; limit--) {
+		if (asoc->mapping_array[limit - 1]) {
+			break;
+		}
+	}
+	printf("Renegable mapping array (last %d entries are zero):\n", asoc->mapping_array_size - limit);
+	for (i = 0; i < limit; i++) {
+		printf("%2.2x%c", asoc->mapping_array[i], ((i + 1) % 16) ? ' ' : '\n');
+		if (((i + 1) % 16) == 0)
+			printf("\n");
+	}
+	if (limit % 16)
+		printf("\n");
+	for (limit = asoc->mapping_array_size; limit > 1; limit--) {
+		if (asoc->nr_mapping_array[limit - 1]) {
+			break;
+		}
+	}
+	printf("Non renegable mapping array (last %d entries are zero):\n", asoc->mapping_array_size - limit);
+	for (i = 0; i < limit; i++) {
+		printf("%2.2x%c", asoc->nr_mapping_array[i], ((i + 1) % 16) ? ' ' : '\n');
+	}
+	if (limit % 16)
+		printf("\n");
 }
 
 int
 sctp_expand_mapping_array(struct sctp_association *asoc, uint32_t needed)
 {
 	/* mapping array needs to grow */
-	uint8_t *new_array;
+	uint8_t *new_array1, *new_array2;
 	uint32_t new_size;
 
 	new_size = asoc->mapping_array_size + ((needed + 7) / 8 + SCTP_MAPPING_ARRAY_INCR);
-	SCTP_MALLOC(new_array, uint8_t *, new_size, SCTP_M_MAP);
-	if (new_array == NULL) {
+	SCTP_MALLOC(new_array1, uint8_t *, new_size, SCTP_M_MAP);
+	SCTP_MALLOC(new_array2, uint8_t *, new_size, SCTP_M_MAP);
+	if ((new_array1 == NULL) || (new_array2 == NULL)) {
 		/* can't get more, forget it */
-		SCTP_PRINTF("No memory for expansion of SCTP mapping array %d\n",
-		    new_size);
+		SCTP_PRINTF("No memory for expansion of SCTP mapping array %d\n", new_size);
+		if (new_array1) {
+			SCTP_FREE(new_array1, SCTP_M_MAP);
+		}
+		if (new_array2) {
+			SCTP_FREE(new_array2, SCTP_M_MAP);
+		}
 		return (-1);
 	}
-	memset(new_array, 0, new_size);
-	memcpy(new_array, asoc->mapping_array, asoc->mapping_array_size);
+	memset(new_array1, 0, new_size);
+	memset(new_array2, 0, new_size);
+	memcpy(new_array1, asoc->mapping_array, asoc->mapping_array_size);
+	memcpy(new_array2, asoc->nr_mapping_array, asoc->mapping_array_size);
 	SCTP_FREE(asoc->mapping_array, SCTP_M_MAP);
-	asoc->mapping_array = new_array;
+	SCTP_FREE(asoc->nr_mapping_array, SCTP_M_MAP);
+	asoc->mapping_array = new_array1;
+	asoc->nr_mapping_array = new_array2;
 	asoc->mapping_array_size = new_size;
-	if (asoc->peer_supports_nr_sack) {
-		new_size = asoc->nr_mapping_array_size + ((needed + 7) / 8 + SCTP_NR_MAPPING_ARRAY_INCR);
-		SCTP_MALLOC(new_array, uint8_t *, new_size, SCTP_M_MAP);
-		if (new_array == NULL) {
-			/* can't get more, forget it */
-			SCTP_PRINTF("No memory for expansion of SCTP mapping array %d\n",
-			    new_size);
-			return (-1);
-		}
-		memset(new_array, 0, new_size);
-		memcpy(new_array, asoc->nr_mapping_array, asoc->nr_mapping_array_size);
-		SCTP_FREE(asoc->nr_mapping_array, SCTP_M_MAP);
-		asoc->nr_mapping_array = new_array;
-		asoc->nr_mapping_array_size = new_size;
-	}
 	return (0);
 }
 
@@ -1635,21 +1671,9 @@ sctp_timeout_handler(void *t)
 		if ((stcb == NULL) || (inp == NULL)) {
 			break;
 		} {
-			int abort_flag;
-
 			SCTP_STAT_INCR(sctps_timosack);
 			stcb->asoc.timosack++;
-			if (stcb->asoc.cumulative_tsn != stcb->asoc.highest_tsn_inside_map)
-				sctp_sack_check(stcb, 0, 0, &abort_flag);
-
-			/*
-			 * EY if nr_sacks used then send an nr-sack , a sack
-			 * otherwise
-			 */
-			if (SCTP_BASE_SYSCTL(sctp_nr_sack_on_off) && stcb->asoc.peer_supports_nr_sack)
-				sctp_send_nr_sack(stcb);
-			else
-				sctp_send_sack(stcb);
+			sctp_send_sack(stcb);
 		}
 #ifdef SCTP_AUDITING_ENABLED
 		sctp_auditing(4, inp, stcb, net);
@@ -4709,8 +4733,7 @@ next_on_sent:
 		 */
 		if ((tp1) &&
 		    (tp1->rec.data.stream_number == stream) &&
-		    (tp1->rec.data.stream_seq == seq)
-		    ) {
+		    (tp1->rec.data.stream_seq == seq)) {
 			/*
 			 * save to chk in case we have some on stream out
 			 * queue. If so and we have an un-transmitted one we
@@ -5053,14 +5076,7 @@ sctp_user_rcvd(struct sctp_tcb *stcb, uint32_t * freed_so_far, int hold_rlock,
 			goto out;
 		}
 		SCTP_STAT_INCR(sctps_wu_sacks_sent);
-		/*
-		 * EY if nr_sacks used then send an nr-sack , a sack
-		 * otherwise
-		 */
-		if (SCTP_BASE_SYSCTL(sctp_nr_sack_on_off) && stcb->asoc.peer_supports_nr_sack)
-			sctp_send_nr_sack(stcb);
-		else
-			sctp_send_sack(stcb);
+		sctp_send_sack(stcb);
 
 		sctp_chunk_output(stcb->sctp_ep, stcb,
 		    SCTP_OUTPUT_FROM_USR_RCVD, SCTP_SO_LOCKED);
@@ -5430,8 +5446,7 @@ restart_nosblocks:
 					    ((ctl->some_taken) ||
 					    ((ctl->do_not_ref_stcb == 0) &&
 					    ((ctl->spec_flags & M_NOTIFICATION) == 0) &&
-					    (ctl->stcb->asoc.strmin[ctl->sinfo_stream].delivery_started == 0)))
-				    ) {
+				    (ctl->stcb->asoc.strmin[ctl->sinfo_stream].delivery_started == 0)))) {
 					/*-
 					 * If we have the same tcb, and there is data present, and we
 					 * have the strm interleave feature present. Then if we have
@@ -5890,8 +5905,7 @@ wait_some_more:
 			hold_sblock = 1;
 		}
 		if ((copied_so_far) && (control->length == 0) &&
-		    (sctp_is_feature_on(inp, SCTP_PCB_FLAGS_FRAG_INTERLEAVE))
-		    ) {
+		    (sctp_is_feature_on(inp, SCTP_PCB_FLAGS_FRAG_INTERLEAVE))) {
 			goto release;
 		}
 		if (so->so_rcv.sb_cc <= control->held_length) {

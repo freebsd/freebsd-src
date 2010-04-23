@@ -3,7 +3,6 @@
 
 .include <bsd.own.mk>
 
-# XXX MISSING:		mkproto
 SUBDIR=	${_ac} \
 	${_accton} \
 	${_acpi} \
@@ -168,6 +167,7 @@ SUBDIR=	${_ac} \
 	${_sade} \
 	${_sendmail} \
 	service \
+	services_mkdb \
 	setfib \
 	setfmac \
 	setpmac \

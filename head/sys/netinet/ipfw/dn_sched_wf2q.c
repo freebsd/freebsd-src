@@ -125,7 +125,7 @@ idle_check(struct wf2qp_si *si, int n, int force)
     }
 }
 
-static int 
+static int
 wf2qp_enqueue(struct dn_sch_inst *_si, struct dn_queue *q, struct mbuf *m)
 {
     struct dn_fsk *fs = q->fs;
@@ -140,7 +140,7 @@ wf2qp_enqueue(struct dn_sch_inst *_si, struct dn_queue *q, struct mbuf *m)
 	    return 0;
     }
 
-    /* If reach this point, queue q was idle */ 
+    /* If reach this point, queue q was idle */
     alg_fq = (struct wf2qp_queue *)q;
 
     if (DN_KEY_LT(alg_fq->F, alg_fq->S)) {
@@ -318,7 +318,7 @@ wf2qp_free_queue(struct dn_queue *q)
 {
 	struct wf2qp_queue *alg_fq = (struct wf2qp_queue *)q;
 	struct wf2qp_si *si = (struct wf2qp_si *)(q->_si + 1);
-    
+   
 	if (alg_fq->S >= alg_fq->F + 1)
 		return 0;	/* nothing to do, not in any heap */
 	si->wsum -= q->fs->fs.par[0];
@@ -361,7 +361,7 @@ static struct dn_alg wf2qp_desc = {
 	_SI( .destroy = )  NULL,
 	_SI( .new_sched = ) wf2qp_new_sched,
 	_SI( .free_sched = ) wf2qp_free_sched,
-    
+
 	_SI( .new_fsk = ) wf2qp_new_fsk,
 	_SI( .free_fsk = )  NULL,
 
