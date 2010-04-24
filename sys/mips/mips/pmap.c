@@ -2381,8 +2381,7 @@ pmap_remove_pages(pmap_t pmap)
 		*pte = is_kernel_pmap(pmap) ? PTE_G : 0;
 
 		m = PHYS_TO_VM_PAGE(mips_tlbpfn_to_paddr(tpte));
-
-		KASSERT(m < &vm_page_array[vm_page_array_size],
+		KASSERT(m != NULL,
 		    ("pmap_remove_pages: bad tpte %x", tpte));
 
 		pv->pv_pmap->pm_stats.resident_count--;
@@ -2984,10 +2983,12 @@ page_is_managed(vm_offset_t pa)
 {
 	vm_offset_t pgnum = mips_btop(pa);
 
-	if (pgnum >= first_page && (pgnum < (first_page + vm_page_array_size))) {
+	if (pgnum >= first_page) {
 		vm_page_t m;
 
 		m = PHYS_TO_VM_PAGE(pa);
+		if (m == NULL)
+			return 0;
 		if ((m->flags & (PG_FICTITIOUS | PG_UNMANAGED)) == 0)
 			return 1;
 	}
