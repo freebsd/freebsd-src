@@ -288,6 +288,7 @@ static vm_page_t	mmu_booke_extract_and_hold(mmu_t, pmap_t, vm_offset_t,
 static void		mmu_booke_init(mmu_t);
 static boolean_t	mmu_booke_is_modified(mmu_t, vm_page_t);
 static boolean_t	mmu_booke_is_prefaultable(mmu_t, pmap_t, vm_offset_t);
+static boolean_t	mmu_booke_is_referenced(mmu_t, vm_page_t);
 static boolean_t	mmu_booke_ts_referenced(mmu_t, vm_page_t);
 static vm_offset_t	mmu_booke_map(mmu_t, vm_offset_t *, vm_offset_t, vm_offset_t,
     int);
@@ -342,6 +343,7 @@ static mmu_method_t mmu_booke_methods[] = {
 	MMUMETHOD(mmu_init,		mmu_booke_init),
 	MMUMETHOD(mmu_is_modified,	mmu_booke_is_modified),
 	MMUMETHOD(mmu_is_prefaultable,	mmu_booke_is_prefaultable),
+	MMUMETHOD(mmu_is_referenced,	mmu_booke_is_referenced),
 	MMUMETHOD(mmu_ts_referenced,	mmu_booke_ts_referenced),
 	MMUMETHOD(mmu_map,		mmu_booke_map),
 	MMUMETHOD(mmu_mincore,		mmu_booke_mincore),
@@ -2178,6 +2180,33 @@ mmu_booke_is_prefaultable(mmu_t mmu, pmap_t pmap, vm_offset_t addr)
 {
 
 	return (FALSE);
+}
+
+/*
+ * Return whether or not the specified physical page was referenced
+ * in any physical maps.
+ */
+static boolean_t
+mmu_booke_is_referenced(mmu_t mmu, vm_page_t m)
+{
+	pte_t *pte;
+	pv_entry_t pv;
+	boolean_t rv;
+
+	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
+	rv = FALSE;
+	if ((m->flags & (PG_FICTITIOUS | PG_UNMANAGED)) != 0)
+		return (rv);
+	TAILQ_FOREACH(pv, &m->md.pv_list, pv_link) {
+		PMAP_LOCK(pv->pv_pmap);
+		if ((pte = pte_find(mmu, pv->pv_pmap, pv->pv_va)) != NULL &&
+		    PTE_ISVALID(pte))
+			rv = PTE_ISREFERENCED(pte) ? TRUE : FALSE;
+		PMAP_UNLOCK(pv->pv_pmap);
+		if (rv)
+			break;
+	}
+	return (rv);
 }
 
 /*

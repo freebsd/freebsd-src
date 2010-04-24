@@ -2626,6 +2626,20 @@ pmap_clear_modify(vm_page_t m)
 }
 
 /*
+ *	pmap_is_referenced:
+ *
+ *	Return whether or not the specified physical page was referenced
+ *	in any physical maps.
+ */
+boolean_t
+pmap_is_referenced(vm_page_t m)
+{
+
+	return ((m->flags & PG_FICTITIOUS) == 0 &&
+	    (m->md.pv_flags & PV_TABLE_REF) != 0);
+}
+
+/*
  *	pmap_clear_reference:
  *
  *	Clear the reference bit on the specified physical page.
@@ -2750,10 +2764,8 @@ pmap_mincore(pmap_t pmap, vm_offset_t addr)
 		 * Referenced by us or someone
 		 */
 		vm_page_lock_queues();
-		if ((m->flags & PG_REFERENCED) || pmap_ts_referenced(m)) {
+		if ((m->flags & PG_REFERENCED) || pmap_is_referenced(m))
 			val |= MINCORE_REFERENCED | MINCORE_REFERENCED_OTHER;
-			vm_page_flag_set(m, PG_REFERENCED);
-		}
 		vm_page_unlock_queues();
 	}
 	return val;
