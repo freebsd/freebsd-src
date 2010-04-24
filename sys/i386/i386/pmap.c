@@ -1607,9 +1607,9 @@ pmap_unwire_pte_hold(pmap_t pmap, vm_page_t m, vm_page_t *free)
 
 	--m->wire_count;
 	if (m->wire_count == 0)
-		return _pmap_unwire_pte_hold(pmap, m, free);
+		return (_pmap_unwire_pte_hold(pmap, m, free));
 	else
-		return 0;
+		return (0);
 }
 
 static int 
@@ -1643,7 +1643,7 @@ _pmap_unwire_pte_hold(pmap_t pmap, vm_page_t m, vm_page_t *free)
 	 */
 	pmap_add_delayed_free_list(m, free, TRUE);
 
-	return 1;
+	return (1);
 }
 
 /*
@@ -1657,10 +1657,10 @@ pmap_unuse_pt(pmap_t pmap, vm_offset_t va, vm_page_t *free)
 	vm_page_t mpte;
 
 	if (va >= VM_MAXUSER_ADDRESS)
-		return 0;
+		return (0);
 	ptepde = *pmap_pde(pmap, va);
 	mpte = PHYS_TO_VM_PAGE(ptepde & PG_FRAME);
-	return pmap_unwire_pte_hold(pmap, mpte, free);
+	return (pmap_unwire_pte_hold(pmap, mpte, free));
 }
 
 void
@@ -1811,7 +1811,7 @@ _pmap_allocpte(pmap_t pmap, unsigned ptepindex, int flags)
 	pmap->pm_pdir[ptepindex] =
 		(pd_entry_t) (ptepa | PG_U | PG_RW | PG_V | PG_A | PG_M);
 
-	return m;
+	return (m);
 }
 
 static vm_page_t
@@ -2009,7 +2009,7 @@ kvm_size(SYSCTL_HANDLER_ARGS)
 {
 	unsigned long ksize = VM_MAX_KERNEL_ADDRESS - KERNBASE;
 
-	return sysctl_handle_long(oidp, &ksize, 0, req);
+	return (sysctl_handle_long(oidp, &ksize, 0, req));
 }
 SYSCTL_PROC(_vm, OID_AUTO, kvm_size, CTLTYPE_LONG|CTLFLAG_RD, 
     0, 0, kvm_size, "IU", "Size of KVM");
@@ -2019,7 +2019,7 @@ kvm_free(SYSCTL_HANDLER_ARGS)
 {
 	unsigned long kfree = VM_MAX_KERNEL_ADDRESS - kernel_vm_end;
 
-	return sysctl_handle_long(oidp, &kfree, 0, req);
+	return (sysctl_handle_long(oidp, &kfree, 0, req));
 }
 SYSCTL_PROC(_vm, OID_AUTO, kvm_free, CTLTYPE_LONG|CTLFLAG_RD, 
     0, 0, kvm_free, "IU", "Amount of KVM free");
@@ -2083,7 +2083,7 @@ static __inline struct pv_chunk *
 pv_to_chunk(pv_entry_t pv)
 {
 
-	return (struct pv_chunk *)((uintptr_t)pv & ~(uintptr_t)PAGE_MASK);
+	return ((struct pv_chunk *)((uintptr_t)pv & ~(uintptr_t)PAGE_MASK));
 }
 
 #define PV_PMAP(pv) (pv_to_chunk(pv)->pc_pmap)
@@ -3662,7 +3662,7 @@ pmap_enter_quick_locked(pmap_t pmap, vm_offset_t va, vm_page_t m,
 		pte_store(pte, pa | PG_V | PG_U);
 	else
 		pte_store(pte, pa | PG_V | PG_U | PG_MANAGED);
-	return mpte;
+	return (mpte);
 }
 
 /*
@@ -4059,12 +4059,12 @@ pmap_page_exists_quick(pmap_t pmap, vm_page_t m)
 	int loops = 0;
 
 	if (m->flags & PG_FICTITIOUS)
-		return FALSE;
+		return (FALSE);
 
 	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
 	TAILQ_FOREACH(pv, &m->md.pv_list, pv_list) {
 		if (PV_PMAP(pv) == pmap) {
-			return TRUE;
+			return (TRUE);
 		}
 		loops++;
 		if (loops >= 16)
@@ -4978,7 +4978,7 @@ pmap_mincore(pmap_t pmap, vm_offset_t addr)
 	if (pte != 0) {
 		val |= MINCORE_INCORE;
 		if ((pte & PG_MANAGED) == 0)
-			return val;
+			return (val);
 
 		m = PHYS_TO_VM_PAGE(pa);
 
@@ -5012,7 +5012,7 @@ pmap_mincore(pmap_t pmap, vm_offset_t addr)
 			vm_page_unlock_queues();
 		}
 	} 
-	return val;
+	return (val);
 }
 
 void
@@ -5107,7 +5107,7 @@ pmap_pid_dump(int pid)
 								printf("\n");
 							}
 							sx_sunlock(&allproc_lock);
-							return npte;
+							return (npte);
 						}
 						pte = pmap_pte(pmap, va);
 						if (pte && pmap_pte_v(pte)) {
@@ -5132,7 +5132,7 @@ pmap_pid_dump(int pid)
 		}
 	}
 	sx_sunlock(&allproc_lock);
-	return npte;
+	return (npte);
 }
 #endif
 
