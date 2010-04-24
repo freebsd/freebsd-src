@@ -175,7 +175,7 @@ struct isp_fc {
 		simqfrozen	: 3,
 		default_id	: 8,
 		hysteresis	: 8,
-		role		: 2,
+		def_role	: 2,	/* default role */
 		gdt_running	: 1,
 		loop_dead	: 1,
 		fcbsy		: 1,
@@ -203,7 +203,7 @@ struct isp_spi {
 		tm_enabled	: 1,
 #endif
 		simqfrozen	: 3,
-		role		: 3,
+		def_role	: 2,
 		iid		: 4;
 #ifdef	ISP_TARGET_MODE
 	struct tslist lun_hash[LUN_HASH_SIZE];
@@ -469,12 +469,12 @@ default:							\
 #define	DEFAULT_EXEC_THROTTLE(isp)	isp->isp_osinfo.exec_throttle
 
 #define	GET_DEFAULT_ROLE(isp, chan)	\
-	(IS_FC(isp)? ISP_FC_PC(isp, chan)->role : ISP_SPI_PC(isp, chan)->role)
+	(IS_FC(isp)? ISP_FC_PC(isp, chan)->def_role : ISP_SPI_PC(isp, chan)->def_role)
 #define	SET_DEFAULT_ROLE(isp, chan, val)		\
 	if (IS_FC(isp)) { 				\
-		ISP_FC_PC(isp, chan)->role = val;	\
+		ISP_FC_PC(isp, chan)->def_role = val;	\
 	} else {					\
-		ISP_SPI_PC(isp, chan)->role = val;	\
+		ISP_SPI_PC(isp, chan)->def_role = val;	\
 	}
 
 #define	DEFAULT_IID(isp, chan)		isp->isp_osinfo.pc.spi[chan].iid
