@@ -481,7 +481,6 @@ typedef struct drm_sg_mem {
 	vm_offset_t vaddr;
 	vm_paddr_t *busaddr;
 	vm_pindex_t pages;
-	vm_object_t obj;
 } drm_sg_mem_t;
 
 #define DRM_MAP_HANDLE_BITS	(sizeof(void *) == 4 ? 4 : 24)
