@@ -232,7 +232,8 @@ softdep_setup_directory_add(bp, dp, diroffset, newinum, newdirbp, isnewblk)
 }
 
 void 
-softdep_change_directoryentry_offset(dp, base, oldloc, newloc, entrysize)
+softdep_change_directoryentry_offset(bp, dp, base, oldloc, newloc, entrysize)
+	struct buf *bp;
 	struct inode *dp;
 	caddr_t base;
 	caddr_t oldloc;
