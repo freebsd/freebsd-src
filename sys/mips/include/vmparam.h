@@ -152,9 +152,9 @@
 #define	VM_PHYSSEG_MAX		32
 
 /*
- * The physical address space is densely populated.
+ * The physical address space is sparsely populated.
  */
-#define	VM_PHYSSEG_DENSE
+#define	VM_PHYSSEG_SPARSE
 
 /*
  * Create three free page pools: VM_FREEPOOL_DEFAULT is the default pool
