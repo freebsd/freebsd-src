@@ -4493,6 +4493,20 @@ pmap_clear_modify(vm_page_t m)
 
 
 /*
+ *	pmap_is_referenced:
+ *
+ *	Return whether or not the specified physical page was referenced
+ *	in any physical maps.
+ */
+boolean_t
+pmap_is_referenced(vm_page_t m)
+{
+
+	return ((m->flags & (PG_FICTITIOUS | PG_UNMANAGED)) == 0 &&
+	    (m->md.pvh_attrs & PVF_REF) != 0);
+}
+
+/*
  *	pmap_clear_reference:
  *
  *	Clear the reference bit on the specified physical page.
