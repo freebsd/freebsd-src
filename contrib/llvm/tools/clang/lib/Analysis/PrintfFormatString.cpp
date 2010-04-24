@@ -372,6 +372,7 @@ static FormatSpecifierResult ParseFormatSpecifier(FormatStringHandler &H,
     // FreeBSD format extensions
     case 'b': k = ConversionSpecifier::bArg; break; /* check for int and then char * */
     case 'r': k = ConversionSpecifier::xArg; break;
+    case 'y': k = ConversionSpecifier::iArg; break;
     case 'D': k = ConversionSpecifier::DArg; break; /* check for u_char * pointer and a char * string */
   }
   ConversionSpecifier CS(conversionPosition, k);
