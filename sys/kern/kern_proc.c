@@ -151,6 +151,9 @@ int kstack_pages = KSTACK_PAGES;
 SYSCTL_INT(_kern, OID_AUTO, kstack_pages, CTLFLAG_RD, &kstack_pages, 0, "");
 
 CTASSERT(sizeof(struct kinfo_proc) == KINFO_PROC_SIZE);
+#ifdef COMPAT_FREEBSD32
+CTASSERT(sizeof(struct kinfo_proc32) == KINFO_PROC32_SIZE);
+#endif
 
 /*
  * Initialize global process hashing structures.
