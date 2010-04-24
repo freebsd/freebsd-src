@@ -2023,6 +2023,37 @@ pmap_is_prefaultable(pmap_t pmap, vm_offset_t addr)
 }
 
 /*
+ *	pmap_is_referenced:
+ *
+ *	Return whether or not the specified physical page was referenced
+ *	in any physical maps.
+ */
+boolean_t
+pmap_is_referenced(vm_page_t m)
+{
+	struct ia64_lpte *pte;
+	pmap_t oldpmap;
+	pv_entry_t pv;
+	boolean_t rv;
+
+	rv = FALSE;
+	if (m->flags & PG_FICTITIOUS)
+		return (rv);
+	TAILQ_FOREACH(pv, &m->md.pv_list, pv_list) {
+		PMAP_LOCK(pv->pv_pmap);
+		oldpmap = pmap_switch(pv->pv_pmap);
+		pte = pmap_find_vhpt(pv->pv_va);
+		pmap_switch(oldpmap);
+		KASSERT(pte != NULL, ("pte"));
+		rv = pmap_accessed(pte) ? TRUE : FALSE;
+		PMAP_UNLOCK(pv->pv_pmap);
+		if (rv)
+			break;
+	}
+	return (rv);
+}
+
+/*
  *	Clear the modify bits on the specified physical page.
  */
 void
@@ -2197,10 +2228,8 @@ pmap_mincore(pmap_t pmap, vm_offset_t addr)
 			 * Referenced by someone
 			 */
 			vm_page_lock_queues();
-			if (pmap_ts_referenced(m)) {
+			if (pmap_is_referenced(m))
 				val |= MINCORE_REFERENCED_OTHER;
-				vm_page_flag_set(m, PG_REFERENCED);
-			}
 			vm_page_unlock_queues();
 		}
 	} 

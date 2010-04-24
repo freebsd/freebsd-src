@@ -3718,6 +3718,34 @@ pmap_is_prefaultable(pmap_t pmap, vm_offset_t addr)
 	return (rv);
 }
 
+boolean_t
+pmap_is_referenced(vm_page_t m)
+{
+	pv_entry_t pv;
+	pt_entry_t *pte;
+	pmap_t pmap;
+	boolean_t rv;
+
+	rv = FALSE;
+	if (m->flags & PG_FICTITIOUS)
+		return (rv);
+	sched_pin();
+	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
+	TAILQ_FOREACH(pv, &m->md.pv_list, pv_list) {
+		pmap = PV_PMAP(pv);
+		PMAP_LOCK(pmap);
+		pte = pmap_pte_quick(pmap, pv->pv_va);
+		rv = (*pte & (PG_A | PG_V)) == (PG_A | PG_V);
+		PMAP_UNLOCK(pmap);
+		if (rv)
+			break;
+	}
+	if (*PMAP1)
+		PT_SET_MA(PADDR1, 0);
+	sched_unpin();
+	return (rv);
+}
+
 void
 pmap_map_readonly(pmap_t pmap, vm_offset_t va, int len)
 {
@@ -4145,10 +4173,8 @@ pmap_mincore(pmap_t pmap, vm_offset_t addr)
 			 */
 			vm_page_lock_queues();
 			if ((m->flags & PG_REFERENCED) ||
-			    pmap_ts_referenced(m)) {
+			    pmap_is_referenced(m))
 				val |= MINCORE_REFERENCED_OTHER;
-				vm_page_flag_set(m, PG_REFERENCED);
-			}
 			vm_page_unlock_queues();
 		}
 	} 

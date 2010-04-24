@@ -1592,6 +1592,17 @@ pmap_is_prefaultable(pmap_t pmap, vm_offset_t va)
 }
 
 /*
+ * Return whether or not the specified physical page was referenced
+ * in any physical maps.
+ */
+boolean_t
+pmap_is_referenced(vm_page_t m)
+{
+
+	return (tte_get_phys_bit(m, VTD_REF));
+}
+
+/*
  * Extract the physical page address associated with the given kernel virtual
  * address.
  */
