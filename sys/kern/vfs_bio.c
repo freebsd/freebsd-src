@@ -216,6 +216,14 @@ SYSCTL_LONG(_vfs, OID_AUTO, notbufdflashes, CTLFLAG_RD, &notbufdflashes, 0,
 static int bd_request;
 
 /*
+ * Request for the buf daemon to write more buffers than is indicated by
+ * lodirtybuf.  This may be necessary to push out excess dependencies or
+ * defragment the address space where a simple count of the number of dirty
+ * buffers is insufficient to characterize the demand for flushing them.
+ */
+static int bd_speedupreq;
+
+/*
  * This lock synchronizes access to bd_request.
  */
 static struct mtx bdlock;
@@ -467,12 +475,20 @@ bd_wakeup(int dirtybuflevel)
  * bd_speedup - speedup the buffer cache flushing code
  */
 
-static __inline
 void
 bd_speedup(void)
 {
+	int needwake;
 
-	bd_wakeup(1);
+	mtx_lock(&bdlock);
+	needwake = 0;
+	if (bd_speedupreq == 0 || bd_request == 0)
+		needwake = 1;
+	bd_speedupreq = 1;
+	bd_request = 1;
+	if (needwake)
+		wakeup(&bd_request);
+	mtx_unlock(&bdlock);
 }
 
 /*
@@ -2120,6 +2136,7 @@ buf_do_flush(struct vnode *vp)
 static void
 buf_daemon()
 {
+	int lodirtysave;
 
 	/*
 	 * This process needs to be suspended prior to shutdown sync.
@@ -2137,7 +2154,11 @@ buf_daemon()
 		mtx_unlock(&bdlock);
 
 		kproc_suspend_check(bufdaemonproc);
-
+		lodirtysave = lodirtybuffers;
+		if (bd_speedupreq) {
+			lodirtybuffers = numdirtybuffers / 2;
+			bd_speedupreq = 0;
+		}
 		/*
 		 * Do the flush.  Limit the amount of in-transit I/O we
 		 * allow to build up, otherwise we would completely saturate
@@ -2149,6 +2170,7 @@ buf_daemon()
 				break;
 			uio_yield();
 		}
+		lodirtybuffers = lodirtysave;
 
 		/*
 		 * Only clear bd_request if we have reached our low water

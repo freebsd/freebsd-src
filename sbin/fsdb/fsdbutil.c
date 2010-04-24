@@ -52,7 +52,7 @@ static const char rcsid[] =
 #include "fsck.h"
 
 static int charsperline(void);
-static int printindir(ufs2_daddr_t blk, int level, char *bufp);
+static void printindir(ufs2_daddr_t blk, int level, char *bufp);
 static void printblocks(ino_t inum, union dinode *dp);
 
 char **
@@ -226,7 +226,7 @@ charsperline(void)
 /*
  * Recursively print a list of indirect blocks.
  */
-static int
+static void
 printindir(ufs2_daddr_t blk, int level, char *bufp)
 {
     struct bufarea buf, *bp;
@@ -234,6 +234,9 @@ printindir(ufs2_daddr_t blk, int level, char *bufp)
     int i, j, cpl, charssofar;
     ufs2_daddr_t blkno;
 
+    if (blk == 0)
+	return;
+    printf("%jd (%d) =>\n", (intmax_t)blk, level);
     if (level == 0) {
 	/* for the final indirect level, don't use the cache */
 	bp = &buf;
@@ -251,11 +254,8 @@ printindir(ufs2_daddr_t blk, int level, char *bufp)
 		blkno = bp->b_un.b_indir1[i];
 	else
 		blkno = bp->b_un.b_indir2[i];
-	if (blkno == 0) {
-	    if (level == 0)
-		putchar('\n');
-	    return 0;
-	}
+	if (blkno == 0)
+	    continue;
 	j = sprintf(tempbuf, "%jd", (intmax_t)blkno);
 	if (level == 0) {
 	    charssofar += j;
@@ -270,13 +270,14 @@ printindir(ufs2_daddr_t blk, int level, char *bufp)
 	    charssofar += 2;
 	} else {
 	    printf(" =>\n");
-	    if (printindir(blkno, level - 1, bufp) == 0)
-		return 0;
+	    printindir(blkno, level - 1, bufp);
+	    printf("\n");
+	    charssofar = 0;
 	}
     }
     if (level == 0)
 	putchar('\n');
-    return 1;
+    return;
 }
 
 
@@ -309,7 +310,7 @@ printblocks(ino_t inum, union dinode *dp)
 	}
     }
     putchar('\n');
-    if (DIP(dp, di_ib[0]) == 0)
+    if (ndb == 0)
 	return;
 
     bufp = malloc((unsigned int)sblock.fs_bsize);
@@ -317,8 +318,7 @@ printblocks(ino_t inum, union dinode *dp)
 	errx(EEXIT, "cannot allocate indirect block buffer");
     printf("Indirect blocks:\n");
     for (i = 0; i < NIADDR; i++)
-	if (printindir(DIP(dp, di_ib[i]), i, bufp) == 0)
-	    break;
+	printindir(DIP(dp, di_ib[i]), i, bufp);
     free(bufp);
 }
 
