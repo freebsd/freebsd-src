@@ -298,7 +298,7 @@ else printf(" fhl=0\n");
 	    nfscl_openrelease(op, error, newone);
 	    if (error == NFSERR_GRACE || error == NFSERR_STALECLIENTID ||
 		error == NFSERR_STALEDONTRECOVER || error == NFSERR_DELAY) {
-		(void) nfs_catnap(PZERO, "nfs_open");
+		(void) nfs_catnap(PZERO, error, "nfs_open");
 	    } else if ((error == NFSERR_EXPIRED || error == NFSERR_BADSTATEID)
 		&& clidrev != 0) {
 		expireret = nfscl_hasexpired(nmp->nm_clp, clidrev, p);
@@ -460,7 +460,7 @@ nfsrpc_openrpc(struct nfsmount *nmp, vnode_t vp, u_int8_t *nfhp, int fhlen,
 			ret = nfsrpc_openconfirm(vp, newfhp, newfhlen, op,
 			    cred, p);
 			if (ret == NFSERR_DELAY)
-			    (void) nfs_catnap(PZERO, "nfs_open");
+			    (void) nfs_catnap(PZERO, ret, "nfs_open");
 		    } while (ret == NFSERR_DELAY);
 		    error = ret;
 		}
@@ -484,7 +484,7 @@ nfsrpc_openrpc(struct nfsmount *nmp, vnode_t vp, u_int8_t *nfhp, int fhlen,
 			    newfhlen, mode, op, name, namelen, &ndp, 0, 0x0,
 			    cred, p, syscred, 1);
 			if (ret == NFSERR_DELAY)
-			    (void) nfs_catnap(PZERO, "nfs_open2");
+			    (void) nfs_catnap(PZERO, ret, "nfs_open2");
 		    } while (ret == NFSERR_DELAY);
 		    if (ret) {
 			if (ndp != NULL)
@@ -624,6 +624,7 @@ nfsrpc_doclose(struct nfsmount *nmp, struct nfsclopen *op, NFSPROC_T *p)
 					    nd->nd_repstat == NFSERR_DELAY) &&
 					    error == 0)
 						(void) nfs_catnap(PZERO,
+						    (int)nd->nd_repstat,
 						    "nfs_close");
 				} while ((nd->nd_repstat == NFSERR_GRACE ||
 				    nd->nd_repstat == NFSERR_DELAY) &&
@@ -645,7 +646,7 @@ nfsrpc_doclose(struct nfsmount *nmp, struct nfsclopen *op, NFSPROC_T *p)
 	do {
 		error = nfscl_tryclose(op, tcred, nmp, p);
 		if (error == NFSERR_GRACE)
-			(void) nfs_catnap(PZERO, "nfs_close");
+			(void) nfs_catnap(PZERO, error, "nfs_close");
 	} while (error == NFSERR_GRACE);
 	NFSLOCKCLSTATE();
 	nfscl_lockunlock(&op->nfso_own->nfsow_rwlock);
@@ -999,7 +1000,7 @@ nfsrpc_setattr(vnode_t vp, struct vattr *vap, NFSACL_T *aclp,
 		if (error == NFSERR_GRACE || error == NFSERR_STALESTATEID ||
 		    error == NFSERR_STALEDONTRECOVER || error == NFSERR_DELAY ||
 		    error == NFSERR_OLDSTATEID) {
-			(void) nfs_catnap(PZERO, "nfs_setattr");
+			(void) nfs_catnap(PZERO, error, "nfs_setattr");
 		} else if ((error == NFSERR_EXPIRED ||
 		    error == NFSERR_BADSTATEID) && clidrev != 0) {
 			expireret = nfscl_hasexpired(nmp->nm_clp, clidrev, p);
@@ -1244,7 +1245,7 @@ nfsrpc_read(vnode_t vp, struct uio *uiop, struct ucred *cred,
 		if (error == NFSERR_GRACE || error == NFSERR_STALESTATEID ||
 		    error == NFSERR_STALEDONTRECOVER || error == NFSERR_DELAY ||
 		    error == NFSERR_OLDSTATEID) {
-			(void) nfs_catnap(PZERO, "nfs_read");
+			(void) nfs_catnap(PZERO, error, "nfs_read");
 		} else if ((error == NFSERR_EXPIRED ||
 		    error == NFSERR_BADSTATEID) && clidrev != 0) {
 			expireret = nfscl_hasexpired(nmp->nm_clp, clidrev, p);
@@ -1409,7 +1410,7 @@ nfscl_dumpstate(nmp, 1, 1, 0, 0);
 		if (error == NFSERR_GRACE || error == NFSERR_STALESTATEID ||
 		    error == NFSERR_STALEDONTRECOVER || error == NFSERR_DELAY ||
 		    error == NFSERR_OLDSTATEID) {
-			(void) nfs_catnap(PZERO, "nfs_write");
+			(void) nfs_catnap(PZERO, error, "nfs_write");
 		} else if ((error == NFSERR_EXPIRED ||
 		    error == NFSERR_BADSTATEID) && clidrev != 0) {
 			expireret = nfscl_hasexpired(nmp->nm_clp, clidrev, p);
@@ -1736,7 +1737,7 @@ nfsrpc_create(vnode_t dvp, char *name, int namelen, struct vattr *vap,
 		nfscl_ownerrelease(owp, error, newone, unlocked);
 		if (error == NFSERR_GRACE || error == NFSERR_STALECLIENTID ||
 		    error == NFSERR_STALEDONTRECOVER || error == NFSERR_DELAY) {
-			(void) nfs_catnap(PZERO, "nfs_open");
+			(void) nfs_catnap(PZERO, error, "nfs_open");
 		} else if ((error == NFSERR_EXPIRED ||
 		    error == NFSERR_BADSTATEID) && clidrev != 0) {
 			expireret = nfscl_hasexpired(nmp->nm_clp, clidrev, p);
@@ -1969,7 +1970,7 @@ nfsrpc_createv4(vnode_t dvp, char *name, int namelen, struct vattr *vap,
 			ret = nfsrpc_openconfirm(dvp, nfhp->nfh_fh,
 			    nfhp->nfh_len, op, cred, p);
 			if (ret == NFSERR_DELAY)
-			    (void) nfs_catnap(PZERO, "nfs_create");
+			    (void) nfs_catnap(PZERO, ret, "nfs_create");
 		    } while (ret == NFSERR_DELAY);
 		    error = ret;
 		}
@@ -1991,7 +1992,7 @@ nfsrpc_createv4(vnode_t dvp, char *name, int namelen, struct vattr *vap,
 			    (NFSV4OPEN_ACCESSWRITE | NFSV4OPEN_ACCESSREAD), op,
 			    name, namelen, &dp, 0, 0x0, cred, p, 0, 1);
 			if (ret == NFSERR_DELAY)
-			    (void) nfs_catnap(PZERO, "nfs_crt2");
+			    (void) nfs_catnap(PZERO, ret, "nfs_crt2");
 		    } while (ret == NFSERR_DELAY);
 		    if (ret) {
 			if (dp != NULL)
@@ -3533,7 +3534,8 @@ nfsrpc_advlock(vnode_t vp, off_t size, int op, struct flock *fl,
 			    if ((nd->nd_repstat == NFSERR_GRACE ||
 				 nd->nd_repstat == NFSERR_DELAY) &&
 				error == 0)
-				(void) nfs_catnap(PZERO, "nfs_advlock");
+				(void) nfs_catnap(PZERO, (int)nd->nd_repstat,
+				    "nfs_advlock");
 			} while ((nd->nd_repstat == NFSERR_GRACE ||
 			    nd->nd_repstat == NFSERR_DELAY) && error == 0);
 		    }
@@ -3570,7 +3572,7 @@ nfsrpc_advlock(vnode_t vp, off_t size, int op, struct flock *fl,
 	    if (error == NFSERR_GRACE || error == NFSERR_STALESTATEID ||
 		error == NFSERR_STALEDONTRECOVER ||
 		error == NFSERR_STALECLIENTID || error == NFSERR_DELAY) {
-		(void) nfs_catnap(PZERO, "nfs_advlock");
+		(void) nfs_catnap(PZERO, error, "nfs_advlock");
 	    } else if ((error == NFSERR_EXPIRED || error == NFSERR_BADSTATEID)
 		&& clidrev != 0) {
 		expireret = nfscl_hasexpired(nmp->nm_clp, clidrev, p);

@@ -345,17 +345,21 @@ newnfs_timer(void *arg)
 
 
 /*
- * sleep for a short period of time.
+ * Sleep for a short period of time unless errval == NFSERR_GRACE, where
+ * the sleep should be for 5 seconds.
  * Since lbolt doesn't exist in FreeBSD-CURRENT, just use a timeout on
  * an event that never gets a wakeup. Only return EINTR or 0.
  */
 int
-nfs_catnap(int prio, const char *wmesg)
+nfs_catnap(int prio, int errval, const char *wmesg)
 {
 	static int non_event;
 	int ret;
 
-	ret = tsleep(&non_event, prio, wmesg, 1);
+	if (errval == NFSERR_GRACE)
+		ret = tsleep(&non_event, prio, wmesg, 5 * hz);
+	else
+		ret = tsleep(&non_event, prio, wmesg, 1);
 	if (ret != EINTR)
 		ret = 0;
 	return (ret);

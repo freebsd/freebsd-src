@@ -2871,7 +2871,8 @@ nfs_advlock(struct vop_advlock_args *ap)
 			if (ret == NFSERR_DENIED && (ap->a_flags & F_WAIT) &&
 			    ap->a_op == F_SETLK) {
 				VOP_UNLOCK(vp, 0);
-				error = nfs_catnap(PZERO | PCATCH, "ncladvl");
+				error = nfs_catnap(PZERO | PCATCH, ret,
+				    "ncladvl");
 				if (error)
 					return (EINTR);
 				vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
