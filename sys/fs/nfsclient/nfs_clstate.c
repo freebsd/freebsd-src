@@ -784,7 +784,7 @@ nfscl_getcl(vnode_t vp, struct ucred *cred, NFSPROC_T *p,
 			if (error == NFSERR_STALECLIENTID ||
 			    error == NFSERR_STALEDONTRECOVER ||
 			    error == NFSERR_CLIDINUSE) {
-				(void) nfs_catnap(PZERO, "nfs_setcl");
+				(void) nfs_catnap(PZERO, error, "nfs_setcl");
 			}
 		} while (((error == NFSERR_STALECLIENTID ||
 		     error == NFSERR_STALEDONTRECOVER) && --trystalecnt > 0) ||
@@ -2046,7 +2046,7 @@ nfscl_recover(struct nfsclclient *clp, struct ucred *cred, NFSPROC_T *p)
 			newnfs_copycred(&op->nfso_cred, tcred);
 			error = nfscl_tryclose(op, tcred, nmp, p);
 			if (error == NFSERR_GRACE)
-				(void) nfs_catnap(PZERO, "nfsexcls");
+				(void) nfs_catnap(PZERO, error, "nfsexcls");
 		} while (error == NFSERR_GRACE);
 		LIST_REMOVE(op, nfso_list);
 		FREE((caddr_t)op, M_NFSCLOPEN);
@@ -2059,7 +2059,7 @@ nfscl_recover(struct nfsclclient *clp, struct ucred *cred, NFSPROC_T *p)
 			newnfs_copycred(&dp->nfsdl_cred, tcred);
 			error = nfscl_trydelegreturn(dp, tcred, nmp, p);
 			if (error == NFSERR_GRACE)
-				(void) nfs_catnap(PZERO, "nfsexdlg");
+				(void) nfs_catnap(PZERO, error, "nfsexdlg");
 		} while (error == NFSERR_GRACE);
 		TAILQ_REMOVE(&extra_deleg, dp, nfsdl_list);
 		FREE((caddr_t)dp, M_NFSCLDELEG);
@@ -3619,7 +3619,7 @@ nfscl_tryopen(struct nfsmount *nmp, vnode_t vp, u_int8_t *fhp, int fhlen,
 		    mode, op, name, namelen, ndpp, reclaim, delegtype, cred, p,
 		    0, 0);
 		if (error == NFSERR_DELAY)
-			(void) nfs_catnap(PZERO, "nfstryop");
+			(void) nfs_catnap(PZERO, error, "nfstryop");
 	} while (error == NFSERR_DELAY);
 	if (error == EAUTH || error == EACCES) {
 		/* Try again using system credentials */
@@ -3629,7 +3629,7 @@ nfscl_tryopen(struct nfsmount *nmp, vnode_t vp, u_int8_t *fhp, int fhlen,
 			newfhlen, mode, op, name, namelen, ndpp, reclaim,
 			delegtype, cred, p, 1, 0);
 		    if (error == NFSERR_DELAY)
-			(void) nfs_catnap(PZERO, "nfstryop");
+			(void) nfs_catnap(PZERO, error, "nfstryop");
 		} while (error == NFSERR_DELAY);
 	}
 	return (error);
@@ -3652,7 +3652,8 @@ nfscl_trylock(struct nfsmount *nmp, vnode_t vp, u_int8_t *fhp,
 		error = nfsrpc_lock(nd, nmp, vp, fhp, fhlen, nlp, newone,
 		    reclaim, off, len, type, cred, p, 0);
 		if (!error && nd->nd_repstat == NFSERR_DELAY)
-			(void) nfs_catnap(PZERO, "nfstrylck");
+			(void) nfs_catnap(PZERO, (int)nd->nd_repstat,
+			    "nfstrylck");
 	} while (!error && nd->nd_repstat == NFSERR_DELAY);
 	if (!error)
 		error = nd->nd_repstat;
@@ -3663,7 +3664,8 @@ nfscl_trylock(struct nfsmount *nmp, vnode_t vp, u_int8_t *fhp,
 			error = nfsrpc_lock(nd, nmp, vp, fhp, fhlen, nlp,
 			    newone, reclaim, off, len, type, cred, p, 1);
 			if (!error && nd->nd_repstat == NFSERR_DELAY)
-				(void) nfs_catnap(PZERO, "nfstrylck");
+				(void) nfs_catnap(PZERO, (int)nd->nd_repstat,
+				    "nfstrylck");
 		} while (!error && nd->nd_repstat == NFSERR_DELAY);
 		if (!error)
 			error = nd->nd_repstat;
@@ -3685,7 +3687,7 @@ nfscl_trydelegreturn(struct nfscldeleg *dp, struct ucred *cred,
 	do {
 		error = nfsrpc_delegreturn(dp, cred, nmp, p, 0);
 		if (error == NFSERR_DELAY)
-			(void) nfs_catnap(PZERO, "nfstrydp");
+			(void) nfs_catnap(PZERO, error, "nfstrydp");
 	} while (error == NFSERR_DELAY);
 	if (error == EAUTH || error == EACCES) {
 		/* Try again using system credentials */
@@ -3693,7 +3695,7 @@ nfscl_trydelegreturn(struct nfscldeleg *dp, struct ucred *cred,
 		do {
 			error = nfsrpc_delegreturn(dp, cred, nmp, p, 1);
 			if (error == NFSERR_DELAY)
-				(void) nfs_catnap(PZERO, "nfstrydp");
+				(void) nfs_catnap(PZERO, error, "nfstrydp");
 		} while (error == NFSERR_DELAY);
 	}
 	return (error);
@@ -3714,7 +3716,7 @@ nfscl_tryclose(struct nfsclopen *op, struct ucred *cred,
 	do {
 		error = nfsrpc_closerpc(nd, nmp, op, cred, p, 0);
 		if (error == NFSERR_DELAY)
-			(void) nfs_catnap(PZERO, "nfstrycl");
+			(void) nfs_catnap(PZERO, error, "nfstrycl");
 	} while (error == NFSERR_DELAY);
 	if (error == EAUTH || error == EACCES) {
 		/* Try again using system credentials */
@@ -3722,7 +3724,7 @@ nfscl_tryclose(struct nfsclopen *op, struct ucred *cred,
 		do {
 			error = nfsrpc_closerpc(nd, nmp, op, cred, p, 1);
 			if (error == NFSERR_DELAY)
-				(void) nfs_catnap(PZERO, "nfstrycl");
+				(void) nfs_catnap(PZERO, error, "nfstrycl");
 		} while (error == NFSERR_DELAY);
 	}
 	return (error);
