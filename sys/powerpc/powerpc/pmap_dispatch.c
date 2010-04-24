@@ -195,6 +195,14 @@ pmap_is_prefaultable(pmap_t pmap, vm_offset_t va)
 }
 
 boolean_t
+pmap_is_referenced(vm_page_t m)
+{
+
+	CTR2(KTR_PMAP, "%s(%p)", __func__, m);
+	return (MMU_IS_REFERENCED(mmu_obj, m));
+}
+
+boolean_t
 pmap_ts_referenced(vm_page_t m)
 {
 
