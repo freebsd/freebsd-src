@@ -2815,6 +2815,7 @@ DB_SHOW_COMMAND(mount, db_show_mount)
 	MNT_FLAG(MNT_FORCE);
 	MNT_FLAG(MNT_SNAPSHOT);
 	MNT_FLAG(MNT_BYFSID);
+	MNT_FLAG(MNT_SOFTDEP);
 #undef MNT_FLAG
 	if (flags != 0) {
 		if (buf[0] != '\0')
