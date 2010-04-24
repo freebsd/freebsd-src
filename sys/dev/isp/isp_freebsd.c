@@ -3945,11 +3945,15 @@ isp_gdt(void *arg)
 		if (lp->dev_map_idx == 0 || lp->target_mode) {
 			continue;
 		}
-		if (lp->new_reserved == 0) {
+		/*
+		 * We can use new_portid here because it is untouched
+		 * while the state is ZOMBIE
+		 */
+		if (lp->new_portid == 0) {
 			continue;
 		}
-		lp->new_reserved -= 1;
-		if (lp->new_reserved != 0) {
+		lp->new_portid -= 1;
+		if (lp->new_portid != 0) {
 			more_to_do++;
 			continue;
 		}
@@ -4059,7 +4063,7 @@ isp_kthread(void *arg)
 		 *
 		 * If not, we simply just wait for loop to come up.
 		 */
-		if (lb && (fc->role & ISP_ROLE_INITIATOR)) {
+		if (lb && (FCPARAM(isp, chan)->role & ISP_ROLE_INITIATOR)) {
 			/*
 			 * Increment loop down time by the last sleep interval
 			 */
@@ -4927,7 +4931,7 @@ isp_async(ispsoftc_t *isp, ispasync_t cmd, ...)
 			/*
 			 * We don't do any simq freezing if we are only in target mode
 			 */
-			if (fc->role & ISP_ROLE_INITIATOR) {
+			if (FCPARAM(isp, bus)->role & ISP_ROLE_INITIATOR) {
 				if (fc->path) {
 					isp_freeze_loopdown(isp, bus, msg);
 				}
@@ -4963,7 +4967,7 @@ isp_async(ispsoftc_t *isp, ispasync_t cmd, ...)
 		va_end(ap);
 		fc = ISP_FC_PC(isp, bus);
 		lp->reserved = 0;
-		if ((fc->role & ISP_ROLE_INITIATOR) && (lp->roles & (SVC3_TGT_ROLE >> SVC3_ROLE_SHIFT))) {
+		if ((FCPARAM(isp, bus)->role & ISP_ROLE_INITIATOR) && (lp->roles & (SVC3_TGT_ROLE >> SVC3_ROLE_SHIFT))) {
 			int dbidx = lp - FCPARAM(isp, bus)->portdb;
 			int i;
 
@@ -5051,10 +5055,13 @@ isp_async(ispsoftc_t *isp, ispasync_t cmd, ...)
 		 *
 		 * If it isn't marked that isp_gdt is going to get rid of it,
 		 * announce that it's gone.
+		 *
+		 * We can use new_portid for the gone timer because it's
+		 * undefined while the state is ZOMBIE.
 		 */
 		if (lp->dev_map_idx && lp->reserved == 0) {
 			lp->reserved = 1;
-			lp->new_reserved = ISP_FC_PC(isp, bus)->gone_device_time;
+			lp->new_portid = ISP_FC_PC(isp, bus)->gone_device_time;
 			lp->state = FC_PORTDB_STATE_ZOMBIE;
 			if (fc->ready && !callout_active(&fc->gdt)) {
 				isp_prt(isp, ISP_LOGSANCFG|ISP_LOGDEBUG0, "Chan %d starting Gone Device Timer", bus);
@@ -5101,7 +5108,7 @@ isp_async(ispsoftc_t *isp, ispasync_t cmd, ...)
 			callout_stop(&fc->ldt);
 		}
 		isp_prt(isp, ISP_LOGINFO, msg, bus);
-		if (fc->role & ISP_ROLE_INITIATOR) {
+		if (FCPARAM(isp, bus)->role & ISP_ROLE_INITIATOR) {
 			isp_freeze_loopdown(isp, bus, msg);
 		}
 		wakeup(fc);
