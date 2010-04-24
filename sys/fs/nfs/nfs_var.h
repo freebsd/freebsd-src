@@ -322,7 +322,7 @@ int nfsvno_v4rootexport(struct nfsrv_descript *);
 void newnfs_portinit(void);
 struct ucred *newnfs_getcred(void);
 void newnfs_setroot(struct ucred *);
-int nfs_catnap(int, const char *);
+int nfs_catnap(int, int, const char *);
 struct nfsreferral *nfsv4root_getreferral(vnode_t, vnode_t, u_int32_t);
 int nfsrv_atroot(vnode_t, long *);
 void newnfs_timer(void *);
