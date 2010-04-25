@@ -360,7 +360,7 @@ removerecordregions(int endoff)
 void
 expari(int flag)
 {
-	char *p, *start;
+	char *p, *q, *start;
 	arith_t result;
 	int begoff;
 	int quotes = flag & (EXP_FULL | EXP_CASE | EXP_REDIR);
@@ -398,7 +398,9 @@ expari(int flag)
 	removerecordregions(begoff);
 	if (quotes)
 		rmescapes(p+2);
+	q = grabstackstr(expdest);
 	result = arith(p+2);
+	ungrabstackstr(q, expdest);
 	fmtstr(p, DIGITS(result), ARITH_FORMAT_STR, result);
 	while (*p++)
 		;
