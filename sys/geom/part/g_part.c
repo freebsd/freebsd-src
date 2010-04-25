@@ -855,7 +855,9 @@ g_part_ctl_delete(struct gctl_req *req, struct g_part_parms *gpp)
 static int
 g_part_ctl_destroy(struct gctl_req *req, struct g_part_parms *gpp)
 {
+	struct g_consumer *cp;
 	struct g_geom *gp;
+	struct g_provider *pp;
 	struct g_part_entry *entry;
 	struct g_part_table *null, *table;
 	struct sbuf *sb;
@@ -885,6 +887,11 @@ g_part_ctl_destroy(struct gctl_req *req, struct g_part_parms *gpp)
 	null->gpt_gp = gp;
 	null->gpt_scheme = &g_part_null_scheme;
 	LIST_INIT(&null->gpt_entry);
+
+	cp = LIST_FIRST(&gp->consumer);
+	pp = cp->provider;
+	null->gpt_last = pp->mediasize / pp->sectorsize - 1;
+
 	null->gpt_depth = table->gpt_depth;
 	null->gpt_opened = table->gpt_opened;
 	null->gpt_smhead = table->gpt_smhead;
@@ -1141,9 +1148,15 @@ g_part_ctl_undo(struct gctl_req *req, struct g_part_parms *gpp)
 	    table->gpt_created) ? 1 : 0;
 
 	if (reprobe) {
-		if (!LIST_EMPTY(&table->gpt_entry)) {
+		LIST_FOREACH(entry, &table->gpt_entry, gpe_entry) {
+			if (entry->gpe_internal)
+				continue;
 			error = EBUSY;
 			goto fail;
+		}
+		while ((entry = LIST_FIRST(&table->gpt_entry)) != NULL) {
+			LIST_REMOVE(entry, gpe_entry);
+			g_free(entry);
 		}
 		error = g_part_probe(gp, cp, table->gpt_depth);
 		if (error) {
