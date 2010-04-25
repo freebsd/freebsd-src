@@ -689,11 +689,7 @@ ucomwritecb(usbd_xfer_handle xfer, usbd_private_handle p, usbd_status status)
 			printf("%s: ucomwritecb: STALLED; clearing.\n",
 			       device_get_nameunit(sc->sc_dev));
 			usbd_clear_endpoint_stall_async(sc->sc_bulkout_pipe);
-		} else if (status == USBD_IOERROR) {
-			printf("%s: ucomwritecb: IOERROR; resetting device.\n",
-			       device_get_nameunit(sc->sc_dev));
-			usbd_reset_device(sc->sc_udev);
-		} else if (status != USBD_CANCELLED) {
+		} else {
 			printf("%s: ucomwritecb: %s\n",
 			       device_get_nameunit(sc->sc_dev),
 			       usbd_errstr(status));
@@ -775,19 +771,13 @@ ucomreadcb(usbd_xfer_handle xfer, usbd_private_handle p, usbd_status status)
 			printf("%s: ucomreadcb: %s\n",
 			       device_get_nameunit(sc->sc_dev), usbd_errstr(status));
 		sc->sc_state |= UCS_RXSTOP;
-		if (status == USBD_STALLED)
-			usbd_clear_endpoint_stall_async(sc->sc_bulkin_pipe);
-		else if (status == USBD_IOERROR)
-			usbd_reset_device(sc->sc_udev);
 		if (status == USBD_STALLED) {
 			printf("%s: ucomreadcb: STALLED; clearing.\n",
 			       device_get_nameunit(sc->sc_dev));
 			usbd_clear_endpoint_stall_async(sc->sc_bulkin_pipe);
-		} else if (status == USBD_IOERROR) {
-			printf("%s: ucomreadcb: IOERROR; resetting device.\n",
-			       device_get_nameunit(sc->sc_dev));
-			usbd_reset_device(sc->sc_udev);
-		} else if (status != USBD_CANCELLED) {
+		} else if (status == USBD_CANCELLED) {
+			/* noop */
+		} else {
 			printf("%s: ucomreadcb: %s\n",
 			       device_get_nameunit(sc->sc_dev),
 			       usbd_errstr(status));
