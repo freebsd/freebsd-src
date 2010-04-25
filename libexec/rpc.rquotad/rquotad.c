@@ -126,6 +126,7 @@ sendquota(struct svc_req *request, SVCXPRT *transp)
 	struct getquota_rslt getq_rslt;
 	struct dqblk dqblk;
 	struct timeval timev;
+	int scale;
 
 	bzero(&getq_args, sizeof(getq_args));
 	if (!svc_getargs(transp, (xdrproc_t)xdr_getquota_args, &getq_args)) {
@@ -142,13 +143,15 @@ sendquota(struct svc_req *request, SVCXPRT *transp)
 		gettimeofday(&timev, NULL);
 		getq_rslt.status = Q_OK;
 		getq_rslt.getquota_rslt_u.gqr_rquota.rq_active = TRUE;
-		getq_rslt.getquota_rslt_u.gqr_rquota.rq_bsize = DEV_BSIZE;
+		scale = 1 << flsll(dqblk.dqb_bhardlimit >> 32);
+		getq_rslt.getquota_rslt_u.gqr_rquota.rq_bsize =
+		    DEV_BSIZE * scale;
 		getq_rslt.getquota_rslt_u.gqr_rquota.rq_bhardlimit =
-		    dqblk.dqb_bhardlimit;
+		    dqblk.dqb_bhardlimit / scale;
 		getq_rslt.getquota_rslt_u.gqr_rquota.rq_bsoftlimit =
-		    dqblk.dqb_bsoftlimit;
+		    dqblk.dqb_bsoftlimit / scale;
 		getq_rslt.getquota_rslt_u.gqr_rquota.rq_curblocks =
-		    dqblk.dqb_curblocks;
+		    dqblk.dqb_curblocks / scale;
 		getq_rslt.getquota_rslt_u.gqr_rquota.rq_fhardlimit =
 		    dqblk.dqb_ihardlimit;
 		getq_rslt.getquota_rslt_u.gqr_rquota.rq_fsoftlimit =
