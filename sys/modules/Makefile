@@ -36,7 +36,7 @@ SUBDIR=	${_3dfx} \
 	${_auxio} \
 	${_awi} \
 	axe \
-	bce \
+	${_bce} \
 	bfe \
 	bge \
 	${_bios} \
@@ -68,7 +68,7 @@ SUBDIR=	${_3dfx} \
 	${_cs} \
 	${_ctau} \
 	cue \
-	cxgb \
+	${_cxgb} \
 	${_cx} \
 	${_cyclic} \
 	dc \
@@ -269,7 +269,7 @@ SUBDIR=	${_3dfx} \
 	${_stg} \
 	stge \
 	${_streams} \
-	sym \
+	${_sym} \
 	${_syscons} \
 	sysvipc \
 	ti \
@@ -282,7 +282,7 @@ SUBDIR=	${_3dfx} \
 	txp \
 	u3g \
 	uark \
-	uart \
+	${_uart} \
 	ubsa \
 	ubsec \
 	ubser \
@@ -341,9 +341,16 @@ SUBDIR=	${_3dfx} \
 	zlib \
 	zyd
 
-.if ${MACHINE_ARCH} != "powerpc"
+.if ${MACHINE_ARCH} != "powerpc" && ${MACHINE_ARCH} != "arm"
 _syscons=	syscons
 _vpo=		vpo
+.endif
+
+.if ${MACHINE_ARCH} != "arm"
+_bce=		bce
+_cxgb=		cxgb
+_sym=		sym
+_uart=		uart
 .endif
 
 .if defined(ALL_MODULES)
