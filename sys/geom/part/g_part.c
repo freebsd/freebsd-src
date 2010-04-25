@@ -1166,6 +1166,15 @@ g_part_ctl_undo(struct gctl_req *req, struct g_part_parms *gpp)
 			return (0);
 		}
 		table = gp->softc;
+
+		/*
+		 * Synthesize a disk geometry. Some partitioning schemes
+		 * depend on it and since some file systems need it even
+		 * when the partitition scheme doesn't, we do it here in
+		 * scheme-independent code.
+		 */
+		pp = cp->provider;
+		g_part_geometry(table, cp, pp->mediasize / pp->sectorsize);
 	}
 
 	error = G_PART_READ(table, cp);
