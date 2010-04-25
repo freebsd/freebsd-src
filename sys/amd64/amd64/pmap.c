@@ -2793,9 +2793,9 @@ pmap_remove_all(vm_page_t m)
 	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
 	pvh = pa_to_pvh(VM_PAGE_TO_PHYS(m));
 	while ((pv = TAILQ_FIRST(&pvh->pv_list)) != NULL) {
-		va = pv->pv_va;
 		pmap = PV_PMAP(pv);
 		PMAP_LOCK(pmap);
+		va = pv->pv_va;
 		pde = pmap_pde(pmap, va);
 		(void)pmap_demote_pde(pmap, pde, va);
 		PMAP_UNLOCK(pmap);
