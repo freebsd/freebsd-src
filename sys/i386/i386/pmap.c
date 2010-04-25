@@ -2955,18 +2955,9 @@ retry:
 	if (oldpde & PG_MANAGED) {
 		eva = sva + NBPDR;
 		for (va = sva, m = PHYS_TO_VM_PAGE(oldpde & PG_PS_FRAME);
-		    va < eva; va += PAGE_SIZE, m++) {
-			/*
-			 * In contrast to the analogous operation on a 4KB page
-			 * mapping, the mapping's PG_A flag is not cleared and
-			 * the page's PG_REFERENCED flag is not set.  The
-			 * reason is that pmap_demote_pde() expects that a 2/4MB
-			 * page mapping with a stored page table page has PG_A
-			 * set.
-			 */
+		    va < eva; va += PAGE_SIZE, m++)
 			if ((oldpde & (PG_M | PG_RW)) == (PG_M | PG_RW))
 				vm_page_dirty(m);
-		}
 	}
 	if ((prot & VM_PROT_WRITE) == 0)
 		newpde &= ~(PG_RW | PG_M);
@@ -3074,22 +3065,15 @@ retry:
 			obits = pbits = *pte;
 			if ((pbits & PG_V) == 0)
 				continue;
-			if (pbits & PG_MANAGED) {
-				m = NULL;
-				if (pbits & PG_A) {
+
+			if ((prot & VM_PROT_WRITE) == 0) {
+				if ((pbits & (PG_MANAGED | PG_M | PG_RW)) ==
+				    (PG_MANAGED | PG_M | PG_RW)) {
 					m = PHYS_TO_VM_PAGE(pbits & PG_FRAME);
-					vm_page_flag_set(m, PG_REFERENCED);
-					pbits &= ~PG_A;
-				}
-				if ((pbits & (PG_M | PG_RW)) == (PG_M | PG_RW)) {
-					if (m == NULL)
-						m = PHYS_TO_VM_PAGE(pbits & PG_FRAME);
 					vm_page_dirty(m);
 				}
-			}
-
-			if ((prot & VM_PROT_WRITE) == 0)
 				pbits &= ~(PG_RW | PG_M);
+			}
 #ifdef PAE
 			if ((prot & VM_PROT_EXECUTE) == 0)
 				pbits |= pg_nx;
