@@ -29,6 +29,7 @@
  *	@(#)rtsock.c	8.7 (Berkeley) 10/12/95
  * $FreeBSD$
  */
+#include "opt_compat.h"
 #include "opt_sctp.h"
 #include "opt_mpath.h"
 #include "opt_inet.h"
@@ -69,6 +70,49 @@
 #ifdef SCTP
 extern void sctp_addr_change(struct ifaddr *ifa, int cmd);
 #endif /* SCTP */
+#endif
+
+#ifdef COMPAT_FREEBSD32
+#include <sys/mount.h>
+#include <compat/freebsd32/freebsd32.h>
+
+struct if_data32 {
+	uint8_t	ifi_type;
+	uint8_t	ifi_physical;
+	uint8_t	ifi_addrlen;
+	uint8_t	ifi_hdrlen;
+	uint8_t	ifi_link_state;
+	uint8_t	ifi_spare_char1;
+	uint8_t	ifi_spare_char2;
+	uint8_t	ifi_datalen;
+	uint32_t ifi_mtu;
+	uint32_t ifi_metric;
+	uint32_t ifi_baudrate;
+	uint32_t ifi_ipackets;
+	uint32_t ifi_ierrors;
+	uint32_t ifi_opackets;
+	uint32_t ifi_oerrors;
+	uint32_t ifi_collisions;
+	uint32_t ifi_ibytes;
+	uint32_t ifi_obytes;
+	uint32_t ifi_imcasts;
+	uint32_t ifi_omcasts;
+	uint32_t ifi_iqdrops;
+	uint32_t ifi_noproto;
+	uint32_t ifi_hwassist;
+	int32_t	ifi_epoch;
+	struct	timeval32 ifi_lastchange;
+};
+
+struct if_msghdr32 {
+	uint16_t ifm_msglen;
+	uint8_t	ifm_version;
+	uint8_t	ifm_type;
+	int32_t	ifm_addrs;
+	int32_t	ifm_flags;
+	uint16_t ifm_index;
+	struct	if_data32 ifm_data;
+};
 #endif
 
 MALLOC_DEFINE(M_RTABLE, "routetbl", "routing tables");
@@ -1001,6 +1045,12 @@ again:
 		break;
 
 	case RTM_IFINFO:
+#ifdef COMPAT_FREEBSD32
+		if (w != NULL && w->w_req->flags & SCTL_MASK32) {
+			len = sizeof(struct if_msghdr32);
+			break;
+		}
+#endif
 		len = sizeof(struct if_msghdr);
 		break;
 
@@ -1367,6 +1417,38 @@ sysctl_dumpentry(struct radix_node *rn, void *vw)
 	return (error);
 }
 
+#ifdef COMPAT_FREEBSD32
+static void
+copy_ifdata32(struct if_data *src, struct if_data32 *dst)
+{
+
+	bzero(dst, sizeof(*dst));
+	CP(*src, *dst, ifi_type);
+	CP(*src, *dst, ifi_physical);
+	CP(*src, *dst, ifi_addrlen);
+	CP(*src, *dst, ifi_hdrlen);
+	CP(*src, *dst, ifi_link_state);
+	CP(*src, *dst, ifi_datalen);
+	CP(*src, *dst, ifi_mtu);
+	CP(*src, *dst, ifi_metric);
+	CP(*src, *dst, ifi_baudrate);
+	CP(*src, *dst, ifi_ipackets);
+	CP(*src, *dst, ifi_ierrors);
+	CP(*src, *dst, ifi_opackets);
+	CP(*src, *dst, ifi_oerrors);
+	CP(*src, *dst, ifi_collisions);
+	CP(*src, *dst, ifi_ibytes);
+	CP(*src, *dst, ifi_obytes);
+	CP(*src, *dst, ifi_imcasts);
+	CP(*src, *dst, ifi_omcasts);
+	CP(*src, *dst, ifi_iqdrops);
+	CP(*src, *dst, ifi_noproto);
+	CP(*src, *dst, ifi_hwassist);
+	CP(*src, *dst, ifi_epoch);
+	TV_CP(*src, *dst, ifi_lastchange);
+}
+#endif
+
 static int
 sysctl_iflist(int af, struct walkarg *w)
 {
@@ -1387,12 +1469,30 @@ sysctl_iflist(int af, struct walkarg *w)
 		if (w->w_req && w->w_tmem) {
 			struct if_msghdr *ifm;
 
+#ifdef COMPAT_FREEBSD32
+			if (w->w_req->flags & SCTL_MASK32) {
+				struct if_msghdr32 *ifm32;
+
+				ifm32 = (struct if_msghdr32 *)w->w_tmem;
+				ifm32->ifm_index = ifp->if_index;
+				ifm32->ifm_flags = ifp->if_flags |
+				    ifp->if_drv_flags;
+				copy_ifdata32(&ifp->if_data, &ifm32->ifm_data);
+				ifm32->ifm_addrs = info.rti_addrs;
+				error = SYSCTL_OUT(w->w_req, (caddr_t)ifm32,
+				    len);
+				goto sysctl_out;
+			}
+#endif
 			ifm = (struct if_msghdr *)w->w_tmem;
 			ifm->ifm_index = ifp->if_index;
 			ifm->ifm_flags = ifp->if_flags | ifp->if_drv_flags;
 			ifm->ifm_data = ifp->if_data;
 			ifm->ifm_addrs = info.rti_addrs;
-			error = SYSCTL_OUT(w->w_req,(caddr_t)ifm, len);
+			error = SYSCTL_OUT(w->w_req, (caddr_t)ifm, len);
+#ifdef COMPAT_FREEBSD32
+		sysctl_out:
+#endif
 			if (error)
 				goto done;
 		}
