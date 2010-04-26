@@ -1,8 +1,8 @@
-/*******************************************************************************
+/******************************************************************************
  *
- * Module Name: nsnames - Name manipulation and search
+ * Module Name: exdebug - Support for stores to the AML Debug Object
  *
- ******************************************************************************/
+ *****************************************************************************/
 
 /******************************************************************************
  *
@@ -113,263 +113,238 @@
  *
  *****************************************************************************/
 
-#define __NSNAMES_C__
+#define __EXDEBUG_C__
 
 #include <contrib/dev/acpica/include/acpi.h>
 #include <contrib/dev/acpica/include/accommon.h>
-#include <contrib/dev/acpica/include/amlcode.h>
-#include <contrib/dev/acpica/include/acnamesp.h>
+#include <contrib/dev/acpica/include/acinterp.h>
 
 
-#define _COMPONENT          ACPI_NAMESPACE
-        ACPI_MODULE_NAME    ("nsnames")
+#define _COMPONENT          ACPI_EXECUTER
+        ACPI_MODULE_NAME    ("exdebug")
 
 
+#ifndef ACPI_NO_ERROR_MESSAGES
 /*******************************************************************************
  *
- * FUNCTION:    AcpiNsBuildExternalPath
+ * FUNCTION:    AcpiExDoDebugObject
  *
- * PARAMETERS:  Node            - NS node whose pathname is needed
- *              Size            - Size of the pathname
- *              *NameBuffer     - Where to return the pathname
+ * PARAMETERS:  SourceDesc          - Object to be output to "Debug Object"
+ *              Level               - Indentation level (used for packages)
+ *              Index               - Current package element, zero if not pkg
  *
- * RETURN:      Status
- *              Places the pathname into the NameBuffer, in external format
- *              (name segments separated by path separators)
+ * RETURN:      None
  *
- * DESCRIPTION: Generate a full pathaname
+ * DESCRIPTION: Handles stores to the AML Debug Object. For example:
+ *              Store(INT1, Debug)
+ *
+ * This function is not compiled if ACPI_NO_ERROR_MESSAGES is set.
+ *
+ * This function is only enabled if AcpiGbl_EnableAmlDebugObject is set, or
+ * if ACPI_LV_DEBUG_OBJECT is set in the AcpiDbgLevel. Thus, in the normal
+ * operational case, stores to the debug object are ignored but can be easily
+ * enabled if necessary.
  *
  ******************************************************************************/
 
-ACPI_STATUS
-AcpiNsBuildExternalPath (
-    ACPI_NAMESPACE_NODE     *Node,
-    ACPI_SIZE               Size,
-    char                    *NameBuffer)
+void
+AcpiExDoDebugObject (
+    ACPI_OPERAND_OBJECT     *SourceDesc,
+    UINT32                  Level,
+    UINT32                  Index)
 {
-    ACPI_SIZE               Index;
-    ACPI_NAMESPACE_NODE     *ParentNode;
+    UINT32                  i;
 
 
-    ACPI_FUNCTION_ENTRY ();
+    ACPI_FUNCTION_TRACE_PTR (ExDoDebugObject, SourceDesc);
 
 
-    /* Special case for root */
+    /* Output must be enabled via the DebugObject global or the DbgLevel */
 
-    Index = Size - 1;
-    if (Index < ACPI_NAME_SIZE)
+    if (!AcpiGbl_EnableAmlDebugObject &&
+        !(AcpiDbgLevel & ACPI_LV_DEBUG_OBJECT))
     {
-        NameBuffer[0] = AML_ROOT_PREFIX;
-        NameBuffer[1] = 0;
-        return (AE_OK);
+        return_VOID;
     }
-
-    /* Store terminator byte, then build name backwards */
-
-    ParentNode = Node;
-    NameBuffer[Index] = 0;
-
-    while ((Index > ACPI_NAME_SIZE) && (ParentNode != AcpiGbl_RootNode))
-    {
-        Index -= ACPI_NAME_SIZE;
-
-        /* Put the name into the buffer */
-
-        ACPI_MOVE_32_TO_32 ((NameBuffer + Index), &ParentNode->Name);
-        ParentNode = AcpiNsGetParentNode (ParentNode);
-
-        /* Prefix name with the path separator */
-
-        Index--;
-        NameBuffer[Index] = ACPI_PATH_SEPARATOR;
-    }
-
-    /* Overwrite final separator with the root prefix character */
-
-    NameBuffer[Index] = AML_ROOT_PREFIX;
-
-    if (Index != 0)
-    {
-        ACPI_ERROR ((AE_INFO,
-            "Could not construct external pathname; index=%u, size=%u, Path=%s",
-            (UINT32) Index, (UINT32) Size, &NameBuffer[Size]));
-
-        return (AE_BAD_PARAMETER);
-    }
-
-    return (AE_OK);
-}
-
-
-/*******************************************************************************
- *
- * FUNCTION:    AcpiNsGetExternalPathname
- *
- * PARAMETERS:  Node            - Namespace node whose pathname is needed
- *
- * RETURN:      Pointer to storage containing the fully qualified name of
- *              the node, In external format (name segments separated by path
- *              separators.)
- *
- * DESCRIPTION: Used to obtain the full pathname to a namespace node, usually
- *              for error and debug statements.
- *
- ******************************************************************************/
-
-char *
-AcpiNsGetExternalPathname (
-    ACPI_NAMESPACE_NODE     *Node)
-{
-    ACPI_STATUS             Status;
-    char                    *NameBuffer;
-    ACPI_SIZE               Size;
-
-
-    ACPI_FUNCTION_TRACE_PTR (NsGetExternalPathname, Node);
-
-
-    /* Calculate required buffer size based on depth below root */
-
-    Size = AcpiNsGetPathnameLength (Node);
-    if (!Size)
-    {
-        return_PTR (NULL);
-    }
-
-    /* Allocate a buffer to be returned to caller */
-
-    NameBuffer = ACPI_ALLOCATE_ZEROED (Size);
-    if (!NameBuffer)
-    {
-        ACPI_ERROR ((AE_INFO, "Could not allocate %u bytes", (UINT32) Size));
-        return_PTR (NULL);
-    }
-
-    /* Build the path in the allocated buffer */
-
-    Status = AcpiNsBuildExternalPath (Node, Size, NameBuffer);
-    if (ACPI_FAILURE (Status))
-    {
-        ACPI_FREE (NameBuffer);
-        return_PTR (NULL);
-    }
-
-    return_PTR (NameBuffer);
-}
-
-
-/*******************************************************************************
- *
- * FUNCTION:    AcpiNsGetPathnameLength
- *
- * PARAMETERS:  Node        - Namespace node
- *
- * RETURN:      Length of path, including prefix
- *
- * DESCRIPTION: Get the length of the pathname string for this node
- *
- ******************************************************************************/
-
-ACPI_SIZE
-AcpiNsGetPathnameLength (
-    ACPI_NAMESPACE_NODE     *Node)
-{
-    ACPI_SIZE               Size;
-    ACPI_NAMESPACE_NODE     *NextNode;
-
-
-    ACPI_FUNCTION_ENTRY ();
-
 
     /*
-     * Compute length of pathname as 5 * number of name segments.
-     * Go back up the parent tree to the root
+     * Print line header as long as we are not in the middle of an
+     * object display
      */
-    Size = 0;
-    NextNode = Node;
-
-    while (NextNode && (NextNode != AcpiGbl_RootNode))
+    if (!((Level > 0) && Index == 0))
     {
-        if (ACPI_GET_DESCRIPTOR_TYPE (NextNode) != ACPI_DESC_TYPE_NAMED)
+        AcpiOsPrintf ("[ACPI Debug] %*s", Level, " ");
+    }
+
+    /* Display the index for package output only */
+
+    if (Index > 0)
+    {
+       AcpiOsPrintf ("(%.2u) ", Index-1);
+    }
+
+    if (!SourceDesc)
+    {
+        AcpiOsPrintf ("[Null Object]\n");
+        return_VOID;
+    }
+
+    if (ACPI_GET_DESCRIPTOR_TYPE (SourceDesc) == ACPI_DESC_TYPE_OPERAND)
+    {
+        AcpiOsPrintf ("%s ", AcpiUtGetObjectTypeName (SourceDesc));
+
+        if (!AcpiUtValidInternalObject (SourceDesc))
         {
-            ACPI_ERROR ((AE_INFO,
-                "Invalid Namespace Node (%p) while traversing namespace",
-                NextNode));
-            return 0;
+           AcpiOsPrintf ("%p, Invalid Internal Object!\n", SourceDesc);
+           return_VOID;
         }
-        Size += ACPI_PATH_SEGMENT_LENGTH;
-        NextNode = AcpiNsGetParentNode (NextNode);
     }
-
-    if (!Size)
+    else if (ACPI_GET_DESCRIPTOR_TYPE (SourceDesc) == ACPI_DESC_TYPE_NAMED)
     {
-        Size = 1; /* Root node case */
+        AcpiOsPrintf ("%s: %p\n",
+            AcpiUtGetTypeName (((ACPI_NAMESPACE_NODE *) SourceDesc)->Type),
+            SourceDesc);
+        return_VOID;
+    }
+    else
+    {
+        return_VOID;
     }
 
-    return (Size + 1);  /* +1 for null string terminator */
+    /* SourceDesc is of type ACPI_DESC_TYPE_OPERAND */
+
+    switch (SourceDesc->Common.Type)
+    {
+    case ACPI_TYPE_INTEGER:
+
+        /* Output correct integer width */
+
+        if (AcpiGbl_IntegerByteWidth == 4)
+        {
+            AcpiOsPrintf ("0x%8.8X\n",
+                (UINT32) SourceDesc->Integer.Value);
+        }
+        else
+        {
+            AcpiOsPrintf ("0x%8.8X%8.8X\n",
+                ACPI_FORMAT_UINT64 (SourceDesc->Integer.Value));
+        }
+        break;
+
+    case ACPI_TYPE_BUFFER:
+
+        AcpiOsPrintf ("[0x%.2X]\n", (UINT32) SourceDesc->Buffer.Length);
+        AcpiUtDumpBuffer2 (SourceDesc->Buffer.Pointer,
+            (SourceDesc->Buffer.Length < 256) ?
+                SourceDesc->Buffer.Length : 256, DB_BYTE_DISPLAY);
+        break;
+
+    case ACPI_TYPE_STRING:
+
+        AcpiOsPrintf ("[0x%.2X] \"%s\"\n",
+            SourceDesc->String.Length, SourceDesc->String.Pointer);
+        break;
+
+    case ACPI_TYPE_PACKAGE:
+
+        AcpiOsPrintf ("[Contains 0x%.2X Elements]\n",
+            SourceDesc->Package.Count);
+
+        /* Output the entire contents of the package */
+
+        for (i = 0; i < SourceDesc->Package.Count; i++)
+        {
+            AcpiExDoDebugObject (SourceDesc->Package.Elements[i],
+                Level+4, i+1);
+        }
+        break;
+
+    case ACPI_TYPE_LOCAL_REFERENCE:
+
+        AcpiOsPrintf ("[%s] ", AcpiUtGetReferenceName (SourceDesc));
+
+        /* Decode the reference */
+
+        switch (SourceDesc->Reference.Class)
+        {
+        case ACPI_REFCLASS_INDEX:
+
+            AcpiOsPrintf ("0x%X\n", SourceDesc->Reference.Value);
+            break;
+
+        case ACPI_REFCLASS_TABLE:
+
+            /* Case for DdbHandle */
+
+            AcpiOsPrintf ("Table Index 0x%X\n", SourceDesc->Reference.Value);
+            return;
+
+        default:
+            break;
+        }
+
+        AcpiOsPrintf ("  ");
+
+        /* Check for valid node first, then valid object */
+
+        if (SourceDesc->Reference.Node)
+        {
+            if (ACPI_GET_DESCRIPTOR_TYPE (SourceDesc->Reference.Node) !=
+                    ACPI_DESC_TYPE_NAMED)
+            {
+                AcpiOsPrintf (" %p - Not a valid namespace node\n",
+                    SourceDesc->Reference.Node);
+            }
+            else
+            {
+                AcpiOsPrintf ("Node %p [%4.4s] ", SourceDesc->Reference.Node,
+                    (SourceDesc->Reference.Node)->Name.Ascii);
+
+                switch ((SourceDesc->Reference.Node)->Type)
+                {
+                /* These types have no attached object */
+
+                case ACPI_TYPE_DEVICE:
+                    AcpiOsPrintf ("Device\n");
+                    break;
+
+                case ACPI_TYPE_THERMAL:
+                    AcpiOsPrintf ("Thermal Zone\n");
+                    break;
+
+                default:
+                    AcpiExDoDebugObject ((SourceDesc->Reference.Node)->Object,
+                        Level+4, 0);
+                    break;
+                }
+            }
+        }
+        else if (SourceDesc->Reference.Object)
+        {
+            if (ACPI_GET_DESCRIPTOR_TYPE (SourceDesc->Reference.Object) ==
+                    ACPI_DESC_TYPE_NAMED)
+            {
+                AcpiExDoDebugObject (((ACPI_NAMESPACE_NODE *)
+                    SourceDesc->Reference.Object)->Object,
+                    Level+4, 0);
+            }
+            else
+            {
+                AcpiExDoDebugObject (SourceDesc->Reference.Object,
+                    Level+4, 0);
+            }
+        }
+        break;
+
+    default:
+
+        AcpiOsPrintf ("%p\n", SourceDesc);
+        break;
+    }
+
+    ACPI_DEBUG_PRINT_RAW ((ACPI_DB_EXEC, "\n"));
+    return_VOID;
 }
-
-
-/*******************************************************************************
- *
- * FUNCTION:    AcpiNsHandleToPathname
- *
- * PARAMETERS:  TargetHandle            - Handle of named object whose name is
- *                                        to be found
- *              Buffer                  - Where the pathname is returned
- *
- * RETURN:      Status, Buffer is filled with pathname if status is AE_OK
- *
- * DESCRIPTION: Build and return a full namespace pathname
- *
- ******************************************************************************/
-
-ACPI_STATUS
-AcpiNsHandleToPathname (
-    ACPI_HANDLE             TargetHandle,
-    ACPI_BUFFER             *Buffer)
-{
-    ACPI_STATUS             Status;
-    ACPI_NAMESPACE_NODE     *Node;
-    ACPI_SIZE               RequiredSize;
-
-
-    ACPI_FUNCTION_TRACE_PTR (NsHandleToPathname, TargetHandle);
-
-
-    Node = AcpiNsValidateHandle (TargetHandle);
-    if (!Node)
-    {
-        return_ACPI_STATUS (AE_BAD_PARAMETER);
-    }
-
-    /* Determine size required for the caller buffer */
-
-    RequiredSize = AcpiNsGetPathnameLength (Node);
-    if (!RequiredSize)
-    {
-        return_ACPI_STATUS (AE_BAD_PARAMETER);
-    }
-
-    /* Validate/Allocate/Clear caller buffer */
-
-    Status = AcpiUtInitializeBuffer (Buffer, RequiredSize);
-    if (ACPI_FAILURE (Status))
-    {
-        return_ACPI_STATUS (Status);
-    }
-
-    /* Build the path in the caller buffer */
-
-    Status = AcpiNsBuildExternalPath (Node, RequiredSize, Buffer->Pointer);
-    if (ACPI_FAILURE (Status))
-    {
-        return_ACPI_STATUS (Status);
-    }
-
-    ACPI_DEBUG_PRINT ((ACPI_DB_EXEC, "%s [%X]\n",
-        (char *) Buffer->Pointer, (UINT32) RequiredSize));
-    return_ACPI_STATUS (AE_OK);
-}
+#endif
 
 
