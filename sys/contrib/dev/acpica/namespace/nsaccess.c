@@ -306,7 +306,7 @@ AcpiNsRootInitialize (
 
             default:
 
-                ACPI_ERROR ((AE_INFO, "Unsupported initial type value %X",
+                ACPI_ERROR ((AE_INFO, "Unsupported initial type value 0x%X",
                     InitVal->Type));
                 AcpiUtRemoveReference (ObjDesc);
                 ObjDesc = NULL;

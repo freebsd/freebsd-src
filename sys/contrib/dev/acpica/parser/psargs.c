@@ -577,7 +577,7 @@ AcpiPsGetNextSimpleArg (
 
     default:
 
-        ACPI_ERROR ((AE_INFO, "Invalid ArgType %X", ArgType));
+        ACPI_ERROR ((AE_INFO, "Invalid ArgType 0x%X", ArgType));
         return_VOID;
     }
 
@@ -883,7 +883,7 @@ AcpiPsGetNextArg (
 
     default:
 
-        ACPI_ERROR ((AE_INFO, "Invalid ArgType: %X", ArgType));
+        ACPI_ERROR ((AE_INFO, "Invalid ArgType: 0x%X", ArgType));
         Status = AE_AML_OPERAND_TYPE;
         break;
     }

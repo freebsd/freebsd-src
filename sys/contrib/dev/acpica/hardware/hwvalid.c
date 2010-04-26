@@ -237,7 +237,7 @@ AcpiHwValidateIoRequest (
     if (LastAddress > ACPI_UINT16_MAX)
     {
         ACPI_ERROR ((AE_INFO,
-            "Illegal I/O port address/length above 64K: 0x%p/%X",
+            "Illegal I/O port address/length above 64K: %p/0x%X",
             ACPI_CAST_PTR (void, Address), ByteWidth));
         return_ACPI_STATUS (AE_LIMIT);
     }

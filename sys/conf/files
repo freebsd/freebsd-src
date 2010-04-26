@@ -184,6 +184,7 @@ contrib/dev/acpica/events/evxfregn.c		optional acpi
 contrib/dev/acpica/executer/exconfig.c		optional acpi
 contrib/dev/acpica/executer/exconvrt.c		optional acpi
 contrib/dev/acpica/executer/excreate.c		optional acpi
+contrib/dev/acpica/executer/exdebug.c		optional acpi
 contrib/dev/acpica/executer/exdump.c		optional acpi
 contrib/dev/acpica/executer/exfield.c		optional acpi
 contrib/dev/acpica/executer/exfldio.c		optional acpi
