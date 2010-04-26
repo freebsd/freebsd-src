@@ -1737,8 +1737,14 @@ ale_encap(struct ale_softc *sc, struct mbuf **m_head)
 	bus_dmamap_sync(sc->ale_cdata.ale_tx_tag, map, BUS_DMASYNC_PREWRITE);
 
 	m = *m_head;
-	/* Configure Tx checksum offload. */
-	if ((m->m_pkthdr.csum_flags & ALE_CSUM_FEATURES) != 0) {
+	if ((m->m_pkthdr.csum_flags & CSUM_TSO) != 0) {
+		/* Request TSO and set MSS. */
+		cflags |= ALE_TD_TSO;
+		cflags |= ((uint32_t)m->m_pkthdr.tso_segsz << ALE_TD_MSS_SHIFT);
+		/* Set IP/TCP header size. */
+		cflags |= ip->ip_hl << ALE_TD_IPHDR_LEN_SHIFT;
+		cflags |= tcp->th_off << ALE_TD_TCPHDR_LEN_SHIFT;
+	} else if ((m->m_pkthdr.csum_flags & ALE_CSUM_FEATURES) != 0) {
 		/*
 		 * AR81xx supports Tx custom checksum offload feature
 		 * that offloads single 16bit checksum computation.
@@ -1767,15 +1773,6 @@ ale_encap(struct ale_softc *sc, struct mbuf **m_head)
 		/* Set checksum insertion position of TCP/UDP. */
 		cflags |= ((poff + m->m_pkthdr.csum_data) <<
 		    ALE_TD_CSUM_XSUMOFFSET_SHIFT);
-	}
-
-	if ((m->m_pkthdr.csum_flags & CSUM_TSO) != 0) {
-		/* Request TSO and set MSS. */
-		cflags |= ALE_TD_TSO;
-		cflags |= ((uint32_t)m->m_pkthdr.tso_segsz << ALE_TD_MSS_SHIFT);
-		/* Set IP/TCP header size. */
-		cflags |= ip->ip_hl << ALE_TD_IPHDR_LEN_SHIFT;
-		cflags |= tcp->th_off << ALE_TD_TCPHDR_LEN_SHIFT;
 	}
 
 	/* Configure VLAN hardware tag insertion. */
