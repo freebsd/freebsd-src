@@ -253,6 +253,7 @@ SUBDIR=	${_3dfx} \
 	sdhci \
 	sem \
 	sf \
+	sge \
 	${_sio} \
 	sis \
 	sk \
