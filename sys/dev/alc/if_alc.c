@@ -1908,28 +1908,7 @@ alc_encap(struct alc_softc *sc, struct mbuf **m_head)
 		vtag = (vtag << TD_VLAN_SHIFT) & TD_VLAN_MASK;
 		cflags |= TD_INS_VLAN_TAG;
 	}
-	/* Configure Tx checksum offload. */
-	if ((m->m_pkthdr.csum_flags & ALC_CSUM_FEATURES) != 0) {
-#ifdef ALC_USE_CUSTOM_CSUM
-		cflags |= TD_CUSTOM_CSUM;
-		/* Set checksum start offset. */
-		cflags |= ((poff >> 1) << TD_PLOAD_OFFSET_SHIFT) &
-		    TD_PLOAD_OFFSET_MASK;
-		/* Set checksum insertion position of TCP/UDP. */
-		cflags |= (((poff + m->m_pkthdr.csum_data) >> 1) <<
-		    TD_CUSTOM_CSUM_OFFSET_SHIFT) & TD_CUSTOM_CSUM_OFFSET_MASK;
-#else
-		if ((m->m_pkthdr.csum_flags & CSUM_IP) != 0)
-			cflags |= TD_IPCSUM;
-		if ((m->m_pkthdr.csum_flags & CSUM_TCP) != 0)
-			cflags |= TD_TCPCSUM;
-		if ((m->m_pkthdr.csum_flags & CSUM_UDP) != 0)
-			cflags |= TD_UDPCSUM;
-		/* Set TCP/UDP header offset. */
-		cflags |= (poff << TD_L4HDR_OFFSET_SHIFT) &
-		    TD_L4HDR_OFFSET_MASK;
-#endif
-	} else if ((m->m_pkthdr.csum_flags & CSUM_TSO) != 0) {
+	if ((m->m_pkthdr.csum_flags & CSUM_TSO) != 0) {
 		/* Request TSO and set MSS. */
 		cflags |= TD_TSO | TD_TSO_DESCV1;
 		cflags |= ((uint32_t)m->m_pkthdr.tso_segsz << TD_MSS_SHIFT) &
@@ -1961,6 +1940,27 @@ alc_encap(struct alc_softc *sc, struct mbuf **m_head)
 		}
 		/* Handle remaining fragments. */
 		idx = 1;
+	} else if ((m->m_pkthdr.csum_flags & ALC_CSUM_FEATURES) != 0) {
+		/* Configure Tx checksum offload. */
+#ifdef ALC_USE_CUSTOM_CSUM
+		cflags |= TD_CUSTOM_CSUM;
+		/* Set checksum start offset. */
+		cflags |= ((poff >> 1) << TD_PLOAD_OFFSET_SHIFT) &
+		    TD_PLOAD_OFFSET_MASK;
+		/* Set checksum insertion position of TCP/UDP. */
+		cflags |= (((poff + m->m_pkthdr.csum_data) >> 1) <<
+		    TD_CUSTOM_CSUM_OFFSET_SHIFT) & TD_CUSTOM_CSUM_OFFSET_MASK;
+#else
+		if ((m->m_pkthdr.csum_flags & CSUM_IP) != 0)
+			cflags |= TD_IPCSUM;
+		if ((m->m_pkthdr.csum_flags & CSUM_TCP) != 0)
+			cflags |= TD_TCPCSUM;
+		if ((m->m_pkthdr.csum_flags & CSUM_UDP) != 0)
+			cflags |= TD_UDPCSUM;
+		/* Set TCP/UDP header offset. */
+		cflags |= (poff << TD_L4HDR_OFFSET_SHIFT) &
+		    TD_L4HDR_OFFSET_MASK;
+#endif
 	}
 	for (; idx < nsegs; idx++) {
 		desc = &sc->alc_rdata.alc_tx_ring[prod];
