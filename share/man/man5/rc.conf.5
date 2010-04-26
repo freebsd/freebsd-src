@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 14, 2010
+.Dd April 27, 2010
 .Dt RC.CONF 5
 .Os
 .Sh NAME
@@ -1370,7 +1370,7 @@ configured on that interface.
 If not set to
 .Dq Li NO ,
 this is the default output interface for scoped addresses.
-Now this works only for IPv6 link local multicast addresses.
+This works only with ipv6_gateway_enable="NO".
 .It Va ip6addrctl_enable
 .Pq Vt bool
 If set to
