@@ -763,8 +763,8 @@ vesa_get_bpscanline(struct vesa_mode *vmode)
 static int
 vesa_bios_init(void)
 {
-	static struct vesa_info buf;
 	struct vesa_mode vmode;
+	struct vesa_info *buf;
 	video_info_t *p;
 	x86regs_t regs;
 	size_t bsize;
@@ -800,7 +800,7 @@ vesa_bios_init(void)
 	x86bios_init_regs(&regs);
 	regs.R_AX = 0x4f00;
 
-	vmbuf = x86bios_alloc(&offs, sizeof(buf));
+	vmbuf = x86bios_alloc(&offs, sizeof(*buf));
 	if (vmbuf == NULL)
 		return (1);
 
@@ -813,23 +813,23 @@ vesa_bios_init(void)
 	if (regs.R_AX != 0x004f || bcmp("VESA", vmbuf, 4) != 0)
 		goto fail;
 
-	bcopy(vmbuf, &buf, sizeof(buf));
+	vesa_adp_info = buf = malloc(sizeof(*buf), M_DEVBUF, M_WAITOK);
+	bcopy(vmbuf, buf, sizeof(*buf));
 
-	vesa_adp_info = &buf;
 	if (bootverbose) {
 		printf("VESA: information block\n");
-		hexdump(&buf, sizeof(buf), NULL, HD_OMIT_CHARS);
+		hexdump(buf, sizeof(*buf), NULL, HD_OMIT_CHARS);
 	}
 
-	vers = buf.v_version = le16toh(buf.v_version);
-	buf.v_oemstr = le32toh(buf.v_oemstr);
-	buf.v_flags = le32toh(buf.v_flags);
-	buf.v_modetable = le32toh(buf.v_modetable);
-	buf.v_memsize = le16toh(buf.v_memsize);
-	buf.v_revision = le16toh(buf.v_revision);
-	buf.v_venderstr = le32toh(buf.v_venderstr);
-	buf.v_prodstr = le32toh(buf.v_prodstr);
-	buf.v_revstr = le32toh(buf.v_revstr);
+	vers = buf->v_version = le16toh(buf->v_version);
+	buf->v_oemstr = le32toh(buf->v_oemstr);
+	buf->v_flags = le32toh(buf->v_flags);
+	buf->v_modetable = le32toh(buf->v_modetable);
+	buf->v_memsize = le16toh(buf->v_memsize);
+	buf->v_revision = le16toh(buf->v_revision);
+	buf->v_venderstr = le32toh(buf->v_venderstr);
+	buf->v_prodstr = le32toh(buf->v_prodstr);
+	buf->v_revstr = le32toh(buf->v_revstr);
 
 	if (vers < 0x0102) {
 		printf("VESA: VBE version %d.%d is not supported; "
@@ -839,21 +839,21 @@ vesa_bios_init(void)
 		return (1);
 	}
 
-	VESA_STRCPY(vesa_oemstr, buf.v_oemstr);
+	VESA_STRCPY(vesa_oemstr, buf->v_oemstr);
 	if (vers >= 0x0200) {
-		VESA_STRCPY(vesa_venderstr, buf.v_venderstr);
-		VESA_STRCPY(vesa_prodstr, buf.v_prodstr);
-		VESA_STRCPY(vesa_revstr, buf.v_revstr);
+		VESA_STRCPY(vesa_venderstr, buf->v_venderstr);
+		VESA_STRCPY(vesa_prodstr, buf->v_prodstr);
+		VESA_STRCPY(vesa_revstr, buf->v_revstr);
 	}
 	is_via_cle266 = strncmp(vesa_oemstr, VESA_VIA_CLE266,
 	    sizeof(VESA_VIA_CLE266)) == 0;
 
-	if (buf.v_modetable == 0)
+	if (buf->v_modetable == 0)
 		goto fail;
 
-	msize = (size_t)buf.v_memsize * 64 * 1024;
+	msize = (size_t)buf->v_memsize * 64 * 1024;
 
-	vesa_vmodetab = x86bios_offset(BIOS_SADDRTOLADDR(buf.v_modetable));
+	vesa_vmodetab = x86bios_offset(BIOS_SADDRTOLADDR(buf->v_modetable));
 
 	for (i = 0, modes = 0; (i < (M_VESA_MODE_MAX - M_VESA_BASE + 1)) &&
 	    (vesa_vmodetab[i] != 0xffff); ++i) {
@@ -1016,12 +1016,16 @@ vesa_bios_init(void)
 	if (!has_vesa_bios)
 		goto fail;
 
-	x86bios_free(vmbuf, sizeof(buf));
+	x86bios_free(vmbuf, sizeof(*buf));
 	return (0);
 
 fail:
 	if (vmbuf != NULL)
 		x86bios_free(vmbuf, sizeof(buf));
+	if (vesa_adp_info != NULL) {
+		free(vesa_adp_info, M_DEVBUF);
+		vesa_adp_info = NULL;
+	}
 	if (vesa_oemstr != NULL) {
 		free(vesa_oemstr, M_DEVBUF);
 		vesa_oemstr = NULL;
@@ -1875,6 +1879,8 @@ vesa_unload(void)
 	}
 	splx(s);
 
+	if (vesa_adp_info != NULL)
+		free(vesa_adp_info, M_DEVBUF);
 	if (vesa_oemstr != NULL)
 		free(vesa_oemstr, M_DEVBUF);
 	if (vesa_venderstr != NULL)
