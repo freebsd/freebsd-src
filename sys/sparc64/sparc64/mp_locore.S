@@ -30,6 +30,7 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/asi.h>
 #include <machine/asmacros.h>
+#include <machine/intr_machdep.h>
 #include <machine/ktr.h>
 #include <machine/pstate.h>
 #include <machine/smp.h>
@@ -44,14 +45,14 @@ __FBSDID("$FreeBSD$");
 	_ALIGN_TEXT
 	/*
 	 * Initialize misc. state to known values: interrupts disabled, normal
-	 * globals, windows flushed (cr = 0, cs = nwindows - 1), PIL 0 and
+	 * globals, windows flushed (cr = 0, cs = nwindows - 1), PIL_TICK and
 	 * floating point disabled.
 	 * Note that some firmware versions don't implement a clean window
 	 * trap handler so we unfortunately can't clear the windows by setting
 	 * %cleanwin to zero here.
 	 */
 1:	wrpr	%g0, PSTATE_NORMAL, %pstate
-	wrpr	%g0, 0, %pil
+	wrpr	%g0, PIL_TICK, %pil
 	wr	%g0, 0, %fprs
 
 	rdpr	%ver, %l7
@@ -261,11 +262,6 @@ ENTRY(mp_startup)
 	set	PCPU_PAGES * PAGE_SIZE - PC_SIZEOF, %l2
 	add	%l1, %l2, %l1
 	sub	%l1, SPOFF + CCFSZ, %sp
-
-	/*
-	 * Enable interrupts.
-	 */
-	wrpr	%g0, PSTATE_KERNEL, %pstate
 
 #if KTR_COMPILE & KTR_SMP
 	CATR(KTR_SMP,
