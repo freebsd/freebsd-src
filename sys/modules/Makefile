@@ -249,6 +249,7 @@ SUBDIR=	${_3dfx} \
 	sdhci \
 	sem \
 	sf \
+	sge \
 	siba_bwn \
 	siis \
 	sis \
