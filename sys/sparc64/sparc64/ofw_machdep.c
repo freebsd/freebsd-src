@@ -1,6 +1,6 @@
 /*-
  * Copyright (c) 2001 by Thomas Moestl <tmm@FreeBSD.org>.
- * Copyright (c) 2005 - 2009 by Marius Strobl <marius@FreeBSD.org>.
+ * Copyright (c) 2005 - 2010 by Marius Strobl <marius@FreeBSD.org>.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -66,6 +66,19 @@ OF_getetheraddr(device_t dev, u_char *addr)
 	if (node <= 0 || OF_getprop(node, "idprom", &idp, sizeof(idp)) == -1)
 		panic("Could not determine the machine Ethernet address");
 	bcopy(&idp.id_ether, addr, ETHER_ADDR_LEN);
+}
+
+u_int
+OF_getscsinitid(device_t dev)
+{
+	phandle_t node;
+	uint32_t id;
+
+	for (node = ofw_bus_get_node(dev); node != 0; node = OF_parent(node))
+		if (OF_getprop(node, "scsi-initiator-id", &id,
+		    sizeof(id)) > 0)
+			return (id);
+	return (7);
 }
 
 static __inline uint32_t
