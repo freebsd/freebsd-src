@@ -81,7 +81,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/pci/pcireg.h>
 #include <dev/pci/pcivar.h>
 
-#include "if_sgereg.h"
+#include <dev/sge/if_sgereg.h>
 
 MODULE_DEPEND(sge, pci, 1, 1, 1);
 MODULE_DEPEND(sge, ether, 1, 1, 1);
