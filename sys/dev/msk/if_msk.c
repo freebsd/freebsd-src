@@ -2529,23 +2529,32 @@ msk_encap(struct msk_if_softc *sc_if, struct mbuf **m_head)
 		ip = (struct ip *)(mtod(m, char *) + offset);
 		offset += (ip->ip_hl << 2);
 		tcp_offset = offset;
-		/*
-		 * It seems that Yukon II has Tx checksum offload bug for
-		 * small TCP packets that's less than 60 bytes in size
-		 * (e.g. TCP window probe packet, pure ACK packet).
-		 * Common work around like padding with zeros to make the
-		 * frame minimum ethernet frame size didn't work at all.
-		 * Instead of disabling checksum offload completely we
-		 * resort to S/W checksum routine when we encounter short
-		 * TCP frames.
-		 * Short UDP packets appear to be handled correctly by
-		 * Yukon II. Also I assume this bug does not happen on
-		 * controllers that use newer descriptor format or
-		 * automatic Tx checksum calaulcation.
-		 */
-		if ((sc_if->msk_flags & MSK_FLAG_AUTOTX_CSUM) == 0 &&
+		if ((m->m_pkthdr.csum_flags & CSUM_TSO) != 0) {
+			m = m_pullup(m, offset + sizeof(struct tcphdr));
+			if (m == NULL) {
+				*m_head = NULL;
+				return (ENOBUFS);
+			}
+			tcp = (struct tcphdr *)(mtod(m, char *) + offset);
+			offset += (tcp->th_off << 2);
+		} else if ((sc_if->msk_flags & MSK_FLAG_AUTOTX_CSUM) == 0 &&
 		    (m->m_pkthdr.len < MSK_MIN_FRAMELEN) &&
 		    (m->m_pkthdr.csum_flags & CSUM_TCP) != 0) {
+			/*
+			 * It seems that Yukon II has Tx checksum offload bug
+			 * for small TCP packets that's less than 60 bytes in
+			 * size (e.g. TCP window probe packet, pure ACK packet).
+			 * Common work around like padding with zeros to make
+			 * the frame minimum ethernet frame size didn't work at
+			 * all.
+			 * Instead of disabling checksum offload completely we
+			 * resort to S/W checksum routine when we encounter
+			 * short TCP frames.
+			 * Short UDP packets appear to be handled correctly by
+			 * Yukon II. Also I assume this bug does not happen on
+			 * controllers that use newer descriptor format or
+			 * automatic Tx checksum calaulcation.
+			 */
 			m = m_pullup(m, offset + sizeof(struct tcphdr));
 			if (m == NULL) {
 				*m_head = NULL;
@@ -2555,15 +2564,6 @@ msk_encap(struct msk_if_softc *sc_if, struct mbuf **m_head)
 			    m->m_pkthdr.csum_data) = in_cksum_skip(m,
 			    m->m_pkthdr.len, offset);
 			m->m_pkthdr.csum_flags &= ~CSUM_TCP;
-		}
-		if ((m->m_pkthdr.csum_flags & CSUM_TSO) != 0) {
-			m = m_pullup(m, offset + sizeof(struct tcphdr));
-			if (m == NULL) {
-				*m_head = NULL;
-				return (ENOBUFS);
-			}
-			tcp = (struct tcphdr *)(mtod(m, char *) + offset);
-			offset += (tcp->th_off << 2);
 		}
 		*m_head = m;
 	}
