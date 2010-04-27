@@ -29,8 +29,10 @@ MAN=	aac.4 \
 	aio.4 \
 	alc.4 \
 	ale.4 \
+	alpm.4 \
 	altq.4 \
 	amd.4 \
+	amdpm.4 \
 	${_amdsmb.4} \
 	${_amdtemp.4} \
 	amr.4 \
@@ -198,6 +200,7 @@ MAN=	aac.4 \
 	mac_stub.4 \
 	mac_test.4 \
 	malo.4 \
+	mcd.4 \
 	md.4 \
 	mem.4 \
 	meteor.4 \
@@ -301,6 +304,7 @@ MAN=	aac.4 \
 	patm.4 \
 	pccard.4 \
 	pccbb.4 \
+	pcf.4 \
 	pci.4 \
 	pcib.4 \
 	pcic.4 \
@@ -333,6 +337,7 @@ MAN=	aac.4 \
 	sbp.4 \
 	sbp_targ.4 \
 	scc.4 \
+	scd.4 \
 	sched_4bsd.4 \
 	sched_ule.4 \
 	screen.4 \
@@ -452,6 +457,7 @@ MAN=	aac.4 \
 	uvscom.4 \
 	vga.4 \
 	vge.4 \
+	viapm.4 \
 	vinum.4 \
 	vkbd.4 \
 	vlan.4 \
