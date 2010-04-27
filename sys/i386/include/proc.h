@@ -57,7 +57,7 @@ struct mdproc {
 	struct proc_ldt *md_ldt;	/* (t) per-process ldt */
 };
 
-#define KINFO_PROC_SIZE 768
+#define	KINFO_PROC_SIZE 768
 
 #ifdef	_KERNEL
 
