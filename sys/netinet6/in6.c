@@ -63,6 +63,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_compat.h"
 #include "opt_inet.h"
 #include "opt_inet6.h"
 
@@ -176,6 +177,14 @@ in6_mask2len(struct in6_addr *mask, u_char *lim0)
 #define ifa2ia6(ifa)	((struct in6_ifaddr *)(ifa))
 #define ia62ifa(ia6)	(&((ia6)->ia_ifa))
 
+#ifdef COMPAT_FREEBSD32
+struct in6_ndifreq32 {
+        char ifname[IFNAMSIZ];
+        uint32_t ifindex;
+};
+#define	SIOCGDEFIFACE32_IN6     _IOWR('i', 86, struct in6_ndifreq32)
+#endif
+
 int
 in6_control(struct socket *so, u_long cmd, caddr_t data,
     struct ifnet *ifp, struct thread *td)
@@ -226,6 +235,22 @@ in6_control(struct socket *so, u_long cmd, caddr_t data,
 	case SIOCGNBRINFO_IN6:
 	case SIOCGDEFIFACE_IN6:
 		return (nd6_ioctl(cmd, data, ifp));
+
+#ifdef COMPAT_FREEBSD32
+	case SIOCGDEFIFACE32_IN6:
+		{
+			struct in6_ndifreq ndif;
+			struct in6_ndifreq32 *ndif32;
+
+			error = nd6_ioctl(SIOCGDEFIFACE_IN6, (caddr_t)&ndif,
+			    ifp);
+			if (error)
+				return (error);
+			ndif32 = (struct in6_ndifreq32 *)data;
+			ndif32->ifindex = ndif.ifindex;
+			return (0);
+		}
+#endif
 	}
 
 	switch (cmd) {
