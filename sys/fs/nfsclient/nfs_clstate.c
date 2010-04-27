@@ -2111,6 +2111,7 @@ nfscl_hasexpired(struct nfsclclient *clp, u_int32_t clidrev, NFSPROC_T *p)
 		NFSUNLOCKCLSTATE();
 		return (0);
 	}
+	clp->nfsc_flags |= NFSCLFLAGS_RECVRINPROG;
 	NFSUNLOCKCLSTATE();
 
 	nmp = clp->nfsc_nmp;
@@ -2127,6 +2128,7 @@ nfscl_hasexpired(struct nfsclclient *clp, u_int32_t clidrev, NFSPROC_T *p)
 		 * Clear out any state.
 		 */
 		nfscl_cleanclient(clp);
+		NFSLOCKCLSTATE();
 		clp->nfsc_flags &= ~(NFSCLFLAGS_HASCLIENTID |
 		    NFSCLFLAGS_RECOVER);
 	} else {
@@ -2140,14 +2142,15 @@ nfscl_hasexpired(struct nfsclclient *clp, u_int32_t clidrev, NFSPROC_T *p)
 		 * Expire the state for the client.
 		 */
 		nfscl_expireclient(clp, nmp, cred, p);
+		NFSLOCKCLSTATE();
 		clp->nfsc_flags |= NFSCLFLAGS_HASCLIENTID;
 		clp->nfsc_flags &= ~NFSCLFLAGS_RECOVER;
 	}
-	NFSFREECRED(cred);
-	clp->nfsc_flags &= ~NFSCLFLAGS_EXPIREIT;
-	NFSLOCKCLSTATE();
+	clp->nfsc_flags &= ~(NFSCLFLAGS_EXPIREIT | NFSCLFLAGS_RECVRINPROG);
+	wakeup(&clp->nfsc_flags);
 	nfsv4_unlock(&clp->nfsc_lock, 0);
 	NFSUNLOCKCLSTATE();
+	NFSFREECRED(cred);
 	return (error);
 }
 
