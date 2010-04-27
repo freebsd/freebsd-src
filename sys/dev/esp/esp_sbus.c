@@ -466,9 +466,7 @@ espattach(struct esp_softc *esc, const struct ncr53c9x_glue *gluep)
 		goto fail_lock;
 	}
 
-	if (OF_getprop(ofw_bus_get_node(esc->sc_dev), "scsi-initiator-id",
-	    &sc->sc_id, sizeof(sc->sc_id)) == -1)
-		sc->sc_id = 7;
+	sc->sc_id = OF_getscsinitid(esc->sc_dev);
 
 #ifdef ESP_SBUS_DEBUG
 	device_printf(esc->sc_dev, "%s: sc_id %d, freq %d\n",
