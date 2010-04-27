@@ -2667,6 +2667,8 @@ mpt_configure_ioc(struct mpt_softc *mpt, int tn, int needreset)
 		mpt->is_fc = 0;
 		mpt->is_sas = 0;
 		mpt->is_spi = 1;
+		if (mpt->mpt_ini_id == MPT_INI_ID_NONE)
+			mpt->mpt_ini_id = pfp->PortSCSIID;
 	} else if (pfp->PortType == MPI_PORTFACTS_PORTTYPE_ISCSI) {
 		mpt_prt(mpt, "iSCSI not supported yet\n");
 		return (ENXIO);
