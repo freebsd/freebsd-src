@@ -1178,7 +1178,7 @@ sigint_handler(int signo __unused)
 
 	if (remove_file != NULL)
 		unlink(remove_file);
-	exit(2);
+	_exit(2);
 }
 #endif
 
