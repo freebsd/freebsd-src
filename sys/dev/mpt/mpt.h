@@ -130,6 +130,11 @@
 #include <machine/clock.h>
 #endif
 
+#ifdef __sparc64__
+#include <dev/ofw/openfirm.h>
+#include <machine/ofw_machdep.h>
+#endif
+
 #include <sys/rman.h>
 
 #if __FreeBSD_version < 500000  
@@ -171,6 +176,8 @@
 #define	MPT_ROLE_TARGET		2
 #define	MPT_ROLE_BOTH		3
 #define	MPT_ROLE_DEFAULT	MPT_ROLE_INITIATOR
+
+#define	MPT_INI_ID_NONE		-1
 
 /**************************** Forward Declarations ****************************/
 struct mpt_softc;
@@ -637,7 +644,6 @@ struct mpt_softc {
 	 * Port Facts
 	 */
 	MSG_PORT_FACTS_REPLY *	port_facts;
-#define	mpt_ini_id	port_facts[0].PortSCSIID
 #define	mpt_max_tgtcmds	port_facts[0].MaxPostedCmdBuffers
 
 	/*
@@ -650,6 +656,7 @@ struct mpt_softc {
 			CONFIG_PAGE_SCSI_PORT_2		_port_page2;
 			CONFIG_PAGE_SCSI_DEVICE_0	_dev_page0[16];
 			CONFIG_PAGE_SCSI_DEVICE_1	_dev_page1[16];
+			int				_ini_id;
 			uint16_t			_tag_enable;
 			uint16_t			_disc_enable;
 		} spi;
@@ -658,6 +665,7 @@ struct mpt_softc {
 #define	mpt_port_page2		cfg.spi._port_page2
 #define	mpt_dev_page0		cfg.spi._dev_page0
 #define	mpt_dev_page1		cfg.spi._dev_page1
+#define	mpt_ini_id		cfg.spi._ini_id
 #define	mpt_tag_enable		cfg.spi._tag_enable
 #define	mpt_disc_enable		cfg.spi._disc_enable
 		struct mpi_fc_cfg {
