@@ -768,6 +768,7 @@ noerror:
 	{
 		struct ccb_pathinq cpi;
 		int16_t *ptr;
+		int changed = 1;
 
 		ident_buf = &softc->ident_data;
 		for (ptr = (int16_t *)ident_buf;
@@ -809,9 +810,12 @@ noerror:
 			     sizeof(ident_buf->serial))) {
 				/* Device changed. */
 				xpt_async(AC_LOST_DEVICE, path, NULL);
-			} else
+			} else {
 				bcopy(&softc->ident_data, ident_buf, sizeof(struct ata_params));
-		} else {
+				changed = 0;
+			}
+		}
+		if (changed) {
 			bcopy(&softc->ident_data, ident_buf, sizeof(struct ata_params));
 			/* Clean up from previous instance of this device */
 			if (path->device->serial_num != NULL) {
