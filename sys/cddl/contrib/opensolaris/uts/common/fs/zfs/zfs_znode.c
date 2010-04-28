@@ -704,6 +704,8 @@ zfs_mknode(znode_t *dzp, vattr_t *vap, dmu_tx_t *tx, cred_t *cr,
 			    DMU_OT_ZNODE, sizeof (znode_phys_t) + bonuslen, tx);
 		}
 	}
+
+	ZFS_OBJ_HOLD_ENTER(zfsvfs, obj);
 	VERIFY(0 == dmu_bonus_hold(zfsvfs->z_os, obj, NULL, &db));
 	dmu_buf_will_dirty(db, tx);
 
@@ -765,9 +767,7 @@ zfs_mknode(znode_t *dzp, vattr_t *vap, dmu_tx_t *tx, cred_t *cr,
 
 	pzp->zp_mode = MAKEIMODE(vap->va_type, vap->va_mode);
 	if (!(flag & IS_ROOT_NODE)) {
-		ZFS_OBJ_HOLD_ENTER(zfsvfs, obj);
 		*zpp = zfs_znode_alloc(zfsvfs, db, 0);
-		ZFS_OBJ_HOLD_EXIT(zfsvfs, obj);
 	} else {
 		/*
 		 * If we are creating the root node, the "parent" we
@@ -776,6 +776,7 @@ zfs_mknode(znode_t *dzp, vattr_t *vap, dmu_tx_t *tx, cred_t *cr,
 		*zpp = dzp;
 	}
 	zfs_perm_init(*zpp, dzp, flag, vap, tx, cr, setaclp, fuidp);
+	ZFS_OBJ_HOLD_EXIT(zfsvfs, obj);
 	if (!(flag & IS_ROOT_NODE)) {
 		vnode_t *vp;
 
@@ -939,19 +940,31 @@ again:
 
 	/*
 	 * Not found create new znode/vnode
+	 * but only if file exists.
+	 *
+	 * There is a small window where zfs_vget() could
+	 * find this object while a file create is still in
+	 * progress.  Since a gen number can never be zero
+	 * we will check that to determine if its an allocated
+	 * file.
 	 */
-	zp = zfs_znode_alloc(zfsvfs, db, doi.doi_data_block_size);
 
-	vp = ZTOV(zp);
-	vp->v_vflag |= VV_FORCEINSMQ;
-	err = insmntque(vp, zfsvfs->z_vfs);
-	vp->v_vflag &= ~VV_FORCEINSMQ;
-	KASSERT(err == 0, ("insmntque() failed: error %d", err));
-	VOP_UNLOCK(vp, 0);
-
+	if (((znode_phys_t *)db->db_data)->zp_gen != 0) {
+		zp = zfs_znode_alloc(zfsvfs, db, doi.doi_data_block_size);
+		*zpp = zp;
+		vp = ZTOV(zp);
+		vp->v_vflag |= VV_FORCEINSMQ;
+		err = insmntque(vp, zfsvfs->z_vfs);
+		vp->v_vflag &= ~VV_FORCEINSMQ;
+		KASSERT(err == 0, ("insmntque() failed: error %d", err));
+		VOP_UNLOCK(vp, 0);
+		err = 0;
+	} else {
+		dmu_buf_rele(db, NULL);
+		err = ENOENT;
+	}
 	ZFS_OBJ_HOLD_EXIT(zfsvfs, obj_num);
-	*zpp = zp;
-	return (0);
+	return (err);
 }
 
 int
@@ -1440,6 +1453,7 @@ zfs_create_fs(objset_t *os, cred_t *cr, nvlist_t *zplprops, dmu_tx_t *tx)
 	uint64_t	norm = 0;
 	nvpair_t	*elem;
 	int		error;
+	int		i;
 	znode_t		*rootzp = NULL;
 	vnode_t		vnode;
 	vattr_t		vattr;
@@ -1537,6 +1551,9 @@ zfs_create_fs(objset_t *os, cred_t *cr, nvlist_t *zplprops, dmu_tx_t *tx)
 	list_create(&zfsvfs.z_all_znodes, sizeof (znode_t),
 	    offsetof(znode_t, z_link_node));
 
+	for (i = 0; i != ZFS_OBJ_MTX_SZ; i++)
+		mutex_init(&zfsvfs.z_hold_mtx[i], NULL, MUTEX_DEFAULT, NULL);
+
 	ASSERT(!POINTER_IS_VALID(rootzp->z_zfsvfs));
 	rootzp->z_zfsvfs = &zfsvfs;
 	zfs_mknode(rootzp, &vattr, tx, cr, IS_ROOT_NODE, &zp, 0, NULL, NULL);
@@ -1547,6 +1564,8 @@ zfs_create_fs(objset_t *os, cred_t *cr, nvlist_t *zplprops, dmu_tx_t *tx)
 
 	dmu_buf_rele(rootzp->z_dbuf, NULL);
 	rootzp->z_dbuf = NULL;
+	for (i = 0; i != ZFS_OBJ_MTX_SZ; i++)
+		mutex_destroy(&zfsvfs.z_hold_mtx[i]);
 	mutex_destroy(&zfsvfs.z_znodes_lock);
 	rootzp->z_vnode = NULL;
 	kmem_cache_free(znode_cache, rootzp);
