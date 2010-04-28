@@ -1,4 +1,4 @@
-.\"	$OpenBSD: ssh-keygen.1,v 1.88 2010/03/08 00:28:55 djm Exp $
+.\"	$OpenBSD: ssh-keygen.1,v 1.92 2010/03/13 23:38:13 jmc Exp $
 .\"	$FreeBSD$
 .\"
 .\"  -*- nroff -*-
@@ -38,7 +38,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.Dd March 8 2010
+.Dd March 13 2010
 .Dt SSH-KEYGEN 1
 .Os
 .Sh NAME
@@ -308,8 +308,15 @@ Please see the
 section for details.
 The constraints that are valid for user certificates are:
 .Bl -tag -width Ds
-.It Ic no-x11-forwarding
-Disable X11 forwarding (permitted by default).
+.It Ic clear
+Clear all enabled permissions.
+This is useful for clearing the default set of permissions so permissions may
+be added individually.
+.It Ic force-command Ns = Ns Ar command
+Forces the execution of
+.Ar command
+instead of any shell or command specified by the user when
+the certificate is used for authentication.
 .It Ic no-agent-forwarding
 Disable
 .Xr ssh-agent 1
@@ -324,12 +331,8 @@ Disable execution of
 by
 .Xr sshd 8
 (permitted by default).
-.It Ic clear
-Clear all enabled permissions.
-This is useful for clearing the default set of permissions so permissions may
-be added individually.
-.It Ic permit-x11-forwarding
-Allows X11 forwarding.
+.It Ic no-x11-forwarding
+Disable X11 forwarding (permitted by default).
 .It Ic permit-agent-forwarding
 Allows
 .Xr ssh-agent 1
@@ -343,14 +346,10 @@ Allows execution of
 .Pa ~/.ssh/rc
 by
 .Xr sshd 8 .
-.It Ic force-command=command
-Forces the execution of
-.Ar command
-instead of any shell or command specified by the user when
-the certificate is used for authentication.
-.It Ic source-address=address_list
-Restrict the source addresses from which the certificate is considered valid
-from.
+.It Ic permit-x11-forwarding
+Allows X11 forwarding.
+.It Ic source-address Ns = Ns Ar address_list
+Restrict the source addresses from which the certificate is considered valid.
 The
 .Ar address_list
 is a comma-separated list of one or more address/netmask pairs in CIDR
@@ -415,7 +414,7 @@ in YYYYMMDDHHMMSS format or a relative time (to the current time) consisting
 of a minus sign followed by a relative time in the format described in the
 .Sx TIME FORMATS
 section of
-.Xr ssh_config 5 .
+.Xr sshd_config 5 .
 The end time may be specified as a YYYYMMDD date, a YYYYMMDDHHMMSS time or
 a relative time starting with a plus character.
 .Pp
@@ -520,7 +519,7 @@ To generate a user certificate:
 .Dl $ ssh-keygen -s /path/to/ca_key -I key_id /path/to/user_key.pub
 .Pp
 The resultant certificate will be placed in
-.Pa /path/to/user_key_cert.pub .
+.Pa /path/to/user_key-cert.pub .
 A host certificate requires the
 .Fl h
 option:
@@ -528,7 +527,7 @@ option:
 .Dl $ ssh-keygen -s /path/to/ca_key -I key_id -h /path/to/host_key.pub
 .Pp
 The host certificate will be output to
-.Pa /path/to/host_key_cert.pub .
+.Pa /path/to/host_key-cert.pub .
 In both cases,
 .Ar key_id
 is a "key identifier" that is logged by the server when the certificate
@@ -540,7 +539,7 @@ By default, generated certificates are valid for all users or hosts.
 To generate a certificate for a specified set of principals:
 .Pp
 .Dl $ ssh-keygen -s ca_key -I key_id -n user1,user2 user_key.pub
-.Dl $ ssh-keygen -s ca_key -I key_id -h -n host.domain user_key.pub
+.Dl "$ ssh-keygen -s ca_key -I key_id -h -n host.domain user_key.pub"
 .Pp
 Additional limitations on the validity and use of user certificates may
 be specified through certificate constraints.

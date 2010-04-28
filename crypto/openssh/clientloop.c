@@ -1,4 +1,4 @@
-/* $OpenBSD: clientloop.c,v 1.218 2010/01/28 00:21:18 djm Exp $ */
+/* $OpenBSD: clientloop.c,v 1.219 2010/03/13 21:10:38 djm Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -1484,6 +1484,7 @@ client_loop(int have_pty, int escape_char_arg, int ssh2_chan_id)
 		packet_start(SSH2_MSG_DISCONNECT);
 		packet_put_int(SSH2_DISCONNECT_BY_APPLICATION);
 		packet_put_cstring("disconnected by user");
+		packet_put_cstring(""); /* language tag */
 		packet_send();
 		packet_write_wait();
 	}

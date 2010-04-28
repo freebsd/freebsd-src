@@ -1,4 +1,4 @@
-/* $OpenBSD: key.c,v 1.85 2010/03/04 01:44:57 djm Exp $ */
+/* $OpenBSD: key.c,v 1.86 2010/03/15 19:40:02 stevesk Exp $ */
 /*
  * read_bignum():
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -799,6 +799,19 @@ key_type(const Key *k)
 		return "DSA-CERT";
 	}
 	return "unknown";
+}
+
+const char *
+key_cert_type(const Key *k)
+{
+	switch (k->cert->type) {
+	case SSH2_CERT_TYPE_USER:
+		return "user";
+	case SSH2_CERT_TYPE_HOST:
+		return "host";
+	default:
+		return "unknown";
+	}
 }
 
 const char *
