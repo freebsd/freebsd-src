@@ -294,9 +294,10 @@ listen_accept(void)
 				    "Waiting for worker process (pid=%u) failed",
 				    (unsigned int)res->hr_workerpid);
 				/* See above. */
-			} else if (status != 0) {
+			} else if (WEXITSTATUS(status) != 0) {
 				pjdlog_error("Worker process (pid=%u) exited ungracefully: status=%d.",
-				    (unsigned int)res->hr_workerpid, status);
+				    (unsigned int)res->hr_workerpid,
+				    WEXITSTATUS(status));
 				/* See above. */
 			} else {
 				pjdlog_debug(1,
