@@ -1,4 +1,4 @@
-/* $OpenBSD: ssh-keygen.c,v 1.184 2010/03/07 22:16:01 djm Exp $ */
+/* $OpenBSD: ssh-keygen.c,v 1.185 2010/03/15 19:40:02 stevesk Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1994 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -1393,7 +1393,8 @@ do_show_cert(struct passwd *pw)
 	    SSH_FP_MD5, SSH_FP_HEX);
 
 	printf("%s:\n", identity_file);
-	printf("        %s certificate %s\n", key_type(key), key_fp);
+	printf("        %s %s certificate %s\n", key_type(key),
+	    key_cert_type(key), key_fp);
 	printf("        Signed by %s CA %s\n",
 	    key_type(key->cert->signature_key), ca_fp);
 	printf("        Key ID \"%s\"\n", key->cert->key_id);
