@@ -3504,7 +3504,8 @@ cancel_jaddref(jaddref, inodedep, wkhd)
 		WORKLIST_INSERT(wkhd, &jsegdep->jd_list);
 	} else {
 		free_jsegdep(jsegdep);
-		remove_from_journal(&jaddref->ja_list);
+		if (jaddref->ja_state & DEPCOMPLETE)
+			remove_from_journal(&jaddref->ja_list);
 	}
 	/*
 	 * Leave NEWBLOCK jaddrefs on the inodedep so handle_workitem_remove
