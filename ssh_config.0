@@ -425,8 +425,8 @@ DESCRIPTION
              Specifies the order in which the client should try protocol 2 au-
              thentication methods.  This allows a client to prefer one method
              (e.g. keyboard-interactive) over another method (e.g. password)
-             The default for this option is: ``gssapi-with-mic,hostbased,
-             publickey, keyboard-interactive, password''.
+             The default for this option is: ``gssapi-with-
+             mic,hostbased,publickey,keyboard-interactive,password''.
 
      Protocol
              Specifies the protocol versions ssh(1) should support in order of
@@ -673,4 +673,4 @@ AUTHORS
      ated OpenSSH.  Markus Friedl contributed the support for SSH protocol
      versions 1.5 and 2.0.
 
-OpenBSD 4.6                      March 5, 2010                              11
+OpenBSD 4.7                     March 26, 2010                              11
