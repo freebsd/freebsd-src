@@ -13,13 +13,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *        This product includes software developed by the NetBSD
- *        Foundation, Inc. and its contributors.
- * 4. Neither the name of The NetBSD Foundation nor the names of its
- *    contributors may be used to endorse or promote products derived
- *    from this software without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
  * ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
@@ -41,7 +34,6 @@
 #define _SPARC64_FPU_FPU_EXTERN_H_
 
 struct utrapframe;
-union instr;
 struct fpemu;
 struct fpn;
 
@@ -61,9 +53,9 @@ struct fpn *__fpu_div(struct fpemu *);
 int __fpu_itof(struct fpn *, u_int);
 int __fpu_xtof(struct fpn *, u_int64_t);
 int __fpu_stof(struct fpn *, u_int);
-int __fpu_dtof(struct fpn *, u_int, u_int );
-int __fpu_qtof(struct fpn *, u_int, u_int , u_int , u_int );
-void __fpu_explode(struct fpemu *, struct fpn *, int, int );
+int __fpu_dtof(struct fpn *, u_int, u_int);
+int __fpu_qtof(struct fpn *, u_int, u_int, u_int, u_int);
+void __fpu_explode(struct fpemu *, struct fpn *, int, int);
 
 /* fpu_implode.c */
 u_int __fpu_ftoi(struct fpemu *, struct fpn *);

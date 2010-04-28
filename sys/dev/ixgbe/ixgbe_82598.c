@@ -1,6 +1,6 @@
 /******************************************************************************
 
-  Copyright (c) 2001-2009, Intel Corporation 
+  Copyright (c) 2001-2010, Intel Corporation 
   All rights reserved.
   
   Redistribution and use in source and binary forms, with or without 
@@ -59,6 +59,7 @@ static s32 ixgbe_setup_copper_link_82598(struct ixgbe_hw *hw,
                                                bool autoneg_wait_to_complete);
 static s32 ixgbe_reset_hw_82598(struct ixgbe_hw *hw);
 s32 ixgbe_start_hw_82598(struct ixgbe_hw *hw);
+void ixgbe_enable_relaxed_ordering_82598(struct ixgbe_hw *hw);
 s32 ixgbe_set_vmdq_82598(struct ixgbe_hw *hw, u32 rar, u32 vmdq);
 static s32 ixgbe_clear_vmdq_82598(struct ixgbe_hw *hw, u32 rar, u32 vmdq);
 s32 ixgbe_set_vfta_82598(struct ixgbe_hw *hw, u32 vlan,
@@ -164,6 +165,7 @@ s32 ixgbe_init_ops_82598(struct ixgbe_hw *hw)
 
 	/* MAC */
 	mac->ops.start_hw = &ixgbe_start_hw_82598;
+	mac->ops.enable_relaxed_ordering = &ixgbe_enable_relaxed_ordering_82598;
 	mac->ops.reset_hw = &ixgbe_reset_hw_82598;
 	mac->ops.get_media_type = &ixgbe_get_media_type_82598;
 	mac->ops.get_supported_physical_layer =
@@ -273,7 +275,8 @@ out:
  *  @hw: pointer to hardware structure
  *
  *  Starts the hardware using the generic start_hw function.
- *  Then set pcie completion timeout
+ *  Disables relaxed ordering Then set pcie completion timeout
+ *
  **/
 s32 ixgbe_start_hw_82598(struct ixgbe_hw *hw)
 {
@@ -287,17 +290,17 @@ s32 ixgbe_start_hw_82598(struct ixgbe_hw *hw)
 
 	/* Disable relaxed ordering */
 	for (i = 0; ((i < hw->mac.max_tx_queues) &&
-		     (i < IXGBE_DCA_MAX_QUEUES_82598)); i++) {
+	     (i < IXGBE_DCA_MAX_QUEUES_82598)); i++) {
 		regval = IXGBE_READ_REG(hw, IXGBE_DCA_TXCTRL(i));
 		regval &= ~IXGBE_DCA_TXCTRL_TX_WB_RO_EN;
 		IXGBE_WRITE_REG(hw, IXGBE_DCA_TXCTRL(i), regval);
 	}
 
 	for (i = 0; ((i < hw->mac.max_rx_queues) &&
-		     (i < IXGBE_DCA_MAX_QUEUES_82598)); i++) {
+	     (i < IXGBE_DCA_MAX_QUEUES_82598)); i++) {
 		regval = IXGBE_READ_REG(hw, IXGBE_DCA_RXCTRL(i));
 		regval &= ~(IXGBE_DCA_RXCTRL_DESC_WRO_EN |
-			    IXGBE_DCA_RXCTRL_DESC_HSRO_EN);
+		            IXGBE_DCA_RXCTRL_DESC_HSRO_EN);
 		IXGBE_WRITE_REG(hw, IXGBE_DCA_RXCTRL(i), regval);
 	}
 
@@ -439,15 +442,23 @@ s32 ixgbe_fc_enable_82598(struct ixgbe_hw *hw, s32 packetbuf_num)
 	DEBUGFUNC("ixgbe_fc_enable_82598");
 
 	/*
-	 * On 82598 backplane having FC on causes resets while doing
-	 * KX, so turn off here.
+	 * On 82598 having Rx FC on causes resets while doing 1G
+	 * so if it's on turn it off once we know link_speed. For
+	 * more details see 82598 Specification update.
 	 */
 	hw->mac.ops.check_link(hw, &link_speed, &link_up, FALSE);
-	if (link_up &&
-	    link_speed == IXGBE_LINK_SPEED_1GB_FULL &&
-	    hw->mac.ops.get_media_type(hw) == ixgbe_media_type_backplane) {
-		hw->fc.disable_fc_autoneg = TRUE;
-		hw->fc.requested_mode = ixgbe_fc_none;
+	if (link_up && link_speed == IXGBE_LINK_SPEED_1GB_FULL) {
+		switch (hw->fc.requested_mode) {
+		case ixgbe_fc_full:
+			hw->fc.requested_mode = ixgbe_fc_tx_pause;
+			break;
+		case ixgbe_fc_rx_pause:
+			hw->fc.requested_mode = ixgbe_fc_none;
+			break;
+		default:
+			/* no change */
+			break;
+		}
 	}
 
 	/* Negotiate the fc mode to use */
@@ -842,12 +853,9 @@ no_phy_reset:
 	 * Prevent the PCI-E bus from from hanging by disabling PCI-E master
 	 * access and verify no pending requests before reset
 	 */
-	status = ixgbe_disable_pcie_master(hw);
-	if (status != IXGBE_SUCCESS) {
-		status = IXGBE_ERR_MASTER_REQUESTS_PENDING;
-		DEBUGOUT("PCI-E Master disable polling has failed.\n");
-	}
+	ixgbe_disable_pcie_master(hw);
 
+mac_reset_top:
 	/*
 	 * Issue global reset to the MAC.  This needs to be a SW reset.
 	 * If link reset is used, it might reset the MAC when mng is using it
@@ -866,6 +874,19 @@ no_phy_reset:
 	if (ctrl & IXGBE_CTRL_RST) {
 		status = IXGBE_ERR_RESET_FAILED;
 		DEBUGOUT("Reset polling failed to complete.\n");
+	}
+
+	/*
+	 * Double resets are required for recovery from certain error
+	 * conditions.  Between resets, it is necessary to stall to allow time
+	 * for any pending HW events to complete.  We use 1usec since that is
+	 * what is needed for ixgbe_disable_pcie_master().  The second reset
+	 * then clears out any effects of those events.
+	 */
+	if (hw->mac.flags & IXGBE_FLAGS_DOUBLE_RESET_REQUIRED) {
+		hw->mac.flags &= ~IXGBE_FLAGS_DOUBLE_RESET_REQUIRED;
+		usec_delay(1);
+		goto mac_reset_top;
 	}
 
 	msec_delay(50);
@@ -1299,3 +1320,32 @@ static s32 ixgbe_validate_link_ready(struct ixgbe_hw *hw)
 	return IXGBE_SUCCESS;
 }
 
+/**
+ *  ixgbe_enable_relaxed_ordering_82598 - enable relaxed ordering
+ *  @hw: pointer to hardware structure
+ *
+ **/
+void ixgbe_enable_relaxed_ordering_82598(struct ixgbe_hw *hw)
+{
+	u32 regval;
+	u32 i;
+
+	DEBUGFUNC("ixgbe_enable_relaxed_ordering_82598");
+
+	/* Enable relaxed ordering */
+	for (i = 0; ((i < hw->mac.max_tx_queues) &&
+	     (i < IXGBE_DCA_MAX_QUEUES_82598)); i++) {
+		regval = IXGBE_READ_REG(hw, IXGBE_DCA_TXCTRL(i));
+		regval |= IXGBE_DCA_TXCTRL_TX_WB_RO_EN;
+		IXGBE_WRITE_REG(hw, IXGBE_DCA_TXCTRL(i), regval);
+	}
+
+	for (i = 0; ((i < hw->mac.max_rx_queues) &&
+	     (i < IXGBE_DCA_MAX_QUEUES_82598)); i++) {
+		regval = IXGBE_READ_REG(hw, IXGBE_DCA_RXCTRL(i));
+		regval |= (IXGBE_DCA_RXCTRL_DESC_WRO_EN |
+		           IXGBE_DCA_RXCTRL_DESC_HSRO_EN);
+		IXGBE_WRITE_REG(hw, IXGBE_DCA_RXCTRL(i), regval);
+	}
+
+}

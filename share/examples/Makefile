@@ -15,6 +15,7 @@ LDIRS=	BSD_daemon \
 	find_interface \
 	hast \
 	ibcs2 \
+	indent \
 	ipfw \
 	kld \
 	libvgl \
@@ -77,6 +78,7 @@ XFILES=	BSD_daemon/FreeBSD.pfa \
 	hast/vip-up.sh \
 	ibcs2/README \
 	ibcs2/hello.uu \
+	indent/indent.pro \
 	ipfw/change_rules.sh \
 	kld/Makefile \
 	kld/cdev/Makefile \

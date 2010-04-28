@@ -1,7 +1,7 @@
 # $FreeBSD$
 
 PROG=	tcpconnect
-WARNS=	3
 NO_MAN=
+WARNS?=	3
 
 .include <bsd.prog.mk>

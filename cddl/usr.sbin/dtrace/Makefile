@@ -1,14 +1,12 @@
 # $FreeBSD$
 
-.include	"../../Makefile.inc"
+.PATH: ${.CURDIR}/../../../cddl/contrib/opensolaris/cmd/dtrace
 
 PROG=		dtrace
-
+SRCS=		dtrace.c
 BINDIR?=	/usr/sbin
 
-SRCS=		dtrace.c
-
-WARNS=		1
+WARNS?=		1
 
 CFLAGS+=	-I${.CURDIR}/../../../sys/cddl/compat/opensolaris \
 		-I${.CURDIR}/../../../cddl/compat/opensolaris/include \
@@ -17,8 +15,6 @@ CFLAGS+=	-I${.CURDIR}/../../../sys/cddl/compat/opensolaris \
 		-I${OPENSOLARIS_USR_DISTDIR}/lib/libproc/common \
 		-I${OPENSOLARIS_SYS_DISTDIR}/uts/common \
 		-I${OPENSOLARIS_SYS_DISTDIR}/compat
-
-.PATH:		${OPENSOLARIS_USR_DISTDIR}/cmd/dtrace
 
 # Optional debugging stuff...
 #CFLAGS+=	-DNEED_ERRLOC

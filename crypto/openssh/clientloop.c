@@ -1,4 +1,4 @@
-/* $OpenBSD: clientloop.c,v 1.213 2009/07/05 19:28:33 stevesk Exp $ */
+/* $OpenBSD: clientloop.c,v 1.218 2010/01/28 00:21:18 djm Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -121,7 +121,7 @@ extern int stdin_null_flag;
 extern int no_shell_flag;
 
 /* Control socket */
-extern int muxserver_sock;
+extern int muxserver_sock; /* XXX use mux_client_cleanup() instead */
 
 /*
  * Name of the host we are connecting to.  This is the name given on the
@@ -129,6 +129,9 @@ extern int muxserver_sock;
  * configuration file.
  */
 extern char *host;
+
+/* Force TTY allocation */
+extern int force_tty_flag;
 
 /*
  * Flag to indicate that we have received a window change signal which has
@@ -143,7 +146,7 @@ static volatile sig_atomic_t received_signal = 0;
 static int in_non_blocking_mode = 0;
 
 /* Common data for the client loop code. */
-static volatile sig_atomic_t quit_pending; /* Set non-zero to quit the loop. */
+volatile sig_atomic_t quit_pending; /* Set non-zero to quit the loop. */
 static int escape_char1;	/* Escape character. (proto1 only) */
 static int escape_pending1;	/* Last character was an escape (proto1 only) */
 static int last_was_cr;		/* Last character was a newline. */
@@ -160,6 +163,8 @@ static int session_closed = 0;	/* In SSH2: login session closed. */
 
 static void client_init_dispatch(void);
 int	session_ident = -1;
+
+int	session_resumed = 0;
 
 /* Track escape per proto2 channel */
 struct escape_filter_ctx {
@@ -559,9 +564,6 @@ client_wait_until_can_do_something(fd_set **readsetp, fd_set **writesetp,
 	if (packet_have_data_to_write())
 		FD_SET(connection_out, *writesetp);
 
-	if (muxserver_sock != -1)
-		FD_SET(muxserver_sock, *readsetp);
-
 	/*
 	 * Wait for something to happen.  This will suspend the process until
 	 * some selected descriptor can be read, written, or has some other
@@ -608,7 +610,7 @@ client_suspend_self(Buffer *bin, Buffer *bout, Buffer *berr)
 		atomicio(vwrite, fileno(stderr), buffer_ptr(berr),
 		    buffer_len(berr));
 
-	leave_raw_mode();
+	leave_raw_mode(force_tty_flag);
 
 	/*
 	 * Free (and clear) the buffer to reduce the amount of data that gets
@@ -629,7 +631,7 @@ client_suspend_self(Buffer *bin, Buffer *bout, Buffer *berr)
 	buffer_init(bout);
 	buffer_init(berr);
 
-	enter_raw_mode();
+	enter_raw_mode(force_tty_flag);
 }
 
 static void
@@ -690,7 +692,7 @@ client_status_confirm(int type, Channel *c, void *ctx)
 
 	/* XXX supress on mux _client_ quietmode */
 	tochan = options.log_level >= SYSLOG_LEVEL_ERROR &&
-	    c->ctl_fd != -1 && c->extended_usage == CHAN_EXTENDED_WRITE;
+	    c->ctl_chan != -1 && c->extended_usage == CHAN_EXTENDED_WRITE;
 
 	if (type == SSH2_MSG_CHANNEL_SUCCESS) {
 		debug2("%s request accepted on channel %d",
@@ -772,7 +774,7 @@ process_cmdline(void)
 	bzero(&fwd, sizeof(fwd));
 	fwd.listen_host = fwd.connect_host = NULL;
 
-	leave_raw_mode();
+	leave_raw_mode(force_tty_flag);
 	handler = signal(SIGINT, SIG_IGN);
 	cmd = s = read_passphrase("\r\nssh> ", RP_ECHO);
 	if (s == NULL)
@@ -834,6 +836,7 @@ process_cmdline(void)
 	while (isspace(*++s))
 		;
 
+	/* XXX update list of forwards in options */
 	if (delete) {
 		cancel_port = 0;
 		cancel_host = hpdelim(&s);	/* may be NULL */
@@ -875,7 +878,7 @@ process_cmdline(void)
 
 out:
 	signal(SIGINT, handler);
-	enter_raw_mode();
+	enter_raw_mode(force_tty_flag);
 	if (cmd)
 		xfree(cmd);
 	if (fwd.listen_host != NULL)
@@ -931,7 +934,7 @@ process_escapes(Channel *c, Buffer *bin, Buffer *bout, Buffer *berr,
 				    escape_char);
 				buffer_append(berr, string, strlen(string));
 
-				if (c && c->ctl_fd != -1) {
+				if (c && c->ctl_chan != -1) {
 					chan_read_failed(c);
 					chan_write_failed(c);
 					return 0;
@@ -941,7 +944,7 @@ process_escapes(Channel *c, Buffer *bin, Buffer *bout, Buffer *berr,
 
 			case 'Z' - 64:
 				/* XXX support this for mux clients */
-				if (c && c->ctl_fd != -1) {
+				if (c && c->ctl_chan != -1) {
  noescape:
 					snprintf(string, sizeof string,
 					    "%c%c escape not available to "
@@ -986,7 +989,7 @@ process_escapes(Channel *c, Buffer *bin, Buffer *bout, Buffer *berr,
 				continue;
 
 			case '&':
-				if (c && c->ctl_fd != -1)
+				if (c && c->ctl_chan != -1)
 					goto noescape;
 				/*
 				 * Detach the program (continue to serve
@@ -994,7 +997,7 @@ process_escapes(Channel *c, Buffer *bin, Buffer *bout, Buffer *berr,
 				 * more new connections).
 				 */
 				/* Restore tty modes. */
-				leave_raw_mode();
+				leave_raw_mode(force_tty_flag);
 
 				/* Stop listening for new connections. */
 				channel_stop_listening();
@@ -1037,7 +1040,7 @@ process_escapes(Channel *c, Buffer *bin, Buffer *bout, Buffer *berr,
 				continue;
 
 			case '?':
-				if (c && c->ctl_fd != -1) {
+				if (c && c->ctl_chan != -1) {
 					snprintf(string, sizeof string,
 "%c?\r\n\
 Supported escape sequences:\r\n\
@@ -1086,7 +1089,7 @@ Supported escape sequences:\r\n\
 				continue;
 
 			case 'C':
-				if (c && c->ctl_fd != -1)
+				if (c && c->ctl_chan != -1)
 					goto noescape;
 				process_cmdline();
 				continue;
@@ -1289,7 +1292,7 @@ client_channel_closed(int id, void *arg)
 {
 	channel_cancel_cleanup(id);
 	session_closed = 1;
-	leave_raw_mode();
+	leave_raw_mode(force_tty_flag);
 }
 
 /*
@@ -1322,8 +1325,6 @@ client_loop(int have_pty, int escape_char_arg, int ssh2_chan_id)
 	connection_in = packet_get_connection_in();
 	connection_out = packet_get_connection_out();
 	max_fd = MAX(connection_in, connection_out);
-	if (muxserver_sock != -1)
-		max_fd = MAX(max_fd, muxserver_sock);
 
 	if (!compat20) {
 		/* enable nonblocking unless tty */
@@ -1362,7 +1363,7 @@ client_loop(int have_pty, int escape_char_arg, int ssh2_chan_id)
 	signal(SIGWINCH, window_change_handler);
 
 	if (have_pty)
-		enter_raw_mode();
+		enter_raw_mode(force_tty_flag);
 
 	if (compat20) {
 		session_ident = ssh2_chan_id;
@@ -1441,12 +1442,6 @@ client_loop(int have_pty, int escape_char_arg, int ssh2_chan_id)
 		/* Buffer input from the connection.  */
 		client_process_net_input(readset);
 
-		/* Accept control connections.  */
-		if (muxserver_sock != -1 &&FD_ISSET(muxserver_sock, readset)) {
-			if (muxserver_accept_control())
-				quit_pending = 1;
-		}
-
 		if (quit_pending)
 			break;
 
@@ -1458,6 +1453,14 @@ client_loop(int have_pty, int escape_char_arg, int ssh2_chan_id)
 			 * the connection is processed elsewhere (above).
 			 */
 			client_process_output(writeset);
+		}
+
+		if (session_resumed) {
+			connection_in = packet_get_connection_in();
+			connection_out = packet_get_connection_out();
+			max_fd = MAX(max_fd, connection_out);
+			max_fd = MAX(max_fd, connection_in);
+			session_resumed = 0;
 		}
 
 		/*
@@ -1488,7 +1491,7 @@ client_loop(int have_pty, int escape_char_arg, int ssh2_chan_id)
 	channel_free_all();
 
 	if (have_pty)
-		leave_raw_mode();
+		leave_raw_mode(force_tty_flag);
 
 	/* restore blocking io */
 	if (!isatty(fileno(stdin)))
@@ -1846,15 +1849,17 @@ client_input_channel_req(int type, u_int32_t seq, void *ctxt)
 		chan_rcvd_eow(c);
 	} else if (strcmp(rtype, "exit-status") == 0) {
 		exitval = packet_get_int();
-		if (id == session_ident) {
+		if (c->ctl_chan != -1) {
+			mux_exit_message(c, exitval);
+			success = 1;
+		} else if (id == session_ident) {
+			/* Record exit value of local session */
 			success = 1;
 			exit_status = exitval;
-		} else if (c->ctl_fd == -1) {
-			error("client_input_channel_req: unexpected channel %d",
-			    session_ident);
 		} else {
-			atomicio(vwrite, c->ctl_fd, &exitval, sizeof(exitval));
-			success = 1;
+			/* Probably for a mux channel that has already closed */
+			debug("%s: no sink for exit-status on channel %d",
+			    __func__, id);
 		}
 		packet_check_eom();
 	}
@@ -2050,7 +2055,7 @@ client_init_dispatch(void)
 void
 cleanup_exit(int i)
 {
-	leave_raw_mode();
+	leave_raw_mode(force_tty_flag);
 	leave_non_blocking();
 	if (options.control_path != NULL && muxserver_sock != -1)
 		unlink(options.control_path);

@@ -14,7 +14,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: nsec3.c,v 1.6.12.2 2009/06/04 02:56:14 tbox Exp $ */
+/* $Id: nsec3.c,v 1.6.12.4 2009/11/03 23:47:46 tbox Exp $ */
 
 #include <config.h>
 
@@ -87,6 +87,8 @@ dns_nsec3_buildrdata(dns_db_t *db, dns_dbversion_t *version,
 	unsigned int i, window;
 	int octet;
 	isc_boolean_t found;
+	isc_boolean_t found_ns;
+	isc_boolean_t need_rrsig;
 
 	unsigned char *nsec_bits, *bm;
 	unsigned int max_type;
@@ -140,7 +142,7 @@ dns_nsec3_buildrdata(dns_db_t *db, dns_dbversion_t *version,
 	result = dns_db_allrdatasets(db, node, version, 0, &rdsiter);
 	if (result != ISC_R_SUCCESS)
 		return (result);
-	found = ISC_FALSE;
+	found = found_ns = need_rrsig = ISC_FALSE;
 	for (result = dns_rdatasetiter_first(rdsiter);
 	     result == ISC_R_SUCCESS;
 	     result = dns_rdatasetiter_next(rdsiter))
@@ -152,13 +154,26 @@ dns_nsec3_buildrdata(dns_db_t *db, dns_dbversion_t *version,
 			if (rdataset.type > max_type)
 				max_type = rdataset.type;
 			set_bit(bm, rdataset.type, 1);
-			/* Don't set RRSIG for insecure delegation. */
-			if (rdataset.type != dns_rdatatype_ns)
+			/*
+			 * Work out if we need to set the RRSIG bit for
+			 * this node.  We set the RRSIG bit if either of
+			 * the following conditions are met:
+			 * 1) We have a SOA or DS then we need to set
+			 *    the RRSIG bit as both always will be signed.
+			 * 2) We set the RRSIG bit if we don't have
+			 *    a NS record but do have other data.
+			 */
+			if (rdataset.type == dns_rdatatype_soa ||
+			    rdataset.type == dns_rdatatype_ds)
+				need_rrsig = ISC_TRUE;
+			else if (rdataset.type == dns_rdatatype_ns)
+				found_ns = ISC_TRUE;
+			else
 				found = ISC_TRUE;
 		}
 		dns_rdataset_disassociate(&rdataset);
 	}
-	if (found) {
+	if ((found && !found_ns) || need_rrsig) {
 		if (dns_rdatatype_rrsig > max_type)
 			max_type = dns_rdatatype_rrsig;
 		set_bit(bm, dns_rdatatype_rrsig, 1);

@@ -180,6 +180,8 @@ arptimer(void *arg)
 	else {
 		if (!callout_pending(&lle->la_timer) &&
 		    callout_active(&lle->la_timer)) {
+			callout_stop(&lle->la_timer);
+			LLE_REMREF(lle);
 			(void) llentry_free(lle);
 			ARPSTAT_INC(timeouts);
 		} 
@@ -382,9 +384,14 @@ retry:
 		    EHOSTUNREACH : EHOSTDOWN;
 
 	if (renew) {
+		int canceled;
+
 		LLE_ADDREF(la);
 		la->la_expire = time_second + V_arpt_down;
-		callout_reset(&la->la_timer, hz * V_arpt_down, arptimer, la);
+		canceled = callout_reset(&la->la_timer, hz * V_arpt_down,
+		    arptimer, la);
+		if (canceled)
+			LLE_REMREF(la);
 		la->la_asked++;
 		LLE_WUNLOCK(la);
 		arprequest(ifp, NULL, &SIN(dst)->sin_addr,
@@ -696,9 +703,14 @@ match:
 		EVENTHANDLER_INVOKE(arp_update_event, la);
 
 		if (!(la->la_flags & LLE_STATIC)) {
+			int canceled;
+
+			LLE_ADDREF(la);
 			la->la_expire = time_second + V_arpt_keep;
-			callout_reset(&la->la_timer, hz * V_arpt_keep,
-			    arptimer, la);
+			canceled = callout_reset(&la->la_timer,
+			    hz * V_arpt_keep, arptimer, la);
+			if (canceled)
+				LLE_REMREF(la);
 		}
 		la->la_asked = 0;
 		la->la_preempt = V_arp_maxtries;

@@ -318,7 +318,7 @@ AcpiDsBeginMethodExecution (
             (WalkState->Thread->CurrentSyncLevel > ObjDesc->Method.Mutex->Mutex.SyncLevel))
         {
             ACPI_ERROR ((AE_INFO,
-                "Cannot acquire Mutex for method [%4.4s], current SyncLevel is too large (%d)",
+                "Cannot acquire Mutex for method [%4.4s], current SyncLevel is too large (%u)",
                 AcpiUtGetNodeName (MethodNode),
                 WalkState->Thread->CurrentSyncLevel));
 

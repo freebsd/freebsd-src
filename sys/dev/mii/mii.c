@@ -16,13 +16,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the NetBSD
- *	Foundation, Inc. and its contributors.
- * 4. Neither the name of The NetBSD Foundation nor the names of its
- *    contributors may be used to endorse or promote products derived
- *    from this software without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
  * ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
@@ -180,6 +173,8 @@ miibus_attach(device_t dev)
 	 * XXX: EVIL HACK!
 	 */
 	mii->mii_ifp = *(struct ifnet**)device_get_softc(device_get_parent(dev));
+	mii->mii_ifp->if_capabilities |= IFCAP_LINKSTATE;
+	mii->mii_ifp->if_capenable |= IFCAP_LINKSTATE;
 	ivars = device_get_ivars(dev);
 	ifmedia_init(&mii->mii_media, IFM_IMASK, ivars->ifmedia_upd,
 	    ivars->ifmedia_sts);
@@ -258,19 +253,12 @@ miibus_statchg(device_t dev)
 {
 	device_t		parent;
 	struct mii_data		*mii;
-	struct ifnet		*ifp;
 
 	parent = device_get_parent(dev);
 	MIIBUS_STATCHG(parent);
 
 	mii = device_get_softc(dev);
-
-	/*
-	 * Note that each NIC's softc must start with an ifnet pointer.
-	 * XXX: EVIL HACK!
-	 */
-	ifp = *(struct ifnet **)device_get_softc(parent);
-	ifp->if_baudrate = ifmedia_baudrate(mii->mii_media_active);
+	mii->mii_ifp->if_baudrate = ifmedia_baudrate(mii->mii_media_active);
 	return;
 }
 
@@ -293,11 +281,7 @@ miibus_linkchg(device_t dev)
 			link_state = LINK_STATE_DOWN;
 	} else
 		link_state = LINK_STATE_UNKNOWN;
-	/*
-	 * Note that each NIC's softc must start with an ifnet pointer.
-	 * XXX: EVIL HACK!
-	 */
-	if_link_state_change(*(struct ifnet**)device_get_softc(parent), link_state);
+	if_link_state_change(mii->mii_ifp, link_state);
 }
 
 static void

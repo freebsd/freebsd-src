@@ -59,6 +59,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/mbuf.h>
 #include <sys/protosw.h>
 #include <sys/sf_buf.h>
+#include <sys/sysent.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
 #include <sys/signalvar.h>
@@ -68,6 +69,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/vnode.h>
 #ifdef KTRACE
 #include <sys/ktrace.h>
+#endif
+#ifdef COMPAT_FREEBSD32
+#include <compat/freebsd32/freebsd32_util.h>
 #endif
 
 #include <net/vnet.h>
@@ -2513,7 +2517,13 @@ sctp_generic_sendmsg_iov(td, uap)
 	if (error)
 		goto sctp_bad1;
 
-	error = copyiniov(uap->iov, uap->iovlen, &iov, EMSGSIZE);
+#ifdef COMPAT_FREEBSD32
+	if (SV_CURPROC_FLAG(SV_ILP32))
+		error = freebsd32_copyiniov((struct iovec32 *)uap->iov,
+		    uap->iovlen, &iov, EMSGSIZE);
+	else
+#endif
+		error = copyiniov(uap->iov, uap->iovlen, &iov, EMSGSIZE);
 	if (error)
 		goto sctp_bad1;
 #ifdef KTRACE
@@ -2528,7 +2538,7 @@ sctp_generic_sendmsg_iov(td, uap)
 		goto sctp_bad;
 #endif /* MAC */
 
-	auio.uio_iov =  iov;
+	auio.uio_iov = iov;
 	auio.uio_iovcnt = uap->iovlen;
 	auio.uio_segflg = UIO_USERSPACE;
 	auio.uio_rw = UIO_WRITE;
@@ -2615,17 +2625,21 @@ sctp_generic_recvmsg(td, uap)
 	if (error) {
 		return (error);
 	}
-	error = copyiniov(uap->iov, uap->iovlen, &iov, EMSGSIZE);
-	if (error) {
+#ifdef COMPAT_FREEBSD32
+	if (SV_CURPROC_FLAG(SV_ILP32))
+		error = freebsd32_copyiniov((struct iovec32 *)uap->iov,
+		    uap->iovlen, &iov, EMSGSIZE);
+	else
+#endif
+		error = copyiniov(uap->iov, uap->iovlen, &iov, EMSGSIZE);
+	if (error)
 		goto out1;
-	}
 
 	so = fp->f_data;
 #ifdef MAC
 	error = mac_socket_check_receive(td->td_ucred, so);
 	if (error) {
 		goto out;
-		return (error);
 	}
 #endif /* MAC */
 
@@ -2638,7 +2652,7 @@ sctp_generic_recvmsg(td, uap)
 	} else {
 		fromlen = 0;
 	}
-	if(uap->msg_flags) {
+	if (uap->msg_flags) {
 		error = copyin(uap->msg_flags, &msg_flags, sizeof (int));
 		if (error) {
 			goto out;

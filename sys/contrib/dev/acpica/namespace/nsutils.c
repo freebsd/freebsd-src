@@ -389,7 +389,7 @@ AcpiNsLocal (
     {
         /* Type code out of range  */
 
-        ACPI_WARNING ((AE_INFO, "Invalid Object Type %X", Type));
+        ACPI_WARNING ((AE_INFO, "Invalid Object Type 0x%X", Type));
         return_UINT32 (ACPI_NS_NORMAL);
     }
 
@@ -965,7 +965,7 @@ AcpiNsOpensScope (
     {
         /* type code out of range  */
 
-        ACPI_WARNING ((AE_INFO, "Invalid Object Type %X", Type));
+        ACPI_WARNING ((AE_INFO, "Invalid Object Type 0x%X", Type));
         return_UINT32 (ACPI_NS_NORMAL);
     }
 

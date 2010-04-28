@@ -1125,6 +1125,7 @@ nd6_free(struct llentry *ln, int gc)
 	ifp = ln->lle_tbl->llt_ifp;
 	IF_AFDATA_LOCK(ifp);
 	LLE_WLOCK(ln);
+	LLE_REMREF(ln);
 	llentry_free(ln);
 	IF_AFDATA_UNLOCK(ifp);
 
@@ -1168,7 +1169,7 @@ nd6_nud_hint(struct rtentry *rt, struct in6_addr *dst6, int force)
 
  	ln->ln_state = ND6_LLINFO_REACHABLE;
 	if (!ND6_LLINFO_PERMANENT(ln)) {
-		nd6_llinfo_settimer(ln,
+		nd6_llinfo_settimer_locked(ln,
 		    (long)ND_IFINFO(rt->rt_ifp)->reachable * hz);
 	}
 done:

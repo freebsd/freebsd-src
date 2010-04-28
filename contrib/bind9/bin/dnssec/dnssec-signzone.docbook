@@ -18,7 +18,7 @@
  - PERFORMANCE OF THIS SOFTWARE.
 -->
 
-<!-- $Id: dnssec-signzone.docbook,v 1.31.44.6 2009/06/09 01:47:19 each Exp $ -->
+<!-- $Id: dnssec-signzone.docbook,v 1.31.44.8 2009/11/06 21:36:22 each Exp $ -->
 <refentry id="man.dnssec-signzone">
   <refentryinfo>
     <date>June 08, 2009</date>
@@ -73,6 +73,7 @@
       <arg><option>-o <replaceable class="parameter">origin</replaceable></option></arg>
       <arg><option>-O <replaceable class="parameter">output-format</replaceable></option></arg>
       <arg><option>-p</option></arg>
+      <arg><option>-P</option></arg>
       <arg><option>-r <replaceable class="parameter">randomdev</replaceable></option></arg>
       <arg><option>-s <replaceable class="parameter">start-time</replaceable></option></arg>
       <arg><option>-t</option></arg>
@@ -91,10 +92,10 @@
     <para><command>dnssec-signzone</command>
       signs a zone.  It generates
       NSEC and RRSIG records and produces a signed version of the
-      zone. The security status of delegations from the signed zone
-      (that is, whether the child zones are secure or not) is
-      determined by the presence or absence of a
-      <filename>keyset</filename> file for each child zone.
+      zone.  It also generates a <filename>keyset-</filename> file containing
+      the key-signing keys for the zone, and if signing a zone which
+      contains delegations, it can optionally generate DS records for
+      the child zones from their <filename>keyset-</filename> files.
     </para>
   </refsect1>
 
@@ -154,8 +155,10 @@
         <term>-g</term>
         <listitem>
           <para>
-            Generate DS records for child zones from keyset files.
-            Existing DS records will be removed.
+            If the zone contains any delegations, and there are
+            <filename>keyset-</filename> files for any of the child zones,
+            then DS records for the child zones will be generated from the
+            keys in those files.  Existing DS records will be removed.
           </para>
         </listitem>
       </varlistentry>
@@ -355,6 +358,22 @@
             but less secure, than using real random data.  This option
             may be useful when signing large zones or when the entropy
             source is limited.
+          </para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term>-P</term>
+        <listitem>
+          <para>
+	    Disable post sign verification tests.
+          </para>
+          <para>
+	    The post sign verification test ensures that for each algorithm
+	    in use there is at least one non revoked self signed KSK key,
+	    that all revoked KSK keys are self signed, and that all records
+	    in the zone are signed by the algorithm.
+	    This option skips these tests.
           </para>
         </listitem>
       </varlistentry>

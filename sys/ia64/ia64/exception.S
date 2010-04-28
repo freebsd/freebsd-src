@@ -676,7 +676,7 @@ ivt_##name:					\
 #define	IVT_END(name)				\
 	.endp	ivt_##name
 
-#ifdef COMPAT_IA32
+#ifdef COMPAT_FREEBSD32
 #define	IA32_TRAP	ia32_trap
 #else
 #define	IA32_TRAP	trap
@@ -1303,7 +1303,7 @@ IVT_END(Break_Instruction)
 
 IVT_ENTRY(External_Interrupt, 0x3000)
 {	.mib
-	mov		r17=cr.ivr	// Put the vector in the trap frame.
+	mov		r17=ar.itc	// Put the ITC in the trapframe.
 	mov		r16=ip
 	br.sptk		exception_save
 	;;
@@ -1317,7 +1317,7 @@ IVT_ENTRY(External_Interrupt, 0x3000)
 {	.mib
 	add		out0=16,sp
 	nop		0
-	br.call.sptk	rp=interrupt
+	br.call.sptk	rp=ia64_handle_intr
 	;;
 }
 {	.mib

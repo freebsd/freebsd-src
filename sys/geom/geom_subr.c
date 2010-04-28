@@ -59,6 +59,10 @@ __FBSDID("$FreeBSD$");
 #include <ddb/ddb.h>
 #endif
 
+#ifdef KDB
+#include <sys/kdb.h>
+#endif
+
 struct class_list_head g_classes = LIST_HEAD_INITIALIZER(g_classes);
 static struct g_tailq_head geoms = TAILQ_HEAD_INITIALIZER(geoms);
 char *g_wait_event, *g_wait_up, *g_wait_down, *g_wait_sim;
@@ -1011,12 +1015,11 @@ g_getattr__(const char *attr, struct g_consumer *cp, void *var, int len)
 
 #if defined(DIAGNOSTIC) || defined(DDB)
 /*
- * This function walks (topologically unsafely) the mesh and return a
- * non-zero integer if it finds the argument pointer is an object.
- * The return value indicates which type of object it is belived to be.
- * If topology is not locked, this function is potentially dangerous,
- * but since it is for debugging purposes and can be useful for instance
- * from DDB, we do not assert topology lock is held.
+ * This function walks the mesh and returns a non-zero integer if it
+ * finds the argument pointer is an object. The return value indicates
+ * which type of object it is believed to be. If topology is not locked,
+ * this function is potentially dangerous, but we don't assert that the
+ * topology lock is held when called from debugger.
  */
 int
 g_valid_obj(void const *ptr)
@@ -1026,7 +1029,10 @@ g_valid_obj(void const *ptr)
 	struct g_consumer *cp;
 	struct g_provider *pp;
 
-	g_topology_assert();
+#ifdef KDB
+	if (kdb_active == 0)
+#endif
+		g_topology_assert();
 
 	LIST_FOREACH(mp, &g_classes, class) {
 		if (ptr == mp)

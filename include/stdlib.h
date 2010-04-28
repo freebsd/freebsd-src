@@ -155,6 +155,7 @@ void	 _Exit(int) __dead2;
 #if __POSIX_VISIBLE /* >= ??? */
 int	 posix_memalign(void **, size_t, size_t); /* (ADV) */
 int	 rand_r(unsigned *);			/* (TSF) */
+char	*realpath(const char * __restrict, char * __restrict);
 int	 setenv(const char *, const char *, int);
 int	 unsetenv(const char *);
 #endif
@@ -201,7 +202,6 @@ int	 posix_openpt(int);
 char	*ptsname(int);
 int	 putenv(char *);
 long	 random(void);
-char	*realpath(const char *, char resolved_path[]);
 unsigned short
 	*seed48(unsigned short[3]);
 #ifndef _SETKEY_DECLARED

@@ -1,5 +1,5 @@
 /*
- * Portions Copyright (C) 2005-2009  Internet Systems Consortium, Inc. ("ISC")
+ * Portions Copyright (C) 2005-2010  Internet Systems Consortium, Inc. ("ISC")
  * Portions Copyright (C) 1999-2001  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -50,7 +50,7 @@
  * USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: sdlz.c,v 1.18.50.2 2009/04/21 23:47:18 tbox Exp $ */
+/* $Id: sdlz.c,v 1.18.50.3.8.2 2010/02/25 10:57:12 tbox Exp $ */
 
 /*! \file */
 
@@ -1117,9 +1117,11 @@ dbiterator_seek(dns_dbiterator_t *iterator, dns_name_t *name) {
 	sdlz_dbiterator_t *sdlziter = (sdlz_dbiterator_t *)iterator;
 
 	sdlziter->current = ISC_LIST_HEAD(sdlziter->nodelist);
-	while (sdlziter->current != NULL)
+	while (sdlziter->current != NULL) {
 		if (dns_name_equal(sdlziter->current->name, name))
 			return (ISC_R_SUCCESS);
+		sdlziter->current = ISC_LIST_NEXT(sdlziter->current, link);
+	}
 	return (ISC_R_NOTFOUND);
 }
 
@@ -1205,6 +1207,8 @@ static dns_rdatasetmethods_t rdataset_methods = {
 	isc__rdatalist_count,
 	isc__rdatalist_addnoqname,
 	isc__rdatalist_getnoqname,
+	NULL,
+	NULL,
 	NULL,
 	NULL,
 	NULL,

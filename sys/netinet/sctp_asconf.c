@@ -556,9 +556,9 @@ sctp_process_asconf_set_primary(struct mbuf *m,
 		 * PRIMARY with DELETE IP ADDRESS of the previous primary
 		 * destination, unacknowledged DATA are retransmitted
 		 * immediately to the new primary destination for seamless
-		 * handover.  If the destination is UNCONFIRMED and marked
-		 * to REQ_PRIM, The retransmission occur when reception of
-		 * the HEARTBEAT-ACK.  (See sctp_handle_heartbeat_ack in
+		 * handover. If the destination is UNCONFIRMED and marked to
+		 * REQ_PRIM, The retransmission occur when reception of the
+		 * HEARTBEAT-ACK.  (See sctp_handle_heartbeat_ack in
 		 * sctp_input.c) Also, when change of the primary
 		 * destination, it is better that all subsequent new DATA
 		 * containing already queued DATA are transmitted to the new
@@ -1113,7 +1113,7 @@ sctp_assoc_immediate_retrans(struct sctp_tcb *stcb, struct sctp_nets *dstnet)
 		}
 		SCTP_TCB_LOCK_ASSERT(stcb);
 #ifdef SCTP_AUDITING_ENABLED
-		sctp_auditing(4, stcb->sctp_ep, stcb->asoc.deleted_primary);
+		sctp_auditing(4, stcb->sctp_ep, stcb, stcb->asoc.deleted_primary);
 #endif
 		sctp_chunk_output(stcb->sctp_ep, stcb, SCTP_OUTPUT_FROM_T3, SCTP_SO_NOT_LOCKED);
 		if ((stcb->asoc.num_send_timers_up == 0) &&
@@ -1166,7 +1166,7 @@ sctp_path_check_and_react(struct sctp_tcb *stcb, struct sctp_ifa *newifa)
 
 	/*
 	 * If number of local valid addresses is 1, the valid address is
-	 * probably newly added address.  Several valid addresses in this
+	 * probably newly added address. Several valid addresses in this
 	 * association.  A source address may not be changed.  Additionally,
 	 * they can be configured on a same interface as "alias" addresses.
 	 * (by micchie)
@@ -1210,7 +1210,7 @@ sctp_path_check_and_react(struct sctp_tcb *stcb, struct sctp_ifa *newifa)
 		/*
 		 * Check if the nexthop is corresponding to the new address.
 		 * If the new address is corresponding to the current
-		 * nexthop, the path will be changed.  If the new address is
+		 * nexthop, the path will be changed. If the new address is
 		 * NOT corresponding to the current nexthop, the path will
 		 * not be changed.
 		 */

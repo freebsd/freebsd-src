@@ -83,7 +83,7 @@ struct tlb {
 	int	tlb_lo1;
 };
 
-typedef unsigned long pt_entry_t;
+typedef unsigned int pt_entry_t;
 typedef pt_entry_t *pd_entry_t;
 
 #define	PDESIZE		sizeof(pd_entry_t)	/* for assembly files */
@@ -126,7 +126,7 @@ typedef pt_entry_t *pd_entry_t;
 #define	pfn_to_vad(x)	(((x) & PTE_FRAME) << PTE_SHIFT)
 
 /* User virtual to pte offset in page table */
-#define	vad_to_pte_offset(adr)	(((adr) >> PGSHIFT) & (NPTEPG -1))
+#define	vad_to_pte_offset(adr)	(((adr) >> PAGE_SHIFT) & (NPTEPG -1))
 
 #define	mips_pg_v(entry)	((entry) & PTE_V)
 #define	mips_pg_wired(entry)	((entry) & PTE_WIRED)

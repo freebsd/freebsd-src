@@ -92,6 +92,15 @@ struct vnet {
 #include <sys/sx.h>
 
 /*
+ * Location of the kernel's 'set_vnet' linker set.
+ */
+extern uintptr_t	*__start_set_vnet;
+extern uintptr_t	*__stop_set_vnet;
+
+#define	VNET_START	(uintptr_t)&__start_set_vnet
+#define	VNET_STOP	(uintptr_t)&__stop_set_vnet
+
+/*
  * Functions to allocate and destroy virtual network stacks.
  */
 struct vnet *vnet_alloc(void);
@@ -313,6 +322,29 @@ void	vnet_register_sysuninit(void *arg);
 void	vnet_deregister_sysinit(void *arg);
 void	vnet_deregister_sysuninit(void *arg);
 
+/*
+ * EVENTHANDLER(9) extensions.
+ */
+#include <sys/eventhandler.h>
+
+void	vnet_global_eventhandler_iterator_func(void *, ...);
+#define VNET_GLOBAL_EVENTHANDLER_REGISTER_TAG(tag, name, func, arg, priority) \
+do {									\
+	if (IS_DEFAULT_VNET(curvnet)) {					\
+		(tag) = vimage_eventhandler_register(NULL, #name, func,	\
+		    arg, priority,					\
+		    vnet_global_eventhandler_iterator_func);		\
+	}								\
+} while(0)
+#define VNET_GLOBAL_EVENTHANDLER_REGISTER(name, func, arg, priority)	\
+do {									\
+	if (IS_DEFAULT_VNET(curvnet)) {					\
+		vimage_eventhandler_register(NULL, #name, func,		\
+		    arg, priority,					\
+		    vnet_global_eventhandler_iterator_func);		\
+	}								\
+} while(0)
+
 #else /* !VIMAGE */
 
 /*
@@ -384,6 +416,13 @@ void	vnet_deregister_sysuninit(void *arg);
 #define	VNET_SYSUNINIT(ident, subsystem, order, func, arg)		\
 	SYSUNINIT(ident, subsystem, order, func, arg)
 
+/*
+ * Without VIMAGE revert to the default implementation.
+ */
+#define VNET_GLOBAL_EVENTHANDLER_REGISTER_TAG(tag, name, func, arg, priority) \
+	(tag) = eventhandler_register(NULL, #name, func, arg, priority)
+#define VNET_GLOBAL_EVENTHANDLER_REGISTER(name, func, arg, priority)	\
+	eventhandler_register(NULL, #name, func, arg, priority)
 #endif /* VIMAGE */
 #endif /* _KERNEL */
 

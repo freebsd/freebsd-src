@@ -103,15 +103,10 @@ const char usage[] = "usage: %s [-] [-sx] [-p string] [file]\n";
 
 /* ed: line editor */
 int
-main(int argc, char *argv[])
+main(volatile int argc, char ** volatile argv)
 {
 	int c, n;
 	long status = 0;
-#if __GNUC__
-	/* Avoid longjmp clobbering */
-	(void) &argc;
-	(void) &argv;
-#endif
 
 	(void)setlocale(LC_ALL, "");
 

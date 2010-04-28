@@ -314,6 +314,7 @@ struct qset_params {                   /* SGE queue set parameters */
 	unsigned int rspq_size;        /* # of entries in response queue */
 	unsigned int fl_size;          /* # of entries in regular free list */
 	unsigned int jumbo_size;       /* # of entries in jumbo free list */
+	unsigned int jumbo_buf_size;   /* buffer size of jumbo entry */
 	unsigned int txq_size[SGE_TXQ_PER_SET];  /* Tx queue sizes */
 	unsigned int cong_thres;       /* FL congestion threshold */
 	unsigned int vector;           /* Interrupt (line or vector) number */

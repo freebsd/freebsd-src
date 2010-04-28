@@ -1882,7 +1882,9 @@ key_spdadd(so, m, mhp)
 	newsp = key_getsp(&spidx);
 	if (mhp->msg->sadb_msg_type == SADB_X_SPDUPDATE) {
 		if (newsp) {
+			SPTREE_LOCK();
 			newsp->state = IPSEC_SPSTATE_DEAD;
+			SPTREE_UNLOCK();
 			KEY_FREESP(&newsp);
 		}
 	} else {
@@ -2117,7 +2119,9 @@ key_spddelete(so, m, mhp)
 	/* save policy id to buffer to be returned. */
 	xpl0->sadb_x_policy_id = sp->id;
 
+	SPTREE_LOCK();
 	sp->state = IPSEC_SPSTATE_DEAD;
+	SPTREE_UNLOCK();
 	KEY_FREESP(&sp);
 
     {
@@ -2184,7 +2188,9 @@ key_spddelete2(so, m, mhp)
 		return key_senderror(so, m, EINVAL);
 	}
 
+	SPTREE_LOCK();
 	sp->state = IPSEC_SPSTATE_DEAD;
+	SPTREE_UNLOCK();
 	KEY_FREESP(&sp);
 
     {
@@ -7779,7 +7785,8 @@ void
 key_destroy(void)
 {
 	struct secpolicy *sp, *nextsp;
-	struct secspacq *acq, *nextacq;
+	struct secacq *acq, *nextacq;
+	struct secspacq *spacq, *nextspacq;
 	struct secashead *sah, *nextsah;
 	struct secreg *reg;
 	int i;
@@ -7820,7 +7827,7 @@ key_destroy(void)
 	REGTREE_UNLOCK();
 
 	ACQ_LOCK();
-	for (acq = LIST_FIRST(&V_spacqtree); acq != NULL; acq = nextacq) {
+	for (acq = LIST_FIRST(&V_acqtree); acq != NULL; acq = nextacq) {
 		nextacq = LIST_NEXT(acq, chain);
 		if (__LIST_CHAINED(acq)) {
 			LIST_REMOVE(acq, chain);
@@ -7830,11 +7837,12 @@ key_destroy(void)
 	ACQ_UNLOCK();
 
 	SPACQ_LOCK();
-	for (acq = LIST_FIRST(&V_spacqtree); acq != NULL; acq = nextacq) {
-		nextacq = LIST_NEXT(acq, chain);
-		if (__LIST_CHAINED(acq)) {
-			LIST_REMOVE(acq, chain);
-			free(acq, M_IPSEC_SAQ);
+	for (spacq = LIST_FIRST(&V_spacqtree); spacq != NULL;
+	    spacq = nextspacq) {
+		nextspacq = LIST_NEXT(spacq, chain);
+		if (__LIST_CHAINED(spacq)) {
+			LIST_REMOVE(spacq, chain);
+			free(spacq, M_IPSEC_SAQ);
 		}
 	}
 	SPACQ_UNLOCK();

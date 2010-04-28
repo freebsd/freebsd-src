@@ -6,7 +6,6 @@ NO_INSTALLLIB=
 NO_PROFILE=
 
 CFLAGS+= -I${PAMDIR}/include -I${.CURDIR}/../../libpam
-WARNS?=	6
 
 # This is nasty.
 # For the static case, libpam.a depends on the modules.

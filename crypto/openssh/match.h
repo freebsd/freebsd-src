@@ -1,4 +1,4 @@
-/* $OpenBSD: match.h,v 1.14 2008/06/10 03:57:27 djm Exp $ */
+/* $OpenBSD: match.h,v 1.15 2010/02/26 20:29:54 djm Exp $ */
 
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
@@ -23,5 +23,5 @@ char	*match_list(const char *, const char *, u_int *);
 
 /* addrmatch.c */
 int	 addr_match_list(const char *, const char *);
-
+int	 addr_match_cidr_list(const char *, const char *);
 #endif

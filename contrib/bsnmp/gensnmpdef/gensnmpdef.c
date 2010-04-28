@@ -59,7 +59,7 @@ struct tdef {
 	SLIST_ENTRY(tdef) link;
 };
 
-static SLIST_HEAD(, tdef) tdefs = SLIST_HEAD_INITIALIZER(tdef);
+static SLIST_HEAD(, tdef) tdefs = SLIST_HEAD_INITIALIZER(tdefs);
 static int do_typedef = 0;
 
 static void print_node(SmiNode *n, u_int level);

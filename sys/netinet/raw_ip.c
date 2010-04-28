@@ -185,19 +185,8 @@ void
 rip_init(void)
 {
 
-	INP_INFO_LOCK_INIT(&V_ripcbinfo, "rip");
-	LIST_INIT(&V_ripcb);
-#ifdef VIMAGE
-	V_ripcbinfo.ipi_vnet = curvnet;
-#endif
-	V_ripcbinfo.ipi_listhead = &V_ripcb;
-	V_ripcbinfo.ipi_hashbase =
-	    hashinit(INP_PCBHASH_RAW_SIZE, M_PCB, &V_ripcbinfo.ipi_hashmask);
-	V_ripcbinfo.ipi_porthashbase =
-	    hashinit(1, M_PCB, &V_ripcbinfo.ipi_porthashmask);
-	V_ripcbinfo.ipi_zone = uma_zcreate("ripcb", sizeof(struct inpcb),
-	    NULL, NULL, rip_inpcb_init, NULL, UMA_ALIGN_PTR, UMA_ZONE_NOFREE);
-	uma_zone_set_max(V_ripcbinfo.ipi_zone, maxsockets);
+	in_pcbinfo_init(&V_ripcbinfo, "rip", &V_ripcb, INP_PCBHASH_RAW_SIZE,
+	    1, "ripcb", rip_inpcb_init, NULL, UMA_ZONE_NOFREE);
 	EVENTHANDLER_REGISTER(maxsockets_change, rip_zone_change, NULL,
 	    EVENTHANDLER_PRI_ANY);
 }
@@ -207,10 +196,7 @@ void
 rip_destroy(void)
 {
 
-	hashdestroy(V_ripcbinfo.ipi_hashbase, M_PCB,
-	    V_ripcbinfo.ipi_hashmask);
-	hashdestroy(V_ripcbinfo.ipi_porthashbase, M_PCB,
-	    V_ripcbinfo.ipi_porthashmask);
+	in_pcbinfo_destroy(&V_ripcbinfo);
 }
 #endif
 
@@ -1025,13 +1011,13 @@ rip_pcblist(SYSCTL_HANDLER_ARGS)
 	INP_INFO_RLOCK(&V_ripcbinfo);
 	for (inp = LIST_FIRST(V_ripcbinfo.ipi_listhead), i = 0; inp && i < n;
 	     inp = LIST_NEXT(inp, inp_list)) {
-		INP_RLOCK(inp);
+		INP_WLOCK(inp);
 		if (inp->inp_gencnt <= gencnt &&
 		    cr_canseeinpcb(req->td->td_ucred, inp) == 0) {
-			/* XXX held references? */
+			in_pcbref(inp);
 			inp_list[i++] = inp;
 		}
-		INP_RUNLOCK(inp);
+		INP_WUNLOCK(inp);
 	}
 	INP_INFO_RUNLOCK(&V_ripcbinfo);
 	n = i;
@@ -1054,6 +1040,15 @@ rip_pcblist(SYSCTL_HANDLER_ARGS)
 		} else
 			INP_RUNLOCK(inp);
 	}
+	INP_INFO_WLOCK(&V_ripcbinfo);
+	for (i = 0; i < n; i++) {
+		inp = inp_list[i];
+		INP_WLOCK(inp);
+		if (!in_pcbrele(inp))
+			INP_WUNLOCK(inp);
+	}
+	INP_INFO_WUNLOCK(&V_ripcbinfo);
+
 	if (!error) {
 		/*
 		 * Give the user an updated idea of our state.  If the

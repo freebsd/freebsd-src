@@ -1,4 +1,4 @@
-/* $Id: openbsd-compat.h,v 1.46 2008/06/08 17:32:29 dtucker Exp $ */
+/* $Id: openbsd-compat.h,v 1.49 2010/01/16 12:58:37 dtucker Exp $ */
 
 /*
  * Copyright (c) 1999-2003 Damien Miller.  All rights reserved.
@@ -198,6 +198,14 @@ int vasprintf(char **, const char *, va_list);
 
 #ifndef HAVE_VSNPRINTF
 int vsnprintf(char *, size_t, const char *, va_list);
+#endif
+
+#ifndef HAVE_USER_FROM_UID
+char *user_from_uid(uid_t, int);
+#endif
+
+#ifndef HAVE_GROUP_FROM_GID
+char *group_from_gid(gid_t, int);
 #endif
 
 void *xmmap(size_t size);

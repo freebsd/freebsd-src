@@ -452,8 +452,32 @@ ACPI_OBJECT_TYPE
 AslMapNamedOpcodeToDataType (
     UINT16                  Opcode);
 
+
+/*
+ * aslpredef - ACPI predefined names support
+ */
 void
-MpDisplayReservedNames (
+ApCheckForPredefinedMethod (
+    ACPI_PARSE_OBJECT       *Op,
+    ASL_METHOD_INFO         *MethodInfo);
+
+void
+ApCheckPredefinedReturnValue (
+    ACPI_PARSE_OBJECT       *Op,
+    ASL_METHOD_INFO         *MethodInfo);
+
+UINT32
+ApCheckForPredefinedName (
+    ACPI_PARSE_OBJECT       *Op,
+    char                    *Name);
+
+void
+ApCheckForPredefinedObject (
+    ACPI_PARSE_OBJECT       *Op,
+    char                    *Name);
+
+void
+ApDisplayReservedNames (
     void);
 
 

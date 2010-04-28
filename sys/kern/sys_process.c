@@ -62,10 +62,8 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_pager.h>
 #include <vm/vm_param.h>
 
-#ifdef COMPAT_IA32
+#ifdef COMPAT_FREEBSD32
 #include <sys/procfs.h>
-#include <machine/fpu.h>
-#include <compat/ia32/ia32_reg.h>
 
 struct ptrace_io_desc32 {
 	int		piod_op;
@@ -172,7 +170,7 @@ proc_write_fpregs(struct thread *td, struct fpreg *fpregs)
 	PROC_ACTION(set_fpregs(td, fpregs));
 }
 
-#ifdef COMPAT_IA32
+#ifdef COMPAT_FREEBSD32
 /* For 32 bit binaries, we need to expose the 32 bit regs layouts. */
 int
 proc_read_regs32(struct thread *td, struct reg32 *regs32)
@@ -473,7 +471,7 @@ ptrace_vm_entry(struct thread *td, struct proc *p, struct ptrace_vm_entry *pve)
 	return (error);
 }
 
-#ifdef COMPAT_IA32
+#ifdef COMPAT_FREEBSD32
 static int      
 ptrace_vm_entry32(struct thread *td, struct proc *p,
     struct ptrace_vm_entry32 *pve32)
@@ -500,7 +498,7 @@ ptrace_vm_entry32(struct thread *td, struct proc *p,
 	pve32->pve_pathlen = pve.pve_pathlen;
 	return (error);
 }
-#endif /* COMPAT_IA32 */
+#endif /* COMPAT_FREEBSD32 */
 
 /*
  * Process debugging system call.
@@ -514,7 +512,7 @@ struct ptrace_args {
 };
 #endif
 
-#ifdef COMPAT_IA32
+#ifdef COMPAT_FREEBSD32
 /*
  * This CPP subterfuge is to try and reduce the number of ifdefs in
  * the body of the code.
@@ -549,7 +547,7 @@ ptrace(struct thread *td, struct ptrace_args *uap)
 		struct dbreg dbreg;
 		struct fpreg fpreg;
 		struct reg reg;
-#ifdef COMPAT_IA32
+#ifdef COMPAT_FREEBSD32
 		struct dbreg32 dbreg32;
 		struct fpreg32 fpreg32;
 		struct reg32 reg32;
@@ -559,7 +557,7 @@ ptrace(struct thread *td, struct ptrace_args *uap)
 	} r;
 	void *addr;
 	int error = 0;
-#ifdef COMPAT_IA32
+#ifdef COMPAT_FREEBSD32
 	int wrap32 = 0;
 
 	if (SV_CURPROC_FLAG(SV_ILP32))
@@ -627,7 +625,7 @@ ptrace(struct thread *td, struct ptrace_args *uap)
 #undef COPYIN
 #undef COPYOUT
 
-#ifdef COMPAT_IA32
+#ifdef COMPAT_FREEBSD32
 /*
  *   PROC_READ(regs, td2, addr);
  * becomes either:
@@ -661,7 +659,7 @@ kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
 	int error, write, tmp, num;
 	int proctree_locked = 0;
 	lwpid_t tid = 0, *buf;
-#ifdef COMPAT_IA32
+#ifdef COMPAT_FREEBSD32
 	int wrap32 = 0, safe = 0;
 	struct ptrace_io_desc32 *piod32 = NULL;
 #endif
@@ -749,7 +747,7 @@ kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
 		tid = td2->td_tid;
 	}
 
-#ifdef COMPAT_IA32
+#ifdef COMPAT_FREEBSD32
 	/*
 	 * Test if we're a 32 bit client and what the target is.
 	 * Set the wrap controls accordingly.
@@ -1017,7 +1015,7 @@ kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
 		break;
 
 	case PT_IO:
-#ifdef COMPAT_IA32
+#ifdef COMPAT_FREEBSD32
 		if (wrap32) {
 			piod32 = addr;
 			iov.iov_base = (void *)(uintptr_t)piod32->piod_addr;
@@ -1037,7 +1035,7 @@ kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
 		uio.uio_iovcnt = 1;
 		uio.uio_segflg = UIO_USERSPACE;
 		uio.uio_td = td;
-#ifdef COMPAT_IA32
+#ifdef COMPAT_FREEBSD32
 		tmp = wrap32 ? piod32->piod_op : piod->piod_op;
 #else
 		tmp = piod->piod_op;
@@ -1058,7 +1056,7 @@ kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
 		}
 		PROC_UNLOCK(p);
 		error = proc_rwmem(p, &uio);
-#ifdef COMPAT_IA32
+#ifdef COMPAT_FREEBSD32
 		if (wrap32)
 			piod32->piod_len -= uio.uio_resid;
 		else
@@ -1147,7 +1145,7 @@ kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
 
 	case PT_VM_ENTRY:
 		PROC_UNLOCK(p);
-#ifdef COMPAT_IA32
+#ifdef COMPAT_FREEBSD32
 		if (wrap32)
 			error = ptrace_vm_entry32(td, p, addr);
 		else

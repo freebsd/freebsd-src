@@ -233,7 +233,7 @@ mmap(td, uap)
 	/* Make sure mapping fits into numeric range, etc. */
 	if ((uap->len == 0 && !SV_CURPROC_FLAG(SV_AOUT) &&
 	     curproc->p_osrel >= 800104) ||
-	    ((flags & MAP_ANON) && uap->fd != -1))
+	    ((flags & MAP_ANON) && (uap->fd != -1 || pos != 0)))
 		return (EINVAL);
 
 	if (flags & MAP_STACK) {
@@ -300,7 +300,6 @@ mmap(td, uap)
 		handle = NULL;
 		handle_type = OBJT_DEFAULT;
 		maxprot = VM_PROT_ALL;
-		pos = 0;
 	} else {
 		/*
 		 * Mapping file, get fp for validation and
@@ -872,10 +871,8 @@ RestartScan:
 						pmap_is_modified(m))
 						mincoreinfo |= MINCORE_MODIFIED_OTHER;
 					if ((m->flags & PG_REFERENCED) ||
-						pmap_ts_referenced(m)) {
-						vm_page_flag_set(m, PG_REFERENCED);
+					    pmap_is_referenced(m))
 						mincoreinfo |= MINCORE_REFERENCED_OTHER;
-					}
 					vm_page_unlock_queues();
 				}
 				VM_OBJECT_UNLOCK(current->object.vm_object);

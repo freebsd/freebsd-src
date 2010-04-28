@@ -363,7 +363,7 @@ AcpiDmDumpAsf (
             break;
 
         default:
-            AcpiOsPrintf ("\n**** Unknown ASF sub-table type %X\n", SubTable->Header.Type);
+            AcpiOsPrintf ("\n**** Unknown ASF sub-table type 0x%X\n", SubTable->Header.Type);
             return;
         }
 
@@ -561,7 +561,7 @@ AcpiDmDumpDmar (
             ScopeOffset = sizeof (ACPI_DMAR_RHSA);
             break;
         default:
-            AcpiOsPrintf ("\n**** Unknown DMAR sub-table type %X\n\n", SubTable->Type);
+            AcpiOsPrintf ("\n**** Unknown DMAR sub-table type 0x%X\n\n", SubTable->Type);
             return;
         }
 
@@ -809,7 +809,7 @@ AcpiDmDumpHest (
         default:
             /* Cannot continue on unknown type - no length */
 
-            AcpiOsPrintf ("\n**** Unknown HEST sub-table type %X\n", SubTable->Type);
+            AcpiOsPrintf ("\n**** Unknown HEST sub-table type 0x%X\n", SubTable->Type);
             return;
         }
 
@@ -916,7 +916,7 @@ AcpiDmDumpIvrs (
             InfoTable = AcpiDmTableInfoIvrs1;
             break;
         default:
-            AcpiOsPrintf ("\n**** Unknown IVRS sub-table type %X\n",
+            AcpiOsPrintf ("\n**** Unknown IVRS sub-table type 0x%X\n",
                 SubTable->Type);
 
             /* Attempt to continue */
@@ -1002,7 +1002,7 @@ AcpiDmDumpIvrs (
                     InfoTable = AcpiDmTableInfoIvrs4;
                     AcpiOsPrintf (
                         "\n**** Unknown IVRS device entry type/length: "
-                        "%.2X/%X at offset %.4X: (header below)\n",
+                        "0x%.2X/0x%X at offset 0x%.4X: (header below)\n",
                         EntryType, EntryLength, EntryOffset);
                     break;
                 }
@@ -1110,7 +1110,7 @@ AcpiDmDumpMadt (
             InfoTable = AcpiDmTableInfoMadt10;
             break;
         default:
-            AcpiOsPrintf ("\n**** Unknown MADT sub-table type %X\n\n", SubTable->Type);
+            AcpiOsPrintf ("\n**** Unknown MADT sub-table type 0x%X\n\n", SubTable->Type);
 
             /* Attempt to continue */
 
@@ -1378,7 +1378,7 @@ AcpiDmDumpSrat (
             InfoTable = AcpiDmTableInfoSrat2;
             break;
         default:
-            AcpiOsPrintf ("\n**** Unknown SRAT sub-table type %X\n", SubTable->Type);
+            AcpiOsPrintf ("\n**** Unknown SRAT sub-table type 0x%X\n", SubTable->Type);
 
             /* Attempt to continue */
 

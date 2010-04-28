@@ -124,7 +124,7 @@ SYSCTL_ULONG(_kern, OID_AUTO, sgrowsiz, CTLFLAG_RDTUN, &sgrowsiz, 0,
     "Amount to grow stack on a stack fault");
 SYSCTL_PROC(_kern, OID_AUTO, vm_guest, CTLFLAG_RD | CTLTYPE_STRING,
     NULL, 0, sysctl_kern_vm_guest, "A",
-    "Virtual machine detected? (none|generic|xen)");
+    "Virtual machine guest detected? (none|generic|xen)");
 
 /*
  * These have to be allocated somewhere; allocating

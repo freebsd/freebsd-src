@@ -741,7 +741,7 @@ sc_vid_ioctl(struct tty *tp, u_long cmd, caddr_t data, struct thread *td)
 
 #ifndef SC_NO_PALETTE_LOADING
 #ifdef SC_PIXEL_MODE
-	    if ((adp->va_flags & V_ADP_DAC8) != 0)
+	    if (adp->va_info.vi_mem_model == V_INFO_MM_DIRECT)
 		vidd_load_palette(adp, scp->sc->palette2);
 	    else
 #endif
@@ -802,7 +802,7 @@ sc_vid_ioctl(struct tty *tp, u_long cmd, caddr_t data, struct thread *td)
 	    if (scp == scp->sc->cur_scp) {
 		set_mode(scp);
 #ifndef SC_NO_PALETTE_LOADING
-		if ((adp->va_flags & V_ADP_DAC8) != 0)
+		if (adp->va_info.vi_mem_model == V_INFO_MM_DIRECT)
 		    vidd_load_palette(adp, scp->sc->palette2);
 		else
 		    vidd_load_palette(adp, scp->sc->palette);

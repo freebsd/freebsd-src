@@ -9,9 +9,9 @@
 .\"
 .\" Created: Sun May  7 00:14:37 1995 ylo
 .\"
-.\" $OpenBSD: scp.1,v 1.46 2008/07/12 05:33:41 djm Exp $
+.\" $OpenBSD: scp.1,v 1.50 2010/02/08 10:50:20 markus Exp $
 .\"
-.Dd July 12 2008
+.Dd February 8 2010
 .Dt SCP 1
 .Os
 .Sh NAME
@@ -153,6 +153,7 @@ For full details of the options listed below, and their possible values, see
 .It NoHostAuthenticationForLocalhost
 .It NumberOfPasswordPrompts
 .It PasswordAuthentication
+.It PKCS11Provider
 .It Port
 .It PreferredAuthentications
 .It Protocol
@@ -164,7 +165,6 @@ For full details of the options listed below, and their possible values, see
 .It SendEnv
 .It ServerAliveInterval
 .It ServerAliveCountMax
-.It SmartcardDevice
 .It StrictHostKeyChecking
 .It TCPKeepAlive
 .It UsePrivilegedPort

@@ -395,7 +395,7 @@ AcpiDsGetBufferArguments (
     if (!Node)
     {
         ACPI_ERROR ((AE_INFO,
-            "No pointer back to NS node in buffer obj %p", ObjDesc));
+            "No pointer back to namespace node in buffer object %p", ObjDesc));
         return_ACPI_STATUS (AE_AML_INTERNAL);
     }
 
@@ -444,7 +444,7 @@ AcpiDsGetPackageArguments (
     if (!Node)
     {
         ACPI_ERROR ((AE_INFO,
-            "No pointer back to NS node in package %p", ObjDesc));
+            "No pointer back to namespace node in package %p", ObjDesc));
         return_ACPI_STATUS (AE_AML_INTERNAL);
     }
 
@@ -678,7 +678,7 @@ AcpiDsInitBufferField (
     default:
 
         ACPI_ERROR ((AE_INFO,
-            "Unknown field creation opcode %02x",
+            "Unknown field creation opcode 0x%02X",
             AmlOpcode));
         Status = AE_AML_BAD_OPCODE;
         goto Cleanup;
@@ -690,7 +690,7 @@ AcpiDsInitBufferField (
         (8 * (UINT32) BufferDesc->Buffer.Length))
     {
         ACPI_ERROR ((AE_INFO,
-            "Field [%4.4s] at %d exceeds Buffer [%4.4s] size %d (bits)",
+            "Field [%4.4s] at %u exceeds Buffer [%4.4s] size %u (bits)",
             AcpiUtGetNodeName (ResultDesc),
             BitOffset + BitCount,
             AcpiUtGetNodeName (BufferDesc->Buffer.Node),
@@ -806,7 +806,7 @@ AcpiDsEvalBufferFieldOperands (
                     ACPI_WALK_OPERANDS, WalkState);
     if (ACPI_FAILURE (Status))
     {
-        ACPI_ERROR ((AE_INFO, "(%s) bad operand(s) (%X)",
+        ACPI_ERROR ((AE_INFO, "(%s) bad operand(s), status 0x%X",
             AcpiPsGetOpcodeName (Op->Common.AmlOpcode), Status));
 
         return_ACPI_STATUS (Status);
@@ -1607,7 +1607,7 @@ AcpiDsExecEndControlOp (
 
     default:
 
-        ACPI_ERROR ((AE_INFO, "Unknown control opcode=%X Op=%p",
+        ACPI_ERROR ((AE_INFO, "Unknown control opcode=0x%X Op=%p",
             Op->Common.AmlOpcode, Op));
 
         Status = AE_AML_BAD_OPCODE;

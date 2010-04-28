@@ -53,6 +53,7 @@ __FBSDID("$FreeBSD$");
 #include <limits.h>
 #include <locale.h>
 #include <stdint.h>
+#define _WITH_GETLINE
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -60,39 +61,30 @@ __FBSDID("$FreeBSD$");
 #include <wchar.h>
 #include <wctype.h>
 
-#define	INITLINELEN	(LINE_MAX + 1)
-#define	MAXLINELEN	((SIZE_MAX / sizeof(wchar_t)) / 2)
-
-const wchar_t *tabs[] = { L"", L"\t", L"\t\t" };
+int iflag;
+const char *tabs[] = { "", "\t", "\t\t" };
 
 FILE   *file(const char *);
-wchar_t	*getline(wchar_t *, size_t *, FILE *);
-void	show(FILE *, const char *, const wchar_t *, wchar_t *, size_t *);
-int     wcsicoll(const wchar_t *, const wchar_t *);
+wchar_t	*convert(const char *);
+void	show(FILE *, const char *, const char *, char **, size_t *);
 static void	usage(void);
 
 int
 main(int argc, char *argv[])
 {
 	int comp, read1, read2;
-	int ch, flag1, flag2, flag3, iflag;
+	int ch, flag1, flag2, flag3;
 	FILE *fp1, *fp2;
-	const wchar_t *col1, *col2, *col3;
+	const char *col1, *col2, *col3;
 	size_t line1len, line2len;
-	wchar_t *line1, *line2;
-	const wchar_t **p;
-
-	flag1 = flag2 = flag3 = 1;
-	iflag = 0;
-
- 	line1len = INITLINELEN;
- 	line2len = INITLINELEN;
- 	line1 = malloc(line1len * sizeof(*line1));
- 	line2 = malloc(line2len * sizeof(*line2));
-	if (line1 == NULL || line2 == NULL)
-		err(1, "malloc");
+	char *line1, *line2;
+	ssize_t n1, n2;
+	wchar_t *tline1, *tline2;
+	const char **p;
 
 	(void) setlocale(LC_ALL, "");
+
+	flag1 = flag2 = flag3 = 1;
 
 	while ((ch = getopt(argc, argv, "123i")) != -1)
 		switch(ch) {
@@ -131,41 +123,57 @@ main(int argc, char *argv[])
 	if (flag3)
 		col3 = *p;
 
+	line1len = line2len = 0;
+	line1 = line2 = NULL;
+	n1 = n2 = -1;
+
 	for (read1 = read2 = 1;;) {
 		/* read next line, check for EOF */
 		if (read1) {
-			line1 = getline(line1, &line1len, fp1);
-			if (line1 == NULL && ferror(fp1))
+			n1 = getline(&line1, &line1len, fp1);
+			if (n1 < 0 && ferror(fp1))
 				err(1, "%s", argv[0]);
+			if (n1 > 0 && line1[n1 - 1] == '\n')
+				line1[n1 - 1] = '\0';
+
 		}
 		if (read2) {
-			line2 = getline(line2, &line2len, fp2);
-			if (line2 == NULL && ferror(fp2))
+			n2 = getline(&line2, &line2len, fp2);
+			if (n2 < 0 && ferror(fp2))
 				err(1, "%s", argv[1]);
+			if (n2 > 0 && line2[n2 - 1] == '\n')
+				line2[n2 - 1] = '\0';
 		}
 
 		/* if one file done, display the rest of the other file */
-		if (line1 == NULL) {
-			if (line2 != NULL && col2 != NULL)
-				show(fp2, argv[1], col2, line2, &line2len);
+		if (n1 < 0) {
+			if (n2 >= 0 && col2 != NULL)
+				show(fp2, argv[1], col2, &line2, &line2len);
 			break;
 		}
-		if (line2 == NULL) {
-			if (line1 != NULL && col1 != NULL)
-				show(fp1, argv[0], col1, line1, &line1len);
+		if (n2 < 0) {
+			if (n1 >= 0 && col1 != NULL)
+				show(fp1, argv[0], col1, &line1, &line1len);
 			break;
 		}
+
+		tline2 = NULL;
+		if ((tline1 = convert(line1)) != NULL)
+			tline2 = convert(line2);
+		if (tline1 == NULL || tline2 == NULL)
+			comp = strcmp(line1, line2);
+		else
+			comp = wcscoll(tline1, tline2);
+		if (tline1 != NULL)
+			free(tline1);
+		if (tline2 != NULL)
+			free(tline2);
 
 		/* lines are the same */
-		if(iflag)
-			comp = wcsicoll(line1, line2);
-		else
-			comp = wcscoll(line1, line2);
-
 		if (!comp) {
 			read1 = read2 = 1;
 			if (col3 != NULL)
-				(void)printf("%ls%ls\n", col3, line1);
+				(void)printf("%s%s\n", col3, line1);
 			continue;
 		}
 
@@ -174,49 +182,52 @@ main(int argc, char *argv[])
 			read1 = 1;
 			read2 = 0;
 			if (col1 != NULL)
-				(void)printf("%ls%ls\n", col1, line1);
+				(void)printf("%s%s\n", col1, line1);
 		} else {
 			read1 = 0;
 			read2 = 1;
 			if (col2 != NULL)
-				(void)printf("%ls%ls\n", col2, line2);
+				(void)printf("%s%s\n", col2, line2);
 		}
 	}
 	exit(0);
 }
 
 wchar_t *
-getline(wchar_t *buf, size_t *buflen, FILE *fp)
+convert(const char *str)
 {
-	size_t bufpos;
-	wint_t ch;
+	size_t n;
+	wchar_t *buf, *p;
 
-	bufpos = 0;
-	while ((ch = getwc(fp)) != WEOF && ch != '\n') {
-		if (bufpos + 1 >= *buflen) {
-			*buflen = *buflen * 2;
-			if (*buflen > MAXLINELEN)
-				errx(1,
-				    "Maximum line buffer length (%zu) exceeded",
-				    MAXLINELEN);
-			buf = reallocf(buf, *buflen * sizeof(*buf));
-			if (buf == NULL)
-				err(1, "reallocf");
-		}
-		buf[bufpos++] = ch;
+	if ((n = mbstowcs(NULL, str, 0)) == (size_t)-1)
+		return (NULL);
+	if (SIZE_MAX / sizeof(*buf) < n + 1)
+		errx(1, "conversion buffer length overflow");
+	if ((buf = malloc((n + 1) * sizeof(*buf))) == NULL)
+		err(1, "malloc");
+	if (mbstowcs(buf, str, n + 1) != n)
+		errx(1, "internal mbstowcs() error");
+
+	if (iflag) {
+		for (p = buf; *p != L'\0'; p++)
+			*p = towlower(*p);
 	}
-	buf[bufpos] = '\0';
 
-	return (bufpos != 0 || ch == '\n' ? buf : NULL);
+	return (buf);
 }
 
 void
-show(FILE *fp, const char *fn, const wchar_t *offset, wchar_t *buf, size_t *buflen)
+show(FILE *fp, const char *fn, const char *offset, char **bufp, size_t *buflenp)
 {
+	ssize_t n;
 
 	do {
-		(void)printf("%ls%ls\n", offset, buf);
-	} while ((buf = getline(buf, buflen, fp)) != NULL);
+		(void)printf("%s%s\n", offset, *bufp);
+		if ((n = getline(bufp, buflenp, fp)) < 0)
+			break;
+		if (n > 0 && (*bufp)[n - 1] == '\n')
+			(*bufp)[n - 1] = '\0';
+	} while (1);
 	if (ferror(fp))
 		err(1, "%s", fn);
 }
@@ -239,53 +250,4 @@ usage(void)
 {
 	(void)fprintf(stderr, "usage: comm [-123i] file1 file2\n");
 	exit(1);
-}
-
-static size_t wcsicoll_l1_buflen = 0, wcsicoll_l2_buflen = 0;
-static wchar_t *wcsicoll_l1_buf = NULL, *wcsicoll_l2_buf = NULL;
-
-int
-wcsicoll(const wchar_t *s1, const wchar_t *s2)
-{
-	wchar_t *p;
-	size_t l1, l2;
-	size_t new_l1_buflen, new_l2_buflen;
-
-	l1 = wcslen(s1) + 1;
-	l2 = wcslen(s2) + 1;
-	new_l1_buflen = wcsicoll_l1_buflen;
-	new_l2_buflen = wcsicoll_l2_buflen;
-	while (new_l1_buflen < l1) {
-		if (new_l1_buflen == 0)
-			new_l1_buflen = INITLINELEN;
-		else
-			new_l1_buflen *= 2;
-	}
-	while (new_l2_buflen < l2) {
-		if (new_l2_buflen == 0)
-			new_l2_buflen = INITLINELEN;
-		else
-			new_l2_buflen *= 2;
-	}
-	if (new_l1_buflen > wcsicoll_l1_buflen) {
-		wcsicoll_l1_buf = reallocf(wcsicoll_l1_buf, new_l1_buflen * sizeof(*wcsicoll_l1_buf));
-		if (wcsicoll_l1_buf == NULL)
-                	err(1, "reallocf");
-		wcsicoll_l1_buflen = new_l1_buflen;
-	}
-	if (new_l2_buflen > wcsicoll_l2_buflen) {
-		wcsicoll_l2_buf = reallocf(wcsicoll_l2_buf, new_l2_buflen * sizeof(*wcsicoll_l2_buf));
-		if (wcsicoll_l2_buf == NULL)
-                	err(1, "reallocf");
-		wcsicoll_l2_buflen = new_l2_buflen;
-	}
-
-	for (p = wcsicoll_l1_buf; *s1; s1++)
-		*p++ = towlower(*s1);
-	*p = '\0';
-	for (p = wcsicoll_l2_buf; *s2; s2++)
-		*p++ = towlower(*s2);
-	*p = '\0';
-
-	return (wcscoll(wcsicoll_l1_buf, wcsicoll_l2_buf));
 }

@@ -355,7 +355,7 @@ es1370_mixset(struct snd_mixer *m, unsigned dev, unsigned left, unsigned right)
 	if (mixtable[dev].left == 0xf)
 		rl = (l < 2) ? 0x80 : 7 - (l - 2) / 14;
 	else
-		rl = (l < 10) ? 0x80 : 15 - (l - 10) / 6;
+		rl = (l < 7) ? 0x80 : 31 - (l - 7) / 3;
 	es = mix_getdevinfo(m);
 	ES_LOCK(es);
 	if (dev == SOUND_MIXER_PCM && (ES_SINGLE_PCM_MIX(es->escfg)) &&
@@ -364,7 +364,7 @@ es1370_mixset(struct snd_mixer *m, unsigned dev, unsigned left, unsigned right)
 	else
 		set_dac1 = 0;
 	if (mixtable[dev].stereo) {
-		rr = (r < 10) ? 0x80 : 15 - (r - 10) / 6;
+		rr = (r < 7) ? 0x80 : 31 - (r - 7) / 3;
 		es1370_wrcodec(es, mixtable[dev].right, rr);
 		if (set_dac1 && mixtable[SOUND_MIXER_SYNTH].stereo)
 			es1370_wrcodec(es,

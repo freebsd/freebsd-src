@@ -152,6 +152,10 @@ ocpbus_write_law(int trgt, int type, u_long *startp, u_long *countp)
 			addr = 0xA0000000;
 			size = 0x10000000;
 			break;
+		case OCP85XX_TGTIF_PCI3:
+			addr = 0xB0000000;
+			size = 0x10000000;
+			break;
 		default:
 			return (EINVAL);
 		}
@@ -168,6 +172,10 @@ ocpbus_write_law(int trgt, int type, u_long *startp, u_long *countp)
 			break;
 		case OCP85XX_TGTIF_PCI2:
 			addr = 0xfee20000;
+			size = 0x00010000;
+			break;
+		case OCP85XX_TGTIF_PCI3:
+			addr = 0xfee30000;
 			size = 0x00010000;
 			break;
 		default:
@@ -188,7 +196,7 @@ static int
 ocpbus_probe(device_t dev)
 {
 
-	device_set_desc(dev, "On-Chip Peripherals bus");
+	device_set_desc(dev, "Freescale on-chip peripherals bus");
 	return (BUS_PROBE_DEFAULT);
 }
 
@@ -210,6 +218,7 @@ ocpbus_attach(device_t dev)
 	ocpbus_mk_child(dev, OCPBUS_DEVTYPE_PCIB, 0);
 	ocpbus_mk_child(dev, OCPBUS_DEVTYPE_PCIB, 1);
 	ocpbus_mk_child(dev, OCPBUS_DEVTYPE_PCIB, 2);
+	ocpbus_mk_child(dev, OCPBUS_DEVTYPE_PCIB, 3);
 	ocpbus_mk_child(dev, OCPBUS_DEVTYPE_TSEC, 0);
 	ocpbus_mk_child(dev, OCPBUS_DEVTYPE_TSEC, 1);
 	ocpbus_mk_child(dev, OCPBUS_DEVTYPE_TSEC, 2);
@@ -338,6 +347,10 @@ const struct ocp_resource mpc8555_resources[] = {
 	    OCP85XX_PCI_SIZE},
 	{OCPBUS_DEVTYPE_PCIB, 2, SYS_RES_MEMORY, 1, 0, OCP85XX_TGTIF_PCI2},
 	{OCPBUS_DEVTYPE_PCIB, 2, SYS_RES_IOPORT, 1, 0, OCP85XX_TGTIF_PCI2},
+	{OCPBUS_DEVTYPE_PCIB, 3, SYS_RES_MEMORY, 0, OCP85XX_PCI3_OFF,
+	    OCP85XX_PCI_SIZE},
+	{OCPBUS_DEVTYPE_PCIB, 3, SYS_RES_MEMORY, 1, 0, OCP85XX_TGTIF_PCI3},
+	{OCPBUS_DEVTYPE_PCIB, 3, SYS_RES_IOPORT, 1, 0, OCP85XX_TGTIF_PCI3},
 
 	{OCPBUS_DEVTYPE_LBC, 0, SYS_RES_MEMORY, 0, OCP85XX_LBC_OFF,
 	    OCP85XX_LBC_SIZE},

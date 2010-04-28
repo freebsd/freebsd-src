@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: db.h,v 1.93.50.3.12.1 2009/12/31 21:44:37 each Exp $ */
+/* $Id: db.h,v 1.93.50.5 2009/11/25 23:48:42 tbox Exp $ */
 
 #ifndef DNS_DB_H
 #define DNS_DB_H 1
@@ -694,6 +694,10 @@ dns_db_find(dns_db_t *db, dns_name_t *name, dns_dbversion_t *version,
  *	be returned.  For zone databases, glue is as defined in RFC2181.
  *	For cache databases, glue is any rdataset with a trust of
  *	dns_trust_glue.
+ *
+ * \li	If 'options' does not have #DNS_DBFIND_ADDITIONALOK set, then no
+ *	additional records will be returned.  Only caches can have
+ *	rdataset with trust dns_trust_additional.
  *
  * \li	If 'options' does not have #DNS_DBFIND_PENDINGOK set, then no
  *	pending data will be returned.  This option is only meaningful for

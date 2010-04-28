@@ -309,8 +309,8 @@ g_io_check(struct bio *bp)
 	case BIO_READ:
 	case BIO_WRITE:
 	case BIO_DELETE:
-		/* Zero sectorsize is a probably lack of media */
-		if (pp->sectorsize == 0)
+		/* Zero sectorsize or mediasize is probably a lack of media. */
+		if (pp->sectorsize == 0 || pp->mediasize == 0)
 			return (ENXIO);
 		/* Reject I/O not on sector boundary */
 		if (bp->bio_offset % pp->sectorsize)
@@ -443,7 +443,10 @@ g_io_request(struct bio *bp, struct g_consumer *cp)
 	    ("Bio already on queue bp=%p", bp));
 	bp->bio_flags |= BIO_ONQUEUE;
 
-	binuptime(&bp->bio_t0);
+	if (g_collectstats)
+		binuptime(&bp->bio_t0);
+	else
+		getbinuptime(&bp->bio_t0);
 
 	/*
 	 * The statistics collection is lockless, as such, but we

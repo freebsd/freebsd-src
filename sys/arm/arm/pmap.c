@@ -1605,10 +1605,11 @@ pmap_enter_pv(struct vm_page *pg, struct pv_entry *pve, pmap_t pm,
 		pve->pv_flags = PVF_WRITE | PVF_UNMAN;
 		pg->md.pv_kva = 0;
 
+		if (!(km = PMAP_OWNED(pmap_kernel())))
+			PMAP_LOCK(pmap_kernel());
 		TAILQ_INSERT_HEAD(&pg->md.pv_list, pve, pv_list);
-		TAILQ_INSERT_HEAD(&pm->pm_pvlist, pve, pv_plist);
-		if ((km = PMAP_OWNED(pmap_kernel())))
-			PMAP_UNLOCK(pmap_kernel());
+		TAILQ_INSERT_HEAD(&pve->pv_pmap->pm_pvlist, pve, pv_plist);
+		PMAP_UNLOCK(pmap_kernel());
 		vm_page_unlock_queues();
 		if ((pve = pmap_get_pv_entry()) == NULL)
 			panic("pmap_kenter_internal: no pv entries");
@@ -1712,6 +1713,7 @@ pmap_nuke_pv(struct vm_page *pg, pmap_t pm, struct pv_entry *pve)
 	pv = TAILQ_FIRST(&pg->md.pv_list);
 	if (pv != NULL && (pv->pv_flags & PVF_UNMAN) &&
 	    TAILQ_NEXT(pv, pv_list) == NULL) {
+		pm = kernel_pmap;
 		pg->md.pv_kva = pv->pv_va;
 			/* a recursive pmap_nuke_pv */
 		TAILQ_REMOVE(&pg->md.pv_list, pv, pv_list);
@@ -4489,6 +4491,20 @@ pmap_clear_modify(vm_page_t m)
 		pmap_clearbit(m, PVF_MOD);
 }
 
+
+/*
+ *	pmap_is_referenced:
+ *
+ *	Return whether or not the specified physical page was referenced
+ *	in any physical maps.
+ */
+boolean_t
+pmap_is_referenced(vm_page_t m)
+{
+
+	return ((m->flags & (PG_FICTITIOUS | PG_UNMANAGED)) == 0 &&
+	    (m->md.pvh_attrs & PVF_REF) != 0);
+}
 
 /*
  *	pmap_clear_reference:

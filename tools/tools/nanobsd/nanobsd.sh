@@ -132,9 +132,12 @@ NANO_MD_BACKING="file"
 PPLEVEL=3
 
 #######################################################################
-# Not a variable at this time
+# Architecture to build.  Corresponds to TARGET_ARCH in a buildworld.
+# Unfortunately, there's no way to set TARGET at this time, and it 
+# conflates the two, so architectures where TARGET != TARGET_ARCH do
+# not work.  This defaults to the arch of the current machine.
 
-NANO_ARCH=i386
+NANO_ARCH=`uname -p`
 
 #######################################################################
 #
@@ -495,6 +498,11 @@ create_i386_diskimage ( ) (
 	trap - 1 2 15 EXIT
 
 	) > ${NANO_OBJ}/_.di 2>&1
+)
+
+# i386 and amd64 are identical for disk images
+create_amd64_diskimage ( ) (
+	create_i386_diskimage
 )
 
 last_orders () (

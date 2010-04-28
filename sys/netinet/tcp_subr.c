@@ -376,25 +376,15 @@ tcp_init(void)
 
 	TUNABLE_INT_FETCH("net.inet.tcp.sack.enable", &V_tcp_do_sack);
 
-	INP_INFO_LOCK_INIT(&V_tcbinfo, "tcp");
-	LIST_INIT(&V_tcb);
-#ifdef VIMAGE
-	V_tcbinfo.ipi_vnet = curvnet;
-#endif
-	V_tcbinfo.ipi_listhead = &V_tcb;
 	hashsize = TCBHASHSIZE;
 	TUNABLE_INT_FETCH("net.inet.tcp.tcbhashsize", &hashsize);
 	if (!powerof2(hashsize)) {
 		printf("WARNING: TCB hash size not a power of 2\n");
 		hashsize = 512; /* safe default */
 	}
-	V_tcbinfo.ipi_hashbase = hashinit(hashsize, M_PCB,
-	    &V_tcbinfo.ipi_hashmask);
-	V_tcbinfo.ipi_porthashbase = hashinit(hashsize, M_PCB,
-	    &V_tcbinfo.ipi_porthashmask);
-	V_tcbinfo.ipi_zone = uma_zcreate("tcp_inpcb", sizeof(struct inpcb),
-	    NULL, NULL, tcp_inpcb_init, NULL, UMA_ALIGN_PTR, UMA_ZONE_NOFREE);
-	uma_zone_set_max(V_tcbinfo.ipi_zone, maxsockets);
+	in_pcbinfo_init(&V_tcbinfo, "tcp", &V_tcb, hashsize, hashsize,
+	    "tcp_inpcb", tcp_inpcb_init, NULL, UMA_ZONE_NOFREE);
+
 	/*
 	 * These have to be type stable for the benefit of the timers.
 	 */
@@ -459,16 +449,13 @@ void
 tcp_destroy(void)
 {
 
-	tcp_tw_destroy();
+	tcp_reass_destroy();
 	tcp_hc_destroy();
 	syncache_destroy();
-
-	/* XXX check that hashes are empty! */
-	hashdestroy(V_tcbinfo.ipi_hashbase, M_PCB,
-	    V_tcbinfo.ipi_hashmask);
-	hashdestroy(V_tcbinfo.ipi_porthashbase, M_PCB,
-	    V_tcbinfo.ipi_porthashmask);
-	INP_INFO_LOCK_DESTROY(&V_tcbinfo);
+	tcp_tw_destroy();
+	in_pcbinfo_destroy(&V_tcbinfo);
+	uma_zdestroy(V_sack_hole_zone);
+	uma_zdestroy(V_tcpcb_zone);
 }
 #endif
 
@@ -835,8 +822,19 @@ tcp_discardcb(struct tcpcb *tp)
 	INP_WLOCK_ASSERT(inp);
 
 	/*
-	 * Make sure that all of our timers are stopped before we
-	 * delete the PCB.
+	 * Make sure that all of our timers are stopped before we delete the
+	 * PCB.
+	 *
+	 * XXXRW: Really, we would like to use callout_drain() here in order
+	 * to avoid races experienced in tcp_timer.c where a timer is already
+	 * executing at this point.  However, we can't, both because we're
+	 * running in a context where we can't sleep, and also because we
+	 * hold locks required by the timers.  What we instead need to do is
+	 * test to see if callout_drain() is required, and if so, defer some
+	 * portion of the remainder of tcp_discardcb() to an asynchronous
+	 * context that can callout_drain() and then continue.  Some care
+	 * will be required to ensure that no further processing takes place
+	 * on the tcpcb, even though it hasn't been freed (a flag?).
 	 */
 	callout_stop(&tp->t_timers->tt_rexmt);
 	callout_stop(&tp->t_timers->tt_persist);
@@ -1110,7 +1108,7 @@ tcp_pcblist(SYSCTL_HANDLER_ARGS)
 	INP_INFO_RLOCK(&V_tcbinfo);
 	for (inp = LIST_FIRST(V_tcbinfo.ipi_listhead), i = 0;
 	    inp != NULL && i < n; inp = LIST_NEXT(inp, inp_list)) {
-		INP_RLOCK(inp);
+		INP_WLOCK(inp);
 		if (inp->inp_gencnt <= gencnt) {
 			/*
 			 * XXX: This use of cr_cansee(), introduced with
@@ -1125,10 +1123,12 @@ tcp_pcblist(SYSCTL_HANDLER_ARGS)
 					error = EINVAL;	/* Skip this inp. */
 			} else
 				error = cr_canseeinpcb(req->td->td_ucred, inp);
-			if (error == 0)
+			if (error == 0) {
+				in_pcbref(inp);
 				inp_list[i++] = inp;
+			}
 		}
-		INP_RUNLOCK(inp);
+		INP_WUNLOCK(inp);
 	}
 	INP_INFO_RUNLOCK(&V_tcbinfo);
 	n = i;
@@ -1167,8 +1167,16 @@ tcp_pcblist(SYSCTL_HANDLER_ARGS)
 			error = SYSCTL_OUT(req, &xt, sizeof xt);
 		} else
 			INP_RUNLOCK(inp);
-	
 	}
+	INP_INFO_WLOCK(&V_tcbinfo);
+	for (i = 0; i < n; i++) {
+		inp = inp_list[i];
+		INP_WLOCK(inp);
+		if (!in_pcbrele(inp))
+			INP_WUNLOCK(inp);
+	}
+	INP_INFO_WUNLOCK(&V_tcbinfo);
+
 	if (!error) {
 		/*
 		 * Give the user an updated idea of our state.

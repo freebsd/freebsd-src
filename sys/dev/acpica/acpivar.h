@@ -332,7 +332,6 @@ int		acpi_ReqSleepState(struct acpi_softc *sc, int state);
 int		acpi_AckSleepState(struct apm_clone_data *clone, int error);
 ACPI_STATUS	acpi_SetSleepState(struct acpi_softc *sc, int state);
 void		acpi_resync_clock(struct acpi_softc *sc);
-int		acpi_wake_init(device_t dev, int type);
 int		acpi_wake_set_enable(device_t dev, int enable);
 int		acpi_parse_prw(ACPI_HANDLE h, struct acpi_prw_data *prw);
 ACPI_STATUS	acpi_Startup(void);

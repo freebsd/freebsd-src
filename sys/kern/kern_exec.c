@@ -372,6 +372,7 @@ do_execve(td, args, mac_p)
 	imgp->execlabel = NULL;
 	imgp->attr = &attr;
 	imgp->entry_addr = 0;
+	imgp->reloc_base = 0;
 	imgp->vmspace_destroyed = 0;
 	imgp->interpreted = 0;
 	imgp->opened = 0;
@@ -799,11 +800,10 @@ interpret:
 
 	/* Set values passed into the program in registers. */
 	if (p->p_sysent->sv_setregs)
-		(*p->p_sysent->sv_setregs)(td, imgp->entry_addr,
-		    (u_long)(uintptr_t)stack_base, imgp->ps_strings);
+		(*p->p_sysent->sv_setregs)(td, imgp, 
+		    (u_long)(uintptr_t)stack_base);
 	else
-		exec_setregs(td, imgp->entry_addr,
-		    (u_long)(uintptr_t)stack_base, imgp->ps_strings);
+		exec_setregs(td, imgp, (u_long)(uintptr_t)stack_base);
 
 	vfs_mark_atime(imgp->vp, td->td_ucred);
 
@@ -1260,7 +1260,7 @@ exec_copyout_strings(imgp)
 	 * Fill in "ps_strings" struct for ps, w, etc.
 	 */
 	suword(&arginfo->ps_argvstr, (long)(intptr_t)vectp);
-	suword(&arginfo->ps_nargvstr, argc);
+	suword32(&arginfo->ps_nargvstr, argc);
 
 	/*
 	 * Fill in argument portion of vector table.
@@ -1276,7 +1276,7 @@ exec_copyout_strings(imgp)
 	suword(vectp++, 0);
 
 	suword(&arginfo->ps_envstr, (long)(intptr_t)vectp);
-	suword(&arginfo->ps_nenvstr, envc);
+	suword32(&arginfo->ps_nenvstr, envc);
 
 	/*
 	 * Fill in environment portion of vector table.

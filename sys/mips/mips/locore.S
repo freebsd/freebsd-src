@@ -162,14 +162,26 @@ VECTOR(_locore, unknown)
 	sw	a2, _C_LABEL(fenvp)
 #endif
 
+#if defined(TARGET_OCTEON) && defined(SMP)
+	.set push
+	.set mips32r2
+	rdhwr	t2, $0
+	beqz	t2, 1f
+	nop
+	j	octeon_ap_wait
+	nop
+	.set pop
+1:
+#endif
+
 	/*
 	 * Initialize stack and call machine startup.
 	 */
 	PTR_LA	sp, _C_LABEL(pcpu_space)
-	addiu	sp, (NBPG * 2) - START_FRAME
+	addiu	sp, (PAGE_SIZE * 2) - CALLFRAME_SIZ
 
-	sw	zero, START_FRAME - 4(sp)	# Zero out old ra for debugger
-	sw	zero, START_FRAME - 8(sp)	# Zero out old fp for debugger
+	sw	zero, CALLFRAME_SIZ - 4(sp)	# Zero out old ra for debugger
+	sw	zero, CALLFRAME_SIZ - 8(sp)	# Zero out old fp for debugger
 
 	PTR_LA	gp, _C_LABEL(_gp)
 
@@ -178,13 +190,13 @@ VECTOR(_locore, unknown)
 	nop
 
 	PTR_LA	sp, _C_LABEL(thread0)
-	lw      a0, TD_PCB(sp)
-	li	t0, ~7
+	PTR_L	a0, TD_PCB(sp)
+	REG_LI	t0, ~7
 	and	a0, a0, t0
-	subu    sp, a0, START_FRAME
+	PTR_SUBU	sp, a0, CALLFRAME_SIZ
 
 	jal	_C_LABEL(mi_startup)		# mi_startup(frame)
-	sw	zero, START_FRAME - 8(sp)	# Zero out old fp for debugger
+	sw	zero, CALLFRAME_SIZ - 8(sp)	# Zero out old fp for debugger
 
 	PANIC("Startup failed!")
 

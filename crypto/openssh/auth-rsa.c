@@ -1,4 +1,4 @@
-/* $OpenBSD: auth-rsa.c,v 1.73 2008/07/02 12:03:51 dtucker Exp $ */
+/* $OpenBSD: auth-rsa.c,v 1.74 2010/03/04 10:36:03 djm Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -93,6 +93,9 @@ auth_rsa_verify_response(Key *key, BIGNUM *challenge, u_char response[16])
 	u_char buf[32], mdbuf[16];
 	MD5_CTX md;
 	int len;
+
+	if (auth_key_is_revoked(key))
+		return 0;
 
 	/* don't allow short keys */
 	if (BN_num_bits(key->rsa->n) < SSH_RSA_MINIMUM_MODULUS_SIZE) {

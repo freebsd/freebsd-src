@@ -61,6 +61,9 @@ __FBSDID("$FreeBSD$");
 #include "authfd.h"
 #include "authfile.h"
 
+#define ssh_add_identity(auth, key, comment) \
+	ssh_add_identity_constrained(auth, key, comment, 0, 0)
+
 extern char **environ;
 
 struct pam_ssh_key {

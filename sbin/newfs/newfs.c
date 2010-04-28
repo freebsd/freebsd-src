@@ -77,6 +77,8 @@ __FBSDID("$FreeBSD$");
 #include <syslog.h>
 #include <unistd.h>
 
+#include <libutil.h>
+
 #include "newfs.h"
 
 int	Eflag;			/* Erase previous disk contents */
@@ -117,6 +119,7 @@ static void getfssize(intmax_t *, const char *p, intmax_t, intmax_t);
 static struct disklabel *getdisklabel(char *s);
 static void rewritelabel(char *s, struct disklabel *lp);
 static void usage(void);
+static int expand_number_int(const char *buf, int *num);
 
 ufs2_daddr_t part_ofs; /* partition offset in blocks, used with files */
 
@@ -129,7 +132,7 @@ main(int argc, char *argv[])
 	struct stat st;
 	char *cp, *special;
 	intmax_t reserved;
-	int ch, i;
+	int ch, i, rval;
 	off_t mediasize;
 	char part_name;		/* partition name, default to full disk */
 
@@ -169,7 +172,8 @@ main(int argc, char *argv[])
 			Rflag = 1;
 			break;
 		case 'S':
-			if ((sectorsize = atoi(optarg)) <= 0)
+			rval = expand_number_int(optarg, &sectorsize);
+			if (rval < 0 || sectorsize <= 0)
 				errx(1, "%s: bad sector size", optarg);
 			break;
 		case 'T':
@@ -182,12 +186,17 @@ main(int argc, char *argv[])
 			Xflag++;
 			break;
 		case 'a':
-			if ((maxcontig = atoi(optarg)) <= 0)
+			rval = expand_number_int(optarg, &maxcontig);
+			if (rval < 0 || maxcontig <= 0)
 				errx(1, "%s: bad maximum contiguous blocks",
 				    optarg);
 			break;
 		case 'b':
-			if ((bsize = atoi(optarg)) < MINBSIZE)
+			rval = expand_number_int(optarg, &bsize);
+			if (rval < 0)
+				 errx(1, "%s: bad block size",
+                                    optarg);
+			if (bsize < MINBSIZE)
 				errx(1, "%s: block size too small, min is %d",
 				    optarg, MINBSIZE);
 			if (bsize > MAXBSIZE)
@@ -195,33 +204,40 @@ main(int argc, char *argv[])
 				    optarg, MAXBSIZE);
 			break;
 		case 'c':
-			if ((maxblkspercg = atoi(optarg)) <= 0)
+			rval = expand_number_int(optarg, &maxblkspercg);
+			if (rval < 0 || maxblkspercg <= 0)
 				errx(1, "%s: bad blocks per cylinder group",
 				    optarg);
 			break;
 		case 'd':
-			if ((maxbsize = atoi(optarg)) < MINBSIZE)
+			rval = expand_number_int(optarg, &maxbsize);
+			if (rval < 0 || maxbsize < MINBSIZE)
 				errx(1, "%s: bad extent block size", optarg);
 			break;
 		case 'e':
-			if ((maxbpg = atoi(optarg)) <= 0)
+			rval = expand_number_int(optarg, &maxbpg);
+			if (rval < 0 || maxbpg <= 0)
 			  errx(1, "%s: bad blocks per file in a cylinder group",
 				    optarg);
 			break;
 		case 'f':
-			if ((fsize = atoi(optarg)) <= 0)
+			rval = expand_number_int(optarg, &fsize);
+			if (rval < 0 || fsize <= 0)
 				errx(1, "%s: bad fragment size", optarg);
 			break;
 		case 'g':
-			if ((avgfilesize = atoi(optarg)) <= 0)
+			rval = expand_number_int(optarg, &avgfilesize);
+			if (rval < 0 || avgfilesize <= 0)
 				errx(1, "%s: bad average file size", optarg);
 			break;
 		case 'h':
-			if ((avgfilesperdir = atoi(optarg)) <= 0)
+			rval = expand_number_int(optarg, &avgfilesperdir);
+			if (rval < 0 || avgfilesperdir <= 0)
 			       errx(1, "%s: bad average files per dir", optarg);
 			break;
 		case 'i':
-			if ((density = atoi(optarg)) <= 0)
+			rval = expand_number_int(optarg, &density);
+			if (rval < 0 || density <= 0)
 				errx(1, "%s: bad bytes per inode", optarg);
 			break;
 		case 'l':
@@ -480,4 +496,21 @@ usage()
 	fprintf(stderr, "\t-r reserved sectors at the end of device\n");
 	fprintf(stderr, "\t-s file system size (sectors)\n");
 	exit(1);
+}
+
+static int
+expand_number_int(const char *buf, int *num)
+{
+	int64_t num64;
+	int rval;
+
+	rval = expand_number(buf, &num64);
+	if (rval < 0)
+		return (rval);
+	if (num64 > INT_MAX || num64 < INT_MIN) {
+		errno = ERANGE;
+		return (-1);
+	}
+	*num = (int)num64;
+	return (0);
 }

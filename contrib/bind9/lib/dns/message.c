@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: message.c,v 1.245.50.2 2009/01/18 23:47:40 tbox Exp $ */
+/* $Id: message.c,v 1.245.50.3 2009/11/24 03:25:53 marka Exp $ */
 
 /*! \file */
 
@@ -1888,6 +1888,8 @@ dns_message_rendersection(dns_message_t *msg, dns_section_t sectionid,
 				msg->counts[sectionid] += total;
 				return (result);
 			}
+			if (result == ISC_R_NOSPACE)
+				msg->flags |= DNS_MESSAGEFLAG_TC;
 			if (result != ISC_R_SUCCESS) {
 				INSIST(st.used < 65536);
 				dns_compress_rollback(msg->cctx,

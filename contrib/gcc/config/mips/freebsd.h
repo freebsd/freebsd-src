@@ -65,19 +65,23 @@ Boston, MA 02110-1301, USA.  */
 
 #undef	LINK_SPEC
 #define LINK_SPEC "\
-    %{G*} %{mips1} %{mips2} %{mips3} %{mips4} %{mips32} %{mips32r2} %{mips64} \
+    %{EB} %{EL} %(endian_spec) \
+    %{G*} %{mips1} %{mips2} %{mips3} %{mips4} \
+    %{mips32} %{mips32r2} %{mips64} %{mips64r2} \
     %{bestGnum} %{call_shared} %{no_archive} %{exact_version} \
-    %(fbsd_link_spec) "
-#if 0
-    %(endian_spec)
-#endif
+    %{mabi=32:-melf32%{EB:b}%{EL:l}tsmip_fbsd} \
+    %{mabi=n32:-melf32%{EB:b}%{EL:l}tsmipn32_fbsd} \
+    %{mabi=64:-melf64%{EB:b}%{EL:l}tsmip_fbsd} \
+    %{mabi=o64:-melf64%{EB:b}%{EL:l}tsmip_fbsd} \
+    %(fbsd_link_spec)"
+
     
 /* Reset our STARTFILE_SPEC which was properly set in config/freebsd.h
    but trashed by config/mips/elf.h.  */
 #undef  STARTFILE_SPEC
 #define STARTFILE_SPEC	FBSD_STARTFILE_SPEC
 
-/* Provide an ENDFILE_SPEC appropriate for FreeBSD/i386.  */
+/* Provide an ENDFILE_SPEC appropriate for FreeBSD/mips.  */
 #undef  ENDFILE_SPEC
 #define ENDFILE_SPEC	FBSD_ENDFILE_SPEC
 
@@ -187,31 +191,47 @@ Boston, MA 02110-1301, USA.  */
       MIPS_CPP_SET_PROCESSOR ("_MIPS_TUNE", mips_tune_info);	\
 								\
       if (ISA_MIPS1)                                            \
-        builtin_define ("__mips=1");                            \
+        {                                                       \
+          builtin_define ("__mips=1");                          \
+          builtin_define ("_MIPS_ISA=_MIPS_ISA_MIPS1");         \
+	}							\
       else if (ISA_MIPS2)                                       \
-        builtin_define ("__mips=2");                            \
+        {                                                       \
+          builtin_define ("__mips=2");                          \
+          builtin_define ("_MIPS_ISA=_MIPS_ISA_MIPS2");         \
+	}							\
       else if (ISA_MIPS3)					\
-	builtin_define ("__mips=3");				\
+        {                                                       \
+          builtin_define ("__mips=3");                          \
+          builtin_define ("_MIPS_ISA=_MIPS_ISA_MIPS3");         \
+	}							\
       else if (ISA_MIPS4)					\
-	builtin_define ("__mips=4");				\
+        {                                                       \
+          builtin_define ("__mips=4");                          \
+          builtin_define ("_MIPS_ISA=_MIPS_ISA_MIPS4");         \
+	}							\
       else if (ISA_MIPS32)					\
 	{							\
 	  builtin_define ("__mips=32");				\
+          builtin_define ("_MIPS_ISA=_MIPS_ISA_MIPS32");        \
 	  builtin_define ("__mips_isa_rev=1");			\
 	}							\
       else if (ISA_MIPS32R2)					\
 	{							\
 	  builtin_define ("__mips=32");				\
+          builtin_define ("_MIPS_ISA=_MIPS_ISA_MIPS32");        \
 	  builtin_define ("__mips_isa_rev=2");			\
 	}							\
       else if (ISA_MIPS64)					\
 	{							\
 	  builtin_define ("__mips=64");				\
+          builtin_define ("_MIPS_ISA=_MIPS_ISA_MIPS64");        \
 	  builtin_define ("__mips_isa_rev=1");			\
 	}							\
 /*      else if (ISA_MIPS64R2)					\
 	{							\
 	  builtin_define ("__mips=64");				\
+          builtin_define ("_MIPS_ISA=_MIPS_ISA_MIPS64");        \
 	  builtin_define ("__mips_isa_rev=2");			\
 	}							\
 */								\
@@ -234,12 +254,28 @@ Boston, MA 02110-1301, USA.  */
     }								\
   while (0)
 
-/* Default to the mips32 ISA */
-#undef  DRIVER_SELF_SPECS
+/* Default ABI and ISA */
+#undef DRIVER_SELF_SPECS
+#if MIPS_ABI_DEFAULT == ABI_N32
 #define DRIVER_SELF_SPECS \
-  "%{!march=*: -march=mips32}"
-#if 0
-  "%{!EB:%{!EL:%(endian_spec)}}", 
+	"%{!EB:%{!EL:%(endian_spec)}}", \
+	"%{!march=*: -march=mips64}",   \
+	"%{!mabi=*: -mabi=n32}"
+#elif MIPS_ABI_DEFAULT == ABI_64
+#define DRIVER_SELF_SPECS \
+	"%{!EB:%{!EL:%(endian_spec)}}", \
+	"%{!march=*: -march=mips64}",   \
+	"%{!mabi=*: -mabi=64}"
+#elif MIPS_ABI_DEFAULT == ABI_O64
+#define DRIVER_SELF_SPECS \
+	"%{!EB:%{!EL:%(endian_spec)}}", \
+	"%{!march=*: -march=mips64}",   \
+	"%{!mabi=*: -mabi=o64}"
+#else /* default to o32 */
+#define DRIVER_SELF_SPECS \
+	"%{!EB:%{!EL:%(endian_spec)}}", \
+	"%{!march=*: -march=mips32}",   \
+	"%{!mabi=*: -mabi=32}"
 #endif
 
 #if 0

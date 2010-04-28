@@ -1,4 +1,4 @@
-/* $OpenBSD: clientloop.h,v 1.22 2008/06/12 15:19:17 djm Exp $ */
+/* $OpenBSD: clientloop.h,v 1.23 2010/01/26 01:28:35 djm Exp $ */
 
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
@@ -56,18 +56,14 @@ typedef void global_confirm_cb(int, u_int32_t seq, void *);
 void	 client_register_global_confirm(global_confirm_cb *, void *);
 
 /* Multiplexing protocol version */
-#define SSHMUX_VER			2
+#define SSHMUX_VER			4
 
 /* Multiplexing control protocol flags */
 #define SSHMUX_COMMAND_OPEN		1	/* Open new connection */
 #define SSHMUX_COMMAND_ALIVE_CHECK	2	/* Check master is alive */
 #define SSHMUX_COMMAND_TERMINATE	3	/* Ask master to exit */
-
-#define SSHMUX_FLAG_TTY			(1)	/* Request tty on open */
-#define SSHMUX_FLAG_SUBSYS		(1<<1)	/* Subsystem request on open */
-#define SSHMUX_FLAG_X11_FWD		(1<<2)	/* Request X11 forwarding */
-#define SSHMUX_FLAG_AGENT_FWD		(1<<3)	/* Request agent forwarding */
+#define SSHMUX_COMMAND_STDIO_FWD	4	/* Open stdio fwd (ssh -W) */
 
 void	muxserver_listen(void);
-int	muxserver_accept_control(void);
 void	muxclient(const char *);
+void	mux_exit_message(Channel *, int);

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2008  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2008, 2010  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2000-2002  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: dst.h,v 1.12 2008/09/24 02:46:23 marka Exp $ */
+/* $Id: dst.h,v 1.12.50.2 2010/01/15 23:47:34 tbox Exp $ */
 
 #ifndef DST_DST_H
 #define DST_DST_H 1
@@ -53,6 +53,8 @@ typedef struct dst_context 	dst_context_t;
 #define DST_ALG_RSASHA1		5
 #define DST_ALG_NSEC3DSA	6
 #define DST_ALG_NSEC3RSASHA1	7
+#define DST_ALG_RSASHA256	8
+#define DST_ALG_RSASHA512	10
 #define DST_ALG_HMACMD5		157
 #define DST_ALG_GSSAPI		160
 #define DST_ALG_HMACSHA1	161	/* XXXMPA */

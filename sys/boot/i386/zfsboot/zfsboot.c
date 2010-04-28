@@ -730,7 +730,7 @@ main(void)
 
     for (;;) {
 	if (!autoboot || !OPT_CHECK(RBX_QUIET))
-	    printf("\nFreeBSD/i386 boot\n"
+	    printf("\nFreeBSD/x86 boot\n"
 		   "Default: %s:%s\n"
 		   "boot: ",
 		   spa->spa_name, kname);

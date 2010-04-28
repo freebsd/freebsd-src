@@ -273,7 +273,6 @@ exptilde(char *p, int flag)
 		switch(c) {
 		case CTLESC: /* This means CTL* are always considered quoted. */
 		case CTLVAR:
-		case CTLENDVAR:
 		case CTLBACKQ:
 		case CTLBACKQ | CTLQUOTE:
 		case CTLARI:
@@ -285,6 +284,7 @@ exptilde(char *p, int flag)
 				goto done;
 			break;
 		case '/':
+		case CTLENDVAR:
 			goto done;
 		}
 		p++;
@@ -360,7 +360,7 @@ removerecordregions(int endoff)
 void
 expari(int flag)
 {
-	char *p, *start;
+	char *p, *q, *start;
 	arith_t result;
 	int begoff;
 	int quotes = flag & (EXP_FULL | EXP_CASE | EXP_REDIR);
@@ -398,7 +398,9 @@ expari(int flag)
 	removerecordregions(begoff);
 	if (quotes)
 		rmescapes(p+2);
+	q = grabstackstr(expdest);
 	result = arith(p+2);
+	ungrabstackstr(q, expdest);
 	fmtstr(p, DIGITS(result), ARITH_FORMAT_STR, result);
 	while (*p++)
 		;
@@ -506,7 +508,9 @@ subevalvar(char *p, char *str, int strloc, int subtype, int startloc,
 	int amount;
 
 	herefd = -1;
-	argstr(p, 0);
+	argstr(p, (subtype == VSTRIMLEFT || subtype == VSTRIMLEFTMAX ||
+	    subtype == VSTRIMRIGHT || subtype == VSTRIMRIGHTMAX ?
+	    EXP_CASE : 0) | EXP_TILDE);
 	STACKSTRNUL(expdest);
 	herefd = saveherefd;
 	argbackq = saveargbackq;
