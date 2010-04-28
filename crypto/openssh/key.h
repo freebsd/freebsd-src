@@ -1,4 +1,4 @@
-/* $OpenBSD: key.h,v 1.28 2010/02/26 20:29:54 djm Exp $ */
+/* $OpenBSD: key.h,v 1.29 2010/03/15 19:40:02 stevesk Exp $ */
 
 /*
  * Copyright (c) 2000, 2001 Markus Friedl.  All rights reserved.
@@ -82,6 +82,7 @@ int		 key_equal(const Key *, const Key *);
 char		*key_fingerprint(Key *, enum fp_type, enum fp_rep);
 u_char		*key_fingerprint_raw(Key *, enum fp_type, u_int *);
 const char	*key_type(const Key *);
+const char	*key_cert_type(const Key *);
 int		 key_write(const Key *, FILE *);
 int		 key_read(Key *, char **);
 u_int		 key_size(const Key *);
