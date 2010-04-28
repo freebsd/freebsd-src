@@ -47,25 +47,10 @@
 #ifndef _MACHINE_CPU_H_
 #define	_MACHINE_CPU_H_
 
-#include <machine/psl.h>
 #include <machine/endian.h>
 
-#define	MIPS_CACHED_MEMORY_ADDR		0x80000000
-#define	MIPS_UNCACHED_MEMORY_ADDR	0xa0000000
-#define	MIPS_MAX_MEM_ADDR		0xbe000000
-#define	MIPS_RESERVED_ADDR		0xbfc80000
-
 #define MIPS_KSEG0_LARGEST_PHYS         0x20000000
-#define	MIPS_CACHED_TO_PHYS(x)		((uintptr_t)(x) & 0x1fffffff)
-#define	MIPS_PHYS_TO_CACHED(x)		((uintptr_t)(x) | MIPS_CACHED_MEMORY_ADDR)
-#define	MIPS_UNCACHED_TO_PHYS(x)	((uintptr_t)(x) & 0x1fffffff)
-#define	MIPS_PHYS_TO_UNCACHED(x)	((uintptr_t)(x) | MIPS_UNCACHED_MEMORY_ADDR)
-
 #define	MIPS_PHYS_MASK			(0x1fffffff)
-#define	MIPS_PA_2_K1VA(x)		(MIPS_KSEG1_START | ((x) & MIPS_PHYS_MASK))
-
-#define	MIPS_VA_TO_CINDEX(x)		((uintptr_t)(x) & 0xffffff | MIPS_CACHED_MEMORY_ADDR)
-#define	MIPS_CACHED_TO_UNCACHED(x)	(MIPS_PHYS_TO_UNCACHED(MIPS_CACHED_TO_PHYS(x)))
 
 #define	MIPS_PHYS_TO_KSEG0(x)		((uintptr_t)(x) | MIPS_KSEG0_START)
 #define	MIPS_PHYS_TO_KSEG1(x)		((uintptr_t)(x) | MIPS_KSEG1_START)
@@ -348,6 +333,7 @@
 #define	cpu_swapout(p)		panic("cpu_swapout: can't get here");
 
 #ifndef _LOCORE
+#include <machine/cpufunc.h>
 #include <machine/frame.h>
 /*
  * Arguments to hardclock and gatherstats encapsulate the previous
@@ -356,13 +342,17 @@
 #define	clockframe trapframe	/* Use normal trap frame */
 
 #define	CLKF_USERMODE(framep)	((framep)->sr & SR_KSU_USER)
-#define	CLKF_BASEPRI(framep)	((framep)->cpl == 0)
 #define	CLKF_PC(framep)		((framep)->pc)
 #define	CLKF_INTR(framep)	(0)
 #define	MIPS_CLKF_INTR()	(intr_nesting_level >= 1)
 #define	TRAPF_USERMODE(framep)  (((framep)->sr & SR_KSU_USER) != 0)
 #define	TRAPF_PC(framep)	((framep)->pc)
 #define	cpu_getstack(td)	((td)->td_frame->sp)
+
+/*
+ * A machine-independent interface to the CPU's counter.
+ */
+#define	get_cyclecount()	mips_rd_count()
 
 /*
  * CPU identification, from PRID register.
@@ -468,13 +458,9 @@ extern union cpuprid fpu_id;
 struct tlb;
 struct user;
 
-u_int32_t mips_cp0_config1_read(void);
 int Mips_ConfigCache(void);
 void Mips_SetWIRED(int);
 void Mips_SetPID(int);
-u_int Mips_GetCOUNT(void);
-void Mips_SetCOMPARE(u_int);
-u_int Mips_GetCOMPARE(void);
 
 void Mips_SyncCache(void);
 void Mips_SyncDCache(vm_offset_t, int);
@@ -556,18 +542,6 @@ extern int intr_nesting_level;
  *  Low level access routines to CPU registers
  */
 
-void setsoftintr0(void);
-void clearsoftintr0(void);
-void setsoftintr1(void);
-void clearsoftintr1(void);
-
-
-u_int32_t mips_cp0_status_read(void);
-void mips_cp0_status_write(u_int32_t);
-
-int disableintr(void);
-void restoreintr(int);
-int enableintr(void);
 int Mips_TLBGetPID(void);
 
 void swi_vm(void *);
@@ -576,7 +550,6 @@ void cpu_reset(void);
 
 u_int32_t set_intr_mask(u_int32_t);
 u_int32_t get_intr_mask(void);
-u_int32_t get_cyclecount(void);
 
 #define	cpu_spinwait()		/* nothing */
 

@@ -1,4 +1,4 @@
-/* $OpenBSD: readconf.h,v 1.79 2009/06/27 09:35:06 andreas Exp $ */
+/* $OpenBSD: readconf.h,v 1.82 2010/02/08 10:50:20 markus Exp $ */
 
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
@@ -84,7 +84,7 @@ typedef struct {
 	char   *user_hostfile2;
 	char   *preferred_authentications;
 	char   *bind_address;	/* local socket address for connection to sshd */
-	char   *smartcard_device; /* Smartcard reader device */
+	char   *pkcs11_provider; /* PKCS#11 provider */
 	int	verify_host_key_dns;	/* Verify host key using DNS */
 
 	int     num_identity_files;	/* Number of files for RSA/DSA identities. */

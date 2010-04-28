@@ -1,8 +1,8 @@
 # $FreeBSD$
 
 PROG=	httpd
-WARNS=	3
 NO_MAN=
+WARNS?=	3
 DPADD=	${LIBPTHREAD}
 LDADD=	-lpthread
 

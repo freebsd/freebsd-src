@@ -5,11 +5,8 @@
 SRCS=		crt1.c crti.S crtn.S
 OBJS=		${SRCS:N*.h:R:S/$/.o/g}
 OBJS+=		Scrt1.o gcrt1.o
-CFLAGS+=	-Wall -Wno-unused \
-		-I${.CURDIR}/../common \
+CFLAGS+=	-I${.CURDIR}/../common \
 		-I${.CURDIR}/../../libc/include
-
-WARNS?=		2
 
 all: ${OBJS}
 

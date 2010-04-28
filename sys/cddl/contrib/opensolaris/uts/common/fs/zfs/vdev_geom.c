@@ -29,6 +29,7 @@
 #include <sys/bio.h>
 #include <sys/disk.h>
 #include <sys/spa.h>
+#include <sys/spa_impl.h>
 #include <sys/vdev_impl.h>
 #include <sys/fs/zfs.h>
 #include <sys/zio.h>
@@ -505,17 +506,26 @@ vdev_geom_open(vdev_t *vd, uint64_t *psize, uint64_t *ashift)
 	if ((owned = mtx_owned(&Giant)))
 		mtx_unlock(&Giant);
 	error = 0;
-	cp = vdev_geom_open_by_path(vd, 1);
-	if (cp == NULL) {
-		/*
-		 * The device at vd->vdev_path doesn't have the expected guid.
-		 * The disks might have merely moved around so try all other
-		 * geom providers to find one with the right guid.
-		 */
-		cp = vdev_geom_open_by_guid(vd);
-	}
-	if (cp == NULL)
+
+	/*
+	 * If we're creating pool, just find GEOM provider by its name
+	 * and ignore GUID mismatches.
+	 */
+	if (vd->vdev_spa->spa_load_state == SPA_LOAD_NONE)
 		cp = vdev_geom_open_by_path(vd, 0);
+	else {
+		cp = vdev_geom_open_by_path(vd, 1);
+		if (cp == NULL) {
+			/*
+			 * The device at vd->vdev_path doesn't have the
+			 * expected guid. The disks might have merely
+			 * moved around so try all other GEOM providers
+			 * to find one with the right guid.
+			 */
+			cp = vdev_geom_open_by_guid(vd);
+		}
+	}
+
 	if (cp == NULL) {
 		ZFS_LOG(1, "Provider %s not found.", vd->vdev_path);
 		error = ENOENT;

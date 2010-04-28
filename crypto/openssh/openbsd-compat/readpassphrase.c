@@ -1,7 +1,7 @@
-/*	$OpenBSD: readpassphrase.c,v 1.18 2005/08/08 08:05:34 espie Exp $	*/
+/*	$OpenBSD: readpassphrase.c,v 1.22 2010/01/13 10:20:54 dtucker Exp $	*/
 
 /*
- * Copyright (c) 2000-2002 Todd C. Miller <Todd.Miller@courtesan.com>
+ * Copyright (c) 2000-2002, 2007 Todd C. Miller <Todd.Miller@courtesan.com>
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -46,7 +46,7 @@
 #  define _POSIX_VDISABLE       VDISABLE
 #endif
 
-static volatile sig_atomic_t signo;
+static volatile sig_atomic_t signo[_NSIG];
 
 static void handler(int);
 
@@ -54,7 +54,7 @@ char *
 readpassphrase(const char *prompt, char *buf, size_t bufsiz, int flags)
 {
 	ssize_t nr;
-	int input, output, save_errno;
+	int input, output, save_errno, i, need_restart;
 	char ch, *p, *end;
 	struct termios term, oterm;
 	struct sigaction sa, savealrm, saveint, savehup, savequit, saveterm;
@@ -67,7 +67,11 @@ readpassphrase(const char *prompt, char *buf, size_t bufsiz, int flags)
 	}
 
 restart:
-	signo = 0;
+	for (i = 0; i < _NSIG; i++)
+		signo[i] = 0;
+	nr = -1;
+	save_errno = 0;
+	need_restart = 0;
 	/*
 	 * Read and write to /dev/tty if available.  If not, read from
 	 * stdin and write to stderr unless a tty is required.
@@ -117,26 +121,30 @@ restart:
 		oterm.c_lflag |= ECHO;
 	}
 
-	if (!(flags & RPP_STDIN))
-		(void)write(output, prompt, strlen(prompt));
-	end = buf + bufsiz - 1;
-	for (p = buf; (nr = read(input, &ch, 1)) == 1 && ch != '\n' && ch != '\r';) {
-		if (p < end) {
-			if ((flags & RPP_SEVENBIT))
-				ch &= 0x7f;
-			if (isalpha(ch)) {
-				if ((flags & RPP_FORCELOWER))
-					ch = tolower(ch);
-				if ((flags & RPP_FORCEUPPER))
-					ch = toupper(ch);
+	/* No I/O if we are already backgrounded. */
+	if (signo[SIGTTOU] != 1 && signo[SIGTTIN] != 1) {
+		if (!(flags & RPP_STDIN))
+			(void)write(output, prompt, strlen(prompt));
+		end = buf + bufsiz - 1;
+		p = buf;
+		while ((nr = read(input, &ch, 1)) == 1 && ch != '\n' && ch != '\r') {
+			if (p < end) {
+				if ((flags & RPP_SEVENBIT))
+					ch &= 0x7f;
+				if (isalpha(ch)) {
+					if ((flags & RPP_FORCELOWER))
+						ch = (char)tolower(ch);
+					if ((flags & RPP_FORCEUPPER))
+						ch = (char)toupper(ch);
+				}
+				*p++ = ch;
 			}
-			*p++ = ch;
 		}
+		*p = '\0';
+		save_errno = errno;
+		if (!(term.c_lflag & ECHO))
+			(void)write(output, "\n", 1);
 	}
-	*p = '\0';
-	save_errno = errno;
-	if (!(term.c_lflag & ECHO))
-		(void)write(output, "\n", 1);
 
 	/* Restore old terminal settings and signals. */
 	if (memcmp(&term, &oterm, sizeof(term)) != 0) {
@@ -152,6 +160,7 @@ restart:
 	(void)sigaction(SIGTERM, &saveterm, NULL);
 	(void)sigaction(SIGTSTP, &savetstp, NULL);
 	(void)sigaction(SIGTTIN, &savettin, NULL);
+	(void)sigaction(SIGTTOU, &savettou, NULL);
 	if (input != STDIN_FILENO)
 		(void)close(input);
 
@@ -159,20 +168,25 @@ restart:
 	 * If we were interrupted by a signal, resend it to ourselves
 	 * now that we have restored the signal handlers.
 	 */
-	if (signo) {
-		kill(getpid(), signo);
-		switch (signo) {
-		case SIGTSTP:
-		case SIGTTIN:
-		case SIGTTOU:
-			goto restart;
+	for (i = 0; i < _NSIG; i++) {
+		if (signo[i]) {
+			kill(getpid(), i);
+			switch (i) {
+			case SIGTSTP:
+			case SIGTTIN:
+			case SIGTTOU:
+				need_restart = 1;
+			}
 		}
 	}
+	if (need_restart)
+		goto restart;
 
-	errno = save_errno;
+	if (save_errno)
+		errno = save_errno;
 	return(nr == -1 ? NULL : buf);
 }
-  
+
 #if 0
 char *
 getpass(const char *prompt)
@@ -186,6 +200,6 @@ getpass(const char *prompt)
 static void handler(int s)
 {
 
-	signo = s;
+	signo[s] = 1;
 }
 #endif /* HAVE_READPASSPHRASE */

@@ -200,6 +200,10 @@ restart:
 		error = EOPNOTSUPP;
 		goto bad;
 	}
+	if (vp->v_type != VDIR && fmode & O_DIRECTORY) {
+		error = ENOTDIR;
+		goto bad;
+	}
 	accmode = 0;
 	if (fmode & (FWRITE | O_TRUNC)) {
 		if (vp->v_type == VDIR) {
@@ -778,21 +782,20 @@ vn_stat(vp, sb, active_cred, file_cred, td)
 	if (vap->va_size > OFF_MAX)
 		return (EOVERFLOW);
 	sb->st_size = vap->va_size;
-	sb->st_atimespec = vap->va_atime;
-	sb->st_mtimespec = vap->va_mtime;
-	sb->st_ctimespec = vap->va_ctime;
-	sb->st_birthtimespec = vap->va_birthtime;
+	sb->st_atim = vap->va_atime;
+	sb->st_mtim = vap->va_mtime;
+	sb->st_ctim = vap->va_ctime;
+	sb->st_birthtim = vap->va_birthtime;
 
         /*
 	 * According to www.opengroup.org, the meaning of st_blksize is 
 	 *   "a filesystem-specific preferred I/O block size for this 
 	 *    object.  In some filesystem types, this may vary from file
 	 *    to file"
-	 * Default to PAGE_SIZE after much discussion.
-	 * XXX: min(PAGE_SIZE, vp->v_bufobj.bo_bsize) may be more correct.
+	 * Use miminum/default of PAGE_SIZE (e.g. for VCHR).
 	 */
 
-	sb->st_blksize = PAGE_SIZE;
+	sb->st_blksize = max(PAGE_SIZE, vap->va_blocksize);
 	
 	sb->st_flags = vap->va_flags;
 	if (priv_check(td, PRIV_VFS_GENERATION))

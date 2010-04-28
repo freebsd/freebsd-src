@@ -922,6 +922,12 @@ ahdemo_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m0,
 }
 
 static void
-adhoc_recv_ctl(struct ieee80211_node *ni, struct mbuf *m0, int subtype)
+adhoc_recv_ctl(struct ieee80211_node *ni, struct mbuf *m, int subtype)
 {
+
+	switch (subtype) {
+	case IEEE80211_FC0_SUBTYPE_BAR:
+		ieee80211_recv_bar(ni, m);
+		break;
+	}
 }

@@ -132,6 +132,7 @@ device          scbus
 #device          ohci            # OHCI PCI->USB interface
 device          ehci            # EHCI PCI->USB interface (USB 2.0)
 device          usb             # USB Bus (required)
+options 	USB_DEBUG	# enable debug msgs
 #device         udbp            # USB Double Bulk Pipe devices
 #device          ugen            # Generic
 #device          uhid            # "Human Interface Devices"

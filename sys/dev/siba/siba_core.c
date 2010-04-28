@@ -133,8 +133,13 @@ static void	siba_pci_write_multi_4(struct siba_dev_softc *, const void *,
 		    size_t, uint16_t);
 static const char *siba_core_name(uint16_t);
 static void	siba_pcicore_init(struct siba_pci *);
-device_t	siba_add_child(device_t, struct siba_softc *, int, const char *,
-		    int);
+static uint32_t	siba_read_4_sub(struct siba_dev_softc *, uint16_t);
+static void	siba_write_4_sub(struct siba_dev_softc *, uint16_t, uint32_t);
+static void	siba_powerup_sub(struct siba_softc *, int);
+static int	siba_powerdown_sub(struct siba_softc *);
+static int	siba_dev_isup_sub(struct siba_dev_softc *);
+static void	siba_dev_up_sub(struct siba_dev_softc *, uint32_t);
+static void	siba_dev_down_sub(struct siba_dev_softc *, uint32_t);
 int		siba_core_attach(struct siba_softc *);
 int		siba_core_detach(struct siba_softc *);
 int		siba_core_suspend(struct siba_softc *);
@@ -183,7 +188,7 @@ siba_core_attach(struct siba_softc *siba)
 
 	/* XXX init PCI or PCMCIA host devices */
 
-	siba_powerup(siba, 0);
+	siba_powerup_sub(siba, 0);
 
 	/* init ChipCommon */
 	scc = &siba->siba_cc;
@@ -194,20 +199,16 @@ siba_core_attach(struct siba_softc *siba)
 		siba_cc_powerup_delay(scc);
 	}
 
-	/* fetch various internal informations for PCI */
-	siba->siba_board_vendor = pci_read_config(siba->siba_dev,
-	    PCIR_SUBVEND_0, 2);
-	siba->siba_board_type = pci_read_config(siba->siba_dev, PCIR_SUBDEV_0,
-	    2);
-	siba->siba_board_rev = pci_read_config(siba->siba_dev, PCIR_REVID, 2);
 	error = siba_pci_sprom(siba, &siba->siba_sprom);
 	if (error) {
-		siba_powerdown(siba);
+		siba_powerdown_sub(siba);
 		return (error);
 	}
 
-	siba_powerdown(siba);
-	return (0);
+	siba_pcicore_init(&siba->siba_pci);
+	siba_powerdown_sub(siba);
+
+	return (bus_generic_attach(siba->siba_dev));
 }
 
 int
@@ -277,6 +278,7 @@ siba_scan(struct siba_softc *siba)
 {
 	struct siba_dev_softc *sd;
 	uint32_t idhi, tmp;
+	device_t child;
 	int base, dev_i = 0, error, i, is_pcie, n_80211 = 0, n_cc = 0,
 	    n_pci = 0;
 
@@ -387,6 +389,14 @@ siba_scan(struct siba_softc *siba)
 			break;
 		}
 		dev_i++;
+
+		child = device_add_child(siba->siba_dev, NULL, -1);
+		if (child == NULL) {
+			device_printf(siba->siba_dev, "child attach failed\n");
+			continue;
+		}
+
+		device_set_ivars(child, sd);
 	}
 	siba->siba_ndevs = dev_i;
 }
@@ -737,7 +747,16 @@ siba_pci_write_multi_4(struct siba_dev_softc *sd, const void *buffer,
 }
 
 void
-siba_powerup(struct siba_softc *siba, int dynamic)
+siba_powerup(device_t dev, int dynamic)
+{
+	struct siba_dev_softc *sd = device_get_ivars(dev);
+	struct siba_softc *siba = sd->sd_bus;
+
+	siba_powerup_sub(siba, dynamic);
+}
+
+static void
+siba_powerup_sub(struct siba_softc *siba, int dynamic)
 {
 
 	siba_pci_gpio(siba, SIBA_GPIO_CRYSTAL | SIBA_GPIO_PLL, 1);
@@ -793,77 +812,101 @@ siba_cc_clock(struct siba_cc *scc, enum siba_clock clock)
 }
 
 uint16_t
-siba_read_2(struct siba_dev_softc *sd, uint16_t offset)
+siba_read_2(device_t dev, uint16_t offset)
 {
+	struct siba_dev_softc *sd = device_get_ivars(dev);
 
 	return (sd->sd_ops->read_2(sd, offset));
 }
 
 uint32_t
-siba_read_4(struct siba_dev_softc *sd, uint16_t offset)
+siba_read_4(device_t dev, uint16_t offset)
+{
+	struct siba_dev_softc *sd = device_get_ivars(dev);
+
+	return (siba_read_4_sub(sd, offset));
+}
+
+static uint32_t
+siba_read_4_sub(struct siba_dev_softc *sd, uint16_t offset)
 {
 
 	return (sd->sd_ops->read_4(sd, offset));
 }
 
 void
-siba_write_2(struct siba_dev_softc *sd, uint16_t offset, uint16_t value)
+siba_write_2(device_t dev, uint16_t offset, uint16_t value)
 {
+	struct siba_dev_softc *sd = device_get_ivars(dev);
 
 	sd->sd_ops->write_2(sd, offset, value);
 }
 
 void
-siba_write_4(struct siba_dev_softc *sd, uint16_t offset, uint32_t value)
+siba_write_4(device_t dev, uint16_t offset, uint32_t value)
+{
+	struct siba_dev_softc *sd = device_get_ivars(dev);
+
+	return (siba_write_4_sub(sd, offset, value));
+}
+
+static void
+siba_write_4_sub(struct siba_dev_softc *sd, uint16_t offset, uint32_t value)
 {
 
 	sd->sd_ops->write_4(sd, offset, value);
 }
 
 void
-siba_read_multi_1(struct siba_dev_softc *sd, void *buffer, size_t count,
+siba_read_multi_1(device_t dev, void *buffer, size_t count,
     uint16_t offset)
 {
+	struct siba_dev_softc *sd = device_get_ivars(dev);
 
 	sd->sd_ops->read_multi_1(sd, buffer, count, offset);
 }
 
 void
-siba_read_multi_2(struct siba_dev_softc *sd, void *buffer, size_t count,
+siba_read_multi_2(device_t dev, void *buffer, size_t count,
     uint16_t offset)
 {
+	struct siba_dev_softc *sd = device_get_ivars(dev);
 
 	sd->sd_ops->read_multi_2(sd, buffer, count, offset);
 }
 
 void
-siba_read_multi_4(struct siba_dev_softc *sd, void *buffer, size_t count,
+siba_read_multi_4(device_t dev, void *buffer, size_t count,
     uint16_t offset)
 {
+	struct siba_dev_softc *sd = device_get_ivars(dev);
 
 	sd->sd_ops->read_multi_4(sd, buffer, count, offset);
 }
 
 void
-siba_write_multi_1(struct siba_dev_softc *sd, const void *buffer,
-    size_t count, uint16_t offset)
+siba_write_multi_1(device_t dev, const void *buffer, size_t count,
+    uint16_t offset)
 {
+	struct siba_dev_softc *sd = device_get_ivars(dev);
 
 	sd->sd_ops->write_multi_1(sd, buffer, count, offset);
 }
 
 void
-siba_write_multi_2(struct siba_dev_softc *sd, const void *buffer,
-    size_t count, uint16_t offset)
+siba_write_multi_2(device_t dev, const void *buffer, size_t count,
+    uint16_t offset)
 {
+	struct siba_dev_softc *sd = device_get_ivars(dev);
 
 	sd->sd_ops->write_multi_2(sd, buffer, count, offset);
 }
 
 void
-siba_write_multi_4(struct siba_dev_softc *sd, const void *buffer,
-    size_t count, uint16_t offset)
+siba_write_multi_4(device_t dev, const void *buffer, size_t count,
+    uint16_t offset)
 {
+	struct siba_dev_softc *sd = device_get_ivars(dev);
 
 	sd->sd_ops->write_multi_4(sd, buffer, count, offset);
 }
@@ -1676,7 +1719,16 @@ siba_sprom_r123_antgain(uint8_t sprom_revision, const uint16_t *in,
 #undef SIBA_SHIFTOUT
 
 int
-siba_powerdown(struct siba_softc *siba)
+siba_powerdown(device_t dev)
+{
+	struct siba_dev_softc *sd = device_get_ivars(dev);
+	struct siba_softc *siba = sd->sd_bus;
+
+	return (siba_powerdown_sub(siba));
+}
+
+static int
+siba_powerdown_sub(struct siba_softc *siba)
 {
 	struct siba_cc *scc;
 
@@ -1701,61 +1753,77 @@ siba_pcicore_init(struct siba_pci *spc)
 		return;
 
 	siba = sd->sd_bus;
-	if (!siba_dev_isup(sd))
-		siba_dev_up(sd, 0);
+	if (!siba_dev_isup_sub(sd))
+		siba_dev_up_sub(sd, 0);
 
 	KASSERT(spc->spc_hostmode == 0,
 	    ("%s:%d: hostmode", __func__, __LINE__));
 	/* disable PCI interrupt */
-	siba_write_4(spc->spc_dev, SIBA_INTR_MASK, 0);
+	siba_write_4_sub(spc->spc_dev, SIBA_INTR_MASK, 0);
 }
 
 int
-siba_dev_isup(struct siba_dev_softc *sd)
+siba_dev_isup(device_t dev)
+{
+	struct siba_dev_softc *sd = device_get_ivars(dev);
+
+	return (siba_dev_isup_sub(sd));
+}
+
+static int
+siba_dev_isup_sub(struct siba_dev_softc *sd)
 {
 	uint32_t reject, val;
 
 	reject = siba_tmslow_reject_bitmask(sd);
-	val = siba_read_4(sd, SIBA_TGSLOW);
+	val = siba_read_4_sub(sd, SIBA_TGSLOW);
 	val &= SIBA_TGSLOW_CLOCK | SIBA_TGSLOW_RESET | reject;
 
 	return (val == SIBA_TGSLOW_CLOCK);
 }
 
 void
-siba_dev_up(struct siba_dev_softc *sd, uint32_t flags)
+siba_dev_up(device_t dev, uint32_t flags)
+{
+	struct siba_dev_softc *sd = device_get_ivars(dev);
+
+	siba_dev_up_sub(sd, flags);
+}
+
+static void
+siba_dev_up_sub(struct siba_dev_softc *sd, uint32_t flags)
 {
 	uint32_t val;
 
-	siba_dev_down(sd, flags);
-	siba_write_4(sd, SIBA_TGSLOW, SIBA_TGSLOW_RESET | SIBA_TGSLOW_CLOCK |
-	    SIBA_TGSLOW_FGC | flags);
-	siba_read_4(sd, SIBA_TGSLOW);
+	siba_dev_down_sub(sd, flags);
+	siba_write_4_sub(sd, SIBA_TGSLOW,
+	    SIBA_TGSLOW_RESET | SIBA_TGSLOW_CLOCK | SIBA_TGSLOW_FGC | flags);
+	siba_read_4_sub(sd, SIBA_TGSLOW);
 	DELAY(1);
 
-	if (siba_read_4(sd, SIBA_TGSHIGH) & SIBA_TGSHIGH_SERR)
-		siba_write_4(sd, SIBA_TGSHIGH, 0);
+	if (siba_read_4_sub(sd, SIBA_TGSHIGH) & SIBA_TGSHIGH_SERR)
+		siba_write_4_sub(sd, SIBA_TGSHIGH, 0);
 
-	val = siba_read_4(sd, SIBA_IAS);
+	val = siba_read_4_sub(sd, SIBA_IAS);
 	if (val & (SIBA_IAS_INBAND_ERR | SIBA_IAS_TIMEOUT)) {
 		val &= ~(SIBA_IAS_INBAND_ERR | SIBA_IAS_TIMEOUT);
-		siba_write_4(sd, SIBA_IAS, val);
+		siba_write_4_sub(sd, SIBA_IAS, val);
 	}
 
-	siba_write_4(sd, SIBA_TGSLOW,
+	siba_write_4_sub(sd, SIBA_TGSLOW,
 	    SIBA_TGSLOW_CLOCK | SIBA_TGSLOW_FGC | flags);
-	siba_read_4(sd, SIBA_TGSLOW);
+	siba_read_4_sub(sd, SIBA_TGSLOW);
 	DELAY(1);
 
-	siba_write_4(sd, SIBA_TGSLOW, SIBA_TGSLOW_CLOCK | flags);
-	siba_read_4(sd, SIBA_TGSLOW);
+	siba_write_4_sub(sd, SIBA_TGSLOW, SIBA_TGSLOW_CLOCK | flags);
+	siba_read_4_sub(sd, SIBA_TGSLOW);
 	DELAY(1);
 }
 
 static uint32_t
 siba_tmslow_reject_bitmask(struct siba_dev_softc *sd)
 {
-	uint32_t rev = siba_read_4(sd, SIBA_IDLOW) & SIBA_IDLOW_SSBREV;
+	uint32_t rev = siba_read_4_sub(sd, SIBA_IDLOW) & SIBA_IDLOW_SSBREV;
 
 	switch (rev) {
 	case SIBA_IDLOW_SSBREV_22:
@@ -1776,20 +1844,28 @@ siba_tmslow_reject_bitmask(struct siba_dev_softc *sd)
 }
 
 void
-siba_dev_down(struct siba_dev_softc *sd, uint32_t flags)
+siba_dev_down(device_t dev, uint32_t flags)
+{
+	struct siba_dev_softc *sd = device_get_ivars(dev);
+
+	siba_dev_down_sub(sd, flags);
+}
+
+static void
+siba_dev_down_sub(struct siba_dev_softc *sd, uint32_t flags)
 {
 	struct siba_softc *siba = sd->sd_bus;
 	uint32_t reject, val;
 	int i;
 
-	if (siba_read_4(sd, SIBA_TGSLOW) & SIBA_TGSLOW_RESET)
+	if (siba_read_4_sub(sd, SIBA_TGSLOW) & SIBA_TGSLOW_RESET)
 		return;
 
 	reject = siba_tmslow_reject_bitmask(sd);
-	siba_write_4(sd, SIBA_TGSLOW, reject | SIBA_TGSLOW_CLOCK);
+	siba_write_4_sub(sd, SIBA_TGSLOW, reject | SIBA_TGSLOW_CLOCK);
 
 	for (i = 0; i < 1000; i++) {
-		val = siba_read_4(sd, SIBA_TGSLOW);
+		val = siba_read_4_sub(sd, SIBA_TGSLOW);
 		if (val & reject)
 			break;
 		DELAY(10);
@@ -1799,7 +1875,7 @@ siba_dev_down(struct siba_dev_softc *sd, uint32_t flags)
 		    reject, SIBA_TGSLOW);
 	}
 	for (i = 0; i < 1000; i++) {
-		val = siba_read_4(sd, SIBA_TGSHIGH);
+		val = siba_read_4_sub(sd, SIBA_TGSHIGH);
 		if (!(val & SIBA_TGSHIGH_BUSY))
 			break;
 		DELAY(10);
@@ -1809,12 +1885,12 @@ siba_dev_down(struct siba_dev_softc *sd, uint32_t flags)
 		    SIBA_TGSHIGH_BUSY, SIBA_TGSHIGH);
 	}
 
-	siba_write_4(sd, SIBA_TGSLOW, SIBA_TGSLOW_FGC | SIBA_TGSLOW_CLOCK |
+	siba_write_4_sub(sd, SIBA_TGSLOW, SIBA_TGSLOW_FGC | SIBA_TGSLOW_CLOCK |
 	    reject | SIBA_TGSLOW_RESET | flags);
-	siba_read_4(sd, SIBA_TGSLOW);
+	siba_read_4_sub(sd, SIBA_TGSLOW);
 	DELAY(1);
-	siba_write_4(sd, SIBA_TGSLOW, reject | SIBA_TGSLOW_RESET | flags);
-	siba_read_4(sd, SIBA_TGSLOW);
+	siba_write_4_sub(sd, SIBA_TGSLOW, reject | SIBA_TGSLOW_RESET | flags);
+	siba_read_4_sub(sd, SIBA_TGSLOW);
 	DELAY(1);
 }
 
@@ -1831,21 +1907,22 @@ siba_pcicore_setup(struct siba_pci *spc, struct siba_dev_softc *sd)
 		    SIBA_PCICORE_SBTOPCI_PREF | SIBA_PCICORE_SBTOPCI_BURST);
 
 		if (psd->sd_id.sd_rev < 5) {
-			tmp = siba_read_4(psd, SIBA_IMCFGLO);
+			tmp = siba_read_4_sub(psd, SIBA_IMCFGLO);
 			tmp &= ~SIBA_IMCFGLO_SERTO;
 			tmp = (tmp | 2) & ~SIBA_IMCFGLO_REQTO;
 			tmp |= 3 << 4 /* SIBA_IMCFGLO_REQTO_SHIFT */;
-			siba_write_4(psd, SIBA_IMCFGLO, tmp);
+			siba_write_4_sub(psd, SIBA_IMCFGLO, tmp);
 
 			/* broadcast value */
 			sd = (siba->siba_cc.scc_dev != NULL) ?
 			    siba->siba_cc.scc_dev : siba->siba_pci.spc_dev;
 			if (sd != NULL) {
-				siba_write_4(sd, SIBA_PCICORE_BCAST_ADDR,
+				siba_write_4_sub(sd, SIBA_PCICORE_BCAST_ADDR,
 				    0xfd8);
-				siba_read_4(sd, SIBA_PCICORE_BCAST_ADDR);
-				siba_write_4(sd, SIBA_PCICORE_BCAST_DATA, 0);
-				siba_read_4(sd, SIBA_PCICORE_BCAST_DATA);
+				siba_read_4_sub(sd, SIBA_PCICORE_BCAST_ADDR);
+				siba_write_4_sub(sd,
+				    SIBA_PCICORE_BCAST_DATA, 0);
+				siba_read_4_sub(sd, SIBA_PCICORE_BCAST_DATA);
 			}
 		} else if (psd->sd_id.sd_rev >= 11) {
 			tmp = siba_pcicore_read_4(spc, SIBA_PCICORE_SBTOPCI2);
@@ -1869,27 +1946,31 @@ siba_pcicore_setup(struct siba_pci *spc, struct siba_dev_softc *sd)
 }
 
 void
-siba_pcicore_intr(struct siba_pci *spc, struct siba_dev_softc *sd)
+siba_pcicore_intr(device_t dev)
 {
+	struct siba_dev_softc *sd = device_get_ivars(dev);
+	struct siba_softc *siba = sd->sd_bus;
+	struct siba_pci *spc = &siba->siba_pci;
 	struct siba_dev_softc *psd = spc->spc_dev;
-	struct siba_softc *siba;
 	uint32_t tmp;
 
-	if (sd->sd_bus->siba_type != SIBA_TYPE_PCI || !psd)
+	if (siba->siba_type != SIBA_TYPE_PCI || !psd)
 		return;
 
-	siba = psd->sd_bus;
+	KASSERT(siba == psd->sd_bus, ("different pointers"));
+
 	/* enable interrupts */
 	if (siba->siba_dev != NULL &&
-	    (psd->sd_id.sd_rev >= 6 || psd->sd_id.sd_device == SIBA_DEVID_PCIE)) {
+	    (psd->sd_id.sd_rev >= 6 ||
+	     psd->sd_id.sd_device == SIBA_DEVID_PCIE)) {
 		tmp = pci_read_config(siba->siba_dev, SIBA_IRQMASK, 4);
 		tmp |= (1 << sd->sd_coreidx) << 8;
 		pci_write_config(siba->siba_dev, SIBA_IRQMASK, tmp, 4);
 	} else {
-		tmp = siba_read_4(sd, SIBA_TPS);
+		tmp = siba_read_4_sub(sd, SIBA_TPS);
 		tmp &= SIBA_TPS_BPFLAG;
-		siba_write_4(psd, SIBA_INTR_MASK,
-		    siba_read_4(psd, SIBA_INTR_MASK) | (1 << tmp));
+		siba_write_4_sub(psd, SIBA_INTR_MASK,
+		    siba_read_4_sub(psd, SIBA_INTR_MASK) | (1 << tmp));
 	}
 
 	/* setup PCIcore */
@@ -1901,14 +1982,14 @@ static uint32_t
 siba_pcicore_read_4(struct siba_pci *spc, uint16_t offset)
 {
 
-	return (siba_read_4(spc->spc_dev, offset));
+	return (siba_read_4_sub(spc->spc_dev, offset));
 }
 
 static void
 siba_pcicore_write_4(struct siba_pci *spc, uint16_t offset, uint32_t value)
 {
 
-	siba_write_4(spc->spc_dev, offset, value);
+	siba_write_4_sub(spc->spc_dev, offset, value);
 }
 
 static uint32_t
@@ -1948,66 +2029,25 @@ siba_pcie_mdio_write(struct siba_pci *spc, uint8_t device, uint8_t address,
 }
 
 uint32_t
-siba_dma_translation(struct siba_dev_softc *sd)
+siba_dma_translation(device_t dev)
 {
+#ifdef INVARIANTS
+	struct siba_dev_softc *sd = device_get_ivars(dev);
+	struct siba_softc *siba = sd->sd_bus;
 
-	KASSERT(sd->sd_bus->siba_type == SIBA_TYPE_PCI,
-	    ("unsupported bustype %d\n", sd->sd_bus->siba_type));
+	KASSERT(siba->siba_type == SIBA_TYPE_PCI,
+	    ("unsupported bustype %d\n", siba->siba_type));
+#endif
 	return (SIBA_PCI_DMA);
 }
 
 void
-siba_barrier(struct siba_dev_softc *sd, int flags)
+siba_barrier(device_t dev, int flags)
 {
+	struct siba_dev_softc *sd = device_get_ivars(dev);
 	struct siba_softc *siba = sd->sd_bus;
 
 	SIBA_BARRIER(siba, flags);
-}
-
-/*
- * Attach it as child.
- */
-device_t
-siba_add_child(device_t dev, struct siba_softc *siba, int order,
-    const char *name, int unit)
-{
-	struct siba_dev_softc *sd;
-	device_t child;
-	int idx = 0, i;
-
-	child = device_add_child(dev, name, unit);
-	if (child == NULL)
-		return (NULL);
-
-	siba_powerup(siba, 0);
-	siba_pcicore_init(&siba->siba_pci);
-	siba_powerdown(siba);
-
-	for (i = 0; i < siba->siba_ndevs; i++) {
-		sd = &(siba->siba_devs[i]);
-
-		if (sd->sd_id.sd_device != SIBA_DEVID_80211) {
-			DPRINTF(siba, SIBA_DEBUG_CORE,
-			    "skip to register coreid %#x (%s)\n",
-			    sd->sd_id.sd_device,
-			    siba_core_name(sd->sd_id.sd_device));
-			continue;
-		}
-
-		DPRINTF(siba, SIBA_DEBUG_CORE,
-		    "siba: attaching coreid %#x (%s) idx %d\n",
-		    sd->sd_id.sd_device,
-		    siba_core_name(sd->sd_id.sd_device), idx);
-
-		KASSERT(sd->sd_id.sd_device == SIBA_DEVID_80211,
-		    ("%s:%d: SIBA_DEVID_80211 is only supportted currently.",
-			__func__, __LINE__));
-
-		device_set_ivars(child, sd);
-		device_probe_and_attach(child);
-		idx++;
-	}
-	return (child);
 }
 
 static void
@@ -2041,10 +2081,10 @@ siba_core_resume(struct siba_softc *siba)
 	siba->siba_pci.spc_inited = 0;
 	siba->siba_curdev = NULL;
 
-	siba_powerup(siba, 0);
+	siba_powerup_sub(siba, 0);
 	/* XXX setup H/W for PCMCIA??? */
 	siba_cc_resume(&siba->siba_cc);
-	siba_powerdown(siba);
+	siba_powerdown_sub(siba);
 
 	return (0);
 }
@@ -2063,9 +2103,11 @@ siba_cc_regctl_setmask(struct siba_cc *cc, uint32_t offset, uint32_t mask,
 }
 
 void
-siba_cc_pmu_set_ldovolt(struct siba_cc *scc, int id, uint32_t volt)
+siba_cc_pmu_set_ldovolt(device_t dev, int id, uint32_t volt)
 {
-	struct siba_softc *siba = scc->scc_dev->sd_bus;
+	struct siba_dev_softc *sd = device_get_ivars(dev);
+	struct siba_softc *siba = sd->sd_bus;
+	struct siba_cc *scc = &siba->siba_cc;
 	uint32_t *p = NULL, info[5][3] = {
 		{ 2, 25,  0xf },
 		{ 3,  1,  0xf },
@@ -2107,9 +2149,11 @@ siba_cc_pmu_set_ldovolt(struct siba_cc *scc, int id, uint32_t volt)
 }
 
 void
-siba_cc_pmu_set_ldoparef(struct siba_cc *scc, uint8_t on)
+siba_cc_pmu_set_ldoparef(device_t dev, uint8_t on)
 {
-	struct siba_softc *siba = scc->scc_dev->sd_bus;
+	struct siba_dev_softc *sd = device_get_ivars(dev);
+	struct siba_softc *siba = sd->sd_bus;
+	struct siba_cc *scc = &siba->siba_cc;
 	int ldo;
 
 	ldo = ((siba->siba_chipid == 0x4312) ? SIBA_CC_PMU_4312_PA_REF :
@@ -2123,4 +2167,420 @@ siba_cc_pmu_set_ldoparef(struct siba_cc *scc, uint8_t on)
 	else
 		SIBA_CC_MASK32(scc, SIBA_CC_PMU_MINRES, ~(1 << ldo));
 	SIBA_CC_READ32(scc, SIBA_CC_PMU_MINRES);
+}
+
+int
+siba_read_sprom(device_t dev, device_t child, int which, uintptr_t *result)
+{
+	struct siba_dev_softc *sd = device_get_ivars(child);
+	struct siba_softc *siba = sd->sd_bus;
+
+	switch (which) {
+	case SIBA_SPROMVAR_REV:
+		*result = siba->siba_sprom.rev;
+		break;
+	case SIBA_SPROMVAR_MAC_80211BG:
+		*((uint8_t **) result) = siba->siba_sprom.mac_80211bg;
+		break;
+	case SIBA_SPROMVAR_MAC_ETH:
+		*((uint8_t **) result) = siba->siba_sprom.mac_eth;
+		break;
+	case SIBA_SPROMVAR_MAC_80211A:
+		*((uint8_t **) result) = siba->siba_sprom.mac_80211a;
+		break;
+	case SIBA_SPROMVAR_MII_ETH0:
+		*result = siba->siba_sprom.mii_eth0;
+		break;
+	case SIBA_SPROMVAR_MII_ETH1:
+		*result = siba->siba_sprom.mii_eth1;
+		break;
+	case SIBA_SPROMVAR_MDIO_ETH0:
+		*result = siba->siba_sprom.mdio_eth0;
+		break;
+	case SIBA_SPROMVAR_MDIO_ETH1:
+		*result = siba->siba_sprom.mdio_eth1;
+		break;
+	case SIBA_SPROMVAR_BREV:
+		*result = siba->siba_sprom.brev;
+		break;
+	case SIBA_SPROMVAR_CCODE:
+		*result = siba->siba_sprom.ccode;
+		break;
+	case SIBA_SPROMVAR_ANT_A:
+		*result = siba->siba_sprom.ant_a;
+		break;
+	case SIBA_SPROMVAR_ANT_BG:
+		*result = siba->siba_sprom.ant_bg;
+		break;
+	case SIBA_SPROMVAR_PA0B0:
+		*result = siba->siba_sprom.pa0b0;
+		break;
+	case SIBA_SPROMVAR_PA0B1:
+		*result = siba->siba_sprom.pa0b1;
+		break;
+	case SIBA_SPROMVAR_PA0B2:
+		*result = siba->siba_sprom.pa0b2;
+		break;
+	case SIBA_SPROMVAR_PA1B0:
+		*result = siba->siba_sprom.pa1b0;
+		break;
+	case SIBA_SPROMVAR_PA1B1:
+		*result = siba->siba_sprom.pa1b1;
+		break;
+	case SIBA_SPROMVAR_PA1B2:
+		*result = siba->siba_sprom.pa1b2;
+		break;
+	case SIBA_SPROMVAR_PA1LOB0:
+		*result = siba->siba_sprom.pa1lob0;
+		break;
+	case SIBA_SPROMVAR_PA1LOB1:
+		*result = siba->siba_sprom.pa1lob1;
+		break;
+	case SIBA_SPROMVAR_PA1LOB2:
+		*result = siba->siba_sprom.pa1lob2;
+		break;
+	case SIBA_SPROMVAR_PA1HIB0:
+		*result = siba->siba_sprom.pa1hib0;
+		break;
+	case SIBA_SPROMVAR_PA1HIB1:
+		*result = siba->siba_sprom.pa1hib1;
+		break;
+	case SIBA_SPROMVAR_PA1HIB2:
+		*result = siba->siba_sprom.pa1hib2;
+		break;
+	case SIBA_SPROMVAR_GPIO0:
+		*result = siba->siba_sprom.gpio0;
+		break;
+	case SIBA_SPROMVAR_GPIO1:
+		*result = siba->siba_sprom.gpio1;
+		break;
+	case SIBA_SPROMVAR_GPIO2:
+		*result = siba->siba_sprom.gpio2;
+		break;
+	case SIBA_SPROMVAR_GPIO3:
+		*result = siba->siba_sprom.gpio3;
+		break;
+	case SIBA_SPROMVAR_MAXPWR_AL:
+		*result = siba->siba_sprom.maxpwr_al;
+		break;
+	case SIBA_SPROMVAR_MAXPWR_A:
+		*result = siba->siba_sprom.maxpwr_a;
+		break;
+	case SIBA_SPROMVAR_MAXPWR_AH:
+		*result = siba->siba_sprom.maxpwr_ah;
+		break;
+	case SIBA_SPROMVAR_MAXPWR_BG:
+		*result = siba->siba_sprom.maxpwr_bg;
+		break;
+	case SIBA_SPROMVAR_RXPO2G:
+		*result = siba->siba_sprom.rxpo2g;
+		break;
+	case SIBA_SPROMVAR_RXPO5G:
+		*result = siba->siba_sprom.rxpo5g;
+		break;
+	case SIBA_SPROMVAR_TSSI_A:
+		*result = siba->siba_sprom.tssi_a;
+		break;
+	case SIBA_SPROMVAR_TSSI_BG:
+		*result = siba->siba_sprom.tssi_bg;
+		break;
+	case SIBA_SPROMVAR_TRI2G:
+		*result = siba->siba_sprom.tri2g;
+		break;
+	case SIBA_SPROMVAR_TRI5GL:
+		*result = siba->siba_sprom.tri5gl;
+		break;
+	case SIBA_SPROMVAR_TRI5G:
+		*result = siba->siba_sprom.tri5g;
+		break;
+	case SIBA_SPROMVAR_TRI5GH:
+		*result = siba->siba_sprom.tri5gh;
+		break;
+	case SIBA_SPROMVAR_RSSISAV2G:
+		*result = siba->siba_sprom.rssisav2g;
+		break;
+	case SIBA_SPROMVAR_RSSISMC2G:
+		*result = siba->siba_sprom.rssismc2g;
+		break;
+	case SIBA_SPROMVAR_RSSISMF2G:
+		*result = siba->siba_sprom.rssismf2g;
+		break;
+	case SIBA_SPROMVAR_BXA2G:
+		*result = siba->siba_sprom.bxa2g;
+		break;
+	case SIBA_SPROMVAR_RSSISAV5G:
+		*result = siba->siba_sprom.rssisav5g;
+		break;
+	case SIBA_SPROMVAR_RSSISMC5G:
+		*result = siba->siba_sprom.rssismc5g;
+		break;
+	case SIBA_SPROMVAR_RSSISMF5G:
+		*result = siba->siba_sprom.rssismf5g;
+		break;
+	case SIBA_SPROMVAR_BXA5G:
+		*result = siba->siba_sprom.bxa5g;
+		break;
+	case SIBA_SPROMVAR_CCK2GPO:
+		*result = siba->siba_sprom.cck2gpo;
+		break;
+	case SIBA_SPROMVAR_OFDM2GPO:
+		*result = siba->siba_sprom.ofdm2gpo;
+		break;
+	case SIBA_SPROMVAR_OFDM5GLPO:
+		*result = siba->siba_sprom.ofdm5glpo;
+		break;
+	case SIBA_SPROMVAR_OFDM5GPO:
+		*result = siba->siba_sprom.ofdm5gpo;
+		break;
+	case SIBA_SPROMVAR_OFDM5GHPO:
+		*result = siba->siba_sprom.ofdm5ghpo;
+		break;
+	case SIBA_SPROMVAR_BF_LO:
+		*result = siba->siba_sprom.bf_lo;
+		break;
+	case SIBA_SPROMVAR_BF_HI:
+		*result = siba->siba_sprom.bf_hi;
+		break;
+	case SIBA_SPROMVAR_BF2_LO:
+		*result = siba->siba_sprom.bf2_lo;
+		break;
+	case SIBA_SPROMVAR_BF2_HI:
+		*result = siba->siba_sprom.bf2_hi;
+		break;
+	default:
+		return (ENOENT);
+	}
+	return (0);
+}
+
+int
+siba_write_sprom(device_t dev, device_t child, int which, uintptr_t value)
+{
+	struct siba_dev_softc *sd = device_get_ivars(child);
+	struct siba_softc *siba = sd->sd_bus;
+
+	switch (which) {
+	case SIBA_SPROMVAR_REV:
+		siba->siba_sprom.rev = value;
+		break;
+	case SIBA_SPROMVAR_MII_ETH0:
+		siba->siba_sprom.mii_eth0 = value;
+		break;
+	case SIBA_SPROMVAR_MII_ETH1:
+		siba->siba_sprom.mii_eth1 = value;
+		break;
+	case SIBA_SPROMVAR_MDIO_ETH0:
+		siba->siba_sprom.mdio_eth0 = value;
+		break;
+	case SIBA_SPROMVAR_MDIO_ETH1:
+		siba->siba_sprom.mdio_eth1 = value;
+		break;
+	case SIBA_SPROMVAR_BREV:
+		siba->siba_sprom.brev = value;
+		break;
+	case SIBA_SPROMVAR_CCODE:
+		siba->siba_sprom.ccode = value;
+		break;
+	case SIBA_SPROMVAR_ANT_A:
+		siba->siba_sprom.ant_a = value;
+		break;
+	case SIBA_SPROMVAR_ANT_BG:
+		siba->siba_sprom.ant_bg = value;
+		break;
+	case SIBA_SPROMVAR_PA0B0:
+		siba->siba_sprom.pa0b0 = value;
+		break;
+	case SIBA_SPROMVAR_PA0B1:
+		siba->siba_sprom.pa0b1 = value;
+		break;
+	case SIBA_SPROMVAR_PA0B2:
+		siba->siba_sprom.pa0b2 = value;
+		break;
+	case SIBA_SPROMVAR_PA1B0:
+		siba->siba_sprom.pa1b0 = value;
+		break;
+	case SIBA_SPROMVAR_PA1B1:
+		siba->siba_sprom.pa1b1 = value;
+		break;
+	case SIBA_SPROMVAR_PA1B2:
+		siba->siba_sprom.pa1b2 = value;
+		break;
+	case SIBA_SPROMVAR_PA1LOB0:
+		siba->siba_sprom.pa1lob0 = value;
+		break;
+	case SIBA_SPROMVAR_PA1LOB1:
+		siba->siba_sprom.pa1lob1 = value;
+		break;
+	case SIBA_SPROMVAR_PA1LOB2:
+		siba->siba_sprom.pa1lob2 = value;
+		break;
+	case SIBA_SPROMVAR_PA1HIB0:
+		siba->siba_sprom.pa1hib0 = value;
+		break;
+	case SIBA_SPROMVAR_PA1HIB1:
+		siba->siba_sprom.pa1hib1 = value;
+		break;
+	case SIBA_SPROMVAR_PA1HIB2:
+		siba->siba_sprom.pa1hib2 = value;
+		break;
+	case SIBA_SPROMVAR_GPIO0:
+		siba->siba_sprom.gpio0 = value;
+		break;
+	case SIBA_SPROMVAR_GPIO1:
+		siba->siba_sprom.gpio1 = value;
+		break;
+	case SIBA_SPROMVAR_GPIO2:
+		siba->siba_sprom.gpio2 = value;
+		break;
+	case SIBA_SPROMVAR_GPIO3:
+		siba->siba_sprom.gpio3 = value;
+		break;
+	case SIBA_SPROMVAR_MAXPWR_AL:
+		siba->siba_sprom.maxpwr_al = value;
+		break;
+	case SIBA_SPROMVAR_MAXPWR_A:
+		siba->siba_sprom.maxpwr_a = value;
+		break;
+	case SIBA_SPROMVAR_MAXPWR_AH:
+		siba->siba_sprom.maxpwr_ah = value;
+		break;
+	case SIBA_SPROMVAR_MAXPWR_BG:
+		siba->siba_sprom.maxpwr_bg = value;
+		break;
+	case SIBA_SPROMVAR_RXPO2G:
+		siba->siba_sprom.rxpo2g = value;
+		break;
+	case SIBA_SPROMVAR_RXPO5G:
+		siba->siba_sprom.rxpo5g = value;
+		break;
+	case SIBA_SPROMVAR_TSSI_A:
+		siba->siba_sprom.tssi_a = value;
+		break;
+	case SIBA_SPROMVAR_TSSI_BG:
+		siba->siba_sprom.tssi_bg = value;
+		break;
+	case SIBA_SPROMVAR_TRI2G:
+		siba->siba_sprom.tri2g = value;
+		break;
+	case SIBA_SPROMVAR_TRI5GL:
+		siba->siba_sprom.tri5gl = value;
+		break;
+	case SIBA_SPROMVAR_TRI5G:
+		siba->siba_sprom.tri5g = value;
+		break;
+	case SIBA_SPROMVAR_TRI5GH:
+		siba->siba_sprom.tri5gh = value;
+		break;
+	case SIBA_SPROMVAR_RSSISAV2G:
+		siba->siba_sprom.rssisav2g = value;
+		break;
+	case SIBA_SPROMVAR_RSSISMC2G:
+		siba->siba_sprom.rssismc2g = value;
+		break;
+	case SIBA_SPROMVAR_RSSISMF2G:
+		siba->siba_sprom.rssismf2g = value;
+		break;
+	case SIBA_SPROMVAR_BXA2G:
+		siba->siba_sprom.bxa2g = value;
+		break;
+	case SIBA_SPROMVAR_RSSISAV5G:
+		siba->siba_sprom.rssisav5g = value;
+		break;
+	case SIBA_SPROMVAR_RSSISMC5G:
+		siba->siba_sprom.rssismc5g = value;
+		break;
+	case SIBA_SPROMVAR_RSSISMF5G:
+		siba->siba_sprom.rssismf5g = value;
+		break;
+	case SIBA_SPROMVAR_BXA5G:
+		siba->siba_sprom.bxa5g = value;
+		break;
+	case SIBA_SPROMVAR_CCK2GPO:
+		siba->siba_sprom.cck2gpo = value;
+		break;
+	case SIBA_SPROMVAR_OFDM2GPO:
+		siba->siba_sprom.ofdm2gpo = value;
+		break;
+	case SIBA_SPROMVAR_OFDM5GLPO:
+		siba->siba_sprom.ofdm5glpo = value;
+		break;
+	case SIBA_SPROMVAR_OFDM5GPO:
+		siba->siba_sprom.ofdm5gpo = value;
+		break;
+	case SIBA_SPROMVAR_OFDM5GHPO:
+		siba->siba_sprom.ofdm5ghpo = value;
+		break;
+	case SIBA_SPROMVAR_BF_LO:
+		siba->siba_sprom.bf_lo = value;
+		break;
+	case SIBA_SPROMVAR_BF_HI:
+		siba->siba_sprom.bf_hi = value;
+		break;
+	case SIBA_SPROMVAR_BF2_LO:
+		siba->siba_sprom.bf2_lo = value;
+		break;
+	case SIBA_SPROMVAR_BF2_HI:
+		siba->siba_sprom.bf2_hi = value;
+		break;
+	default:
+		return (ENOENT);
+	}
+	return (0);
+}
+
+#define	SIBA_GPIOCTL			0x06c
+
+uint32_t
+siba_gpio_get(device_t dev)
+{
+	struct siba_dev_softc *sd = device_get_ivars(dev);
+	struct siba_softc *siba = sd->sd_bus;
+	struct siba_dev_softc *gpiodev, *pcidev = NULL;
+
+	pcidev = siba->siba_pci.spc_dev;
+	gpiodev = siba->siba_cc.scc_dev ? siba->siba_cc.scc_dev : pcidev;
+	if (!gpiodev)
+		return (-1);
+	return (siba_read_4_sub(gpiodev, SIBA_GPIOCTL));
+}
+
+void
+siba_gpio_set(device_t dev, uint32_t value)
+{
+	struct siba_dev_softc *sd = device_get_ivars(dev);
+	struct siba_softc *siba = sd->sd_bus;
+	struct siba_dev_softc *gpiodev, *pcidev = NULL;
+
+	pcidev = siba->siba_pci.spc_dev;
+	gpiodev = siba->siba_cc.scc_dev ? siba->siba_cc.scc_dev : pcidev;
+	if (!gpiodev)
+		return;
+	siba_write_4_sub(gpiodev, SIBA_GPIOCTL, value);
+}
+
+void
+siba_fix_imcfglobug(device_t dev)
+{
+	struct siba_dev_softc *sd = device_get_ivars(dev);
+	struct siba_softc *siba = sd->sd_bus;
+	uint32_t tmp;
+
+	if (siba->siba_pci.spc_dev == NULL)
+		return;
+	if (siba->siba_pci.spc_dev->sd_id.sd_device != SIBA_DEVID_PCI ||
+	    siba->siba_pci.spc_dev->sd_id.sd_rev > 5)
+		return;
+
+	tmp = siba_read_4_sub(sd, SIBA_IMCFGLO) &
+	    ~(SIBA_IMCFGLO_REQTO | SIBA_IMCFGLO_SERTO);
+	switch (siba->siba_type) {
+	case SIBA_TYPE_PCI:
+	case SIBA_TYPE_PCMCIA:
+		tmp |= 0x32;
+		break;
+	case SIBA_TYPE_SSB:
+		tmp |= 0x53;
+		break;
+	}
+	siba_write_4_sub(sd, SIBA_IMCFGLO, tmp);
 }

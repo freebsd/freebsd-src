@@ -1,10 +1,11 @@
 /* $FreeBSD$ */
 
-#include <stdio.h>
-#include <mqueue.h>
-#include <fcntl.h>
-#include <signal.h>
+#include <err.h>
 #include <errno.h>
+#include <fcntl.h>
+#include <mqueue.h>
+#include <signal.h>
+#include <stdio.h>
 
 #define MQNAME	"/mytstqueue1"
 

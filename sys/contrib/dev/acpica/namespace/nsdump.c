@@ -314,7 +314,7 @@ AcpiNsDumpOneObject (
 
         if (Type > ACPI_TYPE_LOCAL_MAX)
         {
-            ACPI_WARNING ((AE_INFO, "Invalid ACPI Object Type %08X", Type));
+            ACPI_WARNING ((AE_INFO, "Invalid ACPI Object Type 0x%08X", Type));
         }
 
         AcpiOsPrintf ("%4.4s", AcpiUtGetNodeName (ThisNode));

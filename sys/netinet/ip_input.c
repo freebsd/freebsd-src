@@ -327,9 +327,21 @@ ip_init(void)
 			"error %d\n", __func__, i);
 
 #ifdef FLOWTABLE
-	TUNABLE_INT_FETCH("net.inet.ip.output_flowtable_size",
-	    &V_ip_output_flowtable_size);
-	V_ip_ft = flowtable_alloc(V_ip_output_flowtable_size, FL_PCPU);
+	if (TUNABLE_INT_FETCH("net.inet.ip.output_flowtable_size",
+		&V_ip_output_flowtable_size)) {
+		if (V_ip_output_flowtable_size < 256)
+			V_ip_output_flowtable_size = 256;
+		if (!powerof2(V_ip_output_flowtable_size)) {
+			printf("flowtable must be power of 2 size\n");
+			V_ip_output_flowtable_size = 2048;
+		}
+	} else {
+		/*
+		 * round up to the next power of 2
+		 */
+		V_ip_output_flowtable_size = 1 << fls((1024 + maxusers * 64)-1);
+	}
+	V_ip_ft = flowtable_alloc("ipv4", V_ip_output_flowtable_size, FL_PCPU);
 #endif
 
 	/* Skip initialization of globals for non-default instances. */
@@ -1578,7 +1590,7 @@ ip_forward(struct mbuf *m, int srcrt)
 		 * If IPsec is configured for this path,
 		 * override any possibly mtu value set by ip_output.
 		 */ 
-		mtu = ip_ipsec_mtu(m, mtu);
+		mtu = ip_ipsec_mtu(mcopy, mtu);
 #endif /* IPSEC */
 		/*
 		 * If the MTU was set before make sure we are below the

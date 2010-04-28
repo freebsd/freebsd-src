@@ -2,7 +2,8 @@
 
 /*-
  * Copyright (c) 2008,2009 Damien Bergamini <damien.bergamini@free.fr>
- *	ported to FreeBSD by Akinori Furukoshi <moonlightakkiy@yahoo.ca>
+ * ported to FreeBSD by Akinori Furukoshi <moonlightakkiy@yahoo.ca>
+ * USB Consulting, Hans Petter Selasky <hselasky@freebsd.org>
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -106,13 +107,11 @@ struct run_node {
 struct run_vap {
 	struct ieee80211vap             vap;
 	struct ieee80211_beacon_offsets bo;
-	struct ieee80211_amrr           amrr;
-	struct ieee80211_amrr_node	amn[RT2870_WCID_MAX + 1];
-	struct usb_callout              amrr_ch;
-	struct task                     amrr_task;
-	uint8_t				amrr_run;
-#define RUN_AMRR_ON	1
-#define RUN_AMRR_OFF	0
+	struct usb_callout              ratectl_ch;
+	struct task                     ratectl_task;
+	uint8_t				ratectl_run;
+#define RUN_RATECTL_ON	1
+#define RUN_RATECTL_OFF	0
 
 	int                             (*newstate)(struct ieee80211vap *,
                                             enum ieee80211_state, int);
@@ -154,21 +153,28 @@ struct run_softc {
 	int				(*sc_srom_read)(struct run_softc *,
 					    uint16_t, uint16_t *);
 
-	uint32_t			mac_rev;
+	uint16_t			mac_ver;
+	uint16_t			mac_rev;
 	uint8_t				rf_rev;
 	uint8_t				freq;
 	uint8_t				ntxchains;
 	uint8_t				nrxchains;
 	int				fixed_ridx;
 
+	uint8_t				bbp25;
+	uint8_t				bbp26;
 	uint8_t				rf24_20mhz;
 	uint8_t				rf24_40mhz;
+	uint8_t				patch_dac;
+	uint8_t				rfswitch;
 	uint8_t				ext_2ghz_lna;
 	uint8_t				ext_5ghz_lna;
 	uint8_t				calib_2ghz;
 	uint8_t				calib_5ghz;
-	int8_t				txpow1[50];
-	int8_t				txpow2[50];
+	uint8_t				txmixgain_2ghz;
+	uint8_t				txmixgain_5ghz;
+	int8_t				txpow1[54];
+	int8_t				txpow2[54];
 	int8_t				rssi_2ghz[3];
 	int8_t				rssi_5ghz[3];
 	uint8_t				lna[4];
@@ -176,7 +182,7 @@ struct run_softc {
 	struct {
 		uint8_t	reg;
 		uint8_t	val;
-	}				bbp[8];
+	}				bbp[8], rf[10];
 	uint8_t				leds;
 	uint16_t			led[3];
 	uint32_t			txpow20mhz[5];
@@ -195,8 +201,6 @@ struct run_softc {
 	struct usb_xfer			*sc_xfer[RUN_N_XFER];
 
 	struct mbuf			*rx_m;
-
-	int				sifs;
 
 	union {
 		struct run_rx_radiotap_header th;

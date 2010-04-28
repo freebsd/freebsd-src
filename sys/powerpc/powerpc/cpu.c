@@ -433,6 +433,13 @@ cpu_e500_setup(int cpuid, uint16_t vers)
 	register_t hid0;
 
 	hid0 = mfspr(SPR_HID0);
+
+	/* Programe power-management mode. */
+	hid0 &= ~(HID0_DOZE | HID0_NAP | HID0_SLEEP);
+	hid0 |= HID0_DOZE;
+
+	mtspr(SPR_HID0, hid0);
+
 	printf("cpu%d: HID0 %b\n", cpuid, (int)hid0, HID0_E500_BITMASK);
 }
 

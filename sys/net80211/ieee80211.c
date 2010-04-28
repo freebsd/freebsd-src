@@ -49,6 +49,7 @@ __FBSDID("$FreeBSD$");
 #ifdef IEEE80211_SUPPORT_SUPERG
 #include <net80211/ieee80211_superg.h>
 #endif
+#include <net80211/ieee80211_ratectl.h>
 
 #include <net/bpf.h>
 
@@ -404,6 +405,7 @@ ieee80211_vap_setup(struct ieee80211com *ic, struct ieee80211vap *vap,
 	vap->iv_flags_ven = ic->ic_flags_ven;
 	vap->iv_caps = ic->ic_caps &~ IEEE80211_C_OPMODE;
 	vap->iv_htcaps = ic->ic_htcaps;
+	vap->iv_htextcaps = ic->ic_htextcaps;
 	vap->iv_opmode = opmode;
 	vap->iv_caps |= ieee80211_opcap[opmode];
 	switch (opmode) {
@@ -484,6 +486,8 @@ ieee80211_vap_setup(struct ieee80211com *ic, struct ieee80211vap *vap,
 	ieee80211_scan_vattach(vap);
 	ieee80211_regdomain_vattach(vap);
 	ieee80211_radiotap_vattach(vap);
+
+	ieee80211_ratectl_set(vap, IEEE80211_RATECTL_AMRR);
 
 	return 0;
 }

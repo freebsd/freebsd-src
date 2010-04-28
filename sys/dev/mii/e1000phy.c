@@ -276,7 +276,6 @@ e1000phy_reset(struct mii_softc *sc)
 	case MII_MODEL_MARVELL_E1118:
 		break;
 	case MII_MODEL_MARVELL_E1116:
-	case MII_MODEL_MARVELL_E1149:
 		page = PHY_READ(sc, E1000_EADR);
 		/* Select page 3, LED control register. */
 		PHY_WRITE(sc, E1000_EADR, 3);

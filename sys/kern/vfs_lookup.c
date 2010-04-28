@@ -948,19 +948,17 @@ relookup(struct vnode *dvp, struct vnode **vpp, struct componentname *cnp)
 #endif
 
 	/*
-	 * Check for degenerate name (e.g. / or "")
-	 * which is a way of talking about a directory,
-	 * e.g. like "/." or ".".
+	 * Check for "" which represents the root directory after slash
+	 * removal.
 	 */
 	if (cnp->cn_nameptr[0] == '\0') {
-		if (cnp->cn_nameiop != LOOKUP || wantparent) {
-			error = EISDIR;
-			goto bad;
-		}
-		if (dp->v_type != VDIR) {
-			error = ENOTDIR;
-			goto bad;
-		}
+		/*
+		 * Support only LOOKUP for "/" because lookup()
+		 * can't succeed for CREATE, DELETE and RENAME.
+		 */
+		KASSERT(cnp->cn_nameiop == LOOKUP, ("nameiop must be LOOKUP"));
+		KASSERT(dp->v_type == VDIR, ("dp is not a directory"));
+
 		if (!(cnp->cn_flags & LOCKLEAF))
 			VOP_UNLOCK(dp, 0);
 		*vpp = dp;

@@ -51,7 +51,6 @@ options 	PROCFS			# Process filesystem (requires PSEUDOFS)
 options 	PSEUDOFS		# Pseudo-filesystem framework
 options 	GEOM_PART_GPT		# GUID Partition Tables.
 options 	GEOM_LABEL		# Provides labelization
-options 	COMPAT_43TTY		# BSD 4.3 TTY compat (sgtty)
 options 	SCSI_DELAY=5000		# Delay (in ms) before probing SCSI
 options 	KTRACE			# ktrace(1) support
 options 	STACK			# stack(9) support
@@ -184,6 +183,7 @@ device		faith		# IPv6-to-IPv4 relaying (translation)
 device		bpf		# Berkeley packet filter
 
 # USB support
+options 	USB_DEBUG	# enable debug msgs
 #device		uhci		# UHCI PCI->USB interface
 #device		ohci		# OHCI PCI->USB interface
 device		usb		# USB Bus (required)

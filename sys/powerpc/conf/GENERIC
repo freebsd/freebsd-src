@@ -47,7 +47,6 @@ options 	PROCFS			#Process filesystem (requires PSEUDOFS)
 options 	PSEUDOFS		#Pseudo-filesystem framework
 options 	GEOM_PART_GPT		#GUID Partition Tables.
 options 	GEOM_LABEL		#Provides labelization
-options 	COMPAT_43TTY		#BSD 4.3 TTY compat (sgtty)
 options 	COMPAT_FREEBSD4		#Keep this for a while
 options 	COMPAT_FREEBSD5		#Compatible with FreeBSD5
 options 	COMPAT_FREEBSD6		#Compatible with FreeBSD6
@@ -145,6 +144,7 @@ device		firmware	# firmware assist module
 device		bpf		#Berkeley packet filter
 
 # USB support
+options 	USB_DEBUG	# enable debug msgs
 device		uhci		# UHCI PCI->USB interface
 device		ohci		# OHCI PCI->USB interface
 device		ehci		# EHCI PCI->USB interface

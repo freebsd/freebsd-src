@@ -4467,8 +4467,6 @@ int __devinit t3_prep_adapter(adapter_t *adapter,
 	if (reset && t3_reset_adapter(adapter))
 		return -1;
 
-	t3_sge_prep(adapter, &adapter->params.sge);
-
 	if (adapter->params.vpd.mclk) {
 		struct tp_params *p = &adapter->params.tp;
 
@@ -4496,6 +4494,8 @@ int __devinit t3_prep_adapter(adapter_t *adapter,
 	adapter->params.offload = t3_mc7_size(&adapter->pmrx) &&
 				  t3_mc7_size(&adapter->pmtx) &&
 				  t3_mc7_size(&adapter->cm);
+
+	t3_sge_prep(adapter, &adapter->params.sge);
 
 	if (is_offload(adapter)) {
 		adapter->params.mc5.nservers = DEFAULT_NSERVERS;

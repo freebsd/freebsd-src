@@ -1,7 +1,7 @@
-.\" Copyright (C) 2004, 2005, 2007, 2008 Internet Systems Consortium, Inc. ("ISC")
+.\" Copyright (C) 2004, 2005, 2007-2010 Internet Systems Consortium, Inc. ("ISC")
 .\" Copyright (C) 2000-2003 Internet Software Consortium.
 .\" 
-.\" Permission to use, copy, modify, and distribute this software for any
+.\" Permission to use, copy, modify, and/or distribute this software for any
 .\" purpose with or without fee is hereby granted, provided that the above
 .\" copyright notice and this permission notice appear in all copies.
 .\" 
@@ -13,7 +13,7 @@
 .\" OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
 .\" PERFORMANCE OF THIS SOFTWARE.
 .\"
-.\" $Id: dnssec-keygen.8,v 1.40 2008/10/15 01:11:35 tbox Exp $
+.\" $Id: dnssec-keygen.8,v 1.40.44.4 2010/01/16 01:55:32 tbox Exp $
 .\"
 .hy 0
 .ad l
@@ -38,13 +38,17 @@ dnssec\-keygen \- DNSSEC key generation tool
 .PP
 \fBdnssec\-keygen\fR
 generates keys for DNSSEC (Secure DNS), as defined in RFC 2535 and RFC 4034. It can also generate keys for use with TSIG (Transaction Signatures), as defined in RFC 2845.
+.PP
+The
+\fBname\fR
+of the key is specified on the command line. For DNSSEC keys, this must match the name of the zone for which the key is being generated.
 .SH "OPTIONS"
 .PP
 \-a \fIalgorithm\fR
 .RS 4
-Selects the cryptographic algorithm. The value of
+Selects the cryptographic algorithm. For DNSSEC keys, the value of
 \fBalgorithm\fR
-must be one of RSAMD5 (RSA) or RSASHA1, DSA, NSEC3RSASHA1, NSEC3DSA, DH (Diffie Hellman), or HMAC\-MD5. These values are case insensitive.
+must be one of RSAMD5, RSASHA1, DSA, NSEC3RSASHA1, NSEC3DSA, RSASHA256 or RSASHA512. For TSIG/TKEY, the value must be DH (Diffie Hellman), HMAC\-MD5, HMAC\-SHA1, HMAC\-SHA224, HMAC\-SHA256, HMAC\-SHA384, or HMAC\-SHA512. These values are case insensitive.
 .sp
 Note 1: that for DNSSEC, RSASHA1 is a mandatory to implement algorithm, and DSA is recommended. For TSIG, HMAC\-MD5 is mandatory.
 .sp
@@ -53,7 +57,7 @@ Note 2: HMAC\-MD5 and DH automatically set the \-k flag.
 .PP
 \-b \fIkeysize\fR
 .RS 4
-Specifies the number of bits in the key. The choice of key size depends on the algorithm used. RSAMD5 / RSASHA1 keys must be between 512 and 2048 bits. Diffie Hellman keys must be between 128 and 4096 bits. DSA keys must be between 512 and 1024 bits and an exact multiple of 64. HMAC\-MD5 keys must be between 1 and 512 bits.
+Specifies the number of bits in the key. The choice of key size depends on the algorithm used. RSA keys must be between 512 and 2048 bits. Diffie Hellman keys must be between 128 and 4096 bits. DSA keys must be between 512 and 1024 bits and an exact multiple of 64. HMAC keys must be between 1 and 512 bits.
 .RE
 .PP
 \-n \fInametype\fR
@@ -189,12 +193,12 @@ and
 BIND 9 Administrator Reference Manual,
 RFC 2539,
 RFC 2845,
-RFC 4033.
+RFC 4034.
 .SH "AUTHOR"
 .PP
 Internet Systems Consortium
 .SH "COPYRIGHT"
-Copyright \(co 2004, 2005, 2007, 2008 Internet Systems Consortium, Inc. ("ISC")
+Copyright \(co 2004, 2005, 2007\-2010 Internet Systems Consortium, Inc. ("ISC")
 .br
 Copyright \(co 2000\-2003 Internet Software Consortium.
 .br

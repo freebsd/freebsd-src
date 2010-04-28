@@ -133,6 +133,13 @@ struct g_command PUBSYM(class_commands)[] = {
 		G_OPT_SENTINEL },
 	  "geom", NULL
         },
+	{ "resize", 0, gpart_issue, {
+		{ 's', "size", autofill, G_TYPE_ASCLBA },
+		{ 'i', index_param, NULL, G_TYPE_ASCNUM },
+		{ 'f', "flags", flags, G_TYPE_STRING },
+		G_OPT_SENTINEL },
+	  "geom", NULL
+	},
 	G_CMD_SENTINEL
 };
 
@@ -243,6 +250,99 @@ fmtattrib(struct gprovider *pp)
 }
 
 static int
+gpart_autofill_resize(struct gctl_req *req)
+{
+	struct gmesh mesh;
+	struct gclass *cp;
+	struct ggeom *gp;
+	struct gprovider *pp;
+	unsigned long long last, size, start, new_size;
+	unsigned long long lba, new_lba;
+	const char *s;
+	char *val;
+	int error, idx;
+
+	s = gctl_get_ascii(req, "size");
+	if (*s == '*')
+		new_size = (unsigned long long)atoll(s);
+	else
+		return (0);
+
+	s = gctl_get_ascii(req, index_param);
+	idx = strtol(s, &val, 10);
+	if (idx < 1 || *s == '\0' || *val != '\0')
+		errx(EXIT_FAILURE, "invalid partition index");
+
+	error = geom_gettree(&mesh);
+	if (error)
+		return (error);
+	s = gctl_get_ascii(req, "class");
+	if (s == NULL)
+		abort();
+	cp = find_class(&mesh, s);
+	if (cp == NULL)
+		errx(EXIT_FAILURE, "Class %s not found.", s);
+	s = gctl_get_ascii(req, "geom");
+	if (s == NULL)
+		abort();
+	gp = find_geom(cp, s);
+	if (gp == NULL)
+		errx(EXIT_FAILURE, "No such geom: %s.", s);
+	last = atoll(find_geomcfg(gp, "last"));
+
+	LIST_FOREACH(pp, &gp->lg_provider, lg_provider) {
+		s = find_provcfg(pp, "index");
+		if (s == NULL)
+			continue;
+		if (atoi(s) == idx)
+			break;
+	}
+	if (pp == NULL)
+		errx(EXIT_FAILURE, "invalid partition index");
+
+	s = find_provcfg(pp, "start");
+	if (s == NULL) {
+		s = find_provcfg(pp, "offset");
+		start = atoll(s) / pp->lg_sectorsize;
+	} else
+		start = atoll(s);
+	s = find_provcfg(pp, "end");
+	if (s == NULL) {
+		s = find_provcfg(pp, "length");
+		lba = start + atoll(s) / pp->lg_sectorsize;
+	} else
+		lba = atoll(s) + 1;
+
+	if (lba > last)
+		return (ENOSPC);
+	size = lba - start;
+	pp = find_provider(gp, lba);
+	if (pp == NULL)
+		new_size = last - start + 1;
+	else {
+		s = find_provcfg(pp, "start");
+		if (s == NULL) {
+			s = find_provcfg(pp, "offset");
+			new_lba = atoll(s) / pp->lg_sectorsize;
+		} else
+			new_lba = atoll(s);
+		/* Is there any free space between current and
+		 * next providers?
+		 */
+		if (new_lba > lba)
+			new_size = new_lba - start;
+		else
+			return (ENOSPC);
+	}
+	asprintf(&val, "%llu", new_size);
+	if (val == NULL)
+		return (ENOMEM);
+	gctl_change_param(req, "size", -1, val);
+
+	return (0);
+}
+
+static int
 gpart_autofill(struct gctl_req *req)
 {
 	struct gmesh mesh;
@@ -257,6 +357,8 @@ gpart_autofill(struct gctl_req *req)
 	int error, has_size, has_start;
 
 	s = gctl_get_ascii(req, "verb");
+	if (strcmp(s, "resize") == 0)
+		return gpart_autofill_resize(req);
 	if (strcmp(s, "add") != 0)
 		return (0);
 

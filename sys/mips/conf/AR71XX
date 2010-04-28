@@ -15,7 +15,7 @@ files		"../atheros/files.ar71xx"
 hints		"AR71XX.hints"
 
 makeoptions	DEBUG=-g		#Build kernel with gdb(1) debug symbols
-makeoptions	MODULES_OVERRIDE=""
+#makeoptions	MODULES_OVERRIDE=""
 
 options		DDB
 options		KDB
@@ -67,10 +67,11 @@ device		ath_rate_sample
 device		mii
 device		arge
 
-# device		usb
-# options		USB_EHCI_BIG_ENDIAN_DESC        # handle big-endian byte order
+device		usb
+options		USB_EHCI_BIG_ENDIAN_DESC        # handle big-endian byte order
 # options		USB_DEBUG
-# device		ehci
+device		ohci
+device		ehci
 
 device		spibus
 device		ar71xx_spi

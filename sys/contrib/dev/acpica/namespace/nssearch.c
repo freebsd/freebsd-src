@@ -397,7 +397,7 @@ AcpiNsSearchAndEnter (
     if (!Node || !TargetName || !ReturnNode)
     {
         ACPI_ERROR ((AE_INFO,
-            "Null parameter: Node %p Name %X ReturnNode %p",
+            "Null parameter: Node %p Name 0x%X ReturnNode %p",
             Node, TargetName, ReturnNode));
         return_ACPI_STATUS (AE_BAD_PARAMETER);
     }

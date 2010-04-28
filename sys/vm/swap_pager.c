@@ -1101,8 +1101,7 @@ swap_pager_getpages(vm_object_t object, vm_page_t *m, int count, int reqpage)
 	 * happen.  Note that blk, iblk & jblk can be SWAPBLK_NONE, but the 
 	 * loops are set up such that the case(s) are handled implicitly.
 	 *
-	 * The swp_*() calls must be made at splvm().  vm_page_free() does
-	 * not need to be, but it will go a little faster if it is.
+	 * The swp_*() calls must be made with the object locked.
 	 */
 	blk = swp_pager_meta_ctl(mreq->object, mreq->pindex, 0);
 
@@ -1212,9 +1211,6 @@ swap_pager_getpages(vm_object_t object, vm_page_t *m, int count, int reqpage)
 	VM_OBJECT_LOCK(object);
 	while ((mreq->oflags & VPO_SWAPINPROG) != 0) {
 		mreq->oflags |= VPO_WANTED;
-		vm_page_lock_queues();
-		vm_page_flag_set(mreq, PG_REFERENCED);
-		vm_page_unlock_queues();
 		PCPU_INC(cnt.v_intrans);
 		if (msleep(mreq, VM_OBJECT_MTX(object), PSWP, "swread", hz*20)) {
 			printf(

@@ -53,7 +53,7 @@ ia64_highfp_ipi(struct pcpu *cpu)
 {
 	int error;
 
-	ipi_send(cpu, IPI_HIGH_FP);
+	ipi_send(cpu, ia64_ipi_highfp);
 	error = msleep_spin(&cpu->pc_fpcurthread, &ia64_highfp_mtx,
 	    "High FP", 0);
 	return (error);
@@ -92,8 +92,6 @@ ia64_highfp_enable(struct thread *td, struct trapframe *tf)
 	pcb = td->td_pcb;
 
 	mtx_lock_spin(&ia64_highfp_mtx);
-	KASSERT((tf->tf_special.psr & IA64_PSR_DFH) != 0,
-	    ("(tf->tf_special.psr & IA64_PSR_DFH) == 0"));
 	cpu = pcb->pcb_fpcpu;
 #ifdef SMP
 	if (cpu != NULL && cpu != pcpup) {

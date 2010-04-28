@@ -45,7 +45,6 @@ int via_agp_init(struct drm_device *dev, void *data, struct drm_file *file_priv)
 
 	ret = drm_sman_set_range(&dev_priv->sman, VIA_MEM_AGP, 0,
 				 agp->size >> VIA_MM_ALIGN_SHIFT);
-
 	if (ret) {
 		DRM_ERROR("AGP memory manager initialisation error\n");
 		return ret;
@@ -66,7 +65,6 @@ int via_fb_init(struct drm_device *dev, void *data, struct drm_file *file_priv)
 
 	ret = drm_sman_set_range(&dev_priv->sman, VIA_MEM_VIDEO, 0,
 				 fb->size >> VIA_MM_ALIGN_SHIFT);
-
 	if (ret) {
 		DRM_ERROR("VRAM memory manager initialisation error\n");
 		return ret;

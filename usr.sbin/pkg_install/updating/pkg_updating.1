@@ -44,34 +44,25 @@ Defines a alternative location of the UPDATING
 Print help message.
 .El
 .Sh EXAMPLES
-.Bl -tag -width indent
 Shows all entries of all installed ports:
-.Pp
 .Dl % pkg_updating
 .Pp
 Shows all entries of all installed ports since 2007-01-01:
-.Pp
 .Dl % pkg_updating -d 20070101
 .Pp
 Shows all entries for all apache and mysql ports:
-.Pp
 .Dl % pkg_updating apache mysql
 .Pp
 Shows all apache entries since 2006-01-01:
-.Pp
 .Dl % pkg_updating -d 20060101 apache
 .Pp
 Defines that the UPDATING file is in /tmp and shows all entries of all
 installed ports:
-.Pp
 .Dl % pkg_updating -f /tmp/UPDATING
 .Pp
 Fetch UPDATING file from ftp mirror and show all entries of all
 installed ports:
-.Pp
 .Dl % pkg_updating -f ftp://ftp.freebsd.org/pub/FreeBSD/ports/packages/UPDATING
-.Pp
-.El
 .Sh ENVIRONMENT
 .Bl -tag -width PKG_DBDIR
 .It Ev PKG_DBDIR

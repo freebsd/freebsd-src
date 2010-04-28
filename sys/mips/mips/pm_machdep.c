@@ -472,7 +472,7 @@ set_fpregs(struct thread *td, struct fpreg *fpregs)
  * code by the MIPS elf abi).
  */
 void
-exec_setregs(struct thread *td, u_long entry, u_long stack, u_long ps_strings)
+exec_setregs(struct thread *td, struct image_params *imgp, u_long stack)
 {
 
 	bzero((caddr_t)td->td_frame, sizeof(struct trapframe));
@@ -481,8 +481,8 @@ exec_setregs(struct thread *td, u_long entry, u_long stack, u_long ps_strings)
 	 * Make sp 64-bit aligned.
 	 */
 	td->td_frame->sp = ((register_t) stack) & ~(sizeof(__int64_t) - 1);
-	td->td_frame->pc = entry & ~3;
-	td->td_frame->t9 = entry & ~3; /* abicall req */
+	td->td_frame->pc = imgp->entry_addr & ~3;
+	td->td_frame->t9 = imgp->entry_addr & ~3; /* abicall req */
 #if 0
 //	td->td_frame->sr = SR_KSU_USER | SR_EXL | SR_INT_ENAB;
 //?	td->td_frame->sr |=  idle_mask & ALL_INT_MASK;
@@ -511,7 +511,7 @@ exec_setregs(struct thread *td, u_long entry, u_long stack, u_long ps_strings)
 	td->td_frame->a0 = (register_t) stack;
 	td->td_frame->a1 = 0;
 	td->td_frame->a2 = 0;
-	td->td_frame->a3 = (register_t)ps_strings;
+	td->td_frame->a3 = (register_t)imgp->ps_strings;
 
 	td->td_md.md_flags &= ~MDTD_FPUSED;
 	if (PCPU_GET(fpcurthread) == td)

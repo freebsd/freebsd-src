@@ -128,7 +128,11 @@ static VNET_DEFINE(struct callout, ipfw_timeout);
 #define V_ipfw_timeout                  VNET(ipfw_timeout)
 
 static uma_zone_t ipfw_dyn_rule_zone;
+#ifndef __FreeBSD__
+DEFINE_SPINLOCK(ipfw_dyn_mtx);
+#else
 static struct mtx ipfw_dyn_mtx;		/* mutex guarding dynamic rules */
+#endif
 
 #define	IPFW_DYN_LOCK_INIT() \
 	mtx_init(&ipfw_dyn_mtx, "IPFW dynamic rules", NULL, MTX_DEF)
@@ -183,6 +187,9 @@ static VNET_DEFINE(u_int32_t, dyn_max);		/* max # of dynamic rules */
 #define	V_dyn_max			VNET(dyn_max)
 
 #ifdef SYSCTL_NODE
+
+SYSBEGIN(f2)
+
 SYSCTL_DECL(_net_inet_ip_fw);
 SYSCTL_VNET_INT(_net_inet_ip_fw, OID_AUTO, dyn_buckets,
     CTLFLAG_RW, &VNET_NAME(dyn_buckets), 0,
@@ -217,6 +224,9 @@ SYSCTL_VNET_INT(_net_inet_ip_fw, OID_AUTO, dyn_short_lifetime,
 SYSCTL_VNET_INT(_net_inet_ip_fw, OID_AUTO, dyn_keepalive,
     CTLFLAG_RW, &VNET_NAME(dyn_keepalive), 0,
     "Enable keepalives for dyn. rules");
+
+SYSEND
+
 #endif /* SYSCTL_NODE */
 
 
@@ -466,7 +476,7 @@ next:
 		V_ipfw_dyn_v[i] = q;
 	}
 	if (pkt->proto == IPPROTO_TCP) { /* update state according to flags */
-		u_char flags = pkt->flags & (TH_FIN|TH_SYN|TH_RST);
+		u_char flags = pkt->_flags & (TH_FIN|TH_SYN|TH_RST);
 
 #define BOTH_SYN	(TH_SYN | (TH_SYN << 8))
 #define BOTH_FIN	(TH_FIN | (TH_FIN << 8))
@@ -884,6 +894,9 @@ struct mbuf *
 ipfw_send_pkt(struct mbuf *replyto, struct ipfw_flow_id *id, u_int32_t seq,
     u_int32_t ack, int flags)
 {
+#ifndef __FreeBSD__
+	return NULL;
+#else
 	struct mbuf *m;
 	int len, dir;
 	struct ip *h = NULL;		/* stupid compiler */
@@ -1020,6 +1033,7 @@ ipfw_send_pkt(struct mbuf *replyto, struct ipfw_flow_id *id, u_int32_t seq,
 	}
 
 	return (m);
+#endif /* __FreeBSD__ */
 }
 
 /*

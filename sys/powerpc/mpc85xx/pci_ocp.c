@@ -264,7 +264,7 @@ pci_ocp_maxslots(device_t dev)
 {
 	struct pci_ocp_softc *sc = device_get_softc(dev);
 
-	return ((sc->sc_pcie_cap) ? 0 : 30);
+	return ((sc->sc_pcie_cap) ? 0 : 31);
 }
 
 static uint32_t
@@ -328,6 +328,7 @@ pci_ocp_probe(device_t dev)
 		return (ENXIO);
 
 	sc = device_get_softc(dev);
+	sc->sc_dev = dev;
 
 	sc->sc_rid = 0;
 	sc->sc_res = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &sc->sc_rid,
@@ -492,7 +493,7 @@ pci_ocp_route_int(struct pci_ocp_softc *sc, u_int bus, u_int slot, u_int func,
 }
 
 static int
-pci_ocp_init(struct pci_ocp_softc *sc, int bus, int maxslot)
+pci_ocp_init(struct pci_ocp_softc *sc, int bus, int nslots)
 {
 	int secbus, slot;
 	int func, maxfunc;
@@ -502,7 +503,7 @@ pci_ocp_init(struct pci_ocp_softc *sc, int bus, int maxslot)
 	uint8_t intline, intpin;
 
 	secbus = bus;
-	for (slot = 0; slot < maxslot; slot++) {
+	for (slot = 0; slot < nslots; slot++) {
 		maxfunc = 0;
 		for (func = 0; func <= maxfunc; func++) {
 			hdrtype = pci_ocp_read_config(sc->sc_dev, bus, slot,
@@ -599,7 +600,7 @@ pci_ocp_init(struct pci_ocp_softc *sc, int bus, int maxslot)
 			    PCIR_SUBBUS_1, 0xff, 1);
 
 			secbus = pci_ocp_init(sc, secbus,
-			    (subclass == PCIS_BRIDGE_PCI) ? 31 : 1);
+			    (subclass == PCIS_BRIDGE_PCI) ? 32 : 1);
 
 			pci_ocp_write_config(sc->sc_dev, bus, slot, func,
 			    PCIR_SUBBUS_1, secbus, 1);
@@ -721,7 +722,7 @@ pci_ocp_attach(device_t dev)
 {
 	struct pci_ocp_softc *sc;
 	uint32_t cfgreg;
-	int error, maxslot;
+	int error, nslots;
 
 	sc = device_get_softc(dev);
 	sc->sc_dev = dev;
@@ -765,8 +766,8 @@ pci_ocp_attach(device_t dev)
 			return (0);
 	}
 
-	maxslot = (sc->sc_pcie_cap) ? 1 : 31;
-	pci_ocp_init(sc, sc->sc_busnr, maxslot);
+	nslots = (sc->sc_pcie_cap) ? 1 : 32;
+	pci_ocp_init(sc, sc->sc_busnr, nslots);
 
 	device_add_child(dev, "pci", -1);
 	return (bus_generic_attach(dev));

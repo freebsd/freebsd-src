@@ -193,7 +193,7 @@ AcpiExOpcode_0A_0T_1R (
 
     default:                /*  Unknown opcode  */
 
-        ACPI_ERROR ((AE_INFO, "Unknown AML opcode %X",
+        ACPI_ERROR ((AE_INFO, "Unknown AML opcode 0x%X",
             WalkState->Opcode));
         Status = AE_AML_BAD_OPCODE;
         break;
@@ -286,7 +286,7 @@ AcpiExOpcode_1A_0T_0R (
 
     default:                /*  Unknown opcode  */
 
-        ACPI_ERROR ((AE_INFO, "Unknown AML opcode %X",
+        ACPI_ERROR ((AE_INFO, "Unknown AML opcode 0x%X",
             WalkState->Opcode));
         Status = AE_AML_BAD_OPCODE;
         break;
@@ -332,7 +332,7 @@ AcpiExOpcode_1A_1T_0R (
 
     default:                        /* Unknown opcode */
 
-        ACPI_ERROR ((AE_INFO, "Unknown AML opcode %X",
+        ACPI_ERROR ((AE_INFO, "Unknown AML opcode 0x%X",
             WalkState->Opcode));
         Status = AE_AML_BAD_OPCODE;
         goto Cleanup;
@@ -514,7 +514,7 @@ AcpiExOpcode_1A_1T_1R (
             if (Digit > 0)
             {
                 ACPI_ERROR ((AE_INFO,
-                    "Integer too large to convert to BCD: %8.8X%8.8X",
+                    "Integer too large to convert to BCD: 0x%8.8X%8.8X",
                     ACPI_FORMAT_UINT64 (Operand[0]->Integer.Value)));
                 Status = AE_AML_NUMERIC_OVERFLOW;
                 goto Cleanup;
@@ -664,7 +664,7 @@ AcpiExOpcode_1A_1T_1R (
 
     default:                        /* Unknown opcode */
 
-        ACPI_ERROR ((AE_INFO, "Unknown AML opcode %X",
+        ACPI_ERROR ((AE_INFO, "Unknown AML opcode 0x%X",
             WalkState->Opcode));
         Status = AE_AML_BAD_OPCODE;
         goto Cleanup;
@@ -1116,7 +1116,7 @@ AcpiExOpcode_1A_0T_1R (
                 default:
 
                     ACPI_ERROR ((AE_INFO,
-                        "Unknown Index TargetType %X in reference object %p",
+                        "Unknown Index TargetType 0x%X in reference object %p",
                         Operand[0]->Reference.TargetType, Operand[0]));
                     Status = AE_AML_OPERAND_TYPE;
                     goto Cleanup;
@@ -1143,7 +1143,7 @@ AcpiExOpcode_1A_0T_1R (
 
             default:
                 ACPI_ERROR ((AE_INFO,
-                    "Unknown class in reference(%p) - %2.2X",
+                    "Unknown class in reference(%p) - 0x%2.2X",
                     Operand[0], Operand[0]->Reference.Class));
 
                 Status = AE_TYPE;
@@ -1155,7 +1155,7 @@ AcpiExOpcode_1A_0T_1R (
 
     default:
 
-        ACPI_ERROR ((AE_INFO, "Unknown AML opcode %X",
+        ACPI_ERROR ((AE_INFO, "Unknown AML opcode 0x%X",
             WalkState->Opcode));
         Status = AE_AML_BAD_OPCODE;
         goto Cleanup;

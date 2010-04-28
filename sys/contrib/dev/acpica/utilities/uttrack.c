@@ -282,7 +282,7 @@ AcpiUtAllocateZeroedAndTrack (
         /* Report allocation error */
 
         ACPI_ERROR ((Module, Line,
-            "Could not allocate size %X", (UINT32) Size));
+            "Could not allocate size %u", (UINT32) Size));
         return (NULL);
     }
 
@@ -715,7 +715,7 @@ AcpiUtDumpAllocations (
     else
     {
         ACPI_ERROR ((AE_INFO,
-            "%d(%X) Outstanding allocations",
+            "%d(0x%X) Outstanding allocations",
             NumOutstanding, NumOutstanding));
     }
 

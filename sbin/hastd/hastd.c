@@ -137,6 +137,7 @@ child_exit(void)
 			pjdlog_error("Worker process failed (pid=%u, status=%d).",
 			    (unsigned int)pid, WEXITSTATUS(status));
 		}
+		proto_close(res->hr_ctrl);
 		res->hr_workerpid = 0;
 		if (res->hr_role == HAST_ROLE_PRIMARY) {
 			sleep(1);

@@ -44,8 +44,9 @@ struct schizo_softc {
 #define	SCHIZO_MODE_XMS			2
 
 	u_int				sc_flags;
-#define	SCHIZO_FLAGS_BSWAR		(1 << 0)
-#define	SCHIZO_FLAGS_CDMA		(1 << 1)
+#define	SCHIZO_FLAGS_ARMED		(1 << 0)
+#define	SCHIZO_FLAGS_BSWAR		(1 << 1)
+#define	SCHIZO_FLAGS_CDMA		(1 << 2)
 
 	bus_addr_t			sc_cdma_clr;
 	uint32_t			sc_cdma_state;

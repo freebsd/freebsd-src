@@ -1,6 +1,6 @@
 /*-
  * Copyright (c) 2009 Alex Keda <admin@lissyara.su>
- * Copyright (c) 2009 Jung-uk Kim <jkim@FreeBSD.org>
+ * Copyright (c) 2009-2010 Jung-uk Kim <jkim@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -60,9 +60,9 @@ __FBSDID("$FreeBSD$");
 
 #define	X86BIOS_IVT_BASE	0x00000000
 #define	X86BIOS_RAM_BASE	0x00001000
-#define	X86BIOS_ROM_BASE	0x000a0000	/* XXX EBDA? */
+#define	X86BIOS_ROM_BASE	0x000a0000
 
-#define	X86BIOS_ROM_SIZE	(X86BIOS_MEM_SIZE - X86BIOS_ROM_BASE)
+#define	X86BIOS_ROM_SIZE	(X86BIOS_MEM_SIZE - (uint32_t)x86bios_rom_phys)
 
 #define	X86BIOS_PAGES		(X86BIOS_MEM_SIZE / X86BIOS_PAGE_SIZE)
 
@@ -79,7 +79,13 @@ static void *x86bios_seg;
 
 static vm_offset_t *x86bios_map;
 
+static vm_paddr_t x86bios_rom_phys;
 static vm_paddr_t x86bios_seg_phys;
+
+static int x86bios_fault;
+static uint32_t x86bios_fault_addr;
+static uint16_t x86bios_fault_cs;
+static uint16_t x86bios_fault_ip;
 
 SYSCTL_NODE(_debug, OID_AUTO, x86bios, CTLFLAG_RD, NULL, "x86bios debugging");
 static int x86bios_trace_call;
@@ -91,18 +97,30 @@ TUNABLE_INT("debug.x86bios.int", &x86bios_trace_int);
 SYSCTL_INT(_debug_x86bios, OID_AUTO, int, CTLFLAG_RW, &x86bios_trace_int, 0,
     "Trace software interrupt handlers");
 
+static void
+x86bios_set_fault(struct x86emu *emu, uint32_t addr)
+{
+
+	x86bios_fault = 1;
+	x86bios_fault_addr = addr;
+	x86bios_fault_cs = emu->x86.R_CS;
+	x86bios_fault_ip = emu->x86.R_IP;
+	x86emu_halt_sys(emu);
+}
+
 static void *
 x86bios_get_pages(uint32_t offset, size_t size)
 {
-	int i;
+	vm_offset_t page;
 
-	if (offset + size > X86BIOS_MEM_SIZE)
+	if (offset + size > X86BIOS_MEM_SIZE + X86BIOS_IVT_SIZE)
 		return (NULL);
 
-	i = offset / X86BIOS_PAGE_SIZE;
-	if (x86bios_map[i] != 0)
-		return ((void *)(x86bios_map[i] + offset -
-		    i * X86BIOS_PAGE_SIZE));
+	if (offset >= X86BIOS_MEM_SIZE)
+		offset -= X86BIOS_MEM_SIZE;
+	page = x86bios_map[offset / X86BIOS_PAGE_SIZE];
+	if (page != 0)
+		return ((void *)(page + offset % X86BIOS_PAGE_SIZE));
 
 	return (NULL);
 }
@@ -124,7 +142,7 @@ x86bios_emu_rdb(struct x86emu *emu, uint32_t addr)
 
 	va = x86bios_get_pages(addr, sizeof(*va));
 	if (va == NULL)
-		x86emu_halt_sys(emu);
+		x86bios_set_fault(emu, addr);
 
 	return (*va);
 }
@@ -136,8 +154,13 @@ x86bios_emu_rdw(struct x86emu *emu, uint32_t addr)
 
 	va = x86bios_get_pages(addr, sizeof(*va));
 	if (va == NULL)
-		x86emu_halt_sys(emu);
+		x86bios_set_fault(emu, addr);
 
+#ifndef __NO_STRICT_ALIGNMENT
+	if ((addr & 1) != 0)
+		return (le16dec(va));
+	else
+#endif
 	return (le16toh(*va));
 }
 
@@ -148,8 +171,13 @@ x86bios_emu_rdl(struct x86emu *emu, uint32_t addr)
 
 	va = x86bios_get_pages(addr, sizeof(*va));
 	if (va == NULL)
-		x86emu_halt_sys(emu);
+		x86bios_set_fault(emu, addr);
 
+#ifndef __NO_STRICT_ALIGNMENT
+	if ((addr & 3) != 0)
+		return (le32dec(va));
+	else
+#endif
 	return (le32toh(*va));
 }
 
@@ -160,7 +188,7 @@ x86bios_emu_wrb(struct x86emu *emu, uint32_t addr, uint8_t val)
 
 	va = x86bios_get_pages(addr, sizeof(*va));
 	if (va == NULL)
-		x86emu_halt_sys(emu);
+		x86bios_set_fault(emu, addr);
 
 	*va = val;
 }
@@ -172,8 +200,13 @@ x86bios_emu_wrw(struct x86emu *emu, uint32_t addr, uint16_t val)
 
 	va = x86bios_get_pages(addr, sizeof(*va));
 	if (va == NULL)
-		x86emu_halt_sys(emu);
+		x86bios_set_fault(emu, addr);
 
+#ifndef __NO_STRICT_ALIGNMENT
+	if ((addr & 1) != 0)
+		le16enc(va, val);
+	else
+#endif
 	*va = htole16(val);
 }
 
@@ -184,8 +217,13 @@ x86bios_emu_wrl(struct x86emu *emu, uint32_t addr, uint32_t val)
 
 	va = x86bios_get_pages(addr, sizeof(*va));
 	if (va == NULL)
-		x86emu_halt_sys(emu);
+		x86bios_set_fault(emu, addr);
 
+#ifndef __NO_STRICT_ALIGNMENT
+	if ((addr & 3) != 0)
+		le32enc(va, val);
+	else
+#endif
 	*va = htole32(val);
 }
 
@@ -267,8 +305,8 @@ x86bios_emu_get_intr(struct x86emu *emu, int intno)
 	sp[2] = htole16(emu->x86.R_FLG);
 
 	iv = x86bios_get_intr(intno);
-	emu->x86.R_IP = iv & 0x000f;
-	emu->x86.R_CS = (iv >> 12) & 0xffff;
+	emu->x86.R_IP = iv & 0xffff;
+	emu->x86.R_CS = (iv >> 16) & 0xffff;
 	emu->x86.R_FLG &= ~(F_IF | F_TF);
 }
 
@@ -281,7 +319,7 @@ x86bios_alloc(uint32_t *offset, size_t size)
 		return (NULL);
 
 	vaddr = contigmalloc(size, M_DEVBUF, M_NOWAIT, X86BIOS_RAM_BASE,
-	    X86BIOS_ROM_BASE, X86BIOS_PAGE_SIZE, 0);
+	    x86bios_rom_phys, X86BIOS_PAGE_SIZE, 0);
 	if (vaddr != NULL) {
 		*offset = vtophys(vaddr);
 		x86bios_set_pages((vm_offset_t)vaddr, *offset, size);
@@ -299,7 +337,7 @@ x86bios_free(void *addr, size_t size)
 		return;
 
 	paddr = vtophys(addr);
-	if (paddr < X86BIOS_RAM_BASE || paddr >= X86BIOS_ROM_BASE ||
+	if (paddr < X86BIOS_RAM_BASE || paddr >= x86bios_rom_phys ||
 	    paddr % X86BIOS_PAGE_SIZE != 0)
 		return;
 
@@ -313,7 +351,8 @@ x86bios_init_regs(struct x86regs *regs)
 {
 
 	bzero(regs, sizeof(*regs));
-	regs->X86BIOS_R_DS = regs->X86BIOS_R_SS = x86bios_seg_phys >> 4;
+	regs->X86BIOS_R_DS = 0x40;
+	regs->X86BIOS_R_SS = x86bios_seg_phys >> 4;
 }
 
 void
@@ -331,15 +370,21 @@ x86bios_call(struct x86regs *regs, uint16_t seg, uint16_t off)
 
 	mtx_lock_spin(&x86bios_lock);
 	memcpy(&x86bios_emu.x86, regs, sizeof(*regs));
+	x86bios_fault = 0;
 	x86emu_exec_call(&x86bios_emu, seg, off);
 	memcpy(regs, &x86bios_emu.x86, sizeof(*regs));
 	mtx_unlock_spin(&x86bios_lock);
 
-	if (x86bios_trace_call)
+	if (x86bios_trace_call) {
 		printf("Exiting 0x%05x (ax=0x%04x bx=0x%04x "
 		    "cx=0x%04x dx=0x%04x es=0x%04x di=0x%04x)\n",
 		    (seg << 4) + off, regs->R_AX, regs->R_BX, regs->R_CX,
 		    regs->R_DX, regs->R_ES, regs->R_DI);
+		if (x86bios_fault)
+			printf("Page fault at 0x%05x from 0x%04x:0x%04x.\n",
+			    x86bios_fault_addr, x86bios_fault_cs,
+			    x86bios_fault_ip);
+	}
 }
 
 uint32_t
@@ -370,15 +415,21 @@ x86bios_intr(struct x86regs *regs, int intno)
 
 	mtx_lock_spin(&x86bios_lock);
 	memcpy(&x86bios_emu.x86, regs, sizeof(*regs));
+	x86bios_fault = 0;
 	x86emu_exec_intr(&x86bios_emu, intno);
 	memcpy(regs, &x86bios_emu.x86, sizeof(*regs));
 	mtx_unlock_spin(&x86bios_lock);
 
-	if (x86bios_trace_int)
+	if (x86bios_trace_int) {
 		printf("Exiting int 0x%x (ax=0x%04x bx=0x%04x "
 		    "cx=0x%04x dx=0x%04x es=0x%04x di=0x%04x)\n",
 		    intno, regs->R_AX, regs->R_BX, regs->R_CX,
 		    regs->R_DX, regs->R_ES, regs->R_DI);
+		if (x86bios_fault)
+			printf("Page fault at 0x%05x from 0x%04x:0x%04x.\n",
+			    x86bios_fault_addr, x86bios_fault_cs,
+			    x86bios_fault_ip);
+	}
 }
 
 void *
@@ -433,6 +484,12 @@ x86bios_match_device(uint32_t offset, device_t dev)
 	return (1);
 }
 
+#if defined(__amd64__) || (defined(__i386__) && !defined(PC98))
+#define	PROBE_EBDA	1
+#else
+#define	PROBE_EBDA	0
+#endif
+
 static __inline int
 x86bios_map_mem(void)
 {
@@ -440,17 +497,62 @@ x86bios_map_mem(void)
 	x86bios_ivt = pmap_mapbios(X86BIOS_IVT_BASE, X86BIOS_IVT_SIZE);
 	if (x86bios_ivt == NULL)
 		return (1);
-	x86bios_rom = pmap_mapdev(X86BIOS_ROM_BASE, X86BIOS_ROM_SIZE);
+
+#if PROBE_EBDA
+	/* Probe EBDA via BDA. */
+	x86bios_rom_phys = *(uint16_t *)((vm_offset_t)x86bios_ivt + 0x40e);
+	x86bios_rom_phys = le16toh(x86bios_rom_phys) << 4;
+	if (x86bios_rom_phys != 0 && x86bios_rom_phys < X86BIOS_ROM_BASE &&
+	    X86BIOS_ROM_BASE - x86bios_rom_phys <= 128 * 1024)
+		x86bios_rom_phys =
+		    rounddown(x86bios_rom_phys, X86BIOS_PAGE_SIZE);
+	else
+#endif
+	x86bios_rom_phys = X86BIOS_ROM_BASE;
+	x86bios_rom = pmap_mapdev(x86bios_rom_phys, X86BIOS_ROM_SIZE);
 	if (x86bios_rom == NULL) {
 		pmap_unmapdev((vm_offset_t)x86bios_ivt, X86BIOS_IVT_SIZE);
 		return (1);
 	}
+#if PROBE_EBDA
+	/* Change attribute for EBDA. */
+	if (x86bios_rom_phys < X86BIOS_ROM_BASE &&
+	    pmap_change_attr((vm_offset_t)x86bios_rom,
+	    X86BIOS_ROM_BASE - x86bios_rom_phys, PAT_WRITE_BACK) != 0) {
+		pmap_unmapdev((vm_offset_t)x86bios_ivt, X86BIOS_IVT_SIZE);
+		pmap_unmapdev((vm_offset_t)x86bios_rom, X86BIOS_ROM_SIZE);
+		return (1);
+	}
+#endif
+
 	x86bios_seg = contigmalloc(X86BIOS_SEG_SIZE, M_DEVBUF, M_WAITOK,
-	    X86BIOS_RAM_BASE, X86BIOS_ROM_BASE, X86BIOS_PAGE_SIZE, 0);
+	    X86BIOS_RAM_BASE, x86bios_rom_phys, X86BIOS_PAGE_SIZE, 0);
 	x86bios_seg_phys = vtophys(x86bios_seg);
+
+	if (bootverbose) {
+		printf("x86bios:   IVT 0x%06x-0x%06x at %p\n",
+		    X86BIOS_IVT_BASE, X86BIOS_IVT_SIZE + X86BIOS_IVT_BASE - 1,
+		    x86bios_ivt);
+		printf("x86bios:  SSEG 0x%06x-0x%06x at %p\n",
+		    (uint32_t)x86bios_seg_phys,
+		    X86BIOS_SEG_SIZE + (uint32_t)x86bios_seg_phys - 1,
+		    x86bios_seg);
+#if PROBE_EBDA
+		if (x86bios_rom_phys < X86BIOS_ROM_BASE)
+			printf("x86bios:  EBDA 0x%06x-0x%06x at %p\n",
+			    (uint32_t)x86bios_rom_phys, X86BIOS_ROM_BASE - 1,
+			    x86bios_rom);
+#endif
+		printf("x86bios:   ROM 0x%06x-0x%06x at %p\n",
+		    X86BIOS_ROM_BASE, X86BIOS_MEM_SIZE - X86BIOS_SEG_SIZE - 1,
+		    (void *)((vm_offset_t)x86bios_rom + X86BIOS_ROM_BASE -
+		    (vm_offset_t)x86bios_rom_phys));
+	}
 
 	return (0);
 }
+
+#undef PROBE_EBDA
 
 static __inline void
 x86bios_unmap_mem(void)
@@ -475,7 +577,7 @@ x86bios_init(void *arg __unused)
 	    M_WAITOK | M_ZERO);
 	x86bios_set_pages((vm_offset_t)x86bios_ivt, X86BIOS_IVT_BASE,
 	    X86BIOS_IVT_SIZE);
-	x86bios_set_pages((vm_offset_t)x86bios_rom, X86BIOS_ROM_BASE,
+	x86bios_set_pages((vm_offset_t)x86bios_rom, x86bios_rom_phys,
 	    X86BIOS_ROM_SIZE);
 	x86bios_set_pages((vm_offset_t)x86bios_seg, x86bios_seg_phys,
 	    X86BIOS_SEG_SIZE);

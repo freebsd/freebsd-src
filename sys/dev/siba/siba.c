@@ -632,7 +632,7 @@ static device_method_t siba_methods[] = {
 	DEVMETHOD(bus_teardown_intr,	bus_generic_teardown_intr),
 	DEVMETHOD(bus_write_ivar,	siba_write_ivar),
 
-	{0, 0},
+	KOBJMETHOD_END
 };
 
 static driver_t siba_driver = {

@@ -42,6 +42,7 @@
 #ifdef _KERNEL
 #include <sys/rwlock.h>
 #include <net/vnet.h>
+#include <vm/uma.h>
 #endif
 
 #define	in6pcb		inpcb	/* for KAME src sync over BSD*'s */
@@ -376,6 +377,7 @@ void 	inp_4tuple_get(struct inpcb *inp, uint32_t *laddr, uint16_t *lp,
 #define INP_INFO_WLOCK(ipi)	rw_wlock(&(ipi)->ipi_lock)
 #define INP_INFO_TRY_RLOCK(ipi)	rw_try_rlock(&(ipi)->ipi_lock)
 #define INP_INFO_TRY_WLOCK(ipi)	rw_try_wlock(&(ipi)->ipi_lock)
+#define INP_INFO_TRY_UPGRADE(ipi)	rw_try_upgrade(&(ipi)->ipi_lock)
 #define INP_INFO_RUNLOCK(ipi)	rw_runlock(&(ipi)->ipi_lock)
 #define INP_INFO_WUNLOCK(ipi)	rw_wunlock(&(ipi)->ipi_lock)
 #define	INP_INFO_LOCK_ASSERT(ipi)	rw_assert(&(ipi)->ipi_lock, RA_LOCKED)
@@ -481,6 +483,10 @@ VNET_DECLARE(int, ipport_tcpallocs);
 #define	V_ipport_tcpallocs	VNET(ipport_tcpallocs)
 
 extern struct callout ipport_tick_callout;
+
+void	in_pcbinfo_destroy(struct inpcbinfo *);
+void	in_pcbinfo_init(struct inpcbinfo *, const char *, struct inpcbhead *,
+	    int, int, char *, uma_init, uma_fini, uint32_t);
 
 void	in_pcbpurgeif0(struct inpcbinfo *, struct ifnet *);
 int	in_pcballoc(struct socket *, struct inpcbinfo *);

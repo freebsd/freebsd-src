@@ -121,7 +121,9 @@ sctp_process_data(struct mbuf **, int, int *, int, struct sctphdr *,
     struct sctp_inpcb *, struct sctp_tcb *,
     struct sctp_nets *, uint32_t *);
 
-void sctp_sack_check(struct sctp_tcb *, int, int, int *);
+void sctp_slide_mapping_arrays(struct sctp_tcb *stcb);
+
+void sctp_sack_check(struct sctp_tcb *, int, int *);
 
 #endif
 #endif

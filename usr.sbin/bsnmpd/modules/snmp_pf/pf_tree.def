@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2005 Philip Paeps <philip@FreeBSD.org>
+# Copyright (c) 2010 Philip Paeps <philip@FreeBSD.org>
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -34,9 +34,9 @@
           (200 begemotPf
             (1 begemotPfObjects
               (1 pfStatus
-                (1 pfStatusRunning INTEGER pf_status GET)
+                (1 pfStatusRunning ENUM ( 1 true 2 false ) pf_status GET)
                 (2 pfStatusRuntime TIMETICKS pf_status GET)
-                (3 pfStatusDebug INTEGER pf_status GET)
+                (3 pfStatusDebug ENUM ( 0 none 1 urgent 2 misc 3 loud ) pf_status GET)
                 (4 pfStatusHostId OCTETSTRING pf_status GET)
               )
               (2 pfCounter
@@ -106,7 +106,7 @@
                   (1 pfInterfacesIfEntry : INTEGER32 pf_iftable
                     (1 pfInterfacesIfIndex INTEGER32)
                     (2 pfInterfacesIfDescr OCTETSTRING GET)
-                    (3 pfInterfacesIfType INTEGER GET)
+                    (3 pfInterfacesIfType ENUM ( 0 group 1 instance 2 detached ) GET)
 		    (4 pfInterfacesIfTZero TIMETICKS GET)
                     (5 pfInterfacesIfRefsState UNSIGNED32 GET)
                     (6 pfInterfacesIfRefsRule UNSIGNED32 GET)
@@ -158,17 +158,18 @@
 		(3 pfTablesAddrTable
 		  (1 pfTablesAddrEntry : INTEGER32 pf_tbladdr
 		    (1 pfTablesAddrIndex INTEGER32)
-		    (2 pfTablesAddrNet IPADDRESS GET)
-		    (3 pfTablesAddrMask INTEGER32 GET)
-		    (4 pfTablesAddrTZero TIMETICKS GET)
-		    (5 pfTablesAddrBytesInPass COUNTER64 GET)
-		    (6 pfTablesAddrBytesInBlock COUNTER64 GET)
-		    (7 pfTablesAddrBytesOutPass COUNTER64 GET)
-		    (8 pfTablesAddrBytesOutBlock COUNTER64 GET)
-		    (9 pfTablesAddrPktsInPass COUNTER64 GET)
-		    (10 pfTablesAddrPktsInBlock COUNTER64 GET)
-		    (11 pfTablesAddrPktsOutPass COUNTER64 GET)
-		    (12 pfTablesAddrPktsOutBlock COUNTER64 GET)
+		    (2 pfTablesAddrNetType ENUM ( 0 unknown 1 ipv4 2 ipv6) GET)
+		    (3 pfTablesAddrNet OCTETSTRING | InetAddress GET)
+		    (4 pfTablesAddrPrefix UNSIGNED32 GET)
+		    (5 pfTablesAddrTZero TIMETICKS GET)
+		    (6 pfTablesAddrBytesInPass COUNTER64 GET)
+		    (7 pfTablesAddrBytesInBlock COUNTER64 GET)
+		    (8 pfTablesAddrBytesOutPass COUNTER64 GET)
+		    (9 pfTablesAddrBytesOutBlock COUNTER64 GET)
+		    (10 pfTablesAddrPktsInPass COUNTER64 GET)
+		    (11 pfTablesAddrPktsInBlock COUNTER64 GET)
+		    (12 pfTablesAddrPktsOutPass COUNTER64 GET)
+		    (13 pfTablesAddrPktsOutBlock COUNTER64 GET)
 		  )
 		)
 	      )
@@ -179,10 +180,24 @@
 		    (1 pfAltqQueueIndex INTEGER32)
 		    (2 pfAltqQueueDescr OCTETSTRING GET)
 		    (3 pfAltqQueueParent OCTETSTRING GET)
-		    (4 pfAltqQueueScheduler INTEGER GET)
+		    (4 pfAltqQueueScheduler ENUM ( 1 cbq 8 hfsc 11 priq ) GET)
 		    (5 pfAltqQueueBandwidth UNSIGNED32 GET)
 		    (6 pfAltqQueuePriority INTEGER32 GET)
 		    (7 pfAltqQueueLimit INTEGER32 GET)
+		  )
+		)
+	      )
+	      (11 pfLabels
+		(1 pfLabelsLblNumber INTEGER32 pf_labels GET)
+		(2 pfLabelsLblTable
+		  (1 pfLabelsLblEntry : INTEGER pf_lbltable
+		    (1 pfLabelsLblIndex INTEGER)
+		    (2 pfLabelsLblName OCTETSTRING GET)
+		    (3 pfLabelsLblEvals COUNTER64 GET)
+		    (4 pfLabelsLblBytesIn COUNTER64 GET)
+		    (5 pfLabelsLblBytesOut COUNTER64 GET)
+		    (6 pfLabelsLblPktsIn COUNTER64 GET)
+		    (7 pfLabelsLblPktsOut COUNTER64 GET)
 		  )
 		)
 	      )

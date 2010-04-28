@@ -89,6 +89,7 @@ __FBSDID("$FreeBSD$");
 /* Status Register */
 #define STATUS_BSY		0x80	/* Drive is busy */
 #define STATUS_RDY		0x40	/* Drive is ready */
+#define STATUS_DF		0x20	/* Device fault */
 #define STATUS_DRQ		0x08	/* Data can be transferred */
 
 /* Miscelaneous */
@@ -153,11 +154,11 @@ static int	cf_attach(device_t);
 static int	cf_attach_geom(void *, int);
 
 /* ATA methods */
-static void	cf_cmd_identify(void);
-static void	cf_cmd_write(uint32_t, uint32_t, void *);
-static void	cf_cmd_read(uint32_t, uint32_t, void *);
-static void	cf_wait_busy(void);
-static void	cf_send_cmd(uint32_t, uint8_t);
+static int	cf_cmd_identify(void);
+static int	cf_cmd_write(uint32_t, uint32_t, void *);
+static int	cf_cmd_read(uint32_t, uint32_t, void *);
+static int	cf_wait_busy(void);
+static int	cf_send_cmd(uint32_t, uint8_t);
 static void	cf_attach_geom_proxy(void *arg, int flag);
 
 /* Miscelenous */
@@ -183,6 +184,8 @@ static int cf_access (struct g_provider *pp, int r, int w, int e)
  * ------------------------------------------------------------------- */
 static void cf_start (struct bio *bp)
 {
+	int error;
+
 	/*
 	* Handle actual I/O requests. The request is passed down through
 	* the bio struct.
@@ -200,12 +203,19 @@ static void cf_start (struct bio *bp)
 	if ((bp->bio_cmd & (BIO_READ | BIO_WRITE))) {
 
 		if (bp->bio_cmd & BIO_READ) {
-			cf_cmd_read(bp->bio_length / drive_param.sector_size,
-					bp->bio_offset / drive_param.sector_size, bp->bio_data);
-
+			error = cf_cmd_read(bp->bio_length / drive_param.sector_size,
+			    bp->bio_offset / drive_param.sector_size, bp->bio_data);
 		} else if (bp->bio_cmd & BIO_WRITE) {
-			cf_cmd_write(bp->bio_length / drive_param.sector_size,
-					bp->bio_offset/drive_param.sector_size, bp->bio_data);
+			error = cf_cmd_write(bp->bio_length / drive_param.sector_size,
+			    bp->bio_offset/drive_param.sector_size, bp->bio_data);
+		} else {
+			printf("%s: unrecognized bio_cmd %x.\n", __func__, bp->bio_cmd);
+			error = ENOTSUP;
+		}
+
+		if (error != 0) {
+			g_io_deliver(bp, error);
+			return;
 		}
 
 		bp->bio_resid = 0;
@@ -227,12 +237,13 @@ static int cf_ioctl (struct g_provider *pp, u_long cmd, void *data, int fflag, s
  *
  *  Read nr_sectors from the device starting from start_sector.
  */
-static void cf_cmd_read (uint32_t nr_sectors, uint32_t start_sector, void *buf)
+static int cf_cmd_read (uint32_t nr_sectors, uint32_t start_sector, void *buf)
 {
 	unsigned long lba;
 	uint32_t count;
 	uint16_t *ptr_16;
 	uint8_t  *ptr_8;
+	int error;
 
 //#define OCTEON_VISUAL_CF_0 1
 #ifdef OCTEON_VISUAL_CF_0
@@ -244,8 +255,11 @@ static void cf_cmd_read (uint32_t nr_sectors, uint32_t start_sector, void *buf)
 
 
 	while (nr_sectors--) {
-
-		cf_send_cmd(lba, CMD_READ_SECTOR);
+		error = cf_send_cmd(lba, CMD_READ_SECTOR);
+		if (error != 0) {
+			printf("%s: cf_send_cmd(CMD_READ_SECTOR) failed: %d\n", __func__, error);
+			return (error);
+		}
 
 		if (bus_width == 8) {
 			volatile uint8_t *task_file = (volatile uint8_t*)base_addr;
@@ -270,6 +284,7 @@ static void cf_cmd_read (uint32_t nr_sectors, uint32_t start_sector, void *buf)
 #ifdef OCTEON_VISUAL_CF_0
         octeon_led_write_char(0, ' ');
 #endif
+	return (0);
 }
 
 
@@ -279,12 +294,13 @@ static void cf_cmd_read (uint32_t nr_sectors, uint32_t start_sector, void *buf)
  *
  * Write nr_sectors to the device starting from start_sector.
  */
-static void cf_cmd_write (uint32_t nr_sectors, uint32_t start_sector, void *buf)
+static int cf_cmd_write (uint32_t nr_sectors, uint32_t start_sector, void *buf)
 {
 	uint32_t lba;
 	uint32_t count;
 	uint16_t *ptr_16;
 	uint8_t  *ptr_8;
+	int error;
 	
 //#define OCTEON_VISUAL_CF_1 1
 #ifdef OCTEON_VISUAL_CF_1
@@ -295,8 +311,11 @@ static void cf_cmd_write (uint32_t nr_sectors, uint32_t start_sector, void *buf)
 	ptr_16 = (uint16_t*)buf;
 
 	while (nr_sectors--) {
-
-		cf_send_cmd(lba, CMD_WRITE_SECTOR);
+		error = cf_send_cmd(lba, CMD_WRITE_SECTOR);
+		if (error != 0) {
+			printf("%s: cf_send_cmd(CMD_WRITE_SECTOR) failed: %d\n", __func__, error);
+			return (error);
+		}
 
 		if (bus_width == 8) {
 			volatile uint8_t *task_file;
@@ -324,6 +343,7 @@ static void cf_cmd_write (uint32_t nr_sectors, uint32_t start_sector, void *buf)
 #ifdef OCTEON_VISUAL_CF_1
         octeon_led_write_char(1, ' ');
 #endif
+	return (0);
 }
 
 
@@ -335,10 +355,11 @@ static void cf_cmd_write (uint32_t nr_sectors, uint32_t start_sector, void *buf)
  * it in the drive_param structure
  *
  */
-static void cf_cmd_identify (void)
+static int cf_cmd_identify (void)
 {
 	int count;
 	uint8_t status;
+	int error;
 
 	if (bus_width == 8) {
         	volatile uint8_t *task_file;
@@ -356,11 +377,11 @@ static void cf_cmd_identify (void)
         	task_file[TF_DRV_HEAD] = 0;
         	task_file[TF_COMMAND]  = CMD_IDENTIFY;
 
-		cf_wait_busy();
-
-        	for (count = 0; count < SECTOR_SIZE; count++) 
-               	 	drive_param.u.buf[count] = task_file[TF_DATA];
-
+		error = cf_wait_busy();
+		if (error == 0) {
+			for (count = 0; count < SECTOR_SIZE; count++) 
+				drive_param.u.buf[count] = task_file[TF_DATA];
+		}
 	} else {
 		volatile uint16_t *task_file;
 
@@ -374,16 +395,21 @@ static void cf_cmd_identify (void)
 		task_file[TF_CYL_LSB/2]  = 0; /* this includes TF_CYL_MSB */
 		task_file[TF_DRV_HEAD/2] = 0 | (CMD_IDENTIFY<<8); /* this includes TF_COMMAND */
 
-		cf_wait_busy();
-
-		for (count = 0; count < SECTOR_SIZE; count+=2) {
-			uint16_t temp;
-			temp = task_file[TF_DATA];
-			
-			/* endianess will be swapped below */
-			drive_param.u.buf[count]   = (temp & 0xff);
-			drive_param.u.buf[count+1] = (temp & 0xff00)>>8;
+		error = cf_wait_busy();
+		if (error == 0) {
+			for (count = 0; count < SECTOR_SIZE; count+=2) {
+				uint16_t temp;
+				temp = task_file[TF_DATA];
+				
+				/* endianess will be swapped below */
+				drive_param.u.buf[count]   = (temp & 0xff);
+				drive_param.u.buf[count+1] = (temp & 0xff00)>>8;
+			}
 		}
+	}
+	if (error != 0) {
+		printf("%s: identify failed: %d\n", __func__, error);
+		return (error);
 	}
 
 	cf_swap_ascii(drive_param.u.driveid.model, drive_param.model);
@@ -394,6 +420,7 @@ static void cf_cmd_identify (void)
 	drive_param.sec_track   =  SWAP_SHORT (drive_param.u.driveid.cur_sectors);
 	drive_param.nr_sectors  =  SWAP_LONG  (drive_param.u.driveid.lba_capacity);
 
+	return (0);
 }
 
 
@@ -404,7 +431,7 @@ static void cf_cmd_identify (void)
  * Send command to read/write one sector specified by lba.
  *
  */
-static void cf_send_cmd (uint32_t lba, uint8_t cmd)
+static int cf_send_cmd (uint32_t lba, uint8_t cmd)
 {
 	uint8_t status;
 
@@ -439,7 +466,7 @@ static void cf_send_cmd (uint32_t lba, uint8_t cmd)
 
 	}
 
-	cf_wait_busy();
+	return (cf_wait_busy());
 }
 
 /* ------------------------------------------------------------------- *
@@ -448,12 +475,16 @@ static void cf_send_cmd (uint32_t lba, uint8_t cmd)
  *
  * Wait until the drive finishes a given command and data is
  * ready to be transferred. This is done by repeatedly checking 
- * the BSY and DRQ bits of the status register. When the controller
- * is ready for data transfer, it clears the BSY bit and sets the 
- * DRQ bit.
+ * the BSY bit of the status register. When the controller is ready for
+ * data transfer, it clears the BSY bit and sets the DRQ bit.
  *
+ * If the DF bit is ever set, we return error.
+ *
+ * This code originally spun on DRQ.  If that behavior turns out to be
+ * necessary, a flag can be added or this function can be called
+ * repeatedly as long as it is returning ENXIO.
  */
-static void cf_wait_busy (void)
+static int cf_wait_busy (void)
 {
 	uint8_t status;
 
@@ -469,7 +500,11 @@ static void cf_wait_busy (void)
 		task_file = (volatile uint8_t *)base_addr;
 
 		status = task_file[TF_STATUS];	
-		while ((status & STATUS_BSY) == STATUS_BSY || (status & STATUS_DRQ) != STATUS_DRQ ) {
+		while ((status & STATUS_BSY) == STATUS_BSY) {
+			if ((status & STATUS_DF) != 0) {
+				printf("%s: device fault (status=%x)\n", __func__, status);
+				return (EIO);
+			}
 			DELAY(WAIT_DELAY);
 			status = task_file[TF_STATUS];
 		}
@@ -478,15 +513,24 @@ static void cf_wait_busy (void)
 		task_file = (volatile uint16_t *)base_addr;
 
 		status = task_file[TF_STATUS/2]>>8;	
-		while ((status & STATUS_BSY) == STATUS_BSY || (status & STATUS_DRQ) != STATUS_DRQ ) {
+		while ((status & STATUS_BSY) == STATUS_BSY) {
+			if ((status & STATUS_DF) != 0) {
+				printf("%s: device fault (status=%x)\n", __func__, status);
+				return (EIO);
+			}
 			DELAY(WAIT_DELAY);
 			status = (uint8_t)(task_file[TF_STATUS/2]>>8);
 		}
+	}
+	if ((status & STATUS_DRQ) == 0) {
+		printf("%s: device not ready (status=%x)\n", __func__, status);
+		return (ENXIO);
 	}
 
 #ifdef OCTEON_VISUAL_CF_2
         octeon_led_write_char(2, ' ');
 #endif
+	return (0);
 }
 
 /* ------------------------------------------------------------------- *
@@ -522,9 +566,7 @@ static int cf_probe (device_t dev)
 
         device_set_desc(dev, "Octeon Compact Flash Driver");
 
-	cf_cmd_identify();
-
-        return (0);
+	return (cf_cmd_identify());
 }
 
 /* ------------------------------------------------------------------- *
@@ -542,7 +584,6 @@ static void cf_identify (driver_t *drv, device_t parent)
         int bus_region;
 	int count = 0;
         octeon_mio_boot_reg_cfgx_t cfg;
-
 
     	if (!octeon_board_real())
 		return;

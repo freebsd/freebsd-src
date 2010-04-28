@@ -15,6 +15,7 @@
 #	-DNO_CTF do not run the DTrace CTF conversion tools on built objects
 #	LOCAL_DIRS="list of dirs" to add additional dirs to the SUBDIR list
 #	TARGET="machine" to crossbuild world for a different machine type
+#	TARGET_ARCH= may be required when a TARGET supports multiple endians
 
 #
 # The intended user-driven targets are:
@@ -258,7 +259,7 @@ WMAKEENV=	${CROSSENV} \
 		VERSION="${VERSION}" \
 		INSTALL="sh ${.CURDIR}/tools/install.sh" \
 		PATH=${TMPPATH}
-.if ${MK_CDDL} == "no" || defined(NO_CTF)
+.if ${MK_CDDL} == "no"
 WMAKEENV+=	NO_CTF=1
 .endif
 WMAKE=		${WMAKEENV} ${MAKE} -f Makefile.inc1 DESTDIR=${WORLDTMP}
@@ -283,6 +284,7 @@ LIB32WMAKEENV=	MAKEOBJDIRPREFIX=${OBJTREE}/lib32 \
 		VERSION="${VERSION}" \
 		MACHINE=i386 \
 		MACHINE_ARCH=i386 \
+		MACHINE_CPU="i686 mmx sse sse2" \
 		INSTALL="sh ${.CURDIR}/tools/install.sh" \
 		PATH=${TMPPATH} \
 		CC="${CC} ${LIB32FLAGS}" \
@@ -778,7 +780,7 @@ buildkernel:
 	@echo "--------------------------------------------------------------"
 	cd ${KRNLOBJDIR}/${_kernel}; \
 	    MAKESRCPATH=${KERNSRCDIR}/dev/aic7xxx/aicasm \
-	    ${MAKE} SSP_CFLAGS= -DNO_CPU_CFLAGS -DNO_CTF \
+	    ${MAKE} SSP_CFLAGS= -DNO_CPU_CFLAGS \
 	    -f ${KERNSRCDIR}/dev/aic7xxx/aicasm/Makefile
 # XXX - Gratuitously builds aicasm in the ``makeoptions NO_MODULES'' case.
 .if !defined(MODULES_WITH_WORLD) && !defined(NO_MODULES) && exists(${KERNSRCDIR}/modules)
@@ -1109,7 +1111,7 @@ _prebuild_libs=	${_kerberos5_lib_libasn1} ${_kerberos5_lib_libheimntlm} \
 		${_kerberos5_lib_libhx509} ${_kerberos5_lib_libkrb5} \
 		${_kerberos5_lib_libroken} \
 		lib/libbz2 lib/libcom_err lib/libcrypt \
-		lib/libexpat \
+		lib/libexpat lib/libfetch \
 		${_lib_libgssapi} ${_lib_libipx} \
 		lib/libkiconv lib/libkvm lib/libmd \
 		lib/ncurses/ncurses lib/ncurses/ncursesw \
@@ -1136,6 +1138,7 @@ _cddl_lib= cddl/lib
 _secure_lib_libcrypto= secure/lib/libcrypto
 _secure_lib_libssl= secure/lib/libssl
 lib/libradius__L secure/lib/libssl__L: secure/lib/libcrypto__L
+lib/libfetch__L: secure/lib/libcrypto__L secure/lib/libssl__L lib/libmd__L
 .if ${MK_OPENSSH} != "no"
 _secure_lib_libssh= secure/lib/libssh
 secure/lib/libssh__L: lib/libz__L secure/lib/libcrypto__L lib/libcrypt__L
@@ -1171,7 +1174,7 @@ _lib_libypclnt=	lib/libypclnt
 .endif
 
 .if ${MK_OPENSSL} == "no"
-lib/libradius__L: lib/libmd__L
+lib/libfetch__L lib/libradius__L: lib/libmd__L
 .endif
 
 .for _lib in ${_prereq_libs}
@@ -1259,7 +1262,7 @@ delete-old-files:
 	@echo ">>> Removing old files (only deletes safe to delete libs)"
 # Ask for every old file if the user really wants to remove it.
 # It's annoying, but better safe than sorry.
-	@for file in ${OLD_FILES}; do \
+	@for file in ${OLD_FILES} ${OLD_FILES:Musr/share/*.gz:R}; do \
 		if [ -f "${DESTDIR}/$${file}" -o -L "${DESTDIR}/$${file}" ]; then \
 			chflags noschg "${DESTDIR}/$${file}" 2>/dev/null || true; \
 			rm ${RM_I} "${DESTDIR}/$${file}"; \
@@ -1279,7 +1282,7 @@ delete-old-files:
 
 check-old-files:
 	@echo ">>> Checking for old files"
-	@for file in ${OLD_FILES}; do \
+	@for file in ${OLD_FILES} ${OLD_FILES:Musr/share/*.gz:R}; do \
 		if [ -f "${DESTDIR}/$${file}" -o -L "${DESTDIR}/$${file}" ]; then \
 		 	echo "${DESTDIR}/$${file}"; \
 		fi; \

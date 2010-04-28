@@ -539,7 +539,7 @@ AcpiUtUpdateRefCount (
 
     default:
 
-        ACPI_ERROR ((AE_INFO, "Unknown action (%X)", Action));
+        ACPI_ERROR ((AE_INFO, "Unknown action (0x%X)", Action));
         break;
     }
 
@@ -550,7 +550,7 @@ AcpiUtUpdateRefCount (
     if (Count > ACPI_MAX_REFERENCE_COUNT)
     {
         ACPI_WARNING ((AE_INFO,
-            "Large Reference Count (%X) in object %p", Count, Object));
+            "Large Reference Count (0x%X) in object %p", Count, Object));
     }
 }
 

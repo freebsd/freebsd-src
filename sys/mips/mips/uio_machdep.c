@@ -32,8 +32,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)kern_subr.c 8.3 (Berkeley) 1/21/94
- *	from: src/sys/i386/i386/uio_machdep.c,v 1.8 2005/02/13 23:09:36 alc
+ *	@(#)kern_subr.c	8.3 (Berkeley) 1/21/94
  */
 
 #include <sys/cdefs.h>
@@ -44,17 +43,18 @@ __FBSDID("$FreeBSD$");
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/proc.h>
-#include <sys/sched.h>
 #include <sys/sf_buf.h>
 #include <sys/systm.h>
 #include <sys/uio.h>
 
 #include <vm/vm.h>
 #include <vm/vm_page.h>
+#include <vm/vm_param.h>
 
 /*
- * Implement uiomove(9) from physical memory using sf_bufs to reduce
- * the creation and destruction of ephemeral mappings.
+ * Implement uiomove(9) from physical memory using a combination
+ * of the direct mapping and sf_bufs to reduce the creation and
+ * destruction of ephemeral mappings.  
  */
 int
 uiomove_fromphys(vm_page_t ma[], vm_offset_t offset, int n, struct uio *uio)
@@ -64,6 +64,8 @@ uiomove_fromphys(vm_page_t ma[], vm_offset_t offset, int n, struct uio *uio)
 	struct iovec *iov;
 	void *cp;
 	vm_offset_t page_offset;
+	vm_paddr_t pa;
+	vm_page_t m;
 	size_t cnt;
 	int error = 0;
 	int save = 0;
@@ -85,10 +87,16 @@ uiomove_fromphys(vm_page_t ma[], vm_offset_t offset, int n, struct uio *uio)
 		if (cnt > n)
 			cnt = n;
 		page_offset = offset & PAGE_MASK;
-		cnt = min(cnt, PAGE_SIZE - page_offset);
-		sched_pin();
-		sf = sf_buf_alloc(ma[offset >> PAGE_SHIFT], SFB_CPUPRIVATE);
-		cp = (char *)sf_buf_kva(sf) + page_offset;
+		cnt = ulmin(cnt, PAGE_SIZE - page_offset);
+		m = ma[offset >> PAGE_SHIFT];
+		pa = VM_PAGE_TO_PHYS(m);
+		if (pa < MIPS_KSEG0_LARGEST_PHYS) {
+			cp = (char *)MIPS_PHYS_TO_KSEG0(pa);
+			sf = NULL;
+		} else {
+			sf = sf_buf_alloc(m, 0);
+			cp = (char *)sf_buf_kva(sf) + page_offset;
+		}
 		switch (uio->uio_segflg) {
 		case UIO_USERSPACE:
 			if (ticks - PCPU_GET(switchticks) >= hogticks)
@@ -98,8 +106,8 @@ uiomove_fromphys(vm_page_t ma[], vm_offset_t offset, int n, struct uio *uio)
 			else
 				error = copyin(iov->iov_base, cp, cnt);
 			if (error) {
-				sf_buf_free(sf);
-				sched_unpin();
+				if (sf != NULL)
+					sf_buf_free(sf);
 				goto out;
 			}
 			break;
@@ -112,8 +120,8 @@ uiomove_fromphys(vm_page_t ma[], vm_offset_t offset, int n, struct uio *uio)
 		case UIO_NOCOPY:
 			break;
 		}
-		sf_buf_free(sf);
-		sched_unpin();
+		if (sf != NULL)
+			sf_buf_free(sf);
 		iov->iov_base = (char *)iov->iov_base + cnt;
 		iov->iov_len -= cnt;
 		uio->uio_resid -= cnt;

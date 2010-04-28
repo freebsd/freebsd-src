@@ -185,6 +185,8 @@ tcp_tw_destroy(void)
 	while((tw = TAILQ_FIRST(&V_twq_2msl)) != NULL)
 		tcp_twclose(tw, 0);
 	INP_INFO_WUNLOCK(&V_tcbinfo);
+
+	uma_zdestroy(V_tcptw_zone);
 }
 #endif
 

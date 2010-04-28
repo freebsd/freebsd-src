@@ -1,6 +1,6 @@
 /******************************************************************************
 
-  Copyright (c) 2001-2009, Intel Corporation 
+  Copyright (c) 2001-2010, Intel Corporation 
   All rights reserved.
   
   Redistribution and use in source and binary forms, with or without 
@@ -111,6 +111,7 @@ s32 ixgbe_set_mac_type(struct ixgbe_hw *hw)
 		case IXGBE_DEV_ID_82599_COMBO_BACKPLANE:
 		case IXGBE_DEV_ID_82599_SFP:
 		case IXGBE_DEV_ID_82599_CX4:
+		case IXGBE_DEV_ID_82599_T3_LOM:
 			hw->mac.type = ixgbe_mac_82599EB;
 			break;
 		default:
@@ -165,6 +166,20 @@ s32 ixgbe_start_hw(struct ixgbe_hw *hw)
 {
 	return ixgbe_call_func(hw, hw->mac.ops.start_hw, (hw),
 	                       IXGBE_NOT_IMPLEMENTED);
+}
+
+/**
+ *  ixgbe_enable_relaxed_ordering - Enables tx relaxed ordering,
+ *  which is disabled by default in ixgbe_start_hw();
+ *
+ *  @hw: pointer to hardware structure
+ *
+ *   Enable relaxed ordering;
+ **/
+void ixgbe_enable_relaxed_ordering(struct ixgbe_hw *hw)
+{
+	if (hw->mac.ops.enable_relaxed_ordering)
+		hw->mac.ops.enable_relaxed_ordering(hw);
 }
 
 /**

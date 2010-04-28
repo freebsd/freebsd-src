@@ -66,6 +66,7 @@ static void ahci_ch_pm(void *arg);
 static void ahci_ch_intr_locked(void *data);
 static void ahci_ch_intr(void *data);
 static int ahci_ctlr_reset(device_t dev);
+static int ahci_ctlr_setup(device_t dev);
 static void ahci_begin_transaction(device_t dev, union ccb *ccb);
 static void ahci_dmasetprd(void *arg, bus_dma_segment_t *segs, int nsegs, int error);
 static void ahci_execute_transaction(struct ahci_slot *slot);
@@ -372,6 +373,9 @@ ahci_attach(device_t dev)
 		ctlr->caps &= ~AHCI_CAP_SPM;
 	if (ctlr->quirks & AHCI_Q_NONCQ)
 		ctlr->caps &= ~AHCI_CAP_SNCQ;
+	if ((ctlr->caps & AHCI_CAP_CCCS) == 0)
+		ctlr->ccc = 0;
+	ahci_ctlr_setup(dev);
 	/* Setup interrupts. */
 	if (ahci_setup_interrupt(dev)) {
 		bus_release_resource(dev, SYS_RES_MEMORY, ctlr->r_rid, ctlr->r_mem);
@@ -501,6 +505,13 @@ ahci_ctlr_reset(device_t dev)
 	}
 	/* Reenable AHCI mode */
 	ATA_OUTL(ctlr->r_mem, AHCI_GHC, AHCI_GHC_AE);
+	return (0);
+}
+
+static int
+ahci_ctlr_setup(device_t dev)
+{
+	struct ahci_controller *ctlr = device_get_softc(dev);
 	/* Clear interrupts */
 	ATA_OUTL(ctlr->r_mem, AHCI_IS, ATA_INL(ctlr->r_mem, AHCI_IS));
 	/* Configure CCC */
@@ -543,6 +554,7 @@ ahci_resume(device_t dev)
 
 	if ((res = ahci_ctlr_reset(dev)) != 0)
 		return (res);
+	ahci_ctlr_setup(dev);
 	return (bus_generic_resume(dev));
 }
 
@@ -615,7 +627,7 @@ ahci_intr(void *data)
 {
 	struct ahci_controller_irq *irq = data;
 	struct ahci_controller *ctlr = irq->ctlr;
-	u_int32_t is;
+	u_int32_t is, ise = 0;
 	void *arg;
 	int unit;
 
@@ -629,9 +641,14 @@ ahci_intr(void *data)
 		unit = irq->r_irq_rid - 1;
 		is = ATA_INL(ctlr->r_mem, AHCI_IS);
 	}
+	/* CCC interrupt is edge triggered. */
+	if (ctlr->ccc)
+		ise = 1 << ctlr->cccv;
 	/* Some controllers have edge triggered IS. */
 	if (ctlr->quirks & AHCI_Q_EDGEIS)
-		ATA_OUTL(ctlr->r_mem, AHCI_IS, is);
+		ise |= is;
+	if (ise != 0)
+		ATA_OUTL(ctlr->r_mem, AHCI_IS, ise);
 	for (; unit < ctlr->channels; unit++) {
 		if ((is & (1 << unit)) != 0 &&
 		    (arg = ctlr->interrupt[unit].argument)) {

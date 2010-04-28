@@ -266,6 +266,7 @@ static void msk_intr_hwerr(struct msk_softc *);
 #ifndef __NO_STRICT_ALIGNMENT
 static __inline void msk_fixup_rx(struct mbuf *);
 #endif
+static __inline void msk_rxcsum(struct msk_if_softc *, uint32_t, struct mbuf *);
 static void msk_rxeof(struct msk_if_softc *, uint32_t, uint32_t, int);
 static void msk_jumbo_rxeof(struct msk_if_softc *, uint32_t, uint32_t, int);
 static void msk_txeof(struct msk_if_softc *, int);
@@ -290,6 +291,7 @@ static int msk_txrx_dma_alloc(struct msk_if_softc *);
 static int msk_rx_dma_jalloc(struct msk_if_softc *);
 static void msk_txrx_dma_free(struct msk_if_softc *);
 static void msk_rx_dma_jfree(struct msk_if_softc *);
+static int msk_rx_fill(struct msk_if_softc *, int);
 static int msk_init_rx_ring(struct msk_if_softc *);
 static int msk_init_jumbo_rx_ring(struct msk_if_softc *);
 static void msk_init_tx_ring(struct msk_if_softc *);
@@ -643,6 +645,54 @@ msk_setvlan(struct msk_if_softc *sc_if, struct ifnet *ifp)
 }
 
 static int
+msk_rx_fill(struct msk_if_softc *sc_if, int jumbo)
+{
+	uint16_t idx;
+	int i;
+
+	if ((sc_if->msk_flags & MSK_FLAG_DESCV2) == 0 &&
+	    (sc_if->msk_ifp->if_capenable & IFCAP_RXCSUM) != 0) {
+		/* Wait until controller executes OP_TCPSTART command. */
+		for (i = 10; i > 0; i--) {
+			DELAY(10);
+			idx = CSR_READ_2(sc_if->msk_softc,
+			    Y2_PREF_Q_ADDR(sc_if->msk_rxq,
+			    PREF_UNIT_GET_IDX_REG));
+			if (idx != 0)
+				break;
+		}
+		if (i == 0) {
+			device_printf(sc_if->msk_if_dev,
+			    "prefetch unit stuck?\n");
+			return (ETIMEDOUT);
+		}
+		/*
+		 * Fill consumed LE with free buffer. This can be done
+		 * in Rx handler but we don't want to add special code
+		 * in fast handler.
+		 */
+		if (jumbo > 0) {
+			if (msk_jumbo_newbuf(sc_if, 0) != 0)
+				return (ENOBUFS);
+			bus_dmamap_sync(sc_if->msk_cdata.msk_jumbo_rx_ring_tag,
+			    sc_if->msk_cdata.msk_jumbo_rx_ring_map,
+			    BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
+		} else {
+			if (msk_newbuf(sc_if, 0) != 0)
+				return (ENOBUFS);
+			bus_dmamap_sync(sc_if->msk_cdata.msk_rx_ring_tag,
+			    sc_if->msk_cdata.msk_rx_ring_map,
+			    BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
+		}
+		sc_if->msk_cdata.msk_rx_prod = 0;
+		CSR_WRITE_2(sc_if->msk_softc,
+		    Y2_PREF_Q_ADDR(sc_if->msk_rxq, PREF_UNIT_PUT_IDX_REG),
+		    sc_if->msk_cdata.msk_rx_prod);
+	}
+	return (0);
+}
+
+static int
 msk_init_rx_ring(struct msk_if_softc *sc_if)
 {
 	struct msk_ring_data *rd;
@@ -658,7 +708,21 @@ msk_init_rx_ring(struct msk_if_softc *sc_if)
 	rd = &sc_if->msk_rdata;
 	bzero(rd->msk_rx_ring, sizeof(struct msk_rx_desc) * MSK_RX_RING_CNT);
 	prod = sc_if->msk_cdata.msk_rx_prod;
-	for (i = 0; i < MSK_RX_RING_CNT; i++) {
+	i = 0;
+	/* Have controller know how to compute Rx checksum. */
+	if ((sc_if->msk_flags & MSK_FLAG_DESCV2) == 0 &&
+	    (sc_if->msk_ifp->if_capenable & IFCAP_RXCSUM) != 0) {
+		rxd = &sc_if->msk_cdata.msk_rxdesc[prod];
+		rxd->rx_m = NULL;
+		rxd->rx_le = &rd->msk_rx_ring[prod];
+		rxd->rx_le->msk_addr = htole32(ETHER_HDR_LEN << 16 |
+		    ETHER_HDR_LEN);
+		rxd->rx_le->msk_control = htole32(OP_TCPSTART | HW_OWNER);
+		MSK_INC(prod, MSK_RX_RING_CNT);
+		MSK_INC(sc_if->msk_cdata.msk_rx_cons, MSK_RX_RING_CNT);
+		i++;
+	}
+	for (; i < MSK_RX_RING_CNT; i++) {
 		rxd = &sc_if->msk_cdata.msk_rxdesc[prod];
 		rxd->rx_m = NULL;
 		rxd->rx_le = &rd->msk_rx_ring[prod];
@@ -676,7 +740,8 @@ msk_init_rx_ring(struct msk_if_softc *sc_if)
 	CSR_WRITE_2(sc_if->msk_softc,
 	    Y2_PREF_Q_ADDR(sc_if->msk_rxq, PREF_UNIT_PUT_IDX_REG),
 	    sc_if->msk_cdata.msk_rx_prod);
-
+	if (msk_rx_fill(sc_if, 0) != 0)
+		return (ENOBUFS);
 	return (0);
 }
 
@@ -697,7 +762,21 @@ msk_init_jumbo_rx_ring(struct msk_if_softc *sc_if)
 	bzero(rd->msk_jumbo_rx_ring,
 	    sizeof(struct msk_rx_desc) * MSK_JUMBO_RX_RING_CNT);
 	prod = sc_if->msk_cdata.msk_rx_prod;
-	for (i = 0; i < MSK_JUMBO_RX_RING_CNT; i++) {
+	i = 0;
+	/* Have controller know how to compute Rx checksum. */
+	if ((sc_if->msk_flags & MSK_FLAG_DESCV2) == 0 &&
+	    (sc_if->msk_ifp->if_capenable & IFCAP_RXCSUM) != 0) {
+		rxd = &sc_if->msk_cdata.msk_jumbo_rxdesc[prod];
+		rxd->rx_m = NULL;
+		rxd->rx_le = &rd->msk_jumbo_rx_ring[prod];
+		rxd->rx_le->msk_addr = htole32(ETHER_HDR_LEN << 16 |
+		    ETHER_HDR_LEN);
+		rxd->rx_le->msk_control = htole32(OP_TCPSTART | HW_OWNER);
+		MSK_INC(prod, MSK_JUMBO_RX_RING_CNT);
+		MSK_INC(sc_if->msk_cdata.msk_rx_cons, MSK_JUMBO_RX_RING_CNT);
+		i++;
+	}
+	for (; i < MSK_JUMBO_RX_RING_CNT; i++) {
 		rxd = &sc_if->msk_cdata.msk_jumbo_rxdesc[prod];
 		rxd->rx_m = NULL;
 		rxd->rx_le = &rd->msk_jumbo_rx_ring[prod];
@@ -714,7 +793,8 @@ msk_init_jumbo_rx_ring(struct msk_if_softc *sc_if)
 	CSR_WRITE_2(sc_if->msk_softc,
 	    Y2_PREF_Q_ADDR(sc_if->msk_rxq, PREF_UNIT_PUT_IDX_REG),
 	    sc_if->msk_cdata.msk_rx_prod);
-
+	if (msk_rx_fill(sc_if, 1) != 0)
+		return (ENOBUFS);
 	return (0);
 }
 
@@ -923,7 +1003,7 @@ msk_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 	struct msk_if_softc *sc_if;
 	struct ifreq *ifr;
 	struct mii_data	*mii;
-	int error, mask;
+	int error, mask, reinit;
 
 	sc_if = ifp->if_softc;
 	ifr = (struct ifreq *)data;
@@ -982,6 +1062,7 @@ msk_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 		error = ifmedia_ioctl(ifp, ifr, &mii->mii_media, command);
 		break;
 	case SIOCSIFCAP:
+		reinit = 0;
 		MSK_IF_LOCK(sc_if);
 		mask = ifr->ifr_reqcap ^ ifp->if_capenable;
 		if ((mask & IFCAP_TXCSUM) != 0 &&
@@ -993,8 +1074,11 @@ msk_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 				ifp->if_hwassist &= ~MSK_CSUM_FEATURES;
 		}
 		if ((mask & IFCAP_RXCSUM) != 0 &&
-		    (IFCAP_RXCSUM & ifp->if_capabilities) != 0)
+		    (IFCAP_RXCSUM & ifp->if_capabilities) != 0) {
 			ifp->if_capenable ^= IFCAP_RXCSUM;
+			if ((sc_if->msk_flags & MSK_FLAG_DESCV2) == 0)
+				reinit = 1;
+		}
 		if ((mask & IFCAP_VLAN_HWCSUM) != 0 &&
 		    (IFCAP_VLAN_HWCSUM & ifp->if_capabilities) != 0)
 			ifp->if_capenable ^= IFCAP_VLAN_HWCSUM;
@@ -1021,8 +1105,11 @@ msk_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 			ifp->if_hwassist &= ~(MSK_CSUM_FEATURES | CSUM_TSO);
 			ifp->if_capenable &= ~(IFCAP_TSO4 | IFCAP_TXCSUM);
 		}
-
 		VLAN_CAPABILITIES(ifp);
+		if (reinit > 0 && (ifp->if_drv_flags & IFF_DRV_RUNNING) != 0) {
+			ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
+			msk_init_locked(sc_if);
+		}
 		MSK_IF_UNLOCK(sc_if);
 		break;
 	default:
@@ -1125,7 +1212,7 @@ msk_phy_power(struct msk_softc *sc, int mode)
 		 */
 		CSR_WRITE_1(sc, B2_Y2_CLK_GATE, val);
 
-		val = pci_read_config(sc->msk_dev, PCI_OUR_REG_1, 4);
+		val = CSR_PCI_READ_4(sc, PCI_OUR_REG_1);
 		val &= ~(PCI_Y2_PHY1_POWD | PCI_Y2_PHY2_POWD);
 		if (sc->msk_hw_id == CHIP_ID_YUKON_XL) {
 			if (sc->msk_hw_rev > CHIP_REV_YU_XL_A1) {
@@ -1136,7 +1223,7 @@ msk_phy_power(struct msk_softc *sc, int mode)
 			}
 		}
 		/* Release PHY from PowerDown/COMA mode. */
-		pci_write_config(sc->msk_dev, PCI_OUR_REG_1, val, 4);
+		CSR_PCI_WRITE_4(sc, PCI_OUR_REG_1, val);
 		switch (sc->msk_hw_id) {
 		case CHIP_ID_YUKON_EC_U:
 		case CHIP_ID_YUKON_EX:
@@ -1145,16 +1232,16 @@ msk_phy_power(struct msk_softc *sc, int mode)
 			CSR_WRITE_2(sc, B0_CTST, Y2_HW_WOL_OFF);
 
 			/* Enable all clocks. */
-			pci_write_config(sc->msk_dev, PCI_OUR_REG_3, 0, 4);
-			our = pci_read_config(sc->msk_dev, PCI_OUR_REG_4, 4);
+			CSR_PCI_WRITE_4(sc, PCI_OUR_REG_3, 0);
+			our = CSR_PCI_READ_4(sc, PCI_OUR_REG_4);
 			our &= (PCI_FORCE_ASPM_REQUEST|PCI_ASPM_GPHY_LINK_DOWN|
 			    PCI_ASPM_INT_FIFO_EMPTY|PCI_ASPM_CLKRUN_REQUEST);
 			/* Set all bits to 0 except bits 15..12. */
-			pci_write_config(sc->msk_dev, PCI_OUR_REG_4, our, 4);
-			our = pci_read_config(sc->msk_dev, PCI_OUR_REG_5, 4);
+			CSR_PCI_WRITE_4(sc, PCI_OUR_REG_4, our);
+			our = CSR_PCI_READ_4(sc, PCI_OUR_REG_5);
 			our &= PCI_CTL_TIM_VMAIN_AV_MSK;
-			pci_write_config(sc->msk_dev, PCI_OUR_REG_5, our, 4);
-			pci_write_config(sc->msk_dev, PCI_CFG_REG_1, 0, 4);
+			CSR_PCI_WRITE_4(sc, PCI_OUR_REG_5, our);
+			CSR_PCI_WRITE_4(sc, PCI_CFG_REG_1, 0);
 			/*
 			 * Disable status race, workaround for
 			 * Yukon EC Ultra & Yukon EX.
@@ -1175,7 +1262,7 @@ msk_phy_power(struct msk_softc *sc, int mode)
 		}
 		break;
 	case MSK_PHY_POWERDOWN:
-		val = pci_read_config(sc->msk_dev, PCI_OUR_REG_1, 4);
+		val = CSR_PCI_READ_4(sc, PCI_OUR_REG_1);
 		val |= PCI_Y2_PHY1_POWD | PCI_Y2_PHY2_POWD;
 		if (sc->msk_hw_id == CHIP_ID_YUKON_XL &&
 		    sc->msk_hw_rev > CHIP_REV_YU_XL_A1) {
@@ -1183,7 +1270,7 @@ msk_phy_power(struct msk_softc *sc, int mode)
 			if (sc->msk_num_port > 1)
 				val &= ~PCI_Y2_PHY2_COMA;
 		}
-		pci_write_config(sc->msk_dev, PCI_OUR_REG_1, val, 4);
+		CSR_PCI_WRITE_4(sc, PCI_OUR_REG_1, val);
 
 		val = Y2_PCI_CLK_LNK1_DIS | Y2_COR_CLK_LNK1_DIS |
 		      Y2_CLK_GAT_LNK1_DIS | Y2_PCI_CLK_LNK2_DIS |
@@ -1480,23 +1567,14 @@ msk_attach(device_t dev)
 	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
 	ifp->if_mtu = ETHERMTU;
 	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
-	/*
-	 * IFCAP_RXCSUM capability is intentionally disabled as the hardware
-	 * has serious bug in Rx checksum offload for all Yukon II family
-	 * hardware. It seems there is a workaround to make it work somtimes.
-	 * However, the workaround also have to check OP code sequences to
-	 * verify whether the OP code is correct. Sometimes it should compute
-	 * IP/TCP/UDP checksum in driver in order to verify correctness of
-	 * checksum computed by hardware. If you have to compute checksum
-	 * with software to verify the hardware's checksum why have hardware
-	 * compute the checksum? I think there is no reason to spend time to
-	 * make Rx checksum offload work on Yukon II hardware.
-	 */
 	ifp->if_capabilities = IFCAP_TXCSUM | IFCAP_TSO4;
 	/*
-	 * Enable Rx checksum offloading if controller support new
-	 * descriptor format.
+	 * Enable Rx checksum offloading if controller supports
+	 * new descriptor formant and controller is not Yukon XL.
 	 */
+	if ((sc_if->msk_flags & MSK_FLAG_DESCV2) == 0 &&
+	    sc->msk_hw_id != CHIP_ID_YUKON_XL)
+		ifp->if_capabilities |= IFCAP_RXCSUM;
 	if ((sc_if->msk_flags & MSK_FLAG_DESCV2) != 0 &&
 	    (sc_if->msk_flags & MSK_FLAG_NORX_CSUM) == 0)
 		ifp->if_capabilities |= IFCAP_RXCSUM;
@@ -2527,23 +2605,32 @@ msk_encap(struct msk_if_softc *sc_if, struct mbuf **m_head)
 		ip = (struct ip *)(mtod(m, char *) + offset);
 		offset += (ip->ip_hl << 2);
 		tcp_offset = offset;
-		/*
-		 * It seems that Yukon II has Tx checksum offload bug for
-		 * small TCP packets that's less than 60 bytes in size
-		 * (e.g. TCP window probe packet, pure ACK packet).
-		 * Common work around like padding with zeros to make the
-		 * frame minimum ethernet frame size didn't work at all.
-		 * Instead of disabling checksum offload completely we
-		 * resort to S/W checksum routine when we encounter short
-		 * TCP frames.
-		 * Short UDP packets appear to be handled correctly by
-		 * Yukon II. Also I assume this bug does not happen on
-		 * controllers that use newer descriptor format or
-		 * automatic Tx checksum calaulcation.
-		 */
-		if ((sc_if->msk_flags & MSK_FLAG_AUTOTX_CSUM) == 0 &&
+		if ((m->m_pkthdr.csum_flags & CSUM_TSO) != 0) {
+			m = m_pullup(m, offset + sizeof(struct tcphdr));
+			if (m == NULL) {
+				*m_head = NULL;
+				return (ENOBUFS);
+			}
+			tcp = (struct tcphdr *)(mtod(m, char *) + offset);
+			offset += (tcp->th_off << 2);
+		} else if ((sc_if->msk_flags & MSK_FLAG_AUTOTX_CSUM) == 0 &&
 		    (m->m_pkthdr.len < MSK_MIN_FRAMELEN) &&
 		    (m->m_pkthdr.csum_flags & CSUM_TCP) != 0) {
+			/*
+			 * It seems that Yukon II has Tx checksum offload bug
+			 * for small TCP packets that's less than 60 bytes in
+			 * size (e.g. TCP window probe packet, pure ACK packet).
+			 * Common work around like padding with zeros to make
+			 * the frame minimum ethernet frame size didn't work at
+			 * all.
+			 * Instead of disabling checksum offload completely we
+			 * resort to S/W checksum routine when we encounter
+			 * short TCP frames.
+			 * Short UDP packets appear to be handled correctly by
+			 * Yukon II. Also I assume this bug does not happen on
+			 * controllers that use newer descriptor format or
+			 * automatic Tx checksum calaulcation.
+			 */
 			m = m_pullup(m, offset + sizeof(struct tcphdr));
 			if (m == NULL) {
 				*m_head = NULL;
@@ -2553,15 +2640,6 @@ msk_encap(struct msk_if_softc *sc_if, struct mbuf **m_head)
 			    m->m_pkthdr.csum_data) = in_cksum_skip(m,
 			    m->m_pkthdr.len, offset);
 			m->m_pkthdr.csum_flags &= ~CSUM_TCP;
-		}
-		if ((m->m_pkthdr.csum_flags & CSUM_TSO) != 0) {
-			m = m_pullup(m, offset + sizeof(struct tcphdr));
-			if (m == NULL) {
-				*m_head = NULL;
-				return (ENOBUFS);
-			}
-			tcp = (struct tcphdr *)(mtod(m, char *) + offset);
-			offset += (tcp->th_off << 2);
 		}
 		*m_head = m;
 	}
@@ -2906,6 +2984,96 @@ msk_fixup_rx(struct mbuf *m)
 }
 #endif
 
+static __inline void
+msk_rxcsum(struct msk_if_softc *sc_if, uint32_t control, struct mbuf *m)
+{
+	struct ether_header *eh;
+	struct ip *ip;
+	struct udphdr *uh;
+	int32_t hlen, len, pktlen, temp32;
+	uint16_t csum, *opts;
+
+	if ((sc_if->msk_flags & MSK_FLAG_DESCV2) != 0) {
+		if ((control & (CSS_IPV4 | CSS_IPFRAG)) == CSS_IPV4) {
+			m->m_pkthdr.csum_flags |= CSUM_IP_CHECKED;
+			if ((control & CSS_IPV4_CSUM_OK) != 0)
+				m->m_pkthdr.csum_flags |= CSUM_IP_VALID;
+			if ((control & (CSS_TCP | CSS_UDP)) != 0 &&
+			    (control & (CSS_TCPUDP_CSUM_OK)) != 0) {
+				m->m_pkthdr.csum_flags |= CSUM_DATA_VALID |
+				    CSUM_PSEUDO_HDR;
+				m->m_pkthdr.csum_data = 0xffff;
+			}
+		}
+		return;
+	}
+	/*
+	 * Marvell Yukon controllers that support OP_RXCHKS has known
+	 * to have various Rx checksum offloading bugs. These
+	 * controllers can be configured to compute simple checksum
+	 * at two different positions. So we can compute IP and TCP/UDP
+	 * checksum at the same time. We intentionally have controller
+	 * compute TCP/UDP checksum twice by specifying the same
+	 * checksum start position and compare the result. If the value
+	 * is different it would indicate the hardware logic was wrong.
+	 */
+	if ((sc_if->msk_csum & 0xFFFF) != (sc_if->msk_csum >> 16)) {
+		if (bootverbose)
+			device_printf(sc_if->msk_if_dev,
+			    "Rx checksum value mismatch!\n");
+		return;
+	}
+	pktlen = m->m_pkthdr.len;
+	if (pktlen < sizeof(struct ether_header) + sizeof(struct ip))
+		return;
+	eh = mtod(m, struct ether_header *);
+	if (eh->ether_type != htons(ETHERTYPE_IP))
+		return;
+	ip = (struct ip *)(eh + 1);
+	if (ip->ip_v != IPVERSION)
+		return;
+
+	hlen = ip->ip_hl << 2;
+	pktlen -= sizeof(struct ether_header);
+	if (hlen < sizeof(struct ip))
+		return;
+	if (ntohs(ip->ip_len) < hlen)
+		return;
+	if (ntohs(ip->ip_len) != pktlen)
+		return;
+	if (ip->ip_off & htons(IP_MF | IP_OFFMASK))
+		return;	/* can't handle fragmented packet. */
+
+	switch (ip->ip_p) {
+	case IPPROTO_TCP:
+		if (pktlen < (hlen + sizeof(struct tcphdr)))
+			return;
+		break;
+	case IPPROTO_UDP:
+		if (pktlen < (hlen + sizeof(struct udphdr)))
+			return;
+		uh = (struct udphdr *)((caddr_t)ip + hlen);
+		if (uh->uh_sum == 0)
+			return; /* no checksum */
+		break;
+	default:
+		return;
+	}
+	csum = ntohs(sc_if->msk_csum & 0xFFFF);
+	/* Checksum fixup for IP options. */
+	len = hlen - sizeof(struct ip);
+	if (len > 0) {
+		opts = (uint16_t *)(ip + 1);
+		for (; len > 0; len -= sizeof(uint16_t), opts++) {
+			temp32 = csum - *opts;
+			temp32 = (temp32 >> 16) + (temp32 & 65535);
+			csum = temp32 & 65535;
+		}
+	}
+	m->m_pkthdr.csum_flags |= CSUM_DATA_VALID;
+	m->m_pkthdr.csum_data = csum;
+}
+
 static void
 msk_rxeof(struct msk_if_softc *sc_if, uint32_t status, uint32_t control,
     int len)
@@ -2960,18 +3128,8 @@ msk_rxeof(struct msk_if_softc *sc_if, uint32_t status, uint32_t control,
 			msk_fixup_rx(m);
 #endif
 		ifp->if_ipackets++;
-		if ((ifp->if_capenable & IFCAP_RXCSUM) != 0 &&
-		    (control & (CSS_IPV4 | CSS_IPFRAG)) == CSS_IPV4) {
-			m->m_pkthdr.csum_flags |= CSUM_IP_CHECKED;
-			if ((control & CSS_IPV4_CSUM_OK) != 0)
-				m->m_pkthdr.csum_flags |= CSUM_IP_VALID;
-			if ((control & (CSS_TCP | CSS_UDP)) != 0 &&
-			    (control & (CSS_TCPUDP_CSUM_OK)) != 0) {
-				m->m_pkthdr.csum_flags |= CSUM_DATA_VALID |
-				    CSUM_PSEUDO_HDR;
-				m->m_pkthdr.csum_data = 0xffff;
-			}
-		}
+		if ((ifp->if_capenable & IFCAP_RXCSUM) != 0)
+			msk_rxcsum(sc_if, control, m);
 		/* Check for VLAN tagged packets. */
 		if ((status & GMR_FS_VLAN) != 0 &&
 		    (ifp->if_capenable & IFCAP_VLAN_HWTAGGING) != 0) {
@@ -3030,18 +3188,8 @@ msk_jumbo_rxeof(struct msk_if_softc *sc_if, uint32_t status, uint32_t control,
 			msk_fixup_rx(m);
 #endif
 		ifp->if_ipackets++;
-		if ((ifp->if_capenable & IFCAP_RXCSUM) != 0 &&
-		    (control & (CSS_IPV4 | CSS_IPFRAG)) == CSS_IPV4) {
-			m->m_pkthdr.csum_flags |= CSUM_IP_CHECKED;
-			if ((control & CSS_IPV4_CSUM_OK) != 0)
-				m->m_pkthdr.csum_flags |= CSUM_IP_VALID;
-			if ((control & (CSS_TCP | CSS_UDP)) != 0 &&
-			    (control & (CSS_TCPUDP_CSUM_OK)) != 0) {
-				m->m_pkthdr.csum_flags |= CSUM_DATA_VALID |
-				    CSUM_PSEUDO_HDR;
-				m->m_pkthdr.csum_data = 0xffff;
-			}
-		}
+		if ((ifp->if_capenable & IFCAP_RXCSUM) != 0)
+			msk_rxcsum(sc_if, control, m);
 		/* Check for VLAN tagged packets. */
 		if ((status & GMR_FS_VLAN) != 0 &&
 		    (ifp->if_capenable & IFCAP_VLAN_HWTAGGING) != 0) {
@@ -3325,6 +3473,9 @@ msk_handle_events(struct msk_softc *sc)
 	uint32_t control, status;
 	int cons, len, port, rxprog;
 
+	if (sc->msk_stat_cons == CSR_READ_2(sc, STAT_PUT_IDX))
+		return (0);
+
 	/* Sync status LEs. */
 	bus_dmamap_sync(sc->msk_stat_tag, sc->msk_stat_map,
 	    BUS_DMASYNC_POSTREAD | BUS_DMASYNC_POSTWRITE);
@@ -3355,6 +3506,9 @@ msk_handle_events(struct msk_softc *sc)
 			break;
 		case OP_RXCHKSVLAN:
 			sc_if->msk_vtag = ntohs(len);
+			/* FALLTHROUGH */
+		case OP_RXCHKS:
+			sc_if->msk_csum = status;
 			break;
 		case OP_RXSTAT:
 			if (sc_if->msk_framesize >
@@ -3405,7 +3559,7 @@ msk_handle_events(struct msk_softc *sc)
 	if (rxput[MSK_PORT_B] > 0)
 		msk_rxput(sc->msk_if[MSK_PORT_B]);
 
-	return (rxprog > sc->msk_process_limit ? EAGAIN : 0);
+	return (sc->msk_stat_cons != CSR_READ_2(sc, STAT_PUT_IDX));
 }
 
 static void
@@ -3739,8 +3893,13 @@ msk_init_locked(struct msk_if_softc *sc_if)
 	msk_init_tx_ring(sc_if);
 
 	/* Disable Rx checksum offload and RSS hash. */
-	CSR_WRITE_4(sc, Q_ADDR(sc_if->msk_rxq, Q_CSR),
-	    BMU_DIS_RX_CHKSUM | BMU_DIS_RX_RSS_HASH);
+	reg = BMU_DIS_RX_RSS_HASH;
+	if ((sc_if->msk_flags & MSK_FLAG_DESCV2) == 0 &&
+	    (ifp->if_capenable & IFCAP_RXCSUM) != 0)
+		reg |= BMU_ENA_RX_CHKSUM;
+	else
+		reg |= BMU_DIS_RX_CHKSUM;
+	CSR_WRITE_4(sc, Q_ADDR(sc_if->msk_rxq, Q_CSR), reg);
 	if (sc_if->msk_framesize > (MCLBYTES - MSK_RX_BUF_ALIGN)) {
 		msk_set_prefetch(sc, sc_if->msk_rxq,
 		    sc_if->msk_rdata.msk_jumbo_rx_ring_paddr,

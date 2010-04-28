@@ -49,21 +49,3 @@ $FreeBSD$
        output_style = style;
      }
  }
-@@ -997,7 +1001,7 @@
- #ifdef ST_MTIM_NSEC
- 
- # if HAVE_CLOCK_GETTIME && defined CLOCK_REALTIME
--  if (clock_gettime (CLOCK_REALTIME, &st->st_mtim) == 0)
-+  if (clock_gettime (CLOCK_REALTIME, &st->st_mtimespec) == 0)
-     return;
- # endif
- 
-@@ -1007,7 +1011,7 @@
-     if (gettimeofday (&timeval, 0) == 0)
-       {
- 	st->st_mtime = timeval.tv_sec;
--	st->st_mtim.ST_MTIM_NSEC = timeval.tv_usec * 1000;
-+	st->st_mtimespec.ST_MTIM_NSEC = timeval.tv_usec * 1000;
- 	return;
-       }
-   }

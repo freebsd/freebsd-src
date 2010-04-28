@@ -34,7 +34,7 @@ __FBSDID("$FreeBSD$");
 #include <link.h>
 #include <stddef.h>
 
-static const char sorry[] = "Service unavailable";
+static char sorry[] = "Service unavailable";
 
 /*
  * For ELF, the dynamic linker directly resolves references to its
@@ -69,7 +69,7 @@ dlclose(void *handle)
 }
 
 #pragma weak dlerror
-const char *
+char *
 dlerror(void)
 {
 	return sorry;

@@ -34,6 +34,7 @@
 #define	_SYS_PTRACE_H_
 
 #include <sys/_sigset.h>
+#include <machine/reg.h>
 
 #define	PT_TRACE_ME	0	/* child declares it's being traced */
 #define	PT_READ_I	1	/* read word in child's I space */
@@ -157,7 +158,7 @@ int	proc_read_dbregs(struct thread *_td, struct dbreg *_dbreg);
 int	proc_write_dbregs(struct thread *_td, struct dbreg *_dbreg);
 int	proc_sstep(struct thread *_td);
 int	proc_rwmem(struct proc *_p, struct uio *_uio);
-#ifdef COMPAT_IA32
+#ifdef COMPAT_FREEBSD32
 struct reg32;
 struct fpreg32;
 struct dbreg32;

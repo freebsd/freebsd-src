@@ -62,6 +62,12 @@
 #include <errno.h>
 #include <signal.h>
 
+#ifdef FLAT_INC
+#include "e_os2.h"
+#else
+#include "../e_os2.h"
+#endif
+
 /* With IPv6, it looks like Digital has mixed up the proper order of
    recursive header file inclusion, resulting in the compiler complaining
    that u_int isn't defined, but only if _POSIX_C_SOURCE is defined, which

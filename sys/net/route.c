@@ -830,7 +830,13 @@ rt_getifa_fib(struct rt_addrinfo *info, u_int fibnum)
 int
 rtexpunge(struct rtentry *rt)
 {
+#if !defined(RADIX_MPATH)
 	struct radix_node *rn;
+#else
+	struct rt_addrinfo info;
+	int fib;
+	struct rtentry *rt0;
+#endif
 	struct radix_node_head *rnh;
 	struct ifaddr *ifa;
 	int error = 0;
@@ -843,14 +849,26 @@ rtexpunge(struct rtentry *rt)
 	if (rnh == NULL)
 		return (EAFNOSUPPORT);
 	RADIX_NODE_HEAD_LOCK_ASSERT(rnh);
-#if 0
-	/*
-	 * We cannot assume anything about the reference count
-	 * because protocols call us in many situations; often
-	 * before unwinding references to the table entry.
-	 */
-	KASSERT(rt->rt_refcnt <= 1, ("bogus refcnt %ld", rt->rt_refcnt));
-#endif
+
+#ifdef RADIX_MPATH
+	fib = rt->rt_fibnum;
+	bzero(&info, sizeof(info));
+	info.rti_ifp = rt->rt_ifp;
+	info.rti_flags = RTF_RNH_LOCKED;
+	info.rti_info[RTAX_DST] = rt_key(rt);
+	info.rti_info[RTAX_GATEWAY] = rt->rt_ifa->ifa_addr;
+
+	RT_UNLOCK(rt);
+	error = rtrequest1_fib(RTM_DELETE, &info, &rt0, fib);
+
+	if (error == 0 && rt0 != NULL) {
+		rt = rt0;
+		RT_LOCK(rt);
+	} else if (error != 0) {
+		RT_LOCK(rt);
+		return (error);
+	}
+#else
 	/*
 	 * Remove the item from the tree; it should be there,
 	 * but when callers invoke us blindly it may not (sigh).
@@ -864,6 +882,7 @@ rtexpunge(struct rtentry *rt)
 		("unexpected flags 0x%x", rn->rn_flags));
 	KASSERT(rt == RNTORT(rn),
 		("lookup mismatch, rt %p rn %p", rt, rn));
+#endif /* RADIX_MPATH */
 
 	rt->rt_flags &= ~RTF_UP;
 
@@ -886,7 +905,9 @@ rtexpunge(struct rtentry *rt)
 	 * linked to the routing table.
 	 */
 	V_rttrash++;
+#if !defined(RADIX_MPATH)
 bad:
+#endif
 	return (error);
 }
 
@@ -1044,6 +1065,7 @@ rtrequest1_fib(int req, struct rt_addrinfo *info, struct rtentry **ret_nrt,
 			 */
 			if (error != ENOENT)
 				goto bad;
+			error = 0;
 		}
 #endif
 		/*

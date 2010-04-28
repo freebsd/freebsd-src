@@ -547,10 +547,10 @@ isp_get_specific_options(device_t dev, int chan, ispsoftc_t *isp)
 	}
 
 	if (IS_SCSI(isp)) {
-		ISP_SPI_PC(isp, chan)->role = tval;
+		ISP_SPI_PC(isp, chan)->def_role = tval;
 		return;
 	}
-	ISP_FC_PC(isp, chan)->role = tval;
+	ISP_FC_PC(isp, chan)->def_role = tval;
 
 	tval = 0;
 	if (resource_int_value(device_get_name(dev), device_get_unit(dev), "fullduplex", &tval) == 0 && tval != 0) {
@@ -833,7 +833,7 @@ isp_pci_attach(device_t dev)
 	 * The 'it' suffix really only matters for SCSI cards in target mode.
 	 */
 	isp->isp_osinfo.fw = NULL;
-	if (IS_SCSI(isp) && (ISP_SPI_PC(isp, 0)->role & ISP_ROLE_TARGET)) {
+	if (IS_SCSI(isp) && (ISP_SPI_PC(isp, 0)->def_role & ISP_ROLE_TARGET)) {
 		snprintf(fwname, sizeof (fwname), "isp_%04x_it", did);
 		isp->isp_osinfo.fw = firmware_get(fwname);
 	} else if (IS_24XX(isp) && (isp->isp_nchan > 1 || isp->isp_osinfo.forcemulti)) {

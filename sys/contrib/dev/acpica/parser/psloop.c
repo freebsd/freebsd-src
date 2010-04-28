@@ -228,7 +228,7 @@ AcpiPsGetAmlOpcode (
         /* The opcode is unrecognized. Just skip unknown opcodes */
 
         ACPI_ERROR ((AE_INFO,
-             "Found unknown opcode %X at AML address %p offset %X, ignoring",
+             "Found unknown opcode 0x%X at AML address %p offset 0x%X, ignoring",
               WalkState->Opcode, WalkState->ParserState.Aml, WalkState->AmlOffset));
 
         ACPI_DUMP_BUFFER (WalkState->ParserState.Aml, 128);
@@ -1149,7 +1149,6 @@ AcpiPsParseLoop (
                     {
                         ACPI_EXCEPTION ((AE_INFO, Status,
                             "Invoked method did not return a value"));
-
                     }
 
                     ACPI_EXCEPTION ((AE_INFO, Status, "GetPredicate Failed"));

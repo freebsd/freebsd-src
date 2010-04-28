@@ -509,7 +509,7 @@ cpu_pcpu_init(struct pcpu *pcpu, int cpuid, size_t sz)
 
 /* Set set up registers on exec. */
 void
-exec_setregs(struct thread *td, u_long entry, u_long stack, u_long ps_strings)
+exec_setregs(struct thread *td, struct image_params *imgp, u_long stack)
 {
 	struct trapframe *tf;
 	struct ps_strings arginfo;
@@ -553,7 +553,7 @@ exec_setregs(struct thread *td, u_long entry, u_long stack, u_long ps_strings)
 	tf->fixreg[7] = 0;			/* termination vector */
 	tf->fixreg[8] = (register_t)PS_STRINGS;	/* NetBSD extension */
 
-	tf->srr0 = entry;
+	tf->srr0 = imgp->entry_addr;
 	tf->srr1 = PSL_USERSET;
 	td->td_pcb->pcb_flags = 0;
 }
@@ -706,6 +706,7 @@ cpu_idle (int busy)
 	register_t msr;
 
 	msr = mfmsr();
+
 #ifdef INVARIANTS
 	if ((msr & PSL_EE) != PSL_EE) {
 		struct thread *td = curthread;
@@ -713,19 +714,10 @@ cpu_idle (int busy)
 		panic("ints disabled in idleproc!");
 	}
 #endif
-#if 0
-	/*
-	 * Freescale E500 core RM section 6.4.1
-	 */
-	msr = msr | PSL_WE;
 
-	__asm__("	msync;"
-		"	mtmsr	%0;"
-		"	isync;"
-		"loop:	b	loop" :
-		/* no output */	:
-		"r" (msr));
-#endif
+	/* Freescale E500 core RM section 6.4.1. */
+	msr = msr | PSL_WE;
+	__asm __volatile("msync; mtmsr %0; isync" :: "r" (msr));
 }
 
 int

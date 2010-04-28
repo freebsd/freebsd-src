@@ -32,7 +32,7 @@
 .\"	from: @(#)sh.1	8.6 (Berkeley) 5/4/95
 .\" $FreeBSD$
 .\"
-.Dd December 31, 2009
+.Dd April 5, 2010
 .Dt SH 1
 .Os
 .Sh NAME
@@ -210,7 +210,8 @@ Enable the built-in
 .Xr emacs 1
 command line editor (disables the
 .Fl V
-option if it has been set).
+option if it has been set;
+set automatically when interactive on terminals).
 .It Fl e Li errexit
 Exit immediately if any untested command fails in non-interactive mode.
 The exit status of a command is considered to be
@@ -1178,9 +1179,19 @@ consists of all characters until the matching
 .Ql } .
 Any
 .Ql }
-escaped by a backslash or within a quoted string, and characters in
+escaped by a backslash or within a single-quoted string, and characters in
 embedded arithmetic expansions, command substitutions, and variable
 expansions, are not examined in determining the matching
+.Ql } .
+Except for the variants with
+.Ql + ,
+.Ql - ,
+.Ql =
+or
+.Ql ?\& ,
+any
+.Ql }
+within a double-quoted string is also not examined in determining the matching
 .Ql } .
 .Pp
 The simplest form for parameter expansion is:
@@ -1265,6 +1276,14 @@ is substituted.
 In the parameter expansions shown previously, use of the colon in the
 format results in a test for a parameter that is unset or null; omission
 of the colon results in a test for a parameter that is only unset.
+.Pp
+The
+.Ar word
+inherits the type of quoting
+(unquoted, double-quoted or here-document)
+from the surroundings,
+with the exception that a backslash that quotes a closing brace is removed
+during quote removal.
 .Bl -tag -width indent
 .It Li ${# Ns Ar parameter Ns Li }
 String Length.
@@ -1571,10 +1590,12 @@ built-in command.
 .It Ic command Oo Fl p Oc Op Ar utility Op Ar argument ...
 .It Ic command Oo Fl v | V Oc Op Ar utility
 The first form of invocation executes the specified
+.Ar utility ,
+ignoring shell functions in the search.
+If
 .Ar utility
-as a simple command (see the
-.Sx Simple Commands
-section).
+is a special builtin,
+it is executed as if it were a regular builtin.
 .Pp
 If the
 .Fl p

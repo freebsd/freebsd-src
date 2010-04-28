@@ -34,11 +34,30 @@
 struct siba_softc;
 struct siba_dev_softc;
 
+enum siba_type {
+	SIBA_TYPE_SSB,
+	SIBA_TYPE_PCI,
+	SIBA_TYPE_PCMCIA,
+};
+
 enum siba_device_ivars {
 	SIBA_IVAR_VENDOR,
 	SIBA_IVAR_DEVICE,
 	SIBA_IVAR_REVID,
-	SIBA_IVAR_CORE_INDEX
+	SIBA_IVAR_CORE_INDEX,
+	SIBA_IVAR_PCI_VENDOR,
+	SIBA_IVAR_PCI_DEVICE,
+	SIBA_IVAR_PCI_SUBVENDOR,
+	SIBA_IVAR_PCI_SUBDEVICE,
+	SIBA_IVAR_PCI_REVID,
+	SIBA_IVAR_CHIPID,
+	SIBA_IVAR_CHIPREV,
+	SIBA_IVAR_CHIPPKG,
+	SIBA_IVAR_TYPE,
+	SIBA_IVAR_CC_PMUFREQ,
+	SIBA_IVAR_CC_CAPS,
+	SIBA_IVAR_CC_POWERDELAY,
+	SIBA_IVAR_PCICORE_REVID
 };
 
 #define	SIBA_ACCESSOR(var, ivar, type)				\
@@ -48,6 +67,19 @@ SIBA_ACCESSOR(vendor,		VENDOR,		uint16_t)
 SIBA_ACCESSOR(device,		DEVICE,		uint16_t)
 SIBA_ACCESSOR(revid,		REVID,		uint8_t)
 SIBA_ACCESSOR(core_index,	CORE_INDEX,	uint8_t)
+SIBA_ACCESSOR(pci_vendor,	PCI_VENDOR,	uint16_t)
+SIBA_ACCESSOR(pci_device,	PCI_DEVICE,	uint16_t)
+SIBA_ACCESSOR(pci_subvendor,	PCI_SUBVENDOR,	uint16_t)
+SIBA_ACCESSOR(pci_subdevice,	PCI_SUBDEVICE,	uint16_t)
+SIBA_ACCESSOR(pci_revid,	PCI_REVID,	uint8_t)
+SIBA_ACCESSOR(chipid,		CHIPID,		uint16_t)
+SIBA_ACCESSOR(chiprev,		CHIPREV,	uint16_t)
+SIBA_ACCESSOR(chippkg,		CHIPPKG,	uint8_t)
+SIBA_ACCESSOR(type,		TYPE,		enum siba_type)
+SIBA_ACCESSOR(cc_pmufreq,	CC_PMUFREQ,	uint32_t)
+SIBA_ACCESSOR(cc_caps,		CC_CAPS,	uint32_t)
+SIBA_ACCESSOR(cc_powerdelay,	CC_POWERDELAY,	uint16_t)
+SIBA_ACCESSOR(pcicore_revid,	PCICORE_REVID,	uint8_t)
 
 #undef SIBA_ACCESSOR
 
@@ -135,9 +167,9 @@ enum {
 	SIBA_WRITE_2((siba), (reg), SIBA_READ_2((siba), (reg)) & ~(bits))
 
 #define	SIBA_CC_READ32(scc, offset) \
-	siba_read_4((scc)->scc_dev, offset)
+	siba_read_4_sub((scc)->scc_dev, offset)
 #define	SIBA_CC_WRITE32(scc, offset, val) \
-	siba_write_4((scc)->scc_dev, offset, val)
+	siba_write_4_sub((scc)->scc_dev, offset, val)
 #define	SIBA_CC_MASK32(scc, offset, mask) \
 	SIBA_CC_WRITE32(scc, offset, SIBA_CC_READ32(scc, offset) & (mask))
 #define	SIBA_CC_SET32(scc, offset, set) \
@@ -145,12 +177,6 @@ enum {
 #define	SIBA_CC_MASKSET32(scc, offset, mask, set)	\
 	SIBA_CC_WRITE32(scc, offset,			\
 	    (SIBA_CC_READ32(scc, offset) & (mask)) | (set))
-
-enum siba_type {
-	SIBA_TYPE_SSB,
-	SIBA_TYPE_PCI,
-	SIBA_TYPE_PCMCIA,
-};
 
 enum siba_clock {
 	SIBA_CLOCK_DYNAMIC,
@@ -194,6 +220,152 @@ struct siba_cc_pmu_res_depend {
 	uint8_t			task;
 	uint32_t		depend;
 };
+
+enum siba_sprom_vars {
+	SIBA_SPROMVAR_REV,
+	SIBA_SPROMVAR_MAC_80211BG,
+	SIBA_SPROMVAR_MAC_ETH,
+	SIBA_SPROMVAR_MAC_80211A,
+	SIBA_SPROMVAR_MII_ETH0,
+	SIBA_SPROMVAR_MII_ETH1,
+	SIBA_SPROMVAR_MDIO_ETH0,
+	SIBA_SPROMVAR_MDIO_ETH1,
+	SIBA_SPROMVAR_BREV,
+	SIBA_SPROMVAR_CCODE,
+	SIBA_SPROMVAR_ANT_A,
+	SIBA_SPROMVAR_ANT_BG,
+	SIBA_SPROMVAR_PA0B0,
+	SIBA_SPROMVAR_PA0B1,
+	SIBA_SPROMVAR_PA0B2,
+	SIBA_SPROMVAR_PA1B0,
+	SIBA_SPROMVAR_PA1B1,
+	SIBA_SPROMVAR_PA1B2,
+	SIBA_SPROMVAR_PA1LOB0,
+	SIBA_SPROMVAR_PA1LOB1,
+	SIBA_SPROMVAR_PA1LOB2,
+	SIBA_SPROMVAR_PA1HIB0,
+	SIBA_SPROMVAR_PA1HIB1,
+	SIBA_SPROMVAR_PA1HIB2,
+	SIBA_SPROMVAR_GPIO0,
+	SIBA_SPROMVAR_GPIO1,
+	SIBA_SPROMVAR_GPIO2,
+	SIBA_SPROMVAR_GPIO3,
+	SIBA_SPROMVAR_MAXPWR_AL,
+	SIBA_SPROMVAR_MAXPWR_A,
+	SIBA_SPROMVAR_MAXPWR_AH,
+	SIBA_SPROMVAR_MAXPWR_BG,
+	SIBA_SPROMVAR_RXPO2G,
+	SIBA_SPROMVAR_RXPO5G,
+	SIBA_SPROMVAR_TSSI_A,
+	SIBA_SPROMVAR_TSSI_BG,
+	SIBA_SPROMVAR_TRI2G,
+	SIBA_SPROMVAR_TRI5GL,
+	SIBA_SPROMVAR_TRI5G,
+	SIBA_SPROMVAR_TRI5GH,
+	SIBA_SPROMVAR_RSSISAV2G,
+	SIBA_SPROMVAR_RSSISMC2G,
+	SIBA_SPROMVAR_RSSISMF2G,
+	SIBA_SPROMVAR_BXA2G,
+	SIBA_SPROMVAR_RSSISAV5G,
+	SIBA_SPROMVAR_RSSISMC5G,
+	SIBA_SPROMVAR_RSSISMF5G,
+	SIBA_SPROMVAR_BXA5G,
+	SIBA_SPROMVAR_CCK2GPO,
+	SIBA_SPROMVAR_OFDM2GPO,
+	SIBA_SPROMVAR_OFDM5GLPO,
+	SIBA_SPROMVAR_OFDM5GPO,
+	SIBA_SPROMVAR_OFDM5GHPO,
+	SIBA_SPROMVAR_BF_LO,
+	SIBA_SPROMVAR_BF_HI,
+	SIBA_SPROMVAR_BF2_LO,
+	SIBA_SPROMVAR_BF2_HI
+};
+
+int		siba_read_sprom(device_t, device_t, int, uintptr_t *);
+int		siba_write_sprom(device_t, device_t, int, uintptr_t);
+
+/**
+ * Generic sprom accessor generation macros for siba(4) drivers
+ */
+#define __SPROM_ACCESSOR(varp, var, ivarp, ivar, type)			\
+									\
+static __inline type varp ## _get_ ## var(device_t dev)			\
+{									\
+	uintptr_t v;							\
+	siba_read_sprom(device_get_parent(dev), dev,			\
+	    ivarp ## _SPROMVAR_ ## ivar, &v);				\
+	return ((type) v);						\
+}									\
+									\
+static __inline void varp ## _set_ ## var(device_t dev, type t)		\
+{									\
+	uintptr_t v = (uintptr_t) t;					\
+	siba_write_sprom(device_get_parent(dev), dev,			\
+	    ivarp ## _SPROMVAR_ ## ivar, v);				\
+}
+
+#define	SIBA_SPROM_ACCESSOR(var, ivar, type)				\
+	__SPROM_ACCESSOR(siba_sprom, var, SIBA, ivar, type)
+
+SIBA_SPROM_ACCESSOR(rev,	REV,		uint8_t);
+SIBA_SPROM_ACCESSOR(mac_80211bg,	MAC_80211BG,	uint8_t *);
+SIBA_SPROM_ACCESSOR(mac_eth,	MAC_ETH,	uint8_t *);
+SIBA_SPROM_ACCESSOR(mac_80211a,	MAC_80211A,	uint8_t *);
+SIBA_SPROM_ACCESSOR(mii_eth0,	MII_ETH0,	uint8_t);
+SIBA_SPROM_ACCESSOR(mii_eth1,	MII_ETH1,	uint8_t);
+SIBA_SPROM_ACCESSOR(mdio_eth0,	MDIO_ETH0,	uint8_t);
+SIBA_SPROM_ACCESSOR(mdio_eth1,	MDIO_ETH1,	uint8_t);
+SIBA_SPROM_ACCESSOR(brev,	BREV,		uint8_t);
+SIBA_SPROM_ACCESSOR(ccode,	CCODE,		uint8_t);
+SIBA_SPROM_ACCESSOR(ant_a,	ANT_A,		uint8_t);
+SIBA_SPROM_ACCESSOR(ant_bg,	ANT_BG,		uint8_t);
+SIBA_SPROM_ACCESSOR(pa0b0,	PA0B0,		uint16_t);
+SIBA_SPROM_ACCESSOR(pa0b1,	PA0B1,		uint16_t);
+SIBA_SPROM_ACCESSOR(pa0b2,	PA0B2,		uint16_t);
+SIBA_SPROM_ACCESSOR(pa1b0,	PA1B0,		uint16_t);
+SIBA_SPROM_ACCESSOR(pa1b1,	PA1B1,		uint16_t);
+SIBA_SPROM_ACCESSOR(pa1b2,	PA1B2,		uint16_t);
+SIBA_SPROM_ACCESSOR(pa1lob0,	PA1LOB0,	uint16_t);
+SIBA_SPROM_ACCESSOR(pa1lob1,	PA1LOB1,	uint16_t);
+SIBA_SPROM_ACCESSOR(pa1lob2,	PA1LOB2,	uint16_t);
+SIBA_SPROM_ACCESSOR(pa1hib0,	PA1HIB0,	uint16_t);
+SIBA_SPROM_ACCESSOR(pa1hib1,	PA1HIB1,	uint16_t);
+SIBA_SPROM_ACCESSOR(pa1hib2,	PA1HIB2,	uint16_t);
+SIBA_SPROM_ACCESSOR(gpio0,	GPIO0,		uint8_t);
+SIBA_SPROM_ACCESSOR(gpio1,	GPIO1,		uint8_t);
+SIBA_SPROM_ACCESSOR(gpio2,	GPIO2,		uint8_t);
+SIBA_SPROM_ACCESSOR(gpio3,	GPIO3,		uint8_t);
+SIBA_SPROM_ACCESSOR(maxpwr_al,	MAXPWR_AL,	uint16_t);
+SIBA_SPROM_ACCESSOR(maxpwr_a,	MAXPWR_A,	uint16_t);
+SIBA_SPROM_ACCESSOR(maxpwr_ah,	MAXPWR_AH,	uint16_t);
+SIBA_SPROM_ACCESSOR(maxpwr_bg,	MAXPWR_BG,	uint16_t);
+SIBA_SPROM_ACCESSOR(rxpo2g,	RXPO2G,		uint8_t);
+SIBA_SPROM_ACCESSOR(rxpo5g,	RXPO5G,		uint8_t);
+SIBA_SPROM_ACCESSOR(tssi_a,	TSSI_A,		uint8_t);
+SIBA_SPROM_ACCESSOR(tssi_bg,	TSSI_BG,	uint8_t);
+SIBA_SPROM_ACCESSOR(tri2g,	TRI2G,		uint8_t);
+SIBA_SPROM_ACCESSOR(tri5gl,	TRI5GL,		uint8_t);
+SIBA_SPROM_ACCESSOR(tri5g,	TRI5G,		uint8_t);
+SIBA_SPROM_ACCESSOR(tri5gh,	TRI5GH,		uint8_t);
+SIBA_SPROM_ACCESSOR(rssisav2g,	RSSISAV2G,	uint8_t);
+SIBA_SPROM_ACCESSOR(rssismc2g,	RSSISMC2G,	uint8_t);
+SIBA_SPROM_ACCESSOR(rssismf2g,	RSSISMF2G,	uint8_t);
+SIBA_SPROM_ACCESSOR(bxa2g,	BXA2G,		uint8_t);
+SIBA_SPROM_ACCESSOR(rssisav5g,	RSSISAV5G,	uint8_t);
+SIBA_SPROM_ACCESSOR(rssismc5g,	RSSISMC5G,	uint8_t);
+SIBA_SPROM_ACCESSOR(rssismf5g,	RSSISMF5G,	uint8_t);
+SIBA_SPROM_ACCESSOR(bxa5g,	BXA5G,		uint8_t);
+SIBA_SPROM_ACCESSOR(cck2gpo,	CCK2GPO,	uint16_t);
+SIBA_SPROM_ACCESSOR(ofdm2gpo,	OFDM2GPO,	uint32_t);
+SIBA_SPROM_ACCESSOR(ofdm5glpo,	OFDM5GLPO,	uint32_t);
+SIBA_SPROM_ACCESSOR(ofdm5gpo,	OFDM5GPO,	uint32_t);
+SIBA_SPROM_ACCESSOR(ofdm5ghpo,	OFDM5GHPO,	uint32_t);
+SIBA_SPROM_ACCESSOR(bf_lo,	BF_LO,		uint16_t);
+SIBA_SPROM_ACCESSOR(bf_hi,	BF_HI,		uint16_t);
+SIBA_SPROM_ACCESSOR(bf2_lo,	BF2_LO,		uint16_t);
+SIBA_SPROM_ACCESSOR(bf2_hi,	BF2_HI,		uint16_t);
+
+#undef SIBA_SPROM_ACCESSOR
 
 struct siba_sprom {
 	uint8_t			rev;		/* revision */
@@ -358,6 +530,7 @@ struct siba_softc {
 	uint16_t			siba_pci_did;
 	uint16_t			siba_pci_subvid;
 	uint16_t			siba_pci_subdid;
+	uint8_t				siba_pci_revid;
 	int				siba_mem_rid;
 
 	uint16_t			siba_chipid;	/* for CORE 0 */
@@ -368,41 +541,32 @@ struct siba_softc {
 	struct siba_pci			siba_pci;	/* PCI-core */
 	const struct siba_bus_ops	*siba_ops;
 
-	/* board informations */
-	uint16_t			siba_board_vendor;
-	uint16_t			siba_board_type;
-	uint16_t			siba_board_rev;
 	struct siba_sprom		siba_sprom;	/* SPROM */
 	uint16_t			siba_spromsize;	/* in word size */
 };
 
-void		siba_powerup(struct siba_softc *, int);
-uint16_t	siba_read_2(struct siba_dev_softc *, uint16_t);
-void		siba_write_2(struct siba_dev_softc *, uint16_t, uint16_t);
-uint32_t	siba_read_4(struct siba_dev_softc *, uint16_t);
-void		siba_write_4(struct siba_dev_softc *, uint16_t, uint32_t);
-void		siba_dev_up(struct siba_dev_softc *, uint32_t);
-void		siba_dev_down(struct siba_dev_softc *, uint32_t);
-int		siba_powerdown(struct siba_softc *);
-int		siba_dev_isup(struct siba_dev_softc *);
-void		siba_pcicore_intr(struct siba_pci *, struct siba_dev_softc *);
-uint32_t	siba_dma_translation(struct siba_dev_softc *);
-void		*siba_dma_alloc_consistent(struct siba_dev_softc *, size_t,
-		    bus_addr_t *);
-void		siba_read_multi_1(struct siba_dev_softc *, void *, size_t,
-		    uint16_t);
-void		siba_read_multi_2(struct siba_dev_softc *, void *, size_t,
-		    uint16_t);
-void		siba_read_multi_4(struct siba_dev_softc *, void *, size_t,
-		    uint16_t);
-void		siba_write_multi_1(struct siba_dev_softc *, const void *,
-		    size_t, uint16_t);
-void		siba_write_multi_2(struct siba_dev_softc *, const void *,
-		    size_t, uint16_t);
-void		siba_write_multi_4(struct siba_dev_softc *, const void *,
-		    size_t, uint16_t);
-void		siba_barrier(struct siba_dev_softc *, int);
-void		siba_cc_pmu_set_ldovolt(struct siba_cc *, int, uint32_t);
-void		siba_cc_pmu_set_ldoparef(struct siba_cc *, uint8_t);
+void		siba_powerup(device_t, int);
+int		siba_powerdown(device_t);
+uint16_t	siba_read_2(device_t, uint16_t);
+void		siba_write_2(device_t, uint16_t, uint16_t);
+uint32_t	siba_read_4(device_t, uint16_t);
+void		siba_write_4(device_t, uint16_t, uint32_t);
+void		siba_dev_up(device_t, uint32_t);
+void		siba_dev_down(device_t, uint32_t);
+int		siba_dev_isup(device_t);
+void		siba_pcicore_intr(device_t);
+uint32_t	siba_dma_translation(device_t);
+void		siba_read_multi_1(device_t, void *, size_t, uint16_t);
+void		siba_read_multi_2(device_t, void *, size_t, uint16_t);
+void		siba_read_multi_4(device_t, void *, size_t, uint16_t);
+void		siba_write_multi_1(device_t, const void *, size_t, uint16_t);
+void		siba_write_multi_2(device_t, const void *, size_t, uint16_t);
+void		siba_write_multi_4(device_t, const void *, size_t, uint16_t);
+void		siba_barrier(device_t, int);
+void		siba_cc_pmu_set_ldovolt(device_t, int, uint32_t);
+void		siba_cc_pmu_set_ldoparef(device_t, uint8_t);
+void		siba_gpio_set(device_t, uint32_t);
+uint32_t	siba_gpio_get(device_t);
+void		siba_fix_imcfglobug(device_t);
 
 #endif /* _SIBA_SIBAVAR_H_ */

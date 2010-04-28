@@ -93,8 +93,11 @@ procargs(int argc, char **argv)
 	options(1);
 	if (*argptr == NULL && minusc == NULL)
 		sflag = 1;
-	if (iflag == 2 && sflag == 1 && isatty(0) && isatty(1))
+	if (iflag != 0 && sflag == 1 && isatty(0) && isatty(1)) {
 		iflag = 1;
+		if (Eflag == 2)
+			Eflag = 1;
+	}
 	if (mflag == 2)
 		mflag = iflag;
 	for (i = 0; i < NOPTS; i++)

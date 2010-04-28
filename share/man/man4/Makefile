@@ -350,6 +350,7 @@ MAN=	aac.4 \
 	sem.4 \
 	ses.4 \
 	sf.4 \
+	sge.4 \
 	si.4 \
 	siba.4 \
 	sio.4 \

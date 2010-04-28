@@ -67,6 +67,7 @@ cperciva [label="Colin Percival\ncperciva@FreeBSD.org\n2006/01/31"]
 daichi [label="Daichi Goto\ndaichi@FreeBSD.org\n2002/10/17"]
 danfe [label="Alexey Dokuchaev\ndanfe@FreeBSD.org\n2004/08/20"]
 db [label="Diane Bruce\ndb@FreeBSD.org\n2007/01/18"]
+decke [label="Bernhard Froehlich\ndecke@FreeBSD.org\n2010/03/21"]
 delphij [label="Xin Li\ndelphij@FreeBSD.org\n2006/05/01"]
 demon [label="Dmitry Sivachenko\ndemon@FreeBSD.org\n2000/11/13"]
 dryice [label="Dryice Dong Liu\ndryice@FreeBSD.org\n2006/12/25"]
@@ -76,6 +77,7 @@ eik [label="Oliver Eikemeier\neik@FreeBSD.org\n2003/11/12"]
 erwin [label="Erwin Lansing\nerwin@FreeBSD.org\n2003/06/04"]
 farrokhi [label="Babak Farrokhi\nfarrokhi@FreeBSD.org\n2006/11/07"]
 fjoe [label="Max Khon\nfjoe@FreeBSD.org\n2001/08/06"]
+fluffy [label="Dima Panov\nfluffy@FreeBSD.org\n2009/08/10"]
 flz [label="Florent Thoumie\nflz@FreeBSD.org\n2005/03/01"]
 gabor [label="Gabor Kovesdan\ngabor@FreeBSD.org\n2006/12/05"]
 gahr [label="Pietro Cerutti\ngahr@FreeBSD.org\n2008/02/20"]
@@ -85,6 +87,7 @@ glewis [label="Greg Lewis\nglewis@FreeBSD.org\n2002/04/08"]
 hq [label="Herve Quiroz\nhq@FreeBSD.org\n2004/08/05"]
 ijliao [label="Ying-Chieh Liao\nijliao@FreeBSD.org\n2001/01/20"]
 itetcu [label="Ion-Mihai Tetcu\nitetcu@FreeBSD.org\n2006/06/07"]
+jacula [label="Giuseppe Pilichi\njacula@FreeBSD.org\n2010/04/05"]
 jadawin [label="Philippe Audeoud\njadawin@FreeBSD.org\n2008/03/02"]
 jkim [label="Jung-uk Kim\njkim@FreeBSD.org\n2007/09/12"]
 jmelo [label="Jean Milanez Melo\njmelo@FreeBSD.org\n2006/03/31"]
@@ -134,8 +137,10 @@ pgj [label="Gabor Pali\npgj@FreeBSD.org\n2009/04/12"]
 philip [label="Philip Paeps\nphilip@FreeBSD.org\n2005/10/19"]
 pgollucci [label="Philip M. Gollucci\npgollucci@FreeBSD.org\n2008/07/21"]
 rafan [label="Rong-En Fan\nrafan@FreeBSD.org\n2006/06/23"]
+rene [label="Rene Ladan\nrene@FreeBSD.org\n2010/04/11"]
 rnoland [label="Robert Noland\nrnoland@FreeBSD.org\n2008/07/21"]
 romain [label="Romain Tartiere\nromain@FreeBSD.org\n2010/01/24"]
+sahil [label="Sahil Tandon\nsahil@FreeBSD.org\n2010/04/11"]
 sat [label="Andrew Pantyukhin\nsat@FreeBSD.org\n2006/05/06"]
 sem [label="Sergey Matveychuk\nsem@FreeBSD.org\n2004/07/07"]
 sergei [label="Sergei Kolobov\nsergei@FreeBSD.org\n2003/10/21"]
@@ -180,6 +185,8 @@ arved -> markus
 arved -> stefan
 
 asami -> obrien
+
+beat -> decke
 
 beech -> glarkin
 beech -> mva
@@ -245,6 +252,7 @@ ijliao -> leeym
 
 itetcu -> araujo
 itetcu -> dryice
+itetcu -> sahil
 
 joerg -> netchild
 
@@ -283,7 +291,9 @@ mezz -> tmclaugh
 miwi -> amdmi3
 miwi -> avilla
 miwi -> beat
+miwi -> decke
 miwi -> farrokhi
+miwi -> fluffy
 miwi -> gahr
 miwi -> makc
 miwi -> mandree
@@ -312,6 +322,8 @@ pav -> josef
 pav -> kwm
 pav -> mnag
 
+pgj -> jacula
+
 philip -> koitsu
 
 rafan -> chinsan
@@ -337,8 +349,11 @@ steve -> netchild
 
 tabthorpe -> avilla
 tabthorpe -> avl
+tabthorpe -> fluffy
+tabthorpe -> jacula
 tabthorpe -> jadawin
 tabthorpe -> pgj
+tabthorpe -> rene
 
 thierry -> jadawin
 
@@ -347,6 +362,7 @@ tmclaugh -> xride
 
 will -> lioux
 
+wxs -> sahil
 wxs -> skreuzer
 
 }

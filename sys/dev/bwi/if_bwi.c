@@ -64,8 +64,8 @@ __FBSDID("$FreeBSD$");
 #include <net80211/ieee80211_var.h>
 #include <net80211/ieee80211_radiotap.h>
 #include <net80211/ieee80211_regdomain.h>
-#include <net80211/ieee80211_amrr.h>
 #include <net80211/ieee80211_phy.h>
+#include <net80211/ieee80211_ratectl.h>
 
 #include <net/bpf.h>
 
@@ -112,9 +112,6 @@ static void	bwi_set_channel(struct ieee80211com *);
 static void	bwi_scan_end(struct ieee80211com *);
 static int	bwi_newstate(struct ieee80211vap *, enum ieee80211_state, int);
 static void	bwi_updateslot(struct ifnet *);
-static struct ieee80211_node *bwi_node_alloc(struct ieee80211vap *,
-		    const uint8_t [IEEE80211_ADDR_LEN]);
-static void	bwi_newassoc(struct ieee80211_node *, int);
 static int	bwi_media_change(struct ifnet *);
 
 static void	bwi_calibrate(void *);
@@ -525,7 +522,6 @@ bwi_attach(struct bwi_softc *sc)
 	ic->ic_vap_delete = bwi_vap_delete;
 	ic->ic_raw_xmit = bwi_raw_xmit;
 	ic->ic_updateslot = bwi_updateslot;
-	ic->ic_node_alloc = bwi_node_alloc;
 	ic->ic_scan_start = bwi_scan_start;
 	ic->ic_scan_end = bwi_scan_end;
 	ic->ic_set_channel = bwi_set_channel;
@@ -621,10 +617,7 @@ bwi_vap_create(struct ieee80211com *ic,
 #if 0
 	vap->iv_update_beacon = bwi_beacon_update;
 #endif
-	ieee80211_amrr_init(&bvp->bv_amrr, vap,
-	    IEEE80211_AMRR_MIN_SUCCESS_THRESHOLD,
-	    IEEE80211_AMRR_MAX_SUCCESS_THRESHOLD,
-	    500 /*ms*/);
+	ieee80211_ratectl_init(vap);
 
 	/* complete setup */
 	ieee80211_vap_attach(vap, bwi_media_change, ieee80211_media_status);
@@ -637,7 +630,7 @@ bwi_vap_delete(struct ieee80211vap *vap)
 {
 	struct bwi_vap *bvp = BWI_VAP(vap);
 
-	ieee80211_amrr_cleanup(&bvp->bv_amrr);
+	ieee80211_ratectl_deinit(vap);
 	ieee80211_vap_detach(vap);
 	free(bvp, M_80211_VAP);
 }
@@ -1831,7 +1824,7 @@ bwi_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 #endif
 		if (vap->iv_opmode == IEEE80211_M_STA) {
 			/* fake a join to init the tx rate */
-			bwi_newassoc(ni, 1);
+			ic->ic_newassoc(ni, 1);
 		}
 
 		callout_reset(&sc->sc_calib_ch, hz, bwi_calibrate, sc);
@@ -1840,25 +1833,6 @@ back:
 	BWI_UNLOCK(sc);
 
 	return error;
-}
-
-/* ARGUSED */
-static struct ieee80211_node *
-bwi_node_alloc(struct ieee80211vap *vap, const uint8_t mac[IEEE80211_ADDR_LEN])
-{
-	struct bwi_node *bn;
-
-	bn = malloc(sizeof(struct bwi_node), M_80211_NODE, M_NOWAIT | M_ZERO);
-	return bn != NULL ? &bn->ni : NULL;
-}
-
-static void
-bwi_newassoc(struct ieee80211_node *ni, int isnew)
-{
-	struct ieee80211vap *vap = ni->ni_vap;
-
-	ieee80211_amrr_node_init(&BWI_VAP(vap)->bv_amrr,
-	    &BWI_NODE(ni)->amn, ni);
 }
 
 static int
@@ -3012,7 +2986,7 @@ bwi_encap(struct bwi_softc *sc, int idx, struct mbuf *m,
 	} else if (tp->ucastrate != IEEE80211_FIXED_RATE_NONE) {
 		rate = rate_fb = tp->ucastrate;
 	} else {
-		rix = ieee80211_amrr_choose(ni, &BWI_NODE(ni)->amn);
+		rix = ieee80211_ratectl_rate(ni, NULL, pkt_len);
 		rate = ni->ni_txrate;
 
 		if (rix > 0) {
@@ -3369,6 +3343,7 @@ _bwi_txeof(struct bwi_softc *sc, uint16_t tx_id, int acked, int data_txcnt)
 	struct bwi_txbuf *tb;
 	int ring_idx, buf_idx;
 	struct ieee80211_node *ni;
+	struct ieee80211vap *vap;
 
 	if (tx_id == 0) {
 		if_printf(ifp, "%s: zero tx id\n", __func__);
@@ -3394,9 +3369,9 @@ _bwi_txeof(struct bwi_softc *sc, uint16_t tx_id, int acked, int data_txcnt)
 
 	ni = tb->tb_ni;
 	if (tb->tb_ni != NULL) {
-		struct bwi_node *bn = (struct bwi_node *) tb->tb_ni;
 		const struct bwi_txbuf_hdr *hdr =
 		    mtod(tb->tb_mbuf, const struct bwi_txbuf_hdr *);
+		vap = ni->ni_vap;
 
 		/* NB: update rate control only for unicast frames */
 		if (hdr->txh_mac_ctrl & htole32(BWI_TXH_MAC_C_ACK)) {
@@ -3407,8 +3382,9 @@ _bwi_txeof(struct bwi_softc *sc, uint16_t tx_id, int acked, int data_txcnt)
 			 * well so to avoid over-aggressive downshifting we
 			 * treat any number of retries as "1".
 			 */
-			ieee80211_amrr_tx_complete(&bn->amn, acked,
-			    data_txcnt > 1);
+			ieee80211_ratectl_tx_complete(vap, ni,
+			    (data_txcnt > 1) ? IEEE80211_RATECTL_TX_SUCCESS :
+			        IEEE80211_RATECTL_TX_FAILURE, &acked, NULL);
 		}
 
 		/*

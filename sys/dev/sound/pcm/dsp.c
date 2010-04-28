@@ -1071,6 +1071,7 @@ dsp_ioctl(struct cdev *i_dev, u_long cmd, caddr_t arg, int mode,
 	if (IOCGROUP(cmd) == 'M') {
 		if (cmd == OSS_GETVERSION) {
 			*arg_i = SOUND_VERSION;
+			PCM_GIANT_EXIT(d);
 			return (0);
 		}
 		ret = dsp_ioctl_channel(i_dev, PCM_VOLCH(i_dev), cmd, arg);

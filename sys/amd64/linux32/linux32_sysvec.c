@@ -34,8 +34,8 @@
 __FBSDID("$FreeBSD$");
 #include "opt_compat.h"
 
-#ifndef COMPAT_IA32
-#error "Unable to compile Linux-emulator due to missing COMPAT_IA32 option!"
+#ifndef COMPAT_FREEBSD32
+#error "Unable to compile Linux-emulator due to missing COMPAT_FREEBSD32 option!"
 #endif
 
 #define	__ELF_WORD_SIZE	32
@@ -124,8 +124,8 @@ static register_t *linux_copyout_strings(struct image_params *imgp);
 static void	linux_prepsyscall(struct trapframe *tf, int *args, u_int *code,
 		    caddr_t *params);
 static void     linux_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask);
-static void	exec_linux_setregs(struct thread *td, u_long entry,
-				   u_long stack, u_long ps_strings);
+static void	exec_linux_setregs(struct thread *td, 
+				   struct image_params *imgp, u_long stack);
 static void	linux32_fixlimit(struct rlimit *rl, int which);
 static boolean_t linux32_trans_osrel(const Elf_Note *note, int32_t *osrel);
 
@@ -828,11 +828,7 @@ exec_linux_imgact_try(struct image_params *imgp)
  * XXX copied from ia32_signal.c.
  */
 static void
-exec_linux_setregs(td, entry, stack, ps_strings)
-	struct thread *td;
-	u_long entry;
-	u_long stack;
-	u_long ps_strings;
+exec_linux_setregs(struct thread *td, struct image_params *imgp, u_long stack)
 {
 	struct trapframe *regs = td->td_frame;
 	struct pcb *pcb = td->td_pcb;
@@ -852,7 +848,7 @@ exec_linux_setregs(td, entry, stack, ps_strings)
 	pcb->pcb_initial_fpucw = __LINUX_NPXCW__;
 
 	bzero((char *)regs, sizeof(struct trapframe));
-	regs->tf_rip = entry;
+	regs->tf_rip = imgp->entry_addr;
 	regs->tf_rsp = stack;
 	regs->tf_rflags = PSL_USER | (regs->tf_rflags & PSL_T);
 	regs->tf_gs = _ugssel;
@@ -862,7 +858,7 @@ exec_linux_setregs(td, entry, stack, ps_strings)
 	regs->tf_ss = _udatasel;
 	regs->tf_flags = TF_HASSEGS;
 	regs->tf_cs = _ucode32sel;
-	regs->tf_rbx = ps_strings;
+	regs->tf_rbx = imgp->ps_strings;
 	td->td_pcb->pcb_full_iret = 1;
 	load_cr0(rcr0() | CR0_MP | CR0_TS);
 	fpstate_drop(td);

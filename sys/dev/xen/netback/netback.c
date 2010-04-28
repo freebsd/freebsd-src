@@ -302,7 +302,7 @@ fixup_checksum(struct mbuf *m)
 		m->m_pkthdr.csum_flags &= ~CSUM_TCP;
 #ifdef SCTP
 	} else if (sw_csum & CSUM_SCTP) {
-		sctp_delayed_cksum(m);
+		sctp_delayed_cksum(m, iphlen);
 		sw_csum &= ~CSUM_SCTP;
 #endif
 	} else {

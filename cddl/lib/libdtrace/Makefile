@@ -1,12 +1,9 @@
 # $FreeBSD$
 
-.include	"../../Makefile.inc"
+.PATH: ${.CURDIR}/../../../cddl/contrib/opensolaris/lib/libdtrace/common
+.PATH: ${.CURDIR}/../../../cddl/contrib/opensolaris/lib/libgen/common
 
 LIB=		dtrace
-SHLIB_MAJOR=	2
-
-WARNS=		1
-
 SRCS=		dt_aggregate.c \
 		dt_as.c \
 		dt_buf.c \
@@ -51,8 +48,7 @@ DSRCS=		errno.d			\
 		signal.d		\
 		unistd.d
 
-.PATH:		${OPENSOLARIS_USR_DISTDIR}/lib/libdtrace/common
-.PATH:		${OPENSOLARIS_USR_DISTDIR}/lib/libgen/common
+WARNS?=		1
 
 CFLAGS+=	-I${.OBJDIR} \
 		-I${.CURDIR}/../../../sys/cddl/compat/opensolaris \

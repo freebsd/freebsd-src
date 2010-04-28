@@ -916,6 +916,7 @@ AcpiUtInitGlobals (
 
     /* Miscellaneous variables */
 
+    AcpiGbl_DSDT                        = NULL;
     AcpiGbl_CmSingleStep                = FALSE;
     AcpiGbl_DbTerminateThreads          = FALSE;
     AcpiGbl_Shutdown                    = FALSE;

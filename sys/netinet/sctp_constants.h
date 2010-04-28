@@ -544,13 +544,7 @@ __FBSDID("$FreeBSD$");
 #define SCTP_INITIAL_MAPPING_ARRAY  16
 /* how much we grow the mapping array each call */
 #define SCTP_MAPPING_ARRAY_INCR     32
-/* EY 05/13/08 - nr_sack version of the previous 3 constants */
-/* Maximum the nr mapping array will  grow to (TSN mapping array) */
-#define SCTP_NR_MAPPING_ARRAY	512
-/* size of the inital malloc on the nr mapping array */
-#define SCTP_INITIAL_NR_MAPPING_ARRAY  16
-/* how much we grow the nr mapping array each call */
-#define SCTP_NR_MAPPING_ARRAY_INCR     32
+
 /*
  * Here we define the timer types used by the implementation as arguments in
  * the set/get timer type calls.
@@ -933,6 +927,13 @@ __FBSDID("$FreeBSD$");
 #define SCTP_IS_TSN_PRESENT(arry, gap) ((arry[(gap >> 3)] >> (gap & 0x07)) & 0x01)
 #define SCTP_SET_TSN_PRESENT(arry, gap) (arry[(gap >> 3)] |= (0x01 << ((gap & 0x07))))
 #define SCTP_UNSET_TSN_PRESENT(arry, gap) (arry[(gap >> 3)] &= ((~(0x01 << ((gap & 0x07)))) & 0xff))
+#define SCTP_CALC_TSN_TO_GAP(gap, tsn, mapping_tsn) do { \
+	                if (tsn >= mapping_tsn) { \
+						gap = tsn - mapping_tsn; \
+					} else { \
+						gap = (MAX_TSN - mapping_tsn) + tsn + 1; \
+					} \
+                  } while(0)
 
 
 #define SCTP_RETRAN_DONE -1

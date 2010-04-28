@@ -261,7 +261,6 @@ ASL_EXTERN FILE                     *AcpiGbl_DebugFile; /* Placeholder for oswin
 
 ASL_EXTERN ASL_ANALYSIS_WALK_INFO   AnalysisWalkInfo;
 ASL_EXTERN ACPI_TABLE_HEADER        TableHeader;
-extern const ASL_RESERVED_INFO      ReservedMethods[];
 
 /* Event timing */
 
