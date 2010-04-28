@@ -184,7 +184,7 @@ AcpiTbTablesLoaded (
     void)
 {
 
-    if (AcpiGbl_RootTableList.Count >= 3)
+    if (AcpiGbl_RootTableList.CurrentTableCount >= 3)
     {
         return (TRUE);
     }
@@ -780,14 +780,15 @@ AcpiTbParseRootTable (
      * come from the FADT
      */
     TableEntry = ACPI_CAST_PTR (UINT8, Table) + sizeof (ACPI_TABLE_HEADER);
-    AcpiGbl_RootTableList.Count = 2;
+    AcpiGbl_RootTableList.CurrentTableCount = 2;
 
     /*
      * Initialize the root table array from the RSDT/XSDT
      */
     for (i = 0; i < TableCount; i++)
     {
-        if (AcpiGbl_RootTableList.Count >= AcpiGbl_RootTableList.Size)
+        if (AcpiGbl_RootTableList.CurrentTableCount >=
+            AcpiGbl_RootTableList.MaxTableCount)
         {
             /* There is no more room in the root table array, attempt resize */
 
@@ -796,18 +797,18 @@ AcpiTbParseRootTable (
             {
                 ACPI_WARNING ((AE_INFO, "Truncating %u table entries!",
                     (unsigned) (TableCount -
-                    (AcpiGbl_RootTableList.Count - 2))));
+                    (AcpiGbl_RootTableList.CurrentTableCount - 2))));
                 break;
             }
         }
 
         /* Get the table physical address (32-bit for RSDT, 64-bit for XSDT) */
 
-        AcpiGbl_RootTableList.Tables[AcpiGbl_RootTableList.Count].Address =
+        AcpiGbl_RootTableList.Tables[AcpiGbl_RootTableList.CurrentTableCount].Address =
             AcpiTbGetRootTableEntry (TableEntry, TableEntrySize);
 
         TableEntry += TableEntrySize;
-        AcpiGbl_RootTableList.Count++;
+        AcpiGbl_RootTableList.CurrentTableCount++;
     }
 
     /*
@@ -820,7 +821,7 @@ AcpiTbParseRootTable (
      * Complete the initialization of the root table array by examining
      * the header of each table
      */
-    for (i = 2; i < AcpiGbl_RootTableList.Count; i++)
+    for (i = 2; i < AcpiGbl_RootTableList.CurrentTableCount; i++)
     {
         AcpiTbInstallTable (AcpiGbl_RootTableList.Tables[i].Address,
             NULL, i);

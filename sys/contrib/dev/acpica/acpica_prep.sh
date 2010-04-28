@@ -19,7 +19,7 @@ fulldirs="common compiler debugger disassembler dispatcher events	\
 	tools utilities"
 
 # files to remove
-stripdirs="acpisrc acpixtract examples generate os_specific"
+stripdirs="acpisrc acpixtract examples generate os_specific tests"
 stripfiles="Makefile README acintel.h aclinux.h acmsvc.h acnetbsd.h	\
 	acos2.h accygwin.h acefi.h acwin.h acwin64.h aeexec.c		\
 	aehandlers.c aemain.c aetables.c osunixdir.c readme.txt		\

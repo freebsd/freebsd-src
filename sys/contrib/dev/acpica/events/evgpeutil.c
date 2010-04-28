@@ -1,7 +1,6 @@
-
 /******************************************************************************
  *
- * Module Name: exsystem - Interface to OS services
+ * Module Name: evgpeutil - GPE utilities
  *
  *****************************************************************************/
 
@@ -114,305 +113,340 @@
  *
  *****************************************************************************/
 
-#define __EXSYSTEM_C__
+
 
 #include <contrib/dev/acpica/include/acpi.h>
 #include <contrib/dev/acpica/include/accommon.h>
-#include <contrib/dev/acpica/include/acinterp.h>
+#include <contrib/dev/acpica/include/acevents.h>
 
-#define _COMPONENT          ACPI_EXECUTER
-        ACPI_MODULE_NAME    ("exsystem")
-
-
-/*******************************************************************************
- *
- * FUNCTION:    AcpiExSystemWaitSemaphore
- *
- * PARAMETERS:  Semaphore       - Semaphore to wait on
- *              Timeout         - Max time to wait
- *
- * RETURN:      Status
- *
- * DESCRIPTION: Implements a semaphore wait with a check to see if the
- *              semaphore is available immediately.  If it is not, the
- *              interpreter is released before waiting.
- *
- ******************************************************************************/
-
-ACPI_STATUS
-AcpiExSystemWaitSemaphore (
-    ACPI_SEMAPHORE          Semaphore,
-    UINT16                  Timeout)
-{
-    ACPI_STATUS             Status;
-
-
-    ACPI_FUNCTION_TRACE (ExSystemWaitSemaphore);
-
-
-    Status = AcpiOsWaitSemaphore (Semaphore, 1, ACPI_DO_NOT_WAIT);
-    if (ACPI_SUCCESS (Status))
-    {
-        return_ACPI_STATUS (Status);
-    }
-
-    if (Status == AE_TIME)
-    {
-        /* We must wait, so unlock the interpreter */
-
-        AcpiExRelinquishInterpreter ();
-
-        Status = AcpiOsWaitSemaphore (Semaphore, 1, Timeout);
-
-        ACPI_DEBUG_PRINT ((ACPI_DB_EXEC,
-            "*** Thread awake after blocking, %s\n",
-            AcpiFormatException (Status)));
-
-        /* Reacquire the interpreter */
-
-       AcpiExReacquireInterpreter ();
-    }
-
-    return_ACPI_STATUS (Status);
-}
+#define _COMPONENT          ACPI_EVENTS
+        ACPI_MODULE_NAME    ("evgpeutil")
 
 
 /*******************************************************************************
  *
- * FUNCTION:    AcpiExSystemWaitMutex
+ * FUNCTION:    AcpiEvWalkGpeList
  *
- * PARAMETERS:  Mutex           - Mutex to wait on
- *              Timeout         - Max time to wait
+ * PARAMETERS:  GpeWalkCallback     - Routine called for each GPE block
+ *              Context             - Value passed to callback
  *
  * RETURN:      Status
  *
- * DESCRIPTION: Implements a mutex wait with a check to see if the
- *              mutex is available immediately.  If it is not, the
- *              interpreter is released before waiting.
+ * DESCRIPTION: Walk the GPE lists.
  *
  ******************************************************************************/
 
 ACPI_STATUS
-AcpiExSystemWaitMutex (
-    ACPI_MUTEX              Mutex,
-    UINT16                  Timeout)
+AcpiEvWalkGpeList (
+    ACPI_GPE_CALLBACK       GpeWalkCallback,
+    void                    *Context)
 {
-    ACPI_STATUS             Status;
-
-
-    ACPI_FUNCTION_TRACE (ExSystemWaitMutex);
-
-
-    Status = AcpiOsAcquireMutex (Mutex, ACPI_DO_NOT_WAIT);
-    if (ACPI_SUCCESS (Status))
-    {
-        return_ACPI_STATUS (Status);
-    }
-
-    if (Status == AE_TIME)
-    {
-        /* We must wait, so unlock the interpreter */
-
-        AcpiExRelinquishInterpreter ();
-
-        Status = AcpiOsAcquireMutex (Mutex, Timeout);
-
-        ACPI_DEBUG_PRINT ((ACPI_DB_EXEC,
-            "*** Thread awake after blocking, %s\n",
-            AcpiFormatException (Status)));
-
-        /* Reacquire the interpreter */
-
-        AcpiExReacquireInterpreter ();
-    }
-
-    return_ACPI_STATUS (Status);
-}
-
-
-/*******************************************************************************
- *
- * FUNCTION:    AcpiExSystemDoStall
- *
- * PARAMETERS:  HowLong         - The amount of time to stall,
- *                                in microseconds
- *
- * RETURN:      Status
- *
- * DESCRIPTION: Suspend running thread for specified amount of time.
- *              Note: ACPI specification requires that Stall() does not
- *              relinquish the processor, and delays longer than 100 usec
- *              should use Sleep() instead.  We allow stalls up to 255 usec
- *              for compatibility with other interpreters and existing BIOSs.
- *
- ******************************************************************************/
-
-ACPI_STATUS
-AcpiExSystemDoStall (
-    UINT32                  HowLong)
-{
+    ACPI_GPE_BLOCK_INFO     *GpeBlock;
+    ACPI_GPE_XRUPT_INFO     *GpeXruptInfo;
     ACPI_STATUS             Status = AE_OK;
+    ACPI_CPU_FLAGS          Flags;
+
+
+    ACPI_FUNCTION_TRACE (EvWalkGpeList);
+
+
+    Flags = AcpiOsAcquireLock (AcpiGbl_GpeLock);
+
+    /* Walk the interrupt level descriptor list */
+
+    GpeXruptInfo = AcpiGbl_GpeXruptListHead;
+    while (GpeXruptInfo)
+    {
+        /* Walk all Gpe Blocks attached to this interrupt level */
+
+        GpeBlock = GpeXruptInfo->GpeBlockListHead;
+        while (GpeBlock)
+        {
+            /* One callback per GPE block */
+
+            Status = GpeWalkCallback (GpeXruptInfo, GpeBlock, Context);
+            if (ACPI_FAILURE (Status))
+            {
+                if (Status == AE_CTRL_END) /* Callback abort */
+                {
+                    Status = AE_OK;
+                }
+                goto UnlockAndExit;
+            }
+
+            GpeBlock = GpeBlock->Next;
+        }
+
+        GpeXruptInfo = GpeXruptInfo->Next;
+    }
+
+UnlockAndExit:
+    AcpiOsReleaseLock (AcpiGbl_GpeLock, Flags);
+    return_ACPI_STATUS (Status);
+}
+
+
+/*******************************************************************************
+ *
+ * FUNCTION:    AcpiEvValidGpeEvent
+ *
+ * PARAMETERS:  GpeEventInfo                - Info for this GPE
+ *
+ * RETURN:      TRUE if the GpeEvent is valid
+ *
+ * DESCRIPTION: Validate a GPE event. DO NOT CALL FROM INTERRUPT LEVEL.
+ *              Should be called only when the GPE lists are semaphore locked
+ *              and not subject to change.
+ *
+ ******************************************************************************/
+
+BOOLEAN
+AcpiEvValidGpeEvent (
+    ACPI_GPE_EVENT_INFO     *GpeEventInfo)
+{
+    ACPI_GPE_XRUPT_INFO     *GpeXruptBlock;
+    ACPI_GPE_BLOCK_INFO     *GpeBlock;
 
 
     ACPI_FUNCTION_ENTRY ();
 
 
-    if (HowLong > 255) /* 255 microseconds */
+    /* No need for spin lock since we are not changing any list elements */
+
+    /* Walk the GPE interrupt levels */
+
+    GpeXruptBlock = AcpiGbl_GpeXruptListHead;
+    while (GpeXruptBlock)
     {
-        /*
-         * Longer than 255 usec, this is an error
-         *
-         * (ACPI specifies 100 usec as max, but this gives some slack in
-         * order to support existing BIOSs)
-         */
-        ACPI_ERROR ((AE_INFO, "Time parameter is too large (%u)",
-            HowLong));
-        Status = AE_AML_OPERAND_VALUE;
+        GpeBlock = GpeXruptBlock->GpeBlockListHead;
+
+        /* Walk the GPE blocks on this interrupt level */
+
+        while (GpeBlock)
+        {
+            if ((&GpeBlock->EventInfo[0] <= GpeEventInfo) &&
+                (&GpeBlock->EventInfo[GpeBlock->GpeCount] > GpeEventInfo))
+            {
+                return (TRUE);
+            }
+
+            GpeBlock = GpeBlock->Next;
+        }
+
+        GpeXruptBlock = GpeXruptBlock->Next;
+    }
+
+    return (FALSE);
+}
+
+
+/*******************************************************************************
+ *
+ * FUNCTION:    AcpiEvGetGpeXruptBlock
+ *
+ * PARAMETERS:  InterruptNumber      - Interrupt for a GPE block
+ *
+ * RETURN:      A GPE interrupt block
+ *
+ * DESCRIPTION: Get or Create a GPE interrupt block. There is one interrupt
+ *              block per unique interrupt level used for GPEs. Should be
+ *              called only when the GPE lists are semaphore locked and not
+ *              subject to change.
+ *
+ ******************************************************************************/
+
+ACPI_GPE_XRUPT_INFO *
+AcpiEvGetGpeXruptBlock (
+    UINT32                  InterruptNumber)
+{
+    ACPI_GPE_XRUPT_INFO     *NextGpeXrupt;
+    ACPI_GPE_XRUPT_INFO     *GpeXrupt;
+    ACPI_STATUS             Status;
+    ACPI_CPU_FLAGS          Flags;
+
+
+    ACPI_FUNCTION_TRACE (EvGetGpeXruptBlock);
+
+
+    /* No need for lock since we are not changing any list elements here */
+
+    NextGpeXrupt = AcpiGbl_GpeXruptListHead;
+    while (NextGpeXrupt)
+    {
+        if (NextGpeXrupt->InterruptNumber == InterruptNumber)
+        {
+            return_PTR (NextGpeXrupt);
+        }
+
+        NextGpeXrupt = NextGpeXrupt->Next;
+    }
+
+    /* Not found, must allocate a new xrupt descriptor */
+
+    GpeXrupt = ACPI_ALLOCATE_ZEROED (sizeof (ACPI_GPE_XRUPT_INFO));
+    if (!GpeXrupt)
+    {
+        return_PTR (NULL);
+    }
+
+    GpeXrupt->InterruptNumber = InterruptNumber;
+
+    /* Install new interrupt descriptor with spin lock */
+
+    Flags = AcpiOsAcquireLock (AcpiGbl_GpeLock);
+    if (AcpiGbl_GpeXruptListHead)
+    {
+        NextGpeXrupt = AcpiGbl_GpeXruptListHead;
+        while (NextGpeXrupt->Next)
+        {
+            NextGpeXrupt = NextGpeXrupt->Next;
+        }
+
+        NextGpeXrupt->Next = GpeXrupt;
+        GpeXrupt->Previous = NextGpeXrupt;
     }
     else
     {
-        AcpiOsStall (HowLong);
+        AcpiGbl_GpeXruptListHead = GpeXrupt;
+    }
+    AcpiOsReleaseLock (AcpiGbl_GpeLock, Flags);
+
+    /* Install new interrupt handler if not SCI_INT */
+
+    if (InterruptNumber != AcpiGbl_FADT.SciInterrupt)
+    {
+        Status = AcpiOsInstallInterruptHandler (InterruptNumber,
+                    AcpiEvGpeXruptHandler, GpeXrupt);
+        if (ACPI_FAILURE (Status))
+        {
+            ACPI_ERROR ((AE_INFO,
+                "Could not install GPE interrupt handler at level 0x%X",
+                InterruptNumber));
+            return_PTR (NULL);
+        }
     }
 
-    return (Status);
+    return_PTR (GpeXrupt);
 }
 
 
 /*******************************************************************************
  *
- * FUNCTION:    AcpiExSystemDoSleep
+ * FUNCTION:    AcpiEvDeleteGpeXrupt
  *
- * PARAMETERS:  HowLong         - The amount of time to sleep,
- *                                in milliseconds
- *
- * RETURN:      None
- *
- * DESCRIPTION: Sleep the running thread for specified amount of time.
- *
- ******************************************************************************/
-
-ACPI_STATUS
-AcpiExSystemDoSleep (
-    UINT64                  HowLong)
-{
-    ACPI_FUNCTION_ENTRY ();
-
-
-    /* Since this thread will sleep, we must release the interpreter */
-
-    AcpiExRelinquishInterpreter ();
-
-    AcpiOsSleep (HowLong);
-
-    /* And now we must get the interpreter again */
-
-    AcpiExReacquireInterpreter ();
-    return (AE_OK);
-}
-
-
-/*******************************************************************************
- *
- * FUNCTION:    AcpiExSystemSignalEvent
- *
- * PARAMETERS:  ObjDesc         - The object descriptor for this op
+ * PARAMETERS:  GpeXrupt        - A GPE interrupt info block
  *
  * RETURN:      Status
  *
- * DESCRIPTION: Provides an access point to perform synchronization operations
- *              within the AML.
+ * DESCRIPTION: Remove and free a GpeXrupt block. Remove an associated
+ *              interrupt handler if not the SCI interrupt.
  *
  ******************************************************************************/
 
 ACPI_STATUS
-AcpiExSystemSignalEvent (
-    ACPI_OPERAND_OBJECT     *ObjDesc)
+AcpiEvDeleteGpeXrupt (
+    ACPI_GPE_XRUPT_INFO     *GpeXrupt)
 {
-    ACPI_STATUS             Status = AE_OK;
+    ACPI_STATUS             Status;
+    ACPI_CPU_FLAGS          Flags;
 
 
-    ACPI_FUNCTION_TRACE (ExSystemSignalEvent);
+    ACPI_FUNCTION_TRACE (EvDeleteGpeXrupt);
 
 
-    if (ObjDesc)
+    /* We never want to remove the SCI interrupt handler */
+
+    if (GpeXrupt->InterruptNumber == AcpiGbl_FADT.SciInterrupt)
     {
-        Status = AcpiOsSignalSemaphore (ObjDesc->Event.OsSemaphore, 1);
+        GpeXrupt->GpeBlockListHead = NULL;
+        return_ACPI_STATUS (AE_OK);
     }
 
-    return_ACPI_STATUS (Status);
+    /* Disable this interrupt */
+
+    Status = AcpiOsRemoveInterruptHandler (
+                GpeXrupt->InterruptNumber, AcpiEvGpeXruptHandler);
+    if (ACPI_FAILURE (Status))
+    {
+        return_ACPI_STATUS (Status);
+    }
+
+    /* Unlink the interrupt block with lock */
+
+    Flags = AcpiOsAcquireLock (AcpiGbl_GpeLock);
+    if (GpeXrupt->Previous)
+    {
+        GpeXrupt->Previous->Next = GpeXrupt->Next;
+    }
+    else
+    {
+        /* No previous, update list head */
+
+        AcpiGbl_GpeXruptListHead = GpeXrupt->Next;
+    }
+
+    if (GpeXrupt->Next)
+    {
+        GpeXrupt->Next->Previous = GpeXrupt->Previous;
+    }
+    AcpiOsReleaseLock (AcpiGbl_GpeLock, Flags);
+
+    /* Free the block */
+
+    ACPI_FREE (GpeXrupt);
+    return_ACPI_STATUS (AE_OK);
 }
 
 
 /*******************************************************************************
  *
- * FUNCTION:    AcpiExSystemWaitEvent
+ * FUNCTION:    AcpiEvDeleteGpeHandlers
  *
- * PARAMETERS:  TimeDesc        - The 'time to delay' object descriptor
- *              ObjDesc         - The object descriptor for this op
+ * PARAMETERS:  GpeXruptInfo        - GPE Interrupt info
+ *              GpeBlock            - Gpe Block info
  *
  * RETURN:      Status
  *
- * DESCRIPTION: Provides an access point to perform synchronization operations
- *              within the AML.  This operation is a request to wait for an
- *              event.
+ * DESCRIPTION: Delete all Handler objects found in the GPE data structs.
+ *              Used only prior to termination.
  *
  ******************************************************************************/
 
 ACPI_STATUS
-AcpiExSystemWaitEvent (
-    ACPI_OPERAND_OBJECT     *TimeDesc,
-    ACPI_OPERAND_OBJECT     *ObjDesc)
+AcpiEvDeleteGpeHandlers (
+    ACPI_GPE_XRUPT_INFO     *GpeXruptInfo,
+    ACPI_GPE_BLOCK_INFO     *GpeBlock,
+    void                    *Context)
 {
-    ACPI_STATUS             Status = AE_OK;
+    ACPI_GPE_EVENT_INFO     *GpeEventInfo;
+    UINT32                  i;
+    UINT32                  j;
 
 
-    ACPI_FUNCTION_TRACE (ExSystemWaitEvent);
+    ACPI_FUNCTION_TRACE (EvDeleteGpeHandlers);
 
 
-    if (ObjDesc)
+    /* Examine each GPE Register within the block */
+
+    for (i = 0; i < GpeBlock->RegisterCount; i++)
     {
-        Status = AcpiExSystemWaitSemaphore (ObjDesc->Event.OsSemaphore,
-                    (UINT16) TimeDesc->Integer.Value);
+        /* Now look at the individual GPEs in this byte register */
+
+        for (j = 0; j < ACPI_GPE_REGISTER_WIDTH; j++)
+        {
+            GpeEventInfo = &GpeBlock->EventInfo[((ACPI_SIZE) i *
+                ACPI_GPE_REGISTER_WIDTH) + j];
+
+            if ((GpeEventInfo->Flags & ACPI_GPE_DISPATCH_MASK) ==
+                    ACPI_GPE_DISPATCH_HANDLER)
+            {
+                ACPI_FREE (GpeEventInfo->Dispatch.Handler);
+                GpeEventInfo->Dispatch.Handler = NULL;
+                GpeEventInfo->Flags &= ~ACPI_GPE_DISPATCH_MASK;
+            }
+        }
     }
 
-    return_ACPI_STATUS (Status);
-}
-
-
-/*******************************************************************************
- *
- * FUNCTION:    AcpiExSystemResetEvent
- *
- * PARAMETERS:  ObjDesc         - The object descriptor for this op
- *
- * RETURN:      Status
- *
- * DESCRIPTION: Reset an event to a known state.
- *
- ******************************************************************************/
-
-ACPI_STATUS
-AcpiExSystemResetEvent (
-    ACPI_OPERAND_OBJECT     *ObjDesc)
-{
-    ACPI_STATUS             Status = AE_OK;
-    ACPI_SEMAPHORE          TempSemaphore;
-
-
-    ACPI_FUNCTION_ENTRY ();
-
-
-    /*
-     * We are going to simply delete the existing semaphore and
-     * create a new one!
-     */
-    Status = AcpiOsCreateSemaphore (ACPI_NO_UNIT_LIMIT, 0, &TempSemaphore);
-    if (ACPI_SUCCESS (Status))
-    {
-        (void) AcpiOsDeleteSemaphore (ObjDesc->Event.OsSemaphore);
-        ObjDesc->Event.OsSemaphore = TempSemaphore;
-    }
-
-    return (Status);
+    return_ACPI_STATUS (AE_OK);
 }
 
