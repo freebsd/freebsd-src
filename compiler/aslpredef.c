@@ -243,11 +243,11 @@ ApCheckForPredefinedMethod (
         break;
 
 
-    case ACPI_EVENT_RESERVED_NAME:      /* _Lxx, _Exx, and _Qxx methods */
+    case ACPI_EVENT_RESERVED_NAME:      /* _Lxx/_Exx/_Wxx/_Qxx methods */
 
         Gbl_ReservedMethods++;
 
-        /* NumArguments must be zero for all _Lxx, _Exx, and _Qxx methods */
+        /* NumArguments must be zero for all _Lxx/_Exx/_Wxx/_Qxx methods */
 
         if (MethodInfo->NumArguments != 0)
         {
@@ -346,12 +346,12 @@ ApCheckPredefinedReturnValue (
     case ACPI_NOT_RESERVED_NAME:        /* No underscore or _Txx or _xxx name not matched */
     case ACPI_PREDEFINED_NAME:          /* Resource Name or reserved scope name */
     case ACPI_COMPILER_RESERVED_NAME:   /* A _Txx that was not emitted by compiler */
-    case ACPI_EVENT_RESERVED_NAME:      /* _Lxx, _Exx, and _Qxx methods */
+    case ACPI_EVENT_RESERVED_NAME:      /* _Lxx/_Exx/_Wxx/_Qxx methods */
 
         /* Just return, nothing to do */
         return;
 
-    default: /* a real predefined ACPI name */
+    default: /* A standard predefined ACPI name */
 
         /* Exit if no return value expected */
 
@@ -425,29 +425,59 @@ ApCheckForPredefinedObject (
      * or a predefined scope name
      */
     Index = ApCheckForPredefinedName (Op, Name);
-    if (Index > ACPI_VALID_RESERVED_NAME_MAX)
-    {
-        return;
-    }
 
-    /*
-     * We found a matching predefind name.
-     * Check if this predefined name requires input arguments
-     */
-    if (PredefinedNames[Index].Info.ParamCount > 0)
+    switch (Index)
     {
+    case ACPI_NOT_RESERVED_NAME:        /* No underscore or _Txx or _xxx name not matched */
+    case ACPI_PREDEFINED_NAME:          /* Resource Name or reserved scope name */
+    case ACPI_COMPILER_RESERVED_NAME:   /* A _Txx that was not emitted by compiler */
+
+        /* Nothing to do */
+        return;
+
+    case ACPI_EVENT_RESERVED_NAME:      /* _Lxx/_Exx/_Wxx/_Qxx methods */
+
         /*
-         * This predefined name must always be defined as a control
-         * method because it is required to have input arguments.
+         * These names must be control methods, by definition in ACPI spec.
+         * Also because they are defined to return no value. None of them
+         * require any arguments.
          */
         AslError (ASL_ERROR, ASL_MSG_RESERVED_METHOD, Op,
-            "with arguments");
+            "with zero arguments");
+        return;
+
+    default: /* A standard predefined ACPI name */
+
+        /*
+         * If this predefined name requires input arguments, then
+         * it must be implemented as a control method
+         */
+        if (PredefinedNames[Index].Info.ParamCount > 0)
+        {
+            AslError (ASL_ERROR, ASL_MSG_RESERVED_METHOD, Op,
+                "with arguments");
+            return;
+        }
+
+        /*
+         * If no return value is expected from this predefined name, then
+         * it follows that it must be implemented as a control method
+         * (with zero args, because the args > 0 case was handled above)
+         * Examples are: _DIS, _INI, _IRC, _OFF, _ON, _PSx
+         */
+        if (!PredefinedNames[Index].Info.ExpectedBtypes)
+        {
+            AslError (ASL_ERROR, ASL_MSG_RESERVED_METHOD, Op,
+                "with zero arguments");
+            return;
+        }
+
+        /* Typecheck the actual object, it is the next argument */
+
+        ApCheckObjectType (Op->Asl.Child->Asl.Next,
+            PredefinedNames[Index].Info.ExpectedBtypes);
+        return;
     }
-
-    /* Typecheck the actual object, it is the next argument */
-
-    ApCheckObjectType (Op->Asl.Child->Asl.Next,
-        PredefinedNames[Index].Info.ExpectedBtypes);
 }
 
 
@@ -514,7 +544,7 @@ ApCheckForPredefinedName (
         }
     }
 
-    /* Check for _Lxx, _Exx, _Qxx, _T_x. Warning if unknown predefined name */
+    /* Check for _Lxx/_Exx/_Wxx/_Qxx/_T_x. Warning if unknown predefined name */
 
     return (ApCheckForSpecialName (Op, Name));
 }
@@ -530,7 +560,7 @@ ApCheckForPredefinedName (
  * RETURN:      None
  *
  * DESCRIPTION: Check for the "special" predefined names -
- *              _Lxx, _Exx, _Qxx, and _T_x
+ *              _Lxx, _Exx, _Qxx, _Wxx, and _T_x
  *
  ******************************************************************************/
 
@@ -541,14 +571,16 @@ ApCheckForSpecialName (
 {
 
     /*
-     * Check for the "special" predefined names. We know the first char is an
-     * underscore already.
+     * Check for the "special" predefined names. We already know that the
+     * first character is an underscore.
      *   GPE:  _Lxx
      *   GPE:  _Exx
+     *   GPE:  _Wxx
      *   EC:   _Qxx
      */
     if ((Name[1] == 'L') ||
         (Name[1] == 'E') ||
+        (Name[1] == 'W') ||
         (Name[1] == 'Q'))
     {
         /* The next two characters must be hex digits */

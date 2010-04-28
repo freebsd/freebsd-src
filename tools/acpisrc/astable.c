@@ -310,7 +310,6 @@ ACPI_TYPED_IDENTIFIER_TABLE           AcpiIdentifiers[] = {
     {"ACPI_INTEGER_OVERLAY",                SRC_TYPE_STRUCT},
     {"ACPI_INTEGRITY_INFO",                 SRC_TYPE_STRUCT},
     {"ACPI_INTERFACE_INFO",                 SRC_TYPE_STRUCT},
-    {"ACPI_INTERNAL_RSDT",                  SRC_TYPE_STRUCT},
     {"ACPI_INTERPRETER_MODE",               SRC_TYPE_SIMPLE},
     {"ACPI_IO_ADDRESS",                     SRC_TYPE_SIMPLE},
     {"ACPI_IO_ATTRIBUTE",                   SRC_TYPE_STRUCT},

@@ -20,8 +20,10 @@ SRCS=	aetables.c aehandlers.c aeexec.c aemain.c \
 	../../disassembler/dmutils.c \
 	../../disassembler/dmwalk.c \
 	../../events/evevent.c \
-	../../events/evgpeblk.c \
 	../../events/evgpe.c \
+	../../events/evgpeblk.c \
+	../../events/evgpeinit.c \
+	../../events/evgpeutil.c \
 	../../events/evmisc.c \
 	../../events/evregion.c \
 	../../events/evrgnini.c \

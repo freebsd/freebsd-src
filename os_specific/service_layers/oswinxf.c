@@ -1234,8 +1234,8 @@ AcpiOsWritePciConfiguration (
 /* TEMPORARY STUB FUNCTION */
 void
 AcpiOsDerivePciId(
-    ACPI_HANDLE             rhandle,
-    ACPI_HANDLE             chandle,
+    ACPI_HANDLE             Device,
+    ACPI_HANDLE             Region,
     ACPI_PCI_ID             **PciId)
 {
 
