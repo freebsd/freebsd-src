@@ -2711,7 +2711,7 @@ linux_v4l_clip_copy(void *lvc, struct video_clip **ppvc)
 	/* XXX: If there can be no concurrency: s/M_NOWAIT/M_WAITOK/ */
 	if ((*ppvc = malloc(sizeof(**ppvc), M_LINUX, M_NOWAIT)) == NULL)
 		return (ENOMEM);    /* XXX: linux has no ENOMEM here */
-	memcpy(&vclip, *ppvc, sizeof(vclip));
+	memcpy(*ppvc, &vclip, sizeof(vclip));
 	(*ppvc)->next = NULL;
 	return (0);
 }
@@ -2726,6 +2726,8 @@ linux_v4l_cliplist_free(struct video_window *vw)
 		ppvc_next = &((*ppvc)->next);
 		free(*ppvc, M_LINUX);
 	}
+	vw->clips = NULL;
+
 	return (0);
 }
 

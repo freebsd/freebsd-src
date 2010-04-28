@@ -439,7 +439,7 @@ cpu_set_upcall_kse(struct thread *td, void (*entry)(void *), void *arg,
 	 */
 	cpu_thread_clean(td);
 
-#ifdef COMPAT_IA32
+#ifdef COMPAT_FREEBSD32
 	if (td->td_proc->p_sysent->sv_flags & SV_ILP32) {
 		/*
 	 	 * Set the trap frame to point at the beginning of the uts
@@ -490,7 +490,7 @@ cpu_set_user_tls(struct thread *td, void *tls_base)
 	if ((u_int64_t)tls_base >= VM_MAXUSER_ADDRESS)
 		return (EINVAL);
 
-#ifdef COMPAT_IA32
+#ifdef COMPAT_FREEBSD32
 	if (td->td_proc->p_sysent->sv_flags & SV_ILP32) {
 		td->td_pcb->pcb_gsbase = (register_t)tls_base;
 		return (0);

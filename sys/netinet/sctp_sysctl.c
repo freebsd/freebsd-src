@@ -38,6 +38,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet/sctp_pcb.h>
 #include <netinet/sctputil.h>
 #include <netinet/sctp_output.h>
+#include <sys/smp.h>
 
 /*
  * sysctl tunable variables
@@ -627,7 +628,158 @@ sysctl_sctp_check(SYSCTL_HANDLER_ARGS)
 	return (error);
 }
 
+#if defined(__FreeBSD__) && defined(SMP) && defined(SCTP_USE_PERCPU_STAT)
+static int
+sysctl_stat_get(SYSCTL_HANDLER_ARGS)
+{
+	int cpu, error;
+	struct sctpstat sb, *sarry;
 
+	memset(&sb, 0, sizeof(sb));
+	for (cpu = 0; cpu < mp_ncpus; cpu++) {
+		sarry = &SCTP_BASE_STATS[cpu];
+		if (sarry->sctps_discontinuitytime.tv_sec > sb.sctps_discontinuitytime.tv_sec) {
+			sb.sctps_discontinuitytime.tv_sec = sarry->sctps_discontinuitytime.tv_sec;
+			sb.sctps_discontinuitytime.tv_usec = sarry->sctps_discontinuitytime.tv_usec;
+		}
+		sb.sctps_currestab += sarry->sctps_currestab;
+		sb.sctps_activeestab += sarry->sctps_activeestab;
+		sb.sctps_restartestab += sarry->sctps_restartestab;
+		sb.sctps_collisionestab += sarry->sctps_collisionestab;
+		sb.sctps_passiveestab += sarry->sctps_passiveestab;
+		sb.sctps_aborted += sarry->sctps_aborted;
+		sb.sctps_shutdown += sarry->sctps_shutdown;
+		sb.sctps_outoftheblue += sarry->sctps_outoftheblue;
+		sb.sctps_checksumerrors += sarry->sctps_checksumerrors;
+		sb.sctps_outcontrolchunks += sarry->sctps_outcontrolchunks;
+		sb.sctps_outorderchunks += sarry->sctps_outorderchunks;
+		sb.sctps_outunorderchunks += sarry->sctps_outunorderchunks;
+		sb.sctps_incontrolchunks += sarry->sctps_incontrolchunks;
+		sb.sctps_inorderchunks += sarry->sctps_inorderchunks;
+		sb.sctps_inunorderchunks += sarry->sctps_inunorderchunks;
+		sb.sctps_fragusrmsgs += sarry->sctps_fragusrmsgs;
+		sb.sctps_reasmusrmsgs += sarry->sctps_reasmusrmsgs;
+		sb.sctps_outpackets += sarry->sctps_outpackets;
+		sb.sctps_inpackets += sarry->sctps_inpackets;
+		sb.sctps_recvpackets += sarry->sctps_recvpackets;
+		sb.sctps_recvdatagrams += sarry->sctps_recvdatagrams;
+		sb.sctps_recvpktwithdata += sarry->sctps_recvpktwithdata;
+		sb.sctps_recvsacks += sarry->sctps_recvsacks;
+		sb.sctps_recvdata += sarry->sctps_recvdata;
+		sb.sctps_recvdupdata += sarry->sctps_recvdupdata;
+		sb.sctps_recvheartbeat += sarry->sctps_recvheartbeat;
+		sb.sctps_recvheartbeatack += sarry->sctps_recvheartbeatack;
+		sb.sctps_recvecne += sarry->sctps_recvecne;
+		sb.sctps_recvauth += sarry->sctps_recvauth;
+		sb.sctps_recvauthmissing += sarry->sctps_recvauthmissing;
+		sb.sctps_recvivalhmacid += sarry->sctps_recvivalhmacid;
+		sb.sctps_recvivalkeyid += sarry->sctps_recvivalkeyid;
+		sb.sctps_recvauthfailed += sarry->sctps_recvauthfailed;
+		sb.sctps_recvexpress += sarry->sctps_recvexpress;
+		sb.sctps_recvexpressm += sarry->sctps_recvexpressm;
+		sb.sctps_recvnocrc += sarry->sctps_recvnocrc;
+		sb.sctps_recvswcrc += sarry->sctps_recvswcrc;
+		sb.sctps_recvhwcrc += sarry->sctps_recvhwcrc;
+		sb.sctps_sendpackets += sarry->sctps_sendpackets;
+		sb.sctps_sendsacks += sarry->sctps_sendsacks;
+		sb.sctps_senddata += sarry->sctps_senddata;
+		sb.sctps_sendretransdata += sarry->sctps_sendretransdata;
+		sb.sctps_sendfastretrans += sarry->sctps_sendfastretrans;
+		sb.sctps_sendmultfastretrans += sarry->sctps_sendmultfastretrans;
+		sb.sctps_sendheartbeat += sarry->sctps_sendheartbeat;
+		sb.sctps_sendecne += sarry->sctps_sendecne;
+		sb.sctps_sendauth += sarry->sctps_sendauth;
+		sb.sctps_senderrors += sarry->sctps_senderrors;
+		sb.sctps_sendnocrc += sarry->sctps_sendnocrc;
+		sb.sctps_sendswcrc += sarry->sctps_sendswcrc;
+		sb.sctps_sendhwcrc += sarry->sctps_sendhwcrc;
+		sb.sctps_pdrpfmbox += sarry->sctps_pdrpfmbox;
+		sb.sctps_pdrpfehos += sarry->sctps_pdrpfehos;
+		sb.sctps_pdrpmbda += sarry->sctps_pdrpmbda;
+		sb.sctps_pdrpmbct += sarry->sctps_pdrpmbct;
+		sb.sctps_pdrpbwrpt += sarry->sctps_pdrpbwrpt;
+		sb.sctps_pdrpcrupt += sarry->sctps_pdrpcrupt;
+		sb.sctps_pdrpnedat += sarry->sctps_pdrpnedat;
+		sb.sctps_pdrppdbrk += sarry->sctps_pdrppdbrk;
+		sb.sctps_pdrptsnnf += sarry->sctps_pdrptsnnf;
+		sb.sctps_pdrpdnfnd += sarry->sctps_pdrpdnfnd;
+		sb.sctps_pdrpdiwnp += sarry->sctps_pdrpdiwnp;
+		sb.sctps_pdrpdizrw += sarry->sctps_pdrpdizrw;
+		sb.sctps_pdrpbadd += sarry->sctps_pdrpbadd;
+		sb.sctps_pdrpmark += sarry->sctps_pdrpmark;
+		sb.sctps_timoiterator += sarry->sctps_timoiterator;
+		sb.sctps_timodata += sarry->sctps_timodata;
+		sb.sctps_timowindowprobe += sarry->sctps_timowindowprobe;
+		sb.sctps_timoinit += sarry->sctps_timoinit;
+		sb.sctps_timosack += sarry->sctps_timosack;
+		sb.sctps_timoshutdown += sarry->sctps_timoshutdown;
+		sb.sctps_timoheartbeat += sarry->sctps_timoheartbeat;
+		sb.sctps_timocookie += sarry->sctps_timocookie;
+		sb.sctps_timosecret += sarry->sctps_timosecret;
+		sb.sctps_timopathmtu += sarry->sctps_timopathmtu;
+		sb.sctps_timoshutdownack += sarry->sctps_timoshutdownack;
+		sb.sctps_timoshutdownguard += sarry->sctps_timoshutdownguard;
+		sb.sctps_timostrmrst += sarry->sctps_timostrmrst;
+		sb.sctps_timoearlyfr += sarry->sctps_timoearlyfr;
+		sb.sctps_timoasconf += sarry->sctps_timoasconf;
+		sb.sctps_timodelprim += sarry->sctps_timodelprim;
+		sb.sctps_timoautoclose += sarry->sctps_timoautoclose;
+		sb.sctps_timoassockill += sarry->sctps_timoassockill;
+		sb.sctps_timoinpkill += sarry->sctps_timoinpkill;
+		sb.sctps_earlyfrstart += sarry->sctps_earlyfrstart;
+		sb.sctps_earlyfrstop += sarry->sctps_earlyfrstop;
+		sb.sctps_earlyfrmrkretrans += sarry->sctps_earlyfrmrkretrans;
+		sb.sctps_earlyfrstpout += sarry->sctps_earlyfrstpout;
+		sb.sctps_earlyfrstpidsck1 += sarry->sctps_earlyfrstpidsck1;
+		sb.sctps_earlyfrstpidsck2 += sarry->sctps_earlyfrstpidsck2;
+		sb.sctps_earlyfrstpidsck3 += sarry->sctps_earlyfrstpidsck3;
+		sb.sctps_earlyfrstpidsck4 += sarry->sctps_earlyfrstpidsck4;
+		sb.sctps_earlyfrstrid += sarry->sctps_earlyfrstrid;
+		sb.sctps_earlyfrstrout += sarry->sctps_earlyfrstrout;
+		sb.sctps_earlyfrstrtmr += sarry->sctps_earlyfrstrtmr;
+		sb.sctps_hdrops += sarry->sctps_hdrops;
+		sb.sctps_badsum += sarry->sctps_badsum;
+		sb.sctps_noport += sarry->sctps_noport;
+		sb.sctps_badvtag += sarry->sctps_badvtag;
+		sb.sctps_badsid += sarry->sctps_badsid;
+		sb.sctps_nomem += sarry->sctps_nomem;
+		sb.sctps_fastretransinrtt += sarry->sctps_fastretransinrtt;
+		sb.sctps_markedretrans += sarry->sctps_markedretrans;
+		sb.sctps_naglesent += sarry->sctps_naglesent;
+		sb.sctps_naglequeued += sarry->sctps_naglequeued;
+		sb.sctps_maxburstqueued += sarry->sctps_maxburstqueued;
+		sb.sctps_ifnomemqueued += sarry->sctps_ifnomemqueued;
+		sb.sctps_windowprobed += sarry->sctps_windowprobed;
+		sb.sctps_lowlevelerr += sarry->sctps_lowlevelerr;
+		sb.sctps_lowlevelerrusr += sarry->sctps_lowlevelerrusr;
+		sb.sctps_datadropchklmt += sarry->sctps_datadropchklmt;
+		sb.sctps_datadroprwnd += sarry->sctps_datadroprwnd;
+		sb.sctps_ecnereducedcwnd += sarry->sctps_ecnereducedcwnd;
+		sb.sctps_vtagexpress += sarry->sctps_vtagexpress;
+		sb.sctps_vtagbogus += sarry->sctps_vtagbogus;
+		sb.sctps_primary_randry += sarry->sctps_primary_randry;
+		sb.sctps_cmt_randry += sarry->sctps_cmt_randry;
+		sb.sctps_slowpath_sack += sarry->sctps_slowpath_sack;
+		sb.sctps_wu_sacks_sent += sarry->sctps_wu_sacks_sent;
+		sb.sctps_sends_with_flags += sarry->sctps_sends_with_flags;
+		sb.sctps_sends_with_unord += sarry->sctps_sends_with_unord;
+		sb.sctps_sends_with_eof += sarry->sctps_sends_with_eof;
+		sb.sctps_sends_with_abort += sarry->sctps_sends_with_abort;
+		sb.sctps_protocol_drain_calls += sarry->sctps_protocol_drain_calls;
+		sb.sctps_protocol_drains_done += sarry->sctps_protocol_drains_done;
+		sb.sctps_read_peeks += sarry->sctps_read_peeks;
+		sb.sctps_cached_chk += sarry->sctps_cached_chk;
+		sb.sctps_cached_strmoq += sarry->sctps_cached_strmoq;
+		sb.sctps_left_abandon += sarry->sctps_left_abandon;
+		sb.sctps_send_burst_avoid += sarry->sctps_send_burst_avoid;
+		sb.sctps_send_cwnd_avoid += sarry->sctps_send_cwnd_avoid;
+		sb.sctps_fwdtsn_map_over += sarry->sctps_fwdtsn_map_over;
+	}
+	error = SYSCTL_OUT(req, &sb, sizeof(sb));
+	return (error);
+}
+
+#endif
 
 #if defined(SCTP_LOCAL_TRACE_BUF)
 static int
@@ -916,10 +1068,16 @@ SYSCTL_PROC(_net_inet_sctp, OID_AUTO, output_unlocked, CTLTYPE_INT | CTLFLAG_RW,
     &SCTP_BASE_SYSCTL(sctp_output_unlocked), 0, sysctl_sctp_check, "IU",
     SCTPCTL_OUTPUT_UNLOCKED_DESC);
 #endif
-
+#if defined(__FreeBSD__) && defined(SMP) && defined(SCTP_USE_PERCPU_STAT)
+SYSCTL_PROC(_net_inet_sctp, OID_AUTO, stats,
+    CTLTYPE_STRUCT | CTLFLAG_RD,
+    0, 0, sysctl_stat_get, "S,sctpstat",
+    "SCTP statistics (struct sctp_stat)");
+#else
 SYSCTL_STRUCT(_net_inet_sctp, OID_AUTO, stats, CTLFLAG_RW,
     &SCTP_BASE_STATS_SYSCTL, sctpstat,
     "SCTP statistics (struct sctp_stat)");
+#endif
 
 SYSCTL_PROC(_net_inet_sctp, OID_AUTO, assoclist, CTLFLAG_RD,
     0, 0, sctp_assoclist,

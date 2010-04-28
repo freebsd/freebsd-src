@@ -34,9 +34,9 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $OpenBSD: ssh.1,v 1.283 2009/03/19 15:15:09 jmc Exp $
+.\" $OpenBSD: ssh.1,v 1.302 2010/03/05 10:28:21 djm Exp $
 .\" $FreeBSD$
-.Dd March 19 2009
+.Dd March 5 2010
 .Dt SSH 1
 .Os
 .Sh NAME
@@ -55,6 +55,7 @@
 .Oc
 .Op Fl e Ar escape_char
 .Op Fl F Ar configfile
+.Op Fl I Ar pkcs11
 .Bk -words
 .Op Fl i Ar identity_file
 .Ek
@@ -78,12 +79,11 @@
 .Sm on
 .Oc
 .Op Fl S Ar ctl_path
-.Bk -words
+.Op Fl W Ar host : Ns Ar port
 .Oo Fl w Ar local_tun Ns
 .Op : Ns Ar remote_tun Oc
 .Oo Ar user Ns @ Oc Ns Ar hostname
 .Op Ar command
-.Ek
 .Sh DESCRIPTION
 .Nm
 (SSH client) is a program for logging into a remote machine and for
@@ -133,8 +133,9 @@ This can also be specified on a per-host basis in a configuration file.
 .Pp
 Agent forwarding should be enabled with caution.
 Users with the ability to bypass file permissions on the remote host
-(for the agent's Unix-domain socket)
-can access the local agent through the forwarded connection.
+(for the agent's
+.Ux Ns -domain
+socket) can access the local agent through the forwarded connection.
 An attacker cannot obtain key material from the agent,
 however they can perform operations on the keys that enable them to
 authenticate using the identities loaded into the agent.
@@ -285,13 +286,11 @@ will wait for all remote port forwards to be successfully established
 before placing itself in the background.
 .It Fl g
 Allows remote hosts to connect to local forwarded ports.
-.It Fl I Ar smartcard_device
-Specify the device
+.It Fl I Ar pkcs11
+Specify the PKCS#11 shared library
 .Nm
-should use to communicate with a smartcard used for storing the user's
+should use to communicate with a PKCS#11 token providing the user's
 private RSA key.
-This option is only available if support for smartcard devices
-is compiled in (default is no support).
 .It Fl i Ar identity_file
 Selects a file from which the identity (private key) for
 RSA or DSA authentication is read.
@@ -308,6 +307,11 @@ It is possible to have multiple
 .Fl i
 options (and multiple identities specified in
 configuration files).
+.Nm
+will also try to load certificate information from the filename obtained
+by appending
+.Pa -cert.pub
+to identity filenames.
 .It Fl K
 Enables GSSAPI-based authentication and forwarding (delegation) of GSSAPI
 credentials to the server.
@@ -470,6 +474,7 @@ For full details of the options listed below, and their possible values, see
 .It NumberOfPasswordPrompts
 .It PasswordAuthentication
 .It PermitLocalCommand
+.It PKCS11Provider
 .It Port
 .It PreferredAuthentications
 .It Protocol
@@ -482,7 +487,6 @@ For full details of the options listed below, and their possible values, see
 .It SendEnv
 .It ServerAliveInterval
 .It ServerAliveCountMax
-.It SmartcardDevice
 .It StrictHostKeyChecking
 .It TCPKeepAlive
 .It Tunnel
@@ -595,6 +599,19 @@ Multiple
 .Fl v
 options increase the verbosity.
 The maximum is 3.
+.It Fl W Ar host : Ns Ar port
+Requests that standard input and output on the client be forwarded to
+.Ar host
+on
+.Ar port
+over the secure channel.
+Implies
+.Fl N ,
+.Fl T ,
+.Cm ExitOnForwardFailure
+and
+.Cm ClearAllForwardings
+and works with Protocol version 2 only.
 .It Fl w Xo
 .Ar local_tun Ns Op : Ns Ar remote_tun
 .Xc
@@ -668,20 +685,18 @@ exits with the exit status of the remote command or with 255
 if an error occurred.
 .Sh AUTHENTICATION
 The OpenSSH SSH client supports SSH protocols 1 and 2.
-Protocol 2 is the default, with
-.Nm
-falling back to protocol 1 if it detects protocol 2 is unsupported.
-These settings may be altered using the
+The default is to use protocol 2 only,
+though this can be changed via the
 .Cm Protocol
 option in
-.Xr ssh_config 5 ,
-or enforced using the
+.Xr ssh_config 5
+or the
 .Fl 1
 and
 .Fl 2
 options (see above).
 Both protocols support similar authentication methods,
-but protocol 2 is preferred since
+but protocol 2 is the default since
 it provides additional mechanisms for confidentiality
 (the traffic is encrypted using AES, 3DES, Blowfish, CAST128, or Arcfour)
 and integrity (hmac-md5, hmac-sha1, umac-64, hmac-ripemd160).
@@ -790,8 +805,20 @@ file, and has one key
 per line, though the lines can be very long.
 After this, the user can log in without giving the password.
 .Pp
-The most convenient way to use public key authentication may be with an
-authentication agent.
+A variation on public key authentication
+is available in the form of certificate authentication:
+instead of a set of public/private keys,
+signed certificates are used.
+This has the advantage that a single trusted certification authority
+can be used in place of many public/private keys.
+See the
+.Sx CERTIFICATES
+section of
+.Xr ssh-keygen 1
+for more information.
+.Pp
+The most convenient way to use public key or certificate authentication
+may be with an authentication agent.
 See
 .Xr ssh-agent 1
 for more information.

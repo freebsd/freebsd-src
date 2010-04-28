@@ -383,10 +383,9 @@ msdosfs_mount(struct mount *mp)
 		pmp = VFSTOMSDOSFS(mp);
 #endif
 	} else {
+		vput(devvp);
 		if (devvp != pmp->pm_devvp)
-			error = EINVAL;	/* XXX needs translation */
-		else
-			vput(devvp);
+			return (EINVAL);	/* XXX needs translation */
 	}
 	if (error) {
 		vrele(devvp);
@@ -581,6 +580,7 @@ mountmsdosfs(struct vnode *devvp, struct mount *mp)
 	  || (pmp->pm_BytesPerSec & (pmp->pm_BytesPerSec - 1))
 	  || (pmp->pm_HugeSectors == 0)
 	  || (pmp->pm_FATsecs == 0)
+	  || (SecPerClust * pmp->pm_BlkPerSec > MAXBSIZE / DEV_BSIZE)
 	) {
 		error = EINVAL;
 		goto error_exit;

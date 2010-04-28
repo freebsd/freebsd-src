@@ -129,7 +129,7 @@
 .\" ========================================================================
 .\"
 .IX Title "VERIFY 1"
-.TH VERIFY 1 "2009-06-14" "0.9.8k" "OpenSSL"
+.TH VERIFY 1 "2010-03-24" "0.9.8n" "OpenSSL"
 .SH "NAME"
 verify \- Utility to verify certificates.
 .SH "SYNOPSIS"
@@ -182,6 +182,10 @@ of the current certificate. This shows why each candidate issuer
 certificate was rejected. However the presence of rejection messages
 does not itself imply that anything is wrong: during the normal
 verify process several rejections may take place.
+.IP "\fB\-check_ss_sig\fR" 4
+.IX Item "-check_ss_sig"
+Verify the signature on the self-signed root \s-1CA\s0. This is disabled by default
+because it doesn't add any security.
 .IP "\fB\-\fR" 4
 .IX Item "-"
 marks the last option. All arguments following this are assumed to be
@@ -274,8 +278,8 @@ as \*(L"unused\*(R".
 the operation was successful.
 .IP "\fB2 X509_V_ERR_UNABLE_TO_GET_ISSUER_CERT: unable to get issuer certificate\fR" 4
 .IX Item "2 X509_V_ERR_UNABLE_TO_GET_ISSUER_CERT: unable to get issuer certificate"
-the issuer certificate could not be found: this occurs if the issuer certificate
-of an untrusted certificate cannot be found.
+the issuer certificate of a looked up certificate could not be found. This
+normally means the list of trusted certificates is not complete.
 .IP "\fB3 X509_V_ERR_UNABLE_TO_GET_CRL: unable to get certificate \s-1CRL\s0\fR" 4
 .IX Item "3 X509_V_ERR_UNABLE_TO_GET_CRL: unable to get certificate CRL"
 the \s-1CRL\s0 of a certificate could not be found. Unused.
@@ -334,8 +338,8 @@ the certificate chain could be built up using the untrusted certificates but the
 be found locally.
 .IP "\fB20 X509_V_ERR_UNABLE_TO_GET_ISSUER_CERT_LOCALLY: unable to get local issuer certificate\fR" 4
 .IX Item "20 X509_V_ERR_UNABLE_TO_GET_ISSUER_CERT_LOCALLY: unable to get local issuer certificate"
-the issuer certificate of a locally looked up certificate could not be found. This normally means
-the list of trusted certificates is not complete.
+the issuer certificate could not be found: this occurs if the issuer
+certificate of an untrusted certificate cannot be found.
 .IP "\fB21 X509_V_ERR_UNABLE_TO_VERIFY_LEAF_SIGNATURE: unable to verify the first certificate\fR" 4
 .IX Item "21 X509_V_ERR_UNABLE_TO_VERIFY_LEAF_SIGNATURE: unable to verify the first certificate"
 no signatures could be verified because the chain contains only one certificate and it is not
@@ -394,6 +398,10 @@ the certificates in the file will be recognised.
 .PP
 Previous versions of OpenSSL assume certificates with matching subject name are identical and
 mishandled them.
+.PP
+Previous versions of this documentation swapped the meaning of the
+\&\fBX509_V_ERR_UNABLE_TO_GET_ISSUER_CERT\fR and
+\&\fB20 X509_V_ERR_UNABLE_TO_GET_ISSUER_CERT_LOCALLY\fR error codes.
 .SH "SEE ALSO"
 .IX Header "SEE ALSO"
 \&\fIx509\fR\|(1)

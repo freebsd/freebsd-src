@@ -572,12 +572,12 @@ newerf (const char *f1, const char *f2)
 	if (stat(f1, &b1) != 0 || stat(f2, &b2) != 0)
 		return 0;
 
-	if (b1.st_mtimespec.tv_sec > b2.st_mtimespec.tv_sec)
+	if (b1.st_mtim.tv_sec > b2.st_mtim.tv_sec)
 		return 1;
-	if (b1.st_mtimespec.tv_sec < b2.st_mtimespec.tv_sec)
+	if (b1.st_mtim.tv_sec < b2.st_mtim.tv_sec)
 		return 0;
 
-       return (b1.st_mtimespec.tv_nsec > b2.st_mtimespec.tv_nsec);
+       return (b1.st_mtim.tv_nsec > b2.st_mtim.tv_nsec);
 }
 
 static int

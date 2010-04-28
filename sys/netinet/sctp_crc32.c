@@ -127,14 +127,12 @@ sctp_calculate_cksum(struct mbuf *m, uint32_t offset)
 
 
 void
-sctp_delayed_cksum(struct mbuf *m)
+sctp_delayed_cksum(struct mbuf *m, uint32_t offset)
 {
 	struct ip *ip;
 	uint32_t checksum;
-	uint32_t offset;
 
 	ip = mtod(m, struct ip *);
-	offset = ip->ip_hl << 2;
 	checksum = sctp_calculate_cksum(m, offset);
 	SCTP_STAT_DECR(sctps_sendhwcrc);
 	SCTP_STAT_INCR(sctps_sendswcrc);

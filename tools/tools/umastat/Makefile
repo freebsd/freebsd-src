@@ -2,10 +2,9 @@
 
 PROG=	umastat
 NO_MAN=
+WARNS?=	3
 
 DPADD=	${LIBKVM}
 LDADD=	-lkvm
-
-WARNS=	3
 
 .include <bsd.prog.mk>

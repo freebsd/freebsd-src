@@ -365,7 +365,7 @@ AcpiDsBuildInternalBufferObj (
         if (ByteList->Common.AmlOpcode != AML_INT_BYTELIST_OP)
         {
             ACPI_ERROR ((AE_INFO,
-                "Expecting bytelist, got AML opcode %X in op %p",
+                "Expecting bytelist, found AML opcode 0x%X in op %p",
                 ByteList->Common.AmlOpcode, ByteList));
 
             AcpiUtRemoveReference (ObjDesc);
@@ -599,7 +599,7 @@ AcpiDsBuildInternalPackageObj (
         }
 
         ACPI_INFO ((AE_INFO,
-            "Actual Package length (0x%X) is larger than NumElements field (0x%X), truncated\n",
+            "Actual Package length (%u) is larger than NumElements field (%u), truncated\n",
             i, ElementCount));
     }
     else if (i < ElementCount)
@@ -609,7 +609,7 @@ AcpiDsBuildInternalPackageObj (
          * Note: this is not an error, the package is padded out with NULLs.
          */
         ACPI_DEBUG_PRINT ((ACPI_DB_INFO,
-            "Package List length (0x%X) smaller than NumElements count (0x%X), padded with null elements\n",
+            "Package List length (%u) smaller than NumElements count (%u), padded with null elements\n",
             i, ElementCount));
     }
 
@@ -804,7 +804,7 @@ AcpiDsInitObjectFromOp (
             default:
 
                 ACPI_ERROR ((AE_INFO,
-                    "Unknown constant opcode %X", Opcode));
+                    "Unknown constant opcode 0x%X", Opcode));
                 Status = AE_AML_OPERAND_TYPE;
                 break;
             }
@@ -821,7 +821,7 @@ AcpiDsInitObjectFromOp (
 
 
         default:
-            ACPI_ERROR ((AE_INFO, "Unknown Integer type %X",
+            ACPI_ERROR ((AE_INFO, "Unknown Integer type 0x%X",
                 OpInfo->Type));
             Status = AE_AML_OPERAND_TYPE;
             break;
@@ -902,7 +902,7 @@ AcpiDsInitObjectFromOp (
             default:
 
                 ACPI_ERROR ((AE_INFO,
-                    "Unimplemented reference type for AML opcode: %4.4X", Opcode));
+                    "Unimplemented reference type for AML opcode: 0x%4.4X", Opcode));
                 return_ACPI_STATUS (AE_AML_OPERAND_TYPE);
             }
             break;
@@ -912,7 +912,7 @@ AcpiDsInitObjectFromOp (
 
     default:
 
-        ACPI_ERROR ((AE_INFO, "Unimplemented data type: %X",
+        ACPI_ERROR ((AE_INFO, "Unimplemented data type: 0x%X",
             ObjDesc->Common.Type));
 
         Status = AE_AML_OPERAND_TYPE;

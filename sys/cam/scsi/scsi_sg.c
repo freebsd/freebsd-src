@@ -586,7 +586,7 @@ sgioctl(struct cdev *dev, u_long cmd, caddr_t arg, int flag, struct thread *td)
 	{
 		struct sg_scsi_id id;
 
-		id.host_no = 0; /* XXX */
+		id.host_no = cam_sim_path(xpt_path_sim(periph->path));
 		id.channel = xpt_path_path_id(periph->path);
 		id.scsi_id = xpt_path_target_id(periph->path);
 		id.lun = xpt_path_lun_id(periph->path);

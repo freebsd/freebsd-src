@@ -62,14 +62,6 @@ struct fs_ops gzipfs_fsops = {
     null_readdir
 };
 
-#if 0
-void *
-calloc(int items, size_t size)
-{
-    return(malloc(items * size));
-}
-#endif
-
 static int
 zf_fill(struct z_file *zf)
 {

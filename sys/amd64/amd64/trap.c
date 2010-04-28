@@ -303,7 +303,7 @@ trap(struct trapframe *frame)
 		 * enabled later.
 		 */
 		if (ISPL(frame->tf_cs) == SEL_UPL)
-			printf(
+			uprintf(
 			    "pid %ld (%s): trap %d with interrupts disabled\n",
 			    (long)curproc->p_pid, curthread->td_name, type);
 		else if (type != T_NMI && type != T_BPTFLT &&
@@ -564,6 +564,14 @@ trap(struct trapframe *frame)
 #endif
 				frame->tf_rip = (long)gs_load_fault;
 				frame->tf_gs = _ugssel;
+				goto out;
+			}
+			if (frame->tf_rip == (long)ld_gsbase) {
+				frame->tf_rip = (long)gsbase_load_fault;
+				goto out;
+			}
+			if (frame->tf_rip == (long)ld_fsbase) {
+				frame->tf_rip = (long)fsbase_load_fault;
 				goto out;
 			}
 			if (PCPU_GET(curpcb)->pcb_onfault != NULL) {

@@ -5,6 +5,7 @@
 PROG=	ztest
 NO_MAN=
 
+WARNS?=	0
 CFLAGS+= -I${.CURDIR}/../../../sys/cddl/compat/opensolaris
 CFLAGS+= -I${.CURDIR}/../../compat/opensolaris/include
 CFLAGS+= -I${.CURDIR}/../../compat/opensolaris/lib/libumem

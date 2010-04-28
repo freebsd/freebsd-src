@@ -2210,9 +2210,6 @@ dbuf_write_ready(zio_t *zio, arc_buf_t *buf, void *vdb)
 		for (i = db->db.db_size >> SPA_BLKPTRSHIFT; i > 0; i--, ibp++) {
 			if (BP_IS_HOLE(ibp))
 				continue;
-			ASSERT3U(BP_GET_LSIZE(ibp), ==,
-			    db->db_level == 1 ? dn->dn_datablksz :
-			    (1<<dn->dn_phys->dn_indblkshift));
 			fill += ibp->blk_fill;
 		}
 	}

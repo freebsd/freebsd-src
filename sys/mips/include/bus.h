@@ -713,6 +713,8 @@ void	__bs_c(f,_bs_c_8) (void *t, bus_space_handle_t bsh1,	\
 #define BUS_SPACE_MAXSIZE_32BIT	0xFFFFFFFF
 #define BUS_SPACE_MAXSIZE 	0xFFFFFFFF
 
+#define BUS_SPACE_UNRESTRICTED	(~0)
+
 /* 
  * declare generic bus space, it suits all needs in 
  */

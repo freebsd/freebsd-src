@@ -294,10 +294,10 @@ uint32_t
 isp_handle_index(ispsoftc_t *isp, uint32_t handle)
 {
 	if (!ISP_VALID_HANDLE(isp, handle)) {
-		return (handle & ISP_HANDLE_CMD_MASK);
-	} else {
 		isp_prt(isp, ISP_LOGERR, "%s: bad handle 0x%x", __func__, handle);
 		return (ISP_BAD_HANDLE_INDEX);
+	} else {
+		return (handle & ISP_HANDLE_CMD_MASK);
 	}
 }
 

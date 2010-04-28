@@ -1,4 +1,4 @@
-/* $Id: openssl-compat.c,v 1.8 2009/03/07 11:22:35 dtucker Exp $ */
+/* $Id: openssl-compat.c,v 1.9 2010/01/28 23:54:11 dtucker Exp $ */
 
 /*
  * Copyright (c) 2005 Darren Tucker <dtucker@zip.com.au>
@@ -67,5 +67,6 @@ ssh_SSLeay_add_all_algorithms(void)
 	/* Enable use of crypto hardware */
 	ENGINE_load_builtin_engines();
 	ENGINE_register_all_complete();
+	OPENSSL_config(NULL);
 }
 #endif

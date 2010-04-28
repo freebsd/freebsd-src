@@ -1,6 +1,7 @@
 # $FreeBSD$
 
 SUBDIR=	${_apm} \
+	${_beastie} \
 	blank \
 	${_daemon} \
 	${_dragon} \
@@ -18,6 +19,7 @@ _apm=		apm
 .endif
 
 .if ${MACHINE_ARCH} != "sparc64"
+_beastie=	beastie
 _daemon=	daemon
 _dragon=	dragon
 _fire=		fire

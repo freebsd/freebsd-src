@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004, 2005, 2007, 2008  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2005, 2007, 2008, 2010  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: ncache.c,v 1.43 2008/09/25 04:02:38 tbox Exp $ */
+/* $Id: ncache.c,v 1.43.334.2 2010/02/25 10:57:11 tbox Exp $ */
 
 /*! \file */
 
@@ -513,6 +513,8 @@ static dns_rdatasetmethods_t rdataset_methods = {
 	rdataset_current,
 	rdataset_clone,
 	rdataset_count,
+	NULL,
+	NULL,
 	NULL,
 	NULL,
 	NULL,

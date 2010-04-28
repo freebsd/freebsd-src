@@ -85,23 +85,14 @@ static struct wenv {
 	size_t namelen;
 } wenv_arr[] = {
 	{ NL("ALLUSERSPROFILE=") },
-	{ NL("COMMONPROGRAMFILES=") },
 	{ NL("COMPUTERNAME=") },
 	{ NL("COMSPEC=") },
 	{ NL("CYGWIN=") },
-	{ NL("NUMBER_OF_PROCESSORS=") },
 	{ NL("OS=") },
 	{ NL("PATH=") },
 	{ NL("PATHEXT=") },
-	{ NL("PROCESSOR_ARCHITECTURE=") },
-	{ NL("PROCESSOR_IDENTIFIER=") },
-	{ NL("PROCESSOR_LEVEL=") },
-	{ NL("PROCESSOR_REVISION=") },
-	{ NL("PROGRAMFILES=") },
 	{ NL("SYSTEMDRIVE=") },
 	{ NL("SYSTEMROOT=") },
-	{ NL("TMP=") },
-	{ NL("TEMP=") },
 	{ NL("WINDIR=") }
 };
 

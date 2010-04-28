@@ -1,7 +1,5 @@
 #	$FreeBSD$
 
-WARNS=0
-
 PROG=		ipftest
 SRCS=		${GENHDRS} ipftest.c fil.c ip_frag.c ip_state.c ip_nat.c \
 		ip_proxy.c ip_auth.c ip_htable.c ip_lookup.c \
@@ -10,6 +8,7 @@ SRCS=		${GENHDRS} ipftest.c fil.c ip_frag.c ip_state.c ip_nat.c \
 		ipf_l.c ipnat_y.c ipnat_l.c md5.c radix.c bpf_filter.c
 MAN=		ipftest.1
 
+WARNS?=		0
 CFLAGS+=	-DIPFILTER_LOG -DIPFILTER_COMPILED -DIPFILTER_LOOKUP \
 		-DIPFILTER_SCAN -DIPFILTER_SYNC -DIPFILTER_CKSUM -I.
 

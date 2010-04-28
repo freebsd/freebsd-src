@@ -120,7 +120,7 @@ main(int argc, char **argv)
 			if (*destdir == '\0')
 				strlcpy(destdir, optarg, sizeof(destdir));
 			else
-				errx(2, "directory already set");
+				errx(EXIT_FAILURE, "directory already set");
 			break;
 		case 'g':
 			debugging++;
@@ -175,7 +175,7 @@ main(int argc, char **argv)
 		if (mkdir(p, 0777))
 			err(2, "%s", p);
 	} else if (!S_ISDIR(buf.st_mode))
-		errx(2, "%s isn't a directory", p);
+		errx(EXIT_FAILURE, "%s isn't a directory", p);
 
 	SLIST_INIT(&cputype);
 	SLIST_INIT(&mkopt);
@@ -256,7 +256,7 @@ get_srcdir(void)
 	int i;
 
 	if (realpath("../..", srcdir) == NULL)
-		errx(2, "Unable to find root of source tree");
+		err(EXIT_FAILURE, "Unable to find root of source tree");
 	if ((pwd = getenv("PWD")) != NULL && *pwd == '/' &&
 	    (pwd = strdup(pwd)) != NULL) {
 		/* Remove the last two path components. */
@@ -513,7 +513,7 @@ configfile(void)
 	}
 	sbuf_finish(sb);
 	/* 
-	 * We print first part of the tamplate, replace our tag with
+	 * We print first part of the template, replace our tag with
 	 * configuration files content and later continue writing our
 	 * template.
 	 */
@@ -650,6 +650,8 @@ remember(const char *file)
 		}
 	}
 	hl = calloc(1, sizeof(*hl));
+	if (hl == NULL)
+		err(EXIT_FAILURE, "calloc");
 	hl->h_name = s;
 	hl->h_next = htab;
 	htab = hl;
@@ -671,19 +673,19 @@ kernconfdump(const char *file)
 
 	r = open(file, O_RDONLY);
 	if (r == -1)
-		errx(EXIT_FAILURE, "Couldn't open file '%s'", file);
+		err(EXIT_FAILURE, "Couldn't open file '%s'", file);
 	error = fstat(r, &st);
 	if (error == -1)
-		errx(EXIT_FAILURE, "fstat() failed");
+		err(EXIT_FAILURE, "fstat() failed");
 	if (S_ISDIR(st.st_mode))
 		errx(EXIT_FAILURE, "'%s' is a directory", file);
 	fp = fdopen(r, "r");
 	if (fp == NULL)
-		errx(EXIT_FAILURE, "fdopen() failed");
+		err(EXIT_FAILURE, "fdopen() failed");
 	osz = 1024;
 	o = calloc(1, osz);
 	if (o == NULL)
-		errx(EXIT_FAILURE, "Couldn't allocate memory");
+		err(EXIT_FAILURE, "Couldn't allocate memory");
 	/* ELF note section header. */
 	asprintf(&cmd, "/usr/bin/elfdump -c %s | grep -A 5 kern_conf"
 	    "| tail -2 | cut -d ' ' -f 2 | paste - - -", file);
@@ -703,7 +705,7 @@ kernconfdump(const char *file)
 		    "INCLUDE_CONFIG_FILE", file);
 	r = fseek(fp, off, SEEK_CUR);
 	if (r != 0)
-		errx(EXIT_FAILURE, "fseek() failed");
+		err(EXIT_FAILURE, "fseek() failed");
 	for (i = 0; i < size - 1; i++) {
 		r = fgetc(fp);
 		if (r == EOF)

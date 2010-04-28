@@ -600,7 +600,12 @@ sata_channel_begin_transaction(struct ata_request *request)
 	crqb->crqb_ata_lba_mid = request->u.ata.lba >> 8;
 	crqb->crqb_ata_lba_high = request->u.ata.lba >> 16;
 	crqb->crqb_ata_device = ((request->u.ata.lba >> 24) & 0x0F) | (1 << 6);
+	crqb->crqb_ata_lba_low_p = request->u.ata.lba >> 24;
+	crqb->crqb_ata_lba_mid_p = request->u.ata.lba >> 32;
+	crqb->crqb_ata_lba_high_p = request->u.ata.lba >> 40;
+	crqb->crqb_ata_feature_p = request->u.ata.feature >> 8;
 	crqb->crqb_ata_count = request->u.ata.count;
+	crqb->crqb_ata_count_p = request->u.ata.count >> 8;
 
 	bus_dmamap_sync(ch->dma.work_tag, ch->dma.work_map,
 	    BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);

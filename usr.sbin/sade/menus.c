@@ -92,24 +92,23 @@ DMenu MenuIPLType = {
 DMenu MenuMBRType = {
     DMENU_NORMAL_TYPE | DMENU_SELECTION_RETURNS,
     "overwrite me",		/* will be disk specific label */
-    "FreeBSD comes with a boot selector that allows you to easily\n"
+    "FreeBSD comes with a boot manager that allows you to easily\n"
     "select between FreeBSD and any other operating systems on your machine\n"
     "at boot time.  If you have more than one drive and want to boot\n"
-    "from the second one, the boot selector will also make it possible\n"
+    "from the second one, the boot manager will also make it possible\n"
     "to do so (limitations in the PC BIOS usually prevent this otherwise).\n"
-    "If you do not want a boot selector, or wish to replace an existing\n"
-    "one, select \"standard\".  If you would prefer your Master Boot\n"
-    "Record to remain untouched then select \"None\".\n\n"
-    "  NOTE:  PC-DOS users will almost certainly require \"None\"!",
-    "Press F1 to read about drive setup",
+    "If you have other operating systems installed and would like a choice when\n"
+    "booting, choose \"BootMgr\". If you would prefer to keep your existing\n"
+    "boot manager, select \"None\".\n\n",
+    "",
     "drives",
-    { { "BootMgr",	"Install the FreeBSD Boot Manager",
-	dmenuRadioCheck, dmenuSetValue, NULL, &BootMgr, 0, 0, 0, 0 },
-      { "Standard",	"Install a standard MBR (no boot manager)",
+    { { "Standard",	"Install a standard MBR (non-interactive boot manager)",
 	dmenuRadioCheck, dmenuSetValue, NULL, &BootMgr, '(', '*', ')', 1 },
-      { "None",		"Leave the Master Boot Record untouched",
+      { "BootMgr",	"Install the FreeBSD boot manager",
+	dmenuRadioCheck, dmenuSetValue, NULL, &BootMgr, '(', '*', ')', 0 },
+      { "None",		"Do not install a boot manager",
 	dmenuRadioCheck, dmenuSetValue, NULL, &BootMgr, '(', '*', ')', 2 },
-      { NULL, NULL, NULL, NULL, NULL, NULL, 0, 0, 0, 0 } },
+      { NULL, NULL, NULL, NULL, NULL, NULL, 0, 0, 0, 0 } }
 };
 #endif /* PC98 */
 #endif /* __i386__ */

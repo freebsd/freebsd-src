@@ -250,18 +250,40 @@ CIS-vendor.
 Device class.
 .It Li device
 Device ID.
+.It Li devclass
+Device Class (USB)
+.It Li devsubclass
+Device Sub-class (USB)
 .It Li device-name
 Name of attached/detached device.
+.It Li endpoints
+Endpoint count (USB)
 .It Li function
 Card functions.
+.It Li interface
+Interface ID (USB)
+.It Li intclass
+Interface Class (USB)
+.It Li intprotocol
+Interface Protocol  (USB)
+.It Li intsubclass
+Interface Sub-class (USB)
 .It Li manufacturer
 Manufacturer ID (pccard).
+.It Li mode
+Peripheral mode (USB)
 .It Li notify
 Match the value of the
 .Dq Li notify
 variable.
+.It Li parent
+Parent device
+.It Li port
+Hub port number (USB)
 .It Li product
-Product ID (pccard).
+Product ID (pccard/USB).
+.It Li release
+Hardware revision (USB)
 .It Li serial
 Serial Number (USB).
 .It Li slot
@@ -340,6 +362,27 @@ node is created.
 The
 .Xr devfs 5
 node is destroyed.
+.El
+.El
+.It Li USB
+Events related to the USB subsystem.
+.Bl -tag -width ".Sy Subsystem" -compact
+.It Sy Subsystem
+.It Li DEVICE
+.Bl -tag -width ".Li DETACH" -compact
+.It Sy Type
+.It Li ATTACH
+USB device is attached to the system.
+.It Li DETACH
+USB device is detached from the system.
+.El
+.It Li INTERFACE
+.Bl -tag -width ".Li DETACH" -compact
+.It Sy Type
+.It Li ATTACH
+USB interface is attached from a device.
+.It Li DETACH
+USB interface is detached from a device.
 .El
 .El
 .It Li coretemp
@@ -458,6 +501,17 @@ notify 0 {
 	match "subsystem"		"Lid";
 	match "notify"			"0x01";
 	action "logger Lid opened, the sleeper must awaken!";
+};
+
+#
+# Match a USB device type
+#
+notify 0 {
+	match "system"			"USB";
+	match "subsystem"		"INTERFACE";
+	match "type"			"ATTACH";
+	match "intclass"		"0x0e";
+	action "logger USB video device attached";
 };
 
 #

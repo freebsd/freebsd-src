@@ -16,7 +16,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: config.h.in,v 1.106.40.6 2009/03/13 05:35:43 marka Exp $ */
+/* $Id: config.h.in,v 1.106.40.11 2010/01/15 19:38:52 each Exp $ */
 
 /*! \file */
 
@@ -144,6 +144,9 @@ int sigwait(const unsigned int *set, int *sig);
 /* Define if threads need PTHREAD_SCOPE_SYSTEM */
 #undef NEED_PTHREAD_SCOPE_SYSTEM
 
+/* Define if building universal (internal helper macro) */
+#undef AC_APPLE_UNIVERSAL_BUILD
+
 /* Define if recvmsg() does not meet all of the BSD socket API specifications.
    */
 #undef BROKEN_RECVMSG
@@ -162,6 +165,12 @@ int sigwait(const unsigned int *set, int *sig);
 
 /* Define to 1 if you have the <dlfcn.h> header file. */
 #undef HAVE_DLFCN_H
+
+/* Define to 1 if you have the `EVP_sha256' function. */
+#undef HAVE_EVP_SHA256
+
+/* Define to 1 if you have the `EVP_sha512' function. */
+#undef HAVE_EVP_SHA512
 
 /* Define to 1 if you have the <fcntl.h> header file. */
 #undef HAVE_FCNTL_H
@@ -293,6 +302,9 @@ int sigwait(const unsigned int *set, int *sig);
 /* Define to the one symbol short name of this package. */
 #undef PACKAGE_TARNAME
 
+/* Define to the home page for this package. */
+#undef PACKAGE_URL
+
 /* Define to the version of this package. */
 #undef PACKAGE_VERSION
 
@@ -314,11 +326,15 @@ int sigwait(const unsigned int *set, int *sig);
 #undef WITH_IDN
 
 /* Define WORDS_BIGENDIAN to 1 if your processor stores words with the most
-   significant byte first (like Motorola and SPARC, unlike Intel and VAX). */
-#if defined __BIG_ENDIAN__
-# define WORDS_BIGENDIAN 1
-#elif ! defined __LITTLE_ENDIAN__
-# undef WORDS_BIGENDIAN
+   significant byte first (like Motorola and SPARC, unlike Intel). */
+#if defined AC_APPLE_UNIVERSAL_BUILD
+# if defined __BIG_ENDIAN__
+#  define WORDS_BIGENDIAN 1
+# endif
+#else
+# ifndef WORDS_BIGENDIAN
+#  undef WORDS_BIGENDIAN
+# endif
 #endif
 
 /* Define to empty if `const' does not conform to ANSI C. */

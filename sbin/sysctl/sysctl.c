@@ -382,6 +382,7 @@ S_timeval(int l2, void *p)
 		if (*p2 == '\n')
 			*p2 = '\0';
 	fputs(p1, stdout);
+	free(p1);
 	return (0);
 }
 

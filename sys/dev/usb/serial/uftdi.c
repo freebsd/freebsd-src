@@ -15,13 +15,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *        This product includes software developed by the NetBSD
- *        Foundation, Inc. and its contributors.
- * 4. Neither the name of The NetBSD Foundation nor the names of its
- *    contributors may be used to endorse or promote products derived
- *    from this software without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
  * ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
@@ -80,7 +73,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/usb/serial/usb_serial.h>
 #include <dev/usb/serial/uftdi_reg.h>
 
-#if USB_DEBUG
+#ifdef USB_DEBUG
 static int uftdi_debug = 0;
 
 SYSCTL_NODE(_hw_usb, OID_AUTO, uftdi, CTLFLAG_RW, 0, "USB uftdi");
@@ -91,8 +84,6 @@ SYSCTL_INT(_hw_usb_uftdi, OID_AUTO, debug, CTLFLAG_RW,
 #define	UFTDI_CONFIG_INDEX	0
 #define	UFTDI_IFACE_INDEX	0
 
-#define	UFTDI_IBUFSIZE 64		/* bytes, maximum number of bytes per
-					 * frame */
 #define	UFTDI_OBUFSIZE 64		/* bytes, cannot be increased due to
 					 * do size encoding */
 
@@ -173,7 +164,7 @@ static const struct usb_config uftdi_config[UFTDI_N_TRANSFER] = {
 		.type = UE_BULK,
 		.endpoint = UE_ADDR_ANY,
 		.direction = UE_DIR_IN,
-		.bufsize = UFTDI_IBUFSIZE,
+		.bufsize = 0,		/* use wMaxPacketSize */
 		.flags = {.pipe_bof = 1,.short_xfer_ok = 1,},
 		.callback = &uftdi_read_callback,
 	},

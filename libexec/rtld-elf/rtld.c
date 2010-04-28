@@ -1961,7 +1961,7 @@ dlclose(void *handle)
     return 0;
 }
 
-const char *
+char *
 dlerror(void)
 {
     char *msg = error_message;

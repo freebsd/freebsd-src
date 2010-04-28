@@ -179,7 +179,8 @@ struct apic_enumerator {
 inthand_t
 	IDTVEC(apic_isr1), IDTVEC(apic_isr2), IDTVEC(apic_isr3),
 	IDTVEC(apic_isr4), IDTVEC(apic_isr5), IDTVEC(apic_isr6),
-	IDTVEC(apic_isr7), IDTVEC(spuriousint), IDTVEC(timerint);
+	IDTVEC(apic_isr7), IDTVEC(errorint), IDTVEC(spuriousint),
+	IDTVEC(timerint);
 
 extern vm_paddr_t lapic_paddr;
 extern int apic_cpuids[];
@@ -211,13 +212,13 @@ void	lapic_disable_pmc(void);
 void	lapic_dump(const char *str);
 int	lapic_enable_pmc(void);
 void	lapic_eoi(void);
-u_int	lapic_error(void);
 int	lapic_id(void);
 void	lapic_init(vm_paddr_t addr);
 int	lapic_intr_pending(u_int vector);
 void	lapic_ipi_raw(register_t icrlo, u_int dest);
 void	lapic_ipi_vectored(u_int vector, int dest);
 int	lapic_ipi_wait(int delay);
+void	lapic_handle_error(void);
 void	lapic_handle_intr(int vector, struct trapframe *frame);
 void	lapic_handle_timer(struct trapframe *frame);
 void	lapic_reenable_pmc(void);
@@ -230,7 +231,7 @@ int	lapic_set_lvt_triggermode(u_int apic_id, u_int lvt,
 	    enum intr_trigger trigger);
 void	lapic_set_tpr(u_int vector);
 void	lapic_setup(int boot);
-enum lapic_clock	lapic_setup_clock(void);
+enum lapic_clock	lapic_setup_clock(enum lapic_clock srcsdes);
 
 #endif /* !LOCORE */
 #endif /* _MACHINE_APICVAR_H_ */

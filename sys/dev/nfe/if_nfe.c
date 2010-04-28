@@ -2366,19 +2366,18 @@ nfe_encap(struct nfe_softc *sc, struct mbuf **m_head)
 	m = *m_head;
 	cflags = flags = 0;
 	tso_segsz = 0;
-	if ((m->m_pkthdr.csum_flags & NFE_CSUM_FEATURES) != 0) {
+	if ((m->m_pkthdr.csum_flags & CSUM_TSO) != 0) {
+		tso_segsz = (uint32_t)m->m_pkthdr.tso_segsz <<
+		    NFE_TX_TSO_SHIFT;
+		cflags &= ~(NFE_TX_IP_CSUM | NFE_TX_TCP_UDP_CSUM);
+		cflags |= NFE_TX_TSO;
+	} else if ((m->m_pkthdr.csum_flags & NFE_CSUM_FEATURES) != 0) {
 		if ((m->m_pkthdr.csum_flags & CSUM_IP) != 0)
 			cflags |= NFE_TX_IP_CSUM;
 		if ((m->m_pkthdr.csum_flags & CSUM_TCP) != 0)
 			cflags |= NFE_TX_TCP_UDP_CSUM;
 		if ((m->m_pkthdr.csum_flags & CSUM_UDP) != 0)
 			cflags |= NFE_TX_TCP_UDP_CSUM;
-	}
-	if ((m->m_pkthdr.csum_flags & CSUM_TSO) != 0) {
-		tso_segsz = (uint32_t)m->m_pkthdr.tso_segsz <<
-		    NFE_TX_TSO_SHIFT;
-		cflags &= ~(NFE_TX_IP_CSUM | NFE_TX_TCP_UDP_CSUM);
-		cflags |= NFE_TX_TSO;
 	}
 
 	for (i = 0; i < nsegs; i++) {

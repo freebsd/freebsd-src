@@ -108,3 +108,11 @@ CFLAGS+=	-restrict
 	${MACHINE_ARCH} != "arm" && ${MACHINE_ARCH} != "mips"
 CFLAGS+=	-fstack-protector
 .endif
+
+#
+# Enable CTF conversation on request.
+#
+.if defined(WITH_CTF)
+.undef NO_CTF
+.endif
+

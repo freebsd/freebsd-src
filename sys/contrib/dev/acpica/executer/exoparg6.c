@@ -337,7 +337,7 @@ AcpiExOpcode_6A_0T_1R (
         if (Index >= Operand[0]->Package.Count)
         {
             ACPI_ERROR ((AE_INFO,
-                "Index (%X%8.8X) beyond package end (%X)",
+                "Index (0x%8.8X%8.8X) beyond package end (0x%X)",
                 ACPI_FORMAT_UINT64 (Index), Operand[0]->Package.Count));
             Status = AE_AML_PACKAGE_LIMIT;
             goto Cleanup;
@@ -411,7 +411,7 @@ AcpiExOpcode_6A_0T_1R (
 
     default:
 
-        ACPI_ERROR ((AE_INFO, "Unknown AML opcode %X",
+        ACPI_ERROR ((AE_INFO, "Unknown AML opcode 0x%X",
             WalkState->Opcode));
         Status = AE_AML_BAD_OPCODE;
         goto Cleanup;

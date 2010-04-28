@@ -181,7 +181,7 @@ AcpiExSetupRegion (
 
     if (RgnDesc->Common.Type != ACPI_TYPE_REGION)
     {
-        ACPI_ERROR ((AE_INFO, "Needed Region, found type %X (%s)",
+        ACPI_ERROR ((AE_INFO, "Needed Region, found type 0x%X (%s)",
             RgnDesc->Common.Type,
             AcpiUtGetObjectTypeName (RgnDesc)));
 
@@ -262,7 +262,7 @@ AcpiExSetupRegion (
              * byte, and a field with Dword access specified.
              */
             ACPI_ERROR ((AE_INFO,
-                "Field [%4.4s] access width (%d bytes) too large for region [%4.4s] (length %X)",
+                "Field [%4.4s] access width (%u bytes) too large for region [%4.4s] (length %u)",
                 AcpiUtGetNodeName (ObjDesc->CommonField.Node),
                 ObjDesc->CommonField.AccessByteWidth,
                 AcpiUtGetNodeName (RgnDesc->Region.Node),
@@ -274,7 +274,7 @@ AcpiExSetupRegion (
          * exceeds region length, indicate an error
          */
         ACPI_ERROR ((AE_INFO,
-            "Field [%4.4s] Base+Offset+Width %X+%X+%X is beyond end of region [%4.4s] (length %X)",
+            "Field [%4.4s] Base+Offset+Width %u+%u+%u is beyond end of region [%4.4s] (length %u)",
             AcpiUtGetNodeName (ObjDesc->CommonField.Node),
             ObjDesc->CommonField.BaseByteOffset,
             FieldDatumByteOffset, ObjDesc->CommonField.AccessByteWidth,
@@ -371,14 +371,14 @@ AcpiExAccessRegion (
         if (Status == AE_NOT_IMPLEMENTED)
         {
             ACPI_ERROR ((AE_INFO,
-                "Region %s(%X) not implemented",
+                "Region %s(0x%X) not implemented",
                 AcpiUtGetRegionName (RgnDesc->Region.SpaceId),
                 RgnDesc->Region.SpaceId));
         }
         else if (Status == AE_NOT_EXIST)
         {
             ACPI_ERROR ((AE_INFO,
-                "Region %s(%X) has no handler",
+                "Region %s(0x%X) has no handler",
                 AcpiUtGetRegionName (RgnDesc->Region.SpaceId),
                 RgnDesc->Region.SpaceId));
         }
@@ -633,7 +633,7 @@ AcpiExFieldDatumIo (
 
     default:
 
-        ACPI_ERROR ((AE_INFO, "Wrong object type in field I/O %X",
+        ACPI_ERROR ((AE_INFO, "Wrong object type in field I/O %u",
             ObjDesc->Common.Type));
         Status = AE_AML_INTERNAL;
         break;
@@ -743,7 +743,7 @@ AcpiExWriteWithUpdateRule (
         default:
 
             ACPI_ERROR ((AE_INFO,
-                "Unknown UpdateRule value: %X",
+                "Unknown UpdateRule value: 0x%X",
                 (ObjDesc->CommonField.FieldFlags & AML_FIELD_UPDATE_RULE_MASK)));
             return_ACPI_STATUS (AE_AML_OPERAND_VALUE);
         }
@@ -806,7 +806,7 @@ AcpiExExtractFromField (
             ACPI_ROUND_BITS_UP_TO_BYTES (ObjDesc->CommonField.BitLength))
     {
         ACPI_ERROR ((AE_INFO,
-            "Field size %X (bits) is too large for buffer (%X)",
+            "Field size %u (bits) is too large for buffer (%u)",
             ObjDesc->CommonField.BitLength, BufferLength));
 
         return_ACPI_STATUS (AE_BUFFER_OVERFLOW);

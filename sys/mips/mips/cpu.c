@@ -51,7 +51,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/pte.h>
 #include <machine/hwfunc.h>
 
-static struct mips_cpuinfo cpuinfo;
+struct mips_cpuinfo cpuinfo;
 
 union	cpuprid cpu_id;
 union	cpuprid fpu_id;

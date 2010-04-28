@@ -168,8 +168,8 @@ malo_bar0_read4(struct malo_softc *sc, bus_size_t off)
 static void
 malo_bar0_write4(struct malo_softc *sc, bus_size_t off, uint32_t val)
 {
-	DPRINTF(sc, MALO_DEBUG_FW, "%s: off 0x%zx val 0x%x\n",
-	    __func__, off, val);
+	DPRINTF(sc, MALO_DEBUG_FW, "%s: off 0x%jx val 0x%x\n",
+	    __func__, (intmax_t)off, val);
 
 	bus_space_write_4(sc->malo_io0t, sc->malo_io0h, off, val);
 }

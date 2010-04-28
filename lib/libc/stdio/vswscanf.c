@@ -62,7 +62,7 @@ vswscanf(const wchar_t * __restrict str, const wchar_t * __restrict fmt,
 {
 	static const mbstate_t initial;
 	mbstate_t mbs;
-	FILE f;
+	FILE f = FAKE_FILE;
 	char *mbstr;
 	size_t mlen;
 	int r;
@@ -80,15 +80,10 @@ vswscanf(const wchar_t * __restrict str, const wchar_t * __restrict fmt,
 		free(mbstr);
 		return (EOF);
 	}
-	f._file = -1;
 	f._flags = __SRD;
 	f._bf._base = f._p = (unsigned char *)mbstr;
 	f._bf._size = f._r = mlen;
 	f._read = eofread;
-	f._ub._base = NULL;
-	f._lb._base = NULL;
-	f._orientation = 0;
-	memset(&f._mbstate, 0, sizeof(mbstate_t));
 	r = __vfwscanf(&f, fmt, ap);
 	free(mbstr);
 

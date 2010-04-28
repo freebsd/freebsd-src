@@ -1,6 +1,6 @@
 /******************************************************************************
 
-  Copyright (c) 2001-2009, Intel Corporation 
+  Copyright (c) 2001-2010, Intel Corporation 
   All rights reserved.
   
   Redistribution and use in source and binary forms, with or without 
@@ -43,6 +43,7 @@ s32 ixgbe_set_mac_type(struct ixgbe_hw *hw);
 s32 ixgbe_init_hw(struct ixgbe_hw *hw);
 s32 ixgbe_reset_hw(struct ixgbe_hw *hw);
 s32 ixgbe_start_hw(struct ixgbe_hw *hw);
+void ixgbe_enable_relaxed_ordering(struct ixgbe_hw *hw);
 s32 ixgbe_clear_hw_cntrs(struct ixgbe_hw *hw);
 enum ixgbe_media_type ixgbe_get_media_type(struct ixgbe_hw *hw);
 s32 ixgbe_get_mac_addr(struct ixgbe_hw *hw, u8 *mac_addr);
@@ -122,6 +123,7 @@ s32 ixgbe_fdir_add_signature_filter_82599(struct ixgbe_hw *hw,
                                           u8 queue);
 s32 ixgbe_fdir_add_perfect_filter_82599(struct ixgbe_hw *hw,
                                         struct ixgbe_atr_input *input,
+                                        struct ixgbe_atr_input_masks *masks,
                                         u16 soft_id,
                                         u8 queue);
 u16 ixgbe_atr_compute_hash_82599(struct ixgbe_atr_input *input, u32 key);

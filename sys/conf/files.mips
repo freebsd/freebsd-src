@@ -50,7 +50,6 @@ mips/mips/bus_space_generic.c 	standard
 mips/mips/busdma_machdep.c 	standard
 mips/mips/cache.c		standard
 mips/mips/cache_mipsNN.c	standard
-#mips/mips/copystr.S		standard
 mips/mips/db_disasm.c		optional	ddb
 mips/mips/db_interface.c	optional	ddb
 mips/mips/db_trace.c		optional	ddb
@@ -101,3 +100,6 @@ dev/siba/siba_cc.c		optional	siba
 dev/siba/siba_core.c		optional	siba
 dev/siba/siba_pcib.c		optional	siba pci
 #mips/sentry5/siba_mips.c			optional siba # not yet
+
+dev/hwpmc/hwpmc_mips.c		optional hwpmc
+dev/hwpmc/hwpmc_mips24k.c	optional hwpmc

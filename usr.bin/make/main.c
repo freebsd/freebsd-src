@@ -983,8 +983,6 @@ main(int argc, char **argv)
 	if ((machine_cpu = getenv("MACHINE_CPU")) == NULL) {
 		if (!strcmp(machine_arch, "i386"))
 			machine_cpu = "i386";
-		else if (!strcmp(machine_arch, "alpha"))
-			machine_cpu = "ev4";
 		else
 			machine_cpu = "unknown";
 	}

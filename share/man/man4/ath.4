@@ -28,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"/
-.Dd July 8, 2009
+.Dd March 21, 2010
 .Dt ATH 4
 .Os
 .Sh NAME
@@ -145,15 +145,6 @@ except those that are based on the AR5005VL chipset.
 A list of cards that are supported can be found at
 .Pa http://customerproducts.atheros.com/customerproducts/default.asp .
 .Sh EXAMPLES
-Join an existing BSS network (ie: connect to an access point):
-.Pp
-.Dl "ifconfig ath0 inet 192.168.0.20 netmask 0xffffff00"
-.Pp
-Join a specific BSS network with network name
-.Dq Li my_net :
-.Pp
-.Dl "ifconfig ath0 inet 192.168.0.20 netmask 0xffffff00 ssid my_net"
-.Pp
 Join a specific BSS network with WEP encryption:
 .Bd -literal -offset indent
 ifconfig wlan0 create wlandev ath0

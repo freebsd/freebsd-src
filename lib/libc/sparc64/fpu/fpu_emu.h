@@ -140,7 +140,7 @@ struct fpn {
 #define	FTYPE_SNG	INSFP_s
 #define	FTYPE_DBL	INSFP_d
 #define	FTYPE_EXT	INSFP_q
-#define	FTYPE_LNG	-1
+#define	FTYPE_LNG	4
 
 /*
  * Emulator state.

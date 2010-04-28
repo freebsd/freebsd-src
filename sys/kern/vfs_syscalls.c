@@ -45,6 +45,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/bio.h>
 #include <sys/buf.h>
+#include <sys/disk.h>
 #include <sys/sysent.h>
 #include <sys/malloc.h>
 #include <sys/mount.h>
@@ -1046,8 +1047,6 @@ kern_openat(struct thread *td, int fd, char *path, enum uio_seg pathseg,
 	struct filedesc *fdp = p->p_fd;
 	struct file *fp;
 	struct vnode *vp;
-	struct vattr vat;
-	struct mount *mp;
 	int cmode;
 	struct file *nfp;
 	int type, indx, error;
@@ -1059,8 +1058,8 @@ kern_openat(struct thread *td, int fd, char *path, enum uio_seg pathseg,
 	AUDIT_ARG_MODE(mode);
 	/* XXX: audit dirfd */
 	/*
-	 * Only one of the O_EXEC, O_RDONLY, O_WRONLY and O_RDWR may
-	 * be specified.
+	 * Only one of the O_EXEC, O_RDONLY, O_WRONLY and O_RDWR flags
+	 * may be specified.
 	 */
 	if (flags & O_EXEC) {
 		if (flags & O_ACCMODE)
@@ -1123,7 +1122,12 @@ kern_openat(struct thread *td, int fd, char *path, enum uio_seg pathseg,
 	NDFREE(&nd, NDF_ONLY_PNBUF);
 	vp = nd.ni_vp;
 
-	fp->f_vnode = vp;	/* XXX Does devfs need this? */
+	/*
+	 * Store the vnode, for any f_type. Typically, the vnode use
+	 * count is decremented by direct call to vn_closefile() for
+	 * files that switched type in the cdevsw fdopen() method.
+	 */
+	fp->f_vnode = vp;
 	/*
 	 * If the file wasn't claimed by devfs bind it to the normal
 	 * vnode operations here.
@@ -1135,7 +1139,7 @@ kern_openat(struct thread *td, int fd, char *path, enum uio_seg pathseg,
 	}
 
 	VOP_UNLOCK(vp, 0);
-	if (flags & (O_EXLOCK | O_SHLOCK)) {
+	if (fp->f_type == DTYPE_VNODE && (flags & (O_EXLOCK | O_SHLOCK)) != 0) {
 		lf.l_whence = SEEK_SET;
 		lf.l_start = 0;
 		lf.l_len = 0;
@@ -1152,18 +1156,7 @@ kern_openat(struct thread *td, int fd, char *path, enum uio_seg pathseg,
 		atomic_set_int(&fp->f_flag, FHASLOCK);
 	}
 	if (flags & O_TRUNC) {
-		if ((error = vn_start_write(vp, &mp, V_WAIT | PCATCH)) != 0)
-			goto bad;
-		VATTR_NULL(&vat);
-		vat.va_size = 0;
-		vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
-#ifdef MAC
-		error = mac_vnode_check_write(td->td_ucred, fp->f_cred, vp);
-		if (error == 0)
-#endif
-			error = VOP_SETATTR(vp, &vat, td->td_ucred);
-		VOP_UNLOCK(vp, 0);
-		vn_finished_write(mp);
+		error = fo_truncate(fp, 0, td->td_ucred, td);
 		if (error)
 			goto bad;
 	}
@@ -1920,7 +1913,7 @@ lseek(td, uap)
 	struct file *fp;
 	struct vnode *vp;
 	struct vattr vattr;
-	off_t offset;
+	off_t offset, size;
 	int error, noneg;
 	int vfslocked;
 
@@ -1951,6 +1944,15 @@ lseek(td, uap)
 		VOP_UNLOCK(vp, 0);
 		if (error)
 			break;
+
+		/*
+		 * If the file references a disk device, then fetch
+		 * the media size and use that to determine the ending
+		 * offset.
+		 */
+		if (vattr.va_size == 0 && vp->v_type == VCHR &&
+		    fo_ioctl(fp, DIOCGMEDIASIZE, &size, cred, td) == 0)
+			vattr.va_size = size;
 		if (noneg &&
 		    (vattr.va_size > OFF_MAX ||
 		    (offset > 0 && vattr.va_size > OFF_MAX - offset))) {
@@ -2259,9 +2261,9 @@ cvtstat(st, ost)
 		ost->st_size = st->st_size;
 	else
 		ost->st_size = -2;
-	ost->st_atime = st->st_atime;
-	ost->st_mtime = st->st_mtime;
-	ost->st_ctime = st->st_ctime;
+	ost->st_atim = st->st_atim;
+	ost->st_mtim = st->st_mtim;
+	ost->st_ctim = st->st_ctim;
 	ost->st_blksize = st->st_blksize;
 	ost->st_blocks = st->st_blocks;
 	ost->st_flags = st->st_flags;
@@ -2421,15 +2423,15 @@ cvtnstat(sb, nsb)
 	nsb->st_uid = sb->st_uid;
 	nsb->st_gid = sb->st_gid;
 	nsb->st_rdev = sb->st_rdev;
-	nsb->st_atimespec = sb->st_atimespec;
-	nsb->st_mtimespec = sb->st_mtimespec;
-	nsb->st_ctimespec = sb->st_ctimespec;
+	nsb->st_atim = sb->st_atim;
+	nsb->st_mtim = sb->st_mtim;
+	nsb->st_ctim = sb->st_ctim;
 	nsb->st_size = sb->st_size;
 	nsb->st_blocks = sb->st_blocks;
 	nsb->st_blksize = sb->st_blksize;
 	nsb->st_flags = sb->st_flags;
 	nsb->st_gen = sb->st_gen;
-	nsb->st_birthtimespec = sb->st_birthtimespec;
+	nsb->st_birthtim = sb->st_birthtim;
 }
 
 #ifndef _SYS_SYSPROTO_H_
@@ -4416,6 +4418,10 @@ fhopen(td, uap)
 	}
 	if (vp->v_type == VSOCK) {
 		error = EOPNOTSUPP;
+		goto bad;
+	}
+	if (vp->v_type != VDIR && fmode & O_DIRECTORY) {
+		error = ENOTDIR;
 		goto bad;
 	}
 	accmode = 0;

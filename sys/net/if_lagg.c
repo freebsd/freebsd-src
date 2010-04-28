@@ -484,10 +484,6 @@ lagg_port_create(struct lagg_softc *sc, struct ifnet *ifp)
 	if (sc->sc_count >= LAGG_MAX_PORTS)
 		return (ENOSPC);
 
-	/* New lagg port has to be in an idle state */
-	if (ifp->if_drv_flags & IFF_DRV_OACTIVE)
-		return (EBUSY);
-
 	/* Check if port has already been associated to a lagg */
 	if (ifp->if_lagg != NULL)
 		return (EBUSY);

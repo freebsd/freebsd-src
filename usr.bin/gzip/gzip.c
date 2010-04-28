@@ -1,4 +1,4 @@
-/*	$NetBSD: gzip.c,v 1.94 2009/04/12 10:31:14 lukem Exp $	*/
+/*	$NetBSD: gzip.c,v 1.97 2009/10/11 09:17:21 mrg Exp $	*/
 
 /*-
  * Copyright (c) 1997, 1998, 2003, 2004, 2006 Matthew R. Green
@@ -43,7 +43,6 @@ __RCSID("$FreeBSD$");
  *
  * TODO:
  *	- use mmap where possible
- *	- handle some signals better (remove outfile?)
  *	- make bzip2/compress -v/-t/-l support work as well as possible
  */
 
@@ -149,10 +148,9 @@ static suffixes_t suffixes[] = {
 #undef SUFFIX
 };
 #define NUM_SUFFIXES (sizeof suffixes / sizeof suffixes[0])
-
 #define SUFFIX_MAXLEN	30
 
-static	const char	gzip_version[] = "FreeBSD gzip 20090621";
+static	const char	gzip_version[] = "FreeBSD gzip 20100407";
 
 #ifndef SMALL
 static	const char	gzip_copyright[] = \
@@ -195,6 +193,7 @@ static	int	qflag;			/* quiet mode */
 static	int	rflag;			/* recursive mode */
 static	int	tflag;			/* test */
 static	int	vflag;			/* verbose mode */
+static	const char *remove_file = NULL;	/* file to be removed upon SIGINT */
 #else
 #define		qflag	0
 #define		tflag	0
@@ -206,7 +205,7 @@ static	char	*infile;		/* name of file coming in */
 
 static	void	maybe_err(const char *fmt, ...) __dead2
     __attribute__((__format__(__printf__, 1, 2)));
-#ifndef NO_BZIP2_SUPPORT
+#if !defined(NO_BZIP2_SUPPORT) || !defined(NO_PACK_SUPPORT)
 static	void	maybe_errx(const char *fmt, ...) __dead2
     __attribute__((__format__(__printf__, 1, 2)));
 #endif
@@ -232,6 +231,7 @@ static	void	usage(void);
 static	void	display_version(void);
 #ifndef SMALL
 static	void	display_license(void);
+static	void	sigint_handler(int);
 #endif
 static	const suffixes_t *check_suffix(char *, int);
 static	ssize_t	read_retry(int, void *, size_t);
@@ -301,11 +301,10 @@ main(int argc, char **argv)
 #endif
 	int ch;
 
-	/* XXX set up signals */
-
 #ifndef SMALL
 	if ((gzip = getenv("GZIP")) != NULL)
 		prepend_gzip(gzip, &argc, &argv);
+	signal(SIGINT, sigint_handler);
 #endif
 
 	/*
@@ -461,7 +460,7 @@ maybe_err(const char *fmt, ...)
 	exit(2);
 }
 
-#ifndef NO_BZIP2_SUPPORT
+#if !defined(NO_BZIP2_SUPPORT) || !defined(NO_PACK_SUPPORT)
 /* ... without an errno. */
 void
 maybe_errx(const char *fmt, ...)
@@ -1088,8 +1087,8 @@ copymodes(int fd, const struct stat *sbp, const char *file)
 	if (fchmod(fd, sb.st_mode) < 0)
 		maybe_warn("couldn't fchmod: %s", file);
 
-	TIMESPEC_TO_TIMEVAL(&times[0], &sb.st_atimespec);
-	TIMESPEC_TO_TIMEVAL(&times[1], &sb.st_mtimespec);
+	TIMESPEC_TO_TIMEVAL(&times[0], &sb.st_atim);
+	TIMESPEC_TO_TIMEVAL(&times[1], &sb.st_mtim);
 	if (futimes(fd, times) < 0)
 		maybe_warn("couldn't utimes: %s", file);
 
@@ -1171,6 +1170,15 @@ unlink_input(const char *file, const struct stat *sb)
 		/* Definitely a different file */
 		return;
 	unlink(file);
+}
+
+static void
+sigint_handler(int signo __unused)
+{
+
+	if (remove_file != NULL)
+		unlink(remove_file);
+	exit(2);
 }
 #endif
 
@@ -1258,6 +1266,9 @@ file_compress(char *file, char *outfile, size_t outsize)
 			fclose(stdin);
 			return -1;
 		}
+#ifndef SMALL
+		remove_file = outfile;
+#endif
 	} else
 		out = STDOUT_FILENO;
 
@@ -1289,6 +1300,7 @@ file_compress(char *file, char *outfile, size_t outsize)
 	}
 
 	copymodes(out, &isb, outfile);
+	remove_file = NULL;
 #endif
 	if (close(out) == -1)
 		maybe_warn("couldn't close output");
@@ -1319,6 +1331,7 @@ file_uncompress(char *file, char *outfile, size_t outsize)
 	enum filetype method;
 	int fd, ofd, zfd = -1;
 #ifndef SMALL
+	ssize_t rv;
 	time_t timestamp = 0;
 	unsigned char name[PATH_MAX + 1];
 #endif
@@ -1364,7 +1377,6 @@ file_uncompress(char *file, char *outfile, size_t outsize)
 #ifndef SMALL
 	if (method == FT_GZIP && Nflag) {
 		unsigned char ts[4];	/* timestamp */
-		ssize_t rv;
 
 		rv = pread(fd, ts, sizeof ts, GZIP_TIMESTAMP);
 		if (rv >= 0 && rv < (ssize_t)(sizeof ts))
@@ -1425,6 +1437,9 @@ file_uncompress(char *file, char *outfile, size_t outsize)
 			maybe_warn("can't open %s", outfile);
 			goto lose;
 		}
+#ifndef SMALL
+		remove_file = outfile;
+#endif
 	} else
 		zfd = STDOUT_FILENO;
 
@@ -1556,11 +1571,12 @@ file_uncompress(char *file, char *outfile, size_t outsize)
 		unlink(outfile);
 		return -1;
 	}
-	unlink_input(file, &isb);
 #ifndef SMALL
 	copymodes(ofd, &isb, outfile);
+	remove_file = NULL;
 #endif
 	close(ofd);
+	unlink_input(file, &isb);
 	return size;
 
     unexpected_EOF:
@@ -2054,7 +2070,7 @@ static void
 display_license(void)
 {
 
-	fprintf(stderr, "%s (based on NetBSD gzip 20060927)\n", gzip_version);
+	fprintf(stderr, "%s (based on NetBSD gzip 20091011)\n", gzip_version);
 	fprintf(stderr, "%s\n", gzip_copyright);
 	exit(0);
 }
@@ -2100,4 +2116,3 @@ read_retry(int fd, void *buf, size_t sz)
 
 	return sz - left;
 }
-

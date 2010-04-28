@@ -31,7 +31,7 @@ regress: ${tests}
 
 PROG=	h_tools
 NO_MAN=	# defined
-WARNS=	4
+WARNS?=	4
 
 t_sizes t_sockets t_statvfs: h_tools
 

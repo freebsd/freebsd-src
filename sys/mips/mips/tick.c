@@ -54,6 +54,8 @@ __FBSDID("$FreeBSD$");
 
 uint64_t counter_freq;
 
+struct timecounter *platform_timecounter;
+
 static uint64_t cycles_per_tick;
 static uint64_t cycles_per_usec;
 static uint64_t cycles_per_hz, cycles_per_stathz, cycles_per_profhz;
@@ -61,17 +63,14 @@ static uint64_t cycles_per_hz, cycles_per_stathz, cycles_per_profhz;
 static u_int32_t counter_upper = 0;
 static u_int32_t counter_lower_last = 0;
 
-struct clk_ticks
-{
+struct clk_ticks {
 	u_long hard_ticks;
 	u_long stat_ticks;
 	u_long prof_ticks;
-	/*
-	 * pad for cache line alignment of pcpu info
-	 * cache-line-size - number of used bytes
-	 */
-	char   pad[32-(3*sizeof (u_long))];
-} static pcpu_ticks[MAXCPU];
+	uint32_t compare_ticks;
+} __aligned(CACHE_LINE_SIZE);
+
+static struct clk_ticks pcpu_ticks[MAXCPU];
 
 /*
  * Device methods
@@ -103,6 +102,9 @@ platform_initclocks(void)
 {
 
 	tc_init(&counter_timecounter);
+
+	if (platform_timecounter != NULL)
+		tc_init(platform_timecounter);
 }
 
 static uint64_t
@@ -255,46 +257,77 @@ clock_intr(void *arg)
 {
 	struct clk_ticks *cpu_ticks;
 	struct trapframe *tf;
-	uint32_t ltick;
+	uint32_t count, compare, delta;
+
+	cpu_ticks = &pcpu_ticks[PCPU_GET(cpuid)];
+
 	/*
 	 * Set next clock edge.
 	 */
-	ltick = mips_rd_count();
-	mips_wr_compare(ltick + cycles_per_tick);
-	cpu_ticks = &pcpu_ticks[PCPU_GET(cpuid)];
+	count = mips_rd_count();
+	compare = cpu_ticks->compare_ticks;
+	cpu_ticks->compare_ticks = count + cycles_per_tick;
+	mips_wr_compare(cpu_ticks->compare_ticks);
 	critical_enter();
-	if (ltick < counter_lower_last) {
+	if (count < counter_lower_last) {
 		counter_upper++;
-		counter_lower_last = ltick;
+		counter_lower_last = count;
 	}
 	/*
 	 * Magic.  Setting up with an arg of NULL means we get passed tf.
 	 */
 	tf = (struct trapframe *)arg;
 
+	delta = cycles_per_tick;
+
+	/*
+	 * Account for the "lost time" between when the timer interrupt fired
+	 * and when 'clock_intr' actually started executing.
+	 */
+	delta += count - compare;
+
+	/*
+	 * If the COUNT and COMPARE registers are no longer in sync then make
+	 * up some reasonable value for the 'delta'.
+	 *
+	 * This could happen, for e.g., after we resume normal operations after
+	 * exiting the debugger.
+	 */
+	if (delta > cycles_per_hz)
+		delta = cycles_per_hz;
+#ifdef KDTRACE_HOOKS
+	/*
+	 * If the DTrace hooks are configured and a callback function
+	 * has been registered, then call it to process the high speed
+	 * timers.
+	 */
+	int cpu = PCPU_GET(cpuid);
+	if (cyclic_clock_func[cpu] != NULL)
+		(*cyclic_clock_func[cpu])(tf);
+#endif
 	/* Fire hardclock at hz. */
-	cpu_ticks->hard_ticks += cycles_per_tick;
+	cpu_ticks->hard_ticks += delta;
 	if (cpu_ticks->hard_ticks >= cycles_per_hz) {
 	        cpu_ticks->hard_ticks -= cycles_per_hz;
 		if (PCPU_GET(cpuid) == 0)
-			hardclock(USERMODE(tf->sr), tf->pc);
+			hardclock(TRAPF_USERMODE(tf), tf->pc);
 		else
-			hardclock_cpu(USERMODE(tf->sr));
+			hardclock_cpu(TRAPF_USERMODE(tf));
 	}
 
 	/* Fire statclock at stathz. */
-	cpu_ticks->stat_ticks += cycles_per_tick;
+	cpu_ticks->stat_ticks += delta;
 	if (cpu_ticks->stat_ticks >= cycles_per_stathz) {
 		cpu_ticks->stat_ticks -= cycles_per_stathz;
-		statclock(USERMODE(tf->sr));
+		statclock(TRAPF_USERMODE(tf));
 	}
 
 	/* Fire profclock at profhz, but only when needed. */
-	cpu_ticks->prof_ticks += cycles_per_tick;
+	cpu_ticks->prof_ticks += delta;
 	if (cpu_ticks->prof_ticks >= cycles_per_profhz) {
 		cpu_ticks->prof_ticks -= cycles_per_profhz;
 		if (profprocs != 0)
-			profclock(USERMODE(tf->sr), tf->pc);
+			profclock(TRAPF_USERMODE(tf), tf->pc);
 	}
 	critical_exit();
 #if 0 /* TARGET_OCTEON */

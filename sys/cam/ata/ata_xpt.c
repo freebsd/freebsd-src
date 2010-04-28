@@ -766,6 +766,7 @@ noerror:
 	}
 	case PROBE_IDENTIFY:
 	{
+		struct ccb_pathinq cpi;
 		int16_t *ptr;
 
 		ident_buf = &softc->ident_data;
@@ -840,16 +841,24 @@ noerror:
 		ata_find_quirk(path->device);
 		if (path->device->mintags != 0 &&
 		    path->bus->sim->max_tagged_dev_openings != 0) {
-			/* Report SIM which tags are allowed. */
-			bzero(&cts, sizeof(cts));
-			xpt_setup_ccb(&cts.ccb_h, path, CAM_PRIORITY_NONE);
-			cts.ccb_h.func_code = XPT_SET_TRAN_SETTINGS;
-			cts.type = CTS_TYPE_CURRENT_SETTINGS;
-			cts.xport_specific.sata.tags = path->device->maxtags;
-			cts.xport_specific.sata.valid = CTS_SATA_VALID_TAGS;
-			xpt_action((union ccb *)&cts);
-			/* Reconfigure queues for tagged queueing. */
-			xpt_start_tags(path);
+			/* Check if the SIM does not want queued commands. */
+			bzero(&cpi, sizeof(cpi));
+			xpt_setup_ccb(&cpi.ccb_h, path, CAM_PRIORITY_NONE);
+			cpi.ccb_h.func_code = XPT_PATH_INQ;
+			xpt_action((union ccb *)&cpi);
+			if (cpi.ccb_h.status == CAM_REQ_CMP &&
+			    (cpi.hba_inquiry & PI_TAG_ABLE)) {
+				/* Report SIM which tags are allowed. */
+				bzero(&cts, sizeof(cts));
+				xpt_setup_ccb(&cts.ccb_h, path, CAM_PRIORITY_NONE);
+				cts.ccb_h.func_code = XPT_SET_TRAN_SETTINGS;
+				cts.type = CTS_TYPE_CURRENT_SETTINGS;
+				cts.xport_specific.sata.tags = path->device->maxtags;
+				cts.xport_specific.sata.valid = CTS_SATA_VALID_TAGS;
+				xpt_action((union ccb *)&cts);
+				/* Reconfigure queues for tagged queueing. */
+				xpt_start_tags(path);
+			}
 		}
 		ata_device_transport(path);
 		PROBE_SET_ACTION(softc, PROBE_SETMODE);

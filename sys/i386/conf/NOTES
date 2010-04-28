@@ -862,6 +862,15 @@ options 	PMAP_SHPGPERPROC=201
 #
 options 	KVA_PAGES=260
 
+#
+# Number of initial kernel page table pages used for early bootstrap.
+# This number should include enough pages to map the kernel, any
+# modules or other data loaded with the kernel by the loader, and data
+# structures allocated before the VM system is initialized such as the
+# vm_page_t array.  Each page table page maps 4MB (2MB with PAE).
+#
+options 	NKPT=31
+
 
 #####################################################################
 # ABI Emulation

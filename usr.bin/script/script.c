@@ -158,6 +158,7 @@ main(int argc, char *argv[])
 	}
 	if (child == 0)
 		doshell(argv);
+	close(slave);
 
 	if (flushtime > 0)
 		tvp = &tv;

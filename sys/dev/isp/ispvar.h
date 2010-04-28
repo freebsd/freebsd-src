@@ -954,12 +954,13 @@ void isp_async(ispsoftc_t *, ispasync_t, ...);
 /*
  * Platform Dependent Error and Debug Printout
  *
- * Generally this is:
+ * Two required functions for each platform must be provided:
  *
  *    void isp_prt(ispsoftc_t *, int level, const char *, ...)
+ *    void isp_xs_prt(ispsoftc_t *, XS_T *, int level, const char *, ...)
  *
  * but due to compiler differences on different platforms this won't be
- * formally done here. Instead, it goes in each platform definition file.
+ * formally defined here. Instead, they go in each platform definition file.
  */
 
 #define	ISP_LOGALL	0x0	/* log always */
@@ -972,6 +973,7 @@ void isp_async(ispsoftc_t *, ispasync_t, ...);
 #define	ISP_LOGDEBUG2	0x40	/* log most debug messages */
 #define	ISP_LOGDEBUG3	0x80	/* log high frequency debug messages */
 #define	ISP_LOGSANCFG	0x100	/* log SAN configuration */
+#define	ISP_LOG_CWARN	0x200	/* log SCSI command "warnings" (e.g., check conditions) */
 #define	ISP_LOGTINFO	0x1000	/* log informational messages (target mode) */
 #define	ISP_LOGTDEBUG0	0x2000	/* log simple debug messages (target mode) */
 #define	ISP_LOGTDEBUG1	0x4000	/* log intermediate debug messages (target) */
@@ -1045,6 +1047,8 @@ void isp_async(ispsoftc_t *, ispasync_t, ...);
  *	XS_SNSP(xs)		gets a pointer to the associate sense data
  *	XS_SNSLEN(xs)		gets the length of sense data storage
  *	XS_SNSKEY(xs)		dereferences XS_SNSP to get the current stored Sense Key
+ *	XS_SNSASC(xs)		dereferences XS_SNSP to get the current stored Additional Sense Code
+ *	XS_SNSASCQ(xs)		dereferences XS_SNSP to get the current stored Additional Sense Code Qualifier
  *	XS_TAG_P(xs)		predicate of whether this command should be tagged
  *	XS_TAG_TYPE(xs)		which type of tag to use
  *	XS_SETERR(xs)		set error state
@@ -1064,6 +1068,8 @@ void isp_async(ispsoftc_t *, ispasync_t, ...);
  *	XS_INITERR(xs)	initialize error state
  *
  *	XS_SAVE_SENSE(xs, sp, len)	save sense data
+ *
+ *	XS_SENSE_VALID(xs)		indicates whether sense is valid
  *
  *	DEFAULT_FRAMESIZE(ispsoftc_t *)		Default Frame Size
  *	DEFAULT_EXEC_THROTTLE(ispsoftc_t *)	Default Execution Throttle

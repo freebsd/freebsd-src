@@ -99,12 +99,6 @@ extern int maxslp;
 /*
  * System initialization
  *
- * Note: proc0 from proc.h
- */
-static void vm_init_limits(void *);
-SYSINIT(vm_limits, SI_SUB_VM_CONF, SI_ORDER_FIRST, vm_init_limits, &proc0);
-
-/*
  * THIS MUST BE THE LAST INITIALIZATION ITEM!!!
  *
  * Note: run scheduling should be divorced from the vm system.
@@ -115,6 +109,8 @@ SYSINIT(scheduler, SI_SUB_RUN_SCHEDULER, SI_ORDER_ANY, scheduler, NULL);
 #ifndef NO_SWAPPING
 static int swapout(struct proc *);
 static void swapclear(struct proc *);
+static void vm_thread_swapin(struct thread *td);
+static void vm_thread_swapout(struct thread *td);
 #endif
 
 /*
@@ -377,8 +373,17 @@ vm_thread_new(struct thread *td, int pages)
 	/*
 	 * Get a kernel virtual address for this thread's kstack.
 	 */
+#if defined(__mips__)
+	/*
+	 * We need to align the kstack's mapped address to fit within
+	 * a single TLB entry.
+	 */
+	ks = kmem_alloc_nofault_space(kernel_map,
+	    (pages + KSTACK_GUARD_PAGES) * PAGE_SIZE, VMFS_TLB_ALIGNED_SPACE);
+#else
 	ks = kmem_alloc_nofault(kernel_map,
 	   (pages + KSTACK_GUARD_PAGES) * PAGE_SIZE);
+#endif
 	if (ks == 0) {
 		printf("vm_thread_new: kstack allocation failed\n");
 		vm_object_deallocate(ksobj);
@@ -498,10 +503,11 @@ kstack_cache_init(void *nulll)
 MTX_SYSINIT(kstack_cache, &kstack_cache_mtx, "kstkch", MTX_DEF);
 SYSINIT(vm_kstacks, SI_SUB_KTHREAD_INIT, SI_ORDER_ANY, kstack_cache_init, NULL);
 
+#ifndef NO_SWAPPING
 /*
  * Allow a thread's kernel stack to be paged out.
  */
-void
+static void
 vm_thread_swapout(struct thread *td)
 {
 	vm_object_t ksobj;
@@ -517,8 +523,8 @@ vm_thread_swapout(struct thread *td)
 		m = vm_page_lookup(ksobj, i);
 		if (m == NULL)
 			panic("vm_thread_swapout: kstack already missing?");
-		vm_page_lock_queues();
 		vm_page_dirty(m);
+		vm_page_lock_queues();
 		vm_page_unwire(m, 0);
 		vm_page_unlock_queues();
 	}
@@ -528,7 +534,7 @@ vm_thread_swapout(struct thread *td)
 /*
  * Bring the kernel stack for a specified thread back in.
  */
-void
+static void
 vm_thread_swapin(struct thread *td)
 {
 	vm_object_t ksobj;
@@ -539,7 +545,8 @@ vm_thread_swapin(struct thread *td)
 	ksobj = td->td_kstack_obj;
 	VM_OBJECT_LOCK(ksobj);
 	for (i = 0; i < pages; i++) {
-		m = vm_page_grab(ksobj, i, VM_ALLOC_NORMAL | VM_ALLOC_RETRY);
+		m = vm_page_grab(ksobj, i, VM_ALLOC_NORMAL | VM_ALLOC_RETRY |
+		    VM_ALLOC_WIRED);
 		if (m->valid != VM_PAGE_BITS_ALL) {
 			rv = vm_pager_get_pages(ksobj, &m, 1, 0);
 			if (rv != VM_PAGER_OK)
@@ -547,15 +554,13 @@ vm_thread_swapin(struct thread *td)
 			m = vm_page_lookup(ksobj, i);
 		}
 		ma[i] = m;
-		vm_page_lock_queues();
-		vm_page_wire(m);
-		vm_page_unlock_queues();
 		vm_page_wakeup(m);
 	}
 	VM_OBJECT_UNLOCK(ksobj);
 	pmap_qenter(td->td_kstack, ma, pages);
 	cpu_thread_swapin(td);
 }
+#endif /* !NO_SWAPPING */
 
 /*
  * Implement fork's actions on an address space.
@@ -627,38 +632,6 @@ vm_waitproc(p)
 {
 
 	vmspace_exitfree(p);		/* and clean-out the vmspace */
-}
-
-/*
- * Set default limits for VM system.
- * Called for proc 0, and then inherited by all others.
- *
- * XXX should probably act directly on proc0.
- */
-static void
-vm_init_limits(udata)
-	void *udata;
-{
-	struct proc *p = udata;
-	struct plimit *limp;
-	int rss_limit;
-
-	/*
-	 * Set up the initial limits on process VM. Set the maximum resident
-	 * set size to be half of (reasonably) available memory.  Since this
-	 * is a soft limit, it comes into effect only when the system is out
-	 * of memory - half of main memory helps to favor smaller processes,
-	 * and reduces thrashing of the object cache.
-	 */
-	limp = p->p_limit;
-	limp->pl_rlimit[RLIMIT_STACK].rlim_cur = dflssiz;
-	limp->pl_rlimit[RLIMIT_STACK].rlim_max = maxssiz;
-	limp->pl_rlimit[RLIMIT_DATA].rlim_cur = dfldsiz;
-	limp->pl_rlimit[RLIMIT_DATA].rlim_max = maxdsiz;
-	/* limit the limit to no less than 2MB */
-	rss_limit = max(cnt.v_free_count, 512);
-	limp->pl_rlimit[RLIMIT_RSS].rlim_cur = ptoa(rss_limit);
-	limp->pl_rlimit[RLIMIT_RSS].rlim_max = RLIM_INFINITY;
 }
 
 void

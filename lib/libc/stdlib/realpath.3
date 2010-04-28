@@ -31,7 +31,7 @@
 .\"     @(#)realpath.3	8.2 (Berkeley) 2/16/94
 .\" $FreeBSD$
 .\"
-.Dd February 16, 1994
+.Dd April 19, 2010
 .Dt REALPATH 3
 .Os
 .Sh NAME
@@ -43,7 +43,7 @@
 .In sys/param.h
 .In stdlib.h
 .Ft "char *"
-.Fn realpath "const char *pathname" "char resolved_path[PATH_MAX]"
+.Fn realpath "const char *pathname" "char *resolved_path"
 .Sh DESCRIPTION
 The
 .Fn realpath
@@ -56,15 +56,16 @@ and
 in
 .Fa pathname ,
 and copies the resulting absolute pathname into
-the memory referenced by
+the memory pointed to by
 .Fa resolved_path .
 The
 .Fa resolved_path
 argument
 .Em must
-refer to a buffer capable of storing at least
+point to a buffer capable of storing at least
 .Dv PATH_MAX
-characters.
+characters, or be
+.Dv NULL .
 .Pp
 The
 .Fn realpath
@@ -82,13 +83,22 @@ The
 function returns
 .Fa resolved_path
 on success.
+If the function was supplied
+.Dv NULL
+as
+.Fa resolved_path ,
+and operation did not cause errors, the returned value is
+a null-terminated string in a buffer allocated by a call to
+.Fn malloc 3 .
 If an error occurs,
 .Fn realpath
 returns
 .Dv NULL ,
-and
+and if
 .Fa resolved_path
-contains the pathname which caused the problem.
+is not
+.Dv NULL ,
+the array that it points to contains the pathname which caused the problem.
 .Sh ERRORS
 The function
 .Fn realpath
@@ -113,6 +123,11 @@ when given a relative
 .Fa pathname .
 .Sh "SEE ALSO"
 .Xr getcwd 3
+.Sh STANDARDS
+The
+.Fn realpath
+function conforms to
+.St -p1003.1-2001 .
 .Sh HISTORY
 The
 .Fn realpath

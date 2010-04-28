@@ -374,7 +374,7 @@ AcpiUtAcquireMutex (
     else
     {
         ACPI_EXCEPTION ((AE_INFO, Status,
-            "Thread %p could not acquire Mutex [%X]",
+            "Thread %p could not acquire Mutex [0x%X]",
             ACPI_CAST_PTR (void, ThisThreadId), MutexId));
     }
 
@@ -419,7 +419,7 @@ AcpiUtReleaseMutex (
     if (AcpiGbl_MutexInfo[MutexId].ThreadId == ACPI_MUTEX_NOT_ACQUIRED)
     {
         ACPI_ERROR ((AE_INFO,
-            "Mutex [%X] is not acquired, cannot release", MutexId));
+            "Mutex [0x%X] is not acquired, cannot release", MutexId));
 
         return (AE_NOT_ACQUIRED);
     }

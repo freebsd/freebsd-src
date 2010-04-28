@@ -203,6 +203,16 @@ AcpiExConvertToTargetType (
 
 
 /*
+ * exdebug - AML debug object
+ */
+void
+AcpiExDoDebugObject (
+    ACPI_OPERAND_OBJECT     *SourceDesc,
+    UINT32                  Level,
+    UINT32                  Index);
+
+
+/*
  * exfield - ACPI AML (p-code) execution - field manipulation
  */
 ACPI_STATUS

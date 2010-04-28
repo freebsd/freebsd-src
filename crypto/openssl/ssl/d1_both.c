@@ -136,7 +136,6 @@ static unsigned char *dtls1_write_message_header(SSL *s,
 static void dtls1_set_message_header_int(SSL *s, unsigned char mt,
 	unsigned long len, unsigned short seq_num, unsigned long frag_off, 
 	unsigned long frag_len);
-static int dtls1_retransmit_buffered_messages(SSL *s);
 static long dtls1_get_message_fragment(SSL *s, int st1, int stn, 
 	long max, int *ok);
 
@@ -178,7 +177,7 @@ int dtls1_do_write(SSL *s, int type)
 	{
 	int ret;
 	int curr_mtu;
-	unsigned int len, frag_off;
+	unsigned int len, frag_off, mac_size, blocksize;
 
 	/* AHA!  Figure out the MTU, and stick to the right size */
 	if ( ! (SSL_get_options(s) & SSL_OP_NO_QUERY_MTU))
@@ -226,11 +225,22 @@ int dtls1_do_write(SSL *s, int type)
 		OPENSSL_assert(s->init_num == 
 			(int)s->d1->w_msg_hdr.msg_len + DTLS1_HM_HEADER_LENGTH);
 
+	if (s->write_hash)
+		mac_size = EVP_MD_size(s->write_hash);
+	else
+		mac_size = 0;
+
+	if (s->enc_write_ctx && 
+		(EVP_CIPHER_mode( s->enc_write_ctx->cipher) & EVP_CIPH_CBC_MODE))
+		blocksize = 2 * EVP_CIPHER_block_size(s->enc_write_ctx->cipher);
+	else
+		blocksize = 0;
+
 	frag_off = 0;
 	while( s->init_num)
 		{
 		curr_mtu = s->d1->mtu - BIO_wpending(SSL_get_wbio(s)) - 
-			DTLS1_RT_HEADER_LENGTH;
+			DTLS1_RT_HEADER_LENGTH - mac_size - blocksize;
 
 		if ( curr_mtu <= DTLS1_HM_HEADER_LENGTH)
 			{
@@ -238,7 +248,8 @@ int dtls1_do_write(SSL *s, int type)
 			ret = BIO_flush(SSL_get_wbio(s));
 			if ( ret <= 0)
 				return ret;
-			curr_mtu = s->d1->mtu - DTLS1_RT_HEADER_LENGTH;
+			curr_mtu = s->d1->mtu - DTLS1_RT_HEADER_LENGTH -
+				mac_size - blocksize;
 			}
 
 		if ( s->init_num > curr_mtu)
@@ -280,7 +291,7 @@ int dtls1_do_write(SSL *s, int type)
 			 * retransmit 
 			 */
 			if ( BIO_ctrl(SSL_get_wbio(s),
-				BIO_CTRL_DGRAM_MTU_EXCEEDED, 0, NULL))
+				BIO_CTRL_DGRAM_MTU_EXCEEDED, 0, NULL) > 0 )
 				s->d1->mtu = BIO_ctrl(SSL_get_wbio(s),
 					BIO_CTRL_DGRAM_QUERY_MTU, 0, NULL);
 			else
@@ -569,9 +580,13 @@ dtls1_process_out_of_seq_message(SSL *s, struct hm_header_st* msg_hdr, int *ok)
 	pq_64bit_free(&seq64);
 	
 	/* Discard the message if sequence number was already there, is
-	 * too far in the future or the fragment is already in the queue */
+	 * too far in the future, already in the queue or if we received
+	 * a FINISHED before the SERVER_HELLO, which then must be a stale
+	 * retransmit.
+	 */
 	if (msg_hdr->seq <= s->d1->handshake_read_seq ||
-		msg_hdr->seq > s->d1->handshake_read_seq + 10 || item != NULL)
+		msg_hdr->seq > s->d1->handshake_read_seq + 10 || item != NULL ||
+		(s->d1->handshake_read_seq == 0 && msg_hdr->type == SSL3_MT_FINISHED))
 		{
 		unsigned char devnull [256];
 
@@ -750,6 +765,24 @@ int dtls1_send_finished(SSL *s, int a, int b, const char *sender, int slen)
 		p+=i;
 		l=i;
 
+	/* Copy the finished so we can use it for
+	 * renegotiation checks
+	 */
+	if(s->type == SSL_ST_CONNECT)
+		{
+		OPENSSL_assert(i <= EVP_MAX_MD_SIZE);
+		memcpy(s->s3->previous_client_finished, 
+		       s->s3->tmp.finish_md, i);
+		s->s3->previous_client_finished_len=i;
+		}
+	else
+		{
+		OPENSSL_assert(i <= EVP_MAX_MD_SIZE);
+		memcpy(s->s3->previous_server_finished, 
+		       s->s3->tmp.finish_md, i);
+		s->s3->previous_server_finished_len=i;
+		}
+
 #ifdef OPENSSL_SYS_WIN16
 		/* MSVC 1.5 does not clear the top bytes of the word unless
 		 * I do this.
@@ -812,14 +845,30 @@ int dtls1_send_change_cipher_spec(SSL *s, int a, int b)
 	return(dtls1_do_write(s,SSL3_RT_CHANGE_CIPHER_SPEC));
 	}
 
+static int dtls1_add_cert_to_buf(BUF_MEM *buf, unsigned long *l, X509 *x)
+	{
+		int n;
+		unsigned char *p;
+
+		n=i2d_X509(x,NULL);
+		if (!BUF_MEM_grow_clean(buf,(int)(n+(*l)+3)))
+			{
+			SSLerr(SSL_F_DTLS1_ADD_CERT_TO_BUF,ERR_R_BUF_LIB);
+			return 0;
+			}
+		p=(unsigned char *)&(buf->data[*l]);
+		l2n3(n,p);
+		i2d_X509(x,&p);
+		*l+=n+3;
+
+		return 1;
+	}
 unsigned long dtls1_output_cert_chain(SSL *s, X509 *x)
 	{
 	unsigned char *p;
-	int n,i;
+	int i;
 	unsigned long l= 3 + DTLS1_HM_HEADER_LENGTH;
 	BUF_MEM *buf;
-	X509_STORE_CTX xs_ctx;
-	X509_OBJECT obj;
 
 	/* TLSv1 sends a chain with nothing in it, instead of an alert */
 	buf=s->init_buf;
@@ -830,54 +879,33 @@ unsigned long dtls1_output_cert_chain(SSL *s, X509 *x)
 		}
 	if (x != NULL)
 		{
-		if(!X509_STORE_CTX_init(&xs_ctx,s->ctx->cert_store,NULL,NULL))
-			{
-			SSLerr(SSL_F_DTLS1_OUTPUT_CERT_CHAIN,ERR_R_X509_LIB);
-			return(0);
-			}
+		X509_STORE_CTX xs_ctx;
+  
+		if (!X509_STORE_CTX_init(&xs_ctx,s->ctx->cert_store,x,NULL))
+  			{
+  			SSLerr(SSL_F_DTLS1_OUTPUT_CERT_CHAIN,ERR_R_X509_LIB);
+  			return(0);
+  			}
+  
+		X509_verify_cert(&xs_ctx);
+		for (i=0; i < sk_X509_num(xs_ctx.chain); i++)
+  			{
+			x = sk_X509_value(xs_ctx.chain, i);
 
-		for (;;)
-			{
-			n=i2d_X509(x,NULL);
-			if (!BUF_MEM_grow_clean(buf,(int)(n+l+3)))
-				{
-				SSLerr(SSL_F_DTLS1_OUTPUT_CERT_CHAIN,ERR_R_BUF_LIB);
-				return(0);
-				}
-			p=(unsigned char *)&(buf->data[l]);
-			l2n3(n,p);
-			i2d_X509(x,&p);
-			l+=n+3;
-			if (X509_NAME_cmp(X509_get_subject_name(x),
-				X509_get_issuer_name(x)) == 0) break;
-
-			i=X509_STORE_get_by_subject(&xs_ctx,X509_LU_X509,
-				X509_get_issuer_name(x),&obj);
-			if (i <= 0) break;
-			x=obj.data.x509;
-			/* Count is one too high since the X509_STORE_get uped the
-			 * ref count */
-			X509_free(x);
-			}
-
-		X509_STORE_CTX_cleanup(&xs_ctx);
-		}
-
+			if (!dtls1_add_cert_to_buf(buf, &l, x))
+  				{
+				X509_STORE_CTX_cleanup(&xs_ctx);
+				return 0;
+  				}
+  			}
+  		X509_STORE_CTX_cleanup(&xs_ctx);
+  		}
 	/* Thawte special :-) */
-	if (s->ctx->extra_certs != NULL)
 	for (i=0; i<sk_X509_num(s->ctx->extra_certs); i++)
 		{
 		x=sk_X509_value(s->ctx->extra_certs,i);
-		n=i2d_X509(x,NULL);
-		if (!BUF_MEM_grow_clean(buf,(int)(n+l+3)))
-			{
-			SSLerr(SSL_F_DTLS1_OUTPUT_CERT_CHAIN,ERR_R_BUF_LIB);
-			return(0);
-			}
-		p=(unsigned char *)&(buf->data[l]);
-		l2n3(n,p);
-		i2d_X509(x,&p);
-		l+=n+3;
+		if (!dtls1_add_cert_to_buf(buf, &l, x))
+			return 0;
 		}
 
 	l-= (3 + DTLS1_HM_HEADER_LENGTH);
@@ -894,18 +922,13 @@ unsigned long dtls1_output_cert_chain(SSL *s, X509 *x)
 
 int dtls1_read_failed(SSL *s, int code)
 	{
-	DTLS1_STATE *state;
-	BIO *bio;
-	int send_alert = 0;
-
 	if ( code > 0)
 		{
 		fprintf( stderr, "invalid state reached %s:%d", __FILE__, __LINE__);
 		return 1;
 		}
 
-	bio = SSL_get_rbio(s);
-	if ( ! BIO_dgram_recv_timedout(bio))
+	if (!dtls1_is_timer_expired(s))
 		{
 		/* not a timeout, none of our business, 
 		   let higher layers handle this.  in fact it's probably an error */
@@ -918,23 +941,6 @@ int dtls1_read_failed(SSL *s, int code)
 		return code;
 		}
 
-	state = s->d1;
-	state->timeout.num_alerts++;
-	if ( state->timeout.num_alerts > DTLS1_TMO_ALERT_COUNT)
-		{
-		/* fail the connection, enough alerts have been sent */
-		SSLerr(SSL_F_DTLS1_READ_FAILED,SSL_R_READ_TIMEOUT_EXPIRED);
-		return 0;
-		}
-
-	state->timeout.read_timeouts++;
-	if ( state->timeout.read_timeouts > DTLS1_TMO_READ_COUNT)
-		{
-		send_alert = 1;
-		state->timeout.read_timeouts = 1;
-		}
-
-
 #if 0 /* for now, each alert contains only one record number */
 	item = pqueue_peek(state->rcvd_records);
 	if ( item )
@@ -945,16 +951,29 @@ int dtls1_read_failed(SSL *s, int code)
 #endif
 
 #if 0  /* no more alert sending, just retransmit the last set of messages */
-		if ( send_alert)
-			ssl3_send_alert(s,SSL3_AL_WARNING,
-				DTLS1_AD_MISSING_HANDSHAKE_MESSAGE);
+	if ( state->timeout.read_timeouts >= DTLS1_TMO_READ_COUNT)
+		ssl3_send_alert(s,SSL3_AL_WARNING,
+			DTLS1_AD_MISSING_HANDSHAKE_MESSAGE);
 #endif
 
-	return dtls1_retransmit_buffered_messages(s) ;
+	return dtls1_handle_timeout(s);
 	}
 
+int
+dtls1_get_queue_priority(unsigned short seq, int is_ccs)
+	{
+	/* The index of the retransmission queue actually is the message sequence number,
+	 * since the queue only contains messages of a single handshake. However, the
+	 * ChangeCipherSpec has no message sequence number and so using only the sequence
+	 * will result in the CCS and Finished having the same index. To prevent this,
+	 * the sequence number is multiplied by 2. In case of a CCS 1 is subtracted.
+	 * This does not only differ CSS and Finished, it also maintains the order of the
+	 * index (important for priority queues) and fits in the unsigned short variable.
+	 */	
+	return seq * 2 - is_ccs;
+	}
 
-static int
+int
 dtls1_retransmit_buffered_messages(SSL *s)
 	{
 	pqueue sent = s->d1->sent_messages;
@@ -968,8 +987,9 @@ dtls1_retransmit_buffered_messages(SSL *s)
 	for ( item = pqueue_next(&iter); item != NULL; item = pqueue_next(&iter))
 		{
 		frag = (hm_fragment *)item->data;
-		if ( dtls1_retransmit_message(s, frag->msg_header.seq, 0, &found) <= 0 &&
-			found)
+			if ( dtls1_retransmit_message(s,
+				(unsigned short)dtls1_get_queue_priority(frag->msg_header.seq, frag->msg_header.is_ccs),
+				0, &found) <= 0 && found)
 			{
 			fprintf(stderr, "dtls1_retransmit_message() failed\n");
 			return -1;
@@ -985,7 +1005,6 @@ dtls1_buffer_message(SSL *s, int is_ccs)
 	pitem *item;
 	hm_fragment *frag;
 	PQ_64BIT seq64;
-	unsigned int epoch = s->d1->w_epoch;
 
 	/* this function is called immediately after a message has 
 	 * been serialized */
@@ -999,7 +1018,6 @@ dtls1_buffer_message(SSL *s, int is_ccs)
 		{
 		OPENSSL_assert(s->d1->w_msg_hdr.msg_len + 
 			DTLS1_CCS_HEADER_LENGTH <= (unsigned int)s->init_num);
-		epoch++;
 		}
 	else
 		{
@@ -1014,9 +1032,19 @@ dtls1_buffer_message(SSL *s, int is_ccs)
 	frag->msg_header.frag_len = s->d1->w_msg_hdr.msg_len;
 	frag->msg_header.is_ccs = is_ccs;
 
-	pq_64bit_init(&seq64);
-	pq_64bit_assign_word(&seq64, epoch<<16 | frag->msg_header.seq);
+	/* save current state*/
+	frag->msg_header.saved_retransmit_state.enc_write_ctx = s->enc_write_ctx;
+	frag->msg_header.saved_retransmit_state.write_hash = s->write_hash;
+	frag->msg_header.saved_retransmit_state.compress = s->compress;
+	frag->msg_header.saved_retransmit_state.session = s->session;
+	frag->msg_header.saved_retransmit_state.epoch = s->d1->w_epoch;
 
+	pq_64bit_init(&seq64);
+
+	pq_64bit_assign_word(&seq64,
+						 dtls1_get_queue_priority(frag->msg_header.seq,
+												  frag->msg_header.is_ccs));
+		
 	item = pitem_new(seq64, frag);
 	pq_64bit_free(&seq64);
 	if ( item == NULL)
@@ -1045,6 +1073,8 @@ dtls1_retransmit_message(SSL *s, unsigned short seq, unsigned long frag_off,
 	hm_fragment *frag ;
 	unsigned long header_length;
 	PQ_64BIT seq64;
+	struct dtls1_retransmit_state saved_state;
+	unsigned char save_write_sequence[8];
 
 	/*
 	  OPENSSL_assert(s->init_num == 0);
@@ -1080,9 +1110,45 @@ dtls1_retransmit_message(SSL *s, unsigned short seq, unsigned long frag_off,
 		frag->msg_header.msg_len, frag->msg_header.seq, 0, 
 		frag->msg_header.frag_len);
 
+	/* save current state */
+	saved_state.enc_write_ctx = s->enc_write_ctx;
+	saved_state.write_hash = s->write_hash;
+	saved_state.compress = s->compress;
+	saved_state.session = s->session;
+	saved_state.epoch = s->d1->w_epoch;
+	saved_state.epoch = s->d1->w_epoch;
+	
 	s->d1->retransmitting = 1;
+	
+	/* restore state in which the message was originally sent */
+	s->enc_write_ctx = frag->msg_header.saved_retransmit_state.enc_write_ctx;
+	s->write_hash = frag->msg_header.saved_retransmit_state.write_hash;
+	s->compress = frag->msg_header.saved_retransmit_state.compress;
+	s->session = frag->msg_header.saved_retransmit_state.session;
+	s->d1->w_epoch = frag->msg_header.saved_retransmit_state.epoch;
+	
+	if (frag->msg_header.saved_retransmit_state.epoch == saved_state.epoch - 1)
+	{
+		memcpy(save_write_sequence, s->s3->write_sequence, sizeof(s->s3->write_sequence));
+		memcpy(s->s3->write_sequence, s->d1->last_write_sequence, sizeof(s->s3->write_sequence));
+	}
+	
 	ret = dtls1_do_write(s, frag->msg_header.is_ccs ? 
-		SSL3_RT_CHANGE_CIPHER_SPEC : SSL3_RT_HANDSHAKE);
+						 SSL3_RT_CHANGE_CIPHER_SPEC : SSL3_RT_HANDSHAKE);
+	
+	/* restore current state */
+	s->enc_write_ctx = saved_state.enc_write_ctx;
+	s->write_hash = saved_state.write_hash;
+	s->compress = saved_state.compress;
+	s->session = saved_state.session;
+	s->d1->w_epoch = saved_state.epoch;
+	
+	if (frag->msg_header.saved_retransmit_state.epoch == saved_state.epoch - 1)
+	{
+		memcpy(s->d1->last_write_sequence, s->s3->write_sequence, sizeof(s->s3->write_sequence));
+		memcpy(s->s3->write_sequence, save_write_sequence, sizeof(s->s3->write_sequence));
+	}
+
 	s->d1->retransmitting = 0;
 
 	(void)BIO_flush(SSL_get_wbio(s));

@@ -150,6 +150,7 @@ static struct _devname {
     NETWORK("rue",	"RealTek USB Ethernet card"),
     NETWORK("rum",	"Ralink Technology USB IEEE 802.11 wireless adapter"),
     NETWORK("sf",	"Adaptec AIC-6915 PCI Ethernet card"),
+    NETWORK("sge",	"Silicon Integrated Systems SiS190/191 Ethernet"),
     NETWORK("sis",	"SiS 900/SiS 7016 PCI Ethernet card"),
 #ifdef PC98
     NETWORK("snc",	"SONIC Ethernet card"),

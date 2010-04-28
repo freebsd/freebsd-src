@@ -232,7 +232,7 @@ vga_pci_read_config(device_t dev, device_t child, int reg, int width)
 }
 
 static void
-vga_pci_write_config(device_t dev, device_t child, int reg, 
+vga_pci_write_config(device_t dev, device_t child, int reg,
     uint32_t val, int width)
 {
 
@@ -409,7 +409,6 @@ static device_method_t vga_pci_methods[] = {
 	DEVMETHOD(bus_write_ivar,	vga_pci_write_ivar),
 	DEVMETHOD(bus_setup_intr,	vga_pci_setup_intr),
 	DEVMETHOD(bus_teardown_intr,	vga_pci_teardown_intr),
-
 	DEVMETHOD(bus_alloc_resource,	vga_pci_alloc_resource),
 	DEVMETHOD(bus_release_resource,	vga_pci_release_resource),
 	DEVMETHOD(bus_activate_resource, bus_generic_activate_resource),

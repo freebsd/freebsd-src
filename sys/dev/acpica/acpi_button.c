@@ -164,7 +164,6 @@ acpi_button_attach(device_t dev)
     }
 
     /* Enable the GPE for wake/runtime. */
-    acpi_wake_init(dev, ACPI_GPE_TYPE_WAKE_RUN);
     acpi_wake_set_enable(dev, 1);
     
     return_VALUE (0);

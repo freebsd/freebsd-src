@@ -162,13 +162,16 @@ loop:
 		subr = (uintptr_t)MipsUserGenException;
 	else if (pcBetween(MipsKernIntr, MipsUserIntr))
 		subr = (uintptr_t)MipsKernIntr;
-	else if (pcBetween(MipsUserIntr, MipsKernTLBInvalidException))
+	else if (pcBetween(MipsUserIntr, MipsTLBInvalidException))
 		subr = (uintptr_t)MipsUserIntr;
-	else if (pcBetween(MipsKernTLBInvalidException,
-	    MipsUserTLBInvalidException))
-		subr = (uintptr_t)MipsKernTLBInvalidException;
-	else if (pcBetween(MipsUserTLBInvalidException, MipsTLBMissException))
-		subr = (uintptr_t)MipsUserTLBInvalidException;
+	else if (pcBetween(MipsTLBInvalidException, MipsTLBMissException))
+		subr = (uintptr_t)MipsTLBInvalidException;
+	else if (pcBetween(fork_trampoline, savectx))
+		subr = (uintptr_t)fork_trampoline;
+	else if (pcBetween(savectx, mips_cpu_throw))
+		subr = (uintptr_t)savectx;
+	else if (pcBetween(mips_cpu_throw, cpu_switch))
+		subr = (uintptr_t)cpu_throw;
 	else if (pcBetween(cpu_switch, MipsSwitchFPState))
 		subr = (uintptr_t)cpu_switch;
 	else if (pcBetween(_locore, _locoreEnd)) {
@@ -412,10 +415,8 @@ db_trace_thread(struct thread *thr, int count)
                          : "=r" (pc)
 			 : "r" (ra));
 
-	}
-
-	else {
-		ctx = thr->td_pcb;
+	} else {
+		ctx = kdb_thr_ctx(thr);
 		sp = (register_t)ctx->pcb_context[PREG_SP];
 		pc = (register_t)ctx->pcb_context[PREG_PC];
 		ra = (register_t)ctx->pcb_context[PREG_RA];

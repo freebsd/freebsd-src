@@ -139,8 +139,10 @@ enum {
 
 #define FL_Q_SIZE	4096
 #define JUMBO_Q_SIZE	1024
-#define RSPQ_Q_SIZE	1024
+#define RSPQ_Q_SIZE	2048
 #define TX_ETH_Q_SIZE	1024
+#define TX_OFLD_Q_SIZE	1024
+#define TX_CTRL_Q_SIZE	256
 
 enum { TXQ_ETH = 0,
        TXQ_OFLD = 1,
@@ -177,6 +179,7 @@ struct sge_rspq {
 	uint32_t        offload_bundles;
 	uint32_t        pure_rsps;
 	uint32_t        unhandled_irqs;
+	uint32_t        starved;
 
 	bus_addr_t	phys_addr;
 	bus_dma_tag_t	desc_tag;
@@ -248,7 +251,6 @@ struct sge_txq {
 	struct callout	txq_timer;
 	struct callout	txq_watchdog;
 	uint64_t        txq_coalesced;
-	uint32_t        txq_drops;
 	uint32_t        txq_skipped;
 	uint32_t        txq_enqueued;
 	uint32_t	txq_dump_start;

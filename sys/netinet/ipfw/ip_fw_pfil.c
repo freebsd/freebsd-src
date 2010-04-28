@@ -77,6 +77,9 @@ int ipfw_chg_hook(SYSCTL_HANDLER_ARGS);
 static int ipfw_divert(struct mbuf **, int, struct ipfw_rule_ref *, int);
 
 #ifdef SYSCTL_NODE
+
+SYSBEGIN(f1)
+
 SYSCTL_DECL(_net_inet_ip_fw);
 SYSCTL_VNET_PROC(_net_inet_ip_fw, OID_AUTO, enable,
     CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_SECURE3, &VNET_NAME(fw_enable), 0,
@@ -87,6 +90,9 @@ SYSCTL_VNET_PROC(_net_inet6_ip6_fw, OID_AUTO, enable,
     CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_SECURE3, &VNET_NAME(fw6_enable), 0,
     ipfw_chg_hook, "I", "Enable ipfw+6");
 #endif /* INET6 */
+
+SYSEND
+
 #endif /* SYSCTL_NODE */
 
 /*
@@ -94,7 +100,7 @@ SYSCTL_VNET_PROC(_net_inet6_ip6_fw, OID_AUTO, enable,
  * dummynet, divert, netgraph or other modules.
  * The packet may be consumed.
  */
-static int
+int
 ipfw_check_hook(void *arg, struct mbuf **m0, struct ifnet *ifp, int dir,
     struct inpcb *inp)
 {
@@ -141,8 +147,8 @@ again:
 	switch (ipfw) {
 	case IP_FW_PASS:
 		/* next_hop may be set by ipfw_chk */
-                if (args.next_hop == NULL)
-                        break; /* pass */
+		if (args.next_hop == NULL)
+			break; /* pass */
 #ifndef IPFIREWALL_FORWARD
 		ret = EACCES;
 #else
@@ -341,14 +347,14 @@ ipfw_attach_hooks(int arg)
 
 	if (arg == 0) /* detach */
 		ipfw_hook(0, AF_INET);
-        else if (V_fw_enable && ipfw_hook(1, AF_INET) != 0) {
+	else if (V_fw_enable && ipfw_hook(1, AF_INET) != 0) {
                 error = ENOENT; /* see ip_fw_pfil.c::ipfw_hook() */
                 printf("ipfw_hook() error\n");
         }
 #ifdef INET6
 	if (arg == 0) /* detach */
 		ipfw_hook(0, AF_INET6);
-        else if (V_fw6_enable && ipfw_hook(1, AF_INET6) != 0) {
+	else if (V_fw6_enable && ipfw_hook(1, AF_INET6) != 0) {
                 error = ENOENT;
                 printf("ipfw6_hook() error\n");
         }

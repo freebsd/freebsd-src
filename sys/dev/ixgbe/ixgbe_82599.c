@@ -1,6 +1,6 @@
 /******************************************************************************
 
-  Copyright (c) 2001-2009, Intel Corporation 
+  Copyright (c) 2001-2010, Intel Corporation 
   All rights reserved.
   
   Redistribution and use in source and binary forms, with or without 
@@ -64,6 +64,7 @@ s32 ixgbe_reset_hw_82599(struct ixgbe_hw *hw);
 s32 ixgbe_read_analog_reg8_82599(struct ixgbe_hw *hw, u32 reg, u8 *val);
 s32 ixgbe_write_analog_reg8_82599(struct ixgbe_hw *hw, u32 reg, u8 val);
 s32 ixgbe_start_hw_rev_1_82599(struct ixgbe_hw *hw);
+void ixgbe_enable_relaxed_ordering_82599(struct ixgbe_hw *hw);
 s32 ixgbe_identify_phy_82599(struct ixgbe_hw *hw);
 s32 ixgbe_init_phy_ops_82599(struct ixgbe_hw *hw);
 u32 ixgbe_get_supported_physical_layer_82599(struct ixgbe_hw *hw);
@@ -266,6 +267,8 @@ s32 ixgbe_get_link_capabilities_82599(struct ixgbe_hw *hw,
 	u32 autoc = 0;
 
 	DEBUGFUNC("ixgbe_get_link_capabilities_82599");
+
+
 
 	/*
 	 * Determine link capabilities based on the stored value of AUTOC,
@@ -878,7 +881,7 @@ static s32 ixgbe_setup_copper_link_82599(struct ixgbe_hw *hw,
 s32 ixgbe_reset_hw_82599(struct ixgbe_hw *hw)
 {
 	s32 status = IXGBE_SUCCESS;
-	u32 ctrl, ctrl_ext;
+	u32 ctrl;
 	u32 i;
 	u32 autoc;
 	u32 autoc2;
@@ -913,12 +916,9 @@ s32 ixgbe_reset_hw_82599(struct ixgbe_hw *hw)
 	 * Prevent the PCI-E bus from from hanging by disabling PCI-E master
 	 * access and verify no pending requests before reset
 	 */
-	status = ixgbe_disable_pcie_master(hw);
-	if (status != IXGBE_SUCCESS) {
-		status = IXGBE_ERR_MASTER_REQUESTS_PENDING;
-		DEBUGOUT("PCI-E Master disable polling has failed.\n");
-	}
+	ixgbe_disable_pcie_master(hw);
 
+mac_reset_top:
 	/*
 	 * Issue global reset to the MAC.  This needs to be a SW reset.
 	 * If link reset is used, it might reset the MAC when mng is using it
@@ -938,10 +938,19 @@ s32 ixgbe_reset_hw_82599(struct ixgbe_hw *hw)
 		status = IXGBE_ERR_RESET_FAILED;
 		DEBUGOUT("Reset polling failed to complete.\n");
 	}
-	/* Clear PF Reset Done bit so PF/VF Mail Ops can work */
-	ctrl_ext = IXGBE_READ_REG(hw, IXGBE_CTRL_EXT);
-	ctrl_ext |= IXGBE_CTRL_EXT_PFRSTD;
-	IXGBE_WRITE_REG(hw, IXGBE_CTRL_EXT, ctrl_ext);
+
+	/*
+	 * Double resets are required for recovery from certain error
+	 * conditions.  Between resets, it is necessary to stall to allow time
+	 * for any pending HW events to complete.  We use 1usec since that is
+	 * what is needed for ixgbe_disable_pcie_master().  The second reset
+	 * then clears out any effects of those events.
+	 */
+	if (hw->mac.flags & IXGBE_FLAGS_DOUBLE_RESET_REQUIRED) {
+		hw->mac.flags &= ~IXGBE_FLAGS_DOUBLE_RESET_REQUIRED;
+		usec_delay(1);
+		goto mac_reset_top;
+	}
 
 	msec_delay(50);
 
@@ -980,8 +989,6 @@ s32 ixgbe_reset_hw_82599(struct ixgbe_hw *hw)
 	 */
 	hw->mac.num_rar_entries = 128;
 	hw->mac.ops.init_rx_addrs(hw);
-
-
 
 	/* Store the permanent SAN mac address */
 	hw->mac.ops.get_san_mac_addr(hw, hw->mac.san_addr);
@@ -1206,6 +1213,9 @@ s32 ixgbe_init_fdir_perfect_82599(struct ixgbe_hw *hw, u32 pballoc)
 
 	/* Send interrupt when 64 filters are left */
 	fdirctrl |= 4 << IXGBE_FDIRCTRL_FULL_THRESH_SHIFT;
+
+	/* Initialize the drop queue to Rx queue 127 */
+	fdirctrl |= (127 << IXGBE_FDIRCTRL_DROP_Q_SHIFT);
 
 	switch (pballoc) {
 	case IXGBE_FDIR_PBALLOC_64K:
@@ -1886,23 +1896,26 @@ s32 ixgbe_fdir_add_signature_filter_82599(struct ixgbe_hw *hw,
  *  ixgbe_fdir_add_perfect_filter_82599 - Adds a perfect filter
  *  @hw: pointer to hardware structure
  *  @input: input bitstream
+ *  @input_masks: masks for the input bitstream
+ *  @soft_id: software index for the filters
  *  @queue: queue index to direct traffic to
  *
  *  Note that the caller to this function must lock before calling, since the
  *  hardware writes must be protected from one another.
  **/
 s32 ixgbe_fdir_add_perfect_filter_82599(struct ixgbe_hw *hw,
-                                        struct ixgbe_atr_input *input,
-                                        u16 soft_id,
-                                        u8 queue)
+                                      struct ixgbe_atr_input *input,
+                                      struct ixgbe_atr_input_masks *input_masks,
+                                      u16 soft_id, u8 queue)
 {
 	u32 fdircmd = 0;
 	u32 fdirhash;
-	u32 src_ipv4, dst_ipv4;
+	u32 src_ipv4 = 0, dst_ipv4 = 0;
 	u32 src_ipv6_1, src_ipv6_2, src_ipv6_3, src_ipv6_4;
 	u16 src_port, dst_port, vlan_id, flex_bytes;
 	u16 bucket_hash;
 	u8  l4type;
+	u8  fdirm = 0;
 
 	DEBUGFUNC("ixgbe_fdir_add_perfect_filter_82599");
 
@@ -1959,7 +1972,6 @@ s32 ixgbe_fdir_add_perfect_filter_82599(struct ixgbe_hw *hw,
 		/* IPv4 */
 		ixgbe_atr_get_src_ipv4_82599(input, &src_ipv4);
 		IXGBE_WRITE_REG(hw, IXGBE_FDIRIPSA, src_ipv4);
-
 	}
 
 	ixgbe_atr_get_dst_ipv4_82599(input, &dst_ipv4);
@@ -1968,7 +1980,78 @@ s32 ixgbe_fdir_add_perfect_filter_82599(struct ixgbe_hw *hw,
 	IXGBE_WRITE_REG(hw, IXGBE_FDIRVLAN, (vlan_id |
 	                            (flex_bytes << IXGBE_FDIRVLAN_FLEX_SHIFT)));
 	IXGBE_WRITE_REG(hw, IXGBE_FDIRPORT, (src_port |
-	                       (dst_port << IXGBE_FDIRPORT_DESTINATION_SHIFT)));
+	              (dst_port << IXGBE_FDIRPORT_DESTINATION_SHIFT)));
+
+	/*
+	 * Program the relevant mask registers.  If src/dst_port or src/dst_addr
+	 * are zero, then assume a full mask for that field.  Also assume that
+	 * a VLAN of 0 is unspecified, so mask that out as well.  L4type
+	 * cannot be masked out in this implementation.
+	 *
+	 * This also assumes IPv4 only.  IPv6 masking isn't supported at this
+	 * point in time.
+	 */
+	if (src_ipv4 == 0)
+		IXGBE_WRITE_REG(hw, IXGBE_FDIRSIP4M, 0xffffffff);
+	else
+		IXGBE_WRITE_REG(hw, IXGBE_FDIRSIP4M, input_masks->src_ip_mask);
+
+	if (dst_ipv4 == 0)
+		IXGBE_WRITE_REG(hw, IXGBE_FDIRDIP4M, 0xffffffff);
+	else
+		IXGBE_WRITE_REG(hw, IXGBE_FDIRDIP4M, input_masks->dst_ip_mask);
+
+	switch (l4type & IXGBE_ATR_L4TYPE_MASK) {
+	case IXGBE_ATR_L4TYPE_TCP:
+		if (src_port == 0)
+			IXGBE_WRITE_REG(hw, IXGBE_FDIRTCPM, 0xffff);
+		else
+			IXGBE_WRITE_REG(hw, IXGBE_FDIRTCPM,
+			                input_masks->src_port_mask);
+
+		if (dst_port == 0)
+			IXGBE_WRITE_REG(hw, IXGBE_FDIRTCPM,
+			               (IXGBE_READ_REG(hw, IXGBE_FDIRTCPM) |
+			                (0xffff << 16)));
+		else
+			IXGBE_WRITE_REG(hw, IXGBE_FDIRTCPM,
+			               (IXGBE_READ_REG(hw, IXGBE_FDIRTCPM) |
+			                (input_masks->dst_port_mask << 16)));
+		break;
+	case IXGBE_ATR_L4TYPE_UDP:
+		if (src_port == 0)
+			IXGBE_WRITE_REG(hw, IXGBE_FDIRUDPM, 0xffff);
+		else
+			IXGBE_WRITE_REG(hw, IXGBE_FDIRUDPM,
+			                input_masks->src_port_mask);
+
+		if (dst_port == 0)
+			IXGBE_WRITE_REG(hw, IXGBE_FDIRUDPM,
+			               (IXGBE_READ_REG(hw, IXGBE_FDIRUDPM) |
+			                (0xffff << 16)));
+		else
+			IXGBE_WRITE_REG(hw, IXGBE_FDIRUDPM,
+			               (IXGBE_READ_REG(hw, IXGBE_FDIRUDPM) |
+			                (input_masks->src_port_mask << 16)));
+		break;
+	default:
+		/* this already would have failed above */
+		break;
+	}
+
+	/* Program the last mask register, FDIRM */
+	if (input_masks->vlan_id_mask || !vlan_id)
+		/* Mask both VLAN and VLANP - bits 0 and 1 */
+		fdirm |= (IXGBE_FDIRM_VLANID | IXGBE_FDIRM_VLANP);
+
+	if (input_masks->data_mask || !flex_bytes)
+		/* Flex bytes need masking, so mask the whole thing - bit 4 */
+		fdirm |= IXGBE_FDIRM_FLEX;
+
+	/* Now mask VM pool and destination IPv6 - bits 5 and 2 */
+	fdirm |= (IXGBE_FDIRM_POOL | IXGBE_FDIRM_DIPv6);
+
+	IXGBE_WRITE_REG(hw, IXGBE_FDIRM, fdirm);
 
 	fdircmd |= IXGBE_FDIRCMD_CMD_ADD_FLOW;
 	fdircmd |= IXGBE_FDIRCMD_FILTER_UPDATE;
@@ -2063,7 +2146,7 @@ s32 ixgbe_start_hw_rev_1_82599(struct ixgbe_hw *hw)
 	for (i = 0; i < hw->mac.max_rx_queues; i++) {
 		regval = IXGBE_READ_REG(hw, IXGBE_DCA_RXCTRL(i));
 		regval &= ~(IXGBE_DCA_RXCTRL_DESC_WRO_EN |
-			    IXGBE_DCA_RXCTRL_DESC_HSRO_EN);
+		            IXGBE_DCA_RXCTRL_DESC_HSRO_EN);
 		IXGBE_WRITE_REG(hw, IXGBE_DCA_RXCTRL(i), regval);
 	}
 
@@ -2192,9 +2275,13 @@ sfp_check:
 		goto out;
 
 	switch (hw->phy.type) {
-	case ixgbe_phy_tw_tyco:
-	case ixgbe_phy_tw_unknown:
+	case ixgbe_phy_sfp_passive_tyco:
+	case ixgbe_phy_sfp_passive_unknown:
 		physical_layer = IXGBE_PHYSICAL_LAYER_SFP_PLUS_CU;
+		break;
+	case ixgbe_phy_sfp_ftl_active:
+	case ixgbe_phy_sfp_active_unknown:
+		physical_layer = IXGBE_PHYSICAL_LAYER_SFP_ACTIVE_DA;
 		break;
 	case ixgbe_phy_sfp_avago:
 	case ixgbe_phy_sfp_ftl:
@@ -2327,4 +2414,31 @@ static s32 ixgbe_verify_fw_version_82599(struct ixgbe_hw *hw)
 
 fw_version_out:
 	return status;
+}
+/**
+ *  ixgbe_enable_relaxed_ordering_82599 - Enable relaxed ordering
+ *  @hw: pointer to hardware structure
+ *
+ **/
+void ixgbe_enable_relaxed_ordering_82599(struct ixgbe_hw *hw)
+{
+	u32 regval;
+	u32 i;
+
+	DEBUGFUNC("ixgbe_enable_relaxed_ordering_82599");
+
+	/* Enable relaxed ordering */
+	for (i = 0; i < hw->mac.max_tx_queues; i++) {
+		regval = IXGBE_READ_REG(hw, IXGBE_DCA_TXCTRL_82599(i));
+		regval |= IXGBE_DCA_TXCTRL_TX_WB_RO_EN;
+		IXGBE_WRITE_REG(hw, IXGBE_DCA_TXCTRL_82599(i), regval);
+	}
+
+	for (i = 0; i < hw->mac.max_rx_queues; i++) {
+		regval = IXGBE_READ_REG(hw, IXGBE_DCA_RXCTRL(i));
+		regval |= (IXGBE_DCA_RXCTRL_DESC_WRO_EN |
+		           IXGBE_DCA_RXCTRL_DESC_HSRO_EN);
+		IXGBE_WRITE_REG(hw, IXGBE_DCA_RXCTRL(i), regval);
+	}
+
 }

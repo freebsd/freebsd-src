@@ -15,6 +15,7 @@
 # reinstallkernel     - Reinstall the kernel and the kernel-modules.
 # reinstallkernel.debug
 # kernel              - buildkernel + installkernel.
+# kernel-toolchain    - Builds the subset of world necessary to build a kernel
 # doxygen             - Build API documentation of the kernel, needs doxygen.
 # update              - Convenient way to update your source tree (cvs).
 # check-old           - List obsolete directories/files/libraries.
@@ -310,6 +311,7 @@ universe_${target}:
 	    "check _.${target}.buildworld for details" | ${MAKEFAIL}))
 	@echo ">> ${target} buildworld completed on `LC_ALL=C date`"
 .endif
+.if !defined(MAKE_JUST_WORLDS)
 .if exists(${.CURDIR}/sys/${target}/conf/NOTES)
 	@(cd ${.CURDIR}/sys/${target}/conf && env __MAKE_CONF=/dev/null \
 	    ${MAKE} LINT > ${.CURDIR}/_.${target}.makeLINT 2>&1 || \
@@ -318,6 +320,7 @@ universe_${target}:
 .endif
 	@cd ${.CURDIR} && ${MAKE} ${.MAKEFLAGS} TARGET=${target} \
 	    universe_kernels
+.endif
 	@echo ">> ${target} completed on `LC_ALL=C date`"
 .endfor
 universe_kernels: universe_kernconfs

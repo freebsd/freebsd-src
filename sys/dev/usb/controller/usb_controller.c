@@ -24,6 +24,8 @@
  * SUCH DAMAGE.
  */
 
+#include "opt_ddb.h"
+
 #include <sys/stdint.h>
 #include <sys/stddef.h>
 #include <sys/param.h>
@@ -220,6 +222,7 @@ usb_bus_explore(struct usb_proc_msg *pm)
 			bus->driver_added_refcount = 1;
 		}
 
+#ifdef DDB
 		/*
 		 * The following three lines of code are only here to
 		 * recover from DDB:
@@ -227,6 +230,7 @@ usb_bus_explore(struct usb_proc_msg *pm)
 		usb_proc_rewakeup(&bus->control_xfer_proc);
 		usb_proc_rewakeup(&bus->giant_callback_proc);
 		usb_proc_rewakeup(&bus->non_giant_callback_proc);
+#endif
 
 		USB_BUS_UNLOCK(bus);
 
@@ -289,11 +293,13 @@ usb_power_wdog(void *arg)
 	usb_callout_reset(&bus->power_wdog,
 	    4 * hz, usb_power_wdog, arg);
 
+#ifdef DDB
 	/*
 	 * The following line of code is only here to recover from
 	 * DDB:
 	 */
 	usb_proc_rewakeup(&bus->explore_proc);	/* recover from DDB */
+#endif
 
 	USB_BUS_UNLOCK(bus);
 

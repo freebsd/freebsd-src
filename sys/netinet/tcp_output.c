@@ -1048,7 +1048,7 @@ send:
 	 * XXX: Fixme: This is currently not the case for IPv6.
 	 */
 	if (tso) {
-		m->m_pkthdr.csum_flags = CSUM_TSO;
+		m->m_pkthdr.csum_flags |= CSUM_TSO;
 		m->m_pkthdr.tso_segsz = tp->t_maxopd - optlen;
 	}
 

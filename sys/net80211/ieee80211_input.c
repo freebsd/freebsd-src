@@ -734,7 +734,8 @@ ieee80211_ssid_mismatch(struct ieee80211vap *vap, const char *tag,
  * Return the bssid of a frame.
  */
 static const uint8_t *
-ieee80211_getbssid(struct ieee80211vap *vap, const struct ieee80211_frame *wh)
+ieee80211_getbssid(const struct ieee80211vap *vap,
+	const struct ieee80211_frame *wh)
 {
 	if (vap->iv_opmode == IEEE80211_M_STA)
 		return wh->i_addr2;
@@ -748,7 +749,7 @@ ieee80211_getbssid(struct ieee80211vap *vap, const struct ieee80211_frame *wh)
 #include <machine/stdarg.h>
 
 void
-ieee80211_note(struct ieee80211vap *vap, const char *fmt, ...)
+ieee80211_note(const struct ieee80211vap *vap, const char *fmt, ...)
 {
 	char buf[128];		/* XXX */
 	va_list ap;
@@ -761,7 +762,7 @@ ieee80211_note(struct ieee80211vap *vap, const char *fmt, ...)
 }
 
 void
-ieee80211_note_frame(struct ieee80211vap *vap,
+ieee80211_note_frame(const struct ieee80211vap *vap,
 	const struct ieee80211_frame *wh,
 	const char *fmt, ...)
 {
@@ -776,7 +777,7 @@ ieee80211_note_frame(struct ieee80211vap *vap,
 }
 
 void
-ieee80211_note_mac(struct ieee80211vap *vap,
+ieee80211_note_mac(const struct ieee80211vap *vap,
 	const uint8_t mac[IEEE80211_ADDR_LEN],
 	const char *fmt, ...)
 {
@@ -790,7 +791,7 @@ ieee80211_note_mac(struct ieee80211vap *vap,
 }
 
 void
-ieee80211_discard_frame(struct ieee80211vap *vap,
+ieee80211_discard_frame(const struct ieee80211vap *vap,
 	const struct ieee80211_frame *wh,
 	const char *type, const char *fmt, ...)
 {
@@ -811,7 +812,7 @@ ieee80211_discard_frame(struct ieee80211vap *vap,
 }
 
 void
-ieee80211_discard_ie(struct ieee80211vap *vap,
+ieee80211_discard_ie(const struct ieee80211vap *vap,
 	const struct ieee80211_frame *wh,
 	const char *type, const char *fmt, ...)
 {
@@ -830,7 +831,7 @@ ieee80211_discard_ie(struct ieee80211vap *vap,
 }
 
 void
-ieee80211_discard_mac(struct ieee80211vap *vap,
+ieee80211_discard_mac(const struct ieee80211vap *vap,
 	const uint8_t mac[IEEE80211_ADDR_LEN],
 	const char *type, const char *fmt, ...)
 {

@@ -320,7 +320,7 @@ AcpiEnterSleepState (
     if ((AcpiGbl_SleepTypeA > ACPI_SLEEP_TYPE_MAX) ||
         (AcpiGbl_SleepTypeB > ACPI_SLEEP_TYPE_MAX))
     {
-        ACPI_ERROR ((AE_INFO, "Sleep values out of range: A=%X B=%X",
+        ACPI_ERROR ((AE_INFO, "Sleep values out of range: A=0x%X B=0x%X",
             AcpiGbl_SleepTypeA, AcpiGbl_SleepTypeB));
         return_ACPI_STATUS (AE_AML_OPERAND_VALUE);
     }
@@ -474,13 +474,16 @@ AcpiEnterSleepState (
             return_ACPI_STATUS (Status);
         }
 
-        /*
-         * Some BIOSs don't set WAK_STS at all.  Give up waiting after
-         * 1000 retries if it still isn't set.
-         */
-        if (Retry-- == 0)
+        if (AcpiGbl_EnableInterpreterSlack)
         {
-            break;
+            /*
+             * Some BIOSs don't set WAK_STS at all.  Give up waiting after
+             * 1000 retries if it still isn't set.
+             */
+            if (Retry-- == 0)
+            {
+                break;
+            }
         }
 
         /* Spin until we wake */

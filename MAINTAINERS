@@ -36,8 +36,6 @@ pci bus		imp,jhb	Pre-commit review requested.
 cdboot		jhb	Pre-commit review requested.
 pxeboot		jhb	Pre-commit review requested.
 witness		jhb	Pre-commit review requested.
-twe		aradford@amcc.com	Pre-commit review requested
-twa		aradford@amcc.com	Pre-commit review requested
 CAM		gibbs,
 		ken	Pre-commit review requested. send to scsi@freebsd.org
 devstat(9)	ken	Pre-commit review requested.
@@ -59,15 +57,12 @@ libfetch	des	Advance notification requested.
 fetch		des	Advance notification requested.
 libpam		des	Pre-commit review requested.
 openssh		des	Pre-commit review requested.
-pseudofs	des	Advance notification requested.
-procfs		des	Advance notification requested.
-linprocfs	des	Advance notification requested.
+pseudofs	des	Pre-commit review requested.
+procfs		des	Pre-commit review requested.
+linprocfs	des	Pre-commit review requested.
 lpr		gad	Pre-commit review requested, particularly for
 			lpd/recvjob.c and lpd/printjob.c.
 newsyslog(8)	gad	Heads-up appreciated.  I'm going thru the PR's for it.
-pkill		gad	Heads-up appreciated.
-ps		gad	I am working on a number of changes to this.  Would
-			like advance notice of major changes planned to it.
 cvs		peter	Heads-up appreciated, try not to break it.
 nvi		peter	Try not to break it.
 libz		peter	Try not to break it.
@@ -76,9 +71,6 @@ share/mk	ru	This is a vital component of the build system, so I
 			offer a pre-commit review for anything non-trivial.
 ipfw		ipfw	Pre-commit review preferred. send to ipfw@freebsd.org
 drm		rnoland	Just keep me informed of changes, try not to break it.
-libufs		jmallett	Willing to handle problems, help with work.
-fdc(4)		joerg	Just keep me informed of changes, try not to break it.
-sppp(4)		joerg	Just keep me informed of changes, try not to break it.
 unifdef(1)	fanf	Pre-commit review requested.
 ntp         	roberto	Pre-commit review requested.
 inetd		dwmalone	Recommends pre-commit review.
@@ -131,6 +123,9 @@ usr.sbin/zic		edwin   Heads-up appreciated, since this code is
 				maintained by a third party source.
 lib/libc/stdtime	edwin   Heads-up appreciated, since parts of this code
 				is maintained by a third party source.
+sysinstall	randi	Please contact about any major changes so that
+			they can be co-ordinated.
+sbin/routed	bms	Pre-commit review; notify vendor at rhyolite.com
 
 Following are the entries from the Makefiles, and a few other sources.
 Please remove stale entries from both their origin, and this file.
@@ -144,4 +139,3 @@ $ cd /usr/src; find */* -type f|xargs egrep 'MAINTAINER[ <tab>]*='
 sys/modules/3dfx/Makefile:MAINTAINER=	cokane@FreeBSD.org
 sys/modules/urio/Makefile:MAINTAINER=	Iwasa Kazmi <kzmi@ca2.so-net.ne.jp>
 tools/tools/sysdoc/Makefile:MAINTAINER=	trhodes@FreeBSD.org
-usr.sbin/zic/Makefile:MAINTAINER=	wollman@FreeBSD.org

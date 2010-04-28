@@ -65,53 +65,7 @@
 
 #include "assym.s"
 
-#if defined(ISA_MIPS32)
-#undef WITH_64BIT_CP0
-#elif defined(ISA_MIPS64)
-#define WITH_64BIT_CP0
-#elif defined(ISA_MIPS3)
-#define WITH_64BIT_CP0
-#else
-#error "Please write the code for this ISA"
-#endif
-
-#ifdef WITH_64BIT_CP0
-#define _SLL	dsll
-#define	_SRL	dsrl
-#define	_MFC0	dmfc0
-#define	_MTC0	dmtc0
-#define WIRED_SHIFT 34
-#else
-#define _SLL	sll
-#define	_SRL	srl
-#define	_MFC0	mfc0
-#define	_MTC0	mtc0
-#define WIRED_SHIFT 2
-#endif
 	.set	noreorder			# Noreorder is default style!
-#if defined(ISA_MIPS32)
-	.set	mips32
-#elif defined(ISA_MIPS64)
-	.set	mips64
-#elif defined(ISA_MIPS3)
-	.set	mips3
-#endif
-
-#if defined(ISA_MIPS32)
-#define	STORE		sw		/* 32 bit mode regsave instruction */
-#define	LOAD		lw		/* 32 bit mode regload instruction */
-#define	RSIZE		4		/* 32 bit mode register size */
-#define	STORE_FP	swc1		/* 32 bit mode fp regsave instruction */
-#define	LOAD_FP		lwc1		/* 32 bit mode fp regload instruction */
-#define	FP_RSIZE	4		/* 32 bit mode fp register size */
-#else
-#define	STORE		sd		/* 64 bit mode regsave instruction */
-#define	LOAD		ld		/* 64 bit mode regload instruction */
-#define	RSIZE		8		/* 64 bit mode register size */
-#define	STORE_FP	sdc1		/* 64 bit mode fp regsave instruction */
-#define	LOAD_FP		ldc1		/* 64 bit mode fp regload instruction */
-#define	FP_RSIZE	8		/* 64 bit mode fp register size */
-#endif
 
 /*
  * FREEBSD_DEVELOPERS_FIXME
@@ -125,28 +79,28 @@
 #endif
 
 #define	SAVE_U_PCB_REG(reg, offs, base) \
-	STORE	reg, U_PCB_REGS + (RSIZE * offs) (base)
+	REG_S	reg, U_PCB_REGS + (SZREG * offs) (base)
 
 #define	RESTORE_U_PCB_REG(reg, offs, base) \
-	LOAD	reg, U_PCB_REGS + (RSIZE * offs) (base)
+	REG_L	reg, U_PCB_REGS + (SZREG * offs) (base)
 
 #define	SAVE_U_PCB_FPREG(reg, offs, base) \
-	STORE_FP reg, U_PCB_FPREGS + (FP_RSIZE * offs) (base)
+	FP_S	reg, U_PCB_FPREGS + (SZFPREG * offs) (base)
 
 #define	RESTORE_U_PCB_FPREG(reg, offs, base) \
-	LOAD_FP	reg, U_PCB_FPREGS + (FP_RSIZE * offs) (base)
+	FP_L	reg, U_PCB_FPREGS + (SZFPREG * offs) (base)
 
 #define	SAVE_U_PCB_FPSR(reg, offs, base) \
-	STORE	reg, U_PCB_FPREGS + (FP_RSIZE * offs) (base)
+	REG_S	reg, U_PCB_FPREGS + (SZFPREG * offs) (base)
 
 #define	RESTORE_U_PCB_FPSR(reg, offs, base) \
-	LOAD	reg, U_PCB_FPREGS + (FP_RSIZE * offs) (base)
+	REG_L	reg, U_PCB_FPREGS + (SZFPREG * offs) (base)
 
 #define	SAVE_U_PCB_CONTEXT(reg, offs, base) \
-	STORE	reg, U_PCB_CONTEXT + (RSIZE * offs) (base)
+	REG_S	reg, U_PCB_CONTEXT + (SZREG * offs) (base)
 
 #define	RESTORE_U_PCB_CONTEXT(reg, offs, base) \
-	LOAD	reg, U_PCB_CONTEXT + (RSIZE * offs) (base)
+	REG_L	reg, U_PCB_CONTEXT + (SZREG * offs) (base)
 
 #define	ITLBNOPFIX	nop;nop;nop;nop;nop;nop;nop;nop;nop;nop;
 
@@ -172,7 +126,7 @@ LEAF(fork_trampoline)
  */
 	.set	noat
 	GET_CPU_PCPU(k1)
-	lw	k1, PC_CURPCB(k1)
+	PTR_L	k1, PC_CURPCB(k1)
 
 	RESTORE_U_PCB_REG(t0, MULLO, k1)
 	RESTORE_U_PCB_REG(t1, MULHI, k1)
@@ -181,7 +135,7 @@ LEAF(fork_trampoline)
 	RESTORE_U_PCB_REG(a0, PC, k1)
 	RESTORE_U_PCB_REG(AT, AST, k1)
 	RESTORE_U_PCB_REG(v0, V0, k1)
-	_MTC0	a0, COP_0_EXC_PC	# set return address
+	MTC0	a0, COP_0_EXC_PC	# set return address
 
 	RESTORE_U_PCB_REG(v1, V1, k1)
 	RESTORE_U_PCB_REG(a0, A0, k1)
@@ -245,6 +199,14 @@ LEAF(savectx)
 	SAVE_U_PCB_CONTEXT(ra, PREG_RA, a0)
 	SAVE_U_PCB_CONTEXT(v0, PREG_SR, a0)
 	SAVE_U_PCB_CONTEXT(gp, PREG_GP, a0)
+
+	move	v0, ra			/* save 'ra' before we trash it */
+	jal	1f
+	nop
+1:
+	SAVE_U_PCB_CONTEXT(ra, PREG_PC, a0)
+	move	ra, v0			/* restore 'ra' before returning */
+
 	/*
 	 * FREEBSD_DEVELOPERS_FIXME:
 	 * In case there are CPU-specific registers that need
@@ -257,7 +219,7 @@ END(savectx)
 
 KSEG0TEXT_START;
 
-NON_LEAF(mips_cpu_throw, STAND_FRAME_SIZE, ra)
+NON_LEAF(mips_cpu_throw, CALLFRAME_SIZ, ra)
 	mfc0	t0, COP_0_STATUS_REG		# t0 = saved status register
 	nop
 	nop
@@ -277,7 +239,7 @@ END(mips_cpu_throw)
  *	a2 - mtx
  * Find the highest priority process and resume it.
  */
-NON_LEAF(cpu_switch, STAND_FRAME_SIZE, ra)
+NON_LEAF(cpu_switch, CALLFRAME_SIZ, ra)
 	mfc0	t0, COP_0_STATUS_REG		# t0 = saved status register
 	nop
 	nop
@@ -286,11 +248,11 @@ NON_LEAF(cpu_switch, STAND_FRAME_SIZE, ra)
 	ITLBNOPFIX
 	beqz	a0, mips_sw1
 	move	a3, a0
-	lw	a0, TD_PCB(a0)		# load PCB addr of curproc
+	PTR_L	a0, TD_PCB(a0)		# load PCB addr of curproc
 	SAVE_U_PCB_CONTEXT(sp, PREG_SP, a0)		# save old sp
-	subu	sp, sp, STAND_FRAME_SIZE
-	sw	ra, STAND_RA_OFFSET(sp)
-	.mask	0x80000000, (STAND_RA_OFFSET - STAND_FRAME_SIZE)
+	PTR_SUBU	sp, sp, CALLFRAME_SIZ
+	REG_S	ra, CALLFRAME_RA(sp)
+	.mask	0x80000000, (CALLFRAME_RA - CALLFRAME_SIZ)
 	SAVE_U_PCB_CONTEXT(s0, PREG_S0, a0)		# do a 'savectx()'
 	SAVE_U_PCB_CONTEXT(s1, PREG_S1, a0)
 	SAVE_U_PCB_CONTEXT(s2, PREG_S2, a0)
@@ -313,13 +275,13 @@ getpc:
 	 * to be saved with the other registers do so here.
 	 */
 
-	sw	a2, TD_LOCK(a3)			# Switchout td_lock 
+	PTR_S	a2, TD_LOCK(a3)			# Switchout td_lock 
 
 mips_sw1:
 #if defined(SMP) && defined(SCHED_ULE)
 	PTR_LA	t0, _C_LABEL(blocked_lock)
 blocked_loop:
-	lw	t1, TD_LOCK(a1)
+	PTR_L	t1, TD_LOCK(a1)
 	beq	t0, t1, blocked_loop
 	nop
 #endif
@@ -328,20 +290,16 @@ blocked_loop:
  * Switch to new context.
  */
 	GET_CPU_PCPU(a3)
-	sw	a1, PC_CURTHREAD(a3)
-	lw	a2, TD_PCB(a1)
-	sw	a2, PC_CURPCB(a3)
-	lw	v0, TD_REALKSTACK(a1)
-	li	s0, (MIPS_KSEG2_START+VM_KERNEL_ALLOC_OFFSET)		# If Uarea addr is below kseg2,
+	PTR_S	a1, PC_CURTHREAD(a3)
+	PTR_L	a2, TD_PCB(a1)
+	PTR_S	a2, PC_CURPCB(a3)
+	PTR_L	v0, TD_KSTACK(a1)
+#if !defined(__mips_n64)
+	PTR_LI	s0, MIPS_KSEG2_START		# If Uarea addr is below kseg2,
 	bltu	v0, s0, sw2			# no need to insert in TLB.
-	lw	a1, TD_UPTE+0(s7)		# t0 = first u. pte
-	lw	a2, TD_UPTE+4(s7)		# t1 = 2nd u. pte
-	and	s0, v0, PTE_ODDPG
-	beq	s0, zero, entry0
-	nop
-
-	PANIC_KSEG0("USPACE sat on odd page boundary", t1)
-
+#endif
+	lw	a1, TD_UPTE + 0(s7)		# a1 = u. pte #0
+	lw	a2, TD_UPTE + 4(s7)		# a2 = u. pte #1
 /*
  * Wiredown the USPACE of newproc in TLB entry#0.  Check whether target
  * USPACE is already in another place of TLB before that, and if so
@@ -349,31 +307,32 @@ blocked_loop:
  * NOTE: This is hard coded to UPAGES == 2.
  * Also, there should be no TLB faults at this point.
  */
-entry0:
-	mtc0	v0, COP_0_TLB_HI		# VPN = va
+	MTC0	v0, COP_0_TLB_HI		# VPN = va
 	HAZARD_DELAY
 	tlbp					# probe VPN
 	HAZARD_DELAY
 	mfc0	s0, COP_0_TLB_INDEX
-	nop
-pgm:
+	HAZARD_DELAY
+
+	PTR_LI	t1, MIPS_KSEG0_START		# invalidate tlb entry
 	bltz	s0, entry0set
-	li	t1, MIPS_KSEG0_START		# invalidate tlb entry
+	nop
 	sll	s0, PAGE_SHIFT + 1
 	addu	t1, s0
-	mtc0	t1, COP_0_TLB_HI
+	MTC0	t1, COP_0_TLB_HI
 	mtc0	zero, COP_0_TLB_LO0
 	mtc0	zero, COP_0_TLB_LO1
 	HAZARD_DELAY
 	tlbwi
 	HAZARD_DELAY
-	mtc0	v0, COP_0_TLB_HI		# set VPN again
+	MTC0	v0, COP_0_TLB_HI		# set VPN again
+
 entry0set:
 /* SMP!! - Works only for  unshared TLB case - i.e. no v-cpus */
 	mtc0	zero, COP_0_TLB_INDEX		# TLB entry #0
-#	or	a1, PG_G
+	HAZARD_DELAY
 	mtc0	a1, COP_0_TLB_LO0		# upte[0]
-#	or	a2, PG_G
+	HAZARD_DELAY
 	mtc0	a2, COP_0_TLB_LO1		# upte[1]
 	HAZARD_DELAY
 	tlbwi					# set TLB entry #0
@@ -388,7 +347,7 @@ sw2:
 /*
  * Restore registers and return.
  */
-	lw	a0, TD_PCB(s7)
+	PTR_L	a0, TD_PCB(s7)
 	RESTORE_U_PCB_CONTEXT(gp, PREG_GP, a0)
 	RESTORE_U_PCB_CONTEXT(v0, PREG_SR, a0)	# restore kernel context
 	RESTORE_U_PCB_CONTEXT(ra, PREG_RA, a0)
@@ -449,7 +408,7 @@ LEAF(MipsSwitchFPState)
  * First read out the status register to make sure that all FP operations
  * have completed.
  */
-	lw	a0, TD_PCB(a0)			# get pointer to pcb for proc
+	PTR_L	a0, TD_PCB(a0)			# get pointer to pcb for proc
 	cfc1	t0, FPC_CSR			# stall til FP done
 	cfc1	t0, FPC_CSR			# now get status
 	li	t3, ~SR_COP_1_BIT
@@ -559,13 +518,13 @@ END(MipsSwitchFPState)
  *----------------------------------------------------------------------------
  */
 LEAF(MipsSaveCurFPState)
-	lw	a0, TD_PCB(a0)			# get pointer to pcb for thread
+	PTR_L	a0, TD_PCB(a0)			# get pointer to pcb for thread
 	mfc0	t1, COP_0_STATUS_REG		# Disable interrupts and
 	li	t0, SR_COP_1_BIT		#  enable the coprocessor
 	mtc0	t0, COP_0_STATUS_REG
 	ITLBNOPFIX
 	GET_CPU_PCPU(a1)
-	sw	zero, PC_FPCURTHREAD(a1)	# indicate state has been saved
+	PTR_S	zero, PC_FPCURTHREAD(a1)	# indicate state has been saved
 /*
  * First read out the status register to make sure that all FP operations
  * have completed.

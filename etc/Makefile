@@ -18,7 +18,7 @@ BIN1=	auth.conf \
 	rc rc.bsdextended rc.firewall rc.initdiskless \
 	rc.sendmail rc.shutdown \
 	rc.subr remote rpc services shells \
-	sysctl.conf syslog.conf
+	sysctl.conf syslog.conf termcap.small
 
 .if exists(${.CURDIR}/etc.${MACHINE}/ttys)
 BIN1+=	etc.${MACHINE}/ttys
@@ -161,6 +161,9 @@ distribution:
 		${BIN2} ${DESTDIR}/etc; \
 	    ${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 600 \
 		master.passwd nsmb.conf opieaccess ${DESTDIR}/etc;
+.if ${MK_AT} == "no"
+	sed -i "" -e 's;.*/usr/libexec/atrun;#&;' ${DESTDIR}/etc/crontab
+.endif
 .if ${MK_TCSH} == "no"
 	sed -i "" -e 's;/bin/csh;/bin/sh;' ${DESTDIR}/etc/master.passwd
 .endif

@@ -319,7 +319,7 @@ db_nextframe(struct amd64_frame **fp, db_addr_t *ip, struct thread *td)
 			frame_type = INTERRUPT;
 		else if (strcmp(name, "Xfast_syscall") == 0)
 			frame_type = SYSCALL;
-#ifdef COMPAT_IA32
+#ifdef COMPAT_FREEBSD32
 		else if (strcmp(name, "Xint0x80_syscall") == 0)
 			frame_type = SYSCALL;
 #endif
