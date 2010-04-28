@@ -924,7 +924,6 @@ vnode_locked:
 		vm_fault_prefault(fs.map->pmap, vaddr, fs.entry);
 	VM_OBJECT_LOCK(fs.object);
 	vm_page_lock_queues();
-	vm_page_flag_set(fs.m, PG_REFERENCED);
 
 	/*
 	 * If the page is not wired down, then put it where the pageout daemon
