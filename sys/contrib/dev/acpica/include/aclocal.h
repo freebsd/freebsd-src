@@ -307,16 +307,16 @@ typedef struct acpi_namespace_node
 #define ANOBJ_IS_REFERENCED             0x80    /* iASL only: Object was referenced */
 
 
-/* One internal RSDT for table management */
+/* Internal ACPI table management - master table list */
 
-typedef struct acpi_internal_rsdt
+typedef struct acpi_table_list
 {
-    ACPI_TABLE_DESC                 *Tables;
-    UINT32                          Count;
-    UINT32                          Size;
+    ACPI_TABLE_DESC                 *Tables;            /* Table descriptor array */
+    UINT32                          CurrentTableCount;  /* Tables currently in the array */
+    UINT32                          MaxTableCount;      /* Max tables array will hold */
     UINT8                           Flags;
 
-} ACPI_INTERNAL_RSDT;
+} ACPI_TABLE_LIST;
 
 /* Flags for above */
 
@@ -612,6 +612,10 @@ typedef struct acpi_gpe_walk_info
 {
     ACPI_NAMESPACE_NODE             *GpeDevice;
     ACPI_GPE_BLOCK_INFO             *GpeBlock;
+    UINT16                          Count;
+    ACPI_OWNER_ID                   OwnerId;
+    BOOLEAN                         EnableThisGpe;
+    BOOLEAN                         ExecuteByOwnerId;
 
 } ACPI_GPE_WALK_INFO;
 
