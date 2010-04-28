@@ -5027,7 +5027,7 @@ DECL_CMD_FUNC(set80211clone_wlanaddr, arg, d)
 
 	ea = ether_aton(arg);
 	if (ea == NULL)
-		errx(1, "%s: cannot parse addres", arg);
+		errx(1, "%s: cannot parse address", arg);
 	memcpy(params.icp_macaddr, ea->octet, IEEE80211_ADDR_LEN);
 	params.icp_flags |= IEEE80211_CLONE_MACADDR;
 }
