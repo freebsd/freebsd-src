@@ -1690,16 +1690,10 @@ retry:
 		obits = pbits = *pte;
 		pa = mips_tlbpfn_to_paddr(pbits);
 
-		if (page_is_managed(pa)) {
+		if (page_is_managed(pa) && (pbits & PTE_M) != 0) {
 			m = PHYS_TO_VM_PAGE(pa);
-			if (m->md.pv_flags & PV_TABLE_REF) {
-				vm_page_flag_set(m, PG_REFERENCED);
-				m->md.pv_flags &= ~PV_TABLE_REF;
-			}
-			if (pbits & PTE_M) {
-				vm_page_dirty(m);
-				m->md.pv_flags &= ~PV_TABLE_MOD;
-			}
+			vm_page_dirty(m);
+			m->md.pv_flags &= ~PV_TABLE_MOD;
 		}
 		pbits = (pbits & ~PTE_M) | PTE_RO;
 
