@@ -139,6 +139,8 @@ def MQ : JoinedOrSeparate<"-MQ">, Group<M_Group>;
 def MT : JoinedOrSeparate<"-MT">, Group<M_Group>;
 def Mach : Flag<"-Mach">;
 def M : Flag<"-M">, Group<M_Group>;
+def N : Flag<"-N">, Flags<[DriverOption]>,
+  HelpText<"--omagic to linker">;
 def O4 : Joined<"-O4">, Group<O_Group>;
 def ObjCXX : Flag<"-ObjC++">, Flags<[DriverOption]>,
   HelpText<"Treat source input files as Objective-C++ inputs">;
