@@ -480,7 +480,7 @@ init_remote(struct hast_resource *res, struct proto_conn **inp,
 
 	/* Prepare outgoing connection with remote node. */
 	if (proto_client(res->hr_remoteaddr, &out) < 0) {
-		primary_exit(EX_OSERR, "Unable to create connection to %s",
+		primary_exit(EX_TEMPFAIL, "Unable to create connection to %s",
 		    res->hr_remoteaddr);
 	}
 	/* Try to connect, but accept failure. */
@@ -739,7 +739,7 @@ hastd_primary(struct hast_resource *res)
 	pid = fork();
 	if (pid < 0) {
 		KEEP_ERRNO((void)pidfile_remove(pfh));
-		primary_exit(EX_OSERR, "Unable to fork");
+		primary_exit(EX_TEMPFAIL, "Unable to fork");
 	}
 
 	if (pid > 0) {
