@@ -140,9 +140,15 @@ child_exit(void)
 		proto_close(res->hr_ctrl);
 		res->hr_workerpid = 0;
 		if (res->hr_role == HAST_ROLE_PRIMARY) {
-			sleep(1);
-			pjdlog_info("Restarting worker process.");
-			hastd_primary(res);
+			if (WEXITSTATUS(status) == EX_TEMPFAIL) {
+				sleep(1);
+				pjdlog_info("Restarting worker process.");
+				hastd_primary(res);
+			} else {
+				res->hr_role = HAST_ROLE_INIT;
+				pjdlog_info("Changing resource role back to %s.",
+				    role2str(res->hr_role));
+			}
 		}
 		pjdlog_prefix_set("%s", "");
 	}
