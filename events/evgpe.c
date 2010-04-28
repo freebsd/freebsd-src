@@ -370,7 +370,7 @@ AcpiEvGetGpeEventInfo (
     ACPI_FUNCTION_ENTRY ();
 
 
-    /* A NULL GpeBlock means use the FADT-defined GPE block(s) */
+    /* A NULL GpeDevice means use the FADT-defined GPE block(s) */
 
     if (!GpeDevice)
     {

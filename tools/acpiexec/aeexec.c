@@ -235,7 +235,6 @@ AfInstallGpeBlock (
     if (ACPI_SUCCESS (Status))
     {
         Status = AcpiInstallGpeBlock (Handle2, &BlockAddress, 7, 8);
-        Status = AcpiInstallGpeBlock (Handle2, &BlockAddress, 2, 0);
 
         AcpiInstallGpeHandler (Handle2, 8, ACPI_GPE_LEVEL_TRIGGERED, AeGpeHandler, NULL);
         AcpiEnableGpe (Handle2, 8, ACPI_GPE_TYPE_RUNTIME);

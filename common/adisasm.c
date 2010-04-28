@@ -282,8 +282,8 @@ AdInitialize (
 
     /* Setup the Table Manager (cheat - there is no RSDT) */
 
-    AcpiGbl_RootTableList.Size = 1;
-    AcpiGbl_RootTableList.Count = 0;
+    AcpiGbl_RootTableList.MaxTableCount = 1;
+    AcpiGbl_RootTableList.CurrentTableCount = 0;
     AcpiGbl_RootTableList.Tables = LocalTables;
 
     return (Status);
@@ -1156,7 +1156,7 @@ AdParseTable (
 
     /* If LoadTable is FALSE, we are parsing the last loaded table */
 
-    TableIndex = AcpiGbl_RootTableList.Count - 1;
+    TableIndex = AcpiGbl_RootTableList.CurrentTableCount - 1;
 
     /* Pass 2 */
 
