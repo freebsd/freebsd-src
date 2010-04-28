@@ -1,7 +1,7 @@
 
 /******************************************************************************
  *
- * Module Name: aslrestype1 - Miscellaneous small resource descriptors
+ * Module Name: aslrestype1i - Small I/O-related resource descriptors
  *
  *****************************************************************************/
 
@@ -119,24 +119,21 @@
 #include "aslcompiler.y.h"
 
 #define _COMPONENT          ACPI_COMPILER
-        ACPI_MODULE_NAME    ("aslrestype1")
+        ACPI_MODULE_NAME    ("aslrestype1i")
 
 /*
- * This module contains miscellaneous small resource descriptors:
+ * This module contains the I/O-related small resource descriptors:
  *
- * EndTag
- * EndDependentFn
- * Memory24
- * Memory32
- * Memory32Fixed
- * StartDependentFn
- * StartDependentFnNoPri
- * VendorShort
+ * DMA
+ * FixedIO
+ * IO
+ * IRQ
+ * IRQNoFlags
  */
 
 /*******************************************************************************
  *
- * FUNCTION:    RsDoEndTagDescriptor
+ * FUNCTION:    RsDoDmaDescriptor
  *
  * PARAMETERS:  Op                  - Parent resource descriptor parse node
  *              CurrentByteOffset   - Offset into the resource template AML
@@ -144,97 +141,29 @@
  *
  * RETURN:      Completed resource node
  *
- * DESCRIPTION: Construct a short "EndDependentFn" descriptor
+ * DESCRIPTION: Construct a short "DMA" descriptor
  *
  ******************************************************************************/
 
 ASL_RESOURCE_NODE *
-RsDoEndTagDescriptor (
-    ACPI_PARSE_OBJECT       *Op,
-    UINT32                  CurrentByteOffset)
-{
-    AML_RESOURCE            *Descriptor;
-    ASL_RESOURCE_NODE       *Rnode;
-
-
-    Rnode = RsAllocateResourceNode (sizeof (AML_RESOURCE_END_TAG));
-
-    Descriptor = Rnode->Buffer;
-    Descriptor->EndTag.DescriptorType = ACPI_RESOURCE_NAME_END_TAG |
-                                        ASL_RDESC_END_TAG_SIZE;
-    Descriptor->EndTag.Checksum = 0;
-
-    return (Rnode);
-}
-
-
-/*******************************************************************************
- *
- * FUNCTION:    RsDoEndDependentDescriptor
- *
- * PARAMETERS:  Op                  - Parent resource descriptor parse node
- *              CurrentByteOffset   - Offset into the resource template AML
- *                                    buffer (to track references to the desc)
- *
- * RETURN:      Completed resource node
- *
- * DESCRIPTION: Construct a short "EndDependentFn" descriptor
- *
- ******************************************************************************/
-
-ASL_RESOURCE_NODE *
-RsDoEndDependentDescriptor (
-    ACPI_PARSE_OBJECT       *Op,
-    UINT32                  CurrentByteOffset)
-{
-    AML_RESOURCE            *Descriptor;
-    ASL_RESOURCE_NODE       *Rnode;
-
-
-    Rnode = RsAllocateResourceNode (sizeof (AML_RESOURCE_END_DEPENDENT));
-
-    Descriptor = Rnode->Buffer;
-    Descriptor->EndDpf.DescriptorType  = ACPI_RESOURCE_NAME_END_DEPENDENT |
-                                      ASL_RDESC_END_DEPEND_SIZE;
-    return (Rnode);
-}
-
-
-/*******************************************************************************
- *
- * FUNCTION:    RsDoMemory24Descriptor
- *
- * PARAMETERS:  Op                  - Parent resource descriptor parse node
- *              CurrentByteOffset   - Offset into the resource template AML
- *                                    buffer (to track references to the desc)
- *
- * RETURN:      Completed resource node
- *
- * DESCRIPTION: Construct a short "Memory24" descriptor
- *
- ******************************************************************************/
-
-ASL_RESOURCE_NODE *
-RsDoMemory24Descriptor (
+RsDoDmaDescriptor (
     ACPI_PARSE_OBJECT       *Op,
     UINT32                  CurrentByteOffset)
 {
     AML_RESOURCE            *Descriptor;
     ACPI_PARSE_OBJECT       *InitializerOp;
-    ACPI_PARSE_OBJECT       *MinOp = NULL;
-    ACPI_PARSE_OBJECT       *MaxOp = NULL;
-    ACPI_PARSE_OBJECT       *LengthOp = NULL;
-    ACPI_PARSE_OBJECT       *AlignOp = NULL;
     ASL_RESOURCE_NODE       *Rnode;
     UINT32                  i;
+    UINT8                   DmaChannelMask = 0;
+    UINT8                   DmaChannels = 0;
 
 
     InitializerOp = Op->Asl.Child;
-    Rnode = RsAllocateResourceNode (sizeof (AML_RESOURCE_MEMORY24));
+    Rnode = RsAllocateResourceNode (sizeof (AML_RESOURCE_DMA));
 
     Descriptor = Rnode->Buffer;
-    Descriptor->Memory24.DescriptorType  = ACPI_RESOURCE_NAME_MEMORY24;
-    Descriptor->Memory24.ResourceLength = 9;
+    Descriptor->Dma.DescriptorType  = ACPI_RESOURCE_NAME_DMA |
+                                        ASL_RDESC_DMA_SIZE;
 
     /* Process all child initialization nodes */
 
@@ -242,46 +171,144 @@ RsDoMemory24Descriptor (
     {
         switch (i)
         {
-        case 0: /* Read/Write type */
+        case 0: /* DMA type */
 
-            RsSetFlagBits (&Descriptor->Memory24.Flags, InitializerOp, 0, 1);
-            RsCreateBitField (InitializerOp, ACPI_RESTAG_READWRITETYPE,
-                CurrentByteOffset + ASL_RESDESC_OFFSET (Memory24.Flags), 0);
+            RsSetFlagBits (&Descriptor->Dma.Flags, InitializerOp, 5, 0);
+            RsCreateBitField (InitializerOp, ACPI_RESTAG_DMATYPE,
+                CurrentByteOffset + ASL_RESDESC_OFFSET (Dma.Flags), 5);
             break;
 
-        case 1: /* Min Address */
+        case 1: /* Bus Master */
 
-            Descriptor->Memory24.Minimum = (UINT16) InitializerOp->Asl.Value.Integer;
-            RsCreateByteField (InitializerOp, ACPI_RESTAG_MINADDR,
-                CurrentByteOffset + ASL_RESDESC_OFFSET (Memory24.Minimum));
-            MinOp = InitializerOp;
+            RsSetFlagBits (&Descriptor->Dma.Flags, InitializerOp, 2, 0);
+            RsCreateBitField (InitializerOp, ACPI_RESTAG_BUSMASTER,
+                CurrentByteOffset + ASL_RESDESC_OFFSET (Dma.Flags), 2);
             break;
 
-        case 2: /* Max Address */
+        case 2: /* Xfer Type (transfer width) */
 
-            Descriptor->Memory24.Maximum = (UINT16) InitializerOp->Asl.Value.Integer;
-            RsCreateByteField (InitializerOp, ACPI_RESTAG_MAXADDR,
-                CurrentByteOffset + ASL_RESDESC_OFFSET (Memory24.Maximum));
-            MaxOp = InitializerOp;
+            RsSetFlagBits (&Descriptor->Dma.Flags, InitializerOp, 0, 0);
+            RsCreateBitField (InitializerOp, ACPI_RESTAG_XFERTYPE,
+                CurrentByteOffset + ASL_RESDESC_OFFSET (Dma.Flags), 0);
             break;
 
-        case 3: /* Alignment */
+        case 3: /* Name */
 
-            Descriptor->Memory24.Alignment = (UINT16) InitializerOp->Asl.Value.Integer;
-            RsCreateByteField (InitializerOp, ACPI_RESTAG_ALIGNMENT,
-                CurrentByteOffset + ASL_RESDESC_OFFSET (Memory24.Alignment));
-            AlignOp = InitializerOp;
+            UtAttachNamepathToOwner (Op, InitializerOp);
             break;
 
-        case 4: /* Length */
+        default:
 
-            Descriptor->Memory24.AddressLength = (UINT16) InitializerOp->Asl.Value.Integer;
+            /* All DMA channel bytes are handled here, after flags and name */
+
+            if (InitializerOp->Asl.ParseOpcode != PARSEOP_DEFAULT_ARG)
+            {
+                /* Up to 8 channels can be specified in the list */
+
+                DmaChannels++;
+                if (DmaChannels > 8)
+                {
+                    AslError (ASL_ERROR, ASL_MSG_DMA_LIST,
+                        InitializerOp, NULL);
+                    return (Rnode);
+                }
+
+                /* Only DMA channels 0-7 are allowed (mask is 8 bits) */
+
+                if (InitializerOp->Asl.Value.Integer > 7)
+                {
+                    AslError (ASL_ERROR, ASL_MSG_DMA_CHANNEL,
+                        InitializerOp, NULL);
+                }
+
+                /* Build the mask */
+
+                DmaChannelMask |=
+                    (1 << ((UINT8) InitializerOp->Asl.Value.Integer));
+            }
+
+            if (i == 4) /* case 4: First DMA byte */
+            {
+                /* Check now for duplicates in list */
+
+                RsCheckListForDuplicates (InitializerOp);
+
+                /* Create a named field at the start of the list */
+
+                RsCreateByteField (InitializerOp, ACPI_RESTAG_DMA,
+                    CurrentByteOffset +
+                    ASL_RESDESC_OFFSET (Dma.DmaChannelMask));
+            }
+            break;
+        }
+
+        InitializerOp = RsCompleteNodeAndGetNext (InitializerOp);
+    }
+
+    /* Now we can set the channel mask */
+
+    Descriptor->Dma.DmaChannelMask = DmaChannelMask;
+    return (Rnode);
+}
+
+
+/*******************************************************************************
+ *
+ * FUNCTION:    RsDoFixedIoDescriptor
+ *
+ * PARAMETERS:  Op                  - Parent resource descriptor parse node
+ *              CurrentByteOffset   - Offset into the resource template AML
+ *                                    buffer (to track references to the desc)
+ *
+ * RETURN:      Completed resource node
+ *
+ * DESCRIPTION: Construct a short "FixedIO" descriptor
+ *
+ ******************************************************************************/
+
+ASL_RESOURCE_NODE *
+RsDoFixedIoDescriptor (
+    ACPI_PARSE_OBJECT       *Op,
+    UINT32                  CurrentByteOffset)
+{
+    AML_RESOURCE            *Descriptor;
+    ACPI_PARSE_OBJECT       *InitializerOp;
+    ACPI_PARSE_OBJECT       *AddressOp = NULL;
+    ASL_RESOURCE_NODE       *Rnode;
+    UINT32                  i;
+
+
+    InitializerOp = Op->Asl.Child;
+    Rnode = RsAllocateResourceNode (sizeof (AML_RESOURCE_FIXED_IO));
+
+    Descriptor = Rnode->Buffer;
+    Descriptor->Io.DescriptorType  = ACPI_RESOURCE_NAME_FIXED_IO |
+                                      ASL_RDESC_FIXED_IO_SIZE;
+
+    /* Process all child initialization nodes */
+
+    for (i = 0; InitializerOp; i++)
+    {
+        switch (i)
+        {
+        case 0: /* Base Address */
+
+            Descriptor->FixedIo.Address =
+                (UINT16) InitializerOp->Asl.Value.Integer;
+            RsCreateByteField (InitializerOp, ACPI_RESTAG_BASEADDRESS,
+                CurrentByteOffset + ASL_RESDESC_OFFSET (FixedIo.Address));
+            AddressOp = InitializerOp;
+            break;
+
+        case 1: /* Length */
+
+            Descriptor->FixedIo.AddressLength =
+                (UINT8) InitializerOp->Asl.Value.Integer;
             RsCreateByteField (InitializerOp, ACPI_RESTAG_LENGTH,
-                CurrentByteOffset + ASL_RESDESC_OFFSET (Memory24.AddressLength));
-            LengthOp = InitializerOp;
+                CurrentByteOffset + ASL_RESDESC_OFFSET (FixedIo.AddressLength));
             break;
 
-        case 5: /* Name */
+        case 2: /* Name */
 
             UtAttachNamepathToOwner (Op, InitializerOp);
             break;
@@ -295,14 +322,12 @@ RsDoMemory24Descriptor (
         InitializerOp = RsCompleteNodeAndGetNext (InitializerOp);
     }
 
-    /* Validate the Min/Max/Len/Align values (Alignment==0 means 64K) */
+    /* Error checks */
 
-    RsSmallAddressCheck (ACPI_RESOURCE_NAME_MEMORY24,
-        Descriptor->Memory24.Minimum,
-        Descriptor->Memory24.Maximum,
-        Descriptor->Memory24.AddressLength,
-        Descriptor->Memory24.Alignment,
-        MinOp, MaxOp, LengthOp, NULL);
+    if (Descriptor->FixedIo.Address > 0x03FF)
+    {
+        AslError (ASL_WARNING, ASL_MSG_ISA_ADDRESS, AddressOp, NULL);
+    }
 
     return (Rnode);
 }
@@ -310,7 +335,7 @@ RsDoMemory24Descriptor (
 
 /*******************************************************************************
  *
- * FUNCTION:    RsDoMemory32Descriptor
+ * FUNCTION:    RsDoIoDescriptor
  *
  * PARAMETERS:  Op                  - Parent resource descriptor parse node
  *              CurrentByteOffset   - Offset into the resource template AML
@@ -318,12 +343,12 @@ RsDoMemory24Descriptor (
  *
  * RETURN:      Completed resource node
  *
- * DESCRIPTION: Construct a short "Memory32" descriptor
+ * DESCRIPTION: Construct a short "IO" descriptor
  *
  ******************************************************************************/
 
 ASL_RESOURCE_NODE *
-RsDoMemory32Descriptor (
+RsDoIoDescriptor (
     ACPI_PARSE_OBJECT       *Op,
     UINT32                  CurrentByteOffset)
 {
@@ -338,11 +363,11 @@ RsDoMemory32Descriptor (
 
 
     InitializerOp = Op->Asl.Child;
-    Rnode = RsAllocateResourceNode (sizeof (AML_RESOURCE_MEMORY32));
+    Rnode = RsAllocateResourceNode (sizeof (AML_RESOURCE_IO));
 
     Descriptor = Rnode->Buffer;
-    Descriptor->Memory32.DescriptorType  = ACPI_RESOURCE_NAME_MEMORY32;
-    Descriptor->Memory32.ResourceLength = 17;
+    Descriptor->Io.DescriptorType  = ACPI_RESOURCE_NAME_IO |
+                                      ASL_RDESC_IO_SIZE;
 
     /* Process all child initialization nodes */
 
@@ -350,42 +375,46 @@ RsDoMemory32Descriptor (
     {
         switch (i)
         {
-        case 0: /* Read/Write type */
+        case 0: /* Decode size */
 
-            RsSetFlagBits (&Descriptor->Memory32.Flags, InitializerOp, 0, 1);
-            RsCreateBitField (InitializerOp, ACPI_RESTAG_READWRITETYPE,
-                CurrentByteOffset + ASL_RESDESC_OFFSET (Memory32.Flags), 0);
+            RsSetFlagBits (&Descriptor->Io.Flags, InitializerOp, 0, 1);
+            RsCreateBitField (InitializerOp, ACPI_RESTAG_DECODE,
+                CurrentByteOffset + ASL_RESDESC_OFFSET (Io.Flags), 0);
             break;
 
         case 1:  /* Min Address */
 
-            Descriptor->Memory32.Minimum = (UINT32) InitializerOp->Asl.Value.Integer;
+            Descriptor->Io.Minimum =
+                (UINT16) InitializerOp->Asl.Value.Integer;
             RsCreateByteField (InitializerOp, ACPI_RESTAG_MINADDR,
-                CurrentByteOffset + ASL_RESDESC_OFFSET (Memory32.Minimum));
+                CurrentByteOffset + ASL_RESDESC_OFFSET (Io.Minimum));
             MinOp = InitializerOp;
             break;
 
         case 2: /* Max Address */
 
-            Descriptor->Memory32.Maximum = (UINT32) InitializerOp->Asl.Value.Integer;
+            Descriptor->Io.Maximum =
+                (UINT16) InitializerOp->Asl.Value.Integer;
             RsCreateByteField (InitializerOp, ACPI_RESTAG_MAXADDR,
-                CurrentByteOffset + ASL_RESDESC_OFFSET (Memory32.Maximum));
+                CurrentByteOffset + ASL_RESDESC_OFFSET (Io.Maximum));
             MaxOp = InitializerOp;
             break;
 
         case 3: /* Alignment */
 
-            Descriptor->Memory32.Alignment = (UINT32) InitializerOp->Asl.Value.Integer;
+            Descriptor->Io.Alignment =
+                (UINT8) InitializerOp->Asl.Value.Integer;
             RsCreateByteField (InitializerOp, ACPI_RESTAG_ALIGNMENT,
-                CurrentByteOffset + ASL_RESDESC_OFFSET (Memory32.Alignment));
+                CurrentByteOffset + ASL_RESDESC_OFFSET (Io.Alignment));
             AlignOp = InitializerOp;
             break;
 
         case 4: /* Length */
 
-            Descriptor->Memory32.AddressLength = (UINT32) InitializerOp->Asl.Value.Integer;
+            Descriptor->Io.AddressLength =
+                (UINT8) InitializerOp->Asl.Value.Integer;
             RsCreateByteField (InitializerOp, ACPI_RESTAG_LENGTH,
-                CurrentByteOffset + ASL_RESDESC_OFFSET (Memory32.AddressLength));
+                CurrentByteOffset + ASL_RESDESC_OFFSET (Io.AddressLength));
             LengthOp = InitializerOp;
             break;
 
@@ -405,11 +434,11 @@ RsDoMemory32Descriptor (
 
     /* Validate the Min/Max/Len/Align values */
 
-    RsSmallAddressCheck (ACPI_RESOURCE_NAME_MEMORY32,
-        Descriptor->Memory32.Minimum,
-        Descriptor->Memory32.Maximum,
-        Descriptor->Memory32.AddressLength,
-        Descriptor->Memory32.Alignment,
+    RsSmallAddressCheck (ACPI_RESOURCE_NAME_IO,
+        Descriptor->Io.Minimum,
+        Descriptor->Io.Maximum,
+        Descriptor->Io.AddressLength,
+        Descriptor->Io.Alignment,
         MinOp, MaxOp, LengthOp, AlignOp);
 
     return (Rnode);
@@ -418,7 +447,7 @@ RsDoMemory32Descriptor (
 
 /*******************************************************************************
  *
- * FUNCTION:    RsDoMemory32FixedDescriptor
+ * FUNCTION:    RsDoIrqDescriptor
  *
  * PARAMETERS:  Op                  - Parent resource descriptor parse node
  *              CurrentByteOffset   - Offset into the resource template AML
@@ -426,27 +455,31 @@ RsDoMemory32Descriptor (
  *
  * RETURN:      Completed resource node
  *
- * DESCRIPTION: Construct a short "Memory32Fixed" descriptor
+ * DESCRIPTION: Construct a short "IRQ" descriptor
  *
  ******************************************************************************/
 
 ASL_RESOURCE_NODE *
-RsDoMemory32FixedDescriptor (
+RsDoIrqDescriptor (
     ACPI_PARSE_OBJECT       *Op,
     UINT32                  CurrentByteOffset)
 {
     AML_RESOURCE            *Descriptor;
     ACPI_PARSE_OBJECT       *InitializerOp;
     ASL_RESOURCE_NODE       *Rnode;
+    UINT32                  Interrupts = 0;
+    UINT16                  IrqMask = 0;
     UINT32                  i;
 
 
     InitializerOp = Op->Asl.Child;
-    Rnode = RsAllocateResourceNode (sizeof (AML_RESOURCE_FIXED_MEMORY32));
+    Rnode = RsAllocateResourceNode (sizeof (AML_RESOURCE_IRQ));
+
+    /* Length = 3 (with flag byte) */
 
     Descriptor = Rnode->Buffer;
-    Descriptor->FixedMemory32.DescriptorType  = ACPI_RESOURCE_NAME_FIXED_MEMORY32;
-    Descriptor->FixedMemory32.ResourceLength = 9;
+    Descriptor->Irq.DescriptorType  = ACPI_RESOURCE_NAME_IRQ |
+                                      (ASL_RDESC_IRQ_SIZE + 0x01);
 
     /* Process all child initialization nodes */
 
@@ -454,25 +487,25 @@ RsDoMemory32FixedDescriptor (
     {
         switch (i)
         {
-        case 0: /* Read/Write type */
+        case 0: /* Interrupt Type (or Mode - edge/level) */
 
-            RsSetFlagBits (&Descriptor->FixedMemory32.Flags, InitializerOp, 0, 1);
-            RsCreateBitField (InitializerOp, ACPI_RESTAG_READWRITETYPE,
-                CurrentByteOffset + ASL_RESDESC_OFFSET (FixedMemory32.Flags), 0);
+            RsSetFlagBits (&Descriptor->Irq.Flags, InitializerOp, 0, 1);
+            RsCreateBitField (InitializerOp, ACPI_RESTAG_INTERRUPTTYPE,
+                CurrentByteOffset + ASL_RESDESC_OFFSET (Irq.Flags), 0);
             break;
 
-        case 1: /* Address */
+        case 1: /* Interrupt Level (or Polarity - Active high/low) */
 
-            Descriptor->FixedMemory32.Address = (UINT32) InitializerOp->Asl.Value.Integer;
-            RsCreateByteField (InitializerOp, ACPI_RESTAG_BASEADDRESS,
-                CurrentByteOffset + ASL_RESDESC_OFFSET (FixedMemory32.Address));
+            RsSetFlagBits (&Descriptor->Irq.Flags, InitializerOp, 3, 0);
+            RsCreateBitField (InitializerOp, ACPI_RESTAG_INTERRUPTLEVEL,
+                CurrentByteOffset + ASL_RESDESC_OFFSET (Irq.Flags), 3);
             break;
 
-        case 2: /* Length */
+        case 2: /* Share Type - Default: exclusive (0) */
 
-            Descriptor->FixedMemory32.AddressLength = (UINT32) InitializerOp->Asl.Value.Integer;
-            RsCreateByteField (InitializerOp, ACPI_RESTAG_LENGTH,
-                CurrentByteOffset + ASL_RESDESC_OFFSET (FixedMemory32.AddressLength));
+            RsSetFlagBits (&Descriptor->Irq.Flags, InitializerOp, 4, 0);
+            RsCreateBitField (InitializerOp, ACPI_RESTAG_INTERRUPTSHARE,
+                CurrentByteOffset + ASL_RESDESC_OFFSET (Irq.Flags), 4);
             break;
 
         case 3: /* Name */
@@ -482,20 +515,62 @@ RsDoMemory32FixedDescriptor (
 
         default:
 
-            AslError (ASL_ERROR, ASL_MSG_RESOURCE_LIST, InitializerOp, NULL);
+            /* All IRQ bytes are handled here, after the flags and name */
+
+            if (InitializerOp->Asl.ParseOpcode != PARSEOP_DEFAULT_ARG)
+            {
+                /* Up to 16 interrupts can be specified in the list */
+
+                Interrupts++;
+                if (Interrupts > 16)
+                {
+                    AslError (ASL_ERROR, ASL_MSG_INTERRUPT_LIST,
+                        InitializerOp, NULL);
+                    return (Rnode);
+                }
+
+                /* Only interrupts 0-15 are allowed (mask is 16 bits) */
+
+                if (InitializerOp->Asl.Value.Integer > 15)
+                {
+                    AslError (ASL_ERROR, ASL_MSG_INTERRUPT_NUMBER,
+                        InitializerOp, NULL);
+                }
+                else
+                {
+                    IrqMask |= (1 << (UINT8) InitializerOp->Asl.Value.Integer);
+                }
+            }
+
+            /* Case 4: First IRQ value in list */
+
+            if (i == 4)
+            {
+                /* Check now for duplicates in list */
+
+                RsCheckListForDuplicates (InitializerOp);
+
+                /* Create a named field at the start of the list */
+
+                RsCreateByteField (InitializerOp, ACPI_RESTAG_INTERRUPT,
+                    CurrentByteOffset + ASL_RESDESC_OFFSET (Irq.IrqMask));
+            }
             break;
         }
 
         InitializerOp = RsCompleteNodeAndGetNext (InitializerOp);
     }
 
+    /* Now we can set the channel mask */
+
+    Descriptor->Irq.IrqMask = IrqMask;
     return (Rnode);
 }
 
 
 /*******************************************************************************
  *
- * FUNCTION:    RsDoStartDependentDescriptor
+ * FUNCTION:    RsDoIrqNoFlagsDescriptor
  *
  * PARAMETERS:  Op                  - Parent resource descriptor parse node
  *              CurrentByteOffset   - Offset into the resource template AML
@@ -503,217 +578,91 @@ RsDoMemory32FixedDescriptor (
  *
  * RETURN:      Completed resource node
  *
- * DESCRIPTION: Construct a short "StartDependentFn" descriptor
+ * DESCRIPTION: Construct a short "IRQNoFlags" descriptor
  *
  ******************************************************************************/
 
 ASL_RESOURCE_NODE *
-RsDoStartDependentDescriptor (
+RsDoIrqNoFlagsDescriptor (
     ACPI_PARSE_OBJECT       *Op,
     UINT32                  CurrentByteOffset)
 {
     AML_RESOURCE            *Descriptor;
     ACPI_PARSE_OBJECT       *InitializerOp;
     ASL_RESOURCE_NODE       *Rnode;
-    ASL_RESOURCE_NODE       *PreviousRnode;
-    ASL_RESOURCE_NODE       *NextRnode;
+    UINT16                  IrqMask = 0;
+    UINT32                  Interrupts = 0;
     UINT32                  i;
-    UINT8                   State;
 
 
     InitializerOp = Op->Asl.Child;
-    Rnode = RsAllocateResourceNode (sizeof (AML_RESOURCE_START_DEPENDENT));
+    Rnode = RsAllocateResourceNode (sizeof (AML_RESOURCE_IRQ_NOFLAGS));
 
-    PreviousRnode = Rnode;
     Descriptor = Rnode->Buffer;
-
-    /* Descriptor has priority byte */
-
-    Descriptor->StartDpf.DescriptorType  = ACPI_RESOURCE_NAME_START_DEPENDENT |
-                                      (ASL_RDESC_ST_DEPEND_SIZE + 0x01);
+    Descriptor->Irq.DescriptorType  = ACPI_RESOURCE_NAME_IRQ |
+                                      ASL_RDESC_IRQ_SIZE;
 
     /* Process all child initialization nodes */
 
-    State = ACPI_RSTATE_START_DEPENDENT;
     for (i = 0; InitializerOp; i++)
     {
         switch (i)
         {
-        case 0: /* Compatibility Priority */
+        case 0: /* Name */
 
-            if ((UINT8) InitializerOp->Asl.Value.Integer > 2)
-            {
-                AslError (ASL_ERROR, ASL_MSG_INVALID_PRIORITY,
-                    InitializerOp, NULL);
-            }
-
-            RsSetFlagBits (&Descriptor->StartDpf.Flags, InitializerOp, 0, 0);
-            break;
-
-        case 1: /* Performance/Robustness Priority */
-
-            if ((UINT8) InitializerOp->Asl.Value.Integer > 2)
-            {
-                AslError (ASL_ERROR, ASL_MSG_INVALID_PERFORMANCE,
-                    InitializerOp, NULL);
-            }
-
-            RsSetFlagBits (&Descriptor->StartDpf.Flags, InitializerOp, 2, 0);
+            UtAttachNamepathToOwner (Op, InitializerOp);
             break;
 
         default:
 
-            NextRnode = RsDoOneResourceDescriptor  (InitializerOp,
-                        CurrentByteOffset, &State);
+            /* IRQ bytes are handled here, after the flags and name */
 
-            /*
-             * Update current byte offset to indicate the number of bytes from the
-             * start of the buffer.  Buffer can include multiple descriptors, we
-             * must keep track of the offset of not only each descriptor, but each
-             * element (field) within each descriptor as well.
-             */
-            CurrentByteOffset += RsLinkDescriptorChain (&PreviousRnode,
-                                    NextRnode);
-            break;
-        }
-
-        InitializerOp = RsCompleteNodeAndGetNext (InitializerOp);
-    }
-
-    return (Rnode);
-}
-
-
-/*******************************************************************************
- *
- * FUNCTION:    RsDoStartDependentNoPriDescriptor
- *
- * PARAMETERS:  Op                  - Parent resource descriptor parse node
- *              CurrentByteOffset   - Offset into the resource template AML
- *                                    buffer (to track references to the desc)
- *
- * RETURN:      Completed resource node
- *
- * DESCRIPTION: Construct a short "StartDependentNoPri" descriptor
- *
- ******************************************************************************/
-
-ASL_RESOURCE_NODE *
-RsDoStartDependentNoPriDescriptor (
-    ACPI_PARSE_OBJECT       *Op,
-    UINT32                  CurrentByteOffset)
-{
-    AML_RESOURCE            *Descriptor;
-    ACPI_PARSE_OBJECT       *InitializerOp;
-    ASL_RESOURCE_NODE       *Rnode;
-    ASL_RESOURCE_NODE       *PreviousRnode;
-    ASL_RESOURCE_NODE       *NextRnode;
-    UINT8                   State;
-
-
-    InitializerOp = Op->Asl.Child;
-    Rnode = RsAllocateResourceNode (sizeof (AML_RESOURCE_START_DEPENDENT_NOPRIO));
-
-    Descriptor = Rnode->Buffer;
-    Descriptor->StartDpf.DescriptorType  = ACPI_RESOURCE_NAME_START_DEPENDENT |
-                                      ASL_RDESC_ST_DEPEND_SIZE;
-    PreviousRnode = Rnode;
-
-    /* Process all child initialization nodes */
-
-    State = ACPI_RSTATE_START_DEPENDENT;
-    while (InitializerOp)
-    {
-        NextRnode = RsDoOneResourceDescriptor  (InitializerOp,
-                        CurrentByteOffset, &State);
-
-        /*
-         * Update current byte offset to indicate the number of bytes from the
-         * start of the buffer.  Buffer can include multiple descriptors, we
-         * must keep track of the offset of not only each descriptor, but each
-         * element (field) within each descriptor as well.
-         */
-        CurrentByteOffset += RsLinkDescriptorChain (&PreviousRnode, NextRnode);
-
-        InitializerOp = RsCompleteNodeAndGetNext (InitializerOp);
-    }
-
-    return (Rnode);
-}
-
-
-/*******************************************************************************
- *
- * FUNCTION:    RsDoVendorSmallDescriptor
- *
- * PARAMETERS:  Op                  - Parent resource descriptor parse node
- *              CurrentByteOffset   - Offset into the resource template AML
- *                                    buffer (to track references to the desc)
- *
- * RETURN:      Completed resource node
- *
- * DESCRIPTION: Construct a short "VendorShort" descriptor
- *
- ******************************************************************************/
-
-ASL_RESOURCE_NODE *
-RsDoVendorSmallDescriptor (
-    ACPI_PARSE_OBJECT       *Op,
-    UINT32                  CurrentByteOffset)
-{
-    AML_RESOURCE            *Descriptor;
-    ACPI_PARSE_OBJECT       *InitializerOp;
-    ASL_RESOURCE_NODE       *Rnode;
-    UINT8                   *VendorData;
-    UINT32                  i;
-
-
-    InitializerOp = Op->Asl.Child;
-
-    /* Allocate worst case - 7 vendor bytes */
-
-    Rnode = RsAllocateResourceNode (sizeof (AML_RESOURCE_VENDOR_SMALL) + 7);
-
-    Descriptor = Rnode->Buffer;
-    Descriptor->VendorSmall.DescriptorType  = ACPI_RESOURCE_NAME_VENDOR_SMALL;
-    VendorData = ((UINT8 *) Descriptor) + sizeof (AML_RESOURCE_SMALL_HEADER);
-
-    /* Process all child initialization nodes */
-
-    InitializerOp = RsCompleteNodeAndGetNext (InitializerOp);
-    for (i = 0; InitializerOp; i++)
-    {
-        if (InitializerOp->Asl.ParseOpcode == PARSEOP_DEFAULT_ARG)
-        {
-            break;
-        }
-
-        /* Maximum 7 vendor data bytes allowed (0-6) */
-
-        if (i >= 7)
-        {
-            AslError (ASL_ERROR, ASL_MSG_VENDOR_LIST, InitializerOp, NULL);
-
-            /* Eat the excess initializers */
-
-            while (InitializerOp)
+            if (InitializerOp->Asl.ParseOpcode != PARSEOP_DEFAULT_ARG)
             {
-                InitializerOp = RsCompleteNodeAndGetNext (InitializerOp);
+                /* Up to 16 interrupts can be specified in the list */
+
+                Interrupts++;
+                if (Interrupts > 16)
+                {
+                    AslError (ASL_ERROR, ASL_MSG_INTERRUPT_LIST,
+                        InitializerOp, NULL);
+                    return (Rnode);
+                }
+
+                /* Only interrupts 0-15 are allowed (mask is 16 bits) */
+
+                if (InitializerOp->Asl.Value.Integer > 15)
+                {
+                    AslError (ASL_ERROR, ASL_MSG_INTERRUPT_NUMBER,
+                        InitializerOp, NULL);
+                }
+                else
+                {
+                    IrqMask |= (1 << ((UINT8) InitializerOp->Asl.Value.Integer));
+                }
+            }
+
+            /* Case 1: First IRQ value in list */
+
+            if (i == 1)
+            {
+                /* Check now for duplicates in list */
+
+                RsCheckListForDuplicates (InitializerOp);
+
+                /* Create a named field at the start of the list */
+
+                RsCreateByteField (InitializerOp, ACPI_RESTAG_INTERRUPT,
+                    CurrentByteOffset + ASL_RESDESC_OFFSET (Irq.IrqMask));
             }
             break;
         }
 
-        VendorData[i] = (UINT8) InitializerOp->Asl.Value.Integer;
         InitializerOp = RsCompleteNodeAndGetNext (InitializerOp);
     }
 
-    /* Adjust the Rnode buffer size, so correct number of bytes are emitted */
+    /* Now we can set the interrupt mask */
 
-    Rnode->BufferLength -= (7 - i);
-
-    /* Set the length in the Type Tag */
-
-    Descriptor->VendorSmall.DescriptorType |= (UINT8) i;
+    Descriptor->Irq.IrqMask = IrqMask;
     return (Rnode);
 }
-
