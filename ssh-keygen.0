@@ -165,8 +165,14 @@ DESCRIPTION
              section for details.  The constraints that are valid for user
              certificates are:
 
-             no-x11-forwarding
-                     Disable X11 forwarding (permitted by default).
+             clear   Clear all enabled permissions.  This is useful for clear-
+                     ing the default set of permissions so permissions may be
+                     added individually.
+
+             force-command=command
+                     Forces the execution of command instead of any shell or
+                     command specified by the user when the certificate is
+                     used for authentication.
 
              no-agent-forwarding
                      Disable ssh-agent(1) forwarding (permitted by default).
@@ -180,12 +186,8 @@ DESCRIPTION
                      Disable execution of ~/.ssh/rc by sshd(8) (permitted by
                      default).
 
-             clear   Clear all enabled permissions.  This is useful for clear-
-                     ing the default set of permissions so permissions may be
-                     added individually.
-
-             permit-x11-forwarding
-                     Allows X11 forwarding.
+             no-x11-forwarding
+                     Disable X11 forwarding (permitted by default).
 
              permit-agent-forwarding
                      Allows ssh-agent(1) forwarding.
@@ -199,16 +201,14 @@ DESCRIPTION
              permit-user-rc
                      Allows execution of ~/.ssh/rc by sshd(8).
 
-             force-command=command
-                     Forces the execution of command instead of any shell or
-                     command specified by the user when the certificate is
-                     used for authentication.
+             permit-x11-forwarding
+                     Allows X11 forwarding.
 
              source-address=address_list
                      Restrict the source addresses from which the certificate
-                     is considered valid from.  The address_list is a comma-
-                     separated list of one or more address/netmask pairs in
-                     CIDR format.
+                     is considered valid.  The address_list is a comma-sepa-
+                     rated list of one or more address/netmask pairs in CIDR
+                     format.
 
              At present, no constraints are valid for host keys.
 
@@ -257,9 +257,9 @@ DESCRIPTION
              in YYYYMMDD format, a time in YYYYMMDDHHMMSS format or a relative
              time (to the current time) consisting of a minus sign followed by
              a relative time in the format described in the TIME FORMATS sec-
-             tion of ssh_config(5).  The end time may be specified as a YYYYM-
-             MDD date, a YYYYMMDDHHMMSS time or a relative time starting with
-             a plus character.
+             tion of sshd_config(5).  The end time may be specified as a
+             YYYYMMDD date, a YYYYMMDDHHMMSS time or a relative time starting
+             with a plus character.
 
              For example: ``+52w1d'' (valid from now to 52 weeks and one day
              from now), ``-4w:+4w'' (valid from four weeks ago to four weeks
@@ -329,12 +329,12 @@ CERTIFICATES
 
            $ ssh-keygen -s /path/to/ca_key -I key_id /path/to/user_key.pub
 
-     The resultant certificate will be placed in /path/to/user_key_cert.pub.
+     The resultant certificate will be placed in /path/to/user_key-cert.pub.
      A host certificate requires the -h option:
 
            $ ssh-keygen -s /path/to/ca_key -I key_id -h /path/to/host_key.pub
 
-     The host certificate will be output to /path/to/host_key_cert.pub.  In
+     The host certificate will be output to /path/to/host_key-cert.pub.  In
      both cases, key_id is a "key identifier" that is logged by the server
      when the certificate is used for authentication.
 
@@ -344,7 +344,7 @@ CERTIFICATES
      pals:
 
            $ ssh-keygen -s ca_key -I key_id -n user1,user2 user_key.pub
-           $ ssh-keygen -s ca_key -I key_id -h -n host.domain $0
+           $ ssh-keygen -s ca_key -I key_id -h -n host.domain user_key.pub
 
      Additional limitations on the validity and use of user certificates may
      be specified through certificate constraints.  A constrained certificate
@@ -431,4 +431,4 @@ AUTHORS
      created OpenSSH.  Markus Friedl contributed the support for SSH protocol
      versions 1.5 and 2.0.
 
-OpenBSD 4.6                      March 8, 2010                               7
+OpenBSD 4.7                     March 13, 2010                               7

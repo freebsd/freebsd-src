@@ -25,7 +25,7 @@
 #ifndef _DEFINES_H
 #define _DEFINES_H
 
-/* $Id: defines.h,v 1.159 2010/01/13 23:44:34 tim Exp $ */
+/* $Id: defines.h,v 1.160 2010/04/09 08:13:27 dtucker Exp $ */
 
 
 /* Constants */
@@ -674,7 +674,7 @@ struct winsize {
 #else
 /* Simply select your favourite login types. */
 /* Can't do if-else because some systems use several... <sigh> */
-#  if defined(UTMPX_FILE) && !defined(DISABLE_UTMPX)
+#  if !defined(DISABLE_UTMPX)
 #    define USE_UTMPX
 #  endif
 #  if defined(UTMP_FILE) && !defined(DISABLE_UTMP)

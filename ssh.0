@@ -308,9 +308,10 @@ DESCRIPTION
              allocated on the server and reported to the client at run time.
 
      -S ctl_path
-             Specifies the location of a control socket for connection shar-
-             ing.  Refer to the description of ControlPath and ControlMaster
-             in ssh_config(5) for details.
+             Specifies the location of a control socket for connection sharing
+             or the string ``none'' to disable connection sharing.  Refer to
+             the description of ControlPath and ControlMaster in ssh_config(5)
+             for details.
 
      -s      May be used to request invocation of a subsystem on the remote
              system.  Subsystems are a feature of the SSH2 protocol which fa-
@@ -876,4 +877,4 @@ AUTHORS
      created OpenSSH.  Markus Friedl contributed the support for SSH protocol
      versions 1.5 and 2.0.
 
-OpenBSD 4.6                      March 5, 2010                              14
+OpenBSD 4.7                     March 26, 2010                              14

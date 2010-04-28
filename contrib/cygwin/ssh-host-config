@@ -90,7 +90,7 @@ update_services_file() {
   fi
   _serv_tmp="${_my_etcdir}/srv.out.$$"
 
-  mount -o text -f "${_win_etcdir}" "${_my_etcdir}"
+  mount -o text,posix=0,noacl -f "${_win_etcdir}" "${_my_etcdir}"
 
   # Depends on the above mount
   _wservices=`cygpath -w "${_services}"`
