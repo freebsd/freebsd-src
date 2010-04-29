@@ -79,7 +79,7 @@ __FBSDID("$FreeBSD$");
 
 #define nitems(_a)      (sizeof((_a)) / sizeof((_a)[0]))
 
-#if	USB_DEBUG
+#ifdef	USB_DEBUG
 #define RUN_DEBUG
 #endif
 

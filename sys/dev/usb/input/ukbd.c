@@ -95,7 +95,7 @@ __FBSDID("$FreeBSD$");
 /* the following file must be included after "ukbdmap.h" */
 #include <dev/kbd/kbdtables.h>
 
-#if USB_DEBUG
+#ifdef USB_DEBUG
 static int ukbd_debug = 0;
 static int ukbd_no_leds = 0;
 
@@ -621,7 +621,7 @@ ukbd_intr_callback(struct usb_xfer *xfer, usb_error_t error)
 				apple_fn = 1;
 			else
 				apple_fn = 0;
-#if USB_DEBUG
+#ifdef USB_DEBUG
 			DPRINTF("apple_eject=%u apple_fn=%u\n",
 			    apple_eject, apple_fn);
 
@@ -687,7 +687,7 @@ ukbd_set_leds_callback(struct usb_xfer *xfer, usb_error_t error)
 	uint8_t buf[2];
 	struct ukbd_softc *sc = usbd_xfer_softc(xfer);
 
-#if USB_DEBUG
+#ifdef USB_DEBUG
 	if (ukbd_no_leds)
 		return;
 #endif
