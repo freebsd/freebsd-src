@@ -374,9 +374,9 @@ usbd_do_request_flags(struct usb_device *udev, struct mtx *mtx,
 	/*
 	 * Setup a new USB transfer or use the existing one, if any:
 	 */
-	usbd_default_transfer_setup(udev);
+	usbd_ctrl_transfer_setup(udev);
 
-	xfer = udev->default_xfer[0];
+	xfer = udev->ctrl_xfer[0];
 	if (xfer == NULL) {
 		/* most likely out of memory */
 		err = USB_ERR_NOMEM;
