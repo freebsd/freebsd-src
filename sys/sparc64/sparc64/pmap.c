@@ -1273,13 +1273,10 @@ pmap_protect_tte(struct pmap *pm, struct pmap *pm2, struct tte *tp,
 	u_long data;
 	vm_page_t m;
 
-	data = atomic_clear_long(&tp->tte_data, TD_REF | TD_SW | TD_W);
-	if ((data & TD_PV) != 0) {
+	data = atomic_clear_long(&tp->tte_data, TD_SW | TD_W);
+	if ((data & (TD_PV | TD_W)) == (TD_PV | TD_W)) {
 		m = PHYS_TO_VM_PAGE(TD_PA(data));
-		if ((data & TD_REF) != 0)
-			vm_page_flag_set(m, PG_REFERENCED);
-		if ((data & TD_W) != 0)
-			vm_page_dirty(m);
+		vm_page_dirty(m);
 	}
 	return (1);
 }
