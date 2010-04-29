@@ -122,11 +122,10 @@ static struct sx addrsel_sxlock;
 #define	ADDRSEL_XUNLOCK()	sx_xunlock(&addrsel_sxlock)
 
 #define ADDR_LABEL_NOTAPP (-1)
-
 static VNET_DEFINE(struct in6_addrpolicy, defaultaddrpolicy);
-VNET_DEFINE(int, ip6_prefer_tempaddr);
-
 #define	V_defaultaddrpolicy		VNET(defaultaddrpolicy)
+
+VNET_DEFINE(int, ip6_prefer_tempaddr) = 0;
 
 static int selectroute __P((struct sockaddr_in6 *, struct ip6_pktopts *,
 	struct ip6_moptions *, struct route_in6 *, struct ifnet **,
@@ -951,8 +950,6 @@ in6_pcbsetport(struct in6_addr *laddr, struct inpcb *inp, struct ucred *cred)
 void
 addrsel_policy_init(void)
 {
-
-	V_ip6_prefer_tempaddr = 0;
 
 	init_policy_queue();
 

@@ -163,9 +163,11 @@ static void	if_detach_internal(struct ifnet *, int);
 extern void	nd6_setmtu(struct ifnet *);
 #endif
 
+VNET_DEFINE(int, if_index);
+int	ifqmaxlen = IFQ_MAXLEN;
 VNET_DEFINE(struct ifnethead, ifnet);	/* depend on static init XXX */
 VNET_DEFINE(struct ifgrouphead, ifg_head);
-VNET_DEFINE(int, if_index);
+
 static VNET_DEFINE(int, if_indexlim) = 8;
 
 /* Table of ifnet by index. */
@@ -173,8 +175,6 @@ static VNET_DEFINE(struct ifindex_entry *, ifindex_table);
 
 #define	V_if_indexlim		VNET(if_indexlim)
 #define	V_ifindex_table		VNET(ifindex_table)
-
-int	ifqmaxlen = IFQ_MAXLEN;
 
 /*
  * The global network interface list (V_ifnet) and related state (such as
