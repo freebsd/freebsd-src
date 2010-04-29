@@ -116,6 +116,7 @@ __FBSDID("$FreeBSD$");
 extern struct domain inet6domain;
 
 u_char ip6_protox[IPPROTO_MAX];
+VNET_DEFINE(struct in6_ifaddrhead, in6_ifaddrhead);
 
 static struct netisr_handler ip6_nh = {
 	.nh_name = "ip6",
@@ -124,35 +125,15 @@ static struct netisr_handler ip6_nh = {
 	.nh_policy = NETISR_POLICY_FLOW,
 };
 
-VNET_DEFINE(struct in6_ifaddrhead, in6_ifaddrhead);
-VNET_DEFINE(struct ip6stat, ip6stat);
-
 VNET_DECLARE(struct callout, in6_tmpaddrtimer_ch);
-VNET_DECLARE(int, dad_init);
-VNET_DECLARE(int, pmtu_expire);
-VNET_DECLARE(int, pmtu_probe);
-VNET_DECLARE(u_long, rip6_sendspace);
-VNET_DECLARE(u_long, rip6_recvspace);
-VNET_DECLARE(int, icmp6errppslim);
-VNET_DECLARE(int, icmp6_nodeinfo);
-VNET_DECLARE(int, udp6_sendspace);
-VNET_DECLARE(int, udp6_recvspace);
-
 #define	V_in6_tmpaddrtimer_ch		VNET(in6_tmpaddrtimer_ch)
-#define	V_dad_init			VNET(dad_init)
-#define	V_pmtu_expire			VNET(pmtu_expire)
-#define	V_pmtu_probe			VNET(pmtu_probe)
-#define	V_rip6_sendspace		VNET(rip6_sendspace)
-#define	V_rip6_recvspace		VNET(rip6_recvspace)
-#define	V_icmp6errppslim		VNET(icmp6errppslim)
-#define	V_icmp6_nodeinfo		VNET(icmp6_nodeinfo)
-#define	V_udp6_sendspace		VNET(udp6_sendspace)
-#define	V_udp6_recvspace		VNET(udp6_recvspace)
+
+VNET_DEFINE(struct pfil_head, inet6_pfil_hook);
+
+VNET_DEFINE(struct ip6stat, ip6stat);
 
 struct rwlock in6_ifaddr_lock;
 RW_SYSINIT(in6_ifaddr_lock, &in6_ifaddr_lock, "in6_ifaddr_lock");
-
-VNET_DEFINE (struct pfil_head, inet6_pfil_hook);
 
 static void ip6_init2(void *);
 static struct ip6aux *ip6_setdstifaddr(struct mbuf *, struct in6_ifaddr *);
@@ -171,81 +152,10 @@ ip6_init(void)
 	struct ip6protosw *pr;
 	int i;
 
-	V_in6_maxmtu = 0;
-#ifdef IP6_AUTO_LINKLOCAL
-	V_ip6_auto_linklocal = IP6_AUTO_LINKLOCAL;
-#else
-	V_ip6_auto_linklocal = 1;	/* enabled by default */
-#endif
 	TUNABLE_INT_FETCH("net.inet6.ip6.auto_linklocal",
 	    &V_ip6_auto_linklocal);
 
-#ifndef IPV6FORWARDING
-#ifdef GATEWAY6
-#define IPV6FORWARDING	1	/* forward IP6 packets not for us */
-#else
-#define IPV6FORWARDING	0	/* don't forward IP6 packets not for us */
-#endif /* GATEWAY6 */
-#endif /* !IPV6FORWARDING */
-
-#ifndef IPV6_SENDREDIRECTS
-#define IPV6_SENDREDIRECTS	1
-#endif
-
-	V_ip6_forwarding = IPV6FORWARDING; /* act as router? */
-	V_ip6_sendredirects = IPV6_SENDREDIRECTS;
-	V_ip6_defhlim = IPV6_DEFHLIM;
-	V_ip6_defmcasthlim = IPV6_DEFAULT_MULTICAST_HOPS;
-	V_ip6_accept_rtadv = 0;
-	V_ip6_log_interval = 5;
-	V_ip6_hdrnestlimit = 15; /* How many header options will we process? */
-	V_ip6_dad_count = 1;	 /* DupAddrDetectionTransmits */
-	V_ip6_auto_flowlabel = 1;
-	V_ip6_use_deprecated = 1;/* allow deprecated addr (RFC2462 5.5.4) */
-	V_ip6_rr_prune = 5;	 /* router renumbering prefix
-                                  * walk list every 5 sec. */
-	V_ip6_mcast_pmtu = 0;	 /* enable pMTU discovery for multicast? */
-	V_ip6_v6only = 1;
-	V_ip6_keepfaith = 0;
-	V_ip6_log_time = (time_t)0L;
-#ifdef IPSTEALTH
-	V_ip6stealth = 0;
-#endif
-	V_nd6_onlink_ns_rfc4861 = 0; /* allow 'on-link' nd6 NS (RFC 4861) */
-
-	V_pmtu_expire = 60*10;
-	V_pmtu_probe = 60*2;
-
-	/* raw IP6 parameters */
-	/*
-	 * Nominal space allocated to a raw ip socket.
-	 */
-#define RIPV6SNDQ	8192
-#define RIPV6RCVQ	8192
-	V_rip6_sendspace = RIPV6SNDQ;
-	V_rip6_recvspace = RIPV6RCVQ;
-
-	/* ICMPV6 parameters */
-	V_icmp6_rediraccept = 1;	/* accept and process redirects */
-	V_icmp6_redirtimeout = 10 * 60;	/* 10 minutes */
-	V_icmp6errppslim = 100;		/* 100pps */
-	/* control how to respond to NI queries */
-	V_icmp6_nodeinfo = (ICMP6_NODEINFO_FQDNOK|ICMP6_NODEINFO_NODEADDROK);
-
-	/* UDP on IP6 parameters */
-	V_udp6_sendspace = 9216;	/* really max datagram size */
-	V_udp6_recvspace = 40 * (1024 + sizeof(struct sockaddr_in6));
-					/* 40 1K datagrams */
-	V_dad_init = 0;
-
 	TAILQ_INIT(&V_in6_ifaddrhead);
-
-	scope6_init();
-	addrsel_policy_init();
-	nd6_init();
-	frag6_init();
-
-	V_ip6_desync_factor = arc4random() % MAX_TEMP_DESYNC_FACTOR;
 
 	/* Initialize packet filter hooks. */
 	V_inet6_pfil_hook.ph_type = PFIL_TYPE_AF;
@@ -253,6 +163,13 @@ ip6_init(void)
 	if ((i = pfil_head_register(&V_inet6_pfil_hook)) != 0)
 		printf("%s: WARNING: unable to register pfil hook, "
 			"error %d\n", __func__, i);
+
+	scope6_init();
+	addrsel_policy_init();
+	nd6_init();
+	frag6_init();
+
+	V_ip6_desync_factor = arc4random() % MAX_TEMP_DESYNC_FACTOR;
 
 	/* Skip global initialization stuff for non-default instances. */
 	if (!IS_DEFAULT_VNET(curvnet))

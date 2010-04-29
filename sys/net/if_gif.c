@@ -94,19 +94,8 @@
  */
 static struct mtx gif_mtx;
 static MALLOC_DEFINE(M_GIF, "gif", "Generic Tunnel Interface");
-
 static VNET_DEFINE(LIST_HEAD(, gif_softc), gif_softc_list);
-
 #define	V_gif_softc_list	VNET(gif_softc_list)
-
-#ifdef INET
-VNET_DEFINE(int, ip_gif_ttl) = GIF_TTL;
-#define	V_ip_gif_ttl		VNET(ip_gif_ttl)
-#endif
-#ifdef INET6
-VNET_DEFINE(int, ip6_gif_hlim) = GIF_HLIM;
-#define	V_ip6_gif_hlim		VNET(ip6_gif_hlim)
-#endif
 
 void	(*ng_gif_input_p)(struct ifnet *ifp, struct mbuf **mp, int af);
 void	(*ng_gif_input_orphan_p)(struct ifnet *ifp, struct mbuf *m, int af);
@@ -135,18 +124,10 @@ SYSCTL_NODE(_net_link, IFT_GIF, gif, CTLFLAG_RW, 0,
  */
 #define MAX_GIF_NEST 1
 #endif
-
 static VNET_DEFINE(int, max_gif_nesting) = MAX_GIF_NEST;
 #define	V_max_gif_nesting	VNET(max_gif_nesting)
-
 SYSCTL_VNET_INT(_net_link_gif, OID_AUTO, max_nesting, CTLFLAG_RW,
     &VNET_NAME(max_gif_nesting), 0, "Max nested tunnels");
-
-#ifdef INET6
-SYSCTL_DECL(_net_inet6_ip6);
-SYSCTL_VNET_INT(_net_inet6_ip6, IPV6CTL_GIF_HLIM, gifhlim, CTLFLAG_RW,
-    &VNET_NAME(ip6_gif_hlim), 0, "");
-#endif
 
 /*
  * By default, we disallow creation of multiple tunnels between the same
@@ -159,7 +140,6 @@ static VNET_DEFINE(int, parallel_tunnels) = 1;
 static VNET_DEFINE(int, parallel_tunnels) = 0;
 #endif
 #define	V_parallel_tunnels	VNET(parallel_tunnels)
-
 SYSCTL_VNET_INT(_net_link_gif, OID_AUTO, parallel_tunnels, CTLFLAG_RW,
     &VNET_NAME(parallel_tunnels), 0, "Allow parallel tunnels?");
 

@@ -114,27 +114,27 @@
 
 VNET_DEFINE(u_int32_t, key_debug_level) = 0;
 static VNET_DEFINE(u_int, key_spi_trycnt) = 1000;
-#define	V_key_spi_trycnt	VNET(key_spi_trycnt)
 static VNET_DEFINE(u_int32_t, key_spi_minval) = 0x100;
-#define	V_key_spi_minval	VNET(key_spi_minval)
 static VNET_DEFINE(u_int32_t, key_spi_maxval) = 0x0fffffff;	/* XXX */
-#define	V_key_spi_maxval	VNET(key_spi_maxval)
 static VNET_DEFINE(u_int32_t, policy_id) = 0;
-#define	V_policy_id		VNET(policy_id)
 /*interval to initialize randseed,1(m)*/
 static VNET_DEFINE(u_int, key_int_random) = 60;
-#define	V_key_int_random	VNET(key_int_random)
 /* interval to expire acquiring, 30(s)*/
 static VNET_DEFINE(u_int, key_larval_lifetime) = 30;
-#define	V_key_larval_lifetime	VNET(key_larval_lifetime)
 /* counter for blocking SADB_ACQUIRE.*/
 static VNET_DEFINE(int, key_blockacq_count) = 10;
-#define	V_key_blockacq_count	VNET(key_blockacq_count)
 /* lifetime for blocking SADB_ACQUIRE.*/
 static VNET_DEFINE(int, key_blockacq_lifetime) = 20;
-#define	V_key_blockacq_lifetime	VNET(key_blockacq_lifetime)
 /* preferred old sa rather than new sa.*/
 static VNET_DEFINE(int, key_preferred_oldsa) = 1;
+#define	V_key_spi_trycnt	VNET(key_spi_trycnt)
+#define	V_key_spi_minval	VNET(key_spi_minval)
+#define	V_key_spi_maxval	VNET(key_spi_maxval)
+#define	V_policy_id		VNET(policy_id)
+#define	V_key_int_random	VNET(key_int_random)
+#define	V_key_larval_lifetime	VNET(key_larval_lifetime)
+#define	V_key_blockacq_count	VNET(key_blockacq_count)
+#define	V_key_blockacq_lifetime	VNET(key_blockacq_lifetime)
 #define	V_key_preferred_oldsa	VNET(key_preferred_oldsa)
 
 static VNET_DEFINE(u_int32_t, acq_seq) = 0;
@@ -270,10 +270,11 @@ static const int maxsize[] = {
 };
 
 static VNET_DEFINE(int, ipsec_esp_keymin) = 256;
-#define	V_ipsec_esp_keymin	VNET(ipsec_esp_keymin)
 static VNET_DEFINE(int, ipsec_esp_auth) = 0;
-#define	V_ipsec_esp_auth	VNET(ipsec_esp_auth)
 static VNET_DEFINE(int, ipsec_ah_keymin) = 128;
+
+#define	V_ipsec_esp_keymin	VNET(ipsec_esp_keymin)
+#define	V_ipsec_esp_auth	VNET(ipsec_esp_auth)
 #define	V_ipsec_ah_keymin	VNET(ipsec_ah_keymin)
 
 #ifdef SYSCTL_DECL
