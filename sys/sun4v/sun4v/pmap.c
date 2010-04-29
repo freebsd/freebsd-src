@@ -1824,17 +1824,10 @@ pmap_protect(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, vm_prot_t prot)
 		if (!anychanged && (otte_data & VTD_W))
 			anychanged = 1;
 		
-		if (otte_data & VTD_MANAGED) {
-			m = NULL;
-
-			if (otte_data & VTD_REF) {
-				m = PHYS_TO_VM_PAGE(TTE_GET_PA(otte_data));
-				vm_page_flag_set(m, PG_REFERENCED);
-			}
-			if (otte_data & VTD_W) {
-				m = PHYS_TO_VM_PAGE(TTE_GET_PA(otte_data));
-				vm_page_dirty(m);
-			}
+		if ((otte_data & (VTD_MANAGED | VTD_W)) == (VTD_MANAGED |
+		    VTD_W)) {
+			m = PHYS_TO_VM_PAGE(TTE_GET_PA(otte_data));
+			vm_page_dirty(m);
 		} 
 	}
 
