@@ -44,6 +44,10 @@ __FBSDID("$FreeBSD$");
 #include <machine/resource.h>
 #include <sys/rman.h>
 
+#if defined(__amd64__)
+#include <machine/clock.h>
+#endif
+
 #include <dev/atkbdc/atkbdcreg.h>
 
 #ifdef __sparc64__
@@ -153,7 +157,7 @@ atkbdc_configure(void)
 	bus_space_tag_t tag;
 	bus_space_handle_t h0;
 	bus_space_handle_t h1;
-#if defined(__i386__)
+#if defined(__i386__) || defined(__amd64__)
 	volatile int i;
 	register_t flags;
 #endif
@@ -222,7 +226,7 @@ atkbdc_configure(void)
 #endif
 #endif
 
-#if defined(__i386__)
+#if defined(__i386__) || defined(__amd64__)
 	/*
 	 * Check if we really have AT keyboard controller. Poll status
 	 * register until we get "all clear" indication. If no such
@@ -248,6 +252,11 @@ static int
 atkbdc_setup(atkbdc_softc_t *sc, bus_space_tag_t tag, bus_space_handle_t h0,
 	     bus_space_handle_t h1)
 {
+#if defined(__amd64__)
+	u_int64_t tscval[3], read_delay;
+	register_t flags;
+#endif
+
 	if (sc->ioh0 == 0) {	/* XXX */
 	    sc->command_byte = -1;
 	    sc->command_mask = 0;
@@ -264,6 +273,33 @@ atkbdc_setup(atkbdc_softc_t *sc, bus_space_tag_t tag, bus_space_handle_t h0,
 	sc->iot = tag;
 	sc->ioh0 = h0;
 	sc->ioh1 = h1;
+
+#if defined(__amd64__)
+	/*
+	 * On certain chipsets AT keyboard controller isn't present and is
+	 * emulated by BIOS using SMI interrupt. On those chipsets reading
+	 * from the status port may be thousand times slower than usually.
+	 * Sometimes this emilation is not working properly resulting in
+	 * commands timing our and since we assume that inb() operation 
+	 * takes very little time to complete we need to adjust number of
+	 * retries to keep waiting time within a designed limits (100ms).
+	 * Measure time it takes to make read_status() call and adjust
+	 * number of retries accordingly.
+	 */
+	flags = intr_disable();
+	tscval[0] = rdtsc();
+	read_status(sc);
+	tscval[1] = rdtsc();
+	DELAY(1000);
+	tscval[2] = rdtsc();
+	intr_restore(flags);
+	read_delay = tscval[1] - tscval[0];
+	read_delay /= (tscval[2] - tscval[1]) / 1000;
+	sc->retry = 100000 / ((KBDD_DELAYTIME * 2) + read_delay);
+#else
+	sc->retry = 5000;
+#endif
+
 	return 0;
 }
 
@@ -380,9 +416,11 @@ removeq(kqueue *q)
 static int
 wait_while_controller_busy(struct atkbdc_softc *kbdc)
 {
-    /* CPU will stay inside the loop for 100msec at most */
-    int retry = 5000;
+    int retry;
     int f;
+
+    /* CPU will stay inside the loop for 100msec at most */
+    retry = kbdc->retry;
 
     while ((f = read_status(kbdc)) & KBDS_INPUT_BUFFER_FULL) {
 	if ((f & KBDS_BUFFER_FULL) == KBDS_KBD_BUFFER_FULL) {
@@ -406,9 +444,11 @@ wait_while_controller_busy(struct atkbdc_softc *kbdc)
 static int
 wait_for_data(struct atkbdc_softc *kbdc)
 {
-    /* CPU will stay inside the loop for 200msec at most */
-    int retry = 10000;
+    int retry;
     int f;
+
+    /* CPU will stay inside the loop for 200msec at most */
+    retry = kbdc->retry * 2;
 
     while ((f = read_status(kbdc) & KBDS_ANY_BUFFER_FULL) == 0) {
         DELAY(KBDC_DELAYTIME);
@@ -423,9 +463,11 @@ wait_for_data(struct atkbdc_softc *kbdc)
 static int
 wait_for_kbd_data(struct atkbdc_softc *kbdc)
 {
-    /* CPU will stay inside the loop for 200msec at most */
-    int retry = 10000;
+    int retry;
     int f;
+
+    /* CPU will stay inside the loop for 200msec at most */
+    retry = kbdc->retry * 2;
 
     while ((f = read_status(kbdc) & KBDS_BUFFER_FULL)
 	    != KBDS_KBD_BUFFER_FULL) {
@@ -448,10 +490,12 @@ wait_for_kbd_data(struct atkbdc_softc *kbdc)
 static int
 wait_for_kbd_ack(struct atkbdc_softc *kbdc)
 {
-    /* CPU will stay inside the loop for 200msec at most */
-    int retry = 10000;
+    int retry;
     int f;
     int b;
+
+    /* CPU will stay inside the loop for 200msec at most */
+    retry = kbdc->retry * 2;
 
     while (retry-- > 0) {
         if ((f = read_status(kbdc)) & KBDS_ANY_BUFFER_FULL) {
@@ -475,9 +519,11 @@ wait_for_kbd_ack(struct atkbdc_softc *kbdc)
 static int
 wait_for_aux_data(struct atkbdc_softc *kbdc)
 {
-    /* CPU will stay inside the loop for 200msec at most */
-    int retry = 10000;
+    int retry;
     int f;
+
+    /* CPU will stay inside the loop for 200msec at most */
+    retry = kbdc->retry * 2;
 
     while ((f = read_status(kbdc) & KBDS_BUFFER_FULL)
 	    != KBDS_AUX_BUFFER_FULL) {
@@ -500,10 +546,12 @@ wait_for_aux_data(struct atkbdc_softc *kbdc)
 static int
 wait_for_aux_ack(struct atkbdc_softc *kbdc)
 {
-    /* CPU will stay inside the loop for 200msec at most */
-    int retry = 10000;
+    int retry;
     int f;
     int b;
+
+    /* CPU will stay inside the loop for 200msec at most */
+    retry = kbdc->retry * 2;
 
     while (retry-- > 0) {
         if ((f = read_status(kbdc)) & KBDS_ANY_BUFFER_FULL) {
