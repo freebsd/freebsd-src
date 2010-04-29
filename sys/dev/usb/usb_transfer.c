@@ -2821,7 +2821,7 @@ repeat:
 	iface_index = 0;
 	if (usbd_transfer_setup(udev, &iface_index,
 	    udev->default_xfer, usb_control_ep_cfg, USB_DEFAULT_XFER_MAX, NULL,
-	    udev->default_mtx)) {
+	    &udev->device_mtx)) {
 		DPRINTFN(0, "could not setup default "
 		    "USB transfer\n");
 	} else {
