@@ -143,7 +143,7 @@ struct ieee80211_rx_ampdu {
 	int		rxa_nframes;	/* frames since ADDBA */
 	struct mbuf *rxa_m[IEEE80211_AGGR_BAWMAX];
 	void		*rxa_private;
-	uint64_t	rxa_pad[4];
+	uint64_t	rxa_pad[3];
 };
 
 void	ieee80211_ht_attach(struct ieee80211com *);
