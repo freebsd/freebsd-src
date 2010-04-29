@@ -200,6 +200,7 @@ typedef struct atkbdc_softc {
     int lock;			/* FIXME: XXX not quite a semaphore... */
     kqueue kbd;			/* keyboard data queue */
     kqueue aux;			/* auxiliary data queue */
+    int retry;
 } atkbdc_softc_t; 
 
 enum kbdc_device_ivar {

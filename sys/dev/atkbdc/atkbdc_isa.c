@@ -94,7 +94,7 @@ atkbdc_isa_probe(device_t dev)
 	u_long		count;
 	int		error;
 	int		rid;
-#if defined(__i386__)
+#if defined(__i386__) || defined(__amd64__)
 	bus_space_tag_t	tag;
 	bus_space_handle_t ioh1;
 	volatile int	i;
@@ -141,7 +141,7 @@ atkbdc_isa_probe(device_t dev)
 		return ENXIO;
 	}
 
-#if defined(__i386__)
+#if defined(__i386__) || defined(__amd64__)
 	/*
 	 * Check if we really have AT keyboard controller. Poll status
 	 * register until we get "all clear" indication. If no such
@@ -161,6 +161,8 @@ atkbdc_isa_probe(device_t dev)
 	if (i == 65535) {
 		bus_release_resource(dev, SYS_RES_IOPORT, 0, port0);
 		bus_release_resource(dev, SYS_RES_IOPORT, 1, port1);
+		if (bootverbose)
+			device_printf(dev, "AT keyboard controller not found\n");
 		return ENXIO;
 	}
 #endif
@@ -201,6 +203,7 @@ atkbdc_isa_attach(device_t dev)
 	}
 
 	rid = 0;
+	sc->retry = 5000;
 	sc->port0 = bus_alloc_resource_any(dev, SYS_RES_IOPORT, &rid,
 					   RF_ACTIVE);
 	if (sc->port0 == NULL)
