@@ -1591,7 +1591,6 @@ sge_ifmedia_upd(struct ifnet *ifp)
 	sc = ifp->if_softc;
 	SGE_LOCK(sc);
 	mii = device_get_softc(sc->sge_miibus);
-	sc->sge_flags &= ~SGE_FLAG_LINK;
 	if (mii->mii_instance) {
 		struct mii_softc *miisc;
 		LIST_FOREACH(miisc, &mii->mii_phys, mii_list)
