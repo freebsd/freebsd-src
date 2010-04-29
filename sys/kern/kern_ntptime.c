@@ -198,22 +198,11 @@ static long pps_errcnt;			/* calibration errors */
 static void ntp_init(void);
 static void hardupdate(long offset);
 static void ntp_gettime1(struct ntptimeval *ntvp);
+static int ntp_is_time_error(void);
 
-static void
-ntp_gettime1(struct ntptimeval *ntvp)
+static int
+ntp_is_time_error(void)
 {
-	struct timespec atv;	/* nanosecond time */
-
-	GIANT_REQUIRED;
-
-	nanotime(&atv);
-	ntvp->time.tv_sec = atv.tv_sec;
-	ntvp->time.tv_nsec = atv.tv_nsec;
-	ntvp->maxerror = time_maxerror;
-	ntvp->esterror = time_esterror;
-	ntvp->tai = time_tai;
-	ntvp->time_state = time_state;
-
 	/*
 	 * Status word error decode. If any of these conditions occur,
 	 * an error is returned, instead of the status word. Most
@@ -243,6 +232,27 @@ ntp_gettime1(struct ntptimeval *ntvp)
 	 */
 	    (time_status & STA_PPSFREQ &&
 	    time_status & (STA_PPSWANDER | STA_PPSERROR)))
+		return (1);
+
+	return (0);
+}
+
+static void
+ntp_gettime1(struct ntptimeval *ntvp)
+{
+	struct timespec atv;	/* nanosecond time */
+
+	GIANT_REQUIRED;
+
+	nanotime(&atv);
+	ntvp->time.tv_sec = atv.tv_sec;
+	ntvp->time.tv_nsec = atv.tv_nsec;
+	ntvp->maxerror = time_maxerror;
+	ntvp->esterror = time_esterror;
+	ntvp->tai = time_tai;
+	ntvp->time_state = time_state;
+
+	if (ntp_is_time_error())
 		ntvp->time_state = TIME_ERROR;
 }
 
@@ -446,17 +456,11 @@ ntp_adjtime(struct thread *td, struct ntp_adjtime_args *uap)
 	 * Status word error decode. See comments in
 	 * ntp_gettime() routine.
 	 */
-	if ((time_status & (STA_UNSYNC | STA_CLOCKERR)) ||
-	    (time_status & (STA_PPSFREQ | STA_PPSTIME) &&
-	    !(time_status & STA_PPSSIGNAL)) ||
-	    (time_status & STA_PPSTIME &&
-	    time_status & STA_PPSJITTER) ||
-	    (time_status & STA_PPSFREQ &&
-	    time_status & (STA_PPSWANDER | STA_PPSERROR))) {
+	if (ntp_is_time_error())
 		td->td_retval[0] = TIME_ERROR;
-	} else {
+	else
 		td->td_retval[0] = time_state;
-	}
+
 done2:
 	mtx_unlock(&Giant);
 	return (error);
