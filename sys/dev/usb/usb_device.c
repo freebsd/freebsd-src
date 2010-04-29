@@ -45,6 +45,7 @@
 #include <sys/priv.h>
 #include <sys/conf.h>
 #include <sys/fcntl.h>
+#include <sys/sbuf.h>
 
 #include <dev/usb/usb.h>
 #include <dev/usb/usbdi.h>
@@ -1834,7 +1835,7 @@ config_done:
 	printf("%s: <%s> at %s\n", udev->ugen_name, udev->manufacturer,
 	    device_get_nameunit(udev->bus->bdev));
 
-	usb_notify_addq("+", udev);
+	usb_notify_addq("ATTACH", udev);
 #endif
 done:
 	if (err) {
@@ -1980,7 +1981,7 @@ usb_free_device(struct usb_device *udev, uint8_t flag)
 	usb_set_device_state(udev, USB_STATE_DETACHED);
 
 #if USB_HAVE_UGEN
-	usb_notify_addq("-", udev);
+	usb_notify_addq("DETACH", udev);
 
 	printf("%s: <%s> at %s (disconnected)\n", udev->ugen_name,
 	    udev->manufacturer, device_get_nameunit(bus->bdev));
@@ -2347,12 +2348,22 @@ usbd_get_device_index(struct usb_device *udev)
  *
  * This function will generate events for dev.
  *------------------------------------------------------------------------*/
+#ifndef BURN_BRIDGES
 static void
-usb_notify_addq(const char *type, struct usb_device *udev)
+usb_notify_addq_compat(const char *type, struct usb_device *udev)
 {
 	char *data = NULL;
+	const char *ntype;
 	struct malloc_type *mt;
 	const size_t buf_size = 512;
+
+	/* Convert notify type */
+	if (strcmp(type, "ATTACH") == 0)
+		ntype = "+";
+	else if (strcmp(type, "DETACH") == 0)
+		ntype = "-";
+	else
+		return;
 
 	mtx_lock(&malloc_mtx);
 	mt = malloc_desc2type("bus");	/* XXX M_BUS */
@@ -2378,7 +2389,7 @@ usb_notify_addq(const char *type, struct usb_device *udev)
 	    "port=%u "
 	    "on "
 	    "%s\n",
-	    type,
+	    ntype,
 	    udev->ugen_name,
 	    UGETW(udev->ddesc.idVendor),
 	    UGETW(udev->ddesc.idProduct),
@@ -2392,6 +2403,89 @@ usb_notify_addq(const char *type, struct usb_device *udev)
 		device_get_nameunit(device_get_parent(udev->bus->bdev)));
 
 	devctl_queue_data(data);
+}
+#endif
+
+static void
+usb_notify_addq(const char *type, struct usb_device *udev)
+{
+	struct usb_interface *iface;
+	struct sbuf *sb;
+	int i;
+
+#ifndef BURN_BRIDGES
+	usb_notify_addq_compat(type, udev);
+#endif
+
+	/* announce the device */
+	sb = sbuf_new_auto();
+	sbuf_printf(sb,
+	    "cdev=%s "
+	    "vendor=0x%04x "
+	    "product=0x%04x "
+	    "devclass=0x%02x "
+	    "devsubclass=0x%02x "
+	    "sernum=\"%s\" "
+	    "release=0x%04x "
+	    "mode=%s "
+	    "port=%u "
+	    "parent=%s\n",
+	    udev->ugen_name,
+	    UGETW(udev->ddesc.idVendor),
+	    UGETW(udev->ddesc.idProduct),
+	    udev->ddesc.bDeviceClass,
+	    udev->ddesc.bDeviceSubClass,
+	    udev->serial,
+	    UGETW(udev->ddesc.bcdDevice),
+	    (udev->flags.usb_mode == USB_MODE_HOST) ? "host" : "device",
+	    udev->port_no,
+	    udev->parent_hub != NULL ?
+	    udev->parent_hub->ugen_name :
+	    device_get_nameunit(device_get_parent(udev->bus->bdev)));
+	sbuf_finish(sb);
+	devctl_notify("USB", "DEVICE", type, sbuf_data(sb));
+	sbuf_delete(sb);
+
+	/* announce each interface */
+	for (i = 0; i < USB_IFACE_MAX; i++) {
+		iface = usbd_get_iface(udev, i);
+		if (iface == NULL)
+			break;		/* end of interfaces */
+		if (iface->idesc == NULL)
+			continue;	/* no interface descriptor */
+
+		sb = sbuf_new_auto();
+		sbuf_printf(sb,
+		    "cdev=%s "
+		    "vendor=0x%04x "
+		    "product=0x%04x "
+		    "devclass=0x%02x "
+		    "devsubclass=0x%02x "
+		    "sernum=\"%s\" "
+		    "release=0x%04x "
+		    "mode=%s "
+		    "interface=%d "
+		    "endpoints=%d "
+		    "intclass=0x%02x "
+		    "intsubclass=0x%02x "
+		    "intprotocol=0x%02x\n",
+		    udev->ugen_name,
+		    UGETW(udev->ddesc.idVendor),
+		    UGETW(udev->ddesc.idProduct),
+		    udev->ddesc.bDeviceClass,
+		    udev->ddesc.bDeviceSubClass,
+		    udev->serial,
+		    UGETW(udev->ddesc.bcdDevice),
+		    (udev->flags.usb_mode == USB_MODE_HOST) ? "host" : "device",
+		    iface->idesc->bInterfaceNumber,
+		    iface->idesc->bNumEndpoints,
+		    iface->idesc->bInterfaceClass,
+		    iface->idesc->bInterfaceSubClass,
+		    iface->idesc->bInterfaceProtocol);
+		sbuf_finish(sb);
+		devctl_notify("USB", "INTERFACE", type, sbuf_data(sb));
+		sbuf_delete(sb);
+	}
 }
 
 /*------------------------------------------------------------------------*
