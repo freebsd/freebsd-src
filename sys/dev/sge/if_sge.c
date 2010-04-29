@@ -453,8 +453,9 @@ sge_rxfilter(struct sge_softc *sc)
 	SGE_LOCK_ASSERT(sc);
 
 	ifp = sc->sge_ifp;
-	hashes[0] = hashes[1] = 0;
-	rxfilt = AcceptMyPhys;
+	rxfilt = CSR_READ_2(sc, RxMacControl);
+	rxfilt &= ~(AcceptBroadcast | AcceptAllPhys | AcceptMulticast);
+	rxfilt |= AcceptMyPhys;
 	if ((ifp->if_flags & IFF_BROADCAST) != 0)
 		rxfilt |= AcceptBroadcast;
 	if ((ifp->if_flags & (IFF_PROMISC | IFF_ALLMULTI)) != 0) {
@@ -463,20 +464,20 @@ sge_rxfilter(struct sge_softc *sc)
 		rxfilt |= AcceptMulticast;
 		hashes[0] = 0xFFFFFFFF;
 		hashes[1] = 0xFFFFFFFF;
-		goto done;
+	} else {
+		rxfilt |= AcceptMulticast;
+		hashes[0] = hashes[1] = 0;
+		/* Now program new ones. */
+		if_maddr_rlock(ifp);
+		TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
+			if (ifma->ifma_addr->sa_family != AF_LINK)
+				continue;
+			crc = ether_crc32_be(LLADDR((struct sockaddr_dl *)
+			    ifma->ifma_addr), ETHER_ADDR_LEN);
+			hashes[crc >> 31] |= 1 << ((crc >> 26) & 0x1f);
+		}
+		if_maddr_runlock(ifp);
 	}
-	rxfilt |= AcceptMulticast;
-	/* Now program new ones. */
-	if_maddr_rlock(ifp);
-	TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
-		if (ifma->ifma_addr->sa_family != AF_LINK)
-			continue;
-		crc = ether_crc32_be(LLADDR((struct sockaddr_dl *)
-		    ifma->ifma_addr), ETHER_ADDR_LEN);
-		hashes[crc >> 31] |= 1 << ((crc >> 26) & 0x1f);
-	}
-	if_maddr_runlock(ifp);
-done:
 	CSR_WRITE_2(sc, RxMacControl, rxfilt | 0x02);
 	CSR_WRITE_4(sc, RxHashTable, hashes[0]);
 	CSR_WRITE_4(sc, RxHashTable2, hashes[1]);
