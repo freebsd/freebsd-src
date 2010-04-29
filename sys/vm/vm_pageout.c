@@ -508,17 +508,16 @@ vm_pageout_object_deactivate_pages(pmap, first_object, desired)
 {
 	vm_object_t backing_object, object;
 	vm_page_t p, next;
-	int actcount, rcount, remove_mode;
+	int actcount, remove_mode;
 
 	VM_OBJECT_LOCK_ASSERT(first_object, MA_OWNED);
 	if (first_object->type == OBJT_DEVICE ||
-	    first_object->type == OBJT_SG ||
-	    first_object->type == OBJT_PHYS)
+	    first_object->type == OBJT_SG)
 		return;
 	for (object = first_object;; object = backing_object) {
 		if (pmap_resident_count(pmap) <= desired)
 			goto unlock_return;
-		if (object->paging_in_progress)
+		if (object->type == OBJT_PHYS || object->paging_in_progress)
 			goto unlock_return;
 
 		remove_mode = 0;
@@ -527,10 +526,9 @@ vm_pageout_object_deactivate_pages(pmap, first_object, desired)
 		/*
 		 * scan the objects entire memory queue
 		 */
-		rcount = object->resident_page_count;
 		p = TAILQ_FIRST(&object->memq);
 		vm_page_lock_queues();
-		while (p && (rcount-- > 0)) {
+		while (p != NULL) {
 			if (pmap_resident_count(pmap) <= desired) {
 				vm_page_unlock_queues();
 				goto unlock_return;
@@ -541,7 +539,6 @@ vm_pageout_object_deactivate_pages(pmap, first_object, desired)
 			    p->hold_count != 0 ||
 			    p->busy != 0 ||
 			    (p->oflags & VPO_BUSY) ||
-			    (p->flags & PG_UNMANAGED) ||
 			    !pmap_page_exists_quick(pmap, p)) {
 				p = next;
 				continue;
