@@ -378,6 +378,14 @@ static void swp_pager_meta_free(vm_object_t, vm_pindex_t, daddr_t);
 static void swp_pager_meta_free_all(vm_object_t);
 static daddr_t swp_pager_meta_ctl(vm_object_t, vm_pindex_t, int);
 
+static void
+swp_pager_free_nrpage(vm_page_t m)
+{
+
+	if (m->wire_count == 0)
+		vm_page_free(m);
+}
+
 /*
  * SWP_SIZECHECK() -	update swap_pager_full indication
  *	
@@ -1131,9 +1139,9 @@ swap_pager_getpages(vm_object_t object, vm_page_t *m, int count, int reqpage)
 
 		vm_page_lock_queues();
 		for (k = 0; k < i; ++k)
-			vm_page_free(m[k]);
+			swp_pager_free_nrpage(m[k]);
 		for (k = j; k < count; ++k)
-			vm_page_free(m[k]);
+			swp_pager_free_nrpage(m[k]);
 		vm_page_unlock_queues();
 	}
 
@@ -1529,7 +1537,7 @@ swp_pager_async_iodone(struct buf *bp)
 				 */
 				m->valid = 0;
 				if (i != bp->b_pager.pg_reqpage)
-					vm_page_free(m);
+					swp_pager_free_nrpage(m);
 				else
 					vm_page_flash(m);
 				/*
