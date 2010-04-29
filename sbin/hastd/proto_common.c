@@ -58,7 +58,7 @@ proto_common_send(int fd, const unsigned char *data, size_t size)
 		if (done == 0)
 			return (ENOTCONN);
 		else if (done < 0) {
-			if (errno == EAGAIN)
+			if (errno == EINTR)
 				continue;
 			return (errno);
 		}
@@ -76,7 +76,7 @@ proto_common_recv(int fd, unsigned char *data, size_t size)
 
 	do {
 		done = recv(fd, data, size, MSG_WAITALL);
-	} while (done == -1 && errno == EAGAIN);
+	} while (done == -1 && errno == EINTR);
 	if (done == 0)
 		return (ENOTCONN);
 	else if (done < 0)

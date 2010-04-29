@@ -187,6 +187,10 @@ listen_accept(void)
 	proto_remote_address(conn, raddr, sizeof(raddr));
 	pjdlog_info("Connection from %s to %s.", laddr, raddr);
 
+	/* Error in setting timeout is not critical, but why should it fail? */
+	if (proto_timeout(conn, HAST_TIMEOUT) < 0)
+		pjdlog_errno(LOG_WARNING, "Unable to set connection timeout");
+
 	nvin = nvout = nverr = NULL;
 
 	/*
