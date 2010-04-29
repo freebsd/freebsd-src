@@ -92,6 +92,8 @@ __FBSDID("$FreeBSD$");
 
 #include <security/mac/mac_framework.h>
 
+static VNET_DEFINE(uma_zone_t, tcptw_zone);
+#define	V_tcptw_zone			VNET(tcptw_zone)
 static int	maxtcptw;
 
 /*
@@ -100,11 +102,7 @@ static int	maxtcptw;
  * queue pointers in each tcptw structure, are protected using the global
  * tcbinfo lock, which must be held over queue iteration and modification.
  */
-static VNET_DEFINE(uma_zone_t, tcptw_zone);
 static VNET_DEFINE(TAILQ_HEAD(, tcptw), twq_2msl);
-VNET_DEFINE(int, nolocaltimewait);
-
-#define	V_tcptw_zone			VNET(tcptw_zone)
 #define	V_twq_2msl			VNET(twq_2msl)
 
 static void	tcp_tw_2msl_reset(struct tcptw *, int);
@@ -149,6 +147,8 @@ SYSCTL_PROC(_net_inet_tcp, OID_AUTO, maxtcptw, CTLTYPE_INT|CTLFLAG_RW,
     &maxtcptw, 0, sysctl_maxtcptw, "IU",
     "Maximum number of compressed TCP TIME_WAIT entries");
 
+VNET_DEFINE(int, nolocaltimewait) = 0;
+#define	V_nolocaltimewait	VNET(nolocaltimewait)
 SYSCTL_VNET_INT(_net_inet_tcp, OID_AUTO, nolocaltimewait, CTLFLAG_RW,
     &VNET_NAME(nolocaltimewait), 0,
     "Do not create compressed TCP TIME_WAIT entries for local connections");
