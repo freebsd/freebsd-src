@@ -48,6 +48,7 @@ control			{ DP; return CONTROL; }
 listen			{ DP; return LISTEN; }
 port			{ DP; return PORT; }
 replication		{ DP; return REPLICATION; }
+timeout			{ DP; return TIMEOUT; }
 resource		{ DP; return RESOURCE; }
 name			{ DP; return NAME; }
 local			{ DP; return LOCAL; }
