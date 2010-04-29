@@ -126,8 +126,8 @@ static struct buf_ops ffs_ops = {
 
 static const char *ffs_opts[] = { "acls", "async", "noatime", "noclusterr",
     "noclusterw", "noexec", "export", "force", "from", "multilabel", 
-    "snapshot", "nosuid", "suiddir", "nosymfollow", "sync",
-    "union", "nfsv4acls", NULL };
+    "nfsv4acls", "snapshot", "nosuid", "suiddir", "nosymfollow", "sync",
+    "union", NULL };
 
 static int
 ffs_mount(struct mount *mp)
