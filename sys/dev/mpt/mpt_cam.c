@@ -1208,14 +1208,18 @@ mpt_cam_detach(struct mpt_softc *mpt)
 
 	if (mpt->sim != NULL) {
 		xpt_free_path(mpt->path);
+		MPT_LOCK(mpt);
 		xpt_bus_deregister(cam_sim_path(mpt->sim));
+		MPT_UNLOCK(mpt);
 		cam_sim_free(mpt->sim, TRUE);
 		mpt->sim = NULL;
 	}
 
 	if (mpt->phydisk_sim != NULL) {
 		xpt_free_path(mpt->phydisk_path);
+		MPT_LOCK(mpt);
 		xpt_bus_deregister(cam_sim_path(mpt->phydisk_sim));
+		MPT_UNLOCK(mpt);
 		cam_sim_free(mpt->phydisk_sim, TRUE);
 		mpt->phydisk_sim = NULL;
 	}
