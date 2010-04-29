@@ -37,6 +37,7 @@ __FBSDID("$FreeBSD$");
 
 #include <assert.h>
 #include <errno.h>
+#include <fcntl.h>
 #include <netdb.h>
 #include <stdbool.h>
 #include <stdint.h>
@@ -47,6 +48,7 @@ __FBSDID("$FreeBSD$");
 #include "hast.h"
 #include "pjdlog.h"
 #include "proto_impl.h"
+#include "subr.h"
 
 #define	TCP4_CTX_MAGIC	0x7c441c
 struct tcp4_ctx {
@@ -222,18 +224,88 @@ static int
 tcp4_connect(void *ctx)
 {
 	struct tcp4_ctx *tctx = ctx;
+	struct timeval tv;
+	fd_set fdset;
+	socklen_t esize;
+	int error, flags, ret;
 
 	assert(tctx != NULL);
 	assert(tctx->tc_magic == TCP4_CTX_MAGIC);
 	assert(tctx->tc_side == TCP4_SIDE_CLIENT);
 	assert(tctx->tc_fd >= 0);
 
-	if (connect(tctx->tc_fd, (struct sockaddr *)&tctx->tc_sin,
-	    sizeof(tctx->tc_sin)) < 0) {
+	flags = fcntl(tctx->tc_fd, F_GETFL);
+	if (flags == -1) {
+		KEEP_ERRNO(pjdlog_common(LOG_DEBUG, 1, errno,
+		    "fcntl(F_GETFL) failed"));
+		return (errno);
+	}
+	/*
+	 * We make socket non-blocking so we have decided about connection
+	 * timeout.
+	 */
+	flags |= O_NONBLOCK;
+	if (fcntl(tctx->tc_fd, F_SETFL, flags) == -1) {
+		KEEP_ERRNO(pjdlog_common(LOG_DEBUG, 1, errno,
+		    "fcntl(F_SETFL, O_NONBLOCK) failed"));
 		return (errno);
 	}
 
-	return (0);
+	if (connect(tctx->tc_fd, (struct sockaddr *)&tctx->tc_sin,
+	    sizeof(tctx->tc_sin)) == 0) {
+		error = 0;
+		goto done;
+	}
+	if (errno != EINPROGRESS) {
+		error = errno;
+		pjdlog_common(LOG_DEBUG, 1, errno, "connect() failed");
+		goto done;
+	}
+	/*
+	 * Connection can't be established immediately, let's wait
+	 * for HAST_TIMEOUT seconds.
+	 */
+	tv.tv_sec = HAST_TIMEOUT;
+	tv.tv_usec = 0;
+again:
+	FD_ZERO(&fdset);
+	FD_SET(tctx->tc_fd, &fdset); 
+	ret = select(tctx->tc_fd + 1, NULL, &fdset, NULL, &tv);
+	if (ret == 0) {
+		error = ETIMEDOUT;
+		goto done;
+	} else if (ret == -1) {
+		if (errno == EINTR)
+			goto again;
+		error = errno;
+		pjdlog_common(LOG_DEBUG, 1, errno, "select() failed");
+		goto done;
+	}
+	assert(ret > 0);
+	assert(FD_ISSET(tctx->tc_fd, &fdset));
+	esize = sizeof(error);
+	if (getsockopt(tctx->tc_fd, SOL_SOCKET, SO_ERROR, &error,
+	    &esize) == -1) {
+		error = errno;
+		pjdlog_common(LOG_DEBUG, 1, errno,
+		    "getsockopt(SO_ERROR) failed");
+		goto done;
+	}
+	if (error != 0) {
+		pjdlog_common(LOG_DEBUG, 1, error,
+		    "getsockopt(SO_ERROR) returned error");
+		goto done;
+	}
+	error = 0;
+done:
+	flags &= ~O_NONBLOCK;
+	if (fcntl(tctx->tc_fd, F_SETFL, flags) == -1) {
+		if (error == 0)
+			error = errno;
+		pjdlog_common(LOG_DEBUG, 1, errno,
+		    "fcntl(F_SETFL, ~O_NONBLOCK) failed");
+	}
+	return (error);
 }
 
 static int
