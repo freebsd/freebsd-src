@@ -572,7 +572,7 @@ sge_attach(device_t dev)
 	}
 	sc->sge_rev = pci_get_revid(dev);
 	if (pci_get_device(dev) == SIS_DEVICEID_190)
-		sc->sge_flags |= SGE_FLAG_FASTETHER;
+		sc->sge_flags |= SGE_FLAG_FASTETHER | SGE_FLAG_SIS190;
 	/* Reset the adapter. */
 	sge_reset(sc);
 
