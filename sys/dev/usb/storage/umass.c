@@ -146,7 +146,7 @@ __FBSDID("$FreeBSD$");
 #define	UMASS_USB_FLAGS
 #endif
 
-#if USB_DEBUG
+#ifdef USB_DEBUG
 #define	DIF(m, x)				\
   do {						\
     if (umass_debug & (m)) { x ; }		\
@@ -488,7 +488,7 @@ static uint8_t	umass_no_transform(struct umass_softc *, uint8_t *, uint8_t);
 static uint8_t	umass_std_transform(struct umass_softc *, union ccb *, uint8_t
 		    *, uint8_t);
 
-#if USB_DEBUG
+#ifdef USB_DEBUG
 static void	umass_bbb_dump_cbw(struct umass_softc *, umass_bbb_cbw_t *);
 static void	umass_bbb_dump_csw(struct umass_softc *, umass_bbb_csw_t *);
 static void	umass_cbi_dump_cmd(struct umass_softc *, void *, uint8_t);
@@ -917,7 +917,7 @@ umass_attach(device_t dev)
 	}
 	sc->sc_iface_no = id->bInterfaceNumber;
 
-#if USB_DEBUG
+#ifdef USB_DEBUG
 	device_printf(dev, " ");
 
 	switch (sc->sc_proto & UMASS_PROTO_COMMAND) {
@@ -3012,7 +3012,7 @@ umass_std_transform(struct umass_softc *sc, union ccb *ccb,
 	return (1);
 }
 
-#if USB_DEBUG
+#ifdef USB_DEBUG
 static void
 umass_bbb_dump_cbw(struct umass_softc *sc, umass_bbb_cbw_t *cbw)
 {

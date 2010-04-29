@@ -78,7 +78,7 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/usb/storage/rio500_usb.h>
 
-#if USB_DEBUG
+#ifdef USB_DEBUG
 static int urio_debug = 0;
 
 SYSCTL_NODE(_hw_usb, OID_AUTO, urio, CTLFLAG_RW, 0, "USB urio");
