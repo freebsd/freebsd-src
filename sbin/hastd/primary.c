@@ -489,6 +489,9 @@ init_remote(struct hast_resource *res, struct proto_conn **inp,
 		    res->hr_remoteaddr);
 		goto close;
 	}
+	/* Error in setting timeout is not critical, but why should it fail? */
+	if (proto_timeout(out, res->hr_timeout) < 0)
+		pjdlog_errno(LOG_WARNING, "Unable to set connection timeout");
 	/*
 	 * First handshake step.
 	 * Setup outgoing connection with remote node.
@@ -552,6 +555,9 @@ init_remote(struct hast_resource *res, struct proto_conn **inp,
 		    res->hr_remoteaddr);
 		goto close;
 	}
+	/* Error in setting timeout is not critical, but why should it fail? */
+	if (proto_timeout(in, res->hr_timeout) < 0)
+		pjdlog_errno(LOG_WARNING, "Unable to set connection timeout");
 	nvout = nv_alloc();
 	nv_add_string(nvout, res->hr_name, "resource");
 	nv_add_uint8_array(nvout, res->hr_token, sizeof(res->hr_token),
