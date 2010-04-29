@@ -453,10 +453,6 @@ ntp_adjtime(struct thread *td, struct ntp_adjtime_args *uap)
 	if (error)
 		goto done2;
 
-	/*
-	 * Status word error decode. See comments in
-	 * ntp_gettime() routine.
-	 */
 	if (ntp_is_time_error())
 		td->td_retval[0] = TIME_ERROR;
 	else
