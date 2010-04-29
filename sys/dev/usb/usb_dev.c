@@ -615,7 +615,7 @@ usb_dev_get_ep(struct usb_device *udev, uint8_t ep_index, uint8_t dir)
 	uint8_t ep_dir;
 
 	if (ep_index == 0) {
-		ep = &udev->default_ep;
+		ep = &udev->ctrl_ep;
 	} else {
 		if (dir == USB_FIFO_RX) {
 			if (udev->flags.usb_mode == USB_MODE_HOST) {
