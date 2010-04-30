@@ -1941,6 +1941,8 @@
 #define RX_TRUNC_OFF		BIT_26	/* disable packet truncation */
 #define RX_VLAN_STRIP_ON	BIT_25	/* enable  VLAN stripping */
 #define RX_VLAN_STRIP_OFF	BIT_24	/* disable VLAN stripping */
+#define GMF_RX_MACSEC_FLUSH_ON	BIT_23
+#define GMF_RX_MACSEC_FLUSH_OFF	BIT_22
 #define GMF_RX_OVER_ON		BIT_19	/* enable flushing on receive overrun */
 #define GMF_RX_OVER_OFF		BIT_18	/* disable flushing on receive overrun */
 #define GMF_ASF_RX_OVER_ON	BIT_17	/* enable flushing of ASF when overrun */

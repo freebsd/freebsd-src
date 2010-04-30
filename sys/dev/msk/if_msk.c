@@ -3917,6 +3917,11 @@ msk_init_locked(struct msk_if_softc *sc_if)
 		msk_stop(sc_if);
 		return;
 	}
+	if (sc->msk_hw_id == CHIP_ID_YUKON_EX) {
+		/* Disable flushing of non-ASF packets. */
+		CSR_WRITE_4(sc, MR_ADDR(sc_if->msk_port, RX_GMF_CTRL_T),
+		    GMF_RX_MACSEC_FLUSH_OFF);
+	}
 
 	/* Configure interrupt handling. */
 	if (sc_if->msk_port == MSK_PORT_A) {
