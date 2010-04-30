@@ -236,7 +236,7 @@ caddr_t virtual_sys_start = (caddr_t)0;
 	sched_pin();							\
 	va1 = sysm->base;						\
 	va2 = sysm->base + PAGE_SIZE;					\
-	npte = mips_paddr_to_tlbpfn(phys2) |				\
+	npte = mips_paddr_to_tlbpfn(phys1) |				\
 	    PTE_RW | PTE_V | PTE_G | PTE_W | PTE_CACHE;			\
 	pte = pmap_pte(kernel_pmap, va1);				\
 	*pte = npte;							\
