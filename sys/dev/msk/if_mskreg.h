@@ -621,8 +621,8 @@
 #define RX_GMF_FL_MSK	0x0c4c	/* 32 bit Rx GMAC FIFO Flush Mask */
 #define RX_GMF_FL_THR	0x0c50	/* 32 bit Rx GMAC FIFO Flush Threshold */
 #define RX_GMF_TR_THR	0x0c54	/* 32 bit Rx Truncation Threshold (Yukon-2) */
-#define	RX_GMF_UP_THR	0x0c58	/*  8 bit Rx Upper Pause Thr (Yukon-EC_U) */
-#define	RX_GMF_LP_THR	0x0c5a	/*  8 bit Rx Lower Pause Thr (Yukon-EC_U) */
+#define	RX_GMF_UP_THR	0x0c58	/* 16 bit Rx Upper Pause Thr (Yukon-EC_U) */
+#define	RX_GMF_LP_THR	0x0c5a	/* 16 bit Rx Lower Pause Thr (Yukon-EC_U) */
 #define RX_GMF_VLAN	0x0c5c	/* 32 bit Rx VLAN Type Register (Yukon-2) */
 #define RX_GMF_WP	0x0c60	/* 32 bit Rx GMAC FIFO Write Pointer */
 #define RX_GMF_WLEV	0x0c68	/* 32 bit Rx GMAC FIFO Write Level */

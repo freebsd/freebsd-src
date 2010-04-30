@@ -3822,9 +3822,9 @@ msk_init_locked(struct msk_if_softc *sc_if)
 
 	if ((sc_if->msk_flags & MSK_FLAG_RAMBUF) == 0) {
 		/* Set Rx Pause threshould. */
-		CSR_WRITE_1(sc, MR_ADDR(sc_if->msk_port, RX_GMF_LP_THR),
+		CSR_WRITE_2(sc, MR_ADDR(sc_if->msk_port, RX_GMF_LP_THR),
 		    MSK_ECU_LLPP);
-		CSR_WRITE_1(sc, MR_ADDR(sc_if->msk_port, RX_GMF_UP_THR),
+		CSR_WRITE_2(sc, MR_ADDR(sc_if->msk_port, RX_GMF_UP_THR),
 		    MSK_ECU_ULPP);
 		/* Configure store-and-forward for Tx. */
 		msk_set_tx_stfwd(sc_if);
