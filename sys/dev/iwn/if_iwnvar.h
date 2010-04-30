@@ -1,5 +1,5 @@
 /*	$FreeBSD$	*/
-/*	$OpenBSD: if_iwnvar.h,v 1.16 2009/11/04 17:46:52 damien Exp $	*/
+/*	$OpenBSD: if_iwnvar.h,v 1.17 2010/02/17 18:23:00 damien Exp $	*/
 
 /*-
  * Copyright (c) 2007, 2008
@@ -284,6 +284,7 @@ struct iwn_softc {
 				bands[IWN_NBANDS];
 	struct iwn_eeprom_chan	eeprom_channels[IWN_NBANDS][IWN_MAX_CHAN_PER_BAND];
 	uint16_t		rfcfg;
+	uint8_t			calib_ver;
 	char			eeprom_domain[4];
 	uint32_t		eeprom_crystal;
 	int16_t			eeprom_voltage;
