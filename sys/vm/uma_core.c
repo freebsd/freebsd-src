@@ -1022,10 +1022,12 @@ obj_alloc(uma_zone_t zone, int bytes, u_int8_t *flags, int wait)
 			while (pages != startpages) {
 				pages--;
 				p = TAILQ_LAST(&object->memq, pglist);
+				vm_page_lock(p);
 				vm_page_lock_queues();
 				vm_page_unwire(p, 0);
 				vm_page_free(p);
 				vm_page_unlock_queues();
+				vm_page_unlock(p);
 			}
 			retkva = 0;
 			goto done;

@@ -694,13 +694,17 @@ pmap_extract_and_hold(pmap_t pm, vm_offset_t va, vm_prot_t prot)
 {
 	struct tte *tp;
 	vm_page_t m;
+	vm_paddr_t pa;
 
 	m = NULL;
-	vm_page_lock_queues();
+	pa = 0;
+	PMAP_LOCK(pm);
+retry:
 	if (pm == kernel_pmap) {
 		if (va >= VM_MIN_DIRECT_ADDRESS) {
 			tp = NULL;
 			m = PHYS_TO_VM_PAGE(TLB_DIRECT_TO_PHYS(va));
+			(void)vm_page_pa_tryrelock(pm, TLB_DIRECT_TO_PHYS(va), &pa);
 			vm_page_hold(m);
 		} else {
 			tp = tsb_kvtotte(va);
@@ -708,17 +712,17 @@ pmap_extract_and_hold(pmap_t pm, vm_offset_t va, vm_prot_t prot)
 				tp = NULL;
 		}
 	} else {
-		PMAP_LOCK(pm);
 		tp = tsb_tte_lookup(pm, va);
 	}
 	if (tp != NULL && ((tp->tte_data & TD_SW) ||
 	    (prot & VM_PROT_WRITE) == 0)) {
+		if (vm_page_pa_tryrelock(pm, TTE_GET_PA(tp), &pa))
+			goto retry;
 		m = PHYS_TO_VM_PAGE(TTE_GET_PA(tp));
 		vm_page_hold(m);
 	}
-	vm_page_unlock_queues();
-	if (pm != kernel_pmap)
-		PMAP_UNLOCK(pm);
+	PA_UNLOCK_COND(pa);
+	PMAP_UNLOCK(pm);
 	return (m);
 }
 

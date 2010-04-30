@@ -145,6 +145,10 @@
 #define	VM_LEVEL_0_ORDER	9
 #endif
 
+#ifdef	SMP
+#define	PA_LOCK_COUNT	256
+#endif
+
 /*
  * Virtual addresses of things.  Derived from the page directory and
  * page table indexes from pmap.h for precision.
