@@ -1058,7 +1058,9 @@ vm_object_page_collect_flush(vm_object_t object, vm_page_t p, int curgeneration,
 	}
 	runlen = maxb + maxf + 1;
 
+	vm_page_unlock_queues();
 	vm_pageout_flush(ma, runlen, pagerflags);
+	vm_page_lock_queues();
 	for (i = 0; i < runlen; i++) {
 		if (ma[i]->dirty) {
 			vm_page_unlock_queues();
