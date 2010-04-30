@@ -115,6 +115,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/vnode.h>
 
 #include <vm/vm.h>
+#include <vm/pmap.h>
 #include <vm/vm_param.h>
 #include <vm/vm_kern.h>
 #include <vm/vm_object.h>
@@ -129,6 +130,24 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/md_var.h>
 
+#if defined(__amd64__) || defined (__i386__) 
+extern struct sysctl_oid_list sysctl__vm_pmap_children;
+#else
+SYSCTL_NODE(_vm, OID_AUTO, pmap, CTLFLAG_RD, 0, "VM/pmap parameters");
+#endif
+
+static uint64_t pmap_tryrelock_calls;
+SYSCTL_QUAD(_vm_pmap, OID_AUTO, tryrelock_calls, CTLFLAG_RD,
+    &pmap_tryrelock_calls, 0, "Number of tryrelock calls");
+
+static int pmap_tryrelock_restart;
+SYSCTL_INT(_vm_pmap, OID_AUTO, tryrelock_restart, CTLFLAG_RD,
+    &pmap_tryrelock_restart, 0, "Number of tryrelock restarts");
+
+static int pmap_tryrelock_race;
+SYSCTL_INT(_vm_pmap, OID_AUTO, tryrelock_race, CTLFLAG_RD,
+    &pmap_tryrelock_race, 0, "Number of tryrelock pmap race cases");
+
 /*
  *	Associated with page of user-allocatable memory is a
  *	page structure.
@@ -137,6 +156,8 @@ __FBSDID("$FreeBSD$");
 struct vpgqueues vm_page_queues[PQ_COUNT];
 struct vpglocks vm_page_queue_lock;
 struct vpglocks vm_page_queue_free_lock;
+
+struct vpglocks	pa_lock[PA_LOCK_COUNT] __aligned(CACHE_LINE_SIZE);
 
 vm_page_t vm_page_array = 0;
 int vm_page_array_size = 0;
@@ -156,6 +177,43 @@ static void vm_page_enqueue(int queue, vm_page_t m);
 CTASSERT(sizeof(u_long) >= 8);
 #endif
 #endif
+
+/*
+ * Try to acquire a physical address lock while a pmap is locked.  If we
+ * fail to trylock we unlock and lock the pmap directly and cache the
+ * locked pa in *locked.  The caller should then restart their loop in case
+ * the virtual to physical mapping has changed.
+ */
+int
+vm_page_pa_tryrelock(pmap_t pmap, vm_paddr_t pa, vm_paddr_t *locked)
+{
+	vm_paddr_t lockpa;
+	uint32_t gen_count;
+
+	gen_count = pmap->pm_gen_count;
+	atomic_add_long((volatile long *)&pmap_tryrelock_calls, 1);
+	lockpa = *locked;
+	*locked = pa;
+	if (lockpa) {
+		PA_LOCK_ASSERT(lockpa, MA_OWNED);
+		if (PA_LOCKPTR(pa) == PA_LOCKPTR(lockpa))
+			return (0);
+		PA_UNLOCK(lockpa);
+	}
+	if (PA_TRYLOCK(pa))
+		return (0);
+	PMAP_UNLOCK(pmap);
+	atomic_add_int((volatile int *)&pmap_tryrelock_restart, 1);
+	PA_LOCK(pa);
+	PMAP_LOCK(pmap);
+
+	if (pmap->pm_gen_count != gen_count + 1) {
+		pmap->pm_retries++;
+		atomic_add_int((volatile int *)&pmap_tryrelock_race, 1);
+		return (EAGAIN);
+	}
+	return (0);
+}
 
 /*
  *	vm_set_page_size:
@@ -270,6 +328,11 @@ vm_page_startup(vm_offset_t vaddr)
 	    MTX_RECURSE);
 	mtx_init(&vm_page_queue_free_mtx, "vm page queue free mutex", NULL,
 	    MTX_DEF);
+
+	/* Setup page locks. */
+	for (i = 0; i < PA_LOCK_COUNT; i++)
+		mtx_init(&pa_lock[i].data, "page lock", NULL,
+		    MTX_DEF | MTX_RECURSE | MTX_DUPOK);
 
 	/*
 	 * Initialize the queue headers for the hold queue, the active queue,
@@ -489,7 +552,7 @@ void
 vm_page_hold(vm_page_t mem)
 {
 
-	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
+	vm_page_lock_assert(mem, MA_OWNED);
         mem->hold_count++;
 }
 
@@ -497,7 +560,7 @@ void
 vm_page_unhold(vm_page_t mem)
 {
 
-	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
+	vm_page_lock_assert(mem, MA_OWNED);
 	--mem->hold_count;
 	KASSERT(mem->hold_count >= 0, ("vm_page_unhold: hold count < 0!!!"));
 	if (mem->hold_count == 0 && VM_PAGE_INQUEUE2(mem, PQ_HOLD))
@@ -542,10 +605,13 @@ vm_page_sleep(vm_page_t m, const char *msg)
 {
 
 	VM_OBJECT_LOCK_ASSERT(m->object, MA_OWNED);
+	if (!mtx_owned(vm_page_lockptr(m)))
+		vm_page_lock(m);
 	if (!mtx_owned(&vm_page_queue_mtx))
 		vm_page_lock_queues();
 	vm_page_flag_set(m, PG_REFERENCED);
 	vm_page_unlock_queues();
+	vm_page_unlock(m);
 
 	/*
 	 * It's possible that while we sleep, the page will get
@@ -1425,6 +1491,7 @@ vm_page_free_toq(vm_page_t m)
 		panic("vm_page_free: freeing wired page");
 	}
 	if (m->hold_count != 0) {
+		vm_page_lock_assert(m, MA_OWNED);
 		m->flags &= ~PG_ZERO;
 		vm_page_enqueue(PQ_HOLD, m);
 	} else {

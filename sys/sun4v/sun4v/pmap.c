@@ -1275,17 +1275,21 @@ pmap_extract_and_hold(pmap_t pmap, vm_offset_t va, vm_prot_t prot)
 {
 	tte_t tte_data;
 	vm_page_t m;
+	vm_paddr_t pa;
 
 	m = NULL;
-	vm_page_lock_queues();
+	pa = 0;
 	PMAP_LOCK(pmap);
+retry:	
 	tte_data = tte_hash_lookup(pmap->pm_hash, va);
 	if (tte_data != 0 && 
 	    ((tte_data & VTD_SW_W) || (prot & VM_PROT_WRITE) == 0)) {
+		if (vm_page_pa_tryrelock(pmap, TTE_GET_PA(tte_data), &pa))
+			goto retry;
 		m = PHYS_TO_VM_PAGE(TTE_GET_PA(tte_data));
 		vm_page_hold(m);
 	}
-	vm_page_unlock_queues();
+	PA_UNLOCK_COND(pa);
 	PMAP_UNLOCK(pmap);
 
 	return (m);
