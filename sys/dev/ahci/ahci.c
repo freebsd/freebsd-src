@@ -2083,6 +2083,7 @@ ahci_start(device_t dev, int fbs)
 	}
 	/* Start operations on this channel */
 	cmd = ATA_INL(ch->r_mem, AHCI_P_CMD);
+	cmd &= ~AHCI_P_CMD_PMA;
 	ATA_OUTL(ch->r_mem, AHCI_P_CMD, cmd | AHCI_P_CMD_ST |
 	    (ch->pm_present ? AHCI_P_CMD_PMA : 0));
 }
@@ -2381,6 +2382,24 @@ ahci_sata_phy_reset(device_t dev)
 	return (1);
 }
 
+static int
+ahci_check_ids(device_t dev, union ccb *ccb)
+{
+	struct ahci_channel *ch = device_get_softc(dev);
+
+	if (ccb->ccb_h.target_id > ((ch->caps & AHCI_CAP_SPM) ? 15 : 0)) {
+		ccb->ccb_h.status = CAM_TID_INVALID;
+		xpt_done(ccb);
+		return (-1);
+	}
+	if (ccb->ccb_h.target_lun != 0) {
+		ccb->ccb_h.status = CAM_LUN_INVALID;
+		xpt_done(ccb);
+		return (-1);
+	}
+	return (0);
+}
+
 static void
 ahciaction(struct cam_sim *sim, union ccb *ccb)
 {
@@ -2396,9 +2415,12 @@ ahciaction(struct cam_sim *sim, union ccb *ccb)
 	/* Common cases first */
 	case XPT_ATA_IO:	/* Execute the requested I/O operation */
 	case XPT_SCSI_IO:
-		if (ch->devices == 0) {
+		if (ahci_check_ids(dev, ccb))
+			return;
+		if (ch->devices == 0 ||
+		    (ch->pm_present == 0 &&
+		     ccb->ccb_h.target_id > 0 && ccb->ccb_h.target_id < 15)) {
 			ccb->ccb_h.status = CAM_SEL_TIMEOUT;
-			xpt_done(ccb);
 			break;
 		}
 		/* Check for command collision. */
@@ -2410,7 +2432,7 @@ ahciaction(struct cam_sim *sim, union ccb *ccb)
 			return;
 		}
 		ahci_begin_transaction(dev, ccb);
-		break;
+		return;
 	case XPT_EN_LUN:		/* Enable LUN as a target */
 	case XPT_TARGET_IO:		/* Execute target I/O request */
 	case XPT_ACCEPT_TARGET_IO:	/* Accept Host Target Mode CDB */
@@ -2418,13 +2440,14 @@ ahciaction(struct cam_sim *sim, union ccb *ccb)
 	case XPT_ABORT:			/* Abort the specified CCB */
 		/* XXX Implement */
 		ccb->ccb_h.status = CAM_REQ_INVALID;
-		xpt_done(ccb);
 		break;
 	case XPT_SET_TRAN_SETTINGS:
 	{
 		struct	ccb_trans_settings *cts = &ccb->cts;
 		struct	ahci_device *d; 
 
+		if (ahci_check_ids(dev, ccb))
+			return;
 		if (cts->type == CTS_TYPE_CURRENT_SETTINGS)
 			d = &ch->curr[ccb->ccb_h.target_id];
 		else
@@ -2442,7 +2465,6 @@ ahciaction(struct cam_sim *sim, union ccb *ccb)
 		if (cts->xport_specific.sata.valid & CTS_SATA_VALID_ATAPI)
 			d->atapi = cts->xport_specific.sata.atapi;
 		ccb->ccb_h.status = CAM_REQ_CMP;
-		xpt_done(ccb);
 		break;
 	}
 	case XPT_GET_TRAN_SETTINGS:
@@ -2452,6 +2474,8 @@ ahciaction(struct cam_sim *sim, union ccb *ccb)
 		struct  ahci_device *d;
 		uint32_t status;
 
+		if (ahci_check_ids(dev, ccb))
+			return;
 		if (cts->type == CTS_TYPE_CURRENT_SETTINGS)
 			d = &ch->curr[ccb->ccb_h.target_id];
 		else
@@ -2487,48 +2511,16 @@ ahciaction(struct cam_sim *sim, union ccb *ccb)
 		cts->xport_specific.sata.atapi = d->atapi;
 		cts->xport_specific.sata.valid |= CTS_SATA_VALID_ATAPI;
 		ccb->ccb_h.status = CAM_REQ_CMP;
-		xpt_done(ccb);
 		break;
 	}
-#if 0
-	case XPT_CALC_GEOMETRY:
-	{
-		struct	  ccb_calc_geometry *ccg;
-		uint32_t size_mb;
-		uint32_t secs_per_cylinder;
-
-		ccg = &ccb->ccg;
-		size_mb = ccg->volume_size
-			/ ((1024L * 1024L) / ccg->block_size);
-		if (size_mb >= 1024 && (aha->extended_trans != 0)) {
-			if (size_mb >= 2048) {
-				ccg->heads = 255;
-				ccg->secs_per_track = 63;
-			} else {
-				ccg->heads = 128;
-				ccg->secs_per_track = 32;
-			}
-		} else {
-			ccg->heads = 64;
-			ccg->secs_per_track = 32;
-		}
-		secs_per_cylinder = ccg->heads * ccg->secs_per_track;
-		ccg->cylinders = ccg->volume_size / secs_per_cylinder;
-		ccb->ccb_h.status = CAM_REQ_CMP;
-		xpt_done(ccb);
-		break;
-	}
-#endif
 	case XPT_RESET_BUS:		/* Reset the specified SCSI bus */
 	case XPT_RESET_DEV:	/* Bus Device Reset the specified SCSI device */
 		ahci_reset(dev);
 		ccb->ccb_h.status = CAM_REQ_CMP;
-		xpt_done(ccb);
 		break;
 	case XPT_TERM_IO:		/* Terminate the I/O process */
 		/* XXX Implement */
 		ccb->ccb_h.status = CAM_REQ_INVALID;
-		xpt_done(ccb);
 		break;
 	case XPT_PATH_INQ:		/* Path routing inquiry */
 	{
@@ -2564,14 +2556,13 @@ ahciaction(struct cam_sim *sim, union ccb *ccb)
 		if (pci_get_devid(device_get_parent(dev)) == 0x43801002)
 			cpi->maxio = min(cpi->maxio, 128 * 512);
 		cpi->ccb_h.status = CAM_REQ_CMP;
-		xpt_done(ccb);
 		break;
 	}
 	default:
 		ccb->ccb_h.status = CAM_REQ_INVALID;
-		xpt_done(ccb);
 		break;
 	}
+	xpt_done(ccb);
 }
 
 static void
