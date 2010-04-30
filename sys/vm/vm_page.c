@@ -563,8 +563,11 @@ vm_page_unhold(vm_page_t mem)
 	vm_page_lock_assert(mem, MA_OWNED);
 	--mem->hold_count;
 	KASSERT(mem->hold_count >= 0, ("vm_page_unhold: hold count < 0!!!"));
-	if (mem->hold_count == 0 && VM_PAGE_INQUEUE2(mem, PQ_HOLD))
+	if (mem->hold_count == 0 && VM_PAGE_INQUEUE2(mem, PQ_HOLD)) {
+		vm_page_lock_queues();
 		vm_page_free_toq(mem);
+		vm_page_unlock_queues();
+	}
 }
 
 /*
