@@ -1284,19 +1284,19 @@ vm_fault_copy_entry(vm_map_t dst_map, vm_map_t src_map,
 			vm_page_lock_queues();
 			vm_page_unwire(src_m, 0);
 			vm_page_unlock_queues();
-			vm_page_lock(src_m);
+			vm_page_unlock(src_m);
 
 			vm_page_lock(dst_m);
 			vm_page_lock_queues();
 			vm_page_wire(dst_m);
 			vm_page_unlock_queues();
-			vm_page_lock(dst_m);
+			vm_page_unlock(dst_m);
 		} else {
 			vm_page_lock(dst_m);
 			vm_page_lock_queues();
 			vm_page_activate(dst_m);
 			vm_page_unlock_queues();
-			vm_page_lock(dst_m);
+			vm_page_unlock(dst_m);
 		}
 		vm_page_wakeup(dst_m);
 	}
