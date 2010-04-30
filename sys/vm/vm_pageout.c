@@ -775,16 +775,17 @@ rescan0:
 		if (m->flags & PG_MARKER)
 			continue;
 
-		/*
-		 * A held page may be undergoing I/O, so skip it.
-		 */
-		if (m->hold_count) {
-			vm_page_requeue(m);
+		if (!vm_page_trylock(m)) {
 			addl_page_shortage++;
 			continue;
 		}
 
-		if (!vm_page_trylock(m) || (object = m->object) == NULL) {
+		/*
+		 * A held page may be undergoing I/O, so skip it.
+		 */
+		if (m->hold_count || (object = m->object) == NULL) {
+			vm_page_unlock(m);
+			vm_page_requeue(m);
 			addl_page_shortage++;
 			continue;
 		}
