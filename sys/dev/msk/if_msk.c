@@ -223,6 +223,8 @@ static struct msk_product {
 	    "Marvell Yukon 88E8072 Gigabit Ethernet" },
 	{ VENDORID_MARVELL, DEVICEID_MRVL_4380,
 	    "Marvell Yukon 88E8057 Gigabit Ethernet" },
+	{ VENDORID_MARVELL, DEVICEID_MRVL_4381,
+	    "Marvell Yukon 88E8059 Gigabit Ethernet" },
 	{ VENDORID_DLINK, DEVICEID_DLINK_DGE550SX,
 	    "D-Link 550SX Gigabit Ethernet" },
 	{ VENDORID_DLINK, DEVICEID_DLINK_DGE560SX,
@@ -239,7 +241,9 @@ static const char *model_name[] = {
         "Yukon FE",
         "Yukon FE+",
         "Yukon Supreme",
-        "Yukon Ultra 2"
+        "Yukon Ultra 2",
+        "Yukon Unknown",
+        "Yukon Optima",
 };
 
 static int mskc_probe(device_t);
@@ -1229,6 +1233,7 @@ msk_phy_power(struct msk_softc *sc, int mode)
 		case CHIP_ID_YUKON_EX:
 		case CHIP_ID_YUKON_FE_P:
 		case CHIP_ID_YUKON_UL_2:
+		case CHIP_ID_YUKON_OPT:
 			CSR_WRITE_2(sc, B0_CTST, Y2_HW_WOL_OFF);
 
 			/* Enable all clocks. */
@@ -1371,6 +1376,10 @@ mskc_reset(struct msk_softc *sc)
 			CSR_WRITE_4(sc, MR_ADDR(i, GMAC_CTRL),
 			    GMC_BYP_MACSECRX_ON | GMC_BYP_MACSECTX_ON |
 			    GMC_BYP_RETR_ON);
+	}
+	if (sc->msk_hw_id == CHIP_ID_YUKON_OPT && sc->msk_hw_rev == 0) {
+		/* Disable PCIe PHY powerdown(reg 0x80, bit7). */
+		CSR_WRITE_4(sc, Y2_PEX_PHY_DATA, (0x0080 << 16) | 0x0080);
 	}
 	CSR_WRITE_1(sc, B2_TST_CTRL1, TST_CFG_WRITE_OFF);
 
@@ -1705,8 +1714,9 @@ mskc_attach(device_t dev)
 	sc->msk_hw_rev = (CSR_READ_1(sc, B2_MAC_CFG) >> 4) & 0x0f;
 	/* Bail out if chip is not recognized. */
 	if (sc->msk_hw_id < CHIP_ID_YUKON_XL ||
-	    sc->msk_hw_id > CHIP_ID_YUKON_UL_2 ||
-	    sc->msk_hw_id == CHIP_ID_YUKON_SUPR) {
+	    sc->msk_hw_id > CHIP_ID_YUKON_OPT ||
+	    sc->msk_hw_id == CHIP_ID_YUKON_SUPR ||
+	    sc->msk_hw_id == CHIP_ID_YUKON_UNKNOWN) {
 		device_printf(dev, "unknown device: id=0x%02x, rev=0x%02x\n",
 		    sc->msk_hw_id, sc->msk_hw_rev);
 		mtx_destroy(&sc->msk_mtx);
@@ -1818,6 +1828,10 @@ mskc_attach(device_t dev)
 	case CHIP_ID_YUKON_UL_2:
 		sc->msk_clock = 125;	/* 125 MHz */
 		sc->msk_pflags |= MSK_FLAG_JUMBO;
+		break;
+	case CHIP_ID_YUKON_OPT:
+		sc->msk_clock = 125;	/* 125 MHz */
+		sc->msk_pflags |= MSK_FLAG_JUMBO | MSK_FLAG_DESCV2;
 		break;
 	default:
 		sc->msk_clock = 156;	/* 156 MHz */
