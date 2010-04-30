@@ -1915,16 +1915,11 @@ mmu_booke_protect(mmu_t mmu, pmap_t pmap, vm_offset_t sva, vm_offset_t eva,
 				tlb_miss_lock();
 
 				/* Handle modified pages. */
-				if (PTE_ISMODIFIED(pte))
+				if (PTE_ISMODIFIED(pte) && PTE_ISMANAGED(pte))
 					vm_page_dirty(m);
 
-				/* Referenced pages. */
-				if (PTE_ISREFERENCED(pte))
-					vm_page_flag_set(m, PG_REFERENCED);
-
 				tlb0_flush_entry(va);
-				pte->flags &= ~(PTE_UW | PTE_SW | PTE_MODIFIED |
-				    PTE_REFERENCED);
+				pte->flags &= ~(PTE_UW | PTE_SW | PTE_MODIFIED);
 
 				tlb_miss_unlock();
 				mtx_unlock_spin(&tlbivax_mutex);
@@ -1962,13 +1957,8 @@ mmu_booke_remove_write(mmu_t mmu, vm_page_t m)
 				if (PTE_ISMODIFIED(pte))
 					vm_page_dirty(m);
 
-				/* Referenced pages. */
-				if (PTE_ISREFERENCED(pte))
-					vm_page_flag_set(m, PG_REFERENCED);
-
 				/* Flush mapping from TLB0. */
-				pte->flags &= ~(PTE_UW | PTE_SW | PTE_MODIFIED |
-				    PTE_REFERENCED);
+				pte->flags &= ~(PTE_UW | PTE_SW | PTE_MODIFIED);
 
 				tlb_miss_unlock();
 				mtx_unlock_spin(&tlbivax_mutex);
