@@ -774,6 +774,7 @@ vm_object_page_clean(vm_object_t object, vm_pindex_t start, vm_pindex_t end, int
 	int pagerflags;
 	int curgeneration;
 
+	mtx_assert(&vm_page_queue_mtx, MA_NOTOWNED);
 	VM_OBJECT_LOCK_ASSERT(object, MA_OWNED);
 	if ((object->flags & OBJ_MIGHTBEDIRTY) == 0)
 		return;
@@ -830,13 +831,13 @@ vm_object_page_clean(vm_object_t object, vm_pindex_t start, vm_pindex_t end, int
 				++tscan;
 				continue;
 			}
+			vm_page_unlock_queues();
+			vm_page_unlock(p);
 			/*
 			 * If we have been asked to skip nosync pages and 
 			 * this is a nosync page, we can't continue.
 			 */
 			if ((flags & OBJPC_NOSYNC) && (p->oflags & VPO_NOSYNC)) {
-				vm_page_unlock_queues();
-				vm_page_unlock(p);
 				if (--scanlimit == 0)
 					break;
 				++tscan;
@@ -849,8 +850,7 @@ vm_object_page_clean(vm_object_t object, vm_pindex_t start, vm_pindex_t end, int
 			 * page (i.e. had to sleep).
 			 */
 			tscan += vm_object_page_collect_flush(object, p, curgeneration, pagerflags);
-			vm_page_unlock_queues();
-			vm_page_unlock(p);
+
 		}
 
 		/*
@@ -860,7 +860,6 @@ vm_object_page_clean(vm_object_t object, vm_pindex_t start, vm_pindex_t end, int
 		 * return immediately.
 		 */
 		if (tscan >= tend && (tstart || tend < object->size)) {
-			vm_page_unlock_queues();
 			vm_object_clear_flag(object, OBJ_CLEANING);
 			return;
 		}
@@ -918,43 +917,33 @@ again:
 			p->oflags &= ~VPO_CLEANCHK;
 			continue;
 		}
-
+		vm_page_unlock_queues();
+		vm_page_unlock(p);
 		/*
 		 * If we have been asked to skip nosync pages and this is a
 		 * nosync page, skip it.  Note that the object flags were
 		 * not cleared in this case so we do not have to set them.
 		 */
 		if ((flags & OBJPC_NOSYNC) && (p->oflags & VPO_NOSYNC)) {
-			vm_page_unlock_queues();
-			vm_page_unlock(p);
 			p->oflags &= ~VPO_CLEANCHK;
 			continue;
 		}
 
 		n = vm_object_page_collect_flush(object, p,
 			curgeneration, pagerflags);
-		if (n == 0) {
-			vm_page_unlock_queues();
-			vm_page_unlock(p);
+		if (n == 0)
 			goto rescan;
-		}
 
-		if (object->generation != curgeneration) {
-			vm_page_unlock_queues();
-			vm_page_unlock(p);
+		if (object->generation != curgeneration)
 			goto rescan;
-		}
 
 		/*
 		 * Try to optimize the next page.  If we can't we pick up
 		 * our (random) scan where we left off.
 		 */
-		if (msync_flush_flags & MSYNC_FLUSH_SOFTSEQ) {
-			vm_page_unlock_queues();
-			vm_page_unlock(p);
+		if (msync_flush_flags & MSYNC_FLUSH_SOFTSEQ)
 			if ((p = vm_page_lookup(object, pi + n)) != NULL)
 				goto again;
-		}
 	}
 #if 0
 	VOP_FSYNC(vp, (pagerflags & VM_PAGER_PUT_SYNC)?MNT_WAIT:0, curproc);
@@ -977,12 +966,11 @@ vm_object_page_collect_flush(vm_object_t object, vm_page_t p, int curgeneration,
 	vm_page_t mab[vm_pageout_page_count];
 	vm_page_t ma[vm_pageout_page_count];
 
-	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
-	vm_page_lock_assert(p, MA_OWNED);
+	mtx_assert(&vm_page_queue_mtx, MA_NOTOWNED);
+	vm_page_lock_assert(p, MA_NOTOWNED);
+	VM_OBJECT_LOCK_ASSERT(object, MA_OWNED);
 	pi = p->pindex;
 	while (vm_page_sleep_if_busy(p, TRUE, "vpcwai")) {
-		vm_page_lock(p);
-		vm_page_lock_queues();
 		if (object->generation != curgeneration) {
 			return(0);
 		}
@@ -997,16 +985,17 @@ vm_object_page_collect_flush(vm_object_t object, vm_page_t p, int curgeneration,
 				 (tp->oflags & VPO_CLEANCHK) == 0) ||
 				(tp->busy != 0))
 				break;
-			vm_page_unlock_queues();
 			vm_page_lock(tp);
 			vm_page_lock_queues();
 			vm_page_test_dirty(tp);
 			if (tp->dirty == 0) {
 				vm_page_unlock(tp);
+				vm_page_unlock_queues();
 				tp->oflags &= ~VPO_CLEANCHK;
 				break;
 			}
 			vm_page_unlock(tp);
+			vm_page_unlock_queues();
 			maf[ i - 1 ] = tp;
 			maxf++;
 			continue;
@@ -1026,15 +1015,16 @@ vm_object_page_collect_flush(vm_object_t object, vm_page_t p, int curgeneration,
 					 (tp->oflags & VPO_CLEANCHK) == 0) ||
 					(tp->busy != 0))
 					break;
-				vm_page_unlock_queues();
 				vm_page_lock(tp);
 				vm_page_lock_queues();
 				vm_page_test_dirty(tp);
 				if (tp->dirty == 0) {
+					vm_page_unlock_queues();
 					vm_page_unlock(tp);
 					tp->oflags &= ~VPO_CLEANCHK;
 					break;
 				}
+				vm_page_unlock_queues();
 				vm_page_unlock(tp);
 				mab[ i - 1 ] = tp;
 				maxb++;
@@ -1058,15 +1048,13 @@ vm_object_page_collect_flush(vm_object_t object, vm_page_t p, int curgeneration,
 	}
 	runlen = maxb + maxf + 1;
 
-	vm_page_unlock_queues();
 	vm_pageout_flush(ma, runlen, pagerflags);
-	vm_page_lock_queues();
 	for (i = 0; i < runlen; i++) {
 		if (ma[i]->dirty) {
-			vm_page_unlock_queues();
 			vm_page_lock(ma[i]);
 			vm_page_lock_queues();
 			pmap_remove_write(ma[i]);
+			vm_page_unlock_queues();
 			vm_page_unlock(ma[i]);
 			ma[i]->oflags |= VPO_CLEANCHK;
 

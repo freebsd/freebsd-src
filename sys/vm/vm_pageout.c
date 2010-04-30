@@ -433,6 +433,8 @@ vm_pageout_flush(vm_page_t *mc, int count, int flags)
 	int i;
 
 	VM_OBJECT_LOCK_ASSERT(object, MA_OWNED);
+	mtx_assert(&vm_page_queue_mtx, MA_NOTOWNED);
+
 	/*
 	 * Initiate I/O.  Bump the vm_page_t->busy counter and
 	 * mark the pages read-only.
