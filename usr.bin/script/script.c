@@ -219,23 +219,17 @@ usage(void)
 void
 finish(void)
 {
-	pid_t pid;
-	int die, e, status;
+	int e, status;
 
-	die = e = 0;
-	while ((pid = wait3(&status, WNOHANG, 0)) > 0)
-	        if (pid == child) {
-			die = 1;
-			if (WIFEXITED(status))
-				e = WEXITSTATUS(status);
-			else if (WIFSIGNALED(status))
-				e = WTERMSIG(status);
-			else /* can't happen */
-				e = 1;
-		}
-
-	if (die)
+	if (waitpid(child, &status, 0) == child) {
+		if (WIFEXITED(status))
+			e = WEXITSTATUS(status);
+		else if (WIFSIGNALED(status))
+			e = WTERMSIG(status);
+		else /* can't happen */
+			e = 1;
 		done(e);
+	}
 }
 
 void
