@@ -957,9 +957,9 @@ exec_map_first_page(imgp)
 			return (EIO);
 		}
 	}
-	vm_page_lock_queues();
+	vm_page_lock(ma[0]);
 	vm_page_hold(ma[0]);
-	vm_page_unlock_queues();
+	vm_page_unlock(ma[0]);
 	vm_page_wakeup(ma[0]);
 	VM_OBJECT_UNLOCK(object);
 
@@ -979,9 +979,9 @@ exec_unmap_first_page(imgp)
 		m = sf_buf_page(imgp->firstpage);
 		sf_buf_free(imgp->firstpage);
 		imgp->firstpage = NULL;
-		vm_page_lock_queues();
+		vm_page_lock(m);
 		vm_page_unhold(m);
-		vm_page_unlock_queues();
+		vm_page_unlock(m);
 	}
 }
 

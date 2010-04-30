@@ -3860,12 +3860,12 @@ vmapbuf(struct buf *bp)
 retry:
 		if (vm_fault_quick(addr >= bp->b_data ? addr : bp->b_data,
 		    prot) < 0) {
-			vm_page_lock_queues();
 			for (i = 0; i < pidx; ++i) {
+				vm_page_lock(bp->b_pages[i]);
 				vm_page_unhold(bp->b_pages[i]);
+				vm_page_unlock(bp->b_pages[i]);
 				bp->b_pages[i] = NULL;
 			}
-			vm_page_unlock_queues();
 			return(-1);
 		}
 		m = pmap_extract_and_hold(pmap, (vm_offset_t)addr, prot);
@@ -3896,11 +3896,12 @@ vunmapbuf(struct buf *bp)
 
 	npages = bp->b_npages;
 	pmap_qremove(trunc_page((vm_offset_t)bp->b_data), npages);
-	vm_page_lock_queues();
-	for (pidx = 0; pidx < npages; pidx++)
+	for (pidx = 0; pidx < npages; pidx++) {
+		vm_page_lock(bp->b_pages[pidx]);
 		vm_page_unhold(bp->b_pages[pidx]);
-	vm_page_unlock_queues();
-
+		vm_page_unlock(bp->b_pages[pidx]);
+	}
+	
 	bp->b_data = bp->b_saveaddr;
 }
 
