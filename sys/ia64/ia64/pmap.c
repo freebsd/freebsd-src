@@ -1028,18 +1028,22 @@ pmap_extract_and_hold(pmap_t pmap, vm_offset_t va, vm_prot_t prot)
 	struct ia64_lpte *pte;
 	pmap_t oldpmap;
 	vm_page_t m;
+	vm_paddr_t pa;
 
+	pa = 0;
 	m = NULL;
-	vm_page_lock_queues();
 	PMAP_LOCK(pmap);
 	oldpmap = pmap_switch(pmap);
+retry:
 	pte = pmap_find_vhpt(va);
 	if (pte != NULL && pmap_present(pte) &&
 	    (pmap_prot(pte) & prot) == prot) {
 		m = PHYS_TO_VM_PAGE(pmap_ppn(pte));
+		if (vm_page_pa_tryrelock(pmap, pmap_ppn(pte), &pa))
+			goto retry;
 		vm_page_hold(m);
 	}
-	vm_page_unlock_queues();
+	PA_UNLOCK_COND(pa);
 	pmap_switch(oldpmap);
 	PMAP_UNLOCK(pmap);
 	return (m);

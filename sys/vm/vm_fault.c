@@ -137,9 +137,11 @@ release_page(struct faultstate *fs)
 {
 
 	vm_page_wakeup(fs->m);
+	vm_page_lock(fs->m);
 	vm_page_lock_queues();
 	vm_page_deactivate(fs->m);
 	vm_page_unlock_queues();
+	vm_page_unlock(fs->m);
 	fs->m = NULL;
 }
 
@@ -161,9 +163,11 @@ unlock_and_deallocate(struct faultstate *fs)
 	VM_OBJECT_UNLOCK(fs->object);
 	if (fs->object != fs->first_object) {
 		VM_OBJECT_LOCK(fs->first_object);
+		vm_page_lock(fs->first_m);
 		vm_page_lock_queues();
 		vm_page_free(fs->first_m);
 		vm_page_unlock_queues();
+		vm_page_unlock(fs->first_m);
 		vm_object_pip_wakeup(fs->first_object);
 		VM_OBJECT_UNLOCK(fs->first_object);
 		fs->first_m = NULL;
@@ -305,12 +309,14 @@ RetryFault:;
 			 * removes the page from the backing object, 
 			 * which is not what we want.
 			 */
+			vm_page_lock(fs.m);
 			vm_page_lock_queues();
 			if ((fs.m->cow) && 
 			    (fault_type & VM_PROT_WRITE) &&
 			    (fs.object == fs.first_object)) {
 				vm_page_cowfault(fs.m);
 				vm_page_unlock_queues();
+				vm_page_unlock(fs.m);
 				unlock_and_deallocate(&fs);
 				goto RetryFault;
 			}
@@ -333,12 +339,15 @@ RetryFault:;
 			 */
 			if ((fs.m->oflags & VPO_BUSY) || fs.m->busy) {
 				vm_page_unlock_queues();
+				vm_page_unlock(fs.m);
 				VM_OBJECT_UNLOCK(fs.object);
 				if (fs.object != fs.first_object) {
 					VM_OBJECT_LOCK(fs.first_object);
+					vm_page_lock(fs.first_m);
 					vm_page_lock_queues();
 					vm_page_free(fs.first_m);
 					vm_page_unlock_queues();
+					vm_page_unlock(fs.first_m);
 					vm_object_pip_wakeup(fs.first_object);
 					VM_OBJECT_UNLOCK(fs.first_object);
 					fs.first_m = NULL;
@@ -358,6 +367,7 @@ RetryFault:;
 			}
 			vm_pageq_remove(fs.m);
 			vm_page_unlock_queues();
+			vm_page_unlock(fs.m);
 
 			/*
 			 * Mark page busy for other processes, and the 
@@ -481,17 +491,25 @@ readrest:
 						continue;
 					if (!are_queues_locked) {
 						are_queues_locked = TRUE;
+						vm_page_lock(mt);
+						vm_page_lock_queues();
+					} else {
+						vm_page_unlock_queues();
+						vm_page_lock(mt);
 						vm_page_lock_queues();
 					}
 					if (mt->hold_count ||
-						mt->wire_count) 
+					    mt->wire_count) {
+						vm_page_unlock(mt);
 						continue;
+					}
 					pmap_remove_all(mt);
 					if (mt->dirty) {
 						vm_page_deactivate(mt);
 					} else {
 						vm_page_cache(mt);
 					}
+					vm_page_unlock(mt);
 				}
 				if (are_queues_locked)
 					vm_page_unlock_queues();
@@ -623,17 +641,21 @@ vnode_locked:
 			 */
 			if (((fs.map != kernel_map) && (rv == VM_PAGER_ERROR)) ||
 				(rv == VM_PAGER_BAD)) {
+				vm_page_lock(fs.m);
 				vm_page_lock_queues();
 				vm_page_free(fs.m);
 				vm_page_unlock_queues();
+				vm_page_unlock(fs.m);
 				fs.m = NULL;
 				unlock_and_deallocate(&fs);
 				return ((rv == VM_PAGER_ERROR) ? KERN_FAILURE : KERN_PROTECTION_FAILURE);
 			}
 			if (fs.object != fs.first_object) {
+				vm_page_lock(fs.m);
 				vm_page_lock_queues();
 				vm_page_free(fs.m);
 				vm_page_unlock_queues();
+				vm_page_unlock(fs.m);
 				fs.m = NULL;
 				/*
 				 * XXX - we cannot just fall out at this
@@ -746,18 +768,24 @@ vnode_locked:
 				 * We don't chase down the shadow chain
 				 */
 			    fs.object == fs.first_object->backing_object) {
+				vm_page_lock(fs.first_m);
 				vm_page_lock_queues();
 				/*
 				 * get rid of the unnecessary page
 				 */
 				vm_page_free(fs.first_m);
+				vm_page_unlock_queues();
+				vm_page_unlock(fs.first_m);
 				/*
 				 * grab the page and put it into the 
 				 * process'es object.  The page is 
 				 * automatically made dirty.
 				 */
+				vm_page_lock(fs.m);
+				vm_page_lock_queues();
 				vm_page_rename(fs.m, fs.first_object, fs.first_pindex);
 				vm_page_unlock_queues();
+				vm_page_unlock(fs.m);
 				vm_page_busy(fs.m);
 				fs.first_m = fs.m;
 				fs.m = NULL;
@@ -770,10 +798,17 @@ vnode_locked:
 				fs.first_m->valid = VM_PAGE_BITS_ALL;
 				if (wired && (fault_flags &
 				    VM_FAULT_CHANGE_WIRING) == 0) {
+					vm_page_lock(fs.first_m);
 					vm_page_lock_queues();
 					vm_page_wire(fs.first_m);
+					vm_page_unlock_queues();
+					vm_page_unlock(fs.first_m);
+					
+					vm_page_lock(fs.m);
+					vm_page_lock_queues();
 					vm_page_unwire(fs.m, FALSE);
 					vm_page_unlock_queues();
+					vm_page_unlock(fs.m);
 				}
 				/*
 				 * We no longer need the old page or object.
@@ -923,6 +958,7 @@ vnode_locked:
 	if ((fault_flags & VM_FAULT_CHANGE_WIRING) == 0 && wired == 0)
 		vm_fault_prefault(fs.map->pmap, vaddr, fs.entry);
 	VM_OBJECT_LOCK(fs.object);
+	vm_page_lock(fs.m);
 	vm_page_lock_queues();
 
 	/*
@@ -938,6 +974,7 @@ vnode_locked:
 		vm_page_activate(fs.m);
 	}
 	vm_page_unlock_queues();
+	vm_page_unlock(fs.m);
 	vm_page_wakeup(fs.m);
 
 	/*
@@ -1014,9 +1051,11 @@ vm_fault_prefault(pmap_t pmap, vm_offset_t addra, vm_map_entry_t entry)
 		}
 		if (m->valid == VM_PAGE_BITS_ALL &&
 		    (m->flags & PG_FICTITIOUS) == 0) {
+			vm_page_lock(m);
 			vm_page_lock_queues();
 			pmap_enter_quick(pmap, addr, m, entry->protection);
 			vm_page_unlock_queues();
+			vm_page_unlock(m);
 		}
 		VM_OBJECT_UNLOCK(lobject);
 	}
@@ -1092,9 +1131,11 @@ vm_fault_unwire(vm_map_t map, vm_offset_t start, vm_offset_t end,
 		if (pa != 0) {
 			pmap_change_wiring(pmap, va, FALSE);
 			if (!fictitious) {
+				vm_page_lock(PHYS_TO_VM_PAGE(pa));
 				vm_page_lock_queues();
 				vm_page_unwire(PHYS_TO_VM_PAGE(pa), 1);
 				vm_page_unlock_queues();
+				vm_page_unlock(PHYS_TO_VM_PAGE(pa));
 			}
 		}
 	}
@@ -1237,13 +1278,26 @@ vm_fault_copy_entry(vm_map_t dst_map, vm_map_t src_map,
 		 * Mark it no longer busy, and put it on the active list.
 		 */
 		VM_OBJECT_LOCK(dst_object);
-		vm_page_lock_queues();
+		
 		if (upgrade) {
+			vm_page_lock(src_m);
+			vm_page_lock_queues();
 			vm_page_unwire(src_m, 0);
+			vm_page_unlock_queues();
+			vm_page_lock(src_m);
+
+			vm_page_lock(dst_m);
+			vm_page_lock_queues();
 			vm_page_wire(dst_m);
-		} else
+			vm_page_unlock_queues();
+			vm_page_lock(dst_m);
+		} else {
+			vm_page_lock(dst_m);
+			vm_page_lock_queues();
 			vm_page_activate(dst_m);
-		vm_page_unlock_queues();
+			vm_page_unlock_queues();
+			vm_page_lock(dst_m);
+		}
 		vm_page_wakeup(dst_m);
 	}
 	VM_OBJECT_UNLOCK(dst_object);

@@ -128,10 +128,12 @@ socow_setup(struct mbuf *m0, struct uio *uio)
 	/* 
 	 * set up COW
 	 */
+	vm_page_lock(pp);
 	vm_page_lock_queues();
 	if (vm_page_cowsetup(pp) != 0) {
 		vm_page_unhold(pp);
 		vm_page_unlock_queues();
+		vm_page_unlock(pp);
 		return (0);
 	}
 
@@ -141,7 +143,7 @@ socow_setup(struct mbuf *m0, struct uio *uio)
 	vm_page_wire(pp);
 	vm_page_unhold(pp);
 	vm_page_unlock_queues();
-
+	vm_page_unlock(pp);
 	/*
 	 * Allocate an sf buf
 	 */
