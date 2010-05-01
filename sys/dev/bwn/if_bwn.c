@@ -9413,6 +9413,8 @@ bwn_rxeof(struct bwn_mac *mac, struct mbuf *m, const void *_rxhdr)
 	rssi = rxhdr->phy.abg.rssi;	/* XXX incorrect RSSI calculation? */
 	noise = mac->mac_stats.link_noise;
 
+	ifp->if_ipackets++;
+
 	BWN_UNLOCK(sc);
 
 	ni = ieee80211_find_rxnode(ic, wh);
