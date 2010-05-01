@@ -62,6 +62,7 @@ device		ath             # Atheros pci/cardbus NIC's
 options 	ATH_DEBUG
 device		ath_hal
 option		AH_SUPPORT_AR5416
+option		AH_RXCFG_SDMAMW_4BYTES	# See NOTES for details of this WAR
 device		ath_rate_sample
 
 device		mii
