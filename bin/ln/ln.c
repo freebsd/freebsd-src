@@ -47,6 +47,7 @@ __FBSDID("$FreeBSD$");
 #include <err.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <libgen.h>
 #include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -226,6 +227,7 @@ linkit(const char *source, const char *target, int isdir)
 	int ch, exists, first;
 	char path[PATH_MAX];
 	char wbuf[PATH_MAX];
+	char bbuf[PATH_MAX];
 
 	if (!sflag) {
 		/* If source doesn't exist, quit now. */
@@ -248,11 +250,9 @@ linkit(const char *source, const char *target, int isdir)
 	if (isdir ||
 	    (lstat(target, &sb) == 0 && S_ISDIR(sb.st_mode)) ||
 	    (!hflag && stat(target, &sb) == 0 && S_ISDIR(sb.st_mode))) {
-		if ((p = strrchr(source, '/')) == NULL)
-			p = source;
-		else
-			++p;
-		if (snprintf(path, sizeof(path), "%s/%s", target, p) >=
+		if (strlcpy(bbuf, source, sizeof(bbuf)) >= sizeof(bbuf) ||
+		    (p = basename(bbuf)) == NULL ||
+		    snprintf(path, sizeof(path), "%s/%s", target, p) >=
 		    (ssize_t)sizeof(path)) {
 			errno = ENAMETOOLONG;
 			warn("%s", source);
@@ -276,15 +276,14 @@ linkit(const char *source, const char *target, int isdir)
 			 * absolute path of the source, by appending `source'
 			 * to the parent directory of the target.
 			 */
-			p = strrchr(target, '/');
-			if (p != NULL)
-				p++;
-			else
-				p = target;
-			(void)snprintf(wbuf, sizeof(wbuf), "%.*s%s",
-			    (int)(p - target), target, source);
-			if (stat(wbuf, &sb) != 0)
-				warn("warning: %s", source);
+			strlcpy(bbuf, target, sizeof(bbuf));
+			p = dirname(bbuf);
+			if (p != NULL) {
+				(void)snprintf(wbuf, sizeof(wbuf), "%s/%s",
+						p, source);
+				if (stat(wbuf, &sb) != 0)
+					warn("warning: %s", source);
+			}
 		}
 	}
 
