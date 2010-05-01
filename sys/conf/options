@@ -771,6 +771,7 @@ AH_PRIVATE_DIAG		opt_ah.h
 AH_NEED_DESC_SWAP	opt_ah.h
 AH_USE_INIPDGAIN	opt_ah.h
 AH_MAXCHAN		opt_ah.h
+AH_RXCFG_SDMAMW_4BYTES	opt_ah.h
 
 # options for the Broadcom BCM43xx driver (bwi)
 BWI_DEBUG		opt_bwi.h
