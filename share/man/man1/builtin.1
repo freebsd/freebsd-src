@@ -26,7 +26,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 14, 2006
+.Dd April 25, 2010
 .Dt BUILTIN 1
 .Os
 .Sh NAME
@@ -36,6 +36,7 @@
 .Nm \&. ,
 .Nm \&: ,
 .Nm @ ,
+.Nm \&[ ,
 .Nm { ,
 .Nm } ,
 .Nm alias ,
@@ -200,6 +201,7 @@ but are implemented as scripts using a builtin command of the same name.
 .It Ic . Ta \&No Ta \&No Ta Yes
 .It Ic : Ta \&No Ta Yes Ta Yes
 .It Ic @ Ta \&No Ta Yes Ta Yes
+.It Ic \&[ Ta Yes Ta \&No Ta Yes
 .It Ic { Ta \&No Ta \&No Ta Yes
 .It Ic } Ta \&No Ta \&No Ta Yes
 .It Ic alias Ta No** Ta Yes Ta Yes
