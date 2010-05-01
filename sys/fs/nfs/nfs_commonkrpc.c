@@ -650,7 +650,7 @@ tryagain:
 					trylater_delay = NFS_TRYLATERDEL;
 				waituntil = NFSD_MONOSEC + trylater_delay;
 				while (NFSD_MONOSEC < waituntil)
-					(void) nfs_catnap(PZERO, "nfstry");
+					(void) nfs_catnap(PZERO, 0, "nfstry");
 				trylater_delay *= 2;
 				goto tryagain;
 			}
