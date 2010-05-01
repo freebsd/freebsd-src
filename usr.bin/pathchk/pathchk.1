@@ -114,7 +114,7 @@ other
 .Tn POSIX
 systems:
 .Pp
-.Dl "find . -print | xargs pathchk -p"
+.Dl "find . -exec pathchk -p -- {} +"
 .Sh SEE ALSO
 .Xr getconf 1 ,
 .Xr pathconf 2 ,
