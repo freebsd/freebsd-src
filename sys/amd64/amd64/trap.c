@@ -172,52 +172,6 @@ SYSCTL_INT(_machdep, OID_AUTO, prot_fault_translation, CTLFLAG_RW,
 
 extern char *syscallnames[];
 
-/* #define DEBUG 1 */
-#ifdef DEBUG
-static void
-report_seg_fault(const char *segn, struct trapframe *frame)
-{
-	struct proc_ldt *pldt;
-	struct trapframe *pf;
-
-	pldt = curproc->p_md.md_ldt;
-	printf("%d: %s load fault %lx %p %d\n",
-	    curproc->p_pid, segn, frame->tf_err,
-	    pldt != NULL ? pldt->ldt_base : NULL,
-	    pldt != NULL ? pldt->ldt_refcnt : 0);
-	kdb_backtrace();
-	pf = (struct trapframe *)frame->tf_rsp;
-	printf("rdi %lx\n", pf->tf_rdi);
-	printf("rsi %lx\n", pf->tf_rsi);
-	printf("rdx %lx\n", pf->tf_rdx);
-	printf("rcx %lx\n", pf->tf_rcx);
-	printf("r8  %lx\n", pf->tf_r8);
-	printf("r9  %lx\n", pf->tf_r9);
-	printf("rax %lx\n", pf->tf_rax);
-	printf("rbx %lx\n", pf->tf_rbx);
-	printf("rbp %lx\n", pf->tf_rbp);
-	printf("r10 %lx\n", pf->tf_r10);
-	printf("r11 %lx\n", pf->tf_r11);
-	printf("r12 %lx\n", pf->tf_r12);
-	printf("r13 %lx\n", pf->tf_r13);
-	printf("r14 %lx\n", pf->tf_r14);
-	printf("r15 %lx\n", pf->tf_r15);
-	printf("fs  %x\n", pf->tf_fs);
-	printf("gs  %x\n", pf->tf_gs);
-	printf("es  %x\n", pf->tf_es);
-	printf("ds  %x\n", pf->tf_ds);
-	printf("tno %x\n", pf->tf_trapno);
-	printf("adr %lx\n", pf->tf_addr);
-	printf("flg %x\n", pf->tf_flags);
-	printf("err %lx\n", pf->tf_err);
-	printf("rip %lx\n", pf->tf_rip);
-	printf("cs  %lx\n", pf->tf_cs);
-	printf("rfl %lx\n", pf->tf_rflags);
-	printf("rsp %lx\n", pf->tf_rsp);
-	printf("ss  %lx\n", pf->tf_ss);
-}
-#endif
-
 /*
  * Exception, fault, and trap interface to the FreeBSD kernel.
  * This common code is called from assembly language IDT gate entry
@@ -314,9 +268,7 @@ trap(struct trapframe *frame)
 			 */
 			printf("kernel trap %d with interrupts disabled\n",
 			    type);
-#ifdef DEBUG
-			report_seg_fault("hlt", frame);
-#endif
+
 			/*
 			 * We shouldn't enable interrupts while holding a
 			 * spin lock or servicing an NMI.
@@ -535,33 +487,21 @@ trap(struct trapframe *frame)
 				goto out;
 			}
 			if (frame->tf_rip == (long)ld_ds) {
-#ifdef DEBUG
-				report_seg_fault("ds", frame);
-#endif
 				frame->tf_rip = (long)ds_load_fault;
 				frame->tf_ds = _udatasel;
 				goto out;
 			}
 			if (frame->tf_rip == (long)ld_es) {
-#ifdef DEBUG
-				report_seg_fault("es", frame);
-#endif
 				frame->tf_rip = (long)es_load_fault;
 				frame->tf_es = _udatasel;
 				goto out;
 			}
 			if (frame->tf_rip == (long)ld_fs) {
-#ifdef DEBUG
-				report_seg_fault("fs", frame);
-#endif
 				frame->tf_rip = (long)fs_load_fault;
 				frame->tf_fs = _ufssel;
 				goto out;
 			}
 			if (frame->tf_rip == (long)ld_gs) {
-#ifdef DEBUG
-				report_seg_fault("gs", frame);
-#endif
 				frame->tf_rip = (long)gs_load_fault;
 				frame->tf_gs = _ugssel;
 				goto out;
@@ -666,30 +606,6 @@ trap(struct trapframe *frame)
 	ksi.ksi_trapno = type;
 	ksi.ksi_addr = (void *)addr;
 	trapsignal(td, &ksi);
-
-#ifdef DEBUG
-{
-	register_t rg,rgk, rf;
-
-	if (type <= MAX_TRAP_MSG) {
-		uprintf("fatal process exception: %s",
-			trap_msg[type]);
-		if ((type == T_PAGEFLT) || (type == T_PROTFLT))
-			uprintf(", fault VA = 0x%lx", frame->tf_addr);
-		uprintf("\n");
-	}
-	rf = rdmsr(0xc0000100);
-	rg = rdmsr(0xc0000101);
-	rgk = rdmsr(0xc0000102);
-	uprintf("pid %d TRAP %d rip %lx err %lx addr %lx cs %lx ss %lx ds %x "
-		"es %x fs %x fsbase %lx %lx gs %x gsbase %lx %lx %lx\n",
-		curproc->p_pid, type, frame->tf_rip, frame->tf_err,
-		frame->tf_addr,
-		frame->tf_cs, frame->tf_ss, frame->tf_ds, frame->tf_es,
-		frame->tf_fs, td->td_pcb->pcb_fsbase, rf,
-		frame->tf_gs, td->td_pcb->pcb_gsbase, rg, rgk);
-}
-#endif
 
 user:
 	userret(td, frame);
