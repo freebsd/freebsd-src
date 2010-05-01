@@ -76,6 +76,7 @@ static void	calcru1(struct proc *p, struct rusage_ext *ruxp,
 		    struct timeval *up, struct timeval *sp);
 static int	donice(struct thread *td, struct proc *chgp, int n);
 static struct uidinfo *uilookup(uid_t uid);
+static void	ruxagg_tlock(struct proc *p, struct thread *td);
 
 /*
  * Resource controls and accounting.
@@ -629,9 +630,7 @@ lim_cb(void *arg)
 		return;
 	PROC_SLOCK(p);
 	FOREACH_THREAD_IN_PROC(p, td) {
-		thread_lock(td);
-		ruxagg(&p->p_rux, td);
-		thread_unlock(td);
+		ruxagg_tlock(p, td);
 	}
 	PROC_SUNLOCK(p);
 	if (p->p_rux.rux_runtime > p->p_cpulimit * cpu_tickrate()) {
@@ -842,9 +841,7 @@ calcru(struct proc *p, struct timeval *up, struct timeval *sp)
 	FOREACH_THREAD_IN_PROC(p, td) {
 		if (td->td_incruntime == 0)
 			continue;
-		thread_lock(td);
-		ruxagg(&p->p_rux, td);
-		thread_unlock(td);
+		ruxagg_tlock(p, td);
 	}
 	calcru1(p, &p->p_rux, up, sp);
 }
@@ -945,10 +942,7 @@ getrusage(td, uap)
 }
 
 int
-kern_getrusage(td, who, rup)
-	struct thread *td;
-	int who;
-	struct rusage *rup;
+kern_getrusage(struct thread *td, int who, struct rusage *rup)
 {
 	struct proc *p;
 	int error;
@@ -1022,6 +1016,15 @@ ruxagg(struct rusage_ext *rux, struct thread *td)
 	td->td_sticks = 0;
 }
 
+static void
+ruxagg_tlock(struct proc *p, struct thread *td)
+{
+
+	thread_lock(td);
+	ruxagg(&p->p_rux, td);
+	thread_unlock(td);
+}
+
 /*
  * Update the rusage_ext structure and fetch a valid aggregate rusage
  * for proc p if storage for one is supplied.
@@ -1036,9 +1039,7 @@ rufetch(struct proc *p, struct rusage *ru)
 	*ru = p->p_ru;
 	if (p->p_numthreads > 0)  {
 		FOREACH_THREAD_IN_PROC(p, td) {
-			thread_lock(td);
-			ruxagg(&p->p_rux, td);
-			thread_unlock(td);
+			ruxagg_tlock(p, td);
 			rucollect(ru, &td->td_ru);
 		}
 	}
