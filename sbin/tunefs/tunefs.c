@@ -1007,10 +1007,11 @@ out:
 void
 usage(void)
 {
-	fprintf(stderr, "%s\n%s\n%s\n%s\n",
+	fprintf(stderr, "%s\n%s\n%s\n%s\n%s\n",
 "usage: tunefs [-A] [-a enable | disable] [-e maxbpg] [-f avgfilesize]",
-"              [-J enable | disable ] [-L volname] [-l enable | disable]",
-"              [-m minfree] [-N enable | disable] [-n enable | disable]",
+"              [-J enable | disable] [-j enable | disable]", 
+"              [-L volname] [-l enable | disable] [-m minfree]",
+"              [-N enable | disable] [-n enable | disable]",
 "              [-o space | time] [-p] [-s avgfpdir] special | filesystem");
 	exit(2);
 }
