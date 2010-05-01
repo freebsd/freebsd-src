@@ -563,15 +563,15 @@ x86bios_unmap_mem(void)
 	contigfree(x86bios_seg, X86BIOS_SEG_SIZE, M_DEVBUF);
 }
 
-static void
-x86bios_init(void *arg __unused)
+static int
+x86bios_init(void)
 {
 	int i;
 
-	mtx_init(&x86bios_lock, "x86bios lock", NULL, MTX_SPIN);
-
 	if (x86bios_map_mem() != 0)
-		return;
+		return (ENOMEM);
+
+	mtx_init(&x86bios_lock, "x86bios lock", NULL, MTX_SPIN);
 
 	x86bios_map = malloc(sizeof(*x86bios_map) * X86BIOS_PAGES, M_DEVBUF,
 	    M_WAITOK | M_ZERO);
@@ -600,10 +600,12 @@ x86bios_init(void *arg __unused)
 
 	for (i = 0; i < 256; i++)
 		x86bios_emu._x86emu_intrTab[i] = x86bios_emu_get_intr;
+
+	return (0);
 }
 
-static void
-x86bios_uninit(void *arg __unused)
+static int
+x86bios_uninit(void)
 {
 	vm_offset_t *map = x86bios_map;
 
@@ -618,6 +620,8 @@ x86bios_uninit(void *arg __unused)
 		x86bios_unmap_mem();
 
 	mtx_destroy(&x86bios_lock);
+
+	return (0);
 }
 
 static int
@@ -626,16 +630,12 @@ x86bios_modevent(module_t mod __unused, int type, void *data __unused)
 
 	switch (type) {
 	case MOD_LOAD:
-		x86bios_init(NULL);
-		break;
+		return (x86bios_init());
 	case MOD_UNLOAD:
-		x86bios_uninit(NULL);
-		break;
+		return (x86bios_uninit());
 	default:
 		return (ENOTSUP);
 	}
-
-	return (0);
 }
 
 static moduledata_t x86bios_mod = {
