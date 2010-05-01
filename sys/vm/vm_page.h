@@ -90,20 +90,21 @@
  *	and sundry status bits.
  *
  *	Fields in this structure are locked either by the lock on the
- *	object that the page belongs to (O) or by the lock on the page
- *	queues (P).
+ *	object that the page belongs to (O), its corresponding page lock (P),
+ *	or by the lock on the page queues (Q).
+ *	
  */
 
 TAILQ_HEAD(pglist, vm_page);
 
 struct vm_page {
-	TAILQ_ENTRY(vm_page) pageq;	/* queue info for FIFO queue or free list (P) */
+	TAILQ_ENTRY(vm_page) pageq;	/* queue info for FIFO queue or free list (Q) */
 	TAILQ_ENTRY(vm_page) listq;	/* pages in same object (O) 	*/
 	struct vm_page *left;		/* splay tree link (O)		*/
 	struct vm_page *right;		/* splay tree link (O)		*/
 
-	vm_object_t object;		/* which object am I in (O,P)*/
-	vm_pindex_t pindex;		/* offset into object (O,P) */
+	vm_object_t object;		/* which object am I in (O,Q)*/
+	vm_pindex_t pindex;		/* offset into object (O,Q) */
 	vm_paddr_t phys_addr;		/* physical address of page */
 	struct md_page md;		/* machine dependant stuff */
 	uint8_t	queue;			/* page queue index */
@@ -111,11 +112,11 @@ struct vm_page {
 	u_short	flags;			/* see below */
 	uint8_t	order;			/* index of the buddy queue */
 	uint8_t pool;
-	u_short cow;			/* page cow mapping count */
-	u_int wire_count;		/* wired down maps refs (P) */
-	short hold_count;		/* page hold count */
+	u_short cow;			/* page cow mapping count (Q) */
+	u_int wire_count;		/* wired down maps refs (Q) */
+	short hold_count;		/* page hold count (P) */
 	u_short oflags;			/* page flags (O) */
-	u_char	act_count;		/* page usage count */
+	u_char	act_count;		/* page usage count (Q) */
 	u_char	busy;			/* page busy count (O) */
 	/* NOTE that these must support one bit per DEV_BSIZE in a page!!! */
 	/* so, on normal X86 kernels, they must be at least 8 bits wide */
