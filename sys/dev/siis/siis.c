@@ -94,14 +94,15 @@ static struct {
 	int		ports;
 	int		quirks;
 #define SIIS_Q_SNTF	1
+#define SIIS_Q_NOMSI	2
 } siis_ids[] = {
 	{0x31241095,	"SiI3124",	4,	0},
 	{0x31248086,	"SiI3124",	4,	0},
-	{0x31321095,	"SiI3132",	2,	SIIS_Q_SNTF},
-	{0x02421095,	"SiI3132",	2,	SIIS_Q_SNTF},
-	{0x02441095,	"SiI3132",	2,	SIIS_Q_SNTF},
-	{0x31311095,	"SiI3131",	1,	SIIS_Q_SNTF},
-	{0x35311095,	"SiI3531",	1,	SIIS_Q_SNTF},
+	{0x31321095,	"SiI3132",	2,	SIIS_Q_SNTF|SIIS_Q_NOMSI},
+	{0x02421095,	"SiI3132",	2,	SIIS_Q_SNTF|SIIS_Q_NOMSI},
+	{0x02441095,	"SiI3132",	2,	SIIS_Q_SNTF|SIIS_Q_NOMSI},
+	{0x31311095,	"SiI3131",	1,	SIIS_Q_SNTF|SIIS_Q_NOMSI},
+	{0x35311095,	"SiI3531",	1,	SIIS_Q_SNTF|SIIS_Q_NOMSI},
 	{0,		NULL,		0,	0}
 };
 
@@ -249,7 +250,7 @@ static int
 siis_setup_interrupt(device_t dev)
 {
 	struct siis_controller *ctlr = device_get_softc(dev);
-	int msi = 0;
+	int msi = ctlr->quirks & SIIS_Q_NOMSI ? 0 : 1;
 
 	/* Process hints. */
 	resource_int_value(device_get_name(dev),
