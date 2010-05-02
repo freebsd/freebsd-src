@@ -188,6 +188,7 @@ SUBDIR=	${_3dfx} \
 	msdosfs_iconv \
 	${_mse} \
 	msk \
+	mvs \
 	mwl \
 	mxge \
 	my \
