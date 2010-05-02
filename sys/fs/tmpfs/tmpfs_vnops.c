@@ -516,8 +516,16 @@ tmpfs_mappedread(vm_object_t vobj, vm_object_t tobj, size_t len, struct uio *uio
 lookupvpg:
 	if (((m = vm_page_lookup(vobj, idx)) != NULL) &&
 	    vm_page_is_valid(m, offset, tlen)) {
-		if (vm_page_sleep_if_busy(m, FALSE, "tmfsmr"))
+		if ((m->oflags & VPO_BUSY) != 0) {
+			/*
+			 * Reference the page before unlocking and sleeping so
+			 * that the page daemon is less likely to reclaim it.  
+			 */
+			vm_page_lock_queues();
+			vm_page_flag_set(m, PG_REFERENCED);
+			vm_page_sleep(m, "tmfsmr");
 			goto lookupvpg;
+		}
 		vm_page_busy(m);
 		VM_OBJECT_UNLOCK(vobj);
 		error = uiomove_fromphys(&m, offset, tlen, uio);
@@ -526,8 +534,16 @@ lookupvpg:
 		VM_OBJECT_UNLOCK(vobj);
 		return	(error);
 	} else if (m != NULL && uio->uio_segflg == UIO_NOCOPY) {
-		if (vm_page_sleep_if_busy(m, FALSE, "tmfsmr"))
+		if ((m->oflags & VPO_BUSY) != 0) {
+			/*
+			 * Reference the page before unlocking and sleeping so
+			 * that the page daemon is less likely to reclaim it.  
+			 */
+			vm_page_lock_queues();
+			vm_page_flag_set(m, PG_REFERENCED);
+			vm_page_sleep(m, "tmfsmr");
 			goto lookupvpg;
+		}
 		vm_page_busy(m);
 		VM_OBJECT_UNLOCK(vobj);
 		sched_pin();
@@ -627,8 +643,16 @@ tmpfs_mappedwrite(vm_object_t vobj, vm_object_t tobj, size_t len, struct uio *ui
 lookupvpg:
 	if (((vpg = vm_page_lookup(vobj, idx)) != NULL) &&
 	    vm_page_is_valid(vpg, offset, tlen)) {
-		if (vm_page_sleep_if_busy(vpg, FALSE, "tmfsmw"))
+		if ((vpg->oflags & VPO_BUSY) != 0) {
+			/*
+			 * Reference the page before unlocking and sleeping so
+			 * that the page daemon is less likely to reclaim it.  
+			 */
+			vm_page_lock_queues();
+			vm_page_flag_set(vpg, PG_REFERENCED);
+			vm_page_sleep(vpg, "tmfsmw");
 			goto lookupvpg;
+		}
 		vm_page_busy(vpg);
 		vm_page_lock_queues();
 		vm_page_undirty(vpg);
