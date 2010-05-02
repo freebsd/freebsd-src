@@ -528,7 +528,8 @@ pmap_bootstrap(u_int cpu_impl)
 			tp->tte_data =
 			    ((translations[i].om_tte &
 			    ~((TD_SOFT2_MASK << TD_SOFT2_SHIFT) |
-			    (cpu_impl < CPU_IMPL_ULTRASPARCIII ?
+			    (cpu_impl >= CPU_IMPL_ULTRASPARCI &&
+			    cpu_impl < CPU_IMPL_ULTRASPARCIII ?
 			    (TD_DIAG_SF_MASK << TD_DIAG_SF_SHIFT) :
 			    (TD_RSVD_CH_MASK << TD_RSVD_CH_SHIFT)) |
 			    (TD_SOFT_MASK << TD_SOFT_SHIFT))) | TD_EXEC) +
@@ -704,16 +705,16 @@ retry:
 		if (va >= VM_MIN_DIRECT_ADDRESS) {
 			tp = NULL;
 			m = PHYS_TO_VM_PAGE(TLB_DIRECT_TO_PHYS(va));
-			(void)vm_page_pa_tryrelock(pm, TLB_DIRECT_TO_PHYS(va), &pa);
+			(void)vm_page_pa_tryrelock(pm, TLB_DIRECT_TO_PHYS(va),
+			    &pa);
 			vm_page_hold(m);
 		} else {
 			tp = tsb_kvtotte(va);
 			if ((tp->tte_data & TD_V) == 0)
 				tp = NULL;
 		}
-	} else {
+	} else
 		tp = tsb_tte_lookup(pm, va);
-	}
 	if (tp != NULL && ((tp->tte_data & TD_SW) ||
 	    (prot & VM_PROT_WRITE) == 0)) {
 		if (vm_page_pa_tryrelock(pm, TTE_GET_PA(tp), &pa))
