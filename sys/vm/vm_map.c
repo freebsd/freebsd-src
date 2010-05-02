@@ -1412,7 +1412,11 @@ vm_map_find(vm_map_t map, vm_object_t object, vm_ooffset_t offset,
 		}
 		result = vm_map_insert(map, object, offset, start, start +
 		    length, prot, max, cow);
-	} while (result == KERN_NO_SPACE && find_space == VMFS_ALIGNED_SPACE);
+	} while (result == KERN_NO_SPACE && (find_space == VMFS_ALIGNED_SPACE
+#ifdef VMFS_TLB_ALIGNED_SPACE
+	    || find_space == VMFS_TLB_ALIGNED_SPACE
+#endif
+	    ));
 	vm_map_unlock(map);
 	return (result);
 }
