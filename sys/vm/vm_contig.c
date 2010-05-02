@@ -96,33 +96,33 @@ vm_contig_launder_page(vm_page_t m, vm_page_t *next)
 	vm_page_t m_tmp;
 	struct vnode *vp;
 	struct mount *mp;
-	int vfslocked, dirty;
+	int vfslocked;
 
-	vm_page_lock(m);
-	vm_page_lock_queues();
+	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
+	vm_page_lock_assert(m, MA_OWNED);
 	object = m->object;
 	if (!VM_OBJECT_TRYLOCK(object) &&
 	    !vm_pageout_fallback_object_lock(m, next)) {
-		VM_OBJECT_UNLOCK(object);
-		vm_page_unlock_queues();
 		vm_page_unlock(m);
+		VM_OBJECT_UNLOCK(object);
 		return (EAGAIN);
 	}
 	if (vm_page_sleep_if_busy(m, TRUE, "vpctw0")) {
 		VM_OBJECT_UNLOCK(object);
+		vm_page_lock_queues();
 		return (EBUSY);
 	}
 	vm_page_test_dirty(m);
 	if (m->dirty == 0 && m->hold_count == 0)
 		pmap_remove_all(m);
-	if ((dirty = m->dirty) != 0) {
-		vm_page_unlock_queues();
+	if (m->dirty != 0) {
 		vm_page_unlock(m);
 		if ((object->flags & OBJ_DEAD) != 0) {
 			VM_OBJECT_UNLOCK(object);
 			return (EAGAIN);
 		}
 		if (object->type == OBJT_VNODE) {
+			vm_page_unlock_queues();
 			vp = object->handle;
 			vm_object_reference_locked(object);
 			VM_OBJECT_UNLOCK(object);
@@ -136,19 +136,20 @@ vm_contig_launder_page(vm_page_t m, vm_page_t *next)
 			VFS_UNLOCK_GIANT(vfslocked);
 			vm_object_deallocate(object);
 			vn_finished_write(mp);
+			vm_page_lock_queues();
 			return (0);
 		} else if (object->type == OBJT_SWAP ||
 			   object->type == OBJT_DEFAULT) {
+			vm_page_unlock_queues();
 			m_tmp = m;
 			vm_pageout_flush(&m_tmp, 1, VM_PAGER_PUT_SYNC);
 			VM_OBJECT_UNLOCK(object);
+			vm_page_lock_queues();
 			return (0);
 		}
-	} else if (m->hold_count == 0)
-		vm_page_cache(m);
-
-	if (dirty == 0) {
-		vm_page_unlock_queues();
+	} else {
+		if (m->hold_count == 0)
+			vm_page_cache(m);
 		vm_page_unlock(m);
 	}
 	VM_OBJECT_UNLOCK(object);
@@ -167,11 +168,12 @@ vm_contig_launder(int queue)
 		if ((m->flags & PG_MARKER) != 0)
 			continue;
 
+		if (!vm_page_trylock(m))
+			continue;
 		KASSERT(VM_PAGE_INQUEUE2(m, queue),
 		    ("vm_contig_launder: page %p's queue is not %d", m, queue));
-		vm_page_unlock_queues();
 		error = vm_contig_launder_page(m, &next);
-		vm_page_lock_queues();
+		vm_page_lock_assert(m, MA_NOTOWNED);
 		if (error == 0)
 			return (TRUE);
 		if (error == EBUSY)
