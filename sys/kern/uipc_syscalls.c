@@ -2108,6 +2108,7 @@ retry_space:
 				mbstat.sf_iocnt++;
 			}
 			if (error) {
+				vm_page_lock(pg);
 				vm_page_lock_queues();
 				vm_page_unwire(pg, 0);
 				/*
@@ -2121,6 +2122,7 @@ retry_space:
 					vm_page_free(pg);
 				}
 				vm_page_unlock_queues();
+				vm_page_unlock(pg);
 				VM_OBJECT_UNLOCK(obj);
 				if (error == EAGAIN)
 					error = 0;	/* not a real error */
