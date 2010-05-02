@@ -292,21 +292,6 @@ tooption(char *name)
 
 	
 static void
-insert_option(char *this, char *val, int flags)
-{
-	struct opt_list *po;
-
-	po = (struct opt_list *) calloc(1, sizeof *po);
-	if (po == NULL)
-		err(EXIT_FAILURE, "calloc");
-	po->o_name = this;
-	po->o_file = val;
-	po->o_flags = flags;
-	SLIST_INSERT_HEAD(&otab, po, o_next);
-}
-
-
-static void
 check_duplicate(const char *fname, const char *this)
 {
 	struct opt_list *po;
@@ -318,6 +303,38 @@ check_duplicate(const char *fname, const char *this)
 			exit(1);
 		}
 	}
+}
+
+static void
+insert_option(const char *fname, char *this, char *val)
+{
+	struct opt_list *po;
+
+	check_duplicate(fname, this);
+	po = (struct opt_list *) calloc(1, sizeof *po);
+	if (po == NULL)
+		err(EXIT_FAILURE, "calloc");
+	po->o_name = this;
+	po->o_file = val;
+	po->o_flags = 0;
+	SLIST_INSERT_HEAD(&otab, po, o_next);
+}
+
+static void
+update_option(const char *this, char *val, int flags)
+{
+	struct opt_list *po;
+
+	SLIST_FOREACH(po, &otab, o_next) {
+		if (eq(po->o_name, this)) {
+			free(po->o_file);
+			po->o_file = val;
+			po->o_flags = flags;
+			return;
+		}
+	}
+	printf("Compat option %s not listed in options file.\n", this);
+	exit(1);
 }
 
 static int
@@ -355,8 +372,10 @@ read_option_file(const char *fname, int flags)
 			free(s);
 		}
 		val = ns(val);
-		check_duplicate(fname, this);
-		insert_option(this, val, flags);
+		if (flags == 0)
+			insert_option(fname, this, val);
+		else
+			update_option(this, val, flags);
 	}
 	(void)fclose(fp);
 	return (1);
