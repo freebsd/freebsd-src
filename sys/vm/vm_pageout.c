@@ -540,6 +540,7 @@ vm_pageout_object_deactivate_pages(pmap, first_object, desired)
 	for (object = first_object;; object = backing_object) {
 		if (pmap_resident_count(pmap) <= desired)
 			goto unlock_return;
+		VM_OBJECT_LOCK_ASSERT(object, MA_OWNED);
 		if (object->type == OBJT_PHYS || object->paging_in_progress)
 			goto unlock_return;
 
@@ -551,19 +552,18 @@ vm_pageout_object_deactivate_pages(pmap, first_object, desired)
 		 */
 		p = TAILQ_FIRST(&object->memq);
 		while (p != NULL) {
+			if (pmap_resident_count(pmap) <= desired)
+				goto unlock_return;
+			next = TAILQ_NEXT(p, listq);
+			if ((p->oflags & VPO_BUSY) != 0 || p->busy != 0) {
+				p = next;
+				continue;
+			}
 			vm_page_lock(p);
 			vm_page_lock_queues();
-			if (pmap_resident_count(pmap) <= desired) {
-				vm_page_unlock_queues();
-				vm_page_unlock(p);
-				goto unlock_return;
-			}
-			next = TAILQ_NEXT(p, listq);
 			cnt.v_pdpages++;
 			if (p->wire_count != 0 ||
 			    p->hold_count != 0 ||
-			    p->busy != 0 ||
-			    (p->oflags & VPO_BUSY) ||
 			    !pmap_page_exists_quick(pmap, p)) {
 				vm_page_unlock_queues();
 				vm_page_unlock(p);
