@@ -276,6 +276,7 @@ cpu_cpuid_prop(u_int cpu_impl)
 
 	switch (cpu_impl) {
 	case CPU_IMPL_SPARC64:
+	case CPU_IMPL_SPARC64V:
 	case CPU_IMPL_ULTRASPARCI:
 	case CPU_IMPL_ULTRASPARCII:
 	case CPU_IMPL_ULTRASPARCIIi:
@@ -300,6 +301,7 @@ cpu_get_mid(u_int cpu_impl)
 
 	switch (cpu_impl) {
 	case CPU_IMPL_SPARC64:
+	case CPU_IMPL_SPARC64V:
 	case CPU_IMPL_ULTRASPARCI:
 	case CPU_IMPL_ULTRASPARCII:
 	case CPU_IMPL_ULTRASPARCIIi:
@@ -343,7 +345,8 @@ sparc64_init(caddr_t mdp, u_long o1, u_long o2, u_long o3, ofw_vec_t *vec)
 	/*
 	 * Do CPU-specific initialization.
 	 */
-	if (cpu_impl >= CPU_IMPL_ULTRASPARCIII)
+	if (cpu_impl == CPU_IMPL_SPARC64V ||
+	    cpu_impl >= CPU_IMPL_ULTRASPARCIII)
 		cheetah_init(cpu_impl);
 
 	/*
@@ -491,6 +494,7 @@ sparc64_init(caddr_t mdp, u_long o1, u_long o2, u_long o3, ofw_vec_t *vec)
 	if (cpu_use_vis) {
 		switch (cpu_impl) {
 		case CPU_IMPL_SPARC64:
+		case CPU_IMPL_SPARC64V:
 		case CPU_IMPL_ULTRASPARCI:
 		case CPU_IMPL_ULTRASPARCII:
 		case CPU_IMPL_ULTRASPARCIIi:
