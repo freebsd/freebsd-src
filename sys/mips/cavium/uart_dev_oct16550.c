@@ -644,11 +644,8 @@ oct16550_bus_ipend(struct uart_softc *sc)
         if (ipend)	octeon_led_run_wheel(&where1, 6 + device_get_unit(sc->sc_dev));
 #endif
 
-	return ((sc->sc_leaving) ? 0 : ipend);
+	return (ipend);
 }
-
-
-
 
 static int
 oct16550_bus_param (struct uart_softc *sc, int baudrate, int databits,
