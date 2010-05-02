@@ -29,7 +29,7 @@
 
 /*
  * Definitions for the Load-Store-Unit Control Register. This is called
- * Data Cache Unit Control Register (DCUCR) for UltraSPARC-III.
+ * Data Cache Unit Control Register (DCUCR) for UltraSPARC-III and greater.
  */
 #define	LSU_IC		(1UL << 0)
 #define	LSU_DC		(1UL << 1)
@@ -41,7 +41,7 @@
 #define	LSU_FM_BITS	16
 #define	LSU_FM_MASK	(((1UL << LSU_FM_BITS) - 1) << LSU_FM_SHIFT)
 
-#define LSU_VM_SHIFT	25
+#define	LSU_VM_SHIFT	25
 #define	LSU_VM_BITS	8
 #define	LSU_VM_MASK	(((1UL << LSU_VM_BITS) - 1) << LSU_VM_SHIFT)
 
@@ -64,5 +64,23 @@
 #define	LSU_ME		(1UL << 47)
 #define	LSU_CV		(1UL << 48)
 #define	LSU_CP		(1UL << 49)
+
+/* The following bit is valid for the UltraSPARC-IV only. */
+#define	LSU_WIH		(1UL << 4)
+
+/* The following bits are valid for the UltraSPARC-IV+ only. */
+#define	LSU_PPS_SHIFT	50
+#define	LSU_PPS_BITS	2
+#define	LSU_PPS_MASK	(((1UL << LSU_PPS_BITS) - 1) << LSU_PPS_SHIFT)
+
+#define	LSU_IPS_SHIFT	52
+#define	LSU_IPS_BITS	2
+#define	LSU_IPS_MASK	(((1UL << LSU_IPS_BITS) - 1) << LSU_IPS_SHIFT)
+
+#define	LSU_PCM		(1UL << 54)
+#define	LSU_WCE		(1UL << 55)
+
+/* The following bit is valid for the SPARC64 V, VI, VII and VIIIfx only. */
+#define	LSU_WEAK_SPCA	(1UL << 41)
 
 #endif	/* _MACHINE_LSU_H_ */
