@@ -465,7 +465,7 @@ rip6_output(m, va_alist)
 	    &oifp, &in6a);
 	if (error)
 		goto bad;
-	error = prison_get_ip6(in6p->inp_cred, &in6a);
+	error = prison_check_ip6(in6p->inp_cred, &in6a);
 	if (error != 0)
 		goto bad;
 	ip6->ip6_src = in6a;
