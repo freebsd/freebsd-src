@@ -338,6 +338,12 @@ RetryFault:;
 			 * to pmap it.
 			 */
 			if ((fs.m->oflags & VPO_BUSY) || fs.m->busy) {
+				/*
+				 * Reference the page before unlocking and
+				 * sleeping so that the page daemon is less
+				 * likely to reclaim it. 
+				 */
+				vm_page_flag_set(fs.m, PG_REFERENCED);
 				vm_page_unlock_queues();
 				vm_page_unlock(fs.m);
 				VM_OBJECT_UNLOCK(fs.object);
