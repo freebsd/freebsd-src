@@ -90,6 +90,7 @@ static void get_srcdir(void);
 static void usage(void);
 static void cleanheaders(char *);
 static void kernconfdump(const char *);
+static void checkversion(void);
 
 struct hdr_list {
 	char *h_name;
@@ -204,6 +205,7 @@ main(int argc, char **argv)
 		printf("cpu type must be specified\n");
 		exit(1);
 	}
+	checkversion();
 
 	/*
 	 * make symbolic links in compilation directory
@@ -720,4 +722,42 @@ kernconfdump(const char *file)
 		fputc(r, stdout);
 	}
 	fclose(fp);
+}
+
+static void 
+badversion(int versreq)
+{
+	fprintf(stderr, "ERROR: version of config(8) does not match kernel!\n");
+	fprintf(stderr, "config version = %d, ", CONFIGVERS);
+	fprintf(stderr, "version required = %d\n\n", versreq);
+	fprintf(stderr, "Make sure that /usr/src/usr.sbin/config is in sync\n");
+	fprintf(stderr, "with your /usr/src/sys and install a new config binary\n");
+	fprintf(stderr, "before trying this again.\n\n");
+	fprintf(stderr, "If running the new config fails check your config\n");
+	fprintf(stderr, "file against the GENERIC or LINT config files for\n");
+	fprintf(stderr, "changes in config syntax, or option/device naming\n");
+	fprintf(stderr, "conventions\n\n");
+	exit(1);
+}
+
+static void
+checkversion(void)
+{
+	FILE *ifp;
+	char line[BUFSIZ];
+	int versreq;
+
+	ifp = open_makefile_template();
+	while (fgets(line, BUFSIZ, ifp) != 0) {
+		if (*line != '%')
+			continue;
+		if (strncmp(line, "%VERSREQ=", 9) != 0)
+			continue;
+		versreq = atoi(line + 9);
+		if (MAJOR_VERS(versreq) == MAJOR_VERS(CONFIGVERS) &&
+		    versreq <= CONFIGVERS)
+			continue;
+		badversion(versreq);
+	}
+	fclose(ifp);
 }
