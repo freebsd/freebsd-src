@@ -3024,8 +3024,17 @@ allocbuf(struct buf *bp, int size)
 				 *  vm_fault->getpages->cluster_read->allocbuf
 				 *
 				 */
-				if (vm_page_sleep_if_busy(m, FALSE, "pgtblk"))
+				if ((m->oflags & VPO_BUSY) != 0) {
+					/*
+					 * Reference the page before unlocking
+					 * and sleeping so that the page daemon
+					 * is less likely to reclaim it.  
+					 */
+					vm_page_lock_queues();
+					vm_page_flag_set(m, PG_REFERENCED);
+					vm_page_sleep(m, "pgtblk");
 					continue;
+				}
 
 				/*
 				 * We have a good page.

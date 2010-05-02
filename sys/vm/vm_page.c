@@ -599,7 +599,7 @@ vm_page_free_zero(vm_page_t m)
 /*
  *	vm_page_sleep:
  *
- *	Sleep and release the page queues lock.
+ *	Sleep and release the page and page queues locks.
  *
  *	The object containing the given page must be locked.
  */
@@ -608,13 +608,10 @@ vm_page_sleep(vm_page_t m, const char *msg)
 {
 
 	VM_OBJECT_LOCK_ASSERT(m->object, MA_OWNED);
-	if (!mtx_owned(vm_page_lockptr(m)))
-		vm_page_lock(m);
-	if (!mtx_owned(&vm_page_queue_mtx))
-		vm_page_lock_queues();
-	vm_page_flag_set(m, PG_REFERENCED);
-	vm_page_unlock_queues();
-	vm_page_unlock(m);
+	if (mtx_owned(&vm_page_queue_mtx))
+		vm_page_unlock_queues();
+	if (mtx_owned(vm_page_lockptr(m)))
+		vm_page_unlock(m);
 
 	/*
 	 * It's possible that while we sleep, the page will get
@@ -1896,7 +1893,17 @@ vm_page_grab(vm_object_t object, vm_pindex_t pindex, int allocflags)
 	VM_OBJECT_LOCK_ASSERT(object, MA_OWNED);
 retrylookup:
 	if ((m = vm_page_lookup(object, pindex)) != NULL) {
-		if (vm_page_sleep_if_busy(m, TRUE, "pgrbwt")) {
+		if ((m->oflags & VPO_BUSY) != 0 || m->busy != 0) {
+			if ((allocflags & VM_ALLOC_RETRY) != 0) {
+				/*
+				 * Reference the page before unlocking and
+				 * sleeping so that the page daemon is less
+				 * likely to reclaim it. 
+				 */
+				vm_page_lock_queues();
+				vm_page_flag_set(m, PG_REFERENCED);
+			}
+			vm_page_sleep(m, "pgrbwt");
 			if ((allocflags & VM_ALLOC_RETRY) == 0)
 				return (NULL);
 			goto retrylookup;
