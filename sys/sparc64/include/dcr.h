@@ -43,8 +43,8 @@
 #define	DCR_OBSDATA_CT_MASK						\
 	(((1UL << DCR_OBSDATA_CT_BITS) - 1) << DCR_OBSDATA_SHIFT)
 
-/* The following bits are valid for the UltraSPARC-III+/IV+ only. */
-#define	DCR_IPE			(1UL << 5)
+/* The following bits are valid for the UltraSPARC-III++/IV+ only. */
+#define	DCR_IPE			(1UL << 2)
 
 #define	DCR_OBSDATA_CTP_BITS	6
 #define	DCR_OBSDATA_CTP_MASK						\
