@@ -179,6 +179,7 @@ void	makehints(void);
 void	headers(void);
 void	cfgfile_add(const char *);
 void	cfgfile_removeall(void);
+FILE	*open_makefile_template(void);
 
 extern STAILQ_HEAD(device_head, device) dtab;
 
