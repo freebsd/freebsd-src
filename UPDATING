@@ -15,6 +15,17 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 8.x IS SLOW ON IA64 OR SUN4V:
 	debugging tools present in HEAD were left in place because
 	sun4v support still needs work to become production ready.
 
+20100502:
+	The config(8) command has been updated to maintain compatibility
+	with config files from 8.0-RELEASE.  You will need a new version
+	of config to build kernels (this version can be used from 8.0-RELEASE
+	forward).  The buildworld target will generate it, so following
+	the instructions in this file for updating will work glitch-free.
+	Merely doing a make buildkernel without first doing a make buildworld
+	(or kernel-toolchain), or attempting to build a kernel using
+	traidtional methods will generate a config version warning, indicating
+	you should update.
+
 20100408:
 	The rc.firewall and rc.firewall6 were unified, and
 	rc.firewall6 and rc.d/ip6fw were removed.
@@ -27,6 +38,12 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 8.x IS SLOW ON IA64 OR SUN4V:
 		firewall_simple_onet_ipv6
 
 	The meanings correspond to the relevant IPv4 variables.
+
+20100417:
+	COMPAT_IA32 has been added as an alias for COMPAT_FREEBDS32.  A new
+	version of config(8) is required.  The error message when you hit this
+	condition is confusing (COMPAT_FREEBSD32 duplicate option), when it
+	should really say "your config is too old to compile this new kernel."
 
 20100406:
 	The kernel option COMPAT_IA32 has been replaced with COMPAT_FREEBSD32
