@@ -29,7 +29,7 @@
 .\"	@(#)symlink.7	8.3 (Berkeley) 3/31/94
 .\" $FreeBSD$
 .\"
-.Dd March 31, 1994
+.Dd April 25, 2010
 .Dt SYMLINK 7
 .Os
 .Sh NAME
@@ -138,8 +138,8 @@ an existing symbolic link can be changed by means of the
 and
 .Xr lutimes 2
 system calls, respectively.
-Of these, only the flags are used by the system;
-the access permissions and ownership are ignored.
+Of these, only the flags and ownership are used by the system;
+the access permissions are ignored.
 .Pp
 The
 .Bx 4.4
