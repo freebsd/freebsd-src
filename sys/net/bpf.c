@@ -1328,6 +1328,7 @@ bpfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags,
 			/* FALLSTHROUGH */
 
 		default:
+			CURVNET_RESTORE();
 			return (EINVAL);
 		}
 
@@ -1335,6 +1336,7 @@ bpfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags,
 		if (d->bd_sbuf != NULL || d->bd_hbuf != NULL ||
 		    d->bd_fbuf != NULL || d->bd_bif != NULL) {
 			BPFD_UNLOCK(d);
+			CURVNET_RESTORE();
 			return (EBUSY);
 		}
 		d->bd_bufmode = *(u_int *)addr;
@@ -1342,13 +1344,16 @@ bpfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags,
 		break;
 
 	case BIOCGETZMAX:
-		return (bpf_ioctl_getzmax(td, d, (size_t *)addr));
+		error = bpf_ioctl_getzmax(td, d, (size_t *)addr);
+		break;
 
 	case BIOCSETZBUF:
-		return (bpf_ioctl_setzbuf(td, d, (struct bpf_zbuf *)addr));
+		error = bpf_ioctl_setzbuf(td, d, (struct bpf_zbuf *)addr);
+		break;
 
 	case BIOCROTZBUF:
-		return (bpf_ioctl_rotzbuf(td, d, (struct bpf_zbuf *)addr));
+		error = bpf_ioctl_rotzbuf(td, d, (struct bpf_zbuf *)addr);
+		break;
 	}
 	CURVNET_RESTORE();
 	return (error);
