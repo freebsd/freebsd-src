@@ -1657,6 +1657,7 @@ vm_page_try_to_cache(vm_page_t m)
 {
 
 	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
+	vm_page_lock_assert(m, MA_OWNED);
 	VM_OBJECT_LOCK_ASSERT(m->object, MA_OWNED);
 	if (m->dirty || m->hold_count || m->busy || m->wire_count ||
 	    (m->oflags & VPO_BUSY) || (m->flags & PG_UNMANAGED)) {
@@ -1680,6 +1681,7 @@ vm_page_try_to_free(vm_page_t m)
 {
 
 	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
+	vm_page_lock_assert(m, MA_OWNED);
 	if (m->object != NULL)
 		VM_OBJECT_LOCK_ASSERT(m->object, MA_OWNED);
 	if (m->dirty || m->hold_count || m->busy || m->wire_count ||
@@ -1707,6 +1709,7 @@ vm_page_cache(vm_page_t m)
 	vm_page_t root;
 
 	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
+	vm_page_lock_assert(m, MA_OWNED);
 	object = m->object;
 	VM_OBJECT_LOCK_ASSERT(object, MA_OWNED);
 	if ((m->flags & PG_UNMANAGED) || (m->oflags & VPO_BUSY) || m->busy ||
