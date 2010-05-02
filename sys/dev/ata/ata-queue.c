@@ -513,9 +513,9 @@ ata_timeout(struct ata_request *request)
 	request->flags |= ATA_R_TIMEOUT;
 	if (ch->dma.unload)
 	    ch->dma.unload(request);
-#ifdef ATA_CAM
 	ch->running = NULL;
 	ch->state = ATA_IDLE;
+#ifdef ATA_CAM
 	ata_cam_end_transaction(ch->dev, request);
 #endif
 	mtx_unlock(&ch->state_mtx);
