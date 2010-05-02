@@ -2855,6 +2855,10 @@ cts_print(struct cam_device *device, struct ccb_trans_settings *cts)
 			fprintf(stdout, "%sNumber of tags: %d\n", pathstr,
 				sata->tags);
 		}
+		if ((sata->valid & CTS_SATA_VALID_CAPS) != 0) {
+			fprintf(stdout, "%sSATA capabilities: %08x\n", pathstr,
+				sata->caps);
+		}
 	}
 	if (cts->protocol == PROTO_SCSI) {
 		struct ccb_trans_settings_scsi *scsi=
