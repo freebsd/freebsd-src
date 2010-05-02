@@ -1370,8 +1370,6 @@ vm_pageout_page_stats()
 		    ("vm_pageout_page_stats: page %p isn't active", m));
 
 		next = TAILQ_NEXT(m, pageq);
-		object = m->object;
-
 		if ((m->flags & PG_MARKER) != 0) {
 			m = next;
 			continue;
