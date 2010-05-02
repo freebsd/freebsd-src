@@ -50,7 +50,6 @@ struct quicc_softc {
 	u_int		sc_clock;
 
 	int		sc_fastintr:1;
-	int		sc_leaving:1;
 	int		sc_polled:1;
 };
 
