@@ -199,33 +199,33 @@ pam_sm_authenticate(pam_handle_t *pamh, int flags __unused,
 		PAM_LOG("Skipping local user check");
 	else {
 
-	/* Verify the local user exists (AFTER getting the password) */
-	if (strchr(user, '@')) {
-		/* get a local account name for this principal */
-		krbret = krb5_aname_to_localname(pam_context, princ,
-		    sizeof(luser), luser);
-		if (krbret != 0) {
-			PAM_VERBOSE_ERROR("Kerberos 5 error");
-			PAM_LOG("Error krb5_aname_to_localname(): %s",
-			    krb5_get_err_text(pam_context, krbret));
+		/* Verify the local user exists (AFTER getting the password) */
+		if (strchr(user, '@')) {
+			/* get a local account name for this principal */
+			krbret = krb5_aname_to_localname(pam_context, princ,
+			    sizeof(luser), luser);
+			if (krbret != 0) {
+				PAM_VERBOSE_ERROR("Kerberos 5 error");
+				PAM_LOG("Error krb5_aname_to_localname(): %s",
+				    krb5_get_err_text(pam_context, krbret));
+				retval = PAM_USER_UNKNOWN;
+				goto cleanup2;
+			}
+
+			retval = pam_set_item(pamh, PAM_USER, luser);
+			if (retval != PAM_SUCCESS)
+				goto cleanup2;
+
+			PAM_LOG("PAM_USER Redone");
+		}
+
+		pwd = getpwnam(user);
+		if (pwd == NULL) {
 			retval = PAM_USER_UNKNOWN;
 			goto cleanup2;
 		}
 
-		retval = pam_set_item(pamh, PAM_USER, luser);
-		if (retval != PAM_SUCCESS)
-			goto cleanup2;
-
-		PAM_LOG("PAM_USER Redone");
-	}
-
-	pwd = getpwnam(user);
-	if (pwd == NULL) {
-		retval = PAM_USER_UNKNOWN;
-		goto cleanup2;
-	}
-
-	PAM_LOG("Done getpwnam()");
+		PAM_LOG("Done getpwnam()");
 	}
 
 	/* Get a TGT */
