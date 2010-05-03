@@ -70,12 +70,12 @@ int checkfilesys(const char *);
 #define	FSDIRMOD	2		/* Some directory was modified */
 #define	FSFATMOD	4		/* The FAT was modified */
 #define	FSERROR		8		/* Some unrecovered error remains */
-#define	FSFATAL		16		/* Some unrecoverable error occured */
+#define	FSFATAL		16		/* Some unrecoverable error occurred */
 #define FSDIRTY		32		/* File system is dirty */
 #define FSFIXFAT	64		/* Fix file system FAT */
 
 /*
- * read a boot block in a machine independend fashion and translate
+ * read a boot block in a machine independent fashion and translate
  * it into our struct bootblock.
  */
 int readboot(int, struct bootblock *);
@@ -89,13 +89,13 @@ int writefsinfo(int, struct bootblock *);
  * Read one of the FAT copies and return a pointer to the new
  * allocated array holding our description of it.
  */
-int readfat(int, struct bootblock *, int, struct fatEntry **);
+int readfat(int, struct bootblock *, u_int, struct fatEntry **);
 
 /*
  * Check two FAT copies for consistency and merge changes into the
- * first if neccessary.
+ * first if necessary.
  */
-int comparefat(struct bootblock *, struct fatEntry *, struct fatEntry *, int);
+int comparefat(struct bootblock *, struct fatEntry *, struct fatEntry *, u_int);
 
 /*
  * Check a FAT
