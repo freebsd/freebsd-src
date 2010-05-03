@@ -1488,10 +1488,8 @@ ti_newbuf_jumbo(sc, idx, m_old)
 			}
 			sf[i] = sf_buf_alloc(frame, SFB_NOWAIT);
 			if (sf[i] == NULL) {
-				vm_page_lock_queues();
 				vm_page_unwire(frame, 0);
 				vm_page_free(frame);
-				vm_page_unlock_queues();
 				device_printf(sc->ti_dev, "buffer allocation "
 				    "failed -- packet dropped!\n");
 				printf("      index %d page %d\n", idx, i);
