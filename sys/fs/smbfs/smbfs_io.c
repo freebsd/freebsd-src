@@ -500,11 +500,13 @@ smbfs_getpages(ap)
 
 	size = count - uio.uio_resid;
 
-	vm_page_lock_queues();
 	for (i = 0, toff = 0; i < npages; i++, toff = nextoff) {
 		vm_page_t m;
 		nextoff = toff + PAGE_SIZE;
 		m = pages[i];
+
+		vm_page_lock(m);
+		vm_page_lock_queues();
 
 		if (nextoff <= size) {
 			/*
@@ -553,8 +555,10 @@ smbfs_getpages(ap)
 				vm_page_free(m);
 			}
 		}
+
+		vm_page_unlock_queues();
+		vm_page_unlock(m);
 	}
-	vm_page_unlock_queues();
 	VM_OBJECT_UNLOCK(object);
 	return 0;
 #endif /* SMBFS_RWGENERIC */
