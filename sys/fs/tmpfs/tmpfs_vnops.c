@@ -460,9 +460,11 @@ tmpfs_nocacheread(vm_object_t tobj, vm_pindex_t idx,
 	error = uiomove_fromphys(&m, offset, tlen, uio);
 	VM_OBJECT_LOCK(tobj);
 out:
+	vm_page_lock(m);
 	vm_page_lock_queues();
 	vm_page_unwire(m, TRUE);
 	vm_page_unlock_queues();
+	vm_page_unlock(m);
 	vm_page_wakeup(m);
 	vm_object_pip_subtract(tobj, 1);
 	VM_OBJECT_UNLOCK(tobj);
@@ -691,6 +693,7 @@ nocache:
 out:
 	if (vobj != NULL)
 		VM_OBJECT_LOCK(vobj);
+	vm_page_lock(tpg);
 	vm_page_lock_queues();
 	if (error == 0) {
 		KASSERT(tpg->valid == VM_PAGE_BITS_ALL,
@@ -699,6 +702,7 @@ out:
 	}
 	vm_page_unwire(tpg, TRUE);
 	vm_page_unlock_queues();
+	vm_page_unlock(tpg);
 	vm_page_wakeup(tpg);
 	if (vpg != NULL)
 		vm_page_wakeup(vpg);
