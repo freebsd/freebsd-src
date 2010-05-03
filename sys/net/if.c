@@ -104,6 +104,10 @@ struct ifindex_entry {
 SYSCTL_NODE(_net, PF_LINK, link, CTLFLAG_RW, 0, "Link layers");
 SYSCTL_NODE(_net_link, 0, generic, CTLFLAG_RW, 0, "Generic link-management");
 
+TUNABLE_INT("net.link.ifqmaxlen", &ifqmaxlen);
+SYSCTL_UINT(_net_link, OID_AUTO, ifqmaxlen, CTLFLAG_RDTUN,
+    &ifqmaxlen, 0, "max send queue size");
+
 /* Log link state change events */
 static int log_link_state_change = 1;
 
