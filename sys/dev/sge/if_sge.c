@@ -1421,7 +1421,7 @@ sge_encap(struct sge_softc *sc, struct mbuf **m_head)
 		}
 		*m_head = m;
 	}
-	error = bus_dmamap_load_mbuf_sg(sc->sge_cdata.sge_tx_tag, map,
+	error = bus_dmamap_load_mbuf_sg(sc->sge_cdata.sge_txmbuf_tag, map,
 	    *m_head, txsegs, &nsegs, 0);
 	if (error != 0) {
 		m_freem(*m_head);
@@ -1430,10 +1430,11 @@ sge_encap(struct sge_softc *sc, struct mbuf **m_head)
 	}
 	/* Check descriptor overrun. */
 	if (sc->sge_cdata.sge_tx_cnt + nsegs >= SGE_TX_RING_CNT) {
-		bus_dmamap_unload(sc->sge_cdata.sge_tx_tag, map);
+		bus_dmamap_unload(sc->sge_cdata.sge_txmbuf_tag, map);
 		return (ENOBUFS);
 	}
-	bus_dmamap_sync(sc->sge_cdata.sge_tx_tag, map, BUS_DMASYNC_PREWRITE);
+	bus_dmamap_sync(sc->sge_cdata.sge_txmbuf_tag, map,
+	    BUS_DMASYNC_PREWRITE);
 
 	cflags = 0;
 	if ((*m_head)->m_pkthdr.csum_flags & CSUM_IP)
