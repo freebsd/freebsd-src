@@ -790,6 +790,8 @@ vm_page_remove(vm_page_t m)
 	vm_object_t object;
 	vm_page_t root;
 
+	if ((m->flags & PG_UNMANAGED) == 0)
+		mtx_assert(&vm_page_queue_mtx, MA_OWNED);
 	if ((object = m->object) == NULL)
 		return;
 	VM_OBJECT_LOCK_ASSERT(object, MA_OWNED);
@@ -797,7 +799,6 @@ vm_page_remove(vm_page_t m)
 		m->oflags &= ~VPO_BUSY;
 		vm_page_flash(m);
 	}
-	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
 
 	/*
 	 * Now remove from the object's list of backed pages.
@@ -1586,7 +1587,8 @@ void
 vm_page_unwire(vm_page_t m, int activate)
 {
 
-	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
+	if ((m->flags & PG_UNMANAGED) == 0)
+		mtx_assert(&vm_page_queue_mtx, MA_OWNED);
 	if (m->flags & PG_FICTITIOUS)
 		return;
 	if (m->wire_count > 0) {
