@@ -89,6 +89,7 @@ static void	compat_free_data_contents(krb5_context, krb5_data *);
 #define PAM_OPT_DEBUG		"debug"
 #define PAM_OPT_FORWARDABLE	"forwardable"
 #define PAM_OPT_NO_CCACHE	"no_ccache"
+#define PAM_OPT_NO_USER_CHECK	"no_user_check"
 #define PAM_OPT_REUSE_CCACHE	"reuse_ccache"
 
 /*
@@ -194,6 +195,10 @@ pam_sm_authenticate(pam_handle_t *pamh, int flags __unused,
 
 	PAM_LOG("Got password");
 
+	if (openpam_get_option(pamh, PAM_OPT_NO_USER_CHECK))
+		PAM_LOG("Skipping local user check");
+	else {
+
 	/* Verify the local user exists (AFTER getting the password) */
 	if (strchr(user, '@')) {
 		/* get a local account name for this principal */
@@ -221,6 +226,7 @@ pam_sm_authenticate(pam_handle_t *pamh, int flags __unused,
 	}
 
 	PAM_LOG("Done getpwnam()");
+	}
 
 	/* Get a TGT */
 	memset(&creds, 0, sizeof(krb5_creds));
@@ -366,7 +372,8 @@ pam_sm_setcred(pam_handle_t *pamh, int flags,
 		return (PAM_SERVICE_ERR);
 
 	/* If a persistent cache isn't desired, stop now. */
-	if (openpam_get_option(pamh, PAM_OPT_NO_CCACHE))
+	if (openpam_get_option(pamh, PAM_OPT_NO_CCACHE) ||
+		openpam_get_option(pamh, PAM_OPT_NO_USER_CHECK))
 		return (PAM_SUCCESS);
 
 	PAM_LOG("Establishing credentials");
