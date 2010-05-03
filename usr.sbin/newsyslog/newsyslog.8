@@ -17,7 +17,7 @@
 .\" the suitability of this software for any purpose.  It is
 .\" provided "as is" without express or implied warranty.
 .\"
-.Dd February 24, 2005
+.Dd January 19, 2010
 .Dt NEWSYSLOG 8
 .Os
 .Sh NAME
@@ -25,7 +25,7 @@
 .Nd maintain system log files to manageable sizes
 .Sh SYNOPSIS
 .Nm
-.Op Fl CFNnrsv
+.Op Fl CFNPnrsv
 .Op Fl R Ar tagname
 .Op Fl a Ar directory
 .Op Fl d Ar directory
@@ -169,6 +169,10 @@ This option is intended to be used with the
 or
 .Fl CC
 options when creating log files is the only objective.
+.It Fl P
+Prevent further action if we should send signal but the
+.Dq pidfile
+is empty or does not exist.
 .It Fl R Ar tagname
 Specify that
 .Nm
