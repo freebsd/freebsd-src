@@ -48,8 +48,13 @@ struct bootblock {
 	u_int	FATsmall;		/* number of sectors per FAT */
 	u_int	SecPerTrack;		/* sectors per track */
 	u_int	Heads;			/* number of heads */
-	u_int32_t Sectors;		/* total number of sectors */
 	u_int32_t HiddenSecs;		/* # of hidden sectors */
+	u_int32_t Sectors;		/* total number of sectors */
+#define	FAT32		1		/* this is a FAT32 file system */
+					/*
+					 * Maybe, we should separate out
+					 * various parts of FAT32?	XXX
+					 */
 	u_int32_t HugeSectors;		/* # of sectors if bpbSectors == 0 */
 	u_int	FSInfo;			/* FSInfo sector */
 	u_int	Backup;			/* Backup of Bootblocks */
@@ -59,11 +64,6 @@ struct bootblock {
 
 	/* and some more calculated values */
 	u_int	flags;			/* some flags: */
-#define	FAT32		1		/* this is a FAT32 file system */
-					/*
-					 * Maybe, we should separate out
-					 * various parts of FAT32?	XXX
-					 */
 	int	ValidFat;		/* valid fat if FAT32 non-mirrored */
 	cl_t	ClustMask;		/* mask for entries in FAT */
 	cl_t	NumClusters;		/* # of entries in a FAT */
