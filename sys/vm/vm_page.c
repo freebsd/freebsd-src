@@ -1544,6 +1544,7 @@ vm_page_wire(vm_page_t m)
 	 * it is already off the queues).
 	 */
 	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
+	vm_page_lock_assert(m, MA_OWNED);
 	if (m->flags & PG_FICTITIOUS)
 		return;
 	if (m->wire_count == 0) {
@@ -1914,9 +1915,11 @@ retrylookup:
 			goto retrylookup;
 		} else {
 			if ((allocflags & VM_ALLOC_WIRED) != 0) {
+				vm_page_lock(m);
 				vm_page_lock_queues();
 				vm_page_wire(m);
 				vm_page_unlock_queues();
+				vm_page_unlock(m);
 			}
 			if ((allocflags & VM_ALLOC_NOBUSY) == 0)
 				vm_page_busy(m);
