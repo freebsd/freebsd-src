@@ -80,6 +80,7 @@ socow_iodone(void *addr, void *args)
 	pp = sf_buf_page(sf);
 	sf_buf_free(sf);
 	/* remove COW mapping  */
+	vm_page_lock(pp);
 	vm_page_lock_queues();
 	vm_page_cowclear(pp);
 	vm_page_unwire(pp, 0);
@@ -91,6 +92,7 @@ socow_iodone(void *addr, void *args)
 	if (pp->wire_count == 0 && pp->object == NULL)
 		vm_page_free(pp);
 	vm_page_unlock_queues();
+	vm_page_unlock(pp);
 	socow_stats.iodone++;
 }
 
@@ -149,6 +151,7 @@ socow_setup(struct mbuf *m0, struct uio *uio)
 	 */
 	sf = sf_buf_alloc(pp, SFB_CATCH);
 	if (!sf) {
+		vm_page_lock(pp);
 		vm_page_lock_queues();
 		vm_page_cowclear(pp);
 		vm_page_unwire(pp, 0);
@@ -160,6 +163,7 @@ socow_setup(struct mbuf *m0, struct uio *uio)
 		if (pp->wire_count == 0 && pp->object == NULL)
 			vm_page_free(pp);
 		vm_page_unlock_queues();
+		vm_page_unlock(pp);
 		socow_stats.fail_sf_buf++;
 		return(0);
 	}
