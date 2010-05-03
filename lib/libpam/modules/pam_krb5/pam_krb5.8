@@ -108,6 +108,10 @@ and
 .Ql %p ,
 to designate the current process ID; can be used in
 .Ar name .
+.It Cm no_user_check
+Do not verify if a user exists on the local system. This option implies the
+.Cm no_ccache
+option because there is no secure local uid/gid for the cache file.
 .El
 .Ss Kerberos 5 Account Management Module
 The Kerberos 5 account management component
