@@ -268,11 +268,7 @@ retry:
 				i -= PAGE_SIZE;
 				m = vm_page_lookup(object, OFF_TO_IDX(offset +
 				    i));
-				vm_page_lock(m);
-				vm_page_lock_queues();
 				vm_page_free(m);
-				vm_page_unlock_queues();
-				vm_page_unlock(m);
 			}
 			VM_OBJECT_UNLOCK(object);
 			vm_map_delete(map, addr, addr + size);
