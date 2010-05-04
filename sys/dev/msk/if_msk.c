@@ -1101,7 +1101,8 @@ msk_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 		    (IFCAP_VLAN_HWTAGGING & ifp->if_capabilities) != 0) {
 			ifp->if_capenable ^= IFCAP_VLAN_HWTAGGING;
 			if ((IFCAP_VLAN_HWTAGGING & ifp->if_capenable) == 0)
-				ifp->if_capenable &= ~IFCAP_VLAN_HWTSO;
+				ifp->if_capenable &=
+				    ~(IFCAP_VLAN_HWTSO | IFCAP_VLAN_HWCSUM);
 			msk_setvlan(sc_if, ifp);
 		}
 		if (ifp->if_mtu > ETHERMTU &&
