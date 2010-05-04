@@ -783,69 +783,66 @@ struct cpu_functions xscalec3_cpufuncs = {
 #endif /* CPU_XSCALE_81342 */
 
 
-#if defined(CPU_FA526)
+#if defined(CPU_FA526) || defined(CPU_FA626TE)
 struct cpu_functions fa526_cpufuncs = {
 	/* CPU functions */
 
-	.cf_id			= cpufunc_id,
-	.cf_cpwait		= cpufunc_nullop,
+	cpufunc_id,			/* id			*/
+	cpufunc_nullop,			/* cpwait		*/
 
 	/* MMU functions */
 
-	.cf_control		= cpufunc_control,
-	.cf_domains		= cpufunc_domains,
-	.cf_setttb		= fa526_setttb,
-	.cf_faultstatus		= cpufunc_faultstatus,
-	.cf_faultaddress	= cpufunc_faultaddress,
+	cpufunc_control,		/* control		*/
+	cpufunc_domains,		/* domain		*/
+	fa526_setttb,			/* setttb		*/
+	cpufunc_faultstatus,		/* faultstatus		*/
+	cpufunc_faultaddress,		/* faultaddress		*/
 
 	/* TLB functions */
 
-	.cf_tlb_flushID		= armv4_tlb_flushID,
-	.cf_tlb_flushID_SE	= fa526_tlb_flushID_SE,
-	.cf_tlb_flushI		= armv4_tlb_flushI,
-	.cf_tlb_flushI_SE	= fa526_tlb_flushI_SE,
-	.cf_tlb_flushD		= armv4_tlb_flushD,
-	.cf_tlb_flushD_SE	= armv4_tlb_flushD_SE,
+	armv4_tlb_flushID,		/* tlb_flushID		*/
+	fa526_tlb_flushID_SE,		/* tlb_flushID_SE	*/
+	armv4_tlb_flushI,		/* tlb_flushI		*/
+	fa526_tlb_flushI_SE,		/* tlb_flushI_SE	*/
+	armv4_tlb_flushD,		/* tlb_flushD		*/
+	armv4_tlb_flushD_SE,		/* tlb_flushD_SE	*/
 
 	/* Cache operations */
 
-	.cf_icache_sync_all	= fa526_icache_sync_all,
-	.cf_icache_sync_range	= fa526_icache_sync_range,
+	fa526_icache_sync_all,		/* icache_sync_all	*/
+	fa526_icache_sync_range,	/* icache_sync_range	*/
 
-	.cf_dcache_wbinv_all	= fa526_dcache_wbinv_all,
-	.cf_dcache_wbinv_range	= fa526_dcache_wbinv_range,
-	.cf_dcache_inv_range	= fa526_dcache_inv_range,
-	.cf_dcache_wb_range	= fa526_dcache_wb_range,
+	fa526_dcache_wbinv_all,		/* dcache_wbinv_all	*/
+	fa526_dcache_wbinv_range,	/* dcache_wbinv_range	*/
+	fa526_dcache_inv_range,		/* dcache_inv_range	*/
+	fa526_dcache_wb_range,		/* dcache_wb_range	*/
 
-	.cf_idcache_wbinv_all	= fa526_idcache_wbinv_all,
-	.cf_idcache_wbinv_range	= fa526_idcache_wbinv_range,
-
-
-	.cf_l2cache_wbinv_all = cpufunc_nullop,
-	.cf_l2cache_wbinv_range = (void *)cpufunc_nullop,
-	.cf_l2cache_inv_range = (void *)cpufunc_nullop,
-	.cf_l2cache_wb_range = (void *)cpufunc_nullop,
-
+	fa526_idcache_wbinv_all,	/* idcache_wbinv_all	*/
+	fa526_idcache_wbinv_range,	/* idcache_wbinv_range	*/
+	cpufunc_nullop,			/* l2cache_wbinv_all	*/
+	(void *)cpufunc_nullop,		/* l2cache_wbinv_range	*/
+	(void *)cpufunc_nullop,		/* l2cache_inv_range	*/
+	(void *)cpufunc_nullop,		/* l2cache_wb_range	*/
 
 	/* Other functions */
 
-	.cf_flush_prefetchbuf	= fa526_flush_prefetchbuf,
-	.cf_drain_writebuf	= armv4_drain_writebuf,
-	.cf_flush_brnchtgt_C	= cpufunc_nullop,
-	.cf_flush_brnchtgt_E	= fa526_flush_brnchtgt_E,
+	fa526_flush_prefetchbuf,	/* flush_prefetchbuf	*/
+	armv4_drain_writebuf,		/* drain_writebuf	*/
+	cpufunc_nullop,			/* flush_brnchtgt_C	*/
+	fa526_flush_brnchtgt_E,		/* flush_brnchtgt_E	*/
 
-	.cf_sleep		= fa526_cpu_sleep,
+	fa526_cpu_sleep,		/* sleep		*/
 
 	/* Soft functions */
 
-	.cf_dataabt_fixup	= cpufunc_null_fixup,
-	.cf_prefetchabt_fixup	= cpufunc_null_fixup,
+	cpufunc_null_fixup,		/* dataabt_fixup	*/
+	cpufunc_null_fixup,		/* prefetchabt_fixup	*/
 
-	.cf_context_switch	= fa526_context_switch,
+	fa526_context_switch,		/* context_switch	*/
 
-	.cf_setup		= fa526_setup
-};
-#endif	/* CPU_FA526 */
+	fa526_setup			/* cpu setup 		*/
+};          
+#endif	/* CPU_FA526 || CPU_FA626TE */
 
 
 /*
@@ -856,11 +853,11 @@ struct cpu_functions cpufuncs;
 u_int cputype;
 u_int cpu_reset_needs_v4_MMU_disable;	/* flag used in locore.s */
 
-#if defined(CPU_ARM7TDMI) || defined(CPU_ARM8) || defined(CPU_ARM9) || \
-  defined (CPU_ARM9E) || defined (CPU_ARM10) ||			       \
-  defined(CPU_XSCALE_80200) || defined(CPU_XSCALE_80321) ||	       \
-  defined(CPU_XSCALE_PXA2X0) || defined(CPU_XSCALE_IXP425) ||	       \
-  defined(CPU_FA526) ||					       \
+#if defined(CPU_ARM7TDMI) || defined(CPU_ARM8) || defined(CPU_ARM9) ||	\
+  defined (CPU_ARM9E) || defined (CPU_ARM10) ||				\
+  defined(CPU_XSCALE_80200) || defined(CPU_XSCALE_80321) ||		\
+  defined(CPU_XSCALE_PXA2X0) || defined(CPU_XSCALE_IXP425) ||		\
+  defined(CPU_FA526) || defined(CPU_FA626TE) ||				\
   defined(CPU_XSCALE_80219) || defined(CPU_XSCALE_81342)
 
 static void get_cachetype_cp15(void);
@@ -1141,8 +1138,8 @@ set_cpufuncs()
 		goto out;
 	}
 #endif	/* CPU_SA1110 */
-#ifdef CPU_FA526
-	if (cputype == CPU_ID_FA526) {
+#if defined(CPU_FA526) || defined(CPU_FA626TE)
+	if (cputype == CPU_ID_FA526 || cputype == CPU_ID_FA626TE) {
 		cpufuncs = fa526_cpufuncs;
 		cpu_reset_needs_v4_MMU_disable = 1;	/* SA needs it	*/
 		get_cachetype_cp15();
@@ -1153,7 +1150,7 @@ set_cpufuncs()
 
 		goto out;
 	}
-#endif	/* CPU_FA526 */
+#endif	/* CPU_FA526 || CPU_FA626TE */
 #ifdef CPU_IXP12X0
         if (cputype == CPU_ID_IXP1200) {
                 cpufuncs = ixp12x0_cpufuncs;
@@ -1629,7 +1626,7 @@ late_abort_fixup(arg)
   defined(CPU_XSCALE_PXA2X0) || defined(CPU_XSCALE_IXP425) ||		\
   defined(CPU_XSCALE_80219) || defined(CPU_XSCALE_81342) || \
   defined(CPU_ARM10) ||  defined(CPU_ARM11) || \
-  defined(CPU_FA526)
+  defined(CPU_FA526) || defined(CPU_FA626TE)
 
 #define IGN	0
 #define OR	1
@@ -2095,7 +2092,7 @@ sa11x0_setup(args)
 }
 #endif	/* CPU_SA1100 || CPU_SA1110 */
 
-#if defined(CPU_FA526)
+#if defined(CPU_FA526) || defined(CPU_FA626TE)
 struct cpu_option fa526_options[] = {
 #ifdef COMPAT_12
 	{ "nocache",		IGN, BIC, (CPU_CONTROL_IC_ENABLE |
@@ -2149,7 +2146,7 @@ fa526_setup(char *args)
 	ctrl = cpuctrl;
 	cpu_control(0xffffffff, cpuctrl);
 }
-#endif	/* CPU_FA526 */
+#endif	/* CPU_FA526 || CPU_FA626TE */
 
 
 #if defined(CPU_IXP12X0)
