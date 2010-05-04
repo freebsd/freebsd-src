@@ -951,7 +951,7 @@ nfs_mount(struct mount *mp, struct thread *td)
 	}
 	if (vfs_getopt(mp->mnt_optnew, "maxgroups", (void **)&opt, NULL) == 0) {
 		ret = sscanf(opt, "%d", &args.maxgrouplist);
-		if (ret != 1 || args.timeo <= 0) {
+		if (ret != 1 || args.maxgrouplist <= 0) {
 			vfs_mount_error(mp, "illegal maxgroups: %s",
 			    opt);
 			error = EINVAL;
