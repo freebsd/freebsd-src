@@ -14,19 +14,18 @@
 
 #define DEBUG_TYPE "function-lowering-info"
 #include "FunctionLoweringInfo.h"
-#include "llvm/CallingConv.h"
 #include "llvm/DerivedTypes.h"
 #include "llvm/Function.h"
 #include "llvm/Instructions.h"
 #include "llvm/IntrinsicInst.h"
 #include "llvm/LLVMContext.h"
 #include "llvm/Module.h"
+#include "llvm/CodeGen/Analysis.h"
 #include "llvm/CodeGen/MachineFunction.h"
 #include "llvm/CodeGen/MachineFrameInfo.h"
 #include "llvm/CodeGen/MachineInstrBuilder.h"
 #include "llvm/CodeGen/MachineModuleInfo.h"
 #include "llvm/CodeGen/MachineRegisterInfo.h"
-#include "llvm/Analysis/DebugInfo.h"
 #include "llvm/Target/TargetRegisterInfo.h"
 #include "llvm/Target/TargetData.h"
 #include "llvm/Target/TargetFrameInfo.h"
@@ -34,99 +33,21 @@
 #include "llvm/Target/TargetIntrinsicInfo.h"
 #include "llvm/Target/TargetLowering.h"
 #include "llvm/Target/TargetOptions.h"
-#include "llvm/Support/Compiler.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/MathExtras.h"
-#include "llvm/Support/raw_ostream.h"
 #include <algorithm>
 using namespace llvm;
-
-/// ComputeLinearIndex - Given an LLVM IR aggregate type and a sequence
-/// of insertvalue or extractvalue indices that identify a member, return
-/// the linearized index of the start of the member.
-///
-unsigned llvm::ComputeLinearIndex(const TargetLowering &TLI, const Type *Ty,
-                                  const unsigned *Indices,
-                                  const unsigned *IndicesEnd,
-                                  unsigned CurIndex) {
-  // Base case: We're done.
-  if (Indices && Indices == IndicesEnd)
-    return CurIndex;
-
-  // Given a struct type, recursively traverse the elements.
-  if (const StructType *STy = dyn_cast<StructType>(Ty)) {
-    for (StructType::element_iterator EB = STy->element_begin(),
-                                      EI = EB,
-                                      EE = STy->element_end();
-        EI != EE; ++EI) {
-      if (Indices && *Indices == unsigned(EI - EB))
-        return ComputeLinearIndex(TLI, *EI, Indices+1, IndicesEnd, CurIndex);
-      CurIndex = ComputeLinearIndex(TLI, *EI, 0, 0, CurIndex);
-    }
-    return CurIndex;
-  }
-  // Given an array type, recursively traverse the elements.
-  else if (const ArrayType *ATy = dyn_cast<ArrayType>(Ty)) {
-    const Type *EltTy = ATy->getElementType();
-    for (unsigned i = 0, e = ATy->getNumElements(); i != e; ++i) {
-      if (Indices && *Indices == i)
-        return ComputeLinearIndex(TLI, EltTy, Indices+1, IndicesEnd, CurIndex);
-      CurIndex = ComputeLinearIndex(TLI, EltTy, 0, 0, CurIndex);
-    }
-    return CurIndex;
-  }
-  // We haven't found the type we're looking for, so keep searching.
-  return CurIndex + 1;
-}
-
-/// ComputeValueVTs - Given an LLVM IR type, compute a sequence of
-/// EVTs that represent all the individual underlying
-/// non-aggregate types that comprise it.
-///
-/// If Offsets is non-null, it points to a vector to be filled in
-/// with the in-memory offsets of each of the individual values.
-///
-void llvm::ComputeValueVTs(const TargetLowering &TLI, const Type *Ty,
-                           SmallVectorImpl<EVT> &ValueVTs,
-                           SmallVectorImpl<uint64_t> *Offsets,
-                           uint64_t StartingOffset) {
-  // Given a struct type, recursively traverse the elements.
-  if (const StructType *STy = dyn_cast<StructType>(Ty)) {
-    const StructLayout *SL = TLI.getTargetData()->getStructLayout(STy);
-    for (StructType::element_iterator EB = STy->element_begin(),
-                                      EI = EB,
-                                      EE = STy->element_end();
-         EI != EE; ++EI)
-      ComputeValueVTs(TLI, *EI, ValueVTs, Offsets,
-                      StartingOffset + SL->getElementOffset(EI - EB));
-    return;
-  }
-  // Given an array type, recursively traverse the elements.
-  if (const ArrayType *ATy = dyn_cast<ArrayType>(Ty)) {
-    const Type *EltTy = ATy->getElementType();
-    uint64_t EltSize = TLI.getTargetData()->getTypeAllocSize(EltTy);
-    for (unsigned i = 0, e = ATy->getNumElements(); i != e; ++i)
-      ComputeValueVTs(TLI, EltTy, ValueVTs, Offsets,
-                      StartingOffset + i * EltSize);
-    return;
-  }
-  // Interpret void as zero return values.
-  if (Ty->isVoidTy())
-    return;
-  // Base case: we can get an EVT for this LLVM IR type.
-  ValueVTs.push_back(TLI.getValueType(Ty));
-  if (Offsets)
-    Offsets->push_back(StartingOffset);
-}
 
 /// isUsedOutsideOfDefiningBlock - Return true if this instruction is used by
 /// PHI nodes or outside of the basic block that defines it, or used by a
 /// switch or atomic instruction, which may expand to multiple basic blocks.
-static bool isUsedOutsideOfDefiningBlock(Instruction *I) {
+static bool isUsedOutsideOfDefiningBlock(const Instruction *I) {
+  if (I->use_empty()) return false;
   if (isa<PHINode>(I)) return true;
-  BasicBlock *BB = I->getParent();
-  for (Value::use_iterator UI = I->use_begin(), E = I->use_end(); UI != E; ++UI)
+  const BasicBlock *BB = I->getParent();
+  for (Value::const_use_iterator UI = I->use_begin(), E = I->use_end();
+        UI != E; ++UI)
     if (cast<Instruction>(*UI)->getParent() != BB || isa<PHINode>(*UI))
       return true;
   return false;
@@ -135,26 +56,25 @@ static bool isUsedOutsideOfDefiningBlock(Instruction *I) {
 /// isOnlyUsedInEntryBlock - If the specified argument is only used in the
 /// entry block, return true.  This includes arguments used by switches, since
 /// the switch may expand into multiple basic blocks.
-static bool isOnlyUsedInEntryBlock(Argument *A, bool EnableFastISel) {
+static bool isOnlyUsedInEntryBlock(const Argument *A, bool EnableFastISel) {
   // With FastISel active, we may be splitting blocks, so force creation
   // of virtual registers for all non-dead arguments.
-  // Don't force virtual registers for byval arguments though, because
-  // fast-isel can't handle those in all cases.
-  if (EnableFastISel && !A->hasByValAttr())
+  if (EnableFastISel)
     return A->use_empty();
 
-  BasicBlock *Entry = A->getParent()->begin();
-  for (Value::use_iterator UI = A->use_begin(), E = A->use_end(); UI != E; ++UI)
+  const BasicBlock *Entry = A->getParent()->begin();
+  for (Value::const_use_iterator UI = A->use_begin(), E = A->use_end();
+       UI != E; ++UI)
     if (cast<Instruction>(*UI)->getParent() != Entry || isa<SwitchInst>(*UI))
       return false;  // Use not in entry block.
   return true;
 }
 
-FunctionLoweringInfo::FunctionLoweringInfo(TargetLowering &tli)
+FunctionLoweringInfo::FunctionLoweringInfo(const TargetLowering &tli)
   : TLI(tli) {
 }
 
-void FunctionLoweringInfo::set(Function &fn, MachineFunction &mf,
+void FunctionLoweringInfo::set(const Function &fn, MachineFunction &mf,
                                bool EnableFastISel) {
   Fn = &fn;
   MF = &mf;
@@ -162,7 +82,7 @@ void FunctionLoweringInfo::set(Function &fn, MachineFunction &mf,
 
   // Create a vreg for each argument register that is not dead and is used
   // outside of the entry block for the function.
-  for (Function::arg_iterator AI = Fn->arg_begin(), E = Fn->arg_end();
+  for (Function::const_arg_iterator AI = Fn->arg_begin(), E = Fn->arg_end();
        AI != E; ++AI)
     if (!isOnlyUsedInEntryBlock(AI, EnableFastISel))
       InitializeRegForValue(AI);
@@ -170,10 +90,10 @@ void FunctionLoweringInfo::set(Function &fn, MachineFunction &mf,
   // Initialize the mapping of values to registers.  This is only set up for
   // instruction values that are used outside of the block that defines
   // them.
-  Function::iterator BB = Fn->begin(), EB = Fn->end();
-  for (BasicBlock::iterator I = BB->begin(), E = BB->end(); I != E; ++I)
-    if (AllocaInst *AI = dyn_cast<AllocaInst>(I))
-      if (ConstantInt *CUI = dyn_cast<ConstantInt>(AI->getArraySize())) {
+  Function::const_iterator BB = Fn->begin(), EB = Fn->end();
+  for (BasicBlock::const_iterator I = BB->begin(), E = BB->end(); I != E; ++I)
+    if (const AllocaInst *AI = dyn_cast<AllocaInst>(I))
+      if (const ConstantInt *CUI = dyn_cast<ConstantInt>(AI->getArraySize())) {
         const Type *Ty = AI->getAllocatedType();
         uint64_t TySize = TLI.getTargetData()->getTypeAllocSize(Ty);
         unsigned Align =
@@ -187,8 +107,8 @@ void FunctionLoweringInfo::set(Function &fn, MachineFunction &mf,
       }
 
   for (; BB != EB; ++BB)
-    for (BasicBlock::iterator I = BB->begin(), E = BB->end(); I != E; ++I)
-      if (!I->use_empty() && isUsedOutsideOfDefiningBlock(I))
+    for (BasicBlock::const_iterator I = BB->begin(), E = BB->end(); I != E; ++I)
+      if (isUsedOutsideOfDefiningBlock(I))
         if (!isa<AllocaInst>(I) ||
             !StaticAllocaMap.count(cast<AllocaInst>(I)))
           InitializeRegForValue(I);
@@ -196,7 +116,7 @@ void FunctionLoweringInfo::set(Function &fn, MachineFunction &mf,
   // Create an initial MachineBasicBlock for each LLVM BasicBlock in F.  This
   // also creates the initial PHI MachineInstrs, though none of the input
   // operands are populated.
-  for (BB = Fn->begin(), EB = Fn->end(); BB != EB; ++BB) {
+  for (BB = Fn->begin(); BB != EB; ++BB) {
     MachineBasicBlock *MBB = mf.CreateMachineBasicBlock(BB);
     MBBMap[BB] = MBB;
     MF->push_back(MBB);
@@ -209,14 +129,11 @@ void FunctionLoweringInfo::set(Function &fn, MachineFunction &mf,
 
     // Create Machine PHI nodes for LLVM PHI nodes, lowering them as
     // appropriate.
-    PHINode *PN;
-    DebugLoc DL;
-    for (BasicBlock::iterator
-           I = BB->begin(), E = BB->end(); I != E; ++I) {
+    for (BasicBlock::const_iterator I = BB->begin();
+         const PHINode *PN = dyn_cast<PHINode>(I); ++I) {
+      if (PN->use_empty()) continue;
 
-      PN = dyn_cast<PHINode>(I);
-      if (!PN || PN->use_empty()) continue;
-
+      DebugLoc DL = PN->getDebugLoc();
       unsigned PHIReg = ValueMap[PN];
       assert(PHIReg && "PHI node does not have an assigned virtual register!");
 
@@ -232,12 +149,20 @@ void FunctionLoweringInfo::set(Function &fn, MachineFunction &mf,
       }
     }
   }
+
+  // Mark landing pad blocks.
+  for (BB = Fn->begin(); BB != EB; ++BB)
+    if (const InvokeInst *Invoke = dyn_cast<InvokeInst>(BB->getTerminator()))
+      MBBMap[Invoke->getSuccessor(1)]->setIsLandingPad();
 }
 
 /// clear - Clear out all the function-specific state. This returns this
 /// FunctionLoweringInfo to an empty state, ready to be used for a
 /// different function.
 void FunctionLoweringInfo::clear() {
+  assert(CatchInfoFound.size() == CatchInfoLost.size() &&
+         "Not all catch info was assigned to a landing pad!");
+
   MBBMap.clear();
   ValueMap.clear();
   StaticAllocaMap.clear();
@@ -246,6 +171,7 @@ void FunctionLoweringInfo::clear() {
   CatchInfoFound.clear();
 #endif
   LiveOutRegInfo.clear();
+  ArgDbgValues.clear();
 }
 
 unsigned FunctionLoweringInfo::MakeReg(EVT VT) {
@@ -277,30 +203,12 @@ unsigned FunctionLoweringInfo::CreateRegForValue(const Value *V) {
   return FirstReg;
 }
 
-/// ExtractTypeInfo - Returns the type info, possibly bitcast, encoded in V.
-GlobalVariable *llvm::ExtractTypeInfo(Value *V) {
-  V = V->stripPointerCasts();
-  GlobalVariable *GV = dyn_cast<GlobalVariable>(V);
-
-  if (GV && GV->getName() == ".llvm.eh.catch.all.value") {
-    assert(GV->hasInitializer() &&
-           "The EH catch-all value must have an initializer");
-    Value *Init = GV->getInitializer();
-    GV = dyn_cast<GlobalVariable>(Init);
-    if (!GV) V = cast<ConstantPointerNull>(Init);
-  }
-
-  assert((GV || isa<ConstantPointerNull>(V)) &&
-         "TypeInfo must be a global variable or NULL");
-  return GV;
-}
-
 /// AddCatchInfo - Extract the personality and type infos from an eh.selector
 /// call, and add them to the specified machine basic block.
-void llvm::AddCatchInfo(CallInst &I, MachineModuleInfo *MMI,
+void llvm::AddCatchInfo(const CallInst &I, MachineModuleInfo *MMI,
                         MachineBasicBlock *MBB) {
   // Inform the MachineModuleInfo of the personality for this landing pad.
-  ConstantExpr *CE = cast<ConstantExpr>(I.getOperand(2));
+  const ConstantExpr *CE = cast<ConstantExpr>(I.getOperand(2));
   assert(CE->getOpcode() == Instruction::BitCast &&
          isa<Function>(CE->getOperand(0)) &&
          "Personality should be a function");
@@ -308,11 +216,11 @@ void llvm::AddCatchInfo(CallInst &I, MachineModuleInfo *MMI,
 
   // Gather all the type infos for this landing pad and pass them along to
   // MachineModuleInfo.
-  std::vector<GlobalVariable *> TyInfo;
+  std::vector<const GlobalVariable *> TyInfo;
   unsigned N = I.getNumOperands();
 
   for (unsigned i = N - 1; i > 2; --i) {
-    if (ConstantInt *CI = dyn_cast<ConstantInt>(I.getOperand(i))) {
+    if (const ConstantInt *CI = dyn_cast<ConstantInt>(I.getOperand(i))) {
       unsigned FilterLength = CI->getZExtValue();
       unsigned FirstCatch = i + FilterLength + !FilterLength;
       assert (FirstCatch <= N && "Invalid filter length");
@@ -349,10 +257,11 @@ void llvm::AddCatchInfo(CallInst &I, MachineModuleInfo *MMI,
   }
 }
 
-void llvm::CopyCatchInfo(BasicBlock *SrcBB, BasicBlock *DestBB,
+void llvm::CopyCatchInfo(const BasicBlock *SrcBB, const BasicBlock *DestBB,
                          MachineModuleInfo *MMI, FunctionLoweringInfo &FLI) {
-  for (BasicBlock::iterator I = SrcBB->begin(), E = --SrcBB->end(); I != E; ++I)
-    if (EHSelectorInst *EHSel = dyn_cast<EHSelectorInst>(I)) {
+  for (BasicBlock::const_iterator I = SrcBB->begin(), E = --SrcBB->end();
+       I != E; ++I)
+    if (const EHSelectorInst *EHSel = dyn_cast<EHSelectorInst>(I)) {
       // Apply the catch info to DestBB.
       AddCatchInfo(*EHSel, MMI, FLI.MBBMap[DestBB]);
 #ifndef NDEBUG

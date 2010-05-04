@@ -18,6 +18,7 @@
 #include "EDOperand.h"
 #include "EDToken.h"
 
+#include "llvm/MC/EDInstInfo.h"
 #include "llvm/MC/MCInst.h"
 
 using namespace llvm;
@@ -25,7 +26,7 @@ using namespace llvm;
 EDInst::EDInst(llvm::MCInst *inst,
                uint64_t byteSize, 
                EDDisassembler &disassembler,
-               const InstInfo *info) :
+               const llvm::EDInstInfo *info) :
   Disassembler(disassembler),
   Inst(inst),
   ThisInstInfo(info),
@@ -33,6 +34,7 @@ EDInst::EDInst(llvm::MCInst *inst,
   BranchTarget(-1),
   MoveSource(-1),
   MoveTarget(-1) {
+  OperandOrder = ThisInstInfo->operandOrders[Disassembler.llvmSyntaxVariant()];
 }
 
 EDInst::~EDInst() {
@@ -60,8 +62,6 @@ int EDInst::stringify() {
   
   if (Disassembler.printInst(String, *Inst))
     return StringifyResult.setResult(-1);
-
-  OperandOrder = ThisInstInfo->operandOrders[Disassembler.llvmSyntaxVariant()];
   
   return StringifyResult.setResult(0);
 }
@@ -81,21 +81,21 @@ unsigned EDInst::instID() {
 
 bool EDInst::isBranch() {
   if (ThisInstInfo)
-    return ThisInstInfo->instructionFlags & kInstructionFlagBranch;
+    return ThisInstInfo->instructionType == kInstructionTypeBranch;
   else
     return false;
 }
 
 bool EDInst::isMove() {
   if (ThisInstInfo)
-    return ThisInstInfo->instructionFlags & kInstructionFlagMove;
+    return ThisInstInfo->instructionType == kInstructionTypeMove;
   else
     return false;
 }
 
 int EDInst::parseOperands() {
   if (ParseResult.valid())
-    return ParseResult.result(); 
+    return ParseResult.result();
   
   if (!ThisInstInfo)
     return ParseResult.setResult(-1);

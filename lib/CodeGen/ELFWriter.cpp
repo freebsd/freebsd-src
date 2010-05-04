@@ -208,7 +208,7 @@ ELFSection &ELFWriter::getDtorSection() {
 }
 
 // getTextSection - Get the text section for the specified function
-ELFSection &ELFWriter::getTextSection(Function *F) {
+ELFSection &ELFWriter::getTextSection(const Function *F) {
   const MCSectionELF *Text = 
     (const MCSectionELF *)TLOF.SectionForGlobal(F, Mang, TM);
   return getSection(Text->getSectionName(), Text->getType(), Text->getFlags());
@@ -507,7 +507,7 @@ void ELFWriter::EmitGlobalConstant(const Constant *CV, ELFSection &GblS) {
   std::string msg;
   raw_string_ostream ErrorMsg(msg);
   ErrorMsg << "Constant unimp for type: " << *CV->getType();
-  llvm_report_error(ErrorMsg.str());
+  report_fatal_error(ErrorMsg.str());
 }
 
 // ResolveConstantExpr - Resolve the constant expression until it stop
@@ -572,10 +572,8 @@ CstExprResTy ELFWriter::ResolveConstantExpr(const Constant *CV) {
   }
   }
 
-  std::string msg(CE->getOpcodeName());
-  raw_string_ostream ErrorMsg(msg);
-  ErrorMsg << ": Unsupported ConstantExpr type";
-  llvm_report_error(ErrorMsg.str());
+  report_fatal_error(CE->getOpcodeName() +
+                     StringRef(": Unsupported ConstantExpr type"));
 
   return std::make_pair(CV, 0); // silence warning
 }

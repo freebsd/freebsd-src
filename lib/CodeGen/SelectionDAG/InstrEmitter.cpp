@@ -296,8 +296,19 @@ InstrEmitter::AddRegisterOperand(MachineInstr *MI, SDValue Op,
     }
   }
 
+  // If this value has only one use, that use is a kill. This is a
+  // conservative approximation. Tied operands are never killed, so we need
+  // to check that. And that means we need to determine the index of the
+  // operand.
+  unsigned Idx = MI->getNumOperands();
+  while (Idx > 0 &&
+         MI->getOperand(Idx-1).isReg() && MI->getOperand(Idx-1).isImplicit())
+    --Idx;
+  bool isTied = MI->getDesc().getOperandConstraint(Idx, TOI::TIED_TO) != -1;
+  bool isKill = Op.hasOneUse() && !isTied && !IsDebug;
+
   MI->addOperand(MachineOperand::CreateReg(VReg, isOptDef,
-                                           false/*isImp*/, false/*isKill*/,
+                                           false/*isImp*/, isKill,
                                            false/*isDead*/, false/*isUndef*/,
                                            false/*isEarlyClobber*/,
                                            0/*SubReg*/, IsDebug));
@@ -440,8 +451,7 @@ void InstrEmitter::EmitSubregNode(SDNode *Node,
     unsigned SubIdx = cast<ConstantSDNode>(N2)->getZExtValue();
     const TargetRegisterClass *TRC = MRI->getRegClass(SubReg);
     const TargetRegisterClass *SRC =
-      getSuperRegisterRegClass(TRC, SubIdx,
-                               Node->getValueType(0));
+      getSuperRegisterRegClass(TRC, SubIdx, Node->getValueType(0));
 
     // Figure out the register class to create for the destreg.
     // Note that if we're going to directly use an existing register,
@@ -504,41 +514,83 @@ InstrEmitter::EmitCopyToRegClassNode(SDNode *Node,
   assert(isNew && "Node emitted out of order - early");
 }
 
+/// EmitRegSequence - Generate machine code for REG_SEQUENCE nodes.
+///
+void InstrEmitter::EmitRegSequence(SDNode *Node,
+                                  DenseMap<SDValue, unsigned> &VRBaseMap) {
+  const TargetRegisterClass *RC = TLI->getRegClassFor(Node->getValueType(0));
+  unsigned NewVReg = MRI->createVirtualRegister(RC);
+  MachineInstr *MI = BuildMI(*MF, Node->getDebugLoc(),
+                             TII->get(TargetOpcode::REG_SEQUENCE), NewVReg);
+  unsigned NumOps = Node->getNumOperands();
+  assert((NumOps & 1) == 0 &&
+         "REG_SEQUENCE must have an even number of operands!");
+  const TargetInstrDesc &II = TII->get(TargetOpcode::REG_SEQUENCE);
+  for (unsigned i = 0; i != NumOps; ++i) {
+    SDValue Op = Node->getOperand(i);
+#ifndef NDEBUG
+    if (i & 1) {
+      unsigned SubIdx = cast<ConstantSDNode>(Op)->getZExtValue();
+      unsigned SubReg = getVR(Node->getOperand(i-1), VRBaseMap);
+    const TargetRegisterClass *TRC = MRI->getRegClass(SubReg);
+    const TargetRegisterClass *SRC =
+      getSuperRegisterRegClass(TRC, SubIdx, Node->getValueType(0));
+    assert(SRC == RC && "Invalid subregister index in REG_SEQUENCE");
+    }
+#endif
+    AddOperand(MI, Op, i+1, &II, VRBaseMap);
+  }
+
+  MBB->insert(InsertPos, MI);
+  SDValue Op(Node, 0);
+  bool isNew = VRBaseMap.insert(std::make_pair(Op, NewVReg)).second;
+  isNew = isNew; // Silence compiler warning.
+  assert(isNew && "Node emitted out of order - early");
+}
+
 /// EmitDbgValue - Generate machine instruction for a dbg_value node.
 ///
-MachineInstr *InstrEmitter::EmitDbgValue(SDDbgValue *SD,
-                                         MachineBasicBlock *InsertBB,
-                                         DenseMap<SDValue, unsigned> &VRBaseMap,
-                         DenseMap<MachineBasicBlock*, MachineBasicBlock*> *EM) {
+MachineInstr *
+InstrEmitter::EmitDbgValue(SDDbgValue *SD,
+                           DenseMap<SDValue, unsigned> &VRBaseMap) {
   uint64_t Offset = SD->getOffset();
   MDNode* MDPtr = SD->getMDPtr();
   DebugLoc DL = SD->getDebugLoc();
 
+  if (SD->getKind() == SDDbgValue::FRAMEIX) {
+    // Stack address; this needs to be lowered in target-dependent fashion.
+    // EmitTargetCodeForFrameDebugValue is responsible for allocation.
+    unsigned FrameIx = SD->getFrameIx();
+    return TII->emitFrameIndexDebugValue(*MF, FrameIx, Offset, MDPtr, DL);
+  }
+  // Otherwise, we're going to create an instruction here.
   const TargetInstrDesc &II = TII->get(TargetOpcode::DBG_VALUE);
   MachineInstrBuilder MIB = BuildMI(*MF, DL, II);
   if (SD->getKind() == SDDbgValue::SDNODE) {
-    AddOperand(&*MIB, SDValue(SD->getSDNode(), SD->getResNo()),
-               (*MIB).getNumOperands(), &II, VRBaseMap, true /*IsDebug*/);
+    SDNode *Node = SD->getSDNode();
+    SDValue Op = SDValue(Node, SD->getResNo());
+    // It's possible we replaced this SDNode with other(s) and therefore
+    // didn't generate code for it.  It's better to catch these cases where
+    // they happen and transfer the debug info, but trying to guarantee that
+    // in all cases would be very fragile; this is a safeguard for any
+    // that were missed.
+    DenseMap<SDValue, unsigned>::iterator I = VRBaseMap.find(Op);
+    if (I==VRBaseMap.end())
+      MIB.addReg(0U);       // undef
+    else
+      AddOperand(&*MIB, Op, (*MIB).getNumOperands(), &II, VRBaseMap,
+                 true /*IsDebug*/);
   } else if (SD->getKind() == SDDbgValue::CONST) {
-    Value *V = SD->getConst();
-    if (ConstantInt *CI = dyn_cast<ConstantInt>(V)) {
+    const Value *V = SD->getConst();
+    if (const ConstantInt *CI = dyn_cast<ConstantInt>(V)) {
       MIB.addImm(CI->getSExtValue());
-    } else if (ConstantFP *CF = dyn_cast<ConstantFP>(V)) {
+    } else if (const ConstantFP *CF = dyn_cast<ConstantFP>(V)) {
       MIB.addFPImm(CF);
     } else {
       // Could be an Undef.  In any case insert an Undef so we can see what we
       // dropped.
       MIB.addReg(0U);
     }
-  } else if (SD->getKind() == SDDbgValue::FRAMEIX) {
-    unsigned FrameIx = SD->getFrameIx();
-    // Stack address; this needs to be lowered in target-dependent fashion.
-    // FIXME test that the target supports this somehow; if not emit Undef.
-    // Create a pseudo for EmitInstrWithCustomInserter's consumption.
-    MIB.addImm(FrameIx).addImm(Offset).addMetadata(MDPtr);
-    abort();
-    TLI->EmitInstrWithCustomInserter(&*MIB, InsertBB, EM);
-    return 0;
   } else {
     // Insert an Undef so we can see what we dropped.
     MIB.addReg(0U);
@@ -553,8 +605,7 @@ MachineInstr *InstrEmitter::EmitDbgValue(SDDbgValue *SD,
 ///
 void InstrEmitter::
 EmitMachineNode(SDNode *Node, bool IsClone, bool IsCloned,
-                DenseMap<SDValue, unsigned> &VRBaseMap,
-                DenseMap<MachineBasicBlock*, MachineBasicBlock*> *EM) {
+                DenseMap<SDValue, unsigned> &VRBaseMap) {
   unsigned Opc = Node->getMachineOpcode();
   
   // Handle subreg insert/extract specially
@@ -568,6 +619,12 @@ EmitMachineNode(SDNode *Node, bool IsClone, bool IsCloned,
   // Handle COPY_TO_REGCLASS specially.
   if (Opc == TargetOpcode::COPY_TO_REGCLASS) {
     EmitCopyToRegClassNode(Node, VRBaseMap);
+    return;
+  }
+
+  // Handle REG_SEQUENCE specially.
+  if (Opc == TargetOpcode::REG_SEQUENCE) {
+    EmitRegSequence(Node, VRBaseMap);
     return;
   }
 
@@ -615,7 +672,7 @@ EmitMachineNode(SDNode *Node, bool IsClone, bool IsCloned,
   if (II.usesCustomInsertionHook()) {
     // Insert this instruction into the basic block using a target
     // specific inserter which may returns a new basic block.
-    MBB = TLI->EmitInstrWithCustomInserter(MI, MBB, EM);
+    MBB = TLI->EmitInstrWithCustomInserter(MI, MBB);
     InsertPos = MBB->end();
     return;
   }
@@ -646,7 +703,6 @@ EmitMachineNode(SDNode *Node, bool IsClone, bool IsCloned,
            i != e; ++i)
         MI->addRegisterDead(IDList[i-II.getNumDefs()], TRI);
     }
-  return;
 }
 
 /// EmitSpecialNode - Generate machine code for a target-independent node and
@@ -720,12 +776,12 @@ EmitSpecialNode(SDNode *Node, bool IsClone, bool IsCloned,
                                TII->get(TargetOpcode::INLINEASM));
 
     // Add the asm string as an external symbol operand.
-    const char *AsmStr =
-      cast<ExternalSymbolSDNode>(Node->getOperand(1))->getSymbol();
+    SDValue AsmStrV = Node->getOperand(InlineAsm::Op_AsmString);
+    const char *AsmStr = cast<ExternalSymbolSDNode>(AsmStrV)->getSymbol();
     MI->addOperand(MachineOperand::CreateES(AsmStr));
       
     // Add all of the operand registers to the instruction.
-    for (unsigned i = 2; i != NumOps;) {
+    for (unsigned i = InlineAsm::Op_FirstOperand; i != NumOps;) {
       unsigned Flags =
         cast<ConstantSDNode>(Node->getOperand(i))->getZExtValue();
       unsigned NumVals = InlineAsm::getNumOperandRegisters(Flags);
@@ -733,24 +789,24 @@ EmitSpecialNode(SDNode *Node, bool IsClone, bool IsCloned,
       MI->addOperand(MachineOperand::CreateImm(Flags));
       ++i;  // Skip the ID value.
         
-      switch (Flags & 7) {
+      switch (InlineAsm::getKind(Flags)) {
       default: llvm_unreachable("Bad flags!");
-      case 2:   // Def of register.
+        case InlineAsm::Kind_RegDef:
         for (; NumVals; --NumVals, ++i) {
           unsigned Reg = cast<RegisterSDNode>(Node->getOperand(i))->getReg();
           MI->addOperand(MachineOperand::CreateReg(Reg, true));
         }
         break;
-      case 6:   // Def of earlyclobber register.
+      case InlineAsm::Kind_RegDefEarlyClobber:
         for (; NumVals; --NumVals, ++i) {
           unsigned Reg = cast<RegisterSDNode>(Node->getOperand(i))->getReg();
           MI->addOperand(MachineOperand::CreateReg(Reg, true, false, false, 
                                                    false, false, true));
         }
         break;
-      case 1:  // Use of register.
-      case 3:  // Immediate.
-      case 4:  // Addressing mode.
+      case InlineAsm::Kind_RegUse:  // Use of register.
+      case InlineAsm::Kind_Imm:  // Immediate.
+      case InlineAsm::Kind_Mem:  // Addressing mode.
         // The addressing mode has been selected, just add all of the
         // operands to the machine instruction.
         for (; NumVals; --NumVals, ++i)
@@ -758,6 +814,13 @@ EmitSpecialNode(SDNode *Node, bool IsClone, bool IsCloned,
         break;
       }
     }
+    
+    // Get the mdnode from the asm if it exists and add it to the instruction.
+    SDValue MDV = Node->getOperand(InlineAsm::Op_MDNode);
+    const MDNode *MD = cast<MDNodeSDNode>(MDV)->getMD();
+    if (MD)
+      MI->addOperand(MachineOperand::CreateMetadata(MD));
+    
     MBB->insert(InsertPos, MI);
     break;
   }

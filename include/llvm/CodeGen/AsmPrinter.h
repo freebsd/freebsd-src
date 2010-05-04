@@ -34,6 +34,7 @@ namespace llvm {
   class MachineBasicBlock;
   class MachineFunction;
   class MachineInstr;
+  class MachineLocation;
   class MachineLoopInfo;
   class MachineLoop;
   class MachineConstantPool;
@@ -129,7 +130,7 @@ namespace llvm {
     unsigned getFunctionNumber() const;
     
     /// getObjFileLowering - Return information about object file lowering.
-    TargetLoweringObjectFile &getObjFileLowering() const;
+    const TargetLoweringObjectFile &getObjFileLowering() const;
 
     /// getTargetData - Return information about data layout.
     const TargetData &getTargetData() const;
@@ -203,28 +204,15 @@ namespace llvm {
     /// EmitAlignment - Emit an alignment directive to the specified power of
     /// two boundary.  For example, if you pass in 3 here, you will get an 8
     /// byte alignment.  If a global value is specified, and if that global has
-    /// an explicit alignment requested, it will unconditionally override the
-    /// alignment request.  However, if ForcedAlignBits is specified, this value
-    /// has final say: the ultimate alignment will be the max of ForcedAlignBits
-    /// and the alignment computed with NumBits and the global.  If UseFillExpr
-    /// is true, it also emits an optional second value FillValue which the
-    /// assembler uses to fill gaps to match alignment for text sections if the
-    /// has specified a non-zero fill value.
+    /// an explicit alignment requested, it will override the alignment request
+    /// if required for correctness.
     ///
-    /// The algorithm is:
-    ///     Align = NumBits;
-    ///     if (GV && GV->hasalignment) Align = GV->getalignment();
-    ///     Align = std::max(Align, ForcedAlignBits);
-    ///
-    void EmitAlignment(unsigned NumBits, const GlobalValue *GV = 0,
-                       unsigned ForcedAlignBits = 0,
-                       bool UseFillExpr = true) const;
+    void EmitAlignment(unsigned NumBits, const GlobalValue *GV = 0) const;
     
     /// EmitBasicBlockStart - This method prints the label for the specified
     /// MachineBasicBlock, an alignment (if present) and a comment describing
     /// it if appropriate.
     void EmitBasicBlockStart(const MachineBasicBlock *MBB) const;
-    
     
     /// EmitGlobalConstant - Print a general LLVM constant to the .s file.
     void EmitGlobalConstant(const Constant *CV, unsigned AddrSpace = 0);
@@ -333,6 +321,12 @@ namespace llvm {
     void EmitLabelDifference(const MCSymbol *Hi, const MCSymbol *Lo,
                              unsigned Size) const;
     
+    /// EmitLabelOffsetDifference - Emit something like ".long Hi+Offset-Lo" 
+    /// where the size in bytes of the directive is specified by Size and Hi/Lo
+    /// specify the labels.  This implicitly uses .set if it is available.
+    void EmitLabelOffsetDifference(const MCSymbol *Hi, uint64_t Offset,
+                                   const MCSymbol *Lo, unsigned Size) const;
+    
     //===------------------------------------------------------------------===//
     // Dwarf Emission Helper Routines
     //===------------------------------------------------------------------===//
@@ -370,7 +364,11 @@ namespace llvm {
     /// that Label lives in.
     void EmitSectionOffset(const MCSymbol *Label,
                            const MCSymbol *SectionLabel) const;
-    
+
+    /// getDebugValueLocation - Get location information encoded by DBG_VALUE
+    /// operands.
+    virtual MachineLocation getDebugValueLocation(const MachineInstr *MI) const;
+
     //===------------------------------------------------------------------===//
     // Dwarf Lowering Routines
     //===------------------------------------------------------------------===//

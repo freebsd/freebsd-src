@@ -169,6 +169,15 @@ MCOperand X86MCInstLower::LowerSymbolOperand(const MachineOperand &MO,
     Expr = MCBinaryExpr::CreateSub(Expr, 
                                MCSymbolRefExpr::Create(GetPICBaseSymbol(), Ctx),
                                    Ctx);
+    if (MO.isJTI() && AsmPrinter.MAI->hasSetDirective()) {
+      // If .set directive is supported, use it to reduce the number of
+      // relocations the assembler will generate for differences between
+      // local labels. This is only safe when the symbols are in the same
+      // section so we are restricting it to jumptable references.
+      MCSymbol *Label = Ctx.CreateTempSymbol();
+      AsmPrinter.OutStreamer.EmitAssignment(Label, Expr);
+      Expr = MCSymbolRefExpr::Create(Label, Ctx);
+    }
     break;
   }
   
@@ -328,59 +337,34 @@ void X86MCInstLower::Lower(const MachineInstr *MI, MCInst &OutMI) const {
 
 void X86AsmPrinter::PrintDebugValueComment(const MachineInstr *MI,
                                            raw_ostream &O) {
-  // FIXME: if this is implemented for another target before it goes
-  // away completely, the common part should be moved into AsmPrinter.
-  O << '\t' << MAI->getCommentString() << "DEBUG_VALUE: ";
+  // Only the target-dependent form of DBG_VALUE should get here.
+  // Referencing the offset and metadata as NOps-2 and NOps-1 is
+  // probably portable to other targets; frame pointer location is not.
   unsigned NOps = MI->getNumOperands();
+  assert(NOps==7);
+  O << '\t' << MAI->getCommentString() << "DEBUG_VALUE: ";
   // cast away const; DIetc do not take const operands for some reason.
-  DIVariable V((MDNode*)(MI->getOperand(NOps-1).getMetadata()));
+  DIVariable V(const_cast<MDNode *>(MI->getOperand(NOps-1).getMetadata()));
+  if (V.getContext().isSubprogram())
+    O << DISubprogram(V.getContext().getNode()).getDisplayName() << ":";
   O << V.getName();
   O << " <- ";
-  if (NOps==3) {
-    // Register or immediate value. Register 0 means undef.
-    assert(MI->getOperand(0).isReg() ||
-           MI->getOperand(0).isImm() ||
-           MI->getOperand(0).isFPImm());
-    if (MI->getOperand(0).isReg() && MI->getOperand(0).getReg() == 0) {
-      // Suppress offset in this case, it is not meaningful.
-      O << "undef";
-      OutStreamer.AddBlankLine();
-      return;
-    }
-    
-    if (MI->getOperand(0).isFPImm()) {
-      // This is more naturally done in printOperand, but since the only use
-      // of such an operand is in this comment and that is temporary (and it's
-      // ugly), we prefer to keep this localized.
-      // The include of Type.h may be removable when this code is.
-      if (MI->getOperand(0).getFPImm()->getType()->isFloatTy() ||
-          MI->getOperand(0).getFPImm()->getType()->isDoubleTy())
-        MI->getOperand(0).print(O, &TM);
-      else {
-        // There is no good way to print long double.  Convert a copy to
-        // double.  Ah well, it's only a comment.
-        bool ignored;
-        APFloat APF = APFloat(MI->getOperand(0).getFPImm()->getValueAPF());
-        APF.convert(APFloat::IEEEdouble, APFloat::rmNearestTiesToEven,
-                    &ignored);
-        O << "(long double) " << APF.convertToDouble();
-      }
-    } else
-      printOperand(MI, 0, O);
-  } else {
-    if (MI->getOperand(0).isReg() && MI->getOperand(0).getReg() == 0) {
-      // Suppress offset in this case, it is not meaningful.
-      O << "undef";
-      OutStreamer.AddBlankLine();
-      return;
-    }
-    // Frame address.  Currently handles register +- offset only.
-    assert(MI->getOperand(0).isReg() && MI->getOperand(3).isImm());
-    O << '['; printOperand(MI, 0, O); O << '+'; printOperand(MI, 3, O);
-    O << ']';
-  }
+  // Frame address.  Currently handles register +- offset only.
+  assert(MI->getOperand(0).isReg() && MI->getOperand(3).isImm());
+  O << '['; printOperand(MI, 0, O); O << '+'; printOperand(MI, 3, O);
+  O << ']';
   O << "+";
   printOperand(MI, NOps-2, O);
+}
+
+MachineLocation 
+X86AsmPrinter::getDebugValueLocation(const MachineInstr *MI) const {
+  MachineLocation Location;
+  assert (MI->getNumOperands() == 7 && "Invalid no. of machine operands!");
+  // Frame address.  Currently handles register +- offset only.
+  assert(MI->getOperand(0).isReg() && MI->getOperand(3).isImm());
+  Location.set(MI->getOperand(0).getReg(), MI->getOperand(3).getImm());
+  return Location;
 }
 
 
@@ -395,7 +379,7 @@ void X86AsmPrinter::EmitInstruction(const MachineInstr *MI) {
       OutStreamer.EmitRawText(StringRef(OS.str()));
     }
     return;
-      
+
   case X86::MOVPC32r: {
     MCInst TmpInst;
     // This is a pseudo op for a two instruction sequence with a label, which

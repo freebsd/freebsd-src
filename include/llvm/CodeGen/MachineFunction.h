@@ -70,7 +70,7 @@ struct MachineFunctionInfo {
 };
 
 class MachineFunction {
-  Function *Fn;
+  const Function *Fn;
   const TargetMachine &Target;
   MCContext &Ctx;
   MachineModuleInfo &MMI;
@@ -109,10 +109,6 @@ class MachineFunction {
   typedef ilist<MachineBasicBlock> BasicBlockListType;
   BasicBlockListType BasicBlocks;
 
-  /// Default debug location. Used to print out the debug label at the beginning
-  /// of a function.
-  DebugLoc DefaultDebugLoc;
-
   /// FunctionNumber - This provides a unique ID for each function emitted in
   /// this translation unit.
   ///
@@ -124,8 +120,8 @@ class MachineFunction {
   MachineFunction(const MachineFunction &); // DO NOT IMPLEMENT
   void operator=(const MachineFunction&);   // DO NOT IMPLEMENT
 public:
-  MachineFunction(Function *Fn, const TargetMachine &TM, unsigned FunctionNum,
-                  MachineModuleInfo &MMI);
+  MachineFunction(const Function *Fn, const TargetMachine &TM,
+                  unsigned FunctionNum, MachineModuleInfo &MMI);
   ~MachineFunction();
 
   MachineModuleInfo &getMMI() const { return MMI; }
@@ -133,7 +129,7 @@ public:
   
   /// getFunction - Return the LLVM function that this machine code represents
   ///
-  Function *getFunction() const { return Fn; }
+  const Function *getFunction() const { return Fn; }
 
   /// getFunctionNumber - Return a unique ID for the current function.
   ///
@@ -394,19 +390,6 @@ public:
   /// normal 'L' label is returned.
   MCSymbol *getJTISymbol(unsigned JTI, MCContext &Ctx, 
                          bool isLinkerPrivate = false) const;
-  
-  
-  //===--------------------------------------------------------------------===//
-  // Debug location.
-  //
-
-  /// getDefaultDebugLoc - Get the default debug location for the machine
-  /// function.
-  DebugLoc getDefaultDebugLoc() const { return DefaultDebugLoc; }
-
-  /// setDefaultDebugLoc - Get the default debug location for the machine
-  /// function.
-  void setDefaultDebugLoc(DebugLoc DL) { DefaultDebugLoc = DL; }
 };
 
 //===--------------------------------------------------------------------===//

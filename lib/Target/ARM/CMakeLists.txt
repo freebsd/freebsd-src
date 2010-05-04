@@ -10,6 +10,7 @@ tablegen(ARMGenAsmWriter.inc -gen-asm-writer)
 tablegen(ARMGenDAGISel.inc -gen-dag-isel)
 tablegen(ARMGenCallingConv.inc -gen-callingconv)
 tablegen(ARMGenSubtarget.inc -gen-subtarget)
+tablegen(ARMGenEDInfo.inc -gen-enhanced-disassembly-info)
 
 add_llvm_target(ARMCodeGen
   ARMBaseInstrInfo.cpp
@@ -36,6 +37,7 @@ add_llvm_target(ARMCodeGen
   Thumb2InstrInfo.cpp
   Thumb2RegisterInfo.cpp
   Thumb2SizeReduction.cpp
+  ARMSelectionDAGInfo.cpp
   )
 
 target_link_libraries (LLVMARMCodeGen LLVMSelectionDAG)

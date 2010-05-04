@@ -233,14 +233,8 @@ namespace llvm {
   }
   
   class PPCTargetLowering : public TargetLowering {
-    int VarArgsFrameIndex;            // FrameIndex for start of varargs area.
-    int VarArgsStackOffset;           // StackOffset for start of stack
-                                      // arguments.
-    unsigned VarArgsNumGPR;           // Index of the first unused integer
-                                      // register for parameter passing.
-    unsigned VarArgsNumFPR;           // Index of the first unused double
-                                      // register for parameter passing.
     const PPCSubtarget &PPCSubTarget;
+
   public:
     explicit PPCTargetLowering(PPCTargetMachine &TM);
     
@@ -285,13 +279,13 @@ namespace llvm {
     
     /// LowerOperation - Provide custom lowering hooks for some operations.
     ///
-    virtual SDValue LowerOperation(SDValue Op, SelectionDAG &DAG);
+    virtual SDValue LowerOperation(SDValue Op, SelectionDAG &DAG) const;
 
     /// ReplaceNodeResults - Replace the results of node with an illegal result
     /// type with new values built out of custom code.
     ///
     virtual void ReplaceNodeResults(SDNode *N, SmallVectorImpl<SDValue>&Results,
-                                    SelectionDAG &DAG);
+                                    SelectionDAG &DAG) const;
 
     virtual SDValue PerformDAGCombine(SDNode *N, DAGCombinerInfo &DCI) const;
     
@@ -302,9 +296,9 @@ namespace llvm {
                                                 const SelectionDAG &DAG,
                                                 unsigned Depth = 0) const;
 
-    virtual MachineBasicBlock *EmitInstrWithCustomInserter(MachineInstr *MI,
-                                                         MachineBasicBlock *MBB,
-                    DenseMap<MachineBasicBlock*, MachineBasicBlock*> *EM) const;
+    virtual MachineBasicBlock *
+      EmitInstrWithCustomInserter(MachineInstr *MI,
+                                  MachineBasicBlock *MBB) const;
     MachineBasicBlock *EmitAtomicBinary(MachineInstr *MI, 
                                         MachineBasicBlock *MBB, bool is64Bit,
                                         unsigned BinOpcode) const;
@@ -355,12 +349,14 @@ namespace llvm {
     /// probably because the source does not need to be loaded. If
     /// 'NonScalarIntSafe' is true, that means it's safe to return a
     /// non-scalar-integer type, e.g. empty string source, constant, or loaded
-    /// from memory. It returns EVT::Other if SelectionDAG should be responsible
-    /// for determining it.
+    /// from memory. 'MemcpyStrSrc' indicates whether the memcpy source is
+    /// constant so it does not need to be loaded.
+    /// It returns EVT::Other if the type should be determined using generic
+    /// target-independent logic.
     virtual EVT
-    getOptimalMemOpType(uint64_t Size,
-                        unsigned DstAlign, unsigned SrcAlign,
-                        bool NonScalarIntSafe, SelectionDAG &DAG) const;
+    getOptimalMemOpType(uint64_t Size, unsigned DstAlign, unsigned SrcAlign,
+                        bool NonScalarIntSafe, bool MemcpyStrSrc,
+                        MachineFunction &MF) const;
 
     /// getFunctionAlignment - Return the Log2 alignment of this function.
     virtual unsigned getFunctionAlignment(const Function *F) const;
@@ -382,46 +378,43 @@ namespace llvm {
                                          SDValue &LROpOut,
                                          SDValue &FPOpOut,
                                          bool isDarwinABI,
-                                         DebugLoc dl);
+                                         DebugLoc dl) const;
 
-    SDValue LowerRETURNADDR(SDValue Op, SelectionDAG &DAG);
-    SDValue LowerFRAMEADDR(SDValue Op, SelectionDAG &DAG);
-    SDValue LowerConstantPool(SDValue Op, SelectionDAG &DAG);
-    SDValue LowerBlockAddress(SDValue Op, SelectionDAG &DAG);
-    SDValue LowerGlobalAddress(SDValue Op, SelectionDAG &DAG);
-    SDValue LowerGlobalTLSAddress(SDValue Op, SelectionDAG &DAG);
-    SDValue LowerJumpTable(SDValue Op, SelectionDAG &DAG);
-    SDValue LowerSETCC(SDValue Op, SelectionDAG &DAG);
-    SDValue LowerTRAMPOLINE(SDValue Op, SelectionDAG &DAG);
+    SDValue LowerRETURNADDR(SDValue Op, SelectionDAG &DAG) const;
+    SDValue LowerFRAMEADDR(SDValue Op, SelectionDAG &DAG) const;
+    SDValue LowerConstantPool(SDValue Op, SelectionDAG &DAG) const;
+    SDValue LowerBlockAddress(SDValue Op, SelectionDAG &DAG) const;
+    SDValue LowerGlobalAddress(SDValue Op, SelectionDAG &DAG) const;
+    SDValue LowerGlobalTLSAddress(SDValue Op, SelectionDAG &DAG) const;
+    SDValue LowerJumpTable(SDValue Op, SelectionDAG &DAG) const;
+    SDValue LowerSETCC(SDValue Op, SelectionDAG &DAG) const;
+    SDValue LowerTRAMPOLINE(SDValue Op, SelectionDAG &DAG) const;
     SDValue LowerVASTART(SDValue Op, SelectionDAG &DAG,
-                           int VarArgsFrameIndex, int VarArgsStackOffset,
-                           unsigned VarArgsNumGPR, unsigned VarArgsNumFPR,
-                           const PPCSubtarget &Subtarget);
-    SDValue LowerVAARG(SDValue Op, SelectionDAG &DAG, int VarArgsFrameIndex,
-                         int VarArgsStackOffset, unsigned VarArgsNumGPR,
-                         unsigned VarArgsNumFPR, const PPCSubtarget &Subtarget);
+                         const PPCSubtarget &Subtarget) const;
+    SDValue LowerVAARG(SDValue Op, SelectionDAG &DAG,
+                       const PPCSubtarget &Subtarget) const;
     SDValue LowerSTACKRESTORE(SDValue Op, SelectionDAG &DAG,
-                                const PPCSubtarget &Subtarget);
+                                const PPCSubtarget &Subtarget) const;
     SDValue LowerDYNAMIC_STACKALLOC(SDValue Op, SelectionDAG &DAG,
-                                      const PPCSubtarget &Subtarget);
-    SDValue LowerSELECT_CC(SDValue Op, SelectionDAG &DAG);
-    SDValue LowerFP_TO_INT(SDValue Op, SelectionDAG &DAG, DebugLoc dl);
-    SDValue LowerSINT_TO_FP(SDValue Op, SelectionDAG &DAG);
-    SDValue LowerFLT_ROUNDS_(SDValue Op, SelectionDAG &DAG);
-    SDValue LowerSHL_PARTS(SDValue Op, SelectionDAG &DAG);
-    SDValue LowerSRL_PARTS(SDValue Op, SelectionDAG &DAG);
-    SDValue LowerSRA_PARTS(SDValue Op, SelectionDAG &DAG);
-    SDValue LowerBUILD_VECTOR(SDValue Op, SelectionDAG &DAG);
-    SDValue LowerVECTOR_SHUFFLE(SDValue Op, SelectionDAG &DAG);
-    SDValue LowerINTRINSIC_WO_CHAIN(SDValue Op, SelectionDAG &DAG);
-    SDValue LowerSCALAR_TO_VECTOR(SDValue Op, SelectionDAG &DAG);
-    SDValue LowerMUL(SDValue Op, SelectionDAG &DAG);
+                                      const PPCSubtarget &Subtarget) const;
+    SDValue LowerSELECT_CC(SDValue Op, SelectionDAG &DAG) const;
+    SDValue LowerFP_TO_INT(SDValue Op, SelectionDAG &DAG, DebugLoc dl) const;
+    SDValue LowerSINT_TO_FP(SDValue Op, SelectionDAG &DAG) const;
+    SDValue LowerFLT_ROUNDS_(SDValue Op, SelectionDAG &DAG) const;
+    SDValue LowerSHL_PARTS(SDValue Op, SelectionDAG &DAG) const;
+    SDValue LowerSRL_PARTS(SDValue Op, SelectionDAG &DAG) const;
+    SDValue LowerSRA_PARTS(SDValue Op, SelectionDAG &DAG) const;
+    SDValue LowerBUILD_VECTOR(SDValue Op, SelectionDAG &DAG) const;
+    SDValue LowerVECTOR_SHUFFLE(SDValue Op, SelectionDAG &DAG) const;
+    SDValue LowerINTRINSIC_WO_CHAIN(SDValue Op, SelectionDAG &DAG) const;
+    SDValue LowerSCALAR_TO_VECTOR(SDValue Op, SelectionDAG &DAG) const;
+    SDValue LowerMUL(SDValue Op, SelectionDAG &DAG) const;
 
     SDValue LowerCallResult(SDValue Chain, SDValue InFlag,
                             CallingConv::ID CallConv, bool isVarArg,
                             const SmallVectorImpl<ISD::InputArg> &Ins,
                             DebugLoc dl, SelectionDAG &DAG,
-                            SmallVectorImpl<SDValue> &InVals);
+                            SmallVectorImpl<SDValue> &InVals) const;
     SDValue FinishCall(CallingConv::ID CallConv, DebugLoc dl, bool isTailCall,
                        bool isVarArg,
                        SelectionDAG &DAG,
@@ -431,14 +424,14 @@ namespace llvm {
                        SDValue &Callee,
                        int SPDiff, unsigned NumBytes,
                        const SmallVectorImpl<ISD::InputArg> &Ins,
-                       SmallVectorImpl<SDValue> &InVals);
+                       SmallVectorImpl<SDValue> &InVals) const;
 
     virtual SDValue
       LowerFormalArguments(SDValue Chain,
                            CallingConv::ID CallConv, bool isVarArg,
                            const SmallVectorImpl<ISD::InputArg> &Ins,
                            DebugLoc dl, SelectionDAG &DAG,
-                           SmallVectorImpl<SDValue> &InVals);
+                           SmallVectorImpl<SDValue> &InVals) const;
 
     virtual SDValue
       LowerCall(SDValue Chain, SDValue Callee,
@@ -446,26 +439,26 @@ namespace llvm {
                 const SmallVectorImpl<ISD::OutputArg> &Outs,
                 const SmallVectorImpl<ISD::InputArg> &Ins,
                 DebugLoc dl, SelectionDAG &DAG,
-                SmallVectorImpl<SDValue> &InVals);
+                SmallVectorImpl<SDValue> &InVals) const;
 
     virtual SDValue
       LowerReturn(SDValue Chain,
                   CallingConv::ID CallConv, bool isVarArg,
                   const SmallVectorImpl<ISD::OutputArg> &Outs,
-                  DebugLoc dl, SelectionDAG &DAG);
+                  DebugLoc dl, SelectionDAG &DAG) const;
 
     SDValue
       LowerFormalArguments_Darwin(SDValue Chain,
                                   CallingConv::ID CallConv, bool isVarArg,
                                   const SmallVectorImpl<ISD::InputArg> &Ins,
                                   DebugLoc dl, SelectionDAG &DAG,
-                                  SmallVectorImpl<SDValue> &InVals);
+                                  SmallVectorImpl<SDValue> &InVals) const;
     SDValue
       LowerFormalArguments_SVR4(SDValue Chain,
                                 CallingConv::ID CallConv, bool isVarArg,
                                 const SmallVectorImpl<ISD::InputArg> &Ins,
                                 DebugLoc dl, SelectionDAG &DAG,
-                                SmallVectorImpl<SDValue> &InVals);
+                                SmallVectorImpl<SDValue> &InVals) const;
 
     SDValue
       LowerCall_Darwin(SDValue Chain, SDValue Callee,
@@ -473,14 +466,14 @@ namespace llvm {
                        const SmallVectorImpl<ISD::OutputArg> &Outs,
                        const SmallVectorImpl<ISD::InputArg> &Ins,
                        DebugLoc dl, SelectionDAG &DAG,
-                       SmallVectorImpl<SDValue> &InVals);
+                       SmallVectorImpl<SDValue> &InVals) const;
     SDValue
       LowerCall_SVR4(SDValue Chain, SDValue Callee,
                      CallingConv::ID CallConv, bool isVarArg, bool isTailCall,
                      const SmallVectorImpl<ISD::OutputArg> &Outs,
                      const SmallVectorImpl<ISD::InputArg> &Ins,
                      DebugLoc dl, SelectionDAG &DAG,
-                     SmallVectorImpl<SDValue> &InVals);
+                     SmallVectorImpl<SDValue> &InVals) const;
   };
 }
 

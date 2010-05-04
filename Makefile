@@ -69,6 +69,14 @@ ifeq ($(MAKECMDGOALS),install-clang)
   NO_INSTALL = 1
 endif
 
+ifeq ($(MAKECMDGOALS),install-clang-c)
+  DIRS := tools/clang/tools/driver tools/clang/lib/Headers \
+          tools/clang/tools/libclang tools/clang/tools/c-index-test \
+	  tools/clang/include/clang-c
+  OPTIONAL_DIRS :=
+  NO_INSTALL = 1
+endif
+
 ifeq ($(MAKECMDGOALS),clang-only)
   DIRS := $(filter-out tools runtime docs unittests, $(DIRS)) tools/clang
   OPTIONAL_DIRS :=
@@ -110,6 +118,8 @@ cross-compile-build-tools:
 	  ENABLE_COVERAGE=$(ENABLE_COVERAGE) \
 	  DISABLE_ASSERTIONS=$(DISABLE_ASSERTIONS) \
 	  ENABLE_EXPENSIVE_CHECKS=$(ENABLE_EXPENSIVE_CHECKS) \
+	  CFLAGS= \
+	  CXXFLAGS= \
 	) || exit 1;
 endif
 
@@ -143,6 +153,7 @@ clang-only: all
 tools-only: all
 libs-only: all
 install-clang: install
+install-clang-c: install
 install-libs: install
 
 #------------------------------------------------------------------------

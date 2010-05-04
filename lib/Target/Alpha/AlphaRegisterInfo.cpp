@@ -212,15 +212,14 @@ void AlphaRegisterInfo::emitPrologue(MachineFunction &MF) const {
 
   //handle GOP offset
   BuildMI(MBB, MBBI, dl, TII.get(Alpha::LDAHg), Alpha::R29)
-    .addGlobalAddress(const_cast<Function*>(MF.getFunction()))
+    .addGlobalAddress(MF.getFunction())
     .addReg(Alpha::R27).addImm(++curgpdist);
   BuildMI(MBB, MBBI, dl, TII.get(Alpha::LDAg), Alpha::R29)
-    .addGlobalAddress(const_cast<Function*>(MF.getFunction()))
+    .addGlobalAddress(MF.getFunction())
     .addReg(Alpha::R29).addImm(curgpdist);
 
-  //evil const_cast until MO stuff setup to handle const
   BuildMI(MBB, MBBI, dl, TII.get(Alpha::ALTENT))
-    .addGlobalAddress(const_cast<Function*>(MF.getFunction()));
+    .addGlobalAddress(MF.getFunction());
 
   // Get the number of bytes to allocate from the FrameInfo
   long NumBytes = MFI->getStackSize();
@@ -248,10 +247,7 @@ void AlphaRegisterInfo::emitPrologue(MachineFunction &MF) const {
     BuildMI(MBB, MBBI, dl, TII.get(Alpha::LDA), Alpha::R30)
       .addImm(getLower16(NumBytes)).addReg(Alpha::R30);
   } else {
-    std::string msg;
-    raw_string_ostream Msg(msg); 
-    Msg << "Too big a stack frame at " << NumBytes;
-    llvm_report_error(Msg.str());
+    report_fatal_error("Too big a stack frame at " + Twine(NumBytes));
   }
 
   //now if we need to, save the old FP and set the new
@@ -300,10 +296,7 @@ void AlphaRegisterInfo::emitEpilogue(MachineFunction &MF,
       BuildMI(MBB, MBBI, dl, TII.get(Alpha::LDA), Alpha::R30)
         .addImm(getLower16(NumBytes)).addReg(Alpha::R30);
     } else {
-      std::string msg;
-      raw_string_ostream Msg(msg); 
-      Msg << "Too big a stack frame at " << NumBytes;
-      llvm_report_error(Msg.str());
+      report_fatal_error("Too big a stack frame at " + Twine(NumBytes));
     }
   }
 }

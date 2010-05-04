@@ -38,11 +38,14 @@
 #include "llvm/ADT/BitVector.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/Support/CommandLine.h"
-using namespace llvm;
 
+namespace llvm {
 cl::opt<bool>
 ReuseFrameIndexVals("arm-reuse-frame-index-vals", cl::Hidden, cl::init(true),
           cl::desc("Reuse repeated frame index values"));
+}
+
+using namespace llvm;
 
 unsigned ARMBaseRegisterInfo::getRegisterNumbering(unsigned RegEnum,
                                                    bool *isSPVFP) {
@@ -478,7 +481,7 @@ ARMBaseRegisterInfo::UpdateRegAllocHint(unsigned Reg, unsigned NewReg,
 ///
 bool ARMBaseRegisterInfo::hasFP(const MachineFunction &MF) const {
   const MachineFrameInfo *MFI = MF.getFrameInfo();
-  return ((NoFramePointerElim && MFI->hasCalls())||
+  return ((DisableFramePointerElim(MF) && MFI->hasCalls())||
           needsStackRealignment(MF) ||
           MFI->hasVarSizedObjects() ||
           MFI->isFrameAddressTaken());
@@ -506,7 +509,7 @@ needsStackRealignment(const MachineFunction &MF) const {
 bool ARMBaseRegisterInfo::
 cannotEliminateFrame(const MachineFunction &MF) const {
   const MachineFrameInfo *MFI = MF.getFrameInfo();
-  if (NoFramePointerElim && MFI->hasCalls())
+  if (DisableFramePointerElim(MF) && MFI->hasCalls())
     return true;
   return MFI->hasVarSizedObjects() || MFI->isFrameAddressTaken()
     || needsStackRealignment(MF);
@@ -1050,7 +1053,7 @@ emitLoadConstPool(MachineBasicBlock &MBB,
                   unsigned PredReg) const {
   MachineFunction &MF = *MBB.getParent();
   MachineConstantPool *ConstantPool = MF.getConstantPool();
-  Constant *C =
+  const Constant *C =
         ConstantInt::get(Type::getInt32Ty(MF.getFunction()->getContext()), Val);
   unsigned Idx = ConstantPool->getConstantPoolIndex(C, 4);
 
@@ -1179,6 +1182,13 @@ ARMBaseRegisterInfo::eliminateFrameIndex(MachineBasicBlock::iterator II,
   if (FrameReg != ARM::SP)
     SPAdj = 0;
   Offset += SPAdj;
+
+  // Special handling of dbg_value instructions.
+  if (MI.isDebugValue()) {
+    MI.getOperand(i).  ChangeToRegister(FrameReg, false /*isDef*/);
+    MI.getOperand(i+1).ChangeToImmediate(Offset);
+    return 0;
+  }
 
   // Modify MI as necessary to handle as much of 'Offset' as possible
   bool Done = false;

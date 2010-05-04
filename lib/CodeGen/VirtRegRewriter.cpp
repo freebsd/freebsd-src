@@ -9,7 +9,9 @@
 
 #define DEBUG_TYPE "virtregrewriter"
 #include "VirtRegRewriter.h"
+#include "VirtRegMap.h"
 #include "llvm/Function.h"
+#include "llvm/CodeGen/LiveIntervalAnalysis.h"
 #include "llvm/CodeGen/MachineFrameInfo.h"
 #include "llvm/CodeGen/MachineInstrBuilder.h"
 #include "llvm/CodeGen/MachineRegisterInfo.h"
@@ -893,7 +895,7 @@ unsigned ReuseInfo::GetRegForReload(const TargetRegisterClass *RC,
 
         bool DoReMat = NewOp.StackSlotOrReMat > VirtRegMap::MAX_STACK_SLOT;
         int SSorRMId = DoReMat
-          ? VRM.getReMatId(NewOp.VirtReg) : NewOp.StackSlotOrReMat;
+          ? VRM.getReMatId(NewOp.VirtReg) : (int) NewOp.StackSlotOrReMat;
 
         // Back-schedule reloads and remats.
         MachineBasicBlock::iterator InsertLoc =
@@ -1064,6 +1066,7 @@ class LocalRewriter : public VirtRegRewriter {
   VirtRegMap *VRM;
   BitVector AllocatableRegs;
   DenseMap<MachineInstr*, unsigned> DistanceMap;
+  DenseMap<int, SmallVector<MachineInstr*,4> > Slot2DbgValues;
 
   MachineBasicBlock *MBB;       // Basic block currently being processed.
 
@@ -1188,12 +1191,24 @@ bool LocalRewriter::runOnMachineFunction(MachineFunction &MF, VirtRegMap &vrm,
   // Mark unused spill slots.
   MachineFrameInfo *MFI = MF.getFrameInfo();
   int SS = VRM->getLowSpillSlot();
-  if (SS != VirtRegMap::NO_STACK_SLOT)
-    for (int e = VRM->getHighSpillSlot(); SS <= e; ++SS)
+  if (SS != VirtRegMap::NO_STACK_SLOT) {
+    for (int e = VRM->getHighSpillSlot(); SS <= e; ++SS) {
+      SmallVector<MachineInstr*, 4> &DbgValues = Slot2DbgValues[SS];
       if (!VRM->isSpillSlotUsed(SS)) {
         MFI->RemoveStackObject(SS);
+        for (unsigned j = 0, ee = DbgValues.size(); j != ee; ++j) {
+          MachineInstr *DVMI = DbgValues[j];
+          MachineBasicBlock *DVMBB = DVMI->getParent();
+          DEBUG(dbgs() << "Removing debug info referencing FI#" << SS << '\n');
+          VRM->RemoveMachineInstrFromMaps(DVMI);
+          DVMBB->erase(DVMI);
+        }
         ++NumDSS;
       }
+      DbgValues.clear();
+    }
+  }
+  Slot2DbgValues.clear();
 
   return true;
 }
@@ -1902,6 +1917,10 @@ LocalRewriter::RewriteMBB(LiveIntervals *LIs,
     bool Erased = false;
     bool BackTracked = false;
     MachineInstr &MI = *MII;
+
+    // Remember DbgValue's which reference stack slots.
+    if (MI.isDebugValue() && MI.getOperand(0).isFI())
+      Slot2DbgValues[MI.getOperand(0).getIndex()].push_back(&MI);
 
     /// ReusedOperands - Keep track of operand reuse in case we need to undo
     /// reuse.

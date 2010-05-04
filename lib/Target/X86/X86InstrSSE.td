@@ -2878,6 +2878,7 @@ let Constraints = "$src1 = $dst" in {
   }
 }
 
+let ImmT = NoImm in {  // None of these have i8 immediate fields.
 defm PHADDW      : SS3I_binop_rm_int_16<0x01, "phaddw",
                                         int_x86_ssse3_phadd_w,
                                         int_x86_ssse3_phadd_w_128>;
@@ -2902,6 +2903,7 @@ defm PMADDUBSW   : SS3I_binop_rm_int_8 <0x04, "pmaddubsw",
 defm PMULHRSW    : SS3I_binop_rm_int_16<0x0B, "pmulhrsw",
                                         int_x86_ssse3_pmul_hr_sw,
                                         int_x86_ssse3_pmul_hr_sw_128, 1>;
+                                        
 defm PSHUFB      : SS3I_binop_rm_int_8 <0x00, "pshufb",
                                         int_x86_ssse3_pshuf_b,
                                         int_x86_ssse3_pshuf_b_128>;
@@ -2914,7 +2916,9 @@ defm PSIGNW      : SS3I_binop_rm_int_16<0x09, "psignw",
 defm PSIGND      : SS3I_binop_rm_int_32<0x0A, "psignd",
                                         int_x86_ssse3_psign_d,
                                         int_x86_ssse3_psign_d_128>;
+}
 
+// palignr patterns.
 let Constraints = "$src1 = $dst" in {
   def PALIGNR64rr  : SS3AI<0x0F, MRMSrcReg, (outs VR64:$dst),
                            (ins VR64:$src1, VR64:$src2, i8imm:$src3),
@@ -2935,26 +2939,29 @@ let Constraints = "$src1 = $dst" in {
                            []>, OpSize;
 }
 
-// palignr patterns.
-def : Pat<(int_x86_ssse3_palign_r VR64:$src1, VR64:$src2, (i8 imm:$src3)),
-          (PALIGNR64rr VR64:$src1, VR64:$src2, (BYTE_imm imm:$src3))>,
-          Requires<[HasSSSE3]>;
-def : Pat<(int_x86_ssse3_palign_r VR64:$src1,
-                                      (memop64 addr:$src2),
-                                      (i8 imm:$src3)),
-          (PALIGNR64rm VR64:$src1, addr:$src2, (BYTE_imm imm:$src3))>,
-          Requires<[HasSSSE3]>;
-
-def : Pat<(int_x86_ssse3_palign_r_128 VR128:$src1, VR128:$src2, (i8 imm:$src3)),
-          (PALIGNR128rr VR128:$src1, VR128:$src2, (BYTE_imm imm:$src3))>,
-          Requires<[HasSSSE3]>;
-def : Pat<(int_x86_ssse3_palign_r_128 VR128:$src1,
-                                      (memopv2i64 addr:$src2),
-                                      (i8 imm:$src3)),
-          (PALIGNR128rm VR128:$src1, addr:$src2, (BYTE_imm imm:$src3))>,
-          Requires<[HasSSSE3]>;
-
 let AddedComplexity = 5 in {
+
+def : Pat<(v1i64 (palign:$src3 VR64:$src1, VR64:$src2)),
+          (PALIGNR64rr VR64:$src2, VR64:$src1,
+                       (SHUFFLE_get_palign_imm VR64:$src3))>,
+          Requires<[HasSSSE3]>;
+def : Pat<(v2i32 (palign:$src3 VR64:$src1, VR64:$src2)),
+          (PALIGNR64rr VR64:$src2, VR64:$src1,
+                       (SHUFFLE_get_palign_imm VR64:$src3))>,
+          Requires<[HasSSSE3]>;
+def : Pat<(v2f32 (palign:$src3 VR64:$src1, VR64:$src2)),
+          (PALIGNR64rr VR64:$src2, VR64:$src1,
+                       (SHUFFLE_get_palign_imm VR64:$src3))>,
+          Requires<[HasSSSE3]>;
+def : Pat<(v4i16 (palign:$src3 VR64:$src1, VR64:$src2)),
+          (PALIGNR64rr VR64:$src2, VR64:$src1,
+                       (SHUFFLE_get_palign_imm VR64:$src3))>,
+          Requires<[HasSSSE3]>;
+def : Pat<(v8i8 (palign:$src3 VR64:$src1, VR64:$src2)),
+          (PALIGNR64rr VR64:$src2, VR64:$src1,
+                       (SHUFFLE_get_palign_imm VR64:$src3))>,
+          Requires<[HasSSSE3]>;
+
 def : Pat<(v4i32 (palign:$src3 VR128:$src1, VR128:$src2)),
           (PALIGNR128rr VR128:$src2, VR128:$src1,
                         (SHUFFLE_get_palign_imm VR128:$src3))>,
@@ -3510,7 +3517,7 @@ defm DPPS         : SS41I_binop_rmi_int<0x40, "dpps",
 defm DPPD         : SS41I_binop_rmi_int<0x41, "dppd",
                                         int_x86_sse41_dppd, 1>;
 defm MPSADBW      : SS41I_binop_rmi_int<0x42, "mpsadbw",
-                                        int_x86_sse41_mpsadbw, 1>;
+                                        int_x86_sse41_mpsadbw, 0>;
 
 
 /// SS41I_ternary_int - SSE 4.1 ternary operator

@@ -858,15 +858,20 @@ Path::makeUnique(bool reuse_current, std::string* ErrMsg) {
 
   // Append an XXXXXX pattern to the end of the file for use with mkstemp,
   // mktemp or our own implementation.
-  std::string Buf(path);
+  // This uses std::vector instead of SmallVector to avoid a dependence on
+  // libSupport. And performance isn't critical here.
+  std::vector<char> Buf;
+  Buf.resize(path.size()+8);
+  char *FNBuffer = &Buf[0];
+    path.copy(FNBuffer,path.size());
   if (isDirectory())
-    Buf += "/XXXXXX";
+    strcpy(FNBuffer+path.size(), "/XXXXXX");
   else
-    Buf += "-XXXXXX";
+    strcpy(FNBuffer+path.size(), "-XXXXXX");
 
 #if defined(HAVE_MKSTEMP)
   int TempFD;
-  if ((TempFD = mkstemp((char*)Buf.c_str())) == -1)
+  if ((TempFD = mkstemp(FNBuffer)) == -1)
     return MakeErrMsg(ErrMsg, path + ": can't make unique filename");
 
   // We don't need to hold the temp file descriptor... we will trust that no one
@@ -874,21 +879,21 @@ Path::makeUnique(bool reuse_current, std::string* ErrMsg) {
   close(TempFD);
 
   // Save the name
-  path = Buf;
+  path = FNBuffer;
 #elif defined(HAVE_MKTEMP)
   // If we don't have mkstemp, use the old and obsolete mktemp function.
-  if (mktemp(Buf.c_str()) == 0)
+  if (mktemp(FNBuffer) == 0)
     return MakeErrMsg(ErrMsg, path + ": can't make unique filename");
 
   // Save the name
-  path = Buf;
+  path = FNBuffer;
 #else
   // Okay, looks like we have to do it all by our lonesome.
   static unsigned FCounter = 0;
   unsigned offset = path.size() + 1;
-  while (FCounter < 999999 && exists()) {
-    sprintf(Buf.data()+offset, "%06u", ++FCounter);
-    path = Buf;
+  while ( FCounter < 999999 && exists()) {
+    sprintf(FNBuffer+offset,"%06u",++FCounter);
+    path = FNBuffer;
   }
   if (FCounter > 999999)
     return MakeErrMsg(ErrMsg,

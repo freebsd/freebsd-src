@@ -73,16 +73,14 @@ InlinedArrayAllocasTy;
 /// available from other  functions inlined into the caller.  If we are able to
 /// inline this call site we attempt to reuse already available allocas or add
 /// any new allocas to the set if not possible.
-static bool InlineCallIfPossible(CallSite CS, CallGraph &CG,
-                                 const TargetData *TD,
+static bool InlineCallIfPossible(CallSite CS, InlineFunctionInfo &IFI,
                                  InlinedArrayAllocasTy &InlinedArrayAllocas) {
   Function *Callee = CS.getCalledFunction();
   Function *Caller = CS.getCaller();
 
   // Try to inline the function.  Get the list of static allocas that were
   // inlined.
-  SmallVector<AllocaInst*, 16> StaticAllocas;
-  if (!InlineFunction(CS, &CG, TD, &StaticAllocas))
+  if (!InlineFunction(CS, IFI))
     return false;
 
   // If the inlined function had a higher stack protection level than the
@@ -119,9 +117,9 @@ static bool InlineCallIfPossible(CallSite CS, CallGraph &CG,
   
   // Loop over all the allocas we have so far and see if they can be merged with
   // a previously inlined alloca.  If not, remember that we had it.
-  for (unsigned AllocaNo = 0, e = StaticAllocas.size();
+  for (unsigned AllocaNo = 0, e = IFI.StaticAllocas.size();
        AllocaNo != e; ++AllocaNo) {
-    AllocaInst *AI = StaticAllocas[AllocaNo];
+    AllocaInst *AI = IFI.StaticAllocas[AllocaNo];
     
     // Don't bother trying to merge array allocations (they will usually be
     // canonicalized to be an allocation *of* an array), or allocations whose
@@ -292,14 +290,29 @@ bool Inliner::shouldInline(CallSite CS) {
   return true;
 }
 
-bool Inliner::runOnSCC(std::vector<CallGraphNode*> &SCC) {
+/// InlineHistoryIncludes - Return true if the specified inline history ID
+/// indicates an inline history that includes the specified function.
+static bool InlineHistoryIncludes(Function *F, int InlineHistoryID,
+            const SmallVectorImpl<std::pair<Function*, int> > &InlineHistory) {
+  while (InlineHistoryID != -1) {
+    assert(unsigned(InlineHistoryID) < InlineHistory.size() &&
+           "Invalid inline history ID");
+    if (InlineHistory[InlineHistoryID].first == F)
+      return true;
+    InlineHistoryID = InlineHistory[InlineHistoryID].second;
+  }
+  return false;
+}
+
+
+bool Inliner::runOnSCC(CallGraphSCC &SCC) {
   CallGraph &CG = getAnalysis<CallGraph>();
   const TargetData *TD = getAnalysisIfAvailable<TargetData>();
 
   SmallPtrSet<Function*, 8> SCCFunctions;
   DEBUG(dbgs() << "Inliner visiting SCC:");
-  for (unsigned i = 0, e = SCC.size(); i != e; ++i) {
-    Function *F = SCC[i]->getFunction();
+  for (CallGraphSCC::iterator I = SCC.begin(), E = SCC.end(); I != E; ++I) {
+    Function *F = (*I)->getFunction();
     if (F) SCCFunctions.insert(F);
     DEBUG(dbgs() << " " << (F ? F->getName() : "INDIRECTNODE"));
   }
@@ -307,10 +320,16 @@ bool Inliner::runOnSCC(std::vector<CallGraphNode*> &SCC) {
   // Scan through and identify all call sites ahead of time so that we only
   // inline call sites in the original functions, not call sites that result
   // from inlining other functions.
-  SmallVector<CallSite, 16> CallSites;
+  SmallVector<std::pair<CallSite, int>, 16> CallSites;
+  
+  // When inlining a callee produces new call sites, we want to keep track of
+  // the fact that they were inlined from the callee.  This allows us to avoid
+  // infinite inlining in some obscure cases.  To represent this, we use an
+  // index into the InlineHistory vector.
+  SmallVector<std::pair<Function*, int>, 8> InlineHistory;
 
-  for (unsigned i = 0, e = SCC.size(); i != e; ++i) {
-    Function *F = SCC[i]->getFunction();
+  for (CallGraphSCC::iterator I = SCC.begin(), E = SCC.end(); I != E; ++I) {
+    Function *F = (*I)->getFunction();
     if (!F) continue;
     
     for (Function::iterator BB = F->begin(), E = F->end(); BB != E; ++BB)
@@ -327,22 +346,27 @@ bool Inliner::runOnSCC(std::vector<CallGraphNode*> &SCC) {
         if (CS.getCalledFunction() && CS.getCalledFunction()->isDeclaration())
           continue;
         
-        CallSites.push_back(CS);
+        CallSites.push_back(std::make_pair(CS, -1));
       }
   }
 
   DEBUG(dbgs() << ": " << CallSites.size() << " call sites.\n");
 
+  // If there are no calls in this function, exit early.
+  if (CallSites.empty())
+    return false;
+  
   // Now that we have all of the call sites, move the ones to functions in the
   // current SCC to the end of the list.
   unsigned FirstCallInSCC = CallSites.size();
   for (unsigned i = 0; i < FirstCallInSCC; ++i)
-    if (Function *F = CallSites[i].getCalledFunction())
+    if (Function *F = CallSites[i].first.getCalledFunction())
       if (SCCFunctions.count(F))
         std::swap(CallSites[i--], CallSites[--FirstCallInSCC]);
 
   
   InlinedArrayAllocasTy InlinedArrayAllocas;
+  InlineFunctionInfo InlineInfo(&CG, TD);
   
   // Now that we have all of the call sites, loop over them and inline them if
   // it looks profitable to do so.
@@ -353,7 +377,7 @@ bool Inliner::runOnSCC(std::vector<CallGraphNode*> &SCC) {
     // Iterate over the outer loop because inlining functions can cause indirect
     // calls to become direct calls.
     for (unsigned CSi = 0; CSi != CallSites.size(); ++CSi) {
-      CallSite CS = CallSites[CSi];
+      CallSite CS = CallSites[CSi].first;
       
       Function *Caller = CS.getCaller();
       Function *Callee = CS.getCalledFunction();
@@ -375,16 +399,42 @@ bool Inliner::runOnSCC(std::vector<CallGraphNode*> &SCC) {
         // We can only inline direct calls to non-declarations.
         if (Callee == 0 || Callee->isDeclaration()) continue;
       
+        // If this call sites was obtained by inlining another function, verify
+        // that the include path for the function did not include the callee
+        // itself.  If so, we'd be recursively inlinling the same function,
+        // which would provide the same callsites, which would cause us to
+        // infinitely inline.
+        int InlineHistoryID = CallSites[CSi].second;
+        if (InlineHistoryID != -1 &&
+            InlineHistoryIncludes(Callee, InlineHistoryID, InlineHistory))
+          continue;
+        
+        
         // If the policy determines that we should inline this function,
         // try to do so.
         if (!shouldInline(CS))
           continue;
 
-        // Attempt to inline the function...
-        if (!InlineCallIfPossible(CS, CG, TD, InlinedArrayAllocas))
+        // Attempt to inline the function.
+        if (!InlineCallIfPossible(CS, InlineInfo, InlinedArrayAllocas))
           continue;
         ++NumInlined;
+        
+        // If inlining this function gave us any new call sites, throw them
+        // onto our worklist to process.  They are useful inline candidates.
+        if (!InlineInfo.InlinedCalls.empty()) {
+          // Create a new inline history entry for this, so that we remember
+          // that these new callsites came about due to inlining Callee.
+          int NewHistoryID = InlineHistory.size();
+          InlineHistory.push_back(std::make_pair(Callee, InlineHistoryID));
 
+          for (unsigned i = 0, e = InlineInfo.InlinedCalls.size();
+               i != e; ++i) {
+            Value *Ptr = InlineInfo.InlinedCalls[i];
+            CallSites.push_back(std::make_pair(CallSite(Ptr), NewHistoryID));
+          }
+        }
+        
         // Update the cached cost info with the inlined call.
         growCachedCostInfo(Caller, Callee);
       }
@@ -417,7 +467,7 @@ bool Inliner::runOnSCC(std::vector<CallGraphNode*> &SCC) {
       // swap/pop_back for efficiency, but do not use it if doing so would
       // move a call site to a function in this SCC before the
       // 'FirstCallInSCC' barrier.
-      if (SCC.size() == 1) {
+      if (SCC.isSingular()) {
         std::swap(CallSites[CSi], CallSites.back());
         CallSites.pop_back();
       } else {

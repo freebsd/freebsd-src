@@ -59,7 +59,8 @@ namespace llvm {
       if (isa<JumpTableSDNode>(Node))      return true;
       if (isa<ExternalSymbolSDNode>(Node)) return true;
       if (isa<BlockAddressSDNode>(Node))   return true;
-      if (Node->getOpcode() == ISD::EntryToken) return true;
+      if (Node->getOpcode() == ISD::EntryToken ||
+          isa<MDNodeSDNode>(Node)) return true;
       return false;
     }
 
@@ -93,8 +94,7 @@ namespace llvm {
     ///
     virtual void ComputeLatency(SUnit *SU);
 
-    virtual MachineBasicBlock *
-    EmitSchedule(DenseMap<MachineBasicBlock*, MachineBasicBlock*> *EM);
+    virtual MachineBasicBlock *EmitSchedule();
 
     /// Schedule - Order nodes according to selected style, filling
     /// in the Sequence member.

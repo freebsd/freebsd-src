@@ -166,7 +166,7 @@ unsigned MipsTargetLowering::getFunctionAlignment(const Function *) const {
 }
 
 SDValue MipsTargetLowering::
-LowerOperation(SDValue Op, SelectionDAG &DAG) 
+LowerOperation(SDValue Op, SelectionDAG &DAG) const
 {
   switch (Op.getOpcode()) 
   {
@@ -252,8 +252,7 @@ static Mips::CondCode FPCondCCodeToFCC(ISD::CondCode CC) {
 
 MachineBasicBlock *
 MipsTargetLowering::EmitInstrWithCustomInserter(MachineInstr *MI,
-                                                MachineBasicBlock *BB,
-                   DenseMap<MachineBasicBlock*, MachineBasicBlock*> *EM) const {
+                                                MachineBasicBlock *BB) const {
   const TargetInstrInfo *TII = getTargetMachine().getInstrInfo();
   bool isFPCmp = false;
   DebugLoc dl = MI->getDebugLoc();
@@ -301,12 +300,9 @@ MipsTargetLowering::EmitInstrWithCustomInserter(MachineInstr *MI,
     F->insert(It, sinkMBB);
     // Update machine-CFG edges by first adding all successors of the current
     // block to the new block which will contain the Phi node for the select.
-    // Also inform sdisel of the edge changes.
     for(MachineBasicBlock::succ_iterator i = BB->succ_begin(),
-          e = BB->succ_end(); i != e; ++i) {
-      EM->insert(std::make_pair(*i, sinkMBB));
+          e = BB->succ_end(); i != e; ++i)
       sinkMBB->addSuccessor(*i);
-    }
     // Next, remove all successors of the current block, and add the true
     // and fallthrough blocks as its successors.
     while(!BB->succ_empty())
@@ -341,7 +337,7 @@ MipsTargetLowering::EmitInstrWithCustomInserter(MachineInstr *MI,
 //===----------------------------------------------------------------------===//
 
 SDValue MipsTargetLowering::
-LowerFP_TO_SINT(SDValue Op, SelectionDAG &DAG)
+LowerFP_TO_SINT(SDValue Op, SelectionDAG &DAG) const
 {
   if (!Subtarget->isMips1())
     return Op;
@@ -374,7 +370,7 @@ LowerFP_TO_SINT(SDValue Op, SelectionDAG &DAG)
 }
 
 SDValue MipsTargetLowering::
-LowerDYNAMIC_STACKALLOC(SDValue Op, SelectionDAG &DAG)
+LowerDYNAMIC_STACKALLOC(SDValue Op, SelectionDAG &DAG) const
 {
   SDValue Chain = Op.getOperand(0);
   SDValue Size = Op.getOperand(1);
@@ -398,7 +394,7 @@ LowerDYNAMIC_STACKALLOC(SDValue Op, SelectionDAG &DAG)
 }
 
 SDValue MipsTargetLowering::
-LowerANDOR(SDValue Op, SelectionDAG &DAG)
+LowerANDOR(SDValue Op, SelectionDAG &DAG) const
 {
   SDValue LHS   = Op.getOperand(0);
   SDValue RHS   = Op.getOperand(1);
@@ -419,7 +415,7 @@ LowerANDOR(SDValue Op, SelectionDAG &DAG)
 }
 
 SDValue MipsTargetLowering::
-LowerBRCOND(SDValue Op, SelectionDAG &DAG)
+LowerBRCOND(SDValue Op, SelectionDAG &DAG) const
 {
   // The first operand is the chain, the second is the condition, the third is 
   // the block to branch to if the condition is true.
@@ -441,7 +437,7 @@ LowerBRCOND(SDValue Op, SelectionDAG &DAG)
 }
 
 SDValue MipsTargetLowering::
-LowerSETCC(SDValue Op, SelectionDAG &DAG)
+LowerSETCC(SDValue Op, SelectionDAG &DAG) const
 {
   // The operands to this are the left and right operands to compare (ops #0, 
   // and #1) and the condition code to compare them with (op #2) as a 
@@ -457,7 +453,7 @@ LowerSETCC(SDValue Op, SelectionDAG &DAG)
 }
 
 SDValue MipsTargetLowering::
-LowerSELECT(SDValue Op, SelectionDAG &DAG) 
+LowerSELECT(SDValue Op, SelectionDAG &DAG) const
 {
   SDValue Cond  = Op.getOperand(0); 
   SDValue True  = Op.getOperand(1);
@@ -481,10 +477,11 @@ LowerSELECT(SDValue Op, SelectionDAG &DAG)
                      Cond, True, False, CCNode);
 }
 
-SDValue MipsTargetLowering::LowerGlobalAddress(SDValue Op, SelectionDAG &DAG) {
+SDValue MipsTargetLowering::LowerGlobalAddress(SDValue Op,
+                                               SelectionDAG &DAG) const {
   // FIXME there isn't actually debug info here
   DebugLoc dl = Op.getDebugLoc();
-  GlobalValue *GV = cast<GlobalAddressSDNode>(Op)->getGlobal();
+  const GlobalValue *GV = cast<GlobalAddressSDNode>(Op)->getGlobal();
 
   if (getTargetMachine().getRelocationModel() != Reloc::PIC_) {
     SDVTList VTs = DAG.getVTList(MVT::i32);
@@ -525,14 +522,14 @@ SDValue MipsTargetLowering::LowerGlobalAddress(SDValue Op, SelectionDAG &DAG) {
 }
 
 SDValue MipsTargetLowering::
-LowerGlobalTLSAddress(SDValue Op, SelectionDAG &DAG)
+LowerGlobalTLSAddress(SDValue Op, SelectionDAG &DAG) const
 {
   llvm_unreachable("TLS not implemented for MIPS.");
   return SDValue(); // Not reached
 }
 
 SDValue MipsTargetLowering::
-LowerJumpTable(SDValue Op, SelectionDAG &DAG) 
+LowerJumpTable(SDValue Op, SelectionDAG &DAG) const
 {
   SDValue ResNode;
   SDValue HiPart; 
@@ -560,11 +557,11 @@ LowerJumpTable(SDValue Op, SelectionDAG &DAG)
 }
 
 SDValue MipsTargetLowering::
-LowerConstantPool(SDValue Op, SelectionDAG &DAG) 
+LowerConstantPool(SDValue Op, SelectionDAG &DAG) const
 {
   SDValue ResNode;
   ConstantPoolSDNode *N = cast<ConstantPoolSDNode>(Op);
-  Constant *C = N->getConstVal();
+  const Constant *C = N->getConstVal();
   // FIXME there isn't actually debug info here
   DebugLoc dl = Op.getDebugLoc();
 
@@ -596,9 +593,13 @@ LowerConstantPool(SDValue Op, SelectionDAG &DAG)
   return ResNode;
 }
 
-SDValue MipsTargetLowering::LowerVASTART(SDValue Op, SelectionDAG &DAG) {
+SDValue MipsTargetLowering::LowerVASTART(SDValue Op, SelectionDAG &DAG) const {
+  MachineFunction &MF = DAG.getMachineFunction();
+  MipsFunctionInfo *FuncInfo = MF.getInfo<MipsFunctionInfo>();
+
   DebugLoc dl = Op.getDebugLoc();
-  SDValue FI = DAG.getFrameIndex(VarArgsFrameIndex, getPointerTy());
+  SDValue FI = DAG.getFrameIndex(FuncInfo->getVarArgsFrameIndex(),
+                                 getPointerTy());
 
   // vastart just stores the address of the VarArgsFrameIndex slot into the
   // memory location argument.
@@ -769,7 +770,7 @@ MipsTargetLowering::LowerCall(SDValue Chain, SDValue Callee,
                               const SmallVectorImpl<ISD::OutputArg> &Outs,
                               const SmallVectorImpl<ISD::InputArg> &Ins,
                               DebugLoc dl, SelectionDAG &DAG,
-                              SmallVectorImpl<SDValue> &InVals) {
+                              SmallVectorImpl<SDValue> &InVals) const {
   // MIPs target does not yet support tail call optimization.
   isTailCall = false;
 
@@ -963,7 +964,7 @@ MipsTargetLowering::LowerCallResult(SDValue Chain, SDValue InFlag,
                                     CallingConv::ID CallConv, bool isVarArg,
                                     const SmallVectorImpl<ISD::InputArg> &Ins,
                                     DebugLoc dl, SelectionDAG &DAG,
-                                    SmallVectorImpl<SDValue> &InVals) {
+                                    SmallVectorImpl<SDValue> &InVals) const {
 
   // Assign locations to each value returned by this call.
   SmallVector<CCValAssign, 16> RVLocs;
@@ -995,14 +996,15 @@ MipsTargetLowering::LowerFormalArguments(SDValue Chain,
                                         const SmallVectorImpl<ISD::InputArg>
                                         &Ins,
                                         DebugLoc dl, SelectionDAG &DAG,
-                                        SmallVectorImpl<SDValue> &InVals) {
+                                        SmallVectorImpl<SDValue> &InVals)
+                                          const {
 
   MachineFunction &MF = DAG.getMachineFunction();
   MachineFrameInfo *MFI = MF.getFrameInfo();
   MipsFunctionInfo *MipsFI = MF.getInfo<MipsFunctionInfo>();
 
   unsigned StackReg = MF.getTarget().getRegisterInfo()->getFrameRegister(MF);
-  VarArgsFrameIndex = 0;
+  MipsFI->setVarArgsFrameIndex(0);
 
   // Used with vargs to acumulate store chains.
   std::vector<SDValue> OutChains;
@@ -1143,8 +1145,8 @@ MipsTargetLowering::LowerFormalArguments(SDValue Chain,
 
       // Record the frame index of the first variable argument
       // which is a value necessary to VASTART.
-      if (!VarArgsFrameIndex)
-        VarArgsFrameIndex = FI;
+      if (!MipsFI->getVarArgsFrameIndex())
+        MipsFI->setVarArgsFrameIndex(FI);
     }
   }
 
@@ -1167,7 +1169,7 @@ SDValue
 MipsTargetLowering::LowerReturn(SDValue Chain,
                                 CallingConv::ID CallConv, bool isVarArg,
                                 const SmallVectorImpl<ISD::OutputArg> &Outs,
-                                DebugLoc dl, SelectionDAG &DAG) {
+                                DebugLoc dl, SelectionDAG &DAG) const {
 
   // CCValAssign - represent the assignment of
   // the return value to a location

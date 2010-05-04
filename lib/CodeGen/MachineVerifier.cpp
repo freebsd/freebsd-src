@@ -279,7 +279,7 @@ bool MachineVerifier::runOnMachineFunction(MachineFunction &MF) {
   if (OutFile)
     delete OutFile;
   else if (foundErrors)
-    llvm_report_error("Found "+Twine(foundErrors)+" machine code errors.");
+    report_fatal_error("Found "+Twine(foundErrors)+" machine code errors.");
 
   // Clean up.
   regsLive.clear();
@@ -351,8 +351,8 @@ void MachineVerifier::visitMachineFunctionBefore() {
 }
 
 // Does iterator point to a and b as the first two elements?
-bool matchPair(MachineBasicBlock::const_succ_iterator i,
-               const MachineBasicBlock *a, const MachineBasicBlock *b) {
+static bool matchPair(MachineBasicBlock::const_succ_iterator i,
+                      const MachineBasicBlock *a, const MachineBasicBlock *b) {
   if (*i == a)
     return *++i == b;
   if (*i == b)
@@ -470,7 +470,7 @@ MachineVerifier::visitMachineBasicBlockBefore(const MachineBasicBlock *MBB) {
   }
 
   regsLive.clear();
-  for (MachineBasicBlock::const_livein_iterator I = MBB->livein_begin(),
+  for (MachineBasicBlock::livein_iterator I = MBB->livein_begin(),
          E = MBB->livein_end(); I != E; ++I) {
     if (!TargetRegisterInfo::isPhysicalRegister(*I)) {
       report("MBB live-in list contains non-physical register", MBB);

@@ -43,7 +43,6 @@
 #include "llvm/ADT/BitVector.h"
 #include "llvm/ADT/STLExtras.h"
 #include <cstdlib>
-using namespace llvm;
 
 // FIXME This disables some code that aligns the stack to a boundary
 // bigger than the default (16 bytes on Darwin) when there is a stack local
@@ -56,14 +55,19 @@ using namespace llvm;
 #define ALIGN_STACK 0
 
 // FIXME (64-bit): Eventually enable by default.
+namespace llvm {
 cl::opt<bool> EnablePPC32RS("enable-ppc32-regscavenger",
-                            cl::init(false),
-                            cl::desc("Enable PPC32 register scavenger"),
-                            cl::Hidden);
+                                   cl::init(false),
+                                   cl::desc("Enable PPC32 register scavenger"),
+                                   cl::Hidden);
 cl::opt<bool> EnablePPC64RS("enable-ppc64-regscavenger",
-                            cl::init(false),
-                            cl::desc("Enable PPC64 register scavenger"),
-                            cl::Hidden);
+                                   cl::init(false),
+                                   cl::desc("Enable PPC64 register scavenger"),
+                                   cl::Hidden);
+}
+
+using namespace llvm;
+
 #define EnableRegisterScavenging \
   ((EnablePPC32RS && !Subtarget.isPPC64()) || \
    (EnablePPC64RS && Subtarget.isPPC64()))
@@ -405,7 +409,10 @@ PPCRegisterInfo::getCalleeSavedRegClasses(const MachineFunction *MF) const {
 //
 static bool needsFP(const MachineFunction &MF) {
   const MachineFrameInfo *MFI = MF.getFrameInfo();
-  return NoFramePointerElim || MFI->hasVarSizedObjects() ||
+  // Naked functions have no stack frame pushed, so we don't have a frame pointer.
+  if (MF.getFunction()->hasFnAttr(Attribute::Naked))
+    return false;
+  return DisableFramePointerElim(MF) || MFI->hasVarSizedObjects() ||
     (GuaranteedTailCallOpt && MF.getInfo<PPCFunctionInfo>()->hasFastCall());
 }
 
@@ -790,7 +797,10 @@ PPCRegisterInfo::eliminateFrameIndex(MachineBasicBlock::iterator II,
   // If we're not using a Frame Pointer that has been set to the value of the
   // SP before having the stack size subtracted from it, then add the stack size
   // to Offset to get the correct offset.
-  Offset += MFI->getStackSize();
+  // Naked functions have stack size 0, although getStackSize may not reflect that
+  // because we didn't call all the pieces that compute it for naked functions.
+  if (!MF.getFunction()->hasFnAttr(Attribute::Naked))
+    Offset += MFI->getStackSize();
 
   // If we can, encode the offset directly into the instruction.  If this is a
   // normal PPC "ri" instruction, any 16-bit value can be safely encoded.  If

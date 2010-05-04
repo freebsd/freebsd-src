@@ -1,4 +1,4 @@
-//===- InlineCost.cpp - Cost analysis for inliner ---------------*- C++ -*-===//
+//===- InlineCost.h - Cost analysis for inliner -----------------*- C++ -*-===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -16,9 +16,9 @@
 
 #include <cassert>
 #include <climits>
-#include <map>
 #include <vector>
 #include "llvm/ADT/DenseMap.h"
+#include "llvm/ADT/ValueMap.h"
 
 namespace llvm {
 
@@ -165,7 +165,9 @@ namespace llvm {
       void analyzeFunction(Function *F);
     };
 
-    std::map<const Function *, FunctionInfo> CachedFunctionInfo;
+    // The Function* for a function can be changed (by ArgumentPromotion);
+    // the ValueMap will update itself when this happens.
+    ValueMap<const Function *, FunctionInfo> CachedFunctionInfo;
 
   public:
 
@@ -173,6 +175,14 @@ namespace llvm {
     /// function call or not.
     ///
     InlineCost getInlineCost(CallSite CS,
+                             SmallPtrSet<const Function *, 16> &NeverInline);
+    /// getCalledFunction - The heuristic used to determine if we should inline
+    /// the function call or not.  The callee is explicitly specified, to allow
+    /// you to calculate the cost of inlining a function via a pointer.  The
+    /// result assumes that the inlined version will always be used.  You should
+    /// weight it yourself in cases where this callee will not always be called.
+    InlineCost getInlineCost(CallSite CS,
+                             Function *Callee,
                              SmallPtrSet<const Function *, 16> &NeverInline);
 
     /// getInlineFudgeFactor - Return a > 1.0 factor if the inliner should use a
@@ -189,6 +199,10 @@ namespace llvm {
     /// eliminated.
     void growCachedCostInfo(Function* Caller, Function* Callee);
   };
+
+  /// callIsSmall - If a call is likely to lower to a single target instruction,
+  /// or is otherwise deemed small return true.
+  bool callIsSmall(const Function *Callee);
 }
 
 #endif

@@ -392,6 +392,7 @@ namespace llvm {
       return getFieldAs<DICompositeType>(13);
     }
     unsigned isArtificial() const    { return getUnsignedField(14); }
+    unsigned isOptimized() const;
 
     StringRef getFilename() const    { 
       if (getVersion() == llvm::LLVMDebugVersion7)
@@ -473,6 +474,10 @@ namespace llvm {
     bool isBlockByrefVariable() const {
       return getType().isBlockByrefStruct();
     }
+
+    /// isInlinedFnArgument - Return trule if this variable provides debugging
+    /// information for an inlined function arguments.
+    bool isInlinedFnArgument(const Function *CurFn);
 
     /// dump - print variable.
     void dump() const;
@@ -638,7 +643,8 @@ namespace llvm {
                                   unsigned VK = 0,
                                   unsigned VIndex = 0,
                                   DIType = DIType(),
-                                  bool isArtificial = 0);
+                                  bool isArtificial = 0,
+                                  bool isOptimized = false);
 
     /// CreateSubprogramDefinition - Create new subprogram descriptor for the
     /// given declaration. 

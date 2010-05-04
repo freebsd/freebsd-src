@@ -623,7 +623,7 @@ void Filter::recurse() {
     assert(FilterChooserMap.size() == 1);
     return;
   }
-        
+
   // Otherwise, create sub choosers.
   for (mapIterator = FilteredInstructions.begin();
        mapIterator != FilteredInstructions.end();
@@ -631,7 +631,7 @@ void Filter::recurse() {
 
     // Marks all the segment positions with either BIT_TRUE or BIT_FALSE.
     for (bitIndex = 0; bitIndex < NumBits; bitIndex++) {
-      if (mapIterator->first & (1 << bitIndex))
+      if (mapIterator->first & (1ULL << bitIndex))
         BitValueArray[StartBit + bitIndex] = BIT_TRUE;
       else
         BitValueArray[StartBit + bitIndex] = BIT_FALSE;
@@ -853,7 +853,7 @@ bool FilterChooser::fieldFromInsn(uint64_t &Field, insn_t &Insn,
       return false;
 
     if (Insn[StartBit + i] == BIT_TRUE)
-      Field = Field | (1 << i);
+      Field = Field | (1ULL << i);
   }
 
   return true;
@@ -1344,23 +1344,8 @@ void FilterChooser::doFilter() {
     return;
 
   // If we come to here, the instruction decoding has failed.
-  // Print out the instructions in the conflict set...
+  // Set the BestIndex to -1 to indicate so.
   BestIndex = -1;
-
-  DEBUG({
-      errs() << "Conflict:\n";
-
-      dumpStack(errs(), "\t\t");
-
-      for (unsigned i = 0; i < Num; i++) {
-        const std::string &Name = nameWithID(Opcodes[i]);
-
-        errs() << '\t' << Name << " ";
-        dumpBits(errs(),
-                 getBitsField(*AllInstructions[Opcodes[i]]->TheDef, "Inst"));
-        errs() << '\n';
-      }
-    });
 }
 
 // Emits code to decode our share of instructions.  Returns true if the
@@ -1465,7 +1450,9 @@ bool FilterChooser::emit(raw_ostream &o, unsigned &Indentation) {
 
     // Otherwise, it does not belong to the known conflict sets.
   }
-  // We don't know how to decode these instructions!  Dump the conflict set!
+
+  // We don't know how to decode these instructions!  Return 0 and dump the
+  // conflict set!
   o.indent(Indentation) << "return 0;" << " // Conflict set: ";
   for (int i = 0, N = Opcodes.size(); i < N; ++i) {
     o << nameWithID(Opcodes[i]);
@@ -1474,6 +1461,21 @@ bool FilterChooser::emit(raw_ostream &o, unsigned &Indentation) {
     else
       o << '\n';
   }
+
+  // Print out useful conflict information for postmortem analysis.
+  errs() << "Decoding Conflict:\n";
+
+  dumpStack(errs(), "\t\t");
+
+  for (unsigned i = 0; i < Opcodes.size(); i++) {
+    const std::string &Name = nameWithID(Opcodes[i]);
+
+    errs() << '\t' << Name << " ";
+    dumpBits(errs(),
+             getBitsField(*AllInstructions[Opcodes[i]]->TheDef, "Inst"));
+    errs() << '\n';
+  }
+
   return true;
 }
 
@@ -1547,6 +1549,16 @@ bool ARMDecoderEmitter::ARMDEBackend::populateInstruction(
   const Record &Def = *CGI.TheDef;
   const StringRef Name = Def.getName();
   uint8_t Form = getByteField(Def, "Form");
+
+  BitsInit &Bits = getBitsField(Def, "Inst");
+
+  // If all the bit positions are not specified; do not decode this instruction.
+  // We are bound to fail!  For proper disassembly, the well-known encoding bits
+  // of the instruction must be fully specified.
+  //
+  // This also removes pseudo instructions from considerations of disassembly,
+  // which is a better design and less fragile than the name matchings.
+  if (Bits.allInComplete()) return false;
 
   if (TN == TARGET_ARM) {
     // FIXME: what about Int_MemBarrierV6 and Int_SyncBarrierV6?
@@ -1668,11 +1680,6 @@ bool ARMDecoderEmitter::ARMDEBackend::populateInstruction(
     if (!thumbInstruction(Form))
       return false;
 
-    // Ignore pseudo instructions.
-    if (Name == "tInt_eh_sjlj_setjmp" || Name == "t2Int_eh_sjlj_setjmp" ||
-        Name == "t2MOVi32imm" || Name == "tBX" || Name == "tBXr9")
-      return false;
-
     // On Darwin R9 is call-clobbered.  Ignore the non-Darwin counterparts.
     if (Name == "tBL" || Name == "tBLXi" || Name == "tBLXr")
       return false;
@@ -1692,8 +1699,12 @@ bool ARMDecoderEmitter::ARMDEBackend::populateInstruction(
     // Ignore tADDrSP, tADDspr, and tPICADD, prefer the generic tADDhirr.
     // Ignore t2SUBrSPs, prefer the t2SUB[S]r[r|s].
     // Ignore t2ADDrSPs, prefer the t2ADD[S]r[r|s].
+    // Ignore t2ADDrSPi/t2SUBrSPi, which have more generic couterparts.
+    // Ignore t2ADDrSPi12/t2SUBrSPi12, which have more generic couterparts
     if (Name == "tADDrSP" || Name == "tADDspr" || Name == "tPICADD" ||
-        Name == "t2SUBrSPs" || Name == "t2ADDrSPs")
+        Name == "t2SUBrSPs" || Name == "t2ADDrSPs" ||
+        Name == "t2ADDrSPi" || Name == "t2SUBrSPi" ||
+        Name == "t2ADDrSPi12" || Name == "t2SUBrSPi12")
       return false;
 
     // Ignore t2LDRDpci, prefer the generic t2LDRDi8, t2LDRD_PRE, t2LDRD_POST.
@@ -1716,7 +1727,6 @@ bool ARMDecoderEmitter::ARMDEBackend::populateInstruction(
     //   tLDRcp conflicts with tLDRspi
     //   tRestore conflicts with tLDRspi
     //   t2LEApcrelJT conflicts with t2LEApcrel
-    //   t2ADDrSPi/t2SUBrSPi have more generic couterparts
     if (Name == "tBfar" ||
         /* Name == "tCMNz" || */ Name == "tCMPzi8" || Name == "tCMPzr" ||
         Name == "tCMPzhir" || /* Name == "t2CMNzrr" || Name == "t2CMNzrs" ||
@@ -1724,7 +1734,7 @@ bool ARMDecoderEmitter::ARMDEBackend::populateInstruction(
         Name == "t2CMPzri" || Name == "tPOP_RET" || Name == "t2LDM_RET" ||
         Name == "tMOVCCi" || Name == "tMOVCCr" || Name == "tBR_JTr" ||
         Name == "tSpill" || Name == "tLDRcp" || Name == "tRestore" ||
-        Name == "t2LEApcrelJT" || Name == "t2ADDrSPi" || Name == "t2SUBrSPi")
+        Name == "t2LEApcrelJT")
       return false;
   }
 
@@ -1737,8 +1747,6 @@ bool ARMDecoderEmitter::ARMDEBackend::populateInstruction(
   }
 
   DEBUG({
-      BitsInit &Bits = getBitsField(Def, "Inst");
-
       errs() << " ";
 
       // Dumps the instruction encoding bits.

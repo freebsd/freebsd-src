@@ -74,7 +74,7 @@ namespace llvm {
     explicit MSP430TargetLowering(MSP430TargetMachine &TM);
 
     /// LowerOperation - Provide custom lowering hooks for some operations.
-    virtual SDValue LowerOperation(SDValue Op, SelectionDAG &DAG);
+    virtual SDValue LowerOperation(SDValue Op, SelectionDAG &DAG) const;
 
     /// getTargetNodeName - This method returns the name of a target specific
     /// DAG node.
@@ -83,16 +83,17 @@ namespace llvm {
     /// getFunctionAlignment - Return the Log2 alignment of this function.
     virtual unsigned getFunctionAlignment(const Function *F) const;
 
-    SDValue LowerShifts(SDValue Op, SelectionDAG &DAG);
-    SDValue LowerGlobalAddress(SDValue Op, SelectionDAG &DAG);
-    SDValue LowerExternalSymbol(SDValue Op, SelectionDAG &DAG);
-    SDValue LowerBR_CC(SDValue Op, SelectionDAG &DAG);
-    SDValue LowerSETCC(SDValue Op, SelectionDAG &DAG);
-    SDValue LowerSELECT_CC(SDValue Op, SelectionDAG &DAG);
-    SDValue LowerSIGN_EXTEND(SDValue Op, SelectionDAG &DAG);
-    SDValue LowerRETURNADDR(SDValue Op, SelectionDAG &DAG);
-    SDValue LowerFRAMEADDR(SDValue Op, SelectionDAG &DAG);
-    SDValue getReturnAddressFrameIndex(SelectionDAG &DAG);
+    SDValue LowerShifts(SDValue Op, SelectionDAG &DAG) const;
+    SDValue LowerGlobalAddress(SDValue Op, SelectionDAG &DAG) const;
+    SDValue LowerBlockAddress(SDValue Op, SelectionDAG &DAG) const;
+    SDValue LowerExternalSymbol(SDValue Op, SelectionDAG &DAG) const;
+    SDValue LowerBR_CC(SDValue Op, SelectionDAG &DAG) const;
+    SDValue LowerSETCC(SDValue Op, SelectionDAG &DAG) const;
+    SDValue LowerSELECT_CC(SDValue Op, SelectionDAG &DAG) const;
+    SDValue LowerSIGN_EXTEND(SDValue Op, SelectionDAG &DAG) const;
+    SDValue LowerRETURNADDR(SDValue Op, SelectionDAG &DAG) const;
+    SDValue LowerFRAMEADDR(SDValue Op, SelectionDAG &DAG) const;
+    SDValue getReturnAddressFrameIndex(SelectionDAG &DAG) const;
 
     TargetLowering::ConstraintType
     getConstraintType(const std::string &Constraint) const;
@@ -117,11 +118,9 @@ namespace llvm {
     virtual bool isZExtFree(EVT VT1, EVT VT2) const;
 
     MachineBasicBlock* EmitInstrWithCustomInserter(MachineInstr *MI,
-                                                   MachineBasicBlock *BB,
-                    DenseMap<MachineBasicBlock*, MachineBasicBlock*> *EM) const;
+                                                   MachineBasicBlock *BB) const;
     MachineBasicBlock* EmitShiftInstr(MachineInstr *MI,
-                                      MachineBasicBlock *BB,
-                    DenseMap<MachineBasicBlock*, MachineBasicBlock*> *EM) const;
+                                      MachineBasicBlock *BB) const;
 
   private:
     SDValue LowerCCCCallTo(SDValue Chain, SDValue Callee,
@@ -130,7 +129,7 @@ namespace llvm {
                            const SmallVectorImpl<ISD::OutputArg> &Outs,
                            const SmallVectorImpl<ISD::InputArg> &Ins,
                            DebugLoc dl, SelectionDAG &DAG,
-                           SmallVectorImpl<SDValue> &InVals);
+                           SmallVectorImpl<SDValue> &InVals) const;
 
     SDValue LowerCCCArguments(SDValue Chain,
                               CallingConv::ID CallConv,
@@ -138,33 +137,33 @@ namespace llvm {
                               const SmallVectorImpl<ISD::InputArg> &Ins,
                               DebugLoc dl,
                               SelectionDAG &DAG,
-                              SmallVectorImpl<SDValue> &InVals);
+                              SmallVectorImpl<SDValue> &InVals) const;
 
     SDValue LowerCallResult(SDValue Chain, SDValue InFlag,
                             CallingConv::ID CallConv, bool isVarArg,
                             const SmallVectorImpl<ISD::InputArg> &Ins,
                             DebugLoc dl, SelectionDAG &DAG,
-                            SmallVectorImpl<SDValue> &InVals);
+                            SmallVectorImpl<SDValue> &InVals) const;
 
     virtual SDValue
       LowerFormalArguments(SDValue Chain,
                            CallingConv::ID CallConv, bool isVarArg,
                            const SmallVectorImpl<ISD::InputArg> &Ins,
                            DebugLoc dl, SelectionDAG &DAG,
-                           SmallVectorImpl<SDValue> &InVals);
+                           SmallVectorImpl<SDValue> &InVals) const;
     virtual SDValue
       LowerCall(SDValue Chain, SDValue Callee,
                 CallingConv::ID CallConv, bool isVarArg, bool &isTailCall,
                 const SmallVectorImpl<ISD::OutputArg> &Outs,
                 const SmallVectorImpl<ISD::InputArg> &Ins,
                 DebugLoc dl, SelectionDAG &DAG,
-                SmallVectorImpl<SDValue> &InVals);
+                SmallVectorImpl<SDValue> &InVals) const;
 
     virtual SDValue
       LowerReturn(SDValue Chain,
                   CallingConv::ID CallConv, bool isVarArg,
                   const SmallVectorImpl<ISD::OutputArg> &Outs,
-                  DebugLoc dl, SelectionDAG &DAG);
+                  DebugLoc dl, SelectionDAG &DAG) const;
 
     virtual bool getPostIndexedAddressParts(SDNode *N, SDNode *Op,
                                             SDValue &Base,

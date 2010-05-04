@@ -50,6 +50,7 @@
       <li><a href="#moduleasm">Module-Level Inline Assembly</a></li>
       <li><a href="#datalayout">Data Layout</a></li>
       <li><a href="#pointeraliasing">Pointer Aliasing Rules</a></li>
+      <li><a href="#volatile">Volatile Memory Accesses</a></li>
     </ol>
   </li>
   <li><a href="#typesystem">Type System</a>
@@ -89,6 +90,7 @@
       <li><a href="#complexconstants">Complex Constants</a></li>
       <li><a href="#globalconstants">Global Variable and Function Addresses</a></li>
       <li><a href="#undefvalues">Undefined Values</a></li>
+      <li><a href="#trapvalues">Trap Values</a></li>
       <li><a href="#blockaddress">Addresses of Basic Blocks</a></li>
       <li><a href="#constantexprs">Constant Expressions</a></li>
     </ol>
@@ -849,11 +851,15 @@ define i32 @main() {                                        <i>; i32()* </i>
 <p>LLVM allows an explicit section to be specified for globals.  If the target
    supports it, it will emit globals to the section specified.</p>
 
-<p>An explicit alignment may be specified for a global.  If not present, or if
-   the alignment is set to zero, the alignment of the global is set by the
-   target to whatever it feels convenient.  If an explicit alignment is
-   specified, the global is forced to have at least that much alignment.  All
-   alignments must be a power of 2.</p>
+<p>An explicit alignment may be specified for a global, which must be a power
+   of 2.  If not present, or if the alignment is set to zero, the alignment of
+   the global is set by the target to whatever it feels convenient.  If an
+   explicit alignment is specified, the global is forced to have exactly that
+   alignment.  Targets and optimizers are not allowed to over-align the global
+   if the global has an assigned section.  In this case, the extra alignment
+   could be observable: for example, code could assume that the globals are
+   densely packed in their section and try to iterate over them as an array,
+   alignment padding would break this iteration.</p>
 
 <p>For example, the following defines a global in a numbered address space with
    an initializer, section, and alignment:</p>
@@ -1297,7 +1303,7 @@ target datalayout = "<i>layout specification</i>"
 </dl>
 
 <p>When constructing the data layout for a given target, LLVM starts with a
-   default set of specifications which are then (possibly) overriden by the
+   default set of specifications which are then (possibly) overridden by the
    specifications in the <tt>datalayout</tt> keyword. The default specifications
    are given in this list:</p>
 
@@ -1390,6 +1396,24 @@ and alignment of the store.</p>
 LLVM IR. <a href="#metadata">Metadata</a> may be used to encode
 additional information which specialized optimization passes may use
 to implement type-based alias analysis.</p>
+
+</div>
+
+<!-- ======================================================================= -->
+<div class="doc_subsection">
+  <a name="volatile">Volatile Memory Accesses</a>
+</div>
+
+<div class="doc_text">
+
+<p>Certain memory accesses, such as <a href="#i_load"><tt>load</tt></a>s, <a
+href="#i_store"><tt>store</tt></a>s, and <a
+href="#int_memcpy"><tt>llvm.memcpy</tt></a>s may be marked <tt>volatile</tt>.
+The optimizers must not change the number of volatile operations or change their
+order of execution relative to other volatile operations.  The optimizers
+<i>may</i> change the order of volatile operations relative to non-volatile
+operations.  This is not Java's "volatile" and has no cross-thread
+synchronization behavior.</p>
 
 </div>
 
@@ -2303,6 +2327,114 @@ has undefined behavior.</p>
 </div>
 
 <!-- ======================================================================= -->
+<div class="doc_subsection"><a name="trapvalues">Trap Values</a></div>
+<div class="doc_text">
+
+<p>Trap values are similar to <a href="#undefvalues">undef values</a>, however
+   instead of representing an unspecified bit pattern, they represent the
+   fact that an instruction or constant expression which cannot evoke side
+   effects has nevertheless detected a condition which results in undefined
+   behavior.</p>
+
+<p>There is currently no way of representing a trap value in the IR; they
+   only exist when produced by operations such as
+   <a href="#i_add"><tt>add</tt></a> with the <tt>nsw</tt> flag.</p>
+
+<p>Trap value behavior is defined in terms of value <i>dependence</i>:</p>
+
+<p>
+<ul>
+<li>Values other than <a href="#i_phi"><tt>phi</tt></a> nodes depend on
+    their operands.</li>
+
+<li><a href="#i_phi"><tt>Phi</tt></a> nodes depend on the operand corresponding
+    to their dynamic predecessor basic block.</li>
+
+<li>Function arguments depend on the corresponding actual argument values in
+    the dynamic callers of their functions.</li>
+
+<li><a href="#i_call"><tt>Call</tt></a> instructions depend on the
+    <a href="#i_ret"><tt>ret</tt></a> instructions that dynamically transfer
+    control back to them.</li>
+
+<li><a href="#i_invoke"><tt>Invoke</tt></a> instructions depend on the
+    <a href="#i_ret"><tt>ret</tt></a>, <a href="#i_unwind"><tt>unwind</tt></a>,
+    or exception-throwing call instructions that dynamically transfer control
+    back to them.</li>
+
+<li>Non-volatile loads and stores depend on the most recent stores to all of the
+    referenced memory addresses, following the order in the IR
+    (including loads and stores implied by intrinsics such as
+    <a href="#int_memcpy"><tt>@llvm.memcpy</tt></a>.)</li>
+
+<!-- TODO: In the case of multiple threads, this only applies if the store
+     "happens-before" the load or store. -->
+
+<!-- TODO: floating-point exception state -->
+
+<li>An instruction with externally visible side effects depends on the most
+    recent preceding instruction with externally visible side effects, following
+    the order in the IR. (This includes volatile loads and stores.)</li>
+
+<li>An instruction <i>control-depends</i> on a
+    <a href="#terminators">terminator instruction</a>
+    if the terminator instruction has multiple successors and the instruction
+    is always executed when control transfers to one of the successors, and
+    may not be executed when control is transfered to another.</li>
+
+<li>Dependence is transitive.</li>
+
+</ul>
+</p>
+
+<p>Whenever a trap value is generated, all values which depend on it evaluate
+   to trap. If they have side effects, the evoke their side effects as if each
+   operand with a trap value were undef. If they have externally-visible side
+   effects, the behavior is undefined.</p>
+
+<p>Here are some examples:</p>
+
+<div class="doc_code">
+<pre>
+entry:
+  %trap = sub nuw i32 0, 1           ; Results in a trap value.
+  %still_trap = and i32 %trap, 0     ; Whereas (and i32 undef, 0) would return 0.
+  %trap_yet_again = getelementptr i32* @h, i32 %still_trap
+  store i32 0, i32* %trap_yet_again  ; undefined behavior
+
+  store i32 %trap, i32* @g           ; Trap value conceptually stored to memory.
+  %trap2 = load i32* @g              ; Returns a trap value, not just undef.
+
+  volatile store i32 %trap, i32* @g  ; External observation; undefined behavior.
+
+  %narrowaddr = bitcast i32* @g to i16*
+  %wideaddr = bitcast i32* @g to i64*
+  %trap3 = load 16* %narrowaddr      ; Returns a trap value.
+  %trap4 = load i64* %widaddr        ; Returns a trap value.
+
+  %cmp = icmp i32 slt %trap, 0       ; Returns a trap value.
+  %br i1 %cmp, %true, %end           ; Branch to either destination.
+
+true:
+  volatile store i32 0, i32* @g      ; This is control-dependent on %cmp, so
+                                     ; it has undefined behavior.
+  br label %end
+
+end:
+  %p = phi i32 [ 0, %entry ], [ 1, %true ]
+                                     ; Both edges into this PHI are
+                                     ; control-dependent on %cmp, so this
+                                     ; always results in a trap value.
+
+  volatile store i32 0, i32* @g      ; %end is control-equivalent to %entry
+                                     ; so this is defined (ignoring earlier
+                                     ; undefined behavior in this example).
+</pre>
+</div>
+
+</div>
+
+<!-- ======================================================================= -->
 <div class="doc_subsection"><a name="blockaddress">Addresses of Basic
     Blocks</a></div>
 <div class="doc_text">
@@ -2516,6 +2648,31 @@ call void asm alignstack "eieio", ""()
    documented here.  Constraints on what can be done (e.g. duplication, moving,
    etc need to be documented).  This is probably best done by reference to
    another document that covers inline asm from a holistic perspective.</p>
+</div>
+
+<div class="doc_subsubsection">
+<a name="inlineasm_md">Inline Asm Metadata</a>
+</div>
+
+<div class="doc_text">
+
+<p>The call instructions that wrap inline asm nodes may have a "!srcloc" MDNode
+   attached to it that contains a constant integer.  If present, the code
+   generator will use the integer as the location cookie value when report
+   errors through the LLVMContext error reporting mechanisms.  This allows a
+   front-end to correlate backend errors that occur with inline asm back to the
+   source code that produced it.  For example:</p>
+
+<div class="doc_code">
+<pre>
+call void asm sideeffect "something bad", ""()<b>, !srcloc !42</b>
+...
+!42 = !{ i32 1234567 }
+</pre>
+</div>
+
+<p>It is up to the front-end to make sense of the magic numbers it places in the
+   IR.</p>
 
 </div>
 
@@ -2637,8 +2794,12 @@ should not be exposed to source languages.</p>
 </div>
 
 <div class="doc_text">
-
-<p>TODO: Describe this.</p>
+<pre>
+%0 = type { i32, void ()* }
+@llvm.global_ctors = appending global [1 x %0] [%0 { i32 65535, void ()* @ctor }]
+</pre>
+<p>The <tt>@llvm.global_ctors</tt> array contains a list of constructor functions and associated priorities.  The functions referenced by this array will be called in ascending order of priority (i.e. lowest first) when the module is loaded.  The order of functions with the same priority is not defined.
+</p>
 
 </div>
 
@@ -2648,8 +2809,13 @@ should not be exposed to source languages.</p>
 </div>
 
 <div class="doc_text">
+<pre>
+%0 = type { i32, void ()* }
+@llvm.global_dtors = appending global [1 x %0] [%0 { i32 65535, void ()* @dtor }]
+</pre>
 
-<p>TODO: Describe this.</p>
+<p>The <tt>@llvm.global_dtors</tt> array contains a list of destructor functions and associated priorities.  The functions referenced by this array will be called in descending order of priority (i.e. highest first) when the module is loaded.  The order of functions with the same priority is not defined.
+</p>
 
 </div>
 
@@ -2682,7 +2848,7 @@ Instructions</a> </div>
    control flow, not values (the one exception being the
    '<a href="#i_invoke"><tt>invoke</tt></a>' instruction).</p>
 
-<p>There are six different terminator instructions: the
+<p>There are seven different terminator instructions: the
    '<a href="#i_ret"><tt>ret</tt></a>' instruction, the
    '<a href="#i_br"><tt>br</tt></a>' instruction, the
    '<a href="#i_switch"><tt>switch</tt></a>' instruction, the
@@ -3079,7 +3245,8 @@ Instruction</a> </div>
 <p><tt>nuw</tt> and <tt>nsw</tt> stand for &quot;No Unsigned Wrap&quot;
    and &quot;No Signed Wrap&quot;, respectively. If the <tt>nuw</tt> and/or
    <tt>nsw</tt> keywords are present, the result value of the <tt>add</tt>
-   is undefined if unsigned and/or signed overflow, respectively, occurs.</p>
+   is a <a href="#trapvalues">trap value</a> if unsigned and/or signed overflow,
+   respectively, occurs.</p>
 
 <h5>Example:</h5>
 <pre>
@@ -3159,7 +3326,8 @@ Instruction</a> </div>
 <p><tt>nuw</tt> and <tt>nsw</tt> stand for &quot;No Unsigned Wrap&quot;
    and &quot;No Signed Wrap&quot;, respectively. If the <tt>nuw</tt> and/or
    <tt>nsw</tt> keywords are present, the result value of the <tt>sub</tt>
-   is undefined if unsigned and/or signed overflow, respectively, occurs.</p>
+   is a <a href="#trapvalues">trap value</a> if unsigned and/or signed overflow,
+   respectively, occurs.</p>
 
 <h5>Example:</h5>
 <pre>
@@ -3245,7 +3413,8 @@ Instruction</a> </div>
 <p><tt>nuw</tt> and <tt>nsw</tt> stand for &quot;No Unsigned Wrap&quot;
    and &quot;No Signed Wrap&quot;, respectively. If the <tt>nuw</tt> and/or
    <tt>nsw</tt> keywords are present, the result value of the <tt>mul</tt>
-   is undefined if unsigned and/or signed overflow, respectively, occurs.</p>
+   is a <a href="#trapvalues">trap value</a> if unsigned and/or signed overflow,
+   respectively, occurs.</p>
 
 <h5>Example:</h5>
 <pre>
@@ -3350,8 +3519,8 @@ Instruction</a> </div>
    a 32-bit division of -2147483648 by -1.</p>
 
 <p>If the <tt>exact</tt> keyword is present, the result value of the
-   <tt>sdiv</tt> is undefined if the result would be rounded or if overflow
-   would occur.</p>
+   <tt>sdiv</tt> is a <a href="#trapvalues">trap value</a> if the result would
+   be rounded or if overflow would occur.</p>
 
 <h5>Example:</h5>
 <pre>
@@ -4133,9 +4302,8 @@ Instruction</a> </div>
    from which to load.  The pointer must point to
    a <a href="#t_firstclass">first class</a> type.  If the <tt>load</tt> is
    marked as <tt>volatile</tt>, then the optimizer is not allowed to modify the
-   number or order of execution of this <tt>load</tt> with other
-   volatile <tt>load</tt> and <tt><a href="#i_store">store</a></tt>
-   instructions.</p>
+   number or order of execution of this <tt>load</tt> with other <a
+   href="#volatile">volatile operations</a>.</p>
 
 <p>The optional constant <tt>align</tt> argument specifies the alignment of the
    operation (that is, the alignment of the memory address). A value of 0 or an
@@ -4191,11 +4359,10 @@ Instruction</a> </div>
    and an address at which to store it.  The type of the
    '<tt>&lt;pointer&gt;</tt>' operand must be a pointer to
    the <a href="#t_firstclass">first class</a> type of the
-   '<tt>&lt;value&gt;</tt>' operand. If the <tt>store</tt> is marked
-   as <tt>volatile</tt>, then the optimizer is not allowed to modify the number
-   or order of execution of this <tt>store</tt> with other
-   volatile <tt>load</tt> and <tt><a href="#i_store">store</a></tt>
-   instructions.</p>
+   '<tt>&lt;value&gt;</tt>' operand. If the <tt>store</tt> is marked as
+   <tt>volatile</tt>, then the optimizer is not allowed to modify the number or
+   order of execution of this <tt>store</tt> with other <a
+   href="#volatile">volatile operations</a>.</p>
 
 <p>The optional constant "align" argument specifies the alignment of the
    operation (that is, the alignment of the memory address). A value of 0 or an
@@ -4334,13 +4501,14 @@ entry:
 </pre>
 
 <p>If the <tt>inbounds</tt> keyword is present, the result value of the
-   <tt>getelementptr</tt> is undefined if the base pointer is not an
-   <i>in bounds</i> address of an allocated object, or if any of the addresses
-   that would be formed by successive addition of the offsets implied by the
-   indices to the base address with infinitely precise arithmetic are not an
-   <i>in bounds</i> address of that allocated object.
-   The <i>in bounds</i> addresses for an allocated object are all the addresses
-   that point into the object, plus the address one byte past the end.</p>
+   <tt>getelementptr</tt> is a <a href="#trapvalues">trap value</a> if the
+   base pointer is not an <i>in bounds</i> address of an allocated object,
+   or if any of the addresses that would be formed by successive addition of
+   the offsets implied by the indices to the base address with infinitely
+   precise arithmetic are not an <i>in bounds</i> address of that allocated
+   object. The <i>in bounds</i> addresses for an allocated object are all
+   the addresses that point into the object, plus the address one byte past
+   the end.</p>
 
 <p>If the <tt>inbounds</tt> keyword is not present, the offsets are added to
    the base address with silently-wrapping two's complement arithmetic, and
@@ -5865,17 +6033,14 @@ LLVM</a>.</p>
 
 <h5>Syntax:</h5>
 <p>This is an overloaded intrinsic. You can use <tt>llvm.memcpy</tt> on any
-   integer bit width. Not all targets support all bit widths however.</p>
+   integer bit width and for different address spaces. Not all targets support
+   all bit widths however.</p>
 
 <pre>
-  declare void @llvm.memcpy.i8(i8 * &lt;dest&gt;, i8 * &lt;src&gt;,
-                               i8 &lt;len&gt;, i32 &lt;align&gt;)
-  declare void @llvm.memcpy.i16(i8 * &lt;dest&gt;, i8 * &lt;src&gt;,
-                                i16 &lt;len&gt;, i32 &lt;align&gt;)
-  declare void @llvm.memcpy.i32(i8 * &lt;dest&gt;, i8 * &lt;src&gt;,
-                                i32 &lt;len&gt;, i32 &lt;align&gt;)
-  declare void @llvm.memcpy.i64(i8 * &lt;dest&gt;, i8 * &lt;src&gt;,
-                                i64 &lt;len&gt;, i32 &lt;align&gt;)
+  declare void @llvm.memcpy.p0i8.p0i8.i32(i8 * &lt;dest&gt;, i8 * &lt;src&gt;,
+                                          i32 &lt;len&gt;, i32 &lt;align&gt;, i1 &lt;isvolatile&gt;)
+  declare void @llvm.memcpy.p0i8.p0i8.i64(i8 * &lt;dest&gt;, i8 * &lt;src&gt;,
+                                          i64 &lt;len&gt;, i32 &lt;align&gt;, i1 &lt;isvolatile&gt;)
 </pre>
 
 <h5>Overview:</h5>
@@ -5883,19 +6048,28 @@ LLVM</a>.</p>
    source location to the destination location.</p>
 
 <p>Note that, unlike the standard libc function, the <tt>llvm.memcpy.*</tt>
-   intrinsics do not return a value, and takes an extra alignment argument.</p>
+   intrinsics do not return a value, takes extra alignment/isvolatile arguments
+   and the pointers can be in specified address spaces.</p>
 
 <h5>Arguments:</h5>
+
 <p>The first argument is a pointer to the destination, the second is a pointer
    to the source.  The third argument is an integer argument specifying the
-   number of bytes to copy, and the fourth argument is the alignment of the
-   source and destination locations.</p>
+   number of bytes to copy, the fourth argument is the alignment of the
+   source and destination locations, and the fifth is a boolean indicating a
+   volatile access.</p>
 
 <p>If the call to this intrinsic has an alignment value that is not 0 or 1,
    then the caller guarantees that both the source and destination pointers are
    aligned to that boundary.</p>
 
+<p>If the <tt>isvolatile</tt> parameter is <tt>true</tt>, the
+   <tt>llvm.memcpy</tt> call is a <a href="#volatile">volatile operation</a>.
+   The detailed access behavior is not very cleanly specified and it is unwise
+   to depend on it.</p>
+
 <h5>Semantics:</h5>
+
 <p>The '<tt>llvm.memcpy.*</tt>' intrinsics copy a block of memory from the
    source location to the destination location, which are not allowed to
    overlap.  It copies "len" bytes of memory over.  If the argument is known to
@@ -5913,17 +6087,14 @@ LLVM</a>.</p>
 
 <h5>Syntax:</h5>
 <p>This is an overloaded intrinsic. You can use llvm.memmove on any integer bit
-   width. Not all targets support all bit widths however.</p>
+   width and for different address space. Not all targets support all bit
+   widths however.</p>
 
 <pre>
-  declare void @llvm.memmove.i8(i8 * &lt;dest&gt;, i8 * &lt;src&gt;,
-                                i8 &lt;len&gt;, i32 &lt;align&gt;)
-  declare void @llvm.memmove.i16(i8 * &lt;dest&gt;, i8 * &lt;src&gt;,
-                                 i16 &lt;len&gt;, i32 &lt;align&gt;)
-  declare void @llvm.memmove.i32(i8 * &lt;dest&gt;, i8 * &lt;src&gt;,
-                                 i32 &lt;len&gt;, i32 &lt;align&gt;)
-  declare void @llvm.memmove.i64(i8 * &lt;dest&gt;, i8 * &lt;src&gt;,
-                                 i64 &lt;len&gt;, i32 &lt;align&gt;)
+  declare void @llvm.memmove.p0i8.p0i8.i32(i8 * &lt;dest&gt;, i8 * &lt;src&gt;,
+                                           i32 &lt;len&gt;, i32 &lt;align&gt;, i1 &lt;isvolatile&gt;)
+  declare void @llvm.memmove.p0i8.p0i8.i64(i8 * &lt;dest&gt;, i8 * &lt;src&gt;,
+                                           i64 &lt;len&gt;, i32 &lt;align&gt;, i1 &lt;isvolatile&gt;)
 </pre>
 
 <h5>Overview:</h5>
@@ -5933,19 +6104,28 @@ LLVM</a>.</p>
    overlap.</p>
 
 <p>Note that, unlike the standard libc function, the <tt>llvm.memmove.*</tt>
-   intrinsics do not return a value, and takes an extra alignment argument.</p>
+   intrinsics do not return a value, takes extra alignment/isvolatile arguments
+   and the pointers can be in specified address spaces.</p>
 
 <h5>Arguments:</h5>
+
 <p>The first argument is a pointer to the destination, the second is a pointer
    to the source.  The third argument is an integer argument specifying the
-   number of bytes to copy, and the fourth argument is the alignment of the
-   source and destination locations.</p>
+   number of bytes to copy, the fourth argument is the alignment of the
+   source and destination locations, and the fifth is a boolean indicating a
+   volatile access.</p>
 
 <p>If the call to this intrinsic has an alignment value that is not 0 or 1,
    then the caller guarantees that the source and destination pointers are
    aligned to that boundary.</p>
 
+<p>If the <tt>isvolatile</tt> parameter is <tt>true</tt>, the
+   <tt>llvm.memmove</tt> call is a <a href="#volatile">volatile operation</a>.
+   The detailed access behavior is not very cleanly specified and it is unwise
+   to depend on it.</p>
+
 <h5>Semantics:</h5>
+
 <p>The '<tt>llvm.memmove.*</tt>' intrinsics copy a block of memory from the
    source location to the destination location, which may overlap.  It copies
    "len" bytes of memory over.  If the argument is known to be aligned to some
@@ -5963,17 +6143,14 @@ LLVM</a>.</p>
 
 <h5>Syntax:</h5>
 <p>This is an overloaded intrinsic. You can use llvm.memset on any integer bit
-   width. Not all targets support all bit widths however.</p>
+   width and for different address spaces. Not all targets support all bit
+   widths however.</p>
 
 <pre>
-  declare void @llvm.memset.i8(i8 * &lt;dest&gt;, i8 &lt;val&gt;,
-                               i8 &lt;len&gt;, i32 &lt;align&gt;)
-  declare void @llvm.memset.i16(i8 * &lt;dest&gt;, i8 &lt;val&gt;,
-                                i16 &lt;len&gt;, i32 &lt;align&gt;)
-  declare void @llvm.memset.i32(i8 * &lt;dest&gt;, i8 &lt;val&gt;,
-                                i32 &lt;len&gt;, i32 &lt;align&gt;)
-  declare void @llvm.memset.i64(i8 * &lt;dest&gt;, i8 &lt;val&gt;,
-                                i64 &lt;len&gt;, i32 &lt;align&gt;)
+  declare void @llvm.memset.p0i8.i32(i8 * &lt;dest&gt;, i8 &lt;val&gt;,
+                                     i32 &lt;len&gt;, i32 &lt;align&gt;, i1 &lt;isvolatile&gt;)
+  declare void @llvm.memset.p0i8.i64(i8 * &lt;dest&gt;, i8 &lt;val&gt;,
+                                     i64 &lt;len&gt;, i32 &lt;align&gt;, i1 &lt;isvolatile&gt;)
 </pre>
 
 <h5>Overview:</h5>
@@ -5981,7 +6158,8 @@ LLVM</a>.</p>
    particular byte value.</p>
 
 <p>Note that, unlike the standard libc function, the <tt>llvm.memset</tt>
-   intrinsic does not return a value, and takes an extra alignment argument.</p>
+   intrinsic does not return a value, takes extra alignment/volatile arguments,
+   and the destination can be in an arbitrary address space.</p>
 
 <h5>Arguments:</h5>
 <p>The first argument is a pointer to the destination to fill, the second is the
@@ -5992,6 +6170,11 @@ LLVM</a>.</p>
 <p>If the call to this intrinsic has an alignment value that is not 0 or 1,
    then the caller guarantees that the destination pointer is aligned to that
    boundary.</p>
+
+<p>If the <tt>isvolatile</tt> parameter is <tt>true</tt>, the
+   <tt>llvm.memset</tt> call is a <a href="#volatile">volatile operation</a>.
+   The detailed access behavior is not very cleanly specified and it is unwise
+   to depend on it.</p>
 
 <h5>Semantics:</h5>
 <p>The '<tt>llvm.memset.*</tt>' intrinsics fill "len" bytes of memory starting
@@ -7590,7 +7773,7 @@ LLVM</a>.</p>
 
   <a href="mailto:sabre@nondot.org">Chris Lattner</a><br>
   <a href="http://llvm.org">The LLVM Compiler Infrastructure</a><br>
-  Last modified: $Date: 2010-03-15 05:12:21 +0100 (Mon, 15 Mar 2010) $
+  Last modified: $Date: 2010-05-03 16:59:34 +0200 (Mon, 03 May 2010) $
 </address>
 
 </body>

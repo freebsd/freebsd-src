@@ -665,10 +665,11 @@ void LiveIntervals::computeIntervals() {
 
     // Track the index of the current machine instr.
     SlotIndex MIIndex = getMBBStartIdx(MBB);
-    DEBUG(dbgs() << MBB->getName() << ":\n");
+    DEBUG(dbgs() << "BB#" << MBB->getNumber()
+          << ":\t\t# derived from " << MBB->getName() << "\n");
 
     // Create intervals for live-ins to this BB first.
-    for (MachineBasicBlock::const_livein_iterator LI = MBB->livein_begin(),
+    for (MachineBasicBlock::livein_iterator LI = MBB->livein_begin(),
            LE = MBB->livein_end(); LI != LE; ++LI) {
       handleLiveInRegister(MBB, MIIndex, getOrCreateInterval(*LI));
       // Multiple live-ins can alias the same register.
@@ -1296,9 +1297,26 @@ rewriteInstructionsForSpills(const LiveInterval &li, bool TrySplit,
     MachineOperand &O = ri.getOperand();
     ++ri;
     if (MI->isDebugValue()) {
-      // Remove debug info for now.
-      O.setReg(0U);
+      // Modify DBG_VALUE now that the value is in a spill slot.
+      if (Slot != VirtRegMap::MAX_STACK_SLOT || isLoadSS) {
+        uint64_t Offset = MI->getOperand(1).getImm();
+        const MDNode *MDPtr = MI->getOperand(2).getMetadata();
+        DebugLoc DL = MI->getDebugLoc();
+        int FI = isLoadSS ? LdSlot : (int)Slot;
+        if (MachineInstr *NewDV = tii_->emitFrameIndexDebugValue(*mf_, FI,
+                                                           Offset, MDPtr, DL)) {
+          DEBUG(dbgs() << "Modifying debug info due to spill:" << "\t" << *MI);
+          ReplaceMachineInstrInMaps(MI, NewDV);
+          MachineBasicBlock *MBB = MI->getParent();
+          MBB->insert(MBB->erase(MI), NewDV);
+          continue;
+        }
+      }
+
       DEBUG(dbgs() << "Removing debug info due to spill:" << "\t" << *MI);
+      RemoveMachineInstrFromMaps(MI);
+      vrm.RemoveMachineInstrFromMaps(MI);
+      MI->eraseFromParent();
       continue;
     }
     assert(!O.isImplicit() && "Spilling register that's used as implicit use?");
@@ -2085,7 +2103,7 @@ bool LiveIntervals::spillPhysRegAroundRegDefsUses(const LiveInterval &li,
               << "constraints:\n";
           MI->print(Msg, tm_);
         }
-        llvm_report_error(Msg.str());
+        report_fatal_error(Msg.str());
       }
       for (const unsigned* AS = tri_->getSubRegisters(PReg); *AS; ++AS) {
         if (!hasInterval(*AS))

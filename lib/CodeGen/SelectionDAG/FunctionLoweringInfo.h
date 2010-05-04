@@ -15,12 +15,17 @@
 #ifndef FUNCTIONLOWERINGINFO_H
 #define FUNCTIONLOWERINGINFO_H
 
+#include "llvm/InlineAsm.h"
+#include "llvm/Instructions.h"
 #include "llvm/ADT/APInt.h"
 #include "llvm/ADT/DenseMap.h"
+#include "llvm/ADT/SmallVector.h"
 #ifndef NDEBUG
 #include "llvm/ADT/SmallSet.h"
 #endif
 #include "llvm/CodeGen/ValueTypes.h"
+#include "llvm/CodeGen/ISDOpcodes.h"
+#include "llvm/Support/CallSite.h"
 #include <vector>
 
 namespace llvm {
@@ -31,6 +36,7 @@ class CallInst;
 class Function;
 class GlobalVariable;
 class Instruction;
+class MachineInstr;
 class MachineBasicBlock;
 class MachineFunction;
 class MachineModuleInfo;
@@ -44,8 +50,8 @@ class Value;
 ///
 class FunctionLoweringInfo {
 public:
-  TargetLowering &TLI;
-  Function *Fn;
+  const TargetLowering &TLI;
+  const Function *Fn;
   MachineFunction *MF;
   MachineRegisterInfo *RegInfo;
 
@@ -56,13 +62,6 @@ public:
   /// DemoteRegister - if CanLowerReturn is false, DemoteRegister is a vreg
   /// allocated to hold a pointer to the hidden sret parameter.
   unsigned DemoteRegister;
-
-  explicit FunctionLoweringInfo(TargetLowering &TLI);
-
-  /// set - Initialize this FunctionLoweringInfo with the given Function
-  /// and its associated MachineFunction.
-  ///
-  void set(Function &Fn, MachineFunction &MF, bool EnableFastISel);
 
   /// MBBMap - A mapping from LLVM basic blocks to their machine code entry.
   DenseMap<const BasicBlock*, MachineBasicBlock *> MBBMap;
@@ -77,10 +76,42 @@ public:
   /// anywhere in the function.
   DenseMap<const AllocaInst*, int> StaticAllocaMap;
 
+  /// ArgDbgValues - A list of DBG_VALUE instructions created during isel for
+  /// function arguments that are inserted after scheduling is completed.
+  SmallVector<MachineInstr*, 8> ArgDbgValues;
+
 #ifndef NDEBUG
-  SmallSet<Instruction*, 8> CatchInfoLost;
-  SmallSet<Instruction*, 8> CatchInfoFound;
+  SmallSet<const Instruction *, 8> CatchInfoLost;
+  SmallSet<const Instruction *, 8> CatchInfoFound;
 #endif
+
+  struct LiveOutInfo {
+    unsigned NumSignBits;
+    APInt KnownOne, KnownZero;
+    LiveOutInfo() : NumSignBits(0), KnownOne(1, 0), KnownZero(1, 0) {}
+  };
+  
+  /// LiveOutRegInfo - Information about live out vregs, indexed by their
+  /// register number offset by 'FirstVirtualRegister'.
+  std::vector<LiveOutInfo> LiveOutRegInfo;
+
+  /// PHINodesToUpdate - A list of phi instructions whose operand list will
+  /// be updated after processing the current basic block.
+  /// TODO: This isn't per-function state, it's per-basic-block state. But
+  /// there's no other convenient place for it to live right now.
+  std::vector<std::pair<MachineInstr*, unsigned> > PHINodesToUpdate;
+
+  explicit FunctionLoweringInfo(const TargetLowering &TLI);
+
+  /// set - Initialize this FunctionLoweringInfo with the given Function
+  /// and its associated MachineFunction.
+  ///
+  void set(const Function &Fn, MachineFunction &MF, bool EnableFastISel);
+
+  /// clear - Clear out all the function-specific state. This returns this
+  /// FunctionLoweringInfo to an empty state, ready to be used for a
+  /// different function.
+  void clear();
 
   unsigned MakeReg(EVT VT);
   
@@ -97,53 +128,15 @@ public:
     assert(R == 0 && "Already initialized this value register!");
     return R = CreateRegForValue(V);
   }
-  
-  struct LiveOutInfo {
-    unsigned NumSignBits;
-    APInt KnownOne, KnownZero;
-    LiveOutInfo() : NumSignBits(0), KnownOne(1, 0), KnownZero(1, 0) {}
-  };
-  
-  /// LiveOutRegInfo - Information about live out vregs, indexed by their
-  /// register number offset by 'FirstVirtualRegister'.
-  std::vector<LiveOutInfo> LiveOutRegInfo;
-
-  /// clear - Clear out all the function-specific state. This returns this
-  /// FunctionLoweringInfo to an empty state, ready to be used for a
-  /// different function.
-  void clear();
 };
-
-/// ComputeLinearIndex - Given an LLVM IR aggregate type and a sequence
-/// of insertvalue or extractvalue indices that identify a member, return
-/// the linearized index of the start of the member.
-///
-unsigned ComputeLinearIndex(const TargetLowering &TLI, const Type *Ty,
-                            const unsigned *Indices,
-                            const unsigned *IndicesEnd,
-                            unsigned CurIndex = 0);
-
-/// ComputeValueVTs - Given an LLVM IR type, compute a sequence of
-/// EVTs that represent all the individual underlying
-/// non-aggregate types that comprise it.
-///
-/// If Offsets is non-null, it points to a vector to be filled in
-/// with the in-memory offsets of each of the individual values.
-///
-void ComputeValueVTs(const TargetLowering &TLI, const Type *Ty,
-                     SmallVectorImpl<EVT> &ValueVTs,
-                     SmallVectorImpl<uint64_t> *Offsets = 0,
-                     uint64_t StartingOffset = 0);
-
-/// ExtractTypeInfo - Returns the type info, possibly bitcast, encoded in V.
-GlobalVariable *ExtractTypeInfo(Value *V);
 
 /// AddCatchInfo - Extract the personality and type infos from an eh.selector
 /// call, and add them to the specified machine basic block.
-void AddCatchInfo(CallInst &I, MachineModuleInfo *MMI, MachineBasicBlock *MBB);
+void AddCatchInfo(const CallInst &I,
+                  MachineModuleInfo *MMI, MachineBasicBlock *MBB);
 
 /// CopyCatchInfo - Copy catch information from DestBB to SrcBB.
-void CopyCatchInfo(BasicBlock *SrcBB, BasicBlock *DestBB,
+void CopyCatchInfo(const BasicBlock *SrcBB, const BasicBlock *DestBB,
                    MachineModuleInfo *MMI, FunctionLoweringInfo &FLI);
 
 } // end namespace llvm

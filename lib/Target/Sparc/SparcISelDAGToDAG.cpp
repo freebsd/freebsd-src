@@ -11,7 +11,6 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "SparcISelLowering.h"
 #include "SparcTargetMachine.h"
 #include "llvm/Intrinsics.h"
 #include "llvm/CodeGen/SelectionDAGISel.h"
@@ -68,7 +67,6 @@ private:
 }  // end anonymous namespace
 
 SDNode* SparcDAGToDAGISel::getGlobalBaseReg() {
-  MachineFunction *MF = BB->getParent();
   unsigned GlobalBaseReg = TM.getInstrInfo()->getGlobalBaseReg(MF);
   return CurDAG->getRegister(GlobalBaseReg, TLI.getPointerTy()).getNode();
 }

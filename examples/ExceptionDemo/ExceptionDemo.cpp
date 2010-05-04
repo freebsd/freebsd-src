@@ -813,8 +813,7 @@ _Unwind_Reason_Code ourPersonality(int version,
     }
 #endif
 
-    const uint8_t* lsda = (uint8_t*) 
-                            _Unwind_GetLanguageSpecificData(context);
+    const uint8_t* lsda = _Unwind_GetLanguageSpecificData(context);
 
 #ifdef DEBUG
     fprintf(stderr, 
@@ -1949,7 +1948,7 @@ int main(int argc, char* argv[]) {
     }
 
     // If not set, exception handling will not be turned on
-    llvm::DwarfExceptionHandling = true;
+    llvm::JITExceptionHandling = true;
 
     llvm::InitializeNativeTarget();
     llvm::LLVMContext& context = llvm::getGlobalContext();

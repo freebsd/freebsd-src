@@ -21,6 +21,7 @@
 #include "PPCPredicates.h"
 #include "PPCTargetMachine.h"
 #include "PPCSubtarget.h"
+#include "llvm/Analysis/DebugInfo.h"
 #include "llvm/Constants.h"
 #include "llvm/DerivedTypes.h"
 #include "llvm/Module.h"
@@ -199,8 +200,8 @@ namespace {
                           raw_ostream &O) {
       const MachineOperand &MO = MI->getOperand(OpNo);
       if (TM.getRelocationModel() != Reloc::Static) {
-        if (MO.getType() == MachineOperand::MO_GlobalAddress) {
-          GlobalValue *GV = MO.getGlobal();
+        if (MO.isGlobal()) {
+          const GlobalValue *GV = MO.getGlobal();
           if (GV->isDeclaration() || GV->isWeakForLinker()) {
             // Dynamically-resolved functions need a stub for the function.
             MCSymbol *Sym = GetSymbolWithGlobalValueBase(GV, "$stub");
@@ -213,7 +214,7 @@ namespace {
             return;
           }
         }
-        if (MO.getType() == MachineOperand::MO_ExternalSymbol) {
+        if (MO.isSymbol()) {
           SmallString<128> TempNameStr;
           TempNameStr += StringRef(MO.getSymbolName());
           TempNameStr += StringRef("$stub");
@@ -311,7 +312,7 @@ namespace {
     void printTOCEntryLabel(const MachineInstr *MI, unsigned OpNo,
                             raw_ostream &O) {
       const MachineOperand &MO = MI->getOperand(OpNo);
-      assert(MO.getType() == MachineOperand::MO_GlobalAddress);
+      assert(MO.isGlobal());
       MCSymbol *Sym = Mang->getSymbol(MO.getGlobal());
 
       // Map symbol -> label of TOC entry.
@@ -405,7 +406,7 @@ void PPCAsmPrinter::printOp(const MachineOperand &MO, raw_ostream &O) {
   }
   case MachineOperand::MO_GlobalAddress: {
     // Computing the address of a global symbol, not calling it.
-    GlobalValue *GV = MO.getGlobal();
+    const GlobalValue *GV = MO.getGlobal();
     MCSymbol *SymToPrint;
 
     // External or weakly linked global variables need non-lazily-resolved stubs
@@ -535,6 +536,23 @@ void PPCAsmPrinter::EmitInstruction(const MachineInstr *MI) {
   SmallString<128> Str;
   raw_svector_ostream O(Str);
 
+  if (MI->getOpcode() == TargetOpcode::DBG_VALUE) {
+    unsigned NOps = MI->getNumOperands();
+    assert(NOps==4);
+    O << '\t' << MAI->getCommentString() << "DEBUG_VALUE: ";
+    // cast away const; DIetc do not take const operands for some reason.
+    DIVariable V(const_cast<MDNode *>(MI->getOperand(NOps-1).getMetadata()));
+    O << V.getName();
+    O << " <- ";
+    // Frame address.  Currently handles register +- offset only.
+    assert(MI->getOperand(0).isReg() && MI->getOperand(1).isImm());
+    O << '['; printOperand(MI, 0, O); O << '+'; printOperand(MI, 1, O);
+    O << ']';
+    O << "+";
+    printOperand(MI, NOps-2, O);
+    OutStreamer.EmitRawText(O.str());
+    return;
+  }
   // Check for slwi/srwi mnemonics.
   if (MI->getOpcode() == PPC::RLWINM) {
     unsigned char SH = MI->getOperand(2).getImm();
@@ -649,18 +667,18 @@ void PPCDarwinAsmPrinter::EmitStartOfAsmFile(Module &M) {
 
   // Prime text sections so they are adjacent.  This reduces the likelihood a
   // large data or debug section causes a branch to exceed 16M limit.
-  TargetLoweringObjectFileMachO &TLOFMacho = 
-    static_cast<TargetLoweringObjectFileMachO &>(getObjFileLowering());
+  const TargetLoweringObjectFileMachO &TLOFMacho = 
+    static_cast<const TargetLoweringObjectFileMachO &>(getObjFileLowering());
   OutStreamer.SwitchSection(TLOFMacho.getTextCoalSection());
   if (TM.getRelocationModel() == Reloc::PIC_) {
     OutStreamer.SwitchSection(
-            TLOFMacho.getMachOSection("__TEXT", "__picsymbolstub1",
+           OutContext.getMachOSection("__TEXT", "__picsymbolstub1",
                                       MCSectionMachO::S_SYMBOL_STUBS |
                                       MCSectionMachO::S_ATTR_PURE_INSTRUCTIONS,
                                       32, SectionKind::getText()));
   } else if (TM.getRelocationModel() == Reloc::DynamicNoPIC) {
     OutStreamer.SwitchSection(
-            TLOFMacho.getMachOSection("__TEXT","__symbol_stub1",
+           OutContext.getMachOSection("__TEXT","__symbol_stub1",
                                       MCSectionMachO::S_SYMBOL_STUBS |
                                       MCSectionMachO::S_ATTR_PURE_INSTRUCTIONS,
                                       16, SectionKind::getText()));
@@ -686,8 +704,8 @@ void PPCDarwinAsmPrinter::
 EmitFunctionStubs(const MachineModuleInfoMachO::SymbolListTy &Stubs) {
   bool isPPC64 = TM.getTargetData()->getPointerSizeInBits() == 64;
   
-  TargetLoweringObjectFileMachO &TLOFMacho = 
-    static_cast<TargetLoweringObjectFileMachO &>(getObjFileLowering());
+  const TargetLoweringObjectFileMachO &TLOFMacho = 
+    static_cast<const TargetLoweringObjectFileMachO &>(getObjFileLowering());
 
   // .lazy_symbol_pointer
   const MCSection *LSPSection = TLOFMacho.getLazySymbolPointerSection();
@@ -695,10 +713,10 @@ EmitFunctionStubs(const MachineModuleInfoMachO::SymbolListTy &Stubs) {
   // Output stubs for dynamically-linked functions
   if (TM.getRelocationModel() == Reloc::PIC_) {
     const MCSection *StubSection = 
-    TLOFMacho.getMachOSection("__TEXT", "__picsymbolstub1",
-                              MCSectionMachO::S_SYMBOL_STUBS |
-                              MCSectionMachO::S_ATTR_PURE_INSTRUCTIONS,
-                              32, SectionKind::getText());
+    OutContext.getMachOSection("__TEXT", "__picsymbolstub1",
+                               MCSectionMachO::S_SYMBOL_STUBS |
+                               MCSectionMachO::S_ATTR_PURE_INSTRUCTIONS,
+                               32, SectionKind::getText());
     for (unsigned i = 0, e = Stubs.size(); i != e; ++i) {
       OutStreamer.SwitchSection(StubSection);
       EmitAlignment(4);
@@ -742,10 +760,10 @@ EmitFunctionStubs(const MachineModuleInfoMachO::SymbolListTy &Stubs) {
   }
   
   const MCSection *StubSection =
-    TLOFMacho.getMachOSection("__TEXT","__symbol_stub1",
-                              MCSectionMachO::S_SYMBOL_STUBS |
-                              MCSectionMachO::S_ATTR_PURE_INSTRUCTIONS,
-                              16, SectionKind::getText());
+    OutContext.getMachOSection("__TEXT","__symbol_stub1",
+                               MCSectionMachO::S_SYMBOL_STUBS |
+                               MCSectionMachO::S_ATTR_PURE_INSTRUCTIONS,
+                               16, SectionKind::getText());
   for (unsigned i = 0, e = Stubs.size(); i != e; ++i) {
     MCSymbol *Stub = Stubs[i].first;
     MCSymbol *RawSym = Stubs[i].second.getPointer();
@@ -782,8 +800,8 @@ bool PPCDarwinAsmPrinter::doFinalization(Module &M) {
   bool isPPC64 = TM.getTargetData()->getPointerSizeInBits() == 64;
 
   // Darwin/PPC always uses mach-o.
-  TargetLoweringObjectFileMachO &TLOFMacho = 
-    static_cast<TargetLoweringObjectFileMachO &>(getObjFileLowering());
+  const TargetLoweringObjectFileMachO &TLOFMacho = 
+    static_cast<const TargetLoweringObjectFileMachO &>(getObjFileLowering());
   MachineModuleInfoMachO &MMIMacho =
     MMI->getObjFileInfo<MachineModuleInfoMachO>();
   
@@ -794,8 +812,8 @@ bool PPCDarwinAsmPrinter::doFinalization(Module &M) {
   if (MAI->doesSupportExceptionHandling() && MMI) {
     // Add the (possibly multiple) personalities to the set of global values.
     // Only referenced functions get into the Personalities list.
-    const std::vector<Function *> &Personalities = MMI->getPersonalities();
-    for (std::vector<Function *>::const_iterator I = Personalities.begin(),
+    const std::vector<const Function*> &Personalities = MMI->getPersonalities();
+    for (std::vector<const Function*>::const_iterator I = Personalities.begin(),
          E = Personalities.end(); I != E; ++I) {
       if (*I) {
         MCSymbol *NLPSym = GetSymbolWithGlobalValueBase(*I, "$non_lazy_ptr");
