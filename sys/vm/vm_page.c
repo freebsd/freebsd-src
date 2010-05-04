@@ -1544,13 +1544,15 @@ vm_page_wire(vm_page_t m)
 	 * and only unqueue the page if it is on some queue (if it is unmanaged
 	 * it is already off the queues).
 	 */
-	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
 	vm_page_lock_assert(m, MA_OWNED);
 	if (m->flags & PG_FICTITIOUS)
 		return;
 	if (m->wire_count == 0) {
-		if ((m->flags & PG_UNMANAGED) == 0)
+		if ((m->flags & PG_UNMANAGED) == 0) {
+			vm_page_lock_queues();
 			vm_pageq_remove(m);
+			vm_page_unlock_queues();
+		}
 		atomic_add_int(&cnt.v_wire_count, 1);
 	}
 	m->wire_count++;
@@ -1922,9 +1924,7 @@ retrylookup:
 		} else {
 			if ((allocflags & VM_ALLOC_WIRED) != 0) {
 				vm_page_lock(m);
-				vm_page_lock_queues();
 				vm_page_wire(m);
-				vm_page_unlock_queues();
 				vm_page_unlock(m);
 			}
 			if ((allocflags & VM_ALLOC_NOBUSY) == 0)
@@ -2224,6 +2224,7 @@ vm_page_cowfault(vm_page_t m)
 	vm_object_t object;
 	vm_pindex_t pindex;
 
+	vm_page_lock_assert(m, MA_OWNED);
 	object = m->object;
 	VM_OBJECT_LOCK_ASSERT(object, MA_OWNED);
 	KASSERT(object->paging_in_progress != 0,
@@ -2238,17 +2239,18 @@ vm_page_cowfault(vm_page_t m)
 	if (mnew == NULL) {
 		vm_page_insert(m, object, pindex);
 		vm_page_unlock_queues();
+		vm_page_unlock(m);
 		VM_OBJECT_UNLOCK(object);
 		VM_WAIT;
 		VM_OBJECT_LOCK(object);
 		if (m == vm_page_lookup(object, pindex)) {
+			vm_page_lock(m);
 			vm_page_lock_queues();
 			goto retry_alloc;
 		} else {
 			/*
 			 * Page disappeared during the wait.
 			 */
-			vm_page_lock_queues();
 			return;
 		}
 	}
@@ -2269,13 +2271,15 @@ vm_page_cowfault(vm_page_t m)
 		mnew->wire_count = m->wire_count - m->cow;
 		m->wire_count = m->cow;
 	}
+	vm_page_unlock_queues();
+	vm_page_unlock(m);
 }
 
 void 
 vm_page_cowclear(vm_page_t m)
 {
 
-	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
+	vm_page_lock_assert(m, MA_OWNED);
 	if (m->cow) {
 		m->cow--;
 		/* 
@@ -2291,11 +2295,13 @@ int
 vm_page_cowsetup(vm_page_t m)
 {
 
-	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
+	vm_page_lock_assert(m, MA_OWNED);
 	if (m->cow == USHRT_MAX - 1)
 		return (EBUSY);
 	m->cow++;
+	vm_page_lock_queues();
 	pmap_remove_write(m);
+	vm_page_unlock_queues();
 	return (0);
 }
 
