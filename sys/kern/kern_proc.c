@@ -901,7 +901,7 @@ fill_kinfo_thread(struct thread *td, struct kinfo_proc *kp, int preferthread)
 	kp->ki_pri.pri_user = td->td_user_pri;
 
 	if (preferthread) {
-		kp->ki_runtime = cputick2usec(td->td_runtime);
+		kp->ki_runtime = td->td_rux.rux_runtime;
 		kp->ki_pctcpu = sched_pctcpu(td);
 		kp->ki_estcpu = td->td_estcpu;
 	}
