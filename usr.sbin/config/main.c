@@ -667,7 +667,7 @@ kernconfdump(const char *file)
 	struct stat st;
 	FILE *fp, *pp;
 	int error, len, osz, r;
-	unsigned int off, size;
+	unsigned int i, off, size;
 	char *cmd, *o;
 
 	r = open(file, O_RDONLY);
@@ -705,7 +705,18 @@ kernconfdump(const char *file)
 	r = fseek(fp, off, SEEK_CUR);
 	if (r != 0)
 		errx(EXIT_FAILURE, "fseek() failed");
-	while ((r = fgetc(fp)) != EOF && size-- > 0)
+	for (i = 0; i < size - 1; i++) {
+		r = fgetc(fp);
+		if (r == EOF)
+			break;
+		/* 
+		 * If '\0' is present in the middle of the configuration
+		 * string, this means something very weird is happening.
+		 * Make such case very visible.
+		 */
+		assert(r != '\0' && ("Char present in the configuration "
+		    "string mustn't be equal to 0"));
 		fputc(r, stdout);
+	}
 	fclose(fp);
 }
