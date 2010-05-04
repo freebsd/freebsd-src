@@ -1577,7 +1577,6 @@ sge_init_locked(struct sge_softc *sc)
 	CSR_WRITE_4(sc, RX_DESC, SGE_ADDR_LO(sc->sge_ldata.sge_rx_paddr));
 
 	CSR_WRITE_4(sc, TxMacControl, 0x60);
-	CSR_WRITE_4(sc, 0x6c, 0);
 	CSR_WRITE_4(sc, RxWakeOnLan, 0);
 	CSR_WRITE_4(sc, RxWakeOnLanData, 0);
 	/* Allow receiving VLAN frames. */
