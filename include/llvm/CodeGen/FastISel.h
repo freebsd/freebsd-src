@@ -15,8 +15,10 @@
 #define LLVM_CODEGEN_FASTISEL_H
 
 #include "llvm/ADT/DenseMap.h"
+#ifndef NDEBUG
 #include "llvm/ADT/SmallSet.h"
-#include "llvm/CodeGen/SelectionDAGNodes.h"
+#endif
+#include "llvm/CodeGen/ValueTypes.h"
 
 namespace llvm {
 
@@ -26,6 +28,7 @@ class Instruction;
 class MachineBasicBlock;
 class MachineConstantPool;
 class MachineFunction;
+class MachineInstr;
 class MachineFrameInfo;
 class MachineRegisterInfo;
 class TargetData;
@@ -44,8 +47,9 @@ protected:
   DenseMap<const Value *, unsigned> &ValueMap;
   DenseMap<const BasicBlock *, MachineBasicBlock *> &MBBMap;
   DenseMap<const AllocaInst *, int> &StaticAllocaMap;
+  std::vector<std::pair<MachineInstr*, unsigned> > &PHINodesToUpdate;
 #ifndef NDEBUG
-  SmallSet<Instruction*, 8> &CatchInfoLost;
+  SmallSet<const Instruction *, 8> &CatchInfoLost;
 #endif
   MachineFunction &MF;
   MachineRegisterInfo &MRI;
@@ -73,11 +77,6 @@ public:
     MBB = mbb;
   }
 
-  /// setCurDebugLoc - Set the current debug location information, which is used
-  /// when creating a machine instruction.
-  ///
-  void setCurDebugLoc(DebugLoc dl) { DL = dl; }
-
   /// getCurDebugLoc() - Return current debug location information.
   DebugLoc getCurDebugLoc() const { return DL; }
 
@@ -85,28 +84,28 @@ public:
   /// LLVM IR instruction, and append generated machine instructions to
   /// the current block. Return true if selection was successful.
   ///
-  bool SelectInstruction(Instruction *I);
+  bool SelectInstruction(const Instruction *I);
 
   /// SelectOperator - Do "fast" instruction selection for the given
   /// LLVM IR operator (Instruction or ConstantExpr), and append
   /// generated machine instructions to the current block. Return true
   /// if selection was successful.
   ///
-  bool SelectOperator(User *I, unsigned Opcode);
+  bool SelectOperator(const User *I, unsigned Opcode);
 
   /// getRegForValue - Create a virtual register and arrange for it to
   /// be assigned the value for the given LLVM value.
-  unsigned getRegForValue(Value *V);
+  unsigned getRegForValue(const Value *V);
 
   /// lookUpRegForValue - Look up the value to see if its value is already
   /// cached in a register. It may be defined by instructions across blocks or
   /// defined locally.
-  unsigned lookUpRegForValue(Value *V);
+  unsigned lookUpRegForValue(const Value *V);
 
   /// getRegForGEPIndex - This is a wrapper around getRegForValue that also
   /// takes care of truncating or sign-extending the given getelementptr
   /// index value.
-  unsigned getRegForGEPIndex(Value *V);
+  unsigned getRegForGEPIndex(const Value *V);
 
   virtual ~FastISel();
 
@@ -114,9 +113,10 @@ protected:
   FastISel(MachineFunction &mf,
            DenseMap<const Value *, unsigned> &vm,
            DenseMap<const BasicBlock *, MachineBasicBlock *> &bm,
-           DenseMap<const AllocaInst *, int> &am
+           DenseMap<const AllocaInst *, int> &am,
+           std::vector<std::pair<MachineInstr*, unsigned> > &PHINodesToUpdate
 #ifndef NDEBUG
-           , SmallSet<Instruction*, 8> &cil
+           , SmallSet<const Instruction *, 8> &cil
 #endif
            );
 
@@ -126,7 +126,7 @@ protected:
   /// fit into FastISel's framework. It returns true if it was successful.
   ///
   virtual bool
-  TargetSelectInstruction(Instruction *I) = 0;
+  TargetSelectInstruction(const Instruction *I) = 0;
 
   /// FastEmit_r - This method is called by target-independent code
   /// to request that an instruction with the given type and opcode
@@ -168,7 +168,7 @@ protected:
   virtual unsigned FastEmit_rf(MVT VT,
                                MVT RetVT,
                                unsigned Opcode,
-                               unsigned Op0, ConstantFP *FPImm);
+                               unsigned Op0, const ConstantFP *FPImm);
 
   /// FastEmit_rri - This method is called by target-independent code
   /// to request that an instruction with the given type, opcode, and
@@ -194,7 +194,7 @@ protected:
   /// FastEmit_rr instead.
   unsigned FastEmit_rf_(MVT VT,
                         unsigned Opcode,
-                        unsigned Op0, ConstantFP *FPImm,
+                        unsigned Op0, const ConstantFP *FPImm,
                         MVT ImmType);
   
   /// FastEmit_i - This method is called by target-independent code
@@ -211,7 +211,7 @@ protected:
   virtual unsigned FastEmit_f(MVT VT,
                               MVT RetVT,
                               unsigned Opcode,
-                              ConstantFP *FPImm);
+                              const ConstantFP *FPImm);
 
   /// FastEmitInst_ - Emit a MachineInstr with no operands and a
   /// result register in the given register class.
@@ -245,7 +245,7 @@ protected:
   ///
   unsigned FastEmitInst_rf(unsigned MachineInstOpcode,
                            const TargetRegisterClass *RC,
-                           unsigned Op0, ConstantFP *FPImm);
+                           unsigned Op0, const ConstantFP *FPImm);
 
   /// FastEmitInst_rri - Emit a MachineInstr with two register operands,
   /// an immediate, and a result register in the given register class.
@@ -275,34 +275,47 @@ protected:
   /// the CFG.
   void FastEmitBranch(MachineBasicBlock *MBB);
 
-  unsigned UpdateValueMap(Value* I, unsigned Reg);
+  unsigned UpdateValueMap(const Value* I, unsigned Reg);
 
   unsigned createResultReg(const TargetRegisterClass *RC);
   
   /// TargetMaterializeConstant - Emit a constant in a register using 
   /// target-specific logic, such as constant pool loads.
-  virtual unsigned TargetMaterializeConstant(Constant* C) {
+  virtual unsigned TargetMaterializeConstant(const Constant* C) {
     return 0;
   }
 
   /// TargetMaterializeAlloca - Emit an alloca address in a register using
   /// target-specific logic.
-  virtual unsigned TargetMaterializeAlloca(AllocaInst* C) {
+  virtual unsigned TargetMaterializeAlloca(const AllocaInst* C) {
     return 0;
   }
 
 private:
-  bool SelectBinaryOp(User *I, unsigned ISDOpcode);
+  bool SelectBinaryOp(const User *I, unsigned ISDOpcode);
 
-  bool SelectFNeg(User *I);
+  bool SelectFNeg(const User *I);
 
-  bool SelectGetElementPtr(User *I);
+  bool SelectGetElementPtr(const User *I);
 
-  bool SelectCall(User *I);
+  bool SelectCall(const User *I);
 
-  bool SelectBitCast(User *I);
+  bool SelectBitCast(const User *I);
   
-  bool SelectCast(User *I, unsigned Opcode);
+  bool SelectCast(const User *I, unsigned Opcode);
+
+  /// HandlePHINodesInSuccessorBlocks - Handle PHI nodes in successor blocks.
+  /// Emit code to ensure constants are copied into registers when needed.
+  /// Remember the virtual registers that need to be added to the Machine PHI
+  /// nodes as input.  We cannot just directly add them, because expansion
+  /// might result in multiple MBB's for one BB.  As such, the start of the
+  /// BB might correspond to a different MBB than the end.
+  bool HandlePHINodesInSuccessorBlocks(const BasicBlock *LLVMBB);
+
+  /// materializeRegForValue - Helper for getRegForVale. This function is
+  /// called when the value isn't already available in a register and must
+  /// be materialized with new instructions.
+  unsigned materializeRegForValue(const Value *V, MVT VT);
 };
 
 }

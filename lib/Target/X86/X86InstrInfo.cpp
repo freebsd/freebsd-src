@@ -27,6 +27,7 @@
 #include "llvm/CodeGen/MachineRegisterInfo.h"
 #include "llvm/CodeGen/LiveVariables.h"
 #include "llvm/CodeGen/PseudoSourceValue.h"
+#include "llvm/MC/MCInst.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/ErrorHandling.h"
@@ -1684,6 +1685,7 @@ bool X86InstrInfo::AnalyzeBranch(MachineBasicBlock &MBB,
   // Start from the bottom of the block and work up, examining the
   // terminator instructions.
   MachineBasicBlock::iterator I = MBB.end();
+  MachineBasicBlock::iterator UnCondBrIter = MBB.end();
   while (I != MBB.begin()) {
     --I;
     if (I->isDebugValue())
@@ -1701,6 +1703,8 @@ bool X86InstrInfo::AnalyzeBranch(MachineBasicBlock &MBB,
 
     // Handle unconditional branches.
     if (I->getOpcode() == X86::JMP_4) {
+      UnCondBrIter = I;
+
       if (!AllowModify) {
         TBB = I->getOperand(0).getMBB();
         continue;
@@ -1718,10 +1722,11 @@ bool X86InstrInfo::AnalyzeBranch(MachineBasicBlock &MBB,
         TBB = 0;
         I->eraseFromParent();
         I = MBB.end();
+        UnCondBrIter = MBB.end();
         continue;
       }
 
-      // TBB is used to indicate the unconditinal destination.
+      // TBB is used to indicate the unconditional destination.
       TBB = I->getOperand(0).getMBB();
       continue;
     }
@@ -1733,6 +1738,45 @@ bool X86InstrInfo::AnalyzeBranch(MachineBasicBlock &MBB,
 
     // Working from the bottom, handle the first conditional branch.
     if (Cond.empty()) {
+      MachineBasicBlock *TargetBB = I->getOperand(0).getMBB();
+      if (AllowModify && UnCondBrIter != MBB.end() &&
+          MBB.isLayoutSuccessor(TargetBB)) {
+        // If we can modify the code and it ends in something like:
+        //
+        //     jCC L1
+        //     jmp L2
+        //   L1:
+        //     ...
+        //   L2:
+        //
+        // Then we can change this to:
+        //
+        //     jnCC L2
+        //   L1:
+        //     ...
+        //   L2:
+        //
+        // Which is a bit more efficient.
+        // We conditionally jump to the fall-through block.
+        BranchCode = GetOppositeBranchCondition(BranchCode);
+        unsigned JNCC = GetCondBranchFromCond(BranchCode);
+        MachineBasicBlock::iterator OldInst = I;
+
+        BuildMI(MBB, UnCondBrIter, MBB.findDebugLoc(I), get(JNCC))
+          .addMBB(UnCondBrIter->getOperand(0).getMBB());
+        BuildMI(MBB, UnCondBrIter, MBB.findDebugLoc(I), get(X86::JMP_4))
+          .addMBB(TargetBB);
+        MBB.addSuccessor(TargetBB);
+
+        OldInst->eraseFromParent();
+        UnCondBrIter->eraseFromParent();
+
+        // Restart the analysis.
+        UnCondBrIter = MBB.end();
+        I = MBB.end();
+        continue;
+      }
+
       FBB = TBB;
       TBB = I->getOperand(0).getMBB();
       Cond.push_back(MachineOperand::CreateImm(BranchCode));
@@ -2276,6 +2320,19 @@ bool X86InstrInfo::restoreCalleeSavedRegisters(MachineBasicBlock &MBB,
   return true;
 }
 
+MachineInstr*
+X86InstrInfo::emitFrameIndexDebugValue(MachineFunction &MF,
+                                       int FrameIx, uint64_t Offset,
+                                       const MDNode *MDPtr,
+                                       DebugLoc DL) const {
+  X86AddressMode AM;
+  AM.BaseType = X86AddressMode::FrameIndexBase;
+  AM.Base.FrameIndex = FrameIx;
+  MachineInstrBuilder MIB = BuildMI(MF, DL, get(X86::DBG_VALUE));
+  addFullAddress(MIB, AM).addImm(Offset).addMetadata(MDPtr);
+  return &*MIB;
+}
+
 static MachineInstr *FuseTwoAddrInst(MachineFunction &MF, unsigned Opcode,
                                      const SmallVectorImpl<MachineOperand> &MOs,
                                      MachineInstr *MI,
@@ -2586,7 +2643,7 @@ MachineInstr* X86InstrInfo::foldMemoryOperandImpl(MachineFunction &MF,
       Ty = Type::getDoubleTy(MF.getFunction()->getContext());
     else
       Ty = VectorType::get(Type::getInt32Ty(MF.getFunction()->getContext()), 4);
-    Constant *C = LoadMI->getOpcode() == X86::V_SETALLONES ?
+    const Constant *C = LoadMI->getOpcode() == X86::V_SETALLONES ?
                     Constant::getAllOnesValue(Ty) :
                     Constant::getNullValue(Ty);
     unsigned CPI = MCP.getConstantPoolIndex(C, Alignment);
@@ -3406,6 +3463,7 @@ static unsigned GetInstSizeWithDesc(const MachineInstr &MI,
     }
     case TargetOpcode::DBG_LABEL:
     case TargetOpcode::EH_LABEL:
+    case TargetOpcode::DBG_VALUE:
       break;
     case TargetOpcode::IMPLICIT_DEF:
     case TargetOpcode::KILL:
@@ -3603,7 +3661,7 @@ static unsigned GetInstSizeWithDesc(const MachineInstr &MI,
     std::string msg;
     raw_string_ostream Msg(msg);
     Msg << "Cannot determine size: " << MI;
-    llvm_report_error(Msg.str());
+    report_fatal_error(Msg.str());
   }
   
 
@@ -3709,3 +3767,9 @@ void X86InstrInfo::SetSSEDomain(MachineInstr *MI, unsigned Domain) const {
   assert(table && "Cannot change domain");
   MI->setDesc(get(table[Domain-1]));
 }
+
+/// getNoopForMachoTarget - Return the noop instruction to use for a noop.
+void X86InstrInfo::getNoopForMachoTarget(MCInst &NopInst) const {
+  NopInst.setOpcode(X86::NOOP);
+}
+

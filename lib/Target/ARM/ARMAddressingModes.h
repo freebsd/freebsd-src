@@ -151,22 +151,13 @@ namespace ARM_AM {
     if ((rotr32(Imm, RotAmt) & ~255U) == 0)
       return (32-RotAmt)&31;  // HW rotates right, not left.
 
-    // For values like 0xF000000F, we should skip the first run of ones, then
+    // For values like 0xF000000F, we should ignore the low 6 bits, then
     // retry the hunt.
-    if (Imm & 1) {
-      unsigned TrailingOnes = CountTrailingZeros_32(~Imm);
-      if (TrailingOnes != 32) {  // Avoid overflow on 0xFFFFFFFF
-        // Restart the search for a high-order bit after the initial seconds of
-        // ones.
-        unsigned TZ2 = CountTrailingZeros_32(Imm & ~((1 << TrailingOnes)-1));
-
-        // Rotate amount must be even.
-        unsigned RotAmt2 = TZ2 & ~1;
-
-        // If this fits, use it.
-        if (RotAmt2 != 32 && (rotr32(Imm, RotAmt2) & ~255U) == 0)
-          return (32-RotAmt2)&31;  // HW rotates right, not left.
-      }
+    if (Imm & 63U) {
+      unsigned TZ2 = CountTrailingZeros_32(Imm & ~63U);
+      unsigned RotAmt2 = TZ2 & ~1;
+      if ((rotr32(Imm, RotAmt2) & ~255U) == 0)
+        return (32-RotAmt2)&31;  // HW rotates right, not left.
     }
 
     // Otherwise, we have no way to cover this span of bits with a single

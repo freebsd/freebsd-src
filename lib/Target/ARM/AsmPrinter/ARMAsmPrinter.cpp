@@ -21,6 +21,7 @@
 #include "ARMMachineFunctionInfo.h"
 #include "ARMMCInstLower.h"
 #include "ARMTargetMachine.h"
+#include "llvm/Analysis/DebugInfo.h"
 #include "llvm/Constants.h"
 #include "llvm/Module.h"
 #include "llvm/Type.h"
@@ -239,7 +240,7 @@ namespace {
       } else if (ACPV->isBlockAddress()) {
         O << *GetBlockAddressSymbol(ACPV->getBlockAddress());
       } else if (ACPV->isGlobalValue()) {
-        GlobalValue *GV = ACPV->getGV();
+        const GlobalValue *GV = ACPV->getGV();
         bool isIndirect = Subtarget->isTargetDarwin() &&
           Subtarget->GVIsIndirectSymbol(GV, TM.getRelocationModel());
         if (!isIndirect)
@@ -352,7 +353,7 @@ void ARMAsmPrinter::printOperand(const MachineInstr *MI, int OpNum,
     return;
   case MachineOperand::MO_GlobalAddress: {
     bool isCallOp = Modifier && !strcmp(Modifier, "call");
-    GlobalValue *GV = MO.getGlobal();
+    const GlobalValue *GV = MO.getGlobal();
 
     if ((Modifier && strcmp(Modifier, "lo16") == 0) ||
         (TF & ARMII::MO_LO16))
@@ -504,7 +505,6 @@ void ARMAsmPrinter::printAddrMode2OffsetOperand(const MachineInstr *MI, int Op,
 
   if (!MO1.getReg()) {
     unsigned ImmOffs = ARM_AM::getAM2Offset(MO2.getImm());
-    assert(ImmOffs && "Malformed indexed load / store!");
     O << "#"
       << ARM_AM::getAddrOpcStr(ARM_AM::getAM2Op(MO2.getImm()))
       << ImmOffs;
@@ -556,7 +556,6 @@ void ARMAsmPrinter::printAddrMode3OffsetOperand(const MachineInstr *MI, int Op,
   }
 
   unsigned ImmOffs = ARM_AM::getAM3Offset(MO2.getImm());
-  assert(ImmOffs && "Malformed indexed load / store!");
   O << "#"
     << ARM_AM::getAddrOpcStr(ARM_AM::getAM3Op(MO2.getImm()))
     << ImmOffs;
@@ -1110,6 +1109,24 @@ void ARMAsmPrinter::EmitInstruction(const MachineInstr *MI) {
   
   SmallString<128> Str;
   raw_svector_ostream OS(Str);
+  if (MI->getOpcode() == ARM::DBG_VALUE) {
+    unsigned NOps = MI->getNumOperands();
+    assert(NOps==4);
+    OS << '\t' << MAI->getCommentString() << "DEBUG_VALUE: ";
+    // cast away const; DIetc do not take const operands for some reason.
+    DIVariable V(const_cast<MDNode *>(MI->getOperand(NOps-1).getMetadata()));
+    OS << V.getName();
+    OS << " <- ";
+    // Frame address.  Currently handles register +- offset only.
+    assert(MI->getOperand(0).isReg() && MI->getOperand(1).isImm());
+    OS << '['; printOperand(MI, 0, OS); OS << '+'; printOperand(MI, 1, OS);
+    OS << ']';
+    OS << "+";
+    printOperand(MI, NOps-2, OS);
+    OutStreamer.EmitRawText(OS.str());
+    return;
+  }
+
   printInstruction(MI, OS);
   OutStreamer.EmitRawText(OS.str());
   
@@ -1129,22 +1146,23 @@ void ARMAsmPrinter::EmitStartOfAsmFile(Module &M) {
       // avoid out-of-range branches that are due a fundamental limitation of
       // the way symbol offsets are encoded with the current Darwin ARM
       // relocations.
-      TargetLoweringObjectFileMachO &TLOFMacho = 
-        static_cast<TargetLoweringObjectFileMachO &>(getObjFileLowering());
+      const TargetLoweringObjectFileMachO &TLOFMacho = 
+        static_cast<const TargetLoweringObjectFileMachO &>(
+          getObjFileLowering());
       OutStreamer.SwitchSection(TLOFMacho.getTextSection());
       OutStreamer.SwitchSection(TLOFMacho.getTextCoalSection());
       OutStreamer.SwitchSection(TLOFMacho.getConstTextCoalSection());
       if (RelocM == Reloc::DynamicNoPIC) {
         const MCSection *sect =
-          TLOFMacho.getMachOSection("__TEXT", "__symbol_stub4",
-                                    MCSectionMachO::S_SYMBOL_STUBS,
-                                    12, SectionKind::getText());
+          OutContext.getMachOSection("__TEXT", "__symbol_stub4",
+                                     MCSectionMachO::S_SYMBOL_STUBS,
+                                     12, SectionKind::getText());
         OutStreamer.SwitchSection(sect);
       } else {
         const MCSection *sect =
-          TLOFMacho.getMachOSection("__TEXT", "__picsymbolstub4",
-                                    MCSectionMachO::S_SYMBOL_STUBS,
-                                    16, SectionKind::getText());
+          OutContext.getMachOSection("__TEXT", "__picsymbolstub4",
+                                     MCSectionMachO::S_SYMBOL_STUBS,
+                                     16, SectionKind::getText());
         OutStreamer.SwitchSection(sect);
       }
     }
@@ -1201,8 +1219,8 @@ void ARMAsmPrinter::EmitStartOfAsmFile(Module &M) {
 void ARMAsmPrinter::EmitEndOfAsmFile(Module &M) {
   if (Subtarget->isTargetDarwin()) {
     // All darwin targets use mach-o.
-    TargetLoweringObjectFileMachO &TLOFMacho =
-      static_cast<TargetLoweringObjectFileMachO &>(getObjFileLowering());
+    const TargetLoweringObjectFileMachO &TLOFMacho =
+      static_cast<const TargetLoweringObjectFileMachO &>(getObjFileLowering());
     MachineModuleInfoMachO &MMIMacho =
       MMI->getObjFileInfo<MachineModuleInfoMachO>();
 

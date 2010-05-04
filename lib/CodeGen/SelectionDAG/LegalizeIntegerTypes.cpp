@@ -204,7 +204,8 @@ SDValue DAGTypeLegalizer::PromoteIntRes_BIT_CONVERT(SDNode *N) {
       std::swap(Lo, Hi);
 
     InOp = DAG.getNode(ISD::ANY_EXTEND, dl,
-                       EVT::getIntegerVT(*DAG.getContext(), NOutVT.getSizeInBits()),
+                       EVT::getIntegerVT(*DAG.getContext(),
+                                         NOutVT.getSizeInBits()),
                        JoinIntegers(Lo, Hi));
     return DAG.getNode(ISD::BIT_CONVERT, dl, NOutVT, InOp);
   }
@@ -464,7 +465,7 @@ SDValue DAGTypeLegalizer::PromoteIntRes_SETCC(SDNode *N) {
 
 SDValue DAGTypeLegalizer::PromoteIntRes_SHL(SDNode *N) {
   return DAG.getNode(ISD::SHL, N->getDebugLoc(),
-                     TLI.getTypeToTransformTo(*DAG.getContext(), N->getValueType(0)),
+                TLI.getTypeToTransformTo(*DAG.getContext(), N->getValueType(0)),
                      GetPromotedInteger(N->getOperand(0)), N->getOperand(1));
 }
 
@@ -555,7 +556,8 @@ SDValue DAGTypeLegalizer::PromoteIntRes_UDIV(SDNode *N) {
 }
 
 SDValue DAGTypeLegalizer::PromoteIntRes_UNDEF(SDNode *N) {
-  return DAG.getUNDEF(TLI.getTypeToTransformTo(*DAG.getContext(), N->getValueType(0)));
+  return DAG.getUNDEF(TLI.getTypeToTransformTo(*DAG.getContext(),
+                                               N->getValueType(0)));
 }
 
 SDValue DAGTypeLegalizer::PromoteIntRes_VAARG(SDNode *N) {
@@ -1383,7 +1385,8 @@ void DAGTypeLegalizer::ExpandIntRes_AssertSext(SDNode *N,
 
   if (NVTBits < EVTBits) {
     Hi = DAG.getNode(ISD::AssertSext, dl, NVT, Hi,
-                     DAG.getValueType(EVT::getIntegerVT(*DAG.getContext(), EVTBits - NVTBits)));
+                     DAG.getValueType(EVT::getIntegerVT(*DAG.getContext(),
+                                                        EVTBits - NVTBits)));
   } else {
     Lo = DAG.getNode(ISD::AssertSext, dl, NVT, Lo, DAG.getValueType(EVT));
     // The high part replicates the sign bit of Lo, make it explicit.
@@ -1403,7 +1406,8 @@ void DAGTypeLegalizer::ExpandIntRes_AssertZext(SDNode *N,
 
   if (NVTBits < EVTBits) {
     Hi = DAG.getNode(ISD::AssertZext, dl, NVT, Hi,
-                     DAG.getValueType(EVT::getIntegerVT(*DAG.getContext(), EVTBits - NVTBits)));
+                     DAG.getValueType(EVT::getIntegerVT(*DAG.getContext(),
+                                                        EVTBits - NVTBits)));
   } else {
     Lo = DAG.getNode(ISD::AssertZext, dl, NVT, Lo, DAG.getValueType(EVT));
     // The high part must be zero, make it explicit.
@@ -1846,7 +1850,8 @@ void DAGTypeLegalizer::ExpandIntRes_SIGN_EXTEND(SDNode *N,
     unsigned ExcessBits =
       Op.getValueType().getSizeInBits() - NVT.getSizeInBits();
     Hi = DAG.getNode(ISD::SIGN_EXTEND_INREG, dl, Hi.getValueType(), Hi,
-                     DAG.getValueType(EVT::getIntegerVT(*DAG.getContext(), ExcessBits)));
+                     DAG.getValueType(EVT::getIntegerVT(*DAG.getContext(),
+                                                        ExcessBits)));
   }
 }
 
@@ -1968,7 +1973,8 @@ void DAGTypeLegalizer::ExpandIntRes_ZERO_EXTEND(SDNode *N,
     SplitInteger(Res, Lo, Hi);
     unsigned ExcessBits =
       Op.getValueType().getSizeInBits() - NVT.getSizeInBits();
-    Hi = DAG.getZeroExtendInReg(Hi, dl, EVT::getIntegerVT(*DAG.getContext(), ExcessBits));
+    Hi = DAG.getZeroExtendInReg(Hi, dl,
+                                EVT::getIntegerVT(*DAG.getContext(), ExcessBits));
   }
 }
 
@@ -2269,7 +2275,8 @@ SDValue DAGTypeLegalizer::ExpandIntOp_STORE(StoreSDNode *N, unsigned OpNo) {
     unsigned EBytes = ExtVT.getStoreSize();
     unsigned IncrementSize = NVT.getSizeInBits()/8;
     unsigned ExcessBits = (EBytes - IncrementSize)*8;
-    EVT HiVT = EVT::getIntegerVT(*DAG.getContext(), ExtVT.getSizeInBits() - ExcessBits);
+    EVT HiVT = EVT::getIntegerVT(*DAG.getContext(),
+                                 ExtVT.getSizeInBits() - ExcessBits);
 
     if (ExcessBits < NVT.getSizeInBits()) {
       // Transfer high bits from the top of Lo to the bottom of Hi.

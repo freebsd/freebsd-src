@@ -16,6 +16,8 @@
 #define LLVM_TARGET_TARGETOPTIONS_H
 
 namespace llvm {
+  class MachineFunction;
+
   // Possible float ABI settings. Used with FloatABIType in TargetOptions.h.
   namespace FloatABI {
     enum ABIType {
@@ -34,6 +36,16 @@ namespace llvm {
   /// specified on the command line.  If the target supports the frame pointer
   /// elimination optimization, this option should disable it.
   extern bool NoFramePointerElim;
+
+  /// NoFramePointerElimNonLeaf - This flag is enabled when the
+  /// -disable-non-leaf-fp-elim is specified on the command line. If the target
+  /// supports the frame pointer elimination optimization, this option should
+  /// disable it for non-leaf functions.
+  extern bool NoFramePointerElimNonLeaf;
+
+  /// DisableFramePointerElim - This returns true if frame pointer elimination
+  /// optimization should be disabled for the given machine function.
+  extern bool DisableFramePointerElim(const MachineFunction &MF);
 
   /// LessPreciseFPMAD - This flag is enabled when the
   /// -enable-fp-mad is specified on the command line.  When this flag is off
@@ -95,13 +107,9 @@ namespace llvm {
   /// crt*.o compiling).
   extern bool NoZerosInBSS;
 
-  /// DwarfExceptionHandling - This flag indicates that Dwarf exception
-  /// information should be emitted.
-  extern bool DwarfExceptionHandling;
-
-  /// SjLjExceptionHandling - This flag indicates that SJLJ exception
-  /// information should be emitted.
-  extern bool SjLjExceptionHandling;
+  /// JITExceptionHandling - This flag indicates that the JIT should emit
+  /// exception handling information.
+  extern bool JITExceptionHandling;
 
   /// JITEmitDebugInfo - This flag indicates that the JIT should try to emit
   /// debug information and notify a debugger about it.

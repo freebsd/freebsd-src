@@ -272,8 +272,8 @@ void ScheduleDAGInstrs::BuildSchedGraph(AliasAnalysis *AA) {
           // perform its own adjustments.
           const SDep& dep = SDep(SU, SDep::Data, LDataLatency, Reg);
           if (!UnitLatencies) {
-            ComputeOperandLatency(SU, UseSU, (SDep &)dep);
-            ST.adjustSchedDependency(SU, UseSU, (SDep &)dep);
+            ComputeOperandLatency(SU, UseSU, const_cast<SDep &>(dep));
+            ST.adjustSchedDependency(SU, UseSU, const_cast<SDep &>(dep));
           }
           UseSU->addPred(dep);
         }
@@ -285,8 +285,8 @@ void ScheduleDAGInstrs::BuildSchedGraph(AliasAnalysis *AA) {
               continue;
             const SDep& dep = SDep(SU, SDep::Data, DataLatency, *Alias);
             if (!UnitLatencies) {
-              ComputeOperandLatency(SU, UseSU, (SDep &)dep);
-              ST.adjustSchedDependency(SU, UseSU, (SDep &)dep);
+              ComputeOperandLatency(SU, UseSU, const_cast<SDep &>(dep));
+              ST.adjustSchedDependency(SU, UseSU, const_cast<SDep &>(dep));
             }
             UseSU->addPred(dep);
           }
@@ -572,8 +572,7 @@ std::string ScheduleDAGInstrs::getGraphNodeLabel(const SUnit *SU) const {
 }
 
 // EmitSchedule - Emit the machine code in scheduled order.
-MachineBasicBlock *ScheduleDAGInstrs::
-EmitSchedule(DenseMap<MachineBasicBlock*, MachineBasicBlock*> *EM) {
+MachineBasicBlock *ScheduleDAGInstrs::EmitSchedule() {
   // For MachineInstr-based scheduling, we're rescheduling the instructions in
   // the block, so start by removing them from the block.
   while (Begin != InsertPos) {

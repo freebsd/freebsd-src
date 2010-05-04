@@ -8,7 +8,6 @@
 //===----------------------------------------------------------------------===//
 
 #include "PIC16TargetObjectFile.h"
-#include "PIC16ISelLowering.h"
 #include "PIC16TargetMachine.h"
 #include "PIC16Section.h"
 #include "llvm/DerivedTypes.h"
@@ -27,7 +26,7 @@ PIC16TargetObjectFile::~PIC16TargetObjectFile() {
 
 /// Find a pic16 section. Return null if not found. Do not create one.
 PIC16Section *PIC16TargetObjectFile::
-findPIC16Section(const std::string &Name) {
+findPIC16Section(const std::string &Name) const {
   /// Return if we have an already existing one.
   PIC16Section *Entry = SectionsByName[Name];
   if (Entry)
@@ -134,7 +133,7 @@ void PIC16TargetObjectFile::Initialize(MCContext &Ctx, const TargetMachine &tm){
 const MCSection *
 PIC16TargetObjectFile::allocateUDATA(const GlobalVariable *GV) const {
   assert(GV->hasInitializer() && "This global doesn't need space");
-  Constant *C = GV->getInitializer();
+  const Constant *C = GV->getInitializer();
   assert(C->isNullValue() && "Unitialized globals has non-zero initializer");
 
   // Find how much space this global needs.
@@ -169,7 +168,7 @@ PIC16TargetObjectFile::allocateUDATA(const GlobalVariable *GV) const {
 const MCSection *
 PIC16TargetObjectFile::allocateIDATA(const GlobalVariable *GV) const{
   assert(GV->hasInitializer() && "This global doesn't need space");
-  Constant *C = GV->getInitializer();
+  const Constant *C = GV->getInitializer();
   assert(!C->isNullValue() && "initialized globals has zero initializer");
   assert(GV->getType()->getAddressSpace() == PIC16ISD::RAM_SPACE &&
          "can allocate initialized RAM data only");

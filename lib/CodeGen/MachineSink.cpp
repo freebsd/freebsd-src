@@ -20,6 +20,7 @@
 #include "llvm/CodeGen/Passes.h"
 #include "llvm/CodeGen/MachineRegisterInfo.h"
 #include "llvm/CodeGen/MachineDominators.h"
+#include "llvm/CodeGen/MachineLoopInfo.h"
 #include "llvm/Analysis/AliasAnalysis.h"
 #include "llvm/Target/TargetRegisterInfo.h"
 #include "llvm/Target/TargetInstrInfo.h"
@@ -37,6 +38,7 @@ namespace {
     const TargetRegisterInfo *TRI;
     MachineRegisterInfo  *RegInfo; // Machine register information
     MachineDominatorTree *DT;   // Machine dominator tree
+    MachineLoopInfo *LI;
     AliasAnalysis *AA;
     BitVector AllocatableSet;   // Which physregs are allocatable?
 
@@ -51,7 +53,9 @@ namespace {
       MachineFunctionPass::getAnalysisUsage(AU);
       AU.addRequired<AliasAnalysis>();
       AU.addRequired<MachineDominatorTree>();
+      AU.addRequired<MachineLoopInfo>();
       AU.addPreserved<MachineDominatorTree>();
+      AU.addPreserved<MachineLoopInfo>();
     }
   private:
     bool ProcessBlock(MachineBasicBlock &MBB);
@@ -102,6 +106,7 @@ bool MachineSinking::runOnMachineFunction(MachineFunction &MF) {
   TRI = TM.getRegisterInfo();
   RegInfo = &MF.getRegInfo();
   DT = &getAnalysis<MachineDominatorTree>();
+  LI = &getAnalysis<MachineLoopInfo>();
   AA = &getAnalysis<AliasAnalysis>();
   AllocatableSet = TRI->getAllocatableSet(MF);
 
@@ -276,8 +281,29 @@ bool MachineSinking::SinkInstruction(MachineInstr *MI, bool &SawStore) {
   // but for now we just punt.
   // FIXME: Split critical edges if not backedges.
   if (SuccToSinkTo->pred_size() > 1) {
-    DEBUG(dbgs() << " *** PUNTING: Critical edge found\n");
-    return false;
+    // We cannot sink a load across a critical edge - there may be stores in
+    // other code paths.
+    bool store = true;
+    if (!MI->isSafeToMove(TII, AA, store)) {
+      DEBUG(dbgs() << " *** PUNTING: Wont sink load along critical edge.\n");
+      return false;
+    }
+
+    // We don't want to sink across a critical edge if we don't dominate the
+    // successor. We could be introducing calculations to new code paths.
+    if (!DT->dominates(ParentBlock, SuccToSinkTo)) {
+      DEBUG(dbgs() << " *** PUNTING: Critical edge found\n");
+      return false;
+    }
+
+    // Don't sink instructions into a loop.
+    if (LI->isLoopHeader(SuccToSinkTo)) {
+      DEBUG(dbgs() << " *** PUNTING: Loop header found\n");
+      return false;
+    }
+
+    // Otherwise we are OK with sinking along a critical edge.
+    DEBUG(dbgs() << "Sinking along critical edge.\n");
   }
   
   // Determine where to insert into.  Skip phi nodes.

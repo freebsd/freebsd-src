@@ -402,6 +402,17 @@ uint64_t DIDerivedType::getOriginalTypeSize() const {
   return getSizeInBits();
 }
 
+/// isInlinedFnArgument - Return trule if this variable provides debugging
+/// information for an inlined function arguments.
+bool DIVariable::isInlinedFnArgument(const Function *CurFn) {
+  assert(CurFn && "Invalid function");
+  if (!getContext().isSubprogram())
+    return false;
+  // This variable is not inlined function argument if its scope 
+  // does not describe current function.
+  return !(DISubprogram(getContext().getNode()).describes(CurFn));
+}
+
 /// describes - Return true if this subprogram provides debugging
 /// information for the function F.
 bool DISubprogram::describes(const Function *F) {
@@ -412,6 +423,13 @@ bool DISubprogram::describes(const Function *F) {
   if (F->getName() == Name)
     return true;
   return false;
+}
+
+unsigned DISubprogram::isOptimized() const     {
+  assert (DbgNode && "Invalid subprogram descriptor!");
+  if (DbgNode->getNumOperands() == 16)
+    return getUnsignedField(15);
+  return 0;
 }
 
 StringRef DIScope::getFilename() const {
@@ -901,7 +919,8 @@ DISubprogram DIFactory::CreateSubprogram(DIDescriptor Context,
                                          bool isDefinition,
                                          unsigned VK, unsigned VIndex,
                                          DIType ContainingType,
-                                         bool isArtificial) {
+                                         bool isArtificial,
+                                         bool isOptimized) {
 
   Value *Elts[] = {
     GetTagConstant(dwarf::DW_TAG_subprogram),
@@ -918,9 +937,10 @@ DISubprogram DIFactory::CreateSubprogram(DIDescriptor Context,
     ConstantInt::get(Type::getInt32Ty(VMContext), (unsigned)VK),
     ConstantInt::get(Type::getInt32Ty(VMContext), VIndex),
     ContainingType.getNode(),
-    ConstantInt::get(Type::getInt1Ty(VMContext), isArtificial)
+    ConstantInt::get(Type::getInt1Ty(VMContext), isArtificial),
+    ConstantInt::get(Type::getInt1Ty(VMContext), isOptimized)
   };
-  return DISubprogram(MDNode::get(VMContext, &Elts[0], 15));
+  return DISubprogram(MDNode::get(VMContext, &Elts[0], 16));
 }
 
 /// CreateSubprogramDefinition - Create new subprogram descriptor for the
@@ -945,9 +965,10 @@ DISubprogram DIFactory::CreateSubprogramDefinition(DISubprogram &SPDeclaration) 
     DeclNode->getOperand(11), // Virtuality
     DeclNode->getOperand(12), // VIndex
     DeclNode->getOperand(13), // Containting Type
-    DeclNode->getOperand(14)  // isArtificial
+    DeclNode->getOperand(14), // isArtificial
+    DeclNode->getOperand(15)  // isOptimized
   };
-  return DISubprogram(MDNode::get(VMContext, &Elts[0], 15));
+  return DISubprogram(MDNode::get(VMContext, &Elts[0], 16));
 }
 
 /// CreateGlobalVariable - Create a new descriptor for the specified global.
@@ -1150,10 +1171,8 @@ void DebugInfoFinder::processModule(Module &M) {
     for (Function::iterator FI = (*I).begin(), FE = (*I).end(); FI != FE; ++FI)
       for (BasicBlock::iterator BI = (*FI).begin(), BE = (*FI).end(); BI != BE;
            ++BI) {
-        if (DbgDeclareInst *DDI = dyn_cast<DbgDeclareInst>(BI)) {
+        if (DbgDeclareInst *DDI = dyn_cast<DbgDeclareInst>(BI))
           processDeclare(DDI);
-          continue;
-        }
         
         DebugLoc Loc = BI->getDebugLoc();
         if (Loc.isUnknown())

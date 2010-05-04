@@ -467,6 +467,7 @@ unsigned ARMBaseInstrInfo::GetInstSizeInBytes(const MachineInstr *MI) const {
     case TargetOpcode::KILL:
     case TargetOpcode::DBG_LABEL:
     case TargetOpcode::EH_LABEL:
+    case TargetOpcode::DBG_VALUE:
       return 0;
     }
     break;
@@ -481,10 +482,11 @@ unsigned ARMBaseInstrInfo::GetInstSizeInBytes(const MachineInstr *MI) const {
       // operand #2.
       return MI->getOperand(2).getImm();
     case ARM::Int_eh_sjlj_setjmp:
+    case ARM::Int_eh_sjlj_setjmp_nofp:
       return 24;
     case ARM::tInt_eh_sjlj_setjmp:
-      return 14;
     case ARM::t2Int_eh_sjlj_setjmp:
+    case ARM::t2Int_eh_sjlj_setjmp_nofp:
       return 14;
     case ARM::BR_JTr:
     case ARM::BR_JTm:
@@ -813,6 +815,16 @@ loadRegFromStackSlot(MachineBasicBlock &MBB, MachineBasicBlock::iterator I,
                      .addMemOperand(MMO));
     }
   }
+}
+
+MachineInstr*
+ARMBaseInstrInfo::emitFrameIndexDebugValue(MachineFunction &MF,
+                                           int FrameIx, uint64_t Offset,
+                                           const MDNode *MDPtr,
+                                           DebugLoc DL) const {
+  MachineInstrBuilder MIB = BuildMI(MF, DL, get(ARM::DBG_VALUE))
+    .addFrameIndex(FrameIx).addImm(0).addImm(Offset).addMetadata(MDPtr);
+  return &*MIB;
 }
 
 MachineInstr *ARMBaseInstrInfo::

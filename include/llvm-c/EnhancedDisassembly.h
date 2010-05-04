@@ -55,7 +55,8 @@ typedef enum {
 /*! @constant kEDAssemblySyntaxX86Intel Intel syntax for i386 and x86_64. */
   kEDAssemblySyntaxX86Intel  = 0,
 /*! @constant kEDAssemblySyntaxX86ATT AT&T syntax for i386 and x86_64. */
-  kEDAssemblySyntaxX86ATT    = 1
+  kEDAssemblySyntaxX86ATT    = 1,
+  kEDAssemblySyntaxARMUAL    = 2
 } EDAssemblySyntax_t;
 
 /*!

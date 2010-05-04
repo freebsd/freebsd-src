@@ -85,8 +85,7 @@ protected:
   bool IsUAMemFast;
 
   /// HasVectorUAMem - True if SIMD operations can have unaligned memory
-  ///                  operands. This may require setting a feature bit in the
-  ///                  processor.
+  /// operands. This may require setting a feature bit in the processor.
   bool HasVectorUAMem;
 
   /// DarwinVers - Nonzero if this is a darwin platform: the numeric

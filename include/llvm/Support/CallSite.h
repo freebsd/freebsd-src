@@ -30,7 +30,7 @@
 #include "llvm/ADT/PointerIntPair.h"
 #include "llvm/BasicBlock.h"
 #include "llvm/CallingConv.h"
-#include "llvm/Instruction.h"
+#include "llvm/Instructions.h"
 
 namespace llvm {
 
@@ -150,6 +150,108 @@ public:
   bool arg_empty() const { return arg_end() == arg_begin(); }
   unsigned arg_size() const { return unsigned(arg_end() - arg_begin()); }
   
+  /// getType - Return the type of the instruction that generated this call site
+  ///
+  const Type *getType() const { return (*this)->getType(); }
+
+  /// getCaller - Return the caller function for this call site
+  ///
+  FunTy *getCaller() const { return (*this)->getParent()->getParent(); }
+
+#define CALLSITE_DELEGATE_GETTER(METHOD) \
+  InstrTy *II = getInstruction();    \
+  return isCall()                        \
+    ? cast<CallInst>(II)->METHOD         \
+    : cast<InvokeInst>(II)->METHOD
+
+#define CALLSITE_DELEGATE_SETTER(METHOD) \
+  InstrTy *II = getInstruction();    \
+  if (isCall())                          \
+    cast<CallInst>(II)->METHOD;          \
+  else                                   \
+    cast<InvokeInst>(II)->METHOD
+
+  /// getCallingConv/setCallingConv - get or set the calling convention of the
+  /// call.
+  CallingConv::ID getCallingConv() const {
+    CALLSITE_DELEGATE_GETTER(getCallingConv());
+  }
+  void setCallingConv(CallingConv::ID CC) {
+    CALLSITE_DELEGATE_SETTER(setCallingConv(CC));
+  }
+
+  /// getAttributes/setAttributes - get or set the parameter attributes of
+  /// the call.
+  const AttrListPtr &getAttributes() const {
+    CALLSITE_DELEGATE_GETTER(getAttributes());
+  }
+  void setAttributes(const AttrListPtr &PAL) {
+    CALLSITE_DELEGATE_SETTER(setAttributes(PAL));
+  }
+
+  /// paramHasAttr - whether the call or the callee has the given attribute.
+  bool paramHasAttr(uint16_t i, Attributes attr) const {
+    CALLSITE_DELEGATE_GETTER(paramHasAttr(i, attr));
+  }
+
+  /// @brief Extract the alignment for a call or parameter (0=unknown).
+  uint16_t getParamAlignment(uint16_t i) const {
+    CALLSITE_DELEGATE_GETTER(getParamAlignment(i));
+  }
+
+  /// @brief Return true if the call should not be inlined.
+  bool isNoInline() const {
+    CALLSITE_DELEGATE_GETTER(isNoInline());
+  }
+  void setIsNoInline(bool Value = true) {
+    CALLSITE_DELEGATE_GETTER(setIsNoInline(Value));
+  }
+  
+  /// @brief Determine if the call does not access memory.
+  bool doesNotAccessMemory() const {
+    CALLSITE_DELEGATE_GETTER(doesNotAccessMemory());
+  }
+  void setDoesNotAccessMemory(bool doesNotAccessMemory = true) {
+    CALLSITE_DELEGATE_SETTER(setDoesNotAccessMemory(doesNotAccessMemory));
+  }
+
+  /// @brief Determine if the call does not access or only reads memory.
+  bool onlyReadsMemory() const {
+    CALLSITE_DELEGATE_GETTER(onlyReadsMemory());
+  }
+  void setOnlyReadsMemory(bool onlyReadsMemory = true) {
+    CALLSITE_DELEGATE_SETTER(setOnlyReadsMemory(onlyReadsMemory));
+  }
+
+  /// @brief Determine if the call cannot return.
+  bool doesNotReturn() const {
+    CALLSITE_DELEGATE_GETTER(doesNotReturn());
+  }
+  void setDoesNotReturn(bool doesNotReturn = true) {
+    CALLSITE_DELEGATE_SETTER(setDoesNotReturn(doesNotReturn));
+  }
+
+  /// @brief Determine if the call cannot unwind.
+  bool doesNotThrow() const {
+    CALLSITE_DELEGATE_GETTER(doesNotThrow());
+  }
+  void setDoesNotThrow(bool doesNotThrow = true) {
+    CALLSITE_DELEGATE_SETTER(setDoesNotThrow(doesNotThrow));
+  }
+
+#undef CALLSITE_DELEGATE_GETTER
+#undef CALLSITE_DELEGATE_SETTER
+
+  /// hasArgument - Returns true if this CallSite passes the given Value* as an
+  /// argument to the called function.
+  bool hasArgument(const Value *Arg) const {
+    for (arg_iterator AI = this->arg_begin(), E = this->arg_end(); AI != E;
+         ++AI)
+      if (AI->get() == Arg)
+        return true;
+    return false;
+  }
+
 private:
   /// Returns the operand number of the first argument
   unsigned getArgumentOffset() const {
@@ -179,24 +281,24 @@ private:
 
 /// ImmutableCallSite - establish a view to a call site for examination
 class ImmutableCallSite : public CallSiteBase<> {
-  typedef CallSiteBase<> _Base;
+  typedef CallSiteBase<> Base;
 public:
-  ImmutableCallSite(const Value* V) : _Base(V) {}
-  ImmutableCallSite(const CallInst *CI) : _Base(CI) {}
-  ImmutableCallSite(const InvokeInst *II) : _Base(II) {}
-  ImmutableCallSite(const Instruction *II) : _Base(II) {}
+  ImmutableCallSite(const Value* V) : Base(V) {}
+  ImmutableCallSite(const CallInst *CI) : Base(CI) {}
+  ImmutableCallSite(const InvokeInst *II) : Base(II) {}
+  ImmutableCallSite(const Instruction *II) : Base(II) {}
 };
 
 class CallSite : public CallSiteBase<Function, Value, User, Instruction,
                                      CallInst, InvokeInst, User::op_iterator> {
   typedef CallSiteBase<Function, Value, User, Instruction,
-                       CallInst, InvokeInst, User::op_iterator> _Base;
+                       CallInst, InvokeInst, User::op_iterator> Base;
 public:
   CallSite() {}
-  CallSite(_Base B) : _Base(B) {}
-  CallSite(CallInst *CI) : _Base(CI) {}
-  CallSite(InvokeInst *II) : _Base(II) {}
-  CallSite(Instruction *II) : _Base(II) {}
+  CallSite(Base B) : Base(B) {}
+  CallSite(CallInst *CI) : Base(CI) {}
+  CallSite(InvokeInst *II) : Base(II) {}
+  CallSite(Instruction *II) : Base(II) {}
 
   bool operator==(const CallSite &CS) const { return I == CS.I; }
   bool operator!=(const CallSite &CS) const { return I != CS.I; }
@@ -207,56 +309,8 @@ public:
   /// NOT a call site.
   ///
   static CallSite get(Value *V) {
-    return _Base::get(V);
+    return Base::get(V);
   }
-
-  /// getCallingConv/setCallingConv - get or set the calling convention of the
-  /// call.
-  CallingConv::ID getCallingConv() const;
-  void setCallingConv(CallingConv::ID CC);
-
-  /// getAttributes/setAttributes - get or set the parameter attributes of
-  /// the call.
-  const AttrListPtr &getAttributes() const;
-  void setAttributes(const AttrListPtr &PAL);
-
-  /// paramHasAttr - whether the call or the callee has the given attribute.
-  bool paramHasAttr(uint16_t i, Attributes attr) const;
-
-  /// @brief Extract the alignment for a call or parameter (0=unknown).
-  uint16_t getParamAlignment(uint16_t i) const;
-
-  /// @brief Return true if the call should not be inlined.
-  bool isNoInline() const;
-  void setIsNoInline(bool Value = true);
-  
-  /// @brief Determine if the call does not access memory.
-  bool doesNotAccessMemory() const;
-  void setDoesNotAccessMemory(bool doesNotAccessMemory = true);
-
-  /// @brief Determine if the call does not access or only reads memory.
-  bool onlyReadsMemory() const;
-  void setOnlyReadsMemory(bool onlyReadsMemory = true);
-
-  /// @brief Determine if the call cannot return.
-  bool doesNotReturn() const;
-  void setDoesNotReturn(bool doesNotReturn = true);
-
-  /// @brief Determine if the call cannot unwind.
-  bool doesNotThrow() const;
-  void setDoesNotThrow(bool doesNotThrow = true);
-
-  /// getType - Return the type of the instruction that generated this call site
-  ///
-  const Type *getType() const { return (*this)->getType(); }
-
-  /// getCaller - Return the caller function for this call site
-  ///
-  Function *getCaller() const { return (*this)->getParent()->getParent(); }
-
-  /// hasArgument - Returns true if this CallSite passes the given Value* as an
-  /// argument to the called function.
-  bool hasArgument(const Value *Arg) const;
 
   bool operator<(const CallSite &CS) const {
     return getInstruction() < CS.getInstruction();

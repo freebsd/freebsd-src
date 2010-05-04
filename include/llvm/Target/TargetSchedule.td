@@ -22,6 +22,13 @@
 //  
 class FuncUnit;
 
+class ReservationKind<bits<1> val> {
+  int Value = val;
+}
+
+def Required : ReservationKind<0>;
+def Reserved : ReservationKind<1>;
+
 //===----------------------------------------------------------------------===//
 // Instruction stage - These values represent a non-pipelined step in
 // the execution of an instruction.  Cycles represents the number of
@@ -36,10 +43,14 @@ class FuncUnit;
 //   InstrStage<1, [FU_x, FU_y]>     - TimeInc defaults to Cycles
 //   InstrStage<1, [FU_x, FU_y], 0>  - TimeInc explicit
 //
-class InstrStage<int cycles, list<FuncUnit> units, int timeinc = -1> {
+
+class InstrStage<int cycles, list<FuncUnit> units,
+                 int timeinc = -1,
+                 ReservationKind kind = Required> {
   int Cycles          = cycles;       // length of stage in machine cycles
   list<FuncUnit> Units = units;       // choice of functional units
   int TimeInc         = timeinc;      // cycles till start of next stage
+  int Kind            = kind.Value;   // kind of FU reservation
 }
 
 //===----------------------------------------------------------------------===//
@@ -73,11 +84,12 @@ class InstrItinData<InstrItinClass Class, list<InstrStage> stages,
 // Processor itineraries - These values represent the set of all itinerary
 // classes for a given chip set.
 //
-class ProcessorItineraries<list<InstrItinData> iid> {
+class ProcessorItineraries<list<FuncUnit> fu, list<InstrItinData> iid> {
+  list<FuncUnit> FU = fu;
   list<InstrItinData> IID = iid;
 }
 
 // NoItineraries - A marker that can be used by processors without schedule
 // info.
-def NoItineraries : ProcessorItineraries<[]>;
+def NoItineraries : ProcessorItineraries<[], []>;
 

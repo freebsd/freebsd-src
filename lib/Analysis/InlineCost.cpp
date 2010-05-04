@@ -24,28 +24,29 @@ using namespace llvm;
 unsigned InlineCostAnalyzer::FunctionInfo::
 CountCodeReductionForConstant(Value *V) {
   unsigned Reduction = 0;
-  for (Value::use_iterator UI = V->use_begin(), E = V->use_end(); UI != E; ++UI)
-    if (isa<BranchInst>(*UI) || isa<SwitchInst>(*UI)) {
+  for (Value::use_iterator UI = V->use_begin(), E = V->use_end(); UI != E;++UI){
+    User *U = *UI;
+    if (isa<BranchInst>(U) || isa<SwitchInst>(U)) {
       // We will be able to eliminate all but one of the successors.
-      const TerminatorInst &TI = cast<TerminatorInst>(**UI);
+      const TerminatorInst &TI = cast<TerminatorInst>(*U);
       const unsigned NumSucc = TI.getNumSuccessors();
       unsigned Instrs = 0;
       for (unsigned I = 0; I != NumSucc; ++I)
         Instrs += Metrics.NumBBInsts[TI.getSuccessor(I)];
       // We don't know which blocks will be eliminated, so use the average size.
       Reduction += InlineConstants::InstrCost*Instrs*(NumSucc-1)/NumSucc;
-    } else if (CallInst *CI = dyn_cast<CallInst>(*UI)) {
+    } else if (CallInst *CI = dyn_cast<CallInst>(U)) {
       // Turning an indirect call into a direct call is a BIG win
       if (CI->getCalledValue() == V)
         Reduction += InlineConstants::IndirectCallBonus;
-    } else if (InvokeInst *II = dyn_cast<InvokeInst>(*UI)) {
+    } else if (InvokeInst *II = dyn_cast<InvokeInst>(U)) {
       // Turning an indirect call into a direct call is a BIG win
       if (II->getCalledValue() == V)
         Reduction += InlineConstants::IndirectCallBonus;
     } else {
       // Figure out if this instruction will be removed due to simple constant
       // propagation.
-      Instruction &Inst = cast<Instruction>(**UI);
+      Instruction &Inst = cast<Instruction>(*U);
 
       // We can't constant propagate instructions which have effects or
       // read memory.
@@ -74,7 +75,7 @@ CountCodeReductionForConstant(Value *V) {
         Reduction += CountCodeReductionForConstant(&Inst);
       }
     }
-
+  }
   return Reduction;
 }
 
@@ -107,10 +108,10 @@ unsigned InlineCostAnalyzer::FunctionInfo::
   return Reduction;
 }
 
-// callIsSmall - If a call is likely to lower to a single target instruction, or
-// is otherwise deemed small return true.
-// TODO: Perhaps calls like memcpy, strcpy, etc?
-static bool callIsSmall(const Function *F) {
+/// callIsSmall - If a call is likely to lower to a single target instruction,
+/// or is otherwise deemed small return true.
+/// TODO: Perhaps calls like memcpy, strcpy, etc?
+bool llvm::callIsSmall(const Function *F) {
   if (!F) return false;
   
   if (F->hasLocalLinkage()) return false;
@@ -158,10 +159,18 @@ void CodeMetrics::analyzeBasicBlock(const BasicBlock *BB) {
       // it.  This is a hack because we depend on the user marking their local
       // variables as volatile if they are live across a setjmp call, and they
       // probably won't do this in callers.
-      if (Function *F = CS.getCalledFunction())
+      if (Function *F = CS.getCalledFunction()) {
         if (F->isDeclaration() && 
             (F->getName() == "setjmp" || F->getName() == "_setjmp"))
           NeverInline = true;
+       
+        // If this call is to function itself, then the function is recursive.
+        // Inlining it into other functions is a bad idea, because this is
+        // basically just a form of loop peeling, and our metrics aren't useful
+        // for that case.
+        if (F == BB->getParent())
+          NeverInline = true;
+      }
 
       if (!isa<IntrinsicInst>(II) && !callIsSmall(CS.getCalledFunction())) {
         // Each argument to a call takes on average one instruction to set up.
@@ -249,10 +258,16 @@ void InlineCostAnalyzer::FunctionInfo::analyzeFunction(Function *F) {
 // function call or not.
 //
 InlineCost InlineCostAnalyzer::getInlineCost(CallSite CS,
-                               SmallPtrSet<const Function *, 16> &NeverInline) {
+                               SmallPtrSet<const Function*, 16> &NeverInline) {
+  return getInlineCost(CS, CS.getCalledFunction(), NeverInline);
+}
+
+InlineCost InlineCostAnalyzer::getInlineCost(CallSite CS,
+                               Function *Callee,
+                               SmallPtrSet<const Function*, 16> &NeverInline) {
   Instruction *TheCall = CS.getInstruction();
-  Function *Callee = CS.getCalledFunction();
   Function *Caller = TheCall->getParent()->getParent();
+  bool isDirectCall = CS.getCalledFunction() == Callee;
 
   // Don't inline functions which can be redefined at link-time to mean
   // something else.  Don't inline functions marked noinline or call sites
@@ -267,11 +282,11 @@ InlineCost InlineCostAnalyzer::getInlineCost(CallSite CS,
   // be inlined.  This value may go negative.
   //
   int InlineCost = 0;
-  
+
   // If there is only one call of the function, and it has internal linkage,
   // make it almost guaranteed to be inlined.
   //
-  if (Callee->hasLocalLinkage() && Callee->hasOneUse())
+  if (Callee->hasLocalLinkage() && Callee->hasOneUse() && isDirectCall)
     InlineCost += InlineConstants::LastCallToStaticBonus;
   
   // If this function uses the coldcc calling convention, prefer not to inline
@@ -288,31 +303,36 @@ InlineCost InlineCostAnalyzer::getInlineCost(CallSite CS,
   } else if (isa<UnreachableInst>(++BasicBlock::iterator(TheCall)))
     InlineCost += InlineConstants::NoreturnPenalty;
   
-  // Get information about the callee...
-  FunctionInfo &CalleeFI = CachedFunctionInfo[Callee];
+  // Get information about the callee.
+  FunctionInfo *CalleeFI = &CachedFunctionInfo[Callee];
   
   // If we haven't calculated this information yet, do so now.
-  if (CalleeFI.Metrics.NumBlocks == 0)
-    CalleeFI.analyzeFunction(Callee);
+  if (CalleeFI->Metrics.NumBlocks == 0)
+    CalleeFI->analyzeFunction(Callee);
 
   // If we should never inline this, return a huge cost.
-  if (CalleeFI.Metrics.NeverInline)
+  if (CalleeFI->Metrics.NeverInline)
     return InlineCost::getNever();
 
-  // FIXME: It would be nice to kill off CalleeFI.NeverInline. Then we
+  // FIXME: It would be nice to kill off CalleeFI->NeverInline. Then we
   // could move this up and avoid computing the FunctionInfo for
   // things we are going to just return always inline for. This
   // requires handling setjmp somewhere else, however.
   if (!Callee->isDeclaration() && Callee->hasFnAttr(Attribute::AlwaysInline))
     return InlineCost::getAlways();
     
-  if (CalleeFI.Metrics.usesDynamicAlloca) {
-    // Get infomation about the caller...
+  if (CalleeFI->Metrics.usesDynamicAlloca) {
+    // Get infomation about the caller.
     FunctionInfo &CallerFI = CachedFunctionInfo[Caller];
 
     // If we haven't calculated this information yet, do so now.
-    if (CallerFI.Metrics.NumBlocks == 0)
+    if (CallerFI.Metrics.NumBlocks == 0) {
       CallerFI.analyzeFunction(Caller);
+     
+      // Recompute the CalleeFI pointer, getting Caller could have invalidated
+      // it.
+      CalleeFI = &CachedFunctionInfo[Callee];
+    }
 
     // Don't inline a callee with dynamic alloca into a caller without them.
     // Functions containing dynamic alloca's are inefficient in various ways;
@@ -339,15 +359,15 @@ InlineCost InlineCostAnalyzer::getInlineCost(CallSite CS,
     // scalarization), so encourage the inlining of the function.
     //
     if (isa<AllocaInst>(I)) {
-      if (ArgNo < CalleeFI.ArgumentWeights.size())
-        InlineCost -= CalleeFI.ArgumentWeights[ArgNo].AllocaWeight;
+      if (ArgNo < CalleeFI->ArgumentWeights.size())
+        InlineCost -= CalleeFI->ArgumentWeights[ArgNo].AllocaWeight;
 
       // If this is a constant being passed into the function, use the argument
       // weights calculated for the callee to determine how much will be folded
       // away with this information.
     } else if (isa<Constant>(I)) {
-      if (ArgNo < CalleeFI.ArgumentWeights.size())
-        InlineCost -= CalleeFI.ArgumentWeights[ArgNo].ConstantWeight;
+      if (ArgNo < CalleeFI->ArgumentWeights.size())
+        InlineCost -= CalleeFI->ArgumentWeights[ArgNo].ConstantWeight;
     }
   }
   
@@ -355,10 +375,10 @@ InlineCost InlineCostAnalyzer::getInlineCost(CallSite CS,
   // likely to be inlined, look at factors that make us not want to inline it.
 
   // Calls usually take a long time, so they make the inlining gain smaller.
-  InlineCost += CalleeFI.Metrics.NumCalls * InlineConstants::CallPenalty;
+  InlineCost += CalleeFI->Metrics.NumCalls * InlineConstants::CallPenalty;
 
   // Look at the size of the callee. Each instruction counts as 5.
-  InlineCost += CalleeFI.Metrics.NumInsts*InlineConstants::InstrCost;
+  InlineCost += CalleeFI->Metrics.NumInsts*InlineConstants::InstrCost;
 
   return llvm::InlineCost::get(InlineCost);
 }
@@ -368,7 +388,7 @@ InlineCost InlineCostAnalyzer::getInlineCost(CallSite CS,
 float InlineCostAnalyzer::getInlineFudgeFactor(CallSite CS) {
   Function *Callee = CS.getCalledFunction();
   
-  // Get information about the callee...
+  // Get information about the callee.
   FunctionInfo &CalleeFI = CachedFunctionInfo[Callee];
   
   // If we haven't calculated this information yet, do so now.
@@ -392,41 +412,49 @@ float InlineCostAnalyzer::getInlineFudgeFactor(CallSite CS) {
 /// growCachedCostInfo - update the cached cost info for Caller after Callee has
 /// been inlined.
 void
-InlineCostAnalyzer::growCachedCostInfo(Function* Caller, Function* Callee) {
-  FunctionInfo &CallerFI = CachedFunctionInfo[Caller];
+InlineCostAnalyzer::growCachedCostInfo(Function *Caller, Function *Callee) {
+  CodeMetrics &CallerMetrics = CachedFunctionInfo[Caller].Metrics;
 
   // For small functions we prefer to recalculate the cost for better accuracy.
-  if (CallerFI.Metrics.NumBlocks < 10 || CallerFI.Metrics.NumInsts < 1000) {
+  if (CallerMetrics.NumBlocks < 10 || CallerMetrics.NumInsts < 1000) {
     resetCachedCostInfo(Caller);
     return;
   }
 
   // For large functions, we can save a lot of computation time by skipping
   // recalculations.
-  if (CallerFI.Metrics.NumCalls > 0)
-    --CallerFI.Metrics.NumCalls;
+  if (CallerMetrics.NumCalls > 0)
+    --CallerMetrics.NumCalls;
 
-  if (Callee) {
-    FunctionInfo &CalleeFI = CachedFunctionInfo[Callee];
-    if (!CalleeFI.Metrics.NumBlocks) {
-      resetCachedCostInfo(Caller);
-      return;
-    }
-    CallerFI.Metrics.NeverInline |= CalleeFI.Metrics.NeverInline;
-    CallerFI.Metrics.usesDynamicAlloca |= CalleeFI.Metrics.usesDynamicAlloca;
+  if (Callee == 0) return;
+  
+  CodeMetrics &CalleeMetrics = CachedFunctionInfo[Callee].Metrics;
 
-    CallerFI.Metrics.NumInsts += CalleeFI.Metrics.NumInsts;
-    CallerFI.Metrics.NumBlocks += CalleeFI.Metrics.NumBlocks;
-    CallerFI.Metrics.NumCalls += CalleeFI.Metrics.NumCalls;
-    CallerFI.Metrics.NumVectorInsts += CalleeFI.Metrics.NumVectorInsts;
-    CallerFI.Metrics.NumRets += CalleeFI.Metrics.NumRets;
-
-    // analyzeBasicBlock counts each function argument as an inst.
-    if (CallerFI.Metrics.NumInsts >= Callee->arg_size())
-      CallerFI.Metrics.NumInsts -= Callee->arg_size();
-    else
-      CallerFI.Metrics.NumInsts = 0;
+  // If we don't have metrics for the callee, don't recalculate them just to
+  // update an approximation in the caller.  Instead, just recalculate the
+  // caller info from scratch.
+  if (CalleeMetrics.NumBlocks == 0) {
+    resetCachedCostInfo(Caller);
+    return;
   }
+  
+  // Since CalleeMetrics were already calculated, we know that the CallerMetrics
+  // reference isn't invalidated: both were in the DenseMap.  
+  CallerMetrics.NeverInline |= CalleeMetrics.NeverInline;
+  CallerMetrics.usesDynamicAlloca |= CalleeMetrics.usesDynamicAlloca;
+
+  CallerMetrics.NumInsts += CalleeMetrics.NumInsts;
+  CallerMetrics.NumBlocks += CalleeMetrics.NumBlocks;
+  CallerMetrics.NumCalls += CalleeMetrics.NumCalls;
+  CallerMetrics.NumVectorInsts += CalleeMetrics.NumVectorInsts;
+  CallerMetrics.NumRets += CalleeMetrics.NumRets;
+
+  // analyzeBasicBlock counts each function argument as an inst.
+  if (CallerMetrics.NumInsts >= Callee->arg_size())
+    CallerMetrics.NumInsts -= Callee->arg_size();
+  else
+    CallerMetrics.NumInsts = 0;
+  
   // We are not updating the argumentweights. We have already determined that
   // Caller is a fairly large function, so we accept the loss of precision.
 }

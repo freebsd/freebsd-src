@@ -18,6 +18,7 @@
 #include "ARMDisassembler.h"
 #include "ARMDisassemblerCore.h"
 
+#include "llvm/MC/EDInstInfo.h"
 #include "llvm/MC/MCInst.h"
 #include "llvm/Target/TargetRegistry.h"
 #include "llvm/Support/Debug.h"
@@ -38,7 +39,9 @@
 ///
 #include "../ARMGenDecoderTables.inc"
 
-namespace llvm {
+#include "../ARMGenEDInfo.inc"
+
+using namespace llvm;
 
 /// showBitVector - Use the raw_ostream to log a diagnostic message describing
 /// the inidividual bits of the instruction.
@@ -247,27 +250,27 @@ static unsigned T2Morph2LoadLiteral(unsigned Opcode) {
 
   case ARM::t2LDR_POST:   case ARM::t2LDR_PRE:
   case ARM::t2LDRi12:     case ARM::t2LDRi8:
-  case ARM::t2LDRs:
+  case ARM::t2LDRs:       case ARM::t2LDRT:
     return ARM::t2LDRpci;
 
   case ARM::t2LDRB_POST:  case ARM::t2LDRB_PRE:
   case ARM::t2LDRBi12:    case ARM::t2LDRBi8:
-  case ARM::t2LDRBs:
+  case ARM::t2LDRBs:      case ARM::t2LDRBT:
     return ARM::t2LDRBpci;
 
   case ARM::t2LDRH_POST:  case ARM::t2LDRH_PRE:
   case ARM::t2LDRHi12:    case ARM::t2LDRHi8:
-  case ARM::t2LDRHs:
+  case ARM::t2LDRHs:      case ARM::t2LDRHT:
     return ARM::t2LDRHpci;
 
   case ARM::t2LDRSB_POST:  case ARM::t2LDRSB_PRE:
   case ARM::t2LDRSBi12:    case ARM::t2LDRSBi8:
-  case ARM::t2LDRSBs:
+  case ARM::t2LDRSBs:      case ARM::t2LDRSBT:
     return ARM::t2LDRSBpci;
 
   case ARM::t2LDRSH_POST:  case ARM::t2LDRSH_PRE:
   case ARM::t2LDRSHi12:    case ARM::t2LDRSHi8:
-  case ARM::t2LDRSHs:
+  case ARM::t2LDRSHs:      case ARM::t2LDRSHT:
     return ARM::t2LDRSHpci;
   }
 }
@@ -404,7 +407,6 @@ bool ARMDisassembler::getInstruction(MCInst &MI,
     });
 
   ARMBasicMCBuilder *Builder = CreateMCBuilder(Opcode, Format);
-
   if (!Builder)
     return false;
 
@@ -492,10 +494,10 @@ bool ThumbDisassembler::getInstruction(MCInst &MI,
     });
 
   ARMBasicMCBuilder *Builder = CreateMCBuilder(Opcode, Format);
-  Builder->setSession(const_cast<Session *>(&SO));
-
   if (!Builder)
     return false;
+
+  Builder->SetSession(const_cast<Session *>(&SO));
 
   if (!Builder->Build(MI, insn))
     return false;
@@ -506,17 +508,37 @@ bool ThumbDisassembler::getInstruction(MCInst &MI,
 }
 
 // A8.6.50
+// Valid return values are {1, 2, 3, 4}, with 0 signifying an error condition.
 static unsigned short CountITSize(unsigned ITMask) {
   // First count the trailing zeros of the IT mask.
   unsigned TZ = CountTrailingZeros_32(ITMask);
-  assert(TZ <= 3 && "Encoding error");
+  if (TZ > 3) {
+    DEBUG(errs() << "Encoding error: IT Mask '0000'");
+    return 0;
+  }
   return (4 - TZ);
 }
 
-/// Init ITState.
-void Session::InitIT(unsigned short bits7_0) {
+/// Init ITState.  Note that at least one bit is always 1 in mask.
+bool Session::InitIT(unsigned short bits7_0) {
   ITCounter = CountITSize(slice(bits7_0, 3, 0));
+  if (ITCounter == 0)
+    return false;
+
+  // A8.6.50 IT
+  unsigned short FirstCond = slice(bits7_0, 7, 4);
+  if (FirstCond == 0xF) {
+    DEBUG(errs() << "Encoding error: IT FirstCond '1111'");
+    return false;
+  }
+  if (FirstCond == 0xE && ITCounter != 1) {
+    DEBUG(errs() << "Encoding error: IT FirstCond '1110' && Mask != '1000'");
+    return false;
+  }
+
   ITState = bits7_0;
+
+  return true;
 }
 
 /// Update ITState if necessary.
@@ -547,4 +569,10 @@ extern "C" void LLVMInitializeARMDisassembler() {
                                          createThumbDisassembler);
 }
 
-} // namespace llvm
+EDInstInfo *ARMDisassembler::getEDInfo() const {
+  return instInfoARM;
+}
+
+EDInstInfo *ThumbDisassembler::getEDInfo() const {
+  return instInfoARM;
+}

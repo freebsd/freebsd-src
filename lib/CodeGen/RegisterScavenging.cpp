@@ -64,7 +64,7 @@ void RegScavenger::initRegState() {
     return;
 
   // Live-in registers are in use.
-  for (MachineBasicBlock::const_livein_iterator I = MBB->livein_begin(),
+  for (MachineBasicBlock::livein_iterator I = MBB->livein_begin(),
          E = MBB->livein_end(); I != E; ++I)
     setUsed(*I);
 
@@ -135,6 +135,9 @@ void RegScavenger::forward() {
     ScavengedRC = NULL;
     ScavengeRestore = NULL;
   }
+
+  if (MI->isDebugValue())
+    return;
 
   // Find out which registers are early clobbered, killed, defined, and marked
   // def-dead in this instruction.

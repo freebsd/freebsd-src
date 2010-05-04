@@ -121,7 +121,7 @@ Archive::parseMemberHeader(const char*& At, const char* End, std::string* error)
         if (isdigit(Hdr->name[3])) {
           unsigned len = atoi(&Hdr->name[3]);
           const char *nulp = (const char *)memchr(At, '\0', len);
-          pathname.assign(At, nulp != 0 ? nulp - At : len);
+          pathname.assign(At, nulp != 0 ? (uintptr_t)(nulp - At) : len);
           At += len;
           MemberSize -= len;
           flags |= ArchiveMember::HasLongFilenameFlag;
@@ -348,8 +348,8 @@ Archive::getAllModules(std::vector<Module*>& Modules,
       std::string FullMemberName = archPath.str() +
         "(" + I->getPath().str() + ")";
       MemoryBuffer *Buffer =
-        MemoryBuffer::getNewMemBuffer(I->getSize(), FullMemberName.c_str());
-      memcpy((char*)Buffer->getBufferStart(), I->getData(), I->getSize());
+        MemoryBuffer::getMemBufferCopy(StringRef(I->getData(), I->getSize()),
+                                       FullMemberName.c_str());
       
       Module *M = ParseBitcodeFile(Buffer, Context, ErrMessage);
       delete Buffer;
@@ -487,9 +487,9 @@ Archive::findModuleDefiningSymbol(const std::string& symbol,
   // Now, load the bitcode module to get the Module.
   std::string FullMemberName = archPath.str() + "(" +
     mbr->getPath().str() + ")";
-  MemoryBuffer *Buffer =MemoryBuffer::getNewMemBuffer(mbr->getSize(),
-                                                      FullMemberName.c_str());
-  memcpy((char*)Buffer->getBufferStart(), mbr->getData(), mbr->getSize());
+  MemoryBuffer *Buffer =
+    MemoryBuffer::getMemBufferCopy(StringRef(mbr->getData(), mbr->getSize()),
+                                   FullMemberName.c_str());
   
   Module *m = getLazyBitcodeModule(Buffer, Context, ErrMsg);
   if (!m)
@@ -538,8 +538,8 @@ Archive::findModulesDefiningSymbols(std::set<std::string>& symbols,
         std::string FullMemberName = archPath.str() + "(" +
           mbr->getPath().str() + ")";
         Module* M = 
-          GetBitcodeSymbols((const unsigned char*)At, mbr->getSize(),
-                            FullMemberName, Context, symbols, error);
+          GetBitcodeSymbols(At, mbr->getSize(), FullMemberName, Context,
+                            symbols, error);
 
         if (M) {
           // Insert the module's symbols into the symbol table
@@ -616,8 +616,8 @@ bool Archive::isBitcodeArchive() {
       archPath.str() + "(" + I->getPath().str() + ")";
 
     MemoryBuffer *Buffer =
-      MemoryBuffer::getNewMemBuffer(I->getSize(), FullMemberName.c_str());
-    memcpy((char*)Buffer->getBufferStart(), I->getData(), I->getSize());
+      MemoryBuffer::getMemBufferCopy(StringRef(I->getData(), I->getSize()),
+                                     FullMemberName.c_str());
     Module *M = ParseBitcodeFile(Buffer, Context);
     delete Buffer;
     if (!M)

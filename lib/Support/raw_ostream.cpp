@@ -57,11 +57,11 @@ raw_ostream::~raw_ostream() {
     delete [] OutBufStart;
 
   // If there are any pending errors, report them now. Clients wishing
-  // to avoid llvm_report_error calls should check for errors with
+  // to avoid report_fatal_error calls should check for errors with
   // has_error() and clear the error flag with clear_error() before
   // destructing raw_ostream objects which may have errors.
   if (Error)
-    llvm_report_error("IO failure on output stream.");
+    report_fatal_error("IO failure on output stream.");
 }
 
 // An out of line virtual method to provide a home for the class vtable.
@@ -442,7 +442,8 @@ uint64_t raw_fd_ostream::seek(uint64_t off) {
 }
 
 size_t raw_fd_ostream::preferred_buffer_size() const {
-#if !defined(_MSC_VER) && !defined(__MINGW32__) // Windows has no st_blksize.
+#if !defined(_MSC_VER) && !defined(__MINGW32__) && !defined(_MINIX)
+  // Windows and Minix have no st_blksize.
   assert(FD >= 0 && "File not yet open!");
   struct stat statbuf;
   if (fstat(FD, &statbuf) != 0)

@@ -102,8 +102,12 @@ bool ARMBaseTargetMachine::addPreRegAlloc(PassManagerBase &PM,
 bool ARMBaseTargetMachine::addPreSched2(PassManagerBase &PM,
                                         CodeGenOpt::Level OptLevel) {
   // FIXME: temporarily disabling load / store optimization pass for Thumb1.
-  if (OptLevel != CodeGenOpt::None && !Subtarget.isThumb1Only())
-    PM.add(createARMLoadStoreOptimizationPass());
+  if (OptLevel != CodeGenOpt::None) {
+    if (!Subtarget.isThumb1Only())
+      PM.add(createARMLoadStoreOptimizationPass());
+    if (Subtarget.hasNEON())
+      PM.add(createNEONMoveFixPass());
+  }
 
   // Expand some pseudo instructions into multiple instructions to allow
   // proper scheduling.
@@ -118,8 +122,6 @@ bool ARMBaseTargetMachine::addPreEmitPass(PassManagerBase &PM,
   if (OptLevel != CodeGenOpt::None) {
     if (!Subtarget.isThumb1Only())
       PM.add(createIfConverterPass());
-    if (Subtarget.hasNEON())
-      PM.add(createNEONMoveFixPass());
   }
 
   if (Subtarget.isThumb2()) {

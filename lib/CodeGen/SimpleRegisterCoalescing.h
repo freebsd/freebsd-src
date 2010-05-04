@@ -179,8 +179,11 @@ namespace llvm {
 
     /// isWinToJoinCrossClass - Return true if it's profitable to coalesce
     /// two virtual registers from different register classes.
-    bool isWinToJoinCrossClass(unsigned LargeReg, unsigned SmallReg,
-                               unsigned Threshold);
+    bool isWinToJoinCrossClass(unsigned SrcReg,
+                               unsigned DstReg,
+                               const TargetRegisterClass *SrcRC,
+                               const TargetRegisterClass *DstRC,
+                               const TargetRegisterClass *NewRC);
 
     /// HasIncompatibleSubRegDefUse - If we are trying to coalesce a virtual
     /// register with a physical register, check if any of the virtual register
@@ -220,10 +223,6 @@ namespace llvm {
     /// subregister.
     void UpdateRegDefsUses(unsigned SrcReg, unsigned DstReg, unsigned SubIdx);
 
-    /// RemoveUnnecessaryKills - Remove kill markers that are no longer accurate
-    /// due to live range lengthening as the result of coalescing.
-    void RemoveUnnecessaryKills(unsigned Reg, LiveInterval &LI);
-
     /// ShortenDeadCopyLiveRange - Shorten a live range defined by a dead copy.
     /// Return true if live interval is removed.
     bool ShortenDeadCopyLiveRange(LiveInterval &li, MachineInstr *CopyMI);
@@ -243,8 +242,6 @@ namespace llvm {
     /// cycles Start and End or NULL if there are no uses.
     MachineOperand *lastRegisterUse(SlotIndex Start, SlotIndex End,
                                     unsigned Reg, SlotIndex &LastUseIdx) const;
-
-    void printRegName(unsigned reg) const;
   };
 
 } // End llvm namespace

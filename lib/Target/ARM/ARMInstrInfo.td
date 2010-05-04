@@ -124,6 +124,7 @@ def HasV6     : Predicate<"Subtarget->hasV6Ops()">;
 def HasV6T2   : Predicate<"Subtarget->hasV6T2Ops()">;
 def NoV6T2    : Predicate<"!Subtarget->hasV6T2Ops()">;
 def HasV7     : Predicate<"Subtarget->hasV7Ops()">;
+def NoVFP     : Predicate<"!Subtarget->hasVFP2()">;
 def HasVFP2   : Predicate<"Subtarget->hasVFP2()">;
 def HasVFP3   : Predicate<"Subtarget->hasVFP3()">;
 def HasNEON   : Predicate<"Subtarget->hasNEON()">;
@@ -1231,7 +1232,7 @@ def LDRBT : AI2ldbpo<(outs GPR:$dst, GPR:$base_wb),
 }
 
 def LDRSBT : AI3ldsbpo<(outs GPR:$dst, GPR:$base_wb),
-                 (ins GPR:$base,am2offset:$offset), LdMiscFrm, IIC_iLoadru,
+                 (ins GPR:$base,am3offset:$offset), LdMiscFrm, IIC_iLoadru,
                  "ldrsbt", "\t$dst, [$base], $offset", "$base = $base_wb", []> {
   let Inst{21} = 1; // overwrite
 }
@@ -2533,7 +2534,23 @@ let Defs =
                                "mov\tr0, #0\n\t"
                                "add\tpc, pc, #0\n\t"
                                "mov\tr0, #1 @ eh_setjmp end", "",
-                         [(set R0, (ARMeh_sjlj_setjmp GPR:$src, GPR:$val))]>;
+                         [(set R0, (ARMeh_sjlj_setjmp GPR:$src, GPR:$val))]>,
+                           Requires<[IsARM, HasVFP2]>;
+}
+
+let Defs =
+  [ R0,  R1,  R2,  R3,  R4,  R5,  R6,  R7,  R8,  R9,  R10, R11, R12, LR ] in {
+  def Int_eh_sjlj_setjmp_nofp : XI<(outs), (ins GPR:$src, GPR:$val),
+                                   AddrModeNone, SizeSpecial, IndexModeNone,
+                                   Pseudo, NoItinerary,
+                                   "str\tsp, [$src, #+8] @ eh_setjmp begin\n\t"
+                                   "add\t$val, pc, #8\n\t"
+                                   "str\t$val, [$src, #+4]\n\t"
+                                   "mov\tr0, #0\n\t"
+                                   "add\tpc, pc, #0\n\t"
+                                   "mov\tr0, #1 @ eh_setjmp end", "",
+                         [(set R0, (ARMeh_sjlj_setjmp GPR:$src, GPR:$val))]>,
+                                Requires<[IsARM, NoVFP]>;
 }
 
 //===----------------------------------------------------------------------===//
@@ -2747,7 +2764,7 @@ multiclass LdStCop<bits<4> op31_28, bit load, string opc> {
 
   def L_OFFSET : ACI<(outs),
       (ins nohash_imm:$cop, nohash_imm:$CRd, addrmode2:$addr),
-      opc, "l\tp$cop, cr$CRd, $addr"> {
+      !strconcat(opc, "l"), "\tp$cop, cr$CRd, $addr"> {
     let Inst{31-28} = op31_28;
     let Inst{24} = 1; // P = 1
     let Inst{21} = 0; // W = 0
@@ -2757,7 +2774,7 @@ multiclass LdStCop<bits<4> op31_28, bit load, string opc> {
 
   def L_PRE : ACI<(outs),
       (ins nohash_imm:$cop, nohash_imm:$CRd, addrmode2:$addr),
-      opc, "l\tp$cop, cr$CRd, $addr!"> {
+      !strconcat(opc, "l"), "\tp$cop, cr$CRd, $addr!"> {
     let Inst{31-28} = op31_28;
     let Inst{24} = 1; // P = 1
     let Inst{21} = 1; // W = 1
@@ -2767,7 +2784,7 @@ multiclass LdStCop<bits<4> op31_28, bit load, string opc> {
 
   def L_POST : ACI<(outs),
       (ins nohash_imm:$cop, nohash_imm:$CRd, GPR:$base, am2offset:$offset),
-      opc, "l\tp$cop, cr$CRd, [$base], $offset"> {
+      !strconcat(opc, "l"), "\tp$cop, cr$CRd, [$base], $offset"> {
     let Inst{31-28} = op31_28;
     let Inst{24} = 0; // P = 0
     let Inst{21} = 1; // W = 1
@@ -2777,7 +2794,7 @@ multiclass LdStCop<bits<4> op31_28, bit load, string opc> {
 
   def L_OPTION : ACI<(outs),
       (ins nohash_imm:$cop, nohash_imm:$CRd, GPR:$base, nohash_imm:$option),
-      opc, "l\tp$cop, cr$CRd, [$base], $option"> {
+      !strconcat(opc, "l"), "\tp$cop, cr$CRd, [$base], $option"> {
     let Inst{31-28} = op31_28;
     let Inst{24} = 0; // P = 0
     let Inst{23} = 1; // U = 1

@@ -8,17 +8,6 @@
 //===----------------------------------------------------------------------===//
 
 //===----------------------------------------------------------------------===//
-// Functional units across ARM processors
-//
-def FU_Issue   : FuncUnit; // issue
-def FU_Pipe0   : FuncUnit; // pipeline 0
-def FU_Pipe1   : FuncUnit; // pipeline 1
-def FU_LdSt0   : FuncUnit; // pipeline 0 load/store
-def FU_LdSt1   : FuncUnit; // pipeline 1 load/store
-def FU_NPipe   : FuncUnit; // NEON ALU/MUL pipe
-def FU_NLSPipe : FuncUnit; // NEON LS pipe
-
-//===----------------------------------------------------------------------===//
 // Instruction Itinerary classes used for ARM
 //
 def IIC_iALUx      : InstrItinClass;
@@ -69,10 +58,16 @@ def IIC_fpCMP32    : InstrItinClass;
 def IIC_fpCMP64    : InstrItinClass;
 def IIC_fpCVTSD    : InstrItinClass;
 def IIC_fpCVTDS    : InstrItinClass;
+def IIC_fpCVTSH    : InstrItinClass;
+def IIC_fpCVTHS    : InstrItinClass;
 def IIC_fpCVTIS    : InstrItinClass;
 def IIC_fpCVTID    : InstrItinClass;
 def IIC_fpCVTSI    : InstrItinClass;
 def IIC_fpCVTDI    : InstrItinClass;
+def IIC_fpMOVIS    : InstrItinClass;
+def IIC_fpMOVID    : InstrItinClass;
+def IIC_fpMOVSI    : InstrItinClass;
+def IIC_fpMOVDI    : InstrItinClass;
 def IIC_fpALU32    : InstrItinClass;
 def IIC_fpALU64    : InstrItinClass;
 def IIC_fpMUL32    : InstrItinClass;
@@ -125,6 +120,10 @@ def IIC_VSUBiD     : InstrItinClass;
 def IIC_VSUBiQ     : InstrItinClass;
 def IIC_VBINi4D    : InstrItinClass;
 def IIC_VBINi4Q    : InstrItinClass;
+def IIC_VSUBi4D    : InstrItinClass;
+def IIC_VSUBi4Q    : InstrItinClass;
+def IIC_VABAD      : InstrItinClass;
+def IIC_VABAQ      : InstrItinClass;
 def IIC_VSHLiD     : InstrItinClass;
 def IIC_VSHLiQ     : InstrItinClass;
 def IIC_VSHLi4D    : InstrItinClass;
@@ -153,8 +152,8 @@ def IIC_VTBX4      : InstrItinClass;
 //===----------------------------------------------------------------------===//
 // Processor instruction itineraries.
 
-def GenericItineraries : ProcessorItineraries<[]>;
-
+def GenericItineraries : ProcessorItineraries<[], []>;
 
 include "ARMScheduleV6.td"
-include "ARMScheduleV7.td"
+include "ARMScheduleA8.td"
+include "ARMScheduleA9.td"

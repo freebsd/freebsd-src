@@ -21,6 +21,7 @@
 #include "llvm/System/DataTypes.h"
 #include "llvm/Support/MathExtras.h"
 #include "llvm/CodeGen/MachineCodeEmitter.h"
+#include "llvm/ADT/DenseMap.h"
 
 using namespace std;
 
@@ -173,13 +174,20 @@ public:
 
   /// emitULEB128Bytes - This callback is invoked when a ULEB128 needs to be
   /// written to the output stream.
-  void emitULEB128Bytes(uint64_t Value) {
+  void emitULEB128Bytes(uint64_t Value, unsigned PadTo = 0) {
     do {
       uint8_t Byte = Value & 0x7f;
       Value >>= 7;
-      if (Value) Byte |= 0x80;
+      if (Value || PadTo != 0) Byte |= 0x80;
       emitByte(Byte);
     } while (Value);
+
+    if (PadTo) {
+      do {
+        uint8_t Byte = (PadTo > 1) ? 0x80 : 0x0;
+        emitByte(Byte);
+      } while (--PadTo);
+    }
   }
   
   /// emitSLEB128Bytes - This callback is invoked when a SLEB128 needs to be
@@ -324,6 +332,10 @@ public:
   /// Specifies the MachineModuleInfo object. This is used for exception handling
   /// purposes.
   virtual void setModuleInfo(MachineModuleInfo* Info) = 0;
+
+  /// getLabelLocations - Return the label locations map of the label IDs to
+  /// their address.
+  virtual DenseMap<MCSymbol*, uintptr_t> *getLabelLocations() { return 0; }
 };
 
 } // End llvm namespace

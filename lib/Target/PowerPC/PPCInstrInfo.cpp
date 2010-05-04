@@ -24,10 +24,13 @@
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/MC/MCAsmInfo.h"
-using namespace llvm;
 
+namespace llvm {
 extern cl::opt<bool> EnablePPC32RS;  // FIXME (64-bit): See PPCRegisterInfo.cpp.
 extern cl::opt<bool> EnablePPC64RS;  // FIXME (64-bit): See PPCRegisterInfo.cpp.
+}
+
+using namespace llvm;
 
 PPCInstrInfo::PPCInstrInfo(PPCTargetMachine &tm)
   : TargetInstrInfoImpl(PPCInsts, array_lengthof(PPCInsts)), TM(tm),
@@ -642,6 +645,16 @@ PPCInstrInfo::loadRegFromStackSlot(MachineBasicBlock &MBB,
     MBB.insert(MI, NewMIs[i]);
 }
 
+MachineInstr*
+PPCInstrInfo::emitFrameIndexDebugValue(MachineFunction &MF,
+                                       int FrameIx, uint64_t Offset,
+                                       const MDNode *MDPtr,
+                                       DebugLoc DL) const {
+  MachineInstrBuilder MIB = BuildMI(MF, DL, get(PPC::DBG_VALUE));
+  addFrameReference(MIB, FrameIx, 0, false).addImm(Offset).addMetadata(MDPtr);
+  return &*MIB;
+}
+
 /// foldMemoryOperand - PowerPC (like most RISC's) can only fold spills into
 /// copy instructions, turning them into load/store instructions.
 MachineInstr *PPCInstrInfo::foldMemoryOperandImpl(MachineFunction &MF,
@@ -778,6 +791,7 @@ unsigned PPCInstrInfo::GetInstSizeInBytes(const MachineInstr *MI) const {
   case PPC::DBG_LABEL:
   case PPC::EH_LABEL:
   case PPC::GC_LABEL:
+  case PPC::DBG_VALUE:
     return 0;
   default:
     return 4; // PowerPC instructions are all 4 bytes

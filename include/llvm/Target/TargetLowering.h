@@ -104,12 +104,13 @@ public:
   };
 
   /// NOTE: The constructor takes ownership of TLOF.
-  explicit TargetLowering(TargetMachine &TM, TargetLoweringObjectFile *TLOF);
+  explicit TargetLowering(const TargetMachine &TM,
+                          const TargetLoweringObjectFile *TLOF);
   virtual ~TargetLowering();
 
-  TargetMachine &getTargetMachine() const { return TM; }
+  const TargetMachine &getTargetMachine() const { return TM; }
   const TargetData *getTargetData() const { return TD; }
-  TargetLoweringObjectFile &getObjFileLowering() const { return TLOF; }
+  const TargetLoweringObjectFile &getObjFileLowering() const { return TLOF; }
 
   bool isBigEndian() const { return !IsLittleEndian; }
   bool isLittleEndian() const { return IsLittleEndian; }
@@ -172,6 +173,13 @@ public:
     return VT.isSimple() && RegClassForVT[VT.getSimpleVT().SimpleTy] != 0;
   }
 
+  /// isTypeSynthesizable - Return true if it's OK for the compiler to create
+  /// new operations of this type.  All Legal types are synthesizable except
+  /// MMX vector types on X86.  Non-Legal types are not synthesizable.
+  bool isTypeSynthesizable(EVT VT) const {
+    return isTypeLegal(VT) && Synthesizable[VT.getSimpleVT().SimpleTy];
+  }
+
   class ValueTypeActionImpl {
     /// ValueTypeActions - This is a bitvector that contains two bits for each
     /// value type, where the two bits correspond to the LegalizeAction enum.
@@ -180,16 +188,8 @@ public:
     uint32_t ValueTypeActions[(MVT::MAX_ALLOWED_VALUETYPE/32)*2];
   public:
     ValueTypeActionImpl() {
-      ValueTypeActions[0] = ValueTypeActions[1] = 0;
-      ValueTypeActions[2] = ValueTypeActions[3] = 0;
+      std::fill(ValueTypeActions, array_endof(ValueTypeActions), 0);
     }
-    ValueTypeActionImpl(const ValueTypeActionImpl &RHS) {
-      ValueTypeActions[0] = RHS.ValueTypeActions[0];
-      ValueTypeActions[1] = RHS.ValueTypeActions[1];
-      ValueTypeActions[2] = RHS.ValueTypeActions[2];
-      ValueTypeActions[3] = RHS.ValueTypeActions[3];
-    }
-    
     LegalizeAction getTypeAction(LLVMContext &Context, EVT VT) const {
       if (VT.isExtended()) {
         if (VT.isVector()) {
@@ -317,7 +317,7 @@ public:
   };
 
   virtual bool getTgtMemIntrinsic(IntrinsicInfo &Info,
-                                  CallInst &I, unsigned Intrinsic) {
+                                  const CallInst &I, unsigned Intrinsic) const {
     return false;
   }
 
@@ -638,12 +638,14 @@ public:
   /// probably because the source does not need to be loaded. If
   /// 'NonScalarIntSafe' is true, that means it's safe to return a
   /// non-scalar-integer type, e.g. empty string source, constant, or loaded
-  /// from memory. It returns EVT::Other if SelectionDAG should be responsible
-  /// for determining it.
+  /// from memory. 'MemcpyStrSrc' indicates whether the memcpy source is
+  /// constant so it does not need to be loaded.
+  /// It returns EVT::Other if the type should be determined using generic
+  /// target-independent logic.
   virtual EVT getOptimalMemOpType(uint64_t Size,
                                   unsigned DstAlign, unsigned SrcAlign,
-                                  bool NonScalarIntSafe,
-                                  SelectionDAG &DAG) const {
+                                  bool NonScalarIntSafe, bool MemcpyStrSrc,
+                                  MachineFunction &MF) const {
     return MVT::Other;
   }
   
@@ -773,12 +775,19 @@ public:
   /// that want to combine 
   struct TargetLoweringOpt {
     SelectionDAG &DAG;
+    bool LegalTys;
+    bool LegalOps;
     bool ShrinkOps;
     SDValue Old;
     SDValue New;
 
-    explicit TargetLoweringOpt(SelectionDAG &InDAG, bool Shrink = false) :
-      DAG(InDAG), ShrinkOps(Shrink) {}
+    explicit TargetLoweringOpt(SelectionDAG &InDAG,
+                               bool LT, bool LO,
+                               bool Shrink = false) :
+      DAG(InDAG), LegalTys(LT), LegalOps(LO), ShrinkOps(Shrink) {}
+
+    bool LegalTypes() const { return LegalTys; }
+    bool LegalOperations() const { return LegalOps; }
     
     bool CombineTo(SDValue O, SDValue N) { 
       Old = O; 
@@ -862,7 +871,7 @@ public:
   /// isGAPlusOffset - Returns true (and the GlobalValue and the offset) if the
   /// node is a GlobalAddress + offset.
   virtual bool
-  isGAPlusOffset(SDNode *N, GlobalValue* &GA, int64_t &Offset) const;
+  isGAPlusOffset(SDNode *N, const GlobalValue* &GA, int64_t &Offset) const;
 
   /// PerformDAGCombine - This method will be invoked for all target nodes and
   /// for any target-independent nodes that the target has registered with
@@ -878,6 +887,22 @@ public:
   /// more complex transformations.
   ///
   virtual SDValue PerformDAGCombine(SDNode *N, DAGCombinerInfo &DCI) const;
+
+  /// isTypeDesirableForOp - Return true if the target has native support for
+  /// the specified value type and it is 'desirable' to use the type for the
+  /// given node type. e.g. On x86 i16 is legal, but undesirable since i16
+  /// instruction encodings are longer and some i16 instructions are slow.
+  virtual bool isTypeDesirableForOp(unsigned Opc, EVT VT) const {
+    // By default, assume all legal types are desirable.
+    return isTypeLegal(VT);
+  }
+
+  /// IsDesirableToPromoteOp - This method query the target whether it is
+  /// beneficial for dag combiner to promote the specified node. If true, it
+  /// should return the desired promotion type by reference.
+  virtual bool IsDesirableToPromoteOp(SDValue Op, EVT &PVT) const {
+    return false;
+  }
   
   //===--------------------------------------------------------------------===//
   // TargetLowering Configuration Methods - These methods should be invoked by
@@ -950,10 +975,12 @@ protected:
   /// addRegisterClass - Add the specified register class as an available
   /// regclass for the specified value type.  This indicates the selector can
   /// handle values of that class natively.
-  void addRegisterClass(EVT VT, TargetRegisterClass *RC) {
+  void addRegisterClass(EVT VT, TargetRegisterClass *RC,
+                        bool isSynthesizable = true) {
     assert((unsigned)VT.getSimpleVT().SimpleTy < array_lengthof(RegClassForVT));
     AvailableRegClasses.push_back(std::make_pair(VT, RC));
     RegClassForVT[VT.getSimpleVT().SimpleTy] = RC;
+    Synthesizable[VT.getSimpleVT().SimpleTy] = isSynthesizable;
   }
 
   /// computeRegisterProperties - Once all of the register classes are added,
@@ -1077,7 +1104,7 @@ protected:
   
 public:
 
-  virtual const TargetSubtarget *getSubtarget() {
+  virtual const TargetSubtarget *getSubtarget() const {
     assert(0 && "Not Implemented");
     return NULL;    // this is here to silence compiler errors
   }
@@ -1098,7 +1125,7 @@ public:
                          CallingConv::ID CallConv, bool isVarArg,
                          const SmallVectorImpl<ISD::InputArg> &Ins,
                          DebugLoc dl, SelectionDAG &DAG,
-                         SmallVectorImpl<SDValue> &InVals) {
+                         SmallVectorImpl<SDValue> &InVals) const {
     assert(0 && "Not Implemented");
     return SDValue();    // this is here to silence compiler errors
   }
@@ -1128,7 +1155,7 @@ public:
               bool isVarArg, bool isInreg, unsigned NumFixedArgs,
               CallingConv::ID CallConv, bool isTailCall,
               bool isReturnValueUsed, SDValue Callee, ArgListTy &Args,
-              SelectionDAG &DAG, DebugLoc dl);
+              SelectionDAG &DAG, DebugLoc dl) const;
 
   /// LowerCall - This hook must be implemented to lower calls into the
   /// the specified DAG. The outgoing arguments to the call are described
@@ -1142,7 +1169,7 @@ public:
               const SmallVectorImpl<ISD::OutputArg> &Outs,
               const SmallVectorImpl<ISD::InputArg> &Ins,
               DebugLoc dl, SelectionDAG &DAG,
-              SmallVectorImpl<SDValue> &InVals) {
+              SmallVectorImpl<SDValue> &InVals) const {
     assert(0 && "Not Implemented");
     return SDValue();    // this is here to silence compiler errors
   }
@@ -1154,11 +1181,12 @@ public:
   virtual bool CanLowerReturn(CallingConv::ID CallConv, bool isVarArg,
                const SmallVectorImpl<EVT> &OutTys,
                const SmallVectorImpl<ISD::ArgFlagsTy> &ArgsFlags,
-               SelectionDAG &DAG)
+               SelectionDAG &DAG) const
   {
     // Return true by default to get preexisting behavior.
     return true;
   }
+
   /// LowerReturn - This hook must be implemented to lower outgoing
   /// return values, described by the Outs array, into the specified
   /// DAG. The implementation should return the resulting token chain
@@ -1167,7 +1195,7 @@ public:
   virtual SDValue
     LowerReturn(SDValue Chain, CallingConv::ID CallConv, bool isVarArg,
                 const SmallVectorImpl<ISD::OutputArg> &Outs,
-                DebugLoc dl, SelectionDAG &DAG) {
+                DebugLoc dl, SelectionDAG &DAG) const {
     assert(0 && "Not Implemented");
     return SDValue();    // this is here to silence compiler errors
   }
@@ -1192,7 +1220,7 @@ public:
                           SDValue Op3, unsigned Align, bool isVolatile,
                           bool AlwaysInline,
                           const Value *DstSV, uint64_t DstOff,
-                          const Value *SrcSV, uint64_t SrcOff) {
+                          const Value *SrcSV, uint64_t SrcOff) const {
     return SDValue();
   }
 
@@ -1208,7 +1236,7 @@ public:
                            SDValue Op1, SDValue Op2,
                            SDValue Op3, unsigned Align, bool isVolatile,
                            const Value *DstSV, uint64_t DstOff,
-                           const Value *SrcSV, uint64_t SrcOff) {
+                           const Value *SrcSV, uint64_t SrcOff) const {
     return SDValue();
   }
 
@@ -1223,7 +1251,7 @@ public:
                           SDValue Chain,
                           SDValue Op1, SDValue Op2,
                           SDValue Op3, unsigned Align, bool isVolatile,
-                          const Value *DstSV, uint64_t DstOff) {
+                          const Value *DstSV, uint64_t DstOff) const {
     return SDValue();
   }
 
@@ -1241,14 +1269,14 @@ public:
   /// The default implementation calls LowerOperation.
   virtual void LowerOperationWrapper(SDNode *N,
                                      SmallVectorImpl<SDValue> &Results,
-                                     SelectionDAG &DAG);
+                                     SelectionDAG &DAG) const;
 
   /// LowerOperation - This callback is invoked for operations that are 
   /// unsupported by the target, which are registered to use 'custom' lowering,
   /// and whose defined values are all legal.
   /// If the target has no operations that require custom lowering, it need not
   /// implement this.  The default implementation of this aborts.
-  virtual SDValue LowerOperation(SDValue Op, SelectionDAG &DAG);
+  virtual SDValue LowerOperation(SDValue Op, SelectionDAG &DAG) const;
 
   /// ReplaceNodeResults - This callback is invoked when a node result type is
   /// illegal for the target, and the operation was registered to use 'custom'
@@ -1260,7 +1288,7 @@ public:
   /// If the target has no operations that require custom lowering, it need not
   /// implement this.  The default implementation aborts.
   virtual void ReplaceNodeResults(SDNode *N, SmallVectorImpl<SDValue> &Results,
-                                  SelectionDAG &DAG) {
+                                  SelectionDAG &DAG) const {
     assert(0 && "ReplaceNodeResults not implemented for this target!");
   }
 
@@ -1274,11 +1302,12 @@ public:
   createFastISel(MachineFunction &,
                  DenseMap<const Value *, unsigned> &,
                  DenseMap<const BasicBlock *, MachineBasicBlock *> &,
-                 DenseMap<const AllocaInst *, int> &
+                 DenseMap<const AllocaInst *, int> &,
+                 std::vector<std::pair<MachineInstr*, unsigned> > &
 #ifndef NDEBUG
-                 , SmallSet<Instruction*, 8> &CatchInfoLost
+                 , SmallSet<const Instruction *, 8> &CatchInfoLost
 #endif
-                 ) {
+                 ) const {
     return 0;
   }
 
@@ -1398,12 +1427,8 @@ public:
   // insert.  The specified MachineInstr is created but not inserted into any
   // basic blocks, and this method is called to expand it into a sequence of
   // instructions, potentially also creating new basic blocks and control flow.
-  // When new basic blocks are inserted and the edges from MBB to its successors
-  // are modified, the method should insert pairs of <OldSucc, NewSucc> into the
-  // DenseMap.
-  virtual MachineBasicBlock *EmitInstrWithCustomInserter(MachineInstr *MI,
-                                                         MachineBasicBlock *MBB,
-                    DenseMap<MachineBasicBlock*, MachineBasicBlock*> *EM) const;
+  virtual MachineBasicBlock *
+    EmitInstrWithCustomInserter(MachineInstr *MI, MachineBasicBlock *MBB) const;
 
   //===--------------------------------------------------------------------===//
   // Addressing mode description hooks (used by LSR etc).
@@ -1524,9 +1549,9 @@ public:
   }
 
 private:
-  TargetMachine &TM;
+  const TargetMachine &TM;
   const TargetData *TD;
-  TargetLoweringObjectFile &TLOF;
+  const TargetLoweringObjectFile &TLOF;
 
   /// PointerTy - The type to use for pointers, usually i32 or i64.
   ///
@@ -1610,6 +1635,11 @@ private:
   TargetRegisterClass *RegClassForVT[MVT::LAST_VALUETYPE];
   unsigned char NumRegistersForVT[MVT::LAST_VALUETYPE];
   EVT RegisterTypeForVT[MVT::LAST_VALUETYPE];
+
+  /// Synthesizable indicates whether it is OK for the compiler to create new
+  /// operations using this type.  All Legal types are Synthesizable except
+  /// MMX types on X86.  Non-Legal types are not Synthesizable.
+  bool Synthesizable[MVT::LAST_VALUETYPE];
 
   /// TransformToType - For any value types we are promoting or expanding, this
   /// contains the value type that we are changing to.  For Expanded types, this

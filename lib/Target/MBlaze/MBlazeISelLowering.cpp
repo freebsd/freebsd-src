@@ -185,7 +185,8 @@ unsigned MBlazeTargetLowering::getFunctionAlignment(const Function *) const {
   return 2;
 }
 
-SDValue MBlazeTargetLowering::LowerOperation(SDValue Op, SelectionDAG &DAG) {
+SDValue MBlazeTargetLowering::LowerOperation(SDValue Op,
+                                             SelectionDAG &DAG) const {
   switch (Op.getOpcode())
   {
     case ISD::ConstantPool:       return LowerConstantPool(Op, DAG);
@@ -201,10 +202,9 @@ SDValue MBlazeTargetLowering::LowerOperation(SDValue Op, SelectionDAG &DAG) {
 //===----------------------------------------------------------------------===//
 //  Lower helper functions
 //===----------------------------------------------------------------------===//
-MachineBasicBlock* MBlazeTargetLowering::
-EmitInstrWithCustomInserter(MachineInstr *MI, MachineBasicBlock *BB,
-                            DenseMap<MachineBasicBlock*,
-                            MachineBasicBlock*> *EM) const {
+MachineBasicBlock*
+MBlazeTargetLowering::EmitInstrWithCustomInserter(MachineInstr *MI,
+                                                  MachineBasicBlock *BB) const {
   const TargetInstrInfo *TII = getTargetMachine().getInstrInfo();
   DebugLoc dl = MI->getDebugLoc();
 
@@ -254,12 +254,9 @@ EmitInstrWithCustomInserter(MachineInstr *MI, MachineBasicBlock *BB,
 
     // Update machine-CFG edges by first adding all successors of the current
     // block to the new block which will contain the Phi node for the select.
-    // Also inform sdisel of the edge changes.
     for(MachineBasicBlock::succ_iterator i = BB->succ_begin(),
-          e = BB->succ_end(); i != e; ++i) {
-      EM->insert(std::make_pair(*i, finish));
+          e = BB->succ_end(); i != e; ++i)
       finish->addSuccessor(*i);
-    }
 
     // Next, remove all successors of the current block, and add the true
     // and fallthrough blocks as its successors.
@@ -350,12 +347,9 @@ EmitInstrWithCustomInserter(MachineInstr *MI, MachineBasicBlock *BB,
 
     // Update machine-CFG edges by first adding all successors of the current
     // block to the new block which will contain the Phi node for the select.
-    // Also inform sdisel of the edge changes.
     for(MachineBasicBlock::succ_iterator i = BB->succ_begin(),
-          e = BB->succ_end(); i != e; ++i) {
-      EM->insert(std::make_pair(*i, dneBB));
+          e = BB->succ_end(); i != e; ++i)
       dneBB->addSuccessor(*i);
-    }
 
     // Next, remove all successors of the current block, and add the true
     // and fallthrough blocks as its successors.
@@ -387,7 +381,8 @@ EmitInstrWithCustomInserter(MachineInstr *MI, MachineBasicBlock *BB,
 //===----------------------------------------------------------------------===//
 //
 
-SDValue MBlazeTargetLowering::LowerSELECT_CC(SDValue Op, SelectionDAG &DAG) {
+SDValue MBlazeTargetLowering::LowerSELECT_CC(SDValue Op,
+                                             SelectionDAG &DAG) const {
   SDValue LHS = Op.getOperand(0);
   SDValue RHS = Op.getOperand(1);
   SDValue TrueVal = Op.getOperand(2);
@@ -409,23 +404,23 @@ SDValue MBlazeTargetLowering::LowerSELECT_CC(SDValue Op, SelectionDAG &DAG) {
 }
 
 SDValue MBlazeTargetLowering::
-LowerGlobalAddress(SDValue Op, SelectionDAG &DAG) {
+LowerGlobalAddress(SDValue Op, SelectionDAG &DAG) const {
   // FIXME there isn't actually debug info here
   DebugLoc dl = Op.getDebugLoc();
-  GlobalValue *GV = cast<GlobalAddressSDNode>(Op)->getGlobal();
+  const GlobalValue *GV = cast<GlobalAddressSDNode>(Op)->getGlobal();
   SDValue GA = DAG.getTargetGlobalAddress(GV, MVT::i32);
 
   return DAG.getNode(MBlazeISD::Wrap, dl, MVT::i32, GA);
 }
 
 SDValue MBlazeTargetLowering::
-LowerGlobalTLSAddress(SDValue Op, SelectionDAG &DAG) {
+LowerGlobalTLSAddress(SDValue Op, SelectionDAG &DAG) const {
   llvm_unreachable("TLS not implemented for MicroBlaze.");
   return SDValue(); // Not reached
 }
 
 SDValue MBlazeTargetLowering::
-LowerJumpTable(SDValue Op, SelectionDAG &DAG) {
+LowerJumpTable(SDValue Op, SelectionDAG &DAG) const {
   SDValue ResNode;
   SDValue HiPart;
   // FIXME there isn't actually debug info here
@@ -442,11 +437,11 @@ LowerJumpTable(SDValue Op, SelectionDAG &DAG) {
 }
 
 SDValue MBlazeTargetLowering::
-LowerConstantPool(SDValue Op, SelectionDAG &DAG) {
+LowerConstantPool(SDValue Op, SelectionDAG &DAG) const {
   SDValue ResNode;
   EVT PtrVT = Op.getValueType();
   ConstantPoolSDNode *N = cast<ConstantPoolSDNode>(Op);
-  Constant *C = N->getConstVal();
+  const Constant *C = N->getConstVal();
   SDValue Zero = DAG.getConstant(0, PtrVT);
   DebugLoc dl = Op.getDebugLoc();
 
@@ -455,9 +450,14 @@ LowerConstantPool(SDValue Op, SelectionDAG &DAG) {
   return DAG.getNode(MBlazeISD::Wrap, dl, MVT::i32, CP);
 }
 
-SDValue MBlazeTargetLowering::LowerVASTART(SDValue Op, SelectionDAG &DAG) {
+SDValue MBlazeTargetLowering::LowerVASTART(SDValue Op,
+                                           SelectionDAG &DAG) const {
+  MachineFunction &MF = DAG.getMachineFunction();
+  MBlazeFunctionInfo *FuncInfo = MF.getInfo<MBlazeFunctionInfo>();
+
   DebugLoc dl = Op.getDebugLoc();
-  SDValue FI = DAG.getFrameIndex(VarArgsFrameIndex, getPointerTy());
+  SDValue FI = DAG.getFrameIndex(FuncInfo->getVarArgsFrameIndex(),
+                                 getPointerTy());
 
   // vastart just stores the address of the VarArgsFrameIndex slot into the
   // memory location argument.
@@ -533,7 +533,7 @@ LowerCall(SDValue Chain, SDValue Callee, CallingConv::ID CallConv,
           const SmallVectorImpl<ISD::OutputArg> &Outs,
           const SmallVectorImpl<ISD::InputArg> &Ins,
           DebugLoc dl, SelectionDAG &DAG,
-          SmallVectorImpl<SDValue> &InVals) {
+          SmallVectorImpl<SDValue> &InVals) const {
   // MBlaze does not yet support tail call optimization
   isTailCall = false;
 
@@ -669,7 +669,7 @@ SDValue MBlazeTargetLowering::
 LowerCallResult(SDValue Chain, SDValue InFlag, CallingConv::ID CallConv,
                 bool isVarArg, const SmallVectorImpl<ISD::InputArg> &Ins,
                 DebugLoc dl, SelectionDAG &DAG,
-                SmallVectorImpl<SDValue> &InVals) {
+                SmallVectorImpl<SDValue> &InVals) const {
   // Assign locations to each value returned by this call.
   SmallVector<CCValAssign, 16> RVLocs;
   CCState CCInfo(CallConv, isVarArg, getTargetMachine(),
@@ -699,13 +699,13 @@ SDValue MBlazeTargetLowering::
 LowerFormalArguments(SDValue Chain, CallingConv::ID CallConv, bool isVarArg,
                      const SmallVectorImpl<ISD::InputArg> &Ins,
                      DebugLoc dl, SelectionDAG &DAG,
-                     SmallVectorImpl<SDValue> &InVals) {
+                     SmallVectorImpl<SDValue> &InVals) const {
   MachineFunction &MF = DAG.getMachineFunction();
   MachineFrameInfo *MFI = MF.getFrameInfo();
   MBlazeFunctionInfo *MBlazeFI = MF.getInfo<MBlazeFunctionInfo>();
 
   unsigned StackReg = MF.getTarget().getRegisterInfo()->getFrameRegister(MF);
-  VarArgsFrameIndex = 0;
+  MBlazeFI->setVarArgsFrameIndex(0);
 
   // Used with vargs to acumulate store chains.
   std::vector<SDValue> OutChains;
@@ -818,8 +818,8 @@ LowerFormalArguments(SDValue Chain, CallingConv::ID CallConv, bool isVarArg,
 
       // Record the frame index of the first variable argument
       // which is a value necessary to VASTART.
-      if (!VarArgsFrameIndex)
-        VarArgsFrameIndex = FI;
+      if (!MBlazeFI->getVarArgsFrameIndex())
+        MBlazeFI->setVarArgsFrameIndex(FI);
     }
   }
 
@@ -841,7 +841,7 @@ LowerFormalArguments(SDValue Chain, CallingConv::ID CallConv, bool isVarArg,
 SDValue MBlazeTargetLowering::
 LowerReturn(SDValue Chain, CallingConv::ID CallConv, bool isVarArg,
             const SmallVectorImpl<ISD::OutputArg> &Outs,
-            DebugLoc dl, SelectionDAG &DAG) {
+            DebugLoc dl, SelectionDAG &DAG) const {
   // CCValAssign - represent the assignment of
   // the return value to a location
   SmallVector<CCValAssign, 16> RVLocs;

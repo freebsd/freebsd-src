@@ -33,7 +33,6 @@
 #include "llvm/Target/TargetRegisterInfo.h"
 #include "llvm/Support/Dwarf.h"
 #include "llvm/Support/FormattedStream.h"
-#include "llvm/Support/Timer.h"
 #include "llvm/ADT/SmallString.h"
 #include "llvm/ADT/StringExtras.h"
 #include "llvm/ADT/Twine.h"
@@ -41,15 +40,9 @@ using namespace llvm;
 
 DwarfException::DwarfException(AsmPrinter *A)
   : Asm(A), MMI(Asm->MMI), shouldEmitTable(false), shouldEmitMoves(false),
-    shouldEmitTableModule(false), shouldEmitMovesModule(false),
-    ExceptionTimer(0) {
-  if (TimePassesIsEnabled)
-    ExceptionTimer = new Timer("DWARF Exception Writer");
-}
+    shouldEmitTableModule(false), shouldEmitMovesModule(false) {}
 
-DwarfException::~DwarfException() {
-  delete ExceptionTimer;
-}
+DwarfException::~DwarfException() {}
 
 /// EmitCIE - Emit a Common Information Entry (CIE). This holds information that
 /// is shared among many Frame Description Entries.  There is at least one CIE
@@ -159,8 +152,7 @@ void DwarfException::EmitCIE(const Function *PersonalityFn, unsigned Index) {
   // On Darwin the linker honors the alignment of eh_frame, which means it must
   // be 8-byte on 64-bit targets to match what gcc does.  Otherwise you get
   // holes which confuse readers of eh_frame.
-  Asm->EmitAlignment(Asm->getTargetData().getPointerSize() == 4 ? 2 : 3,
-                     0, 0, false);
+  Asm->EmitAlignment(Asm->getTargetData().getPointerSize() == 4 ? 2 : 3);
   Asm->OutStreamer.EmitLabel(Asm->GetTempSymbol("eh_frame_common_end", Index));
 }
 
@@ -262,8 +254,7 @@ void DwarfException::EmitFDE(const FunctionEHFrameInfo &EHFrameInfo) {
     // On Darwin the linker honors the alignment of eh_frame, which means it
     // must be 8-byte on 64-bit targets to match what gcc does.  Otherwise you
     // get holes which confuse readers of eh_frame.
-    Asm->EmitAlignment(Asm->getTargetData().getPointerSize() == 4 ? 2 : 3,
-                       0, 0, false);
+    Asm->EmitAlignment(Asm->getTargetData().getPointerSize() == 4 ? 2 : 3);
     Asm->OutStreamer.EmitLabel(Asm->GetTempSymbol("eh_frame_end",
                                                   EHFrameInfo.Number));
 
@@ -432,7 +423,7 @@ bool DwarfException::CallToNoUnwindFunction(const MachineInstr *MI) {
 
     if (!MO.isGlobal()) continue;
     
-    Function *F = dyn_cast<Function>(MO.getGlobal());
+    const Function *F = dyn_cast<Function>(MO.getGlobal());
     if (F == 0) continue;
 
     if (SawFunc) {
@@ -586,7 +577,7 @@ ComputeCallSiteTable(SmallVectorImpl<CallSiteEntry> &CallSites,
 ///  3. Type ID table contains references to all the C++ typeinfo for all
 ///     catches in the function.  This tables is reverse indexed base 1.
 void DwarfException::EmitExceptionTable() {
-  const std::vector<GlobalVariable *> &TypeInfos = MMI->getTypeInfos();
+  const std::vector<const GlobalVariable *> &TypeInfos = MMI->getTypeInfos();
   const std::vector<unsigned> &FilterIds = MMI->getFilterIds();
   const std::vector<LandingPadInfo> &PadInfos = MMI->getLandingPads();
 
@@ -692,7 +683,7 @@ void DwarfException::EmitExceptionTable() {
 
   // Begin the exception table.
   Asm->OutStreamer.SwitchSection(LSDASection);
-  Asm->EmitAlignment(2, 0, 0, false);
+  Asm->EmitAlignment(2);
 
   // Emit the LSDA.
   MCSymbol *GCCETSym = 
@@ -868,7 +859,7 @@ void DwarfException::EmitExceptionTable() {
     Asm->OutStreamer.AddComment("-- Catch TypeInfos --");
     Asm->OutStreamer.AddBlankLine();
   }
-  for (std::vector<GlobalVariable *>::const_reverse_iterator
+  for (std::vector<const GlobalVariable *>::const_reverse_iterator
          I = TypeInfos.rbegin(), E = TypeInfos.rend(); I != E; ++I) {
     const GlobalVariable *GV = *I;
 
@@ -891,7 +882,7 @@ void DwarfException::EmitExceptionTable() {
     Asm->EmitULEB128(TypeID, TypeID != 0 ? "Exception specification" : 0);
   }
 
-  Asm->EmitAlignment(2, 0, 0, false);
+  Asm->EmitAlignment(2);
 }
 
 /// EndModule - Emit all exception information that should come after the
@@ -903,9 +894,7 @@ void DwarfException::EndModule() {
   if (!shouldEmitMovesModule && !shouldEmitTableModule)
     return;
 
-  TimeRegion Timer(ExceptionTimer);
-
-  const std::vector<Function *> Personalities = MMI->getPersonalities();
+  const std::vector<const Function *> Personalities = MMI->getPersonalities();
 
   for (unsigned I = 0, E = Personalities.size(); I < E; ++I)
     EmitCIE(Personalities[I], I);
@@ -918,7 +907,6 @@ void DwarfException::EndModule() {
 /// BeginFunction - Gather pre-function exception information. Assumes it's
 /// being emitted immediately after the function entry point.
 void DwarfException::BeginFunction(const MachineFunction *MF) {
-  TimeRegion Timer(ExceptionTimer);
   shouldEmitTable = shouldEmitMoves = false;
 
   // If any landing pads survive, we need an EH table.
@@ -942,7 +930,6 @@ void DwarfException::BeginFunction(const MachineFunction *MF) {
 void DwarfException::EndFunction() {
   if (!shouldEmitMoves && !shouldEmitTable) return;
 
-  TimeRegion Timer(ExceptionTimer);
   Asm->OutStreamer.EmitLabel(Asm->GetTempSymbol("eh_func_end",
                                                 Asm->getFunctionNumber()));
 

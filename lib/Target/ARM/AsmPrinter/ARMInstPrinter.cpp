@@ -18,6 +18,7 @@
 #include "llvm/MC/MCInst.h"
 #include "llvm/MC/MCAsmInfo.h"
 #include "llvm/MC/MCExpr.h"
+#include "llvm/ADT/StringExtras.h"
 #include "llvm/Support/raw_ostream.h"
 using namespace llvm;
 
@@ -330,7 +331,6 @@ void ARMInstPrinter::printAddrMode2OffsetOperand(const MCInst *MI,
   
   if (!MO1.getReg()) {
     unsigned ImmOffs = ARM_AM::getAM2Offset(MO2.getImm());
-    assert(ImmOffs && "Malformed indexed load / store!");
     O << '#'
       << ARM_AM::getAddrOpcStr(ARM_AM::getAM2Op(MO2.getImm()))
       << ImmOffs;
@@ -380,7 +380,6 @@ void ARMInstPrinter::printAddrMode3OffsetOperand(const MCInst *MI,
   }
   
   unsigned ImmOffs = ARM_AM::getAM3Offset(MO2.getImm());
-  assert(ImmOffs && "Malformed indexed load / store!");
   O << '#'
     << ARM_AM::getAddrOpcStr(ARM_AM::getAM3Op(MO2.getImm()))
     << ImmOffs;
@@ -779,3 +778,22 @@ void ARMInstPrinter::printVFPf64ImmOperand(const MCInst *MI, unsigned OpNum,
   O << '#' << MI->getOperand(OpNum).getImm();
 }
 
+void ARMInstPrinter::printHex8ImmOperand(const MCInst *MI, unsigned OpNum,
+                                         raw_ostream &O) {
+  O << "#0x" << utohexstr(MI->getOperand(OpNum).getImm() & 0xff);
+}
+
+void ARMInstPrinter::printHex16ImmOperand(const MCInst *MI, unsigned OpNum,
+                                          raw_ostream &O) {
+  O << "#0x" << utohexstr(MI->getOperand(OpNum).getImm() & 0xffff);
+}
+
+void ARMInstPrinter::printHex32ImmOperand(const MCInst *MI, unsigned OpNum,
+                                          raw_ostream &O) {
+  O << "#0x" << utohexstr(MI->getOperand(OpNum).getImm() & 0xffffffff);
+}
+
+void ARMInstPrinter::printHex64ImmOperand(const MCInst *MI, unsigned OpNum,
+                                          raw_ostream &O) {
+  O << "#0x" << utohexstr(MI->getOperand(OpNum).getImm());
+}

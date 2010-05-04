@@ -12,7 +12,6 @@
 //===----------------------------------------------------------------------===//
 
 #include "MSP430.h"
-#include "MSP430ISelLowering.h"
 #include "MSP430TargetMachine.h"
 #include "llvm/DerivedTypes.h"
 #include "llvm/Function.h"
@@ -45,9 +44,9 @@ namespace {
     } Base;
 
     int16_t Disp;
-    GlobalValue *GV;
-    Constant *CP;
-    BlockAddress *BlockAddr;
+    const GlobalValue *GV;
+    const Constant *CP;
+    const BlockAddress *BlockAddr;
     const char *ES;
     int JT;
     unsigned Align;    // CP alignment.
@@ -100,7 +99,7 @@ namespace {
 ///
 namespace {
   class MSP430DAGToDAGISel : public SelectionDAGISel {
-    MSP430TargetLowering &Lowering;
+    const MSP430TargetLowering &Lowering;
     const MSP430Subtarget &Subtarget;
 
   public:
@@ -364,7 +363,7 @@ SDNode *MSP430DAGToDAGISel::SelectIndexedBinOp(SDNode *Op,
                                                unsigned Opc8, unsigned Opc16) {
   if (N1.getOpcode() == ISD::LOAD &&
       N1.hasOneUse() &&
-      IsLegalToFold(N1, Op, Op)) {
+      IsLegalToFold(N1, Op, Op, OptLevel)) {
     LoadSDNode *LD = cast<LoadSDNode>(N1);
     if (!isValidIndexedLoad(LD))
       return NULL;

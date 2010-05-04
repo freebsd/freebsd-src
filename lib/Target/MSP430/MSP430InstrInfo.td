@@ -76,8 +76,8 @@ def memdst : Operand<i16> {
   let MIOperandInfo = (ops GR16, i16imm);
 }
 
-// Branch targets have OtherVT type.
-def brtarget : Operand<OtherVT> {
+// Short jump targets have OtherVT type and are printed as pcrel imm values.
+def jmptarget : Operand<OtherVT> {
   let PrintMethod = "printPCRelImmOperand";
 }
 
@@ -169,21 +169,27 @@ let isBranch = 1, isTerminator = 1 in {
 // Direct branch
 let isBarrier = 1 in {
   // Short branch
-  def JMP : CJForm<0, 0,
-                   (outs), (ins brtarget:$dst),
+  def JMP : CJForm<0, 0, (outs), (ins jmptarget:$dst),
                    "jmp\t$dst",
                    [(br bb:$dst)]>;
-  // Long branch
-  def B   : I16ri<0,
-                  (outs), (ins brtarget:$dst),
-                  "br\t$dst",
-                  []>;
+  let isIndirectBranch = 1 in {
+    // Long branches
+    def Bi  : I16ri<0, (outs), (ins i16imm:$brdst),
+                    "br\t$brdst",
+                    [(brind tblockaddress:$brdst)]>;
+    def Br  : I16rr<0, (outs), (ins GR16:$brdst),
+                    "mov.w\t{$brdst, pc}",
+                    [(brind GR16:$brdst)]>;
+    def Bm  : I16rm<0, (outs), (ins memsrc:$brdst),
+                    "mov.w\t{$brdst, pc}",
+                    [(brind (load addr:$brdst))]>;
+  }
 }
 
 // Conditional branches
 let Uses = [SRW] in
   def JCC : CJForm<0, 0,
-                   (outs), (ins brtarget:$dst, cc:$cc),
+                   (outs), (ins jmptarget:$dst, cc:$cc),
                    "j$cc\t$dst",
                    [(MSP430brcc bb:$dst, imm:$cc)]>;
 } // isBranch, isTerminator
@@ -1126,16 +1132,21 @@ def : Pat<(i8 (trunc GR16:$src)),
 // GlobalAddress, ExternalSymbol
 def : Pat<(i16 (MSP430Wrapper tglobaladdr:$dst)), (MOV16ri tglobaladdr:$dst)>;
 def : Pat<(i16 (MSP430Wrapper texternalsym:$dst)), (MOV16ri texternalsym:$dst)>;
+def : Pat<(i16 (MSP430Wrapper tblockaddress:$dst)), (MOV16ri tblockaddress:$dst)>;
 
 def : Pat<(add GR16:$src1, (MSP430Wrapper tglobaladdr :$src2)),
           (ADD16ri GR16:$src1, tglobaladdr:$src2)>;
 def : Pat<(add GR16:$src1, (MSP430Wrapper texternalsym:$src2)),
           (ADD16ri GR16:$src1, texternalsym:$src2)>;
+def : Pat<(add GR16:$src1, (MSP430Wrapper tblockaddress:$src2)),
+          (ADD16ri GR16:$src1, tblockaddress:$src2)>;
 
 def : Pat<(store (i16 (MSP430Wrapper tglobaladdr:$src)), addr:$dst),
           (MOV16mi addr:$dst, tglobaladdr:$src)>;
 def : Pat<(store (i16 (MSP430Wrapper texternalsym:$src)), addr:$dst),
           (MOV16mi addr:$dst, texternalsym:$src)>;
+def : Pat<(store (i16 (MSP430Wrapper tblockaddress:$src)), addr:$dst),
+          (MOV16mi addr:$dst, tblockaddress:$src)>;
 
 // calls
 def : Pat<(MSP430call (i16 tglobaladdr:$dst)),

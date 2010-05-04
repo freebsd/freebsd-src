@@ -623,6 +623,12 @@ public:
                                            MachineBasicBlock::iterator MI,
                                  const std::vector<CalleeSavedInfo> &CSI) const;
   
+  virtual
+  MachineInstr *emitFrameIndexDebugValue(MachineFunction &MF,
+                                         int FrameIx, uint64_t Offset,
+                                         const MDNode *MDPtr,
+                                         DebugLoc DL) const;
+
   /// foldMemoryOperand - If this target supports it, fold a load or store of
   /// the specified stack slot into the specified machine instruction for the
   /// specified operand(s).  If this is possible, the target should perform the
@@ -686,6 +692,8 @@ public:
   virtual bool shouldScheduleLoadsNear(SDNode *Load1, SDNode *Load2,
                                        int64_t Offset1, int64_t Offset2,
                                        unsigned NumLoads) const;
+
+  virtual void getNoopForMachoTarget(MCInst &NopInst) const;
 
   virtual
   bool ReverseBranchCondition(SmallVectorImpl<MachineOperand> &Cond) const;

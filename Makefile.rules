@@ -388,7 +388,6 @@ endif
 # If REQUIRES_RTTI=1 is specified then don't disable run-time type id.
 ifneq ($(REQUIRES_RTTI), 1)
   CXX.Flags += -fno-rtti
-  CXXFLAGS += -fno-rtti
 endif
 
 ifdef ENABLE_COVERAGE
@@ -561,7 +560,7 @@ ifeq ($(HOST_OS),Darwin)
   # Get "4" out of 10.4 for later pieces in the makefile.
   DARWIN_MAJVERS := $(shell echo $(DARWIN_VERSION)| sed -E 's/10.([0-9]).*/\1/')
 
-  SharedLinkOptions=-Wl,-flat_namespace -Wl,-undefined -Wl,suppress \
+  SharedLinkOptions=-Wl,-flat_namespace -Wl,-undefined,suppress \
                     -dynamiclib
   ifneq ($(ARCH),ARM)
     SharedLinkOptions += -mmacosx-version-min=$(DARWIN_VERSION)
@@ -579,13 +578,6 @@ ifeq ($(TARGET_OS),Darwin)
   ifneq ($(ARCH),ARM)
     TargetCommonOpts += -mmacosx-version-min=$(DARWIN_VERSION)
   endif
-endif
-
-# Adjust LD.Flags depending on the kind of library that is to be built. Note
-# that if LOADABLE_MODULE is specified then the resulting shared library can
-# be opened with dlopen.
-ifdef LOADABLE_MODULE
-  LD.Flags += -module
 endif
 
 ifdef SHARED_LIBRARY
@@ -640,6 +632,8 @@ CompileCommonOpts += -pedantic -Wno-long-long
 endif
 CompileCommonOpts += -Wall -W -Wno-unused-parameter -Wwrite-strings \
                      $(EXTRA_OPTIONS)
+# Enable cast-qual for C++; the workaround is to use const_cast.
+CXX.Flags += -Wcast-qual
 
 ifeq ($(HOST_OS),HP-UX)
   CompileCommonOpts := -D_REENTRANT -D_HPUX_SOURCE
@@ -970,6 +964,36 @@ endif
 endif
 endif
 
+# Set up the library exports file.
+ifdef EXPORTED_SYMBOL_FILE
+
+# First, set up the native export file, which may differ from the source
+# export file.
+
+ifeq ($(HOST_OS),Darwin)
+# Darwin convention prefixes symbols with underscores.
+NativeExportsFile := $(ObjDir)/$(notdir $(EXPORTED_SYMBOL_FILE)).sed
+$(NativeExportsFile): $(EXPORTED_SYMBOL_FILE) $(ObjDir)/.dir
+	$(Verb) sed -e 's/[[:<:]]/_/' < $< > $@
+clean-local::
+	-$(Verb) $(RM) -f $(NativeExportsFile)
+else
+NativeExportsFile := $(EXPORTED_SYMBOL_FILE)
+endif
+
+# Now add the linker command-line options to use the native export file.
+
+ifeq ($(HOST_OS),Darwin)
+LLVMLibsOptions += -Wl,-exported_symbols_list,$(NativeExportsFile)
+endif
+
+# gold, bfd ld, etc.
+ifeq ($(HAVE_LINK_RETAIN_SYMBOLS_FILE),1)
+LLVMLibsOptions += -Wl,-retain-symbols-file,$(NativeExportsFile)
+endif
+
+endif
+
 ###############################################################################
 # Library Build Rules: Four ways to build a library
 ###############################################################################
@@ -1059,6 +1083,10 @@ LibName.BCA:= $(LibDir)/lib$(LIBRARYNAME).bca
 ifdef SHARED_LIBRARY
 
 all-local:: $(LibName.SO)
+
+ifdef EXPORTED_SYMBOL_FILE
+$(LibName.SO): $(NativeExportsFile)
+endif
 
 ifdef LINK_LIBS_IN_SHARED
 ifdef LOADABLE_MODULE
@@ -1207,6 +1235,12 @@ install-local::
 uninstall-local::
 	$(Echo) Uninstall circumvented with NO_INSTALL
 else
+ifdef NO_INSTALL_ARCHIVES
+install-local::
+	$(Echo) Install circumvented with NO_INSTALL
+uninstall-local::
+	$(Echo) Uninstall circumvented with NO_INSTALL
+else
 DestArchiveLib := $(DESTDIR)$(PROJ_libdir)/lib$(LIBRARYNAME).a
 
 install-local:: $(DestArchiveLib)
@@ -1219,6 +1253,7 @@ $(DestArchiveLib): $(LibName.A) $(DESTDIR)$(PROJ_libdir)
 uninstall-local::
 	$(Echo) Uninstalling $(BuildMode) Archive Library $(DestArchiveLib)
 	-$(Verb) $(RM) -f $(DestArchiveLib)
+endif
 endif
 endif
 
@@ -1262,7 +1297,7 @@ ifeq ($(HOST_OS),Darwin)
 
 # Tiger tools don't support this.
 ifneq ($(DARWIN_MAJVERS),4)
-LD.Flags += -Wl,-exported_symbol -Wl,_main
+LD.Flags += -Wl,-exported_symbol,_main
 endif
 endif
 
@@ -1331,7 +1366,7 @@ DestToolAlias = $(DESTDIR)$(PROJ_bindir)/$(TOOLALIAS)$(EXEEXT)
 
 install-local:: $(DestToolAlias)
 
-$(DestToolAlias): $(DestTool) $(PROJ_bindir)
+$(DestToolAlias): $(DestTool)
 	$(Echo) Installing $(BuildMode) $(DestToolAlias)
 	$(Verb) $(RM) -f $(DestToolAlias)
 	$(Verb) $(AliasTool) $(TOOLEXENAME) $(DestToolAlias)

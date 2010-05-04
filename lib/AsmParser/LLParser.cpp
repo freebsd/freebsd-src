@@ -322,9 +322,8 @@ bool LLParser::ParseUnnamedType() {
       return true;
   }
 
-  assert(Lex.getKind() == lltok::kw_type);
   LocTy TypeLoc = Lex.getLoc();
-  Lex.Lex(); // eat kw_type
+  if (ParseToken(lltok::kw_type, "expected 'type' after '='")) return true;
 
   PATypeHolder Ty(Type::getVoidTy(Context));
   if (ParseType(Ty)) return true;
@@ -1171,10 +1170,10 @@ bool LLParser::ParseOptionalCommaAlign(unsigned &Alignment,
       return false;
     }
     
-    if (Lex.getKind() == lltok::kw_align) {
-      if (ParseOptionalAlignment(Alignment)) return true;
-    } else
-      return true;
+    if (Lex.getKind() != lltok::kw_align)
+      return Error(Lex.getLoc(), "expected metadata or 'align'");
+    
+    if (ParseOptionalAlignment(Alignment)) return true;
   }
 
   return false;
@@ -2352,11 +2351,28 @@ bool LLParser::ParseValID(ValID &ID, PerFunctionState *PFS) {
       if (NSW)
         return Error(ModifierLoc, "nsw only applies to integer operations");
     }
-    // API compatibility: Accept either integer or floating-point types with
-    // add, sub, and mul.
-    if (!Val0->getType()->isIntOrIntVectorTy() &&
-        !Val0->getType()->isFPOrFPVectorTy())
-      return Error(ID.Loc,"constexpr requires integer, fp, or vector operands");
+    // Check that the type is valid for the operator.
+    switch (Opc) {
+    case Instruction::Add:
+    case Instruction::Sub:
+    case Instruction::Mul:
+    case Instruction::UDiv:
+    case Instruction::SDiv:
+    case Instruction::URem:
+    case Instruction::SRem:
+      if (!Val0->getType()->isIntOrIntVectorTy())
+        return Error(ID.Loc, "constexpr requires integer operands");
+      break;
+    case Instruction::FAdd:
+    case Instruction::FSub:
+    case Instruction::FMul:
+    case Instruction::FDiv:
+    case Instruction::FRem:
+      if (!Val0->getType()->isFPOrFPVectorTy())
+        return Error(ID.Loc, "constexpr requires fp operands");
+      break;
+    default: llvm_unreachable("Unknown binary operator!");
+    }
     unsigned Flags = 0;
     if (NUW)   Flags |= OverflowingBinaryOperator::NoUnsignedWrap;
     if (NSW)   Flags |= OverflowingBinaryOperator::NoSignedWrap;
@@ -2788,6 +2804,10 @@ bool LLParser::ParseFunctionHeader(Function *&Fn, bool isDefine) {
       ForwardRefVals.find(FunctionName);
     if (FRVI != ForwardRefVals.end()) {
       Fn = M->getFunction(FunctionName);
+      if (Fn->getType() != PFT)
+        return Error(FRVI->second.second, "invalid forward reference to "
+                     "function '" + FunctionName + "' with wrong type!");
+      
       ForwardRefVals.erase(FRVI);
     } else if ((Fn = M->getFunction(FunctionName))) {
       // If this function already exists in the symbol table, then it is
@@ -2933,6 +2953,8 @@ bool LLParser::ParseBasicBlock(PerFunctionState &PFS) {
     default: assert(0 && "Unknown ParseInstruction result!");
     case InstError: return true;
     case InstNormal:
+      BB->getInstList().push_back(Inst);
+
       // With a normal result, we check to see if the instruction is followed by
       // a comma and metadata.
       if (EatIfPresent(lltok::comma))
@@ -2940,14 +2962,14 @@ bool LLParser::ParseBasicBlock(PerFunctionState &PFS) {
           return true;
       break;
     case InstExtraComma:
+      BB->getInstList().push_back(Inst);
+
       // If the instruction parser ate an extra comma at the end of it, it
       // *must* be followed by metadata.
       if (ParseInstructionMetadata(Inst))
         return true;
       break;        
     }
-
-    BB->getInstList().push_back(Inst);
 
     // Set the name on the instruction.
     if (PFS.SetInstName(NameID, NameStr, NameLoc, Inst)) return true;
@@ -2995,8 +3017,7 @@ int LLParser::ParseInstruction(Instruction *&Inst, BasicBlock *BB,
       if (EatIfPresent(lltok::kw_nuw))
         NUW = true;
     }
-    // API compatibility: Accept either integer or floating-point types.
-    bool Result = ParseArithmetic(Inst, PFS, KeywordVal, 0);
+    bool Result = ParseArithmetic(Inst, PFS, KeywordVal, 1);
     if (!Result) {
       if (!Inst->getType()->isIntOrIntVectorTy()) {
         if (NUW)

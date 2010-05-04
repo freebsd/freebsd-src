@@ -64,7 +64,8 @@ namespace {
     static char ID;
   public:
     ARMCodeEmitter(TargetMachine &tm, JITCodeEmitter &mce)
-      : MachineFunctionPass(&ID), JTI(0), II((ARMInstrInfo*)tm.getInstrInfo()),
+      : MachineFunctionPass(&ID), JTI(0),
+        II((const ARMInstrInfo *)tm.getInstrInfo()),
         TD(tm.getTargetData()), TM(tm),
     MCE(mce), MCPEs(0), MJTEs(0),
     IsPIC(TM.getRelocationModel() == Reloc::PIC_) {}
@@ -150,7 +151,7 @@ namespace {
 
     /// Routines that handle operands which add machine relocations which are
     /// fixed up by the relocation stage.
-    void emitGlobalAddress(GlobalValue *GV, unsigned Reloc,
+    void emitGlobalAddress(const GlobalValue *GV, unsigned Reloc,
                            bool MayNeedFarStub,  bool Indirect,
                            intptr_t ACPV = 0);
     void emitExternalSymbolAddress(const char *ES, unsigned Reloc);
@@ -174,9 +175,9 @@ bool ARMCodeEmitter::runOnMachineFunction(MachineFunction &MF) {
   assert((MF.getTarget().getRelocationModel() != Reloc::Default ||
           MF.getTarget().getRelocationModel() != Reloc::Static) &&
          "JIT relocation model must be set to static or default!");
-  JTI = ((ARMTargetMachine&)MF.getTarget()).getJITInfo();
-  II = ((ARMTargetMachine&)MF.getTarget()).getInstrInfo();
-  TD = ((ARMTargetMachine&)MF.getTarget()).getTargetData();
+  JTI = ((ARMTargetMachine &)MF.getTarget()).getJITInfo();
+  II = ((const ARMTargetMachine &)MF.getTarget()).getInstrInfo();
+  TD = ((const ARMTargetMachine &)MF.getTarget()).getTargetData();
   Subtarget = &TM.getSubtarget<ARMSubtarget>();
   MCPEs = &MF.getConstantPool()->getConstants();
   MJTEs = 0;
@@ -249,14 +250,16 @@ unsigned ARMCodeEmitter::getMachineOpValue(const MachineInstr &MI,
 
 /// emitGlobalAddress - Emit the specified address to the code stream.
 ///
-void ARMCodeEmitter::emitGlobalAddress(GlobalValue *GV, unsigned Reloc,
+void ARMCodeEmitter::emitGlobalAddress(const GlobalValue *GV, unsigned Reloc,
                                        bool MayNeedFarStub, bool Indirect,
                                        intptr_t ACPV) {
   MachineRelocation MR = Indirect
     ? MachineRelocation::getIndirectSymbol(MCE.getCurrentPCOffset(), Reloc,
-                                           GV, ACPV, MayNeedFarStub)
+                                           const_cast<GlobalValue *>(GV),
+                                           ACPV, MayNeedFarStub)
     : MachineRelocation::getGV(MCE.getCurrentPCOffset(), Reloc,
-                               GV, ACPV, MayNeedFarStub);
+                               const_cast<GlobalValue *>(GV), ACPV,
+                               MayNeedFarStub);
   MCE.addRelocation(MR);
 }
 
@@ -391,7 +394,7 @@ void ARMCodeEmitter::emitConstPoolInstruction(const MachineInstr &MI) {
           << (void*)MCE.getCurrentPCValue() << " " << *ACPV << '\n');
 
     assert(ACPV->isGlobalValue() && "unsupported constant pool value");
-    GlobalValue *GV = ACPV->getGV();
+    const GlobalValue *GV = ACPV->getGV();
     if (GV) {
       Reloc::Model RelocM = TM.getRelocationModel();
       emitGlobalAddress(GV, ARM::reloc_arm_machine_cp_entry,
@@ -403,7 +406,7 @@ void ARMCodeEmitter::emitConstPoolInstruction(const MachineInstr &MI) {
     }
     emitWordLE(0);
   } else {
-    Constant *CV = MCPE.Val.ConstVal;
+    const Constant *CV = MCPE.Val.ConstVal;
 
     DEBUG({
         errs() << "  ** Constant pool #" << CPI << " @ "
@@ -415,7 +418,7 @@ void ARMCodeEmitter::emitConstPoolInstruction(const MachineInstr &MI) {
         errs() << '\n';
       });
 
-    if (GlobalValue *GV = dyn_cast<GlobalValue>(CV)) {
+    if (const GlobalValue *GV = dyn_cast<GlobalValue>(CV)) {
       emitGlobalAddress(GV, ARM::reloc_arm_absolute, isa<Function>(GV), false);
       emitWordLE(0);
     } else if (const ConstantInt *CI = dyn_cast<ConstantInt>(CV)) {
@@ -559,7 +562,7 @@ void ARMCodeEmitter::emitPseudoInstruction(const MachineInstr &MI) {
     // We allow inline assembler nodes with empty bodies - they can
     // implicitly define registers, which is ok for JIT.
     if (MI.getOperand(0).getSymbolName()[0]) {
-      llvm_report_error("JIT does not support inline asm!");
+      report_fatal_error("JIT does not support inline asm!");
     }
     break;
   }
@@ -704,7 +707,7 @@ void ARMCodeEmitter::emitDataProcessingInstruction(const MachineInstr &MI,
   const TargetInstrDesc &TID = MI.getDesc();
 
   if (TID.Opcode == ARM::BFC) {
-    llvm_report_error("ARMv6t2 JIT is not yet supported.");
+    report_fatal_error("ARMv6t2 JIT is not yet supported.");
   }
 
   // Part of binary is determined by TableGn.

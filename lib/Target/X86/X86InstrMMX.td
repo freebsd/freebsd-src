@@ -117,7 +117,7 @@ def MMX_MOVD64mr : MMXI<0x7E, MRMDestMem, (outs), (ins i32mem:$dst, VR64:$src),
                         "movd\t{$src, $dst|$dst, $src}", []>;
 def MMX_MOVD64grr : MMXI<0x7E, MRMDestReg, (outs), (ins GR32:$dst, VR64:$src),
                         "movd\t{$src, $dst|$dst, $src}", []>;
-def MMX_MOVQ64gmr : MMXRI<0x7E, MRMDestMem, (outs), 
+def MMX_MOVQ64gmr : MMXRI<0x7F, MRMDestMem, (outs), 
                          (ins i64mem:$dst, VR64:$src),
                          "movq\t{$src, $dst|$dst, $src}", []>;
 
@@ -166,6 +166,9 @@ def MMX_MOVQ2DQrr : SSDIi8<0xD6, MRMSrcReg, (outs VR128:$dst), (ins VR64:$src),
 let neverHasSideEffects = 1 in
 def MMX_MOVQ2FR64rr: SSDIi8<0xD6, MRMSrcReg, (outs FR64:$dst), (ins VR64:$src),
                            "movq2dq\t{$src, $dst|$dst, $src}", []>;
+
+def MMX_MOVFR642Qrr: SSDIi8<0xD6, MRMSrcReg, (outs VR64:$dst), (ins FR64:$src),
+                           "movdq2q\t{$src, $dst|$dst, $src}", []>;
 
 def MMX_MOVNTQmr  : MMXI<0xE7, MRMDestMem, (outs), (ins i64mem:$dst, VR64:$src),
                          "movntq\t{$src, $dst|$dst, $src}",
@@ -569,6 +572,14 @@ def : Pat<(f64 (bitconvert (v4i16 VR64:$src))),
           (MMX_MOVQ2FR64rr VR64:$src)>;
 def : Pat<(f64 (bitconvert (v8i8 VR64:$src))),
           (MMX_MOVQ2FR64rr VR64:$src)>;
+def : Pat<(v1i64 (bitconvert (f64 FR64:$src))),
+          (MMX_MOVFR642Qrr FR64:$src)>;
+def : Pat<(v2i32 (bitconvert (f64 FR64:$src))),
+          (MMX_MOVFR642Qrr FR64:$src)>;
+def : Pat<(v4i16 (bitconvert (f64 FR64:$src))),
+          (MMX_MOVFR642Qrr FR64:$src)>;
+def : Pat<(v8i8 (bitconvert (f64 FR64:$src))),
+          (MMX_MOVFR642Qrr FR64:$src)>;
 
 let AddedComplexity = 20 in {
   def : Pat<(v2i32 (X86vzmovl (bc_v2i32 (load_mmx addr:$src)))),
