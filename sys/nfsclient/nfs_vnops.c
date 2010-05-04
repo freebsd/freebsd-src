@@ -225,6 +225,10 @@ int nfs_directio_enable = 0;
 SYSCTL_INT(_vfs_nfs, OID_AUTO, nfs_directio_enable, CTLFLAG_RW,
 	   &nfs_directio_enable, 0, "Enable NFS directio");
 
+static u_int	negnametimeo = NFS_DEFAULT_NEGNAMETIMEO;
+SYSCTL_UINT(_vfs_nfs, OID_AUTO, negative_name_timeout, CTLFLAG_RW,
+	   &negnametimeo, 0, "Negative name cache entry timeout");
+
 /*
  * This sysctl allows other processes to mmap a file that has been opened
  * O_DIRECT by a process.  In general, having processes mmap the file while
@@ -918,9 +922,12 @@ nfs_lookup(struct vop_lookup_args *ap)
 		 * We only accept a negative hit in the cache if the
 		 * modification time of the parent directory matches
 		 * our cached copy.  Otherwise, we discard all of the
-		 * negative cache entries for this directory.
+		 * negative cache entries for this directory. We also
+		 * only trust -ve cache entries for less than
+		 * negnametimeo seconds.
 		 */
-		if (VOP_GETATTR(dvp, &vattr, cnp->cn_cred, td) == 0 &&
+		if ((u_int)(ticks - np->n_dmtime_ticks) < (negnametimeo * hz) &&
+		    VOP_GETATTR(dvp, &vattr, cnp->cn_cred, td) == 0 &&
 		    vattr.va_mtime.tv_sec == np->n_dmtime) {
 			nfsstats.lookupcache_hits++;
 			return (ENOENT);
@@ -1063,8 +1070,10 @@ nfsmout:
 			 */
 			mtx_lock(&np->n_mtx);
 			if (np->n_dmtime <= dmtime) {
-				if (np->n_dmtime == 0)
+				if (np->n_dmtime == 0) {
 					np->n_dmtime = dmtime;
+					np->n_dmtime_ticks = ticks;
+				}
 				mtx_unlock(&np->n_mtx);
 				cache_enter(dvp, NULL, cnp);
 			} else
