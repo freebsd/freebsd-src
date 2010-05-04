@@ -76,7 +76,7 @@ static void	calcru1(struct proc *p, struct rusage_ext *ruxp,
 		    struct timeval *up, struct timeval *sp);
 static int	donice(struct thread *td, struct proc *chgp, int n);
 static struct uidinfo *uilookup(uid_t uid);
-static void	ruxagg_tlock(struct proc *p, struct thread *td);
+static void	ruxagg(struct proc *p, struct thread *td);
 
 /*
  * Resource controls and accounting.
@@ -630,7 +630,7 @@ lim_cb(void *arg)
 		return;
 	PROC_SLOCK(p);
 	FOREACH_THREAD_IN_PROC(p, td) {
-		ruxagg_tlock(p, td);
+		ruxagg(p, td);
 	}
 	PROC_SUNLOCK(p);
 	if (p->p_rux.rux_runtime > p->p_cpulimit * cpu_tickrate()) {
@@ -841,7 +841,7 @@ calcru(struct proc *p, struct timeval *up, struct timeval *sp)
 	FOREACH_THREAD_IN_PROC(p, td) {
 		if (td->td_incruntime == 0)
 			continue;
-		ruxagg_tlock(p, td);
+		ruxagg(p, td);
 	}
 	calcru1(p, &p->p_rux, up, sp);
 }
@@ -961,6 +961,16 @@ kern_getrusage(struct thread *td, int who, struct rusage *rup)
 		calccru(p, &rup->ru_utime, &rup->ru_stime);
 		break;
 
+	case RUSAGE_THREAD:
+		PROC_SLOCK(p);
+		ruxagg(p, td);
+		PROC_SUNLOCK(p);
+		thread_lock(td);
+		*rup = td->td_ru;
+		calcru1(p, &td->td_rux, &rup->ru_utime, &rup->ru_stime);
+		thread_unlock(td);
+		break;
+
 	default:
 		error = EINVAL;
 	}
@@ -1001,7 +1011,7 @@ ruadd(struct rusage *ru, struct rusage_ext *rux, struct rusage *ru2,
  * Aggregate tick counts into the proc's rusage_ext.
  */
 void
-ruxagg(struct rusage_ext *rux, struct thread *td)
+ruxagg_locked(struct rusage_ext *rux, struct thread *td)
 {
 
 	THREAD_LOCK_ASSERT(td, MA_OWNED);
@@ -1010,18 +1020,19 @@ ruxagg(struct rusage_ext *rux, struct thread *td)
 	rux->rux_uticks += td->td_uticks;
 	rux->rux_sticks += td->td_sticks;
 	rux->rux_iticks += td->td_iticks;
+}
+
+static void
+ruxagg(struct proc *p, struct thread *td)
+{
+
+	thread_lock(td);
+	ruxagg_locked(&p->p_rux, td);
+	ruxagg_locked(&td->td_rux, td);
 	td->td_incruntime = 0;
 	td->td_uticks = 0;
 	td->td_iticks = 0;
 	td->td_sticks = 0;
-}
-
-static void
-ruxagg_tlock(struct proc *p, struct thread *td)
-{
-
-	thread_lock(td);
-	ruxagg(&p->p_rux, td);
 	thread_unlock(td);
 }
 
@@ -1039,7 +1050,7 @@ rufetch(struct proc *p, struct rusage *ru)
 	*ru = p->p_ru;
 	if (p->p_numthreads > 0)  {
 		FOREACH_THREAD_IN_PROC(p, td) {
-			ruxagg_tlock(p, td);
+			ruxagg(p, td);
 			rucollect(ru, &td->td_ru);
 		}
 	}
