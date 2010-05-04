@@ -251,10 +251,8 @@ via_lock_all_dma_pages(drm_via_sg_info_t *vsg,  drm_via_dmablit_t *xfer)
 		if (m == NULL)
 			break;
 		vm_page_lock(m);
-		vm_page_lock_queues();
 		vm_page_wire(m);
 		vm_page_unhold(m);
-		vm_page_unlock_queues();
 		vm_page_unlock(m);
 		vsg->pages[i] = m;
 	}
