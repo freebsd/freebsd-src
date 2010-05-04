@@ -1385,6 +1385,7 @@ vm_page_activate(vm_page_t m)
 {
 
 	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
+	vm_page_lock_assert(m, MA_OWNED);
 	if (VM_PAGE_GETKNOWNQUEUE2(m) != PQ_ACTIVE) {
 		vm_pageq_remove(m);
 		if (m->wire_count == 0 && (m->flags & PG_UNMANAGED) == 0) {
@@ -1588,8 +1589,10 @@ void
 vm_page_unwire(vm_page_t m, int activate)
 {
 
-	if ((m->flags & PG_UNMANAGED) == 0)
+	if ((m->flags & PG_UNMANAGED) == 0) {
 		mtx_assert(&vm_page_queue_mtx, MA_OWNED);
+		vm_page_lock_assert(m, MA_OWNED);
+	}
 	if (m->flags & PG_FICTITIOUS)
 		return;
 	if (m->wire_count > 0) {
@@ -1626,6 +1629,7 @@ _vm_page_deactivate(vm_page_t m, int athead)
 {
 
 	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
+	vm_page_lock_assert(m, MA_OWNED);
 
 	/*
 	 * Ignore if already inactive.
@@ -1845,6 +1849,8 @@ vm_page_dontneed(vm_page_t m)
 	int head;
 
 	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
+	vm_page_lock_assert(m, MA_OWNED);
+	VM_OBJECT_LOCK_ASSERT(m->object, MA_OWNED);
 	dnw = ++dnweight;
 
 	/*
