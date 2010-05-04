@@ -756,6 +756,8 @@ sge_dma_alloc(struct sge_softc *sc)
 {
 	struct sge_chain_data *cd;
 	struct sge_list_data *ld;
+	struct sge_rxdesc *rxd;
+	struct sge_txdesc *txd;
 	int error, i;
 
 	cd = &sc->sge_cdata;
@@ -869,8 +871,12 @@ sge_dma_alloc(struct sge_softc *sc)
 
 	/* Create DMA maps for Tx buffers. */
 	for (i = 0; i < SGE_TX_RING_CNT; i++) {
+		txd = &cd->sge_txdesc[i];
+		txd->tx_m = NULL;
+		txd->tx_dmamap = NULL;
+		txd->tx_ndesc = 0;
 		error = bus_dmamap_create(cd->sge_txmbuf_tag, 0,
-		    &cd->sge_tx_map[i]);
+		    &txd->tx_dmamap);
 		if (error != 0) {
 			device_printf(sc->sge_dev,
 			    "could not create Tx DMA map.\n");
@@ -886,8 +892,11 @@ sge_dma_alloc(struct sge_softc *sc)
 	}
 	/* Create DMA maps for Rx buffers. */
 	for (i = 0; i < SGE_RX_RING_CNT; i++) {
+		rxd = &cd->sge_rxdesc[i];
+		rxd->rx_m = NULL;
+		rxd->rx_dmamap = NULL;
 		error = bus_dmamap_create(cd->sge_rxmbuf_tag, 0,
-		    &cd->sge_rx_map[i]);
+		    &rxd->rx_dmamap);
 		if (error) {
 			device_printf(sc->sge_dev,
 			    "could not create Rx DMA map.\n");
@@ -903,6 +912,8 @@ sge_dma_free(struct sge_softc *sc)
 {
 	struct sge_chain_data *cd;
 	struct sge_list_data *ld;
+	struct sge_rxdesc *rxd;
+	struct sge_txdesc *txd;
 	int i;
 
 	cd = &sc->sge_cdata;
@@ -934,10 +945,11 @@ sge_dma_free(struct sge_softc *sc)
 	/* Rx buffers. */
 	if (cd->sge_rxmbuf_tag != NULL) {
 		for (i = 0; i < SGE_RX_RING_CNT; i++) {
-			if (cd->sge_rx_map[i] != NULL) {
+			rxd = &cd->sge_rxdesc[i];
+			if (rxd->rx_dmamap != NULL) {
 				bus_dmamap_destroy(cd->sge_rxmbuf_tag,
-				    cd->sge_rx_map[i]);
-				cd->sge_rx_map[i] = NULL;
+				    rxd->rx_dmamap);
+				rxd->rx_dmamap = NULL;
 			}
 		}
 		if (cd->sge_rx_spare_map != NULL) {
@@ -951,10 +963,11 @@ sge_dma_free(struct sge_softc *sc)
 	/* Tx buffers. */
 	if (cd->sge_txmbuf_tag != NULL) {
 		for (i = 0; i < SGE_TX_RING_CNT; i++) {
-			if (cd->sge_tx_map[i] != NULL) {
+			txd = &cd->sge_txdesc[i];
+			if (txd->tx_dmamap != NULL) {
 				bus_dmamap_destroy(cd->sge_txmbuf_tag,
-				    cd->sge_tx_map[i]);
-				cd->sge_tx_map[i] = NULL;
+				    txd->tx_dmamap);
+				txd->tx_dmamap = NULL;
 			}
 		}
 		bus_dma_tag_destroy(cd->sge_txmbuf_tag);
@@ -991,18 +1004,20 @@ static int
 sge_list_tx_free(struct sge_softc *sc)
 {
 	struct sge_chain_data *cd;
+	struct sge_txdesc *txd;
 	int i;
 
 	SGE_LOCK_ASSERT(sc);
 	cd = &sc->sge_cdata;
 	for (i = 0; i < SGE_TX_RING_CNT; i++) {
-		if (cd->sge_tx_mbuf[i] != NULL) {
-			bus_dmamap_sync(cd->sge_txmbuf_tag,
-			    cd->sge_tx_map[i], BUS_DMASYNC_POSTWRITE);
-			bus_dmamap_unload(cd->sge_txmbuf_tag,
-			    cd->sge_tx_map[i]);
-			m_free(cd->sge_tx_mbuf[i]);
-			cd->sge_tx_mbuf[i] = NULL;
+		txd = &cd->sge_txdesc[i];
+		if (txd->tx_m != NULL) {
+			bus_dmamap_sync(cd->sge_txmbuf_tag, txd->tx_dmamap,
+			    BUS_DMASYNC_POSTWRITE);
+			bus_dmamap_unload(cd->sge_txmbuf_tag, txd->tx_dmamap);
+			m_free(txd->tx_m);
+			txd->tx_m = NULL;
+			txd->tx_ndesc = 0;
 		}
 	}
 
@@ -1037,18 +1052,20 @@ static int
 sge_list_rx_free(struct sge_softc *sc)
 {
 	struct sge_chain_data *cd;
+	struct sge_rxdesc *rxd;
 	int i;
 
 	SGE_LOCK_ASSERT(sc);
 	cd = &sc->sge_cdata;
 	for (i = 0; i < SGE_RX_RING_CNT; i++) {
-		if (cd->sge_rx_mbuf[i] != NULL) {
-			bus_dmamap_sync(cd->sge_rxmbuf_tag, cd->sge_rx_map[i],
+		rxd = &cd->sge_rxdesc[i];
+		if (rxd->rx_m != NULL) {
+			bus_dmamap_sync(cd->sge_rxmbuf_tag, rxd->rx_dmamap,
 			    BUS_DMASYNC_POSTREAD);
 			bus_dmamap_unload(cd->sge_rxmbuf_tag,
-			    cd->sge_rx_map[i]);
-			m_free(cd->sge_rx_mbuf[i]);
-			cd->sge_rx_mbuf[i] = NULL;
+			    rxd->rx_dmamap);
+			m_free(rxd->rx_m);
+			rxd->rx_m = NULL;
 		}
 	}
 	return (0);
@@ -1063,6 +1080,7 @@ sge_newbuf(struct sge_softc *sc, int prod)
 	struct mbuf *m;
 	struct sge_desc *desc;
 	struct sge_chain_data *cd;
+	struct sge_rxdesc *rxd;
 	bus_dma_segment_t segs[1];
 	bus_dmamap_t map;
 	int error, nsegs;
@@ -1082,17 +1100,18 @@ sge_newbuf(struct sge_softc *sc, int prod)
 		return (error);
 	}
 	KASSERT(nsegs == 1, ("%s: %d segments returned!", __func__, nsegs));
-	if (cd->sge_rx_mbuf[prod] != NULL) {
-		bus_dmamap_sync(cd->sge_rxmbuf_tag, cd->sge_rx_map[prod],
+	rxd = &cd->sge_rxdesc[prod];
+	if (rxd->rx_m != NULL) {
+		bus_dmamap_sync(cd->sge_rxmbuf_tag, rxd->rx_dmamap,
 		    BUS_DMASYNC_POSTREAD);
-		bus_dmamap_unload(cd->sge_rxmbuf_tag, cd->sge_rx_map[prod]);
+		bus_dmamap_unload(cd->sge_rxmbuf_tag, rxd->rx_dmamap);
 	}
-	map = cd->sge_rx_map[prod];
-	cd->sge_rx_map[prod] =  cd->sge_rx_spare_map;
+	map = rxd->rx_dmamap;
+	rxd->rx_dmamap = cd->sge_rx_spare_map;
 	cd->sge_rx_spare_map = map;
-	bus_dmamap_sync(cd->sge_rxmbuf_tag, cd->sge_rx_map[prod],
+	bus_dmamap_sync(cd->sge_rxmbuf_tag, rxd->rx_dmamap,
 	    BUS_DMASYNC_PREREAD);
-	cd->sge_rx_mbuf[prod] = m;
+	rxd->rx_m = m;
 
 	desc = &sc->sge_ldata.sge_rx_ring[prod];
 	desc->sge_sts_size = 0;
@@ -1178,7 +1197,7 @@ sge_rxeof(struct sge_softc *sc)
 			ifp->if_ierrors++;
 			continue;
 		}
-		m = cd->sge_rx_mbuf[cons];
+		m = cd->sge_rxdesc[cons].rx_m;
 		if (sge_newbuf(sc, cons) != 0) {
 			sge_discard_rxbuf(sc, cons);
 			ifp->if_iqdrops++;
@@ -1245,8 +1264,9 @@ sge_txeof(struct sge_softc *sc)
 	struct ifnet *ifp;
 	struct sge_list_data *ld;
 	struct sge_chain_data *cd;
+	struct sge_txdesc *txd;
 	uint32_t txstat;
-	int cons, prod;
+	int cons, nsegs, prod;
 
 	SGE_LOCK_ASSERT(sc);
 
@@ -1260,33 +1280,47 @@ sge_txeof(struct sge_softc *sc)
 	    BUS_DMASYNC_POSTREAD | BUS_DMASYNC_POSTWRITE);
 	cons = cd->sge_tx_cons;
 	prod = cd->sge_tx_prod;
-	for (; cons != prod; SGE_INC(cons, SGE_TX_RING_CNT)) {
+	for (; cons != prod;) {
 		txstat = le32toh(ld->sge_tx_ring[cons].sge_cmdsts);
 		if ((txstat & TDC_OWN) != 0)
 			break;
-		cd->sge_tx_cnt--;
-		ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
-		if (cd->sge_tx_mbuf[cons] != NULL) {
-			bus_dmamap_sync(cd->sge_txmbuf_tag,
-			    cd->sge_tx_map[cons], BUS_DMASYNC_POSTWRITE);
-			bus_dmamap_unload(cd->sge_txmbuf_tag,
-			    cd->sge_tx_map[cons]);
-			m_freem(cd->sge_tx_mbuf[cons]);
-			cd->sge_tx_mbuf[cons] = NULL;
-			if (SGE_TX_ERROR(txstat) != 0) {
+		/*
+		 * Only the first descriptor of multi-descriptor transmission
+		 * is updated by controller.  Driver should skip entire
+		 * chained buffers for the transmitted frame. In other words
+		 * TDC_OWN bit is valid only at the first descriptor of a
+		 * multi-descriptor transmission.
+		 */
+		if (SGE_TX_ERROR(txstat) != 0) {
 #ifdef SGE_SHOW_ERRORS
-				device_printf(sc->sge_dev, "Tx error : 0x%b\n",
-				    txstat, TX_ERR_BITS);
+			device_printf(sc->sge_dev, "Tx error : 0x%b\n",
+			    txstat, TX_ERR_BITS);
 #endif
-				ifp->if_oerrors++;
-			} else {
+			ifp->if_oerrors++;
+		} else {
 #ifdef notyet
-				ifp->if_collisions += (txstat & 0xFFFF) - 1;
+			ifp->if_collisions += (txstat & 0xFFFF) - 1;
 #endif
-				ifp->if_opackets++;
-			}
+			ifp->if_opackets++;
 		}
-
+		txd = &cd->sge_txdesc[cons];
+		for (nsegs = 0; nsegs < txd->tx_ndesc; nsegs++) {
+			ld->sge_tx_ring[cons].sge_cmdsts = 0;
+			SGE_INC(cons, SGE_TX_RING_CNT);
+		}
+		/* Reclaim transmitted mbuf. */
+		KASSERT(txd->tx_m != NULL,
+		    ("%s: freeing NULL mbuf\n", __func__));
+		bus_dmamap_sync(cd->sge_txmbuf_tag, txd->tx_dmamap,
+		    BUS_DMASYNC_POSTWRITE);
+		bus_dmamap_unload(cd->sge_txmbuf_tag, txd->tx_dmamap);
+		m_freem(txd->tx_m);
+		txd->tx_m = NULL;
+		cd->sge_tx_cnt -= txd->tx_ndesc;
+		KASSERT(cd->sge_tx_cnt >= 0,
+		    ("%s: Active Tx desc counter was garbled\n", __func__));
+		txd->tx_ndesc = 0;
+		ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 	}
 	cd->sge_tx_cons = cons;
 	if (cd->sge_tx_cnt == 0)
@@ -1388,73 +1422,78 @@ sge_encap(struct sge_softc *sc, struct mbuf **m_head)
 {
 	struct mbuf *m;
 	struct sge_desc *desc;
+	struct sge_txdesc *txd;
 	bus_dma_segment_t txsegs[SGE_MAXTXSEGS];
-	bus_dmamap_t map;
 	uint32_t cflags;
-	int error, nsegs, prod;
+	int error, i, nsegs, prod, si;
 
 	SGE_LOCK_ASSERT(sc);
 
-	prod = sc->sge_cdata.sge_tx_prod;
-	map = sc->sge_cdata.sge_tx_map[prod];
-	/*
-	 * Reading Windows inf file indicates SiS controller supports
-	 * TSO, VLAN hardware tag insertion/stripping, interrupt
-	 * moderation and Tx/Rx checksum offloading.  Unfortunately
-	 * vendor didn't release these information so we're guessing
-	 * descriptor usage with trial and errors.
-	 *
-	 * Controller seems to support multi-fragmented buffers but
-	 * don't know how to enable that feature so limit number of
-	 * fragmented Tx buffers to single buffer until we understand
-	 * the controller internals.
-	 * I assume the controller can pad zero bytes if frame length
-	 * is less than 60 bytes and I also think the controller has
-	 * no Tx buffer alignment limitation. - Need testing!
-	 */
-	if ((*m_head)->m_next != NULL) {
-		m = m_defrag(*m_head, M_DONTWAIT);
+	si = prod = sc->sge_cdata.sge_tx_prod;
+	txd = &sc->sge_cdata.sge_txdesc[prod];
+	error = bus_dmamap_load_mbuf_sg(sc->sge_cdata.sge_txmbuf_tag,
+	    txd->tx_dmamap, *m_head, txsegs, &nsegs, 0);
+	if (error == EFBIG) {
+		m = m_collapse(*m_head, M_DONTWAIT, SGE_MAXTXSEGS);
 		if (m == NULL) {
 			m_freem(*m_head);
 			*m_head = NULL;
 			return (ENOBUFS);
 		}
 		*m_head = m;
-	}
-	error = bus_dmamap_load_mbuf_sg(sc->sge_cdata.sge_txmbuf_tag, map,
-	    *m_head, txsegs, &nsegs, 0);
-	if (error != 0) {
-		m_freem(*m_head);
-		*m_head = NULL;
+		error = bus_dmamap_load_mbuf_sg(sc->sge_cdata.sge_txmbuf_tag,
+		    txd->tx_dmamap, *m_head, txsegs, &nsegs, 0);
+		if (error != 0) {
+			m_freem(*m_head);
+			*m_head = NULL;
+			return (error);
+		}
+	} else if (error != 0)
 		return (error);
-	}
+
+	KASSERT(nsegs != 0, ("zero segment returned"));
 	/* Check descriptor overrun. */
 	if (sc->sge_cdata.sge_tx_cnt + nsegs >= SGE_TX_RING_CNT) {
-		bus_dmamap_unload(sc->sge_cdata.sge_txmbuf_tag, map);
+		bus_dmamap_unload(sc->sge_cdata.sge_txmbuf_tag, txd->tx_dmamap);
 		return (ENOBUFS);
 	}
-	bus_dmamap_sync(sc->sge_cdata.sge_txmbuf_tag, map,
+	bus_dmamap_sync(sc->sge_cdata.sge_txmbuf_tag, txd->tx_dmamap,
 	    BUS_DMASYNC_PREWRITE);
 
+	m = *m_head;
 	cflags = 0;
-	if ((*m_head)->m_pkthdr.csum_flags & CSUM_IP)
+	if (m->m_pkthdr.csum_flags & CSUM_IP)
 		cflags |= TDC_IP_CSUM;
-	if ((*m_head)->m_pkthdr.csum_flags & CSUM_TCP)
+	if (m->m_pkthdr.csum_flags & CSUM_TCP)
 		cflags |= TDC_TCP_CSUM;
-	if ((*m_head)->m_pkthdr.csum_flags & CSUM_UDP)
+	if (m->m_pkthdr.csum_flags & CSUM_UDP)
 		cflags |= TDC_UDP_CSUM;
-	desc = &sc->sge_ldata.sge_tx_ring[prod];
-	desc->sge_sts_size = htole32((*m_head)->m_pkthdr.len);
-	desc->sge_ptr = htole32(SGE_ADDR_LO(txsegs[0].ds_addr));
-	desc->sge_flags = htole32(txsegs[0].ds_len);
-	if (prod == SGE_TX_RING_CNT - 1)
-		desc->sge_flags |= htole32(RING_END);
+	for (i = 0; i < nsegs; i++) {
+		desc = &sc->sge_ldata.sge_tx_ring[prod];
+		if (i == 0) {
+			desc->sge_sts_size = htole32(m->m_pkthdr.len);
+			desc->sge_cmdsts = 0;
+		} else {
+			desc->sge_sts_size = 0;
+			desc->sge_cmdsts = htole32(TDC_OWN);
+		}
+		desc->sge_ptr = htole32(SGE_ADDR_LO(txsegs[i].ds_addr));
+		desc->sge_flags = htole32(txsegs[i].ds_len);
+		if (prod == SGE_TX_RING_CNT - 1)
+			desc->sge_flags |= htole32(RING_END);
+		sc->sge_cdata.sge_tx_cnt++;
+		SGE_INC(prod, SGE_TX_RING_CNT);
+	}
+	/* Update producer index. */
+	sc->sge_cdata.sge_tx_prod = prod;
+
+	desc = &sc->sge_ldata.sge_tx_ring[si];
 	/* Configure VLAN. */
-	if(((*m_head)->m_flags & M_VLANTAG) != 0) {
-		cflags |= (*m_head)->m_pkthdr.ether_vtag;
+	if((m->m_flags & M_VLANTAG) != 0) {
+		cflags |= m->m_pkthdr.ether_vtag;
 		desc->sge_sts_size |= htole32(TDS_INS_VLAN);
 	}
-	desc->sge_cmdsts = htole32(TDC_DEF | TDC_CRC | TDC_PAD | cflags);
+	desc->sge_cmdsts |= htole32(TDC_DEF | TDC_CRC | TDC_PAD | cflags);
 #if 1
 	if ((sc->sge_flags & SGE_FLAG_SPEED_1000) != 0)
 		desc->sge_cmdsts |= htole32(TDC_BST);
@@ -1466,13 +1505,9 @@ sge_encap(struct sge_softc *sc, struct mbuf **m_head)
 	}
 #endif
 	/* Request interrupt and give ownership to controller. */
-	if ((prod % SGE_TX_INTR_FRAMES) == 0)
-		desc->sge_cmdsts |= htole32(TDC_OWN | TDC_INTR);
-	else
-		desc->sge_cmdsts |= htole32(TDC_OWN);
-	sc->sge_cdata.sge_tx_mbuf[prod] = *m_head;
-	sc->sge_cdata.sge_tx_cnt++;
-	SGE_INC(sc->sge_cdata.sge_tx_prod, SGE_TX_RING_CNT);
+	desc->sge_cmdsts |= htole32(TDC_OWN | TDC_INTR);
+	txd->tx_m = m;
+	txd->tx_ndesc = nsegs;
 	return (0);
 }
 
@@ -1503,7 +1538,8 @@ sge_start_locked(struct ifnet *ifp)
 		return;
 
 	for (queued = 0; !IFQ_DRV_IS_EMPTY(&ifp->if_snd); ) {
-		if (sc->sge_cdata.sge_tx_cnt == SGE_TX_RING_CNT - 1) {
+		if (sc->sge_cdata.sge_tx_cnt > (SGE_TX_RING_CNT -
+		    SGE_MAXTXSEGS)) {
 			ifp->if_drv_flags |= IFF_DRV_OACTIVE;
 			break;
 		}
