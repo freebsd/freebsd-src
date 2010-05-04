@@ -830,33 +830,6 @@ uhci_dump_all(uhci_softc_t *sc)
 }
 
 static void
-uhci_dump_qhs(uhci_qh_t *sqh)
-{
-	uint8_t temp;
-
-	temp = uhci_dump_qh(sqh);
-
-	/*
-	 * uhci_dump_qhs displays all the QHs and TDs from the given QH
-	 * onwards Traverses sideways first, then down.
-	 *
-	 * QH1 QH2 No QH TD2.1 TD2.2 TD1.1 etc.
-	 *
-	 * TD2.x being the TDs queued at QH2 and QH1 being referenced from QH1.
-	 */
-
-	if (temp & 1)
-		uhci_dump_qhs(sqh->h_next);
-	else
-		DPRINTF("No QH\n");
-
-	if (temp & 2)
-		uhci_dump_tds(sqh->e_next);
-	else
-		DPRINTF("No TD\n");
-}
-
-static void
 uhci_dump_tds(uhci_td_t *td)
 {
 	for (;
