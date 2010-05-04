@@ -32,15 +32,34 @@
 .\"	@(#)pom.6	8.1 (Berkeley) 5/31/93
 .\" $FreeBSD$
 .\"
-.TH POM 6 "May 31, 1993"
+.Dd May 31, 1993
+.Dt POM 6
 .UC 7
-.SH NAME
-pom \- display the phase of the moon
-.SH SYNOPSIS
-.B pom
-.SH DESCRIPTION
+.Sh NAME
+.Nm pom
+.Nd display the phase of the moon
+.Sh SYNOPSIS
+.Nm 
+.Op Fl d Ar yyyy.mm.dd
+.Op Fl t Ar hh:mm:ss
+.Sh DESCRIPTION
 The
-.I pom
+.Nm
 utility displays the current phase of the moon.
 Useful for selecting software completion target dates and predicting
 managerial behavior.
+.Pp
+Use the arguments
+.Fl d
+and
+.Fl o
+to specify a specific date and time for which the phase of the moon
+has to be calculated.
+If
+.Fl d
+but not
+.Fl t
+has been specified, it will calculate the phase of the moon on that
+day at midnight.
+.Sh SEE ALSO
+`Practical Astronomy with Your Calculator' by Duffett-Smith.
