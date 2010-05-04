@@ -1015,7 +1015,7 @@ sge_list_tx_free(struct sge_softc *sc)
 			bus_dmamap_sync(cd->sge_txmbuf_tag, txd->tx_dmamap,
 			    BUS_DMASYNC_POSTWRITE);
 			bus_dmamap_unload(cd->sge_txmbuf_tag, txd->tx_dmamap);
-			m_free(txd->tx_m);
+			m_freem(txd->tx_m);
 			txd->tx_m = NULL;
 			txd->tx_ndesc = 0;
 		}
@@ -1064,7 +1064,7 @@ sge_list_rx_free(struct sge_softc *sc)
 			    BUS_DMASYNC_POSTREAD);
 			bus_dmamap_unload(cd->sge_rxmbuf_tag,
 			    rxd->rx_dmamap);
-			m_free(rxd->rx_m);
+			m_freem(rxd->rx_m);
 			rxd->rx_m = NULL;
 		}
 	}
