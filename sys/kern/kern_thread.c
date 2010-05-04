@@ -431,7 +431,6 @@ thread_exit(void)
 #endif
 	PROC_UNLOCK(p);
 	thread_lock(td);
-	/* Save our tick information with both the thread and proc locked */
 	ruxagg_locked(&p->p_rux, td);
 	PROC_SUNLOCK(p);
 	td->td_state = TDS_INACTIVE;
