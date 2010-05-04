@@ -315,8 +315,6 @@ RetryFault:;
 			    (fault_type & VM_PROT_WRITE) &&
 			    (fs.object == fs.first_object)) {
 				vm_page_cowfault(fs.m);
-				vm_page_unlock_queues();
-				vm_page_unlock(fs.m);
 				unlock_and_deallocate(&fs);
 				goto RetryFault;
 			}
@@ -797,9 +795,7 @@ vnode_locked:
 				if (wired && (fault_flags &
 				    VM_FAULT_CHANGE_WIRING) == 0) {
 					vm_page_lock(fs.first_m);
-					vm_page_lock_queues();
 					vm_page_wire(fs.first_m);
-					vm_page_unlock_queues();
 					vm_page_unlock(fs.first_m);
 					
 					vm_page_lock(fs.m);
@@ -1285,9 +1281,7 @@ vm_fault_copy_entry(vm_map_t dst_map, vm_map_t src_map,
 			vm_page_unlock(src_m);
 
 			vm_page_lock(dst_m);
-			vm_page_lock_queues();
 			vm_page_wire(dst_m);
-			vm_page_unlock_queues();
 			vm_page_unlock(dst_m);
 		} else {
 			vm_page_lock(dst_m);

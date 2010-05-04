@@ -3043,9 +3043,7 @@ allocbuf(struct buf *bp, int size)
 				 * We have a good page.
 				 */
 				vm_page_lock(m);
-				vm_page_lock_queues();
 				vm_page_wire(m);
-				vm_page_unlock_queues();
 				vm_page_unlock(m);
 				bp->b_pages[bp->b_npages] = m;
 				++bp->b_npages;
