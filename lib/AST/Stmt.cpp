@@ -19,6 +19,7 @@
 #include "clang/AST/Type.h"
 #include "clang/AST/ASTContext.h"
 #include "clang/AST/ASTDiagnostic.h"
+#include "clang/Basic/TargetInfo.h"
 #include <cstdio>
 using namespace clang;
 
@@ -240,6 +241,8 @@ unsigned AsmStmt::AnalyzeAsmString(llvm::SmallVectorImpl<AsmStringPiece>&Pieces,
   // asm string.
   std::string CurStringPiece;
 
+  bool HasVariants = !C.Target.hasNoAsmVariants();
+  
   while (1) {
     // Done with the string?
     if (CurPtr == StrEnd) {
@@ -251,9 +254,9 @@ unsigned AsmStmt::AnalyzeAsmString(llvm::SmallVectorImpl<AsmStringPiece>&Pieces,
     char CurChar = *CurPtr++;
     switch (CurChar) {
     case '$': CurStringPiece += "$$"; continue;
-    case '{': CurStringPiece += "$("; continue;
-    case '|': CurStringPiece += "$|"; continue;
-    case '}': CurStringPiece += "$)"; continue;
+    case '{': CurStringPiece += (HasVariants ? "$(" : "{"); continue;
+    case '|': CurStringPiece += (HasVariants ? "$|" : "|"); continue;
+    case '}': CurStringPiece += (HasVariants ? "$)" : "}"); continue;
     case '%':
       break;
     default:
@@ -389,26 +392,53 @@ ObjCForCollectionStmt::ObjCForCollectionStmt(Stmt *Elem, Expr *Collect,
   RParenLoc = RPL;
 }
 
+ObjCAtTryStmt::ObjCAtTryStmt(SourceLocation atTryLoc, Stmt *atTryStmt,
+                             Stmt **CatchStmts, unsigned NumCatchStmts,
+                             Stmt *atFinallyStmt)
+  : Stmt(ObjCAtTryStmtClass), AtTryLoc(atTryLoc),
+    NumCatchStmts(NumCatchStmts), HasFinally(atFinallyStmt != 0)
+{
+  Stmt **Stmts = getStmts();
+  Stmts[0] = atTryStmt;
+  for (unsigned I = 0; I != NumCatchStmts; ++I)
+    Stmts[I + 1] = CatchStmts[I];
+  
+  if (HasFinally)
+    Stmts[NumCatchStmts + 1] = atFinallyStmt;
+}
 
-ObjCAtCatchStmt::ObjCAtCatchStmt(SourceLocation atCatchLoc,
-                                 SourceLocation rparenloc,
-                                 ParmVarDecl *catchVarDecl, Stmt *atCatchStmt,
-                                 Stmt *atCatchList)
-: Stmt(ObjCAtCatchStmtClass) {
-  ExceptionDecl = catchVarDecl;
-  SubExprs[BODY] = atCatchStmt;
-  SubExprs[NEXT_CATCH] = NULL;
-  // FIXME: O(N^2) in number of catch blocks.
-  if (atCatchList) {
-    ObjCAtCatchStmt *AtCatchList = static_cast<ObjCAtCatchStmt*>(atCatchList);
+ObjCAtTryStmt *ObjCAtTryStmt::Create(ASTContext &Context, 
+                                     SourceLocation atTryLoc, 
+                                     Stmt *atTryStmt,
+                                     Stmt **CatchStmts, 
+                                     unsigned NumCatchStmts,
+                                     Stmt *atFinallyStmt) {
+  unsigned Size = sizeof(ObjCAtTryStmt) + 
+    (1 + NumCatchStmts + (atFinallyStmt != 0)) * sizeof(Stmt *);
+  void *Mem = Context.Allocate(Size, llvm::alignof<ObjCAtTryStmt>());
+  return new (Mem) ObjCAtTryStmt(atTryLoc, atTryStmt, CatchStmts, NumCatchStmts,
+                                 atFinallyStmt);
+}
 
-    while (ObjCAtCatchStmt* NextCatch = AtCatchList->getNextCatchStmt())
-      AtCatchList = NextCatch;
+ObjCAtTryStmt *ObjCAtTryStmt::CreateEmpty(ASTContext &Context, 
+                                                 unsigned NumCatchStmts,
+                                                 bool HasFinally) {
+  unsigned Size = sizeof(ObjCAtTryStmt) + 
+    (1 + NumCatchStmts + HasFinally) * sizeof(Stmt *);
+  void *Mem = Context.Allocate(Size, llvm::alignof<ObjCAtTryStmt>());
+  return new (Mem) ObjCAtTryStmt(EmptyShell(), NumCatchStmts, HasFinally);  
+}
 
-    AtCatchList->SubExprs[NEXT_CATCH] = this;
-  }
-  AtCatchLoc = atCatchLoc;
-  RParenLoc = rparenloc;
+SourceRange ObjCAtTryStmt::getSourceRange() const {
+  SourceLocation EndLoc;
+  if (HasFinally)
+    EndLoc = getFinallyStmt()->getLocEnd();
+  else if (NumCatchStmts)
+    EndLoc = getCatchStmt(NumCatchStmts - 1)->getLocEnd();
+  else
+    EndLoc = getTryBody()->getLocEnd();
+  
+  return SourceRange(AtTryLoc, EndLoc);
 }
 
 CXXTryStmt *CXXTryStmt::Create(ASTContext &C, SourceLocation tryLoc,
@@ -627,19 +657,18 @@ Stmt::child_iterator AsmStmt::child_end() {
 }
 
 // ObjCAtCatchStmt
-Stmt::child_iterator ObjCAtCatchStmt::child_begin() { return &SubExprs[0]; }
-Stmt::child_iterator ObjCAtCatchStmt::child_end() {
-  return &SubExprs[0]+END_EXPR;
-}
+Stmt::child_iterator ObjCAtCatchStmt::child_begin() { return &Body; }
+Stmt::child_iterator ObjCAtCatchStmt::child_end() { return &Body + 1; }
 
 // ObjCAtFinallyStmt
 Stmt::child_iterator ObjCAtFinallyStmt::child_begin() { return &AtFinallyStmt; }
 Stmt::child_iterator ObjCAtFinallyStmt::child_end() { return &AtFinallyStmt+1; }
 
 // ObjCAtTryStmt
-Stmt::child_iterator ObjCAtTryStmt::child_begin() { return &SubStmts[0]; }
-Stmt::child_iterator ObjCAtTryStmt::child_end()   {
-  return &SubStmts[0]+END_EXPR;
+Stmt::child_iterator ObjCAtTryStmt::child_begin() { return getStmts(); }
+
+Stmt::child_iterator ObjCAtTryStmt::child_end() {
+  return getStmts() + 1 + NumCatchStmts + HasFinally;
 }
 
 // ObjCAtThrowStmt

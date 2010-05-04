@@ -35,6 +35,7 @@
 #include "llvm/LLVMContext.h"
 #include "llvm/ADT/Triple.h"
 #include "llvm/Target/TargetData.h"
+#include "llvm/Support/CallSite.h"
 #include "llvm/Support/ErrorHandling.h"
 using namespace clang;
 using namespace CodeGen;
@@ -47,7 +48,9 @@ CodeGenModule::CodeGenModule(ASTContext &C, const CodeGenOptions &CGO,
     Features(C.getLangOptions()), CodeGenOpts(CGO), TheModule(M),
     TheTargetData(TD), TheTargetCodeGenInfo(0), Diags(diags),
     Types(C, M, TD, getTargetCodeGenInfo().getABIInfo()),
-    MangleCtx(C), VTables(*this), Runtime(0), CFConstantStringClassRef(0),
+    MangleCtx(C, diags), VTables(*this), Runtime(0),
+    CFConstantStringClassRef(0),
+    NSConstantStringClassRef(0),
     VMContext(M.getContext()) {
 
   if (!Features.ObjC1)
@@ -78,7 +81,6 @@ void CodeGenModule::createObjCRuntime() {
 }
 
 void CodeGenModule::Release() {
-  EmitFundamentalRTTIDescriptors();
   EmitDeferred();
   EmitCXXGlobalInitFunc();
   EmitCXXGlobalDtorFunc();
@@ -313,7 +315,18 @@ GetLinkageForFunction(ASTContext &Context, const FunctionDecl *FD,
   if (FD->getTemplateSpecializationKind() 
                                        == TSK_ExplicitInstantiationDeclaration)
     return CodeGenModule::GVA_C99Inline;
-  
+
+  // If this is a virtual method and its class has a key method in another
+  // translation unit, we know that this method will be present in that
+  // translation unit. In this translation unit we will use this method
+  // only for inlining and analysis. This is the semantics of c99 inline.
+  if (const CXXMethodDecl *MD = dyn_cast<CXXMethodDecl>(FD)) {
+    const CXXRecordDecl *RD = MD->getParent();
+    if (MD->isVirtual() &&
+	CodeGenVTables::isKeyFunctionInAnotherTU(Context, RD))
+      return CodeGenModule::GVA_C99Inline;
+  }  
+
   return CodeGenModule::GVA_CXXInline;
 }
 
@@ -491,11 +504,11 @@ void CodeGenModule::EmitDeferred() {
   // previously unused static decl may become used during the generation of code
   // for a static function, iterate until no  changes are made.
 
-  while (!DeferredDeclsToEmit.empty() || !DeferredVtables.empty()) {
-    if (!DeferredVtables.empty()) {
-      const CXXRecordDecl *RD = DeferredVtables.back();
-      DeferredVtables.pop_back();
-      getVTables().GenerateClassData(getVtableLinkage(RD), RD);
+  while (!DeferredDeclsToEmit.empty() || !DeferredVTables.empty()) {
+    if (!DeferredVTables.empty()) {
+      const CXXRecordDecl *RD = DeferredVTables.back();
+      DeferredVTables.pop_back();
+      getVTables().GenerateClassData(getVTableLinkage(RD), RD);
       continue;
     }
 
@@ -687,30 +700,30 @@ void CodeGenModule::EmitGlobal(GlobalDecl GD) {
 
   // Defer code generation when possible if this is a static definition, inline
   // function etc.  These we only want to emit if they are used.
-  if (MayDeferGeneration(Global)) {
-    // If the value has already been used, add it directly to the
-    // DeferredDeclsToEmit list.
-    MangleBuffer MangledName;
-    getMangledName(MangledName, GD);
-    if (GetGlobalValue(MangledName))
-      DeferredDeclsToEmit.push_back(GD);
-    else {
-      // Otherwise, remember that we saw a deferred decl with this name.  The
-      // first use of the mangled name will cause it to move into
-      // DeferredDeclsToEmit.
-      DeferredDecls[MangledName] = GD;
-    }
+  if (!MayDeferGeneration(Global)) {
+    // Emit the definition if it can't be deferred.
+    EmitGlobalDefinition(GD);
     return;
   }
-
-  // Otherwise emit the definition.
-  EmitGlobalDefinition(GD);
+  
+  // If the value has already been used, add it directly to the
+  // DeferredDeclsToEmit list.
+  MangleBuffer MangledName;
+  getMangledName(MangledName, GD);
+  if (GetGlobalValue(MangledName))
+    DeferredDeclsToEmit.push_back(GD);
+  else {
+    // Otherwise, remember that we saw a deferred decl with this name.  The
+    // first use of the mangled name will cause it to move into
+    // DeferredDeclsToEmit.
+    DeferredDecls[MangledName] = GD;
+  }
 }
 
 void CodeGenModule::EmitGlobalDefinition(GlobalDecl GD) {
   const ValueDecl *D = cast<ValueDecl>(GD.getDecl());
 
-  PrettyStackTraceDecl CrashInfo((ValueDecl *)D, D->getLocation(), 
+  PrettyStackTraceDecl CrashInfo(const_cast<ValueDecl *>(D), D->getLocation(), 
                                  Context.getSourceManager(),
                                  "Generating code for declaration");
   
@@ -718,16 +731,18 @@ void CodeGenModule::EmitGlobalDefinition(GlobalDecl GD) {
     getVTables().EmitVTableRelatedData(GD);
 
   if (const CXXConstructorDecl *CD = dyn_cast<CXXConstructorDecl>(D))
-    EmitCXXConstructor(CD, GD.getCtorType());
-  else if (const CXXDestructorDecl *DD = dyn_cast<CXXDestructorDecl>(D))
-    EmitCXXDestructor(DD, GD.getDtorType());
-  else if (isa<FunctionDecl>(D))
-    EmitGlobalFunctionDefinition(GD);
-  else if (const VarDecl *VD = dyn_cast<VarDecl>(D))
-    EmitGlobalVarDefinition(VD);
-  else {
-    assert(0 && "Invalid argument to EmitGlobalDefinition()");
-  }
+    return EmitCXXConstructor(CD, GD.getCtorType());
+  
+  if (const CXXDestructorDecl *DD = dyn_cast<CXXDestructorDecl>(D))
+    return EmitCXXDestructor(DD, GD.getDtorType());
+
+  if (isa<FunctionDecl>(D))
+    return EmitGlobalFunctionDefinition(GD);
+  
+  if (const VarDecl *VD = dyn_cast<VarDecl>(D))
+    return EmitGlobalVarDefinition(VD);
+  
+  assert(0 && "Invalid argument to EmitGlobalDefinition()");
 }
 
 /// GetOrCreateLLVMFunction - If the specified mangled name is not in the
@@ -764,12 +779,16 @@ CodeGenModule::GetOrCreateLLVMFunction(llvm::StringRef MangledName,
   // type is an incomplete struct). Use a fake type instead, and make
   // sure not to try to set attributes.
   bool IsIncompleteFunction = false;
-  if (!isa<llvm::FunctionType>(Ty)) {
-    Ty = llvm::FunctionType::get(llvm::Type::getVoidTy(VMContext),
-                                 std::vector<const llvm::Type*>(), false);
+
+  const llvm::FunctionType *FTy;
+  if (isa<llvm::FunctionType>(Ty)) {
+    FTy = cast<llvm::FunctionType>(Ty);
+  } else {
+    FTy = llvm::FunctionType::get(llvm::Type::getVoidTy(VMContext),
+                                  std::vector<const llvm::Type*>(), false);
     IsIncompleteFunction = true;
   }
-  llvm::Function *F = llvm::Function::Create(cast<llvm::FunctionType>(Ty),
+  llvm::Function *F = llvm::Function::Create(FTy,
                                              llvm::Function::ExternalLinkage,
                                              MangledName, &getModule());
   assert(F->getName() == MangledName && "name was uniqued!");
@@ -811,7 +830,14 @@ CodeGenModule::GetOrCreateLLVMFunction(llvm::StringRef MangledName,
     }
   }
 
-  return F;
+  // Make sure the result is of the requested type.
+  if (!IsIncompleteFunction) {
+    assert(F->getType()->getElementType() == Ty);
+    return F;
+  }
+
+  const llvm::Type *PTy = llvm::PointerType::getUnqual(Ty);
+  return llvm::ConstantExpr::getBitCast(F, PTy);
 }
 
 /// GetAddrOfFunction - Return the address of the given function.  If Ty is
@@ -959,7 +985,7 @@ void CodeGenModule::EmitTentativeDefinition(const VarDecl *D) {
 }
 
 llvm::GlobalVariable::LinkageTypes 
-CodeGenModule::getVtableLinkage(const CXXRecordDecl *RD) {
+CodeGenModule::getVTableLinkage(const CXXRecordDecl *RD) {
   if (RD->isInAnonymousNamespace() || !RD->hasLinkage())
     return llvm::GlobalVariable::InternalLinkage;
 
@@ -1204,9 +1230,10 @@ static void ReplaceUsesOfNonProtoTypeWithRealFunction(llvm::GlobalValue *Old,
   for (llvm::Value::use_iterator UI = OldFn->use_begin(), E = OldFn->use_end();
        UI != E; ) {
     // TODO: Do invokes ever occur in C code?  If so, we should handle them too.
-    unsigned OpNo = UI.getOperandNo();
-    llvm::CallInst *CI = dyn_cast<llvm::CallInst>(*UI++);
-    if (!CI || OpNo != 0) continue;
+    llvm::Value::use_iterator I = UI++; // Increment before the CI is erased.
+    llvm::CallInst *CI = dyn_cast<llvm::CallInst>(*I);
+    llvm::CallSite CS(CI);
+    if (!CI || !CS.isCallee(I)) continue;
 
     // If the return types don't match exactly, and if the call isn't dead, then
     // we can't transform this call.
@@ -1220,8 +1247,8 @@ static void ReplaceUsesOfNonProtoTypeWithRealFunction(llvm::GlobalValue *Old,
     bool DontTransform = false;
     for (llvm::Function::arg_iterator AI = NewFn->arg_begin(),
          E = NewFn->arg_end(); AI != E; ++AI, ++ArgNo) {
-      if (CI->getNumOperands()-1 == ArgNo ||
-          CI->getOperand(ArgNo+1)->getType() != AI->getType()) {
+      if (CS.arg_size() == ArgNo ||
+          CS.getArgument(ArgNo)->getType() != AI->getType()) {
         DontTransform = true;
         break;
       }
@@ -1231,7 +1258,7 @@ static void ReplaceUsesOfNonProtoTypeWithRealFunction(llvm::GlobalValue *Old,
 
     // Okay, we can transform this.  Create the new call instruction and copy
     // over the required information.
-    ArgList.append(CI->op_begin()+1, CI->op_begin()+1+ArgNo);
+    ArgList.append(CS.arg_begin(), CS.arg_begin() + ArgNo);
     llvm::CallInst *NewCall = llvm::CallInst::Create(NewFn, ArgList.begin(),
                                                      ArgList.end(), "", CI);
     ArgList.clear();
@@ -1578,6 +1605,90 @@ CodeGenModule::GetAddrOfConstantCFString(const StringLiteral *Literal) {
   return GV;
 }
 
+llvm::Constant *
+CodeGenModule::GetAddrOfConstantNSString(const StringLiteral *Literal) {
+  unsigned StringLength = 0;
+  bool isUTF16 = false;
+  llvm::StringMapEntry<llvm::Constant*> &Entry =
+    GetConstantCFStringEntry(CFConstantStringMap, Literal,
+                             getTargetData().isLittleEndian(),
+                             isUTF16, StringLength);
+  
+  if (llvm::Constant *C = Entry.getValue())
+    return C;
+  
+  llvm::Constant *Zero =
+  llvm::Constant::getNullValue(llvm::Type::getInt32Ty(VMContext));
+  llvm::Constant *Zeros[] = { Zero, Zero };
+  
+  // If we don't already have it, get _NSConstantStringClassReference.
+  if (!NSConstantStringClassRef) {
+    const llvm::Type *Ty = getTypes().ConvertType(getContext().IntTy);
+    Ty = llvm::ArrayType::get(Ty, 0);
+    llvm::Constant *GV = CreateRuntimeVariable(Ty, 
+                                        Features.ObjCNonFragileABI ?
+                                        "OBJC_CLASS_$_NSConstantString" :
+                                        "_NSConstantStringClassReference");
+    // Decay array -> ptr
+    NSConstantStringClassRef = 
+      llvm::ConstantExpr::getGetElementPtr(GV, Zeros, 2);
+  }
+  
+  QualType NSTy = getContext().getNSConstantStringType();
+  
+  const llvm::StructType *STy =
+  cast<llvm::StructType>(getTypes().ConvertType(NSTy));
+  
+  std::vector<llvm::Constant*> Fields(3);
+  
+  // Class pointer.
+  Fields[0] = NSConstantStringClassRef;
+  
+  // String pointer.
+  llvm::Constant *C = llvm::ConstantArray::get(VMContext, Entry.getKey().str());
+  
+  llvm::GlobalValue::LinkageTypes Linkage;
+  bool isConstant;
+  if (isUTF16) {
+    // FIXME: why do utf strings get "_" labels instead of "L" labels?
+    Linkage = llvm::GlobalValue::InternalLinkage;
+    // Note: -fwritable-strings doesn't make unicode NSStrings writable, but
+    // does make plain ascii ones writable.
+    isConstant = true;
+  } else {
+    Linkage = llvm::GlobalValue::PrivateLinkage;
+    isConstant = !Features.WritableStrings;
+  }
+  
+  llvm::GlobalVariable *GV =
+  new llvm::GlobalVariable(getModule(), C->getType(), isConstant, Linkage, C,
+                           ".str");
+  if (isUTF16) {
+    CharUnits Align = getContext().getTypeAlignInChars(getContext().ShortTy);
+    GV->setAlignment(Align.getQuantity());
+  }
+  Fields[1] = llvm::ConstantExpr::getGetElementPtr(GV, Zeros, 2);
+  
+  // String length.
+  const llvm::Type *Ty = getTypes().ConvertType(getContext().UnsignedIntTy);
+  Fields[2] = llvm::ConstantInt::get(Ty, StringLength);
+  
+  // The struct.
+  C = llvm::ConstantStruct::get(STy, Fields);
+  GV = new llvm::GlobalVariable(getModule(), C->getType(), true,
+                                llvm::GlobalVariable::PrivateLinkage, C,
+                                "_unnamed_nsstring_");
+  // FIXME. Fix section.
+  if (const char *Sect = 
+        Features.ObjCNonFragileABI 
+          ? getContext().Target.getNSStringNonFragileABISection() 
+          : getContext().Target.getNSStringSection())
+    GV->setSection(Sect);
+  Entry.setValue(GV);
+  
+  return GV;
+}
+
 /// GetStringForStringLiteral - Return the appropriate bytes for a
 /// string literal, properly padded to match the literal type.
 std::string CodeGenModule::GetStringForStringLiteral(const StringLiteral *E) {
@@ -1709,6 +1820,39 @@ void CodeGenModule::EmitObjCPropertyImplementations(const
   }
 }
 
+/// EmitObjCIvarInitializations - Emit information for ivar initialization
+/// for an implementation.
+void CodeGenModule::EmitObjCIvarInitializations(ObjCImplementationDecl *D) {
+  if (!Features.NeXTRuntime || D->getNumIvarInitializers() == 0)
+    return;
+  DeclContext* DC = const_cast<DeclContext*>(dyn_cast<DeclContext>(D));
+  assert(DC && "EmitObjCIvarInitializations - null DeclContext");
+  IdentifierInfo *II = &getContext().Idents.get(".cxx_destruct");
+  Selector cxxSelector = getContext().Selectors.getSelector(0, &II);
+  ObjCMethodDecl *DTORMethod = ObjCMethodDecl::Create(getContext(), 
+                                                  D->getLocation(),
+                                                  D->getLocation(), cxxSelector,
+                                                  getContext().VoidTy, 0, 
+                                                  DC, true, false, true,
+                                                  ObjCMethodDecl::Required);
+  D->addInstanceMethod(DTORMethod);
+  CodeGenFunction(*this).GenerateObjCCtorDtorMethod(D, DTORMethod, false);
+  
+  II = &getContext().Idents.get(".cxx_construct");
+  cxxSelector = getContext().Selectors.getSelector(0, &II);
+  // The constructor returns 'self'.
+  ObjCMethodDecl *CTORMethod = ObjCMethodDecl::Create(getContext(), 
+                                                D->getLocation(),
+                                                D->getLocation(), cxxSelector,
+                                                getContext().getObjCIdType(), 0, 
+                                                DC, true, false, true,
+                                                ObjCMethodDecl::Required);
+  D->addInstanceMethod(CTORMethod);
+  CodeGenFunction(*this).GenerateObjCCtorDtorMethod(D, CTORMethod, true);
+  
+
+}
+
 /// EmitNamespace - Emit all declarations in a namespace.
 void CodeGenModule::EmitNamespace(const NamespaceDecl *ND) {
   for (RecordDecl::decl_iterator I = ND->decls_begin(), E = ND->decls_end();
@@ -1805,6 +1949,7 @@ void CodeGenModule::EmitTopLevelDecl(Decl *D) {
   case Decl::ObjCImplementation: {
     ObjCImplementationDecl *OMD = cast<ObjCImplementationDecl>(D);
     EmitObjCPropertyImplementations(OMD);
+    EmitObjCIvarInitializations(OMD);
     Runtime->GenerateClass(OMD);
     break;
   }

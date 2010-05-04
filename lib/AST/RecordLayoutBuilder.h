@@ -26,7 +26,7 @@ namespace clang {
   class RecordDecl;
 
 class ASTRecordLayoutBuilder {
-  ASTContext &Ctx;
+  ASTContext &Context;
 
   /// Size - The current size of the record layout.
   uint64_t Size;
@@ -91,6 +91,7 @@ class ASTRecordLayoutBuilder {
 
   void LayoutFields(const RecordDecl *D);
   void LayoutField(const FieldDecl *D);
+  void LayoutWideBitField(uint64_t FieldSize, uint64_t TypeSize);
   void LayoutBitField(const FieldDecl *D);
 
   /// DeterminePrimaryBase - Determine the primary base of the given class.
@@ -112,8 +113,11 @@ class ASTRecordLayoutBuilder {
   /// LayoutNonVirtualBase - Lays out a single non-virtual base.
   void LayoutNonVirtualBase(const CXXRecordDecl *RD);
 
+  void AddPrimaryVirtualBaseOffsets(const CXXRecordDecl *RD, uint64_t Offset,
+                                    const CXXRecordDecl *MostDerivedClass);
+
   /// LayoutVirtualBases - Lays out all the virtual bases.
-  void LayoutVirtualBases(const CXXRecordDecl *RD, uint64_t Offset,
+  void LayoutVirtualBases(const CXXRecordDecl *RD,
                           const CXXRecordDecl *MostDerivedClass);
 
   /// LayoutVirtualBase - Lays out a single virtual base.

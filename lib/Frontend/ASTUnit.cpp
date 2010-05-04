@@ -265,8 +265,16 @@ public:
   TopLevelDeclTrackerConsumer(ASTUnit &_Unit) : Unit(_Unit) {}
 
   void HandleTopLevelDecl(DeclGroupRef D) {
-    for (DeclGroupRef::iterator it = D.begin(), ie = D.end(); it != ie; ++it)
-      Unit.getTopLevelDecls().push_back(*it);
+    for (DeclGroupRef::iterator it = D.begin(), ie = D.end(); it != ie; ++it) {
+      Decl *D = *it;
+      // FIXME: Currently ObjC method declarations are incorrectly being
+      // reported as top-level declarations, even though their DeclContext
+      // is the containing ObjC @interface/@implementation.  This is a
+      // fundamental problem in the parser right now.
+      if (isa<ObjCMethodDecl>(D))
+        continue;
+      Unit.getTopLevelDecls().push_back(D);
+    }
   }
 };
 
@@ -431,8 +439,10 @@ ASTUnit *ASTUnit::LoadFromCommandLine(const char **ArgBegin,
 
   const driver::ArgStringList &CCArgs = Cmd->getArguments();
   llvm::OwningPtr<CompilerInvocation> CI(new CompilerInvocation);
-  CompilerInvocation::CreateFromArgs(*CI, (const char**) CCArgs.data(),
-                                     (const char**) CCArgs.data()+CCArgs.size(),
+  CompilerInvocation::CreateFromArgs(*CI,
+                                     const_cast<const char **>(CCArgs.data()),
+                                     const_cast<const char **>(CCArgs.data()) +
+                                       CCArgs.size(),
                                      *Diags);
 
   // Override any files that need remapping

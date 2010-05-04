@@ -118,7 +118,7 @@ static bool isFunctionOrMethodVariadic(const Decl *d) {
     const FunctionProtoType *proto = cast<FunctionProtoType>(FnTy);
     return proto->isVariadic();
   } else if (const BlockDecl *BD = dyn_cast<BlockDecl>(d))
-    return BD->IsVariadic();
+    return BD->isVariadic();
   else {
     return cast<ObjCMethodDecl>(d)->isVariadic();
   }
@@ -490,16 +490,9 @@ static bool HandleCommonNoReturnAttr(Decl *d, const AttributeList &Attr,
 }
 
 static void HandleNoReturnAttr(Decl *d, const AttributeList &Attr, Sema &S) {
-  // NOTE: We don't add the attribute to a FunctionDecl because the noreturn
-  //  trait will be part of the function's type.
-
-  // Don't apply as a decl attribute to ValueDecl.
-  // FIXME: probably ought to diagnose this.
-  if (isa<ValueDecl>(d))
-    return;
-
-  if (HandleCommonNoReturnAttr(d, Attr, S))
-    d->addAttr(::new (S.Context) NoReturnAttr());
+  /* Diagnostics (if any) was emitted by Sema::ProcessFnAttr(). */
+  assert(Attr.isInvalid() == false);
+  d->addAttr(::new (S.Context) NoReturnAttr());
 }
 
 static void HandleAnalyzerNoReturnAttr(Decl *d, const AttributeList &Attr,
@@ -900,9 +893,12 @@ static void HandleWeakImportAttr(Decl *D, const AttributeList &Attr, Sema &S) {
     // We ignore weak import on properties and methods
     return;
   } else if (!(S.LangOpts.ObjCNonFragileABI && isa<ObjCInterfaceDecl>(D))) {
-    S.Diag(Attr.getLoc(), diag::warn_attribute_wrong_decl_type)
-    << Attr.getName() << 2 /*variable and function*/;
-    return;
+    // Don't issue the warning for darwin as target; yet, ignore the attribute.
+    if (S.Context.Target.getTriple().getOS() != llvm::Triple::Darwin ||
+        !isa<ObjCInterfaceDecl>(D)) 
+      S.Diag(Attr.getLoc(), diag::warn_attribute_wrong_decl_type)
+        << Attr.getName() << 2 /*variable and function*/;
+      return;
   }
 
   // Merge should handle any subsequent violations.
@@ -1022,8 +1018,11 @@ static void HandleCleanupAttr(Decl *d, const AttributeList &Attr, Sema &S) {
   }
 
   // Look up the function
+  // FIXME: Lookup probably isn't looking in the right place
+  // FIXME: The lookup source location should be in the attribute, not the
+  // start of the attribute.
   NamedDecl *CleanupDecl
-    = S.LookupSingleName(S.TUScope, Attr.getParameterName(),
+    = S.LookupSingleName(S.TUScope, Attr.getParameterName(), Attr.getLoc(),
                          Sema::LookupOrdinaryName);
   if (!CleanupDecl) {
     S.Diag(Attr.getLoc(), diag::err_attribute_cleanup_arg_not_found) <<
@@ -1643,6 +1642,27 @@ static void HandleGNUInlineAttr(Decl *d, const AttributeList &Attr, Sema &S) {
   d->addAttr(::new (S.Context) GNUInlineAttr());
 }
 
+static void HandleCallConvAttr(Decl *d, const AttributeList &Attr, Sema &S) {
+  // Diagnostic is emitted elsewhere: here we store the (valid) Attr
+  // in the Decl node for syntactic reasoning, e.g., pretty-printing.
+  assert(Attr.isInvalid() == false);
+
+  switch (Attr.getKind()) {
+  case AttributeList::AT_fastcall:
+    d->addAttr(::new (S.Context) FastCallAttr());
+    return;
+  case AttributeList::AT_stdcall:
+    d->addAttr(::new (S.Context) StdCallAttr());
+    return;
+  case AttributeList::AT_cdecl:
+    d->addAttr(::new (S.Context) CDeclAttr());
+    return;
+  default:
+    llvm_unreachable("unexpected attribute kind");
+    return;
+  }
+}
+
 static void HandleRegparmAttr(Decl *d, const AttributeList &Attr, Sema &S) {
   // check the attribute arguments.
   if (Attr.getNumArgs() != 1) {
@@ -1843,6 +1863,9 @@ static bool isKnownDeclSpecAttr(const AttributeList &Attr) {
 /// the wrong thing is illegal (C++0x [dcl.attr.grammar]/4).
 static void ProcessDeclAttribute(Scope *scope, Decl *D,
                                  const AttributeList &Attr, Sema &S) {
+  if (Attr.isInvalid())
+    return;
+
   if (Attr.isDeclspecAttribute() && !isKnownDeclSpecAttr(Attr))
     // FIXME: Try to deal with other __declspec attributes!
     return;
@@ -1927,7 +1950,7 @@ static void ProcessDeclAttribute(Scope *scope, Decl *D,
   case AttributeList::AT_stdcall:
   case AttributeList::AT_cdecl:
   case AttributeList::AT_fastcall:
-    // These are all treated as type attributes.
+    HandleCallConvAttr(D, Attr, S);
     break;
   default:
     // Ask target about the attribute.
@@ -1972,7 +1995,8 @@ NamedDecl * Sema::DeclClonePragmaWeak(NamedDecl *ND, IdentifierInfo *II) {
     NewD = VarDecl::Create(VD->getASTContext(), VD->getDeclContext(),
                            VD->getLocation(), II,
                            VD->getType(), VD->getTypeSourceInfo(),
-                           VD->getStorageClass());
+                           VD->getStorageClass(),
+                           VD->getStorageClassAsWritten());
     if (VD->getQualifier()) {
       VarDecl *NewVD = cast<VarDecl>(NewD);
       NewVD->setQualifierInfo(VD->getQualifier(), VD->getQualifierRange());

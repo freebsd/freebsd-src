@@ -20,10 +20,10 @@ using namespace clang;
 
 // TargetInfo Constructor.
 TargetInfo::TargetInfo(const std::string &T) : Triple(T) {
-  // Set defaults.  Defaults are set for a 32-bit RISC platform,
-  // like PPC or SPARC.
-  // These should be overridden by concrete targets as needed.
+  // Set defaults.  Defaults are set for a 32-bit RISC platform, like PPC or
+  // SPARC.  These should be overridden by concrete targets as needed.
   TLSSupported = true;
+  NoAsmVariants = false;
   PointerWidth = PointerAlign = 32;
   IntWidth = IntAlign = 32;
   LongWidth = LongAlign = 32;
@@ -45,6 +45,7 @@ TargetInfo::TargetInfo(const std::string &T) : Triple(T) {
   Char32Type = UnsignedInt;
   Int64Type = SignedLongLong;
   SigAtomicType = SignedInt;
+  UseBitFieldTypeAlignment = true;
   FloatFormat = &llvm::APFloat::IEEEsingle;
   DoubleFormat = &llvm::APFloat::IEEEdouble;
   LongDoubleFormat = &llvm::APFloat::IEEEdouble;
@@ -142,9 +143,10 @@ bool TargetInfo::isTypeSigned(IntType T) const {
 /// Apply changes to the target information with respect to certain
 /// language options which change the target configuration.
 void TargetInfo::setForcedLangOptions(LangOptions &Opts) {
-  if (Opts.ShortWChar) {
+  if (Opts.NoBitFieldTypeAlign)
+    UseBitFieldTypeAlignment = false;
+  if (Opts.ShortWChar)
     WCharType = UnsignedShort;
-  }
 }
 
 //===----------------------------------------------------------------------===//

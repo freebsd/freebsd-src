@@ -205,7 +205,7 @@ public:
   /// \returns the type referred to by this identifier, or NULL if the type
   /// does not name an identifier.
   virtual TypeTy *getTypeName(IdentifierInfo &II, SourceLocation NameLoc,
-                              Scope *S, const CXXScopeSpec *SS = 0,
+                              Scope *S, CXXScopeSpec *SS = 0,
                               bool isClassName = false,
                               TypeTy *ObjectType = 0) = 0;
 
@@ -243,7 +243,7 @@ public:
   virtual bool DiagnoseUnknownTypeName(const IdentifierInfo &II, 
                                        SourceLocation IILoc,
                                        Scope *S,
-                                       const CXXScopeSpec *SS,
+                                       CXXScopeSpec *SS,
                                        TypeTy *&SuggestedType) {
     return false;
   }
@@ -281,7 +281,7 @@ public:
   ///
   /// \returns the kind of template that this name refers to.
   virtual TemplateNameKind isTemplateName(Scope *S,
-                                          const CXXScopeSpec &SS,
+                                          CXXScopeSpec &SS,
                                           UnqualifiedId &Name,
                                           TypeTy *ObjectType,
                                           bool EnteringContext,
@@ -329,7 +329,7 @@ public:
   /// This actual is used in the parsing of pseudo-destructor names to 
   /// distinguish a nested-name-specifier and a "type-name ::" when we
   /// see the token sequence "X :: ~".
-  virtual bool isNonTypeNestedNameSpecifier(Scope *S, const CXXScopeSpec &SS,
+  virtual bool isNonTypeNestedNameSpecifier(Scope *S, CXXScopeSpec &SS,
                                             SourceLocation IdLoc,
                                             IdentifierInfo &II,
                                             TypeTy *ObjectType) {
@@ -371,7 +371,7 @@ public:
   ///
   /// \returns a CXXScopeTy* object representing the C++ scope.
   virtual CXXScopeTy *ActOnCXXNestedNameSpecifier(Scope *S,
-                                                  const CXXScopeSpec &SS,
+                                                  CXXScopeSpec &SS,
                                                   SourceLocation IdLoc,
                                                   SourceLocation CCLoc,
                                                   IdentifierInfo &II,
@@ -387,7 +387,7 @@ public:
   ///
   /// The arguments are the same as those passed to ActOnCXXNestedNameSpecifier.
   virtual bool IsInvalidUnlessNestedName(Scope *S,
-                                         const CXXScopeSpec &SS,
+                                         CXXScopeSpec &SS,
                                          IdentifierInfo &II,
                                          TypeTy *ObjectType,
                                          bool EnteringContext) {
@@ -428,7 +428,7 @@ public:
   /// ActOnCXXExitDeclaratorScope is called.
   /// The 'SS' should be a non-empty valid CXXScopeSpec.
   /// \returns true if an error occurred, false otherwise.
-  virtual bool ActOnCXXEnterDeclaratorScope(Scope *S, const CXXScopeSpec &SS) {
+  virtual bool ActOnCXXEnterDeclaratorScope(Scope *S, CXXScopeSpec &SS) {
     return false;
   }
 
@@ -468,7 +468,11 @@ public:
   virtual DeclPtrTy ActOnParamDeclarator(Scope *S, Declarator &D) {
     return DeclPtrTy();
   }
-  virtual void ActOnObjCCatchParam(DeclPtrTy D) {
+
+  /// \brief Parsed an exception object declaration within an Objective-C
+  /// @catch statement.
+  virtual DeclPtrTy ActOnObjCExceptionDecl(Scope *S, Declarator &D) {
+    return DeclPtrTy();
   }
 
   /// AddInitializerToDecl - This action is called immediately after
@@ -576,8 +580,7 @@ public:
   virtual DeclPtrTy ActOnStartLinkageSpecification(Scope *S,
                                                    SourceLocation ExternLoc,
                                                    SourceLocation LangLoc,
-                                                   const char *Lang,
-                                                   unsigned StrSize,
+                                                   llvm::StringRef Lang,
                                                    SourceLocation LBraceLoc) {
     return DeclPtrTy();
   }
@@ -655,7 +658,7 @@ public:
   ///
   /// \returns the declaration to which this tag refers.
   virtual DeclPtrTy ActOnTag(Scope *S, unsigned TagSpec, TagUseKind TUK,
-                             SourceLocation KWLoc, const CXXScopeSpec &SS,
+                             SourceLocation KWLoc, CXXScopeSpec &SS,
                              IdentifierInfo *Name, SourceLocation NameLoc,
                              AttributeList *Attr, AccessSpecifier AS,
                              MultiTemplateParamsArg TemplateParameterLists,
@@ -938,20 +941,46 @@ public:
   }
 
   // Objective-c statements
+  
+  /// \brief Parsed an Objective-C @catch statement.
+  ///
+  /// \param AtLoc The location of the '@' starting the '@catch'.
+  ///
+  /// \param RParen The location of the right parentheses ')' after the
+  /// exception variable.
+  ///
+  /// \param Parm The variable that will catch the exception. Will be NULL if 
+  /// this is a @catch(...) block.
+  ///
+  /// \param Body The body of the @catch block.
   virtual OwningStmtResult ActOnObjCAtCatchStmt(SourceLocation AtLoc,
                                                 SourceLocation RParen,
-                                                DeclPtrTy Parm, StmtArg Body,
-                                                StmtArg CatchList) {
+                                                DeclPtrTy Parm, StmtArg Body) {
     return StmtEmpty();
   }
 
+  /// \brief Parsed an Objective-C @finally statement.
+  ///
+  /// \param AtLoc The location of the '@' starting the '@finally'.
+  ///
+  /// \param Body The body of the @finally block.
   virtual OwningStmtResult ActOnObjCAtFinallyStmt(SourceLocation AtLoc,
                                                   StmtArg Body) {
     return StmtEmpty();
   }
 
+  /// \brief Parsed an Objective-C @try-@catch-@finally statement.
+  ///
+  /// \param AtLoc The location of the '@' starting '@try'.
+  ///
+  /// \param Try The body of the '@try' statement.
+  ///
+  /// \param CatchStmts The @catch statements.
+  ///
+  /// \param Finally The @finally statement.
   virtual OwningStmtResult ActOnObjCAtTryStmt(SourceLocation AtLoc,
-                                              StmtArg Try, StmtArg Catch,
+                                              StmtArg Try, 
+                                              MultiStmtArg CatchStmts,
                                               StmtArg Finally) {
     return StmtEmpty();
   }
@@ -1049,7 +1078,7 @@ public:
   /// id-expression or identifier was an ampersand ('&'), indicating that 
   /// we will be taking the address of this expression.
   virtual OwningExprResult ActOnIdExpression(Scope *S,
-                                             const CXXScopeSpec &SS,
+                                             CXXScopeSpec &SS,
                                              UnqualifiedId &Name,
                                              bool HasTrailingLParen,
                                              bool IsAddressOfOperand) {
@@ -1127,7 +1156,7 @@ public:
   virtual OwningExprResult ActOnMemberAccessExpr(Scope *S, ExprArg Base,
                                                  SourceLocation OpLoc,
                                                  tok::TokenKind OpKind,
-                                                 const CXXScopeSpec &SS,
+                                                 CXXScopeSpec &SS,
                                                  UnqualifiedId &Member,
                                                  DeclPtrTy ObjCImpDecl,
                                                  bool HasTrailingLParen) {
@@ -1315,7 +1344,7 @@ public:
   virtual DeclPtrTy ActOnUsingDirective(Scope *CurScope,
                                         SourceLocation UsingLoc,
                                         SourceLocation NamespcLoc,
-                                        const CXXScopeSpec &SS,
+                                        CXXScopeSpec &SS,
                                         SourceLocation IdentLoc,
                                         IdentifierInfo *NamespcName,
                                         AttributeList *AttrList);
@@ -1326,7 +1355,7 @@ public:
                                            SourceLocation NamespaceLoc,
                                            SourceLocation AliasLoc,
                                            IdentifierInfo *Alias,
-                                           const CXXScopeSpec &SS,
+                                           CXXScopeSpec &SS,
                                            SourceLocation IdentLoc,
                                            IdentifierInfo *Ident) {
     return DeclPtrTy();
@@ -1372,7 +1401,7 @@ public:
                                           AccessSpecifier AS,
                                           bool HasUsingKeyword,
                                           SourceLocation UsingLoc,
-                                          const CXXScopeSpec &SS,
+                                          CXXScopeSpec &SS,
                                           UnqualifiedId &Name,
                                           AttributeList *AttrList,
                                           bool IsTypeName,
@@ -1501,7 +1530,7 @@ public:
   /// \returns the type being destructed.
   virtual TypeTy *getDestructorName(SourceLocation TildeLoc,
                                     IdentifierInfo &II, SourceLocation NameLoc,
-                                    Scope *S, const CXXScopeSpec &SS,
+                                    Scope *S, CXXScopeSpec &SS,
                                     TypeTy *ObjectType,
                                     bool EnteringContext) {
     return getTypeName(II, NameLoc, S, &SS, false, ObjectType);
@@ -1683,7 +1712,7 @@ public:
   virtual OwningExprResult ActOnPseudoDestructorExpr(Scope *S, ExprArg Base,
                                                      SourceLocation OpLoc,
                                                      tok::TokenKind OpKind,
-                                                     const CXXScopeSpec &SS,
+                                                     CXXScopeSpec &SS,
                                                   UnqualifiedId &FirstTypeName,
                                                      SourceLocation CCLoc,
                                                      SourceLocation TildeLoc,
@@ -1729,7 +1758,7 @@ public:
 
   virtual MemInitResult ActOnMemInitializer(DeclPtrTy ConstructorDecl,
                                             Scope *S,
-                                            const CXXScopeSpec &SS,
+                                            CXXScopeSpec &SS,
                                             IdentifierInfo *MemberOrBase,
                                             TypeTy *TemplateTypeTy,
                                             SourceLocation IdLoc,
@@ -1939,7 +1968,7 @@ public:
   /// \param EnteringContext whether we are entering the context of this
   /// template.
   virtual TemplateTy ActOnDependentTemplateName(SourceLocation TemplateKWLoc,
-                                                const CXXScopeSpec &SS,
+                                                CXXScopeSpec &SS,
                                                 UnqualifiedId &Name,
                                                 TypeTy *ObjectType,
                                                 bool EnteringContext) {
@@ -1995,7 +2024,7 @@ public:
   virtual DeclResult
   ActOnClassTemplateSpecialization(Scope *S, unsigned TagSpec, TagUseKind TUK,
                                    SourceLocation KWLoc,
-                                   const CXXScopeSpec &SS,
+                                   CXXScopeSpec &SS,
                                    TemplateTy Template,
                                    SourceLocation TemplateNameLoc,
                                    SourceLocation LAngleLoc,
@@ -2133,7 +2162,7 @@ public:
                              SourceLocation TemplateLoc,
                              unsigned TagSpec,
                              SourceLocation KWLoc,
-                             const CXXScopeSpec &SS,
+                             CXXScopeSpec &SS,
                              IdentifierInfo *Name,
                              SourceLocation NameLoc,
                              AttributeList *Attr) {
@@ -2306,7 +2335,7 @@ public:
     TypeTy *ReturnType,        // the method return type.
     Selector Sel,              // a unique name for the method.
     ObjCArgInfo *ArgInfo,      // ArgInfo: Has 'Sel.getNumArgs()' entries.
-    llvm::SmallVectorImpl<Declarator> &Cdecls, // c-style args
+    DeclaratorChunk::ParamInfo *CParamInfo, unsigned CNumArgs, // c-style args
     AttributeList *MethodAttrList, // optional
     // tok::objc_not_keyword, tok::objc_optional, tok::objc_required
     tok::ObjCKeywordKind impKind,
@@ -2336,36 +2365,118 @@ public:
     return DeclPtrTy();
   }
 
-  virtual OwningExprResult ActOnClassPropertyRefExpr(
-    IdentifierInfo &receiverName,
-    IdentifierInfo &propertyName,
-    SourceLocation &receiverNameLoc,
-    SourceLocation &propertyNameLoc) {
+  virtual OwningExprResult
+  ActOnClassPropertyRefExpr(IdentifierInfo &receiverName,
+                            IdentifierInfo &propertyName,
+                            SourceLocation receiverNameLoc,
+                            SourceLocation propertyNameLoc) {
     return ExprEmpty();
   }
 
-  // ActOnClassMessage - used for both unary and keyword messages.
-  // ArgExprs is optional - if it is present, the number of expressions
-  // is obtained from NumArgs.
-  virtual ExprResult ActOnClassMessage(
-    Scope *S,
-    IdentifierInfo *receivingClassName,
-    Selector Sel,
-    SourceLocation lbrac, SourceLocation receiverLoc,
-    SourceLocation selectorLoc,
-    SourceLocation rbrac,
-    ExprTy **ArgExprs, unsigned NumArgs) {
-    return ExprResult();
+  /// \brief Describes the kind of message expression indicated by a message
+  /// send that starts with an identifier.
+  enum ObjCMessageKind {
+    /// \brief The message is sent to 'super'.
+    ObjCSuperMessage,
+    /// \brief The message is an instance message.
+    ObjCInstanceMessage,
+    /// \brief The message is a class message, and the identifier is a type
+    /// name.
+    ObjCClassMessage
+  };
+  
+  /// \brief Determine the kind of Objective-C message send that we will be
+  /// performing based on the identifier given.
+  ///
+  /// This action determines how a message send that starts with [
+  /// identifier (followed by another identifier) will be parsed,
+  /// e.g., as a class message, instance message, super message. The
+  /// result depends on the meaning of the given identifier. If the
+  /// identifier is unknown, the action should indicate that the
+  /// message is an instance message.
+  ///
+  /// By default, this routine applies syntactic disambiguation and uses
+  /// \c getTypeName() to determine whether the identifier refers to a type.
+  /// However, \c Action subclasses may override this routine to improve
+  /// error recovery.
+  ///
+  /// \param S The scope in which the message send occurs.
+  ///
+  /// \param Name The identifier following the '['. 
+  ///
+  /// \param NameLoc The location of the identifier.
+  ///
+  /// \param IsSuper Whether the name is the pseudo-keyword "super".
+  ///
+  /// \param HasTrailingDot Whether the name is followed by a period.
+  /// 
+  /// \param ReceiverType If this routine returns \c ObjCClassMessage,
+  /// this argument will be set to the receiver type.
+  ///
+  /// \returns The kind of message send.
+  virtual ObjCMessageKind getObjCMessageKind(Scope *S,
+                                             IdentifierInfo *Name,
+                                             SourceLocation NameLoc,
+                                             bool IsSuper,
+                                             bool HasTrailingDot,
+                                             TypeTy *&ReceiverType);
+
+  /// \brief Parsed a message send to 'super'.
+  ///
+  /// \param S The scope in which the message send occurs.
+  /// \param SuperLoc The location of the 'super' keyword.
+  /// \param Sel The selector to which the message is being sent.
+  /// \param LBracLoc The location of the opening square bracket ']'.
+  /// \param SelectorLoc The location of the first identifier in the selector.
+  /// \param RBrac The location of the closing square bracket ']'.
+  /// \param Args The message arguments.
+  virtual OwningExprResult ActOnSuperMessage(Scope *S, SourceLocation SuperLoc,
+                                             Selector Sel,
+                                             SourceLocation LBracLoc,
+                                             SourceLocation SelectorLoc,
+                                             SourceLocation RBracLoc,
+                                             MultiExprArg Args) {
+    return OwningExprResult(*this);
   }
-  // ActOnInstanceMessage - used for both unary and keyword messages.
-  // ArgExprs is optional - if it is present, the number of expressions
-  // is obtained from NumArgs.
-  virtual ExprResult ActOnInstanceMessage(
-    ExprTy *receiver, Selector Sel,
-    SourceLocation lbrac, SourceLocation selectorLoc, SourceLocation rbrac,
-    ExprTy **ArgExprs, unsigned NumArgs) {
-    return ExprResult();
+
+  /// \brief Parsed a message send to a class.
+  ///
+  /// \param S The scope in which the message send occurs.
+  /// \param Receiver The type of the class receiving the message.
+  /// \param Sel The selector to which the message is being sent.
+  /// \param LBracLoc The location of the opening square bracket ']'.
+  /// \param SelectorLoc The location of the first identifier in the selector.
+  /// \param RBrac The location of the closing square bracket ']'.
+  /// \param Args The message arguments.
+  virtual OwningExprResult ActOnClassMessage(Scope *S,
+                                             TypeTy *Receiver,
+                                             Selector Sel,
+                                             SourceLocation LBracLoc, 
+                                             SourceLocation SelectorLoc,
+                                             SourceLocation RBracLoc,
+                                             MultiExprArg Args) {
+    return OwningExprResult(*this);
   }
+
+  /// \brief Parsed a message send to an object instance.
+  ///
+  /// \param S The scope in which the message send occurs.
+  /// \param Receiver The expression that computes the receiver object.
+  /// \param Sel The selector to which the message is being sent.
+  /// \param LBracLoc The location of the opening square bracket ']'.
+  /// \param SelectorLoc The location of the first identifier in the selector.
+  /// \param RBrac The location of the closing square bracket ']'.
+  /// \param Args The message arguments.
+  virtual OwningExprResult ActOnInstanceMessage(Scope *S,
+                                                ExprArg Receiver,
+                                                Selector Sel,
+                                                SourceLocation LBracLoc, 
+                                                SourceLocation SelectorLoc, 
+                                                SourceLocation RBracLoc,
+                                                MultiExprArg Args) {
+    return OwningExprResult(*this);
+  }
+
   virtual DeclPtrTy ActOnForwardClassDeclaration(
     SourceLocation AtClassLoc,
     IdentifierInfo **IdentList,
@@ -2581,7 +2692,7 @@ public:
   ///
   /// \parame EnteringContext whether we're entering the context of this
   /// scope specifier.
-  virtual void CodeCompleteQualifiedId(Scope *S, const CXXScopeSpec &SS,
+  virtual void CodeCompleteQualifiedId(Scope *S, CXXScopeSpec &SS,
                                        bool EnteringContext) { }
   
   /// \brief Code completion for a C++ "using" declaration or directive.
@@ -2692,21 +2803,33 @@ public:
                                               unsigned NumMethods) {
   }
 
+  /// \brief Code completion for an ObjC message expression that sends
+  /// a message to the superclass.
+  ///
+  /// This code completion action is invoked when the code-completion token is
+  /// found after the class name and after each argument.
+  ///
+  /// \param S The scope in which the message expression occurs. 
+  /// \param SuperLoc The location of the 'super' keyword.
+  /// \param SelIdents The identifiers that describe the selector (thus far).
+  /// \param NumSelIdents The number of identifiers in \p SelIdents.
+  virtual void CodeCompleteObjCSuperMessage(Scope *S, SourceLocation SuperLoc,
+                                            IdentifierInfo **SelIdents,
+                                            unsigned NumSelIdents) { }
+
   /// \brief Code completion for an ObjC message expression that refers to
   /// a class method.
   ///
   /// This code completion action is invoked when the code-completion token is
   /// found after the class name and after each argument.
   ///
-  /// \param S the scope in which the message expression occurs. 
-  /// \param FName the factory name. 
-  /// \param FNameLoc the source location of the factory name.
-  /// \param SelIdents the identifiers that describe the selector (thus far).
-  /// \param NumSelIdents the number of identifiers in \p SelIdents.
-  virtual void CodeCompleteObjCClassMessage(Scope *S, IdentifierInfo *FName,
-                                            SourceLocation FNameLoc,
+  /// \param S The scope in which the message expression occurs. 
+  /// \param Receiver The type of the class that is receiving a message.
+  /// \param SelIdents The identifiers that describe the selector (thus far).
+  /// \param NumSelIdents The number of identifiers in \p SelIdents.
+  virtual void CodeCompleteObjCClassMessage(Scope *S, TypeTy *Receiver,
                                             IdentifierInfo **SelIdents,
-                                            unsigned NumSelIdents){ }
+                                            unsigned NumSelIdents) { }
   
   /// \brief Code completion for an ObjC message expression that refers to
   /// an instance method.
@@ -2752,7 +2875,8 @@ public:
   ///
   /// \param ClassName the name of the class being defined.
   virtual void CodeCompleteObjCSuperclass(Scope *S, 
-                                          IdentifierInfo *ClassName) {
+                                          IdentifierInfo *ClassName,
+                                          SourceLocation ClassNameLoc) {
   }
 
   /// \brief Code completion for an Objective-C implementation, after the
@@ -2765,7 +2889,8 @@ public:
   /// This code completion action is invoked after the '(' that indicates
   /// a category name within an Objective-C interface declaration.
   virtual void CodeCompleteObjCInterfaceCategory(Scope *S, 
-                                                 IdentifierInfo *ClassName) {
+                                                 IdentifierInfo *ClassName,
+                                                 SourceLocation ClassNameLoc) {
   }
 
   /// \brief Code completion for the category name in an Objective-C category
@@ -2774,7 +2899,8 @@ public:
   /// This code completion action is invoked after the '(' that indicates
   /// the category name within an Objective-C category implementation.
   virtual void CodeCompleteObjCImplementationCategory(Scope *S, 
-                                                   IdentifierInfo *ClassName) {
+                                                      IdentifierInfo *ClassName,
+                                                  SourceLocation ClassNameLoc) {
   }
   
   /// \brief Code completion for the property names when defining an
@@ -2794,6 +2920,32 @@ public:
   virtual void CodeCompleteObjCPropertySynthesizeIvar(Scope *S, 
                                                    IdentifierInfo *PropertyName,
                                                   DeclPtrTy ObjCImpDecl) {
+  }
+
+  /// \brief Code completion for an Objective-C method declaration or
+  /// definition, which may occur within an interface, category,
+  /// extension, protocol, or implementation thereof (where applicable).
+  ///
+  /// This code completion action is invoked after the "-" or "+" that
+  /// starts a method declaration or definition, and after the return
+  /// type such a declaration (e.g., "- (id)").
+  ///
+  /// \param S The scope in which the completion occurs.
+  ///
+  /// \param IsInstanceMethod Whether this is an instance method
+  /// (introduced with '-'); otherwise, it's a class method
+  /// (introduced with '+').
+  ///
+  /// \param ReturnType If non-NULL, the specified return type of the method
+  /// being declared or defined.
+  ///
+  /// \param IDecl The interface, category, protocol, or
+  /// implementation, or category implementation in which this method
+  /// declaration or definition occurs.
+  virtual void CodeCompleteObjCMethodDecl(Scope *S, 
+                                          bool IsInstanceMethod,
+                                          TypeTy *ReturnType,
+                                          DeclPtrTy IDecl) {
   }
   //@}
 };
@@ -2837,7 +2989,7 @@ public:
   /// \returns the type referred to by this identifier, or NULL if the type
   /// does not name an identifier.
   virtual TypeTy *getTypeName(IdentifierInfo &II, SourceLocation NameLoc,
-                              Scope *S, const CXXScopeSpec *SS,
+                              Scope *S, CXXScopeSpec *SS,
                               bool isClassName = false,
                               TypeTy *ObjectType = 0);
 
@@ -2847,7 +2999,7 @@ public:
                                   const CXXScopeSpec *SS);
 
   virtual TemplateNameKind isTemplateName(Scope *S,
-                                          const CXXScopeSpec &SS,
+                                          CXXScopeSpec &SS,
                                           UnqualifiedId &Name,
                                           TypeTy *ObjectType,
                                           bool EnteringContext,

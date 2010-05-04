@@ -79,3 +79,27 @@
 }
 @end
 
+@protocol TopProtocol
+  @property (readonly) id myString;
+@end
+
+@interface TopClass <TopProtocol> 
+{
+  id myString; 
+}
+@end
+
+@interface SubClass : TopClass <TopProtocol> 
+@end
+
+@implementation SubClass @end 
+
+// rdar: // 7920807
+@interface C @end
+@interface C (Category)
+@property int p; // expected-warning {{property 'p' requires method 'p' to be defined }} \
+                 // expected-warning {{property 'p' requires method 'setP:' to be defined}}
+@end
+@implementation C (Category) // expected-note 2 {{implementation is here}}
+@end
+

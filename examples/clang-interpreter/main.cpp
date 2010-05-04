@@ -107,8 +107,10 @@ int main(int argc, const char **argv, char * const *envp) {
   // Initialize a compiler invocation object from the clang (-cc1) arguments.
   const driver::ArgStringList &CCArgs = Cmd->getArguments();
   llvm::OwningPtr<CompilerInvocation> CI(new CompilerInvocation);
-  CompilerInvocation::CreateFromArgs(*CI, (const char**) CCArgs.data(),
-                                     (const char**) CCArgs.data()+CCArgs.size(),
+  CompilerInvocation::CreateFromArgs(*CI,
+                                     const_cast<const char **>(CCArgs.data()),
+                                     const_cast<const char **>(CCArgs.data()) +
+                                       CCArgs.size(),
                                      Diags);
 
   // Show the invocation, with -v.
@@ -126,7 +128,7 @@ int main(int argc, const char **argv, char * const *envp) {
   Clang.setInvocation(CI.take());
 
   // Create the compilers actual diagnostics engine.
-  Clang.createDiagnostics(int(CCArgs.size()), (char**) CCArgs.data());
+  Clang.createDiagnostics(int(CCArgs.size()),const_cast<char**>(CCArgs.data()));
   if (!Clang.hasDiagnostics())
     return 1;
 

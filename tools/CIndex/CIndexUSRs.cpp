@@ -14,9 +14,12 @@
 #include "CIndexer.h"
 #include "CXCursor.h"
 #include "clang/AST/DeclVisitor.h"
+#include "clang/Frontend/ASTUnit.h"
+#include "clang/Lex/PreprocessingRecord.h"
 #include "llvm/ADT/SmallString.h"
 #include "llvm/Support/raw_ostream.h"
 
+using namespace clang;
 using namespace clang::cxstring;
 
 //===----------------------------------------------------------------------===//
@@ -27,8 +30,10 @@ namespace {
 class USRGenerator : public DeclVisitor<USRGenerator> {
   llvm::raw_ostream &Out;
   bool IgnoreResults;
+  ASTUnit *AU;
 public:
-  USRGenerator(llvm::raw_ostream &out) : Out(out), IgnoreResults(false) {}
+  USRGenerator(ASTUnit *au, llvm::raw_ostream &out)
+    : Out(out), IgnoreResults(false), AU(au) {}
 
   bool ignoreResults() const { return IgnoreResults; }
 
@@ -39,12 +44,19 @@ public:
   void VisitFunctionDecl(FunctionDecl *D);
   void VisitNamedDecl(NamedDecl *D);
   void VisitNamespaceDecl(NamespaceDecl *D);
+  void VisitObjCClassDecl(ObjCClassDecl *CD);
   void VisitObjCContainerDecl(ObjCContainerDecl *CD);
+  void VisitObjCForwardProtocolDecl(ObjCForwardProtocolDecl *P);
   void VisitObjCMethodDecl(ObjCMethodDecl *MD);
   void VisitObjCPropertyDecl(ObjCPropertyDecl *D);
+  void VisitObjCPropertyImplDecl(ObjCPropertyImplDecl *D);
   void VisitTagDecl(TagDecl *D);
   void VisitTypedefDecl(TypedefDecl *D);
+  void VisitVarDecl(VarDecl *D);
 
+  /// Generate the string component containing the location of the
+  ///  declaration.
+  void GenLoc(const Decl *D);
 
   /// String generation methods used both by the visitation methods
   /// and from other clients that want to directly generate USRs.  These
@@ -78,10 +90,10 @@ private:
   llvm::raw_svector_ostream Out;
   USRGenerator UG;
 public:
-  StringUSRGenerator()
-    : Out(StrBuf), UG(Out) {
+  StringUSRGenerator(const CXCursor *C = 0)
+    : Out(StrBuf), UG(C ? cxcursor::getCursorASTUnit(*C) : 0, Out) {
     // Add the USR space prefix.
-    Out << "c:";      
+    Out << "c:";
   }
 
   llvm::StringRef str() {
@@ -106,7 +118,7 @@ public:
 void USRGenerator::VisitBlockDecl(BlockDecl *D) {
   VisitDeclContext(D->getDeclContext());
   // FIXME: Better support for anonymous blocks.
-  Out << "@B^anon";
+  Out << "@B@anon";
 }
 
 void USRGenerator::VisitDeclContext(DeclContext *DC) {
@@ -122,30 +134,66 @@ void USRGenerator::VisitFieldDecl(FieldDecl *D) {
     return;
   }
   VisitDeclContext(D->getDeclContext());
-  Out << "@^FI^" << s;
+  Out << (isa<ObjCIvarDecl>(D) ? "@" : "@FI@") << s;
 }
 
 void USRGenerator::VisitFunctionDecl(FunctionDecl *D) {
   VisitDeclContext(D->getDeclContext());
-  Out << "@F^" << D->getNameAsString();
+  Out << "@F@" << D;
 }
 
 void USRGenerator::VisitNamedDecl(NamedDecl *D) {
   VisitDeclContext(D->getDeclContext());
   const std::string &s = D->getNameAsString();
-  //  assert(!s.empty());
-  GenNamedDecl(s);
+  // The string can be empty if the declaration has no name; e.g., it is
+  // the ParmDecl with no name for declaration of a function pointer type, e.g.:
+  //  	void  (*f)(void *);
+  // In this case, don't generate a USR.
+  if (s.empty())
+    IgnoreResults = true;
+  else
+    GenNamedDecl(s);
+}
+
+void USRGenerator::VisitVarDecl(VarDecl *D) {
+  // VarDecls can be declared 'extern' within a function or method body,
+  // but their enclosing DeclContext is the function, not the TU.  We need
+  // to check the storage class to correctly generate the USR.
+  if (!D->hasExternalStorage())
+    VisitDeclContext(D->getDeclContext());
+
+  const std::string &s = D->getNameAsString();
+  // The string can be empty if the declaration has no name; e.g., it is
+  // the ParmDecl with no name for declaration of a function pointer type, e.g.:
+  //  	void  (*f)(void *);
+  // In this case, don't generate a USR.
+  if (s.empty())
+    IgnoreResults = true;
+  else
+    GenNamedDecl(s);
 }
 
 void USRGenerator::VisitNamespaceDecl(NamespaceDecl *D) {
   VisitDeclContext(D->getDeclContext());
-  Out << "@N^" << D->getNameAsString();
+  Out << "@N@" << D;
 }
 
 void USRGenerator::VisitObjCMethodDecl(ObjCMethodDecl *D) {
   Visit(cast<Decl>(D->getDeclContext()));
   GenObjCMethod(DeclarationName(D->getSelector()).getAsString(),
                 D->isInstanceMethod());
+}
+
+void USRGenerator::VisitObjCClassDecl(ObjCClassDecl *D) {
+  // FIXME: @class declarations can refer to multiple classes.  We need
+  //  to be able to traverse these.
+  IgnoreResults = true;
+}
+
+void USRGenerator::VisitObjCForwardProtocolDecl(ObjCForwardProtocolDecl *D) {
+  // FIXME: @protocol declarations can refer to multiple protocols.  We need
+  //  to be able to traverse these.
+  IgnoreResults = true;
 }
 
 void USRGenerator::VisitObjCContainerDecl(ObjCContainerDecl *D) {
@@ -195,32 +243,85 @@ void USRGenerator::VisitObjCPropertyDecl(ObjCPropertyDecl *D) {
   GenObjCProperty(D->getName());
 }
 
-void USRGenerator::VisitTagDecl(TagDecl *D) {
-  VisitDeclContext(D->getDeclContext());
-  switch (D->getTagKind()) {
-    case TagDecl::TK_struct: Out << "@S^"; break;
-    case TagDecl::TK_class:  Out << "@C^"; break;
-    case TagDecl::TK_union:  Out << "@U^"; break;
-    case TagDecl::TK_enum:   Out << "@E^"; break;
+void USRGenerator::VisitObjCPropertyImplDecl(ObjCPropertyImplDecl *D) {
+  if (ObjCPropertyDecl *PD = D->getPropertyDecl()) {
+    VisitObjCPropertyDecl(PD);
+    return;
   }
 
-  // FIXME: Better support for anonymous structures and enums.
+  IgnoreResults = true;
+}
+
+void USRGenerator::VisitTagDecl(TagDecl *D) {
+  D = D->getCanonicalDecl();
+  VisitDeclContext(D->getDeclContext());
+  switch (D->getTagKind()) {
+    case TagDecl::TK_struct: Out << "@S"; break;
+    case TagDecl::TK_class:  Out << "@C"; break;
+    case TagDecl::TK_union:  Out << "@U"; break;
+    case TagDecl::TK_enum:   Out << "@E"; break;
+  }
+
   const std::string &s = D->getNameAsString();
+  const TypedefDecl *TD = 0;
   if (s.empty()) {
-    if (TypedefDecl *TD = D->getTypedefForAnonDecl())
-      Out << "^anontd^" << TD->getNameAsString();
-    else
-      Out << "^anon";
+    TD = D->getTypedefForAnonDecl();
+    Out << (TD ? 'A' : 'a');
+  }
+
+  // Add the location of the tag decl to handle resolution across
+  // translation units.
+  if (D->getLinkage() == NoLinkage) {
+    Out << '@';
+    GenLoc(D);
+    if (IgnoreResults)
+      return;
+  }
+
+  if (s.empty()) {
+    if (TD)
+      Out << '@' << TD;
   }
   else
-    Out << s;
+    Out << '@' << s;
 }
 
 void USRGenerator::VisitTypedefDecl(TypedefDecl *D) {
   DeclContext *DC = D->getDeclContext();
   if (NamedDecl *DCN = dyn_cast<NamedDecl>(DC))
     Visit(DCN);
-  Out << "typedef@" << D->getName();
+  Out << "@T@";
+  if (D->getLinkage() == NoLinkage) {
+    GenLoc(D);
+    if (IgnoreResults)
+      return;
+    Out << '@';
+  }
+  Out << D->getName();
+}
+
+void USRGenerator::GenLoc(const Decl *D) {
+  const SourceManager &SM = AU->getSourceManager();
+  SourceLocation L = D->getLocStart();
+  if (L.isInvalid()) {
+    IgnoreResults = true;
+    return;
+  }
+  L = SM.getInstantiationLoc(L);
+  const std::pair<FileID, unsigned> &Decomposed = SM.getDecomposedLoc(L);
+  const FileEntry *FE = SM.getFileEntryForID(Decomposed.first);
+  if (FE) {
+    llvm::sys::Path P(FE->getName());
+    Out << P.getLast();
+  }
+  else {
+    // This case really isn't interesting.
+    IgnoreResults = true;
+    return;
+  }
+  Out << '@'
+      << SM.getLineNumber(Decomposed.first, Decomposed.second) << ':'
+      << SM.getColumnNumber(Decomposed.first, Decomposed.second);
 }
 
 //===----------------------------------------------------------------------===//
@@ -228,7 +329,7 @@ void USRGenerator::VisitTypedefDecl(TypedefDecl *D) {
 //===----------------------------------------------------------------------===//
 
 void USRGenerator::GenNamedDecl(llvm::StringRef name) {
-  Out << "@^" << name;
+  Out << "@" << name;
 }
 
 void USRGenerator::GenObjCClass(llvm::StringRef cls) {
@@ -236,7 +337,7 @@ void USRGenerator::GenObjCClass(llvm::StringRef cls) {
 }
 
 void USRGenerator::GenObjCCategory(llvm::StringRef cls, llvm::StringRef cat) {
-  Out << "objc(cy)" << cls << '^' << cat;
+  Out << "objc(cy)" << cls << '@' << cat;
 }
 
 void USRGenerator::GenObjCIvar(llvm::StringRef ivar) {
@@ -259,29 +360,69 @@ void USRGenerator::GenObjCProtocol(llvm::StringRef prot) {
 // API hooks.
 //===----------------------------------------------------------------------===//
 
-extern "C" {
+static inline llvm::StringRef extractUSRSuffix(llvm::StringRef s) {
+  return s.startswith("c:") ? s.substr(2) : "";
+}
 
-CXString clang_getCursorUSR(CXCursor C) {
+static CXString getDeclCursorUSR(const CXCursor &C) {
   Decl *D = cxcursor::getCursorDecl(C);
-  if (!D)
-    return createCXString(NULL);
 
-  StringUSRGenerator SUG;
-  SUG->Visit(static_cast<Decl*>(D));
+  // Don't generate USRs for things with invalid locations.
+  if (!D || D->getLocStart().isInvalid())
+    return createCXString("");
+
+  // Check if the cursor has 'NoLinkage'.
+  if (const NamedDecl *ND = dyn_cast<NamedDecl>(D))
+    switch (ND->getLinkage()) {
+      case ExternalLinkage:
+        // Generate USRs for all entities with external linkage.
+        break;
+      case NoLinkage:
+        // We allow enums, typedefs, and structs that have no linkage to
+        // have USRs that are anchored to the file they were defined in
+        // (e.g., the header).  This is a little gross, but in principal
+        // enums/anonymous structs/etc. defined in a common header file
+        // are referred to across multiple translation units.
+        if (isa<TagDecl>(ND) || isa<TypedefDecl>(ND) ||
+            isa<EnumConstantDecl>(ND) || isa<FieldDecl>(ND))
+          break;
+        // Fall-through.
+      case InternalLinkage:
+      case UniqueExternalLinkage:
+        return createCXString("");
+    }
+
+  StringUSRGenerator SUG(&C);
+  SUG->Visit(D);
 
   if (SUG->ignoreResults())
     return createCXString("");
 
-  // Return a copy of the string that must be disposed by the caller.
+  // For development testing.
+  // assert(SUG.str().size() > 2);
+
+    // Return a copy of the string that must be disposed by the caller.
   return createCXString(SUG.str(), true);
 }
 
-static inline llvm::StringRef extractUSRSuffix(llvm::StringRef s) {
-  if (!(s.size() >= 2 && s[0] == 'c' && s[1] == ':'))
-    return "";
-  return s.substr(2);
+extern "C" {
+
+CXString clang_getCursorUSR(CXCursor C) {
+  const CXCursorKind &K = clang_getCursorKind(C);
+
+  if (clang_isDeclaration(K))
+      return getDeclCursorUSR(C);
+
+  if (K == CXCursor_MacroDefinition) {
+    StringUSRGenerator SUG(&C);
+    SUG << "macro@"
+        << cxcursor::getCursorMacroDefinition(C)->getName()->getNameStart();
+    return createCXString(SUG.str(), true);
+  }
+
+  return createCXString("");
 }
-  
+
 CXString clang_constructUSR_ObjCIvar(const char *name, CXString classUSR) {
   StringUSRGenerator SUG;
   SUG << extractUSRSuffix(clang_getCString(classUSR));

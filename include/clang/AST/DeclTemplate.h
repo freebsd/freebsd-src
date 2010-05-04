@@ -376,6 +376,81 @@ public:
     PointOfInstantiation = POI;
   }
 };
+
+/// \brief Provides information about a dependent function-template
+/// specialization declaration.  Since explicit function template
+/// specialization and instantiation declarations can only appear in
+/// namespace scope, and you can only specialize a member of a
+/// fully-specialized class, the only way to get one of these is in
+/// a friend declaration like the following:
+///
+///   template <class T> void foo(T);
+///   template <class T> class A {
+///     friend void foo<>(T);
+///   };
+class DependentFunctionTemplateSpecializationInfo {
+  union {
+    // Force sizeof to be a multiple of sizeof(void*) so that the
+    // trailing data is aligned.
+    void *Aligner; 
+
+    struct {
+      /// The number of potential template candidates.
+      unsigned NumTemplates;
+
+      /// The number of template arguments.
+      unsigned NumArgs;      
+    } d;
+  };
+
+  /// The locations of the left and right angle brackets.
+  SourceRange AngleLocs;
+
+  FunctionTemplateDecl * const *getTemplates() const {
+    return reinterpret_cast<FunctionTemplateDecl*const*>(this+1);
+  }
+
+  const TemplateArgumentLoc *getTemplateArgs() const {
+    return reinterpret_cast<const TemplateArgumentLoc*>(
+             &getTemplates()[getNumTemplates()]);
+  }
+
+public:
+  DependentFunctionTemplateSpecializationInfo(
+                                 const UnresolvedSetImpl &Templates,
+                                 const TemplateArgumentListInfo &TemplateArgs);
+
+  /// \brief Returns the number of function templates that this might
+  /// be a specialization of.
+  unsigned getNumTemplates() const {
+    return d.NumTemplates;
+  }
+
+  /// \brief Returns the i'th template candidate.
+  FunctionTemplateDecl *getTemplate(unsigned I) const {
+    assert(I < getNumTemplates() && "template index out of range");
+    return getTemplates()[I];
+  }
+
+  /// \brief Returns the number of explicit template arguments that were given.
+  unsigned getNumTemplateArgs() const {
+    return d.NumArgs;
+  }
+
+  /// \brief Returns the nth template argument.
+  const TemplateArgumentLoc &getTemplateArg(unsigned I) const {
+    assert(I < getNumTemplateArgs() && "template arg index out of range");
+    return getTemplateArgs()[I];
+  }
+
+  SourceLocation getLAngleLoc() const {
+    return AngleLocs.getBegin();
+  }
+
+  SourceLocation getRAngleLoc() const {
+    return AngleLocs.getEnd();
+  }
+};
   
 /// Declaration of a template function.
 class FunctionTemplateDecl : public TemplateDecl {
@@ -652,7 +727,8 @@ class NonTypeTemplateParmDecl
   NonTypeTemplateParmDecl(DeclContext *DC, SourceLocation L, unsigned D,
                           unsigned P, IdentifierInfo *Id, QualType T,
                           TypeSourceInfo *TInfo)
-    : VarDecl(NonTypeTemplateParm, DC, L, Id, T, TInfo, VarDecl::None),
+    : VarDecl(NonTypeTemplateParm, DC, L, Id, T, TInfo, VarDecl::None,
+              VarDecl::None),
       TemplateParmPosition(D, P), DefaultArgument(0)
   { }
 
@@ -935,6 +1011,11 @@ class ClassTemplatePartialSpecializationDecl
   TemplateArgumentLoc *ArgsAsWritten;
   unsigned NumArgsAsWritten;
 
+  /// \brief Sequence number indicating when this class template partial
+  /// specialization was added to the set of partial specializations for
+  /// its owning class template.
+  unsigned SequenceNumber;
+    
   /// \brief The class template partial specialization from which this 
   /// class template partial specialization was instantiated.
   ///
@@ -950,13 +1031,15 @@ class ClassTemplatePartialSpecializationDecl
                                          TemplateArgumentListBuilder &Builder,
                                          TemplateArgumentLoc *ArgInfos,
                                          unsigned NumArgInfos,
-                               ClassTemplatePartialSpecializationDecl *PrevDecl)
+                               ClassTemplatePartialSpecializationDecl *PrevDecl,
+                                         unsigned SequenceNumber)
     : ClassTemplateSpecializationDecl(Context,
                                       ClassTemplatePartialSpecialization,
                                       DC, L, SpecializedTemplate, Builder,
                                       PrevDecl),
       TemplateParams(Params), ArgsAsWritten(ArgInfos),
-      NumArgsAsWritten(NumArgInfos), InstantiatedFromMember(0, false) { }
+      NumArgsAsWritten(NumArgInfos), SequenceNumber(SequenceNumber),
+      InstantiatedFromMember(0, false) { }
 
 public:
   static ClassTemplatePartialSpecializationDecl *
@@ -966,7 +1049,8 @@ public:
          TemplateArgumentListBuilder &Builder,
          const TemplateArgumentListInfo &ArgInfos,
          QualType CanonInjectedType,
-         ClassTemplatePartialSpecializationDecl *PrevDecl);
+         ClassTemplatePartialSpecializationDecl *PrevDecl,
+         unsigned SequenceNumber);
 
   /// Get the list of template parameters
   TemplateParameterList *getTemplateParameters() const {
@@ -983,6 +1067,10 @@ public:
     return NumArgsAsWritten;
   }
 
+  /// \brief Get the sequence number for this class template partial
+  /// specialization.
+  unsigned getSequenceNumber() const { return SequenceNumber; }
+    
   /// \brief Retrieve the member class template partial specialization from
   /// which this particular class template partial specialization was
   /// instantiated.
@@ -1045,6 +1133,15 @@ public:
     assert(First->InstantiatedFromMember.getPointer() &&
            "Only member templates can be member template specializations");
     return First->InstantiatedFromMember.setInt(true);
+  }
+
+  /// Retrieves the injected specialization type for this partial
+  /// specialization.  This is not the same as the type-decl-type for
+  /// this partial specialization, which is an InjectedClassNameType.
+  QualType getInjectedSpecializationType() const {
+    assert(getTypeForDecl() && "partial specialization has no type set!");
+    return cast<InjectedClassNameType>(getTypeForDecl())
+             ->getInjectedSpecializationType();
   }
     
   // FIXME: Add Profile support!
@@ -1141,6 +1238,10 @@ public:
     return CommonPtr->PartialSpecializations;
   }
 
+  /// \brief Retrieve the partial specializations as an ordered list.
+  void getPartialSpecializations(
+          llvm::SmallVectorImpl<ClassTemplatePartialSpecializationDecl *> &PS);
+  
   /// \brief Find a class template partial specialization with the given
   /// type T.
   ///

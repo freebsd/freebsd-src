@@ -54,3 +54,35 @@ struct B
   void d(void *);
   static void d(A *);
 };
+
+struct C {
+  C &getC() {
+    return makeAC; // expected-error{{address of overloaded function 'makeAC' cannot be converted to type 'C'}}
+  }
+
+  C &makeAC();
+  const C &makeAC() const;
+
+  static void f(); // expected-note{{candidate function}}
+  static void f(int); // expected-note{{candidate function}}
+
+  void g() {
+    int (&fp)() = f; // expected-error{{address of overloaded function 'f' does not match required type 'int ()'}}
+  }
+};
+
+// PR6886
+namespace test0 {
+  void myFunction(void (*)(void *));
+
+  class Foo {
+    void foo();
+
+    static void bar(void*);
+    static void bar();
+  };
+
+  void Foo::foo() {
+    myFunction(bar);
+  }
+}

@@ -1,6 +1,7 @@
 // RUN: %clang_cc1 -Wreorder -fsyntax-only -verify %s
 class A { 
   int m;
+public:
    A() : A::m(17) { } // expected-error {{member initializer 'm' does not name a non-static data member or base class}}
    A(int);
 };
@@ -72,8 +73,9 @@ class U {
   union { int a; char* p; };
   union { int b; double d; };
 
-  U() :  a(1), p(0), d(1.0)  {} // expected-error {{multiple initializations given for non-static member 'p'}} \
-                        // expected-note {{previous initialization is here}}
+  U() :  a(1), // expected-note {{previous initialization is here}}
+         p(0), // expected-error {{initializing multiple members of anonymous union}}
+         d(1.0)  {}
 };
 
 struct V {};
@@ -86,12 +88,11 @@ struct Derived : Base, Base1, virtual V {
 
 struct Current : Derived {
   int Derived;
-  Current() : Derived(1), ::Derived(), // expected-warning {{member 'Derived' will be initialized after}} \
-                                       // expected-note {{base '::Derived'}} \
-                                       // expected-warning {{base class '::Derived' will be initialized after}}
+  Current() : Derived(1), ::Derived(), // expected-warning {{field 'Derived' will be initialized after base '::Derived'}} \
+                                       // expected-warning {{base class '::Derived' will be initialized after base 'Derived::V'}}
                           ::Derived::Base(), // expected-error {{type '::Derived::Base' is not a direct or virtual base of 'Current'}}
                            Derived::Base1(), // expected-error {{type 'Derived::Base1' is not a direct or virtual base of 'Current'}}
-                           Derived::V(), // expected-note {{base 'Derived::V'}}
+                           Derived::V(),
                            ::NonExisting(), // expected-error {{member initializer 'NonExisting' does not name a non-static data member or}}
                            INT::NonExisting()  {} // expected-error {{expected a class or namespace}} \
                                                   // expected-error {{member initializer 'NonExisting' does not name a non-static data member or}}
@@ -125,7 +126,7 @@ struct Q {
 
 // A silly class used to demonstrate field-is-uninitialized in constructors with
 // multiple params.
-class TwoInOne { TwoInOne(TwoInOne a, TwoInOne b) {} };
+class TwoInOne { public: TwoInOne(TwoInOne a, TwoInOne b) {} };
 class InitializeUsingSelfTest {
   bool A;
   char* B;
@@ -170,3 +171,36 @@ struct X0 : NDC<int> {
   
   NDC<int> ndc;
 };
+
+namespace Test0 {
+
+struct A { A(); };
+
+struct B {
+  B() { } 
+  const A a;
+};
+
+}
+
+namespace Test1 {
+  struct A {
+    enum Kind { Foo } Kind;
+    A() : Kind(Foo) {}
+  };
+}
+
+namespace Test2 {
+
+struct A { 
+  A(const A&);
+};
+
+struct B : virtual A { };
+struct C : A, B { };
+
+C f(C c) {
+  return c;
+}
+
+}

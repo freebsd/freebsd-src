@@ -225,6 +225,11 @@ bool Type::isStructureType() const {
     return RT->getDecl()->isStruct();
   return false;
 }
+bool Type::isStructureOrClassType() const {
+  if (const RecordType *RT = getAs<RecordType>())
+    return RT->getDecl()->isStruct() || RT->getDecl()->isClass();
+  return false;
+}
 bool Type::isVoidPointerType() const {
   if (const PointerType *PT = getAs<PointerType>())
     return PT->getPointeeType()->isVoidType();
@@ -407,6 +412,16 @@ const CXXRecordDecl *Type::getCXXRecordDeclForPointerType() const {
   if (const PointerType *PT = getAs<PointerType>())
     if (const RecordType *RT = PT->getPointeeType()->getAs<RecordType>())
       return dyn_cast<CXXRecordDecl>(RT->getDecl());
+  return 0;
+}
+
+CXXRecordDecl *Type::getAsCXXRecordDecl() const {
+  if (const RecordType *RT = getAs<RecordType>())
+    return dyn_cast<CXXRecordDecl>(RT->getDecl());
+  else if (const InjectedClassNameType *Injected
+                                  = getAs<InjectedClassNameType>())
+    return Injected->getDecl();
+  
   return 0;
 }
 
@@ -999,12 +1014,13 @@ anyDependentTemplateArguments(const TemplateArgument *Args, unsigned N) {
 
 TemplateSpecializationType::
 TemplateSpecializationType(ASTContext &Context, TemplateName T,
+                           bool IsCurrentInstantiation,
                            const TemplateArgument *Args,
                            unsigned NumArgs, QualType Canon)
   : Type(TemplateSpecialization,
          Canon.isNull()? QualType(this, 0) : Canon,
          T.isDependent() || anyDependentTemplateArguments(Args, NumArgs)),
-    Context(Context),
+    ContextAndCurrentInstantiation(&Context, IsCurrentInstantiation),
     Template(T), NumArgs(NumArgs) {
   assert((!Canon.isNull() ||
           T.isDependent() || anyDependentTemplateArguments(Args, NumArgs)) &&
@@ -1039,9 +1055,11 @@ TemplateSpecializationType::getArg(unsigned Idx) const {
 void
 TemplateSpecializationType::Profile(llvm::FoldingSetNodeID &ID,
                                     TemplateName T,
+                                    bool IsCurrentInstantiation,
                                     const TemplateArgument *Args,
                                     unsigned NumArgs,
                                     ASTContext &Context) {
+  ID.AddBoolean(IsCurrentInstantiation);
   T.Profile(ID);
   for (unsigned Idx = 0; Idx < NumArgs; ++Idx)
     Args[Idx].Profile(ID, Context);

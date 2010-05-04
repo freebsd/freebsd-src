@@ -13,12 +13,14 @@
 #include "Sema.h"
 #include "Lookup.h"
 #include "clang/Sema/CodeCompleteConsumer.h"
+#include "clang/Sema/ExternalSemaSource.h"
 #include "clang/AST/ExprCXX.h"
 #include "clang/AST/ExprObjC.h"
 #include "clang/Lex/MacroInfo.h"
 #include "clang/Lex/Preprocessor.h"
 #include "llvm/ADT/SmallPtrSet.h"
 #include "llvm/ADT/StringExtras.h"
+#include "llvm/ADT/StringSwitch.h"
 #include <list>
 #include <map>
 #include <vector>
@@ -413,6 +415,9 @@ bool ResultBuilder::isInterestingDecl(NamedDecl *ND,
 
     return false;
   }
+
+  if (Filter == &ResultBuilder::IsNestedNameSpecifier)
+    AsNestedNameSpecifier = true;
   
   // ... then it must be interesting!
   return true;
@@ -502,7 +507,7 @@ void ResultBuilder::MaybeAddResult(Result R, DeclContext *CurContext) {
     }
     for (; I != IEnd; ++I) {
       // A tag declaration does not hide a non-tag declaration.
-      if (I->first->getIdentifierNamespace() == Decl::IDNS_Tag &&
+      if (I->first->hasTagIdentifierNamespace() &&
           (IDNS & (Decl::IDNS_Member | Decl::IDNS_Ordinary | 
                    Decl::IDNS_ObjCProtocol)))
         continue;
@@ -627,7 +632,7 @@ void ResultBuilder::ExitScope() {
 bool ResultBuilder::IsOrdinaryName(NamedDecl *ND) const {
   unsigned IDNS = Decl::IDNS_Ordinary;
   if (SemaRef.getLangOptions().CPlusPlus)
-    IDNS |= Decl::IDNS_Tag;
+    IDNS |= Decl::IDNS_Tag | Decl::IDNS_Namespace;
   else if (SemaRef.getLangOptions().ObjC1 && isa<ObjCIvarDecl>(ND))
     return true;
 
@@ -639,7 +644,7 @@ bool ResultBuilder::IsOrdinaryName(NamedDecl *ND) const {
 bool ResultBuilder::IsOrdinaryNonValueName(NamedDecl *ND) const {
   unsigned IDNS = Decl::IDNS_Ordinary;
   if (SemaRef.getLangOptions().CPlusPlus)
-    IDNS |= Decl::IDNS_Tag;
+    IDNS |= Decl::IDNS_Tag | Decl::IDNS_Namespace;
   
   return (ND->getIdentifierNamespace() & IDNS) && 
     !isa<ValueDecl>(ND) && !isa<FunctionTemplateDecl>(ND);
@@ -882,7 +887,6 @@ static void AddOrdinaryNameResults(Action::CodeCompletionContext CCC,
       Pattern->AddPlaceholderChunk("identifier");
       Pattern->AddChunk(CodeCompletionString::CK_Equal);
       Pattern->AddPlaceholderChunk("identifier");
-      Pattern->AddChunk(CodeCompletionString::CK_SemiColon);
       Results.AddResult(Result(Pattern));
 
       // Using directives
@@ -892,7 +896,6 @@ static void AddOrdinaryNameResults(Action::CodeCompletionContext CCC,
       Pattern->AddTextChunk("namespace");
       Pattern->AddChunk(CodeCompletionString::CK_HorizontalSpace);
       Pattern->AddPlaceholderChunk("identifier");
-      Pattern->AddChunk(CodeCompletionString::CK_SemiColon);
       Results.AddResult(Result(Pattern));
 
       // asm(string-literal)      
@@ -901,7 +904,6 @@ static void AddOrdinaryNameResults(Action::CodeCompletionContext CCC,
       Pattern->AddChunk(CodeCompletionString::CK_LeftParen);
       Pattern->AddPlaceholderChunk("string-literal");
       Pattern->AddChunk(CodeCompletionString::CK_RightParen);
-      Pattern->AddChunk(CodeCompletionString::CK_SemiColon);
       Results.AddResult(Result(Pattern));
 
       // Explicit template instantiation
@@ -909,7 +911,6 @@ static void AddOrdinaryNameResults(Action::CodeCompletionContext CCC,
       Pattern->AddTypedTextChunk("template");
       Pattern->AddChunk(CodeCompletionString::CK_HorizontalSpace);
       Pattern->AddPlaceholderChunk("declaration");
-      Pattern->AddChunk(CodeCompletionString::CK_SemiColon);
       Results.AddResult(Result(Pattern));
     }
       
@@ -926,7 +927,6 @@ static void AddOrdinaryNameResults(Action::CodeCompletionContext CCC,
       Pattern->AddTypedTextChunk("using");
       Pattern->AddChunk(CodeCompletionString::CK_HorizontalSpace);
       Pattern->AddPlaceholderChunk("qualified-id");
-      Pattern->AddChunk(CodeCompletionString::CK_SemiColon);
       Results.AddResult(Result(Pattern));
       
       // using typename qualified-id; (only in a dependent context)
@@ -937,7 +937,6 @@ static void AddOrdinaryNameResults(Action::CodeCompletionContext CCC,
         Pattern->AddTextChunk("typename");
         Pattern->AddChunk(CodeCompletionString::CK_HorizontalSpace);
         Pattern->AddPlaceholderChunk("qualified-id");
-        Pattern->AddChunk(CodeCompletionString::CK_SemiColon);
         Results.AddResult(Result(Pattern));
       }
 
@@ -1090,7 +1089,6 @@ static void AddOrdinaryNameResults(Action::CodeCompletionContext CCC,
     Pattern->AddChunk(CodeCompletionString::CK_LeftParen);
     Pattern->AddPlaceholderChunk("expression");
     Pattern->AddChunk(CodeCompletionString::CK_RightParen);
-    Pattern->AddChunk(CodeCompletionString::CK_SemiColon);
     Results.AddResult(Result(Pattern));
 
     // for ( for-init-statement ; condition ; expression ) { statements }
@@ -1116,7 +1114,6 @@ static void AddOrdinaryNameResults(Action::CodeCompletionContext CCC,
       // continue ;
       Pattern = new CodeCompletionString;
       Pattern->AddTypedTextChunk("continue");
-      Pattern->AddChunk(CodeCompletionString::CK_SemiColon);
       Results.AddResult(Result(Pattern));
     }
 
@@ -1124,7 +1121,6 @@ static void AddOrdinaryNameResults(Action::CodeCompletionContext CCC,
       // break ;
       Pattern = new CodeCompletionString;
       Pattern->AddTypedTextChunk("break");
-      Pattern->AddChunk(CodeCompletionString::CK_SemiColon);
       Results.AddResult(Result(Pattern));
     }
 
@@ -1145,7 +1141,6 @@ static void AddOrdinaryNameResults(Action::CodeCompletionContext CCC,
       Pattern->AddChunk(CodeCompletionString::CK_HorizontalSpace);
       Pattern->AddPlaceholderChunk("expression");
     }
-    Pattern->AddChunk(CodeCompletionString::CK_SemiColon);
     Results.AddResult(Result(Pattern));
 
     // goto identifier ;
@@ -1153,7 +1148,6 @@ static void AddOrdinaryNameResults(Action::CodeCompletionContext CCC,
     Pattern->AddTypedTextChunk("goto");
     Pattern->AddChunk(CodeCompletionString::CK_HorizontalSpace);
     Pattern->AddPlaceholderChunk("identifier");
-    Pattern->AddChunk(CodeCompletionString::CK_SemiColon);
     Results.AddResult(Result(Pattern));    
 
     // Using directives
@@ -1163,7 +1157,6 @@ static void AddOrdinaryNameResults(Action::CodeCompletionContext CCC,
     Pattern->AddTextChunk("namespace");
     Pattern->AddChunk(CodeCompletionString::CK_HorizontalSpace);
     Pattern->AddPlaceholderChunk("identifier");
-    Pattern->AddChunk(CodeCompletionString::CK_SemiColon);
     Results.AddResult(Result(Pattern));
   }
 
@@ -2075,10 +2068,6 @@ void Sema::CodeCompleteMemberReferenceExpr(Scope *S, ExprTy *BaseE,
   
   Results.ExitScope();
 
-  // Add macros
-  if (CodeCompleter->includeMacros())
-    AddMacroResults(PP, Results);
-
   // Hand off the results found for code completion.
   HandleCodeCompleteResults(this, CodeCompleter, Results.data(),Results.size());
 }
@@ -2108,13 +2097,17 @@ void Sema::CodeCompleteTag(Scope *S, unsigned TagSpec) {
     return;
   }
   
-  ResultBuilder Results(*this, Filter);
-  Results.allowNestedNameSpecifiers();
+  ResultBuilder Results(*this);
   CodeCompletionDeclConsumer Consumer(Results, CurContext);
+
+  // First pass: look for tags.
+  Results.setFilter(Filter);
   LookupVisibleDecls(S, LookupTagName, Consumer);
+
+  // Second pass: look for nested name specifiers.
+  Results.setFilter(&ResultBuilder::IsNestedNameSpecifier);
+  LookupVisibleDecls(S, LookupNestedNameSpecifierName, Consumer);
   
-  if (CodeCompleter->includeMacros())
-    AddMacroResults(PP, Results);
   HandleCodeCompleteResults(this, CodeCompleter, Results.data(),Results.size());
 }
 
@@ -2192,7 +2185,7 @@ void Sema::CodeCompleteCase(Scope *S) {
                       CurContext, 0, false);
   }
   Results.ExitScope();
-  
+
   if (CodeCompleter->includeMacros())
     AddMacroResults(PP, Results);
   HandleCodeCompleteResults(this, CodeCompleter, Results.data(),Results.size());
@@ -2258,7 +2251,7 @@ void Sema::CodeCompleteCall(Scope *S, ExprTy *FnIn,
         // FIXME: access?
         AddOverloadCandidate(FDecl, DeclAccessPair::make(FDecl, AS_none),
                              Args, NumArgs, CandidateSet,
-                             false, false, /*PartialOverloading*/ true);
+                             false, /*PartialOverloading*/true);
     }
   }
   
@@ -2276,14 +2269,13 @@ void Sema::CodeCompleteCall(Scope *S, ExprTy *FnIn,
     }
   }
 
-  if (Results.empty())
-    CodeCompleteOrdinaryName(S, CCC_Expression);
-  else
+  CodeCompleteOrdinaryName(S, CCC_Expression);
+  if (!Results.empty())
     CodeCompleter->ProcessOverloadCandidates(*this, NumArgs, Results.data(), 
                                              Results.size());
 }
 
-void Sema::CodeCompleteQualifiedId(Scope *S, const CXXScopeSpec &SS,
+void Sema::CodeCompleteQualifiedId(Scope *S, CXXScopeSpec &SS,
                                    bool EnteringContext) {
   if (!SS.getScopeRep() || !CodeCompleter)
     return;
@@ -2294,7 +2286,7 @@ void Sema::CodeCompleteQualifiedId(Scope *S, const CXXScopeSpec &SS,
 
   // Try to instantiate any non-dependent declaration contexts before
   // we look in them.
-  if (!isDependentScopeSpecifier(SS) && RequireCompleteDeclContext(SS))
+  if (!isDependentScopeSpecifier(SS) && RequireCompleteDeclContext(SS, Ctx))
     return;
 
   ResultBuilder Results(*this);
@@ -2307,8 +2299,6 @@ void Sema::CodeCompleteQualifiedId(Scope *S, const CXXScopeSpec &SS,
   if (!Results.empty() && NNS->isDependent())
     Results.AddResult("template");
   
-  if (CodeCompleter->includeMacros())
-    AddMacroResults(PP, Results);
   HandleCodeCompleteResults(this, CodeCompleter, Results.data(),Results.size());
 }
 
@@ -2329,8 +2319,6 @@ void Sema::CodeCompleteUsing(Scope *S) {
   LookupVisibleDecls(S, LookupOrdinaryName, Consumer);
   Results.ExitScope();
   
-  if (CodeCompleter->includeMacros())
-    AddMacroResults(PP, Results);
   HandleCodeCompleteResults(this, CodeCompleter, Results.data(),Results.size());
 }
 
@@ -2345,8 +2333,6 @@ void Sema::CodeCompleteUsingDirective(Scope *S) {
   CodeCompletionDeclConsumer Consumer(Results, CurContext);
   LookupVisibleDecls(S, LookupOrdinaryName, Consumer);
   Results.ExitScope();
-  if (CodeCompleter->includeMacros())
-    AddMacroResults(PP, Results);
   HandleCodeCompleteResults(this, CodeCompleter, Results.data(),Results.size());
 }
 
@@ -2381,8 +2367,6 @@ void Sema::CodeCompleteNamespaceDecl(Scope *S)  {
     Results.ExitScope();
   }
   
-  if (CodeCompleter->includeMacros())
-    AddMacroResults(PP, Results);
   HandleCodeCompleteResults(this, CodeCompleter, Results.data(),Results.size());
 }
 
@@ -2394,8 +2378,6 @@ void Sema::CodeCompleteNamespaceAliasDecl(Scope *S)  {
   ResultBuilder Results(*this, &ResultBuilder::IsNamespaceOrAlias);
   CodeCompletionDeclConsumer Consumer(Results, CurContext);
   LookupVisibleDecls(S, LookupOrdinaryName, Consumer);
-  if (CodeCompleter->includeMacros())
-    AddMacroResults(PP, Results);
   HandleCodeCompleteResults(this, CodeCompleter, Results.data(),Results.size());
 }
 
@@ -2422,8 +2404,6 @@ void Sema::CodeCompleteOperatorName(Scope *S) {
   AddTypeSpecifierResults(getLangOptions(), Results);
   Results.ExitScope();
   
-  if (CodeCompleter->includeMacros())
-    AddMacroResults(PP, Results);
   HandleCodeCompleteResults(this, CodeCompleter, Results.data(),Results.size());
 }
 
@@ -2484,7 +2464,6 @@ static void AddObjCTopLevelResults(ResultBuilder &Results, bool NeedAt) {
   Pattern->AddTypedTextChunk(OBJC_AT_KEYWORD_NAME(NeedAt,class));
   Pattern->AddChunk(CodeCompletionString::CK_HorizontalSpace);
   Pattern->AddPlaceholderChunk("identifier");
-  Pattern->AddChunk(CodeCompletionString::CK_SemiColon);
   Results.AddResult(Result(Pattern));
   
   // @interface name 
@@ -2593,7 +2572,6 @@ static void AddObjCStatementResults(ResultBuilder &Results, bool NeedAt) {
   Pattern->AddTypedTextChunk(OBJC_AT_KEYWORD_NAME(NeedAt,throw));
   Pattern->AddChunk(CodeCompletionString::CK_HorizontalSpace);
   Pattern->AddPlaceholderChunk("expression");
-  Pattern->AddChunk(CodeCompletionString::CK_SemiColon);
   Results.AddResult(Result(Pattern));
   
   // @synchronized ( expression ) { statements }
@@ -2908,70 +2886,198 @@ void Sema::CodeCompleteObjCPropertySetter(Scope *S, DeclPtrTy ObjCImplDecl,
   HandleCodeCompleteResults(this, CodeCompleter,Results.data(),Results.size());
 }
 
-void Sema::CodeCompleteObjCClassMessage(Scope *S, IdentifierInfo *FName,
-                                        SourceLocation FNameLoc,
+/// \brief When we have an expression with type "id", we may assume
+/// that it has some more-specific class type based on knowledge of
+/// common uses of Objective-C. This routine returns that class type,
+/// or NULL if no better result could be determined.
+static ObjCInterfaceDecl *GetAssumedMessageSendExprType(Expr *E) {
+  ObjCMessageExpr *Msg = dyn_cast<ObjCMessageExpr>(E);
+  if (!Msg)
+    return 0;
+
+  Selector Sel = Msg->getSelector();
+  if (Sel.isNull())
+    return 0;
+
+  IdentifierInfo *Id = Sel.getIdentifierInfoForSlot(0);
+  if (!Id)
+    return 0;
+
+  ObjCMethodDecl *Method = Msg->getMethodDecl();
+  if (!Method)
+    return 0;
+
+  // Determine the class that we're sending the message to.
+  ObjCInterfaceDecl *IFace = 0;
+  switch (Msg->getReceiverKind()) {
+  case ObjCMessageExpr::Class:
+    if (const ObjCInterfaceType *IFaceType
+                           = Msg->getClassReceiver()->getAs<ObjCInterfaceType>())
+      IFace = IFaceType->getDecl();
+    break;
+
+  case ObjCMessageExpr::Instance: {
+    QualType T = Msg->getInstanceReceiver()->getType();
+    if (const ObjCObjectPointerType *Ptr = T->getAs<ObjCObjectPointerType>())
+      IFace = Ptr->getInterfaceDecl();
+    break;
+  }
+
+  case ObjCMessageExpr::SuperInstance:
+  case ObjCMessageExpr::SuperClass:
+    break;
+  }
+
+  if (!IFace)
+    return 0;
+
+  ObjCInterfaceDecl *Super = IFace->getSuperClass();
+  if (Method->isInstanceMethod())
+    return llvm::StringSwitch<ObjCInterfaceDecl *>(Id->getName())
+      .Case("retain", IFace)
+      .Case("autorelease", IFace)
+      .Case("copy", IFace)
+      .Case("copyWithZone", IFace)
+      .Case("mutableCopy", IFace)
+      .Case("mutableCopyWithZone", IFace)
+      .Case("awakeFromCoder", IFace)
+      .Case("replacementObjectFromCoder", IFace)
+      .Case("class", IFace)
+      .Case("classForCoder", IFace)
+      .Case("superclass", Super)
+      .Default(0);
+
+  return llvm::StringSwitch<ObjCInterfaceDecl *>(Id->getName())
+    .Case("new", IFace)
+    .Case("alloc", IFace)
+    .Case("allocWithZone", IFace)
+    .Case("class", IFace)
+    .Case("superclass", Super)
+    .Default(0);
+}
+
+void Sema::CodeCompleteObjCSuperMessage(Scope *S, SourceLocation SuperLoc,
+                                        IdentifierInfo **SelIdents,
+                                        unsigned NumSelIdents) {
+  ObjCInterfaceDecl *CDecl = 0;
+  if (ObjCMethodDecl *CurMethod = getCurMethodDecl()) {
+    // Figure out which interface we're in.
+    CDecl = CurMethod->getClassInterface();
+    if (!CDecl)
+      return;
+    
+    // Find the superclass of this class.
+    CDecl = CDecl->getSuperClass();
+    if (!CDecl)
+      return;
+
+    if (CurMethod->isInstanceMethod()) {
+      // We are inside an instance method, which means that the message
+      // send [super ...] is actually calling an instance method on the
+      // current object. Build the super expression and handle this like
+      // an instance method.
+      QualType SuperTy = Context.getObjCInterfaceType(CDecl);
+      SuperTy = Context.getObjCObjectPointerType(SuperTy);
+      OwningExprResult Super
+        = Owned(new (Context) ObjCSuperExpr(SuperLoc, SuperTy));
+      return CodeCompleteObjCInstanceMessage(S, (Expr *)Super.get(),
+                                             SelIdents, NumSelIdents);
+    }
+
+    // Fall through to send to the superclass in CDecl.
+  } else {
+    // "super" may be the name of a type or variable. Figure out which
+    // it is.
+    IdentifierInfo *Super = &Context.Idents.get("super");
+    NamedDecl *ND = LookupSingleName(S, Super, SuperLoc, 
+                                     LookupOrdinaryName);
+    if ((CDecl = dyn_cast_or_null<ObjCInterfaceDecl>(ND))) {
+      // "super" names an interface. Use it.
+    } else if (TypeDecl *TD = dyn_cast_or_null<TypeDecl>(ND)) {
+      if (const ObjCInterfaceType *Iface
+            = Context.getTypeDeclType(TD)->getAs<ObjCInterfaceType>())
+        CDecl = Iface->getDecl();
+    } else if (ND && isa<UnresolvedUsingTypenameDecl>(ND)) {
+      // "super" names an unresolved type; we can't be more specific.
+    } else {
+      // Assume that "super" names some kind of value and parse that way.
+      CXXScopeSpec SS;
+      UnqualifiedId id;
+      id.setIdentifier(Super, SuperLoc);
+      OwningExprResult SuperExpr = ActOnIdExpression(S, SS, id, false, false);
+      return CodeCompleteObjCInstanceMessage(S, (Expr *)SuperExpr.get(),
+                                             SelIdents, NumSelIdents);
+    }
+
+    // Fall through
+  }
+
+  TypeTy *Receiver = 0;
+  if (CDecl)
+    Receiver = Context.getObjCInterfaceType(CDecl).getAsOpaquePtr();
+  return CodeCompleteObjCClassMessage(S, Receiver, SelIdents, 
+                                      NumSelIdents);
+}
+
+void Sema::CodeCompleteObjCClassMessage(Scope *S, TypeTy *Receiver,
                                         IdentifierInfo **SelIdents,
                                         unsigned NumSelIdents) {
   typedef CodeCompleteConsumer::Result Result;
   ObjCInterfaceDecl *CDecl = 0;
 
-  if (FName->isStr("super")) {
-    // We're sending a message to "super".
-    if (ObjCMethodDecl *CurMethod = getCurMethodDecl()) {
-      // Figure out which interface we're in.
-      CDecl = CurMethod->getClassInterface();
-      if (!CDecl)
-        return;
-
-      // Find the superclass of this class.
-      CDecl = CDecl->getSuperClass();
-      if (!CDecl)
-        return;
-
-      if (CurMethod->isInstanceMethod()) {
-        // We are inside an instance method, which means that the message
-        // send [super ...] is actually calling an instance method on the
-        // current object. Build the super expression and handle this like
-        // an instance method.
-        QualType SuperTy = Context.getObjCInterfaceType(CDecl);
-        SuperTy = Context.getObjCObjectPointerType(SuperTy);
-        OwningExprResult Super
-          = Owned(new (Context) ObjCSuperExpr(FNameLoc, SuperTy));
-        return CodeCompleteObjCInstanceMessage(S, (Expr *)Super.get(),
-                                               SelIdents, NumSelIdents);
-      }
-
-      // Okay, we're calling a factory method in our superclass.
-    } 
-  }
-
   // If the given name refers to an interface type, retrieve the
   // corresponding declaration.
-  if (!CDecl)
-    if (TypeTy *Ty = getTypeName(*FName, FNameLoc, S, 0, false)) {
-      QualType T = GetTypeFromParser(Ty, 0);
-      if (!T.isNull()) 
-        if (const ObjCInterfaceType *Interface = T->getAs<ObjCInterfaceType>())
-          CDecl = Interface->getDecl();
-    }
-
-  if (!CDecl && FName->isStr("super")) {
-    // "super" may be the name of a variable, in which case we are
-    // probably calling an instance method.
-    CXXScopeSpec SS;
-    UnqualifiedId id;
-    id.setIdentifier(FName, FNameLoc);
-    OwningExprResult Super = ActOnIdExpression(S, SS, id, false, false);
-    return CodeCompleteObjCInstanceMessage(S, (Expr *)Super.get(),
-                                           SelIdents, NumSelIdents);
+  if (Receiver) {
+    QualType T = GetTypeFromParser(Receiver, 0);
+    if (!T.isNull()) 
+      if (const ObjCInterfaceType *Interface = T->getAs<ObjCInterfaceType>())
+        CDecl = Interface->getDecl();
   }
 
   // Add all of the factory methods in this Objective-C class, its protocols,
   // superclasses, categories, implementation, etc.
   ResultBuilder Results(*this);
   Results.EnterNewScope();
-  AddObjCMethods(CDecl, false, MK_Any, SelIdents, NumSelIdents, CurContext, 
-                 Results);  
+
+  if (CDecl) 
+    AddObjCMethods(CDecl, false, MK_Any, SelIdents, NumSelIdents, CurContext, 
+                   Results);  
+  else {
+    // We're messaging "id" as a type; provide all class/factory methods.
+
+    // If we have an external source, load the entire class method
+    // pool from the PCH file.
+    if (ExternalSource) {
+      for (uint32_t I = 0, N = ExternalSource->GetNumKnownSelectors(); I != N;
+           ++I) {
+        Selector Sel = ExternalSource->GetSelector(I);
+        if (Sel.isNull() || FactoryMethodPool.count(Sel) || 
+            InstanceMethodPool.count(Sel))
+          continue;
+
+        ReadMethodPool(Sel, /*isInstance=*/false);
+      }
+    }
+
+    for (llvm::DenseMap<Selector, ObjCMethodList>::iterator
+           M = FactoryMethodPool.begin(),
+           MEnd = FactoryMethodPool.end();
+         M != MEnd;
+         ++M) {
+      for (ObjCMethodList *MethList = &M->second; MethList && MethList->Method; 
+           MethList = MethList->Next) {
+        if (!isAcceptableObjCMethod(MethList->Method, MK_Any, SelIdents, 
+                                    NumSelIdents))
+          continue;
+
+        Result R(MethList->Method, 0);
+        R.StartParameter = NumSelIdents;
+        R.AllParametersAreInformative = false;
+        Results.MaybeAddResult(R, CurContext);
+      }
+    }
+  }
+
   Results.ExitScope();
   
   // This also suppresses remaining diagnostics.
@@ -2990,15 +3096,17 @@ void Sema::CodeCompleteObjCInstanceMessage(Scope *S, ExprTy *Receiver,
   DefaultFunctionArrayLvalueConversion(RecExpr);
   QualType ReceiverType = RecExpr->getType();
   
-  if (ReceiverType->isObjCIdType() || ReceiverType->isBlockPointerType()) {
-    // FIXME: We're messaging 'id'. Do we actually want to look up every method
-    // in the universe?
-    return;
-  }
-  
   // Build the set of methods we can see.
   ResultBuilder Results(*this);
   Results.EnterNewScope();
+
+  // If we're messaging an expression with type "id" or "Class", check
+  // whether we know something special about the receiver that allows
+  // us to assume a more-specific receiver type.
+  if (ReceiverType->isObjCIdType() || ReceiverType->isObjCClassType())
+    if (ObjCInterfaceDecl *IFace = GetAssumedMessageSendExprType(RecExpr))
+      ReceiverType = Context.getObjCObjectPointerType(
+                                          Context.getObjCInterfaceType(IFace));
   
   // Handle messages to Class. This really isn't a message to an instance
   // method, so we treat it the same way we would treat a message send to a
@@ -3035,7 +3143,44 @@ void Sema::CodeCompleteObjCInstanceMessage(Scope *S, ExprTy *Receiver,
       AddObjCMethods(*I, true, MK_Any, SelIdents, NumSelIdents, CurContext, 
                      Results);
   }
-  
+  // Handle messages to "id".
+  else if (ReceiverType->isObjCIdType()) {
+    // We're messaging "id", so provide all instance methods we know
+    // about as code-completion results.
+
+    // If we have an external source, load the entire class method
+    // pool from the PCH file.
+    if (ExternalSource) {
+      for (uint32_t I = 0, N = ExternalSource->GetNumKnownSelectors(); I != N;
+           ++I) {
+        Selector Sel = ExternalSource->GetSelector(I);
+        if (Sel.isNull() || InstanceMethodPool.count(Sel) ||
+            FactoryMethodPool.count(Sel))
+          continue;
+
+        ReadMethodPool(Sel, /*isInstance=*/true);
+      }
+    }
+
+    for (llvm::DenseMap<Selector, ObjCMethodList>::iterator
+           M = InstanceMethodPool.begin(),
+           MEnd = InstanceMethodPool.end();
+         M != MEnd;
+         ++M) {
+      for (ObjCMethodList *MethList = &M->second; MethList && MethList->Method; 
+           MethList = MethList->Next) {
+        if (!isAcceptableObjCMethod(MethList->Method, MK_Any, SelIdents, 
+                                    NumSelIdents))
+          continue;
+
+        Result R(MethList->Method, 0);
+        R.StartParameter = NumSelIdents;
+        R.AllParametersAreInformative = false;
+        Results.MaybeAddResult(R, CurContext);
+      }
+    }
+  }
+
   Results.ExitScope();
   HandleCodeCompleteResults(this, CodeCompleter, Results.data(),Results.size());
 }
@@ -3076,7 +3221,8 @@ void Sema::CodeCompleteObjCProtocolReferences(IdentifierLocPair *Protocols,
   // Tell the result set to ignore all of the protocols we have
   // already seen.
   for (unsigned I = 0; I != NumProtocols; ++I)
-    if (ObjCProtocolDecl *Protocol = LookupProtocol(Protocols[I].first))
+    if (ObjCProtocolDecl *Protocol = LookupProtocol(Protocols[I].first,
+                                                    Protocols[I].second))
       Results.Ignore(Protocol);
 
   // Add all protocols.
@@ -3140,13 +3286,14 @@ void Sema::CodeCompleteObjCInterfaceDecl(Scope *S) {
   HandleCodeCompleteResults(this, CodeCompleter, Results.data(),Results.size());
 }
 
-void Sema::CodeCompleteObjCSuperclass(Scope *S, IdentifierInfo *ClassName) { 
+void Sema::CodeCompleteObjCSuperclass(Scope *S, IdentifierInfo *ClassName,
+                                      SourceLocation ClassNameLoc) { 
   ResultBuilder Results(*this);
   Results.EnterNewScope();
   
   // Make sure that we ignore the class we're currently defining.
   NamedDecl *CurClass
-    = LookupSingleName(TUScope, ClassName, LookupOrdinaryName);
+    = LookupSingleName(TUScope, ClassName, ClassNameLoc, LookupOrdinaryName);
   if (CurClass && isa<ObjCInterfaceDecl>(CurClass))
     Results.Ignore(CurClass);
 
@@ -3171,7 +3318,8 @@ void Sema::CodeCompleteObjCImplementationDecl(Scope *S) {
 }
 
 void Sema::CodeCompleteObjCInterfaceCategory(Scope *S, 
-                                             IdentifierInfo *ClassName) {
+                                             IdentifierInfo *ClassName,
+                                             SourceLocation ClassNameLoc) {
   typedef CodeCompleteConsumer::Result Result;
   
   ResultBuilder Results(*this);
@@ -3180,7 +3328,7 @@ void Sema::CodeCompleteObjCInterfaceCategory(Scope *S,
   // interface.
   llvm::SmallPtrSet<IdentifierInfo *, 16> CategoryNames;
   NamedDecl *CurClass
-    = LookupSingleName(TUScope, ClassName, LookupOrdinaryName);
+    = LookupSingleName(TUScope, ClassName, ClassNameLoc, LookupOrdinaryName);
   if (ObjCInterfaceDecl *Class = dyn_cast_or_null<ObjCInterfaceDecl>(CurClass))
     for (ObjCCategoryDecl *Category = Class->getCategoryList(); Category;
          Category = Category->getNextClassCategory())
@@ -3201,17 +3349,18 @@ void Sema::CodeCompleteObjCInterfaceCategory(Scope *S,
 }
 
 void Sema::CodeCompleteObjCImplementationCategory(Scope *S, 
-                                                  IdentifierInfo *ClassName) {
+                                                  IdentifierInfo *ClassName,
+                                                  SourceLocation ClassNameLoc) {
   typedef CodeCompleteConsumer::Result Result;
   
   // Find the corresponding interface. If we couldn't find the interface, the
   // program itself is ill-formed. However, we'll try to be helpful still by
   // providing the list of all of the categories we know about.
   NamedDecl *CurClass
-    = LookupSingleName(TUScope, ClassName, LookupOrdinaryName);
+    = LookupSingleName(TUScope, ClassName, ClassNameLoc, LookupOrdinaryName);
   ObjCInterfaceDecl *Class = dyn_cast_or_null<ObjCInterfaceDecl>(CurClass);
   if (!Class)
-    return CodeCompleteObjCInterfaceCategory(S, ClassName);
+    return CodeCompleteObjCInterfaceCategory(S, ClassName, ClassNameLoc);
     
   ResultBuilder Results(*this);
   
@@ -3302,6 +3451,227 @@ void Sema::CodeCompleteObjCPropertySynthesizeIvar(Scope *S,
          IVar != IVarEnd; ++IVar) 
       Results.AddResult(Result(*IVar, 0), CurContext, 0, false);
   }
+  Results.ExitScope();
+  
+  HandleCodeCompleteResults(this, CodeCompleter, Results.data(),Results.size());
+}
+
+typedef llvm::DenseMap<Selector, ObjCMethodDecl *> KnownMethodsMap;
+
+/// \brief Find all of the methods that reside in the given container
+/// (and its superclasses, protocols, etc.) that meet the given
+/// criteria. Insert those methods into the map of known methods,
+/// indexed by selector so they can be easily found.
+static void FindImplementableMethods(ASTContext &Context,
+                                     ObjCContainerDecl *Container,
+                                     bool WantInstanceMethods,
+                                     QualType ReturnType,
+                                     bool IsInImplementation,
+                                     KnownMethodsMap &KnownMethods) {
+  if (ObjCInterfaceDecl *IFace = dyn_cast<ObjCInterfaceDecl>(Container)) {
+    // Recurse into protocols.
+    const ObjCList<ObjCProtocolDecl> &Protocols
+      = IFace->getReferencedProtocols();
+    for (ObjCList<ObjCProtocolDecl>::iterator I = Protocols.begin(),
+           E = Protocols.end(); 
+         I != E; ++I)
+      FindImplementableMethods(Context, *I, WantInstanceMethods, ReturnType,
+                               IsInImplementation, KnownMethods);
+
+    // If we're not in the implementation of a class, also visit the
+    // superclass.
+    if (!IsInImplementation && IFace->getSuperClass())
+      FindImplementableMethods(Context, IFace->getSuperClass(), 
+                               WantInstanceMethods, ReturnType,
+                               IsInImplementation, KnownMethods);
+
+    // Add methods from any class extensions (but not from categories;
+    // those should go into category implementations).
+    for (ObjCCategoryDecl *Cat = IFace->getCategoryList(); Cat;
+         Cat = Cat->getNextClassCategory()) {
+      if (!Cat->IsClassExtension())
+        continue;
+
+      FindImplementableMethods(Context, Cat, WantInstanceMethods, ReturnType,
+                               IsInImplementation, KnownMethods);      
+    }
+  }
+
+  if (ObjCCategoryDecl *Category = dyn_cast<ObjCCategoryDecl>(Container)) {
+    // Recurse into protocols.
+    const ObjCList<ObjCProtocolDecl> &Protocols
+      = Category->getReferencedProtocols();
+    for (ObjCList<ObjCProtocolDecl>::iterator I = Protocols.begin(),
+           E = Protocols.end(); 
+         I != E; ++I)
+      FindImplementableMethods(Context, *I, WantInstanceMethods, ReturnType,
+                               IsInImplementation, KnownMethods);
+  }
+
+  if (ObjCProtocolDecl *Protocol = dyn_cast<ObjCProtocolDecl>(Container)) {
+    // Recurse into protocols.
+    const ObjCList<ObjCProtocolDecl> &Protocols
+      = Protocol->getReferencedProtocols();
+    for (ObjCList<ObjCProtocolDecl>::iterator I = Protocols.begin(),
+           E = Protocols.end(); 
+         I != E; ++I)
+      FindImplementableMethods(Context, *I, WantInstanceMethods, ReturnType,
+                               IsInImplementation, KnownMethods);
+  }
+
+  // Add methods in this container. This operation occurs last because
+  // we want the methods from this container to override any methods
+  // we've previously seen with the same selector.
+  for (ObjCContainerDecl::method_iterator M = Container->meth_begin(),
+                                       MEnd = Container->meth_end();
+       M != MEnd; ++M) {
+    if ((*M)->isInstanceMethod() == WantInstanceMethods) {
+      if (!ReturnType.isNull() &&
+          !Context.hasSameUnqualifiedType(ReturnType, (*M)->getResultType()))
+        continue;
+
+      KnownMethods[(*M)->getSelector()] = *M;
+    }
+  }
+}
+
+void Sema::CodeCompleteObjCMethodDecl(Scope *S, 
+                                      bool IsInstanceMethod,
+                                      TypeTy *ReturnTy,
+                                      DeclPtrTy IDecl) {
+  // Determine the return type of the method we're declaring, if
+  // provided.
+  QualType ReturnType = GetTypeFromParser(ReturnTy);
+
+  // Determine where we should start searching for methods, and where we 
+  ObjCContainerDecl *SearchDecl = 0, *CurrentDecl = 0;
+  bool IsInImplementation = false;
+  if (Decl *D = IDecl.getAs<Decl>()) {
+    if (ObjCImplementationDecl *Impl = dyn_cast<ObjCImplementationDecl>(D)) {
+      SearchDecl = Impl->getClassInterface();
+      CurrentDecl = Impl;
+      IsInImplementation = true;
+    } else if (ObjCCategoryImplDecl *CatImpl 
+                                       = dyn_cast<ObjCCategoryImplDecl>(D)) {
+      SearchDecl = CatImpl->getCategoryDecl();
+      CurrentDecl = CatImpl;
+      IsInImplementation = true;
+    } else {
+      SearchDecl = dyn_cast<ObjCContainerDecl>(D);
+      CurrentDecl = SearchDecl;
+    }
+  }
+
+  if (!SearchDecl && S) {
+    if (DeclContext *DC = static_cast<DeclContext *>(S->getEntity())) {
+      SearchDecl = dyn_cast<ObjCContainerDecl>(DC);
+      CurrentDecl = SearchDecl;
+    }
+  }
+
+  if (!SearchDecl || !CurrentDecl) {
+    HandleCodeCompleteResults(this, CodeCompleter, 0, 0);
+    return;
+  }
+    
+  // Find all of the methods that we could declare/implement here.
+  KnownMethodsMap KnownMethods;
+  FindImplementableMethods(Context, SearchDecl, IsInstanceMethod, 
+                           ReturnType, IsInImplementation, KnownMethods);
+  
+  // Erase any methods that have already been declared or
+  // implemented here.
+  for (ObjCContainerDecl::method_iterator M = CurrentDecl->meth_begin(),
+                                       MEnd = CurrentDecl->meth_end();
+       M != MEnd; ++M) {
+    if ((*M)->isInstanceMethod() != IsInstanceMethod)
+      continue;
+    
+    KnownMethodsMap::iterator Pos = KnownMethods.find((*M)->getSelector());
+    if (Pos != KnownMethods.end())
+      KnownMethods.erase(Pos);
+  }
+
+  // Add declarations or definitions for each of the known methods.
+  typedef CodeCompleteConsumer::Result Result;
+  ResultBuilder Results(*this);
+  Results.EnterNewScope();
+  PrintingPolicy Policy(Context.PrintingPolicy);
+  Policy.AnonymousTagLocations = false;
+  for (KnownMethodsMap::iterator M = KnownMethods.begin(), 
+                              MEnd = KnownMethods.end();
+       M != MEnd; ++M) {
+    ObjCMethodDecl *Method = M->second;
+    CodeCompletionString *Pattern = new CodeCompletionString;
+    
+    // If the result type was not already provided, add it to the
+    // pattern as (type).
+    if (ReturnType.isNull()) {
+      std::string TypeStr;
+      Method->getResultType().getAsStringInternal(TypeStr, Policy);
+      Pattern->AddChunk(CodeCompletionString::CK_LeftParen);
+      Pattern->AddTextChunk(TypeStr);
+      Pattern->AddChunk(CodeCompletionString::CK_RightParen);
+    }
+
+    Selector Sel = Method->getSelector();
+
+    // Add the first part of the selector to the pattern.
+    Pattern->AddTypedTextChunk(Sel.getIdentifierInfoForSlot(0)->getName());
+
+    // Add parameters to the pattern.
+    unsigned I = 0;
+    for (ObjCMethodDecl::param_iterator P = Method->param_begin(), 
+                                     PEnd = Method->param_end();
+         P != PEnd; (void)++P, ++I) {
+      // Add the part of the selector name.
+      if (I == 0)
+        Pattern->AddChunk(CodeCompletionString::CK_Colon);
+      else if (I < Sel.getNumArgs()) {
+        Pattern->AddChunk(CodeCompletionString::CK_HorizontalSpace);
+        Pattern->AddTextChunk(Sel.getIdentifierInfoForSlot(1)->getName());
+        Pattern->AddChunk(CodeCompletionString::CK_Colon);
+      } else
+        break;
+
+      // Add the parameter type.
+      std::string TypeStr;
+      (*P)->getOriginalType().getAsStringInternal(TypeStr, Policy);
+      Pattern->AddChunk(CodeCompletionString::CK_LeftParen);
+      Pattern->AddTextChunk(TypeStr);
+      Pattern->AddChunk(CodeCompletionString::CK_RightParen);
+      
+      if (IdentifierInfo *Id = (*P)->getIdentifier())
+        Pattern->AddTextChunk(Id->getName());
+    }
+
+    if (Method->isVariadic()) {
+      if (Method->param_size() > 0)
+        Pattern->AddChunk(CodeCompletionString::CK_Comma);
+      Pattern->AddTextChunk("...");
+    }
+
+    if (IsInImplementation) {
+      // We will be defining the method here, so add a compound statement.
+      Pattern->AddChunk(CodeCompletionString::CK_HorizontalSpace);
+      Pattern->AddChunk(CodeCompletionString::CK_LeftBrace);
+      Pattern->AddChunk(CodeCompletionString::CK_VerticalSpace);
+      if (!Method->getResultType()->isVoidType()) {
+        // If the result type is not void, add a return clause.
+        Pattern->AddTextChunk("return");
+        Pattern->AddChunk(CodeCompletionString::CK_HorizontalSpace);
+        Pattern->AddPlaceholderChunk("expression");
+        Pattern->AddChunk(CodeCompletionString::CK_SemiColon);
+      } else
+        Pattern->AddPlaceholderChunk("statements");
+        
+      Pattern->AddChunk(CodeCompletionString::CK_VerticalSpace);
+      Pattern->AddChunk(CodeCompletionString::CK_RightBrace);
+    }
+
+    Results.AddResult(Result(Pattern));
+  }
+
   Results.ExitScope();
   
   HandleCodeCompleteResults(this, CodeCompleter, Results.data(),Results.size());

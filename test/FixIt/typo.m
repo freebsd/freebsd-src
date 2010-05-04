@@ -1,8 +1,10 @@
 // RUN: %clang_cc1 -fsyntax-only -verify %s
-// FIXME: the test below isn't testing quite what we want...
-// RUN: %clang_cc1 -fsyntax-only -fixit -o - %s | %clang_cc1 -fsyntax-only -pedantic -Werror -x objective-c -
+// RUN: cp %s %t
+// RUN: %clang_cc1 -fsyntax-only -fixit %t || true
+// RUN: %clang_cc1 -fsyntax-only -pedantic -Werror -x objective-c %t
+// XFAIL: *
 
-@interface NSString
+@interface NSString // expected-note{{'NSString' declared here}}
 + (int)method:(int)x;
 @end
 
@@ -57,8 +59,7 @@ void test() {
 @end
 
 void test_message_send(B* b) {
-  // FIXME: Not providing fix-its
-  [NSstring method:17]; // expected-error{{use of undeclared identifier 'NSstring'; did you mean 'NSString'?}}
+  [NSstring method:17]; // expected-error{{unknown receiver 'NSstring'; did you mean 'NSString'?}}
 }
 
 @interface Collide // expected-note{{'Collide' declared here}}
@@ -87,4 +88,53 @@ void test2(Collide *a) {
 @end
 
 @interface IPv6 <Network_Socket> // expected-error{{cannot find protocol declaration for 'Network_Socket'; did you mean 'NetworkSocket'?}}
+@end
+
+@interface Super
+- (int)method;
+@end
+
+@interface Sub : Super
+- (int)method;
+@end
+
+@implementation Sub
+- (int)method {
+  return [supper method]; // expected-error{{unknown receiver 'supper'; did you mean 'super'?}}
+}
+  
+@end
+
+@interface Ivar
+@end
+
+@protocol Proto
+@property (retain) id ivar;
+@end
+
+@interface User <Proto>
+- (void)method;
+@end
+
+@implementation User
+@synthesize ivar;
+
+- (void)method {
+    [ivar method]; // Test that we don't correct 'ivar' to 'Ivar'
+}
+@end
+
+@interface User2
+@end
+
+@interface User2 (Cat) < Proto>
+- (void)method;
+@end
+
+@implementation User2 (Cat)
+@synthesize ivar;
+
+- (void)method {
+    [ivar method]; // Test that we don't correct 'ivar' to 'Ivar'
+}
 @end

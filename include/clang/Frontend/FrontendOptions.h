@@ -24,7 +24,6 @@ namespace frontend {
     ASTPrintXML,            ///< Parse ASTs and print them in XML.
     ASTView,                ///< Parse ASTs and view them in Graphviz.
     DumpRawTokens,          ///< Dump out raw tokens.
-    DumpRecordLayouts,      ///< Dump record layout information.
     DumpTokens,             ///< Dump out preprocessed tokens.
     EmitAssembly,           ///< Emit a .s file.
     EmitBC,                 ///< Emit a .bc file.
@@ -93,8 +92,8 @@ public:
   /// If given, the name for a C++ class to view the inheritance of.
   std::string ViewClassInheritance;
 
-  /// A list of locations to apply fix-its at.
-  std::vector<ParsedSourceLocation> FixItLocations;
+  /// If given, the new suffix for fix-it rewritten files.
+  std::string FixItSuffix;
 
   /// If given, enable code completion at the provided location.
   ParsedSourceLocation CodeCompletionAt;
@@ -110,6 +109,10 @@ public:
 
   /// \brief The list of AST files to merge.
   std::vector<std::string> ASTMergeFiles;
+
+  /// \brief A list of arguments to forward to LLVM's option processing; this
+  /// should only be used for debugging and experimental features.
+  std::vector<std::string> LLVMArgs;
 
 public:
   FrontendOptions() {

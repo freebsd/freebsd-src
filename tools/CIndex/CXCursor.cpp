@@ -50,6 +50,7 @@ static CXCursorKind GetCursorKind(Decl *D) {
     case Decl::ObjCMethod:
       return cast<ObjCMethodDecl>(D)->isInstanceMethod()
               ? CXCursor_ObjCInstanceMethodDecl : CXCursor_ObjCClassMethodDecl;
+    case Decl::CXXMethod:          return CXCursor_CXXMethod;
     case Decl::ObjCProperty:       return CXCursor_ObjCPropertyDecl;
     case Decl::ObjCProtocol:       return CXCursor_ObjCProtocolDecl;
     case Decl::ParmVar:            return CXCursor_ParmDecl;
@@ -159,7 +160,6 @@ CXCursor cxcursor::MakeCXCursor(Stmt *S, Decl *Parent, ASTUnit *TU) {
   case Stmt::TypesCompatibleExprClass:  
   case Stmt::ChooseExprClass:           
   case Stmt::GNUNullExprClass:          
-  case Stmt::CXXNamedCastExprClass:
   case Stmt::CXXStaticCastExprClass:      
   case Stmt::CXXDynamicCastExprClass:     
   case Stmt::CXXReinterpretCastExprClass: 

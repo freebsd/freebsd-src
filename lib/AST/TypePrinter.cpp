@@ -29,7 +29,7 @@ namespace {
 
   public:
     explicit TypePrinter(const PrintingPolicy &Policy) : Policy(Policy) { }
-    
+
     void Print(QualType T, std::string &S);
     void AppendScope(DeclContext *DC, std::string &S);
     void PrintTag(TagDecl *T, std::string &S);
@@ -546,7 +546,7 @@ void TypePrinter::PrintTemplateSpecialization(
 
 void TypePrinter::PrintInjectedClassName(const InjectedClassNameType *T,
                                          std::string &S) {
-  PrintTemplateSpecialization(T->getUnderlyingTST(), S);
+  PrintTemplateSpecialization(T->getInjectedTST(), S);
 }
 
 void TypePrinter::PrintQualifiedName(const QualifiedNameType *T, 

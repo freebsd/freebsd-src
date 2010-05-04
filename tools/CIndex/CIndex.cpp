@@ -22,8 +22,12 @@
 #include "clang/AST/DeclVisitor.h"
 #include "clang/AST/StmtVisitor.h"
 #include "clang/AST/TypeLocVisitor.h"
+#include "clang/Basic/Diagnostic.h"
+#include "clang/Frontend/ASTUnit.h"
+#include "clang/Frontend/CompilerInstance.h"
 #include "clang/Frontend/FrontendDiagnostic.h"
 #include "clang/Lex/Lexer.h"
+#include "clang/Lex/PreprocessingRecord.h"
 #include "clang/Lex/Preprocessor.h"
 #include "llvm/Support/MemoryBuffer.h"
 #include "llvm/System/Program.h"
@@ -35,7 +39,6 @@
 using namespace clang;
 using namespace clang::cxcursor;
 using namespace clang::cxstring;
-using namespace idx;
 
 //===----------------------------------------------------------------------===//
 // Crash Reporting.
@@ -242,6 +245,7 @@ public:
 
   // Declaration visitors
   bool VisitAttributes(Decl *D);
+  bool VisitBlockDecl(BlockDecl *B);
   bool VisitDeclContext(DeclContext *DC);
   bool VisitTranslationUnitDecl(TranslationUnitDecl *D);
   bool VisitTypedefDecl(TypedefDecl *D);
@@ -297,10 +301,12 @@ public:
   bool VisitForStmt(ForStmt *S);
 
   // Expression visitors
-  bool VisitSizeOfAlignOfExpr(SizeOfAlignOfExpr *E);
-  bool VisitExplicitCastExpr(ExplicitCastExpr *E);
+  bool VisitBlockExpr(BlockExpr *B);
   bool VisitCompoundLiteralExpr(CompoundLiteralExpr *E);
+  bool VisitExplicitCastExpr(ExplicitCastExpr *E);
   bool VisitObjCMessageExpr(ObjCMessageExpr *E);
+  bool VisitObjCEncodeExpr(ObjCEncodeExpr *E);
+  bool VisitSizeOfAlignOfExpr(SizeOfAlignOfExpr *E);
 };
 
 } // end anonymous namespace
@@ -482,6 +488,15 @@ bool CursorVisitor::VisitChildren(CXCursor Cursor) {
 
   // Nothing to visit at the moment.
   return false;
+}
+
+bool CursorVisitor::VisitBlockDecl(BlockDecl *B) {
+  for (BlockDecl::param_iterator I=B->param_begin(), E=B->param_end(); I!=E;++I)
+    if (Decl *D = *I)
+      if (Visit(D))
+        return true;
+
+  return Visit(MakeCXCursor(B->getBody(), StmtParent, TU));
 }
 
 bool CursorVisitor::VisitDeclContext(DeclContext *DC) {
@@ -814,8 +829,9 @@ bool CursorVisitor::VisitFunctionTypeLoc(FunctionTypeLoc TL) {
     return true;
 
   for (unsigned I = 0, N = TL.getNumArgs(); I != N; ++I)
-    if (Visit(MakeCXCursor(TL.getArg(I), TU)))
-      return true;
+    if (Decl *D = TL.getArg(I))
+      if (Visit(MakeCXCursor(D, TU)))
+        return true;
 
   return false;
 }
@@ -923,6 +939,10 @@ bool CursorVisitor::VisitForStmt(ForStmt *S) {
   return false;
 }
 
+bool CursorVisitor::VisitBlockExpr(BlockExpr *B) {
+  return Visit(B->getBlockDecl());
+}
+
 bool CursorVisitor::VisitSizeOfAlignOfExpr(SizeOfAlignOfExpr *E) {
   if (E->isArgumentType()) {
     if (TypeSourceInfo *TSInfo = E->getArgumentTypeInfo())
@@ -951,12 +971,17 @@ bool CursorVisitor::VisitCompoundLiteralExpr(CompoundLiteralExpr *E) {
 }
 
 bool CursorVisitor::VisitObjCMessageExpr(ObjCMessageExpr *E) {
-  ObjCMessageExpr::ClassInfo CI = E->getClassInfo();
-  if (CI.Decl && Visit(MakeCursorObjCClassRef(CI.Decl, CI.Loc, TU)))
-    return true;
+  if (TypeSourceInfo *TSInfo = E->getClassReceiverTypeInfo())
+    if (Visit(TSInfo->getTypeLoc()))
+      return true;
 
   return VisitExpr(E);
 }
+
+bool CursorVisitor::VisitObjCEncodeExpr(ObjCEncodeExpr *E) {
+  return Visit(E->getEncodedTypeSourceInfo()->getTypeLoc());
+}
+
 
 bool CursorVisitor::VisitAttributes(Decl *D) {
   for (const Attr *A = D->getAttrs(); A; A = A->getNext())
@@ -1539,6 +1564,8 @@ CXString clang_getCursorKindSpelling(enum CXCursorKind Kind) {
       return createCXString("ObjCImplementationDecl");
   case CXCursor_ObjCCategoryImplDecl:
       return createCXString("ObjCCategoryImplDecl");
+  case CXCursor_CXXMethod:
+      return createCXString("CXXMethod");
   case CXCursor_UnexposedDecl:
       return createCXString("UnexposedDecl");
   case CXCursor_ObjCSuperClassRef:
@@ -1551,6 +1578,8 @@ CXString clang_getCursorKindSpelling(enum CXCursorKind Kind) {
       return createCXString("TypeRef");
   case CXCursor_UnexposedExpr:
       return createCXString("UnexposedExpr");
+  case CXCursor_BlockExpr:
+      return createCXString("BlockExpr");
   case CXCursor_DeclRefExpr:
       return createCXString("DeclRefExpr");
   case CXCursor_MemberRefExpr:
@@ -1892,8 +1921,6 @@ CXCursor clang_getCursorDefinition(CXCursor C) {
   // Declaration kinds that don't make any sense here, but are
   // nonetheless harmless.
   case Decl::TranslationUnit:
-  case Decl::Template:
-  case Decl::ObjCContainer:
     break;
 
   // Declaration kinds for which the definition is not resolvable.
@@ -2440,6 +2467,67 @@ CXLinkageKind clang_getCursorLinkage(CXCursor cursor) {
     };
 
   return CXLinkage_Invalid;
+}
+} // end: extern "C"
+
+//===----------------------------------------------------------------------===//
+// Operations for querying language of a cursor.
+//===----------------------------------------------------------------------===//
+
+static CXLanguageKind getDeclLanguage(const Decl *D) {
+  switch (D->getKind()) {
+    default:
+      break;
+    case Decl::ImplicitParam:
+    case Decl::ObjCAtDefsField:
+    case Decl::ObjCCategory:
+    case Decl::ObjCCategoryImpl:
+    case Decl::ObjCClass:
+    case Decl::ObjCCompatibleAlias:
+    case Decl::ObjCForwardProtocol:
+    case Decl::ObjCImplementation:
+    case Decl::ObjCInterface:
+    case Decl::ObjCIvar:
+    case Decl::ObjCMethod:
+    case Decl::ObjCProperty:
+    case Decl::ObjCPropertyImpl:
+    case Decl::ObjCProtocol:
+      return CXLanguage_ObjC;
+    case Decl::CXXConstructor:
+    case Decl::CXXConversion:
+    case Decl::CXXDestructor:
+    case Decl::CXXMethod:
+    case Decl::CXXRecord:
+    case Decl::ClassTemplate:
+    case Decl::ClassTemplatePartialSpecialization:
+    case Decl::ClassTemplateSpecialization:
+    case Decl::Friend:
+    case Decl::FriendTemplate:
+    case Decl::FunctionTemplate:
+    case Decl::LinkageSpec:
+    case Decl::Namespace:
+    case Decl::NamespaceAlias:
+    case Decl::NonTypeTemplateParm:
+    case Decl::StaticAssert:
+    case Decl::TemplateTemplateParm:
+    case Decl::TemplateTypeParm:
+    case Decl::UnresolvedUsingTypename:
+    case Decl::UnresolvedUsingValue:
+    case Decl::Using:
+    case Decl::UsingDirective:
+    case Decl::UsingShadow:
+      return CXLanguage_CPlusPlus;
+  }
+
+  return CXLanguage_C;
+}
+
+extern "C" {
+CXLanguageKind clang_getCursorLanguage(CXCursor cursor) {
+  if (clang_isDeclaration(cursor.kind))
+    return getDeclLanguage(cxcursor::getCursorDecl(cursor));
+
+  return CXLanguage_Invalid;
 }
 } // end: extern "C"
 

@@ -528,7 +528,7 @@ static bool HasIncompleteReturnTypeOrArgumentTypes(const FunctionProtoType *T) {
 }
 
 const llvm::Type *
-CodeGenTypes::GetFunctionTypeForVtable(const CXXMethodDecl *MD) {
+CodeGenTypes::GetFunctionTypeForVTable(const CXXMethodDecl *MD) {
   const FunctionProtoType *FPT = MD->getType()->getAs<FunctionProtoType>();
   
   if (!HasIncompleteReturnTypeOrArgumentTypes(FPT))
@@ -586,8 +586,7 @@ void CodeGenModule::ConstructAttributeList(const CGFunctionInfo &FI,
 
   case ABIArgInfo::Indirect:
     PAL.push_back(llvm::AttributeWithIndex::get(Index,
-                                                llvm::Attribute::StructRet |
-                                                llvm::Attribute::NoAlias));
+                                                llvm::Attribute::StructRet));
     ++Index;
     // sret disables readnone and readonly
     FuncAttrs &= ~(llvm::Attribute::ReadOnly |
@@ -870,7 +869,8 @@ RValue CodeGenFunction::EmitCall(const CGFunctionInfo &CallInfo,
                                  llvm::Value *Callee,
                                  ReturnValueSlot ReturnValue,
                                  const CallArgList &CallArgs,
-                                 const Decl *TargetDecl) {
+                                 const Decl *TargetDecl,
+                                 llvm::Instruction **callOrInvoke) {
   // FIXME: We no longer need the types from CallArgs; lift up and simplify.
   llvm::SmallVector<llvm::Value*, 16> Args;
 
@@ -995,6 +995,9 @@ RValue CodeGenFunction::EmitCall(const CGFunctionInfo &CallInfo,
     CS = Builder.CreateInvoke(Callee, Cont, InvokeDest,
                               Args.data(), Args.data()+Args.size());
     EmitBlock(Cont);
+  }
+  if (callOrInvoke) {
+    *callOrInvoke = CS.getInstruction();
   }
 
   CS.setAttributes(Attrs);

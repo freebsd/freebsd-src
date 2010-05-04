@@ -13,22 +13,137 @@
 #include "llvm/ADT/DenseMap.h"
 #include "clang/AST/Decl.h"
 namespace llvm {
+  class raw_ostream;
   class Type;
 }
 
 namespace clang {
 namespace CodeGen {
 
+/// \brief Helper object for describing how to generate the code for access to a
+/// bit-field.
+///
+/// This structure is intended to describe the "policy" of how the bit-field
+/// should be accessed, which may be target, language, or ABI dependent.
 class CGBitFieldInfo {
 public:
-  CGBitFieldInfo(unsigned FieldNo, unsigned Start, unsigned Size,
-                 bool IsSigned)
-    : FieldNo(FieldNo), Start(Start), Size(Size), IsSigned(IsSigned) {}
+  /// Descriptor for a single component of a bit-field access. The entire
+  /// bit-field is constituted of a bitwise OR of all of the individual
+  /// components.
+  ///
+  /// Each component describes an accessed value, which is how the component
+  /// should be transferred to/from memory, and a target placement, which is how
+  /// that component fits into the constituted bit-field. The pseudo-IR for a
+  /// load is:
+  ///
+  ///   %0 = gep %base, 0, FieldIndex
+  ///   %1 = gep (i8*) %0, FieldByteOffset
+  ///   %2 = (i(AccessWidth) *) %1
+  ///   %3 = load %2, align AccessAlignment
+  ///   %4 = shr %3, FieldBitStart
+  ///
+  /// and the composed bit-field is formed as the boolean OR of all accesses,
+  /// masked to TargetBitWidth bits and shifted to TargetBitOffset.
+  struct AccessInfo {
+    /// Offset of the field to load in the LLVM structure, if any.
+    unsigned FieldIndex;
 
-  unsigned FieldNo;
-  unsigned Start;
+    /// Byte offset from the field address, if any. This should generally be
+    /// unused as the cleanest IR comes from having a well-constructed LLVM type
+    /// with proper GEP instructions, but sometimes its use is required, for
+    /// example if an access is intended to straddle an LLVM field boundary.
+    unsigned FieldByteOffset;
+
+    /// Bit offset in the accessed value to use. The width is implied by \see
+    /// TargetBitWidth.
+    unsigned FieldBitStart;
+
+    /// Bit width of the memory access to perform.
+    unsigned AccessWidth;
+
+    /// The alignment of the memory access, or 0 if the default alignment should
+    /// be used.
+    //
+    // FIXME: Remove use of 0 to encode default, instead have IRgen do the right
+    // thing when it generates the code, if avoiding align directives is
+    // desired.
+    unsigned AccessAlignment;
+
+    /// Offset for the target value.
+    unsigned TargetBitOffset;
+
+    /// Number of bits in the access that are destined for the bit-field.
+    unsigned TargetBitWidth;
+  };
+
+private:
+  /// The components to use to access the bit-field. We may need up to three
+  /// separate components to support up to i64 bit-field access (4 + 2 + 1 byte
+  /// accesses).
+  //
+  // FIXME: De-hardcode this, just allocate following the struct.
+  AccessInfo Components[3];
+
+  /// The total size of the bit-field, in bits.
   unsigned Size;
+
+  /// The number of access components to use.
+  unsigned NumComponents;
+
+  /// Whether the bit-field is signed.
   bool IsSigned : 1;
+
+public:
+  CGBitFieldInfo(unsigned Size, unsigned NumComponents, AccessInfo *_Components,
+                 bool IsSigned) : Size(Size), NumComponents(NumComponents),
+                                  IsSigned(IsSigned) {
+    assert(NumComponents <= 3 && "invalid number of components!");
+    for (unsigned i = 0; i != NumComponents; ++i)
+      Components[i] = _Components[i];
+
+    // Check some invariants.
+    unsigned AccessedSize = 0;
+    for (unsigned i = 0, e = getNumComponents(); i != e; ++i) {
+      const AccessInfo &AI = getComponent(i);
+      AccessedSize += AI.TargetBitWidth;
+
+      // We shouldn't try to load 0 bits.
+      assert(AI.TargetBitWidth > 0);
+
+      // We can't load more bits than we accessed.
+      assert(AI.FieldBitStart + AI.TargetBitWidth <= AI.AccessWidth);
+
+      // We shouldn't put any bits outside the result size.
+      assert(AI.TargetBitWidth + AI.TargetBitOffset <= Size);
+    }
+
+    // Check that the total number of target bits matches the total bit-field
+    // size.
+    assert(AccessedSize == Size && "Total size does not match accessed size!");
+  }
+
+public:
+  /// \brief Check whether this bit-field access is (i.e., should be sign
+  /// extended on loads).
+  bool isSigned() const { return IsSigned; }
+
+  /// \brief Get the size of the bit-field, in bits.
+  unsigned getSize() const { return Size; }
+
+  /// @name Component Access
+  /// @{
+
+  unsigned getNumComponents() const { return NumComponents; }
+
+  const AccessInfo &getComponent(unsigned Index) const {
+    assert(Index < getNumComponents() && "Invalid access!");
+    return Components[Index];
+  }
+
+  /// @}
+
+  void print(llvm::raw_ostream &OS) const;
+  void dump() const;
 };
 
 /// CGRecordLayout - This class handles struct and union layout info while
@@ -71,15 +186,15 @@ public:
     return ContainsPointerToDataMember;
   }
 
-  /// \brief Return the BitFieldInfo that corresponds to the field FD.
+  /// \brief Return llvm::StructType element number that corresponds to the
+  /// field FD.
   unsigned getLLVMFieldNo(const FieldDecl *FD) const {
     assert(!FD->isBitField() && "Invalid call for bit-field decl!");
     assert(FieldInfo.count(FD) && "Invalid field for record!");
     return FieldInfo.lookup(FD);
   }
 
-  /// \brief Return llvm::StructType element number that corresponds to the
-  /// field FD.
+  /// \brief Return the BitFieldInfo that corresponds to the field FD.
   const CGBitFieldInfo &getBitFieldInfo(const FieldDecl *FD) const {
     assert(FD->isBitField() && "Invalid call for non bit-field decl!");
     llvm::DenseMap<const FieldDecl *, CGBitFieldInfo>::const_iterator
@@ -87,6 +202,9 @@ public:
     assert(it != BitFields.end()  && "Unable to find bitfield info");
     return it->second;
   }
+
+  void print(llvm::raw_ostream &OS) const;
+  void dump() const;
 };
 
 }  // end namespace CodeGen

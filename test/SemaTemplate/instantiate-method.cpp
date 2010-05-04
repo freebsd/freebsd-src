@@ -5,7 +5,7 @@ public:
   void f(T x); // expected-error{{argument may not have 'void' type}}
   void g(T*);
 
-  static int h(T, T); // expected-error 2{{argument may not have 'void' type}}
+  static int h(T, T); // expected-error {{argument may not have 'void' type}}
 };
 
 int identity(int x) { return x; }
@@ -117,3 +117,61 @@ struct X3 {
 
 
 template struct X3<double>;
+
+// Don't try to instantiate this, it's invalid.
+namespace test1 {
+  template <class T> class A {};
+  template <class T> class B {
+    void foo(A<test1::Undeclared> &a) // expected-error {{no member named 'Undeclared' in namespace 'test1'}}
+    {}
+  };
+  template class B<int>;
+}
+
+namespace PR6947 {
+  template< class T > 
+  struct X {
+    int f0( )      
+    {
+      typedef void ( X::*impl_fun_ptr )( );
+      impl_fun_ptr pImpl = &X::template
+        f0_impl1<int>;
+    }
+  private:                  
+    int f1() {
+    }
+    template< class Processor>                  
+    void f0_impl1( )                 
+    {
+    }
+  };
+
+  char g0() {
+    X<int> pc;
+    pc.f0();
+  }
+
+}
+
+namespace PR7022 {
+  template <typename > 
+  struct X1
+  {
+    typedef int state_t( );
+    state_t g ;
+  };
+
+  template <  typename U = X1<int> > struct X2
+  {
+    X2( U = U())
+    {
+    }
+  };
+
+  void m(void)
+  {
+    typedef X2<> X2_type;
+    X2_type c;
+  }
+
+}

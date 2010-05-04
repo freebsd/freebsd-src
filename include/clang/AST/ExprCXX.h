@@ -118,8 +118,9 @@ private:
 
 protected:
   CXXNamedCastExpr(StmtClass SC, QualType ty, CastKind kind, Expr *op,
-                   TypeSourceInfo *writtenTy, SourceLocation l)
-    : ExplicitCastExpr(SC, ty, kind, op, writtenTy), Loc(l) {}
+                   CXXBaseSpecifierArray BasePath, TypeSourceInfo *writtenTy,
+                   SourceLocation l)
+    : ExplicitCastExpr(SC, ty, kind, op, BasePath, writtenTy), Loc(l) {}
 
   explicit CXXNamedCastExpr(StmtClass SC, EmptyShell Shell)
     : ExplicitCastExpr(SC, Shell) { }
@@ -137,7 +138,6 @@ public:
   }
   static bool classof(const Stmt *T) {
     switch (T->getStmtClass()) {
-    case CXXNamedCastExprClass:
     case CXXStaticCastExprClass:
     case CXXDynamicCastExprClass:
     case CXXReinterpretCastExprClass:
@@ -156,9 +156,10 @@ public:
 /// @c static_cast<int>(1.0).
 class CXXStaticCastExpr : public CXXNamedCastExpr {
 public:
-  CXXStaticCastExpr(QualType ty, CastKind kind, Expr *op,
-                    TypeSourceInfo *writtenTy, SourceLocation l)
-    : CXXNamedCastExpr(CXXStaticCastExprClass, ty, kind, op, writtenTy, l) {}
+  CXXStaticCastExpr(QualType ty, CastKind kind, Expr *op, 
+                    CXXBaseSpecifierArray BasePath, TypeSourceInfo *writtenTy,
+                    SourceLocation l)
+    : CXXNamedCastExpr(CXXStaticCastExprClass, ty, kind, op, BasePath, writtenTy, l) {}
 
   explicit CXXStaticCastExpr(EmptyShell Empty)
     : CXXNamedCastExpr(CXXStaticCastExprClass, Empty) { }
@@ -177,9 +178,11 @@ public:
 /// @c dynamic_cast<Derived*>(BasePtr).
 class CXXDynamicCastExpr : public CXXNamedCastExpr {
 public:
-  CXXDynamicCastExpr(QualType ty, CastKind kind, Expr *op,
-                     TypeSourceInfo *writtenTy, SourceLocation l)
-    : CXXNamedCastExpr(CXXDynamicCastExprClass, ty, kind, op, writtenTy, l) {}
+  CXXDynamicCastExpr(QualType ty, CastKind kind, Expr *op, 
+                     CXXBaseSpecifierArray BasePath, TypeSourceInfo *writtenTy,
+                     SourceLocation l)
+    : CXXNamedCastExpr(CXXDynamicCastExprClass, ty, kind, op, BasePath,
+                       writtenTy, l) {}
 
   explicit CXXDynamicCastExpr(EmptyShell Empty)
     : CXXNamedCastExpr(CXXDynamicCastExprClass, Empty) { }
@@ -199,8 +202,9 @@ public:
 class CXXReinterpretCastExpr : public CXXNamedCastExpr {
 public:
   CXXReinterpretCastExpr(QualType ty, CastKind kind, Expr *op, 
+                         CXXBaseSpecifierArray BasePath,
                          TypeSourceInfo *writtenTy, SourceLocation l)
-    : CXXNamedCastExpr(CXXReinterpretCastExprClass, ty, kind, op,
+    : CXXNamedCastExpr(CXXReinterpretCastExprClass, ty, kind, op, BasePath,
                        writtenTy, l) {}
 
   explicit CXXReinterpretCastExpr(EmptyShell Empty)
@@ -221,7 +225,8 @@ class CXXConstCastExpr : public CXXNamedCastExpr {
 public:
   CXXConstCastExpr(QualType ty, Expr *op, TypeSourceInfo *writtenTy,
                    SourceLocation l)
-    : CXXNamedCastExpr(CXXConstCastExprClass, ty, CK_NoOp, op, writtenTy, l) {}
+    : CXXNamedCastExpr(CXXConstCastExprClass, ty, CK_NoOp, op, 
+                       CXXBaseSpecifierArray(), writtenTy, l) {}
 
   explicit CXXConstCastExpr(EmptyShell Empty)
     : CXXNamedCastExpr(CXXConstCastExprClass, Empty) { }
@@ -293,37 +298,41 @@ public:
 /// This represents code like @c typeid(int) or @c typeid(*objPtr)
 class CXXTypeidExpr : public Expr {
 private:
-  bool isTypeOp : 1;
-  union {
-    void *Ty;
-    Stmt *Ex;
-  } Operand;
+  llvm::PointerUnion<Stmt *, TypeSourceInfo *> Operand;
   SourceRange Range;
 
 public:
-  CXXTypeidExpr(bool isTypeOp, void *op, QualType Ty, const SourceRange r) :
-      Expr(CXXTypeidExprClass, Ty,
+  CXXTypeidExpr(QualType Ty, TypeSourceInfo *Operand, SourceRange R)
+    : Expr(CXXTypeidExprClass, Ty, 
+           // typeid is never type-dependent (C++ [temp.dep.expr]p4)
+           false,
+           // typeid is value-dependent if the type or expression are dependent
+           Operand->getType()->isDependentType()),
+      Operand(Operand), Range(R) { }
+  
+  CXXTypeidExpr(QualType Ty, Expr *Operand, SourceRange R)
+    : Expr(CXXTypeidExprClass, Ty,
         // typeid is never type-dependent (C++ [temp.dep.expr]p4)
         false,
         // typeid is value-dependent if the type or expression are dependent
-        (isTypeOp ? QualType::getFromOpaquePtr(op)->isDependentType()
-                  : static_cast<Expr*>(op)->isValueDependent())),
-      isTypeOp(isTypeOp), Range(r) {
-    if (isTypeOp)
-      Operand.Ty = op;
-    else
-      // op was an Expr*, so cast it back to that to be safe
-      Operand.Ex = static_cast<Expr*>(op);
-  }
+        Operand->isTypeDependent() || Operand->isValueDependent()),
+      Operand(Operand), Range(R) { }
 
-  bool isTypeOperand() const { return isTypeOp; }
-  QualType getTypeOperand() const {
+  bool isTypeOperand() const { return Operand.is<TypeSourceInfo *>(); }
+  
+  /// \brief Retrieves the type operand of this typeid() expression after
+  /// various required adjustments (removing reference types, cv-qualifiers).
+  QualType getTypeOperand() const;
+
+  /// \brief Retrieve source information for the type operand.
+  TypeSourceInfo *getTypeOperandSourceInfo() const {
     assert(isTypeOperand() && "Cannot call getTypeOperand for typeid(expr)");
-    return QualType::getFromOpaquePtr(Operand.Ty);
+    return Operand.get<TypeSourceInfo *>();
   }
+  
   Expr* getExprOperand() const {
     assert(!isTypeOperand() && "Cannot call getExprOperand for typeid(type)");
-    return static_cast<Expr*>(Operand.Ex);
+    return static_cast<Expr*>(Operand.get<Stmt *>());
   }
 
   virtual SourceRange getSourceRange() const {
@@ -621,12 +630,20 @@ public:
 
 /// CXXConstructExpr - Represents a call to a C++ constructor.
 class CXXConstructExpr : public Expr {
+public:
+  enum ConstructionKind {
+    CK_Complete,
+    CK_NonVirtualBase,
+    CK_VirtualBase
+  };
+    
+private:
   CXXConstructorDecl *Constructor;
 
   SourceLocation Loc;
   bool Elidable : 1;
   bool ZeroInitialization : 1;
-  bool BaseInitialization : 1;
+  unsigned ConstructKind : 2;
   Stmt **Args;
   unsigned NumArgs;
 
@@ -636,7 +653,7 @@ protected:
                    CXXConstructorDecl *d, bool elidable,
                    Expr **args, unsigned numargs,
                    bool ZeroInitialization = false,
-                   bool BaseInitialization = false);
+                   ConstructionKind ConstructKind = CK_Complete);
   ~CXXConstructExpr() { }
 
   virtual void DoDestroy(ASTContext &C);
@@ -651,7 +668,7 @@ public:
                                   CXXConstructorDecl *D, bool Elidable,
                                   Expr **Args, unsigned NumArgs,
                                   bool ZeroInitialization = false,
-                                  bool BaseInitialization = false);
+                                  ConstructionKind ConstructKind = CK_Complete);
 
 
   CXXConstructorDecl* getConstructor() const { return Constructor; }
@@ -673,8 +690,12 @@ public:
   
   /// \brief Determines whether this constructor is actually constructing
   /// a base class (rather than a complete object).
-  bool isBaseInitialization() const { return BaseInitialization; }
-  void setBaseInitialization(bool BI) { BaseInitialization = BI; }
+  ConstructionKind getConstructionKind() const {
+    return (ConstructionKind)ConstructKind;
+  }
+  void setConstructionKind(ConstructionKind CK) { 
+    ConstructKind = CK;
+  }
   
   typedef ExprIterator arg_iterator;
   typedef ConstExprIterator const_arg_iterator;
@@ -725,9 +746,10 @@ class CXXFunctionalCastExpr : public ExplicitCastExpr {
 public:
   CXXFunctionalCastExpr(QualType ty, TypeSourceInfo *writtenTy,
                         SourceLocation tyBeginLoc, CastKind kind,
-                        Expr *castExpr, SourceLocation rParenLoc) 
+                        Expr *castExpr, CXXBaseSpecifierArray BasePath,
+                        SourceLocation rParenLoc) 
     : ExplicitCastExpr(CXXFunctionalCastExprClass, ty, kind, castExpr, 
-                       writtenTy),
+                       BasePath, writtenTy),
       TyBeginLoc(tyBeginLoc), RParenLoc(rParenLoc) {}
 
   explicit CXXFunctionalCastExpr(EmptyShell Shell)
@@ -774,7 +796,8 @@ public:
   CXXTemporaryObjectExpr(ASTContext &C, CXXConstructorDecl *Cons,
                          QualType writtenTy, SourceLocation tyBeginLoc,
                          Expr **Args,unsigned NumArgs,
-                         SourceLocation rParenLoc);
+                         SourceLocation rParenLoc,
+                         bool ZeroInitialization = false);
 
   ~CXXTemporaryObjectExpr() { }
 
@@ -1289,6 +1312,9 @@ public:
   void addDecls(UnresolvedSetIterator Begin, UnresolvedSetIterator End) {
     Results.append(Begin, End);
   }
+
+  /// Gets the naming class of this lookup, if any.
+  CXXRecordDecl *getNamingClass() const;
 
   typedef UnresolvedSetImpl::iterator decls_iterator;
   decls_iterator decls_begin() const { return Results.begin(); }

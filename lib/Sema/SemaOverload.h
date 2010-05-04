@@ -34,7 +34,7 @@ namespace clang {
     OR_Success,             ///< Overload resolution succeeded.
     OR_No_Viable_Function,  ///< No viable function found.
     OR_Ambiguous,           ///< Ambiguous candidates found.
-    OR_Deleted              ///< Overload resoltuion refers to a deleted function.
+    OR_Deleted              ///< Succeeded, but refers to a deleted function.
   };
     
   /// ImplicitConversionKind - The kind of implicit conversion used to
@@ -381,6 +381,33 @@ namespace clang {
       assert(isInitialized() && "querying uninitialized conversion");
       return Kind(ConversionKind);
     }
+    
+    /// \brief Return a ranking of the implicit conversion sequence
+    /// kind, where smaller ranks represent better conversion
+    /// sequences.
+    ///
+    /// In particular, this routine gives user-defined conversion
+    /// sequences and ambiguous conversion sequences the same rank,
+    /// per C++ [over.best.ics]p10.
+    unsigned getKindRank() const {
+      switch (getKind()) {
+      case StandardConversion: 
+        return 0;
+
+      case UserDefinedConversion:
+      case AmbiguousConversion: 
+        return 1;
+
+      case EllipsisConversion:
+        return 2;
+
+      case BadConversion:
+        return 3;
+      }
+
+      return 3;
+    }
+
     bool isBad() const { return getKind() == BadConversion; }
     bool isStandard() const { return getKind() == StandardConversion; }
     bool isEllipsis() const { return getKind() == EllipsisConversion; }
@@ -440,7 +467,11 @@ namespace clang {
 
     /// This conversion candidate is not viable because its result
     /// type is not implicitly convertible to the desired type.
-    ovl_fail_bad_final_conversion
+    ovl_fail_bad_final_conversion,
+    
+    /// This conversion function template specialization candidate is not 
+    /// viable because the final conversion was not an exact match.
+    ovl_fail_final_conversion_not_exact
   };
 
   /// OverloadCandidate - A single candidate in an overload set (C++ 13.3).

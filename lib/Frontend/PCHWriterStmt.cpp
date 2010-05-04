@@ -62,6 +62,7 @@ namespace {
     void VisitCharacterLiteral(CharacterLiteral *E);
     void VisitParenExpr(ParenExpr *E);
     void VisitUnaryOperator(UnaryOperator *E);
+    void VisitOffsetOfExpr(OffsetOfExpr *E);
     void VisitSizeOfAlignOfExpr(SizeOfAlignOfExpr *E);
     void VisitArraySubscriptExpr(ArraySubscriptExpr *E);
     void VisitCallExpr(CallExpr *E);
@@ -393,6 +394,42 @@ void PCHStmtWriter::VisitUnaryOperator(UnaryOperator *E) {
   Code = pch::EXPR_UNARY_OPERATOR;
 }
 
+void PCHStmtWriter::VisitOffsetOfExpr(OffsetOfExpr *E) {
+  VisitExpr(E);
+  Record.push_back(E->getNumComponents());
+  Record.push_back(E->getNumExpressions());
+  Writer.AddSourceLocation(E->getOperatorLoc(), Record);
+  Writer.AddSourceLocation(E->getRParenLoc(), Record);
+  Writer.AddTypeSourceInfo(E->getTypeSourceInfo(), Record);
+  for (unsigned I = 0, N = E->getNumComponents(); I != N; ++I) {
+    const OffsetOfExpr::OffsetOfNode &ON = E->getComponent(I);
+    Record.push_back(ON.getKind()); // FIXME: Stable encoding
+    Writer.AddSourceLocation(ON.getRange().getBegin(), Record);
+    Writer.AddSourceLocation(ON.getRange().getEnd(), Record);
+    switch (ON.getKind()) {
+    case OffsetOfExpr::OffsetOfNode::Array:
+      Record.push_back(ON.getArrayExprIndex());
+      break;
+        
+    case OffsetOfExpr::OffsetOfNode::Field:
+      Writer.AddDeclRef(ON.getField(), Record);
+      break;
+        
+    case OffsetOfExpr::OffsetOfNode::Identifier:
+      Writer.AddIdentifierRef(ON.getFieldName(), Record);
+      break;
+        
+    case OffsetOfExpr::OffsetOfNode::Base:
+      // FIXME: Implement this!
+      llvm_unreachable("PCH for offsetof(base-specifier) not implemented");
+      break;
+    }
+  }
+  for (unsigned I = 0, N = E->getNumExpressions(); I != N; ++I)
+    Writer.WriteSubStmt(E->getIndexExpr(I));
+  Code = pch::EXPR_OFFSETOF;
+}
+
 void PCHStmtWriter::VisitSizeOfAlignOfExpr(SizeOfAlignOfExpr *E) {
   VisitExpr(E);
   Record.push_back(E->isSizeOf());
@@ -655,7 +692,7 @@ void PCHStmtWriter::VisitObjCStringLiteral(ObjCStringLiteral *E) {
 
 void PCHStmtWriter::VisitObjCEncodeExpr(ObjCEncodeExpr *E) {
   VisitExpr(E);
-  Writer.AddTypeRef(E->getEncodedType(), Record);
+  Writer.AddTypeSourceInfo(E->getEncodedTypeSourceInfo(), Record);
   Writer.AddSourceLocation(E->getAtLoc(), Record);
   Writer.AddSourceLocation(E->getRParenLoc(), Record);
   Code = pch::EXPR_OBJC_ENCODE;
@@ -712,18 +749,33 @@ void PCHStmtWriter::VisitObjCImplicitSetterGetterRefExpr(
 void PCHStmtWriter::VisitObjCMessageExpr(ObjCMessageExpr *E) {
   VisitExpr(E);
   Record.push_back(E->getNumArgs());
+  Record.push_back((unsigned)E->getReceiverKind()); // FIXME: stable encoding
+  switch (E->getReceiverKind()) {
+  case ObjCMessageExpr::Instance:
+    Writer.WriteSubStmt(E->getInstanceReceiver());
+    break;
+
+  case ObjCMessageExpr::Class:
+    Writer.AddTypeSourceInfo(E->getClassReceiverTypeInfo(), Record);
+    break;
+
+  case ObjCMessageExpr::SuperClass:
+  case ObjCMessageExpr::SuperInstance:
+    Writer.AddTypeRef(E->getSuperType(), Record);
+    Writer.AddSourceLocation(E->getSuperLoc(), Record);
+    break;
+  }
+
+  if (E->getMethodDecl()) {
+    Record.push_back(1);
+    Writer.AddDeclRef(E->getMethodDecl(), Record);
+  } else {
+    Record.push_back(0);
+    Writer.AddSelectorRef(E->getSelector(), Record);    
+  }
+    
   Writer.AddSourceLocation(E->getLeftLoc(), Record);
   Writer.AddSourceLocation(E->getRightLoc(), Record);
-  Writer.AddSelectorRef(E->getSelector(), Record);
-  Writer.AddDeclRef(E->getMethodDecl(), Record); // optional
-  Writer.WriteSubStmt(E->getReceiver());
-
-  if (!E->getReceiver()) {
-    ObjCMessageExpr::ClassInfo CI = E->getClassInfo();
-    Writer.AddDeclRef(CI.Decl, Record);
-    Writer.AddIdentifierRef(CI.Name, Record);
-    Writer.AddSourceLocation(CI.Loc, Record);
-  }
 
   for (CallExpr::arg_iterator Arg = E->arg_begin(), ArgEnd = E->arg_end();
        Arg != ArgEnd; ++Arg)
@@ -749,7 +801,6 @@ void PCHStmtWriter::VisitObjCForCollectionStmt(ObjCForCollectionStmt *S) {
 
 void PCHStmtWriter::VisitObjCAtCatchStmt(ObjCAtCatchStmt *S) {
   Writer.WriteSubStmt(S->getCatchBody());
-  Writer.WriteSubStmt(S->getNextCatchStmt());
   Writer.AddDeclRef(S->getCatchParamDecl(), Record);
   Writer.AddSourceLocation(S->getAtCatchLoc(), Record);
   Writer.AddSourceLocation(S->getRParenLoc(), Record);
@@ -763,9 +814,13 @@ void PCHStmtWriter::VisitObjCAtFinallyStmt(ObjCAtFinallyStmt *S) {
 }
 
 void PCHStmtWriter::VisitObjCAtTryStmt(ObjCAtTryStmt *S) {
+  Record.push_back(S->getNumCatchStmts());
+  Record.push_back(S->getFinallyStmt() != 0);
   Writer.WriteSubStmt(S->getTryBody());
-  Writer.WriteSubStmt(S->getCatchStmts());
-  Writer.WriteSubStmt(S->getFinallyStmt());
+  for (unsigned I = 0, N = S->getNumCatchStmts(); I != N; ++I)
+    Writer.WriteSubStmt(S->getCatchStmt(I));
+  if (S->getFinallyStmt())
+    Writer.WriteSubStmt(S->getFinallyStmt());
   Writer.AddSourceLocation(S->getAtTryLoc(), Record);
   Code = pch::STMT_OBJC_AT_TRY;
 }

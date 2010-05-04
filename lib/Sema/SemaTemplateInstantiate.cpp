@@ -38,10 +38,16 @@ using namespace clang;
 /// arguments relative to the primary template, even when we're
 /// dealing with a specialization. This is only relevant for function
 /// template specializations.
+///
+/// \param Pattern If non-NULL, indicates the pattern from which we will be
+/// instantiating the definition of the given declaration, \p D. This is
+/// used to determine the proper set of template instantiation arguments for
+/// friend function template specializations.
 MultiLevelTemplateArgumentList
 Sema::getTemplateInstantiationArgs(NamedDecl *D, 
                                    const TemplateArgumentList *Innermost,
-                                   bool RelativeToPrimary) {
+                                   bool RelativeToPrimary,
+                                   const FunctionDecl *Pattern) {
   // Accumulate the set of template argument lists in this structure.
   MultiLevelTemplateArgumentList Result;
 
@@ -89,9 +95,11 @@ Sema::getTemplateInstantiationArgs(NamedDecl *D,
       
       // If this is a friend declaration and it declares an entity at
       // namespace scope, take arguments from its lexical parent
-      // instead of its semantic parent.
+      // instead of its semantic parent, unless of course the pattern we're
+      // instantiating actually comes from the file's context!
       if (Function->getFriendObjectKind() &&
-          Function->getDeclContext()->isFileContext()) {
+          Function->getDeclContext()->isFileContext() &&
+          (!Pattern || !Pattern->getLexicalDeclContext()->isFileContext())) {
         Ctx = Function->getLexicalDeclContext();
         RelativeToPrimary = false;
         continue;
@@ -339,12 +347,32 @@ bool Sema::InstantiatingTemplate::CheckInstantiationDepth(
 /// \brief Prints the current instantiation stack through a series of
 /// notes.
 void Sema::PrintInstantiationStack() {
+  // Determine which template instantiations to skip, if any.
+  unsigned SkipStart = ActiveTemplateInstantiations.size(), SkipEnd = SkipStart;
+  unsigned Limit = Diags.getTemplateBacktraceLimit();
+  if (Limit && Limit < ActiveTemplateInstantiations.size()) {
+    SkipStart = Limit / 2 + Limit % 2;
+    SkipEnd = ActiveTemplateInstantiations.size() - Limit / 2;
+  }
+
   // FIXME: In all of these cases, we need to show the template arguments
+  unsigned InstantiationIdx = 0;
   for (llvm::SmallVector<ActiveTemplateInstantiation, 16>::reverse_iterator
          Active = ActiveTemplateInstantiations.rbegin(),
          ActiveEnd = ActiveTemplateInstantiations.rend();
        Active != ActiveEnd;
-       ++Active) {
+       ++Active, ++InstantiationIdx) {
+    // Skip this instantiation?
+    if (InstantiationIdx >= SkipStart && InstantiationIdx < SkipEnd) {
+      if (InstantiationIdx == SkipStart) {
+        // Note that we're skipping instantiations.
+        Diags.Report(FullSourceLoc(Active->PointOfInstantiation, SourceMgr),
+                     diag::note_instantiation_contexts_suppressed)
+          << unsigned(ActiveTemplateInstantiations.size() - Limit);
+      }
+      continue;
+    }
+
     switch (Active->Kind) {
     case ActiveTemplateInstantiation::TemplateInstantiation: {
       Decl *D = reinterpret_cast<Decl *>(Active->Entity);
@@ -512,8 +540,7 @@ bool Sema::isSFINAEContext() const {
 // Template Instantiation for Types
 //===----------------------------------------------------------------------===/
 namespace {
-  class TemplateInstantiator
-    : public TreeTransform<TemplateInstantiator> {
+  class TemplateInstantiator : public TreeTransform<TemplateInstantiator> {
     const MultiLevelTemplateArgumentList &TemplateArgs;
     SourceLocation Loc;
     DeclarationName Entity;
@@ -569,6 +596,11 @@ namespace {
                                   IdentifierInfo *Name,
                                   SourceLocation Loc, SourceRange TypeRange);
 
+    /// \brief Rebuild the Objective-C exception declaration and register the 
+    /// declaration as an instantiated local.
+    VarDecl *RebuildObjCExceptionDecl(VarDecl *ExceptionDecl, 
+                                      TypeSourceInfo *TSInfo, QualType T);
+      
     /// \brief Check for tag mismatches when instantiating an
     /// elaborated type.
     QualType RebuildElaboratedType(QualType T, ElaboratedType::TagKind Tag);
@@ -579,13 +611,9 @@ namespace {
     Sema::OwningExprResult TransformTemplateParmRefExpr(DeclRefExpr *E,
                                                 NonTypeTemplateParmDecl *D);
 
-    /// \brief Transforms a function proto type by performing
-    /// substitution in the function parameters, possibly adjusting
-    /// their types and marking default arguments as uninstantiated.
-    bool TransformFunctionTypeParams(FunctionProtoTypeLoc TL,
-                                     llvm::SmallVectorImpl<QualType> &PTypes,
-                                  llvm::SmallVectorImpl<ParmVarDecl*> &PVars);
-
+    QualType TransformFunctionProtoType(TypeLocBuilder &TLB,
+                                        FunctionProtoTypeLoc TL,
+                                        QualType ObjectType);
     ParmVarDecl *TransformFunctionTypeParam(ParmVarDecl *OldParm);
 
     /// \brief Transforms a template type parameter type by performing
@@ -667,7 +695,16 @@ TemplateInstantiator::RebuildExceptionDecl(VarDecl *ExceptionDecl,
                                            SourceRange TypeRange) {
   VarDecl *Var = inherited::RebuildExceptionDecl(ExceptionDecl, T, Declarator,
                                                  Name, Loc, TypeRange);
-  if (Var && !Var->isInvalidDecl())
+  if (Var)
+    getSema().CurrentInstantiationScope->InstantiatedLocal(ExceptionDecl, Var);
+  return Var;
+}
+
+VarDecl *TemplateInstantiator::RebuildObjCExceptionDecl(VarDecl *ExceptionDecl, 
+                                                        TypeSourceInfo *TSInfo, 
+                                                        QualType T) {
+  VarDecl *Var = inherited::RebuildObjCExceptionDecl(ExceptionDecl, TSInfo, T);
+  if (Var)
     getSema().CurrentInstantiationScope->InstantiatedLocal(ExceptionDecl, Var);
   return Var;
 }
@@ -791,63 +828,17 @@ Sema::OwningExprResult TemplateInstantiator::TransformCXXDefaultArgExpr(
                                         E->getParam());
 }
 
-
-bool
-TemplateInstantiator::TransformFunctionTypeParams(FunctionProtoTypeLoc TL,
-                                  llvm::SmallVectorImpl<QualType> &PTypes,
-                               llvm::SmallVectorImpl<ParmVarDecl*> &PVars) {
-  // Create a local instantiation scope for the parameters.
-  // FIXME: When we implement the C++0x late-specified return type, 
-  // we will need to move this scope out to the function type itself.
-  bool IsTemporaryScope = (SemaRef.CurrentInstantiationScope != 0);
-  Sema::LocalInstantiationScope Scope(SemaRef, IsTemporaryScope, 
-                                      IsTemporaryScope);
-
-  if (TreeTransform<TemplateInstantiator>::
-        TransformFunctionTypeParams(TL, PTypes, PVars))
-    return true;
-
-  // Check instantiated parameters.
-  if (SemaRef.CheckInstantiatedParams(PVars))
-    return true;
-
-  return false;
+QualType TemplateInstantiator::TransformFunctionProtoType(TypeLocBuilder &TLB,
+                                                        FunctionProtoTypeLoc TL,
+                                                          QualType ObjectType) {
+  // We need a local instantiation scope for this function prototype.
+  Sema::LocalInstantiationScope Scope(SemaRef, /*CombineWithOuterScope=*/true);
+  return inherited::TransformFunctionProtoType(TLB, TL, ObjectType);
 }
 
 ParmVarDecl *
 TemplateInstantiator::TransformFunctionTypeParam(ParmVarDecl *OldParm) {
-  TypeSourceInfo *OldDI = OldParm->getTypeSourceInfo();
-  TypeSourceInfo *NewDI = getDerived().TransformType(OldDI);
-  if (!NewDI)
-    return 0;
-
-  // TODO: do we have to clone this decl if the types match and
-  // there's no default argument?
-
-  ParmVarDecl *NewParm
-    = ParmVarDecl::Create(SemaRef.Context,
-                          OldParm->getDeclContext(),
-                          OldParm->getLocation(),
-                          OldParm->getIdentifier(),
-                          NewDI->getType(),
-                          NewDI,
-                          OldParm->getStorageClass(),
-                          /* DefArg */ NULL);
-
-  // Maybe adjust new parameter type.
-  NewParm->setType(SemaRef.adjustParameterType(NewParm->getType()));
-
-  // Mark the (new) default argument as uninstantiated (if any).
-  if (OldParm->hasUninstantiatedDefaultArg()) {
-    Expr *Arg = OldParm->getUninstantiatedDefaultArg();
-    NewParm->setUninstantiatedDefaultArg(Arg);
-  } else if (Expr *Arg = OldParm->getDefaultArg())
-    NewParm->setUninstantiatedDefaultArg(Arg);
-
-  NewParm->setHasInheritedDefaultArg(OldParm->hasInheritedDefaultArg());
-
-  SemaRef.CurrentInstantiationScope->InstantiatedLocal(OldParm, NewParm);
-  return NewParm;
+  return SemaRef.SubstParmVarDecl(OldParm, TemplateArgs);
 }
 
 QualType
@@ -957,6 +948,91 @@ QualType Sema::SubstType(QualType T,
 
   TemplateInstantiator Instantiator(*this, TemplateArgs, Loc, Entity);
   return Instantiator.TransformType(T);
+}
+
+static bool NeedsInstantiationAsFunctionType(TypeSourceInfo *T) {
+  if (T->getType()->isDependentType())
+    return true;
+
+  TypeLoc TL = T->getTypeLoc();
+  if (!isa<FunctionProtoTypeLoc>(TL))
+    return false;
+
+  FunctionProtoTypeLoc FP = cast<FunctionProtoTypeLoc>(TL);
+  for (unsigned I = 0, E = FP.getNumArgs(); I != E; ++I) {
+    ParmVarDecl *P = FP.getArg(I);
+
+    // TODO: currently we always rebuild expressions.  When we
+    // properly get lazier about this, we should use the same
+    // logic to avoid rebuilding prototypes here.
+    if (P->hasInit())
+      return true;
+  }
+
+  return false;
+}
+
+/// A form of SubstType intended specifically for instantiating the
+/// type of a FunctionDecl.  Its purpose is solely to force the
+/// instantiation of default-argument expressions.
+TypeSourceInfo *Sema::SubstFunctionDeclType(TypeSourceInfo *T,
+                                const MultiLevelTemplateArgumentList &Args,
+                                SourceLocation Loc,
+                                DeclarationName Entity) {
+  assert(!ActiveTemplateInstantiations.empty() &&
+         "Cannot perform an instantiation without some context on the "
+         "instantiation stack");
+  
+  if (!NeedsInstantiationAsFunctionType(T))
+    return T;
+
+  TemplateInstantiator Instantiator(*this, Args, Loc, Entity);
+
+  TypeLocBuilder TLB;
+
+  TypeLoc TL = T->getTypeLoc();
+  TLB.reserve(TL.getFullDataSize());
+
+  QualType Result = Instantiator.TransformType(TLB, TL, QualType());
+  if (Result.isNull())
+    return 0;
+
+  return TLB.getTypeSourceInfo(Context, Result);
+}
+
+ParmVarDecl *Sema::SubstParmVarDecl(ParmVarDecl *OldParm, 
+                          const MultiLevelTemplateArgumentList &TemplateArgs) {
+  TypeSourceInfo *OldDI = OldParm->getTypeSourceInfo();
+  TypeSourceInfo *NewDI = SubstType(OldDI, TemplateArgs, OldParm->getLocation(),
+                                    OldParm->getDeclName());
+  if (!NewDI)
+    return 0;
+
+  if (NewDI->getType()->isVoidType()) {
+    Diag(OldParm->getLocation(), diag::err_param_with_void_type);
+    return 0;
+  }
+
+  ParmVarDecl *NewParm = CheckParameter(Context.getTranslationUnitDecl(),
+                                        NewDI, NewDI->getType(),
+                                        OldParm->getIdentifier(),
+                                        OldParm->getLocation(),
+                                        OldParm->getStorageClass(),
+                                        OldParm->getStorageClassAsWritten());
+  if (!NewParm)
+    return 0;
+                                                
+  // Mark the (new) default argument as uninstantiated (if any).
+  if (OldParm->hasUninstantiatedDefaultArg()) {
+    Expr *Arg = OldParm->getUninstantiatedDefaultArg();
+    NewParm->setUninstantiatedDefaultArg(Arg);
+  } else if (Expr *Arg = OldParm->getDefaultArg())
+    NewParm->setUninstantiatedDefaultArg(Arg);
+
+  NewParm->setHasInheritedDefaultArg(OldParm->hasInheritedDefaultArg());
+
+  CurrentInstantiationScope->InstantiatedLocal(OldParm, NewParm);
+  return NewParm;  
 }
 
 /// \brief Perform substitution on the base class specifiers of the
@@ -1083,8 +1159,7 @@ Sema::InstantiateClass(SourceLocation PointOfInstantiation,
 
   // Enter the scope of this instantiation. We don't use
   // PushDeclContext because we don't have a scope.
-  DeclContext *PreviousContext = CurContext;
-  CurContext = Instantiation;
+  ContextRAII SavedContext(*this, Instantiation);
 
   // If this is an instantiation of a local class, merge this local
   // instantiation scope with the enclosing scope. Otherwise, every
@@ -1120,12 +1195,12 @@ Sema::InstantiateClass(SourceLocation PointOfInstantiation,
   ActOnFields(0, Instantiation->getLocation(), DeclPtrTy::make(Instantiation),
               Fields.data(), Fields.size(), SourceLocation(), SourceLocation(),
               0);
-  CheckCompletedCXXClass(Instantiation);
+  CheckCompletedCXXClass(/*Scope=*/0, Instantiation);
   if (Instantiation->isInvalidDecl())
     Invalid = true;
   
   // Exit the scope of this instantiation.
-  CurContext = PreviousContext;
+  SavedContext.pop();
 
   // If this is a polymorphic C++ class without a key function, we'll
   // have to mark all of the virtual members to allow emission of a vtable
@@ -1195,21 +1270,20 @@ Sema::InstantiateClassTemplateSpecialization(
   typedef std::pair<ClassTemplatePartialSpecializationDecl *,
                     TemplateArgumentList *> MatchResult;
   llvm::SmallVector<MatchResult, 4> Matched;
-  for (llvm::FoldingSet<ClassTemplatePartialSpecializationDecl>::iterator
-         Partial = Template->getPartialSpecializations().begin(),
-         PartialEnd = Template->getPartialSpecializations().end();
-       Partial != PartialEnd;
-       ++Partial) {
+  llvm::SmallVector<ClassTemplatePartialSpecializationDecl *, 4> PartialSpecs;
+  Template->getPartialSpecializations(PartialSpecs);
+  for (unsigned I = 0, N = PartialSpecs.size(); I != N; ++I) {
+    ClassTemplatePartialSpecializationDecl *Partial = PartialSpecs[I];
     TemplateDeductionInfo Info(Context, PointOfInstantiation);
     if (TemplateDeductionResult Result
-          = DeduceTemplateArguments(&*Partial,
+          = DeduceTemplateArguments(Partial,
                                     ClassTemplateSpec->getTemplateArgs(),
                                     Info)) {
       // FIXME: Store the failed-deduction information for use in
       // diagnostics, later.
       (void)Result;
     } else {
-      Matched.push_back(std::make_pair(&*Partial, Info.take()));
+      Matched.push_back(std::make_pair(Partial, Info.take()));
     }
   }
 
@@ -1331,6 +1405,10 @@ Sema::InstantiateClassMembers(SourceLocation PointOfInstantiation,
         MemberSpecializationInfo *MSInfo 
           = Function->getMemberSpecializationInfo();
         assert(MSInfo && "No member specialization information?");
+        if (MSInfo->getTemplateSpecializationKind()
+                                                 == TSK_ExplicitSpecialization)
+          continue;
+        
         if (CheckSpecializationInstantiationRedecl(PointOfInstantiation, TSK, 
                                                    Function, 
                                         MSInfo->getTemplateSpecializationKind(),
@@ -1363,6 +1441,10 @@ Sema::InstantiateClassMembers(SourceLocation PointOfInstantiation,
       if (Var->isStaticDataMember()) {
         MemberSpecializationInfo *MSInfo = Var->getMemberSpecializationInfo();
         assert(MSInfo && "No member specialization information?");
+        if (MSInfo->getTemplateSpecializationKind()
+                                                 == TSK_ExplicitSpecialization)
+          continue;
+        
         if (CheckSpecializationInstantiationRedecl(PointOfInstantiation, TSK, 
                                                    Var, 
                                         MSInfo->getTemplateSpecializationKind(),
@@ -1389,11 +1471,19 @@ Sema::InstantiateClassMembers(SourceLocation PointOfInstantiation,
         }
       }      
     } else if (CXXRecordDecl *Record = dyn_cast<CXXRecordDecl>(*D)) {
-      if (Record->isInjectedClassName())
+      // Always skip the injected-class-name, along with any
+      // redeclarations of nested classes, since both would cause us
+      // to try to instantiate the members of a class twice.
+      if (Record->isInjectedClassName() || Record->getPreviousDeclaration())
         continue;
       
       MemberSpecializationInfo *MSInfo = Record->getMemberSpecializationInfo();
       assert(MSInfo && "No member specialization information?");
+      
+      if (MSInfo->getTemplateSpecializationKind()
+                                                == TSK_ExplicitSpecialization)
+        continue;
+      
       if (CheckSpecializationInstantiationRedecl(PointOfInstantiation, TSK, 
                                                  Record, 
                                         MSInfo->getTemplateSpecializationKind(),
@@ -1501,4 +1591,30 @@ bool Sema::Subst(const TemplateArgumentLoc &Input, TemplateArgumentLoc &Output,
                                     DeclarationName());
 
   return Instantiator.TransformTemplateArgument(Input, Output);
+}
+
+Decl *Sema::LocalInstantiationScope::getInstantiationOf(const Decl *D) {
+  for (LocalInstantiationScope *Current = this; Current; 
+       Current = Current->Outer) {
+    // Check if we found something within this scope.
+    llvm::DenseMap<const Decl *, Decl *>::iterator Found
+      = Current->LocalDecls.find(D);
+    if (Found != Current->LocalDecls.end())
+      return Found->second;
+   
+    // If we aren't combined with our outer scope, we're done. 
+    if (!Current->CombineWithOuterScope)
+      break;
+  }
+  
+  assert(D->isInvalidDecl() && 
+         "declaration was not instantiated in this scope!");
+  return 0;
+}
+
+void Sema::LocalInstantiationScope::InstantiatedLocal(const Decl *D, 
+                                                      Decl *Inst) {
+  Decl *&Stored = LocalDecls[D];
+  assert((!Stored || Stored == Inst)&& "Already instantiated this local");
+  Stored = Inst;
 }

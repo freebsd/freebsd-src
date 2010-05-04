@@ -154,8 +154,7 @@ bool CallAndMessageChecker::PreVisitProcessArg(CheckerContext &C,
         os << "Passed-by-value struct argument contains uninitialized data";
 
         if (F.FieldChain.size() == 1)
-          os << " (e.g., field: '" << F.FieldChain[0]->getNameAsString()
-             << "')";
+          os << " (e.g., field: '" << F.FieldChain[0] << "')";
         else {
           os << " (e.g., via the field chain: '";
           bool first = true;
@@ -165,7 +164,7 @@ bool CallAndMessageChecker::PreVisitProcessArg(CheckerContext &C,
               first = false;
             else
               os << '.';
-            os << (*DI)->getNameAsString();
+            os << *DI;
           }
           os << "')";
         }
@@ -219,7 +218,8 @@ void CallAndMessageChecker::PreVisitObjCMessageExpr(CheckerContext &C,
 
   const GRState *state = C.getState();
 
-  if (const Expr *receiver = ME->getReceiver())
+  // FIXME: Handle 'super'?
+  if (const Expr *receiver = ME->getInstanceReceiver())
     if (state->getSVal(receiver).isUndef()) {
       if (ExplodedNode *N = C.GenerateSink()) {
         if (!BT_msg_undef)
@@ -266,10 +266,11 @@ void CallAndMessageChecker::EmitNilReceiverBug(CheckerContext &C,
      << ME->getType().getAsString() << "' that will be garbage";
 
   EnhancedBugReport *report = new EnhancedBugReport(*BT_msg_ret, os.str(), N);
-  const Expr *receiver = ME->getReceiver();
-  report->addRange(receiver->getSourceRange());
-  report->addVisitorCreator(bugreporter::registerTrackNullOrUndefValue,
-                            receiver);
+  if (const Expr *receiver = ME->getInstanceReceiver()) {
+    report->addRange(receiver->getSourceRange());
+    report->addVisitorCreator(bugreporter::registerTrackNullOrUndefValue,
+                              receiver);
+  }
   C.EmitReport(report);
 }
 
@@ -289,7 +290,7 @@ void CallAndMessageChecker::HandleNilReceiver(CheckerContext &C,
   ASTContext &Ctx = C.getASTContext();
   CanQualType CanRetTy = Ctx.getCanonicalType(RetTy);
 
-  if (CanRetTy->isStructureType()) {
+  if (CanRetTy->isStructureOrClassType()) {
     // FIXME: At some point we shouldn't rely on isConsumedExpr(), but instead
     // have the "use of undefined value" be smarter about where the
     // undefined value came from.

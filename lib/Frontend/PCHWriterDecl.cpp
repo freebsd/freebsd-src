@@ -176,6 +176,7 @@ void PCHDeclWriter::VisitFunctionDecl(FunctionDecl *D) {
     Writer.AddStmt(D->getBody());
   Writer.AddDeclRef(D->getPreviousDeclaration(), Record);
   Record.push_back(D->getStorageClass()); // FIXME: stable encoding
+  Record.push_back(D->getStorageClassAsWritten());
   Record.push_back(D->isInlineSpecified());
   Record.push_back(D->isVirtualAsWritten());
   Record.push_back(D->isPure());
@@ -211,6 +212,7 @@ void PCHDeclWriter::VisitObjCMethodDecl(ObjCMethodDecl *D) {
   Record.push_back(D->getImplementationControl());
   // FIXME: stable encoding for in/out/inout/bycopy/byref/oneway
   Record.push_back(D->getObjCDeclQualifier());
+  Record.push_back(D->getNumSelectorArgs());
   Writer.AddTypeRef(D->getResultType(), Record);
   Writer.AddTypeSourceInfo(D->getResultTypeSourceInfo(), Record);
   Writer.AddSourceLocation(D->getLocEnd(), Record);
@@ -359,6 +361,7 @@ void PCHDeclWriter::VisitObjCCategoryImplDecl(ObjCCategoryImplDecl *D) {
 void PCHDeclWriter::VisitObjCImplementationDecl(ObjCImplementationDecl *D) {
   VisitObjCImplDecl(D);
   Writer.AddDeclRef(D->getSuperClass(), Record);
+  // FIXME add writing of IvarInitializers and NumIvarInitializers.
   Code = pch::DECL_OBJC_IMPLEMENTATION;
 }
 
@@ -382,9 +385,11 @@ void PCHDeclWriter::VisitFieldDecl(FieldDecl *D) {
 void PCHDeclWriter::VisitVarDecl(VarDecl *D) {
   VisitDeclaratorDecl(D);
   Record.push_back(D->getStorageClass()); // FIXME: stable encoding
+  Record.push_back(D->getStorageClassAsWritten());
   Record.push_back(D->isThreadSpecified());
   Record.push_back(D->hasCXXDirectInitializer());
   Record.push_back(D->isDeclaredInCondition());
+  Record.push_back(D->isExceptionVariable());
   Writer.AddDeclRef(D->getPreviousDeclaration(), Record);
   Record.push_back(D->getInit()? 1 : 0);
   if (D->getInit())
@@ -425,6 +430,7 @@ void PCHDeclWriter::VisitParmVarDecl(ParmVarDecl *D) {
   assert(!D->isThreadSpecified() && "PARM_VAR_DECL can't be __thread");
   assert(D->getAccess() == AS_none && "PARM_VAR_DECL can't be public/private");
   assert(!D->isDeclaredInCondition() && "PARM_VAR_DECL can't be in condition");
+  assert(!D->isExceptionVariable() && "PARM_VAR_DECL can't be exception var");
   assert(D->getPreviousDeclaration() == 0 && "PARM_VAR_DECL can't be redecl");
   assert(D->getInit() == 0 && "PARM_VAR_DECL never has init");
 }
@@ -493,9 +499,11 @@ void PCHWriter::WriteDeclsBlockAbbrevs() {
   Abv->Add(BitCodeAbbrevOp(pch::PREDEF_TYPE_NULL_ID)); // InfoType
   // VarDecl
   Abv->Add(BitCodeAbbrevOp(0));                       // StorageClass
+  Abv->Add(BitCodeAbbrevOp(0));                       // StorageClassAsWritten
   Abv->Add(BitCodeAbbrevOp(0));                       // isThreadSpecified
   Abv->Add(BitCodeAbbrevOp(0));                       // hasCXXDirectInitializer
   Abv->Add(BitCodeAbbrevOp(0));                       // isDeclaredInCondition
+  Abv->Add(BitCodeAbbrevOp(0));                       // isExceptionVariable
   Abv->Add(BitCodeAbbrevOp(0));                       // PrevDecl
   Abv->Add(BitCodeAbbrevOp(0));                       // HasInit
   // ParmVarDecl
@@ -608,7 +616,7 @@ void PCHWriter::WriteDecl(ASTContext &Context, Decl *D) {
   if (DC) W.VisitDeclContext(DC, LexicalOffset, VisibleOffset);
 
   if (!W.Code)
-    llvm::llvm_report_error(llvm::StringRef("unexpected declaration kind '") +
+    llvm::report_fatal_error(llvm::StringRef("unexpected declaration kind '") +
                             D->getDeclKindName() + "'");
   Stream.EmitRecord(W.Code, Record, W.AbbrevToUse);
 

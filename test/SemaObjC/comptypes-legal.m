@@ -26,12 +26,12 @@ NSObject *ExternFunc (NSObject *filePath, NSObject *key);
 typedef id FuncSignature (NSObject *arg1, Derived *arg2);
 
 @interface Derived: NSObject
-+ (void)registerFunc:(FuncSignature *)function;
++ (void)registerFunc:(FuncSignature *)function; // expected-note{{passing argument to parameter 'function' here}}
 @end
 
 void foo(void)
 {
   // GCC currently allows this (it has some fiarly new support for covariant return types and contravariant argument types).
   // Since registerFunc: expects a Derived object as it's second argument, I don't know why this would be legal.
-  [Derived registerFunc: ExternFunc];  // expected-warning{{incompatible pointer types sending 'NSObject *(NSObject *, NSObject *)', expected 'FuncSignature *'}}
+  [Derived registerFunc: ExternFunc];  // expected-warning{{incompatible pointer types sending 'NSObject *(NSObject *, NSObject *)' to parameter of type 'FuncSignature *'}}
 }

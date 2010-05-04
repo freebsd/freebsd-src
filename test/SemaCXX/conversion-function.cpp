@@ -56,7 +56,7 @@ public:
 
 // This used to crash Clang.
 struct Flip;
-struct Flop { // expected-note{{candidate is the implicit copy constructor}}
+struct Flop {
   Flop();
   Flop(const Flip&); // expected-note{{candidate constructor}}
 };
@@ -129,5 +129,89 @@ private:
 };
 
 A1 f() {
-  return "Hello"; // expected-error{{invokes deleted copy constructor}}
+  return "Hello"; // expected-error{{invokes deleted constructor}}
+}
+
+namespace source_locations {
+  template<typename T>
+  struct sneaky_int {
+    typedef int type;
+  };
+
+  template<typename T, typename U>
+  struct A { };
+
+  template<typename T>
+  struct A<T, T> : A<T, int> { };
+
+  struct E {
+    template<typename T>
+    operator A<T, typename sneaky_int<T>::type>&() const; // expected-note{{candidate function}}
+  };
+
+  void f() {
+    A<float, float> &af = E(); // expected-error{{no viable conversion}}
+    A<float, int> &af2 = E();
+    const A<float, int> &caf2 = E();
+  }
+
+  // Check 
+  template<typename T>
+  struct E2 {
+    operator T
+    * // expected-error{{pointer to a reference}}
+    () const;
+  };
+
+  E2<int&> e2i; // expected-note{{in instantiation}}
+}
+
+namespace crazy_declarators {
+  struct A {
+    (&operator bool())(); // expected-error {{must use a typedef to declare a conversion to 'bool (&)()'}}
+
+    // FIXME: This diagnostic is misleading (the correct spelling
+    // would be 'operator int*'), but it's a corner case of a
+    // rarely-used syntax extension.
+    *operator int();  // expected-error {{must use a typedef to declare a conversion to 'int *'}}
+  };
+}
+
+namespace smart_ptr {
+  class Y { 
+    class YRef { };
+
+    Y(Y&);
+
+  public:
+    Y();
+    Y(YRef);
+
+    operator YRef(); // expected-note{{candidate function}}
+  };
+
+  struct X { // expected-note{{candidate constructor (the implicit copy constructor) not}}
+    explicit X(Y);
+  };
+
+  Y make_Y();
+
+  X f() {
+    X x = make_Y(); // expected-error{{no viable conversion from 'smart_ptr::Y' to 'smart_ptr::X'}}
+    X x2(make_Y());
+    return X(Y());
+  }
+}
+
+struct Any {
+  Any(...);
+};
+
+struct Other {
+  Other(const Other &); 
+  Other();
+};
+
+void test_any() {
+  Any any = Other(); // expected-error{{cannot pass object of non-POD type 'Other' through variadic constructor; call will abort at runtime}}
 }

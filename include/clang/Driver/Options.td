@@ -248,7 +248,7 @@ def fclasspath_EQ : Joined<"-fclasspath=">, Group<f_Group>;
 def fcolor_diagnostics : Flag<"-fcolor-diagnostics">, Group<f_Group>;
 def fcommon : Flag<"-fcommon">, Group<f_Group>;
 def fcompile_resource_EQ : Joined<"-fcompile-resource=">, Group<f_Group>;
-def fconstant_cfstrings : Flag<"-fconstant-cfstrings">, Group<clang_ignored_f_Group>;
+def fconstant_cfstrings : Flag<"-fconstant-cfstrings">, Group<f_Group>;
 def fconstant_string_class_EQ : Joined<"-fconstant-string-class=">, Group<f_Group>;
 def fcreate_profile : Flag<"-fcreate-profile">, Group<f_Group>;
 def fdebug_pass_arguments : Flag<"-fdebug-pass-arguments">, Group<f_Group>;
@@ -265,6 +265,10 @@ def fexceptions : Flag<"-fexceptions">, Group<f_Group>;
 def fextdirs_EQ : Joined<"-fextdirs=">, Group<f_Group>;
 def fhosted : Flag<"-fhosted">, Group<f_Group>;
 def ffreestanding : Flag<"-ffreestanding">, Group<f_Group>;
+
+def fgnu_keywords : Flag<"-fgnu-keywords">, Group<f_Group>;
+def fasm : Flag<"-fasm">, Alias<fgnu_keywords>;
+
 def fgnu_runtime : Flag<"-fgnu-runtime">, Group<f_Group>;
 def fheinous_gnu_extensions : Flag<"-fheinous-gnu-extensions">;
 def filelist : Separate<"-filelist">, Flags<[LinkerInput]>;
@@ -300,6 +304,10 @@ def fno_diagnostics_show_option : Flag<"-fno-diagnostics-show-option">, Group<f_
 def fno_dollars_in_identifiers : Flag<"-fno-dollars-in-identifiers">, Group<f_Group>;
 def fno_eliminate_unused_debug_symbols : Flag<"-fno-eliminate-unused-debug-symbols">, Group<f_Group>;
 def fno_exceptions : Flag<"-fno-exceptions">, Group<f_Group>;
+
+def fno_gnu_keywords : Flag<"-fno-gnu-keywords">, Group<f_Group>;
+def fno_asm : Flag<"-fno-asm">, Alias<fno_gnu_keywords>;
+
 def fno_inline_functions : Flag<"-fno-inline-functions">, Group<clang_ignored_f_Group>;
 def fno_inline : Flag<"-fno-inline">, Group<clang_ignored_f_Group>;
 def fno_keep_inline_functions : Flag<"-fno-keep-inline-functions">, Group<clang_ignored_f_Group>;
@@ -321,6 +329,7 @@ def fno_unit_at_a_time : Flag<"-fno-unit-at-a-time">, Group<f_Group>;
 def fno_unwind_tables : Flag<"-fno-unwind-tables">, Group<f_Group>;
 def fno_working_directory : Flag<"-fno-working-directory">, Group<f_Group>;
 def fno_zero_initialized_in_bss : Flag<"-fno-zero-initialized-in-bss">, Group<f_Group>;
+def fobjc_abi_version_EQ : Joined<"-fobjc-abi-version=">, Group<f_Group>;
 def fobjc_atdefs : Flag<"-fobjc-atdefs">, Group<clang_ignored_f_Group>;
 def fobjc_call_cxx_cdtors : Flag<"-fobjc-call-cxx-cdtors">, Group<clang_ignored_f_Group>;
 def fobjc_gc_only : Flag<"-fobjc-gc-only">, Group<f_Group>;
@@ -356,7 +365,10 @@ def fstack_protector : Flag<"-fstack-protector">, Group<f_Group>;
 def fstrict_aliasing : Flag<"-fstrict-aliasing">, Group<clang_ignored_f_Group>;
 def fsyntax_only : Flag<"-fsyntax-only">, Flags<[DriverOption]>;
 def ftabstop_EQ : Joined<"-ftabstop=">, Group<f_Group>;
+def ferror_limit_EQ : Joined<"-ferror-limit=">, Group<f_Group>;
 def ftemplate_depth_ : Joined<"-ftemplate-depth-">, Group<f_Group>;
+def ftemplate_backtrace_limit_EQ : Joined<"-ftemplate-backtrace-limit=">, 
+                                   Group<f_Group>;
 def fterminated_vtables : Flag<"-fterminated-vtables">, Group<f_Group>;
 def fthreadsafe_statics : Flag<"-fthreadsafe-statics">, Group<f_Group>;
 def ftime_report : Flag<"-ftime-report">, Group<f_Group>;

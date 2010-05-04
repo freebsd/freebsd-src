@@ -104,3 +104,43 @@ namespace test8 {
   // CHECK: define weak_odr void @_ZN5test81fIiEEvNS_5int_cIXsrNS_4metaIT_E4typeE5valueEEE
   template void f<int>(int_c<sizeof(int)>);
 }
+
+namespace test9 {
+  template<typename T>
+  struct supermeta {
+    template<typename U>
+    struct apply {
+      typedef T U::*type;
+    };
+  };
+
+  struct X { };
+
+  template<typename T, typename U>
+  typename supermeta<T>::template apply<U>::type f();
+
+  void test_f() {
+    // CHECK: @_ZN5test91fIiNS_1XEEENS_9supermetaIT_E5applyIT0_E4typeEv()
+    // Note: GCC incorrectly mangles this as
+    // _ZN5test91fIiNS_1XEEENS_9supermetaIT_E5apply4typeEv, while EDG
+    // gets it right.
+    f<int, X>();
+  }
+}
+
+namespace test10 {
+  template<typename T>
+  struct X {
+    template<typename U>
+    struct definition {
+    };
+  };
+
+  // CHECK: _ZN6test101fIidEENS_1XIT_E10definitionIT0_EES2_S5_
+  template<typename T, typename U>
+  typename X<T>::template definition<U> f(T, U) { }
+
+  void g(int i, double d) {
+    f(i, d);
+  }
+}

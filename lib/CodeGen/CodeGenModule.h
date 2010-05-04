@@ -21,7 +21,7 @@
 #include "CGBlocks.h"
 #include "CGCall.h"
 #include "CGCXX.h"
-#include "CGVtable.h"
+#include "CGVTables.h"
 #include "CodeGenTypes.h"
 #include "GlobalDecl.h"
 #include "Mangle.h"
@@ -94,7 +94,8 @@ class CodeGenModule : public BlockModule {
 
   /// VTables - Holds information about C++ vtables.
   CodeGenVTables VTables;
-  
+  friend class CodeGenVTables;
+
   CGObjCRuntime* Runtime;
   CGDebugInfo* DebugInfo;
 
@@ -132,6 +133,7 @@ class CodeGenModule : public BlockModule {
 
   llvm::StringMap<llvm::Constant*> CFConstantStringMap;
   llvm::StringMap<llvm::Constant*> ConstantStringMap;
+  llvm::DenseMap<const Decl*, llvm::Value*> StaticLocalDeclMap;
 
   /// CXXGlobalInits - Global variables with initializers that need to run
   /// before main.
@@ -144,6 +146,10 @@ class CodeGenModule : public BlockModule {
   /// CFConstantStringClassRef - Cached reference to the class for constant
   /// strings. This value has type int * but is actually an Obj-C class pointer.
   llvm::Constant *CFConstantStringClassRef;
+
+  /// NSConstantStringClassRef - Cached reference to the class for constant
+  /// strings. This value has type int * but is actually an Obj-C class pointer.
+  llvm::Constant *NSConstantStringClassRef;
 
   /// Lazily create the Objective-C runtime
   void createObjCRuntime();
@@ -168,6 +174,14 @@ public:
   /// hasObjCRuntime() - Return true iff an Objective-C runtime has
   /// been configured.
   bool hasObjCRuntime() { return !!Runtime; }
+
+  llvm::Value *getStaticLocalDeclAddress(const VarDecl *VD) {
+    return StaticLocalDeclMap[VD];
+  }
+  void setStaticLocalDeclAddress(const VarDecl *D, 
+                             llvm::GlobalVariable *GV) {
+    StaticLocalDeclMap[D] = GV;
+  }
 
   CGDebugInfo *getDebugInfo() { return DebugInfo; }
   ASTContext &getContext() const { return Context; }
@@ -218,7 +232,7 @@ public:
 
   /// GetAddrOfRTTIDescriptor - Get the address of the RTTI descriptor 
   /// for the given type.
-  llvm::Constant *GetAddrOfRTTIDescriptor(QualType Ty);
+  llvm::Constant *GetAddrOfRTTIDescriptor(QualType Ty, bool ForEH = false);
 
   /// GetAddrOfThunk - Get the address of the thunk for the given global decl.
   llvm::Constant *GetAddrOfThunk(GlobalDecl GD, const ThunkInfo &Thunk);
@@ -227,11 +241,11 @@ public:
   llvm::Constant *GetWeakRefReference(const ValueDecl *VD);
 
   /// GetNonVirtualBaseClassOffset - Returns the offset from a derived class to 
-  /// its base class. Returns null if the offset is 0. 
+  /// a class. Returns null if the offset is 0. 
   llvm::Constant *
   GetNonVirtualBaseClassOffset(const CXXRecordDecl *ClassDecl,
-                               const CXXRecordDecl *BaseClassDecl);
-
+                               const CXXBaseSpecifierArray &BasePath);
+  
   /// GetStringForStringLiteral - Return the appropriate bytes for a string
   /// literal, properly padded to match the literal type. If only the address of
   /// a constant is needed consider using GetAddrOfConstantStringLiteral.
@@ -240,6 +254,10 @@ public:
   /// GetAddrOfConstantCFString - Return a pointer to a constant CFString object
   /// for the given string.
   llvm::Constant *GetAddrOfConstantCFString(const StringLiteral *Literal);
+  
+  /// GetAddrOfConstantNSString - Return a pointer to a constant NSString object
+  /// for the given string.
+  llvm::Constant *GetAddrOfConstantNSString(const StringLiteral *Literal);
 
   /// GetAddrOfConstantStringFromLiteral - Return a pointer to a constant array
   /// for the given string literal.
@@ -416,16 +434,16 @@ public:
   llvm::GlobalVariable::LinkageTypes
   getFunctionLinkage(const FunctionDecl *FD);
 
-  /// getVtableLinkage - Return the appropriate linkage for the vtable, VTT,
+  /// getVTableLinkage - Return the appropriate linkage for the vtable, VTT,
   /// and type information of the given class.
   static llvm::GlobalVariable::LinkageTypes 
-  getVtableLinkage(const CXXRecordDecl *RD);
+  getVTableLinkage(const CXXRecordDecl *RD);
 
   /// GetTargetTypeStoreSize - Return the store size, in character units, of
   /// the given LLVM type.
   CharUnits GetTargetTypeStoreSize(const llvm::Type *Ty) const;
 
-  std::vector<const CXXRecordDecl*> DeferredVtables;
+  std::vector<const CXXRecordDecl*> DeferredVTables;
 
 private:
   llvm::GlobalValue *GetGlobalValue(llvm::StringRef Ref);
@@ -464,6 +482,7 @@ private:
   void EmitGlobalVarDefinition(const VarDecl *D);
   void EmitAliasDefinition(GlobalDecl GD);
   void EmitObjCPropertyImplementations(const ObjCImplementationDecl *D);
+  void EmitObjCIvarInitializations(ObjCImplementationDecl *D);
 
   // C++ related functions.
 

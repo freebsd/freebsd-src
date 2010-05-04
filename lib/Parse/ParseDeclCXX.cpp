@@ -178,7 +178,7 @@ Parser::DeclPtrTy Parser::ParseLinkage(ParsingDeclSpec &DS,
   DeclPtrTy LinkageSpec
     = Actions.ActOnStartLinkageSpecification(CurScope,
                                              /*FIXME: */SourceLocation(),
-                                             Loc, Lang.data(), Lang.size(),
+                                             Loc, Lang,
                                        Tok.is(tok::l_brace)? Tok.getLocation()
                                                            : SourceLocation());
 
@@ -465,7 +465,7 @@ void Parser::ParseDecltypeSpecifier(DeclSpec &DS) {
 ///         simple-template-id
 ///
 Parser::TypeResult Parser::ParseClassName(SourceLocation &EndLocation,
-                                          const CXXScopeSpec *SS) {
+                                          CXXScopeSpec *SS) {
   // Check whether we have a template-id that names a type.
   if (Tok.is(tok::annot_template_id)) {
     TemplateIdAnnotation *TemplateId
@@ -780,9 +780,6 @@ void Parser::ParseClassSpecifier(tok::TokenKind TagTokKind,
   Action::DeclResult TagOrTempResult = true; // invalid
   Action::TypeResult TypeResult = true; // invalid
 
-  // FIXME: When TUK == TUK_Reference and we have a template-id, we need
-  // to turn that template-id into a type.
-
   bool Owned = false;
   if (TemplateId) {
     // Explicit specialization, class template partial specialization,
@@ -806,7 +803,14 @@ void Parser::ParseClassSpecifier(tok::TokenKind TagTokKind,
                                              TemplateArgsPtr,
                                              TemplateId->RAngleLoc,
                                              AttrList);
-    } else if (TUK == Action::TUK_Reference) {
+
+    // Friend template-ids are treated as references unless
+    // they have template headers, in which case they're ill-formed
+    // (FIXME: "template <class T> friend class A<T>::B<int>;").
+    // We diagnose this error in ActOnClassTemplateSpecialization.
+    } else if (TUK == Action::TUK_Reference ||
+               (TUK == Action::TUK_Friend &&
+                TemplateInfo.Kind == ParsedTemplateInfo::NonTemplate)) {
       TypeResult
         = Actions.ActOnTemplateIdType(TemplateTy::make(TemplateId->Template),
                                       TemplateId->TemplateNameLoc,

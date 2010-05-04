@@ -13,7 +13,7 @@ int test(int _x) {
 
 // PR2374
 int test2() { return ({L:5;}); }
-int test3() { return ({ {5;} }); }         // expected-error {{incompatible type returning 'void', expected 'int'}}\
+int test3() { return ({ {5;} }); }         // expected-error {{returning 'void' from a function with incompatible result type 'int'}}\
                                            // expected-warning {{expression result unused}}
 int test4() { return ({ ({5;}); }); }
 int test5() { return ({L1: L2: L3: 5;}); }
@@ -39,5 +39,15 @@ void test11(int bit) {
   switch (bit)
   switch (env->fpscr)  // expected-error {{use of undeclared identifier 'env'}}
   {
+  }
+}
+
+// rdar://3271964
+enum Numbers { kOne,  kTwo,  kThree,  kFour};
+int test12(enum Numbers num) {
+  switch (num == kOne) {// expected-warning {{switch condition has boolean value}}
+  default: 
+  case kThree:
+    break;
   }
 }

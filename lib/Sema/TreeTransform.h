@@ -338,6 +338,7 @@ public:
                                       QualType ObjectType);
 
   OwningStmtResult TransformCompoundStmt(CompoundStmt *S, bool IsStmtExpr);
+  OwningExprResult TransformCXXNamedCastExpr(CXXNamedCastExpr *E);
 
 #define STMT(Node, Parent)                        \
   OwningStmtResult Transform##Node(Node *S);
@@ -377,10 +378,6 @@ public:
   /// type. Subclasses may override this routine to provide different behavior.
   QualType RebuildMemberPointerType(QualType PointeeType, QualType ClassType,
                                     SourceLocation Sigil);
-
-  /// \brief Build a new Objective C object pointer type.
-  QualType RebuildObjCObjectPointerType(QualType PointeeType,
-                                        SourceLocation Sigil);
 
   /// \brief Build a new array type given the element type, size
   /// modifier, size of the array (if known), size expression, and index type
@@ -577,10 +574,9 @@ public:
     TagDecl::TagKind Kind = TagDecl::TK_enum;
     switch (Keyword) {
       case ETK_None:
-        // FIXME: Note the lack of the "typename" specifier!
-        // Fall through
+        // Fall through.
       case ETK_Typename:
-        return SemaRef.CheckTypenameType(NNS, *Id, SR);
+        return SemaRef.CheckTypenameType(Keyword, NNS, *Id, SR);
         
       case ETK_Class: Kind = TagDecl::TK_class; break;
       case ETK_Struct: Kind = TagDecl::TK_struct; break;
@@ -892,6 +888,88 @@ public:
                                   move(Exprs), move(AsmString), move(Clobbers),
                                   RParenLoc, MSAsm);
   }
+
+  /// \brief Build a new Objective-C @try statement.
+  ///
+  /// By default, performs semantic analysis to build the new statement.
+  /// Subclasses may override this routine to provide different behavior.
+  OwningStmtResult RebuildObjCAtTryStmt(SourceLocation AtLoc,
+                                        StmtArg TryBody,
+                                        MultiStmtArg CatchStmts,
+                                        StmtArg Finally) {
+    return getSema().ActOnObjCAtTryStmt(AtLoc, move(TryBody), move(CatchStmts),
+                                        move(Finally));
+  }
+
+  /// \brief Rebuild an Objective-C exception declaration.
+  ///
+  /// By default, performs semantic analysis to build the new declaration.
+  /// Subclasses may override this routine to provide different behavior.
+  VarDecl *RebuildObjCExceptionDecl(VarDecl *ExceptionDecl,
+                                    TypeSourceInfo *TInfo, QualType T) {
+    return getSema().BuildObjCExceptionDecl(TInfo, T, 
+                                            ExceptionDecl->getIdentifier(), 
+                                            ExceptionDecl->getLocation());
+  }
+  
+  /// \brief Build a new Objective-C @catch statement.
+  ///
+  /// By default, performs semantic analysis to build the new statement.
+  /// Subclasses may override this routine to provide different behavior.
+  OwningStmtResult RebuildObjCAtCatchStmt(SourceLocation AtLoc,
+                                          SourceLocation RParenLoc,
+                                          VarDecl *Var,
+                                          StmtArg Body) {
+    return getSema().ActOnObjCAtCatchStmt(AtLoc, RParenLoc,
+                                          Sema::DeclPtrTy::make(Var),
+                                          move(Body));
+  }
+  
+  /// \brief Build a new Objective-C @finally statement.
+  ///
+  /// By default, performs semantic analysis to build the new statement.
+  /// Subclasses may override this routine to provide different behavior.
+  OwningStmtResult RebuildObjCAtFinallyStmt(SourceLocation AtLoc,
+                                            StmtArg Body) {
+    return getSema().ActOnObjCAtFinallyStmt(AtLoc, move(Body));
+  }
+  
+  /// \brief Build a new Objective-C @throw statement.
+  ///
+  /// By default, performs semantic analysis to build the new statement.
+  /// Subclasses may override this routine to provide different behavior.
+  OwningStmtResult RebuildObjCAtThrowStmt(SourceLocation AtLoc,
+                                          ExprArg Operand) {
+    return getSema().BuildObjCAtThrowStmt(AtLoc, move(Operand));
+  }
+  
+  /// \brief Build a new Objective-C @synchronized statement.
+  ///
+  /// By default, performs semantic analysis to build the new statement.
+  /// Subclasses may override this routine to provide different behavior.
+  OwningStmtResult RebuildObjCAtSynchronizedStmt(SourceLocation AtLoc,
+                                                 ExprArg Object,
+                                                 StmtArg Body) {
+    return getSema().ActOnObjCAtSynchronizedStmt(AtLoc, move(Object),
+                                                 move(Body));
+  }
+
+  /// \brief Build a new Objective-C fast enumeration statement.
+  ///
+  /// By default, performs semantic analysis to build the new statement.
+  /// Subclasses may override this routine to provide different behavior.
+  OwningStmtResult RebuildObjCForCollectionStmt(SourceLocation ForLoc,
+                                                SourceLocation LParenLoc,
+                                                StmtArg Element,
+                                                ExprArg Collection,
+                                                SourceLocation RParenLoc,
+                                                StmtArg Body) {
+    return getSema().ActOnObjCForCollectionStmt(ForLoc, LParenLoc,
+                                                move(Element), 
+                                                move(Collection),
+                                                RParenLoc,
+                                                move(Body));
+  }
   
   /// \brief Build a new C++ exception declaration.
   ///
@@ -989,6 +1067,19 @@ public:
     return getSema().BuildUnaryOp(/*Scope=*/0, OpLoc, Opc, move(SubExpr));
   }
 
+  /// \brief Build a new builtin offsetof expression.
+  ///
+  /// By default, performs semantic analysis to build the new expression.
+  /// Subclasses may override this routine to provide different behavior.
+  OwningExprResult RebuildOffsetOfExpr(SourceLocation OperatorLoc,
+                                       TypeSourceInfo *Type,
+                                       Action::OffsetOfComponent *Components,
+                                       unsigned NumComponents,
+                                       SourceLocation RParenLoc) {
+    return getSema().BuildBuiltinOffsetOf(OperatorLoc, Type, Components,
+                                          NumComponents, RParenLoc);
+  }
+  
   /// \brief Build a new sizeof or alignof expression with a type argument.
   ///
   /// By default, performs semantic analysis to build the new expression.
@@ -1421,30 +1512,24 @@ public:
   ///
   /// By default, performs semantic analysis to build the new expression.
   /// Subclasses may override this routine to provide different behavior.
-  OwningExprResult RebuildCXXTypeidExpr(SourceLocation TypeidLoc,
-                                        SourceLocation LParenLoc,
-                                        QualType T,
+  OwningExprResult RebuildCXXTypeidExpr(QualType TypeInfoType,
+                                        SourceLocation TypeidLoc,
+                                        TypeSourceInfo *Operand,
                                         SourceLocation RParenLoc) {
-    return getSema().ActOnCXXTypeid(TypeidLoc, LParenLoc, true,
-                                    T.getAsOpaquePtr(), RParenLoc);
+    return getSema().BuildCXXTypeId(TypeInfoType, TypeidLoc, Operand, 
+                                    RParenLoc);
   }
 
   /// \brief Build a new C++ typeid(expr) expression.
   ///
   /// By default, performs semantic analysis to build the new expression.
   /// Subclasses may override this routine to provide different behavior.
-  OwningExprResult RebuildCXXTypeidExpr(SourceLocation TypeidLoc,
-                                        SourceLocation LParenLoc,
+  OwningExprResult RebuildCXXTypeidExpr(QualType TypeInfoType,
+                                        SourceLocation TypeidLoc,
                                         ExprArg Operand,
                                         SourceLocation RParenLoc) {
-    OwningExprResult Result
-      = getSema().ActOnCXXTypeid(TypeidLoc, LParenLoc, false, Operand.get(),
-                                 RParenLoc);
-    if (Result.isInvalid())
-      return getSema().ExprError();
-
-    Operand.release(); // FIXME: since ActOnCXXTypeid silently took ownership
-    return move(Result);
+    return getSema().BuildCXXTypeId(TypeInfoType, TypeidLoc, move(Operand),
+                                    RParenLoc);
   }
 
   /// \brief Build a new C++ "this" expression.
@@ -1688,29 +1773,147 @@ public:
   /// By default, performs semantic analysis to build the new expression.
   /// Subclasses may override this routine to provide different behavior.
   OwningExprResult RebuildObjCEncodeExpr(SourceLocation AtLoc,
-                                         QualType T,
+                                         TypeSourceInfo *EncodeTypeInfo,
                                          SourceLocation RParenLoc) {
-    return SemaRef.Owned(SemaRef.BuildObjCEncodeExpression(AtLoc, T,
+    return SemaRef.Owned(SemaRef.BuildObjCEncodeExpression(AtLoc, EncodeTypeInfo,
                                                            RParenLoc));
   }
 
-  /// \brief Build a new Objective-C protocol expression.
+  /// \brief Build a new Objective-C class message.
+  OwningExprResult RebuildObjCMessageExpr(TypeSourceInfo *ReceiverTypeInfo,
+                                          Selector Sel,
+                                          ObjCMethodDecl *Method,
+                                          SourceLocation LBracLoc, 
+                                          MultiExprArg Args,
+                                          SourceLocation RBracLoc) {
+    return SemaRef.BuildClassMessage(ReceiverTypeInfo,
+                                     ReceiverTypeInfo->getType(),
+                                     /*SuperLoc=*/SourceLocation(),
+                                     Sel, Method, LBracLoc, RBracLoc,
+                                     move(Args));
+  }
+
+  /// \brief Build a new Objective-C instance message.
+  OwningExprResult RebuildObjCMessageExpr(ExprArg Receiver,
+                                          Selector Sel,
+                                          ObjCMethodDecl *Method,
+                                          SourceLocation LBracLoc, 
+                                          MultiExprArg Args,
+                                          SourceLocation RBracLoc) {
+    QualType ReceiverType = static_cast<Expr *>(Receiver.get())->getType();
+    return SemaRef.BuildInstanceMessage(move(Receiver),
+                                        ReceiverType,
+                                        /*SuperLoc=*/SourceLocation(),
+                                        Sel, Method, LBracLoc, RBracLoc,
+                                        move(Args));
+  }
+
+  /// \brief Build a new Objective-C ivar reference expression.
   ///
   /// By default, performs semantic analysis to build the new expression.
   /// Subclasses may override this routine to provide different behavior.
-  OwningExprResult RebuildObjCProtocolExpr(ObjCProtocolDecl *Protocol,
-                                           SourceLocation AtLoc,
-                                           SourceLocation ProtoLoc,
-                                           SourceLocation LParenLoc,
-                                           SourceLocation RParenLoc) {
-    return SemaRef.Owned(SemaRef.ParseObjCProtocolExpression(
-                                              Protocol->getIdentifier(),
-                                                             AtLoc,
-                                                             ProtoLoc,
-                                                             LParenLoc,
-                                                             RParenLoc));
+  OwningExprResult RebuildObjCIvarRefExpr(ExprArg BaseArg, ObjCIvarDecl *Ivar,
+                                          SourceLocation IvarLoc,
+                                          bool IsArrow, bool IsFreeIvar) {
+    // FIXME: We lose track of the IsFreeIvar bit.
+    CXXScopeSpec SS;
+    Expr *Base = BaseArg.takeAs<Expr>();
+    LookupResult R(getSema(), Ivar->getDeclName(), IvarLoc,
+                   Sema::LookupMemberName);
+    OwningExprResult Result = getSema().LookupMemberExpr(R, Base, IsArrow,
+                                                         /*FIME:*/IvarLoc,
+                                                         SS, DeclPtrTy());
+    if (Result.isInvalid())
+      return getSema().ExprError();
+    
+    if (Result.get())
+      return move(Result);
+    
+    return getSema().BuildMemberReferenceExpr(getSema().Owned(Base), 
+                                              Base->getType(),
+                                              /*FIXME:*/IvarLoc, IsArrow, SS, 
+                                              /*FirstQualifierInScope=*/0,
+                                              R, 
+                                              /*TemplateArgs=*/0);
   }
 
+  /// \brief Build a new Objective-C property reference expression.
+  ///
+  /// By default, performs semantic analysis to build the new expression.
+  /// Subclasses may override this routine to provide different behavior.
+  OwningExprResult RebuildObjCPropertyRefExpr(ExprArg BaseArg, 
+                                              ObjCPropertyDecl *Property,
+                                              SourceLocation PropertyLoc) {
+    CXXScopeSpec SS;
+    Expr *Base = BaseArg.takeAs<Expr>();
+    LookupResult R(getSema(), Property->getDeclName(), PropertyLoc,
+                   Sema::LookupMemberName);
+    bool IsArrow = false;
+    OwningExprResult Result = getSema().LookupMemberExpr(R, Base, IsArrow,
+                                                         /*FIME:*/PropertyLoc,
+                                                         SS, DeclPtrTy());
+    if (Result.isInvalid())
+      return getSema().ExprError();
+    
+    if (Result.get())
+      return move(Result);
+    
+    return getSema().BuildMemberReferenceExpr(getSema().Owned(Base), 
+                                              Base->getType(),
+                                              /*FIXME:*/PropertyLoc, IsArrow, 
+                                              SS, 
+                                              /*FirstQualifierInScope=*/0,
+                                              R, 
+                                              /*TemplateArgs=*/0);
+  }
+  
+  /// \brief Build a new Objective-C implicit setter/getter reference 
+  /// expression.
+  ///
+  /// By default, performs semantic analysis to build the new expression.
+  /// Subclasses may override this routine to provide different behavior.  
+  OwningExprResult RebuildObjCImplicitSetterGetterRefExpr(
+                                                        ObjCMethodDecl *Getter,
+                                                          QualType T,
+                                                        ObjCMethodDecl *Setter,
+                                                        SourceLocation NameLoc,
+                                                          ExprArg Base) {
+    // Since these expressions can only be value-dependent, we do not need to
+    // perform semantic analysis again.
+    return getSema().Owned(
+             new (getSema().Context) ObjCImplicitSetterGetterRefExpr(Getter, T,
+                                                                     Setter,
+                                                                     NameLoc,
+                                                          Base.takeAs<Expr>()));
+  }
+
+  /// \brief Build a new Objective-C "isa" expression.
+  ///
+  /// By default, performs semantic analysis to build the new expression.
+  /// Subclasses may override this routine to provide different behavior.
+  OwningExprResult RebuildObjCIsaExpr(ExprArg BaseArg, SourceLocation IsaLoc,
+                                      bool IsArrow) {
+    CXXScopeSpec SS;
+    Expr *Base = BaseArg.takeAs<Expr>();
+    LookupResult R(getSema(), &getSema().Context.Idents.get("isa"), IsaLoc,
+                   Sema::LookupMemberName);
+    OwningExprResult Result = getSema().LookupMemberExpr(R, Base, IsArrow,
+                                                         /*FIME:*/IsaLoc,
+                                                         SS, DeclPtrTy());
+    if (Result.isInvalid())
+      return getSema().ExprError();
+    
+    if (Result.get())
+      return move(Result);
+    
+    return getSema().BuildMemberReferenceExpr(getSema().Owned(Base), 
+                                              Base->getType(),
+                                              /*FIXME:*/IsaLoc, IsArrow, SS, 
+                                              /*FirstQualifierInScope=*/0,
+                                              R, 
+                                              /*TemplateArgs=*/0);
+  }
+  
   /// \brief Build a new shuffle vector expression.
   ///
   /// By default, performs semantic analysis to build the new expression.
@@ -2225,29 +2428,6 @@ QualType TransformTypeSpecType(TypeLocBuilder &TLB, TyLoc T) {
   return T.getType();
 }
 
-// Ugly metaprogramming macros because I couldn't be bothered to make
-// the equivalent template version work.
-#define TransformPointerLikeType(TypeClass) do { \
-  QualType PointeeType                                       \
-    = getDerived().TransformType(TLB, TL.getPointeeLoc());   \
-  if (PointeeType.isNull())                                  \
-    return QualType();                                       \
-                                                             \
-  QualType Result = TL.getType();                            \
-  if (getDerived().AlwaysRebuild() ||                        \
-      PointeeType != TL.getPointeeLoc().getType()) {         \
-    Result = getDerived().Rebuild##TypeClass(PointeeType,    \
-                                          TL.getSigilLoc()); \
-    if (Result.isNull())                                     \
-      return QualType();                                     \
-  }                                                          \
-                                                             \
-  TypeClass##Loc NewT = TLB.push<TypeClass##Loc>(Result);    \
-  NewT.setSigilLoc(TL.getSigilLoc());                        \
-                                                             \
-  return Result;                                             \
-} while(0)
-
 template<typename Derived>
 QualType TreeTransform<Derived>::TransformBuiltinType(TypeLocBuilder &TLB,
                                                       BuiltinTypeLoc T,
@@ -2271,7 +2451,42 @@ template<typename Derived>
 QualType TreeTransform<Derived>::TransformPointerType(TypeLocBuilder &TLB,
                                                       PointerTypeLoc TL, 
                                                       QualType ObjectType) {
-  TransformPointerLikeType(PointerType);
+  QualType PointeeType                                      
+    = getDerived().TransformType(TLB, TL.getPointeeLoc());  
+  if (PointeeType.isNull())
+    return QualType();
+
+  QualType Result = TL.getType();
+  if (PointeeType->isObjCInterfaceType()) {
+    // A dependent pointer type 'T *' has is being transformed such
+    // that an Objective-C class type is being replaced for 'T'. The
+    // resulting pointer type is an ObjCObjectPointerType, not a
+    // PointerType.
+    const ObjCInterfaceType *IFace = PointeeType->getAs<ObjCInterfaceType>();
+    Result = SemaRef.Context.getObjCObjectPointerType(PointeeType,
+                                              const_cast<ObjCProtocolDecl **>(
+                                                           IFace->qual_begin()),
+                                              IFace->getNumProtocols());
+    
+    ObjCObjectPointerTypeLoc NewT = TLB.push<ObjCObjectPointerTypeLoc>(Result);   
+    NewT.setStarLoc(TL.getSigilLoc());       
+    NewT.setHasProtocolsAsWritten(false);
+    NewT.setLAngleLoc(SourceLocation());
+    NewT.setRAngleLoc(SourceLocation());
+    NewT.setHasBaseTypeAsWritten(true);
+    return Result;
+  }
+                                                            
+  if (getDerived().AlwaysRebuild() ||
+      PointeeType != TL.getPointeeLoc().getType()) {
+    Result = getDerived().RebuildPointerType(PointeeType, TL.getSigilLoc());
+    if (Result.isNull())
+      return QualType();
+  }
+                                                            
+  PointerTypeLoc NewT = TLB.push<PointerTypeLoc>(Result);
+  NewT.setSigilLoc(TL.getSigilLoc());
+  return Result;  
 }
 
 template<typename Derived>
@@ -2279,7 +2494,23 @@ QualType
 TreeTransform<Derived>::TransformBlockPointerType(TypeLocBuilder &TLB,
                                                   BlockPointerTypeLoc TL,
                                                   QualType ObjectType) {
-  TransformPointerLikeType(BlockPointerType);
+  QualType PointeeType
+    = getDerived().TransformType(TLB, TL.getPointeeLoc());  
+  if (PointeeType.isNull())                                 
+    return QualType();                                      
+  
+  QualType Result = TL.getType();                           
+  if (getDerived().AlwaysRebuild() ||                       
+      PointeeType != TL.getPointeeLoc().getType()) {        
+    Result = getDerived().RebuildBlockPointerType(PointeeType, 
+                                                  TL.getSigilLoc());
+    if (Result.isNull())
+      return QualType();
+  }
+
+  BlockPointerTypeLoc NewT = TLB.push<BlockPointerTypeLoc>(Result);
+  NewT.setSigilLoc(TL.getSigilLoc());
+  return Result;
 }
 
 /// Transforms a reference type.  Note that somewhat paradoxically we
@@ -2630,6 +2861,7 @@ TreeTransform<Derived>::TransformFunctionTypeParam(ParmVarDecl *OldParm) {
                                NewDI->getType(),
                                NewDI,
                                OldParm->getStorageClass(),
+                               OldParm->getStorageClassAsWritten(),
                                /* DefArg */ NULL);
 }
 
@@ -2675,17 +2907,19 @@ QualType
 TreeTransform<Derived>::TransformFunctionProtoType(TypeLocBuilder &TLB,
                                                    FunctionProtoTypeLoc TL,
                                                    QualType ObjectType) {
-  FunctionProtoType *T = TL.getTypePtr();
-  QualType ResultType = getDerived().TransformType(TLB, TL.getResultLoc());
-  if (ResultType.isNull())
-    return QualType();
-
-  // Transform the parameters.
+  // Transform the parameters. We do this first for the benefit of template
+  // instantiations, so that the ParmVarDecls get/ placed into the template
+  // instantiation scope before we transform the function type.
   llvm::SmallVector<QualType, 4> ParamTypes;
   llvm::SmallVector<ParmVarDecl*, 4> ParamDecls;
   if (getDerived().TransformFunctionTypeParams(TL, ParamTypes, ParamDecls))
     return QualType();
-
+  
+  FunctionProtoType *T = TL.getTypePtr();
+  QualType ResultType = getDerived().TransformType(TLB, TL.getResultLoc());
+  if (ResultType.isNull())
+    return QualType();
+  
   QualType Result = TL.getType();
   if (getDerived().AlwaysRebuild() ||
       ResultType != T->getResultType() ||
@@ -3117,8 +3351,8 @@ QualType
 TreeTransform<Derived>::TransformObjCInterfaceType(TypeLocBuilder &TLB,
                                                    ObjCInterfaceTypeLoc TL,
                                                    QualType ObjectType) {
-  assert(false && "TransformObjCInterfaceType unimplemented");
-  return QualType();
+  // ObjCInterfaceType is never dependent.
+  return TL.getType();
 }
 
 template<typename Derived>
@@ -3126,8 +3360,8 @@ QualType
 TreeTransform<Derived>::TransformObjCObjectPointerType(TypeLocBuilder &TLB,
                                                ObjCObjectPointerTypeLoc TL,
                                                        QualType ObjectType) {
-  assert(false && "TransformObjCObjectPointerType unimplemented");
-  return QualType();
+  // ObjCObjectPointerType is never dependent.
+  return TL.getType();
 }
 
 //===----------------------------------------------------------------------===//
@@ -3587,51 +3821,172 @@ TreeTransform<Derived>::TransformAsmStmt(AsmStmt *S) {
 template<typename Derived>
 Sema::OwningStmtResult
 TreeTransform<Derived>::TransformObjCAtTryStmt(ObjCAtTryStmt *S) {
-  // FIXME: Implement this
-  assert(false && "Cannot transform an Objective-C @try statement");
-  return SemaRef.Owned(S->Retain());
+  // Transform the body of the @try.
+  OwningStmtResult TryBody = getDerived().TransformStmt(S->getTryBody());
+  if (TryBody.isInvalid())
+    return SemaRef.StmtError();
+  
+  // Transform the @catch statements (if present).
+  bool AnyCatchChanged = false;
+  ASTOwningVector<&ActionBase::DeleteStmt> CatchStmts(SemaRef);
+  for (unsigned I = 0, N = S->getNumCatchStmts(); I != N; ++I) {
+    OwningStmtResult Catch = getDerived().TransformStmt(S->getCatchStmt(I));
+    if (Catch.isInvalid())
+      return SemaRef.StmtError();
+    if (Catch.get() != S->getCatchStmt(I))
+      AnyCatchChanged = true;
+    CatchStmts.push_back(Catch.release());
+  }
+  
+  // Transform the @finally statement (if present).
+  OwningStmtResult Finally(SemaRef);
+  if (S->getFinallyStmt()) {
+    Finally = getDerived().TransformStmt(S->getFinallyStmt());
+    if (Finally.isInvalid())
+      return SemaRef.StmtError();
+  }
+
+  // If nothing changed, just retain this statement.
+  if (!getDerived().AlwaysRebuild() &&
+      TryBody.get() == S->getTryBody() &&
+      !AnyCatchChanged &&
+      Finally.get() == S->getFinallyStmt())
+    return SemaRef.Owned(S->Retain());
+  
+  // Build a new statement.
+  return getDerived().RebuildObjCAtTryStmt(S->getAtTryLoc(), move(TryBody),
+                                           move_arg(CatchStmts), move(Finally));
 }
 
 template<typename Derived>
 Sema::OwningStmtResult
 TreeTransform<Derived>::TransformObjCAtCatchStmt(ObjCAtCatchStmt *S) {
-  // FIXME: Implement this
-  assert(false && "Cannot transform an Objective-C @catch statement");
-  return SemaRef.Owned(S->Retain());
+  // Transform the @catch parameter, if there is one.
+  VarDecl *Var = 0;
+  if (VarDecl *FromVar = S->getCatchParamDecl()) {
+    TypeSourceInfo *TSInfo = 0;
+    if (FromVar->getTypeSourceInfo()) {
+      TSInfo = getDerived().TransformType(FromVar->getTypeSourceInfo());
+      if (!TSInfo)
+        return SemaRef.StmtError();
+    }
+    
+    QualType T;
+    if (TSInfo)
+      T = TSInfo->getType();
+    else {
+      T = getDerived().TransformType(FromVar->getType());
+      if (T.isNull())
+        return SemaRef.StmtError();        
+    }
+    
+    Var = getDerived().RebuildObjCExceptionDecl(FromVar, TSInfo, T);
+    if (!Var)
+      return SemaRef.StmtError();
+  }
+  
+  OwningStmtResult Body = getDerived().TransformStmt(S->getCatchBody());
+  if (Body.isInvalid())
+    return SemaRef.StmtError();
+  
+  return getDerived().RebuildObjCAtCatchStmt(S->getAtCatchLoc(), 
+                                             S->getRParenLoc(),
+                                             Var, move(Body));
 }
 
 template<typename Derived>
 Sema::OwningStmtResult
 TreeTransform<Derived>::TransformObjCAtFinallyStmt(ObjCAtFinallyStmt *S) {
-  // FIXME: Implement this
-  assert(false && "Cannot transform an Objective-C @finally statement");
-  return SemaRef.Owned(S->Retain());
+  // Transform the body.
+  OwningStmtResult Body = getDerived().TransformStmt(S->getFinallyBody());
+  if (Body.isInvalid())
+    return SemaRef.StmtError();
+  
+  // If nothing changed, just retain this statement.
+  if (!getDerived().AlwaysRebuild() &&
+      Body.get() == S->getFinallyBody())
+    return SemaRef.Owned(S->Retain());
+
+  // Build a new statement.
+  return getDerived().RebuildObjCAtFinallyStmt(S->getAtFinallyLoc(),
+                                               move(Body));
 }
 
 template<typename Derived>
 Sema::OwningStmtResult
 TreeTransform<Derived>::TransformObjCAtThrowStmt(ObjCAtThrowStmt *S) {
-  // FIXME: Implement this
-  assert(false && "Cannot transform an Objective-C @throw statement");
-  return SemaRef.Owned(S->Retain());
+  OwningExprResult Operand(SemaRef);
+  if (S->getThrowExpr()) {
+    Operand = getDerived().TransformExpr(S->getThrowExpr());
+    if (Operand.isInvalid())
+      return getSema().StmtError();
+  }
+  
+  if (!getDerived().AlwaysRebuild() &&
+      Operand.get() == S->getThrowExpr())
+    return getSema().Owned(S->Retain());
+    
+  return getDerived().RebuildObjCAtThrowStmt(S->getThrowLoc(), move(Operand));
 }
 
 template<typename Derived>
 Sema::OwningStmtResult
 TreeTransform<Derived>::TransformObjCAtSynchronizedStmt(
                                                   ObjCAtSynchronizedStmt *S) {
-  // FIXME: Implement this
-  assert(false && "Cannot transform an Objective-C @synchronized statement");
-  return SemaRef.Owned(S->Retain());
+  // Transform the object we are locking.
+  OwningExprResult Object = getDerived().TransformExpr(S->getSynchExpr());
+  if (Object.isInvalid())
+    return SemaRef.StmtError();
+  
+  // Transform the body.
+  OwningStmtResult Body = getDerived().TransformStmt(S->getSynchBody());
+  if (Body.isInvalid())
+    return SemaRef.StmtError();
+  
+  // If nothing change, just retain the current statement.
+  if (!getDerived().AlwaysRebuild() &&
+      Object.get() == S->getSynchExpr() &&
+      Body.get() == S->getSynchBody())
+    return SemaRef.Owned(S->Retain());
+
+  // Build a new statement.
+  return getDerived().RebuildObjCAtSynchronizedStmt(S->getAtSynchronizedLoc(),
+                                                    move(Object), move(Body));
 }
 
 template<typename Derived>
 Sema::OwningStmtResult
 TreeTransform<Derived>::TransformObjCForCollectionStmt(
                                                   ObjCForCollectionStmt *S) {
-  // FIXME: Implement this
-  assert(false && "Cannot transform an Objective-C for-each statement");
-  return SemaRef.Owned(S->Retain());
+  // Transform the element statement.
+  OwningStmtResult Element = getDerived().TransformStmt(S->getElement());
+  if (Element.isInvalid())
+    return SemaRef.StmtError();
+  
+  // Transform the collection expression.
+  OwningExprResult Collection = getDerived().TransformExpr(S->getCollection());
+  if (Collection.isInvalid())
+    return SemaRef.StmtError();
+  
+  // Transform the body.
+  OwningStmtResult Body = getDerived().TransformStmt(S->getBody());
+  if (Body.isInvalid())
+    return SemaRef.StmtError();
+  
+  // If nothing changed, just retain this statement.
+  if (!getDerived().AlwaysRebuild() &&
+      Element.get() == S->getElement() &&
+      Collection.get() == S->getCollection() &&
+      Body.get() == S->getBody())
+    return SemaRef.Owned(S->Retain());
+  
+  // Build a new statement.
+  return getDerived().RebuildObjCForCollectionStmt(S->getForLoc(),
+                                                   /*FIXME:*/S->getForLoc(),
+                                                   move(Element),
+                                                   move(Collection),
+                                                   S->getRParenLoc(),
+                                                   move(Body));
 }
 
 
@@ -3824,6 +4179,72 @@ TreeTransform<Derived>::TransformUnaryOperator(UnaryOperator *E) {
   return getDerived().RebuildUnaryOperator(E->getOperatorLoc(),
                                            E->getOpcode(),
                                            move(SubExpr));
+}
+
+template<typename Derived>
+Sema::OwningExprResult
+TreeTransform<Derived>::TransformOffsetOfExpr(OffsetOfExpr *E) {
+  // Transform the type.
+  TypeSourceInfo *Type = getDerived().TransformType(E->getTypeSourceInfo());
+  if (!Type)
+    return getSema().ExprError();
+  
+  // Transform all of the components into components similar to what the
+  // parser uses.
+  // FIXME: It would be slightly more efficient in the non-dependent case to 
+  // just map FieldDecls, rather than requiring the rebuilder to look for 
+  // the fields again. However, __builtin_offsetof is rare enough in 
+  // template code that we don't care.
+  bool ExprChanged = false;
+  typedef Action::OffsetOfComponent Component;
+  typedef OffsetOfExpr::OffsetOfNode Node;
+  llvm::SmallVector<Component, 4> Components;
+  for (unsigned I = 0, N = E->getNumComponents(); I != N; ++I) {
+    const Node &ON = E->getComponent(I);
+    Component Comp;
+    Comp.isBrackets = true;
+    Comp.LocStart = ON.getRange().getBegin();
+    Comp.LocEnd = ON.getRange().getEnd();
+    switch (ON.getKind()) {
+    case Node::Array: {
+      Expr *FromIndex = E->getIndexExpr(ON.getArrayExprIndex());
+      OwningExprResult Index = getDerived().TransformExpr(FromIndex);
+      if (Index.isInvalid())
+        return getSema().ExprError();
+      
+      ExprChanged = ExprChanged || Index.get() != FromIndex;
+      Comp.isBrackets = true;
+      Comp.U.E = Index.takeAs<Expr>(); // FIXME: leaked
+      break;
+    }
+        
+    case Node::Field:
+    case Node::Identifier:
+      Comp.isBrackets = false;
+      Comp.U.IdentInfo = ON.getFieldName();
+      if (!Comp.U.IdentInfo)
+        continue;
+        
+      break;
+        
+    case Node::Base:
+      // Will be recomputed during the rebuild.
+      continue;
+    }
+    
+    Components.push_back(Comp);
+  }
+  
+  // If nothing changed, retain the existing expression.
+  if (!getDerived().AlwaysRebuild() &&
+      Type == E->getTypeSourceInfo() &&
+      !ExprChanged)
+    return SemaRef.Owned(E->Retain());
+  
+  // Build a new offsetof expression.
+  return getDerived().RebuildOffsetOfExpr(E->getOperatorLoc(), Type,
+                                          Components.data(), Components.size(),
+                                          E->getRParenLoc());
 }
 
 template<typename Derived>
@@ -4597,19 +5018,18 @@ template<typename Derived>
 Sema::OwningExprResult
 TreeTransform<Derived>::TransformCXXTypeidExpr(CXXTypeidExpr *E) {
   if (E->isTypeOperand()) {
-    TemporaryBase Rebase(*this, /*FIXME*/E->getLocStart(), DeclarationName());
-
-    QualType T = getDerived().TransformType(E->getTypeOperand());
-    if (T.isNull())
+    TypeSourceInfo *TInfo
+      = getDerived().TransformType(E->getTypeOperandSourceInfo());
+    if (!TInfo)
       return SemaRef.ExprError();
 
     if (!getDerived().AlwaysRebuild() &&
-        T == E->getTypeOperand())
+        TInfo == E->getTypeOperandSourceInfo())
       return SemaRef.Owned(E->Retain());
 
-    return getDerived().RebuildCXXTypeidExpr(E->getLocStart(),
-                                             /*FIXME:*/E->getLocStart(),
-                                             T,
+    return getDerived().RebuildCXXTypeidExpr(E->getType(),
+                                             E->getLocStart(),
+                                             TInfo,
                                              E->getLocEnd());
   }
 
@@ -4627,8 +5047,8 @@ TreeTransform<Derived>::TransformCXXTypeidExpr(CXXTypeidExpr *E) {
       SubExpr.get() == E->getExprOperand())
     return SemaRef.Owned(E->Retain());
 
-  return getDerived().RebuildCXXTypeidExpr(E->getLocStart(),
-                                           /*FIXME:*/E->getLocStart(),
+  return getDerived().RebuildCXXTypeidExpr(E->getType(),
+                                           E->getLocStart(),
                                            move(SubExpr),
                                            E->getLocEnd());
 }
@@ -4997,6 +5417,17 @@ TreeTransform<Derived>::TransformUnresolvedLookupExpr(
     
     SS.setScopeRep(Qualifier);
     SS.setRange(Old->getQualifierRange());
+  } 
+  
+  if (Old->getNamingClass()) {
+    CXXRecordDecl *NamingClass
+      = cast_or_null<CXXRecordDecl>(getDerived().TransformDecl(
+                                                            Old->getNameLoc(),
+                                                        Old->getNamingClass()));
+    if (!NamingClass)
+      return SemaRef.ExprError();
+    
+    R.setNamingClass(NamingClass);
   }
 
   // If we have no template arguments, it's a normal declaration name.
@@ -5423,6 +5854,18 @@ TreeTransform<Derived>::TransformUnresolvedMemberExpr(UnresolvedMemberExpr *Old)
 
   R.resolveKind();
 
+  // Determine the naming class.
+  if (!Old->getNamingClass()) {
+    CXXRecordDecl *NamingClass 
+      = cast_or_null<CXXRecordDecl>(getDerived().TransformDecl(
+                                                          Old->getMemberLoc(),
+                                                        Old->getNamingClass()));
+    if (!NamingClass)
+      return SemaRef.ExprError();
+    
+    R.setNamingClass(NamingClass);
+  }
+  
   TemplateArgumentListInfo TransArgs;
   if (Old->hasExplicitTemplateArgs()) {
     TransArgs.setLAngleLoc(Old->getLAngleLoc());
@@ -5463,27 +5906,76 @@ TreeTransform<Derived>::TransformObjCStringLiteral(ObjCStringLiteral *E) {
 template<typename Derived>
 Sema::OwningExprResult
 TreeTransform<Derived>::TransformObjCEncodeExpr(ObjCEncodeExpr *E) {
-  // FIXME: poor source location
-  TemporaryBase Rebase(*this, E->getAtLoc(), DeclarationName());
-  QualType EncodedType = getDerived().TransformType(E->getEncodedType());
-  if (EncodedType.isNull())
+  TypeSourceInfo *EncodedTypeInfo
+    = getDerived().TransformType(E->getEncodedTypeSourceInfo());
+  if (!EncodedTypeInfo)
     return SemaRef.ExprError();
 
   if (!getDerived().AlwaysRebuild() &&
-      EncodedType == E->getEncodedType())
+      EncodedTypeInfo == E->getEncodedTypeSourceInfo())
     return SemaRef.Owned(E->Retain());
 
   return getDerived().RebuildObjCEncodeExpr(E->getAtLoc(),
-                                            EncodedType,
+                                            EncodedTypeInfo,
                                             E->getRParenLoc());
 }
 
 template<typename Derived>
 Sema::OwningExprResult
 TreeTransform<Derived>::TransformObjCMessageExpr(ObjCMessageExpr *E) {
-  // FIXME: Implement this!
-  assert(false && "Cannot transform Objective-C expressions yet");
-  return SemaRef.Owned(E->Retain());
+  // Transform arguments.
+  bool ArgChanged = false;
+  ASTOwningVector<&ActionBase::DeleteExpr> Args(SemaRef);
+  for (unsigned I = 0, N = E->getNumArgs(); I != N; ++I) {
+    OwningExprResult Arg = getDerived().TransformExpr(E->getArg(I));
+    if (Arg.isInvalid())
+      return SemaRef.ExprError();
+    
+    ArgChanged = ArgChanged || Arg.get() != E->getArg(I);
+    Args.push_back(Arg.takeAs<Expr>());
+  }
+
+  if (E->getReceiverKind() == ObjCMessageExpr::Class) {
+    // Class message: transform the receiver type.
+    TypeSourceInfo *ReceiverTypeInfo
+      = getDerived().TransformType(E->getClassReceiverTypeInfo());
+    if (!ReceiverTypeInfo)
+      return SemaRef.ExprError();
+    
+    // If nothing changed, just retain the existing message send.
+    if (!getDerived().AlwaysRebuild() &&
+        ReceiverTypeInfo == E->getClassReceiverTypeInfo() && !ArgChanged)
+      return SemaRef.Owned(E->Retain());
+
+    // Build a new class message send.
+    return getDerived().RebuildObjCMessageExpr(ReceiverTypeInfo,
+                                               E->getSelector(),
+                                               E->getMethodDecl(),
+                                               E->getLeftLoc(),
+                                               move_arg(Args),
+                                               E->getRightLoc());
+  }
+
+  // Instance message: transform the receiver
+  assert(E->getReceiverKind() == ObjCMessageExpr::Instance &&
+         "Only class and instance messages may be instantiated");
+  OwningExprResult Receiver
+    = getDerived().TransformExpr(E->getInstanceReceiver());
+  if (Receiver.isInvalid())
+    return SemaRef.ExprError();
+
+  // If nothing changed, just retain the existing message send.
+  if (!getDerived().AlwaysRebuild() &&
+      Receiver.get() == E->getInstanceReceiver() && !ArgChanged)
+    return SemaRef.Owned(E->Retain());
+  
+  // Build a new instance message send.
+  return getDerived().RebuildObjCMessageExpr(move(Receiver),
+                                             E->getSelector(),
+                                             E->getMethodDecl(),
+                                             E->getLeftLoc(),
+                                             move_arg(Args),
+                                             E->getRightLoc());
 }
 
 template<typename Derived>
@@ -5495,64 +5987,100 @@ TreeTransform<Derived>::TransformObjCSelectorExpr(ObjCSelectorExpr *E) {
 template<typename Derived>
 Sema::OwningExprResult
 TreeTransform<Derived>::TransformObjCProtocolExpr(ObjCProtocolExpr *E) {
-  ObjCProtocolDecl *Protocol
-    = cast_or_null<ObjCProtocolDecl>(
-                                 getDerived().TransformDecl(E->getLocStart(),
-                                                            E->getProtocol()));
-  if (!Protocol)
-    return SemaRef.ExprError();
-
-  if (!getDerived().AlwaysRebuild() &&
-      Protocol == E->getProtocol())
-    return SemaRef.Owned(E->Retain());
-
-  return getDerived().RebuildObjCProtocolExpr(Protocol,
-                                              E->getAtLoc(),
-                                              /*FIXME:*/E->getAtLoc(),
-                                              /*FIXME:*/E->getAtLoc(),
-                                              E->getRParenLoc());
-
+  return SemaRef.Owned(E->Retain());
 }
 
 template<typename Derived>
 Sema::OwningExprResult
 TreeTransform<Derived>::TransformObjCIvarRefExpr(ObjCIvarRefExpr *E) {
-  // FIXME: Implement this!
-  assert(false && "Cannot transform Objective-C expressions yet");
-  return SemaRef.Owned(E->Retain());
+  // Transform the base expression.
+  OwningExprResult Base = getDerived().TransformExpr(E->getBase());
+  if (Base.isInvalid())
+    return SemaRef.ExprError();
+
+  // We don't need to transform the ivar; it will never change.
+  
+  // If nothing changed, just retain the existing expression.
+  if (!getDerived().AlwaysRebuild() &&
+      Base.get() == E->getBase())
+    return SemaRef.Owned(E->Retain());
+  
+  return getDerived().RebuildObjCIvarRefExpr(move(Base), E->getDecl(),
+                                             E->getLocation(),
+                                             E->isArrow(), E->isFreeIvar());
 }
 
 template<typename Derived>
 Sema::OwningExprResult
 TreeTransform<Derived>::TransformObjCPropertyRefExpr(ObjCPropertyRefExpr *E) {
-  // FIXME: Implement this!
-  assert(false && "Cannot transform Objective-C expressions yet");
-  return SemaRef.Owned(E->Retain());
+  // Transform the base expression.
+  OwningExprResult Base = getDerived().TransformExpr(E->getBase());
+  if (Base.isInvalid())
+    return SemaRef.ExprError();
+  
+  // We don't need to transform the property; it will never change.
+  
+  // If nothing changed, just retain the existing expression.
+  if (!getDerived().AlwaysRebuild() &&
+      Base.get() == E->getBase())
+    return SemaRef.Owned(E->Retain());
+  
+  return getDerived().RebuildObjCPropertyRefExpr(move(Base), E->getProperty(),
+                                                 E->getLocation());
 }
 
 template<typename Derived>
 Sema::OwningExprResult
 TreeTransform<Derived>::TransformObjCImplicitSetterGetterRefExpr(
                                           ObjCImplicitSetterGetterRefExpr *E) {
-  // FIXME: Implement this!
-  assert(false && "Cannot transform Objective-C expressions yet");
-  return SemaRef.Owned(E->Retain());
+  // If this implicit setter/getter refers to class methods, it cannot have any
+  // dependent parts. Just retain the existing declaration.
+  if (E->getInterfaceDecl())
+    return SemaRef.Owned(E->Retain());
+  
+  // Transform the base expression.
+  OwningExprResult Base = getDerived().TransformExpr(E->getBase());
+  if (Base.isInvalid())
+    return SemaRef.ExprError();
+  
+  // We don't need to transform the getters/setters; they will never change.
+  
+  // If nothing changed, just retain the existing expression.
+  if (!getDerived().AlwaysRebuild() &&
+      Base.get() == E->getBase())
+    return SemaRef.Owned(E->Retain());
+  
+  return getDerived().RebuildObjCImplicitSetterGetterRefExpr(
+                                                          E->getGetterMethod(),
+                                                             E->getType(),
+                                                          E->getSetterMethod(),
+                                                             E->getLocation(),
+                                                             move(Base));
+                                                             
 }
 
 template<typename Derived>
 Sema::OwningExprResult
 TreeTransform<Derived>::TransformObjCSuperExpr(ObjCSuperExpr *E) {
-  // FIXME: Implement this!
-  assert(false && "Cannot transform Objective-C expressions yet");
+  // Can never occur in a dependent context.
   return SemaRef.Owned(E->Retain());
 }
 
 template<typename Derived>
 Sema::OwningExprResult
 TreeTransform<Derived>::TransformObjCIsaExpr(ObjCIsaExpr *E) {
-  // FIXME: Implement this!
-  assert(false && "Cannot transform Objective-C expressions yet");
-  return SemaRef.Owned(E->Retain());
+  // Transform the base expression.
+  OwningExprResult Base = getDerived().TransformExpr(E->getBase());
+  if (Base.isInvalid())
+    return SemaRef.ExprError();
+  
+  // If nothing changed, just retain the existing expression.
+  if (!getDerived().AlwaysRebuild() &&
+      Base.get() == E->getBase())
+    return SemaRef.Owned(E->Retain());
+  
+  return getDerived().RebuildObjCIsaExpr(move(Base), E->getIsaMemberLoc(),
+                                         E->isArrow());
 }
 
 template<typename Derived>
@@ -5628,14 +6156,6 @@ TreeTransform<Derived>::RebuildMemberPointerType(QualType PointeeType,
                                                  SourceLocation Sigil) {
   return SemaRef.BuildMemberPointerType(PointeeType, ClassType, Qualifiers(),
                                         Sigil, getDerived().getBaseEntity());
-}
-
-template<typename Derived>
-QualType
-TreeTransform<Derived>::RebuildObjCObjectPointerType(QualType PointeeType,
-                                                     SourceLocation Sigil) {
-  return SemaRef.BuildPointerType(PointeeType, Qualifiers(), Sigil,
-                                  getDerived().getBaseEntity());
 }
 
 template<typename Derived>
@@ -5767,6 +6287,7 @@ QualType TreeTransform<Derived>::RebuildUnresolvedUsingType(Decl *D) {
   assert(D && "no decl found");
   if (D->isInvalidDecl()) return QualType();
 
+  // FIXME: Doesn't account for ObjCInterfaceDecl!
   TypeDecl *Ty;
   if (isa<UsingDecl>(D)) {
     UsingDecl *Using = cast<UsingDecl>(D);

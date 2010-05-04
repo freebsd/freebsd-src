@@ -1,7 +1,10 @@
 // RUN: %clang_cc1 -fsyntax-only -verify %s
-// RUN: %clang_cc1 -fsyntax-only -fixit -o - %s | %clang_cc1 -fsyntax-only -pedantic -Werror -x c++ -
+// RUN: cp %s %t
+// RUN: %clang_cc1 -fsyntax-only -fixit -x c++ %t || true
+// RUN: %clang_cc1 -fsyntax-only -pedantic -Werror -x c++ %t
 namespace std {
   template<typename T> class basic_string { // expected-note 2{{'basic_string' declared here}}
+  public:
     int find(const char *substr); // expected-note{{'find' declared here}}
     static const int npos = -1; // expected-note{{'npos' declared here}}
   };

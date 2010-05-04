@@ -10,8 +10,8 @@ A<int> a0;
 A<void*> a1; // expected-note{{in instantiation of member function 'A<void *>::A' requested here}}
 
 template<typename T> struct B {
-  B() : b(1), // expected-warning {{member 'b' will be initialized after}}
-    a(2) { } // expected-note {{field a}}
+  B() : b(1), // expected-warning {{field 'b' will be initialized after field 'a'}}
+    a(2) { }
   
   int a;
   int b;
@@ -21,6 +21,7 @@ B<int> b0; // expected-note {{in instantiation of member function 'B<int>::B' re
 
 template <class T> struct AA { AA(int); };
 template <class T> class BB : public AA<T> {
+public:
   BB() : AA<T>(1) {}
 };
 BB<int> x;

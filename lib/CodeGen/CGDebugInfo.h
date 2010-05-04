@@ -112,7 +112,7 @@ class CGDebugInfo {
   void CollectRecordFields(const RecordDecl *Decl, llvm::DIFile F,
                            llvm::SmallVectorImpl<llvm::DIDescriptor> &E);
 
-  void CollectVtableInfo(const CXXRecordDecl *Decl,
+  void CollectVTableInfo(const CXXRecordDecl *Decl,
                          llvm::DIFile F,
                          llvm::SmallVectorImpl<llvm::DIDescriptor> &EltTys);
 
@@ -196,13 +196,17 @@ private:
   /// CreateTypeNode - Create type metadata for a source language type.
   llvm::DIType CreateTypeNode(QualType Ty, llvm::DIFile F);
 
+  /// CreateMemberType - Create new member and increase Offset by FType's size.
+  llvm::DIType CreateMemberType(llvm::DIFile Unit, QualType FType,
+                                llvm::StringRef Name, uint64_t *Offset);
+
   /// getFunctionName - Get function name for the given FunctionDecl. If the
   /// name is constructred on demand (e.g. C++ destructor) then the name
   /// is stored on the side.
   llvm::StringRef getFunctionName(const FunctionDecl *FD);
 
-  /// getVtableName - Get vtable name for the given Class.
-  llvm::StringRef getVtableName(const CXXRecordDecl *Decl);
+  /// getVTableName - Get vtable name for the given Class.
+  llvm::StringRef getVTableName(const CXXRecordDecl *Decl);
 
 };
 } // namespace CodeGen

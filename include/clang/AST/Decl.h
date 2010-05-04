@@ -31,7 +31,9 @@ class StringLiteral;
 class TemplateArgumentList;
 class MemberSpecializationInfo;
 class FunctionTemplateSpecializationInfo;
+class DependentFunctionTemplateSpecializationInfo;
 class TypeLoc;
+class UnresolvedSetImpl;
 
 /// \brief A container of type source information.
 ///
@@ -196,6 +198,10 @@ public:
     return DC->isRecord();
   }
 
+  /// \brief Given that this declaration is a C++ class member,
+  /// determine whether it's an instance member of its class.
+  bool isCXXInstanceMember() const;
+
   /// \brief Determine what kind of linkage this entity has.
   Linkage getLinkage() const;
 
@@ -210,6 +216,12 @@ public:
   static bool classof(const NamedDecl *D) { return true; }
   static bool classofKind(Kind K) { return K >= NamedFirst && K <= NamedLast; }
 };
+
+inline llvm::raw_ostream &operator<<(llvm::raw_ostream &OS,
+                                     const NamedDecl *ND) {
+  ND->getDeclName().printName(OS);
+  return OS;
+}
 
 /// NamespaceDecl - Represent a C++ namespace.
 class NamespaceDecl : public NamedDecl, public DeclContext {
@@ -478,6 +490,7 @@ protected:
 private:
   // FIXME: This can be packed into the bitfields in Decl.
   unsigned SClass : 3;
+  unsigned SClassAsWritten : 3;
   bool ThreadSpecified : 1;
   bool HasCXXDirectInit : 1;
 
@@ -485,14 +498,20 @@ private:
   /// condition, e.g., if (int x = foo()) { ... }.
   bool DeclaredInCondition : 1;
 
+  /// \brief Whether this variable is the exception variable in a C++ catch
+  /// or an Objective-C @catch statement.
+  bool ExceptionVar : 1;
+  
   friend class StmtIteratorBase;
 protected:
   VarDecl(Kind DK, DeclContext *DC, SourceLocation L, IdentifierInfo *Id,
-          QualType T, TypeSourceInfo *TInfo, StorageClass SC)
+          QualType T, TypeSourceInfo *TInfo, StorageClass SC,
+          StorageClass SCAsWritten)
     : DeclaratorDecl(DK, DC, L, Id, T, TInfo), Init(),
       ThreadSpecified(false), HasCXXDirectInit(false),
-      DeclaredInCondition(false) {
+      DeclaredInCondition(false), ExceptionVar(false) {
     SClass = SC;
+    SClassAsWritten = SCAsWritten;
   }
 
   typedef Redeclarable<VarDecl> redeclarable_base;
@@ -509,7 +528,8 @@ public:
 
   static VarDecl *Create(ASTContext &C, DeclContext *DC,
                          SourceLocation L, IdentifierInfo *Id,
-                         QualType T, TypeSourceInfo *TInfo, StorageClass S);
+                         QualType T, TypeSourceInfo *TInfo, StorageClass S,
+                         StorageClass SCAsWritten);
 
   virtual void Destroy(ASTContext& C);
   virtual ~VarDecl();
@@ -517,7 +537,11 @@ public:
   virtual SourceRange getSourceRange() const;
 
   StorageClass getStorageClass() const { return (StorageClass)SClass; }
+  StorageClass getStorageClassAsWritten() const {
+    return (StorageClass) SClassAsWritten;
+  }
   void setStorageClass(StorageClass SC) { SClass = SC; }
+  void setStorageClassAsWritten(StorageClass SC) { SClassAsWritten = SC; }
 
   void setThreadSpecified(bool T) { ThreadSpecified = T; }
   bool isThreadSpecified() const {
@@ -536,6 +560,12 @@ public:
     return getStorageClass() <= Register;
   }
 
+  /// isStaticLocal - Returns true if a variable with function scope is a 
+  /// static local variable.
+  bool isStaticLocal() const {
+    return getStorageClass() == Static && !isFileVarDecl();
+  }
+  
   /// hasExternStorage - Returns true if a variable has extern or
   /// __private_extern__ storage.
   bool hasExternalStorage() const {
@@ -815,6 +845,13 @@ public:
     DeclaredInCondition = InCondition;
   }
   
+  /// \brief Determine whether this variable is the exception variable in a
+  /// C++ catch statememt or an Objective-C @catch statement.
+  bool isExceptionVariable() const {
+    return ExceptionVar;
+  }
+  void setExceptionVariable(bool EV) { ExceptionVar = EV; }
+  
   /// \brief If this variable is an instantiated static data member of a
   /// class template specialization, returns the templated static data member
   /// from which it was instantiated.
@@ -844,7 +881,7 @@ class ImplicitParamDecl : public VarDecl {
 protected:
   ImplicitParamDecl(Kind DK, DeclContext *DC, SourceLocation L,
                     IdentifierInfo *Id, QualType Tw)
-    : VarDecl(DK, DC, L, Id, Tw, /*TInfo=*/0, VarDecl::None) {}
+    : VarDecl(DK, DC, L, Id, Tw, /*TInfo=*/0, VarDecl::None, VarDecl::None) {}
 public:
   static ImplicitParamDecl *Create(ASTContext &C, DeclContext *DC,
                                    SourceLocation L, IdentifierInfo *Id,
@@ -866,9 +903,9 @@ class ParmVarDecl : public VarDecl {
 protected:
   ParmVarDecl(Kind DK, DeclContext *DC, SourceLocation L,
               IdentifierInfo *Id, QualType T, TypeSourceInfo *TInfo,
-              StorageClass S, Expr *DefArg)
-  : VarDecl(DK, DC, L, Id, T, TInfo, S),
-    objcDeclQualifier(OBJC_TQ_None), HasInheritedDefaultArg(false) {
+              StorageClass S, StorageClass SCAsWritten, Expr *DefArg)
+    : VarDecl(DK, DC, L, Id, T, TInfo, S, SCAsWritten),
+      objcDeclQualifier(OBJC_TQ_None), HasInheritedDefaultArg(false) {
     setDefaultArg(DefArg);
   }
 
@@ -876,7 +913,8 @@ public:
   static ParmVarDecl *Create(ASTContext &C, DeclContext *DC,
                              SourceLocation L,IdentifierInfo *Id,
                              QualType T, TypeSourceInfo *TInfo,
-                             StorageClass S, Expr *DefArg);
+                             StorageClass S, StorageClass SCAsWritten,
+                             Expr *DefArg);
 
   ObjCDeclQualifier getObjCDeclQualifier() const {
     return ObjCDeclQualifier(objcDeclQualifier);
@@ -1002,6 +1040,7 @@ private:
   // FIXME: This can be packed into the bitfields in Decl.
   // NOTE: VC++ treats enums as signed, avoid using the StorageClass enum
   unsigned SClass : 2;
+  unsigned SClassAsWritten : 2;
   bool IsInline : 1;
   bool IsVirtualAsWritten : 1;
   bool IsPure : 1;
@@ -1033,19 +1072,20 @@ private:
   /// FunctionTemplateSpecializationInfo, which contains information about
   /// the template being specialized and the template arguments involved in
   /// that specialization.
-  llvm::PointerUnion3<FunctionTemplateDecl *, 
+  llvm::PointerUnion4<FunctionTemplateDecl *, 
                       MemberSpecializationInfo *,
-                      FunctionTemplateSpecializationInfo *>
+                      FunctionTemplateSpecializationInfo *,
+                      DependentFunctionTemplateSpecializationInfo *>
     TemplateOrSpecialization;
 
 protected:
   FunctionDecl(Kind DK, DeclContext *DC, SourceLocation L,
                DeclarationName N, QualType T, TypeSourceInfo *TInfo,
-               StorageClass S, bool isInline)
+               StorageClass S, StorageClass SCAsWritten, bool isInline)
     : DeclaratorDecl(DK, DC, L, N, T, TInfo),
       DeclContext(DK),
       ParamInfo(0), Body(),
-      SClass(S), IsInline(isInline), 
+      SClass(S), SClassAsWritten(SCAsWritten), IsInline(isInline),
       IsVirtualAsWritten(false), IsPure(false), HasInheritedPrototype(false),
       HasWrittenPrototype(true), IsDeleted(false), IsTrivial(false),
       IsCopyAssignment(false),
@@ -1070,7 +1110,9 @@ public:
   static FunctionDecl *Create(ASTContext &C, DeclContext *DC, SourceLocation L,
                               DeclarationName N, QualType T,
                               TypeSourceInfo *TInfo,
-                              StorageClass S = None, bool isInline = false,
+                              StorageClass S = None,
+                              StorageClass SCAsWritten = None,
+                              bool isInline = false,
                               bool hasWrittenPrototype = true);
 
   virtual void getNameForDiagnostic(std::string &S,
@@ -1106,6 +1148,9 @@ public:
 
   void setBody(Stmt *B);
   void setLazyBody(uint64_t Offset) { Body = Offset; }
+
+  /// Whether this function is variadic.
+  bool isVariadic() const;
 
   /// Whether this function is marked as virtual explicitly.
   bool isVirtualAsWritten() const { return IsVirtualAsWritten; }
@@ -1224,6 +1269,11 @@ public:
   }
   StorageClass getStorageClass() const { return StorageClass(SClass); }
   void setStorageClass(StorageClass SC) { SClass = SC; }
+
+  StorageClass getStorageClassAsWritten() const {
+    return StorageClass(SClassAsWritten);
+  }
+  void setStorageClassAsWritten(StorageClass SC) { SClassAsWritten = SC; }
 
   /// \brief Determine whether the "inline" keyword was specified for this
   /// function.
@@ -1360,6 +1410,18 @@ public:
                                       const TemplateArgumentList *TemplateArgs,
                                          void *InsertPos,
                     TemplateSpecializationKind TSK = TSK_ImplicitInstantiation);
+
+  /// \brief Specifies that this function declaration is actually a
+  /// dependent function template specialization.
+  void setDependentTemplateSpecialization(ASTContext &Context,
+                             const UnresolvedSetImpl &Templates,
+                      const TemplateArgumentListInfo &TemplateArgs);
+
+  DependentFunctionTemplateSpecializationInfo *
+  getDependentSpecializationInfo() const {
+    return TemplateOrSpecialization.
+             dyn_cast<DependentFunctionTemplateSpecializationInfo*>();
+  }
 
   /// \brief Determine what kind of template instantiation this function
   /// represents.
@@ -1961,7 +2023,7 @@ public:
 ///
 class BlockDecl : public Decl, public DeclContext {
   // FIXME: This can be packed into the bitfields in Decl.
-  bool isVariadic : 1;
+  bool IsVariadic : 1;
   /// ParamInfo - new[]'d array of pointers to ParmVarDecls for the formal
   /// parameters of this function.  This is null if a prototype or if there are
   /// no formals.
@@ -1973,7 +2035,7 @@ class BlockDecl : public Decl, public DeclContext {
 protected:
   BlockDecl(DeclContext *DC, SourceLocation CaretLoc)
     : Decl(Block, DC, CaretLoc), DeclContext(Block),
-      isVariadic(false), ParamInfo(0), NumParams(0), Body(0) {}
+      IsVariadic(false), ParamInfo(0), NumParams(0), Body(0) {}
 
   virtual ~BlockDecl();
   virtual void Destroy(ASTContext& C);
@@ -1983,8 +2045,8 @@ public:
 
   SourceLocation getCaretLocation() const { return getLocation(); }
 
-  bool IsVariadic() const { return isVariadic; }
-  void setIsVariadic(bool value) { isVariadic = value; }
+  bool isVariadic() const { return IsVariadic; }
+  void setIsVariadic(bool value) { IsVariadic = value; }
 
   CompoundStmt *getCompoundBody() const { return (CompoundStmt*) Body; }
   Stmt *getBody() const { return (Stmt*) Body; }
