@@ -28,7 +28,7 @@
 .\"     @(#)getrusage.2	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd June 4, 1993
+.Dd May 1, 2010
 .Dt GETRUSAGE 2
 .Os
 .Sh NAME
@@ -42,6 +42,7 @@
 .In sys/resource.h
 .Fd "#define	RUSAGE_SELF	 0"
 .Fd "#define	RUSAGE_CHILDREN	-1"
+.Fd "#define	RUSAGE_THREAD	1"
 .Ft int
 .Fn getrusage "int who" "struct rusage *rusage"
 .Sh DESCRIPTION
@@ -49,11 +50,12 @@ The
 .Fn getrusage
 system call
 returns information describing the resources utilized by the current
-process, or all its terminated child processes.
+thread, the current process, or all its terminated child processes.
 The
 .Fa who
 argument is either
-.Dv RUSAGE_SELF
+.Dv RUSAGE_THREAD ,
+.Dv RUSAGE_SELF ,
 or
 .Dv RUSAGE_CHILDREN .
 The buffer to which
@@ -175,6 +177,10 @@ The
 .Fn getrusage
 system call appeared in
 .Bx 4.2 .
+The
+.Dv RUSAGE_THREAD
+facility first appeared in
+.Fx 8.1 .
 .Sh BUGS
 There is no way to obtain information about a child process
 that has not yet terminated.
