@@ -25,6 +25,7 @@
 #include "clang/AST/TemplateName.h"
 #include "clang/AST/Type.h"
 #include "clang/AST/CanonicalType.h"
+#include "clang/AST/UsuallyTinyPtrVector.h"
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/FoldingSet.h"
 #include "llvm/ADT/OwningPtr.h"
@@ -34,6 +35,7 @@
 
 namespace llvm {
   struct fltSemantics;
+  class raw_ostream;
 }
 
 namespace clang {
@@ -69,28 +71,6 @@ namespace clang {
   class UnresolvedSetIterator;
 
   namespace Builtin { class Context; }
-
-/// \brief A vector of C++ member functions that is optimized for
-/// storing a single method.
-class CXXMethodVector {
-  /// \brief Storage for the vector.
-  ///
-  /// When the low bit is zero, this is a const CXXMethodDecl *. When the
-  /// low bit is one, this is a std::vector<const CXXMethodDecl *> *.
-  mutable uintptr_t Storage;
-
-  typedef std::vector<const CXXMethodDecl *> vector_type;
-
-public:
-  CXXMethodVector() : Storage(0) { }
-
-  typedef const CXXMethodDecl **iterator;
-  iterator begin() const;
-  iterator end() const;
-
-  void push_back(const CXXMethodDecl *Method);
-  void Destroy();
-};
 
 /// ASTContext - This class holds long-lived AST nodes (such as types and
 /// decls) that can be referred to throughout the semantic analysis of a file.
@@ -163,6 +143,8 @@ class ASTContext {
 
   QualType ObjCConstantStringType;
   RecordDecl *CFConstantStringTypeDecl;
+
+  RecordDecl *NSConstantStringTypeDecl;
 
   RecordDecl *ObjCFastEnumerationStateTypeDecl;
 
@@ -250,6 +232,7 @@ class ASTContext {
   /// Since most C++ member functions aren't virtual and therefore
   /// don't override anything, we store the overridden functions in
   /// this map on the side rather than within the CXXMethodDecl structure.
+  typedef UsuallyTinyPtrVector<const CXXMethodDecl> CXXMethodVector;
   llvm::DenseMap<const CXXMethodDecl *, CXXMethodVector> OverriddenMethods;
 
   TranslationUnitDecl *TUDecl;
@@ -617,11 +600,13 @@ public:
   QualType getTemplateSpecializationType(TemplateName T,
                                          const TemplateArgument *Args,
                                          unsigned NumArgs,
-                                         QualType Canon = QualType());
+                                         QualType Canon = QualType(),
+                                         bool IsCurrentInstantiation = false);
 
   QualType getTemplateSpecializationType(TemplateName T,
                                          const TemplateArgumentListInfo &Args,
-                                         QualType Canon = QualType());
+                                         QualType Canon = QualType(),
+                                         bool IsCurrentInstantiation = false);
 
   TypeSourceInfo *
   getTemplateSpecializationTypeInfo(TemplateName T, SourceLocation TLoc,
@@ -687,6 +672,19 @@ public:
   // getCFConstantStringType - Return the C structure type used to represent
   // constant CFStrings.
   QualType getCFConstantStringType();
+
+  // getNSConstantStringType - Return the C structure type used to represent
+  // constant NSStrings.
+  QualType getNSConstantStringType();
+  /// Get the structure type used to representation NSStrings, or NULL
+  /// if it hasn't yet been built.
+  QualType getRawNSConstantStringType() {
+    if (NSConstantStringTypeDecl)
+      return getTagDeclType(NSConstantStringTypeDecl);
+    return QualType();
+  }
+  void setNSConstantStringType(QualType T);
+
 
   /// Get the structure type used to representation CFStrings, or NULL
   /// if it hasn't yet been built.
@@ -936,6 +934,8 @@ public:
   /// getASTObjCInterfaceLayout - Get or compute information about the
   /// layout of the specified Objective-C interface.
   const ASTRecordLayout &getASTObjCInterfaceLayout(const ObjCInterfaceDecl *D);
+
+  void DumpRecordLayout(const RecordDecl *RD, llvm::raw_ostream &OS);
 
   /// getASTObjCImplementationLayout - Get or compute information about
   /// the layout of the specified Objective-C implementation. This may

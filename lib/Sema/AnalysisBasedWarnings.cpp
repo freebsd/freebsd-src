@@ -25,7 +25,6 @@
 #include "clang/Analysis/Analyses/ReachableCode.h"
 #include "llvm/ADT/BitVector.h"
 #include "llvm/Support/Casting.h"
-#include <queue>
 
 using namespace clang;
 
@@ -75,7 +74,6 @@ static ControlFlowKind CheckFallThrough(AnalysisContext &AC) {
 
   // The CFG leaves in dead things, and we don't want the dead code paths to
   // confuse us, so we mark all live things first.
-  std::queue<CFGBlock*> workq;
   llvm::BitVector live(cfg->getNumBlockIDs());
   unsigned count = reachable_code::ScanReachableFromBlock(cfg->getEntry(),
                                                           live);
@@ -149,7 +147,8 @@ static ControlFlowKind CheckFallThrough(AnalysisContext &AC) {
 
     bool NoReturnEdge = false;
     if (CallExpr *C = dyn_cast<CallExpr>(S)) {
-      if (B.succ_begin()[0] != &cfg->getExit()) {
+      if (std::find(B.succ_begin(), B.succ_end(), &cfg->getExit())
+            == B.succ_end()) {
         HasAbnormalEdge = true;
         continue;
       }
@@ -190,7 +189,7 @@ struct CheckFallThroughDiagnostics {
   unsigned diag_NeverFallThroughOrReturn;
   bool funMode;
 
-  static CheckFallThroughDiagnostics MakeForFunction() {
+  static CheckFallThroughDiagnostics MakeForFunction(const Decl *Func) {
     CheckFallThroughDiagnostics D;
     D.diag_MaybeFallThrough_HasNoReturn =
       diag::warn_falloff_noreturn_function;
@@ -200,8 +199,19 @@ struct CheckFallThroughDiagnostics {
       diag::warn_falloff_noreturn_function;
     D.diag_AlwaysFallThrough_ReturnsNonVoid =
       diag::warn_falloff_nonvoid_function;
-    D.diag_NeverFallThroughOrReturn =
-      diag::warn_suggest_noreturn_function;
+
+    // Don't suggest that virtual functions be marked "noreturn", since they
+    // might be overridden by non-noreturn functions.
+    bool isVirtualMethod = false;
+    if (const CXXMethodDecl *Method = dyn_cast<CXXMethodDecl>(Func))
+      isVirtualMethod = Method->isVirtual();
+    
+    if (!isVirtualMethod)
+      D.diag_NeverFallThroughOrReturn =
+        diag::warn_suggest_noreturn_function;
+    else
+      D.diag_NeverFallThroughOrReturn = 0;
+    
     D.funMode = true;
     return D;
   }
@@ -297,7 +307,7 @@ static void CheckFallThroughForBody(Sema &S, const Decl *D, const Stmt *Body,
                  CD.diag_AlwaysFallThrough_ReturnsNonVoid);
         break;
       case NeverFallThroughOrReturn:
-        if (ReturnsVoid && !HasNoReturn)
+        if (ReturnsVoid && !HasNoReturn && CD.diag_NeverFallThroughOrReturn)
           S.Diag(Compound->getLBracLoc(),
                  CD.diag_NeverFallThroughOrReturn);
         break;
@@ -325,8 +335,7 @@ clang::sema::AnalysisBasedWarnings::AnalysisBasedWarnings(Sema &s) : S(s) {
 
 void clang::sema::
 AnalysisBasedWarnings::IssueWarnings(sema::AnalysisBasedWarnings::Policy P,
-                                     const Decl *D, QualType BlockTy,
-                                     const bool analyzeStaticInline) {
+                                     const Decl *D, QualType BlockTy) {
 
   assert(BlockTy.isNull() || isa<BlockDecl>(D));
 
@@ -336,12 +345,14 @@ AnalysisBasedWarnings::IssueWarnings(sema::AnalysisBasedWarnings::Policy P,
   //     don't bother trying.
   // (2) The code already has problems; running the analysis just takes more
   //     time.
-  if (S.getDiagnostics().hasErrorOccurred())
+  Diagnostic &Diags = S.getDiagnostics();
+
+  if (Diags.hasErrorOccurred() || Diags.hasFatalErrorOccurred())
     return;
 
   // Do not do any analysis for declarations in system headers if we are
   // going to just ignore them.
-  if (S.getDiagnostics().getSuppressSystemWarnings() &&
+  if (Diags.getSuppressSystemWarnings() &&
       S.SourceMgr.isInSystemHeader(D->getLocation()))
     return;
 
@@ -350,17 +361,6 @@ AnalysisBasedWarnings::IssueWarnings(sema::AnalysisBasedWarnings::Policy P,
     // we'll do the analysis at instantiation time.
     if (FD->isDependentContext())
       return;
-
-    // Only analyze 'static inline' functions when explicitly asked.
-    if (!analyzeStaticInline && FD->isInlineSpecified() &&
-        FD->getStorageClass() == FunctionDecl::Static) {
-      FD = FD->getCanonicalDecl();
-      VisitFlag &visitFlag = VisitedFD[FD];
-      if (visitFlag == Pending)
-        visitFlag = Visited;
-      else
-        return;
-    }
   }
 
   const Stmt *Body = D->getBody();
@@ -369,61 +369,16 @@ AnalysisBasedWarnings::IssueWarnings(sema::AnalysisBasedWarnings::Policy P,
   // Don't generate EH edges for CallExprs as we'd like to avoid the n^2
   // explosion for destrutors that can result and the compile time hit.
   AnalysisContext AC(D, false);
-  bool performedCheck = false;
 
   // Warning: check missing 'return'
   if (P.enableCheckFallThrough) {
     const CheckFallThroughDiagnostics &CD =
       (isa<BlockDecl>(D) ? CheckFallThroughDiagnostics::MakeForBlock()
-                         : CheckFallThroughDiagnostics::MakeForFunction());
+                         : CheckFallThroughDiagnostics::MakeForFunction(D));
     CheckFallThroughForBody(S, D, Body, BlockTy, CD, AC);
-    performedCheck = true;
   }
 
   // Warning: check for unreachable code
-  if (P.enableCheckUnreachable) {
+  if (P.enableCheckUnreachable)
     CheckUnreachable(S, AC);
-    performedCheck = true;
-  }
-
-  // If this block or function calls a 'static inline' function,
-  // we should analyze those functions as well.
-  if (performedCheck) {
-    // The CFG should already be constructed, so this should not
-    // incur any extra cost.  We might not have a CFG, however, for
-    // invalid code.
-    if (const CFG *cfg = AC.getCFG()) {
-      // All CallExprs are block-level expressions in the CFG.  This means
-      // that walking the basic blocks in the CFG is more efficient
-      // than walking the entire AST to find all calls.
-      for (CFG::const_iterator I=cfg->begin(), E=cfg->end(); I!=E; ++I) {
-        const CFGBlock *B = *I;
-        for (CFGBlock::const_iterator BI=B->begin(), BE=B->end(); BI!=BE; ++BI)
-          if (const CallExpr *CE = dyn_cast<CallExpr>(*BI))
-            if (const DeclRefExpr *DR =
-                dyn_cast<DeclRefExpr>(CE->getCallee()->IgnoreParenCasts()))
-              if (const FunctionDecl *calleeD =
-                  dyn_cast<FunctionDecl>(DR->getDecl())) {
-                calleeD = calleeD->getCanonicalDecl();
-                if (calleeD->isInlineSpecified() &&
-                    calleeD->getStorageClass() == FunctionDecl::Static) {
-                  // Have we analyzed this static inline function before?
-                  VisitFlag &visitFlag = VisitedFD[calleeD];
-                  if (visitFlag == NotVisited) {
-                    // Mark the callee visited prior to analyzing it
-                    // so we terminate in case of recursion.
-                    if (calleeD->getBody()) {
-                      visitFlag = Visited;
-                      IssueWarnings(DefaultPolicy, calleeD, QualType(), true);
-                    }
-                    else {
-                      // Delay warnings until we encounter the definition.
-                      visitFlag = Pending;
-                    }
-                  }
-                }
-              }
-      }
-    }
-  }
 }

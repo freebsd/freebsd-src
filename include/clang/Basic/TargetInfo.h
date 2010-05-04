@@ -45,6 +45,7 @@ protected:
   // Target values set by the ctor of the actual target implementation.  Default
   // values are specified by the TargetInfo constructor.
   bool TLSSupported;
+  bool NoAsmVariants;  // True if {|} are normal characters.
   unsigned char PointerWidth, PointerAlign;
   unsigned char IntWidth, IntAlign;
   unsigned char FloatWidth, FloatAlign;
@@ -85,6 +86,14 @@ public:
 protected:
   IntType SizeType, IntMaxType, UIntMaxType, PtrDiffType, IntPtrType, WCharType,
           WIntType, Char16Type, Char32Type, Int64Type, SigAtomicType;
+
+  /// Control whether the alignment of bit-field types is respected when laying
+  /// out structures. If true, then the alignment of the bit-field type will be
+  /// used to (a) impact the alignment of the containing structure, and (b)
+  /// ensure that the individual bit-field will not straddle an alignment
+  /// boundary.
+  unsigned UseBitFieldTypeAlignment : 1;
+
 public:
   IntType getSizeType() const { return SizeType; }
   IntType getIntMaxType() const { return IntMaxType; }
@@ -195,6 +204,10 @@ public:
   /// others.
   const char *getUserLabelPrefix() const {
     return UserLabelPrefix;
+  }
+
+  bool useBitFieldTypeAlignment() const {
+    return UseBitFieldTypeAlignment;
   }
 
   /// getTypeName - Return the user string for the specified integer type enum.
@@ -326,6 +339,18 @@ public:
     return "__DATA,__cfstring";
   }
 
+  /// getNSStringSection - Return the section to use for NSString
+  /// literals, or 0 if no special section is used.
+  virtual const char *getNSStringSection() const {
+    return "__OBJC,__cstring_object,regular,no_dead_strip";
+  }
+
+  /// getNSStringNonFragileABISection - Return the section to use for 
+  /// NSString literals, or 0 if no special section is used (NonFragile ABI).
+  virtual const char *getNSStringNonFragileABISection() const {
+    return "__DATA, __objc_stringobj, regular, no_dead_strip";
+  }
+
   /// isValidSectionSpecifier - This is an optional hook that targets can
   /// implement to perform semantic checking on attribute((section("foo")))
   /// specifiers.  In this case, "foo" is passed in to be checked.  If the
@@ -400,6 +425,15 @@ public:
   /// isTLSSupported - Whether the target supports thread-local storage.
   bool isTLSSupported() const {
     return TLSSupported;
+  }
+  
+  /// hasNoAsmVariants - Return true if {|} are normal characters in the
+  /// asm string.  If this returns false (the default), then {abc|xyz} is syntax
+  /// that says that when compiling for asm variant #0, "abc" should be
+  /// generated, but when compiling for asm variant #1, "xyz" should be
+  /// generated.
+  bool hasNoAsmVariants() const {
+    return NoAsmVariants;
   }
   
   /// getEHDataRegisterNumber - Return the register number that

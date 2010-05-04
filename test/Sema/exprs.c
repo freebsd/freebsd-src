@@ -84,7 +84,7 @@ void test11(struct mystruct P, float F) {
 
 // PR3753
 int test12(const char *X) {
-  return X == "foo";  // expected-warning {{comparison against a string literal is unspecified}}
+  return X == "foo";  // expected-warning {{comparison against a string literal is unspecified (use strncmp instead)}}
 }
 
 int test12b(const char *X) {
@@ -128,3 +128,9 @@ void test17(int x) {
   x = sizeof(x/0);  // no warning.
 }
 
+// PR6501
+void test18_a(int a);
+void test18(int b) {
+  test18_a(b, b); // expected-error {{too many arguments to function call, expected 1, have 2}}
+  test18_a(); // expected-error {{too few arguments to function call, expected 1, have 0}}
+}

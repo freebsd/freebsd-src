@@ -13,21 +13,28 @@
 //===----------------------------------------------------------------------===//
 
 #include "GRExprEngineInternalChecks.h"
-#include "clang/Checker/PathSensitive/CheckerVisitor.h"
+#include "clang/Basic/TargetInfo.h"
 #include "clang/Checker/BugReporter/BugType.h"
+#include "clang/Checker/PathSensitive/CheckerVisitor.h"
+#include "llvm/ADT/Optional.h"
 #include "llvm/ADT/StringSwitch.h"
 #include <fcntl.h>
 
 using namespace clang;
+using llvm::Optional;
 
 namespace {
 class UnixAPIChecker : public CheckerVisitor<UnixAPIChecker> {
   enum SubChecks {
     OpenFn = 0,
+    PthreadOnceFn = 1,
     NumChecks
   };
 
   BugType *BTypes[NumChecks];
+
+public:
+  Optional<uint64_t> Val_O_CREAT;
 
 public:
   UnixAPIChecker() { memset(BTypes, 0, sizeof(*BTypes) * NumChecks); }
@@ -55,7 +62,21 @@ static inline void LazyInitialize(BugType *&BT, const char *name) {
 // "open" (man 2 open)
 //===----------------------------------------------------------------------===//
 
-static void CheckOpen(CheckerContext &C, const CallExpr *CE, BugType *&BT) {
+static void CheckOpen(CheckerContext &C, UnixAPIChecker &UC,
+                      const CallExpr *CE, BugType *&BT) {
+  // The definition of O_CREAT is platform specific.  We need a better way
+  // of querying this information from the checking environment.
+  if (!UC.Val_O_CREAT.hasValue()) {
+    if (C.getASTContext().Target.getTriple().getVendor() == llvm::Triple::Apple)
+      UC.Val_O_CREAT = 0x0200;
+    else {
+      // FIXME: We need a more general way of getting the O_CREAT value.
+      // We could possibly grovel through the preprocessor state, but
+      // that would require passing the Preprocessor object to the GRExprEngine.
+      return;
+    }
+  }
+
   LazyInitialize(BT, "Improper use of 'open'");
 
   // Look at the 'oflags' argument for the O_CREAT flag.
@@ -77,7 +98,7 @@ static void CheckOpen(CheckerContext &C, const CallExpr *CE, BugType *&BT) {
   }
   NonLoc oflags = cast<NonLoc>(V);
   NonLoc ocreateFlag =
-    cast<NonLoc>(C.getValueManager().makeIntVal((uint64_t) O_CREAT,
+    cast<NonLoc>(C.getValueManager().makeIntVal(UC.Val_O_CREAT.getValue(),
                                                 oflagsEx->getType()));
   SVal maskedFlagsUC = C.getSValuator().EvalBinOpNN(state, BinaryOperator::And,
                                                     oflags, ocreateFlag,
@@ -110,21 +131,67 @@ static void CheckOpen(CheckerContext &C, const CallExpr *CE, BugType *&BT) {
 }
 
 //===----------------------------------------------------------------------===//
+// pthread_once
+//===----------------------------------------------------------------------===//
+
+static void CheckPthreadOnce(CheckerContext &C, UnixAPIChecker &,
+                             const CallExpr *CE, BugType *&BT) {
+
+  // This is similar to 'CheckDispatchOnce' in the MacOSXAPIChecker.
+  // They can possibly be refactored.
+
+  LazyInitialize(BT, "Improper use of 'pthread_once'");
+
+  if (CE->getNumArgs() < 1)
+    return;
+
+  // Check if the first argument is stack allocated.  If so, issue a warning
+  // because that's likely to be bad news.
+  const GRState *state = C.getState();
+  const MemRegion *R = state->getSVal(CE->getArg(0)).getAsRegion();
+  if (!R || !isa<StackSpaceRegion>(R->getMemorySpace()))
+    return;
+
+  ExplodedNode *N = C.GenerateSink(state);
+  if (!N)
+    return;
+
+  llvm::SmallString<256> S;
+  llvm::raw_svector_ostream os(S);
+  os << "Call to 'pthread_once' uses";
+  if (const VarRegion *VR = dyn_cast<VarRegion>(R))
+    os << " the local variable '" << VR->getDecl()->getName() << '\'';
+  else
+    os << " stack allocated memory";
+  os << " for the \"control\" value.  Using such transient memory for "
+  "the control value is potentially dangerous.";
+  if (isa<VarRegion>(R) && isa<StackLocalsSpaceRegion>(R->getMemorySpace()))
+    os << "  Perhaps you intended to declare the variable as 'static'?";
+
+  EnhancedBugReport *report = new EnhancedBugReport(*BT, os.str(), N);
+  report->addRange(CE->getArg(0)->getSourceRange());
+  C.EmitReport(report);
+}
+
+//===----------------------------------------------------------------------===//
 // Central dispatch function.
 //===----------------------------------------------------------------------===//
 
-typedef void (*SubChecker)(CheckerContext &C, const CallExpr *CE, BugType *&BT);
+typedef void (*SubChecker)(CheckerContext &C, UnixAPIChecker &UC,
+                           const CallExpr *CE, BugType *&BT);
 namespace {
   class SubCheck {
     SubChecker SC;
+    UnixAPIChecker *UC;
     BugType **BT;
   public:
-    SubCheck(SubChecker sc, BugType *& bt) : SC(sc), BT(&bt) {}
-    SubCheck() : SC(NULL), BT(NULL) {}
+    SubCheck(SubChecker sc, UnixAPIChecker *uc, BugType *& bt) : SC(sc), UC(uc),
+      BT(&bt) {}
+    SubCheck() : SC(NULL), UC(NULL), BT(NULL) {}
 
     void run(CheckerContext &C, const CallExpr *CE) const {
       if (SC)
-        SC(C, CE, *BT);
+        SC(C, *UC, CE, *BT);
     }
   };
 } // end anonymous namespace
@@ -146,7 +213,9 @@ void UnixAPIChecker::PreVisitCallExpr(CheckerContext &C, const CallExpr *CE) {
 
   const SubCheck &SC =
     llvm::StringSwitch<SubCheck>(FI->getName())
-      .Case("open", SubCheck(CheckOpen, BTypes[OpenFn]))
+      .Case("open", SubCheck(CheckOpen, this, BTypes[OpenFn]))
+      .Case("pthread_once", SubCheck(CheckPthreadOnce, this,
+                                     BTypes[PthreadOnceFn]))
       .Default(SubCheck());
 
   SC.run(C, CE);

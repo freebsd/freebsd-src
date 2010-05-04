@@ -26,13 +26,13 @@ void RandomFunc(CFMDRef theDict, const void *key, const void *value);
 @end
 
 @interface I
-- (void) Meth : (I*) Arg;
+- (void) Meth : (I*) Arg; // expected-note{{passing argument to parameter 'Arg' here}}
 @end
 
 void Func (I* arg);  // expected-note {{candidate function not viable: no known conversion from 'I const *' to 'I *' for 1st argument}}
 
 void foo(const I *p, I* sel) {
-  [sel Meth : p];	// expected-error {{incompatible type sending 'I const *', expected 'I *'}}
+  [sel Meth : p];	// expected-error {{cannot initialize a parameter of type 'I *' with an lvalue of type 'I const *'}}
   Func(p);		// expected-error {{no matching function for call to 'Func'}}
 }
 

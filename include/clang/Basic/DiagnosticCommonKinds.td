@@ -13,6 +13,11 @@
 
 let Component = "Common" in {
 
+// Basic.
+
+def fatal_too_many_errors
+  : Error<"too many errors emitted, stopping now">, DefaultFatal; 
+
 def note_previous_definition : Note<"previous definition is here">;
 def note_previous_declaration : Note<"previous declaration is here">;
 def note_previous_implicit_declaration : Note<
@@ -36,7 +41,7 @@ def err_expected_colon_after_setter_name : Error<
   "must end with ':'">;
 
 // Parse && Sema
-def err_no_declarators : Error<"declaration does not declare anything">;
+def ext_no_declarators : ExtWarn<"declaration does not declare anything">;
 def err_param_redefinition : Error<"redefinition of parameter %0">;
 def err_invalid_storage_class_in_func_decl : Error<
   "invalid storage class specifier in function declarator">;
@@ -67,5 +72,6 @@ def err_target_invalid_feature : Error<"invalid target feature '%0'">;
 def err_cannot_open_file : Error<"cannot open file '%0': %1">, DefaultFatal;
 def err_file_modified : Error<
   "file '%0' modified since it was first processed">, DefaultFatal;
-  
+def err_unsupported_bom : Error<"%0 byte order mark detected in '%1', but "
+  "encoding is not supported">, DefaultFatal;
 }

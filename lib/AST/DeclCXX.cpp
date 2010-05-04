@@ -587,9 +587,9 @@ CXXMethodDecl *
 CXXMethodDecl::Create(ASTContext &C, CXXRecordDecl *RD,
                       SourceLocation L, DeclarationName N,
                       QualType T, TypeSourceInfo *TInfo,
-                      bool isStatic, bool isInline) {
+                      bool isStatic, StorageClass SCAsWritten, bool isInline) {
   return new (C) CXXMethodDecl(CXXMethod, RD, L, N, T, TInfo,
-                               isStatic, isInline);
+                               isStatic, SCAsWritten, isInline);
 }
 
 bool CXXMethodDecl::isUsualDeallocationFunction() const {
@@ -633,6 +633,27 @@ bool CXXMethodDecl::isUsualDeallocationFunction() const {
   return true;
 }
 
+bool CXXMethodDecl::isCopyAssignmentOperator() const {
+  // C++0x [class.copy]p19:
+  //  A user-declared copy assignment operator X::operator= is a non-static 
+  //  non-template member function of class X with exactly one parameter of 
+  //  type X, X&, const X&, volatile X& or const volatile X&.
+  if (/*operator=*/getOverloadedOperator() != OO_Equal ||
+      /*non-static*/ isStatic() || 
+      /*non-template*/getPrimaryTemplate() || getDescribedFunctionTemplate() ||
+      /*exactly one parameter*/getNumParams() != 1)
+    return false;
+      
+  QualType ParamType = getParamDecl(0)->getType();
+  if (const LValueReferenceType *Ref = ParamType->getAs<LValueReferenceType>())
+    ParamType = Ref->getPointeeType();
+  
+  ASTContext &Context = getASTContext();
+  QualType ClassType
+    = Context.getCanonicalType(Context.getTypeDeclType(getParent()));
+  return Context.hasSameUnqualifiedType(ClassType, ParamType);
+}
+
 void CXXMethodDecl::addOverriddenMethod(const CXXMethodDecl *MD) {
   assert(MD->isCanonicalDecl() && "Method is not canonical!");
   assert(!MD->getParent()->isDependentContext() &&
@@ -659,15 +680,6 @@ QualType CXXMethodDecl::getThisType(ASTContext &C) const {
   assert(isInstance() && "No 'this' for static methods!");
 
   QualType ClassTy = C.getTypeDeclType(getParent());
-
-  // Aesthetically we prefer not to synthesize a type as the
-  // InjectedClassNameType of a template pattern: injected class names
-  // are printed without template arguments, which might
-  // surprise/confuse/distract our poor users if they didn't
-  // explicitly write one.
-  if (isa<InjectedClassNameType>(ClassTy))
-    ClassTy = cast<InjectedClassNameType>(ClassTy)->getUnderlyingType();
-
   ClassTy = C.getQualifiedType(ClassTy,
                                Qualifiers::fromCVRMask(getTypeQualifiers()));
   return C.getPointerType(ClassTy);
@@ -686,9 +698,9 @@ bool CXXMethodDecl::hasInlineBody() const {
 
 CXXBaseOrMemberInitializer::
 CXXBaseOrMemberInitializer(ASTContext &Context,
-                           TypeSourceInfo *TInfo, 
+                           TypeSourceInfo *TInfo, bool IsVirtual,
                            SourceLocation L, Expr *Init, SourceLocation R)
-  : BaseOrMember(TInfo), Init(Init), AnonUnionMember(0),
+  : BaseOrMember(TInfo), Init(Init), AnonUnionMember(0), IsVirtual(IsVirtual),
     LParenLoc(L), RParenLoc(R) 
 {
 }
@@ -745,11 +757,12 @@ CXXConstructorDecl::Create(ASTContext &C, CXXRecordDecl *RD,
                            SourceLocation L, DeclarationName N,
                            QualType T, TypeSourceInfo *TInfo,
                            bool isExplicit,
-                           bool isInline, bool isImplicitlyDeclared) {
+                           bool isInline,
+                           bool isImplicitlyDeclared) {
   assert(N.getNameKind() == DeclarationName::CXXConstructorName &&
          "Name must refer to a constructor");
-  return new (C) CXXConstructorDecl(RD, L, N, T, TInfo, isExplicit, isInline,
-                                      isImplicitlyDeclared);
+  return new (C) CXXConstructorDecl(RD, L, N, T, TInfo, isExplicit,
+                                    isInline, isImplicitlyDeclared);
 }
 
 bool CXXConstructorDecl::isDefaultConstructor() const {
@@ -848,8 +861,7 @@ CXXDestructorDecl::Create(ASTContext &C, CXXRecordDecl *RD,
                           bool isImplicitlyDeclared) {
   assert(N.getNameKind() == DeclarationName::CXXDestructorName &&
          "Name must refer to a destructor");
-  return new (C) CXXDestructorDecl(RD, L, N, T, isInline,
-                                   isImplicitlyDeclared);
+  return new (C) CXXDestructorDecl(RD, L, N, T, isInline, isImplicitlyDeclared);
 }
 
 void

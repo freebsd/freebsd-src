@@ -205,20 +205,20 @@ CodeGenFunction::EmitCXXMemberPointerCallExpr(const CXXMemberCallExpr *E,
   Builder.CreateCondBr(IsVirtual, FnVirtual, FnNonVirtual);
   EmitBlock(FnVirtual);
   
-  const llvm::Type *VtableTy = 
+  const llvm::Type *VTableTy = 
     FTy->getPointerTo()->getPointerTo();
 
-  llvm::Value *Vtable = Builder.CreateBitCast(This, VtableTy->getPointerTo());
-  Vtable = Builder.CreateLoad(Vtable);
+  llvm::Value *VTable = Builder.CreateBitCast(This, VTableTy->getPointerTo());
+  VTable = Builder.CreateLoad(VTable);
   
-  Vtable = Builder.CreateBitCast(Vtable, Int8PtrTy);
-  llvm::Value *VtableOffset = 
+  VTable = Builder.CreateBitCast(VTable, Int8PtrTy);
+  llvm::Value *VTableOffset = 
     Builder.CreateSub(FnAsInt, llvm::ConstantInt::get(PtrDiffTy, 1));
   
-  Vtable = Builder.CreateGEP(Vtable, VtableOffset, "fn");
-  Vtable = Builder.CreateBitCast(Vtable, VtableTy);
+  VTable = Builder.CreateGEP(VTable, VTableOffset, "fn");
+  VTable = Builder.CreateBitCast(VTable, VTableTy);
   
-  llvm::Value *VirtualFn = Builder.CreateLoad(Vtable, "virtualfn");
+  llvm::Value *VirtualFn = Builder.CreateLoad(VTable, "virtualfn");
   
   EmitBranch(FnEnd);
   EmitBlock(FnNonVirtual);
@@ -316,17 +316,22 @@ CodeGenFunction::EmitCXXConstructExpr(llvm::Value *Dest,
     const llvm::Type *BasePtr = ConvertType(BaseElementTy);
     BasePtr = llvm::PointerType::getUnqual(BasePtr);
     llvm::Value *BaseAddrPtr =
-    Builder.CreateBitCast(Dest, BasePtr);
+      Builder.CreateBitCast(Dest, BasePtr);
     
     EmitCXXAggrConstructorCall(CD, Array, BaseAddrPtr, 
                                E->arg_begin(), E->arg_end());
   }
-  else
+  else {
+    CXXCtorType Type = 
+      (E->getConstructionKind() == CXXConstructExpr::CK_Complete) 
+      ? Ctor_Complete : Ctor_Base;
+    bool ForVirtualBase = 
+      E->getConstructionKind() == CXXConstructExpr::CK_VirtualBase;
+    
     // Call the constructor.
-    EmitCXXConstructorCall(CD, 
-                           E->isBaseInitialization()? Ctor_Base : Ctor_Complete, 
-                           Dest,
+    EmitCXXConstructorCall(CD, Type, ForVirtualBase, Dest,
                            E->arg_begin(), E->arg_end());
+  }
 }
 
 static CharUnits CalculateCookiePadding(ASTContext &Ctx, QualType ElementType) {
@@ -460,18 +465,20 @@ static void EmitNewInitializer(CodeGenFunction &CGF, const CXXNewExpr *E,
                                llvm::Value *NewPtr,
                                llvm::Value *NumElements) {
   if (E->isArray()) {
-    if (CXXConstructorDecl *Ctor = E->getConstructor())
-      CGF.EmitCXXAggrConstructorCall(Ctor, NumElements, NewPtr, 
-                                     E->constructor_arg_begin(), 
-                                     E->constructor_arg_end());
-    return;
+    if (CXXConstructorDecl *Ctor = E->getConstructor()) {
+      if (!Ctor->getParent()->hasTrivialConstructor())
+        CGF.EmitCXXAggrConstructorCall(Ctor, NumElements, NewPtr, 
+                                       E->constructor_arg_begin(), 
+                                       E->constructor_arg_end());
+      return;
+    }
   }
   
   QualType AllocType = E->getAllocatedType();
 
   if (CXXConstructorDecl *Ctor = E->getConstructor()) {
-    CGF.EmitCXXConstructorCall(Ctor, Ctor_Complete, NewPtr,
-                               E->constructor_arg_begin(),
+    CGF.EmitCXXConstructorCall(Ctor, Ctor_Complete, /*ForVirtualBase=*/false, 
+                               NewPtr, E->constructor_arg_begin(),
                                E->constructor_arg_end());
 
     return;
@@ -760,7 +767,8 @@ void CodeGenFunction::EmitCXXDeleteExpr(const CXXDeleteExpr *E) {
           // The dtor took care of deleting the object.
           ShouldCallDelete = false;
         } else 
-          EmitCXXDestructorCall(Dtor, Dtor_Complete, Ptr);
+          EmitCXXDestructorCall(Dtor, Dtor_Complete, /*ForVirtualBase=*/false,
+                                Ptr);
       }
     }
   }

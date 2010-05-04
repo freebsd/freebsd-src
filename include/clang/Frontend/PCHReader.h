@@ -436,7 +436,7 @@ private:
   std::deque<PendingIdentifierInfo> PendingIdentifierInfos;
 
   /// \brief FIXME: document!
-  llvm::SmallVector<uint64_t, 4> SpecialTypes;
+  llvm::SmallVector<uint64_t, 16> SpecialTypes;
 
   /// \brief Contains declarations and definitions that will be
   /// "interesting" to the ASTConsumer, when we get that AST consumer.
@@ -687,6 +687,9 @@ public:
   virtual void ReadSLocEntry(unsigned ID);
 
   Selector DecodeSelector(unsigned Idx);
+
+  virtual Selector GetSelector(uint32_t ID);
+  virtual uint32_t GetNumKnownSelectors();
 
   Selector GetSelector(const RecordData &Record, unsigned &Idx) {
     return DecodeSelector(Record[Idx++]);

@@ -11,6 +11,7 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include "clang/Basic/Version.h"
 #include "clang/Frontend/Utils.h"
 #include "clang/Basic/MacroBuilder.h"
 #include "clang/Basic/TargetInfo.h"
@@ -212,7 +213,20 @@ static void InitializePredefinedMacros(const TargetInfo &TI,
   // Compiler version introspection macros.
   Builder.defineMacro("__llvm__");  // LLVM Backend
   Builder.defineMacro("__clang__"); // Clang Frontend
-
+#define TOSTR2(X) #X
+#define TOSTR(X) TOSTR2(X)
+  Builder.defineMacro("__clang_major__", TOSTR(CLANG_VERSION_MAJOR));
+  Builder.defineMacro("__clang_minor__", TOSTR(CLANG_VERSION_MINOR));
+#ifdef CLANG_VERSION_PATCHLEVEL
+  Builder.defineMacro("__clang_patchlevel__", TOSTR(CLANG_VERSION_PATCHLEVEL));
+#else
+  Builder.defineMacro("__clang_patchlevel__", "0");
+#endif
+  Builder.defineMacro("__clang_version__", 
+                      "\"" CLANG_VERSION_STRING " ("
+                      + getClangFullRepositoryVersion() + ")\"");
+#undef TOSTR
+#undef TOSTR2
   // Currently claim to be compatible with GCC 4.2.1-5621.
   Builder.defineMacro("__GNUC_MINOR__", "2");
   Builder.defineMacro("__GNUC_PATCHLEVEL__", "1");
@@ -294,8 +308,6 @@ static void InitializePredefinedMacros(const TargetInfo &TI,
       //   C++ translation unit.
       Builder.defineMacro("__cplusplus", "199711L");
     Builder.defineMacro("__private_extern__", "extern");
-    // Ugly hack to work with GNU libstdc++.
-    Builder.defineMacro("_GNU_SOURCE");
   }
 
   if (LangOpts.Microsoft) {
@@ -503,7 +515,11 @@ void clang::InitializePreprocessor(Preprocessor &PP,
   InitializeFileRemapping(PP.getDiagnostics(), PP.getSourceManager(),
                           PP.getFileManager(), InitOpts);
 
-  Builder.append("# 1 \"<built-in>\" 3");
+  // Emit line markers for various builtin sections of the file.  We don't do
+  // this in asm preprocessor mode, because "# 4" is not a line marker directive
+  // in this mode.
+  if (!PP.getLangOptions().AsmPreprocessor)
+    Builder.append("# 1 \"<built-in>\" 3");
 
   // Install things like __POWERPC__, __GNUC__, etc into the macro table.
   if (InitOpts.UsePredefines)
@@ -512,7 +528,8 @@ void clang::InitializePreprocessor(Preprocessor &PP,
 
   // Add on the predefines from the driver.  Wrap in a #line directive to report
   // that they come from the command line.
-  Builder.append("# 1 \"<command line>\" 1");
+  if (!PP.getLangOptions().AsmPreprocessor)
+    Builder.append("# 1 \"<command line>\" 1");
 
   // Process #define's and #undef's in the order they are given.
   for (unsigned i = 0, e = InitOpts.Macros.size(); i != e; ++i) {
@@ -538,7 +555,8 @@ void clang::InitializePreprocessor(Preprocessor &PP,
   }
 
   // Exit the command line and go back to <built-in> (2 is LC_LEAVE).
-  Builder.append("# 1 \"<built-in>\" 2");
+  if (!PP.getLangOptions().AsmPreprocessor)
+    Builder.append("# 1 \"<built-in>\" 2");
 
   // Copy PredefinedBuffer into the Preprocessor.
   PP.setPredefines(Predefines.str());

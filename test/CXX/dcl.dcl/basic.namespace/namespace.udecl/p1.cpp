@@ -1,4 +1,4 @@
-// RUN: %clang_cc1 -fsyntax-only -faccess-control -verify %s
+// RUN: %clang_cc1 -fsyntax-only -verify %s
 
 // We have to avoid ADL for this test.
 
@@ -12,7 +12,8 @@ namespace Test0 {
   test<1> foo(class foo);
 
   namespace A {
-    test<2> foo(class ::foo); // expected-note {{candidate}}
+    test<2> foo(class ::foo); // expected-note {{candidate}} \
+    // expected-note{{passing argument to parameter here}}
 
     void test0() {
       using ::foo;
@@ -38,7 +39,7 @@ namespace Test0 {
       test<2> _1 = (foo)(a);
 
       class Test0::foo b;
-      test<2> _2 = (foo)(b); // expected-error {{no viable conversion from 'class Test0::foo' to 'class foo' is possible}}
+      test<2> _2 = (foo)(b); // expected-error {{no viable conversion from 'class Test0::foo' to 'class ::foo' is possible}}
     }
   }
 }

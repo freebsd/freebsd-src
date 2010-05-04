@@ -668,9 +668,15 @@ Parser::DeclPtrTy Parser::ParseFunctionDefinition(ParsingDeclarator &D,
 
   // If we have a colon, then we're probably parsing a C++
   // ctor-initializer.
-  if (Tok.is(tok::colon))
+  if (Tok.is(tok::colon)) {
     ParseConstructorInitializer(Res);
-  else
+
+    // Recover from error.
+    if (!Tok.is(tok::l_brace)) {
+      Actions.ActOnFinishFunctionBody(Res, Action::StmtArg(Actions));
+      return Res;
+    }
+  } else
     Actions.ActOnDefaultCtorInitializers(Res);
 
   return ParseFunctionStatementBody(Res);
@@ -1046,7 +1052,7 @@ bool Parser::TryAnnotateCXXScopeToken(bool EnteringContext) {
   CXXScopeSpec SS;
   if (ParseOptionalCXXScopeSpecifier(SS, /*ObjectType=*/0, EnteringContext))
     return true;
-  if (!SS.isSet())
+  if (SS.isEmpty())
     return false;
 
   // Push the current token back into the token stream (or revert it if it is

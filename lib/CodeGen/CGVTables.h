@@ -1,4 +1,4 @@
-//===--- CGVtable.h - Emit LLVM Code for C++ vtables ----------------------===//
+//===--- CGVTables.h - Emit LLVM Code for C++ vtables ---------------------===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -180,10 +180,10 @@ namespace CodeGen {
 class CodeGenVTables {
   CodeGenModule &CGM;
 
-  /// MethodVtableIndices - Contains the index (relative to the vtable address
+  /// MethodVTableIndices - Contains the index (relative to the vtable address
   /// point) where the function pointer for a virtual function is stored.
-  typedef llvm::DenseMap<GlobalDecl, int64_t> MethodVtableIndicesTy;
-  MethodVtableIndicesTy MethodVtableIndices;
+  typedef llvm::DenseMap<GlobalDecl, int64_t> MethodVTableIndicesTy;
+  MethodVTableIndicesTy MethodVTableIndices;
 
   typedef std::pair<const CXXRecordDecl *,
                     const CXXRecordDecl *> ClassPairTy;
@@ -195,8 +195,8 @@ class CodeGenVTables {
     VirtualBaseClassOffsetOffsetsMapTy;
   VirtualBaseClassOffsetOffsetsMapTy VirtualBaseClassOffsetOffsets;
 
-  /// Vtables - All the vtables which have been defined.
-  llvm::DenseMap<const CXXRecordDecl *, llvm::GlobalVariable *> Vtables;
+  /// VTables - All the vtables which have been defined.
+  llvm::DenseMap<const CXXRecordDecl *, llvm::GlobalVariable *> VTables;
   
   /// NumVirtualFunctionPointers - Contains the number of virtual function 
   /// pointers in the vtable for a given record decl.
@@ -216,8 +216,8 @@ class CodeGenVTables {
   /// integers are the vtable components.
   VTableLayoutMapTy VTableLayoutMap;
 
-  typedef llvm::DenseMap<std::pair<const CXXRecordDecl *, 
-                                   BaseSubobject>, uint64_t> AddressPointsMapTy;
+  typedef std::pair<const CXXRecordDecl *, BaseSubobject> BaseSubobjectPairTy;
+  typedef llvm::DenseMap<BaseSubobjectPairTy, uint64_t> AddressPointsMapTy;
   
   /// Address points - Address points for all vtables.
   AddressPointsMapTy AddressPoints;
@@ -247,14 +247,12 @@ class CodeGenVTables {
     return &Components[1];
   }
 
-  typedef llvm::DenseMap<ClassPairTy, uint64_t> SubVTTIndiciesMapTy;
+  typedef llvm::DenseMap<BaseSubobjectPairTy, uint64_t> SubVTTIndiciesMapTy;
   
   /// SubVTTIndicies - Contains indices into the various sub-VTTs.
   SubVTTIndiciesMapTy SubVTTIndicies;
 
-   
-  typedef llvm::DenseMap<std::pair<const CXXRecordDecl *, 
-                                   BaseSubobject>, uint64_t>
+  typedef llvm::DenseMap<BaseSubobjectPairTy, uint64_t>
     SecondaryVirtualPointerIndicesMapTy;
 
   /// SecondaryVirtualPointerIndices - Contains the secondary virtual pointer
@@ -265,7 +263,7 @@ class CodeGenVTables {
   /// pointers in the vtable for a given record decl.
   uint64_t getNumVirtualFunctionPointers(const CXXRecordDecl *RD);
   
-  void ComputeMethodVtableIndices(const CXXRecordDecl *RD);
+  void ComputeMethodVTableIndices(const CXXRecordDecl *RD);
 
   llvm::GlobalVariable *GenerateVTT(llvm::GlobalVariable::LinkageTypes Linkage,
                                     bool GenerateDefinition,
@@ -295,6 +293,15 @@ public:
   CodeGenVTables(CodeGenModule &CGM)
     : CGM(CGM) { }
 
+  // isKeyFunctionInAnotherTU - True if this record has a key function and it is
+  // in another translation unit.
+  static bool isKeyFunctionInAnotherTU(ASTContext &Context,
+				       const CXXRecordDecl *RD) {
+    assert (RD->isDynamicClass() && "Non dynamic classes have no key.");
+    const CXXMethodDecl *KeyFunction = Context.getKeyFunction(RD);
+    return KeyFunction && !KeyFunction->getBody();
+  }
+
   /// needsVTTParameter - Return whether the given global decl needs a VTT
   /// parameter, which it does if it's a base constructor or destructor with
   /// virtual bases.
@@ -302,17 +309,17 @@ public:
 
   /// getSubVTTIndex - Return the index of the sub-VTT for the base class of the
   /// given record decl.
-  uint64_t getSubVTTIndex(const CXXRecordDecl *RD, const CXXRecordDecl *Base);
+  uint64_t getSubVTTIndex(const CXXRecordDecl *RD, BaseSubobject Base);
   
   /// getSecondaryVirtualPointerIndex - Return the index in the VTT where the
   /// virtual pointer for the given subobject is located.
   uint64_t getSecondaryVirtualPointerIndex(const CXXRecordDecl *RD,
                                            BaseSubobject Base);
 
-  /// getMethodVtableIndex - Return the index (relative to the vtable address
+  /// getMethodVTableIndex - Return the index (relative to the vtable address
   /// point) where the function pointer for the given virtual function is
   /// stored.
-  uint64_t getMethodVtableIndex(GlobalDecl GD);
+  uint64_t getMethodVTableIndex(GlobalDecl GD);
 
   /// getVirtualBaseOffsetOffset - Return the offset in bytes (relative to the
   /// vtable address point) where the offset of the virtual base that contains 

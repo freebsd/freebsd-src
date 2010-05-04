@@ -158,7 +158,8 @@ Sema::~Sema() {
 /// If there is already an implicit cast, merge into the existing one.
 /// If isLvalue, the result of the cast is an lvalue.
 void Sema::ImpCastExprToType(Expr *&Expr, QualType Ty,
-                             CastExpr::CastKind Kind, bool isLvalue) {
+                             CastExpr::CastKind Kind, 
+                             bool isLvalue, CXXBaseSpecifierArray BasePath) {
   QualType ExprTy = Context.getCanonicalType(Expr->getType());
   QualType TypeTy = Context.getCanonicalType(Ty);
 
@@ -177,14 +178,14 @@ void Sema::ImpCastExprToType(Expr *&Expr, QualType Ty,
   CheckImplicitConversion(Expr, Ty);
 
   if (ImplicitCastExpr *ImpCast = dyn_cast<ImplicitCastExpr>(Expr)) {
-    if (ImpCast->getCastKind() == Kind) {
+    if (ImpCast->getCastKind() == Kind && BasePath.empty()) {
       ImpCast->setType(Ty);
       ImpCast->setLvalueCast(isLvalue);
       return;
     }
   }
 
-  Expr = new (Context) ImplicitCastExpr(Ty, Kind, Expr, isLvalue);
+  Expr = new (Context) ImplicitCastExpr(Ty, Kind, Expr, BasePath, isLvalue);
 }
 
 void Sema::DeleteExpr(ExprTy *E) {
@@ -197,14 +198,7 @@ void Sema::DeleteStmt(StmtTy *S) {
 /// ActOnEndOfTranslationUnit - This is called at the very end of the
 /// translation unit when EOF is reached and all but the top-level scope is
 /// popped.
-void Sema::ActOnEndOfTranslationUnit() {
-  
-  // Remove functions that turned out to be used.
-  UnusedStaticFuncs.erase(std::remove_if(UnusedStaticFuncs.begin(), 
-                                         UnusedStaticFuncs.end(), 
-                                         std::mem_fun(&FunctionDecl::isUsed)), 
-                          UnusedStaticFuncs.end());
-  
+void Sema::ActOnEndOfTranslationUnit() {  
   while (1) {
     // C++: Perform implicit template instantiations.
     //
@@ -225,6 +219,12 @@ void Sema::ActOnEndOfTranslationUnit() {
       break;
   }
   
+  // Remove functions that turned out to be used.
+  UnusedStaticFuncs.erase(std::remove_if(UnusedStaticFuncs.begin(), 
+                                         UnusedStaticFuncs.end(), 
+                                         std::mem_fun(&FunctionDecl::isUsed)), 
+                          UnusedStaticFuncs.end());
+
   // Check for #pragma weak identifiers that were never declared
   // FIXME: This will cause diagnostics to be emitted in a non-determinstic
   // order!  Iterating over a densemap like this is bad.

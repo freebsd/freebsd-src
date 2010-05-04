@@ -148,9 +148,16 @@ static void SelectInterestingSourceRegion(std::string &SourceLine,
                                           std::string &FixItInsertionLine,
                                           unsigned EndOfCaretToken,
                                           unsigned Columns) {
-  if (CaretLine.size() > SourceLine.size())
-    SourceLine.resize(CaretLine.size(), ' ');
-
+  unsigned MaxSize = std::max(SourceLine.size(),
+                              std::max(CaretLine.size(), 
+                                       FixItInsertionLine.size()));
+  if (MaxSize > SourceLine.size())
+    SourceLine.resize(MaxSize, ' ');
+  if (MaxSize > CaretLine.size())
+    CaretLine.resize(MaxSize, ' ');
+  if (!FixItInsertionLine.empty() && MaxSize > FixItInsertionLine.size())
+    FixItInsertionLine.resize(MaxSize, ' ');
+    
   // Find the slice that we need to display the full caret line
   // correctly.
   unsigned CaretStart = 0, CaretEnd = CaretLine.size();
@@ -275,7 +282,7 @@ static void SelectInterestingSourceRegion(std::string &SourceLine,
 void TextDiagnosticPrinter::EmitCaretDiagnostic(SourceLocation Loc,
                                                 SourceRange *Ranges,
                                                 unsigned NumRanges,
-                                                SourceManager &SM,
+                                                const SourceManager &SM,
                                                 const FixItHint *Hints,
                                                 unsigned NumHints,
                                                 unsigned Columns) {
@@ -796,8 +803,13 @@ void TextDiagnosticPrinter::HandleDiagnostic(Diagnostic::Level Level,
       OutStr += " [-W";
       OutStr += Opt;
       OutStr += ']';
-    } else if (Diagnostic::isBuiltinExtensionDiag(Info.getID())) {
-      OutStr += " [-pedantic]";
+    } else {
+      // If the diagnostic is an extension diagnostic and not enabled by default
+      // then it must have been turned on with -pedantic.
+      bool EnabledByDefault;
+      if (Diagnostic::isBuiltinExtensionDiag(Info.getID(), EnabledByDefault) &&
+          !EnabledByDefault)
+        OutStr += " [-pedantic]";
     }
   }
 

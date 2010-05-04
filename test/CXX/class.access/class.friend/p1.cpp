@@ -1,4 +1,4 @@
-// RUN: %clang_cc1 -fsyntax-only -faccess-control -verify %s
+// RUN: %clang_cc1 -fsyntax-only -verify %s
 
 // C++'0x [class.friend] p1:
 //   A friend of a class is a function or class that is given permission to use
@@ -191,4 +191,99 @@ namespace test4 {
     Holder<Inequal> a, b;
     return a == b; // expected-note {{requested here}}
   }
+}
+
+
+// PR6174
+namespace test5 {
+  namespace ns {
+    class A;
+  }
+
+  class ns::A {
+  private: int x;
+    friend class B;
+  };
+
+  namespace ns {
+    class B {
+      int test(A *p) { return p->x; }
+    };
+  }
+}
+
+// PR6207
+namespace test6 {
+  struct A {};
+
+  struct B {
+    friend A::A();
+    friend A::~A();
+    friend A &A::operator=(const A&);
+  };
+}
+
+namespace test7 {
+  template <class T> struct X {
+    X();
+    ~X();
+    void foo();
+    void bar();
+  };
+
+  class A {
+    friend void X<int>::foo();
+    friend X<int>::X();
+    friend X<int>::X(const X&);
+
+  private:
+    A(); // expected-note 2 {{declared private here}}
+  };
+
+  template<> void X<int>::foo() {
+    A a;
+  }
+
+  template<> void X<int>::bar() {
+    A a; // expected-error {{calling a private constructor}}
+  }
+
+  template<> X<int>::X() {
+    A a;
+  }
+
+  template<> X<int>::~X() {
+    A a; // expected-error {{calling a private constructor}}
+  }
+}
+
+// Return types, parameters and default arguments to friend functions.
+namespace test8 {
+  class A {
+    typedef int I; // expected-note 4 {{declared private here}}
+    static const I x = 0;
+    friend I f(I i);
+    template<typename T> friend I g(I i);
+  };
+
+  // FIXME: This should be on line 264.
+  const A::I A::x; // expected-note {{declared private here}}
+  A::I f(A::I i = A::x) {}
+  template<typename T> A::I g(A::I i) {
+    T t;
+  }
+  template A::I g<A::I>(A::I i);
+
+  A::I f2(A::I i = A::x) {} // expected-error 3 {{is a private member of}}
+  template<typename T> A::I g2(A::I i) { // expected-error 2 {{is a private member of}}
+    T t;
+  }
+  template A::I g2<A::I>(A::I i);
+}
+
+// PR6885
+namespace test9 {
+  class B {
+    friend class test9;
+  };
 }

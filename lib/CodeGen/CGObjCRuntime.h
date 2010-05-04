@@ -122,8 +122,8 @@ public:
                       QualType ResultType,
                       Selector Sel,
                       llvm::Value *Receiver,
-                      bool IsClassMessage,
                       const CallArgList &CallArgs,
+                      const ObjCInterfaceDecl *Class = 0,
                       const ObjCMethodDecl *Method = 0) = 0;
 
   /// Generate an Objective-C message send operation to the super
@@ -167,6 +167,9 @@ public:
   /// Return the runtime function for setting properties.
   virtual llvm::Constant *GetPropertySetFunction() = 0;
 
+  // API for atomic copying of qualified aggregates in setter/getter.
+  virtual llvm::Constant *GetCopyStructFunction() = 0;
+  
   /// GetClass - Return a reference to the class for the given
   /// interface decl.
   virtual llvm::Value *GetClass(CGBuilderTy &Builder,

@@ -1,4 +1,6 @@
 // RUN: %clang_cc1 -fsyntax-only -Wunused-function -verify %s
+// RUN: %clang_cc1 -fsyntax-only -verify -Wunused %s
+// RUN: %clang_cc1 -fsyntax-only -verify -Wall %s
 
 void foo() {}
 static void f2() {} 
@@ -28,3 +30,8 @@ static void f7(void) {}
 __attribute__((unused)) static void bar(void);
 void bar(void) { }
 
+__attribute__((constructor)) static void bar2(void);
+void bar2(void) { }
+
+__attribute__((destructor)) static void bar3(void);
+void bar3(void) { }

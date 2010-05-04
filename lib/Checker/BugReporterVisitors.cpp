@@ -47,14 +47,6 @@ const Stmt *clang::bugreporter::GetDerefExpr(const ExplodedNode *N) {
 }
 
 const Stmt*
-clang::bugreporter::GetReceiverExpr(const ExplodedNode *N){
-  const Stmt *S = N->getLocationAs<PostStmt>()->getStmt();
-  if (const ObjCMessageExpr *ME = dyn_cast<ObjCMessageExpr>(S))
-    return ME->getReceiver();
-  return NULL;
-}
-
-const Stmt*
 clang::bugreporter::GetDenomExpr(const ExplodedNode *N) {
   const Stmt *S = N->getLocationAs<PreStmt>()->getStmt();
   if (const BinaryOperator *BE = dyn_cast<BinaryOperator>(S))
@@ -144,7 +136,7 @@ public:
       if (const DeclStmt *DS = PS->getStmtAs<DeclStmt>()) {
 
         if (const VarRegion *VR = dyn_cast<VarRegion>(R)) {
-          os << "Variable '" << VR->getDecl()->getNameAsString() << "' ";
+          os << "Variable '" << VR->getDecl() << "' ";
         }
         else
           return NULL;
@@ -206,7 +198,7 @@ public:
         return NULL;
 
       if (const VarRegion *VR = dyn_cast<VarRegion>(R)) {
-        os << '\'' << VR->getDecl()->getNameAsString() << '\'';
+        os << '\'' << VR->getDecl() << '\'';
       }
       else
         return NULL;
@@ -402,7 +394,7 @@ public:
     const ObjCMessageExpr *ME = P->getStmtAs<ObjCMessageExpr>();
     if (!ME)
       return 0;
-    const Expr *Receiver = ME->getReceiver();
+    const Expr *Receiver = ME->getInstanceReceiver();
     if (!Receiver)
       return 0;
     const GRState *state = N->getState();

@@ -263,7 +263,7 @@ void AggExprEmitter::VisitCastExpr(CastExpr *E) {
       std::swap(DerivedDecl, BaseDecl);
 
     if (llvm::Constant *Adj = 
-          CGF.CGM.GetNonVirtualBaseClassOffset(DerivedDecl, BaseDecl)) {
+          CGF.CGM.GetNonVirtualBaseClassOffset(DerivedDecl, E->getBasePath())) {
       if (E->getCastKind() == CastExpr::CK_DerivedToBaseMemberPointer)
         SrcAdj = Builder.CreateSub(SrcAdj, Adj, "adj");
       else
@@ -321,6 +321,11 @@ void AggExprEmitter::VisitUnaryAddrOf(const UnaryOperator *E) {
   (void) MPT;
   assert(MPT->getPointeeType()->isFunctionProtoType() &&
          "Unexpected member pointer type!");
+
+  // The creation of member function pointers has no side effects; if
+  // there is no destination pointer, we have nothing to do.
+  if (!DestPtr)
+    return;
   
   const DeclRefExpr *DRE = cast<DeclRefExpr>(E->getSubExpr());
   const CXXMethodDecl *MD = 
@@ -329,17 +334,23 @@ void AggExprEmitter::VisitUnaryAddrOf(const UnaryOperator *E) {
   const llvm::Type *PtrDiffTy = 
     CGF.ConvertType(CGF.getContext().getPointerDiffType());
 
+
   llvm::Value *DstPtr = Builder.CreateStructGEP(DestPtr, 0, "dst.ptr");
   llvm::Value *FuncPtr;
   
   if (MD->isVirtual()) {
-    int64_t Index = CGF.CGM.getVTables().getMethodVtableIndex(MD);
+    int64_t Index = CGF.CGM.getVTables().getMethodVTableIndex(MD);
     
+    // FIXME: We shouldn't use / 8 here.
+    uint64_t PointerWidthInBytes = 
+      CGF.CGM.getContext().Target.getPointerWidth(0) / 8;
+
     // Itanium C++ ABI 2.3:
     //   For a non-virtual function, this field is a simple function pointer. 
     //   For a virtual function, it is 1 plus the virtual table offset 
     //   (in bytes) of the function, represented as a ptrdiff_t. 
-    FuncPtr = llvm::ConstantInt::get(PtrDiffTy, (Index * 8) + 1);
+    FuncPtr = llvm::ConstantInt::get(PtrDiffTy,
+                                     (Index * PointerWidthInBytes) + 1);
   } else {
     const FunctionProtoType *FPT = MD->getType()->getAs<FunctionProtoType>();
     const llvm::Type *Ty =
@@ -738,6 +749,14 @@ void CodeGenFunction::EmitAggregateCopy(llvm::Value *DestPtr,
                                         bool isVolatile) {
   assert(!Ty->isAnyComplexType() && "Shouldn't happen for complex");
 
+  // Ignore empty classes in C++.
+  if (getContext().getLangOptions().CPlusPlus) {
+    if (const RecordType *RT = Ty->getAs<RecordType>()) {
+      if (cast<CXXRecordDecl>(RT->getDecl())->isEmpty())
+        return;
+    }
+  }
+  
   // Aggregate assignment turns into llvm.memcpy.  This is almost valid per
   // C99 6.5.16.1p3, which states "If the value being stored in an object is
   // read from another object that overlaps in anyway the storage of the first

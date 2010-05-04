@@ -60,6 +60,8 @@ void ContentCache::replaceBuffer(const llvm::MemoryBuffer *B) {
 }
 
 const llvm::MemoryBuffer *ContentCache::getBuffer(Diagnostic &Diag,
+                                                  const SourceManager &SM,
+                                                  SourceLocation Loc,
                                                   bool *Invalid) const {
   if (Invalid)
     *Invalid = false;
@@ -94,22 +96,67 @@ const llvm::MemoryBuffer *ContentCache::getBuffer(Diagnostic &Diag,
         Diag.SetDelayedDiagnostic(diag::err_cannot_open_file, 
                                   Entry->getName(), ErrorStr);
       else 
-        Diag.Report(diag::err_cannot_open_file)
+        Diag.Report(FullSourceLoc(Loc, SM), diag::err_cannot_open_file)
           << Entry->getName() << ErrorStr;
 
       Buffer.setInt(true);
+
+    // FIXME: This conditionalization is horrible, but we see spurious failures
+    // in the test suite due to this warning and no one has had time to hunt it
+    // down. So for now, we just don't emit this diagnostic on Win32, and hope
+    // nothing bad happens.
+    //
+    // PR6812.
+#if !defined(LLVM_ON_WIN32)
     } else if (FileInfo.st_size != Entry->getSize() ||
                FileInfo.st_mtime != Entry->getModificationTime()) {
-      // Check that the file's size, modification time, and inode are
-      // the same as in the file entry (which may have come from a
-      // stat cache).
+      // Check that the file's size and modification time are the same
+      // as in the file entry (which may have come from a stat cache).
       if (Diag.isDiagnosticInFlight())
-        Diag.SetDelayedDiagnostic(diag::err_file_modified, 
+        Diag.SetDelayedDiagnostic(diag::err_file_modified,
                                   Entry->getName());
-      else 
-        Diag.Report(diag::err_file_modified) << Entry->getName();
+      else
+        Diag.Report(FullSourceLoc(Loc, SM), diag::err_file_modified)
+          << Entry->getName();
 
       Buffer.setInt(true);
+#endif
+    }
+    
+    // If the buffer is valid, check to see if it has a UTF Byte Order Mark
+    // (BOM).  We only support UTF-8 without a BOM right now.  See
+    // http://en.wikipedia.org/wiki/Byte_order_mark for more information.
+    if (!Buffer.getInt()) {
+      llvm::StringRef BufStr = Buffer.getPointer()->getBuffer();
+      const char *BOM = 0;
+      if (BufStr.startswith("\xFE\xBB\xBF"))
+        BOM = "UTF-8";
+      else if (BufStr.startswith("\xFE\xFF"))
+        BOM = "UTF-16 (BE)";
+      else if (BufStr.startswith("\xFF\xFE"))
+        BOM = "UTF-16 (LE)";
+      else if (BufStr.startswith(llvm::StringRef("\x00\x00\xFE\xFF", 4)))
+        BOM = "UTF-32 (BE)";
+      else if (BufStr.startswith(llvm::StringRef("\xFF\xFE\x00\x00", 4)))
+        BOM = "UTF-32 (LE)";
+      else if (BufStr.startswith("\x2B\x2F\x76"))
+        BOM = "UTF-7";
+      else if (BufStr.startswith("\xF7\x64\x4C"))
+        BOM = "UTF-1";
+      else if (BufStr.startswith("\xDD\x73\x66\x73"))
+        BOM = "UTF-EBCDIC";
+      else if (BufStr.startswith("\x0E\xFE\xFF"))
+        BOM = "SDSU";
+      else if (BufStr.startswith("\xFB\xEE\x28"))
+        BOM = "BOCU-1";
+      else if (BufStr.startswith("\x84\x31\x95\x33"))
+        BOM = "BOCU-1";
+      
+      if (BOM) {
+        Diag.Report(FullSourceLoc(Loc, SM), diag::err_unsupported_bom)
+          << BOM << Entry->getName();
+        Buffer.setInt(1);
+      }
     }
   }
   
@@ -470,7 +517,7 @@ SourceManager::getMemoryBufferForFile(const FileEntry *File,
                                       bool *Invalid) {
   const SrcMgr::ContentCache *IR = getOrCreateContentCache(File);
   assert(IR && "getOrCreateContentCache() cannot return NULL");
-  return IR->getBuffer(Diag, Invalid);
+  return IR->getBuffer(Diag, *this, SourceLocation(), Invalid);
 }
 
 bool SourceManager::overrideFileContents(const FileEntry *SourceFile,
@@ -717,8 +764,8 @@ const char *SourceManager::getCharacterData(SourceLocation SL,
   // Note that calling 'getBuffer()' may lazily page in a source file.
   bool CharDataInvalid = false;
   const llvm::MemoryBuffer *Buffer
-    = getSLocEntry(LocInfo.first).getFile().getContentCache()->getBuffer(Diag, 
-                                                              &CharDataInvalid);
+    = getSLocEntry(LocInfo.first).getFile().getContentCache()
+    ->getBuffer(Diag, *this, SourceLocation(), &CharDataInvalid);
   if (Invalid)
     *Invalid = CharDataInvalid;
   return Buffer->getBufferStart() + (CharDataInvalid? 0 : LocInfo.second);
@@ -757,14 +804,16 @@ unsigned SourceManager::getInstantiationColumnNumber(SourceLocation Loc,
   return getColumnNumber(LocInfo.first, LocInfo.second, Invalid);
 }
 
-static DISABLE_INLINE void ComputeLineNumbers(Diagnostic &Diag,
-                                              ContentCache* FI,
-                                              llvm::BumpPtrAllocator &Alloc,
-                                              bool &Invalid);
-static void ComputeLineNumbers(Diagnostic &Diag, ContentCache* FI, 
-                               llvm::BumpPtrAllocator &Alloc, bool &Invalid) {
+static DISABLE_INLINE void
+ComputeLineNumbers(Diagnostic &Diag, ContentCache *FI,
+                   llvm::BumpPtrAllocator &Alloc,
+                   const SourceManager &SM, bool &Invalid);
+static void ComputeLineNumbers(Diagnostic &Diag, ContentCache *FI, 
+                               llvm::BumpPtrAllocator &Alloc,
+                               const SourceManager &SM, bool &Invalid) {
   // Note that calling 'getBuffer()' may lazily page in the file.
-  const MemoryBuffer *Buffer = FI->getBuffer(Diag, &Invalid);
+  const MemoryBuffer *Buffer = FI->getBuffer(Diag, SM, SourceLocation(),
+                                             &Invalid);
   if (Invalid)
     return;
 
@@ -825,7 +874,7 @@ unsigned SourceManager::getLineNumber(FileID FID, unsigned FilePos,
   /// SourceLineCache for it on demand.
   if (Content->SourceLineCache == 0) {
     bool MyInvalid = false;
-    ComputeLineNumbers(Diag, Content, ContentCacheAlloc, MyInvalid);
+    ComputeLineNumbers(Diag, Content, ContentCacheAlloc, *this, MyInvalid);
     if (Invalid)
       *Invalid = MyInvalid;
     if (MyInvalid)
@@ -991,8 +1040,11 @@ PresumedLoc SourceManager::getPresumedLoc(SourceLocation Loc) const {
   // To get the source name, first consult the FileEntry (if one exists)
   // before the MemBuffer as this will avoid unnecessarily paging in the
   // MemBuffer.
-  const char *Filename =
-    C->Entry ? C->Entry->getName() : C->getBuffer(Diag)->getBufferIdentifier();
+  const char *Filename;
+  if (C->Entry)
+    Filename = C->Entry->getName();
+  else
+    Filename = C->getBuffer(Diag, *this)->getBufferIdentifier();
   unsigned LineNo = getLineNumber(LocInfo.first, LocInfo.second);
   unsigned ColNo  = getColumnNumber(LocInfo.first, LocInfo.second);
   SourceLocation IncludeLoc = FI.getIncludeLoc();
@@ -1050,7 +1102,7 @@ SourceLocation SourceManager::getLocation(const FileEntry *SourceFile,
   /// SourceLineCache for it on demand.
   if (Content->SourceLineCache == 0) {
     bool MyInvalid = false;
-    ComputeLineNumbers(Diag, Content, ContentCacheAlloc, MyInvalid);
+    ComputeLineNumbers(Diag, Content, ContentCacheAlloc, *this, MyInvalid);
     if (MyInvalid)
       return SourceLocation();
   }
@@ -1082,15 +1134,15 @@ SourceLocation SourceManager::getLocation(const FileEntry *SourceFile,
     return SourceLocation();
 
   if (Line > Content->NumLines) {
-    unsigned Size = Content->getBuffer(Diag)->getBufferSize();
+    unsigned Size = Content->getBuffer(Diag, *this)->getBufferSize();
     if (Size > 0)
       --Size;
     return getLocForStartOfFile(FirstFID).getFileLocWithOffset(Size);
   }
 
   unsigned FilePos = Content->SourceLineCache[Line - 1];
-  const char *Buf = Content->getBuffer(Diag)->getBufferStart() + FilePos;
-  unsigned BufLength = Content->getBuffer(Diag)->getBufferEnd() - Buf;
+  const char *Buf = Content->getBuffer(Diag, *this)->getBufferStart() + FilePos;
+  unsigned BufLength = Content->getBuffer(Diag, *this)->getBufferEnd() - Buf;
   unsigned i = 0;
 
   // Check that the given column is valid.

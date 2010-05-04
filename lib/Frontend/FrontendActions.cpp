@@ -19,6 +19,7 @@
 #include "clang/Frontend/FixItRewriter.h"
 #include "clang/Frontend/FrontendDiagnostic.h"
 #include "clang/Frontend/Utils.h"
+#include "llvm/ADT/OwningPtr.h"
 #include "llvm/Support/raw_ostream.h"
 using namespace clang;
 
@@ -74,11 +75,6 @@ ASTConsumer *DeclContextPrintAction::CreateASTConsumer(CompilerInstance &CI,
   return CreateDeclContextPrinter();
 }
 
-ASTConsumer *DumpRecordAction::CreateASTConsumer(CompilerInstance &CI,
-                                                 llvm::StringRef InFile) {
-  return CreateRecordLayoutDumper();
-}
-
 ASTConsumer *GeneratePCHAction::CreateASTConsumer(CompilerInstance &CI,
                                                   llvm::StringRef InFile) {
   const std::string &Sysroot = CI.getHeaderSearchOpts().Sysroot;
@@ -118,43 +114,38 @@ ASTConsumer *FixItAction::CreateASTConsumer(CompilerInstance &CI,
   return new ASTConsumer();
 }
 
-/// AddFixItLocations - Add any individual user specified "fix-it" locations,
-/// and return true on success.
-static bool AddFixItLocations(CompilerInstance &CI,
-                              FixItRewriter &FixItRewrite) {
-  const std::vector<ParsedSourceLocation> &Locs =
-    CI.getFrontendOpts().FixItLocations;
-  for (unsigned i = 0, e = Locs.size(); i != e; ++i) {
-    const FileEntry *File = CI.getFileManager().getFile(Locs[i].FileName);
-    if (!File) {
-      CI.getDiagnostics().Report(diag::err_fe_unable_to_find_fixit_file)
-        << Locs[i].FileName;
-      return false;
-    }
+class FixItActionSuffixInserter : public FixItPathRewriter {
+  std::string NewSuffix;
 
-    RequestedSourceLocation Requested;
-    Requested.File = File;
-    Requested.Line = Locs[i].Line;
-    Requested.Column = Locs[i].Column;
-    FixItRewrite.addFixItLocation(Requested);
+public:
+  explicit FixItActionSuffixInserter(std::string NewSuffix)
+    : NewSuffix(NewSuffix) {}
+
+  std::string RewriteFilename(const std::string &Filename) {
+    llvm::sys::Path Path(Filename);
+    std::string Suffix = Path.getSuffix();
+    Path.eraseSuffix();
+    Path.appendSuffix(NewSuffix + "." + Suffix);
+    return Path.c_str();
   }
-
-  return true;
-}
+};
 
 bool FixItAction::BeginSourceFileAction(CompilerInstance &CI,
                                         llvm::StringRef Filename) {
+  const FrontendOptions &FEOpts = getCompilerInstance().getFrontendOpts();
+  if (!FEOpts.FixItSuffix.empty()) {
+    PathRewriter.reset(new FixItActionSuffixInserter(FEOpts.FixItSuffix));
+  } else {
+    PathRewriter.reset();
+  }
   Rewriter.reset(new FixItRewriter(CI.getDiagnostics(), CI.getSourceManager(),
-                                   CI.getLangOpts()));
-  if (!AddFixItLocations(CI, *Rewriter))
-    return false;
-
+                                   CI.getLangOpts(), PathRewriter.get()));
   return true;
 }
 
 void FixItAction::EndSourceFileAction() {
-  const FrontendOptions &FEOpts = getCompilerInstance().getFrontendOpts();
-  Rewriter->WriteFixedFile(getCurrentFile(), FEOpts.OutputFile);
+  // Otherwise rewrite all files.
+  Rewriter->WriteFixedFiles();
 }
 
 ASTConsumer *RewriteObjCAction::CreateASTConsumer(CompilerInstance &CI,
@@ -197,8 +188,7 @@ void DumpTokensAction::ExecuteAction() {
   Preprocessor &PP = getCompilerInstance().getPreprocessor();
   // Start preprocessing the specified input file.
   Token Tok;
-  if (PP.EnterMainSourceFile())
-    return;
+  PP.EnterMainSourceFile();
   do {
     PP.Lex(Tok);
     PP.DumpToken(Tok, true);
@@ -212,7 +202,7 @@ void GeneratePTHAction::ExecuteAction() {
       CI.getFrontendOpts().OutputFile == "-") {
     // FIXME: Don't fail this way.
     // FIXME: Verify that we can actually seek in the given file.
-    llvm::llvm_report_error("PTH requires a seekable file for output!");
+    llvm::report_fatal_error("PTH requires a seekable file for output!");
   }
   llvm::raw_fd_ostream *OS =
     CI.createDefaultOutputFile(true, getCurrentFile());
@@ -226,8 +216,7 @@ void ParseOnlyAction::ExecuteAction() {
   llvm::OwningPtr<Action> PA(new MinimalAction(PP));
 
   Parser P(PP, *PA);
-  if (PP.EnterMainSourceFile())
-    return;
+  PP.EnterMainSourceFile();
   P.ParseTranslationUnit();
 }
 
@@ -236,8 +225,7 @@ void PreprocessOnlyAction::ExecuteAction() {
 
   Token Tok;
   // Start parsing the specified input file.
-  if (PP.EnterMainSourceFile())
-    return;
+  PP.EnterMainSourceFile();
   do {
     PP.Lex(Tok);
   } while (Tok.isNot(tok::eof));
@@ -252,8 +240,7 @@ void PrintParseAction::ExecuteAction() {
   llvm::OwningPtr<Action> PA(CreatePrintParserActionsAction(PP, OS));
 
   Parser P(PP, *PA);
-  if (PP.EnterMainSourceFile())
-    return;
+  PP.EnterMainSourceFile();
   P.ParseTranslationUnit();
 }
 

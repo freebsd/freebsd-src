@@ -36,19 +36,19 @@ A<X(17, 42)> *a11; // expected-error{{non-type template argument of type 'X' mus
 
 float f(float);
 
-float g(float);
-double g(double);
+float g(float); // expected-note 2{{candidate function}}
+double g(double); // expected-note 2{{candidate function}}
 
 int h(int);
 float h2(float);
 
-template<int fp(int)> struct A3; // expected-note 2{{template parameter is declared here}}
+template<int fp(int)> struct A3; // expected-note 1{{template parameter is declared here}}
 A3<h> *a14_1;
 A3<&h> *a14_2;
 A3<f> *a14_3;
 A3<&f> *a14_4;
 A3<h2> *a14_6;  // expected-error{{non-type template argument of type 'float (float)' cannot be converted to a value of type 'int (*)(int)'}}
-A3<g> *a14_7; // expected-error{{overloaded function cannot be resolved to a non-type template parameter of type 'int (*)(int)'}}
+A3<g> *a14_7; // expected-error{{address of overloaded function 'g' does not match required type 'int (int)'}}
 
 
 struct Y { } y;
@@ -61,11 +61,11 @@ A4<*X_volatile_ptr> *a15_2; // expected-error{{non-type template argument does n
 A4<y> *15_3; //  expected-error{{non-type template parameter of reference type 'X const &' cannot bind to template argument of type 'struct Y'}} \
             // FIXME: expected-error{{expected unqualified-id}}
 
-template<int (&fr)(int)> struct A5; // expected-note 2{{template parameter is declared here}}
+template<int (&fr)(int)> struct A5; // expected-note{{template parameter is declared here}}
 A5<h> *a16_1;
 A5<f> *a16_3;
 A5<h2> *a16_6;  // expected-error{{non-type template parameter of reference type 'int (&)(int)' cannot bind to template argument of type 'float (float)'}}
-A5<g> *a14_7; // expected-error{{overloaded function cannot be resolved to a non-type template parameter of type 'int (&)(int)'}}
+A5<g> *a14_7; // expected-error{{address of overloaded function 'g' does not match required type 'int (int)'}}
 
 struct Z {
   int foo(int);
@@ -175,4 +175,31 @@ namespace PR6723 {
     f(arr512); // expected-error{{no matching function for call}}
     f<512>(arr512); // expected-error{{no matching function for call}}
   }
+}
+
+// Check that we instantiate declarations whose addresses are taken
+// for non-type template arguments.
+namespace EntityReferenced {
+  template<typename T, void (*)(T)> struct X { };
+
+  template<typename T>
+  struct Y {
+    static void f(T x) { 
+      x = 1; // expected-error{{assigning to 'int *' from incompatible type 'int'}}
+    }
+  };
+
+  void g() {
+    typedef X<int*, Y<int*>::f> x; // expected-note{{in instantiation of}}
+  }
+}
+
+namespace PR6964 {
+  template <typename ,int, int = 9223372036854775807L > // expected-warning 2{{non-type template argument value '9223372036854775807' truncated to '-1' for template parameter of type 'int'}} \
+  // expected-note 2{{template parameter is declared here}}
+  struct as_nview { };
+
+  template <typename Sequence, int I0> 
+  struct as_nview<Sequence, I0>  // expected-note{{while checking a default template argument used here}}
+  { };
 }

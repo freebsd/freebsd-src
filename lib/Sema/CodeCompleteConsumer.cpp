@@ -86,7 +86,7 @@ CodeCompletionString::Chunk::Chunk(ChunkKind Kind, llvm::StringRef Text)
     break;
 
   case CK_Colon:
-    this->Text = ": ";
+    this->Text = ":";
     break;
 
   case CK_SemiColon:
@@ -425,7 +425,7 @@ PrintingCodeCompleteConsumer::ProcessCodeCompleteResults(Sema &SemaRef,
     OS << "COMPLETION: ";
     switch (Results[I].Kind) {
     case Result::RK_Declaration:
-      OS << Results[I].Declaration->getNameAsString() ;
+      OS << Results[I].Declaration;
       if (Results[I].Hidden)
         OS << " (Hidden)";
       if (CodeCompletionString *CCS 

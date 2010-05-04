@@ -52,7 +52,6 @@ namespace clang {
 
 namespace CodeGen {
   class CGRecordLayout;
-  class CodeGenTypes;
 
 /// CodeGenTypes - This class organizes the cross-module state that is used
 /// while lowering AST types to LLVM types.
@@ -124,10 +123,10 @@ public:
   const llvm::FunctionType *GetFunctionType(GlobalDecl GD);
 
 
-  /// GetFunctionTypeForVtable - Get the LLVM function type for use in a vtable,
+  /// GetFunctionTypeForVTable - Get the LLVM function type for use in a vtable,
   /// given a CXXMethodDecl. If the method to has an incomplete return type, 
   /// and/or incomplete argument types, this will return the opaque type.
-  const llvm::Type *GetFunctionTypeForVtable(const CXXMethodDecl *MD);
+  const llvm::Type *GetFunctionTypeForVTable(const CXXMethodDecl *MD);
                                                      
   const CGRecordLayout &getCGRecordLayout(const RecordDecl*) const;
 

@@ -20,6 +20,7 @@
 #include "clang/AST/ExprObjC.h"
 #include "clang/AST/StmtObjC.h"
 #include "clang/AST/StmtCXX.h"
+#include "clang/AST/TypeLoc.h"
 #include "clang/Lex/Preprocessor.h"
 #include "clang/Basic/TargetInfo.h"
 #include "llvm/ADT/STLExtras.h"
@@ -125,7 +126,27 @@ void Sema::DiagnoseUnusedExprResult(const Stmt *S) {
       Diag(Loc, diag::warn_unused_call) << R1 << R2 << "warn_unused_result";
       return;
     }
+  } else if (const CXXFunctionalCastExpr *FC
+                                       = dyn_cast<CXXFunctionalCastExpr>(E)) {
+    if (isa<CXXConstructExpr>(FC->getSubExpr()) ||
+        isa<CXXTemporaryObjectExpr>(FC->getSubExpr()))
+      return;
   }
+  // Diagnose "(void*) blah" as a typo for "(void) blah".
+  else if (const CStyleCastExpr *CE = dyn_cast<CStyleCastExpr>(E)) {
+    TypeSourceInfo *TI = CE->getTypeInfoAsWritten();
+    QualType T = TI->getType();
+
+    // We really do want to use the non-canonical type here.
+    if (T == Context.VoidPtrTy) {
+      PointerTypeLoc TL = cast<PointerTypeLoc>(TI->getTypeLoc());
+
+      Diag(Loc, diag::warn_unused_voidptr)
+        << FixItHint::CreateRemoval(TL.getStarLoc());
+      return;
+    }
+  }
+
   Diag(Loc, DiagID) << R1 << R2;
 }
 
@@ -572,7 +593,7 @@ Sema::ActOnFinishSwitchStmt(SourceLocation SwitchLoc, StmtArg Switch,
       return StmtError();
     }
 
-    if (CondTypeBeforePromotion->isBooleanType()) {
+    if (CondExpr->isKnownToHaveBooleanValue()) {
       // switch(bool_expr) {...} is often a programmer error, e.g.
       //   switch(n && mask) { ... }  // Doh - should be "n & mask".
       // One can always use an if statement instead of switch(bool_expr).
@@ -967,19 +988,22 @@ Sema::ActOnObjCForCollectionStmt(SourceLocation ForLoc,
         return StmtError(Diag(VD->getLocation(),
                               diag::err_non_variable_decl_in_for));
     } else {
-      if (cast<Expr>(First)->isLvalue(Context) != Expr::LV_Valid)
+      Expr *FirstE = cast<Expr>(First);
+      if (!FirstE->isTypeDependent() &&
+          FirstE->isLvalue(Context) != Expr::LV_Valid)
         return StmtError(Diag(First->getLocStart(),
                    diag::err_selector_element_not_lvalue)
           << First->getSourceRange());
 
       FirstType = static_cast<Expr*>(First)->getType();
     }
-    if (!FirstType->isObjCObjectPointerType() &&
+    if (!FirstType->isDependentType() &&
+        !FirstType->isObjCObjectPointerType() &&
         !FirstType->isBlockPointerType())
         Diag(ForLoc, diag::err_selector_element_type)
           << FirstType << First->getSourceRange();
   }
-  if (Second) {
+  if (Second && !Second->isTypeDependent()) {
     DefaultFunctionArrayLvalueConversion(Second);
     QualType SecondType = Second->getType();
     if (!SecondType->isObjCObjectPointerType())
@@ -1422,52 +1446,71 @@ Sema::OwningStmtResult Sema::ActOnAsmStmt(SourceLocation AsmLoc,
     if (Context.hasSameType(InTy, OutTy))
       continue;  // All types can be tied to themselves.
 
-    // Int/ptr operands have some special cases that we allow.
-    if ((OutTy->isIntegerType() || OutTy->isPointerType()) &&
-        (InTy->isIntegerType() || InTy->isPointerType())) {
+    // Decide if the input and output are in the same domain (integer/ptr or
+    // floating point.
+    enum AsmDomain {
+      AD_Int, AD_FP, AD_Other
+    } InputDomain, OutputDomain;
+    
+    if (InTy->isIntegerType() || InTy->isPointerType())
+      InputDomain = AD_Int;
+    else if (InTy->isFloatingType())
+      InputDomain = AD_FP;
+    else
+      InputDomain = AD_Other;
 
-      // They are ok if they are the same size.  Tying void* to int is ok if
-      // they are the same size, for example.  This also allows tying void* to
-      // int*.
-      uint64_t OutSize = Context.getTypeSize(OutTy);
-      uint64_t InSize = Context.getTypeSize(InTy);
-      if (OutSize == InSize)
-        continue;
+    if (OutTy->isIntegerType() || OutTy->isPointerType())
+      OutputDomain = AD_Int;
+    else if (OutTy->isFloatingType())
+      OutputDomain = AD_FP;
+    else
+      OutputDomain = AD_Other;
+    
+    // They are ok if they are the same size and in the same domain.  This
+    // allows tying things like:
+    //   void* to int*
+    //   void* to int            if they are the same size.
+    //   double to long double   if they are the same size.
+    // 
+    uint64_t OutSize = Context.getTypeSize(OutTy);
+    uint64_t InSize = Context.getTypeSize(InTy);
+    if (OutSize == InSize && InputDomain == OutputDomain &&
+        InputDomain != AD_Other)
+      continue;
+    
+    // If the smaller input/output operand is not mentioned in the asm string,
+    // then we can promote it and the asm string won't notice.  Check this
+    // case now.
+    bool SmallerValueMentioned = false;
+    for (unsigned p = 0, e = Pieces.size(); p != e; ++p) {
+      AsmStmt::AsmStringPiece &Piece = Pieces[p];
+      if (!Piece.isOperand()) continue;
 
-      // If the smaller input/output operand is not mentioned in the asm string,
-      // then we can promote it and the asm string won't notice.  Check this
-      // case now.
-      bool SmallerValueMentioned = false;
-      for (unsigned p = 0, e = Pieces.size(); p != e; ++p) {
-        AsmStmt::AsmStringPiece &Piece = Pieces[p];
-        if (!Piece.isOperand()) continue;
-
-        // If this is a reference to the input and if the input was the smaller
-        // one, then we have to reject this asm.
-        if (Piece.getOperandNo() == i+NumOutputs) {
-          if (InSize < OutSize) {
-            SmallerValueMentioned = true;
-            break;
-          }
-        }
-
-        // If this is a reference to the input and if the input was the smaller
-        // one, then we have to reject this asm.
-        if (Piece.getOperandNo() == TiedTo) {
-          if (InSize > OutSize) {
-            SmallerValueMentioned = true;
-            break;
-          }
+      // If this is a reference to the input and if the input was the smaller
+      // one, then we have to reject this asm.
+      if (Piece.getOperandNo() == i+NumOutputs) {
+        if (InSize < OutSize) {
+          SmallerValueMentioned = true;
+          break;
         }
       }
 
-      // If the smaller value wasn't mentioned in the asm string, and if the
-      // output was a register, just extend the shorter one to the size of the
-      // larger one.
-      if (!SmallerValueMentioned &&
-          OutputConstraintInfos[TiedTo].allowsRegister())
-        continue;
+      // If this is a reference to the input and if the input was the smaller
+      // one, then we have to reject this asm.
+      if (Piece.getOperandNo() == TiedTo) {
+        if (InSize > OutSize) {
+          SmallerValueMentioned = true;
+          break;
+        }
+      }
     }
+
+    // If the smaller value wasn't mentioned in the asm string, and if the
+    // output was a register, just extend the shorter one to the size of the
+    // larger one.
+    if (!SmallerValueMentioned && InputDomain != AD_Other &&
+        OutputConstraintInfos[TiedTo].allowsRegister())
+      continue;
 
     Diag(InputExpr->getLocStart(),
          diag::err_asm_tying_incompatible_types)
@@ -1483,27 +1526,13 @@ Sema::OwningStmtResult Sema::ActOnAsmStmt(SourceLocation AsmLoc,
 Action::OwningStmtResult
 Sema::ActOnObjCAtCatchStmt(SourceLocation AtLoc,
                            SourceLocation RParen, DeclPtrTy Parm,
-                           StmtArg Body, StmtArg catchList) {
-  Stmt *CatchList = catchList.takeAs<Stmt>();
-  ParmVarDecl *PVD = cast_or_null<ParmVarDecl>(Parm.getAs<Decl>());
-
-  // PVD == 0 implies @catch(...).
-  if (PVD) {
-    // If we already know the decl is invalid, reject it.
-    if (PVD->isInvalidDecl())
-      return StmtError();
-
-    if (!PVD->getType()->isObjCObjectPointerType())
-      return StmtError(Diag(PVD->getLocation(),
-                       diag::err_catch_param_not_objc_type));
-    if (PVD->getType()->isObjCQualifiedIdType())
-      return StmtError(Diag(PVD->getLocation(),
-                       diag::err_illegal_qualifiers_on_catch_parm));
-  }
-
-  ObjCAtCatchStmt *CS = new (Context) ObjCAtCatchStmt(AtLoc, RParen,
-    PVD, Body.takeAs<Stmt>(), CatchList);
-  return Owned(CatchList ? CatchList : CS);
+                           StmtArg Body) {
+  VarDecl *Var = cast_or_null<VarDecl>(Parm.getAs<Decl>());
+  if (Var && Var->isInvalidDecl())
+    return StmtError();
+  
+  return Owned(new (Context) ObjCAtCatchStmt(AtLoc, RParen, Var, 
+                                             Body.takeAs<Stmt>()));
 }
 
 Action::OwningStmtResult
@@ -1513,18 +1542,38 @@ Sema::ActOnObjCAtFinallyStmt(SourceLocation AtLoc, StmtArg Body) {
 }
 
 Action::OwningStmtResult
-Sema::ActOnObjCAtTryStmt(SourceLocation AtLoc,
-                         StmtArg Try, StmtArg Catch, StmtArg Finally) {
+Sema::ActOnObjCAtTryStmt(SourceLocation AtLoc, StmtArg Try, 
+                         MultiStmtArg CatchStmts, StmtArg Finally) {
   FunctionNeedsScopeChecking() = true;
-  return Owned(new (Context) ObjCAtTryStmt(AtLoc, Try.takeAs<Stmt>(),
-                                           Catch.takeAs<Stmt>(),
-                                           Finally.takeAs<Stmt>()));
+  unsigned NumCatchStmts = CatchStmts.size();
+  return Owned(ObjCAtTryStmt::Create(Context, AtLoc, Try.takeAs<Stmt>(),
+                                     (Stmt **)CatchStmts.release(),
+                                     NumCatchStmts,
+                                     Finally.takeAs<Stmt>()));
+}
+
+Sema::OwningStmtResult Sema::BuildObjCAtThrowStmt(SourceLocation AtLoc,
+                                                  ExprArg ThrowE) {
+  Expr *Throw = static_cast<Expr *>(ThrowE.get());
+  if (Throw) {
+    QualType ThrowType = Throw->getType();
+    // Make sure the expression type is an ObjC pointer or "void *".
+    if (!ThrowType->isDependentType() &&
+        !ThrowType->isObjCObjectPointerType()) {
+      const PointerType *PT = ThrowType->getAs<PointerType>();
+      if (!PT || !PT->getPointeeType()->isVoidType())
+        return StmtError(Diag(AtLoc, diag::error_objc_throw_expects_object)
+                         << Throw->getType() << Throw->getSourceRange());
+    }
+  }
+  
+  return Owned(new (Context) ObjCAtThrowStmt(AtLoc, ThrowE.takeAs<Expr>()));
 }
 
 Action::OwningStmtResult
-Sema::ActOnObjCAtThrowStmt(SourceLocation AtLoc, ExprArg expr,Scope *CurScope) {
-  Expr *ThrowExpr = expr.takeAs<Expr>();
-  if (!ThrowExpr) {
+Sema::ActOnObjCAtThrowStmt(SourceLocation AtLoc, ExprArg Throw, 
+                           Scope *CurScope) {
+  if (!Throw.get()) {
     // @throw without an expression designates a rethrow (which much occur
     // in the context of an @catch clause).
     Scope *AtCatchParent = CurScope;
@@ -1532,17 +1581,9 @@ Sema::ActOnObjCAtThrowStmt(SourceLocation AtLoc, ExprArg expr,Scope *CurScope) {
       AtCatchParent = AtCatchParent->getParent();
     if (!AtCatchParent)
       return StmtError(Diag(AtLoc, diag::error_rethrow_used_outside_catch));
-  } else {
-    QualType ThrowType = ThrowExpr->getType();
-    // Make sure the expression type is an ObjC pointer or "void *".
-    if (!ThrowType->isObjCObjectPointerType()) {
-      const PointerType *PT = ThrowType->getAs<PointerType>();
-      if (!PT || !PT->getPointeeType()->isVoidType())
-        return StmtError(Diag(AtLoc, diag::error_objc_throw_expects_object)
-                        << ThrowExpr->getType() << ThrowExpr->getSourceRange());
-    }
-  }
-  return Owned(new (Context) ObjCAtThrowStmt(AtLoc, ThrowExpr));
+  } 
+  
+  return BuildObjCAtThrowStmt(AtLoc, move(Throw));
 }
 
 Action::OwningStmtResult
@@ -1552,7 +1593,8 @@ Sema::ActOnObjCAtSynchronizedStmt(SourceLocation AtLoc, ExprArg SynchExpr,
 
   // Make sure the expression type is an ObjC pointer or "void *".
   Expr *SyncExpr = static_cast<Expr*>(SynchExpr.get());
-  if (!SyncExpr->getType()->isObjCObjectPointerType()) {
+  if (!SyncExpr->getType()->isDependentType() &&
+      !SyncExpr->getType()->isObjCObjectPointerType()) {
     const PointerType *PT = SyncExpr->getType()->getAs<PointerType>();
     if (!PT || !PT->getPointeeType()->isVoidType())
       return StmtError(Diag(AtLoc, diag::error_objc_synchronized_expects_object)

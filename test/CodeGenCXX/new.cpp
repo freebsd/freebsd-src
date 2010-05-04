@@ -90,9 +90,19 @@ A* t10() {
   return new(1, 2, 3.45, 100) A;
 }
 
-struct B { };
+struct B { int a; };
 void t11() {
   // CHECK: call noalias i8* @_Znwm
   // CHECK: call void @llvm.memset.p0i8.i64(
   B* b = new B();
+}
+
+struct Empty { };
+
+// We don't need to initialize an empty class.
+void t12() {
+  // CHECK: define void @_Z3t12v
+  // CHECK-NOT: br label
+  // CHECK: ret void
+  (void)new Empty[10];
 }

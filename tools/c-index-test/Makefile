@@ -10,7 +10,6 @@ LEVEL = ../../../..
 
 TOOLNAME = c-index-test
 CPPFLAGS += -I$(PROJ_SRC_DIR)/../../include -I$(PROJ_OBJ_DIR)/../../include
-NO_INSTALL = 1
 
 # No plugins, optimize startup time.
 TOOL_NO_EXPORTS = 1
@@ -18,7 +17,7 @@ TOOL_NO_EXPORTS = 1
 include $(LEVEL)/Makefile.config
 
 LINK_COMPONENTS := bitreader mc core
-USEDLIBS = CIndex.a clangIndex.a clangFrontend.a clangDriver.a clangSema.a \
+USEDLIBS = clang.a clangIndex.a clangFrontend.a clangDriver.a clangSema.a \
 	   clangAnalysis.a clangAST.a clangParse.a clangLex.a clangBasic.a
 
 include $(LLVM_SRC_ROOT)/Makefile.rules

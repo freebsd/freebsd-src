@@ -13,9 +13,9 @@ namespace A {
 }
 
 A:: ; // expected-error {{expected unqualified-id}}
-// FIXME: redundant errors
-::A::ax::undef ex3; // expected-error {{no member named}} expected-error {{unknown type name}}
-A::undef1::undef2 ex4; // expected-error {{no member named 'undef1'}} expected-error {{unknown type name}}
+// FIXME: there is a member 'ax'; it's just not a class.
+::A::ax::undef ex3; // expected-error {{no member named 'ax'}}
+A::undef1::undef2 ex4; // expected-error {{no member named 'undef1'}}
 
 int A::C::Ag1() { return 0; }
 
@@ -165,8 +165,7 @@ void ::global_func2(int) { } // expected-error{{definition or redeclaration of '
 void N::f() { } // okay
 
 struct Y;  // expected-note{{forward declaration of 'Y'}}
-Y::foo y; // expected-error{{incomplete type 'Y' named in nested name specifier}} \
-         // expected-error{{no type named 'foo' in}}
+Y::foo y; // expected-error{{incomplete type 'Y' named in nested name specifier}}
 
 X::X() : a(5) { } // expected-error{{use of undeclared identifier 'X'}} \
       // expected-error{{C++ requires a type specifier for all declarations}} \
@@ -195,7 +194,7 @@ somens::a a3 = a2; // expected-error {{no viable conversion}}
 // typedefs and using declarations.
 namespace test1 {
   namespace ns {
-    class Counter { static int count; };
+    class Counter { public: static int count; };
     typedef Counter counter;
   }
   using ns::counter;
@@ -224,9 +223,8 @@ namespace test2 {
 
 // PR6259, invalid case
 namespace test3 {
-  // FIXME: this should really only trigger once
-  class A; // expected-note 2 {{forward declaration}}
+  class A; // expected-note {{forward declaration}}
   void foo(const char *path) {
-    A::execute(path); // expected-error 2 {{incomplete type 'test3::A' named in nested name specifier}}
+    A::execute(path); // expected-error {{incomplete type 'test3::A' named in nested name specifier}}
   }
 }

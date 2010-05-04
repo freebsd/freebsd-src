@@ -28,6 +28,7 @@ public:
   unsigned DollarIdents      : 1;  // '$' allowed in identifiers.
   unsigned AsmPreprocessor   : 1;  // Preprocessor in asm mode.
   unsigned GNUMode           : 1;  // True in gnu99 mode false in c99 mode (etc)
+  unsigned GNUKeywords       : 1;  // True if GNU-only keywords are allowed
   unsigned ImplicitInt       : 1;  // C89 implicit 'int'.
   unsigned Digraphs          : 1;  // C94, C99 and C++
   unsigned HexFloats         : 1;  // C99 Hexadecimal float constants.
@@ -98,8 +99,13 @@ public:
   unsigned ElideConstructors : 1; // Whether C++ copy constructors should be
                                   // elided if possible.
   unsigned CatchUndefined    : 1; // Generate code to check for undefined ops.
-  unsigned DumpVtableLayouts : 1; // Dump the layouts of all the emitted 
-                                  // vtables.
+  unsigned DumpRecordLayouts : 1; /// Dump the layout of IRgen'd records.
+  unsigned DumpVTableLayouts : 1; /// Dump the layouts of emitted vtables.
+  unsigned NoConstantCFStrings : 1;  // Do not do CF strings
+
+  // FIXME: This is just a temporary option, for testing purposes.
+  unsigned NoBitFieldTypeAlign : 1;
+
 private:
   unsigned GC : 2;                // Objective-C Garbage Collection modes.  We
                                   // declare this enum as unsigned because MSVC
@@ -126,9 +132,10 @@ public:
 
   LangOptions() {
     Trigraphs = BCPLComment = Bool = DollarIdents = AsmPreprocessor = 0;
-    GNUMode = ImplicitInt = Digraphs = 0;
+    GNUMode = GNUKeywords = ImplicitInt = Digraphs = 0;
     HexFloats = 0;
     GC = ObjC1 = ObjC2 = ObjCNonFragileABI = ObjCNonFragileABI2 = 0;
+    NoConstantCFStrings = 0;
     C99 = Microsoft = CPlusPlus = CPlusPlus0x = 0;
     CXXOperatorNames = PascalStrings = WritableStrings = ConstStrings = 0;
     Exceptions = SjLjExceptions = Freestanding = NoBuiltin = 0;
@@ -155,7 +162,7 @@ public:
     OverflowChecking = 0;
     ObjCGCBitmapPrint = 0;
 
-    InstantiationDepth = 500;
+    InstantiationDepth = 1024;
 
     Optimize = 0;
     OptimizeSize = 0;
@@ -169,7 +176,9 @@ public:
     CharIsSigned = 1;
     ShortWChar = 0;
     CatchUndefined = 0;
-    DumpVtableLayouts = 0;
+    DumpRecordLayouts = 0;
+    DumpVTableLayouts = 0;
+    NoBitFieldTypeAlign = 0;
   }
 
   GCMode getGCMode() const { return (GCMode) GC; }

@@ -1,4 +1,4 @@
-// RUN: %clang_cc1 -faccess-control -verify -emit-llvm-only %s
+// RUN: %clang_cc1 -verify -emit-llvm-only %s
 
 namespace test0 {
 template <typename T> struct Num {
@@ -155,7 +155,7 @@ namespace Dependent {
 }
 
 namespace test7 {
-  template <class T> class A { // expected-note {{previous definition is here}}
+  template <class T> class A { // expected-note {{declared here}}
     friend class B;
     int x; // expected-note {{declared private here}}
   };
@@ -174,7 +174,7 @@ namespace test7 {
 
   // This shouldn't crash.
   template <class T> class D {
-    friend class A; // expected-error {{redefinition of 'A' as different kind of symbol}}
+    friend class A; // expected-error {{elaborated type refers to a template}}
   };
   template class D<int>;
 }
@@ -215,4 +215,81 @@ namespace test9 {
   };
 
   template class A<int>; // expected-note {{in instantiation}}
+}
+
+namespace test10 {
+  template <class T> class A;
+  template <class T> A<T> bar(const T*, const A<T>&);
+  template <class T> class A {
+  private:
+    void foo(); // expected-note {{declared private here}}
+    friend A bar<>(const T*, const A<T>&);
+  };
+
+  template <class T> A<T> bar(const T *l, const A<T> &r) {
+    A<T> l1;
+    l1.foo();
+
+    A<char> l2;
+    l2.foo(); // expected-error {{'foo' is a private member of 'test10::A<char>'}}
+
+    return l1;
+  }
+
+  template A<int> bar<int>(const int *, const A<int> &); // expected-note {{in instantiation}}
+}
+
+// PR6752: this shouldn't crash.
+namespace test11 {
+  struct Foo {
+    template<class A>
+    struct IteratorImpl {
+      template<class T> friend class IteratorImpl;
+    };
+  };
+
+  template struct Foo::IteratorImpl<int>;
+  template struct Foo::IteratorImpl<long>;  
+}
+
+// PR6827
+namespace test12 {
+  template <typename T> class Foo;
+  template <typename T> Foo<T> foo(T* t){ return Foo<T>(t, true); }
+
+  template <typename T> class Foo {
+  public:
+    Foo(T*);
+    friend Foo<T> foo<T>(T*);
+  private:
+    Foo(T*, bool); // expected-note {{declared private here}}
+  };
+
+  // Should work.
+  int globalInt;
+  Foo<int> f = foo(&globalInt);
+
+  // Shouldn't work.
+  long globalLong;
+  template <> Foo<long> foo(long *t) {
+    Foo<int> s(&globalInt, false); // expected-error {{calling a private constructor}}
+    return Foo<long>(t, true);
+  }
+}
+
+// PR6514
+namespace test13 {
+  template <int N, template <int> class Temp>
+  class Role : public Temp<N> {
+    friend class Temp<N>;
+    int x;
+  };
+
+  template <int N> class Foo {
+    void foo(Role<N, test13::Foo> &role) {
+      (void) role.x;
+    }
+  };
+
+  template class Foo<0>;
 }

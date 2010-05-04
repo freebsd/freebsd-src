@@ -247,14 +247,14 @@ struct Z : X, Y { };
 int& cvqual_subsume(X&); // expected-note{{candidate function}}
 float& cvqual_subsume(const Y&); // expected-note{{candidate function}}
 
-int& cvqual_subsume2(const X&);
-float& cvqual_subsume2(const volatile Y&);
+int& cvqual_subsume2(const X&); // expected-note{{candidate function}}
+float& cvqual_subsume2(const volatile Y&); // expected-note{{candidate function}}
 
 Z get_Z();
 
 void cvqual_subsume_test(Z z) {
   cvqual_subsume(z); // expected-error{{call to 'cvqual_subsume' is ambiguous; candidates are:}}
-  int& x = cvqual_subsume2(get_Z()); // okay: only binds to the first one
+  int& x = cvqual_subsume2(get_Z()); // expected-error{{call to 'cvqual_subsume2' is ambiguous; candidates are:}}
 }
 
 // Test overloading with cv-qualification differences in reference
@@ -405,4 +405,28 @@ namespace PR6483 {
     f0(x1);
     f1(x1); // expected-error{{no matching function for call}}
   }  
+}
+
+namespace PR6078 {
+  struct A {
+    A(short); // expected-note{{candidate constructor}}
+    A(long); // expected-note{{candidate constructor}}
+  };
+  struct S {
+    typedef void ft(A);
+    operator ft*();
+  };
+
+  void f() {
+    S()(0); // expected-error{{conversion from 'int' to 'PR6078::A' is ambiguous}}
+  }
+}
+
+namespace PR6177 {
+  struct String { String(char const*); };
+
+  void f(bool const volatile&); // expected-note{{passing argument to parameter here}}
+  void f(String);
+
+  void g() { f(""); } // expected-error{{volatile lvalue reference to type 'bool const volatile' cannot bind to a value of unrelated type 'char const [1]'}}
 }

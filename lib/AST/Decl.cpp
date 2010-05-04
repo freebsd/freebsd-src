@@ -25,7 +25,6 @@
 #include "clang/Basic/IdentifierTable.h"
 #include "clang/Parse/DeclSpec.h"
 #include "llvm/Support/ErrorHandling.h"
-#include <vector>
 
 using namespace clang;
 
@@ -286,6 +285,28 @@ static Linkage getLinkageForNamespaceScopeDecl(const NamedDecl *D) {
 }
 
 Linkage NamedDecl::getLinkage() const {
+
+  // Objective-C: treat all Objective-C declarations as having external
+  // linkage.
+  switch (getKind()) {
+    default:
+      break;
+    case Decl::ObjCAtDefsField:
+    case Decl::ObjCCategory:
+    case Decl::ObjCCategoryImpl:
+    case Decl::ObjCClass:
+    case Decl::ObjCCompatibleAlias:
+    case Decl::ObjCForwardProtocol:
+    case Decl::ObjCImplementation:
+    case Decl::ObjCInterface:
+    case Decl::ObjCIvar:
+    case Decl::ObjCMethod:
+    case Decl::ObjCProperty:
+    case Decl::ObjCPropertyImpl:
+    case Decl::ObjCProtocol:
+      return ExternalLinkage;
+  }
+
   // Handle linkage for namespace-scope names.
   if (getDeclContext()->getLookupContext()->isFileContext())
     if (Linkage L = getLinkageForNamespaceScopeDecl(this))
@@ -354,88 +375,79 @@ std::string NamedDecl::getQualifiedNameAsString() const {
 }
 
 std::string NamedDecl::getQualifiedNameAsString(const PrintingPolicy &P) const {
-  // FIXME: Collect contexts, then accumulate names to avoid unnecessary
-  // std::string thrashing.
-  std::vector<std::string> Names;
-  std::string QualName;
   const DeclContext *Ctx = getDeclContext();
 
   if (Ctx->isFunctionOrMethod())
     return getNameAsString();
 
-  while (Ctx) {
+  typedef llvm::SmallVector<const DeclContext *, 8> ContextsTy;
+  ContextsTy Contexts;
+
+  // Collect contexts.
+  while (Ctx && isa<NamedDecl>(Ctx)) {
+    Contexts.push_back(Ctx);
+    Ctx = Ctx->getParent();
+  };
+
+  std::string QualName;
+  llvm::raw_string_ostream OS(QualName);
+
+  for (ContextsTy::reverse_iterator I = Contexts.rbegin(), E = Contexts.rend();
+       I != E; ++I) {
     if (const ClassTemplateSpecializationDecl *Spec
-          = dyn_cast<ClassTemplateSpecializationDecl>(Ctx)) {
+          = dyn_cast<ClassTemplateSpecializationDecl>(*I)) {
       const TemplateArgumentList &TemplateArgs = Spec->getTemplateArgs();
       std::string TemplateArgsStr
         = TemplateSpecializationType::PrintTemplateArgumentList(
                                            TemplateArgs.getFlatArgumentList(),
                                            TemplateArgs.flat_size(),
                                            P);
-      Names.push_back(Spec->getIdentifier()->getNameStart() + TemplateArgsStr);
-    } else if (const NamespaceDecl *ND = dyn_cast<NamespaceDecl>(Ctx)) {
+      OS << Spec->getName() << TemplateArgsStr;
+    } else if (const NamespaceDecl *ND = dyn_cast<NamespaceDecl>(*I)) {
       if (ND->isAnonymousNamespace())
-        Names.push_back("<anonymous namespace>");
+        OS << "<anonymous namespace>";
       else
-        Names.push_back(ND->getNameAsString());
-    } else if (const RecordDecl *RD = dyn_cast<RecordDecl>(Ctx)) {
-      if (!RD->getIdentifier()) {
-        std::string RecordString = "<anonymous ";
-        RecordString += RD->getKindName();
-        RecordString += ">";
-        Names.push_back(RecordString);
-      } else {
-        Names.push_back(RD->getNameAsString());
-      }
-    } else if (const FunctionDecl *FD = dyn_cast<FunctionDecl>(Ctx)) {
-      std::string Proto = FD->getNameAsString();
-
+        OS << ND;
+    } else if (const RecordDecl *RD = dyn_cast<RecordDecl>(*I)) {
+      if (!RD->getIdentifier())
+        OS << "<anonymous " << RD->getKindName() << '>';
+      else
+        OS << RD;
+    } else if (const FunctionDecl *FD = dyn_cast<FunctionDecl>(*I)) {
       const FunctionProtoType *FT = 0;
       if (FD->hasWrittenPrototype())
         FT = dyn_cast<FunctionProtoType>(FD->getType()->getAs<FunctionType>());
 
-      Proto += "(";
+      OS << FD << '(';
       if (FT) {
-        llvm::raw_string_ostream POut(Proto);
         unsigned NumParams = FD->getNumParams();
         for (unsigned i = 0; i < NumParams; ++i) {
           if (i)
-            POut << ", ";
+            OS << ", ";
           std::string Param;
           FD->getParamDecl(i)->getType().getAsStringInternal(Param, P);
-          POut << Param;
+          OS << Param;
         }
 
         if (FT->isVariadic()) {
           if (NumParams > 0)
-            POut << ", ";
-          POut << "...";
+            OS << ", ";
+          OS << "...";
         }
       }
-      Proto += ")";
-
-      Names.push_back(Proto);
-    } else if (const NamedDecl *ND = dyn_cast<NamedDecl>(Ctx))
-      Names.push_back(ND->getNameAsString());
-    else
-      break;
-
-    Ctx = Ctx->getParent();
+      OS << ')';
+    } else {
+      OS << cast<NamedDecl>(*I);
+    }
+    OS << "::";
   }
 
-  std::vector<std::string>::reverse_iterator
-    I = Names.rbegin(),
-    End = Names.rend();
-
-  for (; I!=End; ++I)
-    QualName += *I + "::";
-
   if (getDeclName())
-    QualName += getNameAsString();
+    OS << this;
   else
-    QualName += "<anonymous>";
+    OS << "<anonymous>";
 
-  return QualName;
+  return OS.str();
 }
 
 bool NamedDecl::declarationReplaces(NamedDecl *OldD) const {
@@ -492,6 +504,24 @@ NamedDecl *NamedDecl::getUnderlyingDecl() {
     else
       return ND;
   }
+}
+
+bool NamedDecl::isCXXInstanceMember() const {
+  assert(isCXXClassMember() &&
+         "checking whether non-member is instance member");
+
+  const NamedDecl *D = this;
+  if (isa<UsingShadowDecl>(D))
+    D = cast<UsingShadowDecl>(D)->getTargetDecl();
+
+  if (isa<FieldDecl>(D))
+    return true;
+  if (isa<CXXMethodDecl>(D))
+    return cast<CXXMethodDecl>(D)->isInstance();
+  if (isa<FunctionTemplateDecl>(D))
+    return cast<CXXMethodDecl>(cast<FunctionTemplateDecl>(D)
+                                 ->getTemplatedDecl())->isInstance();
+  return false;
 }
 
 //===----------------------------------------------------------------------===//
@@ -568,8 +598,8 @@ const char *VarDecl::getStorageClassSpecifierString(StorageClass SC) {
 
 VarDecl *VarDecl::Create(ASTContext &C, DeclContext *DC, SourceLocation L,
                          IdentifierInfo *Id, QualType T, TypeSourceInfo *TInfo,
-                         StorageClass S) {
-  return new (C) VarDecl(Var, DC, L, Id, T, TInfo, S);
+                         StorageClass S, StorageClass SCAsWritten) {
+  return new (C) VarDecl(Var, DC, L, Id, T, TInfo, S, SCAsWritten);
 }
 
 void VarDecl::Destroy(ASTContext& C) {
@@ -793,8 +823,10 @@ void VarDecl::setTemplateSpecializationKind(TemplateSpecializationKind TSK,
 ParmVarDecl *ParmVarDecl::Create(ASTContext &C, DeclContext *DC,
                                  SourceLocation L, IdentifierInfo *Id,
                                  QualType T, TypeSourceInfo *TInfo,
-                                 StorageClass S, Expr *DefArg) {
-  return new (C) ParmVarDecl(ParmVar, DC, L, Id, T, TInfo, S, DefArg);
+                                 StorageClass S, StorageClass SCAsWritten,
+                                 Expr *DefArg) {
+  return new (C) ParmVarDecl(ParmVar, DC, L, Id, T, TInfo,
+                             S, SCAsWritten, DefArg);
 }
 
 Expr *ParmVarDecl::getDefaultArg() {
@@ -872,6 +904,12 @@ void FunctionDecl::getNameForDiagnostic(std::string &S,
                                          TemplateArgs->flat_size(),
                                                                Policy);
     
+}
+
+bool FunctionDecl::isVariadic() const {
+  if (const FunctionProtoType *FT = getType()->getAs<FunctionProtoType>())
+    return FT->isVariadic();
+  return false;
 }
 
 Stmt *FunctionDecl::getBody(const FunctionDecl *&Definition) const {
@@ -1291,6 +1329,40 @@ FunctionDecl::setFunctionTemplateSpecialization(FunctionTemplateDecl *Template,
   }
 }
 
+void
+FunctionDecl::setDependentTemplateSpecialization(ASTContext &Context,
+                                    const UnresolvedSetImpl &Templates,
+                             const TemplateArgumentListInfo &TemplateArgs) {
+  assert(TemplateOrSpecialization.isNull());
+  size_t Size = sizeof(DependentFunctionTemplateSpecializationInfo);
+  Size += Templates.size() * sizeof(FunctionTemplateDecl*);
+  Size += TemplateArgs.size() * sizeof(TemplateArgumentLoc);
+  void *Buffer = Context.Allocate(Size);
+  DependentFunctionTemplateSpecializationInfo *Info =
+    new (Buffer) DependentFunctionTemplateSpecializationInfo(Templates,
+                                                             TemplateArgs);
+  TemplateOrSpecialization = Info;
+}
+
+DependentFunctionTemplateSpecializationInfo::
+DependentFunctionTemplateSpecializationInfo(const UnresolvedSetImpl &Ts,
+                                      const TemplateArgumentListInfo &TArgs)
+  : AngleLocs(TArgs.getLAngleLoc(), TArgs.getRAngleLoc()) {
+
+  d.NumTemplates = Ts.size();
+  d.NumArgs = TArgs.size();
+
+  FunctionTemplateDecl **TsArray =
+    const_cast<FunctionTemplateDecl**>(getTemplates());
+  for (unsigned I = 0, E = Ts.size(); I != E; ++I)
+    TsArray[I] = cast<FunctionTemplateDecl>(Ts[I]->getUnderlyingDecl());
+
+  TemplateArgumentLoc *ArgsArray =
+    const_cast<TemplateArgumentLoc*>(getTemplateArgs());
+  for (unsigned I = 0, E = TArgs.size(); I != E; ++I)
+    new (&ArgsArray[I]) TemplateArgumentLoc(TArgs[I]);
+}
+
 TemplateSpecializationKind FunctionDecl::getTemplateSpecializationKind() const {
   // For a function template specialization, query the specialization
   // information object.
@@ -1407,6 +1479,10 @@ void TagDecl::startDefinition() {
   if (TagType *TagT = const_cast<TagType *>(TypeForDecl->getAs<TagType>())) {
     TagT->decl.setPointer(this);
     TagT->decl.setInt(1);
+  } else if (InjectedClassNameType *Injected
+               = const_cast<InjectedClassNameType *>(
+                                 TypeForDecl->getAs<InjectedClassNameType>())) {
+    Injected->Decl = cast<CXXRecordDecl>(this);
   }
 
   if (isa<CXXRecordDecl>(this)) {
@@ -1428,6 +1504,11 @@ void TagDecl::completeDefinition() {
     assert(TagT->decl.getPointer() == this &&
            "Attempt to redefine a tag definition?");
     TagT->decl.setInt(0);
+  } else if (InjectedClassNameType *Injected
+               = const_cast<InjectedClassNameType *>(
+                                TypeForDecl->getAs<InjectedClassNameType>())) {
+    assert(Injected->Decl == this &&
+           "Attempt to redefine a class template definition?");
   }
 }
 
@@ -1606,10 +1687,10 @@ FunctionDecl *FunctionDecl::Create(ASTContext &C, DeclContext *DC,
                                    SourceLocation L,
                                    DeclarationName N, QualType T,
                                    TypeSourceInfo *TInfo,
-                                   StorageClass S, bool isInline,
-                                   bool hasWrittenPrototype) {
-  FunctionDecl *New
-    = new (C) FunctionDecl(Function, DC, L, N, T, TInfo, S, isInline);
+                                   StorageClass S, StorageClass SCAsWritten,
+                                   bool isInline, bool hasWrittenPrototype) {
+  FunctionDecl *New = new (C) FunctionDecl(Function, DC, L, N, T, TInfo,
+                                           S, SCAsWritten, isInline);
   New->HasWrittenPrototype = hasWrittenPrototype;
   return New;
 }

@@ -27,9 +27,18 @@ namespace clang {
   class Preprocessor;
   class Declarator;
   struct TemplateIdAnnotation;
-  
+
 /// CXXScopeSpec - Represents a C++ nested-name-specifier or a global scope
-/// specifier.
+/// specifier.  These can be in 3 states:
+///   1) Not present, identified by isEmpty()
+///   2) Present, identified by isNotEmpty()
+///      2.a) Valid, idenified by isValid()
+///      2.b) Invalid, identified by isInvalid().
+///
+/// isSet() is deprecated because it mostly corresponded to "valid" but was
+/// often used as if it meant "present".
+///
+/// The actual scope is described by getScopeRep().
 class CXXScopeSpec {
   SourceRange Range;
   void *ScopeRep;
@@ -47,13 +56,18 @@ public:
   ActionBase::CXXScopeTy *getScopeRep() const { return ScopeRep; }
   void setScopeRep(ActionBase::CXXScopeTy *S) { ScopeRep = S; }
 
+  /// No scope specifier.
   bool isEmpty() const { return !Range.isValid(); }
+  /// A scope specifier is present, but may be valid or invalid.
   bool isNotEmpty() const { return !isEmpty(); }
 
-  /// isInvalid - An error occured during parsing of the scope specifier.
+  /// An error occured during parsing of the scope specifier.
   bool isInvalid() const { return isNotEmpty() && ScopeRep == 0; }
+  /// A scope specifier is present, and it refers to a real scope.
+  bool isValid() const { return isNotEmpty() && ScopeRep != 0; }
 
-  /// isSet - A scope specifier was resolved to a valid C++ scope.
+  /// Deprecated.  Some call sites intend isNotEmpty() while others intend
+  /// isValid().
   bool isSet() const { return ScopeRep != 0; }
 
   void clear() {
@@ -68,8 +82,9 @@ public:
 class DeclSpec {
 public:
   // storage-class-specifier
+  // Note: The order of these enumerators is important for diagnostics.
   enum SCS {
-    SCS_unspecified,
+    SCS_unspecified = 0,
     SCS_typedef,
     SCS_extern,
     SCS_static,
@@ -171,6 +186,8 @@ private:
   // constexpr-specifier
   bool Constexpr_specified : 1;
 
+  /*SCS*/unsigned StorageClassSpecAsWritten : 3;
+
   /// TypeRep - This contains action-specific information about a specific TST.
   /// For example, for a typedef or struct, it might contain the declaration for
   /// these.
@@ -203,6 +220,9 @@ private:
 
   WrittenBuiltinSpecs writtenBS;
   void SaveWrittenBuiltinSpecs();
+  void SaveStorageSpecifierAsWritten() {
+    StorageClassSpecAsWritten = StorageClassSpec;
+  }
 
   DeclSpec(const DeclSpec&);       // DO NOT IMPLEMENT
   void operator=(const DeclSpec&); // DO NOT IMPLEMENT
@@ -224,6 +244,7 @@ public:
       FS_explicit_specified(false),
       Friend_specified(false),
       Constexpr_specified(false),
+      StorageClassSpecAsWritten(SCS_unspecified),
       TypeRep(0),
       AttrList(0),
       ProtocolQualifiers(0),
@@ -320,6 +341,10 @@ public:
   /// DeclSpec includes.
   ///
   unsigned getParsedSpecifiers() const;
+
+  SCS getStorageClassSpecAsWritten() const {
+    return (SCS)StorageClassSpecAsWritten;
+  }
 
   /// isEmpty - Return true if this declaration specifier is completely empty:
   /// no tokens were parsed in the production of it.

@@ -11,7 +11,8 @@ struct X {
        // expected-error{{data member instantiated with function type 'int (int)'}} \
        // expected-error{{data member instantiated with function type 'char (char)'}} \
        // expected-error{{data member instantiated with function type 'short (short)'}} \
-       // expected-error{{data member instantiated with function type 'float (float)'}}
+       // expected-error{{data member instantiated with function type 'float (float)'}} \
+       // expected-error{{data member instantiated with function type 'long (long)'}}
 };
 
 X<int> f() { return 0; }
@@ -43,7 +44,7 @@ void test_memptr(X<long> *p1, long X<long>::*pm1,
                  X<long(long)> *p2, 
                  long (X<long(long)>::*pm2)(long)) {
   (void)(p1->*pm1);
-  (void)((p2->*pm2)(0));
+  (void)((p2->*pm2)(0)); // expected-note{{in instantiation of template class 'X<long (long)>' requested here}}
 }
 
 // Reference binding to a base
@@ -82,4 +83,19 @@ namespace PR6376 {
   struct Y : public X<T>::template apply<U>::type { };
 
   template struct Y<int, float>;
+}
+
+namespace TemporaryObjectCopy {
+  // Make sure we instantiate classes when we create a temporary copy.
+  template<typename T>
+  struct X {
+    X(T); 
+  };
+
+  template<typename T>
+  void f(T t) {
+    const X<int> &x = X<int>(t);
+  }
+
+  template void f(int);
 }

@@ -62,6 +62,7 @@ PCHValidator::ReadLanguageOptions(const LangOptions &LangOpts) {
   PARSE_LANGOPT_BENIGN(DollarIdents);
   PARSE_LANGOPT_BENIGN(AsmPreprocessor);
   PARSE_LANGOPT_IMPORTANT(GNUMode, diag::warn_pch_gnu_extensions);
+  PARSE_LANGOPT_IMPORTANT(GNUKeywords, diag::warn_pch_gnu_keywords);
   PARSE_LANGOPT_BENIGN(ImplicitInt);
   PARSE_LANGOPT_BENIGN(Digraphs);
   PARSE_LANGOPT_BENIGN(HexFloats);
@@ -74,6 +75,8 @@ PCHValidator::ReadLanguageOptions(const LangOptions &LangOpts) {
   PARSE_LANGOPT_IMPORTANT(ObjC2, diag::warn_pch_objective_c2);
   PARSE_LANGOPT_IMPORTANT(ObjCNonFragileABI, diag::warn_pch_nonfragile_abi);
   PARSE_LANGOPT_IMPORTANT(ObjCNonFragileABI2, diag::warn_pch_nonfragile_abi2);
+  PARSE_LANGOPT_IMPORTANT(NoConstantCFStrings, 
+                          diag::warn_pch_no_constant_cfstrings);
   PARSE_LANGOPT_BENIGN(PascalStrings);
   PARSE_LANGOPT_BENIGN(WritableStrings);
   PARSE_LANGOPT_IMPORTANT(LaxVectorConversions,
@@ -910,8 +913,14 @@ PCHReader::PCHReadResult PCHReader::ReadSLocEntryRecord(unsigned ID) {
       return Failure;
     }
 
-    if ((off_t)Record[4] != File->getSize() ||
-        (time_t)Record[5] != File->getModificationTime()) {
+    if ((off_t)Record[4] != File->getSize()
+#if !defined(LLVM_ON_WIN32)
+        // In our regression testing, the Windows file system seems to
+        // have inconsistent modification times that sometimes
+        // erroneously trigger this error-handling path.
+        || (time_t)Record[5] != File->getModificationTime()
+#endif
+        ) {
       Diag(diag::err_fe_pch_file_modified)
         << Filename;
       return Failure;
@@ -1757,17 +1766,16 @@ void PCHReader::InitializeContext(ASTContext &Ctx) {
   if (unsigned ObjCClassRedef
       = SpecialTypes[pch::SPECIAL_TYPE_OBJC_CLASS_REDEFINITION])
     Context->ObjCClassRedefinitionType = GetType(ObjCClassRedef);
-#if 0
-  // FIXME. Accommodate for this in several PCH/Index tests
-  if (unsigned ObjCSelRedef
-      = SpecialTypes[pch::SPECIAL_TYPE_OBJC_SEL_REDEFINITION])
-    Context->ObjCSelRedefinitionType = GetType(ObjCSelRedef);
-#endif
   if (unsigned String = SpecialTypes[pch::SPECIAL_TYPE_BLOCK_DESCRIPTOR])
     Context->setBlockDescriptorType(GetType(String));
   if (unsigned String
       = SpecialTypes[pch::SPECIAL_TYPE_BLOCK_EXTENDED_DESCRIPTOR])
     Context->setBlockDescriptorExtendedType(GetType(String));
+  if (unsigned ObjCSelRedef
+      = SpecialTypes[pch::SPECIAL_TYPE_OBJC_SEL_REDEFINITION])
+    Context->ObjCSelRedefinitionType = GetType(ObjCSelRedef);
+  if (unsigned String = SpecialTypes[pch::SPECIAL_TYPE_NS_CONSTANT_STRING])
+    Context->setNSConstantStringType(GetType(String));
 }
 
 /// \brief Retrieve the name of the original source file name
@@ -1879,6 +1887,7 @@ bool PCHReader::ParseLanguageOptions(
     PARSE_LANGOPT(DollarIdents);
     PARSE_LANGOPT(AsmPreprocessor);
     PARSE_LANGOPT(GNUMode);
+    PARSE_LANGOPT(GNUKeywords);
     PARSE_LANGOPT(ImplicitInt);
     PARSE_LANGOPT(Digraphs);
     PARSE_LANGOPT(HexFloats);
@@ -1891,6 +1900,7 @@ bool PCHReader::ParseLanguageOptions(
     PARSE_LANGOPT(ObjC2);
     PARSE_LANGOPT(ObjCNonFragileABI);
     PARSE_LANGOPT(ObjCNonFragileABI2);
+    PARSE_LANGOPT(NoConstantCFStrings);
     PARSE_LANGOPT(PascalStrings);
     PARSE_LANGOPT(WritableStrings);
     PARSE_LANGOPT(LaxVectorConversions);
@@ -2841,6 +2851,14 @@ Selector PCHReader::DecodeSelector(unsigned ID) {
   }
 
   return SelectorsLoaded[Index];
+}
+
+Selector PCHReader::GetSelector(uint32_t ID) { 
+  return DecodeSelector(ID);
+}
+
+uint32_t PCHReader::GetNumKnownSelectors() {
+  return TotalNumSelectors + 1;
 }
 
 DeclarationName

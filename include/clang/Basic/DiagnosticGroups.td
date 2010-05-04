@@ -108,6 +108,7 @@ def : DiagGroup<"type-limits">;
 def Uninitialized  : DiagGroup<"uninitialized">;
 def UnknownPragmas : DiagGroup<"unknown-pragmas">;
 def UnusedArgument : DiagGroup<"unused-argument">;
+def UnusedExceptionParameter : DiagGroup<"unused-exception-parameter">;
 def UnusedFunction : DiagGroup<"unused-function">;
 def UnusedLabel : DiagGroup<"unused-label">;
 def UnusedParameter : DiagGroup<"unused-parameter">;
@@ -138,7 +139,8 @@ def Conversion : DiagGroup<"conversion",
 
 def Unused : DiagGroup<"unused",
                        [UnusedArgument, UnusedFunction, UnusedLabel,
-                        UnusedParameter, UnusedValue, UnusedVariable]>;
+                        // UnusedParameter, (matches GCC's behavior)
+                        UnusedValue, UnusedVariable]>;
 
 // Format settings.
 def Format : DiagGroup<"format", [FormatExtraArgs, FormatZeroLength, NonNull]>;
@@ -156,23 +158,22 @@ def Extra : DiagGroup<"extra", [
   ]>;
 
 def Most : DiagGroup<"most", [
+    CharSubscript,
     Comment,
     Format,
     Implicit,
     MismatchedTags,
     MissingBraces,
     MultiChar,
+    Reorder,
     ReturnType,
     Switch,
     Trigraphs,
     Uninitialized,
     UnknownPragmas,
-    UnusedValue,
-    UnusedVariable,
+    Unused,
     VectorConversions,
-    VolatileRegisterVar,
-    Reorder,
-    CharSubscript
+    VolatileRegisterVar
  ]>;
 
 // -Wall is -Wmost -Wparentheses
