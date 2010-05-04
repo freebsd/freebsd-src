@@ -3594,6 +3594,7 @@ msk_intr(void *xsc)
 	    (sc->msk_pflags & MSK_FLAG_SUSPEND) != 0 ||
 	    (status & sc->msk_intrmask) == 0) {
 		CSR_WRITE_4(sc, B0_Y2_SP_ICR, 2);
+		MSK_UNLOCK(sc);
 		return;
 	}
 
