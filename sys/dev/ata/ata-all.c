@@ -449,7 +449,7 @@ ata_device_ioctl(device_t dev, u_long cmd, caddr_t data)
     switch (cmd) {
     case IOCATAREQUEST:
 	if (ioc_request->count >
-	    (ch->dma.max_iosize ? ch->dma.max_iosize : DFLTPHYS)) {
+	    (ch->dma->max_iosize ? ch->dma->max_iosize : DFLTPHYS)) {
 		return (EFBIG);
 	}
 	if (!(buf = malloc(ioc_request->count, M_ATA, M_NOWAIT))) {
