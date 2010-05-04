@@ -60,7 +60,7 @@ namespace clang {
 
     // Get typedefs for common diagnostics.
     enum {
-#define DIAG(ENUM,FLAGS,DEFAULT_MAPPING,DESC,GROUP,SFINAE) ENUM,
+#define DIAG(ENUM,FLAGS,DEFAULT_MAPPING,DESC,GROUP,SFINAE,CATEGORY) ENUM,
 #include "clang/Basic/DiagnosticCommonKinds.inc"
       NUM_BUILTIN_COMMON_DIAGNOSTICS
 #undef DIAG
@@ -283,13 +283,13 @@ public:
   void setTemplateBacktraceLimit(unsigned Limit) {
     TemplateBacktraceLimit = Limit;
   }
-
+  
   /// \brief Retrieve the maximum number of template instantiation
   /// nodes to emit along with a given diagnostic.
   unsigned getTemplateBacktraceLimit() const {
     return TemplateBacktraceLimit;
   }
-
+  
   /// setIgnoreAllWarnings - When set to true, any unmapped warnings are
   /// ignored.  If this and WarningsAsErrors are both set, then this one wins.
   void setIgnoreAllWarnings(bool Val) { IgnoreAllWarnings = Val; }
