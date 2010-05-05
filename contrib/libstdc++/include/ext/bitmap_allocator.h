@@ -682,6 +682,8 @@ _GLIBCXX_BEGIN_NAMESPACE(__gnu_cxx)
      */
     void 
     _M_clear();
+  public:
+    template < typename _Tp > friend class bitmap_allocator;
   };
 
 
@@ -736,6 +738,7 @@ _GLIBCXX_BEGIN_NAMESPACE(__gnu_cxx)
 	    };
 	};
 
+    public:
       struct _Alloc_block
       {
 	char __M_unused[aligned_size<sizeof(value_type),
@@ -743,6 +746,7 @@ _GLIBCXX_BEGIN_NAMESPACE(__gnu_cxx)
       };
 
 
+    private:
       typedef typename std::pair<_Alloc_block*, _Alloc_block*> _Block_pair;
 
       typedef typename 
