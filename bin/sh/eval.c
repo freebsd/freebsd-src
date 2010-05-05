@@ -937,6 +937,8 @@ evalcommand(union node *cmd, int flags, struct backcmd *backcmd)
 			cmdentry.special = 1;
 		if (cmdentry.special)
 			listsetvar(cmdenviron);
+		if (argc > 0)
+			bltinsetlocale();
 		commandname = argv[0];
 		argptr = argv + 1;
 		nextopt_optptr = NULL;		/* initialize nextopt */
@@ -944,6 +946,8 @@ evalcommand(union node *cmd, int flags, struct backcmd *backcmd)
 		exitstatus = (*builtinfunc[cmdentry.u.index])(argc, argv);
 		flushall();
 cmddone:
+		if (argc > 0)
+			bltinunsetlocale();
 		cmdenviron = NULL;
 		out1 = &output;
 		out2 = &errout;
