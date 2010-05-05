@@ -387,7 +387,7 @@ bool Driver::HandleImmediateArgs(const Compilation &C) {
       break;
 
     case llvm::Triple::x86_64:
-      llvm::outs() << "x86_64" << "\n";
+      llvm::outs() << "." << "\n";
       break;
 
     case llvm::Triple::ppc64:
