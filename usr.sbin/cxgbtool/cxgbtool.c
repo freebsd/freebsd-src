@@ -1,6 +1,6 @@
 /**************************************************************************
 
-Copyright (c) 2007-2009, Chelsio Inc.
+Copyright (c) 2007-2010, Chelsio Inc.
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -93,6 +93,9 @@ usage(FILE *fp)
 	    	"\tclearstats                          clear MAC statistics\n"
 		"\tcontext <type> <id>                 show an SGE context\n"
 		"\tdesc <qset> <queue> <idx> [<cnt>]   dump SGE descriptors\n"
+		"\tfilter <idx> [<param> <val>] ...    set a filter\n"
+		"\tfilter <idx> delete|clear           delete a filter\n"
+		"\tfilter list                         list all filters\n"
 		"\tioqs                                dump uP IOQs\n"
 		"\tla                                  dump uP logic analyzer info\n"
 		"\tloadboot <boot image>               download boot image\n"
@@ -1177,24 +1180,25 @@ parse_ipaddr(const char *s, uint32_t *addr, uint32_t *mask)
  * Parse a string containing a value and an optional colon separated mask.
  */
 static int
-parse_val_mask_param(const char *s, uint32_t *val, uint32_t *mask)
+parse_val_mask_param(const char *s, uint32_t *val, uint32_t *mask,
+    uint32_t default_mask)
 {
 	char *p;
 
-	*mask = 0xffffffffU;
+	*mask = default_mask;
 	*val = strtoul(s, &p, 0);
-	if (p == s)
+	if (p == s || *val > default_mask)
 		return -1;
 	if (*p == ':' && p[1])
 		*mask = strtoul(p + 1, &p, 0);
-	return *p ? -1 : 0;
+	return *p || *mask > default_mask ? -1 : 0;
 }
 
 static int
 parse_trace_param(const char *s, uint32_t *val, uint32_t *mask)
 {
 	return strchr(s, '.') ? parse_ipaddr(s, val, mask) :
-				parse_val_mask_param(s, val, mask);
+				parse_val_mask_param(s, val, mask, 0xffffffffU);
 }
 
 static int
@@ -1273,6 +1277,174 @@ trace_config(int argc, char *argv[], int start_arg, const char *iff_name)
 	return 0;
 }
 
+static void
+show_filters(const char *iff_name)
+{
+	static const char *pkt_type[] = { "*", "tcp", "udp", "frag" };
+	struct ch_filter op;
+	union {
+		uint32_t nip;
+		uint8_t octet[4];
+	} nsip, ndip;
+	char sip[20], dip[20];
+	int header = 0;
+
+	bzero(&op, sizeof(op));
+	op.filter_id = 0xffffffff;
+
+	do {
+		if (doit(iff_name, CHELSIO_GET_FILTER, &op) < 0)
+			err(1, "list filters");
+
+		if (op.filter_id == 0xffffffff)
+			break;
+
+		if (!header) {
+			printf("index         SIP                DIP     sport "
+			    "dport VLAN PRI P/MAC type Q\n");
+			header = 1;
+		}
+
+		nsip.nip = htonl(op.val.sip);
+		ndip.nip = htonl(op.val.dip);
+
+		sprintf(sip, "%u.%u.%u.%u/%-2u", nsip.octet[0], nsip.octet[1],
+		    nsip.octet[2], nsip.octet[3],
+		    op.mask.sip ? 33 - ffs(op.mask.sip) : 0);
+		sprintf(dip, "%u.%u.%u.%u", ndip.octet[0], ndip.octet[1],
+		    ndip.octet[2], ndip.octet[3]);
+		printf("%5zu %18s %15s ", (size_t)op.filter_id, sip, dip);
+		printf(op.val.sport ? "%5u " : "    * ", op.val.sport);
+		printf(op.val.dport ? "%5u " : "    * ", op.val.dport);
+		printf(op.val.vlan != 0xfff ? "%4u " : "   * ", op.val.vlan);
+		printf(op.val.vlan_prio == 7 ?  "  * " :
+		    "%1u/%1u ", op.val.vlan_prio, op.val.vlan_prio | 1);
+		if (op.mac_addr_idx == 0xffff)
+			printf("*/*   ");
+		else if (op.mac_hit)
+			printf("%1u/%3u ", (op.mac_addr_idx >> 3) & 0x1,
+			    (op.mac_addr_idx) & 0x7);
+		else
+			printf("%1u/  * ", (op.mac_addr_idx >> 3) & 0x1);
+		printf("%4s ", pkt_type[op.proto]);
+		if (!op.pass)
+			printf("-\n");
+		else if (op.rss)
+			printf("*\n");
+		else
+			printf("%1u\n", op.qset);
+	} while (1);
+}
+
+static int
+filter_config(int argc, char *argv[], int start_arg, const char *iff_name)
+{
+	int ret = 0;
+	uint32_t val, mask;
+	struct ch_filter op;
+
+	if (argc < start_arg + 1)
+		return -1;
+
+	memset(&op, 0, sizeof(op));
+	op.mac_addr_idx = 0xffff;
+	op.rss = 1;
+
+	if (argc == start_arg + 1 && !strcmp(argv[start_arg], "list")) {
+		show_filters(iff_name);
+		return 0;
+	}
+
+	if (get_int_arg(argv[start_arg++], &op.filter_id))
+		return -1;
+	if (argc == start_arg + 1 && (!strcmp(argv[start_arg], "delete") ||
+				      !strcmp(argv[start_arg], "clear"))) {
+		if (doit(iff_name, CHELSIO_DEL_FILTER, &op) < 0) {
+			if (errno == EBUSY)
+				err(1, "no filter support when offload in use");
+			err(1, "delete filter");
+		}
+		return 0;
+	}
+
+	while (start_arg + 2 <= argc) {
+		if (!strcmp(argv[start_arg], "sip")) {
+			ret = parse_ipaddr(argv[start_arg + 1], &op.val.sip,
+					   &op.mask.sip);
+		} else if (!strcmp(argv[start_arg], "dip")) {
+			ret = parse_ipaddr(argv[start_arg + 1], &op.val.dip,
+					   &op.mask.dip);
+		} else if (!strcmp(argv[start_arg], "sport")) {
+			ret = parse_val_mask_param(argv[start_arg + 1],
+						   &val, &mask, 0xffff);
+			op.val.sport = val;
+			op.mask.sport = mask;
+		} else if (!strcmp(argv[start_arg], "dport")) {
+			ret = parse_val_mask_param(argv[start_arg + 1],
+						   &val, &mask, 0xffff);
+			op.val.dport = val;
+			op.mask.dport = mask;
+		} else if (!strcmp(argv[start_arg], "vlan")) {
+			ret = parse_val_mask_param(argv[start_arg + 1],
+						   &val, &mask, 0xfff);
+			op.val.vlan = val;
+			op.mask.vlan = mask;
+		} else if (!strcmp(argv[start_arg], "prio")) {
+			ret = parse_val_mask_param(argv[start_arg + 1],
+						   &val, &mask, 7);
+			op.val.vlan_prio = val;
+			op.mask.vlan_prio = mask;
+		} else if (!strcmp(argv[start_arg], "mac")) {
+			if (!strcmp(argv[start_arg + 1], "none"))
+				val = -1;
+			else
+				ret = get_int_arg(argv[start_arg + 1], &val);
+			op.mac_hit = val != (uint32_t)-1;
+			op.mac_addr_idx = op.mac_hit ? val : 0;
+		} else if (!strcmp(argv[start_arg], "type")) {
+			if (!strcmp(argv[start_arg + 1], "tcp"))
+				op.proto = 1;
+			else if (!strcmp(argv[start_arg + 1], "udp"))
+				op.proto = 2;
+			else if (!strcmp(argv[start_arg + 1], "frag"))
+				op.proto = 3;
+			else
+				errx(1, "unknown type \"%s\"; must be one of "
+				     "\"tcp\", \"udp\", or \"frag\"",
+				     argv[start_arg + 1]);
+		} else if (!strcmp(argv[start_arg], "queue")) {
+			ret = get_int_arg(argv[start_arg + 1], &val);
+			op.qset = val;
+			op.rss = 0;
+		} else if (!strcmp(argv[start_arg], "action")) {
+			if (!strcmp(argv[start_arg + 1], "pass"))
+				op.pass = 1;
+			else if (strcmp(argv[start_arg + 1], "drop"))
+				errx(1, "unknown action \"%s\"; must be one of "
+				     "\"pass\" or \"drop\"",
+				     argv[start_arg + 1]);
+		} else
+ 			errx(1, "unknown filter parameter \"%s\"\n"
+			     "known parameters are \"mac\", \"sip\", "
+			     "\"dip\", \"sport\", \"dport\", \"vlan\", "
+			     "\"prio\", \"type\", \"queue\", and \"action\"",
+			     argv[start_arg]);
+		if (ret < 0)
+			errx(1, "bad value \"%s\" for parameter \"%s\"",
+			     argv[start_arg + 1], argv[start_arg]);
+		start_arg += 2;
+	}
+	if (start_arg != argc)
+		errx(1, "no value for \"%s\"", argv[start_arg]);
+
+	if (doit(iff_name, CHELSIO_SET_FILTER, &op) < 0) {
+		if (errno == EBUSY)
+			err(1, "no filter support when offload in use");
+		err(1, "set filter");
+	}
+	
+	return 0;
+}
 static int
 get_sched_param(int argc, char *argv[], int pos, unsigned int *valp)
 {
@@ -1501,6 +1673,8 @@ run_cmd(int argc, char *argv[], const char *iff_name)
 		r = pktsched(argc, argv, 3, iff_name);
 	else if (!strcmp(argv[2], "tcb"))
 		r = get_tcb2(argc, argv, 3, iff_name);
+	else if (!strcmp(argv[2], "filter"))
+		r = filter_config(argc, argv, 3, iff_name);
 	else if (!strcmp(argv[2], "clearstats"))
 		r = clear_stats(argc, argv, 3, iff_name);
 	else if (!strcmp(argv[2], "la"))
