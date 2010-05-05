@@ -179,9 +179,7 @@ via_free_sg_info(drm_via_sg_info_t *vsg)
 		for (i=0; i < vsg->num_pages; ++i) {
 			if ( NULL != (page = vsg->pages[i])) {
 				vm_page_lock(page);
-				vm_page_lock_queues();
 				vm_page_unwire(page, 0);
-				vm_page_unlock_queues();
 				vm_page_unlock(page);
 			}
 		}
