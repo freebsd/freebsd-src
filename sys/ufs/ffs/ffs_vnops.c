@@ -847,13 +847,15 @@ ffs_getpages(ap)
 	if (mreq->valid) {
 		if (mreq->valid != VM_PAGE_BITS_ALL)
 			vm_page_zero_invalid(mreq, TRUE);
-		vm_page_lock_queues();
 		for (i = 0; i < pcount; i++) {
 			if (i != ap->a_reqpage) {
+				vm_page_lock(ap->a_m[i]);
+				vm_page_lock_queues();
 				vm_page_free(ap->a_m[i]);
+				vm_page_unlock_queues();
+				vm_page_unlock(ap->a_m[i]);
 			}
 		}
-		vm_page_unlock_queues();
 		VM_OBJECT_UNLOCK(mreq->object);
 		return VM_PAGER_OK;
 	}
