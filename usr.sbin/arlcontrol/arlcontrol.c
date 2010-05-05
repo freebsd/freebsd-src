@@ -148,21 +148,21 @@ static struct ch_list {
 	int  max_freq;
 } CHSET[] = {
 	 { 0, 0, 0, 0, 0, 0 },
-	 { 1, "900 Mhz",  "Canada, U.S.A., Mexico", 0, freq_list_1, MAXFREQ(freq_list_1) },
+	 { 1, "900 MHz",  "Canada, U.S.A., Mexico", 0, freq_list_1, MAXFREQ(freq_list_1) },
 	 { 2, 0, 0, 0, 0, 0 },
 	 { 3, 0, 0, 0, 0, 0 },
 	 { 4, 0, 0, 0, 0, 0 },
 	 { 5, 0, 0, 0, 0, 0 },
-	 { 6, "900 Mhz",  "Australia", 0, freq_list_6, MAXFREQ(freq_list_6) },
+	 { 6, "900 MHz",  "Australia", 0, freq_list_6, MAXFREQ(freq_list_6) },
 	 { 7, 0, 0, 0, 0, 0 },
 	 { 8, 0, 0, 0, 0, 0 },
-	 { 9, "2400 Mhz", "North America", rate_list_2400, freq_list_9, MAXFREQ(freq_list_9) },
-	{ 10, "2400 Mhz", "E.T.S.I", rate_list_2400, freq_list_10, MAXFREQ(freq_list_10) },
-	{ 11, "2400 Mhz", "Japan", rate_list_2400, freq_list_11, MAXFREQ(freq_list_11) },
-	{ 12, "2400 Mhz", "France", rate_list_2400, freq_list_12, MAXFREQ(freq_list_12) },
-	{ 13, "2400 Mhz", "Australia", rate_list_2400, freq_list_13, MAXFREQ(freq_list_13) },
-	{ 14, "2400 Mhz", "Germany", rate_list_2400, freq_list_14, MAXFREQ(freq_list_14) },
-	{ 15, "2400 Mhz", "U.K.(MPT1349),Spain", rate_list_2400, freq_list_15, MAXFREQ(freq_list_15) }
+	 { 9, "2400 MHz", "North America", rate_list_2400, freq_list_9, MAXFREQ(freq_list_9) },
+	{ 10, "2400 MHz", "E.T.S.I", rate_list_2400, freq_list_10, MAXFREQ(freq_list_10) },
+	{ 11, "2400 MHz", "Japan", rate_list_2400, freq_list_11, MAXFREQ(freq_list_11) },
+	{ 12, "2400 MHz", "France", rate_list_2400, freq_list_12, MAXFREQ(freq_list_12) },
+	{ 13, "2400 MHz", "Australia", rate_list_2400, freq_list_13, MAXFREQ(freq_list_13) },
+	{ 14, "2400 MHz", "Germany", rate_list_2400, freq_list_14, MAXFREQ(freq_list_14) },
+	{ 15, "2400 MHz", "U.K.(MPT1349),Spain", rate_list_2400, freq_list_15, MAXFREQ(freq_list_15) }
 };
 
 char* registrationMode[] = {
@@ -221,7 +221,7 @@ print_al(struct arl_cfg_param *arl_io)
 	    arl_io->channelSet,
 	    CHSET[arl_io->channelSet].fr,
 	    CHSET[arl_io->channelSet].country);
-	printf("\tfrequency %s Mhz, bitrate %s kb/s, priority %s, receive mode %d\n",
+	printf("\tfrequency %s MHz, bitrate %s kb/s, priority %s, receive mode %d\n",
 	    (CHSET[arl_io->channelSet].freq &&
 	        CHSET[arl_io->channelSet].max_freq > arl_io->channelNumber) ?
 		CHSET[arl_io->channelSet].freq[arl_io->channelNumber].name :
