@@ -1532,7 +1532,7 @@ vm_page_free_toq(vm_page_t m)
  *	another map, removing it from paging queues
  *	as necessary.
  *
- *	The page queues must be locked.
+ *	The page must be locked.
  *	This routine may not block.
  */
 void
@@ -1584,31 +1584,31 @@ vm_page_wire(vm_page_t m)
  *	be placed in the cache - for example, just after dirtying a page.
  *	dirty pages in the cache are not allowed.
  *
- *	The page queues must be locked.
+ *	The page must be locked.
  *	This routine may not block.
  */
 void
 vm_page_unwire(vm_page_t m, int activate)
 {
 
-	if ((m->flags & PG_UNMANAGED) == 0) {
-		mtx_assert(&vm_page_queue_mtx, MA_OWNED);
+	if ((m->flags & PG_UNMANAGED) == 0)
 		vm_page_lock_assert(m, MA_OWNED);
-	}
 	if (m->flags & PG_FICTITIOUS)
 		return;
 	if (m->wire_count > 0) {
 		m->wire_count--;
 		if (m->wire_count == 0) {
 			atomic_subtract_int(&cnt.v_wire_count, 1);
-			if (m->flags & PG_UNMANAGED) {
-				;
-			} else if (activate)
+			if ((m->flags & PG_UNMANAGED) != 0)
+				return;
+			vm_page_lock_queues();
+			if (activate)
 				vm_page_enqueue(PQ_ACTIVE, m);
 			else {
 				vm_page_flag_clear(m, PG_WINATCFLS);
 				vm_page_enqueue(PQ_INACTIVE, m);
 			}
+			vm_page_unlock_queues();
 		}
 	} else {
 		panic("vm_page_unwire: invalid wire count: %d", m->wire_count);

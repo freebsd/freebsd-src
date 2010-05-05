@@ -799,9 +799,7 @@ vnode_locked:
 					vm_page_unlock(fs.first_m);
 					
 					vm_page_lock(fs.m);
-					vm_page_lock_queues();
 					vm_page_unwire(fs.m, FALSE);
-					vm_page_unlock_queues();
 					vm_page_unlock(fs.m);
 				}
 				/*
@@ -1112,6 +1110,7 @@ vm_fault_unwire(vm_map_t map, vm_offset_t start, vm_offset_t end,
 {
 	vm_paddr_t pa;
 	vm_offset_t va;
+	vm_page_t m;
 	pmap_t pmap;
 
 	pmap = vm_map_pmap(map);
@@ -1125,11 +1124,10 @@ vm_fault_unwire(vm_map_t map, vm_offset_t start, vm_offset_t end,
 		if (pa != 0) {
 			pmap_change_wiring(pmap, va, FALSE);
 			if (!fictitious) {
-				vm_page_lock(PHYS_TO_VM_PAGE(pa));
-				vm_page_lock_queues();
-				vm_page_unwire(PHYS_TO_VM_PAGE(pa), 1);
-				vm_page_unlock_queues();
-				vm_page_unlock(PHYS_TO_VM_PAGE(pa));
+				m = PHYS_TO_VM_PAGE(pa);
+				vm_page_lock(m);
+				vm_page_unwire(m, TRUE);
+				vm_page_unlock(m);
 			}
 		}
 	}
@@ -1275,9 +1273,7 @@ vm_fault_copy_entry(vm_map_t dst_map, vm_map_t src_map,
 		
 		if (upgrade) {
 			vm_page_lock(src_m);
-			vm_page_lock_queues();
 			vm_page_unwire(src_m, 0);
-			vm_page_unlock_queues();
 			vm_page_unlock(src_m);
 
 			vm_page_lock(dst_m);
