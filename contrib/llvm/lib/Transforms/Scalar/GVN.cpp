@@ -1217,7 +1217,7 @@ static Value *GetMemInstValueForLoad(MemIntrinsic *SrcInst, unsigned Offset,
   return ConstantFoldLoadFromConstPtr(Src, &TD);
 }
 
-
+namespace {
 
 struct AvailableValueInBlock {
   /// BB - The basic block in question.
@@ -1291,6 +1291,8 @@ struct AvailableValueInBlock {
   }
 };
 
+}
+
 /// ConstructSSAForLoadSet - Given a set of loads specified by ValuesPerBlock,
 /// construct SSA form, allowing us to eliminate LI.  This returns the value
 /// that should be used at LI's definition site.
@@ -1333,8 +1335,8 @@ static Value *ConstructSSAForLoadSet(LoadInst *LI,
   return V;
 }
 
-static bool isLifetimeStart(Instruction *Inst) {
-  if (IntrinsicInst* II = dyn_cast<IntrinsicInst>(Inst))
+static bool isLifetimeStart(const Instruction *Inst) {
+  if (const IntrinsicInst* II = dyn_cast<IntrinsicInst>(Inst))
     return II->getIntrinsicID() == Intrinsic::lifetime_start;
   return false;
 }
@@ -1582,7 +1584,7 @@ bool GVN::processNonLocalLoad(LoadInst *LI,
   for (unsigned i = 0, e = UnavailableBlocks.size(); i != e; ++i)
     FullyAvailableBlocks[UnavailableBlocks[i]] = false;
 
-  bool NeedToSplitEdges = false;
+  SmallVector<std::pair<TerminatorInst*, unsigned>, 4> NeedToSplit;
   for (pred_iterator PI = pred_begin(LoadBB), E = pred_end(LoadBB);
        PI != E; ++PI) {
     BasicBlock *Pred = *PI;
@@ -1598,12 +1600,13 @@ bool GVN::processNonLocalLoad(LoadInst *LI,
         return false;
       }
       unsigned SuccNum = GetSuccessorNumber(Pred, LoadBB);
-      toSplit.push_back(std::make_pair(Pred->getTerminator(), SuccNum));
-      NeedToSplitEdges = true;
+      NeedToSplit.push_back(std::make_pair(Pred->getTerminator(), SuccNum));
     }
   }
-  if (NeedToSplitEdges)
+  if (!NeedToSplit.empty()) {
+    toSplit.append(NeedToSplit.size(), NeedToSplit.front());
     return false;
+  }
 
   // Decide whether PRE is profitable for this load.
   unsigned NumUnavailablePreds = PredLoads.size();

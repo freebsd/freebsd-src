@@ -44,7 +44,7 @@ extern NSString * const XCActiveSelectionLevel;
 
 @interface NSTextStorage : NSObject
 
-- (void)setDelegate:(id <NSTextStorageDelegate>)delegate;
+- (void)setDelegate:(id <NSTextStorageDelegate>)delegate; // expected-note{{passing argument to parameter 'delegate' here}}
 - (id <NSTextStorageDelegate>)delegate;
 
 @end
@@ -69,7 +69,7 @@ extern NSString * const XCActiveSelectionLevel;
 
 
 - (NSTextStorage *)contents {
- [_contents setDelegate:self]; // expected-warning {{incompatible type sending 'SKTText *', expected 'id<NSTextStorageDelegate>'}}
+ [_contents setDelegate:self]; // expected-warning {{sending 'SKTText *' to parameter of incompatible type 'id<NSTextStorageDelegate>'}}
  return 0;
 }
 

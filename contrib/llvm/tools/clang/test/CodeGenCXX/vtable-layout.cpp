@@ -1303,3 +1303,337 @@ struct B : virtual A {
 V2 *B::f() { return 0; }
 
 }
+
+namespace Test30 {
+
+// Test that we don't assert when generating a vtable for F.
+struct A { };
+
+struct B : virtual A {
+ int i;
+};
+
+struct C {
+ virtual void f();
+};
+
+struct D : virtual C, B { };
+struct E : virtual D { };
+
+struct F : E {
+ virtual void f();
+};
+void F::f() { }
+
+}
+
+namespace Test31 {
+
+// Test that we don't add D::f twice to the primary vtable.
+struct A {
+  int a;
+};
+
+struct B {
+  virtual void f();
+};
+
+struct C : A, virtual B {
+  virtual void f();
+};
+
+// CHECK:      Vtable for 'Test31::D' (11 entries).
+// CHECK-NEXT:    0 | vbase_offset (0)
+// CHECK-NEXT:    1 | vbase_offset (8)
+// CHECK-NEXT:    2 | vcall_offset (0)
+// CHECK-NEXT:    3 | offset_to_top (0)
+// CHECK-NEXT:    4 | Test31::D RTTI
+// CHECK-NEXT:        -- (Test31::B, 0) vtable address --
+// CHECK-NEXT:        -- (Test31::D, 0) vtable address --
+// CHECK-NEXT:    5 | void Test31::D::f()
+// CHECK-NEXT:    6 | vbase_offset (-8)
+// CHECK-NEXT:    7 | vcall_offset (-8)
+// CHECK-NEXT:    8 | offset_to_top (-8)
+// CHECK-NEXT:    9 | Test31::D RTTI
+// CHECK-NEXT:        -- (Test31::C, 8) vtable address --
+// CHECK-NEXT:   10 | void Test31::D::f()
+// CHECK-NEXT:        [this adjustment: 0 non-virtual, -24 vcall offset offset]
+struct D : virtual C {
+  virtual void f();
+};
+void D::f() { }
+
+}
+
+namespace Test32 {
+
+// Check that we correctly lay out the virtual bases of 'Test32::D'.
+
+struct A {
+  virtual void f();
+};
+
+struct B : virtual A { };
+struct C : A, virtual B { };
+struct D : virtual B { };
+
+// CHECK:      Virtual base offset offsets for 'Test32::E' (3 entries).
+// CHECK-NEXT:    Test32::A | -32
+// CHECK-NEXT:    Test32::B | -24
+// CHECK-NEXT:    Test32::D | -40
+struct E : C, virtual D {
+  virtual void f();
+};
+void E::f() { }
+
+}
+
+namespace Test33 {
+
+// Test that we don't emit too many vcall offsets in 'Test32::F'.
+
+struct A {
+  virtual void a();
+};
+
+struct B {
+  virtual void b();
+};
+
+struct C : virtual A, virtual B {
+  virtual void c();
+};
+
+struct D : virtual C { };
+
+struct E : A, D { 
+  virtual void e();
+};
+
+// CHECK:      Vtable for 'Test33::F' (30 entries).
+// CHECK-NEXT:    0 | vbase_offset (24)
+// CHECK-NEXT:    1 | vbase_offset (16)
+// CHECK-NEXT:    2 | vbase_offset (16)
+// CHECK-NEXT:    3 | vbase_offset (8)
+// CHECK-NEXT:    4 | offset_to_top (0)
+// CHECK-NEXT:    5 | Test33::F RTTI
+// CHECK-NEXT:        -- (Test33::A, 0) vtable address --
+// CHECK-NEXT:        -- (Test33::F, 0) vtable address --
+// CHECK-NEXT:    6 | void Test33::A::a()
+// CHECK-NEXT:    7 | void Test33::F::f()
+// CHECK-NEXT:    8 | vcall_offset (0)
+// CHECK-NEXT:    9 | vcall_offset (0)
+// CHECK-NEXT:   10 | vbase_offset (16)
+// CHECK-NEXT:   11 | vbase_offset (8)
+// CHECK-NEXT:   12 | vbase_offset (8)
+// CHECK-NEXT:   13 | offset_to_top (-8)
+// CHECK-NEXT:   14 | Test33::F RTTI
+// CHECK-NEXT:        -- (Test33::A, 8) vtable address --
+// CHECK-NEXT:        -- (Test33::E, 8) vtable address --
+// CHECK-NEXT:   15 | void Test33::A::a()
+// CHECK-NEXT:   16 | void Test33::E::e()
+// CHECK-NEXT:   17 | vbase_offset (0)
+// CHECK-NEXT:   18 | vcall_offset (0)
+// CHECK-NEXT:   19 | vbase_offset (8)
+// CHECK-NEXT:   20 | vbase_offset (0)
+// CHECK-NEXT:   21 | vcall_offset (0)
+// CHECK-NEXT:   22 | offset_to_top (-16)
+// CHECK-NEXT:   23 | Test33::F RTTI
+// CHECK-NEXT:        -- (Test33::A, 16) vtable address --
+// CHECK-NEXT:        -- (Test33::C, 16) vtable address --
+// CHECK-NEXT:        -- (Test33::D, 16) vtable address --
+// CHECK-NEXT:   24 | void Test33::A::a()
+// CHECK-NEXT:   25 | void Test33::C::c()
+// CHECK-NEXT:   26 | vcall_offset (0)
+// CHECK-NEXT:   27 | offset_to_top (-24)
+// CHECK-NEXT:   28 | Test33::F RTTI
+// CHECK-NEXT:        -- (Test33::B, 24) vtable address --
+// CHECK-NEXT:   29 | void Test33::B::b()
+struct F : virtual E, A {
+  virtual void f();
+};
+void F::f() { }
+
+}
+
+namespace Test34 {
+
+// Test that we lay out the construction vtable for 'Test34::E' in 'Test34::F' correctly.
+
+struct A {
+  virtual void a();
+};
+struct B : virtual A { };
+
+struct C : B, A {
+  virtual void c();
+};
+
+struct D : A, C { };
+
+struct E : virtual D {
+  virtual void e();
+};
+
+// CHECK:      Construction vtable for ('Test34::E', 0) in 'Test34::F' (22 entries).
+// CHECK-NEXT:    0 | vbase_offset (0)
+// CHECK-NEXT:    1 | vbase_offset (8)
+// CHECK-NEXT:    2 | vcall_offset (0)
+// CHECK-NEXT:    3 | offset_to_top (0)
+// CHECK-NEXT:    4 | Test34::E RTTI
+// CHECK-NEXT:        -- (Test34::A, 0) vtable address --
+// CHECK-NEXT:        -- (Test34::E, 0) vtable address --
+// CHECK-NEXT:    5 | void Test34::A::a()
+// CHECK-NEXT:    6 | void Test34::E::e()
+// CHECK-NEXT:    7 | vcall_offset (8)
+// CHECK-NEXT:    8 | vcall_offset (0)
+// CHECK-NEXT:    9 | vbase_offset (-8)
+// CHECK-NEXT:   10 | offset_to_top (-8)
+// CHECK-NEXT:   11 | Test34::E RTTI
+// CHECK-NEXT:        -- (Test34::A, 8) vtable address --
+// CHECK-NEXT:        -- (Test34::D, 8) vtable address --
+// CHECK-NEXT:   12 | void Test34::A::a()
+// CHECK-NEXT:   13 | vbase_offset (-16)
+// CHECK-NEXT:   14 | vcall_offset (-16)
+// CHECK-NEXT:   15 | offset_to_top (-16)
+// CHECK-NEXT:   16 | Test34::E RTTI
+// CHECK-NEXT:        -- (Test34::B, 16) vtable address --
+// CHECK-NEXT:        -- (Test34::C, 16) vtable address --
+// CHECK-NEXT:   17 | [unused] void Test34::A::a()
+// CHECK-NEXT:   18 | void Test34::C::c()
+// CHECK-NEXT:   19 | offset_to_top (-24)
+// CHECK-NEXT:   20 | Test34::E RTTI
+// CHECK-NEXT:        -- (Test34::A, 24) vtable address --
+// CHECK-NEXT:   21 | void Test34::A::a()
+struct F : E {
+  virtual void f();
+};
+void F::f() { }
+
+}
+
+namespace Test35 {
+
+// Test that we lay out the virtual bases of 'Test35::H' in the correct order.
+
+struct A {
+ virtual void a();
+
+ int i;
+};
+
+struct B : virtual A {
+ virtual void b();
+};
+
+struct C {
+ virtual void c();
+};
+
+struct D : C, virtual B {
+ virtual void d();
+};
+
+struct E : D {
+ virtual void e();
+
+ bool b;
+};
+
+struct F : virtual D { };
+struct G : virtual E { };
+
+// CHECK:      Vtable for 'Test35::H' (32 entries).
+// CHECK-NEXT:    0 | vbase_offset (32)
+// CHECK-NEXT:    1 | vbase_offset (0)
+// CHECK-NEXT:    2 | vcall_offset (0)
+// CHECK-NEXT:    3 | vcall_offset (0)
+// CHECK-NEXT:    4 | vbase_offset (16)
+// CHECK-NEXT:    5 | vbase_offset (8)
+// CHECK-NEXT:    6 | offset_to_top (0)
+// CHECK-NEXT:    7 | Test35::H RTTI
+// CHECK-NEXT:        -- (Test35::C, 0) vtable address --
+// CHECK-NEXT:        -- (Test35::D, 0) vtable address --
+// CHECK-NEXT:        -- (Test35::F, 0) vtable address --
+// CHECK-NEXT:        -- (Test35::H, 0) vtable address --
+// CHECK-NEXT:    8 | void Test35::C::c()
+// CHECK-NEXT:    9 | void Test35::D::d()
+// CHECK-NEXT:   10 | void Test35::H::h()
+// CHECK-NEXT:   11 | vbase_offset (0)
+// CHECK-NEXT:   12 | vbase_offset (24)
+// CHECK-NEXT:   13 | vcall_offset (0)
+// CHECK-NEXT:   14 | vbase_offset (8)
+// CHECK-NEXT:   15 | offset_to_top (-8)
+// CHECK-NEXT:   16 | Test35::H RTTI
+// CHECK-NEXT:        -- (Test35::B, 8) vtable address --
+// CHECK-NEXT:        -- (Test35::G, 8) vtable address --
+// CHECK-NEXT:   17 | void Test35::B::b()
+// CHECK-NEXT:   18 | vcall_offset (0)
+// CHECK-NEXT:   19 | offset_to_top (-16)
+// CHECK-NEXT:   20 | Test35::H RTTI
+// CHECK-NEXT:        -- (Test35::A, 16) vtable address --
+// CHECK-NEXT:   21 | void Test35::A::a()
+// CHECK-NEXT:   22 | vcall_offset (0)
+// CHECK-NEXT:   23 | vcall_offset (0)
+// CHECK-NEXT:   24 | vcall_offset (0)
+// CHECK-NEXT:   25 | vbase_offset (-16)
+// CHECK-NEXT:   26 | vbase_offset (-24)
+// CHECK-NEXT:   27 | offset_to_top (-32)
+// CHECK-NEXT:   28 | Test35::H RTTI
+// CHECK-NEXT:        -- (Test35::C, 32) vtable address --
+// CHECK-NEXT:        -- (Test35::D, 32) vtable address --
+// CHECK-NEXT:        -- (Test35::E, 32) vtable address --
+// CHECK-NEXT:   29 | void Test35::C::c()
+// CHECK-NEXT:   30 | void Test35::D::d()
+// CHECK-NEXT:   31 | void Test35::E::e()
+
+// CHECK:      Virtual base offset offsets for 'Test35::H' (4 entries).
+// CHECK-NEXT:    Test35::A | -32
+// CHECK-NEXT:    Test35::B | -24
+// CHECK-NEXT:    Test35::D | -56
+// CHECK-NEXT:    Test35::E | -64
+struct H : F, G {
+ virtual void h();
+};
+void H::h() { }
+
+}
+
+namespace Test36 {
+
+// Test that we don't mark B::f as unused in the vtable for D.
+
+struct A {
+ virtual void f();
+};
+
+struct B : virtual A { };
+
+struct C : virtual A {
+ virtual void f();
+};
+
+// CHECK:      Vtable for 'Test36::D' (12 entries).
+// CHECK-NEXT:    0 | vbase_offset (8)
+// CHECK-NEXT:    1 | vbase_offset (8)
+// CHECK-NEXT:    2 | vcall_offset (0)
+// CHECK-NEXT:    3 | offset_to_top (0)
+// CHECK-NEXT:    4 | Test36::D RTTI
+// CHECK-NEXT:        -- (Test36::C, 0) vtable address --
+// CHECK-NEXT:        -- (Test36::D, 0) vtable address --
+// CHECK-NEXT:    5 | void Test36::C::f()
+// CHECK-NEXT:    6 | void Test36::D::g()
+// CHECK-NEXT:    7 | vbase_offset (0)
+// CHECK-NEXT:    8 | vcall_offset (-8)
+// CHECK-NEXT:    9 | offset_to_top (-8)
+// CHECK-NEXT:   10 | Test36::D RTTI
+// CHECK-NEXT:        -- (Test36::A, 8) vtable address --
+// CHECK-NEXT:        -- (Test36::B, 8) vtable address --
+// CHECK-NEXT:   11 | void Test36::C::f()
+// CHECK-NEXT:        [this adjustment: 0 non-virtual, -24 vcall offset offset]
+struct D : virtual B, C {
+ virtual void g();
+};
+void D::g() { }
+
+}

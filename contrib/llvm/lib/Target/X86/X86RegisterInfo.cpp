@@ -439,7 +439,7 @@ bool X86RegisterInfo::hasFP(const MachineFunction &MF) const {
   const MachineFrameInfo *MFI = MF.getFrameInfo();
   const MachineModuleInfo &MMI = MF.getMMI();
 
-  return (NoFramePointerElim ||
+  return (DisableFramePointerElim(MF) ||
           needsStackRealignment(MF) ||
           MFI->hasVarSizedObjects() ||
           MFI->isFrameAddressTaken() ||
@@ -464,7 +464,7 @@ bool X86RegisterInfo::needsStackRealignment(const MachineFunction &MF) const {
   //        variable-sized allocas.
   // FIXME: Temporary disable the error - it seems to be too conservative.
   if (0 && requiresRealignment && MFI->hasVarSizedObjects())
-    llvm_report_error(
+    report_fatal_error(
       "Stack realignment in presense of dynamic allocas is not supported");
 
   return (requiresRealignment && !MFI->hasVarSizedObjects());
@@ -608,8 +608,12 @@ X86RegisterInfo::eliminateFrameIndex(MachineBasicBlock::iterator II,
   int FrameIndex = MI.getOperand(i).getIndex();
   unsigned BasePtr;
 
+  unsigned Opc = MI.getOpcode();
+  bool AfterFPPop = Opc == X86::TAILJMPm64 || Opc == X86::TAILJMPm;
   if (needsStackRealignment(MF))
     BasePtr = (FrameIndex < 0 ? FramePtr : StackPtr);
+  else if (AfterFPPop)
+    BasePtr = StackPtr;
   else
     BasePtr = (hasFP(MF) ? FramePtr : StackPtr);
 
@@ -618,16 +622,22 @@ X86RegisterInfo::eliminateFrameIndex(MachineBasicBlock::iterator II,
   MI.getOperand(i).ChangeToRegister(BasePtr, false);
 
   // Now add the frame object offset to the offset from EBP.
+  int FIOffset;
+  if (AfterFPPop) {
+    // Tail call jmp happens after FP is popped.
+    const TargetFrameInfo &TFI = *MF.getTarget().getFrameInfo();
+    const MachineFrameInfo *MFI = MF.getFrameInfo();
+    FIOffset = MFI->getObjectOffset(FrameIndex) - TFI.getOffsetOfLocalArea();
+  } else
+    FIOffset = getFrameIndexOffset(MF, FrameIndex);
+
   if (MI.getOperand(i+3).isImm()) {
     // Offset is a 32-bit integer.
-    int Offset = getFrameIndexOffset(MF, FrameIndex) +
-      (int)(MI.getOperand(i + 3).getImm());
-
+    int Offset = FIOffset + (int)(MI.getOperand(i + 3).getImm());
     MI.getOperand(i + 3).ChangeToImmediate(Offset);
   } else {
     // Offset is symbolic. This is extremely rare.
-    uint64_t Offset = getFrameIndexOffset(MF, FrameIndex) +
-                      (uint64_t)MI.getOperand(i+3).getOffset();
+    uint64_t Offset = FIOffset + (uint64_t)MI.getOperand(i+3).getOffset();
     MI.getOperand(i+3).setOffset(Offset);
   }
   return 0;
@@ -1487,3 +1497,46 @@ unsigned getX86SubSuperRegister(unsigned Reg, EVT VT, bool High) {
 }
 
 #include "X86GenRegisterInfo.inc"
+
+namespace {
+  struct MSAH : public MachineFunctionPass {
+    static char ID;
+    MSAH() : MachineFunctionPass(&ID) {}
+
+    virtual bool runOnMachineFunction(MachineFunction &MF) {
+      const X86TargetMachine *TM =
+        static_cast<const X86TargetMachine *>(&MF.getTarget());
+      const X86RegisterInfo *X86RI = TM->getRegisterInfo();
+      MachineRegisterInfo &RI = MF.getRegInfo();
+      X86MachineFunctionInfo *FuncInfo = MF.getInfo<X86MachineFunctionInfo>();
+      unsigned StackAlignment = X86RI->getStackAlignment();
+
+      // Be over-conservative: scan over all vreg defs and find whether vector
+      // registers are used. If yes, there is a possibility that vector register
+      // will be spilled and thus require dynamic stack realignment.
+      for (unsigned RegNum = TargetRegisterInfo::FirstVirtualRegister;
+           RegNum < RI.getLastVirtReg(); ++RegNum)
+        if (RI.getRegClass(RegNum)->getAlignment() > StackAlignment) {
+          FuncInfo->setReserveFP(true);
+          return true;
+        }
+
+      // Nothing to do
+      return false;
+    }
+
+    virtual const char *getPassName() const {
+      return "X86 Maximal Stack Alignment Check";
+    }
+
+    virtual void getAnalysisUsage(AnalysisUsage &AU) const {
+      AU.setPreservesCFG();
+      MachineFunctionPass::getAnalysisUsage(AU);
+    }
+  };
+
+  char MSAH::ID = 0;
+}
+
+FunctionPass*
+llvm::createX86MaxStackAlignmentHeuristicPass() { return new MSAH(); }

@@ -17,6 +17,9 @@
 #include "clang/AST/APValue.h"
 #include "clang/AST/Stmt.h"
 #include "clang/AST/Type.h"
+#include "clang/AST/DeclAccessPair.h"
+#include "clang/AST/ASTVector.h"
+#include "clang/AST/UsuallyTinyPtrVector.h"
 #include "llvm/ADT/APSInt.h"
 #include "llvm/ADT/APFloat.h"
 #include "llvm/ADT/SmallVector.h"
@@ -32,10 +35,14 @@ namespace clang {
   class NamedDecl;
   class ValueDecl;
   class BlockDecl;
+  class CXXBaseSpecifier;
   class CXXOperatorCallExpr;
   class CXXMemberCallExpr;
   class TemplateArgumentLoc;
   class TemplateArgumentListInfo;
+
+/// \brief A simple array of base specifiers.
+typedef UsuallyTinyPtrVector<const CXXBaseSpecifier> CXXBaseSpecifierArray;
 
 /// Expr - This represents one expression.  Note that Expr's are subclasses of
 /// Stmt.  This allows an expression to be transparently used any place a Stmt
@@ -197,6 +204,12 @@ public:
   /// \brief Returns whether this expression refers to a vector element.
   bool refersToVectorElement() const;
   
+  /// isKnownToHaveBooleanValue - Return true if this is an integer expression
+  /// that is known to return 0 or 1.  This happens for _Bool/bool expressions
+  /// but also int expressions which are produced by things like comparisons in
+  /// C.
+  bool isKnownToHaveBooleanValue() const;
+  
   /// isIntegerConstantExpr - Return true if this expression is a valid integer
   /// constant expression, and, if so, return its value in Result.  If not a
   /// valid i-c-e, return false and fill in Loc (if specified) with the location
@@ -210,7 +223,7 @@ public:
   }
   /// isConstantInitializer - Returns true if this expression is a constant
   /// initializer, which can be emitted at compile-time.
-  bool isConstantInitializer(ASTContext &Ctx) const;
+  bool isConstantInitializer(ASTContext &Ctx) const; 
 
   /// EvalResult is a struct with detailed info about an evaluated expression.
   struct EvalResult {
@@ -302,7 +315,7 @@ public:
   ///  its subexpression.  If that subexpression is also a ParenExpr,
   ///  then this method recursively returns its subexpression, and so forth.
   ///  Otherwise, the method returns the current Expr.
-  Expr* IgnoreParens();
+  Expr *IgnoreParens();
 
   /// IgnoreParenCasts - Ignore parentheses and casts.  Strip off any ParenExpr
   /// or CastExprs, returning their operand.
@@ -331,7 +344,7 @@ public:
   /// temporary object.
   const Expr *getTemporaryObject() const;
 
-  const Expr* IgnoreParens() const {
+  const Expr *IgnoreParens() const {
     return const_cast<Expr*>(this)->IgnoreParens();
   }
   const Expr *IgnoreParenCasts() const {
@@ -901,7 +914,7 @@ public:
 ///
 /// __builtin_offsetof(type, a.b[10]) is represented as a unary operator whose
 ///   subexpression is a compound literal with the various MemberExpr and
-///   ArraySubscriptExpr's applied to it.
+///   ArraySubscriptExpr's applied to it. (This is only used in C)
 ///
 class UnaryOperator : public Expr {
 public:
@@ -984,6 +997,205 @@ public:
     return T->getStmtClass() == UnaryOperatorClass;
   }
   static bool classof(const UnaryOperator *) { return true; }
+
+  // Iterators
+  virtual child_iterator child_begin();
+  virtual child_iterator child_end();
+};
+
+/// OffsetOfExpr - [C99 7.17] - This represents an expression of the form
+/// offsetof(record-type, member-designator). For example, given:
+/// @code
+/// struct S {
+///   float f;
+///   double d;    
+/// };
+/// struct T {
+///   int i;
+///   struct S s[10];
+/// };
+/// @endcode
+/// we can represent and evaluate the expression @c offsetof(struct T, s[2].d). 
+
+class OffsetOfExpr : public Expr {
+public:
+  // __builtin_offsetof(type, identifier(.identifier|[expr])*)
+  class OffsetOfNode {
+  public:
+    /// \brief The kind of offsetof node we have.
+    enum Kind {
+      /// \brief An index into an array.
+      Array = 0x00,
+      /// \brief A field.
+      Field = 0x01,
+      /// \brief A field in a dependent type, known only by its name.
+      Identifier = 0x02,
+      /// \brief An implicit indirection through a C++ base class, when the
+      /// field found is in a base class.
+      Base = 0x03
+    };
+
+  private:
+    enum { MaskBits = 2, Mask = 0x03 };
+    
+    /// \brief The source range that covers this part of the designator.
+    SourceRange Range;
+    
+    /// \brief The data describing the designator, which comes in three
+    /// different forms, depending on the lower two bits.
+    ///   - An unsigned index into the array of Expr*'s stored after this node 
+    ///     in memory, for [constant-expression] designators.
+    ///   - A FieldDecl*, for references to a known field.
+    ///   - An IdentifierInfo*, for references to a field with a given name
+    ///     when the class type is dependent.
+    ///   - A CXXBaseSpecifier*, for references that look at a field in a 
+    ///     base class.
+    uintptr_t Data;
+    
+  public:
+    /// \brief Create an offsetof node that refers to an array element.
+    OffsetOfNode(SourceLocation LBracketLoc, unsigned Index, 
+                 SourceLocation RBracketLoc)
+      : Range(LBracketLoc, RBracketLoc), Data((Index << 2) | Array) { }
+    
+    /// \brief Create an offsetof node that refers to a field.
+    OffsetOfNode(SourceLocation DotLoc, FieldDecl *Field, 
+                 SourceLocation NameLoc)
+      : Range(DotLoc.isValid()? DotLoc : NameLoc, NameLoc), 
+        Data(reinterpret_cast<uintptr_t>(Field) | OffsetOfNode::Field) { }
+    
+    /// \brief Create an offsetof node that refers to an identifier.
+    OffsetOfNode(SourceLocation DotLoc, IdentifierInfo *Name,
+                 SourceLocation NameLoc)
+      : Range(DotLoc.isValid()? DotLoc : NameLoc, NameLoc), 
+        Data(reinterpret_cast<uintptr_t>(Name) | Identifier) { }
+
+    /// \brief Create an offsetof node that refers into a C++ base class.
+    explicit OffsetOfNode(const CXXBaseSpecifier *Base)
+      : Range(), Data(reinterpret_cast<uintptr_t>(Base) | OffsetOfNode::Base) {}
+    
+    /// \brief Determine what kind of offsetof node this is.
+    Kind getKind() const { 
+      return static_cast<Kind>(Data & Mask);
+    }
+    
+    /// \brief For an array element node, returns the index into the array
+    /// of expressions.
+    unsigned getArrayExprIndex() const {
+      assert(getKind() == Array);
+      return Data >> 2;
+    }
+
+    /// \brief For a field offsetof node, returns the field.
+    FieldDecl *getField() const {
+      assert(getKind() == Field);
+      return reinterpret_cast<FieldDecl *>(Data & ~(uintptr_t)Mask);
+    }
+    
+    /// \brief For a field or identifier offsetof node, returns the name of
+    /// the field.
+    IdentifierInfo *getFieldName() const;
+    
+    /// \brief For a base class node, returns the base specifier.
+    CXXBaseSpecifier *getBase() const {
+      assert(getKind() == Base);
+      return reinterpret_cast<CXXBaseSpecifier *>(Data & ~(uintptr_t)Mask);      
+    }
+    
+    /// \brief Retrieve the source range that covers this offsetof node.
+    ///
+    /// For an array element node, the source range contains the locations of
+    /// the square brackets. For a field or identifier node, the source range
+    /// contains the location of the period (if there is one) and the 
+    /// identifier.
+    SourceRange getRange() const { return Range; }
+  };
+
+private:
+  
+  SourceLocation OperatorLoc, RParenLoc;
+  // Base type;
+  TypeSourceInfo *TSInfo;
+  // Number of sub-components (i.e. instances of OffsetOfNode).
+  unsigned NumComps;
+  // Number of sub-expressions (i.e. array subscript expressions).
+  unsigned NumExprs;
+  
+  OffsetOfExpr(ASTContext &C, QualType type, 
+               SourceLocation OperatorLoc, TypeSourceInfo *tsi,
+               OffsetOfNode* compsPtr, unsigned numComps, 
+               Expr** exprsPtr, unsigned numExprs,
+               SourceLocation RParenLoc);
+
+  explicit OffsetOfExpr(unsigned numComps, unsigned numExprs)
+    : Expr(OffsetOfExprClass, EmptyShell()),
+      TSInfo(0), NumComps(numComps), NumExprs(numExprs) {}  
+
+public:
+  
+  static OffsetOfExpr *Create(ASTContext &C, QualType type, 
+                              SourceLocation OperatorLoc, TypeSourceInfo *tsi, 
+                              OffsetOfNode* compsPtr, unsigned numComps, 
+                              Expr** exprsPtr, unsigned numExprs,
+                              SourceLocation RParenLoc);
+
+  static OffsetOfExpr *CreateEmpty(ASTContext &C, 
+                                   unsigned NumComps, unsigned NumExprs);
+
+  /// getOperatorLoc - Return the location of the operator.
+  SourceLocation getOperatorLoc() const { return OperatorLoc; }
+  void setOperatorLoc(SourceLocation L) { OperatorLoc = L; }
+
+  /// \brief Return the location of the right parentheses.
+  SourceLocation getRParenLoc() const { return RParenLoc; }
+  void setRParenLoc(SourceLocation R) { RParenLoc = R; }
+  
+  TypeSourceInfo *getTypeSourceInfo() const {
+    return TSInfo;
+  }
+  void setTypeSourceInfo(TypeSourceInfo *tsi) {
+    TSInfo = tsi;
+  }
+  
+  const OffsetOfNode &getComponent(unsigned Idx) {
+    assert(Idx < NumComps && "Subscript out of range");
+    return reinterpret_cast<OffsetOfNode *> (this + 1)[Idx];
+  }
+
+  void setComponent(unsigned Idx, OffsetOfNode ON) {
+    assert(Idx < NumComps && "Subscript out of range");
+    reinterpret_cast<OffsetOfNode *> (this + 1)[Idx] = ON;
+  }
+  
+  unsigned getNumComponents() const {
+    return NumComps;
+  }
+
+  Expr* getIndexExpr(unsigned Idx) {
+    assert(Idx < NumExprs && "Subscript out of range");
+    return reinterpret_cast<Expr **>(
+                    reinterpret_cast<OffsetOfNode *>(this+1) + NumComps)[Idx];
+  }
+
+  void setIndexExpr(unsigned Idx, Expr* E) {
+    assert(Idx < NumComps && "Subscript out of range");
+    reinterpret_cast<Expr **>(
+                reinterpret_cast<OffsetOfNode *>(this+1) + NumComps)[Idx] = E;
+  }
+  
+  unsigned getNumExpressions() const {
+    return NumExprs;
+  }
+
+  virtual SourceRange getSourceRange() const {
+    return SourceRange(OperatorLoc, RParenLoc);
+  }
+
+  static bool classof(const Stmt *T) {
+    return T->getStmtClass() == OffsetOfExprClass;
+  }
+
+  static bool classof(const OffsetOfExpr *) { return true; }
 
   // Iterators
   virtual child_iterator child_begin();
@@ -1274,7 +1486,7 @@ public:
 class MemberExpr : public Expr {
   /// Extra data stored in some member expressions.
   struct MemberNameQualifier : public NameQualifier {
-    NamedDecl *FoundDecl;
+    DeclAccessPair FoundDecl;
   };
 
   /// Base - the expression for the base pointer or structure references.  In
@@ -1349,7 +1561,7 @@ public:
 
   static MemberExpr *Create(ASTContext &C, Expr *base, bool isarrow,
                             NestedNameSpecifier *qual, SourceRange qualrange,
-                            ValueDecl *memberdecl, NamedDecl *founddecl,
+                            ValueDecl *memberdecl, DeclAccessPair founddecl,
                             SourceLocation l,
                             const TemplateArgumentListInfo *targs,
                             QualType ty);
@@ -1365,9 +1577,10 @@ public:
   void setMemberDecl(ValueDecl *D) { MemberDecl = D; }
 
   /// \brief Retrieves the declaration found by lookup.
-  NamedDecl *getFoundDecl() const {
+  DeclAccessPair getFoundDecl() const {
     if (!HasQualifierOrFoundDecl)
-      return getMemberDecl();
+      return DeclAccessPair::make(getMemberDecl(),
+                                  getMemberDecl()->getAccess());
     return getMemberQualifier()->FoundDecl;
   }
 
@@ -1636,8 +1849,53 @@ public:
 private:
   CastKind Kind;
   Stmt *Op;
+
+  /// BasePath - For derived-to-base and base-to-derived casts, the base array
+  /// contains the inheritance path.
+  CXXBaseSpecifierArray BasePath;
+
+  void CheckBasePath() const {
+#ifndef NDEBUG
+    switch (getCastKind()) {
+    case CK_DerivedToBase:
+    case CK_UncheckedDerivedToBase:
+    case CK_DerivedToBaseMemberPointer:
+    case CK_BaseToDerived:
+    case CK_BaseToDerivedMemberPointer:
+      assert(!BasePath.empty() && "Cast kind should have a base path!");
+      break;
+
+    // These should not have an inheritance path.
+    case CK_Unknown:
+    case CK_BitCast:
+    case CK_NoOp:
+    case CK_Dynamic:
+    case CK_ToUnion:
+    case CK_ArrayToPointerDecay:
+    case CK_FunctionToPointerDecay:
+    case CK_NullToMemberPointer:
+    case CK_UserDefinedConversion:
+    case CK_ConstructorConversion:
+    case CK_IntegralToPointer:
+    case CK_PointerToIntegral:
+    case CK_ToVoid:
+    case CK_VectorSplat:
+    case CK_IntegralCast:
+    case CK_IntegralToFloating:
+    case CK_FloatingToIntegral:
+    case CK_FloatingCast:
+    case CK_MemberPointerToBoolean:
+    case CK_AnyPointerToObjCPointerCast:
+    case CK_AnyPointerToBlockPointerCast:
+      assert(BasePath.empty() && "Cast kind should not have a base path!");
+      break;
+    }
+#endif
+  }
+
 protected:
-  CastExpr(StmtClass SC, QualType ty, const CastKind kind, Expr *op) :
+  CastExpr(StmtClass SC, QualType ty, const CastKind kind, Expr *op,
+           CXXBaseSpecifierArray BasePath) :
     Expr(SC, ty,
          // Cast expressions are type-dependent if the type is
          // dependent (C++ [temp.dep.expr]p3).
@@ -1645,11 +1903,15 @@ protected:
          // Cast expressions are value-dependent if the type is
          // dependent or if the subexpression is value-dependent.
          ty->isDependentType() || (op && op->isValueDependent())),
-    Kind(kind), Op(op) {}
+    Kind(kind), Op(op), BasePath(BasePath) {
+      CheckBasePath();
+    }
 
   /// \brief Construct an empty cast.
   CastExpr(StmtClass SC, EmptyShell Empty)
     : Expr(SC, Empty) { }
+
+  virtual void DoDestroy(ASTContext &C);
 
 public:
   CastKind getCastKind() const { return Kind; }
@@ -1667,10 +1929,12 @@ public:
   const Expr *getSubExprAsWritten() const {
     return const_cast<CastExpr *>(this)->getSubExprAsWritten();
   }
-    
+
+  const CXXBaseSpecifierArray& getBasePath() const { return BasePath; }
+
   static bool classof(const Stmt *T) {
     StmtClass SC = T->getStmtClass();
-    if (SC >= CXXNamedCastExprClass && SC <= CXXFunctionalCastExprClass)
+    if (SC >= CXXStaticCastExprClass && SC <= CXXFunctionalCastExprClass)
       return true;
 
     if (SC >= ImplicitCastExprClass && SC <= CStyleCastExprClass)
@@ -1706,13 +1970,14 @@ class ImplicitCastExpr : public CastExpr {
   bool LvalueCast;
 
 public:
-  ImplicitCastExpr(QualType ty, CastKind kind, Expr *op, bool Lvalue) :
-    CastExpr(ImplicitCastExprClass, ty, kind, op), LvalueCast(Lvalue) { }
+  ImplicitCastExpr(QualType ty, CastKind kind, Expr *op, 
+                   CXXBaseSpecifierArray BasePath, bool Lvalue)
+    : CastExpr(ImplicitCastExprClass, ty, kind, op, BasePath), 
+    LvalueCast(Lvalue) { }
 
   /// \brief Construct an empty implicit cast.
   explicit ImplicitCastExpr(EmptyShell Shell)
     : CastExpr(ImplicitCastExprClass, Shell) { }
-
 
   virtual SourceRange getSourceRange() const {
     return getSubExpr()->getSourceRange();
@@ -1753,8 +2018,9 @@ class ExplicitCastExpr : public CastExpr {
 
 protected:
   ExplicitCastExpr(StmtClass SC, QualType exprTy, CastKind kind,
-                   Expr *op, TypeSourceInfo *writtenTy)
-    : CastExpr(SC, exprTy, kind, op), TInfo(writtenTy) {}
+                   Expr *op, CXXBaseSpecifierArray BasePath,
+                   TypeSourceInfo *writtenTy)
+    : CastExpr(SC, exprTy, kind, op, BasePath), TInfo(writtenTy) {}
 
   /// \brief Construct an empty explicit cast.
   ExplicitCastExpr(StmtClass SC, EmptyShell Shell)
@@ -1774,7 +2040,7 @@ public:
     StmtClass SC = T->getStmtClass();
     if (SC >= CStyleCastExprClass && SC <= CStyleCastExprClass)
       return true;
-    if (SC >= CXXNamedCastExprClass && SC <= CXXFunctionalCastExprClass)
+    if (SC >= CXXStaticCastExprClass && SC <= CXXFunctionalCastExprClass)
       return true;
 
     return false;
@@ -1790,10 +2056,10 @@ class CStyleCastExpr : public ExplicitCastExpr {
   SourceLocation RPLoc; // the location of the right paren
 public:
   CStyleCastExpr(QualType exprTy, CastKind kind, Expr *op,
-                 TypeSourceInfo *writtenTy,
-                 SourceLocation l, SourceLocation r) :
-    ExplicitCastExpr(CStyleCastExprClass, exprTy, kind, op, writtenTy),
-    LPLoc(l), RPLoc(r) {}
+                 CXXBaseSpecifierArray BasePath, TypeSourceInfo *writtenTy,
+                 SourceLocation l, SourceLocation r)
+    : ExplicitCastExpr(CStyleCastExprClass, exprTy, kind, op, BasePath,
+                       writtenTy), LPLoc(l), RPLoc(r) {}
 
   /// \brief Construct an empty C-style explicit cast.
   explicit CStyleCastExpr(EmptyShell Shell)
@@ -2362,7 +2628,7 @@ public:
   virtual child_iterator child_end();
 };
 
-/// VAArgExpr, used for the builtin function __builtin_va_start.
+/// VAArgExpr, used for the builtin function __builtin_va_arg.
 class VAArgExpr : public Expr {
   Stmt *Val;
   SourceLocation BuiltinLoc, RParenLoc;
@@ -2373,7 +2639,7 @@ public:
       BuiltinLoc(BLoc),
       RParenLoc(RPLoc) { }
 
-  /// \brief Create an empty __builtin_va_start expression.
+  /// \brief Create an empty __builtin_va_arg expression.
   explicit VAArgExpr(EmptyShell Empty) : Expr(VAArgExprClass, Empty) { }
 
   const Expr *getSubExpr() const { return cast<Expr>(Val); }
@@ -2438,7 +2704,8 @@ public:
 /// serves as its syntactic form.
 class InitListExpr : public Expr {
   // FIXME: Eliminate this vector in favor of ASTContext allocation
-  std::vector<Stmt *> InitExprs;
+  typedef ASTVector<Stmt *> InitExprsTy;
+  InitExprsTy InitExprs;
   SourceLocation LBraceLoc, RBraceLoc;
 
   /// Contains the initializer list that describes the syntactic form
@@ -2454,11 +2721,13 @@ class InitListExpr : public Expr {
   bool HadArrayRangeDesignator;
 
 public:
-  InitListExpr(SourceLocation lbraceloc, Expr **initexprs, unsigned numinits,
+  InitListExpr(ASTContext &C, SourceLocation lbraceloc,
+               Expr **initexprs, unsigned numinits,
                SourceLocation rbraceloc);
 
   /// \brief Build an empty initializer list.
-  explicit InitListExpr(EmptyShell Empty) : Expr(InitListExprClass, Empty) { }
+  explicit InitListExpr(ASTContext &C, EmptyShell Empty)
+    : Expr(InitListExprClass, Empty), InitExprs(C) { }
 
   unsigned getNumInits() const { return InitExprs.size(); }
 
@@ -2478,7 +2747,7 @@ public:
   }
 
   /// \brief Reserve space for some number of initializers.
-  void reserveInits(unsigned NumInits);
+  void reserveInits(ASTContext &C, unsigned NumInits);
 
   /// @brief Specify the number of initializers
   ///
@@ -2495,7 +2764,7 @@ public:
   /// When @p Init is out of range for this initializer list, the
   /// initializer list will be extended with NULL expressions to
   /// accomodate the new entry.
-  Expr *updateInit(unsigned Init, Expr *expr);
+  Expr *updateInit(ASTContext &C, unsigned Init, Expr *expr);
 
   /// \brief If this initializes a union, specifies which field in the
   /// union to initialize.
@@ -2541,8 +2810,8 @@ public:
   virtual child_iterator child_begin();
   virtual child_iterator child_end();
 
-  typedef std::vector<Stmt *>::iterator iterator;
-  typedef std::vector<Stmt *>::reverse_iterator reverse_iterator;
+  typedef InitExprsTy::iterator iterator;
+  typedef InitExprsTy::reverse_iterator reverse_iterator;
 
   iterator begin() { return InitExprs.begin(); }
   iterator end() { return InitExprs.end(); }

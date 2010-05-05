@@ -28,10 +28,17 @@ public:
     OnlyAlwaysInlining  // Only run the always inlining pass.
   };
 
+  enum ObjCDispatchMethodKind {
+    Legacy = 0,
+    NonLegacy = 1,
+    Mixed = 2
+  };
+
   unsigned AsmVerbose        : 1; /// -dA, -fverbose-asm.
   unsigned CXAAtExit         : 1; /// Use __cxa_atexit for calling destructors.
   unsigned CXXCtorDtorAliases: 1; /// Emit complete ctors/dtors as linker
                                   /// aliases to base ctors when possible.
+  unsigned DataSections      : 1; /// Set when -fdata-sections is enabled
   unsigned DebugInfo         : 1; /// Should generate deubg info (-g).
   unsigned DisableFPElim     : 1; /// Set when -fomit-frame-pointer is enabled.
   unsigned DisableLLVMOpts   : 1; /// Don't run any optimizations, for use in
@@ -39,12 +46,12 @@ public:
                                   /// internal state before optimizations are
                                   /// done.
   unsigned DisableRedZone    : 1; /// Set when -mno-red-zone is enabled.
+  unsigned FunctionSections  : 1; /// Set when -ffunction-sections is enabled
   unsigned MergeAllConstants : 1; /// Merge identical constants.
   unsigned NoCommon          : 1; /// Set when -fno-common or C++ is enabled.
   unsigned NoImplicitFloat   : 1; /// Set when -mno-implicit-float is enabled.
   unsigned NoZeroInitializedInBSS : 1; /// -fno-zero-initialized-in-bss
-  unsigned ObjCLegacyDispatch: 1; /// Use legacy Objective-C dispatch, even with
-                                  /// 2.0 runtime.
+  unsigned ObjCDispatchMethod : 2; /// Method of Objective-C dispatch to use.
   unsigned OptimizationLevel : 3; /// The -O[0-4] option specified.
   unsigned OptimizeSize      : 1; /// If -Os is specified.
   unsigned SoftFloat         : 1; /// -soft-float.
@@ -88,15 +95,17 @@ public:
     AsmVerbose = 0;
     CXAAtExit = 1;
     CXXCtorDtorAliases = 0;
+    DataSections = 0;
     DebugInfo = 0;
     DisableFPElim = 0;
     DisableLLVMOpts = 0;
     DisableRedZone = 0;
+    FunctionSections = 0;
     MergeAllConstants = 1;
     NoCommon = 0;
     NoImplicitFloat = 0;
     NoZeroInitializedInBSS = 0;
-    ObjCLegacyDispatch = 0;
+    ObjCDispatchMethod = Legacy;
     OptimizationLevel = 0;
     OptimizeSize = 0;
     SoftFloat = 0;
@@ -108,6 +117,10 @@ public:
 
     Inlining = NoInlining;
     RelocationModel = "pic";
+  }
+
+  ObjCDispatchMethodKind getObjCDispatchMethod() const {
+    return ObjCDispatchMethodKind(ObjCDispatchMethod);
   }
 };
 

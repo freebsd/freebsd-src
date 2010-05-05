@@ -97,7 +97,11 @@ namespace llvm {
     /// AllowNameToStartWithDigit - This is true if the assembler allows symbol
     /// names to start with a digit (e.g., "0x0021").  This defaults to false.
     bool AllowNameToStartWithDigit;
-    
+
+    /// AllowPeriodsInName - This is true if the assembler allows periods in
+    /// symbol names.  This defaults to true.
+    bool AllowPeriodsInName;
+
     //===--- Data Emission Directives -------------------------------------===//
 
     /// ZeroDirective - this should be set to the directive used to get some
@@ -280,7 +284,7 @@ namespace llvm {
     /// getNonexecutableStackSection - Targets can implement this method to
     /// specify a section to switch to if the translation unit doesn't have any
     /// trampolines that require an executable stack.
-    virtual MCSection *getNonexecutableStackSection(MCContext &Ctx) const {
+    virtual const MCSection *getNonexecutableStackSection(MCContext &Ctx) const{
       return 0;
     }
     
@@ -340,6 +344,9 @@ namespace llvm {
     }
     bool doesAllowNameToStartWithDigit() const {
       return AllowNameToStartWithDigit;
+    }
+    bool doesAllowPeriodsInName() const {
+      return AllowPeriodsInName;
     }
     const char *getZeroDirective() const {
       return ZeroDirective;

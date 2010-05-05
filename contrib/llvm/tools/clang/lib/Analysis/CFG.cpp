@@ -46,7 +46,7 @@ public:
   AddStmtChoice(Kind kind) : k(kind) {}
 
   bool alwaysAdd() const { return (unsigned)k & 0x1; }
-  bool asLValue() const { return k >= AlwaysAddAsLValue; }
+  bool asLValue() const { return k >= AsLValueNotAlwaysAdd; }
 
 private:
   Kind k;
@@ -108,16 +108,16 @@ private:
   CFGBlock *VisitBinaryOperator(BinaryOperator *B, AddStmtChoice asc);
   CFGBlock *VisitBlockExpr(BlockExpr* E, AddStmtChoice asc);
   CFGBlock *VisitBreakStmt(BreakStmt *B);
+  CFGBlock *VisitCXXCatchStmt(CXXCatchStmt *S);
+  CFGBlock *VisitCXXThrowExpr(CXXThrowExpr *T);
+  CFGBlock *VisitCXXTryStmt(CXXTryStmt *S);
+  CFGBlock *VisitCXXMemberCallExpr(CXXMemberCallExpr *C, AddStmtChoice asc);
   CFGBlock *VisitCallExpr(CallExpr *C, AddStmtChoice asc);
   CFGBlock *VisitCaseStmt(CaseStmt *C);
   CFGBlock *VisitChooseExpr(ChooseExpr *C, AddStmtChoice asc);
   CFGBlock *VisitCompoundStmt(CompoundStmt *C);
-  CFGBlock *VisitConditionalOperator(ConditionalOperator *C,
-                                     AddStmtChoice asc);
+  CFGBlock *VisitConditionalOperator(ConditionalOperator *C, AddStmtChoice asc);
   CFGBlock *VisitContinueStmt(ContinueStmt *C);
-  CFGBlock *VisitCXXCatchStmt(CXXCatchStmt *S);
-  CFGBlock *VisitCXXThrowExpr(CXXThrowExpr *T);
-  CFGBlock *VisitCXXTryStmt(CXXTryStmt *S);
   CFGBlock *VisitDeclStmt(DeclStmt *DS);
   CFGBlock *VisitDeclSubExpr(Decl* D);
   CFGBlock *VisitDefaultStmt(DefaultStmt *D);
@@ -127,6 +127,7 @@ private:
   CFGBlock *VisitIfStmt(IfStmt *I);
   CFGBlock *VisitIndirectGotoStmt(IndirectGotoStmt *I);
   CFGBlock *VisitLabelStmt(LabelStmt *L);
+  CFGBlock *VisitMemberExpr(MemberExpr *M, AddStmtChoice asc);
   CFGBlock *VisitObjCAtCatchStmt(ObjCAtCatchStmt *S);
   CFGBlock *VisitObjCAtSynchronizedStmt(ObjCAtSynchronizedStmt *S);
   CFGBlock *VisitObjCAtThrowStmt(ObjCAtThrowStmt *S);
@@ -337,6 +338,10 @@ bool CFGBuilder::FinishBlock(CFGBlock* B) {
 ///   DeclStmts (which may contain nested control-flow).
 CFGBlock* CFGBuilder::Visit(Stmt * S, AddStmtChoice asc) {
 tryAgain:
+  if (!S) {
+    badCFG = true;
+    return 0;
+  }
   switch (S->getStmtClass()) {
     default:
       return VisitStmt(S, asc);
@@ -374,6 +379,9 @@ tryAgain:
     case Stmt::CXXCatchStmtClass:
       return VisitCXXCatchStmt(cast<CXXCatchStmt>(S));
 
+    case Stmt::CXXMemberCallExprClass:
+      return VisitCXXMemberCallExpr(cast<CXXMemberCallExpr>(S), asc);
+
     case Stmt::CXXThrowExprClass:
       return VisitCXXThrowExpr(cast<CXXThrowExpr>(S));
       
@@ -403,6 +411,9 @@ tryAgain:
 
     case Stmt::LabelStmtClass:
       return VisitLabelStmt(cast<LabelStmt>(S));
+
+    case Stmt::MemberExprClass:
+      return VisitMemberExpr(cast<MemberExpr>(S), asc);
 
     case Stmt::ObjCAtCatchStmtClass:
       return VisitObjCAtCatchStmt(cast<ObjCAtCatchStmt>(S));
@@ -491,8 +502,16 @@ CFGBlock *CFGBuilder::VisitBinaryOperator(BinaryOperator *B,
     Succ = ConfluenceBlock;
     Block = NULL;
     CFGBlock* RHSBlock = addStmt(B->getRHS());
-    if (!FinishBlock(RHSBlock))
-      return 0;
+
+    if (RHSBlock) {
+      if (!FinishBlock(RHSBlock))
+        return 0;
+    }
+    else {
+      // Create an empty block for cases where the RHS doesn't require
+      // any explicit statements in the CFG.
+      RHSBlock = createBlock();
+    }
 
     // See if this is a known constant.
     TryResult KnownVal = TryEvaluateBool(B->getLHS());
@@ -627,15 +646,18 @@ CFGBlock *CFGBuilder::VisitChooseExpr(ChooseExpr *C,
   if (!FinishBlock(ConfluenceBlock))
     return 0;
 
+  asc = asc.asLValue() ? AddStmtChoice::AlwaysAddAsLValue
+                       : AddStmtChoice::AlwaysAdd;
+
   Succ = ConfluenceBlock;
   Block = NULL;
-  CFGBlock* LHSBlock = addStmt(C->getLHS());
+  CFGBlock* LHSBlock = addStmt(C->getLHS(), asc);
   if (!FinishBlock(LHSBlock))
     return 0;
 
   Succ = ConfluenceBlock;
   Block = NULL;
-  CFGBlock* RHSBlock = addStmt(C->getRHS());
+  CFGBlock* RHSBlock = addStmt(C->getRHS(), asc);
   if (!FinishBlock(RHSBlock))
     return 0;
 
@@ -676,6 +698,9 @@ CFGBlock *CFGBuilder::VisitConditionalOperator(ConditionalOperator *C,
   if (!FinishBlock(ConfluenceBlock))
     return 0;
 
+  asc = asc.asLValue() ? AddStmtChoice::AlwaysAddAsLValue
+                       : AddStmtChoice::AlwaysAdd;
+
   // Create a block for the LHS expression if there is an LHS expression.  A
   // GCC extension allows LHS to be NULL, causing the condition to be the
   // value that is returned instead.
@@ -684,7 +709,7 @@ CFGBlock *CFGBuilder::VisitConditionalOperator(ConditionalOperator *C,
   Block = NULL;
   CFGBlock* LHSBlock = NULL;
   if (C->getLHS()) {
-    LHSBlock = addStmt(C->getLHS());
+    LHSBlock = addStmt(C->getLHS(), asc);
     if (!FinishBlock(LHSBlock))
       return 0;
     Block = NULL;
@@ -692,7 +717,7 @@ CFGBlock *CFGBuilder::VisitConditionalOperator(ConditionalOperator *C,
 
   // Create the block for the RHS expression.
   Succ = ConfluenceBlock;
-  CFGBlock* RHSBlock = addStmt(C->getRHS());
+  CFGBlock* RHSBlock = addStmt(C->getRHS(), asc);
   if (!FinishBlock(RHSBlock))
     return 0;
 
@@ -1072,6 +1097,16 @@ CFGBlock* CFGBuilder::VisitForStmt(ForStmt* F) {
     Succ = EntryConditionBlock;
     return EntryConditionBlock;
   }
+}
+
+CFGBlock *CFGBuilder::VisitMemberExpr(MemberExpr *M, AddStmtChoice asc) {
+  if (asc.alwaysAdd()) {
+    autoCreateBlock();
+    AppendStmt(Block, M, asc);
+  }
+  return Visit(M->getBase(),
+               M->isArrow() ? AddStmtChoice::NotAlwaysAdd
+                            : AddStmtChoice::AsLValueNotAlwaysAdd);
 }
 
 CFGBlock* CFGBuilder::VisitObjCForCollectionStmt(ObjCForCollectionStmt* S) {
@@ -1692,6 +1727,15 @@ CFGBlock* CFGBuilder::VisitCXXCatchStmt(CXXCatchStmt* CS) {
   Block = NULL;
 
   return CatchBlock;
+}
+
+CFGBlock *CFGBuilder::VisitCXXMemberCallExpr(CXXMemberCallExpr *C, 
+                                             AddStmtChoice asc) {
+  AddStmtChoice::Kind K = asc.asLValue() ? AddStmtChoice::AlwaysAddAsLValue 
+                                         : AddStmtChoice::AlwaysAdd;
+  autoCreateBlock();
+  AppendStmt(Block, C, AddStmtChoice(K));
+  return VisitChildren(C);
 }
 
 CFGBlock* CFGBuilder::VisitIndirectGotoStmt(IndirectGotoStmt* I) {

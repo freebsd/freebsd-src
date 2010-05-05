@@ -11,24 +11,24 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "clang/Basic/Diagnostic.h"
-#include "clang/Basic/PartialDiagnostic.h"
-
-#include "clang/Lex/LexDiagnostic.h"
-#include "clang/Parse/ParseDiagnostic.h"
 #include "clang/AST/ASTDiagnostic.h"
-#include "clang/Sema/SemaDiagnostic.h"
-#include "clang/Frontend/FrontendDiagnostic.h"
 #include "clang/Analysis/AnalysisDiagnostic.h"
-#include "clang/Driver/DriverDiagnostic.h"
-
+#include "clang/Basic/Diagnostic.h"
 #include "clang/Basic/FileManager.h"
 #include "clang/Basic/IdentifierTable.h"
+#include "clang/Basic/PartialDiagnostic.h"
 #include "clang/Basic/SourceLocation.h"
 #include "clang/Basic/SourceManager.h"
+#include "clang/Driver/DriverDiagnostic.h"
+#include "clang/Frontend/FrontendDiagnostic.h"
+#include "clang/Lex/LexDiagnostic.h"
+#include "clang/Parse/ParseDiagnostic.h"
+#include "clang/Sema/SemaDiagnostic.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/StringExtras.h"
+#include "llvm/Support/MemoryBuffer.h"
 #include "llvm/Support/raw_ostream.h"
+
 #include <vector>
 #include <map>
 #include <cstring>
@@ -51,6 +51,8 @@ struct StaticDiagInfoRec {
   unsigned Mapping : 3;
   unsigned Class : 3;
   bool SFINAE : 1;
+  unsigned Category : 5;
+  
   const char *Description;
   const char *OptionGroup;
 
@@ -63,8 +65,8 @@ struct StaticDiagInfoRec {
 };
 
 static const StaticDiagInfoRec StaticDiagInfo[] = {
-#define DIAG(ENUM,CLASS,DEFAULT_MAPPING,DESC,GROUP,SFINAE)    \
-  { diag::ENUM, DEFAULT_MAPPING, CLASS, SFINAE, DESC, GROUP },
+#define DIAG(ENUM,CLASS,DEFAULT_MAPPING,DESC,GROUP,SFINAE, CATEGORY)    \
+  { diag::ENUM, DEFAULT_MAPPING, CLASS, SFINAE, CATEGORY, DESC, GROUP },
 #include "clang/Basic/DiagnosticCommonKinds.inc"
 #include "clang/Basic/DiagnosticDriverKinds.inc"
 #include "clang/Basic/DiagnosticFrontendKinds.inc"
@@ -73,7 +75,7 @@ static const StaticDiagInfoRec StaticDiagInfo[] = {
 #include "clang/Basic/DiagnosticASTKinds.inc"
 #include "clang/Basic/DiagnosticSemaKinds.inc"
 #include "clang/Basic/DiagnosticAnalysisKinds.inc"
-  { 0, 0, 0, 0, 0, 0}
+  { 0, 0, 0, 0, 0, 0, 0}
 };
 #undef DIAG
 
@@ -99,7 +101,7 @@ static const StaticDiagInfoRec *GetDiagInfo(unsigned DiagID) {
 #endif
 
   // Search the diagnostic table with a binary search.
-  StaticDiagInfoRec Find = { DiagID, 0, 0, 0, 0, 0 };
+  StaticDiagInfoRec Find = { DiagID, 0, 0, 0, 0, 0, 0 };
 
   const StaticDiagInfoRec *Found =
     std::lower_bound(StaticDiagInfo, StaticDiagInfo + NumDiagEntries, Find);
@@ -223,9 +225,12 @@ Diagnostic::Diagnostic(DiagnosticClient *client) : Client(client) {
 
   ErrorOccurred = false;
   FatalErrorOccurred = false;
-  NumDiagnostics = 0;
-  
+  ErrorLimit = 0;
+  TemplateBacktraceLimit = 0;
+
+  NumWarnings = 0;
   NumErrors = 0;
+  NumErrorsSuppressed = 0;
   CustomDiagInfo = 0;
   CurDiagID = ~0U;
   LastDiagLevel = Ignored;
@@ -286,11 +291,18 @@ bool Diagnostic::isBuiltinNote(unsigned DiagID) {
 }
 
 /// isBuiltinExtensionDiag - Determine whether the given built-in diagnostic
-/// ID is for an extension of some sort.
+/// ID is for an extension of some sort.  This also returns EnabledByDefault,
+/// which is set to indicate whether the diagnostic is ignored by default (in
+/// which case -pedantic enables it) or treated as a warning/error by default.
 ///
-bool Diagnostic::isBuiltinExtensionDiag(unsigned DiagID) {
-  return DiagID < diag::DIAG_UPPER_LIMIT &&
-         getBuiltinDiagClass(DiagID) == CLASS_EXTENSION;
+bool Diagnostic::isBuiltinExtensionDiag(unsigned DiagID,
+                                        bool &EnabledByDefault) {
+  if (DiagID >= diag::DIAG_UPPER_LIMIT ||
+      getBuiltinDiagClass(DiagID) != CLASS_EXTENSION)
+    return false;
+  
+  EnabledByDefault = StaticDiagInfo[DiagID].Mapping != diag::MAP_IGNORE;
+  return true;
 }
 
 
@@ -529,8 +541,14 @@ bool Diagnostic::ProcessDiag() {
 
   // If a fatal error has already been emitted, silence all subsequent
   // diagnostics.
-  if (FatalErrorOccurred)
+  if (FatalErrorOccurred) {
+    if (DiagLevel >= Diagnostic::Error) {
+      ++NumErrors;
+      ++NumErrorsSuppressed;
+    }
+    
     return false;
+  }
 
   // If the client doesn't care about this message, don't issue it.  If this is
   // a note and the last real diagnostic was ignored, ignore it too.
@@ -551,11 +569,20 @@ bool Diagnostic::ProcessDiag() {
   if (DiagLevel >= Diagnostic::Error) {
     ErrorOccurred = true;
     ++NumErrors;
+    
+    // If we've emitted a lot of errors, emit a fatal error after it to stop a
+    // flood of bogus errors.
+    if (ErrorLimit && NumErrors >= ErrorLimit &&
+        DiagLevel == Diagnostic::Error)
+      SetDelayedDiagnostic(diag::fatal_too_many_errors);
   }
 
   // Finally, report it.
   Client->HandleDiagnostic(DiagLevel, Info);
-  if (Client->IncludeInDiagnosticCounts()) ++NumDiagnostics;
+  if (Client->IncludeInDiagnosticCounts()) {
+    if (DiagLevel == Diagnostic::Warning)
+      ++NumWarnings;
+  }
 
   CurDiagID = ~0U;
 
@@ -1026,8 +1053,15 @@ static void WriteSourceLocation(llvm::raw_ostream &OS,
 
   Location = SM->getInstantiationLoc(Location);
   std::pair<FileID, unsigned> Decomposed = SM->getDecomposedLoc(Location);
-  
-  WriteString(OS, SM->getFileEntryForID(Decomposed.first)->getName());
+
+  const FileEntry *FE = SM->getFileEntryForID(Decomposed.first);
+  if (FE)
+    WriteString(OS, FE->getName());
+  else {
+    // Fallback to using the buffer name when there is no entry.
+    WriteString(OS, SM->getBuffer(Decomposed.first)->getBufferIdentifier());
+  }
+
   WriteUnsigned(OS, SM->getLineNumber(Decomposed.first, Decomposed.second));
   WriteUnsigned(OS, SM->getColumnNumber(Decomposed.first, Decomposed.second));
 }

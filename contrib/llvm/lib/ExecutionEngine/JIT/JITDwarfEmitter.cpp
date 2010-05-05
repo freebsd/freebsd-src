@@ -52,7 +52,7 @@ unsigned char* JITDwarfEmitter::EmitDwarfTable(MachineFunction& F,
       
   unsigned char* Result = 0;
 
-  const std::vector<Function *> Personalities = MMI->getPersonalities();
+  const std::vector<const Function *> Personalities = MMI->getPersonalities();
   EHFramePtr = EmitCommonEHFrame(Personalities[MMI->getPersonalityIndex()]);
 
   Result = EmitEHFrame(Personalities[MMI->getPersonalityIndex()], EHFramePtr,
@@ -75,7 +75,7 @@ JITDwarfEmitter::EmitFrameMoves(intptr_t BaseLabelPtr,
     MCSymbol *Label = Move.getLabel();
     
     // Throw out move if the label is invalid.
-    if (Label && !Label->isDefined())
+    if (Label && (*JCE->getLabelLocations())[Label] == 0)
       continue;
     
     intptr_t LabelPtr = 0;
@@ -199,9 +199,9 @@ unsigned char* JITDwarfEmitter::EmitExceptionTable(MachineFunction* MF,
   assert(MMI && "MachineModuleInfo not registered!");
 
   // Map all labels and get rid of any dead landing pads.
-  MMI->TidyLandingPads();
+  MMI->TidyLandingPads(JCE->getLabelLocations());
 
-  const std::vector<GlobalVariable *> &TypeInfos = MMI->getTypeInfos();
+  const std::vector<const GlobalVariable *> &TypeInfos = MMI->getTypeInfos();
   const std::vector<unsigned> &FilterIds = MMI->getFilterIds();
   const std::vector<LandingPadInfo> &PadInfos = MMI->getLandingPads();
   if (PadInfos.empty()) return 0;
@@ -450,7 +450,7 @@ unsigned char* JITDwarfEmitter::EmitExceptionTable(MachineFunction* MF,
 
   // Emit the type ids.
   for (unsigned M = TypeInfos.size(); M; --M) {
-    GlobalVariable *GV = TypeInfos[M - 1];
+    const GlobalVariable *GV = TypeInfos[M - 1];
     
     if (GV) {
       if (TD->getPointerSize() == sizeof(int32_t))
@@ -609,7 +609,7 @@ unsigned JITDwarfEmitter::GetDwarfTableSizeInBytes(MachineFunction& F,
   
   FinalSize += GetExceptionTableSizeInBytes(&F);
       
-  const std::vector<Function *> Personalities = MMI->getPersonalities();
+  const std::vector<const Function *> Personalities = MMI->getPersonalities();
   FinalSize += 
     GetCommonEHFrameSizeInBytes(Personalities[MMI->getPersonalityIndex()]);
 
@@ -711,7 +711,7 @@ JITDwarfEmitter::GetFrameMovesSizeInBytes(intptr_t BaseLabelPtr,
     MCSymbol *Label = Move.getLabel();
     
     // Throw out move if the label is invalid.
-    if (Label && !Label->isDefined())
+    if (Label && (*JCE->getLabelLocations())[Label] == 0)
       continue;
     
     intptr_t LabelPtr = 0;
@@ -780,9 +780,9 @@ JITDwarfEmitter::GetExceptionTableSizeInBytes(MachineFunction* MF) const {
   unsigned FinalSize = 0;
 
   // Map all labels and get rid of any dead landing pads.
-  MMI->TidyLandingPads();
+  MMI->TidyLandingPads(JCE->getLabelLocations());
 
-  const std::vector<GlobalVariable *> &TypeInfos = MMI->getTypeInfos();
+  const std::vector<const GlobalVariable *> &TypeInfos = MMI->getTypeInfos();
   const std::vector<unsigned> &FilterIds = MMI->getFilterIds();
   const std::vector<LandingPadInfo> &PadInfos = MMI->getLandingPads();
   if (PadInfos.empty()) return 0;

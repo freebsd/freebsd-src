@@ -31,11 +31,44 @@ using namespace CodeGen;
 
 void CodeGenFunction::EmitDecl(const Decl &D) {
   switch (D.getKind()) {
-  default:
-    CGM.ErrorUnsupported(&D, "decl");
-    return;
+  case Decl::TranslationUnit:
+  case Decl::Namespace:
+  case Decl::UnresolvedUsingTypename:
+  case Decl::ClassTemplateSpecialization:
+  case Decl::ClassTemplatePartialSpecialization:
+  case Decl::TemplateTypeParm:
+  case Decl::UnresolvedUsingValue:
+    case Decl::NonTypeTemplateParm:
+  case Decl::CXXMethod:
+  case Decl::CXXConstructor:
+  case Decl::CXXDestructor:
+  case Decl::CXXConversion:
+  case Decl::Field:
+  case Decl::ObjCIvar:
+  case Decl::ObjCAtDefsField:      
   case Decl::ParmVar:
-    assert(0 && "Parmdecls should not be in declstmts!");
+  case Decl::ImplicitParam:
+  case Decl::ClassTemplate:
+  case Decl::FunctionTemplate:
+  case Decl::TemplateTemplateParm:
+  case Decl::ObjCMethod:
+  case Decl::ObjCCategory:
+  case Decl::ObjCProtocol:
+  case Decl::ObjCInterface:
+  case Decl::ObjCCategoryImpl:
+  case Decl::ObjCImplementation:
+  case Decl::ObjCProperty:
+  case Decl::ObjCCompatibleAlias:
+  case Decl::LinkageSpec:
+  case Decl::ObjCPropertyImpl:
+  case Decl::ObjCClass:
+  case Decl::ObjCForwardProtocol:
+  case Decl::FileScopeAsm:
+  case Decl::Friend:
+  case Decl::FriendTemplate:
+  case Decl::Block:
+    
+    assert(0 && "Declaration not should not be in declstmts!");
   case Decl::Function:  // void X();
   case Decl::Record:    // struct/union/class X;
   case Decl::Enum:      // enum X;
@@ -44,6 +77,7 @@ void CodeGenFunction::EmitDecl(const Decl &D) {
   case Decl::Using:          // using X; [C++]
   case Decl::UsingShadow:
   case Decl::UsingDirective: // using namespace X; [C++]
+  case Decl::NamespaceAlias:
   case Decl::StaticAssert: // static_assert(X, ""); [C++0x]
     // None of these decls require codegen support.
     return;
@@ -205,10 +239,12 @@ void CodeGenFunction::EmitStaticBlockVarDecl(const VarDecl &D,
   // Store into LocalDeclMap before generating initializer to handle
   // circular references.
   DMEntry = GV;
+  if (getContext().getLangOptions().CPlusPlus)
+    CGM.setStaticLocalDeclAddress(&D, GV);
 
+  // We can't have a VLA here, but we can have a pointer to a VLA,
+  // even though that doesn't really make any sense.
   // Make sure to evaluate VLA bounds now so that we have them for later.
-  //
-  // FIXME: Can this happen?
   if (D.getType()->isVariablyModifiedType())
     EmitVLASize(D.getType());
 
@@ -610,6 +646,11 @@ void CodeGenFunction::EmitLocalBlockVarDecl(const VarDecl &D) {
     DtorTy = getContext().getBaseElementType(Array);
   if (const RecordType *RT = DtorTy->getAs<RecordType>())
     if (CXXRecordDecl *ClassDecl = dyn_cast<CXXRecordDecl>(RT->getDecl())) {
+      llvm::Value *Loc = DeclPtr;
+      if (isByRef)
+        Loc = Builder.CreateStructGEP(DeclPtr, getByRefValueLLVMField(&D), 
+                                      D.getNameAsString());
+      
       if (!ClassDecl->hasTrivialDestructor()) {
         const CXXDestructorDecl *D = ClassDecl->getDestructor(getContext());
         assert(D && "EmitLocalBlockVarDecl - destructor is nul");
@@ -622,7 +663,7 @@ void CodeGenFunction::EmitLocalBlockVarDecl(const VarDecl &D) {
             const llvm::Type *BasePtr = ConvertType(BaseElementTy);
             BasePtr = llvm::PointerType::getUnqual(BasePtr);
             llvm::Value *BaseAddrPtr =
-              Builder.CreateBitCast(DeclPtr, BasePtr);
+              Builder.CreateBitCast(Loc, BasePtr);
             EmitCXXAggrDestructorCall(D, Array, BaseAddrPtr);
           
             // Make sure to jump to the exit block.
@@ -634,20 +675,22 @@ void CodeGenFunction::EmitLocalBlockVarDecl(const VarDecl &D) {
             const llvm::Type *BasePtr = ConvertType(BaseElementTy);
             BasePtr = llvm::PointerType::getUnqual(BasePtr);
             llvm::Value *BaseAddrPtr =
-              Builder.CreateBitCast(DeclPtr, BasePtr);
+              Builder.CreateBitCast(Loc, BasePtr);
             EmitCXXAggrDestructorCall(D, Array, BaseAddrPtr);
           }
         } else {
           {
             DelayedCleanupBlock Scope(*this);
-            EmitCXXDestructorCall(D, Dtor_Complete, DeclPtr);
+            EmitCXXDestructorCall(D, Dtor_Complete, /*ForVirtualBase=*/false,
+                                  Loc);
 
             // Make sure to jump to the exit block.
             EmitBranch(Scope.getCleanupExitBlock());
           }
           if (Exceptions) {
             EHCleanupBlock Cleanup(*this);
-            EmitCXXDestructorCall(D, Dtor_Complete, DeclPtr);
+            EmitCXXDestructorCall(D, Dtor_Complete, /*ForVirtualBase=*/false,
+                                  Loc);
           }
         }
       }

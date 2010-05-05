@@ -103,6 +103,10 @@ public:
   /// ABI).
   virtual bool IsObjCLegacyDispatchDefault() const { return false; }
 
+  /// UseObjCMixedDispatchDefault - When using non-legacy dispatch, should the
+  /// mixed dispatch method be used?
+  virtual bool UseObjCMixedDispatch() const { return false; }
+
   /// GetDefaultStackProtectorLevel - Get the default stack protector level for
   /// this tool chain (0=off, 1=on, 2=all).
   virtual unsigned GetDefaultStackProtectorLevel() const { return 0; }
@@ -119,6 +123,9 @@ public:
   /// for this tool chain, or 0 if this tool chain does not force a
   /// particular PIC mode.
   virtual const char *GetForcedPicModel() const = 0;
+
+  /// Does this tool chain support Objective-C garbage collection.
+  virtual bool SupportsObjCGC() const { return false; }
 
   /// UseDwarfDebugFlags - Embed the compile options to clang into the Dwarf
   /// compile unit information.

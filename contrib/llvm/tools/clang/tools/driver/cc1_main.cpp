@@ -64,7 +64,6 @@ static FrontendAction *CreateFrontendBaseAction(CompilerInstance &CI) {
   case ASTPrintXML:            return new ASTPrintXMLAction();
   case ASTView:                return new ASTViewAction();
   case DumpRawTokens:          return new DumpRawTokensAction();
-  case DumpRecordLayouts:      return new DumpRecordAction();
   case DumpTokens:             return new DumpTokensAction();
   case EmitAssembly:           return new EmitAssemblyAction();
   case EmitBC:                 return new EmitBCAction();
@@ -199,7 +198,7 @@ int cc1_main(const char **ArgBegin, const char **ArgEnd,
              const char *Argv0, void *MainAddr) {
   llvm::OwningPtr<CompilerInstance> Clang(new CompilerInstance());
 
-  Clang->setLLVMContext(new llvm::LLVMContext);
+  Clang->setLLVMContext(new llvm::LLVMContext());
 
   // Run clang -cc1 test.
   if (ArgBegin != ArgEnd && llvm::StringRef(ArgBegin[0]) == "-cc1test") {
@@ -242,6 +241,19 @@ int cc1_main(const char **ArgBegin, const char **ArgEnd,
     return 0;
   }
 
+  // Honor -mllvm.
+  //
+  // FIXME: Remove this, one day.
+  if (!Clang->getFrontendOpts().LLVMArgs.empty()) {
+    unsigned NumArgs = Clang->getFrontendOpts().LLVMArgs.size();
+    const char **Args = new const char*[NumArgs + 2];
+    Args[0] = "clang (LLVM option parsing)";
+    for (unsigned i = 0; i != NumArgs; ++i)
+      Args[i + 1] = Clang->getFrontendOpts().LLVMArgs[i].c_str();
+    Args[NumArgs + 1] = 0;
+    llvm::cl::ParseCommandLineOptions(NumArgs + 1, const_cast<char **>(Args));
+  }
+
   // Create the actual diagnostics engine.
   Clang->createDiagnostics(ArgEnd - ArgBegin, const_cast<char**>(ArgBegin));
   if (!Clang->hasDiagnostics())
@@ -249,7 +261,7 @@ int cc1_main(const char **ArgBegin, const char **ArgEnd,
 
   // Set an error handler, so that any LLVM backend diagnostics go through our
   // error handler.
-  llvm::llvm_install_error_handler(LLVMErrorHandler,
+  llvm::install_fatal_error_handler(LLVMErrorHandler,
                                   static_cast<void*>(&Clang->getDiagnostics()));
 
   DiagsBuffer.FlushDiagnostics(Clang->getDiagnostics());

@@ -1,4 +1,4 @@
-// RUN: %clang_cc1 -faltivec -fsyntax-only -verify %s
+// RUN: %clang_cc1 -triple=powerpc-apple-darwin8 -faltivec -fsyntax-only -verify %s
 
 __vector char vv_c;
 __vector signed char vv_sc;
@@ -39,6 +39,8 @@ vector pixel v__p;
 vector int f__r();
 void f_a(vector int a);
 void f_a2(int b, vector int a);
+
+vector int v = (vector int)(-1);
 
 // These should have warnings.
 __vector long vv_l;                 // expected-warning {{Use of 'long' with '__vector' is deprecated}}
@@ -81,8 +83,8 @@ void f() {
   gccvector unsigned int gv = v;
   gccvector int gvi = (gccvector int)v;
   __attribute__((vector_size(8))) unsigned int gv8;
-  gv8 = gccv;     // expected-error {{incompatible type assigning '__attribute__((__vector_size__(4 * sizeof(unsigned int)))) unsigned int', expected '__attribute__((__vector_size__(2 * sizeof(unsigned int)))) unsigned int'}}
-  av = gv8;       // expected-error {{incompatible type assigning '__attribute__((__vector_size__(2 * sizeof(unsigned int)))) unsigned int', expected '__vector unsigned int'}}
+  gv8 = gccv;     // expected-error {{assigning to '__attribute__((__vector_size__(2 * sizeof(unsigned int)))) unsigned int' from incompatible type '__attribute__((__vector_size__(4 * sizeof(unsigned int)))) unsigned int'}}
+  av = gv8;       // expected-error {{assigning to '__vector unsigned int' from incompatible type '__attribute__((__vector_size__(2 * sizeof(unsigned int)))) unsigned int'}}
 
   v = gccv;
   __vector unsigned int tv = gccv;

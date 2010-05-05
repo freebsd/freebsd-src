@@ -609,7 +609,9 @@ clang_getTranslationUnitSpelling(CXTranslationUnit CTUnit);
  *
  * \param unsaved_files the files that have not yet been saved to disk
  * but may be required for code completion, including the contents of
- * those files.
+ * those files.  The contents and name of these files (as specified by
+ * CXUnsavedFile) are copied when necessary, so the client only needs to
+ * guarantee their validity until the call to this function returns.
  *
  * \param diag_callback callback function that will receive any diagnostics
  * emitted while processing this source file. If NULL, diagnostics will be
@@ -698,7 +700,11 @@ enum CXCursorKind {
   CXCursor_ObjCCategoryImplDecl          = 19,
   /** \brief A typedef */
   CXCursor_TypedefDecl                   = 20,
-  CXCursor_LastDecl                      = 20,
+
+  /** \brief A C++ class method. */
+  CXCursor_CXXMethod                     = 21,
+
+  CXCursor_LastDecl                      = 21,
 
   /* References */
   CXCursor_FirstRef                      = 40, /* Decl references */
@@ -763,7 +769,11 @@ enum CXCursorKind {
   /** \brief An expression that sends a message to an Objective-C
    object or class. */
   CXCursor_ObjCMessageExpr               = 104,
-  CXCursor_LastExpr                      = 104,
+
+  /** \brief An expression that represents a block literal. */
+  CXCursor_BlockExpr                     = 105,
+
+  CXCursor_LastExpr                      = 105,
 
   /* Statements */
   CXCursor_FirstStmt                     = 200,
@@ -930,9 +940,24 @@ enum CXLinkageKind {
 };
 
 /**
- * \brief Determine the linkage of the entity referred to be a given cursor.
+ * \brief Determine the linkage of the entity referred to by a given cursor.
  */
 CINDEX_LINKAGE enum CXLinkageKind clang_getCursorLinkage(CXCursor cursor);
+
+/**
+ * \brief Describe the "language" of the entity referred to by a cursor.
+ */
+CINDEX_LINKAGE enum CXLanguageKind {
+  CXLanguage_Invalid = 0,
+  CXLanguage_C,
+  CXLanguage_ObjC,
+  CXLanguage_CPlusPlus
+};
+
+/**
+ * \brief Determine the "language" of the entity referred to by a given cursor.
+ */
+CINDEX_LINKAGE enum CXLanguageKind clang_getCursorLanguage(CXCursor cursor);
 
 /**
  * @}
@@ -1697,7 +1722,9 @@ typedef struct {
  *
  * \param unsaved_files the files that have not yet been saved to disk
  * but may be required for code completion, including the contents of
- * those files.
+ * those files.  The contents and name of these files (as specified by
+ * CXUnsavedFile) are copied when necessary, so the client only needs to
+ * guarantee their validity until the call to this function returns.
  *
  * \param complete_filename the name of the source file where code completion
  * should be performed. In many cases, this name will be the same as the

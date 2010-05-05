@@ -53,31 +53,36 @@ RValue CodeGenFunction::EmitObjCMessageExpr(const ObjCMessageExpr *E) {
   // arguments in generic code.
 
   CGObjCRuntime &Runtime = CGM.getObjCRuntime();
-  const Expr *ReceiverExpr = E->getReceiver();
   bool isSuperMessage = false;
   bool isClassMessage = false;
+  ObjCInterfaceDecl *OID = 0;
   // Find the receiver
-  llvm::Value *Receiver;
-  if (!ReceiverExpr) {
-    const ObjCInterfaceDecl *OID = E->getClassInfo().Decl;
+  llvm::Value *Receiver = 0;
+  switch (E->getReceiverKind()) {
+  case ObjCMessageExpr::Instance:
+    Receiver = EmitScalarExpr(E->getInstanceReceiver());
+    break;
 
-    // Very special case, super send in class method. The receiver is
-    // self (the class object) and the send uses super semantics.
-    if (!OID) {
-      assert(E->getClassName()->isStr("super") &&
-             "Unexpected missing class interface in message send.");
-      isSuperMessage = true;
-      Receiver = LoadObjCSelf();
-    } else {
-      Receiver = Runtime.GetClass(Builder, OID);
-    }
-
+  case ObjCMessageExpr::Class: {
+    const ObjCInterfaceType *IFace
+      = E->getClassReceiver()->getAs<ObjCInterfaceType>();
+    OID = IFace->getDecl();
+    assert(IFace && "Invalid Objective-C class message send");
+    Receiver = Runtime.GetClass(Builder, OID);
     isClassMessage = true;
-  } else if (isa<ObjCSuperExpr>(E->getReceiver())) {
-    isSuperMessage = true;
+    break;
+  }
+
+  case ObjCMessageExpr::SuperInstance:
     Receiver = LoadObjCSelf();
-  } else {
-    Receiver = EmitScalarExpr(E->getReceiver());
+    isSuperMessage = true;
+    break;
+
+  case ObjCMessageExpr::SuperClass:
+    Receiver = LoadObjCSelf();
+    isSuperMessage = true;
+    isClassMessage = true;
+    break;
   }
 
   CallArgList Args;
@@ -98,7 +103,7 @@ RValue CodeGenFunction::EmitObjCMessageExpr(const ObjCMessageExpr *E) {
   }
 
   return Runtime.GenerateMessageSend(*this, E->getType(), E->getSelector(),
-                                     Receiver, isClassMessage, Args,
+                                     Receiver, Args, OID,
                                      E->getMethodDecl());
 }
 
@@ -148,19 +153,21 @@ void CodeGenFunction::GenerateObjCGetter(ObjCImplementationDecl *IMP,
                                          const ObjCPropertyImplDecl *PID) {
   ObjCIvarDecl *Ivar = PID->getPropertyIvarDecl();
   const ObjCPropertyDecl *PD = PID->getPropertyDecl();
+  bool IsAtomic =
+    !(PD->getPropertyAttributes() & ObjCPropertyDecl::OBJC_PR_nonatomic);
   ObjCMethodDecl *OMD = PD->getGetterMethodDecl();
   assert(OMD && "Invalid call to generate getter (empty method)");
   // FIXME: This is rather murky, we create this here since they will not have
   // been created by Sema for us.
   OMD->createImplicitParams(getContext(), IMP->getClassInterface());
   StartObjCMethod(OMD, IMP->getClassInterface());
-
+  
   // Determine if we should use an objc_getProperty call for
   // this. Non-atomic properties are directly evaluated.
   // atomic 'copy' and 'retain' properties are also directly
   // evaluated in gc-only mode.
   if (CGM.getLangOptions().getGCMode() != LangOptions::GCOnly &&
-      !(PD->getPropertyAttributes() & ObjCPropertyDecl::OBJC_PR_nonatomic) &&
+      IsAtomic &&
       (PD->getSetterKind() == ObjCPropertyDecl::Copy ||
        PD->getSetterKind() == ObjCPropertyDecl::Retain)) {
     llvm::Value *GetPropertyFn =
@@ -208,7 +215,44 @@ void CodeGenFunction::GenerateObjCGetter(ObjCImplementationDecl *IMP,
       StoreComplexToAddr(Pair, ReturnValue, LV.isVolatileQualified());
     }
     else if (hasAggregateLLVMType(Ivar->getType())) {
-      EmitAggregateCopy(ReturnValue, LV.getAddress(), Ivar->getType());
+      bool IsStrong = false;
+      if ((IsAtomic || (IsStrong = IvarTypeWithAggrGCObjects(Ivar->getType())))
+          && CurFnInfo->getReturnInfo().getKind() == ABIArgInfo::Indirect
+          && CGM.getObjCRuntime().GetCopyStructFunction()) {
+        llvm::Value *GetCopyStructFn =
+          CGM.getObjCRuntime().GetCopyStructFunction();
+        CodeGenTypes &Types = CGM.getTypes();
+        // objc_copyStruct (ReturnValue, &structIvar, 
+        //                  sizeof (Type of Ivar), isAtomic, false);
+        CallArgList Args;
+        RValue RV = RValue::get(Builder.CreateBitCast(ReturnValue,
+                                    Types.ConvertType(getContext().VoidPtrTy)));
+        Args.push_back(std::make_pair(RV, getContext().VoidPtrTy));
+        RV = RValue::get(Builder.CreateBitCast(LV.getAddress(),
+                                    Types.ConvertType(getContext().VoidPtrTy)));
+        Args.push_back(std::make_pair(RV, getContext().VoidPtrTy));
+        // sizeof (Type of Ivar)
+        uint64_t Size =  getContext().getTypeSize(Ivar->getType()) / 8;
+        llvm::Value *SizeVal =
+          llvm::ConstantInt::get(Types.ConvertType(getContext().LongTy), Size);
+        Args.push_back(std::make_pair(RValue::get(SizeVal),
+                                      getContext().LongTy));
+        llvm::Value *isAtomic =
+          llvm::ConstantInt::get(Types.ConvertType(getContext().BoolTy), 
+                                 IsAtomic ? 1 : 0);
+        Args.push_back(std::make_pair(RValue::get(isAtomic), 
+                                      getContext().BoolTy));
+        llvm::Value *hasStrong =
+          llvm::ConstantInt::get(Types.ConvertType(getContext().BoolTy), 
+                                 IsStrong ? 1 : 0);
+        Args.push_back(std::make_pair(RValue::get(hasStrong), 
+                                      getContext().BoolTy));
+        EmitCall(Types.getFunctionInfo(getContext().VoidTy, Args,
+                                       FunctionType::ExtInfo()),
+                 GetCopyStructFn, ReturnValueSlot(), Args);
+      }
+      else
+        EmitAggregateCopy(ReturnValue, LV.getAddress(), Ivar->getType());
     } else {
       CodeGenTypes &Types = CGM.getTypes();
       RValue RV = EmitLoadOfLValue(LV, Ivar->getType());
@@ -289,6 +333,41 @@ void CodeGenFunction::GenerateObjCSetter(ObjCImplementationDecl *IMP,
                                    FunctionType::ExtInfo()),
              SetPropertyFn,
              ReturnValueSlot(), Args);
+  } else if (IsAtomic && hasAggregateLLVMType(Ivar->getType()) &&
+             !Ivar->getType()->isAnyComplexType() &&
+             IndirectObjCSetterArg(*CurFnInfo)
+             && CGM.getObjCRuntime().GetCopyStructFunction()) {
+    // objc_copyStruct (&structIvar, &Arg, 
+    //                  sizeof (struct something), true, false);
+    llvm::Value *GetCopyStructFn =
+      CGM.getObjCRuntime().GetCopyStructFunction();
+    CodeGenTypes &Types = CGM.getTypes();
+    CallArgList Args;
+    LValue LV = EmitLValueForIvar(TypeOfSelfObject(), LoadObjCSelf(), Ivar, 0);
+    RValue RV = RValue::get(Builder.CreateBitCast(LV.getAddress(),
+                                    Types.ConvertType(getContext().VoidPtrTy)));
+    Args.push_back(std::make_pair(RV, getContext().VoidPtrTy));
+    llvm::Value *Arg = LocalDeclMap[*OMD->param_begin()];
+    llvm::Value *ArgAsPtrTy =
+      Builder.CreateBitCast(Arg,
+                            Types.ConvertType(getContext().VoidPtrTy));
+    RV = RValue::get(ArgAsPtrTy);
+    Args.push_back(std::make_pair(RV, getContext().VoidPtrTy));
+    // sizeof (Type of Ivar)
+    uint64_t Size =  getContext().getTypeSize(Ivar->getType()) / 8;
+    llvm::Value *SizeVal =
+      llvm::ConstantInt::get(Types.ConvertType(getContext().LongTy), Size);
+    Args.push_back(std::make_pair(RValue::get(SizeVal),
+                                  getContext().LongTy));
+    llvm::Value *True =
+      llvm::ConstantInt::get(Types.ConvertType(getContext().BoolTy), 1);
+    Args.push_back(std::make_pair(RValue::get(True), getContext().BoolTy));
+    llvm::Value *False =
+      llvm::ConstantInt::get(Types.ConvertType(getContext().BoolTy), 0);
+    Args.push_back(std::make_pair(RValue::get(False), getContext().BoolTy));
+    EmitCall(Types.getFunctionInfo(getContext().VoidTy, Args,
+                                   FunctionType::ExtInfo()),
+             GetCopyStructFn, ReturnValueSlot(), Args);
   } else {
     // FIXME: Find a clean way to avoid AST node creation.
     SourceLocation Loc = PD->getLocation();
@@ -304,7 +383,7 @@ void CodeGenFunction::GenerateObjCSetter(ObjCImplementationDecl *IMP,
     if (getContext().getCanonicalType(Ivar->getType()) !=
         getContext().getCanonicalType(ArgDecl->getType())) {
       ImplicitCastExpr ArgCasted(Ivar->getType(), CastExpr::CK_BitCast, &Arg,
-                                 false);
+                                 CXXBaseSpecifierArray(), false);
       BinaryOperator Assign(&IvarRef, &ArgCasted, BinaryOperator::Assign,
                             Ivar->getType(), Loc);
       EmitStmt(&Assign);
@@ -316,6 +395,85 @@ void CodeGenFunction::GenerateObjCSetter(ObjCImplementationDecl *IMP,
   }
 
   FinishFunction();
+}
+
+void CodeGenFunction::GenerateObjCCtorDtorMethod(ObjCImplementationDecl *IMP,
+                                                 ObjCMethodDecl *MD,
+                                                 bool ctor) {
+  llvm::SmallVector<CXXBaseOrMemberInitializer *, 8> IvarInitializers;
+  MD->createImplicitParams(CGM.getContext(), IMP->getClassInterface());
+  StartObjCMethod(MD, IMP->getClassInterface());
+  for (ObjCImplementationDecl::init_const_iterator B = IMP->init_begin(),
+       E = IMP->init_end(); B != E; ++B) {
+    CXXBaseOrMemberInitializer *Member = (*B);
+    IvarInitializers.push_back(Member);
+  }
+  if (ctor) {
+    for (unsigned I = 0, E = IvarInitializers.size(); I != E; ++I) {
+      CXXBaseOrMemberInitializer *IvarInit = IvarInitializers[I];
+      FieldDecl *Field = IvarInit->getMember();
+      QualType FieldType = Field->getType();
+      ObjCIvarDecl  *Ivar = cast<ObjCIvarDecl>(Field);
+      LValue LV = EmitLValueForIvar(TypeOfSelfObject(), 
+                                    LoadObjCSelf(), Ivar, 0);
+      EmitAggExpr(IvarInit->getInit(), LV.getAddress(),
+                  LV.isVolatileQualified(), false, true);
+    }
+    // constructor returns 'self'.
+    CodeGenTypes &Types = CGM.getTypes();
+    QualType IdTy(CGM.getContext().getObjCIdType());
+    llvm::Value *SelfAsId =
+      Builder.CreateBitCast(LoadObjCSelf(), Types.ConvertType(IdTy));
+    EmitReturnOfRValue(RValue::get(SelfAsId), IdTy);
+  }
+  else {
+    // dtor
+    for (size_t i = IvarInitializers.size(); i > 0; --i) {
+      FieldDecl *Field = IvarInitializers[i - 1]->getMember();
+      QualType FieldType = Field->getType();
+      const ConstantArrayType *Array = 
+        getContext().getAsConstantArrayType(FieldType);
+      if (Array)
+        FieldType = getContext().getBaseElementType(FieldType);
+      
+      ObjCIvarDecl  *Ivar = cast<ObjCIvarDecl>(Field);
+      LValue LV = EmitLValueForIvar(TypeOfSelfObject(), 
+                                    LoadObjCSelf(), Ivar, 0);
+      const RecordType *RT = FieldType->getAs<RecordType>();
+      CXXRecordDecl *FieldClassDecl = cast<CXXRecordDecl>(RT->getDecl());
+      CXXDestructorDecl *Dtor = FieldClassDecl->getDestructor(getContext());
+      if (!Dtor->isTrivial())
+        if (Array) {
+          const llvm::Type *BasePtr = ConvertType(FieldType);
+          BasePtr = llvm::PointerType::getUnqual(BasePtr);
+          llvm::Value *BaseAddrPtr =
+            Builder.CreateBitCast(LV.getAddress(), BasePtr);
+          EmitCXXAggrDestructorCall(Dtor,
+                                    Array, BaseAddrPtr);
+        }
+        else 
+          EmitCXXDestructorCall(Dtor,
+                                Dtor_Complete, /*ForVirtualBase=*/false,
+                                LV.getAddress());
+    }    
+  }
+  FinishFunction();
+}
+
+bool CodeGenFunction::IndirectObjCSetterArg(const CGFunctionInfo &FI) {
+  CGFunctionInfo::const_arg_iterator it = FI.arg_begin();
+  it++; it++;
+  const ABIArgInfo &AI = it->info;
+  // FIXME. Is this sufficient check?
+  return (AI.getKind() == ABIArgInfo::Indirect);
+}
+
+bool CodeGenFunction::IvarTypeWithAggrGCObjects(QualType Ty) {
+  if (CGM.getLangOptions().getGCMode() == LangOptions::NonGC)
+    return false;
+  if (const RecordType *FDTTy = Ty.getTypePtr()->getAs<RecordType>())
+    return FDTTy->getDecl()->hasObjectMember();
+  return false;
 }
 
 llvm::Value *CodeGenFunction::LoadObjCSelf() {
@@ -360,7 +518,7 @@ RValue CodeGenFunction::EmitObjCPropertyGet(const Expr *Exp) {
     return CGM.getObjCRuntime().
              GenerateMessageSend(*this, Exp->getType(), S,
                                  EmitScalarExpr(E->getBase()),
-                                 false, CallArgList());
+                                 CallArgList());
   } else {
     const ObjCImplicitSetterGetterRefExpr *KE =
       cast<ObjCImplicitSetterGetterRefExpr>(Exp);
@@ -376,7 +534,7 @@ RValue CodeGenFunction::EmitObjCPropertyGet(const Expr *Exp) {
     return CGM.getObjCRuntime().
              GenerateMessageSend(*this, Exp->getType(), S,
                                  Receiver,
-                                 KE->getInterfaceDecl() != 0, CallArgList());
+                                 CallArgList(), KE->getInterfaceDecl());
   }
 }
 
@@ -413,7 +571,7 @@ void CodeGenFunction::EmitObjCPropertySet(const Expr *Exp,
     Args.push_back(std::make_pair(Src, E->getType()));
     CGM.getObjCRuntime().GenerateMessageSend(*this, getContext().VoidTy, S,
                                              EmitScalarExpr(E->getBase()),
-                                             false, Args);
+                                             Args);
   } else if (const ObjCImplicitSetterGetterRefExpr *E =
                dyn_cast<ObjCImplicitSetterGetterRefExpr>(Exp)) {
     Selector S = E->getSetterMethod()->getSelector();
@@ -430,7 +588,7 @@ void CodeGenFunction::EmitObjCPropertySet(const Expr *Exp,
     Args.push_back(std::make_pair(Src, E->getType()));
     CGM.getObjCRuntime().GenerateMessageSend(*this, getContext().VoidTy, S,
                                              Receiver,
-                                             E->getInterfaceDecl() != 0, Args);
+                                             Args, E->getInterfaceDecl());
   } else
     assert (0 && "bad expression node in EmitObjCPropertySet");
 }
@@ -498,7 +656,7 @@ void CodeGenFunction::EmitObjCForCollectionStmt(const ObjCForCollectionStmt &S){
     CGM.getObjCRuntime().GenerateMessageSend(*this,
                                              getContext().UnsignedLongTy,
                                              FastEnumSel,
-                                             Collection, false, Args);
+                                             Collection, Args);
 
   llvm::Value *LimitPtr = CreateMemTemp(getContext().UnsignedLongTy,
                                         "limit.ptr");
@@ -623,7 +781,7 @@ void CodeGenFunction::EmitObjCForCollectionStmt(const ObjCForCollectionStmt &S){
     CGM.getObjCRuntime().GenerateMessageSend(*this,
                                              getContext().UnsignedLongTy,
                                              FastEnumSel,
-                                             Collection, false, Args);
+                                             Collection, Args);
   Builder.CreateStore(CountRV.getScalarVal(), LimitPtr);
   Limit = Builder.CreateLoad(LimitPtr);
 

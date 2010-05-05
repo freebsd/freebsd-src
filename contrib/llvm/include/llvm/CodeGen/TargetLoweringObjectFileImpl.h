@@ -33,7 +33,6 @@ namespace llvm {
 
 
 class TargetLoweringObjectFileELF : public TargetLoweringObjectFile {
-  mutable void *UniquingMap;
 protected:
   /// TLSDataSection - Section directive for Thread Local data.
   ///
@@ -52,14 +51,9 @@ protected:
   const MCSection *MergeableConst4Section;
   const MCSection *MergeableConst8Section;
   const MCSection *MergeableConst16Section;
-
-protected:
-  const MCSection *getELFSection(StringRef Section, unsigned Type,
-                                 unsigned Flags, SectionKind Kind,
-                                 bool IsExplicit = false) const;
 public:
-  TargetLoweringObjectFileELF() : UniquingMap(0) {}
-  ~TargetLoweringObjectFileELF();
+  TargetLoweringObjectFileELF() {}
+  ~TargetLoweringObjectFileELF() {}
 
   virtual void Initialize(MCContext &Ctx, const TargetMachine &TM);
 
@@ -90,8 +84,6 @@ public:
 
 
 class TargetLoweringObjectFileMachO : public TargetLoweringObjectFile {
-  mutable void *UniquingMap;
-
   const MCSection *CStringSection;
   const MCSection *UStringSection;
   const MCSection *TextCoalSection;
@@ -108,8 +100,8 @@ class TargetLoweringObjectFileMachO : public TargetLoweringObjectFile {
   const MCSection *LazySymbolPointerSection;
   const MCSection *NonLazySymbolPointerSection;
 public:
-  TargetLoweringObjectFileMachO() : UniquingMap(0) {}
-  ~TargetLoweringObjectFileMachO();
+  TargetLoweringObjectFileMachO() {}
+  ~TargetLoweringObjectFileMachO() {}
 
   virtual void Initialize(MCContext &Ctx, const TargetMachine &TM);
 
@@ -128,20 +120,6 @@ public:
   /// FIXME: REMOVE this (rdar://7071300)
   virtual bool shouldEmitUsedDirectiveFor(const GlobalValue *GV,
                                           Mangler *) const;
-
-  /// getMachOSection - Return the MCSection for the specified mach-o section.
-  /// This requires the operands to be valid.
-  const MCSectionMachO *getMachOSection(StringRef Segment,
-                                        StringRef Section,
-                                        unsigned TypeAndAttributes,
-                                        SectionKind K) const {
-    return getMachOSection(Segment, Section, TypeAndAttributes, 0, K);
-  }
-  const MCSectionMachO *getMachOSection(StringRef Segment,
-                                        StringRef Section,
-                                        unsigned TypeAndAttributes,
-                                        unsigned Reserved2,
-                                        SectionKind K) const;
 
   /// getTextCoalSection - Return the "__TEXT,__textcoal_nt" section we put weak
   /// text symbols into.

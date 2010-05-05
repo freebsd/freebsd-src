@@ -27,10 +27,14 @@ using namespace clang;
 static bool scan_dealloc(Stmt* S, Selector Dealloc) {
 
   if (ObjCMessageExpr* ME = dyn_cast<ObjCMessageExpr>(S))
-    if (ME->getSelector() == Dealloc)
-      if (ME->getReceiver())
-        if (Expr* Receiver = ME->getReceiver()->IgnoreParenCasts())
-          return isa<ObjCSuperExpr>(Receiver);
+    if (ME->getSelector() == Dealloc) {
+      switch (ME->getReceiverKind()) {
+      case ObjCMessageExpr::Instance: return false;
+      case ObjCMessageExpr::SuperInstance: return true;
+      case ObjCMessageExpr::Class: break;
+      case ObjCMessageExpr::SuperClass: break;
+      }
+    }
 
   // Recurse to children.
 
@@ -50,16 +54,16 @@ static bool scan_ivar_release(Stmt* S, ObjCIvarDecl* ID,
   // [mMyIvar release]
   if (ObjCMessageExpr* ME = dyn_cast<ObjCMessageExpr>(S))
     if (ME->getSelector() == Release)
-      if (ME->getReceiver())
-        if (Expr* Receiver = ME->getReceiver()->IgnoreParenCasts())
+      if (ME->getInstanceReceiver())
+        if (Expr* Receiver = ME->getInstanceReceiver()->IgnoreParenCasts())
           if (ObjCIvarRefExpr* E = dyn_cast<ObjCIvarRefExpr>(Receiver))
             if (E->getDecl() == ID)
               return true;
 
   // [self setMyIvar:nil];
   if (ObjCMessageExpr* ME = dyn_cast<ObjCMessageExpr>(S))
-    if (ME->getReceiver())
-      if (Expr* Receiver = ME->getReceiver()->IgnoreParenCasts())
+    if (ME->getInstanceReceiver())
+      if (Expr* Receiver = ME->getInstanceReceiver()->IgnoreParenCasts())
         if (DeclRefExpr* E = dyn_cast<DeclRefExpr>(Receiver))
           if (E->getDecl()->getIdentifier() == SelfII)
             if (ME->getMethodDecl() == PD->getSetterMethodDecl() &&
@@ -166,8 +170,7 @@ void clang::CheckObjCDealloc(const ObjCImplementationDecl* D,
 
     std::string buf;
     llvm::raw_string_ostream os(buf);
-    os << "Objective-C class '" << D->getNameAsString()
-       << "' lacks a 'dealloc' instance method";
+    os << "Objective-C class '" << D << "' lacks a 'dealloc' instance method";
 
     BR.EmitBasicReport(name, os.str(), D->getLocStart());
     return;
@@ -182,8 +185,7 @@ void clang::CheckObjCDealloc(const ObjCImplementationDecl* D,
 
     std::string buf;
     llvm::raw_string_ostream os(buf);
-    os << "The 'dealloc' instance method in Objective-C class '"
-       << D->getNameAsString()
+    os << "The 'dealloc' instance method in Objective-C class '" << D
        << "' does not send a 'dealloc' message to its super class"
            " (missing [super dealloc])";
 
@@ -238,7 +240,7 @@ void clang::CheckObjCDealloc(const ObjCImplementationDecl* D,
                ? "missing ivar release (leak)"
                : "missing ivar release (Hybrid MM, non-GC)";
 
-        os << "The '" << ID->getNameAsString()
+        os << "The '" << ID
            << "' instance variable was retained by a synthesized property but "
               "wasn't released in 'dealloc'";
       } else {
@@ -246,7 +248,7 @@ void clang::CheckObjCDealloc(const ObjCImplementationDecl* D,
                ? "extra ivar release (use-after-release)"
                : "extra ivar release (Hybrid MM, non-GC)";
 
-        os << "The '" << ID->getNameAsString()
+        os << "The '" << ID
            << "' instance variable was not retained by a synthesized property "
               "but was released in 'dealloc'";
       }

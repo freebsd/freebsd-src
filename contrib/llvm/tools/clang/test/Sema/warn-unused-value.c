@@ -1,4 +1,6 @@
 // RUN: %clang_cc1 -fsyntax-only -verify -Wunused-value %s
+// RUN: %clang_cc1 -fsyntax-only -verify -Wunused %s
+// RUN: %clang_cc1 -fsyntax-only -verify -Wall %s
 
 int i = 0;
 int j = 0;
@@ -51,3 +53,16 @@ void pr4806() {
   *pi;              // expected-warning {{expression result unused}}
   *pj;
 }
+
+// Don't warn about unused '||', '&&' expressions that contain assignments.
+int test_logical_foo1();
+int test_logical_foo2();
+int test_logical_foo3();
+int test_logical_bar() {
+  int x = 0;
+  (x = test_logical_foo1()) ||  // no-warning
+  (x = test_logical_foo2()) ||  // no-warning
+  (x = test_logical_foo3());    // no-warning
+  return x;
+}
+

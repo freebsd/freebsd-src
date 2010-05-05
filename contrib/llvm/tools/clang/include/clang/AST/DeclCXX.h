@@ -471,6 +471,11 @@ public:
   friend_iterator friend_end() const;
   void pushFriendDecl(FriendDecl *FD);
 
+  /// Determines whether this record has any friends.
+  bool hasFriends() const {
+    return data().FirstFriend != 0;
+  }
+
   /// hasConstCopyConstructor - Determines whether this class has a
   /// copy constructor that accepts a const-qualified argument.
   bool hasConstCopyConstructor(ASTContext &Context) const;
@@ -931,15 +936,16 @@ class CXXMethodDecl : public FunctionDecl {
 protected:
   CXXMethodDecl(Kind DK, CXXRecordDecl *RD, SourceLocation L,
                 DeclarationName N, QualType T, TypeSourceInfo *TInfo,
-                bool isStatic, bool isInline)
+                bool isStatic, StorageClass SCAsWritten, bool isInline)
     : FunctionDecl(DK, RD, L, N, T, TInfo, (isStatic ? Static : None),
-                   isInline) {}
+                   SCAsWritten, isInline) {}
 
 public:
   static CXXMethodDecl *Create(ASTContext &C, CXXRecordDecl *RD,
                               SourceLocation L, DeclarationName N,
                               QualType T, TypeSourceInfo *TInfo,
                               bool isStatic = false,
+                              StorageClass SCAsWritten = FunctionDecl::None,
                               bool isInline = false);
 
   bool isStatic() const { return getStorageClass() == Static; }
@@ -959,6 +965,10 @@ public:
   /// (C++ [basic.stc.dynamic.deallocation]p2), which is an overloaded
   /// delete or delete[] operator with a particular signature.
   bool isUsualDeallocationFunction() const;
+  
+  /// \brief Determine whether this is a copy-assignment operator, regardless
+  /// of whether it was declared implicitly or explicitly.
+  bool isCopyAssignmentOperator() const;
   
   const CXXMethodDecl *getCanonicalDecl() const {
     return cast<CXXMethodDecl>(FunctionDecl::getCanonicalDecl());
@@ -1052,6 +1062,10 @@ class CXXBaseOrMemberInitializer {
   /// and AnonUnionMember holds field decl for au_i1.
   FieldDecl *AnonUnionMember;
 
+  /// IsVirtual - If the initializer is a base initializer, this keeps track
+  /// of whether the base is virtual or not.
+  bool IsVirtual;
+  
   /// LParenLoc - Location of the left paren of the ctor-initializer.
   SourceLocation LParenLoc;
 
@@ -1062,7 +1076,7 @@ public:
   /// CXXBaseOrMemberInitializer - Creates a new base-class initializer.
   explicit
   CXXBaseOrMemberInitializer(ASTContext &Context,
-                             TypeSourceInfo *TInfo,
+                             TypeSourceInfo *TInfo, bool IsVirtual,
                              SourceLocation L, 
                              Expr *Init,
                              SourceLocation R);
@@ -1095,7 +1109,14 @@ public:
   /// Otherwise, returns NULL.
   const Type *getBaseClass() const;
   Type *getBaseClass();
-  
+
+  /// Returns whether the base is virtual or not.
+  bool isBaseVirtual() const {
+    assert(isBaseInitializer() && "Must call this on base initializer!");
+    
+    return IsVirtual;
+  }
+
   /// \brief Returns the declarator information for a base class initializer.
   TypeSourceInfo *getBaseClassInfo() const {
     return BaseOrMember.dyn_cast<TypeSourceInfo *>();
@@ -1171,7 +1192,8 @@ class CXXConstructorDecl : public CXXMethodDecl {
                      DeclarationName N, QualType T, TypeSourceInfo *TInfo,
                      bool isExplicitSpecified, bool isInline, 
                      bool isImplicitlyDeclared)
-    : CXXMethodDecl(CXXConstructor, RD, L, N, T, TInfo, false, isInline),
+    : CXXMethodDecl(CXXConstructor, RD, L, N, T, TInfo, false,
+                    FunctionDecl::None, isInline),
       IsExplicitSpecified(isExplicitSpecified), ImplicitlyDefined(false),
       BaseOrMemberInitializers(0), NumBaseOrMemberInitializers(0) {
     setImplicit(isImplicitlyDeclared);
@@ -1199,7 +1221,7 @@ public:
   /// defined. If false, then this constructor was defined by the
   /// user. This operation can only be invoked if the constructor has
   /// already been defined.
-  bool isImplicitlyDefined(ASTContext &C) const {
+  bool isImplicitlyDefined() const {
     assert(isThisDeclarationADefinition() &&
            "Can only get the implicit-definition flag once the "
            "constructor has been defined");
@@ -1314,7 +1336,8 @@ class CXXDestructorDecl : public CXXMethodDecl {
   CXXDestructorDecl(CXXRecordDecl *RD, SourceLocation L,
                     DeclarationName N, QualType T,
                     bool isInline, bool isImplicitlyDeclared)
-    : CXXMethodDecl(CXXDestructor, RD, L, N, T, /*TInfo=*/0, false, isInline),
+    : CXXMethodDecl(CXXDestructor, RD, L, N, T, /*TInfo=*/0, false,
+                    FunctionDecl::None, isInline),
       ImplicitlyDefined(false), OperatorDelete(0) {
     setImplicit(isImplicitlyDeclared);
   }
@@ -1370,7 +1393,8 @@ class CXXConversionDecl : public CXXMethodDecl {
   CXXConversionDecl(CXXRecordDecl *RD, SourceLocation L,
                     DeclarationName N, QualType T, TypeSourceInfo *TInfo,
                     bool isInline, bool isExplicitSpecified)
-    : CXXMethodDecl(CXXConversion, RD, L, N, T, TInfo, false, isInline),
+    : CXXMethodDecl(CXXConversion, RD, L, N, T, TInfo, false,
+                    FunctionDecl::None, isInline),
       IsExplicitSpecified(isExplicitSpecified) { }
 
 public:

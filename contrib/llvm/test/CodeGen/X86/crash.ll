@@ -92,3 +92,41 @@ foo:
 }
 
 
+; Crash commoning identical asms.
+; PR6803
+define void @test6(i1 %C) nounwind optsize ssp {
+entry:
+  br i1 %C, label %do.body55, label %do.body92
+
+do.body55:                                        ; preds = %if.else36
+  call void asm sideeffect "foo", "~{dirflag},~{fpsr},~{flags}"() nounwind, !srcloc !0
+  ret void
+
+do.body92:                                        ; preds = %if.then66
+  call void asm sideeffect "foo", "~{dirflag},~{fpsr},~{flags}"() nounwind, !srcloc !1
+  ret void
+}
+
+!0 = metadata !{i32 633550}                       
+!1 = metadata !{i32 634261}                       
+
+
+; Crash during XOR optimization.
+; <rdar://problem/7869290>
+
+define void @test7() nounwind ssp {
+entry:
+  br i1 undef, label %bb14, label %bb67
+
+bb14:
+  %tmp0 = trunc i16 undef to i1
+  %tmp1 = load i8* undef, align 8
+  %tmp2 = shl i8 %tmp1, 4
+  %tmp3 = lshr i8 %tmp2, 7
+  %tmp4 = trunc i8 %tmp3 to i1
+  %tmp5 = icmp ne i1 %tmp0, %tmp4
+  br i1 %tmp5, label %bb14, label %bb67
+
+bb67:
+  ret void
+}

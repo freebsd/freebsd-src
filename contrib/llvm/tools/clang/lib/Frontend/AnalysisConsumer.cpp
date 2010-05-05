@@ -41,10 +41,6 @@ using namespace clang;
 static ExplodedNode::Auditor* CreateUbiViz();
 
 //===----------------------------------------------------------------------===//
-// Basic type definitions.
-//===----------------------------------------------------------------------===//
-
-//===----------------------------------------------------------------------===//
 // Special PathDiagnosticClients.
 //===----------------------------------------------------------------------===//
 
@@ -62,20 +58,21 @@ CreatePlistHTMLDiagnosticClient(const std::string& prefix,
 
 namespace {
 
- class AnalysisConsumer : public ASTConsumer {
- public:
+class AnalysisConsumer : public ASTConsumer {
+public:
   typedef void (*CodeAction)(AnalysisConsumer &C, AnalysisManager &M, Decl *D);
   typedef void (*TUAction)(AnalysisConsumer &C, AnalysisManager &M,
                            TranslationUnitDecl &TU);
 
- private:
+private:
   typedef std::vector<CodeAction> Actions;
   typedef std::vector<TUAction> TUActions;
 
   Actions FunctionActions;
   Actions ObjCMethodActions;
   Actions ObjCImplementationActions;
-  TUActions TranslationUnitActions;
+  Actions CXXMethodActions;
+  TUActions TranslationUnitActions; // Remove this.
 
 public:
   ASTContext* Ctx;
@@ -150,7 +147,7 @@ public:
 
     if (isa<FunctionDecl>(D) || isa<ObjCMethodDecl>(D)) {
       const NamedDecl *ND = cast<NamedDecl>(D);
-      llvm::errs() << ' ' << ND->getNameAsString() << '\n';
+      llvm::errs() << ' ' << ND << '\n';
     }
     else if (isa<BlockDecl>(D)) {
       llvm::errs() << ' ' << "block(line:" << Loc.getLine() << ",col:"
@@ -161,14 +158,15 @@ public:
   void addCodeAction(CodeAction action) {
     FunctionActions.push_back(action);
     ObjCMethodActions.push_back(action);
-  }
-
-  void addObjCImplementationAction(CodeAction action) {
-    ObjCImplementationActions.push_back(action);
+    CXXMethodActions.push_back(action);
   }
 
   void addTranslationUnitAction(TUAction action) {
     TranslationUnitActions.push_back(action);
+  }
+
+  void addObjCImplementationAction(CodeAction action) {
+    ObjCImplementationActions.push_back(action);
   }
 
   virtual void Initialize(ASTContext &Context) {
@@ -176,86 +174,82 @@ public:
     Mgr.reset(new AnalysisManager(*Ctx, PP.getDiagnostics(),
                                   PP.getLangOptions(), PD,
                                   CreateStoreMgr, CreateConstraintMgr,
+                                  Opts.MaxNodes,
                                   Opts.VisualizeEGDot, Opts.VisualizeEGUbi,
                                   Opts.PurgeDead, Opts.EagerlyAssume,
                                   Opts.TrimGraph));
   }
 
-  virtual void HandleTopLevelDecl(DeclGroupRef D) {
-    declDisplayed = false;
-    for (DeclGroupRef::iterator I = D.begin(), E = D.end(); I != E; ++I)
-      HandleTopLevelSingleDecl(*I);
-  }
-
-  void HandleTopLevelSingleDecl(Decl *D);
   virtual void HandleTranslationUnit(ASTContext &C);
-
-  void HandleCode(Decl* D, Stmt* Body, Actions& actions);
+  void HandleCode(Decl *D, Stmt* Body, Actions& actions);
 };
 } // end anonymous namespace
-
-namespace llvm {
-  template <> struct FoldingSetTrait<AnalysisConsumer::CodeAction> {
-    static inline void Profile(AnalysisConsumer::CodeAction X,
-                               FoldingSetNodeID& ID) {
-      ID.AddPointer(reinterpret_cast<void*>(reinterpret_cast<uintptr_t>(X)));
-    }
-  };
-}
 
 //===----------------------------------------------------------------------===//
 // AnalysisConsumer implementation.
 //===----------------------------------------------------------------------===//
 
-void AnalysisConsumer::HandleTopLevelSingleDecl(Decl *D) {
-  switch (D->getKind()) {
-  case Decl::CXXConstructor:
-  case Decl::CXXDestructor:
-  case Decl::CXXConversion:
-  case Decl::CXXMethod:
-  case Decl::Function: {
-    FunctionDecl* FD = cast<FunctionDecl>(D);
-    if (!Opts.AnalyzeSpecificFunction.empty() &&
-        FD->getDeclName().getAsString() != Opts.AnalyzeSpecificFunction)
-        break;
-
-    if (Stmt *Body = FD->getBody())
-      HandleCode(FD, Body, FunctionActions);
-    break;
-  }
-
-  case Decl::ObjCMethod: {
-    ObjCMethodDecl* MD = cast<ObjCMethodDecl>(D);
-
-    if (!Opts.AnalyzeSpecificFunction.empty() &&
-        Opts.AnalyzeSpecificFunction != MD->getSelector().getAsString())
-      return;
-
-    if (Stmt* Body = MD->getBody())
-      HandleCode(MD, Body, ObjCMethodActions);
-    break;
-  }
-
-  default:
-    break;
-  }
-}
-
 void AnalysisConsumer::HandleTranslationUnit(ASTContext &C) {
 
   TranslationUnitDecl *TU = C.getTranslationUnitDecl();
 
+  for (DeclContext::decl_iterator I = TU->decls_begin(), E = TU->decls_end();
+       I != E; ++I) {
+    Decl *D = *I;
+
+    switch (D->getKind()) {
+    case Decl::CXXConstructor:
+    case Decl::CXXDestructor:
+    case Decl::CXXConversion:
+    case Decl::CXXMethod:
+    case Decl::Function: {
+      FunctionDecl* FD = cast<FunctionDecl>(D);
+      
+      if (FD->isThisDeclarationADefinition()) {
+        if (!Opts.AnalyzeSpecificFunction.empty() &&
+            FD->getDeclName().getAsString() != Opts.AnalyzeSpecificFunction)
+          break;
+        HandleCode(FD, FD->getBody(), FunctionActions);
+      }
+      break;
+    }
+
+    case Decl::ObjCMethod: {
+      ObjCMethodDecl* MD = cast<ObjCMethodDecl>(D);
+      
+      if (MD->isThisDeclarationADefinition()) {
+        if (!Opts.AnalyzeSpecificFunction.empty() &&
+            Opts.AnalyzeSpecificFunction != MD->getSelector().getAsString())
+          break;
+        HandleCode(MD, MD->getBody(), ObjCMethodActions);
+      }
+      break;
+    }
+
+    case Decl::ObjCImplementation: {
+      ObjCImplementationDecl* ID = cast<ObjCImplementationDecl>(*I);
+      HandleCode(ID, 0, ObjCImplementationActions);
+
+      for (ObjCImplementationDecl::method_iterator MI = ID->meth_begin(), 
+             ME = ID->meth_end(); MI != ME; ++MI) {
+        if ((*MI)->isThisDeclarationADefinition()) {
+          if (!Opts.AnalyzeSpecificFunction.empty() &&
+             Opts.AnalyzeSpecificFunction != (*MI)->getSelector().getAsString())
+            break;
+          HandleCode(*MI, (*MI)->getBody(), ObjCMethodActions);
+        }
+      }
+      break;
+    }
+
+    default:
+      break;
+    }
+  }
+
   for (TUActions::iterator I = TranslationUnitActions.begin(),
                            E = TranslationUnitActions.end(); I != E; ++I) {
     (*I)(*this, *Mgr, *TU);
-  }
-
-  if (!ObjCImplementationActions.empty()) {
-    for (DeclContext::decl_iterator I = TU->decls_begin(),
-                                    E = TU->decls_end();
-         I != E; ++I)
-      if (ObjCImplementationDecl* ID = dyn_cast<ObjCImplementationDecl>(*I))
-        HandleCode(ID, 0, ObjCImplementationActions);
   }
 
   // Explicitly destroy the PathDiagnosticClient.  This will flush its output.
@@ -278,7 +272,8 @@ static void FindBlocks(DeclContext *D, llvm::SmallVectorImpl<Decl*> &WL) {
 void AnalysisConsumer::HandleCode(Decl *D, Stmt* Body, Actions& actions) {
 
   // Don't run the actions if an error has occured with parsing the file.
-  if (PP.getDiagnostics().hasErrorOccurred())
+  Diagnostic &Diags = PP.getDiagnostics();
+  if (Diags.hasErrorOccurred() || Diags.hasFatalErrorOccurred())
     return;
 
   // Don't run the actions on declarations in header files unless
@@ -310,7 +305,6 @@ void AnalysisConsumer::HandleCode(Decl *D, Stmt* Body, Actions& actions) {
 static void ActionWarnDeadStores(AnalysisConsumer &C, AnalysisManager& mgr,
                                  Decl *D) {
   if (LiveVariables *L = mgr.getLiveVariables(D)) {
-    C.DisplayFunction(D);
     BugReporter BR(mgr);
     CheckDeadStores(*mgr.getCFG(D), *L, mgr.getParentMap(D), BR);
   }
@@ -319,7 +313,6 @@ static void ActionWarnDeadStores(AnalysisConsumer &C, AnalysisManager& mgr,
 static void ActionWarnUninitVals(AnalysisConsumer &C, AnalysisManager& mgr,
                                  Decl *D) {
   if (CFG* c = mgr.getCFG(D)) {
-    C.DisplayFunction(D);
     CheckUninitializedValues(*c, mgr.getASTContext(), mgr.getDiagnostic());
   }
 }
@@ -331,15 +324,11 @@ static void ActionGRExprEngine(AnalysisConsumer &C, AnalysisManager& mgr,
 
   llvm::OwningPtr<GRTransferFuncs> TF(tf);
 
-  // Display progress.
-  C.DisplayFunction(D);
-
   // Construct the analysis engine.  We first query for the LiveVariables
   // information to see if the CFG is valid.
   // FIXME: Inter-procedural analysis will need to handle invalid CFGs.
   if (!mgr.getLiveVariables(D))
     return;
-
   GRExprEngine Eng(mgr, TF.take());
 
   if (C.Opts.EnableExperimentalInternalChecks)
@@ -358,7 +347,7 @@ static void ActionGRExprEngine(AnalysisConsumer &C, AnalysisManager& mgr,
   }
 
   // Execute the worklist algorithm.
-  Eng.ExecuteWorkList(mgr.getStackFrame(D));
+  Eng.ExecuteWorkList(mgr.getStackFrame(D), mgr.getMaxNodes());
 
   // Release the auditor (if any) so that it doesn't monitor the graph
   // created BugReporter.
@@ -406,28 +395,24 @@ static void ActionObjCMemChecker(AnalysisConsumer &C, AnalysisManager& mgr,
 static void ActionDisplayLiveVariables(AnalysisConsumer &C,
                                        AnalysisManager& mgr, Decl *D) {
   if (LiveVariables* L = mgr.getLiveVariables(D)) {
-    C.DisplayFunction(D);
     L->dumpBlockLiveness(mgr.getSourceManager());
   }
 }
 
 static void ActionCFGDump(AnalysisConsumer &C, AnalysisManager& mgr, Decl *D) {
   if (CFG *cfg = mgr.getCFG(D)) {
-    C.DisplayFunction(D);
     cfg->dump(mgr.getLangOptions());
   }
 }
 
 static void ActionCFGView(AnalysisConsumer &C, AnalysisManager& mgr, Decl *D) {
   if (CFG *cfg = mgr.getCFG(D)) {
-    C.DisplayFunction(D);
     cfg->viewCFG(mgr.getLangOptions());
   }
 }
 
 static void ActionSecuritySyntacticChecks(AnalysisConsumer &C,
                                           AnalysisManager &mgr, Decl *D) {
-  C.DisplayFunction(D);
   BugReporter BR(mgr);
   CheckSecuritySyntaxOnly(D, BR);
 }
@@ -443,84 +428,26 @@ static void ActionWarnObjCDealloc(AnalysisConsumer &C, AnalysisManager& mgr,
                                   Decl *D) {
   if (mgr.getLangOptions().getGCMode() == LangOptions::GCOnly)
     return;
-
-  C.DisplayFunction(D);
   BugReporter BR(mgr);
   CheckObjCDealloc(cast<ObjCImplementationDecl>(D), mgr.getLangOptions(), BR);
 }
 
 static void ActionWarnObjCUnusedIvars(AnalysisConsumer &C, AnalysisManager& mgr,
                                       Decl *D) {
-  C.DisplayFunction(D);
   BugReporter BR(mgr);
   CheckObjCUnusedIvar(cast<ObjCImplementationDecl>(D), BR);
 }
 
 static void ActionWarnObjCMethSigs(AnalysisConsumer &C, AnalysisManager& mgr,
                                    Decl *D) {
-  C.DisplayFunction(D);
   BugReporter BR(mgr);
   CheckObjCInstMethSignature(cast<ObjCImplementationDecl>(D), BR);
 }
 
 static void ActionWarnSizeofPointer(AnalysisConsumer &C, AnalysisManager &mgr,
                                     Decl *D) {
-  C.DisplayFunction(D);
   BugReporter BR(mgr);
   CheckSizeofPointer(D, BR);
-}
-
-static void ActionInlineCall(AnalysisConsumer &C, AnalysisManager &mgr,
-                             TranslationUnitDecl &TU) {
-
-  // Find the entry function definition (if any).
-  FunctionDecl *D = 0;
-
-  // Must specify an entry function.
-  if (!C.Opts.AnalyzeSpecificFunction.empty()) {
-    for (DeclContext::decl_iterator I=TU.decls_begin(), E=TU.decls_end();
-         I != E; ++I) {
-      if (FunctionDecl *fd = dyn_cast<FunctionDecl>(*I))
-        if (fd->isThisDeclarationADefinition() &&
-            fd->getNameAsString() == C.Opts.AnalyzeSpecificFunction) {
-          D = fd;
-          break;
-        }
-    }
-  }
-
-  if (!D)
-    return;
-
-
-  // FIXME: This is largely copy of ActionGRExprEngine. Needs cleanup.
-  // Display progress.
-  C.DisplayFunction(D);
-
-  // FIXME: Make a fake transfer function. The GRTransferFunc interface
-  // eventually will be removed.
-  GRExprEngine Eng(mgr, new GRTransferFuncs());
-
-  if (C.Opts.EnableExperimentalInternalChecks)
-    RegisterExperimentalInternalChecks(Eng);
-
-  RegisterAppleChecks(Eng, *D);
-
-  if (C.Opts.EnableExperimentalChecks)
-    RegisterExperimentalChecks(Eng);
-
-  // Register call inliner as the last checker.
-  RegisterCallInliner(Eng);
-
-  // Execute the worklist algorithm.
-  Eng.ExecuteWorkList(mgr.getStackFrame(D));
-
-  // Visualize the exploded graph.
-  if (mgr.shouldVisualizeGraphviz())
-    Eng.ViewGraph(mgr.shouldTrimGraph());
-
-  // Display warnings.
-  Eng.getBugReporter().FlushReports();
 }
 
 //===----------------------------------------------------------------------===//

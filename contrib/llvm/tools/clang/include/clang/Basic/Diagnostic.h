@@ -60,7 +60,7 @@ namespace clang {
 
     // Get typedefs for common diagnostics.
     enum {
-#define DIAG(ENUM,FLAGS,DEFAULT_MAPPING,DESC,GROUP,SFINAE) ENUM,
+#define DIAG(ENUM,FLAGS,DEFAULT_MAPPING,DESC,GROUP,SFINAE,CATEGORY) ENUM,
 #include "clang/Basic/DiagnosticCommonKinds.inc"
       NUM_BUILTIN_COMMON_DIAGNOSTICS
 #undef DIAG
@@ -188,6 +188,9 @@ private:
   bool ErrorsAsFatal;            // Treat errors like fatal errors.
   bool SuppressSystemWarnings;   // Suppress warnings in system headers.
   bool SuppressAllDiagnostics;   // Suppress all diagnostics.
+  unsigned ErrorLimit;           // Cap of # errors emitted, 0 -> no limit.
+  unsigned TemplateBacktraceLimit; // Cap on depth of template backtrace stack,
+                                   // 0 -> no limit.
   ExtensionHandling ExtBehavior; // Map extensions onto warnings or errors?
   DiagnosticClient *Client;
 
@@ -211,9 +214,10 @@ private:
   /// diagnostic that they follow.
   Diagnostic::Level LastDiagLevel;
 
-  unsigned NumDiagnostics;    // Number of diagnostics reported
-  unsigned NumErrors;         // Number of diagnostics that are errors
-
+  unsigned NumWarnings;       // Number of warnings reported
+  unsigned NumErrors;         // Number of errors reported
+  unsigned NumErrorsSuppressed; // Number of errors suppressed
+  
   /// CustomDiagInfo - Information for uniquing and looking up custom diags.
   diag::CustomDiagInfo *CustomDiagInfo;
 
@@ -270,6 +274,22 @@ public:
 
   void setClient(DiagnosticClient* client) { Client = client; }
 
+  /// setErrorLimit - Specify a limit for the number of errors we should
+  /// emit before giving up.  Zero disables the limit.
+  void setErrorLimit(unsigned Limit) { ErrorLimit = Limit; }
+  
+  /// \brief Specify the maximum number of template instantiation
+  /// notes to emit along with a given diagnostic.
+  void setTemplateBacktraceLimit(unsigned Limit) {
+    TemplateBacktraceLimit = Limit;
+  }
+  
+  /// \brief Retrieve the maximum number of template instantiation
+  /// nodes to emit along with a given diagnostic.
+  unsigned getTemplateBacktraceLimit() const {
+    return TemplateBacktraceLimit;
+  }
+  
   /// setIgnoreAllWarnings - When set to true, any unmapped warnings are
   /// ignored.  If this and WarningsAsErrors are both set, then this one wins.
   void setIgnoreAllWarnings(bool Val) { IgnoreAllWarnings = Val; }
@@ -324,8 +344,9 @@ public:
   void setDiagnosticMapping(diag::kind Diag, diag::Mapping Map) {
     assert(Diag < diag::DIAG_UPPER_LIMIT &&
            "Can only map builtin diagnostics");
-    assert((isBuiltinWarningOrExtension(Diag) || Map == diag::MAP_FATAL) &&
-           "Cannot map errors!");
+    assert((isBuiltinWarningOrExtension(Diag) ||
+            (Map == diag::MAP_FATAL || Map == diag::MAP_ERROR)) &&
+           "Cannot map errors into warnings!");
     setDiagnosticMappingInternal(Diag, Map, true);
   }
 
@@ -338,7 +359,8 @@ public:
   bool hasFatalErrorOccurred() const { return FatalErrorOccurred; }
 
   unsigned getNumErrors() const { return NumErrors; }
-  unsigned getNumDiagnostics() const { return NumDiagnostics; }
+  unsigned getNumErrorsSuppressed() const { return NumErrorsSuppressed; }
+  unsigned getNumWarnings() const { return NumWarnings; }
 
   /// getCustomDiagID - Return an ID for a diagnostic with the specified message
   /// and level.  If this is the first request for this diagnosic, it is
@@ -383,7 +405,18 @@ public:
   /// isBuiltinExtensionDiag - Determine whether the given built-in diagnostic
   /// ID is for an extension of some sort.
   ///
-  static bool isBuiltinExtensionDiag(unsigned DiagID);
+  static bool isBuiltinExtensionDiag(unsigned DiagID) {
+    bool ignored;
+    return isBuiltinExtensionDiag(DiagID, ignored);
+  }
+  
+  /// isBuiltinExtensionDiag - Determine whether the given built-in diagnostic
+  /// ID is for an extension of some sort.  This also returns EnabledByDefault,
+  /// which is set to indicate whether the diagnostic is ignored by default (in
+  /// which case -pedantic enables it) or treated as a warning/error by default.
+  ///
+  static bool isBuiltinExtensionDiag(unsigned DiagID, bool &EnabledByDefault);
+  
 
   /// getWarningOptionForDiag - Return the lowest-level warning option that
   /// enables the specified diagnostic.  If there is no -Wfoo flag that controls
@@ -473,7 +506,7 @@ private:
   /// getDiagnosticMappingInfo - Return the mapping info currently set for the
   /// specified builtin diagnostic.  This returns the high bit encoding, or zero
   /// if the field is completely uninitialized.
-  unsigned getDiagnosticMappingInfo(diag::kind Diag) const {
+  diag::Mapping getDiagnosticMappingInfo(diag::kind Diag) const {
     const DiagMappings &currentMappings = DiagMappingsStack.back();
     return (diag::Mapping)((currentMappings[Diag/2] >> (Diag & 1)*4) & 15);
   }

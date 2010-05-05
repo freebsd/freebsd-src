@@ -38,7 +38,7 @@ void f() {
   int G::*pdig = pdi1; // expected-error {{conversion from pointer to member of class 'A' to pointer to member of class 'G' via virtual base 'D' is not allowed}}
 
   // Conversion to member of base.
-  pdi1 = pdid; // expected-error {{incompatible type assigning 'int D::*', expected 'int A::*'}}
+  pdi1 = pdid; // expected-error {{assigning to 'int A::*' from incompatible type 'int D::*'}}
   
   // Comparisons
   int (A::*pf2)(int, int);
@@ -88,7 +88,7 @@ void g() {
   void (HasMembers::*pmd)() = &HasMembers::d;
 }
 
-struct Incomplete;
+struct Incomplete; // expected-note {{forward declaration}}
 
 void h() {
   HasMembers hm, *phm = &hm;
@@ -123,7 +123,7 @@ void h() {
 
   Incomplete *inc;
   int Incomplete::*pii = 0;
-  (void)(inc->*pii); // okay
+  (void)(inc->*pii); // expected-error {{pointer into incomplete}}
 }
 
 struct OverloadsPtrMem
@@ -146,4 +146,14 @@ namespace pr5985 {
       p = &(*this).h; // expected-error {{must explicitly qualify}}
     }
   };
+}
+
+namespace pr6783 {
+  struct Base {};
+  struct X; // expected-note {{forward declaration}}
+
+  int test1(int Base::* p2m, X* object)
+  {
+    return object->*p2m; // expected-error {{left hand operand to ->*}}
+  }
 }

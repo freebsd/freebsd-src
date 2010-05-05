@@ -148,9 +148,16 @@ static void SelectInterestingSourceRegion(std::string &SourceLine,
                                           std::string &FixItInsertionLine,
                                           unsigned EndOfCaretToken,
                                           unsigned Columns) {
-  if (CaretLine.size() > SourceLine.size())
-    SourceLine.resize(CaretLine.size(), ' ');
-
+  unsigned MaxSize = std::max(SourceLine.size(),
+                              std::max(CaretLine.size(), 
+                                       FixItInsertionLine.size()));
+  if (MaxSize > SourceLine.size())
+    SourceLine.resize(MaxSize, ' ');
+  if (MaxSize > CaretLine.size())
+    CaretLine.resize(MaxSize, ' ');
+  if (!FixItInsertionLine.empty() && MaxSize > FixItInsertionLine.size())
+    FixItInsertionLine.resize(MaxSize, ' ');
+    
   // Find the slice that we need to display the full caret line
   // correctly.
   unsigned CaretStart = 0, CaretEnd = CaretLine.size();
@@ -275,10 +282,13 @@ static void SelectInterestingSourceRegion(std::string &SourceLine,
 void TextDiagnosticPrinter::EmitCaretDiagnostic(SourceLocation Loc,
                                                 SourceRange *Ranges,
                                                 unsigned NumRanges,
-                                                SourceManager &SM,
+                                                const SourceManager &SM,
                                                 const FixItHint *Hints,
                                                 unsigned NumHints,
-                                                unsigned Columns) {
+                                                unsigned Columns,  
+                                                unsigned OnMacroInst,
+                                                unsigned MacroSkipStart,
+                                                unsigned MacroSkipEnd) {
   assert(LangOpts && "Unexpected diagnostic outside source file processing");
   assert(!Loc.isInvalid() && "must have a valid source location here");
 
@@ -286,10 +296,16 @@ void TextDiagnosticPrinter::EmitCaretDiagnostic(SourceLocation Loc,
   // instantiated (recursively) then emit information about where the token was
   // spelled from.
   if (!Loc.isFileID()) {
+    // Whether to suppress printing this macro instantiation.
+    bool Suppressed 
+      = OnMacroInst >= MacroSkipStart && OnMacroInst < MacroSkipEnd;
+    
+
     SourceLocation OneLevelUp = SM.getImmediateInstantiationRange(Loc).first;
     // FIXME: Map ranges?
-    EmitCaretDiagnostic(OneLevelUp, Ranges, NumRanges, SM, 0, 0, Columns);
-
+    EmitCaretDiagnostic(OneLevelUp, Ranges, NumRanges, SM, 0, 0, Columns,
+                        OnMacroInst + 1, MacroSkipStart, MacroSkipEnd);
+    
     // Map the location.
     Loc = SM.getImmediateSpellingLoc(Loc);
 
@@ -301,26 +317,38 @@ void TextDiagnosticPrinter::EmitCaretDiagnostic(SourceLocation Loc,
       Ranges[i] = SourceRange(S, E);
     }
 
-    // Get the pretty name, according to #line directives etc.
-    PresumedLoc PLoc = SM.getPresumedLoc(Loc);
+    if (!Suppressed) {
+      // Get the pretty name, according to #line directives etc.
+      PresumedLoc PLoc = SM.getPresumedLoc(Loc);
 
-    // If this diagnostic is not in the main file, print out the "included from"
-    // lines.
-    if (LastWarningLoc != PLoc.getIncludeLoc()) {
-      LastWarningLoc = PLoc.getIncludeLoc();
-      PrintIncludeStack(LastWarningLoc, SM);
+      // If this diagnostic is not in the main file, print out the
+      // "included from" lines.
+      if (LastWarningLoc != PLoc.getIncludeLoc()) {
+        LastWarningLoc = PLoc.getIncludeLoc();
+        PrintIncludeStack(LastWarningLoc, SM);
+      }
+
+      if (DiagOpts->ShowLocation) {
+        // Emit the file/line/column that this expansion came from.
+        OS << PLoc.getFilename() << ':' << PLoc.getLine() << ':';
+        if (DiagOpts->ShowColumn)
+          OS << PLoc.getColumn() << ':';
+        OS << ' ';
+      }
+      OS << "note: instantiated from:\n";
+      
+      EmitCaretDiagnostic(Loc, Ranges, NumRanges, SM, Hints, NumHints, Columns,
+                          OnMacroInst + 1, MacroSkipStart, MacroSkipEnd);
+      return;
     }
-
-    if (DiagOpts->ShowLocation) {
-      // Emit the file/line/column that this expansion came from.
-      OS << PLoc.getFilename() << ':' << PLoc.getLine() << ':';
-      if (DiagOpts->ShowColumn)
-        OS << PLoc.getColumn() << ':';
-      OS << ' ';
+    
+    if (OnMacroInst == MacroSkipStart) {
+      // Tell the user that we've skipped contexts.
+      OS << "note: (skipping " << (MacroSkipEnd - MacroSkipStart) 
+      << " contexts in backtrace; use -fmacro-backtrace-limit=0 to see "
+      "all)\n";
     }
-    OS << "note: instantiated from:\n";
-
-    EmitCaretDiagnostic(Loc, Ranges, NumRanges, SM, Hints, NumHints, Columns);
+    
     return;
   }
 
@@ -796,8 +824,13 @@ void TextDiagnosticPrinter::HandleDiagnostic(Diagnostic::Level Level,
       OutStr += " [-W";
       OutStr += Opt;
       OutStr += ']';
-    } else if (Diagnostic::isBuiltinExtensionDiag(Info.getID())) {
-      OutStr += " [-pedantic]";
+    } else {
+      // If the diagnostic is an extension diagnostic and not enabled by default
+      // then it must have been turned on with -pedantic.
+      bool EnabledByDefault;
+      if (Diagnostic::isBuiltinExtensionDiag(Info.getID(), EnabledByDefault) &&
+          !EnabledByDefault)
+        OutStr += " [-pedantic]";
     }
   }
 
@@ -854,10 +887,29 @@ void TextDiagnosticPrinter::HandleDiagnostic(Diagnostic::Level Level,
       }
     }
 
+    unsigned MacroInstSkipStart = 0, MacroInstSkipEnd = 0;
+    if (DiagOpts && DiagOpts->MacroBacktraceLimit && !LastLoc.isFileID()) {
+      // Compute the length of the macro-instantiation backtrace, so that we
+      // can establish which steps in the macro backtrace we'll skip.
+      SourceLocation Loc = LastLoc;
+      unsigned Depth = 0;
+      do {
+        ++Depth;
+        Loc = LastLoc.getManager().getImmediateInstantiationRange(Loc).first;
+      } while (!Loc.isFileID());
+      
+      if (Depth > DiagOpts->MacroBacktraceLimit) {
+        MacroInstSkipStart = DiagOpts->MacroBacktraceLimit / 2 + 
+                             DiagOpts->MacroBacktraceLimit % 2;
+        MacroInstSkipEnd = Depth - DiagOpts->MacroBacktraceLimit / 2;
+      }
+    }        
+    
     EmitCaretDiagnostic(LastLoc, Ranges, NumRanges, LastLoc.getManager(),
                         Info.getFixItHints(),
                         Info.getNumFixItHints(),
-                        DiagOpts->MessageLength);
+                        DiagOpts->MessageLength, 
+                        0, MacroInstSkipStart, MacroInstSkipEnd);
   }
 
   OS.flush();

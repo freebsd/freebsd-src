@@ -159,7 +159,7 @@ int SSEDomainFixPass::RegIndex(unsigned reg) {
   // We just need them to be consecutive, ordering doesn't matter.
   assert(X86::XMM9 == X86::XMM0+NumRegs-1 && "Unexpected sort");
   reg -= X86::XMM0;
-  return reg < NumRegs ? reg : -1;
+  return reg < NumRegs ? (int) reg : -1;
 }
 
 DomainValue *SSEDomainFixPass::Alloc(int domain) {
@@ -216,8 +216,15 @@ void SSEDomainFixPass::Force(int rx, unsigned domain) {
   if (LiveRegs && (dv = LiveRegs[rx])) {
     if (dv->isCollapsed())
       dv->addDomain(domain);
-    else
+    else if (dv->hasDomain(domain))
       Collapse(dv, domain);
+    else {
+      // This is an incompatible open DomainValue. Collapse it to whatever and force
+      // the new value into domain. This costs a domain crossing.
+      Collapse(dv, dv->getFirstDomain());
+      assert(LiveRegs[rx] && "Not live after collapse?");
+      LiveRegs[rx]->addDomain(domain);
+    }
   } else {
     // Set up basic collapsed DomainValue.
     SetLiveReg(rx, Alloc(domain));
@@ -263,7 +270,7 @@ bool SSEDomainFixPass::Merge(DomainValue *A, DomainValue *B) {
 
 void SSEDomainFixPass::enterBasicBlock() {
   // Try to coalesce live-out registers from predecessors.
-  for (MachineBasicBlock::const_livein_iterator i = MBB->livein_begin(),
+  for (MachineBasicBlock::livein_iterator i = MBB->livein_begin(),
          e = MBB->livein_end(); i != e; ++i) {
     int rx = RegIndex(*i);
     if (rx < 0) continue;
@@ -281,8 +288,9 @@ void SSEDomainFixPass::enterBasicBlock() {
       // We have a live DomainValue from more than one predecessor.
       if (LiveRegs[rx]->isCollapsed()) {
         // We are already collapsed, but predecessor is not. Force him.
-        if (!pdv->isCollapsed())
-          Collapse(pdv, LiveRegs[rx]->getFirstDomain());
+        unsigned domain = LiveRegs[rx]->getFirstDomain();
+        if (!pdv->isCollapsed() && pdv->hasDomain(domain))
+          Collapse(pdv, domain);
         continue;
       }
 
@@ -290,7 +298,7 @@ void SSEDomainFixPass::enterBasicBlock() {
       if (!pdv->isCollapsed())
         Merge(LiveRegs[rx], pdv);
       else
-        Collapse(LiveRegs[rx], pdv->getFirstDomain());
+        Force(rx, pdv->getFirstDomain());
     }
   }
 }

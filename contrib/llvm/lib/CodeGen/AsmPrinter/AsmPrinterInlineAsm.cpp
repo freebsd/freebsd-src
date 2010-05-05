@@ -13,6 +13,7 @@
 
 #define DEBUG_TYPE "asm-printer"
 #include "llvm/CodeGen/AsmPrinter.h"
+#include "llvm/Constants.h"
 #include "llvm/InlineAsm.h"
 #include "llvm/LLVMContext.h"
 #include "llvm/Module.h"
@@ -74,15 +75,15 @@ void AsmPrinter::EmitInlineAsm(StringRef Str, unsigned LocCookie) const {
   AsmParser Parser(SrcMgr, OutContext, OutStreamer, *MAI);
   OwningPtr<TargetAsmParser> TAP(TM.getTarget().createAsmParser(Parser));
   if (!TAP)
-    llvm_report_error("Inline asm not supported by this streamer because"
-                      " we don't have an asm parser for this target\n");
+    report_fatal_error("Inline asm not supported by this streamer because"
+                       " we don't have an asm parser for this target\n");
   Parser.setTargetParser(*TAP.get());
 
   // Don't implicitly switch to the text section before the asm.
   int Res = Parser.Run(/*NoInitialTextSection*/ true,
                        /*NoFinalize*/ true);
   if (Res && !HasDiagHandler)
-    llvm_report_error("Error parsing inline asm\n");
+    report_fatal_error("Error parsing inline asm\n");
 }
 
 
@@ -97,7 +98,7 @@ void AsmPrinter::EmitInlineAsm(const MachineInstr *MI) const {
   unsigned NumDefs = 0;
   for (; MI->getOperand(NumDefs).isReg() && MI->getOperand(NumDefs).isDef();
        ++NumDefs)
-    assert(NumDefs != NumOperands-1 && "No asm string?");
+    assert(NumDefs != NumOperands-2 && "No asm string?");
   
   assert(MI->getOperand(NumDefs).isSymbol() && "No asm string?");
 
@@ -123,6 +124,20 @@ void AsmPrinter::EmitInlineAsm(const MachineInstr *MI) const {
     OutStreamer.EmitRawText(Twine("\t")+MAI->getCommentString()+
                             MAI->getInlineAsmStart());
 
+  // Get the !srcloc metadata node if we have it, and decode the loc cookie from
+  // it.
+  unsigned LocCookie = 0;
+  for (unsigned i = MI->getNumOperands(); i != 0; --i) {
+    if (MI->getOperand(i-1).isMetadata())
+      if (const MDNode *SrcLoc = MI->getOperand(i-1).getMetadata())
+        if (SrcLoc->getNumOperands() != 0)
+          if (const ConstantInt *CI =
+              dyn_cast<ConstantInt>(SrcLoc->getOperand(0))) {
+            LocCookie = CI->getZExtValue();
+            break;
+          }
+  }
+  
   // Emit the inline asm to a temporary string so we can emit it through
   // EmitInlineAsm.
   SmallString<256> StringData;
@@ -167,10 +182,9 @@ void AsmPrinter::EmitInlineAsm(const MachineInstr *MI) const {
         break;
       case '(':             // $( -> same as GCC's { character.
         ++LastEmitted;      // Consume '(' character.
-        if (CurVariant != -1) {
-          llvm_report_error("Nested variants found in inline asm string: '"
-                            + std::string(AsmStr) + "'");
-        }
+        if (CurVariant != -1)
+          report_fatal_error("Nested variants found in inline asm string: '" +
+                             Twine(AsmStr) + "'");
         CurVariant = 0;     // We're in the first variant now.
         break;
       case '|':
@@ -204,8 +218,8 @@ void AsmPrinter::EmitInlineAsm(const MachineInstr *MI) const {
         const char *StrStart = LastEmitted;
         const char *StrEnd = strchr(StrStart, '}');
         if (StrEnd == 0)
-          llvm_report_error(Twine("Unterminated ${:foo} operand in inline asm"
-                                  " string: '") + Twine(AsmStr) + "'");
+          report_fatal_error("Unterminated ${:foo} operand in inline asm"
+                             " string: '" + Twine(AsmStr) + "'");
         
         std::string Val(StrStart, StrEnd);
         PrintSpecial(MI, OS, Val.c_str());
@@ -219,8 +233,8 @@ void AsmPrinter::EmitInlineAsm(const MachineInstr *MI) const {
       
       unsigned Val;
       if (StringRef(IDStart, IDEnd-IDStart).getAsInteger(10, Val))
-        llvm_report_error("Bad $ operand number in inline asm string: '" 
-                          + std::string(AsmStr) + "'");
+        report_fatal_error("Bad $ operand number in inline asm string: '" +
+                           Twine(AsmStr) + "'");
       LastEmitted = IDEnd;
       
       char Modifier[2] = { 0, 0 };
@@ -231,22 +245,22 @@ void AsmPrinter::EmitInlineAsm(const MachineInstr *MI) const {
         if (*LastEmitted == ':') {
           ++LastEmitted;    // Consume ':' character.
           if (*LastEmitted == 0)
-            llvm_report_error("Bad ${:} expression in inline asm string: '" +
-                              std::string(AsmStr) + "'");
+            report_fatal_error("Bad ${:} expression in inline asm string: '" +
+                               Twine(AsmStr) + "'");
           
           Modifier[0] = *LastEmitted;
           ++LastEmitted;    // Consume modifier character.
         }
         
         if (*LastEmitted != '}')
-          llvm_report_error("Bad ${} expression in inline asm string: '" 
-                            + std::string(AsmStr) + "'");
+          report_fatal_error("Bad ${} expression in inline asm string: '" +
+                             Twine(AsmStr) + "'");
         ++LastEmitted;    // Consume '}' character.
       }
       
       if (Val >= NumOperands-1)
-        llvm_report_error("Invalid $ operand number in inline asm string: '" 
-                          + std::string(AsmStr) + "'");
+        report_fatal_error("Invalid $ operand number in inline asm string: '" +
+                           Twine(AsmStr) + "'");
       
       // Okay, we finally have a value number.  Ask the target to print this
       // operand!
@@ -273,7 +287,7 @@ void AsmPrinter::EmitInlineAsm(const MachineInstr *MI) const {
             OS << *MI->getOperand(OpNo).getMBB()->getSymbol();
           else {
             AsmPrinter *AP = const_cast<AsmPrinter*>(this);
-            if ((OpFlags & 7) == 4) {
+            if (InlineAsm::isMemKind(OpFlags)) {
               Error = AP->PrintAsmMemoryOperand(MI, OpNo, AsmPrinterVariant,
                                                 Modifier[0] ? Modifier : 0,
                                                 OS);
@@ -286,9 +300,8 @@ void AsmPrinter::EmitInlineAsm(const MachineInstr *MI) const {
         if (Error) {
           std::string msg;
           raw_string_ostream Msg(msg);
-          Msg << "Invalid operand found in inline asm: '" << AsmStr << "'\n";
-          MI->print(Msg);
-          llvm_report_error(Msg.str());
+          Msg << "invalid operand in inline asm: '" << AsmStr << "'";
+          MMI->getModule()->getContext().emitError(LocCookie, Msg.str());
         }
       }
       break;
@@ -296,7 +309,7 @@ void AsmPrinter::EmitInlineAsm(const MachineInstr *MI) const {
     }
   }
   OS << '\n' << (char)0;  // null terminate string.
-  EmitInlineAsm(OS.str(), 0/*no loc cookie*/);
+  EmitInlineAsm(OS.str(), LocCookie);
   
   // Emit the #NOAPP end marker.  This has to happen even if verbose-asm isn't
   // enabled, so we use EmitRawText.
@@ -334,7 +347,7 @@ void AsmPrinter::PrintSpecial(const MachineInstr *MI, raw_ostream &OS,
     raw_string_ostream Msg(msg);
     Msg << "Unknown special formatter '" << Code
          << "' for machine instr: " << *MI;
-    llvm_report_error(Msg.str());
+    report_fatal_error(Msg.str());
   }    
 }
 

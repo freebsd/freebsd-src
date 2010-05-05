@@ -159,6 +159,11 @@ AC_CACHE_CHECK([type of operating system we're going to host on],
     llvm_cv_no_link_all_option="-Wl,-noall_load"
     llvm_cv_os_type="Darwin"
     llvm_cv_platform_type="Unix" ;;
+  *-*-minix*)
+    llvm_cv_link_all_option="-Wl,-all_load"
+    llvm_cv_no_link_all_option="-Wl,-noall_load"
+    llvm_cv_os_type="Minix"
+    llvm_cv_platform_type="Unix" ;;
   *-*-freebsd*)
     llvm_cv_link_all_option="-Wl,--whole-archive"
     llvm_cv_no_link_all_option="-Wl,--no-whole-archive"
@@ -247,6 +252,8 @@ AC_CACHE_CHECK([type of operating system we're going to target],
     llvm_cv_target_os_type="Cygwin" ;;
   *-*-darwin*)
     llvm_cv_target_os_type="Darwin" ;;
+  *-*-minix*)
+    llvm_cv_target_os_type="Minix" ;;
   *-*-freebsd*)
     llvm_cv_target_os_type="FreeBSD" ;;
   *-*-openbsd*)
@@ -721,8 +728,9 @@ AC_MSG_CHECKING([optimization flags])
 case "$withval" in
   default)
     case "$llvm_cv_os_type" in
-    MingW) optimize_option=-O3 ;;
-    *)     optimize_option=-O2 ;;
+    FreeBSD) optimize_option=-O2 ;;
+    MingW) optimize_option=-O2 ;;
+    *)     optimize_option=-O3 ;;
     esac ;;
   *) optimize_option="$withval" ;;
 esac
@@ -1015,6 +1023,9 @@ AC_LINK_USE_R
 dnl Determine whether the linker supports the -export-dynamic option.
 AC_LINK_EXPORT_DYNAMIC
 
+dnl Determine whether the linker supports the -retain-symbols-file option.
+AC_LINK_RETAIN_SYMBOLS_FILE
+
 dnl Check for libtool and the library that has dlopen function (which must come
 dnl before the AC_PROG_LIBTOOL check in order to enable dlopening libraries with
 dnl libtool).
@@ -1283,7 +1294,7 @@ AC_CHECK_FUNCS([backtrace ceilf floorf roundf rintf nearbyintf getcwd ])
 AC_CHECK_FUNCS([powf fmodf strtof round ])
 AC_CHECK_FUNCS([getpagesize getrusage getrlimit setrlimit gettimeofday ])
 AC_CHECK_FUNCS([isatty mkdtemp mkstemp ])
-AC_CHECK_FUNCS([mktemp realpath sbrk setrlimit strdup ])
+AC_CHECK_FUNCS([mktemp posix_spawn realpath sbrk setrlimit strdup ])
 AC_CHECK_FUNCS([strerror strerror_r strerror_s setenv ])
 AC_CHECK_FUNCS([strtoll strtoq sysconf malloc_zone_statistics ])
 AC_CHECK_FUNCS([setjmp longjmp sigsetjmp siglongjmp])

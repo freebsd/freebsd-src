@@ -68,15 +68,18 @@ public:
 
   void EmitCaretDiagnostic(SourceLocation Loc,
                            SourceRange *Ranges, unsigned NumRanges,
-                           SourceManager &SM,
+                           const SourceManager &SM,
                            const FixItHint *Hints,
                            unsigned NumHints,
-                           unsigned Columns);
+                           unsigned Columns,  
+                           unsigned OnMacroInst,
+                           unsigned MacroSkipStart,
+                           unsigned MacroSkipEnd);
 
   virtual void HandleDiagnostic(Diagnostic::Level DiagLevel,
                                 const DiagnosticInfo &Info);
 };
 
-} // end namspace clang
+} // end namespace clang
 
 #endif

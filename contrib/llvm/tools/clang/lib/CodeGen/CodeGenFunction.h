@@ -32,6 +32,7 @@
 namespace llvm {
   class BasicBlock;
   class LLVMContext;
+  class MDNode;
   class Module;
   class SwitchInst;
   class Twine;
@@ -148,19 +149,17 @@ public:
   /// block.
   class EHCleanupBlock {
     CodeGenFunction& CGF;
-    llvm::BasicBlock *Cont;
+    llvm::BasicBlock *PreviousInsertionBlock;
     llvm::BasicBlock *CleanupHandler;
-    llvm::BasicBlock *CleanupEntryBB;
     llvm::BasicBlock *PreviousInvokeDest;
   public:
     EHCleanupBlock(CodeGenFunction &cgf) 
-      : CGF(cgf), Cont(CGF.createBasicBlock("cont")),
-        CleanupHandler(CGF.createBasicBlock("ehcleanup")),
-        CleanupEntryBB(CGF.createBasicBlock("ehcleanup.rest")),
+      : CGF(cgf),
+        PreviousInsertionBlock(CGF.Builder.GetInsertBlock()),
+        CleanupHandler(CGF.createBasicBlock("ehcleanup", CGF.CurFn)),
         PreviousInvokeDest(CGF.getInvokeDest()) {
-      CGF.EmitBranch(Cont);
       llvm::BasicBlock *TerminateHandler = CGF.getTerminateHandler();
-      CGF.Builder.SetInsertPoint(CleanupEntryBB);
+      CGF.Builder.SetInsertPoint(CleanupHandler);
       CGF.setInvokeDest(TerminateHandler);
     }
     ~EHCleanupBlock();
@@ -186,7 +185,8 @@ public:
   public:
     DelayedCleanupBlock(CodeGenFunction &cgf, bool ehonly = false)
       : CGF(cgf), CurBB(CGF.Builder.GetInsertBlock()),
-        CleanupEntryBB(CGF.createBasicBlock("cleanup")), CleanupExitBB(0),
+        CleanupEntryBB(CGF.createBasicBlock("cleanup")),
+        CleanupExitBB(0),
         CurInvokeDest(CGF.getInvokeDest()),
         EHOnly(ehonly) {
       CGF.Builder.SetInsertPoint(CleanupEntryBB);
@@ -474,11 +474,15 @@ public:
   /// GenerateObjCGetter - Synthesize an Objective-C property getter function.
   void GenerateObjCGetter(ObjCImplementationDecl *IMP,
                           const ObjCPropertyImplDecl *PID);
+  void GenerateObjCCtorDtorMethod(ObjCImplementationDecl *IMP,
+                                  ObjCMethodDecl *MD, bool ctor);
 
   /// GenerateObjCSetter - Synthesize an Objective-C property setter function
   /// for the given property.
   void GenerateObjCSetter(ObjCImplementationDecl *IMP,
                           const ObjCPropertyImplDecl *PID);
+  bool IndirectObjCSetterArg(const CGFunctionInfo &FI);
+  bool IvarTypeWithAggrGCObjects(QualType Ty);
 
   //===--------------------------------------------------------------------===//
   //                                  Block Bits
@@ -532,14 +536,16 @@ public:
   /// InitializeVTablePointer - Initialize the vtable pointer of the given
   /// subobject.
   ///
-  /// \param BaseIsMorallyVirtual - Whether the base subobject is a virtual base
-  /// or a direct or indirect base of a virtual base.
-  void InitializeVTablePointer(BaseSubobject Base, bool BaseIsMorallyVirtual,
+  void InitializeVTablePointer(BaseSubobject Base, 
+                               const CXXRecordDecl *NearestVBase,
+                               uint64_t OffsetFromNearestVBase,
                                llvm::Constant *VTable,
                                const CXXRecordDecl *VTableClass);
 
   typedef llvm::SmallPtrSet<const CXXRecordDecl *, 4> VisitedVirtualBasesSetTy;
-  void InitializeVTablePointers(BaseSubobject Base, bool BaseIsMorallyVirtual,
+  void InitializeVTablePointers(BaseSubobject Base, 
+                                const CXXRecordDecl *NearestVBase,
+                                uint64_t OffsetFromNearestVBase,
                                 bool BaseIsNonVirtualPrimaryBase,
                                 llvm::Constant *VTable,
                                 const CXXRecordDecl *VTableClass,
@@ -549,7 +555,6 @@ public:
 
 
   void SynthesizeCXXCopyConstructor(const FunctionArgList &Args);
-  void SynthesizeCXXCopyAssignment(const FunctionArgList &Args);
 
   /// EmitDtorEpilogue - Emit all code that comes at the end of class's
   /// destructor. This is to call destructors on members and base classes in
@@ -670,6 +675,9 @@ public:
   llvm::AllocaInst *CreateTempAlloca(const llvm::Type *Ty,
                                      const llvm::Twine &Name = "tmp");
 
+  /// InitTempAlloca - Provide an initial value for the given alloca.
+  void InitTempAlloca(llvm::AllocaInst *Alloca, llvm::Value *Value);
+
   /// CreateIRTemp - Create a temporary IR object of the given type, with
   /// appropriate alignment. This routine should only be used when an temporary
   /// value needs to be stored into an alloca (for example, to avoid explicit
@@ -703,6 +711,12 @@ public:
   /// always be accessible even if no aggregate location is provided.
   RValue EmitAnyExprToTemp(const Expr *E, bool IsAggLocVolatile = false,
                            bool IsInitializer = false);
+
+  /// EmitsAnyExprToMem - Emits the code necessary to evaluate an
+  /// arbitrary expression into the given memory location.
+  void EmitAnyExprToMem(const Expr *E, llvm::Value *Location,
+                        bool IsLocationVolatile = false,
+                        bool IsInitializer = false);
 
   /// EmitAggregateCopy - Emit an aggrate copy.
   ///
@@ -765,22 +779,23 @@ public:
   }
 
   /// GetAddressOfBaseOfCompleteClass - Convert the given pointer to a
-  /// complete class down to one of its virtual bases.
-  llvm::Value *GetAddressOfBaseOfCompleteClass(llvm::Value *Value,
-                                               bool IsVirtual,
-                                               const CXXRecordDecl *Derived,
-                                               const CXXRecordDecl *Base);
-  
+  /// complete class to the given direct base.
+  llvm::Value *
+  GetAddressOfDirectBaseInCompleteClass(llvm::Value *Value,
+                                        const CXXRecordDecl *Derived,
+                                        const CXXRecordDecl *Base,
+                                        bool BaseIsVirtual);
+
   /// GetAddressOfBaseClass - This function will add the necessary delta to the
   /// load of 'this' and returns address of the base class.
-  llvm::Value *GetAddressOfBaseClass(llvm::Value *Value,
-                                     const CXXRecordDecl *ClassDecl,
-                                     const CXXRecordDecl *BaseClassDecl,
+  llvm::Value *GetAddressOfBaseClass(llvm::Value *Value, 
+                                     const CXXRecordDecl *Derived,
+                                     const CXXBaseSpecifierArray &BasePath, 
                                      bool NullCheckValue);
-  
+
   llvm::Value *GetAddressOfDerivedClass(llvm::Value *Value,
-                                        const CXXRecordDecl *ClassDecl,
-                                        const CXXRecordDecl *DerivedClassDecl,
+                                        const CXXRecordDecl *Derived,
+                                        const CXXBaseSpecifierArray &BasePath,
                                         bool NullCheckValue);
 
   llvm::Value *GetVirtualBaseClassOffset(llvm::Value *This,
@@ -789,31 +804,17 @@ public:
     
   void EmitClassAggrMemberwiseCopy(llvm::Value *DestValue,
                                    llvm::Value *SrcValue,
-                                   const ArrayType *Array,
-                                   const CXXRecordDecl *BaseClassDecl,
-                                   QualType Ty);
-
-  void EmitClassAggrCopyAssignment(llvm::Value *DestValue,
-                                   llvm::Value *SrcValue,
-                                   const ArrayType *Array,
-                                   const CXXRecordDecl *BaseClassDecl,
-                                   QualType Ty);
+                                   const ConstantArrayType *Array,
+                                   const CXXRecordDecl *ClassDecl);
 
   void EmitClassMemberwiseCopy(llvm::Value *DestValue, llvm::Value *SrcValue,
-                               const CXXRecordDecl *ClassDecl,
-                               const CXXRecordDecl *BaseClassDecl,
-                               QualType Ty);
-
-  void EmitClassCopyAssignment(llvm::Value *DestValue, llvm::Value *SrcValue,
-                               const CXXRecordDecl *ClassDecl,
-                               const CXXRecordDecl *BaseClassDecl,
-                               QualType Ty);
+                               const CXXRecordDecl *ClassDecl);
 
   void EmitDelegateCXXConstructorCall(const CXXConstructorDecl *Ctor,
                                       CXXCtorType CtorType,
                                       const FunctionArgList &Args);
   void EmitCXXConstructorCall(const CXXConstructorDecl *D, CXXCtorType Type,
-                              llvm::Value *This,
+                              bool ForVirtualBase, llvm::Value *This,
                               CallExpr::const_arg_iterator ArgBeg,
                               CallExpr::const_arg_iterator ArgEnd);
 
@@ -842,7 +843,7 @@ public:
                                                 llvm::Value *This);
 
   void EmitCXXDestructorCall(const CXXDestructorDecl *D, CXXDtorType Type,
-                             llvm::Value *This);
+                             bool ForVirtualBase, llvm::Value *This);
 
   void PushCXXTemporary(const CXXTemporary *Temporary, llvm::Value *Ptr);
   void PopCXXTemporary();
@@ -1033,6 +1034,7 @@ public:
 
   // Note: only availabe for agg return types
   LValue EmitBinaryOperatorLValue(const BinaryOperator *E);
+  LValue EmitCompoundAssignOperatorLValue(const CompoundAssignOperator *E);
   // Note: only available for agg return types
   LValue EmitCallExprLValue(const CallExpr *E);
   // Note: only available for agg return types
@@ -1100,7 +1102,8 @@ public:
                   llvm::Value *Callee,
                   ReturnValueSlot ReturnValue,
                   const CallArgList &Args,
-                  const Decl *TargetDecl = 0);
+                  const Decl *TargetDecl = 0,
+                  llvm::Instruction **callOrInvoke = 0);
 
   RValue EmitCall(QualType FnType, llvm::Value *Callee,
                   ReturnValueSlot ReturnValue,

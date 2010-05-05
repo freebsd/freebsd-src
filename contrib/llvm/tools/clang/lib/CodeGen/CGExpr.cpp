@@ -37,6 +37,13 @@ llvm::AllocaInst *CodeGenFunction::CreateTempAlloca(const llvm::Type *Ty,
   return new llvm::AllocaInst(Ty, 0, Name, AllocaInsertPt);
 }
 
+void CodeGenFunction::InitTempAlloca(llvm::AllocaInst *Var,
+                                     llvm::Value *Init) {
+  llvm::StoreInst *Store = new llvm::StoreInst(Init, Var);
+  llvm::BasicBlock *Block = AllocaInsertPt->getParent();
+  Block->getInstList().insertAfter(&*AllocaInsertPt, Store);
+}
+
 llvm::Value *CodeGenFunction::CreateIRTemp(QualType Ty,
                                            const llvm::Twine &Name) {
   llvm::AllocaInst *Alloc = CreateTempAlloca(ConvertType(Ty), Name);
@@ -111,6 +118,23 @@ RValue CodeGenFunction::EmitAnyExprToTemp(const Expr *E,
                      IsInitializer);
 }
 
+/// EmitAnyExprToMem - Evaluate an expression into a given memory
+/// location.
+void CodeGenFunction::EmitAnyExprToMem(const Expr *E,
+                                       llvm::Value *Location,
+                                       bool IsLocationVolatile,
+                                       bool IsInit) {
+  if (E->getType()->isComplexType())
+    EmitComplexExprIntoAddr(E, Location, IsLocationVolatile);
+  else if (hasAggregateLLVMType(E->getType()))
+    EmitAggExpr(E, Location, IsLocationVolatile, /*Ignore*/ false, IsInit);
+  else {
+    RValue RV = RValue::get(EmitScalarExpr(E, /*Ignore*/ false));
+    LValue LV = LValue::MakeAddr(Location, MakeQualifiers(E->getType()));
+    EmitStoreThroughLValue(RV, LV, E->getType());
+  }
+}
+
 RValue CodeGenFunction::EmitReferenceBindingToExpr(const Expr* E,
                                                    bool IsInitializer) {
   bool ShouldDestroyTemporaries = false;
@@ -150,16 +174,15 @@ RValue CodeGenFunction::EmitReferenceBindingToExpr(const Expr* E,
         PopCXXTemporary();
     }      
   } else {
-    const CXXRecordDecl *BaseClassDecl = 0;
+    const CXXBaseSpecifierArray *BasePath = 0;
     const CXXRecordDecl *DerivedClassDecl = 0;
     
     if (const CastExpr *CE = 
           dyn_cast<CastExpr>(E->IgnoreParenNoopCasts(getContext()))) {
       if (CE->getCastKind() == CastExpr::CK_DerivedToBase) {
         E = CE->getSubExpr();
-        
-        BaseClassDecl = 
-          cast<CXXRecordDecl>(CE->getType()->getAs<RecordType>()->getDecl());
+
+        BasePath = &CE->getBasePath();
         DerivedClassDecl = 
           cast<CXXRecordDecl>(E->getType()->getAs<RecordType>()->getDecl());
       }
@@ -185,6 +208,7 @@ RValue CodeGenFunction::EmitReferenceBindingToExpr(const Expr* E,
             {
               DelayedCleanupBlock Scope(*this);
               EmitCXXDestructorCall(Dtor, Dtor_Complete,
+                                    /*ForVirtualBase=*/false,
                                     Val.getAggregateAddr());
               
               // Make sure to jump to the exit block.
@@ -193,6 +217,7 @@ RValue CodeGenFunction::EmitReferenceBindingToExpr(const Expr* E,
             if (Exceptions) {
               EHCleanupBlock Cleanup(*this);
               EmitCXXDestructorCall(Dtor, Dtor_Complete,
+                                    /*ForVirtualBase=*/false,
                                     Val.getAggregateAddr());
             }
           }
@@ -201,10 +226,10 @@ RValue CodeGenFunction::EmitReferenceBindingToExpr(const Expr* E,
     }
     
     // Check if need to perform the derived-to-base cast.
-    if (BaseClassDecl) {
+    if (BasePath) {
       llvm::Value *Derived = Val.getAggregateAddr();
       llvm::Value *Base = 
-        GetAddressOfBaseClass(Derived, DerivedClassDecl, BaseClassDecl, 
+        GetAddressOfBaseClass(Derived, DerivedClassDecl, *BasePath, 
                               /*NullCheckValue=*/false);
       return RValue::get(Base);
     }
@@ -240,18 +265,15 @@ void CodeGenFunction::EmitCheck(llvm::Value *Address, unsigned Size) {
   if (!CatchUndefined)
     return;
 
-  const llvm::IntegerType *Size_tTy
+  const llvm::Type *Size_tTy
     = llvm::IntegerType::get(VMContext, LLVMPointerWidth);
   Address = Builder.CreateBitCast(Address, PtrToInt8Ty);
 
-  const llvm::Type *ResType[] = {
-    Size_tTy
-  };
-  llvm::Value *F = CGM.getIntrinsic(llvm::Intrinsic::objectsize, ResType, 1);
-  const llvm::IntegerType *IntTy = cast<llvm::IntegerType>(
-    CGM.getTypes().ConvertType(CGM.getContext().IntTy));
+  llvm::Value *F = CGM.getIntrinsic(llvm::Intrinsic::objectsize, &Size_tTy, 1);
+  const llvm::IntegerType *Int1Ty = llvm::IntegerType::get(VMContext, 1);
+
   // In time, people may want to control this and use a 1 here.
-  llvm::Value *Arg = llvm::ConstantInt::get(IntTy, 0);
+  llvm::Value *Arg = llvm::ConstantInt::get(Int1Ty, 0);
   llvm::Value *C = Builder.CreateCall2(F, Address, Arg);
   llvm::BasicBlock *Cont = createBasicBlock();
   llvm::BasicBlock *Check = createBasicBlock();
@@ -457,6 +479,8 @@ LValue CodeGenFunction::EmitLValue(const Expr *E) {
     return EmitObjCIsaExpr(cast<ObjCIsaExpr>(E));
   case Expr::BinaryOperatorClass:
     return EmitBinaryOperatorLValue(cast<BinaryOperator>(E));
+  case Expr::CompoundAssignOperatorClass:
+    return EmitCompoundAssignOperatorLValue(cast<CompoundAssignOperator>(E));
   case Expr::CallExprClass:
   case Expr::CXXMemberCallExprClass:
   case Expr::CXXOperatorCallExprClass:
@@ -606,63 +630,73 @@ RValue CodeGenFunction::EmitLoadOfLValue(LValue LV, QualType ExprType) {
 RValue CodeGenFunction::EmitLoadOfBitfieldLValue(LValue LV,
                                                  QualType ExprType) {
   const CGBitFieldInfo &Info = LV.getBitFieldInfo();
-  unsigned StartBit = Info.Start;
-  unsigned BitfieldSize = Info.Size;
-  llvm::Value *Ptr = LV.getBitFieldAddr();
 
-  const llvm::Type *EltTy =
-    cast<llvm::PointerType>(Ptr->getType())->getElementType();
-  unsigned EltTySize = CGM.getTargetData().getTypeSizeInBits(EltTy);
+  // Get the output type.
+  const llvm::Type *ResLTy = ConvertType(ExprType);
+  unsigned ResSizeInBits = CGM.getTargetData().getTypeSizeInBits(ResLTy);
 
-  // In some cases the bitfield may straddle two memory locations.  Currently we
-  // load the entire bitfield, then do the magic to sign-extend it if
-  // necessary. This results in somewhat more code than necessary for the common
-  // case (one load), since two shifts accomplish both the masking and sign
-  // extension.
-  unsigned LowBits = std::min(BitfieldSize, EltTySize - StartBit);
-  llvm::Value *Val = Builder.CreateLoad(Ptr, LV.isVolatileQualified(), "tmp");
+  // Compute the result as an OR of all of the individual component accesses.
+  llvm::Value *Res = 0;
+  for (unsigned i = 0, e = Info.getNumComponents(); i != e; ++i) {
+    const CGBitFieldInfo::AccessInfo &AI = Info.getComponent(i);
 
-  // Shift to proper location.
-  if (StartBit)
-    Val = Builder.CreateLShr(Val, StartBit, "bf.lo");
+    // Get the field pointer.
+    llvm::Value *Ptr = LV.getBitFieldBaseAddr();
 
-  // Mask off unused bits.
-  llvm::Constant *LowMask = llvm::ConstantInt::get(VMContext,
-                                llvm::APInt::getLowBitsSet(EltTySize, LowBits));
-  Val = Builder.CreateAnd(Val, LowMask, "bf.lo.cleared");
+    // Only offset by the field index if used, so that incoming values are not
+    // required to be structures.
+    if (AI.FieldIndex)
+      Ptr = Builder.CreateStructGEP(Ptr, AI.FieldIndex, "bf.field");
 
-  // Fetch the high bits if necessary.
-  if (LowBits < BitfieldSize) {
-    unsigned HighBits = BitfieldSize - LowBits;
-    llvm::Value *HighPtr = Builder.CreateGEP(Ptr, llvm::ConstantInt::get(
-                            llvm::Type::getInt32Ty(VMContext), 1), "bf.ptr.hi");
-    llvm::Value *HighVal = Builder.CreateLoad(HighPtr,
-                                              LV.isVolatileQualified(),
-                                              "tmp");
+    // Offset by the byte offset, if used.
+    if (AI.FieldByteOffset) {
+      const llvm::Type *i8PTy = llvm::Type::getInt8PtrTy(VMContext);
+      Ptr = Builder.CreateBitCast(Ptr, i8PTy);
+      Ptr = Builder.CreateConstGEP1_32(Ptr, AI.FieldByteOffset,"bf.field.offs");
+    }
 
-    // Mask off unused bits.
-    llvm::Constant *HighMask = llvm::ConstantInt::get(VMContext,
-                               llvm::APInt::getLowBitsSet(EltTySize, HighBits));
-    HighVal = Builder.CreateAnd(HighVal, HighMask, "bf.lo.cleared");
+    // Cast to the access type.
+    const llvm::Type *PTy = llvm::Type::getIntNPtrTy(VMContext, AI.AccessWidth,
+                                                    ExprType.getAddressSpace());
+    Ptr = Builder.CreateBitCast(Ptr, PTy);
 
-    // Shift to proper location and or in to bitfield value.
-    HighVal = Builder.CreateShl(HighVal, LowBits);
-    Val = Builder.CreateOr(Val, HighVal, "bf.val");
+    // Perform the load.
+    llvm::LoadInst *Load = Builder.CreateLoad(Ptr, LV.isVolatileQualified());
+    if (AI.AccessAlignment)
+      Load->setAlignment(AI.AccessAlignment);
+
+    // Shift out unused low bits and mask out unused high bits.
+    llvm::Value *Val = Load;
+    if (AI.FieldBitStart)
+      Val = Builder.CreateLShr(Load, AI.FieldBitStart);
+    Val = Builder.CreateAnd(Val, llvm::APInt::getLowBitsSet(AI.AccessWidth,
+                                                            AI.TargetBitWidth),
+                            "bf.clear");
+
+    // Extend or truncate to the target size.
+    if (AI.AccessWidth < ResSizeInBits)
+      Val = Builder.CreateZExt(Val, ResLTy);
+    else if (AI.AccessWidth > ResSizeInBits)
+      Val = Builder.CreateTrunc(Val, ResLTy);
+
+    // Shift into place, and OR into the result.
+    if (AI.TargetBitOffset)
+      Val = Builder.CreateShl(Val, AI.TargetBitOffset);
+    Res = Res ? Builder.CreateOr(Res, Val) : Val;
   }
 
-  // Sign extend if necessary.
-  if (Info.IsSigned) {
-    llvm::Value *ExtraBits = llvm::ConstantInt::get(EltTy,
-                                                    EltTySize - BitfieldSize);
-    Val = Builder.CreateAShr(Builder.CreateShl(Val, ExtraBits),
-                             ExtraBits, "bf.val.sext");
+  // If the bit-field is signed, perform the sign-extension.
+  //
+  // FIXME: This can easily be folded into the load of the high bits, which
+  // could also eliminate the mask of high bits in some situations.
+  if (Info.isSigned()) {
+    unsigned ExtraBits = ResSizeInBits - Info.getSize();
+    if (ExtraBits)
+      Res = Builder.CreateAShr(Builder.CreateShl(Res, ExtraBits),
+                               ExtraBits, "bf.val.sext");
   }
 
-  // The bitfield type and the normal type differ when the storage sizes differ
-  // (currently just _Bool).
-  Val = Builder.CreateIntCast(Val, ConvertType(ExprType), false, "tmp");
-
-  return RValue::get(Val);
+  return RValue::get(Res);
 }
 
 RValue CodeGenFunction::EmitLoadOfPropertyRefLValue(LValue LV,
@@ -783,88 +817,103 @@ void CodeGenFunction::EmitStoreThroughBitfieldLValue(RValue Src, LValue Dst,
                                                      QualType Ty,
                                                      llvm::Value **Result) {
   const CGBitFieldInfo &Info = Dst.getBitFieldInfo();
-  unsigned StartBit = Info.Start;
-  unsigned BitfieldSize = Info.Size;
-  llvm::Value *Ptr = Dst.getBitFieldAddr();
 
-  const llvm::Type *EltTy =
-    cast<llvm::PointerType>(Ptr->getType())->getElementType();
-  unsigned EltTySize = CGM.getTargetData().getTypeSizeInBits(EltTy);
+  // Get the output type.
+  const llvm::Type *ResLTy = ConvertTypeForMem(Ty);
+  unsigned ResSizeInBits = CGM.getTargetData().getTypeSizeInBits(ResLTy);
 
-  // Get the new value, cast to the appropriate type and masked to exactly the
-  // size of the bit-field.
+  // Get the source value, truncated to the width of the bit-field.
   llvm::Value *SrcVal = Src.getScalarVal();
-  llvm::Value *NewVal = Builder.CreateIntCast(SrcVal, EltTy, false, "tmp");
-  llvm::Constant *Mask = llvm::ConstantInt::get(VMContext,
-                           llvm::APInt::getLowBitsSet(EltTySize, BitfieldSize));
-  NewVal = Builder.CreateAnd(NewVal, Mask, "bf.value");
+
+  if (Ty->isBooleanType())
+    SrcVal = Builder.CreateIntCast(SrcVal, ResLTy, /*IsSigned=*/false);
+
+  SrcVal = Builder.CreateAnd(SrcVal, llvm::APInt::getLowBitsSet(ResSizeInBits,
+                                                                Info.getSize()),
+                             "bf.value");
 
   // Return the new value of the bit-field, if requested.
   if (Result) {
     // Cast back to the proper type for result.
-    const llvm::Type *SrcTy = SrcVal->getType();
-    llvm::Value *SrcTrunc = Builder.CreateIntCast(NewVal, SrcTy, false,
-                                                  "bf.reload.val");
+    const llvm::Type *SrcTy = Src.getScalarVal()->getType();
+    llvm::Value *ReloadVal = Builder.CreateIntCast(SrcVal, SrcTy, false,
+                                                   "bf.reload.val");
 
     // Sign extend if necessary.
-    if (Info.IsSigned) {
-      unsigned SrcTySize = CGM.getTargetData().getTypeSizeInBits(SrcTy);
-      llvm::Value *ExtraBits = llvm::ConstantInt::get(SrcTy,
-                                                      SrcTySize - BitfieldSize);
-      SrcTrunc = Builder.CreateAShr(Builder.CreateShl(SrcTrunc, ExtraBits),
-                                    ExtraBits, "bf.reload.sext");
+    if (Info.isSigned()) {
+      unsigned ExtraBits = ResSizeInBits - Info.getSize();
+      if (ExtraBits)
+        ReloadVal = Builder.CreateAShr(Builder.CreateShl(ReloadVal, ExtraBits),
+                                       ExtraBits, "bf.reload.sext");
     }
 
-    *Result = SrcTrunc;
+    *Result = ReloadVal;
   }
 
-  // In some cases the bitfield may straddle two memory locations.  Emit the low
-  // part first and check to see if the high needs to be done.
-  unsigned LowBits = std::min(BitfieldSize, EltTySize - StartBit);
-  llvm::Value *LowVal = Builder.CreateLoad(Ptr, Dst.isVolatileQualified(),
-                                           "bf.prev.low");
+  // Iterate over the components, writing each piece to memory.
+  for (unsigned i = 0, e = Info.getNumComponents(); i != e; ++i) {
+    const CGBitFieldInfo::AccessInfo &AI = Info.getComponent(i);
 
-  // Compute the mask for zero-ing the low part of this bitfield.
-  llvm::Constant *InvMask =
-    llvm::ConstantInt::get(VMContext,
-             ~llvm::APInt::getBitsSet(EltTySize, StartBit, StartBit + LowBits));
+    // Get the field pointer.
+    llvm::Value *Ptr = Dst.getBitFieldBaseAddr();
 
-  // Compute the new low part as
-  //   LowVal = (LowVal & InvMask) | (NewVal << StartBit),
-  // with the shift of NewVal implicitly stripping the high bits.
-  llvm::Value *NewLowVal =
-    Builder.CreateShl(NewVal, StartBit, "bf.value.lo");
-  LowVal = Builder.CreateAnd(LowVal, InvMask, "bf.prev.lo.cleared");
-  LowVal = Builder.CreateOr(LowVal, NewLowVal, "bf.new.lo");
+    // Only offset by the field index if used, so that incoming values are not
+    // required to be structures.
+    if (AI.FieldIndex)
+      Ptr = Builder.CreateStructGEP(Ptr, AI.FieldIndex, "bf.field");
 
-  // Write back.
-  Builder.CreateStore(LowVal, Ptr, Dst.isVolatileQualified());
+    // Offset by the byte offset, if used.
+    if (AI.FieldByteOffset) {
+      const llvm::Type *i8PTy = llvm::Type::getInt8PtrTy(VMContext);
+      Ptr = Builder.CreateBitCast(Ptr, i8PTy);
+      Ptr = Builder.CreateConstGEP1_32(Ptr, AI.FieldByteOffset,"bf.field.offs");
+    }
 
-  // If the low part doesn't cover the bitfield emit a high part.
-  if (LowBits < BitfieldSize) {
-    unsigned HighBits = BitfieldSize - LowBits;
-    llvm::Value *HighPtr =  Builder.CreateGEP(Ptr, llvm::ConstantInt::get(
-                            llvm::Type::getInt32Ty(VMContext), 1), "bf.ptr.hi");
-    llvm::Value *HighVal = Builder.CreateLoad(HighPtr,
-                                              Dst.isVolatileQualified(),
-                                              "bf.prev.hi");
+    // Cast to the access type.
+    const llvm::Type *PTy = llvm::Type::getIntNPtrTy(VMContext, AI.AccessWidth,
+                                                     Ty.getAddressSpace());
+    Ptr = Builder.CreateBitCast(Ptr, PTy);
 
-    // Compute the mask for zero-ing the high part of this bitfield.
-    llvm::Constant *InvMask =
-      llvm::ConstantInt::get(VMContext, ~llvm::APInt::getLowBitsSet(EltTySize,
-                               HighBits));
+    // Extract the piece of the bit-field value to write in this access, limited
+    // to the values that are part of this access.
+    llvm::Value *Val = SrcVal;
+    if (AI.TargetBitOffset)
+      Val = Builder.CreateLShr(Val, AI.TargetBitOffset);
+    Val = Builder.CreateAnd(Val, llvm::APInt::getLowBitsSet(ResSizeInBits,
+                                                            AI.TargetBitWidth));
 
-    // Compute the new high part as
-    //   HighVal = (HighVal & InvMask) | (NewVal lshr LowBits),
-    // where the high bits of NewVal have already been cleared and the
-    // shift stripping the low bits.
-    llvm::Value *NewHighVal =
-      Builder.CreateLShr(NewVal, LowBits, "bf.value.high");
-    HighVal = Builder.CreateAnd(HighVal, InvMask, "bf.prev.hi.cleared");
-    HighVal = Builder.CreateOr(HighVal, NewHighVal, "bf.new.hi");
+    // Extend or truncate to the access size.
+    const llvm::Type *AccessLTy =
+      llvm::Type::getIntNTy(VMContext, AI.AccessWidth);
+    if (ResSizeInBits < AI.AccessWidth)
+      Val = Builder.CreateZExt(Val, AccessLTy);
+    else if (ResSizeInBits > AI.AccessWidth)
+      Val = Builder.CreateTrunc(Val, AccessLTy);
 
-    // Write back.
-    Builder.CreateStore(HighVal, HighPtr, Dst.isVolatileQualified());
+    // Shift into the position in memory.
+    if (AI.FieldBitStart)
+      Val = Builder.CreateShl(Val, AI.FieldBitStart);
+
+    // If necessary, load and OR in bits that are outside of the bit-field.
+    if (AI.TargetBitWidth != AI.AccessWidth) {
+      llvm::LoadInst *Load = Builder.CreateLoad(Ptr, Dst.isVolatileQualified());
+      if (AI.AccessAlignment)
+        Load->setAlignment(AI.AccessAlignment);
+
+      // Compute the mask for zeroing the bits that are part of the bit-field.
+      llvm::APInt InvMask =
+        ~llvm::APInt::getBitsSet(AI.AccessWidth, AI.FieldBitStart,
+                                 AI.FieldBitStart + AI.TargetBitWidth);
+
+      // Apply the mask and OR in to the value to write.
+      Val = Builder.CreateOr(Builder.CreateAnd(Load, InvMask), Val);
+    }
+
+    // Write the value.
+    llvm::StoreInst *Store = Builder.CreateStore(Val, Ptr,
+                                                 Dst.isVolatileQualified());
+    if (AI.AccessAlignment)
+      Store->setAlignment(AI.AccessAlignment);
   }
 }
 
@@ -1084,6 +1133,9 @@ LValue CodeGenFunction::EmitDeclRefLValue(const DeclRefExpr *E) {
     bool NonGCable = VD->hasLocalStorage() && !VD->hasAttr<BlocksAttr>();
 
     llvm::Value *V = LocalDeclMap[VD];
+    if (!V && getContext().getLangOptions().CPlusPlus &&
+        VD->isStaticLocal()) 
+      V = CGM.getStaticLocalDeclAddress(VD);
     assert(V && "DeclRefExpr not entered in LocalDeclMap?");
 
     Qualifiers Quals = MakeQualifiers(E->getType());
@@ -1474,19 +1526,7 @@ LValue CodeGenFunction::EmitLValueForBitfield(llvm::Value* BaseValue,
   const CGRecordLayout &RL =
     CGM.getTypes().getCGRecordLayout(Field->getParent());
   const CGBitFieldInfo &Info = RL.getBitFieldInfo(Field);
-
-  // FIXME: CodeGenTypes should expose a method to get the appropriate type for
-  // FieldTy (the appropriate type is ABI-dependent).
-  const llvm::Type *FieldTy =
-    CGM.getTypes().ConvertTypeForMem(Field->getType());
-  const llvm::PointerType *BaseTy =
-  cast<llvm::PointerType>(BaseValue->getType());
-  unsigned AS = BaseTy->getAddressSpace();
-  BaseValue = Builder.CreateBitCast(BaseValue,
-                                    llvm::PointerType::get(FieldTy, AS));
-  llvm::Value *V = Builder.CreateConstGEP1_32(BaseValue, Info.FieldNo);
-
-  return LValue::MakeBitfield(V, Info,
+  return LValue::MakeBitfield(BaseValue, Info,
                              Field->getType().getCVRQualifiers()|CVRQualifiers);
 }
 
@@ -1548,12 +1588,7 @@ LValue CodeGenFunction::EmitCompoundLiteralLValue(const CompoundLiteralExpr* E){
   const Expr* InitExpr = E->getInitializer();
   LValue Result = LValue::MakeAddr(DeclPtr, MakeQualifiers(E->getType()));
 
-  if (E->getType()->isComplexType())
-    EmitComplexExprIntoAddr(InitExpr, DeclPtr, false);
-  else if (hasAggregateLLVMType(E->getType()))
-    EmitAnyExpr(InitExpr, DeclPtr, false);
-  else
-    EmitStoreThroughLValue(EmitAnyExpr(InitExpr), Result, E->getType());
+  EmitAnyExprToMem(InitExpr, DeclPtr, /*Volatile*/ false);
 
   return Result;
 }
@@ -1647,27 +1682,19 @@ LValue CodeGenFunction::EmitCastLValue(const CastExpr *E) {
       E->getSubExpr()->getType()->getAs<RecordType>();
     CXXRecordDecl *DerivedClassDecl = 
       cast<CXXRecordDecl>(DerivedClassTy->getDecl());
-
-    const RecordType *BaseClassTy = E->getType()->getAs<RecordType>();
-    CXXRecordDecl *BaseClassDecl = cast<CXXRecordDecl>(BaseClassTy->getDecl());
     
     LValue LV = EmitLValue(E->getSubExpr());
     
     // Perform the derived-to-base conversion
     llvm::Value *Base = 
       GetAddressOfBaseClass(LV.getAddress(), DerivedClassDecl, 
-                            BaseClassDecl, /*NullCheckValue=*/false);
+                            E->getBasePath(), /*NullCheckValue=*/false);
     
     return LValue::MakeAddr(Base, MakeQualifiers(E->getType()));
   }
   case CastExpr::CK_ToUnion:
     return EmitAggExprToLValue(E);
   case CastExpr::CK_BaseToDerived: {
-    const RecordType *BaseClassTy = 
-      E->getSubExpr()->getType()->getAs<RecordType>();
-    CXXRecordDecl *BaseClassDecl = 
-      cast<CXXRecordDecl>(BaseClassTy->getDecl());
-    
     const RecordType *DerivedClassTy = E->getType()->getAs<RecordType>();
     CXXRecordDecl *DerivedClassDecl = 
       cast<CXXRecordDecl>(DerivedClassTy->getDecl());
@@ -1676,8 +1703,8 @@ LValue CodeGenFunction::EmitCastLValue(const CastExpr *E) {
     
     // Perform the base-to-derived conversion
     llvm::Value *Derived = 
-      GetAddressOfDerivedClass(LV.getAddress(), BaseClassDecl, 
-                               DerivedClassDecl, /*NullCheckValue=*/false);
+      GetAddressOfDerivedClass(LV.getAddress(), DerivedClassDecl, 
+                               E->getBasePath(),/*NullCheckValue=*/false);
     
     return LValue::MakeAddr(Derived, MakeQualifiers(E->getType()));
   }

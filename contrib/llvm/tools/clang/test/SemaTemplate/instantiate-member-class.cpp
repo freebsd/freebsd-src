@@ -18,8 +18,8 @@ X<int>::X *xi; // expected-error{{qualified reference to 'X' is a constructor na
 X<float>::X *xf; // expected-error{{qualified reference to 'X' is a constructor name rather than a type wherever a constructor can be declared}}
 
 void test_naming() {
-  c1 = c2; // expected-error{{incompatible type assigning 'X<float>::C *', expected 'X<int>::C *'}}
-  xi = xf;  // expected-error{{incompatible type assigning}}
+  c1 = c2; // expected-error{{assigning to 'X<int>::C *' from incompatible type 'X<float>::C *'}}
+  xi = xf;  // expected-error{{assigning to 'X<int>::X<int> *' from incompatible type 'X<float>::X<float> *'}}
     // FIXME: error above doesn't print the type X<int>::X cleanly!
 }
 
@@ -40,9 +40,9 @@ X<void>::D::E e2; // expected-note{{in instantiation of member class 'X<void>::D
 // Redeclarations.
 namespace test1 {
   template <typename T> struct Registry {
-    class node;
+    struct node;
     static node *Head;
-    class node {
+    struct node {
       node(int v) { Head = this; }
     };
   };
@@ -64,6 +64,7 @@ namespace test2 {
   template <typename T> class B {
     class Foo;
     class Foo {
+    public:
       typedef int X;
     };
     typename Foo::X x;

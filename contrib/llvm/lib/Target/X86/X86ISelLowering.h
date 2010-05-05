@@ -374,12 +374,6 @@ namespace llvm {
   //===--------------------------------------------------------------------===//
   //  X86TargetLowering - X86 Implementation of the TargetLowering interface
   class X86TargetLowering : public TargetLowering {
-    int VarArgsFrameIndex;            // FrameIndex for start of varargs area.
-    int RegSaveFrameIndex;            // X86-64 vararg func register save area.
-    unsigned VarArgsGPOffset;         // X86-64 vararg func int reg offset.
-    unsigned VarArgsFPOffset;         // X86-64 vararg func fp reg offset.
-    int BytesToPopOnReturn;           // Number of arg bytes ret should pop.
-
   public:
     explicit X86TargetLowering(X86TargetMachine &TM);
 
@@ -401,11 +395,6 @@ namespace llvm {
     getPICJumpTableRelocBaseExpr(const MachineFunction *MF,
                                  unsigned JTI, MCContext &Ctx) const;
     
-    // Return the number of bytes that a function should pop when it returns (in
-    // addition to the space used by the return address).
-    //
-    unsigned getBytesToPopOnReturn() const { return BytesToPopOnReturn; }
-
     /// getStackPtrReg - Return the stack pointer register we are using: either
     /// ESP or RSP.
     unsigned getStackPtrReg() const { return X86StackPtr; }
@@ -424,12 +413,14 @@ namespace llvm {
     /// probably because the source does not need to be loaded. If
     /// 'NonScalarIntSafe' is true, that means it's safe to return a
     /// non-scalar-integer type, e.g. empty string source, constant, or loaded
-    /// from memory. It returns EVT::Other if SelectionDAG should be responsible
-    /// for determining it.
+    /// from memory. 'MemcpyStrSrc' indicates whether the memcpy source is
+    /// constant so it does not need to be loaded.
+    /// It returns EVT::Other if the type should be determined using generic
+    /// target-independent logic.
     virtual EVT
-    getOptimalMemOpType(uint64_t Size,
-                        unsigned DstAlign, unsigned SrcAlign,
-                        bool NonScalarIntSafe, SelectionDAG &DAG) const;
+    getOptimalMemOpType(uint64_t Size, unsigned DstAlign, unsigned SrcAlign,
+                        bool NonScalarIntSafe, bool MemcpyStrSrc,
+                        MachineFunction &MF) const;
 
     /// allowsUnalignedMemoryAccesses - Returns true if the target allows
     /// unaligned memory accesses. of the specified type.
@@ -439,20 +430,32 @@ namespace llvm {
 
     /// LowerOperation - Provide custom lowering hooks for some operations.
     ///
-    virtual SDValue LowerOperation(SDValue Op, SelectionDAG &DAG);
+    virtual SDValue LowerOperation(SDValue Op, SelectionDAG &DAG) const;
 
     /// ReplaceNodeResults - Replace the results of node with an illegal result
     /// type with new values built out of custom code.
     ///
     virtual void ReplaceNodeResults(SDNode *N, SmallVectorImpl<SDValue>&Results,
-                                    SelectionDAG &DAG);
+                                    SelectionDAG &DAG) const;
 
     
     virtual SDValue PerformDAGCombine(SDNode *N, DAGCombinerInfo &DCI) const;
 
-    virtual MachineBasicBlock *EmitInstrWithCustomInserter(MachineInstr *MI,
-                                                         MachineBasicBlock *MBB,
-                    DenseMap<MachineBasicBlock*, MachineBasicBlock*> *EM) const;
+    /// isTypeDesirableForOp - Return true if the target has native support for
+    /// the specified value type and it is 'desirable' to use the type for the
+    /// given node type. e.g. On x86 i16 is legal, but undesirable since i16
+    /// instruction encodings are longer and some i16 instructions are slow.
+    virtual bool isTypeDesirableForOp(unsigned Opc, EVT VT) const;
+
+    /// isTypeDesirable - Return true if the target has native support for the
+    /// specified value type and it is 'desirable' to use the type. e.g. On x86
+    /// i16 is legal, but undesirable since i16 instruction encodings are longer
+    /// and some i16 instructions are slow.
+    virtual bool IsDesirableToPromoteOp(SDValue Op, EVT &PVT) const;
+
+    virtual MachineBasicBlock *
+      EmitInstrWithCustomInserter(MachineInstr *MI,
+                                  MachineBasicBlock *MBB) const;
 
  
     /// getTargetNodeName - This method returns the name of a target specific
@@ -473,9 +476,9 @@ namespace llvm {
                                                 unsigned Depth = 0) const;
 
     virtual bool
-    isGAPlusOffset(SDNode *N, GlobalValue* &GA, int64_t &Offset) const;
+    isGAPlusOffset(SDNode *N, const GlobalValue* &GA, int64_t &Offset) const;
     
-    SDValue getReturnAddressFrameIndex(SelectionDAG &DAG);
+    SDValue getReturnAddressFrameIndex(SelectionDAG &DAG) const;
 
     virtual bool ExpandInlineAsm(CallInst *CI) const;
     
@@ -560,7 +563,7 @@ namespace llvm {
       return !X86ScalarSSEf64 || VT == MVT::f80;
     }
     
-    virtual const X86Subtarget* getSubtarget() {
+    virtual const X86Subtarget* getSubtarget() const {
       return Subtarget;
     }
 
@@ -577,11 +580,12 @@ namespace llvm {
     createFastISel(MachineFunction &mf,
                    DenseMap<const Value *, unsigned> &,
                    DenseMap<const BasicBlock *, MachineBasicBlock *> &,
-                   DenseMap<const AllocaInst *, int> &
+                   DenseMap<const AllocaInst *, int> &,
+                   std::vector<std::pair<MachineInstr*, unsigned> > &
 #ifndef NDEBUG
-                   , SmallSet<Instruction*, 8> &
+                   , SmallSet<const Instruction *, 8> &
 #endif
-                   );
+                   ) const;
 
     /// getFunctionAlignment - Return the Log2 alignment of this function.
     virtual unsigned getFunctionAlignment(const Function *F) const;
@@ -616,17 +620,17 @@ namespace llvm {
                             CallingConv::ID CallConv, bool isVarArg,
                             const SmallVectorImpl<ISD::InputArg> &Ins,
                             DebugLoc dl, SelectionDAG &DAG,
-                            SmallVectorImpl<SDValue> &InVals);
+                            SmallVectorImpl<SDValue> &InVals) const;
     SDValue LowerMemArgument(SDValue Chain,
                              CallingConv::ID CallConv,
                              const SmallVectorImpl<ISD::InputArg> &ArgInfo,
                              DebugLoc dl, SelectionDAG &DAG,
                              const CCValAssign &VA,  MachineFrameInfo *MFI,
-                              unsigned i);
+                              unsigned i) const;
     SDValue LowerMemOpCallTo(SDValue Chain, SDValue StackPtr, SDValue Arg,
                              DebugLoc dl, SelectionDAG &DAG,
                              const CCValAssign &VA,
-                             ISD::ArgFlagsTy Flags);
+                             ISD::ArgFlagsTy Flags) const;
 
     // Call lowering helpers.
 
@@ -641,114 +645,120 @@ namespace llvm {
                                     const SmallVectorImpl<ISD::OutputArg> &Outs,
                                     const SmallVectorImpl<ISD::InputArg> &Ins,
                                            SelectionDAG& DAG) const;
-    bool IsCalleePop(bool isVarArg, CallingConv::ID CallConv);
+    bool IsCalleePop(bool isVarArg, CallingConv::ID CallConv) const;
     SDValue EmitTailCallLoadRetAddr(SelectionDAG &DAG, SDValue &OutRetAddr,
                                 SDValue Chain, bool IsTailCall, bool Is64Bit,
-                                int FPDiff, DebugLoc dl);
+                                int FPDiff, DebugLoc dl) const;
 
     CCAssignFn *CCAssignFnForNode(CallingConv::ID CallConv) const;
-    unsigned GetAlignedArgumentStackSize(unsigned StackSize, SelectionDAG &DAG);
+    unsigned GetAlignedArgumentStackSize(unsigned StackSize,
+                                         SelectionDAG &DAG) const;
 
     std::pair<SDValue,SDValue> FP_TO_INTHelper(SDValue Op, SelectionDAG &DAG,
-                                               bool isSigned);
+                                               bool isSigned) const;
 
     SDValue LowerAsSplatVectorLoad(SDValue SrcOp, EVT VT, DebugLoc dl,
-                                   SelectionDAG &DAG);
-    SDValue LowerBUILD_VECTOR(SDValue Op, SelectionDAG &DAG);
-    SDValue LowerCONCAT_VECTORS(SDValue Op, SelectionDAG &DAG);
-    SDValue LowerVECTOR_SHUFFLE(SDValue Op, SelectionDAG &DAG);
-    SDValue LowerEXTRACT_VECTOR_ELT(SDValue Op, SelectionDAG &DAG);
-    SDValue LowerEXTRACT_VECTOR_ELT_SSE4(SDValue Op, SelectionDAG &DAG);
-    SDValue LowerINSERT_VECTOR_ELT(SDValue Op, SelectionDAG &DAG);
-    SDValue LowerINSERT_VECTOR_ELT_SSE4(SDValue Op, SelectionDAG &DAG);
-    SDValue LowerSCALAR_TO_VECTOR(SDValue Op, SelectionDAG &DAG);
-    SDValue LowerConstantPool(SDValue Op, SelectionDAG &DAG);
-    SDValue LowerBlockAddress(SDValue Op, SelectionDAG &DAG);
+                                   SelectionDAG &DAG) const;
+    SDValue LowerBUILD_VECTOR(SDValue Op, SelectionDAG &DAG) const;
+    SDValue LowerCONCAT_VECTORS(SDValue Op, SelectionDAG &DAG) const;
+    SDValue LowerVECTOR_SHUFFLE(SDValue Op, SelectionDAG &DAG) const;
+    SDValue LowerEXTRACT_VECTOR_ELT(SDValue Op, SelectionDAG &DAG) const;
+    SDValue LowerEXTRACT_VECTOR_ELT_SSE4(SDValue Op, SelectionDAG &DAG) const;
+    SDValue LowerINSERT_VECTOR_ELT(SDValue Op, SelectionDAG &DAG) const;
+    SDValue LowerINSERT_VECTOR_ELT_SSE4(SDValue Op, SelectionDAG &DAG) const;
+    SDValue LowerSCALAR_TO_VECTOR(SDValue Op, SelectionDAG &DAG) const;
+    SDValue LowerConstantPool(SDValue Op, SelectionDAG &DAG) const;
+    SDValue LowerBlockAddress(SDValue Op, SelectionDAG &DAG) const;
     SDValue LowerGlobalAddress(const GlobalValue *GV, DebugLoc dl,
                                int64_t Offset, SelectionDAG &DAG) const;
-    SDValue LowerGlobalAddress(SDValue Op, SelectionDAG &DAG);
-    SDValue LowerGlobalTLSAddress(SDValue Op, SelectionDAG &DAG);
-    SDValue LowerExternalSymbol(SDValue Op, SelectionDAG &DAG);
-    SDValue LowerShift(SDValue Op, SelectionDAG &DAG);
+    SDValue LowerGlobalAddress(SDValue Op, SelectionDAG &DAG) const;
+    SDValue LowerGlobalTLSAddress(SDValue Op, SelectionDAG &DAG) const;
+    SDValue LowerExternalSymbol(SDValue Op, SelectionDAG &DAG) const;
+    SDValue LowerShift(SDValue Op, SelectionDAG &DAG) const;
     SDValue BuildFILD(SDValue Op, EVT SrcVT, SDValue Chain, SDValue StackSlot,
-                      SelectionDAG &DAG);
-    SDValue LowerSINT_TO_FP(SDValue Op, SelectionDAG &DAG);
-    SDValue LowerUINT_TO_FP(SDValue Op, SelectionDAG &DAG);
-    SDValue LowerUINT_TO_FP_i64(SDValue Op, SelectionDAG &DAG);
-    SDValue LowerUINT_TO_FP_i32(SDValue Op, SelectionDAG &DAG);
-    SDValue LowerFP_TO_SINT(SDValue Op, SelectionDAG &DAG);
-    SDValue LowerFP_TO_UINT(SDValue Op, SelectionDAG &DAG);
-    SDValue LowerFABS(SDValue Op, SelectionDAG &DAG);
-    SDValue LowerFNEG(SDValue Op, SelectionDAG &DAG);
-    SDValue LowerFCOPYSIGN(SDValue Op, SelectionDAG &DAG);
-    SDValue LowerSETCC(SDValue Op, SelectionDAG &DAG);
-    SDValue LowerVSETCC(SDValue Op, SelectionDAG &DAG);
-    SDValue LowerSELECT(SDValue Op, SelectionDAG &DAG);
-    SDValue LowerBRCOND(SDValue Op, SelectionDAG &DAG);
-    SDValue LowerMEMSET(SDValue Op, SelectionDAG &DAG);
-    SDValue LowerJumpTable(SDValue Op, SelectionDAG &DAG);
-    SDValue LowerDYNAMIC_STACKALLOC(SDValue Op, SelectionDAG &DAG);
-    SDValue LowerVASTART(SDValue Op, SelectionDAG &DAG);
-    SDValue LowerVAARG(SDValue Op, SelectionDAG &DAG);
-    SDValue LowerVACOPY(SDValue Op, SelectionDAG &DAG);
-    SDValue LowerINTRINSIC_WO_CHAIN(SDValue Op, SelectionDAG &DAG);
-    SDValue LowerRETURNADDR(SDValue Op, SelectionDAG &DAG);
-    SDValue LowerFRAMEADDR(SDValue Op, SelectionDAG &DAG);
-    SDValue LowerFRAME_TO_ARGS_OFFSET(SDValue Op, SelectionDAG &DAG);
-    SDValue LowerEH_RETURN(SDValue Op, SelectionDAG &DAG);
-    SDValue LowerTRAMPOLINE(SDValue Op, SelectionDAG &DAG);
-    SDValue LowerFLT_ROUNDS_(SDValue Op, SelectionDAG &DAG);
-    SDValue LowerCTLZ(SDValue Op, SelectionDAG &DAG);
-    SDValue LowerCTTZ(SDValue Op, SelectionDAG &DAG);
-    SDValue LowerMUL_V2I64(SDValue Op, SelectionDAG &DAG);
-    SDValue LowerXALUO(SDValue Op, SelectionDAG &DAG);
+                      SelectionDAG &DAG) const;
+    SDValue LowerSINT_TO_FP(SDValue Op, SelectionDAG &DAG) const;
+    SDValue LowerUINT_TO_FP(SDValue Op, SelectionDAG &DAG) const;
+    SDValue LowerUINT_TO_FP_i64(SDValue Op, SelectionDAG &DAG) const;
+    SDValue LowerUINT_TO_FP_i32(SDValue Op, SelectionDAG &DAG) const;
+    SDValue LowerFP_TO_SINT(SDValue Op, SelectionDAG &DAG) const;
+    SDValue LowerFP_TO_UINT(SDValue Op, SelectionDAG &DAG) const;
+    SDValue LowerFABS(SDValue Op, SelectionDAG &DAG) const;
+    SDValue LowerFNEG(SDValue Op, SelectionDAG &DAG) const;
+    SDValue LowerFCOPYSIGN(SDValue Op, SelectionDAG &DAG) const;
+    SDValue LowerToBT(SDValue And, ISD::CondCode CC,
+                      DebugLoc dl, SelectionDAG &DAG) const;
+    SDValue LowerSETCC(SDValue Op, SelectionDAG &DAG) const;
+    SDValue LowerVSETCC(SDValue Op, SelectionDAG &DAG) const;
+    SDValue LowerSELECT(SDValue Op, SelectionDAG &DAG) const;
+    SDValue LowerBRCOND(SDValue Op, SelectionDAG &DAG) const;
+    SDValue LowerMEMSET(SDValue Op, SelectionDAG &DAG) const;
+    SDValue LowerJumpTable(SDValue Op, SelectionDAG &DAG) const;
+    SDValue LowerDYNAMIC_STACKALLOC(SDValue Op, SelectionDAG &DAG) const;
+    SDValue LowerVASTART(SDValue Op, SelectionDAG &DAG) const;
+    SDValue LowerVAARG(SDValue Op, SelectionDAG &DAG) const;
+    SDValue LowerVACOPY(SDValue Op, SelectionDAG &DAG) const;
+    SDValue LowerINTRINSIC_WO_CHAIN(SDValue Op, SelectionDAG &DAG) const;
+    SDValue LowerRETURNADDR(SDValue Op, SelectionDAG &DAG) const;
+    SDValue LowerFRAMEADDR(SDValue Op, SelectionDAG &DAG) const;
+    SDValue LowerFRAME_TO_ARGS_OFFSET(SDValue Op, SelectionDAG &DAG) const;
+    SDValue LowerEH_RETURN(SDValue Op, SelectionDAG &DAG) const;
+    SDValue LowerTRAMPOLINE(SDValue Op, SelectionDAG &DAG) const;
+    SDValue LowerFLT_ROUNDS_(SDValue Op, SelectionDAG &DAG) const;
+    SDValue LowerCTLZ(SDValue Op, SelectionDAG &DAG) const;
+    SDValue LowerCTTZ(SDValue Op, SelectionDAG &DAG) const;
+    SDValue LowerMUL_V2I64(SDValue Op, SelectionDAG &DAG) const;
+    SDValue LowerXALUO(SDValue Op, SelectionDAG &DAG) const;
 
-    SDValue LowerCMP_SWAP(SDValue Op, SelectionDAG &DAG);
-    SDValue LowerLOAD_SUB(SDValue Op, SelectionDAG &DAG);
-    SDValue LowerREADCYCLECOUNTER(SDValue Op, SelectionDAG &DAG);
+    SDValue LowerCMP_SWAP(SDValue Op, SelectionDAG &DAG) const;
+    SDValue LowerLOAD_SUB(SDValue Op, SelectionDAG &DAG) const;
+    SDValue LowerREADCYCLECOUNTER(SDValue Op, SelectionDAG &DAG) const;
 
     virtual SDValue
       LowerFormalArguments(SDValue Chain,
                            CallingConv::ID CallConv, bool isVarArg,
                            const SmallVectorImpl<ISD::InputArg> &Ins,
                            DebugLoc dl, SelectionDAG &DAG,
-                           SmallVectorImpl<SDValue> &InVals);
+                           SmallVectorImpl<SDValue> &InVals) const;
     virtual SDValue
       LowerCall(SDValue Chain, SDValue Callee,
                 CallingConv::ID CallConv, bool isVarArg, bool &isTailCall,
                 const SmallVectorImpl<ISD::OutputArg> &Outs,
                 const SmallVectorImpl<ISD::InputArg> &Ins,
                 DebugLoc dl, SelectionDAG &DAG,
-                SmallVectorImpl<SDValue> &InVals);
+                SmallVectorImpl<SDValue> &InVals) const;
 
     virtual SDValue
       LowerReturn(SDValue Chain,
                   CallingConv::ID CallConv, bool isVarArg,
                   const SmallVectorImpl<ISD::OutputArg> &Outs,
-                  DebugLoc dl, SelectionDAG &DAG);
+                  DebugLoc dl, SelectionDAG &DAG) const;
 
     virtual bool
       CanLowerReturn(CallingConv::ID CallConv, bool isVarArg,
                      const SmallVectorImpl<EVT> &OutTys,
                      const SmallVectorImpl<ISD::ArgFlagsTy> &ArgsFlags,
-                     SelectionDAG &DAG);
+                     SelectionDAG &DAG) const;
 
     void ReplaceATOMIC_BINARY_64(SDNode *N, SmallVectorImpl<SDValue> &Results,
-                                 SelectionDAG &DAG, unsigned NewOp);
+                                 SelectionDAG &DAG, unsigned NewOp) const;
 
     SDValue EmitTargetCodeForMemset(SelectionDAG &DAG, DebugLoc dl,
                                     SDValue Chain,
                                     SDValue Dst, SDValue Src,
                                     SDValue Size, unsigned Align,
                                     bool isVolatile,
-                                    const Value *DstSV, uint64_t DstSVOff);
+                                    const Value *DstSV,
+                                    uint64_t DstSVOff) const;
     SDValue EmitTargetCodeForMemcpy(SelectionDAG &DAG, DebugLoc dl,
                                     SDValue Chain,
                                     SDValue Dst, SDValue Src,
                                     SDValue Size, unsigned Align,
                                     bool isVolatile, bool AlwaysInline,
-                                    const Value *DstSV, uint64_t DstSVOff,
-                                    const Value *SrcSV, uint64_t SrcSVOff);
+                                    const Value *DstSV,
+                                    uint64_t DstSVOff,
+                                    const Value *SrcSV,
+                                    uint64_t SrcSVOff) const;
     
     /// Utility function to emit string processing sse4.2 instructions
     /// that return in xmm0.
@@ -796,30 +806,29 @@ namespace llvm {
                                                    MachineBasicBlock *BB) const;
 
     MachineBasicBlock *EmitLoweredSelect(MachineInstr *I,
-                                         MachineBasicBlock *BB,
-                    DenseMap<MachineBasicBlock*, MachineBasicBlock*> *EM) const;
+                                         MachineBasicBlock *BB) const;
 
     MachineBasicBlock *EmitLoweredMingwAlloca(MachineInstr *MI,
-                                              MachineBasicBlock *BB,
-                    DenseMap<MachineBasicBlock*, MachineBasicBlock*> *EM) const;
+                                              MachineBasicBlock *BB) const;
 
     /// Emit nodes that will be selected as "test Op0,Op0", or something
     /// equivalent, for use with the given x86 condition code.
-    SDValue EmitTest(SDValue Op0, unsigned X86CC, SelectionDAG &DAG);
+    SDValue EmitTest(SDValue Op0, unsigned X86CC, SelectionDAG &DAG) const;
 
     /// Emit nodes that will be selected as "cmp Op0,Op1", or something
     /// equivalent, for use with the given x86 condition code.
     SDValue EmitCmp(SDValue Op0, SDValue Op1, unsigned X86CC,
-                    SelectionDAG &DAG);
+                    SelectionDAG &DAG) const;
   };
 
   namespace X86 {
     FastISel *createFastISel(MachineFunction &mf,
                            DenseMap<const Value *, unsigned> &,
                            DenseMap<const BasicBlock *, MachineBasicBlock *> &,
-                           DenseMap<const AllocaInst *, int> &
+                           DenseMap<const AllocaInst *, int> &,
+                           std::vector<std::pair<MachineInstr*, unsigned> > &
 #ifndef NDEBUG
-                           , SmallSet<Instruction*, 8> &
+                           , SmallSet<const Instruction*, 8> &
 #endif
                            );
   }

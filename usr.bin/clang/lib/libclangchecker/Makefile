@@ -14,7 +14,7 @@ SRCS=	AdjustedReturnValueChecker.cpp AggExprVisitor.cpp ArrayBoundChecker.cpp \
 	CocoaConventions.cpp \
 	DereferenceChecker.cpp DivZeroChecker.cpp Environment.cpp \
 	ExplodedGraph.cpp FixedAddressChecker.cpp FlatStore.cpp \
-	GRBlockCounter.cpp GRCoreEngine.cpp GRExprEngine.cpp \
+	GRBlockCounter.cpp GRCoreEngine.cpp GRCXXExprEngine.cpp GRExprEngine.cpp \
 	GRExprEngineExperimentalChecks.cpp \
 	GRState.cpp LLVMConventionsChecker.cpp MacOSXAPIChecker.cpp \
 	MallocChecker.cpp ManagerRegistry.cpp MemRegion.cpp \

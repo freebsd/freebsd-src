@@ -87,6 +87,15 @@ class GRExprEngine : public GRSubEngine {
   
   llvm::OwningPtr<GRTransferFuncs> TF;
 
+  class CallExprWLItem {
+  public:
+    CallExpr::arg_iterator I;
+    ExplodedNode *N;
+
+    CallExprWLItem(const CallExpr::arg_iterator &i, ExplodedNode *n)
+      : I(i), N(n) {}
+  };
+
 public:
   GRExprEngine(AnalysisManager &mgr, GRTransferFuncs *tf);
 
@@ -333,6 +342,10 @@ public:
 
   /// VisitReturnStmt - Transfer function logic for return statements.
   void VisitReturnStmt(ReturnStmt* R, ExplodedNode* Pred, ExplodedNodeSet& Dst);
+  
+  /// VisitOffsetOfExpr - Transfer function for offsetof.
+  void VisitOffsetOfExpr(OffsetOfExpr* Ex, ExplodedNode* Pred,
+                         ExplodedNodeSet& Dst);
 
   /// VisitSizeOfAlignOfExpr - Transfer function for sizeof.
   void VisitSizeOfAlignOfExpr(SizeOfAlignOfExpr* Ex, ExplodedNode* Pred,
@@ -352,6 +365,12 @@ public:
   void VisitCXXMemberCallExpr(const CXXMemberCallExpr *MCE, ExplodedNode *Pred,
                               ExplodedNodeSet &Dst);
 
+  void VisitCXXNewExpr(CXXNewExpr *CNE, ExplodedNode *Pred,
+                       ExplodedNodeSet &Dst);
+
+  void VisitCXXDeleteExpr(CXXDeleteExpr *CDE, ExplodedNode *Pred,
+                          ExplodedNodeSet &Dst);
+
   void VisitAggExpr(const Expr *E, SVal Dest, ExplodedNode *Pred,
                     ExplodedNodeSet &Dst);
 
@@ -362,6 +381,11 @@ public:
   /// Synthesize CXXThisRegion.
   const CXXThisRegion *getCXXThisRegion(const CXXMethodDecl *MD,
                                         const StackFrameContext *SFC);
+
+  /// Evaluate arguments with a work list algorithm.
+  void EvalArguments(ExprIterator AI, ExprIterator AE,
+                     const FunctionProtoType *FnType, 
+                     ExplodedNode *Pred, ExplodedNodeSet &Dst);
 
   /// EvalEagerlyAssume - Given the nodes in 'Src', eagerly assume symbolic
   ///  expressions of the form 'x != 0' and generate new nodes (stored in Dst)

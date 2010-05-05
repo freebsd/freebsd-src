@@ -1,5 +1,6 @@
 ; RUN: llc < %s -mtriple=i386-unknown-linux-gnu | FileCheck %s -check-prefix=LINUX
 ; RUN: llc < %s -mtriple=i386-apple-darwin9.7 | FileCheck %s -check-prefix=DARWIN
+; RUN: llc < %s -mtriple=i386-unknown-linux-gnu -fdata-sections | FileCheck %s -check-prefix=LINUX-SECTIONS
 
 
 ; int G1;
@@ -31,6 +32,12 @@
 ; DARWIN: .globl _G3
 ; DARWIN: _G3:
 ; DARWIN:     .long _G1
+
+; LINUX:   .section        .rodata,"a",@progbits
+; LINUX:   .globl  G3
+
+; LINUX-SECTIONS: .section        .rodata.G3,"a",@progbits
+; LINUX-SECTIONS: .globl  G3
 
 
 ; _Complex long long const G4 = 34;
@@ -97,6 +104,9 @@
 ; LINUX: G7:
 ; LINUX:	.asciz	"abcdefghi"
 
+; LINUX-SECTIONS: .section        .rodata.G7,"aMS",@progbits,1
+; LINUX-SECTIONS:	.globl G7
+
 
 @G8 = constant [4 x i16] [ i16 1, i16 2, i16 3, i16 0 ]
 
@@ -134,3 +144,17 @@
 ; LINUX: G10:
 ; LINUX:	.zero	400
 
+
+
+;; Zero sized objects should round up to 1 byte in zerofill directives.
+; rdar://7886017
+@G11 = global [0 x i32] zeroinitializer
+@G12 = global {} zeroinitializer
+@G13 = global { [0 x {}] } zeroinitializer
+
+; DARWIN: .globl _G11
+; DARWIN: .zerofill __DATA,__common,_G11,1,2
+; DARWIN: .globl _G12
+; DARWIN: .zerofill __DATA,__common,_G12,1,3
+; DARWIN: .globl _G13
+; DARWIN: .zerofill __DATA,__common,_G13,1,3

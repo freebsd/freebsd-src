@@ -32,8 +32,8 @@ class DbgVariable;
 class MachineFrameInfo;
 class MachineLocation;
 class MachineModuleInfo;
+class MachineOperand;
 class MCAsmInfo;
-class Timer;
 class DIEAbbrev;
 class DIE;
 class DIEBlock;
@@ -174,24 +174,14 @@ class DwarfDebug {
   /// (at the end of the module) as DW_AT_inline.
   SmallPtrSet<DIE *, 4> InlinedSubprogramDIEs;
 
+  /// ContainingTypeMap - This map is used to keep track of subprogram DIEs that
+  /// need DW_AT_containing_type attribute. This attribute points to a DIE that
+  /// corresponds to the MDNode mapped with the subprogram DIE.
   DenseMap<DIE *, MDNode *> ContainingTypeMap;
 
-  /// AbstractSubprogramDIEs - Collection of abstruct subprogram DIEs.
-  SmallPtrSet<DIE *, 4> AbstractSubprogramDIEs;
-
-  /// TopLevelDIEs - Collection of top level DIEs. 
-  SmallPtrSet<DIE *, 4> TopLevelDIEs;
-  SmallVector<DIE *, 4> TopLevelDIEsVector;
-
   typedef SmallVector<DbgScope *, 2> ScopeVector;
-  typedef DenseMap<const MachineInstr *, ScopeVector>
-    InsnToDbgScopeMapTy;
-
-  /// DbgScopeBeginMap - Maps instruction with a list of DbgScopes it starts.
-  InsnToDbgScopeMapTy DbgScopeBeginMap;
-
-  /// DbgScopeEndMap - Maps instruction with a list DbgScopes it ends.
-  InsnToDbgScopeMapTy DbgScopeEndMap;
+  SmallPtrSet<const MachineInstr *, 8> InsnsBeginScopeSet;
+  SmallPtrSet<const MachineInstr *, 8> InsnsEndScopeSet;
 
   /// InlineInfo - Keep track of inlined functions and their location.  This
   /// information is used to populate debug_inlined section.
@@ -199,18 +189,21 @@ class DwarfDebug {
   DenseMap<MDNode*, SmallVector<InlineInfoLabels, 4> > InlineInfo;
   SmallVector<MDNode *, 4> InlinedSPNodes;
 
-  /// CompileUnitOffsets - A vector of the offsets of the compile units. This is
-  /// used when calculating the "origin" of a concrete instance of an inlined
-  /// function.
-  DenseMap<CompileUnit *, unsigned> CompileUnitOffsets;
+  /// LabelsBeforeInsn - Maps instruction with label emitted before 
+  /// instruction.
+  DenseMap<const MachineInstr *, MCSymbol *> LabelsBeforeInsn;
+
+  /// LabelsAfterInsn - Maps instruction with label emitted after
+  /// instruction.
+  DenseMap<const MachineInstr *, MCSymbol *> LabelsAfterInsn;
+
+  SmallVector<const MCSymbol *, 8> DebugRangeSymbols;
 
   /// Previous instruction's location information. This is used to determine
   /// label location to indicate scope boundries in dwarf debug info.
   DebugLoc PrevInstLoc;
+  MCSymbol *PrevLabel;
 
-  /// DebugTimer - Timer for the Dwarf debug writer.
-  Timer *DebugTimer;
-  
   struct FunctionDebugFrameInfo {
     unsigned Number;
     std::vector<MachineMove> Moves;
@@ -225,8 +218,9 @@ class DwarfDebug {
   // the beginning of each supported dwarf section.  These are used to form
   // section offsets and are created by EmitSectionLabels.
   MCSymbol *DwarfFrameSectionSym, *DwarfInfoSectionSym, *DwarfAbbrevSectionSym;
-  MCSymbol *DwarfStrSectionSym, *TextSectionSym;
-  
+  MCSymbol *DwarfStrSectionSym, *TextSectionSym, *DwarfDebugRangeSectionSym;
+
+  MCSymbol *FunctionBeginSym;
 private:
   
   /// getSourceDirectoryAndFileIds - Return the directory and file ids that
@@ -311,6 +305,15 @@ private:
   void addAddress(DIE *Die, unsigned Attribute,
                   const MachineLocation &Location);
 
+  /// addRegisterAddress - Add register location entry in variable DIE.
+  bool addRegisterAddress(DIE *Die, DbgVariable *DV, const MachineOperand &MO);
+
+  /// addConstantValue - Add constant value entry in variable DIE.
+  bool addConstantValue(DIE *Die, DbgVariable *DV, const MachineOperand &MO);
+
+  /// addConstantFPValue - Add constant value entry in variable DIE.
+  bool addConstantFPValue(DIE *Die, DbgVariable *DV, const MachineOperand &MO);
+
   /// addComplexAddress - Start with the address based on the location provided,
   /// and generate the DWARF information necessary to find the actual variable
   /// (navigating the extra location information encoded in the type) based on
@@ -376,13 +379,8 @@ private:
   /// createSubprogramDIE - Create new DIE using SP.
   DIE *createSubprogramDIE(const DISubprogram &SP, bool MakeDecl = false);
 
-  /// getUpdatedDbgScope - Find or create DbgScope assicated with 
-  /// the instruction. Initialize scope and update scope hierarchy.
-  DbgScope *getUpdatedDbgScope(MDNode *N, const MachineInstr *MI,
-                               MDNode *InlinedAt);
-
-  /// createDbgScope - Create DbgScope for the scope.
-  void createDbgScope(MDNode *Scope, MDNode *InlinedAt);
+  /// getOrCreateDbgScope - Create DbgScope for the scope.
+  DbgScope *getOrCreateDbgScope(MDNode *Scope, MDNode *InlinedAt);
 
   DbgScope *getOrCreateAbstractScope(MDNode *N);
 
@@ -531,14 +529,10 @@ private:
     return Lines.size();
   }
   
-  /// getOrCreateSourceID - Public version of GetOrCreateSourceID. This can be
-  /// timed. Look up the source id with the given directory and source file
-  /// names. If none currently exists, create a new id and insert it in the
-  /// SourceIds map. This can update DirectoryNames and SourceFileNames maps as
-  /// well.
-  unsigned getOrCreateSourceID(const std::string &DirName,
-                               const std::string &FileName);
-  
+  /// identifyScopeMarkers() - Indentify instructions that are marking
+  /// beginning of or end of a scope.
+  void identifyScopeMarkers();
+
   /// extractScopeInformation - Scan machine instructions in this function
   /// and collect DbgScopes. Return true, if atleast one scope was found.
   bool extractScopeInformation();

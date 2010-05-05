@@ -59,13 +59,14 @@ public:
 /// and behavior as StringLiteral except that the string initializer is obtained
 /// from ASTContext with the encoding type as an argument.
 class ObjCEncodeExpr : public Expr {
-  QualType EncType;
+  TypeSourceInfo *EncodedType;
   SourceLocation AtLoc, RParenLoc;
 public:
-  ObjCEncodeExpr(QualType T, QualType ET,
+  ObjCEncodeExpr(QualType T, TypeSourceInfo *EncodedType,
                  SourceLocation at, SourceLocation rp)
-    : Expr(ObjCEncodeExprClass, T, ET->isDependentType(),
-           ET->isDependentType()), EncType(ET), AtLoc(at), RParenLoc(rp) {}
+    : Expr(ObjCEncodeExprClass, T, EncodedType->getType()->isDependentType(),
+           EncodedType->getType()->isDependentType()), 
+      EncodedType(EncodedType), AtLoc(at), RParenLoc(rp) {}
 
   explicit ObjCEncodeExpr(EmptyShell Empty) : Expr(ObjCEncodeExprClass, Empty){}
 
@@ -75,9 +76,12 @@ public:
   SourceLocation getRParenLoc() const { return RParenLoc; }
   void setRParenLoc(SourceLocation L) { RParenLoc = L; }
 
-  QualType getEncodedType() const { return EncType; }
-  void setEncodedType(QualType T) { EncType = T; }
+  QualType getEncodedType() const { return EncodedType->getType(); }
 
+  TypeSourceInfo *getEncodedTypeSourceInfo() const { return EncodedType; }
+  void setEncodedTypeSourceInfo(TypeSourceInfo *EncType) { 
+    EncodedType = EncType; 
+  }
 
   virtual SourceRange getSourceRange() const {
     return SourceRange(AtLoc, RParenLoc);
@@ -177,11 +181,12 @@ class ObjCIvarRefExpr : public Expr {
 
 public:
   ObjCIvarRefExpr(ObjCIvarDecl *d,
-                  QualType t, SourceLocation l, Expr *base=0,
+                  QualType t, SourceLocation l, Expr *base,
                   bool arrow = false, bool freeIvar = false) :
-    Expr(ObjCIvarRefExprClass, t, false, false), D(d),
-    Loc(l), Base(base), IsArrow(arrow),
-    IsFreeIvar(freeIvar) {}
+    Expr(ObjCIvarRefExprClass, t, /*TypeDependent=*/false,
+         base->isValueDependent()), D(d),
+         Loc(l), Base(base), IsArrow(arrow),
+         IsFreeIvar(freeIvar) {}
 
   explicit ObjCIvarRefExpr(EmptyShell Empty)
     : Expr(ObjCIvarRefExprClass, Empty) {}
@@ -228,8 +233,9 @@ private:
 public:
   ObjCPropertyRefExpr(ObjCPropertyDecl *PD, QualType t,
                       SourceLocation l, Expr *base)
-    : Expr(ObjCPropertyRefExprClass, t, false, false), AsProperty(PD),
-      IdLoc(l), Base(base) {
+    : Expr(ObjCPropertyRefExprClass, t, /*TypeDependent=*/false, 
+           base->isValueDependent()), 
+      AsProperty(PD), IdLoc(l), Base(base) {
   }
 
   explicit ObjCPropertyRefExpr(EmptyShell Empty)
@@ -293,7 +299,8 @@ public:
                  QualType t,
                  ObjCMethodDecl *setter,
                  SourceLocation l, Expr *base)
-    : Expr(ObjCImplicitSetterGetterRefExprClass, t, false, false),
+    : Expr(ObjCImplicitSetterGetterRefExprClass, t, /*TypeDependent=*/false, 
+           base->isValueDependent()),
       Setter(setter), Getter(getter), MemberLoc(l), Base(base),
       InterfaceDecl(0), ClassLoc(SourceLocation()) {
     }
@@ -339,152 +346,376 @@ public:
   virtual child_iterator child_end();
 };
 
+/// \brief An expression that sends a message to the given Objective-C
+/// object or class.
+///
+/// The following contains two message send expressions:
+///
+/// \code
+///   [[NSString alloc] initWithString:@"Hello"]
+/// \endcode
+///
+/// The innermost message send invokes the "alloc" class method on the
+/// NSString class, while the outermost message send invokes the
+/// "initWithString" instance method on the object returned from
+/// NSString's "alloc". In all, an Objective-C message send can take
+/// on four different (although related) forms:
+///
+///   1. Send to an object instance.
+///   2. Send to a class.
+///   3. Send to the superclass instance of the current class.
+///   4. Send to the superclass of the current class.
+///
+/// All four kinds of message sends are modeled by the ObjCMessageExpr
+/// class, and can be distinguished via \c getReceiverKind(). Example:
+///
 class ObjCMessageExpr : public Expr {
-  // SubExprs - The receiver and arguments of the message expression.
-  Stmt **SubExprs;
+  /// \brief The number of arguments in the message send, not
+  /// including the receiver.
+  unsigned NumArgs : 16;
 
-  // NumArgs - The number of arguments (not including the receiver) to the
-  //  message expression.
-  unsigned NumArgs;
+  /// \brief The kind of message send this is, which is one of the
+  /// ReceiverKind values.
+  ///
+  /// We pad this out to a byte to avoid excessive masking and shifting.
+  unsigned Kind : 8;
 
-  /// \brief The location of the class name in a class message.
-  SourceLocation ClassNameLoc;
+  /// \brief Whether we have an actual method prototype in \c
+  /// SelectorOrMethod.
+  ///
+  /// When non-zero, we have a method declaration; otherwise, we just
+  /// have a selector.
+  unsigned HasMethod : 8;
 
-  // A unigue name for this message.
-  Selector SelName;
+  /// \brief When the message expression is a send to 'super', this is
+  /// the location of the 'super' keyword.
+  SourceLocation SuperLoc;
 
-  // A method prototype for this message (optional).
-  // FIXME: Since method decls contain the selector, and most messages have a
-  // prototype, consider devising a scheme for unifying SelName/MethodProto.
-  ObjCMethodDecl *MethodProto;
+  /// \brief Stores either the selector that this message is sending
+  /// to (when \c HasMethod is zero) or an \c ObjCMethodDecl pointer
+  /// referring to the method that we type-checked against.
+  uintptr_t SelectorOrMethod;
 
-  SourceLocation LBracloc, RBracloc;
+  /// \brief The source locations of the open and close square
+  /// brackets ('[' and ']', respectively).
+  SourceLocation LBracLoc, RBracLoc;
 
-  // Constants for indexing into SubExprs.
-  enum { RECEIVER=0, ARGS_START=1 };
+  ObjCMessageExpr(EmptyShell Empty, unsigned NumArgs)
+    : Expr(ObjCMessageExprClass, Empty), NumArgs(NumArgs), Kind(0), 
+      HasMethod(0), SelectorOrMethod(0) { }
 
-  // Bit-swizzling flags.
-  enum { IsInstMeth=0, IsClsMethDeclUnknown, IsClsMethDeclKnown, Flags=0x3 };
-  unsigned getFlag() const { return (uintptr_t) SubExprs[RECEIVER] & Flags; }
+  ObjCMessageExpr(QualType T,
+                  SourceLocation LBracLoc,
+                  SourceLocation SuperLoc,
+                  bool IsInstanceSuper,
+                  QualType SuperType,
+                  Selector Sel, 
+                  ObjCMethodDecl *Method,
+                  Expr **Args, unsigned NumArgs,
+                  SourceLocation RBracLoc);
+  ObjCMessageExpr(QualType T,
+                  SourceLocation LBracLoc,
+                  TypeSourceInfo *Receiver,
+                  Selector Sel, 
+                  ObjCMethodDecl *Method,
+                  Expr **Args, unsigned NumArgs,
+                  SourceLocation RBracLoc);
+  ObjCMessageExpr(QualType T,
+                  SourceLocation LBracLoc,
+                  Expr *Receiver,
+                  Selector Sel, 
+                  ObjCMethodDecl *Method,
+                  Expr **Args, unsigned NumArgs,
+                  SourceLocation RBracLoc);
+
+  /// \brief Retrieve the pointer value of the message receiver.
+  void *getReceiverPointer() const {
+    return *const_cast<void **>(
+                             reinterpret_cast<const void * const*>(this + 1));
+  }
+
+  /// \brief Set the pointer value of the message receiver.
+  void setReceiverPointer(void *Value) {
+    *reinterpret_cast<void **>(this + 1) = Value;
+  }
 
 public:
-  /// This constructor is used to represent class messages where the
-  /// ObjCInterfaceDecl* of the receiver is not known.
-  ObjCMessageExpr(ASTContext &C, IdentifierInfo *clsName, 
-                  SourceLocation clsNameLoc, Selector selInfo,
-                  QualType retType, ObjCMethodDecl *methDecl,
-                  SourceLocation LBrac, SourceLocation RBrac,
-                  Expr **ArgExprs, unsigned NumArgs);
-
-  /// This constructor is used to represent class messages where the
-  /// ObjCInterfaceDecl* of the receiver is known.
-  // FIXME: clsName should be typed to ObjCInterfaceType
-  ObjCMessageExpr(ASTContext &C, ObjCInterfaceDecl *cls, 
-                  SourceLocation clsNameLoc, Selector selInfo,
-                  QualType retType, ObjCMethodDecl *methDecl,
-                  SourceLocation LBrac, SourceLocation RBrac,
-                  Expr **ArgExprs, unsigned NumArgs);
-
-  // constructor for instance messages.
-  ObjCMessageExpr(ASTContext &C, Expr *receiver, Selector selInfo,
-                  QualType retType, ObjCMethodDecl *methDecl,
-                  SourceLocation LBrac, SourceLocation RBrac,
-                  Expr **ArgExprs, unsigned NumArgs);
-
-  explicit ObjCMessageExpr(EmptyShell Empty)
-    : Expr(ObjCMessageExprClass, Empty), SubExprs(0), NumArgs(0) {}
-
-  virtual void DoDestroy(ASTContext &C);
-
-  /// getReceiver - Returns the receiver of the message expression.
-  ///  This can be NULL if the message is for class methods.  For
-  ///  class methods, use getClassName.
-  /// FIXME: need to handle/detect 'super' usage within a class method.
-  Expr *getReceiver() {
-    uintptr_t x = (uintptr_t) SubExprs[RECEIVER];
-    return (x & Flags) == IsInstMeth ? (Expr*) x : 0;
-  }
-  const Expr *getReceiver() const {
-    return const_cast<ObjCMessageExpr*>(this)->getReceiver();
-  }
-  // FIXME: need setters for different receiver types.
-  void setReceiver(Expr *rec) { SubExprs[RECEIVER] = rec; }
-  Selector getSelector() const { return SelName; }
-  void setSelector(Selector S) { SelName = S; }
-
-  const ObjCMethodDecl *getMethodDecl() const { return MethodProto; }
-  ObjCMethodDecl *getMethodDecl() { return MethodProto; }
-  void setMethodDecl(ObjCMethodDecl *MD) { MethodProto = MD; }
-
-  /// \brief Describes the class receiver of a message send.
-  struct ClassInfo {
-    /// \brief The interface declaration for the class that is
-    /// receiving the message. May be NULL.
-    ObjCInterfaceDecl *Decl;
-
-    /// \brief The name of the class that is receiving the
-    /// message. This will never be NULL.
-    IdentifierInfo *Name;
-
-    /// \brief The source location of the class name.
-    SourceLocation Loc;
-
-    ClassInfo() : Decl(0), Name(0), Loc() { }
-
-    ClassInfo(ObjCInterfaceDecl *Decl, IdentifierInfo *Name, SourceLocation Loc)
-      : Decl(Decl), Name(Name), Loc(Loc) { }
+  /// \brief The kind of receiver this message is sending to.
+  enum ReceiverKind {
+    /// \brief The receiver is a class.
+    Class = 0,
+    /// \brief The receiver is an object instance.
+    Instance,
+    /// \brief The receiver is a superclass.
+    SuperClass,
+    /// \brief The receiver is the instance of the superclass object.
+    SuperInstance
   };
 
-  /// getClassInfo - For class methods, this returns both the ObjCInterfaceDecl*
-  ///  and IdentifierInfo* of the invoked class.  Both can be NULL if this
-  ///  is an instance message, and the ObjCInterfaceDecl* can be NULL if none
-  ///  was available when this ObjCMessageExpr object was constructed.
-  ClassInfo getClassInfo() const;
-  void setClassInfo(const ClassInfo &C);
+  /// \brief Create a message send to super.
+  ///
+  /// \param Context The ASTContext in which this expression will be created.
+  ///
+  /// \param T The result type of this message.
+  ///
+  /// \param LBrac The location of the open square bracket '['.
+  ///
+  /// \param SuperLoc The location of the "super" keyword.
+  ///
+  /// \param IsInstanceSuper Whether this is an instance "super"
+  /// message (otherwise, it's a class "super" message).
+  ///
+  /// \param Sel The selector used to determine which method gets called.
+  ///
+  /// \param Method The Objective-C method against which this message
+  /// send was type-checked. May be NULL.
+  ///
+  /// \param Args The message send arguments.
+  ///
+  /// \param NumArgs The number of arguments.
+  ///
+  /// \param RBracLoc The location of the closing square bracket ']'.
+  static ObjCMessageExpr *Create(ASTContext &Context, QualType T,
+                                 SourceLocation LBracLoc,
+                                 SourceLocation SuperLoc,
+                                 bool IsInstanceSuper,
+                                 QualType SuperType,
+                                 Selector Sel, 
+                                 ObjCMethodDecl *Method,
+                                 Expr **Args, unsigned NumArgs,
+                                 SourceLocation RBracLoc);
 
-  /// getClassName - For class methods, this returns the invoked class,
-  ///  and returns NULL otherwise.  For instance methods, use getReceiver.
-  IdentifierInfo *getClassName() const {
-    return getClassInfo().Name;
+  /// \brief Create a class message send.
+  ///
+  /// \param Context The ASTContext in which this expression will be created.
+  ///
+  /// \param T The result type of this message.
+  ///
+  /// \param LBrac The location of the open square bracket '['.
+  ///
+  /// \param Receiver The type of the receiver, including
+  /// source-location information.
+  ///
+  /// \param Sel The selector used to determine which method gets called.
+  ///
+  /// \param Method The Objective-C method against which this message
+  /// send was type-checked. May be NULL.
+  ///
+  /// \param Args The message send arguments.
+  ///
+  /// \param NumArgs The number of arguments.
+  ///
+  /// \param RBracLoc The location of the closing square bracket ']'.
+  static ObjCMessageExpr *Create(ASTContext &Context, QualType T,
+                                 SourceLocation LBracLoc,
+                                 TypeSourceInfo *Receiver,
+                                 Selector Sel, 
+                                 ObjCMethodDecl *Method,
+                                 Expr **Args, unsigned NumArgs,
+                                 SourceLocation RBracLoc);
+
+  /// \brief Create an instance message send.
+  ///
+  /// \param Context The ASTContext in which this expression will be created.
+  ///
+  /// \param T The result type of this message.
+  ///
+  /// \param LBrac The location of the open square bracket '['.
+  ///
+  /// \param Receiver The expression used to produce the object that
+  /// will receive this message.
+  ///
+  /// \param Sel The selector used to determine which method gets called.
+  ///
+  /// \param Method The Objective-C method against which this message
+  /// send was type-checked. May be NULL.
+  ///
+  /// \param Args The message send arguments.
+  ///
+  /// \param NumArgs The number of arguments.
+  ///
+  /// \param RBracLoc The location of the closing square bracket ']'.
+  static ObjCMessageExpr *Create(ASTContext &Context, QualType T,
+                                 SourceLocation LBracLoc,
+                                 Expr *Receiver,
+                                 Selector Sel, 
+                                 ObjCMethodDecl *Method,
+                                 Expr **Args, unsigned NumArgs,
+                                 SourceLocation RBracLoc);
+
+  /// \brief Create an empty Objective-C message expression, to be
+  /// filled in by subsequent calls.
+  ///
+  /// \param Context The context in which the message send will be created.
+  ///
+  /// \param NumArgs The number of message arguments, not including
+  /// the receiver.
+  static ObjCMessageExpr *CreateEmpty(ASTContext &Context, unsigned NumArgs);
+
+  /// \brief Determine the kind of receiver that this message is being
+  /// sent to.
+  ReceiverKind getReceiverKind() const { return (ReceiverKind)Kind; }
+
+  /// \brief Determine whether this is an instance message to either a
+  /// computed object or to super.
+  bool isInstanceMessage() const {
+    return getReceiverKind() == Instance || getReceiverKind() == SuperInstance;
   }
 
-  /// getNumArgs - Return the number of actual arguments to this call.
+  /// \brief Determine whether this is an class message to either a
+  /// specified class or to super.
+  bool isClassMessage() const {
+    return getReceiverKind() == Class || getReceiverKind() == SuperClass;
+  }
+
+  /// \brief Returns the receiver of an instance message.
+  ///
+  /// \brief Returns the object expression for an instance message, or
+  /// NULL for a message that is not an instance message.
+  Expr *getInstanceReceiver() {
+    if (getReceiverKind() == Instance)
+      return static_cast<Expr *>(getReceiverPointer());
+
+    return 0;
+  }
+  const Expr *getInstanceReceiver() const {
+    return const_cast<ObjCMessageExpr*>(this)->getInstanceReceiver();
+  }
+
+  /// \brief Turn this message send into an instance message that
+  /// computes the receiver object with the given expression.
+  void setInstanceReceiver(Expr *rec) { 
+    Kind = Instance;
+    setReceiverPointer(rec);
+  }
+  
+  /// \brief Returns the type of a class message send, or NULL if the
+  /// message is not a class message.
+  QualType getClassReceiver() const { 
+    if (TypeSourceInfo *TSInfo = getClassReceiverTypeInfo())
+      return TSInfo->getType();
+
+    return QualType();
+  }
+
+  /// \brief Returns a type-source information of a class message
+  /// send, or NULL if the message is not a class message.
+  TypeSourceInfo *getClassReceiverTypeInfo() const {
+    if (getReceiverKind() == Class)
+      return reinterpret_cast<TypeSourceInfo *>(getReceiverPointer());
+    return 0;
+  }
+
+  void setClassReceiver(TypeSourceInfo *TSInfo) {
+    Kind = Class;
+    setReceiverPointer(TSInfo);
+  }
+
+  /// \brief Retrieve the location of the 'super' keyword for a class
+  /// or instance message to 'super', otherwise an invalid source location.
+  SourceLocation getSuperLoc() const { 
+    if (getReceiverKind() == SuperInstance || getReceiverKind() == SuperClass)
+      return SuperLoc;
+
+    return SourceLocation();
+  }
+
+  /// \brief Retrieve the Objective-C interface to which this message
+  /// is being directed, if known.
+  ///
+  /// This routine cross-cuts all of the different kinds of message
+  /// sends to determine what the underlying (statically known) type
+  /// of the receiver will be; use \c getReceiverKind() to determine
+  /// whether the message is a class or an instance method, whether it
+  /// is a send to super or not, etc.
+  ///
+  /// \returns The Objective-C interface if known, otherwise NULL.
+  ObjCInterfaceDecl *getReceiverInterface() const;
+
+  /// \brief Retrieve the type referred to by 'super'. 
+  ///
+  /// The returned type will either be an ObjCInterfaceType (for an
+  /// class message to super) or an ObjCObjectPointerType that refers
+  /// to a class (for an instance message to super);
+  QualType getSuperType() const {
+    if (getReceiverKind() == SuperInstance || getReceiverKind() == SuperClass)
+      return QualType::getFromOpaquePtr(getReceiverPointer());
+
+    return QualType();
+  }
+
+  void setSuper(SourceLocation Loc, QualType T, bool IsInstanceSuper) {
+    Kind = IsInstanceSuper? SuperInstance : SuperClass;
+    SuperLoc = Loc;
+    setReceiverPointer(T.getAsOpaquePtr());
+  }
+
+  Selector getSelector() const;
+
+  void setSelector(Selector S) { 
+    HasMethod = false;
+    SelectorOrMethod = reinterpret_cast<uintptr_t>(S.getAsOpaquePtr());
+  }
+
+  const ObjCMethodDecl *getMethodDecl() const { 
+    if (HasMethod)
+      return reinterpret_cast<const ObjCMethodDecl *>(SelectorOrMethod);
+
+    return 0;
+  }
+
+  ObjCMethodDecl *getMethodDecl() { 
+    if (HasMethod)
+      return reinterpret_cast<ObjCMethodDecl *>(SelectorOrMethod);
+
+    return 0;
+  }
+
+  void setMethodDecl(ObjCMethodDecl *MD) { 
+    HasMethod = true;
+    SelectorOrMethod = reinterpret_cast<uintptr_t>(MD);
+  }
+
+  /// \brief Return the number of actual arguments in this message,
+  /// not counting the receiver.
   unsigned getNumArgs() const { return NumArgs; }
-  void setNumArgs(unsigned nArgs) {
-    NumArgs = nArgs;
-    // FIXME: should always allocate SubExprs via the ASTContext's
-    // allocator.
-    if (!SubExprs)
-      SubExprs = new Stmt* [NumArgs + 1];
+
+  /// \brief Retrieve the arguments to this message, not including the
+  /// receiver.
+  Stmt **getArgs() {
+    return reinterpret_cast<Stmt **>(this + 1) + 1;
+  }
+  const Stmt * const *getArgs() const {
+    return reinterpret_cast<const Stmt * const *>(this + 1) + 1;
   }
 
   /// getArg - Return the specified argument.
   Expr *getArg(unsigned Arg) {
     assert(Arg < NumArgs && "Arg access out of range!");
-    return cast<Expr>(SubExprs[Arg+ARGS_START]);
+    return cast<Expr>(getArgs()[Arg]);
   }
   const Expr *getArg(unsigned Arg) const {
     assert(Arg < NumArgs && "Arg access out of range!");
-    return cast<Expr>(SubExprs[Arg+ARGS_START]);
+    return cast<Expr>(getArgs()[Arg]);
   }
   /// setArg - Set the specified argument.
   void setArg(unsigned Arg, Expr *ArgExpr) {
     assert(Arg < NumArgs && "Arg access out of range!");
-    SubExprs[Arg+ARGS_START] = ArgExpr;
+    getArgs()[Arg] = ArgExpr;
   }
 
-  SourceLocation getLeftLoc() const { return LBracloc; }
-  SourceLocation getRightLoc() const { return RBracloc; }
+  SourceLocation getLeftLoc() const { return LBracLoc; }
+  SourceLocation getRightLoc() const { return RBracLoc; }
 
-  void setLeftLoc(SourceLocation L) { LBracloc = L; }
-  void setRightLoc(SourceLocation L) { RBracloc = L; }
+  void setLeftLoc(SourceLocation L) { LBracLoc = L; }
+  void setRightLoc(SourceLocation L) { RBracLoc = L; }
 
   void setSourceRange(SourceRange R) {
-    LBracloc = R.getBegin();
-    RBracloc = R.getEnd();
+    LBracLoc = R.getBegin();
+    RBracLoc = R.getEnd();
   }
   virtual SourceRange getSourceRange() const {
-    return SourceRange(LBracloc, RBracloc);
+    return SourceRange(LBracLoc, RBracLoc);
   }
 
   static bool classof(const Stmt *T) {
@@ -499,14 +730,17 @@ public:
   typedef ExprIterator arg_iterator;
   typedef ConstExprIterator const_arg_iterator;
 
-  arg_iterator arg_begin() { return &SubExprs[ARGS_START]; }
-  arg_iterator arg_end()   { return &SubExprs[ARGS_START] + NumArgs; }
-  const_arg_iterator arg_begin() const { return &SubExprs[ARGS_START]; }
-  const_arg_iterator arg_end() const { return &SubExprs[ARGS_START] + NumArgs; }
+  arg_iterator arg_begin() { return getArgs(); }
+  arg_iterator arg_end()   { return getArgs() + NumArgs; }
+  const_arg_iterator arg_begin() const { return getArgs(); }
+  const_arg_iterator arg_end() const { return getArgs() + NumArgs; }
 };
 
 /// ObjCSuperExpr - Represents the "super" expression in Objective-C,
 /// which refers to the object on which the current method is executing.
+///
+/// FIXME: This class is intended for removal, once its remaining
+/// clients have been altered to represent "super" internally.
 class ObjCSuperExpr : public Expr {
   SourceLocation Loc;
 public:
@@ -542,7 +776,8 @@ class ObjCIsaExpr : public Expr {
   bool IsArrow;
 public:
   ObjCIsaExpr(Expr *base, bool isarrow, SourceLocation l, QualType ty)
-    : Expr(ObjCIsaExprClass, ty, false, false),
+    : Expr(ObjCIsaExprClass, ty, /*TypeDependent=*/false, 
+           base->isValueDependent()),
       Base(base), IsaMemberLoc(l), IsArrow(isarrow) {}
 
   /// \brief Build an empty expression.

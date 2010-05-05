@@ -119,6 +119,11 @@ void LLVMDumpModule(LLVMModuleRef M) {
   unwrap(M)->dump();
 }
 
+/*--.. Operations on inline assembler ......................................--*/
+void LLVMSetModuleInlineAsm(LLVMModuleRef M, const char *Asm) {
+  unwrap(M)->setModuleInlineAsm(StringRef(Asm));
+}
+
 
 /*===-- Operations on types -----------------------------------------------===*/
 
@@ -322,8 +327,7 @@ LLVMTypeRef LLVMUnionTypeInContext(LLVMContextRef C, LLVMTypeRef *ElementTypes,
   return wrap(UnionType::get(&Tys[0], Tys.size()));
 }
 
-LLVMTypeRef LLVMUnionType(LLVMTypeRef *ElementTypes,
-                           unsigned ElementCount, int Packed) {
+LLVMTypeRef LLVMUnionType(LLVMTypeRef *ElementTypes, unsigned ElementCount) {
   return LLVMUnionTypeInContext(LLVMGetGlobalContext(), ElementTypes,
                                 ElementCount);
 }

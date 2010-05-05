@@ -1,4 +1,4 @@
-//===--- PCHWriter.h - Precompiled Headers Writer ---------------*- C++ -*-===//
+//===--- PCHWriter.cpp - Precompiled Headers Writer -----------------------===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -63,6 +63,7 @@ namespace {
 #define ABSTRACT_TYPE(Class, Base)
 #define DEPENDENT_TYPE(Class, Base)
 #include "clang/AST/TypeNodes.def"
+    void VisitInjectedClassNameType(const InjectedClassNameType *T);
   };
 }
 
@@ -240,7 +241,7 @@ void PCHTypeWriter::VisitQualifiedNameType(const QualifiedNameType *T) {
 
 void PCHTypeWriter::VisitInjectedClassNameType(const InjectedClassNameType *T) {
   Writer.AddDeclRef(T->getDecl(), Record);
-  Writer.AddTypeRef(T->getUnderlyingType(), Record);
+  Writer.AddTypeRef(T->getInjectedSpecializationType(), Record);
   Code = pch::TYPE_INJECTED_CLASS_NAME;
 }
 
@@ -745,6 +746,7 @@ void PCHWriter::WriteLanguageOptions(const LangOptions &LangOpts) {
   Record.push_back(LangOpts.DollarIdents);  // '$' allowed in identifiers.
   Record.push_back(LangOpts.AsmPreprocessor);  // Preprocessor in asm mode.
   Record.push_back(LangOpts.GNUMode);  // True in gnu99 mode false in c99 mode (etc)
+  Record.push_back(LangOpts.GNUKeywords);  // Allow GNU-extension keywords
   Record.push_back(LangOpts.ImplicitInt);  // C89 implicit 'int'.
   Record.push_back(LangOpts.Digraphs);  // C94, C99 and C++
   Record.push_back(LangOpts.HexFloats);  // C99 Hexadecimal float constants.
@@ -760,6 +762,7 @@ void PCHWriter::WriteLanguageOptions(const LangOptions &LangOpts) {
                                                  // modern abi enabled.
   Record.push_back(LangOpts.ObjCNonFragileABI2); // Objective-C enhanced
                                                  // modern abi enabled.
+  Record.push_back(LangOpts.NoConstantCFStrings); // non cfstring generation enabled..
 
   Record.push_back(LangOpts.PascalStrings);  // Allow Pascal strings
   Record.push_back(LangOpts.WritableStrings);  // Allow writable strings
@@ -1103,7 +1106,7 @@ void PCHWriter::WriteSourceManagerBlock(SourceManager &SourceMgr,
         // that is required by llvm::MemoryBuffer::getMemBuffer (on
         // the reader side).
         const llvm::MemoryBuffer *Buffer
-          = Content->getBuffer(PP.getDiagnostics());
+          = Content->getBuffer(PP.getDiagnostics(), PP.getSourceManager());
         const char *Name = Buffer->getBufferIdentifier();
         Stream.EmitRecordWithBlob(SLocBufferAbbrv, Record,
                                   llvm::StringRef(Name, strlen(Name) + 1));
@@ -2093,12 +2096,10 @@ void PCHWriter::WritePCH(Sema &SemaRef, MemorizeStatCalls *StatCalls,
   AddTypeRef(Context.getsigjmp_bufType(), Record);
   AddTypeRef(Context.ObjCIdRedefinitionType, Record);
   AddTypeRef(Context.ObjCClassRedefinitionType, Record);
-#if 0
-  // FIXME. Accommodate for this in several PCH/Indexer tests
-  AddTypeRef(Context.ObjCSelRedefinitionType, Record);
-#endif
   AddTypeRef(Context.getRawBlockdescriptorType(), Record);
   AddTypeRef(Context.getRawBlockdescriptorExtendedType(), Record);
+  AddTypeRef(Context.ObjCSelRedefinitionType, Record);
+  AddTypeRef(Context.getRawNSConstantStringType(), Record);
   Stream.EmitRecord(pch::SPECIAL_TYPES, Record);
 
   // Keep writing types and declarations until all types and

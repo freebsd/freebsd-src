@@ -3,8 +3,8 @@
 LIB=	llvmcodegen
 
 SRCDIR=	lib/CodeGen
-SRCS=	AggressiveAntiDepBreaker.cpp BranchFolding.cpp CalcSpillWeights.cpp \
-	CodePlacementOpt.cpp \
+SRCS=	AggressiveAntiDepBreaker.cpp Analysis.cpp BranchFolding.cpp \
+	CalcSpillWeights.cpp CodePlacementOpt.cpp \
 	CriticalAntiDepBreaker.cpp DeadMachineInstructionElim.cpp \
 	DwarfEHPrepare.cpp ELFCodeEmitter.cpp ELFWriter.cpp \
 	ExactHazardRecognizer.cpp GCMetadata.cpp GCMetadataPrinter.cpp \
@@ -21,8 +21,8 @@ SRCS=	AggressiveAntiDepBreaker.cpp BranchFolding.cpp CalcSpillWeights.cpp \
 	ObjectCodeEmitter.cpp OcamlGC.cpp OptimizeExts.cpp OptimizePHIs.cpp \
 	PHIElimination.cpp Passes.cpp PostRASchedulerList.cpp \
 	PreAllocSplitting.cpp ProcessImplicitDefs.cpp PrologEpilogInserter.cpp \
-	PseudoSourceValue.cpp RegAllocLinearScan.cpp RegAllocLocal.cpp \
-	RegAllocPBQP.cpp RegisterCoalescer.cpp \
+	PseudoSourceValue.cpp RegAllocFast.cpp RegAllocLinearScan.cpp \
+	RegAllocLocal.cpp RegAllocPBQP.cpp RegisterCoalescer.cpp \
 	RegisterScavenging.cpp ScheduleDAG.cpp ScheduleDAGEmit.cpp \
 	ScheduleDAGInstrs.cpp ScheduleDAGPrinter.cpp \
 	ShrinkWrapping.cpp ShadowStackGC.cpp \

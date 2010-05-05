@@ -68,16 +68,20 @@ private:
 /// calls to the C++ name mangler.
 class MangleContext {
   ASTContext &Context;
+  Diagnostic &Diags;
 
   llvm::DenseMap<const TagDecl *, uint64_t> AnonStructIds;
   unsigned Discriminator;
   llvm::DenseMap<const NamedDecl*, unsigned> Uniquifier;
   
 public:
-  explicit MangleContext(ASTContext &Context)
-    : Context(Context) { }
+  explicit MangleContext(ASTContext &Context,
+                         Diagnostic &Diags)
+    : Context(Context), Diags(Diags) { }
 
   ASTContext &getASTContext() const { return Context; }
+
+  Diagnostic &getDiags() const { return Diags; }
 
   uint64_t getAnonymousStructId(const TagDecl *TD) {
     std::pair<llvm::DenseMap<const TagDecl *,
@@ -99,9 +103,9 @@ public:
                           const ThisAdjustment &ThisAdjustment,
                           llvm::SmallVectorImpl<char> &);
   void mangleGuardVariable(const VarDecl *D, llvm::SmallVectorImpl<char> &);
-  void mangleCXXVtable(const CXXRecordDecl *RD, llvm::SmallVectorImpl<char> &);
+  void mangleCXXVTable(const CXXRecordDecl *RD, llvm::SmallVectorImpl<char> &);
   void mangleCXXVTT(const CXXRecordDecl *RD, llvm::SmallVectorImpl<char> &);
-  void mangleCXXCtorVtable(const CXXRecordDecl *RD, int64_t Offset,
+  void mangleCXXCtorVTable(const CXXRecordDecl *RD, int64_t Offset,
                            const CXXRecordDecl *Type,
                            llvm::SmallVectorImpl<char> &);
   void mangleCXXRTTI(QualType T, llvm::SmallVectorImpl<char> &);

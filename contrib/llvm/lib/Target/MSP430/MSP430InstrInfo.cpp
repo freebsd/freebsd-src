@@ -176,7 +176,9 @@ unsigned MSP430InstrInfo::RemoveBranch(MachineBasicBlock &MBB) const {
     if (I->isDebugValue())
       continue;
     if (I->getOpcode() != MSP430::JMP &&
-        I->getOpcode() != MSP430::JCC)
+        I->getOpcode() != MSP430::JCC &&
+        I->getOpcode() != MSP430::Br &&
+        I->getOpcode() != MSP430::Bm)
       break;
     // Remove the branch.
     I->eraseFromParent();
@@ -254,6 +256,11 @@ bool MSP430InstrInfo::AnalyzeBranch(MachineBasicBlock &MBB,
     // A terminator that isn't a branch can't easily be handled
     // by this analysis.
     if (!I->getDesc().isBranch())
+      return true;
+
+    // Cannot handle indirect branches.
+    if (I->getOpcode() == MSP430::Br ||
+        I->getOpcode() == MSP430::Bm)
       return true;
 
     // Handle unconditional branches.
@@ -365,6 +372,7 @@ unsigned MSP430InstrInfo::GetInstSizeInBytes(const MachineInstr *MI) const {
     case TargetOpcode::EH_LABEL:
     case TargetOpcode::IMPLICIT_DEF:
     case TargetOpcode::KILL:
+    case TargetOpcode::DBG_VALUE:
       return 0;
     case TargetOpcode::INLINEASM: {
       const MachineFunction *MF = MI->getParent()->getParent();

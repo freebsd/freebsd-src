@@ -197,7 +197,7 @@ namespace {
     }
 
     virtual DeclPtrTy ActOnTag(Scope *S, unsigned TagSpec, TagUseKind TUK,
-                               SourceLocation KWLoc, const CXXScopeSpec &SS,
+                               SourceLocation KWLoc, CXXScopeSpec &SS,
                                IdentifierInfo *Name, SourceLocation NameLoc,
                                AttributeList *Attr, AccessSpecifier AS,
                                MultiTemplateParamsArg TemplateParameterLists,
@@ -405,8 +405,8 @@ namespace {
     // Objective-c statements
     virtual OwningStmtResult ActOnObjCAtCatchStmt(SourceLocation AtLoc,
                                                   SourceLocation RParen,
-                                                  DeclPtrTy Parm, StmtArg Body,
-                                                  StmtArg CatchList) {
+                                                  DeclPtrTy Parm,
+                                                  StmtArg Body) {
       Out << __FUNCTION__ << "\n";
       return StmtEmpty();
     }
@@ -418,7 +418,8 @@ namespace {
     }
 
     virtual OwningStmtResult ActOnObjCAtTryStmt(SourceLocation AtLoc,
-                                                StmtArg Try, StmtArg Catch,
+                                                StmtArg Try,
+                                                MultiStmtArg CatchStmts,
                                                 StmtArg Finally) {
       Out << __FUNCTION__ << "\n";
       return StmtEmpty();

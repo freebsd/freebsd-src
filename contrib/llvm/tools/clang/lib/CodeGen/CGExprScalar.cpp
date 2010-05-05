@@ -133,6 +133,7 @@ public:
                                   CGF.getContext().typesAreCompatible(
                                     E->getArgType1(), E->getArgType2()));
   }
+  Value *VisitOffsetOfExpr(const OffsetOfExpr *E);
   Value *VisitSizeOfAlignOfExpr(const SizeOfAlignOfExpr *E);
   Value *VisitAddrLabelExpr(const AddrLabelExpr *E) {
     llvm::Value *V = CGF.GetAddrOfLabel(E->getLabel());
@@ -242,7 +243,7 @@ public:
     return Visit(E->getSubExpr());
   }
   Value *VisitUnaryOffsetOf(const UnaryOperator *E);
-
+    
   // C++
   Value *VisitCXXDefaultArgExpr(CXXDefaultArgExpr *DAE) {
     return Visit(DAE->getExpr());
@@ -314,6 +315,10 @@ public:
   }
 
   BinOpInfo EmitBinOps(const BinaryOperator *E);
+  LValue EmitCompoundAssignLValue(const CompoundAssignOperator *E,
+                            Value *(ScalarExprEmitter::*F)(const BinOpInfo &),
+                                  Value *&BitFieldResult);
+
   Value *EmitCompoundAssign(const CompoundAssignOperator *E,
                             Value *(ScalarExprEmitter::*F)(const BinOpInfo &));
 
@@ -818,16 +823,12 @@ Value *ScalarExprEmitter::EmitCastExpr(CastExpr *CE) {
     return Visit(const_cast<Expr*>(E));
 
   case CastExpr::CK_BaseToDerived: {
-    const CXXRecordDecl *BaseClassDecl = 
-      E->getType()->getCXXRecordDeclForPointerType();
     const CXXRecordDecl *DerivedClassDecl = 
       DestTy->getCXXRecordDeclForPointerType();
     
-    Value *Src = Visit(const_cast<Expr*>(E));
-    
-    bool NullCheckValue = ShouldNullCheckClassCastValue(CE);
-    return CGF.GetAddressOfDerivedClass(Src, BaseClassDecl, DerivedClassDecl, 
-                                        NullCheckValue);
+    return CGF.GetAddressOfDerivedClass(Visit(E), DerivedClassDecl, 
+                                        CE->getBasePath(), 
+                                        ShouldNullCheckClassCastValue(CE));
   }
   case CastExpr::CK_UncheckedDerivedToBase:
   case CastExpr::CK_DerivedToBase: {
@@ -836,15 +837,9 @@ Value *ScalarExprEmitter::EmitCastExpr(CastExpr *CE) {
     CXXRecordDecl *DerivedClassDecl = 
       cast<CXXRecordDecl>(DerivedClassTy->getDecl());
 
-    const RecordType *BaseClassTy = 
-      DestTy->getAs<PointerType>()->getPointeeType()->getAs<RecordType>();
-    CXXRecordDecl *BaseClassDecl = cast<CXXRecordDecl>(BaseClassTy->getDecl());
-    
-    Value *Src = Visit(const_cast<Expr*>(E));
-
-    bool NullCheckValue = ShouldNullCheckClassCastValue(CE);
-    return CGF.GetAddressOfBaseClass(Src, DerivedClassDecl, BaseClassDecl,
-                                     NullCheckValue);
+    return CGF.GetAddressOfBaseClass(Visit(E), DerivedClassDecl, 
+                                     CE->getBasePath(),
+                                     ShouldNullCheckClassCastValue(CE));
   }
   case CastExpr::CK_Dynamic: {
     Value *V = Visit(const_cast<Expr*>(E));
@@ -894,7 +889,8 @@ Value *ScalarExprEmitter::EmitCastExpr(CastExpr *CE) {
       std::swap(DerivedDecl, BaseDecl);
 
     if (llvm::Constant *Adj = 
-          CGF.CGM.GetNonVirtualBaseClassOffset(DerivedDecl, BaseDecl)) {
+          CGF.CGM.GetNonVirtualBaseClassOffset(DerivedDecl, 
+                                               CE->getBasePath())) {
       if (CE->getCastKind() == CastExpr::CK_DerivedToBaseMemberPointer)
         Src = Builder.CreateSub(Src, Adj, "adj");
       else
@@ -1035,6 +1031,21 @@ Value *ScalarExprEmitter::VisitUnaryLNot(const UnaryOperator *E) {
   return Builder.CreateZExt(BoolVal, ConvertType(E->getType()), "lnot.ext");
 }
 
+Value *ScalarExprEmitter::VisitOffsetOfExpr(const OffsetOfExpr *E) {
+  Expr::EvalResult Result;
+  if(E->Evaluate(Result, CGF.getContext()))
+    return llvm::ConstantInt::get(VMContext, Result.Val.getInt());
+  
+  // FIXME: Cannot support code generation for non-constant offsetof.
+  unsigned DiagID = CGF.CGM.getDiags().getCustomDiagID(Diagnostic::Error,
+                             "cannot compile non-constant __builtin_offsetof");
+  CGF.CGM.getDiags().Report(CGF.getContext().getFullLoc(E->getLocStart()), 
+                            DiagID)
+    << E->getSourceRange();
+  
+  return llvm::Constant::getNullValue(ConvertType(E->getType()));
+}
+
 /// VisitSizeOfAlignOfExpr - Return the size or alignment of the type of
 /// argument of the sizeof expression as an integer.
 Value *
@@ -1103,22 +1114,24 @@ BinOpInfo ScalarExprEmitter::EmitBinOps(const BinaryOperator *E) {
   return Result;
 }
 
-Value *ScalarExprEmitter::EmitCompoundAssign(const CompoundAssignOperator *E,
-                      Value *(ScalarExprEmitter::*Func)(const BinOpInfo &)) {
-  bool Ignore = TestAndClearIgnoreResultAssign();
+LValue ScalarExprEmitter::EmitCompoundAssignLValue(
+                                              const CompoundAssignOperator *E,
+                        Value *(ScalarExprEmitter::*Func)(const BinOpInfo &),
+                                                   Value *&BitFieldResult) {
   QualType LHSTy = E->getLHS()->getType();
-
+  BitFieldResult = 0;
   BinOpInfo OpInfo;
-
+  
   if (E->getComputationResultType()->isAnyComplexType()) {
     // This needs to go through the complex expression emitter, but it's a tad
     // complicated to do that... I'm leaving it out for now.  (Note that we do
     // actually need the imaginary part of the RHS for multiplication and
     // division.)
     CGF.ErrorUnsupported(E, "complex compound assignment");
-    return llvm::UndefValue::get(CGF.ConvertType(E->getType()));
+    llvm::UndefValue::get(CGF.ConvertType(E->getType()));
+    return LValue();
   }
-
+  
   // Emit the RHS first.  __block variables need to have the rhs evaluated
   // first, plus this should improve codegen a little.
   OpInfo.RHS = Visit(E->getRHS());
@@ -1129,13 +1142,13 @@ Value *ScalarExprEmitter::EmitCompoundAssign(const CompoundAssignOperator *E,
   OpInfo.LHS = EmitLoadOfLValue(LHSLV, LHSTy);
   OpInfo.LHS = EmitScalarConversion(OpInfo.LHS, LHSTy,
                                     E->getComputationLHSType());
-
+  
   // Expand the binary operator.
   Value *Result = (this->*Func)(OpInfo);
-
+  
   // Convert the result back to the LHS type.
   Result = EmitScalarConversion(Result, E->getComputationResultType(), LHSTy);
-
+  
   // Store the result value into the LHS lvalue. Bit-fields are handled
   // specially because the result is altered by the store, i.e., [C99 6.5.16p1]
   // 'An assignment expression has the value of the left operand after the
@@ -1144,11 +1157,23 @@ Value *ScalarExprEmitter::EmitCompoundAssign(const CompoundAssignOperator *E,
     if (!LHSLV.isVolatileQualified()) {
       CGF.EmitStoreThroughBitfieldLValue(RValue::get(Result), LHSLV, LHSTy,
                                          &Result);
-      return Result;
+      BitFieldResult = Result;
+      return LHSLV;
     } else
       CGF.EmitStoreThroughBitfieldLValue(RValue::get(Result), LHSLV, LHSTy);
   } else
     CGF.EmitStoreThroughLValue(RValue::get(Result), LHSLV, LHSTy);
+  return LHSLV;
+}
+
+Value *ScalarExprEmitter::EmitCompoundAssign(const CompoundAssignOperator *E,
+                      Value *(ScalarExprEmitter::*Func)(const BinOpInfo &)) {
+  bool Ignore = TestAndClearIgnoreResultAssign();
+  Value *BitFieldResult;
+  LValue LHSLV = EmitCompoundAssignLValue(E, Func, BitFieldResult);
+  if (BitFieldResult)
+    return BitFieldResult;
+  
   if (Ignore)
     return 0;
   return EmitLoadOfLValue(LHSLV, E->getType());
@@ -1914,3 +1939,53 @@ LValue CodeGenFunction::EmitObjCIsaExpr(const ObjCIsaExpr *E) {
   return LV;
 }
 
+
+LValue CodeGenFunction::EmitCompoundAssignOperatorLValue(
+                                            const CompoundAssignOperator *E) {
+  ScalarExprEmitter Scalar(*this);
+  Value *BitFieldResult = 0;
+  switch (E->getOpcode()) {
+#define COMPOUND_OP(Op)                                                       \
+    case BinaryOperator::Op##Assign:                                          \
+      return Scalar.EmitCompoundAssignLValue(E, &ScalarExprEmitter::Emit##Op, \
+                                             BitFieldResult)
+  COMPOUND_OP(Mul);
+  COMPOUND_OP(Div);
+  COMPOUND_OP(Rem);
+  COMPOUND_OP(Add);
+  COMPOUND_OP(Sub);
+  COMPOUND_OP(Shl);
+  COMPOUND_OP(Shr);
+  COMPOUND_OP(And);
+  COMPOUND_OP(Xor);
+  COMPOUND_OP(Or);
+#undef COMPOUND_OP
+      
+  case BinaryOperator::PtrMemD:
+  case BinaryOperator::PtrMemI:
+  case BinaryOperator::Mul:
+  case BinaryOperator::Div:
+  case BinaryOperator::Rem:
+  case BinaryOperator::Add:
+  case BinaryOperator::Sub:
+  case BinaryOperator::Shl:
+  case BinaryOperator::Shr:
+  case BinaryOperator::LT:
+  case BinaryOperator::GT:
+  case BinaryOperator::LE:
+  case BinaryOperator::GE:
+  case BinaryOperator::EQ:
+  case BinaryOperator::NE:
+  case BinaryOperator::And:
+  case BinaryOperator::Xor:
+  case BinaryOperator::Or:
+  case BinaryOperator::LAnd:
+  case BinaryOperator::LOr:
+  case BinaryOperator::Assign:
+  case BinaryOperator::Comma:
+    assert(false && "Not valid compound assignment operators");
+    break;
+  }
+   
+  llvm_unreachable("Unhandled compound assignment operator");
+}

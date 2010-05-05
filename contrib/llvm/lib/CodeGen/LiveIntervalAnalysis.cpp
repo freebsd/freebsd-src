@@ -262,6 +262,23 @@ static void printRegName(unsigned reg, const TargetRegisterInfo* tri_) {
 }
 #endif
 
+static
+bool MultipleDefsByMI(const MachineInstr &MI, unsigned MOIdx) {
+  unsigned Reg = MI.getOperand(MOIdx).getReg();
+  for (unsigned i = MOIdx+1, e = MI.getNumOperands(); i < e; ++i) {
+    const MachineOperand &MO = MI.getOperand(i);
+    if (!MO.isReg())
+      continue;
+    if (MO.getReg() == Reg && MO.isDef()) {
+      assert(MI.getOperand(MOIdx).getSubReg() != MO.getSubReg() &&
+             MI.getOperand(MOIdx).getSubReg() &&
+             MO.getSubReg());
+      return true;
+    }
+  }
+  return false;
+}
+
 void LiveIntervals::handleVirtualRegisterDef(MachineBasicBlock *mbb,
                                              MachineBasicBlock::iterator mi,
                                              SlotIndex MIIdx,
@@ -372,6 +389,13 @@ void LiveIntervals::handleVirtualRegisterDef(MachineBasicBlock *mbb,
     }
 
   } else {
+    if (MultipleDefsByMI(*mi, MOIdx))
+      // Mutple defs of the same virtual register by the same instruction. e.g.
+      // %reg1031:5<def>, %reg1031:6<def> = VLD1q16 %reg1024<kill>, ...
+      // This is likely due to elimination of REG_SEQUENCE instructions. Return
+      // here since there is nothing to do.
+      return;
+
     // If this is the second time we see a virtual register definition, it
     // must be due to phi elimination or two addr elimination.  If this is
     // the result of two address elimination, then the vreg is one of the
@@ -665,10 +689,11 @@ void LiveIntervals::computeIntervals() {
 
     // Track the index of the current machine instr.
     SlotIndex MIIndex = getMBBStartIdx(MBB);
-    DEBUG(dbgs() << MBB->getName() << ":\n");
+    DEBUG(dbgs() << "BB#" << MBB->getNumber()
+          << ":\t\t# derived from " << MBB->getName() << "\n");
 
     // Create intervals for live-ins to this BB first.
-    for (MachineBasicBlock::const_livein_iterator LI = MBB->livein_begin(),
+    for (MachineBasicBlock::livein_iterator LI = MBB->livein_begin(),
            LE = MBB->livein_end(); LI != LE; ++LI) {
       handleLiveInRegister(MBB, MIIndex, getOrCreateInterval(*LI));
       // Multiple live-ins can alias the same register.
@@ -1296,9 +1321,26 @@ rewriteInstructionsForSpills(const LiveInterval &li, bool TrySplit,
     MachineOperand &O = ri.getOperand();
     ++ri;
     if (MI->isDebugValue()) {
-      // Remove debug info for now.
-      O.setReg(0U);
+      // Modify DBG_VALUE now that the value is in a spill slot.
+      if (Slot != VirtRegMap::MAX_STACK_SLOT || isLoadSS) {
+        uint64_t Offset = MI->getOperand(1).getImm();
+        const MDNode *MDPtr = MI->getOperand(2).getMetadata();
+        DebugLoc DL = MI->getDebugLoc();
+        int FI = isLoadSS ? LdSlot : (int)Slot;
+        if (MachineInstr *NewDV = tii_->emitFrameIndexDebugValue(*mf_, FI,
+                                                           Offset, MDPtr, DL)) {
+          DEBUG(dbgs() << "Modifying debug info due to spill:" << "\t" << *MI);
+          ReplaceMachineInstrInMaps(MI, NewDV);
+          MachineBasicBlock *MBB = MI->getParent();
+          MBB->insert(MBB->erase(MI), NewDV);
+          continue;
+        }
+      }
+
       DEBUG(dbgs() << "Removing debug info due to spill:" << "\t" << *MI);
+      RemoveMachineInstrFromMaps(MI);
+      vrm.RemoveMachineInstrFromMaps(MI);
+      MI->eraseFromParent();
       continue;
     }
     assert(!O.isImplicit() && "Spilling register that's used as implicit use?");
@@ -2085,7 +2127,7 @@ bool LiveIntervals::spillPhysRegAroundRegDefsUses(const LiveInterval &li,
               << "constraints:\n";
           MI->print(Msg, tm_);
         }
-        llvm_report_error(Msg.str());
+        report_fatal_error(Msg.str());
       }
       for (const unsigned* AS = tri_->getSubRegisters(PReg); *AS; ++AS) {
         if (!hasInterval(*AS))

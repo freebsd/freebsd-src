@@ -246,15 +246,8 @@ void CodeGenFunction::StartFunction(GlobalDecl GD, QualType RetTy,
 
 void CodeGenFunction::EmitFunctionBody(FunctionArgList &Args) {
   const FunctionDecl *FD = cast<FunctionDecl>(CurGD.getDecl());
-
-  Stmt *Body = FD->getBody();
-  if (Body)
-    EmitStmt(Body);
-  else {
-    assert(FD->isImplicit() && "non-implicit function def has no body");
-    assert(FD->isCopyAssignment() && "implicit function not copy assignment");
-    SynthesizeCXXCopyAssignment(Args);
-  }
+  assert(FD->getBody());
+  EmitStmt(FD->getBody());
 }
 
 void CodeGenFunction::GenerateCode(GlobalDecl GD, llvm::Function *Fn) {
@@ -480,6 +473,14 @@ void CodeGenFunction::ErrorUnsupported(const Stmt *S, const char *Type,
 }
 
 void CodeGenFunction::EmitMemSetToZero(llvm::Value *DestPtr, QualType Ty) {
+  // Ignore empty classes in C++.
+  if (getContext().getLangOptions().CPlusPlus) {
+    if (const RecordType *RT = Ty->getAs<RecordType>()) {
+      if (cast<CXXRecordDecl>(RT->getDecl())->isEmpty())
+        return;
+    }
+  }
+  
   const llvm::Type *BP = llvm::Type::getInt8PtrTy(VMContext);
   if (DestPtr->getType() != BP)
     DestPtr = Builder.CreateBitCast(DestPtr, BP, "tmp");
@@ -748,6 +749,11 @@ void CodeGenFunction::EmitCleanupBlock() {
       delete Info.CleanupBlock;
     return;
   }
+
+  //  Scrub debug location info.
+  for (llvm::BasicBlock::iterator LBI = Info.CleanupBlock->begin(),
+         LBE = Info.CleanupBlock->end(); LBI != LBE; ++LBI)
+    Builder.SetInstDebugLocation(LBI);
 
   llvm::BasicBlock *CurBB = Builder.GetInsertBlock();
   if (CurBB && !CurBB->getTerminator() &&

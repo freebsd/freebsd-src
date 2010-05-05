@@ -256,25 +256,25 @@ def VCVTSD : VFPAI<(outs SPR:$dst), (ins DPR:$a), VFPUnaryFrm,
 // Between half-precision and single-precision.  For disassembly only.
 
 def VCVTBSH : ASuI<0b11101, 0b11, 0b0010, 0b01, 0, (outs SPR:$dst), (ins SPR:$a),
-                 /* FIXME */ IIC_fpCVTDS, "vcvtb", ".f32.f16\t$dst, $a",
+                 /* FIXME */ IIC_fpCVTSH, "vcvtb", ".f32.f16\t$dst, $a",
                  [/* For disassembly only; pattern left blank */]>;
 
 def : ARMPat<(f32_to_f16 SPR:$a),
              (i32 (COPY_TO_REGCLASS (VCVTBSH SPR:$a), GPR))>;
 
 def VCVTBHS : ASuI<0b11101, 0b11, 0b0011, 0b01, 0, (outs SPR:$dst), (ins SPR:$a),
-                 /* FIXME */ IIC_fpCVTDS, "vcvtb", ".f16.f32\t$dst, $a",
+                 /* FIXME */ IIC_fpCVTHS, "vcvtb", ".f16.f32\t$dst, $a",
                  [/* For disassembly only; pattern left blank */]>;
 
 def : ARMPat<(f16_to_f32 GPR:$a),
              (VCVTBHS (COPY_TO_REGCLASS GPR:$a, SPR))>;
 
 def VCVTTSH : ASuI<0b11101, 0b11, 0b0010, 0b11, 0, (outs SPR:$dst), (ins SPR:$a),
-                 /* FIXME */ IIC_fpCVTDS, "vcvtt", ".f32.f16\t$dst, $a",
+                 /* FIXME */ IIC_fpCVTSH, "vcvtt", ".f32.f16\t$dst, $a",
                  [/* For disassembly only; pattern left blank */]>;
 
 def VCVTTHS : ASuI<0b11101, 0b11, 0b0011, 0b11, 0, (outs SPR:$dst), (ins SPR:$a),
-                 /* FIXME */ IIC_fpCVTDS, "vcvtt", ".f16.f32\t$dst, $a",
+                 /* FIXME */ IIC_fpCVTHS, "vcvtt", ".f16.f32\t$dst, $a",
                  [/* For disassembly only; pattern left blank */]>;
 
 let neverHasSideEffects = 1 in {
@@ -306,23 +306,23 @@ def VSQRTS : ASuI<0b11101, 0b11, 0b0001, 0b11, 0, (outs SPR:$dst), (ins SPR:$a),
 //
 
 def VMOVRS : AVConv2I<0b11100001, 0b1010, (outs GPR:$dst), (ins SPR:$src),
-                 IIC_VMOVSI, "vmov", "\t$dst, $src",
+                 IIC_fpMOVSI, "vmov", "\t$dst, $src",
                  [(set GPR:$dst, (bitconvert SPR:$src))]>;
 
 def VMOVSR : AVConv4I<0b11100000, 0b1010, (outs SPR:$dst), (ins GPR:$src),
-                 IIC_VMOVIS, "vmov", "\t$dst, $src",
+                 IIC_fpMOVIS, "vmov", "\t$dst, $src",
                  [(set SPR:$dst, (bitconvert GPR:$src))]>;
 
 def VMOVRRD  : AVConv3I<0b11000101, 0b1011,
                       (outs GPR:$wb, GPR:$dst2), (ins DPR:$src),
-                 IIC_VMOVDI, "vmov", "\t$wb, $dst2, $src",
+                 IIC_fpMOVDI, "vmov", "\t$wb, $dst2, $src",
                  [/* FIXME: Can't write pattern for multiple result instr*/]> {
   let Inst{7-6} = 0b00;
 }
 
 def VMOVRRS  : AVConv3I<0b11000101, 0b1010,
                       (outs GPR:$wb, GPR:$dst2), (ins SPR:$src1, SPR:$src2),
-                 IIC_VMOVDI, "vmov", "\t$wb, $dst2, $src1, $src2",
+                 IIC_fpMOVDI, "vmov", "\t$wb, $dst2, $src1, $src2",
                  [/* For disassembly only; pattern left blank */]> {
   let Inst{7-6} = 0b00;
 }
@@ -332,14 +332,14 @@ def VMOVRRS  : AVConv3I<0b11000101, 0b1010,
 
 def VMOVDRR : AVConv5I<0b11000100, 0b1011,
                      (outs DPR:$dst), (ins GPR:$src1, GPR:$src2),
-                IIC_VMOVID, "vmov", "\t$dst, $src1, $src2",
+                IIC_fpMOVID, "vmov", "\t$dst, $src1, $src2",
                 [(set DPR:$dst, (arm_fmdrr GPR:$src1, GPR:$src2))]> {
   let Inst{7-6} = 0b00;
 }
 
 def VMOVSRR : AVConv5I<0b11000100, 0b1010,
                      (outs SPR:$dst1, SPR:$dst2), (ins GPR:$src1, GPR:$src2),
-                IIC_VMOVID, "vmov", "\t$dst1, $dst2, $src1, $src2",
+                IIC_fpMOVID, "vmov", "\t$dst1, $dst2, $src1, $src2",
                 [/* For disassembly only; pattern left blank */]> {
   let Inst{7-6} = 0b00;
 }
@@ -678,7 +678,7 @@ def VMSR : VFPAI<(outs), (ins GPR:$src), VFPMiscFrm, IIC_fpSTAT, "vmsr",
 // Materialize FP immediates. VFP3 only.
 let isReMaterializable = 1 in {
 def FCONSTD : VFPAI<(outs DPR:$dst), (ins vfp_f64imm:$imm),
-                    VFPMiscFrm, IIC_VMOVImm,
+                    VFPMiscFrm, IIC_fpUNA64,
                     "vmov", ".f64\t$dst, $imm",
                     [(set DPR:$dst, vfp_f64imm:$imm)]>, Requires<[HasVFP3]> {
   let Inst{27-23} = 0b11101;
@@ -689,7 +689,7 @@ def FCONSTD : VFPAI<(outs DPR:$dst), (ins vfp_f64imm:$imm),
 }
 
 def FCONSTS : VFPAI<(outs SPR:$dst), (ins vfp_f32imm:$imm),
-                    VFPMiscFrm, IIC_VMOVImm,
+                    VFPMiscFrm, IIC_fpUNA32,
                     "vmov", ".f32\t$dst, $imm",
                     [(set SPR:$dst, vfp_f32imm:$imm)]>, Requires<[HasVFP3]> {
   let Inst{27-23} = 0b11101;

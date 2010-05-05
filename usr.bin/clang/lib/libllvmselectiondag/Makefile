@@ -10,7 +10,8 @@ SRCS=	CallingConvLower.cpp DAGCombiner.cpp FastISel.cpp FunctionLoweringInfo.cpp
 	LegalizeVectorTypes.cpp ScheduleDAGFast.cpp \
 	ScheduleDAGList.cpp ScheduleDAGRRList.cpp \
 	ScheduleDAGSDNodes.cpp SelectionDAG.cpp SelectionDAGBuilder.cpp \
-	SelectionDAGISel.cpp SelectionDAGPrinter.cpp TargetLowering.cpp
+	TargetSelectionDAGInfo.cpp SelectionDAGISel.cpp SelectionDAGPrinter.cpp \
+	TargetLowering.cpp
 
 TGHDRS=	Intrinsics
 

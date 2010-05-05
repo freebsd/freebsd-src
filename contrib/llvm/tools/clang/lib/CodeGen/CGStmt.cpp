@@ -160,7 +160,7 @@ RValue CodeGenFunction::EmitCompoundStmt(const CompoundStmt &S, bool GetLast,
     EmitStmt(*I);
 
   if (DI) {
-    DI->setLocation(S.getLBracLoc());
+    DI->setLocation(S.getRBracLoc());
     DI->EmitRegionEnd(CurFn, Builder);
   }
 
@@ -205,6 +205,8 @@ void CodeGenFunction::SimplifyForwardingBlocks(llvm::BasicBlock *BB) {
 }
 
 void CodeGenFunction::EmitBlock(llvm::BasicBlock *BB, bool IsFinished) {
+  llvm::BasicBlock *CurBB = Builder.GetInsertBlock();
+
   // Fall out of the current block (if necessary).
   EmitBranch(BB);
 
@@ -225,7 +227,12 @@ void CodeGenFunction::EmitBlock(llvm::BasicBlock *BB, bool IsFinished) {
     }
   }
 
-  CurFn->getBasicBlockList().push_back(BB);
+  // Place the block after the current block, if possible, or else at
+  // the end of the function.
+  if (CurBB && CurBB->getParent())
+    CurFn->getBasicBlockList().insertAfter(CurBB, BB);
+  else
+    CurFn->getBasicBlockList().push_back(BB);
   Builder.SetInsertPoint(BB);
 }
 
@@ -974,19 +981,18 @@ void CodeGenFunction::EmitAsmStmt(const AsmStmt &S) {
         unsigned InputNo;
         for (InputNo = 0; InputNo != S.getNumInputs(); ++InputNo) {
           TargetInfo::ConstraintInfo &Input = InputConstraintInfos[InputNo];
-          if (Input.hasTiedOperand() &&
-              Input.getTiedOperand() == i)
+          if (Input.hasTiedOperand() && Input.getTiedOperand() == i)
             break;
         }
         assert(InputNo != S.getNumInputs() && "Didn't find matching input!");
 
         QualType InputTy = S.getInputExpr(InputNo)->getType();
-        QualType OutputTy = OutExpr->getType();
+        QualType OutputType = OutExpr->getType();
 
         uint64_t InputSize = getContext().getTypeSize(InputTy);
-        if (getContext().getTypeSize(OutputTy) < InputSize) {
-          // Form the asm to return the value as a larger integer type.
-          ResultRegTypes.back() = llvm::IntegerType::get(VMContext, (unsigned)InputSize);
+        if (getContext().getTypeSize(OutputType) < InputSize) {
+          // Form the asm to return the value as a larger integer or fp type.
+          ResultRegTypes.back() = ConvertType(InputTy);
         }
       }
     } else {
@@ -1036,17 +1042,20 @@ void CodeGenFunction::EmitAsmStmt(const AsmStmt &S) {
     // that is usually cheaper, but LLVM IR should really get an anyext someday.
     if (Info.hasTiedOperand()) {
       unsigned Output = Info.getTiedOperand();
-      QualType OutputTy = S.getOutputExpr(Output)->getType();
+      QualType OutputType = S.getOutputExpr(Output)->getType();
       QualType InputTy = InputExpr->getType();
 
-      if (getContext().getTypeSize(OutputTy) >
+      if (getContext().getTypeSize(OutputType) >
           getContext().getTypeSize(InputTy)) {
         // Use ptrtoint as appropriate so that we can do our extension.
         if (isa<llvm::PointerType>(Arg->getType()))
           Arg = Builder.CreatePtrToInt(Arg,
-                                      llvm::IntegerType::get(VMContext, LLVMPointerWidth));
-        unsigned OutputSize = (unsigned)getContext().getTypeSize(OutputTy);
-        Arg = Builder.CreateZExt(Arg, llvm::IntegerType::get(VMContext, OutputSize));
+                           llvm::IntegerType::get(VMContext, LLVMPointerWidth));
+        const llvm::Type *OutputTy = ConvertType(OutputType);
+        if (isa<llvm::IntegerType>(OutputTy))
+          Arg = Builder.CreateZExt(Arg, OutputTy);
+        else
+          Arg = Builder.CreateFPExt(Arg, OutputTy);
       }
     }
 
@@ -1102,6 +1111,12 @@ void CodeGenFunction::EmitAsmStmt(const AsmStmt &S) {
   llvm::CallInst *Result = Builder.CreateCall(IA, Args.begin(), Args.end());
   Result->addAttribute(~0, llvm::Attribute::NoUnwind);
 
+  // Slap the source location of the inline asm into a !srcloc metadata on the
+  // call.
+  unsigned LocID = S.getAsmString()->getLocStart().getRawEncoding();
+  llvm::Value *LocIDC =
+    llvm::ConstantInt::get(llvm::Type::getInt32Ty(VMContext), LocID);
+  Result->setMetadata("srcloc", llvm::MDNode::get(VMContext, &LocIDC, 1));
 
   // Extract all of the register value results from the asm.
   std::vector<llvm::Value*> RegResults;
@@ -1121,14 +1136,23 @@ void CodeGenFunction::EmitAsmStmt(const AsmStmt &S) {
     // the expression, do the conversion.
     if (ResultRegTypes[i] != ResultTruncRegTypes[i]) {
       const llvm::Type *TruncTy = ResultTruncRegTypes[i];
-      // Truncate the integer result to the right size, note that
-      // ResultTruncRegTypes can be a pointer.
-      uint64_t ResSize = CGM.getTargetData().getTypeSizeInBits(TruncTy);
-      Tmp = Builder.CreateTrunc(Tmp, llvm::IntegerType::get(VMContext, (unsigned)ResSize));
-
-      if (Tmp->getType() != TruncTy) {
-        assert(isa<llvm::PointerType>(TruncTy));
+      
+      // Truncate the integer result to the right size, note that TruncTy can be
+      // a pointer.
+      if (TruncTy->isFloatingPointTy())
+        Tmp = Builder.CreateFPTrunc(Tmp, TruncTy);
+      else if (TruncTy->isPointerTy() && Tmp->getType()->isIntegerTy()) {
+        uint64_t ResSize = CGM.getTargetData().getTypeSizeInBits(TruncTy);
+        Tmp = Builder.CreateTrunc(Tmp, llvm::IntegerType::get(VMContext,
+                                                            (unsigned)ResSize));
         Tmp = Builder.CreateIntToPtr(Tmp, TruncTy);
+      } else if (Tmp->getType()->isPointerTy() && TruncTy->isIntegerTy()) {
+        uint64_t TmpSize =CGM.getTargetData().getTypeSizeInBits(Tmp->getType());
+        Tmp = Builder.CreatePtrToInt(Tmp, llvm::IntegerType::get(VMContext,
+                                                            (unsigned)TmpSize));
+        Tmp = Builder.CreateTrunc(Tmp, TruncTy);
+      } else if (TruncTy->isIntegerTy()) {
+        Tmp = Builder.CreateTrunc(Tmp, TruncTy);
       }
     }
 

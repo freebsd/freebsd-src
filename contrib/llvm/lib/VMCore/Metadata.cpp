@@ -115,14 +115,17 @@ MDNode::~MDNode() {
 }
 
 static const Function *getFunctionForValue(Value *V) {
-  assert(!isa<MDNode>(V) && "does not iterate over metadata operands");
   if (!V) return NULL;
-  if (Instruction *I = dyn_cast<Instruction>(V))
-    return I->getParent()->getParent();
-  if (BasicBlock *BB = dyn_cast<BasicBlock>(V))
-    return BB->getParent();
+  if (Instruction *I = dyn_cast<Instruction>(V)) {
+    BasicBlock *BB = I->getParent();
+    return BB ? BB->getParent() : 0;
+  }
   if (Argument *A = dyn_cast<Argument>(V))
     return A->getParent();
+  if (BasicBlock *BB = dyn_cast<BasicBlock>(V))
+    return BB->getParent();
+  if (MDNode *MD = dyn_cast<MDNode>(V))
+    return MD->getFunction();
   return NULL;
 }
 
@@ -156,17 +159,9 @@ const Function *MDNode::getFunction() const {
   return assertLocalFunction(this);
 #endif
   if (!isFunctionLocal()) return NULL;
-
-  for (unsigned i = 0, e = getNumOperands(); i != e; ++i) {
-    if (Value *V = getOperand(i)) {
-      if (MDNode *MD = dyn_cast<MDNode>(V)) {
-        if (const Function *F = MD->getFunction())
-          return F;
-      } else {
-        return getFunctionForValue(V);
-      }
-    }
-  }
+  for (unsigned i = 0, e = getNumOperands(); i != e; ++i)
+    if (const Function *F = getFunctionForValue(getOperand(i)))
+      return F;
   return NULL;
 }
 
@@ -176,6 +171,13 @@ void MDNode::destroy() {
   // Placement delete, the free the memory.
   this->~MDNode();
   free(this);
+}
+
+/// isFunctionLocalValue - Return true if this is a value that would require a
+/// function-local MDNode.
+static bool isFunctionLocalValue(Value *V) {
+  return isa<Instruction>(V) || isa<Argument>(V) || isa<BasicBlock>(V) ||
+         (isa<MDNode>(V) && cast<MDNode>(V)->isFunctionLocal());
 }
 
 MDNode *MDNode::getMDNode(LLVMContext &Context, Value *const *Vals,
@@ -188,8 +190,7 @@ MDNode *MDNode::getMDNode(LLVMContext &Context, Value *const *Vals,
     for (unsigned i = 0; i != NumVals; ++i) {
       Value *V = Vals[i];
       if (!V) continue;
-      if (isa<Instruction>(V) || isa<Argument>(V) || isa<BasicBlock>(V) ||
-          (isa<MDNode>(V) && cast<MDNode>(V)->isFunctionLocal())) {
+      if (isFunctionLocalValue(V)) {
         isFunctionLocal = true;
         break;
       }
@@ -262,6 +263,24 @@ void MDNode::setIsNotUniqued() {
 void MDNode::replaceOperand(MDNodeOperand *Op, Value *To) {
   Value *From = *Op;
 
+  // If is possible that someone did GV->RAUW(inst), replacing a global variable
+  // with an instruction or some other function-local object.  If this is a
+  // non-function-local MDNode, it can't point to a function-local object.
+  // Handle this case by implicitly dropping the MDNode reference to null.
+  // Likewise if the MDNode is function-local but for a different function.
+  if (To && isFunctionLocalValue(To)) {
+    if (!isFunctionLocal())
+      To = 0;
+    else {
+      const Function *F = getFunction();
+      const Function *FV = getFunctionForValue(To);
+      // Metadata can be function-local without having an associated function.
+      // So only consider functions to have changed if non-null.
+      if (F && FV && F != FV)
+        To = 0;
+    }
+  }
+  
   if (From == To)
     return;
 

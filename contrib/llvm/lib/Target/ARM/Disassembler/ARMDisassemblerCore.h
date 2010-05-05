@@ -171,30 +171,51 @@ typedef ARMBasicMCBuilder *BO;
 typedef bool (*DisassembleFP)(MCInst &MI, unsigned Opcode, uint32_t insn,
     unsigned short NumOps, unsigned &NumOpsAdded, BO Builder);
 
+/// CreateMCBuilder - Return an ARMBasicMCBuilder that can build up the MC
+/// infrastructure of an MCInst given the Opcode and Format of the instr.
+/// Return NULL if it fails to create/return a proper builder.  API clients
+/// are responsible for freeing up of the allocated memory.  Cacheing can be
+/// performed by the API clients to improve performance.
+extern ARMBasicMCBuilder *CreateMCBuilder(unsigned Opcode, ARMFormat Format);
+
 /// ARMBasicMCBuilder - ARMBasicMCBuilder represents an ARM MCInst builder that
 /// knows how to build up the MCOperand list.
 class ARMBasicMCBuilder {
+  friend ARMBasicMCBuilder *CreateMCBuilder(unsigned Opcode, ARMFormat Format);
   unsigned Opcode;
   ARMFormat Format;
   unsigned short NumOps;
   DisassembleFP Disasm;
   Session *SP;
+  int Err; // !=0 if the builder encounters some error condition during build.
+
+private:
+  /// Opcode, Format, and NumOperands make up an ARM Basic MCBuilder.
+  ARMBasicMCBuilder(unsigned opc, ARMFormat format, unsigned short num);
 
 public:
   ARMBasicMCBuilder(ARMBasicMCBuilder &B)
     : Opcode(B.Opcode), Format(B.Format), NumOps(B.NumOps), Disasm(B.Disasm),
-      SP(B.SP)
-  {}
-
-  /// Opcode, Format, and NumOperands make up an ARM Basic MCBuilder.
-  ARMBasicMCBuilder(unsigned opc, ARMFormat format, unsigned short num);
+      SP(B.SP) {
+    Err = 0;
+  }
 
   virtual ~ARMBasicMCBuilder() {}
 
-  void setSession(Session *sp) {
+  void SetSession(Session *sp) {
     SP = sp;
   }
 
+  void SetErr(int ErrCode) {
+    Err = ErrCode;
+  }
+
+  /// DoPredicateOperands - DoPredicateOperands process the predicate operands
+  /// of some Thumb instructions which come before the reglist operands.  It
+  /// returns true if the two predicate operands have been processed.
+  bool DoPredicateOperands(MCInst& MI, unsigned Opcode,
+      uint32_t insn, unsigned short NumOpsRemaning);
+  
   /// TryPredicateAndSBitModifier - TryPredicateAndSBitModifier tries to process
   /// the possible Predicate and SBitModifier, to build the remaining MCOperand
   /// constituents.
@@ -235,13 +256,6 @@ private:
     return slice(SP->ITState, 7, 4);
   }
 };
-
-/// CreateMCBuilder - Return an ARMBasicMCBuilder that can build up the MC
-/// infrastructure of an MCInst given the Opcode and Format of the instr.
-/// Return NULL if it fails to create/return a proper builder.  API clients
-/// are responsible for freeing up of the allocated memory.  Cacheing can be
-/// performed by the API clients to improve performance.
-extern ARMBasicMCBuilder *CreateMCBuilder(unsigned Opcode, ARMFormat Format);
 
 } // namespace llvm
 

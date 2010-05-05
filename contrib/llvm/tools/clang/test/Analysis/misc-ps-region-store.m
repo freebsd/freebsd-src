@@ -955,3 +955,62 @@ void pr6288_b(void) {
   *(px[0]) = 0; // no-warning
 }
 
+// <rdar://problem/7817800> - A bug in RemoveDeadBindings was causing instance variable bindings
+//  to get prematurely pruned from the state.
+@interface Rdar7817800 {
+  char *x;
+}
+- (void) rdar7817800_baz;
+@end
+
+char *rdar7817800_foobar();
+void rdar7817800_qux(void*);
+
+@implementation Rdar7817800
+- (void) rdar7817800_baz {
+  if (x)
+    rdar7817800_qux(x);
+  x = rdar7817800_foobar();
+  // Previously this triggered a bogus null dereference warning.
+  x[1] = 'a'; // no-warning
+}
+@end
+
+// PR 6036 - This test case triggered a crash inside StoreManager::CastRegion because the size
+// of 'unsigned long (*)[0]' is 0.
+struct pr6036_a { int pr6036_b; };
+struct pr6036_c;
+void u132monitk (struct pr6036_c *pr6036_d) {
+  (void) ((struct pr6036_a *) (unsigned long (*)[0]) ((char *) pr6036_d - 1))->pr6036_b; // expected-warning{{Casting a non-structure type to a structure type and accessing a field can lead to memory access errors or data corruption}}
+}
+
+// <rdar://problem/7813989> - ?-expressions used as a base of a member expression should be treated as an lvalue
+typedef struct rdar7813989_NestedVal { int w; } rdar7813989_NestedVal;
+typedef struct rdar7813989_Val { rdar7813989_NestedVal nv; } rdar7813989_Val;
+
+int rdar7813989(int x, rdar7813989_Val *a, rdar7813989_Val *b) {
+  // This previously crashed with an assertion failure.
+  int z = (x ? a->nv : b->nv).w;
+  return z + 1;
+}
+
+// PR 6844 - Don't crash on vaarg expression.
+typedef __builtin_va_list va_list;
+void map(int srcID, ...) {
+  va_list ap;
+  int i;
+  for (i = 0; i < srcID; i++) {
+    int v = __builtin_va_arg(ap, int);
+  }
+}
+
+// PR 6854 - crash when casting symbolic memory address to a float
+// Handle casting from a symbolic region to a 'float'.  This isn't
+// really all that intelligent, but previously this caused a crash
+// in SimpleSValuator.
+void pr6854(void * arg) {
+  void * a = arg;
+  *(void**)a = arg;
+  float f = *(float*) a;
+}
+

@@ -16,6 +16,7 @@
 #include "PIC16AsmPrinter.h"
 #include "PIC16Section.h"
 #include "PIC16MCAsmInfo.h"
+#include "PIC16MachineFunctionInfo.h"
 #include "llvm/DerivedTypes.h"
 #include "llvm/Function.h"
 #include "llvm/Module.h"
@@ -36,9 +37,8 @@ using namespace llvm;
 
 PIC16AsmPrinter::PIC16AsmPrinter(TargetMachine &TM, MCStreamer &Streamer)
 : AsmPrinter(TM, Streamer), DbgInfo(Streamer, TM.getMCAsmInfo()) {
-  PTLI = static_cast<PIC16TargetLowering*>(TM.getTargetLowering());
   PMAI = static_cast<const PIC16MCAsmInfo*>(TM.getMCAsmInfo());
-  PTOF = (PIC16TargetObjectFile *)&PTLI->getObjFileLowering();
+  PTOF = &getObjFileLowering();
 }
 
 void PIC16AsmPrinter::EmitInstruction(const MachineInstr *MI) {
@@ -379,6 +379,8 @@ bool PIC16AsmPrinter::doFinalization(Module &M) {
 void PIC16AsmPrinter::EmitFunctionFrame(MachineFunction &MF) {
   const Function *F = MF.getFunction();
   const TargetData *TD = TM.getTargetData();
+  PIC16MachineFunctionInfo *FuncInfo = MF.getInfo<PIC16MachineFunctionInfo>();
+
   // Emit the data section name.
   
   PIC16Section *fPDataSection =
@@ -420,7 +422,7 @@ void PIC16AsmPrinter::EmitFunctionFrame(MachineFunction &MF) {
                           Twine(" RES ") + Twine(ArgSize));
 
   // Emit temporary space
-  int TempSize = PTLI->GetTmpSize();
+  int TempSize = FuncInfo->getTmpSize();
   if (TempSize > 0)
     OutStreamer.EmitRawText(PAN::getTempdataLabel(CurrentFnSym->getName()) +
                             Twine(" RES  ") + Twine(TempSize));

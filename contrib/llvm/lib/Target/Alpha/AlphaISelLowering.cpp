@@ -13,6 +13,7 @@
 
 #include "AlphaISelLowering.h"
 #include "AlphaTargetMachine.h"
+#include "AlphaMachineFunctionInfo.h"
 #include "llvm/CodeGen/CallingConvLower.h"
 #include "llvm/CodeGen/MachineFrameInfo.h"
 #include "llvm/CodeGen/MachineFunction.h"
@@ -225,7 +226,7 @@ AlphaTargetLowering::LowerCall(SDValue Chain, SDValue Callee,
                                const SmallVectorImpl<ISD::OutputArg> &Outs,
                                const SmallVectorImpl<ISD::InputArg> &Ins,
                                DebugLoc dl, SelectionDAG &DAG,
-                               SmallVectorImpl<SDValue> &InVals) {
+                               SmallVectorImpl<SDValue> &InVals) const {
   // Alpha target does not yet support tail call optimization.
   isTailCall = false;
 
@@ -342,7 +343,7 @@ AlphaTargetLowering::LowerCallResult(SDValue Chain, SDValue InFlag,
                                      CallingConv::ID CallConv, bool isVarArg,
                                      const SmallVectorImpl<ISD::InputArg> &Ins,
                                      DebugLoc dl, SelectionDAG &DAG,
-                                     SmallVectorImpl<SDValue> &InVals) {
+                                     SmallVectorImpl<SDValue> &InVals) const {
 
   // Assign locations to each value returned by this call.
   SmallVector<CCValAssign, 16> RVLocs;
@@ -385,10 +386,12 @@ AlphaTargetLowering::LowerFormalArguments(SDValue Chain,
                                           const SmallVectorImpl<ISD::InputArg>
                                             &Ins,
                                           DebugLoc dl, SelectionDAG &DAG,
-                                          SmallVectorImpl<SDValue> &InVals) {
+                                          SmallVectorImpl<SDValue> &InVals)
+                                            const {
 
   MachineFunction &MF = DAG.getMachineFunction();
   MachineFrameInfo *MFI = MF.getFrameInfo();
+  AlphaMachineFunctionInfo *FuncInfo = MF.getInfo<AlphaMachineFunctionInfo>();
 
   unsigned args_int[] = {
     Alpha::R16, Alpha::R17, Alpha::R18, Alpha::R19, Alpha::R20, Alpha::R21};
@@ -435,14 +438,14 @@ AlphaTargetLowering::LowerFormalArguments(SDValue Chain,
 
   // If the functions takes variable number of arguments, copy all regs to stack
   if (isVarArg) {
-    VarArgsOffset = Ins.size() * 8;
+    FuncInfo->setVarArgsOffset(Ins.size() * 8);
     std::vector<SDValue> LS;
     for (int i = 0; i < 6; ++i) {
       if (TargetRegisterInfo::isPhysicalRegister(args_int[i]))
         args_int[i] = AddLiveIn(MF, args_int[i], &Alpha::GPRCRegClass);
       SDValue argt = DAG.getCopyFromReg(Chain, dl, args_int[i], MVT::i64);
       int FI = MFI->CreateFixedObject(8, -8 * (6 - i), true, false);
-      if (i == 0) VarArgsBase = FI;
+      if (i == 0) FuncInfo->setVarArgsBase(FI);
       SDValue SDFI = DAG.getFrameIndex(FI, MVT::i64);
       LS.push_back(DAG.getStore(Chain, dl, argt, SDFI, NULL, 0,
                                 false, false, 0));
@@ -467,7 +470,7 @@ SDValue
 AlphaTargetLowering::LowerReturn(SDValue Chain,
                                  CallingConv::ID CallConv, bool isVarArg,
                                  const SmallVectorImpl<ISD::OutputArg> &Outs,
-                                 DebugLoc dl, SelectionDAG &DAG) {
+                                 DebugLoc dl, SelectionDAG &DAG) const {
 
   SDValue Copy = DAG.getCopyToReg(Chain, dl, Alpha::R26,
                                   DAG.getNode(AlphaISD::GlobalRetAddr,
@@ -525,7 +528,8 @@ AlphaTargetLowering::LowerReturn(SDValue Chain,
 }
 
 void AlphaTargetLowering::LowerVAARG(SDNode *N, SDValue &Chain,
-                                     SDValue &DataPtr, SelectionDAG &DAG) {
+                                     SDValue &DataPtr,
+                                     SelectionDAG &DAG) const {
   Chain = N->getOperand(0);
   SDValue VAListP = N->getOperand(1);
   const Value *VAListS = cast<SrcValueSDNode>(N->getOperand(2))->getValue();
@@ -556,7 +560,8 @@ void AlphaTargetLowering::LowerVAARG(SDNode *N, SDValue &Chain,
 
 /// LowerOperation - Provide custom lowering hooks for some operations.
 ///
-SDValue AlphaTargetLowering::LowerOperation(SDValue Op, SelectionDAG &DAG) {
+SDValue AlphaTargetLowering::LowerOperation(SDValue Op,
+                                            SelectionDAG &DAG) const {
   DebugLoc dl = Op.getDebugLoc();
   switch (Op.getOpcode()) {
   default: llvm_unreachable("Wasn't expecting to be able to lower this!");
@@ -624,7 +629,7 @@ SDValue AlphaTargetLowering::LowerOperation(SDValue Op, SelectionDAG &DAG) {
   }
   case ISD::ConstantPool: {
     ConstantPoolSDNode *CP = cast<ConstantPoolSDNode>(Op);
-    Constant *C = CP->getConstVal();
+    const Constant *C = CP->getConstVal();
     SDValue CPI = DAG.getTargetConstantPool(C, MVT::i64, CP->getAlignment());
     // FIXME there isn't really any debug info here
 
@@ -637,7 +642,7 @@ SDValue AlphaTargetLowering::LowerOperation(SDValue Op, SelectionDAG &DAG) {
     llvm_unreachable("TLS not implemented for Alpha.");
   case ISD::GlobalAddress: {
     GlobalAddressSDNode *GSDN = cast<GlobalAddressSDNode>(Op);
-    GlobalValue *GV = GSDN->getGlobal();
+    const GlobalValue *GV = GSDN->getGlobal();
     SDValue GA = DAG.getTargetGlobalAddress(GV, MVT::i64, GSDN->getOffset());
     // FIXME there isn't really any debug info here
 
@@ -725,17 +730,22 @@ SDValue AlphaTargetLowering::LowerOperation(SDValue Op, SelectionDAG &DAG) {
                              false, false, 0);
   }
   case ISD::VASTART: {
+    MachineFunction &MF = DAG.getMachineFunction();
+    AlphaMachineFunctionInfo *FuncInfo = MF.getInfo<AlphaMachineFunctionInfo>();
+
     SDValue Chain = Op.getOperand(0);
     SDValue VAListP = Op.getOperand(1);
     const Value *VAListS = cast<SrcValueSDNode>(Op.getOperand(2))->getValue();
 
     // vastart stores the address of the VarArgsBase and VarArgsOffset
-    SDValue FR  = DAG.getFrameIndex(VarArgsBase, MVT::i64);
+    SDValue FR  = DAG.getFrameIndex(FuncInfo->getVarArgsBase(), MVT::i64);
     SDValue S1  = DAG.getStore(Chain, dl, FR, VAListP, VAListS, 0,
                                false, false, 0);
     SDValue SA2 = DAG.getNode(ISD::ADD, dl, MVT::i64, VAListP,
                                 DAG.getConstant(8, MVT::i64));
-    return DAG.getTruncStore(S1, dl, DAG.getConstant(VarArgsOffset, MVT::i64),
+    return DAG.getTruncStore(S1, dl,
+                             DAG.getConstant(FuncInfo->getVarArgsOffset(),
+                                             MVT::i64),
                              SA2, NULL, 0, MVT::i32, false, false, 0);
   }
   case ISD::RETURNADDR:
@@ -749,7 +759,7 @@ SDValue AlphaTargetLowering::LowerOperation(SDValue Op, SelectionDAG &DAG) {
 
 void AlphaTargetLowering::ReplaceNodeResults(SDNode *N,
                                              SmallVectorImpl<SDValue>&Results,
-                                             SelectionDAG &DAG) {
+                                             SelectionDAG &DAG) const {
   DebugLoc dl = N->getDebugLoc();
   assert(N->getValueType(0) == MVT::i32 &&
          N->getOpcode() == ISD::VAARG &&
@@ -822,8 +832,7 @@ getRegClassForInlineAsmConstraint(const std::string &Constraint,
 
 MachineBasicBlock *
 AlphaTargetLowering::EmitInstrWithCustomInserter(MachineInstr *MI,
-                                                 MachineBasicBlock *BB,
-                   DenseMap<MachineBasicBlock*, MachineBasicBlock*> *EM) const {
+                                                 MachineBasicBlock *BB) const {
   const TargetInstrInfo *TII = getTargetMachine().getInstrInfo();
   assert((MI->getOpcode() == Alpha::CAS32 ||
           MI->getOpcode() == Alpha::CAS64 ||
@@ -853,11 +862,6 @@ AlphaTargetLowering::EmitInstrWithCustomInserter(MachineInstr *MI,
   MachineFunction *F = BB->getParent();
   MachineBasicBlock *llscMBB = F->CreateMachineBasicBlock(LLVM_BB);
   MachineBasicBlock *sinkMBB = F->CreateMachineBasicBlock(LLVM_BB);
-
-  // Inform sdisel of the edge changes.
-  for (MachineBasicBlock::succ_iterator I = BB->succ_begin(),
-         E = BB->succ_end(); I != E; ++I)
-    EM->insert(std::make_pair(*I, sinkMBB));
 
   sinkMBB->transferSuccessors(thisMBB);
 

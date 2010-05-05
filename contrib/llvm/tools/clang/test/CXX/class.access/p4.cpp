@@ -1,4 +1,4 @@
-// RUN: %clang_cc1 -fsyntax-only -faccess-control -verify %s
+// RUN: %clang_cc1 -fsyntax-only -verify %s
 
 // C++0x [class.access]p4:
 
@@ -88,13 +88,24 @@ namespace test1 {
 namespace test2 {
   class A {
   private:
-    A(); // expected-note {{declared private here}}
+    A(); // expected-note 3 {{declared private here}}
 
     static A foo;
   };
 
   A a; // expected-error {{calling a private constructor}}
   A A::foo; // okay
+  
+  class B : A { }; // expected-error {{base class 'test2::A' has private constructor}}
+  B b;
+  
+  class C : virtual A { 
+  public:
+    C();
+  };
+
+  class D : C { }; // expected-error {{inherited virtual base class 'test2::A' has private constructor}}
+  D d;
 }
 
 // Implicit destructor calls.
@@ -191,13 +202,13 @@ namespace test5 {
     void operator=(const A &); // expected-note 2 {{declared private here}}
   };
 
-  class Test1 { A a; }; // expected-error {{field of type 'test5::A' has private copy assignment operator}}
+  class Test1 { A a; }; // expected-error {{private member}}
   void test1() {
     Test1 a;
     a = Test1();
   }
 
-  class Test2 : A {}; // expected-error {{base class 'test5::A' has private copy assignment operator}}
+  class Test2 : A {}; // expected-error {{private member}}
   void test2() {
     Test2 a;
     a = Test2();
@@ -326,4 +337,84 @@ namespace test13 {
     d->foo();
     (void) d->x;
   }
+}
+
+// Destructors for temporaries.
+namespace test14 {
+  class A {
+  private: ~A(); // expected-note {{declared private here}}
+  };
+  A foo();
+
+  void test() {
+    foo(); // expected-error {{temporary of type 'test14::A' has private destructor}}
+  }
+
+  class X {
+    ~X(); // expected-note {{declared private here}}
+  };
+  
+  struct Y1 {
+    operator X();
+  };
+  
+  void g() {
+    const X &xr = Y1(); // expected-error{{temporary of type 'test14::X' has private destructor}}
+  }
+}
+
+// PR 7024
+namespace test15 {
+  template <class T> class A {
+  private:
+    int private_foo; // expected-note {{declared private here}}
+    static int private_sfoo; // expected-note {{declared private here}}
+  protected:
+    int protected_foo; // expected-note 4 {{declared protected here}}
+    static int protected_sfoo; // expected-note 3 {{declared protected here}}
+
+    int test1(A<int> &a) {
+      return a.private_foo; // expected-error {{private member}}
+    }
+
+    int test2(A<int> &a) {
+      return a.private_sfoo; // expected-error {{private member}}
+    }
+
+    int test3(A<int> &a) {
+      return a.protected_foo; // expected-error {{protected member}}
+    }
+
+    int test4(A<int> &a) {
+      return a.protected_sfoo; // expected-error {{protected member}}
+    }
+  };
+
+  template class A<int>;
+  template class A<long>; // expected-note 4 {{in instantiation}} 
+
+  template <class T> class B : public A<T> {
+    // TODO: These first two accesses can be detected as ill-formed at
+    // definition time because they're member accesses and A<int> can't
+    // be a subclass of B<T> for any T.
+
+    int test1(A<int> &a) {
+      return a.protected_foo; // expected-error 2 {{protected member}}
+    }
+
+    int test2(A<int> &a) {
+      return a.protected_sfoo; // expected-error {{protected member}}
+    }
+
+    int test3(B<int> &b) {
+      return b.protected_foo; // expected-error {{protected member}}
+    }
+
+    int test4(B<int> &b) {
+      return b.protected_sfoo; // expected-error {{protected member}}
+    }
+  };
+
+  template class B<int>;  // expected-note {{in instantiation}}
+  template class B<long>; // expected-note 4 {{in instantiation}}
 }

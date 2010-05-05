@@ -219,6 +219,8 @@ protected:
     Builder.defineMacro("__ELF__");
     if (Opts.POSIXThreads)
       Builder.defineMacro("_REENTRANT");
+    if (Opts.CPlusPlus)
+      Builder.defineMacro("_GNU_SOURCE");
   }
 public:
   LinuxTargetInfo(const std::string& triple)
@@ -1221,6 +1223,27 @@ public:
     Builder.defineMacro("__CYGWIN__");
     Builder.defineMacro("__CYGWIN32__");
     DefineStd(Builder, "unix", Opts);
+    if (Opts.CPlusPlus)
+      Builder.defineMacro("_GNU_SOURCE");
+  }
+};
+} // end anonymous namespace
+
+namespace {
+// x86-32 Haiku target
+class HaikuX86_32TargetInfo : public X86_32TargetInfo {
+public:
+  HaikuX86_32TargetInfo(const std::string& triple)
+    : X86_32TargetInfo(triple) {
+    SizeType = UnsignedLong;
+    IntPtrType = SignedLong;
+    PtrDiffType = SignedLong;
+  }                                       	
+  virtual void getTargetDefines(const LangOptions &Opts,
+                                MacroBuilder &Builder) const {
+    X86_32TargetInfo::getTargetDefines(Opts, Builder);
+    Builder.defineMacro("__INTEL__");
+    Builder.defineMacro("__HAIKU__");
   }
 };
 } // end anonymous namespace
@@ -1373,6 +1396,10 @@ public:
     SizeType = UnsignedInt;
     PtrDiffType = SignedInt;
 
+    // {} in inline assembly are neon specifiers, not assembly variant
+    // specifiers.
+    NoAsmVariants = true;
+    
     // FIXME: Should we just treat this as a feature?
     IsThumb = getTriple().getArchName().startswith("thumb");
     if (IsThumb) {
@@ -1396,6 +1423,10 @@ public:
     if (Name == "apcs-gnu") {
       DoubleAlign = LongLongAlign = LongDoubleAlign = 32;
       SizeType = UnsignedLong;
+
+      // Do not respect the alignment of bit-field types when laying out
+      // structures. This corresponds to PCC_BITFIELD_TYPE_MATTERS in gcc.
+      UseBitFieldTypeAlignment = false;
 
       if (IsThumb) {
         DescriptionString = ("e-p:32:32:32-i1:8:32-i8:8:32-i16:16:32-i32:32:32-"
@@ -2351,6 +2382,8 @@ static TargetInfo *AllocateTarget(const std::string &T) {
       return new MinGWX86_32TargetInfo(T);
     case llvm::Triple::Win32:
       return new VisualStudioWindowsX86_32TargetInfo(T);
+    case llvm::Triple::Haiku:
+      return new HaikuX86_32TargetInfo(T);
     default:
       return new X86_32TargetInfo(T);
     }

@@ -904,7 +904,9 @@ void Parser::ParseDeclarationSpecifiers(DeclSpec &DS,
         // reinforced by the NAD status of core issue 635. 
         TemplateIdAnnotation *TemplateId
           = static_cast<TemplateIdAnnotation *>(Next.getAnnotationValue());
-        if (DSContext == DSC_top_level && TemplateId->Name &&
+        if ((DSContext == DSC_top_level ||
+             (DSContext == DSC_class && DS.isFriendSpecified())) &&
+            TemplateId->Name &&
             Actions.isCurrentClassName(*TemplateId->Name, CurScope, &SS)) {
           if (isConstructorDeclarator()) {
             // The user meant this to be an out-of-line constructor
@@ -949,7 +951,8 @@ void Parser::ParseDeclarationSpecifiers(DeclSpec &DS,
 
       // If we're in a context where the identifier could be a class name,
       // check whether this is a constructor declaration.
-      if (DSContext == DSC_top_level &&
+      if ((DSContext == DSC_top_level ||
+           (DSContext == DSC_class && DS.isFriendSpecified())) &&
           Actions.isCurrentClassName(*Next.getIdentifierInfo(), CurScope, 
                                      &SS)) {
         if (isConstructorDeclarator())
@@ -1434,6 +1437,11 @@ bool Parser::ParseOptionalTypeSpecifier(DeclSpec &DS, bool& isInvalid,
 
   switch (Tok.getKind()) {
   case tok::identifier:   // foo::bar
+    // If we already have a type specifier, this identifier is not a type.
+    if (DS.getTypeSpecType() != DeclSpec::TST_unspecified ||
+        DS.getTypeSpecWidth() != DeclSpec::TSW_unspecified ||
+        DS.getTypeSpecSign() != DeclSpec::TSS_unspecified)
+      return false;
     // Check for need to substitute AltiVec keyword tokens.
     if (TryAltiVecToken(DS, Loc, PrevSpec, DiagID, isInvalid))
       break;
@@ -1892,15 +1900,6 @@ void Parser::ParseEnumSpecifier(SourceLocation StartLoc, DeclSpec &DS,
     return;
   }
 
-  // enums cannot be templates.
-  if (TemplateInfo.Kind != ParsedTemplateInfo::NonTemplate) {
-    Diag(Tok, diag::err_enum_template);
-
-    // Skip the rest of this declarator, up until the comma or semicolon.
-    SkipUntil(tok::comma, true);
-    return;      
-  }
-
   // If an identifier is present, consume and remember it.
   IdentifierInfo *Name = 0;
   SourceLocation NameLoc;
@@ -1924,23 +1923,69 @@ void Parser::ParseEnumSpecifier(SourceLocation StartLoc, DeclSpec &DS,
     TUK = Action::TUK_Declaration;
   else
     TUK = Action::TUK_Reference;
+  
+  // enums cannot be templates, although they can be referenced from a 
+  // template.
+  if (TemplateInfo.Kind != ParsedTemplateInfo::NonTemplate &&
+      TUK != Action::TUK_Reference) {
+    Diag(Tok, diag::err_enum_template);
+    
+    // Skip the rest of this declarator, up until the comma or semicolon.
+    SkipUntil(tok::comma, true);
+    return;      
+  }
+  
   bool Owned = false;
   bool IsDependent = false;
+  SourceLocation TSTLoc = NameLoc.isValid()? NameLoc : StartLoc;
+  const char *PrevSpec = 0;
+  unsigned DiagID;
   DeclPtrTy TagDecl = Actions.ActOnTag(CurScope, DeclSpec::TST_enum, TUK,
                                        StartLoc, SS, Name, NameLoc, Attr.get(),
                                        AS,
                                        Action::MultiTemplateParamsArg(Actions),
                                        Owned, IsDependent);
-  assert(!IsDependent && "didn't expect dependent enum");
+  if (IsDependent) {
+    // This enum has a dependent nested-name-specifier. Handle it as a 
+    // dependent tag.
+    if (!Name) {
+      DS.SetTypeSpecError();
+      Diag(Tok, diag::err_expected_type_name_after_typename);
+      return;
+    }
+    
+    TypeResult Type = Actions.ActOnDependentTag(CurScope, DeclSpec::TST_enum,
+                                                TUK, SS, Name, StartLoc, 
+                                                NameLoc);
+    if (Type.isInvalid()) {
+      DS.SetTypeSpecError();
+      return;
+    }
+    
+    if (DS.SetTypeSpecType(DeclSpec::TST_typename, TSTLoc, PrevSpec, DiagID,
+                           Type.get(), false))
+      Diag(StartLoc, DiagID) << PrevSpec;
+    
+    return;
+  }
 
+  if (!TagDecl.get()) {
+    // The action failed to produce an enumeration tag. If this is a 
+    // definition, consume the entire definition.
+    if (Tok.is(tok::l_brace)) {
+      ConsumeBrace();
+      SkipUntil(tok::r_brace);
+    }
+    
+    DS.SetTypeSpecError();
+    return;
+  }
+  
   if (Tok.is(tok::l_brace))
     ParseEnumBody(StartLoc, TagDecl);
 
   // FIXME: The DeclSpec should keep the locations of both the keyword and the
   // name (if there is one).
-  SourceLocation TSTLoc = NameLoc.isValid()? NameLoc : StartLoc;
-  const char *PrevSpec = 0;
-  unsigned DiagID;
   if (DS.SetTypeSpecType(DeclSpec::TST_enum, TSTLoc, PrevSpec, DiagID,
                          TagDecl.getAs<void>(), Owned))
     Diag(StartLoc, DiagID) << PrevSpec;
@@ -2427,7 +2472,7 @@ void Parser::ParseDeclaratorInternal(Declarator &D,
     CXXScopeSpec SS;
     ParseOptionalCXXScopeSpecifier(SS, /*ObjectType=*/0, true); // ignore fail
 
-    if (SS.isSet()) {
+    if (SS.isNotEmpty()) {
       if (Tok.isNot(tok::star)) {
         // The scope spec really belongs to the direct-declarator.
         D.getCXXScopeSpec() = SS;
@@ -2583,36 +2628,42 @@ void Parser::ParseDirectDeclarator(Declarator &D) {
 
   if (getLang().CPlusPlus && D.mayHaveIdentifier()) {
     // ParseDeclaratorInternal might already have parsed the scope.
-    bool afterCXXScope = D.getCXXScopeSpec().isSet();
-    if (!afterCXXScope) {
+    if (D.getCXXScopeSpec().isEmpty()) {
       ParseOptionalCXXScopeSpecifier(D.getCXXScopeSpec(), /*ObjectType=*/0,
                                      true);
-      afterCXXScope = D.getCXXScopeSpec().isSet();
     }
 
-    if (afterCXXScope) {
+    if (D.getCXXScopeSpec().isValid()) {
       if (Actions.ShouldEnterDeclaratorScope(CurScope, D.getCXXScopeSpec()))
         // Change the declaration context for name lookup, until this function
         // is exited (and the declarator has been parsed).
         DeclScopeObj.EnterDeclaratorScope();
-    } 
-    
+    }
+
     if (Tok.is(tok::identifier) || Tok.is(tok::kw_operator) ||
         Tok.is(tok::annot_template_id) || Tok.is(tok::tilde)) {
       // We found something that indicates the start of an unqualified-id.
       // Parse that unqualified-id.
-      bool AllowConstructorName
-        = ((D.getCXXScopeSpec().isSet() && 
-            D.getContext() == Declarator::FileContext) ||
-           (!D.getCXXScopeSpec().isSet() &&
-            D.getContext() == Declarator::MemberContext)) &&
-        !D.getDeclSpec().hasTypeSpecifier();
+      bool AllowConstructorName;
+      if (D.getDeclSpec().hasTypeSpecifier())
+        AllowConstructorName = false;
+      else if (D.getCXXScopeSpec().isSet())
+        AllowConstructorName =
+          (D.getContext() == Declarator::FileContext ||
+           (D.getContext() == Declarator::MemberContext &&
+            D.getDeclSpec().isFriendSpecified()));
+      else
+        AllowConstructorName = (D.getContext() == Declarator::MemberContext);
+
       if (ParseUnqualifiedId(D.getCXXScopeSpec(), 
                              /*EnteringContext=*/true, 
                              /*AllowDestructorName=*/true, 
                              AllowConstructorName,
                              /*ObjectType=*/0,
-                             D.getName())) {
+                             D.getName()) ||
+          // Once we're past the identifier, if the scope was bad, mark the
+          // whole declarator bad.
+          D.getCXXScopeSpec().isInvalid()) {
         D.SetIdentifier(0, Tok.getLocation());
         D.setInvalidType(true);
       } else {
@@ -2974,7 +3025,8 @@ void Parser::ParseFunctionDeclarator(SourceLocation LParenLoc, Declarator &D,
           DefArgToks = new CachedTokens;
 
           if (!ConsumeAndStoreUntil(tok::comma, tok::r_paren, *DefArgToks,
-                                    tok::semi, false)) {
+                                    /*StopAtSemi=*/true,
+                                    /*ConsumeFinalToken=*/false)) {
             delete DefArgToks;
             DefArgToks = 0;
             Actions.ActOnParamDefaultArgumentError(Param);

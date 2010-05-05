@@ -44,17 +44,20 @@ private:
   bool ParseRegister(unsigned &RegNo, SMLoc &StartLoc, SMLoc &EndLoc);
 
   X86Operand *ParseOperand();
-  X86Operand *ParseMemOperand();
+  X86Operand *ParseMemOperand(unsigned SegReg, SMLoc StartLoc);
 
   bool ParseDirectiveWord(unsigned Size, SMLoc L);
 
   void InstructionCleanup(MCInst &Inst);
 
   /// @name Auto-generated Match Functions
-  /// {  
+  /// {
 
   bool MatchInstruction(const SmallVectorImpl<MCParsedAsmOperand*> &Operands,
                         MCInst &Inst);
+
+  bool MatchInstructionImpl(
+    const SmallVectorImpl<MCParsedAsmOperand*> &Operands, MCInst &Inst);
 
   /// }
 
@@ -132,7 +135,7 @@ struct X86Operand : public MCParsedAsmOperand {
 
   X86Operand(KindTy K, SMLoc Start, SMLoc End)
     : Kind(K), StartLoc(Start), EndLoc(End) {}
-  
+
   /// getStartLoc - Get the location of the first token of this operand.
   SMLoc getStartLoc() const { return StartLoc; }
   /// getEndLoc - Get the location of the last token of this operand.
@@ -141,6 +144,11 @@ struct X86Operand : public MCParsedAsmOperand {
   StringRef getToken() const {
     assert(Kind == Token && "Invalid access!");
     return StringRef(Tok.Data, Tok.Length);
+  }
+  void setTokenValue(StringRef Value) {
+    assert(Kind == Token && "Invalid access!");
+    Tok.Data = Value.data();
+    Tok.Length = Value.size();
   }
 
   unsigned getReg() const {
@@ -368,14 +376,22 @@ bool X86ATTAsmParser::ParseRegister(unsigned &RegNo,
 X86Operand *X86ATTAsmParser::ParseOperand() {
   switch (getLexer().getKind()) {
   default:
-    return ParseMemOperand();
+    // Parse a memory operand with no segment register.
+    return ParseMemOperand(0, Parser.getTok().getLoc());
   case AsmToken::Percent: {
-    // FIXME: if a segment register, this could either be just the seg reg, or
-    // the start of a memory operand.
+    // Read the register.
     unsigned RegNo;
     SMLoc Start, End;
     if (ParseRegister(RegNo, Start, End)) return 0;
-    return X86Operand::CreateReg(RegNo, Start, End);
+    
+    // If this is a segment register followed by a ':', then this is the start
+    // of a memory reference, otherwise this is a normal register reference.
+    if (getLexer().isNot(AsmToken::Colon))
+      return X86Operand::CreateReg(RegNo, Start, End);
+    
+    
+    getParser().Lex(); // Eat the colon.
+    return ParseMemOperand(RegNo, Start);
   }
   case AsmToken::Dollar: {
     // $42 -> immediate.
@@ -389,13 +405,10 @@ X86Operand *X86ATTAsmParser::ParseOperand() {
   }
 }
 
-/// ParseMemOperand: segment: disp(basereg, indexreg, scale)
-X86Operand *X86ATTAsmParser::ParseMemOperand() {
-  SMLoc MemStart = Parser.getTok().getLoc();
-  
-  // FIXME: If SegReg ':'  (e.g. %gs:), eat and remember.
-  unsigned SegReg = 0;
-  
+/// ParseMemOperand: segment: disp(basereg, indexreg, scale).  The '%ds:' prefix
+/// has already been parsed if present.
+X86Operand *X86ATTAsmParser::ParseMemOperand(unsigned SegReg, SMLoc MemStart) {
+ 
   // We have to disambiguate a parenthesized expression "(4+5)" from the start
   // of a memory operand with a missing displacement "(%ebx)" or "(,%eax)".  The
   // only way to do this without lookahead is to eat the '(' and see what is
@@ -626,6 +639,54 @@ void X86ATTAsmParser::InstructionCleanup(MCInst &Inst) {
   case X86::INC32m: Inst.setOpcode(X86::INC64_32m); break;
   }
 }
+
+bool
+X86ATTAsmParser::MatchInstruction(const SmallVectorImpl<MCParsedAsmOperand*>
+                                    &Operands,
+                                  MCInst &Inst) {
+  // First, try a direct match.
+  if (!MatchInstructionImpl(Operands, Inst))
+    return false;
+
+  // Ignore anything which is obviously not a suffix match.
+  if (Operands.size() == 0)
+    return true;
+  X86Operand *Op = static_cast<X86Operand*>(Operands[0]);
+  if (!Op->isToken() || Op->getToken().size() > 15)
+    return true;
+
+  // FIXME: Ideally, we would only attempt suffix matches for things which are
+  // valid prefixes, and we could just infer the right unambiguous
+  // type. However, that requires substantially more matcher support than the
+  // following hack.
+
+  // Change the operand to point to a temporary token.
+  char Tmp[16];
+  StringRef Base = Op->getToken();
+  memcpy(Tmp, Base.data(), Base.size());
+  Op->setTokenValue(StringRef(Tmp, Base.size() + 1));
+
+  // Check for the various suffix matches.
+  Tmp[Base.size()] = 'b';
+  bool MatchB = MatchInstructionImpl(Operands, Inst);
+  Tmp[Base.size()] = 'w';
+  bool MatchW = MatchInstructionImpl(Operands, Inst);
+  Tmp[Base.size()] = 'l';
+  bool MatchL = MatchInstructionImpl(Operands, Inst);
+
+  // Restore the old token.
+  Op->setTokenValue(Base);
+
+  // If exactly one matched, then we treat that as a successful match (and the
+  // instruction will already have been filled in correctly, since the failing
+  // matches won't have modified it).
+  if (MatchB + MatchW + MatchL == 2)
+    return false;
+
+  // Otherwise, the match failed.
+  return true;
+}
+
 
 extern "C" void LLVMInitializeX86AsmLexer();
 

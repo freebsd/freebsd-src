@@ -1293,9 +1293,8 @@ void FunctionPassManager::add(Pass *P) {
 bool FunctionPassManager::run(Function &F) {
   if (F.isMaterializable()) {
     std::string errstr;
-    if (F.Materialize(&errstr)) {
-      llvm_report_error("Error reading bitcode file: " + errstr);
-    }
+    if (F.Materialize(&errstr))
+      report_fatal_error("Error reading bitcode file: " + Twine(errstr));
   }
   return FPM->run(F);
 }

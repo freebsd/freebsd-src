@@ -120,10 +120,10 @@ extern __typeof (i1) i1;
 typedef int a();
 typedef int a2(int*);
 a x;
-a2 x2;
+a2 x2; // expected-note{{passing argument to parameter here}}
 void test_x() {
   x(5);
-  x2(5); // expected-warning{{incompatible integer to pointer conversion passing 'int', expected 'int *'}}
+  x2(5); // expected-warning{{incompatible integer to pointer conversion passing 'int' to parameter of type 'int *'}}
 }
 
 enum e0 {}; 

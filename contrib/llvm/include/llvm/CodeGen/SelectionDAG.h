@@ -62,8 +62,15 @@ private:
 /// instead the info is kept off to the side in this structure. Each SDNode may
 /// have one or more associated dbg_value entries. This information is kept in
 /// DbgValMap.
+/// Byval parameters are handled separately because they don't use alloca's,
+/// which busts the normal mechanism.  There is good reason for handling all
+/// parameters separately:  they may not have code generated for them, they
+/// should always go at the beginning of the function regardless of other code
+/// motion, and debug info for them is potentially useful even if the parameter
+/// is unused.  Right now only byval parameters are handled separately.
 class SDDbgInfo {
   SmallVector<SDDbgValue*, 32> DbgValues;
+  SmallVector<SDDbgValue*, 32> ByvalParmDbgValues;
   DenseMap<const SDNode*, SmallVector<SDDbgValue*, 2> > DbgValMap;
 
   void operator=(const SDDbgInfo&);   // Do not implement.
@@ -71,19 +78,22 @@ class SDDbgInfo {
 public:
   SDDbgInfo() {}
 
-  void add(SDDbgValue *V, const SDNode *Node = 0) {
+  void add(SDDbgValue *V, const SDNode *Node, bool isParameter) {
+    if (isParameter) {
+      ByvalParmDbgValues.push_back(V);
+    } else     DbgValues.push_back(V);
     if (Node)
       DbgValMap[Node].push_back(V);
-    DbgValues.push_back(V);
   }
 
   void clear() {
     DbgValMap.clear();
     DbgValues.clear();
+    ByvalParmDbgValues.clear();
   }
 
   bool empty() const {
-    return DbgValues.empty();
+    return DbgValues.empty() && ByvalParmDbgValues.empty();
   }
 
   SmallVector<SDDbgValue*,2> &getSDDbgValues(const SDNode *Node) {
@@ -93,6 +103,8 @@ public:
   typedef SmallVector<SDDbgValue*,32>::iterator DbgIterator;
   DbgIterator DbgBegin() { return DbgValues.begin(); }
   DbgIterator DbgEnd()   { return DbgValues.end(); }
+  DbgIterator ByvalParmDbgBegin() { return ByvalParmDbgValues.begin(); }
+  DbgIterator ByvalParmDbgEnd()   { return ByvalParmDbgValues.end(); }
 };
 
 enum CombineLevel {
@@ -117,7 +129,8 @@ void checkForCycles(const SelectionDAG *DAG);
 /// linear form.
 ///
 class SelectionDAG {
-  TargetLowering &TLI;
+  const TargetMachine &TM;
+  const TargetLowering &TLI;
   MachineFunction *MF;
   FunctionLoweringInfo &FLI;
   LLVMContext *Context;
@@ -172,7 +185,7 @@ class SelectionDAG {
   SelectionDAG(const SelectionDAG&);   // Do not implement.
 
 public:
-  SelectionDAG(TargetLowering &tli, FunctionLoweringInfo &fli);
+  SelectionDAG(const TargetMachine &TM, FunctionLoweringInfo &fli);
   ~SelectionDAG();
 
   /// init - Prepare this SelectionDAG to process code in the given
@@ -186,8 +199,8 @@ public:
   void clear();
 
   MachineFunction &getMachineFunction() const { return *MF; }
-  const TargetMachine &getTarget() const;
-  TargetLowering &getTargetLoweringInfo() const { return TLI; }
+  const TargetMachine &getTarget() const { return TM; }
+  const TargetLowering &getTargetLoweringInfo() const { return TLI; }
   FunctionLoweringInfo &getFunctionLoweringInfo() const { return FLI; }
   LLVMContext *getContext() const {return Context; }
 
@@ -350,10 +363,10 @@ public:
   SDValue getTargetJumpTable(int JTI, EVT VT, unsigned char TargetFlags = 0) {
     return getJumpTable(JTI, VT, true, TargetFlags);
   }
-  SDValue getConstantPool(Constant *C, EVT VT,
+  SDValue getConstantPool(const Constant *C, EVT VT,
                           unsigned Align = 0, int Offs = 0, bool isT=false,
                           unsigned char TargetFlags = 0);
-  SDValue getTargetConstantPool(Constant *C, EVT VT,
+  SDValue getTargetConstantPool(const Constant *C, EVT VT,
                                 unsigned Align = 0, int Offset = 0,
                                 unsigned char TargetFlags = 0) {
     return getConstantPool(C, VT, Align, Offset, true, TargetFlags);
@@ -377,7 +390,7 @@ public:
   SDValue getValueType(EVT);
   SDValue getRegister(unsigned Reg, EVT VT);
   SDValue getEHLabel(DebugLoc dl, SDValue Root, MCSymbol *Label);
-  SDValue getBlockAddress(BlockAddress *BA, EVT VT,
+  SDValue getBlockAddress(const BlockAddress *BA, EVT VT,
                           bool isTarget = false, unsigned char TargetFlags = 0);
 
   SDValue getCopyToReg(SDValue Chain, DebugLoc dl, unsigned Reg, SDValue N) {
@@ -650,6 +663,9 @@ public:
   /// getSrcValue - Construct a node to track a Value* through the backend.
   SDValue getSrcValue(const Value *v);
 
+  /// getMDNode - Return an MDNodeSDNode which holds an MDNode.
+  SDValue getMDNode(const MDNode *MD);
+  
   /// getShiftAmountOperand - Return the specified value casted to
   /// the target's desired shift amount type.
   SDValue getShiftAmountOperand(SDValue Op);
@@ -764,7 +780,7 @@ public:
   ///
   SDDbgValue *getDbgValue(MDNode *MDPtr, SDNode *N, unsigned R, uint64_t Off,
                           DebugLoc DL, unsigned O);
-  SDDbgValue *getDbgValue(MDNode *MDPtr, Value *C, uint64_t Off,
+  SDDbgValue *getDbgValue(MDNode *MDPtr, const Value *C, uint64_t Off,
                           DebugLoc DL, unsigned O);
   SDDbgValue *getDbgValue(MDNode *MDPtr, unsigned FI, uint64_t Off,
                           DebugLoc DL, unsigned O);
@@ -873,7 +889,7 @@ public:
 
   /// AddDbgValue - Add a dbg_value SDNode. If SD is non-null that means the
   /// value is produced by SD.
-  void AddDbgValue(SDDbgValue *DB, SDNode *SD = 0);
+  void AddDbgValue(SDDbgValue *DB, SDNode *SD, bool isParameter);
 
   /// GetDbgValues - Get the debug values which reference the given SDNode.
   SmallVector<SDDbgValue*,2> &GetDbgValues(const SDNode* SD) {
@@ -886,6 +902,12 @@ public:
 
   SDDbgInfo::DbgIterator DbgBegin() { return DbgInfo->DbgBegin(); }
   SDDbgInfo::DbgIterator DbgEnd()   { return DbgInfo->DbgEnd(); }
+  SDDbgInfo::DbgIterator ByvalParmDbgBegin() { 
+    return DbgInfo->ByvalParmDbgBegin(); 
+  }
+  SDDbgInfo::DbgIterator ByvalParmDbgEnd()   { 
+    return DbgInfo->ByvalParmDbgEnd(); 
+  }
 
   void dump() const;
 

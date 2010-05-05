@@ -26,11 +26,40 @@ ActionBase::~ActionBase() {}
 ///  Out-of-line virtual destructor to provide home for Action class.
 Action::~Action() {}
 
+Action::ObjCMessageKind Action::getObjCMessageKind(Scope *S,
+                                                   IdentifierInfo *Name,
+                                                   SourceLocation NameLoc,
+                                                   bool IsSuper,
+                                                   bool HasTrailingDot,
+                                                   TypeTy *&ReceiverType) {
+  ReceiverType = 0;
+
+  if (IsSuper && !HasTrailingDot && S->isInObjcMethodScope())
+    return ObjCSuperMessage;
+      
+  if (TypeTy *TyName = getTypeName(*Name, NameLoc, S)) {
+    DeclSpec DS;
+    const char *PrevSpec = 0;
+    unsigned DiagID = 0;
+    if (!DS.SetTypeSpecType(DeclSpec::TST_typename, NameLoc, PrevSpec,
+                            DiagID, TyName)) {
+      DS.SetRangeEnd(NameLoc);
+      Declarator DeclaratorInfo(DS, Declarator::TypeNameContext);
+      TypeResult Ty = ActOnTypeName(S, DeclaratorInfo);
+      if (!Ty.isInvalid())
+        ReceiverType = Ty.get();
+    }
+    return ObjCClassMessage;
+  }
+      
+  return ObjCInstanceMessage;
+}
+
 // Defined out-of-line here because of dependecy on AttributeList
 Action::DeclPtrTy Action::ActOnUsingDirective(Scope *CurScope,
                                               SourceLocation UsingLoc,
                                               SourceLocation NamespcLoc,
-                                              const CXXScopeSpec &SS,
+                                              CXXScopeSpec &SS,
                                               SourceLocation IdentLoc,
                                               IdentifierInfo *NamespcName,
                                               AttributeList *AttrList) {
@@ -47,7 +76,7 @@ Action::DeclPtrTy Action::ActOnUsingDeclaration(Scope *CurScope,
                                                 AccessSpecifier AS,
                                                 bool HasUsingKeyword,
                                                 SourceLocation UsingLoc,
-                                                const CXXScopeSpec &SS,
+                                                CXXScopeSpec &SS,
                                                 UnqualifiedId &Name,
                                                 AttributeList *AttrList,
                                                 bool IsTypeName,
@@ -144,7 +173,7 @@ void MinimalAction::ActOnTranslationUnitScope(SourceLocation Loc, Scope *S) {
 /// FIXME: Use the passed CXXScopeSpec for accurate C++ type checking.
 Action::TypeTy *
 MinimalAction::getTypeName(IdentifierInfo &II, SourceLocation Loc,
-                           Scope *S, const CXXScopeSpec *SS,
+                           Scope *S, CXXScopeSpec *SS,
                            bool isClassName, TypeTy *ObjectType) {
   if (TypeNameInfo *TI = II.getFETokenInfo<TypeNameInfo>())
     if (TI->isTypeName)
@@ -161,7 +190,7 @@ bool MinimalAction::isCurrentClassName(const IdentifierInfo &, Scope *,
 
 TemplateNameKind
 MinimalAction::isTemplateName(Scope *S,
-                              const CXXScopeSpec &SS,
+                              CXXScopeSpec &SS,
                               UnqualifiedId &Name,
                               TypeTy *ObjectType,
                               bool EnteringScope,

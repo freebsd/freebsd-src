@@ -355,7 +355,7 @@ static bool getVisualStudioDir(std::string &path) {
     else if (vs80comntools)
       vscomntools = vs80comntools;
     if (vscomntools && *vscomntools) {
-      char *p = (char*)strstr(vscomntools, "\\Common7\\Tools");
+      char *p = const_cast<char *>(strstr(vscomntools, "\\Common7\\Tools"));
       if (p)
         *p = '\0';
       path = vscomntools;
@@ -429,6 +429,49 @@ void InitHeaderSearch::AddDefaultCIncludePaths(const llvm::Triple &triple) {
       }
     }
     break;
+  case llvm::Triple::Haiku:
+    AddPath("/boot/common/include", System, true, false, false);
+    AddPath("/boot/develop/headers/os", System, true, false, false);
+    AddPath("/boot/develop/headers/os/app", System, true, false, false);
+    AddPath("/boot/develop/headers/os/arch", System, true, false, false);
+    AddPath("/boot/develop/headers/os/device", System, true, false, false);
+    AddPath("/boot/develop/headers/os/drivers", System, true, false, false);
+    AddPath("/boot/develop/headers/os/game", System, true, false, false); 
+    AddPath("/boot/develop/headers/os/interface", System, true, false, false);
+    AddPath("/boot/develop/headers/os/kernel", System, true, false, false);
+    AddPath("/boot/develop/headers/os/locale", System, true, false, false);
+    AddPath("/boot/develop/headers/os/mail", System, true, false, false);
+    AddPath("/boot/develop/headers/os/media", System, true, false, false);
+    AddPath("/boot/develop/headers/os/midi", System, true, false, false);
+    AddPath("/boot/develop/headers/os/midi2", System, true, false, false);
+    AddPath("/boot/develop/headers/os/net", System, true, false, false);
+    AddPath("/boot/develop/headers/os/storage", System, true, false, false);
+    AddPath("/boot/develop/headers/os/support", System, true, false, false);
+    AddPath("/boot/develop/headers/os/translation",
+      System, true, false, false);
+    AddPath("/boot/develop/headers/os/add-ons/graphics", 
+      System, true, false, false);
+    AddPath("/boot/develop/headers/os/add-ons/input_server", 
+      System, true, false, false);
+    AddPath("/boot/develop/headers/os/add-ons/screen_saver", 
+      System, true, false, false);
+    AddPath("/boot/develop/headers/os/add-ons/tracker", 
+      System, true, false, false);
+    AddPath("/boot/develop/headers/os/be_apps/Deskbar",
+      System, true, false, false);
+    AddPath("/boot/develop/headers/os/be_apps/NetPositive",
+      System, true, false, false);
+    AddPath("/boot/develop/headers/os/be_apps/Tracker",
+      System, true, false, false);
+    AddPath("/boot/develop/headers/cpp", System, true, false, false);
+    AddPath("/boot/develop/headers/cpp/i586-pc-haiku", 
+      System, true, false, false);
+    AddPath("/boot/develop/headers/3rdparty", System, true, false, false);
+    AddPath("/boot/develop/headers/bsd", System, true, false, false);
+    AddPath("/boot/develop/headers/glibc", System, true, false, false);
+    AddPath("/boot/develop/headers/posix", System, true, false, false);
+    AddPath("/boot/develop/headers",  System, true, false, false);
+  	break;
   case llvm::Triple::MinGW64:
   case llvm::Triple::MinGW32:
     AddPath("c:/mingw/include", System, true, false, false);
@@ -523,14 +566,26 @@ void InitHeaderSearch::AddDefaultCPlusPlusIncludePaths(const llvm::Triple &tripl
     AddGnuCPlusPlusIncludePaths("/usr/include/c++/4.4.1",
                                 "i586-redhat-linux","", "", triple);
 
+    // Fedora 11 x86_64
+    AddGnuCPlusPlusIncludePaths("/usr/include/c++/4.4.1",
+                                "x86_64-redhat-linux", "32", "", triple);
+
     // Fedora 12
     AddGnuCPlusPlusIncludePaths("/usr/include/c++/4.4.2",
                                 "i686-redhat-linux","", "", triple);
 
+    // Fedora 12 x86_64
+    AddGnuCPlusPlusIncludePaths("/usr/include/c++/4.4.2",
+                                "x86_64-redhat-linux", "32", "", triple);
+
     // Fedora 12 (February-2010+)
     AddGnuCPlusPlusIncludePaths("/usr/include/c++/4.4.3",
                                 "i686-redhat-linux","", "", triple);
-      
+
+    // Fedora 12 (February-2010+) x86_64
+    AddGnuCPlusPlusIncludePaths("/usr/include/c++/4.4.3",
+                                "x86_64-redhat-linux", "32", "", triple);
+
     // openSUSE 11.1 32 bit
     AddGnuCPlusPlusIncludePaths("/usr/include/c++/4.3",
                                 "i586-suse-linux", "", "", triple);

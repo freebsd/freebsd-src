@@ -29,6 +29,7 @@ class ObjCProtocolDecl;
 class ObjCCategoryDecl;
 class ObjCPropertyDecl;
 class ObjCPropertyImplDecl;
+class CXXBaseOrMemberInitializer;
 
 class ObjCListBase {
   void operator=(const ObjCListBase &);     // DO NOT IMPLEMENT
@@ -136,6 +137,9 @@ private:
   /// in, inout, etc.
   unsigned objcDeclQualifier : 6;
 
+  // Number of args separated by ':' in a method declaration.
+  unsigned NumSelectorArgs;
+
   // Result type of this method.
   QualType MethodDeclType;
   
@@ -167,13 +171,15 @@ private:
                  bool isInstance = true,
                  bool isVariadic = false,
                  bool isSynthesized = false,
-                 ImplementationControl impControl = None)
+                 ImplementationControl impControl = None,
+                 unsigned numSelectorArgs = 0)
   : NamedDecl(ObjCMethod, contextDecl, beginLoc, SelInfo),
     DeclContext(ObjCMethod),
     IsInstance(isInstance), IsVariadic(isVariadic),
     IsSynthesized(isSynthesized),
     DeclImplementation(impControl), objcDeclQualifier(OBJC_TQ_None),
-    MethodDeclType(T), ResultTInfo(ResultTInfo),
+    NumSelectorArgs(numSelectorArgs), MethodDeclType(T), 
+    ResultTInfo(ResultTInfo),
     EndLoc(endLoc), Body(0), SelfDecl(0), CmdDecl(0) {}
 
   virtual ~ObjCMethodDecl() {}
@@ -197,7 +203,8 @@ public:
                                 bool isInstance = true,
                                 bool isVariadic = false,
                                 bool isSynthesized = false,
-                                ImplementationControl impControl = None);
+                                ImplementationControl impControl = None,
+                                unsigned numSelectorArgs = 0);
 
   virtual ObjCMethodDecl *getCanonicalDecl();
   const ObjCMethodDecl *getCanonicalDecl() const {
@@ -209,6 +216,11 @@ public:
   }
   void setObjCDeclQualifier(ObjCDeclQualifier QV) { objcDeclQualifier = QV; }
 
+  unsigned getNumSelectorArgs() const { return NumSelectorArgs; }
+  void setNumSelectorArgs(unsigned numSelectorArgs) { 
+    NumSelectorArgs = numSelectorArgs; 
+  }
+  
   // Location information, modeled after the Stmt API.
   SourceLocation getLocStart() const { return getLocation(); }
   SourceLocation getLocEnd() const { return EndLoc; }
@@ -235,9 +247,16 @@ public:
   typedef ObjCList<ParmVarDecl>::iterator param_iterator;
   param_iterator param_begin() const { return ParamInfo.begin(); }
   param_iterator param_end() const { return ParamInfo.end(); }
+  // This method returns and of the parameters which are part of the selector
+  // name mangling requirements.
+  param_iterator sel_param_end() const { 
+    return ParamInfo.begin() + NumSelectorArgs; 
+  }
 
-  void setMethodParams(ASTContext &C, ParmVarDecl *const *List, unsigned Num) {
+  void setMethodParams(ASTContext &C, ParmVarDecl *const *List, unsigned Num,
+                       unsigned numSelectorArgs) {
     ParamInfo.set(List, Num, C);
+    NumSelectorArgs = numSelectorArgs; 
   }
 
   // Iterator access to parameter types.
@@ -1114,6 +1133,9 @@ public:
   static bool classofKind(Kind K) { return K == ObjCCategoryImpl;}
 };
 
+llvm::raw_ostream &operator<<(llvm::raw_ostream &OS,
+                              const ObjCCategoryImplDecl *CID);
+
 /// ObjCImplementationDecl - Represents a class definition - this is where
 /// method definitions are specified. For example:
 ///
@@ -1131,18 +1153,54 @@ public:
 class ObjCImplementationDecl : public ObjCImplDecl {
   /// Implementation Class's super class.
   ObjCInterfaceDecl *SuperClass;
-
+  /// Support for ivar initialization.
+  /// IvarInitializers - The arguments used to initialize the ivars
+  CXXBaseOrMemberInitializer **IvarInitializers;
+  unsigned NumIvarInitializers;
+  
   ObjCImplementationDecl(DeclContext *DC, SourceLocation L,
                          ObjCInterfaceDecl *classInterface,
                          ObjCInterfaceDecl *superDecl)
     : ObjCImplDecl(ObjCImplementation, DC, L, classInterface),
-       SuperClass(superDecl){}
+       SuperClass(superDecl), IvarInitializers(0), NumIvarInitializers(0) {}
 public:
   static ObjCImplementationDecl *Create(ASTContext &C, DeclContext *DC,
                                         SourceLocation L,
                                         ObjCInterfaceDecl *classInterface,
                                         ObjCInterfaceDecl *superDecl);
-
+  
+  /// init_iterator - Iterates through the ivar initializer list.
+  typedef CXXBaseOrMemberInitializer **init_iterator;
+  
+  /// init_const_iterator - Iterates through the ivar initializer list.
+  typedef CXXBaseOrMemberInitializer * const * init_const_iterator;
+  
+  /// init_begin() - Retrieve an iterator to the first initializer.
+  init_iterator       init_begin()       { return IvarInitializers; }
+  /// begin() - Retrieve an iterator to the first initializer.
+  init_const_iterator init_begin() const { return IvarInitializers; }
+  
+  /// init_end() - Retrieve an iterator past the last initializer.
+  init_iterator       init_end()       {
+    return IvarInitializers + NumIvarInitializers;
+  }
+  /// end() - Retrieve an iterator past the last initializer.
+  init_const_iterator init_end() const {
+    return IvarInitializers + NumIvarInitializers;
+  }
+  /// getNumArgs - Number of ivars which must be initialized.
+  unsigned getNumIvarInitializers() const {
+    return NumIvarInitializers;
+  }
+  
+  void setNumIvarInitializers(unsigned numNumIvarInitializers) {
+    NumIvarInitializers = numNumIvarInitializers;
+  }
+  
+  void setIvarInitializers(ASTContext &C,
+                           CXXBaseOrMemberInitializer ** initializers,
+                           unsigned numInitializers);
+    
   /// getIdentifier - Get the identifier that names the class
   /// interface associated with this implementation.
   IdentifierInfo *getIdentifier() const {
@@ -1198,6 +1256,9 @@ public:
   static bool classof(const ObjCImplementationDecl *D) { return true; }
   static bool classofKind(Kind K) { return K == ObjCImplementation; }
 };
+
+llvm::raw_ostream &operator<<(llvm::raw_ostream &OS,
+                              const ObjCImplementationDecl *ID);
 
 /// ObjCCompatibleAliasDecl - Represents alias of a class. This alias is
 /// declared as @compatibility_alias alias class.

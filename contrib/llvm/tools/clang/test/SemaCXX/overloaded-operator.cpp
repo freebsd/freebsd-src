@@ -88,6 +88,7 @@ enum pr5244_bar
 
 class pr5244_baz
 {
+public:
     pr5244_bar quux;
 };
 
@@ -258,7 +259,7 @@ bool x(BB y, BB z) { return y != z; }
 
 
 struct AX { 
-  AX& operator ->();	 // expected-note {{declared at}}
+  AX& operator ->();	 // expected-note {{declared here}}
   int b;
 }; 
 
@@ -268,14 +269,14 @@ void m() {
 }
 
 struct CircA {
-  struct CircB& operator->(); // expected-note {{declared at}}
+  struct CircB& operator->(); // expected-note {{declared here}}
   int val;
 };
 struct CircB {
-  struct CircC& operator->(); // expected-note {{declared at}}
+  struct CircC& operator->(); // expected-note {{declared here}}
 };
 struct CircC {
-  struct CircA& operator->(); // expected-note {{declared at}}
+  struct CircA& operator->(); // expected-note {{declared here}}
 };
 
 void circ() {
@@ -354,4 +355,25 @@ namespace pr5900 {
     NotAFunction x;
     x(); // expected-error {{does not provide a call operator}}
   }
+}
+
+// Operator lookup through using declarations.
+namespace N {
+  struct X2 { };
+}
+
+namespace N2 {
+  namespace M {
+    namespace Inner {
+      template<typename T>
+      N::X2 &operator<<(N::X2&, const T&);
+    }
+    using Inner::operator<<;
+  }
+}
+
+void test_lookup_through_using() {
+  using namespace N2::M;
+  N::X2 x;
+  x << 17;
 }

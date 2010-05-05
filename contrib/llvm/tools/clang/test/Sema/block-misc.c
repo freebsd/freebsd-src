@@ -139,12 +139,12 @@ void test14() {
 
 enum { LESS };
 
-void foo(long (^comp)()) {
+void foo(long (^comp)()) { // expected-note{{passing argument to parameter 'comp' here}}
 }
 
 void (^test15f)(void);
 void test15() {
-  foo(^{ return LESS; }); // expected-error {{incompatible block pointer types passing 'int (^)(void)', expected 'long (^)()'}}
+  foo(^{ return LESS; }); // expected-error {{incompatible block pointer types passing 'int (^)(void)' to parameter of type 'long (^)()'}}
 }
 
 __block int test16i;  // expected-error {{__block attribute not allowed, only allowed on local variables}}
@@ -202,8 +202,8 @@ L0:
 // radr://7438948
 void test20() {
   int n = 7;
-  int vla[n]; // expected-note {{declared at}}
-  int (*vm)[n] = 0; // expected-note {{declared at}}
+  int vla[n]; // expected-note {{declared here}}
+  int (*vm)[n] = 0; // expected-note {{declared here}}
   vla[1] = 4341;
   ^{
     (void)vla[1];  // expected-error {{cannot refer to declaration with a variably modified type inside block}}
@@ -213,8 +213,8 @@ void test20() {
 
 // radr://7438948
 void test21() {
-  int a[7]; // expected-note {{declared at}}
-  __block int b[10]; // expected-note {{declared at}}
+  int a[7]; // expected-note {{declared here}}
+  __block int b[10]; // expected-note {{declared here}}
   a[1] = 1;
   ^{
     (void)a[1]; // expected-error {{cannot refer to declaration with an array type inside block}}

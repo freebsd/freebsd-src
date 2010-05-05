@@ -716,7 +716,8 @@ void Preprocessor::HandleLineDirective(Token &Tok) {
   SourceMgr.AddLineNote(DigitTok.getLocation(), LineNo, FilenameID);
 
   if (Callbacks)
-    Callbacks->FileChanged(DigitTok.getLocation(), PPCallbacks::RenameFile,
+    Callbacks->FileChanged(CurPPLexer->getSourceLocation(),
+                           PPCallbacks::RenameFile,
                            SrcMgr::C_User);
 }
 
@@ -865,7 +866,7 @@ void Preprocessor::HandleDigitDirective(Token &DigitTok) {
     else if (IsSystemHeader)
       FileKind = SrcMgr::C_System;
 
-    Callbacks->FileChanged(DigitTok.getLocation(), Reason, FileKind);
+    Callbacks->FileChanged(CurPPLexer->getSourceLocation(), Reason, FileKind);
   }
 }
 
@@ -1087,17 +1088,20 @@ void Preprocessor::HandleIncludeDirective(Token &IncludeTok,
     return;
   }
 
-  // Ask HeaderInfo if we should enter this #include file.  If not, #including
-  // this file will have no effect.
-  if (!HeaderInfo.ShouldEnterIncludeFile(File, isImport))
-    return;
-
   // The #included file will be considered to be a system header if either it is
   // in a system include directory, or if the #includer is a system include
   // header.
   SrcMgr::CharacteristicKind FileCharacter =
     std::max(HeaderInfo.getFileDirFlavor(File),
              SourceMgr.getFileCharacteristic(FilenameTok.getLocation()));
+
+  // Ask HeaderInfo if we should enter this #include file.  If not, #including
+  // this file will have no effect.
+  if (!HeaderInfo.ShouldEnterIncludeFile(File, isImport)) {
+    if (Callbacks)
+      Callbacks->FileSkipped(*File, FilenameTok, FileCharacter);
+    return;
+  }
 
   // Look up the file, create a File ID for it.
   FileID FID = SourceMgr.createFileID(File, FilenameTok.getLocation(),
@@ -1108,10 +1112,7 @@ void Preprocessor::HandleIncludeDirective(Token &IncludeTok,
   }
 
   // Finally, if all is good, enter the new file!
-  std::string ErrorStr;
-  if (EnterSourceFile(FID, CurDir, ErrorStr))
-    Diag(FilenameTok, diag::err_pp_error_opening_file)
-      << std::string(SourceMgr.getFileEntryForID(FID)->getName()) << ErrorStr;
+  EnterSourceFile(FID, CurDir, FilenameTok.getLocation());
 }
 
 /// HandleIncludeNextDirective - Implements #include_next.
@@ -1666,4 +1667,3 @@ void Preprocessor::HandleElifDirective(Token &ElifToken) {
   return SkipExcludedConditionalBlock(CI.IfLoc, /*Foundnonskip*/true,
                                       /*FoundElse*/CI.FoundElse);
 }
-

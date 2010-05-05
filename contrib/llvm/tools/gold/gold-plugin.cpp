@@ -58,16 +58,16 @@ namespace {
 }
 
 namespace options {
-  bool generate_api_file = false;
-  const char *as_path = NULL;
+  static bool generate_api_file = false;
+  static const char *as_path = NULL;
   // Additional options to pass into the code generator.
   // Note: This array will contain all plugin options which are not claimed 
   // as plugin exclusive to pass to the code generator.
   // For example, "generate-api-file" and "as"options are for the plugin 
   // use only and will not be passed.
-  std::vector<std::string> extra;
+  static std::vector<std::string> extra;
 
-  void process_plugin_option(const char* opt)
+  static void process_plugin_option(const char* opt)
   {
     if (opt == NULL)
       return;
@@ -88,10 +88,10 @@ namespace options {
   }
 }
 
-ld_plugin_status claim_file_hook(const ld_plugin_input_file *file,
-                                 int *claimed);
-ld_plugin_status all_symbols_read_hook(void);
-ld_plugin_status cleanup_hook(void);
+static ld_plugin_status claim_file_hook(const ld_plugin_input_file *file,
+                                        int *claimed);
+static ld_plugin_status all_symbols_read_hook(void);
+static ld_plugin_status cleanup_hook(void);
 
 extern "C" ld_plugin_status onload(ld_plugin_tv *tv);
 ld_plugin_status onload(ld_plugin_tv *tv) {
@@ -192,8 +192,8 @@ ld_plugin_status onload(ld_plugin_tv *tv) {
 /// claim_file_hook - called by gold to see whether this file is one that
 /// our plugin can handle. We'll try to open it and register all the symbols
 /// with add_symbol if possible.
-ld_plugin_status claim_file_hook(const ld_plugin_input_file *file,
-                                 int *claimed) {
+static ld_plugin_status claim_file_hook(const ld_plugin_input_file *file,
+                                        int *claimed) {
   void *buf = NULL;
   if (file->offset) {
     // Gold has found what might be IR part-way inside of a file, such as
@@ -316,7 +316,7 @@ ld_plugin_status claim_file_hook(const ld_plugin_input_file *file,
 /// At this point, we use get_symbols to see if any of our definitions have
 /// been overridden by a native object file. Then, perform optimization and
 /// codegen.
-ld_plugin_status all_symbols_read_hook(void) {
+static ld_plugin_status all_symbols_read_hook(void) {
   lto_code_gen_t cg = lto_codegen_create();
 
   for (std::list<claimed_file>::iterator I = Modules.begin(),
@@ -340,9 +340,7 @@ ld_plugin_status all_symbols_read_hook(void) {
          E = Modules.end(); I != E; ++I) {
       (*get_symbols)(I->handle, I->syms.size(), &I->syms[0]);
       for (unsigned i = 0, e = I->syms.size(); i != e; i++) {
-        if (I->syms[i].resolution == LDPR_PREVAILING_DEF ||
-            (I->syms[i].def == LDPK_COMMON &&
-             I->syms[i].resolution == LDPR_RESOLVED_IR)) {
+        if (I->syms[i].resolution == LDPR_PREVAILING_DEF) {
           lto_codegen_add_must_preserve_symbol(cg, I->syms[i].name);
           anySymbolsPreserved = true;
 
@@ -387,7 +385,7 @@ ld_plugin_status all_symbols_read_hook(void) {
     (*message)(LDPL_ERROR, "%s", ErrMsg.c_str());
     return LDPS_ERR;
   }
-  raw_fd_ostream *objFile = 
+  raw_fd_ostream *objFile =
     new raw_fd_ostream(uniqueObjPath.c_str(), ErrMsg,
                        raw_fd_ostream::F_Binary);
   if (!ErrMsg.empty()) {
@@ -412,7 +410,7 @@ ld_plugin_status all_symbols_read_hook(void) {
   return LDPS_OK;
 }
 
-ld_plugin_status cleanup_hook(void) {
+static ld_plugin_status cleanup_hook(void) {
   std::string ErrMsg;
 
   for (int i = 0, e = Cleanup.size(); i != e; ++i)

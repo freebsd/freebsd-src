@@ -38,9 +38,16 @@ public:
                                  /// binary serialization mechanism, to be
                                  /// deserialized by, e.g., the CIndex library.
 
+  unsigned ErrorLimit;           /// Limit # errors emitted.
+  unsigned MacroBacktraceLimit;  /// Limit depth of macro instantiation 
+                                 /// backtrace.
+  unsigned TemplateBacktraceLimit; /// Limit depth of instantiation backtrace.
+
   /// The distance between tab stops.
   unsigned TabStop;
-  enum { DefaultTabStop = 8, MaxTabStop = 100 };
+  enum { DefaultTabStop = 8, MaxTabStop = 100, 
+         DefaultMacroBacktraceLimit = 6,
+         DefaultTemplateBacktraceLimit = 10 };
 
   /// Column limit for formatting message diagnostics, or 0 if unused.
   unsigned MessageLength;
@@ -70,6 +77,9 @@ public:
     ShowSourceRanges = 0;
     VerifyDiagnostics = 0;
     BinaryOutput = 0;
+    ErrorLimit = 0;
+    TemplateBacktraceLimit = 0;
+    MacroBacktraceLimit = 0;
   }
 };
 

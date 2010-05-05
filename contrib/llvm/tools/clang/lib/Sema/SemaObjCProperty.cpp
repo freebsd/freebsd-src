@@ -204,7 +204,7 @@ ObjCPropertyDecl *Sema::CreatePropertyDecl(Scope *S,
         ObjCInterfaceDecl *IDecl = OIT->getDecl();
         if (IDecl)
           if (ObjCProtocolDecl* PNSCopying =
-              LookupProtocol(&Context.Idents.get("NSCopying")))
+              LookupProtocol(&Context.Idents.get("NSCopying"), AtLoc))
             if (IDecl->ClassImplementsProtocol(PNSCopying, true))
               Diag(AtLoc, diag::warn_implements_nscopying) << PropertyId;
       }
@@ -356,7 +356,7 @@ Sema::DeclPtrTy Sema::ActOnPropertyImplDecl(SourceLocation AtLoc,
     if (!Ivar) {
       Ivar = ObjCIvarDecl::Create(Context, ClassImpDecl, PropertyLoc,
                                   PropertyIvar, PropType, /*Dinfo=*/0,
-                                  ObjCIvarDecl::Public,
+                                  ObjCIvarDecl::Protected,
                                   (Expr *)0);
       ClassImpDecl->addDecl(Ivar);
       IDecl->makeDeclVisibleInContext(Ivar, false);
@@ -719,7 +719,10 @@ void Sema::CollectImmediateProperties(ObjCContainerDecl *CDecl,
     // scan through class's protocols.
     for (ObjCInterfaceDecl::protocol_iterator PI = IDecl->protocol_begin(),
          E = IDecl->protocol_end(); PI != E; ++PI)
-      CollectImmediateProperties((*PI), PropMap);
+      // Exclude property for protocols which conform to class's super-class, 
+      // as super-class has to implement the property.
+      if (!ProtocolConformsToSuperClass(IDecl, (*PI)))
+        CollectImmediateProperties((*PI), PropMap);
   }
   if (ObjCCategoryDecl *CATDecl = dyn_cast<ObjCCategoryDecl>(CDecl)) {
     if (!CATDecl->IsClassExtension())
@@ -746,6 +749,33 @@ void Sema::CollectImmediateProperties(ObjCContainerDecl *CDecl,
          E = PDecl->protocol_end(); PI != E; ++PI)
       CollectImmediateProperties((*PI), PropMap);
   }
+}
+
+/// ProtocolConformsToSuperClass - Returns true if class's given protocol
+/// conforms to one of its super class's protocols.
+bool Sema::ProtocolConformsToSuperClass(const ObjCInterfaceDecl *IDecl,
+                                        const ObjCProtocolDecl *PDecl) {
+  if (const ObjCInterfaceDecl *CDecl = IDecl->getSuperClass()) {
+    for (ObjCInterfaceDecl::protocol_iterator PI = CDecl->protocol_begin(),
+         E = CDecl->protocol_end(); PI != E; ++PI) {
+      if (ProtocolConformsToProtocol((*PI), PDecl))
+        return true;
+      return ProtocolConformsToSuperClass(CDecl, PDecl);
+    }
+  }
+  return false;
+}
+
+bool Sema::ProtocolConformsToProtocol(const ObjCProtocolDecl *NestedProtocol,
+                                      const ObjCProtocolDecl *PDecl) {
+  if (PDecl->getIdentifier() == NestedProtocol->getIdentifier())
+    return true;
+  // scan through protocol's protocols.
+  for (ObjCProtocolDecl::protocol_iterator PI = PDecl->protocol_begin(),
+       E = PDecl->protocol_end(); PI != E; ++PI)
+    if (ProtocolConformsToProtocol(NestedProtocol, (*PI)))
+      return true;
+  return false;
 }
 
 /// LookupPropertyDecl - Looks up a property in the current class and all
@@ -810,9 +840,9 @@ void Sema::DiagnoseUnimplementedProperties(ObjCImplDecl* IMPDecl,
         Prop->getPropertyImplementation() == ObjCPropertyDecl::Optional ||
         PropImplMap.count(Prop))
       continue;
-    if (LangOpts.ObjCNonFragileABI2) {
+    if (LangOpts.ObjCNonFragileABI2 && !isa<ObjCCategoryImplDecl>(IMPDecl)) {
       ActOnPropertyImplDecl(IMPDecl->getLocation(),
-                            SourceLocation(),
+                            IMPDecl->getLocation(),
                             true, DeclPtrTy::make(IMPDecl),
                             Prop->getIdentifier(),
                             Prop->getIdentifier());
@@ -953,8 +983,9 @@ void Sema::ProcessPropertyDecl(ObjCPropertyDecl *property,
                                                   property->getType(),
                                                   /*TInfo=*/0,
                                                   VarDecl::None,
+                                                  VarDecl::None,
                                                   0);
-      SetterMethod->setMethodParams(Context, &Argument, 1);
+      SetterMethod->setMethodParams(Context, &Argument, 1, 1);
       CD->addDecl(SetterMethod);
     } else
       // A user declared setter will be synthesize when @synthesize of
@@ -1066,21 +1097,3 @@ void Sema::CheckObjCPropertyAttributes(DeclPtrTy PropertyPtrTy,
       && PropertyTy->isBlockPointerType())
     Diag(Loc, diag::warn_objc_property_copy_missing_on_block);
 }
-
-ObjCIvarDecl*
-Sema::SynthesizeNewPropertyIvar(ObjCInterfaceDecl *IDecl,
-                                IdentifierInfo *NameII) {
-  ObjCIvarDecl *Ivar = 0;
-  ObjCPropertyDecl *Prop = LookupPropertyDecl(IDecl, NameII);
-  if (Prop && !Prop->isInvalidDecl()) {
-    QualType PropType = Context.getCanonicalType(Prop->getType());
-    Ivar = ObjCIvarDecl::Create(Context, IDecl, Prop->getLocation(), NameII,
-                                PropType, /*Dinfo=*/0,
-                                ObjCIvarDecl::Public, (Expr *)0);
-    Ivar->setLexicalDeclContext(IDecl);
-    IDecl->addDecl(Ivar);
-    Prop->setPropertyIvarDecl(Ivar);
-  }
-  return Ivar;
-}
-

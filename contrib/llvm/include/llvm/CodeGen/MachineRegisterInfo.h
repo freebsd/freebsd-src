@@ -258,18 +258,18 @@ public:
   liveout_iterator liveout_end()   const { return LiveOuts.end(); }
   bool             liveout_empty() const { return LiveOuts.empty(); }
 
-  bool isLiveIn(unsigned Reg) const {
-    for (livein_iterator I = livein_begin(), E = livein_end(); I != E; ++I)
-      if (I->first == Reg || I->second == Reg)
-        return true;
-    return false;
-  }
-  bool isLiveOut(unsigned Reg) const {
-    for (liveout_iterator I = liveout_begin(), E = liveout_end(); I != E; ++I)
-      if (*I == Reg)
-        return true;
-    return false;
-  }
+  bool isLiveIn(unsigned Reg) const;
+  bool isLiveOut(unsigned Reg) const;
+
+  /// getLiveInPhysReg - If VReg is a live-in virtual register, return the
+  /// corresponding live-in physical register.
+  unsigned getLiveInPhysReg(unsigned VReg) const;
+
+  /// EmitLiveInCopies - Emit copies to initialize livein virtual registers
+  /// into the given entry block.
+  void EmitLiveInCopies(MachineBasicBlock *EntryMBB,
+                        const TargetRegisterInfo &TRI,
+                        const TargetInstrInfo &TII);
 
 private:
   void HandleVRegListReallocation();

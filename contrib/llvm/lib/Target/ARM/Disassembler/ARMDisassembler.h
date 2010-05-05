@@ -24,6 +24,8 @@ class MCInst;
 class MemoryObject;
 class raw_ostream;
   
+struct EDInstInfo;
+  
 /// ARMDisassembler - ARM disassembler for all ARM platforms.
 class ARMDisassembler : public MCDisassembler {
 public:
@@ -42,6 +44,9 @@ public:
                       const MemoryObject &region,
                       uint64_t address,
                       raw_ostream &vStream) const;
+  
+  /// getEDInfo - See MCDisassembler.
+  EDInstInfo *getEDInfo() const;
 private:
 };
 
@@ -55,7 +60,7 @@ public:
   Session() : ITCounter(0), ITState(0) {}
   ~Session() {}
   /// InitIT - Initializes ITCounter/ITState.
-  void InitIT(unsigned short bits7_0);
+  bool InitIT(unsigned short bits7_0);
   /// UpdateIT - Updates ITCounter/ITState as IT Block progresses.
   void UpdateIT();
 
@@ -82,6 +87,9 @@ public:
                       const MemoryObject &region,
                       uint64_t address,
                       raw_ostream &vStream) const;
+  
+  /// getEDInfo - See MCDisassembler.
+  EDInstInfo *getEDInfo() const;
 private:
   Session SO;
 };

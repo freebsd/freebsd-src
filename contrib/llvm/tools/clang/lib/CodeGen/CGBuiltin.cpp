@@ -682,13 +682,12 @@ RValue CodeGenFunction::EmitBuiltinExpr(const FunctionDecl *FD,
   case Builtin::BIsqrt:
   case Builtin::BIsqrtf:
   case Builtin::BIsqrtl: {
-    // Rewrite sqrt to intrinsic if allowed.
-    if (!FD->hasAttr<ConstAttr>())
-      break;
-    Value *Arg0 = EmitScalarExpr(E->getArg(0));
-    const llvm::Type *ArgType = Arg0->getType();
-    Value *F = CGM.getIntrinsic(Intrinsic::sqrt, &ArgType, 1);
-    return RValue::get(Builder.CreateCall(F, Arg0, "tmp"));
+    // TODO: there is currently no set of optimizer flags
+    // sufficient for us to rewrite sqrt to @llvm.sqrt.
+    // -fmath-errno=0 is not good enough; we need finiteness.
+    // We could probably precondition the call with an ult
+    // against 0, but is that worth the complexity?
+    break;
   }
 
   case Builtin::BIpow:
@@ -983,8 +982,38 @@ Value *CodeGenFunction::EmitX86BuiltinExpr(unsigned BuiltinID,
     return Builder.CreateStore(Ops[1], Ops[0]);
   }
   case X86::BI__builtin_ia32_palignr: {
-    Function *F = CGM.getIntrinsic(Intrinsic::x86_ssse3_palign_r);
-    return Builder.CreateCall(F, &Ops[0], &Ops[0] + Ops.size());
+    unsigned shiftVal = cast<llvm::ConstantInt>(Ops[2])->getZExtValue();
+    
+    // If palignr is shifting the pair of input vectors less than 9 bytes,
+    // emit a shuffle instruction.
+    if (shiftVal <= 8) {
+      const llvm::Type *IntTy = llvm::Type::getInt32Ty(VMContext);
+
+      llvm::SmallVector<llvm::Constant*, 8> Indices;
+      for (unsigned i = 0; i != 8; ++i)
+        Indices.push_back(llvm::ConstantInt::get(IntTy, shiftVal + i));
+      
+      Value* SV = llvm::ConstantVector::get(Indices.begin(), Indices.size());
+      return Builder.CreateShuffleVector(Ops[1], Ops[0], SV, "palignr");
+    }
+    
+    // If palignr is shifting the pair of input vectors more than 8 but less
+    // than 16 bytes, emit a logical right shift of the destination.
+    if (shiftVal < 16) {
+      // MMX has these as 1 x i64 vectors for some odd optimization reasons.
+      const llvm::Type *EltTy = llvm::Type::getInt64Ty(VMContext);
+      const llvm::Type *VecTy = llvm::VectorType::get(EltTy, 1);
+      
+      Ops[0] = Builder.CreateBitCast(Ops[0], VecTy, "cast");
+      Ops[1] = llvm::ConstantInt::get(VecTy, (shiftVal-8) * 8);
+      
+      // create i32 constant
+      llvm::Function *F = CGM.getIntrinsic(Intrinsic::x86_mmx_psrl_q);
+      return Builder.CreateCall(F, &Ops[0], &Ops[0] + 2, "palignr");
+    }
+    
+    // If palignr is shifting the pair of vectors more than 32 bytes, emit zero.
+    return llvm::Constant::getNullValue(ConvertType(E->getType()));
   }
   case X86::BI__builtin_ia32_palignr128: {
     unsigned shiftVal = cast<llvm::ConstantInt>(Ops[2])->getZExtValue();
@@ -1025,5 +1054,49 @@ Value *CodeGenFunction::EmitX86BuiltinExpr(unsigned BuiltinID,
 
 Value *CodeGenFunction::EmitPPCBuiltinExpr(unsigned BuiltinID,
                                            const CallExpr *E) {
+  llvm::SmallVector<Value*, 4> Ops;
+
+  for (unsigned i = 0, e = E->getNumArgs(); i != e; i++)
+    Ops.push_back(EmitScalarExpr(E->getArg(i)));
+
+  Intrinsic::ID ID = Intrinsic::not_intrinsic;
+
+  switch (BuiltinID) {
+  default: return 0;
+
+  // vec_st
+  case PPC::BI__builtin_altivec_stvx:
+  case PPC::BI__builtin_altivec_stvxl:
+  case PPC::BI__builtin_altivec_stvebx:
+  case PPC::BI__builtin_altivec_stvehx:
+  case PPC::BI__builtin_altivec_stvewx:
+  {
+    Ops[2] = Builder.CreateBitCast(Ops[2], llvm::Type::getInt8PtrTy(VMContext));
+    Ops[1] = !isa<Constant>(Ops[1]) || !cast<Constant>(Ops[1])->isNullValue()
+           ? Builder.CreateGEP(Ops[2], Ops[1], "tmp") : Ops[2];
+    Ops.pop_back();
+
+    switch (BuiltinID) {
+    default: assert(0 && "Unsupported vavg intrinsic!");
+    case PPC::BI__builtin_altivec_stvx:
+      ID = Intrinsic::ppc_altivec_stvx;
+      break;
+    case PPC::BI__builtin_altivec_stvxl:
+      ID = Intrinsic::ppc_altivec_stvxl;
+      break;
+    case PPC::BI__builtin_altivec_stvebx:
+      ID = Intrinsic::ppc_altivec_stvebx;
+      break;
+    case PPC::BI__builtin_altivec_stvehx:
+      ID = Intrinsic::ppc_altivec_stvehx;
+      break;
+    case PPC::BI__builtin_altivec_stvewx:
+      ID = Intrinsic::ppc_altivec_stvewx;
+      break;
+    }
+    llvm::Function *F = CGM.getIntrinsic(ID);
+    return Builder.CreateCall(F, &Ops[0], &Ops[0] + Ops.size(), "");
+  }
+  }
   return 0;
 }

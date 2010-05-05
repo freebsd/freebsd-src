@@ -1,4 +1,4 @@
-// RUN: %clang_cc1 %s -verify -Wunused -fsyntax-only
+// RUN: %clang_cc1 %s -verify -Wunused -Wunused-parameter -fsyntax-only
 
 int printf(const char *, ...);
 
@@ -21,7 +21,7 @@ int test1(void) {
 @end
 
 void test2() {
-  @"pointless example call for test purposes".length; // expected-warning {{property access result unused - getters should not have side effects}}
+  @"pointless example call for test purposes".length; // expected-warning {{property access result unused - getters should not be used for side effects}}
 }
 
 @interface foo
