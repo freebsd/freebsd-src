@@ -1011,9 +1011,7 @@ agp_i810_free_memory(device_t dev, struct agp_memory *mem)
 			VM_OBJECT_LOCK(mem->am_obj);
 			m = vm_page_lookup(mem->am_obj, 0);
 			vm_page_lock(m);
-			vm_page_lock_queues();
 			vm_page_unwire(m, 0);
-			vm_page_unlock_queues();
 			vm_page_unlock(m);
 			VM_OBJECT_UNLOCK(mem->am_obj);
 		} else {
