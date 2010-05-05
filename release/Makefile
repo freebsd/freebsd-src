@@ -169,7 +169,7 @@ NOPORTSATALL=	YES
 
 #
 # Doing 'make index' in /usr/ports requires Perl.
-MAKEINDEXPORTS=	lang/perl5.8
+MAKEINDEXPORTS=	lang/perl5.10
 # By default, documentation (Handbook, FAQ, etc.) is built for all
 # the languages.  To speed up building, set the DOC_LANG to just
 # the languages you need.  (The language for the release notes is
