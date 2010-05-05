@@ -529,9 +529,7 @@ vm_thread_swapout(struct thread *td)
 			panic("vm_thread_swapout: kstack already missing?");
 		vm_page_dirty(m);
 		vm_page_lock(m);
-		vm_page_lock_queues();
 		vm_page_unwire(m, 0);
-		vm_page_unlock_queues();
 		vm_page_unlock(m);
 	}
 	VM_OBJECT_UNLOCK(ksobj);
