@@ -5422,12 +5422,6 @@ key_add(so, m, mhp)
 		return key_senderror(so, m, error);
 	}
 
-	/* check SA values to be mature. */
-	if ((error = key_mature(newsav)) != 0) {
-		KEY_FREESAV(&newsav);
-		return key_senderror(so, m, error);
-	}
-
 #ifdef IPSEC_NAT_T
 	/*
 	 * Handle more NAT-T info if present,
@@ -5446,6 +5440,12 @@ key_add(so, m, mhp)
 		newsav->natt_esp_frag_len = frag->sadb_x_nat_t_frag_fraglen;
 #endif
 #endif
+
+	/* check SA values to be mature. */
+	if ((error = key_mature(newsav)) != 0) {
+		KEY_FREESAV(&newsav);
+		return key_senderror(so, m, error);
+	}
 
 	/*
 	 * don't call key_freesav() here, as we would like to keep the SA
