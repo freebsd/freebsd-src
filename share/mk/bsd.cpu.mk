@@ -12,7 +12,7 @@ MACHINE_CPU = i486
 _CPUCFLAGS = -mcpu=ev4 -mtune=ev5
 MACHINE_CPU = ev4
 . elif ${MACHINE_ARCH} == "amd64"
-MACHINE_CPU = amd64 sse2 sse
+MACHINE_CPU = amd64 sse2 sse mmx
 . elif ${MACHINE_ARCH} == "ia64"
 MACHINE_CPU = itanium
 . elif ${MACHINE_ARCH} == "sparc64"
