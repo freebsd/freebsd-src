@@ -4809,6 +4809,8 @@ camisr_runqueue(void *V_queue)
 			if ((dev->flags & CAM_DEV_TAG_AFTER_COUNT) != 0
 			 && (--dev->tag_delay_count == 0))
 				xpt_start_tags(ccb_h->path);
+			if (!device_is_send_queued(dev))
+				xpt_schedule_dev_sendq(ccb_h->path->bus, dev);
 		}
 
 		if (ccb_h->status & CAM_RELEASE_SIMQ) {
