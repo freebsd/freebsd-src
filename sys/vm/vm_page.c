@@ -791,7 +791,7 @@ vm_page_remove(vm_page_t m)
 	vm_page_t root;
 
 	if ((m->flags & PG_UNMANAGED) == 0)
-		mtx_assert(&vm_page_queue_mtx, MA_OWNED);
+		vm_page_lock_assert(m, MA_OWNED);
 	if ((object = m->object) == NULL)
 		return;
 	VM_OBJECT_LOCK_ASSERT(object, MA_OWNED);
@@ -2234,11 +2234,11 @@ vm_page_cowfault(vm_page_t m)
 
  retry_alloc:
 	pmap_remove_all(m);
+	vm_page_unlock_queues();
 	vm_page_remove(m);
 	mnew = vm_page_alloc(object, pindex, VM_ALLOC_NORMAL | VM_ALLOC_NOBUSY);
 	if (mnew == NULL) {
 		vm_page_insert(m, object, pindex);
-		vm_page_unlock_queues();
 		vm_page_unlock(m);
 		VM_OBJECT_UNLOCK(object);
 		VM_WAIT;
@@ -2261,7 +2261,12 @@ vm_page_cowfault(vm_page_t m)
 		 * waiting to allocate a page.  If so, put things back 
 		 * the way they were 
 		 */
+		vm_page_unlock(m);
+		vm_page_lock(mnew);
+		vm_page_lock_queues();
 		vm_page_free(mnew);
+		vm_page_unlock_queues();
+		vm_page_unlock(mnew);
 		vm_page_insert(m, object, pindex);
 	} else { /* clear COW & copy page */
 		if (!so_zerocp_fullpage)
@@ -2270,9 +2275,8 @@ vm_page_cowfault(vm_page_t m)
 		vm_page_dirty(mnew);
 		mnew->wire_count = m->wire_count - m->cow;
 		m->wire_count = m->cow;
+		vm_page_unlock(m);
 	}
-	vm_page_unlock_queues();
-	vm_page_unlock(m);
 }
 
 void 

@@ -1461,9 +1461,7 @@ retry:
 			goto retry;
 		}
 		vm_page_lock(m);
-		vm_page_lock_queues();
 		vm_page_rename(m, new_object, idx);
-		vm_page_unlock_queues();
 		vm_page_unlock(m);
 		/* page automatically made dirty by rename and cache handled */
 		vm_page_busy(m);
@@ -1691,9 +1689,7 @@ vm_object_backing_scan(vm_object_t object, int op)
 			 * mapped through the rename.
 			 */
 			vm_page_lock(p);
-			vm_page_lock_queues();
 			vm_page_rename(p, object, new_pindex);
-			vm_page_unlock_queues();
 			vm_page_unlock(p);
 			/* page automatically made dirty by rename */
 		}

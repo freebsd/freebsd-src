@@ -103,7 +103,7 @@ struct vm_page {
 	struct vm_page *left;		/* splay tree link (O)		*/
 	struct vm_page *right;		/* splay tree link (O)		*/
 
-	vm_object_t object;		/* which object am I in (O,Q)*/
+	vm_object_t object;		/* which object am I in (O,P)*/
 	vm_pindex_t pindex;		/* offset into object (O,Q) */
 	vm_paddr_t phys_addr;		/* physical address of page */
 	struct md_page md;		/* machine dependant stuff */
