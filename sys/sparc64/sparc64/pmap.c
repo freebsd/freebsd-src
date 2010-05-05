@@ -1091,7 +1091,7 @@ pmap_pinit(pmap_t pm)
 	 * Allocate an object for it.
 	 */
 	if (pm->pm_tsb_obj == NULL)
-		pm->pm_tsb_obj = vm_object_allocate(OBJT_DEFAULT, TSB_PAGES);
+		pm->pm_tsb_obj = vm_object_allocate(OBJT_PHYS, TSB_PAGES);
 
 	VM_OBJECT_LOCK(pm->pm_tsb_obj);
 	for (i = 0; i < TSB_PAGES; i++) {
@@ -1152,16 +1152,10 @@ pmap_release(pmap_t pm)
 	KASSERT(obj->ref_count == 1, ("pmap_release: tsbobj ref count != 1"));
 	while (!TAILQ_EMPTY(&obj->memq)) {
 		m = TAILQ_FIRST(&obj->memq);
-		vm_page_lock_queues();
-		if (vm_page_sleep_if_busy(m, FALSE, "pmaprl"))
-			continue;
-		KASSERT(m->hold_count == 0,
-		    ("pmap_release: freeing held tsb page"));
 		m->md.pmap = NULL;
 		m->wire_count--;
 		atomic_subtract_int(&cnt.v_wire_count, 1);
 		vm_page_free_zero(m);
-		vm_page_unlock_queues();
 	}
 	VM_OBJECT_UNLOCK(obj);
 	pmap_qremove((vm_offset_t)pm->pm_tsb, TSB_PAGES);
