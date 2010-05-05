@@ -58,8 +58,8 @@ static const char rcsid[] =
 #include <string.h>
 #include <unistd.h>
 
-static int	aflag, bflag, dflag, eflag, hflag, Nflag, nflag, oflag;
-static int	qflag, xflag;
+static int	aflag, bflag, dflag, eflag, hflag, iflag,
+static int	Nflag, nflag, oflag, qflag, xflag;
 
 static int	oidfmt(int *, int, char *, u_int *);
 static void	parse(char *);
@@ -75,7 +75,7 @@ usage(void)
 {
 
 	(void)fprintf(stderr, "%s\n%s\n",
-	    "usage: sysctl [-bdehNnoqx] name[=value] ...",
+	    "usage: sysctl [-bdehiNnoqx] name[=value] ...",
 	    "       sysctl [-bdehNnoqx] -a");
 	exit(1);
 }
@@ -89,7 +89,7 @@ main(int argc, char **argv)
 	setbuf(stdout,0);
 	setbuf(stderr,0);
 
-	while ((ch = getopt(argc, argv, "AabdehNnoqwxX")) != -1) {
+	while ((ch = getopt(argc, argv, "AabdehiNnoqwxX")) != -1) {
 		switch (ch) {
 		case 'A':
 			/* compatibility */
@@ -109,6 +109,9 @@ main(int argc, char **argv)
 			break;
 		case 'h':
 			hflag = 1;
+			break;
+		case 'i':
+			iflag = 1;
 			break;
 		case 'N':
 			Nflag = 1;
@@ -185,6 +188,8 @@ parse(char *string)
 	len = name2oid(bufp, mib);
 
 	if (len < 0) {
+		if (iflag)
+			return;
 		if (qflag)
 			exit(1);
 		else
