@@ -461,9 +461,7 @@ tmpfs_nocacheread(vm_object_t tobj, vm_pindex_t idx,
 	VM_OBJECT_LOCK(tobj);
 out:
 	vm_page_lock(m);
-	vm_page_lock_queues();
 	vm_page_unwire(m, TRUE);
-	vm_page_unlock_queues();
 	vm_page_unlock(m);
 	vm_page_wakeup(m);
 	vm_object_pip_subtract(tobj, 1);
