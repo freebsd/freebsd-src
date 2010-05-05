@@ -3403,5 +3403,3 @@ set_tcb_field_ulp(struct cpl_set_tcb_field *req, unsigned int tid,
 	txpkt->len = htonl(V_ULPTX_NFLITS(sizeof(*req) / 8));
 	mk_set_tcb_field(req, tid, word, mask, val);
 }
-
-MODULE_DEPEND(if_cxgb, cxgb_t3fw, 1, 1, 1);
