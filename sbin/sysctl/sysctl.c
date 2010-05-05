@@ -58,7 +58,7 @@ static const char rcsid[] =
 #include <string.h>
 #include <unistd.h>
 
-static int	aflag, bflag, dflag, eflag, hflag, iflag,
+static int	aflag, bflag, dflag, eflag, hflag, iflag;
 static int	Nflag, nflag, oflag, qflag, xflag;
 
 static int	oidfmt(int *, int, char *, u_int *);
