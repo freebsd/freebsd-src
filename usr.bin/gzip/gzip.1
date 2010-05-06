@@ -25,7 +25,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\" $FreeBSD$
-.Dd April 7, 2010
+.Dd April 27, 2010
 .Dt GZIP 1
 .Os
 .Sh NAME
@@ -218,8 +218,8 @@ with unpack support written by
 .An Xin LI Aq delphij@FreeBSD.org .
 .Sh BUGS
 According to RFC 1952, the recorded file size is stored in a 32-bit
-integer and therefore it can not represent files that is bigger than
-4GB in size.  This limitation also applies to
+integer, therefore, it can not represent files larger than 4GB.
+This limitation also applies to
 .Fl l
 option of
 .Nm

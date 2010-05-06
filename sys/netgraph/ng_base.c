@@ -3067,28 +3067,42 @@ ng_mod_event(module_t mod, int event, void *data)
 static void
 vnet_netgraph_uninit(const void *unused __unused)
 {
-#if 0
-	node_p node, last_killed = NULL;
+	node_p node = NULL, last_killed = NULL;
+	int i;
 
-	/* XXXRW: utterly bogus. */
-	while ((node = LIST_FIRST(&V_ng_allnodes)) != NULL) {
-		if (node == last_killed) {
-			/* This should never happen */
-			node->nd_flags |= NGF_REALLY_DIE;
-			printf("netgraph node %s needs NGF_REALLY_DIE\n",
-			    node->nd_name);
-			ng_rmnode(node, NULL, NULL, 0);
-			/* This must never happen */
-			if (node == LIST_FIRST(&V_ng_allnodes))
-				panic("netgraph node %s won't die",
-				    node->nd_name);
+	do {
+		/* Find a node to kill */
+		mtx_lock(&ng_namehash_mtx);
+		for (i = 0; i < NG_NAME_HASH_SIZE; i++) {
+			LIST_FOREACH(node, &V_ng_name_hash[i], nd_nodes) {
+				if (node != &ng_deadnode) {
+					NG_NODE_REF(node);
+					break;
+				}
+			}
+			if (node != NULL)
+				break;
 		}
-		ng_rmnode(node, NULL, NULL, 0);
-		last_killed = node;
-	}
-#endif
+		mtx_unlock(&ng_namehash_mtx);
+
+		/* Attempt to kill it only if it is a regular node */
+		if (node != NULL) {
+			if (node == last_killed) {
+				/* This should never happen */
+				printf("ng node %s needs"
+				    "NGF_REALLY_DIE\n", node->nd_name);
+				if (node->nd_flags & NGF_REALLY_DIE)
+					panic("ng node %s won't die",
+					    node->nd_name);
+				node->nd_flags |= NGF_REALLY_DIE;
+			}
+			ng_rmnode(node, NULL, NULL, 0);
+			NG_NODE_UNREF(node);
+			last_killed = node;
+		}
+	} while (node != NULL);
 }
-VNET_SYSUNINIT(vnet_netgraph_uninit, SI_SUB_NETGRAPH, SI_ORDER_ANY,
+VNET_SYSUNINIT(vnet_netgraph_uninit, SI_SUB_PROTO_IFATTACHDOMAIN, SI_ORDER_ANY,
     vnet_netgraph_uninit, NULL);
 #endif /* VIMAGE */
 

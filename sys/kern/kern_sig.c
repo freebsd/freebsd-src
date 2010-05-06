@@ -3004,8 +3004,9 @@ expand_name(const char *name, uid_t uid, pid_t pid, struct thread *td,
 	char *temp;
 	size_t i;
 	int indexpos;
-	char hostname[MAXHOSTNAMELEN];
+	char *hostname;
 	
+	hostname = NULL;
 	format = corefilename;
 	temp = malloc(MAXPATHLEN, M_TEMP, M_NOWAIT | M_ZERO);
 	if (temp == NULL)
@@ -3021,8 +3022,21 @@ expand_name(const char *name, uid_t uid, pid_t pid, struct thread *td,
 				sbuf_putc(&sb, '%');
 				break;
 			case 'H':	/* hostname */
+				if (hostname == NULL) {
+					hostname = malloc(MAXHOSTNAMELEN,
+					    M_TEMP, M_NOWAIT);
+					if (hostname == NULL) {
+						log(LOG_ERR,
+						    "pid %ld (%s), uid (%lu): "
+						    "unable to alloc memory "
+						    "for corefile hostname\n",
+						    (long)pid, name,
+						    (u_long)uid);
+                                                goto nomem;
+                                        }
+                                }
 				getcredhostname(td->td_ucred, hostname,
-				    sizeof(hostname));
+				    MAXHOSTNAMELEN);
 				sbuf_printf(&sb, "%s", hostname);
 				break;
 			case 'I':       /* autoincrementing index */
@@ -3048,15 +3062,17 @@ expand_name(const char *name, uid_t uid, pid_t pid, struct thread *td,
 			sbuf_putc(&sb, format[i]);
 		}
 	}
+	free(hostname, M_TEMP);
 #ifdef COMPRESS_USER_CORES
 	if (compress) {
 		sbuf_printf(&sb, GZ_SUFFIX);
 	}
 #endif
 	if (sbuf_overflowed(&sb)) {
-		sbuf_delete(&sb);
 		log(LOG_ERR, "pid %ld (%s), uid (%lu): corename is too "
 		    "long\n", (long)pid, name, (u_long)uid);
+nomem:
+		sbuf_delete(&sb);
 		free(temp, M_TEMP);
 		return (NULL);
 	}

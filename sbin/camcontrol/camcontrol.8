@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 20, 2010
+.Dd May 2, 2010
 .Dt CAMCONTROL 8
 .Os
 .Sh NAME
@@ -123,6 +123,8 @@
 .Op generic args
 .Aq Fl a Ar cmd Op args
 .Aq Fl c Ar cmd Op args
+.Op Fl d
+.Op Fl f
 .Op Fl i Ar len Ar fmt
 .Bk -words
 .Op Fl o Ar len Ar fmt Op args
@@ -530,6 +532,10 @@ lba_high_exp, features_exp, sector_count, sector_count_exp).
 .It Fl c Ar cmd Op args
 This specifies the SCSI CDB.
 SCSI CDBs may be 6, 10, 12 or 16 bytes.
+.It Fl d
+Specifies DMA protocol to be used for ATA command.
+.It Fl f
+Specifies FPDMA (NCQ) protocol to be used for ATA command.
 .It Fl i Ar len Ar fmt
 This specifies the amount of data to read, and how it should be displayed.
 If the format is

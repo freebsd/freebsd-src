@@ -37,3 +37,4 @@ AT91_BWCT		opt_at91.h
 AT91_TSC		opt_at91.h
 AT91_KWIKBYTE		opt_at91.h
 CPU_FA526		opt_global.h
+CPU_FA626TE		opt_global.h

@@ -38,15 +38,22 @@ static void txg_quiesce_thread(void *arg);
 
 int zfs_txg_timeout = 30;	/* max seconds worth of delta per txg */
 extern int zfs_txg_synctime;
+extern uint64_t zfs_write_limit_override;
 
 SYSCTL_DECL(_vfs_zfs);
-SYSCTL_NODE(_vfs_zfs, OID_AUTO, txg, CTLFLAG_RW, 0, "ZFS TXG");
+SYSCTL_NODE(_vfs_zfs, OID_AUTO, txg, CTLFLAG_RW, 0,
+    "ZFS transaction groups (TXG)");
 TUNABLE_INT("vfs.zfs.txg.timeout", &zfs_txg_timeout);
 SYSCTL_INT(_vfs_zfs_txg, OID_AUTO, timeout, CTLFLAG_RDTUN, &zfs_txg_timeout, 0,
     "Maximum seconds worth of delta per txg");
 TUNABLE_INT("vfs.zfs.txg.synctime", &zfs_txg_synctime);
 SYSCTL_INT(_vfs_zfs_txg, OID_AUTO, synctime, CTLFLAG_RDTUN, &zfs_txg_synctime,
     0, "Target seconds to sync a txg");
+TUNABLE_QUAD("vfs.zfs.txg.write_limit_override", &zfs_write_limit_override);
+SYSCTL_QUAD(_vfs_zfs_txg, OID_AUTO, write_limit_override, CTLFLAG_RW,
+    &zfs_write_limit_override, 0,
+    "Override maximum size of a txg to this size in bytes, "
+    "value of 0 means don't override");
 
 /*
  * Prepare the txg subsystem.

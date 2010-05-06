@@ -257,16 +257,18 @@ vm_imgact_hold_page(vm_object_t object, vm_ooffset_t offset)
 		if (m == NULL)
 			goto out;
 		if (rv != VM_PAGER_OK) {
+			vm_page_lock(m);
 			vm_page_lock_queues();
 			vm_page_free(m);
 			vm_page_unlock_queues();
+			vm_page_unlock(m);
 			m = NULL;
 			goto out;
 		}
 	}
-	vm_page_lock_queues();
+	vm_page_lock(m);
 	vm_page_hold(m);
-	vm_page_unlock_queues();
+	vm_page_unlock(m);
 	vm_page_wakeup(m);
 out:
 	VM_OBJECT_UNLOCK(object);
@@ -300,9 +302,9 @@ vm_imgact_unmap_page(struct sf_buf *sf)
 	m = sf_buf_page(sf);
 	sf_buf_free(sf);
 	sched_unpin();
-	vm_page_lock_queues();
+	vm_page_lock(m);
 	vm_page_unhold(m);
-	vm_page_unlock_queues();
+	vm_page_unlock(m);
 }
 
 void
@@ -434,10 +436,12 @@ vm_thread_stack_dispose(vm_object_t ksobj, vm_offset_t ks, int pages)
 		m = vm_page_lookup(ksobj, i);
 		if (m == NULL)
 			panic("vm_thread_dispose: kstack already missing?");
+		vm_page_lock(m);
 		vm_page_lock_queues();
 		vm_page_unwire(m, 0);
 		vm_page_free(m);
 		vm_page_unlock_queues();
+		vm_page_unlock(m);
 	}
 	VM_OBJECT_UNLOCK(ksobj);
 	vm_object_deallocate(ksobj);
@@ -524,9 +528,9 @@ vm_thread_swapout(struct thread *td)
 		if (m == NULL)
 			panic("vm_thread_swapout: kstack already missing?");
 		vm_page_dirty(m);
-		vm_page_lock_queues();
+		vm_page_lock(m);
 		vm_page_unwire(m, 0);
-		vm_page_unlock_queues();
+		vm_page_unlock(m);
 	}
 	VM_OBJECT_UNLOCK(ksobj);
 }
@@ -538,23 +542,37 @@ static void
 vm_thread_swapin(struct thread *td)
 {
 	vm_object_t ksobj;
-	vm_page_t m, ma[KSTACK_MAX_PAGES];
-	int i, pages, rv;
+	vm_page_t ma[KSTACK_MAX_PAGES];
+	int i, j, k, pages, rv;
 
 	pages = td->td_kstack_pages;
 	ksobj = td->td_kstack_obj;
 	VM_OBJECT_LOCK(ksobj);
-	for (i = 0; i < pages; i++) {
-		m = vm_page_grab(ksobj, i, VM_ALLOC_NORMAL | VM_ALLOC_RETRY |
+	for (i = 0; i < pages; i++)
+		ma[i] = vm_page_grab(ksobj, i, VM_ALLOC_NORMAL | VM_ALLOC_RETRY |
 		    VM_ALLOC_WIRED);
-		if (m->valid != VM_PAGE_BITS_ALL) {
-			rv = vm_pager_get_pages(ksobj, &m, 1, 0);
+	for (i = 0; i < pages; i++) {
+		if (ma[i]->valid != VM_PAGE_BITS_ALL) {
+			KASSERT(ma[i]->oflags & VPO_BUSY,
+			    ("lost busy 1"));
+			vm_object_pip_add(ksobj, 1);
+			for (j = i + 1; j < pages; j++) {
+				KASSERT(ma[j]->valid == VM_PAGE_BITS_ALL ||
+				    (ma[j]->oflags & VPO_BUSY),
+				    ("lost busy 2"));
+				if (ma[j]->valid == VM_PAGE_BITS_ALL)
+					break;
+			}
+			rv = vm_pager_get_pages(ksobj, ma + i, j - i, 0);
 			if (rv != VM_PAGER_OK)
-				panic("vm_thread_swapin: cannot get kstack for proc: %d", td->td_proc->p_pid);
-			m = vm_page_lookup(ksobj, i);
-		}
-		ma[i] = m;
-		vm_page_wakeup(m);
+	panic("vm_thread_swapin: cannot get kstack for proc: %d",
+				    td->td_proc->p_pid);
+			vm_object_pip_wakeup(ksobj);
+			for (k = i; k < j; k++)
+				ma[k] = vm_page_lookup(ksobj, k);
+			vm_page_wakeup(ma[i]);
+		} else if (ma[i]->oflags & VPO_BUSY)
+			vm_page_wakeup(ma[i]);
 	}
 	VM_OBJECT_UNLOCK(ksobj);
 	pmap_qenter(td->td_kstack, ma, pages);

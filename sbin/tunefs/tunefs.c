@@ -280,9 +280,9 @@ main(int argc, char *argv[])
 	if (ufs_disk_fillout(&disk, special) == -1)
 		goto err;
 	if (disk.d_name != special) {
-		special = disk.d_name;
-		if (statfs(special, &stfs) == 0 &&
-		    strcmp(special, stfs.f_mntonname) == 0)
+		if (statfs(special, &stfs) != 0)
+			warn("Can't stat %s", special);
+		if (strcmp(special, stfs.f_mntonname) == 0)
 			active = 1;
 	}
 
@@ -546,7 +546,7 @@ journal_balloc(void)
 			 * Try to minimize fragmentation by requiring a minimum
 			 * number of blocks present.
 			 */
-			if (cgp->cg_cs.cs_nbfree > blocks / 8)
+			if (cgp->cg_cs.cs_nbfree > 128 * 1024 * 1024)
 				break;
 			if (contig == 0 && cgp->cg_cs.cs_nbfree)
 				break;
@@ -1007,10 +1007,11 @@ out:
 void
 usage(void)
 {
-	fprintf(stderr, "%s\n%s\n%s\n%s\n",
+	fprintf(stderr, "%s\n%s\n%s\n%s\n%s\n",
 "usage: tunefs [-A] [-a enable | disable] [-e maxbpg] [-f avgfilesize]",
-"              [-J enable | disable ] [-L volname] [-l enable | disable]",
-"              [-m minfree] [-N enable | disable] [-n enable | disable]",
+"              [-J enable | disable] [-j enable | disable]", 
+"              [-L volname] [-l enable | disable] [-m minfree]",
+"              [-N enable | disable] [-n enable | disable]",
 "              [-o space | time] [-p] [-s avgfpdir] special | filesystem");
 	exit(2);
 }

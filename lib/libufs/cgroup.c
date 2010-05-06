@@ -145,7 +145,7 @@ cgialloc(struct uufsd *disk)
 	fs = &disk->d_fs;
 	cgp = &disk->d_cg;
 	inosused = cg_inosused(cgp);
-	for (ino = 0; ino < fs->fs_ipg / NBBY; ino++)
+	for (ino = 0; ino < fs->fs_ipg; ino++)
 		if (isclr(inosused, ino))
 			goto gotit;
 	return (0);

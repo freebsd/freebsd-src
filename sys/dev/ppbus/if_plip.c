@@ -262,7 +262,7 @@ lp_attach(device_t dev)
 	ifp->if_output = lpoutput;
 	ifp->if_hdrlen = 0;
 	ifp->if_addrlen = 0;
-	ifp->if_snd.ifq_maxlen = IFQ_MAXLEN;
+	ifp->if_snd.ifq_maxlen = ifqmaxlen;
 	if_attach(ifp);
 
 	bpfattach(ifp, DLT_NULL, sizeof(u_int32_t));

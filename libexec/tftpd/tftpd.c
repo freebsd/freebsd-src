@@ -41,9 +41,9 @@ static const char copyright[] =
 #if 0
 static char sccsid[] = "@(#)tftpd.c	8.1 (Berkeley) 6/4/93";
 #endif
-static const char rcsid[] =
-  "$FreeBSD$";
 #endif /* not lint */
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 /*
  * Trivial file transfer protocol server.
@@ -56,43 +56,30 @@ static const char rcsid[] =
 #include <sys/ioctl.h>
 #include <sys/stat.h>
 #include <sys/socket.h>
-#include <sys/types.h>
-#include <sys/time.h>
 
 #include <netinet/in.h>
 #include <arpa/tftp.h>
-#include <arpa/inet.h>
 
 #include <ctype.h>
 #include <errno.h>
 #include <fcntl.h>
-#include <libutil.h>
 #include <netdb.h>
 #include <pwd.h>
-#include <setjmp.h>
-#include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <syslog.h>
+#include <tcpd.h>
 #include <unistd.h>
 
-#include "tftpsubs.h"
+#include "tftp-file.h"
+#include "tftp-io.h"
+#include "tftp-utils.h"
+#include "tftp-transfer.h"
+#include "tftp-options.h"
 
-#define	TIMEOUT		5
-#define	MAX_TIMEOUTS	5
-
-int	peer;
-int	rexmtval = TIMEOUT;
-int	max_rexmtval = 2*TIMEOUT;
-
-#define	PKTSIZE	SEGSIZE+4
-char	buf[PKTSIZE];
-char	ackbuf[PKTSIZE];
-struct	sockaddr_storage from;
-
-void	tftp(struct tftphdr *, int);
-static void unmappedaddr(struct sockaddr_in6 *);
+static void	tftp_wrq(int peer, char *, ssize_t);
+static void	tftp_rrq(int peer, char *, ssize_t);
 
 /*
  * Null-terminated directory prefix list for absolute pathname requests and
@@ -112,37 +99,56 @@ static int	ipchroot;
 static int	create_new = 0;
 static char	*newfile_format = "%Y%m%d";
 static int	increase_name = 0;
-static mode_t	mask = S_IWGRP|S_IWOTH;
+static mode_t	mask = S_IWGRP | S_IWOTH;
 
-static const char *errtomsg(int);
-static void  nak(int);
-static void  oack(void);
+struct formats;
+static void	tftp_recvfile(int peer, const char *mode);
+static void	tftp_xmitfile(int peer, const char *mode);
+static int	validate_access(int peer, char **, int);
+static char	peername[NI_MAXHOST];
 
-static void  timer(int);
-static void  justquit(int);
+FILE *file;
+
+struct formats {
+	const char	*f_mode;
+	int	f_convert;
+} formats[] = {
+	{ "netascii",	1 },
+	{ "octet",	0 },
+	{ NULL,		0 }
+};
 
 int
 main(int argc, char *argv[])
 {
 	struct tftphdr *tp;
-	socklen_t fromlen, len;
-	int n;
-	int ch, on;
-	struct sockaddr_storage me;
-	char *chroot_dir = NULL;
-	struct passwd *nobody;
-	const char *chuser = "nobody";
+	int		peer;
+	socklen_t	peerlen, len;
+	ssize_t		n;
+	int		ch;
+	char		*chroot_dir = NULL;
+	struct passwd	*nobody;
+	const char	*chuser = "nobody";
+	char		recvbuffer[MAXPKTSIZE];
+	int		allow_ro = 1, allow_wo = 1;
 
 	tzset();			/* syslog in localtime */
+	acting_as_client = 0;
 
-	openlog("tftpd", LOG_PID | LOG_NDELAY, LOG_FTP);
-	while ((ch = getopt(argc, argv, "cCF:lns:u:U:wW")) != -1) {
+	tftp_openlog("tftpd", LOG_PID | LOG_NDELAY, LOG_FTP);
+	while ((ch = getopt(argc, argv, "cCd:F:lnoOp:s:u:U:wW")) != -1) {
 		switch (ch) {
 		case 'c':
 			ipchroot = 1;
 			break;
 		case 'C':
 			ipchroot = 2;
+			break;
+		case 'd':
+			if (atoi(optarg) != 0)
+				debug += atoi(optarg);
+			else
+				debug |= debug_finds(optarg);
 			break;
 		case 'F':
 			newfile_format = optarg;
@@ -152,6 +158,18 @@ main(int argc, char *argv[])
 			break;
 		case 'n':
 			suppress_naks = 1;
+			break;
+		case 'o':
+			options_rfc_enabled = 0;
+			break;
+		case 'O':
+			options_extra_enabled = 0;
+			break;
+		case 'p':
+			packetdroppercentage = atoi(optarg);
+			tftp_log(LOG_INFO,
+			    "Randomly dropping %d out of 100 packets",
+			    packetdroppercentage);
 			break;
 		case 's':
 			chroot_dir = optarg;
@@ -170,7 +188,8 @@ main(int argc, char *argv[])
 			increase_name = 1;
 			break;
 		default:
-			syslog(LOG_WARNING, "ignoring unknown option -%c", ch);
+			tftp_log(LOG_WARNING,
+				"ignoring unknown option -%c", ch);
 		}
 	}
 	if (optind < argc) {
@@ -191,24 +210,31 @@ main(int argc, char *argv[])
 		dirs->len = 1;
 	}
 	if (ipchroot > 0 && chroot_dir == NULL) {
-		syslog(LOG_ERR, "-c requires -s");
+		tftp_log(LOG_ERR, "-c requires -s");
 		exit(1);
 	}
 
 	umask(mask);
 
-	on = 1;
-	if (ioctl(0, FIONBIO, &on) < 0) {
-		syslog(LOG_ERR, "ioctl(FIONBIO): %m");
-		exit(1);
+	{
+		int on = 1;
+		if (ioctl(0, FIONBIO, &on) < 0) {
+			tftp_log(LOG_ERR, "ioctl(FIONBIO): %s", strerror(errno));
+			exit(1);
+		}
 	}
-	fromlen = sizeof (from);
-	n = recvfrom(0, buf, sizeof (buf), 0,
-	    (struct sockaddr *)&from, &fromlen);
+
+	/* Find out who we are talking to and what we are going to do */
+	peerlen = sizeof(peer_sock);
+	n = recvfrom(0, recvbuffer, MAXPKTSIZE, 0,
+	    (struct sockaddr *)&peer_sock, &peerlen);
 	if (n < 0) {
-		syslog(LOG_ERR, "recvfrom: %m");
+		tftp_log(LOG_ERR, "recvfrom: %s", strerror(errno));
 		exit(1);
 	}
+	getnameinfo((struct sockaddr *)&peer_sock, peer_sock.ss_len,
+	    peername, sizeof(peername), NULL, 0, NI_NUMERICHOST);
+
 	/*
 	 * Now that we have read the message out of the UDP
 	 * socket, we fork and exit.  Thus, inetd will go back
@@ -240,9 +266,9 @@ main(int argc, char *argv[])
 				 * than one tftpd being started up to service
 				 * a single request from a single client.
 				 */
-				fromlen = sizeof from;
-				i = recvfrom(0, buf, sizeof (buf), 0,
-				    (struct sockaddr *)&from, &fromlen);
+				peerlen = sizeof peer_sock;
+				i = recvfrom(0, recvbuffer, MAXPKTSIZE, 0,
+				    (struct sockaddr *)&peer_sock, &peerlen);
 				if (i > 0) {
 					n = i;
 				}
@@ -251,11 +277,60 @@ main(int argc, char *argv[])
 		    }
 		}
 		if (pid < 0) {
-			syslog(LOG_ERR, "fork: %m");
+			tftp_log(LOG_ERR, "fork: %s", strerror(errno));
 			exit(1);
 		} else if (pid != 0) {
 			exit(0);
 		}
+	}
+
+	/*
+	 * See if the client is allowed to talk to me.
+	 * (This needs to be done before the chroot())
+	 */
+	{
+		struct request_info req;
+
+		request_init(&req, RQ_CLIENT_ADDR, peername, 0);
+		request_set(&req, RQ_DAEMON, "tftpd", 0);
+
+		if (hosts_access(&req) == 0) {
+			if (debug&DEBUG_ACCESS)
+				tftp_log(LOG_WARNING,
+				    "Access denied by 'tftpd' entry "
+				    "in /etc/hosts.allow");
+
+			/*
+			 * Full access might be disabled, but maybe the
+			 * client is allowed to do read-only access.
+			 */
+			request_set(&req, RQ_DAEMON, "tftpd-ro", 0);
+			allow_ro = hosts_access(&req);
+
+			request_set(&req, RQ_DAEMON, "tftpd-wo", 0);
+			allow_wo = hosts_access(&req);
+
+			if (allow_ro == 0 && allow_wo == 0) {
+				tftp_log(LOG_WARNING,
+				    "Unauthorized access from %s", peername);
+				exit(1);
+			}
+
+			if (debug&DEBUG_ACCESS) {
+				if (allow_ro)
+					tftp_log(LOG_WARNING,
+					    "But allowed readonly access "
+					    "via 'tftpd-ro' entry");
+				if (allow_wo)
+					tftp_log(LOG_WARNING,
+					    "But allowed writeonly access "
+					    "via 'tftpd-wo' entry");
+			}
+		} else
+			if (debug&DEBUG_ACCESS)
+				tftp_log(LOG_WARNING,
+				    "Full access allowed"
+				    "in /etc/hosts.allow");
 	}
 
 	/*
@@ -271,7 +346,8 @@ main(int argc, char *argv[])
 			struct sockaddr_storage ss;
 			char hbuf[NI_MAXHOST];
 
-			memcpy(&ss, &from, from.ss_len);
+			statret = -1;
+			memcpy(&ss, &peer_sock, peer_sock.ss_len);
 			unmappedaddr((struct sockaddr_in6 *)&ss);
 			getnameinfo((struct sockaddr *)&ss, ss.ss_len,
 				    hbuf, sizeof(hbuf), NULL, 0,
@@ -285,11 +361,12 @@ main(int argc, char *argv[])
 		}
 		/* Must get this before chroot because /etc might go away */
 		if ((nobody = getpwnam(chuser)) == NULL) {
-			syslog(LOG_ERR, "%s: no such user", chuser);
+			tftp_log(LOG_ERR, "%s: no such user", chuser);
 			exit(1);
 		}
 		if (chroot(chroot_dir)) {
-			syslog(LOG_ERR, "chroot: %s: %m", chroot_dir);
+			tftp_log(LOG_ERR, "chroot: %s: %s",
+			    chroot_dir, strerror(errno));
 			exit(1);
 		}
 		chdir("/");
@@ -297,44 +374,56 @@ main(int argc, char *argv[])
 		setuid(nobody->pw_uid);
 	}
 
-	len = sizeof(me);
-	if (getsockname(0, (struct sockaddr *)&me, &len) == 0) {
-		switch (me.ss_family) {
+	len = sizeof(me_sock);
+	if (getsockname(0, (struct sockaddr *)&me_sock, &len) == 0) {
+		switch (me_sock.ss_family) {
 		case AF_INET:
-			((struct sockaddr_in *)&me)->sin_port = 0;
+			((struct sockaddr_in *)&me_sock)->sin_port = 0;
 			break;
 		case AF_INET6:
-			((struct sockaddr_in6 *)&me)->sin6_port = 0;
+			((struct sockaddr_in6 *)&me_sock)->sin6_port = 0;
 			break;
 		default:
 			/* unsupported */
 			break;
 		}
 	} else {
-		memset(&me, 0, sizeof(me));
-		me.ss_family = from.ss_family;
-		me.ss_len = from.ss_len;
+		memset(&me_sock, 0, sizeof(me_sock));
+		me_sock.ss_family = peer_sock.ss_family;
+		me_sock.ss_len = peer_sock.ss_len;
 	}
-	alarm(0);
 	close(0);
 	close(1);
-	peer = socket(from.ss_family, SOCK_DGRAM, 0);
+	peer = socket(peer_sock.ss_family, SOCK_DGRAM, 0);
 	if (peer < 0) {
-		syslog(LOG_ERR, "socket: %m");
+		tftp_log(LOG_ERR, "socket: %s", strerror(errno));
 		exit(1);
 	}
-	if (bind(peer, (struct sockaddr *)&me, me.ss_len) < 0) {
-		syslog(LOG_ERR, "bind: %m");
+	if (bind(peer, (struct sockaddr *)&me_sock, me_sock.ss_len) < 0) {
+		tftp_log(LOG_ERR, "bind: %s", strerror(errno));
 		exit(1);
 	}
-	if (connect(peer, (struct sockaddr *)&from, from.ss_len) < 0) {
-		syslog(LOG_ERR, "connect: %m");
-		exit(1);
-	}
-	tp = (struct tftphdr *)buf;
+
+	tp = (struct tftphdr *)recvbuffer;
 	tp->th_opcode = ntohs(tp->th_opcode);
-	if (tp->th_opcode == RRQ || tp->th_opcode == WRQ)
-		tftp(tp, n);
+	if (tp->th_opcode == RRQ) {
+		if (allow_ro)
+			tftp_rrq(peer, tp->th_stuff, n - 1);
+		else {
+			tftp_log(LOG_WARNING,
+			    "%s read access denied", peername);
+			exit(1);
+		}
+	}
+	if (tp->th_opcode == WRQ) {
+		if (allow_wo)
+			tftp_wrq(peer, tp->th_stuff, n - 1);
+		else {
+			tftp_log(LOG_WARNING,
+			    "%s write access denied", peername);
+			exit(1);
+		}
+	}
 	exit(1);
 }
 
@@ -369,138 +458,145 @@ reduce_path(char *fn)
 	}
 }
 
-struct formats;
-int	validate_access(char **, int);
-void	xmitfile(struct formats *);
-void	recvfile(struct formats *);
-
-struct formats {
-	const char	*f_mode;
-	int	(*f_validate)(char **, int);
-	void	(*f_send)(struct formats *);
-	void	(*f_recv)(struct formats *);
-	int	f_convert;
-} formats[] = {
-	{ "netascii",	validate_access,	xmitfile,	recvfile, 1 },
-	{ "octet",	validate_access,	xmitfile,	recvfile, 0 },
-#ifdef notdef
-	{ "mail",	validate_user,		sendmail,	recvmail, 1 },
-#endif
-	{ 0,		NULL,			NULL,		NULL,	  0 }
-};
-
-struct options {
-	const char	*o_type;
-	char	*o_request;
-	int	o_reply;	/* turn into union if need be */
-} options[] = {
-	{ "tsize",	NULL, 0 },		/* OPT_TSIZE */
-	{ "timeout",	NULL, 0 },		/* OPT_TIMEOUT */
-	{ NULL,		NULL, 0 }
-};
-
-enum opt_enum {
-	OPT_TSIZE = 0,
-	OPT_TIMEOUT,
-};
-
-/*
- * Handle initial connection protocol.
- */
-void
-tftp(struct tftphdr *tp, int size)
+static char *
+parse_header(int peer, char *recvbuffer, ssize_t size,
+	char **filename, char **mode)
 {
-	char *cp;
-	int i, first = 1, has_options = 0, ecode;
+	char	*cp;
+	int	i;
 	struct formats *pf;
-	char *filename, *mode, *option, *ccp;
-	char fnbuf[PATH_MAX];
 
-	cp = tp->th_stuff;
-again:
-	while (cp < buf + size) {
-		if (*cp == '\0')
-			break;
-		cp++;
-	}
-	if (*cp != '\0') {
-		nak(EBADOP);
+	*mode = NULL;
+	cp = recvbuffer;
+
+	i = get_field(peer, recvbuffer, size);
+	if (i >= PATH_MAX) {
+		tftp_log(LOG_ERR, "Bad option - filename too long");
+		send_error(peer, EBADOP);
 		exit(1);
 	}
-	i = cp - tp->th_stuff;
-	if (i >= sizeof(fnbuf)) {
-		nak(EBADOP);
-		exit(1);
-	}
-	memcpy(fnbuf, tp->th_stuff, i);
-	fnbuf[i] = '\0';
-	reduce_path(fnbuf);
-	filename = fnbuf;
-	if (first) {
-		mode = ++cp;
-		first = 0;
-		goto again;
-	}
-	for (cp = mode; *cp; cp++)
+	*filename = recvbuffer;
+	tftp_log(LOG_INFO, "Filename: '%s'", *filename);
+	cp += i;
+
+	i = get_field(peer, cp, size);
+	*mode = cp;
+	cp += i;
+
+	/* Find the file transfer mode */
+	for (cp = *mode; *cp; cp++)
 		if (isupper(*cp))
 			*cp = tolower(*cp);
 	for (pf = formats; pf->f_mode; pf++)
-		if (strcmp(pf->f_mode, mode) == 0)
+		if (strcmp(pf->f_mode, *mode) == 0)
 			break;
-	if (pf->f_mode == 0) {
-		nak(EBADOP);
+	if (pf->f_mode == NULL) {
+		tftp_log(LOG_ERR,
+		    "Bad option - Unknown transfer mode (%s)", *mode);
+		send_error(peer, EBADOP);
 		exit(1);
 	}
-	while (++cp < buf + size) {
-		for (i = 2, ccp = cp; i > 0; ccp++) {
-			if (ccp >= buf + size) {
-				/*
-				 * Don't reject the request, just stop trying
-				 * to parse the option and get on with it.
-				 * Some Apple Open Firmware versions have
-				 * trailing garbage on the end of otherwise
-				 * valid requests.
-				 */
-				goto option_fail;
-			} else if (*ccp == '\0')
-				i--;
-		}
-		for (option = cp; *cp; cp++)
-			if (isupper(*cp))
-				*cp = tolower(*cp);
-		for (i = 0; options[i].o_type != NULL; i++)
-			if (strcmp(option, options[i].o_type) == 0) {
-				options[i].o_request = ++cp;
-				has_options = 1;
-			}
-		cp = ccp-1;
-	}
+	tftp_log(LOG_INFO, "Mode: '%s'", *mode);
 
-option_fail:
-	if (options[OPT_TIMEOUT].o_request) {
-		int to = atoi(options[OPT_TIMEOUT].o_request);
-		if (to < 1 || to > 255) {
-			nak(EBADOP);
-			exit(1);
-		}
-		else if (to <= max_rexmtval)
-			options[OPT_TIMEOUT].o_reply = rexmtval = to;
+	return (cp + 1);
+}
+
+/*
+ * WRQ - receive a file from the client
+ */
+void
+tftp_wrq(int peer, char *recvbuffer, ssize_t size)
+{
+	char *cp;
+	int has_options = 0, ecode;
+	char *filename, *mode;
+	char fnbuf[PATH_MAX];
+
+	cp = parse_header(peer, recvbuffer, size, &filename, &mode);
+	size -= (cp - recvbuffer) + 1;
+
+	strcpy(fnbuf, filename);
+	reduce_path(fnbuf);
+	filename = fnbuf;
+
+	if (size > 0) {
+		if (options_rfc_enabled)
+			has_options = !parse_options(peer, cp, size);
 		else
-			options[OPT_TIMEOUT].o_request = NULL;
+			tftp_log(LOG_INFO, "Options found but not enabled");
 	}
 
-	ecode = (*pf->f_validate)(&filename, tp->th_opcode);
-	if (has_options && ecode == 0)
-		oack();
+	ecode = validate_access(peer, &filename, WRQ);
+	if (ecode == 0) {
+		if (has_options)
+			send_oack(peer);
+		else
+			send_ack(peer, 0);
+	}
 	if (logging) {
-		char hbuf[NI_MAXHOST];
-
-		getnameinfo((struct sockaddr *)&from, from.ss_len,
-			    hbuf, sizeof(hbuf), NULL, 0, 0);
-		syslog(LOG_INFO, "%s: %s request for %s: %s", hbuf,
-			tp->th_opcode == WRQ ? "write" : "read",
-			filename, errtomsg(ecode));
+		tftp_log(LOG_INFO, "%s: write request for %s: %s", peername,
+			    filename, errtomsg(ecode));
 	}
+
+	tftp_recvfile(peer, mode);
+	exit(0);
+}
+
+/*
+ * RRQ - send a file to the client
+ */
+void
+tftp_rrq(int peer, char *recvbuffer, ssize_t size)
+{
+	char *cp;
+	int has_options = 0, ecode;
+	char *filename, *mode;
+	char	fnbuf[PATH_MAX];
+
+	cp = parse_header(peer, recvbuffer, size, &filename, &mode);
+	size -= (cp - recvbuffer) + 1;
+
+	strcpy(fnbuf, filename);
+	reduce_path(fnbuf);
+	filename = fnbuf;
+
+	if (size > 0) {
+		if (options_rfc_enabled)
+			has_options = !parse_options(peer, cp, size);
+		else
+			tftp_log(LOG_INFO, "Options found but not enabled");
+	}
+
+	ecode = validate_access(peer, &filename, RRQ);
+	if (ecode == 0) {
+		if (has_options) {
+			int n;
+			char lrecvbuffer[MAXPKTSIZE];
+			struct tftphdr *rp = (struct tftphdr *)lrecvbuffer;
+
+			send_oack(peer);
+			n = receive_packet(peer, lrecvbuffer, MAXPKTSIZE,
+				NULL, timeoutpacket);
+			if (n < 0) {
+				if (debug&DEBUG_SIMPLE)
+					tftp_log(LOG_DEBUG, "Aborting: %s",
+					    rp_strerror(n));
+				return;
+			}
+			if (rp->th_opcode != ACK) {
+				if (debug&DEBUG_SIMPLE)
+					tftp_log(LOG_DEBUG,
+					    "Expected ACK, got %s on OACK",
+					    packettype(rp->th_opcode));
+				return;
+			}
+		}
+	}
+
+	if (logging)
+		tftp_log(LOG_INFO, "%s: read request for %s: %s", peername,
+			    filename, errtomsg(ecode));
+
 	if (ecode) {
 		/*
 		 * Avoid storms of naks to a RRQ broadcast for a relative
@@ -508,18 +604,12 @@ option_fail:
 		 */
 		if (suppress_naks && *filename != '/' && ecode == ENOTFOUND)
 			exit(0);
-		nak(ecode);
+		tftp_log(LOG_ERR, "Prevent NAK storm");
+		send_error(peer, ecode);
 		exit(1);
 	}
-	if (tp->th_opcode == WRQ)
-		(*pf->f_recv)(pf);
-	else
-		(*pf->f_send)(pf);
-	exit(0);
+	tftp_xmitfile(peer, mode);
 }
-
-
-FILE *file;
 
 /*
  * Find the next value for YYYYMMDD.nn when the file to be written should
@@ -536,8 +626,6 @@ find_next_name(char *filename, int *fd)
 	struct tm lt;
 	char yyyymmdd[MAXPATHLEN];
 	char newname[MAXPATHLEN];
-	struct stat sb;
-	int ret;
 
 	/* Create the YYYYMMDD part of the filename */
 	time(&tval);
@@ -553,7 +641,7 @@ find_next_name(char *filename, int *fd)
 	/* Make sure the new filename is not too long */
 	if (strlen(filename) > MAXPATHLEN - len - 5) {
 		syslog(LOG_WARNING,
-			"Filename too long (%d characters, %d maximum)",
+			"Filename too long (%zd characters, %zd maximum)",
 			strlen(filename), MAXPATHLEN - len - 5);
 		return (EACCESS);
 	}
@@ -584,7 +672,7 @@ find_next_name(char *filename, int *fd)
  * given as we have no login directory.
  */
 int
-validate_access(char **filep, int mode)
+validate_access(int peer, char **filep, int mode)
 {
 	struct stat stbuf;
 	int	fd;
@@ -660,14 +748,13 @@ validate_access(char **filep, int mode)
 		else if (mode == RRQ)
 			return (err);
 	}
-	if (options[OPT_TSIZE].o_request) {
-		if (mode == RRQ) 
-			options[OPT_TSIZE].o_reply = stbuf.st_size;
-		else
-			/* XXX Allows writes of all sizes. */
-			options[OPT_TSIZE].o_reply =
-				atoi(options[OPT_TSIZE].o_request);
-	}
+
+	/*
+	 * This option is handled here because it (might) require(s) the
+	 * size of the file.
+	 */
+	option_tsize(peer, NULL, mode, &stbuf);
+
 	if (mode == RRQ)
 		fd = open(filename, O_RDONLY);
 	else {
@@ -694,305 +781,60 @@ validate_access(char **filep, int mode)
 	return (0);
 }
 
-int	timeouts;
-jmp_buf	timeoutbuf;
-
-void
-timer(int sig __unused)
+static void
+tftp_xmitfile(int peer, const char *mode)
 {
-	if (++timeouts > MAX_TIMEOUTS)
-		exit(1);
-	longjmp(timeoutbuf, 1);
-}
+	uint16_t block;
+	uint32_t amount;
+	time_t now;
+	struct tftp_stats ts;
 
-/*
- * Send the requested file.
- */
-void
-xmitfile(struct formats *pf)
-{
-	struct tftphdr *dp;
-	struct tftphdr *ap;    /* ack packet */
-	int size, n;
-	volatile unsigned short block;
+	now = time(NULL);
+	if (debug&DEBUG_SIMPLE)
+		tftp_log(LOG_DEBUG, "Transmitting file");
 
-	signal(SIGALRM, timer);
-	dp = r_init();
-	ap = (struct tftphdr *)ackbuf;
+	read_init(0, file, mode);
 	block = 1;
-	do {
-		size = readit(file, &dp, pf->f_convert);
-		if (size < 0) {
-			nak(errno + 100);
-			goto abort;
-		}
-		dp->th_opcode = htons((u_short)DATA);
-		dp->th_block = htons((u_short)block);
-		timeouts = 0;
-		(void)setjmp(timeoutbuf);
-
-send_data:
-		{
-			int i, t = 1;
-			for (i = 0; ; i++){
-				if (send(peer, dp, size + 4, 0) != size + 4) {
-					sleep(t);
-					t = (t < 32) ? t<< 1 : t;
-					if (i >= 12) {
-						syslog(LOG_ERR, "write: %m");
-						goto abort;
-					}
-				}
-				break;
-			}
-		}
-		read_ahead(file, pf->f_convert);
-		for ( ; ; ) {
-			alarm(rexmtval);        /* read the ack */
-			n = recv(peer, ackbuf, sizeof (ackbuf), 0);
-			alarm(0);
-			if (n < 0) {
-				syslog(LOG_ERR, "read: %m");
-				goto abort;
-			}
-			ap->th_opcode = ntohs((u_short)ap->th_opcode);
-			ap->th_block = ntohs((u_short)ap->th_block);
-
-			if (ap->th_opcode == ERROR)
-				goto abort;
-
-			if (ap->th_opcode == ACK) {
-				if (ap->th_block == block)
-					break;
-				/* Re-synchronize with the other side */
-				(void) synchnet(peer);
-				if (ap->th_block == (block -1))
-					goto send_data;
-			}
-
-		}
-		block++;
-	} while (size == SEGSIZE);
-abort:
-	(void) fclose(file);
+	tftp_send(peer, &block, &ts);
+	read_close();
+	if (debug&DEBUG_SIMPLE)
+		tftp_log(LOG_INFO, "Sent %d bytes in %d seconds",
+		    amount, time(NULL) - now);
 }
 
-void
-justquit(int sig __unused)
+static void
+tftp_recvfile(int peer, const char *mode)
 {
-	exit(0);
-}
+	uint32_t filesize; 
+	uint16_t block;
+	struct timeval now1, now2;
+	struct tftp_stats ts;
 
+	gettimeofday(&now1, NULL);
+	if (debug&DEBUG_SIMPLE)
+		tftp_log(LOG_DEBUG, "Receiving file");
 
-/*
- * Receive a file.
- */
-void
-recvfile(struct formats *pf)
-{
-	struct tftphdr *dp;
-	struct tftphdr *ap;    /* ack buffer */
-	int n, size;
-	volatile unsigned short block;
+	write_init(0, file, mode);
 
-	signal(SIGALRM, timer);
-	dp = w_init();
-	ap = (struct tftphdr *)ackbuf;
 	block = 0;
-	do {
-		timeouts = 0;
-		ap->th_opcode = htons((u_short)ACK);
-		ap->th_block = htons((u_short)block);
-		block++;
-		(void) setjmp(timeoutbuf);
-send_ack:
-		if (send(peer, ackbuf, 4, 0) != 4) {
-			syslog(LOG_ERR, "write: %m");
-			goto abort;
-		}
-		write_behind(file, pf->f_convert);
-		for ( ; ; ) {
-			alarm(rexmtval);
-			n = recv(peer, dp, PKTSIZE, 0);
-			alarm(0);
-			if (n < 0) {            /* really? */
-				syslog(LOG_ERR, "read: %m");
-				goto abort;
-			}
-			dp->th_opcode = ntohs((u_short)dp->th_opcode);
-			dp->th_block = ntohs((u_short)dp->th_block);
-			if (dp->th_opcode == ERROR)
-				goto abort;
-			if (dp->th_opcode == DATA) {
-				if (dp->th_block == block) {
-					break;   /* normal */
-				}
-				/* Re-synchronize with the other side */
-				(void) synchnet(peer);
-				if (dp->th_block == (block-1))
-					goto send_ack;          /* rexmit */
-			}
-		}
-		/*  size = write(file, dp->th_data, n - 4); */
-		size = writeit(file, &dp, n - 4, pf->f_convert);
-		if (size != (n-4)) {                    /* ahem */
-			if (size < 0) nak(errno + 100);
-			else nak(ENOSPACE);
-			goto abort;
-		}
-	} while (size == SEGSIZE);
-	write_behind(file, pf->f_convert);
-	(void) fclose(file);            /* close data file */
+	tftp_receive(peer, &block, &ts, NULL, 0);
 
-	ap->th_opcode = htons((u_short)ACK);    /* send the "final" ack */
-	ap->th_block = htons((u_short)(block));
-	(void) send(peer, ackbuf, 4, 0);
+	write_close();
 
-	signal(SIGALRM, justquit);      /* just quit on timeout */
-	alarm(rexmtval);
-	n = recv(peer, buf, sizeof (buf), 0); /* normally times out and quits */
-	alarm(0);
-	if (n >= 4 &&                   /* if read some data */
-	    dp->th_opcode == DATA &&    /* and got a data block */
-	    block == dp->th_block) {	/* then my last ack was lost */
-		(void) send(peer, ackbuf, 4, 0);     /* resend final ack */
+	if (debug&DEBUG_SIMPLE) {
+		double f;
+		if (now1.tv_usec > now2.tv_usec) {
+			now2.tv_usec += 1000000;
+			now2.tv_sec--;
+		}
+
+		f = now2.tv_sec - now1.tv_sec +
+		    (now2.tv_usec - now1.tv_usec) / 100000.0;
+		tftp_log(LOG_INFO,
+		    "Download of %d bytes in %d blocks completed after %0.1f seconds\n",
+		    filesize, block, f);
 	}
-abort:
+
 	return;
 }
 
-struct errmsg {
-	int	e_code;
-	const char	*e_msg;
-} errmsgs[] = {
-	{ EUNDEF,	"Undefined error code" },
-	{ ENOTFOUND,	"File not found" },
-	{ EACCESS,	"Access violation" },
-	{ ENOSPACE,	"Disk full or allocation exceeded" },
-	{ EBADOP,	"Illegal TFTP operation" },
-	{ EBADID,	"Unknown transfer ID" },
-	{ EEXISTS,	"File already exists" },
-	{ ENOUSER,	"No such user" },
-	{ EOPTNEG,	"Option negotiation" },
-	{ -1,		0 }
-};
-
-static const char *
-errtomsg(int error)
-{
-	static char ebuf[20];
-	struct errmsg *pe;
-	if (error == 0)
-		return "success";
-	for (pe = errmsgs; pe->e_code >= 0; pe++)
-		if (pe->e_code == error)
-			return pe->e_msg;
-	snprintf(ebuf, sizeof(buf), "error %d", error);
-	return ebuf;
-}
-
-/*
- * Send a nak packet (error message).
- * Error code passed in is one of the
- * standard TFTP codes, or a UNIX errno
- * offset by 100.
- */
-static void
-nak(int error)
-{
-	struct tftphdr *tp;
-	int length;
-	struct errmsg *pe;
-
-	tp = (struct tftphdr *)buf;
-	tp->th_opcode = htons((u_short)ERROR);
-	tp->th_code = htons((u_short)error);
-	for (pe = errmsgs; pe->e_code >= 0; pe++)
-		if (pe->e_code == error)
-			break;
-	if (pe->e_code < 0) {
-		pe->e_msg = strerror(error - 100);
-		tp->th_code = EUNDEF;   /* set 'undef' errorcode */
-	}
-	strcpy(tp->th_msg, pe->e_msg);
-	length = strlen(pe->e_msg);
-	tp->th_msg[length] = '\0';
-	length += 5;
-	if (send(peer, buf, length, 0) != length)
-		syslog(LOG_ERR, "nak: %m");
-}
-
-/* translate IPv4 mapped IPv6 address to IPv4 address */
-static void
-unmappedaddr(struct sockaddr_in6 *sin6)
-{
-	struct sockaddr_in *sin4;
-	u_int32_t addr;
-	int port;
-
-	if (sin6->sin6_family != AF_INET6 ||
-	    !IN6_IS_ADDR_V4MAPPED(&sin6->sin6_addr))
-		return;
-	sin4 = (struct sockaddr_in *)sin6;
-	addr = *(u_int32_t *)&sin6->sin6_addr.s6_addr[12];
-	port = sin6->sin6_port;
-	memset(sin4, 0, sizeof(struct sockaddr_in));
-	sin4->sin_addr.s_addr = addr;
-	sin4->sin_port = port;
-	sin4->sin_family = AF_INET;
-	sin4->sin_len = sizeof(struct sockaddr_in);
-}
-
-/*
- * Send an oack packet (option acknowledgement).
- */
-static void
-oack(void)
-{
-	struct tftphdr *tp, *ap;
-	int size, i, n;
-	char *bp;
-
-	tp = (struct tftphdr *)buf;
-	bp = buf + 2;
-	size = sizeof(buf) - 2;
-	tp->th_opcode = htons((u_short)OACK);
-	for (i = 0; options[i].o_type != NULL; i++) {
-		if (options[i].o_request) {
-			n = snprintf(bp, size, "%s%c%d", options[i].o_type,
-				     0, options[i].o_reply);
-			bp += n+1;
-			size -= n+1;
-			if (size < 0) {
-				syslog(LOG_ERR, "oack: buffer overflow");
-				exit(1);
-			}
-		}
-	}
-	size = bp - buf;
-	ap = (struct tftphdr *)ackbuf;
-	signal(SIGALRM, timer);
-	timeouts = 0;
-
-	(void)setjmp(timeoutbuf);
-	if (send(peer, buf, size, 0) != size) {
-		syslog(LOG_INFO, "oack: %m");
-		exit(1);
-	}
-
-	for (;;) {
-		alarm(rexmtval);
-		n = recv(peer, ackbuf, sizeof (ackbuf), 0);
-		alarm(0);
-		if (n < 0) {
-			syslog(LOG_ERR, "recv: %m");
-			exit(1);
-		}
-		ap->th_opcode = ntohs((u_short)ap->th_opcode);
-		ap->th_block = ntohs((u_short)ap->th_block);
-		if (ap->th_opcode == ERROR)
-			exit(1);
-		if (ap->th_opcode == ACK && ap->th_block == 0)
-			break;
-	}
-}

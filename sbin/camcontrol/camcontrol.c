@@ -123,7 +123,7 @@ struct camcontrol_opts {
 };
 
 #ifndef MINIMALISTIC
-static const char scsicmd_opts[] = "a:c:i:o:r";
+static const char scsicmd_opts[] = "a:c:dfi:o:r";
 static const char readdefect_opts[] = "f:GP";
 static const char negotiate_opts[] = "acD:M:O:qR:T:UW:";
 #endif
@@ -2184,6 +2184,8 @@ scsicmd(struct cam_device *device, int argc, char **argv, char *combinedopt,
 	int c, data_bytes = 0;
 	int cdb_len = 0;
 	int atacmd_len = 0;
+	int dmacmd = 0;
+	int fpdmacmd = 0;
 	int need_res = 0;
 	char *datastr = NULL, *tstr, *resstr = NULL;
 	int error = 0;
@@ -2245,6 +2247,12 @@ scsicmd(struct cam_device *device, int argc, char **argv, char *combinedopt,
 			 * the list.
 			 */
 			optind += hook.got;
+			break;
+		case 'd':
+			dmacmd = 1;
+			break;
+		case 'f':
+			fpdmacmd = 1;
 			break;
 		case 'i':
 			if (arglist & CAM_ARG_CMD_OUT) {
@@ -2422,6 +2430,10 @@ scsicmd(struct cam_device *device, int argc, char **argv, char *combinedopt,
 		bcopy(atacmd, &ccb->ataio.cmd.command, atacmd_len);
 		if (need_res)
 			ccb->ataio.cmd.flags |= CAM_ATAIO_NEEDRESULT;
+		if (dmacmd)
+			ccb->ataio.cmd.flags |= CAM_ATAIO_DMA;
+		if (fpdmacmd)
+			ccb->ataio.cmd.flags |= CAM_ATAIO_FPDMA;
 
 		cam_fill_ataio(&ccb->ataio,
 		      /*retries*/ retry_count,
@@ -2842,6 +2854,10 @@ cts_print(struct cam_device *device, struct ccb_trans_settings *cts)
 		if ((sata->valid & CTS_SATA_VALID_TAGS) != 0) {
 			fprintf(stdout, "%sNumber of tags: %d\n", pathstr,
 				sata->tags);
+		}
+		if ((sata->valid & CTS_SATA_VALID_CAPS) != 0) {
+			fprintf(stdout, "%sSATA capabilities: %08x\n", pathstr,
+				sata->caps);
 		}
 	}
 	if (cts->protocol == PROTO_SCSI) {
@@ -4353,7 +4369,7 @@ usage(int verbose)
 "                              [-P pagectl][-e | -b][-d]\n"
 "        camcontrol cmd        [dev_id][generic args]\n"
 "                              <-a cmd [args] | -c cmd [args]>\n"
-"                              [-i len fmt|-o len fmt [args]] [-r fmt]\n"
+"                              [-d] [-f] [-i len fmt|-o len fmt [args]] [-r fmt]\n"
 "        camcontrol debug      [-I][-P][-T][-S][-X][-c]\n"
 "                              <all|bus[:target[:lun]]|off>\n"
 "        camcontrol tags       [dev_id][generic args] [-N tags] [-q] [-v]\n"

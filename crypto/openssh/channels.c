@@ -3252,7 +3252,11 @@ x11_create_display_inet(int x11_display_offset, int x11_use_localhost,
 			sock = socket(ai->ai_family, ai->ai_socktype,
 			    ai->ai_protocol);
 			if (sock < 0) {
-				if ((errno != EINVAL) && (errno != EAFNOSUPPORT)) {
+				if ((errno != EINVAL) && (errno != EAFNOSUPPORT)
+#ifdef EPFNOSUPPORT
+				    && (errno != EPFNOSUPPORT)
+#endif 
+				    ) {
 					error("socket: %.100s", strerror(errno));
 					freeaddrinfo(aitop);
 					return -1;

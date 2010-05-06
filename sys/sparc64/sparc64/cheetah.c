@@ -39,11 +39,13 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm.h>
 #include <vm/pmap.h>
 
+#include <machine/asi.h>
 #include <machine/cache.h>
 #include <machine/cpu.h>
 #include <machine/cpufunc.h>
 #include <machine/dcr.h>
 #include <machine/lsu.h>
+#include <machine/mcntl.h>
 #include <machine/smp.h>
 #include <machine/tlb.h>
 #include <machine/ver.h>
@@ -52,7 +54,8 @@ __FBSDID("$FreeBSD$");
 #define	CHEETAH_ICACHE_TAG_LOWER	0x30
 
 /*
- * CPU-specific initialization
+ * CPU-specific initialization - this is used for both the Sun Cheetah and
+ * later as well as the Fujitsu Zeus and later CPUs.
  */
 void
 cheetah_init(u_int cpu_impl)
@@ -74,6 +77,14 @@ cheetah_init(u_int cpu_impl)
 	stxa(AA_DMMU_TSB_NEXT_REG, ASI_DMMU, 0);
 	stxa(AA_IMMU_TSB_NEXT_REG, ASI_IMMU, 0);
 	membar(Sync);
+
+	if (cpu_impl == CPU_IMPL_SPARC64V) {
+		/* Ensure MCNTL_JPS1_TSBP is 0. */
+		val = ldxa(AA_MCNTL, ASI_MCNTL);
+		val &= ~MCNTL_JPS1_TSBP;
+		stxa(AA_MCNTL, ASI_MCNTL, val);
+		return;
+	}
 
 	/*
 	 * Configure the first large dTLB to hold 4MB pages (e.g. for direct
@@ -207,7 +218,7 @@ cheetah_dcache_page_inval(vm_paddr_t spa)
  * consistency is maintained by hardware.
  */
 void
-cheetah_icache_page_inval(vm_paddr_t pa)
+cheetah_icache_page_inval(vm_paddr_t pa __unused)
 {
 
 }

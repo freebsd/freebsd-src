@@ -420,11 +420,14 @@ struct pmap {
 	u_int			pm_active;	/* active on cpus */
 	struct pmap_statistics	pm_stats;	/* pmap statistics */
 	LIST_ENTRY(pmap) 	pm_list;	/* List of all pmaps */
+	uint32_t		pm_gen_count;	/* generation count (pmap lock dropped) */
+	u_int			pm_retries;
 #ifdef PAE
 	pdpt_entry_t		*pm_pdpt;	/* KVA of page director pointer
 						   table */
 #endif
 	vm_page_t		pm_root;	/* spare page table pages */
+
 };
 
 typedef struct pmap	*pmap_t;

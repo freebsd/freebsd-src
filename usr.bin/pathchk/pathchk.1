@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 21, 2002
+.Dd May 1, 2010
 .Dt PATHCHK 1
 .Os
 .Sh NAME
@@ -35,7 +35,7 @@
 .Nd check pathnames
 .Sh SYNOPSIS
 .Nm
-.Op Fl p
+.Op Fl pP
 .Ar pathname ...
 .Sh DESCRIPTION
 The
@@ -95,6 +95,16 @@ No component may start with the hyphen
 .Pq Ql \&-
 character.
 .El
+.It Fl P
+In addition to the default or
+.Fl p
+checks, write a diagnostic for each argument that:
+.Bl -bullet
+.It
+Is empty.
+.It
+Contains a component that starts with a hyphen.
+.El
 .El
 .Sh EXIT STATUS
 .Ex -std
@@ -104,7 +114,7 @@ other
 .Tn POSIX
 systems:
 .Pp
-.Dl "find . -print | xargs pathchk -p"
+.Dl "find . -exec pathchk -p -- {} +"
 .Sh SEE ALSO
 .Xr getconf 1 ,
 .Xr pathconf 2 ,

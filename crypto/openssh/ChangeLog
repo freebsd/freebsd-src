@@ -1,4 +1,120 @@
-20100307
+20100410
+ - (dtucker) [configure.ac] Put the check for the existence of getaddrinfo
+   back so we disable the IPv6 tests if we don't have it.
+
+20100409
+ - (dtucker) [contrib/cygwin/Makefile] Don't overwrite files with the wrong
+   ones.  Based on a patch from Roumen Petrov.
+ - (dtucker) [configure.ac] Bug #1744: use pkg-config for libedit flags if we
+   have it and the path is not provided to --with-libedit.  Based on a patch
+   from Iain Morgan.
+ - (dtucker) [configure.ac defines.h loginrec.c logintest.c] Bug #1732: enable
+   utmpx support on FreeBSD where possible.  Patch from Ed Schouten, ok djm@
+
+20100326
+ - (djm) [openbsd-compat/bsd-arc4random.c] Fix preprocessor detection
+   for arc4random_buf() and arc4random_uniform(); from Josh Gilkerson
+ - (dtucker) [configure.ac] Bug #1741: Add section for Haiku, patch originally
+   by Ingo Weinhold via Scott McCreary, ok djm@
+ - (djm) OpenBSD CVS Sync
+   - djm@cvs.openbsd.org 2010/03/25 23:38:28
+     [servconf.c]
+     from portable: getcwd(NULL, 0) doesn't work on all platforms, so
+     use a stack buffer; ok dtucker@
+   - djm@cvs.openbsd.org 2010/03/26 00:26:58
+     [ssh.1]
+     mention that -S none disables connection sharing; from Colin Watson
+ - (djm) [session.c] Allow ChrootDirectory to work on SELinux platforms -
+   set up SELinux execution context before chroot() call. From Russell
+   Coker via Colin watson; bz#1726 ok dtucker@
+ - (djm) [channels.c] Check for EPFNOSUPPORT as a socket() errno; bz#1721
+   ok dtucker@
+ - (dtucker) Bug #1725: explicitly link libX11 into gnome-ssh-askpass2 using
+   pkg-config, patch from Colin Watson.  Needed for newer linkers (ie gold).
+ - (djm) [contrib/ssh-copy-id] Don't blow up when the agent has no keys;
+   bz#1723 patch from Adeodato Simóvia Colin Watson; ok dtucker@
+ - (dtucker) OpenBSD CVS Sync
+   - dtucker@cvs.openbsd.org 2010/03/26 01:06:13
+     [ssh_config.5]
+     Reformat default value of PreferredAuthentications entry (current
+     formatting implies ", " is acceptable as a separator, which it's not.
+     ok djm@
+
+20100324
+ - (dtucker) [contrib/cygwin/ssh-host-config] Mount the Windows directory
+   containing the services file explicitely case-insensitive.  This allows to
+   tweak the Windows services file reliably.  Patch from vinschen at redhat.
+
+20100321
+ - (djm) OpenBSD CVS Sync
+   - jmc@cvs.openbsd.org 2010/03/08 09:41:27
+     [ssh-keygen.1]
+     sort the list of constraints (to -O); ok djm
+   - jmc@cvs.openbsd.org 2010/03/10 07:40:35
+     [ssh-keygen.1]
+     typos; from Ross Richardson
+     closes prs 6334 and 6335
+   - djm@cvs.openbsd.org 2010/03/10 23:27:17
+     [auth2-pubkey.c]
+     correct certificate logging and make it more consistent between
+     authorized_keys and TrustedCAKeys; ok markus@
+   - djm@cvs.openbsd.org 2010/03/12 01:06:25
+     [servconf.c]
+     unbreak AuthorizedKeys option with a $HOME-relative path; reported by
+     vinschen AT redhat.com, ok dtucker@
+   - markus@cvs.openbsd.org 2010/03/12 11:37:40
+     [servconf.c]
+     do not prepend AuthorizedKeysFile with getcwd(), unbreaks relative paths
+     free() (not xfree()) the buffer returned by getcwd()
+   - djm@cvs.openbsd.org 2010/03/13 21:10:38
+     [clientloop.c]
+     protocol conformance fix: send language tag when disconnecting normally;
+     spotted by 1.41421 AT gmail.com, ok markus@ deraadt@
+   - djm@cvs.openbsd.org 2010/03/13 21:45:46
+     [ssh-keygen.1]
+     Certificates are named *-cert.pub, not *_cert.pub; committing a diff
+     from stevesk@ ok me
+   - jmc@cvs.openbsd.org 2010/03/13 23:38:13
+     [ssh-keygen.1]
+     fix a formatting error (args need quoted); noted by stevesk
+   - stevesk@cvs.openbsd.org 2010/03/15 19:40:02
+     [key.c key.h ssh-keygen.c]
+     also print certificate type (user or host) for ssh-keygen -L
+     ok djm kettenis
+   - stevesk@cvs.openbsd.org 2010/03/16 15:46:52
+     [auth-options.c]
+     spelling in error message. ok djm kettenis
+   - djm@cvs.openbsd.org 2010/03/16 16:36:49
+     [version.h]
+     crank version to openssh-5.5 since we have a few fixes since 5.4;
+     requested deraadt@ kettenis@
+ - (djm) [README contrib/caldera/openssh.spec contrib/redhat/openssh.spec]
+   [contrib/suse/openssh.spec] Crank version numbers
+
+20100314
+ - (djm) [ssh-pkcs11-helper.c] Move #ifdef to after #defines to fix
+   compilation failure when !HAVE_DLOPEN. Reported by felix-mindrot
+   AT fefe.de
+ - (djm) [Makefile.in] Respecify -lssh after -lopenbsd-compat for
+   ssh-pkcs11-helper to repair static builds (we do the same for
+   ssh-keyscan). Reported by felix-mindrot AT fefe.de
+
+20100312
+ - (tim) [Makefile.in] Now that scard is gone, no need to make $(datadir)
+ - (tim) [Makefile.in] Add missing $(EXEEXT) to install targets.
+   Patch from Corinna Vinschen.
+ - (tim) [contrib/cygwin/Makefile] Fix list of documentation files to install
+   on a Cygwin installation. Patch from Corinna Vinschen.
+
+20100311
+ - (tim) [contrib/suse/openssh.spec] crank version number here too.
+   report by imorgan AT nas.nasa.gov
+
+20100309
+ - (dtucker) [configure.ac] Use a proper AC_CHECK_DECL for BROKEN_GETADDRINFO
+   so setting it in CFLAGS correctly skips IPv6 tests.
+
+20100428
  - (djm) OpenBSD CVS Sync
    - djm@cvs.openbsd.org 2010/03/07 22:16:01
      [ssh-keygen.c]
