@@ -2168,6 +2168,6 @@ mvspoll(struct cam_sim *sim)
 
 	arg.arg = ch->dev;
 	arg.cause = 2; /* XXX */
-	mvs_ch_intr(arg.arg);
+	mvs_ch_intr(&arg);
 }
 
