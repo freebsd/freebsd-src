@@ -104,9 +104,11 @@ retry:
 	if ((user_pg = vm_page_lookup(uobject, upindex)) != NULL) {
 		if (vm_page_sleep_if_busy(user_pg, TRUE, "vm_pgmoveco"))
 			goto retry;
+		vm_page_lock(user_pg);
 		vm_page_lock_queues();
 		pmap_remove_all(user_pg);
 		vm_page_free(user_pg);
+		vm_page_unlock(user_pg);
 	} else {
 		/*
 		 * Even if a physical page does not exist in the

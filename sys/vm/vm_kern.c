@@ -380,10 +380,8 @@ retry:
 				i -= PAGE_SIZE;
 				m = vm_page_lookup(kmem_object,
 						   OFF_TO_IDX(offset + i));
-				vm_page_lock_queues();
 				vm_page_unwire(m, 0);
 				vm_page_free(m);
-				vm_page_unlock_queues();
 			}
 			VM_OBJECT_UNLOCK(kmem_object);
 			vm_map_delete(map, addr, addr + size);

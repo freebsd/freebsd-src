@@ -510,6 +510,10 @@ getlast_entry(struct logininfo *li)
 #ifdef USE_LASTLOG
 	return(lastlog_get_entry(li));
 #else /* !USE_LASTLOG */
+#if defined(USE_UTMPX) && defined(HAVE_SETUTXDB) && \
+    defined(UTXDB_LASTLOGIN) && defined(HAVE_GETUTXUSER)
+	return (utmpx_get_entry(li));
+#endif
 
 #if 1
 	return (utmpx_get_entry(li));
@@ -1614,7 +1618,8 @@ lastlog_get_entry(struct logininfo *li)
 #endif /* HAVE_GETLASTLOGXBYNAME */
 #endif /* USE_LASTLOG */
 
-#if 1
+#if defined(USE_UTMPX) && defined(HAVE_SETUTXDB) && \
+    defined(UTXDB_LASTLOGIN) && defined(HAVE_GETUTXUSER)
 int
 utmpx_get_entry(struct logininfo *li)
 {
@@ -1637,7 +1642,7 @@ utmpx_get_entry(struct logininfo *li)
 	endutxent();
 	return (1);
 }
-#endif
+#endif /* USE_UTMPX && HAVE_SETUTXDB && UTXDB_LASTLOGIN && HAVE_GETUTXUSER */
 
 #ifdef USE_BTMP
   /*

@@ -34,7 +34,7 @@ static const char	privatehid[] = "@(#)private.h	8.6";
 #endif /* !defined NOID */
 #endif /* !defined lint */
 
-#define GRANDPARENTED	"Local time zone must be set--see zic manual page"
+#define GRANDPARENTED	"Local time zone must be set--use tzsetup"
 
 /*
 ** Defaults for preprocessor symbols.

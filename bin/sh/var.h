@@ -107,6 +107,8 @@ struct strlist;
 void listsetvar(struct strlist *);
 char *lookupvar(const char *);
 char *bltinlookup(const char *, int);
+void bltinsetlocale(void);
+void bltinunsetlocale(void);
 char **environment(void);
 int showvarscmd(int, char **);
 int exportcmd(int, char **);

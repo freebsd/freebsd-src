@@ -500,7 +500,7 @@ cs_attach(device_t dev)
 	ifp->if_start=cs_start;
 	ifp->if_ioctl=cs_ioctl;
 	ifp->if_init=cs_init;
-	IFQ_SET_MAXLEN(&ifp->if_snd, IFQ_MAXLEN);
+	IFQ_SET_MAXLEN(&ifp->if_snd, ifqmaxlen);
 
 	ifp->if_flags=(IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST);
 

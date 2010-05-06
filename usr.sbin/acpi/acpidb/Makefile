@@ -13,8 +13,9 @@ SRCS+=	dmbuffer.c dmnames.c dmobject.c dmopcode.c dmresrc.c	\
 	dmresrcl.c dmresrcs.c dmutils.c dmwalk.c
 
 # events
-SRCS+=	evevent.c evgpe.c evgpeblk.c evmisc.c evregion.c	\
-	evrgnini.c evsci.c evxface.c evxfevnt.c evxfregn.c
+SRCS+=	evevent.c evgpe.c evgpeblk.c evgpeinit.c evgpeutil.c	\
+	evmisc.c evregion.c evrgnini.c evsci.c evxface.c	\
+	evxfevnt.c evxfregn.c
 
 # hardware
 SRCS+=	hwacpi.c hwgpe.c hwregs.c hwsleep.c hwvalid.c hwxface.c

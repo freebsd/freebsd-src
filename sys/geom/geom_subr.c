@@ -134,65 +134,73 @@ g_load_class(void *arg, int flag)
 	}
 }
 
-static void
-g_unload_class(void *arg, int flag)
+static int
+g_unload_class(struct g_class *mp)
 {
-	struct g_hh00 *hh;
-	struct g_class *mp;
 	struct g_geom *gp;
 	struct g_provider *pp;
 	struct g_consumer *cp;
 	int error;
 
-	g_topology_assert();
-	hh = arg;
-	mp = hh->mp;
-	G_VALID_CLASS(mp);
+	g_topology_lock();
 	g_trace(G_T_TOPOLOGY, "g_unload_class(%s)", mp->name);
+retry:
+	G_VALID_CLASS(mp);
+	LIST_FOREACH(gp, &mp->geom, geom) {
+		/* We refuse to unload if anything is open */
+		LIST_FOREACH(pp, &gp->provider, provider)
+			if (pp->acr || pp->acw || pp->ace) {
+				g_topology_unlock();
+				return (EBUSY);
+			}
+		LIST_FOREACH(cp, &gp->consumer, consumer)
+			if (cp->acr || cp->acw || cp->ace) {
+				g_topology_unlock();
+				return (EBUSY);
+			}
+		/* If the geom is withering, wait for it to finish. */
+		if (gp->flags & G_GEOM_WITHER) {
+			g_topology_sleep(mp, 1);
+			goto retry;
+		}
+	}
 
 	/*
 	 * We allow unloading if we have no geoms, or a class
 	 * method we can use to get rid of them.
 	 */
 	if (!LIST_EMPTY(&mp->geom) && mp->destroy_geom == NULL) {
-		hh->error = EOPNOTSUPP;
-		return;
-	}
-
-	/* We refuse to unload if anything is open */
-	LIST_FOREACH(gp, &mp->geom, geom) {
-		LIST_FOREACH(pp, &gp->provider, provider)
-			if (pp->acr || pp->acw || pp->ace) {
-				hh->error = EBUSY;
-				return;
-			}
-		LIST_FOREACH(cp, &gp->consumer, consumer)
-			if (cp->acr || cp->acw || cp->ace) {
-				hh->error = EBUSY;
-				return;
-			}
+		g_topology_unlock();
+		return (EOPNOTSUPP);
 	}
 
 	/* Bar new entries */
 	mp->taste = NULL;
 	mp->config = NULL;
 
-	error = 0;
+	LIST_FOREACH(gp, &mp->geom, geom) {
+		error = mp->destroy_geom(NULL, mp, gp);
+		if (error != 0) {
+			g_topology_unlock();
+			return (error);
+		}
+	}
+	/* Wait for withering to finish. */
 	for (;;) {
 		gp = LIST_FIRST(&mp->geom);
 		if (gp == NULL)
 			break;
-		error = mp->destroy_geom(NULL, mp, gp);
-		if (error != 0)
-			break;
+		KASSERT(gp->flags & G_GEOM_WITHER,
+		   ("Non-withering geom in class %s", mp->name));
+		g_topology_sleep(mp, 1);
 	}
-	if (error == 0) {
-		if (mp->fini != NULL)
-			mp->fini(mp);
-		LIST_REMOVE(mp, class);
-	}
-	hh->error = error;
-	return;
+	G_VALID_CLASS(mp);
+	if (mp->fini != NULL)
+		mp->fini(mp);
+	LIST_REMOVE(mp, class);
+	g_topology_unlock();
+
+	return (0);
 }
 
 int
@@ -213,12 +221,12 @@ g_modevent(module_t mod, int type, void *data)
 		g_ignition++;
 		g_init();
 	}
-	hh = g_malloc(sizeof *hh, M_WAITOK | M_ZERO);
-	hh->mp = data;
 	error = EOPNOTSUPP;
 	switch (type) {
 	case MOD_LOAD:
-		g_trace(G_T_TOPOLOGY, "g_modevent(%s, LOAD)", hh->mp->name);
+		g_trace(G_T_TOPOLOGY, "g_modevent(%s, LOAD)", mp->name);
+		hh = g_malloc(sizeof *hh, M_WAITOK | M_ZERO);
+		hh->mp = mp;
 		/*
 		 * Once the system is not cold, MOD_LOAD calls will be
 		 * from the userland and the g_event thread will be able
@@ -236,18 +244,14 @@ g_modevent(module_t mod, int type, void *data)
 		}
 		break;
 	case MOD_UNLOAD:
-		g_trace(G_T_TOPOLOGY, "g_modevent(%s, UNLOAD)", hh->mp->name);
-		error = g_waitfor_event(g_unload_class, hh, M_WAITOK, NULL);
-		if (error == 0)
-			error = hh->error;
+		g_trace(G_T_TOPOLOGY, "g_modevent(%s, UNLOAD)", mp->name);
+		DROP_GIANT();
+		error = g_unload_class(mp);
+		PICKUP_GIANT();
 		if (error == 0) {
-			KASSERT(LIST_EMPTY(&hh->mp->geom),
-			    ("Unloaded class (%s) still has geom", hh->mp->name));
+			KASSERT(LIST_EMPTY(&mp->geom),
+			    ("Unloaded class (%s) still has geom", mp->name));
 		}
-		g_free(hh);
-		break;
-	default:
-		g_free(hh);
 		break;
 	}
 	return (error);

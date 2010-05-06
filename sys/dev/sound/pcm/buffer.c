@@ -566,30 +566,6 @@ sndbuf_updateprevtotal(struct snd_dbuf *b)
 }
 
 unsigned int
-snd_xbytes(unsigned int v, unsigned int from, unsigned int to)
-{
-	unsigned int w, x, y;
-
-	if (from == to)
-		return v;
-
-	if (from == 0 || to == 0 || v == 0)
-		return 0;
-
-	x = from;
-	y = to;
-	while (y != 0) {
-		w = x % y;
-		x = y;
-		y = w;
-	}
-	from /= x;
-	to /= x;
-
-	return (unsigned int)(((u_int64_t)v * to) / from);
-}
-
-unsigned int
 sndbuf_xbytes(unsigned int v, struct snd_dbuf *from, struct snd_dbuf *to)
 {
 	if (from == NULL || to == NULL || v == 0)

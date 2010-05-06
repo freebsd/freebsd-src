@@ -378,6 +378,14 @@ static void swp_pager_meta_free(vm_object_t, vm_pindex_t, daddr_t);
 static void swp_pager_meta_free_all(vm_object_t);
 static daddr_t swp_pager_meta_ctl(vm_object_t, vm_pindex_t, int);
 
+static void
+swp_pager_free_nrpage(vm_page_t m)
+{
+
+	if (m->wire_count == 0)
+		vm_page_free(m);
+}
+
 /*
  * SWP_SIZECHECK() -	update swap_pager_full indication
  *	
@@ -1129,12 +1137,21 @@ swap_pager_getpages(vm_object_t object, vm_page_t *m, int count, int reqpage)
 	if (0 < i || j < count) {
 		int k;
 
-		vm_page_lock_queues();
-		for (k = 0; k < i; ++k)
-			vm_page_free(m[k]);
-		for (k = j; k < count; ++k)
-			vm_page_free(m[k]);
-		vm_page_unlock_queues();
+		
+		for (k = 0; k < i; ++k) {
+			vm_page_lock(m[k]);
+			vm_page_lock_queues();
+			swp_pager_free_nrpage(m[k]);
+			vm_page_unlock_queues();
+			vm_page_unlock(m[k]);
+		}
+		for (k = j; k < count; ++k) {
+			vm_page_lock(m[k]);
+			vm_page_lock_queues();
+			swp_pager_free_nrpage(m[k]);
+			vm_page_unlock_queues();
+			vm_page_unlock(m[k]);
+		}
 	}
 
 	/*
@@ -1489,7 +1506,7 @@ swp_pager_async_iodone(struct buf *bp)
 		object = bp->b_pages[0]->object;
 		VM_OBJECT_LOCK(object);
 	}
-	vm_page_lock_queues();
+
 	/*
 	 * cleanup pages.  If an error occurs writing to swap, we are in
 	 * very serious trouble.  If it happens to be a disk error, though,
@@ -1501,6 +1518,8 @@ swp_pager_async_iodone(struct buf *bp)
 	for (i = 0; i < bp->b_npages; ++i) {
 		vm_page_t m = bp->b_pages[i];
 
+		vm_page_lock(m);
+		vm_page_lock_queues();
 		m->oflags &= ~VPO_SWAPINPROG;
 
 		if (bp->b_ioflags & BIO_ERROR) {
@@ -1529,7 +1548,7 @@ swp_pager_async_iodone(struct buf *bp)
 				 */
 				m->valid = 0;
 				if (i != bp->b_pager.pg_reqpage)
-					vm_page_free(m);
+					swp_pager_free_nrpage(m);
 				else
 					vm_page_flash(m);
 				/*
@@ -1597,8 +1616,9 @@ swp_pager_async_iodone(struct buf *bp)
 			if (vm_page_count_severe())
 				vm_page_try_to_cache(m);
 		}
+		vm_page_unlock_queues();
+		vm_page_unlock(m);
 	}
-	vm_page_unlock_queues();
 
 	/*
 	 * adjust pip.  NOTE: the original parent may still have its own
@@ -1694,10 +1714,12 @@ swp_pager_force_pagein(vm_object_t object, vm_pindex_t pindex)
 	m = vm_page_grab(object, pindex, VM_ALLOC_NORMAL|VM_ALLOC_RETRY);
 	if (m->valid == VM_PAGE_BITS_ALL) {
 		vm_object_pip_subtract(object, 1);
+		vm_page_lock(m);
 		vm_page_lock_queues();
 		vm_page_activate(m);
 		vm_page_dirty(m);
 		vm_page_unlock_queues();
+		vm_page_unlock(m);
 		vm_page_wakeup(m);
 		vm_pager_page_unswapped(m);
 		return;
@@ -1706,10 +1728,12 @@ swp_pager_force_pagein(vm_object_t object, vm_pindex_t pindex)
 	if (swap_pager_getpages(object, &m, 1, 0) != VM_PAGER_OK)
 		panic("swap_pager_force_pagein: read from swap failed");/*XXX*/
 	vm_object_pip_subtract(object, 1);
+	vm_page_lock(m);
 	vm_page_lock_queues();
 	vm_page_dirty(m);
 	vm_page_dontneed(m);
 	vm_page_unlock_queues();
+	vm_page_unlock(m);
 	vm_page_wakeup(m);
 	vm_pager_page_unswapped(m);
 }

@@ -682,12 +682,12 @@ pprint() {
 
 usage () {
 	(
-	echo "Usage: $0 [-bikqvw] [-c config_file]"
+	echo "Usage: $0 [-biknqvw] [-c config_file]"
 	echo "	-b	suppress builds (both kernel and world)"
 	echo "	-i	suppress disk image build"
 	echo "	-k	suppress buildkernel"
 	echo "	-n	add -DNO_CLEAN to buildworld, buildkernel, etc"
-	echo "	-q	make output more quite"
+	echo "	-q	make output more quiet"
 	echo "	-v	make output more verbose"
 	echo "	-w	suppress buildworld"
 	echo "	-c	specify config file"

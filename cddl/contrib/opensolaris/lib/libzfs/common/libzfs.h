@@ -289,6 +289,7 @@ extern int zpool_get_errlog(zpool_handle_t *, nvlist_t **);
  * Import and export functions
  */
 extern int zpool_export(zpool_handle_t *, boolean_t);
+extern int zpool_export_force(zpool_handle_t *);
 extern int zpool_import(libzfs_handle_t *, nvlist_t *, const char *,
     char *altroot);
 extern int zpool_import_props(libzfs_handle_t *, nvlist_t *, const char *,
