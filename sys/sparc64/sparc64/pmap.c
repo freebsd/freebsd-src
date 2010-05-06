@@ -1834,14 +1834,19 @@ boolean_t
 pmap_page_is_mapped(vm_page_t m)
 {
 	struct tte *tp;
+	boolean_t rv;
 
+	rv = FALSE;
 	if ((m->flags & (PG_FICTITIOUS | PG_UNMANAGED)) != 0)
-		return (FALSE);
-	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
+		return (rv);
+	vm_page_lock_queues();
 	TAILQ_FOREACH(tp, &m->md.tte_list, tte_link)
-		if ((tp->tte_data & TD_PV) != 0)
-			return (TRUE);
-	return (FALSE);
+		if ((tp->tte_data & TD_PV) != 0) {
+			rv = TRUE;
+			break;
+		}
+	vm_page_unlock_queues();
+	return (rv);
 }
 
 /*

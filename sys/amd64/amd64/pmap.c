@@ -3961,16 +3961,15 @@ pmap_pvh_wired_mappings(struct md_page *pvh, int count)
 boolean_t
 pmap_page_is_mapped(vm_page_t m)
 {
-	struct md_page *pvh;
+	boolean_t rv;
 
 	if ((m->flags & (PG_FICTITIOUS | PG_UNMANAGED)) != 0)
 		return (FALSE);
-	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
-	if (TAILQ_EMPTY(&m->md.pv_list)) {
-		pvh = pa_to_pvh(VM_PAGE_TO_PHYS(m));
-		return (!TAILQ_EMPTY(&pvh->pv_list));
-	} else
-		return (TRUE);
+	vm_page_lock_queues();
+	rv = !TAILQ_EMPTY(&m->md.pv_list) ||
+	    !TAILQ_EMPTY(&pa_to_pvh(VM_PAGE_TO_PHYS(m))->pv_list);
+	vm_page_unlock_queues();
+	return (rv);
 }
 
 /*

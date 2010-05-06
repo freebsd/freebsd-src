@@ -563,11 +563,8 @@ vm_page_unhold(vm_page_t mem)
 	vm_page_lock_assert(mem, MA_OWNED);
 	--mem->hold_count;
 	KASSERT(mem->hold_count >= 0, ("vm_page_unhold: hold count < 0!!!"));
-	if (mem->hold_count == 0 && VM_PAGE_INQUEUE2(mem, PQ_HOLD)) {
-		vm_page_lock_queues();
+	if (mem->hold_count == 0 && VM_PAGE_INQUEUE2(mem, PQ_HOLD))
 		vm_page_free_toq(mem);
-		vm_page_unlock_queues();
-	}
 }
 
 /*
@@ -1448,10 +1445,11 @@ void
 vm_page_free_toq(vm_page_t m)
 {
 
-	if (VM_PAGE_GETQUEUE(m) != PQ_NONE)
-		mtx_assert(&vm_page_queue_mtx, MA_OWNED);
-	KASSERT(!pmap_page_is_mapped(m),
-	    ("vm_page_free_toq: freeing mapped page %p", m));
+	if ((m->flags & PG_UNMANAGED) == 0) {
+		vm_page_lock_assert(m, MA_OWNED);
+		KASSERT(!pmap_page_is_mapped(m),
+		    ("vm_page_free_toq: freeing mapped page %p", m));
+	}
 	PCPU_INC(cnt.v_tfree);
 
 	if (m->busy || VM_PAGE_IS_FREE(m)) {
@@ -1471,7 +1469,11 @@ vm_page_free_toq(vm_page_t m)
 	 * callback routine until after we've put the page on the
 	 * appropriate free queue.
 	 */
-	vm_pageq_remove(m);
+	if (VM_PAGE_GETQUEUE(m) != PQ_NONE) {
+		vm_page_lock_queues();
+		vm_pageq_remove(m);
+		vm_page_unlock_queues();
+	}
 	vm_page_remove(m);
 
 	/*
@@ -1493,9 +1495,10 @@ vm_page_free_toq(vm_page_t m)
 		panic("vm_page_free: freeing wired page");
 	}
 	if (m->hold_count != 0) {
-		vm_page_lock_assert(m, MA_OWNED);
 		m->flags &= ~PG_ZERO;
+		vm_page_lock_queues();
 		vm_page_enqueue(PQ_HOLD, m);
+		vm_page_unlock_queues();
 	} else {
 		/*
 		 * Restore the default memory attribute to the page.
