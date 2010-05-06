@@ -1348,7 +1348,7 @@ vn_rlimit_fsize(const struct vnode *vp, const struct uio *uio,
 	if (vp->v_type != VREG || td == NULL)
 		return (0);
 	PROC_LOCK(td->td_proc);
-	if (uio->uio_offset + uio->uio_resid >
+	if ((uoff_t)uio->uio_offset + uio->uio_resid >
 	    lim_cur(td->td_proc, RLIMIT_FSIZE)) {
 		psignal(td->td_proc, SIGXFSZ);
 		PROC_UNLOCK(td->td_proc);
