@@ -1272,7 +1272,7 @@ ng_ksocket_finish_accept(priv_p priv)
 	soupcall_set(so, SO_RCV, ng_ksocket_incoming, node);
 	SOCKBUF_UNLOCK(&so->so_rcv);
 	SOCKBUF_LOCK(&so->so_snd);
-	soupcall_set(so, SO_RCV, ng_ksocket_incoming, node);
+	soupcall_set(so, SO_SND, ng_ksocket_incoming, node);
 	SOCKBUF_UNLOCK(&so->so_snd);
 
 	/* Fill in the response data and send it or return it to the caller */
