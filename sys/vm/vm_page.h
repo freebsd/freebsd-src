@@ -107,7 +107,7 @@ struct vm_page {
 	vm_pindex_t pindex;		/* offset into object (O,Q) */
 	vm_paddr_t phys_addr;		/* physical address of page */
 	struct md_page md;		/* machine dependant stuff */
-	uint8_t	queue;			/* page queue index */
+	uint8_t	queue;			/* page queue index (P,Q) */
 	int8_t segind;
 	u_short	flags;			/* see below */
 	uint8_t	order;			/* index of the buddy queue */
