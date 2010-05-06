@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 28, 2008
+.Dd May 6, 2010
 .Dt MAKE_DEV 9
 .Os
 .Sh NAME
@@ -133,7 +133,16 @@ The following values are currently accepted:
 .Pp
 .Bd -literal -offset indent -compact
 MAKEDEV_REF	reference the created device
+MAKEDEV_NOWAIT	do not sleep, may return NULL
+MAKEDEV_WAITOK	allow the function to sleep to satisfy malloc
 .Ed
+.Pp
+The
+.Dv MAKEDEV_WAITOK
+flag is assumed if none of
+.Dv MAKEDEV_WAITOK ,
+.Dv MAKEDEV_NOWAIT
+is specified.
 .Pp
 The
 .Xr dev_clone 9
