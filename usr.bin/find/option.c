@@ -32,9 +32,13 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- *	@(#)option.c	8.2 (Berkeley) 4/16/94
  */
+
+#ifndef lint
+/*
+static char sccsid[] = "@(#)option.c	8.2 (Berkeley) 4/16/94";
+*/
+#endif /* not lint */
 
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
@@ -51,7 +55,7 @@ __FBSDID("$FreeBSD$");
 
 #include "find.h"
 
-int typecompare(const void *, const void *);
+static int typecompare(const void *, const void *);
 
 /* NB: the following table must be sorted lexically. */
 /* Options listed with C++ comments are in gnu find, but not our find */
@@ -190,7 +194,7 @@ lookup_option(const char *name)
 	    sizeof(options)/sizeof(OPTION), sizeof(OPTION), typecompare));
 }
 
-int
+static int
 typecompare(const void *a, const void *b)
 {
 	return (strcmp(((const OPTION *)a)->name, ((const OPTION *)b)->name));
