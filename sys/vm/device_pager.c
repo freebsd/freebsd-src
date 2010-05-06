@@ -255,9 +255,7 @@ dev_pager_getpages(object, m, count, reqpage)
 			for (i = 0; i < count; i++) {
 				if (i != reqpage) {
 					vm_page_lock(m[i]);
-					vm_page_lock_queues();		
 					vm_page_free(m[i]);
-					vm_page_unlock_queues();
 					vm_page_unlock(m[i]);
 				}
 			}
@@ -272,9 +270,7 @@ dev_pager_getpages(object, m, count, reqpage)
 		TAILQ_INSERT_TAIL(&object->un_pager.devp.devp_pglist, page, pageq);
 		for (i = 0; i < count; i++) {
 			vm_page_lock(m[i]);
-			vm_page_lock_queues();
 			vm_page_free(m[i]);
-			vm_page_unlock_queues();
 			vm_page_unlock(m[i]);
 		}
 		vm_page_insert(page, object, offset);

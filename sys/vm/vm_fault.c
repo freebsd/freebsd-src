@@ -164,9 +164,7 @@ unlock_and_deallocate(struct faultstate *fs)
 	if (fs->object != fs->first_object) {
 		VM_OBJECT_LOCK(fs->first_object);
 		vm_page_lock(fs->first_m);
-		vm_page_lock_queues();
 		vm_page_free(fs->first_m);
-		vm_page_unlock_queues();
 		vm_page_unlock(fs->first_m);
 		vm_object_pip_wakeup(fs->first_object);
 		VM_OBJECT_UNLOCK(fs->first_object);
@@ -348,9 +346,7 @@ RetryFault:;
 				if (fs.object != fs.first_object) {
 					VM_OBJECT_LOCK(fs.first_object);
 					vm_page_lock(fs.first_m);
-					vm_page_lock_queues();
 					vm_page_free(fs.first_m);
-					vm_page_unlock_queues();
 					vm_page_unlock(fs.first_m);
 					vm_object_pip_wakeup(fs.first_object);
 					VM_OBJECT_UNLOCK(fs.first_object);
@@ -638,9 +634,7 @@ vnode_locked:
 			if (((fs.map != kernel_map) && (rv == VM_PAGER_ERROR)) ||
 				(rv == VM_PAGER_BAD)) {
 				vm_page_lock(fs.m);
-				vm_page_lock_queues();
 				vm_page_free(fs.m);
-				vm_page_unlock_queues();
 				vm_page_unlock(fs.m);
 				fs.m = NULL;
 				unlock_and_deallocate(&fs);
@@ -648,9 +642,7 @@ vnode_locked:
 			}
 			if (fs.object != fs.first_object) {
 				vm_page_lock(fs.m);
-				vm_page_lock_queues();
 				vm_page_free(fs.m);
-				vm_page_unlock_queues();
 				vm_page_unlock(fs.m);
 				fs.m = NULL;
 				/*
@@ -764,13 +756,11 @@ vnode_locked:
 				 * We don't chase down the shadow chain
 				 */
 			    fs.object == fs.first_object->backing_object) {
-				vm_page_lock(fs.first_m);
-				vm_page_lock_queues();
 				/*
 				 * get rid of the unnecessary page
 				 */
+				vm_page_lock(fs.first_m);
 				vm_page_free(fs.first_m);
-				vm_page_unlock_queues();
 				vm_page_unlock(fs.first_m);
 				/*
 				 * grab the page and put it into the 

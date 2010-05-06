@@ -258,9 +258,7 @@ vm_imgact_hold_page(vm_object_t object, vm_ooffset_t offset)
 			goto out;
 		if (rv != VM_PAGER_OK) {
 			vm_page_lock(m);
-			vm_page_lock_queues();
 			vm_page_free(m);
-			vm_page_unlock_queues();
 			vm_page_unlock(m);
 			m = NULL;
 			goto out;
@@ -437,10 +435,8 @@ vm_thread_stack_dispose(vm_object_t ksobj, vm_offset_t ks, int pages)
 		if (m == NULL)
 			panic("vm_thread_dispose: kstack already missing?");
 		vm_page_lock(m);
-		vm_page_lock_queues();
 		vm_page_unwire(m, 0);
 		vm_page_free(m);
-		vm_page_unlock_queues();
 		vm_page_unlock(m);
 	}
 	VM_OBJECT_UNLOCK(ksobj);
