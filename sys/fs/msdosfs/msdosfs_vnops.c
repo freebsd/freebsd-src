@@ -652,7 +652,6 @@ msdosfs_write(ap)
 	struct buf *bp;
 	int ioflag = ap->a_ioflag;
 	struct uio *uio = ap->a_uio;
-	struct thread *td = uio->uio_td;
 	struct vnode *vp = ap->a_vp;
 	struct vnode *thisvp;
 	struct denode *dep = VTODE(vp);
@@ -696,7 +695,7 @@ msdosfs_write(ap)
 	/*
 	 * If they've exceeded their filesize limit, tell them about it.
 	 */
-	if (vn_rlimit_fsize(vp, uio, td))
+	if (vn_rlimit_fsize(vp, uio, uio->uio_td))
 		return (EFBIG);
 
 	/*
