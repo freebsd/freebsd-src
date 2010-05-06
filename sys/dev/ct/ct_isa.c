@@ -316,7 +316,7 @@ ct_isa_attach(device_t dev)
 		break;
 	}
 #if	0
-	printf("%s: chiprev %s chipclk %d Mhz\n", 
+	printf("%s: chiprev %s chipclk %d MHz\n", 
 		slp->sl_dev.dv_xname, s, ct->sc_chipclk);
 #endif
 
