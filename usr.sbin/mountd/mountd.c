@@ -2881,14 +2881,14 @@ check_options(dp)
 		syslog(LOG_ERR, "-mask and /masklen are mutually exclusive");
 		return (1);
 	}
-	if ((opt_flags & OP_ALLDIRS) && dp->dp_left) {
-	    syslog(LOG_ERR, "-alldirs has multiple directories");
-	    return (1);
-	}
 	if (v4root_phase > 0 &&
 	    (opt_flags &
 	     ~(OP_SEC | OP_MASK | OP_NET | OP_HAVEMASK | OP_MASKLEN)) != 0) {
 	    syslog(LOG_ERR,"only -sec,-net,-mask options allowed on V4:");
+	    return (1);
+	}
+	if ((opt_flags & OP_ALLDIRS) && dp->dp_left) {
+	    syslog(LOG_ERR, "-alldirs has multiple directories");
 	    return (1);
 	}
 	return (0);
