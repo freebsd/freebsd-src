@@ -119,10 +119,10 @@ VNET_DECLARE(struct inpcbinfo, ripcbinfo);
 #define	V_ripcb				VNET(ripcb)
 #define	V_ripcbinfo			VNET(ripcbinfo)
 
-VNET_DEFINE(struct rip6stat, rip6stat);
-
 extern u_long	rip_sendspace;
 extern u_long	rip_recvspace;
+
+VNET_DEFINE(struct rip6stat, rip6stat);
 
 /*
  * Hooks for multicast routing. They all default to NULL, so leave them not
