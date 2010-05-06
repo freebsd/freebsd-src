@@ -113,7 +113,7 @@ struct vm_page {
 	uint8_t	order;			/* index of the buddy queue */
 	uint8_t pool;
 	u_short cow;			/* page cow mapping count (Q) */
-	u_int wire_count;		/* wired down maps refs (Q) */
+	u_int wire_count;		/* wired down maps refs (P) */
 	short hold_count;		/* page hold count (P) */
 	u_short oflags;			/* page flags (O) */
 	u_char	act_count;		/* page usage count (Q) */
