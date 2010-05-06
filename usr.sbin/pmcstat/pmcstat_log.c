@@ -539,6 +539,8 @@ pmcstat_image_add_symbols(struct pmcstat_image *image, Elf *e,
 			return;
 		if (GELF_ST_TYPE(sym.st_info) != STT_FUNC)
 			continue;
+		if (sym.st_shndx == STN_UNDEF)
+			continue;
 
 		if (!firsttime && pmcstat_symbol_search(image, sym.st_value))
 			continue; /* We've seen this symbol already. */
