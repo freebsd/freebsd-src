@@ -102,6 +102,7 @@ VNET_DEFINE(int, ipsec_debug) = 1;
 #else
 VNET_DEFINE(int, ipsec_debug) = 0;
 #endif
+
 /* NB: name changed so netstat doesn't use it. */
 VNET_DEFINE(struct ipsecstat, ipsec4stat);
 VNET_DEFINE(int, ip4_ah_offsetmask) = 0;	/* maybe IP_DF? */
