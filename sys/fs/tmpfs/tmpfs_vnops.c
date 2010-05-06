@@ -717,7 +717,6 @@ tmpfs_write(struct vop_write_args *v)
 	struct vnode *vp = v->a_vp;
 	struct uio *uio = v->a_uio;
 	int ioflag = v->a_ioflag;
-	struct thread *td = uio->uio_td;
 
 	boolean_t extended;
 	int error = 0;
@@ -747,7 +746,7 @@ tmpfs_write(struct vop_write_args *v)
 	  VFS_TO_TMPFS(vp->v_mount)->tm_maxfilesize)
 		return (EFBIG);
 
-	if (vn_rlimit_fsize(vp, uio, td))
+	if (vn_rlimit_fsize(vp, uio, uio->uio_td))
 		return (EFBIG);
 
 	extended = uio->uio_offset + uio->uio_resid > node->tn_size;
