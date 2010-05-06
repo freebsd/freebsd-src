@@ -215,6 +215,17 @@ static void vm_req_vmdaemon(int req);
 #endif
 static void vm_pageout_page_stats(void);
 
+static void
+vm_pageout_init_marker(vm_page_t marker, u_short queue)
+{
+
+	bzero(marker, sizeof(*marker));
+	marker->flags = PG_FICTITIOUS | PG_MARKER;
+	marker->oflags = VPO_BUSY;
+	marker->queue = queue;
+	marker->wire_count = 1;
+}
+
 /*
  * vm_pageout_fallback_object_lock:
  * 
@@ -237,16 +248,8 @@ vm_pageout_fallback_object_lock(vm_page_t m, vm_page_t *next)
 	u_short queue;
 	vm_object_t object;
 
-	/*
-	 * Initialize our marker
-	 */
-	bzero(&marker, sizeof(marker));
-	marker.flags = PG_FICTITIOUS | PG_MARKER;
-	marker.oflags = VPO_BUSY;
-	marker.queue = m->queue;
-	marker.wire_count = 1;
-
 	queue = m->queue;
+	vm_pageout_init_marker(&marker, queue);
 	object = m->object;
 	
 	TAILQ_INSERT_AFTER(&vm_page_queues[queue].pl,
@@ -264,6 +267,43 @@ vm_pageout_fallback_object_lock(vm_page_t m, vm_page_t *next)
 		     &marker == TAILQ_NEXT(m, pageq));
 	TAILQ_REMOVE(&vm_page_queues[queue].pl,
 		     &marker, pageq);
+	return (unchanged);
+}
+
+/*
+ * Lock the page while holding the page queue lock.  Use marker page
+ * to detect page queue changes and maintain notion of next page on
+ * page queue.  Return TRUE if no changes were detected, FALSE
+ * otherwise.  The page is locked on return. The page queue lock might
+ * be dropped and reacquired.
+ *
+ * This function depends on normal struct vm_page being type stable.
+ */
+boolean_t
+vm_pageout_page_lock(vm_page_t m, vm_page_t *next)
+{
+	struct vm_page marker;
+	boolean_t unchanged;
+	u_short queue;
+
+	vm_page_lock_assert(m, MA_NOTOWNED);
+	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
+
+	if (vm_page_trylock(m))
+		return (TRUE);
+
+	queue = m->queue;
+	vm_pageout_init_marker(&marker, queue);
+
+	TAILQ_INSERT_AFTER(&vm_page_queues[queue].pl, m, &marker, pageq);
+	vm_page_unlock_queues();
+	vm_page_lock(m);
+	vm_page_lock_queues();
+
+	/* Page queue might have changed. */
+	*next = TAILQ_NEXT(&marker, pageq);
+	unchanged = (m->queue == queue && &marker == TAILQ_NEXT(m, pageq));
+	TAILQ_REMOVE(&vm_page_queues[queue].pl, &marker, pageq);
 	return (unchanged);
 }
 
@@ -777,7 +817,11 @@ rescan0:
 		if (m->flags & PG_MARKER)
 			continue;
 
-		if (!vm_page_trylock(m)) {
+		/*
+		 * Lock the page.
+		 */
+		if (!vm_pageout_page_lock(m, &next)) {
+			vm_page_unlock(m);
 			addl_page_shortage++;
 			continue;
 		}
@@ -1112,7 +1156,9 @@ unlock_and_continue:
 			m = next;
 			continue;
 		}
-		if (!vm_page_trylock(m) || (object = m->object) == NULL) {
+		if (!vm_pageout_page_lock(m, &next) ||
+		    (object = m->object) == NULL) {
+			vm_page_unlock(m);
 			m = next;
 			continue;
 		}
@@ -1375,7 +1421,9 @@ vm_pageout_page_stats()
 			continue;
 		}
 		vm_page_lock_assert(m, MA_NOTOWNED);
-		if (vm_page_trylock(m) == 0 || (object = m->object) == NULL) {
+		if (!vm_pageout_page_lock(m, &next) ||
+		    (object = m->object) == NULL) {
+			vm_page_unlock(m);
 			m = next;
 			continue;
 		}
