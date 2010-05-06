@@ -49,6 +49,7 @@ void proto_local_address(const struct proto_conn *conn, char *addr,
     size_t size);
 void proto_remote_address(const struct proto_conn *conn, char *addr,
     size_t size);
+int proto_timeout(const struct proto_conn *conn, int timeout);
 void proto_close(struct proto_conn *conn);
 
 #endif	/* !_PROTO_H_ */

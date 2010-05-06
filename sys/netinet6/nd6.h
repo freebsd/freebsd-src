@@ -330,8 +330,6 @@ VNET_DECLARE(struct nd_drhead, nd_defrouter);
 VNET_DECLARE(struct nd_prhead, nd_prefix);
 VNET_DECLARE(int, nd6_debug);
 VNET_DECLARE(int, nd6_onlink_ns_rfc4861);
-VNET_DECLARE(struct callout, nd6_timer_ch);
-
 #define	V_nd6_prune			VNET(nd6_prune)
 #define	V_nd6_delay			VNET(nd6_delay)
 #define	V_nd6_umaxtries			VNET(nd6_umaxtries)
@@ -343,6 +341,10 @@ VNET_DECLARE(struct callout, nd6_timer_ch);
 #define	V_nd_prefix			VNET(nd_prefix)
 #define	V_nd6_debug			VNET(nd6_debug)
 #define	V_nd6_onlink_ns_rfc4861		VNET(nd6_onlink_ns_rfc4861)
+
+#define nd6log(x)	do { if (V_nd6_debug) log x; } while (/*CONSTCOND*/ 0)
+
+VNET_DECLARE(struct callout, nd6_timer_ch);
 #define	V_nd6_timer_ch			VNET(nd6_timer_ch)
 
 /* nd6_rtr.c */
@@ -351,14 +353,11 @@ VNET_DECLARE(int, ip6_desync_factor);	/* seconds */
 VNET_DECLARE(u_int32_t, ip6_temp_preferred_lifetime); /* seconds */
 VNET_DECLARE(u_int32_t, ip6_temp_valid_lifetime); /* seconds */
 VNET_DECLARE(int, ip6_temp_regen_advance); /* seconds */
-
 #define	V_nd6_defifindex		VNET(nd6_defifindex)
 #define	V_ip6_desync_factor		VNET(ip6_desync_factor)
 #define	V_ip6_temp_preferred_lifetime	VNET(ip6_temp_preferred_lifetime)
 #define	V_ip6_temp_valid_lifetime	VNET(ip6_temp_valid_lifetime)
 #define	V_ip6_temp_regen_advance	VNET(ip6_temp_regen_advance)
-
-#define nd6log(x)	do { if (V_nd6_debug) log x; } while (/*CONSTCOND*/ 0)
 
 union nd_opts {
 	struct nd_opt_hdr *nd_opt_array[8];	/* max = target address list */

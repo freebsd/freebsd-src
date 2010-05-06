@@ -75,6 +75,7 @@ void	taskqueue_thread_enqueue(void *context);
 	(task)->ta_priority = (priority);		\
 	(task)->ta_func = (func);			\
 	(task)->ta_context = (context);			\
+	(task)->ta_flags = 0;				\
 } while (0)
 
 /*

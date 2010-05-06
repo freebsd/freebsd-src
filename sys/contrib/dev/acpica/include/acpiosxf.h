@@ -410,8 +410,8 @@ AcpiOsWritePciConfiguration (
  */
 void
 AcpiOsDerivePciId(
-    ACPI_HANDLE             Rhandle,
-    ACPI_HANDLE             Chandle,
+    ACPI_HANDLE             Device,
+    ACPI_HANDLE             Region,
     ACPI_PCI_ID             **PciId);
 
 

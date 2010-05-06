@@ -123,6 +123,21 @@ softdep_uninitialize()
 }
 
 void
+softdep_unmount(mp)
+	struct mount *mp;
+{
+
+}
+
+void
+softdep_setup_sbupdate(ump, fs, bp)
+	struct ufsmount *ump;
+	struct fs *fs;
+	struct buf *bp;
+{
+}
+
+void
 softdep_setup_inomapdep(bp, ip, newinum)
 	struct buf *bp;
 	struct inode *ip;
@@ -265,6 +280,162 @@ softdep_setup_directory_change(bp, dp, ip, newinum, isrmdir)
 {
 
 	panic("softdep_setup_directory_change called");
+}
+
+void *
+softdep_setup_trunc(vp, length, flags)
+	struct vnode *vp;
+	off_t length;
+	int flags;
+{
+
+	panic("%s called", __FUNCTION__);
+
+	return (NULL);
+}
+
+int
+softdep_complete_trunc(vp, cookie)
+	struct vnode *vp;
+	void *cookie;
+{
+
+	panic("%s called", __FUNCTION__);
+
+	return (0);
+}
+
+void
+softdep_setup_blkfree(mp, bp, blkno, frags, wkhd)
+	struct mount *mp;
+	struct buf *bp;
+	ufs2_daddr_t blkno;
+	int frags;
+	struct workhead *wkhd;
+{
+
+	panic("%s called", __FUNCTION__);
+}
+
+void
+softdep_setup_inofree(mp, bp, ino, wkhd)
+	struct mount *mp;
+	struct buf *bp;
+	ino_t ino;
+	struct workhead *wkhd;
+{
+
+	panic("%s called", __FUNCTION__);
+}
+
+void
+softdep_setup_unlink(dp, ip)
+	struct inode *dp;
+	struct inode *ip;
+{
+
+	panic("%s called", __FUNCTION__);
+}
+
+void
+softdep_setup_link(dp, ip)
+	struct inode *dp;
+	struct inode *ip;
+{
+
+	panic("%s called", __FUNCTION__);
+}
+
+void
+softdep_revert_link(dp, ip)
+	struct inode *dp;
+	struct inode *ip;
+{
+
+	panic("%s called", __FUNCTION__);
+}
+
+void
+softdep_setup_rmdir(dp, ip)
+	struct inode *dp;
+	struct inode *ip;
+{
+
+	panic("%s called", __FUNCTION__);
+}
+
+void
+softdep_revert_rmdir(dp, ip)
+	struct inode *dp;
+	struct inode *ip;
+{
+
+	panic("%s called", __FUNCTION__);
+}
+
+void
+softdep_setup_create(dp, ip)
+	struct inode *dp;
+	struct inode *ip;
+{
+
+	panic("%s called", __FUNCTION__);
+}
+
+void
+softdep_revert_create(dp, ip)
+	struct inode *dp;
+	struct inode *ip;
+{
+
+	panic("%s called", __FUNCTION__);
+}
+
+void
+softdep_setup_mkdir(dp, ip)
+	struct inode *dp;
+	struct inode *ip;
+{
+
+	panic("%s called", __FUNCTION__);
+}
+
+void
+softdep_revert_mkdir(dp, ip)
+	struct inode *dp;
+	struct inode *ip;
+{
+
+	panic("%s called", __FUNCTION__);
+}
+
+void
+softdep_setup_dotdot_link(dp, ip)
+	struct inode *dp;
+	struct inode *ip;
+{
+
+	panic("%s called", __FUNCTION__);
+}
+
+int
+softdep_prealloc(vp, waitok)
+	struct vnode *vp;
+	int waitok;
+{
+
+	panic("%s called", __FUNCTION__);
+
+	return (0);
+}
+
+int
+softdep_journal_lookup(mp, vpp)
+	struct mount *mp;
+	struct vnode **vpp;
+{
+
+	return (ENOENT);
 }
 
 void
@@ -3333,7 +3504,8 @@ cancel_jaddref(jaddref, inodedep, wkhd)
 		WORKLIST_INSERT(wkhd, &jsegdep->jd_list);
 	} else {
 		free_jsegdep(jsegdep);
-		remove_from_journal(&jaddref->ja_list);
+		if (jaddref->ja_state & DEPCOMPLETE)
+			remove_from_journal(&jaddref->ja_list);
 	}
 	/*
 	 * Leave NEWBLOCK jaddrefs on the inodedep so handle_workitem_remove

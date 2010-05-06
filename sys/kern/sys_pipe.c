@@ -773,10 +773,12 @@ pipe_build_write_buffer(wpipe, uio)
 		 */
 	race:
 		if (vm_fault_quick((caddr_t)addr, VM_PROT_READ) < 0) {
-			vm_page_lock_queues();
-			for (j = 0; j < i; j++)
+			
+			for (j = 0; j < i; j++) {
+				vm_page_lock(wpipe->pipe_map.ms[j]);
 				vm_page_unhold(wpipe->pipe_map.ms[j]);
-			vm_page_unlock_queues();
+				vm_page_unlock(wpipe->pipe_map.ms[j]);
+			}
 			return (EFAULT);
 		}
 		wpipe->pipe_map.ms[i] = pmap_extract_and_hold(pmap, addr,
@@ -816,11 +818,11 @@ pipe_destroy_write_buffer(wpipe)
 	int i;
 
 	PIPE_LOCK_ASSERT(wpipe, MA_OWNED);
-	vm_page_lock_queues();
 	for (i = 0; i < wpipe->pipe_map.npages; i++) {
+		vm_page_lock(wpipe->pipe_map.ms[i]);
 		vm_page_unhold(wpipe->pipe_map.ms[i]);
+		vm_page_unlock(wpipe->pipe_map.ms[i]);
 	}
-	vm_page_unlock_queues();
 	wpipe->pipe_map.npages = 0;
 }
 

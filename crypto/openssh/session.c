@@ -1581,6 +1581,10 @@ do_setusercontext(struct passwd *pw)
 		}
 #endif /* HAVE_SETPCRED */
 
+#ifdef WITH_SELINUX
+		ssh_selinux_setup_exec_context(pw->pw_name);
+#endif
+
 		if (options.chroot_directory != NULL &&
 		    strcasecmp(options.chroot_directory, "none") != 0) {
                         tmp = tilde_expand_filename(options.chroot_directory,
@@ -1605,10 +1609,6 @@ do_setusercontext(struct passwd *pw)
 
 	if (getuid() != pw->pw_uid || geteuid() != pw->pw_uid)
 		fatal("Failed to set uids to %u.", (u_int) pw->pw_uid);
-
-#ifdef WITH_SELINUX
-	ssh_selinux_setup_exec_context(pw->pw_name);
-#endif
 }
 
 static void

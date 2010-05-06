@@ -147,7 +147,6 @@ unsigned pmap_max_asid;		/* max ASID supported by the system */
 
 #define	PMAP_ASID_RESERVED	0
 
-
 vm_offset_t kernel_vm_end;
 
 static struct tlb tlbstash[MAXCPU][MIPS_MAX_TLB_ENTRIES];
@@ -237,7 +236,7 @@ caddr_t virtual_sys_start = (caddr_t)0;
 	sched_pin();							\
 	va1 = sysm->base;						\
 	va2 = sysm->base + PAGE_SIZE;					\
-	npte = mips_paddr_to_tlbpfn(phys2) |				\
+	npte = mips_paddr_to_tlbpfn(phys1) |				\
 	    PTE_RW | PTE_V | PTE_G | PTE_W | PTE_CACHE;			\
 	pte = pmap_pte(kernel_pmap, va1);				\
 	*pte = npte;							\
@@ -710,18 +709,22 @@ pmap_extract_and_hold(pmap_t pmap, vm_offset_t va, vm_prot_t prot)
 {
 	pt_entry_t pte;
 	vm_page_t m;
+	vm_paddr_t pa;
 
 	m = NULL;
-	vm_page_lock_queues();
+	pa = 0;
 	PMAP_LOCK(pmap);
-
+retry:
 	pte = *pmap_pte(pmap, va);
 	if (pte != 0 && pmap_pte_v(&pte) &&
 	    ((pte & PTE_RW) || (prot & VM_PROT_WRITE) == 0)) {
+		if (vm_page_pa_tryrelock(pmap, mips_tlbpfn_to_paddr(pte), &pa))
+			goto retry;
+
 		m = PHYS_TO_VM_PAGE(mips_tlbpfn_to_paddr(pte));
 		vm_page_hold(m);
 	}
-	vm_page_unlock_queues();
+	PA_UNLOCK_COND(pa);
 	PMAP_UNLOCK(pmap);
 	return (m);
 }
@@ -1690,16 +1693,10 @@ retry:
 		obits = pbits = *pte;
 		pa = mips_tlbpfn_to_paddr(pbits);
 
-		if (page_is_managed(pa)) {
+		if (page_is_managed(pa) && (pbits & PTE_M) != 0) {
 			m = PHYS_TO_VM_PAGE(pa);
-			if (m->md.pv_flags & PV_TABLE_REF) {
-				vm_page_flag_set(m, PG_REFERENCED);
-				m->md.pv_flags &= ~PV_TABLE_REF;
-			}
-			if (pbits & PTE_M) {
-				vm_page_dirty(m);
-				m->md.pv_flags &= ~PV_TABLE_MOD;
-			}
+			vm_page_dirty(m);
+			m->md.pv_flags &= ~PV_TABLE_MOD;
 		}
 		pbits = (pbits & ~PTE_M) | PTE_RO;
 

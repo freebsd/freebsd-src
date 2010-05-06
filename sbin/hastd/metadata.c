@@ -117,7 +117,7 @@ metadata_read(struct hast_resource *res, bool openrw)
 	}
 
 	str = nv_get_string(nv, "resource");
-	if (strcmp(str, res->hr_name) != 0) {
+	if (str != NULL && strcmp(str, res->hr_name) != 0) {
 		pjdlog_error("Provider %s is not part of resource %s.",
 		    res->hr_localpath, res->hr_name);
 		nv_free(nv);

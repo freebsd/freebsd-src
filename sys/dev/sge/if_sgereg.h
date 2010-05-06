@@ -137,6 +137,11 @@
 #define	AcceptAllPhys		0x0100
 #define	AcceptErr		0x0020
 #define	AcceptRunt		0x0010
+#define	RXMAC_STRIP_VLAN	0x0020
+#define	RXMAC_STRIP_FCS		0x0010
+#define	RXMAC_PAD_ENB		0x0004
+
+#define	SGE_RX_PAD_BYTES	10
 
 /* Station control register. */
 #define	SC_LOOPBACK		0x80000000
@@ -183,12 +188,14 @@
 #define	TDC_COL			0x00040000
 #define	TDC_CRC			0x00020000
 #define	TDC_PAD			0x00010000
+#define	TDC_VLAN_MASK		0x0000FFFF
 
 #define	SGE_TX_INTR_FRAMES	32
 
 /*
  * TX descriptor status bits.
  */
+#define	TDS_INS_VLAN		0x80000000
 #define	TDS_OWC			0x00080000
 #define	TDS_ABT			0x00040000
 #define	TDS_FIFO		0x00020000
@@ -215,11 +222,12 @@
 #define	RDC_UCAST		0x00040000
 #define	RDC_CRCOFF		0x00020000
 #define	RDC_PREADD		0x00010000
+#define	RDC_VLAN_MASK		0x0000FFFF
 
 /*
  * RX descriptor status bits
  */
-#define	RDS_TAGON		0x80000000
+#define	RDS_VLAN		0x80000000
 #define	RDS_DESCS		0x3f000000
 #define	RDS_ABORT		0x00800000
 #define	RDS_SHORT		0x00400000
@@ -236,7 +244,7 @@
 #define	RX_ERR_BITS 		"\20"					\
 				"\21CRCOK\22COLON\23NIBON\24OVRUN"	\
 				"\25MIIER\26LIMIT\27SHORT\30ABORT"	\
-				"\40TAGON"
+				"\40VLAN"
 
 #define	RING_END		0x80000000
 #define	SGE_RX_BYTES(x)		((x) & 0xFFFF)
@@ -275,7 +283,7 @@ struct sge_desc {
 #define	SGE_RX_RING_CNT		256 /* [8, 1024] */
 #define	SGE_TX_RING_CNT		256 /* [8, 8192] */
 #define	SGE_DESC_ALIGN		16
-#define	SGE_MAXTXSEGS		1
+#define	SGE_MAXTXSEGS		16
 #define	SGE_RX_BUF_ALIGN	sizeof(uint64_t)
 
 #define	SGE_RX_RING_SZ		(SGE_RX_RING_CNT * sizeof(struct sge_desc))
@@ -290,6 +298,17 @@ struct sge_list_data {
 	bus_addr_t		sge_tx_paddr;
 };
 
+struct sge_txdesc {
+	struct mbuf		*tx_m;
+	bus_dmamap_t		tx_dmamap;
+	int			tx_ndesc;
+};
+
+struct sge_rxdesc {
+	struct mbuf		*rx_m;
+	bus_dmamap_t		rx_dmamap;
+};
+
 struct sge_chain_data {
 	bus_dma_tag_t		sge_tag;
 	bus_dma_tag_t		sge_rx_tag;
@@ -298,11 +317,9 @@ struct sge_chain_data {
 	bus_dmamap_t		sge_tx_dmamap;
 	bus_dma_tag_t		sge_txmbuf_tag;
 	bus_dma_tag_t		sge_rxmbuf_tag;
-	struct mbuf		*sge_rx_mbuf[SGE_RX_RING_CNT];
-	struct mbuf		*sge_tx_mbuf[SGE_TX_RING_CNT];
-	bus_dmamap_t		sge_rx_map[SGE_RX_RING_CNT];
+	struct sge_txdesc	sge_txdesc[SGE_TX_RING_CNT];
+	struct sge_rxdesc	sge_rxdesc[SGE_RX_RING_CNT];
 	bus_dmamap_t		sge_rx_spare_map;
-	bus_dmamap_t		sge_tx_map[SGE_TX_RING_CNT];
 	int			sge_rx_cons;
 	int			sge_tx_prod;
 	int			sge_tx_cons;
@@ -331,6 +348,7 @@ struct sge_softc {
 	int			sge_timer;
 	int			sge_flags;
 #define	SGE_FLAG_FASTETHER	0x0001
+#define	SGE_FLAG_SIS190		0x0002
 #define	SGE_FLAG_RGMII		0x0010
 #define	SGE_FLAG_SPEED_1000	0x2000
 #define	SGE_FLAG_FDX		0x4000

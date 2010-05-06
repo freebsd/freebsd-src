@@ -51,6 +51,6 @@ struct mdproc {
 	void	*md_sigtramp;
 };
 
-#define KINFO_PROC_SIZE 1088
+#define	KINFO_PROC_SIZE 1088
 
 #endif /* !_MACHINE_PROC_H_ */

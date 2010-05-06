@@ -58,6 +58,7 @@ static bool mynode;
 static char depth0_control[HAST_ADDRSIZE];
 static char depth0_listen[HAST_ADDRSIZE];
 static int depth0_replication;
+static int depth0_timeout;
 
 static char depth1_provname[PATH_MAX];
 static char depth1_localpath[PATH_MAX];
@@ -115,6 +116,7 @@ yy_config_parse(const char *config)
 	curres = NULL;
 	mynode = false;
 
+	depth0_timeout = HAST_TIMEOUT;
 	depth0_replication = HAST_REPLICATION_MEMSYNC;
 	strlcpy(depth0_control, HAST_CONTROL, sizeof(depth0_control));
 	strlcpy(depth0_listen, HASTD_LISTEN, sizeof(depth0_listen));
@@ -154,6 +156,13 @@ yy_config_parse(const char *config)
 			 */
 			curres->hr_replication = depth0_replication;
 		}
+		if (curres->hr_timeout == -1) {
+			/*
+			 * Timeout is not set at resource-level.
+			 * Use global or default setting.
+			 */
+			curres->hr_timeout = depth0_timeout;
+		}
 	}
 
 	return (&lconfig);
@@ -171,7 +180,7 @@ yy_config_free(struct hastd_config *config)
 }
 %}
 
-%token CONTROL LISTEN PORT REPLICATION EXTENTSIZE RESOURCE NAME LOCAL REMOTE ON
+%token CONTROL LISTEN PORT REPLICATION TIMEOUT EXTENTSIZE RESOURCE NAME LOCAL REMOTE ON
 %token FULLSYNC MEMSYNC ASYNC
 %token NUM STR OB CB
 
@@ -199,6 +208,8 @@ statement:
 	listen_statement
 	|
 	replication_statement
+	|
+	timeout_statement
 	|
 	node_statement
 	|
@@ -279,6 +290,22 @@ replication_type:
 	MEMSYNC		{ $$ = HAST_REPLICATION_MEMSYNC; }
 	|
 	ASYNC		{ $$ = HAST_REPLICATION_ASYNC; }
+	;
+
+timeout_statement:	TIMEOUT NUM
+	{
+		switch (depth) {
+		case 0:
+			depth0_timeout = $2;
+			break;
+		case 1:
+			if (curres != NULL)
+				curres->hr_timeout = $2;
+			break;
+		default:
+			assert(!"timeout at wrong depth level");
+		}
+	}
 	;
 
 node_statement:		ON node_start OB node_entries CB
@@ -389,6 +416,7 @@ resource_start:	STR
 		curres->hr_role = HAST_ROLE_INIT;
 		curres->hr_previous_role = HAST_ROLE_INIT;
 		curres->hr_replication = -1;
+		curres->hr_timeout = -1;
 		curres->hr_provname[0] = '\0';
 		curres->hr_localpath[0] = '\0';
 		curres->hr_localfd = -1;
@@ -404,6 +432,8 @@ resource_entries:
 
 resource_entry:
 	replication_statement
+	|
+	timeout_statement
 	|
 	name_statement
 	|

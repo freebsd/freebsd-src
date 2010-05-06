@@ -717,19 +717,21 @@ vm_object_terminate(vm_object_t object)
 	 * removes them from paging queues. Don't free wired pages, just
 	 * remove them from the object. 
 	 */
-	vm_page_lock_queues();
 	while ((p = TAILQ_FIRST(&object->memq)) != NULL) {
 		KASSERT(!p->busy && (p->oflags & VPO_BUSY) == 0,
 			("vm_object_terminate: freeing busy page %p "
 			"p->busy = %d, p->oflags %x\n", p, p->busy, p->oflags));
+		vm_page_lock(p);
+		vm_page_lock_queues();
 		if (p->wire_count == 0) {
 			vm_page_free(p);
 			cnt.v_pfree++;
 		} else {
 			vm_page_remove(p);
 		}
+		vm_page_unlock_queues();
+		vm_page_unlock(p);
 	}
-	vm_page_unlock_queues();
 
 #if VM_NRESERVLEVEL > 0
 	if (__predict_false(!LIST_EMPTY(&object->rvq)))
@@ -772,6 +774,7 @@ vm_object_page_clean(vm_object_t object, vm_pindex_t start, vm_pindex_t end, int
 	int pagerflags;
 	int curgeneration;
 
+	mtx_assert(&vm_page_queue_mtx, MA_NOTOWNED);
 	VM_OBJECT_LOCK_ASSERT(object, MA_OWNED);
 	if ((object->flags & OBJ_MIGHTBEDIRTY) == 0)
 		return;
@@ -789,7 +792,6 @@ vm_object_page_clean(vm_object_t object, vm_pindex_t start, vm_pindex_t end, int
 		tend = end;
 	}
 
-	vm_page_lock_queues();
 	/*
 	 * If the caller is smart and only msync()s a range he knows is
 	 * dirty, we may be able to avoid an object scan.  This results in
@@ -818,13 +820,19 @@ vm_object_page_clean(vm_object_t object, vm_pindex_t start, vm_pindex_t end, int
 				++tscan;
 				continue;
 			}
+			vm_page_lock(p);
+			vm_page_lock_queues();
 			vm_page_test_dirty(p);
 			if (p->dirty == 0) {
+				vm_page_unlock_queues();
+				vm_page_unlock(p);
 				if (--scanlimit == 0)
 					break;
 				++tscan;
 				continue;
 			}
+			vm_page_unlock_queues();
+			vm_page_unlock(p);
 			/*
 			 * If we have been asked to skip nosync pages and 
 			 * this is a nosync page, we can't continue.
@@ -842,6 +850,7 @@ vm_object_page_clean(vm_object_t object, vm_pindex_t start, vm_pindex_t end, int
 			 * page (i.e. had to sleep).
 			 */
 			tscan += vm_object_page_collect_flush(object, p, curgeneration, pagerflags);
+
 		}
 
 		/*
@@ -851,7 +860,6 @@ vm_object_page_clean(vm_object_t object, vm_pindex_t start, vm_pindex_t end, int
 		 * return immediately.
 		 */
 		if (tscan >= tend && (tstart || tend < object->size)) {
-			vm_page_unlock_queues();
 			vm_object_clear_flag(object, OBJ_CLEANING);
 			return;
 		}
@@ -871,8 +879,13 @@ vm_object_page_clean(vm_object_t object, vm_pindex_t start, vm_pindex_t end, int
 		p->oflags |= VPO_CLEANCHK;
 		if ((flags & OBJPC_NOSYNC) && (p->oflags & VPO_NOSYNC))
 			clearobjflags = 0;
-		else
+		else {
+			vm_page_lock(p);
+			vm_page_lock_queues();
 			pmap_remove_write(p);
+			vm_page_unlock_queues();
+			vm_page_unlock(p);
+		}
 	}
 
 	if (clearobjflags && (tstart == 0) && (tend == object->size))
@@ -895,12 +908,17 @@ again:
 			continue;
 		}
 
+		vm_page_lock(p);
+		vm_page_lock_queues();
 		vm_page_test_dirty(p);
 		if (p->dirty == 0) {
+			vm_page_unlock_queues();
+			vm_page_unlock(p);
 			p->oflags &= ~VPO_CLEANCHK;
 			continue;
 		}
-
+		vm_page_unlock_queues();
+		vm_page_unlock(p);
 		/*
 		 * If we have been asked to skip nosync pages and this is a
 		 * nosync page, skip it.  Note that the object flags were
@@ -923,12 +941,10 @@ again:
 		 * Try to optimize the next page.  If we can't we pick up
 		 * our (random) scan where we left off.
 		 */
-		if (msync_flush_flags & MSYNC_FLUSH_SOFTSEQ) {
+		if (msync_flush_flags & MSYNC_FLUSH_SOFTSEQ)
 			if ((p = vm_page_lookup(object, pi + n)) != NULL)
 				goto again;
-		}
 	}
-	vm_page_unlock_queues();
 #if 0
 	VOP_FSYNC(vp, (pagerflags & VM_PAGER_PUT_SYNC)?MNT_WAIT:0, curproc);
 #endif
@@ -950,10 +966,11 @@ vm_object_page_collect_flush(vm_object_t object, vm_page_t p, int curgeneration,
 	vm_page_t mab[vm_pageout_page_count];
 	vm_page_t ma[vm_pageout_page_count];
 
-	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
+	mtx_assert(&vm_page_queue_mtx, MA_NOTOWNED);
+	vm_page_lock_assert(p, MA_NOTOWNED);
+	VM_OBJECT_LOCK_ASSERT(object, MA_OWNED);
 	pi = p->pindex;
 	while (vm_page_sleep_if_busy(p, TRUE, "vpcwai")) {
-		vm_page_lock_queues();
 		if (object->generation != curgeneration) {
 			return(0);
 		}
@@ -968,11 +985,17 @@ vm_object_page_collect_flush(vm_object_t object, vm_page_t p, int curgeneration,
 				 (tp->oflags & VPO_CLEANCHK) == 0) ||
 				(tp->busy != 0))
 				break;
+			vm_page_lock(tp);
+			vm_page_lock_queues();
 			vm_page_test_dirty(tp);
 			if (tp->dirty == 0) {
+				vm_page_unlock(tp);
+				vm_page_unlock_queues();
 				tp->oflags &= ~VPO_CLEANCHK;
 				break;
 			}
+			vm_page_unlock(tp);
+			vm_page_unlock_queues();
 			maf[ i - 1 ] = tp;
 			maxf++;
 			continue;
@@ -992,11 +1015,17 @@ vm_object_page_collect_flush(vm_object_t object, vm_page_t p, int curgeneration,
 					 (tp->oflags & VPO_CLEANCHK) == 0) ||
 					(tp->busy != 0))
 					break;
+				vm_page_lock(tp);
+				vm_page_lock_queues();
 				vm_page_test_dirty(tp);
 				if (tp->dirty == 0) {
+					vm_page_unlock_queues();
+					vm_page_unlock(tp);
 					tp->oflags &= ~VPO_CLEANCHK;
 					break;
 				}
+				vm_page_unlock_queues();
+				vm_page_unlock(tp);
 				mab[ i - 1 ] = tp;
 				maxb++;
 				continue;
@@ -1022,7 +1051,11 @@ vm_object_page_collect_flush(vm_object_t object, vm_page_t p, int curgeneration,
 	vm_pageout_flush(ma, runlen, pagerflags);
 	for (i = 0; i < runlen; i++) {
 		if (ma[i]->dirty) {
+			vm_page_lock(ma[i]);
+			vm_page_lock_queues();
 			pmap_remove_write(ma[i]);
+			vm_page_unlock_queues();
+			vm_page_unlock(ma[i]);
 			ma[i]->oflags |= VPO_CLEANCHK;
 
 			/*
@@ -1162,7 +1195,8 @@ shadowlookup:
 			    (tobject->flags & OBJ_ONEMAPPING) == 0) {
 				goto unlock_tobject;
 			}
-		}
+		} else if (tobject->type == OBJT_PHYS)
+			goto unlock_tobject;
 		m = vm_page_lookup(tobject, tpindex);
 		if (m == NULL && advise == MADV_WILLNEED) {
 			/*
@@ -1189,19 +1223,16 @@ shadowlookup:
 				VM_OBJECT_UNLOCK(tobject);
 			tobject = backing_object;
 			goto shadowlookup;
-		}
+		} else if (m->valid != VM_PAGE_BITS_ALL)
+			goto unlock_tobject;
 		/*
-		 * If the page is busy or not in a normal active state,
-		 * we skip it.  If the page is not managed there are no
-		 * page queues to mess with.  Things can break if we mess
-		 * with pages in any of the below states.
+		 * If the page is not in a normal state, skip it.
 		 */
+		vm_page_lock(m);
 		vm_page_lock_queues();
-		if (m->hold_count ||
-		    m->wire_count ||
-		    (m->flags & PG_UNMANAGED) ||
-		    m->valid != VM_PAGE_BITS_ALL) {
+		if (m->hold_count != 0 || m->wire_count != 0) {
 			vm_page_unlock_queues();
+			vm_page_unlock(m);
 			goto unlock_tobject;
 		}
 		if ((m->oflags & VPO_BUSY) || m->busy) {
@@ -1213,6 +1244,7 @@ shadowlookup:
 				 */
 				vm_page_flag_set(m, PG_REFERENCED);
 			vm_page_unlock_queues();
+			vm_page_unlock(m);
 			if (object != tobject)
 				VM_OBJECT_UNLOCK(object);
 			m->oflags |= VPO_WANTED;
@@ -1247,6 +1279,7 @@ shadowlookup:
 			vm_page_dontneed(m);
 		}
 		vm_page_unlock_queues();
+		vm_page_unlock(m);
 		if (advise == MADV_FREE && tobject->type == OBJT_SWAP)
 			swap_pager_freespace(tobject, tpindex, 1);
 unlock_tobject:
@@ -1409,7 +1442,6 @@ retry:
 				m = TAILQ_NEXT(m, listq);
 		}
 	}
-	vm_page_lock_queues();
 	for (; m != NULL && (idx = m->pindex - offidxstart) < size;
 	    m = m_next) {
 		m_next = TAILQ_NEXT(m, listq);
@@ -1422,18 +1454,18 @@ retry:
 		 * not be changed by this operation.
 		 */
 		if ((m->oflags & VPO_BUSY) || m->busy) {
-			vm_page_unlock_queues();
 			VM_OBJECT_UNLOCK(new_object);
 			m->oflags |= VPO_WANTED;
 			msleep(m, VM_OBJECT_MTX(orig_object), PVM, "spltwt", 0);
 			VM_OBJECT_LOCK(new_object);
 			goto retry;
 		}
+		vm_page_lock(m);
 		vm_page_rename(m, new_object, idx);
+		vm_page_unlock(m);
 		/* page automatically made dirty by rename and cache handled */
 		vm_page_busy(m);
 	}
-	vm_page_unlock_queues();
 	if (orig_object->type == OBJT_SWAP) {
 		/*
 		 * swap_pager_copy() can sleep, in which case the orig_object's
@@ -1601,6 +1633,7 @@ vm_object_backing_scan(vm_object_t object, int op)
 				 * Page is out of the parent object's range, we 
 				 * can simply destroy it. 
 				 */
+				vm_page_lock(p);
 				vm_page_lock_queues();
 				KASSERT(!pmap_page_is_mapped(p),
 				    ("freeing mapped page %p", p));
@@ -1609,6 +1642,7 @@ vm_object_backing_scan(vm_object_t object, int op)
 				else
 					vm_page_remove(p);
 				vm_page_unlock_queues();
+				vm_page_unlock(p);
 				p = next;
 				continue;
 			}
@@ -1625,6 +1659,7 @@ vm_object_backing_scan(vm_object_t object, int op)
 				 *
 				 * Leave the parent's page alone
 				 */
+				vm_page_lock(p);
 				vm_page_lock_queues();
 				KASSERT(!pmap_page_is_mapped(p),
 				    ("freeing mapped page %p", p));
@@ -1633,6 +1668,7 @@ vm_object_backing_scan(vm_object_t object, int op)
 				else
 					vm_page_remove(p);
 				vm_page_unlock_queues();
+				vm_page_unlock(p);
 				p = next;
 				continue;
 			}
@@ -1652,9 +1688,9 @@ vm_object_backing_scan(vm_object_t object, int op)
 			 * If the page was mapped to a process, it can remain 
 			 * mapped through the rename.
 			 */
-			vm_page_lock_queues();
+			vm_page_lock(p);
 			vm_page_rename(p, object, new_pindex);
-			vm_page_unlock_queues();
+			vm_page_unlock(p);
 			/* page automatically made dirty by rename */
 		}
 		p = next;
@@ -1919,7 +1955,7 @@ again:
 				p = TAILQ_NEXT(p, listq);
 		}
 	}
-	vm_page_lock_queues();
+
 	/*
 	 * Assert: the variable p is either (1) the page with the
 	 * least pindex greater than or equal to the parameter pindex
@@ -1938,6 +1974,8 @@ again:
 		 * cannot be freed.  They can, however, be invalidated
 		 * if "clean_only" is FALSE.
 		 */
+		vm_page_lock(p);
+		vm_page_lock_queues();
 		if ((wirings = p->wire_count) != 0 &&
 		    (wirings = pmap_page_wired_mappings(p)) != p->wire_count) {
 			/* Fictitious pages do not have managed mappings. */
@@ -1949,6 +1987,8 @@ again:
 				p->valid = 0;
 				vm_page_undirty(p);
 			}
+			vm_page_unlock_queues();
+			vm_page_unlock(p);
 			continue;
 		}
 		if (vm_page_sleep_if_busy(p, TRUE, "vmopar"))
@@ -1957,16 +1997,20 @@ again:
 		    ("vm_object_page_remove: page %p is fictitious", p));
 		if (clean_only && p->valid) {
 			pmap_remove_write(p);
-			if (p->dirty)
+			if (p->dirty) {
+				vm_page_unlock_queues();
+				vm_page_unlock(p);
 				continue;
+			}
 		}
 		pmap_remove_all(p);
 		/* Account for removal of managed, wired mappings. */
 		if (wirings != 0)
 			p->wire_count -= wirings;
 		vm_page_free(p);
+		vm_page_unlock_queues();
+		vm_page_unlock(p);
 	}
-	vm_page_unlock_queues();
 	vm_object_pip_wakeup(object);
 skipmemq:
 	if (__predict_false(object->cache != NULL))
@@ -2001,9 +2045,11 @@ vm_object_populate(vm_object_t object, vm_pindex_t start, vm_pindex_t end)
 			if (m == NULL)
 				break;
 			if (rv != VM_PAGER_OK) {
+				vm_page_lock(m);
 				vm_page_lock_queues();
 				vm_page_free(m);
 				vm_page_unlock_queues();
+				vm_page_unlock(m);
 				break;
 			}
 		}
