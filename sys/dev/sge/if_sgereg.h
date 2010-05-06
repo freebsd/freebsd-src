@@ -331,6 +331,7 @@ struct sge_softc {
 	int			sge_timer;
 	int			sge_flags;
 #define	SGE_FLAG_FASTETHER	0x0001
+#define	SGE_FLAG_SIS190		0x0002
 #define	SGE_FLAG_RGMII		0x0010
 #define	SGE_FLAG_SPEED_1000	0x2000
 #define	SGE_FLAG_FDX		0x4000
