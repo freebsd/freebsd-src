@@ -163,7 +163,7 @@ cal(void)
 			continue;
 
 		/* Trim spaces in front of the tab */
-		while (isspace(pp[-1]))
+		while (isspace((unsigned char)pp[-1]))
 			pp--;
 
 		p = *pp;
