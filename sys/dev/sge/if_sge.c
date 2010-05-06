@@ -453,8 +453,9 @@ sge_rxfilter(struct sge_softc *sc)
 	SGE_LOCK_ASSERT(sc);
 
 	ifp = sc->sge_ifp;
-	hashes[0] = hashes[1] = 0;
-	rxfilt = AcceptMyPhys;
+	rxfilt = CSR_READ_2(sc, RxMacControl);
+	rxfilt &= ~(AcceptBroadcast | AcceptAllPhys | AcceptMulticast);
+	rxfilt |= AcceptMyPhys;
 	if ((ifp->if_flags & IFF_BROADCAST) != 0)
 		rxfilt |= AcceptBroadcast;
 	if ((ifp->if_flags & (IFF_PROMISC | IFF_ALLMULTI)) != 0) {
@@ -463,20 +464,20 @@ sge_rxfilter(struct sge_softc *sc)
 		rxfilt |= AcceptMulticast;
 		hashes[0] = 0xFFFFFFFF;
 		hashes[1] = 0xFFFFFFFF;
-		goto done;
+	} else {
+		rxfilt |= AcceptMulticast;
+		hashes[0] = hashes[1] = 0;
+		/* Now program new ones. */
+		IF_ADDR_LOCK(ifp);
+		TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
+			if (ifma->ifma_addr->sa_family != AF_LINK)
+				continue;
+			crc = ether_crc32_be(LLADDR((struct sockaddr_dl *)
+			    ifma->ifma_addr), ETHER_ADDR_LEN);
+			hashes[crc >> 31] |= 1 << ((crc >> 26) & 0x1f);
+		}
+		IF_ADDR_UNLOCK(ifp);
 	}
-	rxfilt |= AcceptMulticast;
-	/* Now program new ones. */
-	IF_ADDR_LOCK(ifp);
-	TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
-		if (ifma->ifma_addr->sa_family != AF_LINK)
-			continue;
-		crc = ether_crc32_be(LLADDR((struct sockaddr_dl *)
-		    ifma->ifma_addr), ETHER_ADDR_LEN);
-		hashes[crc >> 31] |= 1 << ((crc >> 26) & 0x1f);
-	}
-	IF_ADDR_UNLOCK(ifp);
-done:
 	CSR_WRITE_2(sc, RxMacControl, rxfilt | 0x02);
 	CSR_WRITE_4(sc, RxHashTable, hashes[0]);
 	CSR_WRITE_4(sc, RxHashTable2, hashes[1]);
@@ -571,7 +572,7 @@ sge_attach(device_t dev)
 	}
 	sc->sge_rev = pci_get_revid(dev);
 	if (pci_get_device(dev) == SIS_DEVICEID_190)
-		sc->sge_flags |= SGE_FLAG_FASTETHER;
+		sc->sge_flags |= SGE_FLAG_FASTETHER | SGE_FLAG_SIS190;
 	/* Reset the adapter. */
 	sge_reset(sc);
 
@@ -1590,7 +1591,6 @@ sge_ifmedia_upd(struct ifnet *ifp)
 	sc = ifp->if_softc;
 	SGE_LOCK(sc);
 	mii = device_get_softc(sc->sge_miibus);
-	sc->sge_flags &= ~SGE_FLAG_LINK;
 	if (mii->mii_instance) {
 		struct mii_softc *miisc;
 		LIST_FOREACH(miisc, &mii->mii_phys, mii_list)
