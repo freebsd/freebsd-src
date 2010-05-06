@@ -2139,14 +2139,9 @@ retry_space:
 			    (mnw ? SFB_NOWAIT : SFB_CATCH))) == NULL) {
 				mbstat.sf_allocfail++;
 				vm_page_lock(pg);
-				vm_page_lock_queues();
 				vm_page_unwire(pg, 0);
-				/*
-				 * XXX: Not same check as above!?
-				 */
-				if (pg->wire_count == 0 && pg->object == NULL)
-					vm_page_free(pg);
-				vm_page_unlock_queues();
+				KASSERT(pg->object != NULL,
+				    ("kern_sendfile: object disappeared"));
 				vm_page_unlock(pg);
 				error = (mnw ? EAGAIN : EINTR);
 				break;
