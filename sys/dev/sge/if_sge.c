@@ -1144,7 +1144,8 @@ sge_rxeof(struct sge_softc *sc)
 		if ((rxinfo & RDC_OWN) != 0)
 			break;
 		rxstat = le32toh(cur_rx->sge_sts_size);
-		if (SGE_RX_ERROR(rxstat) != 0 || SGE_RX_NSEGS(rxstat) != 1) {
+		if ((rxstat & RDS_CRCOK) == 0 || SGE_RX_ERROR(rxstat) != 0 ||
+		    SGE_RX_NSEGS(rxstat) != 1) {
 			/* XXX We don't support multi-segment frames yet. */
 #ifdef SGE_SHOW_ERRORS
 			device_printf(sc->sge_dev, "Rx error : 0x%b\n", rxstat,
@@ -1177,11 +1178,23 @@ sge_rxeof(struct sge_softc *sc)
 		/*
 		 * TODO : VLAN hardware tag stripping.
 		 */
-		m->m_pkthdr.len = m->m_len =
-		    SGE_RX_BYTES(rxstat) - ETHER_CRC_LEN;
+		if ((sc->sge_flags & SGE_FLAG_SIS190) == 0) {
+			/*
+			 * Account for 10bytes auto padding which is used
+			 * to align IP header on 32bit boundary.  Also note,
+			 * CRC bytes is automatically removed by the
+			 * hardware.
+			 */
+			m->m_data += SGE_RX_PAD_BYTES;
+			m->m_pkthdr.len = m->m_len = SGE_RX_BYTES(rxstat) -
+			    SGE_RX_PAD_BYTES;
+		} else {
+			m->m_pkthdr.len = m->m_len = SGE_RX_BYTES(rxstat) -
+			    ETHER_CRC_LEN;
 #ifndef __NO_STRICT_ALIGNMENT
-		sge_fixup_rx(m);
+			sge_fixup_rx(m);
 #endif
+		}
 		m->m_pkthdr.rcvif = ifp;
 		ifp->if_ipackets++;
 		SGE_UNLOCK(sc);
@@ -1503,6 +1516,7 @@ sge_init_locked(struct sge_softc *sc)
 {
 	struct ifnet *ifp;
 	struct mii_data *mii;
+	uint16_t rxfilt;
 	int i;
 
 	SGE_LOCK_ASSERT(sc);
@@ -1535,10 +1549,19 @@ sge_init_locked(struct sge_softc *sc)
 	CSR_WRITE_4(sc, RxWakeOnLan, 0);
 	CSR_WRITE_4(sc, RxWakeOnLanData, 0);
 	/* Allow receiving VLAN frames. */
-	CSR_WRITE_2(sc, RxMPSControl, ETHER_MAX_LEN + ETHER_VLAN_ENCAP_LEN);
+	if ((sc->sge_flags & SGE_FLAG_SIS190) == 0)
+		CSR_WRITE_2(sc, RxMPSControl,
+		    ETHER_MAX_LEN + ETHER_VLAN_ENCAP_LEN + SGE_RX_PAD_BYTES);
+	else
+		CSR_WRITE_2(sc, RxMPSControl, ETHER_MAX_LEN + ETHER_VLAN_ENCAP_LEN);
 
 	for (i = 0; i < ETHER_ADDR_LEN; i++)
 		CSR_WRITE_1(sc, RxMacAddr + i, IF_LLADDR(ifp)[i]);
+	/* Configure RX MAC. */
+	rxfilt = 0;
+	if ((sc->sge_flags & SGE_FLAG_SIS190) == 0)
+		rxfilt |= RXMAC_STRIP_FCS | RXMAC_PAD_ENB;
+	CSR_WRITE_2(sc, RxMacControl, rxfilt);
 	sge_rxfilter(sc);
 
 	/* Initialize default speed/duplex information. */

@@ -137,6 +137,10 @@
 #define	AcceptAllPhys		0x0100
 #define	AcceptErr		0x0020
 #define	AcceptRunt		0x0010
+#define	RXMAC_STRIP_FCS		0x0010
+#define	RXMAC_PAD_ENB		0x0004
+
+#define	SGE_RX_PAD_BYTES	10
 
 /* Station control register. */
 #define	SC_LOOPBACK		0x80000000
