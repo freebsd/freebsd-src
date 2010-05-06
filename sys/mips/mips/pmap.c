@@ -3030,20 +3030,6 @@ init_pte_prot(vm_offset_t va, vm_page_t m, vm_prot_t prot)
 }
 
 /*
- *	pmap_page_is_free:
- *
- *	Called when a page is freed to allow pmap to clean up
- *	any extra state associated with the page.  In this case
- *	clear modified/referenced bits.
- */
-void
-pmap_page_is_free(vm_page_t m)
-{
-
-	m->md.pv_flags = 0;
-}
-
-/*
  *	pmap_set_modified:
  *
  *	Sets the page modified and reference bits for the specified page.
