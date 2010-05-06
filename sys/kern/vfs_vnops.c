@@ -1341,11 +1341,12 @@ vn_vget_ino(struct vnode *vp, ino_t ino, int lkflags, struct vnode **rvp)
 }
 
 int
-vn_rlimit_fsize(const struct vnode *vp, const struct uio *uio, const struct thread *td)
+vn_rlimit_fsize(const struct vnode *vp, const struct uio *uio,
+    const struct thread *td)
 {
+
 	if (vp->v_type != VREG || td == NULL)
 		return (0);
-
 	PROC_LOCK(td->td_proc);
 	if (uio->uio_offset + uio->uio_resid >
 	    lim_cur(td->td_proc, RLIMIT_FSIZE)) {
@@ -1354,6 +1355,5 @@ vn_rlimit_fsize(const struct vnode *vp, const struct uio *uio, const struct thre
 		return (EFBIG);
 	}
 	PROC_UNLOCK(td->td_proc);
-
 	return (0);
 }
