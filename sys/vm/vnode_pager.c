@@ -725,9 +725,7 @@ vnode_pager_generic_getpages(vp, m, bytecount, reqpage)
 		for (i = 0; i < count; i++)
 			if (i != reqpage) {
 				vm_page_lock(m[i]);
-				vm_page_lock_queues();
 				vm_page_free(m[i]);
-				vm_page_unlock_queues();
 				vm_page_unlock(m[i]);
 			}
 		PCPU_INC(cnt.v_vnodein);
@@ -740,9 +738,7 @@ vnode_pager_generic_getpages(vp, m, bytecount, reqpage)
 		for (i = 0; i < count; i++)
 			if (i != reqpage) {
 				vm_page_lock(m[i]);
-				vm_page_lock_queues();
 				vm_page_free(m[i]);
-				vm_page_unlock_queues();
 				vm_page_unlock(m[i]);
 			}
 		VM_OBJECT_UNLOCK(object);
@@ -759,9 +755,7 @@ vnode_pager_generic_getpages(vp, m, bytecount, reqpage)
 		for (i = 0; i < count; i++)
 			if (i != reqpage) {
 				vm_page_lock(m[i]);
-				vm_page_lock_queues();
 				vm_page_free(m[i]);
-				vm_page_unlock_queues();
 				vm_page_unlock(m[i]);
 			}
 		VM_OBJECT_UNLOCK(object);
@@ -780,9 +774,7 @@ vnode_pager_generic_getpages(vp, m, bytecount, reqpage)
 		for (i = 0; i < count; i++)
 			if (i != reqpage) {
 				vm_page_lock(m[i]);
-				vm_page_lock_queues();
 				vm_page_free(m[i]);
-				vm_page_unlock_queues();
 				vm_page_unlock(m[i]);
 			}
 		VM_OBJECT_UNLOCK(object);
@@ -795,9 +787,7 @@ vnode_pager_generic_getpages(vp, m, bytecount, reqpage)
 		for (i = 0; i < count; i++)
 			if (i != reqpage) {
 				vm_page_lock(m[i]);
-				vm_page_lock_queues();
 				vm_page_free(m[i]);
-				vm_page_unlock_queues();
 				vm_page_unlock(m[i]);
 			}
 		VM_OBJECT_UNLOCK(object);
@@ -821,9 +811,7 @@ vnode_pager_generic_getpages(vp, m, bytecount, reqpage)
 			for (; i < count; i++)
 				if (i != reqpage) {
 					vm_page_lock(m[i]);
-					vm_page_lock_queues();
 					vm_page_free(m[i]);
-					vm_page_unlock_queues();
 					vm_page_unlock(m[i]);
 				}
 			VM_OBJECT_UNLOCK(object);
@@ -840,9 +828,7 @@ vnode_pager_generic_getpages(vp, m, bytecount, reqpage)
 				    (uintmax_t)object->un_pager.vnp.vnp_size);
 			}
 			vm_page_lock(m[i]);
-			vm_page_lock_queues();
 			vm_page_free(m[i]);
-			vm_page_unlock_queues();
 			vm_page_unlock(m[i]);
 			VM_OBJECT_UNLOCK(object);
 			runend = i + 1;
@@ -854,9 +840,7 @@ vnode_pager_generic_getpages(vp, m, bytecount, reqpage)
 			VM_OBJECT_LOCK(object);
 			for (j = i; j < runend; j++) {
 				vm_page_lock(m[j]);
-				vm_page_lock_queues();
 				vm_page_free(m[j]);
-				vm_page_unlock_queues();
 				vm_page_unlock(m[j]);
 			}
 			VM_OBJECT_UNLOCK(object);
@@ -865,9 +849,7 @@ vnode_pager_generic_getpages(vp, m, bytecount, reqpage)
 				VM_OBJECT_LOCK(object);
 				for (i = first + runpg; i < count; i++) {
 					vm_page_lock(m[i]);
-					vm_page_lock_queues();
 					vm_page_free(m[i]);
-					vm_page_unlock_queues();
 					vm_page_unlock(m[i]);
 				}
 				VM_OBJECT_UNLOCK(object);

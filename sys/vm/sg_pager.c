@@ -200,9 +200,7 @@ sg_pager_getpages(vm_object_t object, vm_page_t *m, int count, int reqpage)
 	/* Free the original pages and insert this fake page into the object. */
 	for (i = 0; i < count; i++) {
 		vm_page_lock(m[i]);
-		vm_page_lock_queues();
 		vm_page_free(m[i]);
-		vm_page_unlock_queues();
 		vm_page_unlock(m[i]);
 	}
 	vm_page_insert(page, object, offset);
