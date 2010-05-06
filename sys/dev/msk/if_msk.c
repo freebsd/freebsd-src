@@ -3673,9 +3673,9 @@ msk_init_locked(struct msk_if_softc *sc_if)
 
 	if ((sc_if->msk_flags & MSK_FLAG_RAMBUF) == 0) {
 		/* Set Rx Pause threshould. */
-		CSR_WRITE_1(sc, MR_ADDR(sc_if->msk_port, RX_GMF_LP_THR),
+		CSR_WRITE_2(sc, MR_ADDR(sc_if->msk_port, RX_GMF_LP_THR),
 		    MSK_ECU_LLPP);
-		CSR_WRITE_1(sc, MR_ADDR(sc_if->msk_port, RX_GMF_UP_THR),
+		CSR_WRITE_2(sc, MR_ADDR(sc_if->msk_port, RX_GMF_UP_THR),
 		    MSK_ECU_ULPP);
 		/* Configure store-and-forward for Tx. */
 		msk_set_tx_stfwd(sc_if);
@@ -3762,6 +3762,11 @@ msk_init_locked(struct msk_if_softc *sc_if)
 		    "initialization failed: no memory for Rx buffers\n");
 		msk_stop(sc_if);
 		return;
+	}
+	if (sc->msk_hw_id == CHIP_ID_YUKON_EX) {
+		/* Disable flushing of non-ASF packets. */
+		CSR_WRITE_4(sc, MR_ADDR(sc_if->msk_port, RX_GMF_CTRL_T),
+		    GMF_RX_MACSEC_FLUSH_OFF);
 	}
 
 	/* Configure interrupt handling. */
