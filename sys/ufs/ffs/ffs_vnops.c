@@ -850,9 +850,7 @@ ffs_getpages(ap)
 		for (i = 0; i < pcount; i++) {
 			if (i != ap->a_reqpage) {
 				vm_page_lock(ap->a_m[i]);
-				vm_page_lock_queues();
 				vm_page_free(ap->a_m[i]);
-				vm_page_unlock_queues();
 				vm_page_unlock(ap->a_m[i]);
 			}
 		}

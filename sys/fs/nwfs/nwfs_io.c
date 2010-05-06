@@ -431,9 +431,7 @@ nwfs_getpages(ap)
 		for (i = 0; i < npages; i++) {
 			if (ap->a_reqpage != i) {
 				vm_page_lock(pages[i]);
-				vm_page_lock_queues();
 				vm_page_free(pages[i]);
-				vm_page_unlock_queues();
 				vm_page_unlock(pages[i]);
 			}
 		}

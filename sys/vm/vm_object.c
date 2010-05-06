@@ -2046,9 +2046,7 @@ vm_object_populate(vm_object_t object, vm_pindex_t start, vm_pindex_t end)
 				break;
 			if (rv != VM_PAGER_OK) {
 				vm_page_lock(m);
-				vm_page_lock_queues();
 				vm_page_free(m);
-				vm_page_unlock_queues();
 				vm_page_unlock(m);
 				break;
 			}
