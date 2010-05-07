@@ -1374,22 +1374,25 @@ vm_page_enqueue(int queue, vm_page_t m)
  *	Ensure that act_count is at least ACT_INIT but do not otherwise
  *	mess with it.
  *
- *	The page queues must be locked.
+ *	The page must be locked.
  *	This routine may not block.
  */
 void
 vm_page_activate(vm_page_t m)
 {
 
-	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
 	vm_page_lock_assert(m, MA_OWNED);
 	if (VM_PAGE_GETKNOWNQUEUE2(m) != PQ_ACTIVE) {
-		vm_pageq_remove(m);
 		if (m->wire_count == 0 && (m->flags & PG_UNMANAGED) == 0) {
 			if (m->act_count < ACT_INIT)
 				m->act_count = ACT_INIT;
+			vm_page_lock_queues();
+			vm_pageq_remove(m);
 			vm_page_enqueue(PQ_ACTIVE, m);
-		}
+			vm_page_unlock_queues();
+		} else
+			KASSERT(m->queue == PQ_NONE,
+			    ("vm_page_activate: wired page %p is queued", m));
 	} else {
 		if (m->act_count < ACT_INIT)
 			m->act_count = ACT_INIT;

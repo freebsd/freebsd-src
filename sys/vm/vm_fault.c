@@ -937,7 +937,6 @@ vnode_locked:
 		vm_fault_prefault(fs.map->pmap, vaddr, fs.entry);
 	VM_OBJECT_LOCK(fs.object);
 	vm_page_lock(fs.m);
-	vm_page_lock_queues();
 
 	/*
 	 * If the page is not wired down, then put it where the pageout daemon
@@ -948,10 +947,8 @@ vnode_locked:
 			vm_page_wire(fs.m);
 		else
 			vm_page_unwire(fs.m, 1);
-	} else {
+	} else
 		vm_page_activate(fs.m);
-	}
-	vm_page_unlock_queues();
 	vm_page_unlock(fs.m);
 	vm_page_wakeup(fs.m);
 
@@ -1267,9 +1264,7 @@ vm_fault_copy_entry(vm_map_t dst_map, vm_map_t src_map,
 			vm_page_unlock(dst_m);
 		} else {
 			vm_page_lock(dst_m);
-			vm_page_lock_queues();
 			vm_page_activate(dst_m);
-			vm_page_unlock_queues();
 			vm_page_unlock(dst_m);
 		}
 		vm_page_wakeup(dst_m);
