@@ -1002,6 +1002,8 @@ expunge_ufs1(snapvp, cancelip, fs, acctfunc, expungetype, clearmode)
 	if (lbn < NDADDR) {
 		blkno = VTOI(snapvp)->i_din1->di_db[lbn];
 	} else {
+		if (DOINGSOFTDEP(snapvp))
+			softdep_prealloc(snapvp, MNT_WAIT);
 		td->td_pflags |= TDP_COWINPROGRESS;
 		error = ffs_balloc_ufs1(snapvp, lblktosize(fs, (off_t)lbn),
 		   fs->fs_bsize, KERNCRED, BA_METAONLY, &bp);
@@ -1283,6 +1285,8 @@ expunge_ufs2(snapvp, cancelip, fs, acctfunc, expungetype, clearmode)
 	if (lbn < NDADDR) {
 		blkno = VTOI(snapvp)->i_din2->di_db[lbn];
 	} else {
+		if (DOINGSOFTDEP(snapvp))
+			softdep_prealloc(snapvp, MNT_WAIT);
 		td->td_pflags |= TDP_COWINPROGRESS;
 		error = ffs_balloc_ufs2(snapvp, lblktosize(fs, (off_t)lbn),
 		   fs->fs_bsize, KERNCRED, BA_METAONLY, &bp);
@@ -1746,6 +1750,8 @@ retry:
 		goto retry;
 	TAILQ_FOREACH(ip, &sn->sn_head, i_nextsnap) {
 		vp = ITOV(ip);
+		if (DOINGSOFTDEP(vp))
+			softdep_prealloc(vp, MNT_WAIT);
 		/*
 		 * Lookup block being written.
 		 */
@@ -2268,6 +2274,8 @@ ffs_copyonwrite(devvp, bp)
 	}
 	TAILQ_FOREACH(ip, &sn->sn_head, i_nextsnap) {
 		vp = ITOV(ip);
+		if (DOINGSOFTDEP(vp))
+			softdep_prealloc(vp, MNT_WAIT);
 		/*
 		 * We ensure that everything of our own that needs to be
 		 * copied will be done at the time that ffs_snapshot is

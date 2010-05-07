@@ -2475,7 +2475,8 @@ softdep_prealloc(vp, waitok)
 	 * Attempt to sync this vnode once to flush any journal
 	 * work attached to it.
 	 */
-	ffs_syncvnode(vp, waitok);
+	if ((curthread->td_pflags & TDP_COWINPROGRESS) == 0)
+		ffs_syncvnode(vp, waitok);
 	ACQUIRE_LOCK(&lk);
 	process_removes(vp);
 	if (journal_space(ump, 0) == 0) {
