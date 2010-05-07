@@ -1140,16 +1140,12 @@ swap_pager_getpages(vm_object_t object, vm_page_t *m, int count, int reqpage)
 		
 		for (k = 0; k < i; ++k) {
 			vm_page_lock(m[k]);
-			vm_page_lock_queues();
 			swp_pager_free_nrpage(m[k]);
-			vm_page_unlock_queues();
 			vm_page_unlock(m[k]);
 		}
 		for (k = j; k < count; ++k) {
 			vm_page_lock(m[k]);
-			vm_page_lock_queues();
 			swp_pager_free_nrpage(m[k]);
-			vm_page_unlock_queues();
 			vm_page_unlock(m[k]);
 		}
 	}
