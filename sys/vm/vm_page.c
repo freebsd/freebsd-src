@@ -1618,10 +1618,8 @@ vm_page_unwire(vm_page_t m, int activate)
 	}
 }
 
-
 /*
- * Move the specified page to the inactive queue.  If the page has
- * any associated swap, the swap is deallocated.
+ * Move the specified page to the inactive queue.
  *
  * Normally athead is 0 resulting in LRU operation.  athead is set
  * to 1 if we want this page to be 'as if it were placed in the cache',
@@ -1633,7 +1631,6 @@ static inline void
 _vm_page_deactivate(vm_page_t m, int athead)
 {
 
-	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
 	vm_page_lock_assert(m, MA_OWNED);
 
 	/*
@@ -1642,6 +1639,7 @@ _vm_page_deactivate(vm_page_t m, int athead)
 	if (VM_PAGE_INQUEUE2(m, PQ_INACTIVE))
 		return;
 	if (m->wire_count == 0 && (m->flags & PG_UNMANAGED) == 0) {
+		vm_page_lock_queues();
 		vm_page_flag_clear(m, PG_WINATCFLS);
 		vm_pageq_remove(m);
 		if (athead)
@@ -1650,13 +1648,20 @@ _vm_page_deactivate(vm_page_t m, int athead)
 			TAILQ_INSERT_TAIL(&vm_page_queues[PQ_INACTIVE].pl, m, pageq);
 		VM_PAGE_SETQUEUE2(m, PQ_INACTIVE);
 		cnt.v_inactive_count++;
+		vm_page_unlock_queues();
 	}
 }
 
+/*
+ * Move the specified page to the inactive queue.
+ *
+ * The page must be locked.
+ */
 void
 vm_page_deactivate(vm_page_t m)
 {
-    _vm_page_deactivate(m, 0);
+
+	_vm_page_deactivate(m, 0);
 }
 
 /*
