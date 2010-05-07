@@ -765,7 +765,7 @@ vm_pageout_scan(int pass)
 	 */
 	page_shortage = vm_paging_target() + addl_page_shortage_init;
 
-	vm_pageout_marker_init(&marker, PQ_INACTIVE);
+	vm_pageout_init_marker(&marker, PQ_INACTIVE);
 
 	/*
 	 * Start scanning the inactive queue for pages we can move to the
