@@ -5059,11 +5059,8 @@ bce_get_rx_buf(struct bce_softc *sc, struct mbuf *m, u16 *prod,
 #ifdef BCE_JUMBO_HDRSPLIT
 		MGETHDR(m_new, M_DONTWAIT, MT_DATA);
 #else
-		if (sc->rx_bd_mbuf_alloc_size <= MCLBYTES)
-			m_new = m_getcl(M_DONTWAIT, MT_DATA, M_PKTHDR);
-		else
-			m_new = m_getjcl(M_DONTWAIT, MT_DATA, M_PKTHDR,
-			    sc->rx_bd_mbuf_alloc_size);
+		m_new = m_getjcl(M_DONTWAIT, MT_DATA, M_PKTHDR,
+		    sc->rx_bd_mbuf_alloc_size);
 #endif
 
 		if (m_new == NULL) {
