@@ -9301,7 +9301,7 @@ handle_written_inodeblock(inodedep, bp)
 			hadchanges = 1;
 	}
 	/* Leave this inodeblock dirty until it's in the list. */
-	if ((inodedep->id_state & (UNLINKED | DEPCOMPLETE)) == UNLINKED)
+	if ((inodedep->id_state & (UNLINKED | UNLINKONLIST)) == UNLINKED)
 		hadchanges = 1;
 	/*
 	 * If we had to rollback the inode allocation because of
