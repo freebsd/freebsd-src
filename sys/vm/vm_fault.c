@@ -138,9 +138,7 @@ release_page(struct faultstate *fs)
 
 	vm_page_wakeup(fs->m);
 	vm_page_lock(fs->m);
-	vm_page_lock_queues();
 	vm_page_deactivate(fs->m);
-	vm_page_unlock_queues();
 	vm_page_unlock(fs->m);
 	fs->m = NULL;
 }
