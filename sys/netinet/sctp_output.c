@@ -8973,7 +8973,7 @@ sctp_chunk_retransmission(struct sctp_inpcb *inp,
 		/* (void)SCTP_GETTIME_TIMEVAL(&chk->whoTo->last_sent_time); */
 		*cnt_out += 1;
 		chk->sent = SCTP_DATAGRAM_SENT;
-		sctp_ucount_decr(asoc->sent_queue_retran_cnt);
+		/* sctp_ucount_decr(asoc->sent_queue_retran_cnt); */
 		if (fwd_tsn == 0) {
 			return (0);
 		} else {

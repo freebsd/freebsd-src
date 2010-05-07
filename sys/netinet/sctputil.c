@@ -674,7 +674,7 @@ sctp_auditing(int from, struct sctp_inpcb *inp, struct sctp_tcb *stcb,
 			sctp_audit_indx = 0;
 		}
 		rep = 1;
-		SCTP_PRINTF("tot_flt_book:%d\n", tot_book);
+		SCTP_PRINTF("tot_flt_book:%d\n", tot_book_cnt);
 
 		stcb->asoc.total_flight_count = tot_book_cnt;
 	}
@@ -703,8 +703,8 @@ sctp_auditing(int from, struct sctp_inpcb *inp, struct sctp_tcb *stcb,
 				}
 			}
 			if (lnet->flight_size != tot_out) {
-				SCTP_PRINTF("net:%x flight was %d corrected to %d\n",
-				    (uint32_t) lnet, lnet->flight_size,
+				SCTP_PRINTF("net:%p flight was %d corrected to %d\n",
+				    lnet, lnet->flight_size,
 				    tot_out);
 				lnet->flight_size = tot_out;
 			}
@@ -1215,7 +1215,7 @@ sctp_print_mapping_array(struct sctp_association *asoc)
 	}
 	printf("Non renegable mapping array (last %d entries are zero):\n", asoc->mapping_array_size - limit);
 	for (i = 0; i < limit; i++) {
-		printf("%2.2x%c", asoc->mapping_array[i], ((i + 1) % 16) ? ' ' : '\n');
+		printf("%2.2x%c", asoc->nr_mapping_array[i], ((i + 1) % 16) ? ' ' : '\n');
 	}
 	if (limit % 16)
 		printf("\n");
