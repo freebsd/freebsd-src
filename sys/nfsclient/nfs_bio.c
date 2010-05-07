@@ -194,9 +194,6 @@ nfs_getpages(struct vop_getpages_args *ap)
 		nextoff = toff + PAGE_SIZE;
 		m = pages[i];
 
-		vm_page_lock(m);
-		vm_page_lock_queues();
-
 		if (nextoff <= size) {
 			/*
 			 * Read operation filled an entire page
@@ -234,18 +231,22 @@ nfs_getpages(struct vop_getpages_args *ap)
 			 * now tell them that it is ok to use.
 			 */
 			if (!error) {
-				if (m->oflags & VPO_WANTED)
+				if (m->oflags & VPO_WANTED) {
+					vm_page_lock(m);
 					vm_page_activate(m);
-				else
+					vm_page_unlock(m);
+				} else {
+					vm_page_lock(m);
 					vm_page_deactivate(m);
+					vm_page_unlock(m);
+				}
 				vm_page_wakeup(m);
 			} else {
+				vm_page_lock(m);
 				vm_page_free(m);
+				vm_page_unlock(m);
 			}
 		}
-
-		vm_page_unlock_queues();
-		vm_page_unlock(m);
 	}
 	VM_OBJECT_UNLOCK(object);
 	return (0);
