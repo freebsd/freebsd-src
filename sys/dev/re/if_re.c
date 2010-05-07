@@ -1162,9 +1162,11 @@ re_attach(device_t dev)
 	msic = 0;
 	if (pci_find_extcap(dev, PCIY_EXPRESS, &reg) == 0) {
 		sc->rl_flags |= RL_FLAG_PCIE;
-		/* Set PCIe maximum read request size to 2048. */
-		if (pci_get_max_read_req(dev) < 2048)
-			pci_set_max_read_req(dev, 2048);
+		if (devid != RT_DEVICEID_8101E) {
+			/* Set PCIe maximum read request size to 2048. */
+			if (pci_get_max_read_req(dev) < 2048)
+				pci_set_max_read_req(dev, 2048);
+		}
 		msic = pci_msi_count(dev);
 		if (bootverbose)
 			device_printf(dev, "MSI count : %d\n", msic);
