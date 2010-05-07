@@ -40,10 +40,12 @@
 .Sh SYNOPSIS
 .Nm
 .Op Fl guv
+.Op Fl c Ar 32 | 64
 .Op Fl l Ar maxrun
 .Fl a
 .Nm
 .Op Fl guv
+.Op Fl c Ar 32 | 64
 .Ar filesystem ...
 .Sh DESCRIPTION
 The
@@ -69,6 +71,22 @@ to be read-write with disk quotas.
 By default only the types of quotas listed in
 .Pa /etc/fstab
 are checked.
+.It Fl c Ar 32 | 64
+Before performing its checks,
+.Nm
+will convert the quota file to the specified word size.
+A conversion size of 64 is given to request conversion to
+the new 64-bit quota file format.
+A conversion size of 32 is given to request conversion back to
+the old 32-bit quota file format.
+The original quota file is left unchanged and moved aside with an
+underscore and its format size plus a
+.Pa .orig
+extension added to its name.
+Thus, the original 32-bit
+.Pa quota.user
+quota file converted to the 64-bit format quota file will be renamed to
+.Pa quota.user_32.orig .
 .It Fl g
 Only group quotas listed in
 .Pa /etc/fstab
