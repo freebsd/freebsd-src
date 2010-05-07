@@ -3977,6 +3977,9 @@ zfs_freebsd_write(ap)
 	} */ *ap;
 {
 
+	if (vn_rlimit_fsize(ap->a_vp, ap->a_uio, ap->a_uio->uio_td))
+		return (EFBIG);
+
 	return (zfs_write(ap->a_vp, ap->a_uio, ap->a_ioflag, ap->a_cred, NULL));
 }
 
