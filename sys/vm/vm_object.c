@@ -722,14 +722,11 @@ vm_object_terminate(vm_object_t object)
 			("vm_object_terminate: freeing busy page %p "
 			"p->busy = %d, p->oflags %x\n", p, p->busy, p->oflags));
 		vm_page_lock(p);
-		vm_page_lock_queues();
 		if (p->wire_count == 0) {
 			vm_page_free(p);
-			cnt.v_pfree++;
-		} else {
+			PCPU_INC(cnt.v_pfree);
+		} else
 			vm_page_remove(p);
-		}
-		vm_page_unlock_queues();
 		vm_page_unlock(p);
 	}
 
@@ -1634,14 +1631,12 @@ vm_object_backing_scan(vm_object_t object, int op)
 				 * can simply destroy it. 
 				 */
 				vm_page_lock(p);
-				vm_page_lock_queues();
 				KASSERT(!pmap_page_is_mapped(p),
 				    ("freeing mapped page %p", p));
 				if (p->wire_count == 0)
 					vm_page_free(p);
 				else
 					vm_page_remove(p);
-				vm_page_unlock_queues();
 				vm_page_unlock(p);
 				p = next;
 				continue;
@@ -1660,14 +1655,12 @@ vm_object_backing_scan(vm_object_t object, int op)
 				 * Leave the parent's page alone
 				 */
 				vm_page_lock(p);
-				vm_page_lock_queues();
 				KASSERT(!pmap_page_is_mapped(p),
 				    ("freeing mapped page %p", p));
 				if (p->wire_count == 0)
 					vm_page_free(p);
 				else
 					vm_page_remove(p);
-				vm_page_unlock_queues();
 				vm_page_unlock(p);
 				p = next;
 				continue;
