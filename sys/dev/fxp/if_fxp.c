@@ -2345,7 +2345,7 @@ fxp_init_body(struct fxp_softc *sc)
 	cbp->force_fdx =	0;	/* (don't) force full duplex */
 	cbp->fdx_pin_en =	1;	/* (enable) FDX# pin */
 	cbp->multi_ia =		0;	/* (don't) accept multiple IAs */
-	cbp->mc_all =		ifp->if_flags & IFF_ALLMULTI ? 1 : 0;
+	cbp->mc_all =		ifp->if_flags & IFF_ALLMULTI ? 1 : prm;
 	cbp->gamla_rx =		sc->flags & FXP_FLAG_EXT_RFA ? 1 : 0;
 	cbp->vlan_strip_en =	((sc->flags & FXP_FLAG_EXT_RFA) != 0 &&
 	    (ifp->if_capenable & IFCAP_VLAN_HWTAGGING) != 0) ? 1 : 0;
