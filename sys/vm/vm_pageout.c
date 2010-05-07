@@ -765,14 +765,7 @@ vm_pageout_scan(int pass)
 	 */
 	page_shortage = vm_paging_target() + addl_page_shortage_init;
 
-	/*
-	 * Initialize our marker
-	 */
-	bzero(&marker, sizeof(marker));
-	marker.flags = PG_FICTITIOUS | PG_MARKER;
-	marker.oflags = VPO_BUSY;
-	marker.queue = PQ_INACTIVE;
-	marker.wire_count = 1;
+	vm_pageout_marker_init(&marker, PQ_INACTIVE);
 
 	/*
 	 * Start scanning the inactive queue for pages we can move to the
