@@ -1089,8 +1089,7 @@ breakcmd(int argc, char **argv)
 int
 commandcmd(int argc, char **argv)
 {
-	static char stdpath[] = _PATH_STDPATH;
-	char *path;
+	const char *path;
 	int ch;
 	int cmd = -1;
 
@@ -1101,7 +1100,7 @@ commandcmd(int argc, char **argv)
 	while ((ch = getopt(argc, argv, "pvV")) != -1) {
 		switch (ch) {
 		case 'p':
-			path = stdpath;
+			path = _PATH_STDPATH;
 			break;
 		case 'v':
 			cmd = TYPECMD_SMALLV;
