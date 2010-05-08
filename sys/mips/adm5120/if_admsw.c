@@ -540,8 +540,8 @@ admsw_attach(device_t dev)
 		ifp->if_init = admsw_init;
 		ifp->if_mtu = ETHERMTU;
 		ifp->if_baudrate = IF_Mbps(100);
-		IFQ_SET_MAXLEN(&ifp->if_snd, max(ADMSW_NTXLDESC, IFQ_MAXLEN));
-		ifp->if_snd.ifq_drv_maxlen = max(ADMSW_NTXLDESC, IFQ_MAXLEN);
+		IFQ_SET_MAXLEN(&ifp->if_snd, max(ADMSW_NTXLDESC, ifqmaxlen));
+		ifp->if_snd.ifq_drv_maxlen = max(ADMSW_NTXLDESC, ifqmaxlen);
 		IFQ_SET_READY(&ifp->if_snd);
 		ifp->if_capabilities |= IFCAP_VLAN_MTU;
 

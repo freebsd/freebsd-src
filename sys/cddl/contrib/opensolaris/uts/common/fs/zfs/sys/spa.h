@@ -333,7 +333,8 @@ extern int spa_import(const char *pool, nvlist_t *config, nvlist_t *props);
 extern int spa_import_faulted(const char *, nvlist_t *, nvlist_t *);
 extern nvlist_t *spa_tryimport(nvlist_t *tryconfig);
 extern int spa_destroy(char *pool);
-extern int spa_export(char *pool, nvlist_t **oldconfig, boolean_t force);
+extern int spa_export(char *pool, nvlist_t **oldconfig, boolean_t force,
+    boolean_t hardforce);
 extern int spa_reset(char *pool);
 extern void spa_async_request(spa_t *spa, int flag);
 extern void spa_async_unrequest(spa_t *spa, int flag);

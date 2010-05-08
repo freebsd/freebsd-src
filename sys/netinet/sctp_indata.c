@@ -1466,7 +1466,7 @@ sctp_process_a_data_chunk(struct sctp_tcb *stcb, struct sctp_association *asoc,
 		asoc->send_sack = 1;
 	}
 	protocol_id = ch->dp.protocol_id;
-	ordered = ((ch->ch.chunk_flags & SCTP_DATA_UNORDERED) == 0);
+	ordered = ((chunk_flags & SCTP_DATA_UNORDERED) == 0);
 	if (SCTP_BASE_SYSCTL(sctp_logging_level) & SCTP_MAP_LOGGING_ENABLE) {
 		sctp_log_map(tsn, asoc->cumulative_tsn, asoc->highest_tsn_inside_map, SCTP_MAP_TSN_ENTERS);
 	}
@@ -2123,6 +2123,10 @@ failed_pdapi_express_del:
 		}
 	}
 finish_express_del:
+	if (tsn == (asoc->cumulative_tsn + 1)) {
+		/* Update cum-ack */
+		asoc->cumulative_tsn = tsn;
+	}
 	if (last_chunk) {
 		*m = NULL;
 	}
@@ -2300,7 +2304,12 @@ sctp_slide_mapping_arrays(struct sctp_tcb *stcb)
 	if ((asoc->cumulative_tsn == highest_tsn) && (at >= 8)) {
 		/* The complete array was completed by a single FR */
 		/* highest becomes the cum-ack */
-		int clr, i;
+		int clr;
+
+#ifdef INVARIANTS
+		unsigned int i;
+
+#endif
 
 		/* clear the array */
 		clr = ((at + 7) >> 3);
@@ -2309,12 +2318,14 @@ sctp_slide_mapping_arrays(struct sctp_tcb *stcb)
 		}
 		memset(asoc->mapping_array, 0, clr);
 		memset(asoc->nr_mapping_array, 0, clr);
+#ifdef INVARIANTS
 		for (i = 0; i < asoc->mapping_array_size; i++) {
 			if ((asoc->mapping_array[i]) || (asoc->nr_mapping_array[i])) {
 				printf("Error Mapping array's not clean at clear\n");
 				sctp_print_mapping_array(asoc);
 			}
 		}
+#endif
 		asoc->mapping_array_base_tsn = asoc->cumulative_tsn + 1;
 		asoc->highest_tsn_inside_nr_map = asoc->highest_tsn_inside_map = asoc->cumulative_tsn;
 	} else if (at >= 8) {
@@ -2371,15 +2382,19 @@ sctp_slide_mapping_arrays(struct sctp_tcb *stcb)
 			int ii;
 
 			for (ii = 0; ii < distance; ii++) {
-				asoc->mapping_array[ii] =
-				    asoc->mapping_array[slide_from + ii];
-				asoc->nr_mapping_array[ii] =
-				    asoc->nr_mapping_array[slide_from + ii];
+				asoc->mapping_array[ii] = asoc->mapping_array[slide_from + ii];
+				asoc->nr_mapping_array[ii] = asoc->nr_mapping_array[slide_from + ii];
 
 			}
 			for (ii = distance; ii < asoc->mapping_array_size; ii++) {
 				asoc->mapping_array[ii] = 0;
 				asoc->nr_mapping_array[ii] = 0;
+			}
+			if (asoc->highest_tsn_inside_map + 1 == asoc->mapping_array_base_tsn) {
+				asoc->highest_tsn_inside_map += (slide_from << 3);
+			}
+			if (asoc->highest_tsn_inside_nr_map + 1 == asoc->mapping_array_base_tsn) {
+				asoc->highest_tsn_inside_nr_map += (slide_from << 3);
 			}
 			asoc->mapping_array_base_tsn += (slide_from << 3);
 			if (SCTP_BASE_SYSCTL(sctp_logging_level) & SCTP_MAP_LOGGING_ENABLE) {
@@ -2808,25 +2823,7 @@ sctp_process_data(struct mbuf **mm, int iphlen, int *offset, int length,
 		stcb->asoc.send_sack = 1;
 	}
 	/* Start a sack timer or QUEUE a SACK for sending */
-	if ((stcb->asoc.cumulative_tsn == stcb->asoc.highest_tsn_inside_map) &&
-	    (stcb->asoc.mapping_array[0] != 0xff)) {
-		if ((stcb->asoc.data_pkts_seen >= stcb->asoc.sack_freq) ||
-		    (stcb->asoc.delayed_ack == 0) ||
-		    (stcb->asoc.numduptsns) ||
-		    (stcb->asoc.send_sack == 1)) {
-			if (SCTP_OS_TIMER_PENDING(&stcb->asoc.dack_timer.timer)) {
-				(void)SCTP_OS_TIMER_STOP(&stcb->asoc.dack_timer.timer);
-			}
-			sctp_send_sack(stcb);
-		} else {
-			if (!SCTP_OS_TIMER_PENDING(&stcb->asoc.dack_timer.timer)) {
-				sctp_timer_start(SCTP_TIMER_TYPE_RECV,
-				    stcb->sctp_ep, stcb, NULL);
-			}
-		}
-	} else {
-		sctp_sack_check(stcb, was_a_gap, &abort_flag);
-	}
+	sctp_sack_check(stcb, was_a_gap, &abort_flag);
 	if (abort_flag)
 		return (2);
 

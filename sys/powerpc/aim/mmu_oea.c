@@ -305,6 +305,7 @@ vm_paddr_t moea_extract(mmu_t, pmap_t, vm_offset_t);
 vm_page_t moea_extract_and_hold(mmu_t, pmap_t, vm_offset_t, vm_prot_t);
 void moea_init(mmu_t);
 boolean_t moea_is_modified(mmu_t, vm_page_t);
+boolean_t moea_is_referenced(mmu_t, vm_page_t);
 boolean_t moea_ts_referenced(mmu_t, vm_page_t);
 vm_offset_t moea_map(mmu_t, vm_offset_t *, vm_offset_t, vm_offset_t, int);
 boolean_t moea_page_exists_quick(mmu_t, pmap_t, vm_page_t);
@@ -344,6 +345,7 @@ static mmu_method_t moea_methods[] = {
 	MMUMETHOD(mmu_extract_and_hold,	moea_extract_and_hold),
 	MMUMETHOD(mmu_init,		moea_init),
 	MMUMETHOD(mmu_is_modified,	moea_is_modified),
+	MMUMETHOD(mmu_is_referenced,	moea_is_referenced),
 	MMUMETHOD(mmu_ts_referenced,	moea_ts_referenced),
 	MMUMETHOD(mmu_map,     		moea_map),
 	MMUMETHOD(mmu_page_exists_quick,moea_page_exists_quick),
@@ -1239,18 +1241,22 @@ moea_extract_and_hold(mmu_t mmu, pmap_t pmap, vm_offset_t va, vm_prot_t prot)
 {
 	struct	pvo_entry *pvo;
 	vm_page_t m;
-        
+        vm_paddr_t pa;
+
 	m = NULL;
-	vm_page_lock_queues();
+	pa = 0;
 	PMAP_LOCK(pmap);
+retry:
 	pvo = moea_pvo_find_va(pmap, va & ~ADDR_POFF, NULL);
 	if (pvo != NULL && (pvo->pvo_pte.pte.pte_hi & PTE_VALID) &&
 	    ((pvo->pvo_pte.pte.pte_lo & PTE_PP) == PTE_RW ||
 	     (prot & VM_PROT_WRITE) == 0)) {
+		if (vm_page_pa_tryrelock(pmap, pvo->pvo_pte.pte.pte_lo & PTE_RPGN, &pa))
+			goto retry;
 		m = PHYS_TO_VM_PAGE(pvo->pvo_pte.pte.pte_lo & PTE_RPGN);
 		vm_page_hold(m);
 	}
-	vm_page_unlock_queues();
+	PA_UNLOCK_COND(pa);
 	PMAP_UNLOCK(pmap);
 	return (m);
 }
@@ -1266,6 +1272,15 @@ moea_init(mmu_t mmu)
 	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR,
 	    UMA_ZONE_VM | UMA_ZONE_NOFREE);
 	moea_initialized = TRUE;
+}
+
+boolean_t
+moea_is_referenced(mmu_t mmu, vm_page_t m)
+{
+
+	if ((m->flags & (PG_FICTITIOUS | PG_UNMANAGED)) != 0)
+		return (FALSE);
+	return (moea_query_bit(m, PTE_REF));
 }
 
 boolean_t

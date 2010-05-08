@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2003, 2005 Alan L. Cox <alc@cs.rice.edu>
+ * Copyright (c) 2003 Alan L. Cox <alc@cs.rice.edu>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -23,29 +23,20 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	from: src/sys/i386/include/sf_buf.h,v 1.4 2005/02/13 06:23:13 alc
  * $FreeBSD$
  */
 
 #ifndef _MACHINE_SF_BUF_H_
-#define	_MACHINE_SF_BUF_H_
+#define _MACHINE_SF_BUF_H_
 
 #include <sys/queue.h>
-#include <vm/vm.h>
-#include <vm/vm_param.h>
-#include <vm/vm_page.h>
 
 struct vm_page;
 
 struct sf_buf {
-	LIST_ENTRY(sf_buf) list_entry;	/* list of buffers */
-	TAILQ_ENTRY(sf_buf) free_entry; /* list of buffers */
+	SLIST_ENTRY(sf_buf) free_list;	/* list of free buffer slots */
 	struct		vm_page *m;	/* currently mapped page */
 	vm_offset_t	kva;		/* va of mapping */
-	int		ref_count;	/* usage of this mapping */
-#ifdef SMP
-	cpumask_t	cpumask;	/* cpus on which mapping is valid */
-#endif
 };
 
 static __inline vm_offset_t

@@ -346,6 +346,20 @@ METHOD boolean_t is_prefaultable {
 
 
 /**
+ * @brief Return whether or not the specified physical page was referenced
+ * in any physical maps.
+ *
+ * @params _pg		physical page
+ *
+ * @retval boolean	TRUE if page has been referenced
+ */
+METHOD boolean_t is_referenced {
+	mmu_t		_mmu;
+	vm_page_t	_pg;
+};
+
+
+/**
  * @brief Return a count of referenced bits for a page, clearing those bits.
  * Not all referenced bits need to be cleared, but it is necessary that 0
  * only be returned when there are none set.

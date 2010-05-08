@@ -296,6 +296,7 @@ static vm_page_t pmap_enter_quick_locked(pmap_t pmap, vm_offset_t va,
 static void pmap_insert_pt_page(pmap_t pmap, vm_page_t mpte);
 static void pmap_fill_ptp(pt_entry_t *firstpte, pt_entry_t newpte);
 static boolean_t pmap_is_modified_pvh(struct md_page *pvh);
+static boolean_t pmap_is_referenced_pvh(struct md_page *pvh);
 static void pmap_kenter_attr(vm_offset_t va, vm_paddr_t pa, int mode);
 static void pmap_kenter_pde(vm_offset_t va, pd_entry_t newpde);
 static vm_page_t pmap_lookup_pt_page(pmap_t pmap, vm_offset_t va);
@@ -1345,14 +1346,19 @@ pmap_extract_and_hold(pmap_t pmap, vm_offset_t va, vm_prot_t prot)
 	pd_entry_t pde;
 	pt_entry_t pte;
 	vm_page_t m;
+	vm_paddr_t pa;
 
+	pa = 0;
 	m = NULL;
-	vm_page_lock_queues();
 	PMAP_LOCK(pmap);
+retry:
 	pde = *pmap_pde(pmap, va);
 	if (pde != 0) {
 		if (pde & PG_PS) {
 			if ((pde & PG_RW) || (prot & VM_PROT_WRITE) == 0) {
+				if (vm_page_pa_tryrelock(pmap, (pde & PG_PS_FRAME) |
+				       (va & PDRMASK), &pa))
+					goto retry;
 				m = PHYS_TO_VM_PAGE((pde & PG_PS_FRAME) |
 				    (va & PDRMASK));
 				vm_page_hold(m);
@@ -1362,13 +1368,15 @@ pmap_extract_and_hold(pmap_t pmap, vm_offset_t va, vm_prot_t prot)
 			pte = *pmap_pte_quick(pmap, va);
 			if (pte != 0 &&
 			    ((pte & PG_RW) || (prot & VM_PROT_WRITE) == 0)) {
+				if (vm_page_pa_tryrelock(pmap, pte & PG_FRAME, &pa))
+					goto retry;
 				m = PHYS_TO_VM_PAGE(pte & PG_FRAME);
 				vm_page_hold(m);
 			}
 			sched_unpin();
 		}
 	}
-	vm_page_unlock_queues();
+	PA_UNLOCK_COND(pa);
 	PMAP_UNLOCK(pmap);
 	return (m);
 }
@@ -1606,9 +1614,9 @@ pmap_unwire_pte_hold(pmap_t pmap, vm_page_t m, vm_page_t *free)
 
 	--m->wire_count;
 	if (m->wire_count == 0)
-		return _pmap_unwire_pte_hold(pmap, m, free);
+		return (_pmap_unwire_pte_hold(pmap, m, free));
 	else
-		return 0;
+		return (0);
 }
 
 static int 
@@ -1642,7 +1650,7 @@ _pmap_unwire_pte_hold(pmap_t pmap, vm_page_t m, vm_page_t *free)
 	 */
 	pmap_add_delayed_free_list(m, free, TRUE);
 
-	return 1;
+	return (1);
 }
 
 /*
@@ -1656,10 +1664,10 @@ pmap_unuse_pt(pmap_t pmap, vm_offset_t va, vm_page_t *free)
 	vm_page_t mpte;
 
 	if (va >= VM_MAXUSER_ADDRESS)
-		return 0;
+		return (0);
 	ptepde = *pmap_pde(pmap, va);
 	mpte = PHYS_TO_VM_PAGE(ptepde & PG_FRAME);
-	return pmap_unwire_pte_hold(pmap, mpte, free);
+	return (pmap_unwire_pte_hold(pmap, mpte, free));
 }
 
 void
@@ -1810,7 +1818,7 @@ _pmap_allocpte(pmap_t pmap, unsigned ptepindex, int flags)
 	pmap->pm_pdir[ptepindex] =
 		(pd_entry_t) (ptepa | PG_U | PG_RW | PG_V | PG_A | PG_M);
 
-	return m;
+	return (m);
 }
 
 static vm_page_t
@@ -2008,7 +2016,7 @@ kvm_size(SYSCTL_HANDLER_ARGS)
 {
 	unsigned long ksize = VM_MAX_KERNEL_ADDRESS - KERNBASE;
 
-	return sysctl_handle_long(oidp, &ksize, 0, req);
+	return (sysctl_handle_long(oidp, &ksize, 0, req));
 }
 SYSCTL_PROC(_vm, OID_AUTO, kvm_size, CTLTYPE_LONG|CTLFLAG_RD, 
     0, 0, kvm_size, "IU", "Size of KVM");
@@ -2018,7 +2026,7 @@ kvm_free(SYSCTL_HANDLER_ARGS)
 {
 	unsigned long kfree = VM_MAX_KERNEL_ADDRESS - kernel_vm_end;
 
-	return sysctl_handle_long(oidp, &kfree, 0, req);
+	return (sysctl_handle_long(oidp, &kfree, 0, req));
 }
 SYSCTL_PROC(_vm, OID_AUTO, kvm_free, CTLTYPE_LONG|CTLFLAG_RD, 
     0, 0, kvm_free, "IU", "Amount of KVM free");
@@ -2082,7 +2090,7 @@ static __inline struct pv_chunk *
 pv_to_chunk(pv_entry_t pv)
 {
 
-	return (struct pv_chunk *)((uintptr_t)pv & ~(uintptr_t)PAGE_MASK);
+	return ((struct pv_chunk *)((uintptr_t)pv & ~(uintptr_t)PAGE_MASK));
 }
 
 #define PV_PMAP(pv) (pv_to_chunk(pv)->pc_pmap)
@@ -2954,18 +2962,9 @@ retry:
 	if (oldpde & PG_MANAGED) {
 		eva = sva + NBPDR;
 		for (va = sva, m = PHYS_TO_VM_PAGE(oldpde & PG_PS_FRAME);
-		    va < eva; va += PAGE_SIZE, m++) {
-			/*
-			 * In contrast to the analogous operation on a 4KB page
-			 * mapping, the mapping's PG_A flag is not cleared and
-			 * the page's PG_REFERENCED flag is not set.  The
-			 * reason is that pmap_demote_pde() expects that a 2/4MB
-			 * page mapping with a stored page table page has PG_A
-			 * set.
-			 */
+		    va < eva; va += PAGE_SIZE, m++)
 			if ((oldpde & (PG_M | PG_RW)) == (PG_M | PG_RW))
 				vm_page_dirty(m);
-		}
 	}
 	if ((prot & VM_PROT_WRITE) == 0)
 		newpde &= ~(PG_RW | PG_M);
@@ -3073,22 +3072,15 @@ retry:
 			obits = pbits = *pte;
 			if ((pbits & PG_V) == 0)
 				continue;
-			if (pbits & PG_MANAGED) {
-				m = NULL;
-				if (pbits & PG_A) {
+
+			if ((prot & VM_PROT_WRITE) == 0) {
+				if ((pbits & (PG_MANAGED | PG_M | PG_RW)) ==
+				    (PG_MANAGED | PG_M | PG_RW)) {
 					m = PHYS_TO_VM_PAGE(pbits & PG_FRAME);
-					vm_page_flag_set(m, PG_REFERENCED);
-					pbits &= ~PG_A;
-				}
-				if ((pbits & (PG_M | PG_RW)) == (PG_M | PG_RW)) {
-					if (m == NULL)
-						m = PHYS_TO_VM_PAGE(pbits & PG_FRAME);
 					vm_page_dirty(m);
 				}
-			}
-
-			if ((prot & VM_PROT_WRITE) == 0)
 				pbits &= ~(PG_RW | PG_M);
+			}
 #ifdef PAE
 			if ((prot & VM_PROT_EXECUTE) == 0)
 				pbits |= pg_nx;
@@ -3661,7 +3653,7 @@ pmap_enter_quick_locked(pmap_t pmap, vm_offset_t va, vm_page_t m,
 		pte_store(pte, pa | PG_V | PG_U);
 	else
 		pte_store(pte, pa | PG_V | PG_U | PG_MANAGED);
-	return mpte;
+	return (mpte);
 }
 
 /*
@@ -4058,12 +4050,12 @@ pmap_page_exists_quick(pmap_t pmap, vm_page_t m)
 	int loops = 0;
 
 	if (m->flags & PG_FICTITIOUS)
-		return FALSE;
+		return (FALSE);
 
 	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
 	TAILQ_FOREACH(pv, &m->md.pv_list, pv_list) {
 		if (PV_PMAP(pv) == pmap) {
-			return TRUE;
+			return (TRUE);
 		}
 		loops++;
 		if (loops >= 16)
@@ -4133,16 +4125,15 @@ pmap_pvh_wired_mappings(struct md_page *pvh, int count)
 boolean_t
 pmap_page_is_mapped(vm_page_t m)
 {
-	struct md_page *pvh;
+	boolean_t rv;
 
 	if ((m->flags & (PG_FICTITIOUS | PG_UNMANAGED)) != 0)
 		return (FALSE);
-	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
-	if (TAILQ_EMPTY(&m->md.pv_list)) {
-		pvh = pa_to_pvh(VM_PAGE_TO_PHYS(m));
-		return (!TAILQ_EMPTY(&pvh->pv_list));
-	} else
-		return (TRUE);
+	vm_page_lock_queues();
+	rv = !TAILQ_EMPTY(&m->md.pv_list) ||
+	    !TAILQ_EMPTY(&pa_to_pvh(VM_PAGE_TO_PHYS(m))->pv_list);
+	vm_page_unlock_queues();
+	return (rv);
 }
 
 /*
@@ -4352,6 +4343,51 @@ pmap_is_prefaultable(pmap_t pmap, vm_offset_t addr)
 		rv = *pte == 0;
 	}
 	PMAP_UNLOCK(pmap);
+	return (rv);
+}
+
+/*
+ *	pmap_is_referenced:
+ *
+ *	Return whether or not the specified physical page was referenced
+ *	in any physical maps.
+ */
+boolean_t
+pmap_is_referenced(vm_page_t m)
+{
+
+	if (m->flags & PG_FICTITIOUS)
+		return (FALSE);
+	if (pmap_is_referenced_pvh(&m->md))
+		return (TRUE);
+	return (pmap_is_referenced_pvh(pa_to_pvh(VM_PAGE_TO_PHYS(m))));
+}
+
+/*
+ * Returns TRUE if any of the given mappings were referenced and FALSE
+ * otherwise.  Both page and 4mpage mappings are supported.
+ */
+static boolean_t
+pmap_is_referenced_pvh(struct md_page *pvh)
+{
+	pv_entry_t pv;
+	pt_entry_t *pte;
+	pmap_t pmap;
+	boolean_t rv;
+
+	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
+	rv = FALSE;
+	sched_pin();
+	TAILQ_FOREACH(pv, &pvh->pv_list, pv_list) {
+		pmap = PV_PMAP(pv);
+		PMAP_LOCK(pmap);
+		pte = pmap_pte_quick(pmap, pv->pv_va);
+		rv = (*pte & (PG_A | PG_V)) == (PG_A | PG_V);
+		PMAP_UNLOCK(pmap);
+		if (rv)
+			break;
+	}
+	sched_unpin();
 	return (rv);
 }
 
@@ -4932,7 +4968,7 @@ pmap_mincore(pmap_t pmap, vm_offset_t addr)
 	if (pte != 0) {
 		val |= MINCORE_INCORE;
 		if ((pte & PG_MANAGED) == 0)
-			return val;
+			return (val);
 
 		m = PHYS_TO_VM_PAGE(pa);
 
@@ -4961,14 +4997,12 @@ pmap_mincore(pmap_t pmap, vm_offset_t addr)
 			 */
 			vm_page_lock_queues();
 			if ((m->flags & PG_REFERENCED) ||
-			    pmap_ts_referenced(m)) {
+			    pmap_is_referenced(m))
 				val |= MINCORE_REFERENCED_OTHER;
-				vm_page_flag_set(m, PG_REFERENCED);
-			}
 			vm_page_unlock_queues();
 		}
 	} 
-	return val;
+	return (val);
 }
 
 void
@@ -5063,7 +5097,7 @@ pmap_pid_dump(int pid)
 								printf("\n");
 							}
 							sx_sunlock(&allproc_lock);
-							return npte;
+							return (npte);
 						}
 						pte = pmap_pte(pmap, va);
 						if (pte && pmap_pte_v(pte)) {
@@ -5088,7 +5122,7 @@ pmap_pid_dump(int pid)
 		}
 	}
 	sx_sunlock(&allproc_lock);
-	return npte;
+	return (npte);
 }
 #endif
 

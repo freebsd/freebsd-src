@@ -376,7 +376,7 @@ uint32_t *savage_dma_alloc(drm_savage_private_t *dev_priv, unsigned int n)
 		  cur, dev_priv->dma_pages[cur].used, n, rest, nr_pages);
 
 	if (cur + nr_pages < dev_priv->nr_dma_pages) {
-		dma_ptr = (uint32_t *)dev_priv->cmd_dma->handle +
+		dma_ptr = (uint32_t *)dev_priv->cmd_dma->virtual +
 		    cur * SAVAGE_DMA_PAGE_SIZE + dev_priv->dma_pages[cur].used;
 		if (n < rest)
 			rest = n;
@@ -392,7 +392,7 @@ uint32_t *savage_dma_alloc(drm_savage_private_t *dev_priv, unsigned int n)
 			dev_priv->dma_pages[i].used = 0;
 			dev_priv->dma_pages[i].flushed = 0;
 		}
-		dma_ptr = (uint32_t *)dev_priv->cmd_dma->handle;
+		dma_ptr = (uint32_t *)dev_priv->cmd_dma->virtual;
 		dev_priv->first_dma_page = cur = 0;
 	}
 	for (i = cur; nr_pages > 0; ++i, --nr_pages) {
@@ -443,7 +443,7 @@ static void savage_dma_flush(drm_savage_private_t *dev_priv)
 
 	/* pad with noops */
 	if (pad) {
-		uint32_t *dma_ptr = (uint32_t *)dev_priv->cmd_dma->handle +
+		uint32_t *dma_ptr = (uint32_t *)dev_priv->cmd_dma->virtual +
 		    cur * SAVAGE_DMA_PAGE_SIZE + dev_priv->dma_pages[cur].used;
 		dev_priv->dma_pages[cur].used += pad;
 		while (pad != 0) {
@@ -517,7 +517,7 @@ static void savage_fake_dma_flush(drm_savage_private_t *dev_priv)
 	for (i = dev_priv->first_dma_page;
 	     i <= dev_priv->current_dma_page && dev_priv->dma_pages[i].used;
 	     ++i) {
-		uint32_t *dma_ptr = (uint32_t *)dev_priv->cmd_dma->handle +
+		uint32_t *dma_ptr = (uint32_t *)dev_priv->cmd_dma->virtual +
 			i * SAVAGE_DMA_PAGE_SIZE;
 #if SAVAGE_DMA_DEBUG
 		/* Sanity check: all pages except the last one must be full. */
@@ -784,7 +784,7 @@ static int savage_do_init_bci(struct drm_device *dev, drm_savage_init_t *init)
 				return -EINVAL;
 			}
 			drm_core_ioremap(dev_priv->cmd_dma, dev);
-			if (!dev_priv->cmd_dma->handle) {
+			if (!dev_priv->cmd_dma->virtual) {
 				DRM_ERROR("failed to ioremap command "
 					  "DMA region!\n");
 				savage_do_cleanup_bci(dev);
@@ -806,9 +806,9 @@ static int savage_do_init_bci(struct drm_device *dev, drm_savage_init_t *init)
 		dev_priv->fake_dma.offset = 0;
 		dev_priv->fake_dma.size = SAVAGE_FAKE_DMA_SIZE;
 		dev_priv->fake_dma.type = _DRM_SHM;
-		dev_priv->fake_dma.handle = drm_alloc(SAVAGE_FAKE_DMA_SIZE,
+		dev_priv->fake_dma.virtual = drm_alloc(SAVAGE_FAKE_DMA_SIZE,
 						      DRM_MEM_DRIVER);
-		if (!dev_priv->fake_dma.handle) {
+		if (!dev_priv->fake_dma.virtual) {
 			DRM_ERROR("could not allocate faked DMA buffer!\n");
 			savage_do_cleanup_bci(dev);
 			return -ENOMEM;
@@ -818,7 +818,7 @@ static int savage_do_init_bci(struct drm_device *dev, drm_savage_init_t *init)
 	}
 
 	dev_priv->sarea_priv =
-		(drm_savage_sarea_t *)((uint8_t *)dev_priv->sarea->handle +
+		(drm_savage_sarea_t *)((uint8_t *)dev_priv->sarea->virtual +
 				       init->sarea_priv_offset);
 
 	/* setup bitmap descriptors */
@@ -857,7 +857,7 @@ static int savage_do_init_bci(struct drm_device *dev, drm_savage_init_t *init)
 	dev_priv->event_counter = 0;
 	dev_priv->event_wrap = 0;
 	dev_priv->bci_ptr = (volatile uint32_t *)
-	    ((uint8_t *)dev_priv->mmio->handle + SAVAGE_BCI_OFFSET);
+	    ((uint8_t *)dev_priv->mmio->virtual + SAVAGE_BCI_OFFSET);
 	if (S3_SAVAGE3D_SERIES(dev_priv->chipset)) {
 		dev_priv->status_used_mask = SAVAGE_FIFO_USED_MASK_S3D;
 	} else {
@@ -865,7 +865,7 @@ static int savage_do_init_bci(struct drm_device *dev, drm_savage_init_t *init)
 	}
 	if (dev_priv->status != NULL) {
 		dev_priv->status_ptr =
-			(volatile uint32_t *)dev_priv->status->handle;
+			(volatile uint32_t *)dev_priv->status->virtual;
 		dev_priv->wait_fifo = savage_bci_wait_fifo_shadow;
 		dev_priv->wait_evnt = savage_bci_wait_event_shadow;
 		dev_priv->status_ptr[1023] = dev_priv->event_counter;
@@ -905,16 +905,16 @@ static int savage_do_cleanup_bci(struct drm_device *dev)
 	drm_savage_private_t *dev_priv = dev->dev_private;
 
 	if (dev_priv->cmd_dma == &dev_priv->fake_dma) {
-		if (dev_priv->fake_dma.handle)
-			drm_free(dev_priv->fake_dma.handle,
+		if (dev_priv->fake_dma.virtual)
+			drm_free(dev_priv->fake_dma.virtual,
 				 SAVAGE_FAKE_DMA_SIZE, DRM_MEM_DRIVER);
-	} else if (dev_priv->cmd_dma && dev_priv->cmd_dma->handle &&
+	} else if (dev_priv->cmd_dma && dev_priv->cmd_dma->virtual &&
 		   dev_priv->cmd_dma->type == _DRM_AGP &&
 		   dev_priv->dma_type == SAVAGE_DMA_AGP)
 		drm_core_ioremapfree(dev_priv->cmd_dma, dev);
 
 	if (dev_priv->dma_type == SAVAGE_DMA_AGP &&
-	    dev->agp_buffer_map && dev->agp_buffer_map->handle) {
+	    dev->agp_buffer_map && dev->agp_buffer_map->virtual) {
 		drm_core_ioremapfree(dev->agp_buffer_map, dev);
 		/* make sure the next instance (which may be running
 		 * in PCI mode) doesn't try to use an old

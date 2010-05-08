@@ -79,7 +79,6 @@ static int	ffs_reload(struct mount *, struct thread *);
 static int	ffs_mountfs(struct vnode *, struct mount *, struct thread *);
 static void	ffs_oldfscompat_read(struct fs *, struct ufsmount *,
 		    ufs2_daddr_t);
-static void	ffs_oldfscompat_write(struct fs *, struct ufsmount *);
 static void	ffs_ifree(struct ufsmount *ump, struct inode *ip);
 static vfs_init_t ffs_init;
 static vfs_uninit_t ffs_uninit;
@@ -127,8 +126,8 @@ static struct buf_ops ffs_ops = {
 
 static const char *ffs_opts[] = { "acls", "async", "noatime", "noclusterr",
     "noclusterw", "noexec", "export", "force", "from", "multilabel", 
-    "snapshot", "nosuid", "suiddir", "nosymfollow", "sync",
-    "union", "nfsv4acls", NULL };
+    "nfsv4acls", "snapshot", "nosuid", "suiddir", "nosymfollow", "sync",
+    "union", NULL };
 
 static int
 ffs_mount(struct mount *mp)
@@ -299,7 +298,8 @@ ffs_mount(struct mount *mp)
 			if (fs->fs_clean == 0) {
 				fs->fs_flags |= FS_UNCLEAN;
 				if ((mp->mnt_flag & MNT_FORCE) ||
-				    ((fs->fs_flags & FS_NEEDSFSCK) == 0 &&
+				    ((fs->fs_flags &
+				     (FS_SUJ | FS_NEEDSFSCK)) == 0 &&
 				     (fs->fs_flags & FS_DOSOFTDEP))) {
 					printf("WARNING: %s was not %s\n",
 					   fs->fs_fsmnt, "properly dismounted");
@@ -307,6 +307,9 @@ ffs_mount(struct mount *mp)
 					printf(
 "WARNING: R/W mount of %s denied.  Filesystem is not clean - run fsck\n",
 					    fs->fs_fsmnt);
+					if (fs->fs_flags & FS_SUJ)
+						printf(
+"WARNING: Forced mount will invalidated journal contents\n");
 					return (EPERM);
 				}
 			}
@@ -330,14 +333,15 @@ ffs_mount(struct mount *mp)
 			MNT_ILOCK(mp);
 			mp->mnt_flag &= ~MNT_RDONLY;
 			MNT_IUNLOCK(mp);
-			fs->fs_clean = 0;
-			if ((error = ffs_sbupdate(ump, MNT_WAIT, 0)) != 0) {
-				vn_finished_write(mp);
-				return (error);
-			}
+			fs->fs_mtime = time_second;
 			/* check to see if we need to start softdep */
 			if ((fs->fs_flags & FS_DOSOFTDEP) &&
 			    (error = softdep_mount(devvp, mp, fs, td->td_ucred))){
+				vn_finished_write(mp);
+				return (error);
+			}
+			fs->fs_clean = 0;
+			if ((error = ffs_sbupdate(ump, MNT_WAIT, 0)) != 0) {
 				vn_finished_write(mp);
 				return (error);
 			}
@@ -705,7 +709,7 @@ ffs_mountfs(devvp, mp, td)
 	if (fs->fs_clean == 0) {
 		fs->fs_flags |= FS_UNCLEAN;
 		if (ronly || (mp->mnt_flag & MNT_FORCE) ||
-		    ((fs->fs_flags & FS_NEEDSFSCK) == 0 &&
+		    ((fs->fs_flags & (FS_SUJ | FS_NEEDSFSCK)) == 0 &&
 		     (fs->fs_flags & FS_DOSOFTDEP))) {
 			printf(
 "WARNING: %s was not properly dismounted\n",
@@ -714,6 +718,9 @@ ffs_mountfs(devvp, mp, td)
 			printf(
 "WARNING: R/W mount of %s denied.  Filesystem is not clean - run fsck\n",
 			    fs->fs_fsmnt);
+			if (fs->fs_flags & FS_SUJ)
+				printf(
+"WARNING: Forced mount will invalidated journal contents\n");
 			error = EPERM;
 			goto out;
 		}
@@ -896,6 +903,7 @@ ffs_mountfs(devvp, mp, td)
 	 */
 	bzero(fs->fs_fsmnt, MAXMNTLEN);
 	strlcpy(fs->fs_fsmnt, mp->mnt_stat.f_mntonname, MAXMNTLEN);
+	mp->mnt_stat.f_iosize = fs->fs_bsize;
 
 	if( mp->mnt_flag & MNT_ROOTFS) {
 		/*
@@ -907,6 +915,7 @@ ffs_mountfs(devvp, mp, td)
 	}
 
 	if (ronly == 0) {
+		fs->fs_mtime = time_second;
 		if ((fs->fs_flags & FS_DOSOFTDEP) &&
 		    (error = softdep_mount(devvp, mp, fs, cred)) != 0) {
 			free(fs->fs_csp, M_UFSMNT);
@@ -937,7 +946,6 @@ ffs_mountfs(devvp, mp, td)
 	 * This would all happen while the filesystem was busy/not
 	 * available, so would effectively be "atomic".
 	 */
-	mp->mnt_stat.f_iosize = fs->fs_bsize;
 	(void) ufs_extattr_autostart(mp, td);
 #endif /* !UFS_EXTATTR_AUTOSTART */
 #endif /* !UFS_EXTATTR */
@@ -1037,7 +1045,7 @@ ffs_oldfscompat_read(fs, ump, sblockloc)
  * XXX - Parts get retired eventually.
  * Unfortunately new bits get added.
  */
-static void
+void
 ffs_oldfscompat_write(fs, ump)
 	struct fs *fs;
 	struct ufsmount *ump;
@@ -1132,6 +1140,7 @@ ffs_unmount(mp, mntflags)
 		fs->fs_pendinginodes = 0;
 	}
 	UFS_UNLOCK(ump);
+	softdep_unmount(mp);
 	if (fs->fs_ronly == 0) {
 		fs->fs_clean = fs->fs_flags & (FS_UNCLEAN|FS_NEEDSFSCK) ? 0 : 1;
 		error = ffs_sbupdate(ump, MNT_WAIT, 0);
@@ -1573,16 +1582,6 @@ ffs_vgetf(mp, ino, flags, vpp, ffs_flags)
 			DIP_SET(ip, i_gen, ip->i_gen);
 		}
 	}
-	/*
-	 * Ensure that uid and gid are correct. This is a temporary
-	 * fix until fsck has been changed to do the update.
-	 */
-	if (fs->fs_magic == FS_UFS1_MAGIC &&		/* XXX */
-	    fs->fs_old_inodefmt < FS_44INODEFMT) {	/* XXX */
-		ip->i_uid = ip->i_din1->di_ouid;	/* XXX */
-		ip->i_gid = ip->i_din1->di_ogid;	/* XXX */
-	}						/* XXX */
-
 #ifdef MAC
 	if ((mp->mnt_flag & MNT_MULTILABEL) && ip->i_mode) {
 		/*
@@ -1726,6 +1725,8 @@ ffs_sbupdate(mp, waitfor, suspended)
 	}
 	fs->fs_fmod = 0;
 	fs->fs_time = time_second;
+	if (fs->fs_flags & FS_DOSOFTDEP)
+		softdep_setup_sbupdate(mp, (struct fs *)bp->b_data, bp);
 	bcopy((caddr_t)fs, bp->b_data, (u_int)fs->fs_sbsize);
 	ffs_oldfscompat_write((struct fs *)bp->b_data, mp);
 	if (suspended)
@@ -1867,9 +1868,6 @@ ffs_bufwrite(struct buf *bp)
 	}
 	BO_UNLOCK(bp->b_bufobj);
 
-	/* Mark the buffer clean */
-	bundirty(bp);
-
 	/*
 	 * If this buffer is marked for background writing and we
 	 * do not have to wait for it, make a copy and write the
@@ -1910,9 +1908,16 @@ ffs_bufwrite(struct buf *bp)
 		newbp->b_flags &= ~B_INVAL;
 
 #ifdef SOFTUPDATES
-		/* move over the dependencies */
-		if (!LIST_EMPTY(&bp->b_dep))
-			softdep_move_dependencies(bp, newbp);
+		/*
+		 * Move over the dependencies.  If there are rollbacks,
+		 * leave the parent buffer dirtied as it will need to
+		 * be written again.
+		 */
+		if (LIST_EMPTY(&bp->b_dep) ||
+		    softdep_move_dependencies(bp, newbp) == 0)
+			bundirty(bp);
+#else
+		bundirty(bp);
 #endif 
 
 		/*
@@ -1925,7 +1930,10 @@ ffs_bufwrite(struct buf *bp)
 		 */
 		bqrelse(bp);
 		bp = newbp;
-	}
+	} else
+		/* Mark the buffer clean */
+		bundirty(bp);
+
 
 	/* Let the normal bufwrite do the rest for us */
 normal_write:
@@ -1939,6 +1947,7 @@ ffs_geom_strategy(struct bufobj *bo, struct buf *bp)
 	struct vnode *vp;
 	int error;
 	struct buf *tbp;
+	int nocopy;
 
 	vp = bo->__bo_vnode;
 	if (bp->b_iocmd == BIO_WRITE) {
@@ -1946,8 +1955,9 @@ ffs_geom_strategy(struct bufobj *bo, struct buf *bp)
 		    bp->b_vp != NULL && bp->b_vp->v_mount != NULL &&
 		    (bp->b_vp->v_mount->mnt_kern_flag & MNTK_SUSPENDED) != 0)
 			panic("ffs_geom_strategy: bad I/O");
-		bp->b_flags &= ~B_VALIDSUSPWRT;
-		if ((vp->v_vflag & VV_COPYONWRITE) &&
+		nocopy = bp->b_flags & B_NOCOPY;
+		bp->b_flags &= ~(B_VALIDSUSPWRT | B_NOCOPY);
+		if ((vp->v_vflag & VV_COPYONWRITE) && nocopy == 0 &&
 		    vp->v_rdev->si_snapdata != NULL) {
 			if ((bp->b_flags & B_CLUSTER) != 0) {
 				runningbufwakeup(bp);

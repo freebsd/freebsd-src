@@ -288,6 +288,7 @@ static vm_page_t	mmu_booke_extract_and_hold(mmu_t, pmap_t, vm_offset_t,
 static void		mmu_booke_init(mmu_t);
 static boolean_t	mmu_booke_is_modified(mmu_t, vm_page_t);
 static boolean_t	mmu_booke_is_prefaultable(mmu_t, pmap_t, vm_offset_t);
+static boolean_t	mmu_booke_is_referenced(mmu_t, vm_page_t);
 static boolean_t	mmu_booke_ts_referenced(mmu_t, vm_page_t);
 static vm_offset_t	mmu_booke_map(mmu_t, vm_offset_t *, vm_offset_t, vm_offset_t,
     int);
@@ -342,6 +343,7 @@ static mmu_method_t mmu_booke_methods[] = {
 	MMUMETHOD(mmu_init,		mmu_booke_init),
 	MMUMETHOD(mmu_is_modified,	mmu_booke_is_modified),
 	MMUMETHOD(mmu_is_prefaultable,	mmu_booke_is_prefaultable),
+	MMUMETHOD(mmu_is_referenced,	mmu_booke_is_referenced),
 	MMUMETHOD(mmu_ts_referenced,	mmu_booke_ts_referenced),
 	MMUMETHOD(mmu_map,		mmu_booke_map),
 	MMUMETHOD(mmu_mincore,		mmu_booke_mincore),
@@ -1913,16 +1915,11 @@ mmu_booke_protect(mmu_t mmu, pmap_t pmap, vm_offset_t sva, vm_offset_t eva,
 				tlb_miss_lock();
 
 				/* Handle modified pages. */
-				if (PTE_ISMODIFIED(pte))
+				if (PTE_ISMODIFIED(pte) && PTE_ISMANAGED(pte))
 					vm_page_dirty(m);
 
-				/* Referenced pages. */
-				if (PTE_ISREFERENCED(pte))
-					vm_page_flag_set(m, PG_REFERENCED);
-
 				tlb0_flush_entry(va);
-				pte->flags &= ~(PTE_UW | PTE_SW | PTE_MODIFIED |
-				    PTE_REFERENCED);
+				pte->flags &= ~(PTE_UW | PTE_SW | PTE_MODIFIED);
 
 				tlb_miss_unlock();
 				mtx_unlock_spin(&tlbivax_mutex);
@@ -1960,13 +1957,8 @@ mmu_booke_remove_write(mmu_t mmu, vm_page_t m)
 				if (PTE_ISMODIFIED(pte))
 					vm_page_dirty(m);
 
-				/* Referenced pages. */
-				if (PTE_ISREFERENCED(pte))
-					vm_page_flag_set(m, PG_REFERENCED);
-
 				/* Flush mapping from TLB0. */
-				pte->flags &= ~(PTE_UW | PTE_SW | PTE_MODIFIED |
-				    PTE_REFERENCED);
+				pte->flags &= ~(PTE_UW | PTE_SW | PTE_MODIFIED);
 
 				tlb_miss_unlock();
 				mtx_unlock_spin(&tlbivax_mutex);
@@ -2032,11 +2024,12 @@ mmu_booke_extract_and_hold(mmu_t mmu, pmap_t pmap, vm_offset_t va,
 	pte_t *pte;
 	vm_page_t m;
 	uint32_t pte_wbit;
-
+	vm_paddr_t pa;
+	
 	m = NULL;
-	vm_page_lock_queues();
+	pa = 0;	
 	PMAP_LOCK(pmap);
-
+retry:
 	pte = pte_find(mmu, pmap, va);
 	if ((pte != NULL) && PTE_ISVALID(pte)) {
 		if (pmap == kernel_pmap)
@@ -2045,12 +2038,14 @@ mmu_booke_extract_and_hold(mmu_t mmu, pmap_t pmap, vm_offset_t va,
 			pte_wbit = PTE_UW;
 
 		if ((pte->flags & pte_wbit) || ((prot & VM_PROT_WRITE) == 0)) {
+			if (vm_page_pa_tryrelock(pmap, PTE_PA(pte), &pa))
+				goto retry;
 			m = PHYS_TO_VM_PAGE(PTE_PA(pte));
 			vm_page_hold(m);
 		}
 	}
 
-	vm_page_unlock_queues();
+	PA_UNLOCK_COND(pa);
 	PMAP_UNLOCK(pmap);
 	return (m);
 }
@@ -2178,6 +2173,33 @@ mmu_booke_is_prefaultable(mmu_t mmu, pmap_t pmap, vm_offset_t addr)
 {
 
 	return (FALSE);
+}
+
+/*
+ * Return whether or not the specified physical page was referenced
+ * in any physical maps.
+ */
+static boolean_t
+mmu_booke_is_referenced(mmu_t mmu, vm_page_t m)
+{
+	pte_t *pte;
+	pv_entry_t pv;
+	boolean_t rv;
+
+	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
+	rv = FALSE;
+	if ((m->flags & (PG_FICTITIOUS | PG_UNMANAGED)) != 0)
+		return (rv);
+	TAILQ_FOREACH(pv, &m->md.pv_list, pv_link) {
+		PMAP_LOCK(pv->pv_pmap);
+		if ((pte = pte_find(mmu, pv->pv_pmap, pv->pv_va)) != NULL &&
+		    PTE_ISVALID(pte))
+			rv = PTE_ISREFERENCED(pte) ? TRUE : FALSE;
+		PMAP_UNLOCK(pv->pv_pmap);
+		if (rv)
+			break;
+	}
+	return (rv);
 }
 
 /*

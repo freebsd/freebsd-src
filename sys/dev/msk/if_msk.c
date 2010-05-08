@@ -223,6 +223,8 @@ static struct msk_product {
 	    "Marvell Yukon 88E8072 Gigabit Ethernet" },
 	{ VENDORID_MARVELL, DEVICEID_MRVL_4380,
 	    "Marvell Yukon 88E8057 Gigabit Ethernet" },
+	{ VENDORID_MARVELL, DEVICEID_MRVL_4381,
+	    "Marvell Yukon 88E8059 Gigabit Ethernet" },
 	{ VENDORID_DLINK, DEVICEID_DLINK_DGE550SX,
 	    "D-Link 550SX Gigabit Ethernet" },
 	{ VENDORID_DLINK, DEVICEID_DLINK_DGE560SX,
@@ -239,7 +241,9 @@ static const char *model_name[] = {
         "Yukon FE",
         "Yukon FE+",
         "Yukon Supreme",
-        "Yukon Ultra 2"
+        "Yukon Ultra 2",
+        "Yukon Unknown",
+        "Yukon Optima",
 };
 
 static int mskc_probe(device_t);
@@ -1097,7 +1101,8 @@ msk_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 		    (IFCAP_VLAN_HWTAGGING & ifp->if_capabilities) != 0) {
 			ifp->if_capenable ^= IFCAP_VLAN_HWTAGGING;
 			if ((IFCAP_VLAN_HWTAGGING & ifp->if_capenable) == 0)
-				ifp->if_capenable &= ~IFCAP_VLAN_HWTSO;
+				ifp->if_capenable &=
+				    ~(IFCAP_VLAN_HWTSO | IFCAP_VLAN_HWCSUM);
 			msk_setvlan(sc_if, ifp);
 		}
 		if (ifp->if_mtu > ETHERMTU &&
@@ -1229,6 +1234,7 @@ msk_phy_power(struct msk_softc *sc, int mode)
 		case CHIP_ID_YUKON_EX:
 		case CHIP_ID_YUKON_FE_P:
 		case CHIP_ID_YUKON_UL_2:
+		case CHIP_ID_YUKON_OPT:
 			CSR_WRITE_2(sc, B0_CTST, Y2_HW_WOL_OFF);
 
 			/* Enable all clocks. */
@@ -1371,6 +1377,10 @@ mskc_reset(struct msk_softc *sc)
 			CSR_WRITE_4(sc, MR_ADDR(i, GMAC_CTRL),
 			    GMC_BYP_MACSECRX_ON | GMC_BYP_MACSECTX_ON |
 			    GMC_BYP_RETR_ON);
+	}
+	if (sc->msk_hw_id == CHIP_ID_YUKON_OPT && sc->msk_hw_rev == 0) {
+		/* Disable PCIe PHY powerdown(reg 0x80, bit7). */
+		CSR_WRITE_4(sc, Y2_PEX_PHY_DATA, (0x0080 << 16) | 0x0080);
 	}
 	CSR_WRITE_1(sc, B2_TST_CTRL1, TST_CFG_WRITE_OFF);
 
@@ -1705,8 +1715,9 @@ mskc_attach(device_t dev)
 	sc->msk_hw_rev = (CSR_READ_1(sc, B2_MAC_CFG) >> 4) & 0x0f;
 	/* Bail out if chip is not recognized. */
 	if (sc->msk_hw_id < CHIP_ID_YUKON_XL ||
-	    sc->msk_hw_id > CHIP_ID_YUKON_UL_2 ||
-	    sc->msk_hw_id == CHIP_ID_YUKON_SUPR) {
+	    sc->msk_hw_id > CHIP_ID_YUKON_OPT ||
+	    sc->msk_hw_id == CHIP_ID_YUKON_SUPR ||
+	    sc->msk_hw_id == CHIP_ID_YUKON_UNKNOWN) {
 		device_printf(dev, "unknown device: id=0x%02x, rev=0x%02x\n",
 		    sc->msk_hw_id, sc->msk_hw_rev);
 		mtx_destroy(&sc->msk_mtx);
@@ -1818,6 +1829,10 @@ mskc_attach(device_t dev)
 	case CHIP_ID_YUKON_UL_2:
 		sc->msk_clock = 125;	/* 125 MHz */
 		sc->msk_pflags |= MSK_FLAG_JUMBO;
+		break;
+	case CHIP_ID_YUKON_OPT:
+		sc->msk_clock = 125;	/* 125 MHz */
+		sc->msk_pflags |= MSK_FLAG_JUMBO | MSK_FLAG_DESCV2;
 		break;
 	default:
 		sc->msk_clock = 156;	/* 156 MHz */
@@ -2605,23 +2620,32 @@ msk_encap(struct msk_if_softc *sc_if, struct mbuf **m_head)
 		ip = (struct ip *)(mtod(m, char *) + offset);
 		offset += (ip->ip_hl << 2);
 		tcp_offset = offset;
-		/*
-		 * It seems that Yukon II has Tx checksum offload bug for
-		 * small TCP packets that's less than 60 bytes in size
-		 * (e.g. TCP window probe packet, pure ACK packet).
-		 * Common work around like padding with zeros to make the
-		 * frame minimum ethernet frame size didn't work at all.
-		 * Instead of disabling checksum offload completely we
-		 * resort to S/W checksum routine when we encounter short
-		 * TCP frames.
-		 * Short UDP packets appear to be handled correctly by
-		 * Yukon II. Also I assume this bug does not happen on
-		 * controllers that use newer descriptor format or
-		 * automatic Tx checksum calaulcation.
-		 */
-		if ((sc_if->msk_flags & MSK_FLAG_AUTOTX_CSUM) == 0 &&
+		if ((m->m_pkthdr.csum_flags & CSUM_TSO) != 0) {
+			m = m_pullup(m, offset + sizeof(struct tcphdr));
+			if (m == NULL) {
+				*m_head = NULL;
+				return (ENOBUFS);
+			}
+			tcp = (struct tcphdr *)(mtod(m, char *) + offset);
+			offset += (tcp->th_off << 2);
+		} else if ((sc_if->msk_flags & MSK_FLAG_AUTOTX_CSUM) == 0 &&
 		    (m->m_pkthdr.len < MSK_MIN_FRAMELEN) &&
 		    (m->m_pkthdr.csum_flags & CSUM_TCP) != 0) {
+			/*
+			 * It seems that Yukon II has Tx checksum offload bug
+			 * for small TCP packets that's less than 60 bytes in
+			 * size (e.g. TCP window probe packet, pure ACK packet).
+			 * Common work around like padding with zeros to make
+			 * the frame minimum ethernet frame size didn't work at
+			 * all.
+			 * Instead of disabling checksum offload completely we
+			 * resort to S/W checksum routine when we encounter
+			 * short TCP frames.
+			 * Short UDP packets appear to be handled correctly by
+			 * Yukon II. Also I assume this bug does not happen on
+			 * controllers that use newer descriptor format or
+			 * automatic Tx checksum calaulcation.
+			 */
 			m = m_pullup(m, offset + sizeof(struct tcphdr));
 			if (m == NULL) {
 				*m_head = NULL;
@@ -2631,15 +2655,6 @@ msk_encap(struct msk_if_softc *sc_if, struct mbuf **m_head)
 			    m->m_pkthdr.csum_data) = in_cksum_skip(m,
 			    m->m_pkthdr.len, offset);
 			m->m_pkthdr.csum_flags &= ~CSUM_TCP;
-		}
-		if ((m->m_pkthdr.csum_flags & CSUM_TSO) != 0) {
-			m = m_pullup(m, offset + sizeof(struct tcphdr));
-			if (m == NULL) {
-				*m_head = NULL;
-				return (ENOBUFS);
-			}
-			tcp = (struct tcphdr *)(mtod(m, char *) + offset);
-			offset += (tcp->th_off << 2);
 		}
 		*m_head = m;
 	}
@@ -2890,20 +2905,15 @@ mskc_shutdown(device_t dev)
 	sc = device_get_softc(dev);
 	MSK_LOCK(sc);
 	for (i = 0; i < sc->msk_num_port; i++) {
-		if (sc->msk_if[i] != NULL)
+		if (sc->msk_if[i] != NULL && sc->msk_if[i]->msk_ifp != NULL &&
+		    ((sc->msk_if[i]->msk_ifp->if_drv_flags &
+		    IFF_DRV_RUNNING) != 0))
 			msk_stop(sc->msk_if[i]);
 	}
-
-	/* Disable all interrupts. */
-	CSR_WRITE_4(sc, B0_IMSK, 0);
-	CSR_READ_4(sc, B0_IMSK);
-	CSR_WRITE_4(sc, B0_HWE_IMSK, 0);
-	CSR_READ_4(sc, B0_HWE_IMSK);
+	MSK_UNLOCK(sc);
 
 	/* Put hardware reset. */
 	CSR_WRITE_2(sc, B0_CTST, CS_RST_SET);
-
-	MSK_UNLOCK(sc);
 	return (0);
 }
 
@@ -3511,6 +3521,8 @@ msk_handle_events(struct msk_softc *sc)
 			sc_if->msk_csum = status;
 			break;
 		case OP_RXSTAT:
+			if (!(sc_if->msk_ifp->if_drv_flags & IFF_DRV_RUNNING))
+				break;
 			if (sc_if->msk_framesize >
 			    (MCLBYTES - MSK_RX_BUF_ALIGN))
 				msk_jumbo_rxeof(sc_if, status, control, len);
@@ -3580,6 +3592,7 @@ msk_intr(void *xsc)
 	    (sc->msk_pflags & MSK_FLAG_SUSPEND) != 0 ||
 	    (status & sc->msk_intrmask) == 0) {
 		CSR_WRITE_4(sc, B0_Y2_SP_ICR, 2);
+		MSK_UNLOCK(sc);
 		return;
 	}
 
@@ -3822,9 +3835,9 @@ msk_init_locked(struct msk_if_softc *sc_if)
 
 	if ((sc_if->msk_flags & MSK_FLAG_RAMBUF) == 0) {
 		/* Set Rx Pause threshould. */
-		CSR_WRITE_1(sc, MR_ADDR(sc_if->msk_port, RX_GMF_LP_THR),
+		CSR_WRITE_2(sc, MR_ADDR(sc_if->msk_port, RX_GMF_LP_THR),
 		    MSK_ECU_LLPP);
-		CSR_WRITE_1(sc, MR_ADDR(sc_if->msk_port, RX_GMF_UP_THR),
+		CSR_WRITE_2(sc, MR_ADDR(sc_if->msk_port, RX_GMF_UP_THR),
 		    MSK_ECU_ULPP);
 		/* Configure store-and-forward for Tx. */
 		msk_set_tx_stfwd(sc_if);
@@ -3916,6 +3929,11 @@ msk_init_locked(struct msk_if_softc *sc_if)
 		    "initialization failed: no memory for Rx buffers\n");
 		msk_stop(sc_if);
 		return;
+	}
+	if (sc->msk_hw_id == CHIP_ID_YUKON_EX) {
+		/* Disable flushing of non-ASF packets. */
+		CSR_WRITE_4(sc, MR_ADDR(sc_if->msk_port, RX_GMF_CTRL_T),
+		    GMF_RX_MACSEC_FLUSH_OFF);
 	}
 
 	/* Configure interrupt handling. */

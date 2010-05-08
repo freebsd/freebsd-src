@@ -79,7 +79,7 @@ __FBSDID("$FreeBSD$");
 
 #define nitems(_a)      (sizeof((_a)) / sizeof((_a)[0]))
 
-#if	USB_DEBUG
+#ifdef	USB_DEBUG
 #define RUN_DEBUG
 #endif
 
@@ -609,8 +609,8 @@ run_attach(device_t self)
 	ifp->if_init = run_init;
 	ifp->if_ioctl = run_ioctl;
 	ifp->if_start = run_start;
-	IFQ_SET_MAXLEN(&ifp->if_snd, IFQ_MAXLEN);
-	ifp->if_snd.ifq_drv_maxlen = IFQ_MAXLEN;
+	IFQ_SET_MAXLEN(&ifp->if_snd, ifqmaxlen);
+	ifp->if_snd.ifq_drv_maxlen = ifqmaxlen;
 	IFQ_SET_READY(&ifp->if_snd);
 
 	ic->ic_ifp = ifp;

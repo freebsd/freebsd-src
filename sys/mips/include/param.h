@@ -46,9 +46,7 @@
 
 #include <sys/cdefs.h>
 #ifdef _KERNEL
-#ifdef _LOCORE
-#include <machine/psl.h>
-#else
+#ifndef _LOCORE
 #include <machine/cpu.h>
 #endif
 #endif
@@ -102,45 +100,28 @@
 #define	CACHE_LINE_SHIFT	6
 #define	CACHE_LINE_SIZE		(1 << CACHE_LINE_SHIFT)
 
-#define	NBPG		4096		/* bytes/page */
-#define	PGOFSET		(NBPG-1)	/* byte offset into page */
-#define	PGSHIFT		12		/* LOG2(NBPG) */
-
 #define	PAGE_SHIFT	12		/* LOG2(PAGE_SIZE) */
 #define	PAGE_SIZE	(1<<PAGE_SHIFT) /* bytes/page */
 #define	PAGE_MASK	(PAGE_SIZE-1)
 #define	NPTEPG		(PAGE_SIZE/(sizeof (pt_entry_t)))
-
-#define	NBSEG		0x400000	/* bytes/segment */
-#define	SEGOFSET	(NBSEG-1)	/* byte offset into segment */
-#define	SEGSHIFT	22		/* LOG2(NBSEG) */
+#define	NPDEPG		(PAGE_SIZE/(sizeof (pd_entry_t)))
 
 #define	MAXPAGESIZES	1		/* maximum number of supported page sizes */
-
-/* XXXimp: This has moved to vmparam.h */
-/* Also, this differs from the mips2 definition, but likely is better */
-/* since this means the kernel won't chew up TLBs when it is executing */
-/* code */
-#define	KERNBASE	0x80000000	/* start of kernel virtual */
-#define	BTOPKERNBASE	((u_long)KERNBASE >> PGSHIFT)
 
 #define	BLKDEV_IOSIZE	2048		/* xxx: Why is this 1/2 page? */
 #define	MAXDUMPPGS	1		/* xxx: why is this only one? */
 
 /*
  * The kernel stack needs to be aligned on a (PAGE_SIZE * 2) boundary.
- *
- * Although we allocate 3 pages for the kernel stack we end up using
- * only the 2 pages that are aligned on a (PAGE_SIZE * 2) boundary.
  */
-#define	KSTACK_PAGES		3	/* kernel stack*/
-#define	KSTACK_GUARD_PAGES	1	/* pages of kstack guard; 0 disables */
+#define	KSTACK_PAGES		2	/* kernel stack*/
+#define	KSTACK_GUARD_PAGES	2	/* pages of kstack guard; 0 disables */
 
 #define	UPAGES			2
 
 /* pages ("clicks") (4096 bytes) to disk blocks */
-#define	ctod(x)		((x) << (PGSHIFT - DEV_BSHIFT))
-#define	dtoc(x)		((x) >> (PGSHIFT - DEV_BSHIFT))
+#define	ctod(x)		((x) << (PAGE_SHIFT - DEV_BSHIFT))
+#define	dtoc(x)		((x) >> (PAGE_SHIFT - DEV_BSHIFT))
 
 /*
  * Map a ``block device block'' to a file system block.
@@ -151,18 +132,18 @@
 #define	bdbtofsb(bn)	((bn) / (BLKDEV_IOSIZE/DEV_BSIZE))
 
 /*
- * Conversion macros
+ * Mach derived conversion macros
  */
-#define	mips_round_page(x)	((((unsigned long)(x)) + NBPG - 1) & ~(NBPG-1))
-#define	mips_trunc_page(x)	((unsigned long)(x) & ~(NBPG-1))
-#define	mips_btop(x)		((unsigned long)(x) >> PGSHIFT)
-#define	mips_ptob(x)		((unsigned long)(x) << PGSHIFT)
-#define	round_page		mips_round_page
-#define	trunc_page		mips_trunc_page
-#define	atop(x)			((unsigned long)(x) >> PAGE_SHIFT)
-#define	ptoa(x)			((unsigned long)(x) << PAGE_SHIFT)
+#define round_page(x)		(((unsigned long)(x) + PAGE_MASK) & ~PAGE_MASK)
+#define trunc_page(x)		((unsigned long)(x) & ~PAGE_MASK)
 
-#define	pgtok(x)		((x) * (PAGE_SIZE / 1024))
+#define atop(x)			((unsigned long)(x) >> PAGE_SHIFT)
+#define ptoa(x)			((unsigned long)(x) << PAGE_SHIFT)
+
+#define mips_btop(x)		((unsigned long)(x) >> PAGE_SHIFT)
+#define mips_ptob(x)		((unsigned long)(x) << PAGE_SHIFT)
+
+#define	pgtok(x)		((unsigned long)(x) * (PAGE_SIZE / 1024))
 
 #ifndef _KERNEL
 #define	DELAY(n)	{ register int N = (n); while (--N > 0); }

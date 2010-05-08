@@ -204,6 +204,7 @@ struct sge_fl {
 	uint32_t	cidx;
 	uint32_t	pidx;
 	uint32_t	gen;
+	uint32_t	db_pending;
 	bus_addr_t	phys_addr;
 	uint32_t	cntxt_id;
 	uint32_t	empty;
@@ -232,6 +233,7 @@ struct sge_txq {
 	uint32_t	pidx;
 	uint32_t	gen;
 	uint32_t	unacked;
+	uint32_t	db_pending;
 	struct tx_desc	*desc;
 	struct tx_sw_desc *sdesc;
 	uint32_t	token;

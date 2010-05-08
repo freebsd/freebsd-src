@@ -153,6 +153,7 @@ EARLY_DRIVER_MODULE(nexus, root, nexus_driver, nexus_devclass, 0, 0,
 MODULE_VERSION(nexus, 1);
 
 static const char *const nexus_excl_name[] = {
+	"FJSV,system",
 	"aliases",
 	"associations",
 	"chosen",
@@ -163,6 +164,7 @@ static const char *const nexus_excl_name[] = {
 	"openprom",
 	"options",
 	"packages",
+	"physical-memory",
 	"rsc",
 	"sgcn",
 	"todsg",

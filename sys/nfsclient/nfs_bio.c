@@ -45,8 +45,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/mbuf.h>
 #include <sys/mount.h>
 #include <sys/proc.h>
-#include <sys/resourcevar.h>
-#include <sys/signalvar.h>
 #include <sys/vmmeter.h>
 #include <sys/vnode.h>
 
@@ -131,12 +129,13 @@ nfs_getpages(struct vop_getpages_args *ap)
 	 */
 	VM_OBJECT_LOCK(object);
 	if (pages[ap->a_reqpage]->valid != 0) {
-		vm_page_lock_queues();
 		for (i = 0; i < npages; ++i) {
-			if (i != ap->a_reqpage)
+			if (i != ap->a_reqpage) {
+				vm_page_lock(pages[i]);
 				vm_page_free(pages[i]);
+				vm_page_unlock(pages[i]);
+			}
 		}
-		vm_page_unlock_queues();
 		VM_OBJECT_UNLOCK(object);
 		return (0);
 	}
@@ -171,12 +170,13 @@ nfs_getpages(struct vop_getpages_args *ap)
 	if (error && (uio.uio_resid == count)) {
 		nfs_printf("nfs_getpages: error %d\n", error);
 		VM_OBJECT_LOCK(object);
-		vm_page_lock_queues();
 		for (i = 0; i < npages; ++i) {
-			if (i != ap->a_reqpage)
+			if (i != ap->a_reqpage) {
+				vm_page_lock(pages[i]);
 				vm_page_free(pages[i]);
+				vm_page_unlock(pages[i]);
+			}
 		}
-		vm_page_unlock_queues();
 		VM_OBJECT_UNLOCK(object);
 		return (VM_PAGER_ERROR);
 	}
@@ -189,7 +189,6 @@ nfs_getpages(struct vop_getpages_args *ap)
 
 	size = count - uio.uio_resid;
 	VM_OBJECT_LOCK(object);
-	vm_page_lock_queues();
 	for (i = 0, toff = 0; i < npages; i++, toff = nextoff) {
 		vm_page_t m;
 		nextoff = toff + PAGE_SIZE;
@@ -232,17 +231,23 @@ nfs_getpages(struct vop_getpages_args *ap)
 			 * now tell them that it is ok to use.
 			 */
 			if (!error) {
-				if (m->oflags & VPO_WANTED)
+				if (m->oflags & VPO_WANTED) {
+					vm_page_lock(m);
 					vm_page_activate(m);
-				else
+					vm_page_unlock(m);
+				} else {
+					vm_page_lock(m);
 					vm_page_deactivate(m);
+					vm_page_unlock(m);
+				}
 				vm_page_wakeup(m);
 			} else {
+				vm_page_lock(m);
 				vm_page_free(m);
+				vm_page_unlock(m);
 			}
 		}
 	}
-	vm_page_unlock_queues();
 	VM_OBJECT_UNLOCK(object);
 	return (0);
 }
@@ -869,7 +874,6 @@ nfs_write(struct vop_write_args *ap)
 	daddr_t lbn;
 	int bcount;
 	int n, on, error = 0;
-	struct proc *p = td?td->td_proc:NULL;
 
 #ifdef DIAGNOSTIC
 	if (uio->uio_rw != UIO_WRITE)
@@ -950,16 +954,8 @@ flush_and_restart:
 	 * Maybe this should be above the vnode op call, but so long as
 	 * file servers have no limits, i don't think it matters
 	 */
-	if (p != NULL) {
-		PROC_LOCK(p);
-		if (uio->uio_offset + uio->uio_resid >
-		    lim_cur(p, RLIMIT_FSIZE)) {
-			psignal(p, SIGXFSZ);
-			PROC_UNLOCK(p);
-			return (EFBIG);
-		}
-		PROC_UNLOCK(p);
-	}
+	if (vn_rlimit_fsize(vp, uio, td))
+		return (EFBIG);
 
 	biosize = vp->v_mount->mnt_stat.f_iosize;
 	/*

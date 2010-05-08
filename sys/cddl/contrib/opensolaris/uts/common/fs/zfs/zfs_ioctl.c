@@ -882,9 +882,10 @@ zfs_ioc_pool_export(zfs_cmd_t *zc)
 {
 	int error;
 	boolean_t force = (boolean_t)zc->zc_cookie;
+	boolean_t hardforce = (boolean_t)zc->zc_guid;
 
 	zfs_log_history(zc);
-	error = spa_export(zc->zc_name, NULL, force);
+	error = spa_export(zc->zc_name, NULL, force, hardforce);
 	return (error);
 }
 
@@ -1349,6 +1350,14 @@ zfs_ioc_dataset_list_next(zfs_cmd_t *zc)
 		(void) strlcat(zc->zc_name, "/", sizeof (zc->zc_name));
 	p = zc->zc_name + strlen(zc->zc_name);
 
+	if (zc->zc_cookie == 0) {
+		uint64_t cookie = 0;
+		int len = sizeof (zc->zc_name) - (p - zc->zc_name);
+
+		while (dmu_dir_list_next(os, len, p, NULL, &cookie) == 0)
+			dmu_objset_prefetch(p, NULL);
+	}
+
 	do {
 		error = dmu_dir_list_next(os,
 		    sizeof (zc->zc_name) - (p - zc->zc_name), p,
@@ -1387,6 +1396,9 @@ zfs_ioc_snapshot_list_next(zfs_cmd_t *zc)
 	objset_t *os;
 	int error;
 
+	if (zc->zc_cookie == 0)
+		dmu_objset_find(zc->zc_name, dmu_objset_prefetch,
+		    NULL, DS_FIND_SNAPSHOTS);
 	error = dmu_objset_open(zc->zc_name,
 	    DMU_OST_ANY, DS_MODE_USER | DS_MODE_READONLY, &os);
 	if (error)

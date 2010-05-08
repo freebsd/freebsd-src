@@ -276,6 +276,7 @@ cpu_cpuid_prop(u_int cpu_impl)
 
 	switch (cpu_impl) {
 	case CPU_IMPL_SPARC64:
+	case CPU_IMPL_SPARC64V:
 	case CPU_IMPL_ULTRASPARCI:
 	case CPU_IMPL_ULTRASPARCII:
 	case CPU_IMPL_ULTRASPARCIIi:
@@ -300,6 +301,7 @@ cpu_get_mid(u_int cpu_impl)
 
 	switch (cpu_impl) {
 	case CPU_IMPL_SPARC64:
+	case CPU_IMPL_SPARC64V:
 	case CPU_IMPL_ULTRASPARCI:
 	case CPU_IMPL_ULTRASPARCII:
 	case CPU_IMPL_ULTRASPARCIIi:
@@ -341,9 +343,10 @@ sparc64_init(caddr_t mdp, u_long o1, u_long o2, u_long o3, ofw_vec_t *vec)
 	cpu_impl = VER_IMPL(rdpr(ver));
 
 	/*
-	 * Do CPU-specific Initialization.
+	 * Do CPU-specific initialization.
 	 */
-	if (cpu_impl >= CPU_IMPL_ULTRASPARCIII)
+	if (cpu_impl == CPU_IMPL_SPARC64V ||
+	    cpu_impl >= CPU_IMPL_ULTRASPARCIII)
 		cheetah_init(cpu_impl);
 
 	/*
@@ -477,6 +480,10 @@ sparc64_init(caddr_t mdp, u_long o1, u_long o2, u_long o3, ofw_vec_t *vec)
 	    sizeof(itlb_slots)) == -1)
 		panic("sparc64_init: cannot determine number of iTLB slots");
 
+	/*
+	 * Initialize and enable the caches.  Note that his may include
+	 * applying workarounds.
+	 */
 	cache_init(pc);
 	cache_enable(cpu_impl);
 	uma_set_align(pc->pc_cache.dc_linesize - 1);
@@ -487,6 +494,7 @@ sparc64_init(caddr_t mdp, u_long o1, u_long o2, u_long o3, ofw_vec_t *vec)
 	if (cpu_use_vis) {
 		switch (cpu_impl) {
 		case CPU_IMPL_SPARC64:
+		case CPU_IMPL_SPARC64V:
 		case CPU_IMPL_ULTRASPARCI:
 		case CPU_IMPL_ULTRASPARCII:
 		case CPU_IMPL_ULTRASPARCIIi:
@@ -568,8 +576,18 @@ sparc64_init(caddr_t mdp, u_long o1, u_long o2, u_long o3, ofw_vec_t *vec)
 	dpcpu_init(dpcpu0, 0);
 	msgbufinit(msgbufp, MSGBUF_SIZE);
 
+	/*
+	 * Initialize mutexes.
+	 */
 	mutex_init();
+
+	/*
+	 * Finish the interrupt initialization now that mutexes work and
+	 * enable them.
+	 */
 	intr_init2();
+	wrpr(pil, 0, PIL_TICK);
+	wrpr(pstate, 0, PSTATE_KERNEL);
 
 	/*
 	 * Finish pmap initialization now that we're ready for mutexes.

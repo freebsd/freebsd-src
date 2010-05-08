@@ -198,8 +198,7 @@ ncl_inactive(struct vop_inactive_args *ap)
 		 * must be flushed before the close, so that the stateid is
 		 * available for the writes.
 		 */
-		if (nfscl_mustflush(vp))
-			(void) ncl_flush(vp, MNT_WAIT, NULL, ap->a_td, 1);
+		(void) ncl_flush(vp, MNT_WAIT, NULL, ap->a_td, 1, 0);
 		(void) nfsrpc_close(vp, 1, ap->a_td);
 	}
 
