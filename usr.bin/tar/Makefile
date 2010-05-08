@@ -2,7 +2,7 @@
 .include <bsd.own.mk>
 
 PROG=	bsdtar
-BSDTAR_VERSION_STRING=2.7.0
+BSDTAR_VERSION_STRING=2.8.3
 SRCS=	bsdtar.c	\
 	cmdline.c	\
 	err.c		\
