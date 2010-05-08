@@ -88,6 +88,8 @@ struct	pmap {
 	struct	mtx	pm_mtx;
 	u_int		pm_sr[16];
 	u_int		pm_active;
+	uint32_t	pm_gen_count;	/* generation count (pmap lock dropped) */
+	u_int		pm_retries;
 	u_int		pm_context;
 
 	struct pmap	*pmap_phys;

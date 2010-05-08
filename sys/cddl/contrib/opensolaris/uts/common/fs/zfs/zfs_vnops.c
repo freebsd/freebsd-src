@@ -1209,15 +1209,17 @@ zfs_lookup(vnode_t *dvp, char *nm, vnode_t **vpp, struct componentname *cnp,
 			ltype = VOP_ISLOCKED(dvp);
 			VOP_UNLOCK(dvp, 0);
 		}
+		ZFS_EXIT(zfsvfs);
 		error = vn_lock(*vpp, cnp->cn_lkflags);
 		if (cnp->cn_flags & ISDOTDOT)
 			vn_lock(dvp, ltype | LK_RETRY);
 		if (error != 0) {
 			VN_RELE(*vpp);
 			*vpp = NULL;
-			ZFS_EXIT(zfsvfs);
 			return (error);
 		}
+	} else {
+		ZFS_EXIT(zfsvfs);
 	}
 
 #ifdef FREEBSD_NAMECACHE
@@ -1236,8 +1238,6 @@ zfs_lookup(vnode_t *dvp, char *nm, vnode_t **vpp, struct componentname *cnp,
 		}
 	}
 #endif
-
-	ZFS_EXIT(zfsvfs);
 
 	return (error);
 }
@@ -3976,6 +3976,9 @@ zfs_freebsd_write(ap)
 		struct ucred *a_cred;
 	} */ *ap;
 {
+
+	if (vn_rlimit_fsize(ap->a_vp, ap->a_uio, ap->a_uio->uio_td))
+		return (EFBIG);
 
 	return (zfs_write(ap->a_vp, ap->a_uio, ap->a_ioflag, ap->a_cred, NULL));
 }

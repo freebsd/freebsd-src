@@ -2628,6 +2628,7 @@ bsd_to_linux_v4l_tuner(struct video_tuner *vt, struct l_video_tuner *lvt)
 	return (0);
 }
 
+#ifdef COMPAT_LINUX_V4L_CLIPLIST
 static int
 linux_to_bsd_v4l_clip(struct l_video_clip *lvc, struct video_clip *vc)
 {
@@ -2638,6 +2639,7 @@ linux_to_bsd_v4l_clip(struct l_video_clip *lvc, struct video_clip *vc)
 	vc->next = PTRIN(lvc->next);	/* possible pointer size conversion */
 	return (0);
 }
+#endif
 
 static int
 linux_to_bsd_v4l_window(struct l_video_window *lvw, struct video_window *vw)
@@ -2698,6 +2700,7 @@ linux_to_bsd_v4l_code(struct l_video_code *lvc, struct video_code *vc)
 	return (0);
 }
 
+#ifdef COMPAT_LINUX_V4L_CLIPLIST
 static int
 linux_v4l_clip_copy(void *lvc, struct video_clip **ppvc)
 {
@@ -2772,15 +2775,18 @@ linux_v4l_cliplist_copy(struct l_video_window *lvw, struct video_window *vw)
 		 *	example of cliplist use.
 		 */
 		plvc = PTRIN(lvw->clips);
+		vw->clips = NULL;
 		ppvc = &(vw->clips);
 		while (clipcount-- > 0) {
-			if (plvc == 0)
+			if (plvc == 0) {
 				error = EFAULT;
-			if (!error)
-				error = linux_v4l_clip_copy(plvc, ppvc);
-			if (error) {
-				linux_v4l_cliplist_free(vw);
 				break;
+			} else {
+				error = linux_v4l_clip_copy(plvc, ppvc);
+				if (error) {
+					linux_v4l_cliplist_free(vw);
+					break;
+				}
 			}
 			ppvc = &((*ppvc)->next);
 		        plvc = PTRIN(((struct l_video_clip *) plvc)->next);
@@ -2795,6 +2801,7 @@ linux_v4l_cliplist_copy(struct l_video_window *lvw, struct video_window *vw)
 	}
 	return (error);
 }
+#endif
 
 static int
 linux_ioctl_v4l(struct thread *td, struct linux_ioctl_args *args)
@@ -2818,6 +2825,12 @@ linux_ioctl_v4l(struct thread *td, struct linux_ioctl_args *args)
 	case LINUX_VIDIOCGTUNER:
 		if ((error = fget(td, args->fd, &fp)) != 0)
 			return (error);
+		error = copyin((void *) args->arg, &l_vtun, sizeof(l_vtun));
+		if (error) {
+			fdrop(fp, td);
+			return (error);
+		}
+		linux_to_bsd_v4l_tuner(&l_vtun, &vtun);
 		error = fo_ioctl(fp, VIDIOCGTUNER, &vtun, td->td_ucred, td);
 		if (!error) {
 			bsd_to_linux_v4l_tuner(&vtun, &l_vtun);
@@ -2836,7 +2849,7 @@ linux_ioctl_v4l(struct thread *td, struct linux_ioctl_args *args)
 			return (error);
 		}
 		linux_to_bsd_v4l_tuner(&l_vtun, &vtun);
-		error = fo_ioctl(fp, VIDIOCSMICROCODE, &vtun, td->td_ucred, td);
+		error = fo_ioctl(fp, VIDIOCSTUNER, &vtun, td->td_ucred, td);
 		fdrop(fp, td);
 		return (error);
 
@@ -2865,14 +2878,18 @@ linux_ioctl_v4l(struct thread *td, struct linux_ioctl_args *args)
 			return (error);
 		}
 		linux_to_bsd_v4l_window(&l_vwin, &vwin);
+#ifdef COMPAT_LINUX_V4L_CLIPLIST
 		error = linux_v4l_cliplist_copy(&l_vwin, &vwin);
 		if (error) {
 			fdrop(fp, td);
 			return (error);
 		}
+#endif
 		error = fo_ioctl(fp, VIDIOCSWIN, &vwin, td->td_ucred, td);
 		fdrop(fp, td);
+#ifdef COMPAT_LINUX_V4L_CLIPLIST
 		linux_v4l_cliplist_free(&vwin);
+#endif
 		return (error);
 
 	case LINUX_VIDIOCGFBUF:
@@ -2924,7 +2941,7 @@ linux_ioctl_v4l(struct thread *td, struct linux_ioctl_args *args)
 			return (error);
 		}
 		linux_to_bsd_v4l_code(&l_vcode, &vcode);
-		error = fo_ioctl(fp, VIDIOCSTUNER, &vcode, td->td_ucred, td);
+		error = fo_ioctl(fp, VIDIOCSMICROCODE, &vcode, td->td_ucred, td);
 		fdrop(fp, td);
 		return (error);
 

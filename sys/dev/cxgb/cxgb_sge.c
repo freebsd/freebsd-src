@@ -696,7 +696,7 @@ refill_fl(adapter_t *sc, struct sge_fl *q, int n)
 	struct refill_fl_cb_arg cb_arg;
 	struct mbuf *m;
 	caddr_t cl;
-	int err, count = 0;
+	int err;
 	
 	cb_arg.error = 0;
 	while (n--) {
@@ -754,12 +754,14 @@ refill_fl(adapter_t *sc, struct sge_fl *q, int n)
 			d = q->desc;
 		}
 		q->credits++;
-		count++;
+		q->db_pending++;
 	}
 
 done:
-	if (count)
+	if (q->db_pending >= 32) {
+		q->db_pending = 0;
 		t3_write_reg(sc, A_SG_KDOORBELL, V_EGRCNTX(q->cntxt_id));
+	}
 }
 
 
@@ -810,8 +812,10 @@ __refill_fl(adapter_t *adap, struct sge_fl *fl)
 static __inline void
 __refill_fl_lt(adapter_t *adap, struct sge_fl *fl, int max)
 {
-	if ((fl->size - fl->credits) < max)
-		refill_fl(adap, fl, min(max, fl->size - fl->credits));
+	uint32_t reclaimable = fl->size - fl->credits;
+
+	if (reclaimable > 0)
+		refill_fl(adap, fl, min(max, reclaimable));
 }
 
 /**
@@ -1261,7 +1265,7 @@ make_sgl(struct sg_ent *sgp, bus_dma_segment_t *segs, int nsegs)
  *	When GTS is disabled we unconditionally ring the doorbell.
  */
 static __inline void
-check_ring_tx_db(adapter_t *adap, struct sge_txq *q)
+check_ring_tx_db(adapter_t *adap, struct sge_txq *q, int mustring)
 {
 #if USE_GTS
 	clear_bit(TXQ_LAST_PKT_DB, &q->flags);
@@ -1275,9 +1279,12 @@ check_ring_tx_db(adapter_t *adap, struct sge_txq *q)
 			     F_SELEGRCNTX | V_EGRCNTX(q->cntxt_id));
 	}
 #else
-	wmb();            /* write descriptors before telling HW */
-	t3_write_reg(adap, A_SG_KDOORBELL,
-		     F_SELEGRCNTX | V_EGRCNTX(q->cntxt_id));
+	if (mustring || ++q->db_pending >= 32) {
+		wmb();            /* write descriptors before telling HW */
+		t3_write_reg(adap, A_SG_KDOORBELL,
+		    F_SELEGRCNTX | V_EGRCNTX(q->cntxt_id));
+		q->db_pending = 0;
+	}
 #endif
 }
 
@@ -1480,7 +1487,7 @@ t3_encap(struct sge_qset *qs, struct mbuf **m)
 		wmb();
 		ETHER_BPF_MTAP(pi->ifp, m0);
 		wr_gen2(txd, txqs.gen);
-		check_ring_tx_db(sc, txq);
+		check_ring_tx_db(sc, txq, 0);
 		return (0);		
 	} else if (tso_info) {
 		int eth_type;
@@ -1543,7 +1550,7 @@ t3_encap(struct sge_qset *qs, struct mbuf **m)
 			wmb();
 			ETHER_BPF_MTAP(pi->ifp, m0);
 			wr_gen2(txd, txqs.gen);
-			check_ring_tx_db(sc, txq);
+			check_ring_tx_db(sc, txq, 0);
 			m_freem(m0);
 			return (0);
 		}
@@ -1574,7 +1581,7 @@ t3_encap(struct sge_qset *qs, struct mbuf **m)
 			wmb();
 			ETHER_BPF_MTAP(pi->ifp, m0);
 			wr_gen2(txd, txqs.gen);
-			check_ring_tx_db(sc, txq);
+			check_ring_tx_db(sc, txq, 0);
 			m_freem(m0);
 			return (0);
 		}
@@ -1593,7 +1600,7 @@ t3_encap(struct sge_qset *qs, struct mbuf **m)
 	wr_lo = htonl(V_WR_TID(txq->token));
 	write_wr_hdr_sgl(ndesc, txd, &txqs, txq, sgl, flits,
 	    sgl_flits, wr_hi, wr_lo);
-	check_ring_tx_db(sc, txq);
+	check_ring_tx_db(sc, txq, 0);
 
 	return (0);
 }
@@ -1643,7 +1650,6 @@ cxgb_start_locked(struct sge_qset *qs)
 {
 	struct mbuf *m_head = NULL;
 	struct sge_txq *txq = &qs->txq[TXQ_ETH];
-	int in_use_init = txq->in_use;
 	struct port_info *pi = qs->port;
 	struct ifnet *ifp = pi->ifp;
 
@@ -1655,8 +1661,7 @@ cxgb_start_locked(struct sge_qset *qs)
 		return;
 	}
 	TXQ_LOCK_ASSERT(qs);
-	while ((txq->in_use - in_use_init < TX_START_MAX_DESC) &&
-	    !TXQ_RING_EMPTY(qs) && (ifp->if_drv_flags & IFF_DRV_RUNNING) &&
+	while (!TXQ_RING_EMPTY(qs) && (ifp->if_drv_flags & IFF_DRV_RUNNING) &&
 	    pi->link_config.link_ok) {
 		reclaim_completed_tx(qs, cxgb_tx_reclaim_threshold, TXQ_ETH);
 
@@ -1674,6 +1679,10 @@ cxgb_start_locked(struct sge_qset *qs)
 
 		m_head = NULL;
 	}
+
+	if (txq->db_pending)
+		check_ring_tx_db(pi->adapter, txq, 1);
+
 	if (!TXQ_RING_EMPTY(qs) && callout_pending(&txq->txq_timer) == 0 &&
 	    pi->link_config.link_ok)
 		callout_reset_on(&txq->txq_timer, 1, cxgb_tx_timeout,
@@ -1707,6 +1716,9 @@ cxgb_transmit_locked(struct ifnet *ifp, struct sge_qset *qs, struct mbuf *m)
 			    (error = drbr_enqueue(ifp, br, m)) != 0) 
 				return (error);
 		} else {
+			if (txq->db_pending)
+				check_ring_tx_db(pi->adapter, txq, 1);
+
 			/*
 			 * We've bypassed the buf ring so we need to update
 			 * the stats directly
@@ -2354,7 +2366,7 @@ again:	reclaim_completed_tx(qs, 16, TXQ_OFLD);
 	TXQ_UNLOCK(qs);
 
 	write_ofld_wr(adap, m, q, pidx, gen, ndesc, segs, nsegs);
-	check_ring_tx_db(adap, q);
+	check_ring_tx_db(adap, q, 1);
 	return (0);
 }
 
@@ -3033,7 +3045,7 @@ process_responses(adapter_t *adap, struct sge_qset *qs, int budget)
 			r = rspq->desc;
 		}
 
-		if (++rspq->credits >= (rspq->size / 4)) {
+		if (++rspq->credits >= 64) {
 			refill_rspq(adap, rspq, rspq->credits);
 			rspq->credits = 0;
 		}

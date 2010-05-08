@@ -8,12 +8,6 @@ options		CPU_SB1
 files		"../sibyte/files.sibyte"
 hints		"SWARM.hints"
 
-#
-# 32-bit kernel cannot deal with physical memory beyond 4GB
-# XXX pmap assumes that all the memory can be mapped using KSEG0
-#
-options		MAXMEM=512*1024
-
 options		CFE
 options		CFE_CONSOLE
 options		CFE_ENV

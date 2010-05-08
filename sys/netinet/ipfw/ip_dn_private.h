@@ -149,7 +149,7 @@ struct dn_parms {
 	int drain_sch;
 	uint32_t expire;
 	uint32_t expire_cycle;	/* tick count */
-	
+
 	int init_done;
 
 	/* if the upper half is busy doing something long,

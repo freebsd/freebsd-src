@@ -199,9 +199,8 @@ ktr_tracepoint(u_int mask, const char *file, int line, const char *format,
 	struct ktr_entry *entry;
 #ifdef KTR_ALQ
 	struct ale *ale = NULL;
-#else
-	int newindex, saveindex;
 #endif
+	int newindex, saveindex;
 #if defined(KTR_VERBOSE) || defined(KTR_ALQ)
 	struct thread *td;
 #endif
@@ -221,27 +220,30 @@ ktr_tracepoint(u_int mask, const char *file, int line, const char *format,
 	td->td_pflags |= TDP_INKTR;
 #endif
 #ifdef KTR_ALQ
-	if (ktr_alq_enabled &&
-	    td->td_critnest == 0 &&
-	    (td->td_flags & TDF_IDLETD) == 0 &&
-	    td != ald_thread) {
-		if (ktr_alq_max && ktr_alq_cnt > ktr_alq_max)
-			goto done;
-		if ((ale = alq_get(ktr_alq, ALQ_NOWAIT)) == NULL) {
-			ktr_alq_failed++;
+	if (ktr_alq_enabled) {
+		if (td->td_critnest == 0 &&
+		    (td->td_flags & TDF_IDLETD) == 0 &&
+		    td != ald_thread) {
+			if (ktr_alq_max && ktr_alq_cnt > ktr_alq_max)
+				goto done;
+			if ((ale = alq_get(ktr_alq, ALQ_NOWAIT)) == NULL) {
+				ktr_alq_failed++;
+				goto done;
+			}
+			ktr_alq_cnt++;
+			entry = (struct ktr_entry *)ale->ae_data;
+		} else {
 			goto done;
 		}
-		ktr_alq_cnt++;
-		entry = (struct ktr_entry *)ale->ae_data;
 	} else
-		goto done;
-#else
-	do {
-		saveindex = ktr_idx;
-		newindex = (saveindex + 1) & (KTR_ENTRIES - 1);
-	} while (atomic_cmpset_rel_int(&ktr_idx, saveindex, newindex) == 0);
-	entry = &ktr_buf[saveindex];
 #endif
+	{
+		do {
+			saveindex = ktr_idx;
+			newindex = (saveindex + 1) & (KTR_ENTRIES - 1);
+		} while (atomic_cmpset_rel_int(&ktr_idx, saveindex, newindex) == 0);
+		entry = &ktr_buf[saveindex];
+	}
 	entry->ktr_timestamp = KTR_TIME;
 	entry->ktr_cpu = cpu;
 	entry->ktr_thread = curthread;
@@ -271,7 +273,7 @@ ktr_tracepoint(u_int mask, const char *file, int line, const char *format,
 	entry->ktr_parms[4] = arg5;
 	entry->ktr_parms[5] = arg6;
 #ifdef KTR_ALQ
-	if (ale)
+	if (ktr_alq_enabled && ale)
 		alq_post(ktr_alq, ale);
 done:
 #endif
@@ -295,7 +297,9 @@ DB_SHOW_COMMAND(ktr, db_ktr_all)
 	
 	tstate.cur = (ktr_idx - 1) & (KTR_ENTRIES - 1);
 	tstate.first = -1;
-	db_ktr_verbose = index(modif, 'v') != NULL;
+	db_ktr_verbose = 0;
+	db_ktr_verbose |= (index(modif, 'v') != NULL) ? 2 : 0;
+	db_ktr_verbose |= (index(modif, 'V') != NULL) ? 1 : 0; /* just timestap please */
 	if (index(modif, 'a') != NULL) {
 		db_disable_pager();
 		while (cncheckc() != -1)
@@ -329,9 +333,11 @@ db_mach_vtrace(void)
 	db_printf(":cpu%d", kp->ktr_cpu);
 #endif
 	db_printf(")");
-	if (db_ktr_verbose) {
-		db_printf(" %10.10lld %s.%d", (long long)kp->ktr_timestamp,
-		    kp->ktr_file, kp->ktr_line);
+	if (db_ktr_verbose >= 1) {
+		db_printf(" %10.10lld", (long long)kp->ktr_timestamp);
+	}
+	if (db_ktr_verbose >= 2) {
+		db_printf(" %s.%d", kp->ktr_file, kp->ktr_line);
 	}
 	db_printf(": ");
 	db_printf(kp->ktr_desc, kp->ktr_parms[0], kp->ktr_parms[1],

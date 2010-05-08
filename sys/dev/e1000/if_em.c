@@ -93,7 +93,7 @@ int	em_display_debug_stats = 0;
 /*********************************************************************
  *  Driver version:
  *********************************************************************/
-char em_driver_version[] = "7.0.4";
+char em_driver_version[] = "7.0.5";
 
 
 /*********************************************************************
@@ -347,8 +347,13 @@ static int em_debug_sbp = FALSE;
 TUNABLE_INT("hw.em.sbp", &em_debug_sbp);
 
 /* Local controls for MSI/MSIX */
+#ifdef EM_MULTIQUEUE
 static int em_enable_msix = TRUE;
 static int em_msix_queues = 2; /* for 82574, can be 1 or 2 */
+#else
+static int em_enable_msix = FALSE;
+static int em_msix_queues = 0; /* disable */
+#endif
 TUNABLE_INT("hw.em.enable_msix", &em_enable_msix);
 TUNABLE_INT("hw.em.msix_queues", &em_msix_queues);
 
@@ -1371,9 +1376,7 @@ em_poll(struct ifnet *ifp, enum poll_cmd cmd, int count)
 	}
 	EM_CORE_UNLOCK(adapter);
 
-	EM_RX_LOCK(rxr);
 	rx_done = em_rxeof(rxr, count);
-	EM_RX_UNLOCK(rxr);
 
 	EM_TX_LOCK(txr);
 	em_txeof(txr);
@@ -1449,9 +1452,7 @@ em_handle_que(void *context, int pending)
 
 
 	if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
-		EM_RX_LOCK(rxr);
 		more_rx = em_rxeof(rxr, adapter->rx_process_limit);
-		EM_RX_UNLOCK(rxr);
 
 		EM_TX_LOCK(txr);
 		em_txeof(txr);
@@ -1484,12 +1485,17 @@ em_msix_tx(void *arg)
 {
 	struct tx_ring *txr = arg;
 	struct adapter *adapter = txr->adapter;
+	bool		more;
 
 	++txr->tx_irq;
 	EM_TX_LOCK(txr);
-	em_txeof(txr);
+	more = em_txeof(txr);
 	EM_TX_UNLOCK(txr);
-	E1000_WRITE_REG(&adapter->hw, E1000_IMS, txr->ims);
+	if (more)
+		taskqueue_enqueue(txr->tq, &txr->tx_task);
+	else
+		/* Reenable this interrupt */
+		E1000_WRITE_REG(&adapter->hw, E1000_IMS, txr->ims);
 	return;
 }
 
@@ -1506,10 +1512,8 @@ em_msix_rx(void *arg)
 	struct adapter	*adapter = rxr->adapter;
 	bool		more;
 
-	EM_RX_LOCK(rxr);
 	++rxr->rx_irq;
 	more = em_rxeof(rxr, adapter->rx_process_limit);
-	EM_RX_UNLOCK(rxr);
 	if (more)
 		taskqueue_enqueue(rxr->tq, &rxr->rx_task);
 	else
@@ -1548,9 +1552,7 @@ em_handle_rx(void *context, int pending)
 	struct adapter	*adapter = rxr->adapter;
         bool            more;
 
-	EM_RX_LOCK(rxr);
 	more = em_rxeof(rxr, adapter->rx_process_limit);
-	EM_RX_UNLOCK(rxr);
 	if (more)
 		taskqueue_enqueue(rxr->tq, &rxr->rx_task);
 	else
@@ -2702,10 +2704,10 @@ em_setup_interface(device_t dev, struct adapter *adapter)
 	ifp->if_capabilities |= IFCAP_POLLING;
 #endif
 
-	/* Enable All WOL methods by default */
+	/* Enable only WOL MAGIC by default */
 	if (adapter->wol) {
 		ifp->if_capabilities |= IFCAP_WOL;
-		ifp->if_capenable |= IFCAP_WOL;
+		ifp->if_capenable |= IFCAP_WOL_MAGIC;
 	}
 		
 	/*
@@ -4095,7 +4097,7 @@ em_rxeof(struct rx_ring *rxr, int count)
 	bool			eop;
 	struct e1000_rx_desc	*cur;
 
-	EM_RX_LOCK_ASSERT(rxr);
+	EM_RX_LOCK(rxr);
 
 	for (i = rxr->next_to_check, processed = 0; count != 0;) {
 
@@ -4189,8 +4191,13 @@ skip:
 			i = 0;
 
 		/* Send to the stack */
-		if (sendmp != NULL)
+		if (sendmp != NULL) {
+			rxr->next_to_check = i;
+			EM_RX_UNLOCK(rxr);
 			(*ifp->if_input)(ifp, sendmp);
+			EM_RX_LOCK(rxr);
+			i = rxr->next_to_check;
+		}
 
 		/* Only refresh mbufs every 8 descriptors */
 		if (processed == 8) {
@@ -4206,6 +4213,7 @@ skip:
 	}
 
 	rxr->next_to_check = i;
+	EM_RX_UNLOCK(rxr);
 
 #ifdef DEVICE_POLLING
 	return (rxdone);

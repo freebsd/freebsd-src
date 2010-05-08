@@ -28,16 +28,13 @@
  */
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/resourcevar.h>	/* defines plimit structure in proc struct */
 #include <sys/kernel.h>
 #include <sys/bio.h>
 #include <sys/buf.h>
-#include <sys/proc.h>
 #include <sys/mount.h>
 #include <sys/namei.h>
 #include <sys/vnode.h>
 #include <sys/dirent.h>
-#include <sys/signalvar.h>
 #include <sys/sysctl.h>
 
 #include <vm/vm.h>
@@ -229,16 +226,10 @@ nwfs_writevnode(vp, uiop, cred, ioflag)
 		}
 	}
 	if (uiop->uio_resid == 0) return 0;
-	if (td != NULL) {
-		PROC_LOCK(td->td_proc);
-		if  (uiop->uio_offset + uiop->uio_resid >
-		    lim_cur(td->td_proc, RLIMIT_FSIZE)) {
-			psignal(td->td_proc, SIGXFSZ);
-			PROC_UNLOCK(td->td_proc);
-			return (EFBIG);
-		}
-		PROC_UNLOCK(td->td_proc);
-	}
+
+	if (vn_rlimit_fsize(vp, uiop, td))
+		return (EFBIG);
+
 	error = ncp_write(NWFSTOCONN(nmp), &np->n_fh, uiop, cred);
 	NCPVNDEBUG("after: ofs=%d,resid=%d\n",(int)uiop->uio_offset, uiop->uio_resid);
 	if (!error) {
@@ -437,19 +428,19 @@ nwfs_getpages(ap)
 	VM_OBJECT_LOCK(object);
 	if (error && (uio.uio_resid == count)) {
 		printf("nwfs_getpages: error %d\n",error);
-		vm_page_lock_queues();
 		for (i = 0; i < npages; i++) {
-			if (ap->a_reqpage != i)
+			if (ap->a_reqpage != i) {
+				vm_page_lock(pages[i]);
 				vm_page_free(pages[i]);
+				vm_page_unlock(pages[i]);
+			}
 		}
-		vm_page_unlock_queues();
 		VM_OBJECT_UNLOCK(object);
 		return VM_PAGER_ERROR;
 	}
 
 	size = count - uio.uio_resid;
 
-	vm_page_lock_queues();
 	for (i = 0, toff = 0; i < npages; i++, toff = nextoff) {
 		vm_page_t m;
 		nextoff = toff + PAGE_SIZE;
@@ -480,17 +471,23 @@ nwfs_getpages(ap)
 			 * now tell them that it is ok to use.
 			 */
 			if (!error) {
-				if (m->oflags & VPO_WANTED)
+				if (m->oflags & VPO_WANTED) {
+					vm_page_lock(m);
 					vm_page_activate(m);
-				else
+					vm_page_unlock(m);
+				} else {
+					vm_page_lock(m);
 					vm_page_deactivate(m);
+					vm_page_unlock(m);
+				}
 				vm_page_wakeup(m);
 			} else {
+				vm_page_lock(m);
 				vm_page_free(m);
+				vm_page_unlock(m);
 			}
 		}
 	}
-	vm_page_unlock_queues();
 	VM_OBJECT_UNLOCK(object);
 	return 0;
 #endif /* NWFS_RWCACHE */

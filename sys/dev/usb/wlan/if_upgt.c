@@ -331,7 +331,7 @@ upgt_attach(device_t dev)
 	ifp->if_init = upgt_init;
 	ifp->if_ioctl = upgt_ioctl;
 	ifp->if_start = upgt_start;
-	IFQ_SET_MAXLEN(&ifp->if_snd, IFQ_MAXLEN);
+	IFQ_SET_MAXLEN(&ifp->if_snd, ifqmaxlen);
 	IFQ_SET_READY(&ifp->if_snd);
 
 	ic = ifp->if_l2com;

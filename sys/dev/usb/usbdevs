@@ -2516,7 +2516,6 @@ product QUALCOMMINC E2002	0x2002	3G modem
 product QUALCOMMINC E2003	0x2003	3G modem
 
 /* Quanta products */
-/* Quanta products */
 product QUANTA RW6815_1		0x00ce	HP iPAQ rw6815
 product QUANTA RT3070		0x0304	RT3070
 product QUANTA Q101_STOR	0x1000	USB Q101 Storage

@@ -118,10 +118,6 @@ int gif_ioctl(struct ifnet *, u_long, caddr_t);
 int gif_set_tunnel(struct ifnet *, struct sockaddr *, struct sockaddr *);
 void gif_delete_tunnel(struct ifnet *);
 int gif_encapcheck(const struct mbuf *, int, int, void *);
-
-VNET_DECLARE(int, ip_gif_ttl);
-#define	V_ip_gif_ttl		VNET(ip_gif_ttl)
-
 #endif /* _KERNEL */
 
 #define GIFGOPTS	_IOWR('i', 150, struct ifreq)

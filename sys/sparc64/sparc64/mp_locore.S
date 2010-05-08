@@ -30,6 +30,7 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/asi.h>
 #include <machine/asmacros.h>
+#include <machine/intr_machdep.h>
 #include <machine/ktr.h>
 #include <machine/pstate.h>
 #include <machine/smp.h>
@@ -44,14 +45,14 @@ __FBSDID("$FreeBSD$");
 	_ALIGN_TEXT
 	/*
 	 * Initialize misc. state to known values: interrupts disabled, normal
-	 * globals, windows flushed (cr = 0, cs = nwindows - 1), PIL 0 and
+	 * globals, windows flushed (cr = 0, cs = nwindows - 1), PIL_TICK and
 	 * floating point disabled.
 	 * Note that some firmware versions don't implement a clean window
 	 * trap handler so we unfortunately can't clear the windows by setting
 	 * %cleanwin to zero here.
 	 */
 1:	wrpr	%g0, PSTATE_NORMAL, %pstate
-	wrpr	%g0, 0, %pil
+	wrpr	%g0, PIL_TICK, %pil
 	wr	%g0, 0, %fprs
 
 	rdpr	%ver, %l7
@@ -199,19 +200,25 @@ ENTRY(mp_startup)
 	srlx	%l1, VER_IMPL_SHIFT, %l1
 	sll	%l1, VER_IMPL_SIZE, %l1
 	srl	%l1, VER_IMPL_SIZE, %l1
+	cmp	%l1, CPU_IMPL_SPARC64V
+	bl	%icc, 4f
+	 nop
+	cmp	%l1, CPU_IMPL_ULTRASPARCI
+	bl	%icc, 2f
+	 nop
 	cmp	%l1, CPU_IMPL_ULTRASPARCIII
 	bl	%icc, 3f
 	 nop
-	mov	CPU_STICKSYNC, %l2
+2:	mov	CPU_STICKSYNC, %l2
 	membar	#StoreLoad
 	stw	%l2, [%l0 + CSA_STATE]
 
-2:	ldx	[%l0 + CSA_STICK], %l2
-	brz	%l2, 2b
+3:	ldx	[%l0 + CSA_STICK], %l2
+	brz	%l2, 3b
 	 nop
 	wr	%l2, 0, %asr24
 
-3:	call	cpu_get_mid
+4:	call	cpu_get_mid
 	 mov	%l1, %o0
 
 	/*
@@ -224,9 +231,9 @@ ENTRY(mp_startup)
 	/*
 	 * Wait till its our turn to bootstrap.
 	 */
-4:	lduw	[%l0 + CSA_MID], %l1
+5:	lduw	[%l0 + CSA_MID], %l1
 	cmp	%l1, %o0
-	bne	%xcc, 4b
+	bne	%xcc, 5b
 	 nop
 
 	add	%l0, CSA_TTES, %l1
@@ -235,7 +242,7 @@ ENTRY(mp_startup)
 	/*
 	 * Map the per-CPU pages.
 	 */
-5:	sllx	%l2, TTE_SHIFT, %l3
+6:	sllx	%l2, TTE_SHIFT, %l3
 	add	%l1, %l3, %l3
 
 	ldx	[%l3 + TTE_VPN], %l4
@@ -250,7 +257,7 @@ ENTRY(mp_startup)
 
 	add	%l2, 1, %l2
 	cmp	%l2, PCPU_PAGES
-	bne	%xcc, 5b
+	bne	%xcc, 6b
 	 nop
 
 	/*
@@ -261,11 +268,6 @@ ENTRY(mp_startup)
 	set	PCPU_PAGES * PAGE_SIZE - PC_SIZEOF, %l2
 	add	%l1, %l2, %l1
 	sub	%l1, SPOFF + CCFSZ, %sp
-
-	/*
-	 * Enable interrupts.
-	 */
-	wrpr	%g0, PSTATE_KERNEL, %pstate
 
 #if KTR_COMPILE & KTR_SMP
 	CATR(KTR_SMP,

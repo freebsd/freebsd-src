@@ -55,7 +55,6 @@ struct cdev_priv {
 	u_int			cdp_flags;
 #define CDP_ACTIVE		(1 << 0)
 #define CDP_SCHED_DTR		(1 << 1)
-#define CDP_INVALID		(1 << 2)
 
 	u_int			cdp_inuse;
 	u_int			cdp_maxdirent;
@@ -71,7 +70,7 @@ struct cdev_priv {
 
 #define	cdev2priv(c)	member2struct(cdev_priv, cdp_c, c)
 
-struct cdev *devfs_alloc(void);
+struct cdev *devfs_alloc(int);
 void devfs_free(struct cdev *);
 void devfs_create(struct cdev *dev);
 void devfs_destroy(struct cdev *dev);

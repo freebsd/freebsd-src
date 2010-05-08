@@ -38,7 +38,6 @@
 #define	_MIPS_DB_MACHDEP_H_
 
 #include <machine/frame.h>
-#include <machine/psl.h>
 #include <machine/trap.h>
 #include <machine/endian.h>
 

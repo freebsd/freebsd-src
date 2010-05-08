@@ -2235,11 +2235,24 @@ zfs_zaccess_common(znode_t *zp, uint32_t v4_mode, uint32_t *working_mode,
 		return (EPERM);
 	}
 
+#ifdef sun
 	if ((v4_mode & (ACE_DELETE | ACE_DELETE_CHILD)) &&
 	    (zp->z_phys->zp_flags & ZFS_NOUNLINK)) {
 		*check_privs = B_FALSE;
 		return (EPERM);
 	}
+#else
+	/*
+	 * In FreeBSD we allow to modify directory's content is ZFS_NOUNLINK
+	 * (sunlnk) is set. We just don't allow directory removal, which is
+	 * handled in zfs_zaccess_delete().
+	 */
+	if ((v4_mode & ACE_DELETE) &&
+	    (zp->z_phys->zp_flags & ZFS_NOUNLINK)) {
+		*check_privs = B_FALSE;
+		return (EPERM);
+	}
+#endif
 
 	if (((v4_mode & (ACE_READ_DATA|ACE_EXECUTE)) &&
 	    (zp->z_phys->zp_flags & ZFS_AV_QUARANTINED))) {

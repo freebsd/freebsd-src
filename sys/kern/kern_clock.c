@@ -163,6 +163,7 @@ SYSCTL_PROC(_kern, OID_AUTO, cp_times, CTLTYPE_LONG|CTLFLAG_RD|CTLFLAG_MPSAFE,
 
 #ifdef DEADLKRES
 static const char *blessed[] = {
+	"getblk",
 	"so_snd_sx",
 	"so_rcv_sx",
 	NULL

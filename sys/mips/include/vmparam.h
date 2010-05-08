@@ -97,17 +97,19 @@
 
 /* user/kernel map constants */
 #define	VM_MIN_ADDRESS		((vm_offset_t)0x00000000)
+#define	VM_MAX_ADDRESS		((vm_offset_t)(intptr_t)(int32_t)0xffffffff)
+
+#define	VM_MINUSER_ADDRESS	((vm_offset_t)0x00000000)
 #define	VM_MAXUSER_ADDRESS	((vm_offset_t)0x80000000)
 #define	VM_MAX_MMAP_ADDR	VM_MAXUSER_ADDRESS
-#define	VM_MAX_ADDRESS		((vm_offset_t)0x80000000)
-
-#ifndef VM_KERNEL_ALLOC_OFFSET
-#define	VM_KERNEL_ALLOC_OFFSET	((vm_offset_t)0x00000000)
-#endif
 
 #define	VM_MIN_KERNEL_ADDRESS		((vm_offset_t)0xC0000000)
-#define	VM_KERNEL_WIRED_ADDR_END	(VM_MIN_KERNEL_ADDRESS + VM_KERNEL_ALLOC_OFFSET)
-#define	VM_MAX_KERNEL_ADDRESS	((vm_offset_t)0xFFFFC000)
+#define	VM_MAX_KERNEL_ADDRESS		((vm_offset_t)0xFFFFC000)
+#if 0
+#define	KERNBASE		(VM_MIN_KERNEL_ADDRESS)
+#else
+#define	KERNBASE		((vm_offset_t)(intptr_t)(int32_t)0x80000000)
+#endif
 
 /*
  * Disable superpage reservations. (not sure if this is right
@@ -150,9 +152,9 @@
 #define	VM_PHYSSEG_MAX		32
 
 /*
- * The physical address space is densely populated.
+ * The physical address space is sparsely populated.
  */
-#define	VM_PHYSSEG_DENSE
+#define	VM_PHYSSEG_SPARSE
 
 /*
  * Create three free page pools: VM_FREEPOOL_DEFAULT is the default pool
@@ -179,23 +181,8 @@
  */
 #define	VM_NFREEORDER		9
 
-/*
- * XXXMIPS: This values need to be changed!!!
- */ 
-#if 0
-#define VM_MIN_ADDRESS		((vm_offset_t)0x0000000000010000)
-#define VM_MAXUSER_ADDRESS	((vm_offset_t)MIPS_KSEG0_START-1)
-#define VM_MAX_ADDRESS		((vm_offset_t)0x0000000100000000)
-#define VM_MIN_KERNEL_ADDRESS	((vm_offset_t)MIPS_KSEG3_START)
-#define VM_MAX_KERNEL_ADDRESS	((vm_offset_t)MIPS_KSEG3_END)
-#define	KERNBASE		(VM_MIN_KERNEL_ADDRESS)
-
-/* virtual sizes (bytes) for various kernel submaps */
-#define	VM_KMEM_SIZE		(16*1024*1024)		/* XXX ??? */
-#endif
-
-#define NBSEG		0x400000	/* bytes/segment */
-#define SEGOFSET	(NBSEG-1)	/* byte offset into segment */
 #define SEGSHIFT	22		/* LOG2(NBSEG) */
+#define NBSEG		(1 << SEGSHIFT)	/* bytes/segment */
+#define SEGOFSET	(NBSEG-1)	/* byte offset into segment */
 
 #endif /* !_MACHINE_VMPARAM_H_ */

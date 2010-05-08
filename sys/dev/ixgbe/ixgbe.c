@@ -759,6 +759,7 @@ ixgbe_start_locked(struct tx_ring *txr, struct ifnet * ifp)
 
 		/* Set watchdog on */
 		txr->watchdog_check = TRUE;
+		txr->watchdog_time = ticks;
 
 	}
 	return;
@@ -798,8 +799,6 @@ ixgbe_mq_start(struct ifnet *ifp, struct mbuf *m)
 	/* Which queue to use */
 	if ((m->m_flags & M_FLOWID) != 0)
 		i = m->m_pkthdr.flowid % adapter->num_queues;
-	else	/* use the cpu we're on */
-		i = curcpu % adapter->num_queues;
 
 	txr = &adapter->tx_rings[i];
 
@@ -856,8 +855,11 @@ ixgbe_mq_start_locked(struct ifnet *ifp, struct tx_ring *txr, struct mbuf *m)
 		next = drbr_dequeue(ifp, txr->br);
 	}
 
-	if (enqueued > 0) 
+	if (enqueued > 0) {
+		/* Set watchdog on */
 		txr->watchdog_check = TRUE;
+		txr->watchdog_time = ticks;
+	}
 
 	return (err);
 }
@@ -1251,16 +1253,12 @@ ixgbe_handle_que(void *context, int pending)
 	struct adapter  *adapter = que->adapter;
 	struct tx_ring  *txr = que->txr;
 	struct ifnet    *ifp = adapter->ifp;
-	u32		loop = MAX_LOOP;
-	bool		more_rx, more_tx;
-
-	IXGBE_TX_LOCK(txr);
-	do {
-		more_rx = ixgbe_rxeof(que, adapter->rx_process_limit);
-		more_tx = ixgbe_txeof(txr);
-	} while (loop-- && (more_rx || more_tx));
+	bool		more;
 
 	if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
+		more = ixgbe_rxeof(que, adapter->rx_process_limit);
+		IXGBE_TX_LOCK(txr);
+		ixgbe_txeof(txr);
 #if __FreeBSD_version >= 800000
 		if (!drbr_empty(ifp, txr->br))
 			ixgbe_mq_start_locked(ifp, txr, NULL);
@@ -1268,11 +1266,16 @@ ixgbe_handle_que(void *context, int pending)
 		if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
 			ixgbe_start_locked(txr, ifp);
 #endif
+		IXGBE_TX_UNLOCK(txr);
+		if (more) {
+			taskqueue_enqueue(que->tq, &que->que_task);
+			return;
+		}
 	}
 
-	IXGBE_TX_UNLOCK(txr);
 	/* Reenable this interrupt */
 	ixgbe_enable_queue(adapter, que->msix);
+	return;
 }
 
 
@@ -1718,7 +1721,6 @@ ixgbe_xmit(struct tx_ring *txr, struct mbuf **m_headp)
 	 * hardware that this frame is available to transmit.
 	 */
 	++txr->total_packets;
-	txr->watchdog_time = ticks;
 	IXGBE_WRITE_REG(&adapter->hw, IXGBE_TDT(txr->me), i);
 
 	/* Do a clean if descriptors are low */

@@ -284,8 +284,8 @@
 	"\02EnaPauseRcv"	\
 	"\01EnaPausXmit"
 
-/* 
- * Remove before release: 
+/*
+ * Remove before release:
  *
  * #define BCE_DEBUG
  * #define BCE_NVRAM_WRITE_SUPPORT
@@ -439,7 +439,7 @@
 	}
 
 /* Runs a particular command based on the code path. */
-#define DBRUNCP(cp, args...) 					\
+#define DBRUNCP(cp, args...)					\
 	if (BCE_CODE_PATH(cp)) { 				\
 		args; 						\
 	}
@@ -4116,7 +4116,7 @@ struct l2_fhdr {
 #define BCE_RDMA_FTQ_CTL_CUR_DEPTH			(0x3ffL<<22)
 
 
-	
+
 /*
  *  timer_reg definition
  *  offset: 0x4400
@@ -4476,107 +4476,107 @@ struct l2_fhdr {
  *  csch_reg definition
  *  offset: 0x4000
  */
-#define BCE_CSCH_COMMAND							0x00004000
-#define BCE_CSCH_CH_FTQ_CMD							0x000043f8
-#define BCE_CSCH_CH_FTQ_CTL							0x000043fc
-#define BCE_CSCH_CH_FTQ_CTL_MAX_DEPTH				(0x3ffL<<12)
-#define BCE_CSCH_CH_FTQ_CTL_CUR_DEPTH				(0x3ffL<<22)
+#define BCE_CSCH_COMMAND				0x00004000
+#define BCE_CSCH_CH_FTQ_CMD				0x000043f8
+#define BCE_CSCH_CH_FTQ_CTL				0x000043fc
+#define BCE_CSCH_CH_FTQ_CTL_MAX_DEPTH			(0x3ffL<<12)
+#define BCE_CSCH_CH_FTQ_CTL_CUR_DEPTH			(0x3ffL<<22)
 
 
 /*
  *  tbdr_reg definition
  *  offset: 0x5000
  */
-#define BCE_TBDR_COMMAND							0x00005000
-#define BCE_TBDR_COMMAND_ENABLE						(1L<<0)
-#define BCE_TBDR_COMMAND_SOFT_RST					(1L<<1)
-#define BCE_TBDR_COMMAND_MSTR_ABORT					(1L<<4)
+#define BCE_TBDR_COMMAND				0x00005000
+#define BCE_TBDR_COMMAND_ENABLE				(1L<<0)
+#define BCE_TBDR_COMMAND_SOFT_RST			(1L<<1)
+#define BCE_TBDR_COMMAND_MSTR_ABORT			(1L<<4)
 
-#define BCE_TBDR_STATUS								0x00005004
-#define BCE_TBDR_STATUS_DMA_WAIT					(1L<<0)
-#define BCE_TBDR_STATUS_FTQ_WAIT					(1L<<1)
-#define BCE_TBDR_STATUS_FIFO_OVERFLOW				(1L<<2)
-#define BCE_TBDR_STATUS_FIFO_UNDERFLOW				(1L<<3)
-#define BCE_TBDR_STATUS_SEARCHMISS_ERROR			(1L<<4)
-#define BCE_TBDR_STATUS_FTQ_ENTRY_CNT				(1L<<5)
-#define BCE_TBDR_STATUS_BURST_CNT					(1L<<6)
+#define BCE_TBDR_STATUS					0x00005004
+#define BCE_TBDR_STATUS_DMA_WAIT			(1L<<0)
+#define BCE_TBDR_STATUS_FTQ_WAIT			(1L<<1)
+#define BCE_TBDR_STATUS_FIFO_OVERFLOW			(1L<<2)
+#define BCE_TBDR_STATUS_FIFO_UNDERFLOW			(1L<<3)
+#define BCE_TBDR_STATUS_SEARCHMISS_ERROR		(1L<<4)
+#define BCE_TBDR_STATUS_FTQ_ENTRY_CNT			(1L<<5)
+#define BCE_TBDR_STATUS_BURST_CNT			(1L<<6)
 
-#define BCE_TBDR_CONFIG								0x00005008
-#define BCE_TBDR_CONFIG_MAX_BDS						(0xffL<<0)
-#define BCE_TBDR_CONFIG_SWAP_MODE					(1L<<8)
-#define BCE_TBDR_CONFIG_PRIORITY					(1L<<9)
+#define BCE_TBDR_CONFIG					0x00005008
+#define BCE_TBDR_CONFIG_MAX_BDS				(0xffL<<0)
+#define BCE_TBDR_CONFIG_SWAP_MODE			(1L<<8)
+#define BCE_TBDR_CONFIG_PRIORITY			(1L<<9)
 #define BCE_TBDR_CONFIG_CACHE_NEXT_PAGE_PTRS		(1L<<10)
-#define BCE_TBDR_CONFIG_PAGE_SIZE			 		(0xfL<<24)
-#define BCE_TBDR_CONFIG_PAGE_SIZE_256				(0L<<24)
-#define BCE_TBDR_CONFIG_PAGE_SIZE_512				(1L<<24)
-#define BCE_TBDR_CONFIG_PAGE_SIZE_1K				(2L<<24)
-#define BCE_TBDR_CONFIG_PAGE_SIZE_2K				(3L<<24)
-#define BCE_TBDR_CONFIG_PAGE_SIZE_4K				(4L<<24)
-#define BCE_TBDR_CONFIG_PAGE_SIZE_8K				(5L<<24)
-#define BCE_TBDR_CONFIG_PAGE_SIZE_16K				(6L<<24)
-#define BCE_TBDR_CONFIG_PAGE_SIZE_32K				(7L<<24)
-#define BCE_TBDR_CONFIG_PAGE_SIZE_64K				(8L<<24)
-#define BCE_TBDR_CONFIG_PAGE_SIZE_128K				(9L<<24)
-#define BCE_TBDR_CONFIG_PAGE_SIZE_256K				(10L<<24)
-#define BCE_TBDR_CONFIG_PAGE_SIZE_512K				(11L<<24)
-#define BCE_TBDR_CONFIG_PAGE_SIZE_1M				(12L<<24)
+#define BCE_TBDR_CONFIG_PAGE_SIZE			(0xfL<<24)
+#define BCE_TBDR_CONFIG_PAGE_SIZE_256			(0L<<24)
+#define BCE_TBDR_CONFIG_PAGE_SIZE_512			(1L<<24)
+#define BCE_TBDR_CONFIG_PAGE_SIZE_1K			(2L<<24)
+#define BCE_TBDR_CONFIG_PAGE_SIZE_2K			(3L<<24)
+#define BCE_TBDR_CONFIG_PAGE_SIZE_4K			(4L<<24)
+#define BCE_TBDR_CONFIG_PAGE_SIZE_8K			(5L<<24)
+#define BCE_TBDR_CONFIG_PAGE_SIZE_16K			(6L<<24)
+#define BCE_TBDR_CONFIG_PAGE_SIZE_32K			(7L<<24)
+#define BCE_TBDR_CONFIG_PAGE_SIZE_64K			(8L<<24)
+#define BCE_TBDR_CONFIG_PAGE_SIZE_128K			(9L<<24)
+#define BCE_TBDR_CONFIG_PAGE_SIZE_256K			(10L<<24)
+#define BCE_TBDR_CONFIG_PAGE_SIZE_512K			(11L<<24)
+#define BCE_TBDR_CONFIG_PAGE_SIZE_1M			(12L<<24)
 
-#define BCE_TBDR_DEBUG_VECT_PEEK					0x0000500c
-#define BCE_TBDR_DEBUG_VECT_PEEK_1_VALUE			(0x7ffL<<0)
-#define BCE_TBDR_DEBUG_VECT_PEEK_1_PEEK_EN			(1L<<11)
-#define BCE_TBDR_DEBUG_VECT_PEEK_1_SEL				(0xfL<<12)
-#define BCE_TBDR_DEBUG_VECT_PEEK_2_VALUE			(0x7ffL<<16)
-#define BCE_TBDR_DEBUG_VECT_PEEK_2_PEEK_EN			(1L<<27)
-#define BCE_TBDR_DEBUG_VECT_PEEK_2_SEL				(0xfL<<28)
+#define BCE_TBDR_DEBUG_VECT_PEEK			0x0000500c
+#define BCE_TBDR_DEBUG_VECT_PEEK_1_VALUE		(0x7ffL<<0)
+#define BCE_TBDR_DEBUG_VECT_PEEK_1_PEEK_EN		(1L<<11)
+#define BCE_TBDR_DEBUG_VECT_PEEK_1_SEL			(0xfL<<12)
+#define BCE_TBDR_DEBUG_VECT_PEEK_2_VALUE		(0x7ffL<<16)
+#define BCE_TBDR_DEBUG_VECT_PEEK_2_PEEK_EN		(1L<<27)
+#define BCE_TBDR_DEBUG_VECT_PEEK_2_SEL			(0xfL<<28)
 
-#define BCE_TBDR_FTQ_DATA							0x000053c0
-#define BCE_TBDR_FTQ_CMD							0x000053f8
-#define BCE_TBDR_FTQ_CMD_OFFSET						(0x3ffL<<0)
-#define BCE_TBDR_FTQ_CMD_WR_TOP						(1L<<10)
-#define BCE_TBDR_FTQ_CMD_WR_TOP_0					(0L<<10)
-#define BCE_TBDR_FTQ_CMD_WR_TOP_1					(1L<<10)
-#define BCE_TBDR_FTQ_CMD_SFT_RESET					(1L<<25)
-#define BCE_TBDR_FTQ_CMD_RD_DATA					(1L<<26)
-#define BCE_TBDR_FTQ_CMD_ADD_INTERVEN				(1L<<27)
-#define BCE_TBDR_FTQ_CMD_ADD_DATA					(1L<<28)
-#define BCE_TBDR_FTQ_CMD_INTERVENE_CLR				(1L<<29)
-#define BCE_TBDR_FTQ_CMD_POP						(1L<<30)
-#define BCE_TBDR_FTQ_CMD_BUSY						(1L<<31)
+#define BCE_TBDR_FTQ_DATA				0x000053c0
+#define BCE_TBDR_FTQ_CMD				0x000053f8
+#define BCE_TBDR_FTQ_CMD_OFFSET				(0x3ffL<<0)
+#define BCE_TBDR_FTQ_CMD_WR_TOP				(1L<<10)
+#define BCE_TBDR_FTQ_CMD_WR_TOP_0			(0L<<10)
+#define BCE_TBDR_FTQ_CMD_WR_TOP_1			(1L<<10)
+#define BCE_TBDR_FTQ_CMD_SFT_RESET			(1L<<25)
+#define BCE_TBDR_FTQ_CMD_RD_DATA			(1L<<26)
+#define BCE_TBDR_FTQ_CMD_ADD_INTERVEN			(1L<<27)
+#define BCE_TBDR_FTQ_CMD_ADD_DATA			(1L<<28)
+#define BCE_TBDR_FTQ_CMD_INTERVENE_CLR			(1L<<29)
+#define BCE_TBDR_FTQ_CMD_POP				(1L<<30)
+#define BCE_TBDR_FTQ_CMD_BUSY				(1L<<31)
 
-#define BCE_TBDR_FTQ_CTL							0x000053fc
-#define BCE_TBDR_FTQ_CTL_INTERVENE					(1L<<0)
-#define BCE_TBDR_FTQ_CTL_OVERFLOW					(1L<<1)
-#define BCE_TBDR_FTQ_CTL_FORCE_INTERVENE			(1L<<2)
-#define BCE_TBDR_FTQ_CTL_MAX_DEPTH					(0x3ffL<<12)
-#define BCE_TBDR_FTQ_CTL_CUR_DEPTH					(0x3ffL<<22)
+#define BCE_TBDR_FTQ_CTL				0x000053fc
+#define BCE_TBDR_FTQ_CTL_INTERVENE			(1L<<0)
+#define BCE_TBDR_FTQ_CTL_OVERFLOW			(1L<<1)
+#define BCE_TBDR_FTQ_CTL_FORCE_INTERVENE		(1L<<2)
+#define BCE_TBDR_FTQ_CTL_MAX_DEPTH			(0x3ffL<<12)
+#define BCE_TBDR_FTQ_CTL_CUR_DEPTH			(0x3ffL<<22)
 
 
 /*
  *  tdma_reg definition
  *  offset: 0x5c00
  */
-#define BCE_TDMA_COMMAND							0x00005c00
-#define BCE_TDMA_COMMAND_ENABLED					(1L<<0)
-#define BCE_TDMA_COMMAND_MASTER_ABORT				(1L<<4)
-#define BCE_TDMA_COMMAND_BAD_L2_LENGTH_ABORT		(1L<<7)
+#define BCE_TDMA_COMMAND				0x00005c00
+#define BCE_TDMA_COMMAND_ENABLED			 (1L<<0)
+#define BCE_TDMA_COMMAND_MASTER_ABORT			 (1L<<4)
+#define BCE_TDMA_COMMAND_BAD_L2_LENGTH_ABORT		 (1L<<7)
 
-#define BCE_TDMA_STATUS								0x00005c04
-#define BCE_TDMA_STATUS_DMA_WAIT					(1L<<0)
-#define BCE_TDMA_STATUS_PAYLOAD_WAIT				(1L<<1)
-#define BCE_TDMA_STATUS_PATCH_FTQ_WAIT				(1L<<2)
+#define BCE_TDMA_STATUS					0x00005c04
+#define BCE_TDMA_STATUS_DMA_WAIT			 (1L<<0)
+#define BCE_TDMA_STATUS_PAYLOAD_WAIT			 (1L<<1)
+#define BCE_TDMA_STATUS_PATCH_FTQ_WAIT			 (1L<<2)
 #define BCE_TDMA_STATUS_LOCK_WAIT			 (1L<<3)
 #define BCE_TDMA_STATUS_FTQ_ENTRY_CNT			 (1L<<16)
 #define BCE_TDMA_STATUS_BURST_CNT			 (1L<<17)
 
-#define BCE_TDMA_CONFIG				0x00005c08
-#define BCE_TDMA_CONFIG_ONE_DMA			 (1L<<0)
+#define BCE_TDMA_CONFIG					0x00005c08
+#define BCE_TDMA_CONFIG_ONE_DMA				 (1L<<0)
 #define BCE_TDMA_CONFIG_ONE_RECORD			 (1L<<1)
 #define BCE_TDMA_CONFIG_LIMIT_SZ			 (0xfL<<4)
 #define BCE_TDMA_CONFIG_LIMIT_SZ_64			 (0L<<4)
 #define BCE_TDMA_CONFIG_LIMIT_SZ_128			 (0x4L<<4)
 #define BCE_TDMA_CONFIG_LIMIT_SZ_256			 (0x6L<<4)
 #define BCE_TDMA_CONFIG_LIMIT_SZ_512			 (0x8L<<4)
-#define BCE_TDMA_CONFIG_LINE_SZ			 (0xfL<<8)
+#define BCE_TDMA_CONFIG_LINE_SZ				 (0xfL<<8)
 #define BCE_TDMA_CONFIG_LINE_SZ_64			 (0L<<8)
 #define BCE_TDMA_CONFIG_LINE_SZ_128			 (4L<<8)
 #define BCE_TDMA_CONFIG_LINE_SZ_256			 (6L<<8)
@@ -4612,7 +4612,7 @@ struct l2_fhdr {
 #define BCE_TDMA_DR_INTF_FSM_DR_BUF			 (0x7L<<12)
 #define BCE_TDMA_DR_INTF_FSM_DMAD			 (0x7L<<16)
 
-#define BCE_TDMA_DR_INTF_STATUS			0x00005c8c
+#define BCE_TDMA_DR_INTF_STATUS				0x00005c8c
 #define BCE_TDMA_DR_INTF_STATUS_HOLE_PHASE		 (0x7L<<0)
 #define BCE_TDMA_DR_INTF_STATUS_DATA_AVAIL		 (0x3L<<4)
 #define BCE_TDMA_DR_INTF_STATUS_SHIFT_ADDR		 (0x7L<<8)
@@ -4621,8 +4621,8 @@ struct l2_fhdr {
 
 #define BCE_TDMA_FTQ_DATA				0x00005fc0
 #define BCE_TDMA_FTQ_CMD				0x00005ff8
-#define BCE_TDMA_FTQ_CMD_OFFSET			 (0x3ffL<<0)
-#define BCE_TDMA_FTQ_CMD_WR_TOP			 (1L<<10)
+#define BCE_TDMA_FTQ_CMD_OFFSET				 (0x3ffL<<0)
+#define BCE_TDMA_FTQ_CMD_WR_TOP				 (1L<<10)
 #define BCE_TDMA_FTQ_CMD_WR_TOP_0			 (0L<<10)
 #define BCE_TDMA_FTQ_CMD_WR_TOP_1			 (1L<<10)
 #define BCE_TDMA_FTQ_CMD_SFT_RESET			 (1L<<25)
@@ -4645,7 +4645,7 @@ struct l2_fhdr {
  *  nvm_reg definition
  *  offset: 0x6400
  */
-#define BCE_NVM_COMMAND				0x00006400
+#define BCE_NVM_COMMAND					0x00006400
 #define BCE_NVM_COMMAND_RST				 (1L<<0)
 #define BCE_NVM_COMMAND_DONE				 (1L<<3)
 #define BCE_NVM_COMMAND_DOIT				 (1L<<4)
@@ -4694,23 +4694,23 @@ struct l2_fhdr {
 #define BCE_NVM_READ_NVM_READ_VALUE_SI			 (32L<<0)
 
 #define BCE_NVM_CFG1					0x00006414
-#define BCE_NVM_CFG1_FLASH_MODE			 (1L<<0)
+#define BCE_NVM_CFG1_FLASH_MODE				 (1L<<0)
 #define BCE_NVM_CFG1_BUFFER_MODE			 (1L<<1)
 #define BCE_NVM_CFG1_PASS_MODE				 (1L<<2)
 #define BCE_NVM_CFG1_BITBANG_MODE			 (1L<<3)
-#define BCE_NVM_CFG1_STATUS_BIT			 (0x7L<<4)
+#define BCE_NVM_CFG1_STATUS_BIT				 (0x7L<<4)
 #define BCE_NVM_CFG1_STATUS_BIT_FLASH_RDY		 (0L<<4)
 #define BCE_NVM_CFG1_STATUS_BIT_BUFFER_RDY		 (7L<<4)
 #define BCE_NVM_CFG1_SPI_CLK_DIV			 (0xfL<<7)
 #define BCE_NVM_CFG1_SEE_CLK_DIV			 (0x7ffL<<11)
 #define BCE_NVM_CFG1_PROTECT_MODE			 (1L<<24)
-#define BCE_NVM_CFG1_FLASH_SIZE			 (1L<<25)
+#define BCE_NVM_CFG1_FLASH_SIZE				 (1L<<25)
 #define BCE_NVM_CFG1_COMPAT_BYPASSS			 (1L<<31)
 
 #define BCE_NVM_CFG2					0x00006418
 #define BCE_NVM_CFG2_ERASE_CMD				 (0xffL<<0)
 #define BCE_NVM_CFG2_DUMMY				 (0xffL<<8)
-#define BCE_NVM_CFG2_STATUS_CMD			 (0xffL<<16)
+#define BCE_NVM_CFG2_STATUS_CMD				 (0xffL<<16)
 
 #define BCE_NVM_CFG3					0x0000641c
 #define BCE_NVM_CFG3_BUFFER_RD_CMD			 (0xffL<<0)
@@ -4727,10 +4727,10 @@ struct l2_fhdr {
 #define BCE_NVM_SW_ARB_ARB_REQ_CLR1			 (1L<<5)
 #define BCE_NVM_SW_ARB_ARB_REQ_CLR2			 (1L<<6)
 #define BCE_NVM_SW_ARB_ARB_REQ_CLR3			 (1L<<7)
-#define BCE_NVM_SW_ARB_ARB_ARB0			 (1L<<8)
-#define BCE_NVM_SW_ARB_ARB_ARB1			 (1L<<9)
-#define BCE_NVM_SW_ARB_ARB_ARB2			 (1L<<10)
-#define BCE_NVM_SW_ARB_ARB_ARB3			 (1L<<11)
+#define BCE_NVM_SW_ARB_ARB_ARB0				 (1L<<8)
+#define BCE_NVM_SW_ARB_ARB_ARB1				 (1L<<9)
+#define BCE_NVM_SW_ARB_ARB_ARB2				 (1L<<10)
+#define BCE_NVM_SW_ARB_ARB_ARB3				 (1L<<11)
 #define BCE_NVM_SW_ARB_REQ0				 (1L<<12)
 #define BCE_NVM_SW_ARB_REQ1				 (1L<<13)
 #define BCE_NVM_SW_ARB_REQ2				 (1L<<14)
@@ -4741,8 +4741,8 @@ struct l2_fhdr {
 #define BCE_NVM_ACCESS_ENABLE_WR_EN			 (1L<<1)
 
 #define BCE_NVM_WRITE1					0x00006428
-#define BCE_NVM_WRITE1_WREN_CMD			 (0xffL<<0)
-#define BCE_NVM_WRITE1_WRDI_CMD			 (0xffL<<8)
+#define BCE_NVM_WRITE1_WREN_CMD				 (0xffL<<0)
+#define BCE_NVM_WRITE1_WRDI_CMD				 (0xffL<<8)
 #define BCE_NVM_WRITE1_SR_DATA				 (0xffL<<16)
 
 
@@ -4753,7 +4753,7 @@ struct l2_fhdr {
 #define BCE_HC_COMMAND					0x00006800
 #define BCE_HC_COMMAND_ENABLE				 (1L<<0)
 #define BCE_HC_COMMAND_SKIP_ABORT			 (1L<<4)
-#define BCE_HC_COMMAND_COAL_NOW			 (1L<<16)
+#define BCE_HC_COMMAND_COAL_NOW			 	 (1L<<16)
 #define BCE_HC_COMMAND_COAL_NOW_WO_INT			 (1L<<17)
 #define BCE_HC_COMMAND_STATS_NOW			 (1L<<18)
 #define BCE_HC_COMMAND_FORCE_INT			 (0x3L<<19)
@@ -4769,7 +4769,7 @@ struct l2_fhdr {
 #define BCE_HC_STATUS_MASTER_ABORT			 (1L<<0)
 #define BCE_HC_STATUS_PARITY_ERROR_STATE		 (1L<<1)
 #define BCE_HC_STATUS_PCI_CLK_CNT_STAT			 (1L<<16)
-#define BCE_HC_STATUS_CORE_CLK_CNT_STAT		 (1L<<17)
+#define BCE_HC_STATUS_CORE_CLK_CNT_STAT			 (1L<<17)
 #define BCE_HC_STATUS_NUM_STATUS_BLOCKS_STAT		 (1L<<18)
 #define BCE_HC_STATUS_NUM_INT_GEN_STAT			 (1L<<19)
 #define BCE_HC_STATUS_NUM_INT_MBOX_WR_STAT		 (1L<<20)
@@ -4790,27 +4790,27 @@ struct l2_fhdr {
 #define BCE_HC_CONFIG_ONE_SHOT				 (1L<<17)
 #define BCE_HC_CONFIG_USE_INT_PARAM			 (1L<<18)
 #define BCE_HC_CONFIG_SET_MASK_AT_RD			 (1L<<19)
-#define BCE_HC_CONFIG_PER_COLLECT_LIMIT		 (0xfL<<20)
+#define BCE_HC_CONFIG_PER_COLLECT_LIMIT			 (0xfL<<20)
 #define BCE_HC_CONFIG_SB_ADDR_INC			 (0x7L<<24)
 #define BCE_HC_CONFIG_SB_ADDR_INC_64B			 (0L<<24)
 #define BCE_HC_CONFIG_SB_ADDR_INC_128B			 (1L<<24)
 #define BCE_HC_CONFIG_SB_ADDR_INC_256B			 (2L<<24)
 #define BCE_HC_CONFIG_SB_ADDR_INC_512B			 (3L<<24)
-#define BCE_HC_CONFIG_SB_ADDR_INC_1024B		 (4L<<24)
-#define BCE_HC_CONFIG_SB_ADDR_INC_2048B		 (5L<<24)
-#define BCE_HC_CONFIG_SB_ADDR_INC_4096B		 (6L<<24)
-#define BCE_HC_CONFIG_SB_ADDR_INC_8192B		 (7L<<24)
-#define BCE_HC_CONFIG_GEN_STAT_AVG_INTR		 (1L<<29)
+#define BCE_HC_CONFIG_SB_ADDR_INC_1024B			 (4L<<24)
+#define BCE_HC_CONFIG_SB_ADDR_INC_2048B			 (5L<<24)
+#define BCE_HC_CONFIG_SB_ADDR_INC_4096B			 (6L<<24)
+#define BCE_HC_CONFIG_SB_ADDR_INC_8192B			 (7L<<24)
+#define BCE_HC_CONFIG_GEN_STAT_AVG_INTR			 (1L<<29)
 #define BCE_HC_CONFIG_UNMASK_ALL			 (1L<<30)
 #define BCE_HC_CONFIG_TX_SEL				 (1L<<31)
 
-#define BCE_HC_ATTN_BITS_ENABLE			0x0000680c
+#define BCE_HC_ATTN_BITS_ENABLE				0x0000680c
 #define BCE_HC_STATUS_ADDR_L				0x00006810
 #define BCE_HC_STATUS_ADDR_H				0x00006814
 #define BCE_HC_STATISTICS_ADDR_L			0x00006818
 #define BCE_HC_STATISTICS_ADDR_H			0x0000681c
 #define BCE_HC_TX_QUICK_CONS_TRIP			0x00006820
-#define BCE_HC_TX_QUICK_CONS_TRIP_VALUE		 (0xffL<<0)
+#define BCE_HC_TX_QUICK_CONS_TRIP_VALUE			 (0xffL<<0)
 #define BCE_HC_TX_QUICK_CONS_TRIP_INT			 (0xffL<<16)
 
 #define BCE_HC_COMP_PROD_TRIP				0x00006824
@@ -4818,14 +4818,14 @@ struct l2_fhdr {
 #define BCE_HC_COMP_PROD_TRIP_INT			 (0xffL<<16)
 
 #define BCE_HC_RX_QUICK_CONS_TRIP			0x00006828
-#define BCE_HC_RX_QUICK_CONS_TRIP_VALUE		 (0xffL<<0)
+#define BCE_HC_RX_QUICK_CONS_TRIP_VALUE			 (0xffL<<0)
 #define BCE_HC_RX_QUICK_CONS_TRIP_INT			 (0xffL<<16)
 
-#define BCE_HC_RX_TICKS				0x0000682c
+#define BCE_HC_RX_TICKS					0x0000682c
 #define BCE_HC_RX_TICKS_VALUE				 (0x3ffL<<0)
 #define BCE_HC_RX_TICKS_INT				 (0x3ffL<<16)
 
-#define BCE_HC_TX_TICKS				0x00006830
+#define BCE_HC_TX_TICKS					0x00006830
 #define BCE_HC_TX_TICKS_VALUE				 (0x3ffL<<0)
 #define BCE_HC_TX_TICKS_INT				 (0x3ffL<<16)
 
@@ -4838,7 +4838,7 @@ struct l2_fhdr {
 #define BCE_HC_CMD_TICKS_INT				 (0x3ffL<<16)
 
 #define BCE_HC_PERIODIC_TICKS				0x0000683c
-#define BCE_HC_PERIODIC_TICKS_HC_PERIODIC_TICKS	 (0xffffL<<0)
+#define BCE_HC_PERIODIC_TICKS_HC_PERIODIC_TICKS		 (0xffffL<<0)
 #define BCE_HC_PERIODIC_TICKS_HC_INT_PERIODIC_TICKS	 (0xffffL<<16)
 
 #define BCE_HC_STAT_COLLECT_TICKS			0x00006840
@@ -4848,12 +4848,12 @@ struct l2_fhdr {
 #define BCE_HC_STATS_TICKS_HC_STAT_TICKS		 (0xffffL<<8)
 
 #define BCE_HC_STATS_INTERRUPT_STATUS			0x00006848
-#define BCE_HC_STATS_INTERRUPT_STATUS_SB_STATUS	 (0x1ffL<<0)
+#define BCE_HC_STATS_INTERRUPT_STATUS_SB_STATUS		 (0x1ffL<<0)
 #define BCE_HC_STATS_INTERRUPT_STATUS_INT_STATUS	 (0x1ffL<<16)
 
 #define BCE_HC_STAT_MEM_DATA				0x0000684c
 #define BCE_HC_STAT_GEN_SEL_0				0x00006850
-#define BCE_HC_STAT_GEN_SEL_0_GEN_SEL_0		 (0x7fL<<0)
+#define BCE_HC_STAT_GEN_SEL_0_GEN_SEL_0			 (0x7fL<<0)
 #define BCE_HC_STAT_GEN_SEL_0_GEN_SEL_0_RXP_STAT0	 (0L<<0)
 #define BCE_HC_STAT_GEN_SEL_0_GEN_SEL_0_RXP_STAT1	 (1L<<0)
 #define BCE_HC_STAT_GEN_SEL_0_GEN_SEL_0_RXP_STAT2	 (2L<<0)
@@ -4921,9 +4921,9 @@ struct l2_fhdr {
 #define BCE_HC_STAT_GEN_SEL_0_GEN_SEL_0_RLUPQ_VALID_CNT	 (66L<<0)
 #define BCE_HC_STAT_GEN_SEL_0_GEN_SEL_0_RXPQ_VALID_CNT	 (67L<<0)
 #define BCE_HC_STAT_GEN_SEL_0_GEN_SEL_0_RXPCQ_VALID_CNT	 (68L<<0)
-#define BCE_HC_STAT_GEN_SEL_0_GEN_SEL_0_RV2PPQ_VALID_CNT	 (69L<<0)
-#define BCE_HC_STAT_GEN_SEL_0_GEN_SEL_0_RV2PMQ_VALID_CNT	 (70L<<0)
-#define BCE_HC_STAT_GEN_SEL_0_GEN_SEL_0_RV2PTQ_VALID_CNT	 (71L<<0)
+#define BCE_HC_STAT_GEN_SEL_0_GEN_SEL_0_RV2PPQ_VALID_CNT (69L<<0)
+#define BCE_HC_STAT_GEN_SEL_0_GEN_SEL_0_RV2PMQ_VALID_CNT (70L<<0)
+#define BCE_HC_STAT_GEN_SEL_0_GEN_SEL_0_RV2PTQ_VALID_CNT (71L<<0)
 #define BCE_HC_STAT_GEN_SEL_0_GEN_SEL_0_RDMAQ_VALID_CNT	 (72L<<0)
 #define BCE_HC_STAT_GEN_SEL_0_GEN_SEL_0_TSCHQ_VALID_CNT	 (73L<<0)
 #define BCE_HC_STAT_GEN_SEL_0_GEN_SEL_0_TBDRQ_VALID_CNT	 (74L<<0)
@@ -6006,7 +6006,7 @@ struct l2_fhdr {
 #define BCE_TAS_FTQ_CTL_MAX_DEPTH			(0x3ffL<<12)
 #define BCE_TAS_FTQ_CTL_CUR_DEPTH			(0x3ffL<<22)
 
-	
+
 /*
  *  mcp_reg definition
  *  offset: 0x140000
@@ -6372,7 +6372,7 @@ struct fw_info {
 
 struct bce_softc
 {
-	/* Interface info */
+	/* Interface info.  Must be first!! */
 	struct ifnet		*bce_ifp;
 
 	/* Parent device handle */
@@ -6403,167 +6403,168 @@ struct bce_softc
 
 	/* Interrupt handler. */
 	driver_intr_t		*bce_intr;
-	void *bce_intrhand;
-	int  bce_irq_rid;
-	int  bce_msi_count;
+	void			*bce_intrhand;
+	int			bce_irq_rid;
+	int			bce_msi_count;
 
 	/* ASIC Chip ID. */
-	u32  bce_chipid;
+	u32			bce_chipid;
 
 	/* General controller flags. */
-	u32  bce_flags;
-#define BCE_PCIX_FLAG			0x00000001
-#define BCE_PCI_32BIT_FLAG 		0x00000002
-#define BCE_RESERVED_FLAG		0x00000004
-#define BCE_NO_WOL_FLAG			0x00000008
-#define BCE_USING_DAC_FLAG		0x00000010
-#define BCE_USING_MSI_FLAG 		0x00000020
-#define BCE_MFW_ENABLE_FLAG		0x00000040
-#define BCE_ONE_SHOT_MSI_FLAG		0x00000080
-#define BCE_USING_MSIX_FLAG		0x00000100
-#define BCE_PCIE_FLAG			0x00000200
+	u32			bce_flags;
+#define BCE_PCIX_FLAG				0x00000001
+#define BCE_PCI_32BIT_FLAG 			0x00000002
+#define BCE_RESERVED_FLAG			0x00000004
+#define BCE_NO_WOL_FLAG				0x00000008
+#define BCE_USING_DAC_FLAG			0x00000010
+#define BCE_USING_MSI_FLAG 			0x00000020
+#define BCE_MFW_ENABLE_FLAG			0x00000040
+#define BCE_ONE_SHOT_MSI_FLAG			0x00000080
+#define BCE_USING_MSIX_FLAG			0x00000100
+#define BCE_PCIE_FLAG				0x00000200
+#define BCE_USING_TX_FLOW_CONTROL		0x00000400
 
 	/* Controller capability flags. */
-	u32  bce_cap_flags;
-#define BCE_MSI_CAPABLE_FLAG		0x00000001
-#define BCE_MSIX_CAPABLE_FLAG		0x00000002
-#define BCE_PCIE_CAPABLE_FLAG		0x00000004
-#define BCE_PCIX_CAPABLE_FLAG		0x00000008
+	u32			bce_cap_flags;
+#define BCE_MSI_CAPABLE_FLAG			0x00000001
+#define BCE_MSIX_CAPABLE_FLAG			0x00000002
+#define BCE_PCIE_CAPABLE_FLAG			0x00000004
+#define BCE_PCIX_CAPABLE_FLAG			0x00000008
 
 	/* PHY specific flags. */
-	u32  bce_phy_flags;
-#define BCE_PHY_SERDES_FLAG		0x00000001
-#define BCE_PHY_CRC_FIX_FLAG		0x00000002
-#define BCE_PHY_PARALLEL_DETECT_FLAG	0x00000004
-#define BCE_PHY_2_5G_CAPABLE_FLAG	0x00000008
-#define BCE_PHY_INT_MODE_MASK_FLAG	0x00000300
-#define BCE_PHY_INT_MODE_AUTO_POLLING_FLAG 0x00000100
-#define BCE_PHY_INT_MODE_LINK_READY_FLAG 0x00000200
-#define BCE_PHY_IEEE_CLAUSE_45_FLAG	0x00000400
+	u32			bce_phy_flags;
+#define BCE_PHY_SERDES_FLAG			0x00000001
+#define BCE_PHY_CRC_FIX_FLAG			0x00000002
+#define BCE_PHY_PARALLEL_DETECT_FLAG		0x00000004
+#define BCE_PHY_2_5G_CAPABLE_FLAG		0x00000008
+#define BCE_PHY_INT_MODE_MASK_FLAG		0x00000300
+#define BCE_PHY_INT_MODE_AUTO_POLLING_FLAG	0x00000100
+#define BCE_PHY_INT_MODE_LINK_READY_FLAG	0x00000200
+#define BCE_PHY_IEEE_CLAUSE_45_FLAG		0x00000400
 
 	/* Values that need to be shared with the PHY driver. */
-	u32  bce_shared_hw_cfg;
-	u32  bce_port_hw_cfg;
+	u32			bce_shared_hw_cfg;
+	u32			bce_port_hw_cfg;
 
-	bus_addr_t max_bus_addr;
+	bus_addr_t		max_bus_addr;
 
 	/* PCI bus speed */
-	u16  bus_speed_mhz;
+	u16			bus_speed_mhz;
 
 	/* PCIe link width */
-	u16  link_width;
+	u16			link_width;
 
 	/* PCIe link speed */
-	u16  link_speed;
+	u16			link_speed;
 
 	/* Flash NVRAM settings */
-	struct flash_spec *bce_flash_info;
+	struct flash_spec	*bce_flash_info;
 
 	/* Flash NVRAM size */
-	u32  bce_flash_size;
+	u32			bce_flash_size;
 
 	/* Shared Memory base address */
-	u32  bce_shmem_base;		
+	u32			bce_shmem_base;
 
 	/* Name string */
-	char * bce_name;
+	char			*bce_name;
 
 	/* Tracks the version of bootcode firmware. */
-	char bce_bc_ver[32];
+	char			bce_bc_ver[32];
 
 	/* Tracks the version of management firmware. */
-	char bce_mfw_ver[32];
+	char			bce_mfw_ver[32];
 
-	/* 
+	/*
 	 * Tracks the state of the firmware.  0 = Running while any
 	 * other value indicates that the firmware is not responding.
 	 */
-	u16  bce_fw_timed_out;
+	u16			bce_fw_timed_out;
 
-	/* 
+	/*
 	 * An incrementing sequence used to coordinate messages passed
 	 * from the driver to the firmware.
-	 */ 
-	u16  bce_fw_wr_seq;
+	 */
+	u16			bce_fw_wr_seq;
 
-	/* 
+	/*
 	 * An incrementing sequence used to let the firmware know that
 	 * the driver is still operating.  Without the pulse, management
 	 * firmware such as IPMI or UMP will operate in OS absent state.
-	 */ 
-	u16  bce_fw_drv_pulse_wr_seq;
+	 */
+	u16			bce_fw_drv_pulse_wr_seq;
 
 	/* Tracks whether firmware has lost the driver's pulse. */
-	u16  bce_drv_cardiac_arrest;
+	u16			bce_drv_cardiac_arrest;
 
 	/* Ethernet MAC address. */
-	u_char eaddr[6];
+	u_char			eaddr[6];
 
-	/* 
+	/*
 	 * These setting are used by the host coalescing (HC) block to
 	 * to control how often the status block, statistics block and
 	 * interrupts are generated.
-	 */ 
-	u16  bce_tx_quick_cons_trip_int;
-	u16  bce_tx_quick_cons_trip;
-	u16  bce_rx_quick_cons_trip_int;
-	u16  bce_rx_quick_cons_trip;
-	u16  bce_tx_ticks_int;
-	u16  bce_tx_ticks;
-	u16  bce_rx_ticks_int;
-	u16  bce_rx_ticks;
-	u32  bce_stats_ticks;
+	 */
+	u16			bce_tx_quick_cons_trip_int;
+	u16			bce_tx_quick_cons_trip;
+	u16			bce_rx_quick_cons_trip_int;
+	u16			bce_rx_quick_cons_trip;
+	u16			bce_tx_ticks_int;
+	u16			bce_tx_ticks;
+	u16			bce_rx_ticks_int;
+	u16			bce_rx_ticks;
+	u32			bce_stats_ticks;
 
 	/* ToDo: Can these be removed? */
-	u16  bce_comp_prod_trip_int;
-	u16  bce_comp_prod_trip;
-	u16  bce_com_ticks_int;
-	u16  bce_com_ticks;
-	u16  bce_cmd_ticks_int;
-	u16  bce_cmd_ticks;
+	u16			bce_comp_prod_trip_int;
+	u16			bce_comp_prod_trip;
+	u16			bce_com_ticks_int;
+	u16			bce_com_ticks;
+	u16			bce_cmd_ticks_int;
+	u16			bce_cmd_ticks;
 
 	/* The address of the integrated PHY on the MII bus. */
-	int  bce_phy_addr;
+	int			bce_phy_addr;
 
 	/* The device handle for the MII bus child device. */
-	device_t bce_miibus;
+	device_t		bce_miibus;
 
 	/* Driver maintained TX chain pointers and byte counter. */
-	u16  rx_prod;
-	u16  rx_cons;
+	u16			rx_prod;
+	u16			rx_cons;
 
 	/* Counts the bytes used in the RX chain. */
-	u32  rx_prod_bseq;
-	u16  tx_prod;
-	u16  tx_cons;
+	u32			rx_prod_bseq;
+	u16			tx_prod;
+	u16			tx_cons;
 
 	/* Counts the bytes used in the TX chain. */
-	u32  tx_prod_bseq;
+	u32			tx_prod_bseq;
 
 #ifdef BCE_JUMBO_HDRSPLIT
-	u16  pg_prod;
-	u16  pg_cons;
+	u16			pg_prod;
+	u16			pg_cons;
 #endif
 
-	int  bce_link_up;
-	struct callout bce_tick_callout;
-	struct callout bce_pulse_callout;
+	int			bce_link_up;
+	struct			callout bce_tick_callout;
+	struct			callout bce_pulse_callout;
 
 	/* Ticks until chip reset */
-	int watchdog_timer;
+	int			watchdog_timer;
 
 	/* Frame size and mbuf allocation size for RX frames. */
-	u32  max_frame_size;
-	int  rx_bd_mbuf_alloc_size;
-	int  rx_bd_mbuf_data_len;
-	int  rx_bd_mbuf_align_pad;
+	u32			max_frame_size;
+	int			rx_bd_mbuf_alloc_size;
+	int			rx_bd_mbuf_data_len;
+	int			rx_bd_mbuf_align_pad;
 
 #ifdef BCE_JUMBO_HDRSPLIT
-	int  pg_bd_mbuf_alloc_size;
+	int			pg_bd_mbuf_alloc_size;
 #endif
 
 	/* Receive mode settings (i.e promiscuous, multicast, etc.). */
-	u32  rx_mode;
+	u32			rx_mode;
 
 	/* Bus tag for the bce controller. */
 	bus_dma_tag_t		parent_tag;
@@ -6595,9 +6596,9 @@ struct bce_softc
 	bus_addr_t		status_block_paddr;
 
 	/* Driver maintained status block values. */
-	u16  last_status_idx;
-	u16  hw_rx_cons;
-	u16  hw_tx_cons;
+	u16			last_status_idx;
+	u16			hw_rx_cons;
+	u16			hw_tx_cons;
 
 	/* H/W maintained statistics block. */
 	bus_dma_tag_t		stats_tag;
@@ -6606,7 +6607,7 @@ struct bce_softc
 	bus_addr_t		stats_block_paddr;
 
 	/* H/W maintained context block. */
-	int  ctx_pages;
+	int			ctx_pages;
 	bus_dma_tag_t		ctx_tag;
 
 	/* BCM5709/16 use host memory for context. */
@@ -6637,139 +6638,156 @@ struct bce_softc
 #endif
 
 	/* Track the number of buffer descriptors in use. */
-	u16 free_rx_bd;
-	u16 max_rx_bd;
-	u16 used_tx_bd;
-	u16 max_tx_bd;
+	u16			free_rx_bd;
+	u16			max_rx_bd;
+	u16			used_tx_bd;
+	u16			max_tx_bd;
 
 #ifdef BCE_JUMBO_HDRSPLIT
-	u16 free_pg_bd;
-	u16 max_pg_bd;
+	u16			free_pg_bd;
+	u16			max_pg_bd;
 #endif
 
 	/* Provides access to hardware statistics through sysctl. */
-	u64 stat_IfHCInOctets;
-	u64 stat_IfHCInBadOctets;
-	u64 stat_IfHCOutOctets;
-	u64 stat_IfHCOutBadOctets;
-	u64 stat_IfHCInUcastPkts;
-	u64 stat_IfHCInMulticastPkts;
-	u64 stat_IfHCInBroadcastPkts;
-	u64 stat_IfHCOutUcastPkts;
-	u64 stat_IfHCOutMulticastPkts;
-	u64 stat_IfHCOutBroadcastPkts;
+	u64			stat_IfHCInOctets;
+	u64			stat_IfHCInBadOctets;
+	u64			stat_IfHCOutOctets;
+	u64			stat_IfHCOutBadOctets;
+	u64			stat_IfHCInUcastPkts;
+	u64			stat_IfHCInMulticastPkts;
+	u64			stat_IfHCInBroadcastPkts;
+	u64			stat_IfHCOutUcastPkts;
+	u64			stat_IfHCOutMulticastPkts;
+	u64			stat_IfHCOutBroadcastPkts;
 
-	u32 stat_emac_tx_stat_dot3statsinternalmactransmiterrors;
-	u32 stat_Dot3StatsCarrierSenseErrors;
-	u32 stat_Dot3StatsFCSErrors;
-	u32 stat_Dot3StatsAlignmentErrors;
-	u32 stat_Dot3StatsSingleCollisionFrames;
-	u32 stat_Dot3StatsMultipleCollisionFrames;
-	u32 stat_Dot3StatsDeferredTransmissions;
-	u32 stat_Dot3StatsExcessiveCollisions;
-	u32 stat_Dot3StatsLateCollisions;
-	u32 stat_EtherStatsCollisions;
-	u32 stat_EtherStatsFragments;
-	u32 stat_EtherStatsJabbers;
-	u32 stat_EtherStatsUndersizePkts;
-	u32 stat_EtherStatsOversizePkts;
-	u32 stat_EtherStatsPktsRx64Octets;
-	u32 stat_EtherStatsPktsRx65Octetsto127Octets;
-	u32 stat_EtherStatsPktsRx128Octetsto255Octets;
-	u32 stat_EtherStatsPktsRx256Octetsto511Octets;
-	u32 stat_EtherStatsPktsRx512Octetsto1023Octets;
-	u32 stat_EtherStatsPktsRx1024Octetsto1522Octets;
-	u32 stat_EtherStatsPktsRx1523Octetsto9022Octets;
-	u32 stat_EtherStatsPktsTx64Octets;
-	u32 stat_EtherStatsPktsTx65Octetsto127Octets;
-	u32 stat_EtherStatsPktsTx128Octetsto255Octets;
-	u32 stat_EtherStatsPktsTx256Octetsto511Octets;
-	u32 stat_EtherStatsPktsTx512Octetsto1023Octets;
-	u32 stat_EtherStatsPktsTx1024Octetsto1522Octets;
-	u32 stat_EtherStatsPktsTx1523Octetsto9022Octets;
-	u32 stat_XonPauseFramesReceived;
-	u32 stat_XoffPauseFramesReceived;
-	u32 stat_OutXonSent;
-	u32 stat_OutXoffSent;
-	u32 stat_FlowControlDone;
-	u32 stat_MacControlFramesReceived;
-	u32 stat_XoffStateEntered;
-	u32 stat_IfInFramesL2FilterDiscards;
-	u32 stat_IfInRuleCheckerDiscards;
-	u32 stat_IfInFTQDiscards;
-	u32 stat_IfInMBUFDiscards;
-	u32 stat_IfInRuleCheckerP4Hit;
-	u32 stat_CatchupInRuleCheckerDiscards;
-	u32 stat_CatchupInFTQDiscards;
-	u32 stat_CatchupInMBUFDiscards;
-	u32 stat_CatchupInRuleCheckerP4Hit;
+	u32	stat_emac_tx_stat_dot3statsinternalmactransmiterrors;
+	u32			stat_Dot3StatsCarrierSenseErrors;
+	u32			stat_Dot3StatsFCSErrors;
+	u32			stat_Dot3StatsAlignmentErrors;
+	u32			stat_Dot3StatsSingleCollisionFrames;
+	u32			stat_Dot3StatsMultipleCollisionFrames;
+	u32			stat_Dot3StatsDeferredTransmissions;
+	u32			stat_Dot3StatsExcessiveCollisions;
+	u32			stat_Dot3StatsLateCollisions;
+	u32			stat_EtherStatsCollisions;
+	u32			stat_EtherStatsFragments;
+	u32			stat_EtherStatsJabbers;
+	u32			stat_EtherStatsUndersizePkts;
+	u32			stat_EtherStatsOversizePkts;
+	u32			stat_EtherStatsPktsRx64Octets;
+	u32			stat_EtherStatsPktsRx65Octetsto127Octets;
+	u32			stat_EtherStatsPktsRx128Octetsto255Octets;
+	u32			stat_EtherStatsPktsRx256Octetsto511Octets;
+	u32			stat_EtherStatsPktsRx512Octetsto1023Octets;
+	u32			stat_EtherStatsPktsRx1024Octetsto1522Octets;
+	u32			stat_EtherStatsPktsRx1523Octetsto9022Octets;
+	u32			stat_EtherStatsPktsTx64Octets;
+	u32			stat_EtherStatsPktsTx65Octetsto127Octets;
+	u32			stat_EtherStatsPktsTx128Octetsto255Octets;
+	u32			stat_EtherStatsPktsTx256Octetsto511Octets;
+	u32			stat_EtherStatsPktsTx512Octetsto1023Octets;
+	u32			stat_EtherStatsPktsTx1024Octetsto1522Octets;
+	u32			stat_EtherStatsPktsTx1523Octetsto9022Octets;
+	u32			stat_XonPauseFramesReceived;
+	u32			stat_XoffPauseFramesReceived;
+	u32			stat_OutXonSent;
+	u32			stat_OutXoffSent;
+	u32			stat_FlowControlDone;
+	u32			stat_MacControlFramesReceived;
+	u32			stat_XoffStateEntered;
+	u32			stat_IfInFramesL2FilterDiscards;
+	u32			stat_IfInRuleCheckerDiscards;
+	u32			stat_IfInFTQDiscards;
+	u32			stat_IfInMBUFDiscards;
+	u32			stat_IfInRuleCheckerP4Hit;
+	u32			stat_CatchupInRuleCheckerDiscards;
+	u32			stat_CatchupInFTQDiscards;
+	u32			stat_CatchupInMBUFDiscards;
+	u32			stat_CatchupInRuleCheckerP4Hit;
 
 	/* Provides access to certain firmware statistics. */
-	u32 com_no_buffers;
+	u32			com_no_buffers;
 
 	/* Recoverable failure counters. */
-	u32 mbuf_alloc_failed_count;
-	u32 fragmented_mbuf_count;
-	u32 unexpected_attention_count;
-	u32 l2fhdr_error_count;
-	u32 dma_map_addr_tx_failed_count;
-	u32 dma_map_addr_rx_failed_count;
+	u32			mbuf_alloc_failed_count;
+	u32			mbuf_frag_count;
+	u32			unexpected_attention_count;
+	u32			l2fhdr_error_count;
+	u32			dma_map_addr_tx_failed_count;
+	u32			dma_map_addr_rx_failed_count;
 
 	/* Host coalescing block command register */
-	u32 hc_command;
+	u32			hc_command;
 
 	/* Bootcode state */
-	u32 bc_state;
+	u32			bc_state;
 
 #ifdef BCE_DEBUG
 	/* Simulated recoverable failure counters. */
-	u32 mbuf_alloc_failed_sim_count;
-	u32 unexpected_attention_sim_count;
-	u32 l2fhdr_error_sim_count;
-	u32 dma_map_addr_failed_sim_count;
+	u32			mbuf_alloc_failed_sim_count;
+	u32			unexpected_attention_sim_count;
+	u32			l2fhdr_error_sim_count;
+	u32			dma_map_addr_failed_sim_count;
 
 	/* Track the number of enqueued mbufs. */
-	int debug_tx_mbuf_alloc;
-	int debug_rx_mbuf_alloc;
+	int			debug_tx_mbuf_alloc;
+	int			debug_rx_mbuf_alloc;
 
 #ifdef BCE_JUMBO_HDRSPLIT
-	int debug_pg_mbuf_alloc;
+	int			debug_pg_mbuf_alloc;
 #endif
 
 	/* Track how many and what type of interrupts are generated. */
-	u32 interrupts_generated;
-	u32 interrupts_handled;
-	u32 rx_interrupts;
-	u32 tx_interrupts;
-	u32 phy_interrupts;
+	u32			interrupts_generated;
+	u32			interrupts_handled;
+	u32			interrupts_rx;
+	u32			interrupts_tx;
+	u32			phy_interrupts;
 
 	/* Track interrupt time (25MHz clock). */
-	u64 rx_intr_time;
-	u64 tx_intr_time;
+	u64			rx_intr_time;
+	u64			tx_intr_time;
 
 	/* Lowest number of rx_bd's free. */
-	u32 rx_low_watermark;
+	u32			rx_low_watermark;
 
 	/* Number of times the RX chain was empty. */
-	u32 rx_empty_count;
+	u32			rx_empty_count;
 
 #ifdef BCE_JUMBO_HDRSPLIT
-
 	/* Lowest number of pages free. */
-	u32 pg_low_watermark;
+	u32			pg_low_watermark;
 
 	/* Number of times the page chain was empty. */
-	u32 pg_empty_count;
+	u32			pg_empty_count;
 #endif
 
 	/* Greatest number of tx_bd's used. */
-	u32 tx_hi_watermark;
+	u32			tx_hi_watermark;
 
 	/* Number of times the TX chain was full. */
-	u32 tx_full_count;
+	u32			tx_full_count;
 
-	/* Number of TSO frames enqueued. */
-	u32 requested_tso_frames;
+	/* Number of TSO frames requested. */
+	u32			tso_frames_requested;
+
+	/* Number of TSO frames completed. */
+	u32			tso_frames_completed;
+
+	/* Number of TSO frames failed. */
+	u32			tso_frames_failed;
+
+	/* Number of IP checksum offload frames.*/
+	u32			csum_offload_ip;
+
+	/* Number of TCP/UDP checksum offload frames.*/
+	u32			csum_offload_tcp_udp;
+
+	/* Number of VLAN tagged frames received. */
+	u32			vlan_tagged_frames_rcvd;
+
+	/* Number of VLAN tagged frames stripped. */
+	u32			vlan_tagged_frames_stripped;
 #endif
 };
 

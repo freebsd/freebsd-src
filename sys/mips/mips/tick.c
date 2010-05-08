@@ -295,22 +295,31 @@ clock_intr(void *arg)
 	 */
 	if (delta > cycles_per_hz)
 		delta = cycles_per_hz;
-
+#ifdef KDTRACE_HOOKS
+	/*
+	 * If the DTrace hooks are configured and a callback function
+	 * has been registered, then call it to process the high speed
+	 * timers.
+	 */
+	int cpu = PCPU_GET(cpuid);
+	if (cyclic_clock_func[cpu] != NULL)
+		(*cyclic_clock_func[cpu])(tf);
+#endif
 	/* Fire hardclock at hz. */
 	cpu_ticks->hard_ticks += delta;
 	if (cpu_ticks->hard_ticks >= cycles_per_hz) {
 	        cpu_ticks->hard_ticks -= cycles_per_hz;
 		if (PCPU_GET(cpuid) == 0)
-			hardclock(USERMODE(tf->sr), tf->pc);
+			hardclock(TRAPF_USERMODE(tf), tf->pc);
 		else
-			hardclock_cpu(USERMODE(tf->sr));
+			hardclock_cpu(TRAPF_USERMODE(tf));
 	}
 
 	/* Fire statclock at stathz. */
 	cpu_ticks->stat_ticks += delta;
 	if (cpu_ticks->stat_ticks >= cycles_per_stathz) {
 		cpu_ticks->stat_ticks -= cycles_per_stathz;
-		statclock(USERMODE(tf->sr));
+		statclock(TRAPF_USERMODE(tf));
 	}
 
 	/* Fire profclock at profhz, but only when needed. */
@@ -318,7 +327,7 @@ clock_intr(void *arg)
 	if (cpu_ticks->prof_ticks >= cycles_per_profhz) {
 		cpu_ticks->prof_ticks -= cycles_per_profhz;
 		if (profprocs != 0)
-			profclock(USERMODE(tf->sr), tf->pc);
+			profclock(TRAPF_USERMODE(tf), tf->pc);
 	}
 	critical_exit();
 #if 0 /* TARGET_OCTEON */

@@ -131,7 +131,6 @@
 #include <sys/kstat.h>
 #include <sys/sdt.h>
 
-#include <sys/ktr.h>
 #include <vm/vm_pageout.h>
 
 static kmutex_t		arc_reclaim_thr_lock;
@@ -238,7 +237,7 @@ struct arcs_lock {
  */
 #define ARC_BUFC_NUMDATALISTS		16
 #define ARC_BUFC_NUMMETADATALISTS	16
-#define ARC_BUFC_NUMLISTS	(ARC_BUFC_NUMMETADATALISTS+ARC_BUFC_NUMDATALISTS)
+#define ARC_BUFC_NUMLISTS	(ARC_BUFC_NUMMETADATALISTS + ARC_BUFC_NUMDATALISTS)
 
 typedef struct arc_state {
 	uint64_t arcs_lsize[ARC_BUFC_NUMTYPES];	/* amount of evictable data */
@@ -247,7 +246,7 @@ typedef struct arc_state {
 	struct arcs_lock arcs_locks[ARC_BUFC_NUMLISTS] __aligned(CACHE_LINE_SIZE);
 } arc_state_t;
 
-#define ARCS_LOCK(s, i) &((s)->arcs_locks[(i)].arcs_lock)
+#define ARCS_LOCK(s, i)	(&((s)->arcs_locks[(i)].arcs_lock))
 
 /* The 6 states: */
 static arc_state_t ARC_anon;
@@ -307,9 +306,9 @@ typedef struct arc_stats {
 	kstat_named_t arcstat_l2_hdr_size;
 	kstat_named_t arcstat_memory_throttle_count;
 	kstat_named_t arcstat_l2_write_trylock_fail;
-	kstat_named_t arcstat_l2_write_in_l2;
 	kstat_named_t arcstat_l2_write_passed_headroom;
 	kstat_named_t arcstat_l2_write_spa_mismatch;
+	kstat_named_t arcstat_l2_write_in_l2;
 	kstat_named_t arcstat_l2_write_hdr_io_in_progress;
 	kstat_named_t arcstat_l2_write_not_cacheable;
 	kstat_named_t arcstat_l2_write_full;
@@ -370,19 +369,19 @@ static arc_stats_t arc_stats = {
 	{ "l2_size",			KSTAT_DATA_UINT64 },
 	{ "l2_hdr_size",		KSTAT_DATA_UINT64 },
 	{ "memory_throttle_count",	KSTAT_DATA_UINT64 },
-	{ "l2_write_trylock_fail", 	KSTAT_DATA_UINT64 },
-	{ "l2_write_in_l2", 		KSTAT_DATA_UINT64 },
-	{ "l2_write_passed_headroom", 	KSTAT_DATA_UINT64 },
-	{ "l2_write_spa_mismatch", 	KSTAT_DATA_UINT64 },
-	{ "l2_write_io_in_progress", 	KSTAT_DATA_UINT64 },
-	{ "l2_write_not_cacheable", 	KSTAT_DATA_UINT64 },
-	{ "l2_write_full", 		KSTAT_DATA_UINT64 },
-	{ "l2_write_buffer_iter", 	KSTAT_DATA_UINT64 },
-	{ "l2_write_pios", 		KSTAT_DATA_UINT64 },
-	{ "l2_write_bytes_written", 		KSTAT_DATA_UINT64 },
-	{ "l2_write_buffer_bytes_scanned", 	KSTAT_DATA_UINT64 },
-	{ "l2_write_buffer_list_iter", 	KSTAT_DATA_UINT64 },
-	{ "l2_write_buffer_list_null_iter", 	KSTAT_DATA_UINT64 }
+	{ "l2_write_trylock_fail",	KSTAT_DATA_UINT64 },
+	{ "l2_write_passed_headroom",	KSTAT_DATA_UINT64 },
+	{ "l2_write_spa_mismatch",	KSTAT_DATA_UINT64 },
+	{ "l2_write_in_l2",		KSTAT_DATA_UINT64 },
+	{ "l2_write_io_in_progress",	KSTAT_DATA_UINT64 },
+	{ "l2_write_not_cacheable",	KSTAT_DATA_UINT64 },
+	{ "l2_write_full",		KSTAT_DATA_UINT64 },
+	{ "l2_write_buffer_iter",	KSTAT_DATA_UINT64 },
+	{ "l2_write_pios",		KSTAT_DATA_UINT64 },
+	{ "l2_write_bytes_written",	KSTAT_DATA_UINT64 },
+	{ "l2_write_buffer_bytes_scanned", KSTAT_DATA_UINT64 },
+	{ "l2_write_buffer_list_iter",	KSTAT_DATA_UINT64 },
+	{ "l2_write_buffer_list_null_iter", KSTAT_DATA_UINT64 }
 };
 
 #define	ARCSTAT(stat)	(arc_stats.stat.value.ui64)
@@ -390,7 +389,7 @@ static arc_stats_t arc_stats = {
 #define	ARCSTAT_INCR(stat, val) \
 	atomic_add_64(&arc_stats.stat.value.ui64, (val));
 
-#define	ARCSTAT_BUMP(stat) 	ARCSTAT_INCR(stat, 1)
+#define	ARCSTAT_BUMP(stat)	ARCSTAT_INCR(stat, 1)
 #define	ARCSTAT_BUMPDOWN(stat)	ARCSTAT_INCR(stat, -1)
 
 #define	ARCSTAT_MAX(stat, val) {					\
@@ -424,7 +423,7 @@ static arc_stats_t arc_stats = {
 	}
 
 kstat_t			*arc_ksp;
-static arc_state_t 	*arc_anon;
+static arc_state_t	*arc_anon;
 static arc_state_t	*arc_mru;
 static arc_state_t	*arc_mru_ghost;
 static arc_state_t	*arc_mfu;
@@ -1076,10 +1075,10 @@ get_buf_info(arc_buf_hdr_t *ab, arc_state_t *state, list_t **list, kmutex_t **lo
 {
 	uint64_t buf_hashid = buf_hash(ab->b_spa, &ab->b_dva, ab->b_birth);
 
-	if (ab->b_type == ARC_BUFC_METADATA) 
-		buf_hashid &= (ARC_BUFC_NUMMETADATALISTS-1);
+	if (ab->b_type == ARC_BUFC_METADATA)
+		buf_hashid &= (ARC_BUFC_NUMMETADATALISTS - 1);
 	else {
-		buf_hashid &= (ARC_BUFC_NUMDATALISTS-1);
+		buf_hashid &= (ARC_BUFC_NUMDATALISTS - 1);
 		buf_hashid += ARC_BUFC_NUMMETADATALISTS;
 	}
 
@@ -1096,18 +1095,16 @@ add_reference(arc_buf_hdr_t *ab, kmutex_t *hash_lock, void *tag)
 
 	if ((refcount_add(&ab->b_refcnt, tag) == 1) &&
 	    (ab->b_state != arc_anon)) {
-		list_t *list;
-		kmutex_t *lock;
 		uint64_t delta = ab->b_size * ab->b_datacnt;
 		uint64_t *size = &ab->b_state->arcs_lsize[ab->b_type];
+		list_t *list;
+		kmutex_t *lock;
 
 		get_buf_info(ab, ab->b_state, &list, &lock);
 		ASSERT(!MUTEX_HELD(lock));
 		mutex_enter(lock);
 		ASSERT(list_link_active(&ab->b_arc_node));
 		list_remove(list, ab);
-		mutex_exit(lock);
-
 		if (GHOST_STATE(ab->b_state)) {
 			ASSERT3U(ab->b_datacnt, ==, 0);
 			ASSERT3P(ab->b_buf, ==, NULL);
@@ -1116,6 +1113,7 @@ add_reference(arc_buf_hdr_t *ab, kmutex_t *hash_lock, void *tag)
 		ASSERT(delta > 0);
 		ASSERT3U(*size, >=, delta);
 		atomic_add_64(size, -delta);
+		mutex_exit(lock);
 		/* remove the prefetch flag if we get a reference */
 		if (ab->b_flags & ARC_PREFETCH)
 			ab->b_flags &= ~ARC_PREFETCH;
@@ -1138,15 +1136,13 @@ remove_reference(arc_buf_hdr_t *ab, kmutex_t *hash_lock, void *tag)
 		kmutex_t *lock;
 
 		get_buf_info(ab, state, &list, &lock);
-
 		ASSERT(!MUTEX_HELD(lock));
 		mutex_enter(lock);
 		ASSERT(!list_link_active(&ab->b_arc_node));
 		list_insert_head(list, ab);
-		mutex_exit(lock);
-
 		ASSERT(ab->b_datacnt > 0);
 		atomic_add_64(size, ab->b_size * ab->b_datacnt);
+		mutex_exit(lock);
 	}
 	return (cnt);
 }
@@ -1182,7 +1178,6 @@ arc_change_state(arc_state_t *new_state, arc_buf_hdr_t *ab, kmutex_t *hash_lock)
 
 			get_buf_info(ab, old_state, &list, &lock);
 			use_mutex = !MUTEX_HELD(lock);
-
 			if (use_mutex)
 				mutex_enter(lock);
 
@@ -1205,13 +1200,11 @@ arc_change_state(arc_state_t *new_state, arc_buf_hdr_t *ab, kmutex_t *hash_lock)
 				mutex_exit(lock);
 		}
 		if (new_state != arc_anon) {
-			int use_mutex; 
+			int use_mutex;
 			uint64_t *size = &new_state->arcs_lsize[ab->b_type];
 
 			get_buf_info(ab, new_state, &list, &lock);
 			use_mutex = !MUTEX_HELD(lock);
-			
-			
 			if (use_mutex)
 				mutex_enter(lock);
 
@@ -1629,7 +1622,7 @@ arc_evict(arc_state_t *state, spa_t *spa, int64_t bytes, boolean_t recycle,
 	ASSERT(state == arc_mru || state == arc_mfu);
 
 	evicted_state = (state == arc_mru) ? arc_mru_ghost : arc_mfu_ghost;
-	
+
 	if (type == ARC_BUFC_METADATA) {
 		offset = 0;
 		list_count = ARC_BUFC_NUMMETADATALISTS;
@@ -1638,7 +1631,6 @@ arc_evict(arc_state_t *state, spa_t *spa, int64_t bytes, boolean_t recycle,
 		idx = evict_metadata_offset;
 	} else {
 		offset = ARC_BUFC_NUMMETADATALISTS;
-
 		list_start = &state->arcs_lists[offset];
 		evicted_list_start = &evicted_state->arcs_lists[offset];
 		list_count = ARC_BUFC_NUMDATALISTS;
@@ -1646,12 +1638,12 @@ arc_evict(arc_state_t *state, spa_t *spa, int64_t bytes, boolean_t recycle,
 	}
 	bytes_remaining = evicted_state->arcs_lsize[type];
 	count = 0;
-	
+
 evict_start:
 	list = &list_start[idx];
 	evicted_list = &evicted_list_start[idx];
 	lock = ARCS_LOCK(state, (offset + idx));
-	evicted_lock = ARCS_LOCK(evicted_state, (offset + idx)); 
+	evicted_lock = ARCS_LOCK(evicted_state, (offset + idx));
 
 	mutex_enter(lock);
 	mutex_enter(evicted_lock);
@@ -1721,7 +1713,7 @@ evict_start:
 			if (bytes_remaining > 0) {
 				mutex_exit(evicted_lock);
 				mutex_exit(lock);
-				idx  = ((idx + 1)&(list_count-1));
+				idx  = ((idx + 1) & (list_count - 1));
 				count++;
 				goto evict_start;
 			}
@@ -1732,8 +1724,8 @@ evict_start:
 
 	mutex_exit(evicted_lock);
 	mutex_exit(lock);
-	
-	idx  = ((idx + 1)&(list_count-1));
+
+	idx  = ((idx + 1) & (list_count - 1));
 	count++;
 
 	if (bytes_evicted < bytes) {
@@ -1743,11 +1735,11 @@ evict_start:
 			dprintf("only evicted %lld bytes from %x",
 			    (longlong_t)bytes_evicted, state);
 	}
-	if (type == ARC_BUFC_METADATA) 
+	if (type == ARC_BUFC_METADATA)
 		evict_metadata_offset = idx;
 	else
 		evict_data_offset = idx;
-		
+
 	if (skipped)
 		ARCSTAT_INCR(arcstat_evict_skip, skipped);
 
@@ -1804,7 +1796,7 @@ arc_evict_ghost(arc_state_t *state, spa_t *spa, int64_t bytes)
 	list_start = &state->arcs_lists[ARC_BUFC_NUMMETADATALISTS];
 	list_count = ARC_BUFC_NUMDATALISTS;
 	offset = ARC_BUFC_NUMMETADATALISTS;
-	
+
 evict_start:
 	list = &list_start[idx];
 	lock = ARCS_LOCK(state, idx + offset);
@@ -1851,12 +1843,12 @@ evict_start:
 		}
 	}
 	mutex_exit(lock);
-	idx  = ((idx + 1)&(ARC_BUFC_NUMDATALISTS-1));
+	idx  = ((idx + 1) & (ARC_BUFC_NUMDATALISTS - 1));
 	count++;
-	
+
 	if (count < list_count)
 		goto evict_start;
-	
+
 	evict_offset = idx;
 	if ((uintptr_t)list > (uintptr_t)&state->arcs_lists[ARC_BUFC_NUMMETADATALISTS] &&
 	    (bytes < 0 || bytes_deleted < bytes)) {
@@ -1945,7 +1937,7 @@ arc_do_user_evicts(void)
 	/*
 	 * Move list over to avoid LOR
 	 */
-restart:	
+restart:
 	mutex_enter(&arc_eviction_mtx);
 	tmp_arc_eviction_list = arc_eviction_list;
 	arc_eviction_list = NULL;
@@ -2056,7 +2048,7 @@ arc_reclaim_needed(void)
 		return (0);
 
 	/*
-	 * If pages are needed or we're within 2048 pages 
+	 * If pages are needed or we're within 2048 pages
 	 * of needing to page need to reclaim
 	 */
 	if (vm_pages_needed || (vm_paging_target() > -2048))
@@ -2614,10 +2606,7 @@ arc_read_done(zio_t *zio)
 	hdr->b_flags &= ~ARC_L2_EVICTED;
 	if (l2arc_noprefetch && (hdr->b_flags & ARC_PREFETCH))
 		hdr->b_flags &= ~ARC_L2CACHE;
-#if 0	
-	else if ((hdr->b_flags & ARC_PREFETCH) == 0)
-		hdr->b_flags |= ARC_L2CACHE;
-#endif	
+
 	/* byteswap if necessary */
 	callback_list = hdr->b_acb;
 	ASSERT(callback_list != NULL);
@@ -2731,7 +2720,6 @@ arc_read(zio_t *pio, spa_t *spa, blkptr_t *bp, arc_buf_t *pbuf,
     uint32_t *arc_flags, const zbookmark_t *zb)
 {
 	int err;
-	arc_buf_hdr_t *hdr = pbuf->b_hdr;
 
 	ASSERT(!refcount_is_zero(&pbuf->b_hdr->b_refcnt));
 	ASSERT3U((char *)bp - (char *)pbuf->b_data, <, pbuf->b_hdr->b_size);
@@ -2739,8 +2727,6 @@ arc_read(zio_t *pio, spa_t *spa, blkptr_t *bp, arc_buf_t *pbuf,
 
 	err = arc_read_nolock(pio, spa, bp, done, private, priority,
 	    zio_flags, arc_flags, zb);
-
-	ASSERT3P(hdr, ==, pbuf->b_hdr);
 	rw_exit(&pbuf->b_lock);
 	return (err);
 }
@@ -2957,7 +2943,7 @@ top:
 				 * released by l2arc_read_done().
 				 */
 				rzio = zio_read_phys(pio, vd, addr, size,
-				    buf->b_data, ZIO_CHECKSUM_OFF, 
+				    buf->b_data, ZIO_CHECKSUM_OFF,
 				    l2arc_read_done, cb, priority, zio_flags |
 				    ZIO_FLAG_DONT_CACHE | ZIO_FLAG_CANFAIL |
 				    ZIO_FLAG_DONT_PROPAGATE |
@@ -3054,7 +3040,7 @@ arc_buf_evict(arc_buf_t *buf)
 	arc_buf_t **bufp;
 	list_t *list, *evicted_list;
 	kmutex_t *lock, *evicted_lock;
-	
+
 	rw_enter(&buf->b_lock, RW_WRITER);
 	hdr = buf->b_hdr;
 	if (hdr == NULL) {
@@ -3729,7 +3715,6 @@ arc_init(void)
 	arc_size = 0;
 
 	for (i = 0; i < ARC_BUFC_NUMLISTS; i++) {
-		
 		mutex_init(&arc_anon->arcs_locks[i].arcs_lock,
 		    NULL, MUTEX_DEFAULT, NULL);
 		mutex_init(&arc_mru->arcs_locks[i].arcs_lock,
@@ -3742,7 +3727,7 @@ arc_init(void)
 		    NULL, MUTEX_DEFAULT, NULL);
 		mutex_init(&arc_l2c_only->arcs_locks[i].arcs_lock,
 		    NULL, MUTEX_DEFAULT, NULL);
-	
+
 		list_create(&arc_mru->arcs_lists[i],
 		    sizeof (arc_buf_hdr_t), offsetof(arc_buf_hdr_t, b_arc_node));
 		list_create(&arc_mru_ghost->arcs_lists[i],
@@ -3792,7 +3777,7 @@ arc_init(void)
 #ifdef _KERNEL
 	if (TUNABLE_INT_FETCH("vfs.zfs.prefetch_disable", &zfs_prefetch_disable))
 		prefetch_tunable_set = 1;
-	
+
 #ifdef __i386__
 	if (prefetch_tunable_set == 0) {
 		printf("ZFS NOTICE: Prefetch is disabled by default on i386 "
@@ -3801,7 +3786,7 @@ arc_init(void)
 		    "to /boot/loader.conf.\n");
 		zfs_prefetch_disable=1;
 	}
-#else	
+#else
 	if ((((uint64_t)physmem * PAGESIZE) < (1ULL << 32)) &&
 	    prefetch_tunable_set == 0) {
 		printf("ZFS NOTICE: Prefetch is disabled by default if less "
@@ -3810,7 +3795,7 @@ arc_init(void)
 		    "to /boot/loader.conf.\n");
 		zfs_prefetch_disable=1;
 	}
-#endif	
+#endif
 	/* Warn about ZFS memory and address space requirements. */
 	if (((uint64_t)physmem * PAGESIZE) < (256 + 128 + 64) * (1 << 20)) {
 		printf("ZFS WARNING: Recommended minimum RAM size is 512MB; "
@@ -3830,7 +3815,7 @@ void
 arc_fini(void)
 {
 	int i;
-	
+
 	mutex_enter(&arc_reclaim_thr_lock);
 	arc_thread_exit = 1;
 	cv_signal(&arc_reclaim_thr_cv);
@@ -3856,14 +3841,16 @@ arc_fini(void)
 		list_destroy(&arc_mru_ghost->arcs_lists[i]);
 		list_destroy(&arc_mfu->arcs_lists[i]);
 		list_destroy(&arc_mfu_ghost->arcs_lists[i]);
+		list_destroy(&arc_l2c_only->arcs_lists[i]);
 
 		mutex_destroy(&arc_anon->arcs_locks[i].arcs_lock);
 		mutex_destroy(&arc_mru->arcs_locks[i].arcs_lock);
 		mutex_destroy(&arc_mru_ghost->arcs_locks[i].arcs_lock);
 		mutex_destroy(&arc_mfu->arcs_locks[i].arcs_lock);
 		mutex_destroy(&arc_mfu_ghost->arcs_locks[i].arcs_lock);
+		mutex_destroy(&arc_l2c_only->arcs_locks[i].arcs_lock);
 	}
-	
+
 	mutex_destroy(&zfs_write_limit_lock);
 
 	buf_fini();
@@ -4259,18 +4246,18 @@ l2arc_list_locked(int list_num, kmutex_t **lock)
 {
 	list_t *list;
 	int idx;
-	
-	ASSERT(list_num >= 0 && list_num < 2*ARC_BUFC_NUMLISTS);
+
+	ASSERT(list_num >= 0 && list_num < 2 * ARC_BUFC_NUMLISTS);
 
 	if (list_num < ARC_BUFC_NUMMETADATALISTS) {
 		idx = list_num;
 		list = &arc_mfu->arcs_lists[idx];
 		*lock = ARCS_LOCK(arc_mfu, idx);
-	} else if (list_num < ARC_BUFC_NUMMETADATALISTS*2) {
+	} else if (list_num < ARC_BUFC_NUMMETADATALISTS * 2) {
 		idx = list_num - ARC_BUFC_NUMMETADATALISTS;
 		list = &arc_mru->arcs_lists[idx];
 		*lock = ARCS_LOCK(arc_mru, idx);
-	} else if (list_num < (ARC_BUFC_NUMMETADATALISTS*2 +
+	} else if (list_num < (ARC_BUFC_NUMMETADATALISTS * 2 +
 		ARC_BUFC_NUMDATALISTS)) {
 		idx = list_num - ARC_BUFC_NUMMETADATALISTS;
 		list = &arc_mfu->arcs_lists[idx];
@@ -4281,8 +4268,6 @@ l2arc_list_locked(int list_num, kmutex_t **lock)
 		*lock = ARCS_LOCK(arc_mru, idx);
 	}
 
-	CTR3(KTR_SPARE2, "list=%p list_num=%d idx=%d",
-	    list, list_num, idx);
 	ASSERT(!(MUTEX_HELD(*lock)));
 	mutex_enter(*lock);
 	return (list);
@@ -4452,7 +4437,7 @@ l2arc_write_buffers(spa_t *spa, l2arc_dev_t *dev, uint64_t target_sz)
 	 * Copy buffers for L2ARC writing.
 	 */
 	mutex_enter(&l2arc_buflist_mtx);
-	for (try = 0; try < 2*ARC_BUFC_NUMLISTS; try++) {
+	for (try = 0; try < 2 * ARC_BUFC_NUMLISTS; try++) {
 		list = l2arc_list_locked(try, &list_lock);
 		passed_sz = 0;
 		ARCSTAT_BUMP(arcstat_l2_write_buffer_list_iter);
@@ -4468,9 +4453,8 @@ l2arc_write_buffers(spa_t *spa, l2arc_dev_t *dev, uint64_t target_sz)
 			ab = list_head(list);
 		else
 			ab = list_tail(list);
-		if (ab == NULL) {
+		if (ab == NULL)
 			ARCSTAT_BUMP(arcstat_l2_write_buffer_list_null_iter);
-		}
 
 		for (; ab; ab = ab_prev) {
 			if (arc_warm == B_FALSE)
@@ -4478,7 +4462,7 @@ l2arc_write_buffers(spa_t *spa, l2arc_dev_t *dev, uint64_t target_sz)
 			else
 				ab_prev = list_prev(list, ab);
 			ARCSTAT_INCR(arcstat_l2_write_buffer_bytes_scanned, ab->b_size);
-		
+
 			hash_lock = HDR_LOCK(ab);
 			have_lock = MUTEX_HELD(hash_lock);
 			if (!have_lock && !mutex_tryenter(hash_lock)) {
@@ -4562,6 +4546,7 @@ l2arc_write_buffers(spa_t *spa, l2arc_dev_t *dev, uint64_t target_sz)
 			hdrl2->b_dev = dev;
 			hdrl2->b_daddr = dev->l2ad_hand;
 
+			ab->b_flags |= ARC_L2_WRITING;
 			ab->b_l2hdr = hdrl2;
 			list_insert_head(dev->l2ad_buflist, ab);
 			buf_data = ab->b_buf->b_data;

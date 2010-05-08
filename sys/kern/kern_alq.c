@@ -55,16 +55,23 @@ __FBSDID("$FreeBSD$");
 
 /* Async. Logging Queue */
 struct alq {
+	char	*aq_entbuf;		/* Buffer for stored entries */
 	int	aq_entmax;		/* Max entries */
 	int	aq_entlen;		/* Entry length */
-	char	*aq_entbuf;		/* Buffer for stored entries */
+	int	aq_freebytes;		/* Bytes available in buffer */
+	int	aq_buflen;		/* Total length of our buffer */
+	int	aq_writehead;		/* Location for next write */
+	int	aq_writetail;		/* Flush starts at this location */
+	int	aq_wrapearly;		/* # bytes left blank at end of buf */
 	int	aq_flags;		/* Queue flags */
+	int	aq_waiters;		/* Num threads waiting for resources
+					 * NB: Used as a wait channel so must
+					 * not be first field in the alq struct
+					 */
+	struct	ale	aq_getpost;	/* ALE for use by get/post */
 	struct mtx	aq_mtx;		/* Queue lock */
 	struct vnode	*aq_vp;		/* Open vnode handle */
 	struct ucred	*aq_cred;	/* Credentials of the opening thread */
-	struct ale	*aq_first;	/* First ent */
-	struct ale	*aq_entfree;	/* First free ent */
-	struct ale	*aq_entvalid;	/* First ent valid for writing */
 	LIST_ENTRY(alq)	aq_act;		/* List of active queues */
 	LIST_ENTRY(alq)	aq_link;	/* List of all queues */
 };
@@ -73,9 +80,13 @@ struct alq {
 #define	AQ_ACTIVE	0x0002		/* on the active list */
 #define	AQ_FLUSHING	0x0004		/* doing IO */
 #define	AQ_SHUTDOWN	0x0008		/* Queue no longer valid */
+#define	AQ_ORDERED	0x0010		/* Queue enforces ordered writes */
+#define	AQ_LEGACY	0x0020		/* Legacy queue (fixed length writes) */
 
 #define	ALQ_LOCK(alq)	mtx_lock_spin(&(alq)->aq_mtx)
 #define	ALQ_UNLOCK(alq)	mtx_unlock_spin(&(alq)->aq_mtx)
+
+#define HAS_PENDING_DATA(alq) ((alq)->aq_freebytes != (alq)->aq_buflen)
 
 static MALLOC_DEFINE(M_ALD, "ALD", "ALD");
 
@@ -205,7 +216,7 @@ ald_daemon(void)
 		needwakeup = alq_doio(alq);
 		ALQ_UNLOCK(alq);
 		if (needwakeup)
-			wakeup(alq);
+			wakeup_one(alq);
 		ALD_LOCK();
 	}
 
@@ -252,6 +263,20 @@ alq_shutdown(struct alq *alq)
 	/* Stop any new writers. */
 	alq->aq_flags |= AQ_SHUTDOWN;
 
+	/*
+	 * If the ALQ isn't active but has unwritten data (possible if
+	 * the ALQ_NOACTIVATE flag has been used), explicitly activate the
+	 * ALQ here so that the pending data gets flushed by the ald_daemon.
+	 */
+	if (!(alq->aq_flags & AQ_ACTIVE) && HAS_PENDING_DATA(alq)) {
+		alq->aq_flags |= AQ_ACTIVE;
+		ALQ_UNLOCK(alq);
+		ALD_LOCK();
+		ald_activate(alq);
+		ALD_UNLOCK();
+		ALQ_LOCK(alq);
+	}
+
 	/* Drain IO */
 	while (alq->aq_flags & AQ_ACTIVE) {
 		alq->aq_flags |= AQ_WANTED;
@@ -271,7 +296,6 @@ alq_destroy(struct alq *alq)
 	alq_shutdown(alq);
 
 	mtx_destroy(&alq->aq_mtx);
-	free(alq->aq_first, M_ALD);
 	free(alq->aq_entbuf, M_ALD);
 	free(alq, M_ALD);
 }
@@ -287,46 +311,54 @@ alq_doio(struct alq *alq)
 	struct vnode *vp;
 	struct uio auio;
 	struct iovec aiov[2];
-	struct ale *ale;
-	struct ale *alstart;
 	int totlen;
 	int iov;
 	int vfslocked;
+	int wrapearly;
+
+	KASSERT((HAS_PENDING_DATA(alq)), ("%s: queue empty!", __func__));
 
 	vp = alq->aq_vp;
 	td = curthread;
 	totlen = 0;
-	iov = 0;
-
-	alstart = ale = alq->aq_entvalid;
-	alq->aq_entvalid = NULL;
+	iov = 1;
+	wrapearly = alq->aq_wrapearly;
 
 	bzero(&aiov, sizeof(aiov));
 	bzero(&auio, sizeof(auio));
 
-	do {
-		if (aiov[iov].iov_base == NULL)
-			aiov[iov].iov_base = ale->ae_data;
-		aiov[iov].iov_len += alq->aq_entlen;
-		totlen += alq->aq_entlen;
-		/* Check to see if we're wrapping the buffer */
-		if (ale->ae_data + alq->aq_entlen != ale->ae_next->ae_data)
-			iov++;
-		ale->ae_flags &= ~AE_VALID;
-		ale = ale->ae_next;
-	} while (ale->ae_flags & AE_VALID);
+	/* Start the write from the location of our buffer tail pointer. */
+	aiov[0].iov_base = alq->aq_entbuf + alq->aq_writetail;
+
+	if (alq->aq_writetail < alq->aq_writehead) {
+		/* Buffer not wrapped. */
+		totlen = aiov[0].iov_len = alq->aq_writehead - alq->aq_writetail;
+	} else if (alq->aq_writehead == 0) {
+		/* Buffer not wrapped (special case to avoid an empty iov). */
+		totlen = aiov[0].iov_len = alq->aq_buflen - alq->aq_writetail -
+		    wrapearly;
+	} else {
+		/*
+		 * Buffer wrapped, requires 2 aiov entries:
+		 * - first is from writetail to end of buffer
+		 * - second is from start of buffer to writehead
+		 */
+		aiov[0].iov_len = alq->aq_buflen - alq->aq_writetail -
+		    wrapearly;
+		iov++;
+		aiov[1].iov_base = alq->aq_entbuf;
+		aiov[1].iov_len =  alq->aq_writehead;
+		totlen = aiov[0].iov_len + aiov[1].iov_len;
+	}
 
 	alq->aq_flags |= AQ_FLUSHING;
 	ALQ_UNLOCK(alq);
-
-	if (iov == 2 || aiov[iov].iov_base == NULL)
-		iov--;
 
 	auio.uio_iov = &aiov[0];
 	auio.uio_offset = 0;
 	auio.uio_segflg = UIO_SYSSPACE;
 	auio.uio_rw = UIO_WRITE;
-	auio.uio_iovcnt = iov + 1;
+	auio.uio_iovcnt = iov;
 	auio.uio_resid = totlen;
 	auio.uio_td = td;
 
@@ -350,8 +382,28 @@ alq_doio(struct alq *alq)
 	ALQ_LOCK(alq);
 	alq->aq_flags &= ~AQ_FLUSHING;
 
-	if (alq->aq_entfree == NULL)
-		alq->aq_entfree = alstart;
+	/* Adjust writetail as required, taking into account wrapping. */
+	alq->aq_writetail = (alq->aq_writetail + totlen + wrapearly) %
+	    alq->aq_buflen;
+	alq->aq_freebytes += totlen + wrapearly;
+
+	/*
+	 * If we just flushed part of the buffer which wrapped, reset the
+	 * wrapearly indicator.
+	 */
+	if (wrapearly)
+		alq->aq_wrapearly = 0;
+
+	/*
+	 * If we just flushed the buffer completely, reset indexes to 0 to
+	 * minimise buffer wraps.
+	 * This is also required to ensure alq_getn() can't wedge itself.
+	 */
+	if (!HAS_PENDING_DATA(alq))
+		alq->aq_writehead = alq->aq_writetail = 0;
+
+	KASSERT((alq->aq_writetail >= 0 && alq->aq_writetail < alq->aq_buflen),
+	    ("%s: aq_writetail < 0 || aq_writetail >= aq_buflen", __func__));
 
 	if (alq->aq_flags & AQ_WANTED) {
 		alq->aq_flags &= ~AQ_WANTED;
@@ -376,27 +428,27 @@ SYSINIT(ald, SI_SUB_LOCK, SI_ORDER_ANY, ald_startup, NULL);
 /*
  * Create the queue data structure, allocate the buffer, and open the file.
  */
+
 int
-alq_open(struct alq **alqp, const char *file, struct ucred *cred, int cmode,
-    int size, int count)
+alq_open_flags(struct alq **alqp, const char *file, struct ucred *cred, int cmode,
+    int size, int flags)
 {
 	struct thread *td;
 	struct nameidata nd;
-	struct ale *ale;
-	struct ale *alp;
 	struct alq *alq;
-	char *bufp;
-	int flags;
+	int oflags;
 	int error;
-	int i, vfslocked;
+	int vfslocked;
+
+	KASSERT((size > 0), ("%s: size <= 0", __func__));
 
 	*alqp = NULL;
 	td = curthread;
 
 	NDINIT(&nd, LOOKUP, NOFOLLOW | MPSAFE, UIO_SYSSPACE, file, td);
-	flags = FWRITE | O_NOFOLLOW | O_CREAT;
+	oflags = FWRITE | O_NOFOLLOW | O_CREAT;
 
-	error = vn_open_cred(&nd, &flags, cmode, 0, cred, NULL);
+	error = vn_open_cred(&nd, &oflags, cmode, 0, cred, NULL);
 	if (error)
 		return (error);
 
@@ -407,31 +459,20 @@ alq_open(struct alq **alqp, const char *file, struct ucred *cred, int cmode,
 	VFS_UNLOCK_GIANT(vfslocked);
 
 	alq = malloc(sizeof(*alq), M_ALD, M_WAITOK|M_ZERO);
-	alq->aq_entbuf = malloc(count * size, M_ALD, M_WAITOK|M_ZERO);
-	alq->aq_first = malloc(sizeof(*ale) * count, M_ALD, M_WAITOK|M_ZERO);
 	alq->aq_vp = nd.ni_vp;
 	alq->aq_cred = crhold(cred);
-	alq->aq_entmax = count;
-	alq->aq_entlen = size;
-	alq->aq_entfree = alq->aq_first;
 
 	mtx_init(&alq->aq_mtx, "ALD Queue", NULL, MTX_SPIN|MTX_QUIET);
 
-	bufp = alq->aq_entbuf;
-	ale = alq->aq_first;
-	alp = NULL;
+	alq->aq_buflen = size;
+	alq->aq_entmax = 0;
+	alq->aq_entlen = 0;
 
-	/* Match up entries with buffers */
-	for (i = 0; i < count; i++) {
-		if (alp)
-			alp->ae_next = ale;
-		ale->ae_data = bufp;
-		alp = ale;
-		ale++;
-		bufp += size;
-	}
-
-	alp->ae_next = alq->aq_first;
+	alq->aq_freebytes = alq->aq_buflen;
+	alq->aq_entbuf = malloc(alq->aq_buflen, M_ALD, M_WAITOK|M_ZERO);
+	alq->aq_writehead = alq->aq_writetail = 0;
+	if (flags & ALQ_ORDERED)
+		alq->aq_flags |= AQ_ORDERED;
 
 	if ((error = ald_add(alq)) != 0) {
 		alq_destroy(alq);
@@ -443,77 +484,405 @@ alq_open(struct alq **alqp, const char *file, struct ucred *cred, int cmode,
 	return (0);
 }
 
+int
+alq_open(struct alq **alqp, const char *file, struct ucred *cred, int cmode,
+    int size, int count)
+{
+	int ret;
+
+	KASSERT((count >= 0), ("%s: count < 0", __func__));
+
+	if (count > 0) {
+		ret = alq_open_flags(alqp, file, cred, cmode, size*count, 0);
+		(*alqp)->aq_flags |= AQ_LEGACY;
+		(*alqp)->aq_entmax = count;
+		(*alqp)->aq_entlen = size;
+	} else
+		ret = alq_open_flags(alqp, file, cred, cmode, size, 0);
+
+	return (ret);
+}
+
+
 /*
  * Copy a new entry into the queue.  If the operation would block either
  * wait or return an error depending on the value of waitok.
  */
 int
-alq_write(struct alq *alq, void *data, int waitok)
+alq_writen(struct alq *alq, void *data, int len, int flags)
 {
-	struct ale *ale;
+	int activate, copy, ret;
+	void *waitchan;
 
-	if ((ale = alq_get(alq, waitok)) == NULL)
-		return (EWOULDBLOCK);
+	KASSERT((len > 0 && len <= alq->aq_buflen),
+	    ("%s: len <= 0 || len > aq_buflen", __func__));
 
-	bcopy(data, ale->ae_data, alq->aq_entlen);
-	alq_post(alq, ale);
-
-	return (0);
-}
-
-struct ale *
-alq_get(struct alq *alq, int waitok)
-{
-	struct ale *ale;
-	struct ale *aln;
-
-	ale = NULL;
+	activate = ret = 0;
+	copy = len;
+	waitchan = NULL;
 
 	ALQ_LOCK(alq);
 
-	/* Loop until we get an entry or we're shutting down */
-	while ((alq->aq_flags & AQ_SHUTDOWN) == 0 && 
-	    (ale = alq->aq_entfree) == NULL &&
-	    (waitok & ALQ_WAITOK)) {
-		alq->aq_flags |= AQ_WANTED;
-		msleep_spin(alq, &alq->aq_mtx, "alqget", 0);
+	/*
+	 * Fail to perform the write and return EWOULDBLOCK if:
+	 * - The message is larger than our underlying buffer.
+	 * - The ALQ is being shutdown.
+	 * - There is insufficient free space in our underlying buffer
+	 *   to accept the message and the user can't wait for space.
+	 * - There is insufficient free space in our underlying buffer
+	 *   to accept the message and the alq is inactive due to prior
+	 *   use of the ALQ_NOACTIVATE flag (which would lead to deadlock).
+	 */
+	if (len > alq->aq_buflen ||
+	    alq->aq_flags & AQ_SHUTDOWN ||
+	    (((flags & ALQ_NOWAIT) || (!(alq->aq_flags & AQ_ACTIVE) &&
+	    HAS_PENDING_DATA(alq))) && alq->aq_freebytes < len)) {
+		ALQ_UNLOCK(alq);
+		return (EWOULDBLOCK);
 	}
 
-	if (ale != NULL) {
-		aln = ale->ae_next;
-		if ((aln->ae_flags & AE_VALID) == 0)
-			alq->aq_entfree = aln;
+	/*
+	 * If we want ordered writes and there is already at least one thread
+	 * waiting for resources to become available, sleep until we're woken.
+	 */
+	if (alq->aq_flags & AQ_ORDERED && alq->aq_waiters > 0) {
+		KASSERT(!(flags & ALQ_NOWAIT),
+		    ("%s: ALQ_NOWAIT set but incorrectly ignored!", __func__));
+		alq->aq_waiters++;
+		msleep_spin(&alq->aq_waiters, &alq->aq_mtx, "alqwnord", 0);
+		alq->aq_waiters--;
+	}
+
+	/*
+	 * (ALQ_WAITOK && aq_freebytes < len) or aq_freebytes >= len, either
+	 * enter while loop and sleep until we have enough free bytes (former)
+	 * or skip (latter). If AQ_ORDERED is set, only 1 thread at a time will
+	 * be in this loop. Otherwise, multiple threads may be sleeping here
+	 * competing for ALQ resources.
+	 */
+	while (alq->aq_freebytes < len && !(alq->aq_flags & AQ_SHUTDOWN)) {
+		KASSERT(!(flags & ALQ_NOWAIT),
+		    ("%s: ALQ_NOWAIT set but incorrectly ignored!", __func__));
+		alq->aq_flags |= AQ_WANTED;
+		alq->aq_waiters++;
+		if (waitchan)
+			wakeup(waitchan);
+		msleep_spin(alq, &alq->aq_mtx, "alqwnres", 0);
+		alq->aq_waiters--;
+
+		/*
+		 * If we're the first thread to wake after an AQ_WANTED wakeup
+		 * but there isn't enough free space for us, we're going to loop
+		 * and sleep again. If there are other threads waiting in this
+		 * loop, schedule a wakeup so that they can see if the space
+		 * they require is available.
+		 */
+		if (alq->aq_waiters > 0 && !(alq->aq_flags & AQ_ORDERED) &&
+		    alq->aq_freebytes < len && !(alq->aq_flags & AQ_WANTED))
+			waitchan = alq;
 		else
-			alq->aq_entfree = NULL;
+			waitchan = NULL;
+	}
+
+	/*
+	 * If there are waiters, we need to signal the waiting threads after we
+	 * complete our work. The alq ptr is used as a wait channel for threads
+	 * requiring resources to be freed up. In the AQ_ORDERED case, threads
+	 * are not allowed to concurrently compete for resources in the above
+	 * while loop, so we use a different wait channel in this case.
+	 */
+	if (alq->aq_waiters > 0) {
+		if (alq->aq_flags & AQ_ORDERED)
+			waitchan = &alq->aq_waiters;
+		else
+			waitchan = alq;
 	} else
-		ALQ_UNLOCK(alq);
+		waitchan = NULL;
 
+	/* Bail if we're shutting down. */
+	if (alq->aq_flags & AQ_SHUTDOWN) {
+		ret = EWOULDBLOCK;
+		goto unlock;
+	}
 
-	return (ale);
-}
+	/*
+	 * If we need to wrap the buffer to accommodate the write,
+	 * we'll need 2 calls to bcopy.
+	 */
+	if ((alq->aq_buflen - alq->aq_writehead) < len)
+		copy = alq->aq_buflen - alq->aq_writehead;
 
-void
-alq_post(struct alq *alq, struct ale *ale)
-{
-	int activate;
+	/* Copy message (or part thereof if wrap required) to the buffer. */
+	bcopy(data, alq->aq_entbuf + alq->aq_writehead, copy);
+	alq->aq_writehead += copy;
 
-	ale->ae_flags |= AE_VALID;
+	if (alq->aq_writehead >= alq->aq_buflen) {
+		KASSERT((alq->aq_writehead == alq->aq_buflen),
+		    ("%s: alq->aq_writehead (%d) > alq->aq_buflen (%d)",
+		    __func__,
+		    alq->aq_writehead,
+		    alq->aq_buflen));
+		alq->aq_writehead = 0;
+	}
 
-	if (alq->aq_entvalid == NULL)
-		alq->aq_entvalid = ale;
+	if (copy != len) {
+		/*
+		 * Wrap the buffer by copying the remainder of our message
+		 * to the start of the buffer and resetting aq_writehead.
+		 */
+		bcopy(((uint8_t *)data)+copy, alq->aq_entbuf, len - copy);
+		alq->aq_writehead = len - copy;
+	}
 
-	if ((alq->aq_flags & AQ_ACTIVE) == 0) {
+	KASSERT((alq->aq_writehead >= 0 && alq->aq_writehead < alq->aq_buflen),
+	    ("%s: aq_writehead < 0 || aq_writehead >= aq_buflen", __func__));
+
+	alq->aq_freebytes -= len;
+
+	if (!(alq->aq_flags & AQ_ACTIVE) && !(flags & ALQ_NOACTIVATE)) {
 		alq->aq_flags |= AQ_ACTIVE;
 		activate = 1;
-	} else
-		activate = 0;
+	}
 
+	KASSERT((HAS_PENDING_DATA(alq)), ("%s: queue empty!", __func__));
+
+unlock:
 	ALQ_UNLOCK(alq);
+
 	if (activate) {
 		ALD_LOCK();
 		ald_activate(alq);
 		ALD_UNLOCK();
 	}
+
+	/* NB: We rely on wakeup_one waking threads in a FIFO manner. */
+	if (waitchan != NULL)
+		wakeup_one(waitchan);
+
+	return (ret);
+}
+
+int
+alq_write(struct alq *alq, void *data, int flags)
+{
+	/* Should only be called in fixed length message (legacy) mode. */
+	KASSERT((alq->aq_flags & AQ_LEGACY),
+	    ("%s: fixed length write on variable length queue", __func__));
+	return (alq_writen(alq, data, alq->aq_entlen, flags));
+}
+
+/*
+ * Retrieve a pointer for the ALQ to write directly into, avoiding bcopy.
+ */
+struct ale *
+alq_getn(struct alq *alq, int len, int flags)
+{
+	int contigbytes;
+	void *waitchan;
+
+	KASSERT((len > 0 && len <= alq->aq_buflen),
+	    ("%s: len <= 0 || len > alq->aq_buflen", __func__));
+
+	waitchan = NULL;
+
+	ALQ_LOCK(alq);
+
+	/*
+	 * Determine the number of free contiguous bytes.
+	 * We ensure elsewhere that if aq_writehead == aq_writetail because
+	 * the buffer is empty, they will both be set to 0 and therefore
+	 * aq_freebytes == aq_buflen and is fully contiguous.
+	 * If they are equal and the buffer is not empty, aq_freebytes will
+	 * be 0 indicating the buffer is full.
+	 */
+	if (alq->aq_writehead <= alq->aq_writetail)
+		contigbytes = alq->aq_freebytes;
+	else {
+		contigbytes = alq->aq_buflen - alq->aq_writehead;
+
+		if (contigbytes < len) {
+			/*
+			 * Insufficient space at end of buffer to handle a
+			 * contiguous write. Wrap early if there's space at
+			 * the beginning. This will leave a hole at the end
+			 * of the buffer which we will have to skip over when
+			 * flushing the buffer to disk.
+			 */
+			if (alq->aq_writetail >= len || flags & ALQ_WAITOK) {
+				/* Keep track of # bytes left blank. */
+				alq->aq_wrapearly = contigbytes;
+				/* Do the wrap and adjust counters. */
+				contigbytes = alq->aq_freebytes =
+				    alq->aq_writetail;
+				alq->aq_writehead = 0;
+			}
+		}
+	}
+
+	/*
+	 * Return a NULL ALE if:
+	 * - The message is larger than our underlying buffer.
+	 * - The ALQ is being shutdown.
+	 * - There is insufficient free space in our underlying buffer
+	 *   to accept the message and the user can't wait for space.
+	 * - There is insufficient free space in our underlying buffer
+	 *   to accept the message and the alq is inactive due to prior
+	 *   use of the ALQ_NOACTIVATE flag (which would lead to deadlock).
+	 */
+	if (len > alq->aq_buflen ||
+	    alq->aq_flags & AQ_SHUTDOWN ||
+	    (((flags & ALQ_NOWAIT) || (!(alq->aq_flags & AQ_ACTIVE) &&
+	    HAS_PENDING_DATA(alq))) && contigbytes < len)) {
+		ALQ_UNLOCK(alq);
+		return (NULL);
+	}
+
+	/*
+	 * If we want ordered writes and there is already at least one thread
+	 * waiting for resources to become available, sleep until we're woken.
+	 */
+	if (alq->aq_flags & AQ_ORDERED && alq->aq_waiters > 0) {
+		KASSERT(!(flags & ALQ_NOWAIT),
+		    ("%s: ALQ_NOWAIT set but incorrectly ignored!", __func__));
+		alq->aq_waiters++;
+		msleep_spin(&alq->aq_waiters, &alq->aq_mtx, "alqgnord", 0);
+		alq->aq_waiters--;
+	}
+
+	/*
+	 * (ALQ_WAITOK && contigbytes < len) or contigbytes >= len, either enter
+	 * while loop and sleep until we have enough contiguous free bytes
+	 * (former) or skip (latter). If AQ_ORDERED is set, only 1 thread at a
+	 * time will be in this loop. Otherwise, multiple threads may be
+	 * sleeping here competing for ALQ resources.
+	 */
+	while (contigbytes < len && !(alq->aq_flags & AQ_SHUTDOWN)) {
+		KASSERT(!(flags & ALQ_NOWAIT),
+		    ("%s: ALQ_NOWAIT set but incorrectly ignored!", __func__));
+		alq->aq_flags |= AQ_WANTED;
+		alq->aq_waiters++;
+		if (waitchan)
+			wakeup(waitchan);
+		msleep_spin(alq, &alq->aq_mtx, "alqgnres", 0);
+		alq->aq_waiters--;
+
+		if (alq->aq_writehead <= alq->aq_writetail)
+			contigbytes = alq->aq_freebytes;
+		else
+			contigbytes = alq->aq_buflen - alq->aq_writehead;
+
+		/*
+		 * If we're the first thread to wake after an AQ_WANTED wakeup
+		 * but there isn't enough free space for us, we're going to loop
+		 * and sleep again. If there are other threads waiting in this
+		 * loop, schedule a wakeup so that they can see if the space
+		 * they require is available.
+		 */
+		if (alq->aq_waiters > 0 && !(alq->aq_flags & AQ_ORDERED) &&
+		    contigbytes < len && !(alq->aq_flags & AQ_WANTED))
+			waitchan = alq;
+		else
+			waitchan = NULL;
+	}
+
+	/*
+	 * If there are waiters, we need to signal the waiting threads after we
+	 * complete our work. The alq ptr is used as a wait channel for threads
+	 * requiring resources to be freed up. In the AQ_ORDERED case, threads
+	 * are not allowed to concurrently compete for resources in the above
+	 * while loop, so we use a different wait channel in this case.
+	 */
+	if (alq->aq_waiters > 0) {
+		if (alq->aq_flags & AQ_ORDERED)
+			waitchan = &alq->aq_waiters;
+		else
+			waitchan = alq;
+	} else
+		waitchan = NULL;
+
+	/* Bail if we're shutting down. */
+	if (alq->aq_flags & AQ_SHUTDOWN) {
+		ALQ_UNLOCK(alq);
+		if (waitchan != NULL)
+			wakeup_one(waitchan);
+		return (NULL);
+	}
+
+	/*
+	 * If we are here, we have a contiguous number of bytes >= len
+	 * available in our buffer starting at aq_writehead.
+	 */
+	alq->aq_getpost.ae_data = alq->aq_entbuf + alq->aq_writehead;
+	alq->aq_getpost.ae_bytesused = len;
+
+	return (&alq->aq_getpost);
+}
+
+struct ale *
+alq_get(struct alq *alq, int flags)
+{
+	/* Should only be called in fixed length message (legacy) mode. */
+	KASSERT((alq->aq_flags & AQ_LEGACY),
+	    ("%s: fixed length get on variable length queue", __func__));
+	return (alq_getn(alq, alq->aq_entlen, flags));
+}
+
+void
+alq_post_flags(struct alq *alq, struct ale *ale, int flags)
+{
+	int activate;
+	void *waitchan;
+
+	activate = 0;
+
+	if (ale->ae_bytesused > 0) {
+		if (!(alq->aq_flags & AQ_ACTIVE) &&
+		    !(flags & ALQ_NOACTIVATE)) {
+			alq->aq_flags |= AQ_ACTIVE;
+			activate = 1;
+		}
+
+		alq->aq_writehead += ale->ae_bytesused;
+		alq->aq_freebytes -= ale->ae_bytesused;
+
+		/* Wrap aq_writehead if we filled to the end of the buffer. */
+		if (alq->aq_writehead == alq->aq_buflen)
+			alq->aq_writehead = 0;
+
+		KASSERT((alq->aq_writehead >= 0 &&
+		    alq->aq_writehead < alq->aq_buflen),
+		    ("%s: aq_writehead < 0 || aq_writehead >= aq_buflen",
+		    __func__));
+
+		KASSERT((HAS_PENDING_DATA(alq)), ("%s: queue empty!", __func__));
+	}
+
+	/*
+	 * If there are waiters, we need to signal the waiting threads after we
+	 * complete our work. The alq ptr is used as a wait channel for threads
+	 * requiring resources to be freed up. In the AQ_ORDERED case, threads
+	 * are not allowed to concurrently compete for resources in the
+	 * alq_getn() while loop, so we use a different wait channel in this case.
+	 */
+	if (alq->aq_waiters > 0) {
+		if (alq->aq_flags & AQ_ORDERED)
+			waitchan = &alq->aq_waiters;
+		else
+			waitchan = alq;
+	} else
+		waitchan = NULL;
+
+	ALQ_UNLOCK(alq);
+
+	if (activate) {
+		ALD_LOCK();
+		ald_activate(alq);
+		ALD_UNLOCK();
+	}
+
+	/* NB: We rely on wakeup_one waking threads in a FIFO manner. */
+	if (waitchan != NULL)
+		wakeup_one(waitchan);
 }
 
 void
@@ -523,16 +892,24 @@ alq_flush(struct alq *alq)
 
 	ALD_LOCK();
 	ALQ_LOCK(alq);
-	if (alq->aq_flags & AQ_ACTIVE) {
-		ald_deactivate(alq);
+
+	/*
+	 * Pull the lever iff there is data to flush and we're
+	 * not already in the middle of a flush operation.
+	 */
+	if (HAS_PENDING_DATA(alq) && !(alq->aq_flags & AQ_FLUSHING)) {
+		if (alq->aq_flags & AQ_ACTIVE)
+			ald_deactivate(alq);
+
 		ALD_UNLOCK();
 		needwakeup = alq_doio(alq);
 	} else
 		ALD_UNLOCK();
+
 	ALQ_UNLOCK(alq);
 
 	if (needwakeup)
-		wakeup(alq);
+		wakeup_one(alq);
 }
 
 /*

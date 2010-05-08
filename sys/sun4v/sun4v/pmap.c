@@ -1275,17 +1275,21 @@ pmap_extract_and_hold(pmap_t pmap, vm_offset_t va, vm_prot_t prot)
 {
 	tte_t tte_data;
 	vm_page_t m;
+	vm_paddr_t pa;
 
 	m = NULL;
-	vm_page_lock_queues();
+	pa = 0;
 	PMAP_LOCK(pmap);
+retry:	
 	tte_data = tte_hash_lookup(pmap->pm_hash, va);
 	if (tte_data != 0 && 
 	    ((tte_data & VTD_SW_W) || (prot & VM_PROT_WRITE) == 0)) {
+		if (vm_page_pa_tryrelock(pmap, TTE_GET_PA(tte_data), &pa))
+			goto retry;
 		m = PHYS_TO_VM_PAGE(TTE_GET_PA(tte_data));
 		vm_page_hold(m);
 	}
-	vm_page_unlock_queues();
+	PA_UNLOCK_COND(pa);
 	PMAP_UNLOCK(pmap);
 
 	return (m);
@@ -1592,6 +1596,17 @@ pmap_is_prefaultable(pmap_t pmap, vm_offset_t va)
 }
 
 /*
+ * Return whether or not the specified physical page was referenced
+ * in any physical maps.
+ */
+boolean_t
+pmap_is_referenced(vm_page_t m)
+{
+
+	return (tte_get_phys_bit(m, VTD_REF));
+}
+
+/*
  * Extract the physical page address associated with the given kernel virtual
  * address.
  */
@@ -1813,17 +1828,10 @@ pmap_protect(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, vm_prot_t prot)
 		if (!anychanged && (otte_data & VTD_W))
 			anychanged = 1;
 		
-		if (otte_data & VTD_MANAGED) {
-			m = NULL;
-
-			if (otte_data & VTD_REF) {
-				m = PHYS_TO_VM_PAGE(TTE_GET_PA(otte_data));
-				vm_page_flag_set(m, PG_REFERENCED);
-			}
-			if (otte_data & VTD_W) {
-				m = PHYS_TO_VM_PAGE(TTE_GET_PA(otte_data));
-				vm_page_dirty(m);
-			}
+		if ((otte_data & (VTD_MANAGED | VTD_W)) == (VTD_MANAGED |
+		    VTD_W)) {
+			m = PHYS_TO_VM_PAGE(TTE_GET_PA(otte_data));
+			vm_page_dirty(m);
 		} 
 	}
 

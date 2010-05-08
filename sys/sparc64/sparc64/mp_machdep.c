@@ -164,7 +164,8 @@ mp_init(u_int cpu_impl)
 	if (cpu_impl == CPU_IMPL_ULTRASPARCIIIi ||
 	    cpu_impl == CPU_IMPL_ULTRASPARCIIIip)
 		isjbus = 1;
-	if (cpu_impl >= CPU_IMPL_ULTRASPARCIII)
+	if (cpu_impl == CPU_IMPL_SPARC64V ||
+	    cpu_impl >= CPU_IMPL_ULTRASPARCIII)
 		cpu_ipi_selected = cheetah_ipi_selected;
 	else
 		cpu_ipi_selected = spitfire_ipi_selected;
@@ -315,7 +316,8 @@ ap_start(phandle_t node, u_int mid, u_int cpu_impl)
 		;
 	membar(StoreLoad);
 	csa->csa_tick = rd(tick);
-	if (cpu_impl >= CPU_IMPL_ULTRASPARCIII) {
+	if (cpu_impl == CPU_IMPL_SPARC64V ||
+	    cpu_impl >= CPU_IMPL_ULTRASPARCIII) {
 		while (csa->csa_state != CPU_STICKSYNC)
 			;
 		membar(StoreLoad);
@@ -409,16 +411,33 @@ cpu_mp_bootstrap(struct pcpu *pc)
 	volatile struct cpu_start_args *csa;
 
 	csa = &cpu_start_args;
-	if (pc->pc_impl >= CPU_IMPL_ULTRASPARCIII)
+
+	/* Do CPU-specific initialization. */
+	if (pc->pc_impl == CPU_IMPL_SPARC64V ||
+	    pc->pc_impl >= CPU_IMPL_ULTRASPARCIII)
 		cheetah_init(pc->pc_impl);
+	/*
+	 * Enable the caches.  Note that his may include applying workarounds.
+	 */
 	cache_enable(pc->pc_impl);
+
+	/* Lock the kernel TSB in the TLB. */
 	pmap_map_tsb();
+
 	/*
 	 * Flush all non-locked TLB entries possibly left over by the
 	 * firmware.
 	 */
 	tlb_flush_nonlocked();
+
+	/* Initialize global registers. */
 	cpu_setregs(pc);
+
+	/* Enable interrupts. */
+	wrpr(pil, 0, PIL_TICK);
+	wrpr(pstate, 0, PSTATE_KERNEL);
+
+	/* Start the (S)TICK interrupts. */
 	tick_start();
 
 	smp_cpus++;

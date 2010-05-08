@@ -88,15 +88,14 @@ SYSCTL_INT(_net, OID_AUTO, add_addr_allfibs, CTLFLAG_RW,
     &rt_add_addr_allfibs, 0, "");
 TUNABLE_INT("net.add_addr_allfibs", &rt_add_addr_allfibs);
 
-VNET_DEFINE(struct radix_node_head *, rt_tables);
-static VNET_DEFINE(uma_zone_t, rtzone);		/* Routing table UMA zone. */
-VNET_DEFINE(int, rttrash);		/* routes not in table but not freed */
 VNET_DEFINE(struct rtstat, rtstat);
-
-#define	V_rt_tables	VNET(rt_tables)
-#define	V_rtzone	VNET(rtzone)
-#define	V_rttrash	VNET(rttrash)
 #define	V_rtstat	VNET(rtstat)
+
+VNET_DEFINE(struct radix_node_head *, rt_tables);
+#define	V_rt_tables	VNET(rt_tables)
+
+VNET_DEFINE(int, rttrash);		/* routes not in table but not freed */
+#define	V_rttrash	VNET(rttrash)
 
 
 /* compare two sockaddr structures */
@@ -113,6 +112,9 @@ VNET_DEFINE(struct rtstat, rtstat);
  * do not cast explicitly, but always use the macro below.
  */
 #define RNTORT(p)	((struct rtentry *)(p))
+
+static VNET_DEFINE(uma_zone_t, rtzone);		/* Routing table UMA zone. */
+#define	V_rtzone	VNET(rtzone)
 
 #if 0
 /* default fib for tunnels to use */
