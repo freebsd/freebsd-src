@@ -306,7 +306,6 @@ RetryFault:;
 			 * which is not what we want.
 			 */
 			vm_page_lock(fs.m);
-			vm_page_lock_queues();
 			if ((fs.m->cow) && 
 			    (fault_type & VM_PROT_WRITE) &&
 			    (fs.object == fs.first_object)) {
@@ -337,6 +336,7 @@ RetryFault:;
 				 * sleeping so that the page daemon is less
 				 * likely to reclaim it. 
 				 */
+				vm_page_lock_queues();
 				vm_page_flag_set(fs.m, PG_REFERENCED);
 				vm_page_unlock_queues();
 				vm_page_unlock(fs.m);
@@ -363,6 +363,7 @@ RetryFault:;
 				vm_object_deallocate(fs.first_object);
 				goto RetryFault;
 			}
+			vm_page_lock_queues();
 			vm_pageq_remove(fs.m);
 			vm_page_unlock_queues();
 			vm_page_unlock(fs.m);
