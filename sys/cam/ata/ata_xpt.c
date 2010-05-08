@@ -1118,13 +1118,13 @@ ata_scan_bus(struct cam_periph *periph, union ccb *request_ccb)
 		work_ccb = request_ccb;
 		/* Reuse the same CCB to query if a device was really found */
 		scan_info = (ata_scan_bus_info *)work_ccb->ccb_h.ppriv_ptr0;
-		/* Free the current request path- we're done with it. */
-		xpt_free_path(work_ccb->ccb_h.path);
 		/* If there is PMP... */
 		if ((scan_info->cpi->hba_inquiry & PI_SATAPM) &&
 		    (scan_info->counter == scan_info->cpi->max_target)) {
 			if (work_ccb->ccb_h.status == CAM_REQ_CMP) {
-				/* everything else willbe probed by it */
+				/* everything else will be probed by it */
+				/* Free the current request path- we're done with it. */
+				xpt_free_path(work_ccb->ccb_h.path);
 				goto done;
 			} else {
 				struct ccb_trans_settings cts;
@@ -1132,7 +1132,7 @@ ata_scan_bus(struct cam_periph *periph, union ccb *request_ccb)
 				/* Report SIM that PM is absent. */
 				bzero(&cts, sizeof(cts));
 				xpt_setup_ccb(&cts.ccb_h,
-				    scan_info->request_ccb->ccb_h.path, 1);
+				    work_ccb->ccb_h.path, CAM_PRIORITY_NONE);
 				cts.ccb_h.func_code = XPT_SET_TRAN_SETTINGS;
 				cts.type = CTS_TYPE_CURRENT_SETTINGS;
 				cts.xport_specific.sata.pm_present = 0;
@@ -1140,6 +1140,8 @@ ata_scan_bus(struct cam_periph *periph, union ccb *request_ccb)
 				xpt_action((union ccb *)&cts);
 			}
 		}
+		/* Free the current request path- we're done with it. */
+		xpt_free_path(work_ccb->ccb_h.path);
 		if (scan_info->counter ==
 		    ((scan_info->cpi->hba_inquiry & PI_SATAPM) ?
 		    0 : scan_info->cpi->max_target)) {
