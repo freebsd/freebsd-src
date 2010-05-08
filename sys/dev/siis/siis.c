@@ -448,6 +448,8 @@ siis_ch_attach(device_t dev)
 		ch->user[i].bytecount = 8192;
 		ch->user[i].tags = SIIS_MAX_SLOTS;
 		ch->curr[i] = ch->user[i];
+		if (ch->pm_level)
+			ch->user[i].caps = CTS_SATA_CAPS_H_PMREQ;
 	}
 	mtx_init(&ch->mtx, "SIIS channel lock", NULL, MTX_DEF);
 	rid = ch->unit;
@@ -1697,6 +1699,8 @@ siisaction(struct cam_sim *sim, union ccb *ccb)
 		}
 		if (cts->xport_specific.sata.valid & CTS_SATA_VALID_TAGS)
 			d->atapi = cts->xport_specific.sata.atapi;
+		if (cts->xport_specific.sata.valid & CTS_SATA_VALID_CAPS)
+			d->caps = cts->xport_specific.sata.caps;
 		ccb->ccb_h.status = CAM_REQ_CMP;
 		break;
 	}
@@ -1729,9 +1733,17 @@ siisaction(struct cam_sim *sim, union ccb *ccb)
 				cts->xport_specific.sata.valid |=
 				    CTS_SATA_VALID_REVISION;
 			}
+			cts->xport_specific.sata.caps = d->caps & CTS_SATA_CAPS_D;
+			if (ch->pm_level)
+				cts->xport_specific.sata.caps |= CTS_SATA_CAPS_H_PMREQ;
+			cts->xport_specific.sata.caps &=
+			    ch->user[ccb->ccb_h.target_id].caps;
+			cts->xport_specific.sata.valid |= CTS_SATA_VALID_CAPS;
 		} else {
 			cts->xport_specific.sata.revision = d->revision;
 			cts->xport_specific.sata.valid |= CTS_SATA_VALID_REVISION;
+			cts->xport_specific.sata.caps = d->caps;
+			cts->xport_specific.sata.valid |= CTS_SATA_VALID_CAPS;
 		}
 		cts->xport_specific.sata.mode = d->mode;
 		cts->xport_specific.sata.valid |= CTS_SATA_VALID_MODE;
