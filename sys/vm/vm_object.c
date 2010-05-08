@@ -876,13 +876,8 @@ vm_object_page_clean(vm_object_t object, vm_pindex_t start, vm_pindex_t end, int
 		p->oflags |= VPO_CLEANCHK;
 		if ((flags & OBJPC_NOSYNC) && (p->oflags & VPO_NOSYNC))
 			clearobjflags = 0;
-		else {
-			vm_page_lock(p);
-			vm_page_lock_queues();
+		else
 			pmap_remove_write(p);
-			vm_page_unlock_queues();
-			vm_page_unlock(p);
-		}
 	}
 
 	if (clearobjflags && (tstart == 0) && (tend == object->size))
@@ -1048,11 +1043,7 @@ vm_object_page_collect_flush(vm_object_t object, vm_page_t p, int curgeneration,
 	vm_pageout_flush(ma, runlen, pagerflags);
 	for (i = 0; i < runlen; i++) {
 		if (ma[i]->dirty) {
-			vm_page_lock(ma[i]);
-			vm_page_lock_queues();
 			pmap_remove_write(ma[i]);
-			vm_page_unlock_queues();
-			vm_page_unlock(ma[i]);
 			ma[i]->oflags |= VPO_CLEANCHK;
 
 			/*
@@ -1968,7 +1959,6 @@ again:
 		 * if "clean_only" is FALSE.
 		 */
 		vm_page_lock(p);
-		vm_page_lock_queues();
 		if ((wirings = p->wire_count) != 0 &&
 		    (wirings = pmap_page_wired_mappings(p)) != p->wire_count) {
 			/* Fictitious pages do not have managed mappings. */
@@ -1980,7 +1970,6 @@ again:
 				p->valid = 0;
 				vm_page_undirty(p);
 			}
-			vm_page_unlock_queues();
 			vm_page_unlock(p);
 			continue;
 		}
@@ -1991,7 +1980,6 @@ again:
 		if (clean_only && p->valid) {
 			pmap_remove_write(p);
 			if (p->dirty) {
-				vm_page_unlock_queues();
 				vm_page_unlock(p);
 				continue;
 			}
@@ -2001,7 +1989,6 @@ again:
 		if (wirings != 0)
 			p->wire_count -= wirings;
 		vm_page_free(p);
-		vm_page_unlock_queues();
 		vm_page_unlock(p);
 	}
 	vm_object_pip_wakeup(object);

@@ -1579,7 +1579,6 @@ vfs_vmio_release(struct buf *bp)
 		 */
 		if ((m->oflags & VPO_BUSY) == 0 && m->busy == 0 &&
 		    m->wire_count == 0) {
-			vm_page_lock_queues();
 			/*
 			 * Might as well free the page if we can and it has
 			 * no valid data.  We also free the page if the
@@ -1593,7 +1592,6 @@ vfs_vmio_release(struct buf *bp)
 			} else if (buf_vm_page_count_severe()) {
 				vm_page_try_to_cache(m);
 			}
-			vm_page_unlock_queues();
 		}
 		vm_page_unlock(m);
 	}

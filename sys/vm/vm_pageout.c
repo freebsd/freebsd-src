@@ -490,11 +490,7 @@ vm_pageout_flush(vm_page_t *mc, int count, int flags)
 		    ("vm_pageout_flush: partially invalid page %p index %d/%d",
 			mc[i], i, count));
 		vm_page_io_start(mc[i]);
-		vm_page_lock(mc[i]);
-		vm_page_lock_queues();
 		pmap_remove_write(mc[i]);
-		vm_page_unlock(mc[i]);
-		vm_page_unlock_queues();
 	}
 	vm_object_pip_add(object, count);
 
@@ -503,8 +499,6 @@ vm_pageout_flush(vm_page_t *mc, int count, int flags)
 	for (i = 0; i < count; i++) {
 		vm_page_t mt = mc[i];
 
-		vm_page_lock(mt);
-		vm_page_lock_queues();
 		KASSERT(pageout_status[i] == VM_PAGER_PEND ||
 		    (mt->flags & PG_WRITEABLE) == 0,
 		    ("vm_pageout_flush: page %p is not write protected", mt));
@@ -528,7 +522,9 @@ vm_pageout_flush(vm_page_t *mc, int count, int flags)
 			 * page so it doesn't clog the inactive list.  (We
 			 * will try paging out it again later).
 			 */
+			vm_page_lock(mt);
 			vm_page_activate(mt);
+			vm_page_unlock(mt);
 			break;
 		case VM_PAGER_AGAIN:
 			break;
@@ -543,13 +539,14 @@ vm_pageout_flush(vm_page_t *mc, int count, int flags)
 		if (pageout_status[i] != VM_PAGER_PEND) {
 			vm_object_pip_wakeup(object);
 			vm_page_io_finish(mt);
-			if (vm_page_count_severe())
+			if (vm_page_count_severe()) {
+				vm_page_lock(mt);
 				vm_page_try_to_cache(mt);
+				vm_page_unlock(mt);
+			}
 		}
-		vm_page_unlock_queues();
-		vm_page_unlock(mt);
 	}
-	return numpagedout;
+	return (numpagedout);
 }
 
 #if !defined(NO_SWAPPING)

@@ -1722,9 +1722,11 @@ mmu_booke_enter_quick(mmu_t mmu, pmap_t pmap, vm_offset_t va, vm_page_t m,
     vm_prot_t prot)
 {
 
+	vm_page_lock_queues();
 	PMAP_LOCK(pmap);
 	mmu_booke_enter_locked(mmu, pmap, va, m,
 	    prot & (VM_PROT_READ | VM_PROT_EXECUTE), FALSE);
+	vm_page_unlock_queues();
 	PMAP_UNLOCK(pmap);
 }
 
@@ -1783,8 +1785,7 @@ mmu_booke_remove_all(mmu_t mmu, vm_page_t m)
 	pv_entry_t pv, pvn;
 	uint8_t hold_flag;
 
-	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
-
+	vm_page_lock_queues();
 	for (pv = TAILQ_FIRST(&m->md.pv_list); pv != NULL; pv = pvn) {
 		pvn = TAILQ_NEXT(pv, pv_link);
 
@@ -1794,6 +1795,7 @@ mmu_booke_remove_all(mmu_t mmu, vm_page_t m)
 		PMAP_UNLOCK(pv->pv_pmap);
 	}
 	vm_page_flag_clear(m, PG_WRITEABLE);
+	vm_page_unlock_queues();
 }
 
 /*
@@ -1939,11 +1941,10 @@ mmu_booke_remove_write(mmu_t mmu, vm_page_t m)
 	pv_entry_t pv;
 	pte_t *pte;
 
-	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
 	if ((m->flags & (PG_FICTITIOUS | PG_UNMANAGED)) != 0 ||
 	    (m->flags & PG_WRITEABLE) == 0)
 		return;
-
+	vm_page_lock_queues();
 	TAILQ_FOREACH(pv, &m->md.pv_list, pv_link) {
 		PMAP_LOCK(pv->pv_pmap);
 		if ((pte = pte_find(mmu, pv->pv_pmap, pv->pv_va)) != NULL) {
@@ -1967,6 +1968,7 @@ mmu_booke_remove_write(mmu_t mmu, vm_page_t m)
 		PMAP_UNLOCK(pv->pv_pmap);
 	}
 	vm_page_flag_clear(m, PG_WRITEABLE);
+	vm_page_unlock_queues();
 }
 
 static void
@@ -2388,8 +2390,7 @@ mmu_booke_page_wired_mappings(mmu_t mmu, vm_page_t m)
 
 	if ((m->flags & PG_FICTITIOUS) != 0)
 		return (count);
-	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
-
+	vm_page_lock_queues();
 	TAILQ_FOREACH(pv, &m->md.pv_list, pv_link) {
 		PMAP_LOCK(pv->pv_pmap);
 		if ((pte = pte_find(mmu, pv->pv_pmap, pv->pv_va)) != NULL)
@@ -2397,7 +2398,7 @@ mmu_booke_page_wired_mappings(mmu_t mmu, vm_page_t m)
 				count++;
 		PMAP_UNLOCK(pv->pv_pmap);
 	}
-
+	vm_page_unlock_queues();
 	return (count);
 }
 
