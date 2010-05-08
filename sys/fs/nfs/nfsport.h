@@ -33,7 +33,7 @@
  */
 
 #ifndef _NFS_NFSPORT_H_
-#define	_NFSPORT_NFS_H_
+#define	_NFS_NFSPORT_H_
 
 /*
  * In general, I'm not fond of #includes in .h files, but this seems
@@ -918,4 +918,4 @@ struct nfsreq {
 
 #endif	/* _KERNEL */
 
-#endif	/* _NFSPORT_NFS_H */
+#endif	/* _NFS_NFSPORT_H */
