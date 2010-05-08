@@ -1595,7 +1595,7 @@ pmap_remove_all(vm_page_t m)
 
 	KASSERT((m->flags & PG_FICTITIOUS) == 0,
 	    ("pmap_remove_all: page %p is fictitious", m));
-	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
+	vm_page_lock_queues();
 
 	if (m->md.pv_flags & PV_TABLE_REF)
 		vm_page_flag_set(m, PG_REFERENCED);
@@ -1646,6 +1646,7 @@ pmap_remove_all(vm_page_t m)
 
 	vm_page_flag_clear(m, PG_WRITEABLE);
 	m->md.pv_flags &= ~(PV_TABLE_REF | PV_TABLE_MOD);
+	vm_page_unlock_queues();
 }
 
 /*
@@ -1921,8 +1922,10 @@ void
 pmap_enter_quick(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot)
 {
 
+	vm_page_lock_queues();
 	PMAP_LOCK(pmap);
 	(void)pmap_enter_quick_locked(pmap, va, m, prot, NULL);
+	vm_page_unlock_queues();
 	PMAP_UNLOCK(pmap);
 }
 
@@ -2510,10 +2513,11 @@ pmap_page_wired_mappings(vm_page_t m)
 	count = 0;
 	if ((m->flags & PG_FICTITIOUS) != 0)
 		return (count);
-	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
+	vm_page_lock_queues();
 	TAILQ_FOREACH(pv, &m->md.pv_list, pv_list)
 	    if (pv->pv_wired)
 		count++;
+	vm_page_unlock_queues();
 	return (count);
 }
 
@@ -2527,12 +2531,14 @@ pmap_remove_write(vm_page_t m)
 	vm_offset_t va;
 	pt_entry_t *pte;
 
-	if ((m->flags & PG_WRITEABLE) == 0)
+	if ((m->flags & PG_FICTITIOUS) != 0 ||
+	    (m->flags & PG_WRITEABLE) == 0)
 		return;
 
 	/*
 	 * Loop over all current mappings setting/clearing as appropos.
 	 */
+	vm_page_lock_queues();
 	for (pv = TAILQ_FIRST(&m->md.pv_list); pv; pv = npv) {
 		npv = TAILQ_NEXT(pv, pv_plist);
 		pte = pmap_pte(pv->pv_pmap, pv->pv_va);
@@ -2545,6 +2551,7 @@ pmap_remove_write(vm_page_t m)
 		    VM_PROT_READ | VM_PROT_EXECUTE);
 	}
 	vm_page_flag_clear(m, PG_WRITEABLE);
+	vm_page_unlock_queues();
 }
 
 /*
