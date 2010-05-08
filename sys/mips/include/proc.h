@@ -68,4 +68,10 @@ struct thread;
 void	mips_cpu_switch(struct thread *, struct thread *, struct mtx *);
 void	mips_cpu_throw(struct thread *, struct thread *);
 
+#ifdef __mips_n64
+#define	KINFO_PROC_SIZE 1088
+#else
+#define	KINFO_PROC_SIZE 816
+#endif
+
 #endif	/* !_MACHINE_PROC_H_ */
