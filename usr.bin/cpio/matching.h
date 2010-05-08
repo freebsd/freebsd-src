@@ -29,12 +29,18 @@
 #ifndef MATCHING_H
 #define MATCHING_H
 
-#include "cpio.h"
+struct matching;
 
-int	exclude(struct cpio *, const char *pattern);
-int	include(struct cpio *, const char *pattern);
-int	excluded(struct cpio *cpio, const char *pathname);
-void	cleanup_exclusions(struct cpio *cpio);
-int	unmatched_inclusions(struct cpio *cpio);
+int	exclude(struct matching **matching, const char *pattern);
+int	exclude_from_file(struct matching **matching,
+			       const char *pathname);
+int	include(struct matching **matching, const char *pattern);
+int	include_from_file(struct matching **matching,
+			       const char *pathname, int nullSeparator);
+
+int	excluded(struct matching *, const char *pathname);
+void	cleanup_exclusions(struct matching **);
+int	unmatched_inclusions(struct matching *);
+int	unmatched_inclusions_warn(struct matching *, const char *msg);
 
 #endif
