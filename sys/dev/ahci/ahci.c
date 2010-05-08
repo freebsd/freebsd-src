@@ -111,6 +111,7 @@ static struct {
 #define AHCI_Q_EDGEIS	64
 #define AHCI_Q_SATA2	128
 #define AHCI_Q_NOBSYRES	256
+#define AHCI_Q_NOAA	512
 } ahci_ids[] = {
 	{0x43801002, 0x00, "ATI IXP600",	0},
 	{0x43901002, 0x00, "ATI IXP700",	0},
@@ -167,75 +168,75 @@ static struct {
 	{0x614511ab, 0x00, "Marvell 88SX6145",	AHCI_Q_NOFORCE|AHCI_Q_4CH|AHCI_Q_EDGEIS},
 	{0x91231b4b, 0x11, "Marvell 88SE912x",	AHCI_Q_NOBSYRES},
 	{0x91231b4b, 0x00, "Marvell 88SE912x",	AHCI_Q_EDGEIS|AHCI_Q_SATA2|AHCI_Q_NOBSYRES},
-	{0x044c10de, 0x00, "NVIDIA MCP65",	0},
-	{0x044d10de, 0x00, "NVIDIA MCP65",	0},
-	{0x044e10de, 0x00, "NVIDIA MCP65",	0},
-	{0x044f10de, 0x00, "NVIDIA MCP65",	0},
-	{0x045c10de, 0x00, "NVIDIA MCP65",	0},
-	{0x045d10de, 0x00, "NVIDIA MCP65",	0},
-	{0x045e10de, 0x00, "NVIDIA MCP65",	0},
-	{0x045f10de, 0x00, "NVIDIA MCP65",	0},
-	{0x055010de, 0x00, "NVIDIA MCP67",	0},
-	{0x055110de, 0x00, "NVIDIA MCP67",	0},
-	{0x055210de, 0x00, "NVIDIA MCP67",	0},
-	{0x055310de, 0x00, "NVIDIA MCP67",	0},
-	{0x055410de, 0x00, "NVIDIA MCP67",	0},
-	{0x055510de, 0x00, "NVIDIA MCP67",	0},
-	{0x055610de, 0x00, "NVIDIA MCP67",	0},
-	{0x055710de, 0x00, "NVIDIA MCP67",	0},
-	{0x055810de, 0x00, "NVIDIA MCP67",	0},
-	{0x055910de, 0x00, "NVIDIA MCP67",	0},
-	{0x055A10de, 0x00, "NVIDIA MCP67",	0},
-	{0x055B10de, 0x00, "NVIDIA MCP67",	0},
-	{0x058410de, 0x00, "NVIDIA MCP67",	0},
-	{0x07f010de, 0x00, "NVIDIA MCP73",	0},
-	{0x07f110de, 0x00, "NVIDIA MCP73",	0},
-	{0x07f210de, 0x00, "NVIDIA MCP73",	0},
-	{0x07f310de, 0x00, "NVIDIA MCP73",	0},
-	{0x07f410de, 0x00, "NVIDIA MCP73",	0},
-	{0x07f510de, 0x00, "NVIDIA MCP73",	0},
-	{0x07f610de, 0x00, "NVIDIA MCP73",	0},
-	{0x07f710de, 0x00, "NVIDIA MCP73",	0},
-	{0x07f810de, 0x00, "NVIDIA MCP73",	0},
-	{0x07f910de, 0x00, "NVIDIA MCP73",	0},
-	{0x07fa10de, 0x00, "NVIDIA MCP73",	0},
-	{0x07fb10de, 0x00, "NVIDIA MCP73",	0},
-	{0x0ad010de, 0x00, "NVIDIA MCP77",	0},
-	{0x0ad110de, 0x00, "NVIDIA MCP77",	0},
-	{0x0ad210de, 0x00, "NVIDIA MCP77",	0},
-	{0x0ad310de, 0x00, "NVIDIA MCP77",	0},
-	{0x0ad410de, 0x00, "NVIDIA MCP77",	0},
-	{0x0ad510de, 0x00, "NVIDIA MCP77",	0},
-	{0x0ad610de, 0x00, "NVIDIA MCP77",	0},
-	{0x0ad710de, 0x00, "NVIDIA MCP77",	0},
-	{0x0ad810de, 0x00, "NVIDIA MCP77",	0},
-	{0x0ad910de, 0x00, "NVIDIA MCP77",	0},
-	{0x0ada10de, 0x00, "NVIDIA MCP77",	0},
-	{0x0adb10de, 0x00, "NVIDIA MCP77",	0},
-	{0x0ab410de, 0x00, "NVIDIA MCP79",	0},
-	{0x0ab510de, 0x00, "NVIDIA MCP79",	0},
-	{0x0ab610de, 0x00, "NVIDIA MCP79",	0},
-	{0x0ab710de, 0x00, "NVIDIA MCP79",	0},
-	{0x0ab810de, 0x00, "NVIDIA MCP79",	0},
-	{0x0ab910de, 0x00, "NVIDIA MCP79",	0},
-	{0x0aba10de, 0x00, "NVIDIA MCP79",	0},
-	{0x0abb10de, 0x00, "NVIDIA MCP79",	0},
-	{0x0abc10de, 0x00, "NVIDIA MCP79",	0},
-	{0x0abd10de, 0x00, "NVIDIA MCP79",	0},
-	{0x0abe10de, 0x00, "NVIDIA MCP79",	0},
-	{0x0abf10de, 0x00, "NVIDIA MCP79",	0},
-	{0x0d8410de, 0x00, "NVIDIA MCP89",	0},
-	{0x0d8510de, 0x00, "NVIDIA MCP89",	0},
-	{0x0d8610de, 0x00, "NVIDIA MCP89",	0},
-	{0x0d8710de, 0x00, "NVIDIA MCP89",	0},
-	{0x0d8810de, 0x00, "NVIDIA MCP89",	0},
-	{0x0d8910de, 0x00, "NVIDIA MCP89",	0},
-	{0x0d8a10de, 0x00, "NVIDIA MCP89",	0},
-	{0x0d8b10de, 0x00, "NVIDIA MCP89",	0},
-	{0x0d8c10de, 0x00, "NVIDIA MCP89",	0},
-	{0x0d8d10de, 0x00, "NVIDIA MCP89",	0},
-	{0x0d8e10de, 0x00, "NVIDIA MCP89",	0},
-	{0x0d8f10de, 0x00, "NVIDIA MCP89",	0},
+	{0x044c10de, 0x00, "NVIDIA MCP65",	AHCI_Q_NOAA},
+	{0x044d10de, 0x00, "NVIDIA MCP65",	AHCI_Q_NOAA},
+	{0x044e10de, 0x00, "NVIDIA MCP65",	AHCI_Q_NOAA},
+	{0x044f10de, 0x00, "NVIDIA MCP65",	AHCI_Q_NOAA},
+	{0x045c10de, 0x00, "NVIDIA MCP65",	AHCI_Q_NOAA},
+	{0x045d10de, 0x00, "NVIDIA MCP65",	AHCI_Q_NOAA},
+	{0x045e10de, 0x00, "NVIDIA MCP65",	AHCI_Q_NOAA},
+	{0x045f10de, 0x00, "NVIDIA MCP65",	AHCI_Q_NOAA},
+	{0x055010de, 0x00, "NVIDIA MCP67",	AHCI_Q_NOAA},
+	{0x055110de, 0x00, "NVIDIA MCP67",	AHCI_Q_NOAA},
+	{0x055210de, 0x00, "NVIDIA MCP67",	AHCI_Q_NOAA},
+	{0x055310de, 0x00, "NVIDIA MCP67",	AHCI_Q_NOAA},
+	{0x055410de, 0x00, "NVIDIA MCP67",	AHCI_Q_NOAA},
+	{0x055510de, 0x00, "NVIDIA MCP67",	AHCI_Q_NOAA},
+	{0x055610de, 0x00, "NVIDIA MCP67",	AHCI_Q_NOAA},
+	{0x055710de, 0x00, "NVIDIA MCP67",	AHCI_Q_NOAA},
+	{0x055810de, 0x00, "NVIDIA MCP67",	AHCI_Q_NOAA},
+	{0x055910de, 0x00, "NVIDIA MCP67",	AHCI_Q_NOAA},
+	{0x055A10de, 0x00, "NVIDIA MCP67",	AHCI_Q_NOAA},
+	{0x055B10de, 0x00, "NVIDIA MCP67",	AHCI_Q_NOAA},
+	{0x058410de, 0x00, "NVIDIA MCP67",	AHCI_Q_NOAA},
+	{0x07f010de, 0x00, "NVIDIA MCP73",	AHCI_Q_NOAA},
+	{0x07f110de, 0x00, "NVIDIA MCP73",	AHCI_Q_NOAA},
+	{0x07f210de, 0x00, "NVIDIA MCP73",	AHCI_Q_NOAA},
+	{0x07f310de, 0x00, "NVIDIA MCP73",	AHCI_Q_NOAA},
+	{0x07f410de, 0x00, "NVIDIA MCP73",	AHCI_Q_NOAA},
+	{0x07f510de, 0x00, "NVIDIA MCP73",	AHCI_Q_NOAA},
+	{0x07f610de, 0x00, "NVIDIA MCP73",	AHCI_Q_NOAA},
+	{0x07f710de, 0x00, "NVIDIA MCP73",	AHCI_Q_NOAA},
+	{0x07f810de, 0x00, "NVIDIA MCP73",	AHCI_Q_NOAA},
+	{0x07f910de, 0x00, "NVIDIA MCP73",	AHCI_Q_NOAA},
+	{0x07fa10de, 0x00, "NVIDIA MCP73",	AHCI_Q_NOAA},
+	{0x07fb10de, 0x00, "NVIDIA MCP73",	AHCI_Q_NOAA},
+	{0x0ad010de, 0x00, "NVIDIA MCP77",	AHCI_Q_NOAA},
+	{0x0ad110de, 0x00, "NVIDIA MCP77",	AHCI_Q_NOAA},
+	{0x0ad210de, 0x00, "NVIDIA MCP77",	AHCI_Q_NOAA},
+	{0x0ad310de, 0x00, "NVIDIA MCP77",	AHCI_Q_NOAA},
+	{0x0ad410de, 0x00, "NVIDIA MCP77",	AHCI_Q_NOAA},
+	{0x0ad510de, 0x00, "NVIDIA MCP77",	AHCI_Q_NOAA},
+	{0x0ad610de, 0x00, "NVIDIA MCP77",	AHCI_Q_NOAA},
+	{0x0ad710de, 0x00, "NVIDIA MCP77",	AHCI_Q_NOAA},
+	{0x0ad810de, 0x00, "NVIDIA MCP77",	AHCI_Q_NOAA},
+	{0x0ad910de, 0x00, "NVIDIA MCP77",	AHCI_Q_NOAA},
+	{0x0ada10de, 0x00, "NVIDIA MCP77",	AHCI_Q_NOAA},
+	{0x0adb10de, 0x00, "NVIDIA MCP77",	AHCI_Q_NOAA},
+	{0x0ab410de, 0x00, "NVIDIA MCP79",	AHCI_Q_NOAA},
+	{0x0ab510de, 0x00, "NVIDIA MCP79",	AHCI_Q_NOAA},
+	{0x0ab610de, 0x00, "NVIDIA MCP79",	AHCI_Q_NOAA},
+	{0x0ab710de, 0x00, "NVIDIA MCP79",	AHCI_Q_NOAA},
+	{0x0ab810de, 0x00, "NVIDIA MCP79",	AHCI_Q_NOAA},
+	{0x0ab910de, 0x00, "NVIDIA MCP79",	AHCI_Q_NOAA},
+	{0x0aba10de, 0x00, "NVIDIA MCP79",	AHCI_Q_NOAA},
+	{0x0abb10de, 0x00, "NVIDIA MCP79",	AHCI_Q_NOAA},
+	{0x0abc10de, 0x00, "NVIDIA MCP79",	AHCI_Q_NOAA},
+	{0x0abd10de, 0x00, "NVIDIA MCP79",	AHCI_Q_NOAA},
+	{0x0abe10de, 0x00, "NVIDIA MCP79",	AHCI_Q_NOAA},
+	{0x0abf10de, 0x00, "NVIDIA MCP79",	AHCI_Q_NOAA},
+	{0x0d8410de, 0x00, "NVIDIA MCP89",	AHCI_Q_NOAA},
+	{0x0d8510de, 0x00, "NVIDIA MCP89",	AHCI_Q_NOAA},
+	{0x0d8610de, 0x00, "NVIDIA MCP89",	AHCI_Q_NOAA},
+	{0x0d8710de, 0x00, "NVIDIA MCP89",	AHCI_Q_NOAA},
+	{0x0d8810de, 0x00, "NVIDIA MCP89",	AHCI_Q_NOAA},
+	{0x0d8910de, 0x00, "NVIDIA MCP89",	AHCI_Q_NOAA},
+	{0x0d8a10de, 0x00, "NVIDIA MCP89",	AHCI_Q_NOAA},
+	{0x0d8b10de, 0x00, "NVIDIA MCP89",	AHCI_Q_NOAA},
+	{0x0d8c10de, 0x00, "NVIDIA MCP89",	AHCI_Q_NOAA},
+	{0x0d8d10de, 0x00, "NVIDIA MCP89",	AHCI_Q_NOAA},
+	{0x0d8e10de, 0x00, "NVIDIA MCP89",	AHCI_Q_NOAA},
+	{0x0d8f10de, 0x00, "NVIDIA MCP89",	AHCI_Q_NOAA},
 	{0x33491106, 0x00, "VIA VT8251",	0},
 	{0x62871106, 0x00, "VIA VT8251",	0},
 	{0x11841039, 0x00, "SiS 966",		0},
@@ -854,7 +855,14 @@ ahci_ch_attach(device_t dev)
 		ch->user[i].mode = 0;
 		ch->user[i].bytecount = 8192;
 		ch->user[i].tags = ch->numslots;
+		ch->user[i].caps = 0;
 		ch->curr[i] = ch->user[i];
+		if (ch->pm_level) {
+			ch->user[i].caps = CTS_SATA_CAPS_H_PMREQ |
+			    CTS_SATA_CAPS_H_APST |
+			    CTS_SATA_CAPS_D_PMREQ | CTS_SATA_CAPS_D_APST;
+		}
+		ch->user[i].caps |= CTS_SATA_CAPS_H_DMAAA;
 	}
 	rid = ch->unit;
 	if (!(ch->r_mem = bus_alloc_resource_any(dev, SYS_RES_MEMORY,
@@ -1954,7 +1962,8 @@ ahci_end_transaction(struct ahci_slot *slot, enum ahci_err_type et)
 	    et != AHCI_ERR_TIMEOUT)
 		ahci_rearm_timeout(dev);
 	/* Start PM timer. */
-	if (ch->numrslots == 0 && ch->pm_level > 3) {
+	if (ch->numrslots == 0 && ch->pm_level > 3 &&
+	    (ch->curr[ch->pm_present ? 15 : 0].caps & CTS_SATA_CAPS_D_PMREQ)) {
 		callout_schedule(&ch->pm_timer,
 		    (ch->pm_level == 4) ? hz / 1000 : hz / 8);
 	}
@@ -2458,6 +2467,8 @@ ahciaction(struct cam_sim *sim, union ccb *ccb)
 			ch->pm_present = cts->xport_specific.sata.pm_present;
 		if (cts->xport_specific.sata.valid & CTS_SATA_VALID_ATAPI)
 			d->atapi = cts->xport_specific.sata.atapi;
+		if (cts->xport_specific.sata.valid & CTS_SATA_VALID_CAPS)
+			d->caps = cts->xport_specific.sata.caps;
 		ccb->ccb_h.status = CAM_REQ_CMP;
 		break;
 	}
@@ -2490,9 +2501,24 @@ ahciaction(struct cam_sim *sim, union ccb *ccb)
 				cts->xport_specific.sata.valid |=
 				    CTS_SATA_VALID_REVISION;
 			}
+			cts->xport_specific.sata.caps = d->caps & CTS_SATA_CAPS_D;
+			if (ch->pm_level) {
+				if (ch->caps & (AHCI_CAP_PSC | AHCI_CAP_SSC))
+					cts->xport_specific.sata.caps |= CTS_SATA_CAPS_H_PMREQ;
+				if (ch->caps2 & AHCI_CAP2_APST)
+					cts->xport_specific.sata.caps |= CTS_SATA_CAPS_H_APST;
+			}
+			if ((ch->caps & AHCI_CAP_SNCQ) &&
+			    (ch->quirks & AHCI_Q_NOAA) == 0)
+				cts->xport_specific.sata.caps |= CTS_SATA_CAPS_H_DMAAA;
+			cts->xport_specific.sata.caps &=
+			    ch->user[ccb->ccb_h.target_id].caps;
+			cts->xport_specific.sata.valid |= CTS_SATA_VALID_CAPS;
 		} else {
 			cts->xport_specific.sata.revision = d->revision;
 			cts->xport_specific.sata.valid |= CTS_SATA_VALID_REVISION;
+			cts->xport_specific.sata.caps = d->caps;
+			cts->xport_specific.sata.valid |= CTS_SATA_VALID_CAPS;
 		}
 		cts->xport_specific.sata.mode = d->mode;
 		cts->xport_specific.sata.valid |= CTS_SATA_VALID_MODE;
