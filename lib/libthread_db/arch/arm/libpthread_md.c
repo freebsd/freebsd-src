@@ -85,7 +85,7 @@ pt_ucontext_to_reg(const ucontext_t *uc, struct reg *r)
 }
 
 void
-pt_fpreg_to_ucontext(const struct fpreg *r, ucontext_t *uc)
+pt_fpreg_to_ucontext(const struct fpreg *r __unused, ucontext_t *uc)
 {
 	mcontext_t *mc = &uc->uc_mcontext;
 
@@ -94,7 +94,7 @@ pt_fpreg_to_ucontext(const struct fpreg *r, ucontext_t *uc)
 }
 
 void
-pt_ucontext_to_fpreg(const ucontext_t *uc, struct fpreg *r)
+pt_ucontext_to_fpreg(const ucontext_t *uc __unused, struct fpreg *r)
 {
 
 	/* XXX */
@@ -107,7 +107,7 @@ pt_md_init(void)
 }
 
 int
-pt_reg_sstep(struct reg *reg, int step)
+pt_reg_sstep(struct reg *reg __unused, int step __unused)
 {
 
 	/* XXX */
