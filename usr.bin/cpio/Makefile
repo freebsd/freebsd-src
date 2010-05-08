@@ -3,8 +3,8 @@
 .include <bsd.own.mk>
 
 PROG=	bsdcpio
-BSDCPIO_VERSION_STRING=2.7.0
-SRCS=	cpio.c cmdline.c err.c matching.c pathmatch.c
+BSDCPIO_VERSION_STRING=2.8.3
+SRCS=	cpio.c cmdline.c err.c line_reader.c matching.c pathmatch.c
 CFLAGS+= -DBSDCPIO_VERSION_STRING=\"${BSDCPIO_VERSION_STRING}\"
 CFLAGS+= -DPLATFORM_CONFIG_H=\"config_freebsd.h\"
 .ifdef RELEASE_CRUNCH

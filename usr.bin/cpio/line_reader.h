@@ -1,13 +1,12 @@
 /*-
- * Copyright (c) 2003-2007 Tim Kientzle
+ * Copyright (c) 2009 Joerg Sonnenberger
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer
- *    in this position and unchanged.
+ *    notice, this list of conditions and the following disclaimer.
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
@@ -26,17 +25,13 @@
  * $FreeBSD$
  */
 
-#ifndef LAFE_PATHMATCH_H
-#define LAFE_PATHMATCH_H
+#ifndef LAFE_LINE_READER_H
+#define LAFE_LINE_READER_H
 
-/* Don't anchor at beginning unless the pattern starts with "^" */
-#define PATHMATCH_NO_ANCHOR_START	1
-/* Don't anchor at end unless the pattern ends with "$" */
-#define PATHMATCH_NO_ANCHOR_END 	2
+struct line_reader;
 
-/* Note that "^" and "$" are not special unless you set the corresponding
- * flag above. */
-
-int pathmatch(const char *p, const char *s, int flags);
+struct line_reader *line_reader(const char *, int nullSeparator);
+const char *line_reader_next(struct line_reader *);
+void	line_reader_free(struct line_reader *);
 
 #endif
