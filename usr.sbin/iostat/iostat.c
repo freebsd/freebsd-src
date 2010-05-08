@@ -589,7 +589,7 @@ main(int argc, char **argv)
 		}
 
 		if (xflag == 0 && Tflag > 0)
-			printf("%4.0Lf%5.0Lf", cur.tk_nin / etime,
+			printf("%4.0Lf %5.0Lf", cur.tk_nin / etime,
 			    cur.tk_nout / etime);
 
 		devstats(hflag, etime, havelast);
@@ -676,7 +676,7 @@ phdr(void)
 		return;
 
 	if (Tflag > 0)
-		(void)printf("      tty");
+		(void)printf("       tty");
 	for (i = 0, printed=0;(i < num_devices) && (printed < maxshowdevs);i++){
 		int di;
 		if ((dev_select[i].selected != 0)
@@ -699,7 +699,7 @@ phdr(void)
 		(void)printf("\n");
 
 	if (Tflag > 0)
-		(void)printf(" tin tout");
+		(void)printf(" tin  tout");
 
 	for (i=0, printed = 0;(i < num_devices) && (printed < maxshowdevs);i++){
 		if ((dev_select[i].selected != 0)
@@ -744,7 +744,7 @@ devstats(int perf_select, long double etime, int havelast)
 	if (xflag > 0) {
 		printf("                        extended device statistics  ");
 		if (Tflag > 0)
-			printf("     tty ");
+			printf("      tty ");
 		if (Cflag > 0)
 			printf("           cpu ");
 		printf("\n");
@@ -757,7 +757,7 @@ devstats(int perf_select, long double etime, int havelast)
 		"device     r/i   w/i    kr/i    kw/i wait svc_t  %%b  "
 			    );
 		if (Tflag > 0)
-			printf("tin tout ");
+			printf("tin  tout ");
 		if (Cflag > 0)
 			printf("us ni sy in id ");
 		printf("\n");
@@ -898,7 +898,7 @@ devstats(int perf_select, long double etime, int havelast)
 		 */
 		printf("%52s","");
 		if (Tflag > 0)
-			printf("%4.0Lf%5.0Lf", cur.tk_nin / etime,
+			printf("%4.0Lf %5.0Lf", cur.tk_nin / etime,
 			    cur.tk_nout / etime);
 		if (Cflag > 0)
 			cpustats();
