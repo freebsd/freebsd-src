@@ -97,12 +97,35 @@ static void	nfs_up(struct nfsmount *, struct thread *, const char *,
     int, int);
 static int	nfs_msg(struct thread *, const char *, const char *, int);
 
-extern int nfsv2_procid[];
-
 struct nfs_cached_auth {
 	int		ca_refs; /* refcount, including 1 from the cache */
 	uid_t		ca_uid;	 /* uid that corresponds to this auth */
 	AUTH		*ca_auth; /* RPC auth handle */
+};
+
+static int nfsv2_procid[NFS_V3NPROCS] = {
+	NFSV2PROC_NULL,
+	NFSV2PROC_GETATTR,
+	NFSV2PROC_SETATTR,
+	NFSV2PROC_LOOKUP,
+	NFSV2PROC_NOOP,
+	NFSV2PROC_READLINK,
+	NFSV2PROC_READ,
+	NFSV2PROC_WRITE,
+	NFSV2PROC_CREATE,
+	NFSV2PROC_MKDIR,
+	NFSV2PROC_SYMLINK,
+	NFSV2PROC_CREATE,
+	NFSV2PROC_REMOVE,
+	NFSV2PROC_RMDIR,
+	NFSV2PROC_RENAME,
+	NFSV2PROC_LINK,
+	NFSV2PROC_READDIR,
+	NFSV2PROC_NOOP,
+	NFSV2PROC_STATFS,
+	NFSV2PROC_NOOP,
+	NFSV2PROC_NOOP,
+	NFSV2PROC_NOOP,
 };
 
 /*
@@ -533,6 +556,15 @@ newnfs_request(struct nfsrv_descript *nd, struct nfsmount *nmp,
 
 	if (nmp != NULL) {
 		NFSINCRGLOBAL(newnfsstats.rpcrequests);
+
+		/* Map the procnum to the old NFSv2 one, as required. */
+		if ((nd->nd_flag & ND_NFSV2) != 0) {
+			if (nd->nd_procnum < NFS_V3NPROCS)
+				procnum = nfsv2_procid[nd->nd_procnum];
+			else
+				procnum = NFSV2PROC_NOOP;
+		}
+
 		/*
 		 * Now only used for the R_DONTRECOVER case, but until that is
 		 * supported within the krpc code, I need to keep a queue of
