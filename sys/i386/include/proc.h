@@ -57,6 +57,8 @@ struct mdproc {
 	struct proc_ldt *md_ldt;	/* (t) per-process ldt */
 };
 
+#define	KINFO_PROC_SIZE 768
+
 #ifdef	_KERNEL
 
 /* Get the current kernel thread stack usage. */
