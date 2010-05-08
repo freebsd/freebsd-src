@@ -2233,6 +2233,7 @@ vm_page_cowfault(vm_page_t m)
 	vm_object_t object;
 	vm_pindex_t pindex;
 
+	mtx_assert(&vm_page_queue_mtx, MA_NOTOWNED);
 	vm_page_lock_assert(m, MA_OWNED);
 	object = m->object;
 	VM_OBJECT_LOCK_ASSERT(object, MA_OWNED);
@@ -2243,7 +2244,6 @@ vm_page_cowfault(vm_page_t m)
 
  retry_alloc:
 	pmap_remove_all(m);
-	vm_page_unlock_queues();
 	vm_page_remove(m);
 	mnew = vm_page_alloc(object, pindex, VM_ALLOC_NORMAL | VM_ALLOC_NOBUSY);
 	if (mnew == NULL) {
@@ -2254,7 +2254,6 @@ vm_page_cowfault(vm_page_t m)
 		VM_OBJECT_LOCK(object);
 		if (m == vm_page_lookup(object, pindex)) {
 			vm_page_lock(m);
-			vm_page_lock_queues();
 			goto retry_alloc;
 		} else {
 			/*
@@ -2272,9 +2271,7 @@ vm_page_cowfault(vm_page_t m)
 		 */
 		vm_page_unlock(m);
 		vm_page_lock(mnew);
-		vm_page_lock_queues();
 		vm_page_free(mnew);
-		vm_page_unlock_queues();
 		vm_page_unlock(mnew);
 		vm_page_insert(m, object, pindex);
 	} else { /* clear COW & copy page */
