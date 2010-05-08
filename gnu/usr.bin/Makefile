@@ -21,7 +21,7 @@ SUBDIR= bc \
 	sort \
 	texinfo
  
-.if ${MACHINE_ARCH} == "arm" || ${MACHINE_ARCH} == "powerpc"
+.if ${MACHINE_ARCH} == "powerpc"
 NO_GDB=	# not yet
 .endif
 
