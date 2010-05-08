@@ -767,13 +767,10 @@ pipe_build_write_buffer(wpipe, uio)
 		return (EFAULT);
 	for (i = 0; addr < endaddr; addr += PAGE_SIZE, i++) {
 		/*
-		 * vm_fault_quick() can sleep.  Consequently,
-		 * vm_page_lock_queue() and vm_page_unlock_queue()
-		 * should not be performed outside of this loop.
+		 * vm_fault_quick() can sleep.
 		 */
 	race:
 		if (vm_fault_quick((caddr_t)addr, VM_PROT_READ) < 0) {
-			
 			for (j = 0; j < i; j++) {
 				vm_page_lock(wpipe->pipe_map.ms[j]);
 				vm_page_unhold(wpipe->pipe_map.ms[j]);
