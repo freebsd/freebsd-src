@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 23, 2007
+.Dd May 9, 2010
 .Dt ISCSI_INITIATOR 4
 .Os
 .Sh NAME
@@ -48,34 +48,39 @@ iscsi_initiator_load="YES"
 The
 .Nm
 implements the kernel side of the Internet SCSI (iSCSI) network
-protocol standard, the user land companion is
+protocol standard.
+The userland companion is
 .Xr iscontrol 8 ,
 and permits access to remote
 .Em virtual
 SCSI devices via
 .Xr cam 4 .
 .Sh SYSCTL VARIABLES
-.Bl -tag -width ".Va net.iscsi.n.targeaddress"
+.Bl -tag -width "net.iscsi.n.targedaddress"
 .It Va debug.iscsi_initiator
 set the debug-level, 0 means no debugging, 9 for maximum.
 .It Va net.iscsi.isid
 the initiator part of the Session Identifier.
-.It "the following are informative only:"
+.El
+.Pp
+The following are informative only:
+.Pp
+.Bl -tag -width "net.iscsi.n.targedaddress"
 .It Va net.iscsi.driver_version
 the current version of the driver.
 .It Va net.iscsi.sessions
 the number of current active sessions.
 .It Va net.iscsi.n.targetname
-is the targe name of session
+the target name of session
 .Em n .
-.It Va net.iscsi.n.targeaddress
-is the IP address of the target of session
+.It Va net.iscsi.n.targedaddress
+the IP address of the target of session
 .Em n .
 .It Va net.iscsi.n.stats
-are some statistics for session
+statistics for session
 .Em n
 .It Va net.iscsi.n.pid
-is the 
+the 
 .Em "process id"
 of the userland side of session
 .Em n ,
