@@ -363,9 +363,7 @@ RetryFault:;
 				vm_object_deallocate(fs.first_object);
 				goto RetryFault;
 			}
-			vm_page_lock_queues();
 			vm_pageq_remove(fs.m);
-			vm_page_unlock_queues();
 			vm_page_unlock(fs.m);
 
 			/*
