@@ -1,0 +1,9 @@
+config INFINIBAND_QIB
+	tristate "QLogic IB Driver"
+	depends on 64BIT && INFINIBAND
+	---help---
+	This is a driver for QLogic PCIe QLE IB host channel adapters,
+	including InfiniBand verbs support.  This driver allows these
+	devices to be used with both kernel upper level protocols such
+	as IP-over-InfiniBand as well as with userspace applications
+	(in conjunction with InfiniBand userspace access).

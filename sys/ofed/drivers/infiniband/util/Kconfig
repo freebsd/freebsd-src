@@ -1,0 +1,6 @@
+config INFINIBAND_MADEYE
+	tristate "MAD debug viewer for InfiniBand"
+	depends on INFINIBAND
+	---help---
+	  Prints sent and received MADs on QP 0/1 for debugging.
+
