@@ -169,6 +169,7 @@ TUNABLE_INT("vm.boot_pages", &boot_pages);
 SYSCTL_INT(_vm, OID_AUTO, boot_pages, CTLFLAG_RD, &boot_pages, 0,
 	"number of pages allocated for bootstrapping the VM system");
 
+static void vm_page_queue_remove(int queue, vm_page_t m);
 static void vm_page_enqueue(int queue, vm_page_t m);
 
 /* Make sure that u_long is at least 64 bits when PAGE_SIZE is 32K. */
@@ -1328,24 +1329,43 @@ vm_page_requeue(vm_page_t m)
 }
 
 /*
+ *	vm_page_queue_remove:
+ *
+ *	Remove the given page from the specified queue.
+ *
+ *	The page and page queues must be locked.
+ */
+static __inline void
+vm_page_queue_remove(int queue, vm_page_t m)
+{
+	struct vpgqueues *pq;
+
+	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
+	vm_page_lock_assert(m, MA_OWNED);
+	pq = &vm_page_queues[queue];
+	TAILQ_REMOVE(&pq->pl, m, pageq);
+	(*pq->cnt)--;
+}
+
+/*
  *	vm_pageq_remove:
  *
  *	Remove a page from its queue.
  *
- *	The queue containing the given page must be locked.
+ *	The given page must be locked.
  *	This routine may not block.
  */
 void
 vm_pageq_remove(vm_page_t m)
 {
 	int queue = VM_PAGE_GETQUEUE(m);
-	struct vpgqueues *pq;
 
+	vm_page_lock_assert(m, MA_OWNED);
 	if (queue != PQ_NONE) {
+		vm_page_lock_queues();
 		VM_PAGE_SETQUEUE2(m, PQ_NONE);
-		pq = &vm_page_queues[queue];
-		TAILQ_REMOVE(&pq->pl, m, pageq);
-		(*pq->cnt)--;
+		vm_page_queue_remove(queue, m);
+		vm_page_unlock_queues();
 	}
 }
 
@@ -1380,18 +1400,20 @@ vm_page_enqueue(int queue, vm_page_t m)
 void
 vm_page_activate(vm_page_t m)
 {
+	int queue;
 
 	vm_page_lock_assert(m, MA_OWNED);
-	if (VM_PAGE_GETKNOWNQUEUE2(m) != PQ_ACTIVE) {
+	if ((queue = VM_PAGE_GETKNOWNQUEUE2(m)) != PQ_ACTIVE) {
 		if (m->wire_count == 0 && (m->flags & PG_UNMANAGED) == 0) {
 			if (m->act_count < ACT_INIT)
 				m->act_count = ACT_INIT;
 			vm_page_lock_queues();
-			vm_pageq_remove(m);
+			if (queue != PQ_NONE)
+				vm_page_queue_remove(queue, m);
 			vm_page_enqueue(PQ_ACTIVE, m);
 			vm_page_unlock_queues();
 		} else
-			KASSERT(m->queue == PQ_NONE,
+			KASSERT(queue == PQ_NONE,
 			    ("vm_page_activate: wired page %p is queued", m));
 	} else {
 		if (m->act_count < ACT_INIT)
@@ -1472,11 +1494,8 @@ vm_page_free_toq(vm_page_t m)
 	 * callback routine until after we've put the page on the
 	 * appropriate free queue.
 	 */
-	if (VM_PAGE_GETQUEUE(m) != PQ_NONE) {
-		vm_page_lock_queues();
+	if ((m->flags & PG_UNMANAGED) == 0)
 		vm_pageq_remove(m);
-		vm_page_unlock_queues();
-	}
 	vm_page_remove(m);
 
 	/*
@@ -1554,11 +1573,8 @@ vm_page_wire(vm_page_t m)
 	if (m->flags & PG_FICTITIOUS)
 		return;
 	if (m->wire_count == 0) {
-		if ((m->flags & PG_UNMANAGED) == 0) {
-			vm_page_lock_queues();
+		if ((m->flags & PG_UNMANAGED) == 0)
 			vm_pageq_remove(m);
-			vm_page_unlock_queues();
-		}
 		atomic_add_int(&cnt.v_wire_count, 1);
 	}
 	m->wire_count++;
@@ -1633,22 +1649,26 @@ vm_page_unwire(vm_page_t m, int activate)
 static inline void
 _vm_page_deactivate(vm_page_t m, int athead)
 {
+	int queue;
 
 	vm_page_lock_assert(m, MA_OWNED);
 
 	/*
 	 * Ignore if already inactive.
 	 */
-	if (VM_PAGE_INQUEUE2(m, PQ_INACTIVE))
+	if ((queue = VM_PAGE_GETKNOWNQUEUE2(m)) == PQ_INACTIVE)
 		return;
 	if (m->wire_count == 0 && (m->flags & PG_UNMANAGED) == 0) {
 		vm_page_lock_queues();
 		vm_page_flag_clear(m, PG_WINATCFLS);
-		vm_pageq_remove(m);
+		if (queue != PQ_NONE)
+			vm_page_queue_remove(queue, m);
 		if (athead)
-			TAILQ_INSERT_HEAD(&vm_page_queues[PQ_INACTIVE].pl, m, pageq);
+			TAILQ_INSERT_HEAD(&vm_page_queues[PQ_INACTIVE].pl, m,
+			    pageq);
 		else
-			TAILQ_INSERT_TAIL(&vm_page_queues[PQ_INACTIVE].pl, m, pageq);
+			TAILQ_INSERT_TAIL(&vm_page_queues[PQ_INACTIVE].pl, m,
+			    pageq);
 		VM_PAGE_SETQUEUE2(m, PQ_INACTIVE);
 		cnt.v_inactive_count++;
 		vm_page_unlock_queues();
@@ -1751,11 +1771,7 @@ vm_page_cache(vm_page_t m)
 	/*
 	 * Remove the page from the paging queues.
 	 */
-	if (VM_PAGE_GETQUEUE(m) != PQ_NONE) {
-		vm_page_lock_queues();
-		vm_pageq_remove(m);
-		vm_page_unlock_queues();
-	}
+	vm_pageq_remove(m);
 
 	/*
 	 * Remove the page from the object's collection of resident
