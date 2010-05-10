@@ -76,6 +76,7 @@ SUBDIR=	${SUBDIR_ORDERED} \
 	${_libipx} \
 	libjail \
 	libkiconv \
+	liblzma \
 	libmagic \
 	libmemstat \
 	${_libmilter} \
