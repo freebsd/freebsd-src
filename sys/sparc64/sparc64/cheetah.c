@@ -58,13 +58,6 @@ void
 cheetah_init(u_int cpu_impl)
 {
 	u_long val;
-	register_t s;
-
-	/*
-	 * Disable interrupts for safety, this shouldn't be actually
-	 * necessary though.
-	 */
-	s = intr_disable();
 
 	/* Ensure the TSB Extension Registers hold 0 as TSB_Base. */
 
@@ -134,8 +127,6 @@ cheetah_init(u_int cpu_impl)
 		val &= ~DCR_DTPE;
 	}
 	wr(asr18, val, 0);
-
-	intr_restore(s);
 }
 
 /*
