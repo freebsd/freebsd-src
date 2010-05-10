@@ -238,6 +238,7 @@ struct gv_softc {
 	struct bio_queue_head	*bqueue_up;	/* BIO queue for completed
 						   requests. */
 	struct g_geom		*geom;		/* Pointer to our VINUM geom. */
+	struct proc		*worker;	/* Worker process. */
 };
 #endif
 
