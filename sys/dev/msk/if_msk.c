@@ -1017,7 +1017,8 @@ msk_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 		    (IFCAP_VLAN_HWTAGGING & ifp->if_capabilities) != 0) {
 			ifp->if_capenable ^= IFCAP_VLAN_HWTAGGING;
 			if ((IFCAP_VLAN_HWTAGGING & ifp->if_capenable) == 0)
-				ifp->if_capenable &= ~IFCAP_VLAN_HWTSO;
+				ifp->if_capenable &=
+				    ~(IFCAP_VLAN_HWTSO | IFCAP_VLAN_HWCSUM);
 			msk_setvlan(sc_if, ifp);
 		}
 		if (ifp->if_mtu > ETHERMTU &&
@@ -2828,20 +2829,15 @@ mskc_shutdown(device_t dev)
 	sc = device_get_softc(dev);
 	MSK_LOCK(sc);
 	for (i = 0; i < sc->msk_num_port; i++) {
-		if (sc->msk_if[i] != NULL)
+		if (sc->msk_if[i] != NULL && sc->msk_if[i]->msk_ifp != NULL &&
+		    ((sc->msk_if[i]->msk_ifp->if_drv_flags &
+		    IFF_DRV_RUNNING) != 0))
 			msk_stop(sc->msk_if[i]);
 	}
-
-	/* Disable all interrupts. */
-	CSR_WRITE_4(sc, B0_IMSK, 0);
-	CSR_READ_4(sc, B0_IMSK);
-	CSR_WRITE_4(sc, B0_HWE_IMSK, 0);
-	CSR_READ_4(sc, B0_HWE_IMSK);
+	MSK_UNLOCK(sc);
 
 	/* Put hardware reset. */
 	CSR_WRITE_2(sc, B0_CTST, CS_RST_SET);
-
-	MSK_UNLOCK(sc);
 	return (0);
 }
 
@@ -3376,6 +3372,8 @@ msk_handle_events(struct msk_softc *sc)
 			sc_if->msk_vtag = ntohs(len);
 			break;
 		case OP_RXSTAT:
+			if (!(sc_if->msk_ifp->if_drv_flags & IFF_DRV_RUNNING))
+				break;
 			if (sc_if->msk_framesize >
 			    (MCLBYTES - MSK_RX_BUF_ALIGN))
 				msk_jumbo_rxeof(sc_if, status, control, len);
@@ -3445,6 +3443,7 @@ msk_intr(void *xsc)
 	    (sc->msk_pflags & MSK_FLAG_SUSPEND) != 0 ||
 	    (status & sc->msk_intrmask) == 0) {
 		CSR_WRITE_4(sc, B0_Y2_SP_ICR, 2);
+		MSK_UNLOCK(sc);
 		return;
 	}
 
