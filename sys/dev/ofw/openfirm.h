@@ -74,6 +74,8 @@ typedef unsigned int	phandle_t;
 #include <sys/types.h>
 #include <sys/malloc.h>
 
+#include <machine/ofw_machdep.h>
+
 MALLOC_DECLARE(M_OFWPROP);
 
 /*
