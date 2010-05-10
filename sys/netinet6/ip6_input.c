@@ -177,9 +177,21 @@ ip6_init(void)
 	frag6_init();
 
 #ifdef FLOWTABLE
- 	TUNABLE_INT_FETCH("net.inet6.ip6.output_flowtable_size",
- 	    &V_ip6_output_flowtable_size);
- 	V_ip6_ft = flowtable_alloc("ipv6", V_ip6_output_flowtable_size, FL_PCPU);
+	if (TUNABLE_INT_FETCH("net.inet6.ip6.output_flowtable_size",
+		&V_ip6_output_flowtable_size)) {
+		if (V_ip6_output_flowtable_size < 256)
+			V_ip6_output_flowtable_size = 256;
+		if (!powerof2(V_ip6_output_flowtable_size)) {
+			printf("flowtable must be power of 2 size\n");
+			V_ip6_output_flowtable_size = 2048;
+		}
+	} else {
+		/*
+		 * round up to the next power of 2
+		 */
+		V_ip6_output_flowtable_size = 1 << fls((1024 + maxusers * 64)-1);
+	}
+	V_ip6_ft = flowtable_alloc("ipv6", V_ip6_output_flowtable_size, FL_PCPU);
 #endif	
 	
 	V_ip6_desync_factor = arc4random() % MAX_TEMP_DESYNC_FACTOR;
