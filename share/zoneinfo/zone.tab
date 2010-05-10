@@ -1,5 +1,5 @@
 # <pre>
-# @(#)zone.tab	8.35
+# @(#)zone.tab	8.36
 # This file is in the public domain, so clarified as of
 # 2009-05-17 by Arthur David Olson.
 #
@@ -288,6 +288,7 @@ MX	+2934-10425	America/Ojinaga	US Mountain Time - Chihuahua near US border
 MX	+2904-11058	America/Hermosillo	Mountain Standard Time - Sonora
 MX	+3232-11701	America/Tijuana	US Pacific Time - Baja California near US border
 MX	+3018-11452	America/Santa_Isabel	Mexican Pacific Time - Baja California away from US border
+MX	+2048-10515	America/Bahia_Banderas	Mexican Central Time - Bahia de Banderas
 MY	+0310+10142	Asia/Kuala_Lumpur	peninsular Malaysia
 MY	+0133+11020	Asia/Kuching	Sabah & Sarawak
 MZ	-2558+03235	Africa/Maputo
