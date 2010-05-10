@@ -522,7 +522,8 @@ pmap_bootstrap(u_int cpu_impl)
 			tp->tte_data =
 			    ((translations[i].om_tte &
 			    ~((TD_SOFT2_MASK << TD_SOFT2_SHIFT) |
-			    (cpu_impl < CPU_IMPL_ULTRASPARCIII ?
+			    (cpu_impl >= CPU_IMPL_ULTRASPARCI &&
+			    cpu_impl < CPU_IMPL_ULTRASPARCIII ?
 			    (TD_DIAG_SF_MASK << TD_DIAG_SF_SHIFT) :
 			    (TD_RSVD_CH_MASK << TD_RSVD_CH_SHIFT)) |
 			    (TD_SOFT_MASK << TD_SOFT_SHIFT))) | TD_EXEC) +
