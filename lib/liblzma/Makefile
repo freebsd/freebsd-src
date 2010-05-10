@@ -19,6 +19,8 @@ LZMAINCS+=	base.h \
 		container.h \
 		delta.h \
 		filter.h \
+		hardware.h \
+		index.h \
 		index_hash.h \
 		lzma.h \
 		stream_flags.h \
