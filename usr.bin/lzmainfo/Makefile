@@ -16,8 +16,7 @@ WARNS?=	3
 
 CFLAGS+=	-DHAVE_CONFIG_H \
 		-I${LZMALIBDIR} \
-		-I${XZDIR}/common \
-		-I${XZDIR}/liblzma/api
+		-I${XZDIR}/common
 
 DPADD=	${LIBLZMA}
 LDADD=	-llzma
