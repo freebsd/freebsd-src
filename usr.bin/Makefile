@@ -116,6 +116,7 @@ SUBDIR=	alias \
 	look \
 	lorder \
 	lsvfs \
+	lzmainfo \
 	m4 \
 	${_mail} \
 	${_make} \
@@ -233,6 +234,8 @@ SUBDIR=	alias \
 	xinstall \
 	${_xlint} \
 	${_xstr} \
+	xz \
+	xzdec \
 	${_yacc} \
 	yes \
 	${_ypcat} \
