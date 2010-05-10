@@ -283,7 +283,7 @@ struct sge_desc {
 #define	SGE_RX_RING_CNT		256 /* [8, 1024] */
 #define	SGE_TX_RING_CNT		256 /* [8, 8192] */
 #define	SGE_DESC_ALIGN		16
-#define	SGE_MAXTXSEGS		1
+#define	SGE_MAXTXSEGS		16
 #define	SGE_RX_BUF_ALIGN	sizeof(uint64_t)
 
 #define	SGE_RX_RING_SZ		(SGE_RX_RING_CNT * sizeof(struct sge_desc))
@@ -298,6 +298,17 @@ struct sge_list_data {
 	bus_addr_t		sge_tx_paddr;
 };
 
+struct sge_txdesc {
+	struct mbuf		*tx_m;
+	bus_dmamap_t		tx_dmamap;
+	int			tx_ndesc;
+};
+
+struct sge_rxdesc {
+	struct mbuf		*rx_m;
+	bus_dmamap_t		rx_dmamap;
+};
+
 struct sge_chain_data {
 	bus_dma_tag_t		sge_tag;
 	bus_dma_tag_t		sge_rx_tag;
@@ -306,11 +317,9 @@ struct sge_chain_data {
 	bus_dmamap_t		sge_tx_dmamap;
 	bus_dma_tag_t		sge_txmbuf_tag;
 	bus_dma_tag_t		sge_rxmbuf_tag;
-	struct mbuf		*sge_rx_mbuf[SGE_RX_RING_CNT];
-	struct mbuf		*sge_tx_mbuf[SGE_TX_RING_CNT];
-	bus_dmamap_t		sge_rx_map[SGE_RX_RING_CNT];
+	struct sge_txdesc	sge_txdesc[SGE_TX_RING_CNT];
+	struct sge_rxdesc	sge_rxdesc[SGE_RX_RING_CNT];
 	bus_dmamap_t		sge_rx_spare_map;
-	bus_dmamap_t		sge_tx_map[SGE_TX_RING_CNT];
 	int			sge_rx_cons;
 	int			sge_tx_prod;
 	int			sge_tx_cons;
