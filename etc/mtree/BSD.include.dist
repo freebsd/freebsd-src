@@ -207,6 +207,8 @@
     ..
     lwres
     ..
+    lzma
+    ..
     machine
         pc
         ..
