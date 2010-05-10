@@ -1113,7 +1113,7 @@ _prebuild_libs=	${_kerberos5_lib_libasn1} ${_kerberos5_lib_libheimntlm} \
 		lib/libbz2 lib/libcom_err lib/libcrypt \
 		lib/libexpat lib/libfetch \
 		${_lib_libgssapi} ${_lib_libipx} \
-		lib/libkiconv lib/libkvm lib/libmd \
+		lib/libkiconv lib/libkvm lib/liblzma lib/libmd \
 		lib/ncurses/ncurses lib/ncurses/ncursesw \
 		lib/libopie lib/libpam ${_lib_libthr} \
 		lib/libradius lib/libsbuf lib/libtacplus \

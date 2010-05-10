@@ -12,8 +12,8 @@ CFLAGS+= -DPLATFORM_CONFIG_H=\"config_freebsd.h\"
 # statically linked, cannot use -lcrypto, and are size sensitive.
 CFLAGS+= -DSMALLER
 .endif
-DPADD=	${LIBARCHIVE} ${LIBZ} ${LIBBZ2} ${LIBMD}
-LDADD=	-larchive -lz -lbz2 -lmd
+DPADD=	${LIBARCHIVE} ${LIBZ} ${LIBBZ2} ${LIBMD} ${LIBLZMA}
+LDADD=	-larchive -lz -lbz2 -lmd -llzma
 .if ${MK_OPENSSL} != "no"
 DPADD+=	${LIBCRYPTO}
 LDADD+= -lcrypto
