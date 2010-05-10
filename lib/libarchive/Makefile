@@ -2,8 +2,8 @@
 .include <bsd.own.mk>
 
 LIB=	archive
-DPADD=	${LIBBZ2} ${LIBZ} ${LIBMD}
-LDADD=	-lbz2 -lz -lmd
+DPADD=	${LIBBZ2} ${LIBZ} ${LIBMD} ${LIBLZMA}
+LDADD=	-lbz2 -lz -lmd -llzma
 
 # FreeBSD SHLIB_MAJOR value is managed as part of the FreeBSD system.
 # It has no real relation to the libarchive version number.
@@ -11,10 +11,7 @@ SHLIB_MAJOR= 5
 
 CFLAGS+=	-DPLATFORM_CONFIG_H=\"config_freebsd.h\"
 CFLAGS+=	-I${.OBJDIR}
-#Uncomment to build with full lzma/xz support via liblzma
-#liblzma is not (yet?) part of the FreeBSD base system
-#CFLAGS+= -I/usr/local/include -DHAVE_LIBLZMA=1 -DHAVE_LZMA_H=1
-#LDADD+= -L/usr/local/lib -llzma
+CFLAGS+=	-DHAVE_LIBLZMA=1 -DHAVE_LZMA_H=1
 
 .if ${MK_OPENSSL} != "no"
 CFLAGS+=	-DWITH_OPENSSL

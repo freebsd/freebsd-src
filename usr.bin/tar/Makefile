@@ -15,8 +15,8 @@ SRCS=	bsdtar.c	\
 	tree.c		\
 	util.c		\
 	write.c
-DPADD=	${LIBARCHIVE} ${LIBBZ2} ${LIBZ} ${LIBMD}
-LDADD=	-larchive -lbz2 -lz -lmd
+DPADD=	${LIBARCHIVE} ${LIBBZ2} ${LIBZ} ${LIBMD} ${LIBLZMA}
+LDADD=	-larchive -lbz2 -lz -lmd -llzma
 .if ${MK_OPENSSL} != "no"
 DPADD+=	${LIBCRYPTO}
 LDADD+= -lcrypto
