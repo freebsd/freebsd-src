@@ -141,7 +141,12 @@ cache_init(struct pcpu *pcpu)
 	if ((pcpu->pc_cache.dc_size &
 	    ~(1UL << (ffs(pcpu->pc_cache.dc_size) - 1))) != 0)
 		panic("cache_init: D$ size not a power of 2");
-	if (((pcpu->pc_cache.dc_size / pcpu->pc_cache.dc_assoc) /
+	/*
+	 * For CPUs which don't support unaliasing in hardware ensure that
+	 * the data cache doesn't have too many virtual colors.
+	 */
+	if (pcpu->pc_impl != CPU_IMPL_SPARC64V &&
+	    ((pcpu->pc_cache.dc_size / pcpu->pc_cache.dc_assoc) /
 	    PAGE_SIZE) != DCACHE_COLORS)
 		panic("cache_init: too many D$ colors");
 	set = pcpu->pc_cache.ec_size / pcpu->pc_cache.ec_assoc;
@@ -155,12 +160,21 @@ cache_init(struct pcpu *pcpu)
 		icache_page_inval = cheetah_icache_page_inval;
 		tlb_flush_nonlocked = cheetah_tlb_flush_nonlocked;
 		tlb_flush_user = cheetah_tlb_flush_user;
-	} else {
+	} else if (pcpu->pc_impl == CPU_IMPL_SPARC64V) {
+		cache_enable = cheetah_cache_enable;
+		cache_flush = zeus_cache_flush;
+		dcache_page_inval = zeus_dcache_page_inval;
+		icache_page_inval = zeus_icache_page_inval;
+		tlb_flush_nonlocked = cheetah_tlb_flush_nonlocked;
+		tlb_flush_user = cheetah_tlb_flush_user;
+	} else if (pcpu->pc_impl >= CPU_IMPL_ULTRASPARCI &&
+	    pcpu->pc_impl < CPU_IMPL_ULTRASPARCIII) {
 		cache_enable = spitfire_cache_enable;
 		cache_flush = spitfire_cache_flush;
 		dcache_page_inval = spitfire_dcache_page_inval;
 		icache_page_inval = spitfire_icache_page_inval;
 		tlb_flush_nonlocked = spitfire_tlb_flush_nonlocked;
 		tlb_flush_user = spitfire_tlb_flush_user;
-	}
+	} else
+		panic("cache_init: unknown CPU");
 }
