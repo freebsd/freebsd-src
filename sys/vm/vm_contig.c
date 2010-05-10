@@ -168,10 +168,8 @@ vm_contig_launder(int queue)
 		if ((m->flags & PG_MARKER) != 0)
 			continue;
 
-		if (!vm_pageout_page_lock(m, &next)) {
-			vm_page_unlock(m);
-			return (FALSE);
-		}
+		if (!vm_pageout_page_lock(m, &next))
+			continue;
 		KASSERT(VM_PAGE_INQUEUE2(m, queue),
 		    ("vm_contig_launder: page %p's queue is not %d", m, queue));
 		error = vm_contig_launder_page(m, &next);
