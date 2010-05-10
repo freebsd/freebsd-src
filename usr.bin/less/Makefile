@@ -11,7 +11,9 @@ SCRIPTSNAME_lesspipe.sh=lesspipe.sh
 DPADD=	${LIBTERMCAP}
 LDADD=	-ltermcap
 LINKS=	${BINDIR}/less ${BINDIR}/more \
-	${BINDIR}/zless ${BINDIR}/bzless
+	${BINDIR}/zless ${BINDIR}/bzless \
+	${BINDIR}/zless ${BINDIR}/xzless \
+	${BINDIR}/zless ${BINDIR}/lzless
 MLINKS=	less.1 more.1
 CLEANFILES= less.1
 
