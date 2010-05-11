@@ -35,6 +35,6 @@
 #define	dnlc_update(dvp, name, vp)	do { } while (0)
 #define	dnlc_remove(dvp, name)		do { } while (0)
 #define	dnlc_purge_vfsp(vfsp, count)	(0)
-#define	dnlc_reduce_cache(percent)	EVENTHANDLER_INVOKE(vfs_lowvnodes, (int)(intptr_t)(percent))
+#define	dnlc_reduce_cache(percent)	do { } while (0)
 
 #endif	/* !_OPENSOLARIS_SYS_DNLC_H_ */
