@@ -358,13 +358,19 @@ zil_create(zilog_t *zilog)
 	blk = zh->zh_log;
 
 	/*
-	 * If we don't already have an initial log block, allocate one now.
+	 * If we don't already have an initial log block or we have one
+	 * but it's the wrong endianness then allocate one.
 	 */
-	if (BP_IS_HOLE(&blk)) {
+	if (BP_IS_HOLE(&blk) || BP_SHOULD_BYTESWAP(&blk)) {
 		tx = dmu_tx_create(zilog->zl_os);
 		(void) dmu_tx_assign(tx, TXG_WAIT);
 		dsl_dataset_dirty(dmu_objset_ds(zilog->zl_os), tx);
 		txg = dmu_tx_get_txg(tx);
+
+		if (!BP_IS_HOLE(&blk)) {
+			zio_free_blk(zilog->zl_spa, &blk, txg);
+			BP_ZERO(&blk);
+		}
 
 		error = zio_alloc_blk(zilog->zl_spa, ZIL_MIN_BLKSZ, &blk,
 		    NULL, txg);
