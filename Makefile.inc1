@@ -434,8 +434,9 @@ everything:
 	@echo "--------------------------------------------------------------"
 	@echo ">>> stage 4.4: building everything"
 	@echo "--------------------------------------------------------------"
-	ln -sf ${WORLDTMP}/usr/bin/as ${WORLDTMP}/usr/lib/as
-	ln -sf ${WORLDTMP}/usr/bin/ld ${WORLDTMP}/usr/lib/ld
+	# mergemaster goes through this but those files do not exist
+	[ -e ${WORLDTMP}/usr/bin/as ] && ln -sf ${WORLDTMP}/usr/bin/as ${WORLDTMP}/usr/lib/as
+	[ -e ${WORLDTMP}/usr/bin/ld ] && ln -sf ${WORLDTMP}/usr/bin/ld ${WORLDTMP}/usr/lib/ld
 	${_+_}cd ${.CURDIR}; ${WMAKE} par-all
 .if ${TARGET_ARCH} == "amd64"
 build32:
