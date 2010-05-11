@@ -800,7 +800,6 @@ vnlru_proc(void)
 		}
 		mtx_unlock(&mountlist_mtx);
 		if (done == 0) {
-			EVENTHANDLER_INVOKE(vfs_lowvnodes, desiredvnodes / 10);
 #if 0
 			/* These messages are temporary debugging aids */
 			if (vnlru_nowhere < 5)
