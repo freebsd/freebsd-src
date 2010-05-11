@@ -1268,8 +1268,7 @@ dsl_dataset_rollback_sync(void *arg1, void *arg2, cred_t *cr, dmu_tx_t *tx)
 		(void) zio_wait(zio);
 	}
 
-	ASSERT(!(ds->ds_phys->ds_flags & DS_FLAG_UNIQUE_ACCURATE) ||
-	    ds->ds_phys->ds_unique_bytes == 0);
+	ASSERT(!DS_UNIQUE_IS_ACCURATE(ds) || ds->ds_phys->ds_unique_bytes == 0);
 
 	if (ds->ds_prev && ds->ds_prev != ds->ds_dir->dd_pool->dp_origin_snap) {
 		/* Change our contents to that of the prev snapshot */
@@ -1661,7 +1660,7 @@ dsl_dataset_destroy_sync(void *arg1, void *tag, cred_t *cr, dmu_tx_t *tx)
 		err = traverse_dsl_dataset(ds, ds->ds_phys->ds_prev_snap_txg,
 		    ADVANCE_POST, kill_blkptr, &ka);
 		ASSERT3U(err, ==, 0);
-		ASSERT(spa_version(dp->dp_spa) < SPA_VERSION_UNIQUE_ACCURATE ||
+		ASSERT(!DS_UNIQUE_IS_ACCURATE(ds) ||
 		    ds->ds_phys->ds_unique_bytes == 0);
 	}
 
