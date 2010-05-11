@@ -197,7 +197,7 @@ extern struct lock_class lock_class_lockmgr;
 extern struct lock_class *lock_classes[];
 
 void	lock_init(struct lock_object *, struct lock_class *,
-    const char *, const char *, int);
+	    const char *, const char *, int);
 void	lock_destroy(struct lock_object *);
 void	spinlock_enter(void);
 void	spinlock_exit(void);
@@ -205,7 +205,7 @@ void	witness_init(struct lock_object *, const char *);
 void	witness_destroy(struct lock_object *);
 int	witness_defineorder(struct lock_object *, struct lock_object *);
 void	witness_checkorder(struct lock_object *, int, const char *, int,
-    struct lock_object *);
+	    struct lock_object *);
 void	witness_lock(struct lock_object *, int, const char *, int);
 void	witness_upgrade(struct lock_object *, int, const char *, int);
 void	witness_downgrade(struct lock_object *, int, const char *, int);
