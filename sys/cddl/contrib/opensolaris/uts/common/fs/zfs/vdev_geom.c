@@ -396,7 +396,7 @@ vdev_geom_attach_by_guid_event(void *arg, int flags __unused)
 					continue;
 				ap->cp = vdev_geom_attach(pp);
 				if (ap->cp == NULL) {
-					printf("ZFS WARNING: Unable to attach to %s.",
+					printf("ZFS WARNING: Unable to attach to %s.\n",
 					    pp->name);
 					continue;
 				}
@@ -533,7 +533,7 @@ vdev_geom_open(vdev_t *vd, uint64_t *psize, uint64_t *ashift)
 		g_topology_lock();
 		error = g_access(cp, 0, 1, 0);
 		if (error != 0) {
-			printf("ZFS WARNING: Unable to open %s for writing (error=%d).",
+			printf("ZFS WARNING: Unable to open %s for writing (error=%d).\n",
 			    vd->vdev_path, error);
 			vdev_geom_detach(cp, 0);
 			cp = NULL;
