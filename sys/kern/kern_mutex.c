@@ -485,7 +485,7 @@ _mtx_lock_spin_failed(struct mtx *m)
 	printf( "spin lock %p (%s) held by %p (tid %d) too long\n",
 	    m, m->lock_object.lo_name, td, td->td_tid);
 #ifdef WITNESS
-	witness_display_spinlock(&m->lock_object, td);
+	witness_display_spinlock(&m->lock_object, td, printf);
 #endif
 	panic("spin lock held too long");
 }
