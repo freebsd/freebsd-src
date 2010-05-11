@@ -239,7 +239,7 @@ struct thread {
 	u_int		td_estcpu;	/* (t) estimated cpu utilization */
 	int		td_slptick;	/* (t) Time at sleep. */
 	int		td_blktick;	/* (t) Time spent blocked. */
-	struct rusage	td_ru;		/* (t) rusage information */
+	struct rusage	td_ru;		/* (t) rusage information. */
 	uint64_t	td_incruntime;	/* (t) Cpu ticks to transfer to proc. */
 	uint64_t	td_runtime;	/* (t) How many cpu ticks we've run. */
 	u_int 		td_pticks;	/* (t) Statclock hits for profiling */
@@ -302,6 +302,7 @@ struct thread {
 	int		td_errno;	/* Error returned by last syscall. */
 	struct vnet	*td_vnet;	/* (k) Effective vnet. */
 	const char	*td_vnet_lpush;	/* (k) Debugging vnet push / pop. */
+	struct rusage_ext td_rux;	/* (t) Internal rusage information. */
 };
 
 struct mtx *thread_lock_block(struct thread *);

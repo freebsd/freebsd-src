@@ -531,6 +531,7 @@ again:
 
 	bzero(&td2->td_startzero,
 	    __rangeof(struct thread, td_startzero, td_endzero));
+	bzero(&td2->td_rux, sizeof(td2->td_rux));
 
 	bcopy(&td->td_startcopy, &td2->td_startcopy,
 	    __rangeof(struct thread, td_startcopy, td_endcopy));
