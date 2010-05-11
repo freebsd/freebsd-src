@@ -199,6 +199,7 @@ create_thread(struct thread *td, mcontext_t *ctx,
 
 	bzero(&newtd->td_startzero,
 	    __rangeof(struct thread, td_startzero, td_endzero));
+	bzero(&newtd->td_rux, sizeof(newtd->td_rux));
 	bcopy(&td->td_startcopy, &newtd->td_startcopy,
 	    __rangeof(struct thread, td_startcopy, td_endcopy));
 	newtd->td_proc = td->td_proc;
