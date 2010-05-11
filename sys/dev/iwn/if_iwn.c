@@ -65,9 +65,9 @@ __FBSDID("$FreeBSD$");
 #include <netinet/ip.h>
 
 #include <net80211/ieee80211_var.h>
-#include <net80211/ieee80211_amrr.h>
 #include <net80211/ieee80211_radiotap.h>
 #include <net80211/ieee80211_regdomain.h>
+#include <net80211/ieee80211_ratectl.h>
 
 #include <dev/iwn/if_iwnreg.h>
 #include <dev/iwn/if_iwnvar.h>
@@ -785,11 +785,7 @@ iwn_vap_create(struct ieee80211com *ic,
 	ivp->iv_newstate = vap->iv_newstate;
 	vap->iv_newstate = iwn_newstate;
 
-	ieee80211_amrr_init(&ivp->iv_amrr, vap,
-	    IEEE80211_AMRR_MIN_SUCCESS_THRESHOLD,
-	    IEEE80211_AMRR_MAX_SUCCESS_THRESHOLD,
-	    500 /* ms */);
-
+	ieee80211_ratectl_init(vap);
 	/* Complete setup. */
 	ieee80211_vap_attach(vap, iwn_media_change, ieee80211_media_status);
 	ic->ic_opmode = opmode;
@@ -801,7 +797,7 @@ iwn_vap_delete(struct ieee80211vap *vap)
 {
 	struct iwn_vap *ivp = IWN_VAP(vap);
 
-	ieee80211_amrr_cleanup(&ivp->iv_amrr);
+	ieee80211_ratectl_deinit(vap);
 	ieee80211_vap_detach(vap);
 	free(ivp, M_80211_VAP);
 }
@@ -1897,11 +1893,8 @@ iwn_node_alloc(struct ieee80211vap *vap, const uint8_t mac[IEEE80211_ADDR_LEN])
 static void
 iwn_newassoc(struct ieee80211_node *ni, int isnew)
 {
-	struct ieee80211vap *vap = ni->ni_vap;
-	struct iwn_node *wn = (void *)ni;
-
-	ieee80211_amrr_node_init(&IWN_VAP(vap)->iv_amrr,
-	    &wn->amn, ni);
+	/* XXX move */
+	ieee80211_ratectl_node_init(ni);
 }
 
 static int
@@ -2333,9 +2326,9 @@ iwn_tx_done(struct iwn_softc *sc, struct iwn_rx_desc *desc, int ackfailcnt,
 	struct ifnet *ifp = sc->sc_ifp;
 	struct iwn_tx_ring *ring = &sc->txq[desc->qid & 0xf];
 	struct iwn_tx_data *data = &ring->data[desc->idx];
-	struct iwn_node *wn = (void *)data->ni;
 	struct mbuf *m;
 	struct ieee80211_node *ni;
+	struct ieee80211vap *vap;
 
 	KASSERT(data->ni != NULL, ("no node"));
 
@@ -2344,6 +2337,7 @@ iwn_tx_done(struct iwn_softc *sc, struct iwn_rx_desc *desc, int ackfailcnt,
 	bus_dmamap_unload(ring->data_dmat, data->map);
 	m = data->m, data->m = NULL;
 	ni = data->ni, data->ni = NULL;
+	vap = ni->ni_vap;
 
 	if (m->m_flags & M_TXCB) {
 		/*
@@ -2373,11 +2367,11 @@ iwn_tx_done(struct iwn_softc *sc, struct iwn_rx_desc *desc, int ackfailcnt,
 	 */
 	if (status & 0x80) {
 		ifp->if_oerrors++;
-		ieee80211_amrr_tx_complete(&wn->amn,
-		    IEEE80211_AMRR_FAILURE, ackfailcnt);
+		ieee80211_ratectl_tx_complete(vap, ni,
+		    IEEE80211_RATECTL_TX_FAILURE, &ackfailcnt, NULL);
 	} else {
-		ieee80211_amrr_tx_complete(&wn->amn,
-		    IEEE80211_AMRR_SUCCESS, ackfailcnt);
+		ieee80211_ratectl_tx_complete(vap, ni,
+		    IEEE80211_RATECTL_TX_SUCCESS, &ackfailcnt, NULL);
 	}
 	m_freem(m);
 	ieee80211_free_node(ni);
@@ -2897,7 +2891,8 @@ iwn_tx_data(struct iwn_softc *sc, struct mbuf *m, struct ieee80211_node *ni,
 	else if (tp->ucastrate != IEEE80211_FIXED_RATE_NONE)
 		rate = tp->ucastrate;
 	else {
-		(void) ieee80211_amrr_choose(ni, &wn->amn);
+		/* XXX pass pktlen */
+		(void) ieee80211_ratectl_rate(ni, NULL, 0);
 		rate = ni->ni_txrate;
 	}
 	ridx = iwn_plcp_signal(rate);
@@ -6480,4 +6475,3 @@ DRIVER_MODULE(iwn, pci, iwn_driver, iwn_devclass, 0, 0);
 MODULE_DEPEND(iwn, pci, 1, 1, 1);
 MODULE_DEPEND(iwn, firmware, 1, 1, 1);
 MODULE_DEPEND(iwn, wlan, 1, 1, 1);
-MODULE_DEPEND(iwn, wlan_amrr, 1, 1, 1);

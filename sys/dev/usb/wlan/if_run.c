@@ -65,7 +65,7 @@ __FBSDID("$FreeBSD$");
 #include <net80211/ieee80211_var.h>
 #include <net80211/ieee80211_regdomain.h>
 #include <net80211/ieee80211_radiotap.h>
-#include <net80211/ieee80211_amrr.h>
+#include <net80211/ieee80211_ratectl.h>
 
 #include <dev/usb/usb.h>
 #include <dev/usb/usbdi.h>
@@ -290,7 +290,6 @@ static const struct usb_device_id run_devs[] = {
 };
 
 MODULE_DEPEND(run, wlan, 1, 1, 1);
-MODULE_DEPEND(run, wlan_amrr, 1, 1, 1);
 MODULE_DEPEND(run, usb, 1, 1, 1);
 MODULE_DEPEND(run, firmware, 1, 1, 1);
 
@@ -350,9 +349,9 @@ static int	run_key_set(struct ieee80211vap *, const struct ieee80211_key *,
 			    const uint8_t mac[IEEE80211_ADDR_LEN]);
 static int	run_key_delete(struct ieee80211vap *,
 		    const struct ieee80211_key *);
-static void	run_amrr_start(struct run_softc *, struct ieee80211_node *);
-static void	run_amrr_to(void *);
-static void	run_amrr_cb(void *, int);
+static void	run_ratectl_start(struct run_softc *, struct ieee80211_node *);
+static void	run_ratectl_to(void *);
+static void	run_ratectl_cb(void *, int);
 static void	run_iter_func(void *, struct ieee80211_node *);
 static void	run_newassoc(struct ieee80211_node *, int);
 static void	run_rx_frame(struct run_softc *, struct mbuf *, uint32_t);
@@ -754,14 +753,12 @@ run_vap_create(struct ieee80211com *ic,
 	rvp->newstate = vap->iv_newstate;
 	vap->iv_newstate = run_newstate;
 
-	TASK_INIT(&rvp->amrr_task, 0, run_amrr_cb, rvp);
+	TASK_INIT(&rvp->ratectl_task, 0, run_ratectl_cb, rvp);
 	TASK_INIT(&sc->wme_task, 0, run_wme_update_cb, ic);
 	TASK_INIT(&sc->usb_timeout_task, 0, run_usb_timeout_cb, sc);
-	callout_init((struct callout *)&rvp->amrr_ch, 1);
-	ieee80211_amrr_init(&rvp->amrr, vap,
-	    IEEE80211_AMRR_MIN_SUCCESS_THRESHOLD,
-	    IEEE80211_AMRR_MAX_SUCCESS_THRESHOLD,
-	    1000 /* 1 sec */);
+	callout_init((struct callout *)&rvp->ratectl_ch, 1);
+	ieee80211_ratectl_init(vap);
+	ieee80211_ratectl_setinterval(vap, 1000 /* 1 sec */);
 
 	/* complete setup */
 	ieee80211_vap_attach(vap, run_media_change, ieee80211_media_status);
@@ -786,16 +783,16 @@ run_vap_delete(struct ieee80211vap *vap)
 	sc = ifp->if_softc;
 
 	RUN_LOCK(sc);
-	sc->sc_rvp->amrr_run = RUN_AMRR_OFF;
+	sc->sc_rvp->ratectl_run = RUN_RATECTL_OFF;
 	RUN_UNLOCK(sc);
 
 	/* drain them all */
-	usb_callout_drain(&sc->sc_rvp->amrr_ch);
-	ieee80211_draintask(ic, &sc->sc_rvp->amrr_task);
+	usb_callout_drain(&sc->sc_rvp->ratectl_ch);
+	ieee80211_draintask(ic, &sc->sc_rvp->ratectl_task);
 	ieee80211_draintask(ic, &sc->wme_task);
 	ieee80211_draintask(ic, &sc->usb_timeout_task);
 
-	ieee80211_amrr_cleanup(&rvp->amrr);
+	ieee80211_ratectl_deinit(vap);
 	ieee80211_vap_detach(vap);
 	free(rvp, M_80211_VAP);
 	sc->sc_rvp = NULL;
@@ -1632,8 +1629,8 @@ run_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 	IEEE80211_UNLOCK(ic);
 	RUN_LOCK(sc);
 
-	sc->sc_rvp->amrr_run = RUN_AMRR_OFF;
-	usb_callout_stop(&rvp->amrr_ch);
+	sc->sc_rvp->ratectl_run = RUN_RATECTL_OFF;
+	usb_callout_stop(&rvp->ratectl_ch);
 
 	if (ostate == IEEE80211_S_RUN) {
 		/* turn link LED off */
@@ -1681,7 +1678,7 @@ run_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 		/* enable automatic rate adaptation */
 		tp = &vap->iv_txparms[ieee80211_chan2mode(ic->ic_curchan)];
 		if (tp->ucastrate == IEEE80211_FIXED_RATE_NONE)
-			run_amrr_start(sc, ni);
+			run_ratectl_start(sc, ni);
 
 		/* turn link LED on */
 		run_set_leds(sc, RT2860_LED_RADIO |
@@ -1961,12 +1958,11 @@ fail:
 }
 
 static void
-run_amrr_start(struct run_softc *sc, struct ieee80211_node *ni)
+run_ratectl_start(struct run_softc *sc, struct ieee80211_node *ni)
 {
 	struct ieee80211vap *vap = ni->ni_vap;
 	struct run_vap *rvp = RUN_VAP(vap);
 	uint32_t sta[3];
-	uint8_t wcid;
 
 	RUN_LOCK_ASSERT(sc, MA_OWNED);
 
@@ -1974,30 +1970,29 @@ run_amrr_start(struct run_softc *sc, struct ieee80211_node *ni)
 	run_read_region_1(sc, RT2860_TX_STA_CNT0,
 	    (uint8_t *)sta, sizeof sta);
 
-	wcid = RUN_AID2WCID(ni == NULL ? 0 : ni->ni_associd);
-	ieee80211_amrr_node_init(&rvp->amrr, &rvp->amn[wcid], ni);
+	ieee80211_ratectl_node_init(ni);
 
 	/* start at lowest available bit-rate, AMRR will raise */
 	ni->ni_txrate = 2;
 
 	/* start calibration timer */
-	rvp->amrr_run = RUN_AMRR_ON;
-	usb_callout_reset(&rvp->amrr_ch, hz, run_amrr_to, rvp);
+	rvp->ratectl_run = RUN_RATECTL_ON;
+	usb_callout_reset(&rvp->ratectl_ch, hz, run_ratectl_to, rvp);
 }
 
 static void
-run_amrr_to(void *arg)
+run_ratectl_to(void *arg)
 {
 	struct run_vap *rvp = arg;
 
 	/* do it in a process context, so it can go sleep */
-	ieee80211_runtask(rvp->vap.iv_ic, &rvp->amrr_task);
+	ieee80211_runtask(rvp->vap.iv_ic, &rvp->ratectl_task);
 	/* next timeout will be rescheduled in the callback task */
 }
 
 /* ARGSUSED */
 static void
-run_amrr_cb(void *arg, int pending)
+run_ratectl_cb(void *arg, int pending)
 {
 	struct run_vap *rvp = arg;
 	struct ieee80211vap *vap = &rvp->vap;
@@ -2020,8 +2015,8 @@ run_amrr_cb(void *arg, int pending)
 		ieee80211_iterate_nodes(&ic->ic_sta, run_iter_func, rvp);
 	}
 
-	if(rvp->amrr_run == RUN_AMRR_ON)
-		usb_callout_reset(&rvp->amrr_ch, hz, run_amrr_to, rvp);
+	if(rvp->ratectl_run == RUN_RATECTL_ON)
+		usb_callout_reset(&rvp->ratectl_ch, hz, run_ratectl_to, rvp);
 }
 
 
@@ -2033,10 +2028,11 @@ run_iter_func(void *arg, struct ieee80211_node *ni)
 	struct ifnet *ifp = ic->ic_ifp;
 	struct run_softc *sc = ifp->if_softc;
 	struct ieee80211_node_table *nt = &ic->ic_sta;
-	struct ieee80211_amrr_node *amn = &rvp->amn[0]; /* make compiler happy */
 	uint32_t sta[3], stat;
 	int error;
 	uint8_t wcid, mcs, pid;
+	struct ieee80211vap *vap = ni->ni_vap;
+	int txcnt = 0, success = 0, retrycnt = 0;
 
 	if(ic->ic_opmode != IEEE80211_M_STA)
 		IEEE80211_NODE_ITERATE_UNLOCK(nt);
@@ -2056,10 +2052,7 @@ run_iter_func(void *arg, struct ieee80211_node *ni)
 				continue;
 
 			/* update per-STA AMRR stats */
-			amn = &rvp->amn[wcid];
-			amn->amn_txcnt++;
 			if (stat & RT2860_TXQ_OK) {
-				amn->amn_success++;
 				/*
 				 * Check if there were retries, ie if the Tx
 				 * success rate is different from the requested
@@ -2069,16 +2062,20 @@ run_iter_func(void *arg, struct ieee80211_node *ni)
 				mcs = (stat >> RT2860_TXQ_MCS_SHIFT) & 0x7f;
 				pid = (stat >> RT2860_TXQ_PID_SHIFT) & 0xf;
 				if (mcs + 1 != pid)
-					amn->amn_retrycnt++;
+					retrycnt = 1;
+				ieee80211_ratectl_tx_complete(vap, ni,
+				    IEEE80211_RATECTL_TX_SUCCESS,
+				    &retrycnt, NULL);
 			} else {
-				amn->amn_retrycnt++;
+				retrycnt = 1;
+				ieee80211_ratectl_tx_complete(vap, ni,
+				    IEEE80211_RATECTL_TX_SUCCESS,
+				    &retrycnt, NULL);
 				ifp->if_oerrors++;
 			}
 			run_read_region_1(sc, RT2860_TX_STAT_FIFO,
 			    (uint8_t *)&stat, sizeof stat);
 		}
-		DPRINTFN(3, "retrycnt=%d txcnt=%d success=%d\n",
-		    amn->amn_retrycnt, amn->amn_txcnt, amn->amn_success);
 	} else {
 		/* read statistic counters (clear on read) and update AMRR state */
 		error = run_read_region_1(sc, RT2860_TX_STA_CNT0, (uint8_t *)sta,
@@ -2090,26 +2087,25 @@ run_iter_func(void *arg, struct ieee80211_node *ni)
 		    le32toh(sta[1]) >> 16, le32toh(sta[1]) & 0xffff,
 		    le32toh(sta[0]) & 0xffff);
 
-		wcid = RUN_AID2WCID(ni == NULL ? 0 : ni->ni_associd);
-		amn = &rvp->amn[wcid];
-
 		/* count failed TX as errors */
 		ifp->if_oerrors += le32toh(sta[0]) & 0xffff;
 
-		amn->amn_retrycnt =
+		retrycnt =
 		    (le32toh(sta[0]) & 0xffff) +	/* failed TX count */
 		    (le32toh(sta[1]) >> 16);		/* TX retransmission count */
 
-		amn->amn_txcnt =
-		    amn->amn_retrycnt +
+		txcnt =
+		    retrycnt +
 		    (le32toh(sta[1]) & 0xffff);		/* successful TX count */
 
-		amn->amn_success =
+		success =
 		    (le32toh(sta[1]) >> 16) +
 		    (le32toh(sta[1]) & 0xffff);
+		ieee80211_ratectl_tx_update(vap, ni, &txcnt, &success,
+		    &retrycnt);
 	}
 
-	ieee80211_amrr_choose(ni, amn);
+	ieee80211_ratectl_rate(ni, NULL, 0);
 
 skip:;
 	RUN_UNLOCK(sc);
@@ -4447,7 +4443,7 @@ run_stop(void *arg)
 	RUN_LOCK_ASSERT(sc, MA_OWNED);
 
 	if(sc->sc_rvp != NULL){
-		sc->sc_rvp->amrr_run = RUN_AMRR_OFF;
+		sc->sc_rvp->ratectl_run = RUN_RATECTL_OFF;
 		if (ic->ic_flags & IEEE80211_F_SCAN)
 			ieee80211_cancel_scan(&sc->sc_rvp->vap);
 	}
