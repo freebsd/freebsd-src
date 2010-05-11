@@ -282,6 +282,7 @@ LIB32WMAKEENV=	MAKEOBJDIRPREFIX=${OBJTREE}/lib32 \
 		VERSION="${VERSION}" \
 		MACHINE=i386 \
 		MACHINE_ARCH=i386 \
+		MACHINE_CPU="i686 mmx sse sse2" \
 		INSTALL="sh ${.CURDIR}/tools/install.sh" \
 		PATH=${TMPPATH} \
 		CC="${CC} ${LIB32FLAGS}" \
