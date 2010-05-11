@@ -530,8 +530,17 @@ vdev_geom_open(vdev_t *vd, uint64_t *psize, uint64_t *ashift)
 		ZFS_LOG(1, "Provider %s not found.", vd->vdev_path);
 		error = ENOENT;
 	} else if (cp->acw == 0 && (spa_mode & FWRITE) != 0) {
+		int i;
+
 		g_topology_lock();
-		error = g_access(cp, 0, 1, 0);
+		for (i = 0; i < 5; i++) {
+			error = g_access(cp, 0, 1, 0);
+			if (error == 0)
+				break;
+			g_topology_unlock();
+			tsleep(vd, 0, "vdev", hz / 2);
+			g_topology_lock();
+		}
 		if (error != 0) {
 			printf("ZFS WARNING: Unable to open %s for writing (error=%d).\n",
 			    vd->vdev_path, error);
