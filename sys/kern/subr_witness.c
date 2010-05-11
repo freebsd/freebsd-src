@@ -343,10 +343,10 @@ static int	sysctl_debug_witness_fullgraph(SYSCTL_HANDLER_ARGS);
 static void	witness_add_fullgraph(struct sbuf *sb, struct witness *parent);
 #ifdef DDB
 static void	witness_ddb_compute_levels(void);
-static void	witness_ddb_display(void(*)(const char *fmt, ...));
-static void	witness_ddb_display_descendants(void(*)(const char *fmt, ...),
+static void	witness_ddb_display(int(*)(const char *fmt, ...));
+static void	witness_ddb_display_descendants(int(*)(const char *fmt, ...),
 		    struct witness *, int indent);
-static void	witness_ddb_display_list(void(*prnt)(const char *fmt, ...),
+static void	witness_ddb_display_list(int(*prnt)(const char *fmt, ...),
 		    struct witness_list *list);
 static void	witness_ddb_level_descendants(struct witness *parent, int l);
 static void	witness_ddb_list(struct thread *td);
@@ -908,7 +908,7 @@ witness_ddb_level_descendants(struct witness *w, int l)
 }
 
 static void
-witness_ddb_display_descendants(void(*prnt)(const char *fmt, ...),
+witness_ddb_display_descendants(int(*prnt)(const char *fmt, ...),
     struct witness *w, int indent)
 {
 	int i;
@@ -938,7 +938,7 @@ witness_ddb_display_descendants(void(*prnt)(const char *fmt, ...),
 }
 
 static void
-witness_ddb_display_list(void(*prnt)(const char *fmt, ...),
+witness_ddb_display_list(int(*prnt)(const char *fmt, ...),
     struct witness_list *list)
 {
 	struct witness *w;
@@ -953,7 +953,7 @@ witness_ddb_display_list(void(*prnt)(const char *fmt, ...),
 }
 	
 static void
-witness_ddb_display(void(*prnt)(const char *fmt, ...))
+witness_ddb_display(int(*prnt)(const char *fmt, ...))
 {
 	struct witness *w;
 
