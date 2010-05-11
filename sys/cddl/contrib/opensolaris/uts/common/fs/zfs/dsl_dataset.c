@@ -554,6 +554,7 @@ dsl_dataset_own_obj(dsl_pool_t *dp, uint64_t dsobj, int flags, void *owner,
 		return (err);
 	if (!dsl_dataset_tryown(*dsp, DS_MODE_IS_INCONSISTENT(flags), owner)) {
 		dsl_dataset_rele(*dsp, owner);
+		*dsp = NULL;
 		return (EBUSY);
 	}
 	return (0);
@@ -2584,7 +2585,7 @@ snaplist_destroy(list_t *l, boolean_t own)
 {
 	struct promotenode *snap;
 
-	if (!list_link_active(&l->list_head))
+	if (!l || !list_link_active(&l->list_head))
 		return;
 
 	while ((snap = list_tail(l)) != NULL) {
