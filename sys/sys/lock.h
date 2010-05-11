@@ -212,10 +212,12 @@ void	witness_downgrade(struct lock_object *, int, const char *, int);
 void	witness_unlock(struct lock_object *, int, const char *, int);
 void	witness_save(struct lock_object *, const char **, int *);
 void	witness_restore(struct lock_object *, const char *, int);
-int	witness_list_locks(struct lock_list_entry **);
+int	witness_list_locks(struct lock_list_entry **,
+	    int (*)(const char *, ...));
 int	witness_warn(int, struct lock_object *, const char *, ...);
 void	witness_assert(struct lock_object *, int, const char *, int);
-void	witness_display_spinlock(struct lock_object *, struct thread *);
+void	witness_display_spinlock(struct lock_object *, struct thread *,
+	    int (*)(const char *, ...));
 int	witness_line(struct lock_object *);
 void	witness_norelease(struct lock_object *);
 void	witness_releaseok(struct lock_object *);
