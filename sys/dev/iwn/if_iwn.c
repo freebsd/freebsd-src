@@ -4730,7 +4730,7 @@ iwn_scan(struct iwn_softc *sc)
 			chan->passive = htole16(78);
 		else
 			chan->passive = htole16(110);
-		hdr->crc_threshold = htole16(1);
+		hdr->crc_threshold = 0xffff;
 	} else if (!(c->ic_flags & IEEE80211_CHAN_PASSIVE)) {
 		chan->rf_gain = 0x28;
 		chan->active  = htole16(36);
@@ -4743,7 +4743,7 @@ iwn_scan(struct iwn_softc *sc)
 			chan->passive = htole16(88);
 		else
 			chan->passive = htole16(120);
-		hdr->crc_threshold = htole16(1);
+		hdr->crc_threshold = 0xffff;
 	}
 
 	DPRINTF(sc, IWN_DEBUG_STATE,
