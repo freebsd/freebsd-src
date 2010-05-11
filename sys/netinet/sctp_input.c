@@ -2743,6 +2743,14 @@ sctp_handle_cookie_echo(struct mbuf *m, int iphlen, int offset,
 			 * Now we must move it from one hash table to
 			 * another and get the tcb in the right place.
 			 */
+
+			/*
+			 * This is where the one-2-one socket is put into
+			 * the accept state waiting for the accept!
+			 */
+			if (*stcb) {
+				(*stcb)->asoc.state |= SCTP_STATE_IN_ACCEPT_QUEUE;
+			}
 			sctp_move_pcb_and_assoc(*inp_p, inp, *stcb);
 
 			atomic_add_int(&(*stcb)->asoc.refcnt, 1);
@@ -4859,8 +4867,8 @@ process_control_chunks:
 			}
 			/*
 			 * First are we accepting? We do this again here
-			 * sincen it is possible that a previous endpoint
-			 * WAS listening responded to a INIT-ACK and then
+			 * since it is possible that a previous endpoint WAS
+			 * listening responded to a INIT-ACK and then
 			 * closed. We opened and bound.. and are now no
 			 * longer listening.
 			 */
