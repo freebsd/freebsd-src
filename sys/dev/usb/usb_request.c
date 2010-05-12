@@ -71,15 +71,122 @@
 #ifdef USB_DEBUG
 static int usb_pr_poll_delay = USB_PORT_RESET_DELAY;
 static int usb_pr_recovery_delay = USB_PORT_RESET_RECOVERY;
-static int usb_ss_delay = 0;
 
 SYSCTL_INT(_hw_usb, OID_AUTO, pr_poll_delay, CTLFLAG_RW,
     &usb_pr_poll_delay, 0, "USB port reset poll delay in ms");
 SYSCTL_INT(_hw_usb, OID_AUTO, pr_recovery_delay, CTLFLAG_RW,
     &usb_pr_recovery_delay, 0, "USB port reset recovery delay in ms");
-SYSCTL_INT(_hw_usb, OID_AUTO, ss_delay, CTLFLAG_RW,
-    &usb_ss_delay, 0, "USB status stage delay in ms");
-#endif
+
+#ifdef USB_REQ_DEBUG
+/* The following structures are used in connection to fault injection. */
+struct usb_ctrl_debug {
+	int bus_index;		/* target bus */
+	int dev_index;		/* target address */
+	int ds_fail;		/* fail data stage */
+	int ss_fail;		/* fail data stage */
+	int ds_delay;		/* data stage delay in ms */
+	int ss_delay;		/* status stage delay in ms */
+	int bmRequestType_value;
+	int bRequest_value;
+};
+
+struct usb_ctrl_debug_bits {
+	uint16_t ds_delay;
+	uint16_t ss_delay;
+	uint8_t ds_fail:1;
+	uint8_t ss_fail:1;
+	uint8_t enabled:1;
+};
+
+/* The default is to disable fault injection. */
+
+static struct usb_ctrl_debug usb_ctrl_debug = {
+	.bus_index = -1,
+	.dev_index = -1,
+	.bmRequestType_value = -1,
+	.bRequest_value = -1,
+};
+
+SYSCTL_INT(_hw_usb, OID_AUTO, ctrl_bus_fail, CTLFLAG_RW,
+    &usb_ctrl_debug.bus_index, 0, "USB controller index to fail");
+SYSCTL_INT(_hw_usb, OID_AUTO, ctrl_dev_fail, CTLFLAG_RW,
+    &usb_ctrl_debug.dev_index, 0, "USB device address to fail");
+SYSCTL_INT(_hw_usb, OID_AUTO, ctrl_ds_fail, CTLFLAG_RW,
+    &usb_ctrl_debug.ds_fail, 0, "USB fail data stage");
+SYSCTL_INT(_hw_usb, OID_AUTO, ctrl_ss_fail, CTLFLAG_RW,
+    &usb_ctrl_debug.ss_fail, 0, "USB fail status stage");
+SYSCTL_INT(_hw_usb, OID_AUTO, ctrl_ds_delay, CTLFLAG_RW,
+    &usb_ctrl_debug.ds_delay, 0, "USB data stage delay in ms");
+SYSCTL_INT(_hw_usb, OID_AUTO, ctrl_ss_delay, CTLFLAG_RW,
+    &usb_ctrl_debug.ss_delay, 0, "USB status stage delay in ms");
+SYSCTL_INT(_hw_usb, OID_AUTO, ctrl_rt_fail, CTLFLAG_RW,
+    &usb_ctrl_debug.bmRequestType_value, 0, "USB bmRequestType to fail");
+SYSCTL_INT(_hw_usb, OID_AUTO, ctrl_rv_fail, CTLFLAG_RW,
+    &usb_ctrl_debug.bRequest_value, 0, "USB bRequest to fail");
+
+/*------------------------------------------------------------------------*
+ *	usbd_get_debug_bits
+ *
+ * This function is only useful in USB host mode.
+ *------------------------------------------------------------------------*/
+static void
+usbd_get_debug_bits(struct usb_device *udev, struct usb_device_request *req,
+    struct usb_ctrl_debug_bits *dbg)
+{
+	int temp;
+
+	memset(dbg, 0, sizeof(*dbg));
+
+	/* Compute data stage delay */
+
+	temp = usb_ctrl_debug.ds_delay;
+	if (temp < 0)
+		temp = 0;
+	else if (temp > (16*1024))
+		temp = (16*1024);
+
+	dbg->ds_delay = temp;
+
+	/* Compute status stage delay */
+
+	temp = usb_ctrl_debug.ss_delay;
+	if (temp < 0)
+		temp = 0;
+	else if (temp > (16*1024))
+		temp = (16*1024);
+
+	dbg->ss_delay = temp;
+
+	/* Check if this control request should be failed */
+
+	if (usbd_get_bus_index(udev) != usb_ctrl_debug.bus_index)
+		return;
+
+	if (usbd_get_device_index(udev) != usb_ctrl_debug.dev_index)
+		return;
+
+	temp = usb_ctrl_debug.bmRequestType_value;
+
+	if ((temp != req->bmRequestType) && (temp >= 0) && (temp <= 255))
+		return;
+
+	temp = usb_ctrl_debug.bRequest_value;
+
+	if ((temp != req->bRequest) && (temp >= 0) && (temp <= 255))
+		return;
+
+	temp = usb_ctrl_debug.ds_fail;
+	if (temp)
+		dbg->ds_fail = 1;
+
+	temp = usb_ctrl_debug.ss_fail;
+	if (temp)
+		dbg->ss_fail = 1;
+
+	dbg->enabled = 1;
+}
+#endif	/* USB_REQ_DEBUG */
+#endif	/* USB_DEBUG */
 
 /*------------------------------------------------------------------------*
  *	usbd_do_request_callback
@@ -264,6 +371,9 @@ usbd_do_request_flags(struct usb_device *udev, struct mtx *mtx,
     struct usb_device_request *req, void *data, uint16_t flags,
     uint16_t *actlen, usb_timeout_t timeout)
 {
+#ifdef USB_REQ_DEBUG
+	struct usb_ctrl_debug_bits dbg;
+#endif
 	usb_handle_req_t *hr_func;
 	struct usb_xfer *xfer;
 	const void *desc;
@@ -273,6 +383,7 @@ usbd_do_request_flags(struct usb_device *udev, struct mtx *mtx,
 	usb_ticks_t max_ticks;
 	uint16_t length;
 	uint16_t temp;
+	uint16_t acttemp;
 	uint8_t enum_locked;
 
 	if (timeout < 50) {
@@ -327,7 +438,6 @@ usbd_do_request_flags(struct usb_device *udev, struct mtx *mtx,
 	 * Grab the default sx-lock so that serialisation
 	 * is achieved when multiple threads are involved:
 	 */
-
 	sx_xlock(&udev->ctrl_sx);
 
 	hr_func = usbd_get_hr_func(udev);
@@ -391,6 +501,15 @@ usbd_do_request_flags(struct usb_device *udev, struct mtx *mtx,
 		err = USB_ERR_NOMEM;
 		goto done;
 	}
+
+#ifdef USB_REQ_DEBUG
+	/* Get debug bits */
+	usbd_get_debug_bits(udev, req, &dbg);
+
+	/* Check for fault injection */
+	if (dbg.enabled)
+		flags |= USB_DELAY_STATUS_STAGE;
+#endif
 	USB_XFER_LOCK(xfer);
 
 	if (flags & USB_DELAY_STATUS_STAGE)
@@ -412,13 +531,32 @@ usbd_do_request_flags(struct usb_device *udev, struct mtx *mtx,
 	usbd_copy_in(xfer->frbuffers, 0, req, sizeof(*req));
 
 	usbd_xfer_set_frame_len(xfer, 0, sizeof(*req));
-	xfer->nframes = 2;
 
 	while (1) {
 		temp = length;
-		if (temp > xfer->max_data_length) {
+		if (temp > usbd_xfer_max_len(xfer)) {
 			temp = usbd_xfer_max_len(xfer);
 		}
+#ifdef USB_REQ_DEBUG
+		if (xfer->flags.manual_status) {
+			if (usbd_xfer_frame_len(xfer, 0) != 0) {
+				/* Execute data stage separately */
+				temp = 0;
+			} else if (temp > 0) {
+				if (dbg.ds_fail) {
+					err = USB_ERR_INVAL;
+					break;
+				}
+				if (dbg.ds_delay > 0) {
+					usb_pause_mtx(
+					    xfer->xroot->xfer_mtx,
+				            USB_MS_TO_TICKS(dbg.ds_delay));
+					/* make sure we don't time out */
+					start_ticks = ticks;
+				}
+			}
+		}
+#endif
 		usbd_xfer_set_frame_len(xfer, 1, temp);
 
 		if (temp > 0) {
@@ -438,21 +576,21 @@ usbd_do_request_flags(struct usb_device *udev, struct mtx *mtx,
 					usbd_copy_in(xfer->frbuffers + 1,
 					    0, data, temp);
 			}
-			xfer->nframes = 2;
+			usbd_xfer_set_frames(xfer, 2);
 		} else {
-			if (xfer->frlengths[0] == 0) {
+			if (usbd_xfer_frame_len(xfer, 0) == 0) {
 				if (xfer->flags.manual_status) {
-#ifdef USB_DEBUG
-					int temp;
-
-					temp = usb_ss_delay;
-					if (temp > 5000) {
-						temp = 5000;
+#ifdef USB_REQ_DEBUG
+					if (dbg.ss_fail) {
+						err = USB_ERR_INVAL;
+						break;
 					}
-					if (temp > 0) {
+					if (dbg.ss_delay > 0) {
 						usb_pause_mtx(
 						    xfer->xroot->xfer_mtx,
-						    USB_MS_TO_TICKS(temp));
+						    USB_MS_TO_TICKS(dbg.ss_delay));
+						/* make sure we don't time out */
+						start_ticks = ticks;
 					}
 #endif
 					xfer->flags.manual_status = 0;
@@ -460,7 +598,7 @@ usbd_do_request_flags(struct usb_device *udev, struct mtx *mtx,
 					break;
 				}
 			}
-			xfer->nframes = 1;
+			usbd_xfer_set_frames(xfer, 1);
 		}
 
 		usbd_transfer_start(xfer);
@@ -475,18 +613,19 @@ usbd_do_request_flags(struct usb_device *udev, struct mtx *mtx,
 		if (err) {
 			break;
 		}
-		/* subtract length of SETUP packet, if any */
 
-		if (xfer->aframes > 0) {
-			xfer->actlen -= xfer->frlengths[0];
+		/* get actual length of DATA stage */
+
+		if (xfer->aframes < 2) {
+			acttemp = 0;
 		} else {
-			xfer->actlen = 0;
+			acttemp = usbd_xfer_frame_len(xfer, 1);
 		}
 
 		/* check for short packet */
 
-		if (temp > xfer->actlen) {
-			temp = xfer->actlen;
+		if (temp > acttemp) {
+			temp = acttemp;
 			length = temp;
 		}
 		if (temp > 0) {
