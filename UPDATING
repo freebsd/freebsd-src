@@ -83,6 +83,9 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 9.x IS SLOW:
 
 	The meanings correspond to the relevant IPv4 variables.
 
+20091125:
+	8.0-RELEASE.
+
 20091113:
 	The default terminal emulation for syscons(4) has been changed
 	from cons25 to xterm on all platforms except pc98.  This means
