@@ -1352,22 +1352,32 @@ ehci_check_transfer(struct usb_xfer *xfer)
 		}
 	} else if (methods == &ehci_device_isoc_hs_methods) {
 		ehci_itd_t *td;
-		uint8_t n = (xfer->nframes & 7);
 
 		/* isochronous high speed transfer */
 
 		/* check last transfer */
 		td = xfer->td_transfer_last;
 		usb_pc_cpu_invalidate(td->page_cache);
-		if (n == 0)
-			status = td->itd_status[7];
-		else
-			status = td->itd_status[n-1];
+		status = td->itd_status[0];
+		status |= td->itd_status[1];
+		status |= td->itd_status[2];
+		status |= td->itd_status[3];
+		status |= td->itd_status[4];
+		status |= td->itd_status[5];
+		status |= td->itd_status[6];
+		status |= td->itd_status[7];
 
 		/* also check first transfer */
 		td = xfer->td_transfer_first;
 		usb_pc_cpu_invalidate(td->page_cache);
 		status |= td->itd_status[0];
+		status |= td->itd_status[1];
+		status |= td->itd_status[2];
+		status |= td->itd_status[3];
+		status |= td->itd_status[4];
+		status |= td->itd_status[5];
+		status |= td->itd_status[6];
+		status |= td->itd_status[7];
 
 		/* if no transactions are active we continue */
 		if (!(status & htohc32(sc, EHCI_ITD_ACTIVE))) {
@@ -2799,14 +2809,15 @@ ehci_device_isoc_hs_enter(struct usb_xfer *xfer)
 	uint8_t x;
 	uint8_t td_no;
 	uint8_t page_no;
+	uint8_t shift = usbd_xfer_get_fps_shift(xfer);
 
 #ifdef USB_DEBUG
 	uint8_t once = 1;
 
 #endif
 
-	DPRINTFN(6, "xfer=%p next=%d nframes=%d\n",
-	    xfer, xfer->endpoint->isoc_next, xfer->nframes);
+	DPRINTFN(6, "xfer=%p next=%d nframes=%d shift=%d\n",
+	    xfer, xfer->endpoint->isoc_next, xfer->nframes, (int)shift);
 
 	/* get the current frame index */
 
@@ -2820,7 +2831,7 @@ ehci_device_isoc_hs_enter(struct usb_xfer *xfer)
 	    (EHCI_VIRTUAL_FRAMELIST_COUNT - 1);
 
 	if ((xfer->endpoint->is_synced == 0) ||
-	    (buf_offset < ((xfer->nframes + 7) / 8))) {
+	    (buf_offset < (((xfer->nframes << shift) + 7) / 8))) {
 		/*
 		 * If there is data underflow or the pipe queue is empty we
 		 * schedule the transfer a few frames ahead of the current
@@ -2844,7 +2855,7 @@ ehci_device_isoc_hs_enter(struct usb_xfer *xfer)
 	 */
 	xfer->isoc_time_complete =
 	    usb_isoc_time_expand(&sc->sc_bus, nframes) + buf_offset +
-	    ((xfer->nframes + 7) / 8);
+	    (((xfer->nframes << shift) + 7) / 8);
 
 	/* get the real number of frames */
 
