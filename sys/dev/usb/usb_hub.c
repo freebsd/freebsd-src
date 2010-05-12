@@ -1010,8 +1010,10 @@ uhub_child_location_string(device_t parent, device_t child,
 		}
 		goto done;
 	}
-	snprintf(buf, buflen, "port=%u interface=%u",
-	    res.portno, res.iface_index);
+	snprintf(buf, buflen, "bus=%u hubaddr=%u port=%u devaddr=%u interface=%u",
+	    (res.udev->parent_hub != NULL) ? res.udev->parent_hub->device_index : 0,
+	    res.portno, device_get_unit(res.udev->bus->bdev),
+	    res.udev->device_index, res.iface_index);
 done:
 	mtx_unlock(&Giant);
 
