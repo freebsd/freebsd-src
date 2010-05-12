@@ -1,3 +1,4 @@
+/* $FreeBSD$ */
 /* include/llvm/Config/config.h.  Generated from config.h.in by configure.  */
 /* include/llvm/Config/config.h.in.  Generated from autoconf/configure.ac by autoheader.  */
 
