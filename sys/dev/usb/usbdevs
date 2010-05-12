@@ -873,6 +873,7 @@ product AKS USBHASP		0x0001	USB-HASP 0.06
 product ALCOR2 KBD_HUB		0x2802	Kbd Hub
 
 product ALCOR SDCR_6335		0x6335	SD/MMC Card Reader
+product ALCOR SDCR_6362		0x6362	SD/MMC Card Reader
 product ALCOR TRANSCEND		0x6387	Transcend JetFlash Drive
 product ALCOR MA_KBD_HUB	0x9213	MacAlly Kbd Hub
 product ALCOR AU9814		0x9215	AU9814 Hub
@@ -1483,6 +1484,7 @@ product FOSSIL WRISTPDA		0x0002	Wrist PDA
 
 /* Freecom products */
 product FREECOM DVD		0xfc01	DVD drive
+product FREECOM HDD		0xfc05	Classic SL Hard Drive
 
 /* Fujitsu Siemens Computers products */
 product FSC E5400		0x1009	PrismGT USB 2.0 WLAN
@@ -2591,6 +2593,8 @@ product SAGEM XG76NA		0x0062	XG-76NA
 /* Samsung products */
 product SAMSUNG ML6060		0x3008	ML-6060 laser printer
 product SAMSUNG YP_U2		0x5050	YP-U2 MP3 Player
+product SAMSUNG YP_U4		0x5092	YP-U4 MP3 Player
+
 product SAMSUNG I500		0x6601	I500 Palm USB Phone 
 product SAMSUNG2 RT2870_1	0x2018	RT2870
 
