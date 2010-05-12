@@ -638,6 +638,7 @@ void InitHeaderSearch::AddDefaultCPlusPlusIncludePaths(const llvm::Triple &tripl
     break;
   case llvm::Triple::FreeBSD:
     AddGnuCPlusPlusIncludePaths("/usr/include/c++/4.2", "", "", "", triple);
+    AddGnuCPlusPlusIncludePaths("/usr/include/c++/4.2/backward", "", "", "", triple);
     break;
   case llvm::Triple::Solaris:
     // Solaris - Fall though..
