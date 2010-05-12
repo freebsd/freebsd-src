@@ -305,6 +305,7 @@ WITH_IDEA=
     BZIP2 \
     CALENDAR \
     CDDL \
+    CLANG \
     CPP \
     CRYPT \
     CTM \
