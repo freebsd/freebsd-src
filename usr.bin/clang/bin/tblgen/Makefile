@@ -15,7 +15,7 @@ SRCS=	ARMDecoderEmitter.cpp AsmMatcherEmitter.cpp AsmWriterEmitter.cpp \
 	RegisterInfoEmitter.cpp SubtargetEmitter.cpp TGLexer.cpp \
 	TGParser.cpp TGValueTypes.cpp TableGen.cpp TableGenBackend.cpp \
 	X86DisassemblerTables.cpp X86RecognizableInstr.cpp
-NO_MAN=
+MAN=
 
 LIBDEPS=llvmsupport llvmsystem
 

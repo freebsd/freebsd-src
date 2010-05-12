@@ -6,7 +6,7 @@ PROG_CXX=clang
 
 SRCDIR=	tools/clang/tools/driver
 SRCS=	cc1_main.cpp driver.cpp
-NO_MAN=
+MAN=
 
 LINKS=	${BINDIR}/clang ${BINDIR}/clang++
 
