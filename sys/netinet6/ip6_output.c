@@ -486,7 +486,8 @@ skip_ipsec2:;
 		 */
 		if ((fle = flowtable_lookup_mbuf(V_ip6_ft, m, AF_INET6)) != NULL) {
 			flow_to_route_in6(fle, ro);
-			flevalid = 1;
+			if (ro->ro_rt != NULL && ro->ro_lle != NULL)
+				flevalid = 1;
 		}
 	}
 #endif	
