@@ -104,6 +104,7 @@ rc	i386
 ral	i386,amd64
 rue	i386,pc98,amd64
 rum	i386,amd64
+run	i386,amd64
 safe	i386,pc98,amd64
 sbp	i386,sparc64,ia64,amd64
 sis	i386,pc98,ia64,amd64
