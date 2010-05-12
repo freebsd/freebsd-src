@@ -1,0 +1,658 @@
+<html>
+<head>
+<title>Clang Language Extensions</title>
+<link type="text/css" rel="stylesheet" href="../menu.css" />
+<link type="text/css" rel="stylesheet" href="../content.css" />
+<style type="text/css">
+td {
+	vertical-align: top;
+}
+</style>
+</head>
+<body>
+
+<!--#include virtual="../menu.html.incl"-->
+
+<div id="content">
+
+<h1>Clang Language Extensions</h1>
+
+<ul>
+<li><a href="#intro">Introduction</a></li>
+<li><a href="#feature_check">Feature Checking Macros</a></li>
+<li><a href="#has_include">Include File Checking Macros</a></li>
+<li><a href="#builtinmacros">Builtin Macros</a></li>
+<li><a href="#vectors">Vectors and Extended Vectors</a></li>
+<li><a href="#checking_language_features">Checks for Standard Language Features</a></li>
+  <ul>
+  <li><a href="#cxx_exceptions">C++ exceptions</a></li>
+  <li><a href="#cxx_rtti">C++ RTTI</a></li>
+  </ul>
+<li><a href="#checking_upcoming_features">Checks for Upcoming Standard Language Features</a></li>
+  <ul>
+  <li><a href="#cxx_attributes">C++0x attributes</a></li>
+  <li><a href="#cxx_decltype">C++0x <tt>decltype()</tt></a></li>
+  <li><a href="#cxx_deleted_functions">C++0x deleted functions</a></li>
+  <li><a href="#cxx_concepts">C++ TR concepts</a></li>
+  <li><a href="#cxx_lambdas">C++0x lambdas</a></li>
+  <li><a href="#cxx_nullptr">C++0x nullptr</a></li>
+  <li><a href="#cxx_rvalue_references">C++0x rvalue references</a></li>
+  <li><a href="#cxx_static_assert">C++0x <tt>static_assert()</tt></a></li>
+  <li><a href="#cxx_auto_type">C++0x type inference</a></li>
+  <li><a href="#cxx_variadic_templates">C++0x variadic templates</a></li>
+  </ul>
+<li><a href="#blocks">Blocks</a></li>
+<li><a href="#overloading-in-c">Function Overloading in C</a></li>
+<li><a href="#builtins">Builtin Functions</a>
+  <ul>
+  <li><a href="#__builtin_shufflevector">__builtin_shufflevector</a></li>
+  <li><a href="#__builtin_unreachable">__builtin_unreachable</a></li>
+  </ul>
+</li>
+<li><a href="#targetspecific">Target-Specific Extensions</a>
+  <ul>
+  <li><a href="#x86-specific">X86/X86-64 Language Extensions</a></li>
+  </ul>
+</li>
+<li><a href="#analyzerspecific">Static Analysis-Specific Extensions</a>
+  <ul>
+    <li><a href="#analyzerattributes">Analyzer Attributes</a></li>
+  </ul>
+</li>
+</ul>
+
+<!-- ======================================================================= -->
+<h2 id="intro">Introduction</h2>
+<!-- ======================================================================= -->
+
+<p>This document describes the language extensions provided by Clang.  In
+addition to the language extensions listed here, Clang aims to support a broad
+range of GCC extensions.  Please see the <a 
+href="http://gcc.gnu.org/onlinedocs/gcc/C-Extensions.html">GCC manual</a> for
+more information on these extensions.</p>
+
+<!-- ======================================================================= -->
+<h2 id="feature_check">Feature Checking Macros</h2>
+<!-- ======================================================================= -->
+
+<p>Language extensions can be very useful, but only if you know you can depend
+on them.  In order to allow fine-grain features checks, we support two builtin
+function-like macros.  This allows you to directly test for a feature in your
+code without having to resort to something like autoconf or fragile "compiler
+version checks".</p>
+
+<!-- ======================================================================= -->
+<h3 id="__has_builtin">__has_builtin</h3>
+<!-- ======================================================================= -->
+
+<p>This function-like macro takes a single identifier argument that is the name
+of a builtin function.  It evaluates to 1 if the builtin is supported or 0 if
+not.  It can be used like this:</p>
+
+<blockquote>
+<pre>
+#ifndef __has_builtin         // Optional of course.
+  #define __has_builtin(x) 0  // Compatibility with non-clang compilers.
+#endif
+
+...
+#if __has_builtin(__builtin_trap)
+  __builtin_trap();
+#else
+  abort();
+#endif
+...
+</pre>
+</blockquote>
+
+
+<!-- ======================================================================= -->
+<h3 id="__has_feature">__has_feature</h3>
+<!-- ======================================================================= -->
+
+<p>This function-like macro takes a single identifier argument that is the name
+of a feature.  It evaluates to 1 if the feature is supported or 0 if not.  It
+can be used like this:</p>
+
+<blockquote>
+<pre>
+#ifndef __has_feature         // Optional of course.
+  #define __has_feature(x) 0  // Compatibility with non-clang compilers.
+#endif
+
+...
+#if __has_feature(attribute_overloadable) || \
+    __has_feature(blocks)
+...
+#endif
+...
+</pre>
+</blockquote>
+
+<p>The feature tag is described along with the language feature below.</p>
+
+<!-- ======================================================================= -->
+<h2 id="has_include">Include File Checking Macros</h2>
+<!-- ======================================================================= -->
+
+<p>Not all developments systems have the same include files.
+The <a href="#__has_include">__has_include</a> and
+<a href="#__has_include_next">__has_include_next</a> macros allow you to
+check for the existence of an include file before doing
+a possibly failing #include directive.</p>
+
+<!-- ======================================================================= -->
+<h3 id="__has_include">__has_include</h3>
+<!-- ======================================================================= -->
+
+<p>This function-like macro takes a single file name string argument that
+is the name of an include file.  It evaluates to 1 if the file can
+be found using the include paths, or 0 otherwise:</p>
+
+<blockquote>
+<pre>
+// Note the two possible file name string formats.
+#if __has_include("myinclude.h") && __has_include(&lt;stdint.h&gt;)
+# include "myinclude.h"
+#endif
+
+// To avoid problem with non-clang compilers not having this macro.
+#if defined(__has_include) && __has_include("myinclude.h")
+# include "myinclude.h"
+#endif
+</pre>
+</blockquote>
+
+<p>To test for this feature, use #if defined(__has_include).</p>
+
+<!-- ======================================================================= -->
+<h3 id="__has_include_next">__has_include_next</h3>
+<!-- ======================================================================= -->
+
+<p>This function-like macro takes a single file name string argument that
+is the name of an include file.  It is like __has_include except that it
+looks for the second instance of the given file found in the include
+paths.  It evaluates to 1 if the second instance of the file can
+be found using the include paths, or 0 otherwise:</p>
+
+<blockquote>
+<pre>
+// Note the two possible file name string formats.
+#if __has_include_next("myinclude.h") && __has_include_next(&lt;stdint.h&gt;)
+# include_next "myinclude.h"
+#endif
+
+// To avoid problem with non-clang compilers not having this macro.
+#if defined(__has_include_next) && __has_include_next("myinclude.h")
+# include_next "myinclude.h"
+#endif
+</pre>
+</blockquote>
+
+<p>Note that __has_include_next, like the GNU extension
+#include_next directive, is intended for use in headers only,
+and will issue a warning if used in the top-level compilation
+file.  A warning will also be issued if an absolute path
+is used in the file argument.</p>
+
+<!-- ======================================================================= -->
+<h2 id="builtinmacros">Builtin Macros</h2>
+<!-- ======================================================================= -->
+
+<dl>
+  <dt><code>__BASE_FILE__</code></dt>
+  <dd>Defined to a string that contains the name of the main input
+  file passed to Clang.</dd> 
+
+  <dt><code>__COUNTER__</code></dt>
+  <dd>Defined to an integer value that starts at zero and is
+  incremented each time the <code>__COUNTER__</code> macro is
+  expanded.</dd> 
+    
+  <dt><code>__INCLUDE_LEVEL__</code></dt>
+  <dd>Defined to an integral value that is the include depth of the
+  file currently being translated. For the main file, this value is
+  zero.</dd> 
+
+  <dt><code>__TIMESTAMP__</code></dt>
+  <dd>Defined to the date and time of the last modification of the
+  current source file.</dd> 
+    
+  <dt><code>__clang__</code></dt>
+  <dd>Defined when compiling with Clang</dd>
+
+  <dt><code>__clang_major__</code></dt>
+  <dd>Defined to the major version number of Clang (e.g., the 2 in
+  2.0.1).</dd> 
+
+  <dt><code>__clang_minor__</code></dt>
+  <dd>Defined to the minor version number of Clang (e.g., the 0 in
+  2.0.1).</dd> 
+
+  <dt><code>__clang_patchlevel__</code></dt>
+  <dd>Defined to the patch level of Clang (e.g., the 1 in 2.0.1).</dd>
+
+  <dt><code>__clang_version__</code></dt>
+  <dd>Defined to a string that captures the Clang version, including
+  the Subversion tag or revision number, e.g., "1.5 (trunk
+  102332)".</dd> 
+</dl>
+
+<!-- ======================================================================= -->
+<h2 id="vectors">Vectors and Extended Vectors</h2>
+<!-- ======================================================================= -->
+
+<p>Supports the GCC vector extensions, plus some stuff like V[1].</p>
+
+<p>Also supports <tt>ext_vector</tt>, which additionally support for V.xyzw
+syntax and other tidbits as seen in OpenCL. An example is:</p>
+
+<blockquote>
+<pre>
+typedef float float4 <b>__attribute__((ext_vector_type(4)))</b>;
+typedef float float2 <b>__attribute__((ext_vector_type(2)))</b>;
+
+float4 foo(float2 a, float2 b) {
+  float4 c;
+  c.xz = a;
+  c.yw = b;
+  return c;
+}
+</blockquote>
+
+<p>Query for this feature with __has_feature(attribute_ext_vector_type).</p>
+
+<p>See also <a href="#__builtin_shufflevector">__builtin_shufflevector</a>.</p>
+
+<!-- ======================================================================= -->
+<h2 id="checking_language_features">Checks for Standard Language Features</h2>
+<!-- ======================================================================= -->
+
+<p>The <tt>__has_feature</tt> macro can be used to query if certain standard language features are
+enabled.  Those features are listed here.</p>
+
+<h3 id="cxx_exceptions">C++ exceptions</h3>
+
+<p>Use <tt>__has_feature(cxx_exceptions)</tt> to determine if C++ exceptions have been enabled. For
+example, compiling code with <tt>-fexceptions</tt> enables C++ exceptions.</p>
+
+<h3 id="cxx_rtti">C++ RTTI</h3>
+
+<p>Use <tt>__has_feature(cxx_rtti)</tt> to determine if C++ RTTI has been enabled. For example,
+compiling code with <tt>-fno-rtti</tt> disables the use of RTTI.</p>
+
+<!-- ======================================================================= -->
+<h2 id="checking_upcoming_features">Checks for Upcoming Standard Language Features</h2>
+<!-- ======================================================================= -->
+
+<p>The <tt>__has_feature</tt> macro can be used to query if certain upcoming
+standard language features are enabled.  Those features are listed here.</p>
+
+<p>Currently, all features listed here are slated for inclusion in the upcoming
+C++0x standard. As a result, all the features that clang supports are enabled
+with the <tt>-std=c++0x</tt> option when compiling C++ code. Features that are
+not yet implemented will be noted.</p>
+
+<h3 id="cxx_decltype">C++0x <tt>decltype()</tt></h3>
+
+<p>Use <tt>__has_feature(cxx_decltype)</tt> to determine if support for the
+<tt>decltype()</tt> specifier is enabled.</p>
+
+<h3 id="cxx_attributes">C++0x attributes</h3>
+
+<p>Use <tt>__has_feature(cxx_attributes)</tt> to determine if support for
+attribute parsing with C++0x's square bracket notation is enabled.
+
+<h3 id="cxx_deleted_functions">C++0x deleted functions</tt></h3>
+
+<p>Use <tt>__has_feature(cxx_deleted_functions)</tt> to determine if support for
+deleted function definitions (with <tt>= delete</tt>) is enabled.
+
+<h3 id="cxx_concepts">C++ TR concepts</h3>
+
+<p>Use <tt>__has_feature(cxx_concepts)</tt> to determine if support for
+concepts is enabled. clang does not currently implement this feature.
+
+<h3 id="cxx_lambdas">C++0x lambdas</h3>
+
+<p>Use <tt>__has_feature(cxx_lambdas)</tt> to determine if support for
+lambdas is enabled. clang does not currently implement this feature.
+
+<h3 id="cxx_nullptr">C++0x <tt>nullptr</tt></h3>
+
+<p>Use <tt>__has_feature(cxx_nullptr)</tt> to determine if support for
+<tt>nullptr</tt> is enabled. clang does not yet fully implement this feature.
+
+<h3 id="cxx_rvalue_references">C++0x rvalue references</tt></h3>
+
+<p>Use <tt>__has_feature(cxx_rvalue_references)</tt> to determine if support for
+rvalue references is enabled. clang does not yet fully implement this feature.
+
+<h3 id="cxx_static_assert">C++0x <tt>static_assert()</tt></h3>
+
+<p>Use <tt>__has_feature(cxx_static_assert)</tt> to determine if support for
+compile-time assertions using <tt>static_assert</tt> is enabled.</p>
+
+<h3 id="cxx_auto_type">C++0x type inference</h3>
+
+<p>Use <tt>__has_feature(cxx_auto_type)</tt> to determine C++0x type inference
+is supported using the <tt>auto</tt> specifier. If this is disabled,
+<tt>auto</tt> will instead be a storage class specifier, as in C or C++98.</p>
+
+<h3 id="cxx_variadic_templates">C++0x variadic templates</tt></h3>
+
+<p>Use <tt>__has_feature(cxx_variadic_templates)</tt> to determine if support
+for templates taking any number of arguments with the ellipsis notation is
+enabled. clang does not yet fully implement this feature.</p>
+
+<!-- ======================================================================= -->
+<h2 id="blocks">Blocks</h2>
+<!-- ======================================================================= -->
+
+<p>The syntax and high level language feature description is in <a
+href="BlockLanguageSpec.txt">BlockLanguageSpec.txt</a>.  Implementation and ABI
+details for the clang implementation are in <a 
+href="Block-ABI-Apple.txt">Block-ABI-Apple.txt</a>.</p>
+
+
+<p>Query for this feature with __has_feature(blocks).</p>
+
+<!-- ======================================================================= -->
+<h2 id="overloading-in-c">Function Overloading in C</h2>
+<!-- ======================================================================= -->
+
+<p>Clang provides support for C++ function overloading in C. Function
+overloading in C is introduced using the <tt>overloadable</tt> attribute. For
+example, one might provide several overloaded versions of a <tt>tgsin</tt>
+function that invokes the appropriate standard function computing the sine of a
+value with <tt>float</tt>, <tt>double</tt>, or <tt>long double</tt>
+precision:</p>
+
+<blockquote>
+<pre>
+#include &lt;math.h&gt;
+float <b>__attribute__((overloadable))</b> tgsin(float x) { return sinf(x); }
+double <b>__attribute__((overloadable))</b> tgsin(double x) { return sin(x); }
+long double <b>__attribute__((overloadable))</b> tgsin(long double x) { return sinl(x); }
+</pre>
+</blockquote>
+
+<p>Given these declarations, one can call <tt>tgsin</tt> with a
+<tt>float</tt> value to receive a <tt>float</tt> result, with a
+<tt>double</tt> to receive a <tt>double</tt> result, etc. Function
+overloading in C follows the rules of C++ function overloading to pick
+the best overload given the call arguments, with a few C-specific
+semantics:</p>
+<ul>
+  <li>Conversion from <tt>float</tt> or <tt>double</tt> to <tt>long
+  double</tt> is ranked as a floating-point promotion (per C99) rather
+  than as a floating-point conversion (as in C++).</li>
+  
+  <li>A conversion from a pointer of type <tt>T*</tt> to a pointer of type
+  <tt>U*</tt> is considered a pointer conversion (with conversion
+  rank) if <tt>T</tt> and <tt>U</tt> are compatible types.</li>
+
+  <li>A conversion from type <tt>T</tt> to a value of type <tt>U</tt>
+  is permitted if <tt>T</tt> and <tt>U</tt> are compatible types. This
+  conversion is given "conversion" rank.</li>
+</ul>
+
+<p>The declaration of <tt>overloadable</tt> functions is restricted to
+function declarations and definitions. Most importantly, if any
+function with a given name is given the <tt>overloadable</tt>
+attribute, then all function declarations and definitions with that
+name (and in that scope) must have the <tt>overloadable</tt>
+attribute. This rule even applies to redeclarations of functions whose original
+declaration had the <tt>overloadable</tt> attribute, e.g.,</p>
+
+<blockquote>
+<pre>
+int f(int) __attribute__((overloadable));
+float f(float); <i>// error: declaration of "f" must have the "overloadable" attribute</i>
+
+int g(int) __attribute__((overloadable));
+int g(int) { } <i>// error: redeclaration of "g" must also have the "overloadable" attribute</i>
+</pre>
+</blockquote>
+
+<p>Functions marked <tt>overloadable</tt> must have
+prototypes. Therefore, the following code is ill-formed:</p>
+
+<blockquote>
+<pre>
+int h() __attribute__((overloadable)); <i>// error: h does not have a prototype</i>
+</pre>
+</blockquote>
+
+<p>However, <tt>overloadable</tt> functions are allowed to use a
+ellipsis even if there are no named parameters (as is permitted in C++). This feature is particularly useful when combined with the <tt>unavailable</tt> attribute:</p>
+
+<blockquote>
+<pre>
+void honeypot(...) __attribute__((overloadable, unavailable)); <i>// calling me is an error</i>
+</pre>
+</blockquote>
+
+<p>Functions declared with the <tt>overloadable</tt> attribute have
+their names mangled according to the same rules as C++ function
+names. For example, the three <tt>tgsin</tt> functions in our
+motivating example get the mangled names <tt>_Z5tgsinf</tt>,
+<tt>_Z5tgsind</tt>, and <tt>Z5tgsine</tt>, respectively. There are two
+caveats to this use of name mangling:</p>
+
+<ul>
+  
+  <li>Future versions of Clang may change the name mangling of
+  functions overloaded in C, so you should not depend on an specific
+  mangling. To be completely safe, we strongly urge the use of
+  <tt>static inline</tt> with <tt>overloadable</tt> functions.</li>
+
+  <li>The <tt>overloadable</tt> attribute has almost no meaning when
+  used in C++, because names will already be mangled and functions are
+  already overloadable. However, when an <tt>overloadable</tt>
+  function occurs within an <tt>extern "C"</tt> linkage specification,
+  it's name <i>will</i> be mangled in the same way as it would in
+  C.</li>
+</ul>
+
+<p>Query for this feature with __has_feature(attribute_overloadable).</p>
+
+
+<!-- ======================================================================= -->
+<h2 id="builtins">Builtin Functions</h2>
+<!-- ======================================================================= -->
+
+<p>Clang supports a number of builtin library functions with the same syntax as
+GCC, including things like <tt>__builtin_nan</tt>,
+<tt>__builtin_constant_p</tt>, <tt>__builtin_choose_expr</tt>, 
+<tt>__builtin_types_compatible_p</tt>, <tt>__sync_fetch_and_add</tt>, etc.  In
+addition to the GCC builtins, Clang supports a number of builtins that GCC does
+not, which are listed here.</p>
+
+<p>Please note that Clang does not and will not support all of the GCC builtins
+for vector operations.  Instead of using builtins, you should use the functions
+defined in target-specific header files like <tt>&lt;xmmintrin.h&gt;</tt>, which
+define portable wrappers for these.  Many of the Clang versions of these
+functions are implemented directly in terms of <a href="#vectors">extended
+vector support</a> instead of builtins, in order to reduce the number of
+builtins that we need to implement.</p>
+
+<!-- ======================================================================= -->
+<h3 id="__builtin_shufflevector">__builtin_shufflevector</h3>
+<!-- ======================================================================= -->
+
+<p><tt>__builtin_shufflevector</tt> is used to express generic vector
+permutation/shuffle/swizzle operations. This builtin is also very important for
+the implementation of various target-specific header files like
+<tt>&lt;xmmintrin.h&gt;</tt>.
+</p>
+
+<p><b>Syntax:</b></p>
+
+<pre>
+__builtin_shufflevector(vec1, vec2, index1, index2, ...)
+</pre>
+
+<p><b>Examples:</b></p>
+
+<pre>
+  // Identity operation - return 4-element vector V1.
+  __builtin_shufflevector(V1, V1, 0, 1, 2, 3)
+
+  // "Splat" element 0 of V1 into a 4-element result.
+  __builtin_shufflevector(V1, V1, 0, 0, 0, 0)
+
+  // Reverse 4-element vector V1.
+  __builtin_shufflevector(V1, V1, 3, 2, 1, 0)
+
+  // Concatenate every other element of 4-element vectors V1 and V2.
+  __builtin_shufflevector(V1, V2, 0, 2, 4, 6)
+
+  // Concatenate every other element of 8-element vectors V1 and V2.
+  __builtin_shufflevector(V1, V2, 0, 2, 4, 6, 8, 10, 12, 14)
+</pre>
+
+<p><b>Description:</b></p>
+
+<p>The first two arguments to __builtin_shufflevector are vectors that have the
+same element type.  The remaining arguments are a list of integers that specify
+the elements indices of the first two vectors that should be extracted and
+returned in a new vector.  These element indices are numbered sequentially
+starting with the first vector, continuing into the second vector.  Thus, if
+vec1 is a 4-element vector, index 5 would refer to the second element of vec2.
+</p>
+
+<p>The result of __builtin_shufflevector is a vector
+with the same element type as vec1/vec2 but that has an element count equal to
+the number of indices specified.
+</p>
+
+<p>Query for this feature with __has_builtin(__builtin_shufflevector).</p>
+
+<!-- ======================================================================= -->
+<h3 id="__builtin_unreachable">__builtin_unreachable</h3>
+<!-- ======================================================================= -->
+
+<p><tt>__builtin_unreachable</tt> is used to indicate that a specific point in
+the program cannot be reached, even if the compiler might otherwise think it
+can.  This is useful to improve optimization and eliminates certain warnings.
+For example, without the <tt>__builtin_unreachable</tt> in the example below,
+the compiler assumes that the inline asm can fall through and prints a "function
+declared 'noreturn' should not return" warning.
+</p>
+
+<p><b>Syntax:</b></p>
+
+<pre>
+__builtin_unreachable()
+</pre>
+
+<p><b>Example of Use:</b></p>
+
+<pre>
+void myabort(void) __attribute__((noreturn));
+void myabort(void) {
+    asm("int3");
+    __builtin_unreachable();
+}
+</pre>
+
+<p><b>Description:</b></p>
+
+<p>The __builtin_unreachable() builtin has completely undefined behavior.  Since
+it has undefined behavior, it is a statement that it is never reached and the
+optimizer can take advantage of this to produce better code.  This builtin takes
+no arguments and produces a void result.
+</p>
+
+<p>Query for this feature with __has_builtin(__builtin_unreachable).</p>
+
+
+<!-- ======================================================================= -->
+<h2 id="targetspecific">Target-Specific Extensions</h2>
+<!-- ======================================================================= -->
+
+<p>Clang supports some language features conditionally on some targets.</p>
+
+<!-- ======================================================================= -->
+<h3 id="x86-specific">X86/X86-64 Language Extensions</h3>
+<!-- ======================================================================= -->
+
+<p>The X86 backend has these language extensions:</p>
+
+<!-- ======================================================================= -->
+<h4 id="x86-gs-segment">Memory references off the GS segment</h4>
+<!-- ======================================================================= -->
+
+<p>Annotating a pointer with address space #256 causes it to  be code generated
+relative to the X86 GS segment register, and address space #257 causes it to be
+relative to the X86 FS segment.  Note that this is a very very low-level
+feature that should only be used if you know what you're doing (for example in
+an OS kernel).</p>
+
+<p>Here is an example:</p>
+
+<pre>
+#define GS_RELATIVE __attribute__((address_space(256)))
+int foo(int GS_RELATIVE *P) {
+  return *P;
+}
+</pre>
+
+<p>Which compiles to (on X86-32):</p>
+
+<pre>
+_foo:
+	movl	4(%esp), %eax
+	movl	%gs:(%eax), %eax
+	ret
+</pre>
+
+<!-- ======================================================================= -->
+<h2 id="analyzerspecific">Static Analysis-Specific Extensions</h2>
+<!-- ======================================================================= -->
+
+<p>Clang supports additional attributes that are useful for documenting program
+invariants and rules for static analysis tools. The extensions documented here
+are used by the <a
+href="http://clang.llvm.org/StaticAnalysis.html">path-sensitive static analyzer
+engine</a> that is part of Clang's Analysis library.</p>
+
+<!-- ======================================================================= -->
+<h3 id="analyzerattributes">Analyzer Attributes</h3>
+<!-- ======================================================================= -->
+
+<h4 id="attr_analyzer_noreturn"><tt>analyzer_noreturn</tt></h4>
+
+<p>Clang's static analysis engine understands the standard <tt>noreturn</tt>
+attribute. This attribute, which is typically affixed to a function prototype,
+indicates that a call to a given function never returns. Function prototypes for
+common functions like <tt>exit</tt> are typically annotated with this attribute,
+as well as a variety of common assertion handlers. Users can educate the static
+analyzer about their own custom assertion handles (thus cutting down on false
+positives due to false paths) by marking their own &quot;panic&quot; functions
+with this attribute.</p>
+
+<p>While useful, <tt>noreturn</tt> is not applicable in all cases. Sometimes
+there are special functions that for all intents and purposes should be
+considered panic functions (i.e., they are only called when an internal program
+error occurs) but may actually return so that the program can fail gracefully.
+The <tt>analyzer_noreturn</tt> attribute allows one to annotate such functions
+as being interpreted as &quot;no return&quot; functions by the analyzer (thus
+pruning bogus paths) but will not affect compilation (as in the case of
+<tt>noreturn</tt>).</p>
+
+<p><b>Usage</b>: The <tt>analyzer_noreturn</tt> attribute can be placed in the
+same places where the <tt>noreturn</tt> attribute can be placed. It is commonly
+placed at the end of function prototypes:</p>
+
+<pre>
+  void foo() <b>__attribute__((analyzer_noreturn))</b>;
+</pre>
+
+<p>Query for this feature with __has_feature(attribute_analyzer_noreturn).</p>
+
+
+</div>
+</body>
+</html>

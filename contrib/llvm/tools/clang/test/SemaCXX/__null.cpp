@@ -1,0 +1,14 @@
+// RUN: %clang_cc1 -triple x86_64-unknown-unknown %s -fsyntax-only -verify
+// RUN: %clang_cc1 -triple i686-unknown-unknown %s -fsyntax-only -verify
+
+void f() {
+  int* i = __null;
+  i = __null;
+  int i2 = __null;
+
+  // Verify statically that __null is the right size
+  int a[sizeof(typeof(__null)) == sizeof(void*)? 1 : -1];
+  
+  // Verify that null is evaluated as 0.
+  int b[__null ? -1 : 1];
+}
