@@ -5158,12 +5158,6 @@ key_update(so, m, mhp)
 		return key_senderror(so, m, error);
 	}
 
-	/* check SA values to be mature. */
-	if ((mhp->msg->sadb_msg_errno = key_mature(sav)) != 0) {
-		KEY_FREESAV(&sav);
-		return key_senderror(so, m, 0);
-	}
-
 #ifdef IPSEC_NAT_T
 	/*
 	 * Handle more NAT-T info if present,
@@ -5189,6 +5183,12 @@ key_update(so, m, mhp)
 		sav->natt_esp_frag_len = frag->sadb_x_nat_t_frag_fraglen;
 #endif
 #endif
+
+	/* check SA values to be mature. */
+	if ((mhp->msg->sadb_msg_errno = key_mature(sav)) != 0) {
+		KEY_FREESAV(&sav);
+		return key_senderror(so, m, 0);
+	}
 
     {
 	struct mbuf *n;
@@ -5424,12 +5424,6 @@ key_add(so, m, mhp)
 		return key_senderror(so, m, error);
 	}
 
-	/* check SA values to be mature. */
-	if ((error = key_mature(newsav)) != 0) {
-		KEY_FREESAV(&newsav);
-		return key_senderror(so, m, error);
-	}
-
 #ifdef IPSEC_NAT_T
 	/*
 	 * Handle more NAT-T info if present,
@@ -5448,6 +5442,12 @@ key_add(so, m, mhp)
 		newsav->natt_esp_frag_len = frag->sadb_x_nat_t_frag_fraglen;
 #endif
 #endif
+
+	/* check SA values to be mature. */
+	if ((error = key_mature(newsav)) != 0) {
+		KEY_FREESAV(&newsav);
+		return key_senderror(so, m, error);
+	}
 
 	/*
 	 * don't call key_freesav() here, as we would like to keep the SA
