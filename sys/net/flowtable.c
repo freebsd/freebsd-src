@@ -1389,8 +1389,10 @@ fle_free(struct flentry *fle, struct flowtable *ft)
 
 	rt = __DEVOLATILE(struct rtentry *, fle->f_rt);
 	lle = __DEVOLATILE(struct llentry *, fle->f_lle);
-	RTFREE(rt);
-	LLE_FREE(lle);
+	if (rt != NULL)
+		RTFREE(rt);
+	if (lle != NULL)
+		LLE_FREE(lle);
 	flow_free(fle, ft);
 }
 
