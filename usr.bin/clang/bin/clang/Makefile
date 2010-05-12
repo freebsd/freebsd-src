@@ -8,11 +8,11 @@ SRCDIR=	tools/clang/tools/driver
 SRCS=	cc1_main.cpp driver.cpp
 MAN=
 
+LINKS=	${BINDIR}/clang ${BINDIR}/clang++
 .if ${MK_CLANG_IS_CC} != "no"
-LINKS=	${BINDIR}/clang ${BINDIR}/cc \
+LINKS+=	${BINDIR}/clang ${BINDIR}/cc \
 	${BINDIR}/clang ${BINDIR}/CC \
-	${BINDIR}/clang ${BINDIR}/c++ \
-	${BINDIR}/clang ${BINDIR}/clang++
+	${BINDIR}/clang ${BINDIR}/c++
 .endif
 
 TGHDRS=	DiagnosticCommonKinds DiagnosticDriverKinds \
