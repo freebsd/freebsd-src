@@ -14,6 +14,24 @@
 # The file is partitioned: OLD_FILES first, then OLD_LIBS and OLD_DIRS last.
 #
 
+# 20100511: move GCC-specific headers to /usr/include/gcc
+.if ${TARGET_ARCH} == "amd64" || ${TARGET_ARCH} == "i386"
+OLD_FILES+=usr/include/emmintrin.h
+OLD_FILES+=usr/include/mm_malloc.h
+OLD_FILES+=usr/include/pmmintrin.h
+OLD_FILES+=usr/include/xmmintrin.h
+.endif
+.if ${TARGET_ARCH} == "amd64" || ${TARGET_ARCH} == "i386" || ${TARGET_ARCH} == "arm"
+OLD_FILES+=usr/include/mmintrin.h
+.endif
+.if ${TARGET_ARCH} == "ia64"
+OLD_FILES+=usr/include/ia64intrin.h
+.endif
+.if ${TARGET_ARCH} == "powerpc"
+OLD_FILES+=usr/include/altivec.h
+OLD_FILES+=usr/include/ppc-asm.h
+OLD_FILES+=usr/include/spe.h
+.endif
 # 20100416: [mips] removed <machine/psl.h>
 .if ${TARGET_ARCH} == "mips"
 OLD_FILES+=usr/include/machine/psl.h
