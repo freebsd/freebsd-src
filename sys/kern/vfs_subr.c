@@ -2585,7 +2585,7 @@ vgonel(struct vnode *vp)
 	/*
 	 * Clear the advisory locks and wake up waiting threads.
 	 */
-	lf_purgelocks(vp, &(vp->v_lockf));
+	(void)VOP_ADVLOCKPURGE(vp);
 	/*
 	 * Delete from old mount point vnode list.
 	 */
