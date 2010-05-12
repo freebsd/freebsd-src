@@ -273,6 +273,7 @@ usbd_do_request_flags(struct usb_device *udev, struct mtx *mtx,
 	usb_ticks_t max_ticks;
 	uint16_t length;
 	uint16_t temp;
+	uint8_t enum_locked;
 
 	if (timeout < 50) {
 		/* timeout is too small */
@@ -283,6 +284,8 @@ usbd_do_request_flags(struct usb_device *udev, struct mtx *mtx,
 		timeout = 30000;
 	}
 	length = UGETW(req->wLength);
+
+	enum_locked = usbd_enum_is_locked(udev);
 
 	DPRINTFN(5, "udev=%p bmRequestType=0x%02x bRequest=0x%02x "
 	    "wValue=0x%02x%02x wIndex=0x%02x%02x wLength=0x%02x%02x\n",
@@ -308,12 +311,18 @@ usbd_do_request_flags(struct usb_device *udev, struct mtx *mtx,
 	if (flags & USB_USER_DATA_PTR)
 		return (USB_ERR_INVAL);
 #endif
-	if (mtx) {
+	if ((mtx != NULL) && (mtx != &Giant)) {
 		mtx_unlock(mtx);
-		if (mtx != &Giant) {
-			mtx_assert(mtx, MA_NOTOWNED);
-		}
+		mtx_assert(mtx, MA_NOTOWNED);
 	}
+
+	/*
+	 * We need to allow suspend and resume at this point, else the
+	 * control transfer will timeout if the device is suspended!
+	 */
+	if (enum_locked)
+		usbd_sr_unlock(udev);
+
 	/*
 	 * Grab the default sx-lock so that serialisation
 	 * is achieved when multiple threads are involved:
@@ -536,9 +545,12 @@ usbd_do_request_flags(struct usb_device *udev, struct mtx *mtx,
 done:
 	sx_xunlock(&udev->ctrl_sx);
 
-	if (mtx) {
+	if (enum_locked)
+		usbd_sr_lock(udev);
+
+	if ((mtx != NULL) && (mtx != &Giant))
 		mtx_lock(mtx);
-	}
+
 	return ((usb_error_t)err);
 }
 
