@@ -842,6 +842,8 @@
 
       &hwlist.ep;
 
+      &hwlist.et;
+
       &hwlist.ex;
 
       &hwlist.fe;
@@ -889,6 +891,8 @@
       &hwlist.rue;
 
       &hwlist.sf;
+
+      &hwlist.sge;
 
       &hwlist.sis;
 
@@ -981,9 +985,14 @@
       <para>[&arch.i386;, &arch.amd64;] Marvell Libertas IEEE 802.11b/g
         PCI network adapters (&man.malo.4; driver)</para>
 
+      <para>Marvell 88W8363 IEEE 802.11n wireless network
+	adapters (&man.mwl.4; driver)</para>
+
       &hwlist.ral;
 
       &hwlist.rum;
+
+      &hwlist.run;
 
       &hwlist.uath;
 

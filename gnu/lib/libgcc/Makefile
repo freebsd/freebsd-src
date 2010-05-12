@@ -1,4 +1,5 @@
 # $FreeBSD$
+
 GCCDIR=	${.CURDIR}/../../../contrib/gcc
 GCCLIB=	${.CURDIR}/../../../contrib/gcclibs
 
