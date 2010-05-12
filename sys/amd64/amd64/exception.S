@@ -553,7 +553,7 @@ nmi_restoreregs:
 	movq	TF_R14(%rsp),%r14
 	movq	TF_R15(%rsp),%r15
 	addq	$TF_RIP,%rsp
-	iretq
+	jmp	doreti_iret
 
 ENTRY(fork_trampoline)
 	movq	%r12,%rdi		/* function */
