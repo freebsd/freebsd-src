@@ -252,7 +252,7 @@
 
 /* Define if mmap() uses MAP_ANONYMOUS to map anonymous pages, or undefine if
    it uses MAP_ANON */
-#define HAVE_MMAP_ANONYMOUS 1
+/* #undef HAVE_MMAP_ANONYMOUS */
 
 /* Define if mmap() can map files into memory */
 #define HAVE_MMAP_FILE 
