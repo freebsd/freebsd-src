@@ -482,7 +482,6 @@ void InitHeaderSearch::AddDefaultCIncludePaths(const llvm::Triple &triple) {
     break;
   }
 
-  AddPath("/usr/local/include", System, true, false, false);
   AddPath("/usr/include", System, false, false, false);
 }
 
