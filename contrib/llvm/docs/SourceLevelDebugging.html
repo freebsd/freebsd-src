@@ -1,0 +1,1780 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN"
+                      "http://www.w3.org/TR/html4/strict.dtd">
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+  <title>Source Level Debugging with LLVM</title>
+  <link rel="stylesheet" href="llvm.css" type="text/css">
+</head>
+<body>
+
+<div class="doc_title">Source Level Debugging with LLVM</div>
+
+<table class="layout" style="width:100%">
+  <tr class="layout">
+    <td class="left">
+<ul>
+  <li><a href="#introduction">Introduction</a>
+  <ol>
+    <li><a href="#phil">Philosophy behind LLVM debugging information</a></li>
+    <li><a href="#consumers">Debug information consumers</a></li>
+    <li><a href="#debugopt">Debugging optimized code</a></li>
+  </ol></li>
+  <li><a href="#format">Debugging information format</a>
+  <ol>
+    <li><a href="#debug_info_descriptors">Debug information descriptors</a>
+    <ul>
+      <li><a href="#format_compile_units">Compile unit descriptors</a></li>
+      <li><a href="#format_files">File descriptors</a></li>
+      <li><a href="#format_global_variables">Global variable descriptors</a></li>
+      <li><a href="#format_subprograms">Subprogram descriptors</a></li>
+      <li><a href="#format_blocks">Block descriptors</a></li>
+      <li><a href="#format_basic_type">Basic type descriptors</a></li>
+      <li><a href="#format_derived_type">Derived type descriptors</a></li>
+      <li><a href="#format_composite_type">Composite type descriptors</a></li>
+      <li><a href="#format_subrange">Subrange descriptors</a></li>
+      <li><a href="#format_enumeration">Enumerator descriptors</a></li>
+      <li><a href="#format_variables">Local variables</a></li>
+    </ul></li>
+    <li><a href="#format_common_intrinsics">Debugger intrinsic functions</a>
+      <ul>
+      <li><a href="#format_common_declare">llvm.dbg.declare</a></li>
+      <li><a href="#format_common_value">llvm.dbg.value</a></li>
+    </ul></li>
+  </ol></li>
+  <li><a href="#format_common_lifetime">Object lifetimes and scoping</a></li>
+  <li><a href="#ccxx_frontend">C/C++ front-end specific debug information</a>
+  <ol>
+    <li><a href="#ccxx_compile_units">C/C++ source file information</a></li>
+    <li><a href="#ccxx_global_variable">C/C++ global variable information</a></li>
+    <li><a href="#ccxx_subprogram">C/C++ function information</a></li>
+    <li><a href="#ccxx_basic_types">C/C++ basic types</a></li>
+    <li><a href="#ccxx_derived_types">C/C++ derived types</a></li>
+    <li><a href="#ccxx_composite_types">C/C++ struct/union types</a></li>
+    <li><a href="#ccxx_enumeration_types">C/C++ enumeration types</a></li>
+  </ol></li>
+</ul>
+</td>
+<td class="right">
+<img src="img/venusflytrap.jpg" alt="A leafy and green bug eater" width="247"
+height="369">
+</td>
+</tr></table>
+
+<div class="doc_author">
+  <p>Written by <a href="mailto:sabre@nondot.org">Chris Lattner</a>
+            and <a href="mailto:jlaskey@mac.com">Jim Laskey</a></p>
+</div>
+
+
+<!-- *********************************************************************** -->
+<div class="doc_section"><a name="introduction">Introduction</a></div> 
+<!-- *********************************************************************** -->
+
+<div class="doc_text">
+
+<p>This document is the central repository for all information pertaining to
+   debug information in LLVM.  It describes the <a href="#format">actual format
+   that the LLVM debug information</a> takes, which is useful for those
+   interested in creating front-ends or dealing directly with the information.
+   Further, this document provides specific examples of what debug information
+   for C/C++.</p>
+
+</div>
+
+<!-- ======================================================================= -->
+<div class="doc_subsection">
+  <a name="phil">Philosophy behind LLVM debugging information</a>
+</div>
+
+<div class="doc_text">
+
+<p>The idea of the LLVM debugging information is to capture how the important
+   pieces of the source-language's Abstract Syntax Tree map onto LLVM code.
+   Several design aspects have shaped the solution that appears here.  The
+   important ones are:</p>
+
+<ul>
+  <li>Debugging information should have very little impact on the rest of the
+      compiler.  No transformations, analyses, or code generators should need to
+      be modified because of debugging information.</li>
+
+  <li>LLVM optimizations should interact in <a href="#debugopt">well-defined and
+      easily described ways</a> with the debugging information.</li>
+
+  <li>Because LLVM is designed to support arbitrary programming languages,
+      LLVM-to-LLVM tools should not need to know anything about the semantics of
+      the source-level-language.</li>
+
+  <li>Source-level languages are often <b>widely</b> different from one another.
+      LLVM should not put any restrictions of the flavor of the source-language,
+      and the debugging information should work with any language.</li>
+
+  <li>With code generator support, it should be possible to use an LLVM compiler
+      to compile a program to native machine code and standard debugging
+      formats.  This allows compatibility with traditional machine-code level
+      debuggers, like GDB or DBX.</li>
+</ul>
+
+<p>The approach used by the LLVM implementation is to use a small set
+   of <a href="#format_common_intrinsics">intrinsic functions</a> to define a
+   mapping between LLVM program objects and the source-level objects.  The
+   description of the source-level program is maintained in LLVM metadata
+   in an <a href="#ccxx_frontend">implementation-defined format</a>
+   (the C/C++ front-end currently uses working draft 7 of
+   the <a href="http://www.eagercon.com/dwarf/dwarf3std.htm">DWARF 3
+   standard</a>).</p>
+
+<p>When a program is being debugged, a debugger interacts with the user and
+   turns the stored debug information into source-language specific information.
+   As such, a debugger must be aware of the source-language, and is thus tied to
+   a specific language or family of languages.</p>
+
+</div>
+
+<!-- ======================================================================= -->
+<div class="doc_subsection">
+  <a name="consumers">Debug information consumers</a>
+</div>
+
+<div class="doc_text">
+
+<p>The role of debug information is to provide meta information normally
+   stripped away during the compilation process.  This meta information provides
+   an LLVM user a relationship between generated code and the original program
+   source code.</p>
+
+<p>Currently, debug information is consumed by DwarfDebug to produce dwarf
+   information used by the gdb debugger.  Other targets could use the same
+   information to produce stabs or other debug forms.</p>
+
+<p>It would also be reasonable to use debug information to feed profiling tools
+   for analysis of generated code, or, tools for reconstructing the original
+   source from generated code.</p>
+
+<p>TODO - expound a bit more.</p>
+
+</div>
+
+<!-- ======================================================================= -->
+<div class="doc_subsection">
+  <a name="debugopt">Debugging optimized code</a>
+</div>
+
+<div class="doc_text">
+
+<p>An extremely high priority of LLVM debugging information is to make it
+   interact well with optimizations and analysis.  In particular, the LLVM debug
+   information provides the following guarantees:</p>
+
+<ul>
+  <li>LLVM debug information <b>always provides information to accurately read
+      the source-level state of the program</b>, regardless of which LLVM
+      optimizations have been run, and without any modification to the
+      optimizations themselves.  However, some optimizations may impact the
+      ability to modify the current state of the program with a debugger, such
+      as setting program variables, or calling functions that have been
+      deleted.</li>
+
+  <li>LLVM optimizations gracefully interact with debugging information.  If
+      they are not aware of debug information, they are automatically disabled
+      as necessary in the cases that would invalidate the debug info.  This
+      retains the LLVM features, making it easy to write new
+      transformations.</li>
+
+  <li>As desired, LLVM optimizations can be upgraded to be aware of the LLVM
+      debugging information, allowing them to update the debugging information
+      as they perform aggressive optimizations.  This means that, with effort,
+      the LLVM optimizers could optimize debug code just as well as non-debug
+      code.</li>
+
+  <li>LLVM debug information does not prevent many important optimizations from
+      happening (for example inlining, basic block reordering/merging/cleanup,
+      tail duplication, etc), further reducing the amount of the compiler that
+      eventually is "aware" of debugging information.</li>
+
+  <li>LLVM debug information is automatically optimized along with the rest of
+      the program, using existing facilities.  For example, duplicate
+      information is automatically merged by the linker, and unused information
+      is automatically removed.</li>
+</ul>
+
+<p>Basically, the debug information allows you to compile a program with
+   "<tt>-O0 -g</tt>" and get full debug information, allowing you to arbitrarily
+   modify the program as it executes from a debugger.  Compiling a program with
+   "<tt>-O3 -g</tt>" gives you full debug information that is always available
+   and accurate for reading (e.g., you get accurate stack traces despite tail
+   call elimination and inlining), but you might lose the ability to modify the
+   program and call functions where were optimized out of the program, or
+   inlined away completely.</p>
+
+<p><a href="TestingGuide.html#quicktestsuite">LLVM test suite</a> provides a
+   framework to test optimizer's handling of debugging information. It can be
+   run like this:</p>
+
+<div class="doc_code">
+<pre>
+% cd llvm/projects/test-suite/MultiSource/Benchmarks  # or some other level
+% make TEST=dbgopt
+</pre>
+</div>
+
+<p>This will test impact of debugging information on optimization passes. If
+   debugging information influences optimization passes then it will be reported
+   as a failure. See <a href="TestingGuide.html">TestingGuide</a> for more
+   information on LLVM test infrastructure and how to run various tests.</p>
+
+</div>
+
+<!-- *********************************************************************** -->
+<div class="doc_section">
+  <a name="format">Debugging information format</a>
+</div>
+<!-- *********************************************************************** -->
+
+<div class="doc_text">
+
+<p>LLVM debugging information has been carefully designed to make it possible
+   for the optimizer to optimize the program and debugging information without
+   necessarily having to know anything about debugging information.  In
+   particular, the use of metadata avoids duplicated debugging information from
+   the beginning, and the global dead code elimination pass automatically 
+   deletes debugging information for a function if it decides to delete the 
+   function. </p>
+
+<p>To do this, most of the debugging information (descriptors for types,
+   variables, functions, source files, etc) is inserted by the language
+   front-end in the form of LLVM metadata. </p>
+
+<p>Debug information is designed to be agnostic about the target debugger and
+   debugging information representation (e.g. DWARF/Stabs/etc).  It uses a
+   generic pass to decode the information that represents variables, types, 
+   functions, namespaces, etc: this allows for arbitrary source-language 
+   semantics and type-systems to be used, as long as there is a module 
+   written for the target debugger to interpret the information. </p>
+
+<p>To provide basic functionality, the LLVM debugger does have to make some
+   assumptions about the source-level language being debugged, though it keeps
+   these to a minimum.  The only common features that the LLVM debugger assumes
+   exist are <a href="#format_files">source files</a>,
+   and <a href="#format_global_variables">program objects</a>.  These abstract
+   objects are used by a debugger to form stack traces, show information about
+   local variables, etc.</p>
+
+<p>This section of the documentation first describes the representation aspects
+   common to any source-language.  The <a href="#ccxx_frontend">next section</a>
+   describes the data layout conventions used by the C and C++ front-ends.</p>
+
+</div>
+
+<!-- ======================================================================= -->
+<div class="doc_subsection">
+  <a name="debug_info_descriptors">Debug information descriptors</a>
+</div>
+
+<div class="doc_text">
+
+<p>In consideration of the complexity and volume of debug information, LLVM
+   provides a specification for well formed debug descriptors. </p>
+
+<p>Consumers of LLVM debug information expect the descriptors for program
+   objects to start in a canonical format, but the descriptors can include
+   additional information appended at the end that is source-language
+   specific. All LLVM debugging information is versioned, allowing backwards
+   compatibility in the case that the core structures need to change in some
+   way.  Also, all debugging information objects start with a tag to indicate
+   what type of object it is.  The source-language is allowed to define its own
+   objects, by using unreserved tag numbers.  We recommend using with tags in
+   the range 0x1000 through 0x2000 (there is a defined enum DW_TAG_user_base =
+   0x1000.)</p>
+
+<p>The fields of debug descriptors used internally by LLVM 
+   are restricted to only the simple data types <tt>i32</tt>, <tt>i1</tt>,
+   <tt>float</tt>, <tt>double</tt>, <tt>mdstring</tt> and <tt>mdnode</tt>. </p>
+
+<div class="doc_code">
+<pre>
+!1 = metadata !{
+  i32,   ;; A tag
+  ...
+}
+</pre>
+</div>
+
+<p><a name="LLVMDebugVersion">The first field of a descriptor is always an
+   <tt>i32</tt> containing a tag value identifying the content of the
+   descriptor.  The remaining fields are specific to the descriptor.  The values
+   of tags are loosely bound to the tag values of DWARF information entries.
+   However, that does not restrict the use of the information supplied to DWARF
+   targets.  To facilitate versioning of debug information, the tag is augmented
+   with the current debug version (LLVMDebugVersion = 8 &lt;&lt; 16 or 0x80000 or
+   524288.)</a></p>
+
+<p>The details of the various descriptors follow.</p>  
+
+</div>
+
+<!-- ======================================================================= -->
+<div class="doc_subsubsection">
+  <a name="format_compile_units">Compile unit descriptors</a>
+</div>
+
+<div class="doc_text">
+
+<div class="doc_code">
+<pre>
+!0 = metadata !{
+  i32,       ;; Tag = 17 + <a href="#LLVMDebugVersion">LLVMDebugVersion</a> 
+             ;; (DW_TAG_compile_unit)
+  i32,       ;; Unused field. 
+  i32,       ;; DWARF language identifier (ex. DW_LANG_C89) 
+  metadata,  ;; Source file name
+  metadata,  ;; Source file directory (includes trailing slash)
+  metadata   ;; Producer (ex. "4.0.1 LLVM (LLVM research group)")
+  i1,        ;; True if this is a main compile unit. 
+  i1,        ;; True if this is optimized.
+  metadata,  ;; Flags
+  i32        ;; Runtime version
+}
+</pre>
+</div>
+
+<p>These descriptors contain a source language ID for the file (we use the DWARF
+   3.0 ID numbers, such as <tt>DW_LANG_C89</tt>, <tt>DW_LANG_C_plus_plus</tt>,
+   <tt>DW_LANG_Cobol74</tt>, etc), three strings describing the filename,
+   working directory of the compiler, and an identifier string for the compiler
+   that produced it.</p>
+
+<p>Compile unit descriptors provide the root context for objects declared in a
+   specific compilation unit. File descriptors are defined using this context.</p>
+
+</div>
+
+<!-- ======================================================================= -->
+<div class="doc_subsubsection">
+  <a name="format_files">File descriptors</a>
+</div>
+
+<div class="doc_text">
+
+<div class="doc_code">
+<pre>
+!0 = metadata !{
+  i32,       ;; Tag = 41 + <a href="#LLVMDebugVersion">LLVMDebugVersion</a> 
+             ;; (DW_TAG_file_type)
+  metadata,  ;; Source file name
+  metadata,  ;; Source file directory (includes trailing slash)
+  metadata   ;; Reference to compile unit where defined
+}
+</pre>
+</div>
+
+<p>These descriptors contain information for a file. Global variables and top
+   level functions would be defined using this context.k File descriptors also
+   provide context for source line correspondence. </p>
+
+<p>Each input file is encoded as a separate file descriptor in LLVM debugging
+   information output. Each file descriptor would be defined using a 
+   compile unit. </p>
+
+</div>
+
+<!-- ======================================================================= -->
+<div class="doc_subsubsection">
+  <a name="format_global_variables">Global variable descriptors</a>
+</div>
+
+<div class="doc_text">
+
+<div class="doc_code">
+<pre>
+!1 = metadata !{
+  i32,      ;; Tag = 52 + <a href="#LLVMDebugVersion">LLVMDebugVersion</a> 
+            ;; (DW_TAG_variable)
+  i32,      ;; Unused field.
+  metadata, ;; Reference to context descriptor
+  metadata, ;; Name
+  metadata, ;; Display name (fully qualified C++ name)
+  metadata, ;; MIPS linkage name (for C++)
+  metadata, ;; Reference to file where defined
+  i32,      ;; Line number where defined
+  metadata, ;; Reference to type descriptor
+  i1,       ;; True if the global is local to compile unit (static)
+  i1,       ;; True if the global is defined in the compile unit (not extern)
+  {  }*     ;; Reference to the global variable
+}
+</pre>
+</div>
+
+<p>These descriptors provide debug information about globals variables.  The
+provide details such as name, type and where the variable is defined.</p>
+
+</div>
+
+<!-- ======================================================================= -->
+<div class="doc_subsubsection">
+  <a name="format_subprograms">Subprogram descriptors</a>
+</div>
+
+<div class="doc_text">
+
+<div class="doc_code">
+<pre>
+!2 = metadata !{
+  i32,      ;; Tag = 46 + <a href="#LLVMDebugVersion">LLVMDebugVersion</a>
+            ;; (DW_TAG_subprogram)
+  i32,      ;; Unused field.
+  metadata, ;; Reference to context descriptor
+  metadata, ;; Name
+  metadata, ;; Display name (fully qualified C++ name)
+  metadata, ;; MIPS linkage name (for C++)
+  metadata, ;; Reference to file where defined
+  i32,      ;; Line number where defined
+  metadata, ;; Reference to type descriptor
+  i1,       ;; True if the global is local to compile unit (static)
+  i1        ;; True if the global is defined in the compile unit (not extern)
+}
+</pre>
+</div>
+
+<p>These descriptors provide debug information about functions, methods and
+   subprograms.  They provide details such as name, return types and the source
+   location where the subprogram is defined.</p>
+
+</div>
+
+<!-- ======================================================================= -->
+<div class="doc_subsubsection">
+  <a name="format_blocks">Block descriptors</a>
+</div>
+
+<div class="doc_text">
+
+<div class="doc_code">
+<pre>
+!3 = metadata !{
+  i32,     ;; Tag = 13 + <a href="#LLVMDebugVersion">LLVMDebugVersion</a> (DW_TAG_lexical_block)
+  metadata ;; Reference to context descriptor
+}
+</pre>
+</div>
+
+<p>These descriptors provide debug information about nested blocks within a
+   subprogram.  The array of member descriptors is used to define local
+   variables and deeper nested blocks.</p>
+
+</div>
+
+<!-- ======================================================================= -->
+<div class="doc_subsubsection">
+  <a name="format_basic_type">Basic type descriptors</a>
+</div>
+
+<div class="doc_text">
+
+<div class="doc_code">
+<pre>
+!4 = metadata !{
+  i32,      ;; Tag = 36 + <a href="#LLVMDebugVersion">LLVMDebugVersion</a> 
+            ;; (DW_TAG_base_type)
+  metadata, ;; Reference to context (typically a compile unit)
+  metadata, ;; Name (may be "" for anonymous types)
+  metadata, ;; Reference to file where defined (may be NULL)
+  i32,      ;; Line number where defined (may be 0)
+  i64,      ;; Size in bits
+  i64,      ;; Alignment in bits
+  i64,      ;; Offset in bits
+  i32,      ;; Flags
+  i32       ;; DWARF type encoding
+}
+</pre>
+</div>
+
+<p>These descriptors define primitive types used in the code. Example int, bool
+   and float.  The context provides the scope of the type, which is usually the
+   top level.  Since basic types are not usually user defined the compile unit
+   and line number can be left as NULL and 0.  The size, alignment and offset
+   are expressed in bits and can be 64 bit values.  The alignment is used to
+   round the offset when embedded in a
+   <a href="#format_composite_type">composite type</a> (example to keep float
+   doubles on 64 bit boundaries.) The offset is the bit offset if embedded in
+   a <a href="#format_composite_type">composite type</a>.</p>
+
+<p>The type encoding provides the details of the type.  The values are typically
+   one of the following:</p>
+
+<div class="doc_code">
+<pre>
+DW_ATE_address       = 1
+DW_ATE_boolean       = 2
+DW_ATE_float         = 4
+DW_ATE_signed        = 5
+DW_ATE_signed_char   = 6
+DW_ATE_unsigned      = 7
+DW_ATE_unsigned_char = 8
+</pre>
+</div>
+
+</div>
+
+<!-- ======================================================================= -->
+<div class="doc_subsubsection">
+  <a name="format_derived_type">Derived type descriptors</a>
+</div>
+
+<div class="doc_text">
+
+<div class="doc_code">
+<pre>
+!5 = metadata !{
+  i32,      ;; Tag (see below)
+  metadata, ;; Reference to context
+  metadata, ;; Name (may be "" for anonymous types)
+  metadata, ;; Reference to file where defined (may be NULL)
+  i32,      ;; Line number where defined (may be 0)
+  i32,      ;; Size in bits
+  i32,      ;; Alignment in bits
+  i32,      ;; Offset in bits
+  metadata  ;; Reference to type derived from
+}
+</pre>
+</div>
+
+<p>These descriptors are used to define types derived from other types.  The
+value of the tag varies depending on the meaning.  The following are possible
+tag values:</p>
+
+<div class="doc_code">
+<pre>
+DW_TAG_formal_parameter = 5
+DW_TAG_member           = 13
+DW_TAG_pointer_type     = 15
+DW_TAG_reference_type   = 16
+DW_TAG_typedef          = 22
+DW_TAG_const_type       = 38
+DW_TAG_volatile_type    = 53
+DW_TAG_restrict_type    = 55
+</pre>
+</div>
+
+<p><tt>DW_TAG_member</tt> is used to define a member of
+   a <a href="#format_composite_type">composite type</a>
+   or <a href="#format_subprograms">subprogram</a>.  The type of the member is
+   the <a href="#format_derived_type">derived
+   type</a>. <tt>DW_TAG_formal_parameter</tt> is used to define a member which
+   is a formal argument of a subprogram.</p>
+
+<p><tt>DW_TAG_typedef</tt> is used to provide a name for the derived type.</p>
+
+<p><tt>DW_TAG_pointer_type</tt>,<tt>DW_TAG_reference_type</tt>,
+   <tt>DW_TAG_const_type</tt>, <tt>DW_TAG_volatile_type</tt>
+   and <tt>DW_TAG_restrict_type</tt> are used to qualify
+   the <a href="#format_derived_type">derived type</a>. </p>
+
+<p><a href="#format_derived_type">Derived type</a> location can be determined
+   from the compile unit and line number.  The size, alignment and offset are
+   expressed in bits and can be 64 bit values.  The alignment is used to round
+   the offset when embedded in a <a href="#format_composite_type">composite
+   type</a> (example to keep float doubles on 64 bit boundaries.) The offset is
+   the bit offset if embedded in a <a href="#format_composite_type">composite
+   type</a>.</p>
+
+<p>Note that the <tt>void *</tt> type is expressed as a
+   <tt>llvm.dbg.derivedtype.type</tt> with tag of <tt>DW_TAG_pointer_type</tt>
+   and <tt>NULL</tt> derived type.</p>
+
+</div>
+
+<!-- ======================================================================= -->
+<div class="doc_subsubsection">
+  <a name="format_composite_type">Composite type descriptors</a>
+</div>
+
+<div class="doc_text">
+
+<div class="doc_code">
+<pre>
+!6 = metadata !{
+  i32,      ;; Tag (see below)
+  metadata, ;; Reference to context
+  metadata, ;; Name (may be "" for anonymous types)
+  metadata, ;; Reference to file where defined (may be NULL)
+  i32,      ;; Line number where defined (may be 0)
+  i64,      ;; Size in bits
+  i64,      ;; Alignment in bits
+  i64,      ;; Offset in bits
+  i32,      ;; Flags
+  metadata, ;; Reference to type derived from
+  metadata, ;; Reference to array of member descriptors
+  i32       ;; Runtime languages
+}
+</pre>
+</div>
+
+<p>These descriptors are used to define types that are composed of 0 or more
+elements.  The value of the tag varies depending on the meaning.  The following
+are possible tag values:</p>
+
+<div class="doc_code">
+<pre>
+DW_TAG_array_type       = 1
+DW_TAG_enumeration_type = 4
+DW_TAG_structure_type   = 19
+DW_TAG_union_type       = 23
+DW_TAG_vector_type      = 259
+DW_TAG_subroutine_type  = 21
+DW_TAG_inheritance      = 28
+</pre>
+</div>
+
+<p>The vector flag indicates that an array type is a native packed vector.</p>
+
+<p>The members of array types (tag = <tt>DW_TAG_array_type</tt>) or vector types
+   (tag = <tt>DW_TAG_vector_type</tt>) are <a href="#format_subrange">subrange
+   descriptors</a>, each representing the range of subscripts at that level of
+   indexing.</p>
+
+<p>The members of enumeration types (tag = <tt>DW_TAG_enumeration_type</tt>) are
+   <a href="#format_enumeration">enumerator descriptors</a>, each representing
+   the definition of enumeration value for the set.</p>
+
+<p>The members of structure (tag = <tt>DW_TAG_structure_type</tt>) or union (tag
+   = <tt>DW_TAG_union_type</tt>) types are any one of
+   the <a href="#format_basic_type">basic</a>,
+   <a href="#format_derived_type">derived</a>
+   or <a href="#format_composite_type">composite</a> type descriptors, each
+   representing a field member of the structure or union.</p>
+
+<p>For C++ classes (tag = <tt>DW_TAG_structure_type</tt>), member descriptors
+   provide information about base classes, static members and member
+   functions. If a member is a <a href="#format_derived_type">derived type
+   descriptor</a> and has a tag of <tt>DW_TAG_inheritance</tt>, then the type
+   represents a base class. If the member of is
+   a <a href="#format_global_variables">global variable descriptor</a> then it
+   represents a static member.  And, if the member is
+   a <a href="#format_subprograms">subprogram descriptor</a> then it represents
+   a member function.  For static members and member
+   functions, <tt>getName()</tt> returns the members link or the C++ mangled
+   name.  <tt>getDisplayName()</tt> the simplied version of the name.</p>
+
+<p>The first member of subroutine (tag = <tt>DW_TAG_subroutine_type</tt>) type
+   elements is the return type for the subroutine.  The remaining elements are
+   the formal arguments to the subroutine.</p>
+
+<p><a href="#format_composite_type">Composite type</a> location can be
+   determined from the compile unit and line number.  The size, alignment and
+   offset are expressed in bits and can be 64 bit values.  The alignment is used
+   to round the offset when embedded in
+   a <a href="#format_composite_type">composite type</a> (as an example, to keep
+   float doubles on 64 bit boundaries.) The offset is the bit offset if embedded
+   in a <a href="#format_composite_type">composite type</a>.</p>
+
+</div>
+
+<!-- ======================================================================= -->
+<div class="doc_subsubsection">
+  <a name="format_subrange">Subrange descriptors</a>
+</div>
+
+<div class="doc_text">
+
+<div class="doc_code">
+<pre>
+%<a href="#format_subrange">llvm.dbg.subrange.type</a> = type {
+  i32,    ;; Tag = 33 + <a href="#LLVMDebugVersion">LLVMDebugVersion</a> (DW_TAG_subrange_type)
+  i64,    ;; Low value
+  i64     ;; High value
+}
+</pre>
+</div>
+
+<p>These descriptors are used to define ranges of array subscripts for an array
+   <a href="#format_composite_type">composite type</a>.  The low value defines
+   the lower bounds typically zero for C/C++.  The high value is the upper
+   bounds.  Values are 64 bit.  High - low + 1 is the size of the array.  If low
+   == high the array will be unbounded.</p>
+
+</div>
+
+<!-- ======================================================================= -->
+<div class="doc_subsubsection">
+  <a name="format_enumeration">Enumerator descriptors</a>
+</div>
+
+<div class="doc_text">
+
+<div class="doc_code">
+<pre>
+!6 = metadata !{
+  i32,      ;; Tag = 40 + <a href="#LLVMDebugVersion">LLVMDebugVersion</a> 
+            ;; (DW_TAG_enumerator)
+  metadata, ;; Name
+  i64       ;; Value
+}
+</pre>
+</div>
+
+<p>These descriptors are used to define members of an
+   enumeration <a href="#format_composite_type">composite type</a>, it
+   associates the name to the value.</p>
+
+</div>
+
+<!-- ======================================================================= -->
+<div class="doc_subsubsection">
+  <a name="format_variables">Local variables</a>
+</div>
+
+<div class="doc_text">
+
+<div class="doc_code">
+<pre>
+!7 = metadata !{
+  i32,      ;; Tag (see below)
+  metadata, ;; Context
+  metadata, ;; Name
+  metadata, ;; Reference to file where defined
+  i32,      ;; Line number where defined
+  metadata  ;; Type descriptor
+}
+</pre>
+</div>
+
+<p>These descriptors are used to define variables local to a sub program.  The
+   value of the tag depends on the usage of the variable:</p>
+
+<div class="doc_code">
+<pre>
+DW_TAG_auto_variable   = 256
+DW_TAG_arg_variable    = 257
+DW_TAG_return_variable = 258
+</pre>
+</div>
+
+<p>An auto variable is any variable declared in the body of the function.  An
+   argument variable is any variable that appears as a formal argument to the
+   function.  A return variable is used to track the result of a function and
+   has no source correspondent.</p>
+
+<p>The context is either the subprogram or block where the variable is defined.
+   Name the source variable name.  Compile unit and line indicate where the
+   variable was defined. Type descriptor defines the declared type of the
+   variable.</p>
+
+</div>
+
+<!-- ======================================================================= -->
+<div class="doc_subsection">
+  <a name="format_common_intrinsics">Debugger intrinsic functions</a>
+</div>
+
+<div class="doc_text">
+
+<p>LLVM uses several intrinsic functions (name prefixed with "llvm.dbg") to
+   provide debug information at various points in generated code.</p>
+
+</div>
+
+<!-- ======================================================================= -->
+<div class="doc_subsubsection">
+  <a name="format_common_declare">llvm.dbg.declare</a>
+</div>
+
+<div class="doc_text">
+<pre>
+  void %<a href="#format_common_declare">llvm.dbg.declare</a>( { } *, metadata )
+</pre>
+
+<p>This intrinsic provides information about a local element (ex. variable.) The
+   first argument is the alloca for the variable, cast to a <tt>{ }*</tt>. The
+   second argument is
+   the <tt>%<a href="#format_variables">llvm.dbg.variable</a></tt> containing
+   the description of the variable. </p>
+
+</div>
+
+<!-- ======================================================================= -->
+<div class="doc_subsubsection">
+  <a name="format_common_value">llvm.dbg.value</a>
+</div>
+
+<div class="doc_text">
+<pre>
+  void %<a href="#format_common_value">llvm.dbg.value</a>( metadata, i64, metadata )
+</pre>
+
+<p>This intrinsic provides information when a user source variable is set to a
+   new value.  The first argument is the new value (wrapped as metadata).  The
+   second argument is the offset in the user source variable where the new value
+   is written.  The third argument is
+   the <tt>%<a href="#format_variables">llvm.dbg.variable</a></tt> containing
+   the description of the user source variable. </p>
+
+</div>
+
+<!-- ======================================================================= -->
+<div class="doc_subsection">
+  <a name="format_common_lifetime">Object lifetimes and scoping</a>
+</div>
+
+<div class="doc_text">
+<p>In many languages, the local variables in functions can have their lifetimes
+   or scopes limited to a subset of a function.  In the C family of languages,
+   for example, variables are only live (readable and writable) within the
+   source block that they are defined in.  In functional languages, values are
+   only readable after they have been defined.  Though this is a very obvious
+   concept, it is non-trivial to model in LLVM, because it has no notion of
+   scoping in this sense, and does not want to be tied to a language's scoping
+   rules.</p>
+
+<p>In order to handle this, the LLVM debug format uses the metadata attached to
+   llvm instructions to encode line number and scoping information. Consider
+   the following C fragment, for example:</p>
+
+<div class="doc_code">
+<pre>
+1.  void foo() {
+2.    int X = 21;
+3.    int Y = 22;
+4.    {
+5.      int Z = 23;
+6.      Z = X;
+7.    }
+8.    X = Y;
+9.  }
+</pre>
+</div>
+
+<p>Compiled to LLVM, this function would be represented like this:</p>
+
+<div class="doc_code">
+<pre>
+define void @foo() nounwind ssp {
+entry:
+  %X = alloca i32, align 4                        ; &lt;i32*&gt; [#uses=4]
+  %Y = alloca i32, align 4                        ; &lt;i32*&gt; [#uses=4]
+  %Z = alloca i32, align 4                        ; &lt;i32*&gt; [#uses=3]
+  %0 = bitcast i32* %X to { }*                    ; &lt;{ }*&gt; [#uses=1]
+  call void @llvm.dbg.declare({ }* %0, metadata !0), !dbg !7
+  store i32 21, i32* %X, !dbg !8
+  %1 = bitcast i32* %Y to { }*                    ; &lt;{ }*&gt; [#uses=1]
+  call void @llvm.dbg.declare({ }* %1, metadata !9), !dbg !10
+  store i32 22, i32* %Y, !dbg !11
+  %2 = bitcast i32* %Z to { }*                    ; &lt;{ }*&gt; [#uses=1]
+  call void @llvm.dbg.declare({ }* %2, metadata !12), !dbg !14
+  store i32 23, i32* %Z, !dbg !15
+  %tmp = load i32* %X, !dbg !16                   ; &lt;i32&gt; [#uses=1]
+  %tmp1 = load i32* %Y, !dbg !16                  ; &lt;i32&gt; [#uses=1]
+  %add = add nsw i32 %tmp, %tmp1, !dbg !16        ; &lt;i32&gt; [#uses=1]
+  store i32 %add, i32* %Z, !dbg !16
+  %tmp2 = load i32* %Y, !dbg !17                  ; &lt;i32&gt; [#uses=1]
+  store i32 %tmp2, i32* %X, !dbg !17
+  ret void, !dbg !18
+}
+
+declare void @llvm.dbg.declare({ }*, metadata) nounwind readnone
+
+!0 = metadata !{i32 459008, metadata !1, metadata !"X", 
+                metadata !3, i32 2, metadata !6}; [ DW_TAG_auto_variable ]
+!1 = metadata !{i32 458763, metadata !2}; [DW_TAG_lexical_block ]
+!2 = metadata !{i32 458798, i32 0, metadata !3, metadata !"foo", metadata !"foo", 
+               metadata !"foo", metadata !3, i32 1, metadata !4, 
+               i1 false, i1 true}; [DW_TAG_subprogram ]
+!3 = metadata !{i32 458769, i32 0, i32 12, metadata !"foo.c", 
+                metadata !"/private/tmp", metadata !"clang 1.1", i1 true, 
+                i1 false, metadata !"", i32 0}; [DW_TAG_compile_unit ]
+!4 = metadata !{i32 458773, metadata !3, metadata !"", null, i32 0, i64 0, i64 0, 
+                i64 0, i32 0, null, metadata !5, i32 0}; [DW_TAG_subroutine_type ]
+!5 = metadata !{null}
+!6 = metadata !{i32 458788, metadata !3, metadata !"int", metadata !3, i32 0, 
+                i64 32, i64 32, i64 0, i32 0, i32 5}; [DW_TAG_base_type ]
+!7 = metadata !{i32 2, i32 7, metadata !1, null}
+!8 = metadata !{i32 2, i32 3, metadata !1, null}
+!9 = metadata !{i32 459008, metadata !1, metadata !"Y", metadata !3, i32 3, 
+                metadata !6}; [ DW_TAG_auto_variable ]
+!10 = metadata !{i32 3, i32 7, metadata !1, null}
+!11 = metadata !{i32 3, i32 3, metadata !1, null}
+!12 = metadata !{i32 459008, metadata !13, metadata !"Z", metadata !3, i32 5, 
+                 metadata !6}; [ DW_TAG_auto_variable ]
+!13 = metadata !{i32 458763, metadata !1}; [DW_TAG_lexical_block ]
+!14 = metadata !{i32 5, i32 9, metadata !13, null}
+!15 = metadata !{i32 5, i32 5, metadata !13, null}
+!16 = metadata !{i32 6, i32 5, metadata !13, null}
+!17 = metadata !{i32 8, i32 3, metadata !1, null}
+!18 = metadata !{i32 9, i32 1, metadata !2, null}
+</pre>
+</div>
+
+<p>This example illustrates a few important details about LLVM debugging
+   information. In particular, it shows how the <tt>llvm.dbg.declare</tt>
+   intrinsic and location information, which are attached to an instruction,
+   are applied together to allow a debugger to analyze the relationship between
+   statements, variable definitions, and the code used to implement the
+   function.</p>
+
+<div class="doc_code">
+<pre>
+call void @llvm.dbg.declare({ }* %0, metadata !0), !dbg !7   
+</pre>
+</div>
+
+<p>The first intrinsic
+   <tt>%<a href="#format_common_declare">llvm.dbg.declare</a></tt>
+   encodes debugging information for the variable <tt>X</tt>. The metadata
+   <tt>!dbg !7</tt> attached to the intrinsic provides scope information for the
+   variable <tt>X</tt>.</p>
+
+<div class="doc_code">
+<pre>
+!7 = metadata !{i32 2, i32 7, metadata !1, null}
+!1 = metadata !{i32 458763, metadata !2}; [DW_TAG_lexical_block ]
+!2 = metadata !{i32 458798, i32 0, metadata !3, metadata !"foo", 
+                metadata !"foo", metadata !"foo", metadata !3, i32 1, 
+                metadata !4, i1 false, i1 true}; [DW_TAG_subprogram ]   
+</pre>
+</div>
+
+<p>Here <tt>!7</tt> is metadata providing location information. It has four
+   fields: line number, column number, scope, and original scope. The original
+   scope represents inline location if this instruction is inlined inside a
+   caller, and is null otherwise. In this example, scope is encoded by
+   <tt>!1</tt>. <tt>!1</tt> represents a lexical block inside the scope
+   <tt>!2</tt>, where <tt>!2</tt> is a
+   <a href="#format_subprograms">subprogram descriptor</a>. This way the
+   location information attached to the intrinsics indicates that the
+   variable <tt>X</tt> is declared at line number 2 at a function level scope in
+   function <tt>foo</tt>.</p>
+
+<p>Now lets take another example.</p>
+
+<div class="doc_code">
+<pre>
+call void @llvm.dbg.declare({ }* %2, metadata !12), !dbg !14
+</pre>
+</div>
+
+<p>The second intrinsic
+   <tt>%<a href="#format_common_declare">llvm.dbg.declare</a></tt>
+   encodes debugging information for variable <tt>Z</tt>. The metadata 
+   <tt>!dbg !14</tt> attached to the intrinsic provides scope information for
+   the variable <tt>Z</tt>.</p>
+
+<div class="doc_code">
+<pre>
+!13 = metadata !{i32 458763, metadata !1}; [DW_TAG_lexical_block ]
+!14 = metadata !{i32 5, i32 9, metadata !13, null}
+</pre>
+</div>
+
+<p>Here <tt>!14</tt> indicates that <tt>Z</tt> is declared at line number 5 and
+   column number 9 inside of lexical scope <tt>!13</tt>. The lexical scope
+   itself resides inside of lexical scope <tt>!1</tt> described above.</p>
+
+<p>The scope information attached with each instruction provides a
+   straightforward way to find instructions covered by a scope.</p>
+
+</div>
+
+<!-- *********************************************************************** -->
+<div class="doc_section">
+  <a name="ccxx_frontend">C/C++ front-end specific debug information</a>
+</div>
+<!-- *********************************************************************** -->
+
+<div class="doc_text">
+
+<p>The C and C++ front-ends represent information about the program in a format
+   that is effectively identical
+   to <a href="http://www.eagercon.com/dwarf/dwarf3std.htm">DWARF 3.0</a> in
+   terms of information content.  This allows code generators to trivially
+   support native debuggers by generating standard dwarf information, and
+   contains enough information for non-dwarf targets to translate it as
+   needed.</p>
+
+<p>This section describes the forms used to represent C and C++ programs. Other
+   languages could pattern themselves after this (which itself is tuned to
+   representing programs in the same way that DWARF 3 does), or they could
+   choose to provide completely different forms if they don't fit into the DWARF
+   model.  As support for debugging information gets added to the various LLVM
+   source-language front-ends, the information used should be documented
+   here.</p>
+
+<p>The following sections provide examples of various C/C++ constructs and the
+   debug information that would best describe those constructs.</p>
+
+</div>
+
+<!-- ======================================================================= -->
+<div class="doc_subsection">
+  <a name="ccxx_compile_units">C/C++ source file information</a>
+</div>
+
+<div class="doc_text">
+
+<p>Given the source files <tt>MySource.cpp</tt> and <tt>MyHeader.h</tt> located
+   in the directory <tt>/Users/mine/sources</tt>, the following code:</p>
+
+<div class="doc_code">
+<pre>
+#include "MyHeader.h"
+
+int main(int argc, char *argv[]) {
+  return 0;
+}
+</pre>
+</div>
+
+<p>a C/C++ front-end would generate the following descriptors:</p>
+
+<div class="doc_code">
+<pre>
+...
+;;
+;; Define the compile unit for the main source file "/Users/mine/sources/MySource.cpp".
+;;
+!2 = metadata !{
+  i32 524305,    ;; Tag
+  i32 0,         ;; Unused
+  i32 4,         ;; Language Id
+  metadata !"MySource.cpp", 
+  metadata !"/Users/mine/sources", 
+  metadata !"4.2.1 (Based on Apple Inc. build 5649) (LLVM build 00)", 
+  i1 true,       ;; Main Compile Unit
+  i1 false,      ;; Optimized compile unit
+  metadata !"",  ;; Compiler flags
+  i32 0}         ;; Runtime version
+
+;;
+;; Define the file for the file "/Users/mine/sources/MySource.cpp".
+;;
+!1 = metadata !{
+  i32 524329,    ;; Tag
+  metadata !"MySource.cpp", 
+  metadata !"/Users/mine/sources", 
+  metadata !3    ;; Compile unit
+}
+
+;;
+;; Define the file for the file "/Users/mine/sources/Myheader.h"
+;;
+!3 = metadata !{
+  i32 524329,    ;; Tag
+  metadata !"Myheader.h"
+  metadata !"/Users/mine/sources", 
+  metadata !3    ;; Compile unit
+}
+
+...
+</pre>
+</div>
+
+<p>llvm::Instruction provides easy access to metadata attached with an 
+instruction. One can extract line number information encoded in LLVM IR
+using <tt>Instruction::getMetadata()</tt> and 
+<tt>DILocation::getLineNumber()</tt>.
+<pre>
+ if (MDNode *N = I->getMetadata("dbg")) {  // Here I is an LLVM instruction
+   DILocation Loc(N);                      // DILocation is in DebugInfo.h
+   unsigned Line = Loc.getLineNumber();
+   StringRef File = Loc.getFilename();
+   StringRef Dir = Loc.getDirectory();
+ }
+</pre>
+</div>
+
+<!-- ======================================================================= -->
+<div class="doc_subsection">
+  <a name="ccxx_global_variable">C/C++ global variable information</a>
+</div>
+
+<div class="doc_text">
+
+<p>Given an integer global variable declared as follows:</p>
+
+<div class="doc_code">
+<pre>
+int MyGlobal = 100;
+</pre>
+</div>
+
+<p>a C/C++ front-end would generate the following descriptors:</p>
+
+<div class="doc_code">
+<pre>
+;;
+;; Define the global itself.
+;;
+%MyGlobal = global int 100
+...
+;;
+;; List of debug info of globals
+;;
+!llvm.dbg.gv = !{!0}
+
+;;
+;; Define the global variable descriptor.  Note the reference to the global
+;; variable anchor and the global variable itself.
+;;
+!0 = metadata !{
+  i32 524340,              ;; Tag
+  i32 0,                   ;; Unused
+  metadata !1,             ;; Context
+  metadata !"MyGlobal",    ;; Name
+  metadata !"MyGlobal",    ;; Display Name
+  metadata !"MyGlobal",    ;; Linkage Name
+  metadata !3,             ;; Compile Unit
+  i32 1,                   ;; Line Number
+  metadata !4,             ;; Type
+  i1 false,                ;; Is a local variable
+  i1 true,                 ;; Is this a definition
+  i32* @MyGlobal           ;; The global variable
+}
+
+;;
+;; Define the basic type of 32 bit signed integer.  Note that since int is an
+;; intrinsic type the source file is NULL and line 0.
+;;    
+!4 = metadata !{
+  i32 524324,              ;; Tag
+  metadata !1,             ;; Context
+  metadata !"int",         ;; Name
+  metadata !1,             ;; File
+  i32 0,                   ;; Line number
+  i64 32,                  ;; Size in Bits
+  i64 32,                  ;; Align in Bits
+  i64 0,                   ;; Offset in Bits
+  i32 0,                   ;; Flags
+  i32 5                    ;; Encoding
+}
+
+</pre>
+</div>
+
+</div>
+
+<!-- ======================================================================= -->
+<div class="doc_subsection">
+  <a name="ccxx_subprogram">C/C++ function information</a>
+</div>
+
+<div class="doc_text">
+
+<p>Given a function declared as follows:</p>
+
+<div class="doc_code">
+<pre>
+int main(int argc, char *argv[]) {
+  return 0;
+}
+</pre>
+</div>
+
+<p>a C/C++ front-end would generate the following descriptors:</p>
+
+<div class="doc_code">
+<pre>
+;;
+;; Define the anchor for subprograms.  Note that the second field of the
+;; anchor is 46, which is the same as the tag for subprograms
+;; (46 = DW_TAG_subprogram.)
+;;
+!6 = metadata !{
+  i32 524334,        ;; Tag
+  i32 0,             ;; Unused
+  metadata !1,       ;; Context
+  metadata !"main",  ;; Name
+  metadata !"main",  ;; Display name
+  metadata !"main",  ;; Linkage name
+  metadata !1,       ;; File
+  i32 1,             ;; Line number
+  metadata !4,       ;; Type
+  i1 false,          ;; Is local 
+  i1 true            ;; Is definition
+}
+;;
+;; Define the subprogram itself.
+;;
+define i32 @main(i32 %argc, i8** %argv) {
+...
+}
+</pre>
+</div>
+
+</div>
+
+<!-- ======================================================================= -->
+<div class="doc_subsection">
+  <a name="ccxx_basic_types">C/C++ basic types</a>
+</div>
+
+<div class="doc_text">
+
+<p>The following are the basic type descriptors for C/C++ core types:</p>
+
+</div>
+
+<!-- ======================================================================= -->
+<div class="doc_subsubsection">
+  <a name="ccxx_basic_type_bool">bool</a>
+</div>
+
+<div class="doc_text">
+
+<div class="doc_code">
+<pre>
+!2 = metadata !{
+  i32 524324,        ;; Tag
+  metadata !1,       ;; Context
+  metadata !"bool",  ;; Name
+  metadata !1,       ;; File
+  i32 0,             ;; Line number
+  i64 8,             ;; Size in Bits
+  i64 8,             ;; Align in Bits
+  i64 0,             ;; Offset in Bits
+  i32 0,             ;; Flags
+  i32 2              ;; Encoding
+}
+</pre>
+</div>
+
+</div>
+
+<!-- ======================================================================= -->
+<div class="doc_subsubsection">
+  <a name="ccxx_basic_char">char</a>
+</div>
+
+<div class="doc_text">
+
+<div class="doc_code">
+<pre>
+!2 = metadata !{
+  i32 524324,        ;; Tag
+  metadata !1,       ;; Context
+  metadata !"char",  ;; Name
+  metadata !1,       ;; File
+  i32 0,             ;; Line number
+  i64 8,             ;; Size in Bits
+  i64 8,             ;; Align in Bits
+  i64 0,             ;; Offset in Bits
+  i32 0,             ;; Flags
+  i32 6              ;; Encoding
+}
+</pre>
+</div>
+
+</div>
+
+<!-- ======================================================================= -->
+<div class="doc_subsubsection">
+  <a name="ccxx_basic_unsigned_char">unsigned char</a>
+</div>
+
+<div class="doc_text">
+
+<div class="doc_code">
+<pre>
+!2 = metadata !{
+  i32 524324,        ;; Tag
+  metadata !1,       ;; Context
+  metadata !"unsigned char", 
+  metadata !1,       ;; File
+  i32 0,             ;; Line number
+  i64 8,             ;; Size in Bits
+  i64 8,             ;; Align in Bits
+  i64 0,             ;; Offset in Bits
+  i32 0,             ;; Flags
+  i32 8              ;; Encoding
+}
+</pre>
+</div>
+
+</div>
+
+<!-- ======================================================================= -->
+<div class="doc_subsubsection">
+  <a name="ccxx_basic_short">short</a>
+</div>
+
+<div class="doc_text">
+
+<div class="doc_code">
+<pre>
+!2 = metadata !{
+  i32 524324,        ;; Tag
+  metadata !1,       ;; Context
+  metadata !"short int",
+  metadata !1,       ;; File
+  i32 0,             ;; Line number
+  i64 16,            ;; Size in Bits
+  i64 16,            ;; Align in Bits
+  i64 0,             ;; Offset in Bits
+  i32 0,             ;; Flags
+  i32 5              ;; Encoding
+}
+</pre>
+</div>
+
+</div>
+
+<!-- ======================================================================= -->
+<div class="doc_subsubsection">
+  <a name="ccxx_basic_unsigned_short">unsigned short</a>
+</div>
+
+<div class="doc_text">
+
+<div class="doc_code">
+<pre>
+!2 = metadata !{
+  i32 524324,        ;; Tag
+  metadata !1,       ;; Context
+  metadata !"short unsigned int",
+  metadata !1,       ;; File
+  i32 0,             ;; Line number
+  i64 16,            ;; Size in Bits
+  i64 16,            ;; Align in Bits
+  i64 0,             ;; Offset in Bits
+  i32 0,             ;; Flags
+  i32 7              ;; Encoding
+}
+</pre>
+</div>
+
+</div>
+
+<!-- ======================================================================= -->
+<div class="doc_subsubsection">
+  <a name="ccxx_basic_int">int</a>
+</div>
+
+<div class="doc_text">
+
+<div class="doc_code">
+<pre>
+!2 = metadata !{
+  i32 524324,        ;; Tag
+  metadata !1,       ;; Context
+  metadata !"int",   ;; Name
+  metadata !1,       ;; File
+  i32 0,             ;; Line number
+  i64 32,            ;; Size in Bits
+  i64 32,            ;; Align in Bits
+  i64 0,             ;; Offset in Bits
+  i32 0,             ;; Flags
+  i32 5              ;; Encoding
+}
+</pre></div>
+
+</div>
+
+<!-- ======================================================================= -->
+<div class="doc_subsubsection">
+  <a name="ccxx_basic_unsigned_int">unsigned int</a>
+</div>
+
+<div class="doc_text">
+
+<div class="doc_code">
+<pre>
+!2 = metadata !{
+  i32 524324,        ;; Tag
+  metadata !1,       ;; Context
+  metadata !"unsigned int",
+  metadata !1,       ;; File
+  i32 0,             ;; Line number
+  i64 32,            ;; Size in Bits
+  i64 32,            ;; Align in Bits
+  i64 0,             ;; Offset in Bits
+  i32 0,             ;; Flags
+  i32 7              ;; Encoding
+}
+</pre>
+</div>
+
+</div>
+
+<!-- ======================================================================= -->
+<div class="doc_subsubsection">
+  <a name="ccxx_basic_long_long">long long</a>
+</div>
+
+<div class="doc_text">
+
+<div class="doc_code">
+<pre>
+!2 = metadata !{
+  i32 524324,        ;; Tag
+  metadata !1,       ;; Context
+  metadata !"long long int",
+  metadata !1,       ;; File
+  i32 0,             ;; Line number
+  i64 64,            ;; Size in Bits
+  i64 64,            ;; Align in Bits
+  i64 0,             ;; Offset in Bits
+  i32 0,             ;; Flags
+  i32 5              ;; Encoding
+}
+</pre>
+</div>
+
+</div>
+
+<!-- ======================================================================= -->
+<div class="doc_subsubsection">
+  <a name="ccxx_basic_unsigned_long_long">unsigned long long</a>
+</div>
+
+<div class="doc_text">
+
+<div class="doc_code">
+<pre>
+!2 = metadata !{
+  i32 524324,        ;; Tag
+  metadata !1,       ;; Context
+  metadata !"long long unsigned int",
+  metadata !1,       ;; File
+  i32 0,             ;; Line number
+  i64 64,            ;; Size in Bits
+  i64 64,            ;; Align in Bits
+  i64 0,             ;; Offset in Bits
+  i32 0,             ;; Flags
+  i32 7              ;; Encoding
+}
+</pre>
+</div>
+
+</div>
+
+<!-- ======================================================================= -->
+<div class="doc_subsubsection">
+  <a name="ccxx_basic_float">float</a>
+</div>
+
+<div class="doc_text">
+
+<div class="doc_code">
+<pre>
+!2 = metadata !{
+  i32 524324,        ;; Tag
+  metadata !1,       ;; Context
+  metadata !"float",
+  metadata !1,       ;; File
+  i32 0,             ;; Line number
+  i64 32,            ;; Size in Bits
+  i64 32,            ;; Align in Bits
+  i64 0,             ;; Offset in Bits
+  i32 0,             ;; Flags
+  i32 4              ;; Encoding
+}
+</pre>
+</div>
+
+</div>
+
+<!-- ======================================================================= -->
+<div class="doc_subsubsection">
+  <a name="ccxx_basic_double">double</a>
+</div>
+
+<div class="doc_text">
+
+<div class="doc_code">
+<pre>
+!2 = metadata !{
+  i32 524324,        ;; Tag
+  metadata !1,       ;; Context
+  metadata !"double",;; Name
+  metadata !1,       ;; File
+  i32 0,             ;; Line number
+  i64 64,            ;; Size in Bits
+  i64 64,            ;; Align in Bits
+  i64 0,             ;; Offset in Bits
+  i32 0,             ;; Flags
+  i32 4              ;; Encoding
+}
+</pre>
+</div>
+
+</div>
+
+<!-- ======================================================================= -->
+<div class="doc_subsection">
+  <a name="ccxx_derived_types">C/C++ derived types</a>
+</div>
+
+<div class="doc_text">
+
+<p>Given the following as an example of C/C++ derived type:</p>
+
+<div class="doc_code">
+<pre>
+typedef const int *IntPtr;
+</pre>
+</div>
+
+<p>a C/C++ front-end would generate the following descriptors:</p>
+
+<div class="doc_code">
+<pre>
+;;
+;; Define the typedef "IntPtr".
+;;
+!2 = metadata !{
+  i32 524310,          ;; Tag
+  metadata !1,         ;; Context
+  metadata !"IntPtr",  ;; Name
+  metadata !3,         ;; File
+  i32 0,               ;; Line number
+  i64 0,               ;; Size in bits
+  i64 0,               ;; Align in bits
+  i64 0,               ;; Offset in bits
+  i32 0,               ;; Flags
+  metadata !4          ;; Derived From type
+}
+
+;;
+;; Define the pointer type.
+;;
+!4 = metadata !{
+  i32 524303,          ;; Tag
+  metadata !1,         ;; Context
+  metadata !"",        ;; Name
+  metadata !1,         ;; File
+  i32 0,               ;; Line number
+  i64 64,              ;; Size in bits
+  i64 64,              ;; Align in bits
+  i64 0,               ;; Offset in bits
+  i32 0,               ;; Flags
+  metadata !5          ;; Derived From type
+}
+;;
+;; Define the const type.
+;;
+!5 = metadata !{
+  i32 524326,          ;; Tag
+  metadata !1,         ;; Context
+  metadata !"",        ;; Name
+  metadata !1,         ;; File
+  i32 0,               ;; Line number
+  i64 32,              ;; Size in bits
+  i64 32,              ;; Align in bits
+  i64 0,               ;; Offset in bits
+  i32 0,               ;; Flags
+  metadata !6          ;; Derived From type
+}
+;;
+;; Define the int type.
+;;
+!6 = metadata !{
+  i32 524324,          ;; Tag
+  metadata !1,         ;; Context
+  metadata !"int",     ;; Name
+  metadata !1,         ;; File
+  i32 0,               ;; Line number
+  i64 32,              ;; Size in bits
+  i64 32,              ;; Align in bits
+  i64 0,               ;; Offset in bits
+  i32 0,               ;; Flags
+  5                    ;; Encoding
+}
+</pre>
+</div>
+
+</div>
+
+<!-- ======================================================================= -->
+<div class="doc_subsection">
+  <a name="ccxx_composite_types">C/C++ struct/union types</a>
+</div>
+
+<div class="doc_text">
+
+<p>Given the following as an example of C/C++ struct type:</p>
+
+<div class="doc_code">
+<pre>
+struct Color {
+  unsigned Red;
+  unsigned Green;
+  unsigned Blue;
+};
+</pre>
+</div>
+
+<p>a C/C++ front-end would generate the following descriptors:</p>
+
+<div class="doc_code">
+<pre>
+;;
+;; Define basic type for unsigned int.
+;;
+!5 = metadata !{
+  i32 524324,        ;; Tag
+  metadata !1,       ;; Context
+  metadata !"unsigned int",
+  metadata !1,       ;; File
+  i32 0,             ;; Line number
+  i64 32,            ;; Size in Bits
+  i64 32,            ;; Align in Bits
+  i64 0,             ;; Offset in Bits
+  i32 0,             ;; Flags
+  i32 7              ;; Encoding
+}
+;;
+;; Define composite type for struct Color.
+;;
+!2 = metadata !{
+  i32 524307,        ;; Tag
+  metadata !1,       ;; Context
+  metadata !"Color", ;; Name
+  metadata !1,       ;; Compile unit
+  i32 1,             ;; Line number
+  i64 96,            ;; Size in bits
+  i64 32,            ;; Align in bits
+  i64 0,             ;; Offset in bits
+  i32 0,             ;; Flags
+  null,              ;; Derived From
+  metadata !3,       ;; Elements
+  i32 0              ;; Runtime Language
+}
+
+;;
+;; Define the Red field.
+;;
+!4 = metadata !{
+  i32 524301,        ;; Tag
+  metadata !1,       ;; Context
+  metadata !"Red",   ;; Name
+  metadata !1,       ;; File
+  i32 2,             ;; Line number
+  i64 32,            ;; Size in bits
+  i64 32,            ;; Align in bits
+  i64 0,             ;; Offset in bits
+  i32 0,             ;; Flags
+  metadata !5        ;; Derived From type
+}
+
+;;
+;; Define the Green field.
+;;
+!6 = metadata !{
+  i32 524301,        ;; Tag
+  metadata !1,       ;; Context
+  metadata !"Green", ;; Name
+  metadata !1,       ;; File
+  i32 3,             ;; Line number
+  i64 32,            ;; Size in bits
+  i64 32,            ;; Align in bits
+  i64 32,             ;; Offset in bits
+  i32 0,             ;; Flags
+  metadata !5        ;; Derived From type
+}
+
+;;
+;; Define the Blue field.
+;;
+!7 = metadata !{
+  i32 524301,        ;; Tag
+  metadata !1,       ;; Context
+  metadata !"Blue",  ;; Name
+  metadata !1,       ;; File
+  i32 4,             ;; Line number
+  i64 32,            ;; Size in bits
+  i64 32,            ;; Align in bits
+  i64 64,             ;; Offset in bits
+  i32 0,             ;; Flags
+  metadata !5        ;; Derived From type
+}
+
+;;
+;; Define the array of fields used by the composite type Color.
+;;
+!3 = metadata !{metadata !4, metadata !6, metadata !7}
+</pre>
+</div>
+
+</div>
+
+<!-- ======================================================================= -->
+<div class="doc_subsection">
+  <a name="ccxx_enumeration_types">C/C++ enumeration types</a>
+</div>
+
+<div class="doc_text">
+
+<p>Given the following as an example of C/C++ enumeration type:</p>
+
+<div class="doc_code">
+<pre>
+enum Trees {
+  Spruce = 100,
+  Oak = 200,
+  Maple = 300
+};
+</pre>
+</div>
+
+<p>a C/C++ front-end would generate the following descriptors:</p>
+
+<div class="doc_code">
+<pre>
+;;
+;; Define composite type for enum Trees
+;;
+!2 = metadata !{
+  i32 524292,        ;; Tag
+  metadata !1,       ;; Context
+  metadata !"Trees", ;; Name
+  metadata !1,       ;; File
+  i32 1,             ;; Line number
+  i64 32,            ;; Size in bits
+  i64 32,            ;; Align in bits
+  i64 0,             ;; Offset in bits
+  i32 0,             ;; Flags
+  null,              ;; Derived From type
+  metadata !3,       ;; Elements
+  i32 0              ;; Runtime language
+}
+
+;;
+;; Define the array of enumerators used by composite type Trees.
+;;
+!3 = metadata !{metadata !4, metadata !5, metadata !6}
+
+;;
+;; Define Spruce enumerator.
+;;
+!4 = metadata !{i32 524328, metadata !"Spruce", i64 100}
+
+;;
+;; Define Oak enumerator.
+;;
+!5 = metadata !{i32 524328, metadata !"Oak", i64 200}
+
+;;
+;; Define Maple enumerator.
+;;
+!6 = metadata !{i32 524328, metadata !"Maple", i64 300}
+
+</pre>
+</div>
+
+</div>
+
+<!-- *********************************************************************** -->
+
+<hr>
+<address>
+  <a href="http://jigsaw.w3.org/css-validator/check/referer"><img
+  src="http://jigsaw.w3.org/css-validator/images/vcss-blue" alt="Valid CSS"></a>
+  <a href="http://validator.w3.org/check/referer"><img
+  src="http://www.w3.org/Icons/valid-html401-blue" alt="Valid HTML 4.01"></a>
+
+  <a href="mailto:sabre@nondot.org">Chris Lattner</a><br>
+  <a href="http://llvm.org">LLVM Compiler Infrastructure</a><br>
+  Last modified: $Date: 2010-04-05 06:11:11 +0200 (Mon, 05 Apr 2010) $
+</address>
+
+</body>
+</html>

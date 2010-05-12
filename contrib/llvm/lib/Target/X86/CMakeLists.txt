@@ -1,0 +1,47 @@
+set(LLVM_TARGET_DEFINITIONS X86.td)
+
+tablegen(X86GenRegisterInfo.h.inc -gen-register-desc-header)
+tablegen(X86GenRegisterNames.inc -gen-register-enums)
+tablegen(X86GenRegisterInfo.inc -gen-register-desc)
+tablegen(X86GenDisassemblerTables.inc -gen-disassembler)
+tablegen(X86GenInstrNames.inc -gen-instr-enums)
+tablegen(X86GenInstrInfo.inc -gen-instr-desc)
+tablegen(X86GenAsmWriter.inc -gen-asm-writer)
+tablegen(X86GenAsmWriter1.inc -gen-asm-writer -asmwriternum=1)
+tablegen(X86GenAsmMatcher.inc -gen-asm-matcher)
+tablegen(X86GenDAGISel.inc -gen-dag-isel)
+tablegen(X86GenFastISel.inc -gen-fast-isel)
+tablegen(X86GenCallingConv.inc -gen-callingconv)
+tablegen(X86GenSubtarget.inc -gen-subtarget)
+tablegen(X86GenEDInfo.inc -gen-enhanced-disassembly-info)
+
+set(sources
+  SSEDomainFix.cpp
+  X86AsmBackend.cpp
+  X86CodeEmitter.cpp
+  X86COFFMachineModuleInfo.cpp
+  X86ELFWriterInfo.cpp
+  X86FloatingPoint.cpp
+  X86FloatingPointRegKill.cpp
+  X86ISelDAGToDAG.cpp
+  X86ISelLowering.cpp
+  X86InstrInfo.cpp
+  X86JITInfo.cpp
+  X86MCAsmInfo.cpp
+  X86MCCodeEmitter.cpp 
+  X86RegisterInfo.cpp
+  X86Subtarget.cpp
+  X86TargetMachine.cpp
+  X86TargetObjectFile.cpp
+  X86FastISel.cpp
+  X86SelectionDAGInfo.cpp
+  )
+
+if( CMAKE_CL_64 )
+  enable_language(ASM_MASM)
+  set(sources ${sources} X86CompilationCallback_Win64.asm)
+endif()
+
+add_llvm_target(X86CodeGen ${sources})
+
+target_link_libraries (LLVMX86CodeGen LLVMSelectionDAG)
