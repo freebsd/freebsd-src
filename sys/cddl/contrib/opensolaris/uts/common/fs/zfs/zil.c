@@ -1567,6 +1567,29 @@ zil_replay_log_record(zilog_t *zilog, lr_t *lr, void *zra, uint64_t claim_txg)
 	}
 
 	/*
+	 * Replay of large truncates can end up needing additional txs
+	 * and a different txg. If they are nested within the replay tx
+	 * as below then a hang is possible. So we do the truncate here
+	 * and redo the truncate later (a no-op) and update the sequence
+	 * number whilst in the replay tx. Fortunately, it's safe to repeat
+	 * a truncate if we crash and the truncate commits. A create over
+	 * an existing file will also come in as a TX_TRUNCATE record.
+	 *
+	 * Note, remove of large files and renames over large files is
+	 * handled by putting the deleted object on a stable list
+	 * and if necessary force deleting the object outside of the replay
+	 * transaction using the zr_replay_cleaner.
+	 */
+	if (txtype == TX_TRUNCATE) {
+		*zr->zr_txgp = TXG_NOWAIT;
+		error = zr->zr_replay[TX_TRUNCATE](zr->zr_arg, zr->zr_lrbuf,
+		    zr->zr_byteswap);
+		if (error)
+			goto bad;
+		zr->zr_byteswap = 0; /* only byteswap once */
+	}
+
+	/*
 	 * We must now do two things atomically: replay this log record,
 	 * and update the log header to reflect the fact that we did so.
 	 * We use the DMU's ability to assign into a specific txg to do this.
@@ -1636,6 +1659,7 @@ zil_replay_log_record(zilog_t *zilog, lr_t *lr, void *zra, uint64_t claim_txg)
 		dprintf("pass %d, retrying\n", pass);
 	}
 
+bad:
 	ASSERT(error && error != ERESTART);
 	name = kmem_alloc(MAXNAMELEN, KM_SLEEP);
 	dmu_objset_name(zr->zr_os, name);
