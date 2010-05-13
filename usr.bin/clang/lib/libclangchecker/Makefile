@@ -3,34 +3,35 @@
 LIB=	clangchecker
 
 SRCDIR=	tools/clang/lib/Checker
-SRCS=	AdjustedReturnValueChecker.cpp AggExprVisitor.cpp ArrayBoundChecker.cpp \
-	AttrNonNullChecker.cpp BasicConstraintManager.cpp \
-	BasicObjCFoundationChecks.cpp BasicStore.cpp BasicValueFactory.cpp \
-	BugReporter.cpp BugReporterVisitors.cpp BuiltinFunctionChecker.cpp \
+SRCS=	AdjustedReturnValueChecker.cpp AggExprVisitor.cpp \
+	ArrayBoundChecker.cpp AttrNonNullChecker.cpp \
+	BasicConstraintManager.cpp BasicObjCFoundationChecks.cpp \
+	BasicStore.cpp BasicValueFactory.cpp BugReporter.cpp \
+	BugReporterVisitors.cpp BuiltinFunctionChecker.cpp \
 	CFRefCount.cpp CallAndMessageChecker.cpp CallInliner.cpp \
-	CastToStructChecker.cpp CheckDeadStores.cpp CheckObjCDealloc.cpp \
-	CheckObjCInstMethSignature.cpp \
+	CastToStructChecker.cpp CheckDeadStores.cpp \
+	CheckObjCDealloc.cpp CheckObjCInstMethSignature.cpp \
 	CheckSecuritySyntaxOnly.cpp CheckSizeofPointer.cpp Checker.cpp \
-	CocoaConventions.cpp \
-	DereferenceChecker.cpp DivZeroChecker.cpp Environment.cpp \
-	ExplodedGraph.cpp FixedAddressChecker.cpp FlatStore.cpp \
-	GRBlockCounter.cpp GRCoreEngine.cpp GRCXXExprEngine.cpp GRExprEngine.cpp \
-	GRExprEngineExperimentalChecks.cpp \
-	GRState.cpp LLVMConventionsChecker.cpp MacOSXAPIChecker.cpp \
+	CocoaConventions.cpp DereferenceChecker.cpp DivZeroChecker.cpp \
+	Environment.cpp ExplodedGraph.cpp FixedAddressChecker.cpp \
+	FlatStore.cpp GRBlockCounter.cpp GRCXXExprEngine.cpp \
+	GRCoreEngine.cpp GRExprEngine.cpp \
+	GRExprEngineExperimentalChecks.cpp GRState.cpp \
+	LLVMConventionsChecker.cpp MacOSXAPIChecker.cpp \
 	MallocChecker.cpp ManagerRegistry.cpp MemRegion.cpp \
 	NSAutoreleasePoolChecker.cpp NSErrorChecker.cpp \
-	NoReturnFunctionChecker.cpp ObjCUnusedIVarsChecker.cpp \
-	OSAtomicChecker.cpp PathDiagnostic.cpp \
-	PointerArithChecker.cpp \
-	PointerSubChecker.cpp PthreadLockChecker.cpp \
-	RangeConstraintManager.cpp RegionStore.cpp ReturnPointerRangeChecker.cpp \
+	NoReturnFunctionChecker.cpp OSAtomicChecker.cpp \
+	ObjCUnusedIVarsChecker.cpp PathDiagnostic.cpp \
+	PointerArithChecker.cpp PointerSubChecker.cpp \
+	PthreadLockChecker.cpp RangeConstraintManager.cpp \
+	RegionStore.cpp ReturnPointerRangeChecker.cpp \
 	ReturnStackAddressChecker.cpp ReturnUndefChecker.cpp SVals.cpp \
-	SValuator.cpp \
-	SimpleConstraintManager.cpp SimpleSValuator.cpp Store.cpp \
-	SymbolManager.cpp UndefBranchChecker.cpp UndefCapturedBlockVarChecker.cpp \
-	UndefResultChecker.cpp UndefinedArraySubscriptChecker.cpp \
-	UndefinedAssignmentChecker.cpp UnixAPIChecker.cpp VLASizeChecker.cpp \
-	ValueManager.cpp
+	SValuator.cpp SimpleConstraintManager.cpp SimpleSValuator.cpp \
+	Store.cpp SymbolManager.cpp UndefBranchChecker.cpp \
+	UndefCapturedBlockVarChecker.cpp UndefResultChecker.cpp \
+	UndefinedArraySubscriptChecker.cpp \
+	UndefinedAssignmentChecker.cpp UnixAPIChecker.cpp \
+	VLASizeChecker.cpp ValueManager.cpp
 
 TGHDRS=	DiagnosticAnalysisKinds DiagnosticCommonKinds
 

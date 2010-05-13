@@ -11,6 +11,7 @@ SUBDIR= libclanganalysis \
 	libclangparse \
 	libclangrewrite \
 	libclangsema \
+	\
 	libllvmanalysis \
 	libllvmasmprinter \
 	libllvmbitreader \
