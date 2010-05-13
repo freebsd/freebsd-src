@@ -101,9 +101,8 @@ struct spa {
 	nvlist_t	*spa_config_syncing;	/* currently syncing config */
 	uint64_t	spa_config_txg;		/* txg of last config change */
 	int		spa_sync_pass;		/* iterate-to-convergence */
-	int		spa_state;		/* pool state */
+	pool_state_t	spa_state;		/* pool state */
 	int		spa_inject_ref;		/* injection references */
-	uint8_t		spa_traverse_wanted;	/* traverse lock wanted */
 	uint8_t		spa_sync_on;		/* sync threads are running */
 	spa_load_state_t spa_load_state;	/* current load operation */
 	taskq_t		*spa_zio_taskq[ZIO_TYPES][ZIO_TASKQ_TYPES];
@@ -125,7 +124,6 @@ struct spa {
 	uint64_t	spa_syncing_txg;	/* txg currently syncing */
 	uint64_t	spa_sync_bplist_obj;	/* object for deferred frees */
 	bplist_t	spa_sync_bplist;	/* deferred-free bplist */
-	krwlock_t	spa_traverse_lock;	/* traverse vs. spa_sync() */
 	uberblock_t	spa_ubsync;		/* last synced uberblock */
 	uberblock_t	spa_uberblock;		/* current uberblock */
 	kmutex_t	spa_scrub_lock;		/* resilver/scrub lock */

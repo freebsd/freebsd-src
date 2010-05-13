@@ -107,6 +107,12 @@ dsl_pool_scrub_setup_sync(void *arg1, void *arg2, cred_t *cr, dmu_tx_t *tx)
 
 	/* back to the generic stuff */
 
+	if (dp->dp_blkstats == NULL) {
+		dp->dp_blkstats =
+		    kmem_alloc(sizeof (zfs_all_blkstats_t), KM_SLEEP);
+	}
+	bzero(dp->dp_blkstats, sizeof (zfs_all_blkstats_t));
+
 	if (spa_version(dp->dp_spa) < SPA_VERSION_DSL_SCRUB)
 		ot = DMU_OT_ZAP_OTHER;
 
@@ -575,6 +581,37 @@ dsl_pool_ds_snapshotted(dsl_dataset_t *ds, dmu_tx_t *tx)
 	}
 }
 
+void
+dsl_pool_ds_clone_swapped(dsl_dataset_t *ds1, dsl_dataset_t *ds2, dmu_tx_t *tx)
+{
+	dsl_pool_t *dp = ds1->ds_dir->dd_pool;
+
+	if (dp->dp_scrub_func == SCRUB_FUNC_NONE)
+		return;
+
+	if (dp->dp_scrub_bookmark.zb_objset == ds1->ds_object) {
+		dp->dp_scrub_bookmark.zb_objset = ds2->ds_object;
+	} else if (dp->dp_scrub_bookmark.zb_objset == ds2->ds_object) {
+		dp->dp_scrub_bookmark.zb_objset = ds1->ds_object;
+	}
+
+	if (zap_remove_int(dp->dp_meta_objset, dp->dp_scrub_queue_obj,
+	    ds1->ds_object, tx) == 0) {
+		int err = zap_add_int(dp->dp_meta_objset,
+		    dp->dp_scrub_queue_obj, ds2->ds_object, tx);
+		VERIFY(err == 0 || err == EEXIST);
+		if (err == EEXIST) {
+			/* Both were there to begin with */
+			VERIFY(0 == zap_add_int(dp->dp_meta_objset,
+			    dp->dp_scrub_queue_obj, ds1->ds_object, tx));
+		}
+	} else if (zap_remove_int(dp->dp_meta_objset, dp->dp_scrub_queue_obj,
+	    ds2->ds_object, tx) == 0) {
+		VERIFY(0 == zap_add_int(dp->dp_meta_objset,
+		    dp->dp_scrub_queue_obj, ds1->ds_object, tx));
+	}
+}
+
 struct enqueue_clones_arg {
 	dmu_tx_t *tx;
 	uint64_t originobj;
@@ -817,6 +854,52 @@ dsl_pool_scrub_restart(dsl_pool_t *dp)
  */
 
 static void
+count_block(zfs_all_blkstats_t *zab, const blkptr_t *bp)
+{
+	int i;
+
+	/*
+	 * If we resume after a reboot, zab will be NULL; don't record
+	 * incomplete stats in that case.
+	 */
+	if (zab == NULL)
+		return;
+
+	for (i = 0; i < 4; i++) {
+		int l = (i < 2) ? BP_GET_LEVEL(bp) : DN_MAX_LEVELS;
+		int t = (i & 1) ? BP_GET_TYPE(bp) : DMU_OT_TOTAL;
+		zfs_blkstat_t *zb = &zab->zab_type[l][t];
+		int equal;
+
+		zb->zb_count++;
+		zb->zb_asize += BP_GET_ASIZE(bp);
+		zb->zb_lsize += BP_GET_LSIZE(bp);
+		zb->zb_psize += BP_GET_PSIZE(bp);
+		zb->zb_gangs += BP_COUNT_GANG(bp);
+
+		switch (BP_GET_NDVAS(bp)) {
+		case 2:
+			if (DVA_GET_VDEV(&bp->blk_dva[0]) ==
+			    DVA_GET_VDEV(&bp->blk_dva[1]))
+				zb->zb_ditto_2_of_2_samevdev++;
+			break;
+		case 3:
+			equal = (DVA_GET_VDEV(&bp->blk_dva[0]) ==
+			    DVA_GET_VDEV(&bp->blk_dva[1])) +
+			    (DVA_GET_VDEV(&bp->blk_dva[0]) ==
+			    DVA_GET_VDEV(&bp->blk_dva[2])) +
+			    (DVA_GET_VDEV(&bp->blk_dva[1]) ==
+			    DVA_GET_VDEV(&bp->blk_dva[2]));
+			if (equal == 1)
+				zb->zb_ditto_2_of_3_samevdev++;
+			else if (equal == 3)
+				zb->zb_ditto_3_of_3_samevdev++;
+			break;
+		}
+	}
+}
+
+static void
 dsl_pool_scrub_clean_done(zio_t *zio)
 {
 	spa_t *spa = zio->io_spa;
@@ -843,6 +926,8 @@ dsl_pool_scrub_clean_cb(dsl_pool_t *dp,
 	boolean_t needs_io;
 	int zio_flags = ZIO_FLAG_SCRUB_THREAD | ZIO_FLAG_CANFAIL;
 	int zio_priority;
+
+	count_block(dp->dp_blkstats, bp);
 
 	if (dp->dp_scrub_isresilver == 0) {
 		/* It's a scrub */

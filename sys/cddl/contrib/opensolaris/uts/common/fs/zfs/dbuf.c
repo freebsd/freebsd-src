@@ -308,20 +308,18 @@ dbuf_verify(dmu_buf_impl_t *db)
 		ASSERT3U(db->db.db_offset, ==, db->db_blkid * db->db.db_size);
 	}
 
-	if (db->db_level == 0) {
-		/* we can be momentarily larger in dnode_set_blksz() */
-		if (db->db_blkid != DB_BONUS_BLKID && dn) {
-			ASSERT3U(db->db.db_size, >=, dn->dn_datablksz);
-		}
-		if (db->db.db_object == DMU_META_DNODE_OBJECT) {
-			dbuf_dirty_record_t *dr = db->db_data_pending;
-			/*
-			 * it should only be modified in syncing
-			 * context, so make sure we only have
-			 * one copy of the data.
-			 */
-			ASSERT(dr == NULL || dr->dt.dl.dr_data == db->db_buf);
-		}
+	/*
+	 * We can't assert that db_size matches dn_datablksz because it
+	 * can be momentarily different when another thread is doing
+	 * dnode_set_blksz().
+	 */
+	if (db->db_level == 0 && db->db.db_object == DMU_META_DNODE_OBJECT) {
+		dbuf_dirty_record_t *dr = db->db_data_pending;
+		/*
+		 * It should only be modified in syncing context, so
+		 * make sure we only have one copy of the data.
+		 */
+		ASSERT(dr == NULL || dr->dt.dl.dr_data == db->db_buf);
 	}
 
 	/* verify db->db_blkptr */
