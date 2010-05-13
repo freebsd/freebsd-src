@@ -224,6 +224,19 @@ the secondary node.
 When operating as a secondary node only connections from this address
 will be accepted.
 .El
+.Sh FILES
+.Bl -tag -width ".Pa /var/run/hastctl" -compact
+.It Pa /etc/hast.conf
+The default
+.Nm
+configuration file.
+.It Pa /var/run/hastctl
+Control socket used by the
+.Xr hastctl 8
+control utility to communicate with the
+.Xr hastd 8
+daemon.
+.El
 .Sh EXAMPLES
 The example configuration file can look as follows:
 .Bd -literal -offset indent
@@ -248,19 +261,6 @@ resource tank {
 	}
 }
 .Ed
-.Sh FILES
-.Bl -tag -width ".Pa /var/run/hastctl" -compact
-.It Pa /etc/hast.conf
-The default
-.Nm
-configuration file.
-.It Pa /var/run/hastctl
-Control socket used by the
-.Xr hastctl 8
-control utility to communicate with the
-.Xr hastd 8
-daemon.
-.El
 .Sh SEE ALSO
 .Xr gethostname 3 ,
 .Xr geom 4 ,
