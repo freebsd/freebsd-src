@@ -153,6 +153,20 @@ Print debugging information.
 This option can be specified multiple times to raise the verbosity
 level.
 .El
+.Sh FILES
+.Bl -tag -width ".Pa /var/run/hastctl" -compact
+.It Pa /etc/hast.conf
+Configuration file for
+.Nm
+and
+.Xr hastd 8 .
+.It Pa /var/run/hastctl
+Control socket used by
+.Nm
+to communicate with the
+.Xr hastd 8
+daemon.
+.El
 .Sh EXIT STATUS
 Exit status is 0 on success, or one of the values described in
 .Xr sysexits 3
@@ -185,20 +199,6 @@ nodeB# fsck -t ufs /dev/hast/shared
 nodeB# mount -o noatime /dev/hast/shared /shared
 nodeB# application_start
 .Ed
-.Sh FILES
-.Bl -tag -width ".Pa /var/run/hastctl" -compact
-.It Pa /etc/hast.conf
-Configuration file for
-.Nm
-and
-.Xr hastd 8 .
-.It Pa /var/run/hastctl
-Control socket used by
-.Nm
-to communicate with the
-.Xr hastd 8
-daemon.
-.El
 .Sh SEE ALSO
 .Xr sysexits 3 ,
 .Xr geom 4 ,

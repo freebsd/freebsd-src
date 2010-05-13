@@ -43,6 +43,20 @@ Defines a alternative location of the UPDATING
 .It Fl h , -help
 Print help message.
 .El
+.Sh ENVIRONMENT
+.Bl -tag -width PKG_DBDIR
+.It Ev PKG_DBDIR
+Specifies an alternative location for the installed package database.
+.It Ev PORTSDIR
+Location of the ports tree.
+.El
+.Sh FILES
+.Bl -tag -width /var/db/pkg -compact
+.It Pa /var/db/pkg
+Default location of the installed package database.
+.It Pa /usr/ports
+The default ports directory and default location of the UPDATING file
+.El
 .Sh EXAMPLES
 Shows all entries of all installed ports:
 .Dl % pkg_updating
@@ -63,20 +77,6 @@ installed ports:
 Fetch UPDATING file from ftp mirror and show all entries of all
 installed ports:
 .Dl % pkg_updating -f ftp://ftp.freebsd.org/pub/FreeBSD/ports/packages/UPDATING
-.Sh ENVIRONMENT
-.Bl -tag -width PKG_DBDIR
-.It Ev PKG_DBDIR
-Specifies an alternative location for the installed package database.
-.It Ev PORTSDIR
-Location of the ports tree.
-.El
-.Sh FILES
-.Bl -tag -width /var/db/pkg -compact
-.It Pa /var/db/pkg
-Default location of the installed package database.
-.It Pa /usr/ports
-The default ports directory and default location of the UPDATING file
-.El
 .Sh SEE ALSO
 .Xr pkg_add 1 ,
 .Xr pkg_create 1 ,
