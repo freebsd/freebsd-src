@@ -196,18 +196,6 @@ environment.
 The macro
 .Dv FE_DFL_ENV
 expands to a pointer to the default environment.
-.Sh CAVEATS
-The FENV_ACCESS pragma can be enabled with
-.Dl "#pragma STDC FENV_ACCESS ON"
-and disabled with the
-.Dl "#pragma STDC FENV_ACCESS OFF"
-directive.
-This lexically-scoped annotation tells the compiler that the program
-may access the floating-point environment, so optimizations that would
-violate strict IEEE-754 semantics are disabled.
-If execution reaches a block of code for which
-.Dv FENV_ACCESS
-is off, the floating-point environment will become undefined.
 .Sh EXAMPLES
 The following routine computes the square root function.
 It explicitly raises an invalid exception on appropriate inputs using
@@ -274,6 +262,18 @@ It supersedes the non-standard routines defined in
 .In ieeefp.h
 and documented in
 .Xr fpgetround 3 .
+.Sh CAVEATS
+The FENV_ACCESS pragma can be enabled with
+.Dl "#pragma STDC FENV_ACCESS ON"
+and disabled with the
+.Dl "#pragma STDC FENV_ACCESS OFF"
+directive.
+This lexically-scoped annotation tells the compiler that the program
+may access the floating-point environment, so optimizations that would
+violate strict IEEE-754 semantics are disabled.
+If execution reaches a block of code for which
+.Dv FENV_ACCESS
+is off, the floating-point environment will become undefined.
 .Sh BUGS
 The
 .Dv FENV_ACCESS

@@ -252,6 +252,19 @@ a connection can eat up all available TPDs.
 Maximum number of memory pages allocated to small external mbufs.
 This must not be zero and not larger than 65536.
 .El
+.Sh DIAGNOSTICS
+.Bd -literal
+hatm0: <FORE HE> mem 0xd2600000-0xd26fffff irq 9 at device 15.0 on pci2
+hatm0: ForeRunnerHE 622, Rev. D, S/N 2949834, MAC=00:20:48:2d:02:ca
+.Ed
+.Sh SEE ALSO
+.Xr natm 4 ,
+.Xr natmip 4 ,
+.Xr utopia 4 ,
+.Xr ifconfig 8 ,
+.Xr route 8
+.Sh AUTHORS
+.An Harti Brandt Aq harti@FreeBSD.org
 .Sh CAVEATS
 When putting a HE155 into a 64-bit 66MHz PCI slot the machine may hang.
 This occurs very early in the POST so that even the display does not turn on.
@@ -267,16 +280,3 @@ and
 arguments the
 .Nx
 function has.
-.Sh DIAGNOSTICS
-.Bd -literal
-hatm0: <FORE HE> mem 0xd2600000-0xd26fffff irq 9 at device 15.0 on pci2
-hatm0: ForeRunnerHE 622, Rev. D, S/N 2949834, MAC=00:20:48:2d:02:ca
-.Ed
-.Sh SEE ALSO
-.Xr natm 4 ,
-.Xr natmip 4 ,
-.Xr utopia 4 ,
-.Xr ifconfig 8 ,
-.Xr route 8
-.Sh AUTHORS
-.An Harti Brandt Aq harti@FreeBSD.org
