@@ -149,14 +149,6 @@ The file name must not contain multibyte characters.
 .Xr fstab 5 ,
 .Xr mount 8 ,
 .Xr mount_msdosfs 8
-.Sh CAVEATS
-This utility is primarily used for read access to an NTFS volume.
-See the
-.Sx WRITING
-section for details about writing to an NTFS volume.
-.Pp
-For a full read-write NTFS support consider sysutils/fusefs-ntfs
-port/package.
 .Sh HISTORY
 The
 .Nm
@@ -171,3 +163,11 @@ The NTFS kernel implementation,
 .Nm
 utility, and manual were written by
 .An Semen Ustimenko Aq semenu@FreeBSD.org .
+.Sh CAVEATS
+This utility is primarily used for read access to an NTFS volume.
+See the
+.Sx WRITING
+section for details about writing to an NTFS volume.
+.Pp
+For a full read-write NTFS support consider sysutils/fusefs-ntfs
+port/package.

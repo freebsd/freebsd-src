@@ -542,6 +542,11 @@ support for a particular file system might be provided either on a static
 .Xr umount 8 ,
 .Xr zfs 8 ,
 .Xr zpool 8
+.Sh HISTORY
+A
+.Nm
+utility appeared in
+.At v1 .
 .Sh CAVEATS
 After a successful
 .Nm ,
@@ -564,10 +569,5 @@ gets a
 signal (that causes an update of the export list)
 only when the file system is mounted via
 .Nm .
-.Sh HISTORY
-A
-.Nm
-utility appeared in
-.At v1 .
 .Sh BUGS
 It is possible for a corrupted file system to cause a crash.
