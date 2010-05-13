@@ -19,7 +19,7 @@
  * CDDL HEADER END
  */
 /*
- * Copyright 2008 Sun Microsystems, Inc.  All rights reserved.
+ * Copyright 2009 Sun Microsystems, Inc.  All rights reserved.
  * Use is subject to license terms.
  */
 
@@ -226,10 +226,6 @@ traverse_visitbp(struct traverse_data *td, const dnode_phys_t *dnp,
 			return (err);
 
 		osp = buf->b_data;
-		/*
-		 * traverse_zil is just here for zdb's leak checking.
-		 * For other consumers, there will be no ZIL blocks.
-		 */
 		traverse_zil(td, &osp->os_zil_header);
 
 		for (j = 0; j < osp->os_meta_dnode.dn_nblkptr; j++) {
