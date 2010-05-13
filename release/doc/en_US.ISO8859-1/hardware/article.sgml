@@ -842,7 +842,8 @@
 
       &hwlist.ep;
 
-      &hwlist.et;
+      <para>Agere ET1310 Gigabit Ethernet adapters
+	(&man.et.4; driver)</para>
 
       &hwlist.ex;
 
