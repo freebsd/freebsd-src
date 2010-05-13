@@ -83,23 +83,6 @@ disconnected
 Bluetooth HID devices and will attempt to establish an outgoing connection.
 The default rescan interval is 10 seconds.
 .El
-.Sh CAVEATS
-Any Bluetooth HID device that has
-.Dv HUP_KEYBOARD
-or
-.Dv HUP_CONSUMER
-entries in its descriptor is considered as
-.Dq keyboard .
-For each
-.Dq keyboard
-Bluetooth HID device,
-the
-.Nm
-daemon will use a separate instance of the virtual keyboard interface
-.Xr vkbd 4 .
-Therefore the
-.Xr kbdmux 4
-driver must be used to properly multiplex input from multiple keyboards.
 .Sh KNOWN LIMITATIONS
 The
 .Nm
@@ -125,3 +108,20 @@ configuration file is needed as well.
 .Xr bthidcontrol 8
 .Sh AUTHORS
 .An Maksim Yevmenkin Aq m_evmenkin@yahoo.com
+.Sh CAVEATS
+Any Bluetooth HID device that has
+.Dv HUP_KEYBOARD
+or
+.Dv HUP_CONSUMER
+entries in its descriptor is considered as
+.Dq keyboard .
+For each
+.Dq keyboard
+Bluetooth HID device,
+the
+.Nm
+daemon will use a separate instance of the virtual keyboard interface
+.Xr vkbd 4 .
+Therefore the
+.Xr kbdmux 4
+driver must be used to properly multiplex input from multiple keyboards.

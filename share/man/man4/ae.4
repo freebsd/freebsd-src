@@ -133,6 +133,14 @@ instead.
 .Xr ng_ether 4 ,
 .Xr vlan 4 ,
 .Xr ifconfig 8
+.Sh HISTORY
+The
+.Nm
+driver and this manual page was written by
+.An Stanislav Sedov
+.Aq stas@FreeBSD.org .
+It first appeared in
+.Fx 7.1 .
 .Sh BUGS
 The Attansic L2 FastEthernet contoller supports DMA but does not use a
 descriptor based transfer mechanism via scatter-gather DMA.
@@ -142,11 +150,3 @@ Furthermore, a lot of data alignment restrictions apply.
 This may introduce a high CPU load on systems with heavy network activity.
 Luckily enough this should not be a problem on modern hardware as L2 does
 not support speeds faster than 100Mbps.
-.Sh HISTORY
-The
-.Nm
-driver and this manual page was written by
-.An Stanislav Sedov
-.Aq stas@FreeBSD.org .
-It first appeared in
-.Fx 7.1 .

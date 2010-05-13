@@ -130,6 +130,12 @@ driver first appeared in
 .Fx 8.0
 to support 
 .Xr lockstat 1 .
+.Sh AUTHORS
+The
+.Nm
+driver was written by
+.An Stacey Son
+.Aq sson@freebsd.org .
 .Sh BUGS
 Because files can be dynamically linked into the kernel at any time the symbol 
 information can vary.  When you open the
@@ -150,9 +156,3 @@ can be used to get the memory address where the symbol table is stored to
 save kernel memory. 
 .Xr mmap 2
 may also be used but it will map it to another address. 
-.Sh AUTHORS
-The 
-.Nm
-driver was written by 
-.An Stacey Son
-.Aq sson@freebsd.org .
