@@ -2763,7 +2763,7 @@ ng_generic_msg(node_p here, item_p item, hook_p lasthook)
 
 	case NGM_ASCII2BINARY:
 	    {
-		int bufSize = 2000;	/* XXX hard coded constant */
+		int bufSize = 20 * 1024;	/* XXX hard coded constant */
 		const struct ng_cmdlist *c;
 		const struct ng_parse_type *argstype;
 		struct ng_mesg *ascii, *binary;
