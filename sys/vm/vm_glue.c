@@ -539,7 +539,8 @@ vm_thread_swapin(struct thread *td)
 	ksobj = td->td_kstack_obj;
 	VM_OBJECT_LOCK(ksobj);
 	for (i = 0; i < pages; i++) {
-		m = vm_page_grab(ksobj, i, VM_ALLOC_NORMAL | VM_ALLOC_RETRY);
+		m = vm_page_grab(ksobj, i, VM_ALLOC_NORMAL | VM_ALLOC_RETRY |
+		    VM_ALLOC_WIRED);
 		if (m->valid != VM_PAGE_BITS_ALL) {
 			rv = vm_pager_get_pages(ksobj, &m, 1, 0);
 			if (rv != VM_PAGER_OK)
@@ -547,9 +548,6 @@ vm_thread_swapin(struct thread *td)
 			m = vm_page_lookup(ksobj, i);
 		}
 		ma[i] = m;
-		vm_page_lock_queues();
-		vm_page_wire(m);
-		vm_page_unlock_queues();
 		vm_page_wakeup(m);
 	}
 	VM_OBJECT_UNLOCK(ksobj);
