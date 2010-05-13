@@ -41,7 +41,6 @@
 
 #include "assym.s"
 
-	.extern	doreti_iret
 /*
  * I/O Interrupt Entry Point.  Rather than having one entry point for
  * each interrupt source, we use one entry point for each 32-bit word
