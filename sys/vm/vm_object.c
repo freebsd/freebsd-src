@@ -1205,12 +1205,19 @@ shadowlookup:
 			goto unlock_tobject;
 		}
 		if ((m->oflags & VPO_BUSY) || m->busy) {
-			vm_page_flag_set(m, PG_REFERENCED);
+			if (advise == MADV_WILLNEED)
+				/*
+				 * Reference the page before unlocking and
+				 * sleeping so that the page daemon is less
+				 * likely to reclaim it. 
+				 */
+				vm_page_flag_set(m, PG_REFERENCED);
 			vm_page_unlock_queues();
 			if (object != tobject)
 				VM_OBJECT_UNLOCK(object);
 			m->oflags |= VPO_WANTED;
-			msleep(m, VM_OBJECT_MTX(tobject), PDROP | PVM, "madvpo", 0);
+			msleep(m, VM_OBJECT_MTX(tobject), PDROP | PVM, "madvpo",
+			    0);
 			VM_OBJECT_LOCK(object);
   			goto relookup;
 		}
@@ -1415,7 +1422,6 @@ retry:
 		 * not be changed by this operation.
 		 */
 		if ((m->oflags & VPO_BUSY) || m->busy) {
-			vm_page_flag_set(m, PG_REFERENCED);
 			vm_page_unlock_queues();
 			VM_OBJECT_UNLOCK(new_object);
 			m->oflags |= VPO_WANTED;
@@ -1553,9 +1559,6 @@ vm_object_backing_scan(vm_object_t object, int op)
 				}
 			} else if (op & OBSC_COLLAPSE_WAIT) {
 				if ((p->oflags & VPO_BUSY) || p->busy) {
-					vm_page_lock_queues();
-					vm_page_flag_set(p, PG_REFERENCED);
-					vm_page_unlock_queues();
 					VM_OBJECT_UNLOCK(object);
 					p->oflags |= VPO_WANTED;
 					msleep(p, VM_OBJECT_MTX(backing_object),
