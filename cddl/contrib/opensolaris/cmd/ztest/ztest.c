@@ -77,7 +77,6 @@
 #include <sys/dmu.h>
 #include <sys/txg.h>
 #include <sys/zap.h>
-#include <sys/dmu_traverse.h>
 #include <sys/dmu_objset.h>
 #include <sys/poll.h>
 #include <sys/stat.h>
@@ -151,7 +150,6 @@ typedef struct ztest_args {
 	hrtime_t	za_start;
 	hrtime_t	za_stop;
 	hrtime_t	za_kill;
-	traverse_handle_t *za_th;
 	/*
 	 * Thread-local variables can go here to aid debugging.
 	 */
@@ -206,7 +204,6 @@ ztest_info_t ztest_info[] = {
 	{ ztest_dmu_object_alloc_free,		1,	&zopt_always	},
 	{ ztest_zap,				30,	&zopt_always	},
 	{ ztest_zap_parallel,			100,	&zopt_always	},
-	{ ztest_traverse,			1,	&zopt_often	},
 	{ ztest_dsl_prop_get_set,		1,	&zopt_sometimes	},
 	{ ztest_dmu_objset_create_destroy,	1,	&zopt_sometimes },
 	{ ztest_dmu_snapshot_create_destroy,	1,	&zopt_sometimes },
@@ -1445,152 +1442,6 @@ ztest_dmu_snapshot_create_destroy(ztest_args_t *za)
 	else if (error != 0 && error != EEXIST)
 		fatal(0, "dmu_take_snapshot() = %d", error);
 	(void) rw_unlock(&ztest_shared->zs_name_lock);
-}
-
-#define	ZTEST_TRAVERSE_BLOCKS	1000
-
-static int
-ztest_blk_cb(traverse_blk_cache_t *bc, spa_t *spa, void *arg)
-{
-	ztest_args_t *za = arg;
-	zbookmark_t *zb = &bc->bc_bookmark;
-	blkptr_t *bp = &bc->bc_blkptr;
-	dnode_phys_t *dnp = bc->bc_dnode;
-	traverse_handle_t *th = za->za_th;
-	uint64_t size = BP_GET_LSIZE(bp);
-
-	/*
-	 * Level -1 indicates the objset_phys_t or something in its intent log.
-	 */
-	if (zb->zb_level == -1) {
-		if (BP_GET_TYPE(bp) == DMU_OT_OBJSET) {
-			ASSERT3U(zb->zb_object, ==, 0);
-			ASSERT3U(zb->zb_blkid, ==, 0);
-			ASSERT3U(size, ==, sizeof (objset_phys_t));
-			za->za_zil_seq = 0;
-		} else if (BP_GET_TYPE(bp) == DMU_OT_INTENT_LOG) {
-			ASSERT3U(zb->zb_object, ==, 0);
-			ASSERT3U(zb->zb_blkid, >, za->za_zil_seq);
-			za->za_zil_seq = zb->zb_blkid;
-		} else {
-			ASSERT3U(zb->zb_object, !=, 0);	/* lr_write_t */
-		}
-
-		return (0);
-	}
-
-	ASSERT(dnp != NULL);
-
-	if (bc->bc_errno)
-		return (ERESTART);
-
-	/*
-	 * Once in a while, abort the traverse.   We only do this to odd
-	 * instance numbers to ensure that even ones can run to completion.
-	 */
-	if ((za->za_instance & 1) && ztest_random(10000) == 0)
-		return (EINTR);
-
-	if (bp->blk_birth == 0) {
-		ASSERT(th->th_advance & ADVANCE_HOLES);
-		return (0);
-	}
-
-	if (zb->zb_level == 0 && !(th->th_advance & ADVANCE_DATA) &&
-	    bc == &th->th_cache[ZB_DN_CACHE][0]) {
-		ASSERT(bc->bc_data == NULL);
-		return (0);
-	}
-
-	ASSERT(bc->bc_data != NULL);
-
-	/*
-	 * This is an expensive question, so don't ask it too often.
-	 */
-	if (((za->za_random ^ th->th_callbacks) & 0xff) == 0) {
-		void *xbuf = umem_alloc(size, UMEM_NOFAIL);
-		if (arc_tryread(spa, bp, xbuf) == 0) {
-			ASSERT(bcmp(bc->bc_data, xbuf, size) == 0);
-		}
-		umem_free(xbuf, size);
-	}
-
-	if (zb->zb_level > 0) {
-		ASSERT3U(size, ==, 1ULL << dnp->dn_indblkshift);
-		return (0);
-	}
-
-	ASSERT(zb->zb_level == 0);
-	ASSERT3U(size, ==, dnp->dn_datablkszsec << DEV_BSHIFT);
-
-	return (0);
-}
-
-/*
- * Verify that live pool traversal works.
- */
-void
-ztest_traverse(ztest_args_t *za)
-{
-	spa_t *spa = za->za_spa;
-	traverse_handle_t *th = za->za_th;
-	int rc, advance;
-	uint64_t cbstart, cblimit;
-
-	if (th == NULL) {
-		advance = 0;
-
-		if (ztest_random(2) == 0)
-			advance |= ADVANCE_PRE;
-
-		if (ztest_random(2) == 0)
-			advance |= ADVANCE_PRUNE;
-
-		if (ztest_random(2) == 0)
-			advance |= ADVANCE_DATA;
-
-		if (ztest_random(2) == 0)
-			advance |= ADVANCE_HOLES;
-
-		if (ztest_random(2) == 0)
-			advance |= ADVANCE_ZIL;
-
-		th = za->za_th = traverse_init(spa, ztest_blk_cb, za, advance,
-		    ZIO_FLAG_CANFAIL);
-
-		traverse_add_pool(th, 0, -1ULL);
-	}
-
-	advance = th->th_advance;
-	cbstart = th->th_callbacks;
-	cblimit = cbstart + ((advance & ADVANCE_DATA) ? 100 : 1000);
-
-	while ((rc = traverse_more(th)) == EAGAIN && th->th_callbacks < cblimit)
-		continue;
-
-	if (zopt_verbose >= 5)
-		(void) printf("traverse %s%s%s%s %llu blocks to "
-		    "<%llu, %llu, %lld, %llx>%s\n",
-		    (advance & ADVANCE_PRE) ? "pre" : "post",
-		    (advance & ADVANCE_PRUNE) ? "|prune" : "",
-		    (advance & ADVANCE_DATA) ? "|data" : "",
-		    (advance & ADVANCE_HOLES) ? "|holes" : "",
-		    (u_longlong_t)(th->th_callbacks - cbstart),
-		    (u_longlong_t)th->th_lastcb.zb_objset,
-		    (u_longlong_t)th->th_lastcb.zb_object,
-		    (u_longlong_t)th->th_lastcb.zb_level,
-		    (u_longlong_t)th->th_lastcb.zb_blkid,
-		    rc == 0 ? " [done]" :
-		    rc == EINTR ? " [aborted]" :
-		    rc == EAGAIN ? "" :
-		    strerror(rc));
-
-	if (rc != EAGAIN) {
-		if (rc != 0 && rc != EINTR)
-			fatal(0, "traverse_more(%p) = %d", th, rc);
-		traverse_fini(th);
-		za->za_th = NULL;
-	}
 }
 
 /*
@@ -3067,12 +2918,12 @@ ztest_verify_blocks(char *pool)
 	isa = strdup(isa);
 	/* LINTED */
 	(void) sprintf(bin,
-	    "/usr/sbin%.*s/zdb -bc%s%s -U /tmp/zpool.cache -O %s %s",
+	    "/usr/sbin%.*s/zdb -bc%s%s -U /tmp/zpool.cache %s",
 	    isalen,
 	    isa,
 	    zopt_verbose >= 3 ? "s" : "",
 	    zopt_verbose >= 4 ? "v" : "",
-	    ztest_random(2) == 0 ? "pre" : "post", pool);
+	    pool);
 	free(isa);
 
 	if (zopt_verbose >= 5)
@@ -3438,8 +3289,6 @@ ztest_run(char *pool)
 
 	while (--t >= 0) {
 		VERIFY(thr_join(za[t].za_thread, NULL, NULL) == 0);
-		if (za[t].za_th)
-			traverse_fini(za[t].za_th);
 		if (t < zopt_datasets) {
 			zil_close(za[t].za_zilog);
 			dmu_objset_close(za[t].za_os);
