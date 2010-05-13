@@ -19,7 +19,7 @@
  * CDDL HEADER END
  */
 /*
- * Copyright 2008 Sun Microsystems, Inc.  All rights reserved.
+ * Copyright 2009 Sun Microsystems, Inc.  All rights reserved.
  * Use is subject to license terms.
  */
 
@@ -475,37 +475,6 @@ zil_destroy(zilog_t *zilog, boolean_t keep_first)
 	mutex_exit(&zilog->zl_lock);
 
 	dmu_tx_commit(tx);
-}
-
-/*
- * zil_rollback_destroy() is only called by the rollback code.
- * We already have a syncing tx. Rollback has exclusive access to the
- * dataset, so we don't have to worry about concurrent zil access.
- * The actual freeing of any log blocks occurs in zil_sync() later in
- * this txg syncing phase.
- */
-void
-zil_rollback_destroy(zilog_t *zilog, dmu_tx_t *tx)
-{
-	const zil_header_t *zh = zilog->zl_header;
-	uint64_t txg;
-
-	if (BP_IS_HOLE(&zh->zh_log))
-		return;
-
-	txg = dmu_tx_get_txg(tx);
-	ASSERT3U(zilog->zl_destroy_txg, <, txg);
-	zilog->zl_destroy_txg = txg;
-	zilog->zl_keep_first = B_FALSE;
-
-	/*
-	 * Ensure there's no outstanding ZIL IO.  No lwbs or just the
-	 * unused one that allocated in advance is ok.
-	 */
-	ASSERT(zilog->zl_lwb_list.list_head.list_next ==
-	    zilog->zl_lwb_list.list_head.list_prev);
-	(void) zil_parse(zilog, zil_free_log_block, zil_free_log_record,
-	    tx, zh->zh_claim_txg);
 }
 
 /*
