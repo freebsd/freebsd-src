@@ -116,7 +116,7 @@ __FBSDID("$FreeBSD$");
 
 #ifdef FLOWTABLE
 #include <net/flowtable.h>
-extern VNET_DEFINE(int, ip6_output_flowtable_size);
+extern int VNET_NAME(ip6_output_flowtable_size) __section(VNET_SETNAME);
 #define	V_ip6_output_flowtable_size	VNET(ip6_output_flowtable_size)
 #endif
 
