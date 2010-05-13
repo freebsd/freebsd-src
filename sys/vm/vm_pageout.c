@@ -350,7 +350,6 @@ more:
 		vm_page_test_dirty(p);
 		if (p->dirty == 0 ||
 		    p->queue != PQ_INACTIVE ||
-		    p->wire_count != 0 ||	/* may be held by buf cache */
 		    p->hold_count != 0) {	/* may be undergoing I/O */
 			ib = 0;
 			break;
@@ -378,7 +377,6 @@ more:
 		vm_page_test_dirty(p);
 		if (p->dirty == 0 ||
 		    p->queue != PQ_INACTIVE ||
-		    p->wire_count != 0 ||	/* may be held by buf cache */
 		    p->hold_count != 0) {	/* may be undergoing I/O */
 			break;
 		}
