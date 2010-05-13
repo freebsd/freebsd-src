@@ -67,11 +67,6 @@ and
 are supported and work as expected.  An open file descriptor
 will always be ready for writing, but only ready for reading
 if the device indicates that it has data available.
-.Sh COMPATIBILITY
-Userland smartcard code written for the vendor's Linux drivers
-should work with the
-.Nm
-driver without modification.
 .Sh FILES
 .Bl -tag -width /usr/ports/security/openct -compact
 .It Pa /dev/cmx\fBn\fP
@@ -91,6 +86,11 @@ devices.
 .\".Nm
 .\"devices.
 .El
+.Sh COMPATIBILITY
+Userland smartcard code written for the vendor's Linux drivers
+should work with the
+.Nm
+driver without modification.
 .Sh SEE ALSO
 .Xr pccard 4
 .Sh HISTORY
