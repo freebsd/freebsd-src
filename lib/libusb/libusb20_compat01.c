@@ -820,7 +820,7 @@ int
 usb_find_busses(void)
 {
 	usb_busses = &usb_global_bus;
-	return (0);
+	return (1);
 }
 
 int
@@ -907,7 +907,7 @@ usb_find_devices(void)
 		LIST_ADD(usb_global_bus.devices, udev);
 	}
 
-	return (0);			/* success */
+	return (devnum - 1);			/* success */
 }
 
 struct usb_device *
