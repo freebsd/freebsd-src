@@ -232,6 +232,8 @@ dsl_pool_close(dsl_pool_t *dp)
 	mutex_destroy(&dp->dp_lock);
 	mutex_destroy(&dp->dp_scrub_cancel_lock);
 	taskq_destroy(dp->dp_vnrele_taskq);
+	if (dp->dp_blkstats)
+		kmem_free(dp->dp_blkstats, sizeof (zfs_all_blkstats_t));
 	kmem_free(dp, sizeof (dsl_pool_t));
 }
 
