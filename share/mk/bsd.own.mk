@@ -281,7 +281,8 @@ WITH_IDEA=
 #
 # Default behaviour of MK_CLANG depends on the architecture.
 #
-.if ${MACHINE_ARCH} == "amd64" || ${MACHINE_ARCH} == "i386"
+.if ${MACHINE_ARCH} == "amd64" || ${MACHINE_ARCH} == "i386" || \
+    ${MACHINE_ARCH} == "powerpc"
 _clang_yes=CLANG
 _clang_no=
 .else
