@@ -1,6 +1,6 @@
 /******************************************************************************
 
-  Copyright (c) 2001-2008, Intel Corporation 
+  Copyright (c) 2001-2010, Intel Corporation 
   All rights reserved.
   
   Redistribution and use in source and binary forms, with or without 
@@ -43,6 +43,12 @@
 #define E1000_CTRL_EXT 0x00018  /* Extended Device Control - RW */
 #define E1000_FLA      0x0001C  /* Flash Access - RW */
 #define E1000_MDIC     0x00020  /* MDI Control - RW */
+#define E1000_MDICNFG  0x00E04  /* MDI Config - RW */
+#define E1000_REGISTER_SET_SIZE        0x20000 /* CSR Size */
+#define E1000_EEPROM_INIT_CTRL_WORD_2  0x0F /* EEPROM Init Ctrl Word 2 */
+#define E1000_BARCTRL                  0x5BBC /* BAR ctrl reg */
+#define E1000_BARCTRL_FLSIZE           0x0700 /* BAR ctrl Flsize */
+#define E1000_BARCTRL_CSRSIZE          0x2000 /* BAR ctrl CSR size */
 #define E1000_SCTL     0x00024  /* SerDes Control - RW */
 #define E1000_FCAL     0x00028  /* Flow Control Address Low - RW */
 #define E1000_FCAH     0x0002C  /* Flow Control Address High -RW */
@@ -58,10 +64,13 @@
 #define E1000_IMC      0x000D8  /* Interrupt Mask Clear - WO */
 #define E1000_IAM      0x000E0  /* Interrupt Acknowledge Auto Mask */
 #define E1000_IVAR     0x000E4  /* Interrupt Vector Allocation Register - RW */
+#define E1000_SVCR     0x000F0
+#define E1000_SVT      0x000F4
 #define E1000_RCTL     0x00100  /* Rx Control - RW */
 #define E1000_FCTTV    0x00170  /* Flow Control Transmit Timer Value - RW */
 #define E1000_TXCW     0x00178  /* Tx Configuration Word - RW */
 #define E1000_RXCW     0x00180  /* Rx Configuration Word - RO */
+#define E1000_PBA_ECC  0x01100  /* PBA ECC Register */
 #define E1000_EICR     0x01580  /* Ext. Interrupt Cause Read - R/clr */
 #define E1000_EITR(_n) (0x01680 + (0x4 * (_n)))
 #define E1000_EICS     0x01520  /* Ext. Interrupt Cause Set - W0 */
@@ -118,11 +127,7 @@
 #define E1000_RDPUCTL  0x025DC  /* DMA Rx Descriptor uC Control - RW */
 #define E1000_PBDIAG   0x02458  /* Packet Buffer Diagnostic - RW */
 #define E1000_RXPBS    0x02404  /* Rx Packet Buffer Size - RW */
-#define E1000_RXCTL(_n)   (0x0C014 + (0x40 * (_n)))
-#define E1000_RQDPC(_n)   (0x0C030 + (0x40 * (_n)))
-#define E1000_TXCTL(_n)   (0x0E014 + (0x40 * (_n)))
-#define E1000_RXCTL(_n)   (0x0C014 + (0x40 * (_n)))
-#define E1000_RQDPC(_n)   (0x0C030 + (0x40 * (_n)))
+#define E1000_IRPBS 0x02404 /* Same as RXPBS, renamed for newer adapters - RW */
 #define E1000_RDTR     0x02820  /* Rx Delay Timer - RW */
 #define E1000_RADV     0x0282C  /* Rx Interrupt Absolute Delay Timer - RW */
 /*
@@ -143,10 +148,15 @@
                                          (0x0C00C + ((_n) * 0x40)))
 #define E1000_RDH(_n)        ((_n) < 4 ? (0x02810 + ((_n) * 0x100)) : \
                                          (0x0C010 + ((_n) * 0x40)))
+#define E1000_RXCTL(_n)      ((_n) < 4 ? (0x02814 + ((_n) * 0x100)) : \
+                                         (0x0C014 + ((_n) * 0x40)))
+#define E1000_DCA_RXCTRL(_n) E1000_RXCTL(_n)
 #define E1000_RDT(_n)        ((_n) < 4 ? (0x02818 + ((_n) * 0x100)) : \
                                          (0x0C018 + ((_n) * 0x40)))
 #define E1000_RXDCTL(_n)     ((_n) < 4 ? (0x02828 + ((_n) * 0x100)) : \
                                          (0x0C028 + ((_n) * 0x40)))
+#define E1000_RQDPC(_n)      ((_n) < 4 ? (0x02830 + ((_n) * 0x100)) : \
+                                         (0x0C030 + ((_n) * 0x40)))
 #define E1000_TDBAL(_n)      ((_n) < 4 ? (0x03800 + ((_n) * 0x100)) : \
                                          (0x0E000 + ((_n) * 0x40)))
 #define E1000_TDBAH(_n)      ((_n) < 4 ? (0x03804 + ((_n) * 0x100)) : \
@@ -155,17 +165,18 @@
                                          (0x0E008 + ((_n) * 0x40)))
 #define E1000_TDH(_n)        ((_n) < 4 ? (0x03810 + ((_n) * 0x100)) : \
                                          (0x0E010 + ((_n) * 0x40)))
+#define E1000_TXCTL(_n)      ((_n) < 4 ? (0x03814 + ((_n) * 0x100)) : \
+                                         (0x0E014 + ((_n) * 0x40)))
+#define E1000_DCA_TXCTRL(_n) E1000_TXCTL(_n)
 #define E1000_TDT(_n)        ((_n) < 4 ? (0x03818 + ((_n) * 0x100)) : \
                                          (0x0E018 + ((_n) * 0x40)))
 #define E1000_TXDCTL(_n)     ((_n) < 4 ? (0x03828 + ((_n) * 0x100)) : \
                                          (0x0E028 + ((_n) * 0x40)))
-#define E1000_TARC(_n)       (0x03840 + (_n << 8))
-#define E1000_DCA_TXCTRL(_n) (0x03814 + (_n << 8))
-#define E1000_DCA_RXCTRL(_n) (0x02814 + (_n << 8))
 #define E1000_TDWBAL(_n)     ((_n) < 4 ? (0x03838 + ((_n) * 0x100)) : \
                                          (0x0E038 + ((_n) * 0x40)))
 #define E1000_TDWBAH(_n)     ((_n) < 4 ? (0x0383C + ((_n) * 0x100)) : \
                                          (0x0E03C + ((_n) * 0x40)))
+#define E1000_TARC(_n)                   (0x03840 + ((_n) * 0x100))
 #define E1000_RSRPD    0x02C00  /* Rx Small Packet Detect - RW */
 #define E1000_RAID     0x02C08  /* Receive Ack Interrupt Delay - RW */
 #define E1000_TXDMAC   0x03000  /* Tx DMA Control - RW */
@@ -184,6 +195,7 @@
 #define E1000_PBSLAC   0x03100  /* Packet Buffer Slave Access Control */
 #define E1000_PBSLAD(_n)  (0x03110 + (0x4 * (_n)))  /* Packet Buffer DWORD (_n) */
 #define E1000_TXPBS    0x03404  /* Tx Packet Buffer Size - RW */
+#define E1000_ITPBS   0x03404   /* Same as TXPBS, renamed for newer adpaters - RW */
 #define E1000_TDFH     0x03410  /* Tx Data FIFO Head - RW */
 #define E1000_TDFT     0x03418  /* Tx Data FIFO Tail - RW */
 #define E1000_TDFHS    0x03420  /* Tx Data FIFO Head Saved - RW */
@@ -268,16 +280,19 @@
 #define E1000_ICTXQMTC 0x0411C  /* Interrupt Cause Tx Queue Min Thresh Count */
 #define E1000_ICRXDMTC 0x04120  /* Interrupt Cause Rx Desc Min Thresh Count */
 #define E1000_ICRXOC   0x04124  /* Interrupt Cause Receiver Overrun Count */
+#define E1000_CRC_OFFSET 0x05F50  /* CRC Offset register */
 
-#define E1000_VFGPRC   0x00F10
-#define E1000_VFGORC   0x00F18
-#define E1000_VFMPRC   0x00F3C
-#define E1000_VFGPTC   0x00F14
-#define E1000_VFGOTC   0x00F34
-#define E1000_VFGOTLBC 0x00F50
-#define E1000_VFGPTLBC 0x00F44
-#define E1000_VFGORLBC 0x00F48
-#define E1000_VFGPRLBC 0x00F40
+/* Virtualization statistical counters */
+#define E1000_PFVFGPRC(_n)   (0x010010 + (0x100 * (_n)))
+#define E1000_PFVFGPTC(_n)   (0x010014 + (0x100 * (_n)))
+#define E1000_PFVFGORC(_n)   (0x010018 + (0x100 * (_n)))
+#define E1000_PFVFGOTC(_n)   (0x010034 + (0x100 * (_n)))
+#define E1000_PFVFMPRC(_n)   (0x010038 + (0x100 * (_n)))
+#define E1000_PFVFGPRLBC(_n) (0x010040 + (0x100 * (_n)))
+#define E1000_PFVFGPTLBC(_n) (0x010044 + (0x100 * (_n)))
+#define E1000_PFVFGORLBC(_n) (0x010048 + (0x100 * (_n)))
+#define E1000_PFVFGOTLBC(_n) (0x010050 + (0x100 * (_n)))
+
 #define E1000_LSECTXUT        0x04300  /* LinkSec Tx Untagged Packet Count - OutPktsUntagged */
 #define E1000_LSECTXPKTE      0x04304  /* LinkSec Encrypted Tx Packets Count - OutPktsEncrypted */
 #define E1000_LSECTXPKTP      0x04308  /* LinkSec Protected Tx Packet Count - OutPktsProtected */
@@ -382,11 +397,13 @@
 #define E1000_KMRNCTRLSTA 0x00034 /* MAC-PHY interface - RW */
 #define E1000_MDPHYA      0x0003C /* PHY address - RW */
 #define E1000_MANC2H      0x05860 /* Management Control To Host - RW */
+#define E1000_MDEF(_n)    (0x05890 + (4 * (_n))) /* Mngmt Decision Filters */
 #define E1000_SW_FW_SYNC  0x05B5C /* Software-Firmware Synchronization - RW */
 #define E1000_CCMCTL      0x05B48 /* CCM Control Register */
 #define E1000_GIOCTL      0x05B44 /* GIO Analog Control Register */
 #define E1000_SCCTL       0x05B4C /* PCIc PLL Configuration Register */
 #define E1000_GCR         0x05B00 /* PCI-Ex Control */
+#define E1000_GCR2        0x05B64 /* PCI-Ex Control #2 */
 #define E1000_GSCL_1    0x05B10 /* PCI-Ex Statistic Control #1 */
 #define E1000_GSCL_2    0x05B14 /* PCI-Ex Statistic Control #2 */
 #define E1000_GSCL_3    0x05B18 /* PCI-Ex Statistic Control #3 */
@@ -394,8 +411,10 @@
 #define E1000_FACTPS    0x05B30 /* Function Active and Power State to MNG */
 #define E1000_SWSM      0x05B50 /* SW Semaphore */
 #define E1000_FWSM      0x05B54 /* FW Semaphore */
+#define E1000_SWSM2     0x05B58 /* Driver-only SW semaphore (not used by BOOT agents) */
 #define E1000_DCA_ID    0x05B70 /* DCA Requester ID Information - RO */
 #define E1000_DCA_CTRL  0x05B74 /* DCA Control - RW */
+#define E1000_UFUSE     0x05B78 /* UFUSE - RO */
 #define E1000_FFLT_DBG  0x05F04 /* Debug Register */
 #define E1000_HICR      0x08F00 /* Host Interface Control */
 
@@ -429,7 +448,6 @@
 #define E1000_VFTE      0x00C90 /* VF Transmit Enables */
 #define E1000_QDE       0x02408 /* Queue Drop Enable - RW */
 #define E1000_DTXSWC    0x03500 /* DMA Tx Switch Control - RW */
-#define E1000_VLVF      0x05D00 /* VLAN Virtual Machine Filter - RW */
 #define E1000_RPLOLR    0x05AF0 /* Replication Offload - RW */
 #define E1000_UTA       0x0A000 /* Unicast Table Array - RW */
 #define E1000_IOVTCL    0x05BBC /* IOV Control Register */
@@ -440,6 +458,9 @@
 #define E1000_VMBMEM(_n)       (0x00800 + (64 * (_n)))
 #define E1000_VFVMBMEM(_n)     (0x00800 + (_n))
 #define E1000_VMOLR(_n)        (0x05AD0 + (4 * (_n)))
+#define E1000_VLVF(_n)         (0x05D00 + (4 * (_n))) /* VLAN Virtual Machine
+                                                       * Filter - RW */
+#define E1000_VMVIR(_n)        (0x03700 + (4 * (_n)))
 /* Time Sync */
 #define E1000_TSYNCRXCTL 0x0B620 /* Rx Time Sync Control register - RW */
 #define E1000_TSYNCTXCTL 0x0B614 /* Tx Time Sync Control register - RW */
@@ -453,6 +474,8 @@
 #define E1000_SYSTIML    0x0B600 /* System time register Low - RO */
 #define E1000_SYSTIMH    0x0B604 /* System time register High - RO */
 #define E1000_TIMINCA    0x0B608 /* Increment attributes register - RW */
+#define E1000_TSAUXC     0x0B640 /* Timesync Auxiliary Control register */
+#define E1000_SYSTIMR    0x0B6F8 /* System time register Residue */
 #define E1000_RXMTRL     0x0B634 /* Time sync Rx EtherType and Msg Type - RW */
 #define E1000_RXUDP      0x0B638 /* Time Sync Rx UDP Port - RW */
 
@@ -461,6 +484,7 @@
 #define E1000_DAQF(_n)  (0x059A0 + (4 * (_n))) /* Dest Address Queue Fltr */
 #define E1000_SPQF(_n)  (0x059C0 + (4 * (_n))) /* Source Port Queue Fltr */
 #define E1000_FTQF(_n)  (0x059E0 + (4 * (_n))) /* 5-tuple Queue Fltr */
+#define E1000_TTQF(_n)  (0x059E0 + (4 * (_n))) /* 2-tuple Queue Fltr */
 #define E1000_SYNQF(_n) (0x055FC + (4 * (_n))) /* SYN Packet Queue Fltr */
 #define E1000_ETQF(_n)  (0x05CB0 + (4 * (_n))) /* EType Queue Fltr */
 
@@ -495,4 +519,15 @@
 #define E1000_RTTBCNACH         0x0B214 /* Tx BCN Control High */
 #define E1000_RTTBCNACL         0x0B210 /* Tx BCN Control Low */
 
+/* DMA Coalescing registers */
+#define E1000_DMACR             0x02508 /* Control Register */
+#define E1000_DMCTXTH           0x03550 /* Transmit Threshold */
+#define E1000_DMCTLX            0x02514 /* Time to Lx Request */
+#define E1000_DMCRTRH           0x05DD0 /* Receive Packet Rate Threshold */
+#define E1000_DMCCNT            0x05DD4 /* Current RX Count */
+#define E1000_FCRTC             0x02170 /* Flow Control Rx high watermark */
+#define E1000_PCIEMISC          0x05BB8 /* PCIE misc config register */
+
+/* PCIe Parity Status Register */
+#define E1000_PCIEERRSTS        0x05BA8
 #endif
