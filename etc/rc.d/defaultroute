@@ -28,7 +28,7 @@ defaultroute_start()
 	[ -z "${dhcp_interfaces}" ] && return
 	carrier=false
 	for _if in ${dhcp_interfaces}; do
-		output=`/sbin/ifconfig ${_if}` 
+		output=`/sbin/ifconfig ${_if}`
 		nocarrier=`expr "${output}" : '.*[[:blank:]]status: \(no carrier\)'`
 		[ -z "${nocarrier}" ] && carrier=true
 	done
