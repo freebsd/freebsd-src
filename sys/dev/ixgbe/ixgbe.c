@@ -46,7 +46,7 @@ int             ixgbe_display_debug_stats = 0;
 /*********************************************************************
  *  Driver version
  *********************************************************************/
-char ixgbe_driver_version[] = "2.1.7";
+char ixgbe_driver_version[] = "2.1.8";
 
 /*********************************************************************
  *  PCI Device ID Table
@@ -412,7 +412,6 @@ ixgbe_attach(device_t dev)
 			break;
 		case IXGBE_DEV_ID_82598 :
 		case IXGBE_DEV_ID_82598AF_DUAL_PORT :
-		case IXGBE_DEV_ID_82598_DA_DUAL_PORT :
 		case IXGBE_DEV_ID_82598AF_SINGLE_PORT :
 		case IXGBE_DEV_ID_82598_SR_DUAL_PORT_EM :
 		case IXGBE_DEV_ID_82598EB_SFP_LOM :
@@ -424,6 +423,9 @@ ixgbe_attach(device_t dev)
 			break;
 		case IXGBE_DEV_ID_82598EB_XF_LR :
 			adapter->optics = IFM_10G_LR;
+			break;
+		case IXGBE_DEV_ID_82598_DA_DUAL_PORT :
+			adapter->optics = IFM_10G_TWINAX;
 			break;
 		case IXGBE_DEV_ID_82599_SFP :
 			adapter->optics = IFM_10G_SR;
@@ -1157,6 +1159,9 @@ ixgbe_init_locked(struct adapter *adapter)
 			return (EIO);
         	}
 	}
+
+	/* Set moderation on the Link interrupt */
+	IXGBE_WRITE_REG(hw, IXGBE_EITR(adapter->linkvec), IXGBE_LINK_ITR);
 
 	/* Config/Enable Link */
 	ixgbe_config_link(adapter);
@@ -3638,13 +3643,11 @@ ixgbe_setup_receive_ring(struct rx_ring *rxr)
 	/*
 	** Now set up the LRO interface:
 	** 82598 uses software LRO, the
-	** 82599 additionally uses a
-	** hardware assist.
-	**
-	** Disable RSC when RXCSUM is off
+	** 82599 uses a hardware assist.
 	*/
 	if ((adapter->hw.mac.type == ixgbe_mac_82599EB) &&
-	    (ifp->if_capenable & IFCAP_RXCSUM))
+	    (ifp->if_capenable & IFCAP_RXCSUM) &&
+	    (ifp->if_capenable & IFCAP_LRO))
 		ixgbe_setup_hw_rsc(rxr);
 	else if (ifp->if_capenable & IFCAP_LRO) {
 		int err = tcp_lro_init(lro);
@@ -4661,7 +4664,7 @@ ixgbe_update_stats_counters(struct adapter *adapter)
 		adapter->stats.lxoffrxc += IXGBE_READ_REG(hw, IXGBE_LXOFFRXC);
 		/* 82598 only has a counter in the high register */
 		adapter->stats.gorc += IXGBE_READ_REG(hw, IXGBE_GORCH);
-		adapter->stats.gorc += IXGBE_READ_REG(hw, IXGBE_GOTCH);
+		adapter->stats.gotc += IXGBE_READ_REG(hw, IXGBE_GOTCH);
 		adapter->stats.tor += IXGBE_READ_REG(hw, IXGBE_TORH);
 	}
 
