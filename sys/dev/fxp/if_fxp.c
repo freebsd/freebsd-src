@@ -2623,7 +2623,7 @@ fxp_new_rfabuf(struct fxp_softc *sc, struct fxp_rx *rxp)
 	/* Map the RFA into DMA memory. */
 	error = bus_dmamap_load(sc->fxp_rxmtag, sc->spare_map, rfa,
 	    MCLBYTES - RFA_ALIGNMENT_FUDGE, fxp_dma_map_addr,
-	    &rxp->rx_addr, 0);
+	    &rxp->rx_addr, BUS_DMA_NOWAIT);
 	if (error) {
 		m_freem(m);
 		return (error);
