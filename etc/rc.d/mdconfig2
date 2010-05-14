@@ -47,7 +47,7 @@ is_readonly()
 		*" ${_mp} "*read-only*)
 			echo "yes"
 			;;
-		
+
 		*)
 			;;
 		esac;
@@ -227,5 +227,5 @@ if [ -z "${_mdconfig2_list}" ]; then
 		fi
 	done
 fi
-	
+
 run_rc_command "${_mdconfig2_cmd}"

@@ -94,7 +94,7 @@ bluetooth_setup_stack()
 	hook=$1
 	shift
 
-	# Setup HCI 
+	# Setup HCI
 	ngctl mkpeer ${dev}: hci ${hook} drv \
 		> /dev/null 2>&1 || return 1
 
@@ -287,7 +287,7 @@ bluetooth_start()
 		;;
 	esac
 
-	# Be backward compatible and setup reasonable defaults 
+	# Be backward compatible and setup reasonable defaults
 	bluetooth_device_authentication_enable="0"
 	bluetooth_device_class="ff:01:0c"
 	bluetooth_device_connectable="1"
@@ -317,7 +317,7 @@ bluetooth_start()
 		bluetooth_shutdown_stack $dev
 		err 1 "Unable to setup Bluetooth stack for device ${dev}"
 	fi
-		
+
 	return 0
 }
 
