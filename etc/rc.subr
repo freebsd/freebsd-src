@@ -678,7 +678,7 @@ $command $rc_flags $command_args"
 				if [ -n "$_nice" ]; then
 					if [ -z "$_user" ]; then
 						_doit="sh -c \"$_doit\""
-					fi	
+					fi
 					_doit="nice -n $_nice $_doit"
 				fi
 			fi
@@ -944,7 +944,7 @@ load_rc_config()
 		;;
 	esac
 }
-  
+
 #
 # load_rc_config_var name var
 #	Read the rc.conf(5) var for name and set in the

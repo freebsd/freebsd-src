@@ -31,7 +31,7 @@ nfslocking_precmd()
 		force_depend rpcbind || ret=1
 	fi
 
-	if [ $name = "statd" ] 
+	if [ $name = "statd" ]
 	then
 		rc_flags=${rpc_statd_flags}
 	elif [ $name = "lockd" ]
