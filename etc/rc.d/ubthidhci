@@ -4,8 +4,8 @@
 #
 
 # PROVIDE: ubthidhci
-# REQUIRE: DAEMON 
-# BEFORE: bluetooth 
+# REQUIRE: DAEMON
+# BEFORE: bluetooth
 # KEYWORD: nojail shutdown
 
 . /etc/rc.subr
