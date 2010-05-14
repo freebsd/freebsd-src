@@ -17,6 +17,7 @@ SRCS=	AnalysisBasedWarnings.cpp CodeCompleteConsumer.cpp \
 	SemaTemplateInstantiateDecl.cpp SemaType.cpp \
 	TargetAttributesSema.cpp
 
-TGHDRS=	DiagnosticASTKinds DiagnosticCommonKinds DiagnosticSemaKinds DiagnosticParseKinds
+TGHDRS=	DiagnosticASTKinds DiagnosticCommonKinds DiagnosticParseKinds \
+	DiagnosticSemaKinds
 
 .include "../../clang.lib.mk"
