@@ -197,7 +197,7 @@ g_multipath_done_error(struct bio *bp)
 				break;
 			}
 		}
-		if (sc->cp_active == NULL) {
+		if (sc->cp_active == NULL || sc->cp_active->provider == NULL) {
 			printf("GEOM_MULTIPATH: out of providers for %s\n",
 			    sc->sc_name);
 			g_topology_unlock();
