@@ -19,7 +19,7 @@
  * CDDL HEADER END
  */
 /*
- * Copyright 2008 Sun Microsystems, Inc.  All rights reserved.
+ * Copyright 2009 Sun Microsystems, Inc.  All rights reserved.
  * Use is subject to license terms.
  */
 
@@ -93,6 +93,7 @@
 #include <sys/vdev_file.h>
 #include <sys/spa_impl.h>
 #include <sys/dsl_prop.h>
+#include <sys/dsl_dataset.h>
 #include <sys/refcount.h>
 #include <stdio.h>
 #include <stdio_ext.h>
@@ -174,6 +175,7 @@ ztest_func_t ztest_traverse;
 ztest_func_t ztest_dsl_prop_get_set;
 ztest_func_t ztest_dmu_objset_create_destroy;
 ztest_func_t ztest_dmu_snapshot_create_destroy;
+ztest_func_t ztest_dsl_dataset_promote_busy;
 ztest_func_t ztest_spa_create_destroy;
 ztest_func_t ztest_fault_inject;
 ztest_func_t ztest_spa_rename;
@@ -208,6 +210,7 @@ ztest_info_t ztest_info[] = {
 	{ ztest_dsl_prop_get_set,		1,	&zopt_sometimes	},
 	{ ztest_dmu_objset_create_destroy,	1,	&zopt_sometimes },
 	{ ztest_dmu_snapshot_create_destroy,	1,	&zopt_sometimes },
+	{ ztest_dsl_dataset_promote_busy,	1,	&zopt_sometimes },
 	{ ztest_spa_create_destroy,		1,	&zopt_sometimes },
 	{ ztest_fault_inject,			1,	&zopt_sometimes	},
 	{ ztest_spa_rename,			1,	&zopt_rarely	},
@@ -1588,6 +1591,109 @@ ztest_traverse(ztest_args_t *za)
 		traverse_fini(th);
 		za->za_th = NULL;
 	}
+}
+
+/*
+ * Verify dsl_dataset_promote handles EBUSY
+ */
+void
+ztest_dsl_dataset_promote_busy(ztest_args_t *za)
+{
+	int error;
+	objset_t *os = za->za_os;
+	objset_t *clone;
+	dsl_dataset_t *ds;
+	char snap1name[100];
+	char clone1name[100];
+	char snap2name[100];
+	char clone2name[100];
+	char snap3name[100];
+	char osname[MAXNAMELEN];
+	static uint64_t uniq = 0;
+	uint64_t curval;
+
+	curval = atomic_add_64_nv(&uniq, 5) - 5;
+
+	(void) rw_rdlock(&ztest_shared->zs_name_lock);
+
+	dmu_objset_name(os, osname);
+	(void) snprintf(snap1name, 100, "%s@s1_%llu", osname, curval++);
+	(void) snprintf(clone1name, 100, "%s/c1_%llu", osname, curval++);
+	(void) snprintf(snap2name, 100, "%s@s2_%llu", clone1name, curval++);
+	(void) snprintf(clone2name, 100, "%s/c2_%llu", osname, curval++);
+	(void) snprintf(snap3name, 100, "%s@s3_%llu", clone1name, curval++);
+
+	error = dmu_objset_snapshot(osname, strchr(snap1name, '@')+1, FALSE);
+	if (error == ENOSPC)
+		ztest_record_enospc("dmu_take_snapshot");
+	else if (error != 0 && error != EEXIST)
+		fatal(0, "dmu_take_snapshot = %d", error);
+
+	error = dmu_objset_open(snap1name, DMU_OST_OTHER,
+	    DS_MODE_USER | DS_MODE_READONLY, &clone);
+	if (error)
+		fatal(0, "dmu_open_snapshot(%s) = %d", snap1name, error);
+
+	error = dmu_objset_create(clone1name, DMU_OST_OTHER, clone, 0,
+	    NULL, NULL);
+	if (error)
+		fatal(0, "dmu_objset_create(%s) = %d", clone1name, error);
+	dmu_objset_close(clone);
+
+	error = dmu_objset_snapshot(clone1name, strchr(snap2name, '@')+1,
+	    FALSE);
+	if (error == ENOSPC)
+		ztest_record_enospc("dmu_take_snapshot");
+	else if (error != 0 && error != EEXIST)
+		fatal(0, "dmu_take_snapshot = %d", error);
+
+	error = dmu_objset_snapshot(clone1name, strchr(snap3name, '@')+1,
+	    FALSE);
+	if (error == ENOSPC)
+		ztest_record_enospc("dmu_take_snapshot");
+	else if (error != 0 && error != EEXIST)
+		fatal(0, "dmu_take_snapshot = %d", error);
+
+	error = dmu_objset_open(snap3name, DMU_OST_OTHER,
+	    DS_MODE_USER | DS_MODE_READONLY, &clone);
+	if (error)
+		fatal(0, "dmu_open_snapshot(%s) = %d", snap3name, error);
+
+	error = dmu_objset_create(clone2name, DMU_OST_OTHER, clone, 0,
+	    NULL, NULL);
+	if (error)
+		fatal(0, "dmu_objset_create(%s) = %d", clone2name, error);
+	dmu_objset_close(clone);
+
+	error = dsl_dataset_own(snap1name, 0, FTAG, &ds);
+	if (error)
+		fatal(0, "dsl_dataset_own(%s) = %d", snap1name, error);
+	error = dsl_dataset_promote(clone2name);
+	if (error != EBUSY)
+		fatal(0, "dsl_dataset_promote(%s), %d, not EBUSY", clone2name,
+		    error);
+	dsl_dataset_disown(ds, FTAG);
+
+	error = dmu_objset_destroy(clone2name);
+	if (error)
+		fatal(0, "dmu_objset_destroy(%s) = %d", clone2name, error);
+
+	error = dmu_objset_destroy(snap3name);
+	if (error)
+		fatal(0, "dmu_objset_destroy(%s) = %d", snap2name, error);
+
+	error = dmu_objset_destroy(snap2name);
+	if (error)
+		fatal(0, "dmu_objset_destroy(%s) = %d", snap2name, error);
+
+	error = dmu_objset_destroy(clone1name);
+	if (error)
+		fatal(0, "dmu_objset_destroy(%s) = %d", clone1name, error);
+	error = dmu_objset_destroy(snap1name);
+	if (error)
+		fatal(0, "dmu_objset_destroy(%s) = %d", snap1name, error);
+
+	(void) rw_unlock(&ztest_shared->zs_name_lock);
 }
 
 /*
