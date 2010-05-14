@@ -280,6 +280,10 @@ _cpio=		cpio
 _calendar=	calendar
 .endif
 
+.if ${MK_CLANG} != "no"
+_clang=		clang
+.endif
+
 .if ${MK_HESIOD} != "no"
 _hesinfo=	hesinfo
 .endif
@@ -349,9 +353,6 @@ _ul=		ul
 _ar=		ar
 _c89=		c89
 _c99=		c99
-.if ${MK_CLANG} != "no"
-_clang=		clang
-.endif
 _compile_et=	compile_et
 _ctags=		ctags
 _file2c=	file2c
