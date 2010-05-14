@@ -2422,10 +2422,10 @@ lem_setup_interface(device_t dev, struct adapter *adapter)
 	ifp->if_capabilities |= IFCAP_POLLING;
 #endif
 
-	/* Enable All WOL methods by default */
+	/* Enable only WOL MAGIC by default */
 	if (adapter->wol) {
 		ifp->if_capabilities |= IFCAP_WOL;
-		ifp->if_capenable |= IFCAP_WOL;
+		ifp->if_capenable |= IFCAP_WOL_MAGIC;
 	}
 		
 	/*
