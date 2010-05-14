@@ -14,6 +14,11 @@
 # The file is partitioned: OLD_FILES first, then OLD_LIBS and OLD_DIRS last.
 #
 
+# 20100514: library version bump for versioned symbols for liblzma
+OLD_LIBS+=usr/lib/liblzma.so.0
+.if ${TARGET_ARCH} == "amd64"
+OLD_LIBS+=usr/lib32/liblzma.so.0
+.endif
 # 20100511: move GCC-specific headers to /usr/include/gcc
 .if ${TARGET_ARCH} == "amd64" || ${TARGET_ARCH} == "i386"
 OLD_FILES+=usr/include/emmintrin.h

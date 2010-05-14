@@ -1,7 +1,6 @@
 # $FreeBSD$
 
-LIB=	lzma
-SHLIB_MAJOR=	0
+LIB=		lzma
 LZMADIR=	${.CURDIR}/../../contrib/xz/src/liblzma
 
 .PATH: ${LZMADIR}/../common
@@ -122,6 +121,7 @@ SRCS+=	simple_coder.c \
 WARNS?=	3
 
 CFLAGS+=	-DHAVE_CONFIG_H \
+		-DTUKLIB_SYMBOL_PREFIX=lzma_ \
 		-I${.CURDIR} \
 		-I${LZMADIR}/api \
 		-I${LZMADIR}/common \
@@ -133,5 +133,9 @@ CFLAGS+=	-DHAVE_CONFIG_H \
 		-I${LZMADIR}/delta \
 		-I${LZMADIR}/simple \
 		-I${LZMADIR}/../common
+
+VERSION_DEF=	${.CURDIR}/Versions.def
+SYMBOL_MAPS=	${.CURDIR}/Symbol.map
+CFLAGS+=	-DSYMBOL_VERSIONING
 
 .include <bsd.lib.mk>
