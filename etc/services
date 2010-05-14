@@ -1243,8 +1243,8 @@ dctp		675/tcp
 dctp		675/udp
 vpps-via	676/tcp    #VPPS Via
 vpps-via	676/udp    #VPPS Via
-vpp		677/tcp    #Virtual Presence Protocol 
-vpp		677/udp    #Virtual Presence Protocol 
+vpp		677/tcp    #Virtual Presence Protocol
+vpp		677/udp    #Virtual Presence Protocol
 ggf-ncp		678/tcp    #GNU Generation Foundation NCP
 ggf-ncp		678/udp    #GNU Generation Foundation NCP
 mrm             679/tcp
@@ -1255,8 +1255,8 @@ entrust-aams	681/tcp
 entrust-aams	681/udp
 xfr             682/tcp
 xfr             682/udp
-corba-iiop      683/tcp    #CORBA IIOP 
-corba-iiop      683/udp    #CORBA IIOP 
+corba-iiop      683/tcp    #CORBA IIOP
+corba-iiop      683/udp    #CORBA IIOP
 corba-iiop-ssl	684/tcp    #CORBA IIOP SSL
 corba-iiop-ssl	684/udp    #CORBA IIOP SSL
 mdc-portmapper	685/tcp    #MDC Port Mapper
@@ -1311,8 +1311,8 @@ cisco-tdp       711/tcp    #Cisco TDP
 cisco-tdp       711/udp    #Cisco TDP
 tbrpf           712/tcp
 tbrpf           712/udp
-iris-xpc	713/tcp    #IRIS over XPC 
-iris-xpc	713/udp    #IRIS over XPC 
+iris-xpc	713/tcp    #IRIS over XPC
+iris-xpc	713/udp    #IRIS over XPC
 iris-xpcs	714/tcp    #IRIS over XPCS
 iris-xpcs	714/udp    #IRIS over XPCS
 iris-lwz	715/tcp
@@ -1412,7 +1412,7 @@ pkix-3-ca-ra	829/tcp    #PKIX-3 CA/RA
 pkix-3-ca-ra    829/udp    #PKIX-3 CA/RA
 netconf-ssh     830/tcp    #NETCONF over SSH
 netconf-ssh     830/udp    #NETCONF over SSH
-netconf-beep    831/tcp    #NETCONF over BEEP 
+netconf-beep    831/tcp    #NETCONF over BEEP
 netconf-beep    831/udp    #NETCONF over BEEP
 netconfsoaphttp 832/tcp    #NETCONF for SOAP over HTTPS
 netconfsoaphttp 832/udp    #NETCONF for SOAP over HTTPS
@@ -1444,14 +1444,14 @@ ideafarm-chat   902/tcp
 ideafarm-chat   902/udp
 ideafarm-catch  903/tcp
 ideafarm-catch  903/udp
-kink            910/tcp    #Kerberized Internet Negotiation of Keys (KINK) 
+kink            910/tcp    #Kerberized Internet Negotiation of Keys (KINK)
 kink            910/udp    #Kerberized Internet Negotiation of Keys (KINK)
 xact-backup     911/tcp
 xact-backup     911/udp
 apex-mesh       912/tcp    #APEX relay-relay service
 apex-mesh       912/udp    #APEX relay-relay service
 apex-edge       913/tcp    #APEX endpoint-relay service
-apex-edge       913/udp    #APEX endpoint-relay service    
+apex-edge       913/udp    #APEX endpoint-relay service
 rndc		953/tcp	   # named's rndc control socket
 ftps-data	989/tcp	   # ftp protocol, data, over TLS/SSL
 ftps-data	989/udp
