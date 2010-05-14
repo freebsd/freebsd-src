@@ -120,8 +120,15 @@ struct pmcpl_ct_node_hash {
 struct pmcpl_ct_sample pmcpl_ct_callid;
 
 #define PMCPL_CT_MAXCOL		PMC_CALLCHAIN_DEPTH_MAX	
-#define PMCPL_CT_MAXLINE	256
-struct pmcpl_ct_node  *pmcpl_ct_topscreen[PMCPL_CT_MAXCOL][PMCPL_CT_MAXLINE];
+#define PMCPL_CT_MAXLINE	1024	/* TODO: dynamic. */
+
+struct pmcpl_ct_line {
+	unsigned	ln_sum;
+	unsigned	ln_index;
+};
+
+struct pmcpl_ct_line	pmcpl_ct_topmax[PMCPL_CT_MAXLINE+1];
+struct pmcpl_ct_node	*pmcpl_ct_topscreen[PMCPL_CT_MAXCOL+1][PMCPL_CT_MAXLINE+1];
 
 /*
  * All nodes indexed by function/image name are placed in a hash table.
@@ -222,28 +229,6 @@ pmcpl_ct_arc_grow(int cursize, int *maxsize, struct pmcpl_ct_arc **items)
 	bzero((char *)*items + *maxsize * sizeof(struct pmcpl_ct_arc),
 	    (nmaxsize - *maxsize) * sizeof(struct pmcpl_ct_arc));
 	*maxsize = nmaxsize;
-}
-
-/*
- * Compare two arc by samples value.
- */
-static int
-pmcpl_ct_arc_compare(void *thunk, const void *a, const void *b)
-{
-	const struct pmcpl_ct_arc *ct1, *ct2;
-	int pmcin = *(int *)thunk;
-
-	ct1 = (const struct pmcpl_ct_arc *) a;
-	ct2 = (const struct pmcpl_ct_arc *) b;
-
-	/* Sort in reverse order */
-	if (PMCPL_CT_SAMPLE(pmcin, &ct1->pcta_samples) <
-	    PMCPL_CT_SAMPLE(pmcin, &ct2->pcta_samples))
-		return (1);
-	if (PMCPL_CT_SAMPLE(pmcin, &ct1->pcta_samples) >
-	    PMCPL_CT_SAMPLE(pmcin, &ct2->pcta_samples))
-		return (-1);
-	return (0);
 }
 
 /*
@@ -366,9 +351,9 @@ pmcpl_ct_node_cleartag(void)
 
 static int
 pmcpl_ct_node_dumptop(int pmcin, struct pmcpl_ct_node *ct,
-    struct pmcpl_ct_sample *rsamples, int x, int *y, int maxy)
+    struct pmcpl_ct_sample *rsamples, int x, int *y)
 {
-	int i;
+	int i, terminal;
 
 	if (ct->pct_flags & PMCPL_PCT_TAG)
 		return 0;
@@ -382,12 +367,21 @@ pmcpl_ct_node_dumptop(int pmcin, struct pmcpl_ct_node *ct,
 	pmcpl_ct_topscreen[x][*y] = ct;
 
 	/*
-	 * This is a terminal node
+	 * Check if this is a terminal node.
+	 * We need to check that some samples exist
+	 * for at least one arc for that PMC.
 	 */
-	if (ct->pct_narc == 0) {
+	terminal = 1;
+	for (i = 0; i < ct->pct_narc; i++)
+		if (PMCPL_CT_SAMPLE(pmcin,
+		    &ct->pct_arc[i].pcta_samples) != 0) {
+			terminal = 0;
+			break;
+		}
+
+	if (ct->pct_narc == 0 || terminal) {
 		pmcpl_ct_topscreen[x+1][*y] = NULL;
-		if (*y >= PMCPL_CT_MAXLINE ||
-		    *y >= maxy)
+		if (*y >= PMCPL_CT_MAXLINE)
 			return 1;
 		*y = *y + 1;
 		for (i=0; i < x; i++)
@@ -396,14 +390,7 @@ pmcpl_ct_node_dumptop(int pmcin, struct pmcpl_ct_node *ct,
 		return 0;
 	}
 
-	/*
-	 * Quicksort the arcs.
-	 */
-	qsort_r(ct->pct_arc, ct->pct_narc, sizeof(struct pmcpl_ct_arc),
-	    &pmcin, pmcpl_ct_arc_compare);
-
 	for (i = 0; i < ct->pct_narc; i++) {
-		/* Skip this arc if there is no sample at all. */
 		if (PMCPL_CT_SAMPLE(pmcin,
 		    &ct->pct_arc[i].pcta_samples) == 0)
 			continue;
@@ -411,12 +398,31 @@ pmcpl_ct_node_dumptop(int pmcin, struct pmcpl_ct_node *ct,
 		    &ct->pct_arc[i].pcta_samples) > pmcstat_threshold) {
 			if (pmcpl_ct_node_dumptop(pmcin,
 			        ct->pct_arc[i].pcta_child,
-			        rsamples, x+1, y, maxy))
+			        rsamples, x+1, y))
 				return 1;
 		}
 	}
 
 	return 0;
+}
+
+/*
+ * Compare two top line by sum.
+ */
+static int
+pmcpl_ct_line_compare(const void *a, const void *b)
+{
+	const struct pmcpl_ct_line *ct1, *ct2;
+
+	ct1 = (const struct pmcpl_ct_line *) a;
+	ct2 = (const struct pmcpl_ct_line *) b;
+
+	/* Sort in reverse order */
+	if (ct1->ln_sum < ct2->ln_sum)
+		return (1);
+	if (ct1->ln_sum > ct2->ln_sum)
+		return (-1);
+	return (0);
 }
 
 /*
@@ -426,6 +432,11 @@ pmcpl_ct_node_dumptop(int pmcin, struct pmcpl_ct_node *ct,
 static void
 pmcpl_ct_node_printtop(struct pmcpl_ct_sample *rsamples, int pmcin, int maxy)
 {
+#undef	TS
+#undef	TSI
+#define	TS(x, y)	(pmcpl_ct_topscreen[x][y])
+#define	TSI(x, y)	(pmcpl_ct_topscreen[x][pmcpl_ct_topmax[y].ln_index])
+
 	int v_attrs, ns_len, vs_len, is_len, width, indentwidth, x, y;
 	float v;
 	char ns[30], vs[10], is[20];
@@ -433,33 +444,60 @@ pmcpl_ct_node_printtop(struct pmcpl_ct_sample *rsamples, int pmcin, int maxy)
 	struct pmcstat_symbol *sym;
 	const char *space = " ";
 
+	/*
+	 * Sort by line cost.
+	 */
+	for (y = 0; ; y++) {
+		ct = TS(1, y);
+		if (ct == NULL)
+			break;
+
+		pmcpl_ct_topmax[y].ln_sum = 0;
+		pmcpl_ct_topmax[y].ln_index = y;
+		for (x = 1; TS(x, y) != NULL; x++) {
+			pmcpl_ct_topmax[y].ln_sum +=
+			    PMCPL_CT_SAMPLE(pmcin, &TS(x, y)->pct_samples);
+		}
+	}
+	qsort(pmcpl_ct_topmax, y, sizeof(pmcpl_ct_topmax[0]),
+	    pmcpl_ct_line_compare);
+	pmcpl_ct_topmax[y].ln_index = y;
+
 	for (y = 0; y < maxy; y++) {
-		/* Output image. */
-		ct = pmcpl_ct_topscreen[0][y];
-		snprintf(is, sizeof(is), "%-10.10s",
-		    pmcstat_string_unintern(ct->pct_image->pi_name));
-		PMCSTAT_PRINTW("%s ", is);
-		width = indentwidth = 11;
+		ct = TSI(1, y);
+		if (ct == NULL)
+			break;
 
-		for (x = 0; pmcpl_ct_topscreen[x][y] !=NULL; x++) {
+		if (y > 0)
+			PMCSTAT_PRINTW("\n");
 
-			ct = pmcpl_ct_topscreen[x][y];
+		/* Output sum. */
+		v = pmcpl_ct_topmax[y].ln_sum * 100.0 /
+		    rsamples->sb[pmcin];
+		snprintf(vs, sizeof(vs), "%.1f", v);
+		v_attrs = PMCSTAT_ATTRPERCENT(v);
+		PMCSTAT_ATTRON(v_attrs);
+		PMCSTAT_PRINTW("%5.5s ", vs);
+		PMCSTAT_ATTROFF(v_attrs);
 
-			ns[0] = '\0'; ns_len = 0;
+		width = indentwidth = 5 + 1;
+
+		for (x = 1; (ct = TSI(x, y)) != NULL; x++) {
+
 			vs[0] = '\0'; vs_len = 0;
 			is[0] = '\0'; is_len = 0;
 
 			/* Format value. */
 			v = PMCPL_CT_SAMPLEP(pmcin, &ct->pct_samples);
 			if (v > pmcstat_threshold)
-				vs_len  = snprintf(vs, sizeof(vs), "(%.1f%%)", v);
+				vs_len  = snprintf(vs, sizeof(vs),
+				    "(%.1f%%)", v);
 			v_attrs = PMCSTAT_ATTRPERCENT(v);
 
 			if (pmcstat_skiplink && v <= pmcstat_threshold) {
-				PMCSTAT_PRINTW(". ");
-				width += 2;
-				continue;
-			}
+				strlcpy(ns, ".", sizeof(ns));
+				ns_len = 1;
+			} else {
 			sym = pmcstat_symbol_search(ct->pct_image, ct->pct_func);
 			if (sym != NULL) {
 				ns_len = snprintf(ns, sizeof(ns), "%s",
@@ -469,12 +507,14 @@ pmcpl_ct_node_printtop(struct pmcpl_ct_sample *rsamples, int pmcin, int maxy)
 				    (void *)ct->pct_func);
 
 			/* Format image. */
-			if (x > 0 && pmcpl_ct_topscreen[x-1][y]->pct_image != ct->pct_image)
+			if (x == 1 ||
+			    TSI(x-1, y)->pct_image != ct->pct_image)
 				is_len = snprintf(is, sizeof(is), "@%s",
 				    pmcstat_string_unintern(ct->pct_image->pi_name));
 
 			/* Check for line wrap. */
 			width += ns_len + is_len + vs_len + 1;
+			}
 			if (width >= pmcstat_displaywidth) {
 				maxy--;
 				if (y >= maxy)
@@ -487,7 +527,6 @@ pmcpl_ct_node_printtop(struct pmcpl_ct_sample *rsamples, int pmcin, int maxy)
 			PMCSTAT_PRINTW("%s%s%s ", ns, is, vs);
 			PMCSTAT_ATTROFF(v_attrs);
 		}
-		PMCSTAT_PRINTW("\n");
 	}
 }
 
@@ -498,46 +537,25 @@ pmcpl_ct_node_printtop(struct pmcpl_ct_sample *rsamples, int pmcin, int maxy)
 void
 pmcpl_ct_topdisplay(void)
 {
-	int i, x, y, pmcin;
+	int y;
 	struct pmcpl_ct_sample r, *rsamples;
 
 	rsamples = &r;
 	pmcpl_ct_samples_root(rsamples);
 
-	PMCSTAT_PRINTW("%-10.10s %s\n", "IMAGE", "CALLTREE");
+	pmcpl_ct_node_cleartag();
 
-	for (pmcin = 0; pmcin < pmcstat_npmcs; pmcin++) {
-		/* Filter PMCs. */
-		if (pmcstat_pmcinfilter != pmcin)
-			continue;
+	PMCSTAT_PRINTW("%5.5s %s\n", "%SAMP", "CALLTREE");
 
-		pmcpl_ct_node_cleartag();
+	y = 0;
+	if (pmcpl_ct_node_dumptop(pmcstat_pmcinfilter,
+	    pmcpl_ct_root, rsamples, 0, &y))
+		PMCSTAT_PRINTW("...\n");
+	pmcpl_ct_topscreen[1][y] = NULL;
 
-		/* Quicksort the arcs. */
-		qsort_r(pmcpl_ct_root->pct_arc,
-		    pmcpl_ct_root->pct_narc,
-		    sizeof(struct pmcpl_ct_arc),
-		    &pmcin, pmcpl_ct_arc_compare);
+	pmcpl_ct_node_printtop(rsamples,
+	    pmcstat_pmcinfilter, pmcstat_displayheight - 2);
 
-		x = y = 0;
-		for (i = 0; i < pmcpl_ct_root->pct_narc; i++) {
-			/* Skip this arc if there is no sample at all. */
-			if (PMCPL_CT_SAMPLE(pmcin,
-			    &pmcpl_ct_root->pct_arc[i].pcta_samples) == 0)
-				continue;
-			if (PMCPL_CT_SAMPLEP(pmcin,
-			    &pmcpl_ct_root->pct_arc[i].pcta_samples) <=
-			    pmcstat_threshold)
-				continue;
-			if (pmcpl_ct_node_dumptop(pmcin,
-			        pmcpl_ct_root->pct_arc[i].pcta_child,
-			        rsamples, x, &y, pmcstat_displayheight - 2)) {
-				break;
-			}
-		}
-
-		pmcpl_ct_node_printtop(rsamples, pmcin, y);
-	}
 	pmcpl_ct_samples_free(rsamples);
 }
 
