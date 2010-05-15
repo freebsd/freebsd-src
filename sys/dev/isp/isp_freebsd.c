@@ -49,7 +49,7 @@ __FBSDID("$FreeBSD$");
 MODULE_VERSION(isp, 1);
 MODULE_DEPEND(isp, cam, 1, 1, 1);
 int isp_announced = 0;
-int isp_fabric_hysteresis = 3;
+int isp_fabric_hysteresis = 5;
 int isp_loop_down_limit = 60;	/* default loop down limit */
 int isp_change_is_bad = 0;	/* "changed" devices are bad */
 int isp_quickboot_time = 7;	/* don't wait more than N secs for loop up */
@@ -141,9 +141,12 @@ isp_attach_chan(ispsoftc_t *isp, struct cam_devq *devq, int chan)
 		fc->path = path;
 		fc->isp = isp;
 		fc->ready = 1;
-
+		fc->gone_device_time = isp_gone_device_time;
+		fc->loop_down_limit = isp_loop_down_limit;
+		fc->hysteresis = isp_fabric_hysteresis;
 		callout_init_mtx(&fc->ldt, &isp->isp_osinfo.lock, 0);
 		callout_init_mtx(&fc->gdt, &isp->isp_osinfo.lock, 0);
+
 		/*
 		 * We start by being "loop down" if we have an initiator role
 		 */
@@ -3940,7 +3943,7 @@ isp_gdt(void *arg)
 	fcportdb_t *lp;
 	int dbidx, tgt, more_to_do = 0;
 
-	isp_prt(isp, ISP_LOGDEBUG0, "Chan %d GDT timer expired", chan);
+	isp_prt(isp, ISP_LOGSANCFG|ISP_LOGDEBUG0, "Chan %d GDT timer expired @ %lu", chan, time_uptime);
 	for (dbidx = 0; dbidx < MAX_FC_TARG; dbidx++) {
 		lp = &FCPARAM(isp, chan)->portdb[dbidx];
 
@@ -3950,15 +3953,8 @@ isp_gdt(void *arg)
 		if (lp->dev_map_idx == 0 || lp->target_mode) {
 			continue;
 		}
-		/*
-		 * We can use new_portid here because it is untouched
-		 * while the state is ZOMBIE
-		 */
-		if (lp->new_portid == 0) {
-			continue;
-		}
-		lp->new_portid -= 1;
-		if (lp->new_portid != 0) {
+		if (lp->gone_timer != 0) {
+			lp->gone_timer -= 1;
 			more_to_do++;
 			continue;
 		}
@@ -3973,7 +3969,7 @@ isp_gdt(void *arg)
 		if (more_to_do) {
 			callout_reset(&fc->gdt, hz, isp_gdt, fc);
 		} else {
-			isp_prt(isp, ISP_LOGSANCFG|ISP_LOGDEBUG0, "Chan %d stopping Gone Device Timer", chan);
+			isp_prt(isp, ISP_LOGSANCFG|ISP_LOGDEBUG0, "Chan %d Stopping Gone Device Timer", chan);
 		}
 	}
 }
@@ -4942,7 +4938,7 @@ isp_async(ispsoftc_t *isp, ispasync_t cmd, ...)
 				}
 				if (!callout_active(&fc->ldt)) {
 					callout_reset(&fc->ldt, fc->loop_down_limit * hz, isp_ldt, fc);
-					isp_prt(isp, ISP_LOGSANCFG|ISP_LOGDEBUG0, "starting Loop Down Timer @ %lu", (unsigned long) time_uptime);
+					isp_prt(isp, ISP_LOGSANCFG|ISP_LOGDEBUG0, "Starting Loop Down Timer @ %lu", (unsigned long) time_uptime);
 				}
 			}
 		}
@@ -4972,6 +4968,7 @@ isp_async(ispsoftc_t *isp, ispasync_t cmd, ...)
 		va_end(ap);
 		fc = ISP_FC_PC(isp, bus);
 		lp->reserved = 0;
+		lp->gone_timer = 0;
 		if ((FCPARAM(isp, bus)->role & ISP_ROLE_INITIATOR) && (lp->roles & (SVC3_TGT_ROLE >> SVC3_ROLE_SHIFT))) {
 			int dbidx = lp - FCPARAM(isp, bus)->portdb;
 			int i;
@@ -5007,6 +5004,7 @@ isp_async(ispsoftc_t *isp, ispasync_t cmd, ...)
 		va_end(ap);
 		fc = ISP_FC_PC(isp, bus);
 		lp->reserved = 0;
+		lp->gone_timer = 0;
 		if (isp_change_is_bad) {
 			lp->state = FC_PORTDB_STATE_NIL;
 			if (lp->dev_map_idx) {
@@ -5061,15 +5059,13 @@ isp_async(ispsoftc_t *isp, ispasync_t cmd, ...)
 		 * If it isn't marked that isp_gdt is going to get rid of it,
 		 * announce that it's gone.
 		 *
-		 * We can use new_portid for the gone timer because it's
-		 * undefined while the state is ZOMBIE.
 		 */
 		if (lp->dev_map_idx && lp->reserved == 0) {
 			lp->reserved = 1;
-			lp->new_portid = ISP_FC_PC(isp, bus)->gone_device_time;
 			lp->state = FC_PORTDB_STATE_ZOMBIE;
+			lp->gone_timer = ISP_FC_PC(isp, bus)->gone_device_time;
 			if (fc->ready && !callout_active(&fc->gdt)) {
-				isp_prt(isp, ISP_LOGSANCFG|ISP_LOGDEBUG0, "Chan %d starting Gone Device Timer", bus);
+				isp_prt(isp, ISP_LOGSANCFG|ISP_LOGDEBUG0, "Chan %d Starting Gone Device Timer with %u seconds time now %lu", bus, lp->gone_timer, time_uptime);
 				callout_reset(&fc->gdt, hz, isp_gdt, fc);
 			}
 			tgt = lp->dev_map_idx - 1;
