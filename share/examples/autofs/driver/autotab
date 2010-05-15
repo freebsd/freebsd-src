@@ -1,7 +1,0 @@
-# $Id: autotab,v 1.8 2004/09/08 08:12:21 bright Exp $
-# $FreeBSD$
-# autofs, directory, fstype, opts, path
-/auto	share	nfs	ro,-R=1	big:/vol/share direct
-#/auto	src	nfs	ro,-R=1	big:/vol/share/src indirect
-/auto	src	nfs	ro,-R=1	big:/vol/share/src direct
-/auto	browse	nfs	ro,-R=1	big:/vol/share/src browse,indirect

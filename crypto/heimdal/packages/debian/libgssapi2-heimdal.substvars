@@ -1,1 +1,0 @@
-shlibs:Depends=libasn1-6-heimdal, libc6 (>= 2.6-1), libcomerr2 (>= 1.33-3), libkrb5-17-heimdal, libroken16-heimdal

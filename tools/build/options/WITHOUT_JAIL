@@ -1,3 +1,0 @@
-.\" $FreeBSD$
-Set to not build tools for the support of jails; e.g.
-.Xr jail 8 .

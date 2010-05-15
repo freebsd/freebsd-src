@@ -1,356 +1,311 @@
-#
+#	from: @(#)Makefile	5.11 (Berkeley) 5/21/91
 # $FreeBSD$
-#
-# The user-driven targets are:
-#
-# universe            - *Really* build *everything* (buildworld and
-#                       all kernels on all architectures).
-# buildworld          - Rebuild *everything*, including glue to help do
-#                       upgrades.
-# installworld        - Install everything built by "buildworld".
-# world               - buildworld + installworld, no kernel.
-# buildkernel         - Rebuild the kernel and the kernel-modules.
-# installkernel       - Install the kernel and the kernel-modules.
-# installkernel.debug
-# reinstallkernel     - Reinstall the kernel and the kernel-modules.
-# reinstallkernel.debug
-# kernel              - buildkernel + installkernel.
-# kernel-toolchain    - Builds the subset of world necessary to build a kernel
-# doxygen             - Build API documentation of the kernel, needs doxygen.
-# update              - Convenient way to update your source tree (cvs).
-# check-old           - List obsolete directories/files/libraries.
-# check-old-dirs      - List obsolete directories.
-# check-old-files     - List obsolete files.
-# check-old-libs      - List obsolete libraries.
-# delete-old          - Delete obsolete directories/files/libraries.
-# delete-old-dirs     - Delete obsolete directories.
-# delete-old-files    - Delete obsolete files.
-# delete-old-libs     - Delete obsolete libraries.
-#
-# This makefile is simple by design. The FreeBSD make automatically reads
-# the /usr/share/mk/sys.mk unless the -m argument is specified on the
-# command line. By keeping this makefile simple, it doesn't matter too
-# much how different the installed mk files are from those in the source
-# tree. This makefile executes a child make process, forcing it to use
-# the mk files from the source tree which are supposed to DTRT.
-#
-# The user-driven targets (as listed above) are implemented in Makefile.inc1.
-#
-# If you want to build your system from source be sure that /usr/obj has
-# at least 800MB of diskspace available.
-#
-# For individuals wanting to build from the sources currently on their
-# system, the simple instructions are:
-#
-# 1.  `cd /usr/src'  (or to the directory containing your source tree).
-# 2.  Define `HISTORICAL_MAKE_WORLD' variable (see README).
-# 3.  `make world'
-#
-# For individuals wanting to upgrade their sources (even if only a
-# delta of a few days):
-#
-#  1.  `cd /usr/src'       (or to the directory containing your source tree).
-#  2.  `make buildworld'
-#  3.  `make buildkernel KERNCONF=YOUR_KERNEL_HERE'     (default is GENERIC).
-#  4.  `make installkernel KERNCONF=YOUR_KERNEL_HERE'   (default is GENERIC).
-#       [steps 3. & 4. can be combined by using the "kernel" target]
-#  5.  `reboot'        (in single user mode: boot -s from the loader prompt).
-#  6.  `mergemaster -p'
-#  7.  `make installworld'
-#  8.  `make delete-old'
-#  9.  `mergemaster'                         (you may wish to use -U or -ai).
-# 10.  `reboot'
-# 11.  `make delete-old-libs' (in case no 3rd party program uses them anymore)
-#
-# See src/UPDATING `COMMON ITEMS' for more complete information.
-#
-# If TARGET=machine (e.g. ia64, sparc64, ...) is specified you can
-# cross build world for other machine types using the buildworld target,
-# and once the world is built you can cross build a kernel using the
-# buildkernel target.
-#
-# Define the user-driven targets. These are listed here in alphabetical
-# order, but that's not important.
-#
-# Targets that begin with underscore are internal targets intended for
-# developer convenience only.  They are intentionally not documented and
-# completely subject to change without notice.
-#
-# For more information, see the build(7) manual page.
-#
-TGTS=	all all-man buildenv buildenvvars buildkernel buildworld \
-	check-old check-old-dirs check-old-files check-old-libs \
-	checkdpadd clean cleandepend cleandir \
-	delete-old delete-old-dirs delete-old-files delete-old-libs \
-	depend distribute distributeworld distrib-dirs distribution doxygen \
-	everything hierarchy install installcheck installkernel \
-	installkernel.debug reinstallkernel reinstallkernel.debug \
-	installworld kernel-toolchain libraries lint maninstall \
-	obj objlink regress rerelease showconfig tags toolchain update \
-	_worldtmp _legacy _bootstrap-tools _cleanobj _obj \
-	_build-tools _cross-tools _includes _libraries _depend \
-	build32 distribute32 install32 xdev xdev-build xdev-install
-TGTS+=	${SUBDIR_TARGETS}
 
-BITGTS=	files includes
-BITGTS:=${BITGTS} ${BITGTS:S/^/build/} ${BITGTS:S/^/install/}
-TGTS+=	${BITGTS}
+.include <bsd.own.mk>
 
-.ORDER: buildworld installworld
-.ORDER: buildworld distributeworld
-.ORDER: buildworld buildkernel
-.ORDER: buildkernel installkernel
-.ORDER: buildkernel installkernel.debug
-.ORDER: buildkernel reinstallkernel
-.ORDER: buildkernel reinstallkernel.debug
-
-PATH=	/sbin:/bin:/usr/sbin:/usr/bin
-MAKEOBJDIRPREFIX?=	/usr/obj
-_MAKEOBJDIRPREFIX!= /usr/bin/env -i PATH=${PATH} ${MAKE} \
-    ${.MAKEFLAGS:MMAKEOBJDIRPREFIX=*} __MAKE_CONF=${__MAKE_CONF} \
-    -f /dev/null -V MAKEOBJDIRPREFIX dummy
-.if !empty(_MAKEOBJDIRPREFIX)
-.error MAKEOBJDIRPREFIX can only be set in environment, not as a global\
-	(in make.conf(5)) or command-line variable.
+.if ${MK_SENDMAIL} != "no"
+SUBDIR=	sendmail
 .endif
-MAKEPATH=	${MAKEOBJDIRPREFIX}${.CURDIR}/make.${MACHINE}
-BINMAKE= \
-	`if [ -x ${MAKEPATH}/make ]; then echo ${MAKEPATH}/make; else echo ${MAKE}; fi` \
-	-m ${.CURDIR}/share/mk
-_MAKE=	PATH=${PATH} ${BINMAKE} -f Makefile.inc1
 
-#
-# Make sure we have an up-to-date make(1). Only world and buildworld
-# should do this as those are the initial targets used for upgrades.
-# The user can define ALWAYS_CHECK_MAKE to have this check performed
-# for all targets.
-#
-.if defined(ALWAYS_CHECK_MAKE)
-${TGTS}: upgrade_checks
+BIN1=	auth.conf \
+	crontab devd.conf devfs.conf \
+	ddb.conf dhclient.conf disktab fbtab \
+	ftpusers gettytab group \
+	hosts hosts.allow hosts.equiv \
+	inetd.conf libalias.conf login.access login.conf mac.conf motd \
+	netconfig network.subr networks newsyslog.conf nsswitch.conf \
+	phones profile protocols \
+	rc rc.bsdextended rc.firewall rc.initdiskless \
+	rc.sendmail rc.shutdown \
+	rc.subr remote rpc services shells \
+	sysctl.conf syslog.conf termcap.small
+
+.if exists(${.CURDIR}/etc.${MACHINE}/ttys)
+BIN1+=	etc.${MACHINE}/ttys
 .else
-buildworld: upgrade_checks
+BIN1+=	etc.${MACHINE_ARCH}/ttys
 .endif
 
-#
-# This 'cleanworld' target is not included in TGTS, because it is not a
-# recursive target.  All of the work for it is done right here.   It is
-# expected that BW_CANONICALOBJDIR == the CANONICALOBJDIR as would be
-# created by bsd.obj.mk, except that we don't want to .include that file
-# in this makefile.  
-#
-# In the following, the first 'rm' in a series will usually remove all
-# files and directories.  If it does not, then there are probably some
-# files with chflags set, so this unsets them and tries the 'rm' a
-# second time.  There are situations where this target will be cleaning
-# some directories via more than one method, but that duplication is
-# needed to correctly handle all the possible situations.
-#
-BW_CANONICALOBJDIR:=${MAKEOBJDIRPREFIX}${.CURDIR}
-cleanworld:
-.if ${.CURDIR} == ${.OBJDIR} || ${.CURDIR}/obj == ${.OBJDIR}
-.if exists(${BW_CANONICALOBJDIR}/)
-	-rm -rf ${BW_CANONICALOBJDIR}/*
-	-chflags -R 0 ${BW_CANONICALOBJDIR}
-	rm -rf ${BW_CANONICALOBJDIR}/*
+OPENBSMDIR=			${.CURDIR}/../contrib/openbsm
+BSM_ETC_OPEN_FILES=		${OPENBSMDIR}/etc/audit_class \
+				${OPENBSMDIR}/etc/audit_event
+BSM_ETC_RESTRICTED_FILES=	${OPENBSMDIR}/etc/audit_control \
+				${OPENBSMDIR}/etc/audit_user
+BSM_ETC_EXEC_FILES=		${OPENBSMDIR}/etc/audit_warn
+BSM_ETC_DIR=			${DESTDIR}/etc/security
+
+# NB: keep these sorted by MK_* knobs
+
+.if ${MK_AMD} != "no"
+BIN1+= amd.map
 .endif
-	#   To be safe in this case, fall back to a 'make cleandir'
-	${_+_}@cd ${.CURDIR}; ${_MAKE} cleandir
+
+.if ${MK_APM} != "no"
+BIN1+= apmd.conf
+.endif
+
+.if ${MK_BSNMP} != "no"
+BIN1+= snmpd.config
+.endif
+
+.if ${MK_FREEBSD_UPDATE} != "no"
+BIN1+= freebsd-update.conf
+.endif
+
+.if ${MK_LOCATE} != "no"
+BIN1+=	${.CURDIR}/../usr.bin/locate/locate/locate.rc
+.endif
+
+.if ${MK_LPR} != "no"
+BIN1+=	hosts.lpd printcap
+.endif
+
+.if ${MK_MAIL} != "no"
+BIN1+=	${.CURDIR}/../usr.bin/mail/misc/mail.rc
+.endif
+
+.if ${MK_MAN} != "no"
+BIN1+=	${.CURDIR}/../gnu/usr.bin/man/manpath/manpath.config
+.endif
+
+.if ${MK_NTP} != "no"
+BIN1+=	ntp.conf
+.endif
+
+.if ${MK_OPENSSH} != "no"
+SSH=	${.CURDIR}/../crypto/openssh/ssh_config \
+	${.CURDIR}/../crypto/openssh/sshd_config \
+	${.CURDIR}/../crypto/openssh/moduli
+.endif
+.if ${MK_OPENSSL} != "no"
+SSL=	${.CURDIR}/../crypto/openssl/apps/openssl.cnf
+.endif
+
+.if ${MK_NS_CACHING} != "no"
+BIN1+= nscd.conf
+.endif
+
+.if ${MK_PORTSNAP} != "no"
+BIN1+= portsnap.conf
+.endif
+
+.if ${MK_PF} != "no"
+BIN1+= pf.os
+.endif
+
+.if ${MK_TCSH} != "no"
+BIN1+= csh.cshrc csh.login csh.logout
+.endif
+
+.if ${MK_WIRELESS} != "no"
+BIN1+= regdomain.xml
+.endif
+
+# -rwxr-xr-x root:wheel, for the new cron root:wheel
+BIN2=	netstart pccard_ether rc.suspend rc.resume
+
+MTREE=	BSD.include.dist BSD.root.dist BSD.usr.dist BSD.var.dist
+.if ${MK_SENDMAIL} != "no"
+MTREE+=	BSD.sendmail.dist
+.endif
+.if ${MK_BIND} != "no"
+MTREE+=	BIND.chroot.dist
+.if ${MK_BIND_LIBS} != "no"
+MTREE+=	BIND.include.dist
+.endif
+.endif
+
+PPPCNF=	ppp.conf
+
+.if ${MK_SENDMAIL} == "no"
+ETCMAIL=mailer.conf aliases
 .else
-	-rm -rf ${.OBJDIR}/*
-	-chflags -R 0 ${.OBJDIR}
-	rm -rf ${.OBJDIR}/*
+ETCMAIL=Makefile README mailer.conf access.sample virtusertable.sample \
+	mailertable.sample aliases
 .endif
 
-#
-# Handle the user-driven targets, using the source relative mk files.
-#
+# Special top level files for FreeBSD
+FREEBSD=COPYRIGHT
 
-${TGTS}:
-	${_+_}@cd ${.CURDIR}; \
-		${_MAKE} ${.TARGET}
-
-# Set a reasonable default
-.MAIN:	all
-
-STARTTIME!= LC_ALL=C date
-CHECK_TIME!= find ${.CURDIR}/sys/sys/param.h -mtime -0
-.if !empty(CHECK_TIME)
-.error check your date/time: ${STARTTIME}
+afterinstall:
+.if ${MK_MAN} != "no"
+	${_+_}cd ${.CURDIR}/../share/man; ${MAKE} makedb
 .endif
 
-.if defined(HISTORICAL_MAKE_WORLD) || defined(DESTDIR)
-#
-# world
-#
-# Attempt to rebuild and reinstall everything. This target is not to be
-# used for upgrading an existing FreeBSD system, because the kernel is
-# not included. One can argue that this target doesn't build everything
-# then.
-#
-world: upgrade_checks
-	@echo "--------------------------------------------------------------"
-	@echo ">>> make world started on ${STARTTIME}"
-	@echo "--------------------------------------------------------------"
-.if target(pre-world)
-	@echo
-	@echo "--------------------------------------------------------------"
-	@echo ">>> Making 'pre-world' target"
-	@echo "--------------------------------------------------------------"
-	${_+_}@cd ${.CURDIR}; ${_MAKE} pre-world
-.endif
-	${_+_}@cd ${.CURDIR}; ${_MAKE} buildworld
-	${_+_}@cd ${.CURDIR}; ${_MAKE} -B installworld
-.if target(post-world)
-	@echo
-	@echo "--------------------------------------------------------------"
-	@echo ">>> Making 'post-world' target"
-	@echo "--------------------------------------------------------------"
-	${_+_}@cd ${.CURDIR}; ${_MAKE} post-world
-.endif
-	@echo
-	@echo "--------------------------------------------------------------"
-	@echo ">>> make world completed on `LC_ALL=C date`"
-	@echo "                   (started ${STARTTIME})"
-	@echo "--------------------------------------------------------------"
+distribute:
+	${_+_}cd ${.CURDIR} ; ${MAKE} install DESTDIR=${DISTDIR}/${DISTRIBUTION}
+	${_+_}cd ${.CURDIR} ; ${MAKE} distribution DESTDIR=${DISTDIR}/${DISTRIBUTION}
+
+.include <bsd.endian.mk>
+.if ${TARGET_ENDIANNESS} == "1234"
+CAP_MKDB_ENDIAN?= -l
+PWD_MKDB_ENDIAN?= -L
+.elif ${TARGET_ENDIANNESS} == "4321"
+CAP_MKDB_ENDIAN?= -b
+PWD_MKDB_ENDIAN?= -B
 .else
-world:
-	@echo "WARNING: make world will overwrite your existing FreeBSD"
-	@echo "installation without also building and installing a new"
-	@echo "kernel.  This can be dangerous.  Please read the handbook,"
-	@echo "'Rebuilding world', for how to upgrade your system."
-	@echo "Define DESTDIR to where you want to install FreeBSD,"
-	@echo "including /, to override this warning and proceed as usual."
-	@echo ""
-	@echo "Bailing out now..."
+CAP_MKDB_ENDIAN?=
+PWD_MKDB_ENDIAN?=
+.endif
+
+distribution:
+.if !defined(DESTDIR)
+	@echo "set DESTDIR before running \"make ${.TARGET}\""
 	@false
 .endif
-
-#
-# kernel
-#
-# Short hand for `make buildkernel installkernel'
-#
-kernel: buildkernel installkernel
-
-#
-# Perform a few tests to determine if the installed tools are adequate
-# for building the world.
-#
-upgrade_checks:
-	@if ! (cd ${.CURDIR}/tools/build/make_check && \
-	    PATH=${PATH} ${BINMAKE} obj >/dev/null 2>&1 && \
-	    PATH=${PATH} ${BINMAKE} >/dev/null 2>&1); \
-	then \
-	    (cd ${.CURDIR} && ${MAKE} make); \
-	fi
-
-#
-# Upgrade make(1) to the current version using the installed
-# headers, libraries and tools.  Also, allow the location of
-# the system bsdmake-like utility to be overridden.
-#
-MMAKEENV=	MAKEOBJDIRPREFIX=${MAKEPATH} \
-		DESTDIR= \
-		INSTALL="sh ${.CURDIR}/tools/install.sh"
-MMAKE=		${MMAKEENV} ${MAKE} \
-		-D_UPGRADING \
-		-DNOMAN -DNO_MAN -DNOSHARED -DNO_SHARED \
-		-DNO_CPU_CFLAGS -DNO_WERROR
-
-make: .PHONY
-	@echo
-	@echo "--------------------------------------------------------------"
-	@echo ">>> Building an up-to-date make(1)"
-	@echo "--------------------------------------------------------------"
-	${_+_}@cd ${.CURDIR}/usr.bin/make; \
-		${MMAKE} obj && \
-		${MMAKE} depend && \
-		${MMAKE} all && \
-		${MMAKE} install DESTDIR=${MAKEPATH} BINDIR=
-
-tinderbox:
-	cd ${.CURDIR} && \
-		DOING_TINDERBOX=YES ${MAKE} ${JFLAG} universe
-
-#
-# universe
-#
-# Attempt to rebuild *everything* for all supported architectures,
-# with a reasonable chance of success, regardless of how old your
-# existing system is.
-#
-.if make(universe) || make(universe_kernels) || make(tinderbox)
-TARGETS?=amd64 arm i386 ia64 mips pc98 powerpc sparc64 sun4v
-
-.if defined(DOING_TINDERBOX)
-FAILFILE=tinderbox.failed
-MAKEFAIL=tee -a ${FAILFILE}
-.else
-MAKEFAIL=cat
+	cd ${.CURDIR}; \
+	    ${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 644 \
+		${BIN1} ${DESTDIR}/etc; \
+	    cap_mkdb ${CAP_MKDB_ENDIAN} ${DESTDIR}/etc/login.conf; \
+	    ${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 755 \
+		${BIN2} ${DESTDIR}/etc; \
+	    ${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 600 \
+		master.passwd nsmb.conf opieaccess ${DESTDIR}/etc;
+.if ${MK_AT} == "no"
+	sed -i "" -e 's;.*/usr/libexec/atrun;#&;' ${DESTDIR}/etc/crontab
 .endif
-
-universe: universe_prologue
-universe_prologue:
-	@echo "--------------------------------------------------------------"
-	@echo ">>> make universe started on ${STARTTIME}"
-	@echo "--------------------------------------------------------------"
-.if defined(DOING_TINDERBOX)
-	rm -f ${FAILFILE}
+.if ${MK_TCSH} == "no"
+	sed -i "" -e 's;/bin/csh;/bin/sh;' ${DESTDIR}/etc/master.passwd
 .endif
-.for target in ${TARGETS}
-universe: universe_${target}
-.ORDER: universe_prologue universe_${target} universe_epilogue
-universe_${target}:
-.if !defined(MAKE_JUST_KERNELS)
-	@echo ">> ${target} started on `LC_ALL=C date`"
-	@(cd ${.CURDIR} && env __MAKE_CONF=/dev/null \
-	    ${MAKE} ${JFLAG} buildworld \
-	    TARGET=${target} \
-	    > _.${target}.buildworld 2>&1 || \
-	    (echo "${target} world failed," \
-	    "check _.${target}.buildworld for details" | ${MAKEFAIL}))
-	@echo ">> ${target} buildworld completed on `LC_ALL=C date`"
+	pwd_mkdb ${PWD_MKDB_ENDIAN} -i -p -d ${DESTDIR}/etc \
+	    ${DESTDIR}/etc/master.passwd
+.if ${MK_BLUETOOTH} != "no"
+	${_+_}cd ${.CURDIR}/bluetooth; ${MAKE} install
 .endif
-.if !defined(MAKE_JUST_WORLDS)
-.if exists(${.CURDIR}/sys/${target}/conf/NOTES)
-	@(cd ${.CURDIR}/sys/${target}/conf && env __MAKE_CONF=/dev/null \
-	    ${MAKE} LINT > ${.CURDIR}/_.${target}.makeLINT 2>&1 || \
-	    (echo "${target} 'make LINT' failed," \
-	    "check _.${target}.makeLINT for details"| ${MAKEFAIL}))
-.endif
-	@cd ${.CURDIR} && ${MAKE} ${.MAKEFLAGS} TARGET=${target} \
-	    universe_kernels
-.endif
-	@echo ">> ${target} completed on `LC_ALL=C date`"
-.endfor
-universe_kernels: universe_kernconfs
-.if !defined(TARGET)
-TARGET!=	uname -m
-.endif
-KERNCONFS!=	cd ${.CURDIR}/sys/${TARGET}/conf && \
-		find [A-Z0-9]*[A-Z0-9] -type f -maxdepth 0 \
-		! -name DEFAULTS ! -name NOTES
-universe_kernconfs:
-.for kernel in ${KERNCONFS}
-	@(cd ${.CURDIR} && env __MAKE_CONF=/dev/null \
-	    ${MAKE} ${JFLAG} buildkernel \
-	    TARGET=${TARGET} \
-	    KERNCONF=${kernel} \
-	    > _.${TARGET}.${kernel} 2>&1 || \
-	    (echo "${TARGET} ${kernel} kernel failed," \
-	    "check _.${TARGET}.${kernel} for details"| ${MAKEFAIL}))
-.endfor
-universe: universe_epilogue
-universe_epilogue:
-	@echo "--------------------------------------------------------------"
-	@echo ">>> make universe completed on `LC_ALL=C date`"
-	@echo "                      (started ${STARTTIME})"
-	@echo "--------------------------------------------------------------"
-.if defined(DOING_TINDERBOX)
-	@if [ -e ${FAILFILE} ] ; then \
-		echo "Tinderbox failed:" ;\
-		cat ${FAILFILE} ;\
-		exit 1 ;\
+	${_+_}cd ${.CURDIR}/defaults; ${MAKE} install
+	${_+_}cd ${.CURDIR}/devd; ${MAKE} install
+	${_+_}cd ${.CURDIR}/gss; ${MAKE} install
+	${_+_}cd ${.CURDIR}/periodic; ${MAKE} install
+	${_+_}cd ${.CURDIR}/rc.d; ${MAKE} install
+	${_+_}cd ${.CURDIR}/../gnu/usr.bin/send-pr; ${MAKE} etc-gnats-freefall
+	${_+_}cd ${.CURDIR}/../share/termcap; ${MAKE} etc-termcap
+	${_+_}cd ${.CURDIR}/../usr.sbin/rmt; ${MAKE} etc-rmt
+	${_+_}cd ${.CURDIR}/pam.d; ${MAKE} install
+	cd ${.CURDIR}; ${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 0444 \
+	    ${BSM_ETC_OPEN_FILES} ${BSM_ETC_DIR}
+	cd ${.CURDIR}; ${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 0600 \
+	    ${BSM_ETC_RESTRICTED_FILES} ${BSM_ETC_DIR}
+	cd ${.CURDIR}; ${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 0500 \
+	    ${BSM_ETC_EXEC_FILES} ${BSM_ETC_DIR}
+.if ${MK_BIND_MTREE} != "no"
+	@if [ ! -e ${DESTDIR}/etc/namedb ]; then \
+		set -x; \
+		ln -s ../var/named/etc/namedb ${DESTDIR}/etc/namedb; \
 	fi
 .endif
+.if ${MK_BIND_ETC} != "no"
+	${_+_}cd ${.CURDIR}/namedb; ${MAKE} install
 .endif
+.if ${MK_SENDMAIL} != "no"
+	${_+_}cd ${.CURDIR}/sendmail; ${MAKE} distribution
+.endif
+.if ${MK_OPENSSH} != "no"
+	cd ${.CURDIR}; ${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 644 \
+	    ${SSH} ${DESTDIR}/etc/ssh
+.endif
+.if ${MK_OPENSSL} != "no"
+	cd ${.CURDIR}; ${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 644 \
+	    ${SSL} ${DESTDIR}/etc/ssl
+.endif
+.if ${MK_KERBEROS} != "no"
+	cd ${.CURDIR}/root; \
+	    ${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 644 \
+		dot.k5login ${DESTDIR}/root/.k5login;
+.endif
+	cd ${.CURDIR}/root; \
+	    ${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 644 \
+		dot.profile ${DESTDIR}/root/.profile; \
+	    rm -f ${DESTDIR}/.profile; \
+	    ln ${DESTDIR}/root/.profile ${DESTDIR}/.profile
+.if ${MK_TCSH} != "no"
+	cd ${.CURDIR}/root; \
+	    ${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 644 \
+		dot.cshrc ${DESTDIR}/root/.cshrc; \
+	    ${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 644 \
+		dot.login ${DESTDIR}/root/.login; \
+	    rm -f ${DESTDIR}/.cshrc; \
+	    ln ${DESTDIR}/root/.cshrc ${DESTDIR}/.cshrc
+.endif
+	cd ${.CURDIR}/mtree; ${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 444 \
+	    ${MTREE} ${DESTDIR}/etc/mtree
+.if ${MK_PPP} != "no"
+	cd ${.CURDIR}/ppp; ${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 600 \
+	    ${PPPCNF} ${DESTDIR}/etc/ppp
+.endif
+.if ${MK_MAIL} != "no"
+	cd ${.CURDIR}/mail; ${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 644 \
+	    ${ETCMAIL} ${DESTDIR}/etc/mail
+	@if [ -d ${DESTDIR}/etc/mail -a -f ${DESTDIR}/etc/mail/aliases -a \
+	      ! -f ${DESTDIR}/etc/aliases ]; then \
+		set -x; \
+		ln -s mail/aliases ${DESTDIR}/etc/aliases; \
+	fi
+.endif
+	${INSTALL} -o ${BINOWN} -g operator -m 664 /dev/null \
+	    ${DESTDIR}/etc/dumpdates
+	${INSTALL} -o nobody -g ${BINGRP} -m 644 /dev/null \
+	    ${DESTDIR}/var/db/locate.database
+	${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 644 ${.CURDIR}/minfree \
+	    ${DESTDIR}/var/crash
+	cd ${.CURDIR}/..; ${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 444 \
+		${FREEBSD} ${DESTDIR}/
+.if exists(${.CURDIR}/../sys/${MACHINE}/conf/GENERIC.hints)
+	${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 444 \
+	    ${.CURDIR}/../sys/${MACHINE}/conf/GENERIC.hints \
+	    ${DESTDIR}/boot/device.hints
+.endif
+
+distrib-dirs:
+	mtree -eU ${MTREE_FOLLOWS_SYMLINKS} -f ${.CURDIR}/mtree/BSD.root.dist -p ${DESTDIR}/
+	mtree -eU ${MTREE_FOLLOWS_SYMLINKS} -f ${.CURDIR}/mtree/BSD.var.dist -p ${DESTDIR}/var
+	mtree -eU ${MTREE_FOLLOWS_SYMLINKS} -f ${.CURDIR}/mtree/BSD.usr.dist -p ${DESTDIR}/usr
+	mtree -eU ${MTREE_FOLLOWS_SYMLINKS} -f ${.CURDIR}/mtree/BSD.include.dist \
+		-p ${DESTDIR}/usr/include
+.if ${MK_BIND_LIBS} != "no"
+	mtree -deU ${MTREE_FOLLOWS_SYMLINKS} -f ${.CURDIR}/mtree/BIND.include.dist \
+	    -p ${DESTDIR}/usr/include
+.endif
+.if ${MK_BIND_MTREE} != "no"
+	mtree -deU ${MTREE_FOLLOWS_SYMLINKS} -f ${.CURDIR}/mtree/BIND.chroot.dist \
+	    -p ${DESTDIR}/var/named
+.endif
+.if ${MK_SENDMAIL} != "no"
+	mtree -deU ${MTREE_FOLLOWS_SYMLINKS} -f ${.CURDIR}/mtree/BSD.sendmail.dist -p ${DESTDIR}/
+.endif
+	cd ${DESTDIR}/; rm -f ${DESTDIR}/sys; ln -s usr/src/sys sys
+	cd ${DESTDIR}/usr/share/man/en.ISO8859-1; ln -sf ../man* .
+	cd ${DESTDIR}/usr/share/man/en.UTF-8; ln -sf ../man* .
+	cd ${DESTDIR}/usr/share/man; \
+	set - `grep "^[a-zA-Z]" ${.CURDIR}/man.alias`; \
+	while [ $$# -gt 0 ] ; \
+	do \
+		rm -rf "$$1"; \
+		ln -s "$$2" "$$1"; \
+		shift; shift; \
+	done
+	cd ${DESTDIR}/usr/share/openssl/man; \
+	set - `grep "^[a-zA-Z]" ${.CURDIR}/man.alias`; \
+	while [ $$# -gt 0 ] ; \
+	do \
+		rm -rf "$$1"; \
+		ln -s "$$2" "$$1"; \
+		shift; shift; \
+	done
+	cd ${DESTDIR}/usr/share/openssl/man/en.ISO8859-1; ln -sf ../man* .
+	cd ${DESTDIR}/usr/share/nls; \
+	set - `grep "^[a-zA-Z]" ${.CURDIR}/nls.alias`; \
+	while [ $$# -gt 0 ] ; \
+	do \
+		rm -rf "$$1"; \
+		ln -s "$$2" "$$1"; \
+		shift; shift; \
+	done
+
+etc-examples:
+	cd ${.CURDIR}; ${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 444 \
+	    ${BIN1} ${BIN2} nsmb.conf opieaccess \
+	    ${DESTDIR}/usr/share/examples/etc
+	${_+_}cd ${.CURDIR}/defaults; ${MAKE} install \
+	    DESTDIR=${DESTDIR}/usr/share/examples
+
+.include <bsd.prog.mk>

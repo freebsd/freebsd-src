@@ -1,8 +1,0 @@
-# $FreeBSD$
-
-include	"../mv/std.mv"
-include "../mv/kirkwood/std.kirkwood"
-files	"../mv/kirkwood/files.db88f6xxx"
-
-
-options		PHYSMEM_SIZE=0x20000000

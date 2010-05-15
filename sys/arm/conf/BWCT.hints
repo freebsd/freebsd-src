@@ -1,9 +1,0 @@
-# $FreeBSD$
-
-# Dallas Semiconductor DS1672 RTC sitting on the I2C bus
-hint.ds1672_rtc.0.at="iicbus0"
-hint.ds1672_rtc.0.addr=0xd0
-
-# National Semiconductor LM75 temperature sensor sitting on the I2C bus
-hint.lm75.0.at="iicbus0"
-hint.lm75.0.addr=0x9e

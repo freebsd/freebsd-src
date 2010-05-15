@@ -1,8 +1,0 @@
-PROG=groff$(EXEEXT)
-MAN1=groff.n
-XLIBS=$(LIBGROFF)
-MLIB=$(LIBM)
-OBJS=groff.$(OBJEXT) pipeline.$(OBJEXT)
-CCSRCS=$(srcdir)/groff.cpp
-CSRCS=$(srcdir)/pipeline.c
-HDRS=$(srcdir)/pipeline.h
