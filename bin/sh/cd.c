@@ -70,7 +70,7 @@ STATIC int docd(char *, int, int);
 STATIC char *getcomponent(void);
 STATIC char *findcwd(char *);
 STATIC void updatepwd(char *);
-STATIC char *getpwd2(char *, size_t);
+STATIC char *getpwd2(void);
 
 STATIC char *curdir = NULL;	/* current working directory */
 STATIC char *prevdir;		/* previous working directory */
@@ -263,10 +263,8 @@ findcwd(char *dir)
 	 * any more because we traversed a symbolic link or something
 	 * we couldn't stat().
 	 */
-	if (dir == NULL || curdir == NULL)  {
-		p = stalloc(PATH_MAX);
-		return getpwd2(p, PATH_MAX);
-	}
+	if (dir == NULL || curdir == NULL)
+		return getpwd2();
 	cdcomppath = stalloc(strlen(dir) + 1);
 	scopy(dir, cdcomppath);
 	STARTSTACKSTR(new);
@@ -313,7 +311,7 @@ updatepwd(char *dir)
 int
 pwdcmd(int argc, char **argv)
 {
-	char buf[PATH_MAX];
+	char *p;
 	int ch, phys;
 
 	optreset = 1; optind = 1; opterr = 0; /* initialize getopt */
@@ -341,9 +339,9 @@ pwdcmd(int argc, char **argv)
 		out1str(curdir);
 		out1c('\n');
 	} else {
-		if (getcwd(buf, sizeof(buf)) == NULL)
+		if ((p = getpwd2()) == NULL)
 			error(".: %s", strerror(errno));
-		out1str(buf);
+		out1str(p);
 		out1c('\n');
 	}
 
@@ -356,36 +354,45 @@ pwdcmd(int argc, char **argv)
 char *
 getpwd(void)
 {
-	char buf[PATH_MAX];
 	char *p;
 
 	if (curdir)
 		return curdir;
 
-	p = getpwd2(buf, sizeof(buf));
+	p = getpwd2();
 	if (p != NULL)
 		curdir = savestr(p);
 
 	return curdir;
 }
 
+#define MAXPWD 256
+
 /*
  * Return the current directory.
  */
 STATIC char *
-getpwd2(char *buf, size_t size)
+getpwd2(void)
 {
-	if (getcwd(buf, size) == NULL) {
-		char *pwd = getenv("PWD");
-		struct stat stdot, stpwd;
+	struct stat stdot, stpwd;
+	char *pwd;
+	int i;
 
-		if (pwd && *pwd == '/' && stat(".", &stdot) != -1 &&
-		    stat(pwd, &stpwd) != -1 &&
-		    stdot.st_dev == stpwd.st_dev &&
-		    stdot.st_ino == stpwd.st_ino) {
+	for (i = MAXPWD;; i *= 2) {
+		pwd = stalloc(i);
+		if (getcwd(pwd, i) != NULL)
 			return pwd;
-		}
-		return NULL;
+		stunalloc(pwd);
+		if (errno != ERANGE)
+			break;
 	}
-	return buf;
+
+	pwd = getenv("PWD");
+	if (pwd && *pwd == '/' && stat(".", &stdot) != -1 &&
+	    stat(pwd, &stpwd) != -1 &&
+	    stdot.st_dev == stpwd.st_dev &&
+	    stdot.st_ino == stpwd.st_ino) {
+		return pwd;
+	}
+	return NULL;
 }
