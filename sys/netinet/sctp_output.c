@@ -9775,9 +9775,8 @@ sctp_fill_in_rest:
 				    0xff, 0xff, cnt_of_space,
 				    space_needed);
 			}
-			cnt_of_skipped = (cnt_of_space -
-			    ((sizeof(struct sctp_forward_tsn_chunk)) /
-			    sizeof(struct sctp_strseq)));
+			cnt_of_skipped = cnt_of_space - sizeof(struct sctp_forward_tsn_chunk);
+			cnt_of_skipped /= sizeof(struct sctp_strseq);
 			/*-
 			 * Go through and find the TSN that will be the one
 			 * we report.
