@@ -2336,10 +2336,12 @@ vm_page_cowsetup(vm_page_t m)
 {
 
 	vm_page_lock_assert(m, MA_OWNED);
-	if (m->cow == USHRT_MAX - 1)
+	if ((m->flags & (PG_FICTITIOUS | PG_UNMANAGED)) != 0 ||
+	    m->cow == USHRT_MAX - 1 || !VM_OBJECT_TRYLOCK(m->object))
 		return (EBUSY);
 	m->cow++;
 	pmap_remove_write(m);
+	VM_OBJECT_UNLOCK(m->object);
 	return (0);
 }
 
