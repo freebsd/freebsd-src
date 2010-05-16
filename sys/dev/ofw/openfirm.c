@@ -409,15 +409,6 @@ OF_release(void *virt, size_t size)
  * Control transfer functions
  */
 
-/* Turn off OF background tasks */
-void
-OF_quiesce()
-{
-
-	OFW_QUIESCE(ofw_obj);
-}
-
-
 /* Suspend and drop back to the Open Firmware interface. */
 void
 OF_enter()
