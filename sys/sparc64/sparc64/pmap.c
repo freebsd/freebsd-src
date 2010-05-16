@@ -1351,6 +1351,8 @@ pmap_enter_locked(pmap_t pm, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 
 	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
 	PMAP_LOCK_ASSERT(pm, MA_OWNED);
+	KASSERT((m->oflags & VPO_BUSY) != 0 || VM_OBJECT_LOCKED(m->object),
+	    ("pmap_enter_locked: page %p is not busy", m));
 	PMAP_STATS_INC(pmap_nenter);
 	pa = VM_PAGE_TO_PHYS(m);
 
@@ -1985,7 +1987,16 @@ pmap_remove_write(vm_page_t m)
 	struct tte *tp;
 	u_long data;
 
-	if ((m->flags & (PG_FICTITIOUS | PG_UNMANAGED)) != 0 ||
+	KASSERT((m->flags & (PG_FICTITIOUS | PG_UNMANAGED)) == 0,
+	    ("pmap_remove_write: page %p is not managed", m));
+
+	/*
+	 * If the page is not VPO_BUSY, then PG_WRITEABLE cannot be set by
+	 * another thread while the object is locked.  Thus, if PG_WRITEABLE
+	 * is clear, no page table entries need updating.
+	 */
+	VM_OBJECT_LOCK_ASSERT(m->object, MA_OWNED);
+	if ((m->oflags & VPO_BUSY) == 0 &&
 	    (m->flags & PG_WRITEABLE) == 0)
 		return;
 	vm_page_lock_queues();
