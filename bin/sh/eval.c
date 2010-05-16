@@ -83,6 +83,7 @@ MKINIT int evalskip;		/* set if we are skipping commands */
 STATIC int skipcount;		/* number of levels to skip */
 MKINIT int loopnest;		/* current loop nesting level */
 int funcnest;			/* depth of function calls */
+STATIC int builtin_flags;	/* evalcommand flags for builtins */
 
 
 char *commandname;
@@ -147,7 +148,7 @@ evalcmd(int argc, char **argv)
                         STPUTC('\0', concat);
                         p = grabstackstr(concat);
                 }
-                evalstring(p);
+                evalstring(p, builtin_flags & EV_TESTED);
         }
         return exitstatus;
 }
@@ -158,7 +159,7 @@ evalcmd(int argc, char **argv)
  */
 
 void
-evalstring(char *s)
+evalstring(char *s, int flags)
 {
 	union node *n;
 	struct stackmark smark;
@@ -167,7 +168,7 @@ evalstring(char *s)
 	setinputstring(s, 1);
 	while ((n = parsecmd(0)) != NEOF) {
 		if (n != NULL)
-			evaltree(n, 0);
+			evaltree(n, flags);
 		popstackmark(&smark);
 	}
 	popfile();
@@ -841,6 +842,7 @@ evalcommand(union node *cmd, int flags, struct backcmd *backcmd)
 		commandname = argv[0];
 		argptr = argv + 1;
 		optptr = NULL;			/* initialize nextopt */
+		builtin_flags = flags;
 		exitstatus = (*builtinfunc[cmdentry.u.index])(argc, argv);
 		flushall();
 cmddone:
