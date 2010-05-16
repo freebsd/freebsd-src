@@ -191,7 +191,7 @@ ip6_init(void)
 		 */
 		V_ip6_output_flowtable_size = 1 << fls((1024 + maxusers * 64)-1);
 	}
-	V_ip6_ft = flowtable_alloc("ipv6", V_ip6_output_flowtable_size, FL_PCPU);
+	V_ip6_ft = flowtable_alloc("ipv6", V_ip6_output_flowtable_size, FL_IPV6|FL_PCPU);
 #endif	
 	
 	V_ip6_desync_factor = arc4random() % MAX_TEMP_DESYNC_FACTOR;
