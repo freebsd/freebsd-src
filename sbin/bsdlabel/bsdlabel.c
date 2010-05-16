@@ -684,6 +684,8 @@ editit(void)
 	int pid, xpid;
 	int locstat, omask;
 	const char *ed;
+	uid_t uid;
+	gid_t gid;
 
 	omask = sigblock(sigmask(SIGINT)|sigmask(SIGQUIT)|sigmask(SIGHUP));
 	while ((pid = fork()) < 0) {
@@ -699,8 +701,12 @@ editit(void)
 	}
 	if (pid == 0) {
 		sigsetmask(omask);
-		setgid(getgid());
-		setuid(getuid());
+		gid = getgid();
+		if (setresgid(gid, gid, gid) == -1)
+			err(1, "setresgid");
+		uid = getuid();
+		if (setresuid(uid, uid, uid) == -1)
+			err(1, "setresuid");
 		if ((ed = getenv("EDITOR")) == (char *)0)
 			ed = DEFEDITOR;
 		execlp(ed, ed, tmpfil, (char *)0);
