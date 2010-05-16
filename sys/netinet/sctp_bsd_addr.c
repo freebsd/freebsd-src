@@ -49,16 +49,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/unistd.h>
 
 /* Declare all of our malloc named types */
-
-/* Note to Michael/Peter for mac-os,
- * I think mac has this too since I
- * do see the M_PCB type, so I
- * will also put in the mac file the
- * MALLOC_DECLARE. If this does not
- * work for mac uncomment the defines for
- * the strings that we use in Panda, I put
- * them in comments in the mac-os file.
- */
 MALLOC_DEFINE(SCTP_M_MAP, "sctp_map", "sctp asoc map descriptor");
 MALLOC_DEFINE(SCTP_M_STRMI, "sctp_stri", "sctp stream in array");
 MALLOC_DEFINE(SCTP_M_STRMO, "sctp_stro", "sctp stream out array");
@@ -79,46 +69,77 @@ MALLOC_DEFINE(SCTP_M_MVRF, "sctp_mvrf", "sctp mvrf pcb list");
 MALLOC_DEFINE(SCTP_M_ITER, "sctp_iter", "sctp iterator control");
 MALLOC_DEFINE(SCTP_M_SOCKOPT, "sctp_socko", "sctp socket option");
 
-#if defined(SCTP_USE_THREAD_BASED_ITERATOR)
+/* Global NON-VNET structure that controls the iterator */
+struct iterator_control sctp_it_ctl;
+static int __sctp_thread_based_iterator_started = 0;
+
+
+static void
+sctp_cleanup_itqueue(void)
+{
+	struct sctp_iterator *it;
+
+	while ((it = TAILQ_FIRST(&sctp_it_ctl.iteratorhead)) != NULL) {
+		if (it->function_atend != NULL) {
+			(*it->function_atend) (it->pointer, it->val);
+		}
+		TAILQ_REMOVE(&sctp_it_ctl.iteratorhead, it, sctp_nxt_itr);
+		SCTP_FREE(it, SCTP_M_ITER);
+	}
+}
+
+
 void
 sctp_wakeup_iterator(void)
 {
-	wakeup(&SCTP_BASE_INFO(iterator_running));
+	wakeup(&sctp_it_ctl.iterator_running);
 }
 
 static void
 sctp_iterator_thread(void *v)
 {
-	CURVNET_SET((struct vnet *)v);
 	SCTP_IPI_ITERATOR_WQ_LOCK();
-	SCTP_BASE_INFO(iterator_running) = 0;
 	while (1) {
-		msleep(&SCTP_BASE_INFO(iterator_running),
-		    &SCTP_BASE_INFO(ipi_iterator_wq_mtx),
+		msleep(&sctp_it_ctl.iterator_running,
+		    &sctp_it_ctl.ipi_iterator_wq_mtx,
 		    0, "waiting_for_work", 0);
-		if (SCTP_BASE_INFO(threads_must_exit)) {
+		if (sctp_it_ctl.iterator_flags & SCTP_ITERATOR_MUST_EXIT) {
 			SCTP_IPI_ITERATOR_WQ_DESTROY();
+			SCTP_ITERATOR_LOCK_DESTROY();
+			sctp_cleanup_itqueue();
+			__sctp_thread_based_iterator_started = 0;
 			kthread_exit();
 		}
 		sctp_iterator_worker();
 	}
-	CURVNET_RESTORE();
 }
 
 void
 sctp_startup_iterator(void)
 {
+	if (__sctp_thread_based_iterator_started) {
+		/* You only get one */
+		return;
+	}
+	/* init the iterator head */
+	__sctp_thread_based_iterator_started = 1;
+	sctp_it_ctl.iterator_running = 0;
+	sctp_it_ctl.iterator_flags = 0;
+	sctp_it_ctl.cur_it = NULL;
+	SCTP_ITERATOR_LOCK_INIT();
+	SCTP_IPI_ITERATOR_WQ_INIT();
+	TAILQ_INIT(&sctp_it_ctl.iteratorhead);
+
 	int ret;
 
 	ret = kproc_create(sctp_iterator_thread,
-	    (void *)curvnet,
-	    &SCTP_BASE_INFO(thread_proc),
+	    (void *)NULL,
+	    &sctp_it_ctl.thread_proc,
 	    RFPROC,
 	    SCTP_KTHREAD_PAGES,
 	    SCTP_KTRHEAD_NAME);
 }
 
-#endif
 
 #ifdef INET6
 

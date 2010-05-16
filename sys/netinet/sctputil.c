@@ -48,6 +48,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet/sctp_auth.h>
 #include <netinet/sctp_asconf.h>
 #include <netinet/sctp_cc_functions.h>
+#include <netinet/sctp_bsd_addr.h>
 
 #define NUMBER_OF_MTU_SIZES 18
 
@@ -1255,7 +1256,6 @@ sctp_expand_mapping_array(struct sctp_association *asoc, uint32_t needed)
 }
 
 
-#if defined(SCTP_USE_THREAD_BASED_ITERATOR)
 static void
 sctp_iterator_work(struct sctp_iterator *it)
 {
@@ -1277,27 +1277,23 @@ done_with_iterator:
 		return;
 	}
 select_a_new_ep:
-	SCTP_INP_WLOCK(it->inp);
+	SCTP_INP_RLOCK(it->inp);
 	while (((it->pcb_flags) &&
 	    ((it->inp->sctp_flags & it->pcb_flags) != it->pcb_flags)) ||
 	    ((it->pcb_features) &&
 	    ((it->inp->sctp_features & it->pcb_features) != it->pcb_features))) {
 		/* endpoint flags or features don't match, so keep looking */
 		if (it->iterator_flags & SCTP_ITERATOR_DO_SINGLE_INP) {
-			SCTP_INP_WUNLOCK(it->inp);
+			SCTP_INP_RUNLOCK(it->inp);
 			goto done_with_iterator;
 		}
-		SCTP_INP_WUNLOCK(it->inp);
+		SCTP_INP_RUNLOCK(it->inp);
 		it->inp = LIST_NEXT(it->inp, sctp_list);
 		if (it->inp == NULL) {
 			goto done_with_iterator;
 		}
-		SCTP_INP_WLOCK(it->inp);
+		SCTP_INP_RLOCK(it->inp);
 	}
-
-	SCTP_INP_WUNLOCK(it->inp);
-	SCTP_INP_RLOCK(it->inp);
-
 	/* now go through each assoc which is in the desired state */
 	if (it->done_current_ep == 0) {
 		if (it->function_inp != NULL)
@@ -1330,13 +1326,34 @@ select_a_new_ep:
 			/* Pause to let others grab the lock */
 			atomic_add_int(&it->stcb->asoc.refcnt, 1);
 			SCTP_TCB_UNLOCK(it->stcb);
-
 			SCTP_INP_INCR_REF(it->inp);
 			SCTP_INP_RUNLOCK(it->inp);
 			SCTP_ITERATOR_UNLOCK();
 			SCTP_ITERATOR_LOCK();
+			if (sctp_it_ctl.iterator_flags) {
+				/* We won't be staying here */
+				SCTP_INP_DECR_REF(it->inp);
+				atomic_add_int(&it->stcb->asoc.refcnt, -1);
+				if (sctp_it_ctl.iterator_flags &
+				    SCTP_ITERATOR_MUST_EXIT) {
+					goto done_with_iterator;
+				}
+				if (sctp_it_ctl.iterator_flags &
+				    SCTP_ITERATOR_STOP_CUR_IT) {
+					sctp_it_ctl.iterator_flags &= ~SCTP_ITERATOR_STOP_CUR_IT;
+					goto done_with_iterator;
+				}
+				if (sctp_it_ctl.iterator_flags &
+				    SCTP_ITERATOR_STOP_CUR_INP) {
+					sctp_it_ctl.iterator_flags &= ~SCTP_ITERATOR_STOP_CUR_INP;
+					goto no_stcb;
+				}
+				/* If we reach here huh? */
+				printf("Unknown it ctl flag %x\n",
+				    sctp_it_ctl.iterator_flags);
+				sctp_it_ctl.iterator_flags = 0;
+			}
 			SCTP_INP_RLOCK(it->inp);
-
 			SCTP_INP_DECR_REF(it->inp);
 			SCTP_TCB_LOCK(it->stcb);
 			atomic_add_int(&it->stcb->asoc.refcnt, -1);
@@ -1368,8 +1385,6 @@ next_assoc:
 no_stcb:
 	/* done with all assocs on this endpoint, move on to next endpoint */
 	it->done_current_ep = 0;
-	SCTP_INP_WLOCK(it->inp);
-	SCTP_INP_WUNLOCK(it->inp);
 	if (it->iterator_flags & SCTP_ITERATOR_DO_SINGLE_INP) {
 		it->inp = NULL;
 	} else {
@@ -1390,26 +1405,27 @@ sctp_iterator_worker(void)
 
 	/* This function is called with the WQ lock in place */
 
-	SCTP_BASE_INFO(iterator_running) = 1;
-again:
-	it = TAILQ_FIRST(&SCTP_BASE_INFO(iteratorhead));
+	sctp_it_ctl.iterator_running = 1;
+	sctp_it_ctl.cur_it = it = TAILQ_FIRST(&sctp_it_ctl.iteratorhead);
 	while (it) {
 		/* now lets work on this one */
-		TAILQ_REMOVE(&SCTP_BASE_INFO(iteratorhead), it, sctp_nxt_itr);
+		TAILQ_REMOVE(&sctp_it_ctl.iteratorhead, it, sctp_nxt_itr);
 		SCTP_IPI_ITERATOR_WQ_UNLOCK();
+		CURVNET_SET(it->vn);
 		sctp_iterator_work(it);
+
+		CURVNET_RESTORE();
 		SCTP_IPI_ITERATOR_WQ_LOCK();
+		if (sctp_it_ctl.iterator_flags & SCTP_ITERATOR_MUST_EXIT) {
+			sctp_it_ctl.cur_it = NULL;
+			break;
+		}
 		/* sa_ignore FREED_MEMORY */
-		it = TAILQ_FIRST(&SCTP_BASE_INFO(iteratorhead));
+		sctp_it_ctl.cur_it = it = TAILQ_FIRST(&sctp_it_ctl.iteratorhead);
 	}
-	if (TAILQ_FIRST(&SCTP_BASE_INFO(iteratorhead))) {
-		goto again;
-	}
-	SCTP_BASE_INFO(iterator_running) = 0;
+	sctp_it_ctl.iterator_running = 0;
 	return;
 }
-
-#endif
 
 
 static void
@@ -1431,7 +1447,8 @@ sctp_handle_addr_wq(void)
 	}
 	LIST_INIT(&asc->list_of_work);
 	asc->cnt = 0;
-	SCTP_IPI_ITERATOR_WQ_LOCK();
+
+	SCTP_WQ_ADDR_LOCK();
 	wi = LIST_FIRST(&SCTP_BASE_INFO(addr_wq));
 	while (wi != NULL) {
 		LIST_REMOVE(wi, sctp_nxt_addr);
@@ -1439,7 +1456,8 @@ sctp_handle_addr_wq(void)
 		asc->cnt++;
 		wi = LIST_FIRST(&SCTP_BASE_INFO(addr_wq));
 	}
-	SCTP_IPI_ITERATOR_WQ_UNLOCK();
+	SCTP_WQ_ADDR_UNLOCK();
+
 	if (asc->cnt == 0) {
 		SCTP_FREE(asc, SCTP_M_ASC_IT);
 	} else {
@@ -1470,7 +1488,6 @@ sctp_timeout_handler(void *t)
 
 #endif
 	int did_output, type;
-	struct sctp_iterator *it = NULL;
 
 	tmr = (struct sctp_timer *)t;
 	inp = (struct sctp_inpcb *)tmr->ep;
@@ -1509,10 +1526,6 @@ sctp_timeout_handler(void *t)
 	}
 	/* if this is an iterator timeout, get the struct and clear inp */
 	tmr->stopped_from = 0xa003;
-	if (tmr->type == SCTP_TIMER_TYPE_ITERATOR) {
-		it = (struct sctp_iterator *)inp;
-		inp = NULL;
-	}
 	type = tmr->type;
 	if (inp) {
 		SCTP_INP_INCR_REF(inp);
@@ -1610,10 +1623,6 @@ sctp_timeout_handler(void *t)
 		break;
 	case SCTP_TIMER_TYPE_ADDR_WQ:
 		sctp_handle_addr_wq();
-		break;
-	case SCTP_TIMER_TYPE_ITERATOR:
-		SCTP_STAT_INCR(sctps_timoiterator);
-		sctp_iterator_timer(it);
 		break;
 	case SCTP_TIMER_TYPE_SEND:
 		if ((stcb == NULL) || (inp == NULL)) {
@@ -1961,15 +1970,6 @@ sctp_timer_start(int t_type, struct sctp_inpcb *inp, struct sctp_tcb *stcb,
 		/* Only 1 tick away :-) */
 		tmr = &SCTP_BASE_INFO(addr_wq_timer);
 		to_ticks = SCTP_ADDRESS_TICK_DELAY;
-		break;
-	case SCTP_TIMER_TYPE_ITERATOR:
-		{
-			struct sctp_iterator *it;
-
-			it = (struct sctp_iterator *)inp;
-			tmr = &it->tmr;
-			to_ticks = SCTP_ITERATOR_TICKS;
-		}
 		break;
 	case SCTP_TIMER_TYPE_SEND:
 		/* Here we use the RTO timer */
@@ -2326,14 +2326,6 @@ sctp_timer_stop(int t_type, struct sctp_inpcb *inp, struct sctp_tcb *stcb,
 		}
 		tmr = &net->fr_timer;
 		SCTP_STAT_INCR(sctps_earlyfrstop);
-		break;
-	case SCTP_TIMER_TYPE_ITERATOR:
-		{
-			struct sctp_iterator *it;
-
-			it = (struct sctp_iterator *)inp;
-			tmr = &it->tmr;
-		}
 		break;
 	case SCTP_TIMER_TYPE_SEND:
 		if ((stcb == NULL) || (net == NULL)) {
@@ -6154,13 +6146,13 @@ sctp_dynamic_set_primary(struct sockaddr *sa, uint32_t vrf_id)
 	atomic_add_int(&ifa->refcount, 1);
 
 	/* Now add it to the work queue */
-	SCTP_IPI_ITERATOR_WQ_LOCK();
+	SCTP_WQ_ADDR_LOCK();
 	/*
 	 * Should this really be a tailq? As it is we will process the
 	 * newest first :-0
 	 */
 	LIST_INSERT_HEAD(&SCTP_BASE_INFO(addr_wq), wi, sctp_nxt_addr);
-	SCTP_IPI_ITERATOR_WQ_UNLOCK();
+	SCTP_WQ_ADDR_UNLOCK();
 	sctp_timer_start(SCTP_TIMER_TYPE_ADDR_WQ,
 	    (struct sctp_inpcb *)NULL,
 	    (struct sctp_tcb *)NULL,
