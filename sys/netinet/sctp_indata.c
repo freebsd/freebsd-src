@@ -4917,14 +4917,6 @@ done_with_it:
 		if (tp1 != NULL) {
 			/* Peer revoked all dg's marked or acked */
 			TAILQ_FOREACH(tp1, &asoc->sent_queue, sctp_next) {
-				/*
-				 * EY- maybe check only if it is nr_acked
-				 * nr_marked may not be possible
-				 */
-				if ((tp1->sent == SCTP_DATAGRAM_NR_ACKED) ||
-				    (tp1->sent == SCTP_DATAGRAM_NR_MARKED)) {
-					continue;
-				}
 				if (tp1->sent == SCTP_DATAGRAM_ACKED) {
 					tp1->sent = SCTP_DATAGRAM_SENT;
 					if (SCTP_BASE_SYSCTL(sctp_logging_level) & SCTP_FLIGHT_LOGGING_ENABLE) {
