@@ -56,6 +56,18 @@ ip6addrctl_start()
 		ip6addrctl install /etc/ip6addrctl.conf
 		checkyesno ip6addrctl_verbose && ip6addrctl
 	else
+		case "$ipv6_prefer" in
+		[Aa][Uu][Tt][Oo])
+			if [ "$1" = 'yes' ]; then
+				ip6addrctl_prefer_ipv6
+			else
+				ip6addrctl_prefer_ipv4
+			fi
+
+			return 0
+			;;
+		esac
+
 		if checkyesno ipv6_prefer; then
 			ip6addrctl_prefer_ipv6
 		else
@@ -72,4 +84,4 @@ ip6addrctl_stop()
 }
 
 load_rc_config $name
-run_rc_command "$1"
+run_rc_command "$@"

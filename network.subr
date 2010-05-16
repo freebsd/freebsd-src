@@ -83,7 +83,7 @@ ifn_stop()
 #
 ifconfig_up()
 {
-	local _cfg _ipv6_opts ifconfig_args
+	local _cfg ifconfig_args
 	_cfg=1
 
 	# ifconfig_IF
@@ -95,12 +95,16 @@ ifconfig_up()
 
 	# inet6 specific
 	if afexists inet6; then
+		local _ipv6_opts _ipv6_prefer
+
 		if ipv6if $1; then
 			# Implicitly handles ipv6_gateway_enable
 			_ipv6_opts='-ifdisabled -accept_rtadv'
 
 			if ipv6_autoconfif $1; then
 				_ipv6_opts='-ifdisabled accept_rtadv'
+				_ipv6_prefer=yes
+				_cfg=0
 			fi
 
 			ifconfig $1 inet6 $_ipv6_opts
@@ -111,6 +115,7 @@ ifconfig_up()
 			if [ -n "$ifconfig_args" ]; then
 				ifconfig $1 $ifconfig_args
 				_cfg=0
+				[ "$1" != 'lo0' ] && _ipv6_prefer=yes
 			fi
 		else
 		# Remove in FreeBSD 10.x
@@ -123,6 +128,14 @@ ifconfig_up()
 
 			ifconfig $1 inet6 ifdisabled
 		fi
+
+		case "$ipv6_prefer" in
+		[Aa][Uu][Tt][Oo])
+			if [ -n "$_ipv6_prefer" ]; then
+				/etc/rc.d/ip6addrctl start yes
+			fi
+			;;
+		esac
 	fi
 
 	if [ ${_cfg} -eq 0 ]; then
