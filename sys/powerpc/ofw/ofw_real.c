@@ -106,7 +106,6 @@ static ssize_t ofw_real_write(ofw_t, ihandle_t instance, const void *addr,
 static int ofw_real_seek(ofw_t, ihandle_t instance, u_int64_t pos);
 static caddr_t ofw_real_claim(ofw_t, void *virt, size_t size, u_int align);
 static void ofw_real_release(ofw_t, void *virt, size_t size);
-static void ofw_real_quiesce(ofw_t);
 static void ofw_real_enter(ofw_t);
 static void ofw_real_exit(ofw_t);
 
@@ -134,7 +133,6 @@ static ofw_method_t ofw_real_methods[] = {
 	OFWMETHOD(ofw_seek,			ofw_real_seek),
 	OFWMETHOD(ofw_claim,			ofw_real_claim),
 	OFWMETHOD(ofw_release,			ofw_real_release),
-	OFWMETHOD(ofw_quiesce,			ofw_real_quiesce),
 	OFWMETHOD(ofw_enter,			ofw_real_enter),
 	OFWMETHOD(ofw_exit,			ofw_real_exit),
 
@@ -890,27 +888,6 @@ ofw_real_release(ofw_t ofw, void *virt, size_t size)
 /*
  * Control transfer functions
  */
-
-/* Turn off OF background tasks */
-static void
-ofw_real_quiesce(ofw_t ofw)
-{
-	vm_offset_t argsptr;
-	struct {
-		cell_t name;
-		cell_t nargs;
-		cell_t nreturns;
-	} args;
-
-	args.name = (cell_t)(uintptr_t)"quiesce";
-	args.nargs = 0;
-	args.nreturns = 0;
-
-	ofw_real_start();
-	argsptr = ofw_real_map(&args, sizeof(args));
-	openfirmware((void *)argsptr);
-	ofw_real_stop();
-}
 
 /* Suspend and drop back to the Open Firmware interface. */
 static void

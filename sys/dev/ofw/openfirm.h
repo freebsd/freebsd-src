@@ -133,7 +133,6 @@ void		*OF_claim(void *virtrequest, size_t size, u_int align);
 void		OF_release(void *virt, size_t size);
 
 /* Control transfer functions */
-void		OF_quiesce(void);
 void		OF_enter(void);
 void		OF_exit(void) __attribute__((noreturn));
 
