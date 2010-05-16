@@ -87,10 +87,6 @@ __FBSDID("$FreeBSD$");
 /* #define SCTP_AUDITING_ENABLED 1 used for debug/auditing */
 #define SCTP_AUDIT_SIZE 256
 
-/* temporary disabled since it does not work with VNET. */
-#if 0
-#define SCTP_USE_THREAD_BASED_ITERATOR 1
-#endif
 
 #define SCTP_KTRHEAD_NAME "sctp_iterator"
 #define SCTP_KTHREAD_PAGES 0
@@ -572,7 +568,6 @@ __FBSDID("$FreeBSD$");
 #define SCTP_TIMER_TYPE_EVENTWAKE	13
 #define SCTP_TIMER_TYPE_STRRESET        14
 #define SCTP_TIMER_TYPE_INPKILL         15
-#define SCTP_TIMER_TYPE_ITERATOR        16
 #define SCTP_TIMER_TYPE_EARLYFR         17
 #define SCTP_TIMER_TYPE_ASOCKILL        18
 #define SCTP_TIMER_TYPE_ADDR_WQ         19
