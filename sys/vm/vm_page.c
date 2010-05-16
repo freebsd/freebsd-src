@@ -108,6 +108,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/limits.h>
 #include <sys/malloc.h>
+#include <sys/msgbuf.h>
 #include <sys/mutex.h>
 #include <sys/proc.h>
 #include <sys/sysctl.h>
@@ -374,6 +375,19 @@ vm_page_startup(vm_offset_t vaddr)
 	vm_page_dump = (void *)(uintptr_t)pmap_map(&vaddr, new_end,
 	    new_end + vm_page_dump_size, VM_PROT_READ | VM_PROT_WRITE);
 	bzero((void *)vm_page_dump, vm_page_dump_size);
+#endif
+#ifdef __amd64__
+	/*
+	 * Request that the physical pages underlying the message buffer be
+	 * included in a crash dump.  Since the message buffer is accessed
+	 * through the direct map, they are not automatically included.
+	 */
+	pa = DMAP_TO_PHYS((vm_offset_t)msgbufp->msg_ptr);
+	last_pa = pa + round_page(MSGBUF_SIZE);
+	while (pa < last_pa) {
+		dump_add_page(pa);
+		pa += PAGE_SIZE;
+	}
 #endif
 	/*
 	 * Compute the number of pages of memory that will be available for
