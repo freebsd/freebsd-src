@@ -100,6 +100,16 @@ openpic_attach(device_t dev)
 	sc->sc_bt = rman_get_bustag(sc->sc_memr);
 	sc->sc_bh = rman_get_bushandle(sc->sc_memr);
 
+	/* Reset the PIC */
+	x = openpic_read(sc, OPENPIC_CONFIG);
+	x |= OPENPIC_CONFIG_RESET;
+	openpic_write(sc, OPENPIC_CONFIG, x);
+
+	while (openpic_read(sc, OPENPIC_CONFIG) & OPENPIC_CONFIG_RESET) {
+		powerpc_sync();
+		DELAY(100);
+	}
+
 	x = openpic_read(sc, OPENPIC_FEATURE);
 	switch (x & OPENPIC_FEATURE_VERSION_MASK) {
 	case 1:
