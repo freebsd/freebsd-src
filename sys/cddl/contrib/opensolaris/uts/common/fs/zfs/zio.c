@@ -908,8 +908,8 @@ zio_taskq_dispatch(zio_t *zio, enum zio_taskq_type q)
 	if (t == ZIO_TYPE_WRITE && zio->io_vd && zio->io_vd->vdev_aux)
 		t = ZIO_TYPE_NULL;
 
-	(void) taskq_dispatch(zio->io_spa->spa_zio_taskq[t][q],
-	    (task_func_t *)zio_execute, zio, TQ_SLEEP);
+	(void) taskq_dispatch_safe(zio->io_spa->spa_zio_taskq[t][q],
+	    (task_func_t *)zio_execute, zio, &zio->io_task);
 }
 
 static boolean_t
@@ -2220,9 +2220,9 @@ zio_done(zio_t *zio)
 			 * Reexecution is potentially a huge amount of work.
 			 * Hand it off to the otherwise-unused claim taskq.
 			 */
-			(void) taskq_dispatch(
+			(void) taskq_dispatch_safe(
 			    spa->spa_zio_taskq[ZIO_TYPE_CLAIM][ZIO_TASKQ_ISSUE],
-			    (task_func_t *)zio_reexecute, zio, TQ_SLEEP);
+			    (task_func_t *)zio_reexecute, zio, &zio->io_task);
 		}
 		return (ZIO_PIPELINE_STOP);
 	}
