@@ -59,10 +59,11 @@ include		"../rmi/std.xlr"
 makeoptions	DEBUG=-g		# Build kernel with gdb(1) debug symbols
 #profile		2
 
-#options 	SCHED_ULE		# ULE scheduler
+options 	SCHED_ULE		# ULE scheduler
 #options		VERBOSE_SYSINIT
-options 	SCHED_4BSD		# 4BSD scheduler
-#options 	PREEMPTION		# Enable kernel thread preemption
+#options 	SCHED_4BSD		# 4BSD scheduler
+options         SMP
+options 	PREEMPTION		# Enable kernel thread preemption
 #options 	FULL_PREEMPTION		# Enable kernel thread preemption
 options 	INET			# InterNETworking
 options 	INET6			# IPv6 communications protocols
