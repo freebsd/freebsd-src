@@ -417,7 +417,6 @@ flowtable_pcpu_unlock(struct flowtable *table, uint32_t hash)
 #define FL_ENTRY_UNLOCK(table, hash) (table)->ft_unlock((table), (hash))
 
 #define FL_STALE 	(1<<8)
-#define FL_IPV6  	(1<<9)
 #define FL_OVERWRITE	(1<<10)
 
 void
