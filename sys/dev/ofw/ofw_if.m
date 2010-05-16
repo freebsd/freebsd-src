@@ -340,6 +340,13 @@ METHOD void release {
 # Commands for returning control to the firmware
 
 /**
+ * @brief Turn off firmware background activities
+ */
+METHOD void quiesce {
+	ofw_t		_ofw;
+};
+
+/**
  * @brief Temporarily return control to firmware.
  */
 METHOD void enter {
