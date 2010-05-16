@@ -705,7 +705,7 @@ gpart_bootcode(struct gctl_req *req, unsigned int fl)
 
 	if (gctl_has_param(req, bootcode_param)) {
 		s = gctl_get_ascii(req, bootcode_param);
-		bootsize = 64 * 1024;		/* Arbitrary limit. */
+		bootsize = 800 * 1024;		/* Arbitrary limit. */
 		bootcode = gpart_bootfile_read(s, &bootsize);
 		error = gctl_change_param(req, bootcode_param, bootsize,
 		    bootcode);
