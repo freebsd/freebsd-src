@@ -141,6 +141,10 @@ mips_ipi_handler(void *arg)
 			atomic_clear_int(&stopped_cpus, cpumask);
 			CTR0(KTR_SMP, "IPI_STOP (restart)");
 			break;
+		case IPI_PREEMPT:
+			CTR1(KTR_SMP, "%s: IPI_PREEMPT", __func__);
+			sched_preempt(curthread);
+			break;
 		default:
 			panic("Unknown IPI 0x%0x on cpu %d", ipi, curcpu);
 		}
@@ -234,7 +238,9 @@ cpu_mp_start(void)
 void
 smp_init_secondary(u_int32_t cpuid)
 {
+#ifndef TARGET_XLR_XLS
 	int ipi_int_mask, clock_int_mask;
+#endif
 
 	/* TLB */
 	Mips_SetWIRED(0);
@@ -288,12 +294,16 @@ smp_init_secondary(u_int32_t cpuid)
 	while (smp_started == 0)
 		; /* nothing */
 
+#ifndef TARGET_XLR_XLS
 	/*
 	 * Unmask the clock and ipi interrupts.
 	 */
 	clock_int_mask = hard_int_mask(5);
 	ipi_int_mask = hard_int_mask(platform_ipi_intrnum());
 	set_intr_mask(ALL_INT_MASK & ~(ipi_int_mask | clock_int_mask));
+#else
+	platform_init_ap(cpuid);
+#endif
 
 	/*
 	 * Bootstrap the compare register.

@@ -178,6 +178,9 @@ cpu_identify(void)
 	case MIPS_PRID_CID_LEXRA:
 		printf("Lexra");
 		break;
+	case MIPS_PRID_CID_RMI:
+		printf("RMI");
+		break;
 	case MIPS_PRID_CID_CAVIUM:
 		printf("Cavium");
 		break;

@@ -25,6 +25,7 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+  __FBSDID("$FreeBSD$");
  *
  * RMI_BSD */
 #ifndef XLRCONFIG_H
@@ -127,39 +128,35 @@
         :"$8", "$9");                                           \
    } while(0)
 
-#if 0
-#define xlr_processor_id()                                      \
+#define xlr_cpu_id()                                            \
 ({int __id;                                                     \
  __asm__ __volatile__ (                                         \
            ".set push\n"                                        \
            ".set noreorder\n"                                   \
-           ".word 0x40088007\n"                                 \
-           "srl  $8, $8, 10\n"                                  \
-           "andi %0, $8, 0x3f\n"                                \
-           ".set pop\n"                                         \
-           : "=r" (__id) : : "$8");                             \
- __id;})
-#endif
-
-#define xlr_cpu_id()                                        \
-({int __id;                                                     \
- __asm__ __volatile__ (                                         \
-           ".set push\n"                                        \
-           ".set noreorder\n"                                   \
-           ".word 0x40088007\n"                                 \
-           "srl  $8, $8, 4\n"                                   \
-           "andi %0, $8, 0x7\n"                                \
+           "mfc0 $8, $15, 1\n"                                  \
+           "andi %0, $8, 0x1f\n"                                \
            ".set pop\n"                                         \
            : "=r" (__id) : : "$8");                             \
  __id;})
 
-#define xlr_thr_id()                                        \
+#define xlr_core_id()                                           \
 ({int __id;                                                     \
  __asm__ __volatile__ (                                         \
            ".set push\n"                                        \
            ".set noreorder\n"                                   \
-           ".word 0x40088007\n"                                 \
-           "andi %0, $8, 0x03\n"                                \
+           "mfc0 $8, $15, 1\n"                                  \
+           "andi %0, $8, 0x1f\n"                                \
+           ".set pop\n"                                         \
+           : "=r" (__id) : : "$8");                             \
+ __id/4;})
+
+#define xlr_thr_id()                                            \
+({int __id;                                                     \
+ __asm__ __volatile__ (                                         \
+           ".set push\n"                                        \
+           ".set noreorder\n"                                   \
+           "mfc0 $8, $15, 1\n"                                  \
+           "andi %0, $8, 0x3\n"                                 \
            ".set pop\n"                                         \
            : "=r" (__id) : : "$8");                             \
  __id;})
@@ -333,4 +330,26 @@ xlr_mtcr(uint32_t reg, uint32_t val)
 	    :       "$8", "$9");
 }
 
+static __inline__ uint32_t
+xlr_paddr_lw(uint64_t paddr)
+{
+        uint32_t high, low, tmp;
+
+        high = 0x98000000 | (paddr >> 32);
+        low = paddr & 0xffffffff;
+
+        __asm__ __volatile__(
+                    ".set push         \n\t"
+                    ".set mips64       \n\t"
+                    "dsll32 %1, %1, 0  \n\t"
+                    "dsll32 %2, %2, 0  \n\t"  /* get rid of the */
+                    "dsrl32 %2, %2, 0  \n\t"  /* sign extend */
+                    "or     %1, %1, %2 \n\t"
+                    "lw     %0, 0(%1)  \n\t"
+                    ".set pop           \n"
+            :       "=r"(tmp)
+            :       "r"(high), "r"(low));
+
+	return tmp;
+}
 #endif

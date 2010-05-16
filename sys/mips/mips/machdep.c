@@ -346,7 +346,7 @@ mips_vector_init(void)
 	bcopy(MipsTLBMiss, (void *)TLB_MISS_EXC_VEC,
 	      MipsTLBMissEnd - MipsTLBMiss);
 
-#ifdef TARGET_OCTEON
+#if defined(TARGET_OCTEON) || defined(TARGET_XLR_XLS)
 /* Fake, but sufficient, for the 32-bit with 64-bit hardware addresses  */
 	bcopy(MipsTLBMiss, (void *)XTLB_MISS_EXC_VEC,
 	      MipsTLBMissEnd - MipsTLBMiss);

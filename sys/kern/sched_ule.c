@@ -80,7 +80,7 @@ dtrace_vtime_switch_func_t	dtrace_vtime_switch_func;
 #include <machine/cpu.h>
 #include <machine/smp.h>
 
-#if defined(__sparc64__) || defined(__mips__)
+#if defined(__sparc64__)
 #error "This architecture is not currently compatible with ULE"
 #endif
 

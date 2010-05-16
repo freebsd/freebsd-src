@@ -70,7 +70,7 @@
 #define	MID_MACHINE	0	/* None but has to be defined */
 
 #ifdef SMP
-#define	MAXSMPCPU	16
+#define	MAXSMPCPU	32
 #define	MAXCPU		MAXSMPCPU
 #else
 #define	MAXSMPCPU	1
