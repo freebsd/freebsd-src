@@ -1906,7 +1906,8 @@ vm_object_collapse(vm_object_t object)
  *	that contain managed pages.  There are two exceptions.  First,
  *	it may be performed on the kernel and kmem objects.  Second,
  *	it may be used by msync(..., MS_INVALIDATE) to invalidate
- *	device-backed pages.
+ *	device-backed pages.  In both of these cases, "clean_only"
+ *	must be FALSE.
  *
  *	The object must be locked.
  */
