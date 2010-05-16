@@ -3943,7 +3943,7 @@ isp_gdt(void *arg)
 	fcportdb_t *lp;
 	int dbidx, tgt, more_to_do = 0;
 
-	isp_prt(isp, ISP_LOGSANCFG|ISP_LOGDEBUG0, "Chan %d GDT timer expired @ %lu", chan, time_uptime);
+	isp_prt(isp, ISP_LOGSANCFG|ISP_LOGDEBUG0, "Chan %d GDT timer expired @ %lu", chan, (unsigned long) time_uptime);
 	for (dbidx = 0; dbidx < MAX_FC_TARG; dbidx++) {
 		lp = &FCPARAM(isp, chan)->portdb[dbidx];
 
@@ -5065,7 +5065,7 @@ isp_async(ispsoftc_t *isp, ispasync_t cmd, ...)
 			lp->state = FC_PORTDB_STATE_ZOMBIE;
 			lp->gone_timer = ISP_FC_PC(isp, bus)->gone_device_time;
 			if (fc->ready && !callout_active(&fc->gdt)) {
-				isp_prt(isp, ISP_LOGSANCFG|ISP_LOGDEBUG0, "Chan %d Starting Gone Device Timer with %u seconds time now %lu", bus, lp->gone_timer, time_uptime);
+				isp_prt(isp, ISP_LOGSANCFG|ISP_LOGDEBUG0, "Chan %d Starting Gone Device Timer with %u seconds time now %lu", bus, lp->gone_timer, (unsigned long)time_uptime);
 				callout_reset(&fc->gdt, hz, isp_gdt, fc);
 			}
 			tgt = lp->dev_map_idx - 1;
