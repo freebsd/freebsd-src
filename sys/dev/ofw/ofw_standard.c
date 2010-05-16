@@ -105,6 +105,7 @@ static ssize_t ofw_std_write(ofw_t ofw, ihandle_t instance, const void *addr,
 static int ofw_std_seek(ofw_t ofw, ihandle_t instance, uint64_t pos);
 static caddr_t ofw_std_claim(ofw_t ofw, void *virt, size_t size, u_int align);
 static void ofw_std_release(ofw_t ofw, void *virt, size_t size);
+static void ofw_std_quiesce(ofw_t ofw);
 static void ofw_std_enter(ofw_t ofw);
 static void ofw_std_exit(ofw_t ofw);
 
@@ -133,6 +134,7 @@ static ofw_method_t ofw_std_methods[] = {
 	OFWMETHOD(ofw_seek,			ofw_std_seek),
 	OFWMETHOD(ofw_claim,			ofw_std_claim),
 	OFWMETHOD(ofw_release,			ofw_std_release),
+	OFWMETHOD(ofw_quiesce,			ofw_std_quiesce),
 	OFWMETHOD(ofw_enter,			ofw_std_enter),
 	OFWMETHOD(ofw_exit,			ofw_std_exit),
 
@@ -729,6 +731,23 @@ ofw_std_release(ofw_t ofw, void *virt, size_t size)
 /*
  * Control transfer functions
  */
+
+/* Turn off OF background tasks */
+static void
+ofw_std_quiesce(ofw_t ofw)
+{
+	struct {
+		cell_t name;
+		cell_t nargs;
+		cell_t nreturns;
+	} args = {
+		(cell_t)"quiesce",
+		0,
+		0,
+	};
+
+	openfirmware(&args);
+}
 
 /* Suspend and drop back to the Open Firmware interface. */
 static void
