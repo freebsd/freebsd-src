@@ -343,6 +343,9 @@ extern void	taskq_wait(taskq_t *);
 extern int	taskq_member(taskq_t *, void *);
 extern void	system_taskq_init(void);
 
+#define	taskq_dispatch_safe(tq, func, arg, task)			\
+	taskq_dispatch((tq), (func), (arg), TQ_SLEEP)
+
 #define	XVA_MAPSIZE	3
 #define	XVA_MAGIC	0x78766174
 
