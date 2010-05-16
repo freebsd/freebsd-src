@@ -1,6 +1,8 @@
 /*-
  * Copyright (c) 1991, 1993
  *	The Regents of the University of California.  All rights reserved.
+ * Copyright (c) 1997-2005
+ *	Herbert Xu <herbert@gondor.apana.org.au>.  All rights reserved.
  *
  * This code is derived from software contributed to Berkeley by
  * Kenneth Almquist.
@@ -1142,10 +1144,11 @@ expmeta(char *enddir, char *name)
 	struct dirent *dp;
 	int atend;
 	int matchdot;
+	int esc;
 
 	metaflag = 0;
 	start = name;
-	for (p = name ; ; p++) {
+	for (p = name; esc = 0, *p; p += esc + 1) {
 		if (*p == '*' || *p == '?')
 			metaflag = 1;
 		else if (*p == '[') {
@@ -1170,12 +1173,14 @@ expmeta(char *enddir, char *name)
 			break;
 		else if (*p == CTLQUOTEMARK)
 			continue;
-		else if (*p == CTLESC)
-			p++;
-		if (*p == '/') {
-			if (metaflag)
-				break;
-			start = p + 1;
+		else {
+			if (*p == CTLESC)
+				esc++;
+			if (p[esc] == '/') {
+				if (metaflag)
+					break;
+				start = p + esc + 1;
+			}
 		}
 	}
 	if (metaflag == 0) {	/* we've reached the end of the file name */
@@ -1221,7 +1226,8 @@ expmeta(char *enddir, char *name)
 		atend = 1;
 	} else {
 		atend = 0;
-		*endname++ = '\0';
+		*endname = '\0';
+		endname += esc + 1;
 	}
 	matchdot = 0;
 	p = start;
@@ -1249,7 +1255,7 @@ expmeta(char *enddir, char *name)
 	}
 	closedir(dirp);
 	if (! atend)
-		endname[-1] = '/';
+		endname[-esc - 1] = esc ? CTLESC : '/';
 }
 
 
