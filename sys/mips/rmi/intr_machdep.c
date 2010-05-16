@@ -157,29 +157,16 @@ cpu_intr(struct trapframe *tf)
 	for (i = sizeof(eirr) * 8 - 1; i >= 0; i--) {
 		if ((eirr & (1ULL << i)) == 0)
 			continue;
-#ifdef SMP
-		/* These are reserved interrupts */
-		if ((i == IPI_AST) || (i == IPI_RENDEZVOUS) || (i == IPI_STOP)
-		    || (i == IPI_SMP_CALL_FUNCTION)) {
-			write_c0_eirr64(1ULL << i);
-			pic_ack(i, 0);
-			smp_handle_ipi(tf, i);
-			pic_delayed_ack(i, 0);
-			continue;
-		}
-#ifdef XLR_PERFMON
-		if (i == IPI_PERFMON) {
-			write_c0_eirr64(1ULL << i);
-			pic_ack(i, 0);
-			xlr_perfmon_sampler(NULL);
-			pic_delayed_ack(i, 0);
-			continue;
-		}
-#endif
-#endif
-		ie = mips_intr_events[i];
-		/* atomic_add_long(mih->cntp, 1); */
 
+		ie = mips_intr_events[i];
+		/* Don't account special IRQs */
+		switch (i) {
+		case IRQ_IPI:
+		case IRQ_MSGRING:
+			break;
+		default:
+			mips_intrcnt_inc(mips_intr_counters[i]);
+		}
 		write_c0_eirr64(1ULL << i);
 		pic_ack(i, 0);
 		if (!ie || TAILQ_EMPTY(&ie->ie_handlers)) {

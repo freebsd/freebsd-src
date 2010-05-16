@@ -80,6 +80,7 @@ __FBSDID("$FreeBSD$");
 
 #include <vm/vm.h>
 #include <vm/vm_param.h>
+#include <vm/vm_phys.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <vm/vm_kern.h>
@@ -107,6 +108,10 @@ __FBSDID("$FreeBSD$");
 
 #ifndef PMAP_SHPGPERPROC
 #define	PMAP_SHPGPERPROC 200
+#endif
+
+#if defined(TARGET_XLR_XLS)
+#define HIGHMEM_SUPPORT
 #endif
 
 #if !defined(PMAP_DIAGNOSTIC)
@@ -183,12 +188,18 @@ static int pmap_unuse_pt(pmap_t, vm_offset_t, vm_page_t);
 static int init_pte_prot(vm_offset_t va, vm_page_t m, vm_prot_t prot);
 static void pmap_TLB_invalidate_kernel(vm_offset_t);
 static void pmap_TLB_update_kernel(vm_offset_t, pt_entry_t);
+static vm_page_t pmap_alloc_pte_page(pmap_t, unsigned int, int, vm_offset_t *);
+static void pmap_release_pte_page(vm_page_t);
 
 #ifdef SMP
 static void pmap_invalidate_page_action(void *arg);
 static void pmap_invalidate_all_action(void *arg);
 static void pmap_update_page_action(void *arg);
+#endif
 
+#ifdef HIGHMEM_SUPPORT
+static void * pmap_ptpgzone_allocf(uma_zone_t, int, u_int8_t*, int);
+static uma_zone_t ptpgzone;
 #endif
 
 struct local_sysmaps {
@@ -530,6 +541,12 @@ pmap_init(void)
 	pv_entry_max = PMAP_SHPGPERPROC * maxproc + cnt.v_page_count;
 	pv_entry_high_water = 9 * (pv_entry_max / 10);
 	uma_zone_set_obj(pvzone, &pvzone_obj, pv_entry_max);
+
+#ifdef HIGHMEM_SUPPORT
+	ptpgzone = uma_zcreate("PT ENTRY", PAGE_SIZE, NULL,
+	    NULL, NULL, NULL, PAGE_SIZE-1, UMA_ZONE_NOFREE);
+	uma_zone_set_allocf(ptpgzone, pmap_ptpgzone_allocf);
+#endif
 }
 
 /***************************************************
@@ -887,7 +904,7 @@ _pmap_unwire_pte_hold(pmap_t pmap, vm_page_t m)
 	/*
 	 * If the page is finally unwired, simply free it.
 	 */
-	vm_page_free_zero(m);
+	pmap_release_pte_page(m);
 	atomic_subtract_int(&cnt.v_wire_count, 1);
 	return (1);
 }
@@ -947,6 +964,118 @@ pmap_pinit0(pmap_t pmap)
 	bzero(&pmap->pm_stats, sizeof pmap->pm_stats);
 }
 
+#ifdef HIGHMEM_SUPPORT
+static void *
+pmap_ptpgzone_allocf(uma_zone_t zone, int bytes, u_int8_t *flags, int wait)
+{
+	vm_page_t m;
+	vm_paddr_t paddr;
+
+	*flags = UMA_SLAB_PRIV;
+	m = vm_phys_alloc_contig(1, 0, MIPS_KSEG0_LARGEST_PHYS,
+	     PAGE_SIZE, PAGE_SIZE);
+	if (m == NULL)
+		return (NULL);
+
+	paddr = VM_PAGE_TO_PHYS(m);
+	return ((void *)MIPS_PHYS_TO_KSEG0(paddr));
+}	
+
+static vm_page_t
+pmap_alloc_pte_page(pmap_t pmap, unsigned int index, int wait, vm_offset_t *vap)
+{
+	vm_paddr_t paddr;
+	void *va;
+	vm_page_t m;
+	int locked;
+
+	locked = mtx_owned(&pmap->pm_mtx);
+	if (locked) {
+		mtx_assert(&vm_page_queue_mtx, MA_OWNED);
+		PMAP_UNLOCK(pmap);
+		vm_page_unlock_queues();
+	}
+	va = uma_zalloc(ptpgzone, wait);
+	if (locked) {
+		vm_page_lock_queues();
+		PMAP_LOCK(pmap);
+	}
+	if (va == NULL)
+		return (NULL);
+
+	paddr = MIPS_KSEG0_TO_PHYS(va);
+	m = PHYS_TO_VM_PAGE(paddr);
+	
+	if ((m->flags & PG_ZERO) == 0)
+		bzero(va, PAGE_SIZE);
+	m->pindex = index;
+	m->valid = VM_PAGE_BITS_ALL;
+	m->wire_count = 1;
+	atomic_add_int(&cnt.v_wire_count, 1);
+	*vap = (vm_offset_t)va;
+	return (m);
+}
+
+static void
+pmap_release_pte_page(vm_page_t m)
+{
+	void *va;
+	vm_paddr_t paddr;
+
+	paddr = VM_PAGE_TO_PHYS(m);
+	va = (void *)MIPS_PHYS_TO_KSEG0(paddr);
+	uma_zfree(ptpgzone, va);
+}
+#else
+static vm_page_t
+pmap_alloc_pte_page(pmap_t pmap, unsigned int index, int wait, vm_offset_t *vap)
+{
+	vm_offset_t va;
+	vm_page_t m;
+	int locked, req;
+
+	locked = mtx_owned(&pmap->pm_mtx);
+	req = VM_ALLOC_WIRED | VM_ALLOC_NOOBJ;
+	if (wait & M_WAITOK)
+		req |= VM_ALLOC_NORMAL;
+	else
+		req |= VM_ALLOC_INTERRUPT;
+
+	m = vm_page_alloc(NULL, index, req);
+	if (m == NULL) {
+		if (wait & M_WAITOK) {
+			if (locked) {
+				mtx_assert(&vm_page_queue_mtx, MA_OWNED);
+				PMAP_UNLOCK(pmap);
+				vm_page_unlock_queues();
+			}
+			VM_WAIT;
+			if (locked) {
+				vm_page_lock_queues();
+				PMAP_LOCK(pmap);
+			}
+		}
+		return NULL;
+	}
+	
+	va = MIPS_PHYS_TO_KSEG0(VM_PAGE_TO_PHYS(m));
+	if ((m->flags & PG_ZERO) == 0)
+		bzero((void *)va, PAGE_SIZE);
+	else
+		vm_page_flag_clear(m, PG_ZERO);
+	
+	m->valid = VM_PAGE_BITS_ALL;
+	*vap = (vm_offset_t)va;
+	return (m);
+}
+
+static void
+pmap_release_pte_page(vm_page_t m)
+{
+	vm_page_free(m);
+}
+#endif
+
 /*
  * Initialize a preallocated and zeroed pmap structure,
  * such as one in a vmspace structure.
@@ -955,37 +1084,16 @@ int
 pmap_pinit(pmap_t pmap)
 {
 	vm_offset_t ptdva;
-	vm_paddr_t ptdpa;
 	vm_page_t ptdpg;
 	int i;
-	int req;
 
 	PMAP_LOCK_INIT(pmap);
-
-	req = VM_ALLOC_NOOBJ | VM_ALLOC_NORMAL | VM_ALLOC_WIRED |
-	    VM_ALLOC_ZERO;
 
 	/*
 	 * allocate the page directory page
 	 */
-	while ((ptdpg = vm_page_alloc(NULL, NUSERPGTBLS, req)) == NULL)
-		VM_WAIT;
-
-	ptdpg->valid = VM_PAGE_BITS_ALL;
-
-	ptdpa = VM_PAGE_TO_PHYS(ptdpg);
-	if (ptdpa < MIPS_KSEG0_LARGEST_PHYS) {
-		ptdva = MIPS_PHYS_TO_KSEG0(ptdpa);
-	} else {
-		ptdva = kmem_alloc_nofault(kernel_map, PAGE_SIZE);
-		if (ptdva == 0)
-			panic("pmap_pinit: unable to allocate kva");
-		pmap_kenter(ptdva, ptdpa);
-	}
-
+	ptdpg = pmap_alloc_pte_page(pmap, NUSERPGTBLS, M_WAITOK, &ptdva);
 	pmap->pm_segtab = (pd_entry_t *)ptdva;
-	if ((ptdpg->flags & PG_ZERO) == 0)
-		bzero(pmap->pm_segtab, PAGE_SIZE);
 
 	pmap->pm_active = 0;
 	pmap->pm_ptphint = NULL;
@@ -1006,7 +1114,7 @@ pmap_pinit(pmap_t pmap)
 static vm_page_t
 _pmap_allocpte(pmap_t pmap, unsigned ptepindex, int flags)
 {
-	vm_offset_t pteva, ptepa;
+	vm_offset_t pteva;
 	vm_page_t m;
 	int req;
 
@@ -1018,25 +1126,9 @@ _pmap_allocpte(pmap_t pmap, unsigned ptepindex, int flags)
 	/*
 	 * Find or fabricate a new pagetable page
 	 */
-	if ((m = vm_page_alloc(NULL, ptepindex, req)) == NULL) {
-		if (flags & M_WAITOK) {
-			PMAP_UNLOCK(pmap);
-			vm_page_unlock_queues();
-			VM_WAIT;
-			vm_page_lock_queues();
-			PMAP_LOCK(pmap);
-		}
-		/*
-		 * Indicate the need to retry.	While waiting, the page
-		 * table page may have been allocated.
-		 */
+	m = pmap_alloc_pte_page(pmap, ptepindex, flags, &pteva);
+	if (m == NULL)
 		return (NULL);
-	}
-	if ((m->flags & PG_ZERO) == 0)
-		pmap_zero_page(m);
-
-	KASSERT(m->queue == PQ_NONE,
-	    ("_pmap_allocpte: %p->queue != PQ_NONE", m));
 
 	/*
 	 * Map the pagetable page into the process address space, if it
@@ -1044,34 +1136,12 @@ _pmap_allocpte(pmap_t pmap, unsigned ptepindex, int flags)
 	 */
 
 	pmap->pm_stats.resident_count++;
-
-	ptepa = VM_PAGE_TO_PHYS(m);
-	if (ptepa < MIPS_KSEG0_LARGEST_PHYS) {
-		pteva = MIPS_PHYS_TO_KSEG0(ptepa);
-	} else {
-		pteva = kmem_alloc_nofault(kernel_map, PAGE_SIZE);
-		if (pteva == 0)
-			panic("_pmap_allocpte: unable to allocate kva");
-		pmap_kenter(pteva, ptepa);
-	}
-
 	pmap->pm_segtab[ptepindex] = (pd_entry_t)pteva;
 
 	/*
 	 * Set the page table hint
 	 */
 	pmap->pm_ptphint = m;
-
-	/*
-	 * Kernel page tables are allocated in pmap_bootstrap() or
-	 * pmap_growkernel().
-	 */
-	if (is_kernel_pmap(pmap))
-		panic("_pmap_allocpte() called for kernel pmap\n");
-
-	m->valid = VM_PAGE_BITS_ALL;
-	vm_page_flag_clear(m, PG_ZERO);
-
 	return (m);
 }
 
@@ -1158,17 +1228,12 @@ pmap_release(pmap_t pmap)
 	ptdva = (vm_offset_t)pmap->pm_segtab;
 	ptdpg = PHYS_TO_VM_PAGE(vtophys(ptdva));
 
-	if (ptdva >= VM_MIN_KERNEL_ADDRESS) {
-		pmap_kremove(ptdva);
-		kmem_free(kernel_map, ptdva, PAGE_SIZE);
-	} else {
-		KASSERT(MIPS_IS_KSEG0_ADDR(ptdva),
-		    ("pmap_release: 0x%0lx is not in kseg0", (long)ptdva));
-	}
+	KASSERT(MIPS_IS_KSEG0_ADDR(ptdva),
+	    ("pmap_release: 0x%0lx is not in kseg0", (long)ptdva));
 
 	ptdpg->wire_count--;
 	atomic_subtract_int(&cnt.v_wire_count, 1);
-	vm_page_free_zero(ptdpg);
+	pmap_release_pte_page(ptdpg);
 	PMAP_LOCK_DESTROY(pmap);
 }
 
@@ -1178,10 +1243,10 @@ pmap_release(pmap_t pmap)
 void
 pmap_growkernel(vm_offset_t addr)
 {
-	vm_offset_t ptppaddr;
+	vm_offset_t pageva;
 	vm_page_t nkpg;
 	pt_entry_t *pte;
-	int i, req;
+	int i;
 
 	mtx_assert(&kernel_map->system_mtx, MA_OWNED);
 	if (kernel_vm_end == 0) {
@@ -1213,26 +1278,13 @@ pmap_growkernel(vm_offset_t addr)
 		/*
 		 * This index is bogus, but out of the way
 		 */
-		req = VM_ALLOC_INTERRUPT | VM_ALLOC_WIRED | VM_ALLOC_NOOBJ;
-		nkpg = vm_page_alloc(NULL, nkpt, req);
+		nkpg = pmap_alloc_pte_page(kernel_pmap, nkpt, M_NOWAIT, &pageva);
+
 		if (!nkpg)
 			panic("pmap_growkernel: no memory to grow kernel");
 
 		nkpt++;
-
-		ptppaddr = VM_PAGE_TO_PHYS(nkpg);
-		if (ptppaddr >= MIPS_KSEG0_LARGEST_PHYS) {
-			/*
-			 * We need to do something here, but I am not sure
-			 * what. We can access anything in the 0 - 512Meg
-			 * region, but if we get a page to go in the kernel
-			 * segmap that is outside of of that we really need
-			 * to have another mapping beyond the temporary ones
-			 * I have. Not sure how to do this yet. FIXME FIXME.
-			 */
-			panic("Gak, can't handle a k-page table outside of lower 512Meg");
-		}
-		pte = (pt_entry_t *)MIPS_PHYS_TO_KSEG0(ptppaddr);
+		pte = (pt_entry_t *)pageva;
 		segtab_pde(kernel_segmap, kernel_vm_end) = (pd_entry_t)pte;
 
 		/*
@@ -1396,7 +1448,8 @@ pmap_remove_entry(struct pmap *pmap, vm_page_t m, vm_offset_t va)
 		}
 	}
 
-	KASSERT(pv != NULL, ("pmap_remove_entry: pv not found"));
+	KASSERT(pv != NULL, ("pmap_remove_entry: pv not found, pa %lx va %lx",
+	     (u_long)VM_PAGE_TO_PHYS(m), (u_long)va));
 	TAILQ_REMOVE(&m->md.pv_list, pv, pv_list);
 	m->md.pv_list_count--;
 	if (TAILQ_FIRST(&m->md.pv_list) == NULL)

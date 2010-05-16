@@ -36,19 +36,11 @@ __FBSDID("$FreeBSD$");
 #include <sys/rtprio.h>
 #include <sys/systm.h>
 #include <sys/interrupt.h>
-#include <sys/kernel.h>
-#include <sys/kthread.h>
-#include <sys/ktr.h>
 #include <sys/limits.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/mutex.h>
-#include <sys/proc.h>
 #include <sys/random.h>
-#include <sys/resourcevar.h>
-#include <sys/sched.h>
-#include <sys/sysctl.h>
-#include <sys/unistd.h>
 
 #include <sys/cons.h>		/* cinit() */
 #include <sys/kdb.h>
@@ -87,16 +79,14 @@ __FBSDID("$FreeBSD$");
 #include <mips/rmi/perfmon.h>
 #endif
 
-
-
-void platform_prep_smp_launch(void);
+void mpwait(void);
+void enable_msgring_int(void *arg);
 
 unsigned long xlr_io_base = (unsigned long)(DEFAULT_XLR_IO_BASE);
 
 /* 4KB static data aread to keep a copy of the bootload env until
    the dynamic kenv is setup */
 char boot1_env[4096];
-extern unsigned long _gp;
 int rmi_spin_mutex_safe=0;
 /*
  * Parameters from boot loader
@@ -108,16 +98,6 @@ int xlr_argc;
 char **xlr_argv, **xlr_envp;
 uint64_t cpu_mask_info;
 uint32_t xlr_online_cpumask;
-
-#ifdef SMP
-static unsigned long xlr_secondary_gp[MAXCPU];
-static unsigned long xlr_secondary_sp[MAXCPU];
-
-#endif
-extern int mips_cpu_online_mask;
-extern int mips_cpu_logical_mask;
-uint32_t cpu_ltop_map[MAXCPU];
-uint32_t cpu_ptol_map[MAXCPU];
 uint32_t xlr_core_cpu_mask = 0x1;	/* Core 0 thread 0 is always there */
 
 void
@@ -129,27 +109,6 @@ platform_reset(void)
 	printf("Rebooting the system now\n");
 	mmio[8] = 0x1;
 }
-
-void 
-platform_secondary_init(void)
-{
-#ifdef SMP
-	xlr_msgring_cpu_init();
-
-	/* Setup interrupts for secondary CPUs here */
-	mips_mask_hard_irq(IPI_SMP_CALL_FUNCTION);
-	mips_mask_hard_irq(IPI_STOP);
-	mips_mask_hard_irq(IPI_RENDEZVOUS);
-	mips_mask_hard_irq(IPI_AST);
-	mips_mask_hard_irq(IRQ_TIMER);
-#ifdef XLR_PERFMON
-	mips_mask_hard_irq(IPI_PERFMON);
-#endif
-
-	return;
-#endif
-}
-
 
 int xlr_asid_pcpu = 256;	/* This the default */
 int xlr_shtlb_enabled = 0;
@@ -168,13 +127,13 @@ setup_tlb_resource(void)
 	int mmu_setup;
 	int value = 0;
 	uint32_t cpu_map = xlr_boot1_info.cpu_online_map;
-	uint32_t thr_mask = cpu_map >> (xlr_cpu_id() << 2);
+	uint32_t thr_mask = cpu_map >> (xlr_core_id() << 2);
 	uint8_t core0 = xlr_boot1_info.cpu_online_map & 0xf;
 	uint8_t core_thr_mask;
 	int i = 0, count = 0;
 
 	/* If CPU0 did not enable shared TLB, other cores need to follow */
-	if ((xlr_cpu_id() != 0) && (xlr_shtlb_enabled == 0))
+	if ((xlr_core_id() != 0) && (xlr_shtlb_enabled == 0))
 		return;
 	/* First check if each core is brought up with the same mask */
 	for (i = 1; i < 8; i++) {
@@ -212,11 +171,13 @@ setup_tlb_resource(void)
 	mmu_setup |= (value << 1);
 
 	/* turn on global mode */
+#ifndef SMP
 	mmu_setup |= 0x01;
-
+#endif
 	write_32bit_phnx_ctrl_reg(4, 0, mmu_setup);
 
 }
+
 
 /*
  * Platform specific register setup for CPUs
@@ -233,6 +194,10 @@ platform_cpu_init()
 	uint32_t reg, val;
 	int thr_id = xlr_thr_id();
 
+/*
+ * XXX: SMP now need different wired mappings for threads 
+ * we cannot share TLBs.
+ */
 	if (thr_id == 0) {
 		if ((hw_env = getenv("xlr.shtlb")) != NULL) {
 			start = hw_env;
@@ -287,22 +252,6 @@ err_return:
 }
 
 
-#ifdef SMP
-extern void xlr_secondary_start(unsigned long, unsigned long, unsigned long);
-static void 
-xlr_secondary_entry(void *data)
-{
-	unsigned long sp, gp;
-	unsigned int cpu = (xlr_cpu_id() << 2) + xlr_thr_id();
-
-	sp = xlr_secondary_sp[cpu];
-	gp = xlr_secondary_gp[cpu];
-
-	xlr_secondary_start((unsigned long)mips_secondary_wait, sp, gp);
-}
-
-#endif
-
 static void 
 xlr_set_boot_flags(void)
 {
@@ -341,7 +290,6 @@ xlr_set_boot_flags(void)
 }
 extern uint32_t _end;
 
-
 static void
 mips_init(void)
 {
@@ -353,9 +301,6 @@ mips_init(void)
 	mips_cpu_init();
 	pmap_bootstrap();
 #ifdef DDB
-#ifdef SMP
-	setup_nmi();
-#endif				/* SMP */
 	kdb_init();
 	if (boothowto & RB_KDB) {
 		kdb_enter("Boot flags requested debugger", NULL);
@@ -521,29 +466,17 @@ platform_start(__register_t a0 __unused,
 	for (i = 1, j = 1; i < 32; i++) {
 		/* Allocate stack for all other cpus from fbsd kseg0 memory. */
 		if ((1U << i) & xlr_boot1_info.cpu_online_map) {
-			xlr_secondary_gp[i] =
-			    pmap_steal_memory(PAGE_SIZE);
-			if (!xlr_secondary_gp[i])
-				panic("Allocation failed for secondary cpu stacks");
-			xlr_secondary_sp[i] =
-			    xlr_secondary_gp[i] + PAGE_SIZE - CALLFRAME_SIZ;
-			xlr_secondary_gp[i] = (unsigned long)&_gp;
-			/* Build ltop and ptol cpu map. */
-			cpu_ltop_map[j] = i;
-			cpu_ptol_map[i] = j;
 			if ((i & 0x3) == 0)	/* store thread0 of each core */
 				xlr_core_cpu_mask |= (1 << j);
-			mips_cpu_logical_mask |= (1 << j);
 			j++;
 		}
 	}
 
-	mips_cpu_online_mask |= xlr_boot1_info.cpu_online_map;
 	wakeup = ((void (*) (void *, void *, unsigned int))
 	    (unsigned long)(xlr_boot1_info.wakeup));
 	printf("Waking up CPUs 0x%llx.\n", xlr_boot1_info.cpu_online_map & ~(0x1U));
 	if (xlr_boot1_info.cpu_online_map & ~(0x1U))
-		wakeup(xlr_secondary_entry, 0,
+		wakeup(mpwait, 0,
 		    (unsigned int)xlr_boot1_info.cpu_online_map);
 #endif
 
@@ -582,144 +515,59 @@ platform_trap_exit(void)
 {
 }
 
+#ifdef SMP
+int xlr_ap_release[MAXCPU];
 
-/*
- void
- platform_update_intrmask(int intr)
- {
-   write_c0_eimr64(read_c0_eimr64() | (1ULL<<intr));
- }
-*/
-
-void 
-disable_msgring_int(void *arg);
-void 
-enable_msgring_int(void *arg);
-void xlr_msgring_handler(struct trapframe *tf);
-int msgring_process_fast_intr(void *arg);
-
-struct msgring_ithread {
-	struct thread *i_thread;
-	u_int i_pending;
-	u_int i_flags;
-	int i_cpu;
-};
-struct msgring_ithread msgring_ithreads[MAXCPU];
-char ithd_name[MAXCPU][32];
-
-int
-msgring_process_fast_intr(void *arg)
+int platform_start_ap(int cpuid)
 {
-	int cpu = PCPU_GET(cpuid);
-	volatile struct msgring_ithread *it;
-	struct thread *td;
-
-	/* wakeup an appropriate intr_thread for processing this interrupt */
-	it = (volatile struct msgring_ithread *)&msgring_ithreads[cpu];
-	td = it->i_thread;
-
 	/*
-	 * Interrupt thread will enable the interrupts after processing all
-	 * messages
+	 * other cpus are enabled by the boot loader and they will be 
+	 * already looping in mpwait, release them
 	 */
-	disable_msgring_int(NULL);
-	atomic_store_rel_int(&it->i_pending, 1);
-	thread_lock(td);
-	if (TD_AWAITING_INTR(td)) {
-		TD_CLR_IWAIT(td);
-		sched_add(td, SRQ_INTR);
-	}
-	thread_unlock(td);
-	return FILTER_HANDLED;
+	atomic_store_rel_int(&xlr_ap_release[cpuid], 1);
+	return 0;
 }
 
-static void
-msgring_process(void *arg)
+void platform_init_ap(int processor_id)
 {
-	volatile struct msgring_ithread *ithd;
-	struct thread *td;
-	struct proc *p;
+	uint32_t stat;
 
-	td = curthread;
-	p = td->td_proc;
-	ithd = (volatile struct msgring_ithread *)arg;
-	KASSERT(ithd->i_thread == td,
-	    ("%s:msg_ithread and proc linkage out of sync", __func__));
+	/* Setup interrupts for secondary CPUs here */
+	stat = mips_rd_status();
+	stat |= MIPS_SR_COP_2_BIT | MIPS_SR_COP_0_BIT;
+	mips_wr_status(stat);
 
-	/* First bind this thread to the right CPU */
-	thread_lock(td);
-	sched_bind(td, ithd->i_cpu);
-	thread_unlock(td);
-
-	//printf("Started %s on CPU %d\n", __FUNCTION__, ithd->i_cpu);
-
-	while (1) {
-		while (ithd->i_pending) {
-			/*
-			 * This might need a full read and write barrier to
-			 * make sure that this write posts before any of the
-			 * memory or device accesses in the handlers.
-			 */
-			xlr_msgring_handler(NULL);
-			atomic_store_rel_int(&ithd->i_pending, 0);
-			enable_msgring_int(NULL);
-		}
-		if (!ithd->i_pending) {
-			thread_lock(td);
-			if (ithd->i_pending) {
-			  thread_unlock(td);
-			  continue;
-			}
-			sched_class(td, PRI_ITHD);
-			TD_SET_IWAIT(td);
-			mi_switch(SW_VOL, NULL);
-			thread_unlock(td);
-		}
+	xlr_unmask_hard_irq((void *)platform_ipi_intrnum());
+	xlr_unmask_hard_irq((void *)IRQ_TIMER);
+	if (xlr_thr_id() == 0) {
+		xlr_msgring_cpu_init(); 
+	 	xlr_unmask_hard_irq((void *)IRQ_MSGRING);
 	}
 
+	return;
 }
-void 
-platform_prep_smp_launch(void)
+
+int platform_ipi_intrnum(void) 
 {
-	int cpu;
-	uint32_t cpu_mask;
-	struct msgring_ithread *ithd;
-	struct thread *td;
-	struct proc *p;
-	int error;
-
-	cpu_mask = PCPU_GET(cpumask) | PCPU_GET(other_cpus);
-
-	/* Create kernel threads for message ring interrupt processing */
-	/* Currently create one task for thread 0 of each core */
-	for (cpu = 0; cpu < MAXCPU; cpu += 1) {
-
-		if (!((1 << cpu) & cpu_mask))
-			continue;
-
-		if ((cpu_ltop_map[cpu] % 4) != 0)
-			continue;
-
-		ithd = &msgring_ithreads[cpu];
-		sprintf(ithd_name[cpu], "msg_intr%d", cpu);
-		error = kproc_create(msgring_process,
-		    (void *)ithd,
-		    &p,
-		    (RFSTOPPED | RFHIGHPID),
-		    2,
-		    ithd_name[cpu]);
-
-		if (error)
-			panic("kproc_create() failed with %d", error);
-		td = FIRST_THREAD_IN_PROC(p);	/* XXXKSE */
-
-		thread_lock(td);
-		sched_class(td, PRI_ITHD);
-		TD_SET_IWAIT(td);
-		thread_unlock(td);
-		ithd->i_thread = td;
-		ithd->i_pending = 0;
-		ithd->i_cpu = cpu;
-		CTR2(KTR_INTR, "%s: created %s", __func__, ithd_name[cpu]);
-	}
+	return IRQ_IPI;
 }
+
+void platform_ipi_send(int cpuid)
+{
+	pic_send_ipi(cpuid, platform_ipi_intrnum(), 0);
+}
+
+void platform_ipi_clear(void)
+{
+}
+
+int platform_processor_id(void)
+{
+	return xlr_cpu_id();
+}
+
+int platform_num_processors(void)
+{
+	return fls(xlr_boot1_info.cpu_online_map);
+}
+#endif
