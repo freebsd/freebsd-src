@@ -2,8 +2,16 @@
 .include <bsd.own.mk>
 
 LIB=	archive
-DPADD=	${LIBBZ2} ${LIBZ} ${LIBMD} ${LIBLZMA}
-LDADD=	-lbz2 -lz -lmd -llzma
+DPADD=	${LIBZ} ${LIBMD}
+LDADD=	-lz -lmd
+
+DPADD+= ${LIBBZ2}
+LDADD+= -lbz2
+CFLAGS+= -DHAVE_BZLIB_H 1
+
+DPADD+= ${LIBLZMA}
+LDADD+= -llzma
+CFLAGS+= -DHAVE_LIBLZMA=1 -DHAVE_LZMA_H=1
 
 # FreeBSD SHLIB_MAJOR value is managed as part of the FreeBSD system.
 # It has no real relation to the libarchive version number.
@@ -11,7 +19,6 @@ SHLIB_MAJOR= 5
 
 CFLAGS+=	-DPLATFORM_CONFIG_H=\"config_freebsd.h\"
 CFLAGS+=	-I${.OBJDIR}
-CFLAGS+=	-DHAVE_LIBLZMA=1 -DHAVE_LZMA_H=1
 
 .if ${MK_OPENSSL} != "no"
 CFLAGS+=	-DWITH_OPENSSL
