@@ -876,6 +876,7 @@ moea_bootstrap(mmu_t mmup, vm_offset_t kernelstart, vm_offset_t kernelend)
 			struct	vm_page m;
 
 			m.phys_addr = translations[i].om_pa + off;
+			m.oflags = VPO_BUSY;
 			PMAP_LOCK(&ofw_pmap);
 			moea_enter_locked(&ofw_pmap,
 				   translations[i].om_va + off, &m,
@@ -1101,6 +1102,8 @@ moea_enter_locked(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 	if (pmap_bootstrapped)
 		mtx_assert(&vm_page_queue_mtx, MA_OWNED);
 	PMAP_LOCK_ASSERT(pmap, MA_OWNED);
+	KASSERT((m->oflags & VPO_BUSY) != 0 || VM_OBJECT_LOCKED(m->object),
+	    ("moea_enter_locked: page %p is not busy", m));
 
 	/* XXX change the pvo head for fake pages */
 	if ((m->flags & PG_FICTITIOUS) == PG_FICTITIOUS) {
@@ -1323,7 +1326,16 @@ moea_remove_write(mmu_t mmu, vm_page_t m)
 	pmap_t	pmap;
 	u_int	lo;
 
-	if ((m->flags & (PG_FICTITIOUS | PG_UNMANAGED)) != 0 ||
+	KASSERT((m->flags & (PG_FICTITIOUS | PG_UNMANAGED)) == 0,
+	    ("moea_remove_write: page %p is not managed", m));
+
+	/*
+	 * If the page is not VPO_BUSY, then PG_WRITEABLE cannot be set by
+	 * another thread while the object is locked.  Thus, if PG_WRITEABLE
+	 * is clear, no page table entries need updating.
+	 */
+	VM_OBJECT_LOCK_ASSERT(m->object, MA_OWNED);
+	if ((m->oflags & VPO_BUSY) == 0 &&
 	    (m->flags & PG_WRITEABLE) == 0)
 		return;
 	vm_page_lock_queues();
