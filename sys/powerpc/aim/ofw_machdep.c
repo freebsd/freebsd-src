@@ -281,6 +281,8 @@ OF_initial_setup(void *fdt_ptr, void *junk, int (*openfirm)(void *))
 boolean_t
 OF_bootstrap()
 {
+	char model[32];
+	phandle_t rootnode;
 	boolean_t status = FALSE;
 
 	mtx_init(&ofw_mutex, "open firmware", NULL, MTX_DEF);
@@ -295,6 +297,17 @@ OF_bootstrap()
 			return status;
 
 		OF_init(openfirmware);
+
+		/*
+		 * On some machines, we need to quiesce OF to turn off
+		 * background processes.
+		 */
+		rootnode = OF_finddevice("/");
+		if (OF_getprop(rootnode, "model", model, sizeof(model)) > 0) {
+			if (strcmp(model, "PowerMac11,2") == 0 ||
+			    strcmp(model, "PowerMac12,1") == 0)
+				OF_quiesce();
+		}
 	} else {
 		status = OF_install(OFW_FDT, 0);
 
