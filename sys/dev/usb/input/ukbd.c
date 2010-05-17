@@ -109,8 +109,6 @@ TUNABLE_INT("hw.usb.ukbd.debug", &ukbd_debug);
 TUNABLE_INT("hw.usb.ukbd.no_leds", &ukbd_no_leds);
 #endif
 
-#define	UPROTO_BOOT_KEYBOARD 1
-
 #define	UKBD_EMULATE_ATSCANCODE	       1
 #define	UKBD_DRIVER_NAME          "ukbd"
 #define	UKBD_NMOD                     8	/* units */
@@ -777,7 +775,7 @@ ukbd_probe(device_t dev)
 		return (ENXIO);
 
 	if ((uaa->info.bInterfaceSubClass == UISUBCLASS_BOOT) &&
-	    (uaa->info.bInterfaceProtocol == UPROTO_BOOT_KEYBOARD)) {
+	    (uaa->info.bInterfaceProtocol == UIPROTO_BOOT_KEYBOARD)) {
 		if (usb_test_quirk(uaa, UQ_KBD_IGNORE))
 			return (ENXIO);
 		else
