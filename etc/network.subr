@@ -917,7 +917,7 @@ clone_down()
 	_list=
 
 	for ifn in ${cloned_interfaces}; do
-		ifconfig ${ifn} destroy
+		ifconfig -n ${ifn} destroy
 		if [ $? -eq 0 ]; then
 			_list="${_list}${_prefix}${ifn}"
 			[ -z "$_prefix" ] && _prefix=' '
@@ -1002,10 +1002,7 @@ childif_destroy()
 		if ! ifexists $child; then
 			continue
 		fi
-		if autoif $child; then
-			ifn_stop $child
-		fi
-		ifconfig $child destroy && cfg=0
+		ifconfig -n $child destroy && cfg=0
 	done
 
 	child_vlans=`get_if_var $ifn vlans_IF`
@@ -1016,10 +1013,7 @@ childif_destroy()
 		if ! ifexists $child; then
 			continue
 		fi
-		if autoif $child; then
-			ifn_stop $child
-		fi
-		ifconfig $child destroy && cfg=0
+		ifconfig -n $child destroy && cfg=0
 	done
 
 	return ${cfg}
