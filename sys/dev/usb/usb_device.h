@@ -115,6 +115,7 @@ struct usb_device {
 						 * messages */
 	struct sx ctrl_sx;
 	struct sx enum_sx;
+	struct sx sr_sx;
 	struct mtx device_mtx;
 	struct cv ctrlreq_cv;
 	struct cv ref_cv;
@@ -215,6 +216,8 @@ void	usb_set_device_state(struct usb_device *udev,
 	    enum usb_dev_state state);
 void	usbd_enum_lock(struct usb_device *);
 void	usbd_enum_unlock(struct usb_device *);
+void	usbd_sr_lock(struct usb_device *);
+void	usbd_sr_unlock(struct usb_device *);
 uint8_t usbd_enum_is_locked(struct usb_device *);
 
 #endif					/* _USB_DEVICE_H_ */
