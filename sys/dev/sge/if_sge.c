@@ -72,8 +72,13 @@ __FBSDID("$FreeBSD$");
 #include <net/if_types.h>
 #include <net/if_vlan_var.h>
 
+#include <netinet/in.h>
+#include <netinet/in_systm.h>
+#include <netinet/ip.h>
+#include <netinet/tcp.h>
+
 #include <machine/bus.h>
-#include <machine/resource.h>
+#include <machine/in_cksum.h>
 
 #include <dev/mii/mii.h>
 #include <dev/mii/miivar.h>
@@ -620,8 +625,8 @@ sge_attach(device_t dev)
 	ifp->if_snd.ifq_drv_maxlen = SGE_TX_RING_CNT - 1;
 	IFQ_SET_MAXLEN(&ifp->if_snd, ifp->if_snd.ifq_drv_maxlen);
 	IFQ_SET_READY(&ifp->if_snd);
-	ifp->if_capabilities = IFCAP_TXCSUM | IFCAP_RXCSUM;
-	ifp->if_hwassist = SGE_CSUM_FEATURES;
+	ifp->if_capabilities = IFCAP_TXCSUM | IFCAP_RXCSUM | IFCAP_TSO4;
+	ifp->if_hwassist = SGE_CSUM_FEATURES | CSUM_TSO;
 	ifp->if_capenable = ifp->if_capabilities;
 	/*
 	 * Do MII setup.
@@ -641,7 +646,7 @@ sge_attach(device_t dev)
 	/* VLAN setup. */
 	if ((sc->sge_flags & SGE_FLAG_SIS190) == 0)
 		ifp->if_capabilities |= IFCAP_VLAN_HWTAGGING |
-		    IFCAP_VLAN_HWCSUM;
+		    IFCAP_VLAN_HWCSUM | IFCAP_VLAN_HWTSO;
 	ifp->if_capabilities |= IFCAP_VLAN_MTU;
 	ifp->if_capenable = ifp->if_capabilities;
 	/* Tell the upper layer(s) we support long frames. */
@@ -851,8 +856,8 @@ sge_dma_alloc(struct sge_softc *sc)
 
 	/* Create DMA tag for Tx buffers. */
 	error = bus_dma_tag_create(cd->sge_tag, 1, 0, BUS_SPACE_MAXADDR,
-	    BUS_SPACE_MAXADDR, NULL, NULL, MCLBYTES * SGE_MAXTXSEGS,
-	    SGE_MAXTXSEGS, MCLBYTES, 0, NULL, NULL, &cd->sge_txmbuf_tag);
+	    BUS_SPACE_MAXADDR, NULL, NULL, SGE_TSO_MAXSIZE, SGE_MAXTXSEGS,
+	    SGE_TSO_MAXSEGSIZE, 0, NULL, NULL, &cd->sge_txmbuf_tag);
 	if (error != 0) {
 		device_printf(sc->sge_dev,
 		    "could not create Tx mbuf DMA tag.\n");
@@ -1424,13 +1429,73 @@ sge_encap(struct sge_softc *sc, struct mbuf **m_head)
 	struct sge_desc *desc;
 	struct sge_txdesc *txd;
 	bus_dma_segment_t txsegs[SGE_MAXTXSEGS];
-	uint32_t cflags;
+	uint32_t cflags, mss;
 	int error, i, nsegs, prod, si;
 
 	SGE_LOCK_ASSERT(sc);
 
 	si = prod = sc->sge_cdata.sge_tx_prod;
 	txd = &sc->sge_cdata.sge_txdesc[prod];
+	if (((*m_head)->m_pkthdr.csum_flags & CSUM_TSO) != 0) {
+		struct ether_header *eh;
+		struct ip *ip;
+		struct tcphdr *tcp;
+		uint32_t ip_off, poff;
+
+		if (M_WRITABLE(*m_head) == 0) {
+			/* Get a writable copy. */
+			m = m_dup(*m_head, M_DONTWAIT);
+			m_freem(*m_head);
+			if (m == NULL) {
+				*m_head = NULL;
+				return (ENOBUFS);
+			}
+			*m_head = m;
+		}
+		ip_off = sizeof(struct ether_header);
+		m = m_pullup(*m_head, ip_off);
+		if (m == NULL) {
+			*m_head = NULL;
+			return (ENOBUFS);
+		}
+		eh = mtod(m, struct ether_header *);
+		/* Check the existence of VLAN tag. */
+		if (eh->ether_type == htons(ETHERTYPE_VLAN)) {
+			ip_off = sizeof(struct ether_vlan_header);
+			m = m_pullup(m, ip_off);
+			if (m == NULL) {
+				*m_head = NULL;
+				return (ENOBUFS);
+			}
+		}
+		m = m_pullup(m, ip_off + sizeof(struct ip));
+		if (m == NULL) {
+			*m_head = NULL;
+			return (ENOBUFS);
+		}
+		ip = (struct ip *)(mtod(m, char *) + ip_off);
+		poff = ip_off + (ip->ip_hl << 2);
+		m = m_pullup(m, poff + sizeof(struct tcphdr));
+		if (m == NULL) {
+			*m_head = NULL;
+			return (ENOBUFS);
+		}
+		tcp = (struct tcphdr *)(mtod(m, char *) + poff);
+		m = m_pullup(m, poff + (tcp->th_off << 2));
+		if (m == NULL) {
+			*m_head = NULL;
+			return (ENOBUFS);
+		}
+		/*
+		 * Reset IP checksum and recompute TCP pseudo
+		 * checksum that NDIS specification requires.
+		 */
+		ip->ip_sum = 0;
+		tcp->th_sum = in_pseudo(ip->ip_src.s_addr, ip->ip_dst.s_addr,
+		    htons(IPPROTO_TCP));
+		*m_head = m;
+	}
+
 	error = bus_dmamap_load_mbuf_sg(sc->sge_cdata.sge_txmbuf_tag,
 	    txd->tx_dmamap, *m_head, txsegs, &nsegs, 0);
 	if (error == EFBIG) {
@@ -1462,16 +1527,23 @@ sge_encap(struct sge_softc *sc, struct mbuf **m_head)
 
 	m = *m_head;
 	cflags = 0;
-	if (m->m_pkthdr.csum_flags & CSUM_IP)
-		cflags |= TDC_IP_CSUM;
-	if (m->m_pkthdr.csum_flags & CSUM_TCP)
-		cflags |= TDC_TCP_CSUM;
-	if (m->m_pkthdr.csum_flags & CSUM_UDP)
-		cflags |= TDC_UDP_CSUM;
+	mss = 0;
+	if ((m->m_pkthdr.csum_flags & CSUM_TSO) != 0) {
+		cflags |= TDC_LS;
+		mss = (uint32_t)m->m_pkthdr.tso_segsz;
+		mss <<= 16;
+	} else {
+		if (m->m_pkthdr.csum_flags & CSUM_IP)
+			cflags |= TDC_IP_CSUM;
+		if (m->m_pkthdr.csum_flags & CSUM_TCP)
+			cflags |= TDC_TCP_CSUM;
+		if (m->m_pkthdr.csum_flags & CSUM_UDP)
+			cflags |= TDC_UDP_CSUM;
+	}
 	for (i = 0; i < nsegs; i++) {
 		desc = &sc->sge_ldata.sge_tx_ring[prod];
 		if (i == 0) {
-			desc->sge_sts_size = htole32(m->m_pkthdr.len);
+			desc->sge_sts_size = htole32(m->m_pkthdr.len | mss);
 			desc->sge_cmdsts = 0;
 		} else {
 			desc->sge_sts_size = 0;
@@ -1759,6 +1831,17 @@ sge_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 		if ((mask & IFCAP_VLAN_HWCSUM) != 0 &&
 		    (ifp->if_capabilities & IFCAP_VLAN_HWCSUM) != 0)
 			ifp->if_capenable ^= IFCAP_VLAN_HWCSUM;
+		if ((mask & IFCAP_TSO4) != 0 &&
+		    (ifp->if_capabilities & IFCAP_TSO4) != 0) {
+			ifp->if_capenable ^= IFCAP_TSO4;
+			if ((ifp->if_capenable & IFCAP_TSO4) != 0)
+				ifp->if_hwassist |= CSUM_TSO;
+			else
+				ifp->if_hwassist &= ~CSUM_TSO;
+		}
+		if ((mask & IFCAP_VLAN_HWTSO) != 0 &&
+		    (ifp->if_capabilities & IFCAP_VLAN_HWTSO) != 0)
+			ifp->if_capenable ^= IFCAP_VLAN_HWTSO;
 		if ((mask & IFCAP_VLAN_HWTAGGING) != 0 &&
 		    (ifp->if_capabilities & IFCAP_VLAN_HWTAGGING) != 0) {
 			/*
@@ -1766,6 +1849,9 @@ sge_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 			 * tagging require interface reinitialization.
 			 */
 			ifp->if_capenable ^= IFCAP_VLAN_HWTAGGING;
+			if ((ifp->if_capenable & IFCAP_VLAN_HWTAGGING) == 0)
+				ifp->if_capenable &=
+				    ~(IFCAP_VLAN_HWTSO | IFCAP_VLAN_HWCSUM);
 			reinit = 1;
 		}
 		if (reinit > 0 && (ifp->if_drv_flags & IFF_DRV_RUNNING) != 0) {
