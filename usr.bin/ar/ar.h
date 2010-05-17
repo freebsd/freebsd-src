@@ -81,7 +81,6 @@ struct bsdar {
 	const char	 *addlib;	/* target of ADDLIB. */
 	const char	 *posarg;	/* position arg for modifiers -a, -b. */
 	char		  mode;		/* program mode */
-	char		  compression;	/* compression mode */
 	int		  options;	/* command line options */
 
 	const char	 *progname;	/* program name */
