@@ -236,7 +236,6 @@ out:
 			PROC_LOCK(p);
 		p->p_oppid = 0;
 		p->p_flag &= ~P_WAITED;	/* XXX ? */
-		PROC_UNLOCK(p);
 		sx_xunlock(&proctree_lock);
 
 		wakeup(td->td_proc);	/* XXX for CTL_WAIT below ? */
@@ -249,9 +248,10 @@ out:
 	 */
 	case PROCFS_CTL_STEP:
 		error = proc_sstep(FIRST_THREAD_IN_PROC(p));
-		PROC_UNLOCK(p);
-		if (error)
+		if (error) {
+			PROC_UNLOCK(p);
 			return (error);
+		}
 		break;
 
 	/*
@@ -260,7 +260,6 @@ out:
 	 */
 	case PROCFS_CTL_RUN:
 		p->p_flag &= ~P_STOPPED_SIG;	/* this uses SIGSTOP */
-		PROC_UNLOCK(p);
 		break;
 
 	/*
@@ -292,6 +291,7 @@ out:
 	PROC_SLOCK(p);
 	thread_unsuspend(p); /* If it can run, let it do so. */
 	PROC_SUNLOCK(p);
+	PROC_UNLOCK(p);
 	return (0);
 }
 
