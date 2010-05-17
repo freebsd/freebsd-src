@@ -156,6 +156,9 @@ struct usb_hid_descriptor {
 #define	HUD_ERASER		0x0045
 #define	HUD_TABLET_PICK		0x0046
 
+/* Usages, Consumer */
+#define	HUC_AC_PAN		0x0238
+
 #define	HID_USAGE2(p,u) (((p) << 16) | (u))
 
 #define	UHID_INPUT_REPORT 0x01
