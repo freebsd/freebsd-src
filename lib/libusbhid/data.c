@@ -53,13 +53,17 @@ hid_get_data(const void *p, const hid_item_t *h)
 	data = 0;
 	for (i = 0; i <= end; i++)
 		data |= buf[offs + i] << (i*8);
+
+	/* Correctly shift down data */
 	data >>= hpos % 8;
-	data &= (1 << hsize) - 1;
-	if (h->logical_minimum < 0) {
-		/* Need to sign extend */
-		hsize = sizeof data * 8 - hsize;
-		data = (data << hsize) >> hsize;
-	}
+	hsize = 32 - hsize;
+
+	/* Mask and sign extend in one */
+	if ((h->logical_minimum < 0) || (h->logical_maximum < 0))
+		data = (int32_t)((int32_t)data << hsize) >> hsize;
+	else
+		data = (uint32_t)((uint32_t)data << hsize) >> hsize;
+
 	return (data);
 }
 
