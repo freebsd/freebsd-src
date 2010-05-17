@@ -7,7 +7,7 @@ LDADD=	-lz -lmd
 
 DPADD+= ${LIBBZ2}
 LDADD+= -lbz2
-CFLAGS+= -DHAVE_BZLIB_H 1
+CFLAGS+= -DHAVE_BZLIB_H=1
 
 DPADD+= ${LIBLZMA}
 LDADD+= -llzma
