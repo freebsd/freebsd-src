@@ -4936,6 +4936,10 @@ zfs_freebsd_setacl(ap)
 	if (ap->a_aclp->acl_cnt * 2 + 6 > ACL_MAX_ENTRIES)
 		return (ENOSPC);
 
+	error = acl_nfs4_check(ap->a_aclp, ap->a_vp->v_type == VDIR);
+	if (error != 0)
+		return (error);
+
 	vsecattr.vsa_mask = VSA_ACE;
 	aclbsize = ap->a_aclp->acl_cnt * sizeof(ace_t);
 	vsecattr.vsa_aclentp = kmem_alloc(aclbsize, KM_SLEEP);
