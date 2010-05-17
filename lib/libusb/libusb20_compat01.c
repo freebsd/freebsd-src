@@ -829,6 +829,7 @@ usb_find_devices(void)
 	struct libusb20_device *pdev;
 	struct usb_device *udev;
 	struct LIBUSB20_DEVICE_DESC_DECODED *ddesc;
+	int devnum;
 	int err;
 
 	/* cleanup after last device search */
@@ -855,6 +856,7 @@ usb_find_devices(void)
 	}
 	/* iterate all devices */
 
+	devnum = 1;
 	pdev = NULL;
 	while ((pdev = libusb20_be_device_foreach(usb_backend, pdev))) {
 		udev = malloc(sizeof(*udev));
@@ -891,6 +893,7 @@ usb_find_devices(void)
 			/* truncate number of configurations */
 			udev->descriptor.bNumConfigurations = USB_MAXCONFIG;
 		}
+		udev->devnum = devnum++;
 		/* link together the two structures */
 		udev->dev = pdev;
 		pdev->privLuData = udev;
