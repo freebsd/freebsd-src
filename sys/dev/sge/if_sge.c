@@ -117,10 +117,6 @@ static void	sge_miibus_statchg(device_t);
 
 static int	sge_newbuf(struct sge_softc *, int);
 static int	sge_encap(struct sge_softc *, struct mbuf **);
-#ifndef __NO_STRICT_ALIGNMENT
-static __inline void
-		sge_fixup_rx(struct mbuf *);
-#endif
 static __inline void
 		sge_discard_rxbuf(struct sge_softc *, int);
 static void	sge_rxeof(struct sge_softc *);
@@ -644,10 +640,8 @@ sge_attach(device_t dev)
 	ether_ifattach(ifp, eaddr);
 
 	/* VLAN setup. */
-	if ((sc->sge_flags & SGE_FLAG_SIS190) == 0)
-		ifp->if_capabilities |= IFCAP_VLAN_HWTAGGING |
-		    IFCAP_VLAN_HWCSUM | IFCAP_VLAN_HWTSO;
-	ifp->if_capabilities |= IFCAP_VLAN_MTU;
+	ifp->if_capabilities |= IFCAP_VLAN_HWTAGGING | IFCAP_VLAN_HWCSUM |
+	    IFCAP_VLAN_HWTSO | IFCAP_VLAN_MTU;
 	ifp->if_capenable = ifp->if_capabilities;
 	/* Tell the upper layer(s) we support long frames. */
 	ifp->if_data.ifi_hdrlen = sizeof(struct ether_vlan_header);
@@ -1129,23 +1123,6 @@ sge_newbuf(struct sge_softc *sc, int prod)
 	return (0);
 }
 
-#ifndef __NO_STRICT_ALIGNMENT
-static __inline void
-sge_fixup_rx(struct mbuf *m)
-{
-        int i;
-        uint16_t *src, *dst;
-
-	src = mtod(m, uint16_t *);
-	dst = src - 3;
-
-	for (i = 0; i < (m->m_len / sizeof(uint16_t) + 1); i++)
-		*dst++ = *src++;
-
-	m->m_data -= (SGE_RX_BUF_ALIGN - ETHER_ALIGN);
-}
-#endif
-
 static __inline void
 sge_discard_rxbuf(struct sge_softc *sc, int index)
 {
@@ -1228,23 +1205,15 @@ sge_rxeof(struct sge_softc *sc)
 			m->m_pkthdr.ether_vtag = rxinfo & RDC_VLAN_MASK;
 			m->m_flags |= M_VLANTAG;
 		}
-		if ((sc->sge_flags & SGE_FLAG_SIS190) == 0) {
-			/*
-			 * Account for 10bytes auto padding which is used
-			 * to align IP header on 32bit boundary.  Also note,
-			 * CRC bytes is automatically removed by the
-			 * hardware.
-			 */
-			m->m_data += SGE_RX_PAD_BYTES;
-			m->m_pkthdr.len = m->m_len = SGE_RX_BYTES(rxstat) -
-			    SGE_RX_PAD_BYTES;
-		} else {
-			m->m_pkthdr.len = m->m_len = SGE_RX_BYTES(rxstat) -
-			    ETHER_CRC_LEN;
-#ifndef __NO_STRICT_ALIGNMENT
-			sge_fixup_rx(m);
-#endif
-		}
+		/*
+		 * Account for 10bytes auto padding which is used
+		 * to align IP header on 32bit boundary.  Also note,
+		 * CRC bytes is automatically removed by the
+		 * hardware.
+		 */
+		m->m_data += SGE_RX_PAD_BYTES;
+		m->m_pkthdr.len = m->m_len = SGE_RX_BYTES(rxstat) -
+		    SGE_RX_PAD_BYTES;
 		m->m_pkthdr.rcvif = ifp;
 		ifp->if_ipackets++;
 		SGE_UNLOCK(sc);
@@ -1688,18 +1657,13 @@ sge_init_locked(struct sge_softc *sc)
 	CSR_WRITE_4(sc, RxWakeOnLan, 0);
 	CSR_WRITE_4(sc, RxWakeOnLanData, 0);
 	/* Allow receiving VLAN frames. */
-	if ((sc->sge_flags & SGE_FLAG_SIS190) == 0)
-		CSR_WRITE_2(sc, RxMPSControl,
-		    ETHER_MAX_LEN + ETHER_VLAN_ENCAP_LEN + SGE_RX_PAD_BYTES);
-	else
-		CSR_WRITE_2(sc, RxMPSControl, ETHER_MAX_LEN + ETHER_VLAN_ENCAP_LEN);
+	CSR_WRITE_2(sc, RxMPSControl, ETHER_MAX_LEN + ETHER_VLAN_ENCAP_LEN +
+	    SGE_RX_PAD_BYTES);
 
 	for (i = 0; i < ETHER_ADDR_LEN; i++)
 		CSR_WRITE_1(sc, RxMacAddr + i, IF_LLADDR(ifp)[i]);
 	/* Configure RX MAC. */
-	rxfilt = 0;
-	if ((sc->sge_flags & SGE_FLAG_SIS190) == 0)
-		rxfilt |= RXMAC_STRIP_FCS | RXMAC_PAD_ENB;
+	rxfilt = RXMAC_STRIP_FCS | RXMAC_PAD_ENB;
 	CSR_WRITE_2(sc, RxMacControl, rxfilt);
 	sge_rxfilter(sc);
 	sge_setvlan(sc);
