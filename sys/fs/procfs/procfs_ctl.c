@@ -212,7 +212,7 @@ out:
 		}
 
 		/* not being traced any more */
-		p->p_flag &= ~P_TRACED;
+		p->p_flag &= ~(P_TRACED | P_STOPPED_TRACE);
 
 		/* remove pending SIGTRAP, else the process will die */
 		sigqueue_delete_proc(p, SIGTRAP);
