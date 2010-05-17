@@ -951,7 +951,7 @@ nfs_mount(struct mount *mp)
 
 	if (vfs_getopt(mp->mnt_optnew, "fh", (void **)&args.fh,
 	    &args.fhsize) == 0) {
-		if (args.fhsize > NFSX_FHMAX) {
+		if (args.fhsize < 0 || args.fhsize > NFSX_FHMAX) {
 			vfs_mount_error(mp, "Bad file handle");
 			error = EINVAL;
 			goto out;
