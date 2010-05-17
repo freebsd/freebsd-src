@@ -187,8 +187,8 @@ static	int vlan_setflag(struct ifnet *ifp, int flag, int status,
     int (*func)(struct ifnet *, int));
 static	int vlan_setflags(struct ifnet *ifp, int status);
 static	int vlan_setmulti(struct ifnet *ifp);
-static	int vlan_unconfig(struct ifnet *ifp);
-static	int vlan_unconfig_locked(struct ifnet *ifp);
+static	void vlan_unconfig(struct ifnet *ifp);
+static	void vlan_unconfig_locked(struct ifnet *ifp);
 static	int vlan_config(struct ifvlan *ifv, struct ifnet *p, uint16_t tag);
 static	void vlan_link_state(struct ifnet *ifp);
 static	void vlan_capabilities(struct ifvlan *ifv);
@@ -1128,25 +1128,22 @@ done:
 	return (error);
 }
 
-static int
+static void
 vlan_unconfig(struct ifnet *ifp)
 {
-	int ret;
 
 	VLAN_LOCK();
-	ret = vlan_unconfig_locked(ifp);
+	vlan_unconfig_locked(ifp);
 	VLAN_UNLOCK();
-	return (ret);
 }
 
-static int
+static void
 vlan_unconfig_locked(struct ifnet *ifp)
 {
 	struct ifvlantrunk *trunk;
 	struct vlan_mc_entry *mc;
 	struct ifvlan *ifv;
 	struct ifnet  *parent;
-	int error;
 
 	VLAN_LOCK_ASSERT();
 
@@ -1175,9 +1172,15 @@ vlan_unconfig_locked(struct ifnet *ifp)
 		while ((mc = SLIST_FIRST(&ifv->vlan_mc_listhead)) != NULL) {
 			bcopy((char *)&mc->mc_addr, LLADDR(&sdl),
 			    ETHER_ADDR_LEN);
-			error = if_delmulti(parent, (struct sockaddr *)&sdl);
-			if (error)
-				return (error);
+
+			/*
+			 * This may fail if the parent interface is
+			 * being detached.  Regardless, we should do a
+			 * best effort to free this interface as much
+			 * as possible as all callers expect vlan
+			 * destruction to succeed.
+			 */
+			(void)if_delmulti(parent, (struct sockaddr *)&sdl);
 			SLIST_REMOVE_HEAD(&ifv->vlan_mc_listhead, mc_entries);
 			free(mc, M_VLAN);
 		}
@@ -1223,8 +1226,6 @@ vlan_unconfig_locked(struct ifnet *ifp)
 	 */
 	if (parent != NULL)
 		EVENTHANDLER_INVOKE(vlan_unconfig, parent, ifv->ifv_tag);
-
-	return (0);
 }
 
 /* Handle a reference counted flag that should be set on the parent as well */
