@@ -1707,6 +1707,8 @@ static int
 rge_probe(dev)
 	device_t dev;
 {
+	device_set_desc(dev, "RMI Gigabit Ethernet");
+
 	/* Always return 0 */
 	return 0;
 }
