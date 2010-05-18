@@ -76,10 +76,8 @@ GLOBAL(mpentry)
 
 	PTR_LA	gp, _C_LABEL(_gp)
 
-#ifndef TARGET_XLR_XLS
 	jal	platform_init_ap
 	move	a0, s0
-#endif
 	jal	smp_init_secondary
 	move	a0, s0
 
