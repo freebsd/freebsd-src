@@ -30,6 +30,7 @@
  */
 
 #include <sys/cdefs.h>
+#include <sys/types.h>
 
 typedef struct report_desc *report_desc_t;
 
@@ -105,7 +106,7 @@ int hid_parse_usage_in_page(const char *name);
 int hid_parse_usage_page(const char *name);
 
 /* Extracting/insertion of data, data.c: */
-int hid_get_data(const void *p, const hid_item_t *h);
-void hid_set_data(void *p, const hid_item_t *h, int data);
+int32_t hid_get_data(const void *p, const hid_item_t *h);
+void hid_set_data(void *p, const hid_item_t *h, int32_t data);
 
 __END_DECLS
