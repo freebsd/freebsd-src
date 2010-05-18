@@ -33,7 +33,7 @@ __FBSDID("$FreeBSD$");
 #include <stdlib.h>
 #include "usbhid.h"
 
-int
+int32_t
 hid_get_data(const void *p, const hid_item_t *h)
 {
 	const unsigned char *buf;
@@ -68,12 +68,15 @@ hid_get_data(const void *p, const hid_item_t *h)
 }
 
 void
-hid_set_data(void *p, const hid_item_t *h, int data)
+hid_set_data(void *p, const hid_item_t *h, int32_t data)
 {
 	unsigned char *buf;
 	unsigned int hpos;
 	unsigned int hsize;
-	int i, end, offs, mask;
+	uint32_t mask;
+	int i;
+	int end;
+	int offs;
 
 	buf = p;
 	hpos = h->pos;			/* bit position of data */
