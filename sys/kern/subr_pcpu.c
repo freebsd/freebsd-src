@@ -363,7 +363,7 @@ show_pcpu(struct pcpu *pc)
 
 #ifdef WITNESS
 	db_printf("spin locks held:\n");
-	witness_list_locks(&pc->pc_spinlocks);
+	witness_list_locks(&pc->pc_spinlocks, db_printf);
 #endif
 }
 
