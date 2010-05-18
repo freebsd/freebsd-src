@@ -358,10 +358,12 @@ main(int argc, char *argv[])
 				warnx("%s remains unchanged as disabled", name);
 			} else {
 				journal_clear();
- 				sblock.fs_flags &= ~(FS_DOSOFTDEP | FS_SUJ);
+ 				sblock.fs_flags &= ~FS_SUJ;
 				sblock.fs_sujfree = 0;
- 				warnx("%s cleared, "
-				    "remove .sujournal to reclaim space", name);
+ 				warnx("%s cleared but soft updates still set.",
+				    name);
+
+				warnx("remove .sujournal to reclaim space");
 			}
  		}
 	}
@@ -546,7 +548,7 @@ journal_balloc(void)
 			 * Try to minimize fragmentation by requiring a minimum
 			 * number of blocks present.
 			 */
-			if (cgp->cg_cs.cs_nbfree > 128 * 1024 * 1024)
+			if (cgp->cg_cs.cs_nbfree > 256 * 1024)
 				break;
 			if (contig == 0 && cgp->cg_cs.cs_nbfree)
 				break;
@@ -906,6 +908,8 @@ journal_alloc(int64_t size)
 		if (size / sblock.fs_fsize > sblock.fs_fpg)
 			size = sblock.fs_fpg * sblock.fs_fsize;
 		size = MAX(SUJ_MIN, size);
+		/* fsck does not support fragments in journal files. */
+		size = roundup(size, sblock.fs_bsize);
 	}
 	resid = blocks = size / sblock.fs_bsize;
 	if (sblock.fs_cstotal.cs_nbfree < blocks) {
