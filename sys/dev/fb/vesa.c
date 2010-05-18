@@ -1443,6 +1443,7 @@ vesa_load_state(video_adapter_t *adp, void *p)
 	/* Try BIOS POST to restore a sane state. */
 	(void)vesa_bios_post();
 	(void)int10_set_mode(adp->va_initial_bios_mode);
+	(void)vesa_set_mode(adp, adp->va_mode);
 
 	return (vesa_bios_save_restore(STATE_LOAD, ((adp_state_t *)p)->regs,
 	    vesa_state_buf_size));
