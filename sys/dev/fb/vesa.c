@@ -240,10 +240,10 @@ vesa_bios_post(void)
 	/* Find the matching PCI video controller. */
 	dc = devclass_find("vgapci");
 	if (dc != NULL && devclass_get_devices(dc, &devs, &count) == 0) {
-		for (dev = NULL, i = 0; dev == NULL && i < count; devs++, i++)
-			if (device_get_flags(*devs) != 0 &&
-			    x86bios_match_device(0xc0000, *devs)) {
-				dev = *devs;
+		for (i = 0; i < count; i++)
+			if (device_get_flags(devs[i]) != 0 &&
+			    x86bios_match_device(0xc0000, devs[i])) {
+				dev = devs[i];
 				is_pci = 1;
 				break;
 			}
