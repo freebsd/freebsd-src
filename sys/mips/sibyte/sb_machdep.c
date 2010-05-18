@@ -76,6 +76,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/vmparam.h>
 
 #ifdef SMP
+#include <sys/smp.h>
 #include <machine/smp.h>
 #endif
 
@@ -347,6 +348,7 @@ platform_ipi_intrnum(void)
 struct cpu_group *
 platform_smp_topo(void)
 {
+
 	return (smp_topo_none());
 }
 
