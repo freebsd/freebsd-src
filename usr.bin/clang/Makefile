@@ -1,7 +1,5 @@
 # $FreeBSD$
 
-SUBDIR=	lib \
-	bin \
-	include
+SUBDIR=	clang
 
 .include <bsd.subdir.mk>
