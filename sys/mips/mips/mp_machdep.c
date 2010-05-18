@@ -196,8 +196,7 @@ cpu_mp_announce(void)
 struct cpu_group *
 cpu_topo(void)
 {
-
-	return (smp_topo_none());
+	return (platform_smp_topo());
 }
 
 int
@@ -238,10 +237,6 @@ cpu_mp_start(void)
 void
 smp_init_secondary(u_int32_t cpuid)
 {
-#ifndef TARGET_XLR_XLS
-	int ipi_int_mask, clock_int_mask;
-#endif
-
 	/* TLB */
 	Mips_SetWIRED(0);
 	Mips_TLBFlush(num_tlbentries);
@@ -293,17 +288,6 @@ smp_init_secondary(u_int32_t cpuid)
 
 	while (smp_started == 0)
 		; /* nothing */
-
-#ifndef TARGET_XLR_XLS
-	/*
-	 * Unmask the clock and ipi interrupts.
-	 */
-	clock_int_mask = hard_int_mask(5);
-	ipi_int_mask = hard_int_mask(platform_ipi_intrnum());
-	set_intr_mask(ALL_INT_MASK & ~(ipi_int_mask | clock_int_mask));
-#else
-	platform_init_ap(cpuid);
-#endif
 
 	/*
 	 * Bootstrap the compare register.
