@@ -70,6 +70,9 @@ struct schizo_softc {
 	bus_space_tag_t			sc_pci_memt;
 	bus_dma_tag_t			sc_pci_dmat;
 
+	uint32_t			sc_stats_dma_ce;
+	uint32_t			sc_stats_pci_non_fatal;
+
 	uint8_t				sc_pci_secbus;
 	uint8_t				sc_pci_subbus;
 
