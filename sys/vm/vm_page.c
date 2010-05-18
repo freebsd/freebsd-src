@@ -2160,10 +2160,13 @@ vm_page_set_invalid(vm_page_t m, int base, int size)
 	int bits;
 
 	VM_OBJECT_LOCK_ASSERT(m->object, MA_OWNED);
+	KASSERT((m->oflags & VPO_BUSY) == 0,
+	    ("vm_page_set_invalid: page %p is busy", m));
 	bits = vm_page_bits(base, size);
-	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
 	if (m->valid == VM_PAGE_BITS_ALL && bits != 0)
 		pmap_remove_all(m);
+	KASSERT(!pmap_page_is_mapped(m),
+	    ("vm_page_set_invalid: page %p is mapped", m));
 	m->valid &= ~bits;
 	m->dirty &= ~bits;
 	m->object->generation++;
@@ -2241,9 +2244,10 @@ vm_page_is_valid(vm_page_t m, int base, int size)
 void
 vm_page_test_dirty(vm_page_t m)
 {
-	if ((m->dirty != VM_PAGE_BITS_ALL) && pmap_is_modified(m)) {
+
+	VM_OBJECT_LOCK_ASSERT(m->object, MA_OWNED);
+	if (m->dirty != VM_PAGE_BITS_ALL && pmap_is_modified(m))
 		vm_page_dirty(m);
-	}
 }
 
 int so_zerocp_fullpage = 0;
