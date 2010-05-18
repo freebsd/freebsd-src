@@ -25,24 +25,24 @@ Intrinsics.inc.h: ${LLVM_SRCS}/include/llvm/Intrinsics.td
 	${TBLGEN} -gen-intrinsic \
 		${LLVM_SRCS}/include/llvm/Intrinsics.td > ${.TARGET}
 .for arch in \
-	ARM:ARM Mips:Mips PowerPC:PPC X86:X86
+	ARM/ARM Mips/Mips PowerPC/PPC X86/X86
 . for hdr in \
-	AsmMatcher:-gen-asm-matcher \
-	AsmWriter1:-gen-asm-writer,-asmwriternum=1 \
-	AsmWriter:-gen-asm-writer \
-	CallingConv:-gen-callingconv \
-	CodeEmitter:-gen-emitter \
-	DAGISel:-gen-dag-isel \
-	FastISel:-gen-fast-isel \
-	InstrInfo:-gen-instr-desc \
-	InstrNames:-gen-instr-enums \
-	RegisterInfo.h:-gen-register-desc-header \
-	RegisterInfo:-gen-register-desc \
-	RegisterNames:-gen-register-enums \
-	Subtarget:-gen-subtarget
-${arch:C/.*://}Gen${hdr:C/:.*/.inc.h/}: ${LLVM_SRCS}/lib/Target/${arch:C/:.*//}/${arch:C/.*://}.td
-	${TBLGEN} ${hdr:C/.*://:C/,/ /g} \
-		${LLVM_SRCS}/lib/Target/${arch:C/:.*//}/${arch:C/.*://}.td > ${.TARGET}
+	AsmMatcher/-gen-asm-matcher \
+	AsmWriter1/-gen-asm-writer,-asmwriternum=1 \
+	AsmWriter/-gen-asm-writer \
+	CallingConv/-gen-callingconv \
+	CodeEmitter/-gen-emitter \
+	DAGISel/-gen-dag-isel \
+	FastISel/-gen-fast-isel \
+	InstrInfo/-gen-instr-desc \
+	InstrNames/-gen-instr-enums \
+	RegisterInfo.h/-gen-register-desc-header \
+	RegisterInfo/-gen-register-desc \
+	RegisterNames/-gen-register-enums \
+	Subtarget/-gen-subtarget
+${arch:T}Gen${hdr:H:C/$/.inc.h/}: ${LLVM_SRCS}/lib/Target/${arch:H}/${arch:T}.td
+	${TBLGEN} ${hdr:T:C/,/ /g} \
+		${LLVM_SRCS}/lib/Target/${arch:H}/${arch:T}.td > ${.TARGET}
 . endfor
 .endfor
 DiagnosticGroups.inc.h: ${CLANG_SRCS}/include/clang/Basic/Diagnostic.td

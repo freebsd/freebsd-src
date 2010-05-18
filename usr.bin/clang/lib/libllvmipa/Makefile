@@ -3,8 +3,8 @@
 LIB=	llvmipa
 
 SRCDIR=	lib/Analysis/IPA
-SRCS=	CallGraph.cpp CallGraphSCCPass.cpp \
-	FindUsedTypes.cpp GlobalsModRef.cpp
+SRCS=	CallGraph.cpp CallGraphSCCPass.cpp FindUsedTypes.cpp \
+	GlobalsModRef.cpp
 
 TGHDRS=	Intrinsics
 
