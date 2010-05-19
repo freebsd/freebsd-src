@@ -384,17 +384,12 @@ main(int argc, char *argv[])
 	int     dosleep = 0, all_info = 1, apm_status = 0, batt_status = 0;
 	int     display = -1, batt_life = 0, ac_status = 0, standby = 0;
 	int	batt_time = 0, delta = 0, enable = -1, haltcpu = -1;
-	char	*cmdname;
 	int	bioscall_available = 0;
 	size_t	cmos_wall_len = sizeof(cmos_wall);
 
 	if (sysctlbyname("machdep.wall_cmos_clock", &cmos_wall, &cmos_wall_len,
 	    NULL, 0) == -1)
 		err(1, "sysctlbyname(machdep.wall_cmos_clock)");
-	if ((cmdname = strrchr(argv[0], '/')) != NULL)
-		cmdname++;
-	else
-		cmdname = argv[0];
 
 	while ((c = getopt(argc, argv, "abe:h:lRr:stzd:Z")) != -1) {
 		switch (c) {
