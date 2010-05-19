@@ -46,51 +46,65 @@
  * copy of the data. A particular data dependency is eliminated when
  * it is ALLCOMPLETE: that is ATTACHED, DEPCOMPLETE, and COMPLETE.
  * 
- * ATTACHED means that the data is not currently being written to
- * disk. UNDONE means that the data has been rolled back to a safe
+ * The ATTACHED flag means that the data is not currently being written
+ * to disk.
+ * 
+ * The UNDONE flag means that the data has been rolled back to a safe
  * state for writing to the disk. When the I/O completes, the data is
  * restored to its current form and the state reverts to ATTACHED.
  * The data must be locked throughout the rollback, I/O, and roll
  * forward so that the rolled back information is never visible to
- * user processes. The COMPLETE flag indicates that the item has been
- * written. For example, a dependency that requires that an inode be
- * written will be marked COMPLETE after the inode has been written
- * to disk. The DEPCOMPLETE flag indicates the completion of any other
+ * user processes.
+ *
+ * The COMPLETE flag indicates that the item has been written. For example,
+ * a dependency that requires that an inode be written will be marked
+ * COMPLETE after the inode has been written to disk.
+ * 
+ * The DEPCOMPLETE flag indicates the completion of any other
  * dependencies such as the writing of a cylinder group map has been
  * completed. A dependency structure may be freed only when both it
  * and its dependencies have completed and any rollbacks that are in
  * progress have finished as indicated by the set of ALLCOMPLETE flags
- * all being set. The two MKDIR flags indicate additional dependencies
- * that must be done when creating a new directory. MKDIR_BODY is
- * cleared when the directory data block containing the "." and ".."
- * entries has been written. MKDIR_PARENT is cleared when the parent
- * inode with the increased link count for ".." has been written. When
- * both MKDIR flags have been cleared, the DEPCOMPLETE flag is set to
- * indicate that the directory dependencies have been completed. The
- * writing of the directory inode itself sets the COMPLETE flag which
- * then allows the directory entry for the new directory to be written
- * to disk. The RMDIR flag marks a dirrem structure as representing
- * the removal of a directory rather than a file. When the removal
- * dependencies are completed, additional work needs to be done
- * (truncation of the "." and ".." entries, an additional decrement
- * of the associated inode, and a decrement of the parent inode). The
- * DIRCHG flag marks a diradd structure as representing the changing
+ * all being set.
+ * 
+ * The two MKDIR flags indicate additional dependencies that must be done
+ * when creating a new directory. MKDIR_BODY is cleared when the directory
+ * data block containing the "." and ".." entries has been written.
+ * MKDIR_PARENT is cleared when the parent inode with the increased link
+ * count for ".." has been written. When both MKDIR flags have been
+ * cleared, the DEPCOMPLETE flag is set to indicate that the directory
+ * dependencies have been completed. The writing of the directory inode
+ * itself sets the COMPLETE flag which then allows the directory entry for
+ * the new directory to be written to disk. The RMDIR flag marks a dirrem
+ * structure as representing the removal of a directory rather than a
+ * file. When the removal dependencies are completed, additional work needs
+ * to be done* (an additional decrement of the associated inode, and a
+ * decrement of the parent inode).
+ *
+ * The DIRCHG flag marks a diradd structure as representing the changing
  * of an existing entry rather than the addition of a new one. When
  * the update is complete the dirrem associated with the inode for
  * the old name must be added to the worklist to do the necessary
- * reference count decrement. The GOINGAWAY flag indicates that the
- * data structure is frozen from further change until its dependencies
- * have been completed and its resources freed after which it will be
- * discarded. The IOSTARTED flag prevents multiple calls to the I/O
- * start routine from doing multiple rollbacks. The SPACECOUNTED flag
- * says that the files space has been accounted to the pending free
- * space count. The NEWBLOCK flag marks pagedep structures that have
- * just been allocated, so must be claimed by the inode before all
- * dependencies are complete. The INPROGRESS flag marks worklist
- * structures that are still on the worklist, but are being considered
- * for action by some process. The UFS1FMT flag indicates that the
- * inode being processed is a ufs1 format. The EXTDATA flag indicates
- * that the allocdirect describes an extended-attributes dependency.
+ * reference count decrement.
+ * 
+ * The GOINGAWAY flag indicates that the data structure is frozen from
+ * further change until its dependencies have been completed and its
+ * resources freed after which it will be discarded.
+ *
+ * The IOSTARTED flag prevents multiple calls to the I/O start routine from
+ * doing multiple rollbacks.
+ *
+ * The NEWBLOCK flag marks pagedep structures that have just been allocated,
+ * so must be claimed by the inode before all dependencies are complete.
+ *
+ * The INPROGRESS flag marks worklist structures that are still on the
+ * worklist, but are being considered for action by some process.
+ *
+ * The UFS1FMT flag indicates that the inode being processed is a ufs1 format.
+ *
+ * The EXTDATA flag indicates that the allocdirect describes an
+ * extended-attributes dependency.
+ *
  * The ONWORKLIST flag shows whether the structure is currently linked
  * onto a worklist.
  */
