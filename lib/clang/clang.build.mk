@@ -8,10 +8,6 @@ CFLAGS+=-I${LLVM_SRCS}/include -I${CLANG_SRCS}/include \
 	-DLLVM_ON_UNIX -DLLVM_ON_FREEBSD \
 	-D__STDC_LIMIT_MACROS -D__STDC_CONSTANT_MACROS #-DNDEBUG
 
-.ifndef REQUIRES_RTTI
-CFLAGS+=	-fno-rtti
-.endif
-
 TARGET_ARCH?=	${MACHINE_ARCH}
 # XXX: 8.0, to keep __FreeBSD_cc_version happy
 CFLAGS+=-DLLVM_HOSTTRIPLE=\"${TARGET_ARCH}-undermydesk-freebsd9.0\"
