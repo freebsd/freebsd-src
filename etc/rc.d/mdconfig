@@ -28,8 +28,7 @@
 #
 
 # PROVIDE: mdconfig
-# REQUIRE: localswap
-# BEFORE: mountcritlocal
+# REQUIRE: localswap root
 
 . /etc/rc.subr
 
