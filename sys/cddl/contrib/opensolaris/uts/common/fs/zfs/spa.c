@@ -2564,11 +2564,12 @@ spa_tryimport(nvlist_t *tryconfig)
  * The act of destroying or exporting a pool is very simple.  We make sure there
  * is no more pending I/O and any references to the pool are gone.  Then, we
  * update the pool state and sync all the labels to disk, removing the
- * configuration from the cache afterwards.
+ * configuration from the cache afterwards. If the 'hardforce' flag is set, then
+ * we don't sync the labels or remove the configuration cache.
  */
 static int
 spa_export_common(char *pool, int new_state, nvlist_t **oldconfig,
-    boolean_t force)
+    boolean_t force, boolean_t hardforce)
 {
 	spa_t *spa;
 
@@ -2636,7 +2637,7 @@ spa_export_common(char *pool, int new_state, nvlist_t **oldconfig,
 		 * so mark them all dirty.  spa_unload() will do the
 		 * final sync that pushes these changes out.
 		 */
-		if (new_state != POOL_STATE_UNINITIALIZED) {
+		if (new_state != POOL_STATE_UNINITIALIZED && !hardforce) {
 			spa_config_enter(spa, SCL_ALL, FTAG, RW_WRITER);
 			spa->spa_state = new_state;
 			spa->spa_final_txg = spa_last_synced_txg(spa) + 1;
@@ -2656,7 +2657,8 @@ spa_export_common(char *pool, int new_state, nvlist_t **oldconfig,
 		VERIFY(nvlist_dup(spa->spa_config, oldconfig, 0) == 0);
 
 	if (new_state != POOL_STATE_UNINITIALIZED) {
-		spa_config_sync(spa, B_TRUE, B_TRUE);
+		if (!hardforce)
+			spa_config_sync(spa, B_TRUE, B_TRUE);
 		spa_remove(spa);
 	}
 	mutex_exit(&spa_namespace_lock);
@@ -2670,16 +2672,19 @@ spa_export_common(char *pool, int new_state, nvlist_t **oldconfig,
 int
 spa_destroy(char *pool)
 {
-	return (spa_export_common(pool, POOL_STATE_DESTROYED, NULL, B_FALSE));
+	return (spa_export_common(pool, POOL_STATE_DESTROYED, NULL,
+	    B_FALSE, B_FALSE));
 }
 
 /*
  * Export a storage pool.
  */
 int
-spa_export(char *pool, nvlist_t **oldconfig, boolean_t force)
+spa_export(char *pool, nvlist_t **oldconfig, boolean_t force,
+    boolean_t hardforce)
 {
-	return (spa_export_common(pool, POOL_STATE_EXPORTED, oldconfig, force));
+	return (spa_export_common(pool, POOL_STATE_EXPORTED, oldconfig,
+	    force, hardforce));
 }
 
 /*
@@ -2690,7 +2695,7 @@ int
 spa_reset(char *pool)
 {
 	return (spa_export_common(pool, POOL_STATE_UNINITIALIZED, NULL,
-	    B_FALSE));
+	    B_FALSE, B_FALSE));
 }
 
 /*
