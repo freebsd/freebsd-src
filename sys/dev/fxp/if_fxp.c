@@ -1912,6 +1912,8 @@ fxp_intr_body(struct fxp_softc *sc, struct ifnet *ifp, uint8_t statack,
 		if ((status & FXP_RFA_STATUS_C) == 0)
 			break;
 
+		if ((status & FXP_RFA_STATUS_RNR) != 0)
+			rnr++;
 		/*
 		 * Advance head forward.
 		 */
@@ -1938,9 +1940,12 @@ fxp_intr_body(struct fxp_softc *sc, struct ifnet *ifp, uint8_t statack,
 				total_len -= 2;
 			}
 			if (total_len < sizeof(struct ether_header) ||
-			    total_len > MCLBYTES - RFA_ALIGNMENT_FUDGE -
-				sc->rfa_size || status & FXP_RFA_STATUS_CRC) {
+			    total_len > (MCLBYTES - RFA_ALIGNMENT_FUDGE -
+			    sc->rfa_size) ||
+			    status & (FXP_RFA_STATUS_CRC |
+			    FXP_RFA_STATUS_ALIGN)) {
 				m_freem(m);
+				fxp_add_rfabuf(sc, rxp);
 				continue;
 			}
 
