@@ -14,6 +14,7 @@
 #include "clang/Frontend/Utils.h"
 #include "clang/Basic/FileManager.h"
 #include "clang/Basic/LangOptions.h"
+#include "clang/Basic/Version.h"
 #include "clang/Frontend/HeaderSearchOptions.h"
 #include "clang/Lex/HeaderSearch.h"
 #include "llvm/ADT/SmallString.h"
@@ -476,12 +477,12 @@ void InitHeaderSearch::AddDefaultCIncludePaths(const llvm::Triple &triple) {
   case llvm::Triple::MinGW32:
     AddPath("c:/mingw/include", System, true, false, false);
     break;
-  case llvm::Triple::FreeBSD:
-    AddPath("/usr/include/clang/1.5", System, true, false, false);
   default:
     break;
   }
 
+  AddPath("/usr/include/clang/" CLANG_VERSION_STRING,
+    System, false, false, false);
   AddPath("/usr/include", System, false, false, false);
 }
 
@@ -815,6 +816,7 @@ void clang::ApplyHeaderSearchOptions(HeaderSearch &HS,
   else
     Init.AddDelimitedPaths(HSOpts.CEnvIncPath);
 
+#if 0 /* XXX: Always points to an invalid path. */
   if (HSOpts.UseBuiltinIncludes) {
     // Ignore the sys root, we *always* look for clang headers relative to
     // supplied path.
@@ -822,6 +824,7 @@ void clang::ApplyHeaderSearchOptions(HeaderSearch &HS,
     P.appendComponent("include");
     Init.AddPath(P.str(), System, false, false, false, /*IgnoreSysRoot=*/ true);
   }
+#endif
 
   if (HSOpts.UseStandardIncludes)
     Init.AddDefaultSystemIncludePaths(Lang, Triple, 
