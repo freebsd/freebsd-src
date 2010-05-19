@@ -32,68 +32,68 @@
 struct sal_system_table {
 	char		sal_signature[4];
 #define	SAL_SIGNATURE	"SST_"
-	u_int32_t	sal_length;
-	u_int8_t	sal_rev[2];
-	u_int16_t	sal_entry_count;
-	u_int8_t	sal_checksum;
-	u_int8_t	sal_reserved1[7];
-	u_int8_t	sal_a_version[2];
-	u_int8_t	sal_b_version[2];
+	uint32_t	sal_length;
+	uint8_t		sal_rev[2];
+	uint16_t	sal_entry_count;
+	uint8_t		sal_checksum;
+	uint8_t		sal_reserved1[7];
+	uint8_t		sal_a_version[2];
+	uint8_t		sal_b_version[2];
 	char		sal_oem_id[32];
 	char		sal_product_id[32];
-	u_int8_t	sal_reserved2[8];
+	uint8_t		sal_reserved2[8];
 };
 
 struct sal_entrypoint_descriptor {
-	u_int8_t	sale_type;	/* == 0 */
-	u_int8_t	sale_reserved1[7];
-	u_int64_t	sale_pal_proc;
-	u_int64_t	sale_sal_proc;
-	u_int64_t	sale_sal_gp;
-	u_int8_t	sale_reserved2[16];
+	uint8_t		sale_type;	/* == 0 */
+	uint8_t		sale_reserved1[7];
+	uint64_t	sale_pal_proc;
+	uint64_t	sale_sal_proc;
+	uint64_t	sale_sal_gp;
+	uint8_t		sale_reserved2[16];
 };
 
 struct sal_memory_descriptor {
-	u_int8_t	sale_type;	/* == 1 */
-	u_int8_t	sale_need_virtual;
-	u_int8_t	sale_current_attribute;
-	u_int8_t	sale_access_rights;
-	u_int8_t	sale_supported_attributes;
-	u_int8_t	sale_reserved1;
-	u_int8_t	sale_memory_type[2];
-	u_int64_t	sale_physical_address;
-	u_int32_t	sale_length;
-	u_int8_t	sale_reserved2[12];
+	uint8_t		sale_type;	/* == 1 */
+	uint8_t		sale_need_virtual;
+	uint8_t		sale_current_attribute;
+	uint8_t		sale_access_rights;
+	uint8_t		sale_supported_attributes;
+	uint8_t		sale_reserved1;
+	uint8_t		sale_memory_type[2];
+	uint64_t	sale_physical_address;
+	uint32_t	sale_length;
+	uint8_t		sale_reserved2[12];
 };
 
 struct sal_platform_descriptor {
-	u_int8_t	sale_type;	/* == 2 */
-	u_int8_t	sale_features;
-	u_int8_t	sale_reserved[14];
+	uint8_t		sale_type;	/* == 2 */
+	uint8_t		sale_features;
+	uint8_t		sale_reserved[14];
 };
 
 struct sal_tr_descriptor {
-	u_int8_t	sale_type;	/* == 3 */
-	u_int8_t	sale_register_type;
-	u_int8_t	sale_register_number;
-	u_int8_t	sale_reserved1[5];
-	u_int64_t	sale_virtual_address;
-	u_int64_t	sale_page_size;
-	u_int8_t	sale_reserved2[8];
+	uint8_t		sale_type;	/* == 3 */
+	uint8_t		sale_register_type;
+	uint8_t		sale_register_number;
+	uint8_t		sale_reserved1[5];
+	uint64_t	sale_virtual_address;
+	uint64_t	sale_page_size;
+	uint8_t		sale_reserved2[8];
 };
 
 struct sal_ptc_cache_descriptor {
-	u_int8_t	sale_type;	/* == 4 */
-	u_int8_t	sale_reserved[3];
-	u_int32_t	sale_domains;
-	u_int64_t	sale_address;
+	uint8_t		sale_type;	/* == 4 */
+	uint8_t		sale_reserved[3];
+	uint32_t	sale_domains;
+	uint64_t	sale_address;
 };
 
 struct sal_ap_wakeup_descriptor {
-	u_int8_t	sale_type;	/* == 5 */
-	u_int8_t	sale_mechanism;
-	u_int8_t	sale_reserved[6];
-	u_int64_t	sale_vector;
+	uint8_t		sale_type;	/* == 5 */
+	uint8_t		sale_mechanism;
+	uint8_t		sale_reserved[6];
+	uint64_t	sale_vector;
 };
 
 /*
@@ -128,12 +128,11 @@ struct sal_ap_wakeup_descriptor {
 
 struct ia64_sal_result {
 	int64_t		sal_status;
-	u_int64_t	sal_result[3];
+	uint64_t	sal_result[3];
 };
 
-typedef struct ia64_sal_result sal_entry_t
-	(u_int64_t, u_int64_t, u_int64_t, u_int64_t,
-	 u_int64_t, u_int64_t, u_int64_t, u_int64_t);
+typedef struct ia64_sal_result sal_entry_t(uint64_t, uint64_t, uint64_t,
+    uint64_t, uint64_t, uint64_t, uint64_t, uint64_t);
 
 extern sal_entry_t *ia64_sal_entry;
 
