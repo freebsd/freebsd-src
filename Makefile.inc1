@@ -967,9 +967,9 @@ _crunchgen=	usr.sbin/crunch/crunchgen
 
 .if ${MK_CLANG} != "no"
 _clang_tblgen= \
-	usr.bin/clang/lib/libllvmsupport \
-	usr.bin/clang/lib/libllvmsystem \
-	usr.bin/clang/bin/tblgen
+	lib/clang/libllvmsupport \
+	lib/clang/libllvmsystem \
+	usr.bin/clang/tblgen
 .endif
 
 .if ${MK_CDDL} != "no"
@@ -1069,10 +1069,12 @@ _kgzip=		usr.sbin/kgzip
 
 .if ${MK_CLANG_IS_CC} != "no"
 _clang=		usr.bin/clang
+_clang_libs=	lib/clang
 .endif
 
 cross-tools:
 .for _tool in \
+    ${_clang_libs} \
     ${_clang} \
     gnu/usr.bin/binutils \
     gnu/usr.bin/cc \
