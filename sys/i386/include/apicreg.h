@@ -234,6 +234,7 @@ typedef struct IOAPIC ioapic_t;
 #define APIC_VER_VERSION	0x000000ff
 #define APIC_VER_MAXLVT		0x00ff0000
 #define MAXLVTSHIFT		16
+#define APIC_VER_EOI_SUPPRESSION 0x01000000
 
 /* fields in LDR */
 #define	APIC_LDR_RESERVED	0x00ffffff
@@ -254,6 +255,7 @@ typedef struct IOAPIC ioapic_t;
 #define APIC_SVR_FOCUS		0x00000200
 # define APIC_SVR_FEN		0x00000000
 # define APIC_SVR_FDIS		0x00000200
+#define APIC_SVR_EOI_SUPPRESSION 0x00001000
 
 /* fields in TPR */
 #define APIC_TPR_PRIO		0x000000ff
@@ -364,6 +366,7 @@ typedef struct IOAPIC ioapic_t;
 
 /* window register offset */
 #define IOAPIC_WINDOW		0x10
+#define IOAPIC_EOIR		0x40
 
 /* indexes into IO APIC */
 #define IOAPIC_ID		0x00
