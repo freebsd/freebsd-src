@@ -622,7 +622,7 @@ struct openpic_cpcht_softc {
 static driver_t openpic_cpcht_driver = {
 	"htpic",
 	openpic_cpcht_methods,
-	sizeof(struct openpic_softc),
+	sizeof(struct openpic_cpcht_softc),
 };
 
 DRIVER_MODULE(openpic, unin, openpic_cpcht_driver, openpic_devclass, 0, 0);
