@@ -12,7 +12,7 @@
 # You should also read the setlocale(3) man page for information
 # on how to achieve more precise control of locale settings.
 #
-# Read system messages
-# msgs -f
+# Check system messages
+# msgs -q
 # Allow terminal messages
 # mesg y
