@@ -485,22 +485,18 @@ trap(struct trapframe *frame)
 			}
 			if (frame->tf_rip == (long)ld_ds) {
 				frame->tf_rip = (long)ds_load_fault;
-				frame->tf_ds = _udatasel;
 				goto out;
 			}
 			if (frame->tf_rip == (long)ld_es) {
 				frame->tf_rip = (long)es_load_fault;
-				frame->tf_es = _udatasel;
 				goto out;
 			}
 			if (frame->tf_rip == (long)ld_fs) {
 				frame->tf_rip = (long)fs_load_fault;
-				frame->tf_fs = _ufssel;
 				goto out;
 			}
 			if (frame->tf_rip == (long)ld_gs) {
 				frame->tf_rip = (long)gs_load_fault;
-				frame->tf_gs = _ugssel;
 				goto out;
 			}
 			if (frame->tf_rip == (long)ld_gsbase) {
