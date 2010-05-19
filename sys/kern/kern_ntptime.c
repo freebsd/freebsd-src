@@ -38,6 +38,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/sysproto.h>
+#include <sys/eventhandler.h>
 #include <sys/kernel.h>
 #include <sys/priv.h>
 #include <sys/proc.h>
@@ -972,3 +973,67 @@ kern_adjtime(struct thread *td, struct timeval *delta, struct timeval *olddelta)
 	return (0);
 }
 
+static struct callout resettodr_callout;
+static int resettodr_period = 1800;
+
+static void
+periodic_resettodr(void *arg __unused)
+{
+
+	if (!ntp_is_time_error()) {
+		mtx_lock(&Giant);
+		resettodr();
+		mtx_unlock(&Giant);
+	}
+	if (resettodr_period > 0)
+		callout_schedule(&resettodr_callout, resettodr_period * hz);
+}
+
+static void
+shutdown_resettodr(void *arg __unused, int howto __unused)
+{
+
+	callout_drain(&resettodr_callout);
+	if (resettodr_period > 0 && !ntp_is_time_error()) {
+		mtx_lock(&Giant);
+		resettodr();
+		mtx_unlock(&Giant);
+	}
+}
+
+static int
+sysctl_resettodr_period(SYSCTL_HANDLER_ARGS)
+{
+	int error;
+
+	error = sysctl_handle_int(oidp, oidp->oid_arg1, oidp->oid_arg2, req);
+	if (error || !req->newptr)
+		return (error);
+	if (resettodr_period == 0)
+		callout_stop(&resettodr_callout);
+	else
+		callout_reset(&resettodr_callout, resettodr_period * hz,
+		    periodic_resettodr, NULL);
+	return (0);
+}
+
+SYSCTL_PROC(_machdep, OID_AUTO, rtc_save_period, CTLTYPE_INT|CTLFLAG_RW,
+	&resettodr_period, 1800, sysctl_resettodr_period, "I",
+	"Save system time to RTC with this period (in seconds)");
+TUNABLE_INT("machdep.rtc_save_period", &resettodr_period);
+
+static void
+start_periodic_resettodr(void *arg __unused)
+{
+
+	EVENTHANDLER_REGISTER(shutdown_pre_sync, shutdown_resettodr, NULL,
+	    SHUTDOWN_PRI_FIRST);
+	callout_init(&resettodr_callout, 1);
+	if (resettodr_period == 0)
+		return;
+	callout_reset(&resettodr_callout, resettodr_period * hz,
+	    periodic_resettodr, NULL);
+}
+
+SYSINIT(periodic_resettodr, SI_SUB_RUN_SCHEDULER, SI_ORDER_ANY - 1,
+	start_periodic_resettodr, NULL);
