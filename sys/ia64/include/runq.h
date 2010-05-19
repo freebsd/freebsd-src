@@ -41,12 +41,12 @@
 /*
  * Type of run queue status word.
  */
-typedef	u_int64_t	rqb_word_t;
+typedef	uint64_t	rqb_word_t;
 
-static __inline u_int64_t
-__popcnt(u_int64_t bits)
+static __inline uint64_t
+__popcnt(uint64_t bits)
 {
-        u_int64_t result;
+        uint64_t result;
 
 	__asm __volatile("popcnt %0=%1" : "=r" (result) : "r" (bits));
 	return result;
