@@ -38,6 +38,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/sysproto.h>
+#include <sys/clock.h>
 #include <sys/eventhandler.h>
 #include <sys/kernel.h>
 #include <sys/priv.h>
@@ -986,7 +987,8 @@ periodic_resettodr(void *arg __unused)
 		mtx_unlock(&Giant);
 	}
 	if (resettodr_period > 0)
-		callout_schedule(&resettodr_callout, resettodr_period * hz);
+		callout_reset(&resettodr_callout, resettodr_period * hz,
+		    periodic_resettodr, NULL);
 }
 
 static void
