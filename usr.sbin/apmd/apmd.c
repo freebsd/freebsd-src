@@ -115,13 +115,13 @@ event_cmd_exec_act(void *this)
 	switch ((pid = fork())) {
 	case -1:
 		warn("cannot fork");
-		goto out;
+		break;
 	case 0:
 		/* child process */
 		signal(SIGHUP, SIG_DFL);
 		signal(SIGCHLD, SIG_DFL);
 		signal(SIGTERM, SIG_DFL);
-		execl(_PATH_BSHELL, "sh", "-c", p->line, NULL);
+		execl(_PATH_BSHELL, "sh", "-c", p->line, (char *)NULL);
 		_exit(127);
 	default:
 		/* parent process */
@@ -130,7 +130,6 @@ event_cmd_exec_act(void *this)
 		} while (pid == -1 && errno == EINTR);
 		break;
 	}
- out:
 	return status;
 }
 void
@@ -165,19 +164,17 @@ struct event_cmd_op event_cmd_exec_ops = {
 };
 
 /*
- * reject commad
+ * reject command
  */
 int
 event_cmd_reject_act(void *this __unused)
 {
-	int rc = -1;
+	int rc = 0;
 
 	if (ioctl(apmctl_fd, APMIO_REJECTLASTREQ, NULL)) {
 		syslog(LOG_NOTICE, "fail to reject\n");
-		goto out;
+		rc = -1;
 	}
-	rc = 0;
- out:
 	return rc;
 }
 struct event_cmd_op event_cmd_reject_ops = {
@@ -466,7 +463,7 @@ wait_child(void)
 int
 proc_signal(int fd)
 {
-	int rc = -1;
+	int rc = 0;
 	int sig;
 
 	while (read(fd, &sig, sizeof sig) == sizeof sig) {
@@ -479,7 +476,7 @@ proc_signal(int fd)
 		case SIGTERM:
 			syslog(LOG_NOTICE, "going down on signal %d", sig);
 			rc = -1;
-			goto out;
+			return rc;
 		case SIGCHLD:
 			wait_child();
 			break;
@@ -488,8 +485,6 @@ proc_signal(int fd)
 			break;
 		}
 	}
-	rc = 0;
- out:
 	return rc;
 }
 void
@@ -630,14 +625,12 @@ event_loop(void)
 
 		if (FD_ISSET(signal_fd[0], &rfds)) {
 			if (proc_signal(signal_fd[0]) < 0)
-				goto out;
+				return;
 		}
 
 		if (FD_ISSET(apmctl_fd, &rfds))
 			proc_apmevent(apmctl_fd);
 	}
-out:
-	return;
 }
 
 int
