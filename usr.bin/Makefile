@@ -120,7 +120,7 @@ SUBDIR=	alias \
 	m4 \
 	${_mail} \
 	${_make} \
-	makewhatis \
+	${_makewhatis} \
 	mesg \
 	minigzip \
 	ministat \
@@ -256,7 +256,7 @@ _at=		at
 _atm=		atm
 .endif
 
-.if ${MK_MAN} != "no"
+.if ${MK_MAN_UTILS} != "no"
 _catman=	catman
 .endif
 
@@ -307,6 +307,10 @@ _msgs=		msgs
 
 .if ${MK_MAKE} != "no"
 _make=		make
+.endif
+
+.if ${MK_MAN_UTILS} != "no"
+_makewhatis=	makewhatis
 .endif
 
 .if ${MK_NETCAT} != "no"
