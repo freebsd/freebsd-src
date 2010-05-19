@@ -394,6 +394,8 @@ ciss_attach(device_t dev)
 
     sc = device_get_softc(dev);
     sc->ciss_dev = dev;
+    mtx_init(&sc->ciss_mtx, "cissmtx", NULL, MTX_DEF);
+    callout_init_mtx(&sc->ciss_periodic, &sc->ciss_mtx, 0);
 
     /*
      * Work out adapter type.
@@ -428,8 +430,6 @@ ciss_attach(device_t dev)
     ciss_initq_busy(sc);
     ciss_initq_complete(sc);
     ciss_initq_notify(sc);
-    mtx_init(&sc->ciss_mtx, "cissmtx", NULL, MTX_DEF);
-    callout_init_mtx(&sc->ciss_periodic, &sc->ciss_mtx, 0);
 
     /*
      * Initalize device sysctls.
@@ -494,8 +494,11 @@ ciss_attach(device_t dev)
 
     error = 0;
  out:
-    if (error != 0)
+    if (error != 0) {
+	/* ciss_free() expects the mutex to be held */
+	mtx_lock(&sc->ciss_mtx);
 	ciss_free(sc);
+    }
     return(error);
 }
 
