@@ -3145,7 +3145,7 @@ ztest_spa_import_export(char *oldname, char *newname)
 	/*
 	 * Export it.
 	 */
-	error = spa_export(oldname, &config, B_FALSE);
+	error = spa_export(oldname, &config, B_FALSE, B_FALSE);
 	if (error)
 		fatal(0, "spa_export('%s') = %d", oldname, error);
 
