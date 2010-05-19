@@ -5,7 +5,7 @@
 
 # PROVIDE: ddb
 # REQUIRE: dumpon
-# BEFORE: disks savecore initrandom
+# BEFORE: disks
 # KEYWORD: nojail
 
 . /etc/rc.subr
