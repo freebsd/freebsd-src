@@ -81,7 +81,7 @@ IDTVEC(spuriousint)
 
 	/* No EOI cycle used here */
 
-	iretq
+	jmp	doreti_iret
 
 	ISR_VEC(1, apic_isr1)
 	ISR_VEC(2, apic_isr2)
@@ -135,7 +135,7 @@ IDTVEC(invltlb)
 	incl	smp_tlb_wait
 
 	popq	%rax
-	iretq
+	jmp	doreti_iret
 
 /*
  * Single page TLB shootdown
@@ -155,7 +155,7 @@ IDTVEC(invlpg)
 	incl	smp_tlb_wait
 
 	popq	%rax
-	iretq
+	jmp	doreti_iret
 
 /*
  * Page range TLB shootdown.
@@ -181,7 +181,7 @@ IDTVEC(invlrng)
 
 	popq	%rdx
 	popq	%rax
-	iretq
+	jmp	doreti_iret
 
 /*
  * Invalidate cache.
@@ -200,7 +200,7 @@ IDTVEC(invlcache)
 	incl	smp_tlb_wait
 
 	popq	%rax
-	iretq
+	jmp	doreti_iret
 
 /*
  * Handler for IPIs sent via the per-cpu IPI bitmap.
@@ -247,7 +247,7 @@ IDTVEC(cpususpend)
 	call	cpususpend_handler
 
 	POP_FRAME
-	iretq
+	jmp	doreti_iret
 
 /*
  * Executed by a CPU when it receives a RENDEZVOUS IPI from another CPU.
