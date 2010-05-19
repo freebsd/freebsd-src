@@ -1898,13 +1898,30 @@ static char digits[] = "0123456789abcdef";
 char *
 ip6_sprintf(char *ip6buf, const struct in6_addr *addr)
 {
-	int i;
+	int i, cnt = 0, maxcnt = 0, idx = 0, index = 0;
 	char *cp;
 	const u_int16_t *a = (const u_int16_t *)addr;
 	const u_int8_t *d;
 	int dcolon = 0, zero = 0;
 
 	cp = ip6buf;
+
+	for (i = 0; i < 8; i++) {
+		if (*(a + i) == 0) {
+			cnt++;
+			if (cnt == 1)
+				idx = i;
+		}
+		else if (maxcnt < cnt) {
+			maxcnt = cnt;
+			index = idx;
+			cnt = 0;
+		}
+	}
+	if (maxcnt < cnt) {
+		maxcnt = cnt;
+		index = idx;
+	}
 
 	for (i = 0; i < 8; i++) {
 		if (dcolon == 1) {
@@ -1917,7 +1934,7 @@ ip6_sprintf(char *ip6buf, const struct in6_addr *addr)
 				dcolon = 2;
 		}
 		if (*a == 0) {
-			if (dcolon == 0 && *(a + 1) == 0) {
+			if (dcolon == 0 && *(a + 1) == 0 && i == index) {
 				if (i == 0)
 					*cp++ = ':';
 				*cp++ = ':';
