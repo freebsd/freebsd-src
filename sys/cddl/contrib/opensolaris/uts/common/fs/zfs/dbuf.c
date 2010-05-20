@@ -1915,7 +1915,6 @@ dbuf_sync_leaf(dbuf_dirty_record_t *dr, dmu_tx_t *tx)
 	dnode_t *dn = db->db_dnode;
 	objset_impl_t *os = dn->dn_objset;
 	uint64_t txg = tx->tx_txg;
-	int blksz;
 
 	ASSERT(dmu_tx_is_syncing(tx));
 
@@ -2025,23 +2024,24 @@ dbuf_sync_leaf(dbuf_dirty_record_t *dr, dmu_tx_t *tx)
 		return;
 	}
 
-	blksz = arc_buf_size(*datap);
-
-	if (dn->dn_object != DMU_META_DNODE_OBJECT) {
+	if (dn->dn_object != DMU_META_DNODE_OBJECT &&
+	    refcount_count(&db->db_holds) > 1 &&
+	    *datap == db->db_buf) {
 		/*
-		 * If this buffer is currently "in use" (i.e., there are
-		 * active holds and db_data still references it), then make
-		 * a copy before we start the write so that any modifications
-		 * from the open txg will not leak into this write.
+		 * If this buffer is currently "in use" (i.e., there
+		 * are active holds and db_data still references it),
+		 * then make a copy before we start the write so that
+		 * any modifications from the open txg will not leak
+		 * into this write.
 		 *
-		 * NOTE: this copy does not need to be made for objects only
-		 * modified in the syncing context (e.g. DNONE_DNODE blocks).
+		 * NOTE: this copy does not need to be made for
+		 * objects only modified in the syncing context (e.g.
+		 * DNONE_DNODE blocks).
 		 */
-		if (refcount_count(&db->db_holds) > 1 && *datap == db->db_buf) {
-			arc_buf_contents_t type = DBUF_GET_BUFC_TYPE(db);
-			*datap = arc_buf_alloc(os->os_spa, blksz, db, type);
-			bcopy(db->db.db_data, (*datap)->b_data, blksz);
-		}
+		int blksz = arc_buf_size(*datap);
+		arc_buf_contents_t type = DBUF_GET_BUFC_TYPE(db);
+		*datap = arc_buf_alloc(os->os_spa, blksz, db, type);
+		bcopy(db->db.db_data, (*datap)->b_data, blksz);
 	}
 
 	ASSERT(*datap != NULL);

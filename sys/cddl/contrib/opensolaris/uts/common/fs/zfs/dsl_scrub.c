@@ -344,6 +344,12 @@ traverse_zil_block(zilog_t *zilog, blkptr_t *bp, void *arg, uint64_t claim_txg)
 	if (bp->blk_birth <= dp->dp_scrub_min_txg)
 		return;
 
+	/*
+	 * One block ("stumpy") can be allocated a long time ago; we
+	 * want to visit that one because it has been allocated
+	 * (on-disk) even if it hasn't been claimed (even though for
+	 * plain scrub there's nothing to do to it).
+	 */
 	if (claim_txg == 0 && bp->blk_birth >= spa_first_txg(dp->dp_spa))
 		return;
 
@@ -369,6 +375,11 @@ traverse_zil_record(zilog_t *zilog, lr_t *lrc, void *arg, uint64_t claim_txg)
 		if (bp->blk_birth <= dp->dp_scrub_min_txg)
 			return;
 
+		/*
+		 * birth can be < claim_txg if this record's txg is
+		 * already txg sync'ed (but this log block contains
+		 * other records that are not synced)
+		 */
 		if (claim_txg == 0 || bp->blk_birth < claim_txg)
 			return;
 
