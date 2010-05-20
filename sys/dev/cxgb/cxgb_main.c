@@ -1979,7 +1979,6 @@ cxgb_set_lro(struct port_info *p, int enabled)
 	struct adapter *adp = p->adapter;
 	struct sge_qset *q;
 
-	PORT_LOCK_ASSERT_OWNED(p);
 	for (i = 0; i < p->nqsets; i++) {
 		q = &adp->sge.qs[p->first_qset + i];
 		q->lro.enabled = (enabled != 0);
