@@ -1,7 +1,7 @@
 /* System dependent definitions for GNU tar.
 
    Copyright (C) 1994, 1995, 1996, 1997, 1998, 1999, 2000, 2001, 2003,
-   2004 Free Software Foundation, Inc.
+   2004, 2005, 2006 Free Software Foundation, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -15,8 +15,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software Foundation,
-   Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
-*/
+   Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.  */
 
 #if HAVE_CONFIG_H
 # include <config.h>
@@ -109,9 +108,18 @@ extern int errno;
 #ifndef O_TRUNC
 # define O_TRUNC	32	/* truncate file on open */
 #endif
-				/* MS-DOG forever, with my love! */
-#ifndef	O_BINARY
+
+#ifndef O_BINARY
 # define O_BINARY 0
+#endif
+#ifndef O_DIRECTORY
+# define O_DIRECTORY 0
+#endif
+#ifndef O_NOATIME
+# define O_NOATIME 0
+#endif
+#ifndef O_NONBLOCK
+# define O_NONBLOCK 0
 #endif
 
 /* Declare file status routines and bits.  */
@@ -252,9 +260,7 @@ extern int errno;
 #define MODE_ALL	(S_ISUID | S_ISGID | S_ISVTX | MODE_RWX)
 
 /* Include <unistd.h> before any preprocessor test of _POSIX_VERSION.  */
-#if HAVE_UNISTD_H
-# include <unistd.h>
-#endif
+#include <unistd.h>
 
 #ifndef SEEK_SET
 # define SEEK_SET 0
@@ -282,6 +288,9 @@ extern int errno;
 
 #if MAJOR_IN_MKDEV
 # include <sys/mkdev.h>
+# if !defined(makedev) && defined(mkdev)
+#  define makedev(a,b) mkdev((a),(b))
+# endif
 # define GOT_MAJOR
 #endif
 
@@ -377,45 +386,12 @@ extern int errno;
 #endif
 
 #ifndef ST_NBLOCKSIZE
-#define ST_NBLOCKSIZE 512
+# define ST_NBLOCKSIZE 512
 #endif
 
-/* This is a real challenge to properly get MTIO* symbols :-(.  ISC uses
-   <sys/gentape.h>.  SCO and BSDi uses <sys/tape.h>; BSDi also requires
-   <sys/tprintf.h> and <sys/device.h> for defining tp_dev and tpr_t.  It
-   seems that the rest use <sys/mtio.h>, which itself requires other files,
-   depending on systems.  Pyramid defines _IOW in <sgtty.h>, for example.  */
-
-#if HAVE_SYS_GENTAPE_H
-# include <sys/gentape.h>
-#else
-# if HAVE_SYS_TAPE_H
-#  if HAVE_SYS_DEVICE_H
-#   include <sys/device.h>
-#  endif
-#  if HAVE_SYS_PARAM_H
-#   include <sys/param.h>
-#  endif
-#  if HAVE_SYS_BUF_H
-#   include <sys/buf.h>
-#  endif
-#  if HAVE_SYS_TPRINTF_H
-#   include <sys/tprintf.h>
-#  endif
-#  include <sys/tape.h>
-# else
-#  if HAVE_SYS_MTIO_H
-#   include <sys/ioctl.h>
-#   if HAVE_SGTTY_H
-#    include <sgtty.h>
-#   endif
-#   if HAVE_SYS_IO_TRIOCTL_H
-#    include <sys/io/trioctl.h>
-#   endif
-#   include <sys/mtio.h>
-#  endif
-# endif
-#endif
+#define ST_IS_SPARSE(st)                                  \
+  (ST_NBLOCKS (st)                                        \
+    < ((st).st_size / ST_NBLOCKSIZE + ((st).st_size % ST_NBLOCKSIZE != 0)))
 
 /* Declare standard functions.  */
 
@@ -435,7 +411,6 @@ char *getenv ();
 #endif
 
 #if WITH_DMALLOC
-# undef HAVE_DECL_VALLOC
 # define DMALLOC_FUNC_CHECK
 # include <dmalloc.h>
 #endif
@@ -446,28 +421,11 @@ char *getenv ();
 # define MB_LEN_MAX 1
 #endif
 
-#if HAVE_INTTYPES_H
-# include <inttypes.h>
-#endif
+#include <inttypes.h>
 
-/* These macros work even on ones'-complement hosts (!).
-   The extra casts work around common compiler bugs.  */
-#define TYPE_SIGNED(t) (! ((t) 0 < (t) -1))
-#define TYPE_MINIMUM(t) (TYPE_SIGNED (t) \
-			 ? ~ (t) 0 << (sizeof (t) * CHAR_BIT - 1) \
-			 : (t) 0)
-#define TYPE_MAXIMUM(t) ((t) (~ (t) 0 - TYPE_MINIMUM (t)))
+#include <intprops.h>
 
-/* Bound on length of the string representing an integer value of type t.
-   Subtract one for the sign bit if t is signed;
-   302 / 1000 is log10 (2) rounded up;
-   add one for integer division truncation;
-   add one more for a minus sign if t is signed.  */
-#define INT_STRLEN_BOUND(t) \
-  ((sizeof (t) * CHAR_BIT - TYPE_SIGNED (t)) * 302 / 1000 \
-   + 1 + TYPE_SIGNED (t))
-
-#define UINTMAX_STRSIZE_BOUND (INT_STRLEN_BOUND (uintmax_t) + 1)
+#define UINTMAX_STRSIZE_BOUND INT_BUFSIZE_BOUND (uintmax_t)
 
 /* Prototypes for external functions.  */
 
@@ -479,15 +437,8 @@ char *getenv ();
 #endif
 
 #include <time.h>
-#if defined(HAVE_SYS_TIME_H) && defined(TIME_WITH_SYS_TIME)
+#ifdef TIME_WITH_SYS_TIME
 # include <sys/time.h>
-#endif
-#if ! HAVE_DECL_TIME
-time_t time ();
-#endif
-
-#ifdef HAVE_UTIME_H
-# include <utime.h>
 #endif
 
 /* Library modules.  */

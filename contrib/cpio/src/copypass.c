@@ -1,7 +1,8 @@
 /* $FreeBSD$ */
 
 /* copypass.c - cpio copy pass sub-function.
-   Copyright (C) 1990, 1991, 1992, 2001, 2003, 2004 Free Software Foundation, Inc.
+   Copyright (C) 1990, 1991, 1992, 2001, 2003, 2004,
+   2006 Free Software Foundation, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,9 +14,10 @@
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
    GNU General Public License for more details.
 
-   You should have received a copy of the GNU General Public License along
-   with this program; if not, write to the Free Software Foundation, Inc.,
-   59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
+   You should have received a copy of the GNU General Public
+   License along with this program; if not, write to the Free
+   Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
+   Boston, MA 02110-1301 USA.  */
 
 #include <system.h>
 
@@ -26,10 +28,22 @@
 #include "cpiohdr.h"
 #include "dstring.h"
 #include "extern.h"
+#include "paxlib.h"
 
 #ifndef HAVE_LCHOWN
-#define lchown chown
+# define lchown chown
 #endif
+
+
+/* A wrapper around set_perms using another set of arguments */
+static void
+set_copypass_perms (int fd, const char *name, struct stat *st)
+{
+  struct cpio_file_stat header;
+  header.c_name = name;
+  stat_to_cpio (&header, st);
+  set_perms (fd, &header);
+}
 
 /* Copy files listed on the standard input into directory `directory_name'.
    If `link_flag', link instead of copying.  */
@@ -42,7 +56,6 @@ process_copy_pass ()
   int dirname_len;		/* Length of `directory_name'.  */
   int res;			/* Result of functions.  */
   char *slash;			/* For moving past slashes in input name.  */
-  struct utimbuf times;		/* For resetting file times after copy.  */
   struct stat in_file_stat;	/* Stat record for input file.  */
   struct stat out_file_stat;	/* Stat record for output file.  */
   int in_file_des;		/* Input file descriptor.  */
@@ -53,6 +66,9 @@ process_copy_pass ()
   int cdf_char;
 #endif
 
+  umask (0);                    /* Reset umask to preserve modes of
+				   created files  */
+
   /* Initialize the copy pass.  */
   dirname_len = strlen (directory_name);
   ds_init (&input_name, 128);
@@ -60,8 +76,6 @@ process_copy_pass ()
   strcpy (output_name.ds_string, directory_name);
   output_name.ds_string[dirname_len] = '/';
   output_is_seekable = true;
-  /* Initialize this in case it has members we don't know to set.  */
-  bzero (&times, sizeof (struct utimbuf));
 
   /* Copy files with names read from stdin.  */
   while (ds_fgetstr (stdin, &input_name, name_end) != NULL)
@@ -84,7 +98,7 @@ process_copy_pass ()
 
       if ((*xstat) (input_name.ds_string, &in_file_stat) < 0)
 	{
-	  error (0, errno, "%s", input_name.ds_string);
+	  stat_error (input_name.ds_string);
 	  continue;
 	}
 
@@ -152,7 +166,7 @@ process_copy_pass ()
 				  O_RDONLY | O_BINARY, 0);
 	      if (in_file_des < 0)
 		{
-		  error (0, errno, "%s", input_name.ds_string);
+		  open_error (input_name.ds_string);
 		  continue;
 		}
 	      out_file_des = open (output_name.ds_string,
@@ -165,7 +179,7 @@ process_copy_pass ()
 		}
 	      if (out_file_des < 0)
 		{
-		  error (0, errno, "%s", output_name.ds_string);
+		  open_error (output_name.ds_string);
 		  close (in_file_des);
 		  continue;
 		}
@@ -181,49 +195,28 @@ process_copy_pass ()
 		  write (out_file_des, "", 1);
 		  delayed_seek_count = 0;
 		}
-	      if (close (in_file_des) < 0)
-		error (0, errno, "%s", input_name.ds_string);
-	      /*
-	       *  Avoid race condition.
-	       *  Set chown and chmod before closing the file desc.
-	       *  pvrabec@redhat.com
-	       */
-	      /* Set the attributes of the new file.  */
-	      if (!no_chown_flag)
-		if ((fchown (out_file_des,
-			    set_owner_flag ? set_owner : in_file_stat.st_uid,
-		      set_group_flag ? set_group : in_file_stat.st_gid) < 0)
-		    && errno != EPERM)
-		  error (0, errno, "%s", output_name.ds_string);
-	      /* chown may have turned off some permissions we wanted. */
-	      if (fchmod (out_file_des, in_file_stat.st_mode) < 0)
-		error (0, errno, "%s", output_name.ds_string);
-		
-	      if (close (out_file_des) < 0)
-		error (0, errno, "%s", output_name.ds_string);
+
+	      set_copypass_perms (out_file_des,
+				  output_name.ds_string, &in_file_stat);
 
 	      if (reset_time_flag)
-		{
-		  times.actime = in_file_stat.st_atime;
-		  times.modtime = in_file_stat.st_mtime;
-		  /* Debian hack: Silently ignore EROFS because
-                     reading the file won't have upset its timestamp
-                     if it's on a read-only filesystem.  This has been
-                     submitted as a suggestion to
-                     "bug-gnu-utils@prep.ai.mit.edu".  -BEM */
-		  if (utime (input_name.ds_string, &times) < 0
-		      && errno != EROFS)
-		    error (0, errno, "%s", input_name.ds_string);
-		  if (utime (output_name.ds_string, &times) < 0
-		      && errno != EROFS)
-		    error (0, errno, "%s", output_name.ds_string);
-		}
-	      if (retain_time_flag)
-		{
-		  times.actime = times.modtime = in_file_stat.st_mtime;
-		  if (utime (output_name.ds_string, &times) < 0)
-		    error (0, errno, "%s", output_name.ds_string);
-		}
+                {
+                  set_file_times (in_file_des,
+				  input_name.ds_string,
+                                  in_file_stat.st_atime,
+                                  in_file_stat.st_mtime);
+                  set_file_times (out_file_des,
+				  output_name.ds_string,
+                                  in_file_stat.st_atime,
+                                  in_file_stat.st_mtime);
+	        } 
+
+	      if (close (in_file_des) < 0)
+		close_error (input_name.ds_string);
+
+	      if (close (out_file_des) < 0)
+		close_error (output_name.ds_string);
+
 	      warn_if_file_changed(input_name.ds_string, in_file_stat.st_size,
                                    in_file_stat.st_mtime);
 	    }
@@ -269,31 +262,11 @@ process_copy_pass ()
       		   (lstat (output_name.ds_string, &out_file_stat) != 0) ||
 	           !(S_ISDIR (out_file_stat.st_mode) ) )
 		{
-		  error (0, errno, "%s", output_name.ds_string);
+		  stat_error (output_name.ds_string);
 		  continue;
 		}
 	    }
-	  if (!no_chown_flag)
-	    if ((chown (output_name.ds_string,
-			set_owner_flag ? set_owner : in_file_stat.st_uid,
-		      set_group_flag ? set_group : in_file_stat.st_gid) < 0)
-		&& errno != EPERM)
-	      error (0, errno, "%s", output_name.ds_string);
-	  /* chown may have turned off some permissions we wanted. */
-	  if (chmod (output_name.ds_string, in_file_stat.st_mode) < 0)
-	    error (0, errno, "%s", output_name.ds_string);
-#ifdef HPUX_CDF
-	  if (cdf_flag)
-	    /* Once we "hide" the directory with the chmod(),
-	       we have to refer to it using name+ isntead of name.  */
-	    output_name.ds_string [cdf_char] = '+';
-#endif
-	  if (retain_time_flag)
-	    {
-	      times.actime = times.modtime = in_file_stat.st_mtime;
-	      if (utime (output_name.ds_string, &times) < 0)
-		error (0, errno, "%s", output_name.ds_string);
-	    }
+	  set_copypass_perms (-1, output_name.ds_string, &in_file_stat);
 	}
       else if (S_ISCHR (in_file_stat.st_mode) ||
 	       S_ISBLK (in_file_stat.st_mode) ||
@@ -339,24 +312,10 @@ process_copy_pass ()
 		}
 	      if (res < 0)
 		{
-		  error (0, errno, "%s", output_name.ds_string);
+		  mknod_error (output_name.ds_string);
 		  continue;
 		}
-	      if (!no_chown_flag)
-		if ((chown (output_name.ds_string,
-			    set_owner_flag ? set_owner : in_file_stat.st_uid,
-			  set_group_flag ? set_group : in_file_stat.st_gid) < 0)
-		    && errno != EPERM)
-		  error (0, errno, "%s", output_name.ds_string);
-	      /* chown may have turned off some permissions we wanted. */
-	      if (chmod (output_name.ds_string, in_file_stat.st_mode) < 0)
-		error (0, errno, "%s", output_name.ds_string);
-	      if (retain_time_flag)
-		{
-		  times.actime = times.modtime = in_file_stat.st_mtime;
-		  if (utime (output_name.ds_string, &times) < 0)
-		    error (0, errno, "%s", output_name.ds_string);
-		}
+	      set_copypass_perms (-1, output_name.ds_string, &in_file_stat);
 	    }
 	}
 
@@ -371,7 +330,7 @@ process_copy_pass ()
 			        in_file_stat.st_size);
 	  if (link_size < 0)
 	    {
-	      error (0, errno, "%s", input_name.ds_string);
+	      readlink_error (input_name.ds_string);
 	      free (link_name);
 	      continue;
 	    }
@@ -387,18 +346,20 @@ process_copy_pass ()
 	    }
 	  if (res < 0)
 	    {
-	      error (0, errno, "%s", output_name.ds_string);
+	      symlink_error (output_name.ds_string, link_name);
 	      free (link_name);
 	      continue;
 	    }
 
 	  /* Set the attributes of the new link.  */
 	  if (!no_chown_flag)
-	    if ((lchown (output_name.ds_string,
-			 set_owner_flag ? set_owner : in_file_stat.st_uid,
-		      set_group_flag ? set_group : in_file_stat.st_gid) < 0)
-		&& errno != EPERM)
-	      error (0, errno, "%s", output_name.ds_string);
+            {
+              uid_t uid = set_owner_flag ? set_owner : in_file_stat.st_uid;
+              gid_t gid = set_group_flag ? set_group : in_file_stat.st_gid;
+	      if ((lchown (output_name.ds_string, uid, gid) < 0)
+		  && errno != EPERM)
+	        chown_error_details (output_name.ds_string, uid, gid);
+            }
 	  free (link_name);
 	}
 #endif

@@ -1,5 +1,5 @@
 /* Extended cpio format from POSIX.1.
-   Copyright (C) 1992 Free Software Foundation, Inc.
+   Copyright (C) 1992, 2005 Free Software Foundation, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,9 +11,10 @@
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
    GNU General Public License for more details.
 
-   You should have received a copy of the GNU General Public License along
-   with this program; if not, write to the Free Software Foundation, Inc.,
-   59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
+   You should have received a copy of the GNU General Public
+   License along with this program; if not, write to the Free
+   Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
+   Boston, MA 02110-1301 USA.  */
 
 #ifndef _CPIO_H
 
@@ -24,6 +25,8 @@
    a variable length, NUL terminated filename,
    and variable length file data.
    A header for a filename "TRAILER!!!" indicates the end of the archive.  */
+
+#define CPIO_TRAILER_NAME "TRAILER!!!"
 
 /* All the fields in the header are ISO 646 (approximately ASCII) strings
    of octal numbers, left padded, not NUL terminated.

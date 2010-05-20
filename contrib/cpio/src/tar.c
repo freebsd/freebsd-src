@@ -1,7 +1,7 @@
 /* $FreeBSD$ */
 
 /* tar.c - read in write tar headers for cpio
-   Copyright (C) 1992, 2001, 2004 Free Software Foundation, Inc.
+   Copyright (C) 1992, 2001, 2004, 2006 Free Software Foundation, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,9 +13,10 @@
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
    GNU General Public License for more details.
 
-   You should have received a copy of the GNU General Public License along
-   with this program; if not, write to the Free Software Foundation, Inc.,
-   59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
+   You should have received a copy of the GNU General Public
+   License along with this program; if not, write to the Free
+   Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
+   Boston, MA 02110-1301 USA.  */
 
 #include <system.h>
 
@@ -114,10 +115,10 @@ to_oct (register long value, register int digits, register char *where)
 /* Compute and return a checksum for TAR_HDR,
    counting the checksum bytes as if they were spaces.  */
 
-unsigned long
+unsigned int
 tar_checksum (struct tar_header *tar_hdr)
 {
-  unsigned long sum = 0;
+  unsigned int sum = 0;
   char *p = (char *) tar_hdr;
   char *q = p + TARRECORDSIZE;
   int i;
@@ -138,13 +139,13 @@ tar_checksum (struct tar_header *tar_hdr)
    descriptor OUT_DES.  */
 
 void
-write_out_tar_header (struct new_cpio_header *file_hdr, int out_des)
+write_out_tar_header (struct cpio_file_stat *file_hdr, int out_des)
 {
   int name_len;
   union tar_record tar_rec;
   struct tar_header *tar_hdr = (struct tar_header *) &tar_rec;
 
-  bzero ((char *) &tar_rec, TARRECORDSIZE);
+  memset (&tar_rec, 0, sizeof tar_rec);
 
   /* process_copy_out must ensure that file_hdr->c_name is short enough,
      or we will lose here.  */
@@ -256,7 +257,7 @@ null_block (long *block, int size)
    into FILE_HDR.  */
 
 void
-read_in_tar_header (struct new_cpio_header *file_hdr, int in_des)
+read_in_tar_header (struct cpio_file_stat *file_hdr, int in_des)
 {
   long bytes_skipped = 0;
   int warned = false;
@@ -282,7 +283,7 @@ read_in_tar_header (struct new_cpio_header *file_hdr, int in_des)
       if (null_block ((long *) &tar_rec, TARRECORDSIZE))
 #endif
 	{
-	  file_hdr->c_name = "TRAILER!!!";
+	  file_hdr->c_name = CPIO_TRAILER_NAME;
 	  return;
 	}
 #if 0
@@ -292,7 +293,7 @@ read_in_tar_header (struct new_cpio_header *file_hdr, int in_des)
 
   while (1)
     {
-      otoa (tar_hdr->chksum, &file_hdr->c_chksum);
+      file_hdr->c_chksum = FROM_OCTAL (tar_hdr->chksum);
 
       if (file_hdr->c_chksum != tar_checksum (tar_hdr))
 	{
@@ -309,8 +310,7 @@ read_in_tar_header (struct new_cpio_header *file_hdr, int in_des)
 	      error (0, 0, _("invalid header: checksum error"));
 	      warned = true;
 	    }
-	  bcopy (((char *) &tar_rec) + 1, (char *) &tar_rec,
-		 TARRECORDSIZE - 1);
+	  memmove (&tar_rec, ((char *) &tar_rec) + 1, TARRECORDSIZE - 1);
 	  tape_buffered_read (((char *) &tar_rec) + (TARRECORDSIZE - 1), in_des, 1);
 	  ++bytes_skipped;
 	  continue;
@@ -321,7 +321,7 @@ read_in_tar_header (struct new_cpio_header *file_hdr, int in_des)
       else
 	file_hdr->c_name = stash_tar_filename (tar_hdr->prefix, tar_hdr->name);
       file_hdr->c_nlink = 1;
-      otoa (tar_hdr->mode, &file_hdr->c_mode);
+      file_hdr->c_mode = FROM_OCTAL (tar_hdr->mode);
       file_hdr->c_mode = file_hdr->c_mode & 07777;
   /* Debian hack: This version of cpio uses the -n flag also to extract
      tar archives using the numeric UID/GID instead of the user/group
@@ -330,17 +330,17 @@ read_in_tar_header (struct new_cpio_header *file_hdr, int in_des)
 	  && (uidp = getuidbyname (tar_hdr->uname)))
 	file_hdr->c_uid = *uidp;
       else
-	otoa (tar_hdr->uid, &file_hdr->c_uid);
+	file_hdr->c_uid = FROM_OCTAL (tar_hdr->uid);
 
       if (archive_format == arf_ustar && !numeric_uid
 	  && (gidp = getgidbyname (tar_hdr->gname)))
 	file_hdr->c_gid = *gidp;
       else
-	otoa (tar_hdr->gid, &file_hdr->c_gid);
-      otoa (tar_hdr->size, &file_hdr->c_filesize);
-      otoa (tar_hdr->mtime, &file_hdr->c_mtime);
-      otoa (tar_hdr->devmajor, (unsigned long *) &file_hdr->c_rdev_maj);
-      otoa (tar_hdr->devminor, (unsigned long *) &file_hdr->c_rdev_min);
+	file_hdr->c_gid = FROM_OCTAL (tar_hdr->gid);
+      file_hdr->c_filesize = FROM_OCTAL (tar_hdr->size);
+      file_hdr->c_mtime = FROM_OCTAL (tar_hdr->mtime);
+      file_hdr->c_rdev_maj = FROM_OCTAL (tar_hdr->devmajor);
+      file_hdr->c_rdev_min = FROM_OCTAL (tar_hdr->devminor);
       file_hdr->c_tar_linkname = NULL;
 
       switch (tar_hdr->typeflag)
@@ -424,26 +424,6 @@ read_in_tar_header (struct new_cpio_header *file_hdr, int in_des)
     warn_junk_bytes (bytes_skipped);
 }
 
-/* Convert the string of octal digits S into a number and store
-   it in *N.  Return nonzero if the whole string was converted,
-   zero if there was something after the number.
-   Skip leading and trailing spaces.  */
-
-int
-otoa (char *s, unsigned long *n)
-{
-  unsigned long val = 0;
-
-  while (*s == ' ')
-    ++s;
-  while (*s >= '0' && *s <= '7')
-    val = 8 * val + *s++ - '0';
-  while (*s == ' ')
-    ++s;
-  *n = val;
-  return *s == '\0';
-}
-
 /* Return
    2 if BUF is a valid POSIX tar header (the checksum is correct
    and it has the "ustar" magic string),
@@ -456,7 +436,7 @@ is_tar_header (char *buf)
   struct tar_header *tar_hdr = (struct tar_header *) buf;
   unsigned long chksum;
 
-  otoa (tar_hdr->chksum, &chksum);
+  chksum = FROM_OCTAL (tar_hdr->chksum);
 
   if (chksum != tar_checksum (tar_hdr))
     return 0;
@@ -488,7 +468,6 @@ is_tar_filename_too_long (char *name)
 {
   int whole_name_len;
   int prefix_name_len;
-  char *p;
 
   whole_name_len = strlen (name);
   if (whole_name_len <= TARNAMESIZE)
