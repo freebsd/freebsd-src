@@ -961,6 +961,10 @@ _dtrace_tools= cddl/usr.bin/sgsmsg cddl/lib/libctf lib/libelf \
     lib/libdwarf cddl/usr.bin/ctfconvert cddl/usr.bin/ctfmerge
 .endif
 
+.if ${MK_MAN_UTILS} != "no"
+_makewhatis=	usr.bin/makewhatis
+.endif
+
 bootstrap-tools:
 .for _tool in \
     ${_dtrace_tools} \
@@ -969,7 +973,7 @@ bootstrap-tools:
     ${_groff} \
     ${_ar} \
     usr.bin/lorder \
-    usr.bin/makewhatis \
+    ${_makewhatis} \
     ${_mklocale} \
     usr.bin/rpcgen \
     ${_sed} \
