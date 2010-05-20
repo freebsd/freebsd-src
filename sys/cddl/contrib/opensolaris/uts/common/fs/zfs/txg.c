@@ -309,12 +309,14 @@ txg_sync_thread(void *arg)
 		uint64_t txg;
 
 		/*
-		 * We sync when there's someone waiting on us, or the
-		 * quiesce thread has handed off a txg to us, or we have
-		 * reached our timeout.
+		 * We sync when we're scrubbing, there's someone waiting
+		 * on us, or the quiesce thread has handed off a txg to
+		 * us, or we have reached our timeout.
 		 */
 		timer = (delta >= timeout ? 0 : timeout - delta);
-		while (!tx->tx_exiting && timer > 0 &&
+		while ((dp->dp_scrub_func == SCRUB_FUNC_NONE ||
+		    spa_shutting_down(dp->dp_spa)) &&
+		    !tx->tx_exiting && timer > 0 &&
 		    tx->tx_synced_txg >= tx->tx_sync_txg_waiting &&
 		    tx->tx_quiesced_txg == 0) {
 			dprintf("waiting; tx_synced=%llu waiting=%llu dp=%p\n",

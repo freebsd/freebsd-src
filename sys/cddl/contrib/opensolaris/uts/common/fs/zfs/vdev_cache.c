@@ -279,7 +279,7 @@ vdev_cache_read(zio_t *zio)
 	/*
 	 * If the I/O straddles two or more cache blocks, don't cache it.
 	 */
-	if (P2CROSS(zio->io_offset, zio->io_offset + zio->io_size - 1, VCBS))
+	if (P2BOUNDARY(zio->io_offset, zio->io_size, VCBS))
 		return (EXDEV);
 
 	ASSERT(cache_phase + zio->io_size <= VCBS);
