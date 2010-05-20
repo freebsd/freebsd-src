@@ -114,6 +114,7 @@ jayanth [label="Jayanth Vijayaraghavan\njayanth@FreeBSD.org\n2000/05/08"]
 jh [label="Jaakko Heinonen\njh@FreeBSD.org\n2009/10/02"]
 jilles [label="Jilles Tjoelker\njilles@FreeBSD.org\n2009/05/22"]
 jinmei [label="JINMEI Tatuya\njinmei@FreeBSD.org\n2007/03/17"]
+jchandra [label="Jayachandran C.\njchandra@FreeBSD.org\n2010/05/19"]
 jdp [label="John Polstra\njdp@FreeBSD.org\n????/??/??"]
 jhb [label="John Baldwin\njhb@FreeBSD.org\n1999/08/23"]
 jkh [label="Jordan K. Hubbard\njkh@FreeBSD.org\n1993/06/12"]
@@ -423,6 +424,7 @@ rpaulo -> avg
 rpaulo -> bschmidt
 
 rrs -> brucec
+rrs -> jchandra
 rrs -> tuexen
 
 ru -> ceri
