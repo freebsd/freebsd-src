@@ -76,8 +76,8 @@
 void atomic_##NAME##_##TYPE(volatile u_##TYPE *p, u_##TYPE v);	\
 void atomic_##NAME##_barr_##TYPE(volatile u_##TYPE *p, u_##TYPE v)
 
-int	atomic_cmpset_int(volatile u_int *dst, u_int exp, u_int src);
-int	atomic_cmpset_long(volatile u_long *dst, u_long exp, u_long src);
+int	atomic_cmpset_int(volatile u_int *dst, u_int expect, u_int src);
+int	atomic_cmpset_long(volatile u_long *dst, u_long expect, u_long src);
 u_int	atomic_fetchadd_int(volatile u_int *p, u_int v);
 u_long	atomic_fetchadd_long(volatile u_long *p, u_long v);
 
@@ -124,13 +124,13 @@ struct __hack
 /*
  * Atomic compare and set, used by the mutex functions
  *
- * if (*dst == exp) *dst = src (all 32 bit words)
+ * if (*dst == expect) *dst = src (all 32 bit words)
  *
  * Returns 0 on failure, non-zero on success
  */
 
 static __inline int
-atomic_cmpset_int(volatile u_int *dst, u_int exp, u_int src)
+atomic_cmpset_int(volatile u_int *dst, u_int expect, u_int src)
 {
 	u_char res;
 
@@ -143,7 +143,7 @@ atomic_cmpset_int(volatile u_int *dst, u_int exp, u_int src)
 	: "=a" (res),			/* 0 */
 	  "=m" (*dst)			/* 1 */
 	: "r" (src),			/* 2 */
-	  "a" (exp),			/* 3 */
+	  "a" (expect),			/* 3 */
 	  "m" (*dst)			/* 4 */
 	: "memory");
 
@@ -151,7 +151,7 @@ atomic_cmpset_int(volatile u_int *dst, u_int exp, u_int src)
 }
 
 static __inline int
-atomic_cmpset_long(volatile u_long *dst, u_long exp, u_long src)
+atomic_cmpset_long(volatile u_long *dst, u_long expect, u_long src)
 {
 	u_char res;
 
@@ -164,7 +164,7 @@ atomic_cmpset_long(volatile u_long *dst, u_long exp, u_long src)
 	: "=a" (res),			/* 0 */
 	  "=m" (*dst)			/* 1 */
 	: "r" (src),			/* 2 */
-	  "a" (exp),			/* 3 */
+	  "a" (expect),			/* 3 */
 	  "m" (*dst)			/* 4 */
 	: "memory");
 
