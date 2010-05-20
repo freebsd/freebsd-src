@@ -66,7 +66,7 @@
 #define	P2ROUNDUP(x, align)		(-(-(x) & -(align)))
 #define	P2END(x, align)			(-(~(x) & -(align)))
 #define	P2PHASEUP(x, align, phase)	((phase) - (((phase) - (x)) & -(align)))
-#define	P2CROSS(x, y, align)		(((x) ^ (y)) > (align) - 1)
+#define	P2BOUNDARY(off, len, align)	(((off) ^ ((off) + (len) - 1)) > (align) - 1)
 
 /*
  * General-purpose 32-bit and 64-bit bitfield encodings.

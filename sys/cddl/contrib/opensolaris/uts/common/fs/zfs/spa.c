@@ -4075,11 +4075,7 @@ spa_sync(spa_t *spa, uint64_t txg)
 		spa->spa_config_syncing = NULL;
 	}
 
-	spa->spa_traverse_wanted = B_TRUE;
-	rw_enter(&spa->spa_traverse_lock, RW_WRITER);
-	spa->spa_traverse_wanted = B_FALSE;
 	spa->spa_ubsync = spa->spa_uberblock;
-	rw_exit(&spa->spa_traverse_lock);
 
 	/*
 	 * Clean up the ZIL records for the synced txg.

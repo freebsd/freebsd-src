@@ -23,8 +23,6 @@
  * Use is subject to license terms.
  */
 
-#pragma ident	"%Z%%M%	%I%	%E% SMI"
-
 #include <assert.h>
 #include <fcntl.h>
 #include <poll.h>
@@ -841,6 +839,8 @@ kernel_init(int mode)
 
 	VERIFY((random_fd = open("/dev/random", O_RDONLY)) != -1);
 	VERIFY((urandom_fd = open("/dev/urandom", O_RDONLY)) != -1);
+
+	system_taskq_init();
 
 	spa_init(mode);
 }
