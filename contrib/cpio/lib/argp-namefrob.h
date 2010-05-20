@@ -1,5 +1,5 @@
 /* Name frobnication for compiling argp outside of glibc
-   Copyright (C) 1997, 2003 Free Software Foundation, Inc.
+   Copyright (C) 1997, 2003, 2007 Free Software Foundation, Inc.
    This file is part of the GNU C Library.
    Written by Miles Bader <miles@gnu.ai.mit.edu>.
 
@@ -15,7 +15,7 @@
 
    You should have received a copy of the GNU General Public License along
    with this program; if not, write to the Free Software Foundation,
-   Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
+   Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA. */
 
 #if !_LIBC
 /* This code is written for inclusion in gnu-libc, and uses names in the
@@ -75,11 +75,6 @@
 #define __argp_fmtstream_rmargin argp_fmtstream_rmargin
 #undef __argp_fmtstream_wmargin
 #define __argp_fmtstream_wmargin argp_fmtstream_wmargin
-
-#include "mempcpy.h"
-#include "strcase.h"
-#include "strchrnul.h"
-#include "strndup.h"
 
 /* normal libc functions we call */
 #undef __flockfile
@@ -141,12 +136,19 @@
 # define putchar_unlocked(x) putchar (x)
 # endif
 
-extern char *__argp_basename (char *name);
-
 #endif /* !_LIBC */
 
 #ifndef __set_errno
 #define __set_errno(e) (errno = (e))
+#endif
+
+#if defined GNULIB_ARGP_DISABLE_DIRNAME
+# define __argp_base_name(arg) arg
+#elif defined GNULIB_ARGP_EXTERN_BASENAME
+extern char *__argp_base_name(const char *arg);
+#else
+# include "dirname.h"
+# define __argp_base_name base_name
 #endif
 
 #if defined _LIBC || HAVE_DECL_PROGRAM_INVOCATION_SHORT_NAME

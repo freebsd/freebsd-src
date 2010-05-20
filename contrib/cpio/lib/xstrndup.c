@@ -1,5 +1,6 @@
-/* exit() function.
-   Copyright (C) 1995, 2001 Free Software Foundation, Inc.
+/* Duplicate a bounded initial segment of a string, with out-of-memory
+   checking.
+   Copyright (C) 2003, 2006, 2007 Free Software Foundation, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,20 +14,24 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software Foundation,
-   Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
+   Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.  */
 
-#ifndef _EXIT_H
-#define _EXIT_H
+#include <config.h>
 
-/* Get exit() declaration.  */
-#include <stdlib.h>
+/* Specification.  */
+#include "xstrndup.h"
 
-/* Some systems do not define EXIT_*, even with STDC_HEADERS.  */
-#ifndef EXIT_SUCCESS
-# define EXIT_SUCCESS 0
-#endif
-#ifndef EXIT_FAILURE
-# define EXIT_FAILURE 1
-#endif
+#include <string.h>
+#include "xalloc.h"
 
-#endif /* _EXIT_H */
+/* Return a newly allocated copy of at most N bytes of STRING.
+   In other words, return a copy of the initial segment of length N of
+   STRING.  */
+char *
+xstrndup (const char *string, size_t n)
+{
+  char *s = strndup (string, n);
+  if (! s)
+    xalloc_die ();
+  return s;
+}

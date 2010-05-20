@@ -1,7 +1,8 @@
 /* $FreeBSD$ */
 
 /* util.c - Several utility routines for cpio.
-   Copyright (C) 1990, 1991, 1992, 2001, 2004 Free Software Foundation, Inc.
+   Copyright (C) 1990, 1991, 1992, 2001, 2004,
+   2006 Free Software Foundation, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,9 +14,10 @@
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
    GNU General Public License for more details.
 
-   You should have received a copy of the GNU General Public License along
-   with this program; if not, write to the Free Software Foundation, Inc.,
-   59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
+   You should have received a copy of the GNU General Public
+   License along with this program; if not, write to the Free
+   Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
+   Boston, MA 02110-1301 USA.  */
 
 #include <system.h>
 
@@ -25,15 +27,21 @@
 #include "cpiohdr.h"
 #include "dstring.h"
 #include "extern.h"
+#include <paxlib.h>
+#include "filetypes.h"
+#include <safe-read.h>
+#include <full-write.h>
 #include <rmt.h>
+#include <hash.h>
+#include <utimens.h>
 
 #include <sys/ioctl.h>
 
 #ifdef HAVE_SYS_MTIO_H
-#ifdef HAVE_SYS_IO_TRIOCTL_H
-#include <sys/io/trioctl.h>
-#endif
-#include <sys/mtio.h>
+# ifdef HAVE_SYS_IO_TRIOCTL_H
+#  include <sys/io/trioctl.h>
+# endif
+# include <sys/mtio.h>
 #endif
 
 #if !HAVE_DECL_ERRNO
@@ -91,6 +99,8 @@ tape_empty_output_buffer (int out_des)
   out_buff = output_buffer;
   output_size = 0;
 }
+
+static int sparse_write (int fildes, char *buf, unsigned int nbyte);
 
 /* Write `output_size' bytes of `output_buffer' to file
    descriptor OUT_DES and reset `output_size' and `out_buff'.
@@ -209,7 +219,7 @@ tape_fill_input_buffer (int in_des, int num_bytes)
    Exit with an error if end of file is reached.  */
 
 static int
-disk_fill_input_buffer (int in_des, int num_bytes)
+disk_fill_input_buffer (int in_des, off_t num_bytes)
 {
   in_buff = input_buffer;
   num_bytes = (num_bytes < DISK_IO_BLOCK_SIZE) ? num_bytes : DISK_IO_BLOCK_SIZE;
@@ -229,10 +239,10 @@ disk_fill_input_buffer (int in_des, int num_bytes)
    When `out_buff' fills up, flush it to file descriptor OUT_DES.  */
 
 void
-tape_buffered_write (char *in_buf, int out_des, long num_bytes)
+tape_buffered_write (char *in_buf, int out_des, off_t num_bytes)
 {
-  register long bytes_left = num_bytes;	/* Bytes needing to be copied.  */
-  register long space_left;	/* Room left in output buffer.  */
+  off_t bytes_left = num_bytes;	/* Bytes needing to be copied.  */
+  off_t space_left;	/* Room left in output buffer.  */
 
   while (bytes_left > 0)
     {
@@ -243,7 +253,7 @@ tape_buffered_write (char *in_buf, int out_des, long num_bytes)
 	{
 	  if (bytes_left < space_left)
 	    space_left = bytes_left;
-	  bcopy (in_buf, out_buff, (unsigned) space_left);
+	  memcpy (out_buff, in_buf, (unsigned) space_left);
 	  out_buff += space_left;
 	  output_size += space_left;
 	  in_buf += space_left;
@@ -256,10 +266,10 @@ tape_buffered_write (char *in_buf, int out_des, long num_bytes)
    When `out_buff' fills up, flush it to file descriptor OUT_DES.  */
 
 void
-disk_buffered_write (char *in_buf, int out_des, long num_bytes)
+disk_buffered_write (char *in_buf, int out_des, off_t num_bytes)
 {
-  register long bytes_left = num_bytes;	/* Bytes needing to be copied.  */
-  register long space_left;	/* Room left in output buffer.  */
+  off_t bytes_left = num_bytes;	/* Bytes needing to be copied.  */
+  off_t space_left;	/* Room left in output buffer.  */
 
   while (bytes_left > 0)
     {
@@ -270,7 +280,7 @@ disk_buffered_write (char *in_buf, int out_des, long num_bytes)
 	{
 	  if (bytes_left < space_left)
 	    space_left = bytes_left;
-	  bcopy (in_buf, out_buff, (unsigned) space_left);
+	  memcpy (out_buff, in_buf, (unsigned) space_left);
 	  out_buff += space_left;
 	  output_size += space_left;
 	  in_buf += space_left;
@@ -284,10 +294,10 @@ disk_buffered_write (char *in_buf, int out_des, long num_bytes)
    When `in_buff' is exhausted, refill it from file descriptor IN_DES.  */
 
 void
-tape_buffered_read (char *in_buf, int in_des, long num_bytes)
+tape_buffered_read (char *in_buf, int in_des, off_t num_bytes)
 {
-  register long bytes_left = num_bytes;	/* Bytes needing to be copied.  */
-  register long space_left;	/* Bytes to copy from input buffer.  */
+  off_t bytes_left = num_bytes;	/* Bytes needing to be copied.  */
+  off_t space_left;	/* Bytes to copy from input buffer.  */
 
   while (bytes_left > 0)
     {
@@ -297,7 +307,7 @@ tape_buffered_read (char *in_buf, int in_des, long num_bytes)
 	space_left = bytes_left;
       else
 	space_left = input_size;
-      bcopy (in_buff, in_buf, (unsigned) space_left);
+      memcpy (in_buf, in_buff, (unsigned) space_left);
       in_buff += space_left;
       in_buf += space_left;
       input_size -= space_left;
@@ -347,7 +357,7 @@ tape_buffered_peek (char *peek_buf, int in_des, int num_bytes)
 	     first block to make room.  */
 	  int half;
 	  half = input_buffer_size / 2;
-	  bcopy (input_buffer + half, input_buffer, half);
+	  memmove (input_buffer, input_buffer + half, half);
 	  in_buff = in_buff - half;
 	  append_buf = append_buf - half;
 	}
@@ -371,17 +381,17 @@ tape_buffered_peek (char *peek_buf, int in_des, int num_bytes)
     got_bytes = num_bytes;
   else
     got_bytes = input_size;
-  bcopy (in_buff, peek_buf, (unsigned) got_bytes);
+  memcpy (peek_buf, in_buff, (unsigned) got_bytes);
   return got_bytes;
 }
 
 /* Skip the next NUM_BYTES bytes of file descriptor IN_DES.  */
 
 void
-tape_toss_input (int in_des, long num_bytes)
+tape_toss_input (int in_des, off_t num_bytes)
 {
-  register long bytes_left = num_bytes;	/* Bytes needing to be copied.  */
-  register long space_left;	/* Bytes to copy from input buffer.  */
+  off_t bytes_left = num_bytes;	/* Bytes needing to be copied.  */
+  off_t space_left;	/* Bytes to copy from input buffer.  */
 
   while (bytes_left > 0)
     {
@@ -405,18 +415,19 @@ tape_toss_input (int in_des, long num_bytes)
     }
 }
 
-static void
-write_nuls_to_file (long num_bytes, int out_des, 
-                    void (*writer) (char *in_buf, int out_des, long num_bytes))
+void
+write_nuls_to_file (off_t num_bytes, int out_des, 
+                    void (*writer) (char *in_buf, int out_des, off_t num_bytes))
 {
-  long	blocks;
-  long	extra_bytes;
-  long	i;
-
-  blocks = num_bytes / 512;
-  extra_bytes = num_bytes % 512;
+  off_t	blocks;
+  off_t	extra_bytes;
+  off_t	i;
+  static char zeros_512[512];
+  
+  blocks = num_bytes / sizeof zeros_512;
+  extra_bytes = num_bytes % sizeof zeros_512;
   for (i = 0; i < blocks; ++i)
-    writer (zeros_512, out_des, 512);
+    writer (zeros_512, out_des, sizeof zeros_512);
   if (extra_bytes)
     writer (zeros_512, out_des, extra_bytes);
 }
@@ -430,7 +441,7 @@ write_nuls_to_file (long num_bytes, int out_des,
    NUM_BYTES is the number of bytes to copy.  */
 
 void
-copy_files_tape_to_disk (int in_des, int out_des, long num_bytes)
+copy_files_tape_to_disk (int in_des, int out_des, off_t num_bytes)
 {
   long size;
   long k;
@@ -460,13 +471,13 @@ copy_files_tape_to_disk (int in_des, int out_des, long num_bytes)
    NUM_BYTES is the number of bytes to copy.  */
 
 void
-copy_files_disk_to_tape (int in_des, int out_des, long num_bytes,
+copy_files_disk_to_tape (int in_des, int out_des, off_t num_bytes,
 			 char *filename)
 {
   long size;
   long k;
   int rc;
-  long original_num_bytes;
+  off_t original_num_bytes;
 
   original_num_bytes = num_bytes;
 
@@ -474,14 +485,20 @@ copy_files_disk_to_tape (int in_des, int out_des, long num_bytes,
     {
       if (input_size == 0)
 	if (rc = disk_fill_input_buffer (in_des,
-	  num_bytes < DISK_IO_BLOCK_SIZE ?
-	  num_bytes : DISK_IO_BLOCK_SIZE))
+					 num_bytes < DISK_IO_BLOCK_SIZE ?
+					 num_bytes : DISK_IO_BLOCK_SIZE))
 	  {
 	    if (rc > 0)
-	      error (0, 0, _("File %s shrunk by %ld bytes, padding with zeros"),
-				filename, num_bytes);
+	      {
+		  char buf[UINTMAX_STRSIZE_BOUND];
+		  error (0, 0,
+			 ngettext ("File %s shrunk by %s byte, padding with zeros",
+				   "File %s shrunk by %s bytes, padding with zeros",
+				   num_bytes),
+			 filename,  STRINGIFY_BIGINT (num_bytes, buf));
+	      }
 	    else
-	      error (0, 0, _("Read error at byte %ld in file %s, padding with zeros"),
+	      error (0, 0, _("Read error at byte %lld in file %s, padding with zeros"),
 			original_num_bytes - num_bytes, filename);
 	    write_nuls_to_file (num_bytes, out_des, tape_buffered_write);
 	    break;
@@ -507,12 +524,12 @@ copy_files_disk_to_tape (int in_des, int out_des, long num_bytes,
    NUM_BYTES is the number of bytes to copy.  */
 
 void
-copy_files_disk_to_disk (int in_des, int out_des, long num_bytes,
+copy_files_disk_to_disk (int in_des, int out_des, off_t num_bytes,
 			 char *filename)
 {
   long size;
   long k;
-  long original_num_bytes;
+  off_t original_num_bytes;
   int rc;
 
   original_num_bytes = num_bytes;
@@ -522,10 +539,16 @@ copy_files_disk_to_disk (int in_des, int out_des, long num_bytes,
 	if (rc = disk_fill_input_buffer (in_des, num_bytes))
 	  {
 	    if (rc > 0)
-	      error (0, 0, _("File %s shrunk by %ld bytes, padding with zeros"),
-				filename, num_bytes);
+	      {
+		char buf[UINTMAX_STRSIZE_BOUND];
+		error (0, 0,
+		       ngettext ("File %s shrunk by %s byte, padding with zeros",
+				 "File %s shrunk by %s bytes, padding with zeros",
+				 num_bytes),
+		       filename,  STRINGIFY_BIGINT (num_bytes, buf));
+	      }
 	    else
-	      error (0, 0, _("Read error at byte %ld in file %s, padding with zeros"),
+	      error (0, 0, _("Read error at byte %lld in file %s, padding with zeros"),
 			original_num_bytes - num_bytes, filename);
 	    write_nuls_to_file (num_bytes, out_des, disk_buffered_write);
 	    break;
@@ -547,20 +570,23 @@ copy_files_disk_to_disk (int in_des, int out_des, long num_bytes,
 
 void
 warn_if_file_changed (char *file_name, unsigned long old_file_size,
-		      unsigned long old_file_mtime)
+		      off_t old_file_mtime)
 {
   struct stat new_file_stat;
   if ((*xstat) (file_name, &new_file_stat) < 0)
     {
-      error (0, errno, "%s", file_name);
+      stat_error (file_name);
       return;
     }
 
   /* Only check growth, shrinkage detected in copy_files_disk_to_{disk,tape}()
    */
   if (new_file_stat.st_size > old_file_size)
-    error (0, 0, _("File %s grew, %ld new bytes not copied"),
-	   file_name, (long)(new_file_stat.st_size - old_file_size));
+    error (0, 0,
+	   ngettext ("File %s grew, %"PRIuMAX" new byte not copied",
+		     "File %s grew, %"PRIuMAX" new bytes not copied",
+		     (long)(new_file_stat.st_size - old_file_size)),
+	   file_name, (uintmax_t) (new_file_stat.st_size - old_file_size));
 
   else if (new_file_stat.st_mtime != old_file_mtime)
     error (0, 0, _("File %s was modified while being copied"), file_name);
@@ -660,82 +686,40 @@ struct inode_val
 };
 
 /* Inode hash table.  Allocated by first call to add_inode.  */
-static struct inode_val **hash_table = NULL;
+static Hash_table *hash_table = NULL;
 
-/* Size of current hash table.  Initial size is 47.  (47 = 2*22 + 3) */
-static int hash_size = 22;
+static size_t
+inode_val_hasher (const void *val, size_t n_buckets)
+{
+  const struct inode_val *ival = val;
+  return ival->inode % n_buckets;
+}
 
-/* Number of elements in current hash table.  */
-static int hash_num;
-
-/* Find the file name associated with NODE_NUM.  If there is no file
-   associated with NODE_NUM, return NULL.  */
+static bool
+inode_val_compare (const void *val1, const void *val2)
+{
+  const struct inode_val *ival1 = val1;
+  const struct inode_val *ival2 = val2;
+  return ival1->inode == ival2->inode
+         && ival1->major_num == ival2->major_num
+         && ival1->minor_num == ival2->minor_num;
+}
 
 char *
 find_inode_file (unsigned long node_num, unsigned long major_num,
 		 unsigned long minor_num)
 {
-  int start;			/* Initial hash location.  */
-  int temp;			/* Rehash search variable.  */
-
-  if (hash_table != NULL)
-    {
-      /* Hash function is node number modulo the table size.  */
-      start = node_num % hash_size;
-
-      /* Initial look into the table.  */
-      if (hash_table[start] == NULL)
-	return NULL;
-      if (hash_table[start]->inode == node_num
-	  && hash_table[start]->major_num == major_num
-	  && hash_table[start]->minor_num == minor_num)
-	return hash_table[start]->file_name;
-
-      /* The home position is full with a different inode record.
-	 Do a linear search terminated by a NULL pointer.  */
-      for (temp = (start + 1) % hash_size;
-	   hash_table[temp] != NULL && temp != start;
-	   temp = (temp + 1) % hash_size)
-	{
-	  if (hash_table[temp]->inode == node_num
-	      && hash_table[start]->major_num == major_num
-	      && hash_table[start]->minor_num == minor_num)
-	    return hash_table[temp]->file_name;
-	}
-    }
-  return NULL;
-}
-
-/* Do the hash insert.  Used in normal inserts and resizing the hash
-   table.  It is guaranteed that there is room to insert the item.
-   NEW_VALUE is the pointer to the previously allocated inode, file
-   name association record.  */
-
-static void
-hash_insert (struct inode_val *new_value)
-{
-  int start;			/* Home position for the value.  */
-  int temp;			/* Used for rehashing.  */
-
-  /* Hash function is node number modulo the table size.  */
-  start = new_value->inode % hash_size;
-
-  /* Do the initial look into the table.  */
-  if (hash_table[start] == NULL)
-    {
-      hash_table[start] = new_value;
-      return;
-    }
-
-  /* If we get to here, the home position is full with a different inode
-     record.  Do a linear search for the first NULL pointer and insert
-     the new item there.  */
-  temp = (start + 1) % hash_size;
-  while (hash_table[temp] != NULL)
-    temp = (temp + 1) % hash_size;
-
-  /* Insert at the NULL.  */
-  hash_table[temp] = new_value;
+  struct inode_val sample;
+  struct inode_val *ival;
+  
+  if (!hash_table)
+    return NULL;
+  
+  sample.inode = node_num;
+  sample.major_num = major_num;
+  sample.minor_num = minor_num;
+  ival = hash_lookup (hash_table, &sample);
+  return ival ? ival->file_name : NULL;
 }
 
 /* Associate FILE_NAME with the inode NODE_NUM.  (Insert into hash table.)  */
@@ -745,7 +729,8 @@ add_inode (unsigned long node_num, char *file_name, unsigned long major_num,
 	   unsigned long minor_num)
 {
   struct inode_val *temp;
-
+  struct inode_val *e;
+  
   /* Create new inode record.  */
   temp = (struct inode_val *) xmalloc (sizeof (struct inode_val));
   temp->inode = node_num;
@@ -753,39 +738,12 @@ add_inode (unsigned long node_num, char *file_name, unsigned long major_num,
   temp->minor_num = minor_num;
   temp->file_name = xstrdup (file_name);
 
-  /* Do we have to increase the size of (or initially allocate)
-     the hash table?  */
-  if (hash_num == hash_size || hash_table == NULL)
-    {
-      struct inode_val **old_table;	/* Pointer to old table.  */
-      int i;			/* Index for re-insert loop.  */
-
-      /* Save old table.  */
-      old_table = hash_table;
-      if (old_table == NULL)
-	hash_num = 0;
-
-      /* Calculate new size of table and allocate it.
-         Sequence of table sizes is 47, 97, 197, 397, 797, 1597, 3197, 6397 ...
-	 where 3197 and most of the sizes after 6397 are not prime.  The other
-	 numbers listed are prime.  */
-      hash_size = 2 * hash_size + 3;
-      hash_table = (struct inode_val **)
-	xmalloc (hash_size * sizeof (struct inode_val *));
-      bzero (hash_table, hash_size * sizeof (struct inode_val *));
-
-      /* Insert the values from the old table into the new table.  */
-      for (i = 0; i < hash_num; i++)
-	hash_insert (old_table[i]);
-
-      if (old_table != NULL)
-	free (old_table);
-    }
-
-  /* Insert the new record and increment the count of elements in the
-      hash table.  */
-  hash_insert (temp);
-  hash_num++;
+  if (!((hash_table
+	 || (hash_table = hash_initialize (0, 0, inode_val_hasher,
+					   inode_val_compare, 0)))
+	&& (e = hash_insert (hash_table, temp))))
+    xalloc_die ();
+  /* FIXME: e is not used */
 }
 
 
@@ -802,14 +760,14 @@ open_archive (char *file)
   copy_in = process_copy_in;
 
   if (copy_function == copy_in)
-    fd = rmtopen (file, O_RDONLY | O_BINARY, 0666, rsh_command_option);
+    fd = rmtopen (file, O_RDONLY | O_BINARY, MODE_RW, rsh_command_option);
   else
     {
       if (!append_flag)
-	fd = rmtopen (file, O_WRONLY | O_CREAT | O_TRUNC | O_BINARY, 0666,
+	fd = rmtopen (file, O_WRONLY | O_CREAT | O_TRUNC | O_BINARY, MODE_RW,
 			rsh_command_option);
       else
-	fd = rmtopen (file, O_RDWR | O_BINARY, 0666, rsh_command_option);
+	fd = rmtopen (file, O_RDWR | O_BINARY, MODE_RW, rsh_command_option);
     }
 
   return fd;
@@ -889,7 +847,7 @@ get_next_reel (int tape_des)
 
       tape_des = open_archive (archive_name);
       if (tape_des == -1)
-	error (1, errno, "%s", archive_name);
+	open_error (archive_name);
     }
   else
     {
@@ -909,7 +867,7 @@ get_next_reel (int tape_des)
 
 	  tape_des = open_archive (next_archive_name);
 	  if (tape_des == -1)
-	    error (0, errno, "%s", next_archive_name);
+	    open_error (next_archive_name);
 	}
       while (tape_des < 0);
     }
@@ -1005,9 +963,10 @@ umasked_symlink (char *name1, char *name2, int mode)
 
 /* Take an input pathname and check it for CDF's.  Insert an extra
    `/' in the pathname after each "hidden" directory.  If we add
-   any `/'s, return a malloced string (which it will reuse for
-   later calls so our caller doesn't have to worry about freeing
-   the string) instead of the original input string.  */
+   any `/'s, return a malloced string instead of the original input
+   string.
+   FIXME: This creates a memory leak.
+*/
 
 char *
 add_cdf_double_slashes (char *input_name)
@@ -1057,7 +1016,7 @@ add_cdf_double_slashes (char *input_name)
   *p = '\0';
   if ((*xstat) (input_name, &dir_stat) < 0)
     {
-      error (0, errno, "%s", input_name);
+      stat_error (input_name);
       return input_name;
     }
 
@@ -1083,7 +1042,7 @@ add_cdf_double_slashes (char *input_name)
 	  *p = '\0';
 	  if ((*xstat) (input_name, &dir_stat) < 0)
 	    {
-	      error (0, errno, "%s", input_name);
+	      stat_error (input_name);
 	      return input_name;
 	    }
 	  *p = '/';
@@ -1111,7 +1070,7 @@ islastparentcdf (char *path)
   int slash_count;
   int length;			/* Length of result, not including NUL.  */
 
-  slash = rindex (path, '/');
+  slash = strrchr (path, '/');
   if (slash == 0)
     return 0;
   else
@@ -1133,9 +1092,6 @@ islastparentcdf (char *path)
 
 #define DISKBLOCKSIZE	(512)
 
-enum sparse_write_states { begin, in_zeros, not_in_zeros };
-
-
 static int
 buf_all_zeros (char *buf, int bufsize)
 {
@@ -1153,7 +1109,7 @@ int delayed_seek_count = 0;
 /* Write NBYTE bytes from BUF to remote tape connection FILDES.
    Return the number of bytes written on success, -1 on error.  */
 
-int
+static int
 sparse_write (int fildes, char *buf, unsigned int nbyte)
 {
   int complete_block_count;
@@ -1164,7 +1120,7 @@ sparse_write (int fildes, char *buf, unsigned int nbyte)
   int lseek_rc;
   int write_rc;
   int i;
-  enum sparse_write_states state;
+  enum { begin, in_zeros, not_in_zeros } state;
 
   complete_block_count = nbyte / DISKBLOCKSIZE;
   leftover_bytes_count = nbyte % DISKBLOCKSIZE;
@@ -1194,6 +1150,7 @@ sparse_write (int fildes, char *buf, unsigned int nbyte)
 	      }
 	    buf += DISKBLOCKSIZE;
 	    break;
+	    
 	  case in_zeros :
 	    if (buf_all_zeros (buf, DISKBLOCKSIZE))
 	      {
@@ -1208,6 +1165,7 @@ sparse_write (int fildes, char *buf, unsigned int nbyte)
 	      }
 	    buf += DISKBLOCKSIZE;
 	    break;
+	    
 	  case not_in_zeros :
 	    if (buf_all_zeros (buf, DISKBLOCKSIZE))
 	      {
@@ -1230,6 +1188,7 @@ sparse_write (int fildes, char *buf, unsigned int nbyte)
       case in_zeros :
 	delayed_seek_count = seek_count;
 	break;
+	
       case not_in_zeros :
 	write_rc = write (fildes, cur_write_start, write_count);
 	delayed_seek_count = 0;
@@ -1247,3 +1206,139 @@ sparse_write (int fildes, char *buf, unsigned int nbyte)
     }
   return nbyte;
 }
+
+#define CPIO_UID(uid) (set_owner_flag ? set_owner : (uid))
+#define CPIO_GID(gid) (set_group_flag ? set_group : (gid))
+
+void
+stat_to_cpio (struct cpio_file_stat *hdr, struct stat *st)
+{
+  hdr->c_dev_maj = major (st->st_dev);
+  hdr->c_dev_min = minor (st->st_dev);
+  hdr->c_ino = st->st_ino;
+  /* For POSIX systems that don't define the S_IF macros,
+     we can't assume that S_ISfoo means the standard Unix
+     S_IFfoo bit(s) are set.  So do it manually, with a
+     different name.  Bleah.  */
+  hdr->c_mode = (st->st_mode & 07777);
+  if (S_ISREG (st->st_mode))
+    hdr->c_mode |= CP_IFREG;
+  else if (S_ISDIR (st->st_mode))
+    hdr->c_mode |= CP_IFDIR;
+#ifdef S_ISBLK
+  else if (S_ISBLK (st->st_mode))
+    hdr->c_mode |= CP_IFBLK;
+#endif
+#ifdef S_ISCHR
+  else if (S_ISCHR (st->st_mode))
+    hdr->c_mode |= CP_IFCHR;
+#endif
+#ifdef S_ISFIFO
+  else if (S_ISFIFO (st->st_mode))
+    hdr->c_mode |= CP_IFIFO;
+#endif
+#ifdef S_ISLNK
+  else if (S_ISLNK (st->st_mode))
+    hdr->c_mode |= CP_IFLNK;
+#endif
+#ifdef S_ISSOCK
+  else if (S_ISSOCK (st->st_mode))
+    hdr->c_mode |= CP_IFSOCK;
+#endif
+#ifdef S_ISNWK
+  else if (S_ISNWK (st->st_mode))
+    hdr->c_mode |= CP_IFNWK;
+#endif
+  hdr->c_uid = CPIO_UID (st->st_uid);
+  hdr->c_gid = CPIO_GID (st->st_gid);
+  hdr->c_nlink = st->st_nlink;
+  hdr->c_rdev_maj = major (st->st_rdev);
+  hdr->c_rdev_min = minor (st->st_rdev);
+  hdr->c_mtime = st->st_mtime;
+  hdr->c_filesize = st->st_size;
+  hdr->c_chksum = 0;
+  hdr->c_tar_linkname = NULL;
+}
+
+#ifndef HAVE_FCHOWN
+# define fchown(fd, uid, gid) (-1)
+#endif
+
+int
+fchown_or_chown (int fd, const char *name, uid_t uid, uid_t gid)
+{
+  if (HAVE_FCHOWN && fd != -1)
+    return fchown (fd, uid, gid);
+  else
+    return chown (name, uid, gid);
+}
+
+int
+fchmod_or_chmod (int fd, const char *name, mode_t mode)
+{
+  if (HAVE_FCHMOD && fd != -1)
+    return fchmod (fd, mode);
+  else
+    return chmod(name, mode);
+}
+
+void
+set_perms (int fd, struct cpio_file_stat *header)
+{
+  if (!no_chown_flag)
+    {
+      uid_t uid = CPIO_UID (header->c_uid);
+      gid_t gid = CPIO_GID (header->c_gid); 
+      if ((fchown_or_chown (fd, header->c_name, uid, gid) < 0)
+	  && errno != EPERM)
+	chown_error_details (header->c_name, uid, gid);
+    }
+  /* chown may have turned off some permissions we wanted. */
+  if (fchmod_or_chmod (fd, header->c_name, header->c_mode) < 0)
+    chmod_error_details (header->c_name, header->c_mode);
+#ifdef HPUX_CDF
+  if ((header->c_mode & CP_IFMT) && cdf_flag)
+    /* Once we "hide" the directory with the chmod(),
+       we have to refer to it using name+ instead of name.  */
+    file_hdr->c_name [cdf_char] = '+';
+#endif
+  if (retain_time_flag)
+    set_file_times (fd, header->c_name, header->c_mtime, header->c_mtime);
+}
+
+void
+set_file_times (int fd,
+		const char *name, unsigned long atime, unsigned long mtime)
+{
+  struct timespec ts[2];
+  
+  memset (&ts, 0, sizeof ts);
+
+  ts[0].tv_sec = atime;
+  ts[1].tv_sec = mtime;
+
+  /* Silently ignore EROFS because reading the file won't have upset its 
+     timestamp if it's on a read-only filesystem. */
+  if (gl_futimens (fd, name, ts) < 0 && errno != EROFS)
+    utime_error (name);
+}
+
+/* Do we have to ignore absolute paths, and if so, does the filename
+   have an absolute path?  */
+void
+cpio_safer_name_suffix (char *name, bool link_target, bool absolute_names,
+			bool strip_leading_dots)
+{
+  char *p = safer_name_suffix (name, link_target, absolute_names);
+  if (strip_leading_dots && strcmp (p, "./"))
+    /* strip leading `./' from the filename.  */
+    while (*p == '.' && *(p + 1) == '/')
+      {
+	++p;
+	while (*p == '/')
+	  ++p;
+      }
+  if (p != name)
+    memmove (name, p, (size_t)(strlen (p) + 1));
+}
+
