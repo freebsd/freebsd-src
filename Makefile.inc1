@@ -276,7 +276,7 @@ LIB32CPUFLAGS=	-march=i686 -mmmx -msse -msse2
 LIB32CPUFLAGS=	-march=${TARGET_CPUTYPE}
 .endif
 LIB32FLAGS=	-m32 ${LIB32CPUFLAGS} -mfancy-math-387 -DCOMPAT_32BIT \
-		-isystem ${LIB32TMP}/usr/include/ \
+		-isysroot ${LIB32TMP}/ \
 		-L${LIB32TMP}/usr/lib32 \
 		-B${LIB32TMP}/usr/lib32
 
