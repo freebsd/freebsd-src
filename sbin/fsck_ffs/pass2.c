@@ -274,6 +274,7 @@ static int
 pass2check(struct inodesc *idesc)
 {
 	struct direct *dirp = idesc->id_dirp;
+	char dirname[MAXPATHLEN + 1];
 	struct inoinfo *inp;
 	int n, entrysize, ret = 0;
 	union dinode *dp;
@@ -436,8 +437,36 @@ again:
 				errmsg = "DUP/BAD";
 			else if (!preen && !usedsoftdep)
 				errmsg = "ZERO LENGTH DIRECTORY";
-			else {
+			else if (cursnapshot == 0) {
 				n = 1;
+				break;
+			} else {
+				getpathname(dirname, idesc->id_number,
+				    dirp->d_ino);
+				pwarn("ZERO LENGTH DIRECTORY %s I=%d",
+					dirname, dirp->d_ino);
+				/*
+				 * We need to:
+				 *    setcwd(idesc->id_parent);
+				 *    rmdir(dirp->d_name);
+				 */
+				cmd.value = idesc->id_number;
+				if (sysctlbyname("vfs.ffs.setcwd", 0, 0,
+				    &cmd, sizeof cmd) == -1) {
+					/* kernel lacks support */
+					printf(" (IGNORED)\n");
+					n = 1;
+					break;
+				}
+				if (rmdir(dirp->d_name) == -1) {
+					printf(" (REMOVAL FAILED: %s)\n",
+					    strerror(errno));
+					n = 1;
+					break;
+				}
+				/* ".." reference to parent is removed */
+				inoinfo(idesc->id_number)->ino_linkcnt--;
+				printf(" (REMOVED)\n");
 				break;
 			}
 			fileerror(idesc->id_number, dirp->d_ino, errmsg);
