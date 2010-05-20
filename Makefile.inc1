@@ -969,7 +969,6 @@ bootstrap-tools:
     ${_groff} \
     ${_ar} \
     usr.bin/lorder \
-    usr.bin/makewhatis \
     ${_mklocale} \
     usr.bin/rpcgen \
     ${_sed} \
