@@ -508,7 +508,7 @@ giant_mmap_single(struct cdev *dev, vm_ooffset_t *offset, vm_size_t size,
 }
 
 static void
-notify(struct cdev *dev, const char *ev)
+notify(struct cdev *dev, const char *ev, int flags)
 {
 	static const char prefix[] = "cdev=";
 	char *data;
@@ -517,7 +517,8 @@ notify(struct cdev *dev, const char *ev)
 	if (cold)
 		return;
 	namelen = strlen(dev->si_name);
-	data = malloc(namelen + sizeof(prefix), M_TEMP, M_NOWAIT);
+	data = malloc(namelen + sizeof(prefix), M_TEMP,
+	     (flags & MAKEDEV_NOWAIT) ? M_NOWAIT : M_WAITOK);
 	if (data == NULL)
 		return;
 	memcpy(data, prefix, sizeof(prefix) - 1);
@@ -527,17 +528,17 @@ notify(struct cdev *dev, const char *ev)
 }
 
 static void
-notify_create(struct cdev *dev)
+notify_create(struct cdev *dev, int flags)
 {
 
-	notify(dev, "CREATE");
+	notify(dev, "CREATE", flags);
 }
 
 static void
 notify_destroy(struct cdev *dev)
 {
 
-	notify(dev, "DESTROY");
+	notify(dev, "DESTROY", MAKEDEV_WAITOK);
 }
 
 static struct cdev *
@@ -575,24 +576,27 @@ fini_cdevsw(struct cdevsw *devsw)
 	devsw->d_flags &= ~D_INIT;
 }
 
-static void
-prep_cdevsw(struct cdevsw *devsw)
+static int
+prep_cdevsw(struct cdevsw *devsw, int flags)
 {
 	struct cdevsw *dsw2;
 
 	mtx_assert(&devmtx, MA_OWNED);
 	if (devsw->d_flags & D_INIT)
-		return;
+		return (1);
 	if (devsw->d_flags & D_NEEDGIANT) {
 		dev_unlock();
-		dsw2 = malloc(sizeof *dsw2, M_DEVT, M_WAITOK);
+		dsw2 = malloc(sizeof *dsw2, M_DEVT,
+		     (flags & MAKEDEV_NOWAIT) ? M_NOWAIT : M_WAITOK);
 		dev_lock();
+		if (dsw2 == NULL && !(devsw->d_flags & D_INIT))
+			return (0);
 	} else
 		dsw2 = NULL;
 	if (devsw->d_flags & D_INIT) {
 		if (dsw2 != NULL)
 			cdevsw_free_devlocked(dsw2);
-		return;
+		return (1);
 	}
 
 	if (devsw->d_version != D_VERSION_01 &&
@@ -653,6 +657,7 @@ prep_cdevsw(struct cdevsw *devsw)
 
 	if (dsw2 != NULL)
 		cdevsw_free_devlocked(dsw2);
+	return (1);
 }
 
 static struct cdev *
@@ -663,9 +668,15 @@ make_dev_credv(int flags, struct cdevsw *devsw, int unit,
 	struct cdev *dev;
 	int i;
 
-	dev = devfs_alloc();
+	dev = devfs_alloc(flags);
+	if (dev == NULL)
+		return (NULL);
 	dev_lock();
-	prep_cdevsw(devsw);
+	if (!prep_cdevsw(devsw, flags)) {
+		dev_unlock();
+		devfs_free(dev);
+		return (NULL);
+	}
 	dev = newdev(devsw, unit, dev);
 	if (flags & MAKEDEV_REF)
 		dev_refl(dev);
@@ -692,8 +703,6 @@ make_dev_credv(int flags, struct cdevsw *devsw, int unit,
 	dev->si_flags |= SI_NAMED;
 	if (cr != NULL)
 		dev->si_cred = crhold(cr);
-	else
-		dev->si_cred = NULL;
 	dev->si_uid = uid;
 	dev->si_gid = gid;
 	dev->si_mode = mode;
@@ -702,7 +711,7 @@ make_dev_credv(int flags, struct cdevsw *devsw, int unit,
 	clean_unrhdrl(devfs_inos);
 	dev_unlock_and_free();
 
-	notify_create(dev);
+	notify_create(dev, flags);
 
 	return (dev);
 }
@@ -777,7 +786,7 @@ make_dev_alias(struct cdev *pdev, const char *fmt, ...)
 	int i;
 
 	KASSERT(pdev != NULL, ("NULL pdev"));
-	dev = devfs_alloc();
+	dev = devfs_alloc(MAKEDEV_WAITOK);
 	dev_lock();
 	dev->si_flags |= SI_ALIAS;
 	dev->si_flags |= SI_NAMED;
@@ -794,7 +803,7 @@ make_dev_alias(struct cdev *pdev, const char *fmt, ...)
 	clean_unrhdrl(devfs_inos);
 	dev_unlock();
 
-	notify_create(dev);
+	notify_create(dev, MAKEDEV_WAITOK);
 
 	return (dev);
 }
@@ -979,9 +988,9 @@ clone_create(struct clonedevs **cdp, struct cdevsw *csw, int *up,
 	 *       the end of the list.
 	 */
 	unit = *up;
-	ndev = devfs_alloc();
+	ndev = devfs_alloc(MAKEDEV_WAITOK);
 	dev_lock();
-	prep_cdevsw(csw);
+	prep_cdevsw(csw, MAKEDEV_WAITOK);
 	low = extra;
 	de = dl = NULL;
 	cd = *cdp;
