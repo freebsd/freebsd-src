@@ -67,8 +67,8 @@ static dumper_t ad_dump;
  * Most platforms map firmware geom to actual, but some don't.  If
  * not overridden, default to nothing.
  */
-#ifndef ad_firmware_geom_adjust
-#define ad_firmware_geom_adjust(dev, disk)
+#ifndef ata_disk_firmware_geom_adjust
+#define	ata_disk_firmware_geom_adjust(disk)
 #endif
 
 /* local vars */
@@ -142,9 +142,9 @@ ad_attach(device_t dev)
 	adp->disk->d_flags |= DISKFLAG_CANDELETE;
     strlcpy(adp->disk->d_ident, atadev->param.serial,
 	sizeof(adp->disk->d_ident));
+    ata_disk_firmware_geom_adjust(adp->disk);
     disk_create(adp->disk, DISK_VERSION);
     device_add_child(dev, "subdisk", device_get_unit(dev));
-    ad_firmware_geom_adjust(dev, adp->disk);
     bus_generic_attach(dev);
 
     callout_init(&atadev->spindown_timer, 1);

@@ -211,7 +211,7 @@ scsi_da_bios_params(struct ccb_calc_geometry *ccg)
 
 /* IDE BIOS compatible mode. */
 static	void
-pc98_ad_geom_adjust_idebios(struct disk *disk)
+pc98_ata_disk_geom_adjust_idebios(struct disk *disk)
 {
 
 	if (disk->d_mediasize < MEDIASIZE_4_3G) {
@@ -236,7 +236,7 @@ pc98_ad_geom_adjust_idebios(struct disk *disk)
 
 /* SCSI BIOS compatible mode. */
 static	void
-pc98_ad_geom_adjust_scsibios(struct disk *disk)
+pc98_ata_disk_geom_adjust_scsibios(struct disk *disk)
 {
 
 	if (disk->d_mediasize < MEDIASIZE_8G) {
@@ -261,13 +261,13 @@ pc98_ad_geom_adjust_scsibios(struct disk *disk)
 
 /* Compatible with the revision 1.28. */
 static	void
-pc98_ad_geom_adjust_cyl16bit(struct disk *disk)
+pc98_ata_disk_geom_adjust_cyl16bit(struct disk *disk)
 {
 	off_t totsec = disk->d_mediasize / disk->d_sectorsize;
 	off_t cyl = totsec / disk->d_fwsectors / disk->d_fwheads;
-    
+
 	/*
-	 * It is impossible to have more than 65535 cylendars, so if
+	 * It is impossible to have more than 65535 cylinders, so if
 	 * we have more then try to adjust.  This is lame, but it is
 	 * only POC.
 	 */
@@ -289,7 +289,7 @@ pc98_ad_geom_adjust_cyl16bit(struct disk *disk)
 }
 
 void
-pc98_ad_firmware_geom_adjust(device_t dev, struct disk *disk)
+pc98_ata_disk_firmware_geom_adjust(struct disk *disk)
 {
 	u_int	oldsectors, oldheads;
 
@@ -298,13 +298,13 @@ pc98_ad_firmware_geom_adjust(device_t dev, struct disk *disk)
 
 	switch (ad_geom_method) {
 	case AD_GEOM_ADJUST_COMPATIDE:
-		pc98_ad_geom_adjust_idebios(disk);
+		pc98_ata_disk_geom_adjust_idebios(disk);
 		break;
 	case AD_GEOM_ADJUST_COMPATSCSI:
-		pc98_ad_geom_adjust_scsibios(disk);
+		pc98_ata_disk_geom_adjust_scsibios(disk);
 		break;
 	case AD_GEOM_ADJUST_COMPATCYL16:
-		pc98_ad_geom_adjust_cyl16bit(disk);
+		pc98_ata_disk_geom_adjust_cyl16bit(disk);
 		break;
 	default:
 		/* Do nothing. */
@@ -313,9 +313,9 @@ pc98_ad_firmware_geom_adjust(device_t dev, struct disk *disk)
 
 	if (bootverbose &&
 	    (oldsectors != disk->d_fwsectors || oldheads != disk->d_fwheads))
-		device_printf(dev,
-		    "geometry adjusted from [%dH/%dS] to [%dH/%dS]\n",
+		printf(
+		    "%s%d: geometry adjusted from [%dH/%dS] to [%dH/%dS]\n",
+		    disk->d_name, disk->d_unit,
 		    oldheads, oldsectors,
 		    disk->d_fwheads, disk->d_fwsectors);
-
 }
