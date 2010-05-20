@@ -1171,8 +1171,18 @@ kill_blkptr(spa_t *spa, blkptr_t *bp, const zbookmark_t *zb,
 	if (bp == NULL)
 		return (0);
 
-	ASSERT3U(bp->blk_birth, >, ka->ds->ds_phys->ds_prev_snap_txg);
-	(void) dsl_dataset_block_kill(ka->ds, bp, ka->zio, ka->tx);
+	if ((zb->zb_level == -1ULL && zb->zb_blkid != 0) ||
+	    (zb->zb_object != 0 && dnp == NULL)) {
+		/*
+		 * It's a block in the intent log.  It has no
+		 * accounting, so just free it.
+		 */
+		VERIFY3U(0, ==, dsl_free(ka->zio, ka->tx->tx_pool,
+		    ka->tx->tx_txg, bp, NULL, NULL, ARC_NOWAIT));
+	} else {
+		ASSERT3U(bp->blk_birth, >, ka->ds->ds_phys->ds_prev_snap_txg);
+		(void) dsl_dataset_block_kill(ka->ds, bp, ka->zio, ka->tx);
+	}
 
 	return (0);
 }
@@ -1216,13 +1226,7 @@ dsl_dataset_rollback_sync(void *arg1, void *arg2, cred_t *cr, dmu_tx_t *tx)
 
 	dmu_buf_will_dirty(ds->ds_dbuf, tx);
 
-	/*
-	 * Before the roll back destroy the zil.
-	 */
 	if (ds->ds_user_ptr != NULL) {
-		zil_rollback_destroy(
-		    ((objset_impl_t *)ds->ds_user_ptr)->os_zil, tx);
-
 		/*
 		 * We need to make sure that the objset_impl_t is reopened after
 		 * we do the rollback, otherwise it will have the wrong
@@ -1255,7 +1259,10 @@ dsl_dataset_rollback_sync(void *arg1, void *arg2, cred_t *cr, dmu_tx_t *tx)
 	    ds->ds_phys->ds_deadlist_obj));
 
 	{
-		/* Free blkptrs that we gave birth to */
+		/*
+		 * Free blkptrs that we gave birth to - this covers
+		 * claimed but not played log blocks too.
+		 */
 		zio_t *zio;
 		struct killarg ka;
 
