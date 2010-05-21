@@ -432,8 +432,8 @@ void
 db_show_mdpcpu(struct pcpu *pc)
 {
 
-	db_printf("ipis	    = 0x%x\n", pc->pc_pending_ipis);
+	db_printf("ipis         = 0x%x\n", pc->pc_pending_ipis);
 	db_printf("next ASID    = %d\n", pc->pc_next_asid);
-	db_printf("GENID	    = %d\n", pc->pc_asid_generation);
+	db_printf("GENID        = %d\n", pc->pc_asid_generation);
 	return;
 }
