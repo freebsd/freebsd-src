@@ -387,7 +387,7 @@ compile_delimited(char *p, char *d)
 		errx(1, "%lu: %s: newline can not be used as a string delimiter",
 				linenum, fname);
 	while (*p) {
-		if (*p == '[') {
+		if (*p == '[' && *p != c) {
 			if ((d = compile_ccl(&p, d)) == NULL)
 				errx(1, "%lu: %s: unbalanced brackets ([])", linenum, fname);
 			continue;
