@@ -57,6 +57,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/ioctl.h>
 #include <sys/resource.h>
 #include <sys/sysctl.h>
+#include <sys/time.h>
 #include <sys/vmmeter.h>
 #include <sys/pcpu.h>
 
@@ -181,6 +182,7 @@ main(int argc, char *argv[])
 {
 	int c, todo;
 	unsigned int interval;
+	float f;
 	int reps;
 	char *memf, *nlistf;
 	char errbuf[_POSIX2_LINE_MAX];
@@ -243,7 +245,9 @@ main(int argc, char *argv[])
 #endif
 			break;
 		case 'w':
-			interval = atoi(optarg);
+			/* Convert to milliseconds. */
+			f = atof(optarg);
+			interval = f * 1000;
 			break;
 		case 'z':
 			todo |= ZMEMSTAT;
@@ -298,7 +302,8 @@ main(int argc, char *argv[])
 #define	BACKWARD_COMPATIBILITY
 #ifdef	BACKWARD_COMPATIBILITY
 	if (*argv) {
-		interval = atoi(*argv);
+		f = atof(*argv);
+		interval = f * 1000;
 		if (*++argv)
 			reps = atoi(*argv);
 	}
@@ -308,7 +313,7 @@ main(int argc, char *argv[])
 		if (!reps)
 			reps = -1;
 	} else if (reps)
-		interval = 1;
+		interval = 1 * 1000;
 
 	if (todo & FORKSTAT)
 		doforkst();
@@ -652,9 +657,11 @@ dovmstat(unsigned int interval, int reps)
 	size_t size;
 	int ncpus, maxid;
 	u_long cpumask;
+	int rate_adj;
 
 	uptime = getuptime();
 	halfuptime = uptime / 2;
+	rate_adj = 1;
 
 	/*
 	 * If the user stops the program (control-Z) and then resumes it,
@@ -766,7 +773,7 @@ dovmstat(unsigned int interval, int reps)
 		(void)printf("%2d %1d %1d",
 		    total.t_rq - 1, total.t_dw + total.t_pw, total.t_sw);
 #define vmstat_pgtok(a) ((a) * (sum.v_page_size >> 10))
-#define	rate(x)	(((x) + halfuptime) / uptime)	/* round */
+#define	rate(x)	(((x) * rate_adj + halfuptime) / uptime)	/* round */
 		if (hflag) {
 			printf(" ");
 			prthuman(total.t_avm * (u_int64_t)sum.v_page_size, 7);
@@ -806,15 +813,16 @@ dovmstat(unsigned int interval, int reps)
 			break;
 		osum = sum;
 		uptime = interval;
+		rate_adj = 1000;
 		/*
 		 * We round upward to avoid losing low-frequency events
-		 * (i.e., >= 1 per interval but < 1 per second).
+		 * (i.e., >= 1 per interval but < 1 per millisecond).
 		 */
 		if (interval != 1)
 			halfuptime = (uptime + 1) / 2;
 		else
 			halfuptime = 0;
-		(void)sleep(interval);
+		(void)usleep(interval * 1000);
 	}
 }
 
