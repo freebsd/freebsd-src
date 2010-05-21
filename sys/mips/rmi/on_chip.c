@@ -78,6 +78,7 @@ struct msgring_ithread {
 	u_int i_pending;
 	u_int i_flags;
 	int i_cpu;
+	int i_core;
 };
 
 struct msgring_ithread *msgring_ithreads[MAXCPU];
@@ -254,13 +255,13 @@ disable_msgring_int(void *arg)
 static int
 msgring_process_fast_intr(void *arg)
 {
-	int cpu = PCPU_GET(cpuid);
+	int core = xlr_core_id();
 	volatile struct msgring_ithread *it;
 	struct thread *td;
 
 	/* wakeup an appropriate intr_thread for processing this interrupt */
-	it = (volatile struct msgring_ithread *)msgring_ithreads[cpu];
-	KASSERT(it != NULL, ("No interrupt thread on cpu %d", cpu));
+	it = (volatile struct msgring_ithread *)msgring_ithreads[core];
+	KASSERT(it != NULL, ("No interrupt thread on cpu %d", core));
 	td = it->i_thread;
 
 	/*
@@ -293,10 +294,11 @@ msgring_process(void *arg)
 
 	/* First bind this thread to the right CPU */
 	thread_lock(td);
+	
 	sched_bind(td, ithd->i_cpu);
 	thread_unlock(td);
 
-	atomic_store_rel_ptr((volatile uintptr_t *)&msgring_ithreads[ithd->i_cpu],
+	atomic_store_rel_ptr((volatile uintptr_t *)&msgring_ithreads[ithd->i_core],
 	     (uintptr_t)arg);
 	enable_msgring_int(NULL);
 	
@@ -327,7 +329,7 @@ msgring_process(void *arg)
 }
 
 static void 
-create_msgring_thread(int cpu)
+create_msgring_thread(int core, int cpu)
 {
 	struct msgring_ithread *ithd;
 	struct thread *td;
@@ -348,12 +350,13 @@ create_msgring_thread(int cpu)
 	ithd->i_thread = td;
 	ithd->i_pending = 0;
 	ithd->i_cpu = cpu;
+	ithd->i_core = core;
 
 	thread_lock(td);
 	sched_class(td, PRI_ITHD);
 	sched_add(td, SRQ_INTR);
 	thread_unlock(td);
-	CTR2(KTR_INTR, "%s: created %s", __func__, ithd_name[cpu]);
+	CTR2(KTR_INTR, "%s: created %s", __func__, ithd_name[core]);
 }
 
 int 
@@ -376,7 +379,7 @@ register_msgring_handler(int major,
 	  mtx_unlock_spin(&msgrng_lock);
 
 	if (xlr_test_and_set(&msgring_int_enabled)) {
-		create_msgring_thread(0);
+		create_msgring_thread(0, 0);
 		cpu_establish_hardintr("msgring", (driver_filter_t *) msgring_process_fast_intr,
 			NULL, NULL, IRQ_MSGRING, 
 			INTR_TYPE_NET | INTR_FAST, &cookie);
@@ -429,13 +432,15 @@ on_chip_init(void)
 static void
 start_msgring_threads(void *arg)
 {
-	uint32_t cpu_mask;
-	int cpu;
+	int core, cpu;
 
-	cpu_mask = PCPU_GET(cpumask) | PCPU_GET(other_cpus);
-	for (cpu = 4; cpu < MAXCPU; cpu += 4)
-		if (cpu_mask & (1<<cpu))
-			create_msgring_thread(cpu);
+	for (core = 1; core < XLR_MAX_CORES; core++) {
+		if ((xlr_hw_thread_mask >> (4 * core)) & 0xf) {
+			/* start one thread for an enabled core */
+			cpu = xlr_hwtid_to_cpuid[4 * core];
+			create_msgring_thread(core, cpu);
+		}
+	}
 }
 
 SYSINIT(start_msgring_threads, SI_SUB_SMP, SI_ORDER_MIDDLE, start_msgring_threads, NULL);
