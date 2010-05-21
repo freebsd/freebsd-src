@@ -445,6 +445,10 @@ u2/g' lines1
 	# set specification (both with --posix and without).
 	mark '8.19' ; sed 's/l/[/' lines1 | $SED -e 's[\[.[X['
 	mark '8.20' ; sed 's/l/[/' lines1 | $SED -e 's[\[.[X\[['
+	COMMENT='\ in y command'
+	mark '8.21'
+	echo 'a\b(c' |
+	$SED 'y%ABCDEFGHIJKLMNOPQRSTUVWXYZ, /\\()"%abcdefghijklmnopqrstuvwxyz,------%'
 }
 
 test_error()

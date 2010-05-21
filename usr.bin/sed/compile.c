@@ -66,7 +66,7 @@ static struct labhash {
 
 static char	 *compile_addr(char *, struct s_addr *);
 static char	 *compile_ccl(char **, char *);
-static char	 *compile_delimited(char *, char *);
+static char	 *compile_delimited(char *, char *, int);
 static char	 *compile_flags(char *, struct s_subst *);
 static regex_t	 *compile_re(char *, int);
 static char	 *compile_subst(char *, struct s_subst *);
@@ -320,7 +320,7 @@ nonsel:		/* Now parse the command */
 					linenum, fname);
 			if ((cmd->u.s = calloc(1, sizeof(struct s_subst))) == NULL)
 				err(1, "malloc");
-			p = compile_delimited(p, re);
+			p = compile_delimited(p, re, 0);
 			if (p == NULL)
 				errx(1,
 				"%lu: %s: unterminated substitute pattern", linenum, fname);
@@ -373,7 +373,7 @@ nonsel:		/* Now parse the command */
  * with the processed string.
  */
 static char *
-compile_delimited(char *p, char *d)
+compile_delimited(char *p, char *d, int is_tr)
 {
 	char c;
 
@@ -399,9 +399,12 @@ compile_delimited(char *p, char *d)
 			*d++ = '\n';
 			p += 2;
 			continue;
-		} else if (*p == '\\' && p[1] == '\\')
-			*d++ = *p++;
-		else if (*p == c) {
+		} else if (*p == '\\' && p[1] == '\\') {
+			if (is_tr)
+				p++;
+			else
+				*d++ = *p++;
+		} else if (*p == c) {
 			*d = '\0';
 			return (p + 1);
 		}
@@ -654,11 +657,11 @@ compile_tr(char *p, struct s_tr **py)
 		errx(1,
 	"%lu: %s: transform pattern can not be delimited by newline or backslash",
 			linenum, fname);
-	p = compile_delimited(p, old);
+	p = compile_delimited(p, old, 1);
 	if (p == NULL)
 		errx(1, "%lu: %s: unterminated transform source string",
 				linenum, fname);
-	p = compile_delimited(p - 1, new);
+	p = compile_delimited(p - 1, new, 1);
 	if (p == NULL)
 		errx(1, "%lu: %s: unterminated transform target string",
 				linenum, fname);
@@ -781,7 +784,7 @@ compile_addr(char *p, struct s_addr *a)
 		++p;
 		/* FALLTHROUGH */
 	case '/':				/* Context address */
-		p = compile_delimited(p, re);
+		p = compile_delimited(p, re, 0);
 		if (p == NULL)
 			errx(1, "%lu: %s: unterminated regular expression", linenum, fname);
 		/* Check for case insensitive regexp flag */
