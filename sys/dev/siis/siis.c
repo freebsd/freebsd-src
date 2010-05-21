@@ -59,6 +59,8 @@ static int siis_setup_interrupt(device_t dev);
 static void siis_intr(void *data);
 static int siis_suspend(device_t dev);
 static int siis_resume(device_t dev);
+static int siis_ch_init(device_t dev);
+static int siis_ch_deinit(device_t dev);
 static int siis_ch_suspend(device_t dev);
 static int siis_ch_resume(device_t dev);
 static void siis_ch_intr_locked(void *data);
@@ -458,7 +460,7 @@ siis_ch_attach(device_t dev)
 		return (ENXIO);
 	siis_dmainit(dev);
 	siis_slotsalloc(dev);
-	siis_ch_resume(dev);
+	siis_ch_init(dev);
 	mtx_lock(&ch->mtx);
 	rid = ATA_IRQ_RID;
 	if (!(ch->r_irq = bus_alloc_resource_any(dev, SYS_RES_IRQ,
@@ -528,7 +530,7 @@ siis_ch_detach(device_t dev)
 	bus_teardown_intr(dev, ch->r_irq, ch->ih);
 	bus_release_resource(dev, SYS_RES_IRQ, ATA_IRQ_RID, ch->r_irq);
 
-	siis_ch_suspend(dev);
+	siis_ch_deinit(dev);
 	siis_slotsfree(dev);
 	siis_dmafini(dev);
 
@@ -538,17 +540,7 @@ siis_ch_detach(device_t dev)
 }
 
 static int
-siis_ch_suspend(device_t dev)
-{
-	struct siis_channel *ch = device_get_softc(dev);
-
-	/* Put port into reset state. */
-	ATA_OUTL(ch->r_mem, SIIS_P_CTLSET, SIIS_P_CTL_PORT_RESET);
-	return (0);
-}
-
-static int
-siis_ch_resume(device_t dev)
+siis_ch_init(device_t dev)
 {
 	struct siis_channel *ch = device_get_softc(dev);
 
@@ -561,6 +553,43 @@ siis_ch_resume(device_t dev)
 		ATA_OUTL(ch->r_mem, SIIS_P_CTLCLR, SIIS_P_CTL_PME);
 	/* Enable port interrupts */
 	ATA_OUTL(ch->r_mem, SIIS_P_IESET, SIIS_P_IX_ENABLED);
+	return (0);
+}
+
+static int
+siis_ch_deinit(device_t dev)
+{
+	struct siis_channel *ch = device_get_softc(dev);
+
+	/* Put port into reset state. */
+	ATA_OUTL(ch->r_mem, SIIS_P_CTLSET, SIIS_P_CTL_PORT_RESET);
+	return (0);
+}
+
+static int
+siis_ch_suspend(device_t dev)
+{
+	struct siis_channel *ch = device_get_softc(dev);
+
+	mtx_lock(&ch->mtx);
+	xpt_freeze_simq(ch->sim, 1);
+	while (ch->oslots)
+		msleep(ch, &ch->mtx, PRIBIO, "siissusp", hz/100);
+	siis_ch_deinit(dev);
+	mtx_unlock(&ch->mtx);
+	return (0);
+}
+
+static int
+siis_ch_resume(device_t dev)
+{
+	struct siis_channel *ch = device_get_softc(dev);
+
+	mtx_lock(&ch->mtx);
+	siis_ch_init(dev);
+	siis_reset(dev);
+	xpt_release_simq(ch->sim, TRUE);
+	mtx_unlock(&ch->mtx);
 	return (0);
 }
 
