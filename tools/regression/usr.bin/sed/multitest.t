@@ -37,11 +37,9 @@
 #
 # The directory regress.test.out contains the expected test results
 #
-# These are the regression tests created during the development of the
-# BSD sed.  The reference file naming scheme used in this script can't
-# handle gracefully the insertion of new tests between existing ones.
-# Therefore, either use the new m4-based regress.t framework, or add
-# tests after the last existing test.
+# These are the regression tests mostly created during the development
+# of the BSD sed.  Each test should have a unique mark name, which is
+# used for naming the corresponding file in regress.multitest.out.
 
 main()
 {
@@ -88,11 +86,11 @@ result()
 	else
 		TODO=''
 	fi
-	if ! [ -r $REGRESS/${MARK}_${TESTNAME} ] ; then
-		echo "Seeding $REGRESS/${MARK}_${TESTNAME} with current result" 1>&2
-		cp current.out $REGRESS/${MARK}_${TESTNAME}
+	if ! [ -r $REGRESS/${TESTNAME} ] ; then
+		echo "Seeding $REGRESS/${TESTNAME} with current result" 1>&2
+		cp current.out $REGRESS/${TESTNAME}
 	fi
-	if diff -c $REGRESS/${MARK}_${TESTNAME} current.out ; then
+	if diff -c $REGRESS/${TESTNAME} current.out ; then
 		echo "ok $MARK $TESTNAME # $TODO$COMMENT"
 	else
 		echo "not ok $MARK $TESTNAME # $TODO$COMMENT"
