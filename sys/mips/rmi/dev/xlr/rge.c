@@ -126,7 +126,7 @@ int mac_debug = 1;
         do {\
             if (mac_debug) {\
                 printf("[%s@%d|%s]: cpu_%d: " fmt, \
-                __FILE__, __LINE__, __FUNCTION__,  PCPU_GET(cpuid), ##args);\
+                __FILE__, __LINE__, __FUNCTION__,  xlr_cpu_id(), ##args);\
             }\
         } while(0);
 
@@ -404,7 +404,7 @@ init_p2d_allocation(void)
 	uint32_t cpumask;
 	int cpu;
 
-	cpumask = PCPU_GET(cpumask) | PCPU_GET(other_cpus);
+	cpumask = xlr_hw_thread_mask;
 
 	for (i = 0; i < 32; i++) {
 		if (cpumask & (1 << i)) {
@@ -966,7 +966,7 @@ rmi_xlr_config_pde(struct driver_data *priv)
 	/* uint32_t desc_pack_ctrl = 0; */
 	uint32_t cpumask;
 
-	cpumask = PCPU_GET(cpumask);
+	cpumask = 0x1;
 #ifdef SMP
 	/*
          * rge may be called before SMP start in a BOOTP/NFSROOT
@@ -974,7 +974,7 @@ rmi_xlr_config_pde(struct driver_data *priv)
          * the SMP is started.
 	 */
 	if (smp_started)
-		cpumask |= PCPU_GET(other_cpus);
+		cpumask = xlr_hw_thread_mask;
 #endif
 
 	for (i = 0; i < MAXCPU; i++) {
@@ -1453,7 +1453,7 @@ mac_xmit(struct mbuf *m, struct rge_softc *sc,
 	int stid = priv->txbucket;
 	uint32_t tx_cycles = 0;
 	unsigned long mflags = 0;
-	int vcpu = PCPU_GET(cpuid);
+	int vcpu = xlr_cpu_id();
 	int rv;
 
 	tx_cycles = mips_rd_count();

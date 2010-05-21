@@ -352,4 +352,9 @@ xlr_paddr_lw(uint64_t paddr)
 
 	return tmp;
 }
+
+/* for cpuid to hardware thread id mapping */
+extern uint32_t xlr_hw_thread_mask;
+extern int xlr_cpuid_to_hwtid[];
+extern int xlr_hwtid_to_cpuid[];
 #endif
