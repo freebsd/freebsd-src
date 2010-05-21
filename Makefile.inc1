@@ -277,6 +277,7 @@ LIB32CPUFLAGS=	-march=${TARGET_CPUTYPE}
 .endif
 LIB32FLAGS=	-m32 ${LIB32CPUFLAGS} -mfancy-math-387 -DCOMPAT_32BIT \
 		-isysroot ${LIB32TMP}/ \
+		-isystem ${LIB32TMP}/usr/include/ \
 		-L${LIB32TMP}/usr/lib32 \
 		-B${LIB32TMP}/usr/lib32
 
