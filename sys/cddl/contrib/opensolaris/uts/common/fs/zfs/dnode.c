@@ -19,7 +19,7 @@
  * CDDL HEADER END
  */
 /*
- * Copyright 2008 Sun Microsystems, Inc.  All rights reserved.
+ * Copyright 2009 Sun Microsystems, Inc.  All rights reserved.
  * Use is subject to license terms.
  */
 
@@ -301,7 +301,7 @@ dnode_create(objset_impl_t *os, dnode_phys_t *dnp, dmu_buf_impl_t *db,
 	list_insert_head(&os->os_dnodes, dn);
 	mutex_exit(&os->os_lock);
 
-	arc_space_consume(sizeof (dnode_t));
+	arc_space_consume(sizeof (dnode_t), ARC_SPACE_OTHER);
 	return (dn);
 }
 
@@ -336,7 +336,7 @@ dnode_destroy(dnode_t *dn)
 		dn->dn_bonus = NULL;
 	}
 	kmem_cache_free(dnode_cache, dn);
-	arc_space_return(sizeof (dnode_t));
+	arc_space_return(sizeof (dnode_t), ARC_SPACE_OTHER);
 }
 
 void
