@@ -418,7 +418,7 @@ kthread_suspend_check()
 int
 kproc_kthread_add(void (*func)(void *), void *arg,
             struct proc **procptr, struct thread **tdptr,
-            int flags, int pages, char * procname, const char *fmt, ...) 
+            int flags, int pages, const char *procname, const char *fmt, ...) 
 {
 	int error;
 	va_list ap;
