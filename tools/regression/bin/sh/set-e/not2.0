@@ -1,3 +1,4 @@
 # $FreeBSD$
 set -e
 ! false
+! eval false
