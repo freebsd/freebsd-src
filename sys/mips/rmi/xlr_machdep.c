@@ -75,13 +75,7 @@ __FBSDID("$FreeBSD$");
 #include <mips/rmi/interrupt.h>
 #include <mips/rmi/pic.h>
 
-#ifdef XLR_PERFMON
-#include <mips/rmi/perfmon.h>
-#endif
-
 void mpwait(void);
-void enable_msgring_int(void *arg);
-
 unsigned long xlr_io_base = (unsigned long)(DEFAULT_XLR_IO_BASE);
 
 /* 4KB static data aread to keep a copy of the bootload env until
@@ -100,164 +94,140 @@ uint64_t cpu_mask_info;
 uint32_t xlr_online_cpumask;
 uint32_t xlr_core_cpu_mask = 0x1;	/* Core 0 thread 0 is always there */
 
-void
-platform_reset(void)
-{
-	/* FIXME : use proper define */
-	u_int32_t *mmio = (u_int32_t *) 0xbef18000;
+int xlr_shtlb_enabled;
+int xlr_ncores;
+int xlr_threads_per_core;
+uint32_t xlr_hw_thread_mask;
+int xlr_cpuid_to_hwtid[MAXCPU];
+int xlr_hwtid_to_cpuid[MAXCPU];
 
-	printf("Rebooting the system now\n");
-	mmio[8] = 0x1;
-}
-
-int xlr_asid_pcpu = 256;	/* This the default */
-int xlr_shtlb_enabled = 0;
-
-/* This function sets up the number of tlb entries available
-   to the kernel based on the number of threads brought up.
-   The ASID range also gets divided similarly.
-   THE NUMBER OF THREADS BROUGHT UP IN EACH CORE MUST BE THE SAME
-NOTE: This function will mark all 64TLB entries as available
-to the threads brought up in the core. If kernel is brought with say mask
-0x33333333, no TLBs will be available to the threads in each core.
-*/
 static void 
-setup_tlb_resource(void)
+xlr_setup_mmu_split(void)
 {
 	int mmu_setup;
-	int value = 0;
-	uint32_t cpu_map = xlr_boot1_info.cpu_online_map;
-	uint32_t thr_mask = cpu_map >> (xlr_core_id() << 2);
-	uint8_t core0 = xlr_boot1_info.cpu_online_map & 0xf;
-	uint8_t core_thr_mask;
-	int i = 0, count = 0;
+	int val = 0;
 
-	/* If CPU0 did not enable shared TLB, other cores need to follow */
-	if ((xlr_core_id() != 0) && (xlr_shtlb_enabled == 0))
-		return;
-	/* First check if each core is brought up with the same mask */
-	for (i = 1; i < 8; i++) {
-		core_thr_mask = cpu_map >> (i << 2);
-		core_thr_mask &= 0xf;
-		if (core_thr_mask && core_thr_mask != core0) {
-			printf
-			    ("Each core must be brought with same cpu mask\n");
-			printf("Cannot enabled shared TLB. ");
-			printf("Falling back to split TLB mode\n");
-			return;
-		}
+	if (xlr_threads_per_core == 4 && xlr_shtlb_enabled == 0)
+		return;   /* no change from boot setup */	
+
+	switch (xlr_threads_per_core) {
+	case 1: 
+		val = 0; break;
+	case 2: 
+		val = 2; break;
+	case 4: 
+		val = 3; break;
 	}
-
-	xlr_shtlb_enabled = 1;
-	for (i = 0; i < 4; i++)
-		if (thr_mask & (1 << i))
-			count++;
-	switch (count) {
-	case 1:
-		xlr_asid_pcpu = 256;
-		break;
-	case 2:
-		xlr_asid_pcpu = 128;
-		value = 0x2;
-		break;
-	default:
-		xlr_asid_pcpu = 64;
-		value = 0x3;
-		break;
-	}
-
+	
 	mmu_setup = read_32bit_phnx_ctrl_reg(4, 0);
 	mmu_setup = mmu_setup & ~0x06;
-	mmu_setup |= (value << 1);
+	mmu_setup |= (val << 1);
 
 	/* turn on global mode */
-#ifndef SMP
-	mmu_setup |= 0x01;
-#endif
+	if (xlr_shtlb_enabled)
+		mmu_setup |= 0x01;
+
 	write_32bit_phnx_ctrl_reg(4, 0, mmu_setup);
-
 }
 
-
-/*
- * Platform specific register setup for CPUs
- * XLR has control registers accessible with MFCR/MTCR instructions, this
- * code initialized them from the environment variable xlr.cr of form:
- *  xlr.cr=reg:val[,reg:val]*, all values in hex.
- * To enable shared TLB option use xlr.shtlb=1
- */
-void 
-platform_cpu_init()
+static void
+xlr_parse_mmu_options(void)
 {
-	char *hw_env;
-	char *start, *end;
-	uint32_t reg, val;
-	int thr_id = xlr_thr_id();
+#ifdef notyet
+	char *hw_env, *start, *end;
+#endif
+	uint32_t cpu_map;
+	uint8_t core0_thr_mask, core_thr_mask;
+	int i, j, k;
 
-/*
- * XXX: SMP now need different wired mappings for threads 
- * we cannot share TLBs.
- */
-	if (thr_id == 0) {
-		if ((hw_env = getenv("xlr.shtlb")) != NULL) {
-			start = hw_env;
-			reg = strtoul(start, &end, 16);
-			if (start != end && reg != 0)
-				setup_tlb_resource();
-		} else {
-			/* By default TLB entries are shared in a core */
-			setup_tlb_resource();
-		}
-	}
-	if ((hw_env = getenv("xlr.cr")) == NULL)
-		return;
-
-	start = hw_env;
-	while (*start != '\0') {
-		reg = strtoul(start, &end, 16);
-		if (start == end) {
-			printf("Invalid value in xlr.cr %s, cannot read a hex value at %d\n",
-			    hw_env, start - hw_env);
-			goto err_return;
-		}
-		if (*end != ':') {
-			printf("Invalid format in xlr.cr %s, ':' expected at pos %d\n",
-			    hw_env, end - hw_env);
-			goto err_return;
-		}
-		start = end + 1;/* step over ':' */
-		val = strtoul(start, &end, 16);
-		if (start == end) {
-			printf("Invalid value in xlr.cr %s, cannot read a hex value at pos %d\n",
-			    hw_env, start - hw_env);
-			goto err_return;
-		}
-		if (*end != ',' && *end != '\0') {
-			printf("Invalid format in xlr.cr %s, ',' expected at pos %d\n",
-			    hw_env, end - hw_env);
-			goto err_return;
-		}
-		xlr_mtcr(reg, val);
-		if (*end == ',')
-			start = end + 1;	/* skip over ',' */
+	/* First check for the shared TLB setup */
+	xlr_shtlb_enabled = 0;
+#ifdef notyet
+	/* 
+	 * We don't support sharing TLB per core - TODO
+	 */
+	xlr_shtlb_enabled = 0;
+	if ((hw_env = getenv("xlr.shtlb")) != NULL) {
+		start = hw_env;
+		tmp = strtoul(start, &end, 0);
+		if (start != end)
+			xlr_shtlb_enabled = (tmp != 0);
 		else
-			start = end;
+			printf("Bad value for xlr.shtlb [%s]\n", hw_env);
+		freeenv(hw_env);
 	}
-	freeenv(hw_env);
+#endif
+	/*
+	 * XLR supports splitting the 64 TLB entries across one, two or four
+	 * threads (split mode).  XLR also allows the 64 TLB entries to be shared
+         * across all threads in the core using a global flag (shared TLB mode).
+         * We will support 1/2/4 threads in split mode or shared mode.
+	 *
+	 */
+	xlr_ncores = 1;
+	cpu_map = xlr_boot1_info.cpu_online_map;
+	core0_thr_mask = cpu_map & 0xf;
+	switch (core0_thr_mask) {
+	case 1:
+		xlr_threads_per_core = 1; break;
+	case 3:
+		xlr_threads_per_core = 2; break;
+	case 0xf: 
+		xlr_threads_per_core = 4; break;
+	default:
+		goto unsupp;
+	}
+
+	/* Verify other cores CPU masks */
+	for (i = 1; i < XLR_MAX_CORES; i++) {
+		core_thr_mask = (cpu_map >> (i*4)) & 0xf;
+		if (core_thr_mask) {
+			if (core_thr_mask != core0_thr_mask)
+				goto unsupp; 
+			xlr_ncores++;
+		}
+	}
+
+	/* setup hardware processor id to cpu id mapping */
+	xlr_hw_thread_mask = xlr_boot1_info.cpu_online_map;
+	for (i = 0; i< MAXCPU; i++)
+		xlr_cpuid_to_hwtid[i] = 
+		    xlr_hwtid_to_cpuid [i] = -1;
+	for (i = 0, k = 0; i < XLR_MAX_CORES; i++) {
+		if (((cpu_map >> (i*4)) & 0xf) == 0)
+			continue;
+		for (j = 0; j < xlr_threads_per_core; j++) {
+			xlr_cpuid_to_hwtid[k] = i*4 + j;
+			xlr_hwtid_to_cpuid[i*4 + j] = k;
+			k++;
+		}
+	}
+
+	/* setup for the startup core */
+	xlr_setup_mmu_split();
 	return;
 
-err_return:
-	panic("Invalid xlr.cr setting!");
+unsupp:
+	printf("ERROR : Unsupported CPU mask [use 1,2 or 4 threads per core].\n"
+	    "\tcore0 thread mask [%lx], boot cpu mask [%lx]\n"
+	    "\tUsing default, 16 TLB entries per CPU, split mode\n", 
+	    (u_long)core0_thr_mask, (u_long)cpu_map);
+	panic("Invalid CPU mask - halting.\n");
 	return;
 }
-
 
 static void 
 xlr_set_boot_flags(void)
 {
 	char *p;
 
-	for (p = getenv("boot_flags"); p && *p != '\0'; p++) {
+	p = getenv("bootflags");
+	if (p == NULL)
+		p = getenv("boot_flags");  /* old style */
+	if (p == NULL)
+		return;
+
+	for (; p && *p != '\0'; p++) {
 		switch (*p) {
 		case 'd':
 		case 'D':
@@ -283,9 +253,7 @@ xlr_set_boot_flags(void)
 		}
 	}
 
-	if (p)
-		freeenv(p);
-
+	freeenv(p);
 	return;
 }
 extern uint32_t _end;
@@ -307,7 +275,6 @@ mips_init(void)
 	}
 #endif
 	mips_proc0_init();
-	write_c0_register32(MIPS_COP_0_OSSCRATCH, 7, pcpup->pc_curthread);
 	mutex_init();
 }
 
@@ -325,11 +292,6 @@ platform_start(__register_t a0 __unused,
 	void (*wakeup) (void *, void *, unsigned int);
 
 #endif
-	/* XXX no zeroing of BSS? */
-
-	/* Initialize pcpu stuff */
-	mips_pcpu0_init();
-
 	/* XXX FIXME the code below is not 64 bit clean */
 	/* Save boot loader and other stuff from scratch regs */
 	xlr_boot1_info = *(struct boot1_info *)read_c0_register32(MIPS_COP_0_OSSCRATCH, 0);
@@ -342,6 +304,9 @@ platform_start(__register_t a0 __unused,
 
 	/* TODO: Verify the magic number here */
 	/* FIXMELATER: xlr_boot1_info.magic_number */
+
+	/* Initialize pcpu stuff */
+	mips_pcpu0_init();
 
 	/* initialize console so that we have printf */
 	boothowto |= (RB_SERIAL | RB_MULTIPLE);	/* Use multiple consoles */
@@ -378,6 +343,7 @@ platform_start(__register_t a0 __unused,
 	}
 
 	xlr_set_boot_flags();
+	xlr_parse_mmu_options();
 
 	/* get physical memory info from boot loader */
 	boot_map = (struct xlr_boot1_mem_map *)
@@ -437,9 +403,6 @@ platform_start(__register_t a0 __unused,
 	phys_avail[j] = phys_avail[j + 1] = 0;
 	realmem = physmem = btoc(physsz);
 
-	/* Store pcpu in scratch 5 */
-	write_c0_register32(MIPS_COP_0_OSSCRATCH, 5, pcpup);
-
 	/* Set up hz, among others. */
 	mips_init();
 
@@ -452,7 +415,7 @@ platform_start(__register_t a0 __unused,
 	for (i = 4; i < MAXCPU; i += 4) {
 		if ((tmp & (0xf << i)) && !(tmp & (0x1 << i))) {
 			/*
-			 * Oopps.. thread 0 is not available. Disable whole
+			 * Oops.. thread 0 is not available. Disable whole
 			 * core
 			 */
 			tmp = tmp & ~(0xf << i);
@@ -463,15 +426,6 @@ platform_start(__register_t a0 __unused,
 	xlr_boot1_info.cpu_online_map = tmp;
 
 	/* Wakeup Other cpus, and put them in bsd park code. */
-	for (i = 1, j = 1; i < 32; i++) {
-		/* Allocate stack for all other cpus from fbsd kseg0 memory. */
-		if ((1U << i) & xlr_boot1_info.cpu_online_map) {
-			if ((i & 0x3) == 0)	/* store thread0 of each core */
-				xlr_core_cpu_mask |= (1 << j);
-			j++;
-		}
-	}
-
 	wakeup = ((void (*) (void *, void *, unsigned int))
 	    (unsigned long)(xlr_boot1_info.wakeup));
 	printf("Waking up CPUs 0x%llx.\n", xlr_boot1_info.cpu_online_map & ~(0x1U));
@@ -492,13 +446,16 @@ platform_start(__register_t a0 __unused,
 	printf("Platform specific startup now completes\n");
 }
 
+void 
+platform_cpu_init()
+{
+}
+
 void
 platform_identify(void)
 {
 	printf("Board [%d:%d], processor 0x%08x\n", (int)xlr_boot1_info.board_major_version,
 	    (int)xlr_boot1_info.board_minor_version, mips_rd_prid());
-
-
 }
 
 /*
@@ -511,6 +468,15 @@ platform_trap_enter(void)
 }
 
 void
+platform_reset(void)
+{
+	xlr_reg_t *mmio = xlr_io_mmio(XLR_IO_GPIO_OFFSET);
+
+	/* write 1 to GPIO software reset register */
+	xlr_write_reg(mmio, 8, 1);
+}
+
+void
 platform_trap_exit(void)
 {
 }
@@ -518,19 +484,30 @@ platform_trap_exit(void)
 #ifdef SMP
 int xlr_ap_release[MAXCPU];
 
-int platform_start_ap(int cpuid)
+int
+platform_start_ap(int cpuid)
 {
-	/*
-	 * other cpus are enabled by the boot loader and they will be 
-	 * already looping in mpwait, release them
-	 */
-	atomic_store_rel_int(&xlr_ap_release[cpuid], 1);
-	return 0;
+	int hwid = xlr_cpuid_to_hwtid[cpuid];
+
+	if (xlr_boot1_info.cpu_online_map & (1<<hwid)) {
+		/*
+		 * other cpus are enabled by the boot loader and they will be 
+		 * already looping in mpwait, release them
+		 */
+		atomic_store_rel_int(&xlr_ap_release[hwid], 1);
+		return (0);
+	} else
+		return (-1);
 }
 
-void platform_init_ap(int processor_id)
+void
+platform_init_ap(int cpuid)
 {
 	uint32_t stat;
+
+	/* The first thread has to setup the core MMU split  */
+	if (xlr_thr_id() == 0)
+		xlr_setup_mmu_split();
 
 	/* Setup interrupts for secondary CPUs here */
 	stat = mips_rd_status();
@@ -549,34 +526,40 @@ void platform_init_ap(int processor_id)
 	return;
 }
 
-int platform_ipi_intrnum(void) 
+int
+platform_ipi_intrnum(void) 
 {
-	return IRQ_IPI;
+	return (IRQ_IPI);
 }
 
-void platform_ipi_send(int cpuid)
+void
+platform_ipi_send(int cpuid)
 {
-	pic_send_ipi(cpuid, platform_ipi_intrnum(), 0);
+	pic_send_ipi(xlr_cpuid_to_hwtid[cpuid],
+	    platform_ipi_intrnum(), 0);
 }
 
-void platform_ipi_clear(void)
+void
+platform_ipi_clear(void)
 {
 }
 
-int platform_processor_id(void)
+int
+platform_processor_id(void)
 {
-	return xlr_cpu_id();
+	return (xlr_hwtid_to_cpuid[xlr_cpu_id()]);
 }
 
-int platform_num_processors(void)
+int
+platform_num_processors(void)
 {
-	return fls(xlr_boot1_info.cpu_online_map);
+	return (xlr_ncores * xlr_threads_per_core);
 }
 
 struct cpu_group *
 platform_smp_topo()
 {
-	return (smp_topo_2level(CG_SHARE_L2, platform_num_processors() / 4,
-	    CG_SHARE_L1, 4, CG_FLAG_THREAD));
+	return (smp_topo_2level(CG_SHARE_L2, xlr_ncores, CG_SHARE_L1,
+		xlr_threads_per_core, CG_FLAG_THREAD));
 }
 #endif
