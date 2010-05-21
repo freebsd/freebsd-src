@@ -94,6 +94,7 @@ __FBSDID("$FreeBSD$");
 #define V86_CY(x)	((x) & 1)
 #define V86_ZR(x)	((x) & 0x40)
 
+#define BIOS_NUMDRIVES		0x475
 #define DRV_HARD	0x80
 #define DRV_MASK	0x7f
 
@@ -467,6 +468,7 @@ getstr(void)
 static inline void
 putc(int c)
 {
+    v86.ctl = 0;
     v86.addr = 0x10;
     v86.eax = 0xe00 | (c & 0xff);
     v86.ebx = 0x7;
@@ -617,6 +619,8 @@ main(void)
     off_t off;
     struct dsk *dsk;
 
+    dmadat = (void *)(roundup2(__base + (int32_t)&_end, 0x10000) - __base);
+
     bios_getmem();
 
     if (high_heap_size > 0) {
@@ -626,9 +630,6 @@ main(void)
 	heap_next = (char *) dmadat + sizeof(*dmadat);
 	heap_end = (char *) PTOV(bios_basemem);
     }
-
-    dmadat = (void *)(roundup2(__base + (int32_t)&_end, 0x10000) - __base);
-    v86.ctl = V86_FLAGS;
 
     dsk = malloc(sizeof(struct dsk));
     dsk->drive = *(uint8_t *)PTOV(ARGS);
@@ -666,7 +667,7 @@ main(void)
      * will find any other available pools and it may fill in missing
      * vdevs for the boot pool.
      */
-    for (i = 0; i < 128; i++) {
+    for (i = 0; i < *(unsigned char *)PTOV(BIOS_NUMDRIVES); i++) {
 	if ((i | DRV_HARD) == *(uint8_t *)PTOV(ARGS))
 	    continue;
 
@@ -1157,6 +1158,7 @@ getc(int fn)
      * when no such key is pressed in reality. As far as I can tell,
      * this only happens shortly after a reboot.
      */
+    v86.ctl = V86_FLAGS;
     v86.addr = 0x16;
     v86.eax = fn << 8;
     v86int();
