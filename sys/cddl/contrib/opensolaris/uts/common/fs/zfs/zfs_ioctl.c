@@ -2367,9 +2367,10 @@ zfs_ioc_rollback(zfs_cmd_t *zc)
 	}
 
 	if (zfsvfs != NULL) {
-		char osname[MAXNAMELEN];
+		char *osname;
 		int mode;
 
+		osname = kmem_alloc(MAXNAMELEN, KM_SLEEP);
 		error = zfs_suspend_fs(zfsvfs, osname, &mode);
 		if (error == 0) {
 			int resume_err;
@@ -2381,6 +2382,7 @@ zfs_ioc_rollback(zfs_cmd_t *zc)
 		} else {
 			dmu_objset_close(os);
 		}
+		kmem_free(osname, MAXNAMELEN);
 		VFS_RELE(zfsvfs->z_vfs);
 	} else {
 		error = dmu_objset_rollback(os);
@@ -2552,10 +2554,11 @@ zfs_ioc_recv(zfs_cmd_t *zc)
 	error = dmu_recv_stream(&drc, fp, &off);
 
 	if (error == 0 && zfsvfs) {
-		char osname[MAXNAMELEN];
+		char *osname;
 		int mode;
 
 		/* online recv */
+		osname = kmem_alloc(MAXNAMELEN, KM_SLEEP);
 		error = zfs_suspend_fs(zfsvfs, osname, &mode);
 		if (error == 0) {
 			int resume_err;
@@ -2566,6 +2569,7 @@ zfs_ioc_recv(zfs_cmd_t *zc)
 		} else {
 			dmu_recv_abort_cleanup(&drc);
 		}
+		kmem_free(osname, MAXNAMELEN);
 	} else if (error == 0) {
 		error = dmu_recv_end(&drc);
 	}
@@ -2616,16 +2620,18 @@ zfs_ioc_send(zfs_cmd_t *zc)
 		return (error);
 
 	if (zc->zc_value[0] != '\0') {
-		char buf[MAXPATHLEN];
+		char *buf;
 		char *cp;
 
-		(void) strncpy(buf, zc->zc_name, sizeof (buf));
+		buf = kmem_alloc(MAXPATHLEN, KM_SLEEP);
+		(void) strncpy(buf, zc->zc_name, MAXPATHLEN);
 		cp = strchr(buf, '@');
 		if (cp)
 			*(cp+1) = 0;
-		(void) strlcat(buf, zc->zc_value, sizeof (buf));
+		(void) strlcat(buf, zc->zc_value, MAXPATHLEN);
 		error = dmu_objset_open(buf, DMU_OST_ANY,
 		    DS_MODE_USER | DS_MODE_READONLY, &fromsnap);
+		kmem_free(buf, MAXPATHLEN);
 		if (error) {
 			dmu_objset_close(tosnap);
 			return (error);
