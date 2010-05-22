@@ -110,10 +110,6 @@ __FBSDID("$FreeBSD$");
 #define	PMAP_SHPGPERPROC 200
 #endif
 
-#if defined(TARGET_XLR_XLS)
-#define HIGHMEM_SUPPORT
-#endif
-
 #if !defined(PMAP_DIAGNOSTIC)
 #define	PMAP_INLINE __inline
 #else
@@ -197,10 +193,9 @@ static void pmap_invalidate_all_action(void *arg);
 static void pmap_update_page_action(void *arg);
 #endif
 
-#ifdef HIGHMEM_SUPPORT
-static void * pmap_ptpgzone_allocf(uma_zone_t, int, u_int8_t*, int);
+static void pmap_ptpgzone_dtor(void *mem, int size, void *arg);
+static void *pmap_ptpgzone_allocf(uma_zone_t, int, u_int8_t *, int);
 static uma_zone_t ptpgzone;
-#endif
 
 struct local_sysmaps {
 	struct mtx lock;
@@ -542,11 +537,9 @@ pmap_init(void)
 	pv_entry_high_water = 9 * (pv_entry_max / 10);
 	uma_zone_set_obj(pvzone, &pvzone_obj, pv_entry_max);
 
-#ifdef HIGHMEM_SUPPORT
-	ptpgzone = uma_zcreate("PT ENTRY", PAGE_SIZE, NULL,
-	    NULL, NULL, NULL, PAGE_SIZE-1, UMA_ZONE_NOFREE);
+	ptpgzone = uma_zcreate("PT ENTRY", PAGE_SIZE, NULL, pmap_ptpgzone_dtor,
+	    NULL, NULL, PAGE_SIZE - 1, UMA_ZONE_NOFREE | UMA_ZONE_ZINIT);
 	uma_zone_set_allocf(ptpgzone, pmap_ptpgzone_allocf);
-#endif
 }
 
 /***************************************************
@@ -880,21 +873,10 @@ pmap_qremove(vm_offset_t va, int count)
 static int
 _pmap_unwire_pte_hold(pmap_t pmap, vm_page_t m)
 {
-	vm_offset_t pteva;
 
 	/*
 	 * unmap the page table page
 	 */
-	pteva = (vm_offset_t)pmap->pm_segtab[m->pindex];
-	if (pteva >= VM_MIN_KERNEL_ADDRESS) {
-		pmap_kremove(pteva);
-		kmem_free(kernel_map, pteva, PAGE_SIZE);
-	} else {
-		KASSERT(MIPS_IS_KSEG0_ADDR(pteva),
-		    ("_pmap_unwire_pte_hold: 0x%0lx is not in kseg0",
-		    (long)pteva));
-	}
-
 	pmap->pm_segtab[m->pindex] = 0;
 	--pmap->pm_stats.resident_count;
 
@@ -939,7 +921,7 @@ pmap_unuse_pt(pmap_t pmap, vm_offset_t va, vm_page_t mpte)
 			mpte = pmap->pm_ptphint;
 		} else {
 			pteva = *pmap_pde(pmap, va);
-			mpte = PHYS_TO_VM_PAGE(vtophys(pteva));
+			mpte = PHYS_TO_VM_PAGE(MIPS_KSEG0_TO_PHYS(pteva));
 			pmap->pm_ptphint = mpte;
 		}
 	}
@@ -964,12 +946,27 @@ pmap_pinit0(pmap_t pmap)
 	bzero(&pmap->pm_stats, sizeof pmap->pm_stats);
 }
 
-#ifdef HIGHMEM_SUPPORT
+static void
+pmap_ptpgzone_dtor(void *mem, int size, void *arg)
+{
+#ifdef INVARIANTS
+	static char zeropage[PAGE_SIZE];
+
+	KASSERT(size == PAGE_SIZE,
+		("pmap_ptpgzone_dtor: invalid size %d", size));
+	KASSERT(bcmp(mem, zeropage, PAGE_SIZE) == 0,
+		("pmap_ptpgzone_dtor: freeing a non-zeroed page"));
+#endif
+}
+
 static void *
 pmap_ptpgzone_allocf(uma_zone_t zone, int bytes, u_int8_t *flags, int wait)
 {
 	vm_page_t m;
 	vm_paddr_t paddr;
+	
+	KASSERT(bytes == PAGE_SIZE,
+		("pmap_ptpgzone_allocf: invalid allocation size %d", bytes));
 
 	*flags = UMA_SLAB_PRIV;
 	m = vm_phys_alloc_contig(1, 0, MIPS_KSEG0_LARGEST_PHYS,
@@ -1006,8 +1003,6 @@ pmap_alloc_pte_page(pmap_t pmap, unsigned int index, int wait, vm_offset_t *vap)
 	paddr = MIPS_KSEG0_TO_PHYS(va);
 	m = PHYS_TO_VM_PAGE(paddr);
 	
-	if ((m->flags & PG_ZERO) == 0)
-		bzero(va, PAGE_SIZE);
 	m->pindex = index;
 	m->valid = VM_PAGE_BITS_ALL;
 	m->wire_count = 1;
@@ -1026,55 +1021,6 @@ pmap_release_pte_page(vm_page_t m)
 	va = (void *)MIPS_PHYS_TO_KSEG0(paddr);
 	uma_zfree(ptpgzone, va);
 }
-#else
-static vm_page_t
-pmap_alloc_pte_page(pmap_t pmap, unsigned int index, int wait, vm_offset_t *vap)
-{
-	vm_offset_t va;
-	vm_page_t m;
-	int locked, req;
-
-	locked = mtx_owned(&pmap->pm_mtx);
-	req = VM_ALLOC_WIRED | VM_ALLOC_NOOBJ;
-	if (wait & M_WAITOK)
-		req |= VM_ALLOC_NORMAL;
-	else
-		req |= VM_ALLOC_INTERRUPT;
-
-	m = vm_page_alloc(NULL, index, req);
-	if (m == NULL) {
-		if (wait & M_WAITOK) {
-			if (locked) {
-				mtx_assert(&vm_page_queue_mtx, MA_OWNED);
-				PMAP_UNLOCK(pmap);
-				vm_page_unlock_queues();
-			}
-			VM_WAIT;
-			if (locked) {
-				vm_page_lock_queues();
-				PMAP_LOCK(pmap);
-			}
-		}
-		return NULL;
-	}
-	
-	va = MIPS_PHYS_TO_KSEG0(VM_PAGE_TO_PHYS(m));
-	if ((m->flags & PG_ZERO) == 0)
-		bzero((void *)va, PAGE_SIZE);
-	else
-		vm_page_flag_clear(m, PG_ZERO);
-	
-	m->valid = VM_PAGE_BITS_ALL;
-	*vap = (vm_offset_t)va;
-	return (m);
-}
-
-static void
-pmap_release_pte_page(vm_page_t m)
-{
-	vm_page_free(m);
-}
-#endif
 
 /*
  * Initialize a preallocated and zeroed pmap structure,
@@ -1178,7 +1124,7 @@ retry:
 		    (pmap->pm_ptphint->pindex == ptepindex)) {
 			m = pmap->pm_ptphint;
 		} else {
-			m = PHYS_TO_VM_PAGE(vtophys(pteva));
+			m = PHYS_TO_VM_PAGE(MIPS_KSEG0_TO_PHYS(pteva));
 			pmap->pm_ptphint = m;
 		}
 		m->wire_count++;
@@ -1226,10 +1172,7 @@ pmap_release(pmap_t pmap)
 	    pmap->pm_stats.resident_count));
 
 	ptdva = (vm_offset_t)pmap->pm_segtab;
-	ptdpg = PHYS_TO_VM_PAGE(vtophys(ptdva));
-
-	KASSERT(MIPS_IS_KSEG0_ADDR(ptdva),
-	    ("pmap_release: 0x%0lx is not in kseg0", (long)ptdva));
+	ptdpg = PHYS_TO_VM_PAGE(MIPS_KSEG0_TO_PHYS(ptdva));
 
 	ptdpg->wire_count--;
 	atomic_subtract_int(&cnt.v_wire_count, 1);
@@ -2023,7 +1966,8 @@ pmap_enter_quick_locked(pmap_t pmap, vm_offset_t va, vm_page_t m,
 				    (pmap->pm_ptphint->pindex == ptepindex)) {
 					mpte = pmap->pm_ptphint;
 				} else {
-					mpte = PHYS_TO_VM_PAGE(vtophys(pteva));
+					mpte = PHYS_TO_VM_PAGE(
+						MIPS_KSEG0_TO_PHYS(pteva));
 					pmap->pm_ptphint = mpte;
 				}
 				mpte->wire_count++;
