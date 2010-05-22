@@ -114,21 +114,21 @@ scsuspend(device_t dev)
 
 	sc = &main_softc;
 
-	if (sc->cur_scp == NULL)
+	if (sc->cur_scp == NULL || sc->suspend_in_progress)
 		return (0);
 
-	sc_cur_scr = sc->cur_scp->index;
+	if (!sc_no_suspend_vtswitch) {
+		sc_cur_scr = sc->cur_scp->index;
+		do {
+			sc_switch_scr(sc, 0);
+			if (!sc->switch_in_progress) {
+				break;
+			}
+			pause("scsuspend", hz);
+		} while (retry--);
+	}
 
-	if (sc_no_suspend_vtswitch)
-		return (0);
-
-	do {
-		sc_switch_scr(sc, 0);
-		if (!sc->switch_in_progress) {
-			break;
-		}
-		pause("scsuspend", hz);
-	} while (retry--);
+	sc->suspend_in_progress = TRUE;
 
 	return (0);
 }
@@ -138,11 +138,15 @@ scresume(device_t dev)
 {
 	sc_softc_t	*sc;
 
-	if (sc_no_suspend_vtswitch)
+	sc = &main_softc;
+
+	if (!sc->suspend_in_progress)
 		return (0);
 
-	sc = &main_softc;
-	sc_switch_scr(sc, sc_cur_scr);
+	sc->suspend_in_progress = FALSE;
+
+	if (!sc_no_suspend_vtswitch)
+		sc_switch_scr(sc, sc_cur_scr);
 
 	return (0);
 }
@@ -303,3 +307,70 @@ static driver_t sc_driver = {
 };
 
 DRIVER_MODULE(sc, isa, sc_driver, sc_devclass, 0, 0);
+
+static devclass_t	scpm_devclass;
+
+static void
+scpm_identify(driver_t *driver, device_t parent)
+{
+
+	device_add_child(parent, "scpm", 0);
+}
+
+static int
+scpm_probe(device_t dev)
+{
+
+	device_set_desc(dev, SC_DRIVER_NAME " suspend/resume");
+	device_quiet(dev);
+
+	return (BUS_PROBE_DEFAULT);
+}
+
+static int
+scpm_attach(device_t dev)
+{
+
+	bus_generic_probe(dev);
+	bus_generic_attach(dev);
+
+	return (0);
+}
+
+static int
+scpm_suspend(device_t dev)
+{
+	int error;
+
+	error = bus_generic_suspend(dev);
+	if (error != 0)
+		return (error);
+	
+	return (scsuspend(dev));
+}
+
+static int
+scpm_resume(device_t dev)
+{
+
+	scresume(dev);
+
+	return (bus_generic_resume(dev));
+}
+
+static device_method_t scpm_methods[] = {
+	DEVMETHOD(device_identify,	scpm_identify),
+	DEVMETHOD(device_probe,		scpm_probe),
+	DEVMETHOD(device_attach,	scpm_attach),
+	DEVMETHOD(device_suspend,	scpm_suspend),
+	DEVMETHOD(device_resume,	scpm_resume),
+	{ 0, 0 }
+};
+
+static driver_t scpm_driver = {
+	"scpm",
+	scpm_methods,
+	0
+};
+
+DRIVER_MODULE(scpm, vgapm, scpm_driver, scpm_devclass, 0, 0);
