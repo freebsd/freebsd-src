@@ -129,6 +129,9 @@
 extern "C" {
 #endif
 
+/* Signalling cipher suite value: from draft-ietf-tls-renegotiation-03.txt */
+#define SSL3_CK_SCSV				0x030000FF
+
 #define SSL3_CK_RSA_NULL_MD5			0x03000001
 #define SSL3_CK_RSA_NULL_SHA			0x03000002
 #define SSL3_CK_RSA_RC4_40_MD5 			0x03000003
@@ -440,6 +443,12 @@ typedef struct ssl3_state_st
 		int cert_request;
 		} tmp;
 
+        /* Connection binding to prevent renegotiation attacks */
+        unsigned char previous_client_finished[EVP_MAX_MD_SIZE];
+        unsigned char previous_client_finished_len;
+        unsigned char previous_server_finished[EVP_MAX_MD_SIZE];
+        unsigned char previous_server_finished_len;
+        int send_connection_binding; /* TODOEKR */
 	} SSL3_STATE;
 
 
