@@ -482,6 +482,16 @@ mvs_print_child(device_t dev, device_t child)
 	return (retval);
 }
 
+static int
+mvs_child_location_str(device_t dev, device_t child, char *buf,
+    size_t buflen)
+{
+
+	snprintf(buf, buflen, "channel=%d",
+	    (int)(intptr_t)device_get_ivars(child));
+	return (0);
+}
+
 static device_method_t mvs_methods[] = {
 	DEVMETHOD(device_probe,     mvs_probe),
 	DEVMETHOD(device_attach,    mvs_attach),
@@ -493,6 +503,7 @@ static device_method_t mvs_methods[] = {
 	DEVMETHOD(bus_release_resource,     mvs_release_resource),
 	DEVMETHOD(bus_setup_intr,   mvs_setup_intr),
 	DEVMETHOD(bus_teardown_intr,mvs_teardown_intr),
+	DEVMETHOD(bus_child_location_str, mvs_child_location_str),
 	DEVMETHOD(mvs_edma,         mvs_edma),
 	{ 0, 0 }
 };
