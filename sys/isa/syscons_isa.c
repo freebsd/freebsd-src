@@ -79,7 +79,7 @@ static int sc_cur_scr;
 TUNABLE_INT("hw.syscons.sc_no_suspend_vtswitch", &sc_no_suspend_vtswitch);
 SYSCTL_DECL(_hw_syscons);
 SYSCTL_INT(_hw_syscons, OID_AUTO, sc_no_suspend_vtswitch, CTLFLAG_RW,
-	&sc_no_suspend_vtswitch, 0, "Disable VT switch before suspend.");
+    &sc_no_suspend_vtswitch, 0, "Disable VT switch before suspend.");
 
 static void
 scidentify(driver_t *driver, device_t parent)
@@ -123,9 +123,8 @@ scsuspend(device_t dev)
 		sc_cur_scr = sc->cur_scp->index;
 		do {
 			sc_switch_scr(sc, 0);
-			if (!sc->switch_in_progress) {
+			if (!sc->switch_in_progress)
 				break;
-			}
 			pause("scsuspend", hz);
 		} while (retry--);
 	}
@@ -212,7 +211,7 @@ int
 sc_get_cons_priority(int *unit, int *flags)
 {
 	const char *at;
-	int u, f;
+	int f, u;
 
 #ifdef XBOX
 	/*
@@ -348,7 +347,7 @@ scpm_suspend(device_t dev)
 	error = bus_generic_suspend(dev);
 	if (error != 0)
 		return (error);
-	
+
 	return (scsuspend(dev));
 }
 
