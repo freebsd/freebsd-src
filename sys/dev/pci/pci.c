@@ -2988,6 +2988,8 @@ pci_resume(device_t dev)
 
 		/* Now the device is powered up, restore its config space. */
 		pci_cfg_restore(child, dinfo);
+		if (!device_is_attached(child))
+			pci_cfg_save(child, dinfo, 1);
 	}
 	free(devlist, M_TEMP);
 	return (bus_generic_resume(dev));
