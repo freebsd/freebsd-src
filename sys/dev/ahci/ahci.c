@@ -778,6 +778,16 @@ ahci_print_child(device_t dev, device_t child)
 	return (retval);
 }
 
+static int
+ahci_child_location_str(device_t dev, device_t child, char *buf,
+    size_t buflen)
+{
+
+	snprintf(buf, buflen, "channel=%d",
+	    (int)(intptr_t)device_get_ivars(child));
+	return (0);
+}
+
 devclass_t ahci_devclass;
 static device_method_t ahci_methods[] = {
 	DEVMETHOD(device_probe,     ahci_probe),
@@ -790,6 +800,7 @@ static device_method_t ahci_methods[] = {
 	DEVMETHOD(bus_release_resource,     ahci_release_resource),
 	DEVMETHOD(bus_setup_intr,   ahci_setup_intr),
 	DEVMETHOD(bus_teardown_intr,ahci_teardown_intr),
+	DEVMETHOD(bus_child_location_str, ahci_child_location_str),
 	{ 0, 0 }
 };
 static driver_t ahci_driver = {
@@ -809,6 +820,7 @@ static device_method_t ahci_ata_methods[] = {
 	DEVMETHOD(bus_release_resource,     ahci_release_resource),
 	DEVMETHOD(bus_setup_intr,   ahci_setup_intr),
 	DEVMETHOD(bus_teardown_intr,ahci_teardown_intr),
+	DEVMETHOD(bus_child_location_str, ahci_child_location_str),
 	{ 0, 0 }
 };
 static driver_t ahci_ata_driver = {
