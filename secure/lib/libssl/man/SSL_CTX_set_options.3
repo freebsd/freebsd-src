@@ -129,9 +129,9 @@
 .\" ========================================================================
 .\"
 .IX Title "SSL_CTX_set_options 3"
-.TH SSL_CTX_set_options 3 "2009-06-14" "0.9.8k" "OpenSSL"
+.TH SSL_CTX_set_options 3 "2010-03-24" "0.9.8n" "OpenSSL"
 .SH "NAME"
-SSL_CTX_set_options, SSL_set_options, SSL_CTX_get_options, SSL_get_options \- manipulate SSL engine options
+SSL_CTX_set_options, SSL_set_options, SSL_CTX_clear_options, SSL_clear_options, SSL_CTX_get_options, SSL_get_options, SSL_get_secure_renegotiation_support \- manipulate SSL options
 .SH "SYNOPSIS"
 .IX Header "SYNOPSIS"
 .Vb 1
@@ -144,25 +144,44 @@ SSL_CTX_set_options, SSL_set_options, SSL_CTX_get_options, SSL_get_options \- ma
 .Ve
 .PP
 .Vb 2
+\& long SSL_CTX_clear_options(SSL_CTX *ctx, long options);
+\& long SSL_clear_options(SSL *ssl, long options);
+.Ve
+.PP
+.Vb 2
 \& long SSL_CTX_get_options(SSL_CTX *ctx);
 \& long SSL_get_options(SSL *ssl);
 .Ve
+.PP
+.Vb 1
+\& long SSL_get_secure_renegotiation_support(SSL *ssl);
+.Ve
 .SH "DESCRIPTION"
 .IX Header "DESCRIPTION"
+Note: all these functions are implemented using macros.
+.PP
 \&\fISSL_CTX_set_options()\fR adds the options set via bitmask in \fBoptions\fR to \fBctx\fR.
 Options already set before are not cleared!
 .PP
 \&\fISSL_set_options()\fR adds the options set via bitmask in \fBoptions\fR to \fBssl\fR.
 Options already set before are not cleared!
 .PP
+\&\fISSL_CTX_clear_options()\fR clears the options set via bitmask in \fBoptions\fR
+to \fBctx\fR.
+.PP
+\&\fISSL_clear_options()\fR clears the options set via bitmask in \fBoptions\fR to \fBssl\fR.
+.PP
 \&\fISSL_CTX_get_options()\fR returns the options set for \fBctx\fR.
 .PP
 \&\fISSL_get_options()\fR returns the options set for \fBssl\fR.
+.PP
+\&\fISSL_get_secure_renegotiation_support()\fR indicates whether the peer supports
+secure renegotiation.
 .SH "NOTES"
 .IX Header "NOTES"
 The behaviour of the \s-1SSL\s0 library can be changed by setting several options.
 The options are coded as bitmasks and can be combined by a logical \fBor\fR
-operation (|). Options can only be added but can never be reset.
+operation (|).
 .PP
 \&\fISSL_CTX_set_options()\fR and \fISSL_set_options()\fR affect the (external)
 protocol behaviour of the \s-1SSL\s0 library. The (internal) behaviour of
@@ -302,7 +321,7 @@ Do not use the TLSv1 protocol.
 .IX Item "SSL_OP_NO_SESSION_RESUMPTION_ON_RENEGOTIATION"
 When performing renegotiation as a server, always start a new session
 (i.e., session resumption requests are only accepted in the initial
-handshake).  This option is not needed for clients.
+handshake). This option is not needed for clients.
 .IP "\s-1SSL_OP_NO_TICKET\s0" 4
 .IX Item "SSL_OP_NO_TICKET"
 Normally clients and servers will, where possible, transparently make use
@@ -311,12 +330,98 @@ is explicitly set when OpenSSL is compiled.
 .Sp
 If this option is set this functionality is disabled and tickets will
 not be used by clients or servers.
+.IP "\s-1SSL_OP_ALLOW_UNSAFE_LEGACY_RENEGOTIATION\s0" 4
+.IX Item "SSL_OP_ALLOW_UNSAFE_LEGACY_RENEGOTIATION"
+Allow legacy insecure renegotiation between OpenSSL and unpatched clients or
+servers. See the \fB\s-1SECURE\s0 \s-1RENEGOTIATION\s0\fR section for more details.
+.IP "\s-1SSL_OP_LEGACY_SERVER_CONNECT\s0" 4
+.IX Item "SSL_OP_LEGACY_SERVER_CONNECT"
+Allow legacy insecure renegotiation between OpenSSL and unpatched servers
+\&\fBonly\fR: this option is currently set by default. See the
+\&\fB\s-1SECURE\s0 \s-1RENEGOTIATION\s0\fR section for more details.
+.SH "SECURE RENEGOTIATION"
+.IX Header "SECURE RENEGOTIATION"
+OpenSSL 0.9.8m and later always attempts to use secure renegotiation as
+described in \s-1RFC5746\s0. This counters the prefix attack described in
+\&\s-1CVE\-2009\-3555\s0 and elsewhere.
+.PP
+The deprecated and highly broken SSLv2 protocol does not support
+renegotiation at all: its use is \fBstrongly\fR discouraged.
+.PP
+This attack has far reaching consequences which application writers should be
+aware of. In the description below an implementation supporting secure
+renegotiation is referred to as \fIpatched\fR. A server not supporting secure
+renegotiation is referred to as \fIunpatched\fR.
+.PP
+The following sections describe the operations permitted by OpenSSL's secure
+renegotiation implementation.
+.Sh "Patched client and server"
+.IX Subsection "Patched client and server"
+Connections and renegotiation are always permitted by OpenSSL implementations.
+.Sh "Unpatched client and patched OpenSSL server"
+.IX Subsection "Unpatched client and patched OpenSSL server"
+The initial connection suceeds but client renegotiation is denied by the
+server with a \fBno_renegotiation\fR warning alert if \s-1TLS\s0 v1.0 is used or a fatal
+\&\fBhandshake_failure\fR alert in \s-1SSL\s0 v3.0.
+.PP
+If the patched OpenSSL server attempts to renegotiate a fatal
+\&\fBhandshake_failure\fR alert is sent. This is because the server code may be
+unaware of the unpatched nature of the client.
+.PP
+If the option \fB\s-1SSL_OP_ALLOW_UNSAFE_LEGACY_RENEGOTIATION\s0\fR is set then
+renegotiation \fBalways\fR succeeds.
+.PP
+\&\fB\s-1NB:\s0\fR a bug in OpenSSL clients earlier than 0.9.8m (all of which are
+unpatched) will result in the connection hanging if it receives a
+\&\fBno_renegotiation\fR alert. OpenSSL versions 0.9.8m and later will regard
+a \fBno_renegotiation\fR alert as fatal and respond with a fatal
+\&\fBhandshake_failure\fR alert. This is because the OpenSSL \s-1API\s0 currently has
+no provision to indicate to an application that a renegotiation attempt
+was refused.
+.Sh "Patched OpenSSL client and unpatched server."
+.IX Subsection "Patched OpenSSL client and unpatched server."
+If the option \fB\s-1SSL_OP_LEGACY_SERVER_CONNECT\s0\fR or
+\&\fB\s-1SSL_OP_ALLOW_UNSAFE_LEGACY_RENEGOTIATION\s0\fR is set then initial connections
+and renegotiation between patched OpenSSL clients and unpatched servers
+succeeds. If neither option is set then initial connections to unpatched
+servers will fail.
+.PP
+The option \fB\s-1SSL_OP_LEGACY_SERVER_CONNECT\s0\fR is currently set by default even
+though it has security implications: otherwise it would be impossible to
+connect to unpatched servers (i.e. all of them initially) and this is clearly
+not acceptable. Renegotiation is permitted because this does not add any
+additional security issues: during an attack clients do not see any
+renegotiations anyway.
+.PP
+As more servers become patched the option \fB\s-1SSL_OP_LEGACY_SERVER_CONNECT\s0\fR will
+\&\fBnot\fR be set by default in a future version of OpenSSL.
+.PP
+OpenSSL client applications wishing to ensure they can connect to unpatched
+servers should always \fBset\fR \fB\s-1SSL_OP_LEGACY_SERVER_CONNECT\s0\fR
+.PP
+OpenSSL client applications that want to ensure they can \fBnot\fR connect to
+unpatched servers (and thus avoid any security issues) should always \fBclear\fR
+\&\fB\s-1SSL_OP_LEGACY_SERVER_CONNECT\s0\fR using \fISSL_CTX_clear_options()\fR or
+\&\fISSL_clear_options()\fR.
+.PP
+The difference between the \fB\s-1SSL_OP_LEGACY_SERVER_CONNECT\s0\fR and
+\&\fB\s-1SSL_OP_ALLOW_UNSAFE_LEGACY_RENEGOTIATION\s0\fR options is that
+\&\fB\s-1SSL_OP_LEGACY_SERVER_CONNECT\s0\fR enables initial connections and secure
+renegotiation between OpenSSL clients and unpatched servers \fBonly\fR, while
+\&\fB\s-1SSL_OP_ALLOW_UNSAFE_LEGACY_RENEGOTIATION\s0\fR allows initial connections
+and renegotiation between OpenSSL and unpatched clients or servers.
 .SH "RETURN VALUES"
 .IX Header "RETURN VALUES"
 \&\fISSL_CTX_set_options()\fR and \fISSL_set_options()\fR return the new options bitmask
 after adding \fBoptions\fR.
 .PP
+\&\fISSL_CTX_clear_options()\fR and \fISSL_clear_options()\fR return the new options bitmask
+after clearing \fBoptions\fR.
+.PP
 \&\fISSL_CTX_get_options()\fR and \fISSL_get_options()\fR return the current bitmask.
+.PP
+\&\fISSL_get_secure_renegotiation_support()\fR returns 1 is the peer supports
+secure renegotiation and 0 if it does not.
 .SH "SEE ALSO"
 .IX Header "SEE ALSO"
 \&\fIssl\fR\|(3), \fISSL_new\fR\|(3), \fISSL_clear\fR\|(3),
@@ -337,3 +442,10 @@ and must be explicitly set.
 Versions up to OpenSSL 0.9.6c do not include the countermeasure that
 can be disabled with this option (in OpenSSL 0.9.6d, it was always
 enabled).
+.PP
+\&\fISSL_CTX_clear_options()\fR and \fISSL_clear_options()\fR were first added in OpenSSL
+0.9.8m.
+.PP
+\&\fB\s-1SSL_OP_ALLOW_UNSAFE_LEGACY_RENEGOTIATION\s0\fR, \fB\s-1SSL_OP_LEGACY_SERVER_CONNECT\s0\fR
+and the function \fISSL_get_secure_renegotiation_support()\fR were first added in
+OpenSSL 0.9.8m.
