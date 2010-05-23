@@ -51,6 +51,8 @@ __FBSDID("$FreeBSD$");
 #include <cam/cam_debug.h>
 
 /* local prototypes */
+static int mvs_ch_init(device_t dev);
+static int mvs_ch_deinit(device_t dev);
 static int mvs_ch_suspend(device_t dev);
 static int mvs_ch_resume(device_t dev);
 static void mvs_dmainit(device_t dev);
@@ -133,7 +135,7 @@ mvs_ch_attach(device_t dev)
 		return (ENXIO);
 	mvs_dmainit(dev);
 	mvs_slotsalloc(dev);
-	mvs_ch_resume(dev);
+	mvs_ch_init(dev);
 	mtx_lock(&ch->mtx);
 	rid = ATA_IRQ_RID;
 	if (!(ch->r_irq = bus_alloc_resource_any(dev, SYS_RES_IRQ,
@@ -215,7 +217,7 @@ mvs_ch_detach(device_t dev)
 	bus_teardown_intr(dev, ch->r_irq, ch->ih);
 	bus_release_resource(dev, SYS_RES_IRQ, ATA_IRQ_RID, ch->r_irq);
 
-	mvs_ch_suspend(dev);
+	mvs_ch_deinit(dev);
 	mvs_slotsfree(dev);
 	mvs_dmafini(dev);
 
@@ -225,19 +227,7 @@ mvs_ch_detach(device_t dev)
 }
 
 static int
-mvs_ch_suspend(device_t dev)
-{
-	struct mvs_channel *ch = device_get_softc(dev);
-
-	/* Stop EDMA */
-	mvs_set_edma_mode(dev, MVS_EDMA_OFF);
-	/* Disable port interrupts. */
-	ATA_OUTL(ch->r_mem, EDMA_IEM, 0);
-	return (0);
-}
-
-static int
-mvs_ch_resume(device_t dev)
+mvs_ch_init(device_t dev)
 {
 	struct mvs_channel *ch = device_get_softc(dev);
 	uint32_t reg;
@@ -261,6 +251,45 @@ mvs_ch_resume(device_t dev)
 	ATA_OUTL(ch->r_mem, EDMA_IEC, 0);
 	/* Unmask all error interrupts */
 	ATA_OUTL(ch->r_mem, EDMA_IEM, ~EDMA_IE_TRANSIENT);
+	return (0);
+}
+
+static int
+mvs_ch_deinit(device_t dev)
+{
+	struct mvs_channel *ch = device_get_softc(dev);
+
+	/* Stop EDMA */
+	mvs_set_edma_mode(dev, MVS_EDMA_OFF);
+	/* Disable port interrupts. */
+	ATA_OUTL(ch->r_mem, EDMA_IEM, 0);
+	return (0);
+}
+
+static int
+mvs_ch_suspend(device_t dev)
+{
+	struct mvs_channel *ch = device_get_softc(dev);
+
+	mtx_lock(&ch->mtx);
+	xpt_freeze_simq(ch->sim, 1);
+	while (ch->oslots)
+		msleep(ch, &ch->mtx, PRIBIO, "mvssusp", hz/100);
+	mvs_ch_deinit(dev);
+	mtx_unlock(&ch->mtx);
+	return (0);
+}
+
+static int
+mvs_ch_resume(device_t dev)
+{
+	struct mvs_channel *ch = device_get_softc(dev);
+
+	mtx_lock(&ch->mtx);
+	mvs_ch_init(dev);
+	mvs_reset(dev);
+	xpt_release_simq(ch->sim, TRUE);
+	mtx_unlock(&ch->mtx);
 	return (0);
 }
 
