@@ -36,6 +36,7 @@
     <legalnotice id="trademarks" role="trademarks">
       &tm-attrib.freebsd;
       &tm-attrib.amd;
+      &tm-attrib.fujitsu;
       &tm-attrib.ibm;
       &tm-attrib.intel;
       &tm-attrib.sparc;
@@ -367,7 +368,8 @@
       <title>sparc64</title>
 
       <para>This section describes the systems currently known to be
-	supported by &os; on the &ultrasparc; platform.  For
+	supported by &os; on the &fujitsu; &sparc64; and &sun; &ultrasparc;
+	platforms.  For
 	background information on the various hardware designs see the
 	<ulink url="http://sunsolve.sun.com/handbook_pub/">Sun System
 	  Handbook</ulink>.</para>
@@ -392,6 +394,10 @@
 
       <itemizedlist>
 	<listitem>
+	  <para>Naturetech GENIALstation 777S</para>
+	</listitem>
+
+	<listitem>
 	  <para>&sun.blade; 100</para>
 	</listitem>
 
@@ -400,7 +406,7 @@
 	</listitem>
 
 	<listitem>
-	  <para>&sun.enterprise; 100</para>
+	  <para>&sun.enterprise; 150</para>
 	</listitem>
 
 	<listitem>
@@ -420,6 +426,11 @@
 	</listitem>
 
 	<listitem>
+	  <para>&sun.fire; B100s (support for the on-board NICs first
+	    appeared in 8.1-RELEASE)</para>
+	</listitem>
+
+	<listitem>
 	  <para>&sun.fire; V100</para>
 	</listitem>
 
@@ -428,51 +439,55 @@
 	</listitem>
 
 	<listitem>
-	  <para>&netra; t1 105</para>
+	  <para>&sun; &netra; t1 100/105</para>
 	</listitem>
 
 	<listitem>
-	  <para>&netra; T1 AC200/DC200</para>
+	  <para>&sun; &netra; T1 AC200/DC200</para>
 	</listitem>
 
 	<listitem>
-	  <para>&netra; t 1100</para>
+	  <para>&sun; &netra; t 1100</para>
 	</listitem>
 
 	<listitem>
-	  <para>&netra; t 1120</para>
+	  <para>&sun; &netra; t 1120</para>
 	</listitem>
 
 	<listitem>
-	  <para>&netra; t 1125</para>
+	  <para>&sun; &netra; t 1125</para>
 	</listitem>
 
 	<listitem>
-	  <para>&netra; t 1400/1405</para>
+	  <para>&sun; &netra; t 1400/1405</para>
 	</listitem>
 
 	<listitem>
-	  <para>&netra; 120</para>
+	  <para>&sun; &netra; 120</para>
 	</listitem>
 
 	<listitem>
-	  <para>&netra; X1</para>
+	  <para>&sun; &netra; X1</para>
 	</listitem>
 
 	<listitem>
-	  <para>&sparcengine; Ultra AX1105</para>
+	  <para>&sun; &sparcengine; Ultra AX1105</para>
 	</listitem>
 
 	<listitem>
-	  <para>&sparcengine; Ultra AXe</para>
+	  <para>&sun; &sparcengine; Ultra AXe</para>
 	</listitem>
 
 	<listitem>
-	  <para>&sparcengine; Ultra AXi</para>
+	  <para>&sun; &sparcengine; Ultra AXi</para>
 	</listitem>
 
 	<listitem>
-	  <para>&sparcengine; Ultra AXmp</para>
+	  <para>&sun; &sparcengine; Ultra AXmp</para>
+	</listitem>
+
+	<listitem>
+	  <para>&sun; &sparcengine; CP1500</para>
 	</listitem>
 
 	<listitem>
@@ -528,7 +543,7 @@
 	</listitem>
       </itemizedlist>
 
-      <para>Starting with 7.2-RELEASE, &arch.sparc64; systems based on
+      <para>Starting with 7.2-RELEASE, &arch.sparc64; systems based on &sun;
 	&ultrasparc; III and beyond are also supported by &os;, which includes
 	the following known working systems:</para>
 
@@ -580,11 +595,16 @@
 	</listitem>
 
 	<listitem>
+	  <para>&sun.fire; V890 (support first appeared in 8.1-RELEASE,
+	    non-mixed &ultrasparc; IV/IV+ CPU-configurations only)</para>
+	</listitem>
+
+	<listitem>
 	  <para>&netra; 20/&netra; T4</para>
 	</listitem>
       </itemizedlist>
 
-      <para>The following &ultrasparc; IIIi systems are not tested but
+      <para>The following &sun; &ultrasparc; systems are not tested but
 	believed to be also supported by &os;:</para>
 
       <itemizedlist>
@@ -599,7 +619,40 @@
 	<listitem>
 	  <para>&sun.fire; V245 (support first appeared in 7.3-RELEASE)</para>
 	</listitem>
+
+	<listitem>
+	  <para>&sun.fire; V490 (support first appeared in 8.1-RELEASE,
+	    non-mixed &ultrasparc; IV/IV+ CPU-configurations only)</para>
+	</listitem>
       </itemizedlist>
+
+      <para>Starting with 8.1-RELEASE, &arch.sparc64; systems based on
+	&fujitsu; &sparc64; V are also supported by &os;, which
+	includes the following known working systems:</para>
+
+      <itemizedlist>
+	<listitem>
+	  <para>&fujitsu; &primepower; 250</para>
+	</listitem>
+      </itemizedlist>
+
+      <para>The following &fujitsu; &primepower; systems are not tested but
+	believed to be also supported by &os;:</para>
+
+      <itemizedlist>
+	<listitem>
+	  <para>&fujitsu; &primepower; 450</para>
+	</listitem>
+
+	<listitem>
+	  <para>&fujitsu; &primepower; 650</para>
+	</listitem>
+
+	<listitem>
+	  <para>&fujitsu; &primepower; 850</para>
+	</listitem>
+      </itemizedlist>
+
     </sect2>
   </sect1>
 
