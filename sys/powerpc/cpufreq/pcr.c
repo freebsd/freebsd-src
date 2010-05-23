@@ -202,6 +202,11 @@ pcr_attach(device_t dev)
 		return (ENXIO);
 	}
 
+	if (OF_getproplen(cpu, "power-mode-data") <= 0) {
+		/* Use the first CPU's node */
+		cpu = OF_child(OF_parent(cpu));
+	}
+
 	/*
 	 * Collect the PCR values for each mode from the device tree.
 	 * These include bus timing information, and so cannot be
