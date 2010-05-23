@@ -2478,6 +2478,7 @@ spa_tryimport(nvlist_t *tryconfig)
 	char *poolname;
 	spa_t *spa;
 	uint64_t state;
+	int error;
 
 	if (nvlist_lookup_string(tryconfig, ZPOOL_CONFIG_POOL_NAME, &poolname))
 		return (NULL);
@@ -2497,7 +2498,7 @@ spa_tryimport(nvlist_t *tryconfig)
 	 * Pass TRUE for mosconfig because the user-supplied config
 	 * is actually the one to trust when doing an import.
 	 */
-	(void) spa_load(spa, tryconfig, SPA_LOAD_TRYIMPORT, B_TRUE);
+	error = spa_load(spa, tryconfig, SPA_LOAD_TRYIMPORT, B_TRUE);
 
 	/*
 	 * If 'tryconfig' was at least parsable, return the current config.
@@ -2516,7 +2517,7 @@ spa_tryimport(nvlist_t *tryconfig)
 		 * copy it out so that external consumers can tell which
 		 * pools are bootable.
 		 */
-		if (spa->spa_bootfs) {
+		if ((!error || error == EEXIST) && spa->spa_bootfs) {
 			char *tmpname = kmem_alloc(MAXPATHLEN, KM_SLEEP);
 
 			/*
