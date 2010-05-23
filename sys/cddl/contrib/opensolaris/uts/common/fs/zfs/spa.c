@@ -2082,9 +2082,9 @@ spa_create(const char *pool, nvlist_t *nvroot, nvlist_t *props,
 	if (version >= SPA_VERSION_ZPOOL_HISTORY && history_str != NULL)
 		(void) spa_history_log(spa, history_str, LOG_CMD_POOL_CREATE);
 
-	mutex_exit(&spa_namespace_lock);
-
 	spa->spa_minref = refcount_count(&spa->spa_refcount);
+
+	mutex_exit(&spa_namespace_lock);
 
 	return (0);
 }
