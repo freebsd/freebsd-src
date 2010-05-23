@@ -101,9 +101,6 @@ zio_init(void)
 	zio_cache = kmem_cache_create("zio_cache", sizeof (zio_t), 0,
 	    NULL, NULL, NULL, NULL, NULL, 0);
 
-	if (!zio_use_uma)
-		goto end;
-
 	/*
 	 * For small buffers, we want a cache for each multiple of
 	 * SPA_MINBLOCKSIZE.  For medium-size buffers, we want a cache
@@ -147,7 +144,7 @@ zio_init(void)
 		if (zio_data_buf_cache[c - 1] == NULL)
 			zio_data_buf_cache[c - 1] = zio_data_buf_cache[c];
 	}
-end:
+
 	zio_inject_init();
 }
 
