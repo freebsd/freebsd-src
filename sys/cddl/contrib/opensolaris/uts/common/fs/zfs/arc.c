@@ -325,7 +325,6 @@ typedef struct arc_stats {
 	kstat_named_t arcstat_l2_write_full;
 	kstat_named_t arcstat_l2_write_buffer_iter;
 	kstat_named_t arcstat_l2_write_pios;
-	kstat_named_t arcstat_l2_write_bytes_written;
 	kstat_named_t arcstat_l2_write_buffer_bytes_scanned;
 	kstat_named_t arcstat_l2_write_buffer_list_iter;
 	kstat_named_t arcstat_l2_write_buffer_list_null_iter;
@@ -396,7 +395,6 @@ static arc_stats_t arc_stats = {
 	{ "l2_write_full",		KSTAT_DATA_UINT64 },
 	{ "l2_write_buffer_iter",	KSTAT_DATA_UINT64 },
 	{ "l2_write_pios",		KSTAT_DATA_UINT64 },
-	{ "l2_write_bytes_written",	KSTAT_DATA_UINT64 },
 	{ "l2_write_buffer_bytes_scanned", KSTAT_DATA_UINT64 },
 	{ "l2_write_buffer_list_iter",	KSTAT_DATA_UINT64 },
 	{ "l2_write_buffer_list_null_iter", KSTAT_DATA_UINT64 }
@@ -4692,7 +4690,6 @@ l2arc_write_buffers(spa_t *spa, l2arc_dev_t *dev, uint64_t target_sz)
 				ARCSTAT_BUMP(arcstat_l2_write_pios);
 			}
 
-			ARCSTAT_INCR(arcstat_l2_write_bytes_written, ab->b_size);
 			/*
 			 * Create and add a new L2ARC header.
 			 */
