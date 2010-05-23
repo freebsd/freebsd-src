@@ -49,7 +49,6 @@ __FBSDID("$FreeBSD$");
 #include <machine/atomic.h>
 #include <machine/bus.h>
 #include <machine/md_var.h>
-#include <machine/specialreg.h>
 
 #define MAX_BPAGES 8192
 
@@ -216,6 +215,9 @@ bus_dma_tag_create(bus_dma_tag_t parent, bus_size_t alignment,
 {
 	bus_dma_tag_t newtag;
 	int error = 0;
+
+	/* Let MD code handle API flaws. */
+	parent = bus_dma_tag_parent(parent);
 
 	/* Basic sanity checking */
 	if (boundary != 0 && boundary < maxsegsz)
@@ -897,7 +899,7 @@ bus_dmamap_load_uio(bus_dma_tag_t dmat, bus_dmamap_t map, struct uio *uio,
  * Release the mapping held by map.
  */
 void
-_bus_dmamap_unload(bus_dma_tag_t dmat, bus_dmamap_t map)
+bus_dmamap_unload(bus_dma_tag_t dmat, bus_dmamap_t map)
 {
 	struct bounce_page *bpage;
 
@@ -908,7 +910,7 @@ _bus_dmamap_unload(bus_dma_tag_t dmat, bus_dmamap_t map)
 }
 
 void
-_bus_dmamap_sync(bus_dma_tag_t dmat, bus_dmamap_t map, bus_dmasync_op_t op)
+bus_dmamap_sync(bus_dma_tag_t dmat, bus_dmamap_t map, bus_dmasync_op_t op)
 {
 	struct bounce_page *bpage;
 
