@@ -195,11 +195,6 @@ SYSCTL_QUAD(_vfs_zfs, OID_AUTO, arc_min, CTLFLAG_RDTUN, &zfs_arc_min, 0,
 SYSCTL_INT(_vfs_zfs, OID_AUTO, mdcomp_disable, CTLFLAG_RDTUN,
     &zfs_mdcomp_disable, 0, "Disable metadata compression");
 
-#ifdef ZIO_USE_UMA
-extern kmem_cache_t	*zio_buf_cache[];
-extern kmem_cache_t	*zio_data_buf_cache[];
-#endif
-
 /*
  * Note that buffers can be in one of 6 states:
  *	ARC_anon	- anonymous (discussed below)
@@ -619,11 +614,6 @@ static buf_hash_table_t buf_hash_table;
 	(BUF_HASH_LOCK(BUF_HASH_INDEX(buf->b_spa, &buf->b_dva, buf->b_birth)))
 
 uint64_t zfs_crc64_table[256];
-
-#ifdef ZIO_USE_UMA
-extern kmem_cache_t	*zio_buf_cache[];
-extern kmem_cache_t	*zio_data_buf_cache[];
-#endif
 
 /*
  * Level 2 ARC
@@ -2192,14 +2182,15 @@ arc_reclaim_needed(void)
 	return (0);
 }
 
+extern kmem_cache_t	*zio_buf_cache[];
+extern kmem_cache_t	*zio_data_buf_cache[];
+
 static void
 arc_kmem_reap_now(arc_reclaim_strategy_t strat)
 {
-#ifdef ZIO_USE_UMA
 	size_t			i;
 	kmem_cache_t		*prev_cache = NULL;
 	kmem_cache_t		*prev_data_cache = NULL;
-#endif
 
 #ifdef _KERNEL
 	if (arc_meta_used >= arc_meta_limit) {
@@ -2224,7 +2215,6 @@ arc_kmem_reap_now(arc_reclaim_strategy_t strat)
 	if (strat == ARC_RECLAIM_AGGR)
 		arc_shrink();
 
-#ifdef ZIO_USE_UMA
 	for (i = 0; i < SPA_MAXBLOCKSIZE >> SPA_MINBLOCKSHIFT; i++) {
 		if (zio_buf_cache[i] != prev_cache) {
 			prev_cache = zio_buf_cache[i];
@@ -2235,7 +2225,6 @@ arc_kmem_reap_now(arc_reclaim_strategy_t strat)
 			kmem_cache_reap_now(zio_data_buf_cache[i]);
 		}
 	}
-#endif
 	kmem_cache_reap_now(buf_cache);
 	kmem_cache_reap_now(hdr_cache);
 }
