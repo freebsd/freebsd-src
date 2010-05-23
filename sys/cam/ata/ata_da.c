@@ -58,6 +58,8 @@ __FBSDID("$FreeBSD$");
 
 #include <cam/ata/ata_all.h>
 
+#include <machine/md_var.h>	/* geometry translation */
+
 #ifdef _KERNEL
 
 #define ATA_MAX_28BIT_LBA               268435455UL
@@ -178,6 +180,13 @@ static void		adashutdown(void *arg, int howto);
 #define	ADA_DEFAULT_SEND_ORDERED	1
 #endif
 
+/*
+ * Most platforms map firmware geometry to actual, but some don't.  If
+ * not overridden, default to nothing.
+ */
+#ifndef ata_disk_firmware_geom_adjust
+#define	ata_disk_firmware_geom_adjust(disk)
+#endif
 
 static int ada_retry_count = ADA_DEFAULT_RETRY;
 static int ada_default_timeout = ADA_DEFAULT_TIMEOUT;
@@ -737,9 +746,9 @@ adaregister(struct cam_periph *periph, void *arg)
 		    ata_logical_sector_offset(&cgd->ident_data)) %
 		    softc->disk->d_stripesize;
 	}
-	/* XXX: these are not actually "firmware" values, so they may be wrong */
 	softc->disk->d_fwsectors = softc->params.secs_per_track;
 	softc->disk->d_fwheads = softc->params.heads;
+	ata_disk_firmware_geom_adjust(softc->disk);
 
 	disk_create(softc->disk, DISK_VERSION);
 	mtx_lock(periph->sim->mtx);
