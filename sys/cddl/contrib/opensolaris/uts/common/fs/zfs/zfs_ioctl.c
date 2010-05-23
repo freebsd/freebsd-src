@@ -92,7 +92,7 @@ typedef struct zfs_ioc_vec {
 	boolean_t		zvec_his_log;
 } zfs_ioc_vec_t;
 
-static void clear_props(char *dataset, nvlist_t *props);
+static void clear_props(char *dataset, nvlist_t *props, nvlist_t *newprops);
 static int zfs_fill_zplprops_root(uint64_t, nvlist_t *, nvlist_t *,
     boolean_t *);
 int zfs_set_prop_nvlist(const char *, nvlist_t *);
@@ -1645,7 +1645,7 @@ zfs_ioc_set_prop(zfs_cmd_t *zc)
 		if (dmu_objset_open(zc->zc_name, DMU_OST_ANY,
 		    DS_MODE_USER | DS_MODE_READONLY, &os) == 0) {
 			if (dsl_prop_get_all(os, &origprops, TRUE) == 0) {
-				clear_props(zc->zc_name, origprops);
+				clear_props(zc->zc_name, origprops, nvl);
 				nvlist_free(origprops);
 			}
 			dmu_objset_close(os);
@@ -2425,7 +2425,7 @@ zfs_ioc_rename(zfs_cmd_t *zc)
 }
 
 static void
-clear_props(char *dataset, nvlist_t *props)
+clear_props(char *dataset, nvlist_t *props, nvlist_t *newprops)
 {
 	zfs_cmd_t *zc;
 	nvpair_t *prop;
@@ -2436,6 +2436,9 @@ clear_props(char *dataset, nvlist_t *props)
 	(void) strcpy(zc->zc_name, dataset);
 	for (prop = nvlist_next_nvpair(props, NULL); prop;
 	    prop = nvlist_next_nvpair(props, prop)) {
+		if (newprops != NULL &&
+		    nvlist_exists(newprops, nvpair_name(prop)))
+			continue;
 		(void) strcpy(zc->zc_value, nvpair_name(prop));
 		if (zfs_secpolicy_inherit(zc, CRED()) == 0)
 			(void) zfs_ioc_inherit_prop(zc);
@@ -2543,7 +2546,7 @@ zfs_ioc_recv(zfs_cmd_t *zc)
 	 * so that the properties are applied to the new data.
 	 */
 	if (props) {
-		clear_props(tofs, origprops);
+		clear_props(tofs, origprops, props);
 		/*
 		 * XXX - Note, this is all-or-nothing; should be best-effort.
 		 */
@@ -2582,7 +2585,7 @@ zfs_ioc_recv(zfs_cmd_t *zc)
 	 * On error, restore the original props.
 	 */
 	if (error && props) {
-		clear_props(tofs, props);
+		clear_props(tofs, props, NULL);
 		(void) zfs_set_prop_nvlist(tofs, origprops);
 	}
 out:
