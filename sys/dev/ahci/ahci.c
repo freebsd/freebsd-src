@@ -60,6 +60,8 @@ static void ahci_intr(void *data);
 static void ahci_intr_one(void *data);
 static int ahci_suspend(device_t dev);
 static int ahci_resume(device_t dev);
+static int ahci_ch_init(device_t dev);
+static int ahci_ch_deinit(device_t dev);
 static int ahci_ch_suspend(device_t dev);
 static int ahci_ch_resume(device_t dev);
 static void ahci_ch_pm(void *arg);
@@ -871,7 +873,7 @@ ahci_ch_attach(device_t dev)
 		return (ENXIO);
 	ahci_dmainit(dev);
 	ahci_slotsalloc(dev);
-	ahci_ch_resume(dev);
+	ahci_ch_init(dev);
 	mtx_lock(&ch->mtx);
 	rid = ATA_IRQ_RID;
 	if (!(ch->r_irq = bus_alloc_resource_any(dev, SYS_RES_IRQ,
@@ -963,7 +965,7 @@ ahci_ch_detach(device_t dev)
 	bus_teardown_intr(dev, ch->r_irq, ch->ih);
 	bus_release_resource(dev, SYS_RES_IRQ, ATA_IRQ_RID, ch->r_irq);
 
-	ahci_ch_suspend(dev);
+	ahci_ch_deinit(dev);
 	ahci_slotsfree(dev);
 	ahci_dmafini(dev);
 
@@ -973,28 +975,7 @@ ahci_ch_detach(device_t dev)
 }
 
 static int
-ahci_ch_suspend(device_t dev)
-{
-	struct ahci_channel *ch = device_get_softc(dev);
-
-	/* Disable port interrupts. */
-	ATA_OUTL(ch->r_mem, AHCI_P_IE, 0);
-	/* Reset command register. */
-	ahci_stop(dev);
-	ahci_stop_fr(dev);
-	ATA_OUTL(ch->r_mem, AHCI_P_CMD, 0);
-	/* Allow everything, including partial and slumber modes. */
-	ATA_OUTL(ch->r_mem, AHCI_P_SCTL, 0);
-	/* Request slumber mode transition and give some time to get there. */
-	ATA_OUTL(ch->r_mem, AHCI_P_CMD, AHCI_P_CMD_SLUMBER);
-	DELAY(100);
-	/* Disable PHY. */
-	ATA_OUTL(ch->r_mem, AHCI_P_SCTL, ATA_SC_DET_DISABLE);
-	return (0);
-}
-
-static int
-ahci_ch_resume(device_t dev)
+ahci_ch_init(device_t dev)
 {
 	struct ahci_channel *ch = device_get_softc(dev);
 	uint64_t work;
@@ -1015,6 +996,54 @@ ahci_ch_resume(device_t dev)
 	     ((ch->pm_level > 2) ? AHCI_P_CMD_ASP : 0 )));
 	ahci_start_fr(dev);
 	ahci_start(dev, 1);
+	return (0);
+}
+
+static int
+ahci_ch_deinit(device_t dev)
+{
+	struct ahci_channel *ch = device_get_softc(dev);
+
+	/* Disable port interrupts. */
+	ATA_OUTL(ch->r_mem, AHCI_P_IE, 0);
+	/* Reset command register. */
+	ahci_stop(dev);
+	ahci_stop_fr(dev);
+	ATA_OUTL(ch->r_mem, AHCI_P_CMD, 0);
+	/* Allow everything, including partial and slumber modes. */
+	ATA_OUTL(ch->r_mem, AHCI_P_SCTL, 0);
+	/* Request slumber mode transition and give some time to get there. */
+	ATA_OUTL(ch->r_mem, AHCI_P_CMD, AHCI_P_CMD_SLUMBER);
+	DELAY(100);
+	/* Disable PHY. */
+	ATA_OUTL(ch->r_mem, AHCI_P_SCTL, ATA_SC_DET_DISABLE);
+	return (0);
+}
+
+static int
+ahci_ch_suspend(device_t dev)
+{
+	struct ahci_channel *ch = device_get_softc(dev);
+
+	mtx_lock(&ch->mtx);
+	xpt_freeze_simq(ch->sim, 1);
+	while (ch->oslots)
+		msleep(ch, &ch->mtx, PRIBIO, "ahcisusp", hz/100);
+	ahci_ch_deinit(dev);
+	mtx_unlock(&ch->mtx);
+	return (0);
+}
+
+static int
+ahci_ch_resume(device_t dev)
+{
+	struct ahci_channel *ch = device_get_softc(dev);
+
+	mtx_lock(&ch->mtx);
+	ahci_ch_init(dev);
+	ahci_reset(dev);
+	xpt_release_simq(ch->sim, TRUE);
+	mtx_unlock(&ch->mtx);
 	return (0);
 }
 
