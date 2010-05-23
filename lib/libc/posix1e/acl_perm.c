@@ -108,3 +108,21 @@ acl_delete_perm(acl_permset_t permset_d, acl_perm_t perm)
 
 	return (0);
 }
+
+int
+acl_get_perm_np(acl_permset_t permset_d, acl_perm_t perm)
+{
+
+	if (permset_d == NULL) {
+		errno = EINVAL;
+		return (-1);
+	}
+
+	if (_perm_is_invalid(perm))
+		return (-1);
+
+	if (*permset_d & perm)
+		return (1);
+
+	return (0);
+}
