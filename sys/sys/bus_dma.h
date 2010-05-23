@@ -191,13 +191,6 @@ typedef void bus_dmamap_callback_t(void *, bus_dma_segment_t *, int, int);
 typedef void bus_dmamap_callback2_t(void *, bus_dma_segment_t *, int, bus_size_t, int);
 
 /*
- * XXX sparc64 uses the same interface, but a much different implementation.
- *     <machine/bus_dma.h> for the sparc64 arch contains the equivalent
- *     declarations.
- */
-#if !defined(__sparc64__)
-
-/*
  * Allocate a handle for mapping from kva/uva/physical
  * address space into bus device space.
  */
@@ -255,23 +248,11 @@ int bus_dmamap_load_uio(bus_dma_tag_t dmat, bus_dmamap_t map,
 /*
  * Perform a synchronization operation on the given map.
  */
-void _bus_dmamap_sync(bus_dma_tag_t, bus_dmamap_t, bus_dmasync_op_t);
-#define bus_dmamap_sync(dmat, dmamap, op) 			\
-	do {							\
-		if ((dmamap) != NULL)				\
-			_bus_dmamap_sync(dmat, dmamap, op);	\
-	} while (0)
+void bus_dmamap_sync(bus_dma_tag_t, bus_dmamap_t, bus_dmasync_op_t);
 
 /*
  * Release the mapping held by map.
  */
-void _bus_dmamap_unload(bus_dma_tag_t dmat, bus_dmamap_t map);
-#define bus_dmamap_unload(dmat, dmamap) 			\
-	do {							\
-		if ((dmamap) != NULL)				\
-			_bus_dmamap_unload(dmat, dmamap);	\
-	} while (0)
-
-#endif /* __sparc64__ */
+void bus_dmamap_unload(bus_dma_tag_t dmat, bus_dmamap_t map);
 
 #endif /* _BUS_DMA_H_ */
