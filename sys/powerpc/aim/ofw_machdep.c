@@ -41,6 +41,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/disk.h>
 #include <sys/fcntl.h>
 #include <sys/malloc.h>
+#include <sys/smp.h>
 #include <sys/stat.h>
 
 #include <net/ethernet.h>
@@ -344,15 +345,12 @@ ofw_quiesce(void)
 }
 
 static int
-openfirmware(void *args)
+openfirmware_core(void *args)
 {
 	long	oldmsr;
 	int	result;
 	u_int	srsave[16];
 	u_int   i;
-
-	if (pmap_bootstrapped && ofw_real_mode)
-		args = (void *)pmap_kextract((vm_offset_t)args);
 
 	__asm __volatile(	"\t"
 		"sync\n\t"
@@ -405,6 +403,61 @@ openfirmware(void *args)
 		"isync\n"
 		: : "r" (oldmsr)
 	);
+
+	return (result);
+}
+
+#ifdef SMP
+struct ofw_rv_args {
+	void *args;
+	int retval;
+	volatile int in_progress;
+};
+
+static void
+ofw_rendezvous_dispatch(void *xargs)
+{
+	struct ofw_rv_args *rv_args = xargs;
+
+	/* NOTE: Interrupts are disabled here */
+
+	if (PCPU_GET(cpuid) == 0) {
+		/*
+		 * Execute all OF calls on CPU 0
+		 */
+		rv_args->retval = openfirmware_core(rv_args->args);
+		rv_args->in_progress = 0;
+	} else {
+		/*
+		 * Spin with interrupts off on other CPUs while OF has
+		 * control of the machine.
+		 */
+		while (rv_args->in_progress)
+			cpu_spinwait();
+	}
+}
+#endif
+
+static int
+openfirmware(void *args)
+{
+	int result;
+	#ifdef SMP
+	struct ofw_rv_args rv_args;
+	#endif
+
+	if (pmap_bootstrapped && ofw_real_mode)
+		args = (void *)pmap_kextract((vm_offset_t)args);
+
+	#ifdef SMP
+	rv_args.args = args;
+	rv_args.in_progress = 1;
+	smp_rendezvous(smp_no_rendevous_barrier, ofw_rendezvous_dispatch,
+	    smp_no_rendevous_barrier, &rv_args);
+	result = rv_args.retval;
+	#else
+	result = openfirmware_core(args);
+	#endif
 
 	return (result);
 }
