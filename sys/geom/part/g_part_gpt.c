@@ -131,7 +131,13 @@ static struct g_part_scheme g_part_gpt_scheme = {
 };
 G_PART_SCHEME_DECLARE(g_part_gpt);
 
+static struct uuid gpt_uuid_apple_boot = GPT_ENT_TYPE_APPLE_BOOT;
 static struct uuid gpt_uuid_apple_hfs = GPT_ENT_TYPE_APPLE_HFS;
+static struct uuid gpt_uuid_apple_label = GPT_ENT_TYPE_APPLE_LABEL;
+static struct uuid gpt_uuid_apple_raid = GPT_ENT_TYPE_APPLE_RAID;
+static struct uuid gpt_uuid_apple_raid_offline = GPT_ENT_TYPE_APPLE_RAID_OFFLINE;
+static struct uuid gpt_uuid_apple_tv_recovery = GPT_ENT_TYPE_APPLE_TV_RECOVERY;
+static struct uuid gpt_uuid_apple_ufs = GPT_ENT_TYPE_APPLE_UFS;
 static struct uuid gpt_uuid_efi = GPT_ENT_TYPE_EFI;
 static struct uuid gpt_uuid_freebsd = GPT_ENT_TYPE_FREEBSD;
 static struct uuid gpt_uuid_freebsd_boot = GPT_ENT_TYPE_FREEBSD_BOOT;
@@ -139,9 +145,38 @@ static struct uuid gpt_uuid_freebsd_swap = GPT_ENT_TYPE_FREEBSD_SWAP;
 static struct uuid gpt_uuid_freebsd_ufs = GPT_ENT_TYPE_FREEBSD_UFS;
 static struct uuid gpt_uuid_freebsd_vinum = GPT_ENT_TYPE_FREEBSD_VINUM;
 static struct uuid gpt_uuid_freebsd_zfs = GPT_ENT_TYPE_FREEBSD_ZFS;
+static struct uuid gpt_uuid_linux_data = GPT_ENT_TYPE_LINUX_DATA;
+static struct uuid gpt_uuid_linux_lvm = GPT_ENT_TYPE_LINUX_LVM;
+static struct uuid gpt_uuid_linux_raid = GPT_ENT_TYPE_LINUX_RAID;
 static struct uuid gpt_uuid_linux_swap = GPT_ENT_TYPE_LINUX_SWAP;
 static struct uuid gpt_uuid_mbr = GPT_ENT_TYPE_MBR;
 static struct uuid gpt_uuid_unused = GPT_ENT_TYPE_UNUSED;
+
+static struct g_part_uuid_alias {
+	struct uuid *uuid;
+	int alias;		
+} gpt_uuid_alias_match[] = {
+	{ &gpt_uuid_apple_boot,		G_PART_ALIAS_APPLE_BOOT },
+	{ &gpt_uuid_apple_hfs,		G_PART_ALIAS_APPLE_HFS },
+	{ &gpt_uuid_apple_label,	G_PART_ALIAS_APPLE_LABEL },
+	{ &gpt_uuid_apple_raid,		G_PART_ALIAS_APPLE_RAID },
+	{ &gpt_uuid_apple_raid_offline,	G_PART_ALIAS_APPLE_RAID_OFFLINE },
+	{ &gpt_uuid_apple_tv_recovery,	G_PART_ALIAS_APPLE_TV_RECOVERY },
+	{ &gpt_uuid_apple_ufs,		G_PART_ALIAS_APPLE_UFS },
+	{ &gpt_uuid_efi, 		G_PART_ALIAS_EFI },
+	{ &gpt_uuid_freebsd,		G_PART_ALIAS_FREEBSD },
+	{ &gpt_uuid_freebsd_boot, 	G_PART_ALIAS_FREEBSD_BOOT },
+	{ &gpt_uuid_freebsd_swap,	G_PART_ALIAS_FREEBSD_SWAP },
+	{ &gpt_uuid_freebsd_ufs,	G_PART_ALIAS_FREEBSD_UFS },
+	{ &gpt_uuid_freebsd_vinum,	G_PART_ALIAS_FREEBSD_VINUM },
+	{ &gpt_uuid_freebsd_zfs,	G_PART_ALIAS_FREEBSD_ZFS },
+	{ &gpt_uuid_linux_data,		G_PART_ALIAS_LINUX_DATA },
+	{ &gpt_uuid_linux_lvm,		G_PART_ALIAS_LINUX_LVM },
+	{ &gpt_uuid_linux_raid,		G_PART_ALIAS_LINUX_RAID },
+	{ &gpt_uuid_linux_swap,		G_PART_ALIAS_LINUX_SWAP },
+	{ &gpt_uuid_mbr,		G_PART_ALIAS_MBR },
+	{ NULL, 0 }
+};
 
 static struct gpt_hdr *
 gpt_read_hdr(struct g_part_gpt_table *table, struct g_consumer *cp,
@@ -305,6 +340,7 @@ gpt_parse_type(const char *type, struct uuid *uuid)
 	struct uuid tmp;
 	const char *alias;
 	int error;
+	struct g_part_uuid_alias *uap;
 
 	if (type[0] == '!') {
 		error = parse_uuid(type + 1, &tmp);
@@ -315,50 +351,12 @@ gpt_parse_type(const char *type, struct uuid *uuid)
 		*uuid = tmp;
 		return (0);
 	}
-	alias = g_part_alias_name(G_PART_ALIAS_EFI);
-	if (!strcasecmp(type, alias)) {
-		*uuid = gpt_uuid_efi;
-		return (0);
-	}
-	alias = g_part_alias_name(G_PART_ALIAS_FREEBSD);
-	if (!strcasecmp(type, alias)) {
-		*uuid = gpt_uuid_freebsd;
-		return (0);
-	}
-	alias = g_part_alias_name(G_PART_ALIAS_FREEBSD_BOOT);
-	if (!strcasecmp(type, alias)) {
-		*uuid = gpt_uuid_freebsd_boot;
-		return (0);
-	}
-	alias = g_part_alias_name(G_PART_ALIAS_FREEBSD_SWAP);
-	if (!strcasecmp(type, alias)) {
-		*uuid = gpt_uuid_freebsd_swap;
-		return (0);
-	}
-	alias = g_part_alias_name(G_PART_ALIAS_FREEBSD_UFS);
-	if (!strcasecmp(type, alias)) {
-		*uuid = gpt_uuid_freebsd_ufs;
-		return (0);
-	}
-	alias = g_part_alias_name(G_PART_ALIAS_FREEBSD_VINUM);
-	if (!strcasecmp(type, alias)) {
-		*uuid = gpt_uuid_freebsd_vinum;
-		return (0);
-	}
-	alias = g_part_alias_name(G_PART_ALIAS_FREEBSD_ZFS);
-	if (!strcasecmp(type, alias)) {
-		*uuid = gpt_uuid_freebsd_zfs;
-		return (0);
-	}
-	alias = g_part_alias_name(G_PART_ALIAS_MBR);
-	if (!strcasecmp(type, alias)) {
-		*uuid = gpt_uuid_mbr;
-		return (0);
-	}
-	alias = g_part_alias_name(G_PART_ALIAS_APPLE_HFS);
-	if (!strcasecmp(type, alias)) {
-		*uuid = gpt_uuid_apple_hfs;
-		return (0);
+	for (uap = &gpt_uuid_alias_match[0]; uap->uuid; uap++) {
+		alias = g_part_alias_name(uap->alias);
+		if (!strcasecmp(type, alias)) {
+			uuid = uap->uuid;
+			return (0);
+		}
 	}
 	return (EINVAL);
 }
@@ -717,29 +715,16 @@ g_part_gpt_type(struct g_part_table *basetable, struct g_part_entry *baseentry,
 {
 	struct g_part_gpt_entry *entry;
 	struct uuid *type;
+	struct g_part_uuid_alias *uap;
  
 	entry = (struct g_part_gpt_entry *)baseentry;
 	type = &entry->ent.ent_type;
-	if (EQUUID(type, &gpt_uuid_efi))
-		return (g_part_alias_name(G_PART_ALIAS_EFI));
-	if (EQUUID(type, &gpt_uuid_freebsd))
-		return (g_part_alias_name(G_PART_ALIAS_FREEBSD));
-	if (EQUUID(type, &gpt_uuid_freebsd_boot))
-		return (g_part_alias_name(G_PART_ALIAS_FREEBSD_BOOT));
-	if (EQUUID(type, &gpt_uuid_freebsd_swap))
-		return (g_part_alias_name(G_PART_ALIAS_FREEBSD_SWAP));
-	if (EQUUID(type, &gpt_uuid_freebsd_ufs))
-		return (g_part_alias_name(G_PART_ALIAS_FREEBSD_UFS));
-	if (EQUUID(type, &gpt_uuid_freebsd_vinum))
-		return (g_part_alias_name(G_PART_ALIAS_FREEBSD_VINUM));
-	if (EQUUID(type, &gpt_uuid_freebsd_zfs))
-		return (g_part_alias_name(G_PART_ALIAS_FREEBSD_ZFS));
-	if (EQUUID(type, &gpt_uuid_mbr))
-		return (g_part_alias_name(G_PART_ALIAS_MBR));
-	if (EQUUID(type, &gpt_uuid_apple_hfs))
-		return (g_part_alias_name(G_PART_ALIAS_APPLE_HFS));
+	for (uap = &gpt_uuid_alias_match[0]; uap->uuid; uap++)
+		if (EQUUID(type, uap->uuid))
+			return (g_part_alias_name(uap->alias));
 	buf[0] = '!';
 	snprintf_uuid(buf + 1, bufsz - 1, type);
+
 	return (buf);
 }
 
