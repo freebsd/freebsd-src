@@ -1105,9 +1105,13 @@ kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
 		pl->pl_lwpid = td2->td_tid;
 		if (td2->td_dbgflags & TDB_XSIG)
 			pl->pl_event = PL_EVENT_SIGNAL;
-		else
-			pl->pl_event = 0;
 		pl->pl_flags = 0;
+		if (td2->td_dbgflags & TDB_SCE)
+			pl->pl_flags |= PL_FLAG_SCE;
+		else if (td2->td_dbgflags & TDB_SCX)
+			pl->pl_flags |= PL_FLAG_SCX;
+		if (td2->td_dbgflags & TDB_EXEC)
+			pl->pl_flags |= PL_FLAG_EXEC;
 		pl->pl_sigmask = td2->td_sigmask;
 		pl->pl_siglist = td2->td_siglist;
 		break;
