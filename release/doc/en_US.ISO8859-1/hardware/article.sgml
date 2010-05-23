@@ -327,12 +327,18 @@
 
       <para>All systems listed below are fully supported, with the
 	exception that software fan control is currently missing on
-	the Power Macintosh G5. SMP is supported on all systems with
-	more than 1 processor.</para>
+	some Power Macintosh G5 models. SMP is supported on all systems
+	with more than 1 processor.</para>
 
       <itemizedlist>
 	<listitem>
-	  <para>Apple iMac</para>
+	  <para>Apple iMac G3</para>
+	</listitem>
+	<listitem>
+	  <para>Apple iMac G4</para>
+	</listitem>
+	<listitem>
+	  <para>Apple iMac G5</para>
 	</listitem>
 	<listitem>
 	  <para>Apple Power Macintosh G3 (Blue & White)</para>
@@ -341,10 +347,16 @@
 	  <para>Apple Power Macintosh G4</para>
 	</listitem>
 	<listitem>
-	  <para>Apple Power Macintosh G5 (non-970MP models)</para>
+	  <para>Apple Power Macintosh G5</para>
 	</listitem>
 	<listitem>
-	  <para>Apple iBook</para>
+	  <para>Apple iBook G3</para>
+	</listitem>
+	<listitem>
+	  <para>Apple iBook G4</para>
+	</listitem>
+	<listitem>
+	  <para>Apple PowerBook G3 (Lombard and Pismo)</para>
 	</listitem>
 	<listitem>
 	  <para>Apple PowerBook G4</para>
