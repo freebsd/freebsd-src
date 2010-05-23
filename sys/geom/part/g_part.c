@@ -69,7 +69,13 @@ struct g_part_alias_list {
 	const char *lexeme;
 	enum g_part_alias alias;
 } g_part_alias_list[G_PART_ALIAS_COUNT] = {
+	{ "apple-boot", G_PART_ALIAS_APPLE_BOOT },
 	{ "apple-hfs", G_PART_ALIAS_APPLE_HFS },
+	{ "apple-label", G_PART_ALIAS_APPLE_LABEL },
+	{ "apple-raid", G_PART_ALIAS_APPLE_RAID },
+	{ "apple-raid-offline", G_PART_ALIAS_APPLE_RAID_OFFLINE },
+	{ "apple-tv-recovery", G_PART_ALIAS_APPLE_TV_RECOVERY },
+	{ "apple-ufs", G_PART_ALIAS_APPLE_UFS },
 	{ "efi", G_PART_ALIAS_EFI },
 	{ "freebsd", G_PART_ALIAS_FREEBSD },
 	{ "freebsd-boot", G_PART_ALIAS_FREEBSD_BOOT },
@@ -77,6 +83,10 @@ struct g_part_alias_list {
 	{ "freebsd-ufs", G_PART_ALIAS_FREEBSD_UFS },
 	{ "freebsd-vinum", G_PART_ALIAS_FREEBSD_VINUM },
 	{ "freebsd-zfs", G_PART_ALIAS_FREEBSD_ZFS },
+	{ "linux-data", G_PART_ALIAS_LINUX_DATA },
+	{ "linux-lvm", G_PART_ALIAS_LINUX_LVM },
+	{ "linux-raid", G_PART_ALIAS_LINUX_RAID },
+	{ "linux-swap", G_PART_ALIAS_LINUX_SWAP },
 	{ "mbr", G_PART_ALIAS_MBR }
 };
 
