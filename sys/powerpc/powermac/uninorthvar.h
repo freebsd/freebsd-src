@@ -63,14 +63,34 @@ struct uninorth_softc {
 	bus_dma_tag_t		sc_dmat;
 	struct ofw_bus_iinfo	sc_pci_iinfo;
 
-	int			sc_u3;
+	int			sc_ver;
 };
 
 struct unin_chip_softc {
-	vm_offset_t		sc_physaddr;
+	u_int32_t		sc_physaddr;
 	vm_offset_t		sc_addr;
-	u_int			sc_size;
+	u_int32_t		sc_size;
+	struct rman  		sc_mem_rman;
 	int			sc_version;
+};
+
+/*
+ * Format of a unin reg property entry.
+ */
+struct unin_chip_reg {
+        u_int32_t       mr_base;
+        u_int32_t       mr_size;
+};
+
+/*
+ * Per unin device structure.
+ */
+struct unin_chip_devinfo {
+        int        udi_interrupts[6];
+        int        udi_ninterrupts;
+        int        udi_base;   
+        struct ofw_bus_devinfo udi_obdinfo;
+        struct resource_list udi_resources;
 };
 
 /*
@@ -81,7 +101,14 @@ struct unin_chip_softc {
 /*
  * Clock-control register
  */
-#define UNIN_CLOCKCNTL  0x20
-#define UNIN_CLOCKCNTL_GMAC   0x2
+#define UNIN_CLOCKCNTL		0x20
+#define UNIN_CLOCKCNTL_GMAC	0x2
+
+/*
+ * Toggle registers
+ */
+#define UNIN_TOGGLE_REG		0xe0
+#define UNIN_MPIC_RESET		0x2
+#define UNIN_MPIC_OUTPUT_ENABLE	0x4
 
 #endif  /* _POWERPC_POWERMAC_UNINORTHVAR_H_ */
