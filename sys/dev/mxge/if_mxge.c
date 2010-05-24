@@ -4480,6 +4480,8 @@ mxge_add_msix_irqs(mxge_softc_t *sc)
 				      "message %d\n", i);
 			goto abort_with_intr;
 		}
+		bus_describe_intr(sc->dev, sc->msix_irq_res[i],
+				  sc->msix_ih[i], "s%d", i);
 	}
 
 	if (mxge_verbose) {
