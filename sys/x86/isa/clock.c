@@ -87,8 +87,6 @@ __FBSDID("$FreeBSD$");
 #define	TIMER_DIV(x) ((i8254_freq + (x) / 2) / (x))
 
 int	clkintr_pending;
-static int pscnt = 1;
-static int psdiv = 1;
 #ifndef TIMER_FREQ
 #define TIMER_FREQ   1193182
 #endif
@@ -134,10 +132,7 @@ int
 hardclockintr(struct trapframe *frame)
 {
 
-	if (PCPU_GET(cpuid) == 0)
-		hardclock(TRAPF_USERMODE(frame), TRAPF_PC(frame));
-	else
-		hardclock_cpu(TRAPF_USERMODE(frame));
+	timer1clock(TRAPF_USERMODE(frame), TRAPF_PC(frame));
 	return (FILTER_HANDLED);
 }
 
@@ -145,19 +140,7 @@ int
 statclockintr(struct trapframe *frame)
 {
 
-	profclockintr(frame);
-	statclock(TRAPF_USERMODE(frame));
-	return (FILTER_HANDLED);
-}
-
-int
-profclockintr(struct trapframe *frame)
-{
-
-	if (!using_atrtc_timer)
-		hardclockintr(frame);
-	if (profprocs != 0)
-		profclock(TRAPF_USERMODE(frame), TRAPF_PC(frame));
+	timer2clock(TRAPF_USERMODE(frame), TRAPF_PC(frame));
 	return (FILTER_HANDLED);
 }
 
@@ -190,28 +173,11 @@ clkintr(struct trapframe *frame)
 		(*cyclic_clock_func[cpu])(frame);
 #endif
 
-	if (using_atrtc_timer) {
 #ifdef SMP
-		if (smp_started)
-			ipi_all_but_self(IPI_HARDCLOCK);
+	if (smp_started)
+		ipi_all_but_self(IPI_HARDCLOCK);
 #endif
-		hardclockintr(frame);
-	} else {
-		if (--pscnt <= 0) {
-			pscnt = psratio;
-#ifdef SMP
-			if (smp_started)
-				ipi_all_but_self(IPI_STATCLOCK);
-#endif
-			statclockintr(frame);
-		} else {
-#ifdef SMP
-			if (smp_started)
-				ipi_all_but_self(IPI_PROFCLOCK);
-#endif
-			profclockintr(frame);
-		}
-	}
+	hardclockintr(frame);
 
 #ifdef DEV_MCA
 	/* Reset clock interrupt by asserting bit 7 of port 0x61 */
@@ -295,20 +261,11 @@ rtcintr(struct trapframe *frame)
 
 	while (rtcin(RTC_INTR) & RTCIR_PERIOD) {
 		flag = 1;
-		if (--pscnt <= 0) {
-			pscnt = psdiv;
 #ifdef SMP
-			if (smp_started)
-				ipi_all_but_self(IPI_STATCLOCK);
+		if (smp_started)
+			ipi_all_but_self(IPI_STATCLOCK);
 #endif
-			statclockintr(frame);
-		} else {
-#ifdef SMP
-			if (smp_started)
-				ipi_all_but_self(IPI_PROFCLOCK);
-#endif
-			profclockintr(frame);
-		}
+		statclockintr(frame);
 	}
 	return(flag ? FILTER_HANDLED : FILTER_STRAY);
 }
@@ -555,6 +512,7 @@ cpu_initclocks()
 	 * timecounter to user a simpler algorithm.
 	 */
 	if (using_lapic_timer == LAPIC_CLOCK_NONE) {
+		timer1hz = hz;
 		intr_add_handler("clk", 0, (driver_filter_t *)clkintr, NULL,
 		    NULL, INTR_TYPE_CLK, NULL);
 		i8254_intsrc = intr_lookup_source(0);
@@ -577,6 +535,7 @@ cpu_initclocks()
 	if (using_lapic_timer != LAPIC_CLOCK_ALL) {
 		using_atrtc_timer = tasc; 
 		if (using_atrtc_timer) {
+			timer2hz = RTC_NOPROFRATE;
 			/* Enable periodic interrupts from the RTC. */
 			intr_add_handler("rtc", 8,
 			    (driver_filter_t *)rtcintr, NULL, NULL,
@@ -588,6 +547,7 @@ cpu_initclocks()
 				stathz = hz;
 			else
 				stathz = hz / (hz / 128);
+			timer2hz = 0;
 		}
 	}
 
@@ -601,7 +561,7 @@ cpu_startprofclock(void)
 	if (using_lapic_timer == LAPIC_CLOCK_ALL || !using_atrtc_timer)
 		return;
 	atrtc_rate(RTCSA_PROF);
-	psdiv = pscnt = psratio;
+	timer2hz = RTC_PROFRATE;
 }
 
 void
@@ -611,7 +571,7 @@ cpu_stopprofclock(void)
 	if (using_lapic_timer == LAPIC_CLOCK_ALL || !using_atrtc_timer)
 		return;
 	atrtc_rate(RTCSA_NOPROF);
-	psdiv = pscnt = 1;
+	timer2hz = RTC_NOPROFRATE;
 }
 
 static int

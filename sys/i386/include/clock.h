@@ -27,7 +27,6 @@ struct trapframe;
  
 int	hardclockintr(struct trapframe *frame);
 int	statclockintr(struct trapframe *frame);
-int	profclockintr(struct trapframe *frame);
 
 /*
  * Driver to clock driver interface.
