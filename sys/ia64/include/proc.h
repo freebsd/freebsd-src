@@ -45,7 +45,8 @@ struct mdproc {
 struct syscall_args {
 	u_int code;
 	struct sysent *callp;
-	register_t args[8];
+	register_t *args;
+	register_t args32[8];
 	int narg;
 };
 #define	HAVE_SYSCALL_ARGS_DEF 1
