@@ -902,13 +902,12 @@ cpu_fetch_syscall_args(struct thread *td, struct syscall_args *sa)
 {
 	struct proc *p;
 	struct trapframe *tf;
-	register_t *args;
 
 	p = td->td_proc;
 	tf = td->td_frame;
 
 	sa->code = tf->tf_scratch.gr15;
-	args = &tf->tf_scratch.gr16;
+	sa->args = &tf->tf_scratch.gr16;
 
 	/*
 	 * syscall() and __syscall() are handled the same on
@@ -918,8 +917,8 @@ cpu_fetch_syscall_args(struct thread *td, struct syscall_args *sa)
 		/*
 		 * Code is first argument, followed by actual args.
 		 */
-		sa->code = args[0];
-		args++;
+		sa->code = sa->args[0];
+		sa->args++;
 	}
 
  	if (p->p_sysent->sv_mask)
@@ -929,7 +928,6 @@ cpu_fetch_syscall_args(struct thread *td, struct syscall_args *sa)
  	else
 		sa->callp = &p->p_sysent->sv_table[sa->code];
 	sa->narg = sa->callp->sy_narg;
-	bcopy(args, sa->args, sa->narg * sizeof(sa->args[0]));
 
 	td->td_retval[0] = 0;
 	td->td_retval[1] = 0;

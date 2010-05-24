@@ -132,10 +132,11 @@ ia32_fetch_syscall_args(struct thread *td, struct syscall_args *sa)
 		error = copyin(params, (caddr_t)args, sa->narg * sizeof(int));
 	else
 		error = 0;
+	sa->args = &sa->args32[0];
 
 	if (error == 0) {
 		for (i = 0; i < sa->narg; i++)
-			sa->args[i] = args[i];
+			sa->args32[i] = args[i];
 		td->td_retval[0] = 0;
 		td->td_retval[1] = tf->tf_scratch.gr10;	/* edx */
 	}
