@@ -240,6 +240,8 @@ void	hardclock_cpu(int usermode);
 void	softclock(void *);
 void	statclock(int usermode);
 void	profclock(int usermode, uintfptr_t pc);
+void	timer1clock(int usermode, uintfptr_t pc);
+void	timer2clock(int usermode, uintfptr_t pc);
 
 void	startprofclock(struct proc *);
 void	stopprofclock(struct proc *);

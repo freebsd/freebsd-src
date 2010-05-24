@@ -118,9 +118,6 @@ struct lapic {
 	u_int la_cluster_id:2;
 	u_int la_present:1;
 	u_long *la_timer_count;
-	u_long la_hard_ticks;
-	u_long la_stat_ticks;
-	u_long la_prof_ticks;
 	/* Include IDT_SYSCALL to make indexing easier. */
 	int la_ioint_irqs[APIC_NUM_IOINTS + 1];
 } static lapics[MAX_APIC_ID + 1];
@@ -493,12 +490,14 @@ lapic_setup_clock(enum lapic_clock srcsdes)
 	} else
 		lapic_timer_hz = hz;
 	lapic_timer_period = value / lapic_timer_hz;
+	timer1hz = lapic_timer_hz;
 	if (srcsdes == LAPIC_CLOCK_ALL) {
 		if (lapic_timer_hz < 128)
 			stathz = lapic_timer_hz;
 		else
 			stathz = lapic_timer_hz / (lapic_timer_hz / 128);
 		profhz = lapic_timer_hz;
+		timer2hz = 0;
 	}
 
 	/*
@@ -790,33 +789,7 @@ lapic_handle_timer(struct trapframe *frame)
 		(*cyclic_clock_func[cpu])(frame);
 #endif
 
-	/* Fire hardclock at hz. */
-	la->la_hard_ticks += hz;
-	if (la->la_hard_ticks >= lapic_timer_hz) {
-		la->la_hard_ticks -= lapic_timer_hz;
-		if (PCPU_GET(cpuid) == 0)
-			hardclock(TRAPF_USERMODE(frame), TRAPF_PC(frame));
-		else
-			hardclock_cpu(TRAPF_USERMODE(frame));
-	}
-	if (clockcoverage == LAPIC_CLOCK_ALL) {
-
-		/* Fire statclock at stathz. */
-		la->la_stat_ticks += stathz;
-		if (la->la_stat_ticks >= lapic_timer_hz) {
-			la->la_stat_ticks -= lapic_timer_hz;
-			statclock(TRAPF_USERMODE(frame));
-		}
-
-		/* Fire profclock at profhz, but only when needed. */
-		la->la_prof_ticks += profhz;
-		if (la->la_prof_ticks >= lapic_timer_hz) {
-			la->la_prof_ticks -= lapic_timer_hz;
-			if (profprocs != 0)
-				profclock(TRAPF_USERMODE(frame),
-				    TRAPF_PC(frame));
-		}
-	}
+	timer1clock(TRAPF_USERMODE(frame), TRAPF_PC(frame));
 	critical_exit();
 }
 
