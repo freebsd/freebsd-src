@@ -966,14 +966,33 @@ void
 pmap_clear_modify(vm_page_t m)
 {
 	KDPRINTF("pmap_clear_modify(0x%lx)\n", VM_PAGE_TO_PHYS(m));
+	KASSERT((m->flags & (PG_FICTITIOUS | PG_UNMANAGED)) == 0,
+	    ("pmap_clear_modify: page %p is not managed", m));
+	VM_OBJECT_LOCK_ASSERT(m->object, MA_OWNED);
+	KASSERT((m->oflags & VPO_BUSY) == 0,
+	    ("pmap_clear_modify: page %p is busy", m));
+
+	/*
+	 * If the page is not PG_WRITEABLE, then no TTEs can have VTD_W set.
+	 * If the object containing the page is locked and the page is not
+	 * VPO_BUSY, then PG_WRITEABLE cannot be concurrently set.
+	 */
+	if ((m->flags & PG_WRITEABLE) == 0)
+		return;
+	vm_page_lock_queues();
 	tte_clear_phys_bit(m, VTD_W);
+	vm_page_unlock_queues();
 }
 
 void
 pmap_clear_reference(vm_page_t m)
 {
 	KDPRINTF("pmap_clear_reference(0x%lx)\n", VM_PAGE_TO_PHYS(m));
+	KASSERT((m->flags & (PG_FICTITIOUS | PG_UNMANAGED)) == 0,
+	    ("pmap_clear_reference: page %p is not managed", m));
+	vm_page_lock_queues();
 	tte_clear_phys_bit(m, VTD_REF);
+	vm_page_unlock_queues();
 }
 
 void
@@ -1589,8 +1608,24 @@ pmap_invalidate_all(pmap_t pmap)
 boolean_t
 pmap_is_modified(vm_page_t m)
 {
+	boolean_t rv;
 
-	return (tte_get_phys_bit(m, VTD_W));
+	KASSERT((m->flags & (PG_FICTITIOUS | PG_UNMANAGED)) == 0,
+	    ("pmap_is_modified: page %p is not managed", m));
+
+	/*
+	 * If the page is not VPO_BUSY, then PG_WRITEABLE cannot be
+	 * concurrently set while the object is locked.  Thus, if PG_WRITEABLE
+	 * is clear, no TTEs can have VTD_W set.
+	 */
+	VM_OBJECT_LOCK_ASSERT(m->object, MA_OWNED);
+	if ((m->oflags & VPO_BUSY) == 0 &&
+	    (m->flags & PG_WRITEABLE) == 0)
+		return (FALSE);
+	vm_page_lock_queues();
+	rv = tte_get_phys_bit(m, VTD_W);
+	vm_page_unlock_queues();
+	return (rv);
 }
 
 
@@ -1652,7 +1687,7 @@ pmap_map(vm_offset_t *virt, vm_paddr_t start, vm_paddr_t end, int prot)
 }
 
 int 
-pmap_mincore(pmap_t pmap, vm_offset_t addr)
+pmap_mincore(pmap_t pmap, vm_offset_t addr, vm_paddr_t *locked_pa)
 {
 	return (0);
 }

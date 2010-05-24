@@ -817,19 +817,13 @@ vm_object_page_clean(vm_object_t object, vm_pindex_t start, vm_pindex_t end, int
 				++tscan;
 				continue;
 			}
-			vm_page_lock(p);
-			vm_page_lock_queues();
 			vm_page_test_dirty(p);
 			if (p->dirty == 0) {
-				vm_page_unlock_queues();
-				vm_page_unlock(p);
 				if (--scanlimit == 0)
 					break;
 				++tscan;
 				continue;
 			}
-			vm_page_unlock_queues();
-			vm_page_unlock(p);
 			/*
 			 * If we have been asked to skip nosync pages and 
 			 * this is a nosync page, we can't continue.
@@ -900,17 +894,11 @@ again:
 			continue;
 		}
 
-		vm_page_lock(p);
-		vm_page_lock_queues();
 		vm_page_test_dirty(p);
 		if (p->dirty == 0) {
-			vm_page_unlock_queues();
-			vm_page_unlock(p);
 			p->oflags &= ~VPO_CLEANCHK;
 			continue;
 		}
-		vm_page_unlock_queues();
-		vm_page_unlock(p);
 		/*
 		 * If we have been asked to skip nosync pages and this is a
 		 * nosync page, skip it.  Note that the object flags were
@@ -977,17 +965,11 @@ vm_object_page_collect_flush(vm_object_t object, vm_page_t p, int curgeneration,
 				 (tp->oflags & VPO_CLEANCHK) == 0) ||
 				(tp->busy != 0))
 				break;
-			vm_page_lock(tp);
-			vm_page_lock_queues();
 			vm_page_test_dirty(tp);
 			if (tp->dirty == 0) {
-				vm_page_unlock(tp);
-				vm_page_unlock_queues();
 				tp->oflags &= ~VPO_CLEANCHK;
 				break;
 			}
-			vm_page_unlock(tp);
-			vm_page_unlock_queues();
 			maf[ i - 1 ] = tp;
 			maxf++;
 			continue;
@@ -1007,17 +989,11 @@ vm_object_page_collect_flush(vm_object_t object, vm_page_t p, int curgeneration,
 					 (tp->oflags & VPO_CLEANCHK) == 0) ||
 					(tp->busy != 0))
 					break;
-				vm_page_lock(tp);
-				vm_page_lock_queues();
 				vm_page_test_dirty(tp);
 				if (tp->dirty == 0) {
-					vm_page_unlock_queues();
-					vm_page_unlock(tp);
 					tp->oflags &= ~VPO_CLEANCHK;
 					break;
 				}
-				vm_page_unlock_queues();
-				vm_page_unlock(tp);
 				mab[ i - 1 ] = tp;
 				maxb++;
 				continue;
@@ -1217,21 +1193,23 @@ shadowlookup:
 		 * If the page is not in a normal state, skip it.
 		 */
 		vm_page_lock(m);
-		vm_page_lock_queues();
 		if (m->hold_count != 0 || m->wire_count != 0) {
-			vm_page_unlock_queues();
 			vm_page_unlock(m);
 			goto unlock_tobject;
 		}
+		KASSERT((m->flags & (PG_FICTITIOUS | PG_UNMANAGED)) == 0,
+		    ("vm_object_madvise: page %p is not managed", m));
 		if ((m->oflags & VPO_BUSY) || m->busy) {
-			if (advise == MADV_WILLNEED)
+			if (advise == MADV_WILLNEED) {
 				/*
 				 * Reference the page before unlocking and
 				 * sleeping so that the page daemon is less
 				 * likely to reclaim it. 
 				 */
+				vm_page_lock_queues();
 				vm_page_flag_set(m, PG_REFERENCED);
-			vm_page_unlock_queues();
+				vm_page_unlock_queues();
+			}
 			vm_page_unlock(m);
 			if (object != tobject)
 				VM_OBJECT_UNLOCK(object);
@@ -1266,7 +1244,6 @@ shadowlookup:
 			m->act_count = 0;
 			vm_page_dontneed(m);
 		}
-		vm_page_unlock_queues();
 		vm_page_unlock(m);
 		if (advise == MADV_FREE && tobject->type == OBJT_SWAP)
 			swap_pager_freespace(tobject, tpindex, 1);
