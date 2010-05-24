@@ -8329,6 +8329,7 @@ bwn_phy_reset(struct bwn_mac *mac)
 static int
 bwn_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 {
+	const struct ieee80211_txparam *tp;
 	struct bwn_vap *bvp = BWN_VAP(vap);
 	struct ieee80211com *ic= vap->iv_ic;
 	struct ifnet *ifp = ic->ic_ifp;
@@ -8377,6 +8378,11 @@ bwn_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 		bwn_set_pretbtt(mac);
 		bwn_spu_setdelay(mac, 0);
 		bwn_set_macaddr(mac);
+
+		/* Initializes ratectl for a node. */
+		tp = &vap->iv_txparms[ieee80211_chan2mode(ic->ic_curchan)];
+		if (tp->ucastrate == IEEE80211_FIXED_RATE_NONE)
+			ieee80211_ratectl_node_init(vap->iv_bss);
 	}
 
 	BWN_UNLOCK(sc);
@@ -8994,7 +9000,7 @@ bwn_handle_txeof(struct bwn_mac *mac, const struct bwn_txstatus *status)
 	struct bwn_stats *stats = &mac->mac_stats;
 	struct ieee80211_node *ni;
 	struct ieee80211vap *vap;
-	int slot;
+	int retrycnt = 0, slot;
 
 	BWN_ASSERT_LOCKED(mac->mac_sc);
 
@@ -9027,7 +9033,7 @@ bwn_handle_txeof(struct bwn_mac *mac, const struct bwn_txstatus *status)
 					    status->ack ?
 					      IEEE80211_RATECTL_TX_SUCCESS :
 					      IEEE80211_RATECTL_TX_FAILURE,
-					    NULL, 0);
+					    &retrycnt, 0);
 					break;
 				}
 				slot = bwn_dma_nextslot(dr, slot);
@@ -9048,7 +9054,7 @@ bwn_handle_txeof(struct bwn_mac *mac, const struct bwn_txstatus *status)
 			    status->ack ?
 			      IEEE80211_RATECTL_TX_SUCCESS :
 			      IEEE80211_RATECTL_TX_FAILURE,
-			    NULL, 0);
+			    &retrycnt, 0);
 		}
 		bwn_pio_handle_txeof(mac, status);
 	}
