@@ -374,6 +374,12 @@ int	profprocs;
 int	ticks;
 int	psratio;
 
+int	timer1hz;
+int	timer2hz;
+static DPCPU_DEFINE(u_int, hard_cnt);
+static DPCPU_DEFINE(u_int, stat_cnt);
+static DPCPU_DEFINE(u_int, prof_cnt);
+
 /*
  * Initialize clock frequencies and start both clocks running.
  */
@@ -401,6 +407,52 @@ initclocks(dummy)
 #ifdef SW_WATCHDOG
 	EVENTHANDLER_REGISTER(watchdog_list, watchdog_config, NULL, 0);
 #endif
+}
+
+void
+timer1clock(int usermode, uintfptr_t pc)
+{
+	u_int *cnt;
+
+	cnt = DPCPU_PTR(hard_cnt);
+	*cnt += hz;
+	if (*cnt >= timer1hz) {
+		*cnt -= timer1hz;
+		if (*cnt >= timer1hz)
+			*cnt = 0;
+		if (PCPU_GET(cpuid) == 0)
+			hardclock(usermode, pc);
+		else
+			hardclock_cpu(usermode);
+	}
+	if (timer2hz == 0)
+		timer2clock(usermode, pc);
+}
+
+void
+timer2clock(int usermode, uintfptr_t pc)
+{
+	u_int *cnt;
+	int t2hz = timer2hz ? timer2hz : timer1hz;
+
+	cnt = DPCPU_PTR(stat_cnt);
+	*cnt += stathz;
+	if (*cnt >= t2hz) {
+		*cnt -= t2hz;
+		if (*cnt >= t2hz)
+			*cnt = 0;
+		statclock(usermode);
+	}
+	if (profprocs == 0)
+		return;
+	cnt = DPCPU_PTR(prof_cnt);
+	*cnt += profhz;
+	if (*cnt >= t2hz) {
+		*cnt -= t2hz;
+		if (*cnt >= t2hz)
+			*cnt = 0;
+			profclock(usermode, pc);
+	}
 }
 
 /*

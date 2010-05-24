@@ -124,8 +124,7 @@
 #define IPI_PREEMPT     1
 #define IPI_HARDCLOCK   2 
 #define IPI_STATCLOCK   3 
-#define IPI_PROFCLOCK   4 
-#define IPI_BITMAP_LAST IPI_PROFCLOCK
+#define IPI_BITMAP_LAST IPI_STATCLOCK
 #define IPI_IS_BITMAPED(x) ((x) <= IPI_BITMAP_LAST)
 
 #define	IPI_STOP	(APIC_IPI_INTS + 7)	/* Stop CPU until restarted. */
@@ -152,8 +151,7 @@
 #define IPI_PREEMPT     1
 #define IPI_HARDCLOCK   2 
 #define IPI_STATCLOCK   3 
-#define IPI_PROFCLOCK   4 
-#define IPI_BITMAP_LAST IPI_PROFCLOCK
+#define IPI_BITMAP_LAST IPI_STATCLOCK
 #define IPI_IS_BITMAPED(x) ((x) <= IPI_BITMAP_LAST)
 
 #define	IPI_STOP	(APIC_IPI_INTS + 7)	/* Stop CPU until restarted. */
