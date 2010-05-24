@@ -225,6 +225,8 @@ fifolog_reader_chop(struct fifolog_reader *fr, fifolog_reader_render_t *func, vo
 		if (u & FIFOLOG_LENGTH) {
 			v = p[w];
 			w++;
+			if (p + w + v >= q)
+				return (p);
 		} else {
 			for (v = 0; p + v + w < q && p[v + w] != '\0'; v++)
 				continue;
