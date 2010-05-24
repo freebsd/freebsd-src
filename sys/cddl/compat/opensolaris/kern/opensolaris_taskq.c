@@ -40,12 +40,6 @@ __FBSDID("$FreeBSD$");
 
 static uma_zone_t taskq_zone;
 
-struct ostask {
-	struct task	ost_task;
-	task_func_t	*ost_func;
-	void		*ost_arg;
-};
-
 taskq_t *system_taskq = NULL;
 
 static void
@@ -136,6 +130,35 @@ taskq_dispatch(taskq_t *tq, task_func_t func, void *arg, uint_t flags)
 	task->ost_arg = arg;
 
 	TASK_INIT(&task->ost_task, 0, taskq_run, task);
+	taskqueue_enqueue(tq->tq_queue, &task->ost_task);
+
+	return ((taskqid_t)(void *)task);
+}
+
+#define	TASKQ_MAGIC	0x74541c
+
+static void
+taskq_run_safe(void *arg, int pending __unused)
+{
+	struct ostask *task = arg;
+
+	ASSERT(task->ost_magic == TASKQ_MAGIC);
+	task->ost_func(task->ost_arg);
+	task->ost_magic = 0;
+}
+
+taskqid_t
+taskq_dispatch_safe(taskq_t *tq, task_func_t func, void *arg,
+    struct ostask *task)
+{
+
+	ASSERT(task->ost_magic != TASKQ_MAGIC);
+
+	task->ost_magic = TASKQ_MAGIC;
+	task->ost_func = func;
+	task->ost_arg = arg;
+
+	TASK_INIT(&task->ost_task, 0, taskq_run_safe, task);
 	taskqueue_enqueue(tq->tq_queue, &task->ost_task);
 
 	return ((taskqid_t)(void *)task);
