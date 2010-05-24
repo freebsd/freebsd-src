@@ -13,7 +13,7 @@ SRCS=	linux${SFX}_dummy.c linux_emul.c linux_file.c \
 	linux${SFX}_machdep.c linux_mib.c linux_misc.c linux_signal.c \
 	linux_socket.c linux_stats.c linux_sysctl.c linux${SFX}_sysent.c \
 	linux${SFX}_sysvec.c linux_uid16.c linux_util.c linux_time.c \
-	opt_inet6.h opt_compat.h opt_posix.h vnode_if.h \
+	opt_inet6.h opt_compat.h opt_posix.h opt_usb.h vnode_if.h \
 	device_if.h bus_if.h assym.s
 
 # XXX: for assym.s
