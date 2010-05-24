@@ -103,8 +103,7 @@ _pthread_condattr_setclock(pthread_condattr_t *attr, clockid_t clock_id)
 }
 
 int
-_pthread_condattr_getpshared(const pthread_condattr_t *attr,
-	int *pshared)
+_pthread_condattr_getpshared(const pthread_condattr_t *attr, int *pshared)
 {
 	if (attr == NULL || *attr == NULL)
 		return (EINVAL);
