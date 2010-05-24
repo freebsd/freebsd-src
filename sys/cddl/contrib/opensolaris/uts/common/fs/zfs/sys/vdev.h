@@ -85,6 +85,7 @@ extern void vdev_clear(spa_t *spa, vdev_t *vd);
 extern boolean_t vdev_is_dead(vdev_t *vd);
 extern boolean_t vdev_readable(vdev_t *vd);
 extern boolean_t vdev_writeable(vdev_t *vd);
+extern boolean_t vdev_allocatable(vdev_t *vd);
 extern boolean_t vdev_accessible(vdev_t *vd, zio_t *zio);
 
 extern void vdev_cache_init(vdev_t *vd);

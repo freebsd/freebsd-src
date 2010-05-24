@@ -134,6 +134,7 @@ static int
 traverse_visitbp(struct traverse_data *td, const dnode_phys_t *dnp,
     arc_buf_t *pbuf, blkptr_t *bp, const zbookmark_t *zb)
 {
+	zbookmark_t czb;
 	int err = 0;
 	arc_buf_t *buf = NULL;
 	struct prefetch_data *pd = td->td_pfd;
@@ -179,8 +180,6 @@ traverse_visitbp(struct traverse_data *td, const dnode_phys_t *dnp,
 		/* recursively visitbp() blocks below this */
 		cbp = buf->b_data;
 		for (i = 0; i < epb; i++, cbp++) {
-			zbookmark_t czb;
-
 			SET_BOOKMARK(&czb, zb->zb_objset, zb->zb_object,
 			    zb->zb_level - 1,
 			    zb->zb_blkid * epb + i);
@@ -203,8 +202,6 @@ traverse_visitbp(struct traverse_data *td, const dnode_phys_t *dnp,
 		dnp = buf->b_data;
 		for (i = 0; i < epb && err == 0; i++, dnp++) {
 			for (j = 0; j < dnp->dn_nblkptr; j++) {
-				zbookmark_t czb;
-
 				SET_BOOKMARK(&czb, zb->zb_objset,
 				    zb->zb_blkid * epb + i,
 				    dnp->dn_nlevels - 1, j);
@@ -229,8 +226,6 @@ traverse_visitbp(struct traverse_data *td, const dnode_phys_t *dnp,
 		traverse_zil(td, &osp->os_zil_header);
 
 		for (j = 0; j < osp->os_meta_dnode.dn_nblkptr; j++) {
-			zbookmark_t czb;
-
 			SET_BOOKMARK(&czb, zb->zb_objset, 0,
 			    osp->os_meta_dnode.dn_nlevels - 1, j);
 			err = traverse_visitbp(td, &osp->os_meta_dnode, buf,
