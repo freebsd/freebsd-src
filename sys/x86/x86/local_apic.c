@@ -1195,8 +1195,9 @@ apic_register_enumerator(struct apic_enumerator *enumerator)
 }
 
 /*
- * Probe the APIC enumerators, enumerate CPUs, and initialize the
- * local APIC.
+ * We have to look for CPU's very, very early because certain subsystems
+ * want to know how many CPU's we have extremely early on in the boot
+ * process.
  */
 static void
 apic_init(void *dummy __unused)
@@ -1257,13 +1258,34 @@ apic_init(void *dummy __unused)
 		printf("%s: Failed to probe CPUs: returned %d\n",
 		    best_enum->apic_name, retval);
 
+#ifdef __amd64__
+}
+SYSINIT(apic_init, SI_SUB_TUNABLES - 1, SI_ORDER_SECOND, apic_init, NULL);
+
+/*
+ * Setup the local APIC.  We have to do this prior to starting up the APs
+ * in the SMP case.
+ */
+static void
+apic_setup_local(void *dummy __unused)
+{
+	int retval;
+ 
+	if (best_enum == NULL)
+		return;
+#endif
 	/* Third, initialize the local APIC. */
 	retval = best_enum->apic_setup_local();
 	if (retval != 0)
 		printf("%s: Failed to setup the local APIC: returned %d\n",
 		    best_enum->apic_name, retval);
 }
+#ifdef __amd64__
+SYSINIT(apic_setup_local, SI_SUB_CPU, SI_ORDER_SECOND, apic_setup_local,
+    NULL);
+#else
 SYSINIT(apic_init, SI_SUB_CPU, SI_ORDER_SECOND, apic_init, NULL);
+#endif
 
 /*
  * Setup the I/O APICs.
