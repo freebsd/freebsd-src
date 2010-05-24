@@ -76,7 +76,7 @@ static void	calcru1(struct proc *p, struct rusage_ext *ruxp,
 		    struct timeval *up, struct timeval *sp);
 static int	donice(struct thread *td, struct proc *chgp, int n);
 static struct uidinfo *uilookup(uid_t uid);
-static void	ruxagg(struct proc *p, struct thread *td);
+static void	ruxagg_locked(struct rusage_ext *rux, struct thread *td);
 
 /*
  * Resource controls and accounting.
@@ -1010,7 +1010,7 @@ ruadd(struct rusage *ru, struct rusage_ext *rux, struct rusage *ru2,
 /*
  * Aggregate tick counts into the proc's rusage_ext.
  */
-void
+static void
 ruxagg_locked(struct rusage_ext *rux, struct thread *td)
 {
 
@@ -1022,7 +1022,7 @@ ruxagg_locked(struct rusage_ext *rux, struct thread *td)
 	rux->rux_iticks += td->td_iticks;
 }
 
-static void
+void
 ruxagg(struct proc *p, struct thread *td)
 {
 
