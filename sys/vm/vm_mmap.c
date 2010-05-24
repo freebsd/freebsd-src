@@ -772,8 +772,13 @@ mincore(td, uap)
 	int vecindex, lastvecindex;
 	vm_map_entry_t current;
 	vm_map_entry_t entry;
+	vm_object_t object;
+	vm_paddr_t locked_pa;
+	vm_page_t m;
+	vm_pindex_t pindex;
 	int mincoreinfo;
 	unsigned int timestamp;
+	boolean_t locked;
 
 	/*
 	 * Make sure that the addresses presented are valid for user
@@ -847,38 +852,74 @@ RestartScan:
 			 * it can provide info as to whether we are the
 			 * one referencing or modifying the page.
 			 */
-			mincoreinfo = pmap_mincore(pmap, addr);
-			if (!mincoreinfo) {
-				vm_pindex_t pindex;
-				vm_ooffset_t offset;
-				vm_page_t m;
+			object = NULL;
+			locked_pa = 0;
+		retry:
+			m = NULL;
+			mincoreinfo = pmap_mincore(pmap, addr, &locked_pa);
+			if (locked_pa != 0) {
 				/*
-				 * calculate the page index into the object
+				 * The page is mapped by this process but not
+				 * both accessed and modified.  It is also
+				 * managed.  Acquire the object lock so that
+				 * other mappings might be examined.
 				 */
-				offset = current->offset + (addr - current->start);
-				pindex = OFF_TO_IDX(offset);
-				VM_OBJECT_LOCK(current->object.vm_object);
-				m = vm_page_lookup(current->object.vm_object,
-					pindex);
-				/*
-				 * if the page is resident, then gather information about
-				 * it.
-				 */
-				if (m != NULL && m->valid != 0) {
-					mincoreinfo = MINCORE_INCORE;
-					vm_page_lock(m);
-					vm_page_lock_queues();
-					if (m->dirty ||
-						pmap_is_modified(m))
-						mincoreinfo |= MINCORE_MODIFIED_OTHER;
-					if ((m->flags & PG_REFERENCED) ||
-					    pmap_is_referenced(m))
-						mincoreinfo |= MINCORE_REFERENCED_OTHER;
-					vm_page_unlock_queues();
+				m = PHYS_TO_VM_PAGE(locked_pa);
+				if (m->object != object) {
+					if (object != NULL)
+						VM_OBJECT_UNLOCK(object);
+					object = m->object;
+					locked = VM_OBJECT_TRYLOCK(object);
 					vm_page_unlock(m);
+					if (!locked) {
+						VM_OBJECT_LOCK(object);
+						vm_page_lock(m);
+						goto retry;
+					}
+				} else
+					vm_page_unlock(m);
+				KASSERT(m->valid == VM_PAGE_BITS_ALL,
+				    ("mincore: page %p is mapped but invalid",
+				    m));
+			} else if (mincoreinfo == 0) {
+				/*
+				 * The page is not mapped by this process.  If
+				 * the object implements managed pages, then
+				 * determine if the page is resident so that
+				 * the mappings might be examined.
+				 */
+				if (current->object.vm_object != object) {
+					if (object != NULL)
+						VM_OBJECT_UNLOCK(object);
+					object = current->object.vm_object;
+					VM_OBJECT_LOCK(object);
 				}
-				VM_OBJECT_UNLOCK(current->object.vm_object);
+				if (object->type == OBJT_DEFAULT ||
+				    object->type == OBJT_SWAP ||
+				    object->type == OBJT_VNODE) {
+					pindex = OFF_TO_IDX(current->offset +
+					    (addr - current->start));
+					m = vm_page_lookup(object, pindex);
+					if (m != NULL && m->valid == 0)
+						m = NULL;
+					if (m != NULL)
+						mincoreinfo = MINCORE_INCORE;
+				}
 			}
+			if (m != NULL) {
+				/* Examine other mappings to the page. */
+				if (m->dirty == 0 && pmap_is_modified(m))
+					vm_page_dirty(m);
+				if (m->dirty != 0)
+					mincoreinfo |= MINCORE_MODIFIED_OTHER;
+				vm_page_lock_queues();
+				if ((m->flags & PG_REFERENCED) != 0 ||
+				    pmap_is_referenced(m))
+					mincoreinfo |= MINCORE_REFERENCED_OTHER;
+				vm_page_unlock_queues();
+			}
+			if (object != NULL)
+				VM_OBJECT_UNLOCK(object);
 
 			/*
 			 * subyte may page fault.  In case it needs to modify
