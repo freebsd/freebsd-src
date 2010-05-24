@@ -2,22 +2,23 @@
 
 
 
-
 DNS Extensions Working Group                                Edward Lewis
 Internet-Draft                                             NeuStar, Inc.
 Updates: 1034, 1035 (if approved)                         A. Hoenes, Ed.
 Intended status: Standards Track                                  TR-Sys
-Expires: July 18, 2010                                  January 18, 2010
+Expires: September 26, 2010                               March 26, 2010
 
 
                     DNS Zone Transfer Protocol (AXFR)
-                    draft-ietf-dnsext-axfr-clarify-13
+                    draft-ietf-dnsext-axfr-clarify-14
 
 Abstract
 
-   The Domain Name System standard mechanisms for maintaining coherent
-   servers for a zone consist of three elements.  One mechanism is the
-   Authoritative Transfer (AXFR) defined in RFC 1034 and RFC 1035.
+   The standard means within the Domain Name System protocol for
+   maintaining coherence among a zone's authoritative name servers
+   consists of three mechanisms.  Authoritative Transfer (AXFR) is one
+   of the mechanisms and is defined in RFC 1034 and RFC 1035.
+
    The definition of AXFR has proven insufficient in detail, thereby
    forcing implementations intended to be compliant to make assumptions,
    impeding interoperability.  Yet today we have a satisfactory set of
@@ -28,7 +29,7 @@ Abstract
 Status of this Memo
 
    This Internet-Draft is submitted in full conformance with the
-   provisions of BCP 78 and BCP 79. This document may contain material
+   provisions of BCP 78 and BCP 79.  This document may contain material
    from IETF Documents or IETF Contributions published or made publicly
    available before November 10, 2008.  The person(s) controlling the
    copyright in some of this material may not have granted the IETF
@@ -54,16 +55,15 @@ Status of this Memo
    http://www.ietf.org/1id-abstracts.html
 
 
-
-Lewis & Hoenes            Expires July 18, 2010                 [Page 1]
+Lewis & Hoenes         Expires September 26, 2010               [Page 1]
 
-Internet-Draft      DNS Zone Transfer Protocol (AXFR)       January 2010
+Internet-Draft      DNS Zone Transfer Protocol (AXFR)         March 2010
 
 
    The list of Internet-Draft Shadow Directories can be accessed at
    http://www.ietf.org/shadow.html
 
-   This Internet-Draft will expire on July 18, 2010.
+   This Internet-Draft will expire on September 26, 2010.
 
 Copyright Notice
 
@@ -111,9 +111,9 @@ Copyright Notice
 
 
 
-Lewis & Hoenes            Expires July 18, 2010                 [Page 2]
+Lewis & Hoenes         Expires September 26, 2010               [Page 2]
 
-Internet-Draft      DNS Zone Transfer Protocol (AXFR)       January 2010
+Internet-Draft      DNS Zone Transfer Protocol (AXFR)         March 2010
 
 
 Table of Contents
@@ -157,9 +157,9 @@ Table of Contents
    9.  IANA Considerations  . . . . . . . . . . . . . . . . . . . . 25
    10.  Internationalization Considerations . . . . . . . . . . . . 25
    11.  Acknowledgments . . . . . . . . . . . . . . . . . . . . . . 25
-   12.  References  . . . . . . . . . . . . . . . . . . . . . . . . 25
+   12.  References  . . . . . . . . . . . . . . . . . . . . . . . . 26
    12.1.  Normative References  . ..  . . . . . . . . . . . . . . . 26
-   12.2.  Informative References  . . . . . . . . . . . . . . . . . 27
+   12.2.  Informative References  . . . . . . . . . . . . . . . . . 28
    Authors' Addresses . . . . . . . . . . . . . . . . . . . . . . . 28
 
 
@@ -167,9 +167,9 @@ Table of Contents
 
 
 
-Lewis & Hoenes            Expires July 18, 2010                 [Page 3]
+Lewis & Hoenes         Expires September 26, 2010               [Page 3]
 
-Internet-Draft      DNS Zone Transfer Protocol (AXFR)       January 2010
+Internet-Draft      DNS Zone Transfer Protocol (AXFR)         March 2010
 
 
 1.  Introduction
@@ -223,9 +223,9 @@ Internet-Draft      DNS Zone Transfer Protocol (AXFR)       January 2010
    data stored in relational databases (as opposed to master files),
 
 
-Lewis & Hoenes            Expires July 18, 2010                 [Page 4]
+Lewis & Hoenes         Expires September 26, 2010               [Page 4]
 
-Internet-Draft      DNS Zone Transfer Protocol (AXFR)       January 2010
+Internet-Draft      DNS Zone Transfer Protocol (AXFR)         March 2010
 
 
    relying on the database's non-DNS means to synchronize the database
@@ -279,9 +279,9 @@ Internet-Draft      DNS Zone Transfer Protocol (AXFR)       January 2010
    AXFR.
 
 
-Lewis & Hoenes            Expires July 18, 2010                 [Page 5]
+Lewis & Hoenes         Expires September 26, 2010               [Page 5]
 
-Internet-Draft      DNS Zone Transfer Protocol (AXFR)       January 2010
+Internet-Draft      DNS Zone Transfer Protocol (AXFR)         March 2010
 
 
    This document will update the specification of AXFR.  To this end, it
@@ -291,7 +291,8 @@ Internet-Draft      DNS Zone Transfer Protocol (AXFR)       January 2010
    4.2.2 of RFC 1035.  Furthermore, it discusses backward compatibility
    issues and provides policy/management considerations as well as
    specific Security Considerations for AXFR.  The goal of this document
-   is to define AXFR as it exists, or is supposed to exist, currently.
+   is to define AXFR as it is understood by the DNS community to exist
+   today.
 
 
 
@@ -334,10 +335,9 @@ Internet-Draft      DNS Zone Transfer Protocol (AXFR)       January 2010
 
 
 
-
-Lewis & Hoenes            Expires July 18, 2010                 [Page 6]
+Lewis & Hoenes         Expires September 26, 2010               [Page 6]
 
-Internet-Draft      DNS Zone Transfer Protocol (AXFR)       January 2010
+Internet-Draft      DNS Zone Transfer Protocol (AXFR)         March 2010
 
 
 2.  AXFR Messages
@@ -385,15 +385,15 @@ Internet-Draft      DNS Zone Transfer Protocol (AXFR)       January 2010
    -  "Clarifications and Implementation Notes for DNSSECbis" [DNSSEC-U]
 
    These documents contain information about the syntax and semantics of
-   DNS messages.  They ought not interfere with AXFR but are also
-   helpful in understanding what will be carried via AXFR.
+   DNS messages.  They do not interfere with AXFR but are also helpful
+   in understanding what will be carried via AXFR.
 
 
 
 
-Lewis & Hoenes            Expires July 18, 2010                 [Page 7]
+Lewis & Hoenes         Expires September 26, 2010               [Page 7]
 
-Internet-Draft      DNS Zone Transfer Protocol (AXFR)       January 2010
+Internet-Draft      DNS Zone Transfer Protocol (AXFR)         March 2010
 
 
    For convenience, the synopsis of the DNS message header from
@@ -447,9 +447,9 @@ Internet-Draft      DNS Zone Transfer Protocol (AXFR)       January 2010
 
 
 
-Lewis & Hoenes            Expires July 18, 2010                 [Page 8]
+Lewis & Hoenes         Expires September 26, 2010               [Page 8]
 
-Internet-Draft      DNS Zone Transfer Protocol (AXFR)       January 2010
+Internet-Draft      DNS Zone Transfer Protocol (AXFR)         March 2010
 
 
 2.1.1.  Header Values
@@ -503,20 +503,20 @@ Internet-Draft      DNS Zone Transfer Protocol (AXFR)       January 2010
 
 
 
-Lewis & Hoenes            Expires July 18, 2010                 [Page 9]
+Lewis & Hoenes         Expires September 26, 2010               [Page 9]
 
-Internet-Draft      DNS Zone Transfer Protocol (AXFR)       January 2010
+Internet-Draft      DNS Zone Transfer Protocol (AXFR)         March 2010
 
 
    d) The client MUST set this field to the number of resource records
-      it places into the Additional section.  In the absense of explicit
+      it places into the Additional section.  In the absence of explicit
       specification of new RRs to be carried in the Additional section
       of AXFR queries, the value MAY be 0, 1 or 2.  See Section 2.1.5
       "Additional Section" for details on the currently applicable RRs.
 
 2.1.2.  Question Section
 
-   The Question Section of the AXFR query MUST conform to Section 4.1.2
+   The Question section of the AXFR query MUST conform to Section 4.1.2
    of RFC 1035, and contain a single resource record with the following
    values:
 
@@ -543,25 +543,25 @@ Internet-Draft      DNS Zone Transfer Protocol (AXFR)       January 2010
    carried in the Additional section of normal DNS transactions need to
    explicitly describe their use with AXFR, should that be desired.
 
-   The client MAY include one EDNS0 OPT [RFC2671] resource record.  If
+   The client MAY include one OPT resource record [RFC2671].  If
    the server does not support EDNS0, the client MUST send this section
-   without an EDNS0 OPT resource record if there is a retry.  However,
+   without an OPT resource record if there is a retry.  However,
    the protocol does not define an explicit indication that the server
    does not support EDNS0; that needs to be inferred by the client.
    Often, the server will return a FormErr(1) which might be related to
    the OPT resource record.  Note that, at the time of this writing,
-   only the EXTENDED-RCODE field of the EDNS0 OPT RR is meaningful in
-   the context of AXFR; future specifications of EDNS0 flags and/or
-   EDNS0 options must describe their usage in the context of AXFR, if
+   only the EXTENDED-RCODE field of the OPT RR is meaningful in
+   the context of AXFR; future specifications of EDNS flags and/or
+   EDNS options must describe their usage in the context of AXFR, if
    applicable.
 
    The client MAY include one transaction integrity and authentication
    resource record, currently a choice of TSIG [RFC2845] or SIG(0)
 
 
-Lewis & Hoenes            Expires July 18, 2010                [Page 10]
+Lewis & Hoenes         Expires September 26, 2010              [Page 10]
 
-Internet-Draft      DNS Zone Transfer Protocol (AXFR)       January 2010
+Internet-Draft      DNS Zone Transfer Protocol (AXFR)         March 2010
 
 
    [RFC2931].  If the server has indicated that it does not recognize
@@ -578,7 +578,7 @@ Internet-Draft      DNS Zone Transfer Protocol (AXFR)       January 2010
 
    The range of permissible resource records that MAY appear in the
    Additional section might change over time.  If either a change to an
-   existing resource record (like the OPT RR for EDNS0) is made or a new
+   existing resource record (like the OPT RR for EDNS) is made or a new
    Additional section record is created, the new definitions ought to
    include a discussion on the applicability and impact upon AXFR.
    Future resource records residing in the Additional section might have
@@ -615,9 +615,9 @@ Internet-Draft      DNS Zone Transfer Protocol (AXFR)       January 2010
    AXFR clients MUST ignore any duplicate RRs received.
 
 
-Lewis & Hoenes            Expires July 18, 2010                [Page 11]
+Lewis & Hoenes         Expires September 26, 2010              [Page 11]
 
-Internet-Draft      DNS Zone Transfer Protocol (AXFR)       January 2010
+Internet-Draft      DNS Zone Transfer Protocol (AXFR)         March 2010
 
 
    Each AXFR response message SHOULD contain a sufficient number of RRs
@@ -671,9 +671,9 @@ Internet-Draft      DNS Zone Transfer Protocol (AXFR)       January 2010
       NSCOUNT     MUST be 0
 
 
-Lewis & Hoenes            Expires July 18, 2010                [Page 12]
+Lewis & Hoenes         Expires September 26, 2010              [Page 12]
 
-Internet-Draft      DNS Zone Transfer Protocol (AXFR)       January 2010
+Internet-Draft      DNS Zone Transfer Protocol (AXFR)         March 2010
 
 
       ARCOUNT     See Note g)
@@ -721,15 +721,15 @@ Internet-Draft      DNS Zone Transfer Protocol (AXFR)       January 2010
       (Reminder, consult the appropriate IANA registry [DNSVALS].)  If a
       client receives any other value in response, it MUST act according
       to the error.  For example, a malformed AXFR query or the presence
-      of an EDNS0 OPT resource record sent to an old server will result
+      of an OPT resource record sent to an old server will result
       in a FormErr(1) value.  This value is not set as part of the AXFR-
       specific response processing.  The same is true for other values
       indicating an error.
 
 
-Lewis & Hoenes            Expires July 18, 2010                [Page 13]
+Lewis & Hoenes         Expires September 26, 2010              [Page 13]
 
-Internet-Draft      DNS Zone Transfer Protocol (AXFR)       January 2010
+Internet-Draft      DNS Zone Transfer Protocol (AXFR)         March 2010
 
 
    f) The count of answer records MUST equal the number of resource
@@ -739,7 +739,7 @@ Internet-Draft      DNS Zone Transfer Protocol (AXFR)       January 2010
       client's limitations via configuration data.
 
    g) The server MUST set this field to the number of resource records
-      it places into the Additional section.  In the absense of explicit
+      it places into the Additional section.  In the absence of explicit
       specification of new RRs to be carried in the Additional section
       of AXFR response messages, the value MAY be 0, 1 or 2.  See
       Section 2.1.5 above for details on the currently applicable RRs
@@ -766,16 +766,16 @@ Internet-Draft      DNS Zone Transfer Protocol (AXFR)       January 2010
 
 2.2.5.  Additional Section
 
-   The contents of this section MUST follow the guidelines for EDNS0 and
-   TSIG, SIG(0), or whatever other future record is possible here.  The
-   contents of Section 2.1.5 apply analogously as well.
+   The contents of this section MUST follow the guidelines for the OPT,
+   TSIG, and SIG(0) RRs, or whatever other future record is possible
+   here.  The contents of Section 2.1.5 apply analogously as well.
 
    The following considerations specifically apply to AXFR responses:
 
-   If the client has supplied an EDNS0 OPT RR in the AXFR query and if
-   the server supports ENDS0 as well, it SHOULD include one EDNS0 OPT RR
+   If the client has supplied an EDNS OPT RR in the AXFR query and if
+   the server supports EDNS as well, it SHOULD include one OPT RR
    in the first response message and MAY do so in subsequent response
-   messages (see Section 2.2); the specifications of EDNS0 options to be
+   messages (see Section 2.2); the specifications of EDNS options to be
    carried in the OPT RR may impose stronger requirements.
 
    If the client has supplied a transaction security resource record
@@ -783,9 +783,9 @@ Internet-Draft      DNS Zone Transfer Protocol (AXFR)       January 2010
    method chosen by the client, it MUST place the corresponding resource
 
 
-Lewis & Hoenes            Expires July 18, 2010                [Page 14]
+Lewis & Hoenes         Expires September 26, 2010              [Page 14]
 
-Internet-Draft      DNS Zone Transfer Protocol (AXFR)       January 2010
+Internet-Draft      DNS Zone Transfer Protocol (AXFR)         March 2010
 
 
    record into the AXFR response message(s), according to the rules
@@ -839,9 +839,9 @@ Internet-Draft      DNS Zone Transfer Protocol (AXFR)       January 2010
    in Section 6 of RFC 2181.
 
 
-Lewis & Hoenes            Expires July 18, 2010                [Page 15]
+Lewis & Hoenes         Expires September 26, 2010              [Page 15]
 
-Internet-Draft      DNS Zone Transfer Protocol (AXFR)       January 2010
+Internet-Draft      DNS Zone Transfer Protocol (AXFR)         March 2010
 
 
    Zones for which it is impractical to list the entire zone for a
@@ -895,9 +895,9 @@ Internet-Draft      DNS Zone Transfer Protocol (AXFR)       January 2010
       single zone.
 
 
-Lewis & Hoenes            Expires July 18, 2010                [Page 16]
+Lewis & Hoenes         Expires September 26, 2010              [Page 16]
 
-Internet-Draft      DNS Zone Transfer Protocol (AXFR)       January 2010
+Internet-Draft      DNS Zone Transfer Protocol (AXFR)         March 2010
 
 
    o  Different NSEC [RFC4034] (or NSEC3 [RFC5155]) resource records
@@ -951,9 +951,9 @@ Internet-Draft      DNS Zone Transfer Protocol (AXFR)       January 2010
    more authoritative set, concealing the error.)
 
 
-Lewis & Hoenes            Expires July 18, 2010                [Page 17]
+Lewis & Hoenes         Expires September 26, 2010              [Page 17]
 
-Internet-Draft      DNS Zone Transfer Protocol (AXFR)       January 2010
+Internet-Draft      DNS Zone Transfer Protocol (AXFR)         March 2010
 
 
    3) The inconsistent NS resource record set might indicate a problem
@@ -1007,9 +1007,9 @@ Internet-Draft      DNS Zone Transfer Protocol (AXFR)       January 2010
 
 
 
-Lewis & Hoenes            Expires July 18, 2010                [Page 18]
+Lewis & Hoenes         Expires September 26, 2010              [Page 18]
 
-Internet-Draft      DNS Zone Transfer Protocol (AXFR)       January 2010
+Internet-Draft      DNS Zone Transfer Protocol (AXFR)         March 2010
 
 
    Since the primary objective of AXFR is to enable the client to serve
@@ -1063,9 +1063,9 @@ Internet-Draft      DNS Zone Transfer Protocol (AXFR)       January 2010
 
 
 
-Lewis & Hoenes            Expires July 18, 2010                [Page 19]
+Lewis & Hoenes         Expires September 26, 2010              [Page 19]
 
-Internet-Draft      DNS Zone Transfer Protocol (AXFR)       January 2010
+Internet-Draft      DNS Zone Transfer Protocol (AXFR)         March 2010
 
 
    Therefore, the assumption that a TCP connection is dedicated to a
@@ -1091,7 +1091,7 @@ Internet-Draft      DNS Zone Transfer Protocol (AXFR)       January 2010
    In the original definition there arguably is an implicit assumption
    (probably unintentional) that a TCP connection is used for one and
    only one AXFR session.  This is evidenced in the lack of an explicit
-   requirement to copy the Question Section and/or the message ID into
+   requirement to copy the Question section and/or the message ID into
    responses, no explicit ordering information within the AXFR response
    messages, and the lack of an explicit notice indicating that a zone
    transfer continues in the next message.
@@ -1119,9 +1119,9 @@ Internet-Draft      DNS Zone Transfer Protocol (AXFR)       January 2010
    "apparent need".
 
 
-Lewis & Hoenes            Expires July 18, 2010                [Page 20]
+Lewis & Hoenes         Expires September 26, 2010              [Page 20]
 
-Internet-Draft      DNS Zone Transfer Protocol (AXFR)       January 2010
+Internet-Draft      DNS Zone Transfer Protocol (AXFR)         March 2010
 
 
    An AXFR client can cancel the delivery of a zone only by closing the
@@ -1175,9 +1175,9 @@ Internet-Draft      DNS Zone Transfer Protocol (AXFR)       January 2010
    connection broken.
 
 
-Lewis & Hoenes            Expires July 18, 2010                [Page 21]
+Lewis & Hoenes         Expires September 26, 2010              [Page 21]
 
-Internet-Draft      DNS Zone Transfer Protocol (AXFR)       January 2010
+Internet-Draft      DNS Zone Transfer Protocol (AXFR)         March 2010
 
 
 4.2.  UDP
@@ -1231,9 +1231,9 @@ Internet-Draft      DNS Zone Transfer Protocol (AXFR)       January 2010
 
 
 
-Lewis & Hoenes            Expires July 18, 2010                [Page 22]
+Lewis & Hoenes         Expires September 26, 2010              [Page 22]
 
-Internet-Draft      DNS Zone Transfer Protocol (AXFR)       January 2010
+Internet-Draft      DNS Zone Transfer Protocol (AXFR)         March 2010
 
 
 6.  Zone Integrity
@@ -1287,9 +1287,9 @@ Internet-Draft      DNS Zone Transfer Protocol (AXFR)       January 2010
 
 
 
-Lewis & Hoenes            Expires July 18, 2010                [Page 23]
+Lewis & Hoenes         Expires September 26, 2010              [Page 23]
 
-Internet-Draft      DNS Zone Transfer Protocol (AXFR)       January 2010
+Internet-Draft      DNS Zone Transfer Protocol (AXFR)         March 2010
 
 
 7.  Backwards Compatibility
@@ -1343,12 +1343,18 @@ Internet-Draft      DNS Zone Transfer Protocol (AXFR)       January 2010
 
 
 
-Lewis & Hoenes            Expires July 18, 2010                [Page 24]
+Lewis & Hoenes         Expires September 26, 2010              [Page 24]
 
-Internet-Draft      DNS Zone Transfer Protocol (AXFR)       January 2010
+Internet-Draft      DNS Zone Transfer Protocol (AXFR)         March 2010
 
 
 8.  Security Considerations
+
+   This document is a clarification of a mechanism outlined in RFCs 1034
+   and 1035 and as such does not add any new security considerations.
+   RFC 3833 [RFC3833] is devoted entirely to security considerations for
+   the DNS; its Section 4.3 delineates zone transfer security aspects
+   from the security threats addressed by DNSSEC.
 
    Concerns regarding authorization, traffic flooding, and message
    integrity are mentioned in "Authorization" (Section 5), "TCP"
@@ -1357,8 +1363,9 @@ Internet-Draft      DNS Zone Transfer Protocol (AXFR)       January 2010
 
 9.  IANA Considerations
 
-   [[ Note to RFC-Ed: this section may be deleted before publication. ]]
-   No new registries or new registrations are included in this document.
+   IANA has added a reference to this RFC in the AXFR (252) row of the
+   "Resource Record (RR) TYPEs" subregistry of the "Domain Name System
+   (DNS) Parameters" registry.
 
 
 10.  Internationalization Considerations
@@ -1389,6 +1396,14 @@ Internet-Draft      DNS Zone Transfer Protocol (AXFR)       January 2010
    Edward Lewis served as a patiently listening sole document editor for
    two years.
 
+
+
+
+Lewis & Hoenes         Expires September 26, 2010              [Page 25]
+
+Internet-Draft      DNS Zone Transfer Protocol (AXFR)         March 2010
+
+
 12.  References
 
    All "RFC" references by can be obtained from the RFC Editor web site
@@ -1396,13 +1411,6 @@ Internet-Draft      DNS Zone Transfer Protocol (AXFR)       January 2010
    or                 http://rfc-editor.org/rfcsearch.html ;
    information regarding this organization can be found at the following
    URL:               http://rfc-editor.org/
-
-
-
-Lewis & Hoenes            Expires July 18, 2010                [Page 25]
-
-Internet-Draft      DNS Zone Transfer Protocol (AXFR)       January 2010
-
 
 12.1.  Normative References
 
@@ -1443,6 +1451,15 @@ Internet-Draft      DNS Zone Transfer Protocol (AXFR)       January 2010
    [RFC2672]  Crawford, M., "Non-Terminal DNS Name Redirection",
               RFC 2672, August 1999.
 
+
+
+
+
+Lewis & Hoenes         Expires September 26, 2010              [Page 26]
+
+Internet-Draft      DNS Zone Transfer Protocol (AXFR)         March 2010
+
+
    [RFC2845]  Vixie, P., Gudmundsson, O., Eastlake 3rd, D., and B.
               Wellington, "Secret Key Transaction Authentication for DNS
               (TSIG)", RFC 2845, May 2000.
@@ -1452,13 +1469,6 @@ Internet-Draft      DNS Zone Transfer Protocol (AXFR)       January 2010
 
    [RFC2931]  Eastlake 3rd, D., "DNS Request and Transaction Signatures
               ( SIG(0)s )", RFC 2931, September 2000.
-
-
-
-Lewis & Hoenes            Expires July 18, 2010                [Page 26]
-
-Internet-Draft      DNS Zone Transfer Protocol (AXFR)       January 2010
-
 
    [RFC3425]  Lawrence, D., "Obsoleting IQUERY", RFC 3425,
               November 2002.
@@ -1496,6 +1506,16 @@ Internet-Draft      DNS Zone Transfer Protocol (AXFR)       January 2010
               and RRSIG Resource Records for DNSSEC", RFC 5702,
               October 2009.
 
+
+
+
+
+
+Lewis & Hoenes         Expires September 26, 2010              [Page 27]
+
+Internet-Draft      DNS Zone Transfer Protocol (AXFR)         March 2010
+
+
 12.2.  Informative References
 
    [DNSVALS]  IANA Registry "Domain Name System (DNS) Parameters",
@@ -1508,22 +1528,17 @@ Internet-Draft      DNS Zone Transfer Protocol (AXFR)       January 2010
               Malis, "A Framework for IP Based Virtual Private
               Networks", RFC 2764, February 2000.
 
-
-
-
-Lewis & Hoenes            Expires July 18, 2010                [Page 27]
-
-Internet-Draft      DNS Zone Transfer Protocol (AXFR)       January 2010
-
-
    [RFC3490]  Faltstrom, P., Hoffman, P., and A. Costello,
               "Internationalizing Domain Names in Applications (IDNA)",
               RFC 3490, March 2003.
 
+   [RFC3833]  Atkins, D., and R. Austein, "Threat Analysis of the Domain
+              Name System (DNS)", RFC 3833, August 2004.
+
    [DNSSEC-U] Weiler, S., and D. Blacka, "Clarifications and
               Implementation Notes for DNSSECbis",
-              draft-ietf-dnsext-dnssec-bis-updates-09 (work in
-              progress), September 2009.
+              draft-ietf-dnsext-dnssec-bis-updates-10 (work in
+              progress), March 2010.
 
 
 Authors' Addresses
@@ -1552,20 +1567,5 @@ Editorial Note: Discussion  [[ to be removed by RFC-Editor ]]
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-Lewis & Hoenes            Expires July 18, 2010                [Page 28]
+Lewis & Hoenes         Expires September 26, 2010              [Page 28]
 

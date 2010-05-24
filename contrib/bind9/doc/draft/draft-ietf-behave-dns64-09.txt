@@ -4,17 +4,17 @@
 BEHAVE WG                                                     M. Bagnulo
 Internet-Draft                                                      UC3M
 Intended status: Standards Track                             A. Sullivan
-Expires: August 19, 2010                                        Shinkuro
+Expires: October 1, 2010                                        Shinkuro
                                                              P. Matthews
                                                           Alcatel-Lucent
                                                           I. van Beijnum
                                                           IMDEA Networks
-                                                       February 15, 2010
+                                                          March 30, 2010
 
 
 DNS64: DNS extensions for Network Address Translation from IPv6 Clients
                             to IPv4 Servers
-                       draft-ietf-behave-dns64-06
+                       draft-ietf-behave-dns64-09
 
 Abstract
 
@@ -47,14 +47,14 @@ Status of this Memo
    The list of Internet-Draft Shadow Directories can be accessed at
    http://www.ietf.org/shadow.html.
 
-   This Internet-Draft will expire on August 19, 2010.
+   This Internet-Draft will expire on October 1, 2010.
 
 
 
 
-Bagnulo, et al.          Expires August 19, 2010                [Page 1]
+Bagnulo, et al.          Expires October 1, 2010                [Page 1]
 
-Internet-Draft                    DNS64                    February 2010
+Internet-Draft                    DNS64                       March 2010
 
 
 Copyright Notice
@@ -108,65 +108,121 @@ Copyright Notice
 
 
 
-Bagnulo, et al.          Expires August 19, 2010                [Page 2]
+Bagnulo, et al.          Expires October 1, 2010                [Page 2]
 
-Internet-Draft                    DNS64                    February 2010
+Internet-Draft                    DNS64                       March 2010
 
 
 Table of Contents
 
-   1.  Introduction . . . . . . . . . . . . . . . . . . . . . . . . .  4
-   2.  Overview . . . . . . . . . . . . . . . . . . . . . . . . . . .  4
-   3.  Background to DNS64-DNSSEC interaction . . . . . . . . . . . .  7
-   4.  Terminology  . . . . . . . . . . . . . . . . . . . . . . . . .  8
-   5.  DNS64 Normative Specification  . . . . . . . . . . . . . . . .  9
-     5.1.  Resolving AAAA queries and the answer section  . . . . . . 10
-       5.1.1.  The answer when there is AAAA data available . . . . . 10
-       5.1.2.  The answer when there is an error  . . . . . . . . . . 10
-       5.1.3.  Special exclusion set for AAAA records . . . . . . . . 10
-       5.1.4.  Dealing with CNAME and DNAME . . . . . . . . . . . . . 11
-       5.1.5.  Data for the answer when performing synthesis  . . . . 11
-       5.1.6.  Performing the synthesis . . . . . . . . . . . . . . . 12
-       5.1.7.  Querying in parallel . . . . . . . . . . . . . . . . . 12
+   1.  Introduction . . . . . . . . . . . . . . . . . . . . . . . . .  5
+   2.  Overview . . . . . . . . . . . . . . . . . . . . . . . . . . .  5
+   3.  Background to DNS64-DNSSEC interaction . . . . . . . . . . . .  8
+   4.  Terminology  . . . . . . . . . . . . . . . . . . . . . . . . .  9
+   5.  DNS64 Normative Specification  . . . . . . . . . . . . . . . . 10
+     5.1.  Resolving AAAA queries and the answer section  . . . . . . 11
+       5.1.1.  The answer when there is AAAA data available . . . . . 11
+       5.1.2.  The answer when there is an error  . . . . . . . . . . 11
+       5.1.3.  Dealing with timeouts  . . . . . . . . . . . . . . . . 12
+       5.1.4.  Special exclusion set for AAAA records . . . . . . . . 12
+       5.1.5.  Dealing with CNAME and DNAME . . . . . . . . . . . . . 12
+       5.1.6.  Data for the answer when performing synthesis  . . . . 13
+       5.1.7.  Performing the synthesis . . . . . . . . . . . . . . . 13
+       5.1.8.  Querying in parallel . . . . . . . . . . . . . . . . . 14
      5.2.  Generation of the IPv6 representations of IPv4
-           addresses  . . . . . . . . . . . . . . . . . . . . . . . . 12
-     5.3.  Handling other RRs and the Additional Section  . . . . . . 13
-       5.3.1.  PTR queries  . . . . . . . . . . . . . . . . . . . . . 13
-       5.3.2.  Handling the additional section  . . . . . . . . . . . 14
-       5.3.3.  Other records  . . . . . . . . . . . . . . . . . . . . 15
-     5.4.  Assembling a synthesized response to a AAAA query  . . . . 15
-     5.5.  DNSSEC processing: DNS64 in recursive server mode  . . . . 16
-   6.  Deployment notes . . . . . . . . . . . . . . . . . . . . . . . 17
-     6.1.  DNS resolvers and DNS64  . . . . . . . . . . . . . . . . . 17
-     6.2.  DNSSEC validators and DNS64  . . . . . . . . . . . . . . . 17
-     6.3.  DNS64 and multihomed and dual-stack hosts  . . . . . . . . 17
-       6.3.1.  IPv6 multihomed hosts  . . . . . . . . . . . . . . . . 17
-       6.3.2.  Accidental dual-stack DNS64 use  . . . . . . . . . . . 18
-       6.3.3.  Intentional dual-stack DNS64 use . . . . . . . . . . . 18
-   7.  Deployment scenarios and examples  . . . . . . . . . . . . . . 19
+           addresses  . . . . . . . . . . . . . . . . . . . . . . . . 14
+     5.3.  Handling other Resource Records and the Additional
+           Section  . . . . . . . . . . . . . . . . . . . . . . . . . 15
+       5.3.1.  PTR Resource Record  . . . . . . . . . . . . . . . . . 15
+       5.3.2.  Handling the additional section  . . . . . . . . . . . 16
+       5.3.3.  Other Resource Records . . . . . . . . . . . . . . . . 16
+     5.4.  Assembling a synthesized response to a AAAA query  . . . . 17
+     5.5.  DNSSEC processing: DNS64 in recursive resolver mode  . . . 17
+   6.  Deployment notes . . . . . . . . . . . . . . . . . . . . . . . 18
+     6.1.  DNS resolvers and DNS64  . . . . . . . . . . . . . . . . . 18
+     6.2.  DNSSEC validators and DNS64  . . . . . . . . . . . . . . . 19
+     6.3.  DNS64 and multihomed and dual-stack hosts  . . . . . . . . 19
+       6.3.1.  IPv6 multihomed hosts  . . . . . . . . . . . . . . . . 19
+       6.3.2.  Accidental dual-stack DNS64 use  . . . . . . . . . . . 20
+       6.3.3.  Intentional dual-stack DNS64 use . . . . . . . . . . . 20
+   7.  Deployment scenarios and examples  . . . . . . . . . . . . . . 21
      7.1.  Example of An-IPv6-network-to-IPv4-Internet setup with
-           DNS64 in DNS server mode . . . . . . . . . . . . . . . . . 20
+           DNS64 in DNS server mode . . . . . . . . . . . . . . . . . 22
      7.2.  An example of an-IPv6-network-to-IPv4-Internet setup
-           with DNS64 in stub-resolver mode . . . . . . . . . . . . . 21
+           with DNS64 in stub-resolver mode . . . . . . . . . . . . . 23
      7.3.  Example of IPv6-Internet-to-an-IPv4-network setup
-           DNS64 in DNS server mode . . . . . . . . . . . . . . . . . 23
-   8.  Security Considerations  . . . . . . . . . . . . . . . . . . . 25
-   9.  IANA Considerations  . . . . . . . . . . . . . . . . . . . . . 25
-   10. Contributors . . . . . . . . . . . . . . . . . . . . . . . . . 25
-   11. Acknowledgements . . . . . . . . . . . . . . . . . . . . . . . 25
-   12. References . . . . . . . . . . . . . . . . . . . . . . . . . . 26
-     12.1. Normative References . . . . . . . . . . . . . . . . . . . 26
-     12.2. Informative References . . . . . . . . . . . . . . . . . . 26
+           DNS64 in DNS server mode . . . . . . . . . . . . . . . . . 25
+   8.  Security Considerations  . . . . . . . . . . . . . . . . . . . 27
+   9.  IANA Considerations  . . . . . . . . . . . . . . . . . . . . . 27
+   10. Contributors . . . . . . . . . . . . . . . . . . . . . . . . . 27
+   11. Acknowledgements . . . . . . . . . . . . . . . . . . . . . . . 28
+   12. References . . . . . . . . . . . . . . . . . . . . . . . . . . 28
+     12.1. Normative References . . . . . . . . . . . . . . . . . . . 28
+     12.2. Informative References . . . . . . . . . . . . . . . . . . 29
    Appendix A.  Motivations and Implications of synthesizing AAAA
-                RR when real AAAA RR exists . . . . . . . . . . . . . 28
-   Authors' Addresses . . . . . . . . . . . . . . . . . . . . . . . . 29
+                Resource Records when real AAAA Resource Records
 
 
 
-
-Bagnulo, et al.          Expires August 19, 2010                [Page 3]
+Bagnulo, et al.          Expires October 1, 2010                [Page 3]
 
-Internet-Draft                    DNS64                    February 2010
+Internet-Draft                    DNS64                       March 2010
+
+
+                exist . . . . . . . . . . . . . . . . . . . . . . . . 30
+   Authors' Addresses . . . . . . . . . . . . . . . . . . . . . . . . 31
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Bagnulo, et al.          Expires October 1, 2010                [Page 4]
+
+Internet-Draft                    DNS64                       March 2010
 
 
 1.  Introduction
@@ -220,9 +276,9 @@ Internet-Draft                    DNS64                    February 2010
 
 
 
-Bagnulo, et al.          Expires August 19, 2010                [Page 4]
+Bagnulo, et al.          Expires October 1, 2010                [Page 5]
 
-Internet-Draft                    DNS64                    February 2010
+Internet-Draft                    DNS64                       March 2010
 
 
    available to the server).  Each IPv6/IPv4 translator used in
@@ -261,8 +317,9 @@ Internet-Draft                    DNS64                    February 2010
    so that both can algorithmically generate the same IPv6
    representation for a given IPv4 address.  In addition, it is required
    that IPv6 packets addressed to an IPv6 destination address that
-   contains the Pref64::/n be delivered to an IPv6/IPv4 translator, so
-   they can be translated into IPv4 packets.
+   contains the Pref64::/n be delivered to an IPv6/IPv4 translator that
+   has that particular Pref64::/n configured, so they can be translated
+   into IPv4 packets.
 
    Once the DNS64 has synthesized the AAAA RRs, the synthetic AAAA RRs
    are passed back to the IPv6 initiator, which will initiate an IPv6
@@ -272,15 +329,15 @@ Internet-Draft                    DNS64                    February 2010
 
    In general, the only shared state between the DNS64 and the IPv6/IPv4
    translator is the Pref64::/n and an optional set of static
-   parameters.  The Pref64::/n and the set of static parameters must be
 
 
 
-Bagnulo, et al.          Expires August 19, 2010                [Page 5]
+Bagnulo, et al.          Expires October 1, 2010                [Page 6]
 
-Internet-Draft                    DNS64                    February 2010
+Internet-Draft                    DNS64                       March 2010
 
 
+   parameters.  The Pref64::/n and the set of static parameters must be
    configured to be the same on both; there is no communication between
    the DNS64 device and IPv6/IPv4 translator functions.  The mechanism
    to be used for configuring the parameters of the DNS64 is beyond the
@@ -305,11 +362,12 @@ Internet-Draft                    DNS64                    February 2010
    has been assigned for the specific purpose of representing IPv4
    addresses in IPv6 address space.
 
-   The DNS64 function can be performed in any of three places.
+   The DNS64 function can be performed in any of three places.  The
+   terms below are more formally defined in Section 4.
 
    The first option is to locate the DNS64 function in authoritative
    servers for a zone.  In this case, the authoritative server provides
-   a synthetic AAAA RRs for an IPv4-only host in its zone.  This is one
+   synthetic AAAA RRs for an IPv4-only host in its zone.  This is one
    type of DNS64 server.
 
    Another option is to locate the DNS64 function in recursive name
@@ -318,41 +376,42 @@ Internet-Draft                    DNS64                    February 2010
    server can perform the synthesis of AAAA RRs and pass them back to
    the IPv6-only initiator.  The main advantage of this mode is that
    current IPv6 nodes can use this mechanism without requiring any
-   modification.  This mode is called "DNS64 in DNS recursive mode".
-   This is a second type of DNS64 server, and it is also one type of
-   DNS64 resolver.
+   modification.  This mode is called "DNS64 in DNS recursive resolver
+   mode" .  This is a second type of DNS64 server, and it is also one
+   type of DNS64 resolver.
 
    The last option is to place the DNS64 function in the end hosts,
    coupled to the local (stub) resolver.  In this case, the stub
    resolver will try to obtain (real) AAAA RRs and in case they are not
    available, the DNS64 function will synthesize AAAA RRs for internal
    usage.  This mode is compatible with some advanced functions like
+
+
+
+Bagnulo, et al.          Expires October 1, 2010                [Page 7]
+
+Internet-Draft                    DNS64                       March 2010
+
+
    DNSSEC validation in the end host.  The main drawback of this mode is
    its deployability, since it requires changes in the end hosts.  This
-
-
-
-Bagnulo, et al.          Expires August 19, 2010                [Page 6]
-
-Internet-Draft                    DNS64                    February 2010
-
-
    mode is called "DNS64 in stub-resolver mode".  This is the second
    type of DNS64 resolver.
 
 
 3.  Background to DNS64-DNSSEC interaction
 
-   DNSSEC presents a special challenge for DNS64, because DNSSEC is
-   designed to detect changes to DNS answers, and DNS64 may alter
-   answers coming from an authoritative server.
+   DNSSEC ([RFC4033], [RFC4034], [RFC4035]) presents a special challenge
+   for DNS64, because DNSSEC is designed to detect changes to DNS
+   answers, and DNS64 may alter answers coming from an authoritative
+   server.
 
    A recursive resolver can be security-aware or security-oblivious.
-   Moreover, a security-aware recursive name server can be validating or
+   Moreover, a security-aware recursive resolver can be validating or
    non-validating, according to operator policy.  In the cases below,
-   the recursive server is also performing DNS64, and has a local policy
-   to validate.  We call this general case vDNS64, but in all the cases
-   below the DNS64 functionality should be assumed needed.
+   the recursive resolver is also performing DNS64, and has a local
+   policy to validate.  We call this general case vDNS64, but in all the
+   cases below the DNS64 functionality should be assumed needed.
 
    DNSSEC includes some signaling bits that offer some indicators of
    what the query originator understands.
@@ -382,17 +441,17 @@ Internet-Draft                    DNS64                    February 2010
        non-DNS64 case: the server doesn't support it, so the querying
        agent is out of luck.
 
+
+
+
+Bagnulo, et al.          Expires October 1, 2010                [Page 8]
+
+Internet-Draft                    DNS64                       March 2010
+
+
    3.  A security-aware and non-validating DNS64 receives a query with
        the DO bit set and the CD bit clear.  Such a resolver is not
        validating responses, likely due to local policy (see [RFC4035],
-
-
-
-Bagnulo, et al.          Expires August 19, 2010                [Page 7]
-
-Internet-Draft                    DNS64                    February 2010
-
-
        section 4.2).  For that reason, this case amounts to the same as
        the previous case, and no validation happens.
 
@@ -435,19 +494,19 @@ Internet-Draft                    DNS64                    February 2010
    "SHOULD", "SHOULD NOT", "RECOMMENDED", "MAY", and "OPTIONAL" in this
    document are to be interpreted as described in RFC 2119 [RFC2119].
 
+
+
+
+
+
+
+Bagnulo, et al.          Expires October 1, 2010                [Page 9]
+
+Internet-Draft                    DNS64                       March 2010
+
+
    Authoritative server:  A DNS server that can answer authoritatively a
       given DNS question.
-
-
-
-
-
-
-
-Bagnulo, et al.          Expires August 19, 2010                [Page 8]
-
-Internet-Draft                    DNS64                    February 2010
-
 
    DNS64:  A logical function that synthesizes DNS resource records (e.g
       AAAA records containing IPv6 addresses) from DNS resource records
@@ -494,16 +553,16 @@ Internet-Draft                    DNS64                    February 2010
    multicast address handling is out of the scope of this document.  A
    possible approach is specified in [I-D.venaas-behave-mcast46].
 
+
+
+
+Bagnulo, et al.          Expires October 1, 2010               [Page 10]
+
+Internet-Draft                    DNS64                       March 2010
+
+
    DNS64 also responds to PTR queries involving addresses containing any
    of the IPv6 prefixes it uses for synthesis of AAAA RRs.
-
-
-
-
-Bagnulo, et al.          Expires August 19, 2010                [Page 9]
-
-Internet-Draft                    DNS64                    February 2010
-
 
 5.1.  Resolving AAAA queries and the answer section
 
@@ -520,7 +579,7 @@ Internet-Draft                    DNS64                    February 2010
    section, the result is returned to the requesting client as per
    normal DNS semantics, except in the case where any of the AAAA
    records match a special exclusion set of prefixes, considered in
-   Section 5.1.3.  If there is (non-excluded) AAAA data available, DNS64
+   Section 5.1.4.  If there is (non-excluded) AAAA data available, DNS64
    SHOULD NOT include synthetic AAAA RRs in the response (see Appendix A
    for an analysis of the motivations for and the implications of not
    complying with this recommendation).  By default DNS64
@@ -548,19 +607,26 @@ Internet-Draft                    DNS64                    February 2010
    of the meaning of RCODE 3, and it is expected that they will decline
    in use as IPv6 deployment increases.
 
-5.1.3.  Special exclusion set for AAAA records
+
+
+
+
+
+Bagnulo, et al.          Expires October 1, 2010               [Page 11]
+
+Internet-Draft                    DNS64                       March 2010
+
+
+5.1.3.  Dealing with timeouts
+
+   If the query receives no answer before the timeout, it is treated as
+   RCODE=2 (Server failure).
+
+5.1.4.  Special exclusion set for AAAA records
 
    Some IPv6 addresses are not actually usable by IPv6-only hosts.  If
    they are returned to IPv6-only querying agents as AAAA records,
    therefore, the goal of decreasing the number of failure modes will
-
-
-
-Bagnulo, et al.          Expires August 19, 2010               [Page 10]
-
-Internet-Draft                    DNS64                    February 2010
-
-
    not be attained.  Examples include AAAA records with addresses in the
    ::ffff:0:0/96 network, and possibly (depending on the context) AAAA
    records with the site's Pref::64/n or the Well-Known Prefix (see
@@ -585,7 +651,7 @@ Internet-Draft                    DNS64                    February 2010
    answer, and proceed accordingly.  It MUST NOT return the offending
    AAAA records as part of a response.
 
-5.1.4.  Dealing with CNAME and DNAME
+5.1.5.  Dealing with CNAME and DNAME
 
    If the response contains a CNAME or a DNAME, then the CNAME or DNAME
    chain is followed until the first terminating A or AAAA record is
@@ -594,35 +660,36 @@ Internet-Draft                    DNS64                    February 2010
    AAAA record to follow.  The resulting AAAA or A record is treated
    like any other AAAA or A case, as appropriate.
 
-   When assembling the answer section, the original CNAME or DNAME RR is
-   included as part of the answer, and the synthetic AAAA, if
-   appropriate, is included.
+   When assembling the answer section, any chains of CNAME or DNAME RRs
+   are included as part of the answer along with the synthetic AAAA (if
+   appropriate).
 
-5.1.5.  Data for the answer when performing synthesis
+
+
+
+
+Bagnulo, et al.          Expires October 1, 2010               [Page 12]
+
+Internet-Draft                    DNS64                       March 2010
+
+
+5.1.6.  Data for the answer when performing synthesis
 
    If the query results in no error but an empty answer section in the
    response, the DNS64 attempts to retrieve A records for the name in
    question, either by performing another query or, in the case of an
-   authortiative server, by examining its own results.  If this new A RR
+   authoritative server, by examining its own results.  If this new A RR
    query results in an empty answer or in an error, then the empty
    result or error is used as the basis for the answer returned to the
    querying client.  (Transient errors may result in retrying the query,
    depending on the mode and operation of the underlying resolver; this
    is just as in Section 5.1.2.)  If instead the query results in one or
-
-
-
-Bagnulo, et al.          Expires August 19, 2010               [Page 11]
-
-Internet-Draft                    DNS64                    February 2010
-
-
    more A RRs, the DNS64 synthesizes AAAA RRs based on the A RRs
-   according to the procedure outlined in Section 5.1.6.  The DNS64
+   according to the procedure outlined in Section 5.1.7.  The DNS64
    returns the synthesized AAAA records in the answer section, removing
    the A records that form the basis of the synthesis.
 
-5.1.6.  Performing the synthesis
+5.1.7.  Performing the synthesis
 
    A synthetic AAAA record is created from an A record as follows:
 
@@ -637,7 +704,12 @@ Internet-Draft                    DNS64                    February 2010
       RR and the SOA RR for the queried domain.  (Note that in order to
       obtain the TTL of the SOA RR, the DNS64 does not need to perform a
       new query, but it can remember the TTL from the SOA RR in the
-      negative response to the AAAA query.)
+      negative response to the AAAA query.  If the SOA RR was not
+      delivered with the negative response to the AAAA query, then the
+      DNS64 SHOULD use a default value of 600 seconds.  It is possible
+      instead to query explicitly for the SOA RR and use the result of
+      that query, but this will increase query load and time to
+      resolution for little additional benefit.)
 
    o  The RDLENGTH field is set to 16
 
@@ -648,7 +720,16 @@ Internet-Draft                    DNS64                    February 2010
       See Section 5.2 for discussion of the algorithms to be used in
       effecting the transformation.
 
-5.1.7.  Querying in parallel
+
+
+
+
+Bagnulo, et al.          Expires October 1, 2010               [Page 13]
+
+Internet-Draft                    DNS64                       March 2010
+
+
+5.1.8.  Querying in parallel
 
    The DNS64 MAY perform the query for the AAAA RR and for the A RR in
    parallel, in order to minimize the delay.  However, this would result
@@ -665,14 +746,6 @@ Internet-Draft                    DNS64                    February 2010
 
    DNS64 supports multiple algorithms for the generation of the IPv6
    representation of an IPv4 address.  The constraints imposed on the
-
-
-
-Bagnulo, et al.          Expires August 19, 2010               [Page 12]
-
-Internet-Draft                    DNS64                    February 2010
-
-
    generation algorithms are the following:
 
       The same algorithm to create an IPv6 address from an IPv4 address
@@ -694,16 +767,24 @@ Internet-Draft                    DNS64                    February 2010
 
          For each prefix Pref64::/n, n MUST the less than or equal to
          96.  If one or more Pref64::/n are configured in the DNS64
-         through any means in the DNS64 (such as manually configured, or
-         other automatic means not specified in this document), the
-         default algorithm MUST use these prefixes (and not use the
-         Well-Know Prefix).  If no prefix is available, the algorithm
-         MUST use the Well-Known prefix 64:FF9B::/96 defined in
+         through any means (such as manually configured, or other
+         automatic means not specified in this document), the default
+         algorithm MUST use these prefixes (and not use the Well-Known
+         Prefix).  If no prefix is available, the algorithm MUST use the
+         Well-Known Prefix 64:FF9B::/96 defined in
          [I-D.ietf-behave-address-format] to represent the IPv4 unicast
          address range
 
-      [[anchor9: Note in document: The value 64:FF9B::/96 is proposed as
+      [[anchor8: Note in document: The value 64:FF9B::/96 is proposed as
       the value for the Well-Known prefix and needs to be confirmed
+
+
+
+Bagnulo, et al.          Expires October 1, 2010               [Page 14]
+
+Internet-Draft                    DNS64                       March 2010
+
+
       whenis published as RFC.]][I-D.ietf-behave-address-format]
 
    A DNS64 MUST support the algorithm for generating IPv6
@@ -715,56 +796,58 @@ Internet-Draft                    DNS64                    February 2010
    algorithm and its application to different scenarios is provided in
    Section 7 for illustration purposes.
 
-5.3.  Handling other RRs and the Additional Section
+5.3.  Handling other Resource Records and the Additional Section
 
-5.3.1.  PTR queries
+5.3.1.  PTR Resource Record
 
    If a DNS64 server receives a PTR query for a record in the IP6.ARPA
    domain, it MUST strip the IP6.ARPA labels from the QNAME, reverse the
-
-
-
-Bagnulo, et al.          Expires August 19, 2010               [Page 13]
-
-Internet-Draft                    DNS64                    February 2010
-
-
    address portion of the QNAME according to the encoding scheme
    outlined in section 2.5 of [RFC3596], and examine the resulting
    address to see whether its prefix matches any of the locally-
    configured Pref64::/n.  There are two alternatives for a DNS64 server
    to respond to such PTR queries.  A DNS64 server MUST provide one of
    these, and SHOULD NOT provide both at the same time unless different
-   IP6.ARPA zones require answers of different sorts.
+   IP6.ARPA zones require answers of different sorts:
 
-   The first option is for the DNS64 server to respond authoritatively
-   for its prefixes.  If the address prefix matches any Pref64::/n used
-   in the site, either a NSP or the Well-Known Prefix (i.e. 64:
-   FF9B::/96), then the DNS64 server MAY answer the query using locally-
-   appropriate RDATA.  The DNS64 server MAY use the same RDATA for all
-   answers.  Note that the requirement is to match any Pref64::/n used
-   at the site, and not merely the locally-configured Pref64::/n.  This
-   is because end clients could ask for a PTR record matching an address
-   received through a different (site-provided) DNS64, and if this
-   strategy is in effect, those queries should never be sent to the
-   global DNS.  The advantage of this strategy is that it makes plain to
-   the querying client that the prefix is one operated by the (DNS64)
-   site, and that the answers the client is getting are generated by
-   DNS64.  The disadvantage is that any useful reverse-tree information
-   that might be in the global DNS is unavailable to the clients
-   querying the DNS64.
+   1.  The first option is for the DNS64 server to respond
+       authoritatively for its prefixes.  If the address prefix matches
+       any Pref64::/n used in the site, either a NSP or the Well-Known
+       Prefix (i.e. 64:FF9B::/96), then the DNS64 server MAY answer the
+       query using locally-appropriate RDATA.  The DNS64 server MAY use
+       the same RDATA for all answers.  Note that the requirement is to
+       match any Pref64::/n used at the site, and not merely the
+       locally-configured Pref64::/n.  This is because end clients could
+       ask for a PTR record matching an address received through a
+       different (site-provided) DNS64, and if this strategy is in
+       effect, those queries should never be sent to the global DNS.
+       The advantage of this strategy is that it makes plain to the
+       querying client that the prefix is one operated by the (DNS64)
+       site, and that the answers the client is getting are generated by
+       DNS64.  The disadvantage is that any useful reverse-tree
+       information that might be in the global DNS is unavailable to the
+       clients querying the DNS64.
 
-   The second option is for the DNS64 nameserver to synthesize a CNAME
-   mapping the IP6.ARPA namespace to the corresponding IN-ADDR.ARPA
-   name.  The rest of the response would be the normal DNS processing.
-   The CNAME can be signed on the fly if need be.  The advantage of this
-   approach is that any useful information in the reverse tree is
-   available to the querying client.  The disadvantage is that it adds
-   additional load to the DNS64 (because CNAMEs have to be synthesized
-   for each PTR query that matches the Pref64::/n), and that it may
-   require signing on the fly.  In addition, the generated CNAME could
-   correspond to an unpopulated in-addr.arpa zone, so the CNAME would
-   provide a reference to a non-existent record.
+   2.  The second option is for the DNS64 nameserver to synthesize a
+       CNAME mapping the IP6.ARPA namespace to the corresponding IN-
+       ADDR.ARPA name.  The rest of the response would be the normal DNS
+       processing.  The CNAME can be signed on the fly if need be.  The
+       advantage of this approach is that any useful information in the
+
+
+
+Bagnulo, et al.          Expires October 1, 2010               [Page 15]
+
+Internet-Draft                    DNS64                       March 2010
+
+
+       reverse tree is available to the querying client.  The
+       disadvantage is that it adds additional load to the DNS64
+       (because CNAMEs have to be synthesized for each PTR query that
+       matches the Pref64::/n), and that it may require signing on the
+       fly.  In addition, the generated CNAME could correspond to an
+       unpopulated in-addr.arpa zone, so the CNAME would provide a
+       reference to a non-existent record.
 
    If the address prefix does not match any Pref64::/n, then the DNS64
    server MUST process the query as though it were any other query; i.e.
@@ -777,13 +860,6 @@ Internet-Draft                    DNS64                    February 2010
    DNS64 synthesis MUST NOT be performed on any records in the
    additional section of synthesized answers.  The DNS64 MUST pass the
    additional section unchanged.
-
-
-
-Bagnulo, et al.          Expires August 19, 2010               [Page 14]
-
-Internet-Draft                    DNS64                    February 2010
-
 
    It may appear that adding synthetic records to the additional section
    is desirable, because clients sometimes use the data in the
@@ -804,12 +880,22 @@ Internet-Draft                    DNS64                    February 2010
    NAT64 in question.  The result in this case will be resolution
    failure anyway, only later in the resolution operation.
 
-5.3.3.  Other records
+5.3.3.  Other Resource Records
 
    If the DNS64 is in recursive resolver mode, then considerations
    outlined in [I-D.ietf-dnsop-default-local-zones] may be relevant.
 
-   All other RRs MUST be returned unchanged.
+   All other RRs MUST be returned unchanged.  This includes responses to
+   queries for A RRs.
+
+
+
+
+
+Bagnulo, et al.          Expires October 1, 2010               [Page 16]
+
+Internet-Draft                    DNS64                       March 2010
+
 
 5.4.  Assembling a synthesized response to a AAAA query
 
@@ -820,30 +906,20 @@ Internet-Draft                    DNS64                    February 2010
    an error, an answer that can be used as a basis for synthesis, or an
    empty (authoritative) answer.  If there is an empty answer, then the
    DNS64 responds to the original querying client with the answer the
-   DNS64 received to the original AAAA query.  Otherwise, the response
-   is assembled as follows.
+   DNS64 received to the original (initiator's) query.  Otherwise, the
+   response is assembled as follows.
 
    The header fields are set according to the usual rules for recursive
    or authoritative servers, depending on the role that the DNS64 is
-   serving.  The question section is copied from the original AAAA
-   query.  The answer section is populated according to the rules in
-   Section 5.1.6.  The authority and additional sections are copied from
-   the response to the A query that the DNS64 performed.
+   serving.  The question section is copied from the original
+   (initiator's) query.  The answer section is populated according to
+   the rules in Section 5.1.7.  The authority and additional sections
+   are copied from the response to the final query that the DNS64
+   performed, and used as the basis for synthesis.
 
+5.5.  DNSSEC processing: DNS64 in recursive resolver mode
 
-
-
-
-
-
-Bagnulo, et al.          Expires August 19, 2010               [Page 15]
-
-Internet-Draft                    DNS64                    February 2010
-
-
-5.5.  DNSSEC processing: DNS64 in recursive server mode
-
-   We consider the case where a recursive server that is performing
+   We consider the case where a recursive resolver that is performing
    DNS64 also has a local policy to validate the answers according to
    the procedures outlined in [RFC4035] Section 5.  We call this general
    case vDNS64.
@@ -853,7 +929,9 @@ Internet-Draft                    DNS64                    February 2010
    accordingly:
 
    1.  If CD is not set and DO is not set, vDNS64 SHOULD perform
-       validation and do synthesis as needed.
+       validation and do synthesis as needed.  See the next item for
+       rules about how to do validation and synthesis.  In this case,
+       however, vDNS64 MUST NOT set the AD bit in any response.
 
    2.  If CD is not set and DO is set, then vDNS64 SHOULD perform
        validation.  Whenever vDNS64 performs validation, it MUST
@@ -867,6 +945,14 @@ Internet-Draft                    DNS64                    February 2010
        answer to the client.  This is acceptable, because [RFC4035],
        section 3.2.3 says that the AD bit is set by the name server side
        of a security-aware recursive name server if and only if it
+
+
+
+Bagnulo, et al.          Expires October 1, 2010               [Page 17]
+
+Internet-Draft                    DNS64                       March 2010
+
+
        considers all the RRSets in the Answer and Authority sections to
        be authentic.  In this case, the name server has reason to
        believe the RRSets are all authentic, so it SHOULD set the AD
@@ -889,14 +975,6 @@ Internet-Draft                    DNS64                    February 2010
        resolver, and depend on the client to do the validation and the
        synthesis itself.
        The disadvantage to this approach is that an end point that is
-
-
-
-Bagnulo, et al.          Expires August 19, 2010               [Page 16]
-
-Internet-Draft                    DNS64                    February 2010
-
-
        translation-oblivious but security-aware and validating will not
        be able to use the DNS64 functionality.  In this case, the end
        point will not have the desired benefit of NAT64.  In effect,
@@ -923,6 +1001,14 @@ Internet-Draft                    DNS64                    February 2010
    point obtain IPv4-only glue records and attempt to use them for
    resolution.  The result that is returned will contain only A records,
    and without the ability to perform the DNS64 function the resolver
+
+
+
+Bagnulo, et al.          Expires October 1, 2010               [Page 18]
+
+Internet-Draft                    DNS64                       March 2010
+
+
    will be unable to answer the necessary AAAA queries.
 
 6.2.  DNSSEC validators and DNS64
@@ -945,18 +1031,18 @@ Internet-Draft                    DNS64                    February 2010
    will receive answers from a DNS64 without all of them being connected
    via a NAT64.  For instance, suppose a system has two interfaces, i1
    and i2.  Whereas i1 is connected to the IPv4 Internet via NAT64, i2
-
-
-
-Bagnulo, et al.          Expires August 19, 2010               [Page 17]
-
-Internet-Draft                    DNS64                    February 2010
-
-
    has native IPv6 connectivity only.  I1 might receive a AAAA answer
    from a DNS64 that is configured for a particular NAT64; the IPv6
    address contained in that AAAA answer will not connect with anything
    via i2.
+
+             +---------------+                 +-------------+
+             |      i1 (IPv6)+----NAT64--------+IPv4 Internet|
+             |               |                 +-------------+
+             | host          |
+             |               |                 +-------------+
+             |      i2 (IPv6)+-----------------+IPv6 Internet|
+             +---------------+                 +-------------+
 
    This example illustrates why it is generally preferable that hosts
    treat DNS answers from one interface as local to that interface.  The
@@ -969,6 +1055,16 @@ Internet-Draft                    DNS64                    February 2010
    there are two networks involved.  The same results could be achieved
    with a single interface routed to two different networks.
 
+
+
+
+
+
+Bagnulo, et al.          Expires October 1, 2010               [Page 19]
+
+Internet-Draft                    DNS64                       March 2010
+
+
 6.3.2.  Accidental dual-stack DNS64 use
 
    Similarly, suppose that i1 has IPv6 connectivity and can connect to
@@ -977,40 +1073,55 @@ Internet-Draft                    DNS64                    February 2010
    that would better be reached via native IPv4.  Again, it is worth
    emphasising that this arises because there are two networks involved.
 
-   Since it is most likely that the host will attempt AAAA resolution
-   first, in this arrangement the host will often use the NAT64 when
-   native IPv4 would be preferable.  For this reason, hosts with IPv4
-   connectivity to the Internet should avoid using DNS64.  This can be
-   partly resolved by ISPs when providing DNS resolvers to clients, but
-   that is not a guarantee that the NAT64 will never be used when a
-   native IPv4 connection should be used.  There is no general-purpose
-   mechanism to ensure that native IPv4 transit will always be
-   preferred, because to a DNS64-oblivious host, the DNS64 looks just
-   like an ordinary DNS server.  Operators of a NAT64 should expect
-   traffic to pass through the NAT64 even when it is not necessary.
+             +---------------+                 +-------------+
+             |      i1 (IPv6)+----NAT64--------+IPv4 Internet|
+             |               |                 +-------------+
+             | host          |
+             |               |                 +-------------+
+             |      i2 (IPv4)+-----------------+IPv4 Internet|
+             +---------------+                 +-------------+
+
+   The default configuration of dual-stack hosts is that IPv6 is
+   preferred over IPv4 ([RFC3484]).  In that arrangement the host will
+   often use the NAT64 when native IPv4 would be more desirable.  For
+   this reason, hosts with IPv4 connectivity to the Internet should
+   avoid using DNS64.  This can be partly resolved by ISPs when
+   providing DNS resolvers to clients, but that is not a guarantee that
+   the NAT64 will never be used when a native IPv4 connection should be
+   used.  There is no general-purpose mechanism to ensure that native
+   IPv4 transit will always be preferred, because to a DNS64-oblivious
+   host, the DNS64 looks just like an ordinary DNS server.  Operators of
+   a NAT64 should expect traffic to pass through the NAT64 even when it
+   is not necessary.
 
 6.3.3.  Intentional dual-stack DNS64 use
 
    Finally, consider the case where the IPv4 connectivity on i2 is only
-   to a LAN, with an IPv6-only connection on i1 to the Internet,
-   connecting to the IPv4 Internet via NAT64.  Traffic to the LAN may
-   not be routable from the global Internet, as is often the case (for
-   instance) with LANs using RFC1918 addresses.  In this case, it is
-   critical that the DNS64 not synthesize AAAA responses for hosts in
-   the LAN, or else that the DNS64 be aware of hosts in the LAN and
-   provide context-sensitive answers ("split view" DNS answers) for
-   hosts inside the LAN.  As with any split view DNS arrangement,
-   operators must be prepared for data to leak from one context to
+   with a LAN, and not with the IPv4 Internet.  The IPv4 Internet is
+   only accessible using the NAT64.  In this case, it is critical that
+   the DNS64 not synthesize AAAA responses for hosts in the LAN, or else
+   that the DNS64 be aware of hosts in the LAN and provide context-
+   sensitive answers ("split view" DNS answers) for hosts inside the
+   LAN.  As with any split view DNS arrangement, operators must be
+   prepared for data to leak from one context to another, and for
+   failures to occur because nodes accessible from one context are not
+   accessible from the other.
+
+             +---------------+                 +-------------+
+             |      i1 (IPv6)+----NAT64--------+IPv4 Internet|
+             |               |                 +-------------+
+             | host          |
+             |               |
+             |      i2 (IPv4)+---(local LAN only)
 
 
 
-Bagnulo, et al.          Expires August 19, 2010               [Page 18]
+Bagnulo, et al.          Expires October 1, 2010               [Page 20]
 
-Internet-Draft                    DNS64                    February 2010
+Internet-Draft                    DNS64                       March 2010
 
 
-   another, and for failures to occur because nodes accessible from one
-   context are not accessible from the other.
+             +---------------+
 
    It is important for deployers of DNS64 to realise that, in some
    circumstances, making the DNS64 available to a dual-stack host will
@@ -1040,7 +1151,7 @@ Internet-Draft                    DNS64                    February 2010
       communication from these IPv6-only connected hosts to the IPv4
       Internet.  This case is called An-IPv6-network-to-IPv4-Internet
       [I-D.ietf-behave-v6v4-framework].  In this case, the IPv6/IPv4
-      Translator is used to connect the end site or the ISP to the IPv4
+      translator is used to connect the end site or the ISP to the IPv4
       Internet and the DNS64 function is provided by the end site or the
       ISP.
 
@@ -1060,9 +1171,10 @@ Internet-Draft                    DNS64                    February 2010
 
 
 
-Bagnulo, et al.          Expires August 19, 2010               [Page 19]
+
+Bagnulo, et al.          Expires October 1, 2010               [Page 21]
 
-Internet-Draft                    DNS64                    February 2010
+Internet-Draft                    DNS64                       March 2010
 
 
    1.  An-IPv6-network-to-IPv4-Internet setup with DNS64 in DNS server
@@ -1116,9 +1228,9 @@ Internet-Draft                    DNS64                    February 2010
 
 
 
-Bagnulo, et al.          Expires August 19, 2010               [Page 20]
+Bagnulo, et al.          Expires October 1, 2010               [Page 22]
 
-Internet-Draft                    DNS64                    February 2010
+Internet-Draft                    DNS64                       March 2010
 
 
    For this example, assume the typical DNS situation where IPv6 hosts
@@ -1172,9 +1284,9 @@ Internet-Draft                    DNS64                    February 2010
 
 
 
-Bagnulo, et al.          Expires August 19, 2010               [Page 21]
+Bagnulo, et al.          Expires October 1, 2010               [Page 23]
 
-Internet-Draft                    DNS64                    February 2010
+Internet-Draft                    DNS64                       March 2010
 
 
              +---------------------+         +---------------+
@@ -1228,9 +1340,9 @@ Internet-Draft                    DNS64                    February 2010
 
 
 
-Bagnulo, et al.          Expires August 19, 2010               [Page 22]
+Bagnulo, et al.          Expires October 1, 2010               [Page 24]
 
-Internet-Draft                    DNS64                    February 2010
+Internet-Draft                    DNS64                       March 2010
 
 
        IPv6 address in the AAAA record contains the prefix assigned to
@@ -1284,9 +1396,9 @@ Internet-Draft                    DNS64                    February 2010
 
 
 
-Bagnulo, et al.          Expires August 19, 2010               [Page 23]
+Bagnulo, et al.          Expires October 1, 2010               [Page 25]
 
-Internet-Draft                    DNS64                    February 2010
+Internet-Draft                    DNS64                       March 2010
 
 
    is recommended over the second option (i.e. the synthesis upon
@@ -1340,9 +1452,9 @@ Internet-Draft                    DNS64                    February 2010
 
 
 
-Bagnulo, et al.          Expires August 19, 2010               [Page 24]
+Bagnulo, et al.          Expires October 1, 2010               [Page 26]
 
-Internet-Draft                    DNS64                    February 2010
+Internet-Draft                    DNS64                       March 2010
 
 
    1.  H1 does a DNS lookup for h2.example.com.  H1 does this by sending
@@ -1369,8 +1481,16 @@ Internet-Draft                    DNS64                    February 2010
 
 8.  Security Considerations
 
-   See the discussion on the usage of DNSSEC and DNS64 described in
-   section 3, section 5.5, and section 6.2. .
+   DNS64 functions in combination with the DNS, and is therefore subject
+   to whatever security considerations are appropriate to the DNS mode
+   in which the DNS64 is operating (i.e. authoritative, recursive, or
+   stub resolver mode).
+
+   DNS64 has the potential to interfere with the functioning of DNSSEC,
+   because DNS64 by its very functioning modifies DNS answers, and
+   DNSSEC is designed to detect such modification and to treat modified
+   answers as bogus.  See the discussion above in Section 3,
+   Section 5.5, and Section 6.2.
 
 
 9.  IANA Considerations
@@ -1384,6 +1504,15 @@ Internet-Draft                    DNS64                    February 2010
 
       Microsoft
 
+
+
+
+
+Bagnulo, et al.          Expires October 1, 2010               [Page 27]
+
+Internet-Draft                    DNS64                       March 2010
+
+
       dthaler@windows.microsoft.com
 
 
@@ -1392,22 +1521,14 @@ Internet-Draft                    DNS64                    February 2010
    This draft contains the result of discussions involving many people,
    including the participants of the IETF BEHAVE Working Group.  The
    following IETF participants made specific contributions to parts of
-   the text, and their help is gratefully acknowledged: Mark Andrews,
-
-
-
-Bagnulo, et al.          Expires August 19, 2010               [Page 25]
-
-Internet-Draft                    DNS64                    February 2010
-
-
-   Jari Arkko, Rob Austein, Timothy Baldwin, Fred Baker, Doug Barton,
-   Marc Blanchet, Cameron Byrne, Brian Carpenter, Hui Deng, Francis
-   Dupont, Patrik Faltstrom, Ed Jankiewicz, Peter Koch, Suresh Krishnan,
-   Ed Lewis, Xing Li, Bill Manning, Matthijs Mekking, Hiroshi Miyata,
-   Simon Perrault, Teemu Savolainen, Jyrki Soini, Dave Thaler, Mark
-   Townsley, Rick van Rein, Stig Venaas, Magnus Westerlund, Florian
-   Weimer, Dan Wing, Xu Xiaohu, Xiangsong Cui.
+   the text, and their help is gratefully acknowledged: Jaap Akkerhuis,
+   Mark Andrews, Jari Arkko, Rob Austein, Timothy Baldwin, Fred Baker,
+   Doug Barton, Marc Blanchet, Cameron Byrne, Brian Carpenter, Zhen Cao,
+   Hui Deng, Francis Dupont, Patrik Faltstrom, Ed Jankiewicz, Peter
+   Koch, Suresh Krishnan, Ed Lewis, Xing Li, Bill Manning, Matthijs
+   Mekking, Hiroshi Miyata, Simon Perrault, Teemu Savolainen, Jyrki
+   Soini, Dave Thaler, Mark Townsley, Rick van Rein, Stig Venaas, Magnus
+   Westerlund, Florian Weimer, Dan Wing, Xu Xiaohu, Xiangsong Cui.
 
    Marcelo Bagnulo and Iljitsch van Beijnum are partly funded by
    Trilogy, a research project supported by the European Commission
@@ -1432,10 +1553,21 @@ Internet-Draft                    DNS64                    February 2010
               RFC 4787, January 2007.
 
    [I-D.ietf-behave-address-format]
-              Huitema, C., Bao, C., Bagnulo, M., Boucadair, M., and X.
+              Bao, C., Huitema, C., Bagnulo, M., Boucadair, M., and X.
               Li, "IPv6 Addressing of IPv4/IPv6 Translators",
-              draft-ietf-behave-address-format-04 (work in progress),
-              January 2010.
+              draft-ietf-behave-address-format-06 (work in progress),
+              March 2010.
+
+
+
+
+
+
+
+Bagnulo, et al.          Expires October 1, 2010               [Page 28]
+
+Internet-Draft                    DNS64                       March 2010
+
 
 12.2.  Informative References
 
@@ -1443,19 +1575,12 @@ Internet-Draft                    DNS64                    February 2010
               Bagnulo, M., Matthews, P., and I. Beijnum, "Stateful
               NAT64: Network Address and Protocol Translation from IPv6
               Clients to IPv4 Servers",
-              draft-ietf-behave-v6v4-xlate-stateful-08 (work in
-              progress), January 2010.
+              draft-ietf-behave-v6v4-xlate-stateful-10 (work in
+              progress), March 2010.
 
    [RFC2136]  Vixie, P., Thomson, S., Rekhter, Y., and J. Bound,
               "Dynamic Updates in the Domain Name System (DNS UPDATE)",
               RFC 2136, April 1997.
-
-
-
-Bagnulo, et al.          Expires August 19, 2010               [Page 26]
-
-Internet-Draft                    DNS64                    February 2010
-
 
    [RFC3484]  Draves, R., "Default Address Selection for Internet
               Protocol version 6 (IPv6)", RFC 3484, February 2003.
@@ -1476,18 +1601,14 @@ Internet-Draft                    DNS64                    February 2010
               Rose, "Protocol Modifications for the DNS Security
               Extensions", RFC 4035, March 2005.
 
-   [RFC4966]  Aoun, C. and E. Davies, "Reasons to Move the Network
-              Address Translator - Protocol Translator (NAT-PT) to
-              Historic Status", RFC 4966, July 2007.
-
-   [RFC5735]  Cotton, M. and L. Vegoda, "iSpecial Use IPv4 Addresses",
+   [RFC5735]  Cotton, M. and L. Vegoda, "Special Use IPv4 Addresses",
               BCP 153, RFC 5735, January 2010.
 
    [I-D.ietf-behave-v6v4-framework]
               Baker, F., Li, X., Bao, C., and K. Yin, "Framework for
               IPv4/IPv6 Translation",
-              draft-ietf-behave-v6v4-framework-06 (work in progress),
-              February 2010.
+              draft-ietf-behave-v6v4-framework-08 (work in progress),
+              March 2010.
 
    [I-D.venaas-behave-mcast46]
               Venaas, S., Asaeda, H., SUZUKI, S., and T. Fujisaki, "An
@@ -1496,28 +1617,29 @@ Internet-Draft                    DNS64                    February 2010
               July 2009.
 
    [I-D.ietf-dnsop-default-local-zones]
+
+
+
+Bagnulo, et al.          Expires October 1, 2010               [Page 29]
+
+Internet-Draft                    DNS64                       March 2010
+
+
               Andrews, M., "Locally-served DNS Zones",
-              draft-ietf-dnsop-default-local-zones-09 (work in
-              progress), November 2009.
+              draft-ietf-dnsop-default-local-zones-10 (work in
+              progress), March 2010.
 
    [I-D.savolainen-mif-dns-server-selection]
               Savolainen, T., "DNS Server Selection on Multi-Homed
-              Hosts", draft-savolainen-mif-dns-server-selection-01 (work
-              in progress), October 2009.
+              Hosts", draft-savolainen-mif-dns-server-selection-02 (work
+              in progress), February 2010.
 
 
+Appendix A.  Motivations and Implications of synthesizing AAAA Resource
+             Records when real AAAA Resource Records exist
 
-
-Bagnulo, et al.          Expires August 19, 2010               [Page 27]
-
-Internet-Draft                    DNS64                    February 2010
-
-
-Appendix A.  Motivations and Implications of synthesizing AAAA RR when
-             real AAAA RR exists
-
-   The motivation for synthesizing AAAA RRs when a real AAAA RRs exist
-   is to support the following scenario:
+   The motivation for synthesizing AAAA RRs when real AAAA RRs exist is
+   to support the following scenario:
 
       An IPv4-only server application (e.g. web server software) is
       running on a dual-stack host.  There may also be dual-stack server
@@ -1538,7 +1660,7 @@ Appendix A.  Motivations and Implications of synthesizing AAAA RR when
    a DNS64 service may want to enable the synthesis of AAAA RRs even
    when real AAAA RRs exist.
 
-   The implication of including synthetic AAAA RR when real AAAA RR
+   The implication of including synthetic AAAA RRs when real AAAA RRs
    exist is that translated connectivity may be preferred over native
    connectivity in some cases where the DNS64 is operated in DNS server
    mode.
@@ -1551,28 +1673,28 @@ Appendix A.  Motivations and Implications of synthesizing AAAA RR when
    [I-D.ietf-behave-address-format]) is used, then a synthetic AAAA RR
    is likely to be preferred.
 
+
+
+
+Bagnulo, et al.          Expires October 1, 2010               [Page 30]
+
+Internet-Draft                    DNS64                       March 2010
+
+
    This means that without further configuration:
 
-      In "An IPv6 network to the IPv4 Internet" scenario , the host will
-      prefer translated connectivity if an NSP is used.  If the Well-
-      Known Prefix defined in [I-D.ietf-behave-address-format] is used,
-      it will probably prefer native connectivity.
+      In the "An IPv6 network to the IPv4 Internet" scenario, the host
+      will prefer translated connectivity if an NSP is used.  If the
+      Well-Known Prefix defined in [I-D.ietf-behave-address-format] is
+      used, it will probably prefer native connectivity.
 
       In the "IPv6 Internet to an IPv4 network" scenario, it is possible
       to bias the selection towards the real AAAA RR if the DNS64
       resolver returns the real AAAA first in the DNS reply, when an NSP
-
-
-
-Bagnulo, et al.          Expires August 19, 2010               [Page 28]
-
-Internet-Draft                    DNS64                    February 2010
-
-
       is used (the Well-Known Prefix usage is not supported in this
       case)
 
-      In "an IPv6 network to IPv4 network" scenario, for local
+      In the "An IPv6 network to IPv4 network" scenario, for local
       destinations (i.e., target hosts inside the local site), it is
       likely that the NSP and the destination prefix are the same, so we
       can use the order of RR in the DNS reply to bias the selection
@@ -1605,6 +1727,16 @@ Authors' Addresses
    URI:   http://www.it.uc3m.es/marcelo
 
 
+
+
+
+
+
+Bagnulo, et al.          Expires October 1, 2010               [Page 31]
+
+Internet-Draft                    DNS64                       March 2010
+
+
    Andrew Sullivan
    Shinkuro
    4922 Fairmont Avenue, Suite 250
@@ -1613,16 +1745,6 @@ Authors' Addresses
 
    Phone: +1 301 961 3131
    Email: ajs@shinkuro.com
-
-
-
-
-
-
-
-Bagnulo, et al.          Expires August 19, 2010               [Page 29]
-
-Internet-Draft                    DNS64                    February 2010
 
 
    Philip Matthews
@@ -1666,15 +1788,5 @@ Internet-Draft                    DNS64                    February 2010
 
 
 
-
-
-
-
-
-
-
-
-
-
-Bagnulo, et al.          Expires August 19, 2010               [Page 30]
+Bagnulo, et al.          Expires October 1, 2010               [Page 32]
 

@@ -1,12 +1,12 @@
 DNS Extensions working group                             V.Dolmatov, Ed.  
 Internet-Draft                                            Cryptocom Ltd.    
-Intended status: Standards Track                      December 12, 2009
-Expires: June 12, 2010                                 
+Intended status: Standards Track                         March 06, 2010
+Expires: September 06, 2010                                 
 
 
  Use of GOST signature algorithms in DNSKEY and RRSIG Resource Records
                                for DNSSEC
-                 draft-ietf-dnsext-dnssec-gost-06
+                 draft-ietf-dnsext-dnssec-gost-07
 
 Status of this Memo
 
@@ -29,7 +29,7 @@ Status of this Memo
    The list of Internet-Draft Shadow Directories can be accessed at
    http://www.ietf.org/shadow.html.
 
-   This Internet-Draft will expire on June 12 2010.
+   This Internet-Draft will expire on September 06 2010.
 
 Copyright Notice
 
@@ -37,19 +37,23 @@ Copyright Notice
    document authors.  All rights reserved.
 
    This document is subject to BCP 78 and the IETF Trust's Legal
-   Provisions Relating to IETF Documents in effect on the date of
-   publication of this document (http://trustee.ietf.org/license-info).
-   Please review these documents carefully, as they describe your rights
-   and restrictions with respect to this document.
+   Provisions Relating to IETF Documents 
+   (http://trustee.ietf.org/license-info) in effect on the date of 
+   publication of this document. Please review these documents 
+   carefully, as they describe your rights and restrictions with 
+   respect to this document. Code Components extracted from this 
+   document must include Simplified BSD License text as described in
+   Section 4.e of the Trust Legal Provisions and are provided without
+   warranty as described in the Simplified BSD License.
 
 Abstract
 
-   This document describes how to produce signature and hash using 
-   GOST algorithms [DRAFT1, DRAFT2, DRAFT3] for DNSKEY, RRSIG and DS
-   resource records for use in the Domain Name System Security 
-   Extensions (DNSSEC, RFC 4033, RFC 4034, and RFC 4035).
-
-V.Dolmatov              Expires June 12, 2010               [Page 1]
+   This document describes how to produce signature and hash using
+   GOST (R 34.10-2001, R 34.11-94) algorithms foor DNSKEY, RRSIG and DS
+   resource records for use in the Domain Name System Security
+   Extensions (DNSSEC). 
+   
+V.Dolmatov              Expires September 06, 2010            [Page 1]
 
 Table of Contents
 
@@ -98,7 +102,8 @@ Table of Contents
 
    The term "GOST" is not officially defined, but is usually used to
    refer to the collection of the Russian cryptographic algorithms
-   GOST R 34.10-2001, GOST R 34.11-94, GOST 28147-89. 
+   GOST R 34.10-2001[DRAFT1], GOST R 34.11-94[DRAFT2], 
+   GOST 28147-89[DRAFT3].
    Since GOST 28147-89 is not used in DNSSEC, "GOST" will only refer to
    the GOST R 34.10-2001 and GOST R 34.11-94 in this document.
 
@@ -106,7 +111,7 @@ Table of Contents
    "SHOULD", "SHOULD NOT", "RECOMMENDED", "MAY", and "OPTIONAL" in this
    document are to be interpreted as described in [RFC2119].
 
-V.Dolmatov              Expires June 12, 2010                [Page 2]
+V.Dolmatov              Expires September 06, 2010             [Page 2]
 
 2.  DNSKEY Resource Records
 
@@ -155,12 +160,12 @@ V.Dolmatov              Expires June 12, 2010                [Page 2]
    private key file it must be in one line):
 
    Private-key-format: v1.2
-   Algorithm: {TBA1} (GOST)
+   Algorithm: {TBA1} (ECC-GOST)
    GostAsn1: MEUCAQAwHAYGKoUDAgITMBIGByqFAwICIwEGByqFAwICHgEEIgQgp9c
              t2LQaNS1vMKPLEN9zHYjLPNMIQN6QB9vt3AghZFA=
  
 
-V.Dolmatov              Expires June 12, 2010                [Page 3]
+V.Dolmatov              Expires September 06, 2010             [Page 3]
 
    The following DNSKEY RR stores a DNS zone key for example.net
  
@@ -215,11 +220,11 @@ V.Dolmatov              Expires June 12, 2010                [Page 3]
                                   Vy466khKuWEUoVvSkqI+9tvMQySQgZcEmS0W
                                   HRFSm0XS5YST5g== )
  
-V.Dolmatov              Expires June 12, 2010                [Page 4]
+V.Dolmatov              Expires September 06, 2010             [Page 4]
 
-  Note: Several GOST signatures calculated for the same message text 
-   differ because of using of a random element is used in signature 
-   generation process.
+  Note: Several ECC-GOST signatures calculated for the same message text 
+  will differ because of using of a random element is used in signature 
+  generation process.
 
 4.  DS Resource Records
 
@@ -269,25 +274,25 @@ V.Dolmatov              Expires June 12, 2010                [Page 4]
 
 6.1.  Support for GOST signatures
 
-   DNSSEC aware implementations SHOULD be able to support RRSIG and
+   DNSSEC aware implementations MAY be able to support RRSIG and
    DNSKEY resource records created with the GOST algorithms as
    defined in this document.
 
-V.Dolmatov              Expires June 12, 2010                [Page 5]
+V.Dolmatov              Expires September 06, 2010             [Page 5]
 
 6.2.  Support for NSEC3 Denial of Existence
 
-    Any DNSSEC-GOST implementation is required to have either NSEC or
-    NSEC3 support.
+    Any DNSSEC-GOST implementation MUST support both NSEC[RFC4035] and
+    NSEC3 [RFC5155]
 
 6.3  Byte order
 
     Due to the fact that all existing industry implementations of GOST
-    cryptographic libraries are returning GOST blobs in little-endian 
-    format and in order to avoid the necessity for DNSSEC developers 
-    to handle different cryptographic algorithms differently, it was
-    chosen to send these blobs on the wire "as is" without 
-    transformation of endianness.
+    cryptographic libraries are returning GOST blobs without 
+    transformation from little-endian format and in order to avoid the
+    necessity for DNSSEC developers to handle different cryptographic
+    algorithms differently, it was chosen to send these blobs on the
+    wire "as is" without transformation of endianness.
 
 7.  Security considerations
 
@@ -307,12 +312,12 @@ V.Dolmatov              Expires June 12, 2010                [Page 5]
 8.  IANA Considerations
 
    This document updates the IANA registry "DNS Security Algorithm 
-   Numbers [RFC4034]"
+   Numbers" [RFC4034]
    (http://www.iana.org/assignments/dns-sec-alg-numbers).  
    The following entries are added to the registry:
                                      Zone    Trans.
    Value  Algorithm         Mnemonic Signing Sec.  References   Status
-   {TBA1} GOST R 34.10-2001 GOST     Y       *     (this memo)  OPTIONAL
+   {TBA1} GOST R 34.10-2001 ECC-GOST     Y   *    (this memo)  OPTIONAL
 
    This document updates the RFC 4034 Digest Types assignment
    (section A.2)by adding the value and status for the GOST R 34.11-94
@@ -329,7 +334,7 @@ V.Dolmatov              Expires June 12, 2010                [Page 5]
    contributors to these documents are gratefully acknowledged for 
    their hard work.
 
-V.Dolmatov              Expires June 12, 2010                [Page 6]
+V.Dolmatov              Expires September 06, 2010             [Page 6]
 
    The following people provided additional feedback and text: Dmitry 
    Burkov, Jaap Akkerhuis, Olafur Gundmundsson, Jelte Jansen 
@@ -385,8 +390,11 @@ V.Dolmatov              Expires June 12, 2010                [Page 6]
              Infrastructure Certificate and CRL Profile", RFC 4491,
              May 2006. 
 
-V.Dolmatov              Expires June 12, 2010               [Page 7]
-
+V.Dolmatov              Expires September 06, 2010            [Page 7]
+ 
+[RFC5155] B. Laurie, G. Sisson, R. Arends and D. Blacka, "DNS 
+             Security (DNSSEC) Hashed Authenticated Denial of 
+             Existence", RFC 5155, February 2008.
 
 10.2.  Informative References
 
@@ -395,21 +403,21 @@ V.Dolmatov              Expires June 12, 2010               [Page 7]
 
    [DRAFT1]   Dolmatov V., Kabelev D., Ustinov I., Vyshensky S.,
               "GOST R 34.10-2001 digital signature algorithm"
-              draft-dolmatov-cryptocom-gost34102001-07, 12.12.09
+              draft-dolmatov-cryptocom-gost34102001-08, 12.12.09
               work in progress.
 
 
    [DRAFT2]   Dolmatov V., Kabelev D., Ustinov I., Vyshensky S.,
               "GOST R 34.11-94 Hash function algorithm"
-              draft-dolmatov-cryptocom-gost341194-06, 12.12.09
+              draft-dolmatov-cryptocom-gost341194-07, 12.12.09
               work in progress.
 
    [DRAFT3]   Dolmatov V., Kabelev D., Ustinov I., Emelyanova I.,
               "GOST 28147-89 encryption, decryption and MAC algorithms"
-              draft-dolmatov-cryptocom-gost2814789-06, 12.12.09
+              draft-dolmatov-cryptocom-gost2814789-08, 12.12.09
               work in progress.
 
-V.Dolmatov              Expires June 12, 2010                [Page 8]
+V.Dolmatov              Expires September 06, 2010             [Page 8]
 
 
 Authors' Addresses
@@ -436,9 +444,5 @@ Moscow, 117218, Russian Federation
 
 EMail: igus@cryptocom.ru
 
-V.Dolmatov              Expires June 12, 2010                [Page 9]
-
-
-
-
+V.Dolmatov              Expires September 06, 2010             [Page 9]
 
