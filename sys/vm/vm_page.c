@@ -1885,14 +1885,13 @@ vm_page_cache(vm_page_t m)
 void
 vm_page_dontneed(vm_page_t m)
 {
-	static int dnweight;
 	int dnw;
 	int head;
 
-	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
 	vm_page_lock_assert(m, MA_OWNED);
 	VM_OBJECT_LOCK_ASSERT(m->object, MA_OWNED);
-	dnw = ++dnweight;
+	dnw = PCPU_GET(dnweight);
+	PCPU_INC(dnweight);
 
 	/*
 	 * occassionally leave the page alone
@@ -1908,7 +1907,9 @@ vm_page_dontneed(vm_page_t m)
 	 * Clear any references to the page.  Otherwise, the page daemon will
 	 * immediately reactivate the page.
 	 */
+	vm_page_lock_queues();
 	vm_page_flag_clear(m, PG_REFERENCED);
+	vm_page_unlock_queues();
 	pmap_clear_reference(m);
 
 	if (m->dirty == 0 && pmap_is_modified(m))
