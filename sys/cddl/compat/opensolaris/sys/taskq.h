@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2007 Pawel Jakub Dawidek <pjd@FreeBSD.org>
+ * Copyright (c) 2010 Pawel Jakub Dawidek <pjd@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -26,15 +26,19 @@
  * $FreeBSD$
  */
 
-#ifndef _OPENSOLARIS_SYS_DNLC_H_
-#define	_OPENSOLARIS_SYS_DNLC_H_
+#ifndef _OPENSOLARIS_SYS_TASKQ_H_
+#define	_OPENSOLARIS_SYS_TASKQ_H_
 
-#define	DNLC_NO_VNODE	((void *)(intptr_t)0xdeadc0de)
+#include_next <sys/taskq.h>
 
-#define	dnlc_lookup(dvp, name)	(NULL)
-#define	dnlc_update(dvp, name, vp)	do { } while (0)
-#define	dnlc_remove(dvp, name)		do { } while (0)
-#define	dnlc_purge_vfsp(vfsp, count)	(0)
-#define	dnlc_reduce_cache(percent)	do { } while (0)
+struct ostask {
+	struct task	 ost_task;
+	task_func_t	*ost_func;
+	void		*ost_arg;
+	int		 ost_magic;
+};
 
-#endif	/* !_OPENSOLARIS_SYS_DNLC_H_ */
+taskqid_t taskq_dispatch_safe(taskq_t *tq, task_func_t func, void *arg,
+    struct ostask *task);
+
+#endif	/* _OPENSOLARIS_SYS_TASKQ_H_ */
