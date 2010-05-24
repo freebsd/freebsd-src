@@ -544,6 +544,16 @@ ata_pci_dmafini(device_t dev)
     ata_dmafini(dev);
 }
 
+int
+ata_pci_child_location_str(device_t dev, device_t child, char *buf,
+    size_t buflen)
+{
+
+	snprintf(buf, buflen, "channel=%d",
+	    (int)(intptr_t)device_get_ivars(child));
+	return (0);
+}
+
 static device_method_t ata_pci_methods[] = {
     /* device interface */
     DEVMETHOD(device_probe,             ata_pci_probe),
@@ -564,6 +574,7 @@ static device_method_t ata_pci_methods[] = {
     DEVMETHOD(bus_teardown_intr,        ata_pci_teardown_intr),
     DEVMETHOD(pci_read_config,		ata_pci_read_config),
     DEVMETHOD(pci_write_config,		ata_pci_write_config),
+    DEVMETHOD(bus_child_location_str,	ata_pci_child_location_str),
 
     { 0, 0 }
 };
