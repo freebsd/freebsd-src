@@ -292,7 +292,8 @@ static boolean_t	mmu_booke_is_referenced(mmu_t, vm_page_t);
 static boolean_t	mmu_booke_ts_referenced(mmu_t, vm_page_t);
 static vm_offset_t	mmu_booke_map(mmu_t, vm_offset_t *, vm_offset_t, vm_offset_t,
     int);
-static int		mmu_booke_mincore(mmu_t, pmap_t, vm_offset_t);
+static int		mmu_booke_mincore(mmu_t, pmap_t, vm_offset_t,
+    vm_paddr_t *);
 static void		mmu_booke_object_init_pt(mmu_t, pmap_t, vm_offset_t,
     vm_object_t, vm_pindex_t, vm_size_t);
 static boolean_t	mmu_booke_page_exists_quick(mmu_t, pmap_t, vm_page_t);
@@ -2155,26 +2156,35 @@ mmu_booke_is_modified(mmu_t mmu, vm_page_t m)
 {
 	pte_t *pte;
 	pv_entry_t pv;
+	boolean_t rv;
 
-	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
-	if ((m->flags & (PG_FICTITIOUS | PG_UNMANAGED)) != 0)
-		return (FALSE);
+	KASSERT((m->flags & (PG_FICTITIOUS | PG_UNMANAGED)) == 0,
+	    ("mmu_booke_is_modified: page %p is not managed", m));
+	rv = FALSE;
 
+	/*
+	 * If the page is not VPO_BUSY, then PG_WRITEABLE cannot be
+	 * concurrently set while the object is locked.  Thus, if PG_WRITEABLE
+	 * is clear, no PTEs can be modified.
+	 */
+	VM_OBJECT_LOCK_ASSERT(m->object, MA_OWNED);
+	if ((m->oflags & VPO_BUSY) == 0 &&
+	    (m->flags & PG_WRITEABLE) == 0)
+		return (rv);
+	vm_page_lock_queues();
 	TAILQ_FOREACH(pv, &m->md.pv_list, pv_link) {
 		PMAP_LOCK(pv->pv_pmap);
-		if ((pte = pte_find(mmu, pv->pv_pmap, pv->pv_va)) != NULL) {
-			if (!PTE_ISVALID(pte))
-				goto make_sure_to_unlock;
-
-			if (PTE_ISMODIFIED(pte)) {
-				PMAP_UNLOCK(pv->pv_pmap);
-				return (TRUE);
-			}
+		if ((pte = pte_find(mmu, pv->pv_pmap, pv->pv_va)) != NULL &&
+		    PTE_ISVALID(pte)) {
+			if (PTE_ISMODIFIED(pte))
+				rv = TRUE;
 		}
-make_sure_to_unlock:
 		PMAP_UNLOCK(pv->pv_pmap);
+		if (rv)
+			break;
 	}
-	return (FALSE);
+	vm_page_unlock_queues();
+	return (rv);
 }
 
 /*
@@ -2224,16 +2234,24 @@ mmu_booke_clear_modify(mmu_t mmu, vm_page_t m)
 	pte_t *pte;
 	pv_entry_t pv;
 
-	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
-	if ((m->flags & (PG_FICTITIOUS | PG_UNMANAGED)) != 0)
-		return;
+	KASSERT((m->flags & (PG_FICTITIOUS | PG_UNMANAGED)) == 0,
+	    ("mmu_booke_clear_modify: page %p is not managed", m));
+	VM_OBJECT_LOCK_ASSERT(m->object, MA_OWNED);
+	KASSERT((m->oflags & VPO_BUSY) == 0,
+	    ("mmu_booke_clear_modify: page %p is busy", m));
 
+	/*
+	 * If the page is not PG_WRITEABLE, then no PTEs can be modified.
+	 * If the object containing the page is locked and the page is not
+	 * VPO_BUSY, then PG_WRITEABLE cannot be concurrently set.
+	 */
+	if ((m->flags & PG_WRITEABLE) == 0)
+		return;
+	vm_page_lock_queues();
 	TAILQ_FOREACH(pv, &m->md.pv_list, pv_link) {
 		PMAP_LOCK(pv->pv_pmap);
-		if ((pte = pte_find(mmu, pv->pv_pmap, pv->pv_va)) != NULL) {
-			if (!PTE_ISVALID(pte))
-				goto make_sure_to_unlock;
-
+		if ((pte = pte_find(mmu, pv->pv_pmap, pv->pv_va)) != NULL &&
+		    PTE_ISVALID(pte)) {
 			mtx_lock_spin(&tlbivax_mutex);
 			tlb_miss_lock();
 			
@@ -2246,9 +2264,9 @@ mmu_booke_clear_modify(mmu_t mmu, vm_page_t m)
 			tlb_miss_unlock();
 			mtx_unlock_spin(&tlbivax_mutex);
 		}
-make_sure_to_unlock:
 		PMAP_UNLOCK(pv->pv_pmap);
 	}
+	vm_page_unlock_queues();
 }
 
 /*
@@ -2310,16 +2328,13 @@ mmu_booke_clear_reference(mmu_t mmu, vm_page_t m)
 	pte_t *pte;
 	pv_entry_t pv;
 
-	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
-	if ((m->flags & (PG_FICTITIOUS | PG_UNMANAGED)) != 0)
-		return;
-
+	KASSERT((m->flags & (PG_FICTITIOUS | PG_UNMANAGED)) == 0,
+	    ("mmu_booke_clear_reference: page %p is not managed", m));
+	vm_page_lock_queues();
 	TAILQ_FOREACH(pv, &m->md.pv_list, pv_link) {
 		PMAP_LOCK(pv->pv_pmap);
-		if ((pte = pte_find(mmu, pv->pv_pmap, pv->pv_va)) != NULL) {
-			if (!PTE_ISVALID(pte))
-				goto make_sure_to_unlock;
-
+		if ((pte = pte_find(mmu, pv->pv_pmap, pv->pv_va)) != NULL &&
+		    PTE_ISVALID(pte)) {
 			if (PTE_ISREFERENCED(pte)) {
 				mtx_lock_spin(&tlbivax_mutex);
 				tlb_miss_lock();
@@ -2331,9 +2346,9 @@ mmu_booke_clear_reference(mmu_t mmu, vm_page_t m)
 				mtx_unlock_spin(&tlbivax_mutex);
 			}
 		}
-make_sure_to_unlock:
 		PMAP_UNLOCK(pv->pv_pmap);
 	}
+	vm_page_unlock_queues();
 }
 
 /*
@@ -2632,7 +2647,8 @@ mmu_booke_object_init_pt(mmu_t mmu, pmap_t pmap, vm_offset_t addr,
  * Perform the pmap work for mincore.
  */
 static int
-mmu_booke_mincore(mmu_t mmu, pmap_t pmap, vm_offset_t addr)
+mmu_booke_mincore(mmu_t mmu, pmap_t pmap, vm_offset_t addr,
+    vm_paddr_t *locked_pa)
 {
 
 	TODO;

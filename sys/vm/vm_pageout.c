@@ -391,17 +391,14 @@ more:
 			break;
 		}
 		vm_page_lock(p);
-		vm_page_lock_queues();
 		vm_page_test_dirty(p);
 		if (p->dirty == 0 ||
 		    p->queue != PQ_INACTIVE ||
 		    p->hold_count != 0) {	/* may be undergoing I/O */
 			vm_page_unlock(p);
-			vm_page_unlock_queues();
 			ib = 0;
 			break;
 		}
-		vm_page_unlock_queues();
 		vm_page_unlock(p);
 		mc[--page_base] = p;
 		++pageout_count;
@@ -424,16 +421,13 @@ more:
 			break;
 		}
 		vm_page_lock(p);
-		vm_page_lock_queues();
 		vm_page_test_dirty(p);
 		if (p->dirty == 0 ||
 		    p->queue != PQ_INACTIVE ||
 		    p->hold_count != 0) {	/* may be undergoing I/O */
-			vm_page_unlock_queues();
 			vm_page_unlock(p);
 			break;
 		}
-		vm_page_unlock_queues();
 		vm_page_unlock(p);
 		mc[page_base + pageout_count] = p;
 		++pageout_count;

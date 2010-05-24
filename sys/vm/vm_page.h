@@ -194,8 +194,10 @@ extern struct vpglocks pa_lock[];
 #define	PA_UNLOCK(pa)	mtx_unlock(PA_LOCKPTR(pa))
 #define	PA_UNLOCK_COND(pa) 			\
 	do {		   			\
-		if (pa) 			\
-			PA_UNLOCK(pa);		\
+		if ((pa) != 0) {		\
+			PA_UNLOCK((pa));	\
+			(pa) = 0;		\
+		}				\
 	} while (0)
 
 #define	PA_LOCK_ASSERT(pa, a)	mtx_assert(PA_LOCKPTR(pa), (a))

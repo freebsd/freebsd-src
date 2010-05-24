@@ -2586,13 +2586,27 @@ pmap_ts_referenced(vm_page_t m)
 boolean_t
 pmap_is_modified(vm_page_t m)
 {
-	if (m->flags & PG_FICTITIOUS)
-		return FALSE;
+	boolean_t rv;
 
+	KASSERT((m->flags & (PG_FICTITIOUS | PG_UNMANAGED)) == 0,
+	    ("pmap_is_modified: page %p is not managed", m));
+
+	/*
+	 * If the page is not VPO_BUSY, then PG_WRITEABLE cannot be
+	 * concurrently set while the object is locked.  Thus, if PG_WRITEABLE
+	 * is clear, no PTEs can have PTE_M set.
+	 */
+	VM_OBJECT_LOCK_ASSERT(m->object, MA_OWNED);
+	if ((m->oflags & VPO_BUSY) == 0 &&
+	    (m->flags & PG_WRITEABLE) == 0)
+		return (FALSE);
+	vm_page_lock_queues();
 	if (m->md.pv_flags & PV_TABLE_MOD)
-		return TRUE;
+		rv = TRUE;
 	else
-		return pmap_testbit(m, PTE_M);
+		rv = pmap_testbit(m, PTE_M);
+	vm_page_unlock_queues();
+	return (rv);
 }
 
 /* N/C */
@@ -2625,13 +2639,26 @@ pmap_is_prefaultable(pmap_t pmap, vm_offset_t addr)
 void
 pmap_clear_modify(vm_page_t m)
 {
-	if (m->flags & PG_FICTITIOUS)
+
+	KASSERT((m->flags & (PG_FICTITIOUS | PG_UNMANAGED)) == 0,
+	    ("pmap_clear_modify: page %p is not managed", m));
+	VM_OBJECT_LOCK_ASSERT(m->object, MA_OWNED);
+	KASSERT((m->oflags & VPO_BUSY) == 0,
+	    ("pmap_clear_modify: page %p is busy", m));
+
+	/*
+	 * If the page is not PG_WRITEABLE, then no PTEs can have PTE_M set.
+	 * If the object containing the page is locked and the page is not
+	 * VPO_BUSY, then PG_WRITEABLE cannot be concurrently set.
+	 */
+	if ((m->flags & PG_WRITEABLE) == 0)
 		return;
-	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
+	vm_page_lock_queues();
 	if (m->md.pv_flags & PV_TABLE_MOD) {
 		pmap_changebit(m, PTE_M, FALSE);
 		m->md.pv_flags &= ~PV_TABLE_MOD;
 	}
+	vm_page_unlock_queues();
 }
 
 /*
@@ -2656,13 +2683,14 @@ pmap_is_referenced(vm_page_t m)
 void
 pmap_clear_reference(vm_page_t m)
 {
-	if (m->flags & PG_FICTITIOUS)
-		return;
 
-	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
+	KASSERT((m->flags & (PG_FICTITIOUS | PG_UNMANAGED)) == 0,
+	    ("pmap_clear_reference: page %p is not managed", m));
+	vm_page_lock_queues();
 	if (m->md.pv_flags & PV_TABLE_REF) {
 		m->md.pv_flags &= ~PV_TABLE_REF;
 	}
+	vm_page_unlock_queues();
 }
 
 /*
@@ -2733,51 +2761,47 @@ pmap_unmapdev(vm_offset_t va, vm_size_t size)
  * perform the pmap work for mincore
  */
 int
-pmap_mincore(pmap_t pmap, vm_offset_t addr)
+pmap_mincore(pmap_t pmap, vm_offset_t addr, vm_paddr_t *locked_pa)
 {
-
 	pt_entry_t *ptep, pte;
-	vm_page_t m;
-	int val = 0;
+	vm_offset_t pa;
+	int val;
+	boolean_t managed;
 
 	PMAP_LOCK(pmap);
+retry:
 	ptep = pmap_pte(pmap, addr);
 	pte = (ptep != NULL) ? *ptep : 0;
-	PMAP_UNLOCK(pmap);
-
-	if (mips_pg_v(pte)) {
-		vm_offset_t pa;
-
-		val = MINCORE_INCORE;
-		pa = mips_tlbpfn_to_paddr(pte);
-		if (!page_is_managed(pa))
-			return val;
-
-		m = PHYS_TO_VM_PAGE(pa);
-
-		/*
-		 * Modified by us
-		 */
-		if (pte & PTE_M)
-			val |= MINCORE_MODIFIED | MINCORE_MODIFIED_OTHER;
-		/*
-		 * Modified by someone
-		 */
-		else {
-			vm_page_lock_queues();
-			if (m->dirty || pmap_is_modified(m))
-				val |= MINCORE_MODIFIED_OTHER;
-			vm_page_unlock_queues();
-		}
-		/*
-		 * Referenced by us or someone
-		 */
-		vm_page_lock_queues();
-		if ((m->flags & PG_REFERENCED) || pmap_is_referenced(m))
-			val |= MINCORE_REFERENCED | MINCORE_REFERENCED_OTHER;
-		vm_page_unlock_queues();
+	if (!mips_pg_v(pte)) {
+		val = 0;
+		goto out;
 	}
-	return val;
+	val = MINCORE_INCORE;
+	if ((pte & PTE_M) != 0)
+		val |= MINCORE_MODIFIED | MINCORE_MODIFIED_OTHER;
+	pa = mips_tlbpfn_to_paddr(pte);
+	managed = page_is_managed(pa);
+	if (managed) {
+		/*
+		 * This may falsely report the given address as
+		 * MINCORE_REFERENCED.  Unfortunately, due to the lack of
+		 * per-PTE reference information, it is impossible to
+		 * determine if the address is MINCORE_REFERENCED.  
+		 */
+		m = PHYS_TO_VM_PAGE(pa);
+		if ((m->flags & PG_REFERENCED) != 0)
+			val |= MINCORE_REFERENCED | MINCORE_REFERENCED_OTHER;
+	}
+	if ((val & (MINCORE_MODIFIED_OTHER | MINCORE_REFERENCED_OTHER)) !=
+	    (MINCORE_MODIFIED_OTHER | MINCORE_REFERENCED_OTHER) && managed) {
+		/* Ensure that "PHYS_TO_VM_PAGE(pa)->object" doesn't change. */
+		if (vm_page_pa_tryrelock(pmap, pa, locked_pa))
+			goto retry;
+	} else
+out:
+		PA_UNLOCK_COND(*locked_pa);
+	PMAP_UNLOCK(pmap);
+	return (val);
 }
 
 void
