@@ -380,7 +380,7 @@
       <title>sparc64</title>
 
       <para>This section describes the systems currently known to be
-	supported by &os; on the &fujitsu; &sparc64; and &sun; &ultrasparc;
+	supported by &os; on the Fujitsu &sparc64; and Sun &ultrasparc;
 	platforms.  For
 	background information on the various hardware designs see the
 	<ulink url="http://sunsolve.sun.com/handbook_pub/">Sun System
@@ -391,8 +391,8 @@
 
       <para>When using the <filename>GENERIC</filename> kernel,
 	&os;/&arch.sparc64; systems not equipped with a framebuffer
-	supported by the &man.creator.4; (&sun; Creator, &sun; Creator3D
-	and &sun; Elite3D) or &man.machfb.4; (&sun; PGX and &sun; PGX64
+	supported by the &man.creator.4; (Sun Creator, Sun Creator3D
+	and Sun Elite3D) or &man.machfb.4; (Sun PGX and Sun PGX64
 	as well as the ATI Mach64 chips found onboard in for example
 	&sun.blade; 100, &sun.blade; 150, &sun.ultra; 5	and &sun.ultra; 10)
 	driver must use the serial console.</para>
@@ -451,55 +451,55 @@
 	</listitem>
 
 	<listitem>
-	  <para>&sun; &netra; t1 100/105</para>
+	  <para>Sun &netra; t1 100/105</para>
 	</listitem>
 
 	<listitem>
-	  <para>&sun; &netra; T1 AC200/DC200</para>
+	  <para>Sun &netra; T1 AC200/DC200</para>
 	</listitem>
 
 	<listitem>
-	  <para>&sun; &netra; t 1100</para>
+	  <para>Sun &netra; t 1100</para>
 	</listitem>
 
 	<listitem>
-	  <para>&sun; &netra; t 1120</para>
+	  <para>Sun &netra; t 1120</para>
 	</listitem>
 
 	<listitem>
-	  <para>&sun; &netra; t 1125</para>
+	  <para>Sun &netra; t 1125</para>
 	</listitem>
 
 	<listitem>
-	  <para>&sun; &netra; t 1400/1405</para>
+	  <para>Sun &netra; t 1400/1405</para>
 	</listitem>
 
 	<listitem>
-	  <para>&sun; &netra; 120</para>
+	  <para>Sun &netra; 120</para>
 	</listitem>
 
 	<listitem>
-	  <para>&sun; &netra; X1</para>
+	  <para>Sun &netra; X1</para>
 	</listitem>
 
 	<listitem>
-	  <para>&sun; &sparcengine; Ultra AX1105</para>
+	  <para>Sun &sparcengine; Ultra AX1105</para>
 	</listitem>
 
 	<listitem>
-	  <para>&sun; &sparcengine; Ultra AXe</para>
+	  <para>Sun &sparcengine; Ultra AXe</para>
 	</listitem>
 
 	<listitem>
-	  <para>&sun; &sparcengine; Ultra AXi</para>
+	  <para>Sun &sparcengine; Ultra AXi</para>
 	</listitem>
 
 	<listitem>
-	  <para>&sun; &sparcengine; Ultra AXmp</para>
+	  <para>Sun &sparcengine; Ultra AXmp</para>
 	</listitem>
 
 	<listitem>
-	  <para>&sun; &sparcengine; CP1500</para>
+	  <para>Sun &sparcengine; CP1500</para>
 	</listitem>
 
 	<listitem>
@@ -542,8 +542,8 @@
       <para>The following systems are partially supported by &os;.  In
 	particular the fibre channel controllers in SBus-based systems are not
 	supported.  However, it is possible to use these with a SCSI controller
-	supported by the &man.esp.4 driver (&sun; ESP SCSI, &sun; FAS Fast-SCSI
-	and &sun; FAS366 Fast-Wide SCSI controllers).</para>
+	supported by the &man.esp.4 driver (Sun ESP SCSI, Sun FAS Fast-SCSI
+	and Sun FAS366 Fast-Wide SCSI controllers).</para>
 
       <itemizedlist>
 	<listitem>
@@ -555,7 +555,7 @@
 	</listitem>
       </itemizedlist>
 
-      <para>Starting with 7.2-RELEASE, &arch.sparc64; systems based on &sun;
+      <para>Starting with 7.2-RELEASE, &arch.sparc64; systems based on Sun
 	&ultrasparc; III and beyond are also supported by &os;, which includes
 	the following known working systems:</para>
 
@@ -616,7 +616,7 @@
 	</listitem>
       </itemizedlist>
 
-      <para>The following &sun; &ultrasparc; systems are not tested but
+      <para>The following Sun &ultrasparc; systems are not tested but
 	believed to be also supported by &os;:</para>
 
       <itemizedlist>
@@ -639,29 +639,29 @@
       </itemizedlist>
 
       <para>Starting with 8.1-RELEASE, &arch.sparc64; systems based on
-	&fujitsu; &sparc64; V are also supported by &os;, which
+	Fujitsu &sparc64; V are also supported by &os;, which
 	includes the following known working systems:</para>
 
       <itemizedlist>
 	<listitem>
-	  <para>&fujitsu; &primepower; 250</para>
+	  <para>Fujitsu &primepower; 250</para>
 	</listitem>
       </itemizedlist>
 
-      <para>The following &fujitsu; &primepower; systems are not tested but
+      <para>The following Fujitsu &primepower; systems are not tested but
 	believed to be also supported by &os;:</para>
 
       <itemizedlist>
 	<listitem>
-	  <para>&fujitsu; &primepower; 450</para>
+	  <para>Fujitsu &primepower; 450</para>
 	</listitem>
 
 	<listitem>
-	  <para>&fujitsu; &primepower; 650</para>
+	  <para>Fujitsu &primepower; 650</para>
 	</listitem>
 
 	<listitem>
-	  <para>&fujitsu; &primepower; 850</para>
+	  <para>Fujitsu &primepower; 850</para>
 	</listitem>
       </itemizedlist>
 
