@@ -3,12 +3,12 @@
 
 Network Working Group                                         M. Andrews
 Internet-Draft                                                       ISC
-Intended status: BCP                                   November 19, 2009
-Expires: May 23, 2010
+Intended status: BCP                                      March 25, 2010
+Expires: September 26, 2010
 
 
                         Locally-served DNS Zones
-                draft-ietf-dnsop-default-local-zones-09
+                draft-ietf-dnsop-default-local-zones-10
 
 Abstract
 
@@ -41,20 +41,20 @@ Status of this Memo
    The list of Internet-Draft Shadow Directories can be accessed at
    http://www.ietf.org/shadow.html.
 
-   This Internet-Draft will expire on May 23, 2010.
+   This Internet-Draft will expire on September 26, 2010.
 
 Copyright Notice
 
-   Copyright (c) 2009 IETF Trust and the persons identified as the
+   Copyright (c) 2010 IETF Trust and the persons identified as the
    document authors.  All rights reserved.
 
    This document is subject to BCP 78 and the IETF Trust's Legal
 
 
 
-Andrews                   Expires May 23, 2010                  [Page 1]
+Andrews                Expires September 26, 2010               [Page 1]
 
-Internet-Draft          Locally-served DNS Zones           November 2009
+Internet-Draft          Locally-served DNS Zones              March 2010
 
 
    Provisions Relating to IETF Documents
@@ -108,9 +108,9 @@ Internet-Draft          Locally-served DNS Zones           November 2009
 
 
 
-Andrews                   Expires May 23, 2010                  [Page 2]
+Andrews                Expires September 26, 2010               [Page 2]
 
-Internet-Draft          Locally-served DNS Zones           November 2009
+Internet-Draft          Locally-served DNS Zones              March 2010
 
 
 Table of Contents
@@ -121,9 +121,9 @@ Table of Contents
    3.  Changes to Iterative Resolver Behaviour. . . . . . . . . . . .  4
    4.  Lists Of Zones Covered . . . . . . . . . . . . . . . . . . . .  5
      4.1.  RFC1918 Zones  . . . . . . . . . . . . . . . . . . . . . .  5
-     4.2.  RFC3330 Zones  . . . . . . . . . . . . . . . . . . . . . .  6
+     4.2.  RFC3330 and RFC5737 Zones  . . . . . . . . . . . . . . . .  6
      4.3.  Local IPv6 Unicast Addresses . . . . . . . . . . . . . . .  6
-     4.4.  IPv6 Locally Assigned Local Addresses  . . . . . . . . . .  6
+     4.4.  IPv6 Locally Assigned Local Addresses  . . . . . . . . . .  7
      4.5.  IPv6 Link Local Addresses  . . . . . . . . . . . . . . . .  7
      4.6.  IPv6 Example Prefix  . . . . . . . . . . . . . . . . . . .  7
    5.  Zones that are Out-Of-Scope  . . . . . . . . . . . . . . . . .  7
@@ -134,18 +134,19 @@ Table of Contents
      9.1.  Normative References . . . . . . . . . . . . . . . . . . .  9
      9.2.  Informative References . . . . . . . . . . . . . . . . . . 10
    Appendix A.  Change History [To Be Removed on Publication] . . . . 10
-     A.1.  draft-ietf-dnsop-default-local-zones-09.txt  . . . . . . . 10
-     A.2.  draft-ietf-dnsop-default-local-zones-08.txt  . . . . . . . 10
-     A.3.  draft-ietf-dnsop-default-local-zones-07.txt  . . . . . . . 10
-     A.4.  draft-ietf-dnsop-default-local-zones-06.txt  . . . . . . . 10
-     A.5.  draft-ietf-dnsop-default-local-zones-05.txt  . . . . . . . 11
-     A.6.  draft-ietf-dnsop-default-local-zones-04.txt  . . . . . . . 11
-     A.7.  draft-ietf-dnsop-default-local-zones-03.txt  . . . . . . . 11
-     A.8.  draft-ietf-dnsop-default-local-zones-02.txt  . . . . . . . 11
-     A.9.  draft-ietf-dnsop-default-local-zones-01.txt  . . . . . . . 11
-     A.10. draft-ietf-dnsop-default-local-zones-00.txt  . . . . . . . 11
-     A.11. draft-andrews-full-service-resolvers-03.txt  . . . . . . . 11
-     A.12. draft-andrews-full-service-resolvers-02.txt  . . . . . . . 12
+     A.1.  draft-ietf-dnsop-default-local-zones-10.txt  . . . . . . . 10
+     A.2.  draft-ietf-dnsop-default-local-zones-09.txt  . . . . . . . 10
+     A.3.  draft-ietf-dnsop-default-local-zones-08.txt  . . . . . . . 11
+     A.4.  draft-ietf-dnsop-default-local-zones-07.txt  . . . . . . . 11
+     A.5.  draft-ietf-dnsop-default-local-zones-06.txt  . . . . . . . 11
+     A.6.  draft-ietf-dnsop-default-local-zones-05.txt  . . . . . . . 11
+     A.7.  draft-ietf-dnsop-default-local-zones-04.txt  . . . . . . . 11
+     A.8.  draft-ietf-dnsop-default-local-zones-03.txt  . . . . . . . 11
+     A.9.  draft-ietf-dnsop-default-local-zones-02.txt  . . . . . . . 11
+     A.10. draft-ietf-dnsop-default-local-zones-01.txt  . . . . . . . 11
+     A.11. draft-ietf-dnsop-default-local-zones-00.txt  . . . . . . . 11
+     A.12. draft-andrews-full-service-resolvers-03.txt  . . . . . . . 12
+     A.13. draft-andrews-full-service-resolvers-02.txt  . . . . . . . 12
    Appendix B.  Proposed Status [To Be Removed on Publication]  . . . 12
    Author's Address . . . . . . . . . . . . . . . . . . . . . . . . . 12
 
@@ -163,10 +164,9 @@ Table of Contents
 
 
 
-
-Andrews                   Expires May 23, 2010                  [Page 3]
+Andrews                Expires September 26, 2010               [Page 3]
 
-Internet-Draft          Locally-served DNS Zones           November 2009
+Internet-Draft          Locally-served DNS Zones              March 2010
 
 
 1.  Introduction
@@ -220,9 +220,9 @@ Internet-Draft          Locally-served DNS Zones           November 2009
 
 
 
-Andrews                   Expires May 23, 2010                  [Page 4]
+Andrews                Expires September 26, 2010               [Page 4]
 
-Internet-Draft          Locally-served DNS Zones           November 2009
+Internet-Draft          Locally-served DNS Zones              March 2010
 
 
 2.  Effects on sites using RFC 1918 addresses.
@@ -276,9 +276,9 @@ Internet-Draft          Locally-served DNS Zones           November 2009
 
 
 
-Andrews                   Expires May 23, 2010                  [Page 5]
+Andrews                Expires September 26, 2010               [Page 5]
 
-Internet-Draft          Locally-served DNS Zones           November 2009
+Internet-Draft          Locally-served DNS Zones              March 2010
 
 
    The SOA RR is needed to support negative caching [RFC2308] of name
@@ -332,16 +332,17 @@ Internet-Draft          Locally-served DNS Zones           November 2009
 
 
 
-Andrews                   Expires May 23, 2010                  [Page 6]
+Andrews                Expires September 26, 2010               [Page 6]
 
-Internet-Draft          Locally-served DNS Zones           November 2009
+Internet-Draft          Locally-served DNS Zones              March 2010
 
 
-4.2.  RFC3330 Zones
+4.2.  RFC3330 and RFC5737 Zones
 
    The following zones correspond to those address ranges from [RFC3330]
-   that are not expected to appear as source or destination addresses on
-   the public Internet and to not have a unique name to associate with.
+   and [RFC5737] that are not expected to appear as source or
+   destination addresses on the public Internet and to not have a unique
+   name to associate with.
 
    The recommendation to serve an empty zone 127.IN-ADDR.ARPA is not a
    attempt to discourage any practice to provide a PTR RR for
@@ -357,7 +358,9 @@ Internet-Draft          Locally-served DNS Zones           November 2009
          | 0.IN-ADDR.ARPA               | IPv4 "THIS" NETWORK    |
          | 127.IN-ADDR.ARPA             | IPv4 LOOP-BACK NETWORK |
          | 254.169.IN-ADDR.ARPA         | IPv4 LINK LOCAL        |
-         | 2.0.192.IN-ADDR.ARPA         | IPv4 TEST NET          |
+         | 2.0.192.IN-ADDR.ARPA         | IPv4 TEST NET 1        |
+         | 100.51.198.IN-ADDR.ARPA      | IPv4 TEST NET 2        |
+         | 113.0.203.IN-ADDR.ARPA       | IPv4 TEST NET 3        |
          | 255.255.255.255.IN-ADDR.ARPA | IPv4 BROADCAST         |
          +------------------------------+------------------------+
 
@@ -380,18 +383,19 @@ Internet-Draft          Locally-served DNS Zones           November 2009
    readability and to adhere to line width constraints.  They are not
    parts of the zone names.
 
+
+
+
+
+
+Andrews                Expires September 26, 2010               [Page 7]
+
+Internet-Draft          Locally-served DNS Zones              March 2010
+
+
 4.4.  IPv6 Locally Assigned Local Addresses
 
    Section 4.4 of [RFC4193] already required special treatment of:
-
-
-
-
-
-Andrews                   Expires May 23, 2010                  [Page 7]
-
-Internet-Draft          Locally-served DNS Zones           November 2009
-
 
                              +--------------+
                              | Zone         |
@@ -438,17 +442,16 @@ Internet-Draft          Locally-served DNS Zones           November 2009
    F.E.F.IP6.ARPA may still need to be deployed in the short term if the
    traffic becomes excessive.
 
+
+
+Andrews                Expires September 26, 2010               [Page 8]
+
+Internet-Draft          Locally-served DNS Zones              March 2010
+
+
    For IPv6 Non-Locally Assigned Local addresses (L = 0) [RFC4193],
    there has been no decision made about whether the Regional Internet
    Registries (RIRs) will provide delegations in this space or not.  If
-
-
-
-Andrews                   Expires May 23, 2010                  [Page 8]
-
-Internet-Draft          Locally-served DNS Zones           November 2009
-
-
    they don't, then C.F.IP6.ARPA will need to be added to the list in
    Section 4.4.  If they do, then registries will need to take steps to
    ensure that name servers are provided for these addresses.
@@ -494,17 +497,17 @@ Internet-Draft          Locally-served DNS Zones           November 2009
    DNSSEC validation to succeed for queries in these spaces despite not
    being answered from the delegated servers.
 
+
+
+
+Andrews                Expires September 26, 2010               [Page 9]
+
+Internet-Draft          Locally-served DNS Zones              March 2010
+
+
    It is recommended that sites actively using these namespaces secure
    them using DNSSEC [RFC4035] by publishing and using DNSSEC trust
    anchors.  This will protect the clients from accidental import of
-
-
-
-Andrews                   Expires May 23, 2010                  [Page 9]
-
-Internet-Draft          Locally-served DNS Zones           November 2009
-
-
    unsigned responses from the Internet.
 
 
@@ -551,15 +554,15 @@ Internet-Draft          Locally-served DNS Zones           November 2009
    [RFC4159]  Huston, G., "Deprecation of "ip6.int"", BCP 109, RFC 4159,
               August 2005.
 
+
+
+Andrews                Expires September 26, 2010              [Page 10]
+
+Internet-Draft          Locally-served DNS Zones              March 2010
+
+
    [RFC4193]  Hinden, R. and B. Haberman, "Unique Local IPv6 Unicast
               Addresses", RFC 4193, October 2005.
-
-
-
-Andrews                   Expires May 23, 2010                 [Page 10]
-
-Internet-Draft          Locally-served DNS Zones           November 2009
-
 
    [RFC4291]  Hinden, R. and S. Deering, "IP Version 6 Addressing
               Architecture", RFC 4291, February 2006.
@@ -588,45 +591,54 @@ Internet-Draft          Locally-served DNS Zones           November 2009
    [RFC3849]  Huston, G., Lord, A., and P. Smith, "IPv6 Address Prefix
               Reserved for Documentation", RFC 3849, July 2004.
 
+   [RFC5737]  Arkko, J., Cotton, M., and L. Vergoda, "IPv4 Address
+              Blocks Reserved for Documentation", RFC 5737,
+              January 2010.
+
 
 Appendix A.  Change History [To Be Removed on Publication]
 
-A.1.  draft-ietf-dnsop-default-local-zones-09.txt
+A.1.  draft-ietf-dnsop-default-local-zones-10.txt
+
+   added RFC 5737 zones
+
+A.2.  draft-ietf-dnsop-default-local-zones-09.txt
 
    refresh awaiting writeup
 
-A.2.  draft-ietf-dnsop-default-local-zones-08.txt
+
+
+
+
+
+
+Andrews                Expires September 26, 2010              [Page 11]
+
+Internet-Draft          Locally-served DNS Zones              March 2010
+
+
+A.3.  draft-ietf-dnsop-default-local-zones-08.txt
 
    editorial, reference updates
 
-A.3.  draft-ietf-dnsop-default-local-zones-07.txt
+A.4.  draft-ietf-dnsop-default-local-zones-07.txt
 
    none, expiry prevention
 
-A.4.  draft-ietf-dnsop-default-local-zones-06.txt
+A.5.  draft-ietf-dnsop-default-local-zones-06.txt
 
    add IPv6 example prefix
 
-
-
-
-
-
-Andrews                   Expires May 23, 2010                 [Page 11]
-
-Internet-Draft          Locally-served DNS Zones           November 2009
-
-
-A.5.  draft-ietf-dnsop-default-local-zones-05.txt
+A.6.  draft-ietf-dnsop-default-local-zones-05.txt
 
    none, expiry prevention
 
-A.6.  draft-ietf-dnsop-default-local-zones-04.txt
+A.7.  draft-ietf-dnsop-default-local-zones-04.txt
 
    Centrally Assigned Local addresses -> Non-Locally Assigned Local
    address
 
-A.7.  draft-ietf-dnsop-default-local-zones-03.txt
+A.8.  draft-ietf-dnsop-default-local-zones-03.txt
 
    expanded section 4 descriptions
 
@@ -636,44 +648,40 @@ A.7.  draft-ietf-dnsop-default-local-zones-03.txt
 
    Revised language.
 
-A.8.  draft-ietf-dnsop-default-local-zones-02.txt
+A.9.  draft-ietf-dnsop-default-local-zones-02.txt
 
    RNAME now "nobody.invalid."
 
    Revised language.
 
-A.9.  draft-ietf-dnsop-default-local-zones-01.txt
+A.10.  draft-ietf-dnsop-default-local-zones-01.txt
 
    Revised impact description.
 
    Updated to reflect change in IP6.INT status.
 
-A.10.  draft-ietf-dnsop-default-local-zones-00.txt
+A.11.  draft-ietf-dnsop-default-local-zones-00.txt
 
    Adopted by DNSOP.
 
    "Author's Note" re-titled "Zones that are Out-Of-Scope"
 
+
+
+Andrews                Expires September 26, 2010              [Page 12]
+
+Internet-Draft          Locally-served DNS Zones              March 2010
+
+
    Add note that these zone are expected to seed the IANA registry.
 
    Title changed.
 
-A.11.  draft-andrews-full-service-resolvers-03.txt
+A.12.  draft-andrews-full-service-resolvers-03.txt
 
    Added "Proposed Status".
 
-
-
-
-
-
-
-Andrews                   Expires May 23, 2010                 [Page 12]
-
-Internet-Draft          Locally-served DNS Zones           November 2009
-
-
-A.12.  draft-andrews-full-service-resolvers-02.txt
+A.13.  draft-andrews-full-service-resolvers-02.txt
 
    Added 0.IN-ADDR.ARPA.
 
@@ -692,7 +700,7 @@ Author's Address
    Redwood City, CA  94063
    US
 
-   Email: Mark_Andrews@isc.org
+   Email: marka@isc.org
 
 
 
@@ -716,14 +724,5 @@ Author's Address
 
 
 
-
-
-
-
-
-
-
-
-Andrews                   Expires May 23, 2010                 [Page 13]
+Andrews                Expires September 26, 2010              [Page 13]
 
-

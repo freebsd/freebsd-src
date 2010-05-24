@@ -3,14 +3,14 @@
 
 DNSEXT                                                         R. Bellis
 Internet-Draft                                                Nominet UK
-Updates: 1035, 1123                                      January 6, 2010
+Updates: 1035, 1123                                       March 22, 2010
 (if approved)
 Intended status: Standards Track
-Expires: July 10, 2010
+Expires: September 23, 2010
 
 
           DNS Transport over TCP - Implementation Requirements
-               draft-ietf-dnsext-dns-tcp-requirements-02
+               draft-ietf-dnsext-dns-tcp-requirements-03
 
 Abstract
 
@@ -38,7 +38,7 @@ Status of this Memo
    The list of Internet-Draft Shadow Directories can be accessed at
    http://www.ietf.org/shadow.html.
 
-   This Internet-Draft will expire on July 10, 2010.
+   This Internet-Draft will expire on September 23, 2010.
 
 Copyright Notice
 
@@ -52,9 +52,9 @@ Copyright Notice
 
 
 
-Bellis                    Expires July 10, 2010                 [Page 1]
+Bellis                 Expires September 23, 2010               [Page 1]
 
-Internet-Draft                DNS over TCP                  January 2010
+Internet-Draft                DNS over TCP                    March 2010
 
 
    carefully, as they describe your rights and restrictions with respect
@@ -82,9 +82,11 @@ Table of Contents
 
    8.  IANA Considerations . . . . . . . . . . . . . . . . . . . . . . 7
 
-   9.  References  . . . . . . . . . . . . . . . . . . . . . . . . . . 7
-     9.1.  Normative References  . . . . . . . . . . . . . . . . . . . 7
-     9.2.  Informative References  . . . . . . . . . . . . . . . . . . 7
+   9.  Acknowledgements  . . . . . . . . . . . . . . . . . . . . . . . 7
+
+   10. References  . . . . . . . . . . . . . . . . . . . . . . . . . . 7
+     10.1.  Normative References . . . . . . . . . . . . . . . . . . . 7
+     10.2.  Informative References . . . . . . . . . . . . . . . . . . 7
 
    Appendix A.  Change Log . . . . . . . . . . . . . . . . . . . . . . 8
 
@@ -106,19 +108,17 @@ Table of Contents
 
 
 
-
-
-Bellis                    Expires July 10, 2010                 [Page 2]
+Bellis                 Expires September 23, 2010               [Page 2]
 
-Internet-Draft                DNS over TCP                  January 2010
+Internet-Draft                DNS over TCP                    March 2010
 
 
 1.  Introduction
 
-   Most DNS [RFC1035] transactions take place over UDP [RFC0792].  The
-   TCP [RFC0793] is used for zone transfers and for the transfer of
-   other packets which exceed the protocol's original 512 byte packet-
-   size limit.
+   Most DNS [RFC1035] transactions take place over UDP [RFC0768].  TCP
+   [RFC0793] is always used for zone transfers and is often used for
+   messages whose sizes exceed the DNS protocol's original 512 byte
+   limit.
 
    Section 6.1.3.2 of [RFC1123] states:
 
@@ -141,7 +141,7 @@ Internet-Draft                DNS over TCP                  January 2010
    Whilst this document makes no specific recommendations to operators
    of DNS servers, it should be noted that failure to support TCP (or
    blocking of DNS over TCP at the network layer) may result in
-   resolution failure and application-level timeouts.
+   resolution failure and/or application-level timeouts.
 
 
 2.  Terminology used in this document
@@ -154,9 +154,9 @@ Internet-Draft                DNS over TCP                  January 2010
 3.  Discussion
 
    In the absence of EDNS0 (see below) the normal behaviour of any DNS
-   server needing to send a UDP response that exceeds that 512 byte
+   server needing to send a UDP response that would exceed the 512 byte
    limit is for the server to truncate the response so that it fits
-   within the 512 byte limit and set the TC flag in the response header.
+   within that limit and then set the TC flag in the response header.
    When the client receives such a response it takes the TC flag as an
    indication that it should retry over TCP instead.
 
@@ -164,9 +164,9 @@ Internet-Draft                DNS over TCP                  January 2010
 
 
 
-Bellis                    Expires July 10, 2010                 [Page 3]
+Bellis                 Expires September 23, 2010               [Page 3]
 
-Internet-Draft                DNS over TCP                  January 2010
+Internet-Draft                DNS over TCP                    March 2010
 
 
 
@@ -180,12 +180,12 @@ Internet-Draft                DNS over TCP                  January 2010
    Existing deployments of DNSSEC [RFC4033] have shown that truncation
    at the 512 byte boundary is now commonplace.  For example an NXDOMAIN
    (RCODE == 3) response from a DNSSEC signed zone using NSEC3 [RFC5155]
-   is almost invariably longer than 512 bytes.
+   is almost invariably larger than 512 bytes.
 
    Since the original core specifications for DNS were written, the
    Extension Mechanisms for DNS (EDNS0 [RFC2671]) have been introduced.
    These extensions can be used to indicate that the client is prepared
-   to receive UDP responses longer than 512 bytes.  An EDNS0 compatible
+   to receive UDP responses larger than 512 bytes.  An EDNS0 compatible
    server receiving a request from an EDNS0 compatible client may send
    UDP packets up to that client's announced buffer size without
    truncation.
@@ -193,9 +193,9 @@ Internet-Draft                DNS over TCP                  January 2010
    However, transport of UDP packets that exceed the size of the path
    MTU causes IP packet fragmentation, which has been found to be
    unreliable in some circumstances.  Many firewalls routinely block
-   fragmented IP packets, and some implementations lack the software
-   logic necessary to reassemble a fragmented datagram.  Worse still,
-   some devices deliberately refuse to handle DNS packets containing
+   fragmented IP packets, and some do not implement the algorithms
+   necessary to reassemble fragmented packets.  Worse still, some
+   network devices deliberately refuse to handle DNS packets containing
    EDNS0 options.  Other issues relating to UDP transport and packet
    size are discussed in [RFC5625].
 
@@ -210,28 +210,28 @@ Internet-Draft                DNS over TCP                  January 2010
 
 4.  Transport Protocol Selection
 
-   All DNS implementations MUST support both UDP and TCP transport.
+   All general purpose DNS implementations MUST support both UDP and TCP
+   transport.
 
-   o  Authoritative resolver implementations MUST support TCP so that
-      they may serve any long responses that they are configured to
-      serve.
-
-
+   o  Authoritative server implementations MUST support TCP so that they
+      do not limit the size of responses.
 
 
 
-Bellis                    Expires July 10, 2010                 [Page 4]
+
+
+Bellis                 Expires September 23, 2010               [Page 4]
 
-Internet-Draft                DNS over TCP                  January 2010
+Internet-Draft                DNS over TCP                    March 2010
 
 
-   o  A recursive resolver or forwarder MUST support TCP so that it does
-      not prevent long responses from a TCP-capable server from reaching
-      its TCP-capable clients.
-   o  A general purpose stub resolver implementation (e.g. an operating
-      system's DNS resolution library) MUST support TCP since to do
-      otherwise would limit its interoperability with its own clients
-      and with upstream servers.
+   o  Recursive resolver (or forwarder) implementations MUST support TCP
+      so that the do not prevent large responses from a TCP-capable
+      server from reaching its TCP-capable clients.
+   o  Stub resolver implementations (e.g. an operating system's DNS
+      resolution library) MUST support TCP since to do otherwise would
+      limit their interoperability with their own clients and with
+      upstream servers.
 
    An exception may be made for proprietary stub resolver
    implementations.  These MAY omit support for TCP if operating in an
@@ -256,7 +256,11 @@ Internet-Draft                DNS over TCP                  January 2010
 
       If the server needs to close a dormant connection to reclaim
       resources, it should wait until the connection has been idle for a
-      period on the order of two minutes.
+      period on the order of two minutes.  In particular, the server
+      should allow the SOA and AXFR request sequence (which begins a
+      refresh operation) to be made on a single connection.  Since the
+      server would be unable to answer queries anyway, a unilateral
+      close or reset may be used instead of a graceful close.
 
    Other more modern protocols (e.g.  HTTP [RFC2616]) have support for
    persistent TCP connections and operational experience has shown that
@@ -264,30 +268,28 @@ Internet-Draft                DNS over TCP                  January 2010
    under heavy load.  Intentionally opening many connections and leaving
    them dormant can trivially create a "denial of service" attack.
 
-   This document therefore RECOMMENDS that the application-level idle
-   period should be of the order of TBD seconds.
-
-   Servers MAY allow dormant connections to remain open for longer
-   periods, but for the avoidance of doubt persistent DNS connections
-   should generally be considered to be as much for the server's benefit
-   as for the client's.  Therefore if the server needs to unilaterally
-   close a dormant TCP connection it MUST be free to do so whenever
-   required.
+   This document therefore RECOMMENDS that the default application-level
+   idle period should be of the order of seconds, but does not specify
+   any particular value.  In practise the idle period may vary
+   dynamically, and servers MAY allow dormant connections to remain open
+   for longer periods as resources permit.
 
 
 
-Bellis                    Expires July 10, 2010                 [Page 5]
+Bellis                 Expires September 23, 2010               [Page 5]
 
-Internet-Draft                DNS over TCP                  January 2010
+Internet-Draft                DNS over TCP                    March 2010
 
 
-   To mitigate the risk of unintentional server overload DNS clients
+   To mitigate the risk of unintentional server overload, DNS clients
    MUST take care to minimize the number of concurrent TCP connections
-   made to any individual server.
+   made to any individual server.  Similarly servers MAY impose limits
+   on the number of concurrent TCP connections being handled for any
+   particular client.
 
-   Further recommendations for the tuning of TCP parameters to allow
-   higher throughput or improved resiliency against denial of service
-   attacks are outside the scope of this document.
+   Further recommendations for the tuning of TCP stacks to allow higher
+   throughput or improved resiliency against denial of service attacks
+   are outside the scope of this document.
 
 
 6.  Response re-ordering
@@ -309,32 +311,35 @@ Internet-Draft                DNS over TCP                  January 2010
 7.  Security Considerations
 
    Some DNS server operators have expressed concern that wider use of
-   DNS over TCP will expose them to a higher risk of "denial of service"
+   DNS over TCP will expose them to a higher risk of denial of service
    (DoS) attacks.
 
-   Whilst there is a theoretically higher risk of such attacks against
-   TCP-enabled servers, techniques for the mitigation of DoS attacks at
-   the network level have improved substantially since DNS was first
-   designed.
+   Although there is a higher risk of such attacks against TCP-enabled
+   servers, techniques for the mitigation of DoS attacks at the network
+   level have improved substantially since DNS was first designed.
 
-   The vast majority of TLD authority servers and all but one of the
-   root name servers already support TCP and the author knows of no
+   At the time of writing the vast majority of TLD authority servers and
+   all of the root name servers support TCP and the author knows of no
    evidence to suggest that TCP-based DoS attacks against existing DNS
    infrastructure are commonplace.
 
+   That notwithstanding, readers are advised to familiarise themselves
+   with [CPNI-TCP].
+
    Operators of recursive servers should ensure that they only accept
    connections from expected clients, and do not accept them from
-   unknown sources.  In the case of UDP traffic this will protect
+   unknown sources.  In the case of UDP traffic this will help protect
+
+
+
+Bellis                 Expires September 23, 2010               [Page 6]
+
+Internet-Draft                DNS over TCP                    March 2010
+
+
    against reflector attacks [RFC5358] and in the case of TCP traffic it
    will prevent an unknown client from exhausting the server's limits on
    the number of concurrent connections.
-
-
-
-
-Bellis                    Expires July 10, 2010                 [Page 6]
-
-Internet-Draft                DNS over TCP                  January 2010
 
 
 8.  IANA Considerations
@@ -342,12 +347,19 @@ Internet-Draft                DNS over TCP                  January 2010
    This document requests no IANA actions.
 
 
-9.  References
+9.  Acknowledgements
 
-9.1.  Normative References
+   The author would like to thank the document reviewers from the DNSEXT
+   Working Group, and in particular George Barwood, Alex Bligh, Alfred
+   Hoenes, Fernando Gont, Jim Reid, Paul Vixie and Nicholas Weaver.
 
-   [RFC0792]  Postel, J., "Internet Control Message Protocol", STD 5,
-              RFC 792, September 1981.
+
+10.  References
+
+10.1.  Normative References
+
+   [RFC0768]  Postel, J., "User Datagram Protocol", STD 6, RFC 768,
+              August 1980.
 
    [RFC0793]  Postel, J., "Transmission Control Protocol", STD 7,
               RFC 793, September 1981.
@@ -364,10 +376,23 @@ Internet-Draft                DNS over TCP                  January 2010
    [RFC2671]  Vixie, P., "Extension Mechanisms for DNS (EDNS0)",
               RFC 2671, August 1999.
 
-9.2.  Informative References
+10.2.  Informative References
+
+   [CPNI-TCP]
+              CPNI, "Security Assessment of the Transmission Control
+              Protocol (TCP)", 2009, <http://www.cpni.gov.uk/Docs/
+              tn-03-09-security-assessment-TCP.pdf>.
 
    [RFC2616]  Fielding, R., Gettys, J., Mogul, J., Frystyk, H.,
               Masinter, L., Leach, P., and T. Berners-Lee, "Hypertext
+
+
+
+Bellis                 Expires September 23, 2010               [Page 7]
+
+Internet-Draft                DNS over TCP                    March 2010
+
+
               Transfer Protocol -- HTTP/1.1", RFC 2616, June 1999.
 
    [RFC4033]  Arends, R., Austein, R., Larson, M., Massey, D., and S.
@@ -386,16 +411,17 @@ Internet-Draft                DNS over TCP                  January 2010
               BCP 152, RFC 5625, August 2009.
 
 
-
-
-Bellis                    Expires July 10, 2010                 [Page 7]
-
-Internet-Draft                DNS over TCP                  January 2010
-
-
 Appendix A.  Change Log
 
    NB: to be removed by the RFC Editor before publication.
+
+   draft-ietf-dnsext-dns-tcp-requirements-03
+      Editorial nits from WGLC
+      Clarification on "general purpose"
+      Fixed ref to UDP (RFC 768)
+      Included more S.4.2.2 text from RFC 1035 and removed some from
+      this draft relating to connection resets.
+      s/long/large/ for packet sizes
 
    draft-ietf-dnsext-dns-tcp-requirements-02
       Change of title - more focus on implementation and not operation
@@ -409,6 +435,18 @@ Appendix A.  Change Log
 
    draft-ietf-dnsext-dns-tcp-requirements-00
       Initial draft
+
+
+
+
+
+
+
+
+
+Bellis                 Expires September 23, 2010               [Page 8]
+
+Internet-Draft                DNS over TCP                    March 2010
 
 
 Author's Address
@@ -444,5 +482,23 @@ Author's Address
 
 
 
-Bellis                    Expires July 10, 2010                 [Page 8]
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Bellis                 Expires September 23, 2010               [Page 9]
 

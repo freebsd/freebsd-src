@@ -5,13 +5,13 @@ DNS Extensions Working Group                                     S. Rose
 Internet-Draft                                                      NIST
 Obsoletes: 2672 (if approved)                              W. Wijngaards
 Updates: 3363,4294                                            NLnet Labs
-(if approved)                                          November 12, 2009
+(if approved)                                             April 20, 2010
 Intended status: Standards Track
-Expires: May 16, 2010
+Expires: October 22, 2010
 
 
                  Update to DNAME Redirection in the DNS
-                 draft-ietf-dnsext-rfc2672bis-dname-18
+                 draft-ietf-dnsext-rfc2672bis-dname-19
 
 Abstract
 
@@ -48,18 +48,18 @@ Status of This Memo
    The list of Internet-Draft Shadow Directories can be accessed at
    http://www.ietf.org/shadow.html.
 
-   This Internet-Draft will expire on May 16, 2010.
+   This Internet-Draft will expire on October 22, 2010.
 
 
 
-Rose & Wijngaards         Expires May 16, 2010                  [Page 1]
+Rose & Wijngaards       Expires October 22, 2010                [Page 1]
 
-Internet-Draft              DNAME Redirection              November 2009
+Internet-Draft              DNAME Redirection                 April 2010
 
 
 Copyright Notice
 
-   Copyright (c) 2009 IETF Trust and the persons identified as the
+   Copyright (c) 2010 IETF Trust and the persons identified as the
    document authors.  All rights reserved.
 
    This document is subject to BCP 78 and the IETF Trust's Legal
@@ -108,9 +108,9 @@ Copyright Notice
 
 
 
-Rose & Wijngaards         Expires May 16, 2010                  [Page 2]
+Rose & Wijngaards       Expires October 22, 2010                [Page 2]
 
-Internet-Draft              DNAME Redirection              November 2009
+Internet-Draft              DNAME Redirection                 April 2010
 
 
 Table of Contents
@@ -120,42 +120,40 @@ Table of Contents
    2.  The DNAME Resource Record  . . . . . . . . . . . . . . . . . .  4
      2.1.  Format . . . . . . . . . . . . . . . . . . . . . . . . . .  4
      2.2.  The DNAME Substitution . . . . . . . . . . . . . . . . . .  5
-     2.3.  DNAME Owner Name not Redirected Itself . . . . . . . . . .  6
+     2.3.  DNAME Owner Name Matching the QNAME  . . . . . . . . . . .  7
      2.4.  Names Next to and Below a DNAME Record . . . . . . . . . .  7
      2.5.  Compression of the DNAME record. . . . . . . . . . . . . .  7
 
    3.  Processing . . . . . . . . . . . . . . . . . . . . . . . . . .  8
      3.1.  CNAME synthesis  . . . . . . . . . . . . . . . . . . . . .  8
-     3.2.  Server algorithm . . . . . . . . . . . . . . . . . . . . .  8
-     3.3.  Wildcards  . . . . . . . . . . . . . . . . . . . . . . . . 10
-     3.4.  Acceptance and Intermediate Storage  . . . . . . . . . . . 10
+     3.2.  Server algorithm . . . . . . . . . . . . . . . . . . . . .  9
+     3.3.  Wildcards  . . . . . . . . . . . . . . . . . . . . . . . . 11
+     3.4.  Acceptance and Intermediate Storage  . . . . . . . . . . . 11
 
    4.  DNAME Discussions in Other Documents . . . . . . . . . . . . . 11
 
-   5.  Other Issues with DNAME  . . . . . . . . . . . . . . . . . . . 12
-     5.1.  Canonical hostnames cannot be below DNAME owners . . . . . 12
-     5.2.  Dynamic Update and DNAME . . . . . . . . . . . . . . . . . 12
+   5.  Other Issues with DNAME  . . . . . . . . . . . . . . . . . . . 13
+     5.1.  Canonical hostnames cannot be below DNAME owners . . . . . 13
+     5.2.  Dynamic Update and DNAME . . . . . . . . . . . . . . . . . 13
      5.3.  DNSSEC and DNAME . . . . . . . . . . . . . . . . . . . . . 13
        5.3.1.  Signed DNAME, Unsigned Synthesized CNAME . . . . . . . 13
-       5.3.2.  DNAME Bit in NSEC Type Map . . . . . . . . . . . . . . 13
-       5.3.3.  DNAME Chains as Strong as the Weakest Link . . . . . . 13
-       5.3.4.  Validators Must Understand DNAME . . . . . . . . . . . 13
-         5.3.4.1.  DNAME in Bitmap Causes Invalid Name Error  . . . . 13
+       5.3.2.  DNAME Bit in NSEC Type Map . . . . . . . . . . . . . . 14
+       5.3.3.  DNAME Chains as Strong as the Weakest Link . . . . . . 14
+       5.3.4.  Validators Must Understand DNAME . . . . . . . . . . . 14
+         5.3.4.1.  DNAME in Bitmap Causes Invalid Name Error  . . . . 14
          5.3.4.2.  Valid Name Error Response Involving DNAME in
-                   Bitmap . . . . . . . . . . . . . . . . . . . . . . 14
-         5.3.4.3.  Response With Synthesized CNAME  . . . . . . . . . 14
+                   Bitmap . . . . . . . . . . . . . . . . . . . . . . 15
+         5.3.4.3.  Response With Synthesized CNAME  . . . . . . . . . 15
 
    6.  IANA Considerations  . . . . . . . . . . . . . . . . . . . . . 15
 
    7.  Security Considerations  . . . . . . . . . . . . . . . . . . . 15
 
-   8.  Acknowledgments  . . . . . . . . . . . . . . . . . . . . . . . 15
+   8.  Acknowledgments  . . . . . . . . . . . . . . . . . . . . . . . 16
 
-   9.  References . . . . . . . . . . . . . . . . . . . . . . . . . . 15
-     9.1.  Normative References . . . . . . . . . . . . . . . . . . . 15
-     9.2.  Informative References . . . . . . . . . . . . . . . . . . 16
-
-
+   9.  References . . . . . . . . . . . . . . . . . . . . . . . . . . 16
+     9.1.  Normative References . . . . . . . . . . . . . . . . . . . 16
+     9.2.  Informative References . . . . . . . . . . . . . . . . . . 17
 
 
 
@@ -164,9 +162,11 @@ Table of Contents
 
 
 
-Rose & Wijngaards         Expires May 16, 2010                  [Page 3]
+
+
+Rose & Wijngaards       Expires October 22, 2010                [Page 3]
 
-Internet-Draft              DNAME Redirection              November 2009
+Internet-Draft              DNAME Redirection                 April 2010
 
 
 1.  Introduction
@@ -180,7 +180,7 @@ Internet-Draft              DNAME Redirection              November 2009
    from the queried domain name.  The difference between the two
    resource records is that the CNAME RR directs the lookup of data at
    its owner to another single name, a DNAME RR directs lookups for data
-   at descendents of its owner's name to corresponding names under a
+   at descendants of its owner's name to corresponding names under a
    different (single) node of the tree.
 
    Take for example, looking through a zone (see RFC 1034 [RFC1034],
@@ -220,9 +220,9 @@ Internet-Draft              DNAME Redirection              November 2009
 
 
 
-Rose & Wijngaards         Expires May 16, 2010                  [Page 4]
+Rose & Wijngaards       Expires October 22, 2010                [Page 4]
 
-Internet-Draft              DNAME Redirection              November 2009
+Internet-Draft              DNAME Redirection                 April 2010
 
 
    Its RDATA is comprised of a single field, <target>, which contains a
@@ -234,9 +234,10 @@ Internet-Draft              DNAME Redirection              November 2009
 
    The effect of the DNAME RR is the substitution of the record's
    <target> for its owner name, as a suffix of a domain name.  This
-   substitution has to be applied for every DNAME RR found in the
-   resolution process, which allows fairly lengthy valid chains of DNAME
-   RRs.
+   substitution is to be applied for all names below the owner name of
+   the DNAME RR.  This substitution has to be applied for every DNAME RR
+   found in the resolution process, which allows fairly lengthy valid
+   chains of DNAME RRs.
 
    Details of the substitution process, methods to avoid conflicting
    resource records, and rules for specific corner cases are given in
@@ -275,10 +276,9 @@ Internet-Draft              DNAME Redirection              November 2009
 
 
 
-
-Rose & Wijngaards         Expires May 16, 2010                  [Page 5]
+Rose & Wijngaards       Expires October 22, 2010                [Page 5]
 
-Internet-Draft              DNAME Redirection              November 2009
+Internet-Draft              DNAME Redirection                 April 2010
 
 
    In the table below, the QNAME refers to the query name.  The owner is
@@ -293,7 +293,7 @@ Internet-Draft              DNAME Redirection              November 2009
     QNAME            owner  DNAME   target         result
     ---------------- -------------- -------------- -----------------
     com.             example.com.   example.net.   <no match>
-    example.com.     example.com.   example.net.   <no match>
+    example.com.     example.com.   example.net.   [0]
     a.example.com.   example.com.   example.net.   a.example.net.
     a.b.example.com. example.com.   example.net.   a.b.example.net.
     ab.example.com.  b.example.com. example.net.   <no match>
@@ -304,6 +304,9 @@ Internet-Draft              DNAME Redirection              November 2009
     cyc.example.com. example.com.   c.example.com. cyc.c.example.com.
     shortloop.x.x.   x.             .              shortloop.x.
     shortloop.x.     x.             .              shortloop.
+
+   [0] The result depends on the QTYPE.  If the QTYPE = DNAME, then
+       the result is "example.com." else "<no match>"
 
                    Table 1. DNAME Substitution Examples.
 
@@ -323,23 +326,32 @@ Internet-Draft              DNAME Redirection              November 2009
    DNAME record and its signature (if the zone is signed) are included
    in the answer as proof for the YXDOMAIN (value 6) RCODE.
 
-2.3.  DNAME Owner Name not Redirected Itself
+
+
+
+
+
+
+Rose & Wijngaards       Expires October 22, 2010                [Page 6]
+
+Internet-Draft              DNAME Redirection                 April 2010
+
+
+2.3.  DNAME Owner Name Matching the QNAME
 
    Unlike a CNAME RR, a DNAME RR redirects DNS names subordinate to its
    owner name; the owner name of a DNAME is not redirected itself.  The
    domain name that owns a DNAME record is allowed to have other
    resource record types at that domain name, except DNAMEs, CNAMEs or
-
-
-
-Rose & Wijngaards         Expires May 16, 2010                  [Page 6]
-
-Internet-Draft              DNAME Redirection              November 2009
-
-
    other types that have restrictions on what they can co-exist with.
+   When there is a match of the QTYPE to a type (or types) also owned by
+   the owner name the response is sourced from the owner name.  E.g., a
+   QTYPE of ANY would return the (available) types at the owner name,
+   not the target name.
+
    DNAME RRs MUST NOT appear at the same owner name as an NS RR unless
-   the owner name is the zone apex.
+   the owner name is the zone apex as this would constitute data below a
+   zone cut.
 
    If a DNAME record is present at the zone apex, there is still a need
    to have the customary SOA and NS resource records there as well.
@@ -373,6 +385,14 @@ Internet-Draft              DNAME Redirection              November 2009
 
    The DNAME owner name can be compressed like any other owner name.
    The DNAME RDATA target name MUST NOT be sent out in compressed form,
+
+
+
+Rose & Wijngaards       Expires October 22, 2010                [Page 7]
+
+Internet-Draft              DNAME Redirection                 April 2010
+
+
    so that a DNAME RR can be treated as an unknown type [RFC3597].
 
    Although the previous DNAME specification [RFC2672] (that is
@@ -386,13 +406,6 @@ Internet-Draft              DNAME Redirection              November 2009
    compression.  This document revises RFC 2672, in that there is no
    EDNS version signaling for DNAME.
 
-
-
-Rose & Wijngaards         Expires May 16, 2010                  [Page 7]
-
-Internet-Draft              DNAME Redirection              November 2009
-
-
 3.  Processing
 
    The DNAME RR causes type NS additional section processing.  This
@@ -403,22 +416,44 @@ Internet-Draft              DNAME Redirection              November 2009
 
    When preparing a response, a server performing a DNAME substitution
    will in all cases include the relevant DNAME RR in the answer
-   section.  A CNAME RR with TTL equal to the corresponding DNAME RR is
-   synthesized and included in the answer section.  The owner name of
-   the CNAME is the QNAME of the query.  The DNSSEC specification
-   [RFC4033], [RFC4034], [RFC4035] says that the synthesized CNAME does
-   not have to be signed.  The DNAME has an RRSIG and a validating
-   resolver can check the CNAME against the DNAME record and validate
-   the signature over the DNAME RR.
+   section.  Relevant includes the following cases:
 
-   Resolvers MUST be able to handle a synthesized CNAME TTL of zero or
-   equal to the TTL of the corresponding DNAME record.  A TTL of zero
-   means that the CNAME can be discarded immediately after processing
-   the answer.
+   1.  The DNAME is being employed as a substitution instruction.
+
+   2.  The DNAME itself matches the QTYPE and the owner name matches
+       QNAME.
+
+   When the owner name name matches the QNAME and the QTYPE matches
+   another type owned there, the DNAME is not included in the answer.
+
+   A CNAME RR with TTL equal to the corresponding DNAME RR is
+   synthesized and included in the answer section when the DNAME is
+   employed as a substitution instruction.  The owner name of the CNAME
+   is the QNAME of the query.  The DNSSEC specification [RFC4033],
+   [RFC4034], [RFC4035] says that the synthesized CNAME does not have to
+   be signed.  The DNAME has an RRSIG and a validating resolver can
+   check the CNAME against the DNAME record and validate the signature
+   over the DNAME RR.
 
    Servers MUST be able to answer a query for a synthesized CNAME.  Like
    other query types this invokes the DNAME, and synthesizes the CNAME
-   into the answer.
+   into the answer.  If the server in question is a cache, the
+   synthesized CNAME's TTL SHOULD be equal to the decremented TTL of the
+   cached DNAME.
+
+
+
+
+Rose & Wijngaards       Expires October 22, 2010                [Page 8]
+
+Internet-Draft              DNAME Redirection                 April 2010
+
+
+   Resolvers MUST be able to handle a synthesized CNAME TTL of zero or
+   equal to the TTL of the corresponding DNAME record (as some older
+   authoritative server implementations set the TTL of synthesized
+   CNAMEs to zero).  A TTL of zero means that the CNAME can be discarded
+   immediately after processing the answer.
 
 3.2.  Server algorithm
 
@@ -441,14 +476,6 @@ Internet-Draft              DNAME Redirection              November 2009
        process can terminate several ways:
 
 
-
-
-
-Rose & Wijngaards         Expires May 16, 2010                  [Page 8]
-
-Internet-Draft              DNAME Redirection              November 2009
-
-
        A.  If the whole of QNAME is matched, we have found the node.
 
            If the data at the node is a CNAME, and QTYPE does not match
@@ -469,6 +496,13 @@ Internet-Draft              DNAME Redirection              November 2009
            additional section, using glue RRs if the addresses are not
            available from authoritative data or the cache.  Go to step
            4.
+
+
+
+
+Rose & Wijngaards       Expires October 22, 2010                [Page 9]
+
+Internet-Draft              DNAME Redirection                 April 2010
 
 
        C.  If at some label, a match is impossible (i.e., the
@@ -497,14 +531,6 @@ Internet-Draft              DNAME Redirection              November 2009
            set the owner of the RR to be QNAME, and not the node with
            the "*" label.  If the data at the node with the "*" label is
            a CNAME, and QTYPE doesn't match CNAME, copy the CNAME RR
-
-
-
-Rose & Wijngaards         Expires May 16, 2010                  [Page 9]
-
-Internet-Draft              DNAME Redirection              November 2009
-
-
            into the answer section of the response changing the owner
            name to the QNAME, change QNAME to the canonical name in the
            CNAME RR, and go back to step 1.  Otherwise, Go to step 6.
@@ -526,6 +552,14 @@ Internet-Draft              DNAME Redirection              November 2009
 
    6.  Using local data only, attempt to add other RRs which may be
        useful to the additional section of the query.  Exit.
+
+
+
+
+Rose & Wijngaards       Expires October 22, 2010               [Page 10]
+
+Internet-Draft              DNAME Redirection                 April 2010
+
 
    Note that there will be at most one ancestor with a DNAME as
    described in step 4 unless some zone's data is in violation of the
@@ -553,14 +587,6 @@ Internet-Draft              DNAME Redirection              November 2009
    Recursive caching name servers can encounter data at names below the
    owner name of a DNAME RR, due to a change at the authoritative server
    where data from before and after the change resides in the cache.
-
-
-
-Rose & Wijngaards         Expires May 16, 2010                 [Page 10]
-
-Internet-Draft              DNAME Redirection              November 2009
-
-
    This conflict situation is a transitional phase that ends when the
    old data times out.  The caching name server can opt to store both
    old and new data and treat each as if the other did not exist, or
@@ -579,6 +605,17 @@ Internet-Draft              DNAME Redirection              November 2009
 
    In [RFC2181], in Section 10.3., the discussion on MX and NS records
    touches on redirection by CNAMEs, but this also holds for DNAMEs.
+
+
+
+
+
+
+
+Rose & Wijngaards       Expires October 22, 2010               [Page 11]
+
+Internet-Draft              DNAME Redirection                 April 2010
+
 
    Excerpt from 10.3.  MX and NS records (in RFC 2181).
 
@@ -604,19 +641,6 @@ Internet-Draft              DNAME Redirection              November 2009
    would greatly improve the manageability of the IPv6 reverse tree.
    These changes are made explicit below.
 
-
-
-
-
-
-
-
-
-Rose & Wijngaards         Expires May 16, 2010                 [Page 11]
-
-Internet-Draft              DNAME Redirection              November 2009
-
-
    In [RFC3363], the paragraph
 
      "The issues for DNAME in the reverse mapping tree appears to be
@@ -638,6 +662,16 @@ Internet-Draft              DNAME Redirection              November 2009
 
      "Those nodes are NOT RECOMMENDED to support the experimental
      A6 Resource Record [RFC3363]."
+
+
+
+
+
+
+Rose & Wijngaards       Expires October 22, 2010               [Page 12]
+
+Internet-Draft              DNAME Redirection                 April 2010
+
 
 5.  Other Issues with DNAME
 
@@ -665,19 +699,13 @@ Internet-Draft              DNAME Redirection              November 2009
 
    DNAME records can be added, changed and removed in a zone using
    dynamic update transactions.  Adding a DNAME RR to a zone occludes
-
-
-
-Rose & Wijngaards         Expires May 16, 2010                 [Page 12]
-
-Internet-Draft              DNAME Redirection              November 2009
-
-
    any domain names that may exist under the added DNAME.
 
-   A server MUST reject a dynamic update message that attempts to add a
-   DNAME RR at a name that already has a CNAME RR or another DNAME RR
-   associated with that name.
+   A server MUST ignore a dynamic update message that attempts to add a
+   non-DNAME/CNAME RR at a name that already has a DNAME RR associated
+   with that name.  Otherwise, replace the DNAME RR with the DNAME (or
+   CNAME) update RR.  This is similar behavior to dynamic updates to an
+   owner name of a CNAME RR [RFC2136].
 
 5.3.  DNSSEC and DNAME
 
@@ -693,12 +721,20 @@ Internet-Draft              DNAME Redirection              November 2009
    RR and then checking that the CNAME was properly synthesized is
    sufficient proof.
 
+
+
+
+Rose & Wijngaards       Expires October 22, 2010               [Page 13]
+
+Internet-Draft              DNAME Redirection                 April 2010
+
+
 5.3.2.  DNAME Bit in NSEC Type Map
 
    In any negative response, the NSEC or NSEC3 [RFC5155] record type bit
    map SHOULD be checked to see that there was no DNAME that could have
    been applied.  If the DNAME bit in the type bit map is set and the
-   query name is a subdomain of the closest encloser that is asserted,
+   query name is a sub-domain of the closest encloser that is asserted,
    then DNAME substitution should have been done, but the substitution
    has not been done as specified.
 
@@ -715,21 +751,14 @@ Internet-Draft              DNAME Redirection              November 2009
 
    Below are examples of why DNSSEC validators MUST understand DNAME.
    In the examples below, SOA records, wildcard denial NSECs and other
-   material not under discussion has been omitted.
+   material not under discussion has been omitted or shortened.
 
 5.3.4.1.  DNAME in Bitmap Causes Invalid Name Error
 
+   ;; Header: QR AA RCODE=3(NXDOMAIN)
+   ;; OPT PSEUDOSECTION:
+   ; EDNS: version: 0, flags: do; udp: 4096
 
-
-
-
-
-Rose & Wijngaards         Expires May 16, 2010                 [Page 13]
-
-Internet-Draft              DNAME Redirection              November 2009
-
-
-   ;; Header: QR AA DO RCODE=3(NXDOMAIN)
    ;; Question
    foo.bar.example.com. IN A
    ;; Authority
@@ -745,9 +774,23 @@ Internet-Draft              DNAME Redirection              November 2009
    If the DNAME bit had not been set in the NSEC record above then the
    answer would have validated as a correct name error response.
 
+
+
+
+
+
+
+Rose & Wijngaards       Expires October 22, 2010               [Page 14]
+
+Internet-Draft              DNAME Redirection                 April 2010
+
+
 5.3.4.2.  Valid Name Error Response Involving DNAME in Bitmap
 
-   ;; Header: QR AA DO RCODE=3(NXDOMAIN)
+   ;; Header: QR AA RCODE=3(NXDOMAIN)
+   ;; OPT PSEUDOSECTION:
+   ; EDNS: version: 0, flags: do; udp: 4096
+
    ;; Question
    cee.example.com. IN A
    ;; Authority
@@ -760,7 +803,10 @@ Internet-Draft              DNAME Redirection              November 2009
 
 5.3.4.3.  Response With Synthesized CNAME
 
-   ;; Header: QR AA DO RCODE=0(NOERROR)
+   ;; Header: QR AA RCODE=0(NOERROR)
+   ;; OPT PSEUDOSECTION:
+   ; EDNS: version: 0, flags: do; udp: 4096
+
    ;; Question
    foo.bar.example.com. IN A
    ;; Answer
@@ -777,14 +823,6 @@ Internet-Draft              DNAME Redirection              November 2009
    recursively resolve further to query for the foo.bar.example.net A
    record.
 
-
-
-
-Rose & Wijngaards         Expires May 16, 2010                 [Page 14]
-
-Internet-Draft              DNAME Redirection              November 2009
-
-
 6.  IANA Considerations
 
    The DNAME Resource Record type code 39 (decimal) originally has been
@@ -795,6 +833,14 @@ Internet-Draft              DNAME Redirection              November 2009
 
    DNAME redirects queries elsewhere, which may impact security based on
    policy and the security status of the zone with the DNAME and the
+
+
+
+Rose & Wijngaards       Expires October 22, 2010               [Page 15]
+
+Internet-Draft              DNAME Redirection                 April 2010
+
+
    redirection zone's security status.  For validating resolvers, the
    lowest security status of the links in the chain of CNAME and DNAME
    redirections is applied to the result.
@@ -833,14 +879,6 @@ Internet-Draft              DNAME Redirection              November 2009
 
    [RFC2136]  Vixie, P., Thomson, S., Rekhter, Y., and J. Bound,
               "Dynamic Updates in the Domain Name System (DNS UPDATE)",
-
-
-
-Rose & Wijngaards         Expires May 16, 2010                 [Page 15]
-
-Internet-Draft              DNAME Redirection              November 2009
-
-
               RFC 2136, April 1997.
 
    [RFC2181]  Elz, R. and R. Bush, "Clarifications to the DNS
@@ -851,6 +889,14 @@ Internet-Draft              DNAME Redirection              November 2009
               February 2000.
 
    [RFC3597]  Gustafsson, A., "Handling of Unknown DNS Resource Record
+
+
+
+Rose & Wijngaards       Expires October 22, 2010               [Page 16]
+
+Internet-Draft              DNAME Redirection                 April 2010
+
+
               (RR) Types", RFC 3597, September 2003.
 
    [RFC4033]  Arends, R., Austein, R., Larson, M., Massey, D., and S.
@@ -892,9 +938,19 @@ Internet-Draft              DNAME Redirection              November 2009
 
 
 
-Rose & Wijngaards         Expires May 16, 2010                 [Page 16]
+
+
+
+
+
+
+
+
+
+
+Rose & Wijngaards       Expires October 22, 2010               [Page 17]
 
-Internet-Draft              DNAME Redirection              November 2009
+Internet-Draft              DNAME Redirection                 April 2010
 
 
 Authors' Addresses
@@ -907,7 +963,7 @@ Authors' Addresses
 
    Phone: +1-301-975-8439
    Fax:   +1-301-975-6238
-   EMail: scottr@nist.gov
+   EMail: scottr.nist@gmail.com
 
 
    Wouter Wijngaards
@@ -948,6 +1004,5 @@ Authors' Addresses
 
 
 
-Rose & Wijngaards         Expires May 16, 2010                 [Page 17]
+Rose & Wijngaards       Expires October 22, 2010               [Page 18]
 
-
