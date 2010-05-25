@@ -32,6 +32,8 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_apic.h"
+
 #include <sys/param.h>
 #include <sys/bus.h>
 #include <sys/interrupt.h>
@@ -59,6 +61,7 @@ enum scan_mode {
 	CMCI,
 };
 
+#ifdef DEV_APIC
 /*
  * State maintained for each monitored MCx bank to control the
  * corrected machine check interrupt threshold.
@@ -67,6 +70,7 @@ struct cmc_state {
 	int	max_threshold;
 	int	last_intr;
 };
+#endif
 
 struct mca_internal {
 	struct mca_record rec;
@@ -99,9 +103,12 @@ static struct callout mca_timer;
 static int mca_ticks = 3600;	/* Check hourly by default. */
 static struct task mca_task;
 static struct mtx mca_lock;
+
+#ifdef DEV_APIC
 static struct cmc_state **cmc_state;	/* Indexed by cpuid, bank */
 static int cmc_banks;
 static int cmc_throttle = 60;	/* Time in seconds to throttle CMCI. */
+#endif
 
 static int
 sysctl_positive_int(SYSCTL_HANDLER_ARGS)
@@ -423,6 +430,7 @@ mca_record_entry(const struct mca_record *record)
 	mtx_unlock_spin(&mca_lock);
 }
 
+#ifdef DEV_APIC
 /*
  * Update the interrupt threshold for a CMCI.  The strategy is to use
  * a low trigger that interrupts as soon as the first event occurs.
@@ -494,6 +502,7 @@ cmci_update(enum scan_mode mode, int bank, int valid, struct mca_record *rec)
 		wrmsr(MSR_MC_CTL2(bank), limit);
 	}
 }
+#endif
 
 /*
  * This scans all the machine check banks of the current CPU to see if
@@ -521,12 +530,14 @@ mca_scan(enum scan_mode mode)
 		ucmask |= MC_STATUS_OVER;
 	mcg_cap = rdmsr(MSR_MCG_CAP);
 	for (i = 0; i < (mcg_cap & MCG_CAP_COUNT); i++) {
+#ifdef DEV_APIC
 		/*
 		 * For a CMCI, only check banks this CPU is
 		 * responsible for.
 		 */
 		if (mode == CMCI && !(PCPU_GET(cmci_mask) & 1 << i))
 			continue;
+#endif
 
 		valid = mca_check_status(i, &rec);
 		if (valid) {
@@ -538,12 +549,14 @@ mca_scan(enum scan_mode mode)
 			mca_record_entry(&rec);
 		}
 	
+#ifdef DEV_APIC
 		/*
 		 * If this is a bank this CPU monitors via CMCI,
 		 * update the threshold.
 		 */
 		if (PCPU_GET(cmci_mask) & (1 << i))
 			cmci_update(mode, i, valid, &rec);
+#endif
 	}
 	return (mode == MCE ? recoverable : count);
 }
@@ -621,6 +634,7 @@ mca_startup(void *dummy)
 }
 SYSINIT(mca_startup, SI_SUB_SMP, SI_ORDER_ANY, mca_startup, NULL);
 
+#ifdef DEV_APIC
 static void
 cmci_setup(uint64_t mcg_cap)
 {
@@ -637,6 +651,7 @@ cmci_setup(uint64_t mcg_cap)
 	    &cmc_throttle, 0, sysctl_positive_int, "I",
 	    "Interval in seconds to throttle corrected MC interrupts");
 }
+#endif
 
 static void
 mca_setup(uint64_t mcg_cap)
@@ -657,10 +672,13 @@ mca_setup(uint64_t mcg_cap)
 	SYSCTL_ADD_PROC(NULL, SYSCTL_STATIC_CHILDREN(_hw_mca), OID_AUTO,
 	    "force_scan", CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE, NULL, 0,
 	    sysctl_mca_scan, "I", "Force an immediate scan for machine checks");
+#ifdef DEV_APIC
 	if (mcg_cap & MCG_CAP_CMCI_P)
 		cmci_setup(mcg_cap);
+#endif
 }
 
+#ifdef DEV_APIC
 /*
  * See if we should monitor CMCI for this bank.  If CMCI_EN is already
  * set in MC_CTL2, then another CPU is responsible for this bank, so
@@ -707,6 +725,7 @@ cmci_monitor(int i)
 	/* Mark this bank as monitored. */
 	PCPU_SET(cmci_mask, PCPU_GET(cmci_mask) | 1 << i);
 }
+#endif
 
 /* Must be executed on each CPU. */
 void
@@ -775,15 +794,19 @@ mca_init(void)
 			if (!skip)
 				wrmsr(MSR_MC_CTL(i), ctl);
 
+#ifdef DEV_APIC
 			if (mcg_cap & MCG_CAP_CMCI_P)
 				cmci_monitor(i);
+#endif
 
 			/* Clear all errors. */
 			wrmsr(MSR_MC_STATUS(i), 0);
 		}
 
+#ifdef DEV_APIC
 		if (PCPU_GET(cmci_mask) != 0)
 			lapic_enable_cmc();
+#endif
 	}
 
 	load_cr4(rcr4() | CR4_MCE);
@@ -817,6 +840,7 @@ mca_intr(void)
 	return (recoverable);
 }
 
+#ifdef DEV_APIC
 /* Called for a CMCI (correctable machine check interrupt). */
 void
 cmc_intr(void)
@@ -844,3 +868,4 @@ cmc_intr(void)
 		mtx_unlock_spin(&mca_lock);
 	}
 }
+#endif
