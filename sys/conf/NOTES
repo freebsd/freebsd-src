@@ -2627,6 +2627,8 @@ device		umct
 device		umodem
 # USB mouse
 device		ums
+# eGalax USB touch screen
+device		uep
 # Diamond Rio 500 MP3 player
 device		urio
 #
