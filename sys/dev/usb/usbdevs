@@ -1378,6 +1378,11 @@ product EDIMAX RT2870_1		0x7711	RT2870
 product EDIMAX EW7717		0x7717	EW-7717
 product EDIMAX EW7718		0x7718	EW-7718
 
+/* eGalax Products */
+product EGALAX TPANEL		0x0001	Touch Panel
+product EGALAX TPANEL2		0x0002	Touch Panel
+product EGALAX2 TPANEL		0x0001	Touch Panel   
+
 /* Eicon Networks */
 product EICON DIVA852		0x4905	Diva 852 ISDN TA
 
