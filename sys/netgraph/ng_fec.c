@@ -433,6 +433,7 @@ ng_fec_addport(struct ng_fec_private *priv, char *iface)
 
 	/* Set up phony MAC address. */
 	if_setlladdr(bifp, IF_LLADDR(ifp), ETHER_ADDR_LEN);
+	EVENTHANDLER_INVOKE(iflladdr_event, bifp);
 
 	/* Save original input vector */
 	new->fec_if_input = bifp->if_input;
