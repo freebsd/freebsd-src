@@ -531,6 +531,24 @@ and related support files.
 .It Va WITHOUT_MAN
 .\" from FreeBSD: stable/7/tools/build/options/WITHOUT_MAN 156932 2006-03-21 07:50:50Z ru
 Set to not build manual pages.
+When set, it also enforces the following options:
+.Pp
+.Bl -item -compact
+.It
+.Va WITHOUT_MAN_UTILS
+(can be overridden with
+.Va WITH_MAN_UTILS )
+.El
+.It Va WITHOUT_MAN_UTILS
+.\" from FreeBSD: stable/7/tools/build/options/WITHOUT_MAN_UTILS 208551 2010-05-25 20:33:49Z jkim
+Set to not build utilities for manual pages,
+.Xr apropos 1 ,
+.Xr catman 1 ,
+.Xr makewhatis 1 ,
+.Xr man 1 ,
+.Xr whatis 1 ,
+.Xr manctl 8 ,
+and related support files.
 .It Va WITHOUT_NCP
 .\" from FreeBSD: stable/7/tools/build/options/WITHOUT_NCP 156932 2006-03-21 07:50:50Z ru
 Set to not build programs, libraries, and kernel modules
