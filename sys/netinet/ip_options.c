@@ -228,7 +228,7 @@ dropit:
 #define	INA	struct in_ifaddr *
 #define	SA	struct sockaddr *
 			    if ((ia = (INA)ifa_ifwithdstaddr((SA)&ipaddr)) == NULL)
-				ia = (INA)ifa_ifwithnet((SA)&ipaddr);
+				    ia = (INA)ifa_ifwithnet((SA)&ipaddr, 0);
 			} else
 /* XXX MRT 0 for routing */
 				ia = ip_rtaddr(ipaddr.sin_addr, M_GETFIB(m));
