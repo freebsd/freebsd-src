@@ -2765,6 +2765,7 @@ pmap_mincore(pmap_t pmap, vm_offset_t addr, vm_paddr_t *locked_pa)
 {
 	pt_entry_t *ptep, pte;
 	vm_offset_t pa;
+	vm_page_t m;
 	int val;
 	boolean_t managed;
 
