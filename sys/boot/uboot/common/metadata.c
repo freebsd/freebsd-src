@@ -42,6 +42,10 @@ __FBSDID("$FreeBSD$");
 #include "bootstrap.h"
 #include "glue.h"
 
+#if defined(LOADER_FDT_SUPPORT)
+extern int fdt_fixup(void);
+#endif
+
 /*
  * Return a 'boothowto' value corresponding to the kernel arguments in
  * (kargs) and any relevant environment variables.
@@ -253,6 +257,7 @@ md_copymodules(vm_offset_t addr)
 	return(addr);
 }
 
+#if !defined(LOADER_FDT_SUPPORT)
 /*
  * Prepare the bootinfo structure. Put a ptr to the allocated struct in addr,
  * return size.
@@ -358,9 +363,10 @@ md_bootinfo(struct bootinfo **addr)
 
 	return (size);
 }
+#endif
 
 /*
- * Load the information expected by a powerpc kernel.
+ * Load the information expected by a kernel.
  *
  * - The 'boothowto' argument is constructed
  * - The 'bootdev' argument is constructed
@@ -370,7 +376,7 @@ md_bootinfo(struct bootinfo **addr)
 int
 md_load(char *args, vm_offset_t *modulep)
 {
-	struct preloaded_file	*kfp;
+	struct preloaded_file	*kfp, *bfp;
 	struct preloaded_file	*xp;
 	struct file_metadata	*md;
 	struct bootinfo		*bip;
@@ -379,6 +385,7 @@ md_load(char *args, vm_offset_t *modulep)
 	vm_offset_t		envp;
 	vm_offset_t		size;
 	vm_offset_t		vaddr;
+	vm_offset_t		dtbp;
 	char			*rootdevname;
 	int			howto;
 	int			bisize;
@@ -389,7 +396,11 @@ md_load(char *args, vm_offset_t *modulep)
 	 * relocation.
 	 */
 	uint32_t		mdt[] = {
-	    MODINFOMD_SSYM, MODINFOMD_ESYM, MODINFOMD_KERNEND, MODINFOMD_ENVP
+	    MODINFOMD_SSYM, MODINFOMD_ESYM, MODINFOMD_KERNEND,
+	    MODINFOMD_ENVP,
+#if defined(LOADER_FDT_SUPPORT)
+	    MODINFOMD_DTBP
+#endif
 	};
 
 	howto = md_getboothowto(args);
@@ -405,24 +416,26 @@ md_load(char *args, vm_offset_t *modulep)
 	/* Try reading the /etc/fstab file to select the root device */
 	getrootmount(rootdevname);
 
-	/* find the last module in the chain */
+	/* Find the last module in the chain */
 	addr = 0;
 	for (xp = file_findfile(NULL, NULL); xp != NULL; xp = xp->f_next) {
 		if (addr < (xp->f_addr + xp->f_size))
 			addr = xp->f_addr + xp->f_size;
 	}
-	/* pad to a page boundary */
+	/* Pad to a page boundary */
 	addr = roundup(addr, PAGE_SIZE);
 
-	/* copy our environment */
+	/* Copy our environment */
 	envp = addr;
 	addr = md_copyenv(addr);
 
-	/* pad to a page boundary */
+	/* Pad to a page boundary */
 	addr = roundup(addr, PAGE_SIZE);
 
+#if !defined(LOADER_FDT_SUPPORT)
 	/* prepare bootinfo */
 	bisize = md_bootinfo(&bip);
+#endif
 
 	kernend = 0;
 	kfp = file_findfile(NULL, "elf32 kernel");
@@ -431,14 +444,29 @@ md_load(char *args, vm_offset_t *modulep)
 	if (kfp == NULL)
 		panic("can't find kernel file");
 	file_addmetadata(kfp, MODINFOMD_HOWTO, sizeof howto, &howto);
-	file_addmetadata(kfp, MODINFOMD_BOOTINFO, bisize, bip);
 	file_addmetadata(kfp, MODINFOMD_ENVP, sizeof envp, &envp);
+
+#if defined(LOADER_FDT_SUPPORT)
+	/* Handle device tree blob */
+	fdt_fixup();
+	if ((bfp = file_findfile(NULL, "dtb")) == NULL &&
+	    (howto & RB_VERBOSE))
+		printf("**WARNING** Booting with no DTB loaded!\n");
+
+	dtbp = bfp == NULL ? 0 : bfp->f_addr;
+	file_addmetadata(kfp, MODINFOMD_DTBP, sizeof dtbp, &dtbp);
+#else
+	file_addmetadata(kfp, MODINFOMD_BOOTINFO, bisize, bip);
+#endif
+
 	file_addmetadata(kfp, MODINFOMD_KERNEND, sizeof kernend, &kernend);
 
+	/* Figure out the size and location of the metadata */
 	*modulep = addr;
 	size = md_copymodules(0);
 	kernend = roundup(addr + size, PAGE_SIZE);
 
+	/* Provide MODINFOMD_KERNEND */
 	md = file_findmetadata(kfp, MODINFOMD_KERNEND);
 	bcopy(&kernend, md->md_data, sizeof kernend);
 
@@ -453,7 +481,9 @@ md_load(char *args, vm_offset_t *modulep)
 			bcopy(&vaddr, md->md_data, sizeof vaddr);
 		}
 	}
+
+	/* Only now copy actual modules and metadata */
 	(void)md_copymodules(addr);
 
-	return(0);
+	return (0);
 }

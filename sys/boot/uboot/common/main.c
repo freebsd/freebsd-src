@@ -53,6 +53,10 @@ extern unsigned char __sbss_start[];
 extern unsigned char __sbss_end[];
 extern unsigned char _end[];
 
+#ifdef LOADER_FDT_SUPPORT
+extern int command_fdt_internal(int argc, char *argv[]);
+#endif
+
 static void
 dump_sig(struct api_signature *sig)
 {
@@ -271,3 +275,20 @@ command_sysinfo(int argc, char *argv[])
 	ub_dump_si(si);
 	return (CMD_OK);
 }
+
+#ifdef LOADER_FDT_SUPPORT
+/*
+ * Since proper fdt command handling function is defined in fdt_loader_cmd.c,
+ * and declaring it as extern is in contradiction with COMMAND_SET() macro
+ * (which uses static pointer), we're defining wrapper function, which
+ * calls the proper fdt handling routine.
+ */
+static int
+command_fdt(int argc, char *argv[])
+{
+
+	return (command_fdt_internal(argc, argv));
+}
+
+COMMAND_SET(fdt, "fdt", "flattened device tree handling", command_fdt);
+#endif
