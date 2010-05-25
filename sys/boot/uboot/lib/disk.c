@@ -157,7 +157,7 @@ stor_init(void)
 	}
 
 	if (!found) {
-		printf("No storage devices\n");
+		debugf("No storage devices\n");
 		return (-1);
 	}
 
