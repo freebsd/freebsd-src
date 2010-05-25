@@ -899,24 +899,29 @@ kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
 			if (error)
 				goto out;
 			break;
+		case PT_CONTINUE:
 		case PT_TO_SCE:
-			p->p_stops |= S_PT_SCE;
-			break;
 		case PT_TO_SCX:
-			p->p_stops |= S_PT_SCX;
-			break;
 		case PT_SYSCALL:
-			p->p_stops |= S_PT_SCE | S_PT_SCX;
-			break;
-		}
-
-		if (addr != (void *)1) {
-			error = ptrace_set_pc(td2, (u_long)(uintfptr_t)addr);
-			if (error)
+			if (addr != (void *)1) {
+				error = ptrace_set_pc(td2,
+				    (u_long)(uintfptr_t)addr);
+				if (error)
+					goto out;
+			}
+			switch (req) {
+			case PT_TO_SCE:
+				p->p_stops |= S_PT_SCE;
 				break;
-		}
-
-		if (req == PT_DETACH) {
+			case PT_TO_SCX:
+				p->p_stops |= S_PT_SCX;
+				break;
+			case PT_SYSCALL:
+				p->p_stops |= S_PT_SCE | S_PT_SCX;
+				break;
+			}
+			break;
+		case PT_DETACH:
 			/* reset process parent */
 			if (p->p_oppid != p->p_pptr->p_pid) {
 				struct proc *pp;
@@ -941,6 +946,7 @@ kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
 
 			/* should we send SIGCHLD? */
 			/* childproc_continued(p); */
+			break;
 		}
 
 	sendsig:
