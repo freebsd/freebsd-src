@@ -157,20 +157,22 @@ main(void)
 		panic("no U-Boot devices found");
 	printf("Number of U-Boot devices: %d\n", devs_no);
 
-	/*
-	 * March through the device switch probing for things.
-	 */
-	for (i = 0; devsw[i] != NULL; i++)
-		if (devsw[i]->dv_init != NULL)
-			(devsw[i]->dv_init)();
-
 	printf("\n");
 	printf("%s, Revision %s\n", bootprog_name, bootprog_rev);
 	printf("(%s, %s)\n", bootprog_maker, bootprog_date);
 	meminfo();
 
+	/*
+	 * March through the device switch probing for things.
+	 */
 	for (i = 0; devsw[i] != NULL; i++) {
-		printf("\nDevice %d: %s\n", i, devsw[i]->dv_name);
+
+		if (devsw[i]->dv_init == NULL)
+			continue;
+		if ((devsw[i]->dv_init)() != 0)
+			continue;
+
+		printf("\nDevice: %s\n", devsw[i]->dv_name);
 
 		currdev.d_dev = devsw[i];
 		currdev.d_type = currdev.d_dev->dv_type;
