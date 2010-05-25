@@ -631,7 +631,7 @@ in_pcbladdr(struct inpcb *inp, struct in_addr *faddr, struct in_addr *laddr,
 
 		ia = ifatoia(ifa_ifwithdstaddr((struct sockaddr *)sin));
 		if (ia == NULL)
-			ia = ifatoia(ifa_ifwithnet((struct sockaddr *)sin));
+			ia = ifatoia(ifa_ifwithnet((struct sockaddr *)sin, 0));
 		if (ia == NULL) {
 			error = ENETUNREACH;
 			goto done;
@@ -748,7 +748,7 @@ in_pcbladdr(struct inpcb *inp, struct in_addr *faddr, struct in_addr *laddr,
 
 		ia = ifatoia(ifa_ifwithdstaddr(sintosa(&sain)));
 		if (ia == NULL)
-			ia = ifatoia(ifa_ifwithnet(sintosa(&sain)));
+			ia = ifatoia(ifa_ifwithnet(sintosa(&sain), 0));
 		if (ia == NULL)
 			ia = ifatoia(ifa_ifwithaddr(sintosa(&sain)));
 
