@@ -278,6 +278,16 @@ WITH_HESIOD=
 WITH_IDEA=
 .endif
 
+# Enable FDT by default for selected platforms.
+.if defined(TARGET_ARCH) && \
+	(${TARGET_ARCH} == "arm" || ${TARGET_ARCH} == "powerpc")
+# XXX this is temporarily disabled until all FDT support code is in place.
+#_fdt=	FDT
+_no_fdt= FDT
+.else
+_no_fdt= FDT
+.endif
+
 #
 # MK_* options which default to "yes".
 #
@@ -313,6 +323,7 @@ WITH_IDEA=
     DICT \
     DYNAMICROOT \
     EXAMPLES \
+    ${_fdt} \
     FLOPPY \
     FORTH \
     FP_LIBC \
@@ -407,6 +418,7 @@ MK_${var}:=	yes
     BIND_LIBS \
     BIND_SIGCHASE \
     BIND_XML \
+    ${_no_fdt} \
     HESIOD \
     IDEA
 .if defined(WITH_${var}) && defined(WITHOUT_${var})
