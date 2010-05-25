@@ -2632,7 +2632,6 @@ isp_handle_platform_notify_24xx(ispsoftc_t *isp, in_fcentry_24xx_t *inot)
 			}
 			isp_add_wwn_entry(isp, chan, wwn, nphdl, portid);
 			break;
-			break;
 		case PDISC:
 			msg = "PDISC";
 			break;
