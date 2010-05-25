@@ -216,9 +216,6 @@ LEAF(savectx)
 	move	v0, zero
 END(savectx)
 
-
-KSEG0TEXT_START;
-
 NON_LEAF(mips_cpu_throw, CALLFRAME_SIZ, ra)
 	mfc0	t0, COP_0_STATUS_REG		# t0 = saved status register
 	nop
@@ -376,7 +373,6 @@ sw2:
 	j	ra
 	nop
 END(cpu_switch)
-KSEG0TEXT_END;
 
 /*----------------------------------------------------------------------------
  *
