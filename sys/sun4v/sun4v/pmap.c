@@ -1221,11 +1221,13 @@ pmap_enter_object(pmap_t pmap, vm_offset_t start, vm_offset_t end,
         VM_OBJECT_LOCK_ASSERT(m_start->object, MA_OWNED);
         psize = atop(end - start);
         m = m_start;
+	vm_page_lock_queues();
         PMAP_LOCK(pmap);
         while (m != NULL && (diff = m->pindex - m_start->pindex) < psize) {
 		pmap_enter_quick_locked(pmap, start + ptoa(diff), m, prot);
                 m = TAILQ_NEXT(m, listq);
         }
+	vm_page_unlock_queues();
         PMAP_UNLOCK(pmap);
 }
 
@@ -1642,8 +1644,14 @@ pmap_is_prefaultable(pmap_t pmap, vm_offset_t va)
 boolean_t
 pmap_is_referenced(vm_page_t m)
 {
+	boolean_t rv;
 
-	return (tte_get_phys_bit(m, VTD_REF));
+	KASSERT((m->flags & (PG_FICTITIOUS | PG_UNMANAGED)) == 0,
+	    ("pmap_is_referenced: page %p is not managed", m));
+	vm_page_lock_queues();
+	rv = tte_get_phys_bit(m, VTD_REF);
+	vm_page_unlock_queues();
+	return (rv);
 }
 
 /*

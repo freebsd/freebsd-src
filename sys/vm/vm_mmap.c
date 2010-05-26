@@ -912,11 +912,18 @@ RestartScan:
 					vm_page_dirty(m);
 				if (m->dirty != 0)
 					mincoreinfo |= MINCORE_MODIFIED_OTHER;
-				vm_page_lock_queues();
+				/*
+				 * The first test for PG_REFERENCED is an
+				 * optimization.  The second test is
+				 * required because a concurrent pmap
+				 * operation could clear the last reference
+				 * and set PG_REFERENCED before the call to
+				 * pmap_is_referenced(). 
+				 */
 				if ((m->flags & PG_REFERENCED) != 0 ||
-				    pmap_is_referenced(m))
+				    pmap_is_referenced(m) ||
+				    (m->flags & PG_REFERENCED) != 0)
 					mincoreinfo |= MINCORE_REFERENCED_OTHER;
-				vm_page_unlock_queues();
 			}
 			if (object != NULL)
 				VM_OBJECT_UNLOCK(object);
