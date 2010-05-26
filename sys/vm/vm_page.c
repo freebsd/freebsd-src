@@ -1894,7 +1894,7 @@ vm_page_dontneed(vm_page_t m)
 	PCPU_INC(dnweight);
 
 	/*
-	 * occassionally leave the page alone
+	 * Occasionally leave the page alone.
 	 */
 	if ((dnw & 0x01F0) == 0 ||
 	    VM_PAGE_INQUEUE2(m, PQ_INACTIVE)) {
@@ -1906,11 +1906,18 @@ vm_page_dontneed(vm_page_t m)
 	/*
 	 * Clear any references to the page.  Otherwise, the page daemon will
 	 * immediately reactivate the page.
+	 *
+	 * Perform the pmap_clear_reference() first.  Otherwise, a concurrent
+	 * pmap operation, such as pmap_remove(), could clear a reference in
+	 * the pmap and set PG_REFERENCED on the page before the
+	 * pmap_clear_reference() had completed.  Consequently, the page would
+	 * appear referenced based upon an old reference that occurred before
+	 * this function ran.
 	 */
+	pmap_clear_reference(m);
 	vm_page_lock_queues();
 	vm_page_flag_clear(m, PG_REFERENCED);
 	vm_page_unlock_queues();
-	pmap_clear_reference(m);
 
 	if (m->dirty == 0 && pmap_is_modified(m))
 		vm_page_dirty(m);
@@ -2142,7 +2149,9 @@ void
 vm_page_clear_dirty(vm_page_t m, int base, int size)
 {
 
-	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
+	VM_OBJECT_LOCK_ASSERT(m->object, MA_OWNED);
+	if ((m->flags & PG_WRITEABLE) != 0)
+		mtx_assert(&vm_page_queue_mtx, MA_OWNED);
 	m->dirty &= ~vm_page_bits(base, size);
 }
 
