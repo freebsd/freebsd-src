@@ -1711,12 +1711,14 @@ mmu_booke_enter_object(mmu_t mmu, pmap_t pmap, vm_offset_t start,
 
 	psize = atop(end - start);
 	m = m_start;
+	vm_page_lock_queues();
 	PMAP_LOCK(pmap);
 	while (m != NULL && (diff = m->pindex - m_start->pindex) < psize) {
 		mmu_booke_enter_locked(mmu, pmap, start + ptoa(diff), m,
 		    prot & (VM_PROT_READ | VM_PROT_EXECUTE), FALSE);
 		m = TAILQ_NEXT(m, listq);
 	}
+	vm_page_unlock_queues();
 	PMAP_UNLOCK(pmap);
 }
 
@@ -2209,19 +2211,22 @@ mmu_booke_is_referenced(mmu_t mmu, vm_page_t m)
 	pv_entry_t pv;
 	boolean_t rv;
 
-	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
+	KASSERT((m->flags & (PG_FICTITIOUS | PG_UNMANAGED)) == 0,
+	    ("mmu_booke_is_referenced: page %p is not managed", m));
 	rv = FALSE;
-	if ((m->flags & (PG_FICTITIOUS | PG_UNMANAGED)) != 0)
-		return (rv);
+	vm_page_lock_queues();
 	TAILQ_FOREACH(pv, &m->md.pv_list, pv_link) {
 		PMAP_LOCK(pv->pv_pmap);
 		if ((pte = pte_find(mmu, pv->pv_pmap, pv->pv_va)) != NULL &&
-		    PTE_ISVALID(pte))
-			rv = PTE_ISREFERENCED(pte) ? TRUE : FALSE;
+		    PTE_ISVALID(pte)) {
+			if (PTE_ISREFERENCED(pte))
+				rv = TRUE;
+		}
 		PMAP_UNLOCK(pv->pv_pmap);
 		if (rv)
 			break;
 	}
+	vm_page_unlock_queues();
 	return (rv);
 }
 
