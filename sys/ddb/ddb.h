@@ -200,7 +200,7 @@ int		db_md_clr_watchpoint(db_expr_t addr, db_expr_t size);
 void		db_md_list_watchpoints(void);
 void		db_print_loc_and_inst(db_addr_t loc);
 void		db_print_thread(void);
-void		db_printf(const char *fmt, ...) __printflike(1, 2);
+int		db_printf(const char *fmt, ...) __printflike(1, 2);
 int		db_read_bytes(vm_offset_t addr, size_t size, char *data);
 				/* machine-dependent */
 int		db_readline(char *lstart, int lsize);

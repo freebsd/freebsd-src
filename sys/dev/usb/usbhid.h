@@ -156,6 +156,9 @@ struct usb_hid_descriptor {
 #define	HUD_ERASER		0x0045
 #define	HUD_TABLET_PICK		0x0046
 
+/* Usages, Consumer */
+#define	HUC_AC_PAN		0x0238
+
 #define	HID_USAGE2(p,u) (((p) << 16) | (u))
 
 #define	UHID_INPUT_REPORT 0x01
@@ -226,7 +229,9 @@ int	hid_report_size(const void *buf, usb_size_t len, enum hid_kind k,
 int	hid_locate(const void *desc, usb_size_t size, uint32_t usage,
 	    enum hid_kind kind, uint8_t index, struct hid_location *loc,
 	    uint32_t *flags, uint8_t *id);
-uint32_t hid_get_data(const uint8_t *buf, usb_size_t len,
+int32_t hid_get_data(const uint8_t *buf, usb_size_t len,
+	    struct hid_location *loc);
+uint32_t hid_get_data_unsigned(const uint8_t *buf, usb_size_t len,
 	    struct hid_location *loc);
 int	hid_is_collection(const void *desc, usb_size_t size, uint32_t usage);
 struct usb_hid_descriptor *hid_get_descriptor_from_usb(

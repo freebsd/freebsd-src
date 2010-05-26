@@ -360,11 +360,11 @@ pmap_zero_page_idle(vm_page_t m)
 }
 
 int
-pmap_mincore(pmap_t pmap, vm_offset_t addr)
+pmap_mincore(pmap_t pmap, vm_offset_t addr, vm_paddr_t *locked_pa)
 {
 
 	CTR3(KTR_PMAP, "%s(%p, %#x)", __func__, pmap, addr);
-	return (MMU_MINCORE(mmu_obj, pmap, addr));
+	return (MMU_MINCORE(mmu_obj, pmap, addr, locked_pa));
 }
 
 void

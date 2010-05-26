@@ -111,6 +111,19 @@ IDTVEC(timerint)
 	jmp	doreti
 
 /*
+ * Local APIC CMCI handler.
+ */
+	.text
+	SUPERALIGN_TEXT
+IDTVEC(cmcint)
+	PUSH_FRAME
+	SET_KERNEL_SREGS
+	FAKE_MCOUNT(TF_EIP(%esp))
+	call	lapic_handle_cmc
+	MEXITCOUNT
+	jmp	doreti
+
+/*
  * Local APIC error interrupt handler.
  */
 	.text

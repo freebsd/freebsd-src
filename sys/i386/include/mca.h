@@ -46,6 +46,7 @@ struct mca_record {
 
 #ifdef _KERNEL
 
+void	cmc_intr(void);
 void	mca_init(void);
 int	mca_intr(void);
 

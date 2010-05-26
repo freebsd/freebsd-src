@@ -1353,9 +1353,7 @@ brelse(struct buf *bp)
 					(PAGE_SIZE - poffset) : resid;
 
 				KASSERT(presid >= 0, ("brelse: extra page"));
-				vm_page_lock_queues();
 				vm_page_set_invalid(m, poffset, presid);
-				vm_page_unlock_queues();
 				if (had_bogus)
 					printf("avoided corruption bug in bogus_page/brelse code\n");
 			}
@@ -1579,7 +1577,6 @@ vfs_vmio_release(struct buf *bp)
 		 */
 		if ((m->oflags & VPO_BUSY) == 0 && m->busy == 0 &&
 		    m->wire_count == 0) {
-			vm_page_lock_queues();
 			/*
 			 * Might as well free the page if we can and it has
 			 * no valid data.  We also free the page if the
@@ -1593,7 +1590,6 @@ vfs_vmio_release(struct buf *bp)
 			} else if (buf_vm_page_count_severe()) {
 				vm_page_try_to_cache(m);
 			}
-			vm_page_unlock_queues();
 		}
 		vm_page_unlock(m);
 	}
@@ -2447,7 +2443,6 @@ vfs_setdirty_locked_object(struct buf *bp)
 		vm_offset_t boffset;
 		vm_offset_t eoffset;
 
-		vm_page_lock_queues();
 		/*
 		 * test the pages to see if they have been modified directly
 		 * by users through the VM system.
@@ -2473,7 +2468,6 @@ vfs_setdirty_locked_object(struct buf *bp)
 		}
 		eoffset = ((i + 1) << PAGE_SHIFT) - (bp->b_offset & PAGE_MASK);
 
-		vm_page_unlock_queues();
 		/*
 		 * Fit it to the buffer.
 		 */
@@ -3514,7 +3508,6 @@ vfs_page_set_validclean(struct buf *bp, vm_ooffset_t off, vm_page_t m)
 {
 	vm_ooffset_t soff, eoff;
 
-	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
 	/*
 	 * Start and end offsets in buffer.  eoff - soff may not cross a
 	 * page boundry or cross the end of the buffer.  The end of the
@@ -3577,8 +3570,6 @@ retry:
 			goto retry;
 	}
 	bogus = 0;
-	if (clear_modify)
-		vm_page_lock_queues();
 	for (i = 0; i < bp->b_npages; i++) {
 		m = bp->b_pages[i];
 
@@ -3611,8 +3602,6 @@ retry:
 		}
 		foff = (foff + PAGE_SIZE) & ~(off_t)PAGE_MASK;
 	}
-	if (clear_modify)
-		vm_page_unlock_queues();
 	VM_OBJECT_UNLOCK(obj);
 	if (bogus)
 		pmap_qenter(trunc_page((vm_offset_t)bp->b_data),

@@ -19,7 +19,7 @@
  * CDDL HEADER END
  */
 /*
- * Copyright 2008 Sun Microsystems, Inc.  All rights reserved.
+ * Copyright 2009 Sun Microsystems, Inc.  All rights reserved.
  * Use is subject to license terms.
  */
 
@@ -53,10 +53,11 @@ dnode_cons(void *arg, void *unused, int kmflag)
 	dnode_t *dn = arg;
 	bzero(dn, sizeof (dnode_t));
 
-	cv_init(&dn->dn_notxholds, NULL, CV_DEFAULT, NULL);
 	rw_init(&dn->dn_struct_rwlock, NULL, RW_DEFAULT, NULL);
 	mutex_init(&dn->dn_mtx, NULL, MUTEX_DEFAULT, NULL);
 	mutex_init(&dn->dn_dbufs_mtx, NULL, MUTEX_DEFAULT, NULL);
+	cv_init(&dn->dn_notxholds, NULL, CV_DEFAULT, NULL);
+
 	refcount_create(&dn->dn_holds);
 	refcount_create(&dn->dn_tx_holds);
 
@@ -82,10 +83,10 @@ dnode_dest(void *arg, void *unused)
 	int i;
 	dnode_t *dn = arg;
 
-	cv_destroy(&dn->dn_notxholds);
 	rw_destroy(&dn->dn_struct_rwlock);
 	mutex_destroy(&dn->dn_mtx);
 	mutex_destroy(&dn->dn_dbufs_mtx);
+	cv_destroy(&dn->dn_notxholds);
 	refcount_destroy(&dn->dn_holds);
 	refcount_destroy(&dn->dn_tx_holds);
 
@@ -300,7 +301,7 @@ dnode_create(objset_impl_t *os, dnode_phys_t *dnp, dmu_buf_impl_t *db,
 	list_insert_head(&os->os_dnodes, dn);
 	mutex_exit(&os->os_lock);
 
-	arc_space_consume(sizeof (dnode_t));
+	arc_space_consume(sizeof (dnode_t), ARC_SPACE_OTHER);
 	return (dn);
 }
 
@@ -335,7 +336,7 @@ dnode_destroy(dnode_t *dn)
 		dn->dn_bonus = NULL;
 	}
 	kmem_cache_free(dnode_cache, dn);
-	arc_space_return(sizeof (dnode_t));
+	arc_space_return(sizeof (dnode_t), ARC_SPACE_OTHER);
 }
 
 void

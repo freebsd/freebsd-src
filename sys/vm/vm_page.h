@@ -112,7 +112,7 @@ struct vm_page {
 	u_short	flags;			/* see below */
 	uint8_t	order;			/* index of the buddy queue */
 	uint8_t pool;
-	u_short cow;			/* page cow mapping count (Q) */
+	u_short cow;			/* page cow mapping count (P) */
 	u_int wire_count;		/* wired down maps refs (P) */
 	short hold_count;		/* page hold count (P) */
 	u_short oflags;			/* page flags (O) */
@@ -122,16 +122,16 @@ struct vm_page {
 	/* so, on normal X86 kernels, they must be at least 8 bits wide */
 #if PAGE_SIZE == 4096
 	u_char	valid;			/* map of valid DEV_BSIZE chunks (O) */
-	u_char	dirty;			/* map of dirty DEV_BSIZE chunks */
+	u_char	dirty;			/* map of dirty DEV_BSIZE chunks (O) */
 #elif PAGE_SIZE == 8192
 	u_short	valid;			/* map of valid DEV_BSIZE chunks (O) */
-	u_short	dirty;			/* map of dirty DEV_BSIZE chunks */
+	u_short	dirty;			/* map of dirty DEV_BSIZE chunks (O) */
 #elif PAGE_SIZE == 16384
 	u_int valid;			/* map of valid DEV_BSIZE chunks (O) */
-	u_int dirty;			/* map of dirty DEV_BSIZE chunks */
+	u_int dirty;			/* map of dirty DEV_BSIZE chunks (O) */
 #elif PAGE_SIZE == 32768
 	u_long valid;			/* map of valid DEV_BSIZE chunks (O) */
-	u_long dirty;			/* map of dirty DEV_BSIZE chunks */
+	u_long dirty;			/* map of dirty DEV_BSIZE chunks (O) */
 #endif
 };
 
@@ -194,8 +194,10 @@ extern struct vpglocks pa_lock[];
 #define	PA_UNLOCK(pa)	mtx_unlock(PA_LOCKPTR(pa))
 #define	PA_UNLOCK_COND(pa) 			\
 	do {		   			\
-		if (pa) 			\
-			PA_UNLOCK(pa);		\
+		if ((pa) != 0) {		\
+			PA_UNLOCK((pa));	\
+			(pa) = 0;		\
+		}				\
 	} while (0)
 
 #define	PA_LOCK_ASSERT(pa, a)	mtx_assert(PA_LOCKPTR(pa), (a))
@@ -216,6 +218,9 @@ extern struct vpglocks pa_lock[];
  *	 via the object/vm_page_t because there is no knowledge of their
  *	 pte mappings, nor can they be removed from their objects via 
  *	 the object, and such pages are also not on any PQ queue.
+ *
+ * PG_WRITEABLE is set exclusively by pmap_enter().  When it does so, the page
+ * must be VPO_BUSY.
  */
 #define	PG_CACHED	0x0001		/* page is cached */
 #define	PG_FREE		0x0002		/* page is free */

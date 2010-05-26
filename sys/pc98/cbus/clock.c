@@ -129,22 +129,12 @@ int
 hardclockintr(struct trapframe *frame)
 {
 
-	if (PCPU_GET(cpuid) == 0)
-		hardclock(TRAPF_USERMODE(frame), TRAPF_PC(frame));
-	else
-		hardclock_cpu(TRAPF_USERMODE(frame));
+	timer1clock(TRAPF_USERMODE(frame), TRAPF_PC(frame));
 	return (FILTER_HANDLED);
 }
 
 int
 statclockintr(struct trapframe *frame)
-{
-
-	return (FILTER_HANDLED);
-}
-
-int
-profclockintr(struct trapframe *frame)
 {
 
 	return (FILTER_HANDLED);
@@ -448,6 +438,7 @@ cpu_initclocks()
 	 * timecounter to user a simpler algorithm.
 	 */
 	if (using_lapic_timer == LAPIC_CLOCK_NONE) {
+		timer1hz = hz;
 		intr_add_handler("clk", 0, (driver_filter_t *)clkintr, NULL,
 		    NULL, INTR_TYPE_CLK, NULL);
 		i8254_intsrc = intr_lookup_source(0);
@@ -460,6 +451,14 @@ cpu_initclocks()
 		i8254_timecounter.tc_counter_mask = 0xffff;
 		set_i8254_freq(i8254_freq, hz);
 	}
+	if (using_lapic_timer != LAPIC_CLOCK_ALL) {
+		profhz = hz;
+		if (hz < 128)
+			stathz = hz;
+		else
+			stathz = hz / (hz / 128);
+	}
+	timer2hz = 0;
 
 	init_TSC_tc();
 }

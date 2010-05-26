@@ -334,6 +334,21 @@ set_boot_verbose(void *data __unused)
 }
 SYSINIT(boot_verbose, SI_SUB_TUNABLES, SI_ORDER_ANY, set_boot_verbose, NULL);
 
+static int
+null_fetch_syscall_args(struct thread *td __unused,
+    struct syscall_args *sa __unused)
+{
+
+	panic("null_fetch_syscall_args");
+}
+
+static void
+null_set_syscall_retval(struct thread *td __unused, int error __unused)
+{
+
+	panic("null_set_syscall_retval");
+}
+
 struct sysentvec null_sysvec = {
 	.sv_size	= 0,
 	.sv_table	= NULL,
@@ -361,7 +376,11 @@ struct sysentvec null_sysvec = {
 	.sv_copyout_strings	= NULL,
 	.sv_setregs	= NULL,
 	.sv_fixlimit	= NULL,
-	.sv_maxssiz	= NULL
+	.sv_maxssiz	= NULL,
+	.sv_flags	= 0,
+	.sv_set_syscall_retval = null_set_syscall_retval,
+	.sv_fetch_syscall_args = null_fetch_syscall_args,
+	.sv_syscallnames = NULL,
 };
 
 /*

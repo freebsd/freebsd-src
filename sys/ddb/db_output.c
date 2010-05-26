@@ -316,7 +316,7 @@ db_print_position()
 /*
  * Printing
  */
-void
+int
 db_printf(const char *fmt, ...)
 {
 #ifdef DDB_BUFR_SIZE
@@ -324,6 +324,7 @@ db_printf(const char *fmt, ...)
 #endif
 	struct dbputchar_arg dca;
 	va_list	listp;
+	int retval;
 
 #ifdef DDB_BUFR_SIZE
 	dca.da_pbufr = bufr;
@@ -336,13 +337,14 @@ db_printf(const char *fmt, ...)
 #endif
 
 	va_start(listp, fmt);
-	kvprintf (fmt, db_putchar, &dca, db_radix, listp);
+	retval = kvprintf (fmt, db_putchar, &dca, db_radix, listp);
 	va_end(listp);
 
 #ifdef DDB_BUFR_SIZE
 	if (*dca.da_pbufr != '\0')
 		db_puts(dca.da_pbufr);
 #endif
+	return (retval);
 }
 
 int db_indent;

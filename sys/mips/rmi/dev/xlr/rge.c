@@ -54,6 +54,7 @@ __FBSDID("$FreeBSD$");
 #define __RMAN_RESOURCE_VISIBLE
 #include <sys/rman.h>
 #include <sys/taskqueue.h>
+#include <sys/smp.h>
 
 #include <net/if.h>
 #include <net/if_arp.h>
@@ -83,6 +84,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/param.h>
 #include <machine/intr_machdep.h>
 #include <machine/clock.h>	/* for DELAY */
+#include <machine/cpuregs.h>
 #include <machine/bus.h>	/* */
 #include <machine/resource.h>
 #include <mips/rmi/interrupt.h>
@@ -112,7 +114,6 @@ MODULE_DEPEND(rge, ether, 1, 1, 1);
 MODULE_DEPEND(rge, miibus, 1, 1, 1);
 
 /* #define DEBUG */
-/*#define RX_COPY */
 
 #define RGE_TX_THRESHOLD 1024
 #define RGE_TX_Q_SIZE 1024
@@ -125,7 +126,7 @@ int mac_debug = 1;
         do {\
             if (mac_debug) {\
                 printf("[%s@%d|%s]: cpu_%d: " fmt, \
-                __FILE__, __LINE__, __FUNCTION__,  PCPU_GET(cpuid), ##args);\
+                __FILE__, __LINE__, __FUNCTION__,  xlr_cpu_id(), ##args);\
             }\
         } while(0);
 
@@ -204,9 +205,17 @@ ldadd_wu(unsigned int value, unsigned long *addr)
 	return value;
 }
 
+static __inline__ uint32_t 
+xlr_enable_kx(void)
+{
+	uint32_t sr = mips_rd_status();
+
+	mips_wr_status((sr & ~MIPS_SR_INT_IE) | MIPS_SR_KX);
+	return sr;
+}
+
 /* #define mac_stats_add(x, val) ({(x) += (val);}) */
 #define mac_stats_add(x, val) ldadd_wu(val, &x)
-
 
 #define XLR_MAX_CORE 8
 #define RGE_LOCK_INIT(_sc, _name) \
@@ -332,56 +341,6 @@ DRIVER_MODULE(miibus, rge, miibus_driver, miibus_devclass, 0, 0);
 #define STR(x) __STR(x)
 #endif
 
-#define XKPHYS        0x8000000000000000
-/* -- No longer needed RRS
-static __inline__ uint32_t
-lw_40bit_phys(uint64_t phys, int cca)
-{
-	uint64_t addr;
-	uint32_t value = 0;
-	unsigned long flags;
-
-	addr = XKPHYS | ((uint64_t) cca << 59) | (phys & 0xfffffffffcULL);
-
-	enable_KX(flags);
-	__asm__ __volatile__(
-	            ".set push\n"
-	            ".set noreorder\n"
-	            ".set mips64\n"
-	            "lw    %0, 0(%1) \n"
-	            ".set pop\n"
-	    :       "=r"(value)
-	    :       "r"(addr));
-
-	disable_KX(flags);
-	return value;
-}
-*/
-/* -- No longer used RRS
-static __inline__ uint64_t
-ld_40bit_phys(uint64_t phys, int cca)
-{
-	uint64_t addr;
-	uint64_t value = 0;
-	unsigned long flags;
-
-
-	addr = XKPHYS | ((uint64_t) cca << 59) | (phys & 0xfffffffffcULL);
-	enable_KX(flags);
-	__asm__ __volatile__(
-	            ".set push\n"
-	            ".set noreorder\n"
-	            ".set mips64\n"
-	            "ld    %0, 0(%1) \n"
-	            ".set pop\n"
-	    :       "=r"(value)
-	    :       "r"(addr));
-
-	disable_KX(flags);
-	return value;
-}
-*/
-
 void *xlr_tx_ring_mem;
 
 struct tx_desc_node {
@@ -445,11 +404,11 @@ init_p2d_allocation(void)
 	uint32_t cpumask;
 	int cpu;
 
-	cpumask = PCPU_GET(cpumask) | PCPU_GET(other_cpus);
+	cpumask = xlr_hw_thread_mask;
 
 	for (i = 0; i < 32; i++) {
 		if (cpumask & (1 << i)) {
-			cpu = cpu_ltop_map[i];
+			cpu = i;
 			if (!active_core[cpu / 4]) {
 				active_core[cpu / 4] = 1;
 				xlr_total_active_core++;
@@ -507,7 +466,7 @@ get_p2d_desc(void)
 {
 	struct tx_desc_node *node;
 	struct p2d_tx_desc *tx_desc = NULL;
-	int cpu = xlr_cpu_id();
+	int cpu = xlr_core_id();
 
 	mtx_lock_spin(&tx_desc_lock[cpu]);
 	node = TAILQ_FIRST(&tx_frag_desc[cpu]);
@@ -527,7 +486,7 @@ static void
 free_p2d_desc(struct p2d_tx_desc *tx_desc)
 {
 	struct tx_desc_node *node;
-	int cpu = xlr_cpu_id();
+	int cpu = xlr_core_id();
 
 	mtx_lock_spin(&tx_desc_lock[cpu]);
 	node = TAILQ_FIRST(&free_tx_frag_desc[cpu]);
@@ -553,7 +512,7 @@ build_frag_list(struct mbuf *m_head, struct msgrng_msg *p2p_msg, struct p2d_tx_d
 	vm_offset_t taddr;
 	uint64_t fr_stid;
 
-	fr_stid = (xlr_cpu_id() << 3) + xlr_thr_id() + 4;
+	fr_stid = (xlr_core_id() << 3) + xlr_thr_id() + 4;
 
 	if (tx_desc == NULL)
 		return 1;
@@ -620,21 +579,6 @@ build_frag_list(struct mbuf *m_head, struct msgrng_msg *p2p_msg, struct p2d_tx_d
 static void
 release_tx_desc(struct msgrng_msg *msg, int rel_buf)
 {
-	/*
-	 * OLD code: vm_paddr_t paddr = msg->msg0 & 0xffffffffffULL;
-	 * uint64_t temp; struct p2d_tx_desc *tx_desc; struct mbuf *m;
-	 * 
-	 * paddr += (XLR_MAX_TX_FRAGS * sizeof(uint64_t)); *** In o32 we will
-	 * crash here ****** temp = ld_40bit_phys(paddr, 3); tx_desc =
-	 * (struct p2d_tx_desc *)((vm_offset_t)temp);
-	 * 
-	 * if (rel_buf) { paddr += sizeof(uint64_t);
-	 * 
-	 * temp = ld_40bit_phys(paddr, 3);
-	 * 
-	 * m = (struct mbuf *)((vm_offset_t)temp); m_freem(m); } printf("Call
-	 * fre_p2d_desc\n"); free_p2d_desc(tx_desc);
-	 */
 	struct p2d_tx_desc *tx_desc, *chk_addr;
 	struct mbuf *m;
 
@@ -652,52 +596,6 @@ release_tx_desc(struct msgrng_msg *msg, int rel_buf)
 	free_p2d_desc(tx_desc);
 }
 
-#ifdef RX_COPY
-#define RGE_MAX_NUM_DESC (6 * MAX_NUM_DESC)
-uint8_t *rge_rx_buffers[RGE_MAX_NUM_DESC];
-static struct mtx rge_rx_mtx;
-int g_rx_buf_head;
-
-static void
-init_rx_buf(void)
-{
-	int i;
-	uint8_t *buf, *start;
-	uint32_t size, *ptr;
-
-	mtx_init(&rge_rx_mtx, "xlr rx_desc", NULL, MTX_SPIN);
-
-	size = (RGE_MAX_NUM_DESC * (MAX_FRAME_SIZE + XLR_CACHELINE_SIZE));
-
-	start = (uint8_t *) contigmalloc(size, M_DEVBUF, M_NOWAIT | M_ZERO,
-	    0, 0xffffffff, XLR_CACHELINE_SIZE, 0);
-	if (start == NULL)
-		panic("NO RX BUFFERS");
-	buf = start;
-	size = (MAX_FRAME_SIZE + XLR_CACHELINE_SIZE);
-	for (i = 0; i < RGE_MAX_NUM_DESC; i++) {
-		buf = start + (i * size);
-		ptr = (uint32_t *) buf;
-		*ptr = (uint32_t) buf;
-		rge_rx_buffers[i] = buf + XLR_CACHELINE_SIZE;
-	}
-}
-
-static void *
-get_rx_buf(void)
-{
-	void *ptr = NULL;
-
-	mtx_lock_spin(&rge_rx_mtx);
-	if (g_rx_buf_head < RGE_MAX_NUM_DESC) {
-		ptr = (void *)rge_rx_buffers[g_rx_buf_head];
-		g_rx_buf_head++;
-	}
-	mtx_unlock_spin(&rge_rx_mtx);
-	return ptr;
-}
-
-#endif
 
 static struct mbuf *
 get_mbuf(void)
@@ -716,23 +614,16 @@ static void
 free_buf(vm_paddr_t paddr)
 {
 	struct mbuf *m;
-	uint32_t *temp;
-	uint32_t mag, um;
+	uint32_t mag, um, sr;
 
-	/*
-	 * This will crash I think. RRS temp = lw_40bit_phys((paddr -
-	 * XLR_CACHELINE_SIZE), 3); m = (struct mbuf *)temp;
-	 */
-	/*
-	 * This gets us a kseg0 address for the mbuf/magic on the ring but
-	 * we need to get the va to free the mbuf. This is stored at *temp;
-	 */
-	temp = (uint32_t *) MIPS_PHYS_TO_KSEG0(paddr - XLR_CACHELINE_SIZE);
-	um = temp[0];
-	mag = temp[1];
+	sr = xlr_enable_kx();
+	um = xlr_paddr_lw(paddr - XLR_CACHELINE_SIZE);
+	mag = xlr_paddr_lw(paddr - XLR_CACHELINE_SIZE + sizeof(uint32_t));
+	mips_wr_status(sr);
+
 	if (mag != 0xf00bad) {
-		printf("Something is wrong kseg:%p found mag:%x not 0xf00bad\n",
-		    temp, mag);
+		printf("Something is wrong kseg:%lx found mag:%x not 0xf00bad\n",
+		    (u_long)paddr, mag);
 		return;
 	}
 	m = (struct mbuf *)um;
@@ -743,19 +634,13 @@ free_buf(vm_paddr_t paddr)
 static void *
 get_buf(void)
 {
-#ifdef RX_COPY
-	return get_rx_buf();
-#else
 	struct mbuf *m_new = NULL;
-
+	unsigned int *md;
 #ifdef INVARIANTS
 	vm_paddr_t temp1, temp2;
-
 #endif
-	unsigned int *md;
 
 	m_new = get_mbuf();
-
 	if (m_new == NULL)
 		return NULL;
 
@@ -765,8 +650,6 @@ get_buf(void)
 	md[1] = 0xf00bad;
 	m_adj(m_new, XLR_CACHELINE_SIZE);
 
-
-	/* return (void *)m_new; */
 #ifdef INVARIANTS
 	temp1 = vtophys((vm_offset_t)m_new->m_data);
 	temp2 = vtophys((vm_offset_t)m_new->m_data + 1536);
@@ -774,7 +657,6 @@ get_buf(void)
 		panic("ALLOCED BUFFER IS NOT CONTIGUOUS\n");
 #endif
 	return (void *)m_new->m_data;
-#endif
 }
 
 /**********************************************************************
@@ -826,13 +708,13 @@ xlr_mac_send_fr(struct driver_data *priv,
 {
 	int stid = priv->rfrbucket;
 	struct msgrng_msg msg;
-	int vcpu = (xlr_cpu_id() << 2) + xlr_thr_id();
+	int vcpu = xlr_cpu_id();
 
 	mac_make_desc_rfr(&msg, addr);
 
 	/* Send the packet to MAC */
-	dbg_msg("mac_%d: Sending free packet %llx to stid %d\n",
-	    priv->instance, addr, stid);
+	dbg_msg("mac_%d: Sending free packet %lx to stid %d\n",
+	    priv->instance, (u_long)addr, stid);
 	if (priv->type == XLR_XGMAC) {
 		while (message_send(1, MSGRNG_CODE_XGMAC, stid, &msg));
 	} else {
@@ -1084,18 +966,25 @@ rmi_xlr_config_pde(struct driver_data *priv)
 	/* uint32_t desc_pack_ctrl = 0; */
 	uint32_t cpumask;
 
-	cpumask = PCPU_GET(cpumask) | PCPU_GET(other_cpus);
+	cpumask = 0x1;
+#ifdef SMP
+	/*
+         * rge may be called before SMP start in a BOOTP/NFSROOT
+         * setup. we will distribute packets to other cpus only when
+         * the SMP is started.
+	 */
+	if (smp_started)
+		cpumask = xlr_hw_thread_mask;
+#endif
 
-	for (i = 0; i < 32; i++) {
+	for (i = 0; i < MAXCPU; i++) {
 		if (cpumask & (1 << i)) {
-			cpu = cpu_ltop_map[i];
+			cpu = i;
 			bucket = ((cpu >> 2) << 3);
-			//|(cpu & 0x03);
 			bucket_map |= (1ULL << bucket);
-			dbg_msg("i=%d, cpu=%d, bucket = %d, bucket_map=%llx\n",
-			    i, cpu, bucket, bucket_map);
 		}
 	}
+	printf("rmi_xlr_config_pde: bucket_map=%llx\n", bucket_map);
 
 	/* bucket_map = 0x1; */
 	xlr_write_reg(priv->mmio, R_PDE_CLASS_0, (bucket_map & 0xffffffff));
@@ -1114,6 +1003,28 @@ rmi_xlr_config_pde(struct driver_data *priv)
 	xlr_write_reg(priv->mmio, R_PDE_CLASS_3 + 1,
 	    ((bucket_map >> 32) & 0xffffffff));
 }
+
+static void
+rge_smp_update_pde(void *dummy __unused)
+{
+	int i;
+	struct driver_data *priv;
+	struct rge_softc *sc;
+
+	printf("Updating packet distribution for SMP\n");
+	for (i = 0; i < XLR_MAX_MACS; i++) {
+		sc = dev_mac[i];
+		if (!sc)
+			continue;
+		priv = &(sc->priv);
+		rmi_xlr_mac_set_enable(priv, 0);
+		rmi_xlr_config_pde(priv);
+		rmi_xlr_mac_set_enable(priv, 1);
+	}
+}
+
+SYSINIT(rge_smp_update_pde, SI_SUB_SMP, SI_ORDER_ANY, rge_smp_update_pde, NULL);
+
 
 static void
 rmi_xlr_config_parser(struct driver_data *priv)
@@ -1542,7 +1453,7 @@ mac_xmit(struct mbuf *m, struct rge_softc *sc,
 	int stid = priv->txbucket;
 	uint32_t tx_cycles = 0;
 	unsigned long mflags = 0;
-	int vcpu = PCPU_GET(cpuid);
+	int vcpu = xlr_cpu_id();
 	int rv;
 
 	tx_cycles = mips_rd_count();
@@ -1613,10 +1524,7 @@ retry:
 static void
 mac_frin_replenish(void *args /* ignored */ )
 {
-#ifdef RX_COPY
-	return;
-#else
-	int cpu = xlr_cpu_id();
+	int cpu = xlr_core_id();
 	int done = 0;
 	int i = 0;
 
@@ -1685,7 +1593,6 @@ mac_frin_replenish(void *args /* ignored */ )
 		if (done == XLR_MAX_MACS)
 			break;
 	}
-#endif
 }
 
 static volatile uint32_t g_tx_frm_tx_ok=0;
@@ -1716,8 +1623,8 @@ rmi_xlr_mac_msgring_handler(int bucket, int size, int code,
 	struct rge_softc *sc = NULL;
 	struct driver_data *priv = 0;
 	struct ifnet *ifp;
-	int cpu = xlr_cpu_id();
-	int vcpu = (cpu << 2) + xlr_thr_id();
+	int vcpu = xlr_cpu_id();
+	int cpu = xlr_core_id();
 
 	dbg_msg("mac: bucket=%d, size=%d, code=%d, stid=%d, msg0=%llx msg1=%llx\n",
 	    bucket, size, code, stid, msg->msg0, msg->msg1);
@@ -1800,6 +1707,8 @@ static int
 rge_probe(dev)
 	device_t dev;
 {
+	device_set_desc(dev, "RMI Gigabit Ethernet");
+
 	/* Always return 0 */
 	return 0;
 }
@@ -2098,80 +2007,18 @@ rge_release_resources(struct rge_softc *sc)
 uint32_t gmac_rx_fail[32];
 uint32_t gmac_rx_pass[32];
 
-#ifdef RX_COPY
 static void
 rge_rx(struct rge_softc *sc, vm_paddr_t paddr, int len)
 {
-	/*
-	 * struct mbuf *m = (struct mbuf *)*(unsigned int *)((char *)addr -
-	 * XLR_CACHELINE_SIZE);
-	 */
 	struct mbuf *m;
-	void *ptr;
-	uint32_t *temp;
-	struct ifnet *ifp = sc->rge_ifp;
-	unsigned long msgrng_flags;
-	int cpu = PCPU_GET(cpuid);
-
-
-	temp = (uint32_t *) MIPS_PHYS_TO_KSEG0(paddr - XLR_CACHELINE_SIZE);
-
-	ptr = (void *)(temp + XLR_CACHELINE_SIZE);
-	m = m_getcl(M_DONTWAIT, MT_DATA, M_PKTHDR);
-	if (m != NULL) {
-		m->m_len = m->m_pkthdr.len = MCLBYTES;
-		m_copyback(m, 0, len + BYTE_OFFSET, ptr);
-		/* align the data */
-		m->m_data += BYTE_OFFSET;
-		m->m_pkthdr.len = m->m_len = len;
-		m->m_pkthdr.rcvif = ifp;
-		gmac_rx_pass[cpu]++;
-	} else {
-		gmac_rx_fail[cpu]++;
-	}
-	msgrng_access_enable(msgrng_flags);
-	xlr_mac_send_fr(&sc->priv, paddr, MAX_FRAME_SIZE);
-	msgrng_access_disable(msgrng_flags);
-
-#ifdef DUMP_PACKETS
-	{
-		int i = 0;
-		unsigned char *buf = (char *)m->m_data;
-
-		printf("Rx Packet: length=%d\n", len);
-		for (i = 0; i < 64; i++) {
-			if (i && (i % 16) == 0)
-				printf("\n");
-			printf("%02x ", buf[i]);
-		}
-		printf("\n");
-	}
-#endif
-
-
-	if (m) {
-		ifp->if_ipackets++;
-		(*ifp->if_input) (ifp, m);
-	}
-}
-
-#else
-static void
-rge_rx(struct rge_softc *sc, vm_paddr_t paddr, int len)
-{
-	/*
-	 * struct mbuf *m = (struct mbuf *)*(unsigned int *)((char *)addr -
-	 * XLR_CACHELINE_SIZE);
-	 */
-	struct mbuf *m;
-	uint32_t *temp, tm, mag;
-
+	uint32_t tm, mag, sr;
 	struct ifnet *ifp = sc->rge_ifp;
 
+	sr = xlr_enable_kx();
+	tm = xlr_paddr_lw(paddr - XLR_CACHELINE_SIZE);
+	mag = xlr_paddr_lw(paddr - XLR_CACHELINE_SIZE + sizeof(uint32_t));
+	mips_wr_status(sr);
 
-	temp = (uint32_t *) MIPS_PHYS_TO_KSEG0(paddr - XLR_CACHELINE_SIZE);
-	tm = temp[0];
-	mag = temp[1];
 	m = (struct mbuf *)tm;
 	if (mag != 0xf00bad) {
 		/* somebody else packet Error - FIXME in intialization */
@@ -2200,8 +2047,6 @@ rge_rx(struct rge_softc *sc, vm_paddr_t paddr, int len)
 	ifp->if_ipackets++;
 	(*ifp->if_input) (ifp, m);
 }
-
-#endif
 
 static void
 rge_intr(void *arg)
@@ -2268,8 +2113,8 @@ rge_start_locked(struct ifnet *ifp, int threshold)
 	int prepend_pkt = 0;
 	int i = 0;
 	struct p2d_tx_desc *tx_desc = NULL;
-	int cpu = xlr_cpu_id();
-	uint32_t vcpu = (cpu << 2) + xlr_thr_id();
+	int cpu = xlr_core_id();
+	uint32_t vcpu = xlr_cpu_id();
 
 	if (!(ifp->if_drv_flags & IFF_DRV_RUNNING))
 		return;
@@ -2716,9 +2561,6 @@ mac_common_init(void)
 {
 	init_p2d_allocation();
 	init_tx_ring();
-#ifdef RX_COPY
-	init_rx_buf();
-#endif
 
 	if (xlr_board_info.is_xls) {
 		if (register_msgring_handler(TX_STN_GMAC0,

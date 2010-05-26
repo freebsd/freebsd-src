@@ -78,7 +78,6 @@ GLOBAL(mpentry)
 
 	jal	platform_init_ap
 	move	a0, s0
-
 	jal	smp_init_secondary
 	move	a0, s0
 
