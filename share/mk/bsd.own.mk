@@ -279,8 +279,7 @@ WITH_IDEA=
 .endif
 
 # Enable FDT by default for selected platforms.
-.if defined(TARGET_ARCH) && \
-	(${TARGET_ARCH} == "arm" || ${TARGET_ARCH} == "powerpc")
+.if ${MACHINE_ARCH} == "arm" || ${MACHINE_ARCH} == "powerpc"
 # XXX this is temporarily disabled until all FDT support code is in place.
 #_fdt=	FDT
 _no_fdt= FDT
