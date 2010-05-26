@@ -1380,7 +1380,7 @@ usb_suspend_resume(struct usb_device *udev, uint8_t do_suspend)
 	}
 	DPRINTFN(4, "udev=%p do_suspend=%d\n", udev, do_suspend);
 
-	sx_assert(&udev->enum_sx, SA_LOCKED);
+	sx_assert(&udev->sr_sx, SA_LOCKED);
 
 	USB_BUS_LOCK(udev->bus);
 	/* filter the suspend events */
@@ -1495,6 +1495,7 @@ usb_alloc_device(device_t parent_dev, struct usb_bus *bus,
 
 	/* initialise our SX-lock */
 	sx_init_flags(&udev->enum_sx, "USB config SX lock", SX_DUPOK);
+	sx_init_flags(&udev->sr_sx, "USB suspend and resume SX lock", SX_DUPOK);
 
 	cv_init(&udev->ctrlreq_cv, "WCTRL");
 	cv_init(&udev->ref_cv, "UGONE");
@@ -2038,6 +2039,7 @@ usb_free_device(struct usb_device *udev, uint8_t flag)
 
 	sx_destroy(&udev->ctrl_sx);
 	sx_destroy(&udev->enum_sx);
+	sx_destroy(&udev->sr_sx);
 
 	cv_destroy(&udev->ctrlreq_cv);
 	cv_destroy(&udev->ref_cv);
@@ -2188,12 +2190,12 @@ usbd_set_device_strings(struct usb_device *udev)
 #ifdef USB_VERBOSE
 	const struct usb_knowndev *kdp;
 #endif
-	uint8_t *temp_ptr;
+	char *temp_ptr;
 	size_t temp_size;
 	uint16_t vendor_id;
 	uint16_t product_id;
 
-	temp_ptr = udev->bus->scratch[0].data;
+	temp_ptr = (char *)udev->bus->scratch[0].data;
 	temp_size = sizeof(udev->bus->scratch[0].data);
 
 	vendor_id = UGETW(udd->idVendor);
@@ -2589,6 +2591,7 @@ void
 usbd_enum_lock(struct usb_device *udev)
 {
 	sx_xlock(&udev->enum_sx);
+	sx_xlock(&udev->sr_sx);
 	/* 
 	 * NEWBUS LOCK NOTE: We should check if any parent SX locks
 	 * are locked before locking Giant. Else the lock can be
@@ -2604,6 +2607,30 @@ usbd_enum_unlock(struct usb_device *udev)
 {
 	mtx_unlock(&Giant);
 	sx_xunlock(&udev->enum_sx);
+	sx_xunlock(&udev->sr_sx);
+}
+
+/* The following function locks suspend and resume. */
+
+void
+usbd_sr_lock(struct usb_device *udev)
+{
+	sx_xlock(&udev->sr_sx);
+	/* 
+	 * NEWBUS LOCK NOTE: We should check if any parent SX locks
+	 * are locked before locking Giant. Else the lock can be
+	 * locked multiple times.
+	 */
+	mtx_lock(&Giant);
+}
+
+/* The following function unlocks suspend and resume. */
+
+void
+usbd_sr_unlock(struct usb_device *udev)
+{
+	mtx_unlock(&Giant);
+	sx_xunlock(&udev->sr_sx);
 }
 
 /*

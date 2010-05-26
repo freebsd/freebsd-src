@@ -107,7 +107,7 @@ amd64/amd64/intr_machdep.c	standard
 amd64/amd64/io.c		optional	io
 amd64/amd64/io_apic.c		standard
 amd64/amd64/legacy.c		standard
-amd64/amd64/local_apic.c	standard
+x86/x86/local_apic.c		standard
 amd64/amd64/locore.S		standard	no-obj
 amd64/amd64/machdep.c		standard
 amd64/amd64/mca.c		standard

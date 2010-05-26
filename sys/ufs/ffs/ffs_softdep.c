@@ -51,7 +51,6 @@ __FBSDID("$FreeBSD$");
 #ifndef DEBUG
 #define DEBUG
 #endif
-#define	SUJ_DEBUG
 
 #include <sys/param.h>
 #include <sys/kernel.h>
@@ -1200,6 +1199,7 @@ softdep_flush(void)
 	struct ufsmount *ump;
 	struct thread *td;
 	int remaining;
+	int progress;
 	int vfslocked;
 
 	td = curthread;
@@ -1224,7 +1224,7 @@ softdep_flush(void)
 		}
 		FREE_LOCK(&lk);
 		VFS_UNLOCK_GIANT(vfslocked);
-		remaining = 0;
+		remaining = progress = 0;
 		mtx_lock(&mountlist_mtx);
 		for (mp = TAILQ_FIRST(&mountlist); mp != NULL; mp = nmp)  {
 			nmp = TAILQ_NEXT(mp, mnt_list);
@@ -1233,7 +1233,7 @@ softdep_flush(void)
 			if (vfs_busy(mp, MBF_NOWAIT | MBF_MNTLSTLOCK))
 				continue;
 			vfslocked = VFS_LOCK_GIANT(mp);
-			softdep_process_worklist(mp, 0);
+			progress += softdep_process_worklist(mp, 0);
 			ump = VFSTOUFS(mp);
 			remaining += ump->softdep_on_worklist -
 				ump->softdep_on_worklist_inprogress;
@@ -1243,7 +1243,7 @@ softdep_flush(void)
 			vfs_unbusy(mp);
 		}
 		mtx_unlock(&mountlist_mtx);
-		if (remaining)
+		if (remaining && progress)
 			continue;
 		ACQUIRE_LOCK(&lk);
 		if (!req_pending)
@@ -1449,7 +1449,7 @@ process_worklist_item(mp, flags)
 	struct mount *mp;
 	int flags;
 {
-	struct worklist *wk, *wkXXX;
+	struct worklist *wk;
 	struct ufsmount *ump;
 	struct vnode *vp;
 	int matchcnt = 0;
@@ -1472,11 +1472,8 @@ process_worklist_item(mp, flags)
 	vp = NULL;
 	ump = VFSTOUFS(mp);
 	LIST_FOREACH(wk, &ump->softdep_workitem_pending, wk_list) {
-		if (wk->wk_state & INPROGRESS) {
-			wkXXX = wk;
+		if (wk->wk_state & INPROGRESS)
 			continue;
-		}
-		wkXXX = wk;	/* Record the last valid wk pointer. */
 		if ((flags & LK_NOWAIT) == 0 || wk->wk_type != D_DIRREM)
 			break;
 		wk->wk_state |= INPROGRESS;
@@ -2364,7 +2361,7 @@ remove_from_journal(wk)
 
 	mtx_assert(&lk, MA_OWNED);
 	ump = VFSTOUFS(wk->wk_mp);
-#ifdef DEBUG	/* XXX Expensive, temporary. */
+#ifdef SUJ_DEBUG
 	{
 		struct worklist *wkn;
 
@@ -2401,16 +2398,15 @@ journal_space(ump, thresh)
 	struct jblocks *jblocks;
 	int avail;
 
+	jblocks = ump->softdep_jblocks;
+	if (jblocks == NULL)
+		return (1);
 	/*
 	 * We use a tighter restriction here to prevent request_cleanup()
 	 * running in threads from running into locks we currently hold.
 	 */
 	if (num_inodedep > (max_softdeps / 10) * 9)
 		return (0);
-
-	jblocks = ump->softdep_jblocks;
-	if (jblocks == NULL)
-		return (1);
 	if (thresh)
 		thresh = jblocks->jb_min;
 	else
@@ -2727,7 +2723,7 @@ softdep_process_journal(mp, flags)
 				break;
 			printf("softdep: Out of journal space!\n");
 			softdep_speedup();
-			msleep(jblocks, &lk, PRIBIO, "jblocks", 1);
+			msleep(jblocks, &lk, PRIBIO, "jblocks", hz);
 		}
 		FREE_LOCK(&lk);
 		jseg = malloc(sizeof(*jseg), M_JSEG, M_SOFTDEP_FLAGS);
@@ -10870,18 +10866,29 @@ int
 softdep_slowdown(vp)
 	struct vnode *vp;
 {
+	struct ufsmount *ump;
+	int jlow;
 	int max_softdeps_hard;
 
 	ACQUIRE_LOCK(&lk);
+	jlow = 0;
+	/*
+	 * Check for journal space if needed.
+	 */
+	if (DOINGSUJ(vp)) {
+		ump = VFSTOUFS(vp->v_mount);
+		if (journal_space(ump, 0) == 0)
+			jlow = 1;
+	}
 	max_softdeps_hard = max_softdeps * 11 / 10;
 	if (num_dirrem < max_softdeps_hard / 2 &&
 	    num_inodedep < max_softdeps_hard &&
 	    VFSTOUFS(vp->v_mount)->um_numindirdeps < maxindirdeps &&
-	    num_freeblkdep < max_softdeps_hard) {
+	    num_freeblkdep < max_softdeps_hard && jlow == 0) {
 		FREE_LOCK(&lk);
   		return (0);
 	}
-	if (VFSTOUFS(vp->v_mount)->um_numindirdeps >= maxindirdeps)
+	if (VFSTOUFS(vp->v_mount)->um_numindirdeps >= maxindirdeps || jlow)
 		softdep_speedup();
 	stat_sync_limit_hit += 1;
 	FREE_LOCK(&lk);

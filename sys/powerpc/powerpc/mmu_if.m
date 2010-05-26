@@ -90,7 +90,8 @@ CODE {
 		return;
 	}
 
-	static int mmu_null_mincore(mmu_t mmu, pmap_t pmap, vm_offset_t addr)
+	static int mmu_null_mincore(mmu_t mmu, pmap_t pmap, vm_offset_t addr,
+	    vm_paddr_t *locked_pa)
 	{
 		return (0);
 	}
@@ -633,12 +634,11 @@ METHOD void zero_page_idle {
 
 
 /**
- * @brief Extract mincore(2) information from a mapping. This routine is
- * optional and is an optimisation: the mincore code will call is_modified
- * and ts_referenced if no result is returned.
+ * @brief Extract mincore(2) information from a mapping.
  *
  * @param _pmap		physical map
  * @param _addr		page virtual address
+ * @param _locked_pa	page physical address
  *
  * @retval 0		no result
  * @retval non-zero	mincore(2) flag values
@@ -647,6 +647,7 @@ METHOD int mincore {
 	mmu_t		_mmu;
 	pmap_t		_pmap;
 	vm_offset_t	_addr;
+	vm_paddr_t	*_locked_pa;
 } DEFAULT mmu_null_mincore;
 
 

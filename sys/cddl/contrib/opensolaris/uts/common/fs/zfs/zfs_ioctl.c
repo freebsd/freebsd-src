@@ -92,7 +92,7 @@ typedef struct zfs_ioc_vec {
 	boolean_t		zvec_his_log;
 } zfs_ioc_vec_t;
 
-static void clear_props(char *dataset, nvlist_t *props);
+static void clear_props(char *dataset, nvlist_t *props, nvlist_t *newprops);
 static int zfs_fill_zplprops_root(uint64_t, nvlist_t *, nvlist_t *,
     boolean_t *);
 int zfs_set_prop_nvlist(const char *, nvlist_t *);
@@ -1645,7 +1645,7 @@ zfs_ioc_set_prop(zfs_cmd_t *zc)
 		if (dmu_objset_open(zc->zc_name, DMU_OST_ANY,
 		    DS_MODE_USER | DS_MODE_READONLY, &os) == 0) {
 			if (dsl_prop_get_all(os, &origprops, TRUE) == 0) {
-				clear_props(zc->zc_name, origprops);
+				clear_props(zc->zc_name, origprops, nvl);
 				nvlist_free(origprops);
 			}
 			dmu_objset_close(os);
@@ -2367,9 +2367,10 @@ zfs_ioc_rollback(zfs_cmd_t *zc)
 	}
 
 	if (zfsvfs != NULL) {
-		char osname[MAXNAMELEN];
+		char *osname;
 		int mode;
 
+		osname = kmem_alloc(MAXNAMELEN, KM_SLEEP);
 		error = zfs_suspend_fs(zfsvfs, osname, &mode);
 		if (error == 0) {
 			int resume_err;
@@ -2381,6 +2382,7 @@ zfs_ioc_rollback(zfs_cmd_t *zc)
 		} else {
 			dmu_objset_close(os);
 		}
+		kmem_free(osname, MAXNAMELEN);
 		VFS_RELE(zfsvfs->z_vfs);
 	} else {
 		error = dmu_objset_rollback(os);
@@ -2423,7 +2425,7 @@ zfs_ioc_rename(zfs_cmd_t *zc)
 }
 
 static void
-clear_props(char *dataset, nvlist_t *props)
+clear_props(char *dataset, nvlist_t *props, nvlist_t *newprops)
 {
 	zfs_cmd_t *zc;
 	nvpair_t *prop;
@@ -2434,6 +2436,9 @@ clear_props(char *dataset, nvlist_t *props)
 	(void) strcpy(zc->zc_name, dataset);
 	for (prop = nvlist_next_nvpair(props, NULL); prop;
 	    prop = nvlist_next_nvpair(props, prop)) {
+		if (newprops != NULL &&
+		    nvlist_exists(newprops, nvpair_name(prop)))
+			continue;
 		(void) strcpy(zc->zc_value, nvpair_name(prop));
 		if (zfs_secpolicy_inherit(zc, CRED()) == 0)
 			(void) zfs_ioc_inherit_prop(zc);
@@ -2541,7 +2546,7 @@ zfs_ioc_recv(zfs_cmd_t *zc)
 	 * so that the properties are applied to the new data.
 	 */
 	if (props) {
-		clear_props(tofs, origprops);
+		clear_props(tofs, origprops, props);
 		/*
 		 * XXX - Note, this is all-or-nothing; should be best-effort.
 		 */
@@ -2552,10 +2557,11 @@ zfs_ioc_recv(zfs_cmd_t *zc)
 	error = dmu_recv_stream(&drc, fp, &off);
 
 	if (error == 0 && zfsvfs) {
-		char osname[MAXNAMELEN];
+		char *osname;
 		int mode;
 
 		/* online recv */
+		osname = kmem_alloc(MAXNAMELEN, KM_SLEEP);
 		error = zfs_suspend_fs(zfsvfs, osname, &mode);
 		if (error == 0) {
 			int resume_err;
@@ -2566,6 +2572,7 @@ zfs_ioc_recv(zfs_cmd_t *zc)
 		} else {
 			dmu_recv_abort_cleanup(&drc);
 		}
+		kmem_free(osname, MAXNAMELEN);
 	} else if (error == 0) {
 		error = dmu_recv_end(&drc);
 	}
@@ -2578,7 +2585,7 @@ zfs_ioc_recv(zfs_cmd_t *zc)
 	 * On error, restore the original props.
 	 */
 	if (error && props) {
-		clear_props(tofs, props);
+		clear_props(tofs, props, NULL);
 		(void) zfs_set_prop_nvlist(tofs, origprops);
 	}
 out:
@@ -2616,16 +2623,18 @@ zfs_ioc_send(zfs_cmd_t *zc)
 		return (error);
 
 	if (zc->zc_value[0] != '\0') {
-		char buf[MAXPATHLEN];
+		char *buf;
 		char *cp;
 
-		(void) strncpy(buf, zc->zc_name, sizeof (buf));
+		buf = kmem_alloc(MAXPATHLEN, KM_SLEEP);
+		(void) strncpy(buf, zc->zc_name, MAXPATHLEN);
 		cp = strchr(buf, '@');
 		if (cp)
 			*(cp+1) = 0;
-		(void) strlcat(buf, zc->zc_value, sizeof (buf));
+		(void) strlcat(buf, zc->zc_value, MAXPATHLEN);
 		error = dmu_objset_open(buf, DMU_OST_ANY,
 		    DS_MODE_USER | DS_MODE_READONLY, &fromsnap);
+		kmem_free(buf, MAXPATHLEN);
 		if (error) {
 			dmu_objset_close(tosnap);
 			return (error);

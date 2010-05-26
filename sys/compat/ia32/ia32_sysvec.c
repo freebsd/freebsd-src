@@ -93,6 +93,8 @@ CTASSERT(sizeof(struct ia32_ucontext4) == 324);
 CTASSERT(sizeof(struct ia32_sigframe4) == 408);
 #endif
 
+extern const char *freebsd32_syscallnames[];
+
 static void ia32_fixlimit(struct rlimit *rl, int which);
 
 SYSCTL_NODE(_compat, OID_AUTO, ia32, CTLFLAG_RW, 0, "ia32 mode");
@@ -135,7 +137,10 @@ struct sysentvec ia32_freebsd_sysvec = {
 	.sv_setregs	= ia32_setregs,
 	.sv_fixlimit	= ia32_fixlimit,
 	.sv_maxssiz	= &ia32_maxssiz,
-	.sv_flags	= SV_ABI_FREEBSD | SV_IA32 | SV_ILP32
+	.sv_flags	= SV_ABI_FREEBSD | SV_IA32 | SV_ILP32,
+	.sv_set_syscall_retval = ia32_set_syscall_retval,
+	.sv_fetch_syscall_args = ia32_fetch_syscall_args,
+	.sv_syscallnames = freebsd32_syscallnames,
 };
 
 

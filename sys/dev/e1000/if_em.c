@@ -710,6 +710,9 @@ em_detach(device_t dev)
 		ether_poll_deregister(ifp);
 #endif
 
+	if (adapter->led_dev != NULL)
+		led_destroy(adapter->led_dev);
+
 	EM_CORE_LOCK(adapter);
 	adapter->in_detach = 1;
 	em_stop(adapter);
@@ -778,9 +781,6 @@ em_resume(device_t dev)
 {
 	struct adapter *adapter = device_get_softc(dev);
 	struct ifnet *ifp = adapter->ifp;
-
-	if (adapter->led_dev != NULL)
-		led_destroy(adapter->led_dev);
 
 	EM_CORE_LOCK(adapter);
 	em_init_locked(adapter);
@@ -2948,7 +2948,9 @@ err_tx_desc:
 		em_dma_free(adapter, &txr->txdma);
 	free(adapter->rx_rings, M_DEVBUF);
 rx_fail:
+#if __FreeBSD_version >= 800000
 	buf_ring_free(txr->br, M_DEVBUF);
+#endif
 	free(adapter->tx_rings, M_DEVBUF);
 fail:
 	return (error);

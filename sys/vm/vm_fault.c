@@ -306,7 +306,6 @@ RetryFault:;
 			 * which is not what we want.
 			 */
 			vm_page_lock(fs.m);
-			vm_page_lock_queues();
 			if ((fs.m->cow) && 
 			    (fault_type & VM_PROT_WRITE) &&
 			    (fs.object == fs.first_object)) {
@@ -337,12 +336,17 @@ RetryFault:;
 				 * sleeping so that the page daemon is less
 				 * likely to reclaim it. 
 				 */
+				vm_page_lock_queues();
 				vm_page_flag_set(fs.m, PG_REFERENCED);
 				vm_page_unlock_queues();
 				vm_page_unlock(fs.m);
-				VM_OBJECT_UNLOCK(fs.object);
 				if (fs.object != fs.first_object) {
-					VM_OBJECT_LOCK(fs.first_object);
+					if (!VM_OBJECT_TRYLOCK(
+					    fs.first_object)) {
+						VM_OBJECT_UNLOCK(fs.object);
+						VM_OBJECT_LOCK(fs.first_object);
+						VM_OBJECT_LOCK(fs.object);
+					}
 					vm_page_lock(fs.first_m);
 					vm_page_free(fs.first_m);
 					vm_page_unlock(fs.first_m);
@@ -351,7 +355,6 @@ RetryFault:;
 					fs.first_m = NULL;
 				}
 				unlock_map(&fs);
-				VM_OBJECT_LOCK(fs.object);
 				if (fs.m == vm_page_lookup(fs.object,
 				    fs.pindex)) {
 					vm_page_sleep_if_busy(fs.m, TRUE,
@@ -364,7 +367,6 @@ RetryFault:;
 				goto RetryFault;
 			}
 			vm_pageq_remove(fs.m);
-			vm_page_unlock_queues();
 			vm_page_unlock(fs.m);
 
 			/*
@@ -487,20 +489,16 @@ readrest:
 					    (mt->oflags & VPO_BUSY))
 						continue;
 					vm_page_lock(mt);
-					vm_page_lock_queues();
 					if (mt->hold_count ||
 					    mt->wire_count) {
-						vm_page_unlock_queues();
 						vm_page_unlock(mt);
 						continue;
 					}
 					pmap_remove_all(mt);
-					if (mt->dirty) {
+					if (mt->dirty != 0)
 						vm_page_deactivate(mt);
-					} else {
+					else
 						vm_page_cache(mt);
-					}
-					vm_page_unlock_queues();
 					vm_page_unlock(mt);
 				}
 				ahead += behind;
@@ -1025,13 +1023,8 @@ vm_fault_prefault(pmap_t pmap, vm_offset_t addra, vm_map_entry_t entry)
 			break;
 		}
 		if (m->valid == VM_PAGE_BITS_ALL &&
-		    (m->flags & PG_FICTITIOUS) == 0) {
-			vm_page_lock(m);
-			vm_page_lock_queues();
+		    (m->flags & PG_FICTITIOUS) == 0)
 			pmap_enter_quick(pmap, addr, m, entry->protection);
-			vm_page_unlock_queues();
-			vm_page_unlock(m);
-		}
 		VM_OBJECT_UNLOCK(lobject);
 	}
 }

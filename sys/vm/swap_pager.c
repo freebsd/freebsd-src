@@ -382,8 +382,10 @@ static void
 swp_pager_free_nrpage(vm_page_t m)
 {
 
+	vm_page_lock(m);
 	if (m->wire_count == 0)
 		vm_page_free(m);
+	vm_page_unlock(m);
 }
 
 /*
@@ -1137,17 +1139,10 @@ swap_pager_getpages(vm_object_t object, vm_page_t *m, int count, int reqpage)
 	if (0 < i || j < count) {
 		int k;
 
-		
-		for (k = 0; k < i; ++k) {
-			vm_page_lock(m[k]);
+		for (k = 0; k < i; ++k)
 			swp_pager_free_nrpage(m[k]);
-			vm_page_unlock(m[k]);
-		}
-		for (k = j; k < count; ++k) {
-			vm_page_lock(m[k]);
+		for (k = j; k < count; ++k)
 			swp_pager_free_nrpage(m[k]);
-			vm_page_unlock(m[k]);
-		}
 	}
 
 	/*
@@ -1514,8 +1509,6 @@ swp_pager_async_iodone(struct buf *bp)
 	for (i = 0; i < bp->b_npages; ++i) {
 		vm_page_t m = bp->b_pages[i];
 
-		vm_page_lock(m);
-		vm_page_lock_queues();
 		m->oflags &= ~VPO_SWAPINPROG;
 
 		if (bp->b_ioflags & BIO_ERROR) {
@@ -1558,7 +1551,9 @@ swp_pager_async_iodone(struct buf *bp)
 				 * then finish the I/O.
 				 */
 				vm_page_dirty(m);
+				vm_page_lock(m);
 				vm_page_activate(m);
+				vm_page_unlock(m);
 				vm_page_io_finish(m);
 			}
 		} else if (bp->b_iocmd == BIO_READ) {
@@ -1593,11 +1588,12 @@ swp_pager_async_iodone(struct buf *bp)
 			 * left busy.
 			 */
 			if (i != bp->b_pager.pg_reqpage) {
+				vm_page_lock(m);
 				vm_page_deactivate(m);
+				vm_page_unlock(m);
 				vm_page_wakeup(m);
-			} else {
+			} else
 				vm_page_flash(m);
-			}
 		} else {
 			/*
 			 * For write success, clear the dirty
@@ -1609,11 +1605,12 @@ swp_pager_async_iodone(struct buf *bp)
 			    " protected", m));
 			vm_page_undirty(m);
 			vm_page_io_finish(m);
-			if (vm_page_count_severe())
+			if (vm_page_count_severe()) {
+				vm_page_lock(m);
 				vm_page_try_to_cache(m);
+				vm_page_unlock(m);
+			}
 		}
-		vm_page_unlock_queues();
-		vm_page_unlock(m);
 	}
 
 	/*
@@ -1710,11 +1707,9 @@ swp_pager_force_pagein(vm_object_t object, vm_pindex_t pindex)
 	m = vm_page_grab(object, pindex, VM_ALLOC_NORMAL|VM_ALLOC_RETRY);
 	if (m->valid == VM_PAGE_BITS_ALL) {
 		vm_object_pip_subtract(object, 1);
-		vm_page_lock(m);
-		vm_page_lock_queues();
-		vm_page_activate(m);
 		vm_page_dirty(m);
-		vm_page_unlock_queues();
+		vm_page_lock(m);
+		vm_page_activate(m);
 		vm_page_unlock(m);
 		vm_page_wakeup(m);
 		vm_pager_page_unswapped(m);
@@ -1724,11 +1719,9 @@ swp_pager_force_pagein(vm_object_t object, vm_pindex_t pindex)
 	if (swap_pager_getpages(object, &m, 1, 0) != VM_PAGER_OK)
 		panic("swap_pager_force_pagein: read from swap failed");/*XXX*/
 	vm_object_pip_subtract(object, 1);
-	vm_page_lock(m);
-	vm_page_lock_queues();
 	vm_page_dirty(m);
-	vm_page_dontneed(m);
-	vm_page_unlock_queues();
+	vm_page_lock(m);
+	vm_page_deactivate(m);
 	vm_page_unlock(m);
 	vm_page_wakeup(m);
 	vm_pager_page_unswapped(m);

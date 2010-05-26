@@ -33,6 +33,17 @@
 #include <sys/zio_compress.h>
 #include <sys/zio_checksum.h>
 
+#if defined(__amd64__)
+static int zio_use_uma = 1;
+#else
+static int zio_use_uma = 0;
+#endif
+SYSCTL_DECL(_vfs_zfs);
+SYSCTL_NODE(_vfs_zfs, OID_AUTO, zio, CTLFLAG_RW, 0, "ZFS ZIO");
+TUNABLE_INT("vfs.zfs.zio.use_uma", &zio_use_uma);
+SYSCTL_INT(_vfs_zfs_zio, OID_AUTO, use_uma, CTLFLAG_RDTUN, &zio_use_uma, 0,
+    "Use uma(9) for ZIO allocations");
+
 /*
  * ==========================================================================
  * I/O priority table
@@ -69,10 +80,8 @@ char *zio_type_name[ZIO_TYPES] = {
  * ==========================================================================
  */
 kmem_cache_t *zio_cache;
-#ifdef ZIO_USE_UMA
 kmem_cache_t *zio_buf_cache[SPA_MAXBLOCKSIZE >> SPA_MINBLOCKSHIFT];
 kmem_cache_t *zio_data_buf_cache[SPA_MAXBLOCKSIZE >> SPA_MINBLOCKSHIFT];
-#endif
 
 #ifdef _KERNEL
 extern vmem_t *zio_alloc_arena;
@@ -88,13 +97,10 @@ extern vmem_t *zio_alloc_arena;
 void
 zio_init(void)
 {
-#ifdef ZIO_USE_UMA
 	size_t c;
-#endif
 	zio_cache = kmem_cache_create("zio_cache", sizeof (zio_t), 0,
 	    NULL, NULL, NULL, NULL, NULL, 0);
 
-#ifdef ZIO_USE_UMA
 	/*
 	 * For small buffers, we want a cache for each multiple of
 	 * SPA_MINBLOCKSIZE.  For medium-size buffers, we want a cache
@@ -138,7 +144,6 @@ zio_init(void)
 		if (zio_data_buf_cache[c - 1] == NULL)
 			zio_data_buf_cache[c - 1] = zio_data_buf_cache[c];
 	}
-#endif
 
 	zio_inject_init();
 }
@@ -146,7 +151,6 @@ zio_init(void)
 void
 zio_fini(void)
 {
-#ifdef ZIO_USE_UMA
 	size_t c;
 	kmem_cache_t *last_cache = NULL;
 	kmem_cache_t *last_data_cache = NULL;
@@ -164,7 +168,6 @@ zio_fini(void)
 		}
 		zio_data_buf_cache[c] = NULL;
 	}
-#endif
 
 	kmem_cache_destroy(zio_cache);
 
@@ -186,15 +189,14 @@ zio_fini(void)
 void *
 zio_buf_alloc(size_t size)
 {
-#ifdef ZIO_USE_UMA
 	size_t c = (size - 1) >> SPA_MINBLOCKSHIFT;
 
 	ASSERT(c < SPA_MAXBLOCKSIZE >> SPA_MINBLOCKSHIFT);
 
-	return (kmem_cache_alloc(zio_buf_cache[c], KM_PUSHPAGE));
-#else
-	return (kmem_alloc(size, KM_SLEEP));
-#endif
+	if (zio_use_uma)
+		return (kmem_cache_alloc(zio_buf_cache[c], KM_PUSHPAGE));
+	else
+		return (kmem_alloc(size, KM_SLEEP));
 }
 
 /*
@@ -206,43 +208,40 @@ zio_buf_alloc(size_t size)
 void *
 zio_data_buf_alloc(size_t size)
 {
-#ifdef ZIO_USE_UMA
 	size_t c = (size - 1) >> SPA_MINBLOCKSHIFT;
 
 	ASSERT(c < SPA_MAXBLOCKSIZE >> SPA_MINBLOCKSHIFT);
 
-	return (kmem_cache_alloc(zio_data_buf_cache[c], KM_PUSHPAGE));
-#else
-	return (kmem_alloc(size, KM_SLEEP));
-#endif
+	if (zio_use_uma)
+		return (kmem_cache_alloc(zio_data_buf_cache[c], KM_PUSHPAGE));
+	else
+		return (kmem_alloc(size, KM_SLEEP));
 }
 
 void
 zio_buf_free(void *buf, size_t size)
 {
-#ifdef ZIO_USE_UMA
 	size_t c = (size - 1) >> SPA_MINBLOCKSHIFT;
 
 	ASSERT(c < SPA_MAXBLOCKSIZE >> SPA_MINBLOCKSHIFT);
 
-	kmem_cache_free(zio_buf_cache[c], buf);
-#else
-	kmem_free(buf, size);
-#endif
+	if (zio_use_uma)
+		kmem_cache_free(zio_buf_cache[c], buf);
+	else
+		kmem_free(buf, size);
 }
 
 void
 zio_data_buf_free(void *buf, size_t size)
 {
-#ifdef ZIO_USE_UMA
 	size_t c = (size - 1) >> SPA_MINBLOCKSHIFT;
 
 	ASSERT(c < SPA_MAXBLOCKSIZE >> SPA_MINBLOCKSHIFT);
 
-	kmem_cache_free(zio_data_buf_cache[c], buf);
-#else
-	kmem_free(buf, size);
-#endif
+	if (zio_use_uma)
+		kmem_cache_free(zio_data_buf_cache[c], buf);
+	else
+		kmem_free(buf, size);
 }
 
 /*
@@ -908,8 +907,8 @@ zio_taskq_dispatch(zio_t *zio, enum zio_taskq_type q)
 	if (t == ZIO_TYPE_WRITE && zio->io_vd && zio->io_vd->vdev_aux)
 		t = ZIO_TYPE_NULL;
 
-	(void) taskq_dispatch(zio->io_spa->spa_zio_taskq[t][q],
-	    (task_func_t *)zio_execute, zio, TQ_SLEEP);
+	(void) taskq_dispatch_safe(zio->io_spa->spa_zio_taskq[t][q],
+	    (task_func_t *)zio_execute, zio, &zio->io_task);
 }
 
 static boolean_t
@@ -2220,9 +2219,9 @@ zio_done(zio_t *zio)
 			 * Reexecution is potentially a huge amount of work.
 			 * Hand it off to the otherwise-unused claim taskq.
 			 */
-			(void) taskq_dispatch(
+			(void) taskq_dispatch_safe(
 			    spa->spa_zio_taskq[ZIO_TYPE_CLAIM][ZIO_TASKQ_ISSUE],
-			    (task_func_t *)zio_reexecute, zio, TQ_SLEEP);
+			    (task_func_t *)zio_reexecute, zio, &zio->io_task);
 		}
 		return (ZIO_PIPELINE_STOP);
 	}

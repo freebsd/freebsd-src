@@ -59,6 +59,8 @@ static int siis_setup_interrupt(device_t dev);
 static void siis_intr(void *data);
 static int siis_suspend(device_t dev);
 static int siis_resume(device_t dev);
+static int siis_ch_init(device_t dev);
+static int siis_ch_deinit(device_t dev);
 static int siis_ch_suspend(device_t dev);
 static int siis_ch_resume(device_t dev);
 static void siis_ch_intr_locked(void *data);
@@ -150,6 +152,8 @@ siis_attach(device_t dev)
 	    &ctlr->r_rid, RF_ACTIVE)))
 		return (ENXIO);
 	/* Setup our own memory management for channels. */
+	ctlr->sc_iomem.rm_start = rman_get_start(ctlr->r_mem);
+	ctlr->sc_iomem.rm_end = rman_get_end(ctlr->r_mem);
 	ctlr->sc_iomem.rm_type = RMAN_ARRAY;
 	ctlr->sc_iomem.rm_descr = "I/O memory addresses";
 	if ((error = rman_init(&ctlr->sc_iomem)) != 0) {
@@ -396,6 +400,16 @@ siis_print_child(device_t dev, device_t child)
 	return (retval);
 }
 
+static int
+siis_child_location_str(device_t dev, device_t child, char *buf,
+    size_t buflen)
+{
+
+	snprintf(buf, buflen, "channel=%d",
+	    (int)(intptr_t)device_get_ivars(child));
+	return (0);
+}
+
 devclass_t siis_devclass;
 static device_method_t siis_methods[] = {
 	DEVMETHOD(device_probe,     siis_probe),
@@ -408,6 +422,7 @@ static device_method_t siis_methods[] = {
 	DEVMETHOD(bus_release_resource,     siis_release_resource),
 	DEVMETHOD(bus_setup_intr,   siis_setup_intr),
 	DEVMETHOD(bus_teardown_intr,siis_teardown_intr),
+	DEVMETHOD(bus_child_location_str, siis_child_location_str),
 	{ 0, 0 }
 };
 static driver_t siis_driver = {
@@ -458,7 +473,7 @@ siis_ch_attach(device_t dev)
 		return (ENXIO);
 	siis_dmainit(dev);
 	siis_slotsalloc(dev);
-	siis_ch_resume(dev);
+	siis_ch_init(dev);
 	mtx_lock(&ch->mtx);
 	rid = ATA_IRQ_RID;
 	if (!(ch->r_irq = bus_alloc_resource_any(dev, SYS_RES_IRQ,
@@ -528,7 +543,7 @@ siis_ch_detach(device_t dev)
 	bus_teardown_intr(dev, ch->r_irq, ch->ih);
 	bus_release_resource(dev, SYS_RES_IRQ, ATA_IRQ_RID, ch->r_irq);
 
-	siis_ch_suspend(dev);
+	siis_ch_deinit(dev);
 	siis_slotsfree(dev);
 	siis_dmafini(dev);
 
@@ -538,17 +553,7 @@ siis_ch_detach(device_t dev)
 }
 
 static int
-siis_ch_suspend(device_t dev)
-{
-	struct siis_channel *ch = device_get_softc(dev);
-
-	/* Put port into reset state. */
-	ATA_OUTL(ch->r_mem, SIIS_P_CTLSET, SIIS_P_CTL_PORT_RESET);
-	return (0);
-}
-
-static int
-siis_ch_resume(device_t dev)
+siis_ch_init(device_t dev)
 {
 	struct siis_channel *ch = device_get_softc(dev);
 
@@ -561,6 +566,43 @@ siis_ch_resume(device_t dev)
 		ATA_OUTL(ch->r_mem, SIIS_P_CTLCLR, SIIS_P_CTL_PME);
 	/* Enable port interrupts */
 	ATA_OUTL(ch->r_mem, SIIS_P_IESET, SIIS_P_IX_ENABLED);
+	return (0);
+}
+
+static int
+siis_ch_deinit(device_t dev)
+{
+	struct siis_channel *ch = device_get_softc(dev);
+
+	/* Put port into reset state. */
+	ATA_OUTL(ch->r_mem, SIIS_P_CTLSET, SIIS_P_CTL_PORT_RESET);
+	return (0);
+}
+
+static int
+siis_ch_suspend(device_t dev)
+{
+	struct siis_channel *ch = device_get_softc(dev);
+
+	mtx_lock(&ch->mtx);
+	xpt_freeze_simq(ch->sim, 1);
+	while (ch->oslots)
+		msleep(ch, &ch->mtx, PRIBIO, "siissusp", hz/100);
+	siis_ch_deinit(dev);
+	mtx_unlock(&ch->mtx);
+	return (0);
+}
+
+static int
+siis_ch_resume(device_t dev)
+{
+	struct siis_channel *ch = device_get_softc(dev);
+
+	mtx_lock(&ch->mtx);
+	siis_ch_init(dev);
+	siis_reset(dev);
+	xpt_release_simq(ch->sim, TRUE);
+	mtx_unlock(&ch->mtx);
 	return (0);
 }
 

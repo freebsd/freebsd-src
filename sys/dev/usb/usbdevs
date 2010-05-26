@@ -873,6 +873,7 @@ product AKS USBHASP		0x0001	USB-HASP 0.06
 product ALCOR2 KBD_HUB		0x2802	Kbd Hub
 
 product ALCOR SDCR_6335		0x6335	SD/MMC Card Reader
+product ALCOR SDCR_6362		0x6362	SD/MMC Card Reader
 product ALCOR TRANSCEND		0x6387	Transcend JetFlash Drive
 product ALCOR MA_KBD_HUB	0x9213	MacAlly Kbd Hub
 product ALCOR AU9814		0x9215	AU9814 Hub
@@ -1006,6 +1007,7 @@ product ASUS RT2870_4		0x1760	RT2870
 product ASUS RT2870_5		0x1761	RT2870
 product	ASUS USBN13		0x1784	USB-N13
 product	ASUS RT3070_1		0x1790	RT3070
+product ASUS A730W		0x4202	ASUS MyPal A730W
 product ASUS P535		0x420f	ASUS P535 PDA
 product	ASUS GMSC		0x422f	ASUS Generic Mass Storage
 product ASUS RT2570		0x1706	RT2500USB Wireless Adapter
@@ -1376,6 +1378,11 @@ product EDIMAX RT2870_1		0x7711	RT2870
 product EDIMAX EW7717		0x7717	EW-7717
 product EDIMAX EW7718		0x7718	EW-7718
 
+/* eGalax Products */
+product EGALAX TPANEL		0x0001	Touch Panel
+product EGALAX TPANEL2		0x0002	Touch Panel
+product EGALAX2 TPANEL		0x0001	Touch Panel   
+
 /* Eicon Networks */
 product EICON DIVA852		0x4905	Diva 852 ISDN TA
 
@@ -1483,6 +1490,7 @@ product FOSSIL WRISTPDA		0x0002	Wrist PDA
 
 /* Freecom products */
 product FREECOM DVD		0xfc01	DVD drive
+product FREECOM HDD		0xfc05	Classic SL Hard Drive
 
 /* Fujitsu Siemens Computers products */
 product FSC E5400		0x1009	PrismGT USB 2.0 WLAN
@@ -1498,6 +1506,7 @@ product FTDI SERIAL_4232H	0x6011	FT4232H Quad port Serial
 product FTDI TACTRIX_OPENPORT_13M 0xcc48 OpenPort 1.3 Mitsubishi
 product FTDI TACTRIX_OPENPORT_13S 0xcc49 OpenPort 1.3 Subaru
 product FTDI TACTRIX_OPENPORT_13U 0xcc4a OpenPort 1.3 Universal
+product FTDI GAMMASCOUT		0xd678	Gamma-Scout
 product FTDI EISCOU		0xe888	Expert ISDN Control USB
 product FTDI UOPTBR		0xe889	USB-RS232 OptoBridge
 product FTDI EMCU2D		0xe88a	Expert mouseCLOCK USB II
@@ -2591,6 +2600,8 @@ product SAGEM XG76NA		0x0062	XG-76NA
 /* Samsung products */
 product SAMSUNG ML6060		0x3008	ML-6060 laser printer
 product SAMSUNG YP_U2		0x5050	YP-U2 MP3 Player
+product SAMSUNG YP_U4		0x5092	YP-U4 MP3 Player
+
 product SAMSUNG I500		0x6601	I500 Palm USB Phone 
 product SAMSUNG2 RT2870_1	0x2018	RT2870
 

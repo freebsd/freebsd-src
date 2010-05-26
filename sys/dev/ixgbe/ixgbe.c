@@ -46,7 +46,7 @@ int             ixgbe_display_debug_stats = 0;
 /*********************************************************************
  *  Driver version
  *********************************************************************/
-char ixgbe_driver_version[] = "2.1.7";
+char ixgbe_driver_version[] = "2.2.0";
 
 /*********************************************************************
  *  PCI Device ID Table
@@ -256,11 +256,11 @@ TUNABLE_INT("hw.ixgbe.enable_msix", &ixgbe_enable_msix);
 
 /*
  * Header split has seemed to be beneficial in
- * all circumstances tested, so its on by default
+ * most circumstances tested, so its on by default
  * however this variable will allow it to be disabled
  * for some debug purposes.
  */
-static bool ixgbe_header_split = TRUE;
+static bool ixgbe_header_split = FALSE;
 TUNABLE_INT("hw.ixgbe.hdr_split", &ixgbe_header_split);
 
 /*
@@ -406,37 +406,39 @@ ixgbe_attach(device_t dev)
 	/* Keep track of optics */
 	pci_device_id = pci_get_device(dev);
 	switch (pci_device_id) {
-		case IXGBE_DEV_ID_82598_CX4_DUAL_PORT :
-		case IXGBE_DEV_ID_82598EB_CX4 :
+		case IXGBE_DEV_ID_82598_CX4_DUAL_PORT:
+		case IXGBE_DEV_ID_82598EB_CX4:
 			adapter->optics = IFM_10G_CX4;
 			break;
-		case IXGBE_DEV_ID_82598 :
-		case IXGBE_DEV_ID_82598AF_DUAL_PORT :
-		case IXGBE_DEV_ID_82598_DA_DUAL_PORT :
-		case IXGBE_DEV_ID_82598AF_SINGLE_PORT :
-		case IXGBE_DEV_ID_82598_SR_DUAL_PORT_EM :
-		case IXGBE_DEV_ID_82598EB_SFP_LOM :
-		case IXGBE_DEV_ID_82598AT :
+		case IXGBE_DEV_ID_82598:
+		case IXGBE_DEV_ID_82598AF_DUAL_PORT:
+		case IXGBE_DEV_ID_82598AF_SINGLE_PORT:
+		case IXGBE_DEV_ID_82598_SR_DUAL_PORT_EM:
+		case IXGBE_DEV_ID_82598EB_SFP_LOM:
+		case IXGBE_DEV_ID_82598AT:
 			adapter->optics = IFM_10G_SR;
 			break;
-		case IXGBE_DEV_ID_82598AT2 :
+		case IXGBE_DEV_ID_82598AT2:
 			adapter->optics = IFM_10G_T;
 			break;
-		case IXGBE_DEV_ID_82598EB_XF_LR :
+		case IXGBE_DEV_ID_82598EB_XF_LR:
 			adapter->optics = IFM_10G_LR;
 			break;
-		case IXGBE_DEV_ID_82599_SFP :
+		case IXGBE_DEV_ID_82599_SFP:
 			adapter->optics = IFM_10G_SR;
 			ixgbe_num_segs = IXGBE_82599_SCATTER;
 			break;
-		case IXGBE_DEV_ID_82599_KX4 :
+		case IXGBE_DEV_ID_82598_DA_DUAL_PORT :
+			adapter->optics = IFM_10G_TWINAX;
+			break;
+		case IXGBE_DEV_ID_82599_KX4:
 		case IXGBE_DEV_ID_82599_KX4_MEZZ:
-		case IXGBE_DEV_ID_82599_CX4 :
+		case IXGBE_DEV_ID_82599_CX4:
 			adapter->optics = IFM_10G_CX4;
 			ixgbe_num_segs = IXGBE_82599_SCATTER;
 			break;
-		case IXGBE_DEV_ID_82599_XAUI_LOM :
-		case IXGBE_DEV_ID_82599_COMBO_BACKPLANE :
+		case IXGBE_DEV_ID_82599_XAUI_LOM:
+		case IXGBE_DEV_ID_82599_COMBO_BACKPLANE:
 			ixgbe_num_segs = IXGBE_82599_SCATTER;
 			break;
 		case IXGBE_DEV_ID_82599_T3_LOM:
@@ -1132,11 +1134,19 @@ ixgbe_init_locked(struct adapter *adapter)
 	callout_reset(&adapter->timer, hz, ixgbe_local_timer, adapter);
 
 	/* Set up MSI/X routing */
-	if (ixgbe_enable_msix)
+	if (ixgbe_enable_msix)  {
 		ixgbe_configure_ivars(adapter);
-	else {	/* Simple settings for Legacy/MSI */
+		/* Set up auto-mask */
+		if (hw->mac.type == ixgbe_mac_82598EB)
+			IXGBE_WRITE_REG(hw, IXGBE_EIAM, IXGBE_EICS_RTX_QUEUE);
+		else {
+			IXGBE_WRITE_REG(hw, IXGBE_EIAM_EX(0), 0xFFFFFFFF);
+			IXGBE_WRITE_REG(hw, IXGBE_EIAM_EX(1), 0xFFFFFFFF);
+		}
+	} else {  /* Simple settings for Legacy/MSI */
                 ixgbe_set_ivar(adapter, 0, 0, 0);
                 ixgbe_set_ivar(adapter, 0, 0, 1);
+		IXGBE_WRITE_REG(hw, IXGBE_EIAM, IXGBE_EICS_RTX_QUEUE);
 	}
 
 #ifdef IXGBE_FDIR
@@ -1157,6 +1167,9 @@ ixgbe_init_locked(struct adapter *adapter)
 			return (EIO);
         	}
 	}
+
+	/* Set moderation on the Link interrupt */
+	IXGBE_WRITE_REG(hw, IXGBE_EITR(adapter->linkvec), IXGBE_LINK_ITR);
 
 	/* Config/Enable Link */
 	ixgbe_config_link(adapter);
@@ -2193,13 +2206,14 @@ ixgbe_setup_msix(struct adapter *adapter)
 	/* Figure out a reasonable auto config value */
 	queues = (mp_ncpus > (msgs-1)) ? (msgs-1) : mp_ncpus;
 
-	if (ixgbe_num_queues == 0)
-		ixgbe_num_queues = queues;
+	if (ixgbe_num_queues != 0)
+		queues = ixgbe_num_queues;
+
 	/*
 	** Want one vector (RX/TX pair) per queue
 	** plus an additional for Link.
 	*/
-	want = ixgbe_num_queues + 1;
+	want = queues + 1;
 	if (msgs >= want)
 		msgs = want;
 	else {
@@ -2212,7 +2226,7 @@ ixgbe_setup_msix(struct adapter *adapter)
 	if ((msgs) && pci_alloc_msix(dev, &msgs) == 0) {
                	device_printf(adapter->dev,
 		    "Using MSIX interrupts with %d vectors\n", msgs);
-		adapter->num_queues = ixgbe_num_queues;
+		adapter->num_queues = queues;
 		return (msgs);
 	}
 msi:
@@ -3335,71 +3349,61 @@ static void
 ixgbe_refresh_mbufs(struct rx_ring *rxr, int limit)
 {
 	struct adapter		*adapter = rxr->adapter;
-	bus_dma_segment_t	seg[2];
+	bus_dma_segment_t	hseg[1];
+	bus_dma_segment_t	pseg[1];
 	struct ixgbe_rx_buf	*rxbuf;
 	struct mbuf		*mh, *mp;
-	bus_dmamap_t		map;
 	int			i, nsegs, error, cleaned;
 
 	i = rxr->next_to_refresh;
 	cleaned = -1; /* Signify no completions */
 	while (i != limit) {
 		rxbuf = &rxr->rx_buffers[i];
-
-		if (rxbuf->m_head == NULL) {
+		if ((rxbuf->m_head == NULL) && (rxr->hdr_split)) {
 			mh = m_gethdr(M_DONTWAIT, MT_DATA);
 			if (mh == NULL)
 				goto update;
-		} else  /* reuse */
-			mh = rxbuf->m_head;
-
-		mh->m_len = MHLEN;
-		mh->m_flags |= M_PKTHDR;
+			mh->m_pkthdr.len = mh->m_len = MHLEN;
+			mh->m_len = MHLEN;
+			mh->m_flags |= M_PKTHDR;
+			m_adj(mh, ETHER_ALIGN);
+			/* Get the memory mapping */
+			error = bus_dmamap_load_mbuf_sg(rxr->htag,
+			    rxbuf->hmap, mh, hseg, &nsegs, BUS_DMA_NOWAIT);
+			if (error != 0) {
+				printf("GET BUF: dmamap load"
+				    " failure - %d\n", error);
+				m_free(mh);
+				goto update;
+			}
+			rxbuf->m_head = mh;
+			bus_dmamap_sync(rxr->htag, rxbuf->hmap,
+			    BUS_DMASYNC_PREREAD);
+			rxr->rx_base[i].read.hdr_addr =
+			    htole64(hseg[0].ds_addr);
+		}
 
 		if (rxbuf->m_pack == NULL) {
 			mp = m_getjcl(M_DONTWAIT, MT_DATA,
 			    M_PKTHDR, adapter->rx_mbuf_sz);
 			if (mp == NULL)
 				goto update;
-			mp->m_len = adapter->rx_mbuf_sz;
-			mp->m_flags &= ~M_PKTHDR;
-		} else {	/* reusing */
-			mp = rxbuf->m_pack;
-			mp->m_len = adapter->rx_mbuf_sz;
-			mp->m_flags &= ~M_PKTHDR;
-			mp->m_next = NULL;
+			mp->m_pkthdr.len = mp->m_len = adapter->rx_mbuf_sz;
+			/* Get the memory mapping */
+			error = bus_dmamap_load_mbuf_sg(rxr->ptag,
+			    rxbuf->pmap, mp, pseg, &nsegs, BUS_DMA_NOWAIT);
+			if (error != 0) {
+				printf("GET BUF: dmamap load"
+				    " failure - %d\n", error);
+				m_free(mp);
+				goto update;
+			}
+			rxbuf->m_pack = mp;
+			bus_dmamap_sync(rxr->ptag, rxbuf->pmap,
+			    BUS_DMASYNC_PREREAD);
+			rxr->rx_base[i].read.pkt_addr =
+			    htole64(pseg[0].ds_addr);
 		}
-
-		/*
-		** Need to create a chain for the following
-		** dmamap call at this point.
-		*/
-		mh->m_next = mp;
-		mh->m_pkthdr.len = mh->m_len + mp->m_len;
-
-		/* Get the memory mapping */
-		error = bus_dmamap_load_mbuf_sg(rxr->rxtag,
-		    rxr->spare_map, mh, seg, &nsegs, BUS_DMA_NOWAIT);
-		if (error != 0) {
-			printf("GET BUF: dmamap load failure - %d\n", error);
-			m_free(mh);
-			goto update;
-		}
-
-		/* Unload old mapping and update buffer struct */
-		if (rxbuf->m_head != NULL)
-			bus_dmamap_unload(rxr->rxtag, rxbuf->map);
-		map = rxbuf->map;
-		rxbuf->map = rxr->spare_map;
-		rxr->spare_map = map;
-		rxbuf->m_head = mh;
-		rxbuf->m_pack = mp;
-		bus_dmamap_sync(rxr->rxtag,
-		    rxbuf->map, BUS_DMASYNC_PREREAD);
-
-		/* Update descriptor */
-		rxr->rx_base[i].read.hdr_addr = htole64(seg[0].ds_addr);
-		rxr->rx_base[i].read.pkt_addr = htole64(seg[1].ds_addr);
 
 		cleaned = i;
 		/* Calculate next index */
@@ -3410,11 +3414,10 @@ ixgbe_refresh_mbufs(struct rx_ring *rxr, int limit)
 	}
 update:
 	if (cleaned != -1) /* If we refreshed some, bump tail */
-		IXGBE_WRITE_REG(&adapter->hw, IXGBE_RDT(rxr->me), cleaned);
-
+		IXGBE_WRITE_REG(&adapter->hw,
+		    IXGBE_RDT(rxr->me), cleaned);
 	return;
 }
-
 
 /*********************************************************************
  *
@@ -3441,42 +3444,50 @@ ixgbe_allocate_receive_buffers(struct rx_ring *rxr)
 		goto fail;
 	}
 
-	/*
-	** The tag is made to accomodate the largest buffer size
-	** with packet split (hence the two segments, even though
-	** it may not always use this.
-	*/
 	if ((error = bus_dma_tag_create(bus_get_dma_tag(dev),	/* parent */
 				   1, 0,	/* alignment, bounds */
 				   BUS_SPACE_MAXADDR,	/* lowaddr */
 				   BUS_SPACE_MAXADDR,	/* highaddr */
 				   NULL, NULL,		/* filter, filterarg */
-				   MJUM16BYTES,		/* maxsize */
-				   2,			/* nsegments */
-				   MJUMPAGESIZE,	/* maxsegsize */
+				   MSIZE,		/* maxsize */
+				   1,			/* nsegments */
+				   MSIZE,		/* maxsegsize */
 				   0,			/* flags */
 				   NULL,		/* lockfunc */
 				   NULL,		/* lockfuncarg */
-				   &rxr->rxtag))) {
+				   &rxr->htag))) {
 		device_printf(dev, "Unable to create RX DMA tag\n");
 		goto fail;
 	}
 
-	/* Create the spare map (used by getbuf) */
-        error = bus_dmamap_create(rxr->rxtag, BUS_DMA_NOWAIT,
-	     &rxr->spare_map);
-	if (error) {
-		device_printf(dev, "%s: bus_dmamap_create failed: %d\n",
-		    __func__, error);
+	if ((error = bus_dma_tag_create(bus_get_dma_tag(dev),	/* parent */
+				   1, 0,	/* alignment, bounds */
+				   BUS_SPACE_MAXADDR,	/* lowaddr */
+				   BUS_SPACE_MAXADDR,	/* highaddr */
+				   NULL, NULL,		/* filter, filterarg */
+				   MJUMPAGESIZE,	/* maxsize */
+				   1,			/* nsegments */
+				   MJUMPAGESIZE,	/* maxsegsize */
+				   0,			/* flags */
+				   NULL,		/* lockfunc */
+				   NULL,		/* lockfuncarg */
+				   &rxr->ptag))) {
+		device_printf(dev, "Unable to create RX DMA tag\n");
 		goto fail;
 	}
 
 	for (i = 0; i < adapter->num_rx_desc; i++, rxbuf++) {
 		rxbuf = &rxr->rx_buffers[i];
-		error = bus_dmamap_create(rxr->rxtag,
-		    BUS_DMA_NOWAIT, &rxbuf->map);
+		error = bus_dmamap_create(rxr->htag,
+		    BUS_DMA_NOWAIT, &rxbuf->hmap);
 		if (error) {
-			device_printf(dev, "Unable to create RX DMA map\n");
+			device_printf(dev, "Unable to create RX head map\n");
+			goto fail;
+		}
+		error = bus_dmamap_create(rxr->ptag,
+		    BUS_DMA_NOWAIT, &rxbuf->pmap);
+		if (error) {
+			device_printf(dev, "Unable to create RX pkt map\n");
 			goto fail;
 		}
 	}
@@ -3545,6 +3556,36 @@ ixgbe_setup_hw_rsc(struct rx_ring *rxr)
 }
 
 
+static void     
+ixgbe_free_receive_ring(struct rx_ring *rxr)
+{ 
+	struct  adapter         *adapter;
+	struct ixgbe_rx_buf       *rxbuf;
+	int i;
+
+	adapter = rxr->adapter;
+	for (i = 0; i < adapter->num_rx_desc; i++) {
+		rxbuf = &rxr->rx_buffers[i];
+		if (rxbuf->m_head != NULL) {
+			bus_dmamap_sync(rxr->htag, rxbuf->hmap,
+			    BUS_DMASYNC_POSTREAD);
+			bus_dmamap_unload(rxr->htag, rxbuf->hmap);
+			rxbuf->m_head->m_flags |= M_PKTHDR;
+			m_freem(rxbuf->m_head);
+		}
+		if (rxbuf->m_pack != NULL) {
+			bus_dmamap_sync(rxr->ptag, rxbuf->pmap,
+			    BUS_DMASYNC_POSTREAD);
+			bus_dmamap_unload(rxr->ptag, rxbuf->pmap);
+			rxbuf->m_pack->m_flags |= M_PKTHDR;
+			m_freem(rxbuf->m_pack);
+		}
+		rxbuf->m_head = NULL;
+		rxbuf->m_pack = NULL;
+	}
+}
+
+
 /*********************************************************************
  *
  *  Initialize a receive ring and its buffers.
@@ -3557,9 +3598,9 @@ ixgbe_setup_receive_ring(struct rx_ring *rxr)
 	struct ifnet		*ifp;
 	device_t		dev;
 	struct ixgbe_rx_buf	*rxbuf;
-	bus_dma_segment_t	seg[2];
+	bus_dma_segment_t	pseg[1], hseg[1];
 	struct lro_ctrl		*lro = &rxr->lro;
-	int			rsize, nsegs, error;
+	int			rsize, nsegs, error = 0;
 
 	adapter = rxr->adapter;
 	ifp = adapter->ifp;
@@ -3571,55 +3612,62 @@ ixgbe_setup_receive_ring(struct rx_ring *rxr)
 	    sizeof(union ixgbe_adv_rx_desc), DBA_ALIGN);
 	bzero((void *)rxr->rx_base, rsize);
 
-	/*
-	** Free current RX buffer structs and their mbufs
-	*/
-	for (int i = 0; i < adapter->num_rx_desc; i++) {
-		rxbuf = &rxr->rx_buffers[i];
-		if (rxbuf->m_head != NULL) {
-			bus_dmamap_sync(rxr->rxtag, rxbuf->map,
-			    BUS_DMASYNC_POSTREAD);
-			bus_dmamap_unload(rxr->rxtag, rxbuf->map);
-			if (rxbuf->m_head) {
-				rxbuf->m_head->m_next = rxbuf->m_pack;
-				m_freem(rxbuf->m_head);
-			}
-			rxbuf->m_head = NULL;
-			rxbuf->m_pack = NULL;
-		}
-	}
+	/* Free current RX buffer structs and their mbufs */
+	ixgbe_free_receive_ring(rxr);
+
+	/* Configure header split? */
+	if (ixgbe_header_split)
+		rxr->hdr_split = TRUE;
 
 	/* Now replenish the mbufs */
 	for (int j = 0; j != adapter->num_rx_desc; ++j) {
+		struct mbuf	*mh, *mp;
 
 		rxbuf = &rxr->rx_buffers[j];
+		/*
+		** Dont allocate mbufs if not
+		** doing header split, its wasteful
+		*/ 
+		if (rxr->hdr_split == FALSE)
+			goto skip_head;
+
+		/* First the header */
 		rxbuf->m_head = m_gethdr(M_DONTWAIT, MT_DATA);
 		if (rxbuf->m_head == NULL)
-			panic("RX ring hdr initialization failed!\n");
-		rxbuf->m_head->m_len = MHLEN;
-		rxbuf->m_head->m_flags |= M_PKTHDR;
-		rxbuf->m_head->m_pkthdr.len = rxbuf->m_head->m_len;
+			goto fail;
+		m_adj(rxbuf->m_head, ETHER_ALIGN);
+		mh = rxbuf->m_head;
+		mh->m_len = mh->m_pkthdr.len = MHLEN;
+		mh->m_flags |= M_PKTHDR;
+		/* Get the memory mapping */
+		error = bus_dmamap_load_mbuf_sg(rxr->htag,
+		    rxbuf->hmap, rxbuf->m_head, hseg,
+		    &nsegs, BUS_DMA_NOWAIT);
+		if (error != 0) /* Nothing elegant to do here */
+			goto fail;
+		bus_dmamap_sync(rxr->htag,
+		    rxbuf->hmap, BUS_DMASYNC_PREREAD);
+		/* Update descriptor */
+		rxr->rx_base[j].read.hdr_addr = htole64(hseg[0].ds_addr);
 
+skip_head:
+		/* Now the payload cluster */
 		rxbuf->m_pack = m_getjcl(M_DONTWAIT, MT_DATA,
 		    M_PKTHDR, adapter->rx_mbuf_sz);
 		if (rxbuf->m_pack == NULL)
-			panic("RX ring pkt initialization failed!\n");
-		rxbuf->m_pack->m_len = adapter->rx_mbuf_sz;
-		rxbuf->m_head->m_next = rxbuf->m_pack;
-		rxbuf->m_head->m_pkthdr.len += rxbuf->m_pack->m_len;
-
+                        goto fail;
+		mp = rxbuf->m_pack;
+		mp->m_pkthdr.len = mp->m_len = adapter->rx_mbuf_sz;
 		/* Get the memory mapping */
-		error = bus_dmamap_load_mbuf_sg(rxr->rxtag,
-		    rxbuf->map, rxbuf->m_head, seg,
+		error = bus_dmamap_load_mbuf_sg(rxr->ptag,
+		    rxbuf->pmap, mp, pseg,
 		    &nsegs, BUS_DMA_NOWAIT);
 		if (error != 0)
-			panic("RX ring dma initialization failed!\n");
-		bus_dmamap_sync(rxr->rxtag,
-		    rxbuf->map, BUS_DMASYNC_PREREAD);
-
+                        goto fail;
+		bus_dmamap_sync(rxr->ptag,
+		    rxbuf->pmap, BUS_DMASYNC_PREREAD);
 		/* Update descriptor */
-		rxr->rx_base[j].read.hdr_addr = htole64(seg[0].ds_addr);
-		rxr->rx_base[j].read.pkt_addr = htole64(seg[1].ds_addr);
+		rxr->rx_base[j].read.pkt_addr = htole64(pseg[0].ds_addr);
 	}
 
 
@@ -3627,10 +3675,8 @@ ixgbe_setup_receive_ring(struct rx_ring *rxr)
 	rxr->next_to_check = 0;
 	rxr->next_to_refresh = 0;
 	rxr->lro_enabled = FALSE;
-
-	/* Use header split if configured */
-	if (ixgbe_header_split)
-		rxr->hdr_split = TRUE;
+	rxr->rx_split_packets = 0;
+	rxr->rx_bytes = 0;
 
 	bus_dmamap_sync(rxr->rxdma.dma_tag, rxr->rxdma.dma_map,
 	    BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
@@ -3638,18 +3684,18 @@ ixgbe_setup_receive_ring(struct rx_ring *rxr)
 	/*
 	** Now set up the LRO interface:
 	** 82598 uses software LRO, the
-	** 82599 additionally uses a
-	** hardware assist.
-	**
-	** Disable RSC when RXCSUM is off
+	** 82599 uses a hardware assist.
 	*/
 	if ((adapter->hw.mac.type == ixgbe_mac_82599EB) &&
-	    (ifp->if_capenable & IFCAP_RXCSUM))
+	    (ifp->if_capenable & IFCAP_RXCSUM) &&
+	    (ifp->if_capenable & IFCAP_LRO))
 		ixgbe_setup_hw_rsc(rxr);
 	else if (ifp->if_capenable & IFCAP_LRO) {
 		int err = tcp_lro_init(lro);
-		if (err)
-			panic("LRO Initialization failed!\n");
+		if (err) {
+			device_printf(dev, "LRO Initialization failed!\n");
+			goto fail;
+		}
 		INIT_DEBUGOUT("RX Soft LRO Initialized\n");
 		rxr->lro_enabled = TRUE;
 		lro->ifp = adapter->ifp;
@@ -3657,6 +3703,11 @@ ixgbe_setup_receive_ring(struct rx_ring *rxr)
 
 	IXGBE_RX_UNLOCK(rxr);
 	return (0);
+
+fail:
+	ixgbe_free_receive_ring(rxr);
+	IXGBE_RX_UNLOCK(rxr);
+	return (error);
 }
 
 /*********************************************************************
@@ -3683,17 +3734,7 @@ fail:
 	 */
 	for (int i = 0; i < j; ++i) {
 		rxr = &adapter->rx_rings[i];
-		for (int n = 0; n < adapter->num_rx_desc; n++) {
-			struct ixgbe_rx_buf *rxbuf;
-			rxbuf = &rxr->rx_buffers[n];
-			if (rxbuf->m_head != NULL) {
-				bus_dmamap_sync(rxr->rxtag, rxbuf->map,
-			  	  BUS_DMASYNC_POSTREAD);
-				bus_dmamap_unload(rxr->rxtag, rxbuf->map);
-				m_freem(rxbuf->m_head);
-				rxbuf->m_head = NULL;
-			}
-		}
+		ixgbe_free_receive_ring(rxr);
 	}
 
 	return (ENOBUFS);
@@ -3763,14 +3804,6 @@ ixgbe_initialize_receive_units(struct adapter *adapter)
 			    IXGBE_SRRCTL_BSIZEHDRSIZE_SHIFT)
 			    & IXGBE_SRRCTL_BSIZEHDR_MASK);
 			srrctl |= IXGBE_SRRCTL_DESCTYPE_HDR_SPLIT_ALWAYS;
-			if (adapter->hw.mac.type == ixgbe_mac_82599EB) {
-				/* PSRTYPE must be initialized in 82599 */
-				u32 psrtype = IXGBE_PSRTYPE_TCPHDR |
-					      IXGBE_PSRTYPE_UDPHDR |
-					      IXGBE_PSRTYPE_IPV4HDR |
-					      IXGBE_PSRTYPE_IPV6HDR;
-				IXGBE_WRITE_REG(hw, IXGBE_PSRTYPE(0), psrtype);
-			}
 		} else
 			srrctl |= IXGBE_SRRCTL_DESCTYPE_ADV_ONEBUF;
 		IXGBE_WRITE_REG(hw, IXGBE_SRRCTL(i), srrctl);
@@ -3778,6 +3811,15 @@ ixgbe_initialize_receive_units(struct adapter *adapter)
 		/* Setup the HW Rx Head and Tail Descriptor Pointers */
 		IXGBE_WRITE_REG(hw, IXGBE_RDH(i), 0);
 		IXGBE_WRITE_REG(hw, IXGBE_RDT(i), 0);
+	}
+
+	if (adapter->hw.mac.type == ixgbe_mac_82599EB) {
+		/* PSRTYPE must be initialized in 82599 */
+		u32 psrtype = IXGBE_PSRTYPE_TCPHDR |
+			      IXGBE_PSRTYPE_UDPHDR |
+			      IXGBE_PSRTYPE_IPV4HDR |
+			      IXGBE_PSRTYPE_IPV6HDR;
+		IXGBE_WRITE_REG(hw, IXGBE_PSRTYPE(0), psrtype);
 	}
 
 	rxcsum = IXGBE_READ_REG(hw, IXGBE_RXCSUM);
@@ -3858,38 +3900,58 @@ ixgbe_free_receive_structures(struct adapter *adapter)
  *  Free receive ring data structures
  *
  **********************************************************************/
-void
+static void
 ixgbe_free_receive_buffers(struct rx_ring *rxr)
 {
-	struct adapter		*adapter = NULL;
-	struct ixgbe_rx_buf	*rxbuf = NULL;
+	struct adapter		*adapter = rxr->adapter;
+	struct ixgbe_rx_buf	*rxbuf;
 
-	INIT_DEBUGOUT("free_receive_buffers: begin");
-	adapter = rxr->adapter;
+	INIT_DEBUGOUT("free_receive_structures: begin");
+
+	/* Cleanup any existing buffers */
 	if (rxr->rx_buffers != NULL) {
-		rxbuf = &rxr->rx_buffers[0];
 		for (int i = 0; i < adapter->num_rx_desc; i++) {
-			if (rxbuf->map != NULL) {
-				bus_dmamap_sync(rxr->rxtag, rxbuf->map,
-				    BUS_DMASYNC_POSTREAD);
-				bus_dmamap_unload(rxr->rxtag, rxbuf->map);
-				bus_dmamap_destroy(rxr->rxtag, rxbuf->map);
-			}
+			rxbuf = &rxr->rx_buffers[i];
 			if (rxbuf->m_head != NULL) {
+				bus_dmamap_sync(rxr->htag, rxbuf->hmap,
+				    BUS_DMASYNC_POSTREAD);
+				bus_dmamap_unload(rxr->htag, rxbuf->hmap);
+				rxbuf->m_head->m_flags |= M_PKTHDR;
 				m_freem(rxbuf->m_head);
 			}
+			if (rxbuf->m_pack != NULL) {
+				bus_dmamap_sync(rxr->ptag, rxbuf->pmap,
+				    BUS_DMASYNC_POSTREAD);
+				bus_dmamap_unload(rxr->ptag, rxbuf->pmap);
+				rxbuf->m_pack->m_flags |= M_PKTHDR;
+				m_freem(rxbuf->m_pack);
+			}
 			rxbuf->m_head = NULL;
-			++rxbuf;
+			rxbuf->m_pack = NULL;
+			if (rxbuf->hmap != NULL) {
+				bus_dmamap_destroy(rxr->htag, rxbuf->hmap);
+				rxbuf->hmap = NULL;
+			}
+			if (rxbuf->pmap != NULL) {
+				bus_dmamap_destroy(rxr->ptag, rxbuf->pmap);
+				rxbuf->pmap = NULL;
+			}
+		}
+		if (rxr->rx_buffers != NULL) {
+			free(rxr->rx_buffers, M_DEVBUF);
+			rxr->rx_buffers = NULL;
 		}
 	}
-	if (rxr->rx_buffers != NULL) {
-		free(rxr->rx_buffers, M_DEVBUF);
-		rxr->rx_buffers = NULL;
+
+	if (rxr->htag != NULL) {
+		bus_dma_tag_destroy(rxr->htag);
+		rxr->htag = NULL;
 	}
-	if (rxr->rxtag != NULL) {
-		bus_dma_tag_destroy(rxr->rxtag);
-		rxr->rxtag = NULL;
+	if (rxr->ptag != NULL) {
+		bus_dma_tag_destroy(rxr->ptag);
+		rxr->ptag = NULL;
 	}
+
 	return;
 }
 
@@ -4661,7 +4723,7 @@ ixgbe_update_stats_counters(struct adapter *adapter)
 		adapter->stats.lxoffrxc += IXGBE_READ_REG(hw, IXGBE_LXOFFRXC);
 		/* 82598 only has a counter in the high register */
 		adapter->stats.gorc += IXGBE_READ_REG(hw, IXGBE_GORCH);
-		adapter->stats.gorc += IXGBE_READ_REG(hw, IXGBE_GOTCH);
+		adapter->stats.gotc += IXGBE_READ_REG(hw, IXGBE_GOTCH);
 		adapter->stats.tor += IXGBE_READ_REG(hw, IXGBE_TORH);
 	}
 

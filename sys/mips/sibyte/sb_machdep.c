@@ -76,6 +76,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/vmparam.h>
 
 #ifdef SMP
+#include <sys/smp.h>
 #include <machine/smp.h>
 #endif
 
@@ -344,9 +345,17 @@ platform_ipi_intrnum(void)
 	return (4);
 }
 
+struct cpu_group *
+platform_smp_topo(void)
+{
+
+	return (smp_topo_none());
+}
+
 void
 platform_init_ap(int cpuid)
 {
+	int ipi_int_mask, clock_int_mask;
 
 	KASSERT(cpuid == 1, ("AP has an invalid cpu id %d", cpuid));
 
@@ -356,6 +365,13 @@ platform_init_ap(int cpuid)
 	kseg0_map_coherent();
 
 	sb_intr_init(cpuid);
+
+	/*
+	 * Unmask the clock and ipi interrupts.
+	 */
+	clock_int_mask = hard_int_mask(5);
+	ipi_int_mask = hard_int_mask(platform_ipi_intrnum());
+	set_intr_mask(ALL_INT_MASK & ~(ipi_int_mask | clock_int_mask));
 }
 
 int

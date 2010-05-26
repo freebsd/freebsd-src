@@ -63,9 +63,6 @@ ZFS_SRCS=	${ZFS_OBJS:C/.o$/.c/}
 SRCS+=	${ZFS_SRCS}
 SRCS+=	vdev_geom.c
 
-# Use UMA for ZIO allocation.
-CFLAGS+=-DZIO_USE_UMA
-
 # Use FreeBSD's namecache.
 CFLAGS+=-DFREEBSD_NAMECACHE
 

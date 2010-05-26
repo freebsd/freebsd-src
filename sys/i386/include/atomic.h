@@ -76,7 +76,7 @@
 void atomic_##NAME##_##TYPE(volatile u_##TYPE *p, u_##TYPE v);	\
 void atomic_##NAME##_barr_##TYPE(volatile u_##TYPE *p, u_##TYPE v)
 
-int	atomic_cmpset_int(volatile u_int *dst, u_int exp, u_int src);
+int	atomic_cmpset_int(volatile u_int *dst, u_int expect, u_int src);
 u_int	atomic_fetchadd_int(volatile u_int *p, u_int v);
 
 #define	ATOMIC_STORE_LOAD(TYPE, LOP, SOP)			\
@@ -122,7 +122,7 @@ struct __hack
 /*
  * Atomic compare and set, used by the mutex functions
  *
- * if (*dst == exp) *dst = src (all 32 bit words)
+ * if (*dst == expect) *dst = src (all 32 bit words)
  *
  * Returns 0 on failure, non-zero on success
  */
@@ -130,7 +130,7 @@ struct __hack
 #ifdef CPU_DISABLE_CMPXCHG
 
 static __inline int
-atomic_cmpset_int(volatile u_int *dst, u_int exp, u_int src)
+atomic_cmpset_int(volatile u_int *dst, u_int expect, u_int src)
 {
 	u_char res;
 
@@ -147,7 +147,7 @@ atomic_cmpset_int(volatile u_int *dst, u_int exp, u_int src)
 	: "=q" (res),			/* 0 */
 	  "=m" (*dst)			/* 1 */
 	: "r" (src),			/* 2 */
-	  "r" (exp),			/* 3 */
+	  "r" (expect),			/* 3 */
 	  "m" (*dst)			/* 4 */
 	: "memory");
 
@@ -157,7 +157,7 @@ atomic_cmpset_int(volatile u_int *dst, u_int exp, u_int src)
 #else /* !CPU_DISABLE_CMPXCHG */
 
 static __inline int
-atomic_cmpset_int(volatile u_int *dst, u_int exp, u_int src)
+atomic_cmpset_int(volatile u_int *dst, u_int expect, u_int src)
 {
 	u_char res;
 
@@ -170,7 +170,7 @@ atomic_cmpset_int(volatile u_int *dst, u_int exp, u_int src)
 	: "=a" (res),			/* 0 */
 	  "=m" (*dst)			/* 1 */
 	: "r" (src),			/* 2 */
-	  "a" (exp),			/* 3 */
+	  "a" (expect),			/* 3 */
 	  "m" (*dst)			/* 4 */
 	: "memory");
 
@@ -292,10 +292,10 @@ ATOMIC_STORE_LOAD(long,	"cmpxchgl %0,%1",  "xchgl %1,%0");
 #ifndef WANT_FUNCTIONS
 
 static __inline int
-atomic_cmpset_long(volatile u_long *dst, u_long exp, u_long src)
+atomic_cmpset_long(volatile u_long *dst, u_long expect, u_long src)
 {
 
-	return (atomic_cmpset_int((volatile u_int *)dst, (u_int)exp,
+	return (atomic_cmpset_int((volatile u_int *)dst, (u_int)expect,
 	    (u_int)src));
 }
 

@@ -257,10 +257,6 @@ _C_LABEL(x):
 	EXPORT(x ## End);	\
 	END(x)
 
-#define	KSEG0TEXT_START
-#define	KSEG0TEXT_END
-#define	KSEG0TEXT	.text
-
 /*
  * Macros to panic and printf from assembly language.
  */

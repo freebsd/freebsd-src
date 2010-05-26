@@ -126,6 +126,7 @@ static usb_callback_t uhub_intr_callback;
 
 static void usb_dev_resume_peer(struct usb_device *udev);
 static void usb_dev_suspend_peer(struct usb_device *udev);
+static uint8_t usb_peer_should_wakeup(struct usb_device *udev);
 
 static const struct usb_config uhub_config[UHUB_N_TRANSFER] = {
 
@@ -1009,8 +1010,10 @@ uhub_child_location_string(device_t parent, device_t child,
 		}
 		goto done;
 	}
-	snprintf(buf, buflen, "port=%u interface=%u",
-	    res.portno, res.iface_index);
+	snprintf(buf, buflen, "bus=%u hubaddr=%u port=%u devaddr=%u interface=%u",
+	    (res.udev->parent_hub != NULL) ? res.udev->parent_hub->device_index : 0,
+	    res.portno, device_get_unit(res.udev->bus->bdev),
+	    res.udev->device_index, res.iface_index);
 done:
 	mtx_unlock(&Giant);
 
@@ -1706,8 +1709,8 @@ usbd_transfer_power_ref(struct usb_xfer *xfer, int val)
 		udev->pwr_save.read_refs += val;
 		if (xfer->flags_int.usb_mode == USB_MODE_HOST) {
 			/*
-			 * it is not allowed to suspend during a control
-			 * transfer
+			 * It is not allowed to suspend during a
+			 * control transfer:
 			 */
 			udev->pwr_save.write_refs += val;
 		}
@@ -1717,19 +1720,21 @@ usbd_transfer_power_ref(struct usb_xfer *xfer, int val)
 		udev->pwr_save.write_refs += val;
 	}
 
-	if (udev->flags.self_suspended)
-		needs_explore =
-		    (udev->pwr_save.write_refs != 0) ||
-		    ((udev->pwr_save.read_refs != 0) &&
-		    (usb_peer_can_wakeup(udev) == 0));
-	else
-		needs_explore = 0;
+	if (val > 0) {
+		if (udev->flags.self_suspended)
+			needs_explore = usb_peer_should_wakeup(udev);
+		else
+			needs_explore = 0;
 
-	if (!(udev->bus->hw_power_state & power_mask[xfer_type])) {
-		DPRINTF("Adding type %u to power state\n", xfer_type);
-		udev->bus->hw_power_state |= power_mask[xfer_type];
-		needs_hw_power = 1;
+		if (!(udev->bus->hw_power_state & power_mask[xfer_type])) {
+			DPRINTF("Adding type %u to power state\n", xfer_type);
+			udev->bus->hw_power_state |= power_mask[xfer_type];
+			needs_hw_power = 1;
+		} else {
+			needs_hw_power = 0;
+		}
 	} else {
+		needs_explore = 0;
 		needs_hw_power = 0;
 	}
 
@@ -1748,6 +1753,22 @@ usbd_transfer_power_ref(struct usb_xfer *xfer, int val)
 #endif
 
 /*------------------------------------------------------------------------*
+ *	usb_peer_should_wakeup
+ *
+ * This function returns non-zero if the current device should wake up.
+ *------------------------------------------------------------------------*/
+static uint8_t
+usb_peer_should_wakeup(struct usb_device *udev)
+{
+	return ((udev->power_mode == USB_POWER_MODE_ON) ||
+	    (udev->pwr_save.type_refs[UE_ISOCHRONOUS] != 0) ||
+	    (udev->pwr_save.write_refs != 0) ||
+	    ((udev->pwr_save.read_refs != 0) &&
+	    (udev->flags.usb_mode == USB_MODE_HOST) &&
+	    (usb_peer_can_wakeup(udev) == 0)));
+}
+
+/*------------------------------------------------------------------------*
  *	usb_bus_powerd
  *
  * This function implements the USB power daemon and is called
@@ -1763,7 +1784,6 @@ usb_bus_powerd(struct usb_bus *bus)
 	usb_ticks_t mintime;
 	usb_size_t type_refs[5];
 	uint8_t x;
-	uint8_t rem_wakeup;
 
 	limit = usb_power_timeout;
 	if (limit == 0)
@@ -1788,30 +1808,23 @@ usb_bus_powerd(struct usb_bus *bus)
 		if (udev == NULL)
 			continue;
 
-		rem_wakeup = usb_peer_can_wakeup(udev);
-
 		temp = ticks - udev->pwr_save.last_xfer_time;
 
-		if ((udev->power_mode == USB_POWER_MODE_ON) ||
-		    (udev->pwr_save.type_refs[UE_ISOCHRONOUS] != 0) ||
-		    (udev->pwr_save.write_refs != 0) ||
-		    ((udev->pwr_save.read_refs != 0) &&
-		    (rem_wakeup == 0))) {
-
+		if (usb_peer_should_wakeup(udev)) {
 			/* check if we are suspended */
 			if (udev->flags.self_suspended != 0) {
 				USB_BUS_UNLOCK(bus);
 				usb_dev_resume_peer(udev);
 				USB_BUS_LOCK(bus);
 			}
-		} else if (temp >= limit) {
+		} else if ((temp >= limit) &&
+		    (udev->flags.usb_mode == USB_MODE_HOST) &&
+		    (udev->flags.self_suspended == 0)) {
+			/* try to do suspend */
 
-			/* check if we are not suspended */
-			if (udev->flags.self_suspended == 0) {
-				USB_BUS_UNLOCK(bus);
-				usb_dev_suspend_peer(udev);
-				USB_BUS_LOCK(bus);
-			}
+			USB_BUS_UNLOCK(bus);
+			usb_dev_suspend_peer(udev);
+			USB_BUS_LOCK(bus);
 		}
 	}
 
@@ -1920,6 +1933,9 @@ usb_dev_resume_peer(struct usb_device *udev)
 	/* resume parent hub first */
 	usb_dev_resume_peer(udev->parent_hub);
 
+	/* reduce chance of instant resume failure by waiting a little bit */
+	usb_pause_mtx(NULL, USB_MS_TO_TICKS(20));
+
 	/* resume current port (Valid in Host and Device Mode) */
 	err = usbd_req_clear_port_feature(udev->parent_hub,
 	    NULL, udev->port_no, UHF_PORT_SUSPEND);
@@ -1958,12 +1974,12 @@ usb_dev_resume_peer(struct usb_device *udev)
 		(bus->methods->set_hw_power) (bus);
 	}
 
-	usbd_enum_lock(udev);
+	usbd_sr_lock(udev);
 
 	/* notify all sub-devices about resume */
 	err = usb_suspend_resume(udev, 0);
 
-	usbd_enum_unlock(udev);
+	usbd_sr_unlock(udev);
 
 	/* check if peer has wakeup capability */
 	if (usb_peer_can_wakeup(udev)) {
@@ -2029,12 +2045,47 @@ repeat:
 		}
 	}
 
-	usbd_enum_lock(udev);
+	USB_BUS_LOCK(udev->bus);
+	/*
+	 * Checking for suspend condition and setting suspended bit
+	 * must be atomic!
+	 */
+	err = usb_peer_should_wakeup(udev);
+	if (err == 0) {
+		/*
+		 * Set that this device is suspended. This variable
+		 * must be set before calling USB controller suspend
+		 * callbacks.
+		 */
+		udev->flags.self_suspended = 1;
+	}
+	USB_BUS_UNLOCK(udev->bus);
+
+	if (err != 0) {
+		if (udev->flags.usb_mode == USB_MODE_DEVICE) {
+			/* resume parent HUB first */
+			usb_dev_resume_peer(udev->parent_hub);
+
+			/* reduce chance of instant resume failure by waiting a little bit */
+			usb_pause_mtx(NULL, USB_MS_TO_TICKS(20));
+
+			/* resume current port (Valid in Host and Device Mode) */
+			err = usbd_req_clear_port_feature(udev->parent_hub,
+			    NULL, udev->port_no, UHF_PORT_SUSPEND);
+
+			/* resume settle time */
+			usb_pause_mtx(NULL, USB_MS_TO_TICKS(USB_PORT_RESUME_DELAY));
+		}
+		DPRINTF("Suspend was cancelled!\n");
+		return;
+	}
+
+	usbd_sr_lock(udev);
 
 	/* notify all sub-devices about suspend */
 	err = usb_suspend_resume(udev, 1);
 
-	usbd_enum_unlock(udev);
+	usbd_sr_unlock(udev);
 
 	if (usb_peer_can_wakeup(udev)) {
 		/* allow device to do remote wakeup */
@@ -2045,13 +2096,6 @@ repeat:
 			    "remote wakeup failed\n");
 		}
 	}
-	USB_BUS_LOCK(udev->bus);
-	/*
-	 * Set that this device is suspended. This variable must be set
-	 * before calling USB controller suspend callbacks.
-	 */
-	udev->flags.self_suspended = 1;
-	USB_BUS_UNLOCK(udev->bus);
 
 	if (udev->bus->methods->device_suspend != NULL) {
 		usb_timeout_t temp;

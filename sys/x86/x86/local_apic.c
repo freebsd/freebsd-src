@@ -59,6 +59,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/frame.h>
 #include <machine/intr_machdep.h>
 #include <machine/apicvar.h>
+#include <machine/mca.h>
 #include <machine/md_var.h>
 #include <machine/smp.h>
 #include <machine/specialreg.h>
@@ -66,6 +67,16 @@ __FBSDID("$FreeBSD$");
 #ifdef DDB
 #include <sys/interrupt.h>
 #include <ddb/ddb.h>
+#endif
+
+#ifdef __amd64__
+#define	SDT_APIC	SDT_SYSIGT
+#define	SDT_APICT	SDT_SYSIGT
+#define	GSEL_APIC	0
+#else
+#define	SDT_APIC	SDT_SYS386IGT
+#define	SDT_APICT	SDT_SYS386TGT
+#define	GSEL_APIC	GSEL(GCODE_SEL, SEL_KPL)
 #endif
 
 #ifdef KDTRACE_HOOKS
@@ -108,9 +119,6 @@ struct lapic {
 	u_int la_cluster_id:2;
 	u_int la_present:1;
 	u_long *la_timer_count;
-	u_long la_hard_ticks;
-	u_long la_stat_ticks;
-	u_long la_prof_ticks;
 	/* Include IDT_SYSCALL to make indexing easier. */
 	int la_ioint_irqs[APIC_NUM_IOINTS + 1];
 } static lapics[MAX_APIC_ID + 1];
@@ -123,6 +131,7 @@ static struct lvt lvts[LVT_MAX + 1] = {
 	{ 1, 1, 0, 1, APIC_LVT_DM_FIXED, APIC_ERROR_INT },	/* Error */
 	{ 1, 1, 1, 1, APIC_LVT_DM_NMI, 0 },	/* PMC */
 	{ 1, 1, 1, 1, APIC_LVT_DM_FIXED, APIC_THERMAL_INT },	/* Thermal */
+	{ 1, 1, 1, 1, APIC_LVT_DM_FIXED, APIC_CMC_INT },	/* CMCI */
 };
 
 static inthand_t *ioint_handlers[] = {
@@ -212,7 +221,8 @@ lapic_init(vm_paddr_t addr)
 	    ("local APIC not aligned on a page boundary"));
 	lapic = pmap_mapdev(addr, sizeof(lapic_t));
 	lapic_paddr = addr;
-	setidt(APIC_SPURIOUS_INT, IDTVEC(spuriousint), SDT_SYSIGT, SEL_KPL, 0);
+	setidt(APIC_SPURIOUS_INT, IDTVEC(spuriousint), SDT_APIC, SEL_KPL,
+	    GSEL_APIC);
 
 	/* Perform basic initialization of the BSP's local APIC. */
 	lapic_enable();
@@ -221,12 +231,15 @@ lapic_init(vm_paddr_t addr)
 	PCPU_SET(apic_id, lapic_id());
 
 	/* Local APIC timer interrupt. */
-	setidt(APIC_TIMER_INT, IDTVEC(timerint), SDT_SYSIGT, SEL_KPL, 0);
+	setidt(APIC_TIMER_INT, IDTVEC(timerint), SDT_APIC, SEL_KPL, GSEL_APIC);
 
 	/* Local APIC error interrupt. */
-	setidt(APIC_ERROR_INT, IDTVEC(errorint), SDT_SYSIGT, SEL_KPL, 0);
+	setidt(APIC_ERROR_INT, IDTVEC(errorint), SDT_APIC, SEL_KPL, GSEL_APIC);
 
 	/* XXX: Thermal interrupt */
+
+	/* Local APIC CMCI. */
+	setidt(APIC_CMC_INT, IDTVEC(cmcint), SDT_APICT, SEL_KPL, GSEL_APIC);
 }
 
 /*
@@ -252,7 +265,7 @@ lapic_create(u_int apic_id, int boot_cpu)
 	 */
 	lapics[apic_id].la_present = 1;
 	lapics[apic_id].la_id = apic_id;
-	for (i = 0; i < LVT_MAX; i++) {
+	for (i = 0; i <= LVT_MAX; i++) {
 		lapics[apic_id].la_lvts[i] = lvts[i];
 		lapics[apic_id].la_lvts[i].lvt_active = 0;
 	}
@@ -282,6 +295,7 @@ lapic_dump(const char* str)
 	printf("  timer: 0x%08x therm: 0x%08x err: 0x%08x pmc: 0x%08x\n",
 	    lapic->lvt_timer, lapic->lvt_thermal, lapic->lvt_error,
 	    lapic->lvt_pcint);
+	printf("   cmci: 0x%08x\n", lapic->lvt_cmci);
 }
 
 void
@@ -333,6 +347,10 @@ lapic_setup(int boot)
 
 	/* XXX: Thermal LVT */
 
+	/* Program the CMCI LVT entry if present. */
+	if (maxlvt >= LVT_CMCI)
+		lapic->lvt_cmci = lvt_mode(la, LVT_CMCI, lapic->lvt_cmci);
+	    
 	intr_restore(eflags);
 }
 
@@ -420,10 +438,7 @@ lapic_disable_pmc(void)
 
 /*
  * Called by cpu_initclocks() on the BSP to setup the local APIC timer so
- * that it can drive hardclock, statclock, and profclock.  This function
- * returns a positive integer if it is convenient to use the local APIC
- * for all the clocks, a negative integer if it is convenient to use the
- * local APIC only for the hardclock and 0 if none of them can be handled.
+ * that it can drive hardclock, statclock, and profclock. 
  */
 enum lapic_clock
 lapic_setup_clock(enum lapic_clock srcsdes)
@@ -485,12 +500,14 @@ lapic_setup_clock(enum lapic_clock srcsdes)
 	} else
 		lapic_timer_hz = hz;
 	lapic_timer_period = value / lapic_timer_hz;
+	timer1hz = lapic_timer_hz;
 	if (srcsdes == LAPIC_CLOCK_ALL) {
 		if (lapic_timer_hz < 128)
 			stathz = lapic_timer_hz;
 		else
 			stathz = lapic_timer_hz / (lapic_timer_hz / 128);
 		profhz = lapic_timer_hz;
+		timer2hz = 0;
 	}
 
 	/*
@@ -782,33 +799,7 @@ lapic_handle_timer(struct trapframe *frame)
 		(*cyclic_clock_func[cpu])(frame);
 #endif
 
-	/* Fire hardclock at hz. */
-	la->la_hard_ticks += hz;
-	if (la->la_hard_ticks >= lapic_timer_hz) {
-		la->la_hard_ticks -= lapic_timer_hz;
-		if (PCPU_GET(cpuid) == 0)
-			hardclock(TRAPF_USERMODE(frame), TRAPF_PC(frame));
-		else
-			hardclock_cpu(TRAPF_USERMODE(frame));
-	}
-	if (clockcoverage == LAPIC_CLOCK_ALL) {
-
-		/* Fire statclock at stathz. */
-		la->la_stat_ticks += stathz;
-		if (la->la_stat_ticks >= lapic_timer_hz) {
-			la->la_stat_ticks -= lapic_timer_hz;
-			statclock(TRAPF_USERMODE(frame));
-		}
-
-		/* Fire profclock at profhz, but only when needed. */
-		la->la_prof_ticks += profhz;
-		if (la->la_prof_ticks >= lapic_timer_hz) {
-			la->la_prof_ticks -= lapic_timer_hz;
-			if (profprocs != 0)
-				profclock(TRAPF_USERMODE(frame),
-				    TRAPF_PC(frame));
-		}
-	}
+	timer1clock(TRAPF_USERMODE(frame), TRAPF_PC(frame));
 	critical_exit();
 }
 
@@ -854,6 +845,34 @@ lapic_timer_enable_intr(void)
 	value = lapic->lvt_timer;
 	value &= ~APIC_LVT_M;
 	lapic->lvt_timer = value;
+}
+
+void
+lapic_handle_cmc(void)
+{
+
+	lapic_eoi();
+	cmc_intr();
+}
+
+/*
+ * Called from the mca_init() to activate the CMC interrupt if this CPU is
+ * responsible for monitoring any MC banks for CMC events.  Since mca_init()
+ * is called prior to lapic_setup() during boot, this just needs to unmask
+ * this CPU's LVT_CMCI entry.
+ */
+void
+lapic_enable_cmc(void)
+{
+	u_int apic_id;
+
+	apic_id = PCPU_GET(apic_id);
+	KASSERT(lapics[apic_id].la_present,
+	    ("%s: missing APIC %u", __func__, apic_id));
+	lapics[apic_id].la_lvts[LVT_CMCI].lvt_masked = 0;
+	lapics[apic_id].la_lvts[LVT_CMCI].lvt_active = 1;
+	if (bootverbose)
+		printf("lapic%u: CMCI unmasked\n", apic_id);
 }
 
 void
@@ -981,7 +1000,8 @@ apic_enable_vector(u_int apic_id, u_int vector)
 	KASSERT(vector != IDT_SYSCALL, ("Attempt to overwrite syscall entry"));
 	KASSERT(ioint_handlers[vector / 32] != NULL,
 	    ("No ISR handler for vector %u", vector));
-	setidt(vector, ioint_handlers[vector / 32], SDT_SYSIGT, SEL_KPL, 0);
+	setidt(vector, ioint_handlers[vector / 32], SDT_APIC, SEL_KPL,
+	    GSEL_APIC);
 }
 
 void
@@ -996,7 +1016,7 @@ apic_disable_vector(u_int apic_id, u_int vector)
 	 * We can not currently clear the idt entry because other cpus
 	 * may have a valid vector at this offset.
 	 */
-	setidt(vector, &IDTVEC(rsvd), SDT_SYSIGT, SEL_KPL, 0);
+	setidt(vector, &IDTVEC(rsvd), SDT_APICT, SEL_KPL, GSEL_APIC);
 #endif
 }
 
@@ -1194,7 +1214,14 @@ static void
 apic_init(void *dummy __unused)
 {
 	struct apic_enumerator *enumerator;
+#ifndef __amd64__
+	uint64_t apic_base;
+#endif
 	int retval, best;
+
+	/* We only support built in local APICs. */
+	if (!(cpu_feature & CPUID_APIC))
+		return;
 
 	/* Don't probe if APIC mode is disabled. */
 	if (resource_disabled("apic", 0))
@@ -1222,11 +1249,27 @@ apic_init(void *dummy __unused)
 		printf("APIC: Using the %s enumerator.\n",
 		    best_enum->apic_name);
 
+#ifndef __amd64__
+	/*
+	 * To work around an errata, we disable the local APIC on some
+	 * CPUs during early startup.  We need to turn the local APIC back
+	 * on on such CPUs now.
+	 */
+	if (cpu == CPU_686 && cpu_vendor_id == CPU_VENDOR_INTEL &&
+	    (cpu_id & 0xff0) == 0x610) {
+		apic_base = rdmsr(MSR_APICBASE);
+		apic_base |= APICBASE_ENABLED;
+		wrmsr(MSR_APICBASE, apic_base);
+	}
+#endif
+
 	/* Second, probe the CPU's in the system. */
 	retval = best_enum->apic_probe_cpus();
 	if (retval != 0)
 		printf("%s: Failed to probe CPUs: returned %d\n",
 		    best_enum->apic_name, retval);
+
+#ifdef __amd64__
 }
 SYSINIT(apic_init, SI_SUB_TUNABLES - 1, SI_ORDER_SECOND, apic_init, NULL);
 
@@ -1238,16 +1281,22 @@ static void
 apic_setup_local(void *dummy __unused)
 {
 	int retval;
-
+ 
 	if (best_enum == NULL)
 		return;
+#endif
+	/* Third, initialize the local APIC. */
 	retval = best_enum->apic_setup_local();
 	if (retval != 0)
 		printf("%s: Failed to setup the local APIC: returned %d\n",
 		    best_enum->apic_name, retval);
 }
+#ifdef __amd64__
 SYSINIT(apic_setup_local, SI_SUB_CPU, SI_ORDER_SECOND, apic_setup_local,
     NULL);
+#else
+SYSINIT(apic_init, SI_SUB_CPU, SI_ORDER_SECOND, apic_init, NULL);
+#endif
 
 /*
  * Setup the I/O APICs.
@@ -1264,6 +1313,9 @@ apic_setup_io(void *dummy __unused)
 		printf("%s: Failed to setup I/O APICs: returned %d\n",
 		    best_enum->apic_name, retval);
 
+#ifdef XEN
+	return;
+#endif
 	/*
 	 * Finish setting up the local APIC on the BSP once we know how to
 	 * properly program the LINT pins.
@@ -1281,7 +1333,7 @@ SYSINIT(apic_setup_io, SI_SUB_INTR, SI_ORDER_SECOND, apic_setup_io, NULL);
 #ifdef SMP
 /*
  * Inter Processor Interrupt functions.  The lapic_ipi_*() functions are
- * private to the sys/amd64 code.  The public interface for the rest of the
+ * private to the MD code.  The public interface for the rest of the
  * kernel is defined in mp_machdep.c.
  */
 int

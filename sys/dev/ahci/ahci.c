@@ -60,6 +60,8 @@ static void ahci_intr(void *data);
 static void ahci_intr_one(void *data);
 static int ahci_suspend(device_t dev);
 static int ahci_resume(device_t dev);
+static int ahci_ch_init(device_t dev);
+static int ahci_ch_deinit(device_t dev);
 static int ahci_ch_suspend(device_t dev);
 static int ahci_ch_resume(device_t dev);
 static void ahci_ch_pm(void *arg);
@@ -328,6 +330,8 @@ ahci_attach(device_t dev)
 	    &ctlr->r_rid, RF_ACTIVE)))
 		return ENXIO;
 	/* Setup our own memory management for channels. */
+	ctlr->sc_iomem.rm_start = rman_get_start(ctlr->r_mem);
+	ctlr->sc_iomem.rm_end = rman_get_end(ctlr->r_mem);
 	ctlr->sc_iomem.rm_type = RMAN_ARRAY;
 	ctlr->sc_iomem.rm_descr = "I/O memory addresses";
 	if ((error = rman_init(&ctlr->sc_iomem)) != 0) {
@@ -776,6 +780,16 @@ ahci_print_child(device_t dev, device_t child)
 	return (retval);
 }
 
+static int
+ahci_child_location_str(device_t dev, device_t child, char *buf,
+    size_t buflen)
+{
+
+	snprintf(buf, buflen, "channel=%d",
+	    (int)(intptr_t)device_get_ivars(child));
+	return (0);
+}
+
 devclass_t ahci_devclass;
 static device_method_t ahci_methods[] = {
 	DEVMETHOD(device_probe,     ahci_probe),
@@ -788,6 +802,7 @@ static device_method_t ahci_methods[] = {
 	DEVMETHOD(bus_release_resource,     ahci_release_resource),
 	DEVMETHOD(bus_setup_intr,   ahci_setup_intr),
 	DEVMETHOD(bus_teardown_intr,ahci_teardown_intr),
+	DEVMETHOD(bus_child_location_str, ahci_child_location_str),
 	{ 0, 0 }
 };
 static driver_t ahci_driver = {
@@ -807,6 +822,7 @@ static device_method_t ahci_ata_methods[] = {
 	DEVMETHOD(bus_release_resource,     ahci_release_resource),
 	DEVMETHOD(bus_setup_intr,   ahci_setup_intr),
 	DEVMETHOD(bus_teardown_intr,ahci_teardown_intr),
+	DEVMETHOD(bus_child_location_str, ahci_child_location_str),
 	{ 0, 0 }
 };
 static driver_t ahci_ata_driver = {
@@ -877,7 +893,7 @@ ahci_ch_attach(device_t dev)
 		return (ENXIO);
 	ahci_dmainit(dev);
 	ahci_slotsalloc(dev);
-	ahci_ch_resume(dev);
+	ahci_ch_init(dev);
 	mtx_lock(&ch->mtx);
 	rid = ATA_IRQ_RID;
 	if (!(ch->r_irq = bus_alloc_resource_any(dev, SYS_RES_IRQ,
@@ -969,7 +985,7 @@ ahci_ch_detach(device_t dev)
 	bus_teardown_intr(dev, ch->r_irq, ch->ih);
 	bus_release_resource(dev, SYS_RES_IRQ, ATA_IRQ_RID, ch->r_irq);
 
-	ahci_ch_suspend(dev);
+	ahci_ch_deinit(dev);
 	ahci_slotsfree(dev);
 	ahci_dmafini(dev);
 
@@ -979,28 +995,7 @@ ahci_ch_detach(device_t dev)
 }
 
 static int
-ahci_ch_suspend(device_t dev)
-{
-	struct ahci_channel *ch = device_get_softc(dev);
-
-	/* Disable port interrupts. */
-	ATA_OUTL(ch->r_mem, AHCI_P_IE, 0);
-	/* Reset command register. */
-	ahci_stop(dev);
-	ahci_stop_fr(dev);
-	ATA_OUTL(ch->r_mem, AHCI_P_CMD, 0);
-	/* Allow everything, including partial and slumber modes. */
-	ATA_OUTL(ch->r_mem, AHCI_P_SCTL, 0);
-	/* Request slumber mode transition and give some time to get there. */
-	ATA_OUTL(ch->r_mem, AHCI_P_CMD, AHCI_P_CMD_SLUMBER);
-	DELAY(100);
-	/* Disable PHY. */
-	ATA_OUTL(ch->r_mem, AHCI_P_SCTL, ATA_SC_DET_DISABLE);
-	return (0);
-}
-
-static int
-ahci_ch_resume(device_t dev)
+ahci_ch_init(device_t dev)
 {
 	struct ahci_channel *ch = device_get_softc(dev);
 	uint64_t work;
@@ -1021,6 +1016,54 @@ ahci_ch_resume(device_t dev)
 	     ((ch->pm_level > 2) ? AHCI_P_CMD_ASP : 0 )));
 	ahci_start_fr(dev);
 	ahci_start(dev, 1);
+	return (0);
+}
+
+static int
+ahci_ch_deinit(device_t dev)
+{
+	struct ahci_channel *ch = device_get_softc(dev);
+
+	/* Disable port interrupts. */
+	ATA_OUTL(ch->r_mem, AHCI_P_IE, 0);
+	/* Reset command register. */
+	ahci_stop(dev);
+	ahci_stop_fr(dev);
+	ATA_OUTL(ch->r_mem, AHCI_P_CMD, 0);
+	/* Allow everything, including partial and slumber modes. */
+	ATA_OUTL(ch->r_mem, AHCI_P_SCTL, 0);
+	/* Request slumber mode transition and give some time to get there. */
+	ATA_OUTL(ch->r_mem, AHCI_P_CMD, AHCI_P_CMD_SLUMBER);
+	DELAY(100);
+	/* Disable PHY. */
+	ATA_OUTL(ch->r_mem, AHCI_P_SCTL, ATA_SC_DET_DISABLE);
+	return (0);
+}
+
+static int
+ahci_ch_suspend(device_t dev)
+{
+	struct ahci_channel *ch = device_get_softc(dev);
+
+	mtx_lock(&ch->mtx);
+	xpt_freeze_simq(ch->sim, 1);
+	while (ch->oslots)
+		msleep(ch, &ch->mtx, PRIBIO, "ahcisusp", hz/100);
+	ahci_ch_deinit(dev);
+	mtx_unlock(&ch->mtx);
+	return (0);
+}
+
+static int
+ahci_ch_resume(device_t dev)
+{
+	struct ahci_channel *ch = device_get_softc(dev);
+
+	mtx_lock(&ch->mtx);
+	ahci_ch_init(dev);
+	ahci_reset(dev);
+	xpt_release_simq(ch->sim, TRUE);
+	mtx_unlock(&ch->mtx);
 	return (0);
 }
 

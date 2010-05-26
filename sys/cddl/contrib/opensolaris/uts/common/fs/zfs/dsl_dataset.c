@@ -19,7 +19,7 @@
  * CDDL HEADER END
  */
 /*
- * Copyright 2008 Sun Microsystems, Inc.  All rights reserved.
+ * Copyright 2009 Sun Microsystems, Inc.  All rights reserved.
  * Use is subject to license terms.
  */
 
@@ -554,6 +554,7 @@ dsl_dataset_own_obj(dsl_pool_t *dp, uint64_t dsobj, int flags, void *owner,
 		return (err);
 	if (!dsl_dataset_tryown(*dsp, DS_MODE_IS_INCONSISTENT(flags), owner)) {
 		dsl_dataset_rele(*dsp, owner);
+		*dsp = NULL;
 		return (EBUSY);
 	}
 	return (0);
@@ -1162,15 +1163,26 @@ struct killarg {
 
 /* ARGSUSED */
 static int
-kill_blkptr(traverse_blk_cache_t *bc, spa_t *spa, void *arg)
+kill_blkptr(spa_t *spa, blkptr_t *bp, const zbookmark_t *zb,
+    const dnode_phys_t *dnp, void *arg)
 {
 	struct killarg *ka = arg;
-	blkptr_t *bp = &bc->bc_blkptr;
 
-	ASSERT3U(bc->bc_errno, ==, 0);
+	if (bp == NULL)
+		return (0);
 
-	ASSERT3U(bp->blk_birth, >, ka->ds->ds_phys->ds_prev_snap_txg);
-	(void) dsl_dataset_block_kill(ka->ds, bp, ka->zio, ka->tx);
+	if ((zb->zb_level == -1ULL && zb->zb_blkid != 0) ||
+	    (zb->zb_object != 0 && dnp == NULL)) {
+		/*
+		 * It's a block in the intent log.  It has no
+		 * accounting, so just free it.
+		 */
+		VERIFY3U(0, ==, dsl_free(ka->zio, ka->tx->tx_pool,
+		    ka->tx->tx_txg, bp, NULL, NULL, ARC_NOWAIT));
+	} else {
+		ASSERT3U(bp->blk_birth, >, ka->ds->ds_phys->ds_prev_snap_txg);
+		(void) dsl_dataset_block_kill(ka->ds, bp, ka->zio, ka->tx);
+	}
 
 	return (0);
 }
@@ -1195,7 +1207,7 @@ dsl_dataset_rollback_check(void *arg1, void *arg2, dmu_tx_t *tx)
 		return (EINVAL);
 
 	/*
-	 * If we made changes this txg, traverse_dsl_dataset won't find
+	 * If we made changes this txg, traverse_dataset won't find
 	 * them.  Try again.
 	 */
 	if (ds->ds_phys->ds_bp.blk_birth >= tx->tx_txg)
@@ -1214,13 +1226,7 @@ dsl_dataset_rollback_sync(void *arg1, void *arg2, cred_t *cr, dmu_tx_t *tx)
 
 	dmu_buf_will_dirty(ds->ds_dbuf, tx);
 
-	/*
-	 * Before the roll back destroy the zil.
-	 */
 	if (ds->ds_user_ptr != NULL) {
-		zil_rollback_destroy(
-		    ((objset_impl_t *)ds->ds_user_ptr)->os_zil, tx);
-
 		/*
 		 * We need to make sure that the objset_impl_t is reopened after
 		 * we do the rollback, otherwise it will have the wrong
@@ -1253,7 +1259,10 @@ dsl_dataset_rollback_sync(void *arg1, void *arg2, cred_t *cr, dmu_tx_t *tx)
 	    ds->ds_phys->ds_deadlist_obj));
 
 	{
-		/* Free blkptrs that we gave birth to */
+		/*
+		 * Free blkptrs that we gave birth to - this covers
+		 * claimed but not played log blocks too.
+		 */
 		zio_t *zio;
 		struct killarg ka;
 
@@ -1262,13 +1271,12 @@ dsl_dataset_rollback_sync(void *arg1, void *arg2, cred_t *cr, dmu_tx_t *tx)
 		ka.ds = ds;
 		ka.zio = zio;
 		ka.tx = tx;
-		(void) traverse_dsl_dataset(ds, ds->ds_phys->ds_prev_snap_txg,
-		    ADVANCE_POST, kill_blkptr, &ka);
+		(void) traverse_dataset(ds, ds->ds_phys->ds_prev_snap_txg,
+		    TRAVERSE_POST, kill_blkptr, &ka);
 		(void) zio_wait(zio);
 	}
 
-	ASSERT(!(ds->ds_phys->ds_flags & DS_FLAG_UNIQUE_ACCURATE) ||
-	    ds->ds_phys->ds_unique_bytes == 0);
+	ASSERT(!DS_UNIQUE_IS_ACCURATE(ds) || ds->ds_phys->ds_unique_bytes == 0);
 
 	if (ds->ds_prev && ds->ds_prev != ds->ds_dir->dd_pool->dp_origin_snap) {
 		/* Change our contents to that of the prev snapshot */
@@ -1657,10 +1665,10 @@ dsl_dataset_destroy_sync(void *arg1, void *tag, cred_t *cr, dmu_tx_t *tx)
 		ka.ds = ds;
 		ka.zio = zio;
 		ka.tx = tx;
-		err = traverse_dsl_dataset(ds, ds->ds_phys->ds_prev_snap_txg,
-		    ADVANCE_POST, kill_blkptr, &ka);
+		err = traverse_dataset(ds, ds->ds_phys->ds_prev_snap_txg,
+		    TRAVERSE_POST, kill_blkptr, &ka);
 		ASSERT3U(err, ==, 0);
-		ASSERT(spa_version(dp->dp_spa) < SPA_VERSION_UNIQUE_ACCURATE ||
+		ASSERT(!DS_UNIQUE_IS_ACCURATE(ds) ||
 		    ds->ds_phys->ds_unique_bytes == 0);
 	}
 
@@ -2205,6 +2213,12 @@ dsl_dataset_rename(char *oldname, const char *newname, boolean_t recursive)
 	err = dsl_dir_open(oldname, FTAG, &dd, &tail);
 	if (err)
 		return (err);
+	/*
+	 * If there are more than 2 references there may be holds
+	 * hanging around that haven't been cleared out yet.
+	 */
+	if (dmu_buf_refcount(dd->dd_dbuf) > 2)
+		txg_wait_synced(dd->dd_pool, 0);
 	if (tail == NULL) {
 		int delta = strlen(newname) - strlen(oldname);
 
@@ -2578,7 +2592,7 @@ snaplist_destroy(list_t *l, boolean_t own)
 {
 	struct promotenode *snap;
 
-	if (!list_link_active(&l->list_head))
+	if (!l || !list_link_active(&l->list_head))
 		return;
 
 	while ((snap = list_tail(l)) != NULL) {
@@ -2844,6 +2858,8 @@ dsl_dataset_clone_swap_sync(void *arg1, void *arg2, cred_t *cr, dmu_tx_t *tx)
 	    csa->cds->ds_phys->ds_deadlist_obj));
 	VERIFY(0 == bplist_open(&csa->ohds->ds_deadlist, dp->dp_meta_objset,
 	    csa->ohds->ds_phys->ds_deadlist_obj));
+
+	dsl_pool_ds_clone_swapped(csa->ohds, csa->cds, tx);
 }
 
 /*
