@@ -3893,19 +3893,14 @@ isp_make_here(ispsoftc_t *isp, int chan, int tgt)
 	}
 
 	/*
-	 * Allocate a CCB, create a wildcard path for this bus/target and schedule a rescan.
+	 * Allocate a CCB, create a wildcard path for this target and schedule a rescan.
 	 */
 	ccb = xpt_alloc_ccb_nowait();
 	if (ccb == NULL) {
 		isp_prt(isp, ISP_LOGWARN, "Chan %d unable to alloc CCB for rescan", chan);
 		return;
 	}
-	/*
-	 * xpt_rescan only honors wildcard in the target field. 
-	 * Scan the whole bus instead of target, which will then
-	 * force a scan of all luns.
-	 */
-	if (xpt_create_path(&ccb->ccb_h.path, xpt_periph, cam_sim_path(fc->sim), CAM_TARGET_WILDCARD, CAM_LUN_WILDCARD) != CAM_REQ_CMP) {
+	if (xpt_create_path(&ccb->ccb_h.path, xpt_periph, cam_sim_path(fc->sim), tgt, CAM_LUN_WILDCARD) != CAM_REQ_CMP) {
 		isp_prt(isp, ISP_LOGWARN, "unable to create path for rescan");
 		xpt_free_ccb(ccb);
 		return;
