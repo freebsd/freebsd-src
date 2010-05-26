@@ -202,6 +202,9 @@ int	syscall_module_handler(struct module *mod, int what, void *arg);
 int	syscall_helper_register(struct syscall_helper_data *sd);
 int	syscall_helper_unregister(struct syscall_helper_data *sd);
 
+struct proc;
+const char *syscallname(struct proc *p, u_int code);
+
 /* Special purpose system call functions. */
 struct nosys_args;
 

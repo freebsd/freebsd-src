@@ -260,8 +260,7 @@ ast(struct trapframe *framep)
 }
 
 #ifdef HAVE_SYSCALL_ARGS_DEF
-static const char *syscallname(struct proc *p, u_int code) __unused;
-static const char *
+const char *
 syscallname(struct proc *p, u_int code)
 {
 	static const char unknown[] = "unknown";
