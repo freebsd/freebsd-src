@@ -1002,6 +1002,11 @@ nfs_mount(struct mount *mp, struct thread *td)
 		nfs_decode_args(mp, nmp, &args, NULL);
 		goto out;
 	}
+	if (args.fhsize < 0 || args.fhsize > NFSX_V3FHMAX) {
+		vfs_mount_error(mp, "Bad file handle");
+		error = EINVAL;
+		goto out;
+	}
 
 	/*
 	 * Make the nfs_ip_paranoia sysctl serve as the default connection
