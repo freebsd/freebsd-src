@@ -21,6 +21,7 @@
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/ADT/STLExtras.h"
 #include <cctype>
+#include <cerrno>
 #include <sys/stat.h>
 #include <sys/types.h>
 
@@ -399,37 +400,76 @@ raw_fd_ostream::raw_fd_ostream(const char *Filename, std::string &ErrorInfo,
   if (Flags & F_Excl)
     OpenFlags |= O_EXCL;
 
-  FD = open(Filename, OpenFlags, 0664);
-  if (FD < 0) {
-    ErrorInfo = "Error opening output file '" + std::string(Filename) + "'";
-    ShouldClose = false;
-  } else {
-    ShouldClose = true;
+  while ((FD = open(Filename, OpenFlags, 0664)) < 0) {
+    if (errno != EINTR) {
+      ErrorInfo = "Error opening output file '" + std::string(Filename) + "'";
+      ShouldClose = false;
+      return;
+    }
   }
+
+  // Ok, we successfully opened the file, so it'll need to be closed.
+  ShouldClose = true;
 }
 
 raw_fd_ostream::~raw_fd_ostream() {
   if (FD < 0) return;
   flush();
   if (ShouldClose)
-    if (::close(FD) != 0)
-      error_detected();
+    while (::close(FD) != 0)
+      if (errno != EINTR) {
+        error_detected();
+        break;
+      }
 }
 
 
 void raw_fd_ostream::write_impl(const char *Ptr, size_t Size) {
   assert(FD >= 0 && "File already closed.");
   pos += Size;
-  if (::write(FD, Ptr, Size) != (ssize_t) Size)
-    error_detected();
+  ssize_t ret;
+
+  do {
+    ret = ::write(FD, Ptr, Size);
+
+    if (ret < 0) {
+      // If it's a recoverable error, swallow it and retry the write.
+      //
+      // Ideally we wouldn't ever see EAGAIN or EWOULDBLOCK here, since
+      // raw_ostream isn't designed to do non-blocking I/O. However, some
+      // programs, such as old versions of bjam, have mistakenly used
+      // O_NONBLOCK. For compatibility, emulate blocking semantics by
+      // spinning until the write succeeds. If you don't want spinning,
+      // don't use O_NONBLOCK file descriptors with raw_ostream.
+      if (errno == EINTR || errno == EAGAIN
+#ifdef EWOULDBLOCK
+          || errno == EWOULDBLOCK
+#endif
+          )
+        continue;
+
+      // Otherwise it's a non-recoverable error. Note it and quit.
+      error_detected();
+      break;
+    }
+
+    // The write may have written some or all of the data. Update the
+    // size and buffer pointer to reflect the remainder that needs
+    // to be written. If there are no bytes left, we're done.
+    Ptr += ret;
+    Size -= ret;
+  } while (Size > 0);
 }
 
 void raw_fd_ostream::close() {
   assert(ShouldClose);
   ShouldClose = false;
   flush();
-  if (::close(FD) != 0)
-    error_detected();
+  while (::close(FD) != 0)
+    if (errno != EINTR) {
+      error_detected();
+      break;
+    }
   FD = -1;
 }
 

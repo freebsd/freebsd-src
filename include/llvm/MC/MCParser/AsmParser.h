@@ -131,11 +131,13 @@ private:
   /// ParseDirectiveSymbolAttribute - Parse a directive like ".globl" which
   /// accepts a single symbol (which should be a label or an external).
   bool ParseDirectiveSymbolAttribute(MCSymbolAttr Attr);
+  bool ParseDirectiveELFType(); // ELF specific ".type"
   bool ParseDirectiveDarwinSymbolDesc(); // Darwin specific ".desc"
   bool ParseDirectiveDarwinLsym(); // Darwin specific ".lsym"
 
   bool ParseDirectiveComm(bool IsLocal); // ".comm" and ".lcomm"
   bool ParseDirectiveDarwinZerofill(); // Darwin specific ".zerofill"
+  bool ParseDirectiveDarwinTBSS(); // Darwin specific ".tbss"
 
   // Darwin specific ".subsections_via_symbols"
   bool ParseDirectiveDarwinSubsectionsViaSymbols();

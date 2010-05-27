@@ -58,6 +58,9 @@ OutputAsmVariant("output-asm-variant",
 static cl::opt<bool>
 RelaxAll("mc-relax-all", cl::desc("Relax all fixups"));
 
+static cl::opt<bool>
+EnableLogging("enable-api-logging", cl::desc("Enable MC API logging"));
+
 enum OutputFileType {
   OFT_Null,
   OFT_AssemblyFile,
@@ -74,9 +77,6 @@ FileType("filetype", cl::init(OFT_AssemblyFile),
        clEnumValN(OFT_ObjectFile, "obj",
                   "Emit a native object ('.o') file"),
        clEnumValEnd));
-
-static cl::opt<bool>
-Force("f", cl::desc("Enable binary output on terminals"));
 
 static cl::list<std::string>
 IncludeDirs("I", cl::desc("Directory of include files"),
@@ -304,7 +304,12 @@ static int AssembleInput(const char *ProgName) {
     assert(FileType == OFT_ObjectFile && "Invalid file type!");
     CE.reset(TheTarget->createCodeEmitter(*TM, Ctx));
     TAB.reset(TheTarget->createAsmBackend(TripleName));
-    Str.reset(createMachOStreamer(Ctx, *TAB, *Out, CE.get(), RelaxAll));
+    Str.reset(TheTarget->createObjectStreamer(TripleName, Ctx, *TAB,
+                                              *Out, CE.get(), RelaxAll));
+  }
+
+  if (EnableLogging) {
+    Str.reset(createLoggingStreamer(Str.take(), errs()));
   }
 
   AsmParser Parser(SrcMgr, Ctx, *Str.get(), *MAI);

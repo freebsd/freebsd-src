@@ -46,7 +46,7 @@ bool ProcessImplicitDefs::CanTurnIntoImplicitDef(MachineInstr *MI,
                                                  const TargetInstrInfo *tii_) {
   unsigned SrcReg, DstReg, SrcSubReg, DstSubReg;
   if (tii_->isMoveInstr(*MI, SrcReg, DstReg, SrcSubReg, DstSubReg) &&
-      Reg == SrcReg)
+      Reg == SrcReg && SrcSubReg == 0 && DstSubReg == 0)
     return true;
 
   if (OpIdx == 2 && MI->isSubregToReg())
@@ -89,6 +89,8 @@ bool ProcessImplicitDefs::runOnMachineFunction(MachineFunction &fn) {
       MachineInstr *MI = &*I;
       ++I;
       if (MI->isImplicitDef()) {
+        if (MI->getOperand(0).getSubReg())
+          continue;
         unsigned Reg = MI->getOperand(0).getReg();
         ImpDefRegs.insert(Reg);
         if (TargetRegisterInfo::isPhysicalRegister(Reg)) {
@@ -218,7 +220,7 @@ bool ProcessImplicitDefs::runOnMachineFunction(MachineFunction &fn) {
         // Turn a copy use into an implicit_def.
         unsigned SrcReg, DstReg, SrcSubReg, DstSubReg;
         if (tii_->isMoveInstr(*RMI, SrcReg, DstReg, SrcSubReg, DstSubReg) &&
-            Reg == SrcReg) {
+            Reg == SrcReg && SrcSubReg == 0 && DstSubReg == 0) {
           RMI->setDesc(tii_->get(TargetOpcode::IMPLICIT_DEF));
 
           bool isKill = false;

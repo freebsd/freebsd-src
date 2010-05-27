@@ -49,6 +49,7 @@ public:
   enum FileType { AsmFile, ObjectFile, CFile };
 
   static GCC *create(std::string &Message,
+                     const std::string &GCCBinary,
                      const std::vector<std::string> *Args);
 
   /// ExecuteProgram - Execute the program specified by "ProgramFile" (which is
@@ -87,9 +88,11 @@ public:
 class AbstractInterpreter {
 public:
   static CBE *createCBE(const char *Argv0, std::string &Message,
+                        const std::string              &GCCBinary,
                         const std::vector<std::string> *Args = 0,
                         const std::vector<std::string> *GCCArgs = 0);
   static LLC *createLLC(const char *Argv0, std::string &Message,
+                        const std::string              &GCCBinary,
                         const std::vector<std::string> *Args = 0,
                         const std::vector<std::string> *GCCArgs = 0,
                         bool UseIntegratedAssembler = false);
@@ -109,14 +112,17 @@ public:
   /// compileProgram - Compile the specified program from bitcode to executable
   /// code.  This does not produce any output, it is only used when debugging
   /// the code generator.  It returns false if the code generator fails.
-  virtual void compileProgram(const std::string &Bitcode, std::string *Error) {}
+  virtual void compileProgram(const std::string &Bitcode, std::string *Error,
+                              unsigned Timeout = 0, unsigned MemoryLimit = 0) {}
 
   /// OutputCode - Compile the specified program from bitcode to code
   /// understood by the GCC driver (either C or asm).  If the code generator
   /// fails, it sets Error, otherwise, this function returns the type of code
   /// emitted.
   virtual GCC::FileType OutputCode(const std::string &Bitcode,
-                                   sys::Path &OutFile, std::string &Error) {
+                                   sys::Path &OutFile, std::string &Error,
+                                   unsigned Timeout = 0,
+                                   unsigned MemoryLimit = 0) {
     Error = "OutputCode not supported by this AbstractInterpreter!";
     return GCC::AsmFile;
   }
@@ -158,7 +164,8 @@ public:
   /// compileProgram - Compile the specified program from bitcode to executable
   /// code.  This does not produce any output, it is only used when debugging
   /// the code generator.  Returns false if the code generator fails.
-  virtual void compileProgram(const std::string &Bitcode, std::string *Error);
+  virtual void compileProgram(const std::string &Bitcode, std::string *Error,
+                              unsigned Timeout = 0, unsigned MemoryLimit = 0);
 
   virtual int ExecuteProgram(const std::string &Bitcode,
                              const std::vector<std::string> &Args,
@@ -177,7 +184,9 @@ public:
   /// fails, it sets Error, otherwise, this function returns the type of code
   /// emitted.
   virtual GCC::FileType OutputCode(const std::string &Bitcode,
-                                   sys::Path &OutFile, std::string &Error);
+                                   sys::Path &OutFile, std::string &Error,
+                                   unsigned Timeout = 0,
+                                   unsigned MemoryLimit = 0);
 };
 
 
@@ -187,26 +196,24 @@ public:
 class LLC : public AbstractInterpreter {
   std::string LLCPath;               // The path to the LLC executable.
   std::vector<std::string> ToolArgs; // Extra args to pass to LLC.
-  std::vector<std::string> gccArgs;  // Extra args to pass to GCC.
   GCC *gcc;
   bool UseIntegratedAssembler;
 public:
   LLC(const std::string &llcPath, GCC *Gcc,
       const std::vector<std::string> *Args,
-      const std::vector<std::string> *GCCArgs,
       bool useIntegratedAssembler)
     : LLCPath(llcPath), gcc(Gcc),
       UseIntegratedAssembler(useIntegratedAssembler) {
     ToolArgs.clear();
     if (Args) ToolArgs = *Args;
-    if (GCCArgs) gccArgs = *GCCArgs;
   }
   ~LLC() { delete gcc; }
 
   /// compileProgram - Compile the specified program from bitcode to executable
   /// code.  This does not produce any output, it is only used when debugging
   /// the code generator.  Returns false if the code generator fails.
-  virtual void compileProgram(const std::string &Bitcode, std::string *Error);
+  virtual void compileProgram(const std::string &Bitcode, std::string *Error,
+                              unsigned Timeout = 0, unsigned MemoryLimit = 0);
 
   virtual int ExecuteProgram(const std::string &Bitcode,
                              const std::vector<std::string> &Args,
@@ -225,7 +232,9 @@ public:
   /// fails, it sets Error, otherwise, this function returns the type of code
   /// emitted.
   virtual GCC::FileType OutputCode(const std::string &Bitcode,
-                                   sys::Path &OutFile, std::string &Error);
+                                   sys::Path &OutFile, std::string &Error,
+                                   unsigned Timeout = 0,
+                                   unsigned MemoryLimit = 0);
 };
 
 } // End llvm namespace

@@ -200,6 +200,11 @@ public:
   virtual const ARMBaseRegisterInfo &getRegisterInfo() const =0;
   const ARMSubtarget &getSubtarget() const { return Subtarget; }
 
+  bool spillCalleeSavedRegisters(MachineBasicBlock &MBB,
+                                 MachineBasicBlock::iterator MI,
+                                 const std::vector<CalleeSavedInfo> &CSI,
+                                 const TargetRegisterInfo *TRI) const;
+
   // Branch analysis.
   virtual bool AnalyzeBranch(MachineBasicBlock &MBB, MachineBasicBlock *&TBB,
                              MachineBasicBlock *&FBB,
@@ -257,17 +262,20 @@ public:
                             MachineBasicBlock::iterator I,
                             unsigned DestReg, unsigned SrcReg,
                             const TargetRegisterClass *DestRC,
-                            const TargetRegisterClass *SrcRC) const;
+                            const TargetRegisterClass *SrcRC,
+                            DebugLoc DL) const;
 
   virtual void storeRegToStackSlot(MachineBasicBlock &MBB,
                                    MachineBasicBlock::iterator MBBI,
                                    unsigned SrcReg, bool isKill, int FrameIndex,
-                                   const TargetRegisterClass *RC) const;
+                                   const TargetRegisterClass *RC,
+                                   const TargetRegisterInfo *TRI) const;
 
   virtual void loadRegFromStackSlot(MachineBasicBlock &MBB,
                                     MachineBasicBlock::iterator MBBI,
                                     unsigned DestReg, int FrameIndex,
-                                    const TargetRegisterClass *RC) const;
+                                    const TargetRegisterClass *RC,
+                                    const TargetRegisterInfo *TRI) const;
 
   virtual MachineInstr *emitFrameIndexDebugValue(MachineFunction &MF,
                                                  int FrameIx,

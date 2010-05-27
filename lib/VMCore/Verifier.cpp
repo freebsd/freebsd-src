@@ -688,6 +688,7 @@ void Verifier::visitFunction(Function &F) {
   case CallingConv::Fast:
   case CallingConv::Cold:
   case CallingConv::X86_FastCall:
+  case CallingConv::X86_ThisCall:
     Assert1(!F.isVarArg(),
             "Varargs functions must have C calling conventions!", &F);
     break;
@@ -1152,7 +1153,7 @@ void Verifier::VerifyCallSite(CallSite CS) {
     Assert1(CS.arg_size() == FTy->getNumParams(),
             "Incorrect number of arguments passed to called function!", I);
 
-  // Verify that all arguments to the call match the function type...
+  // Verify that all arguments to the call match the function type.
   for (unsigned i = 0, e = FTy->getNumParams(); i != e; ++i)
     Assert3(CS.getArgument(i)->getType() == FTy->getParamType(i),
             "Call parameter type does not match function signature!",
@@ -1179,8 +1180,8 @@ void Verifier::VerifyCallSite(CallSite CS) {
     }
 
   // Verify that there's no metadata unless it's a direct call to an intrinsic.
-  if (!CS.getCalledFunction() || CS.getCalledFunction()->getName().size() < 5 ||
-      CS.getCalledFunction()->getName().substr(0, 5) != "llvm.") {
+  if (!CS.getCalledFunction() ||
+      !CS.getCalledFunction()->getName().startswith("llvm.")) {
     for (FunctionType::param_iterator PI = FTy->param_begin(),
            PE = FTy->param_end(); PI != PE; ++PI)
       Assert1(!PI->get()->isMetadataTy(),

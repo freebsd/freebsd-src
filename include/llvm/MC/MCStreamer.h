@@ -27,7 +27,7 @@ namespace llvm {
   class MCSection;
   class MCSymbol;
   class StringRef;
-class TargetAsmBackend;
+  class TargetAsmBackend;
   class Twine;
   class raw_ostream;
   class formatted_raw_ostream;
@@ -138,7 +138,24 @@ class TargetAsmBackend;
     /// @param DescValue - The value to set into the n_desc field.
     virtual void EmitSymbolDesc(MCSymbol *Symbol, unsigned DescValue) = 0;
 
-    
+    /// BeginCOFFSymbolDef - Start emitting COFF symbol definition
+    ///
+    /// @param Symbol - The symbol to have its External & Type fields set.
+    virtual void BeginCOFFSymbolDef(const MCSymbol *Symbol) = 0;
+
+    /// EmitCOFFSymbolStorageClass - Emit the storage class of the symbol.
+    ///
+    /// @param StorageClass - The storage class the symbol should have.
+    virtual void EmitCOFFSymbolStorageClass(int StorageClass) = 0;
+
+    /// EmitCOFFSymbolType - Emit the type of the symbol.
+    ///
+    /// @param Type - A COFF type identifier (see COFF::SymbolType in X86COFF.h)
+    virtual void EmitCOFFSymbolType(int Type) = 0;
+
+    /// EndCOFFSymbolDef - Marks the end of the symbol definition.
+    virtual void EndCOFFSymbolDef() = 0;
+
     /// EmitELFSize - Emit an ELF .size directive.
     ///
     /// This corresponds to an assembler statement such as:
@@ -161,7 +178,7 @@ class TargetAsmBackend;
     /// @param Size - The size of the common symbol.
     virtual void EmitLocalCommonSymbol(MCSymbol *Symbol, uint64_t Size) = 0;
     
-    /// EmitZerofill - Emit a the zerofill section and an option symbol.
+    /// EmitZerofill - Emit the zerofill section and an optional symbol.
     ///
     /// @param Section - The zerofill section to create and or to put the symbol
     /// @param Symbol - The zerofill symbol to emit, if non-NULL.
@@ -171,6 +188,15 @@ class TargetAsmBackend;
     virtual void EmitZerofill(const MCSection *Section, MCSymbol *Symbol = 0,
                               unsigned Size = 0,unsigned ByteAlignment = 0) = 0;
 
+    /// EmitTBSSSymbol - Emit a thread local bss (.tbss) symbol.
+    ///
+    /// @param Section - The thread local common section.
+    /// @param Symbol - The thread local common symbol to emit.
+    /// @param Size - The size of the symbol.
+    /// @param ByteAlignment - The alignment of the thread local common symbol
+    /// if non-zero.  This must be a power of 2 on some targets.
+    virtual void EmitTBSSSymbol(const MCSection *Section, MCSymbol *Symbol,
+                                uint64_t Size, unsigned ByteAlignment = 0) = 0;                                
     /// @}
     /// @name Generating Data
     /// @{
@@ -315,11 +341,17 @@ class TargetAsmBackend;
                                 MCCodeEmitter *CE = 0,
                                 bool ShowInst = false);
 
-  /// createMachOStream - Create a machine code streamer which will generative
+  /// createMachOStreamer - Create a machine code streamer which will generative
   /// Mach-O format object files.
   MCStreamer *createMachOStreamer(MCContext &Ctx, TargetAsmBackend &TAB,
                                   raw_ostream &OS, MCCodeEmitter *CE,
                                   bool RelaxAll = false);
+
+  /// createLoggingStreamer - Create a machine code streamer which just logs the
+  /// API calls and then dispatches to another streamer.
+  ///
+  /// The new streamer takes ownership of the \arg Child.
+  MCStreamer *createLoggingStreamer(MCStreamer *Child, raw_ostream &OS);
 
 } // end namespace llvm
 

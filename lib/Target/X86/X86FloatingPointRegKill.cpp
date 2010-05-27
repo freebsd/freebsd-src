@@ -14,7 +14,6 @@
 #define DEBUG_TYPE "x86-codegen"
 #include "X86.h"
 #include "X86InstrInfo.h"
-#include "X86Subtarget.h"
 #include "llvm/Instructions.h"
 #include "llvm/CodeGen/MachineFunctionPass.h"
 #include "llvm/CodeGen/MachineInstrBuilder.h"
@@ -42,12 +41,70 @@ namespace {
 
     virtual bool runOnMachineFunction(MachineFunction &MF);
 
-    virtual const char *getPassName() const { return "X86 FP_REG_KILL inserter"; }
+    virtual const char *getPassName() const {
+      return "X86 FP_REG_KILL inserter";
+    }
   };
   char FPRegKiller::ID = 0;
 }
 
-FunctionPass *llvm::createX87FPRegKillInserterPass() { return new FPRegKiller(); }
+FunctionPass *llvm::createX87FPRegKillInserterPass() {
+  return new FPRegKiller();
+}
+
+/// isFPStackVReg - Return true if the specified vreg is from a fp stack
+/// register class.
+static bool isFPStackVReg(unsigned RegNo, const MachineRegisterInfo &MRI) {
+  if (!TargetRegisterInfo::isVirtualRegister(RegNo))
+    return false;
+  
+  switch (MRI.getRegClass(RegNo)->getID()) {
+  default: return false;
+  case X86::RFP32RegClassID:
+  case X86::RFP64RegClassID:
+  case X86::RFP80RegClassID:
+  return true;
+  }
+}
+
+
+/// ContainsFPStackCode - Return true if the specific MBB has floating point
+/// stack code, and thus needs an FP_REG_KILL.
+static bool ContainsFPStackCode(MachineBasicBlock *MBB,
+                                const MachineRegisterInfo &MRI) {
+  // Scan the block, looking for instructions that define fp stack vregs.
+  for (MachineBasicBlock::iterator I = MBB->begin(), E = MBB->end();
+       I != E; ++I) {
+    if (I->getNumOperands() == 0 || !I->getOperand(0).isReg())
+      continue;
+    
+    for (unsigned op = 0, e = I->getNumOperands(); op != e; ++op) {
+      if (!I->getOperand(op).isReg() || !I->getOperand(op).isDef())
+        continue;
+      
+      if (isFPStackVReg(I->getOperand(op).getReg(), MRI))
+        return true;
+    }
+  }
+  
+  // Check PHI nodes in successor blocks.  These PHI's will be lowered to have
+  // a copy of the input value in this block, which is a definition of the
+  // value.
+  for (MachineBasicBlock::succ_iterator SI = MBB->succ_begin(),
+       E = MBB->succ_end(); SI != E; ++ SI) {
+    MachineBasicBlock *SuccBB = *SI;
+    for (MachineBasicBlock::iterator I = SuccBB->begin(), E = SuccBB->end();
+         I != E; ++I) {
+      // All PHI nodes are at the top of the block.
+      if (!I->isPHI()) break;
+      
+      if (isFPStackVReg(I->getOperand(0).getReg(), MRI))
+        return true;
+    }
+  }
+  
+  return false;
+}                                 
 
 bool FPRegKiller::runOnMachineFunction(MachineFunction &MF) {
   // If we are emitting FP stack code, scan the basic block to determine if this
@@ -65,14 +122,13 @@ bool FPRegKiller::runOnMachineFunction(MachineFunction &MF) {
 
   // Fast-path: If nothing is using the x87 registers, we don't need to do
   // any scanning.
-  MachineRegisterInfo &MRI = MF.getRegInfo();
+  const MachineRegisterInfo &MRI = MF.getRegInfo();
   if (MRI.getRegClassVirtRegs(X86::RFP80RegisterClass).empty() &&
       MRI.getRegClassVirtRegs(X86::RFP64RegisterClass).empty() &&
       MRI.getRegClassVirtRegs(X86::RFP32RegisterClass).empty())
     return false;
 
   bool Changed = false;
-  const X86Subtarget &Subtarget = MF.getTarget().getSubtarget<X86Subtarget>();
   MachineFunction::iterator MBBI = MF.begin();
   MachineFunction::iterator EndMBB = MF.end();
   for (; MBBI != EndMBB; ++MBBI) {
@@ -87,48 +143,8 @@ bool FPRegKiller::runOnMachineFunction(MachineFunction &MF) {
         continue;
     }
     
-    bool ContainsFPCode = false;
-    for (MachineBasicBlock::iterator I = MBB->begin(), E = MBB->end();
-         !ContainsFPCode && I != E; ++I) {
-      if (I->getNumOperands() != 0 && I->getOperand(0).isReg()) {
-        const TargetRegisterClass *clas;
-        for (unsigned op = 0, e = I->getNumOperands(); op != e; ++op) {
-          if (I->getOperand(op).isReg() && I->getOperand(op).isDef() &&
-            TargetRegisterInfo::isVirtualRegister(I->getOperand(op).getReg()) &&
-              ((clas = MRI.getRegClass(I->getOperand(op).getReg())) == 
-                 X86::RFP32RegisterClass ||
-               clas == X86::RFP64RegisterClass ||
-               clas == X86::RFP80RegisterClass)) {
-            ContainsFPCode = true;
-            break;
-          }
-        }
-      }
-    }
-    // Check PHI nodes in successor blocks.  These PHI's will be lowered to have
-    // a copy of the input value in this block.  In SSE mode, we only care about
-    // 80-bit values.
-    if (!ContainsFPCode) {
-      // Final check, check LLVM BB's that are successors to the LLVM BB
-      // corresponding to BB for FP PHI nodes.
-      const BasicBlock *LLVMBB = MBB->getBasicBlock();
-      const PHINode *PN;
-      for (succ_const_iterator SI = succ_begin(LLVMBB), E = succ_end(LLVMBB);
-           !ContainsFPCode && SI != E; ++SI) {
-        for (BasicBlock::const_iterator II = SI->begin();
-             (PN = dyn_cast<PHINode>(II)); ++II) {
-          if (PN->getType()==Type::getX86_FP80Ty(LLVMBB->getContext()) ||
-              (!Subtarget.hasSSE1() && PN->getType()->isFloatingPointTy()) ||
-              (!Subtarget.hasSSE2() &&
-                PN->getType()==Type::getDoubleTy(LLVMBB->getContext()))) {
-            ContainsFPCode = true;
-            break;
-          }
-        }
-      }
-    }
-    // Finally, if we found any FP code, emit the FP_REG_KILL instruction.
-    if (ContainsFPCode) {
+    // If we find any FP stack code, emit the FP_REG_KILL instruction.
+    if (ContainsFPStackCode(MBB, MRI)) {
       BuildMI(*MBB, MBBI->getFirstTerminator(), DebugLoc(),
               MF.getTarget().getInstrInfo()->get(X86::FP_REG_KILL));
       ++NumFPKill;

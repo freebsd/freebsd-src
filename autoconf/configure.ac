@@ -525,6 +525,20 @@ case "$enableval" in
   *) AC_MSG_ERROR([Invalid setting for --enable-shared. Use "yes" or "no"]) ;;
 esac
 
+dnl Enable embedding timestamp information into build.
+AC_ARG_ENABLE(timestamps,
+  AS_HELP_STRING([--enable-timestamps],
+                 [Enable embedding timestamp information in build (default is YES)]),,
+                 enableval=default)
+case "$enableval" in
+  yes) AC_SUBST(ENABLE_TIMESTAMPS,[1]) ;;
+  no)  AC_SUBST(ENABLE_TIMESTAMPS,[0]) ;;
+  default) AC_SUBST(ENABLE_TIMESTAMPS,[1]) ;;
+  *) AC_MSG_ERROR([Invalid setting for --enable-timestamps. Use "yes" or "no"]) ;;
+esac
+AC_DEFINE_UNQUOTED([ENABLE_TIMESTAMPS],$ENABLE_TIMESTAMPS,
+                   [Define if timestamp information (e.g., __DATE___) is allowed])
+
 dnl Allow specific targets to be specified for building (or not)
 TARGETS_TO_BUILD=""
 AC_ARG_ENABLE([targets],AS_HELP_STRING([--enable-targets],
@@ -1003,11 +1017,13 @@ dnl are not found then they are set to "true" which always succeeds but does
 dnl nothing. This just lets the build output show that we could have done
 dnl something if the tool was available.
 AC_PATH_PROG(BZIP2, [bzip2])
+AC_PATH_PROG(CAT, [cat])
 AC_PATH_PROG(DOXYGEN, [doxygen])
 AC_PATH_PROG(GROFF, [groff])
 AC_PATH_PROG(GZIP, [gzip])
 AC_PATH_PROG(POD2HTML, [pod2html])
 AC_PATH_PROG(POD2MAN, [pod2man])
+AC_PATH_PROG(PDFROFF, [pdfroff])
 AC_PATH_PROG(RUNTEST, [runtest])
 DJ_AC_PATH_TCLSH
 AC_PATH_PROG(ZIP, [zip])
@@ -1542,9 +1558,6 @@ AC_CONFIG_FILES([Makefile.config])
 
 dnl Configure the RPM spec file for LLVM
 AC_CONFIG_FILES([llvm.spec])
-
-dnl Configure doxygen's configuration file
-AC_CONFIG_FILES([docs/doxygen.cfg])
 
 dnl Configure llvmc's Base plugin
 AC_CONFIG_FILES([tools/llvmc/plugins/Base/Base.td])

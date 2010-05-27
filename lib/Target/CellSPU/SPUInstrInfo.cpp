@@ -255,15 +255,13 @@ bool SPUInstrInfo::copyRegToReg(MachineBasicBlock &MBB,
                                    MachineBasicBlock::iterator MI,
                                    unsigned DestReg, unsigned SrcReg,
                                    const TargetRegisterClass *DestRC,
-                                   const TargetRegisterClass *SrcRC) const
+                                   const TargetRegisterClass *SrcRC,
+                                   DebugLoc DL) const
 {
   // We support cross register class moves for our aliases, such as R3 in any
   // reg class to any other reg class containing R3.  This is required because
   // we instruction select bitconvert i64 -> f64 as a noop for example, so our
   // types have no specific meaning.
-
-  DebugLoc DL;
-  if (MI != MBB.end()) DL = MI->getDebugLoc();
 
   if (DestRC == SPU::R8CRegisterClass) {
     BuildMI(MBB, MI, DL, get(SPU::LRr8), DestReg).addReg(SrcReg);
@@ -291,9 +289,10 @@ bool SPUInstrInfo::copyRegToReg(MachineBasicBlock &MBB,
 
 void
 SPUInstrInfo::storeRegToStackSlot(MachineBasicBlock &MBB,
-                                     MachineBasicBlock::iterator MI,
-                                     unsigned SrcReg, bool isKill, int FrameIdx,
-                                     const TargetRegisterClass *RC) const
+                                  MachineBasicBlock::iterator MI,
+                                  unsigned SrcReg, bool isKill, int FrameIdx,
+                                  const TargetRegisterClass *RC,
+                                  const TargetRegisterInfo *TRI) const
 {
   unsigned opc;
   bool isValidFrameIdx = (FrameIdx < SPUFrameInfo::maxFrameOffset());
@@ -325,9 +324,10 @@ SPUInstrInfo::storeRegToStackSlot(MachineBasicBlock &MBB,
 
 void
 SPUInstrInfo::loadRegFromStackSlot(MachineBasicBlock &MBB,
-                                        MachineBasicBlock::iterator MI,
-                                        unsigned DestReg, int FrameIdx,
-                                        const TargetRegisterClass *RC) const
+                                   MachineBasicBlock::iterator MI,
+                                   unsigned DestReg, int FrameIdx,
+                                   const TargetRegisterClass *RC,
+                                   const TargetRegisterInfo *TRI) const
 {
   unsigned opc;
   bool isValidFrameIdx = (FrameIdx < SPUFrameInfo::maxFrameOffset());
@@ -467,6 +467,9 @@ SPUInstrInfo::AnalyzeBranch(MachineBasicBlock &MBB, MachineBasicBlock *&TBB,
   // If there is only one terminator instruction, process it.
   if (I == MBB.begin() || !isUnpredicatedTerminator(--I)) {
     if (isUncondBranch(LastInst)) {
+      // Check for jump tables
+      if (!LastInst->getOperand(0).isMBB())
+        return true;
       TBB = LastInst->getOperand(0).getMBB();
       return false;
     } else if (isCondBranch(LastInst)) {

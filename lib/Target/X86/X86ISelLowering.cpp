@@ -94,7 +94,7 @@ X86TargetLowering::X86TargetLowering(X86TargetMachine &TM)
   // X86 is weird, it always uses i8 for shift amounts and setcc results.
   setShiftAmountType(MVT::i8);
   setBooleanContents(ZeroOrOneBooleanContent);
-  setSchedulingPreference(SchedulingForRegPressure);
+  setSchedulingPreference(Sched::RegPressure);
   setStackPointerRegisterToSaveRestore(X86StackPtr);
 
   if (Subtarget->isTargetDarwin()) {
@@ -145,13 +145,12 @@ X86TargetLowering::X86TargetLowering(X86TargetMachine &TM)
     setOperationAction(ISD::UINT_TO_FP     , MVT::i32  , Promote);
     setOperationAction(ISD::UINT_TO_FP     , MVT::i64  , Expand);
   } else if (!UseSoftFloat) {
-    if (X86ScalarSSEf64) {
-      // We have an impenetrably clever algorithm for ui64->double only.
-      setOperationAction(ISD::UINT_TO_FP   , MVT::i64  , Custom);
-    }
+    // We have an algorithm for SSE2->double, and we turn this into a
+    // 64-bit FILD followed by conditional FADD for other targets.
+    setOperationAction(ISD::UINT_TO_FP     , MVT::i64  , Custom);
     // We have an algorithm for SSE2, and we turn this into a 64-bit
     // FILD for other targets.
-    setOperationAction(ISD::UINT_TO_FP   , MVT::i32  , Custom);
+    setOperationAction(ISD::UINT_TO_FP     , MVT::i32  , Custom);
   }
 
   // Promote i1/i8 SINT_TO_FP to larger SINT_TO_FP's, as X86 doesn't have
@@ -215,9 +214,17 @@ X86TargetLowering::X86TargetLowering(X86TargetMachine &TM)
   }
 
   // TODO: when we have SSE, these could be more efficient, by using movd/movq.
-  if (!X86ScalarSSEf64) {
+  if (!X86ScalarSSEf64) { 
     setOperationAction(ISD::BIT_CONVERT      , MVT::f32  , Expand);
     setOperationAction(ISD::BIT_CONVERT      , MVT::i32  , Expand);
+    if (Subtarget->is64Bit()) {
+      setOperationAction(ISD::BIT_CONVERT    , MVT::f64  , Expand);
+      // Without SSE, i64->f64 goes through memory; i64->MMX is Legal.
+      if (Subtarget->hasMMX() && !DisableMMX)
+        setOperationAction(ISD::BIT_CONVERT    , MVT::i64  , Custom);
+      else 
+        setOperationAction(ISD::BIT_CONVERT    , MVT::i64  , Expand);
+    }
   }
 
   // Scalar integer divide and remainder are lowered to use operations that
@@ -679,6 +686,14 @@ X86TargetLowering::X86TargetLowering(X86TargetMachine &TM)
     setOperationAction(ISD::VSETCC,             MVT::v8i8, Custom);
     setOperationAction(ISD::VSETCC,             MVT::v4i16, Custom);
     setOperationAction(ISD::VSETCC,             MVT::v2i32, Custom);
+
+    if (!X86ScalarSSEf64 && Subtarget->is64Bit()) {
+      setOperationAction(ISD::BIT_CONVERT,        MVT::v8i8,  Custom);
+      setOperationAction(ISD::BIT_CONVERT,        MVT::v4i16, Custom);
+      setOperationAction(ISD::BIT_CONVERT,        MVT::v2i32, Custom);
+      setOperationAction(ISD::BIT_CONVERT,        MVT::v2f32, Custom);
+      setOperationAction(ISD::BIT_CONVERT,        MVT::v1i64, Custom);
+    }
   }
 
   if (!UseSoftFloat && Subtarget->hasSSE1()) {
@@ -1244,10 +1259,8 @@ X86TargetLowering::LowerReturn(SDValue Chain,
     MachineFunction &MF = DAG.getMachineFunction();
     X86MachineFunctionInfo *FuncInfo = MF.getInfo<X86MachineFunctionInfo>();
     unsigned Reg = FuncInfo->getSRetReturnReg();
-    if (!Reg) {
-      Reg = MRI.createVirtualRegister(getRegClassFor(MVT::i64));
-      FuncInfo->setSRetReturnReg(Reg);
-    }
+    assert(Reg && 
+           "SRetReturnReg should have been set in LowerFormalArguments().");
     SDValue Val = DAG.getCopyFromReg(Chain, dl, Reg, getPointerTy());
 
     Chain = DAG.getCopyToReg(Chain, dl, X86::RAX, Val, Flag);
@@ -1384,6 +1397,8 @@ bool X86TargetLowering::IsCalleePop(bool IsVarArg,
     return !Subtarget->is64Bit();
   case CallingConv::X86_FastCall:
     return !Subtarget->is64Bit();
+  case CallingConv::X86_ThisCall:
+    return !Subtarget->is64Bit();
   case CallingConv::Fast:
     return GuaranteedTailCallOpt;
   case CallingConv::GHC:
@@ -1405,6 +1420,8 @@ CCAssignFn *X86TargetLowering::CCAssignFnForNode(CallingConv::ID CC) const {
 
   if (CC == CallingConv::X86_FastCall)
     return CC_X86_32_FastCall;
+  else if (CC == CallingConv::X86_ThisCall)
+    return CC_X86_32_ThisCall;
   else if (CC == CallingConv::Fast)
     return CC_X86_32_FastCC;
   else if (CC == CallingConv::GHC)
@@ -1596,7 +1613,8 @@ X86TargetLowering::LowerFormalArguments(SDValue Chain,
   // If the function takes variable number of arguments, make a frame index for
   // the start of the first vararg value... for expansion of llvm.va_start.
   if (isVarArg) {
-    if (Is64Bit || CallConv != CallingConv::X86_FastCall) {
+    if (Is64Bit || (CallConv != CallingConv::X86_FastCall &&
+                    CallConv != CallingConv::X86_ThisCall)) {
       FuncInfo->setVarArgsFrameIndex(MFI->CreateFixedObject(1, StackSize,
                                                             true, false));
     }
@@ -1716,7 +1734,8 @@ X86TargetLowering::LowerFormalArguments(SDValue Chain,
   if (!Is64Bit) {
     // RegSaveFrameIndex is X86-64 only.
     FuncInfo->setRegSaveFrameIndex(0xAAAAAAA);
-    if (CallConv == CallingConv::X86_FastCall)
+    if (CallConv == CallingConv::X86_FastCall ||
+        CallConv == CallingConv::X86_ThisCall)
       // fastcc functions can't have varargs.
       FuncInfo->setVarArgsFrameIndex(0xAAAAAAA);
   }
@@ -5272,7 +5291,7 @@ GetTLSADDR(SelectionDAG &DAG, SDValue Chain, GlobalAddressSDNode *GA,
   }
 
   // TLSADDR will be codegen'ed as call. Inform MFI that function has calls.
-  MFI->setHasCalls(true);
+  MFI->setAdjustsStack(true);
 
   SDValue Flag = Chain.getValue(1);
   return DAG.getCopyFromReg(Chain, dl, ReturnReg, PtrVT, Flag);
@@ -5462,7 +5481,7 @@ SDValue X86TargetLowering::LowerSINT_TO_FP(SDValue Op,
 }
 
 SDValue X86TargetLowering::BuildFILD(SDValue Op, EVT SrcVT, SDValue Chain,
-                                     SDValue StackSlot,
+                                     SDValue StackSlot, 
                                      SelectionDAG &DAG) const {
   // Build the FILD
   DebugLoc dl = Op.getDebugLoc();
@@ -5636,35 +5655,72 @@ SDValue X86TargetLowering::LowerUINT_TO_FP(SDValue Op,
   SDValue N0 = Op.getOperand(0);
   DebugLoc dl = Op.getDebugLoc();
 
-  // Now not UINT_TO_FP is legal (it's marked custom), dag combiner won't
+  // Since UINT_TO_FP is legal (it's marked custom), dag combiner won't
   // optimize it to a SINT_TO_FP when the sign bit is known zero. Perform
   // the optimization here.
   if (DAG.SignBitIsZero(N0))
     return DAG.getNode(ISD::SINT_TO_FP, dl, Op.getValueType(), N0);
 
   EVT SrcVT = N0.getValueType();
-  if (SrcVT == MVT::i64) {
-    // We only handle SSE2 f64 target here; caller can expand the rest.
-    if (Op.getValueType() != MVT::f64 || !X86ScalarSSEf64)
-      return SDValue();
-
+  EVT DstVT = Op.getValueType();
+  if (SrcVT == MVT::i64 && DstVT == MVT::f64 && X86ScalarSSEf64)
     return LowerUINT_TO_FP_i64(Op, DAG);
-  } else if (SrcVT == MVT::i32 && X86ScalarSSEf64) {
+  else if (SrcVT == MVT::i32 && X86ScalarSSEf64)
     return LowerUINT_TO_FP_i32(Op, DAG);
-  }
-
-  assert(SrcVT == MVT::i32 && "Unknown UINT_TO_FP to lower!");
 
   // Make a 64-bit buffer, and use it to build an FILD.
   SDValue StackSlot = DAG.CreateStackTemporary(MVT::i64);
-  SDValue WordOff = DAG.getConstant(4, getPointerTy());
-  SDValue OffsetSlot = DAG.getNode(ISD::ADD, dl,
-                                   getPointerTy(), StackSlot, WordOff);
-  SDValue Store1 = DAG.getStore(DAG.getEntryNode(), dl, Op.getOperand(0),
+  if (SrcVT == MVT::i32) {
+    SDValue WordOff = DAG.getConstant(4, getPointerTy());
+    SDValue OffsetSlot = DAG.getNode(ISD::ADD, dl,
+                                     getPointerTy(), StackSlot, WordOff);
+    SDValue Store1 = DAG.getStore(DAG.getEntryNode(), dl, Op.getOperand(0),
+                                  StackSlot, NULL, 0, false, false, 0);
+    SDValue Store2 = DAG.getStore(Store1, dl, DAG.getConstant(0, MVT::i32),
+                                  OffsetSlot, NULL, 0, false, false, 0);
+    SDValue Fild = BuildFILD(Op, MVT::i64, Store2, StackSlot, DAG);
+    return Fild;
+  }
+
+  assert(SrcVT == MVT::i64 && "Unexpected type in UINT_TO_FP");
+  SDValue Store = DAG.getStore(DAG.getEntryNode(), dl, Op.getOperand(0),
                                 StackSlot, NULL, 0, false, false, 0);
-  SDValue Store2 = DAG.getStore(Store1, dl, DAG.getConstant(0, MVT::i32),
-                                OffsetSlot, NULL, 0, false, false, 0);
-  return BuildFILD(Op, MVT::i64, Store2, StackSlot, DAG);
+  // For i64 source, we need to add the appropriate power of 2 if the input
+  // was negative.  This is the same as the optimization in
+  // DAGTypeLegalizer::ExpandIntOp_UNIT_TO_FP, and for it to be safe here,
+  // we must be careful to do the computation in x87 extended precision, not
+  // in SSE. (The generic code can't know it's OK to do this, or how to.)
+  SDVTList Tys = DAG.getVTList(MVT::f80, MVT::Other);
+  SDValue Ops[] = { Store, StackSlot, DAG.getValueType(MVT::i64) };
+  SDValue Fild = DAG.getNode(X86ISD::FILD, dl, Tys, Ops, 3);
+
+  APInt FF(32, 0x5F800000ULL);
+
+  // Check whether the sign bit is set.
+  SDValue SignSet = DAG.getSetCC(dl, getSetCCResultType(MVT::i64),
+                                 Op.getOperand(0), DAG.getConstant(0, MVT::i64),
+                                 ISD::SETLT);
+
+  // Build a 64 bit pair (0, FF) in the constant pool, with FF in the lo bits.
+  SDValue FudgePtr = DAG.getConstantPool(
+                             ConstantInt::get(*DAG.getContext(), FF.zext(64)),
+                                         getPointerTy());
+
+  // Get a pointer to FF if the sign bit was set, or to 0 otherwise.
+  SDValue Zero = DAG.getIntPtrConstant(0);
+  SDValue Four = DAG.getIntPtrConstant(4);
+  SDValue Offset = DAG.getNode(ISD::SELECT, dl, Zero.getValueType(), SignSet,
+                               Zero, Four);
+  FudgePtr = DAG.getNode(ISD::ADD, dl, getPointerTy(), FudgePtr, Offset);
+
+  // Load the value out, extending it from f32 to f80.
+  // FIXME: Avoid the extend by constructing the right constant pool?
+  SDValue Fudge = DAG.getExtLoad(ISD::EXTLOAD, dl, MVT::f80, DAG.getEntryNode(),
+                                 FudgePtr, PseudoSourceValue::getConstantPool(),
+                                 0, MVT::f32, false, false, 4);
+  // Extend everything to 80 bits to force it to be done on x87.
+  SDValue Add = DAG.getNode(ISD::FADD, dl, MVT::f80, Fild, Fudge);
+  return DAG.getNode(ISD::FP_ROUND, dl, DstVT, Add, DAG.getIntPtrConstant(0));
 }
 
 std::pair<SDValue,SDValue> X86TargetLowering::
@@ -6593,221 +6649,6 @@ X86TargetLowering::LowerDYNAMIC_STACKALLOC(SDValue Op,
   return DAG.getMergeValues(Ops1, 2, dl);
 }
 
-SDValue
-X86TargetLowering::EmitTargetCodeForMemset(SelectionDAG &DAG, DebugLoc dl,
-                                           SDValue Chain,
-                                           SDValue Dst, SDValue Src,
-                                           SDValue Size, unsigned Align,
-                                           bool isVolatile,
-                                           const Value *DstSV,
-                                           uint64_t DstSVOff) const {
-  ConstantSDNode *ConstantSize = dyn_cast<ConstantSDNode>(Size);
-
-  // If not DWORD aligned or size is more than the threshold, call the library.
-  // The libc version is likely to be faster for these cases. It can use the
-  // address value and run time information about the CPU.
-  if ((Align & 3) != 0 ||
-      !ConstantSize ||
-      ConstantSize->getZExtValue() >
-        getSubtarget()->getMaxInlineSizeThreshold()) {
-    SDValue InFlag(0, 0);
-
-    // Check to see if there is a specialized entry-point for memory zeroing.
-    ConstantSDNode *V = dyn_cast<ConstantSDNode>(Src);
-
-    if (const char *bzeroEntry =  V &&
-        V->isNullValue() ? Subtarget->getBZeroEntry() : 0) {
-      EVT IntPtr = getPointerTy();
-      const Type *IntPtrTy = TD->getIntPtrType(*DAG.getContext());
-      TargetLowering::ArgListTy Args;
-      TargetLowering::ArgListEntry Entry;
-      Entry.Node = Dst;
-      Entry.Ty = IntPtrTy;
-      Args.push_back(Entry);
-      Entry.Node = Size;
-      Args.push_back(Entry);
-      std::pair<SDValue,SDValue> CallResult =
-        LowerCallTo(Chain, Type::getVoidTy(*DAG.getContext()),
-                    false, false, false, false,
-                    0, CallingConv::C, false, /*isReturnValueUsed=*/false,
-                    DAG.getExternalSymbol(bzeroEntry, IntPtr), Args, DAG, dl);
-      return CallResult.second;
-    }
-
-    // Otherwise have the target-independent code call memset.
-    return SDValue();
-  }
-
-  uint64_t SizeVal = ConstantSize->getZExtValue();
-  SDValue InFlag(0, 0);
-  EVT AVT;
-  SDValue Count;
-  ConstantSDNode *ValC = dyn_cast<ConstantSDNode>(Src);
-  unsigned BytesLeft = 0;
-  bool TwoRepStos = false;
-  if (ValC) {
-    unsigned ValReg;
-    uint64_t Val = ValC->getZExtValue() & 255;
-
-    // If the value is a constant, then we can potentially use larger sets.
-    switch (Align & 3) {
-    case 2:   // WORD aligned
-      AVT = MVT::i16;
-      ValReg = X86::AX;
-      Val = (Val << 8) | Val;
-      break;
-    case 0:  // DWORD aligned
-      AVT = MVT::i32;
-      ValReg = X86::EAX;
-      Val = (Val << 8)  | Val;
-      Val = (Val << 16) | Val;
-      if (Subtarget->is64Bit() && ((Align & 0x7) == 0)) {  // QWORD aligned
-        AVT = MVT::i64;
-        ValReg = X86::RAX;
-        Val = (Val << 32) | Val;
-      }
-      break;
-    default:  // Byte aligned
-      AVT = MVT::i8;
-      ValReg = X86::AL;
-      Count = DAG.getIntPtrConstant(SizeVal);
-      break;
-    }
-
-    if (AVT.bitsGT(MVT::i8)) {
-      unsigned UBytes = AVT.getSizeInBits() / 8;
-      Count = DAG.getIntPtrConstant(SizeVal / UBytes);
-      BytesLeft = SizeVal % UBytes;
-    }
-
-    Chain  = DAG.getCopyToReg(Chain, dl, ValReg, DAG.getConstant(Val, AVT),
-                              InFlag);
-    InFlag = Chain.getValue(1);
-  } else {
-    AVT = MVT::i8;
-    Count  = DAG.getIntPtrConstant(SizeVal);
-    Chain  = DAG.getCopyToReg(Chain, dl, X86::AL, Src, InFlag);
-    InFlag = Chain.getValue(1);
-  }
-
-  Chain  = DAG.getCopyToReg(Chain, dl, Subtarget->is64Bit() ? X86::RCX :
-                                                              X86::ECX,
-                            Count, InFlag);
-  InFlag = Chain.getValue(1);
-  Chain  = DAG.getCopyToReg(Chain, dl, Subtarget->is64Bit() ? X86::RDI :
-                                                              X86::EDI,
-                            Dst, InFlag);
-  InFlag = Chain.getValue(1);
-
-  SDVTList Tys = DAG.getVTList(MVT::Other, MVT::Flag);
-  SDValue Ops[] = { Chain, DAG.getValueType(AVT), InFlag };
-  Chain = DAG.getNode(X86ISD::REP_STOS, dl, Tys, Ops, array_lengthof(Ops));
-
-  if (TwoRepStos) {
-    InFlag = Chain.getValue(1);
-    Count  = Size;
-    EVT CVT = Count.getValueType();
-    SDValue Left = DAG.getNode(ISD::AND, dl, CVT, Count,
-                               DAG.getConstant((AVT == MVT::i64) ? 7 : 3, CVT));
-    Chain  = DAG.getCopyToReg(Chain, dl, (CVT == MVT::i64) ? X86::RCX :
-                                                             X86::ECX,
-                              Left, InFlag);
-    InFlag = Chain.getValue(1);
-    Tys = DAG.getVTList(MVT::Other, MVT::Flag);
-    SDValue Ops[] = { Chain, DAG.getValueType(MVT::i8), InFlag };
-    Chain = DAG.getNode(X86ISD::REP_STOS, dl, Tys, Ops, array_lengthof(Ops));
-  } else if (BytesLeft) {
-    // Handle the last 1 - 7 bytes.
-    unsigned Offset = SizeVal - BytesLeft;
-    EVT AddrVT = Dst.getValueType();
-    EVT SizeVT = Size.getValueType();
-
-    Chain = DAG.getMemset(Chain, dl,
-                          DAG.getNode(ISD::ADD, dl, AddrVT, Dst,
-                                      DAG.getConstant(Offset, AddrVT)),
-                          Src,
-                          DAG.getConstant(BytesLeft, SizeVT),
-                          Align, isVolatile, DstSV, DstSVOff + Offset);
-  }
-
-  // TODO: Use a Tokenfactor, as in memcpy, instead of a single chain.
-  return Chain;
-}
-
-SDValue
-X86TargetLowering::EmitTargetCodeForMemcpy(SelectionDAG &DAG, DebugLoc dl,
-                                      SDValue Chain, SDValue Dst, SDValue Src,
-                                      SDValue Size, unsigned Align,
-                                      bool isVolatile, bool AlwaysInline,
-                                      const Value *DstSV,
-                                      uint64_t DstSVOff,
-                                      const Value *SrcSV,
-                                      uint64_t SrcSVOff) const {
-  // This requires the copy size to be a constant, preferrably
-  // within a subtarget-specific limit.
-  ConstantSDNode *ConstantSize = dyn_cast<ConstantSDNode>(Size);
-  if (!ConstantSize)
-    return SDValue();
-  uint64_t SizeVal = ConstantSize->getZExtValue();
-  if (!AlwaysInline && SizeVal > getSubtarget()->getMaxInlineSizeThreshold())
-    return SDValue();
-
-  /// If not DWORD aligned, call the library.
-  if ((Align & 3) != 0)
-    return SDValue();
-
-  // DWORD aligned
-  EVT AVT = MVT::i32;
-  if (Subtarget->is64Bit() && ((Align & 0x7) == 0))  // QWORD aligned
-    AVT = MVT::i64;
-
-  unsigned UBytes = AVT.getSizeInBits() / 8;
-  unsigned CountVal = SizeVal / UBytes;
-  SDValue Count = DAG.getIntPtrConstant(CountVal);
-  unsigned BytesLeft = SizeVal % UBytes;
-
-  SDValue InFlag(0, 0);
-  Chain  = DAG.getCopyToReg(Chain, dl, Subtarget->is64Bit() ? X86::RCX :
-                                                              X86::ECX,
-                            Count, InFlag);
-  InFlag = Chain.getValue(1);
-  Chain  = DAG.getCopyToReg(Chain, dl, Subtarget->is64Bit() ? X86::RDI :
-                                                              X86::EDI,
-                            Dst, InFlag);
-  InFlag = Chain.getValue(1);
-  Chain  = DAG.getCopyToReg(Chain, dl, Subtarget->is64Bit() ? X86::RSI :
-                                                              X86::ESI,
-                            Src, InFlag);
-  InFlag = Chain.getValue(1);
-
-  SDVTList Tys = DAG.getVTList(MVT::Other, MVT::Flag);
-  SDValue Ops[] = { Chain, DAG.getValueType(AVT), InFlag };
-  SDValue RepMovs = DAG.getNode(X86ISD::REP_MOVS, dl, Tys, Ops,
-                                array_lengthof(Ops));
-
-  SmallVector<SDValue, 4> Results;
-  Results.push_back(RepMovs);
-  if (BytesLeft) {
-    // Handle the last 1 - 7 bytes.
-    unsigned Offset = SizeVal - BytesLeft;
-    EVT DstVT = Dst.getValueType();
-    EVT SrcVT = Src.getValueType();
-    EVT SizeVT = Size.getValueType();
-    Results.push_back(DAG.getMemcpy(Chain, dl,
-                                    DAG.getNode(ISD::ADD, dl, DstVT, Dst,
-                                                DAG.getConstant(Offset, DstVT)),
-                                    DAG.getNode(ISD::ADD, dl, SrcVT, Src,
-                                                DAG.getConstant(Offset, SrcVT)),
-                                    DAG.getConstant(BytesLeft, SizeVT),
-                                    Align, isVolatile, AlwaysInline,
-                                    DstSV, DstSVOff + Offset,
-                                    SrcSV, SrcSVOff + Offset));
-  }
-
-  return DAG.getNode(ISD::TokenFactor, dl, MVT::Other,
-                     &Results[0], Results.size());
-}
-
 SDValue X86TargetLowering::LowerVASTART(SDValue Op, SelectionDAG &DAG) const {
   MachineFunction &MF = DAG.getMachineFunction();
   X86MachineFunctionInfo *FuncInfo = MF.getInfo<X86MachineFunctionInfo>();
@@ -7138,6 +6979,9 @@ X86TargetLowering::LowerINTRINSIC_WO_CHAIN(SDValue Op, SelectionDAG &DAG) const 
 
 SDValue X86TargetLowering::LowerRETURNADDR(SDValue Op,
                                            SelectionDAG &DAG) const {
+  MachineFrameInfo *MFI = DAG.getMachineFunction().getFrameInfo();
+  MFI->setReturnAddressIsTaken(true);
+
   unsigned Depth = cast<ConstantSDNode>(Op.getOperand(0))->getZExtValue();
   DebugLoc dl = Op.getDebugLoc();
 
@@ -7161,6 +7005,7 @@ SDValue X86TargetLowering::LowerRETURNADDR(SDValue Op,
 SDValue X86TargetLowering::LowerFRAMEADDR(SDValue Op, SelectionDAG &DAG) const {
   MachineFrameInfo *MFI = DAG.getMachineFunction().getFrameInfo();
   MFI->setFrameAddressIsTaken(true);
+
   EVT VT = Op.getValueType();
   DebugLoc dl = Op.getDebugLoc();  // FIXME probably not meaningful
   unsigned Depth = cast<ConstantSDNode>(Op.getOperand(0))->getZExtValue();
@@ -7298,6 +7143,7 @@ SDValue X86TargetLowering::LowerTRAMPOLINE(SDValue Op,
       break;
     }
     case CallingConv::X86_FastCall:
+    case CallingConv::X86_ThisCall:
     case CallingConv::Fast:
       // Pass 'nest' parameter in EAX.
       // Must be kept in sync with X86CallingConv.td
@@ -7630,6 +7476,27 @@ SDValue X86TargetLowering::LowerREADCYCLECOUNTER(SDValue Op,
   return DAG.getMergeValues(Ops, 2, dl);
 }
 
+SDValue X86TargetLowering::LowerBIT_CONVERT(SDValue Op,
+                                            SelectionDAG &DAG) const {
+  EVT SrcVT = Op.getOperand(0).getValueType();
+  EVT DstVT = Op.getValueType();
+  assert((Subtarget->is64Bit() && !Subtarget->hasSSE2() && 
+          Subtarget->hasMMX() && !DisableMMX) &&
+         "Unexpected custom BIT_CONVERT");
+  assert((DstVT == MVT::i64 || 
+          (DstVT.isVector() && DstVT.getSizeInBits()==64)) &&
+         "Unexpected custom BIT_CONVERT");
+  // i64 <=> MMX conversions are Legal.
+  if (SrcVT==MVT::i64 && DstVT.isVector())
+    return Op;
+  if (DstVT==MVT::i64 && SrcVT.isVector())
+    return Op;
+  // MMX <=> MMX conversions are Legal.
+  if (SrcVT.isVector() && DstVT.isVector())
+    return Op;
+  // All other conversions need to be expanded.
+  return SDValue();
+}
 SDValue X86TargetLowering::LowerLOAD_SUB(SDValue Op, SelectionDAG &DAG) const {
   SDNode *Node = Op.getNode();
   DebugLoc dl = Node->getDebugLoc();
@@ -7699,6 +7566,7 @@ SDValue X86TargetLowering::LowerOperation(SDValue Op, SelectionDAG &DAG) const {
   case ISD::SMULO:
   case ISD::UMULO:              return LowerXALUO(Op, DAG);
   case ISD::READCYCLECOUNTER:   return LowerREADCYCLECOUNTER(Op, DAG);
+  case ISD::BIT_CONVERT:        return LowerBIT_CONVERT(Op, DAG);
   }
 }
 
@@ -8203,8 +8071,14 @@ X86TargetLowering::EmitAtomicBit6432WithCustomInserter(MachineInstr *bInstr,
   MachineOperand& dest1Oper = bInstr->getOperand(0);
   MachineOperand& dest2Oper = bInstr->getOperand(1);
   MachineOperand* argOpers[2 + X86AddrNumOperands];
-  for (int i=0; i < 2 + X86AddrNumOperands; ++i)
+  for (int i=0; i < 2 + X86AddrNumOperands; ++i) {
     argOpers[i] = &bInstr->getOperand(i+2);
+
+    // We use some of the operands multiple times, so conservatively just
+    // clear any kill flags that might be present.
+    if (argOpers[i]->isReg() && argOpers[i]->isUse())
+      argOpers[i]->setIsKill(false);
+  }
 
   // x86 address has 5 operands: base, index, scale, displacement, and segment.
   int lastAddrIndx = X86AddrNumOperands - 1; // [0,3]

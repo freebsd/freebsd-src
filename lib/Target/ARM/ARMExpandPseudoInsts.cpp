@@ -29,6 +29,7 @@ namespace {
     ARMExpandPseudo() : MachineFunctionPass(&ID) {}
 
     const TargetInstrInfo *TII;
+    const TargetRegisterInfo *TRI;
 
     virtual bool runOnMachineFunction(MachineFunction &Fn);
 
@@ -37,9 +38,29 @@ namespace {
     }
 
   private:
+    void TransferImpOps(MachineInstr &OldMI,
+                        MachineInstrBuilder &UseMI, MachineInstrBuilder &DefMI);
     bool ExpandMBB(MachineBasicBlock &MBB);
   };
   char ARMExpandPseudo::ID = 0;
+}
+
+/// TransferImpOps - Transfer implicit operands on the pseudo instruction to
+/// the instructions created from the expansion.
+void ARMExpandPseudo::TransferImpOps(MachineInstr &OldMI,
+                                     MachineInstrBuilder &UseMI,
+                                     MachineInstrBuilder &DefMI) {
+  const TargetInstrDesc &Desc = OldMI.getDesc();
+  for (unsigned i = Desc.getNumOperands(), e = OldMI.getNumOperands();
+       i != e; ++i) {
+    const MachineOperand &MO = OldMI.getOperand(i);
+    assert(MO.isReg() && MO.getReg());
+    if (MO.isUse())
+      UseMI.addReg(MO.getReg(), getKillRegState(MO.isKill()));
+    else
+      DefMI.addReg(MO.getReg(),
+                   getDefRegState(true) | getDeadRegState(MO.isDead()));
+  }
 }
 
 bool ARMExpandPseudo::ExpandMBB(MachineBasicBlock &MBB) {
@@ -58,52 +79,82 @@ bool ARMExpandPseudo::ExpandMBB(MachineBasicBlock &MBB) {
       unsigned NewLdOpc = (Opcode == ARM::tLDRpci_pic)
         ? ARM::tLDRpci : ARM::t2LDRpci;
       unsigned DstReg = MI.getOperand(0).getReg();
-      if (!MI.getOperand(0).isDead()) {
-        MachineInstr *NewMI =
-          AddDefaultPred(BuildMI(MBB, MBBI, MI.getDebugLoc(),
-                                 TII->get(NewLdOpc), DstReg)
-                         .addOperand(MI.getOperand(1)));
-        NewMI->setMemRefs(MI.memoperands_begin(), MI.memoperands_end());
-        BuildMI(MBB, MBBI, MI.getDebugLoc(), TII->get(ARM::tPICADD))
-          .addReg(DstReg, getDefRegState(true))
-          .addReg(DstReg)
-          .addOperand(MI.getOperand(2));
-      }
+      bool DstIsDead = MI.getOperand(0).isDead();
+      MachineInstrBuilder MIB1 =
+        AddDefaultPred(BuildMI(MBB, MBBI, MI.getDebugLoc(),
+                               TII->get(NewLdOpc), DstReg)
+                       .addOperand(MI.getOperand(1)));
+      (*MIB1).setMemRefs(MI.memoperands_begin(), MI.memoperands_end());
+      MachineInstrBuilder MIB2 = BuildMI(MBB, MBBI, MI.getDebugLoc(),
+                                         TII->get(ARM::tPICADD))
+        .addReg(DstReg, getDefRegState(true) | getDeadRegState(DstIsDead))
+        .addReg(DstReg)
+        .addOperand(MI.getOperand(2));
+      TransferImpOps(MI, MIB1, MIB2);
       MI.eraseFromParent();
       Modified = true;
       break;
     }
+
     case ARM::t2MOVi32imm: {
+      unsigned PredReg = 0;
+      ARMCC::CondCodes Pred = llvm::getInstrPredicate(&MI, PredReg);
       unsigned DstReg = MI.getOperand(0).getReg();
-      if (!MI.getOperand(0).isDead()) {
-        const MachineOperand &MO = MI.getOperand(1);
-        MachineInstrBuilder LO16, HI16;
+      bool DstIsDead = MI.getOperand(0).isDead();
+      const MachineOperand &MO = MI.getOperand(1);
+      MachineInstrBuilder LO16, HI16;
 
-        LO16 = BuildMI(MBB, MBBI, MI.getDebugLoc(), TII->get(ARM::t2MOVi16),
-                       DstReg);
-        HI16 = BuildMI(MBB, MBBI, MI.getDebugLoc(), TII->get(ARM::t2MOVTi16))
-          .addReg(DstReg, getDefRegState(true)).addReg(DstReg);
+      LO16 = BuildMI(MBB, MBBI, MI.getDebugLoc(), TII->get(ARM::t2MOVi16),
+                     DstReg);
+      HI16 = BuildMI(MBB, MBBI, MI.getDebugLoc(), TII->get(ARM::t2MOVTi16))
+        .addReg(DstReg, getDefRegState(true) | getDeadRegState(DstIsDead))
+        .addReg(DstReg);
 
-        if (MO.isImm()) {
-          unsigned Imm = MO.getImm();
-          unsigned Lo16 = Imm & 0xffff;
-          unsigned Hi16 = (Imm >> 16) & 0xffff;
-          LO16 = LO16.addImm(Lo16);
-          HI16 = HI16.addImm(Hi16);
-        } else {
-          const GlobalValue *GV = MO.getGlobal();
-          unsigned TF = MO.getTargetFlags();
-          LO16 = LO16.addGlobalAddress(GV, MO.getOffset(), TF | ARMII::MO_LO16);
-          HI16 = HI16.addGlobalAddress(GV, MO.getOffset(), TF | ARMII::MO_HI16);
-          // FIXME: What's about memoperands?
-        }
-        AddDefaultPred(LO16);
-        AddDefaultPred(HI16);
+      if (MO.isImm()) {
+        unsigned Imm = MO.getImm();
+        unsigned Lo16 = Imm & 0xffff;
+        unsigned Hi16 = (Imm >> 16) & 0xffff;
+        LO16 = LO16.addImm(Lo16);
+        HI16 = HI16.addImm(Hi16);
+      } else {
+        const GlobalValue *GV = MO.getGlobal();
+        unsigned TF = MO.getTargetFlags();
+        LO16 = LO16.addGlobalAddress(GV, MO.getOffset(), TF | ARMII::MO_LO16);
+        HI16 = HI16.addGlobalAddress(GV, MO.getOffset(), TF | ARMII::MO_HI16);
       }
+      (*LO16).setMemRefs(MI.memoperands_begin(), MI.memoperands_end());
+      (*HI16).setMemRefs(MI.memoperands_begin(), MI.memoperands_end());
+      LO16.addImm(Pred).addReg(PredReg);
+      HI16.addImm(Pred).addReg(PredReg);
+      TransferImpOps(MI, LO16, HI16);
+      MI.eraseFromParent();
+      Modified = true;
+      break;
+    }
+
+    case ARM::VMOVQQ: {
+      unsigned DstReg = MI.getOperand(0).getReg();
+      bool DstIsDead = MI.getOperand(0).isDead();
+      unsigned EvenDst = TRI->getSubReg(DstReg, ARM::qsub_0);
+      unsigned OddDst  = TRI->getSubReg(DstReg, ARM::qsub_1);
+      unsigned SrcReg = MI.getOperand(1).getReg();
+      bool SrcIsKill = MI.getOperand(1).isKill();
+      unsigned EvenSrc = TRI->getSubReg(SrcReg, ARM::qsub_0);
+      unsigned OddSrc  = TRI->getSubReg(SrcReg, ARM::qsub_1);
+      MachineInstrBuilder Even =
+        AddDefaultPred(BuildMI(MBB, MBBI, MI.getDebugLoc(),
+                               TII->get(ARM::VMOVQ))
+                       .addReg(EvenDst, getDefRegState(true) | getDeadRegState(DstIsDead))
+                       .addReg(EvenSrc, getKillRegState(SrcIsKill)));
+      MachineInstrBuilder Odd =
+        AddDefaultPred(BuildMI(MBB, MBBI, MI.getDebugLoc(),
+                               TII->get(ARM::VMOVQ))
+                       .addReg(OddDst, getDefRegState(true) | getDeadRegState(DstIsDead))
+                       .addReg(OddSrc, getKillRegState(SrcIsKill)));
+      TransferImpOps(MI, Even, Odd);
       MI.eraseFromParent();
       Modified = true;
     }
-    // FIXME: expand t2MOVi32imm
     }
     MBBI = NMBBI;
   }
@@ -113,6 +164,7 @@ bool ARMExpandPseudo::ExpandMBB(MachineBasicBlock &MBB) {
 
 bool ARMExpandPseudo::runOnMachineFunction(MachineFunction &MF) {
   TII = MF.getTarget().getInstrInfo();
+  TRI = MF.getTarget().getRegisterInfo();
 
   bool Modified = false;
   for (MachineFunction::iterator MFI = MF.begin(), E = MF.end(); MFI != E;

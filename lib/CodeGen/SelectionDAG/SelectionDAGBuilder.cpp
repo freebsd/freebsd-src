@@ -3726,6 +3726,12 @@ SelectionDAGBuilder::EmitFuncArgumentDbgValue(const DbgValueInst &DI,
   return true;
 }
 
+// VisualStudio defines setjmp as _setjmp
+#if defined(_MSC_VER) && defined(setjmp)
+#define setjmp_undefined_for_visual_studio
+#undef setjmp
+#endif
+
 /// visitIntrinsicCall - Lower the call to the specified intrinsic function.  If
 /// we want to emit this as a call to a named external function, return the name
 /// otherwise lower it and return null.
@@ -3818,7 +3824,7 @@ SelectionDAGBuilder::visitIntrinsicCall(const CallInst &I, unsigned Intrinsic) {
   }
   case Intrinsic::dbg_declare: {
     const DbgDeclareInst &DI = cast<DbgDeclareInst>(I);
-    if (!DIDescriptor::ValidDebugInfo(DI.getVariable(), CodeGenOpt::None))
+    if (!DIVariable(DI.getVariable()).Verify())
       return 0;
 
     MDNode *Variable = DI.getVariable();
@@ -3881,7 +3887,7 @@ SelectionDAGBuilder::visitIntrinsicCall(const CallInst &I, unsigned Intrinsic) {
   }
   case Intrinsic::dbg_value: {
     const DbgValueInst &DI = cast<DbgValueInst>(I);
-    if (!DIDescriptor::ValidDebugInfo(DI.getVariable(), CodeGenOpt::None))
+    if (!DIVariable(DI.getVariable()).Verify())
       return 0;
 
     MDNode *Variable = DI.getVariable();
@@ -3900,6 +3906,8 @@ SelectionDAGBuilder::visitIntrinsicCall(const CallInst &I, unsigned Intrinsic) {
       SDV = DAG.getDbgValue(Variable, V, Offset, dl, SDNodeOrder);
       DAG.AddDbgValue(SDV, 0, false);
     } else {
+      bool createUndef = false;
+      // FIXME : Why not use getValue() directly ?
       SDValue &N = NodeMap[V];
       if (N.getNode()) {
         if (!EmitFuncArgumentDbgValue(DI, V, Variable, Offset, N)) {
@@ -3907,7 +3915,19 @@ SelectionDAGBuilder::visitIntrinsicCall(const CallInst &I, unsigned Intrinsic) {
                                 N.getResNo(), Offset, dl, SDNodeOrder);
           DAG.AddDbgValue(SDV, N.getNode(), false);
         }
-      } else {
+      } else if (isa<PHINode>(V) && !V->use_empty()) {
+        SDValue N = getValue(V);
+        if (N.getNode()) {
+          if (!EmitFuncArgumentDbgValue(DI, V, Variable, Offset, N)) {
+            SDV = DAG.getDbgValue(Variable, N.getNode(),
+                                  N.getResNo(), Offset, dl, SDNodeOrder);
+            DAG.AddDbgValue(SDV, N.getNode(), false);
+          }
+        } else
+          createUndef = true;
+      } else
+        createUndef = true;
+      if (createUndef) {
         // We may expand this to cover more cases.  One case where we have no
         // data available is an unreferenced parameter; we need this fallback.
         SDV = DAG.getDbgValue(Variable, UndefValue::get(V->getType()),
@@ -4016,6 +4036,17 @@ SelectionDAGBuilder::visitIntrinsicCall(const CallInst &I, unsigned Intrinsic) {
     assert(MMI.getCurrentCallSite() == 0 && "Overlapping call sites!");
 
     MMI.setCurrentCallSite(CI->getZExtValue());
+    return 0;
+  }
+  case Intrinsic::eh_sjlj_setjmp: {
+    setValue(&I, DAG.getNode(ISD::EH_SJLJ_SETJMP, dl, MVT::i32, getRoot(),
+                             getValue(I.getOperand(1))));
+    return 0;
+  }
+  case Intrinsic::eh_sjlj_longjmp: {
+    DAG.setRoot(DAG.getNode(ISD::EH_SJLJ_LONGJMP, dl, MVT::Other,
+                            getRoot(),
+                            getValue(I.getOperand(1))));
     return 0;
   }
 
@@ -4924,7 +4955,7 @@ isAllocatableRegister(unsigned Reg, MachineFunction &MF,
 namespace llvm {
 /// AsmOperandInfo - This contains information for each constraint that we are
 /// lowering.
-class VISIBILITY_HIDDEN SDISelAsmOperandInfo :
+class LLVM_LIBRARY_VISIBILITY SDISelAsmOperandInfo :
     public TargetLowering::AsmOperandInfo {
 public:
   /// CallOperand - If this is the result output operand or a clobber

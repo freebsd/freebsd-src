@@ -180,6 +180,8 @@ CCAssignFn *X86FastISel::CCAssignFnForCall(CallingConv::ID CC,
 
   if (CC == CallingConv::X86_FastCall)
     return CC_X86_32_FastCall;
+  else if (CC == CallingConv::X86_ThisCall)
+    return CC_X86_32_ThisCall;
   else if (CC == CallingConv::Fast)
     return CC_X86_32_FastCC;
   else if (CC == CallingConv::GHC)
@@ -324,7 +326,8 @@ bool X86FastISel::X86FastEmitStore(EVT VT, const Value *Val,
 bool X86FastISel::X86FastEmitExtend(ISD::NodeType Opc, EVT DstVT,
                                     unsigned Src, EVT SrcVT,
                                     unsigned &ResultReg) {
-  unsigned RR = FastEmit_r(SrcVT.getSimpleVT(), DstVT.getSimpleVT(), Opc, Src);
+  unsigned RR = FastEmit_r(SrcVT.getSimpleVT(), DstVT.getSimpleVT(), Opc,
+                           Src, /*TODO: Kill=*/false);
   
   if (RR != 0) {
     ResultReg = RR;
@@ -416,7 +419,7 @@ bool X86FastISel::X86SelectAddress(const Value *V, X86AddressMode &AM) {
                    (S == 1 || S == 2 || S == 4 || S == 8)) {
           // Scaled-index addressing.
           Scale = S;
-          IndexReg = getRegForGEPIndex(Op);
+          IndexReg = getRegForGEPIndex(Op).first;
           if (IndexReg == 0)
             return false;
         } else
@@ -802,7 +805,7 @@ bool X86FastISel::X86SelectZExt(const Instruction *I) {
     unsigned ResultReg = getRegForValue(I->getOperand(0));
     if (ResultReg == 0) return false;
     // Set the high bits to zero.
-    ResultReg = FastEmitZExtFromI1(MVT::i8, ResultReg);
+    ResultReg = FastEmitZExtFromI1(MVT::i8, ResultReg, /*TODO: Kill=*/false);
     if (ResultReg == 0) return false;
     UpdateValueMap(I, ResultReg);
     return true;
@@ -913,7 +916,7 @@ bool X86FastISel::X86SelectBranch(const Instruction *I) {
                RI = MBB->rbegin(), RE = MBB->rend(); RI != RE; ++RI) {
           const MachineInstr &MI = *RI;
 
-          if (MI.modifiesRegister(Reg)) {
+          if (MI.definesRegister(Reg)) {
             unsigned Src, Dst, SrcSR, DstSR;
 
             if (getInstrInfo()->isMoveInstr(MI, Src, Dst, SrcSR, DstSR)) {
@@ -1019,14 +1022,14 @@ bool X86FastISel::X86SelectShift(const Instruction *I) {
   
   unsigned Op1Reg = getRegForValue(I->getOperand(1));
   if (Op1Reg == 0) return false;
-  TII.copyRegToReg(*MBB, MBB->end(), CReg, Op1Reg, RC, RC);
+  TII.copyRegToReg(*MBB, MBB->end(), CReg, Op1Reg, RC, RC, DL);
 
   // The shift instruction uses X86::CL. If we defined a super-register
   // of X86::CL, emit an EXTRACT_SUBREG to precisely describe what
   // we're doing here.
   if (CReg != X86::CL)
     BuildMI(MBB, DL, TII.get(TargetOpcode::EXTRACT_SUBREG), X86::CL)
-      .addReg(CReg).addImm(X86::SUBREG_8BIT);
+      .addReg(CReg).addImm(X86::sub_8bit);
 
   unsigned ResultReg = createResultReg(RC);
   BuildMI(MBB, DL, TII.get(OpReg), ResultReg).addReg(Op0Reg);
@@ -1133,7 +1136,8 @@ bool X86FastISel::X86SelectTrunc(const Instruction *I) {
 
   // Then issue an extract_subreg.
   unsigned ResultReg = FastEmitInst_extractsubreg(MVT::i8,
-                                                  CopyReg, X86::SUBREG_8BIT);
+                                                  CopyReg, /*Kill=*/true,
+                                                  X86::sub_8bit);
   if (!ResultReg)
     return false;
 
@@ -1436,7 +1440,7 @@ bool X86FastISel::X86SelectCall(const Instruction *I) {
     }
     case CCValAssign::BCvt: {
       unsigned BC = FastEmit_r(ArgVT.getSimpleVT(), VA.getLocVT().getSimpleVT(),
-                               ISD::BIT_CONVERT, Arg);
+                               ISD::BIT_CONVERT, Arg, /*TODO: Kill=*/false);
       assert(BC != 0 && "Failed to emit a bitcast!");
       Arg = BC;
       ArgVT = VA.getLocVT();
@@ -1447,7 +1451,7 @@ bool X86FastISel::X86SelectCall(const Instruction *I) {
     if (VA.isRegLoc()) {
       TargetRegisterClass* RC = TLI.getRegClassFor(ArgVT);
       bool Emitted = TII.copyRegToReg(*MBB, MBB->end(), VA.getLocReg(),
-                                      Arg, RC, RC);
+                                      Arg, RC, RC, DL);
       assert(Emitted && "Failed to emit a copy instruction!"); Emitted=Emitted;
       Emitted = true;
       RegArgs.push_back(VA.getLocReg());
@@ -1473,7 +1477,8 @@ bool X86FastISel::X86SelectCall(const Instruction *I) {
   if (Subtarget->isPICStyleGOT()) {
     TargetRegisterClass *RC = X86::GR32RegisterClass;
     unsigned Base = getInstrInfo()->getGlobalBaseReg(&MF);
-    bool Emitted = TII.copyRegToReg(*MBB, MBB->end(), X86::EBX, Base, RC, RC);
+    bool Emitted = TII.copyRegToReg(*MBB, MBB->end(), X86::EBX, Base, RC, RC,
+                                    DL);
     assert(Emitted && "Failed to emit a copy instruction!"); Emitted=Emitted;
     Emitted = true;
   }
@@ -1552,7 +1557,7 @@ bool X86FastISel::X86SelectCall(const Instruction *I) {
 
     unsigned ResultReg = createResultReg(DstRC);
     bool Emitted = TII.copyRegToReg(*MBB, MBB->end(), ResultReg,
-                                    RVLocs[0].getLocReg(), DstRC, SrcRC);
+                                    RVLocs[0].getLocReg(), DstRC, SrcRC, DL);
     assert(Emitted && "Failed to emit a copy instruction!"); Emitted=Emitted;
     Emitted = true;
     if (CopyVT != RVLocs[0].getValVT()) {

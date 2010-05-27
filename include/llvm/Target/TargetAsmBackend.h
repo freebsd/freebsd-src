@@ -13,10 +13,9 @@
 #include "llvm/System/DataTypes.h"
 
 namespace llvm {
-class MCAsmFixup;
 class MCDataFragment;
+class MCFixup;
 class MCInst;
-class MCInstFragment;
 class MCObjectWriter;
 class MCSection;
 template<typename T>
@@ -90,6 +89,14 @@ public:
     return false;
   }
 
+  /// isSectionAtomizable - Check whether the given section can be split into
+  /// atoms.
+  ///
+  /// \see MCAssembler::isSymbolLinkerVisible().
+  virtual bool isSectionAtomizable(const MCSection &Section) const {
+    return true;
+  }
+
   /// isVirtualSection - Check whether the given section is "virtual", that is
   /// has no actual object file contents.
   virtual bool isVirtualSection(const MCSection &Section) const = 0;
@@ -97,22 +104,22 @@ public:
   /// ApplyFixup - Apply the \arg Value for given \arg Fixup into the provided
   /// data fragment, at the offset specified by the fixup and following the
   /// fixup kind as appropriate.
-  virtual void ApplyFixup(const MCAsmFixup &Fixup, MCDataFragment &Fragment,
+  virtual void ApplyFixup(const MCFixup &Fixup, MCDataFragment &Fragment,
                           uint64_t Value) const = 0;
 
   /// MayNeedRelaxation - Check whether the given instruction may need
   /// relaxation.
   ///
-  /// \arg Inst - The instruction to test.
-  /// \arg Fixups - The actual fixups this instruction encoded to, for potential
-  /// use by the target backend.
-  virtual bool MayNeedRelaxation(const MCInst &Inst,
-                           const SmallVectorImpl<MCAsmFixup> &Fixups) const = 0;
+  /// \param Inst - The instruction to test.
+  virtual bool MayNeedRelaxation(const MCInst &Inst) const = 0;
 
   /// RelaxInstruction - Relax the instruction in the given fragment to the next
   /// wider instruction.
-  virtual void RelaxInstruction(const MCInstFragment *IF,
-                                MCInst &Res) const = 0;
+  ///
+  /// \param Inst - The instruction to relax, which may be the same as the
+  /// output.
+  /// \parm Res [output] - On return, the relaxed instruction.
+  virtual void RelaxInstruction(const MCInst &Inst, MCInst &Res) const = 0;
 
   /// WriteNopData - Write an (optimal) nop sequence of Count bytes to the given
   /// output. If the target cannot generate such a sequence, it should return an

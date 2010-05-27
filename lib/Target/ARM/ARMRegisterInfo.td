@@ -23,6 +23,44 @@ class ARMFReg<bits<6> num, string n> : Register<n> {
   let Namespace = "ARM";
 }
 
+// Subregister indices.
+let Namespace = "ARM" in {
+// Note: Code depends on these having consecutive numbers.
+def ssub_0  : SubRegIndex;
+def ssub_1  : SubRegIndex;
+def ssub_2  : SubRegIndex; // In a Q reg.
+def ssub_3  : SubRegIndex;
+def ssub_4  : SubRegIndex; // In a QQ reg.
+def ssub_5  : SubRegIndex;
+def ssub_6  : SubRegIndex;
+def ssub_7  : SubRegIndex;
+def ssub_8  : SubRegIndex; // In a QQQQ reg.
+def ssub_9  : SubRegIndex;
+def ssub_10 : SubRegIndex;
+def ssub_11 : SubRegIndex;
+def ssub_12 : SubRegIndex;
+def ssub_13 : SubRegIndex;
+def ssub_14 : SubRegIndex;
+def ssub_15 : SubRegIndex;
+
+def dsub_0 : SubRegIndex;
+def dsub_1 : SubRegIndex;
+def dsub_2 : SubRegIndex;
+def dsub_3 : SubRegIndex;
+def dsub_4 : SubRegIndex;
+def dsub_5 : SubRegIndex;
+def dsub_6 : SubRegIndex;
+def dsub_7 : SubRegIndex;
+
+def qsub_0 : SubRegIndex;
+def qsub_1 : SubRegIndex;
+def qsub_2 : SubRegIndex;
+def qsub_3 : SubRegIndex;
+
+def qqsub_0 : SubRegIndex;
+def qqsub_1 : SubRegIndex;
+}
+
 // Integer registers
 def R0  : ARMReg< 0, "r0">,  DwarfRegNum<[0]>;
 def R1  : ARMReg< 1, "r1">,  DwarfRegNum<[1]>;
@@ -58,9 +96,9 @@ def S24 : ARMFReg<24, "s24">; def S25 : ARMFReg<25, "s25">;
 def S26 : ARMFReg<26, "s26">; def S27 : ARMFReg<27, "s27">;
 def S28 : ARMFReg<28, "s28">; def S29 : ARMFReg<29, "s29">;
 def S30 : ARMFReg<30, "s30">; def S31 : ARMFReg<31, "s31">;
-def SDummy : ARMFReg<63, "sINVALID">;
 
 // Aliases of the F* registers used to hold 64-bit fp values (doubles)
+let SubRegIndices = [ssub_0, ssub_1] in {
 def D0  : ARMReg< 0,  "d0", [S0,   S1]>;
 def D1  : ARMReg< 1,  "d1", [S2,   S3]>;
 def D2  : ARMReg< 2,  "d2", [S4,   S5]>;
@@ -77,6 +115,7 @@ def D12 : ARMReg<12, "d12", [S24, S25]>;
 def D13 : ARMReg<13, "d13", [S26, S27]>;
 def D14 : ARMReg<14, "d14", [S28, S29]>;
 def D15 : ARMReg<15, "d15", [S30, S31]>;
+}
 
 // VFP3 defines 16 additional double registers
 def D16 : ARMFReg<16, "d16">; def D17 : ARMFReg<17, "d17">;
@@ -89,6 +128,9 @@ def D28 : ARMFReg<28, "d28">; def D29 : ARMFReg<29, "d29">;
 def D30 : ARMFReg<30, "d30">; def D31 : ARMFReg<31, "d31">;
 
 // Advanced SIMD (NEON) defines 16 quad-word aliases
+let SubRegIndices = [dsub_0, dsub_1],
+ CompositeIndices = [(ssub_2 dsub_1, ssub_0),
+                     (ssub_3 dsub_1, ssub_1)] in {
 def Q0  : ARMReg< 0,  "q0", [D0,   D1]>;
 def Q1  : ARMReg< 1,  "q1", [D2,   D3]>;
 def Q2  : ARMReg< 2,  "q2", [D4,   D5]>;
@@ -97,6 +139,8 @@ def Q4  : ARMReg< 4,  "q4", [D8,   D9]>;
 def Q5  : ARMReg< 5,  "q5", [D10, D11]>;
 def Q6  : ARMReg< 6,  "q6", [D12, D13]>;
 def Q7  : ARMReg< 7,  "q7", [D14, D15]>;
+}
+let SubRegIndices = [dsub_0, dsub_1] in {
 def Q8  : ARMReg< 8,  "q8", [D16, D17]>;
 def Q9  : ARMReg< 9,  "q9", [D18, D19]>;
 def Q10 : ARMReg<10, "q10", [D20, D21]>;
@@ -105,6 +149,51 @@ def Q12 : ARMReg<12, "q12", [D24, D25]>;
 def Q13 : ARMReg<13, "q13", [D26, D27]>;
 def Q14 : ARMReg<14, "q14", [D28, D29]>;
 def Q15 : ARMReg<15, "q15", [D30, D31]>;
+}
+
+// Pseudo 256-bit registers to represent pairs of Q registers. These should
+// never be present in the emitted code.
+// These are used for NEON load / store instructions, e.g. vld4, vst3.
+// NOTE: It's possible to define more QQ registers since technical the
+// starting D register number doesn't have to be multiple of 4. e.g. 
+// D1, D2, D3, D4 would be a legal quad. But that would make the sub-register
+// stuffs very messy.
+let SubRegIndices = [qsub_0, qsub_1] in {
+let CompositeIndices = [(dsub_2 qsub_1, dsub_0), (dsub_3 qsub_1, dsub_1),
+                        (ssub_4 qsub_1, ssub_0), (ssub_5 qsub_1, ssub_1),
+                        (ssub_6 qsub_1, ssub_2), (ssub_7 qsub_1, ssub_3)] in {
+def QQ0 : ARMReg<0, "qq0", [Q0,  Q1]>;
+def QQ1 : ARMReg<1, "qq1", [Q2,  Q3]>;
+def QQ2 : ARMReg<2, "qq2", [Q4,  Q5]>;
+def QQ3 : ARMReg<3, "qq3", [Q6,  Q7]>;
+}
+let CompositeIndices = [(dsub_2 qsub_1, dsub_0), (dsub_3 qsub_1, dsub_1)] in {
+def QQ4 : ARMReg<4, "qq4", [Q8,  Q9]>;
+def QQ5 : ARMReg<5, "qq5", [Q10, Q11]>;
+def QQ6 : ARMReg<6, "qq6", [Q12, Q13]>;
+def QQ7 : ARMReg<7, "qq7", [Q14, Q15]>;
+}
+}
+
+// Pseudo 512-bit registers to represent four consecutive Q registers.
+let SubRegIndices = [qqsub_0, qqsub_1] in {
+let CompositeIndices = [(qsub_2  qqsub_1, qsub_0), (qsub_3  qqsub_1, qsub_1),
+                        (dsub_4  qqsub_1, dsub_0), (dsub_5  qqsub_1, dsub_1),
+                        (dsub_6  qqsub_1, dsub_2), (dsub_7  qqsub_1, dsub_3),
+                        (ssub_8  qqsub_1, ssub_0), (ssub_9  qqsub_1, ssub_1),
+                        (ssub_10 qqsub_1, ssub_2), (ssub_11 qqsub_1, ssub_3),
+                        (ssub_12 qqsub_1, ssub_4), (ssub_13 qqsub_1, ssub_5),
+                        (ssub_14 qqsub_1, ssub_6), (ssub_15 qqsub_1, ssub_7)] in {
+def QQQQ0 : ARMReg<0, "qqqq0", [QQ0, QQ1]>;
+def QQQQ1 : ARMReg<1, "qqqq1", [QQ2, QQ3]>;
+}
+let CompositeIndices = [(qsub_2 qqsub_1, qsub_0), (qsub_3 qqsub_1, qsub_1),
+                        (dsub_4 qqsub_1, dsub_0), (dsub_5 qqsub_1, dsub_1),
+                        (dsub_6 qqsub_1, dsub_2), (dsub_7 qqsub_1, dsub_3)] in {
+def QQQQ2 : ARMReg<2, "qqqq2", [QQ4, QQ5]>;
+def QQQQ3 : ARMReg<3, "qqqq3", [QQ6, QQ7]>;
+}
+}
 
 // Current Program Status Register.
 def CPSR  : ARMReg<0, "cpsr">;
@@ -270,11 +359,6 @@ def SPR_8 : RegisterClass<"ARM", [f32], 32,
                           [S0, S1,  S2,  S3,  S4,  S5,  S6,  S7,
                            S8, S9, S10, S11, S12, S13, S14, S15]>;
 
-// Dummy f32 regclass to represent impossible subreg indices.
-def SPR_INVALID : RegisterClass<"ARM", [f32], 32, [SDummy]> {
-  let CopyCost = -1;
-}
-
 // Scalar double precision floating point / generic 64-bit vector register
 // class.
 // ARM requires only word alignment for double. It's more performant if it
@@ -284,7 +368,6 @@ def DPR : RegisterClass<"ARM", [f64, v8i8, v4i16, v2i32, v1i64, v2f32], 64,
                          D8,  D9,  D10, D11, D12, D13, D14, D15,
                          D16, D17, D18, D19, D20, D21, D22, D23,
                          D24, D25, D26, D27, D28, D29, D30, D31]> {
-  let SubRegClassList = [SPR_INVALID, SPR_INVALID];
   let MethodProtos = [{
     iterator allocation_order_begin(const MachineFunction &MF) const;
     iterator allocation_order_end(const MachineFunction &MF) const;
@@ -332,79 +415,68 @@ def DPR : RegisterClass<"ARM", [f64, v8i8, v4i16, v2i32, v1i64, v2f32], 64,
 def DPR_VFP2 : RegisterClass<"ARM", [f64, v8i8, v4i16, v2i32, v1i64, v2f32], 64,
                              [D0,  D1,  D2,  D3,  D4,  D5,  D6,  D7,
                               D8,  D9,  D10, D11, D12, D13, D14, D15]> {
-  let SubRegClassList = [SPR, SPR];
+  let SubRegClasses = [(SPR ssub_0, ssub_1)];
 }
 
 // Subset of DPR which can be used as a source of NEON scalars for 16-bit
 // operations
 def DPR_8 : RegisterClass<"ARM", [f64, v8i8, v4i16, v2i32, v1i64, v2f32], 64,
                           [D0,  D1,  D2,  D3,  D4,  D5,  D6,  D7]> {
-  let SubRegClassList = [SPR_8, SPR_8];
+  let SubRegClasses = [(SPR_8 ssub_0, ssub_1)];
 }
 
 // Generic 128-bit vector register class.
 def QPR : RegisterClass<"ARM", [v16i8, v8i16, v4i32, v2i64, v4f32, v2f64], 128,
                         [Q0,  Q1,  Q2,  Q3,  Q4,  Q5,  Q6,  Q7,
                          Q8,  Q9,  Q10, Q11, Q12, Q13, Q14, Q15]> {
-  let SubRegClassList = [SPR_INVALID, SPR_INVALID, SPR_INVALID, SPR_INVALID,
-                         DPR, DPR];
+  let SubRegClasses = [(DPR dsub_0, dsub_1)];
 }
 
 // Subset of QPR that have 32-bit SPR subregs.
 def QPR_VFP2 : RegisterClass<"ARM", [v16i8, v8i16, v4i32, v2i64, v4f32, v2f64],
                              128,
                              [Q0,  Q1,  Q2,  Q3,  Q4,  Q5,  Q6,  Q7]> {
-  let SubRegClassList = [SPR, SPR, SPR, SPR, DPR_VFP2, DPR_VFP2];
+  let SubRegClasses = [(SPR      ssub_0, ssub_1, ssub_2, ssub_3),
+                       (DPR_VFP2 dsub_0, dsub_1)];
 }
 
 // Subset of QPR that have DPR_8 and SPR_8 subregs.
 def QPR_8 : RegisterClass<"ARM", [v16i8, v8i16, v4i32, v2i64, v4f32, v2f64],
                            128,
                            [Q0,  Q1,  Q2,  Q3]> {
-  let SubRegClassList = [SPR_8, SPR_8, SPR_8, SPR_8, DPR_8, DPR_8];
+  let SubRegClasses = [(SPR_8 ssub_0, ssub_1, ssub_2, ssub_3),
+                       (DPR_8 dsub_0, dsub_1)];
+}
+
+// Pseudo 256-bit vector register class to model pairs of Q registers
+// (4 consecutive D registers).
+def QQPR : RegisterClass<"ARM", [v4i64],
+                         256,
+                         [QQ0, QQ1, QQ2, QQ3, QQ4, QQ5, QQ6, QQ7]> {
+  let SubRegClasses = [(DPR dsub_0, dsub_1, dsub_2, dsub_3),
+                       (QPR qsub_0, qsub_1)];
+}
+
+// Subset of QQPR that have 32-bit SPR subregs.
+def QQPR_VFP2 : RegisterClass<"ARM", [v4i64],
+                              256,
+                              [QQ0, QQ1, QQ2, QQ3]> {
+  let SubRegClasses = [(SPR      ssub_0, ssub_1, ssub_2, ssub_3),
+                       (DPR_VFP2 dsub_0, dsub_1, dsub_2, dsub_3),
+                       (QPR_VFP2 qsub_0, qsub_1)];
+
+}
+
+// Pseudo 512-bit vector register class to model 4 consecutive Q registers
+// (8 consecutive D registers).
+def QQQQPR : RegisterClass<"ARM", [v8i64],
+                         256,
+                         [QQQQ0, QQQQ1, QQQQ2, QQQQ3]> {
+  let SubRegClasses = [(DPR dsub_0, dsub_1, dsub_2, dsub_3,
+                            dsub_4, dsub_5, dsub_6, dsub_7),
+                       (QPR qsub_0, qsub_1, qsub_2, qsub_3)];
 }
 
 // Condition code registers.
 def CCR : RegisterClass<"ARM", [i32], 32, [CPSR]>;
 
-//===----------------------------------------------------------------------===//
-// Subregister Set Definitions... now that we have all of the pieces, define the
-// sub registers for each register.
-//
-
-def arm_ssubreg_0 : PatLeaf<(i32 1)>;
-def arm_ssubreg_1 : PatLeaf<(i32 2)>;
-def arm_ssubreg_2 : PatLeaf<(i32 3)>;
-def arm_ssubreg_3 : PatLeaf<(i32 4)>;
-def arm_dsubreg_0 : PatLeaf<(i32 5)>;
-def arm_dsubreg_1 : PatLeaf<(i32 6)>;
-
-// S sub-registers of D registers.
-def : SubRegSet<1, [D0,  D1,  D2,  D3,  D4,  D5,  D6,  D7,
-                    D8,  D9,  D10, D11, D12, D13, D14, D15],
-                   [S0,  S2,  S4,  S6,  S8,  S10, S12, S14,
-                    S16, S18, S20, S22, S24, S26, S28, S30]>;
-def : SubRegSet<2, [D0,  D1,  D2,  D3,  D4,  D5,  D6,  D7,
-                    D8,  D9,  D10, D11, D12, D13, D14, D15],
-                   [S1,  S3,  S5,  S7,  S9,  S11, S13, S15,
-                    S17, S19, S21, S23, S25, S27, S29, S31]>;
-
-// S sub-registers of Q registers.
-def : SubRegSet<1, [Q0,  Q1,  Q2,  Q3,  Q4,  Q5,  Q6,  Q7],
-                   [S0,  S4,  S8,  S12, S16, S20, S24, S28]>;
-def : SubRegSet<2, [Q0,  Q1,  Q2,  Q3,  Q4,  Q5,  Q6,  Q7],
-                   [S1,  S5,  S9,  S13, S17, S21, S25, S29]>;
-def : SubRegSet<3, [Q0,  Q1,  Q2,  Q3,  Q4,  Q5,  Q6,  Q7],
-                   [S2,  S6,  S10, S14, S18, S22, S26, S30]>;
-def : SubRegSet<4, [Q0,  Q1,  Q2,  Q3,  Q4,  Q5,  Q6,  Q7],
-                   [S3,  S7,  S11, S15, S19, S23, S27, S31]>;
-
-// D sub-registers of Q registers.
-def : SubRegSet<5, [Q0,  Q1,  Q2,  Q3,  Q4,  Q5,  Q6,  Q7,
-                    Q8,  Q9,  Q10, Q11, Q12, Q13, Q14, Q15],
-                   [D0,  D2,  D4,  D6,  D8,  D10, D12, D14,
-                    D16, D18, D20, D22, D24, D26, D28, D30]>;
-def : SubRegSet<6, [Q0,  Q1,  Q2,  Q3,  Q4,  Q5,  Q6,  Q7,
-                    Q8,  Q9,  Q10, Q11, Q12, Q13, Q14, Q15],
-                   [D1,  D3,  D5,  D7,  D9,  D11, D13, D15,
-                    D17, D19, D21, D23, D25, D27, D29, D31]>;

@@ -13,6 +13,8 @@
 
 #define DEBUG_TYPE "stackcoloring"
 #include "VirtRegMap.h"
+#include "llvm/Function.h"
+#include "llvm/Module.h"
 #include "llvm/CodeGen/Passes.h"
 #include "llvm/CodeGen/LiveIntervalAnalysis.h"
 #include "llvm/CodeGen/LiveStackAnalysis.h"
@@ -116,6 +118,7 @@ namespace {
 
   private:
     void InitializeSlots();
+    bool CheckForSetJmpCall(const MachineFunction &MF) const;
     void ScanForSpillSlotRefs(MachineFunction &MF);
     bool OverlapWithAssignments(LiveInterval *li, int Color) const;
     int ColorSlot(LiveInterval *li);
@@ -607,7 +610,8 @@ StackSlotColoring::UnfoldAndRewriteInstruction(MachineInstr *MI, int OldFI,
       DEBUG(MI->dump());
       ++NumLoadElim;
     } else {
-      TII->copyRegToReg(*MBB, MI, DstReg, Reg, RC, RC);
+      TII->copyRegToReg(*MBB, MI, DstReg, Reg, RC, RC,
+                        MI->getDebugLoc());
       ++NumRegRepl;
     }
 
@@ -623,7 +627,8 @@ StackSlotColoring::UnfoldAndRewriteInstruction(MachineInstr *MI, int OldFI,
       DEBUG(MI->dump());
       ++NumStoreElim;
     } else {
-      TII->copyRegToReg(*MBB, MI, Reg, SrcReg, RC, RC);
+      TII->copyRegToReg(*MBB, MI, Reg, SrcReg, RC, RC,
+                        MI->getDebugLoc());
       ++NumRegRepl;
     }
 
@@ -697,7 +702,11 @@ bool StackSlotColoring::RemoveDeadStores(MachineBasicBlock* MBB) {
 
 
 bool StackSlotColoring::runOnMachineFunction(MachineFunction &MF) {
-  DEBUG(dbgs() << "********** Stack Slot Coloring **********\n");
+  DEBUG({
+      dbgs() << "********** Stack Slot Coloring **********\n"
+             << "********** Function: " 
+             << MF.getFunction()->getName() << '\n';
+    });
 
   MFI = MF.getFrameInfo();
   MRI = &MF.getRegInfo(); 
@@ -715,6 +724,13 @@ bool StackSlotColoring::runOnMachineFunction(MachineFunction &MF) {
       // Nothing to do!
       return false;
   }
+
+  // If there are calls to setjmp or sigsetjmp, don't perform stack slot
+  // coloring. The stack could be modified before the longjmp is executed,
+  // resulting in the wrong value being used afterwards. (See
+  // <rdar://problem/8007500>.)
+  if (MF.callsSetJmp())
+    return false;
 
   // Gather spill slot references
   ScanForSpillSlotRefs(MF);

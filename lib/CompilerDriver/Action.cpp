@@ -33,8 +33,27 @@ extern const char* ProgramName;
 }
 
 namespace {
-  int ExecuteProgram(const std::string& name,
-                     const StrVector& args) {
+
+  void PrintString (const std::string& str) {
+    errs() << str << ' ';
+  }
+
+  void PrintCommand (const std::string& Cmd, const StrVector& Args) {
+    errs() << Cmd << ' ';
+    std::for_each(Args.begin(), Args.end(), &PrintString);
+    errs() << '\n';
+  }
+
+  bool IsSegmentationFault (int returnCode) {
+#ifdef LLVM_ON_WIN32
+    return (returnCode >= 0xc0000000UL)
+#else
+    return (returnCode < 0);
+#endif
+  }
+
+  int ExecuteProgram (const std::string& name,
+                      const StrVector& args) {
     sys::Path prog = sys::Program::FindProgramByName(name);
 
     if (prog.isEmpty()) {
@@ -67,24 +86,25 @@ namespace {
     argv.push_back(0);  // null terminate list.
 
     // Invoke the program.
-    return sys::Program::ExecuteAndWait(prog, &argv[0], 0, &redirects[0]);
-  }
+    int ret = sys::Program::ExecuteAndWait(prog, &argv[0], 0, &redirects[0]);
 
-  void print_string (const std::string& str) {
-    errs() << str << ' ';
+    if (IsSegmentationFault(ret)) {
+      errs() << "Segmentation fault: ";
+      PrintCommand(name, args);
+    }
+
+    return ret;
   }
 }
 
 namespace llvmc {
-  void AppendToGlobalTimeLog(const std::string& cmd, double time);
+  void AppendToGlobalTimeLog (const std::string& cmd, double time);
 }
 
-int llvmc::Action::Execute() const {
-  if (DryRun || VerboseMode) {
-    errs() << Command_ << " ";
-    std::for_each(Args_.begin(), Args_.end(), print_string);
-    errs() << '\n';
-  }
+int llvmc::Action::Execute () const {
+  if (DryRun || VerboseMode)
+    PrintCommand(Command_, Args_);
+
   if (!DryRun) {
     if (Time) {
       sys::TimeValue now = sys::TimeValue::now();

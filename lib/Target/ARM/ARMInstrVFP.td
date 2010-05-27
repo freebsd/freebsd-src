@@ -76,7 +76,7 @@ def VSTRS  : ASI5<0b1101, 0b00, (outs), (ins SPR:$src, addrmode5:$addr),
 //  Load / store multiple Instructions.
 //
 
-let mayLoad = 1, hasExtraDefRegAllocReq = 1 in {
+let mayLoad = 1, neverHasSideEffects = 1, hasExtraDefRegAllocReq = 1 in {
 def VLDMD : AXDI5<(outs), (ins addrmode5:$addr, pred:$p, reglist:$dsts,
                            variable_ops), IndexModeNone, IIC_fpLoadm,
                   "vldm${addr:submode}${p}\t${addr:base}, $dsts", "", []> {
@@ -104,9 +104,9 @@ def VLDMS_UPD : AXSI5<(outs GPR:$wb), (ins addrmode5:$addr, pred:$p,
                       "$addr.base = $wb", []> {
   let Inst{20} = 1;
 }
-} // mayLoad, hasExtraDefRegAllocReq
+} // mayLoad, neverHasSideEffects, hasExtraDefRegAllocReq
 
-let mayStore = 1, hasExtraSrcRegAllocReq = 1 in {
+let mayStore = 1, neverHasSideEffects = 1, hasExtraSrcRegAllocReq = 1 in {
 def VSTMD : AXDI5<(outs), (ins addrmode5:$addr, pred:$p, reglist:$srcs,
                            variable_ops), IndexModeNone, IIC_fpStorem,
                   "vstm${addr:submode}${p}\t${addr:base}, $srcs", "", []> {
@@ -134,7 +134,7 @@ def VSTMS_UPD : AXSI5<(outs GPR:$wb), (ins addrmode5:$addr, pred:$p,
                       "$addr.base = $wb", []> {
   let Inst{20} = 0;
 }
-} // mayStore, hasExtraSrcRegAllocReq
+} // mayStore, neverHasSideEffects, hasExtraSrcRegAllocReq
 
 // FLDMX, FSTMX - mixing S/D registers for pre-armv6 cores
 
@@ -313,6 +313,7 @@ def VMOVSR : AVConv4I<0b11100000, 0b1010, (outs SPR:$dst), (ins GPR:$src),
                  IIC_fpMOVIS, "vmov", "\t$dst, $src",
                  [(set SPR:$dst, (bitconvert GPR:$src))]>;
 
+let neverHasSideEffects = 1 in {
 def VMOVRRD  : AVConv3I<0b11000101, 0b1011,
                       (outs GPR:$wb, GPR:$dst2), (ins DPR:$src),
                  IIC_fpMOVDI, "vmov", "\t$wb, $dst2, $src",
@@ -326,6 +327,7 @@ def VMOVRRS  : AVConv3I<0b11000101, 0b1010,
                  [/* For disassembly only; pattern left blank */]> {
   let Inst{7-6} = 0b00;
 }
+} // neverHasSideEffects
 
 // FMDHR: GPR -> SPR
 // FMDLR: GPR -> SPR
@@ -337,6 +339,7 @@ def VMOVDRR : AVConv5I<0b11000100, 0b1011,
   let Inst{7-6} = 0b00;
 }
 
+let neverHasSideEffects = 1 in
 def VMOVSRR : AVConv5I<0b11000100, 0b1010,
                      (outs SPR:$dst1, SPR:$dst2), (ins GPR:$src1, GPR:$src2),
                 IIC_fpMOVID, "vmov", "\t$dst1, $dst2, $src1, $src2",
@@ -606,6 +609,7 @@ def VNMLAS : ASbI<0b11100, 0b01, 1, 0,
 // FP Conditional moves.
 //
 
+let neverHasSideEffects = 1 in {
 def VMOVDcc  : ADuI<0b11101, 0b11, 0b0000, 0b01, 0,
                     (outs DPR:$dst), (ins DPR:$false, DPR:$true),
                     IIC_fpUNA64, "vmov", ".f64\t$dst, $true",
@@ -629,7 +633,7 @@ def VNEGScc  : ASuI<0b11101, 0b11, 0b0001, 0b01, 0,
                     IIC_fpUNA32, "vneg", ".f32\t$dst, $true",
                 [/*(set SPR:$dst, (ARMcneg SPR:$false, SPR:$true, imm:$cc))*/]>,
                     RegConstraint<"$false = $dst">;
-
+} // neverHasSideEffects
 
 //===----------------------------------------------------------------------===//
 // Misc.
@@ -651,6 +655,7 @@ def FMSTAT : VFPAI<(outs), (ins), VFPMiscFrm, IIC_fpSTAT, "vmrs",
 
 // FPSCR <-> GPR (for disassembly only)
 
+let neverHasSideEffects = 1 in {
 let Uses = [FPSCR] in {
 def VMRS : VFPAI<(outs GPR:$dst), (ins), VFPMiscFrm, IIC_fpSTAT, "vmrs",
                  "\t$dst, fpscr",
@@ -674,6 +679,7 @@ def VMSR : VFPAI<(outs), (ins GPR:$src), VFPMiscFrm, IIC_fpSTAT, "vmsr",
   let Inst{4}     = 1;
 }
 }
+} // neverHasSideEffects
 
 // Materialize FP immediates. VFP3 only.
 let isReMaterializable = 1 in {

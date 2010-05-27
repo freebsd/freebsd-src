@@ -34,7 +34,14 @@ static const struct {
   { "interposing",              "S_INTERPOSING" },                // 0x0D
   { "16byte_literals",          "S_16BYTE_LITERALS" },            // 0x0E
   { 0, /*FIXME??*/              "S_DTRACE_DOF" },                 // 0x0F
-  { 0, /*FIXME??*/              "S_LAZY_DYLIB_SYMBOL_POINTERS" }  // 0x10
+  { 0, /*FIXME??*/              "S_LAZY_DYLIB_SYMBOL_POINTERS" }, // 0x10
+  { "thread_local_regular",     "S_THREAD_LOCAL_REGULAR" },       // 0x11
+  { "thread_local_zerofill",    "S_THREAD_LOCAL_ZEROFILL" },      // 0x12
+  { "thread_local_variables",   "S_THREAD_LOCAL_VARIABLES" },     // 0x13
+  { "thread_local_variable_pointers",
+    "S_THREAD_LOCAL_VARIABLE_POINTERS" },                         // 0x14
+  { "thread_local_init_function_pointers",
+    "S_THREAD_LOCAL_INIT_FUNCTION_POINTERS"},                     // 0x15
 };
 
 
@@ -66,7 +73,7 @@ ENTRY(0 /*FIXME*/,           S_ATTR_LOC_RELOC)
 
 MCSectionMachO::MCSectionMachO(StringRef Segment, StringRef Section,
                                unsigned TAA, unsigned reserved2, SectionKind K)
-  : MCSection(K), TypeAndAttributes(TAA), Reserved2(reserved2) {
+  : MCSection(SV_MachO, K), TypeAndAttributes(TAA), Reserved2(reserved2) {
   assert(Segment.size() <= 16 && Section.size() <= 16 &&
          "Segment or section string too long");
   for (unsigned i = 0; i != 16; ++i) {

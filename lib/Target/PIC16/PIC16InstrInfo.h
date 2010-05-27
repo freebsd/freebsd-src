@@ -49,17 +49,20 @@ public:
   virtual void storeRegToStackSlot(MachineBasicBlock &MBB,
                                    MachineBasicBlock::iterator MBBI,
                                    unsigned SrcReg, bool isKill, int FrameIndex,
-                                   const TargetRegisterClass *RC) const;
+                                   const TargetRegisterClass *RC,
+                                   const TargetRegisterInfo *TRI) const;
                                                                                
   virtual void loadRegFromStackSlot(MachineBasicBlock &MBB,
                                     MachineBasicBlock::iterator MBBI,
                                     unsigned DestReg, int FrameIndex,
-                                    const TargetRegisterClass *RC) const;
+                                    const TargetRegisterClass *RC,
+                                    const TargetRegisterInfo *TRI) const;
   virtual bool copyRegToReg(MachineBasicBlock &MBB,
                             MachineBasicBlock::iterator MBBI,
                             unsigned DestReg, unsigned SrcReg,
                             const TargetRegisterClass *DestRC,
-                            const TargetRegisterClass *SrcRC) const;
+                            const TargetRegisterClass *SrcRC,
+                            DebugLoc DL) const;
   virtual bool isMoveInstr(const MachineInstr &MI,
                            unsigned &SrcReg, unsigned &DstReg,
                            unsigned &SrcSubIdx, unsigned &DstSubIdx) const;

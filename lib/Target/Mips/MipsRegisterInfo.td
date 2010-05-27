@@ -34,9 +34,14 @@ class FPR<bits<5> num, string n> : MipsReg<n> {
 }
 
 // Mips 64-bit (aliased) FPU Registers
-class AFPR<bits<5> num, string n, list<Register> subregs> 
+let Namespace = "Mips" in {
+def sub_fpeven : SubRegIndex;
+def sub_fpodd  : SubRegIndex;
+}
+class AFPR<bits<5> num, string n, list<Register> subregs>
   : MipsRegWithSubRegs<n, subregs> {
   let Num = num;
+  let SubRegIndices = [sub_fpeven, sub_fpodd];
 }
 
 //===----------------------------------------------------------------------===//
@@ -141,23 +146,6 @@ let Namespace = "Mips" in {
 }
 
 //===----------------------------------------------------------------------===//
-// Subregister Set Definitions
-//===----------------------------------------------------------------------===//
-
-def mips_subreg_fpeven : PatLeaf<(i32 1)>;
-def mips_subreg_fpodd  : PatLeaf<(i32 2)>;
-
-def : SubRegSet<1, [D0, D1, D2, D3, D4, D5, D6, D7, 
-                    D8, D9, D10, D11, D12, D13, D14, D15],
-                   [F0, F2, F4, F6, F8, F10, F12, F14,
-                    F16, F18, F20, F22, F24, F26, F28, F30]>;
-
-def : SubRegSet<2, [D0, D1, D2, D3, D4, D5, D6, D7, 
-                    D8, D9, D10, D11, D12, D13, D14, D15],
-                   [F1, F3, F5, F7, F9, F11, F13, F15,
-                    F17, F19, F21, F23, F25, F27, F29, F31]>;
-
-//===----------------------------------------------------------------------===//
 // Register Classes
 //===----------------------------------------------------------------------===//
 
@@ -255,7 +243,7 @@ def AFGR64 : RegisterClass<"Mips", [f64], 64,
   // Reserved
   D15]>
 {
-  let SubRegClassList = [FGR32, FGR32];
+  let SubRegClasses = [(FGR32 sub_fpeven, sub_fpodd)];
   let MethodProtos = [{
     iterator allocation_order_end(const MachineFunction &MF) const;
   }];

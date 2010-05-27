@@ -26,7 +26,7 @@ class GlobalValue;
 class ARMSubtarget : public TargetSubtarget {
 protected:
   enum ARMArchEnum {
-    V4, V4T, V5T, V5TE, V6, V6T2, V7A
+    V4, V4T, V5T, V5TE, V6, V6T2, V7A, V7M
   };
 
   enum ARMFPEnum {
@@ -39,7 +39,7 @@ protected:
   };
 
   /// ARMArchVersion - ARM architecture version: V4, V4T (base), V5T, V5TE,
-  /// V6, V6T2, V7A.
+  /// V6, V6T2, V7A, V7M.
   ARMArchEnum ARMArchVersion;
 
   /// ARMFPUType - Floating Point Unit type.
@@ -73,6 +73,13 @@ protected:
   /// HasFP16 - True if subtarget supports half-precision FP (We support VFP+HF
   /// only so far)
   bool HasFP16;
+
+  /// HasHardwareDivide - True if subtarget supports [su]div
+  bool HasHardwareDivide;
+
+  /// HasT2ExtractPack - True if subtarget supports thumb2 extract/pack
+  /// instructions.
+  bool HasT2ExtractPack;
 
   /// stackAlignment - The minimum alignment known to hold of the stack frame on
   /// entry to the function and which must be maintained by every function.
@@ -123,6 +130,8 @@ protected:
   bool hasNEON() const { return ARMFPUType >= NEON;  }
   bool useNEONForSinglePrecisionFP() const {
     return hasNEON() && UseNEONForSinglePrecisionFP; }
+  bool hasDivide() const { return HasHardwareDivide; }
+  bool hasT2ExtractPack() const { return HasT2ExtractPack; }
   bool useVMLx() const {return hasVFP2() && !SlowVMLx; }
 
   bool hasFP16() const { return HasFP16; }

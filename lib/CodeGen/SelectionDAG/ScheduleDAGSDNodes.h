@@ -66,18 +66,7 @@ namespace llvm {
 
     /// NewSUnit - Creates a new SUnit and return a ptr to it.
     ///
-    SUnit *NewSUnit(SDNode *N) {
-#ifndef NDEBUG
-      const SUnit *Addr = 0;
-      if (!SUnits.empty())
-        Addr = &SUnits[0];
-#endif
-      SUnits.push_back(SUnit(N, (unsigned)SUnits.size()));
-      assert((Addr == 0 || Addr == &SUnits[0]) &&
-             "SUnits std::vector reallocated on the fly!");
-      SUnits.back().OrigNode = &SUnits.back();
-      return &SUnits.back();
-    }
+    SUnit *NewSUnit(SDNode *N);
 
     /// Clone - Creates a clone of the specified SUnit. It does not copy the
     /// predecessors / successors info nor the temporary scheduling states.
@@ -93,6 +82,15 @@ namespace llvm {
     /// ComputeLatency - Compute node latency.
     ///
     virtual void ComputeLatency(SUnit *SU);
+
+    /// ComputeOperandLatency - Override dependence edge latency using
+    /// operand use/def information
+    ///
+    virtual void ComputeOperandLatency(SUnit *Def, SUnit *Use,
+                                       SDep& dep) const { }
+
+    virtual void ComputeOperandLatency(SDNode *Def, SDNode *Use,
+                                       unsigned OpIdx, SDep& dep) const;
 
     virtual MachineBasicBlock *EmitSchedule();
 

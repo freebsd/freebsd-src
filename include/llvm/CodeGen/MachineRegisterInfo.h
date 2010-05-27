@@ -93,6 +93,20 @@ public:
   /// specified register (it may be live-in).
   bool reg_empty(unsigned RegNo) const { return reg_begin(RegNo) == reg_end(); }
 
+  /// reg_nodbg_iterator/reg_nodbg_begin/reg_nodbg_end - Walk all defs and uses
+  /// of the specified register, skipping those marked as Debug.
+  typedef defusechain_iterator<true,true,true> reg_nodbg_iterator;
+  reg_nodbg_iterator reg_nodbg_begin(unsigned RegNo) const {
+    return reg_nodbg_iterator(getRegUseDefListHead(RegNo));
+  }
+  static reg_nodbg_iterator reg_nodbg_end() { return reg_nodbg_iterator(0); }
+
+  /// reg_nodbg_empty - Return true if the only instructions using or defining
+  /// Reg are Debug instructions.
+  bool reg_nodbg_empty(unsigned RegNo) const {
+    return reg_nodbg_begin(RegNo) == reg_nodbg_end();
+  }
+
   /// def_iterator/def_begin/def_end - Walk all defs of the specified register.
   typedef defusechain_iterator<false,true,false> def_iterator;
   def_iterator def_begin(unsigned RegNo) const {
@@ -162,6 +176,12 @@ public:
   /// register or null if none is found.  This assumes that the code is in SSA
   /// form, so there should only be one definition.
   MachineInstr *getVRegDef(unsigned Reg) const;
+
+  /// clearKillFlags - Iterate over all the uses of the given register and
+  /// clear the kill flag from the MachineOperand. This function is used by
+  /// optimization passes which extend register lifetimes and need only
+  /// preserve conservative kill flag information.
+  void clearKillFlags(unsigned Reg) const;
   
 #ifndef NDEBUG
   void dumpUses(unsigned RegNo) const;
@@ -196,7 +216,8 @@ public:
 
   /// getRegClassVirtRegs - Return the list of virtual registers of the given
   /// target register class.
-  std::vector<unsigned> &getRegClassVirtRegs(const TargetRegisterClass *RC) {
+  const std::vector<unsigned> &
+  getRegClassVirtRegs(const TargetRegisterClass *RC) const {
     return RegClass2VRegMap[RC->getID()];
   }
 
@@ -229,11 +250,18 @@ public:
   /// setPhysRegUsed - Mark the specified register used in this function.
   /// This should only be called during and after register allocation.
   void setPhysRegUsed(unsigned Reg) { UsedPhysRegs[Reg] = true; }
-  
+
+  /// addPhysRegsUsed - Mark the specified registers used in this function.
+  /// This should only be called during and after register allocation.
+  void addPhysRegsUsed(const BitVector &Regs) { UsedPhysRegs |= Regs; }
+
   /// setPhysRegUnused - Mark the specified register unused in this function.
   /// This should only be called during and after register allocation.
   void setPhysRegUnused(unsigned Reg) { UsedPhysRegs[Reg] = false; }
-  
+
+  /// closePhysRegsUsed - Expand UsedPhysRegs to its transitive closure over
+  /// subregisters. That means that if R is used, so are all subregisters.
+  void closePhysRegsUsed(const TargetRegisterInfo&);
 
   //===--------------------------------------------------------------------===//
   // LiveIn/LiveOut Management
@@ -264,6 +292,10 @@ public:
   /// getLiveInPhysReg - If VReg is a live-in virtual register, return the
   /// corresponding live-in physical register.
   unsigned getLiveInPhysReg(unsigned VReg) const;
+
+  /// getLiveInVirtReg - If PReg is a live-in physical register, return the
+  /// corresponding live-in physical register.
+  unsigned getLiveInVirtReg(unsigned PReg) const;
 
   /// EmitLiveInCopies - Emit copies to initialize livein virtual registers
   /// into the given entry block.

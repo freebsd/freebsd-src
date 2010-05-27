@@ -125,6 +125,10 @@ class MachineFrameInfo {
   /// to builtin \@llvm.frameaddress.
   bool FrameAddressTaken;
 
+  /// ReturnAddressTaken - This boolean keeps track of whether there is a call
+  /// to builtin \@llvm.returnaddress.
+  bool ReturnAddressTaken;
+
   /// StackSize - The prolog/epilog code inserter calculates the final stack
   /// offsets for all of the fixed size objects, updating the Objects list
   /// above.  It then updates StackSize to contain the number of bytes that need
@@ -152,8 +156,12 @@ class MachineFrameInfo {
   ///
   unsigned MaxAlignment;
 
-  /// HasCalls - Set to true if this function has any function calls.  This is
-  /// only valid during and after prolog/epilog code insertion.
+  /// AdjustsStack - Set to true if this function adjusts the stack -- e.g.,
+  /// when calling another function. This is only valid during and after
+  /// prolog/epilog code insertion.
+  bool AdjustsStack;
+
+  /// HasCalls - Set to true if this function has any function calls.
   bool HasCalls;
 
   /// StackProtectorIdx - The frame index for the stack protector.
@@ -189,6 +197,8 @@ public:
     StackSize = NumFixedObjects = OffsetAdjustment = MaxAlignment = 0;
     HasVarSizedObjects = false;
     FrameAddressTaken = false;
+    ReturnAddressTaken = false;
+    AdjustsStack = false;
     HasCalls = false;
     StackProtectorIdx = -1;
     MaxCallFrameSize = 0;
@@ -217,6 +227,12 @@ public:
   /// \@llvm.frameaddress in this function.
   bool isFrameAddressTaken() const { return FrameAddressTaken; }
   void setFrameAddressIsTaken(bool T) { FrameAddressTaken = T; }
+
+  /// isReturnAddressTaken - This method may be called any time after instruction
+  /// selection is complete to determine if there is a call to
+  /// \@llvm.returnaddress in this function.
+  bool isReturnAddressTaken() const { return ReturnAddressTaken; }
+  void setReturnAddressIsTaken(bool s) { ReturnAddressTaken = s; }
 
   /// getObjectIndexBegin - Return the minimum frame object index.
   ///
@@ -313,9 +329,13 @@ public:
   ///
   void setMaxAlignment(unsigned Align) { MaxAlignment = Align; }
 
-  /// hasCalls - Return true if the current function has no function calls.
-  /// This is only valid during or after prolog/epilog code emission.
-  ///
+  /// AdjustsStack - Return true if this function adjusts the stack -- e.g.,
+  /// when calling another function. This is only valid during and after
+  /// prolog/epilog code insertion.
+  bool adjustsStack() const { return AdjustsStack; }
+  void setAdjustsStack(bool V) { AdjustsStack = V; }
+
+  /// hasCalls - Return true if the current function has any function calls.
   bool hasCalls() const { return HasCalls; }
   void setHasCalls(bool V) { HasCalls = V; }
 
