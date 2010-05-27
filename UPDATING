@@ -8,6 +8,9 @@ Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before running
 portupgrade.
 
+20100526:	p10	FreeBSD-SA-10:05.opie
+	Fix a one-NUL-byte buffer overflow in libopie. [10:05]
+
 20100106:	p9	FreeBSD-SA-10:01.bind, FreeBSD-SA-10:02.ntpd
 	Fix BIND named(8) cache poisoning with DNSSEC validation.
 	[SA-10:01]
