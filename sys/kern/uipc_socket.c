@@ -665,8 +665,11 @@ soclose(struct socket *so)
 	if (so->so_state & SS_ISCONNECTED) {
 		if ((so->so_state & SS_ISDISCONNECTING) == 0) {
 			error = sodisconnect(so);
-			if (error)
+			if (error) {
+				if (error == ENOTCONN)
+					error = 0;
 				goto drop;
+			}
 		}
 		if (so->so_options & SO_LINGER) {
 			if ((so->so_state & SS_ISDISCONNECTING) &&
