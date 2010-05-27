@@ -15,6 +15,15 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 8.x IS SLOW ON IA64 OR SUN4V:
 	debugging tools present in HEAD were left in place because
 	sun4v support still needs work to become production ready.
 
+20100526:	p3	FreeBSD-SA-10:04.jail, FreeBSD-SA-10:05.opie,
+			FreeBSD-SA-10:06.nfsclient
+	Change the current working directory to be inside the jail created by
+	the jail(8) command. [10:04]
+
+	Fix a one-NUL-byte buffer overflow in libopie. [10:05]
+
+	Correctly sanity-check a buffer length in nfs mount. [10:06]
+
 20100106:	p2	FreeBSD-SA-10:01.bind, FreeBSD-SA-10:02.ntpd,
 			FreeBSD-SA-10:03.zfs, FreeBSD-EN-10:01.freebsd
 	Fix BIND named(8) cache poisoning with DNSSEC validation.
