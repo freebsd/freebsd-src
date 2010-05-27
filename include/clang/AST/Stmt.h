@@ -98,12 +98,14 @@ public:
   enum StmtClass {
     NoStmtClass = 0,
 #define STMT(CLASS, PARENT) CLASS##Class,
-#define FIRST_STMT(CLASS) firstStmtConstant = CLASS##Class,
-#define LAST_STMT(CLASS) lastStmtConstant = CLASS##Class,
-#define FIRST_EXPR(CLASS) firstExprConstant = CLASS##Class,
-#define LAST_EXPR(CLASS) lastExprConstant = CLASS##Class
-#define ABSTRACT_EXPR(CLASS, PARENT)
-#include "clang/AST/StmtNodes.def"
+#define STMT_RANGE(BASE, FIRST, LAST) \
+        first##BASE##Constant = FIRST##Class, \
+        last##BASE##Constant = LAST##Class,
+#define LAST_STMT_RANGE(BASE, FIRST, LAST) \
+        first##BASE##Constant = FIRST##Class, \
+        last##BASE##Constant = LAST##Class
+#define ABSTRACT_STMT(STMT)
+#include "clang/AST/StmtNodes.inc"
 };
 private:
   /// \brief The statement class.
@@ -1083,9 +1085,15 @@ public:
 class ReturnStmt : public Stmt {
   Stmt *RetExpr;
   SourceLocation RetLoc;
+  const VarDecl *NRVOCandidate;
+  
 public:
-  ReturnStmt(SourceLocation RL, Expr *E = 0) : Stmt(ReturnStmtClass),
-    RetExpr((Stmt*) E), RetLoc(RL) {}
+  ReturnStmt(SourceLocation RL)
+    : Stmt(ReturnStmtClass), RetExpr(0), RetLoc(RL), NRVOCandidate(0) { }
+
+  ReturnStmt(SourceLocation RL, Expr *E, const VarDecl *NRVOCandidate)
+    : Stmt(ReturnStmtClass), RetExpr((Stmt*) E), RetLoc(RL),
+      NRVOCandidate(NRVOCandidate) {}
 
   /// \brief Build an empty return expression.
   explicit ReturnStmt(EmptyShell Empty) : Stmt(ReturnStmtClass, Empty) { }
@@ -1097,6 +1105,14 @@ public:
   SourceLocation getReturnLoc() const { return RetLoc; }
   void setReturnLoc(SourceLocation L) { RetLoc = L; }
 
+  /// \brief Retrieve the variable that might be used for the named return
+  /// value optimization.
+  ///
+  /// The optimization itself can only be performed if the variable is
+  /// also marked as an NRVO object.
+  const VarDecl *getNRVOCandidate() const { return NRVOCandidate; }
+  void setNRVOCandidate(const VarDecl *Var) { NRVOCandidate = Var; }
+  
   virtual SourceRange getSourceRange() const;
 
   static bool classof(const Stmt *T) {

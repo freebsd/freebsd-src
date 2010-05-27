@@ -67,6 +67,7 @@ namespace CodeGen {
   class CGDebugInfo;
   class CGFunctionInfo;
   class CGRecordLayout;
+  class CGBlockInfo;
 
 /// CodeGenFunction - This class organizes the per-function state that is used
 /// while generating LLVM code.
@@ -107,6 +108,11 @@ public:
 
   bool Exceptions;
   bool CatchUndefined;
+  
+  /// \brief A mapping from NRVO variables to the flags used to indicate
+  /// when the NRVO has been applied to this variable.
+  llvm::DenseMap<const VarDecl *, llvm::Value *> NRVOFlags;
+  
 public:
   /// ObjCEHValueStack - Stack of Objective-C exception values, used for
   /// rethrows.
@@ -496,18 +502,18 @@ public:
                                            std::vector<HelperInfo> *);
 
   llvm::Function *GenerateBlockFunction(const BlockExpr *BExpr,
-                                        const BlockInfo& Info,
+                                        CGBlockInfo &Info,
                                         const Decl *OuterFuncDecl,
-                                  llvm::DenseMap<const Decl*, llvm::Value*> ldm,
-                                        CharUnits &Size, CharUnits &Align,
-                      llvm::SmallVector<const Expr *, 8> &subBlockDeclRefDecls,
-                                        bool &subBlockHasCopyDispose);
+                                  llvm::DenseMap<const Decl*, llvm::Value*> ldm);
 
-  void BlockForwardSelf();
   llvm::Value *LoadBlockStruct();
 
-  CharUnits AllocateBlockDecl(const BlockDeclRefExpr *E);
-  llvm::Value *GetAddrOfBlockDecl(const BlockDeclRefExpr *E);
+  void AllocateBlockCXXThisPointer(const CXXThisExpr *E);
+  void AllocateBlockDecl(const BlockDeclRefExpr *E);
+  llvm::Value *GetAddrOfBlockDecl(const BlockDeclRefExpr *E) {
+    return GetAddrOfBlockDecl(E->getDecl(), E->isByRef());
+  }
+  llvm::Value *GetAddrOfBlockDecl(const ValueDecl *D, bool ByRef);
   const llvm::Type *BuildByRefType(const ValueDecl *D);
 
   void GenerateCode(GlobalDecl GD, llvm::Function *Fn);
@@ -531,7 +537,8 @@ public:
   /// GenerateThunk - Generate a thunk for the given method.
   void GenerateThunk(llvm::Function *Fn, GlobalDecl GD, const ThunkInfo &Thunk);
   
-  void EmitCtorPrologue(const CXXConstructorDecl *CD, CXXCtorType Type);
+  void EmitCtorPrologue(const CXXConstructorDecl *CD, CXXCtorType Type,
+                        FunctionArgList &Args);
 
   /// InitializeVTablePointer - Initialize the vtable pointer of the given
   /// subobject.
@@ -553,8 +560,6 @@ public:
 
   void InitializeVTablePointers(const CXXRecordDecl *ClassDecl);
 
-
-  void SynthesizeCXXCopyConstructor(const FunctionArgList &Args);
 
   /// EmitDtorEpilogue - Emit all code that comes at the end of class's
   /// destructor. This is to call destructors on members and base classes in
@@ -725,8 +730,6 @@ public:
   void EmitAggregateCopy(llvm::Value *DestPtr, llvm::Value *SrcPtr,
                          QualType EltTy, bool isVolatile=false);
 
-  void EmitAggregateClear(llvm::Value *DestPtr, QualType Ty);
-
   /// StartBlock - Start new block named N. If insert block is a dummy block
   /// then reuse it.
   void StartBlock(const char *N);
@@ -744,8 +747,10 @@ public:
   llvm::BlockAddress *GetAddrOfLabel(const LabelStmt *L);
   llvm::BasicBlock *GetIndirectGotoBlock();
 
-  /// EmitMemSetToZero - Generate code to memset a value of the given type to 0.
-  void EmitMemSetToZero(llvm::Value *DestPtr, QualType Ty);
+  /// EmitNullInitialization - Generate code to set a value of the given type to
+  /// null, If the type contains data member pointers, they will be initialized
+  /// to -1 in accordance with the Itanium C++ ABI.
+  void EmitNullInitialization(llvm::Value *DestPtr, QualType Ty);
 
   // EmitVAArg - Generate code to get an argument from the passed in pointer
   // and update it accordingly. The return value is a pointer to the argument.
@@ -802,14 +807,6 @@ public:
                                          const CXXRecordDecl *ClassDecl,
                                          const CXXRecordDecl *BaseClassDecl);
     
-  void EmitClassAggrMemberwiseCopy(llvm::Value *DestValue,
-                                   llvm::Value *SrcValue,
-                                   const ConstantArrayType *Array,
-                                   const CXXRecordDecl *ClassDecl);
-
-  void EmitClassMemberwiseCopy(llvm::Value *DestValue, llvm::Value *SrcValue,
-                               const CXXRecordDecl *ClassDecl);
-
   void EmitDelegateCXXConstructorCall(const CXXConstructorDecl *Ctor,
                                       CXXCtorType CtorType,
                                       const FunctionArgList &Args);
@@ -940,6 +937,7 @@ public:
   void EmitObjCAtThrowStmt(const ObjCAtThrowStmt &S);
   void EmitObjCAtSynchronizedStmt(const ObjCAtSynchronizedStmt &S);
 
+  llvm::Constant *getUnwindResumeOrRethrowFn();
   struct CXXTryStmtInfo {
     llvm::BasicBlock *SavedLandingPad;
     llvm::BasicBlock *HandlerBlock;
@@ -1056,6 +1054,9 @@ public:
   
   llvm::Value *EmitIvarOffset(const ObjCInterfaceDecl *Interface,
                               const ObjCIvarDecl *Ivar);
+  LValue EmitLValueForAnonRecordField(llvm::Value* Base,
+                                      const FieldDecl* Field,
+                                      unsigned CVRQualifiers);
   LValue EmitLValueForField(llvm::Value* Base, const FieldDecl* Field,
                             unsigned CVRQualifiers);
   
@@ -1151,9 +1152,12 @@ public:
   llvm::Value *EmitObjCProtocolExpr(const ObjCProtocolExpr *E);
   llvm::Value *EmitObjCStringLiteral(const ObjCStringLiteral *E);
   llvm::Value *EmitObjCSelectorExpr(const ObjCSelectorExpr *E);
-  RValue EmitObjCMessageExpr(const ObjCMessageExpr *E);
-  RValue EmitObjCPropertyGet(const Expr *E);
-  RValue EmitObjCSuperPropertyGet(const Expr *Exp, const Selector &S);
+  RValue EmitObjCMessageExpr(const ObjCMessageExpr *E,
+                             ReturnValueSlot Return = ReturnValueSlot());
+  RValue EmitObjCPropertyGet(const Expr *E,
+                             ReturnValueSlot Return = ReturnValueSlot());
+  RValue EmitObjCSuperPropertyGet(const Expr *Exp, const Selector &S,
+                                  ReturnValueSlot Return = ReturnValueSlot());
   void EmitObjCPropertySet(const Expr *E, RValue Src);
   void EmitObjCSuperPropertySet(const Expr *E, const Selector &S, RValue Src);
 
@@ -1297,6 +1301,11 @@ public:
   
   /// EmitCallArg - Emit a single call argument.
   RValue EmitCallArg(const Expr *E, QualType ArgType);
+
+  /// EmitDelegateCallArg - We are performing a delegate call; that
+  /// is, the current function is delegating to another one.  Produce
+  /// a r-value suitable for passing the given parameter.
+  RValue EmitDelegateCallArg(const VarDecl *Param);
 
 private:
 

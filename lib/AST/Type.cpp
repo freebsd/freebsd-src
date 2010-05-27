@@ -18,6 +18,7 @@
 #include "clang/AST/DeclTemplate.h"
 #include "clang/AST/Expr.h"
 #include "clang/AST/PrettyPrinter.h"
+#include "clang/Basic/Specifiers.h"
 #include "llvm/ADT/StringExtras.h"
 #include "llvm/Support/raw_ostream.h"
 using namespace clang;
@@ -276,6 +277,9 @@ QualType Type::getPointeeType() const {
 /// array types and types that contain variable array types in their
 /// declarator
 bool Type::isVariablyModifiedType() const {
+  // FIXME: We should really keep a "variably modified" bit in Type, rather
+  // than walking the type hierarchy to recompute it.
+  
   // A VLA is a variably modified type.
   if (isVariableArrayType())
     return true;
@@ -344,45 +348,41 @@ const RecordType *Type::getAsUnionType() const {
   return 0;
 }
 
-ObjCInterfaceType::ObjCInterfaceType(QualType Canonical,
-                                     ObjCInterfaceDecl *D,
-                                     ObjCProtocolDecl **Protos, unsigned NumP) :
-  Type(ObjCInterface, Canonical, /*Dependent=*/false),
-  Decl(D), NumProtocols(NumP)
-{
-  if (NumProtocols)
-    memcpy(reinterpret_cast<ObjCProtocolDecl**>(this + 1), Protos, 
-           NumProtocols * sizeof(*Protos));
-}
-
 void ObjCInterfaceType::Destroy(ASTContext& C) {
   this->~ObjCInterfaceType();
   C.Deallocate(this);
 }
 
-const ObjCInterfaceType *Type::getAsObjCQualifiedInterfaceType() const {
-  // There is no sugar for ObjCInterfaceType's, just return the canonical
+ObjCObjectType::ObjCObjectType(QualType Canonical, QualType Base,
+                               ObjCProtocolDecl * const *Protocols,
+                               unsigned NumProtocols)
+  : Type(ObjCObject, Canonical, false),
+    NumProtocols(NumProtocols),
+    BaseType(Base) {
+  assert(this->NumProtocols == NumProtocols &&
+         "bitfield overflow in protocol count");
+  if (NumProtocols)
+    memcpy(getProtocolStorage(), Protocols,
+           NumProtocols * sizeof(ObjCProtocolDecl*));
+}
+
+void ObjCObjectTypeImpl::Destroy(ASTContext& C) {
+  this->~ObjCObjectTypeImpl();
+  C.Deallocate(this);
+}
+
+const ObjCObjectType *Type::getAsObjCQualifiedInterfaceType() const {
+  // There is no sugar for ObjCObjectType's, just return the canonical
   // type pointer if it is the right class.  There is no typedef information to
   // return and these cannot be Address-space qualified.
-  if (const ObjCInterfaceType *OIT = getAs<ObjCInterfaceType>())
-    if (OIT->getNumProtocols())
-      return OIT;
+  if (const ObjCObjectType *T = getAs<ObjCObjectType>())
+    if (T->getNumProtocols() && T->getInterface())
+      return T;
   return 0;
 }
 
 bool Type::isObjCQualifiedInterfaceType() const {
   return getAsObjCQualifiedInterfaceType() != 0;
-}
-
-ObjCObjectPointerType::ObjCObjectPointerType(QualType Canonical, QualType T,
-                                             ObjCProtocolDecl **Protos,
-                                             unsigned NumP) :
-  Type(ObjCObjectPointer, Canonical, /*Dependent=*/false),
-  PointeeType(T), NumProtocols(NumP)
-{
-  if (NumProtocols)
-    memcpy(reinterpret_cast<ObjCProtocolDecl **>(this + 1), Protos, 
-           NumProtocols * sizeof(*Protos));
 }
 
 void ObjCObjectPointerType::Destroy(ASTContext& C) {
@@ -637,6 +637,8 @@ bool Type::isIncompleteType() const {
   case IncompleteArray:
     // An array of unknown size is an incomplete type (C99 6.2.5p22).
     return true;
+  case ObjCObject:
+    return cast<ObjCObjectType>(this)->getBaseType()->isIncompleteType();
   case ObjCInterface:
     // ObjC interfaces are incomplete if they are @class, not @interface.
     return cast<ObjCInterfaceType>(this)->getDecl()->isForwardDecl();
@@ -764,36 +766,106 @@ bool Type::isSpecifierType() const {
   case TemplateTypeParm:
   case SubstTemplateTypeParm:
   case TemplateSpecialization:
-  case QualifiedName:
+  case Elaborated:
   case DependentName:
   case ObjCInterface:
-  case ObjCObjectPointer:
-  case Elaborated:
+  case ObjCObject:
+  case ObjCObjectPointer: // FIXME: object pointers aren't really specifiers
     return true;
   default:
     return false;
   }
 }
 
-bool Type::isElaboratedTypeSpecifier() const {
-  if (getTypeClass() == Elaborated)
-    return true;
-  
-  if (const DependentNameType *Dependent = dyn_cast<DependentNameType>(this)) {
-    switch (Dependent->getKeyword()) {
-    case ETK_None:
-    case ETK_Typename:
-      return false;
-        
-    case ETK_Class:
-    case ETK_Struct:
-    case ETK_Union:
-    case ETK_Enum:
-      return true;
-    }
+TypeWithKeyword::~TypeWithKeyword() {
+}
+
+ElaboratedTypeKeyword
+TypeWithKeyword::getKeywordForTypeSpec(unsigned TypeSpec) {
+  switch (TypeSpec) {
+  default: return ETK_None;
+  case TST_typename: return ETK_Typename;
+  case TST_class: return ETK_Class;
+  case TST_struct: return ETK_Struct;
+  case TST_union: return ETK_Union;
+  case TST_enum: return ETK_Enum;
   }
-  
-  return false;
+}
+
+TagTypeKind
+TypeWithKeyword::getTagTypeKindForTypeSpec(unsigned TypeSpec) {
+  switch(TypeSpec) {
+  case TST_class: return TTK_Class;
+  case TST_struct: return TTK_Struct;
+  case TST_union: return TTK_Union;
+  case TST_enum: return TTK_Enum;
+  default: llvm_unreachable("Type specifier is not a tag type kind.");
+  }
+}
+
+ElaboratedTypeKeyword
+TypeWithKeyword::getKeywordForTagTypeKind(TagTypeKind Kind) {
+  switch (Kind) {
+  case TTK_Class: return ETK_Class;
+  case TTK_Struct: return ETK_Struct;
+  case TTK_Union: return ETK_Union;
+  case TTK_Enum: return ETK_Enum;
+  }
+  llvm_unreachable("Unknown tag type kind.");
+}
+
+TagTypeKind
+TypeWithKeyword::getTagTypeKindForKeyword(ElaboratedTypeKeyword Keyword) {
+  switch (Keyword) {
+  case ETK_Class: return TTK_Class;
+  case ETK_Struct: return TTK_Struct;
+  case ETK_Union: return TTK_Union;
+  case ETK_Enum: return TTK_Enum;
+  case ETK_None: // Fall through.
+  case ETK_Typename:
+    llvm_unreachable("Elaborated type keyword is not a tag type kind.");
+  }
+  llvm_unreachable("Unknown elaborated type keyword.");
+}
+
+bool
+TypeWithKeyword::KeywordIsTagTypeKind(ElaboratedTypeKeyword Keyword) {
+  switch (Keyword) {
+  case ETK_None:
+  case ETK_Typename:
+    return false;
+  case ETK_Class:
+  case ETK_Struct:
+  case ETK_Union:
+  case ETK_Enum:
+    return true;
+  }
+  llvm_unreachable("Unknown elaborated type keyword.");
+}
+
+const char*
+TypeWithKeyword::getKeywordName(ElaboratedTypeKeyword Keyword) {
+  switch (Keyword) {
+  default: llvm_unreachable("Unknown elaborated type keyword.");
+  case ETK_None: return "";
+  case ETK_Typename: return "typename";
+  case ETK_Class:  return "class";
+  case ETK_Struct: return "struct";
+  case ETK_Union:  return "union";
+  case ETK_Enum:   return "enum";
+  }
+}
+
+bool Type::isElaboratedTypeSpecifier() const {
+  ElaboratedTypeKeyword Keyword;
+  if (const ElaboratedType *Elab = dyn_cast<ElaboratedType>(this))
+    Keyword = Elab->getKeyword();
+  else if (const DependentNameType *DepName = dyn_cast<DependentNameType>(this))
+    Keyword = DepName->getKeyword();
+  else
+    return false;
+
+  return TypeWithKeyword::KeywordIsTagTypeKind(Keyword);
 }
 
 const char *Type::getTypeClassName() const {
@@ -836,9 +908,11 @@ const char *BuiltinType::getName(const LangOptions &LO) const {
   case UndeducedAuto:     return "auto";
   case ObjCId:            return "id";
   case ObjCClass:         return "Class";
-  case ObjCSel:         return "SEL";
+  case ObjCSel:           return "SEL";
   }
 }
+
+void FunctionType::ANCHOR() {} // Key function for FunctionType.
 
 llvm::StringRef FunctionType::getNameForCallConv(CallingConv CC) {
   switch (CC) {
@@ -848,6 +922,7 @@ llvm::StringRef FunctionType::getNameForCallConv(CallingConv CC) {
   case CC_C: return "cdecl";
   case CC_X86StdCall: return "stdcall";
   case CC_X86FastCall: return "fastcall";
+  case CC_X86ThisCall: return "thiscall";
   }
 }
 
@@ -879,19 +954,6 @@ void FunctionProtoType::Profile(llvm::FoldingSetNodeID &ID) {
           getTypeQuals(), hasExceptionSpec(), hasAnyExceptionSpec(),
           getNumExceptions(), exception_begin(),
           getExtInfo());
-}
-
-void ObjCObjectPointerType::Profile(llvm::FoldingSetNodeID &ID,
-                                    QualType OIT, 
-                                    ObjCProtocolDecl * const *protocols,
-                                    unsigned NumProtocols) {
-  ID.AddPointer(OIT.getAsOpaquePtr());
-  for (unsigned i = 0; i != NumProtocols; i++)
-    ID.AddPointer(protocols[i]);
-}
-
-void ObjCObjectPointerType::Profile(llvm::FoldingSetNodeID &ID) {
-  Profile(ID, getPointeeType(), qual_begin(), getNumProtocols());
 }
 
 /// LookThroughTypedefs - Return the ultimate type this typedef corresponds to
@@ -975,6 +1037,10 @@ static bool isDependent(const TemplateArgument &Arg) {
     return Arg.getAsTemplate().isDependent();
       
   case TemplateArgument::Declaration:
+    if (DeclContext *DC = dyn_cast<DeclContext>(Arg.getAsDecl()))
+      return DC->isDependentContext();
+    return Arg.getAsDecl()->getDeclContext()->isDependentContext();
+
   case TemplateArgument::Integral:
     // Never dependent
     return false;
@@ -984,7 +1050,13 @@ static bool isDependent(const TemplateArgument &Arg) {
             Arg.getAsExpr()->isValueDependent());
 
   case TemplateArgument::Pack:
-    assert(0 && "FIXME: Implement!");
+    for (TemplateArgument::pack_iterator P = Arg.pack_begin(), 
+                                      PEnd = Arg.pack_end();
+         P != PEnd; ++P) {
+      if (isDependent(*P))
+        return true;
+    }
+
     return false;
   }
 
@@ -1081,36 +1153,53 @@ QualType QualifierCollector::apply(const Type *T) const {
   return Context->getQualifiedType(T, *this);
 }
 
-void ObjCInterfaceType::Profile(llvm::FoldingSetNodeID &ID,
-                                         const ObjCInterfaceDecl *Decl,
-                                         ObjCProtocolDecl * const *protocols,
-                                         unsigned NumProtocols) {
-  ID.AddPointer(Decl);
+void ObjCObjectTypeImpl::Profile(llvm::FoldingSetNodeID &ID,
+                                 QualType BaseType,
+                                 ObjCProtocolDecl * const *Protocols,
+                                 unsigned NumProtocols) {
+  ID.AddPointer(BaseType.getAsOpaquePtr());
   for (unsigned i = 0; i != NumProtocols; i++)
-    ID.AddPointer(protocols[i]);
+    ID.AddPointer(Protocols[i]);
 }
 
-void ObjCInterfaceType::Profile(llvm::FoldingSetNodeID &ID) {
-  Profile(ID, getDecl(), qual_begin(), getNumProtocols());
+void ObjCObjectTypeImpl::Profile(llvm::FoldingSetNodeID &ID) {
+  Profile(ID, getBaseType(), qual_begin(), getNumProtocols());
 }
 
-Linkage Type::getLinkage() const { 
-  // C++ [basic.link]p8:
-  //   Names not covered by these rules have no linkage.
+/// \brief Determine the linkage of this type.
+Linkage Type::getLinkage() const {
   if (this != CanonicalType.getTypePtr())
     return CanonicalType->getLinkage();
+  
+  if (!LinkageKnown) {
+    CachedLinkage = getLinkageImpl();
+    LinkageKnown = true;
+  }
+  
+  return static_cast<clang::Linkage>(CachedLinkage);
+}
 
+Linkage Type::getLinkageImpl() const { 
+  // C++ [basic.link]p8:
+  //   Names not covered by these rules have no linkage.
   return NoLinkage; 
 }
 
-Linkage BuiltinType::getLinkage() const {
+void Type::ClearLinkageCache() {
+  if (this != CanonicalType.getTypePtr())
+    CanonicalType->ClearLinkageCache();
+  else
+    LinkageKnown = false;
+}
+
+Linkage BuiltinType::getLinkageImpl() const {
   // C++ [basic.link]p8:
   //   A type is said to have linkage if and only if:
   //     - it is a fundamental type (3.9.1); or
   return ExternalLinkage;
 }
 
-Linkage TagType::getLinkage() const {
+Linkage TagType::getLinkageImpl() const {
   // C++ [basic.link]p8:
   //     - it is a class or enumeration type that is named (or has a name for
   //       linkage purposes (7.1.3)) and the name has linkage; or
@@ -1121,39 +1210,39 @@ Linkage TagType::getLinkage() const {
 // C++ [basic.link]p8:
 //   - it is a compound type (3.9.2) other than a class or enumeration, 
 //     compounded exclusively from types that have linkage; or
-Linkage ComplexType::getLinkage() const {
+Linkage ComplexType::getLinkageImpl() const {
   return ElementType->getLinkage();
 }
 
-Linkage PointerType::getLinkage() const {
+Linkage PointerType::getLinkageImpl() const {
   return PointeeType->getLinkage();
 }
 
-Linkage BlockPointerType::getLinkage() const {
+Linkage BlockPointerType::getLinkageImpl() const {
   return PointeeType->getLinkage();
 }
 
-Linkage ReferenceType::getLinkage() const {
+Linkage ReferenceType::getLinkageImpl() const {
   return PointeeType->getLinkage();
 }
 
-Linkage MemberPointerType::getLinkage() const {
+Linkage MemberPointerType::getLinkageImpl() const {
   return minLinkage(Class->getLinkage(), PointeeType->getLinkage());
 }
 
-Linkage ArrayType::getLinkage() const {
+Linkage ArrayType::getLinkageImpl() const {
   return ElementType->getLinkage();
 }
 
-Linkage VectorType::getLinkage() const {
+Linkage VectorType::getLinkageImpl() const {
   return ElementType->getLinkage();
 }
 
-Linkage FunctionNoProtoType::getLinkage() const {
+Linkage FunctionNoProtoType::getLinkageImpl() const {
   return getResultType()->getLinkage();
 }
 
-Linkage FunctionProtoType::getLinkage() const {
+Linkage FunctionProtoType::getLinkageImpl() const {
   Linkage L = getResultType()->getLinkage();
   for (arg_type_iterator A = arg_type_begin(), AEnd = arg_type_end();
        A != AEnd; ++A)
@@ -1162,10 +1251,10 @@ Linkage FunctionProtoType::getLinkage() const {
   return L;
 }
 
-Linkage ObjCInterfaceType::getLinkage() const {
+Linkage ObjCObjectType::getLinkageImpl() const {
   return ExternalLinkage;
 }
 
-Linkage ObjCObjectPointerType::getLinkage() const {
+Linkage ObjCObjectPointerType::getLinkageImpl() const {
   return ExternalLinkage;
 }

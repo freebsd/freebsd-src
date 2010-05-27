@@ -33,6 +33,11 @@ Parser::Parser(Preprocessor &pp, Action &actions)
 
   // Add #pragma handlers. These are removed and destroyed in the
   // destructor.
+  OptionsHandler.reset(new
+          PragmaOptionsHandler(&PP.getIdentifierTable().get("options"),
+                               actions));
+  PP.AddPragmaHandler(0, OptionsHandler.get());
+
   PackHandler.reset(new
           PragmaPackHandler(&PP.getIdentifierTable().get("pack"), actions));
   PP.AddPragmaHandler(0, PackHandler.get());
@@ -134,7 +139,7 @@ SourceLocation Parser::MatchRHSPunctuation(tok::TokenKind RHSTok,
 /// returned.
 bool Parser::ExpectAndConsume(tok::TokenKind ExpectedTok, unsigned DiagID,
                               const char *Msg, tok::TokenKind SkipToTok) {
-  if (Tok.is(ExpectedTok)) {
+  if (Tok.is(ExpectedTok) || Tok.is(tok::code_completion)) {
     ConsumeAnyToken();
     return false;
   }
@@ -189,7 +194,11 @@ bool Parser::SkipUntil(const tok::TokenKind *Toks, unsigned NumToks,
     case tok::eof:
       // Ran out of tokens.
       return false;
-
+        
+    case tok::code_completion:
+      ConsumeToken();
+      return false;
+        
     case tok::l_paren:
       // Recursively skip properly-nested parens.
       ConsumeParen();
@@ -294,6 +303,8 @@ Parser::~Parser() {
     delete ScopeCache[i];
 
   // Remove the pragma handlers we installed.
+  PP.RemovePragmaHandler(0, OptionsHandler.get());
+  OptionsHandler.reset();
   PP.RemovePragmaHandler(0, PackHandler.get());
   PackHandler.reset();
   PP.RemovePragmaHandler(0, UnusedHandler.get());
@@ -447,7 +458,7 @@ Parser::DeclGroupPtrTy Parser::ParseExternalDeclaration(CXX0XAttributeList Attr)
       Actions.CodeCompleteOrdinaryName(CurScope, 
                                    ObjCImpDecl? Action::CCC_ObjCImplementation
                                               : Action::CCC_Namespace);
-    ConsumeToken();
+    ConsumeCodeCompletionToken();
     return ParseExternalDeclaration(Attr);
   case tok::kw_using:
   case tok::kw_namespace:
@@ -538,7 +549,7 @@ Parser::ParseDeclarationOrFunctionDefinition(ParsingDeclSpec &DS,
   // declaration-specifiers init-declarator-list[opt] ';'
   if (Tok.is(tok::semi)) {
     ConsumeToken();
-    DeclPtrTy TheDecl = Actions.ParsedFreeStandingDeclSpec(CurScope, DS);
+    DeclPtrTy TheDecl = Actions.ParsedFreeStandingDeclSpec(CurScope, AS, DS);
     DS.complete(TheDecl);
     return Actions.ConvertDeclToDeclGroup(TheDecl);
   }
@@ -980,10 +991,11 @@ bool Parser::TryAnnotateTypeOrScopeToken(bool EnteringContext) {
       TemplateTy Template;
       UnqualifiedId TemplateName;
       TemplateName.setIdentifier(Tok.getIdentifierInfo(), Tok.getLocation());
+      bool MemberOfUnknownSpecialization;
       if (TemplateNameKind TNK
             = Actions.isTemplateName(CurScope, SS, TemplateName, 
                                      /*ObjectType=*/0, EnteringContext,
-                                     Template)) {
+                                     Template, MemberOfUnknownSpecialization)) {
         // Consume the identifier.
         ConsumeToken();
         if (AnnotateTemplateIdToken(Template, TNK, &SS, TemplateName)) {
@@ -1069,6 +1081,22 @@ bool Parser::TryAnnotateCXXScopeToken(bool EnteringContext) {
   // annotation token.
   PP.AnnotateCachedTokens(Tok);
   return false;
+}
+
+void Parser::CodeCompletionRecovery() {
+  for (Scope *S = CurScope; S; S = S->getParent()) {
+    if (S->getFlags() & Scope::FnScope) {
+      Actions.CodeCompleteOrdinaryName(CurScope, Action::CCC_RecoveryInFunction);
+      return;
+    }
+    
+    if (S->getFlags() & Scope::ClassScope) {
+      Actions.CodeCompleteOrdinaryName(CurScope, Action::CCC_Class);
+      return;
+    }
+  }
+  
+  Actions.CodeCompleteOrdinaryName(CurScope, Action::CCC_Namespace);
 }
 
 // Anchor the Parser::FieldCallback vtable to this translation unit.

@@ -15,17 +15,28 @@
 #include "Sema.h"
 #include "Lookup.h"
 #include "clang/AST/Expr.h"
+#include "clang/Basic/TargetInfo.h"
+#include "clang/Lex/Preprocessor.h"
 using namespace clang;
 
 //===----------------------------------------------------------------------===//
-// Pragma Packed
+// Pragma 'pack' and 'options align'
 //===----------------------------------------------------------------------===//
 
 namespace {
+  struct PackStackEntry {
+    // We just use a sentinel to represent when the stack is set to mac68k
+    // alignment.
+    static const unsigned kMac68kAlignmentSentinel = ~0U;
+
+    unsigned Alignment;
+    IdentifierInfo *Name;
+  };
+
   /// PragmaPackStack - Simple class to wrap the stack used by #pragma
   /// pack.
   class PragmaPackStack {
-    typedef std::vector< std::pair<unsigned, IdentifierInfo*> > stack_ty;
+    typedef std::vector<PackStackEntry> stack_ty;
 
     /// Alignment - The current user specified alignment.
     unsigned Alignment;
@@ -43,7 +54,8 @@ namespace {
     /// push - Push the current alignment onto the stack, optionally
     /// using the given \arg Name for the record, if non-zero.
     void push(IdentifierInfo *Name) {
-      Stack.push_back(std::make_pair(Alignment, Name));
+      PackStackEntry PSE = { Alignment, Name };
+      Stack.push_back(PSE);
     }
 
     /// pop - Pop a record from the stack and restore the current
@@ -60,7 +72,7 @@ bool PragmaPackStack::pop(IdentifierInfo *Name) {
 
   // If name is empty just pop top.
   if (!Name) {
-    Alignment = Stack.back().first;
+    Alignment = Stack.back().Alignment;
     Stack.pop_back();
     return true;
   }
@@ -68,9 +80,9 @@ bool PragmaPackStack::pop(IdentifierInfo *Name) {
   // Otherwise, find the named record.
   for (unsigned i = Stack.size(); i != 0; ) {
     --i;
-    if (Stack[i].second == Name) {
+    if (Stack[i].Name == Name) {
       // Found it, pop up to and including this record.
-      Alignment = Stack[i].first;
+      Alignment = Stack[i].Alignment;
       Stack.erase(Stack.begin() + i, Stack.end());
       return true;
     }
@@ -86,12 +98,65 @@ void Sema::FreePackedContext() {
   PackContext = 0;
 }
 
-/// getPragmaPackAlignment() - Return the current alignment as specified by
-/// the current #pragma pack directive, or 0 if none is currently active.
-unsigned Sema::getPragmaPackAlignment() const {
-  if (PackContext)
-    return static_cast<PragmaPackStack*>(PackContext)->getAlignment();
-  return 0;
+void Sema::AddAlignmentAttributesForRecord(RecordDecl *RD) {
+  // If there is no pack context, we don't need any attributes.
+  if (!PackContext)
+    return;
+
+  PragmaPackStack *Stack = static_cast<PragmaPackStack*>(PackContext);
+
+  // Otherwise, check to see if we need a max field alignment attribute.
+  if (unsigned Alignment = Stack->getAlignment()) {
+    if (Alignment == PackStackEntry::kMac68kAlignmentSentinel)
+      RD->addAttr(::new (Context) AlignMac68kAttr());
+    else
+      RD->addAttr(::new (Context) MaxFieldAlignmentAttr(Alignment * 8));
+  }
+}
+
+void Sema::ActOnPragmaOptionsAlign(PragmaOptionsAlignKind Kind,
+                                   SourceLocation PragmaLoc,
+                                   SourceLocation KindLoc) {
+  if (PackContext == 0)
+    PackContext = new PragmaPackStack();
+
+  PragmaPackStack *Context = static_cast<PragmaPackStack*>(PackContext);
+
+  // Reset just pops the top of the stack.
+  if (Kind == Action::POAK_Reset) {
+    // Do the pop.
+    if (!Context->pop(0)) {
+      // If a name was specified then failure indicates the name
+      // wasn't found. Otherwise failure indicates the stack was
+      // empty.
+      Diag(PragmaLoc, diag::warn_pragma_options_align_reset_failed)
+        << "stack empty";
+    }
+    return;
+  }
+
+  // We don't support #pragma options align=power.
+  switch (Kind) {
+  case POAK_Natural:
+    Context->push(0);
+    Context->setAlignment(0);
+    break;
+
+  case POAK_Mac68k:
+    // Check if the target supports this.
+    if (!PP.getTargetInfo().hasAlignMac68kSupport()) {
+      Diag(PragmaLoc, diag::err_pragma_options_align_mac68k_target_unsupported);
+      return;
+    }
+    Context->push(0);
+    Context->setAlignment(PackStackEntry::kMac68kAlignmentSentinel);
+    break;
+
+  default:
+    Diag(PragmaLoc, diag::warn_pragma_options_align_unsupported_option)
+      << KindLoc;
+    break;
+  }
 }
 
 void Sema::ActOnPragmaPack(PragmaPackKind Kind, IdentifierInfo *Name,
@@ -106,7 +171,9 @@ void Sema::ActOnPragmaPack(PragmaPackKind Kind, IdentifierInfo *Name,
 
     // pack(0) is like pack(), which just works out since that is what
     // we use 0 for in PackAttr.
-    if (!Alignment->isIntegerConstantExpr(Val, Context) ||
+    if (Alignment->isTypeDependent() ||
+        Alignment->isValueDependent() ||
+        !Alignment->isIntegerConstantExpr(Val, Context) ||
         !(Val == 0 || Val.isPowerOf2()) ||
         Val.getZExtValue() > 16) {
       Diag(PragmaLoc, diag::warn_pragma_pack_invalid_alignment);
@@ -134,7 +201,10 @@ void Sema::ActOnPragmaPack(PragmaPackKind Kind, IdentifierInfo *Name,
     // FIXME: This should come from the target.
     if (AlignmentVal == 0)
       AlignmentVal = 8;
-    Diag(PragmaLoc, diag::warn_pragma_pack_show) << AlignmentVal;
+    if (AlignmentVal == PackStackEntry::kMac68kAlignmentSentinel)
+      Diag(PragmaLoc, diag::warn_pragma_pack_show) << "mac68k";
+    else
+      Diag(PragmaLoc, diag::warn_pragma_pack_show) << AlignmentVal;
     break;
 
   case Action::PPK_Push: // pack(push [, id] [, [n])

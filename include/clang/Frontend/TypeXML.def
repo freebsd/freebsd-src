@@ -61,6 +61,10 @@
 #  define CONTEXT_ATTRIBUTE_XML( FN )  ATTRIBUTE_XML(FN, "context")
 #endif
 
+NODE_XML(Type, "FIXME_Type")
+  ID_ATTRIBUTE_XML
+  ATTRIBUTE_XML(getTypeClassName(), "unhandled_type_name")
+END_NODE_XML
 
 NODE_XML(QualType, "CvQualifiedType")
   ID_ATTRIBUTE_XML
@@ -207,9 +211,9 @@ NODE_XML(RecordType, "Record")
   ID_ATTRIBUTE_XML
   ATTRIBUTE_XML(getDecl()->getNameAsString(), "name")   // string
   ATTRIBUTE_ENUM_XML(getDecl()->getTagKind(), "kind")
-    ENUM_XML(TagDecl::TK_struct, "struct")
-    ENUM_XML(TagDecl::TK_union, "union")
-    ENUM_XML(TagDecl::TK_class, "class")
+    ENUM_XML(TTK_Struct, "struct")
+    ENUM_XML(TTK_Union, "union")
+    ENUM_XML(TTK_Class, "class")
   END_ENUM_XML
   CONTEXT_ATTRIBUTE_XML(getDecl()->getDeclContext())
 END_NODE_XML
@@ -228,9 +232,21 @@ NODE_XML(TemplateSpecializationType, "TemplateSpecializationType")
   ID_ATTRIBUTE_XML
 END_NODE_XML
 
-NODE_XML(QualifiedNameType, "QualifiedNameType")
+NODE_XML(ElaboratedType, "ElaboratedType")
   ID_ATTRIBUTE_XML
+  ATTRIBUTE_ENUM_XML(getKeyword(), "keyword")
+    ENUM_XML(ETK_None, "none")
+    ENUM_XML(ETK_Typename, "typename")
+    ENUM_XML(ETK_Struct, "struct")
+    ENUM_XML(ETK_Union, "union")
+    ENUM_XML(ETK_Class, "class")
+    ENUM_XML(ETK_Enum, "enum")
+  END_ENUM_XML
   TYPE_ATTRIBUTE_XML(getNamedType())
+END_NODE_XML
+
+NODE_XML(InjectedClassNameType, "InjectedClassNameType")
+  ID_ATTRIBUTE_XML
 END_NODE_XML
 
 NODE_XML(DependentNameType, "DependentNameType")
@@ -245,6 +261,29 @@ NODE_XML(ObjCObjectPointerType, "ObjCObjectPointerType")
   ID_ATTRIBUTE_XML
 END_NODE_XML
 
+NODE_XML(SubstTemplateTypeParmType, "SubstTemplateTypeParm")
+  ID_ATTRIBUTE_XML
+END_NODE_XML
+
+NODE_XML(DependentSizedExtVectorType, "DependentSizedExtVector")
+  ID_ATTRIBUTE_XML
+END_NODE_XML
+
+NODE_XML(UnresolvedUsingType, "UnresolvedUsing")
+  ID_ATTRIBUTE_XML
+END_NODE_XML
+
+NODE_XML(DependentTypeOfExprType, "DependentTypeOfExpr")
+  ID_ATTRIBUTE_XML
+END_NODE_XML
+
+NODE_XML(DecltypeType, "Decltype")
+  ID_ATTRIBUTE_XML
+END_NODE_XML
+
+NODE_XML(DependentDecltypeType, "DependentDecltype")
+  ID_ATTRIBUTE_XML
+END_NODE_XML
 
 //===----------------------------------------------------------------------===//
 #undef NODE_XML

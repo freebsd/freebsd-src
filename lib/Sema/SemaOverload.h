@@ -16,7 +16,9 @@
 #define LLVM_CLANG_SEMA_OVERLOAD_H
 
 #include "clang/AST/Decl.h"
+#include "clang/AST/DeclTemplate.h"
 #include "clang/AST/Expr.h"
+#include "clang/AST/TemplateBase.h"
 #include "clang/AST/Type.h"
 #include "clang/AST/UnresolvedSet.h"
 #include "llvm/ADT/SmallPtrSet.h"
@@ -60,6 +62,8 @@ namespace clang {
     ICK_Boolean_Conversion,    ///< Boolean conversions (C++ 4.12)
     ICK_Compatible_Conversion, ///< Conversions between compatible types in C99
     ICK_Derived_To_Base,       ///< Derived-to-base (C++ [over.best.ics])
+    ICK_Vector_Conversion,     ///< Vector conversions
+    ICK_Vector_Splat,          ///< A vector splat from an arithmetic type
     ICK_Complex_Real,          ///< Complex-real conversions (C99 6.3.1.7)
     ICK_Num_Conversion_Kinds   ///< The number of conversion kinds
   };
@@ -173,6 +177,12 @@ namespace clang {
     }
 
     void setAsIdentityConversion();
+    
+    bool isIdentityConversion() const {
+      return First == ICK_Identity && Second == ICK_Identity && 
+             Third == ICK_Identity;
+    }
+    
     ImplicitConversionRank getRank() const;
     bool isPointerConversionToBool() const;
     bool isPointerConversionToVoidPointer(ASTContext& Context) const;
@@ -529,8 +539,28 @@ namespace clang {
       // A Sema::TemplateDeductionResult.
       unsigned Result;
 
-      // A TemplateParameter.
-      void *TemplateParameter;
+      /// \brief Opaque pointer containing additional data about
+      /// this deduction failure.
+      void *Data;
+      
+      /// \brief Retrieve the template parameter this deduction failure
+      /// refers to, if any.
+      TemplateParameter getTemplateParameter();
+      
+      /// \brief Retrieve the template argument list associated with this
+      /// deduction failure, if any.
+      TemplateArgumentList *getTemplateArgumentList();
+      
+      /// \brief Return the first template argument this deduction failure
+      /// refers to, if any.
+      const TemplateArgument *getFirstArg();
+
+      /// \brief Return the second template argument this deduction failure
+      /// refers to, if any.
+      const TemplateArgument *getSecondArg();
+      
+      /// \brief Free any memory associated with this deduction failure.
+      void Destroy();
     };
 
     union {
@@ -562,6 +592,10 @@ namespace clang {
     llvm::SmallPtrSet<Decl *, 16> Functions;
 
     SourceLocation Loc;    
+    
+    OverloadCandidateSet(const OverloadCandidateSet &);
+    OverloadCandidateSet &operator=(const OverloadCandidateSet &);
+    
   public:
     OverloadCandidateSet(SourceLocation Loc) : Loc(Loc) {}
 
@@ -574,10 +608,9 @@ namespace clang {
     }
 
     /// \brief Clear out all of the candidates.
-    void clear() {
-      inherited::clear();
-      Functions.clear();
-    }
+    void clear();
+    
+    ~OverloadCandidateSet() { clear(); }
   };
 } // end namespace clang
 

@@ -973,6 +973,7 @@ protected:
                                           bool AddToUsed);
 
   CodeGen::RValue EmitLegacyMessageSend(CodeGen::CodeGenFunction &CGF,
+                                        ReturnValueSlot Return,
                                         QualType ResultType,
                                         llvm::Value *Sel,
                                         llvm::Value *Arg0,
@@ -1039,6 +1040,7 @@ private:
   llvm::Value *EmitSuperClassRef(const ObjCInterfaceDecl *ID);
 
   CodeGen::RValue EmitMessageSend(CodeGen::CodeGenFunction &CGF,
+                                  ReturnValueSlot Return,
                                   QualType ResultType,
                                   Selector Sel,
                                   llvm::Value *Arg0,
@@ -1126,6 +1128,7 @@ public:
   virtual llvm::Function *ModuleInitFunction();
 
   virtual CodeGen::RValue GenerateMessageSend(CodeGen::CodeGenFunction &CGF,
+                                              ReturnValueSlot Return,
                                               QualType ResultType,
                                               Selector Sel,
                                               llvm::Value *Receiver,
@@ -1135,6 +1138,7 @@ public:
 
   virtual CodeGen::RValue
   GenerateMessageSendSuper(CodeGen::CodeGenFunction &CGF,
+                           ReturnValueSlot Return,
                            QualType ResultType,
                            Selector Sel,
                            const ObjCInterfaceDecl *Class,
@@ -1279,6 +1283,7 @@ private:
                                    ObjCProtocolDecl::protocol_iterator end);
 
   CodeGen::RValue EmitMessageSend(CodeGen::CodeGenFunction &CGF,
+                                  ReturnValueSlot Return,
                                   QualType ResultType,
                                   Selector Sel,
                                   llvm::Value *Receiver,
@@ -1354,6 +1359,7 @@ public:
   virtual llvm::Function *ModuleInitFunction();
 
   virtual CodeGen::RValue GenerateMessageSend(CodeGen::CodeGenFunction &CGF,
+                                              ReturnValueSlot Return,
                                               QualType ResultType,
                                               Selector Sel,
                                               llvm::Value *Receiver,
@@ -1363,6 +1369,7 @@ public:
 
   virtual CodeGen::RValue
   GenerateMessageSendSuper(CodeGen::CodeGenFunction &CGF,
+                           ReturnValueSlot Return,
                            QualType ResultType,
                            Selector Sel,
                            const ObjCInterfaceDecl *Class,
@@ -1515,6 +1522,7 @@ llvm::Constant *CGObjCCommonMac::GenerateConstantString(
 /// which class's method should be called.
 CodeGen::RValue
 CGObjCMac::GenerateMessageSendSuper(CodeGen::CodeGenFunction &CGF,
+                                    ReturnValueSlot Return,
                                     QualType ResultType,
                                     Selector Sel,
                                     const ObjCInterfaceDecl *Class,
@@ -1566,7 +1574,7 @@ CGObjCMac::GenerateMessageSendSuper(CodeGen::CodeGenFunction &CGF,
   Target = CGF.Builder.CreateBitCast(Target, ClassTy);
   CGF.Builder.CreateStore(Target,
                           CGF.Builder.CreateStructGEP(ObjCSuper, 1));
-  return EmitLegacyMessageSend(CGF, ResultType,
+  return EmitLegacyMessageSend(CGF, Return, ResultType,
                                EmitSelector(CGF.Builder, Sel),
                                ObjCSuper, ObjCTypes.SuperPtrCTy,
                                true, CallArgs, Method, ObjCTypes);
@@ -1574,13 +1582,14 @@ CGObjCMac::GenerateMessageSendSuper(CodeGen::CodeGenFunction &CGF,
 
 /// Generate code for a message send expression.
 CodeGen::RValue CGObjCMac::GenerateMessageSend(CodeGen::CodeGenFunction &CGF,
+                                               ReturnValueSlot Return,
                                                QualType ResultType,
                                                Selector Sel,
                                                llvm::Value *Receiver,
                                                const CallArgList &CallArgs,
                                                const ObjCInterfaceDecl *Class,
                                                const ObjCMethodDecl *Method) {
-  return EmitLegacyMessageSend(CGF, ResultType,
+  return EmitLegacyMessageSend(CGF, Return, ResultType,
                                EmitSelector(CGF.Builder, Sel),
                                Receiver, CGF.getContext().getObjCIdType(),
                                false, CallArgs, Method, ObjCTypes);
@@ -1588,6 +1597,7 @@ CodeGen::RValue CGObjCMac::GenerateMessageSend(CodeGen::CodeGenFunction &CGF,
 
 CodeGen::RValue
 CGObjCCommonMac::EmitLegacyMessageSend(CodeGen::CodeGenFunction &CGF,
+                                       ReturnValueSlot Return,
                                        QualType ResultType,
                                        llvm::Value *Sel,
                                        llvm::Value *Arg0,
@@ -1634,7 +1644,7 @@ CGObjCCommonMac::EmitLegacyMessageSend(CodeGen::CodeGenFunction &CGF,
   assert(Fn && "EmitLegacyMessageSend - unknown API");
   Fn = llvm::ConstantExpr::getBitCast(Fn,
                                       llvm::PointerType::getUnqual(FTy));
-  return CGF.EmitCall(FnInfo, Fn, ReturnValueSlot(), ActualArgs);
+  return CGF.EmitCall(FnInfo, Fn, Return, ActualArgs);
 }
 
 llvm::Value *CGObjCMac::GenerateProtocolRef(CGBuilderTy &Builder,
@@ -2701,12 +2711,12 @@ void CGObjCMac::EmitTryOrSynchronizedStmt(CodeGen::CodeGenFunction &CGF,
       }
 
       assert(OPT && "Unexpected non-object pointer type in @catch");
-      QualType T = OPT->getPointeeType();
-      const ObjCInterfaceType *ObjCType = T->getAs<ObjCInterfaceType>();
-      assert(ObjCType && "Catch parameter must have Objective-C type!");
+      const ObjCObjectType *ObjTy = OPT->getObjectType();
+      ObjCInterfaceDecl *IDecl = ObjTy->getInterface();
+      assert(IDecl && "Catch parameter must have Objective-C type!");
 
       // Check if the @catch block matches the exception object.
-      llvm::Value *Class = EmitClassRef(CGF.Builder, ObjCType->getDecl());
+      llvm::Value *Class = EmitClassRef(CGF.Builder, IDecl);
 
       llvm::Value *Match =
         CGF.Builder.CreateCall2(ObjCTypes.getExceptionMatchFn(),
@@ -2938,7 +2948,8 @@ LValue CGObjCMac::EmitObjCValueForIvar(CodeGen::CodeGenFunction &CGF,
                                        llvm::Value *BaseValue,
                                        const ObjCIvarDecl *Ivar,
                                        unsigned CVRQualifiers) {
-  const ObjCInterfaceDecl *ID = ObjectTy->getAs<ObjCInterfaceType>()->getDecl();
+  const ObjCInterfaceDecl *ID =
+    ObjectTy->getAs<ObjCObjectType>()->getInterface();
   return EmitValueForIvarAtOffset(CGF, ID, BaseValue, Ivar, CVRQualifiers,
                                   EmitIvarOffset(CGF, ID, Ivar));
 }
@@ -3669,7 +3680,7 @@ ObjCCommonTypesHelper::ObjCCommonTypesHelper(CodeGen::CodeGenModule &cgm)
   //   id self;
   //   Class cls;
   // }
-  RecordDecl *RD = RecordDecl::Create(Ctx, TagDecl::TK_struct,
+  RecordDecl *RD = RecordDecl::Create(Ctx, TTK_Struct,
                                       Ctx.getTranslationUnitDecl(),
                                       SourceLocation(),
                                       &Ctx.Idents.get("_objc_super"));
@@ -4131,7 +4142,7 @@ ObjCNonFragileABITypesHelper::ObjCNonFragileABITypesHelper(CodeGen::CodeGenModul
   // };
 
   // First the clang type for struct _message_ref_t
-  RecordDecl *RD = RecordDecl::Create(Ctx, TagDecl::TK_struct,
+  RecordDecl *RD = RecordDecl::Create(Ctx, TTK_Struct,
                                       Ctx.getTranslationUnitDecl(),
                                       SourceLocation(),
                                       &Ctx.Idents.get("_message_ref_t"));
@@ -5095,12 +5106,12 @@ CGObjCNonFragileABIMac::GetMethodDescriptionConstant(const ObjCMethodDecl *MD) {
 /// @encode
 ///
 LValue CGObjCNonFragileABIMac::EmitObjCValueForIvar(
-  CodeGen::CodeGenFunction &CGF,
-  QualType ObjectTy,
-  llvm::Value *BaseValue,
-  const ObjCIvarDecl *Ivar,
-  unsigned CVRQualifiers) {
-  const ObjCInterfaceDecl *ID = ObjectTy->getAs<ObjCInterfaceType>()->getDecl();
+                                               CodeGen::CodeGenFunction &CGF,
+                                               QualType ObjectTy,
+                                               llvm::Value *BaseValue,
+                                               const ObjCIvarDecl *Ivar,
+                                               unsigned CVRQualifiers) {
+  ObjCInterfaceDecl *ID = ObjectTy->getAs<ObjCObjectType>()->getInterface();
   return EmitValueForIvarAtOffset(CGF, ID, BaseValue, Ivar, CVRQualifiers,
                                   EmitIvarOffset(CGF, ID, Ivar));
 }
@@ -5114,6 +5125,7 @@ llvm::Value *CGObjCNonFragileABIMac::EmitIvarOffset(
 
 CodeGen::RValue CGObjCNonFragileABIMac::EmitMessageSend(
   CodeGen::CodeGenFunction &CGF,
+  ReturnValueSlot Return,
   QualType ResultType,
   Selector Sel,
   llvm::Value *Receiver,
@@ -5213,12 +5225,13 @@ CodeGen::RValue CGObjCNonFragileABIMac::EmitMessageSend(
   const llvm::FunctionType *FTy = Types.GetFunctionType(FnInfo1, true);
   Callee = CGF.Builder.CreateBitCast(Callee,
                                      llvm::PointerType::getUnqual(FTy));
-  return CGF.EmitCall(FnInfo1, Callee, ReturnValueSlot(), ActualArgs);
+  return CGF.EmitCall(FnInfo1, Callee, Return, ActualArgs);
 }
 
 /// Generate code for a message send expression in the nonfragile abi.
 CodeGen::RValue
 CGObjCNonFragileABIMac::GenerateMessageSend(CodeGen::CodeGenFunction &CGF,
+                                            ReturnValueSlot Return,
                                             QualType ResultType,
                                             Selector Sel,
                                             llvm::Value *Receiver,
@@ -5226,10 +5239,11 @@ CGObjCNonFragileABIMac::GenerateMessageSend(CodeGen::CodeGenFunction &CGF,
                                             const ObjCInterfaceDecl *Class,
                                             const ObjCMethodDecl *Method) {
   return LegacyDispatchedSelector(Sel)
-    ? EmitLegacyMessageSend(CGF, ResultType, EmitSelector(CGF.Builder, Sel),
+    ? EmitLegacyMessageSend(CGF, Return, ResultType,
+                            EmitSelector(CGF.Builder, Sel),
                             Receiver, CGF.getContext().getObjCIdType(),
                             false, CallArgs, Method, ObjCTypes)
-    : EmitMessageSend(CGF, ResultType, Sel,
+    : EmitMessageSend(CGF, Return, ResultType, Sel,
                       Receiver, CGF.getContext().getObjCIdType(),
                       false, CallArgs);
 }
@@ -5336,6 +5350,7 @@ llvm::Value *CGObjCNonFragileABIMac::GetClass(CGBuilderTy &Builder,
 /// which class's method should be called.
 CodeGen::RValue
 CGObjCNonFragileABIMac::GenerateMessageSendSuper(CodeGen::CodeGenFunction &CGF,
+                                                 ReturnValueSlot Return,
                                                  QualType ResultType,
                                                  Selector Sel,
                                                  const ObjCInterfaceDecl *Class,
@@ -5378,10 +5393,11 @@ CGObjCNonFragileABIMac::GenerateMessageSendSuper(CodeGen::CodeGenFunction &CGF,
                           CGF.Builder.CreateStructGEP(ObjCSuper, 1));
 
   return (LegacyDispatchedSelector(Sel))
-    ? EmitLegacyMessageSend(CGF, ResultType,EmitSelector(CGF.Builder, Sel),
+    ? EmitLegacyMessageSend(CGF, Return, ResultType,
+                            EmitSelector(CGF.Builder, Sel),
                             ObjCSuper, ObjCTypes.SuperPtrCTy,
                             true, CallArgs, Method, ObjCTypes)
-    : EmitMessageSend(CGF, ResultType, Sel,
+    : EmitMessageSend(CGF, Return, ResultType, Sel,
                       ObjCSuper, ObjCTypes.SuperPtrCTy,
                       true, CallArgs);
 }

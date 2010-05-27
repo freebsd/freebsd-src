@@ -74,6 +74,7 @@ void NonNullAttr::Destroy(ASTContext &C) {
 // FIXME: Can we use variadic macro to define DEF_SIMPLE_ATTR_CLONE for
 // "non-simple" classes?
 
+DEF_SIMPLE_ATTR_CLONE(AlignMac68k)
 DEF_SIMPLE_ATTR_CLONE(AlwaysInline)
 DEF_SIMPLE_ATTR_CLONE(AnalyzerNoReturn)
 DEF_SIMPLE_ATTR_CLONE(BaseCheck)
@@ -100,6 +101,7 @@ DEF_SIMPLE_ATTR_CLONE(Override)
 DEF_SIMPLE_ATTR_CLONE(Packed)
 DEF_SIMPLE_ATTR_CLONE(Pure)
 DEF_SIMPLE_ATTR_CLONE(StdCall)
+DEF_SIMPLE_ATTR_CLONE(ThisCall)
 DEF_SIMPLE_ATTR_CLONE(TransparentUnion)
 DEF_SIMPLE_ATTR_CLONE(Unavailable)
 DEF_SIMPLE_ATTR_CLONE(Unused)
@@ -110,8 +112,8 @@ DEF_SIMPLE_ATTR_CLONE(WeakImport)
 DEF_SIMPLE_ATTR_CLONE(WeakRef)
 DEF_SIMPLE_ATTR_CLONE(X86ForceAlignArgPointer)
 
-Attr* PragmaPackAttr::clone(ASTContext &C) const {
-  return ::new (C) PragmaPackAttr(Alignment);
+Attr* MaxFieldAlignmentAttr::clone(ASTContext &C) const {
+  return ::new (C) MaxFieldAlignmentAttr(Alignment);
 }
 
 Attr* AlignedAttr::clone(ASTContext &C) const {
@@ -140,6 +142,10 @@ Attr *DestructorAttr::clone(ASTContext &C) const {
 
 Attr *IBOutletAttr::clone(ASTContext &C) const {
   return ::new (C) IBOutletAttr;
+}
+
+Attr *IBOutletCollectionAttr::clone(ASTContext &C) const {
+  return ::new (C) IBOutletCollectionAttr(D);
 }
 
 Attr *IBActionAttr::clone(ASTContext &C) const {

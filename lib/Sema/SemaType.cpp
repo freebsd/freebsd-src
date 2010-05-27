@@ -25,6 +25,8 @@
 #include "llvm/Support/ErrorHandling.h"
 using namespace clang;
 
+#include <iostream>
+
 /// \brief Perform adjustment on the parameter type of a function.
 ///
 /// This routine adjusts the given parameter type @p T to the actual
@@ -162,9 +164,10 @@ static QualType ConvertDeclSpecToType(Sema &TheSema,
   case DeclSpec::TST_unspecified:
     // "<proto1,proto2>" is an objc qualified ID with a missing id.
     if (DeclSpec::ProtocolQualifierListTy PQ = DS.getProtocolQualifiers()) {
-      Result = Context.getObjCObjectPointerType(Context.ObjCBuiltinIdTy,
-                                                (ObjCProtocolDecl**)PQ,
-                                                DS.getNumProtocolQualifiers());
+      Result = Context.getObjCObjectType(Context.ObjCBuiltinIdTy,
+                                         (ObjCProtocolDecl**)PQ,
+                                         DS.getNumProtocolQualifiers());
+      Result = Context.getObjCObjectPointerType(Result);
       break;
     }
     
@@ -283,12 +286,11 @@ static QualType ConvertDeclSpecToType(Sema &TheSema,
 
     // In C++, make an ElaboratedType.
     if (TheSema.getLangOptions().CPlusPlus) {
-      TagDecl::TagKind Tag
-        = TagDecl::getTagKindForTypeSpec(DS.getTypeSpecType());
-      Result = TheSema.getQualifiedNameType(DS.getTypeSpecScope(), Result);
-      Result = Context.getElaboratedType(Result, Tag);
+      ElaboratedTypeKeyword Keyword
+        = ElaboratedType::getKeywordForTypeSpec(DS.getTypeSpecType());
+      Result = TheSema.getElaboratedType(Keyword, DS.getTypeSpecScope(),
+                                         Result);
     }
-
     if (D->isInvalidDecl())
       TheDeclarator.setInvalidType(true);
     break;
@@ -300,28 +302,28 @@ static QualType ConvertDeclSpecToType(Sema &TheSema,
     Result = TheSema.GetTypeFromParser(DS.getTypeRep());
 
     if (DeclSpec::ProtocolQualifierListTy PQ = DS.getProtocolQualifiers()) {
-      if (const ObjCInterfaceType *
-            Interface = Result->getAs<ObjCInterfaceType>()) {
-        // It would be nice if protocol qualifiers were only stored with the
-        // ObjCObjectPointerType. Unfortunately, this isn't possible due
-        // to the following typedef idiom (which is uncommon, but allowed):
-        //
-        // typedef Foo<P> T;
-        // static void func() {
-        //   Foo<P> *yy;
-        //   T *zz;
-        // }
-        Result = Context.getObjCInterfaceType(Interface->getDecl(),
-                                              (ObjCProtocolDecl**)PQ,
-                                              DS.getNumProtocolQualifiers());
-      } else if (Result->isObjCIdType())
+      if (const ObjCObjectType *ObjT = Result->getAs<ObjCObjectType>()) {
+        // Silently drop any existing protocol qualifiers.
+        // TODO: determine whether that's the right thing to do.
+        if (ObjT->getNumProtocols())
+          Result = ObjT->getBaseType();
+
+        if (DS.getNumProtocolQualifiers())
+          Result = Context.getObjCObjectType(Result,
+                                             (ObjCProtocolDecl**) PQ,
+                                             DS.getNumProtocolQualifiers());
+      } else if (Result->isObjCIdType()) {
         // id<protocol-list>
-        Result = Context.getObjCObjectPointerType(Context.ObjCBuiltinIdTy,
-                        (ObjCProtocolDecl**)PQ, DS.getNumProtocolQualifiers());
-      else if (Result->isObjCClassType()) {
+        Result = Context.getObjCObjectType(Context.ObjCBuiltinIdTy,
+                                           (ObjCProtocolDecl**) PQ,
+                                           DS.getNumProtocolQualifiers());
+        Result = Context.getObjCObjectPointerType(Result);
+      } else if (Result->isObjCClassType()) {
         // Class<protocol-list>
-        Result = Context.getObjCObjectPointerType(Context.ObjCBuiltinClassTy,
-                        (ObjCProtocolDecl**)PQ, DS.getNumProtocolQualifiers());
+        Result = Context.getObjCObjectType(Context.ObjCBuiltinClassTy,
+                                           (ObjCProtocolDecl**) PQ,
+                                           DS.getNumProtocolQualifiers());
+        Result = Context.getObjCObjectPointerType(Result);
       } else {
         TheSema.Diag(DeclLoc, diag::err_invalid_protocol_qualifiers)
           << DS.getSourceRange();
@@ -504,7 +506,7 @@ QualType Sema::BuildPointerType(QualType T, unsigned Quals,
     Qs.removeRestrict();
   }
 
-  assert(!T->isObjCInterfaceType() && "Should build ObjCObjectPointerType");
+  assert(!T->isObjCObjectType() && "Should build ObjCObjectPointerType");
 
   // Build the pointer type.
   return Context.getQualifiedType(Context.getPointerType(T), Qs);
@@ -659,7 +661,7 @@ QualType Sema::BuildArrayType(QualType T, ArrayType::ArraySizeModifier ASM,
     // array, accept it as a GNU extension: C99 6.7.2.1p2.
     if (EltTy->getDecl()->hasFlexibleArrayMember())
       Diag(Loc, diag::ext_flexible_array_in_array) << T;
-  } else if (T->isObjCInterfaceType()) {
+  } else if (T->isObjCObjectType()) {
     Diag(Loc, diag::err_objc_array_of_interfaces) << T;
     return QualType();
   }
@@ -678,7 +680,7 @@ QualType Sema::BuildArrayType(QualType T, ArrayType::ArraySizeModifier ASM,
       T = Context.getVariableArrayType(T, 0, ASM, Quals, Brackets);
     else
       T = Context.getIncompleteArrayType(T, ASM, Quals);
-  } else if (ArraySize->isValueDependent()) {
+  } else if (ArraySize->isTypeDependent() || ArraySize->isValueDependent()) {
     T = Context.getDependentSizedArrayType(T, ArraySize, ASM, Quals, Brackets);
   } else if (!ArraySize->isIntegerConstantExpr(ConstVal, Context) ||
              (!T->isDependentType() && !T->isIncompleteType() &&
@@ -707,11 +709,23 @@ QualType Sema::BuildArrayType(QualType T, ArrayType::ArraySizeModifier ASM,
   }
   // If this is not C99, extwarn about VLA's and C99 array size modifiers.
   if (!getLangOptions().C99) {
-    if (ArraySize && !ArraySize->isTypeDependent() &&
-        !ArraySize->isValueDependent() &&
-        !ArraySize->isIntegerConstantExpr(Context))
-      Diag(Loc, getLangOptions().CPlusPlus? diag::err_vla_cxx : diag::ext_vla);
-    else if (ASM != ArrayType::Normal || Quals != 0)
+    if (T->isVariableArrayType()) {
+      // Prohibit the use of non-POD types in VLAs.
+      if (!T->isDependentType() && 
+          !Context.getBaseElementType(T)->isPODType()) {
+        Diag(Loc, diag::err_vla_non_pod)
+          << Context.getBaseElementType(T);
+        return QualType();
+      } 
+      // Prohibit the use of VLAs during template argument deduction.
+      else if (isSFINAEContext()) {
+        Diag(Loc, diag::err_vla_in_sfinae);
+        return QualType();
+      }
+      // Just extwarn about VLAs.
+      else
+        Diag(Loc, diag::ext_vla);
+    } else if (ASM != ArrayType::Normal || Quals != 0)
       Diag(Loc, 
            getLangOptions().CPlusPlus? diag::err_c99_array_usage_cxx
                                      : diag::ext_c99_array_usage);
@@ -995,10 +1009,10 @@ QualType Sema::GetTypeForDeclarator(Declarator &D, Scope *S,
       break;
     case Declarator::MemberContext:
       switch (cast<TagDecl>(CurContext)->getTagKind()) {
-      case TagDecl::TK_enum: assert(0 && "unhandled tag kind"); break;
-      case TagDecl::TK_struct: Error = 1; /* Struct member */ break;
-      case TagDecl::TK_union:  Error = 2; /* Union member */ break;
-      case TagDecl::TK_class:  Error = 3; /* Class member */ break;
+      case TTK_Enum: assert(0 && "unhandled tag kind"); break;
+      case TTK_Struct: Error = 1; /* Struct member */ break;
+      case TTK_Union:  Error = 2; /* Union member */ break;
+      case TTK_Class:  Error = 3; /* Class member */ break;
       }
       break;
     case Declarator::CXXCatchContext:
@@ -1056,13 +1070,9 @@ QualType Sema::GetTypeForDeclarator(Declarator &D, Scope *S,
         D.setInvalidType(true);
         // Build the type anyway.
       }
-      if (getLangOptions().ObjC1 && T->isObjCInterfaceType()) {
-        const ObjCInterfaceType *OIT = T->getAs<ObjCInterfaceType>();
-        T = Context.getObjCObjectPointerType(T,
-                                         const_cast<ObjCProtocolDecl **>(
-                                           OIT->qual_begin()),
-                                         OIT->getNumProtocols(),
-                                         DeclType.Ptr.TypeQuals);
+      if (getLangOptions().ObjC1 && T->getAs<ObjCObjectType>()) {
+        T = Context.getObjCObjectPointerType(T);
+        T = Context.getCVRQualifiedType(T, DeclType.Ptr.TypeQuals);
         break;
       }
       T = BuildPointerType(T, DeclType.Ptr.TypeQuals, DeclType.Loc, Name);
@@ -1301,7 +1311,7 @@ QualType Sema::GetTypeForDeclarator(Declarator &D, Scope *S,
         case NestedNameSpecifier::TypeSpecWithTemplate:
           ClsType = QualType(NNS->getAsType(), 0);
           if (NNSPrefix)
-            ClsType = Context.getQualifiedNameType(NNSPrefix, ClsType);
+            ClsType = Context.getElaboratedType(ETK_None, NNSPrefix, ClsType);
           break;
         }
       } else {
@@ -1401,7 +1411,18 @@ namespace {
     }
     void VisitObjCInterfaceTypeLoc(ObjCInterfaceTypeLoc TL) {
       TL.setNameLoc(DS.getTypeSpecTypeLoc());
+    }
+    void VisitObjCObjectTypeLoc(ObjCObjectTypeLoc TL) {
+      // Handle the base type, which might not have been written explicitly.
+      if (DS.getTypeSpecType() == DeclSpec::TST_unspecified) {
+        TL.setHasBaseTypeAsWritten(false);
+        TL.getBaseLoc().initialize(SourceLocation());
+      } else {
+        TL.setHasBaseTypeAsWritten(true);
+        Visit(TL.getBaseLoc());
+      }
 
+      // Protocol qualifiers.
       if (DS.getProtocolQualifiers()) {
         assert(TL.getNumProtocols() > 0);
         assert(TL.getNumProtocols() == DS.getNumProtocolQualifiers());
@@ -1416,34 +1437,8 @@ namespace {
       }
     }
     void VisitObjCObjectPointerTypeLoc(ObjCObjectPointerTypeLoc TL) {
-      assert(TL.getNumProtocols() == DS.getNumProtocolQualifiers());
-
       TL.setStarLoc(SourceLocation());
-
-      if (DS.getProtocolQualifiers()) {
-        assert(TL.getNumProtocols() > 0);
-        assert(TL.getNumProtocols() == DS.getNumProtocolQualifiers());
-        TL.setHasProtocolsAsWritten(true);
-        TL.setLAngleLoc(DS.getProtocolLAngleLoc());
-        TL.setRAngleLoc(DS.getSourceRange().getEnd());
-        for (unsigned i = 0, e = DS.getNumProtocolQualifiers(); i != e; ++i)
-          TL.setProtocolLoc(i, DS.getProtocolLocs()[i]);
-
-      } else {
-        assert(TL.getNumProtocols() == 0);
-        TL.setHasProtocolsAsWritten(false);
-        TL.setLAngleLoc(SourceLocation());
-        TL.setRAngleLoc(SourceLocation());
-      }
-
-      // This might not have been written with an inner type.
-      if (DS.getTypeSpecType() == DeclSpec::TST_unspecified) {
-        TL.setHasBaseTypeAsWritten(false);
-        TL.getBaseTypeLoc().initialize(SourceLocation());
-      } else {
-        TL.setHasBaseTypeAsWritten(true);
-        Visit(TL.getBaseTypeLoc());
-      }
+      Visit(TL.getPointeeLoc());
     }
     void VisitTemplateSpecializationTypeLoc(TemplateSpecializationTypeLoc TL) {
       TypeSourceInfo *TInfo = 0;
@@ -1456,9 +1451,15 @@ namespace {
         return;
       }
 
-      TemplateSpecializationTypeLoc OldTL =
-        cast<TemplateSpecializationTypeLoc>(TInfo->getTypeLoc());
-      TL.copy(OldTL);
+      TypeLoc OldTL = TInfo->getTypeLoc();
+      if (TInfo->getType()->getAs<ElaboratedType>()) {
+        ElaboratedTypeLoc ElabTL = cast<ElaboratedTypeLoc>(OldTL);
+        TemplateSpecializationTypeLoc NamedTL =
+          cast<TemplateSpecializationTypeLoc>(ElabTL.getNamedTypeLoc());
+        TL.copy(NamedTL);
+      }
+      else
+        TL.copy(cast<TemplateSpecializationTypeLoc>(OldTL));
     }
     void VisitTypeOfExprTypeLoc(TypeOfExprTypeLoc TL) {
       assert(DS.getTypeSpecType() == DeclSpec::TST_typeofExpr);
@@ -1489,6 +1490,44 @@ namespace {
           TL.setBuiltinLoc(DS.getTypeSpecWidthLoc());
       }
     }
+    void VisitElaboratedTypeLoc(ElaboratedTypeLoc TL) {
+      ElaboratedTypeKeyword Keyword
+        = TypeWithKeyword::getKeywordForTypeSpec(DS.getTypeSpecType());
+      if (Keyword == ETK_Typename) {
+        TypeSourceInfo *TInfo = 0;
+        Sema::GetTypeFromParser(DS.getTypeRep(), &TInfo);
+        if (TInfo) {
+          TL.copy(cast<ElaboratedTypeLoc>(TInfo->getTypeLoc()));
+          return;
+        }
+      }
+      TL.setKeywordLoc(Keyword != ETK_None
+                       ? DS.getTypeSpecTypeLoc()
+                       : SourceLocation());
+      const CXXScopeSpec& SS = DS.getTypeSpecScope();
+      TL.setQualifierRange(SS.isEmpty() ? SourceRange(): SS.getRange());
+      Visit(TL.getNextTypeLoc().getUnqualifiedLoc());
+    }
+    void VisitDependentNameTypeLoc(DependentNameTypeLoc TL) {
+      ElaboratedTypeKeyword Keyword
+        = TypeWithKeyword::getKeywordForTypeSpec(DS.getTypeSpecType());
+      if (Keyword == ETK_Typename) {
+        TypeSourceInfo *TInfo = 0;
+        Sema::GetTypeFromParser(DS.getTypeRep(), &TInfo);
+        if (TInfo) {
+          TL.copy(cast<DependentNameTypeLoc>(TInfo->getTypeLoc()));
+          return;
+        }
+      }
+      TL.setKeywordLoc(Keyword != ETK_None
+                       ? DS.getTypeSpecTypeLoc()
+                       : SourceLocation());
+      const CXXScopeSpec& SS = DS.getTypeSpecScope();
+      TL.setQualifierRange(SS.isEmpty() ? SourceRange() : SS.getRange());
+      // FIXME: load appropriate source location.
+      TL.setNameLoc(DS.getTypeSpecTypeLoc());
+    }
+
     void VisitTypeLoc(TypeLoc TL) {
       // FIXME: add other typespec types and change this to an assert.
       TL.initialize(DS.getTypeSpecTypeLoc());
@@ -1516,10 +1555,6 @@ namespace {
     void VisitObjCObjectPointerTypeLoc(ObjCObjectPointerTypeLoc TL) {
       assert(Chunk.Kind == DeclaratorChunk::Pointer);
       TL.setStarLoc(Chunk.Loc);
-      TL.setHasBaseTypeAsWritten(true);
-      TL.setHasProtocolsAsWritten(false);
-      TL.setLAngleLoc(SourceLocation());
-      TL.setRAngleLoc(SourceLocation());
     }
     void VisitMemberPointerTypeLoc(MemberPointerTypeLoc TL) {
       assert(Chunk.Kind == DeclaratorChunk::MemberPointer);
@@ -1642,6 +1677,16 @@ bool Sema::UnwrapSimilarPointerTypes(QualType& T1, QualType& T2) {
     T2 = T2MPType->getPointeeType();
     return true;
   }
+
+  if (getLangOptions().ObjC1) {
+    const ObjCObjectPointerType *T1OPType = T1->getAs<ObjCObjectPointerType>(),
+                                *T2OPType = T2->getAs<ObjCObjectPointerType>();
+    if (T1OPType && T2OPType) {
+      T1 = T1OPType->getPointeeType();
+      T2 = T2OPType->getPointeeType();
+      return true;
+    }
+  }
   return false;
 }
 
@@ -1704,7 +1749,8 @@ static void HandleAddressSpaceTypeAttribute(QualType &Type,
   }
   Expr *ASArgExpr = static_cast<Expr *>(Attr.getArg(0));
   llvm::APSInt addrSpace(32);
-  if (!ASArgExpr->isIntegerConstantExpr(addrSpace, S.Context)) {
+  if (ASArgExpr->isTypeDependent() || ASArgExpr->isValueDependent() ||
+      !ASArgExpr->isIntegerConstantExpr(addrSpace, S.Context)) {
     S.Diag(Attr.getLoc(), diag::err_attribute_address_space_not_int)
       << ASArgExpr->getSourceRange();
     Attr.setInvalid();
@@ -1810,7 +1856,8 @@ bool ProcessFnAttr(Sema &S, QualType &Type, const AttributeList &Attr) {
     llvm::APSInt NumParams(32);
 
     // The warning is emitted elsewhere
-    if (!NumParamsExpr->isIntegerConstantExpr(NumParams, S.Context))
+    if (NumParamsExpr->isTypeDependent() || NumParamsExpr->isValueDependent() ||
+        !NumParamsExpr->isIntegerConstantExpr(NumParams, S.Context))
       return false;
 
     Type = S.Context.getRegParmType(Type, NumParams.getZExtValue());
@@ -1838,6 +1885,7 @@ bool ProcessFnAttr(Sema &S, QualType &Type, const AttributeList &Attr) {
   case AttributeList::AT_cdecl: CC = CC_C; break;
   case AttributeList::AT_fastcall: CC = CC_X86FastCall; break;
   case AttributeList::AT_stdcall: CC = CC_X86StdCall; break;
+  case AttributeList::AT_thiscall: CC = CC_X86ThisCall; break;
   default: llvm_unreachable("unexpected attribute kind"); return false;
   }
 
@@ -1895,7 +1943,8 @@ static void HandleVectorSizeAttr(QualType& CurType, const AttributeList &Attr, S
   }
   Expr *sizeExpr = static_cast<Expr *>(Attr.getArg(0));
   llvm::APSInt vecSize(32);
-  if (!sizeExpr->isIntegerConstantExpr(vecSize, S.Context)) {
+  if (sizeExpr->isTypeDependent() || sizeExpr->isValueDependent() ||
+      !sizeExpr->isIntegerConstantExpr(vecSize, S.Context)) {
     S.Diag(Attr.getLoc(), diag::err_attribute_argument_not_int)
       << "vector_size" << sizeExpr->getSourceRange();
     Attr.setInvalid();
@@ -1962,6 +2011,7 @@ void ProcessTypeAttributeList(Sema &S, QualType &Result,
     case AttributeList::AT_cdecl:
     case AttributeList::AT_fastcall:
     case AttributeList::AT_stdcall:
+    case AttributeList::AT_thiscall:
     case AttributeList::AT_regparm:
       // Don't process these on the DeclSpec.
       if (IsDeclSpec ||
@@ -2082,15 +2132,21 @@ bool Sema::RequireCompleteType(SourceLocation Loc, QualType T,
                              std::make_pair(SourceLocation(), PDiag(0)));
 }
 
-/// \brief Retrieve a version of the type 'T' that is qualified by the
-/// nested-name-specifier contained in SS.
-QualType Sema::getQualifiedNameType(const CXXScopeSpec &SS, QualType T) {
-  if (!SS.isSet() || SS.isInvalid() || T.isNull())
+/// \brief Retrieve a version of the type 'T' that is elaborated by Keyword
+/// and qualified by the nested-name-specifier contained in SS.
+QualType Sema::getElaboratedType(ElaboratedTypeKeyword Keyword,
+                                 const CXXScopeSpec &SS, QualType T) {
+  if (T.isNull())
     return T;
-
-  NestedNameSpecifier *NNS
-    = static_cast<NestedNameSpecifier *>(SS.getScopeRep());
-  return Context.getQualifiedNameType(NNS, T);
+  NestedNameSpecifier *NNS;
+  if (SS.isValid())
+    NNS = static_cast<NestedNameSpecifier *>(SS.getScopeRep());
+  else {
+    if (Keyword == ETK_None)
+      return T;
+    NNS = 0;
+  }
+  return Context.getElaboratedType(Keyword, NNS, T);
 }
 
 QualType Sema::BuildTypeofExprType(Expr *E) {

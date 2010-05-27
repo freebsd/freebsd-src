@@ -100,17 +100,17 @@ static llvm::Constant *getUnexpectedFn(CodeGenFunction &CGF) {
   return CGF.CGM.CreateRuntimeFunction(FTy, "__cxa_call_unexpected");
 }
 
-static llvm::Constant *getUnwindResumeOrRethrowFn(CodeGenFunction &CGF) {
-  const llvm::Type *Int8PtrTy = llvm::Type::getInt8PtrTy(CGF.getLLVMContext());
+llvm::Constant *CodeGenFunction::getUnwindResumeOrRethrowFn() {
+  const llvm::Type *Int8PtrTy = llvm::Type::getInt8PtrTy(getLLVMContext());
   std::vector<const llvm::Type*> Args(1, Int8PtrTy);
 
   const llvm::FunctionType *FTy =
-    llvm::FunctionType::get(llvm::Type::getVoidTy(CGF.getLLVMContext()), Args,
+    llvm::FunctionType::get(llvm::Type::getVoidTy(getLLVMContext()), Args,
                             false);
 
-  if (CGF.CGM.getLangOptions().SjLjExceptions)
-    return CGF.CGM.CreateRuntimeFunction(FTy, "_Unwind_SjLj_Resume");
-  return CGF.CGM.CreateRuntimeFunction(FTy, "_Unwind_Resume_or_Rethrow");
+  if (CGM.getLangOptions().SjLjExceptions)
+    return CGM.CreateRuntimeFunction(FTy, "_Unwind_SjLj_Resume");
+  return CGM.CreateRuntimeFunction(FTy, "_Unwind_Resume_or_Rethrow");
 }
 
 static llvm::Constant *getTerminateFn(CodeGenFunction &CGF) {
@@ -119,7 +119,29 @@ static llvm::Constant *getTerminateFn(CodeGenFunction &CGF) {
   const llvm::FunctionType *FTy =
     llvm::FunctionType::get(llvm::Type::getVoidTy(CGF.getLLVMContext()), false);
 
-  return CGF.CGM.CreateRuntimeFunction(FTy, "_ZSt9terminatev");
+  return CGF.CGM.CreateRuntimeFunction(FTy, 
+      CGF.CGM.getLangOptions().CPlusPlus ? "_ZSt9terminatev" : "abort");
+}
+
+static llvm::Constant *getPersonalityFn(CodeGenModule &CGM) {
+  const char *PersonalityFnName = "__gcc_personality_v0";
+  LangOptions Opts = CGM.getLangOptions();
+  if (Opts.CPlusPlus)
+     PersonalityFnName = "__gxx_personality_v0";
+  else if (Opts.ObjC1) {
+    if (Opts.NeXTRuntime) {
+      if (Opts.ObjCNonFragileABI)
+        PersonalityFnName = "__gcc_personality_v0";
+    } else
+      PersonalityFnName = "__gnu_objc_personality_v0";
+  }
+
+  llvm::Constant *Personality =
+  CGM.CreateRuntimeFunction(llvm::FunctionType::get(llvm::Type::getInt32Ty(
+                                                        CGM.getLLVMContext()),
+                                                    true),
+      PersonalityFnName);
+  return llvm::ConstantExpr::getBitCast(Personality, CGM.PtrToInt8Ty);
 }
 
 // Emits an exception expression into the given location.  This
@@ -324,12 +346,7 @@ void CodeGenFunction::EmitStartEHSpec(const Decl *D) {
   if (!Proto->hasExceptionSpec())
     return;
 
-  llvm::Constant *Personality =
-    CGM.CreateRuntimeFunction(llvm::FunctionType::get(llvm::Type::getInt32Ty
-                                                      (VMContext),
-                                                      true),
-                              "__gxx_personality_v0");
-  Personality = llvm::ConstantExpr::getBitCast(Personality, PtrToInt8Ty);
+  llvm::Constant *Personality = getPersonalityFn(CGM);
   llvm::Value *llvm_eh_exception =
     CGM.getIntrinsic(llvm::Intrinsic::eh_exception);
   llvm::Value *llvm_eh_selector =
@@ -397,7 +414,7 @@ void CodeGenFunction::EmitStartEHSpec(const Decl *D) {
 
   if (Proto->getNumExceptions()) {
     EmitBlock(Unwind);
-    Builder.CreateCall(getUnwindResumeOrRethrowFn(*this),
+    Builder.CreateCall(getUnwindResumeOrRethrowFn(),
                        Builder.CreateLoad(RethrowPtr));
     Builder.CreateUnreachable();
   }
@@ -444,12 +461,7 @@ CodeGenFunction::EnterCXXTryStmt(const CXXTryStmt &S) {
 void CodeGenFunction::ExitCXXTryStmt(const CXXTryStmt &S,
                                      CXXTryStmtInfo TryInfo) {
   // Pointer to the personality function
-  llvm::Constant *Personality =
-    CGM.CreateRuntimeFunction(llvm::FunctionType::get(llvm::Type::getInt32Ty
-                                                      (VMContext),
-                                                      true),
-                              "__gxx_personality_v0");
-  Personality = llvm::ConstantExpr::getBitCast(Personality, PtrToInt8Ty);
+  llvm::Constant *Personality = getPersonalityFn(CGM);
   llvm::Value *llvm_eh_exception =
     CGM.getIntrinsic(llvm::Intrinsic::eh_exception);
   llvm::Value *llvm_eh_selector =
@@ -631,12 +643,12 @@ void CodeGenFunction::ExitCXXTryStmt(const CXXTryStmt &S,
   // here.
   if (getInvokeDest()) {
     llvm::BasicBlock *Cont = createBasicBlock("invoke.cont");
-    Builder.CreateInvoke(getUnwindResumeOrRethrowFn(*this), Cont,
+    Builder.CreateInvoke(getUnwindResumeOrRethrowFn(), Cont,
                          getInvokeDest(),
                          Builder.CreateLoad(RethrowPtr));
     EmitBlock(Cont);
   } else
-    Builder.CreateCall(getUnwindResumeOrRethrowFn(*this),
+    Builder.CreateCall(getUnwindResumeOrRethrowFn(),
                        Builder.CreateLoad(RethrowPtr));
 
   Builder.CreateUnreachable();
@@ -654,12 +666,7 @@ CodeGenFunction::EHCleanupBlock::~EHCleanupBlock() {
  
   // The libstdc++ personality function.
   // TODO: generalize to work with other libraries.
-  llvm::Constant *Personality =
-    CGF.CGM.CreateRuntimeFunction(llvm::FunctionType::get(llvm::Type::getInt32Ty
-                                                          (CGF.VMContext),
-                                                          true),
-                                  "__gxx_personality_v0");
-  Personality = llvm::ConstantExpr::getBitCast(Personality, CGF.PtrToInt8Ty);
+  llvm::Constant *Personality = getPersonalityFn(CGF.CGM);
 
   // %exception = call i8* @llvm.eh.exception()
   //   Magic intrinsic which tells gives us a handle to the caught
@@ -687,11 +694,11 @@ CodeGenFunction::EHCleanupBlock::~EHCleanupBlock() {
   // Rethrow the exception.
   if (CGF.getInvokeDest()) {
     llvm::BasicBlock *Cont = CGF.createBasicBlock("invoke.cont");
-    CGF.Builder.CreateInvoke(getUnwindResumeOrRethrowFn(CGF), Cont,
+    CGF.Builder.CreateInvoke(CGF.getUnwindResumeOrRethrowFn(), Cont,
                              CGF.getInvokeDest(), Exc);
     CGF.EmitBlock(Cont);
   } else
-    CGF.Builder.CreateCall(getUnwindResumeOrRethrowFn(CGF), Exc);
+    CGF.Builder.CreateCall(CGF.getUnwindResumeOrRethrowFn(), Exc);
   CGF.Builder.CreateUnreachable();
 
   // Resume inserting where we started, but put the new cleanup
@@ -715,12 +722,7 @@ llvm::BasicBlock *CodeGenFunction::getTerminateHandler() {
   llvm::BasicBlock::iterator SavedInsertPoint = Builder.GetInsertPoint();
   Builder.ClearInsertionPoint();
 
-  llvm::Constant *Personality =
-    CGM.CreateRuntimeFunction(llvm::FunctionType::get(llvm::Type::getInt32Ty
-                                                      (VMContext),
-                                                      true),
-                              "__gxx_personality_v0");
-  Personality = llvm::ConstantExpr::getBitCast(Personality, PtrToInt8Ty);
+  llvm::Constant *Personality = getPersonalityFn(CGM);
   llvm::Value *llvm_eh_exception =
     CGM.getIntrinsic(llvm::Intrinsic::eh_exception);
   llvm::Value *llvm_eh_selector =

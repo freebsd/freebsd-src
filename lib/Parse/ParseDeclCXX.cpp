@@ -50,7 +50,7 @@ Parser::DeclPtrTy Parser::ParseNamespace(unsigned Context,
 
   if (Tok.is(tok::code_completion)) {
     Actions.CodeCompleteNamespaceDecl(CurScope);
-    ConsumeToken();
+    ConsumeCodeCompletionToken();
   }
 
   SourceLocation IdentLoc;
@@ -86,6 +86,14 @@ Parser::DeclPtrTy Parser::ParseNamespace(unsigned Context,
   }
 
   SourceLocation LBrace = ConsumeBrace();
+
+  if (CurScope->isClassScope() || CurScope->isTemplateParamScope() || 
+      CurScope->isInObjcMethodScope() || CurScope->getBlockParent() || 
+      CurScope->getFnParent()) {
+    Diag(LBrace, diag::err_namespace_nonnamespace_scope);
+    SkipUntil(tok::r_brace, false);
+    return DeclPtrTy();
+  }
 
   // Enter a scope for the namespace.
   ParseScope NamespaceScope(this, Scope::DeclScope);
@@ -128,7 +136,7 @@ Parser::DeclPtrTy Parser::ParseNamespaceAlias(SourceLocation NamespaceLoc,
 
   if (Tok.is(tok::code_completion)) {
     Actions.CodeCompleteNamespaceAliasDecl(CurScope);
-    ConsumeToken();
+    ConsumeCodeCompletionToken();
   }
 
   CXXScopeSpec SS;
@@ -223,7 +231,7 @@ Parser::DeclPtrTy Parser::ParseUsingDirectiveOrDeclaration(unsigned Context,
 
   if (Tok.is(tok::code_completion)) {
     Actions.CodeCompleteUsing(CurScope);
-    ConsumeToken();
+    ConsumeCodeCompletionToken();
   }
 
   if (Tok.is(tok::kw_namespace))
@@ -260,7 +268,7 @@ Parser::DeclPtrTy Parser::ParseUsingDirective(unsigned Context,
 
   if (Tok.is(tok::code_completion)) {
     Actions.CodeCompleteUsingDirective(CurScope);
-    ConsumeToken();
+    ConsumeCodeCompletionToken();
   }
 
   CXXScopeSpec SS;
@@ -602,7 +610,7 @@ void Parser::ParseClassSpecifier(tok::TokenKind TagTokKind,
   if (Tok.is(tok::code_completion)) {
     // Code completion for a struct, class, or union name.
     Actions.CodeCompleteTag(CurScope, TagType);
-    ConsumeToken();
+    ConsumeCodeCompletionToken();
   }
 
   AttributeList *AttrList = 0;
@@ -973,6 +981,7 @@ void Parser::ParseClassSpecifier(tok::TokenKind TagTokKind,
     case tok::kw_typedef:         // struct foo {...} typedef   x;
     case tok::kw_register:        // struct foo {...} register  x;
     case tok::kw_auto:            // struct foo {...} auto      x;
+    case tok::kw_mutable:         // struct foo {...} mutable      x;
       // As shown above, type qualifiers and storage class specifiers absolutely
       // can occur after class specifiers according to the grammar.  However,
       // almost noone actually writes code like this.  If we see one of these,
@@ -1298,7 +1307,7 @@ void Parser::ParseCXXClassMemberDeclaration(AccessSpecifier AS,
 
   if (Tok.is(tok::semi)) {
     ConsumeToken();
-    Actions.ParsedFreeStandingDeclSpec(CurScope, DS);
+    Actions.ParsedFreeStandingDeclSpec(CurScope, AS, DS);
     return;
   }
 

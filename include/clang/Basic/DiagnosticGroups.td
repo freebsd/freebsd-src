@@ -40,6 +40,9 @@ def ExtraTokens : DiagGroup<"extra-tokens">;
 def FormatExtraArgs : DiagGroup<"format-extra-args">;
 def FormatZeroLength : DiagGroup<"format-zero-length">;
 
+def CXXHexFloats : DiagGroup<"c++-hex-floats">;
+
+def : DiagGroup<"c++0x-compat", [CXXHexFloats]>;
 def FourByteMultiChar : DiagGroup<"four-char-constants">;
 def : DiagGroup<"idiomatic-parentheses">;
 def : DiagGroup<"import">;
@@ -120,6 +123,7 @@ def SuperSubClassMismatch : DiagGroup<"super-class-method-mismatch">;
 def : DiagGroup<"variadic-macros">;
 def VariadicMacros : DiagGroup<"variadic-macros">;
 def VectorConversions : DiagGroup<"vector-conversions">;      // clang specific
+def VLA : DiagGroup<"vla">;
 def VolatileRegisterVar : DiagGroup<"volatile-register-var">;
 def : DiagGroup<"write-strings">;
 def CharSubscript : DiagGroup<"char-subscripts">;
@@ -134,16 +138,17 @@ def Parentheses : DiagGroup<"parentheses", [DiagGroup<"idiomatic-parentheses">]>
 // legacy reasons.
 def Conversion : DiagGroup<"conversion",
                            [DiagGroup<"shorten-64-to-32">]>,
-                 DiagCategory<"Value Conversion">;
+                 DiagCategory<"Value Conversion Issue">;
 
 def Unused : DiagGroup<"unused",
                        [UnusedArgument, UnusedFunction, UnusedLabel,
                         // UnusedParameter, (matches GCC's behavior)
-                        UnusedValue, UnusedVariable]>;
+                        UnusedValue, UnusedVariable]>,
+                        DiagCategory<"Unused Entity Issue">;
 
 // Format settings.
 def Format : DiagGroup<"format", [FormatExtraArgs, FormatZeroLength, NonNull]>,
-             DiagCategory<"Format String">;
+             DiagCategory<"Format String Issue">;
 def FormatSecurity : DiagGroup<"format-security", [Format]>;
 def FormatNonLiteral : DiagGroup<"format-nonliteral", [FormatSecurity]>;
 def FormatY2K : DiagGroup<"format-y2k", [Format]>;
@@ -190,4 +195,4 @@ def NonGCC : DiagGroup<"non-gcc",
     [SignCompare, Conversion, LiteralRange]>;
 
 // A warning group for warnings about GCC extensions.
-def GNU : DiagGroup<"gnu", [GNUDesignator]>;
+def GNU : DiagGroup<"gnu", [GNUDesignator, VLA]>;

@@ -18,6 +18,7 @@
 #include "clang/Checker/PathSensitive/SVals.h"
 #include "clang/Checker/PathSensitive/ValueManager.h"
 #include "llvm/ADT/DenseSet.h"
+#include "llvm/ADT/Optional.h"
 
 namespace clang {
 
@@ -143,9 +144,9 @@ public:
     return UnknownVal();
   }
 
-  virtual Store RemoveDeadBindings(Store store, Stmt* Loc,
-                                   const StackFrameContext *LCtx,
-                                   SymbolReaper& SymReaper,
+  virtual const GRState *RemoveDeadBindings(GRState &state, Stmt* Loc,
+                                            const StackFrameContext *LCtx,
+                                            SymbolReaper& SymReaper,
                       llvm::SmallVectorImpl<const MemRegion*>& RegionRoots) = 0;
 
   virtual Store BindDecl(Store store, const VarRegion *VR, SVal initVal) = 0;
@@ -167,8 +168,13 @@ public:
 
   // FIXME: Make out-of-line.
   virtual const GRState *setExtent(const GRState *state,
-                                    const MemRegion *region, SVal extent) {
+                                   const MemRegion *region, SVal extent) {
     return state;
+  }
+
+  virtual llvm::Optional<SVal> getExtent(const GRState *state, 
+                                         const MemRegion *R) {
+    return llvm::Optional<SVal>();
   }
 
   /// EnterStackFrame - Let the StoreManager to do something when execution

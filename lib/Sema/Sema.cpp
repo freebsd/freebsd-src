@@ -33,21 +33,11 @@ void FunctionScopeInfo::Clear(unsigned NumErrors) {
   NeedsScopeChecking = false;
   LabelMap.clear();
   SwitchStack.clear();
+  Returns.clear();
   NumErrorsAtStartOfFunction = NumErrors;
 }
 
 BlockScopeInfo::~BlockScopeInfo() { }
-
-static inline RecordDecl *CreateStructDecl(ASTContext &C, const char *Name) {
-  if (C.getLangOptions().CPlusPlus)
-    return CXXRecordDecl::Create(C, TagDecl::TK_struct,
-                                 C.getTranslationUnitDecl(),
-                                 SourceLocation(), &C.Idents.get(Name));
-
-  return RecordDecl::Create(C, TagDecl::TK_struct,
-                            C.getTranslationUnitDecl(),
-                            SourceLocation(), &C.Idents.get(Name));
-}
 
 void Sema::ActOnTranslationUnitScope(SourceLocation Loc, Scope *S) {
   TUScope = S;
@@ -97,8 +87,9 @@ void Sema::ActOnTranslationUnitScope(SourceLocation Loc, Scope *S) {
   }
   // Create the built-in typedef for 'id'.
   if (Context.getObjCIdType().isNull()) {
-    QualType IdT = Context.getObjCObjectPointerType(Context.ObjCBuiltinIdTy);
-    TypeSourceInfo *IdInfo = Context.getTrivialTypeSourceInfo(IdT);
+    QualType T = Context.getObjCObjectType(Context.ObjCBuiltinIdTy, 0, 0);
+    T = Context.getObjCObjectPointerType(T);
+    TypeSourceInfo *IdInfo = Context.getTrivialTypeSourceInfo(T);
     TypedefDecl *IdTypedef
       = TypedefDecl::Create(Context, CurContext, SourceLocation(),
                             &Context.Idents.get("id"), IdInfo);
@@ -108,9 +99,9 @@ void Sema::ActOnTranslationUnitScope(SourceLocation Loc, Scope *S) {
   }
   // Create the built-in typedef for 'Class'.
   if (Context.getObjCClassType().isNull()) {
-    QualType ClassType
-      = Context.getObjCObjectPointerType(Context.ObjCBuiltinClassTy);
-    TypeSourceInfo *ClassInfo = Context.getTrivialTypeSourceInfo(ClassType);
+    QualType T = Context.getObjCObjectType(Context.ObjCBuiltinClassTy, 0, 0);
+    T = Context.getObjCObjectPointerType(T);
+    TypeSourceInfo *ClassInfo = Context.getTrivialTypeSourceInfo(T);
     TypedefDecl *ClassTypedef
       = TypedefDecl::Create(Context, CurContext, SourceLocation(),
                             &Context.Idents.get("Class"), ClassInfo);
@@ -175,7 +166,17 @@ void Sema::ImpCastExprToType(Expr *&Expr, QualType Ty,
     }
   }
 
-  CheckImplicitConversion(Expr, Ty);
+  // If this is a derived-to-base cast to a through a virtual base, we
+  // need a vtable.
+  if (Kind == CastExpr::CK_DerivedToBase && 
+      BasePathInvolvesVirtualBase(BasePath)) {
+    QualType T = Expr->getType();
+    if (const PointerType *Pointer = T->getAs<PointerType>())
+      T = Pointer->getPointeeType();
+    if (const RecordType *RecordTy = T->getAs<RecordType>())
+      MarkVTableUsed(Expr->getLocStart(), 
+                     cast<CXXRecordDecl>(RecordTy->getDecl()));
+  }
 
   if (ImplicitCastExpr *ImpCast = dyn_cast<ImplicitCastExpr>(Expr)) {
     if (ImpCast->getCastKind() == Kind && BasePath.empty()) {
@@ -212,10 +213,10 @@ void Sema::ActOnEndOfTranslationUnit() {
     // template instantiations earlier.
     PerformPendingImplicitInstantiations();
     
-    /// If ProcessPendingClassesWithUnmarkedVirtualMembers ends up marking 
-    /// any virtual member functions it might lead to more pending template
+    /// If DefinedUsedVTables ends up marking any virtual member
+    /// functions it might lead to more pending template
     /// instantiations, which is why we need to loop here.
-    if (!ProcessPendingClassesWithUnmarkedVirtualMembers())
+    if (!DefineUsedVTables())
       break;
   }
   
@@ -304,7 +305,7 @@ void Sema::ActOnEndOfTranslationUnit() {
 DeclContext *Sema::getFunctionLevelDeclContext() {
   DeclContext *DC = CurContext;
 
-  while (isa<BlockDecl>(DC))
+  while (isa<BlockDecl>(DC) || isa<EnumDecl>(DC))
     DC = DC->getParent();
 
   return DC;

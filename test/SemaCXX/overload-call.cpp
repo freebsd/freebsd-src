@@ -430,3 +430,33 @@ namespace PR6177 {
 
   void g() { f(""); } // expected-error{{volatile lvalue reference to type 'bool const volatile' cannot bind to a value of unrelated type 'char const [1]'}}
 }
+
+namespace PR7095 {
+  struct X { };
+
+  struct Y {
+    operator const X*();
+
+  private:
+    operator X*();
+  };
+
+  void f(const X *);
+  void g(Y y) { f(y); }
+}
+
+namespace PR7224 {
+  class A {};
+  class B : public A {};
+
+  int &foo(A *const d);
+  float &foo(const A *const d);
+
+  void bar()
+  {
+    B *const d = 0;
+    B const *const d2 = 0;
+    int &ir = foo(d);
+    float &fr = foo(d2);
+  }
+}

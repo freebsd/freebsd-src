@@ -2165,28 +2165,32 @@ QualType PCHReader::ReadTypeRecord(uint64_t Offset) {
       return QualType();
     }
     unsigned Tag = Record[1];
-    return Context->getElaboratedType(GetType(Record[0]),
-                                      (ElaboratedType::TagKind) Tag);
+    // FIXME: Deserialize the qualifier (C++ only)
+    return Context->getElaboratedType((ElaboratedTypeKeyword) Tag,
+                                      /* NNS */ 0,
+                                      GetType(Record[0]));
   }
 
   case pch::TYPE_OBJC_INTERFACE: {
     unsigned Idx = 0;
     ObjCInterfaceDecl *ItfD = cast<ObjCInterfaceDecl>(GetDecl(Record[Idx++]));
+    return Context->getObjCInterfaceType(ItfD);
+  }
+
+  case pch::TYPE_OBJC_OBJECT: {
+    unsigned Idx = 0;
+    QualType Base = GetType(Record[Idx++]);
     unsigned NumProtos = Record[Idx++];
     llvm::SmallVector<ObjCProtocolDecl*, 4> Protos;
     for (unsigned I = 0; I != NumProtos; ++I)
       Protos.push_back(cast<ObjCProtocolDecl>(GetDecl(Record[Idx++])));
-    return Context->getObjCInterfaceType(ItfD, Protos.data(), NumProtos);
+    return Context->getObjCObjectType(Base, Protos.data(), NumProtos);    
   }
 
   case pch::TYPE_OBJC_OBJECT_POINTER: {
     unsigned Idx = 0;
-    QualType OIT = GetType(Record[Idx++]);
-    unsigned NumProtos = Record[Idx++];
-    llvm::SmallVector<ObjCProtocolDecl*, 4> Protos;
-    for (unsigned I = 0; I != NumProtos; ++I)
-      Protos.push_back(cast<ObjCProtocolDecl>(GetDecl(Record[Idx++])));
-    return Context->getObjCObjectPointerType(OIT, Protos.data(), NumProtos);
+    QualType Pointee = GetType(Record[Idx++]);
+    return Context->getObjCObjectPointerType(Pointee);
   }
 
   case pch::TYPE_SUBST_TEMPLATE_TYPE_PARM: {
@@ -2334,9 +2338,6 @@ void TypeLocReader::VisitRecordTypeLoc(RecordTypeLoc TL) {
 void TypeLocReader::VisitEnumTypeLoc(EnumTypeLoc TL) {
   TL.setNameLoc(SourceLocation::getFromRawEncoding(Record[Idx++]));
 }
-void TypeLocReader::VisitElaboratedTypeLoc(ElaboratedTypeLoc TL) {
-  TL.setNameLoc(SourceLocation::getFromRawEncoding(Record[Idx++]));
-}
 void TypeLocReader::VisitTemplateTypeParmTypeLoc(TemplateTypeParmTypeLoc TL) {
   TL.setNameLoc(SourceLocation::getFromRawEncoding(Record[Idx++]));
 }
@@ -2354,17 +2355,23 @@ void TypeLocReader::VisitTemplateSpecializationTypeLoc(
         Reader.GetTemplateArgumentLocInfo(TL.getTypePtr()->getArg(i).getKind(),
                                           Record, Idx));
 }
-void TypeLocReader::VisitQualifiedNameTypeLoc(QualifiedNameTypeLoc TL) {
-  TL.setNameLoc(SourceLocation::getFromRawEncoding(Record[Idx++]));
+void TypeLocReader::VisitElaboratedTypeLoc(ElaboratedTypeLoc TL) {
+  TL.setKeywordLoc(SourceLocation::getFromRawEncoding(Record[Idx++]));
+  TL.setQualifierRange(Reader.ReadSourceRange(Record, Idx));
 }
 void TypeLocReader::VisitInjectedClassNameTypeLoc(InjectedClassNameTypeLoc TL) {
   TL.setNameLoc(SourceLocation::getFromRawEncoding(Record[Idx++]));
 }
 void TypeLocReader::VisitDependentNameTypeLoc(DependentNameTypeLoc TL) {
+  TL.setKeywordLoc(SourceLocation::getFromRawEncoding(Record[Idx++]));
+  TL.setQualifierRange(Reader.ReadSourceRange(Record, Idx));
   TL.setNameLoc(SourceLocation::getFromRawEncoding(Record[Idx++]));
 }
 void TypeLocReader::VisitObjCInterfaceTypeLoc(ObjCInterfaceTypeLoc TL) {
   TL.setNameLoc(SourceLocation::getFromRawEncoding(Record[Idx++]));
+}
+void TypeLocReader::VisitObjCObjectTypeLoc(ObjCObjectTypeLoc TL) {
+  TL.setHasBaseTypeAsWritten(Record[Idx++]);
   TL.setLAngleLoc(SourceLocation::getFromRawEncoding(Record[Idx++]));
   TL.setRAngleLoc(SourceLocation::getFromRawEncoding(Record[Idx++]));
   for (unsigned i = 0, e = TL.getNumProtocols(); i != e; ++i)
@@ -2372,13 +2379,6 @@ void TypeLocReader::VisitObjCInterfaceTypeLoc(ObjCInterfaceTypeLoc TL) {
 }
 void TypeLocReader::VisitObjCObjectPointerTypeLoc(ObjCObjectPointerTypeLoc TL) {
   TL.setStarLoc(SourceLocation::getFromRawEncoding(Record[Idx++]));
-  TL.setLAngleLoc(SourceLocation::getFromRawEncoding(Record[Idx++]));
-  TL.setRAngleLoc(SourceLocation::getFromRawEncoding(Record[Idx++]));
-  TL.setHasBaseTypeAsWritten(Record[Idx++]);
-  TL.setHasProtocolsAsWritten(Record[Idx++]);
-  if (TL.hasProtocolsAsWritten())
-    for (unsigned i = 0, e = TL.getNumProtocols(); i != e; ++i)
-      TL.setProtocolLoc(i, SourceLocation::getFromRawEncoding(Record[Idx++]));
 }
 
 TypeSourceInfo *PCHReader::GetTypeSourceInfo(const RecordData &Record,
@@ -2901,6 +2901,51 @@ PCHReader::ReadDeclarationName(const RecordData &Record, unsigned &Idx) {
   return DeclarationName();
 }
 
+NestedNameSpecifier *
+PCHReader::ReadNestedNameSpecifier(const RecordData &Record, unsigned &Idx) {
+  unsigned N = Record[Idx++];
+  NestedNameSpecifier *NNS = 0, *Prev = 0;
+  for (unsigned I = 0; I != N; ++I) {
+    NestedNameSpecifier::SpecifierKind Kind
+      = (NestedNameSpecifier::SpecifierKind)Record[Idx++];
+    switch (Kind) {
+    case NestedNameSpecifier::Identifier: {
+      IdentifierInfo *II = GetIdentifierInfo(Record, Idx);
+      NNS = NestedNameSpecifier::Create(*Context, Prev, II);
+      break;
+    }
+
+    case NestedNameSpecifier::Namespace: {
+      NamespaceDecl *NS = cast<NamespaceDecl>(GetDecl(Record[Idx++]));
+      NNS = NestedNameSpecifier::Create(*Context, Prev, NS);
+      break;
+    }
+
+    case NestedNameSpecifier::TypeSpec:
+    case NestedNameSpecifier::TypeSpecWithTemplate: {
+      Type *T = GetType(Record[Idx++]).getTypePtr();
+      bool Template = Record[Idx++];
+      NNS = NestedNameSpecifier::Create(*Context, Prev, Template, T);
+      break;
+    }
+
+    case NestedNameSpecifier::Global: {
+      NNS = NestedNameSpecifier::GlobalSpecifier(*Context);
+      // No associated value, and there can't be a prefix.
+      break;
+    }
+    Prev = NNS;
+    }
+  }
+  return NNS;
+}
+
+SourceRange
+PCHReader::ReadSourceRange(const RecordData &Record, unsigned &Idx) {
+  return SourceRange(SourceLocation::getFromRawEncoding(Record[Idx++]),
+                     SourceLocation::getFromRawEncoding(Record[Idx++]));
+}
+
 /// \brief Read an integral value
 llvm::APInt PCHReader::ReadAPInt(const RecordData &Record, unsigned &Idx) {
   unsigned BitWidth = Record[Idx++];
@@ -2927,6 +2972,12 @@ std::string PCHReader::ReadString(const RecordData &Record, unsigned &Idx) {
   std::string Result(Record.data() + Idx, Record.data() + Idx + Len);
   Idx += Len;
   return Result;
+}
+
+CXXTemporary *PCHReader::ReadCXXTemporary(const RecordData &Record,
+                                          unsigned &Idx) {
+  CXXDestructorDecl *Decl = cast<CXXDestructorDecl>(GetDecl(Record[Idx++]));
+  return CXXTemporary::Create(*Context, Decl);
 }
 
 DiagnosticBuilder PCHReader::Diag(unsigned DiagID) {

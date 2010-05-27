@@ -12,6 +12,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "CodeGenFunction.h"
+#include "CGObjCRuntime.h"
 using namespace clang;
 using namespace CodeGen;
 
@@ -255,16 +256,29 @@ CodeGenFunction::EmitCXXOperatorMemberCallExpr(const CXXOperatorCallExpr *E,
                                                ReturnValueSlot ReturnValue) {
   assert(MD->isInstance() &&
          "Trying to emit a member call expr on a static method!");
-
   if (MD->isCopyAssignment()) {
     const CXXRecordDecl *ClassDecl = cast<CXXRecordDecl>(MD->getDeclContext());
     if (ClassDecl->hasTrivialCopyAssignment()) {
       assert(!ClassDecl->hasUserDeclaredCopyAssignment() &&
              "EmitCXXOperatorMemberCallExpr - user declared copy assignment");
-      llvm::Value *This = EmitLValue(E->getArg(0)).getAddress();
+      LValue LV = EmitLValue(E->getArg(0));
+      llvm::Value *This;
+      if (LV.isPropertyRef()) {
+        llvm::Value *AggLoc  = CreateMemTemp(E->getArg(1)->getType());
+        EmitAggExpr(E->getArg(1), AggLoc, false /*VolatileDest*/);
+        EmitObjCPropertySet(LV.getPropertyRefExpr(),
+                            RValue::getAggregate(AggLoc, false /*VolatileDest*/));
+        return RValue::getAggregate(0, false);
+      }
+      else
+        This = LV.getAddress();
+      
       llvm::Value *Src = EmitLValue(E->getArg(1)).getAddress();
       QualType Ty = E->getType();
-      EmitAggregateCopy(This, Src, Ty);
+      if (ClassDecl->hasObjectMember())
+        CGM.getObjCRuntime().EmitGCMemmoveCollectable(*this, This, Src, Ty);
+      else 
+        EmitAggregateCopy(This, Src, Ty);
       return RValue::get(This);
     }
   }
@@ -273,8 +287,15 @@ CodeGenFunction::EmitCXXOperatorMemberCallExpr(const CXXOperatorCallExpr *E,
   const llvm::Type *Ty =
     CGM.getTypes().GetFunctionType(CGM.getTypes().getFunctionInfo(MD),
                                    FPT->isVariadic());
-
-  llvm::Value *This = EmitLValue(E->getArg(0)).getAddress();
+  LValue LV = EmitLValue(E->getArg(0));
+  llvm::Value *This;
+  if (LV.isPropertyRef()) {
+    RValue RV = EmitLoadOfPropertyRefLValue(LV, E->getArg(0)->getType());
+    assert (!RV.isScalar() && "EmitCXXOperatorMemberCallExpr");
+    This = RV.getAggregateAddr();
+  }
+  else
+    This = LV.getAddress();
 
   llvm::Value *Callee;
   if (MD->isVirtual() && !canDevirtualizeMemberFunctionCalls(E->getArg(0)))
@@ -305,11 +326,13 @@ CodeGenFunction::EmitCXXConstructExpr(llvm::Value *Dest,
       return;
   }
   // Code gen optimization to eliminate copy constructor and return
-  // its first argument instead.
+  // its first argument instead, if in fact that argument is a temporary 
+  // object.
   if (getContext().getLangOptions().ElideConstructors && E->isElidable()) {
-    const Expr *Arg = E->getArg(0)->getTemporaryObject();
-    EmitAggExpr(Arg, Dest, false);
-    return;
+    if (const Expr *Arg = E->getArg(0)->getTemporaryObject()) {
+      EmitAggExpr(Arg, Dest, false);
+      return;
+    }
   }
   if (Array) {
     QualType BaseElementTy = getContext().getBaseElementType(Array);
@@ -851,6 +874,8 @@ llvm::Value *CodeGenFunction::EmitDynamicCast(llvm::Value *V,
       ToVoid = true;
   } else {
     LTy = LTy->getPointerTo();
+    
+    // FIXME: What if exceptions are disabled?
     ThrowOnBad = true;
   }
 
@@ -917,15 +942,21 @@ llvm::Value *CodeGenFunction::EmitDynamicCast(llvm::Value *V,
 
     if (ThrowOnBad) {
       BadCastBlock = createBasicBlock();
-
       Builder.CreateCondBr(Builder.CreateIsNotNull(V), ContBlock, BadCastBlock);
       EmitBlock(BadCastBlock);
-      /// Call __cxa_bad_cast
+      /// Invoke __cxa_bad_cast
       ResultType = llvm::Type::getVoidTy(VMContext);
       const llvm::FunctionType *FBadTy;
       FBadTy = llvm::FunctionType::get(ResultType, false);
       llvm::Value *F = CGM.CreateRuntimeFunction(FBadTy, "__cxa_bad_cast");
-      Builder.CreateCall(F)->setDoesNotReturn();
+      if (llvm::BasicBlock *InvokeDest = getInvokeDest()) {
+        llvm::BasicBlock *Cont = createBasicBlock("invoke.cont");
+        Builder.CreateInvoke(F, Cont, InvokeDest)->setDoesNotReturn();
+        EmitBlock(Cont);
+      } else {
+        // FIXME: Does this ever make sense?
+        Builder.CreateCall(F)->setDoesNotReturn();
+      }
       Builder.CreateUnreachable();
     }
   }

@@ -34,3 +34,47 @@ namespace PR7021 {
     // CHECK: ret void
   }
 }
+
+namespace test2 {
+  struct A {
+    struct {
+      union {
+        int b;
+      };
+    };
+
+    A();
+  };
+
+  A::A() : b(10) { }
+  // CHECK: define void @_ZN5test21AC2Ev(
+  // CHECK-NOT: }
+  // CHECK: store i32 10
+  // CHECK: }
+}
+
+namespace test3 {
+  struct A {
+    union {
+      mutable char fibers[100];
+      struct {
+        void (*callback)(void*);
+        void *callback_value;
+      };
+    };
+
+    A();
+  };
+
+  A::A() : callback(0), callback_value(0) {}
+  // CHECK: define void @ZN5test31AC2Ev(
+  // CHECK: [[THIS:%.*]] = load
+  // CHECK-NEXT: [[UNION:%.*]] = getelementptr inbounds {{.*}} [[THIS]], i32 0, i32 0
+  // CHECK-NEXT: [[STRUCT:%.*]] = getelementptr inbounds {{.*}} [[UNION]], i32 0, i32 0
+  // CHECK-NEXT: [[CALLBACK:%.*]] = getelementptr inbounds {{.*}} [[STRUCT]], i32 0, i32 0
+  // CHECK-NEXT: store void (i8*)* null, void (i8*)** [[CALLBACK]]
+  // CHECK-NEXT: [[UNION:%.*]] = getelementptr inbounds {{.*}} [[THIS]], i32 0, i32 0
+  // CHECK-NEXT: [[STRUCT:%.*]] = getelementptr inbounds {{.*}} [[UNION]], i32 0, i32 0
+  // CHECK-NEXT: [[CVALUE:%.*]] = getelementptr inbounds {{.*}} [[STRUCT]], i32 0, i32 0
+  // CHECK-NEXT: store i8* null, void i8** [[CVALUE]]
+}

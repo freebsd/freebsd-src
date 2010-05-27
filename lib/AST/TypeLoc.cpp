@@ -27,13 +27,13 @@ namespace {
 #define ABSTRACT_TYPELOC(CLASS, PARENT)
 #define TYPELOC(CLASS, PARENT) \
     SourceRange Visit##CLASS##TypeLoc(CLASS##TypeLoc TyLoc) { \
-      return TyLoc.getSourceRange(); \
+      return TyLoc.getLocalSourceRange(); \
     }
 #include "clang/AST/TypeLocNodes.def"
   };
 }
 
-SourceRange TypeLoc::getSourceRangeImpl(TypeLoc TL) {
+SourceRange TypeLoc::getLocalSourceRangeImpl(TypeLoc TL) {
   if (TL.isNull()) return SourceRange();
   return TypeLocRanger().Visit(TL);
 }
@@ -92,10 +92,57 @@ namespace {
 /// recursively, as if the entire tree had been written in the
 /// given location.
 void TypeLoc::initializeImpl(TypeLoc TL, SourceLocation Loc) {
-  do {
-    TypeLocInitializer(Loc).Visit(TL);
-  } while ((TL = TL.getNextTypeLoc()));
+  while (true) {
+    switch (TL.getTypeLocClass()) {
+#define ABSTRACT_TYPELOC(CLASS, PARENT)
+#define TYPELOC(CLASS, PARENT)        \
+    case CLASS: {                     \
+      CLASS##TypeLoc TLCasted = cast<CLASS##TypeLoc>(TL); \
+      TLCasted.initializeLocal(Loc);  \
+      TL = TLCasted.getNextTypeLoc(); \
+      if (!TL) return;                \
+      continue;                       \
+    }
+#include "clang/AST/TypeLocNodes.def"
+    }
+  }
 }
+
+SourceLocation TypeLoc::getBeginLoc() const {
+  TypeLoc Cur = *this;
+  while (true) {
+    switch (Cur.getTypeLocClass()) {
+    // FIXME: Currently QualifiedTypeLoc does not have a source range
+    // case Qualified:
+    case Elaborated:
+      break;
+    default:
+      TypeLoc Next = Cur.getNextTypeLoc();
+      if (Next.isNull()) break;
+      Cur = Next;
+      continue;
+    }
+    break;
+  }
+  return Cur.getLocalSourceRange().getBegin();
+}
+
+SourceLocation TypeLoc::getEndLoc() const {
+  TypeLoc Cur = *this;
+  while (true) {
+    switch (Cur.getTypeLocClass()) {
+    default:
+      break;
+    case Qualified:
+    case Elaborated:
+      Cur = Cur.getNextTypeLoc();
+      continue;
+    }
+    break;
+  }
+  return Cur.getLocalSourceRange().getEnd();
+}
+
 
 namespace {
   struct TSTChecker : public TypeLocVisitor<TSTChecker, bool> {
@@ -129,7 +176,7 @@ bool TypeSpecTypeLoc::classof(const TypeLoc *TL) {
 // Reimplemented to account for GNU/C++ extension
 //     typeof unary-expression
 // where there are no parentheses.
-SourceRange TypeOfExprTypeLoc::getSourceRange() const {
+SourceRange TypeOfExprTypeLoc::getLocalSourceRange() const {
   if (getRParenLoc().isValid())
     return SourceRange(getTypeofLoc(), getRParenLoc());
   else

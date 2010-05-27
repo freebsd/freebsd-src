@@ -56,8 +56,6 @@ def analysis_ObjCMemChecker : Flag<"-analyzer-check-objc-mem">,
   HelpText<"Run the [Core] Foundation reference count checker">;
 def analysis_WarnSizeofPointer : Flag<"-warn-sizeof-pointer">,
   HelpText<"Warn about unintended use of sizeof() on pointer expressions">;
-def analysis_InlineCall : Flag<"-inline-call">,
-  HelpText<"Experimental transfer function inlining callees when its definition is available.">;
 
 def analyzer_store : Separate<"-analyzer-store">,
   HelpText<"Source Code Analysis - Abstract Memory Store Models">;
@@ -97,8 +95,12 @@ def analyzer_viz_egraph_graphviz : Flag<"-analyzer-viz-egraph-graphviz">,
   HelpText<"Display exploded graph using GraphViz">;
 def analyzer_viz_egraph_ubigraph : Flag<"-analyzer-viz-egraph-ubigraph">,
   HelpText<"Display exploded graph using Ubigraph">;
+def analyzer_inline_call : Flag<"-analyzer-inline-call">,
+  HelpText<"Experimental transfer function inlining callees when its definition is available.">;
 def analyzer_max_nodes : Separate<"-analyzer-max-nodes">,
   HelpText<"The maximum number of nodes the analyzer can generate">;
+def analyzer_max_loop : Separate<"-analyzer-max-loop">,
+  HelpText<"The maximum number of times the analyzer will go through a loop">;
 
 //===----------------------------------------------------------------------===//
 // CodeGen Options
@@ -145,6 +147,8 @@ def mno_zero_initialized_in_bss : Flag<"-mno-zero-initialized-in-bss">,
   HelpText<"Do not put zero initialized data in the BSS">;
 def msoft_float : Flag<"-msoft-float">,
   HelpText<"Use software floating point">;
+def mrelax_all : Flag<"-mrelax-all">,
+  HelpText<"Relax all machine instructions">;
 def mrelocation_model : Separate<"-mrelocation-model">,
   HelpText<"The relocation model to use">;
 def munwind_tables : Flag<"-munwind-tables">,
@@ -196,6 +200,9 @@ def fdiagnostics_print_source_range_info : Flag<"-fdiagnostics-print-source-rang
   HelpText<"Print source range spans in numeric form">;
 def fdiagnostics_show_option : Flag<"-fdiagnostics-show-option">,
   HelpText<"Print diagnostic name with mappable diagnostics">;
+def fdiagnostics_show_category : Separate<"-fdiagnostics-show-category">,
+  HelpText<"Print diagnostic category">;
+  
 def ftabstop : Separate<"-ftabstop">, MetaVarName<"<N>">,
   HelpText<"Set the tab stop distance.">;
 def ferror_limit : Separate<"-ferror-limit">, MetaVarName<"<N>">,
@@ -238,6 +245,8 @@ def no_code_completion_debug_printer : Flag<"-no-code-completion-debug-printer">
   HelpText<"Don't use the \"debug\" code-completion print">;
 def code_completion_macros : Flag<"-code-completion-macros">,
   HelpText<"Include macros in code-completion results">;
+def code_completion_patterns : Flag<"-code-completion-patterns">,
+  HelpText<"Include code patterns in code-completion results">;
 def disable_free : Flag<"-disable-free">,
   HelpText<"Disable freeing of memory on exit">;
 def help : Flag<"-help">,
@@ -293,6 +302,8 @@ def ast_dump : Flag<"-ast-dump">,
   HelpText<"Build ASTs and then debug dump them">;
 def ast_view : Flag<"-ast-view">,
   HelpText<"Build ASTs and view them with GraphViz">;
+def boostcon : Flag<"-boostcon">,
+  HelpText<"BoostCon workshop mode">;
 def print_decl_contexts : Flag<"-print-decl-contexts">,
   HelpText<"Print DeclContexts and their Decls">;
 def emit_pth : Flag<"-emit-pth">,
@@ -307,6 +318,8 @@ def emit_llvm_bc : Flag<"-emit-llvm-bc">,
   HelpText<"Build ASTs then convert to LLVM, emit .bc file">;
 def emit_llvm_only : Flag<"-emit-llvm-only">,
   HelpText<"Build ASTs and convert to LLVM, discarding output">;
+def emit_codegen_only : Flag<"-emit-codegen-only">,
+  HelpText<"Generate machine code, but discard output">;
 def emit_obj : Flag<"-emit-obj">,
   HelpText<"Emit native object files">;
 def rewrite_test : Flag<"-rewrite-test">,

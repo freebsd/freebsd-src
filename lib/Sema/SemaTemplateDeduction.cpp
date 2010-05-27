@@ -482,14 +482,20 @@ DeduceTemplateArguments(Sema &S,
 
     //     T *
     case Type::Pointer: {
-      const PointerType *PointerArg = Arg->getAs<PointerType>();
-      if (!PointerArg)
+      QualType PointeeType;
+      if (const PointerType *PointerArg = Arg->getAs<PointerType>()) {
+        PointeeType = PointerArg->getPointeeType();
+      } else if (const ObjCObjectPointerType *PointerArg
+                   = Arg->getAs<ObjCObjectPointerType>()) {
+        PointeeType = PointerArg->getPointeeType();
+      } else {
         return Sema::TDK_NonDeducedMismatch;
+      }
 
       unsigned SubTDF = TDF & (TDF_IgnoreQualifiers | TDF_DerivedClass);
       return DeduceTemplateArguments(S, TemplateParams,
                                    cast<PointerType>(Param)->getPointeeType(),
-                                     PointerArg->getPointeeType(),
+                                     PointeeType,
                                      Info, Deduced, SubTDF);
     }
 
@@ -1030,10 +1036,8 @@ FinishTemplateArgumentDeduction(Sema &S,
                                   ClassTemplate->getTemplateParameters(), N);
 
   if (S.CheckTemplateArgumentList(ClassTemplate, Partial->getLocation(),
-                                InstArgs, false, ConvertedInstArgs)) {
-    // FIXME: fail with more useful information?
+                                InstArgs, false, ConvertedInstArgs))
     return Sema::TDK_SubstitutionFailure;
-  }
   
   for (unsigned I = 0, E = ConvertedInstArgs.flatSize(); I != E; ++I) {
     TemplateArgument InstArg = ConvertedInstArgs.getFlatArguments()[I];
@@ -1190,8 +1194,13 @@ Sema::SubstituteExplicitTemplateArguments(
                                 SourceLocation(),
                                 ExplicitTemplateArgs,
                                 true,
-                                Builder) || Trap.hasErrorOccurred())
+                                Builder) || Trap.hasErrorOccurred()) {
+    unsigned Index = Builder.structuredSize();
+    if (Index >= TemplateParams->size())
+      Index = TemplateParams->size() - 1;
+    Info.Param = makeTemplateParameter(TemplateParams->getParam(Index));
     return TDK_InvalidExplicitArguments;
+  }
 
   // Form the template argument list from the explicitly-specified
   // template arguments.
@@ -1374,6 +1383,8 @@ Sema::FinishTemplateArgumentDeduction(FunctionTemplateDecl *FunctionTemplate,
                                  NTTP->getDeclName());
             if (NTTPType.isNull()) {
               Info.Param = makeTemplateParameter(Param);
+              Info.reset(new (Context) TemplateArgumentList(Context, Builder, 
+                                                            /*TakeArgs=*/true));
               return TDK_SubstitutionFailure;
             }
           }
@@ -1399,6 +1410,8 @@ Sema::FinishTemplateArgumentDeduction(FunctionTemplateDecl *FunctionTemplate,
                                   : CTAK_Deduced)) {
         Info.Param = makeTemplateParameter(
                          const_cast<NamedDecl *>(TemplateParams->getParam(I)));
+        Info.reset(new (Context) TemplateArgumentList(Context, Builder, 
+                                                      /*TakeArgs=*/true));
         return TDK_SubstitutionFailure;
       }
 
@@ -1429,6 +1442,8 @@ Sema::FinishTemplateArgumentDeduction(FunctionTemplateDecl *FunctionTemplate,
                               CTAK_Deduced)) {
       Info.Param = makeTemplateParameter(
                          const_cast<NamedDecl *>(TemplateParams->getParam(I)));
+      Info.reset(new (Context) TemplateArgumentList(Context, Builder, 
+                                                    /*TakeArgs=*/true));
       return TDK_SubstitutionFailure;
     }
 
@@ -1456,7 +1471,8 @@ Sema::FinishTemplateArgumentDeduction(FunctionTemplateDecl *FunctionTemplate,
   
   // If the template argument list is owned by the function template
   // specialization, release it.
-  if (Specialization->getTemplateSpecializationArgs() == DeducedArgumentList)
+  if (Specialization->getTemplateSpecializationArgs() == DeducedArgumentList &&
+      !Trap.hasErrorOccurred())
     Info.take();
 
   // There may have been an error that did not prevent us from constructing a
@@ -2636,6 +2652,7 @@ MarkUsedTemplateParameters(Sema &SemaRef, QualType T,
   case Type::Record:
   case Type::Enum:
   case Type::ObjCInterface:
+  case Type::ObjCObject:
   case Type::ObjCObjectPointer:
   case Type::UnresolvedUsing:
 #define TYPE(Class, Base)

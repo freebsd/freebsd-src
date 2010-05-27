@@ -32,6 +32,9 @@ namespace llvm {
 namespace clang {
 
 class ASTContext;
+class NestedNameSpecifier;
+class CXXBaseSpecifier;
+class CXXBaseOrMemberInitializer;
 class LabelStmt;
 class MacroDefinition;
 class MemorizeStatCalls;
@@ -251,6 +254,9 @@ public:
   /// \brief Emit a source location.
   void AddSourceLocation(SourceLocation Loc, RecordData &Record);
 
+  /// \brief Emit a source range.
+  void AddSourceRange(SourceRange Range, RecordData &Record);
+  
   /// \brief Emit an integral value.
   void AddAPInt(const llvm::APInt &Value, RecordData &Record);
 
@@ -260,12 +266,15 @@ public:
   /// \brief Emit a floating-point value.
   void AddAPFloat(const llvm::APFloat &Value, RecordData &Record);
 
-  /// \brief Emit a reference to an identifier
+  /// \brief Emit a reference to an identifier.
   void AddIdentifierRef(const IdentifierInfo *II, RecordData &Record);
 
-  /// \brief Emit a Selector (which is a smart pointer reference)
-  void AddSelectorRef(const Selector, RecordData &Record);
+  /// \brief Emit a Selector (which is a smart pointer reference).
+  void AddSelectorRef(Selector, RecordData &Record);
 
+  /// \brief Emit a CXXTemporary.
+  void AddCXXTemporary(const CXXTemporary *Temp, RecordData &Record);
+  
   /// \brief Get the unique number used to refer to the given
   /// identifier.
   pch::IdentID getIdentifierRef(const IdentifierInfo *II);
@@ -303,6 +312,9 @@ public:
 
   /// \brief Emit a declaration name.
   void AddDeclarationName(DeclarationName Name, RecordData &Record);
+
+  /// \brief Emit a nested name specifier.
+  void AddNestedNameSpecifier(NestedNameSpecifier *NNS, RecordData &Record);
 
   /// \brief Add a string to the given record.
   void AddString(const std::string &Str, RecordData &Record);
