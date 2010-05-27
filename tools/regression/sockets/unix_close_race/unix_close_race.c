@@ -75,8 +75,8 @@ main(int argc, char **argv)
 		warnx("SMP not present, test may be unable to trigger race");
 
 	/*
-	 * Create a UNIX domain socket that the parent will repeatedly
-	 * accept() from, and that the child will repeatedly connect() to.
+	 * Create a UNIX domain socket that the child will repeatedly
+	 * accept() from, and that the parent will repeatedly connect() to.
 	 */
 	if ((listenfd = socket(AF_LOCAL, SOCK_STREAM, 0)) < 0)
 		err(1, "parent: socket error");
@@ -104,13 +104,19 @@ main(int argc, char **argv)
 		servaddr.sun_family = AF_LOCAL;
 		strcpy(servaddr.sun_path, UNIXSTR_PATH);
 		for (counter = 0; counter < LOOPS; counter++) {
-			if ((connfd = socket(AF_LOCAL, SOCK_STREAM, 0)) < 0)
-				err(1, "child: socket error");
+			if ((connfd = socket(AF_LOCAL, SOCK_STREAM, 0)) < 0) {
+				(void)kill(pid, SIGTERM);
+				err(1, "parent: socket error");
+			}
 			if (connect(connfd, (struct sockaddr *)&servaddr,
-			    sizeof(servaddr)) < 0)
-				err(1, "child: connect error");
-			if (close(connfd) < 0)
-				err(1, "child: close error");
+			    sizeof(servaddr)) < 0) {
+			    	(void)kill(pid, SIGTERM);
+				err(1, "parent: connect error");
+			}
+			if (close(connfd) < 0) {
+				(void)kill(pid, SIGTERM);
+				err(1, "parent: close error");
+			}
 			usleep(USLEEP);
 		}
 		(void)kill(pid, SIGTERM);
@@ -122,9 +128,9 @@ main(int argc, char **argv)
 		for ( ; ; ) {
 			if ((connfd = accept(listenfd,
 			    (struct sockaddr *)NULL, NULL)) < 0)
-				err(1, "parent: accept error");
+				err(1, "child: accept error");
 			if (close(connfd) < 0)
-				err(1, "parent: close error");
+				err(1, "child: close error");
 		}
 	}
 	printf("OK\n");
