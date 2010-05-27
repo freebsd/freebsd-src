@@ -8,6 +8,11 @@ Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before running
 portupgrade.
 
+20100526:	p8	FreeBSD-SA-10:05.opie, FreeBSD-SA-10:06.nfsclient
+	Fix a one-NUL-byte buffer overflow in libopie. [10:05]
+
+	Correctly sanity-check a buffer length in nfs mount. [10:06]
+
 20100227:	p7	FreeBSD-EN-10:02.sched_ule
 	Fix a deadlock in the ULE scheduler.
 
