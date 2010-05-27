@@ -974,7 +974,7 @@ nfs_lookup(struct vop_lookup_args *ap)
 		    (ISLASTCN | ISOPEN) && !(newnp->n_flag & NMODIFIED)) {
 			mtx_lock(&newnp->n_mtx);
 			newnp->n_attrstamp = 0;
-			KDTRACE_NFS_ATTRCACHE_FLUSH_DONE(vp);
+			KDTRACE_NFS_ATTRCACHE_FLUSH_DONE(newvp);
 			mtx_unlock(&newnp->n_mtx);
 		}
 		if (VOP_GETATTR(newvp, &vattr, cnp->cn_cred) == 0 &&
