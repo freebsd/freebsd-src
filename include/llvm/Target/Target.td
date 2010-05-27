@@ -21,6 +21,11 @@ include "llvm/Intrinsics.td"
 
 class RegisterClass; // Forward def
 
+// SubRegIndex - Use instances of SubRegIndex to identify subregisters.
+class SubRegIndex {
+  string Namespace = "";
+}
+
 // Register - You should define one instance of this class for each register
 // in the target machine.  String n will become the "name" of the register.
 class Register<string n> {
@@ -49,6 +54,23 @@ class Register<string n> {
   // not [AX, AH, AL].
   list<Register> SubRegs = [];
 
+  // SubRegIndices - For each register in SubRegs, specify the SubRegIndex used
+  // to address it. Sub-sub-register indices are automatically inherited from
+  // SubRegs.
+  list<SubRegIndex> SubRegIndices = [];
+
+  // CompositeIndices - Specify subreg indices that don't correspond directly to
+  // a register in SubRegs and are not inherited. The following formats are
+  // supported:
+  //
+  // (a)     Identity  - Reg:a == Reg
+  // (a b)   Alias     - Reg:a == Reg:b
+  // (a b,c) Composite - Reg:a == (Reg:b):c
+  //
+  // This can be used to disambiguate a sub-sub-register that exists in more
+  // than one subregister and other weird stuff.
+  list<dag> CompositeIndices = [];
+
   // DwarfNumbers - Numbers used internally by gcc/gdb to identify the register.
   // These values can be determined by locating the <target>.h file in the
   // directory llvmgcc/gcc/config/<target>/ and looking for REGISTER_NAMES.  The
@@ -66,17 +88,6 @@ class Register<string n> {
 // overlapping live ranges into registers which alias.
 class RegisterWithSubRegs<string n, list<Register> subregs> : Register<n> {
   let SubRegs = subregs;
-}
-
-// SubRegSet - This can be used to define a specific mapping of registers to
-// indices, for use as named subregs of a particular physical register.  Each
-// register in 'subregs' becomes an addressable subregister at index 'n' of the
-// corresponding register in 'regs'.
-class SubRegSet<int n, list<Register> regs, list<Register> subregs> {
-  int index = n;
-  
-  list<Register> From = regs;
-  list<Register> To = subregs;
 }
 
 // RegisterClass - Now that all of the registers are defined, and aliases
@@ -117,9 +128,9 @@ class RegisterClass<string namespace, list<ValueType> regTypes, int alignment,
   //
   list<Register> MemberList = regList;
   
-  // SubClassList - Specify which register classes correspond to subregisters
-  // of this class. The order should be by subregister set index.
-  list<RegisterClass> SubRegClassList = [];
+  // SubRegClasses - Specify the register class of subregisters as a list of
+  // dags: (RegClass SubRegIndex, SubRegindex, ...)
+  list<dag> SubRegClasses = [];
 
   // MethodProtos/MethodBodies - These members can be used to insert arbitrary
   // code into a generated register class.   The normal usage of this is to 
@@ -221,6 +232,9 @@ class Instruction {
   // purposes.
   bit isCodeGenOnly = 0;
 
+  // Is this instruction a pseudo instruction for use by the assembler parser.
+  bit isAsmParserOnly = 0;
+
   InstrItinClass Itinerary = NoItinerary;// Execution steps used for scheduling.
 
   string Constraints = "";  // OperandConstraint, e.g. $src = $dst.
@@ -296,8 +310,8 @@ class AsmOperandClass {
   /// The name to use for this class, which should be usable as an enum value.
   string Name = ?;
 
-  /// The super class of this operand.
-  AsmOperandClass SuperClass = ?;
+  /// The super classes of this operand.
+  list<AsmOperandClass> SuperClasses = [];
 
   /// The name of the method on the target specific operand to call to test
   /// whether the operand is an instance of this class. If not set, this will
@@ -331,10 +345,10 @@ class Operand<ValueType ty> {
   // in. Match classes are used to define the order in which instructions are
   // match, to ensure that which instructions gets matched is deterministic.
   //
-  // The target specific parser must be able to classify an parsed operand 
-  // into a unique class, which does not partially overlap with any other 
-  // classes. It can match a subset of some other class, in which case 
-  // ParserMatchSuperClass should be set to the name of that class.
+  // The target specific parser must be able to classify an parsed operand into
+  // a unique class, which does not partially overlap with any other classes. It
+  // can match a subset of some other class, in which case the AsmOperandClass
+  // should declare the other operand as one of its super classes.
   AsmOperandClass ParserMatchClass = ImmAsmOperand;
 }
 

@@ -309,8 +309,7 @@ static int X86TypeFromOpName(LiteralConstantEmitter *type,
   REG("RST");
   REG("SEGMENT_REG");
   REG("DEBUG_REG");
-  REG("CONTROL_REG_32");
-  REG("CONTROL_REG_64");
+  REG("CONTROL_REG");
   
   IMM("i8imm");
   IMM("i16imm");
@@ -575,10 +574,12 @@ static int ARMFlagFromOpName(LiteralConstantEmitter *type,
   REG("s_cc_out");
   REG("tGPR");
   REG("DPR");
-  REG("SPR");
-  REG("QPR");
   REG("DPR_VFP2");
   REG("DPR_8");
+  REG("SPR");
+  REG("QPR");
+  REG("QQPR");
+  REG("QQQQPR");
   
   IMM("i32imm");
   IMM("bf_inv_mask_imm");

@@ -17,6 +17,7 @@
 #include "ARMMachineFunctionInfo.h"
 #include "llvm/CodeGen/MachineFrameInfo.h"
 #include "llvm/CodeGen/MachineInstrBuilder.h"
+#include "llvm/CodeGen/MachineRegisterInfo.h"
 #include "llvm/CodeGen/MachineMemOperand.h"
 #include "llvm/CodeGen/PseudoSourceValue.h"
 #include "llvm/ADT/SmallVector.h"
@@ -36,10 +37,8 @@ bool Thumb1InstrInfo::copyRegToReg(MachineBasicBlock &MBB,
                                    MachineBasicBlock::iterator I,
                                    unsigned DestReg, unsigned SrcReg,
                                    const TargetRegisterClass *DestRC,
-                                   const TargetRegisterClass *SrcRC) const {
-  DebugLoc DL;
-  if (I != MBB.end()) DL = I->getDebugLoc();
-
+                                   const TargetRegisterClass *SrcRC,
+                                   DebugLoc DL) const {
   if (DestRC == ARM::GPRRegisterClass) {
     if (SrcRC == ARM::GPRRegisterClass) {
       BuildMI(MBB, I, DL, get(ARM::tMOVgpr2gpr), DestReg).addReg(SrcReg);
@@ -97,10 +96,8 @@ canFoldMemoryOperand(const MachineInstr *MI,
 void Thumb1InstrInfo::
 storeRegToStackSlot(MachineBasicBlock &MBB, MachineBasicBlock::iterator I,
                     unsigned SrcReg, bool isKill, int FI,
-                    const TargetRegisterClass *RC) const {
-  DebugLoc DL;
-  if (I != MBB.end()) DL = I->getDebugLoc();
-
+                    const TargetRegisterClass *RC,
+                    const TargetRegisterInfo *TRI) const {
   assert((RC == ARM::tGPRRegisterClass ||
           (TargetRegisterInfo::isPhysicalRegister(SrcReg) &&
            isARMLowRegister(SrcReg))) && "Unknown regclass!");
@@ -108,6 +105,9 @@ storeRegToStackSlot(MachineBasicBlock &MBB, MachineBasicBlock::iterator I,
   if (RC == ARM::tGPRRegisterClass ||
       (TargetRegisterInfo::isPhysicalRegister(SrcReg) &&
        isARMLowRegister(SrcReg))) {
+    DebugLoc DL;
+    if (I != MBB.end()) DL = I->getDebugLoc();
+
     MachineFunction &MF = *MBB.getParent();
     MachineFrameInfo &MFI = *MF.getFrameInfo();
     MachineMemOperand *MMO =
@@ -124,10 +124,8 @@ storeRegToStackSlot(MachineBasicBlock &MBB, MachineBasicBlock::iterator I,
 void Thumb1InstrInfo::
 loadRegFromStackSlot(MachineBasicBlock &MBB, MachineBasicBlock::iterator I,
                      unsigned DestReg, int FI,
-                     const TargetRegisterClass *RC) const {
-  DebugLoc DL;
-  if (I != MBB.end()) DL = I->getDebugLoc();
-
+                     const TargetRegisterClass *RC,
+                     const TargetRegisterInfo *TRI) const {
   assert((RC == ARM::tGPRRegisterClass ||
           (TargetRegisterInfo::isPhysicalRegister(DestReg) &&
            isARMLowRegister(DestReg))) && "Unknown regclass!");
@@ -135,6 +133,9 @@ loadRegFromStackSlot(MachineBasicBlock &MBB, MachineBasicBlock::iterator I,
   if (RC == ARM::tGPRRegisterClass ||
       (TargetRegisterInfo::isPhysicalRegister(DestReg) &&
        isARMLowRegister(DestReg))) {
+    DebugLoc DL;
+    if (I != MBB.end()) DL = I->getDebugLoc();
+
     MachineFunction &MF = *MBB.getParent();
     MachineFrameInfo &MFI = *MF.getFrameInfo();
     MachineMemOperand *MMO =
@@ -150,7 +151,8 @@ loadRegFromStackSlot(MachineBasicBlock &MBB, MachineBasicBlock::iterator I,
 bool Thumb1InstrInfo::
 spillCalleeSavedRegisters(MachineBasicBlock &MBB,
                           MachineBasicBlock::iterator MI,
-                          const std::vector<CalleeSavedInfo> &CSI) const {
+                          const std::vector<CalleeSavedInfo> &CSI,
+                          const TargetRegisterInfo *TRI) const {
   if (CSI.empty())
     return false;
 
@@ -161,9 +163,22 @@ spillCalleeSavedRegisters(MachineBasicBlock &MBB,
   AddDefaultPred(MIB);
   for (unsigned i = CSI.size(); i != 0; --i) {
     unsigned Reg = CSI[i-1].getReg();
-    // Add the callee-saved register as live-in. It's killed at the spill.
-    MBB.addLiveIn(Reg);
-    MIB.addReg(Reg, RegState::Kill);
+    bool isKill = true;
+
+    // Add the callee-saved register as live-in unless it's LR and
+    // @llvm.returnaddress is called. If LR is returned for @llvm.returnaddress
+    // then it's already added to the function and entry block live-in sets.
+    if (Reg == ARM::LR) {
+      MachineFunction &MF = *MBB.getParent();
+      if (MF.getFrameInfo()->isReturnAddressTaken() &&
+          MF.getRegInfo().isLiveIn(Reg))
+        isKill = false;
+    }
+
+    if (isKill) {
+      MBB.addLiveIn(Reg);
+      MIB.addReg(Reg, RegState::Kill);
+    }
   }
   return true;
 }
@@ -171,7 +186,8 @@ spillCalleeSavedRegisters(MachineBasicBlock &MBB,
 bool Thumb1InstrInfo::
 restoreCalleeSavedRegisters(MachineBasicBlock &MBB,
                             MachineBasicBlock::iterator MI,
-                            const std::vector<CalleeSavedInfo> &CSI) const {
+                            const std::vector<CalleeSavedInfo> &CSI,
+                            const TargetRegisterInfo *TRI) const {
   MachineFunction &MF = *MBB.getParent();
   ARMFunctionInfo *AFI = MF.getInfo<ARMFunctionInfo>();
   if (CSI.empty())

@@ -236,12 +236,18 @@ namespace llvm {
                                               std::vector<SDValue> &Ops,
                                               SelectionDAG &DAG) const;
 
-    virtual const ARMSubtarget* getSubtarget() const {
+    const ARMSubtarget* getSubtarget() const {
       return Subtarget;
     }
 
+    /// getRegClassFor - Return the register class that should be used for the
+    /// specified value type.
+    virtual TargetRegisterClass *getRegClassFor(EVT VT) const;
+
     /// getFunctionAlignment - Return the Log2 alignment of this function.
     virtual unsigned getFunctionAlignment(const Function *F) const;
+
+    Sched::Preference getSchedulingPreference(SDNode *N) const;
 
     bool isShuffleMaskLegal(const SmallVectorImpl<int> &M, EVT VT) const;
     bool isOffsetFoldingLegal(const GlobalAddressSDNode *GA) const;
@@ -281,7 +287,8 @@ namespace llvm {
                              DebugLoc dl, SelectionDAG &DAG,
                              const CCValAssign &VA,
                              ISD::ArgFlagsTy Flags) const;
-    SDValue LowerINTRINSIC_W_CHAIN(SDValue Op, SelectionDAG &DAG) const;
+    SDValue LowerEH_SJLJ_SETJMP(SDValue Op, SelectionDAG &DAG) const;
+    SDValue LowerEH_SJLJ_LONGJMP(SDValue Op, SelectionDAG &DAG) const;
     SDValue LowerINTRINSIC_WO_CHAIN(SDValue Op, SelectionDAG &DAG,
                                     const ARMSubtarget *Subtarget) const;
     SDValue LowerBlockAddress(SDValue Op, SelectionDAG &DAG) const;
@@ -296,20 +303,12 @@ namespace llvm {
     SDValue LowerBR_JT(SDValue Op, SelectionDAG &DAG) const;
     SDValue LowerSELECT_CC(SDValue Op, SelectionDAG &DAG) const;
     SDValue LowerBR_CC(SDValue Op, SelectionDAG &DAG) const;
+    SDValue LowerRETURNADDR(SDValue Op, SelectionDAG &DAG) const;
     SDValue LowerFRAMEADDR(SDValue Op, SelectionDAG &DAG) const;
     SDValue LowerDYNAMIC_STACKALLOC(SDValue Op, SelectionDAG &DAG) const;
     SDValue LowerShiftRightParts(SDValue Op, SelectionDAG &DAG) const;
     SDValue LowerShiftLeftParts(SDValue Op, SelectionDAG &DAG) const;
 
-    SDValue EmitTargetCodeForMemcpy(SelectionDAG &DAG, DebugLoc dl,
-                                      SDValue Chain,
-                                      SDValue Dst, SDValue Src,
-                                      SDValue Size, unsigned Align,
-                                      bool isVolatile, bool AlwaysInline,
-                                      const Value *DstSV,
-                                      uint64_t DstSVOff,
-                                      const Value *SrcSV,
-                                      uint64_t SrcSVOff) const;
     SDValue LowerCallResult(SDValue Chain, SDValue InFlag,
                             CallingConv::ID CallConv, bool isVarArg,
                             const SmallVectorImpl<ISD::InputArg> &Ins,

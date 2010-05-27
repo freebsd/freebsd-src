@@ -19,6 +19,7 @@
 #include "llvm/CodeGen/SelectionDAG.h"
 #include "llvm/Target/TargetMachine.h"
 #include "llvm/Target/TargetInstrInfo.h"
+#include "llvm/Target/TargetLowering.h"
 #include "llvm/Target/TargetRegisterInfo.h"
 #include "llvm/Target/TargetSubtarget.h"
 #include "llvm/ADT/DenseMap.h"
@@ -44,6 +45,24 @@ void ScheduleDAGSDNodes::Run(SelectionDAG *dag, MachineBasicBlock *bb,
   ScheduleDAG::Run(bb, insertPos);
 }
 
+/// NewSUnit - Creates a new SUnit and return a ptr to it.
+///
+SUnit *ScheduleDAGSDNodes::NewSUnit(SDNode *N) {
+#ifndef NDEBUG
+  const SUnit *Addr = 0;
+  if (!SUnits.empty())
+    Addr = &SUnits[0];
+#endif
+  SUnits.push_back(SUnit(N, (unsigned)SUnits.size()));
+  assert((Addr == 0 || Addr == &SUnits[0]) &&
+         "SUnits std::vector reallocated on the fly!");
+  SUnits.back().OrigNode = &SUnits.back();
+  SUnit *SU = &SUnits.back();
+  const TargetLowering &TLI = DAG->getTargetLoweringInfo();
+  SU->SchedulingPref = TLI.getSchedulingPreference(N);
+  return SU;
+}
+
 SUnit *ScheduleDAGSDNodes::Clone(SUnit *Old) {
   SUnit *SU = NewSUnit(Old->getNode());
   SU->OrigNode = Old->OrigNode;
@@ -52,6 +71,7 @@ SUnit *ScheduleDAGSDNodes::Clone(SUnit *Old) {
   SU->isCommutable = Old->isCommutable;
   SU->hasPhysRegDefs = Old->hasPhysRegDefs;
   SU->hasPhysRegClobbers = Old->hasPhysRegClobbers;
+  SU->SchedulingPref = Old->SchedulingPref;
   Old->isCloned = true;
   return SU;
 }
@@ -217,9 +237,6 @@ void ScheduleDAGSDNodes::BuildSchedUnits() {
   // This is a temporary workaround.
   SUnits.reserve(NumNodes * 2);
   
-  // Check to see if the scheduler cares about latencies.
-  bool UnitLatencies = ForceUnitLatencies();
-
   // Add all nodes in depth first order.
   SmallVector<SDNode*, 64> Worklist;
   SmallPtrSet<SDNode*, 64> Visited;
@@ -282,10 +299,7 @@ void ScheduleDAGSDNodes::BuildSchedUnits() {
     N->setNodeId(NodeSUnit->NodeNum);
 
     // Assign the Latency field of NodeSUnit using target-provided information.
-    if (UnitLatencies)
-      NodeSUnit->Latency = 1;
-    else
-      ComputeLatency(NodeSUnit);
+    ComputeLatency(NodeSUnit);
   }
 }
 
@@ -353,7 +367,7 @@ void ScheduleDAGSDNodes::AddSchedEdges() {
         const SDep& dep = SDep(OpSU, isChain ? SDep::Order : SDep::Data,
                                OpSU->Latency, PhysReg);
         if (!isChain && !UnitLatencies) {
-          ComputeOperandLatency(OpSU, SU, const_cast<SDep &>(dep));
+          ComputeOperandLatency(OpN, N, i, const_cast<SDep &>(dep));
           ST.adjustSchedDependency(OpSU, SU, const_cast<SDep &>(dep));
         }
 
@@ -377,7 +391,17 @@ void ScheduleDAGSDNodes::BuildSchedGraph(AliasAnalysis *AA) {
 }
 
 void ScheduleDAGSDNodes::ComputeLatency(SUnit *SU) {
+  // Check to see if the scheduler cares about latencies.
+  if (ForceUnitLatencies()) {
+    SU->Latency = 1;
+    return;
+  }
+
   const InstrItineraryData &InstrItins = TM.getInstrItineraryData();
+  if (InstrItins.isEmpty()) {
+    SU->Latency = 1;
+    return;
+  }
   
   // Compute the latency for the node.  We use the sum of the latencies for
   // all nodes flagged together into this SUnit.
@@ -387,6 +411,37 @@ void ScheduleDAGSDNodes::ComputeLatency(SUnit *SU) {
       SU->Latency += InstrItins.
         getStageLatency(TII->get(N->getMachineOpcode()).getSchedClass());
     }
+}
+
+void ScheduleDAGSDNodes::ComputeOperandLatency(SDNode *Def, SDNode *Use,
+                                               unsigned OpIdx, SDep& dep) const{
+  // Check to see if the scheduler cares about latencies.
+  if (ForceUnitLatencies())
+    return;
+
+  const InstrItineraryData &InstrItins = TM.getInstrItineraryData();
+  if (InstrItins.isEmpty())
+    return;
+  
+  if (dep.getKind() != SDep::Data)
+    return;
+
+  unsigned DefIdx = Use->getOperand(OpIdx).getResNo();
+  if (Def->isMachineOpcode() && Use->isMachineOpcode()) {
+    const TargetInstrDesc &II = TII->get(Def->getMachineOpcode());
+    if (DefIdx >= II.getNumDefs())
+      return;
+    int DefCycle = InstrItins.getOperandCycle(II.getSchedClass(), DefIdx);
+    if (DefCycle < 0)
+      return;
+    const unsigned UseClass = TII->get(Use->getMachineOpcode()).getSchedClass();
+    int UseCycle = InstrItins.getOperandCycle(UseClass, OpIdx);
+    if (UseCycle >= 0) {
+      int Latency = DefCycle - UseCycle + 1;
+      if (Latency >= 0)
+        dep.setLatency(Latency);
+    }
+  }
 }
 
 void ScheduleDAGSDNodes::dumpNode(const SUnit *SU) const {

@@ -36,6 +36,7 @@ class MDNode;
 class SDNodeOrdering;
 class SDDbgValue;
 class TargetLowering;
+class TargetSelectionDAGInfo;
 
 template<> struct ilist_traits<SDNode> : public ilist_default_traits<SDNode> {
 private:
@@ -131,6 +132,7 @@ void checkForCycles(const SelectionDAG *DAG);
 class SelectionDAG {
   const TargetMachine &TM;
   const TargetLowering &TLI;
+  const TargetSelectionDAGInfo &TSI;
   MachineFunction *MF;
   FunctionLoweringInfo &FLI;
   LLVMContext *Context;
@@ -201,6 +203,7 @@ public:
   MachineFunction &getMachineFunction() const { return *MF; }
   const TargetMachine &getTarget() const { return TM; }
   const TargetLowering &getTargetLoweringInfo() const { return TLI; }
+  const TargetSelectionDAGInfo &getSelectionDAGInfo() const { return TSI; }
   FunctionLoweringInfo &getFunctionLoweringInfo() const { return FLI; }
   LLVMContext *getContext() const {return Context; }
 
@@ -334,6 +337,8 @@ public:
   SDValue getTargetConstant(const ConstantInt &Val, EVT VT) {
     return getConstant(Val, VT, true);
   }
+  // The forms below that take a double should only be used for simple
+  // constants that can be exactly represented in VT.  No checks are made.
   SDValue getConstantFP(double Val, EVT VT, bool isTarget = false);
   SDValue getConstantFP(const APFloat& Val, EVT VT, bool isTarget = false);
   SDValue getConstantFP(const ConstantFP &CF, EVT VT, bool isTarget = false);

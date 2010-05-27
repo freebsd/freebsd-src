@@ -1,9 +1,11 @@
-; RUN: llc < %s | grep {subfc r3,r5,r4}
-; RUN: llc < %s | grep {subfze r4,r6}
-; RUN: llc < %s -regalloc=local | grep {subfc r6,r5,r4}
-; RUN: llc < %s -regalloc=local | grep {subfze r3,r3}
+; RUN: llc < %s | FileCheck %s
+; RUN: llc < %s -regalloc=local | FileCheck %s
+; RUN: llc < %s -regalloc=fast | FileCheck %s
 ; The first argument of subfc must not be the same as any other register.
 
+; CHECK: subfc [[REG:r.]],
+; CHECK-NOT: [[REG]]
+; CHECK: InlineAsm End
 ; PR1357
 
 target datalayout = "E-p:32:32:32-i1:8:8-i8:8:8-i16:16:16-i32:32:32-i64:32:64-f32:32:32-f64:32:64-v64:64:64-v128:128:128-a0:0:64"

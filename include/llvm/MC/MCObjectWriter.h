@@ -15,9 +15,9 @@
 #include <cassert>
 
 namespace llvm {
-class MCAsmFixup;
 class MCAsmLayout;
 class MCAssembler;
+class MCFixup;
 class MCFragment;
 class MCValue;
 class raw_ostream;
@@ -72,13 +72,13 @@ public:
   virtual void RecordRelocation(const MCAssembler &Asm,
                                 const MCAsmLayout &Layout,
                                 const MCFragment *Fragment,
-                                const MCAsmFixup &Fixup, MCValue Target,
+                                const MCFixup &Fixup, MCValue Target,
                                 uint64_t &FixedValue) = 0;
 
   /// Write the object file.
   ///
   /// This routine is called by the assembler after layout and relaxation is
-  /// complete, fixups have been evaluate and applied, and relocations
+  /// complete, fixups have been evaluated and applied, and relocations
   /// generated.
   virtual void WriteObject(const MCAssembler &Asm,
                            const MCAsmLayout &Layout) = 0;
@@ -152,6 +152,8 @@ public:
   }
 
   void WriteBytes(StringRef Str, unsigned ZeroFillSize = 0) {
+    assert((ZeroFillSize == 0 || Str.size () <= ZeroFillSize) &&
+      "data size greater than fill size, unexpected large write will occur");
     OS << Str;
     if (ZeroFillSize)
       WriteZeros(ZeroFillSize - Str.size());

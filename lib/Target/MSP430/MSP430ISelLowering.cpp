@@ -83,7 +83,7 @@ MSP430TargetLowering::MSP430TargetLowering(MSP430TargetMachine &tm) :
 
   setStackPointerRegisterToSaveRestore(MSP430::SPW);
   setBooleanContents(ZeroOrOneBooleanContent);
-  setSchedulingPreference(SchedulingForLatency);
+  setSchedulingPreference(Sched::Latency);
 
   // We have post-incremented loads / stores.
   setIndexedLoadAction(ISD::POST_INC, MVT::i8, Legal);
@@ -897,6 +897,9 @@ MSP430TargetLowering::getReturnAddressFrameIndex(SelectionDAG &DAG) const {
 
 SDValue MSP430TargetLowering::LowerRETURNADDR(SDValue Op,
                                               SelectionDAG &DAG) const {
+  MachineFrameInfo *MFI = DAG.getMachineFunction().getFrameInfo();
+  MFI->setReturnAddressIsTaken(true);
+
   unsigned Depth = cast<ConstantSDNode>(Op.getOperand(0))->getZExtValue();
   DebugLoc dl = Op.getDebugLoc();
 
@@ -920,6 +923,7 @@ SDValue MSP430TargetLowering::LowerFRAMEADDR(SDValue Op,
                                              SelectionDAG &DAG) const {
   MachineFrameInfo *MFI = DAG.getMachineFunction().getFrameInfo();
   MFI->setFrameAddressIsTaken(true);
+
   EVT VT = Op.getValueType();
   DebugLoc dl = Op.getDebugLoc();  // FIXME probably not meaningful
   unsigned Depth = cast<ConstantSDNode>(Op.getOperand(0))->getZExtValue();

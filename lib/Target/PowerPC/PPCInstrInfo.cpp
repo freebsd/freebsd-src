@@ -203,8 +203,6 @@ PPCInstrInfo::commuteInstruction(MachineInstr *MI, bool NewMI) const {
 void PPCInstrInfo::insertNoop(MachineBasicBlock &MBB, 
                               MachineBasicBlock::iterator MI) const {
   DebugLoc DL;
-  if (MI != MBB.end()) DL = MI->getDebugLoc();
-
   BuildMI(MBB, MI, DL, get(PPC::NOP));
 }
 
@@ -347,14 +345,12 @@ bool PPCInstrInfo::copyRegToReg(MachineBasicBlock &MBB,
                                    MachineBasicBlock::iterator MI,
                                    unsigned DestReg, unsigned SrcReg,
                                    const TargetRegisterClass *DestRC,
-                                   const TargetRegisterClass *SrcRC) const {
+                                   const TargetRegisterClass *SrcRC,
+                                   DebugLoc DL) const {
   if (DestRC != SrcRC) {
     // Not yet supported!
     return false;
   }
-
-  DebugLoc DL;
-  if (MI != MBB.end()) DL = MI->getDebugLoc();
 
   if (DestRC == PPC::GPRCRegisterClass) {
     BuildMI(MBB, MI, DL, get(PPC::OR), DestReg).addReg(SrcReg).addReg(SrcReg);
@@ -446,7 +442,8 @@ PPCInstrInfo::StoreRegToStackSlot(MachineFunction &MF,
       // issue a MFCR to save all of the CRBits.
       unsigned ScratchReg = TM.getSubtargetImpl()->isDarwinABI() ? 
                                                            PPC::R2 : PPC::R0;
-      NewMIs.push_back(BuildMI(MF, DL, get(PPC::MFCR), ScratchReg));
+      NewMIs.push_back(BuildMI(MF, DL, get(PPC::MFCRpseud), ScratchReg)
+                               .addReg(SrcReg, getKillRegState(isKill)));
     
       // If the saved register wasn't CR0, shift the bits left so that they are
       // in CR0's slot.
@@ -520,7 +517,8 @@ void
 PPCInstrInfo::storeRegToStackSlot(MachineBasicBlock &MBB,
                                   MachineBasicBlock::iterator MI,
                                   unsigned SrcReg, bool isKill, int FrameIdx,
-                                  const TargetRegisterClass *RC) const {
+                                  const TargetRegisterClass *RC,
+                                  const TargetRegisterInfo *TRI) const {
   MachineFunction &MF = *MBB.getParent();
   SmallVector<MachineInstr*, 4> NewMIs;
 
@@ -635,7 +633,8 @@ void
 PPCInstrInfo::loadRegFromStackSlot(MachineBasicBlock &MBB,
                                    MachineBasicBlock::iterator MI,
                                    unsigned DestReg, int FrameIdx,
-                                   const TargetRegisterClass *RC) const {
+                                   const TargetRegisterClass *RC,
+                                   const TargetRegisterInfo *TRI) const {
   MachineFunction &MF = *MBB.getParent();
   SmallVector<MachineInstr*, 4> NewMIs;
   DebugLoc DL;

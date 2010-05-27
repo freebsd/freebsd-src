@@ -163,6 +163,18 @@
 // CHECK: 	popw	32493
         	popw	0x7eed
 
+// CHECK: 	pushf
+        	pushfl
+
+// CHECK: 	pushfl
+        	pushfl
+
+// CHECK: 	popf
+        	popfl
+
+// CHECK: 	popfl
+        	popfl
+
 // CHECK: 	clc
         	clc
 
@@ -2481,6 +2493,12 @@
 
 // CHECK: 	clflush	305419896
         	clflush	0x12345678
+
+// CHECK: 	pause
+        	pause
+
+// CHECK: 	sfence
+        	sfence
 
 // CHECK: 	lfence
         	lfence

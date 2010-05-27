@@ -11,18 +11,22 @@
 #include "llvm/MC/MCAsmInfo.h"
 #include "llvm/MC/MCSectionMachO.h"
 #include "llvm/MC/MCSectionELF.h"
+#include "llvm/MC/MCSectionCOFF.h"
 #include "llvm/MC/MCSymbol.h"
+#include "llvm/MC/MCLabel.h"
 #include "llvm/ADT/SmallString.h"
 #include "llvm/ADT/Twine.h"
 using namespace llvm;
 
 typedef StringMap<const MCSectionMachO*> MachOUniqueMapTy;
 typedef StringMap<const MCSectionELF*> ELFUniqueMapTy;
+typedef StringMap<const MCSectionCOFF*> COFFUniqueMapTy;
 
 
 MCContext::MCContext(const MCAsmInfo &mai) : MAI(mai), NextUniqueID(0) {
   MachOUniquingMap = 0;
   ELFUniquingMap = 0;
+  COFFUniquingMap = 0;
 }
 
 MCContext::~MCContext() {
@@ -32,6 +36,7 @@ MCContext::~MCContext() {
   // If we have the MachO uniquing map, free it.
   delete (MachOUniqueMapTy*)MachOUniquingMap;
   delete (ELFUniqueMapTy*)ELFUniquingMap;
+  delete (COFFUniqueMapTy*)COFFUniquingMap;
 }
 
 //===----------------------------------------------------------------------===//
@@ -65,6 +70,34 @@ MCSymbol *MCContext::GetOrCreateSymbol(const Twine &Name) {
 MCSymbol *MCContext::CreateTempSymbol() {
   return GetOrCreateSymbol(Twine(MAI.getPrivateGlobalPrefix()) +
                            "tmp" + Twine(NextUniqueID++));
+}
+
+unsigned MCContext::NextInstance(int64_t LocalLabelVal) {
+  MCLabel *&Label = Instances[LocalLabelVal];
+  if (!Label)
+    Label = new (*this) MCLabel(0);
+  return Label->incInstance();
+}
+
+unsigned MCContext::GetInstance(int64_t LocalLabelVal) {
+  MCLabel *&Label = Instances[LocalLabelVal];
+  if (!Label)
+    Label = new (*this) MCLabel(0);
+  return Label->getInstance();
+}
+
+MCSymbol *MCContext::CreateDirectionalLocalSymbol(int64_t LocalLabelVal) {
+  return GetOrCreateSymbol(Twine(MAI.getPrivateGlobalPrefix()) +
+                           Twine(LocalLabelVal) +
+                           "\2" +
+			   Twine(NextInstance(LocalLabelVal)));
+}
+MCSymbol *MCContext::GetDirectionalLocalSymbol(int64_t LocalLabelVal,
+                                               int bORf) {
+  return GetOrCreateSymbol(Twine(MAI.getPrivateGlobalPrefix()) +
+                           Twine(LocalLabelVal) +
+                           "\2" +
+			   Twine(GetInstance(LocalLabelVal) + bORf));
 }
 
 MCSymbol *MCContext::LookupSymbol(StringRef Name) const {
@@ -122,4 +155,22 @@ getELFSection(StringRef Section, unsigned Type, unsigned Flags,
   return Result;
 }
 
-
+const MCSection *MCContext::getCOFFSection(StringRef Section,
+                                           unsigned Characteristics,
+                                           int Selection,
+                                           SectionKind Kind) {
+  if (COFFUniquingMap == 0)
+    COFFUniquingMap = new COFFUniqueMapTy();
+  COFFUniqueMapTy &Map = *(COFFUniqueMapTy*)COFFUniquingMap;
+  
+  // Do the lookup, if we have a hit, return it.
+  StringMapEntry<const MCSectionCOFF*> &Entry = Map.GetOrCreateValue(Section);
+  if (Entry.getValue()) return Entry.getValue();
+  
+  MCSectionCOFF *Result = new (*this) MCSectionCOFF(Entry.getKey(),
+                                                    Characteristics,
+                                                    Selection, Kind);
+  
+  Entry.setValue(Result);
+  return Result;
+}

@@ -87,8 +87,20 @@ public:
     /// S_LAZY_DYLIB_SYMBOL_POINTERS - Section with lazy symbol pointers to
     /// lazy loaded dylibs.
     S_LAZY_DYLIB_SYMBOL_POINTERS = 0x10U,
+    /// S_THREAD_LOCAL_REGULAR - Section with ....
+    S_THREAD_LOCAL_REGULAR = 0x11U,
+    /// S_THREAD_LOCAL_ZEROFILL - Thread local zerofill section.
+    S_THREAD_LOCAL_ZEROFILL = 0x12U,
+    /// S_THREAD_LOCAL_VARIABLES - Section with thread local variable structure
+    /// data.
+    S_THREAD_LOCAL_VARIABLES = 0x13U,
+    /// S_THREAD_LOCAL_VARIABLE_POINTERS - Section with ....
+    S_THREAD_LOCAL_VARIABLE_POINTERS = 0x14U,
+    /// S_THREAD_LOCAL_INIT_FUNCTION_POINTERS - Section with thread local
+    /// variable initialization pointers to functions.
+    S_THREAD_LOCAL_INIT_FUNCTION_POINTERS = 0x15U,
 
-    LAST_KNOWN_SECTION_TYPE = S_LAZY_DYLIB_SYMBOL_POINTERS,
+    LAST_KNOWN_SECTION_TYPE = S_THREAD_LOCAL_INIT_FUNCTION_POINTERS,
     
 
     // Valid section attributes.
@@ -136,6 +148,9 @@ public:
   unsigned getStubSize() const { return Reserved2; }
 
   unsigned getType() const { return TypeAndAttributes & SECTION_TYPE; }
+  bool hasAttribute(unsigned Value) const {
+    return (TypeAndAttributes & Value) != 0;
+  }
 
   /// ParseSectionSpecifier - Parse the section specifier indicated by "Spec".
   /// This is a string that can appear after a .section directive in a mach-o
@@ -150,6 +165,11 @@ public:
 
   virtual void PrintSwitchToSection(const MCAsmInfo &MAI,
                                     raw_ostream &OS) const;
+
+  static bool classof(const MCSection *S) {
+    return S->getVariant() == SV_MachO;
+  }
+  static bool classof(const MCSectionMachO *) { return true; }
 };
 
 } // end namespace llvm

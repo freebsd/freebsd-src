@@ -61,7 +61,8 @@ static inline bool isGVStub(GlobalValue *GV, SystemZTargetMachine &TM) {
 void SystemZInstrInfo::storeRegToStackSlot(MachineBasicBlock &MBB,
                                           MachineBasicBlock::iterator MI,
                                     unsigned SrcReg, bool isKill, int FrameIdx,
-                                    const TargetRegisterClass *RC) const {
+                                           const TargetRegisterClass *RC,
+                                           const TargetRegisterInfo *TRI) const {
   DebugLoc DL;
   if (MI != MBB.end()) DL = MI->getDebugLoc();
 
@@ -90,7 +91,8 @@ void SystemZInstrInfo::storeRegToStackSlot(MachineBasicBlock &MBB,
 void SystemZInstrInfo::loadRegFromStackSlot(MachineBasicBlock &MBB,
                                            MachineBasicBlock::iterator MI,
                                            unsigned DestReg, int FrameIdx,
-                                           const TargetRegisterClass *RC) const{
+                                            const TargetRegisterClass *RC,
+                                            const TargetRegisterInfo *TRI) const{
   DebugLoc DL;
   if (MI != MBB.end()) DL = MI->getDebugLoc();
 
@@ -119,9 +121,8 @@ bool SystemZInstrInfo::copyRegToReg(MachineBasicBlock &MBB,
                                     MachineBasicBlock::iterator I,
                                     unsigned DestReg, unsigned SrcReg,
                                     const TargetRegisterClass *DestRC,
-                                    const TargetRegisterClass *SrcRC) const {
-  DebugLoc DL;
-  if (I != MBB.end()) DL = I->getDebugLoc();
+                                    const TargetRegisterClass *SrcRC,
+                                    DebugLoc DL) const {
 
   // Determine if DstRC and SrcRC have a common superclass.
   const TargetRegisterClass *CommonRC = DestRC;
@@ -269,7 +270,8 @@ unsigned SystemZInstrInfo::isStoreToStackSlot(const MachineInstr *MI,
 bool
 SystemZInstrInfo::spillCalleeSavedRegisters(MachineBasicBlock &MBB,
                                            MachineBasicBlock::iterator MI,
-                                const std::vector<CalleeSavedInfo> &CSI) const {
+                                        const std::vector<CalleeSavedInfo> &CSI,
+                                          const TargetRegisterInfo *TRI) const {
   if (CSI.empty())
     return false;
 
@@ -333,7 +335,8 @@ SystemZInstrInfo::spillCalleeSavedRegisters(MachineBasicBlock &MBB,
     const TargetRegisterClass *RegClass = CSI[i].getRegClass();
     if (RegClass == &SystemZ::FP64RegClass) {
       MBB.addLiveIn(Reg);
-      storeRegToStackSlot(MBB, MI, Reg, true, CSI[i].getFrameIdx(), RegClass);
+      storeRegToStackSlot(MBB, MI, Reg, true, CSI[i].getFrameIdx(), RegClass,
+                          &RI);
     }
   }
 
@@ -343,7 +346,8 @@ SystemZInstrInfo::spillCalleeSavedRegisters(MachineBasicBlock &MBB,
 bool
 SystemZInstrInfo::restoreCalleeSavedRegisters(MachineBasicBlock &MBB,
                                              MachineBasicBlock::iterator MI,
-                                const std::vector<CalleeSavedInfo> &CSI) const {
+                                        const std::vector<CalleeSavedInfo> &CSI,
+                                          const TargetRegisterInfo *TRI) const {
   if (CSI.empty())
     return false;
 
@@ -359,7 +363,7 @@ SystemZInstrInfo::restoreCalleeSavedRegisters(MachineBasicBlock &MBB,
     unsigned Reg = CSI[i].getReg();
     const TargetRegisterClass *RegClass = CSI[i].getRegClass();
     if (RegClass == &SystemZ::FP64RegClass)
-      loadRegFromStackSlot(MBB, MI, Reg, CSI[i].getFrameIdx(), RegClass);
+      loadRegFromStackSlot(MBB, MI, Reg, CSI[i].getFrameIdx(), RegClass, &RI);
   }
 
   // Restore GP registers

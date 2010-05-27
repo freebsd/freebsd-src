@@ -65,6 +65,12 @@ static cl::opt<bool> PrintISelInput("print-isel-input", cl::Hidden,
     cl::desc("Print LLVM IR input to isel pass"));
 static cl::opt<bool> PrintGCInfo("print-gc", cl::Hidden,
     cl::desc("Dump garbage collector data"));
+static cl::opt<bool> ShowMCEncoding("show-mc-encoding", cl::Hidden,
+    cl::desc("Show encoding in .s output"));
+static cl::opt<bool> ShowMCInst("show-mc-inst", cl::Hidden,
+    cl::desc("Show instruction structure in .s output"));
+static cl::opt<bool> EnableMCLogging("enable-mc-api-logging", cl::Hidden,
+    cl::desc("Enable MC API logging"));
 static cl::opt<bool> VerifyMachineCode("verify-machineinstrs", cl::Hidden,
     cl::desc("Verify generated machine code"),
     cl::init(getenv("LLVM_VERIFY_MACHINEINSTRS")!=NULL));
@@ -131,21 +137,33 @@ bool LLVMTargetMachine::addPassesToEmitFile(PassManagerBase &PM,
   case CGFT_AssemblyFile: {
     MCInstPrinter *InstPrinter =
       getTarget().createMCInstPrinter(MAI.getAssemblerDialect(), MAI);
+
+    // Create a code emitter if asked to show the encoding.
+    //
+    // FIXME: These are currently leaked.
+    MCCodeEmitter *MCE = 0;
+    if (ShowMCEncoding)
+      MCE = getTarget().createCodeEmitter(*this, *Context);
+
     AsmStreamer.reset(createAsmStreamer(*Context, Out,
                                         getTargetData()->isLittleEndian(),
                                         getVerboseAsm(), InstPrinter,
-                                        /*codeemitter*/0));
+                                        MCE, ShowMCInst));
     break;
   }
   case CGFT_ObjectFile: {
     // Create the code emitter for the target if it exists.  If not, .o file
     // emission fails.
+    //
+    // FIXME: These are currently leaked.
     MCCodeEmitter *MCE = getTarget().createCodeEmitter(*this, *Context);
     TargetAsmBackend *TAB = getTarget().createAsmBackend(TargetTriple);
     if (MCE == 0 || TAB == 0)
       return true;
-    
-    AsmStreamer.reset(createMachOStreamer(*Context, *TAB, Out, MCE));
+
+    AsmStreamer.reset(getTarget().createObjectStreamer(TargetTriple, *Context,
+                                                       *TAB, Out, MCE,
+                                                       hasMCRelaxAll()));
     break;
   }
   case CGFT_Null:
@@ -154,7 +172,10 @@ bool LLVMTargetMachine::addPassesToEmitFile(PassManagerBase &PM,
     AsmStreamer.reset(createNullStreamer(*Context));
     break;
   }
-  
+
+  if (EnableMCLogging)
+    AsmStreamer.reset(createLoggingStreamer(AsmStreamer.take(), errs()));
+
   // Create the AsmPrinter, which takes ownership of AsmStreamer if successful.
   FunctionPass *Printer = getTarget().createAsmPrinter(*this, *AsmStreamer);
   if (Printer == 0)

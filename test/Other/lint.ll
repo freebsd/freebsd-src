@@ -2,6 +2,7 @@
 target datalayout = "e-p:64:64:64"
 
 declare fastcc void @bar()
+declare void @llvm.stackrestore(i8*)
 
 @CG = constant i32 7
 
@@ -50,6 +51,8 @@ define i32 @foo() noreturn {
   %lb = load i32* bitcast (i8* blockaddress(@foo, %next) to i32*)
 ; CHECK: Call to block address
   call void()* bitcast (i8* blockaddress(@foo, %next) to void()*)()
+; CHECK: Undefined behavior: Null pointer dereference
+  call void @llvm.stackrestore(i8* null)
 
   br label %next
 
@@ -77,8 +80,20 @@ define void @not_vararg(i8* %p) nounwind {
   ret void
 }
 
+; CHECK: Undefined behavior: Branch to non-blockaddress
 define void @use_indbr() {
   indirectbr i8* bitcast (i32()* @foo to i8*), [label %block]
 block:
   unreachable
+}
+
+; CHECK: Undefined behavior: Call with "tail" keyword references alloca or va_arg
+; CHECK: Undefined behavior: Call with "tail" keyword references alloca or va_arg
+declare void @tailcallee(i8*)
+define void @use_tail(i8* %valist) {
+  %t = alloca i8
+  tail call void @tailcallee(i8* %t)
+  %s = va_arg i8* %valist, i8*
+  tail call void @tailcallee(i8* %s)
+  ret void
 }

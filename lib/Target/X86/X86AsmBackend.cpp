@@ -12,6 +12,7 @@
 #include "X86FixupKinds.h"
 #include "llvm/ADT/Twine.h"
 #include "llvm/MC/MCAssembler.h"
+#include "llvm/MC/MCExpr.h"
 #include "llvm/MC/MCObjectWriter.h"
 #include "llvm/MC/MCSectionELF.h"
 #include "llvm/MC/MCSectionMachO.h"
@@ -43,20 +44,19 @@ public:
   X86AsmBackend(const Target &T)
     : TargetAsmBackend(T) {}
 
-  void ApplyFixup(const MCAsmFixup &Fixup, MCDataFragment &DF,
+  void ApplyFixup(const MCFixup &Fixup, MCDataFragment &DF,
                   uint64_t Value) const {
-    unsigned Size = 1 << getFixupKindLog2Size(Fixup.Kind);
+    unsigned Size = 1 << getFixupKindLog2Size(Fixup.getKind());
 
-    assert(Fixup.Offset + Size <= DF.getContents().size() &&
+    assert(Fixup.getOffset() + Size <= DF.getContents().size() &&
            "Invalid fixup offset!");
     for (unsigned i = 0; i != Size; ++i)
-      DF.getContents()[Fixup.Offset + i] = uint8_t(Value >> (i * 8));
+      DF.getContents()[Fixup.getOffset() + i] = uint8_t(Value >> (i * 8));
   }
 
-  bool MayNeedRelaxation(const MCInst &Inst,
-                         const SmallVectorImpl<MCAsmFixup> &Fixups) const;
+  bool MayNeedRelaxation(const MCInst &Inst) const;
 
-  void RelaxInstruction(const MCInstFragment *IF, MCInst &Res) const;
+  void RelaxInstruction(const MCInst &Inst, MCInst &Res) const;
 
   bool WriteNopData(uint64_t Count, MCObjectWriter *OW) const;
 };
@@ -75,6 +75,7 @@ static unsigned getRelaxedOpcode(unsigned Op) {
   case X86::JG_1:  return X86::JG_4;
   case X86::JLE_1: return X86::JLE_4;
   case X86::JL_1:  return X86::JL_4;
+  case X86::TAILJMP_1:
   case X86::JMP_1: return X86::JMP_4;
   case X86::JNE_1: return X86::JNE_4;
   case X86::JNO_1: return X86::JNO_4;
@@ -86,35 +87,33 @@ static unsigned getRelaxedOpcode(unsigned Op) {
   }
 }
 
-bool X86AsmBackend::MayNeedRelaxation(const MCInst &Inst,
-                              const SmallVectorImpl<MCAsmFixup> &Fixups) const {
-  // Check for a 1byte pcrel fixup, and enforce that we would know how to relax
-  // this instruction.
-  for (unsigned i = 0, e = Fixups.size(); i != e; ++i) {
-    if (unsigned(Fixups[i].Kind) == X86::reloc_pcrel_1byte) {
-      assert(getRelaxedOpcode(Inst.getOpcode()) != Inst.getOpcode());
-      return true;
-    }
-  }
+bool X86AsmBackend::MayNeedRelaxation(const MCInst &Inst) const {
+  // Check if this instruction is ever relaxable.
+  if (getRelaxedOpcode(Inst.getOpcode()) == Inst.getOpcode())
+    return false;
 
-  return false;
+  // If so, just assume it can be relaxed. Once we support relaxing more complex
+  // instructions we should check that the instruction actually has symbolic
+  // operands before doing this, but we need to be careful about things like
+  // PCrel.
+  return true;
 }
 
 // FIXME: Can tblgen help at all here to verify there aren't other instructions
 // we can relax?
-void X86AsmBackend::RelaxInstruction(const MCInstFragment *IF,
-                                     MCInst &Res) const {
+void X86AsmBackend::RelaxInstruction(const MCInst &Inst, MCInst &Res) const {
   // The only relaxations X86 does is from a 1byte pcrel to a 4byte pcrel.
-  unsigned RelaxedOp = getRelaxedOpcode(IF->getInst().getOpcode());
+  unsigned RelaxedOp = getRelaxedOpcode(Inst.getOpcode());
 
-  if (RelaxedOp == IF->getInst().getOpcode()) {
+  if (RelaxedOp == Inst.getOpcode()) {
     SmallString<256> Tmp;
     raw_svector_ostream OS(Tmp);
-    IF->getInst().dump_pretty(OS);
+    Inst.dump_pretty(OS);
+    OS << "\n";
     report_fatal_error("unexpected instruction to relax: " + OS.str());
   }
 
-  Res = IF->getInst();
+  Res = Inst;
   Res.setOpcode(RelaxedOp);
 }
 
@@ -199,6 +198,18 @@ public:
   }
 };
 
+class ELFX86_32AsmBackend : public ELFX86AsmBackend {
+public:
+  ELFX86_32AsmBackend(const Target &T)
+    : ELFX86AsmBackend(T) {}
+};
+
+class ELFX86_64AsmBackend : public ELFX86AsmBackend {
+public:
+  ELFX86_64AsmBackend(const Target &T)
+    : ELFX86AsmBackend(T) {}
+};
+
 class DarwinX86AsmBackend : public X86AsmBackend {
 public:
   DarwinX86AsmBackend(const Target &T)
@@ -210,7 +221,8 @@ public:
   bool isVirtualSection(const MCSection &Section) const {
     const MCSectionMachO &SMO = static_cast<const MCSectionMachO&>(Section);
     return (SMO.getType() == MCSectionMachO::S_ZEROFILL ||
-            SMO.getType() == MCSectionMachO::S_GB_ZEROFILL);
+            SMO.getType() == MCSectionMachO::S_GB_ZEROFILL ||
+            SMO.getType() == MCSectionMachO::S_THREAD_LOCAL_ZEROFILL);
   }
 };
 
@@ -247,6 +259,26 @@ public:
     const MCSectionMachO &SMO = static_cast<const MCSectionMachO&>(Section);
     return SMO.getType() == MCSectionMachO::S_CSTRING_LITERALS;
   }
+
+  virtual bool isSectionAtomizable(const MCSection &Section) const {
+    const MCSectionMachO &SMO = static_cast<const MCSectionMachO&>(Section);
+    // Fixed sized data sections are uniqued, they cannot be diced into atoms.
+    switch (SMO.getType()) {
+    default:
+      return true;
+
+    case MCSectionMachO::S_4BYTE_LITERALS:
+    case MCSectionMachO::S_8BYTE_LITERALS:
+    case MCSectionMachO::S_16BYTE_LITERALS:
+    case MCSectionMachO::S_LITERAL_POINTERS:
+    case MCSectionMachO::S_NON_LAZY_SYMBOL_POINTERS:
+    case MCSectionMachO::S_LAZY_SYMBOL_POINTERS:
+    case MCSectionMachO::S_MOD_INIT_FUNC_POINTERS:
+    case MCSectionMachO::S_MOD_TERM_FUNC_POINTERS:
+    case MCSectionMachO::S_INTERPOSING:
+      return false;
+    }
+  }
 };
 
 }
@@ -257,7 +289,7 @@ TargetAsmBackend *llvm::createX86_32AsmBackend(const Target &T,
   case Triple::Darwin:
     return new DarwinX86_32AsmBackend(T);
   default:
-    return new ELFX86AsmBackend(T);
+    return new ELFX86_32AsmBackend(T);
   }
 }
 
@@ -267,6 +299,6 @@ TargetAsmBackend *llvm::createX86_64AsmBackend(const Target &T,
   case Triple::Darwin:
     return new DarwinX86_64AsmBackend(T);
   default:
-    return new ELFX86AsmBackend(T);
+    return new ELFX86_64AsmBackend(T);
   }
 }
