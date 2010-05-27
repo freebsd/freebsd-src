@@ -9,5 +9,7 @@ CLEANFILES+=	${_FIRM}
 
 FIRMWS=	${_FIRM}:${KMOD}
 
+FIRMWARE_LICENSE=	intel_iwn
+
 ${_FIRM}: ${.CURDIR}/../../../contrib/dev/iwn/${_FIRM}.uu
 	uudecode -p $? > ${.TARGET}
