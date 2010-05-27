@@ -14,6 +14,7 @@ add_clang_library(clangChecker
   BuiltinFunctionChecker.cpp
   CallAndMessageChecker.cpp
   CallInliner.cpp
+  CastSizeChecker.cpp
   CastToStructChecker.cpp
   CFRefCount.cpp
   CheckDeadStores.cpp
@@ -69,3 +70,5 @@ add_clang_library(clangChecker
   ValueManager.cpp
   VLASizeChecker.cpp
   )
+
+add_dependencies(clangChecker ClangStmtNodes)

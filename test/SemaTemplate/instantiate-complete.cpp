@@ -99,3 +99,32 @@ namespace TemporaryObjectCopy {
 
   template void f(int);
 }
+
+namespace PR7080 {
+  template <class T, class U>
+  class X
+  {
+    typedef char true_t;
+    class false_t { char dummy[2]; };
+    static true_t dispatch(U);
+    static false_t dispatch(...);
+    static T trigger();
+  public:
+    enum { value = sizeof(dispatch(trigger())) == sizeof(true_t) };
+  };
+
+  template <class T>
+  class rv : public T
+  { };
+
+  bool x = X<int, rv<int>&>::value;
+}
+
+namespace pr7199 {
+  template <class T> class A; // expected-note {{template is declared here}}
+  template <class T> class B {
+    class A<T>::C field; // expected-error {{implicit instantiation of undefined template 'pr7199::A<int>'}}
+  };
+
+  template class B<int>; // expected-note {{in instantiation}}
+}

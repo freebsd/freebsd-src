@@ -51,6 +51,7 @@ typedef UsuallyTinyPtrVector<const CXXBaseSpecifier> CXXBaseSpecifierArray;
 class Expr : public Stmt {
   QualType TR;
 
+  virtual void ANCHOR(); // key function.
 protected:
   /// TypeDependent - Whether this expression is type-dependent
   /// (C++ [temp.dep.expr]).
@@ -247,6 +248,15 @@ public:
     SourceLocation DiagLoc;
 
     EvalResult() : HasSideEffects(false), Diag(0), DiagExpr(0) {}
+
+    // isGlobalLValue - Return true if the evaluated lvalue expression
+    // is global.
+    bool isGlobalLValue() const;
+    // hasSideEffects - Return true if the evaluated expression has
+    // side effects.
+    bool hasSideEffects() const {
+      return HasSideEffects;
+    }
   };
 
   /// Evaluate - Return true if this is a constant which we can fold using
@@ -254,10 +264,6 @@ public:
   /// we want to.  If this function returns true, it returns the folded constant
   /// in Result.
   bool Evaluate(EvalResult &Result, ASTContext &Ctx) const;
-
-  /// EvaluateAsAny - The same as Evaluate, except that it also succeeds on
-  /// stack based objects.
-  bool EvaluateAsAny(EvalResult &Result, ASTContext &Ctx) const;
 
   /// EvaluateAsBooleanCondition - Return true if this is a constant
   /// which we we can fold and convert to a boolean condition using
@@ -282,8 +288,7 @@ public:
   /// with link time known address.
   bool EvaluateAsLValue(EvalResult &Result, ASTContext &Ctx) const;
 
-  /// EvaluateAsAnyLValue - The same as EvaluateAsLValue, except that it
-  /// also succeeds on stack based, immutable address lvalues.
+  /// EvaluateAsLValue - Evaluate an expression to see if it's a lvalue.
   bool EvaluateAsAnyLValue(EvalResult &Result, ASTContext &Ctx) const;
 
   /// \brief Enumeration used to describe how \c isNullPointerConstant()
@@ -320,6 +325,10 @@ public:
   /// IgnoreParenCasts - Ignore parentheses and casts.  Strip off any ParenExpr
   /// or CastExprs, returning their operand.
   Expr *IgnoreParenCasts();
+
+  /// IgnoreParenImpCasts - Ignore parentheses and implicit casts.  Strip off any
+  /// ParenExpr or ImplicitCastExprs, returning their operand.
+  Expr *IgnoreParenImpCasts();
 
   /// IgnoreParenNoopCasts - Ignore parentheses and casts that do not change the
   /// value (including ptr->int casts of the same size).  Strip off any
@@ -1468,13 +1477,10 @@ public:
   }
 
   static bool classof(const Stmt *T) {
-    return T->getStmtClass() == CallExprClass ||
-           T->getStmtClass() == CXXOperatorCallExprClass ||
-           T->getStmtClass() == CXXMemberCallExprClass;
+    return T->getStmtClass() >= firstCallExprConstant &&
+           T->getStmtClass() <= lastCallExprConstant;
   }
   static bool classof(const CallExpr *) { return true; }
-  static bool classof(const CXXOperatorCallExpr *) { return true; }
-  static bool classof(const CXXMemberCallExpr *) { return true; }
 
   // Iterators
   virtual child_iterator child_begin();
@@ -1933,14 +1939,8 @@ public:
   const CXXBaseSpecifierArray& getBasePath() const { return BasePath; }
 
   static bool classof(const Stmt *T) {
-    StmtClass SC = T->getStmtClass();
-    if (SC >= CXXStaticCastExprClass && SC <= CXXFunctionalCastExprClass)
-      return true;
-
-    if (SC >= ImplicitCastExprClass && SC <= CStyleCastExprClass)
-      return true;
-
-    return false;
+    return T->getStmtClass() >= firstCastExprConstant &&
+           T->getStmtClass() <= lastCastExprConstant;
   }
   static bool classof(const CastExpr *) { return true; }
 
@@ -2037,13 +2037,8 @@ public:
   QualType getTypeAsWritten() const { return TInfo->getType(); }
 
   static bool classof(const Stmt *T) {
-    StmtClass SC = T->getStmtClass();
-    if (SC >= CStyleCastExprClass && SC <= CStyleCastExprClass)
-      return true;
-    if (SC >= CXXStaticCastExprClass && SC <= CXXFunctionalCastExprClass)
-      return true;
-
-    return false;
+     return T->getStmtClass() >= firstExplicitCastExprConstant &&
+            T->getStmtClass() <= lastExplicitCastExprConstant;
   }
   static bool classof(const ExplicitCastExpr *) { return true; }
 };
@@ -2198,8 +2193,8 @@ public:
   bool isShiftAssignOp() const { return Opc == ShlAssign || Opc == ShrAssign; }
 
   static bool classof(const Stmt *S) {
-    return S->getStmtClass() == BinaryOperatorClass ||
-           S->getStmtClass() == CompoundAssignOperatorClass;
+    return S->getStmtClass() >= firstBinaryOperatorConstant &&
+           S->getStmtClass() <= lastBinaryOperatorConstant;
   }
   static bool classof(const BinaryOperator *) { return true; }
 

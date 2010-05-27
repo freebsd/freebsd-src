@@ -30,7 +30,10 @@ using namespace CodeGen;
 
 void CodeGenFunction::EmitStopPoint(const Stmt *S) {
   if (CGDebugInfo *DI = getDebugInfo()) {
-    DI->setLocation(S->getLocStart());
+    if (isa<DeclStmt>(S))
+      DI->setLocation(S->getLocEnd());
+    else
+      DI->setLocation(S->getLocStart());
     DI->EmitStopPoint(CurFn, Builder);
   }
 }
@@ -76,8 +79,11 @@ void CodeGenFunction::EmitStmt(const Stmt *S) {
     // Expression emitters don't handle unreachable blocks yet, so look for one
     // explicitly here. This handles the common case of a call to a noreturn
     // function.
+    // We can't erase blocks with an associated cleanup size here since the
+    // memory might be reused, leaving the old cleanup info pointing at a new
+    // block.
     if (llvm::BasicBlock *CurBB = Builder.GetInsertBlock()) {
-      if (CurBB->empty() && CurBB->use_empty()) {
+      if (CurBB->empty() && CurBB->use_empty() && !BlockScopes.count(CurBB)) {
         CurBB->eraseFromParent();
         Builder.ClearInsertionPoint();
       }
@@ -484,8 +490,6 @@ void CodeGenFunction::EmitDoStmt(const DoStmt &S) {
 }
 
 void CodeGenFunction::EmitForStmt(const ForStmt &S) {
-  // FIXME: What do we do if the increment (f.e.) contains a stmt expression,
-  // which contains a continue/break?
   CleanupScope ForScope(*this);
 
   // Evaluate the first part before the loop.
@@ -555,14 +559,14 @@ void CodeGenFunction::EmitForStmt(const ForStmt &S) {
     EmitStmt(S.getBody());
   }
 
-  BreakContinueStack.pop_back();
-
   // If there is an increment, emit it next.
   if (S.getInc()) {
     EmitBlock(IncBlock);
     EmitStmt(S.getInc());
   }
 
+  BreakContinueStack.pop_back();
+  
   // Finally, branch back up to the condition for the next iteration.
   if (CondCleanup) {
     // Branch to the cleanup block.
@@ -604,7 +608,20 @@ void CodeGenFunction::EmitReturnStmt(const ReturnStmt &S) {
 
   // FIXME: Clean this up by using an LValue for ReturnTemp,
   // EmitStoreThroughLValue, and EmitAnyExpr.
-  if (!ReturnValue) {
+  if (S.getNRVOCandidate() && S.getNRVOCandidate()->isNRVOVariable() &&
+      !Target.useGlobalsForAutomaticVariables()) {
+    // Apply the named return value optimization for this return statement,
+    // which means doing nothing: the appropriate result has already been
+    // constructed into the NRVO variable.
+    
+    // If there is an NRVO flag for this variable, set it to 1 into indicate
+    // that the cleanup code should not destroy the variable.
+    if (llvm::Value *NRVOFlag = NRVOFlags[S.getNRVOCandidate()]) {
+      const llvm::Type *BoolTy = llvm::Type::getInt1Ty(VMContext);
+      llvm::Value *One = llvm::ConstantInt::get(BoolTy, 1);
+      Builder.CreateStore(One, NRVOFlag);
+    }
+  } else if (!ReturnValue) {
     // Make sure not to return anything, but evaluate the expression
     // for side effects.
     if (RV)

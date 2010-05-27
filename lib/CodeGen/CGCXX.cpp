@@ -13,6 +13,7 @@
 
 // We might split this into multiple files if it gets too unwieldy
 
+#include "CGCXXABI.h"
 #include "CodeGenFunction.h"
 #include "CodeGenModule.h"
 #include "Mangle.h"
@@ -206,6 +207,7 @@ void CodeGenModule::EmitCXXConstructor(const CXXConstructorDecl *D,
     return;
 
   llvm::Function *Fn = cast<llvm::Function>(GetAddrOfCXXConstructor(D, Type));
+  setFunctionLinkage(D, Fn);
 
   CodeGenFunction(*this).GenerateCode(GlobalDecl(D, Type), Fn);
 
@@ -227,6 +229,10 @@ CodeGenModule::GetAddrOfCXXConstructor(const CXXConstructorDecl *D,
                                FPT->isVariadic());
   return cast<llvm::Function>(
                       GetOrCreateLLVMFunction(Name, FTy, GlobalDecl(D, Type)));
+}
+
+void CodeGenModule::getMangledName(MangleBuffer &Buffer, const BlockDecl *BD) {
+  getMangleContext().mangleBlock(BD, Buffer.getBuffer());
 }
 
 void CodeGenModule::getMangledCXXCtorName(MangleBuffer &Name,
@@ -269,6 +275,7 @@ void CodeGenModule::EmitCXXDestructor(const CXXDestructorDecl *D,
     return;
 
   llvm::Function *Fn = cast<llvm::Function>(GetAddrOfCXXDestructor(D, Type));
+  setFunctionLinkage(D, Fn);
 
   CodeGenFunction(*this).GenerateCode(GlobalDecl(D, Type), Fn);
 
@@ -327,3 +334,5 @@ CodeGenFunction::BuildVirtualCall(const CXXDestructorDecl *DD, CXXDtorType Type,
 
   return ::BuildVirtualCall(*this, VTableIndex, This, Ty);
 }
+
+CXXABI::~CXXABI() {}

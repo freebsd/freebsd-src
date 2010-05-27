@@ -24,6 +24,8 @@ void* operator new(size_t, int*); // expected-note 3 {{candidate}}
 void* operator new(size_t, float*); // expected-note 3 {{candidate}}
 void* operator new(size_t, S); // expected-note 2 {{candidate}}
 
+struct foo { };
+
 void good_news()
 {
   int *pi = new int;
@@ -43,6 +45,14 @@ void good_news()
   pi = new (S(1.0f, 2)) int;
   
   (void)new int[true];
+
+  // PR7147
+  typedef int a[2];
+  foo* f1 = new foo;
+  foo* f2 = new foo[2];
+  typedef foo x[2];
+  typedef foo y[2][2];
+  x* f3 = new y;
 }
 
 struct abstract {
@@ -93,7 +103,7 @@ void bad_deletes()
   delete 0; // expected-error {{cannot delete expression of type 'int'}}
   delete [0] (int*)0; // expected-error {{expected ']'}} \
                       // expected-note {{to match this '['}}
-  delete (void*)0; // expected-error {{cannot delete expression}}
+  delete (void*)0; // expected-warning {{cannot delete expression with pointer-to-'void' type 'void *'}}
   delete (T*)0; // expected-warning {{deleting pointer to incomplete type}}
   ::S::delete (int*)0; // expected-error {{expected unqualified-id}}
 }
@@ -235,6 +245,9 @@ namespace Test1 {
 
 void f() {
   (void)new int[10](1, 2); // expected-error {{array 'new' cannot have initialization arguments}}
+  
+  typedef int T[10];
+  (void)new T(1, 2); // expected-error {{array 'new' cannot have initialization arguments}}
 }
 
 template<typename T>

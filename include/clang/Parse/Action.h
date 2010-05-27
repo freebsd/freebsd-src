@@ -105,11 +105,18 @@ public:
 
   class FullExprArg {
   public:
+    FullExprArg(ActionBase &actions) : Expr(actions) { }
+                
     // FIXME: The const_cast here is ugly. RValue references would make this
     // much nicer (or we could duplicate a bunch of the move semantics
     // emulation code from Ownership.h).
     FullExprArg(const FullExprArg& Other)
       : Expr(move(const_cast<FullExprArg&>(Other).Expr)) {}
+
+    FullExprArg &operator=(const FullExprArg& Other) {
+      Expr.operator=(move(const_cast<FullExprArg&>(Other).Expr));
+      return *this;
+    }
 
     OwningExprResult release() {
       return move(Expr);
@@ -279,13 +286,18 @@ public:
   /// \param Template if the name does refer to a template, the declaration
   /// of the template that the name refers to.
   ///
+  /// \param MemberOfUnknownSpecialization Will be set true if the resulting 
+  /// member would be a member of an unknown specialization, in which case this
+  /// lookup cannot possibly pass at this time.
+  ///
   /// \returns the kind of template that this name refers to.
   virtual TemplateNameKind isTemplateName(Scope *S,
                                           CXXScopeSpec &SS,
                                           UnqualifiedId &Name,
                                           TypeTy *ObjectType,
                                           bool EnteringContext,
-                                          TemplateTy &Template) = 0;
+                                          TemplateTy &Template,
+                                      bool &MemberOfUnknownSpecialization) = 0;
 
   /// \brief Action called as part of error recovery when the parser has 
   /// determined that the given name must refer to a template, but 
@@ -566,7 +578,9 @@ public:
 
   /// ParsedFreeStandingDeclSpec - This method is invoked when a declspec with
   /// no declarator (e.g. "struct foo;") is parsed.
-  virtual DeclPtrTy ParsedFreeStandingDeclSpec(Scope *S, DeclSpec &DS) {
+  virtual DeclPtrTy ParsedFreeStandingDeclSpec(Scope *S,
+                                               AccessSpecifier Access,
+                                               DeclSpec &DS) {
     return DeclPtrTy();
   }
 
@@ -826,21 +840,19 @@ public:
 
   /// \brief Parsed the start of a "switch" statement.
   ///
+  /// \param SwitchLoc The location of the "switch" keyword.
+  ///
   /// \param Cond if the "switch" condition was parsed as an expression, 
   /// the expression itself.
   ///
   /// \param CondVar if the "switch" condition was parsed as a condition 
   /// variable, the condition variable itself.
-  virtual OwningStmtResult ActOnStartOfSwitchStmt(FullExprArg Cond,
+  virtual OwningStmtResult ActOnStartOfSwitchStmt(SourceLocation SwitchLoc,
+                                                  ExprArg Cond,
                                                   DeclPtrTy CondVar) {
     return StmtEmpty();
   }
 
-  /// ActOnSwitchBodyError - This is called if there is an error parsing the
-  /// body of the switch stmt instead of ActOnFinishSwitchStmt.
-  virtual void ActOnSwitchBodyError(SourceLocation SwitchLoc, StmtArg Switch,
-                                    StmtArg Body) {}
-  
   virtual OwningStmtResult ActOnFinishSwitchStmt(SourceLocation SwitchLoc,
                                                  StmtArg Switch, StmtArg Body) {
     return StmtEmpty();
@@ -1609,6 +1621,22 @@ public:
     return DeclResult();
   }
 
+  /// \brief Parsed an expression that will be handled as the condition in
+  /// an if/while/for statement. 
+  ///
+  /// This routine handles the conversion of the expression to 'bool'.
+  ///
+  /// \param S The scope in which the expression occurs.
+  ///
+  /// \param Loc The location of the construct that requires the conversion to
+  /// a boolean value.
+  ///
+  /// \param SubExpr The expression that is being converted to bool.
+  virtual OwningExprResult ActOnBooleanCondition(Scope *S, SourceLocation Loc,
+                                                 ExprArg SubExpr) {
+    return move(SubExpr);
+  }
+  
   /// ActOnCXXNew - Parsed a C++ 'new' expression. UseGlobal is true if the
   /// new was qualified (::new). In a full new like
   /// @code new (p1, p2) type(c1, c2) @endcode
@@ -2303,6 +2331,7 @@ public:
   }
   // ActOnPropertyImplDecl - called for every property implementation
   virtual DeclPtrTy ActOnPropertyImplDecl(
+   Scope *S,
    SourceLocation AtLoc,              // location of the @synthesize/@dynamic
    SourceLocation PropertyNameLoc,    // location for the property name
    bool ImplKind,                     // true for @synthesize, false for
@@ -2346,7 +2375,7 @@ public:
   // protocols, categories), the parser passes all methods/properties.
   // For class implementations, these values default to 0. For implementations,
   // methods are processed incrementally (by ActOnMethodDeclaration above).
-  virtual void ActOnAtEnd(SourceRange AtEnd,
+  virtual void ActOnAtEnd(Scope *S, SourceRange AtEnd,
                           DeclPtrTy classDecl,
                           DeclPtrTy *allMethods = 0,
                           unsigned allNum = 0,
@@ -2535,6 +2564,21 @@ public:
 
   //===---------------------------- Pragmas -------------------------------===//
 
+  enum PragmaOptionsAlignKind {
+    POAK_Natural, // #pragma options align=natural
+    POAK_Power,   // #pragma options align=power
+    POAK_Mac68k,  // #pragma options align=mac68k
+    POAK_Reset    // #pragma options align=reset
+  };
+
+  /// ActOnPragmaOptionsAlign - Called on well formed #pragma options
+  /// align={...}.
+  virtual void ActOnPragmaOptionsAlign(PragmaOptionsAlignKind Kind,
+                                       SourceLocation PragmaLoc,
+                                       SourceLocation KindLoc) {
+    return;
+  }
+
   enum PragmaPackKind {
     PPK_Default, // #pragma pack([n])
     PPK_Show,    // #pragma pack(show), only supported by MSVC.
@@ -2620,9 +2664,13 @@ public:
     /// \brief Code completion occurs at the beginning of the
     /// initialization statement (or expression) in a for loop.
     CCC_ForInit,
-    /// \brief Code completion ocurs within the condition of an if,
+    /// \brief Code completion occurs within the condition of an if,
     /// while, switch, or for statement.
-    CCC_Condition
+    CCC_Condition,
+    /// \brief Code completion occurs within the body of a function on a 
+    /// recovery path, where we do not have a specific handle on our position
+    /// in the grammar.
+    CCC_RecoveryInFunction
   };
     
   /// \brief Code completion for an ordinary name that occurs within the given
@@ -3003,7 +3051,9 @@ public:
                                           UnqualifiedId &Name,
                                           TypeTy *ObjectType,
                                           bool EnteringContext,
-                                          TemplateTy &Template);
+                                          TemplateTy &Template,
+                                          bool &MemberOfUnknownSpecialization);
+
   
   /// ActOnDeclarator - If this is a typedef declarator, we modify the
   /// IdentifierInfo::FETokenInfo field to keep track of this fact, until S is

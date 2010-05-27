@@ -112,7 +112,7 @@ class TemplateArgumentListBuilder {
   unsigned MaxStructuredArgs;
   unsigned NumStructuredArgs;
 
-  TemplateArgument *FlatArgs;
+  llvm::SmallVector<TemplateArgument, 4> FlatArgs;
   unsigned MaxFlatArgs;
   unsigned NumFlatArgs;
 
@@ -127,18 +127,12 @@ public:
   MaxFlatArgs(std::max(MaxStructuredArgs, NumTemplateArgs)), NumFlatArgs(0),
   AddingToPack(false), PackBeginIndex(0) { }
 
-  void Append(const TemplateArgument& Arg);
+  void Append(const TemplateArgument &Arg);
   void BeginPack();
   void EndPack();
 
-  void ReleaseArgs();
-
-  unsigned flatSize() const {
-    return NumFlatArgs;
-  }
-  const TemplateArgument *getFlatArguments() const {
-    return FlatArgs;
-  }
+  unsigned flatSize() const { return FlatArgs.size(); }
+  const TemplateArgument *getFlatArguments() const { return FlatArgs.data(); }
 
   unsigned structuredSize() const {
     // If we don't have any structured args, just reuse the flat size.
@@ -165,7 +159,7 @@ class TemplateArgumentList {
   /// \brief The template argument list.
   ///
   /// The integer value will be non-zero to indicate that this
-  /// template argument list does not own the pointer.
+  /// template argument list does own the pointer.
   llvm::PointerIntPair<const TemplateArgument *, 1> FlatArguments;
 
   /// \brief The number of template arguments in this template
@@ -175,14 +169,28 @@ class TemplateArgumentList {
   llvm::PointerIntPair<const TemplateArgument *, 1> StructuredArguments;
   unsigned NumStructuredArguments;
 
+  TemplateArgumentList(const TemplateArgumentList &Other); // DO NOT IMPL
+  void operator=(const TemplateArgumentList &Other); // DO NOT IMPL
 public:
+  /// TemplateArgumentList - If this constructor is passed "true" for 'TakeArgs'
+  /// it copies them into a locally new[]'d array.  If passed "false", then it
+  /// just references the array passed in.  This is only safe if the builder
+  /// outlives it, but saves a copy.
   TemplateArgumentList(ASTContext &Context,
                        TemplateArgumentListBuilder &Builder,
                        bool TakeArgs);
 
-  /// \brief Produces a shallow copy of the given template argument list
-  TemplateArgumentList(const TemplateArgumentList &Other);
+  /// Produces a shallow copy of the given template argument list.  This
+  /// assumes that the input argument list outlives it.  This takes the list as
+  /// a pointer to avoid looking like a copy constructor, since this really
+  /// really isn't safe to use that way.
+  explicit TemplateArgumentList(const TemplateArgumentList *Other);
   
+  /// Used to release the memory associated with a TemplateArgumentList
+  ///  object.  FIXME: This is currently not called anywhere, but the
+  ///  memory will still be freed when using a BumpPtrAllocator.
+  void Destroy(ASTContext &C);
+
   ~TemplateArgumentList();
 
   /// \brief Retrieve the template argument at a given index.
@@ -279,6 +287,9 @@ public:
   /// \brief The template arguments used to produce the function template
   /// specialization from the function template.
   const TemplateArgumentList *TemplateArguments;
+
+  /// \brief The template arguments as written in the sources, if provided.
+  const TemplateArgumentListInfo *TemplateArgumentsAsWritten;
 
   /// \brief The point at which this function template specialization was
   /// first instantiated. 
@@ -454,6 +465,8 @@ public:
   
 /// Declaration of a template function.
 class FunctionTemplateDecl : public TemplateDecl {
+  static void DeallocateCommon(void *Ptr);
+                        
 protected:
   /// \brief Data that is common to all of the declarations of a given
   /// function template.
@@ -862,7 +875,7 @@ class ClassTemplateSpecializationDecl
   unsigned SpecializationKind : 3;
 
 protected:
-  ClassTemplateSpecializationDecl(ASTContext &Context, Kind DK,
+  ClassTemplateSpecializationDecl(ASTContext &Context, Kind DK, TagKind TK,
                                   DeclContext *DC, SourceLocation L,
                                   ClassTemplateDecl *SpecializedTemplate,
                                   TemplateArgumentListBuilder &Builder,
@@ -870,7 +883,7 @@ protected:
 
 public:
   static ClassTemplateSpecializationDecl *
-  Create(ASTContext &Context, DeclContext *DC, SourceLocation L,
+  Create(ASTContext &Context, TagKind TK, DeclContext *DC, SourceLocation L,
          ClassTemplateDecl *SpecializedTemplate,
          TemplateArgumentListBuilder &Builder,
          ClassTemplateSpecializationDecl *PrevDecl);
@@ -1024,7 +1037,7 @@ class ClassTemplatePartialSpecializationDecl
   llvm::PointerIntPair<ClassTemplatePartialSpecializationDecl *, 1, bool>
       InstantiatedFromMember;
     
-  ClassTemplatePartialSpecializationDecl(ASTContext &Context,
+  ClassTemplatePartialSpecializationDecl(ASTContext &Context, TagKind TK,
                                          DeclContext *DC, SourceLocation L,
                                          TemplateParameterList *Params,
                                          ClassTemplateDecl *SpecializedTemplate,
@@ -1035,7 +1048,7 @@ class ClassTemplatePartialSpecializationDecl
                                          unsigned SequenceNumber)
     : ClassTemplateSpecializationDecl(Context,
                                       ClassTemplatePartialSpecialization,
-                                      DC, L, SpecializedTemplate, Builder,
+                                      TK, DC, L, SpecializedTemplate, Builder,
                                       PrevDecl),
       TemplateParams(Params), ArgsAsWritten(ArgInfos),
       NumArgsAsWritten(NumArgInfos), SequenceNumber(SequenceNumber),
@@ -1043,7 +1056,7 @@ class ClassTemplatePartialSpecializationDecl
 
 public:
   static ClassTemplatePartialSpecializationDecl *
-  Create(ASTContext &Context, DeclContext *DC, SourceLocation L,
+  Create(ASTContext &Context, TagKind TK,DeclContext *DC, SourceLocation L,
          TemplateParameterList *Params,
          ClassTemplateDecl *SpecializedTemplate,
          TemplateArgumentListBuilder &Builder,
@@ -1158,6 +1171,8 @@ public:
 
 /// Declaration of a class template.
 class ClassTemplateDecl : public TemplateDecl {
+  static void DeallocateCommon(void *Ptr);
+  
 protected:
   /// \brief Data that is common to all of the declarations of a given
   /// class template.

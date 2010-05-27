@@ -126,6 +126,16 @@ namespace {
     unsigned VisitCXXFunctionalCastExpr(CXXFunctionalCastExpr *E);
     unsigned VisitCXXBoolLiteralExpr(CXXBoolLiteralExpr *E);
     unsigned VisitCXXNullPtrLiteralExpr(CXXNullPtrLiteralExpr *E);
+    unsigned VisitCXXTypeidExpr(CXXTypeidExpr *E);
+    unsigned VisitCXXThisExpr(CXXThisExpr *E);
+    unsigned VisitCXXThrowExpr(CXXThrowExpr *E);
+    unsigned VisitCXXDefaultArgExpr(CXXDefaultArgExpr *E);
+    unsigned VisitCXXBindTemporaryExpr(CXXBindTemporaryExpr *E);
+    
+    unsigned VisitCXXZeroInitValueExpr(CXXZeroInitValueExpr *E);
+    unsigned VisitCXXNewExpr(CXXNewExpr *E);
+    
+    unsigned VisitCXXExprWithTemporaries(CXXExprWithTemporaries *E);
   };
 }
 
@@ -281,6 +291,7 @@ unsigned PCHStmtReader::VisitReturnStmt(ReturnStmt *S) {
   VisitStmt(S);
   S->setRetValue(cast_or_null<Expr>(StmtStack.back()));
   S->setReturnLoc(SourceLocation::getFromRawEncoding(Record[Idx++]));
+  S->setNRVOCandidate(cast_or_null<VarDecl>(Reader.GetDecl(Record[Idx++])));
   return 1;
 }
 
@@ -529,7 +540,6 @@ unsigned PCHStmtReader::VisitCastExpr(CastExpr *E) {
   VisitExpr(E);
   E->setSubExpr(cast<Expr>(StmtStack.back()));
   E->setCastKind((CastExpr::CastKind)Record[Idx++]);
-
   return 1;
 }
 
@@ -947,6 +957,7 @@ unsigned PCHStmtReader::VisitCXXConstructExpr(CXXConstructExpr *E) {
   E->setRequiresZeroInitialization(Record[Idx++]);
   for (unsigned I = 0, N = E->getNumArgs(); I != N; ++I)
     E->setArg(I, cast<Expr>(StmtStack[StmtStack.size() - N + I]));
+  E->setConstructionKind((CXXConstructExpr::ConstructionKind)Record[Idx++]);
   return E->getNumArgs();
 }
 
@@ -991,6 +1002,99 @@ unsigned PCHStmtReader::VisitCXXNullPtrLiteralExpr(CXXNullPtrLiteralExpr *E) {
   E->setLocation(SourceLocation::getFromRawEncoding(Record[Idx++]));
   return 0;
 }
+
+unsigned PCHStmtReader::VisitCXXTypeidExpr(CXXTypeidExpr *E) {
+  VisitExpr(E);
+  E->setSourceRange(Reader.ReadSourceRange(Record, Idx));
+  if (E->isTypeOperand()) { // typeid(int)
+    E->setTypeOperandSourceInfo(Reader.GetTypeSourceInfo(Record, Idx));
+    return 0;
+  }
+  
+  // typeid(42+2)
+  E->setExprOperand(cast<Expr>(StmtStack.back()));
+  return 1;
+}
+
+unsigned PCHStmtReader::VisitCXXThisExpr(CXXThisExpr *E) {
+  VisitExpr(E);
+  E->setLocation(SourceLocation::getFromRawEncoding(Record[Idx++]));
+  E->setImplicit(Record[Idx++]);
+  return 0;
+}
+
+unsigned PCHStmtReader::VisitCXXThrowExpr(CXXThrowExpr *E) {
+  VisitExpr(E);
+  E->setThrowLoc(SourceLocation::getFromRawEncoding(Record[Idx++]));
+  E->setSubExpr(cast<Expr>(StmtStack.back()));
+  return 1;
+}
+
+unsigned PCHStmtReader::VisitCXXDefaultArgExpr(CXXDefaultArgExpr *E) {
+  VisitExpr(E);
+  E->setUsedLocation(SourceLocation::getFromRawEncoding(Record[Idx++]));
+  bool HasStoredExpr = Record[Idx++];
+  if (!HasStoredExpr) return 0;
+  E->setExpr(cast<Expr>(StmtStack.back()));
+  return 1;
+}
+
+unsigned PCHStmtReader::VisitCXXBindTemporaryExpr(CXXBindTemporaryExpr *E) {
+  VisitExpr(E);
+  E->setTemporary(Reader.ReadCXXTemporary(Record, Idx));
+  E->setSubExpr(cast<Expr>(StmtStack.back()));
+  return 1;
+}
+
+unsigned PCHStmtReader::VisitCXXZeroInitValueExpr(CXXZeroInitValueExpr *E) {
+  VisitExpr(E);
+  E->setTypeBeginLoc(SourceLocation::getFromRawEncoding(Record[Idx++]));
+  E->setRParenLoc(SourceLocation::getFromRawEncoding(Record[Idx++]));
+  return 0;
+}
+
+unsigned PCHStmtReader::VisitCXXNewExpr(CXXNewExpr *E) {
+  VisitExpr(E);
+  E->setGlobalNew(Record[Idx++]);
+  E->setParenTypeId(Record[Idx++]);
+  E->setHasInitializer(Record[Idx++]);
+  bool isArray = Record[Idx++];
+  unsigned NumPlacementArgs = Record[Idx++];
+  unsigned NumCtorArgs = Record[Idx++];
+  E->setOperatorNew(cast_or_null<FunctionDecl>(Reader.GetDecl(Record[Idx++])));
+  E->setOperatorDelete(
+                    cast_or_null<FunctionDecl>(Reader.GetDecl(Record[Idx++])));
+  E->setConstructor(
+               cast_or_null<CXXConstructorDecl>(Reader.GetDecl(Record[Idx++])));
+  E->setStartLoc(SourceLocation::getFromRawEncoding(Record[Idx++]));
+  E->setEndLoc(SourceLocation::getFromRawEncoding(Record[Idx++]));
+  
+  E->AllocateArgsArray(*Reader.getContext(), isArray, NumPlacementArgs,
+                       NumCtorArgs);
+
+  // Install all the subexpressions.
+  unsigned TotalSubExprs = E->raw_arg_end()-E->raw_arg_begin();
+  unsigned SSIdx = StmtStack.size()-TotalSubExprs;
+  for (CXXNewExpr::raw_arg_iterator I = E->raw_arg_begin(),e = E->raw_arg_end();
+       I != e; ++I)
+    *I = StmtStack[SSIdx++];
+  
+  return TotalSubExprs;
+}
+
+
+unsigned PCHStmtReader::VisitCXXExprWithTemporaries(CXXExprWithTemporaries *E) {
+  VisitExpr(E);
+  unsigned NumTemps = Record[Idx++];
+  if (NumTemps) {
+    E->setNumTemporaries(*Reader.getContext(), NumTemps);
+    for (unsigned i = 0; i != NumTemps; ++i)
+      E->setTemporary(i, Reader.ReadCXXTemporary(Record, Idx));
+  }
+  E->setSubExpr(cast<Expr>(StmtStack.back()));
+  return 1;
+}
+
 
 // Within the bitstream, expressions are stored in Reverse Polish
 // Notation, with each of the subexpressions preceding the
@@ -1304,6 +1408,10 @@ Stmt *PCHReader::ReadStmt(llvm::BitstreamCursor &Cursor) {
     case pch::EXPR_CXX_OPERATOR_CALL:
       S = new (Context) CXXOperatorCallExpr(*Context, Empty);
       break;
+
+    case pch::EXPR_CXX_MEMBER_CALL:
+      S = new (Context) CXXMemberCallExpr(*Context, Empty);
+      break;
         
     case pch::EXPR_CXX_CONSTRUCT:
       S = new (Context) CXXConstructExpr(Empty, *Context,
@@ -1336,6 +1444,36 @@ Stmt *PCHReader::ReadStmt(llvm::BitstreamCursor &Cursor) {
 
     case pch::EXPR_CXX_NULL_PTR_LITERAL:
       S = new (Context) CXXNullPtrLiteralExpr(Empty);
+      break;
+    case pch::EXPR_CXX_TYPEID_EXPR:
+      S = new (Context) CXXTypeidExpr(Empty, true);
+      break;
+    case pch::EXPR_CXX_TYPEID_TYPE:
+      S = new (Context) CXXTypeidExpr(Empty, false);
+      break;
+    case pch::EXPR_CXX_THIS:
+      S = new (Context) CXXThisExpr(Empty);
+      break;
+    case pch::EXPR_CXX_THROW:
+      S = new (Context) CXXThrowExpr(Empty);
+      break;
+    case pch::EXPR_CXX_DEFAULT_ARG:
+      S = new (Context) CXXDefaultArgExpr(Empty);
+      break;
+    case pch::EXPR_CXX_BIND_TEMPORARY:
+      S = new (Context) CXXBindTemporaryExpr(Empty);
+      break;
+
+    case pch::EXPR_CXX_ZERO_INIT_VALUE:
+      S = new (Context) CXXZeroInitValueExpr(Empty);
+      break;
+    case pch::EXPR_CXX_NEW:
+      S = new (Context) CXXNewExpr(Empty);
+      break;
+        
+        
+    case pch::EXPR_CXX_EXPR_WITH_TEMPORARIES:
+      S = new (Context) CXXExprWithTemporaries(Empty);
       break;
     }
 

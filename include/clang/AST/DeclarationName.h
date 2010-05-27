@@ -314,15 +314,16 @@ inline bool operator>=(DeclarationName LHS, DeclarationName RHS) {
 /// retrieved using its member functions (e.g.,
 /// getCXXConstructorName).
 class DeclarationNameTable {
+  ASTContext &Ctx;
   void *CXXSpecialNamesImpl; // Actually a FoldingSet<CXXSpecialName> *
   CXXOperatorIdName *CXXOperatorNames; // Operator names
-  void *CXXLiteralOperatorNames; // Actually a FoldingSet<...> *
+  void *CXXLiteralOperatorNames; // Actually a CXXOperatorIdName*
 
   DeclarationNameTable(const DeclarationNameTable&);            // NONCOPYABLE
   DeclarationNameTable& operator=(const DeclarationNameTable&); // NONCOPYABLE
 
 public:
-  DeclarationNameTable();
+  DeclarationNameTable(ASTContext &C);
   ~DeclarationNameTable();
 
   /// getIdentifier - Create a declaration name that is a simple

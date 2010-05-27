@@ -13,9 +13,12 @@
 
 let Component = "Parse" in {
 
-def w_asm_qualifier_ignored : Warning<"ignored %0 qualifier on asm">;
+def w_asm_qualifier_ignored : Warning<"ignored %0 qualifier on asm">,
+                              CatInlineAsm;
 def warn_file_asm_volatile : Warning<
-  "meaningless 'volatile' on asm outside function">;
+  "meaningless 'volatile' on asm outside function">, CatInlineAsm;
+
+let CategoryName = "Parse Issue" in {
 
 def ext_empty_source_file : Extension<"ISO C forbids an empty source file">;
 def ext_top_level_semi : Extension<
@@ -119,6 +122,8 @@ def err_expected_semi_after_namespace_name : Error<
   "expected ';' after namespace name">;
 def err_unexpected_namespace_attributes_alias : Error<
   "attributes can not be specified on namespace alias">;
+def err_namespace_nonnamespace_scope : Error<
+  "namespaces can only be defined in global or namespace scope">;
 def err_expected_semi_after_attribute_list : Error<
   "expected ';' after attribute list">;
 def err_expected_semi_after_static_assert : Error<
@@ -129,7 +134,7 @@ def err_label_end_of_compound_statement : Error<
   "label at end of compound statement: expected statement">;
 def err_expected_string_literal : Error<"expected string literal">;
 def err_expected_asm_operand : Error<
-  "expected string literal or '[' for asm operand">;
+  "expected string literal or '[' for asm operand">, CatInlineAsm;
 def err_expected_selector_for_method : Error<
   "expected selector for Objective-C method">;
 def err_expected_property_name : Error<"expected property name">;
@@ -311,6 +316,9 @@ def err_explicit_instantiation_with_definition : Error<
     "'template' keyword">;
 def err_enum_template : Error<"enumeration cannot be a template">;
 
+def err_missing_dependent_template_keyword : Error<
+  "use 'template' keyword to treat '%0' as a dependent template name">;
+
 // Constructor template diagnostics.
 def err_out_of_line_constructor_template_id : Error<
   "out-of-line constructor for %0 cannot have template arguments">;
@@ -355,6 +363,13 @@ def warn_pragma_expected_identifier : Warning<
   "expected identifier in '#pragma %0' - ignored">;  
 def warn_pragma_extra_tokens_at_eol : Warning<
   "extra tokens at end of '#pragma %0' - ignored">; 
+// - #pragma options
+def warn_pragma_options_expected_align : Warning<
+  "expected 'align' following '#pragma options' - ignored">;
+def warn_pragma_options_expected_equal : Warning<
+  "expected '=' following '#pragma options align' - ignored">;
+def warn_pragma_options_invalid_option : Warning<
+  "invalid alignment option in '#pragma options align' - ignored">;
 // - #pragma pack
 def warn_pragma_pack_invalid_action : Warning<
   "unknown action for '#pragma pack' - ignored">;
@@ -368,4 +383,5 @@ def warn_pragma_unused_expected_var : Warning<
 def warn_pragma_unused_expected_punc : Warning<
   "expected ')' or ',' in '#pragma unused'">;
 
+} // end of Parse Issue category.
 } // end of Parser diagnostics

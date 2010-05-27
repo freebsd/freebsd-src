@@ -112,6 +112,7 @@ namespace {
 
     // C++ Statements
     void VisitCXXOperatorCallExpr(CXXOperatorCallExpr *E);
+    void VisitCXXMemberCallExpr(CXXMemberCallExpr *E);
     void VisitCXXConstructExpr(CXXConstructExpr *E);
     void VisitCXXNamedCastExpr(CXXNamedCastExpr *E);
     void VisitCXXStaticCastExpr(CXXStaticCastExpr *E);
@@ -121,6 +122,16 @@ namespace {
     void VisitCXXFunctionalCastExpr(CXXFunctionalCastExpr *E);
     void VisitCXXBoolLiteralExpr(CXXBoolLiteralExpr *E);
     void VisitCXXNullPtrLiteralExpr(CXXNullPtrLiteralExpr *E);
+    void VisitCXXTypeidExpr(CXXTypeidExpr *E);
+    void VisitCXXThisExpr(CXXThisExpr *E);
+    void VisitCXXThrowExpr(CXXThrowExpr *E);
+    void VisitCXXDefaultArgExpr(CXXDefaultArgExpr *E);
+    void VisitCXXBindTemporaryExpr(CXXBindTemporaryExpr *E);
+    
+    void VisitCXXZeroInitValueExpr(CXXZeroInitValueExpr *E);
+    void VisitCXXNewExpr(CXXNewExpr *E);
+    
+    void VisitCXXExprWithTemporaries(CXXExprWithTemporaries *E);
   };
 }
 
@@ -264,6 +275,7 @@ void PCHStmtWriter::VisitReturnStmt(ReturnStmt *S) {
   VisitStmt(S);
   Writer.WriteSubStmt(S->getRetValue());
   Writer.AddSourceLocation(S->getReturnLoc(), Record);
+  Writer.AddDeclRef(S->getNRVOCandidate(), Record);
   Code = pch::STMT_RETURN;
 }
 
@@ -848,6 +860,11 @@ void PCHStmtWriter::VisitCXXOperatorCallExpr(CXXOperatorCallExpr *E) {
   Code = pch::EXPR_CXX_OPERATOR_CALL;
 }
 
+void PCHStmtWriter::VisitCXXMemberCallExpr(CXXMemberCallExpr *E) {
+  VisitCallExpr(E);
+  Code = pch::EXPR_CXX_MEMBER_CALL;
+}
+
 void PCHStmtWriter::VisitCXXConstructExpr(CXXConstructExpr *E) {
   VisitExpr(E);
   Writer.AddDeclRef(E->getConstructor(), Record);
@@ -857,6 +874,7 @@ void PCHStmtWriter::VisitCXXConstructExpr(CXXConstructExpr *E) {
   Record.push_back(E->getNumArgs());
   for (unsigned I = 0, N = E->getNumArgs(); I != N; ++I)
     Writer.WriteSubStmt(E->getArg(I));
+  Record.push_back(E->getConstructionKind()); // FIXME: stable encoding
   Code = pch::EXPR_CXX_CONSTRUCT;
 }
 
@@ -905,6 +923,91 @@ void PCHStmtWriter::VisitCXXNullPtrLiteralExpr(CXXNullPtrLiteralExpr *E) {
   Code = pch::EXPR_CXX_NULL_PTR_LITERAL;
 }
 
+void PCHStmtWriter::VisitCXXTypeidExpr(CXXTypeidExpr *E) {
+  VisitExpr(E);
+  Writer.AddSourceRange(E->getSourceRange(), Record);
+  if (E->isTypeOperand()) {
+    Writer.AddTypeSourceInfo(E->getTypeOperandSourceInfo(), Record);
+    Code = pch::EXPR_CXX_TYPEID_TYPE;
+  } else {
+    Writer.WriteSubStmt(E->getExprOperand());
+    Code = pch::EXPR_CXX_TYPEID_EXPR;
+  }
+}
+
+void PCHStmtWriter::VisitCXXThisExpr(CXXThisExpr *E) {
+  VisitExpr(E);
+  Writer.AddSourceLocation(E->getLocation(), Record);
+  Record.push_back(E->isImplicit());
+  Code = pch::EXPR_CXX_THIS;
+}
+
+void PCHStmtWriter::VisitCXXThrowExpr(CXXThrowExpr *E) {
+  VisitExpr(E);
+  Writer.AddSourceLocation(E->getThrowLoc(), Record);
+  Writer.WriteSubStmt(E->getSubExpr());
+  Code = pch::EXPR_CXX_THROW;
+}
+
+void PCHStmtWriter::VisitCXXDefaultArgExpr(CXXDefaultArgExpr *E) {
+  VisitExpr(E);
+  Writer.AddSourceLocation(E->getUsedLocation(), Record);
+  if (E->isExprStored()) {
+    Record.push_back(1);
+    Writer.WriteSubStmt(E->getExpr());
+  } else {
+    Record.push_back(0);
+  }
+
+  Code = pch::EXPR_CXX_DEFAULT_ARG;
+}
+
+void PCHStmtWriter::VisitCXXBindTemporaryExpr(CXXBindTemporaryExpr *E) {
+  VisitExpr(E);
+  Writer.AddCXXTemporary(E->getTemporary(), Record);
+  Writer.WriteSubStmt(E->getSubExpr());
+  Code = pch::EXPR_CXX_BIND_TEMPORARY;
+}
+
+void PCHStmtWriter::VisitCXXZeroInitValueExpr(CXXZeroInitValueExpr *E) {
+  VisitExpr(E);
+  Writer.AddSourceLocation(E->getTypeBeginLoc(), Record);
+  Writer.AddSourceLocation(E->getRParenLoc(), Record);
+  Code = pch::EXPR_CXX_ZERO_INIT_VALUE;
+}
+
+void PCHStmtWriter::VisitCXXNewExpr(CXXNewExpr *E) {
+  VisitExpr(E);
+  Record.push_back(E->isGlobalNew());
+  Record.push_back(E->isParenTypeId());
+  Record.push_back(E->hasInitializer());
+  Record.push_back(E->isArray());
+  Record.push_back(E->getNumPlacementArgs());
+  Record.push_back(E->getNumConstructorArgs());
+  Writer.AddDeclRef(E->getOperatorNew(), Record);
+  Writer.AddDeclRef(E->getOperatorDelete(), Record);
+  Writer.AddDeclRef(E->getConstructor(), Record);
+  Writer.AddSourceLocation(E->getStartLoc(), Record);
+  Writer.AddSourceLocation(E->getEndLoc(), Record);
+  for (CXXNewExpr::arg_iterator I = E->raw_arg_begin(), e = E->raw_arg_end();
+       I != e; ++I)
+    Writer.WriteSubStmt(*I);
+  
+  Code = pch::EXPR_CXX_NEW;
+}
+
+
+void PCHStmtWriter::VisitCXXExprWithTemporaries(CXXExprWithTemporaries *E) {
+  VisitExpr(E);
+  Record.push_back(E->getNumTemporaries());
+  for (unsigned i = 0, e = E->getNumTemporaries(); i != e; ++i)
+    Writer.AddCXXTemporary(E->getTemporary(i), Record);
+  
+  Writer.WriteSubStmt(E->getSubExpr());
+  Code = pch::EXPR_CXX_EXPR_WITH_TEMPORARIES;
+}
+
+
 //===----------------------------------------------------------------------===//
 // PCHWriter Implementation
 //===----------------------------------------------------------------------===//
@@ -949,8 +1052,13 @@ void PCHWriter::WriteSubStmt(Stmt *S) {
 
   Writer.Code = pch::STMT_NULL_PTR;
   Writer.Visit(S);
-  assert(Writer.Code != pch::STMT_NULL_PTR &&
-         "Unhandled expression writing PCH file");
+  
+#ifndef NDEBUG
+  if (Writer.Code == pch::STMT_NULL_PTR) {
+    S->dump();
+    assert(0 && "Unhandled sub statement writing PCH file");
+  }
+#endif
   Stream.EmitRecord(Writer.Code, Record);
 }
 
@@ -971,8 +1079,12 @@ void PCHWriter::FlushStmts() {
 
     Writer.Code = pch::STMT_NULL_PTR;
     Writer.Visit(S);
-    assert(Writer.Code != pch::STMT_NULL_PTR &&
-           "Unhandled expression writing PCH file");
+#ifndef NDEBUG
+    if (Writer.Code == pch::STMT_NULL_PTR) {
+      S->dump();
+      assert(0 && "Unhandled expression writing PCH file");
+    }
+#endif
     Stream.EmitRecord(Writer.Code, Record);
 
     assert(N == StmtsToEmit.size() &&

@@ -109,6 +109,11 @@ private:
     /// which is the alignment of the object without virtual bases.
     uint64_t NonVirtualAlign;
 
+    /// SizeOfLargestEmptySubobject - The size of the largest empty subobject
+    /// (either a base or a member). Will be zero if the class doesn't contain
+    /// any empty subobjects.
+    uint64_t SizeOfLargestEmptySubobject;
+    
     /// PrimaryBase - The primary base info for this record.
     PrimaryBaseInfo PrimaryBase;
     
@@ -127,7 +132,6 @@ private:
   CXXRecordLayoutInfo *CXXInfo;
 
   friend class ASTContext;
-  friend class ASTRecordLayoutBuilder;
 
   ASTRecordLayout(ASTContext &Ctx, uint64_t size, unsigned alignment,
                   unsigned datasize, const uint64_t *fieldoffsets,
@@ -139,7 +143,9 @@ private:
                   uint64_t size, unsigned alignment, uint64_t datasize,
                   const uint64_t *fieldoffsets, unsigned fieldcount,
                   uint64_t nonvirtualsize, unsigned nonvirtualalign,
-                  const PrimaryBaseInfo &PrimaryBase,
+                  uint64_t SizeOfLargestEmptySubobject,
+                  const CXXRecordDecl *PrimaryBase,
+                  bool PrimaryBaseIsVirtual,
                   const BaseOffsetsMapTy& BaseOffsets,
                   const BaseOffsetsMapTy& VBaseOffsets);
 
@@ -222,6 +228,11 @@ public:
     return CXXInfo->VBaseOffsets[VBase];
   }
   
+  uint64_t getSizeOfLargestEmptySubobject() const {
+    assert(CXXInfo && "Record layout does not have C++ specific info!");
+    return CXXInfo->SizeOfLargestEmptySubobject;
+  }
+
   primary_base_info_iterator primary_base_begin() const {
     assert(CXXInfo && "Record layout does not have C++ specific info!");
   

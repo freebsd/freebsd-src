@@ -186,6 +186,14 @@ public:  // These are internal details of CGT that shouldn't be used externally.
   /// argument types it would be passed as on the provided vector \arg
   /// ArgTys. See ABIArgInfo::Expand.
   void GetExpandedTypes(QualType Ty, std::vector<const llvm::Type*> &ArgTys);
+  
+  /// ContainsPointerToDataMember - Return whether the given type contains a
+  /// pointer to a data member.
+  bool ContainsPointerToDataMember(QualType T);
+  
+  /// ContainsPointerToDataMember - Return whether the record decl contains a
+  /// pointer to a data member.
+  bool ContainsPointerToDataMember(const CXXRecordDecl *RD);
 };
 
 }  // end namespace CodeGen

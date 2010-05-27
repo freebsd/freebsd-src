@@ -227,28 +227,31 @@ int Driver::ExecuteCompilation(const Compilation &C) const {
   // Remove temp files.
   C.CleanupFileList(C.getTempFiles());
 
-  // If the compilation failed, remove result files as well.
-  if (Res != 0 && !C.getArgs().hasArg(options::OPT_save_temps))
+  // If the command succeeded, we are done.
+  if (Res == 0)
+    return Res;
+
+  // Otherwise, remove result files as well.
+  if (!C.getArgs().hasArg(options::OPT_save_temps))
     C.CleanupFileList(C.getResultFiles(), true);
 
   // Print extra information about abnormal failures, if possible.
-  if (Res) {
-    // This is ad-hoc, but we don't want to be excessively noisy. If the result
-    // status was 1, assume the command failed normally. In particular, if it
-    // was the compiler then assume it gave a reasonable error code. Failures in
-    // other tools are less common, and they generally have worse diagnostics,
-    // so always print the diagnostic there.
-    const Action &Source = FailingCommand->getSource();
+  //
+  // This is ad-hoc, but we don't want to be excessively noisy. If the result
+  // status was 1, assume the command failed normally. In particular, if it was
+  // the compiler then assume it gave a reasonable error code. Failures in other
+  // tools are less common, and they generally have worse diagnostics, so always
+  // print the diagnostic there.
+  const Tool &FailingTool = FailingCommand->getCreator();
 
-    if (!FailingCommand->getCreator().hasGoodDiagnostics() || Res != 1) {
-      // FIXME: See FIXME above regarding result code interpretation.
-      if (Res < 0)
-        Diag(clang::diag::err_drv_command_signalled)
-          << Source.getClassName() << -Res;
-      else
-        Diag(clang::diag::err_drv_command_failed)
-          << Source.getClassName() << Res;
-    }
+  if (!FailingCommand->getCreator().hasGoodDiagnostics() || Res != 1) {
+    // FIXME: See FIXME above regarding result code interpretation.
+    if (Res < 0)
+      Diag(clang::diag::err_drv_command_signalled)
+        << FailingTool.getShortName() << -Res;
+    else
+      Diag(clang::diag::err_drv_command_failed)
+        << FailingTool.getShortName() << Res;
   }
 
   return Res;
@@ -291,12 +294,25 @@ void Driver::PrintVersion(const Compilation &C, llvm::raw_ostream &OS) const {
   OS << "Thread model: " << "posix" << '\n';
 }
 
+/// PrintDiagnosticCategories - Implement the --print-diagnostic-categories
+/// option.
+static void PrintDiagnosticCategories(llvm::raw_ostream &OS) {
+  for (unsigned i = 1; // Skip the empty category.
+       const char *CategoryName = Diagnostic::getCategoryNameFromID(i); ++i)
+    OS << i << ',' << CategoryName << '\n';
+}
+
 bool Driver::HandleImmediateArgs(const Compilation &C) {
   // The order these options are handled in in gcc is all over the place, but we
   // don't expect inconsistencies w.r.t. that to matter in practice.
 
   if (C.getArgs().hasArg(options::OPT_dumpversion)) {
     llvm::outs() << CLANG_VERSION_STRING "\n";
+    return false;
+  }
+  
+  if (C.getArgs().hasArg(options::OPT__print_diagnostic_categories)) {
+    PrintDiagnosticCategories(llvm::outs());
     return false;
   }
 
@@ -889,9 +905,16 @@ static const Tool &SelectToolForJob(Compilation &C, const ToolChain *TC,
   // See if we should look for a compiler with an integrated assembler. We match
   // bottom up, so what we are actually looking for is an assembler job with a
   // compiler input.
-  if (C.getArgs().hasArg(options::OPT_integrated_as,
+
+  // FIXME: This doesn't belong here, but ideally we will support static soon
+  // anyway.
+  bool HasStatic = (C.getArgs().hasArg(options::OPT_mkernel) ||
+                    C.getArgs().hasArg(options::OPT_static) ||
+                    C.getArgs().hasArg(options::OPT_fapple_kext));
+  bool IsIADefault = (TC->IsIntegratedAssemblerDefault() && !HasStatic);
+  if (C.getArgs().hasFlag(options::OPT_integrated_as,
                          options::OPT_no_integrated_as,
-                         TC->IsIntegratedAssemblerDefault()) &&
+                         IsIADefault) &&
       !C.getArgs().hasArg(options::OPT_save_temps) &&
       isa<AssembleJobAction>(JA) &&
       Inputs->size() == 1 && isa<CompileJobAction>(*Inputs->begin())) {

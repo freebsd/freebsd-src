@@ -38,6 +38,7 @@ static unsigned ClangCallConvToLLVMCallConv(CallingConv CC) {
   default: return llvm::CallingConv::C;
   case CC_X86StdCall: return llvm::CallingConv::X86_StdCall;
   case CC_X86FastCall: return llvm::CallingConv::X86_FastCall;
+  case CC_X86ThisCall: return llvm::CallingConv::X86_ThisCall;
   }
 }
 
@@ -96,6 +97,9 @@ static CallingConv getCallingConventionForDecl(const Decl *D) {
 
   if (D->hasAttr<FastCallAttr>())
     return CC_X86FastCall;
+
+  if (D->hasAttr<ThisCallAttr>())
+    return CC_X86ThisCall;
 
   return CC_C;
 }
@@ -856,6 +860,36 @@ void CodeGenFunction::EmitFunctionEpilog(const CGFunctionInfo &FI,
   } else {
     Builder.CreateRetVoid();
   }
+}
+
+RValue CodeGenFunction::EmitDelegateCallArg(const VarDecl *Param) {
+  // StartFunction converted the ABI-lowered parameter(s) into a
+  // local alloca.  We need to turn that into an r-value suitable
+  // for EmitCall.
+  llvm::Value *Local = GetAddrOfLocalVar(Param);
+
+  QualType ArgType = Param->getType();
+ 
+  // For the most part, we just need to load the alloca, except:
+  // 1) aggregate r-values are actually pointers to temporaries, and
+  // 2) references to aggregates are pointers directly to the aggregate.
+  // I don't know why references to non-aggregates are different here.
+  if (const ReferenceType *RefType = ArgType->getAs<ReferenceType>()) {
+    if (hasAggregateLLVMType(RefType->getPointeeType()))
+      return RValue::getAggregate(Local);
+
+    // Locals which are references to scalars are represented
+    // with allocas holding the pointer.
+    return RValue::get(Builder.CreateLoad(Local));
+  }
+
+  if (ArgType->isAnyComplexType())
+    return RValue::getComplex(LoadComplexFromAddr(Local, /*volatile*/ false));
+
+  if (hasAggregateLLVMType(ArgType))
+    return RValue::getAggregate(Local);
+
+  return RValue::get(EmitLoadOfScalar(Local, false, ArgType));
 }
 
 RValue CodeGenFunction::EmitCallArg(const Expr *E, QualType ArgType) {

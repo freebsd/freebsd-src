@@ -90,8 +90,9 @@ Sema::TypeTy *Sema::getTypeName(IdentifierInfo &II, SourceLocation NameLoc,
         // We know from the grammar that this name refers to a type, so build a
         // DependentNameType node to describe the type.
         return CheckTypenameType(ETK_None,
-                                 (NestedNameSpecifier *)SS->getScopeRep(),
-                                 II, SS->getRange()).getAsOpaquePtr();
+                                 (NestedNameSpecifier *)SS->getScopeRep(), II,
+                                 SourceLocation(), SS->getRange(), NameLoc
+                                 ).getAsOpaquePtr();
       }
       
       return 0;
@@ -191,7 +192,7 @@ Sema::TypeTy *Sema::getTypeName(IdentifierInfo &II, SourceLocation NameLoc,
       T = Context.getTypeDeclType(TD);
     
     if (SS)
-      T = getQualifiedNameType(*SS, T);
+      T = getElaboratedType(ETK_None, *SS, T);
     
   } else if (ObjCInterfaceDecl *IDecl = dyn_cast<ObjCInterfaceDecl>(IIDecl)) {
     T = Context.getObjCInterfaceType(IDecl);
@@ -223,10 +224,11 @@ DeclSpec::TST Sema::isTagName(IdentifierInfo &II, Scope *S) {
   if (R.getResultKind() == LookupResult::Found)
     if (const TagDecl *TD = R.getAsSingle<TagDecl>()) {
       switch (TD->getTagKind()) {
-      case TagDecl::TK_struct: return DeclSpec::TST_struct;
-      case TagDecl::TK_union:  return DeclSpec::TST_union;
-      case TagDecl::TK_class:  return DeclSpec::TST_class;
-      case TagDecl::TK_enum:   return DeclSpec::TST_enum;
+      default:         return DeclSpec::TST_unspecified;
+      case TTK_Struct: return DeclSpec::TST_struct;
+      case TTK_Union:  return DeclSpec::TST_union;
+      case TTK_Class:  return DeclSpec::TST_class;
+      case TTK_Enum:   return DeclSpec::TST_enum;
       }
     }
 
@@ -285,8 +287,9 @@ bool Sema::DiagnoseUnknownTypeName(const IdentifierInfo &II,
     Name.setIdentifier(&II, IILoc);
     CXXScopeSpec EmptySS;
     TemplateTy TemplateResult;
-    if (isTemplateName(S, SS ? *SS : EmptySS, Name, 0, true, TemplateResult)
-        == TNK_Type_template) {
+    bool MemberOfUnknownSpecialization;
+    if (isTemplateName(S, SS ? *SS : EmptySS, Name, 0, true, TemplateResult,
+                       MemberOfUnknownSpecialization) == TNK_Type_template) {
       TemplateName TplName = TemplateResult.getAsVal<TemplateName>();
       Diag(IILoc, diag::err_template_missing_args) << TplName;
       if (TemplateDecl *TplDecl = TplName.getAsTemplateDecl()) {
@@ -544,9 +547,9 @@ static bool ShouldDiagnoseUnusedDecl(const NamedDecl *D) {
         return false;
     }
 
-    // If we failed to complete the type for some reason, don't
-    // diagnose the variable.
-    if (Ty->isIncompleteType())
+    // If we failed to complete the type for some reason, or if the type is
+    // dependent, don't diagnose the variable. 
+    if (Ty->isIncompleteType() || Ty->isDependentType())
       return false;
 
     if (const TagType *TT = Ty->getAs<TagType>()) {
@@ -555,9 +558,10 @@ static bool ShouldDiagnoseUnusedDecl(const NamedDecl *D) {
         return false;
 
       if (const CXXRecordDecl *RD = dyn_cast<CXXRecordDecl>(Tag)) {
-        if (!RD->hasTrivialConstructor())
-          return false;
-        if (!RD->hasTrivialDestructor())
+        // FIXME: Checking for the presence of a user-declared constructor
+        // isn't completely accurate; we'd prefer to check that the initializer
+        // has no side effects.
+        if (RD->hasUserDeclaredConstructor() || !RD->hasTrivialDestructor())
           return false;
       }
     }
@@ -566,6 +570,18 @@ static bool ShouldDiagnoseUnusedDecl(const NamedDecl *D) {
   }
   
   return true;
+}
+
+void Sema::DiagnoseUnusedDecl(const NamedDecl *D) {
+  if (!ShouldDiagnoseUnusedDecl(D))
+    return;
+  
+  if (isa<VarDecl>(D) && cast<VarDecl>(D)->isExceptionVariable())
+    Diag(D->getLocation(), diag::warn_unused_exception_param)
+    << D->getDeclName();
+  else
+    Diag(D->getLocation(), diag::warn_unused_variable) 
+    << D->getDeclName();
 }
 
 void Sema::ActOnPopScope(SourceLocation Loc, Scope *S) {
@@ -584,15 +600,9 @@ void Sema::ActOnPopScope(SourceLocation Loc, Scope *S) {
     if (!D->getDeclName()) continue;
 
     // Diagnose unused variables in this scope.
-    if (ShouldDiagnoseUnusedDecl(D) && 
-        S->getNumErrorsAtStart() == getDiagnostics().getNumErrors()) {
-      if (isa<VarDecl>(D) && cast<VarDecl>(D)->isExceptionVariable())
-        Diag(D->getLocation(), diag::warn_unused_exception_param)
-          << D->getDeclName();
-      else
-        Diag(D->getLocation(), diag::warn_unused_variable) 
-          << D->getDeclName();
-    }
+    if (S->getNumErrorsAtStart() == getDiagnostics().getNumErrors())
+      DiagnoseUnusedDecl(D);
+    
     // Remove this name from our lexical scope.
     IdResolver.RemoveDecl(D);
   }
@@ -1069,10 +1079,18 @@ bool Sema::MergeFunctionDecl(FunctionDecl *New, Decl *OldD) {
       = cast<FunctionType>(OldQType.getTypePtr())->getResultType();
     QualType NewReturnType
       = cast<FunctionType>(NewQType.getTypePtr())->getResultType();
+    QualType ResQT;
     if (OldReturnType != NewReturnType) {
-      Diag(New->getLocation(), diag::err_ovl_diff_return_type);
-      Diag(Old->getLocation(), PrevDiag) << Old << Old->getType();
-      return true;
+      if (NewReturnType->isObjCObjectPointerType()
+          && OldReturnType->isObjCObjectPointerType())
+        ResQT = Context.mergeObjCGCQualifiers(NewQType, OldQType);
+      if (ResQT.isNull()) {
+        Diag(New->getLocation(), diag::err_ovl_diff_return_type);
+        Diag(Old->getLocation(), PrevDiag) << Old << Old->getType();
+        return true;
+      }
+      else
+        NewQType = ResQT;
     }
 
     const CXXMethodDecl* OldMethod = dyn_cast<CXXMethodDecl>(Old);
@@ -1356,6 +1374,9 @@ void Sema::MergeVarDecl(VarDecl *New, LookupResult &Previous) {
         = Context.getCanonicalType(New->getType())->getAs<ArrayType>();
       if (OldArray->getElementType() == NewArray->getElementType())
         MergedT = Old->getType();
+    } else if (New->getType()->isObjCObjectPointerType()
+               && Old->getType()->isObjCObjectPointerType()) {
+        MergedT = Context.mergeObjCGCQualifiers(New->getType(), Old->getType());
     }
   } else {
     MergedT = Context.mergeTypes(New->getType(), Old->getType());
@@ -1435,7 +1456,8 @@ void Sema::MergeVarDecl(VarDecl *New, LookupResult &Previous) {
 
 /// ParsedFreeStandingDeclSpec - This method is invoked when a declspec with
 /// no declarator (e.g. "struct foo;") is parsed.
-Sema::DeclPtrTy Sema::ParsedFreeStandingDeclSpec(Scope *S, DeclSpec &DS) {
+Sema::DeclPtrTy Sema::ParsedFreeStandingDeclSpec(Scope *S, AccessSpecifier AS,
+                                                 DeclSpec &DS) {
   // FIXME: Error on auto/register at file scope
   // FIXME: Error on inline/virtual/explicit
   // FIXME: Warn on useless __thread
@@ -1485,7 +1507,7 @@ Sema::DeclPtrTy Sema::ParsedFreeStandingDeclSpec(Scope *S, DeclSpec &DS) {
         DS.getStorageClassSpec() != DeclSpec::SCS_typedef) {
       if (getLangOptions().CPlusPlus ||
           Record->getDeclContext()->isRecord())
-        return BuildAnonymousStructOrUnion(S, DS, Record);
+        return BuildAnonymousStructOrUnion(S, DS, AS, Record);
 
       Diag(DS.getSourceRange().getBegin(), diag::ext_no_declarators)
         << DS.getSourceRange();
@@ -1563,8 +1585,10 @@ static bool CheckAnonMemberRedeclaration(Sema &SemaRef,
 ///
 /// This routine is recursive, injecting the names of nested anonymous
 /// structs/unions into the owning context and scope as well.
-bool Sema::InjectAnonymousStructOrUnionMembers(Scope *S, DeclContext *Owner,
-                                               RecordDecl *AnonRecord) {
+static bool InjectAnonymousStructOrUnionMembers(Sema &SemaRef, Scope *S,
+                                                DeclContext *Owner,
+                                                RecordDecl *AnonRecord,
+                                                AccessSpecifier AS) {
   unsigned diagKind
     = AnonRecord->isUnion() ? diag::err_anonymous_union_member_redecl
                             : diag::err_anonymous_struct_member_redecl;
@@ -1574,7 +1598,7 @@ bool Sema::InjectAnonymousStructOrUnionMembers(Scope *S, DeclContext *Owner,
                                FEnd = AnonRecord->field_end();
        F != FEnd; ++F) {
     if ((*F)->getDeclName()) {
-      if (CheckAnonMemberRedeclaration(*this, S, Owner, (*F)->getDeclName(),
+      if (CheckAnonMemberRedeclaration(SemaRef, S, Owner, (*F)->getDeclName(),
                                        (*F)->getLocation(), diagKind)) {
         // C++ [class.union]p2:
         //   The names of the members of an anonymous union shall be
@@ -1588,15 +1612,19 @@ bool Sema::InjectAnonymousStructOrUnionMembers(Scope *S, DeclContext *Owner,
         //   considered to have been defined in the scope in which the
         //   anonymous union is declared.
         Owner->makeDeclVisibleInContext(*F);
-        S->AddDecl(DeclPtrTy::make(*F));
-        IdResolver.AddDecl(*F);
+        S->AddDecl(Sema::DeclPtrTy::make(*F));
+        SemaRef.IdResolver.AddDecl(*F);
+
+        // That includes picking up the appropriate access specifier.
+        if (AS != AS_none) (*F)->setAccess(AS);
       }
     } else if (const RecordType *InnerRecordType
                  = (*F)->getType()->getAs<RecordType>()) {
       RecordDecl *InnerRecord = InnerRecordType->getDecl();
       if (InnerRecord->isAnonymousStructOrUnion())
         Invalid = Invalid ||
-          InjectAnonymousStructOrUnionMembers(S, Owner, InnerRecord);
+          InjectAnonymousStructOrUnionMembers(SemaRef, S, Owner,
+                                              InnerRecord, AS);
     }
   }
 
@@ -1666,6 +1694,7 @@ StorageClassSpecToFunctionDeclStorageClass(DeclSpec::SCS StorageClassSpec,
 /// (C++ [class.union]) and a GNU C extension; anonymous structures
 /// are a GNU C and GNU C++ extension.
 Sema::DeclPtrTy Sema::BuildAnonymousStructOrUnion(Scope *S, DeclSpec &DS,
+                                                  AccessSpecifier AS,
                                                   RecordDecl *Record) {
   DeclContext *Owner = Record->getDeclContext();
 
@@ -1720,7 +1749,8 @@ Sema::DeclPtrTy Sema::BuildAnonymousStructOrUnion(Scope *S, DeclSpec &DS,
         // C++ [class.union]p3:
         //   An anonymous union shall not have private or protected
         //   members (clause 11).
-        if (FD->getAccess() == AS_protected || FD->getAccess() == AS_private) {
+        assert(FD->getAccess() != AS_none);
+        if (FD->getAccess() != AS_public) {
           Diag(FD->getLocation(), diag::err_anonymous_record_nonpublic_member)
             << (int)Record->isUnion() << (int)(FD->getAccess() == AS_protected);
           Invalid = true;
@@ -1777,7 +1807,7 @@ Sema::DeclPtrTy Sema::BuildAnonymousStructOrUnion(Scope *S, DeclSpec &DS,
                              Context.getTypeDeclType(Record),
                              TInfo,
                              /*BitWidth=*/0, /*Mutable=*/false);
-    Anon->setAccess(AS_public);
+    Anon->setAccess(AS);
     if (getLangOptions().CPlusPlus) {
       FieldCollector->Add(cast<FieldDecl>(Anon));
       if (!cast<CXXRecordDecl>(Record)->isEmpty())
@@ -1814,7 +1844,7 @@ Sema::DeclPtrTy Sema::BuildAnonymousStructOrUnion(Scope *S, DeclSpec &DS,
   // Inject the members of the anonymous struct/union into the owning
   // context and into the identifier resolver chain for name lookup
   // purposes.
-  if (InjectAnonymousStructOrUnionMembers(S, Owner, Record))
+  if (InjectAnonymousStructOrUnionMembers(*this, S, Owner, Record, AS))
     Invalid = true;
 
   // Mark this as an anonymous struct/union type. Note that we do not
@@ -2711,7 +2741,7 @@ void Sema::CheckVariableDeclaration(VarDecl *NewVD,
 
   QualType T = NewVD->getType();
 
-  if (T->isObjCInterfaceType()) {
+  if (T->isObjCObjectType()) {
     Diag(NewVD->getLocation(), diag::err_statically_allocated_object);
     return NewVD->setInvalidDecl();
   }
@@ -2929,7 +2959,7 @@ Sema::ActOnFunctionDeclarator(Scope* S, Declarator& D, DeclContext* DC,
     D.setInvalidType();
 
   // Do not allow returning a objc interface by-value.
-  if (R->getAs<FunctionType>()->getResultType()->isObjCInterfaceType()) {
+  if (R->getAs<FunctionType>()->getResultType()->isObjCObjectType()) {
     Diag(D.getIdentifierLoc(),
          diag::err_object_cannot_be_passed_returned_by_value) << 0
       << R->getAs<FunctionType>()->getResultType();
@@ -4322,7 +4352,7 @@ ParmVarDecl *Sema::CheckParameter(DeclContext *DC,
 
   // Parameter declarators cannot be interface types. All ObjC objects are
   // passed by reference.
-  if (T->isObjCInterfaceType()) {
+  if (T->isObjCObjectType()) {
     Diag(NameLoc,
          diag::err_object_cannot_be_passed_returned_by_value) << 1 << T;
     New->setInvalidDecl();
@@ -4540,6 +4570,38 @@ Sema::DeclPtrTy Sema::ActOnStartOfFunctionDef(Scope *FnBodyScope, DeclPtrTy D) {
   return DeclPtrTy::make(FD);
 }
 
+/// \brief Given the set of return statements within a function body,
+/// compute the variables that are subject to the named return value 
+/// optimization.
+///
+/// Each of the variables that is subject to the named return value 
+/// optimization will be marked as NRVO variables in the AST, and any
+/// return statement that has a marked NRVO variable as its NRVO candidate can
+/// use the named return value optimization.
+///
+/// This function applies a very simplistic algorithm for NRVO: if every return
+/// statement in the function has the same NRVO candidate, that candidate is
+/// the NRVO variable.
+///
+/// FIXME: Employ a smarter algorithm that accounts for multiple return 
+/// statements and the lifetimes of the NRVO candidates. We should be able to
+/// find a maximal set of NRVO variables.
+static void ComputeNRVO(Stmt *Body, ReturnStmt **Returns, unsigned NumReturns) {
+  const VarDecl *NRVOCandidate = 0;
+  for (unsigned I = 0; I != NumReturns; ++I) {
+    if (!Returns[I]->getNRVOCandidate())
+      return;
+    
+    if (!NRVOCandidate)
+      NRVOCandidate = Returns[I]->getNRVOCandidate();
+    else if (NRVOCandidate != Returns[I]->getNRVOCandidate())
+      return;
+  }
+  
+  if (NRVOCandidate)
+    const_cast<VarDecl*>(NRVOCandidate)->setNRVOVariable(true);
+}
+
 Sema::DeclPtrTy Sema::ActOnFinishFunctionBody(DeclPtrTy D, StmtArg BodyArg) {
   return ActOnFinishFunctionBody(D, move(BodyArg), false);
 }
@@ -4567,12 +4629,17 @@ Sema::DeclPtrTy Sema::ActOnFinishFunctionBody(DeclPtrTy D, StmtArg BodyArg,
       WP.disableCheckFallThrough();
     }
 
-    if (!FD->isInvalidDecl())
+    if (!FD->isInvalidDecl()) {
       DiagnoseUnusedParameters(FD->param_begin(), FD->param_end());
-
-    if (CXXMethodDecl *Method = dyn_cast<CXXMethodDecl>(FD))
-      MaybeMarkVirtualMembersReferenced(Method->getLocation(), Method);
-
+      
+      // If this is a constructor, we need a vtable.
+      if (CXXConstructorDecl *Constructor = dyn_cast<CXXConstructorDecl>(FD))
+        MarkVTableUsed(FD->getLocation(), Constructor->getParent());
+      
+      ComputeNRVO(Body, FunctionScopes.back()->Returns.data(),
+                  FunctionScopes.back()->Returns.size());
+    }
+    
     assert(FD == getCurFunctionDecl() && "Function parsing confused");
   } else if (ObjCMethodDecl *MD = dyn_cast_or_null<ObjCMethodDecl>(dcl)) {
     assert(MD == getCurMethodDecl() && "Method parsing confused");
@@ -4636,7 +4703,9 @@ Sema::DeclPtrTy Sema::ActOnFinishFunctionBody(DeclPtrTy D, StmtArg BodyArg,
     
     // Verify that that gotos and switch cases don't jump into scopes illegally.
     // Verify that that gotos and switch cases don't jump into scopes illegally.
-    if (FunctionNeedsScopeChecking() && !hasAnyErrorsInThisFunction())
+    if (FunctionNeedsScopeChecking() &&
+        !dcl->isInvalidDecl() &&
+        !hasAnyErrorsInThisFunction())
       DiagnoseInvalidJumps(Body);
 
     if (CXXDestructorDecl *Destructor = dyn_cast<CXXDestructorDecl>(dcl))
@@ -4838,38 +4907,38 @@ TypedefDecl *Sema::ParseTypedefDecl(Scope *S, Declarator &D, QualType T,
 ///
 /// \returns true if the new tag kind is acceptable, false otherwise.
 bool Sema::isAcceptableTagRedeclaration(const TagDecl *Previous,
-                                        TagDecl::TagKind NewTag,
+                                        TagTypeKind NewTag,
                                         SourceLocation NewTagLoc,
                                         const IdentifierInfo &Name) {
   // C++ [dcl.type.elab]p3:
   //   The class-key or enum keyword present in the
   //   elaborated-type-specifier shall agree in kind with the
-  //   declaration to which the name in theelaborated-type-specifier
+  //   declaration to which the name in the elaborated-type-specifier
   //   refers. This rule also applies to the form of
   //   elaborated-type-specifier that declares a class-name or
   //   friend class since it can be construed as referring to the
   //   definition of the class. Thus, in any
   //   elaborated-type-specifier, the enum keyword shall be used to
-  //   refer to an enumeration (7.2), the union class-keyshall be
+  //   refer to an enumeration (7.2), the union class-key shall be
   //   used to refer to a union (clause 9), and either the class or
   //   struct class-key shall be used to refer to a class (clause 9)
   //   declared using the class or struct class-key.
-  TagDecl::TagKind OldTag = Previous->getTagKind();
+  TagTypeKind OldTag = Previous->getTagKind();
   if (OldTag == NewTag)
     return true;
 
-  if ((OldTag == TagDecl::TK_struct || OldTag == TagDecl::TK_class) &&
-      (NewTag == TagDecl::TK_struct || NewTag == TagDecl::TK_class)) {
+  if ((OldTag == TTK_Struct || OldTag == TTK_Class) &&
+      (NewTag == TTK_Struct || NewTag == TTK_Class)) {
     // Warn about the struct/class tag mismatch.
     bool isTemplate = false;
     if (const CXXRecordDecl *Record = dyn_cast<CXXRecordDecl>(Previous))
       isTemplate = Record->getDescribedClassTemplate();
 
     Diag(NewTagLoc, diag::warn_struct_class_tag_mismatch)
-      << (NewTag == TagDecl::TK_class)
+      << (NewTag == TTK_Class)
       << isTemplate << &Name
       << FixItHint::CreateReplacement(SourceRange(NewTagLoc),
-                              OldTag == TagDecl::TK_class? "class" : "struct");
+                              OldTag == TTK_Class? "class" : "struct");
     Diag(Previous->getLocation(), diag::note_previous_use);
     return true;
   }
@@ -4891,7 +4960,7 @@ Sema::DeclPtrTy Sema::ActOnTag(Scope *S, unsigned TagSpec, TagUseKind TUK,
          "Nameless record must be a definition!");
 
   OwnedDecl = false;
-  TagDecl::TagKind Kind = TagDecl::getTagKindForTypeSpec(TagSpec);
+  TagTypeKind Kind = TypeWithKeyword::getTagTypeKindForTypeSpec(TagSpec);
 
   // FIXME: Check explicit specializations more carefully.
   bool isExplicitSpecialization = false;
@@ -4915,7 +4984,7 @@ Sema::DeclPtrTy Sema::ActOnTag(Scope *S, unsigned TagSpec, TagUseKind TUK,
       } else {
         // The "template<>" header is extraneous.
         Diag(TemplateParams->getTemplateLoc(), diag::err_template_tag_noparams)
-          << ElaboratedType::getNameForTagKind(Kind) << Name;
+          << TypeWithKeyword::getTagTypeKindName(Kind) << Name;
         isExplicitSpecialization = true;
       }
     }
@@ -5134,8 +5203,8 @@ Sema::DeclPtrTy Sema::ActOnTag(Scope *S, unsigned TagSpec, TagUseKind TUK,
         // struct or something similar.
         if (!isAcceptableTagRedeclaration(PrevTagDecl, Kind, KWLoc, *Name)) {
           bool SafeToContinue
-            = (PrevTagDecl->getTagKind() != TagDecl::TK_enum &&
-               Kind != TagDecl::TK_enum);
+            = (PrevTagDecl->getTagKind() != TTK_Enum &&
+               Kind != TTK_Enum);
           if (SafeToContinue)
             Diag(KWLoc, diag::err_use_with_wrong_tag)
               << Name
@@ -5289,7 +5358,7 @@ CreateNewDecl:
   // PrevDecl.
   TagDecl *New;
 
-  if (Kind == TagDecl::TK_enum) {
+  if (Kind == TTK_Enum) {
     // FIXME: Tag decls should be chained to any simultaneous vardecls, e.g.:
     // enum X { A, B, C } D;    D should chain to X.
     New = EnumDecl::Create(Context, SearchDC, Loc, Name, KWLoc,
@@ -5319,16 +5388,18 @@ CreateNewDecl:
 
   // Maybe add qualifier info.
   if (SS.isNotEmpty()) {
-    NestedNameSpecifier *NNS
-      = static_cast<NestedNameSpecifier*>(SS.getScopeRep());
-    New->setQualifierInfo(NNS, SS.getRange());
+    if (SS.isSet()) {
+      NestedNameSpecifier *NNS
+        = static_cast<NestedNameSpecifier*>(SS.getScopeRep());
+      New->setQualifierInfo(NNS, SS.getRange());
+    }
+    else
+      Invalid = true;
   }
 
-  if (Kind != TagDecl::TK_enum) {
-    // Handle #pragma pack: if the #pragma pack stack has non-default
-    // alignment, make up a packed attribute for this decl. These
-    // attributes are checked when the ASTContext lays out the
-    // structure.
+  if (RecordDecl *RD = dyn_cast<RecordDecl>(New)) {
+    // Add alignment attributes if necessary; these attributes are checked when
+    // the ASTContext lays out the structure.
     //
     // It is important for implementing the correct semantics that this
     // happen here (in act on tag decl). The #pragma pack stack is
@@ -5336,15 +5407,14 @@ CreateNewDecl:
     // many points during the parsing of a struct declaration (because
     // the #pragma tokens are effectively skipped over during the
     // parsing of the struct).
-    if (unsigned Alignment = getPragmaPackAlignment())
-      New->addAttr(::new (Context) PragmaPackAttr(Alignment * 8));
+    AddAlignmentAttributesForRecord(RD);
   }
 
   // If this is a specialization of a member class (of a class template),
   // check the specialization.
   if (isExplicitSpecialization && CheckMemberSpecialization(New, Previous))
     Invalid = true;
-      
+
   if (Invalid)
     New->setInvalidDecl();
 
@@ -5439,37 +5509,6 @@ void Sema::ActOnStartCXXMemberDeclarations(Scope *S, DeclPtrTy TagD,
          "Broken injected-class-name");
 }
 
-// Traverses the class and any nested classes, making a note of any 
-// dynamic classes that have no key function so that we can mark all of
-// their virtual member functions as "used" at the end of the translation
-// unit. This ensures that all functions needed by the vtable will get
-// instantiated/synthesized.
-static void 
-RecordDynamicClassesWithNoKeyFunction(Sema &S, CXXRecordDecl *Record,
-                                      SourceLocation Loc) {
-  // We don't look at dependent or undefined classes.
-  if (Record->isDependentContext() || !Record->isDefinition())
-    return;
-  
-  if (Record->isDynamicClass()) {
-    const CXXMethodDecl *KeyFunction = S.Context.getKeyFunction(Record);
-  
-    if (!KeyFunction)
-      S.ClassesWithUnmarkedVirtualMembers.push_back(std::make_pair(Record,
-                                                                   Loc));
-
-    if ((!KeyFunction || (KeyFunction->getBody() && KeyFunction->isInlined()))
-        && Record->getLinkage() == ExternalLinkage)
-      S.Diag(Record->getLocation(), diag::warn_weak_vtable) << Record;
-  }
-  for (DeclContext::decl_iterator D = Record->decls_begin(), 
-                               DEnd = Record->decls_end();
-       D != DEnd; ++D) {
-    if (CXXRecordDecl *Nested = dyn_cast<CXXRecordDecl>(*D))
-      RecordDynamicClassesWithNoKeyFunction(S, Nested, Loc);
-  }
-}
-
 void Sema::ActOnTagFinishDefinition(Scope *S, DeclPtrTy TagD,
                                     SourceLocation RBraceLoc) {
   AdjustDeclIfTemplate(TagD);
@@ -5481,10 +5520,6 @@ void Sema::ActOnTagFinishDefinition(Scope *S, DeclPtrTy TagD,
 
   // Exit this scope of this tag's definition.
   PopDeclContext();
-
-  if (isa<CXXRecordDecl>(Tag) && !Tag->getLexicalDeclContext()->isRecord())
-    RecordDynamicClassesWithNoKeyFunction(*this, cast<CXXRecordDecl>(Tag),
-                                          RBraceLoc);
                                           
   // Notify the consumer that we've defined a tag.
   Consumer.HandleTagDeclDefinition(Tag);
@@ -6098,6 +6133,15 @@ void Sema::ActOnFields(Scope* S,
         EnclosingDecl->setInvalidDecl();
         continue;
       }
+      if (!FD->getType()->isDependentType() &&
+          !Context.getBaseElementType(FD->getType())->isPODType()) {
+        Diag(FD->getLocation(), diag::err_flexible_array_has_nonpod_type)
+          << FD->getDeclName() << FD->getType();
+        FD->setInvalidDecl();
+        EnclosingDecl->setInvalidDecl();
+        continue;
+      }
+      
       // Okay, we have a legal flexible array member at the end of the struct.
       if (Record)
         Record->setHasFlexibleArrayMember(true);
@@ -6132,7 +6176,7 @@ void Sema::ActOnFields(Scope* S,
       }
       if (Record && FDTTy->getDecl()->hasObjectMember())
         Record->setHasObjectMember(true);
-    } else if (FDTy->isObjCInterfaceType()) {
+    } else if (FDTy->isObjCObjectType()) {
       /// A field cannot be an Objective-c object
       Diag(FD->getLocation(), diag::err_statically_allocated_object);
       FD->setInvalidDecl();
@@ -6435,7 +6479,7 @@ void Sema::ActOnEnumBody(SourceLocation EnumLoc, SourceLocation LBraceLoc,
       ECD->setType(EnumType);
     }
 
-    Enum->completeDefinition(Context.DependentTy, Context.DependentTy);
+    Enum->completeDefinition(Context.DependentTy, Context.DependentTy, 0, 0);
     return;
   }
 
@@ -6616,7 +6660,8 @@ void Sema::ActOnEnumBody(SourceLocation EnumLoc, SourceLocation LBraceLoc,
       ECD->setType(NewTy);
   }
 
-  Enum->completeDefinition(BestType, BestPromotionType);
+  Enum->completeDefinition(BestType, BestPromotionType,
+                           NumPositiveBits, NumNegativeBits);
 }
 
 Sema::DeclPtrTy Sema::ActOnFileScopeAsmDecl(SourceLocation Loc,

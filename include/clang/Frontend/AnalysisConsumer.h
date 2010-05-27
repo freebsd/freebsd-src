@@ -61,6 +61,7 @@ public:
   AnalysisDiagClients AnalysisDiagOpt;
   std::string AnalyzeSpecificFunction;
   unsigned MaxNodes;
+  unsigned MaxLoop;
   unsigned AnalyzeAll : 1;
   unsigned AnalyzerDisplayProgress : 1;
   unsigned AnalyzeNestedBlocks : 1;
@@ -71,6 +72,8 @@ public:
   unsigned VisualizeEGUbi : 1;
   unsigned EnableExperimentalChecks : 1;
   unsigned EnableExperimentalInternalChecks : 1;
+  unsigned InlineCall : 1;
+
 public:
   AnalyzerOptions() {
     AnalysisStoreOpt = BasicStoreModel;

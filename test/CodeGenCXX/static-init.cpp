@@ -2,8 +2,9 @@
 
 // CHECK: @_ZZ1hvE1i = internal global i32 0, align 4
 
-// CHECK: @_ZZ2h2vE1i = weak global i32 0
-// CHECK: @_ZGVZ2h2vE1i = weak global i64 0
+// CHECK: @_ZZN5test16getvarEiE3var = internal constant [4 x i32] [i32 1, i32 0, i32 2, i32 4], align 4
+// CHECK: @_ZZ2h2vE1i = linkonce_odr global i32 0
+// CHECK: @_ZGVZ2h2vE1i = linkonce_odr global i64 0
 
 struct A {
   A();
@@ -11,7 +12,9 @@ struct A {
 };
 
 void f() {
-  // CHECK: call void @_ZN1AC1Ev(
+  // CHECK: call i32 @__cxa_guard_acquire
+  // CHECK: call void @_ZN1AC1Ev
+  // CHECK: call void @__cxa_guard_release
   // CHECK: call i32 @__cxa_atexit(void (i8*)* bitcast (void (%struct.A*)* @_ZN1AD1Ev to void (i8*)*), i8* getelementptr inbounds (%struct.A* @_ZZ1fvE1a, i32 0, i32 0), i8* bitcast (i8** @__dso_handle to i8*))
   static A a;
 }
@@ -44,4 +47,14 @@ namespace test0 {
     throw_exception();
     static A r;
   }
+}
+
+namespace test1 {
+  // CHECK: define internal i32 @_ZN5test16getvarEi(
+  static inline int getvar(int index) {
+    static const int var[] = { 1, 0, 2, 4 };
+    return var[index];
+  }
+
+  void test() { (void) getvar(2); }
 }

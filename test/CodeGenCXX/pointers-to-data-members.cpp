@@ -1,5 +1,5 @@
 // RUN: %clang_cc1 %s -emit-llvm -o - -triple=x86_64-apple-darwin10 | FileCheck %s
-
+// RUN: %clang_cc1 %s -emit-llvm -o - -triple=x86_64-apple-darwin10 -O3 | FileCheck --check-prefix=CHECK-O3 %s
 struct A { int a; int b; };
 struct B { int b; };
 struct C : B, A { };
@@ -35,6 +35,21 @@ namespace ZeroInit {
       int A::*pa;
     } s;
   } ss;
+  
+  struct A {
+    int A::*a;
+    int b;
+  };
+
+  struct B {
+    A a[10];
+    char c;
+    int B::*b;
+  };
+
+  struct C : A, B { int j; };
+  // CHECK: @_ZN8ZeroInit1cE = global %"struct.ZeroInit::C" { [16 x i8] c"\FF\FF\FF\FF\FF\FF\FF\FF\00\00\00\00\00\00\00\00", [176 x i8] c"\FF\FF\FF\FF\FF\FF\FF\FF\00\00\00\00\00\00\00\00\FF\FF\FF\FF\FF\FF\FF\FF\00\00\00\00\00\00\00\00\FF\FF\FF\FF\FF\FF\FF\FF\00\00\00\00\00\00\00\00\FF\FF\FF\FF\FF\FF\FF\FF\00\00\00\00\00\00\00\00\FF\FF\FF\FF\FF\FF\FF\FF\00\00\00\00\00\00\00\00\FF\FF\FF\FF\FF\FF\FF\FF\00\00\00\00\00\00\00\00\FF\FF\FF\FF\FF\FF\FF\FF\00\00\00\00\00\00\00\00\FF\FF\FF\FF\FF\FF\FF\FF\00\00\00\00\00\00\00\00\FF\FF\FF\FF\FF\FF\FF\FF\00\00\00\00\00\00\00\00\FF\FF\FF\FF\FF\FF\FF\FF\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\FF\FF\FF\FF\FF\FF\FF\FF", i32 0, [4 x i8] zeroinitializer }
+  C c;
 }
 
 // PR5674
@@ -84,4 +99,55 @@ namespace Comparisons {
     // CHECK: icmp eq i64 -1, {{.*}}
     if (0 == a) { }
   }
+}
+
+namespace ValueInit {
+
+struct A {
+  int A::*a;
+
+  char c;
+
+  A();
+};
+
+// CHECK: define void @_ZN9ValueInit1AC2Ev
+// CHECK: store i64 -1, i64*
+// CHECK: ret void
+A::A() : a() {}
+
+}
+
+namespace PR7139 {
+
+struct pair {
+  int first;
+  int second;
+};
+
+typedef int pair::*ptr_to_member_type;
+
+struct ptr_to_member_struct { 
+  ptr_to_member_type data;
+  int i;
+};
+
+struct A {
+  ptr_to_member_struct a;
+
+  A() : a() {}
+};
+
+// CHECK-O3: define zeroext i1 @_ZN6PR71395checkEv() nounwind readnone
+bool check() {
+  // CHECK-O3: ret i1 true
+  return A().a.data == 0;
+}
+
+// CHECK-O3: define zeroext i1 @_ZN6PR71396check2Ev() nounwind readnone
+bool check2() {
+  // CHECK-O3: ret i1 true
+  return ptr_to_member_type() == 0;
+}
+
 }

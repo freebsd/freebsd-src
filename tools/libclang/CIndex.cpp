@@ -44,11 +44,11 @@ using namespace clang::cxstring;
 // Crash Reporting.
 //===----------------------------------------------------------------------===//
 
-#ifdef __APPLE__
-#define USE_CRASHTRACER
+#ifdef USE_CRASHTRACER
 #include "clang/Analysis/Support/SaveAndRestore.h"
 // Integrate with crash reporter.
-extern "C" const char *__crashreporter_info__;
+static const char *__crashreporter_info__ = 0;
+asm(".desc ___crashreporter_info__, 0x10");
 #define NUM_CRASH_STRINGS 32
 static unsigned crashtracer_counter = 0;
 static unsigned crashtracer_counter_id[NUM_CRASH_STRINGS] = { 0 };
@@ -152,6 +152,23 @@ static RangeComparisonResult RangeCompare(SourceManager &SM,
   return RangeOverlap;
 }
 
+/// \brief Determine if a source location falls within, before, or after a
+///   a given source range.
+static RangeComparisonResult LocationCompare(SourceManager &SM,
+                                             SourceLocation L, SourceRange R) {
+  assert(R.isValid() && "First range is invalid?");
+  assert(L.isValid() && "Second range is invalid?");
+  if (L == R.getBegin())
+    return RangeOverlap;
+  if (L == R.getEnd())
+    return RangeAfter;
+  if (SM.isBeforeInTranslationUnit(L, R.getBegin()))
+    return RangeBefore;
+  if (SM.isBeforeInTranslationUnit(R.getEnd(), L))
+    return RangeAfter;
+  return RangeOverlap;
+}
+
 /// \brief Translate a Clang source range into a CIndex source range.
 ///
 /// Clang internally represents ranges where the end location points to the
@@ -222,6 +239,27 @@ class CursorVisitor : public DeclVisitor<CursorVisitor, bool>,
   /// \param R a half-open source range retrieved from the abstract syntax tree.
   RangeComparisonResult CompareRegionOfInterest(SourceRange R);
 
+  class SetParentRAII {
+    CXCursor &Parent;
+    Decl *&StmtParent;
+    CXCursor OldParent;
+
+  public:
+    SetParentRAII(CXCursor &Parent, Decl *&StmtParent, CXCursor NewParent)
+      : Parent(Parent), StmtParent(StmtParent), OldParent(Parent)
+    {
+      Parent = NewParent;
+      if (clang_isDeclaration(Parent.kind))
+        StmtParent = getCursorDecl(Parent);
+    }
+
+    ~SetParentRAII() {
+      Parent = OldParent;
+      if (clang_isDeclaration(Parent.kind))
+        StmtParent = getCursorDecl(Parent);
+    }
+  };
+
 public:
   CursorVisitor(ASTUnit *TU, CXCursorVisitor Visitor, CXClientData ClientData,
                 unsigned MaxPCHLevel,
@@ -259,6 +297,7 @@ public:
   bool VisitObjCContainerDecl(ObjCContainerDecl *D);
   bool VisitObjCCategoryDecl(ObjCCategoryDecl *ND);
   bool VisitObjCProtocolDecl(ObjCProtocolDecl *PID);
+  bool VisitObjCPropertyDecl(ObjCPropertyDecl *PD);
   bool VisitObjCInterfaceDecl(ObjCInterfaceDecl *D);
   bool VisitObjCImplDecl(ObjCImplDecl *D);
   bool VisitObjCCategoryImplDecl(ObjCCategoryImplDecl *D);
@@ -268,6 +307,8 @@ public:
   // FIXME: ObjCCompatibleAliasDecl requires aliased-class locations.
   bool VisitObjCForwardProtocolDecl(ObjCForwardProtocolDecl *D);
   bool VisitObjCClassDecl(ObjCClassDecl *D);
+  bool VisitLinkageSpecDecl(LinkageSpecDecl *D);
+  bool VisitNamespaceDecl(NamespaceDecl *D);
 
   // Type visitors
   // FIXME: QualifiedTypeLoc doesn't provide any location information
@@ -277,6 +318,7 @@ public:
   bool VisitTagTypeLoc(TagTypeLoc TL);
   // FIXME: TemplateTypeParmTypeLoc doesn't provide any location information
   bool VisitObjCInterfaceTypeLoc(ObjCInterfaceTypeLoc TL);
+  bool VisitObjCObjectTypeLoc(ObjCObjectTypeLoc TL);
   bool VisitObjCObjectPointerTypeLoc(ObjCObjectPointerTypeLoc TL);
   bool VisitPointerTypeLoc(PointerTypeLoc TL);
   bool VisitBlockPointerTypeLoc(BlockPointerTypeLoc TL);
@@ -297,8 +339,10 @@ public:
   // FIXME: LabelStmt label?
   bool VisitIfStmt(IfStmt *S);
   bool VisitSwitchStmt(SwitchStmt *S);
+  bool VisitCaseStmt(CaseStmt *S);
   bool VisitWhileStmt(WhileStmt *S);
   bool VisitForStmt(ForStmt *S);
+//  bool VisitSwitchCase(SwitchCase *S);
 
   // Expression visitors
   bool VisitBlockExpr(BlockExpr *B);
@@ -417,26 +461,7 @@ bool CursorVisitor::VisitChildren(CXCursor Cursor) {
 
   // Set the Parent field to Cursor, then back to its old value once we're
   // done.
-  class SetParentRAII {
-    CXCursor &Parent;
-    Decl *&StmtParent;
-    CXCursor OldParent;
-
-  public:
-    SetParentRAII(CXCursor &Parent, Decl *&StmtParent, CXCursor NewParent)
-      : Parent(Parent), StmtParent(StmtParent), OldParent(Parent)
-    {
-      Parent = NewParent;
-      if (clang_isDeclaration(Parent.kind))
-        StmtParent = getCursorDecl(Parent);
-    }
-
-    ~SetParentRAII() {
-      Parent = OldParent;
-      if (clang_isDeclaration(Parent.kind))
-        StmtParent = getCursorDecl(Parent);
-    }
-  } SetParent(Parent, StmtParent, Cursor);
+  SetParentRAII SetParent(Parent, StmtParent, Cursor);
 
   if (clang_isDeclaration(Cursor.kind)) {
     Decl *D = getCursorDecl(Cursor);
@@ -504,7 +529,11 @@ bool CursorVisitor::VisitDeclContext(DeclContext *DC) {
   for (DeclContext::decl_iterator
        I = DC->decls_begin(), E = DC->decls_end(); I != E; ++I) {
 
-    CXCursor Cursor = MakeCXCursor(*I, TU);
+    Decl *D = *I;
+    if (D->getLexicalDeclContext() != DC)
+      continue;
+
+    CXCursor Cursor = MakeCXCursor(D, TU);
 
     if (RegionOfInterest.isValid()) {
       SourceRange Range =
@@ -642,6 +671,40 @@ bool CursorVisitor::VisitObjCProtocolDecl(ObjCProtocolDecl *PID) {
   return VisitObjCContainerDecl(PID);
 }
 
+bool CursorVisitor::VisitObjCPropertyDecl(ObjCPropertyDecl *PD) {
+  // FIXME: This implements a workaround with @property declarations also being
+  // installed in the DeclContext for the @interface.  Eventually this code
+  // should be removed.
+  ObjCCategoryDecl *CDecl = dyn_cast<ObjCCategoryDecl>(PD->getDeclContext());
+  if (!CDecl || !CDecl->IsClassExtension())
+    return false;
+
+  ObjCInterfaceDecl *ID = CDecl->getClassInterface();
+  if (!ID)
+    return false;
+
+  IdentifierInfo *PropertyId = PD->getIdentifier();
+  ObjCPropertyDecl *prevDecl =
+    ObjCPropertyDecl::findPropertyDecl(cast<DeclContext>(ID), PropertyId);
+
+  if (!prevDecl)
+    return false;
+
+  // Visit synthesized methods since they will be skipped when visiting
+  // the @interface.
+  if (ObjCMethodDecl *MD = prevDecl->getGetterMethodDecl())
+    if (MD->isSynthesized())
+      if (Visit(MakeCXCursor(MD, TU)))
+        return true;
+
+  if (ObjCMethodDecl *MD = prevDecl->getSetterMethodDecl())
+    if (MD->isSynthesized())
+      if (Visit(MakeCXCursor(MD, TU)))
+        return true;
+
+  return false;
+}
+
 bool CursorVisitor::VisitObjCInterfaceDecl(ObjCInterfaceDecl *D) {
   // Issue callbacks for super class.
   if (D->getSuperClass() &&
@@ -703,6 +766,14 @@ bool CursorVisitor::VisitObjCClassDecl(ObjCClassDecl *D) {
       return true;
 
   return false;
+}
+
+bool CursorVisitor::VisitNamespaceDecl(NamespaceDecl *D) {
+  return VisitDeclContext(D);
+}
+
+bool CursorVisitor::VisitLinkageSpecDecl(LinkageSpecDecl *D) {
+  return VisitDeclContext(D);
 }
 
 bool CursorVisitor::VisitBuiltinTypeLoc(BuiltinTypeLoc TL) {
@@ -780,6 +851,13 @@ bool CursorVisitor::VisitObjCInterfaceTypeLoc(ObjCInterfaceTypeLoc TL) {
   if (Visit(MakeCursorObjCClassRef(TL.getIFaceDecl(), TL.getNameLoc(), TU)))
     return true;
 
+  return false;
+}
+
+bool CursorVisitor::VisitObjCObjectTypeLoc(ObjCObjectTypeLoc TL) {
+  if (TL.hasBaseTypeAsWritten() && Visit(TL.getBaseLoc()))
+    return true;
+
   for (unsigned I = 0, N = TL.getNumProtocols(); I != N; ++I) {
     if (Visit(MakeCursorObjCProtocolRef(TL.getProtocol(I), TL.getProtocolLoc(I),
                                         TU)))
@@ -790,19 +868,7 @@ bool CursorVisitor::VisitObjCInterfaceTypeLoc(ObjCInterfaceTypeLoc TL) {
 }
 
 bool CursorVisitor::VisitObjCObjectPointerTypeLoc(ObjCObjectPointerTypeLoc TL) {
-  if (TL.hasBaseTypeAsWritten() && Visit(TL.getBaseTypeLoc()))
-    return true;
-
-  if (TL.hasProtocolsAsWritten()) {
-    for (unsigned I = 0, N = TL.getNumProtocols(); I != N; ++I) {
-      if (Visit(MakeCursorObjCProtocolRef(TL.getProtocol(I),
-                                          TL.getProtocolLoc(I),
-                                          TU)))
-        return true;
-    }
-  }
-
-  return false;
+  return Visit(TL.getPointeeLoc());
 }
 
 bool CursorVisitor::VisitPointerTypeLoc(PointerTypeLoc TL) {
@@ -861,11 +927,58 @@ bool CursorVisitor::VisitTypeOfTypeLoc(TypeOfTypeLoc TL) {
 bool CursorVisitor::VisitStmt(Stmt *S) {
   for (Stmt::child_iterator Child = S->child_begin(), ChildEnd = S->child_end();
        Child != ChildEnd; ++Child) {
-    if (*Child && Visit(MakeCXCursor(*Child, StmtParent, TU)))
-      return true;
+    if (Stmt *C = *Child)
+      if (Visit(MakeCXCursor(C, StmtParent, TU)))
+        return true;
   }
 
   return false;
+}
+
+bool CursorVisitor::VisitCaseStmt(CaseStmt *S) {
+  // Specially handle CaseStmts because they can be nested, e.g.:
+  //
+  //    case 1:
+  //    case 2:
+  //
+  // In this case the second CaseStmt is the child of the first.  Walking
+  // these recursively can blow out the stack.
+  CXCursor Cursor = MakeCXCursor(S, StmtParent, TU);
+  while (true) {
+    // Set the Parent field to Cursor, then back to its old value once we're
+    //   done.
+    SetParentRAII SetParent(Parent, StmtParent, Cursor);
+
+    if (Stmt *LHS = S->getLHS())
+      if (Visit(MakeCXCursor(LHS, StmtParent, TU)))
+        return true;
+    if (Stmt *RHS = S->getRHS())
+      if (Visit(MakeCXCursor(RHS, StmtParent, TU)))
+        return true;
+    if (Stmt *SubStmt = S->getSubStmt()) {
+      if (!isa<CaseStmt>(SubStmt))
+        return Visit(MakeCXCursor(SubStmt, StmtParent, TU));
+
+      // Specially handle 'CaseStmt' so that we don't blow out the stack.
+      CaseStmt *CS = cast<CaseStmt>(SubStmt);
+      Cursor = MakeCXCursor(CS, StmtParent, TU);
+      if (RegionOfInterest.isValid()) {
+        SourceRange Range = CS->getSourceRange();
+        if (Range.isInvalid() || CompareRegionOfInterest(Range))
+          return false;
+      }
+
+      switch (Visitor(Cursor, Parent, ClientData)) {
+        case CXChildVisit_Break: return true;
+        case CXChildVisit_Continue: return false;
+        case CXChildVisit_Recurse:
+          // Perform tail-recursion manually.
+          S = CS;
+          continue;
+      }
+    }
+    return false;
+  }
 }
 
 bool CursorVisitor::VisitDeclStmt(DeclStmt *S) {
@@ -1089,8 +1202,6 @@ clang_createTranslationUnitFromSourceFile(CXIndex CIdx,
                                    RemappedFiles.size(),
                                    /*CaptureDiagnostics=*/true));
 
-    // FIXME: Until we have broader testing, just drop the entire AST if we
-    // encountered an error.
     if (NumErrors != Diags->getNumErrors()) {
       // Make sure to check that 'Unit' is non-NULL.
       if (CXXIdx->getDisplayDiagnostics() && Unit.get()) {
@@ -1368,6 +1479,16 @@ CXSourceLocation clang_getRangeEnd(CXSourceRange range) {
   return Result;
 }
 
+unsigned clang_isFromMainFile(CXSourceLocation loc) {
+  SourceLocation Loc = SourceLocation::getFromRawEncoding(loc.int_data);
+  if (!loc.ptr_data[0] || Loc.isInvalid())
+    return 0;
+
+  const SourceManager &SM =
+    *static_cast<const SourceManager*>(loc.ptr_data[0]);
+  return SM.isFromMainFile(Loc) ? 1 : 0;
+}
+
 } // end: extern "C"
 
 //===----------------------------------------------------------------------===//
@@ -1474,10 +1595,11 @@ static CXString getDeclSpelling(Decl *D) {
     // ObjCCategoryImplDecl returns the category name.
     return createCXString(CIMP->getIdentifier()->getNameStart());
 
-  if (ND->getIdentifier())
-    return createCXString(ND->getIdentifier()->getNameStart());
-
-  return createCXString("");
+  llvm::SmallString<1024> S;
+  llvm::raw_svector_ostream os(S);
+  ND->printName(os);
+  
+  return createCXString(os.str());
 }
 
 CXString clang_getCursorSpelling(CXCursor C) {
@@ -1615,12 +1737,18 @@ CXString clang_getCursorKindSpelling(enum CXCursorKind Kind) {
       return createCXString("attribute(ibaction)");
   case CXCursor_IBOutletAttr:
      return createCXString("attribute(iboutlet)");
+  case CXCursor_IBOutletCollectionAttr:
+      return createCXString("attribute(iboutletcollection)");
   case CXCursor_PreprocessingDirective:
     return createCXString("preprocessing directive");
   case CXCursor_MacroDefinition:
     return createCXString("macro definition");
   case CXCursor_MacroInstantiation:
     return createCXString("macro instantiation");
+  case CXCursor_Namespace:
+    return createCXString("Namespace");
+  case CXCursor_LinkageSpec:
+    return createCXString("LinkageSpec");
   }
 
   llvm_unreachable("Unhandled CXCursorKind");
@@ -1763,7 +1891,7 @@ CXSourceLocation clang_getCursorLocation(CXCursor C) {
     return cxloc::translateSourceLocation(getCursorContext(C), L);
   }
   
-  if (!getCursorDecl(C))
+  if (C.kind < CXCursor_FirstDecl || C.kind > CXCursor_LastDecl)
     return clang_getNullLocation();
 
   Decl *D = getCursorDecl(C);
@@ -1829,7 +1957,7 @@ CXSourceRange clang_getCursorExtent(CXCursor C) {
     return cxloc::translateSourceRange(getCursorContext(C), R);
   }
   
-  if (!getCursorDecl(C))
+  if (C.kind < CXCursor_FirstDecl || C.kind > CXCursor_LastDecl)
     return clang_getNullRange();
 
   Decl *D = getCursorDecl(C);
@@ -2286,9 +2414,15 @@ void clang_tokenize(CXTranslationUnit TU, CXSourceRange Range,
       const char *StartPos = Buf.data() + LocInfo.second;
       IdentifierInfo *II
         = CXXUnit->getPreprocessor().LookUpIdentifierInfo(Tok, StartPos);
-      CXTok.int_data[0] = II->getTokenID() == tok::identifier?
-                               CXToken_Identifier
-                             : CXToken_Keyword;
+
+      if (II->getObjCKeywordID() != tok::objc_not_keyword) {
+        CXTok.int_data[0] = CXToken_Keyword;
+      }
+      else {
+        CXTok.int_data[0] = II->getTokenID() == tok::identifier?
+                                CXToken_Identifier
+                              : CXToken_Keyword;
+      }
       CXTok.ptr_data = II;
     } else if (Tok.is(tok::comment)) {
       CXTok.int_data[0] = CXToken_Comment;
@@ -2308,62 +2442,214 @@ void clang_tokenize(CXTranslationUnit TU, CXSourceRange Range,
   *NumTokens = CXTokens.size();
 }
 
+void clang_disposeTokens(CXTranslationUnit TU,
+                         CXToken *Tokens, unsigned NumTokens) {
+  free(Tokens);
+}
+
+} // end: extern "C"
+
+//===----------------------------------------------------------------------===//
+// Token annotation APIs.
+//===----------------------------------------------------------------------===//
+
 typedef llvm::DenseMap<unsigned, CXCursor> AnnotateTokensData;
+static enum CXChildVisitResult AnnotateTokensVisitor(CXCursor cursor,
+                                                     CXCursor parent,
+                                                     CXClientData client_data);
+namespace {
+class AnnotateTokensWorker {
+  AnnotateTokensData &Annotated;
+  CXToken *Tokens;
+  CXCursor *Cursors;
+  unsigned NumTokens;
+  unsigned TokIdx;
+  CursorVisitor AnnotateVis;
+  SourceManager &SrcMgr;
 
-enum CXChildVisitResult AnnotateTokensVisitor(CXCursor cursor,
-                                              CXCursor parent,
-                                              CXClientData client_data) {
-  AnnotateTokensData *Data = static_cast<AnnotateTokensData *>(client_data);
+  bool MoreTokens() const { return TokIdx < NumTokens; }
+  unsigned NextToken() const { return TokIdx; }
+  void AdvanceToken() { ++TokIdx; }
+  SourceLocation GetTokenLoc(unsigned tokI) {
+    return SourceLocation::getFromRawEncoding(Tokens[tokI].int_data[1]);
+  }
 
-  // We only annotate the locations of declarations, simple
-  // references, and expressions which directly reference something.
-  CXCursorKind Kind = clang_getCursorKind(cursor);
-  if (clang_isDeclaration(Kind) || clang_isReference(Kind)) {
-    // Okay: We can annotate the location of this declaration with the
-    // declaration or reference
-  } else if (clang_isExpression(cursor.kind)) {
-    if (Kind != CXCursor_DeclRefExpr &&
-        Kind != CXCursor_MemberRefExpr &&
-        Kind != CXCursor_ObjCMessageExpr)
-      return CXChildVisit_Recurse;
+public:
+  AnnotateTokensWorker(AnnotateTokensData &annotated,
+                       CXToken *tokens, CXCursor *cursors, unsigned numTokens,
+                       ASTUnit *CXXUnit, SourceRange RegionOfInterest)
+    : Annotated(annotated), Tokens(tokens), Cursors(cursors),
+      NumTokens(numTokens), TokIdx(0),
+      AnnotateVis(CXXUnit, AnnotateTokensVisitor, this,
+                  Decl::MaxPCHLevel, RegionOfInterest),
+      SrcMgr(CXXUnit->getSourceManager()) {}
 
-    CXCursor Referenced = clang_getCursorReferenced(cursor);
-    if (Referenced == cursor || Referenced == clang_getNullCursor())
-      return CXChildVisit_Recurse;
+  void VisitChildren(CXCursor C) { AnnotateVis.VisitChildren(C); }
+  enum CXChildVisitResult Visit(CXCursor cursor, CXCursor parent);
+  void AnnotateTokens(CXCursor parent);
+};
+}
 
-    // Okay: we can annotate the location of this expression
-  } else if (clang_isPreprocessing(cursor.kind)) {
-    // We can always annotate a preprocessing directive/macro instantiation.
-  } else {
-    // Nothing to annotate
+void AnnotateTokensWorker::AnnotateTokens(CXCursor parent) {
+  // Walk the AST within the region of interest, annotating tokens
+  // along the way.
+  VisitChildren(parent);
+
+  for (unsigned I = 0 ; I < TokIdx ; ++I) {
+    AnnotateTokensData::iterator Pos = Annotated.find(Tokens[I].int_data[1]);
+    if (Pos != Annotated.end())
+      Cursors[I] = Pos->second;
+  }
+
+  // Finish up annotating any tokens left.
+  if (!MoreTokens())
+    return;
+
+  const CXCursor &C = clang_getNullCursor();
+  for (unsigned I = TokIdx ; I < NumTokens ; ++I) {
+    AnnotateTokensData::iterator Pos = Annotated.find(Tokens[I].int_data[1]);
+    Cursors[I] = (Pos == Annotated.end()) ? C : Pos->second;
+  }
+}
+
+enum CXChildVisitResult
+AnnotateTokensWorker::Visit(CXCursor cursor, CXCursor parent) {
+  CXSourceLocation Loc = clang_getCursorLocation(cursor);
+  // We can always annotate a preprocessing directive/macro instantiation.
+  if (clang_isPreprocessing(cursor.kind)) {
+    Annotated[Loc.int_data] = cursor;
     return CXChildVisit_Recurse;
   }
 
-  CXSourceLocation Loc = clang_getCursorLocation(cursor);
-  (*Data)[Loc.int_data] = cursor;
-  return CXChildVisit_Recurse;
+  CXSourceRange cursorExtent = clang_getCursorExtent(cursor);
+  SourceRange cursorRange = cxloc::translateCXSourceRange(cursorExtent);
+  
+  if (cursorRange.isInvalid())
+    return CXChildVisit_Continue;
+  
+  SourceLocation L = SourceLocation::getFromRawEncoding(Loc.int_data);
+
+  // Adjust the annotated range based specific declarations.
+  const enum CXCursorKind cursorK = clang_getCursorKind(cursor);
+  if (cursorK >= CXCursor_FirstDecl && cursorK <= CXCursor_LastDecl) {
+    Decl *D = cxcursor::getCursorDecl(cursor);
+    // Don't visit synthesized ObjC methods, since they have no syntatic
+    // representation in the source.
+    if (const ObjCMethodDecl *MD = dyn_cast<ObjCMethodDecl>(D)) {
+      if (MD->isSynthesized())
+        return CXChildVisit_Continue;
+    }
+    if (const DeclaratorDecl *DD = dyn_cast<DeclaratorDecl>(D)) {
+      if (TypeSourceInfo *TI = DD->getTypeSourceInfo()) {
+        TypeLoc TL = TI->getTypeLoc();
+        SourceLocation TLoc = TL.getSourceRange().getBegin();
+        if (TLoc.isValid() && 
+            SrcMgr.isBeforeInTranslationUnit(TLoc, L))
+          cursorRange.setBegin(TLoc);
+      }
+    }
+  }
+
+  const enum CXCursorKind K = clang_getCursorKind(parent);
+  const CXCursor updateC =
+    (clang_isInvalid(K) || K == CXCursor_TranslationUnit ||
+     L.isMacroID())
+    ? clang_getNullCursor() : parent;
+
+  while (MoreTokens()) {
+    const unsigned I = NextToken();
+    SourceLocation TokLoc = GetTokenLoc(I);
+    switch (LocationCompare(SrcMgr, TokLoc, cursorRange)) {
+      case RangeBefore:
+        Cursors[I] = updateC;
+        AdvanceToken();
+        continue;
+      case RangeAfter:
+        return CXChildVisit_Continue;
+      case RangeOverlap:
+        break;
+    }
+    break;
+  }
+
+  // Visit children to get their cursor information.
+  const unsigned BeforeChildren = NextToken();
+  VisitChildren(cursor);
+  const unsigned AfterChildren = NextToken();
+
+  // Adjust 'Last' to the last token within the extent of the cursor.
+  while (MoreTokens()) {
+    const unsigned I = NextToken();
+    SourceLocation TokLoc = GetTokenLoc(I);
+    switch (LocationCompare(SrcMgr, TokLoc, cursorRange)) {
+      case RangeBefore:
+        assert(0 && "Infeasible");
+      case RangeAfter:
+        break;
+      case RangeOverlap:
+        Cursors[I] = updateC;
+        AdvanceToken();
+        continue;
+    }
+    break;
+  }
+  const unsigned Last = NextToken();
+  
+  // Scan the tokens that are at the beginning of the cursor, but are not
+  // capture by the child cursors.
+
+  // For AST elements within macros, rely on a post-annotate pass to
+  // to correctly annotate the tokens with cursors.  Otherwise we can
+  // get confusing results of having tokens that map to cursors that really
+  // are expanded by an instantiation.
+  if (L.isMacroID())
+    cursor = clang_getNullCursor();
+
+  for (unsigned I = BeforeChildren; I != AfterChildren; ++I) {
+    if (!clang_isInvalid(clang_getCursorKind(Cursors[I])))
+      break;
+    Cursors[I] = cursor;
+  }
+  // Scan the tokens that are at the end of the cursor, but are not captured
+  // but the child cursors.
+  for (unsigned I = AfterChildren; I != Last; ++I)
+    Cursors[I] = cursor;
+
+  TokIdx = Last;
+  return CXChildVisit_Continue;
 }
+
+static enum CXChildVisitResult AnnotateTokensVisitor(CXCursor cursor,
+                                                     CXCursor parent,
+                                                     CXClientData client_data) {
+  return static_cast<AnnotateTokensWorker*>(client_data)->Visit(cursor, parent);
+}
+
+extern "C" {
 
 void clang_annotateTokens(CXTranslationUnit TU,
                           CXToken *Tokens, unsigned NumTokens,
                           CXCursor *Cursors) {
-  if (NumTokens == 0)
-    return;
 
-  // Any token we don't specifically annotate will have a NULL cursor.
-  for (unsigned I = 0; I != NumTokens; ++I)
-    Cursors[I] = clang_getNullCursor();
+  if (NumTokens == 0 || !Tokens || !Cursors)
+    return;
 
   ASTUnit *CXXUnit = static_cast<ASTUnit *>(TU);
-  if (!CXXUnit || !Tokens)
+  if (!CXXUnit) {
+    // Any token we don't specifically annotate will have a NULL cursor.
+    const CXCursor &C = clang_getNullCursor();
+    for (unsigned I = 0; I != NumTokens; ++I)
+      Cursors[I] = C;
     return;
+  }
 
   ASTUnit::ConcurrencyCheck Check(*CXXUnit);
 
   // Determine the region of interest, which contains all of the tokens.
   SourceRange RegionOfInterest;
-  RegionOfInterest.setBegin(
-        cxloc::translateSourceLocation(clang_getTokenLocation(TU, Tokens[0])));
+  RegionOfInterest.setBegin(cxloc::translateSourceLocation(
+                                        clang_getTokenLocation(TU, Tokens[0])));
+
   SourceLocation End
     = cxloc::translateSourceLocation(clang_getTokenLocation(TU,
                                                         Tokens[NumTokens - 1]));
@@ -2373,14 +2659,14 @@ void clang_annotateTokens(CXTranslationUnit TU,
   // region of interest to the corresponding cursors.
   AnnotateTokensData Annotated;
 
-  // Relex the tokens within the source range to look for preprocessing 
+  // Relex the tokens within the source range to look for preprocessing
   // directives.
   SourceManager &SourceMgr = CXXUnit->getSourceManager();
   std::pair<FileID, unsigned> BeginLocInfo
     = SourceMgr.getDecomposedLoc(RegionOfInterest.getBegin());
   std::pair<FileID, unsigned> EndLocInfo
     = SourceMgr.getDecomposedLoc(RegionOfInterest.getEnd());
-  
+
   llvm::StringRef Buffer;
   bool Invalid = false;
   if (BeginLocInfo.first == EndLocInfo.first &&
@@ -2388,16 +2674,16 @@ void clang_annotateTokens(CXTranslationUnit TU,
       !Invalid) {
     Lexer Lex(SourceMgr.getLocForStartOfFile(BeginLocInfo.first),
               CXXUnit->getASTContext().getLangOptions(),
-              Buffer.begin(), Buffer.data() + BeginLocInfo.second, 
+              Buffer.begin(), Buffer.data() + BeginLocInfo.second,
               Buffer.end());
     Lex.SetCommentRetentionState(true);
-    
-    // Lex tokens in raw mode until we hit the end of the range, to avoid 
+
+    // Lex tokens in raw mode until we hit the end of the range, to avoid
     // entering #includes or expanding macros.
     while (true) {
       Token Tok;
       Lex.LexFromRawLexer(Tok);
-      
+
     reprocess:
       if (Tok.is(tok::hash) && Tok.isAtStartOfLine()) {
         // We have found a preprocessing directive. Gobble it up so that we
@@ -2410,51 +2696,35 @@ void clang_annotateTokens(CXTranslationUnit TU,
         std::vector<SourceLocation> Locations;
         do {
           Locations.push_back(Tok.getLocation());
-          Lex.LexFromRawLexer(Tok);        
+          Lex.LexFromRawLexer(Tok);
         } while (!Tok.isAtStartOfLine() && !Tok.is(tok::eof));
-        
+
         using namespace cxcursor;
         CXCursor Cursor
           = MakePreprocessingDirectiveCursor(SourceRange(Locations.front(),
                                                          Locations.back()),
-                                             CXXUnit);
+                                           CXXUnit);
         for (unsigned I = 0, N = Locations.size(); I != N; ++I) {
           Annotated[Locations[I].getRawEncoding()] = Cursor;
         }
-        
+
         if (Tok.isAtStartOfLine())
           goto reprocess;
-        
+
         continue;
       }
-      
+
       if (Tok.is(tok::eof))
         break;
     }
   }
-  
+
   // Annotate all of the source locations in the region of interest that map to
-  // a specific cursor.  
-  CXCursor Parent = clang_getTranslationUnitCursor(CXXUnit);
-  CursorVisitor AnnotateVis(CXXUnit, AnnotateTokensVisitor, &Annotated,
-                            Decl::MaxPCHLevel, RegionOfInterest);
-  AnnotateVis.VisitChildren(Parent);
-  
-  for (unsigned I = 0; I != NumTokens; ++I) {
-    // Determine whether we saw a cursor at this token's location.
-    AnnotateTokensData::iterator Pos = Annotated.find(Tokens[I].int_data[1]);
-    if (Pos == Annotated.end())
-      continue;
-    
-    Cursors[I] = Pos->second;
-  }  
+  // a specific cursor.
+  AnnotateTokensWorker W(Annotated, Tokens, Cursors, NumTokens,
+                         CXXUnit, RegionOfInterest);
+  W.AnnotateTokens(clang_getTranslationUnitCursor(CXXUnit));
 }
-
-void clang_disposeTokens(CXTranslationUnit TU,
-                         CXToken *Tokens, unsigned NumTokens) {
-  free(Tokens);
-}
-
 } // end: extern "C"
 
 //===----------------------------------------------------------------------===//
@@ -2538,6 +2808,21 @@ CXLanguageKind clang_getCursorLanguage(CXCursor cursor) {
 
   return CXLanguage_Invalid;
 }
+} // end: extern "C"
+
+
+//===----------------------------------------------------------------------===//
+// C++ AST instrospection.
+//===----------------------------------------------------------------------===//
+
+extern "C" {
+unsigned clang_CXXMethod_isStatic(CXCursor C) {
+  if (!clang_isDeclaration(C.kind))
+    return 0;
+  CXXMethodDecl *D = dyn_cast<CXXMethodDecl>(cxcursor::getCursorDecl(C));
+  return (D && D->isStatic()) ? 1 : 0;
+}
+
 } // end: extern "C"
 
 //===----------------------------------------------------------------------===//

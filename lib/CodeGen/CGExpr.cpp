@@ -135,6 +135,39 @@ void CodeGenFunction::EmitAnyExprToMem(const Expr *E,
   }
 }
 
+/// \brief An adjustment to be made to the temporary created when emitting a
+/// reference binding, which accesses a particular subobject of that temporary.
+struct SubobjectAdjustment {
+  enum { DerivedToBaseAdjustment, FieldAdjustment } Kind;
+  
+  union {
+    struct {
+      const CXXBaseSpecifierArray *BasePath;
+      const CXXRecordDecl *DerivedClass;
+    } DerivedToBase;
+    
+    struct {
+      FieldDecl *Field;
+      unsigned CVRQualifiers;
+    } Field;
+  };
+  
+  SubobjectAdjustment(const CXXBaseSpecifierArray *BasePath, 
+                      const CXXRecordDecl *DerivedClass)
+    : Kind(DerivedToBaseAdjustment) 
+  {
+    DerivedToBase.BasePath = BasePath;
+    DerivedToBase.DerivedClass = DerivedClass;
+  }
+  
+  SubobjectAdjustment(FieldDecl *Field, unsigned CVRQualifiers)
+    : Kind(FieldAdjustment) 
+  { 
+    this->Field.Field = Field;
+    this->Field.CVRQualifiers = CVRQualifiers;
+  }
+};
+
 RValue CodeGenFunction::EmitReferenceBindingToExpr(const Expr* E,
                                                    bool IsInitializer) {
   bool ShouldDestroyTemporaries = false;
@@ -174,19 +207,46 @@ RValue CodeGenFunction::EmitReferenceBindingToExpr(const Expr* E,
         PopCXXTemporary();
     }      
   } else {
-    const CXXBaseSpecifierArray *BasePath = 0;
-    const CXXRecordDecl *DerivedClassDecl = 0;
+    QualType ResultTy = E->getType();
     
-    if (const CastExpr *CE = 
-          dyn_cast<CastExpr>(E->IgnoreParenNoopCasts(getContext()))) {
-      if (CE->getCastKind() == CastExpr::CK_DerivedToBase) {
-        E = CE->getSubExpr();
+    llvm::SmallVector<SubobjectAdjustment, 2> Adjustments;
+    do {
+      if (const ParenExpr *PE = dyn_cast<ParenExpr>(E)) {
+        E = PE->getSubExpr();
+        continue;
+      } 
 
-        BasePath = &CE->getBasePath();
-        DerivedClassDecl = 
-          cast<CXXRecordDecl>(E->getType()->getAs<RecordType>()->getDecl());
+      if (const CastExpr *CE = dyn_cast<CastExpr>(E)) {
+        if ((CE->getCastKind() == CastExpr::CK_DerivedToBase ||
+             CE->getCastKind() == CastExpr::CK_UncheckedDerivedToBase) &&
+            E->getType()->isRecordType()) {
+          E = CE->getSubExpr();
+          CXXRecordDecl *Derived 
+            = cast<CXXRecordDecl>(E->getType()->getAs<RecordType>()->getDecl());
+          Adjustments.push_back(SubobjectAdjustment(&CE->getBasePath(), 
+                                                    Derived));
+          continue;
+        }
+
+        if (CE->getCastKind() == CastExpr::CK_NoOp) {
+          E = CE->getSubExpr();
+          continue;
+        }
+      } else if (const MemberExpr *ME = dyn_cast<MemberExpr>(E)) {
+        if (ME->getBase()->isLvalue(getContext()) != Expr::LV_Valid &&
+            ME->getBase()->getType()->isRecordType()) {
+          if (FieldDecl *Field = dyn_cast<FieldDecl>(ME->getMemberDecl())) {
+            E = ME->getBase();
+            Adjustments.push_back(SubobjectAdjustment(Field,
+                                              E->getType().getCVRQualifiers()));
+            continue;
+          }
+        }
       }
-    }
+
+      // Nothing changed.
+      break;
+    } while (true);
       
     Val = EmitAnyExprToTemp(E, /*IsAggLocVolatile=*/false,
                             IsInitializer);
@@ -225,13 +285,47 @@ RValue CodeGenFunction::EmitReferenceBindingToExpr(const Expr* E,
       }
     }
     
-    // Check if need to perform the derived-to-base cast.
-    if (BasePath) {
-      llvm::Value *Derived = Val.getAggregateAddr();
-      llvm::Value *Base = 
-        GetAddressOfBaseClass(Derived, DerivedClassDecl, *BasePath, 
-                              /*NullCheckValue=*/false);
-      return RValue::get(Base);
+    // Check if need to perform derived-to-base casts and/or field accesses, to
+    // get from the temporary object we created (and, potentially, for which we
+    // extended the lifetime) to the subobject we're binding the reference to.
+    if (!Adjustments.empty()) {
+      llvm::Value *Object = Val.getAggregateAddr();
+      for (unsigned I = Adjustments.size(); I != 0; --I) {
+        SubobjectAdjustment &Adjustment = Adjustments[I-1];
+        switch (Adjustment.Kind) {
+        case SubobjectAdjustment::DerivedToBaseAdjustment:
+          Object = GetAddressOfBaseClass(Object, 
+                                         Adjustment.DerivedToBase.DerivedClass, 
+                                         *Adjustment.DerivedToBase.BasePath, 
+                                         /*NullCheckValue=*/false);
+          break;
+            
+        case SubobjectAdjustment::FieldAdjustment: {
+          unsigned CVR = Adjustment.Field.CVRQualifiers;
+          LValue LV = EmitLValueForField(Object, Adjustment.Field.Field, CVR);
+          if (LV.isSimple()) {
+            Object = LV.getAddress();
+            break;
+          }
+          
+          // For non-simple lvalues, we actually have to create a copy of
+          // the object we're binding to.
+          QualType T = Adjustment.Field.Field->getType().getNonReferenceType()
+                                                        .getUnqualifiedType();
+          Object = CreateTempAlloca(ConvertType(T), "lv");
+          EmitStoreThroughLValue(EmitLoadOfLValue(LV, T), 
+                                 LValue::MakeAddr(Object, 
+                                                  Qualifiers::fromCVRMask(CVR)),
+                                 T);
+          break;
+        }
+        }
+      }
+      
+      const llvm::Type *ResultPtrTy
+        = llvm::PointerType::get(ConvertType(ResultTy), 0);
+      Object = Builder.CreateBitCast(Object, ResultPtrTy, "temp");
+      return RValue::get(Object);
     }
   }
 
@@ -309,8 +403,7 @@ EmitScalarPrePostIncDec(const UnaryOperator *E, LValue LV,
     llvm::ConstantInt::get(llvm::Type::getInt32Ty(VMContext), AmountVal);
     if (!isa<llvm::FunctionType>(PT->getElementType())) {
       QualType PTEE = ValTy->getPointeeType();
-      if (const ObjCInterfaceType *OIT =
-          dyn_cast<ObjCInterfaceType>(PTEE)) {
+      if (const ObjCObjectType *OIT = PTEE->getAs<ObjCObjectType>()) {
         // Handle interface types, which are not represented with a concrete
         // type.
         int size = getContext().getTypeSize(OIT) / 8;
@@ -1371,8 +1464,8 @@ LValue CodeGenFunction::EmitArraySubscriptExpr(const ArraySubscriptExpr *E) {
                              llvm::ConstantInt::get(Idx->getType(),
                                  BaseTypeSize.getQuantity()));
     Address = Builder.CreateInBoundsGEP(Base, Idx, "arrayidx");
-  } else if (const ObjCInterfaceType *OIT =
-             dyn_cast<ObjCInterfaceType>(E->getType())) {
+  } else if (const ObjCObjectType *OIT =
+               E->getType()->getAs<ObjCObjectType>()) {
     llvm::Value *InterfaceSize =
       llvm::ConstantInt::get(Idx->getType(),
           getContext().getTypeSizeInChars(OIT).getQuantity());
@@ -1530,6 +1623,35 @@ LValue CodeGenFunction::EmitLValueForBitfield(llvm::Value* BaseValue,
                              Field->getType().getCVRQualifiers()|CVRQualifiers);
 }
 
+/// EmitLValueForAnonRecordField - Given that the field is a member of
+/// an anonymous struct or union buried inside a record, and given
+/// that the base value is a pointer to the enclosing record, derive
+/// an lvalue for the ultimate field.
+LValue CodeGenFunction::EmitLValueForAnonRecordField(llvm::Value *BaseValue,
+                                                     const FieldDecl *Field,
+                                                     unsigned CVRQualifiers) {
+  llvm::SmallVector<const FieldDecl *, 8> Path;
+  Path.push_back(Field);
+
+  while (Field->getParent()->isAnonymousStructOrUnion()) {
+    const ValueDecl *VD = Field->getParent()->getAnonymousStructOrUnionObject();
+    if (!isa<FieldDecl>(VD)) break;
+    Field = cast<FieldDecl>(VD);
+    Path.push_back(Field);
+  }
+
+  llvm::SmallVectorImpl<const FieldDecl*>::reverse_iterator
+    I = Path.rbegin(), E = Path.rend();
+  while (true) {
+    LValue LV = EmitLValueForField(BaseValue, *I, CVRQualifiers);
+    if (++I == E) return LV;
+
+    assert(LV.isSimple());
+    BaseValue = LV.getAddress();
+    CVRQualifiers |= LV.getVRQualifiers();
+  }
+}
+
 LValue CodeGenFunction::EmitLValueForField(llvm::Value* BaseValue,
                                            const FieldDecl* Field,
                                            unsigned CVRQualifiers) {
@@ -1670,7 +1792,17 @@ LValue CodeGenFunction::EmitCastLValue(const CastExpr *E) {
                             MakeQualifiers(E->getType()));
   }
 
-  case CastExpr::CK_NoOp:
+  case CastExpr::CK_NoOp: {
+    LValue LV = EmitLValue(E->getSubExpr());
+    if (LV.isPropertyRef()) {
+      QualType QT = E->getSubExpr()->getType();
+      RValue RV = EmitLoadOfPropertyRefLValue(LV, QT);
+      assert(!RV.isScalar() && "EmitCastLValue - scalar cast of property ref");
+      llvm::Value *V = RV.getAggregateAddr();
+      return LValue::MakeAddr(V, MakeQualifiers(QT));
+    }
+    return LV;
+  }
   case CastExpr::CK_ConstructorConversion:
   case CastExpr::CK_UserDefinedConversion:
   case CastExpr::CK_AnyPointerToObjCPointerCast:
@@ -1724,7 +1856,7 @@ LValue CodeGenFunction::EmitNullInitializationLValue(
                                               const CXXZeroInitValueExpr *E) {
   QualType Ty = E->getType();
   LValue LV = LValue::MakeAddr(CreateMemTemp(Ty), MakeQualifiers(Ty));
-  EmitMemSetToZero(LV.getAddress(), Ty);
+  EmitNullInitialization(LV.getAddress(), Ty);
   return LV;
 }
 

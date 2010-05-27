@@ -55,6 +55,7 @@ public:
   enum Kind {             // Please keep this list alphabetized.
     AT_IBAction,          // Clang-specific.
     AT_IBOutlet,          // Clang-specific.
+    AT_IBOutletCollection, // Clang-specific.
     AT_address_space,
     AT_alias,
     AT_aligned,
@@ -102,6 +103,7 @@ public:
     AT_section,
     AT_sentinel,
     AT_stdcall,
+    AT_thiscall,
     AT_transparent_union,
     AT_unavailable,
     AT_unused,

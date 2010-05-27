@@ -52,6 +52,9 @@ class ASTContext;
 class Attr;
 class Decl;
 class DeclContext;
+class NestedNameSpecifier;
+class CXXBaseSpecifier;
+class CXXBaseOrMemberInitializer;
 class GotoStmt;
 class LabelStmt;
 class MacroDefinition;
@@ -649,8 +652,8 @@ public:
   /// declarations with this name are visible from translation unit scope, their
   /// declarations will be deserialized and introduced into the declaration
   /// chain of the identifier.
-  virtual IdentifierInfo* get(const char *NameStart, const char *NameEnd);
-  IdentifierInfo* get(llvm::StringRef Name) {
+  virtual IdentifierInfo *get(const char *NameStart, const char *NameEnd);
+  IdentifierInfo *get(llvm::StringRef Name) {
     return get(Name.begin(), Name.end());
   }
 
@@ -694,7 +697,20 @@ public:
   Selector GetSelector(const RecordData &Record, unsigned &Idx) {
     return DecodeSelector(Record[Idx++]);
   }
+
+  /// \brief Read a declaration name.
   DeclarationName ReadDeclarationName(const RecordData &Record, unsigned &Idx);
+
+  NestedNameSpecifier *ReadNestedNameSpecifier(const RecordData &Record,
+                                               unsigned &Idx);
+
+  /// \brief Read a source location.
+  SourceLocation ReadSourceLocation(const RecordData &Record, unsigned& Idx) {
+    return SourceLocation::getFromRawEncoding(Record[Idx++]);
+  }
+
+  /// \brief Read a source range.
+  SourceRange ReadSourceRange(const RecordData &Record, unsigned& Idx);
 
   /// \brief Read an integral value
   llvm::APInt ReadAPInt(const RecordData &Record, unsigned &Idx);
@@ -708,6 +724,8 @@ public:
   // \brief Read a string
   std::string ReadString(const RecordData &Record, unsigned &Idx);
 
+  CXXTemporary *ReadCXXTemporary(const RecordData &Record, unsigned &Idx);
+      
   /// \brief Reads attributes from the current stream position.
   Attr *ReadAttributes();
 

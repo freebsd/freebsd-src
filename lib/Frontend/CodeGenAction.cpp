@@ -48,6 +48,7 @@ namespace {
     Backend_EmitBC,        ///< Emit LLVM bitcode files
     Backend_EmitLL,        ///< Emit human-readable LLVM assembly
     Backend_EmitNothing,   ///< Don't emit anything (benchmarking mode)
+    Backend_EmitMCNull,    ///< Run CodeGen, but don't emit anything
     Backend_EmitObj        ///< Emit native object files
   };
 
@@ -178,6 +179,10 @@ namespace {
 
     virtual void CompleteTentativeDefinition(VarDecl *D) {
       Gen->CompleteTentativeDefinition(D);
+    }
+
+    virtual void HandleVTable(CXXRecordDecl *RD, bool DefinitionRequired) {
+      Gen->HandleVTable(RD, DefinitionRequired);
     }
 
     static void InlineAsmDiagHandler(const llvm::SMDiagnostic &SM,void *Context,
@@ -316,6 +321,9 @@ bool BackendConsumer::AddEmitPasses() {
   }
   TargetMachine *TM = TheTarget->createTargetMachine(Triple, FeaturesStr);
 
+  if (CodeGenOpts.RelaxAll)
+    TM->setMCRelaxAll(true);
+
   // Set register scheduler & allocation policy.
   RegisterScheduler::setDefault(createDefaultScheduler);
   RegisterRegAlloc::setDefault(Fast ? createLocalRegisterAllocator :
@@ -336,6 +344,10 @@ bool BackendConsumer::AddEmitPasses() {
   TargetMachine::CodeGenFileType CGFT = TargetMachine::CGFT_AssemblyFile;
   if (Action == Backend_EmitObj)
     CGFT = TargetMachine::CGFT_ObjectFile;
+  else if (Action == Backend_EmitMCNull)
+    CGFT = TargetMachine::CGFT_Null;
+  else
+    assert(Action == Backend_EmitAssembly && "Invalid action!");
   if (TM->addPassesToEmitFile(*PM, FormattedOutStream, CGFT, OptLevel,
                               /*DisableVerify=*/!CodeGenOpts.VerifyModule)) {
     Diags.Report(diag::err_fe_unable_to_interface_with_target);
@@ -553,6 +565,7 @@ ASTConsumer *CodeGenAction::CreateASTConsumer(CompilerInstance &CI,
     break;
   case Backend_EmitNothing:
     break;
+  case Backend_EmitMCNull:
   case Backend_EmitObj:
     OS.reset(CI.createDefaultOutputFile(true, InFile, "o"));
     break;
@@ -574,5 +587,7 @@ EmitBCAction::EmitBCAction() : CodeGenAction(Backend_EmitBC) {}
 EmitLLVMAction::EmitLLVMAction() : CodeGenAction(Backend_EmitLL) {}
 
 EmitLLVMOnlyAction::EmitLLVMOnlyAction() : CodeGenAction(Backend_EmitNothing) {}
+
+EmitCodeGenOnlyAction::EmitCodeGenOnlyAction() : CodeGenAction(Backend_EmitMCNull) {}
 
 EmitObjAction::EmitObjAction() : CodeGenAction(Backend_EmitObj) {}

@@ -174,10 +174,10 @@ public:
     Mgr.reset(new AnalysisManager(*Ctx, PP.getDiagnostics(),
                                   PP.getLangOptions(), PD,
                                   CreateStoreMgr, CreateConstraintMgr,
-                                  Opts.MaxNodes,
+                                  Opts.MaxNodes, Opts.MaxLoop,
                                   Opts.VisualizeEGDot, Opts.VisualizeEGUbi,
                                   Opts.PurgeDead, Opts.EagerlyAssume,
-                                  Opts.TrimGraph));
+                                  Opts.TrimGraph, Opts.InlineCall));
   }
 
   virtual void HandleTranslationUnit(ASTContext &C);

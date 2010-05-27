@@ -13,6 +13,8 @@
 
 #include "CodeGenFunction.h"
 #include "clang/CodeGen/CodeGenOptions.h"
+#include "llvm/Intrinsics.h"
+
 using namespace clang;
 using namespace CodeGen;
 
@@ -22,7 +24,6 @@ static void EmitDeclInit(CodeGenFunction &CGF, const VarDecl &D,
   assert(!D.getType()->isReferenceType() && 
          "Should not call EmitDeclInit on a reference!");
   
-  CodeGenModule &CGM = CGF.CGM;
   ASTContext &Context = CGF.getContext();
     
   const Expr *Init = D.getInit();
@@ -36,39 +37,50 @@ static void EmitDeclInit(CodeGenFunction &CGF, const VarDecl &D,
     CGF.EmitComplexExprIntoAddr(Init, DeclPtr, isVolatile);
   } else {
     CGF.EmitAggExpr(Init, DeclPtr, isVolatile);
-    
-    // Avoid generating destructor(s) for initialized objects. 
-    if (!isa<CXXConstructExpr>(Init))
-      return;
-    
-    const ConstantArrayType *Array = Context.getAsConstantArrayType(T);
-    if (Array)
-      T = Context.getBaseElementType(Array);
-    
-    const RecordType *RT = T->getAs<RecordType>();
-    if (!RT)
-      return;
-    
-    CXXRecordDecl *RD = cast<CXXRecordDecl>(RT->getDecl());
-    if (RD->hasTrivialDestructor())
-      return;
-    
-    CXXDestructorDecl *Dtor = RD->getDestructor(Context);
-    
-    llvm::Constant *DtorFn;
-    if (Array) {
-      DtorFn = 
-        CodeGenFunction(CGM).GenerateCXXAggrDestructorHelper(Dtor, 
-                                                             Array, 
-                                                             DeclPtr);
-      const llvm::Type *Int8PtrTy =
-        llvm::Type::getInt8PtrTy(CGM.getLLVMContext());
-      DeclPtr = llvm::Constant::getNullValue(Int8PtrTy);
-     } else
-      DtorFn = CGM.GetAddrOfCXXDestructor(Dtor, Dtor_Complete);
-
-    CGF.EmitCXXGlobalDtorRegistration(DtorFn, DeclPtr);
   }
+}
+
+static void EmitDeclDestroy(CodeGenFunction &CGF, const VarDecl &D,
+                            llvm::Constant *DeclPtr) {
+  CodeGenModule &CGM = CGF.CGM;
+  ASTContext &Context = CGF.getContext();
+  
+  const Expr *Init = D.getInit();
+  QualType T = D.getType();
+  if (!CGF.hasAggregateLLVMType(T) || T->isAnyComplexType())
+    return;
+                                
+  // Avoid generating destructor(s) for initialized objects. 
+  if (!isa<CXXConstructExpr>(Init))
+    return;
+  
+  const ConstantArrayType *Array = Context.getAsConstantArrayType(T);
+  if (Array)
+    T = Context.getBaseElementType(Array);
+  
+  const RecordType *RT = T->getAs<RecordType>();
+  if (!RT)
+    return;
+  
+  CXXRecordDecl *RD = cast<CXXRecordDecl>(RT->getDecl());
+  if (RD->hasTrivialDestructor())
+    return;
+  
+  CXXDestructorDecl *Dtor = RD->getDestructor(Context);
+  
+  llvm::Constant *DtorFn;
+  if (Array) {
+    DtorFn = 
+    CodeGenFunction(CGM).GenerateCXXAggrDestructorHelper(Dtor, 
+                                                         Array, 
+                                                         DeclPtr);
+    const llvm::Type *Int8PtrTy =
+    llvm::Type::getInt8PtrTy(CGM.getLLVMContext());
+    DeclPtr = llvm::Constant::getNullValue(Int8PtrTy);
+  } else
+    DtorFn = CGM.GetAddrOfCXXDestructor(Dtor, Dtor_Complete);
+  
+  CGF.EmitCXXGlobalDtorRegistration(DtorFn, DeclPtr);
 }
 
 void CodeGenFunction::EmitCXXGlobalVarDeclInit(const VarDecl &D,
@@ -79,6 +91,7 @@ void CodeGenFunction::EmitCXXGlobalVarDeclInit(const VarDecl &D,
 
   if (!T->isReferenceType()) {
     EmitDeclInit(*this, D, DeclPtr);
+    EmitDeclDestroy(*this, D, DeclPtr);
     return;
   }
   if (Init->isLvalue(getContext()) == Expr::LV_Valid) {
@@ -310,7 +323,10 @@ CodeGenFunction::EmitStaticCXXBlockVarDeclInit(const VarDecl &D,
 
   EmitBlock(InitCheckBlock);
 
-  if (ThreadsafeStatics) {
+  // Variables used when coping with thread-safe statics and exceptions.
+  llvm::BasicBlock *SavedLandingPad = 0;
+  llvm::BasicBlock *LandingPad = 0;
+  if (ThreadsafeStatics) {    
     // Call __cxa_guard_acquire.
     V = Builder.CreateCall(getGuardAcquireFn(*this), GuardVariable);
                
@@ -319,14 +335,13 @@ CodeGenFunction::EmitStaticCXXBlockVarDeclInit(const VarDecl &D,
     Builder.CreateCondBr(Builder.CreateIsNotNull(V, "tobool"),
                          InitBlock, EndBlock);
   
-    EmitBlock(InitBlock);
-
     if (Exceptions) {
-      EHCleanupBlock Cleanup(*this);
-    
-      // Call __cxa_guard_abort.
-      Builder.CreateCall(getGuardAbortFn(*this), GuardVariable);
+      SavedLandingPad = getInvokeDest();
+      LandingPad = createBasicBlock("guard.lpad");
+      setInvokeDest(LandingPad);
     }
+    
+    EmitBlock(InitBlock);
   }
 
   if (D.getType()->isReferenceType()) {
@@ -342,12 +357,68 @@ CodeGenFunction::EmitStaticCXXBlockVarDeclInit(const VarDecl &D,
 
   if (ThreadsafeStatics) {
     // Call __cxa_guard_release.
-    Builder.CreateCall(getGuardReleaseFn(*this), GuardVariable);
+    Builder.CreateCall(getGuardReleaseFn(*this), GuardVariable);    
   } else {
     llvm::Value *One = 
       llvm::ConstantInt::get(llvm::Type::getInt8Ty(VMContext), 1);
     Builder.CreateStore(One, Builder.CreateBitCast(GuardVariable, PtrTy));
   }
 
+  // Register the call to the destructor.
+  if (!D.getType()->isReferenceType())
+    EmitDeclDestroy(*this, D, GV);
+  
+  if (ThreadsafeStatics && Exceptions) {
+    // If an exception is thrown during initialization, call __cxa_guard_abort
+    // along the exceptional edge.
+    EmitBranch(EndBlock);
+    
+    // Construct the landing pad.
+    EmitBlock(LandingPad);
+        
+    // Personality function and LLVM intrinsics.
+    llvm::Constant *Personality =
+      CGM.CreateRuntimeFunction(llvm::FunctionType::get(llvm::Type::getInt32Ty
+                                                        (VMContext),
+                                                        true),
+                                "__gxx_personality_v0");
+    Personality = llvm::ConstantExpr::getBitCast(Personality, PtrToInt8Ty);
+    llvm::Value *llvm_eh_exception =
+      CGM.getIntrinsic(llvm::Intrinsic::eh_exception);
+    llvm::Value *llvm_eh_selector =
+      CGM.getIntrinsic(llvm::Intrinsic::eh_selector);
+    
+    // Exception object
+    llvm::Value *Exc = Builder.CreateCall(llvm_eh_exception, "exc");
+    llvm::Value *RethrowPtr = CreateTempAlloca(Exc->getType(), "_rethrow");
+
+    // Call the selector function.
+    const llvm::PointerType *PtrToInt8Ty 
+      = llvm::PointerType::getUnqual(llvm::Type::getInt8Ty(VMContext));
+    llvm::Constant *Null = llvm::ConstantPointerNull::get(PtrToInt8Ty);
+    llvm::Value* SelectorArgs[3] = { Exc, Personality, Null };
+    Builder.CreateCall(llvm_eh_selector, SelectorArgs, SelectorArgs + 3,
+                           "selector");
+    Builder.CreateStore(Exc, RethrowPtr);
+                                
+    // Call __cxa_guard_abort along the exceptional edge.
+    Builder.CreateCall(getGuardAbortFn(*this), GuardVariable);
+
+    setInvokeDest(SavedLandingPad);
+
+    // Rethrow the current exception.
+    if (getInvokeDest()) {
+      llvm::BasicBlock *Cont = createBasicBlock("invoke.cont");
+      Builder.CreateInvoke(getUnwindResumeOrRethrowFn(), Cont,
+                           getInvokeDest(),
+                           Builder.CreateLoad(RethrowPtr));
+      EmitBlock(Cont);
+    } else
+      Builder.CreateCall(getUnwindResumeOrRethrowFn(),
+                         Builder.CreateLoad(RethrowPtr));
+    
+    Builder.CreateUnreachable();    
+  }    
+  
   EmitBlock(EndBlock);
 }

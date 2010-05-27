@@ -51,7 +51,7 @@ protected:
     return CheckRange(D->getSourceRange());
   }
   RangePos CheckRange(Stmt *Node) { return CheckRange(Node->getSourceRange()); }
-  RangePos CheckRange(TypeLoc TL) { return CheckRange(TL.getSourceRange()); }
+  RangePos CheckRange(TypeLoc TL) { return CheckRange(TL.getLocalSourceRange()); }
 
   template <typename T>
   bool isBeforeLocation(T Node) {
@@ -130,7 +130,7 @@ public:
   ASTLocation VisitFunctionTypeLoc(FunctionTypeLoc TL);
   ASTLocation VisitArrayTypeLoc(ArrayTypeLoc TL);
   ASTLocation VisitObjCInterfaceTypeLoc(ObjCInterfaceTypeLoc TL);
-  ASTLocation VisitObjCObjectPointerTypeLoc(ObjCObjectPointerTypeLoc TL);
+  ASTLocation VisitObjCObjectTypeLoc(ObjCObjectTypeLoc TL);
   ASTLocation VisitTypeLoc(TypeLoc TL);
 };
 
@@ -454,6 +454,13 @@ ASTLocation TypeLocResolver::VisitObjCInterfaceTypeLoc(ObjCInterfaceTypeLoc TL) 
   if (ContainsLocation(TL.getNameLoc()))
     return ASTLocation(ParentDecl, TL.getIFaceDecl(), TL.getNameLoc());
 
+  return ASTLocation(ParentDecl, TL);
+}
+
+ASTLocation TypeLocResolver::VisitObjCObjectTypeLoc(ObjCObjectTypeLoc TL) {
+  assert(ContainsLocation(TL) &&
+         "Should visit only after verifying that loc is in range");
+
   for (unsigned i = 0; i != TL.getNumProtocols(); ++i) {
     SourceLocation L = TL.getProtocolLoc(i);
     RangePos RP = CheckRange(L);
@@ -461,24 +468,6 @@ ASTLocation TypeLocResolver::VisitObjCInterfaceTypeLoc(ObjCInterfaceTypeLoc TL) 
       break;
     if (RP == ContainsLoc)
       return ASTLocation(ParentDecl, TL.getProtocol(i), L);
-  }
-
-  return ASTLocation(ParentDecl, TL);
-}
-
-ASTLocation TypeLocResolver::VisitObjCObjectPointerTypeLoc(ObjCObjectPointerTypeLoc TL) {
-  assert(ContainsLocation(TL) &&
-         "Should visit only after verifying that loc is in range");
-
-  if (TL.hasProtocolsAsWritten()) {
-    for (unsigned i = 0; i != TL.getNumProtocols(); ++i) {
-      SourceLocation L = TL.getProtocolLoc(i);
-      RangePos RP = CheckRange(L);
-      if (RP == AfterLoc)
-        break;
-      if (RP == ContainsLoc)
-        return ASTLocation(ParentDecl, TL.getProtocol(i), L);
-    }
   }
 
   return ASTLocation(ParentDecl, TL);

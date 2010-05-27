@@ -161,7 +161,8 @@ namespace {
 
     /// ParsedFreeStandingDeclSpec - This method is invoked when a declspec with
     /// no declarator (e.g. "struct foo;") is parsed.
-    virtual DeclPtrTy ParsedFreeStandingDeclSpec(Scope *S, DeclSpec &DS) {
+    virtual DeclPtrTy ParsedFreeStandingDeclSpec(Scope *S, AccessSpecifier AS,
+                                                 DeclSpec &DS) {
       Out << __FUNCTION__ << "\n";
       return DeclPtrTy();
     }
@@ -315,7 +316,8 @@ namespace {
       return StmtEmpty();
     }
 
-    virtual OwningStmtResult ActOnStartOfSwitchStmt(FullExprArg Cond, 
+    virtual OwningStmtResult ActOnStartOfSwitchStmt(SourceLocation SwitchLoc,
+                                                    ExprArg Cond, 
                                                     DeclPtrTy CondVar) {
       Out << __FUNCTION__ << "\n";
       return StmtEmpty();

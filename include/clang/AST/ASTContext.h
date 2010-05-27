@@ -96,11 +96,10 @@ class ASTContext {
   llvm::FoldingSet<TemplateTypeParmType> TemplateTypeParmTypes;
   llvm::FoldingSet<SubstTemplateTypeParmType> SubstTemplateTypeParmTypes;
   llvm::FoldingSet<TemplateSpecializationType> TemplateSpecializationTypes;
-  llvm::FoldingSet<QualifiedNameType> QualifiedNameTypes;
-  llvm::FoldingSet<DependentNameType> DependentNameTypes;
-  llvm::FoldingSet<ObjCInterfaceType> ObjCInterfaceTypes;
-  llvm::FoldingSet<ObjCObjectPointerType> ObjCObjectPointerTypes;
   llvm::FoldingSet<ElaboratedType> ElaboratedTypes;
+  llvm::FoldingSet<DependentNameType> DependentNameTypes;
+  llvm::FoldingSet<ObjCObjectTypeImpl> ObjCObjectTypes;
+  llvm::FoldingSet<ObjCObjectPointerType> ObjCObjectPointerTypes;
 
   llvm::FoldingSet<QualifiedTemplateName> QualifiedTemplateNames;
   llvm::FoldingSet<DependentTemplateName> DependentTemplateNames;
@@ -483,7 +482,7 @@ public:
   /// This gets the struct used to keep track of pointer to blocks, complete
   /// with captured variables.
   QualType getBlockParmType(bool BlockHasCopyDispose,
-                            llvm::SmallVector<const Expr *, 8> &BDRDs);
+                            llvm::SmallVectorImpl<const Expr *> &Layout);
 
   /// This builds the struct used for __block variables.
   QualType BuildByRefType(const char *DeclName, QualType Ty);
@@ -613,8 +612,9 @@ public:
                                     const TemplateArgumentListInfo &Args,
                                     QualType Canon = QualType());
 
-  QualType getQualifiedNameType(NestedNameSpecifier *NNS,
-                                QualType NamedType);
+  QualType getElaboratedType(ElaboratedTypeKeyword Keyword,
+                             NestedNameSpecifier *NNS,
+                             QualType NamedType);
   QualType getDependentNameType(ElaboratedTypeKeyword Keyword,
                                 NestedNameSpecifier *NNS,
                                 const IdentifierInfo *Name,
@@ -623,19 +623,16 @@ public:
                                 NestedNameSpecifier *NNS,
                                 const TemplateSpecializationType *TemplateId,
                                 QualType Canon = QualType());
-  QualType getElaboratedType(QualType UnderlyingType,
-                             ElaboratedType::TagKind Tag);
 
-  QualType getObjCInterfaceType(const ObjCInterfaceDecl *Decl,
-                                ObjCProtocolDecl **Protocols = 0,
-                                unsigned NumProtocols = 0);
+  QualType getObjCInterfaceType(const ObjCInterfaceDecl *Decl);
 
-  /// getObjCObjectPointerType - Return a ObjCObjectPointerType type for the
-  /// given interface decl and the conforming protocol list.
-  QualType getObjCObjectPointerType(QualType OIT,
-                                    ObjCProtocolDecl **ProtocolList = 0,
-                                    unsigned NumProtocols = 0,
-                                    unsigned Quals = 0);
+  QualType getObjCObjectType(QualType Base,
+                             ObjCProtocolDecl * const *Protocols,
+                             unsigned NumProtocols);
+
+  /// getObjCObjectPointerType - Return a ObjCObjectPointerType type
+  /// for the given ObjCObjectType.
+  QualType getObjCObjectPointerType(QualType OIT);
 
   /// getTypeOfType - GCC extension.
   QualType getTypeOfExprType(Expr *e);
@@ -913,6 +910,9 @@ public:
   CharUnits getTypeAlignInChars(QualType T);
   CharUnits getTypeAlignInChars(const Type *T);
 
+  std::pair<CharUnits, CharUnits> getTypeInfoInChars(const Type *T);
+  std::pair<CharUnits, CharUnits> getTypeInfoInChars(QualType T);
+
   /// getPreferredTypeAlign - Return the "preferred" alignment of the specified
   /// type for the current target in bits.  This can be different than the ABI
   /// alignment in cases where it is beneficial for performance to overalign
@@ -1184,8 +1184,8 @@ public:
   // Check the safety of assignment from LHS to RHS
   bool canAssignObjCInterfaces(const ObjCObjectPointerType *LHSOPT,
                                const ObjCObjectPointerType *RHSOPT);
-  bool canAssignObjCInterfaces(const ObjCInterfaceType *LHS,
-                               const ObjCInterfaceType *RHS);
+  bool canAssignObjCInterfaces(const ObjCObjectType *LHS,
+                               const ObjCObjectType *RHS);
   bool canAssignObjCInterfacesInBlockPointer(
                                           const ObjCObjectPointerType *LHSOPT,
                                           const ObjCObjectPointerType *RHSOPT);
@@ -1196,6 +1196,8 @@ public:
   // Functions for calculating composite types
   QualType mergeTypes(QualType, QualType, bool OfBlockPointer=false);
   QualType mergeFunctionTypes(QualType, QualType, bool OfBlockPointer=false);
+  
+  QualType mergeObjCGCQualifiers(QualType, QualType);
 
   /// UsualArithmeticConversionsType - handles the various conversions
   /// that are common to binary operators (C99 6.3.1.8, C++ [expr]p9)
@@ -1270,6 +1272,15 @@ public:
   TypeSourceInfo *
   getTrivialTypeSourceInfo(QualType T, SourceLocation Loc = SourceLocation());
 
+  /// \brief Add a deallocation callback that will be invoked when the 
+  /// ASTContext is destroyed.
+  ///
+  /// \brief Callback A callback function that will be invoked on destruction.
+  ///
+  /// \brief Data Pointer data that will be provided to the callback function
+  /// when it is called.
+  void AddDeallocation(void (*Callback)(void*), void *Data);
+  
 private:
   ASTContext(const ASTContext&); // DO NOT IMPLEMENT
   void operator=(const ASTContext&); // DO NOT IMPLEMENT
@@ -1284,16 +1295,21 @@ private:
                                   const FieldDecl *Field,
                                   bool OutermostType = false,
                                   bool EncodingProperty = false);
-
+ 
   const ASTRecordLayout &getObjCLayout(const ObjCInterfaceDecl *D,
                                        const ObjCImplementationDecl *Impl);
   
 private:
+  /// \brief A set of deallocations that should be performed when the 
+  /// ASTContext is destroyed.
+  llvm::SmallVector<std::pair<void (*)(void*), void *>, 16> Deallocations;
+                                       
   // FIXME: This currently contains the set of StoredDeclMaps used
   // by DeclContext objects.  This probably should not be in ASTContext,
   // but we include it here so that ASTContext can quickly deallocate them.
   llvm::PointerIntPair<StoredDeclsMap*,1> LastSDM;
   friend class DeclContext;
+  friend class DeclarationNameTable;
   void ReleaseDeclContextMaps();
 };
   

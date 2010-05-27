@@ -560,9 +560,7 @@ namespace {
     ///
     /// For the purposes of template instantiation, a type has already been
     /// transformed if it is NULL or if it is not dependent.
-    bool AlreadyTransformed(QualType T) {
-      return T.isNull() || !T->isDependentType();
-    }
+    bool AlreadyTransformed(QualType T);
 
     /// \brief Returns the location of the entity being instantiated, if known.
     SourceLocation getBaseLocation() { return Loc; }
@@ -603,7 +601,8 @@ namespace {
       
     /// \brief Check for tag mismatches when instantiating an
     /// elaborated type.
-    QualType RebuildElaboratedType(QualType T, ElaboratedType::TagKind Tag);
+    QualType RebuildElaboratedType(ElaboratedTypeKeyword Keyword,
+                                   NestedNameSpecifier *NNS, QualType T);
 
     Sema::OwningExprResult TransformPredefinedExpr(PredefinedExpr *E);
     Sema::OwningExprResult TransformDeclRefExpr(DeclRefExpr *E);
@@ -622,6 +621,17 @@ namespace {
                                            TemplateTypeParmTypeLoc TL,
                                            QualType ObjectType);
   };
+}
+
+bool TemplateInstantiator::AlreadyTransformed(QualType T) {
+  if (T.isNull())
+    return true;
+  
+  if (T->isDependentType() || T->isVariablyModifiedType())
+    return false;
+  
+  getSema().MarkDeclarationsReferencedInType(Loc, T);
+  return true;
 }
 
 Decl *TemplateInstantiator::TransformDecl(SourceLocation Loc, Decl *D) {
@@ -710,8 +720,9 @@ VarDecl *TemplateInstantiator::RebuildObjCExceptionDecl(VarDecl *ExceptionDecl,
 }
 
 QualType
-TemplateInstantiator::RebuildElaboratedType(QualType T,
-                                            ElaboratedType::TagKind Tag) {
+TemplateInstantiator::RebuildElaboratedType(ElaboratedTypeKeyword Keyword,
+                                            NestedNameSpecifier *NNS,
+                                            QualType T) {
   if (const TagType *TT = T->getAs<TagType>()) {
     TagDecl* TD = TT->getDecl();
 
@@ -723,16 +734,20 @@ TemplateInstantiator::RebuildElaboratedType(QualType T,
 
     // TODO: should we even warn on struct/class mismatches for this?  Seems
     // like it's likely to produce a lot of spurious errors.
-    if (!SemaRef.isAcceptableTagRedeclaration(TD, Tag, TagLocation, *Id)) {
-      SemaRef.Diag(TagLocation, diag::err_use_with_wrong_tag)
-        << Id
-        << FixItHint::CreateReplacement(SourceRange(TagLocation),
-                                        TD->getKindName());
-      SemaRef.Diag(TD->getLocation(), diag::note_previous_use);
+    if (Keyword != ETK_None && Keyword != ETK_Typename) {
+      TagTypeKind Kind = TypeWithKeyword::getTagTypeKindForKeyword(Keyword);
+      if (!SemaRef.isAcceptableTagRedeclaration(TD, Kind, TagLocation, *Id)) {
+        SemaRef.Diag(TagLocation, diag::err_use_with_wrong_tag)
+          << Id
+          << FixItHint::CreateReplacement(SourceRange(TagLocation),
+                                          TD->getKindName());
+        SemaRef.Diag(TD->getLocation(), diag::note_previous_use);
+      }
     }
   }
 
-  return TreeTransform<TemplateInstantiator>::RebuildElaboratedType(T, Tag);
+  return TreeTransform<TemplateInstantiator>::RebuildElaboratedType(Keyword,
+                                                                    NNS, T);
 }
 
 Sema::OwningExprResult 
@@ -927,7 +942,8 @@ TypeSourceInfo *Sema::SubstType(TypeSourceInfo *T,
          "Cannot perform an instantiation without some context on the "
          "instantiation stack");
   
-  if (!T->getType()->isDependentType())
+  if (!T->getType()->isDependentType() && 
+      !T->getType()->isVariablyModifiedType())
     return T;
 
   TemplateInstantiator Instantiator(*this, Args, Loc, Entity);
@@ -942,8 +958,9 @@ QualType Sema::SubstType(QualType T,
          "Cannot perform an instantiation without some context on the "
          "instantiation stack");
 
-  // If T is not a dependent type, there is nothing to do.
-  if (!T->isDependentType())
+  // If T is not a dependent type or a variably-modified type, there
+  // is nothing to do.
+  if (!T->isDependentType() && !T->isVariablyModifiedType())
     return T;
 
   TemplateInstantiator Instantiator(*this, TemplateArgs, Loc, Entity);
@@ -951,7 +968,7 @@ QualType Sema::SubstType(QualType T,
 }
 
 static bool NeedsInstantiationAsFunctionType(TypeSourceInfo *T) {
-  if (T->getType()->isDependentType())
+  if (T->getType()->isDependentType() || T->getType()->isVariablyModifiedType())
     return true;
 
   TypeLoc TL = T->getTypeLoc();
@@ -1160,6 +1177,8 @@ Sema::InstantiateClass(SourceLocation PointOfInstantiation,
   // Enter the scope of this instantiation. We don't use
   // PushDeclContext because we don't have a scope.
   ContextRAII SavedContext(*this, Instantiation);
+  EnterExpressionEvaluationContext EvalContext(*this, 
+                                               Action::PotentiallyEvaluated);
 
   // If this is an instantiation of a local class, merge this local
   // instantiation scope with the enclosing scope. Otherwise, every
@@ -1169,6 +1188,8 @@ Sema::InstantiateClass(SourceLocation PointOfInstantiation,
 
   // Start the definition of this instantiation.
   Instantiation->startDefinition();
+  
+  Instantiation->setTagKind(Pattern->getTagKind());
 
   // Do substitution on the base class specifiers.
   if (SubstBaseSpecifiers(Instantiation, Pattern, TemplateArgs))
@@ -1202,24 +1223,14 @@ Sema::InstantiateClass(SourceLocation PointOfInstantiation,
   // Exit the scope of this instantiation.
   SavedContext.pop();
 
-  // If this is a polymorphic C++ class without a key function, we'll
-  // have to mark all of the virtual members to allow emission of a vtable
-  // in this translation unit.
-  if (Instantiation->isDynamicClass() &&
-      !Context.getKeyFunction(Instantiation)) {
-    // Local classes need to have their methods instantiated immediately in
-    // order to have the correct instantiation scope.
-    if (Instantiation->isLocalClass()) {
-      MarkVirtualMembersReferenced(PointOfInstantiation,
-                                   Instantiation);
-    } else {
-      ClassesWithUnmarkedVirtualMembers.push_back(std::make_pair(Instantiation,
-                                                       PointOfInstantiation));
-    }
-  }
-
-  if (!Invalid)
+  if (!Invalid) {
     Consumer.HandleTagDeclDefinition(Instantiation);
+
+    // Always emit the vtable for an explicit instantiation definition
+    // of a polymorphic class template specialization.
+    if (TSK == TSK_ExplicitInstantiationDefinition)
+      MarkVTableUsed(PointOfInstantiation, Instantiation, true);
+  }
 
   return Invalid;
 }
@@ -1244,6 +1255,12 @@ Sema::InstantiateClassTemplateSpecialization(
       // declaration (C++0x [temp.explicit]p10); go ahead and perform the
       // explicit instantiation.
       ClassTemplateSpec->setSpecializationKind(TSK);
+      
+      // If this is an explicit instantiation definition, mark the
+      // vtable as used.
+      if (TSK == TSK_ExplicitInstantiationDefinition)
+        MarkVTableUsed(PointOfInstantiation, ClassTemplateSpec, true);
+
       return false;
     }
     

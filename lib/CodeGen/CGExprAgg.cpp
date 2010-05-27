@@ -37,6 +37,16 @@ class AggExprEmitter : public StmtVisitor<AggExprEmitter> {
   bool IgnoreResult;
   bool IsInitializer;
   bool RequiresGCollection;
+
+  ReturnValueSlot getReturnValueSlot() const {
+    // If the destination slot requires garbage collection, we can't
+    // use the real return value slot, because we have to use the GC
+    // API.
+    if (RequiresGCollection) return ReturnValueSlot();
+
+    return ReturnValueSlot(DestPtr, VolatileDest);
+  }
+
 public:
   AggExprEmitter(CodeGenFunction &cgf, llvm::Value *destPtr, bool v,
                  bool ignore, bool isinit, bool requiresGCollection)
@@ -57,6 +67,10 @@ public:
   /// EmitFinalDestCopy - Perform the final copy to DestPtr, if desired.
   void EmitFinalDestCopy(const Expr *E, LValue Src, bool Ignore = false);
   void EmitFinalDestCopy(const Expr *E, RValue Src, bool Ignore = false);
+
+  void EmitGCMove(const Expr *E, RValue Src);
+
+  bool TypeRequiresGCollection(QualType T);
 
   //===--------------------------------------------------------------------===//
   //                            Visitor Methods
@@ -137,6 +151,39 @@ void AggExprEmitter::EmitAggLoadOfLValue(const Expr *E) {
   EmitFinalDestCopy(E, LV);
 }
 
+/// \brief True if the given aggregate type requires special GC API calls.
+bool AggExprEmitter::TypeRequiresGCollection(QualType T) {
+  // Only record types have members that might require garbage collection.
+  const RecordType *RecordTy = T->getAs<RecordType>();
+  if (!RecordTy) return false;
+
+  // Don't mess with non-trivial C++ types.
+  RecordDecl *Record = RecordTy->getDecl();
+  if (isa<CXXRecordDecl>(Record) &&
+      (!cast<CXXRecordDecl>(Record)->hasTrivialCopyConstructor() ||
+       !cast<CXXRecordDecl>(Record)->hasTrivialDestructor()))
+    return false;
+
+  // Check whether the type has an object member.
+  return Record->hasObjectMember();
+}
+
+/// \brief Perform the final move to DestPtr if RequiresGCollection is set.
+///
+/// The idea is that you do something like this:
+///   RValue Result = EmitSomething(..., getReturnValueSlot());
+///   EmitGCMove(E, Result);
+/// If GC doesn't interfere, this will cause the result to be emitted
+/// directly into the return value slot.  If GC does interfere, a final
+/// move will be performed.
+void AggExprEmitter::EmitGCMove(const Expr *E, RValue Src) {
+  if (!RequiresGCollection) return;
+
+  CGF.CGM.getObjCRuntime().EmitGCMemmoveCollectable(CGF, DestPtr,
+                                                    Src.getAggregateAddr(),
+                                                    E->getType());
+}
+
 /// EmitFinalDestCopy - Perform the final copy to DestPtr, if desired.
 void AggExprEmitter::EmitFinalDestCopy(const Expr *E, RValue Src, bool Ignore) {
   assert(Src.isAggregate() && "value must be aggregate value!");
@@ -178,7 +225,7 @@ void AggExprEmitter::EmitFinalDestCopy(const Expr *E, LValue Src, bool Ignore) {
 //===----------------------------------------------------------------------===//
 
 void AggExprEmitter::VisitCastExpr(CastExpr *E) {
-  if (!DestPtr) {
+  if (!DestPtr && E->getCastKind() != CastExpr::CK_Dynamic) {
     Visit(E->getSubExpr());
     return;
   }
@@ -186,6 +233,20 @@ void AggExprEmitter::VisitCastExpr(CastExpr *E) {
   switch (E->getCastKind()) {
   default: assert(0 && "Unhandled cast kind!");
 
+  case CastExpr::CK_Dynamic: {
+    assert(isa<CXXDynamicCastExpr>(E) && "CK_Dynamic without a dynamic_cast?");
+    LValue LV = CGF.EmitCheckedLValue(E->getSubExpr());
+    // FIXME: Do we also need to handle property references here?
+    if (LV.isSimple())
+      CGF.EmitDynamicCast(LV.getAddress(), cast<CXXDynamicCastExpr>(E));
+    else
+      CGF.CGM.ErrorUnsupported(E, "non-simple lvalue dynamic_cast");
+    
+    if (DestPtr)
+      CGF.CGM.ErrorUnsupported(E, "lvalue dynamic_cast with a destination");      
+    break;
+  }
+      
   case CastExpr::CK_ToUnion: {
     // GCC union extension
     QualType PtrTy =
@@ -195,6 +256,14 @@ void AggExprEmitter::VisitCastExpr(CastExpr *E) {
     EmitInitializationToLValue(E->getSubExpr(),
                                LValue::MakeAddr(CastPtr, Qualifiers()), 
                                E->getSubExpr()->getType());
+    break;
+  }
+
+  case CastExpr::CK_DerivedToBase:
+  case CastExpr::CK_BaseToDerived:
+  case CastExpr::CK_UncheckedDerivedToBase: {
+    assert(0 && "cannot perform hierarchy conversion in EmitAggExpr: "
+                "should have been unpacked before we got here");
     break;
   }
 
@@ -282,31 +351,24 @@ void AggExprEmitter::VisitCallExpr(const CallExpr *E) {
     return;
   }
 
-  // If the struct doesn't require GC, we can just pass the destination
-  // directly to EmitCall.
-  if (!RequiresGCollection) {
-    CGF.EmitCallExpr(E, ReturnValueSlot(DestPtr, VolatileDest));
-    return;
-  }
-  
-  RValue RV = CGF.EmitCallExpr(E);
-  EmitFinalDestCopy(E, RV);
+  RValue RV = CGF.EmitCallExpr(E, getReturnValueSlot());
+  EmitGCMove(E, RV);
 }
 
 void AggExprEmitter::VisitObjCMessageExpr(ObjCMessageExpr *E) {
-  RValue RV = CGF.EmitObjCMessageExpr(E);
-  EmitFinalDestCopy(E, RV);
+  RValue RV = CGF.EmitObjCMessageExpr(E, getReturnValueSlot());
+  EmitGCMove(E, RV);
 }
 
 void AggExprEmitter::VisitObjCPropertyRefExpr(ObjCPropertyRefExpr *E) {
-  RValue RV = CGF.EmitObjCPropertyGet(E);
-  EmitFinalDestCopy(E, RV);
+  RValue RV = CGF.EmitObjCPropertyGet(E, getReturnValueSlot());
+  EmitGCMove(E, RV);
 }
 
 void AggExprEmitter::VisitObjCImplicitSetterGetterRefExpr(
                                    ObjCImplicitSetterGetterRefExpr *E) {
-  RValue RV = CGF.EmitObjCPropertyGet(E);
-  EmitFinalDestCopy(E, RV);
+  RValue RV = CGF.EmitObjCPropertyGet(E, getReturnValueSlot());
+  EmitGCMove(E, RV);
 }
 
 void AggExprEmitter::VisitBinComma(const BinaryOperator *E) {
@@ -412,11 +474,9 @@ void AggExprEmitter::VisitBinAssign(const BinaryOperator *E) {
                             RValue::getAggregate(AggLoc, VolatileDest));
   } else {
     bool RequiresGCollection = false;
-    if (CGF.getContext().getLangOptions().NeXTRuntime) {
-      QualType LHSTy = E->getLHS()->getType();
-      if (const RecordType *FDTTy = LHSTy.getTypePtr()->getAs<RecordType>())
-        RequiresGCollection = FDTTy->getDecl()->hasObjectMember();
-    }
+    if (CGF.getContext().getLangOptions().getGCMode())
+      RequiresGCollection = TypeRequiresGCollection(E->getLHS()->getType());
+
     // Codegen the RHS so that it stores directly into the LHS.
     CGF.EmitAggExpr(E->getRHS(), LHS.getAddress(), LHS.isVolatileQualified(),
                     false, false, RequiresGCollection);
@@ -559,14 +619,10 @@ void AggExprEmitter::EmitNullInitializationToLValue(LValue LV, QualType T) {
     llvm::Value *Null = llvm::Constant::getNullValue(CGF.ConvertType(T));
     CGF.EmitStoreThroughLValue(RValue::get(Null), LV, T);
   } else {
-    // Otherwise, just memset the whole thing to zero.  This is legal
-    // because in LLVM, all default initializers are guaranteed to have a
-    // bit pattern of all zeros.
-    // FIXME: That isn't true for member pointers!
     // There's a potential optimization opportunity in combining
     // memsets; that would be easy for arrays, but relatively
     // difficult for structures with the current code.
-    CGF.EmitMemSetToZero(LV.getAddress(), T);
+    CGF.EmitNullInitialization(LV.getAddress(), T);
   }
 }
 
@@ -738,21 +794,20 @@ LValue CodeGenFunction::EmitAggExprToLValue(const Expr *E) {
   return LValue::MakeAddr(Temp, Q);
 }
 
-void CodeGenFunction::EmitAggregateClear(llvm::Value *DestPtr, QualType Ty) {
-  assert(!Ty->isAnyComplexType() && "Shouldn't happen for complex");
-
-  EmitMemSetToZero(DestPtr, Ty);
-}
-
 void CodeGenFunction::EmitAggregateCopy(llvm::Value *DestPtr,
                                         llvm::Value *SrcPtr, QualType Ty,
                                         bool isVolatile) {
   assert(!Ty->isAnyComplexType() && "Shouldn't happen for complex");
 
-  // Ignore empty classes in C++.
   if (getContext().getLangOptions().CPlusPlus) {
     if (const RecordType *RT = Ty->getAs<RecordType>()) {
-      if (cast<CXXRecordDecl>(RT->getDecl())->isEmpty())
+      CXXRecordDecl *Record = cast<CXXRecordDecl>(RT->getDecl());
+      assert((Record->hasTrivialCopyConstructor() || 
+              Record->hasTrivialCopyAssignment()) &&
+             "Trying to aggregate-copy a type without a trivial copy "
+             "constructor or assignment operator");
+      // Ignore empty classes in C++.
+      if (Record->isEmpty())
         return;
     }
   }

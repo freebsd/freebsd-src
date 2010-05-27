@@ -88,9 +88,12 @@ public:
 /// the object argument).
 class CXXMemberCallExpr : public CallExpr {
 public:
-  CXXMemberCallExpr(ASTContext& C, Expr *fn, Expr **args, unsigned numargs,
+  CXXMemberCallExpr(ASTContext &C, Expr *fn, Expr **args, unsigned numargs,
                     QualType t, SourceLocation rparenloc)
     : CallExpr(C, CXXMemberCallExprClass, fn, args, numargs, t, rparenloc) {}
+
+  CXXMemberCallExpr(ASTContext &C, EmptyShell Empty)
+    : CallExpr(C, CXXMemberCallExprClass, Empty) { }
 
   /// getImplicitObjectArgument - Retrieves the implicit object
   /// argument for the member call. For example, in "x.f(5)", this
@@ -318,6 +321,14 @@ public:
         Operand->isTypeDependent() || Operand->isValueDependent()),
       Operand(Operand), Range(R) { }
 
+  CXXTypeidExpr(EmptyShell Empty, bool isExpr)
+    : Expr(CXXTypeidExprClass, Empty) {
+    if (isExpr)
+      Operand = (Expr*)0;
+    else
+      Operand = (TypeSourceInfo*)0;
+  }
+  
   bool isTypeOperand() const { return Operand.is<TypeSourceInfo *>(); }
   
   /// \brief Retrieves the type operand of this typeid() expression after
@@ -329,15 +340,25 @@ public:
     assert(isTypeOperand() && "Cannot call getTypeOperand for typeid(expr)");
     return Operand.get<TypeSourceInfo *>();
   }
+
+  void setTypeOperandSourceInfo(TypeSourceInfo *TSI) {
+    assert(isTypeOperand() && "Cannot call getTypeOperand for typeid(expr)");
+    Operand = TSI;
+  }
   
-  Expr* getExprOperand() const {
+  Expr *getExprOperand() const {
     assert(!isTypeOperand() && "Cannot call getExprOperand for typeid(type)");
     return static_cast<Expr*>(Operand.get<Stmt *>());
   }
-
-  virtual SourceRange getSourceRange() const {
-    return Range;
+  
+  void setExprOperand(Expr *E) {
+    assert(!isTypeOperand() && "Cannot call getExprOperand for typeid(type)");
+    Operand = E;
   }
+  
+  virtual SourceRange getSourceRange() const { return Range; }
+  void setSourceRange(SourceRange R) { Range = R; }
+  
   static bool classof(const Stmt *T) {
     return T->getStmtClass() == CXXTypeidExprClass;
   }
@@ -371,6 +392,11 @@ public:
            Type->isDependentType(), Type->isDependentType()),
       Loc(L), Implicit(isImplicit) { }
 
+  CXXThisExpr(EmptyShell Empty) : Expr(CXXThisExprClass, Empty) {}
+
+  SourceLocation getLocation() const { return Loc; }
+  void setLocation(SourceLocation L) { Loc = L; }
+
   virtual SourceRange getSourceRange() const { return SourceRange(Loc); }
 
   bool isImplicit() const { return Implicit; }
@@ -399,6 +425,8 @@ public:
   // can by null, if the optional expression to throw isn't present.
   CXXThrowExpr(Expr *expr, QualType Ty, SourceLocation l) :
     Expr(CXXThrowExprClass, Ty, false, false), Op(expr), ThrowLoc(l) {}
+  CXXThrowExpr(EmptyShell Empty) : Expr(CXXThrowExprClass, Empty) {}
+
   const Expr *getSubExpr() const { return cast_or_null<Expr>(Op); }
   Expr *getSubExpr() { return cast_or_null<Expr>(Op); }
   void setSubExpr(Expr *E) { Op = E; }
@@ -448,8 +476,7 @@ protected:
 
   CXXDefaultArgExpr(StmtClass SC, SourceLocation Loc, ParmVarDecl *param, 
                     Expr *SubExpr)
-    : Expr(SC, SubExpr->getType(), false, false), Param(param, true), Loc(Loc)
-  {
+    : Expr(SC, SubExpr->getType(), false, false), Param(param, true), Loc(Loc) {
     *reinterpret_cast<Expr **>(this + 1) = SubExpr;
   }
   
@@ -457,6 +484,9 @@ protected:
   virtual void DoDestroy(ASTContext &C);
   
 public:
+  CXXDefaultArgExpr(EmptyShell Empty) : Expr(CXXDefaultArgExprClass, Empty) {}
+
+  
   // Param is the parameter whose default argument is used by this
   // expression.
   static CXXDefaultArgExpr *Create(ASTContext &C, SourceLocation Loc,
@@ -475,6 +505,9 @@ public:
   const ParmVarDecl *getParam() const { return Param.getPointer(); }
   ParmVarDecl *getParam() { return Param.getPointer(); }
 
+  /// isExprStored - Return true if this expression owns the expression.
+  bool isExprStored() const { return Param.getInt(); }
+  
   // Retrieve the actual argument to the function call.
   const Expr *getExpr() const { 
     if (Param.getInt())
@@ -486,10 +519,16 @@ public:
       return *reinterpret_cast<Expr **> (this + 1);
     return getParam()->getDefaultArg(); 
   }
+  
+  void setExpr(Expr *E) {
+    Param.setInt(true);
+    Param.setPointer((ParmVarDecl*)E);
+  }
 
   /// \brief Retrieve the location where this default argument was actually 
   /// used.
   SourceLocation getUsedLocation() const { return Loc; }
+  void setUsedLocation(SourceLocation L) { Loc = L; }
   
   virtual SourceRange getSourceRange() const {
     // Default argument expressions have no representation in the
@@ -525,8 +564,20 @@ public:
   const CXXDestructorDecl *getDestructor() const { return Destructor; }
 };
 
-/// CXXBindTemporaryExpr - Represents binding an expression to a temporary,
-/// so its destructor can be called later.
+/// \brief Represents binding an expression to a temporary.
+///
+/// This ensures the destructor is called for the temporary. It should only be
+/// needed for non-POD, non-trivially destructable class types. For example:
+///
+/// \code
+///   struct S {
+///     S() { }  // User defined constructor makes S non-POD.
+///     ~S() { } // User defined destructor makes it non-trivial.
+///   };
+///   void test() {
+///     const S &s_ref = S(); // Requires a CXXBindTemporaryExpr.
+///   }
+/// \endcode
 class CXXBindTemporaryExpr : public Expr {
   CXXTemporary *Temp;
 
@@ -541,11 +592,15 @@ protected:
   virtual void DoDestroy(ASTContext &C);
 
 public:
+  CXXBindTemporaryExpr(EmptyShell Empty)
+    : Expr(CXXBindTemporaryExprClass, Empty), Temp(0), SubExpr(0) {}
+  
   static CXXBindTemporaryExpr *Create(ASTContext &C, CXXTemporary *Temp,
                                       Expr* SubExpr);
 
   CXXTemporary *getTemporary() { return Temp; }
   const CXXTemporary *getTemporary() const { return Temp; }
+  void setTemporary(CXXTemporary *T) { Temp = T; }
 
   const Expr *getSubExpr() const { return cast<Expr>(SubExpr); }
   Expr *getSubExpr() { return cast<Expr>(SubExpr); }
@@ -572,8 +627,8 @@ public:
 /// const int &i = 10;
 ///
 /// a bind reference expression is inserted to indicate that 10 is bound to
-/// a reference. (Ans also that a temporary needs to be created to hold the
-/// value).
+/// a reference, and that a temporary needs to be created to hold the
+/// value.
 class CXXBindReferenceExpr : public Expr {
   // SubExpr - The expression being bound.
   Stmt *SubExpr;
@@ -827,10 +882,15 @@ public:
                        SourceLocation rParenLoc ) :
     Expr(CXXZeroInitValueExprClass, ty, false, false),
     TyBeginLoc(tyBeginLoc), RParenLoc(rParenLoc) {}
+  explicit CXXZeroInitValueExpr(EmptyShell Shell)
+    : Expr(CXXZeroInitValueExprClass, Shell) { }
 
   SourceLocation getTypeBeginLoc() const { return TyBeginLoc; }
   SourceLocation getRParenLoc() const { return RParenLoc; }
 
+  void setTypeBeginLoc(SourceLocation L) { TyBeginLoc = L; }
+  void setRParenLoc(SourceLocation L) { RParenLoc = L; }
+  
   /// @brief Whether this initialization expression was
   /// implicitly-generated.
   bool isImplicit() const {
@@ -891,6 +951,11 @@ public:
              Expr **constructorArgs, unsigned numConsArgs,
              FunctionDecl *operatorDelete, QualType ty,
              SourceLocation startLoc, SourceLocation endLoc);
+  explicit CXXNewExpr(EmptyShell Shell)
+    : Expr(CXXNewExprClass, Shell), SubExprs(0) { }
+
+  void AllocateArgsArray(ASTContext &C, bool isArray, unsigned numPlaceArgs,
+                         unsigned numConsArgs);
   
   virtual void DoDestroy(ASTContext &C);
 
@@ -900,8 +965,11 @@ public:
   }
 
   FunctionDecl *getOperatorNew() const { return OperatorNew; }
+  void setOperatorNew(FunctionDecl *D) { OperatorNew = D; }
   FunctionDecl *getOperatorDelete() const { return OperatorDelete; }
+  void setOperatorDelete(FunctionDecl *D) { OperatorDelete = D; }
   CXXConstructorDecl *getConstructor() const { return Constructor; }
+  void setConstructor(CXXConstructorDecl *D) { Constructor = D; }
 
   bool isArray() const { return Array; }
   Expr *getArraySize() {
@@ -922,8 +990,11 @@ public:
   }
 
   bool isGlobalNew() const { return GlobalNew; }
+  void setGlobalNew(bool V) { GlobalNew = V; }
   bool isParenTypeId() const { return ParenTypeId; }
+  void setParenTypeId(bool V) { ParenTypeId = V; }
   bool hasInitializer() const { return Initializer; }
+  void setHasInitializer(bool V) { Initializer = V; }
 
   unsigned getNumConstructorArgs() const { return NumConstructorArgs; }
   Expr *getConstructorArg(unsigned i) {
@@ -963,7 +1034,21 @@ public:
   const_arg_iterator constructor_arg_end() const {
     return SubExprs + Array + getNumPlacementArgs() + getNumConstructorArgs();
   }
+  
+  typedef Stmt **raw_arg_iterator;
+  raw_arg_iterator raw_arg_begin() { return SubExprs; }
+  raw_arg_iterator raw_arg_end() {
+    return SubExprs + Array + getNumPlacementArgs() + getNumConstructorArgs();
+  }
+  const_arg_iterator raw_arg_begin() const { return SubExprs; }
+  const_arg_iterator raw_arg_end() const { return constructor_arg_end(); }
 
+  
+  SourceLocation getStartLoc() const { return StartLoc; }
+  void setStartLoc(SourceLocation L) { StartLoc = L; }
+  SourceLocation getEndLoc() const { return EndLoc; }
+  void setEndLoc(SourceLocation L) { EndLoc = L; }
+  
   virtual SourceRange getSourceRange() const {
     return SourceRange(StartLoc, EndLoc);
   }
@@ -1260,7 +1345,9 @@ class OverloadExpr : public Expr {
   /// The results.  These are undesugared, which is to say, they may
   /// include UsingShadowDecls.  Access is relative to the naming
   /// class.
-  UnresolvedSet<4> Results;
+  // FIXME: Allocate this data after the OverloadExpr subclass.
+  DeclAccessPair *Results;
+  unsigned NumResults;
 
   /// The common name of these declarations.
   DeclarationName Name;
@@ -1278,14 +1365,11 @@ class OverloadExpr : public Expr {
   bool HasExplicitTemplateArgs;
 
 protected:
-  OverloadExpr(StmtClass K, QualType T, bool Dependent,
+  OverloadExpr(StmtClass K, ASTContext &C, QualType T, bool Dependent,
                NestedNameSpecifier *Qualifier, SourceRange QRange,
                DeclarationName Name, SourceLocation NameLoc,
-               bool HasTemplateArgs)
-    : Expr(K, T, Dependent, Dependent),
-      Name(Name), Qualifier(Qualifier), QualifierRange(QRange),
-      NameLoc(NameLoc), HasExplicitTemplateArgs(HasTemplateArgs)
-  {}
+               bool HasTemplateArgs,
+               UnresolvedSetIterator Begin, UnresolvedSetIterator End);
 
 public:
   /// Computes whether an unresolved lookup on the given declarations
@@ -1309,22 +1393,17 @@ public:
     return llvm::PointerIntPair<OverloadExpr*,1>(cast<OverloadExpr>(E), op);
   }
 
-  void addDecls(UnresolvedSetIterator Begin, UnresolvedSetIterator End) {
-    Results.append(Begin, End);
-  }
-
   /// Gets the naming class of this lookup, if any.
   CXXRecordDecl *getNamingClass() const;
 
   typedef UnresolvedSetImpl::iterator decls_iterator;
-  decls_iterator decls_begin() const { return Results.begin(); }
-  decls_iterator decls_end() const { return Results.end(); }
-
-  /// Gets the decls as an unresolved set.
-  const UnresolvedSetImpl &getDecls() { return Results; }
+  decls_iterator decls_begin() const { return UnresolvedSetIterator(Results); }
+  decls_iterator decls_end() const { 
+    return UnresolvedSetIterator(Results + NumResults);
+  }
 
   /// Gets the number of declarations in the unresolved set.
-  unsigned getNumDecls() const { return Results.size(); }
+  unsigned getNumDecls() const { return NumResults; }
 
   /// Gets the name looked up.
   DeclarationName getName() const { return Name; }
@@ -1390,12 +1469,14 @@ class UnresolvedLookupExpr : public OverloadExpr {
   /// against the qualified-lookup bits.
   CXXRecordDecl *NamingClass;
 
-  UnresolvedLookupExpr(QualType T, bool Dependent, CXXRecordDecl *NamingClass,
+  UnresolvedLookupExpr(ASTContext &C, QualType T, bool Dependent, 
+                       CXXRecordDecl *NamingClass,
                        NestedNameSpecifier *Qualifier, SourceRange QRange,
                        DeclarationName Name, SourceLocation NameLoc,
-                       bool RequiresADL, bool Overloaded, bool HasTemplateArgs)
-    : OverloadExpr(UnresolvedLookupExprClass, T, Dependent, Qualifier, QRange,
-                   Name, NameLoc, HasTemplateArgs),
+                       bool RequiresADL, bool Overloaded, bool HasTemplateArgs,
+                       UnresolvedSetIterator Begin, UnresolvedSetIterator End)
+    : OverloadExpr(UnresolvedLookupExprClass, C, T, Dependent, Qualifier, 
+                   QRange, Name, NameLoc, HasTemplateArgs, Begin, End),
       RequiresADL(RequiresADL), Overloaded(Overloaded), NamingClass(NamingClass)
   {}
 
@@ -1407,11 +1488,15 @@ public:
                                       SourceRange QualifierRange,
                                       DeclarationName Name,
                                       SourceLocation NameLoc,
-                                      bool ADL, bool Overloaded) {
-    return new(C) UnresolvedLookupExpr(Dependent ? C.DependentTy : C.OverloadTy,
+                                      bool ADL, bool Overloaded,
+                                      UnresolvedSetIterator Begin, 
+                                      UnresolvedSetIterator End) {
+    return new(C) UnresolvedLookupExpr(C,
+                                       Dependent ? C.DependentTy : C.OverloadTy,
                                        Dependent, NamingClass,
                                        Qualifier, QualifierRange,
-                                       Name, NameLoc, ADL, Overloaded, false);
+                                       Name, NameLoc, ADL, Overloaded, false,
+                                       Begin, End);
   }
 
   static UnresolvedLookupExpr *Create(ASTContext &C,
@@ -1422,7 +1507,9 @@ public:
                                       DeclarationName Name,
                                       SourceLocation NameLoc,
                                       bool ADL,
-                                      const TemplateArgumentListInfo &Args);
+                                      const TemplateArgumentListInfo &Args,
+                                      UnresolvedSetIterator Begin, 
+                                      UnresolvedSetIterator End);
 
   /// True if this declaration should be extended by
   /// argument-dependent lookup.
@@ -1611,7 +1698,7 @@ class CXXExprWithTemporaries : public Expr {
   CXXTemporary **Temps;
   unsigned NumTemps;
 
-  CXXExprWithTemporaries(Expr *SubExpr, CXXTemporary **Temps,
+  CXXExprWithTemporaries(ASTContext &C, Expr *SubExpr, CXXTemporary **Temps,
                          unsigned NumTemps);
   ~CXXExprWithTemporaries();
 
@@ -1619,17 +1706,27 @@ protected:
   virtual void DoDestroy(ASTContext &C);
 
 public:
+  CXXExprWithTemporaries(EmptyShell Empty)
+    : Expr(CXXExprWithTemporariesClass, Empty),
+      SubExpr(0), Temps(0), NumTemps(0) {}
+                         
   static CXXExprWithTemporaries *Create(ASTContext &C, Expr *SubExpr,
                                         CXXTemporary **Temps, 
                                         unsigned NumTemps);
 
   unsigned getNumTemporaries() const { return NumTemps; }
+  void setNumTemporaries(ASTContext &C, unsigned N);
+    
   CXXTemporary *getTemporary(unsigned i) {
     assert(i < NumTemps && "Index out of range");
     return Temps[i];
   }
   const CXXTemporary *getTemporary(unsigned i) const {
     return const_cast<CXXExprWithTemporaries*>(this)->getTemporary(i);
+  }
+  void setTemporary(unsigned i, CXXTemporary *T) {
+    assert(i < NumTemps && "Index out of range");
+    Temps[i] = T;
   }
 
   Expr *getSubExpr() { return cast<Expr>(SubExpr); }
@@ -2020,7 +2117,7 @@ class UnresolvedMemberExpr : public OverloadExpr {
   /// \brief The location of the '->' or '.' operator.
   SourceLocation OperatorLoc;
 
-  UnresolvedMemberExpr(QualType T, bool Dependent,
+  UnresolvedMemberExpr(ASTContext &C, QualType T, bool Dependent,
                        bool HasUnresolvedUsing,
                        Expr *Base, QualType BaseType, bool IsArrow,
                        SourceLocation OperatorLoc,
@@ -2028,7 +2125,8 @@ class UnresolvedMemberExpr : public OverloadExpr {
                        SourceRange QualifierRange,
                        DeclarationName Member,
                        SourceLocation MemberLoc,
-                       const TemplateArgumentListInfo *TemplateArgs);
+                       const TemplateArgumentListInfo *TemplateArgs,
+                       UnresolvedSetIterator Begin, UnresolvedSetIterator End);
 
 public:
   static UnresolvedMemberExpr *
@@ -2039,7 +2137,8 @@ public:
          SourceRange QualifierRange,
          DeclarationName Member,
          SourceLocation MemberLoc,
-         const TemplateArgumentListInfo *TemplateArgs);
+         const TemplateArgumentListInfo *TemplateArgs,
+         UnresolvedSetIterator Begin, UnresolvedSetIterator End);
 
   /// \brief True if this is an implicit access, i.e. one in which the
   /// member being accessed was not written in the source.  The source

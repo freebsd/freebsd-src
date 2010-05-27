@@ -92,7 +92,7 @@ namespace clang {
   class TemplateArgumentLoc;
   class TemplateArgumentListInfo;
   class Type;
-  class QualifiedNameType;
+  class ElaboratedType;
   struct PrintingPolicy;
 
   template <typename> class CanQual;  
@@ -396,7 +396,8 @@ enum CallingConv {
   CC_Default,
   CC_C,           // __attribute__((cdecl))
   CC_X86StdCall,  // __attribute__((stdcall))
-  CC_X86FastCall  // __attribute__((fastcall))
+  CC_X86FastCall, // __attribute__((fastcall))
+  CC_X86ThisCall  // __attribute__((thiscall))
 };
 
 
@@ -755,6 +756,9 @@ public:
   };
 
 private:
+  Type(const Type&);           // DO NOT IMPLEMENT.
+  void operator=(const Type&); // DO NOT IMPLEMENT.
+
   QualType CanonicalType;
 
   /// TypeClass bitfield - Enum that specifies what subclass this belongs to.
@@ -764,15 +768,25 @@ private:
   /// Note that this should stay at the end of the ivars for Type so that
   /// subclasses can pack their bitfields into the same word.
   bool Dependent : 1;
-
-  Type(const Type&);           // DO NOT IMPLEMENT.
-  void operator=(const Type&); // DO NOT IMPLEMENT.
+  
+  /// \brief Whether the linkage of this type is already known.
+  mutable bool LinkageKnown : 1;
+  
+  /// \brief Linkage of this type.
+  mutable unsigned CachedLinkage : 2;
+  
 protected:
+  /// \brief Compute the linkage of this type.
+  virtual Linkage getLinkageImpl() const;
+  
+  enum { BitsRemainingInType = 20 };
+
   // silence VC++ warning C4355: 'this' : used in base member initializer list
   Type *this_() { return this; }
   Type(TypeClass tc, QualType Canonical, bool dependent)
     : CanonicalType(Canonical.isNull() ? QualType(this_(), 0) : Canonical),
-      TC(tc), Dependent(dependent) {}
+      TC(tc), Dependent(dependent), LinkageKnown(false), 
+      CachedLinkage(NoLinkage) {}
   virtual ~Type() {}
   virtual void Destroy(ASTContext& C);
   friend class ASTContext;
@@ -879,7 +893,7 @@ public:
   bool isObjCObjectPointerType() const;         // Pointer to *any* ObjC object.
   // FIXME: change this to 'raw' interface type, so we can used 'interface' type
   // for the common case.
-  bool isObjCInterfaceType() const;             // NSString or NSString<foo>
+  bool isObjCObjectType() const;                // NSString or typeof(*(id)0)
   bool isObjCQualifiedInterfaceType() const;    // NSString<foo>
   bool isObjCQualifiedIdType() const;           // id<foo>
   bool isObjCQualifiedClassType() const;        // Class<foo>
@@ -920,7 +934,7 @@ public:
   // for object declared using an interface.
   const ObjCObjectPointerType *getAsObjCInterfacePointerType() const;
   const ObjCObjectPointerType *getAsObjCQualifiedIdType() const;
-  const ObjCInterfaceType *getAsObjCQualifiedInterfaceType() const;
+  const ObjCObjectType *getAsObjCQualifiedInterfaceType() const;
   const CXXRecordDecl *getCXXRecordDeclForPointerType() const;
 
   /// \brief Retrieves the CXXRecordDecl that this type refers to, either
@@ -934,10 +948,6 @@ public:
   // There are some specializations of this member template listed
   // immediately following this class.
   template <typename T> const T *getAs() const;
-
-  /// getAsPointerToObjCInterfaceType - If this is a pointer to an ObjC
-  /// interface, return the interface type, otherwise return null.
-  const ObjCInterfaceType *getAsPointerToObjCInterfaceType() const;
 
   /// getArrayElementTypeNoTypeQual - If this is an array type, return the
   /// element type of the array, potentially with type qualifiers missing.
@@ -977,10 +987,13 @@ public:
   /// set of type specifiers.
   bool isSpecifierType() const;
 
-  const char *getTypeClassName() const;
-
   /// \brief Determine the linkage of this type.
-  virtual Linkage getLinkage() const;
+  Linkage getLinkage() const;
+  
+  /// \brief Note that the linkage is no longer known.
+  void ClearLinkageCache();
+  
+  const char *getTypeClassName() const;
 
   QualType getCanonicalTypeInternal() const {
     return CanonicalType;
@@ -1040,12 +1053,25 @@ public:
 
     UndeducedAuto, // In C++0x, this represents the type of an auto variable
                    // that has not been deduced yet.
-    ObjCId,    // This represents the ObjC 'id' type.
-    ObjCClass, // This represents the ObjC 'Class' type.
+
+    /// The primitive Objective C 'id' type.  The type pointed to by the
+    /// user-visible 'id' type.  Only ever shows up in an AST as the base
+    /// type of an ObjCObjectType.
+    ObjCId,
+
+    /// The primitive Objective C 'Class' type.  The type pointed to by the
+    /// user-visible 'Class' type.  Only ever shows up in an AST as the
+    /// base type of an ObjCObjectType.
+    ObjCClass,
+
     ObjCSel    // This represents the ObjC 'SEL' type.
   };
 private:
   Kind TypeKind;
+  
+protected:
+  virtual Linkage getLinkageImpl() const;
+  
 public:
   BuiltinType(Kind K)
     : Type(Builtin, QualType(), /*Dependent=*/(K == Dependent)),
@@ -1073,8 +1099,6 @@ public:
     return TypeKind >= Float && TypeKind <= LongDouble;
   }
 
-  virtual Linkage getLinkage() const;
-
   static bool classof(const Type *T) { return T->getTypeClass() == Builtin; }
   static bool classof(const BuiltinType *) { return true; }
 };
@@ -1089,6 +1113,10 @@ class ComplexType : public Type, public llvm::FoldingSetNode {
     ElementType(Element) {
   }
   friend class ASTContext;  // ASTContext creates these.
+
+protected:
+  virtual Linkage getLinkageImpl() const;
+  
 public:
   QualType getElementType() const { return ElementType; }
 
@@ -1101,8 +1129,6 @@ public:
   static void Profile(llvm::FoldingSetNodeID &ID, QualType Element) {
     ID.AddPointer(Element.getAsOpaquePtr());
   }
-
-  virtual Linkage getLinkage() const;
 
   static bool classof(const Type *T) { return T->getTypeClass() == Complex; }
   static bool classof(const ComplexType *) { return true; }
@@ -1117,6 +1143,10 @@ class PointerType : public Type, public llvm::FoldingSetNode {
     Type(Pointer, CanonicalPtr, Pointee->isDependentType()), PointeeType(Pointee) {
   }
   friend class ASTContext;  // ASTContext creates these.
+
+protected:
+  virtual Linkage getLinkageImpl() const;
+  
 public:
 
   QualType getPointeeType() const { return PointeeType; }
@@ -1130,8 +1160,6 @@ public:
   static void Profile(llvm::FoldingSetNodeID &ID, QualType Pointee) {
     ID.AddPointer(Pointee.getAsOpaquePtr());
   }
-
-  virtual Linkage getLinkage() const;
 
   static bool classof(const Type *T) { return T->getTypeClass() == Pointer; }
   static bool classof(const PointerType *) { return true; }
@@ -1148,6 +1176,10 @@ class BlockPointerType : public Type, public llvm::FoldingSetNode {
     PointeeType(Pointee) {
   }
   friend class ASTContext;  // ASTContext creates these.
+  
+protected:
+  virtual Linkage getLinkageImpl() const;
+  
 public:
 
   // Get the pointee type. Pointee is required to always be a function type.
@@ -1162,8 +1194,6 @@ public:
   static void Profile(llvm::FoldingSetNodeID &ID, QualType Pointee) {
       ID.AddPointer(Pointee.getAsOpaquePtr());
   }
-
-  virtual Linkage getLinkage() const;
 
   static bool classof(const Type *T) {
     return T->getTypeClass() == BlockPointer;
@@ -1200,6 +1230,9 @@ protected:
     PointeeType(Referencee), SpelledAsLValue(SpelledAsLValue),
     InnerRef(Referencee->isReferenceType()) {
   }
+  
+  virtual Linkage getLinkageImpl() const;
+  
 public:
   bool isSpelledAsLValue() const { return SpelledAsLValue; }
   bool isInnerRef() const { return InnerRef; }
@@ -1222,8 +1255,6 @@ public:
     ID.AddPointer(Referencee.getAsOpaquePtr());
     ID.AddBoolean(SpelledAsLValue);
   }
-
-  virtual Linkage getLinkage() const;
 
   static bool classof(const Type *T) {
     return T->getTypeClass() == LValueReference ||
@@ -1281,6 +1312,10 @@ class MemberPointerType : public Type, public llvm::FoldingSetNode {
     PointeeType(Pointee), Class(Cls) {
   }
   friend class ASTContext; // ASTContext creates these.
+  
+protected:
+  virtual Linkage getLinkageImpl() const;
+  
 public:
 
   QualType getPointeeType() const { return PointeeType; }
@@ -1298,8 +1333,6 @@ public:
     ID.AddPointer(Pointee.getAsOpaquePtr());
     ID.AddPointer(Class);
   }
-
-  virtual Linkage getLinkage() const;
 
   static bool classof(const Type *T) {
     return T->getTypeClass() == MemberPointer;
@@ -1342,6 +1375,9 @@ protected:
       ElementType(et), SizeModifier(sm), IndexTypeQuals(tq) {}
 
   friend class ASTContext;  // ASTContext creates these.
+
+  virtual Linkage getLinkageImpl() const;
+  
 public:
   QualType getElementType() const { return ElementType; }
   ArraySizeModifier getSizeModifier() const {
@@ -1351,8 +1387,6 @@ public:
     return Qualifiers::fromCVRMask(IndexTypeQuals);
   }
   unsigned getIndexTypeCVRQualifiers() const { return IndexTypeQuals; }
-
-  virtual Linkage getLinkage() const;
 
   static bool classof(const Type *T) {
     return T->getTypeClass() == ConstantArray ||
@@ -1629,6 +1663,9 @@ protected:
     : Type(tc, canonType, vecType->isDependentType()), ElementType(vecType),
       NumElements(nElements), AltiVec(isAltiVec), Pixel(isPixel) {}
   friend class ASTContext;  // ASTContext creates these.
+  
+  virtual Linkage getLinkageImpl() const;
+  
 public:
 
   QualType getElementType() const { return ElementType; }
@@ -1654,8 +1691,6 @@ public:
     ID.AddBoolean(isAltiVec);
     ID.AddBoolean(isPixel);
   }
-
-  virtual Linkage getLinkage() const;
 
   static bool classof(const Type *T) {
     return T->getTypeClass() == Vector || T->getTypeClass() == ExtVector;
@@ -1733,6 +1768,8 @@ public:
 /// class of FunctionNoProtoType and FunctionProtoType.
 ///
 class FunctionType : public Type {
+  virtual void ANCHOR(); // Key function for FunctionType.
+  
   /// SubClassData - This field is owned by the subclass, put here to pack
   /// tightly with the ivars in Type.
   bool SubClassData : 1;
@@ -1753,7 +1790,7 @@ class FunctionType : public Type {
   unsigned RegParm : 3;
 
   /// CallConv - The calling convention used by the function.
-  unsigned CallConv : 2;
+  unsigned CallConv : 3;
 
   // The type returned by the function.
   QualType ResultType;
@@ -1821,7 +1858,7 @@ class FunctionType : public Type {
     // The value passed to __attribute__((regparm(x)))
     unsigned RegParm;
     // The calling convention as specified via
-    // __attribute__((cdecl|stdcall||fastcall))
+    // __attribute__((cdecl|stdcall|fastcall|thiscall))
     CallingConv CC;
   };
 
@@ -1862,6 +1899,10 @@ class FunctionNoProtoType : public FunctionType, public llvm::FoldingSetNode {
     : FunctionType(FunctionNoProto, Result, false, 0, Canonical,
                    /*Dependent=*/false, Info) {}
   friend class ASTContext;  // ASTContext creates these.
+  
+protected:
+  virtual Linkage getLinkageImpl() const;
+  
 public:
   // No additional state past what FunctionType provides.
 
@@ -1878,8 +1919,6 @@ public:
     ID.AddInteger(Info.getNoReturn());
     ID.AddPointer(ResultType.getAsOpaquePtr());
   }
-
-  virtual Linkage getLinkage() const;
 
   static bool classof(const Type *T) {
     return T->getTypeClass() == FunctionNoProto;
@@ -1944,6 +1983,9 @@ class FunctionProtoType : public FunctionType, public llvm::FoldingSetNode {
 
   friend class ASTContext;  // ASTContext creates these.
 
+protected:
+  virtual Linkage getLinkageImpl() const;
+  
 public:
   unsigned getNumArgs() const { return NumArgs; }
   QualType getArgType(unsigned i) const {
@@ -1983,8 +2025,6 @@ public:
 
   bool isSugared() const { return false; }
   QualType desugar() const { return QualType(this, 0); }
-
-  virtual Linkage getLinkage() const;
 
   static bool classof(const Type *T) {
     return T->getTypeClass() == FunctionProto;
@@ -2190,6 +2230,8 @@ class TagType : public Type {
 protected:
   TagType(TypeClass TC, const TagDecl *D, QualType can);
 
+  virtual Linkage getLinkageImpl() const;
+  
 public:
   TagDecl *getDecl() const { return decl.getPointer(); }
 
@@ -2197,8 +2239,6 @@ public:
   /// defined.
   bool isBeingDefined() const { return decl.getInt(); }
   void setBeingDefined(bool Def) const { decl.setInt(Def? 1 : 0); }
-
-  virtual Linkage getLinkage() const;
 
   static bool classof(const Type *T) {
     return T->getTypeClass() >= TagFirst && T->getTypeClass() <= TagLast;
@@ -2262,68 +2302,6 @@ public:
     return isa<TagType>(T) && classof(cast<TagType>(T));
   }
   static bool classof(const EnumType *) { return true; }
-};
-
-/// ElaboratedType - A non-canonical type used to represents uses of
-/// elaborated type specifiers in C++.  For example:
-///
-///   void foo(union MyUnion);
-///            ^^^^^^^^^^^^^
-///
-/// At the moment, for efficiency we do not create elaborated types in
-/// C, since outside of typedefs all references to structs would
-/// necessarily be elaborated.
-class ElaboratedType : public Type, public llvm::FoldingSetNode {
-public:
-  enum TagKind {
-    TK_struct,
-    TK_union,
-    TK_class,
-    TK_enum
-  };
-
-private:
-  /// The tag that was used in this elaborated type specifier.
-  TagKind Tag;
-
-  /// The underlying type.
-  QualType UnderlyingType;
-
-  explicit ElaboratedType(QualType Ty, TagKind Tag, QualType Canon)
-    : Type(Elaborated, Canon, Canon->isDependentType()),
-      Tag(Tag), UnderlyingType(Ty) { }
-  friend class ASTContext;   // ASTContext creates these.
-
-public:
-  TagKind getTagKind() const { return Tag; }
-  QualType getUnderlyingType() const { return UnderlyingType; }
-
-  /// \brief Remove a single level of sugar.
-  QualType desugar() const { return getUnderlyingType(); }
-
-  /// \brief Returns whether this type directly provides sugar.
-  bool isSugared() const { return true; }
-
-  static const char *getNameForTagKind(TagKind Kind) {
-    switch (Kind) {
-    default: assert(0 && "Unknown TagKind!");
-    case TK_struct: return "struct";
-    case TK_union:  return "union";
-    case TK_class:  return "class";
-    case TK_enum:   return "enum";
-    }
-  }
-
-  void Profile(llvm::FoldingSetNodeID &ID) {
-    Profile(ID, getUnderlyingType(), getTagKind());
-  }
-  static void Profile(llvm::FoldingSetNodeID &ID, QualType T, TagKind Tag) {
-    ID.AddPointer(T.getAsOpaquePtr());
-    ID.AddInteger(Tag);
-  }
-
-  static bool classof(const ElaboratedType*) { return true; }
-  static bool classof(const Type *T) { return T->getTypeClass() == Elaborated; }
 };
 
 class TemplateTypeParmType : public Type, public llvm::FoldingSetNode {
@@ -2592,46 +2570,116 @@ public:
   static bool classof(const InjectedClassNameType *T) { return true; }
 };
 
+/// \brief The kind of a tag type.
+enum TagTypeKind {
+  /// \brief The "struct" keyword.
+  TTK_Struct,
+  /// \brief The "union" keyword.
+  TTK_Union,
+  /// \brief The "class" keyword.
+  TTK_Class,
+  /// \brief The "enum" keyword.
+  TTK_Enum
+};
+
 /// \brief The elaboration keyword that precedes a qualified type name or
 /// introduces an elaborated-type-specifier.
 enum ElaboratedTypeKeyword {
-  /// \brief No keyword precedes the qualified type name.
-  ETK_None,
-  /// \brief The "typename" keyword precedes the qualified type name, e.g.,
-  /// \c typename T::type.
-  ETK_Typename,
-  /// \brief The "class" keyword introduces the elaborated-type-specifier.
-  ETK_Class,
   /// \brief The "struct" keyword introduces the elaborated-type-specifier.
   ETK_Struct,
   /// \brief The "union" keyword introduces the elaborated-type-specifier.
   ETK_Union,
+  /// \brief The "class" keyword introduces the elaborated-type-specifier.
+  ETK_Class,
   /// \brief The "enum" keyword introduces the elaborated-type-specifier.
-  ETK_Enum
+  ETK_Enum,
+  /// \brief The "typename" keyword precedes the qualified type name, e.g.,
+  /// \c typename T::type.
+  ETK_Typename,
+  /// \brief No keyword precedes the qualified type name.
+  ETK_None
 };
-  
-/// \brief Represents a type that was referred to via a qualified
-/// name, e.g., N::M::type.
+
+/// A helper class for Type nodes having an ElaboratedTypeKeyword.
+/// The keyword in stored in the free bits of the base class.
+/// Also provides a few static helpers for converting and printing
+/// elaborated type keyword and tag type kind enumerations.
+class TypeWithKeyword : public Type {
+  /// Keyword - Encodes an ElaboratedTypeKeyword enumeration constant.
+  unsigned Keyword : 3;
+
+protected:
+  TypeWithKeyword(ElaboratedTypeKeyword Keyword, TypeClass tc,
+                  QualType Canonical, bool dependent)
+    : Type(tc, Canonical, dependent), Keyword(Keyword) {}
+
+public:
+  virtual ~TypeWithKeyword(); // pin vtable to Type.cpp
+
+  ElaboratedTypeKeyword getKeyword() const {
+    return static_cast<ElaboratedTypeKeyword>(Keyword);
+  }
+
+  /// getKeywordForTypeSpec - Converts a type specifier (DeclSpec::TST)
+  /// into an elaborated type keyword.
+  static ElaboratedTypeKeyword getKeywordForTypeSpec(unsigned TypeSpec);
+
+  /// getTagTypeKindForTypeSpec - Converts a type specifier (DeclSpec::TST)
+  /// into a tag type kind.  It is an error to provide a type specifier
+  /// which *isn't* a tag kind here.
+  static TagTypeKind getTagTypeKindForTypeSpec(unsigned TypeSpec);
+
+  /// getKeywordForTagDeclKind - Converts a TagTypeKind into an
+  /// elaborated type keyword.
+  static ElaboratedTypeKeyword getKeywordForTagTypeKind(TagTypeKind Tag);
+
+  /// getTagTypeKindForKeyword - Converts an elaborated type keyword into
+  // a TagTypeKind. It is an error to provide an elaborated type keyword
+  /// which *isn't* a tag kind here.
+  static TagTypeKind getTagTypeKindForKeyword(ElaboratedTypeKeyword Keyword);
+
+  static bool KeywordIsTagTypeKind(ElaboratedTypeKeyword Keyword);
+
+  static const char *getKeywordName(ElaboratedTypeKeyword Keyword);
+
+  static const char *getTagTypeKindName(TagTypeKind Kind) {
+    return getKeywordName(getKeywordForTagTypeKind(Kind));
+  }
+
+  class CannotCastToThisType {};
+  static CannotCastToThisType classof(const Type *);
+};
+
+/// \brief Represents a type that was referred to using an elaborated type
+/// keyword, e.g., struct S, or via a qualified name, e.g., N::M::type,
+/// or both.
 ///
 /// This type is used to keep track of a type name as written in the
-/// source code, including any nested-name-specifiers. The type itself
-/// is always "sugar", used to express what was written in the source
-/// code but containing no additional semantic information.
-class QualifiedNameType : public Type, public llvm::FoldingSetNode {
+/// source code, including tag keywords and any nested-name-specifiers.
+/// The type itself is always "sugar", used to express what was written
+/// in the source code but containing no additional semantic information.
+class ElaboratedType : public TypeWithKeyword, public llvm::FoldingSetNode {
+
   /// \brief The nested name specifier containing the qualifier.
   NestedNameSpecifier *NNS;
 
   /// \brief The type that this qualified name refers to.
   QualType NamedType;
 
-  QualifiedNameType(NestedNameSpecifier *NNS, QualType NamedType,
-                    QualType CanonType)
-    : Type(QualifiedName, CanonType, NamedType->isDependentType()),
-      NNS(NNS), NamedType(NamedType) { }
+  ElaboratedType(ElaboratedTypeKeyword Keyword, NestedNameSpecifier *NNS,
+                 QualType NamedType, QualType CanonType)
+    : TypeWithKeyword(Keyword, Elaborated, CanonType,
+                      NamedType->isDependentType()),
+      NNS(NNS), NamedType(NamedType) {
+    assert(!(Keyword == ETK_None && NNS == 0) &&
+           "ElaboratedType cannot have elaborated type keyword "
+           "and name qualifier both null.");
+  }
 
   friend class ASTContext;  // ASTContext creates these
 
 public:
+
   /// \brief Retrieve the qualification on this type.
   NestedNameSpecifier *getQualifier() const { return NNS; }
 
@@ -2645,19 +2693,20 @@ public:
   bool isSugared() const { return true; }
 
   void Profile(llvm::FoldingSetNodeID &ID) {
-    Profile(ID, NNS, NamedType);
+    Profile(ID, getKeyword(), NNS, NamedType);
   }
 
-  static void Profile(llvm::FoldingSetNodeID &ID, NestedNameSpecifier *NNS,
-                      QualType NamedType) {
+  static void Profile(llvm::FoldingSetNodeID &ID, ElaboratedTypeKeyword Keyword,
+                      NestedNameSpecifier *NNS, QualType NamedType) {
+    ID.AddInteger(Keyword);
     ID.AddPointer(NNS);
     NamedType.Profile(ID);
   }
 
   static bool classof(const Type *T) {
-    return T->getTypeClass() == QualifiedName;
+    return T->getTypeClass() == Elaborated;
   }
-  static bool classof(const QualifiedNameType *T) { return true; }
+  static bool classof(const ElaboratedType *T) { return true; }
 };
 
 /// \brief Represents a qualified type name for which the type name is
@@ -2669,10 +2718,8 @@ public:
 /// typename-specifier), "class", "struct", "union", or "enum" (for a 
 /// dependent elaborated-type-specifier), or nothing (in contexts where we
 /// know that we must be referring to a type, e.g., in a base class specifier).
-class DependentNameType : public Type, public llvm::FoldingSetNode {
-  /// \brief The keyword used to elaborate this type.
-  ElaboratedTypeKeyword Keyword;
-  
+class DependentNameType : public TypeWithKeyword, public llvm::FoldingSetNode {
+
   /// \brief The nested name specifier containing the qualifier.
   NestedNameSpecifier *NNS;
 
@@ -2684,16 +2731,16 @@ class DependentNameType : public Type, public llvm::FoldingSetNode {
 
   DependentNameType(ElaboratedTypeKeyword Keyword, NestedNameSpecifier *NNS, 
                     const IdentifierInfo *Name, QualType CanonType)
-    : Type(DependentName, CanonType, true), 
-      Keyword(Keyword), NNS(NNS), Name(Name) {
+    : TypeWithKeyword(Keyword, DependentName, CanonType, true),
+      NNS(NNS), Name(Name) {
     assert(NNS->isDependent() &&
            "DependentNameType requires a dependent nested-name-specifier");
   }
 
   DependentNameType(ElaboratedTypeKeyword Keyword, NestedNameSpecifier *NNS,
                     const TemplateSpecializationType *Ty, QualType CanonType)
-    : Type(DependentName, CanonType, true), 
-      Keyword(Keyword), NNS(NNS), Name(Ty) {
+    : TypeWithKeyword(Keyword, DependentName, CanonType, true),
+      NNS(NNS), Name(Ty) {
     assert(NNS->isDependent() &&
            "DependentNameType requires a dependent nested-name-specifier");
   }
@@ -2701,9 +2748,7 @@ class DependentNameType : public Type, public llvm::FoldingSetNode {
   friend class ASTContext;  // ASTContext creates these
 
 public:
-  /// \brief Retrieve the keyword used to elaborate this type.
-  ElaboratedTypeKeyword getKeyword() const { return Keyword; }
-  
+
   /// \brief Retrieve the qualification on this type.
   NestedNameSpecifier *getQualifier() const { return NNS; }
 
@@ -2727,7 +2772,7 @@ public:
   QualType desugar() const { return QualType(this, 0); }
 
   void Profile(llvm::FoldingSetNodeID &ID) {
-    Profile(ID, Keyword, NNS, Name);
+    Profile(ID, getKeyword(), NNS, Name);
   }
 
   static void Profile(llvm::FoldingSetNodeID &ID, ElaboratedTypeKeyword Keyword,
@@ -2743,153 +2788,333 @@ public:
   static bool classof(const DependentNameType *T) { return true; }
 };
 
+/// ObjCObjectType - Represents a class type in Objective C.
+/// Every Objective C type is a combination of a base type and a
+/// list of protocols.
+///
+/// Given the following declarations:
+///   @class C;
+///   @protocol P;
+///
+/// 'C' is an ObjCInterfaceType C.  It is sugar for an ObjCObjectType
+/// with base C and no protocols.
+///
+/// 'C<P>' is an ObjCObjectType with base C and protocol list [P].
+///
+/// 'id' is a TypedefType which is sugar for an ObjCPointerType whose
+/// pointee is an ObjCObjectType with base BuiltinType::ObjCIdType
+/// and no protocols.
+///
+/// 'id<P>' is an ObjCPointerType whose pointee is an ObjCObjecType
+/// with base BuiltinType::ObjCIdType and protocol list [P].  Eventually
+/// this should get its own sugar class to better represent the source.
+class ObjCObjectType : public Type {
+  // Pad the bit count up so that NumProtocols is 2-byte aligned
+  unsigned : BitsRemainingInType - 16;
+
+  /// \brief The number of protocols stored after the
+  /// ObjCObjectPointerType node.
+  ///
+  /// These protocols are those written directly on the type.  If
+  /// protocol qualifiers ever become additive, the iterators will
+  /// get kindof complicated.
+  ///
+  /// In the canonical object type, these are sorted alphabetically
+  /// and uniqued.
+  unsigned NumProtocols : 16;
+
+  /// Either a BuiltinType or an InterfaceType or sugar for either.
+  QualType BaseType;
+
+  ObjCProtocolDecl * const *getProtocolStorage() const {
+    return const_cast<ObjCObjectType*>(this)->getProtocolStorage();
+  }
+
+  ObjCProtocolDecl **getProtocolStorage();
+
+protected:
+  ObjCObjectType(QualType Canonical, QualType Base, 
+                 ObjCProtocolDecl * const *Protocols, unsigned NumProtocols);
+
+  enum Nonce_ObjCInterface { Nonce_ObjCInterface };
+  ObjCObjectType(enum Nonce_ObjCInterface)
+    : Type(ObjCInterface, QualType(), false),
+      NumProtocols(0),
+      BaseType(QualType(this_(), 0)) {}
+
+protected:
+  Linkage getLinkageImpl() const; // key function
+  
+public:
+  /// getBaseType - Gets the base type of this object type.  This is
+  /// always (possibly sugar for) one of:
+  ///  - the 'id' builtin type (as opposed to the 'id' type visible to the
+  ///    user, which is a typedef for an ObjCPointerType)
+  ///  - the 'Class' builtin type (same caveat)
+  ///  - an ObjCObjectType (currently always an ObjCInterfaceType)
+  QualType getBaseType() const { return BaseType; }
+
+  bool isObjCId() const {
+    return getBaseType()->isSpecificBuiltinType(BuiltinType::ObjCId);
+  }
+  bool isObjCClass() const {
+    return getBaseType()->isSpecificBuiltinType(BuiltinType::ObjCClass);
+  }
+  bool isObjCUnqualifiedId() const { return qual_empty() && isObjCId(); }
+  bool isObjCUnqualifiedClass() const { return qual_empty() && isObjCClass(); }
+  bool isObjCUnqualifiedIdOrClass() const {
+    if (!qual_empty()) return false;
+    if (const BuiltinType *T = getBaseType()->getAs<BuiltinType>())
+      return T->getKind() == BuiltinType::ObjCId ||
+             T->getKind() == BuiltinType::ObjCClass;
+    return false;
+  }
+  bool isObjCQualifiedId() const { return !qual_empty() && isObjCId(); }
+  bool isObjCQualifiedClass() const { return !qual_empty() && isObjCClass(); }
+
+  /// Gets the interface declaration for this object type, if the base type
+  /// really is an interface.
+  ObjCInterfaceDecl *getInterface() const;
+
+  typedef ObjCProtocolDecl * const *qual_iterator;
+
+  qual_iterator qual_begin() const { return getProtocolStorage(); }
+  qual_iterator qual_end() const { return qual_begin() + getNumProtocols(); }
+
+  bool qual_empty() const { return getNumProtocols() == 0; }
+
+  /// getNumProtocols - Return the number of qualifying protocols in this
+  /// interface type, or 0 if there are none.
+  unsigned getNumProtocols() const { return NumProtocols; }
+
+  /// \brief Fetch a protocol by index.
+  ObjCProtocolDecl *getProtocol(unsigned I) const {
+    assert(I < getNumProtocols() && "Out-of-range protocol access");
+    return qual_begin()[I];
+  }
+  
+  bool isSugared() const { return false; }
+  QualType desugar() const { return QualType(this, 0); }
+
+  static bool classof(const Type *T) {
+    return T->getTypeClass() == ObjCObject ||
+           T->getTypeClass() == ObjCInterface;
+  }
+  static bool classof(const ObjCObjectType *) { return true; }
+};
+
+/// ObjCObjectTypeImpl - A class providing a concrete implementation
+/// of ObjCObjectType, so as to not increase the footprint of
+/// ObjCInterfaceType.  Code outside of ASTContext and the core type
+/// system should not reference this type.
+class ObjCObjectTypeImpl : public ObjCObjectType, public llvm::FoldingSetNode {
+  friend class ASTContext;
+
+  // If anyone adds fields here, ObjCObjectType::getProtocolStorage()
+  // will need to be modified.
+
+  ObjCObjectTypeImpl(QualType Canonical, QualType Base, 
+                     ObjCProtocolDecl * const *Protocols,
+                     unsigned NumProtocols)
+    : ObjCObjectType(Canonical, Base, Protocols, NumProtocols) {}
+
+public:
+  void Destroy(ASTContext& C); // key function
+
+  void Profile(llvm::FoldingSetNodeID &ID);
+  static void Profile(llvm::FoldingSetNodeID &ID,
+                      QualType Base,
+                      ObjCProtocolDecl *const *protocols, 
+                      unsigned NumProtocols);  
+};
+
+inline ObjCProtocolDecl **ObjCObjectType::getProtocolStorage() {
+  return reinterpret_cast<ObjCProtocolDecl**>(
+            static_cast<ObjCObjectTypeImpl*>(this) + 1);
+}
+
 /// ObjCInterfaceType - Interfaces are the core concept in Objective-C for
 /// object oriented design.  They basically correspond to C++ classes.  There
 /// are two kinds of interface types, normal interfaces like "NSString" and
 /// qualified interfaces, which are qualified with a protocol list like
 /// "NSString<NSCopyable, NSAmazing>".
-class ObjCInterfaceType : public Type, public llvm::FoldingSetNode {
+///
+/// ObjCInterfaceType guarantees the following properties when considered
+/// as a subtype of its superclass, ObjCObjectType:
+///   - There are no protocol qualifiers.  To reinforce this, code which
+///     tries to invoke the protocol methods via an ObjCInterfaceType will
+///     fail to compile.
+///   - It is its own base type.  That is, if T is an ObjCInterfaceType*,
+///     T->getBaseType() == QualType(T, 0).
+class ObjCInterfaceType : public ObjCObjectType {
   ObjCInterfaceDecl *Decl;
 
-  /// \brief The number of protocols stored after the ObjCInterfaceType node.
-  /// The list of protocols is sorted on protocol name. No protocol is enterred 
-  /// more than once.
-  unsigned NumProtocols;
-
-  ObjCInterfaceType(QualType Canonical, ObjCInterfaceDecl *D,
-                    ObjCProtocolDecl **Protos, unsigned NumP);
+  ObjCInterfaceType(const ObjCInterfaceDecl *D)
+    : ObjCObjectType(Nonce_ObjCInterface),
+      Decl(const_cast<ObjCInterfaceDecl*>(D)) {}
   friend class ASTContext;  // ASTContext creates these.
 public:
-  void Destroy(ASTContext& C);
+  void Destroy(ASTContext& C); // key function
 
+  /// getDecl - Get the declaration of this interface.
   ObjCInterfaceDecl *getDecl() const { return Decl; }
-
-  /// getNumProtocols - Return the number of qualifying protocols in this
-  /// interface type, or 0 if there are none.
-  unsigned getNumProtocols() const { return NumProtocols; }
-
-  /// \brief Retrieve the Ith protocol.
-  ObjCProtocolDecl *getProtocol(unsigned I) const {
-    assert(I < getNumProtocols() && "Out-of-range protocol access");
-    return qual_begin()[I];
-  }
-  
-  /// qual_iterator and friends: this provides access to the (potentially empty)
-  /// list of protocols qualifying this interface.
-  typedef ObjCProtocolDecl*  const * qual_iterator;
-  qual_iterator qual_begin() const {
-    return reinterpret_cast<qual_iterator>(this + 1);
-  }
-  qual_iterator qual_end() const   {
-    return qual_begin() + NumProtocols;
-  }
-  bool qual_empty() const { return NumProtocols == 0; }
 
   bool isSugared() const { return false; }
   QualType desugar() const { return QualType(this, 0); }
-
-  void Profile(llvm::FoldingSetNodeID &ID);
-  static void Profile(llvm::FoldingSetNodeID &ID,
-                      const ObjCInterfaceDecl *Decl,
-                      ObjCProtocolDecl * const *protocols, 
-                      unsigned NumProtocols);
-
-  virtual Linkage getLinkage() const;
 
   static bool classof(const Type *T) {
     return T->getTypeClass() == ObjCInterface;
   }
   static bool classof(const ObjCInterfaceType *) { return true; }
+
+  // Nonsense to "hide" certain members of ObjCObjectType within this
+  // class.  People asking for protocols on an ObjCInterfaceType are
+  // not going to get what they want: ObjCInterfaceTypes are
+  // guaranteed to have no protocols.
+  enum {
+    qual_iterator,
+    qual_begin,
+    qual_end,
+    getNumProtocols,
+    getProtocol
+  };
 };
 
-/// ObjCObjectPointerType - Used to represent 'id', 'Interface *', 'id <p>',
-/// and 'Interface <p> *'.
+inline ObjCInterfaceDecl *ObjCObjectType::getInterface() const {
+  if (const ObjCInterfaceType *T =
+        getBaseType()->getAs<ObjCInterfaceType>())
+    return T->getDecl();
+  return 0;
+}
+
+/// ObjCObjectPointerType - Used to represent a pointer to an
+/// Objective C object.  These are constructed from pointer
+/// declarators when the pointee type is an ObjCObjectType (or sugar
+/// for one).  In addition, the 'id' and 'Class' types are typedefs
+/// for these, and the protocol-qualified types 'id<P>' and 'Class<P>'
+/// are translated into these.
 ///
-/// Duplicate protocols are removed and protocol list is canonicalized to be in
-/// alphabetical order.
+/// Pointers to pointers to Objective C objects are still PointerTypes;
+/// only the first level of pointer gets it own type implementation.
 class ObjCObjectPointerType : public Type, public llvm::FoldingSetNode {
-  QualType PointeeType; // A builtin or interface type.
+  QualType PointeeType;
 
-  /// \brief The number of protocols stored after the ObjCObjectPointerType 
-  /// node.
-  ///
-  /// The list of protocols is sorted on protocol name. No protocol is enterred 
-  /// more than once.
-  unsigned NumProtocols;
-
-  ObjCObjectPointerType(QualType Canonical, QualType T,
-                        ObjCProtocolDecl **Protos, unsigned NumP);
+  ObjCObjectPointerType(QualType Canonical, QualType Pointee)
+    : Type(ObjCObjectPointer, Canonical, false),
+      PointeeType(Pointee) {}
   friend class ASTContext;  // ASTContext creates these.
 
+protected:
+  virtual Linkage getLinkageImpl() const;
+  
 public:
   void Destroy(ASTContext& C);
 
-  // Get the pointee type. Pointee will either be:
-  // - a built-in type (for 'id' and 'Class').
-  // - an interface type (for user-defined types).
-  // - a TypedefType whose canonical type is an interface (as in 'T' below).
-  //   For example: typedef NSObject T; T *var;
+  /// getPointeeType - Gets the type pointed to by this ObjC pointer.
+  /// The result will always be an ObjCObjectType or sugar thereof.
   QualType getPointeeType() const { return PointeeType; }
 
+  /// getObjCObjectType - Gets the type pointed to by this ObjC
+  /// pointer.  This method always returns non-null.
+  ///
+  /// This method is equivalent to getPointeeType() except that
+  /// it discards any typedefs (or other sugar) between this
+  /// type and the "outermost" object type.  So for:
+  ///   @class A; @protocol P; @protocol Q;
+  ///   typedef A<P> AP;
+  ///   typedef A A1;
+  ///   typedef A1<P> A1P;
+  ///   typedef A1P<Q> A1PQ;
+  /// For 'A*', getObjectType() will return 'A'.
+  /// For 'A<P>*', getObjectType() will return 'A<P>'.
+  /// For 'AP*', getObjectType() will return 'A<P>'.
+  /// For 'A1*', getObjectType() will return 'A'.
+  /// For 'A1<P>*', getObjectType() will return 'A1<P>'.
+  /// For 'A1P*', getObjectType() will return 'A1<P>'.
+  /// For 'A1PQ*', getObjectType() will return 'A1<Q>', because
+  ///   adding protocols to a protocol-qualified base discards the
+  ///   old qualifiers (for now).  But if it didn't, getObjectType()
+  ///   would return 'A1P<Q>' (and we'd have to make iterating over
+  ///   qualifiers more complicated).
+  const ObjCObjectType *getObjectType() const {
+    return PointeeType->getAs<ObjCObjectType>();
+  }
+
+  /// getInterfaceType - If this pointer points to an Objective C
+  /// @interface type, gets the type for that interface.  Any protocol
+  /// qualifiers on the interface are ignored.
+  ///
+  /// \return null if the base type for this pointer is 'id' or 'Class'
   const ObjCInterfaceType *getInterfaceType() const {
-    return PointeeType->getAs<ObjCInterfaceType>();
+    return getObjectType()->getBaseType()->getAs<ObjCInterfaceType>();
   }
-  /// getInterfaceDecl - returns an interface decl for user-defined types.
+
+  /// getInterfaceDecl - If this pointer points to an Objective @interface
+  /// type, gets the declaration for that interface.
+  ///
+  /// \return null if the base type for this pointer is 'id' or 'Class'
   ObjCInterfaceDecl *getInterfaceDecl() const {
-    return getInterfaceType() ? getInterfaceType()->getDecl() : 0;
+    return getObjectType()->getInterface();
   }
-  /// isObjCIdType - true for "id".
+
+  /// isObjCIdType - True if this is equivalent to the 'id' type, i.e. if
+  /// its object type is the primitive 'id' type with no protocols.
   bool isObjCIdType() const {
-    return getPointeeType()->isSpecificBuiltinType(BuiltinType::ObjCId) &&
-           !NumProtocols;
+    return getObjectType()->isObjCUnqualifiedId();
   }
-  /// isObjCClassType - true for "Class".
+
+  /// isObjCClassType - True if this is equivalent to the 'Class' type,
+  /// i.e. if its object tive is the primitive 'Class' type with no protocols.
   bool isObjCClassType() const {
-    return getPointeeType()->isSpecificBuiltinType(BuiltinType::ObjCClass) &&
-           !NumProtocols;
+    return getObjectType()->isObjCUnqualifiedClass();
   }
   
-  /// isObjCQualifiedIdType - true for "id <p>".
+  /// isObjCQualifiedIdType - True if this is equivalent to 'id<P>' for some
+  /// non-empty set of protocols.
   bool isObjCQualifiedIdType() const {
-    return getPointeeType()->isSpecificBuiltinType(BuiltinType::ObjCId) &&
-           NumProtocols;
+    return getObjectType()->isObjCQualifiedId();
   }
-  /// isObjCQualifiedClassType - true for "Class <p>".
+
+  /// isObjCQualifiedClassType - True if this is equivalent to 'Class<P>' for
+  /// some non-empty set of protocols.
   bool isObjCQualifiedClassType() const {
-    return getPointeeType()->isSpecificBuiltinType(BuiltinType::ObjCClass) &&
-           NumProtocols;
+    return getObjectType()->isObjCQualifiedClass();
   }
-  /// qual_iterator and friends: this provides access to the (potentially empty)
-  /// list of protocols qualifying this interface.
-  typedef ObjCProtocolDecl*  const * qual_iterator;
+
+  /// An iterator over the qualifiers on the object type.  Provided
+  /// for convenience.  This will always iterate over the full set of
+  /// protocols on a type, not just those provided directly.
+  typedef ObjCObjectType::qual_iterator qual_iterator;
 
   qual_iterator qual_begin() const {
-    return reinterpret_cast<qual_iterator> (this + 1);
+    return getObjectType()->qual_begin();
   }
-  qual_iterator qual_end() const   {
-    return qual_begin() + NumProtocols;
+  qual_iterator qual_end() const {
+    return getObjectType()->qual_end();
   }
-  bool qual_empty() const { return NumProtocols == 0; }
+  bool qual_empty() const { return getObjectType()->qual_empty(); }
 
-  /// getNumProtocols - Return the number of qualifying protocols in this
-  /// interface type, or 0 if there are none.
-  unsigned getNumProtocols() const { return NumProtocols; }
+  /// getNumProtocols - Return the number of qualifying protocols on
+  /// the object type.
+  unsigned getNumProtocols() const {
+    return getObjectType()->getNumProtocols();
+  }
 
-  /// \brief Retrieve the Ith protocol.
+  /// \brief Retrieve a qualifying protocol by index on the object
+  /// type.
   ObjCProtocolDecl *getProtocol(unsigned I) const {
-    assert(I < getNumProtocols() && "Out-of-range protocol access");
-    return qual_begin()[I];
+    return getObjectType()->getProtocol(I);
   }
   
   bool isSugared() const { return false; }
   QualType desugar() const { return QualType(this, 0); }
 
-  virtual Linkage getLinkage() const;
-
-  void Profile(llvm::FoldingSetNodeID &ID);
-  static void Profile(llvm::FoldingSetNodeID &ID, QualType T,
-                      ObjCProtocolDecl *const *protocols, 
-                      unsigned NumProtocols);
+  void Profile(llvm::FoldingSetNodeID &ID) {
+    Profile(ID, getPointeeType());
+  }
+  static void Profile(llvm::FoldingSetNodeID &ID, QualType T) {
+    ID.AddPointer(T.getAsOpaquePtr());
+  }
   static bool classof(const Type *T) {
     return T->getTypeClass() == ObjCObjectPointer;
   }
@@ -3128,12 +3353,6 @@ inline QualType QualType::getNonReferenceType() const {
     return *this;
 }
 
-inline const ObjCInterfaceType *Type::getAsPointerToObjCInterfaceType() const {
-  if (const PointerType *PT = getAs<PointerType>())
-    return PT->getPointeeType()->getAs<ObjCInterfaceType>();
-  return 0;
-}
-
 inline bool Type::isFunctionType() const {
   return isa<FunctionType>(CanonicalType);
 }
@@ -3200,8 +3419,8 @@ inline bool Type::isExtVectorType() const {
 inline bool Type::isObjCObjectPointerType() const {
   return isa<ObjCObjectPointerType>(CanonicalType);
 }
-inline bool Type::isObjCInterfaceType() const {
-  return isa<ObjCInterfaceType>(CanonicalType);
+inline bool Type::isObjCObjectType() const {
+  return isa<ObjCObjectType>(CanonicalType);
 }
 inline bool Type::isObjCQualifiedIdType() const {
   if (const ObjCObjectPointerType *OPT = getAs<ObjCObjectPointerType>())
@@ -3250,13 +3469,11 @@ inline bool Type::isOverloadableType() const {
 
 inline bool Type::hasPointerRepresentation() const {
   return (isPointerType() || isReferenceType() || isBlockPointerType() ||
-          isObjCInterfaceType() || isObjCObjectPointerType() ||
-          isObjCQualifiedInterfaceType() || isNullPtrType());
+          isObjCObjectPointerType() || isNullPtrType());
 }
 
 inline bool Type::hasObjCPointerRepresentation() const {
-  return (isObjCInterfaceType() || isObjCObjectPointerType() ||
-          isObjCQualifiedInterfaceType());
+  return isObjCObjectPointerType();
 }
 
 /// Insertion operator for diagnostics.  This allows sending QualType's into a

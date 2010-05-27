@@ -11,7 +11,7 @@
 // Lexer Diagnostics
 //===----------------------------------------------------------------------===//
 
-let Component = "Lex" in {
+let Component = "Lex", CategoryName = "Lexical or Preprocessor Issue" in {
 
 def null_in_string : Warning<"null character(s) preserved in string literal">;
 def null_in_char : Warning<"null character(s) preserved in character literal">;
@@ -84,9 +84,9 @@ def err_exponent_has_no_digits : Error<"exponent has no digits">;
 def ext_imaginary_constant : Extension<"imaginary constants are an extension">;
 def err_hexconstant_requires_exponent : Error<
   "hexadecimal floating constants require an exponent">;
-def ext_hexconstant_cplusplus : ExtWarn<
+def ext_hexconstant_cplusplus : Extension<
   "hexadecimal floating constants are a C99 feature that is incompatible with "
-  "C++0x">;
+  "C++0x">, InGroup<CXXHexFloats>;
 def ext_hexconstant_invalid : Extension<
   "hexadecimal floating constants are a C99 feature">;
 def ext_binary_literal : Extension<

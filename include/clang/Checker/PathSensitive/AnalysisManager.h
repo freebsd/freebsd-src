@@ -37,7 +37,11 @@ class AnalysisManager : public BugReporterData {
 
   enum AnalysisScope { ScopeTU, ScopeDecl } AScope;
 
+  // The maximum number of exploded nodes the analyzer will generate.
   unsigned MaxNodes;
+
+  // The maximum number of times the analyzer will go through a loop.
+  unsigned MaxLoop;
 
   bool VisualizeEGDot;
   bool VisualizeEGUbi;
@@ -52,19 +56,22 @@ class AnalysisManager : public BugReporterData {
   //   bifurcates paths.
   bool EagerlyAssume;
   bool TrimGraph;
+  bool InlineCall;
 
 public:
   AnalysisManager(ASTContext &ctx, Diagnostic &diags, 
                   const LangOptions &lang, PathDiagnosticClient *pd,
                   StoreManagerCreator storemgr,
                   ConstraintManagerCreator constraintmgr, unsigned maxnodes,
-                  bool vizdot, bool vizubi, bool purge, bool eager, bool trim)
+                  unsigned maxloop,
+                  bool vizdot, bool vizubi, bool purge, bool eager, bool trim,
+                  bool inlinecall)
 
     : Ctx(ctx), Diags(diags), LangInfo(lang), PD(pd),
       CreateStoreMgr(storemgr), CreateConstraintMgr(constraintmgr),
-      AScope(ScopeDecl), MaxNodes(maxnodes),
+      AScope(ScopeDecl), MaxNodes(maxnodes), MaxLoop(maxloop),
       VisualizeEGDot(vizdot), VisualizeEGUbi(vizubi), PurgeDead(purge),
-      EagerlyAssume(eager), TrimGraph(trim) {}
+      EagerlyAssume(eager), TrimGraph(trim), InlineCall(inlinecall) {}
   
   ~AnalysisManager() { FlushDiagnostics(); }
   
@@ -108,6 +115,8 @@ public:
 
   unsigned getMaxNodes() const { return MaxNodes; }
 
+  unsigned getMaxLoop() const { return MaxLoop; }
+
   bool shouldVisualizeGraphviz() const { return VisualizeEGDot; }
 
   bool shouldVisualizeUbigraph() const { return VisualizeEGUbi; }
@@ -121,6 +130,8 @@ public:
   bool shouldPurgeDead() const { return PurgeDead; }
 
   bool shouldEagerlyAssume() const { return EagerlyAssume; }
+
+  bool shouldInlineCall() const { return InlineCall; }
 
   CFG *getCFG(Decl const *D) {
     return AnaCtxMgr.getContext(D)->getCFG();

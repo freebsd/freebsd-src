@@ -1,4 +1,4 @@
-//===--- CC1Options.cpp - Clang CC1 Options Table -----------------------*-===//
+//===--- CC1Options.cpp - Clang CC1 Options Table -------------------------===//
 //
 //                     The LLVM Compiler Infrastructure
 //

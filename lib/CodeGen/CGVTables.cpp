@@ -2548,7 +2548,7 @@ llvm::Constant *CodeGenModule::GetAddrOfThunk(GlobalDecl GD,
     getMangleContext().mangleThunk(MD, Thunk, Name);
   
   const llvm::Type *Ty = getTypes().GetFunctionTypeForVTable(MD);
-  return GetOrCreateLLVMFunction(Name, Ty, GlobalDecl());
+  return GetOrCreateLLVMFunction(Name, Ty, GD);
 }
 
 static llvm::Value *PerformTypeAdjustment(CodeGenFunction &CGF,
@@ -2641,10 +2641,9 @@ void CodeGenFunction::GenerateThunk(llvm::Function *Fn, GlobalDecl GD,
        E = MD->param_end(); I != E; ++I) {
     ParmVarDecl *Param = *I;
     QualType ArgType = Param->getType();
+    RValue Arg = EmitDelegateCallArg(Param);
     
-    // FIXME: Declaring a DeclRefExpr on the stack is kinda icky.
-    DeclRefExpr ArgExpr(Param, ArgType.getNonReferenceType(), SourceLocation());
-    CallArgs.push_back(std::make_pair(EmitCallArg(&ArgExpr, ArgType), ArgType));
+    CallArgs.push_back(std::make_pair(Arg, ArgType));
   }
 
   // Get our callee.
@@ -2657,8 +2656,15 @@ void CodeGenFunction::GenerateThunk(llvm::Function *Fn, GlobalDecl GD,
     CGM.getTypes().getFunctionInfo(ResultType, CallArgs,
                                    FPT->getExtInfo());
   
+  // Determine whether we have a return value slot to use.
+  ReturnValueSlot Slot;
+  if (!ResultType->isVoidType() &&
+      FnInfo.getReturnInfo().getKind() == ABIArgInfo::Indirect &&
+      hasAggregateLLVMType(CurFnInfo->getReturnType()))
+    Slot = ReturnValueSlot(ReturnValue, ResultType.isVolatileQualified());
+  
   // Now emit our call.
-  RValue RV = EmitCall(FnInfo, Callee, ReturnValueSlot(), CallArgs, MD);
+  RValue RV = EmitCall(FnInfo, Callee, Slot, CallArgs, MD);
   
   if (!Thunk.Return.isEmpty()) {
     // Emit the return adjustment.
@@ -2701,7 +2707,7 @@ void CodeGenFunction::GenerateThunk(llvm::Function *Fn, GlobalDecl GD,
     RV = RValue::get(ReturnValue);
   }
 
-  if (!ResultType->isVoidType())
+  if (!ResultType->isVoidType() && Slot.isNull())
     EmitReturnOfRValue(RV, ResultType);
 
   FinishFunction();
@@ -2710,7 +2716,7 @@ void CodeGenFunction::GenerateThunk(llvm::Function *Fn, GlobalDecl GD,
   CXXThisDecl->Destroy(getContext());
   
   // Set the right linkage.
-  Fn->setLinkage(CGM.getFunctionLinkage(MD));
+  CGM.setFunctionLinkage(MD, Fn);
   
   // Set the right visibility.
   CGM.setGlobalVisibility(Fn, MD);
@@ -2788,7 +2794,13 @@ void CodeGenVTables::ComputeVTableRelatedInformation(const CXXRecordDecl *RD) {
   // Check if we've computed this information before.
   if (LayoutData)
     return;
-      
+
+  // We may need to generate a definition for this vtable.
+  if (!isKeyFunctionInAnotherTU(CGM.getContext(), RD) &&
+      RD->getTemplateSpecializationKind()
+                                      != TSK_ExplicitInstantiationDeclaration)
+    CGM.DeferredVTables.push_back(RD);
+
   VTableBuilder Builder(*this, RD, 0, /*MostDerivedClassIsVirtual=*/0, RD);
 
   // Add the VTable layout.
@@ -3118,50 +3130,4 @@ CodeGenVTables::GenerateClassData(llvm::GlobalVariable::LinkageTypes Linkage,
       cast<NamespaceDecl>(DC)->getIdentifier()->isStr("__cxxabiv1") &&
       DC->getParent()->isTranslationUnit())
     CGM.EmitFundamentalRTTIDescriptors();
-}
-
-void CodeGenVTables::EmitVTableRelatedData(GlobalDecl GD) {
-  const CXXMethodDecl *MD = cast<CXXMethodDecl>(GD.getDecl());
-  const CXXRecordDecl *RD = MD->getParent();
-
-  // If the class doesn't have a vtable we don't need to emit one.
-  if (!RD->isDynamicClass())
-    return;
-  
-  // Check if we need to emit thunks for this function.
-  if (MD->isVirtual())
-    EmitThunks(GD);
-
-  // Get the key function.
-  const CXXMethodDecl *KeyFunction = CGM.getContext().getKeyFunction(RD);
-  
-  TemplateSpecializationKind RDKind = RD->getTemplateSpecializationKind();
-  TemplateSpecializationKind MDKind = MD->getTemplateSpecializationKind();
-
-  if (KeyFunction) {
-    // We don't have the right key function.
-    if (KeyFunction->getCanonicalDecl() != MD->getCanonicalDecl())
-      return;
-  } else {
-    // If we have no key funcion and this is a explicit instantiation declaration,
-    // we will produce a vtable at the explicit instantiation. We don't need one
-    // here.
-    if (RDKind == clang::TSK_ExplicitInstantiationDeclaration)
-      return;
-
-    // If this is an explicit instantiation of a method, we don't need a vtable.
-    // Since we have no key function, we will emit the vtable when we see
-    // a use, and just defining a function is not an use.
-    if (RDKind == TSK_ImplicitInstantiation &&
-        MDKind == TSK_ExplicitInstantiationDefinition)
-      return;
-  }
-
-  if (VTables.count(RD))
-    return;
-
-  if (RDKind == TSK_ImplicitInstantiation)
-    CGM.DeferredVTables.push_back(RD);
-  else
-    GenerateClassData(CGM.getVTableLinkage(RD), RD);
 }

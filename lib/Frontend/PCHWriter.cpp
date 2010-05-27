@@ -213,12 +213,6 @@ void PCHTypeWriter::VisitEnumType(const EnumType *T) {
   Code = pch::TYPE_ENUM;
 }
 
-void PCHTypeWriter::VisitElaboratedType(const ElaboratedType *T) {
-  Writer.AddTypeRef(T->getUnderlyingType(), Record);
-  Record.push_back(T->getTagKind());
-  Code = pch::TYPE_ELABORATED;
-}
-
 void
 PCHTypeWriter::VisitSubstTemplateTypeParmType(
                                         const SubstTemplateTypeParmType *T) {
@@ -234,9 +228,12 @@ PCHTypeWriter::VisitTemplateSpecializationType(
   assert(false && "Cannot serialize template specialization types");
 }
 
-void PCHTypeWriter::VisitQualifiedNameType(const QualifiedNameType *T) {
-  // FIXME: Serialize this type (C++ only)
-  assert(false && "Cannot serialize qualified name types");
+void PCHTypeWriter::VisitElaboratedType(const ElaboratedType *T) {
+  Writer.AddTypeRef(T->getNamedType(), Record);
+  Record.push_back(T->getKeyword());
+  // FIXME: Serialize the qualifier (C++ only)
+  assert(T->getQualifier() == 0 && "Cannot serialize qualified name types");
+  Code = pch::TYPE_ELABORATED;
 }
 
 void PCHTypeWriter::VisitInjectedClassNameType(const InjectedClassNameType *T) {
@@ -247,20 +244,21 @@ void PCHTypeWriter::VisitInjectedClassNameType(const InjectedClassNameType *T) {
 
 void PCHTypeWriter::VisitObjCInterfaceType(const ObjCInterfaceType *T) {
   Writer.AddDeclRef(T->getDecl(), Record);
+  Code = pch::TYPE_OBJC_INTERFACE;
+}
+
+void PCHTypeWriter::VisitObjCObjectType(const ObjCObjectType *T) {
+  Writer.AddTypeRef(T->getBaseType(), Record);
   Record.push_back(T->getNumProtocols());
-  for (ObjCInterfaceType::qual_iterator I = T->qual_begin(),
+  for (ObjCObjectType::qual_iterator I = T->qual_begin(),
        E = T->qual_end(); I != E; ++I)
     Writer.AddDeclRef(*I, Record);
-  Code = pch::TYPE_OBJC_INTERFACE;
+  Code = pch::TYPE_OBJC_OBJECT;
 }
 
 void
 PCHTypeWriter::VisitObjCObjectPointerType(const ObjCObjectPointerType *T) {
   Writer.AddTypeRef(T->getPointeeType(), Record);
-  Record.push_back(T->getNumProtocols());
-  for (ObjCInterfaceType::qual_iterator I = T->qual_begin(),
-       E = T->qual_end(); I != E; ++I)
-    Writer.AddDeclRef(*I, Record);
   Code = pch::TYPE_OBJC_OBJECT_POINTER;
 }
 
@@ -383,9 +381,6 @@ void TypeLocWriter::VisitRecordTypeLoc(RecordTypeLoc TL) {
 void TypeLocWriter::VisitEnumTypeLoc(EnumTypeLoc TL) {
   Writer.AddSourceLocation(TL.getNameLoc(), Record);
 }
-void TypeLocWriter::VisitElaboratedTypeLoc(ElaboratedTypeLoc TL) {
-  Writer.AddSourceLocation(TL.getNameLoc(), Record);
-}
 void TypeLocWriter::VisitTemplateTypeParmTypeLoc(TemplateTypeParmTypeLoc TL) {
   Writer.AddSourceLocation(TL.getNameLoc(), Record);
 }
@@ -401,17 +396,23 @@ void TypeLocWriter::VisitTemplateSpecializationTypeLoc(
   for (unsigned i = 0, e = TL.getNumArgs(); i != e; ++i)
     Writer.AddTemplateArgumentLoc(TL.getArgLoc(i), Record);
 }
-void TypeLocWriter::VisitQualifiedNameTypeLoc(QualifiedNameTypeLoc TL) {
-  Writer.AddSourceLocation(TL.getNameLoc(), Record);
+void TypeLocWriter::VisitElaboratedTypeLoc(ElaboratedTypeLoc TL) {
+  Writer.AddSourceLocation(TL.getKeywordLoc(), Record);
+  Writer.AddSourceRange(TL.getQualifierRange(), Record);
 }
 void TypeLocWriter::VisitInjectedClassNameTypeLoc(InjectedClassNameTypeLoc TL) {
   Writer.AddSourceLocation(TL.getNameLoc(), Record);
 }
 void TypeLocWriter::VisitDependentNameTypeLoc(DependentNameTypeLoc TL) {
+  Writer.AddSourceLocation(TL.getKeywordLoc(), Record);
+  Writer.AddSourceRange(TL.getQualifierRange(), Record);
   Writer.AddSourceLocation(TL.getNameLoc(), Record);
 }
 void TypeLocWriter::VisitObjCInterfaceTypeLoc(ObjCInterfaceTypeLoc TL) {
   Writer.AddSourceLocation(TL.getNameLoc(), Record);
+}
+void TypeLocWriter::VisitObjCObjectTypeLoc(ObjCObjectTypeLoc TL) {
+  Record.push_back(TL.hasBaseTypeAsWritten());
   Writer.AddSourceLocation(TL.getLAngleLoc(), Record);
   Writer.AddSourceLocation(TL.getRAngleLoc(), Record);
   for (unsigned i = 0, e = TL.getNumProtocols(); i != e; ++i)
@@ -419,13 +420,6 @@ void TypeLocWriter::VisitObjCInterfaceTypeLoc(ObjCInterfaceTypeLoc TL) {
 }
 void TypeLocWriter::VisitObjCObjectPointerTypeLoc(ObjCObjectPointerTypeLoc TL) {
   Writer.AddSourceLocation(TL.getStarLoc(), Record);
-  Writer.AddSourceLocation(TL.getLAngleLoc(), Record);
-  Writer.AddSourceLocation(TL.getRAngleLoc(), Record);
-  Record.push_back(TL.hasBaseTypeAsWritten());
-  Record.push_back(TL.hasProtocolsAsWritten());
-  if (TL.hasProtocolsAsWritten())
-    for (unsigned i = 0, e = TL.getNumProtocols(); i != e; ++i)
-      Writer.AddSourceLocation(TL.getProtocolLoc(i), Record);
 }
 
 //===----------------------------------------------------------------------===//
@@ -609,6 +603,7 @@ void PCHWriter::WriteBlockInfoBlock() {
   RECORD(TYPE_RECORD);
   RECORD(TYPE_ENUM);
   RECORD(TYPE_OBJC_INTERFACE);
+  RECORD(TYPE_OBJC_OBJECT);
   RECORD(TYPE_OBJC_OBJECT_POINTER);
   RECORD(DECL_ATTR);
   RECORD(DECL_TRANSLATION_UNIT);
@@ -1841,6 +1836,9 @@ void PCHWriter::WriteAttributeRecord(const Attr *Attr) {
       AddString(cast<AliasAttr>(Attr)->getAliasee(), Record);
       break;
 
+    case Attr::AlignMac68k:
+      break;
+
     case Attr::Aligned:
       Record.push_back(cast<AlignedAttr>(Attr)->getAlignment());
       break;
@@ -1925,6 +1923,12 @@ void PCHWriter::WriteAttributeRecord(const Attr *Attr) {
     case Attr::NoThrow:
       break;
 
+    case Attr::IBOutletCollectionKind: {
+      const IBOutletCollectionAttr *ICA = cast<IBOutletCollectionAttr>(Attr);
+      AddDeclRef(ICA->getClass(), Record);
+      break;
+    }
+
     case Attr::NonNull: {
       const NonNullAttr *NonNull = cast<NonNullAttr>(Attr);
       Record.push_back(NonNull->size());
@@ -1942,8 +1946,8 @@ void PCHWriter::WriteAttributeRecord(const Attr *Attr) {
     case Attr::Override:
       break;
 
-    case Attr::PragmaPack:
-      Record.push_back(cast<PragmaPackAttr>(Attr)->getAlignment());
+    case Attr::MaxFieldAlignment:
+      Record.push_back(cast<MaxFieldAlignmentAttr>(Attr)->getAlignment());
       break;
 
     case Attr::Packed:
@@ -2181,6 +2185,11 @@ void PCHWriter::AddSourceLocation(SourceLocation Loc, RecordData &Record) {
   Record.push_back(Loc.getRawEncoding());
 }
 
+void PCHWriter::AddSourceRange(SourceRange Range, RecordData &Record) {
+  AddSourceLocation(Range.getBegin(), Record);
+  AddSourceLocation(Range.getEnd(), Record);
+}
+
 void PCHWriter::AddAPInt(const llvm::APInt &Value, RecordData &Record) {
   Record.push_back(Value.getBitWidth());
   unsigned N = Value.getNumWords();
@@ -2234,6 +2243,10 @@ void PCHWriter::AddSelectorRef(const Selector SelRef, RecordData &Record) {
     SelVector.push_back(SelRef);
   }
   Record.push_back(SID);
+}
+
+void PCHWriter::AddCXXTemporary(const CXXTemporary *Temp, RecordData &Record) {
+  AddDeclRef(Temp->getDestructor(), Record);
 }
 
 void PCHWriter::AddTemplateArgumentLoc(const TemplateArgumentLoc &Arg,
@@ -2405,5 +2418,44 @@ void PCHWriter::AddDeclarationName(DeclarationName Name, RecordData &Record) {
   case DeclarationName::CXXUsingDirective:
     // No extra data to emit
     break;
+  }
+}
+
+void PCHWriter::AddNestedNameSpecifier(NestedNameSpecifier *NNS,
+                                       RecordData &Record) {
+  // Nested name specifiers usually aren't too long. I think that 8 would
+  // typically accomodate the vast majority.
+  llvm::SmallVector<NestedNameSpecifier *, 8> NestedNames;
+
+  // Push each of the NNS's onto a stack for serialization in reverse order.
+  while (NNS) {
+    NestedNames.push_back(NNS);
+    NNS = NNS->getPrefix();
+  }
+
+  Record.push_back(NestedNames.size());
+  while(!NestedNames.empty()) {
+    NNS = NestedNames.pop_back_val();
+    NestedNameSpecifier::SpecifierKind Kind = NNS->getKind();
+    Record.push_back(Kind);
+    switch (Kind) {
+    case NestedNameSpecifier::Identifier:
+      AddIdentifierRef(NNS->getAsIdentifier(), Record);
+      break;
+
+    case NestedNameSpecifier::Namespace:
+      AddDeclRef(NNS->getAsNamespace(), Record);
+      break;
+
+    case NestedNameSpecifier::TypeSpec:
+    case NestedNameSpecifier::TypeSpecWithTemplate:
+      AddTypeRef(QualType(NNS->getAsType(), 0), Record);
+      Record.push_back(Kind == NestedNameSpecifier::TypeSpecWithTemplate);
+      break;
+
+    case NestedNameSpecifier::Global:
+      // Don't need to write an associated value.
+      break;
+    }
   }
 }

@@ -36,6 +36,57 @@
 using namespace clang;
 using namespace CodeGen;
 
+MiscNameMangler::MiscNameMangler(MangleContext &C,
+                                 llvm::SmallVectorImpl<char> &Res)
+  : Context(C), Out(Res) { }
+
+void MiscNameMangler::mangleBlock(const BlockDecl *BD) {
+  // Mangle the context of the block.
+  // FIXME: We currently mimic GCC's mangling scheme, which leaves much to be
+  // desired. Come up with a better mangling scheme.
+  const DeclContext *DC = BD->getDeclContext();
+  while (isa<BlockDecl>(DC) || isa<EnumDecl>(DC))
+    DC = DC->getParent();
+  if (DC->isFunctionOrMethod()) {
+    Out << "__";
+    if (const ObjCMethodDecl *Method = dyn_cast<ObjCMethodDecl>(DC))
+      mangleObjCMethodName(Method);
+    else {
+      const NamedDecl *ND = cast<NamedDecl>(DC);
+      if (IdentifierInfo *II = ND->getIdentifier())
+        Out << II->getName();
+      else {
+        // FIXME: We were doing a mangleUnqualifiedName() before, but that's
+        // a private member of a class that will soon itself be private to the
+        // Itanium C++ ABI object. What should we do now? Right now, I'm just
+        // calling the mangleName() method on the MangleContext; is there a
+        // better way?
+        llvm::SmallString<64> Buffer;
+        Context.mangleName(ND, Buffer);
+        Out << Buffer;
+      }
+    }
+    Out << "_block_invoke_" << Context.getBlockId(BD, true);
+  } else {
+    Out << "__block_global_" << Context.getBlockId(BD, false);
+  }
+}
+
+void MiscNameMangler::mangleObjCMethodName(const ObjCMethodDecl *MD) {
+  llvm::SmallString<64> Name;
+  llvm::raw_svector_ostream OS(Name);
+  
+  const ObjCContainerDecl *CD =
+  dyn_cast<ObjCContainerDecl>(MD->getDeclContext());
+  assert (CD && "Missing container decl in GetNameForMethod");
+  OS << (MD->isInstanceMethod() ? '-' : '+') << '[' << CD->getName();
+  if (const ObjCCategoryImplDecl *CID = dyn_cast<ObjCCategoryImplDecl>(CD))
+    OS << '(' << CID << ')';
+  OS << ' ' << MD->getSelector().getAsString() << ']';
+  
+  Out << OS.str().size() << OS.str();
+}
+
 namespace {
 
 static const DeclContext *GetLocalClassFunctionDeclContext(
@@ -107,7 +158,8 @@ public:
   void mangleFunctionEncoding(const FunctionDecl *FD);
   void mangleName(const NamedDecl *ND);
   void mangleType(QualType T);
-
+  void mangleNameOrStandardSubstitution(const NamedDecl *ND);
+  
 private:
   bool mangleSubstitution(const NamedDecl *ND);
   bool mangleSubstitution(QualType T);
@@ -714,8 +766,9 @@ void CXXNameMangler::mangleLocalName(const NamedDecl *ND) {
   const DeclContext *DC = ND->getDeclContext();
   Out << 'Z';
 
-  if (const ObjCMethodDecl *MD = dyn_cast<ObjCMethodDecl>(DC))
-    mangleObjCMethodName(MD);
+  if (const ObjCMethodDecl *MD = dyn_cast<ObjCMethodDecl>(DC)) {
+   mangleObjCMethodName(MD);
+  }
   else if (const DeclContext *CDC = GetLocalClassFunctionDeclContext(DC)) {
     mangleFunctionEncoding(cast<FunctionDecl>(CDC));
     Out << 'E';
@@ -752,6 +805,14 @@ void CXXNameMangler::manglePrefix(const DeclContext *DC, bool NoFunction) {
   if (DC->isTranslationUnit())
     return;
 
+  if (const BlockDecl *Block = dyn_cast<BlockDecl>(DC)) {
+    manglePrefix(DC->getParent(), NoFunction);    
+    llvm::SmallString<64> Name;
+    Context.mangleBlock(Block, Name);
+    Out << Name.size() << Name;
+    return;
+  }
+  
   if (mangleSubstitution(cast<NamedDecl>(DC)))
     return;
 
@@ -762,8 +823,10 @@ void CXXNameMangler::manglePrefix(const DeclContext *DC, bool NoFunction) {
     TemplateParameterList *TemplateParameters = TD->getTemplateParameters();
     mangleTemplateArgs(*TemplateParameters, *TemplateArgs);
   }
-  else if(NoFunction && isa<FunctionDecl>(DC))
+  else if(NoFunction && (isa<FunctionDecl>(DC) || isa<ObjCMethodDecl>(DC)))
     return;
+  else if (const ObjCMethodDecl *Method = dyn_cast<ObjCMethodDecl>(DC))
+    mangleObjCMethodName(Method);
   else {
     manglePrefix(DC->getParent(), NoFunction);
     mangleUnqualifiedName(cast<NamedDecl>(DC));
@@ -942,18 +1005,9 @@ void CXXNameMangler::mangleQualifiers(Qualifiers Quals) {
 }
 
 void CXXNameMangler::mangleObjCMethodName(const ObjCMethodDecl *MD) {
-  llvm::SmallString<64> Name;
-  llvm::raw_svector_ostream OS(Name);
-
-  const ObjCContainerDecl *CD =
-    dyn_cast<ObjCContainerDecl>(MD->getDeclContext());
-  assert (CD && "Missing container decl in GetNameForMethod");
-  OS << (MD->isInstanceMethod() ? '-' : '+') << '[' << CD->getName();
-  if (const ObjCCategoryImplDecl *CID = dyn_cast<ObjCCategoryImplDecl>(CD))
-    OS << '(' << CID << ')';
-  OS << ' ' << MD->getSelector().getAsString() << ']';
-
-  Out << OS.str().size() << OS.str();
+  llvm::SmallString<64> Buffer;
+  MiscNameMangler(Context, Buffer).mangleObjCMethodName(MD);
+  Out << Buffer;
 }
 
 void CXXNameMangler::mangleType(QualType T) {
@@ -987,6 +1041,11 @@ void CXXNameMangler::mangleType(QualType T) {
   // Add the substitution.
   if (IsSubstitutable)
     addSubstitution(T);
+}
+
+void CXXNameMangler::mangleNameOrStandardSubstitution(const NamedDecl *ND) {
+  if (!mangleStandardSubstitution(ND))
+    mangleName(ND);
 }
 
 void CXXNameMangler::mangleType(const BuiltinType *T) {
@@ -1206,6 +1265,12 @@ void CXXNameMangler::mangleType(const ObjCInterfaceType *T) {
   mangleSourceName(T->getDecl()->getIdentifier());
 }
 
+void CXXNameMangler::mangleType(const ObjCObjectType *T) {
+  // We don't allow overloading by different protocol qualification,
+  // so mangling them isn't necessary.
+  mangleType(T->getBaseType());
+}
+
 void CXXNameMangler::mangleType(const BlockPointerType *T) {
   Out << "U13block_pointer";
   mangleType(T->getPointeeType());
@@ -1369,7 +1434,7 @@ void CXXNameMangler::mangleExpression(const Expr *E) {
 #define EXPR(Type, Base)
 #define STMT(Type, Base) \
   case Expr::Type##Class:
-#include "clang/AST/StmtNodes.def"
+#include "clang/AST/StmtNodes.inc"
     llvm_unreachable("unexpected statement kind");
     break;
 
@@ -2027,6 +2092,12 @@ void MangleContext::mangleCXXDtor(const CXXDestructorDecl *D, CXXDtorType Type,
   Mangler.mangle(D);
 }
 
+void MangleContext::mangleBlock(const BlockDecl *BD,
+                                llvm::SmallVectorImpl<char> &Res) {
+  MiscNameMangler Mangler(*this, Res);
+  Mangler.mangleBlock(BD);
+}
+
 void MangleContext::mangleThunk(const CXXMethodDecl *MD,
                                 const ThunkInfo &Thunk,
                                 llvm::SmallVectorImpl<char> &Res) {
@@ -2089,7 +2160,7 @@ void MangleContext::mangleCXXVTable(const CXXRecordDecl *RD,
   // <special-name> ::= TV <type>  # virtual table
   CXXNameMangler Mangler(*this, Res);
   Mangler.getStream() << "_ZTV";
-  Mangler.mangleName(RD);
+  Mangler.mangleNameOrStandardSubstitution(RD);
 }
 
 void MangleContext::mangleCXXVTT(const CXXRecordDecl *RD,
@@ -2097,7 +2168,7 @@ void MangleContext::mangleCXXVTT(const CXXRecordDecl *RD,
   // <special-name> ::= TT <type>  # VTT structure
   CXXNameMangler Mangler(*this, Res);
   Mangler.getStream() << "_ZTT";
-  Mangler.mangleName(RD);
+  Mangler.mangleNameOrStandardSubstitution(RD);
 }
 
 void MangleContext::mangleCXXCtorVTable(const CXXRecordDecl *RD, int64_t Offset,
@@ -2106,10 +2177,10 @@ void MangleContext::mangleCXXCtorVTable(const CXXRecordDecl *RD, int64_t Offset,
   // <special-name> ::= TC <type> <offset number> _ <base type>
   CXXNameMangler Mangler(*this, Res);
   Mangler.getStream() << "_ZTC";
-  Mangler.mangleName(RD);
+  Mangler.mangleNameOrStandardSubstitution(RD);
   Mangler.getStream() << Offset;
   Mangler.getStream() << '_';
-  Mangler.mangleName(Type);
+  Mangler.mangleNameOrStandardSubstitution(Type);
 }
 
 void MangleContext::mangleCXXRTTI(QualType Ty,

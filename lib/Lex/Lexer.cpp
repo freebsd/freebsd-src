@@ -1141,7 +1141,8 @@ bool Lexer::SkipBlockComment(Token &Result, const char *CurPtr) {
   unsigned char C = getCharAndSize(CurPtr, CharSize);
   CurPtr += CharSize;
   if (C == 0 && CurPtr == BufferEnd+1) {
-    if (!isLexingRawMode())
+    if (!isLexingRawMode() &&
+        !PP->isCodeCompletionFile(FileLoc))
       Diag(BufferPtr, diag::err_unterminated_block_comment);
     --CurPtr;
 
@@ -1224,7 +1225,7 @@ bool Lexer::SkipBlockComment(Token &Result, const char *CurPtr) {
           Diag(CurPtr-1, diag::warn_nested_block_comment);
       }
     } else if (C == 0 && CurPtr == BufferEnd+1) {
-      if (!isLexingRawMode())
+      if (!isLexingRawMode() && !PP->isCodeCompletionFile(FileLoc))
         Diag(BufferPtr, diag::err_unterminated_block_comment);
       // Note: the user probably forgot a */.  We could continue immediately
       // after the /*, but this would involve lexing a lot of what really is the
@@ -1358,6 +1359,9 @@ bool Lexer::LexEndOfFile(Token &Result, const char *CurPtr) {
     
     // Only do the eof -> code_completion translation once.
     PP->SetCodeCompletionPoint(0, 0, 0);
+    
+    // Silence any diagnostics that occur once we hit the code-completion point.
+    PP->getDiagnostics().setSuppressAllDiagnostics(true);
     return true;
   }
   
@@ -1421,6 +1425,7 @@ static const char *FindConflictEnd(const char *CurPtr, const char *BufferEnd) {
     if (RestOfBuffer[Pos-1] != '\r' &&
         RestOfBuffer[Pos-1] != '\n') {
       RestOfBuffer = RestOfBuffer.substr(Pos+7);
+      Pos = RestOfBuffer.find(">>>>>>>");
       continue;
     }
     return RestOfBuffer.data()+Pos;
@@ -1450,7 +1455,7 @@ bool Lexer::IsStartOfConflictMarker(const char *CurPtr) {
   
   // Check to see if there is a >>>>>>> somewhere in the buffer at the start of
   // a line to terminate this conflict marker.
-  if (FindConflictEnd(CurPtr+7, BufferEnd)) {
+  if (FindConflictEnd(CurPtr, BufferEnd)) {
     // We found a match.  We are really in a conflict marker.
     // Diagnose this, and ignore to the end of line.
     Diag(CurPtr, diag::err_conflict_marker);

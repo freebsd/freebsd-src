@@ -163,3 +163,35 @@ void bar() {
 
 }
 // CHECK: }
+
+
+// CHECK: define void @test_float_builtins
+void test_float_builtins(float F, double D, long double LD) {
+  volatile int res;
+  res = __builtin_isinf(F);
+  // CHECK:  call float @fabsf(float
+  // CHECK:  fcmp oeq float {{.*}}, 0x7FF0000000000000
+
+  res = __builtin_isinf(D);
+  // CHECK:  call double @fabs(double
+  // CHECK:  fcmp oeq double {{.*}}, 0x7FF0000000000000
+  
+  res = __builtin_isinf(LD);
+  // CHECK:  call x86_fp80 @fabsl(x86_fp80
+  // CHECK:  fcmp oeq x86_fp80 {{.*}}, 0xK7FFF8000000000000000
+  
+  res = __builtin_isfinite(F);
+  // CHECK: fcmp oeq float 
+  // CHECK: call float @fabsf
+  // CHECK: fcmp une float {{.*}}, 0x7FF0000000000000
+  // CHECK: and i1 
+
+  res = __builtin_isnormal(F);
+  // CHECK: fcmp oeq float
+  // CHECK: call float @fabsf
+  // CHECK: fcmp ult float {{.*}}, 0x7FF0000000000000
+  // CHECK: fcmp uge float {{.*}}, 0x3810000000000000
+  // CHECK: and i1
+  // CHECK: and i1
+}
+

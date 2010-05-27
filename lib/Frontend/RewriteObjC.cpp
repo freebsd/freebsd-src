@@ -276,6 +276,7 @@ namespace {
     bool isSuperReceiver(Expr *recExpr);
     QualType getSuperStructType();
     QualType getConstantStringStructType();
+    QualType convertFunctionTypeOfBlocks(const FunctionType *FT);
     bool BufferContainsPPDirectives(const char *startBuf, const char *endBuf);
 
     // Expression Rewriting.
@@ -403,6 +404,18 @@ namespace {
       return isa<BlockPointerType>(T);
     }
 
+    /// convertBlockPointerToFunctionPointer - Converts a block-pointer type
+    /// to a function pointer type and upon success, returns true; false
+    /// otherwise.
+    bool convertBlockPointerToFunctionPointer(QualType &T) {
+      if (isTopLevelBlockPointerType(T)) {
+        const BlockPointerType *BPT = T->getAs<BlockPointerType>();
+        T = Context->getPointerType(BPT->getPointeeType());
+        return true;
+      }
+      return false;
+    }
+    
     // FIXME: This predicate seems like it would be useful to add to ASTContext.
     bool isObjCType(QualType T) {
       if (!LangOpts.ObjC1 && !LangOpts.ObjC2)
@@ -971,7 +984,8 @@ void RewriteObjC::RewriteCategoryDecl(ObjCCategoryDecl *CatDecl) {
     RewriteMethodDeclaration(*I);
 
   // Lastly, comment out the @end.
-  ReplaceText(CatDecl->getAtEndRange().getBegin(), 0, "// ");
+  ReplaceText(CatDecl->getAtEndRange().getBegin(), 
+              strlen("@end"), "/* @end */");
 }
 
 void RewriteObjC::RewriteProtocolDecl(ObjCProtocolDecl *PDecl) {
@@ -991,7 +1005,7 @@ void RewriteObjC::RewriteProtocolDecl(ObjCProtocolDecl *PDecl) {
 
   // Lastly, comment out the @end.
   SourceLocation LocEnd = PDecl->getAtEndRange().getBegin();
-  ReplaceText(LocEnd, 0, "// ");
+  ReplaceText(LocEnd, strlen("@end"), "/* @end */");
 
   // Must comment out @optional/@required
   const char *startBuf = SM->getCharacterData(LocStart);
@@ -1109,12 +1123,11 @@ void RewriteObjC::RewriteObjCMethodDecl(ObjCMethodDecl *OMD,
       ResultStr += PDecl->getNameAsString();
     } else {
       std::string Name = PDecl->getNameAsString();
-      if (isTopLevelBlockPointerType(PDecl->getType())) {
-        // Make sure we convert "t (^)(...)" to "t (*)(...)".
-        const BlockPointerType *BPT = PDecl->getType()->getAs<BlockPointerType>();
-        Context->getPointerType(BPT->getPointeeType()).getAsStringInternal(Name,
-                                                        Context->PrintingPolicy);
-      } else
+      QualType QT = PDecl->getType();
+      // Make sure we convert "t (^)(...)" to "t (*)(...)".
+      if (convertBlockPointerToFunctionPointer(QT))
+        QT.getAsStringInternal(Name, Context->PrintingPolicy);
+      else
         PDecl->getType().getAsStringInternal(Name, Context->PrintingPolicy);
       ResultStr += Name;
     }
@@ -1220,7 +1233,8 @@ void RewriteObjC::RewriteInterfaceDecl(ObjCInterfaceDecl *ClassDecl) {
     RewriteMethodDeclaration(*I);
 
   // Lastly, comment out the @end.
-  ReplaceText(ClassDecl->getAtEndRange().getBegin(), 0, "// ");
+  ReplaceText(ClassDecl->getAtEndRange().getBegin(), strlen("@end"), 
+              "/* @end */");
 }
 
 Stmt *RewriteObjC::RewritePropertySetter(BinaryOperator *BinOp, Expr *newStmt,
@@ -1349,7 +1363,7 @@ Stmt *RewriteObjC::RewriteObjCIvarRefExpr(ObjCIvarRefExpr *IV,
       std::string RecName = clsDeclared->getIdentifier()->getName();
       RecName += "_IMPL";
       IdentifierInfo *II = &Context->Idents.get(RecName);
-      RecordDecl *RD = RecordDecl::Create(*Context, TagDecl::TK_struct, TUDecl,
+      RecordDecl *RD = RecordDecl::Create(*Context, TTK_Struct, TUDecl,
                                           SourceLocation(), II);
       assert(RD && "RewriteObjCIvarRefExpr(): Can't find RecordDecl");
       QualType castT = Context->getPointerType(Context->getTagDeclType(RD));
@@ -1394,7 +1408,7 @@ Stmt *RewriteObjC::RewriteObjCIvarRefExpr(ObjCIvarRefExpr *IV,
       std::string RecName = clsDeclared->getIdentifier()->getName();
       RecName += "_IMPL";
       IdentifierInfo *II = &Context->Idents.get(RecName);
-      RecordDecl *RD = RecordDecl::Create(*Context, TagDecl::TK_struct, TUDecl,
+      RecordDecl *RD = RecordDecl::Create(*Context, TTK_Struct, TUDecl,
                                           SourceLocation(), II);
       assert(RD && "RewriteObjCIvarRefExpr(): Can't find RecordDecl");
       QualType castT = Context->getPointerType(Context->getTagDeclType(RD));
@@ -1911,13 +1925,13 @@ Stmt *RewriteObjC::RewriteObjCTryStmt(ObjCAtTryStmt *S) {
         buf += "1) { ";
         ReplaceText(startLoc, lParenLoc-startBuf+1, buf);
         sawIdTypedCatch = true;
-      } else if (t->isObjCObjectPointerType()) {
-        QualType InterfaceTy = t->getPointeeType();
-        const ObjCInterfaceType *cls = // Should be a pointer to a class.
-          InterfaceTy->getAs<ObjCInterfaceType>();
-        if (cls) {
+      } else if (const ObjCObjectPointerType *Ptr =
+                   t->getAs<ObjCObjectPointerType>()) {
+        // Should be a pointer to a class.
+        ObjCInterfaceDecl *IDecl = Ptr->getObjectType()->getInterface();
+        if (IDecl) {
           buf += "objc_exception_match((struct objc_class *)objc_getClass(\"";
-          buf += cls->getDecl()->getNameAsString();
+          buf += IDecl->getNameAsString();
           buf += "\"), (struct objc_object *)_caught)) { ";
           ReplaceText(startLoc, lParenLoc-startBuf+1, buf);
         }
@@ -2426,7 +2440,7 @@ void RewriteObjC::SynthMsgSendFunctionDecl() {
 void RewriteObjC::SynthMsgSendSuperFunctionDecl() {
   IdentifierInfo *msgSendIdent = &Context->Idents.get("objc_msgSendSuper");
   llvm::SmallVector<QualType, 16> ArgTys;
-  RecordDecl *RD = RecordDecl::Create(*Context, TagDecl::TK_struct, TUDecl,
+  RecordDecl *RD = RecordDecl::Create(*Context, TTK_Struct, TUDecl,
                                       SourceLocation(),
                                       &Context->Idents.get("objc_super"));
   QualType argT = Context->getPointerType(Context->getTagDeclType(RD));
@@ -2475,7 +2489,7 @@ void RewriteObjC::SynthMsgSendSuperStretFunctionDecl() {
   IdentifierInfo *msgSendIdent =
     &Context->Idents.get("objc_msgSendSuper_stret");
   llvm::SmallVector<QualType, 16> ArgTys;
-  RecordDecl *RD = RecordDecl::Create(*Context, TagDecl::TK_struct, TUDecl,
+  RecordDecl *RD = RecordDecl::Create(*Context, TTK_Struct, TUDecl,
                                       SourceLocation(),
                                       &Context->Idents.get("objc_super"));
   QualType argT = Context->getPointerType(Context->getTagDeclType(RD));
@@ -2625,7 +2639,7 @@ bool RewriteObjC::isSuperReceiver(Expr *recExpr) {
 // struct objc_super { struct objc_object *receiver; struct objc_class *super; };
 QualType RewriteObjC::getSuperStructType() {
   if (!SuperStructDecl) {
-    SuperStructDecl = RecordDecl::Create(*Context, TagDecl::TK_struct, TUDecl,
+    SuperStructDecl = RecordDecl::Create(*Context, TTK_Struct, TUDecl,
                                          SourceLocation(),
                                          &Context->Idents.get("objc_super"));
     QualType FieldTypes[2];
@@ -2651,7 +2665,7 @@ QualType RewriteObjC::getSuperStructType() {
 
 QualType RewriteObjC::getConstantStringStructType() {
   if (!ConstantStringDecl) {
-    ConstantStringDecl = RecordDecl::Create(*Context, TagDecl::TK_struct, TUDecl,
+    ConstantStringDecl = RecordDecl::Create(*Context, TTK_Struct, TUDecl,
                                             SourceLocation(),
                          &Context->Idents.get("__NSConstantStringImpl"));
     QualType FieldTypes[4];
@@ -2811,7 +2825,7 @@ Stmt *RewriteObjC::SynthMessageExpr(ObjCMessageExpr *Exp,
     llvm::SmallVector<Expr*, 8> ClsExprs;
     QualType argType = Context->getPointerType(Context->CharTy);
     ObjCInterfaceDecl *Class
-      = Exp->getClassReceiver()->getAs<ObjCInterfaceType>()->getDecl();
+      = Exp->getClassReceiver()->getAs<ObjCObjectType>()->getInterface();
     IdentifierInfo *clsName = Class->getIdentifier();
     ClsExprs.push_back(StringLiteral::Create(*Context,
                                              clsName->getNameStart(),
@@ -2943,6 +2957,8 @@ Stmt *RewriteObjC::SynthMessageExpr(ObjCMessageExpr *Exp,
       QualType type = ICE->getType()->isObjCQualifiedIdType()
                                 ? Context->getObjCIdType()
                                 : ICE->getType();
+      // Make sure we convert "type (^)(...)" to "type (*)(...)".
+      (void)convertBlockPointerToFunctionPointer(type);
       userExpr = NoTypeInfoCStyleCastExpr(Context, type, CastExpr::CK_Unknown,
                                           userExpr);
     }
@@ -2980,18 +2996,12 @@ Stmt *RewriteObjC::SynthMessageExpr(ObjCMessageExpr *Exp,
                      ? Context->getObjCIdType()
                      : (*PI)->getType();
       // Make sure we convert "t (^)(...)" to "t (*)(...)".
-      if (isTopLevelBlockPointerType(t)) {
-        const BlockPointerType *BPT = t->getAs<BlockPointerType>();
-        t = Context->getPointerType(BPT->getPointeeType());
-      }
+      (void)convertBlockPointerToFunctionPointer(t);
       ArgTypes.push_back(t);
     }
     returnType = OMD->getResultType()->isObjCQualifiedIdType()
                    ? Context->getObjCIdType() : OMD->getResultType();
-    if (isTopLevelBlockPointerType(returnType)) {
-      const BlockPointerType *BPT = returnType->getAs<BlockPointerType>();
-      returnType = Context->getPointerType(BPT->getPointeeType());
-    }
+    (void)convertBlockPointerToFunctionPointer(returnType);
   } else {
     returnType = Context->getObjCIdType();
   }
@@ -4111,7 +4121,11 @@ std::string RewriteObjC::SynthesizeBlockFunc(BlockExpr *CE, int i,
          E = BD->param_end(); AI != E; ++AI) {
       if (AI != BD->param_begin()) S += ", ";
       ParamStr = (*AI)->getNameAsString();
-      (*AI)->getType().getAsStringInternal(ParamStr, Context->PrintingPolicy);
+      QualType QT = (*AI)->getType();
+      if (convertBlockPointerToFunctionPointer(QT))
+        QT.getAsStringInternal(ParamStr, Context->PrintingPolicy);
+      else
+        QT.getAsStringInternal(ParamStr, Context->PrintingPolicy);      
       S += ParamStr;
     }
     if (FT->isVariadic()) {
@@ -4532,6 +4546,39 @@ void RewriteObjC::GetInnerBlockDeclRefExprs(Stmt *S,
   return;
 }
 
+/// convertFunctionTypeOfBlocks - This routine converts a function type
+/// whose result type may be a block pointer or whose argument type(s)
+/// might be block pointers to an equivalent funtion type replacing
+/// all block pointers to function pointers.
+QualType RewriteObjC::convertFunctionTypeOfBlocks(const FunctionType *FT) {
+  const FunctionProtoType *FTP = dyn_cast<FunctionProtoType>(FT);
+  // FTP will be null for closures that don't take arguments.
+  // Generate a funky cast.
+  llvm::SmallVector<QualType, 8> ArgTypes;
+  QualType Res = FT->getResultType();
+  bool HasBlockType = convertBlockPointerToFunctionPointer(Res);
+  
+  if (FTP) {
+    for (FunctionProtoType::arg_type_iterator I = FTP->arg_type_begin(),
+         E = FTP->arg_type_end(); I && (I != E); ++I) {
+      QualType t = *I;
+      // Make sure we convert "t (^)(...)" to "t (*)(...)".
+      if (convertBlockPointerToFunctionPointer(t))
+        HasBlockType = true;
+      ArgTypes.push_back(t);
+    }
+  }
+  QualType FuncType;
+  // FIXME. Does this work if block takes no argument but has a return type
+  // which is of block type?
+  if (HasBlockType)
+    FuncType = Context->getFunctionType(Res,
+                        &ArgTypes[0], ArgTypes.size(), false/*no variadic*/, 0,
+                        false, false, 0, 0, FunctionType::ExtInfo());
+  else FuncType = QualType(FT, 0);
+  return FuncType;
+}
+
 Stmt *RewriteObjC::SynthesizeBlockCall(CallExpr *Exp, const Expr *BlockExp) {
   // Navigate to relevant type information.
   const BlockPointerType *CPT = 0;
@@ -4573,7 +4620,7 @@ Stmt *RewriteObjC::SynthesizeBlockCall(CallExpr *Exp, const Expr *BlockExp) {
   const FunctionProtoType *FTP = dyn_cast<FunctionProtoType>(FT);
   // FTP will be null for closures that don't take arguments.
 
-  RecordDecl *RD = RecordDecl::Create(*Context, TagDecl::TK_struct, TUDecl,
+  RecordDecl *RD = RecordDecl::Create(*Context, TTK_Struct, TUDecl,
                                       SourceLocation(),
                                       &Context->Idents.get("__block_impl"));
   QualType PtrBlock = Context->getPointerType(Context->getTagDeclType(RD));
@@ -4588,10 +4635,7 @@ Stmt *RewriteObjC::SynthesizeBlockCall(CallExpr *Exp, const Expr *BlockExp) {
          E = FTP->arg_type_end(); I && (I != E); ++I) {
       QualType t = *I;
       // Make sure we convert "t (^)(...)" to "t (*)(...)".
-      if (isTopLevelBlockPointerType(t)) {
-        const BlockPointerType *BPT = t->getAs<BlockPointerType>();
-        t = Context->getPointerType(BPT->getPointeeType());
-      }
+      (void)convertBlockPointerToFunctionPointer(t);
       ArgTypes.push_back(t);
     }
   }
@@ -5174,7 +5218,8 @@ Stmt *RewriteObjC::SynthBlockInitExpr(BlockExpr *Exp,
   std::string Func = "__" + FuncName + "_block_func_" + BlockNumber;
 
   // Get a pointer to the function type so we can cast appropriately.
-  QualType FType = Context->getPointerType(QualType(Exp->getFunctionType(),0));
+  QualType BFT = convertFunctionTypeOfBlocks(Exp->getFunctionType());
+  QualType FType = Context->getPointerType(BFT);
 
   FunctionDecl *FD;
   Expr *NewRep;
@@ -5218,6 +5263,12 @@ Stmt *RewriteObjC::SynthBlockInitExpr(BlockExpr *Exp,
         // FIXME: Conform to ABI ([[obj retain] autorelease]).
         FD = SynthBlockInitFunctionDecl((*I)->getNameAsCString());
         Exp = new (Context) DeclRefExpr(FD, FD->getType(), SourceLocation());
+        if (HasLocalVariableExternalStorage(*I)) {
+          QualType QT = (*I)->getType();
+          QT = Context->getPointerType(QT);
+          Exp = new (Context) UnaryOperator(Exp, UnaryOperator::AddrOf, QT,
+                                            SourceLocation());
+        }
       } else if (isTopLevelBlockPointerType((*I)->getType())) {
         FD = SynthBlockInitFunctionDecl((*I)->getNameAsCString());
         Arg = new (Context) DeclRefExpr(FD, FD->getType(), SourceLocation());
@@ -5245,7 +5296,7 @@ Stmt *RewriteObjC::SynthBlockInitExpr(BlockExpr *Exp,
       RewriteByRefString(RecName, Name, ND);
       IdentifierInfo *II = &Context->Idents.get(RecName.c_str() 
                                                 + sizeof("struct"));
-      RecordDecl *RD = RecordDecl::Create(*Context, TagDecl::TK_struct, TUDecl,
+      RecordDecl *RD = RecordDecl::Create(*Context, TTK_Struct, TUDecl,
                                           SourceLocation(), II);
       assert(RD && "SynthBlockInitExpr(): Can't find RecordDecl");
       QualType castT = Context->getPointerType(Context->getTagDeclType(RD));
