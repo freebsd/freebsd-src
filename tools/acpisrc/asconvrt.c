@@ -298,7 +298,7 @@ AsCheckForBraces (
 
                 if (!Gbl_QuietMode)
                 {
-                    printf ("Missing braces for <if>, line %d: %s\n", TotalLines, Filename);
+                    printf ("Missing braces for <if>, line %u: %s\n", TotalLines, Filename);
                 }
             }
         }
@@ -317,7 +317,7 @@ AsCheckForBraces (
 
                 if (!Gbl_QuietMode)
                 {
-                    printf ("Missing braces for <if>, line %d: %s\n", TotalLines, Filename);
+                    printf ("Missing braces for <if>, line %u: %s\n", TotalLines, Filename);
                 }
             }
         }
@@ -336,7 +336,7 @@ AsCheckForBraces (
 
                 if (!Gbl_QuietMode)
                 {
-                    printf ("Missing braces for <else>, line %d: %s\n", TotalLines, Filename);
+                    printf ("Missing braces for <else>, line %u: %s\n", TotalLines, Filename);
                 }
             }
         }
@@ -1126,7 +1126,7 @@ AsCountLines (
 
     if (LongLineCount)
     {
-        VERBOSE_PRINT (("%d Lines longer than 80 found in %s\n", LongLineCount, Filename));
+        VERBOSE_PRINT (("%u Lines longer than 80 found in %s\n", LongLineCount, Filename));
         Gbl_LongLines += LongLineCount;
     }
 
@@ -1293,7 +1293,7 @@ AsCountSourceLines (
     Gbl_WhiteLines += WhiteCount;
     Gbl_CommentLines += CommentCount;
 
-    VERBOSE_PRINT (("%d Comment %d White %d Code %d Lines in %s\n",
+    VERBOSE_PRINT (("%u Comment %u White %u Code %u Lines in %s\n",
                 CommentCount, WhiteCount, LineCount, LineCount+WhiteCount+CommentCount, Filename));
 }
 

@@ -229,17 +229,6 @@ AcpiNsSearchOneScope (
             return_ACPI_STATUS (AE_OK);
         }
 
-        /*
-         * The last entry in the list points back to the parent,
-         * so a flag is used to indicate the end-of-list
-         */
-        if (Node->Flags & ANOBJ_END_OF_PEER_LIST)
-        {
-            /* Searched entire list, we are done */
-
-            break;
-        }
-
         /* Didn't match name, move on to the next peer object */
 
         Node = Node->Peer;
@@ -296,7 +285,7 @@ AcpiNsSearchParentTree (
     ACPI_FUNCTION_TRACE (NsSearchParentTree);
 
 
-    ParentNode = AcpiNsGetParentNode (Node);
+    ParentNode = Node->Parent;
 
     /*
      * If there is no parent (i.e., we are at the root) or type is "local",
@@ -341,7 +330,7 @@ AcpiNsSearchParentTree (
 
         /* Not found here, go up another level (until we reach the root) */
 
-        ParentNode = AcpiNsGetParentNode (ParentNode);
+        ParentNode = ParentNode->Parent;
     }
 
     /* Not found in parent tree */

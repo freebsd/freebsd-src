@@ -290,7 +290,7 @@ AcpiDmBitList (
                 AcpiOsPrintf (",");
             }
             Previous = TRUE;
-            AcpiOsPrintf ("%d", i);
+            AcpiOsPrintf ("%u", i);
         }
 
         Mask >>= 1;

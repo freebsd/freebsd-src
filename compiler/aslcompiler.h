@@ -222,6 +222,10 @@ void
 CmCleanupAndExit (
     void);
 
+ACPI_STATUS
+FlCheckForAscii (
+    ASL_FILE_INFO           *FileInfo);
+
 
 /*
  * aslanalyze - semantic analysis
@@ -423,6 +427,16 @@ OptOptimizeNamePath (
 void
 CgGenerateAmlOutput (
     void);
+
+
+/*
+ * aslfile
+ */
+void
+FlOpenFile (
+    UINT32                  FileId,
+    char                    *Filename,
+    char                    *Mode);
 
 
 /*
@@ -1002,6 +1016,13 @@ ASL_RESOURCE_NODE *
 RsDoWordBusNumberDescriptor (
     ACPI_PARSE_OBJECT       *Op,
     UINT32                  CurrentByteOffset);
+
+/*
+ * Entry to data table compiler subsystem
+ */
+ACPI_STATUS
+DtDoCompile(
+    void);
 
 #endif /*  __ASLCOMPILER_H */
 

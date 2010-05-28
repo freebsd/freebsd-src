@@ -120,7 +120,7 @@
 
 /* Current ACPICA subsystem version in YYYYMMDD format */
 
-#define ACPI_CA_VERSION                 0x20100428
+#define ACPI_CA_VERSION                 0x20100528
 
 #include "actypes.h"
 #include "actbl.h"
@@ -147,6 +147,7 @@ extern ACPI_NAME            AcpiGbl_TraceMethodName;
 extern UINT32               AcpiGbl_TraceFlags;
 extern UINT8                AcpiGbl_EnableAmlDebugObject;
 extern UINT8                AcpiGbl_CopyDsdtLocally;
+extern UINT8                AcpiGbl_TruncateIoAddresses;
 
 
 /*

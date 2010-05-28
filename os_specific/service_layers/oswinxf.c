@@ -336,7 +336,7 @@ AcpiOsTableOverride (
     *NewTable = OsGetTable (TableName);
     if (*NewTable)
     {
-        AcpiOsPrintf ("Table [%s] obtained from registry, %d bytes\n",
+        AcpiOsPrintf ("Table [%s] obtained from registry, %u bytes\n",
             TableName, (*NewTable)->Length);
     }
     else
@@ -744,7 +744,7 @@ AcpiOsCreateSemaphore (
     AcpiGbl_Semaphores[i].CurrentUnits = (UINT16) InitialUnits;
     AcpiGbl_Semaphores[i].OsHandle = Mutex;
 
-    ACPI_DEBUG_PRINT ((ACPI_DB_MUTEX, "Handle=%d, Max=%d, Current=%d, OsHandle=%p\n",
+    ACPI_DEBUG_PRINT ((ACPI_DB_MUTEX, "Handle=%u, Max=%u, Current=%u, OsHandle=%p\n",
             i, MaxUnits, InitialUnits, Mutex));
 
     *OutHandle = (void *) i;
@@ -827,7 +827,7 @@ AcpiOsWaitSemaphore (
 
     if (Units > 1)
     {
-        printf ("WaitSemaphore: Attempt to receive %d units\n", Units);
+        printf ("WaitSemaphore: Attempt to receive %u units\n", Units);
         return AE_NOT_IMPLEMENTED;
     }
 
@@ -915,7 +915,7 @@ AcpiOsSignalSemaphore (
 
     if (Units > 1)
     {
-        printf ("SignalSemaphore: Attempt to signal %d units, Index %2.2X\n", Units, Index);
+        printf ("SignalSemaphore: Attempt to signal %u units, Index %2.2X\n", Units, Index);
         return AE_NOT_IMPLEMENTED;
     }
 

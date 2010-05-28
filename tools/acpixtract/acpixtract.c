@@ -793,7 +793,7 @@ ListTables (
             TableHeader->AslCompilerId, TableHeader->AslCompilerRevision);
     }
 
-    printf ("\nFound %d ACPI tables [%8.8X]\n", TableCount, VERSION);
+    printf ("\nFound %u ACPI tables [%8.8X]\n", TableCount, VERSION);
     fclose (InputFile);
     return (0);
 }
