@@ -57,6 +57,7 @@ struct taskqueue {
 	int			tq_spin;
 	int			tq_flags;
 	int			tq_tasks_running;
+	int			tq_task_waiters;
 };
 
 #define	TQ_FLAGS_ACTIVE		(1 << 0)
@@ -240,7 +241,8 @@ taskqueue_run(struct taskqueue *queue)
 
 		TQ_LOCK(queue);
 		queue->tq_tasks_running--;
-		wakeup(task);
+		if (queue->tq_task_waiters > 0)
+			wakeup(task);
 	}
 
 	/*
@@ -256,15 +258,21 @@ taskqueue_drain(struct taskqueue *queue, struct task *task)
 {
 	if (queue->tq_spin) {		/* XXX */
 		mtx_lock_spin(&queue->tq_mutex);
-		while (task->ta_pending != 0 || queue->tq_tasks_running > 0)
+		while (task->ta_pending != 0 || queue->tq_tasks_running > 0) {
+			queue->tq_task_waiters++;
 			msleep_spin(task, &queue->tq_mutex, "-", 0);
+			queue->tq_task_waiters--;
+		}
 		mtx_unlock_spin(&queue->tq_mutex);
 	} else {
 		WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK, NULL, __func__);
 
 		mtx_lock(&queue->tq_mutex);
-		while (task->ta_pending != 0 || queue->tq_tasks_running > 0)
+		while (task->ta_pending != 0 || queue->tq_tasks_running > 0) {
+			queue->tq_task_waiters++;
 			msleep(task, &queue->tq_mutex, PWAIT, "-", 0);
+			queue->tq_task_waiters--;
+		}
 		mtx_unlock(&queue->tq_mutex);
 	}
 }
