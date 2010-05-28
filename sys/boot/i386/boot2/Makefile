@@ -2,6 +2,7 @@
 
 .include <bsd.own.mk>
 
+# XXX: not necessary anymore on amd64 (once we get 6623 fixed)
 CC:=${CC:C/^cc|^clang/gcc/}
 
 FILES=		boot boot1 boot2
