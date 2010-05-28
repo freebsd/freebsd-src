@@ -211,7 +211,6 @@ struct local_sysmaps {
  * bit mode this goes away.
  */
 static struct local_sysmaps sysmap_lmem[MAXCPU];
-caddr_t virtual_sys_start = (caddr_t)0;
 
 #define	PMAP_LMEM_MAP1(va, phys)					\
 	int cpu;							\
@@ -443,7 +442,7 @@ again:
 			PMAP_LGMEM_LOCK_INIT(&sysmap_lmem[i]);
 		}
 	}
-	virtual_sys_start = (caddr_t)virtual_avail;
+
 	/*
 	 * Allocate segment table for the kernel
 	 */
