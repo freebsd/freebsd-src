@@ -12,6 +12,7 @@ SRCS=	AsmWriter.cpp Attributes.cpp AutoUpgrade.cpp BasicBlock.cpp \
 	PassManager.cpp PrintModulePass.cpp Type.cpp \
 	TypeSymbolTable.cpp Use.cpp Value.cpp ValueSymbolTable.cpp \
 	ValueTypes.cpp Verifier.cpp
+REQUIRES_RTTI=
 
 TGHDRS=	Intrinsics
 

@@ -5,14 +5,14 @@
 PROG_CXX=clang
 
 SRCDIR=	tools/clang/tools/driver
-SRCS=	cc1_main.cpp driver.cpp
+SRCS=	cc1_main.cpp cc1as_main.cpp driver.cpp
 MAN=
 
 LINKS=	${BINDIR}/clang ${BINDIR}/clang++
 
 TGHDRS=	DiagnosticCommonKinds DiagnosticDriverKinds \
 	DiagnosticFrontendKinds DiagnosticLexKinds DiagnosticSemaKinds \
-	CC1Options
+	CC1Options CC1AsOptions Options
 LIBDEPS=clangfrontend clangdriver clangcodegen clangsema clangchecker \
 	clanganalysis clangrewrite clangast clangparse clanglex clangbasic \
 	\

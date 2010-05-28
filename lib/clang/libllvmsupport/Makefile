@@ -15,5 +15,6 @@ SRCS=	APFloat.cpp APInt.cpp APSInt.cpp Allocator.cpp CommandLine.cpp \
 	TargetRegistry.cpp Timer.cpp Triple.cpp Twine.cpp \
 	circular_raw_ostream.cpp raw_os_ostream.cpp raw_ostream.cpp \
 	regcomp.c regerror.c regexec.c regfree.c regstrlcpy.c
+REQUIRES_RTTI=yo
 
 .include "../clang.lib.mk"

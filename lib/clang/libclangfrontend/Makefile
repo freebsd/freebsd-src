@@ -4,9 +4,9 @@ LIB=	clangfrontend
 
 SRCDIR=	tools/clang/lib/Frontend
 SRCS=	ASTConsumers.cpp ASTMerge.cpp ASTUnit.cpp AnalysisConsumer.cpp \
-	CacheTokens.cpp CodeGenAction.cpp CompilerInstance.cpp \
-	CompilerInvocation.cpp DeclXML.cpp DependencyFile.cpp \
-	DiagChecker.cpp DocumentXML.cpp FixItRewriter.cpp \
+	BoostConAction.cpp CacheTokens.cpp CodeGenAction.cpp \
+	CompilerInstance.cpp CompilerInvocation.cpp DeclXML.cpp \
+	DependencyFile.cpp DiagChecker.cpp DocumentXML.cpp FixItRewriter.cpp \
 	FrontendAction.cpp FrontendActions.cpp FrontendOptions.cpp \
 	GeneratePCH.cpp HTMLDiagnostics.cpp HTMLPrint.cpp \
 	InitHeaderSearch.cpp InitPreprocessor.cpp LangStandards.cpp \
@@ -20,6 +20,6 @@ SRCS=	ASTConsumers.cpp ASTMerge.cpp ASTUnit.cpp AnalysisConsumer.cpp \
 
 TGHDRS=	DiagnosticASTKinds DiagnosticCommonKinds DiagnosticDriverKinds \
 	DiagnosticFrontendKinds DiagnosticLexKinds DiagnosticSemaKinds \
-	CC1Options
+	CC1Options StmtNodes
 
 .include "../clang.lib.mk"

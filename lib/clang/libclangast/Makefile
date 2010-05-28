@@ -14,6 +14,6 @@ SRCS=	APValue.cpp ASTConsumer.cpp ASTContext.cpp ASTDiagnostic.cpp \
 	StmtProfile.cpp StmtViz.cpp TemplateBase.cpp TemplateName.cpp \
 	Type.cpp TypeLoc.cpp TypePrinter.cpp
 
-TGHDRS=	DiagnosticASTKinds DiagnosticCommonKinds
+TGHDRS=	DiagnosticASTKinds DiagnosticCommonKinds StmtNodes
 
 .include "../clang.lib.mk"

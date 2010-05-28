@@ -5,8 +5,8 @@ PROG_CXX=tblgen
 SRCDIR=	utils/TableGen
 SRCS=	ARMDecoderEmitter.cpp AsmMatcherEmitter.cpp \
 	AsmWriterEmitter.cpp AsmWriterInst.cpp CallingConvEmitter.cpp \
-	ClangDiagnosticsEmitter.cpp CodeEmitterGen.cpp \
-	CodeGenDAGPatterns.cpp CodeGenInstruction.cpp \
+	ClangASTNodesEmitter.cpp ClangDiagnosticsEmitter.cpp \
+	CodeEmitterGen.cpp CodeGenDAGPatterns.cpp CodeGenInstruction.cpp \
 	CodeGenTarget.cpp DAGISelEmitter.cpp DAGISelMatcher.cpp \
 	DAGISelMatcherEmitter.cpp DAGISelMatcherGen.cpp \
 	DAGISelMatcherOpt.cpp DisassemblerEmitter.cpp EDEmitter.cpp \
@@ -17,6 +17,7 @@ SRCS=	ARMDecoderEmitter.cpp AsmMatcherEmitter.cpp \
 	TableGen.cpp TableGenBackend.cpp X86DisassemblerTables.cpp \
 	X86RecognizableInstr.cpp
 MAN=
+REQUIRES_EH=
 
 LIBDEPS=llvmsupport llvmsystem
 

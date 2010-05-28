@@ -18,6 +18,6 @@ SRCS=	AnalysisBasedWarnings.cpp CodeCompleteConsumer.cpp \
 	TargetAttributesSema.cpp
 
 TGHDRS=	DiagnosticASTKinds DiagnosticCommonKinds DiagnosticParseKinds \
-	DiagnosticSemaKinds
+	DiagnosticSemaKinds StmtNodes
 
 .include "../clang.lib.mk"

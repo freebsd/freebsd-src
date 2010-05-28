@@ -8,6 +8,18 @@ CFLAGS+=-I${LLVM_SRCS}/include -I${CLANG_SRCS}/include \
 	-DLLVM_ON_UNIX -DLLVM_ON_FREEBSD \
 	-D__STDC_LIMIT_MACROS -D__STDC_CONSTANT_MACROS #-DNDEBUG
 
+.ifndef REQUIRES_EH
+CFLAGS+=	-fno-exceptions
+.else
+# If the library or program requires EH, it also requires RTTI.
+CFLAGS+=-fexceptions
+REQUIRES_RTTI=
+.endif
+
+.ifndef REQUIRES_RTTI
+CFLAGS+=	-fno-rtti
+.endif
+
 TARGET_ARCH?=	${MACHINE_ARCH}
 # XXX: 8.0, to keep __FreeBSD_cc_version happy
 CFLAGS+=-DLLVM_HOSTTRIPLE=\"${TARGET_ARCH}-undermydesk-freebsd9.0\"
@@ -59,6 +71,16 @@ CC1Options.inc.h: ${CLANG_SRCS}/include/clang/Driver/CC1Options.td
 	${TBLGEN} -I${CLANG_SRCS}/include/clang/Driver \
 	   -gen-opt-parser-defs \
 	   ${CLANG_SRCS}/include/clang/Driver/CC1Options.td > ${.TARGET}
+
+CC1AsOptions.inc.h: ${CLANG_SRCS}/include/clang/Driver/CC1AsOptions.td
+	${TBLGEN} -I${CLANG_SRCS}/include/clang/Driver \
+	   -gen-opt-parser-defs \
+	   ${CLANG_SRCS}/include/clang/Driver/CC1AsOptions.td > ${.TARGET}
+
+StmtNodes.inc.h: ${CLANG_SRCS}/include/clang/AST/StmtNodes.td
+	${TBLGEN} -I${CLANG_SRCS}/include/clang/AST \
+	   -gen-clang-stmt-nodes \
+	   ${CLANG_SRCS}/include/clang/AST/StmtNodes.td > ${.TARGET}
 
 SRCS+=		${TGHDRS:C/$/.inc.h/}
 DPADD+=		${TGHDRS:C/$/.inc.h/}

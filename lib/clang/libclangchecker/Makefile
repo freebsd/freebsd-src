@@ -9,7 +9,7 @@ SRCS=	AdjustedReturnValueChecker.cpp AggExprVisitor.cpp \
 	BasicStore.cpp BasicValueFactory.cpp BugReporter.cpp \
 	BugReporterVisitors.cpp BuiltinFunctionChecker.cpp \
 	CFRefCount.cpp CallAndMessageChecker.cpp CallInliner.cpp \
-	CastToStructChecker.cpp CheckDeadStores.cpp \
+	CastSizeChecker.cpp CastToStructChecker.cpp CheckDeadStores.cpp \
 	CheckObjCDealloc.cpp CheckObjCInstMethSignature.cpp \
 	CheckSecuritySyntaxOnly.cpp CheckSizeofPointer.cpp Checker.cpp \
 	CocoaConventions.cpp DereferenceChecker.cpp DivZeroChecker.cpp \
@@ -33,6 +33,6 @@ SRCS=	AdjustedReturnValueChecker.cpp AggExprVisitor.cpp \
 	UndefinedAssignmentChecker.cpp UnixAPIChecker.cpp \
 	VLASizeChecker.cpp ValueManager.cpp
 
-TGHDRS=	DiagnosticAnalysisKinds DiagnosticCommonKinds
+TGHDRS=	DiagnosticAnalysisKinds DiagnosticCommonKinds StmtNodes
 
 .include "../clang.lib.mk"
