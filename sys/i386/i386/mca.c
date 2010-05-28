@@ -812,6 +812,19 @@ mca_init(void)
 	load_cr4(rcr4() | CR4_MCE);
 }
 
+/*
+ * The machine check registers for the BSP cannot be initialized until
+ * the local APIC is initialized.  This happens at SI_SUB_CPU,
+ * SI_ORDER_SECOND.
+ */
+static void
+mca_init_bsp(void *arg __unused)
+{
+
+	mca_init();
+}
+SYSINIT(mca_init_bsp, SI_SUB_CPU, SI_ORDER_ANY, mca_init_bsp, NULL);
+
 /* Called when a machine check exception fires. */
 int
 mca_intr(void)
