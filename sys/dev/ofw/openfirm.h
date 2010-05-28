@@ -83,7 +83,7 @@ MALLOC_DECLARE(M_OFWPROP);
  */
 
 boolean_t	OF_install(char *name, int prio);
-void		OF_init(void *cookie);
+int		OF_init(void *cookie);
 
 /*
  * Known Open Firmware interface names

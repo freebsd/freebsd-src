@@ -76,7 +76,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/ofw/ofwvar.h>
 #include "ofw_if.h"
 
-static void ofw_real_init(ofw_t, void *openfirm);
+static int ofw_real_init(ofw_t, void *openfirm);
 static int ofw_real_test(ofw_t, const char *name);
 static phandle_t ofw_real_peer(ofw_t, phandle_t node);
 static phandle_t ofw_real_child(ofw_t, phandle_t node);
@@ -256,13 +256,14 @@ ofw_real_unmap(cell_t physaddr, void *buf, size_t len)
 
 /* Initialiser */
 
-static void
+static int
 ofw_real_init(ofw_t ofw, void *openfirm)
 {
 	openfirmware = (int (*)(void *))openfirm;
 
 	mtx_init(&of_bounce_mtx, "OF Bounce Page", MTX_DEF, 0);
 	of_bounce_virt = NULL;
+	return (0);
 }
 
 /*
