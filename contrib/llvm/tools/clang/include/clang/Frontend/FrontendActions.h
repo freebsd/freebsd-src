@@ -75,11 +75,9 @@ protected:
 };
 
 class FixItAction : public ASTFrontendAction {
-private:
+protected:
   llvm::OwningPtr<FixItRewriter> Rewriter;
   llvm::OwningPtr<FixItPathRewriter> PathRewriter;
-
-protected:
 
   virtual ASTConsumer *CreateASTConsumer(CompilerInstance &CI,
                                          llvm::StringRef InFile);
@@ -131,6 +129,12 @@ protected:
 
 public:
   virtual bool hasCodeCompletionSupport() const { return true; }
+};
+
+class BoostConAction : public SyntaxOnlyAction {
+protected:
+  virtual ASTConsumer *CreateASTConsumer(CompilerInstance &CI,
+                                         llvm::StringRef InFile);
 };
 
 /**

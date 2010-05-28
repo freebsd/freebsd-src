@@ -179,6 +179,7 @@ bool Lint::runOnFunction(Function &F) {
   TD = getAnalysisIfAvailable<TargetData>();
   visit(F);
   dbgs() << MessagesStr.str();
+  Messages.clear();
   return false;
 }
 
@@ -193,7 +194,6 @@ void Lint::visitCallSite(CallSite CS) {
   Instruction &I = *CS.getInstruction();
   Value *Callee = CS.getCalledValue();
 
-  // TODO: Check function alignment?
   visitMemoryReference(I, Callee, 0, 0, MemRef::Callee);
 
   if (Function *F = dyn_cast<Function>(Callee->stripPointerCasts())) {
@@ -219,7 +219,15 @@ void Lint::visitCallSite(CallSite CS) {
     // TODO: Check sret attribute.
   }
 
-  // TODO: Check the "tail" keyword constraints.
+  if (CS.isCall() && cast<CallInst>(CS.getInstruction())->isTailCall())
+    for (CallSite::arg_iterator AI = CS.arg_begin(), AE = CS.arg_end();
+         AI != AE; ++AI) {
+      Value *Obj = (*AI)->getUnderlyingObject();
+      Assert1(!isa<AllocaInst>(Obj) && !isa<VAArgInst>(Obj),
+              "Undefined behavior: Call with \"tail\" keyword references "
+              "alloca or va_arg", &I);
+    }
+
 
   if (IntrinsicInst *II = dyn_cast<IntrinsicInst>(&I))
     switch (II->getIntrinsicID()) {
@@ -280,8 +288,11 @@ void Lint::visitCallSite(CallSite CS) {
       break;
 
     case Intrinsic::stackrestore:
+      // Stackrestore doesn't read or write memory, but it sets the
+      // stack pointer, which the compiler may read from or write to
+      // at any time, so check it for both readability and writeability.
       visitMemoryReference(I, CS.getArgument(0), 0, 0,
-                           MemRef::Read);
+                           MemRef::Read | MemRef::Write);
       break;
     }
 }
@@ -482,14 +493,10 @@ void llvm::lintFunction(const Function &f) {
 }
 
 /// lintModule - Check a module for errors, printing messages on stderr.
-/// Return true if the module is corrupt.
 ///
-void llvm::lintModule(const Module &M, std::string *ErrorInfo) {
+void llvm::lintModule(const Module &M) {
   PassManager PM;
   Lint *V = new Lint();
   PM.add(V);
   PM.run(const_cast<Module&>(M));
-
-  if (ErrorInfo)
-    *ErrorInfo = V->MessagesStr.str();
 }

@@ -28,12 +28,33 @@ using namespace clang::cxstring;
 
 namespace {
 class USRGenerator : public DeclVisitor<USRGenerator> {
-  llvm::raw_ostream &Out;
+  llvm::SmallString<1024> Buf;
+  llvm::raw_svector_ostream Out;
   bool IgnoreResults;
   ASTUnit *AU;
+  bool generatedLoc;
 public:
-  USRGenerator(ASTUnit *au, llvm::raw_ostream &out)
-    : Out(out), IgnoreResults(false), AU(au) {}
+  USRGenerator(const CXCursor *C = 0)
+    : Out(Buf),
+      IgnoreResults(false),
+      AU(C ? cxcursor::getCursorASTUnit(*C) : 0),
+      generatedLoc(false)
+  {
+    // Add the USR space prefix.
+    Out << "c:";
+  }
+
+  llvm::StringRef str() {
+    return Out.str();
+  }
+
+  USRGenerator* operator->() { return this; }
+
+  template <typename T>
+  llvm::raw_svector_ostream &operator<<(const T &x) {
+    Out << x;
+    return Out;
+  }
 
   bool ignoreResults() const { return IgnoreResults; }
 
@@ -52,20 +73,20 @@ public:
   void VisitTagDecl(TagDecl *D);
   void VisitTypedefDecl(TypedefDecl *D);
   void VisitVarDecl(VarDecl *D);
+  void VisitLinkageSpecDecl(LinkageSpecDecl *D) {
+    IgnoreResults = true;
+    return;
+  }
 
   /// Generate the string component containing the location of the
   ///  declaration.
-  void GenLoc(const Decl *D);
+  bool GenLoc(const Decl *D);
 
   /// String generation methods used both by the visitation methods
   /// and from other clients that want to directly generate USRs.  These
   /// methods do not construct complete USRs (which incorporate the parents
   /// of an AST element), but only the fragments concerning the AST element
   /// itself.
-
-  /// Generate a USR fragment for a named declaration.  This does
-  /// not include the USR component for the parent.
-  void GenNamedDecl(llvm::StringRef name);
 
   /// Generate a USR for an Objective-C class.
   void GenObjCClass(llvm::StringRef cls);
@@ -81,31 +102,12 @@ public:
   void GenObjCProperty(llvm::StringRef prop);
   /// Generate a USR for an Objective-C protocol.
   void GenObjCProtocol(llvm::StringRef prot);
-};
 
-class StringUSRGenerator {
-private:
-  llvm::SmallString<1024> StrBuf;
-  llvm::raw_svector_ostream Out;
-  USRGenerator UG;
-public:
-  StringUSRGenerator(const CXCursor *C = 0)
-    : Out(StrBuf), UG(C ? cxcursor::getCursorASTUnit(*C) : 0, Out) {
-    // Add the USR space prefix.
-    Out << "c:";
-  }
+  void VisitType(QualType T);
 
-  llvm::StringRef str() {
-    return Out.str();
-  }
-
-  USRGenerator* operator->() { return &UG; }
-
-  template <typename T>
-  llvm::raw_svector_ostream &operator<<(const T &x) {
-    Out << x;
-    return Out;
-  }
+  /// Emit a Decl's name using NamedDecl::printName() and return true if
+  ///  the decl had no name.
+  bool EmitDeclName(const NamedDecl *D);
 };
 
 } // end anonymous namespace
@@ -114,56 +116,91 @@ public:
 // Generating USRs from ASTS.
 //===----------------------------------------------------------------------===//
 
+bool USRGenerator::EmitDeclName(const NamedDecl *D) {
+  Out.flush();
+  const unsigned startSize = Buf.size();
+  D->printName(Out);
+  Out.flush();
+  const unsigned endSize = Buf.size();
+  return startSize == endSize;
+}
+
+static bool InAnonymousNamespace(const Decl *D) {
+  if (const NamespaceDecl *ND = dyn_cast<NamespaceDecl>(D->getDeclContext()))
+    return ND->isAnonymousNamespace();
+  return false;
+}
+
+static inline bool ShouldGenerateLocation(const NamedDecl *D) {
+  return D->getLinkage() != ExternalLinkage && !InAnonymousNamespace(D);
+}
+
 void USRGenerator::VisitDeclContext(DeclContext *DC) {
   if (NamedDecl *D = dyn_cast<NamedDecl>(DC))
     Visit(D);
 }
 
 void USRGenerator::VisitFieldDecl(FieldDecl *D) {
-  const std::string &s = D->getNameAsString();
-  if (s.empty()) {
+  VisitDeclContext(D->getDeclContext());
+  Out << (isa<ObjCIvarDecl>(D) ? "@" : "@FI@");
+  if (EmitDeclName(D)) {
     // Bit fields can be anonymous.
     IgnoreResults = true;
     return;
   }
-  VisitDeclContext(D->getDeclContext());
-  Out << (isa<ObjCIvarDecl>(D) ? "@" : "@FI@") << s;
 }
 
 void USRGenerator::VisitFunctionDecl(FunctionDecl *D) {
-  if (D->getLinkage() != ExternalLinkage) {
-    GenLoc(D);
-    if (IgnoreResults)
-      return;
-  }
-  else
-    VisitDeclContext(D->getDeclContext());
+  if (ShouldGenerateLocation(D) && GenLoc(D))
+    return;
 
-  Out << "@F@" << D;
+  VisitDeclContext(D->getDeclContext());
+  Out << "@F@";
+  D->printName(Out);
+
+  ASTContext &Ctx = AU->getASTContext();
+  if (!Ctx.getLangOptions().CPlusPlus || D->isExternC())
+    return;
+
+  // Mangle in type information for the arguments.
+  for (FunctionDecl::param_iterator I = D->param_begin(), E = D->param_end();
+       I != E; ++I) {
+    Out << '#';
+    if (ParmVarDecl *PD = *I)
+      VisitType(PD->getType());
+  }
+  if (D->isVariadic())
+    Out << '.';
+  Out << '#';
+  if (CXXMethodDecl *MD = dyn_cast<CXXMethodDecl>(D)) {
+    if (MD->isStatic())
+      Out << 'S';
+    if (unsigned quals = MD->getTypeQualifiers())
+      Out << (char)('0' + quals);
+  }
 }
 
 void USRGenerator::VisitNamedDecl(NamedDecl *D) {
   VisitDeclContext(D->getDeclContext());
-  const std::string &s = D->getNameAsString();
-  // The string can be empty if the declaration has no name; e.g., it is
-  // the ParmDecl with no name for declaration of a function pointer type, e.g.:
-  //  	void  (*f)(void *);
-  // In this case, don't generate a USR.
-  if (s.empty())
+  Out << "@";
+
+  if (EmitDeclName(D)) {
+    // The string can be empty if the declaration has no name; e.g., it is
+    // the ParmDecl with no name for declaration of a function pointer type,
+    // e.g.: void  (*f)(void *);
+    // In this case, don't generate a USR.
     IgnoreResults = true;
-  else
-    GenNamedDecl(s);
+  }
 }
 
 void USRGenerator::VisitVarDecl(VarDecl *D) {
   // VarDecls can be declared 'extern' within a function or method body,
   // but their enclosing DeclContext is the function, not the TU.  We need
   // to check the storage class to correctly generate the USR.
-  if (D->getLinkage() != ExternalLinkage) {
-    GenLoc(D);
-    if (IgnoreResults)
-      return;
-  }
+  if (ShouldGenerateLocation(D) && GenLoc(D))
+    return;
+
+  VisitDeclContext(D->getDeclContext());
 
   // Variables always have simple names.
   llvm::StringRef s = D->getName();
@@ -175,18 +212,28 @@ void USRGenerator::VisitVarDecl(VarDecl *D) {
   if (s.empty())
     IgnoreResults = true;
   else
-    GenNamedDecl(s);
+    Out << '@' << s;
 }
 
 void USRGenerator::VisitNamespaceDecl(NamespaceDecl *D) {
+  if (D->isAnonymousNamespace()) {
+    Out << "@aN";
+    return;
+  }
+
   VisitDeclContext(D->getDeclContext());
-  Out << "@N@" << D;
+  if (!IgnoreResults)
+    Out << "@N@" << D->getName();
 }
 
 void USRGenerator::VisitObjCMethodDecl(ObjCMethodDecl *D) {
   Visit(cast<Decl>(D->getDeclContext()));
-  GenObjCMethod(DeclarationName(D->getSelector()).getAsString(),
-                D->isInstanceMethod());
+  // Ideally we would use 'GenObjCMethod', but this is such a hot path
+  // for Objective-C code that we don't want to use
+  // DeclarationName::getAsString().
+  Out << (D->isInstanceMethod() ? "(im)" : "(cm)");
+  DeclarationName N(D->getSelector());
+  N.printName(Out);
 }
 
 void USRGenerator::VisitObjCClassDecl(ObjCClassDecl *D) {
@@ -258,59 +305,56 @@ void USRGenerator::VisitObjCPropertyImplDecl(ObjCPropertyImplDecl *D) {
 }
 
 void USRGenerator::VisitTagDecl(TagDecl *D) {
-  D = D->getCanonicalDecl();
-  VisitDeclContext(D->getDeclContext());
-  switch (D->getTagKind()) {
-    case TagDecl::TK_struct: Out << "@S"; break;
-    case TagDecl::TK_class:  Out << "@C"; break;
-    case TagDecl::TK_union:  Out << "@U"; break;
-    case TagDecl::TK_enum:   Out << "@E"; break;
-  }
-
-  const std::string &s = D->getNameAsString();
-  const TypedefDecl *TD = 0;
-  if (s.empty()) {
-    TD = D->getTypedefForAnonDecl();
-    Out << (TD ? 'A' : 'a');
-  }
-
   // Add the location of the tag decl to handle resolution across
   // translation units.
-  if (D->getLinkage() == NoLinkage) {
-    Out << '@';
-    GenLoc(D);
-    if (IgnoreResults)
-      return;
+  if (ShouldGenerateLocation(D) && GenLoc(D))
+    return;
+
+  D = D->getCanonicalDecl();
+  VisitDeclContext(D->getDeclContext());
+
+  switch (D->getTagKind()) {
+    case TTK_Struct: Out << "@S"; break;
+    case TTK_Class:  Out << "@C"; break;
+    case TTK_Union:  Out << "@U"; break;
+    case TTK_Enum:   Out << "@E"; break;
   }
 
-  if (s.empty()) {
-    if (TD)
+  Out << '@';
+  Out.flush();
+  assert(Buf.size() > 0);
+  const unsigned off = Buf.size() - 1;
+
+  if (EmitDeclName(D)) {
+    if (const TypedefDecl *TD = D->getTypedefForAnonDecl()) {
+      Buf[off] = 'A';
       Out << '@' << TD;
+    }
+    else
+      Buf[off] = 'a';
   }
-  else
-    Out << '@' << s;
 }
 
 void USRGenerator::VisitTypedefDecl(TypedefDecl *D) {
+  if (ShouldGenerateLocation(D) && GenLoc(D))
+    return;
   DeclContext *DC = D->getDeclContext();
   if (NamedDecl *DCN = dyn_cast<NamedDecl>(DC))
     Visit(DCN);
   Out << "@T@";
-  if (D->getLinkage() == NoLinkage) {
-    GenLoc(D);
-    if (IgnoreResults)
-      return;
-    Out << '@';
-  }
   Out << D->getName();
 }
 
-void USRGenerator::GenLoc(const Decl *D) {
+bool USRGenerator::GenLoc(const Decl *D) {
+  if (generatedLoc)
+    return IgnoreResults;
+  generatedLoc = true;
+
   const SourceManager &SM = AU->getSourceManager();
   SourceLocation L = D->getLocStart();
   if (L.isInvalid()) {
     IgnoreResults = true;
-    return;
+    return true;
   }
   L = SM.getInstantiationLoc(L);
   const std::pair<FileID, unsigned> &Decomposed = SM.getDecomposedLoc(L);
@@ -322,20 +366,144 @@ void USRGenerator::GenLoc(const Decl *D) {
   else {
     // This case really isn't interesting.
     IgnoreResults = true;
-    return;
+    return true;
   }
   Out << '@'
       << SM.getLineNumber(Decomposed.first, Decomposed.second) << ':'
       << SM.getColumnNumber(Decomposed.first, Decomposed.second);
+
+  return IgnoreResults;
+}
+
+void USRGenerator::VisitType(QualType T) {
+  // This method mangles in USR information for types.  It can possibly
+  // just reuse the naming-mangling logic used by codegen, although the
+  // requirements for USRs might not be the same.
+  ASTContext &Ctx = AU->getASTContext();
+
+  do {
+    T = Ctx.getCanonicalType(T);
+    Qualifiers Q = T.getQualifiers();
+    unsigned qVal = 0;
+    if (Q.hasConst())
+      qVal |= 0x1;
+    if (Q.hasVolatile())
+      qVal |= 0x2;
+    if (Q.hasRestrict())
+      qVal |= 0x4;
+    if(qVal)
+      Out << ((char) ('0' + qVal));
+
+    // Mangle in ObjC GC qualifiers?
+
+    if (const PointerType *PT = T->getAs<PointerType>()) {
+      Out << '*';
+      T = PT->getPointeeType();
+      continue;
+    }
+    if (const ReferenceType *RT = T->getAs<ReferenceType>()) {
+      Out << '&';
+      T = RT->getPointeeType();
+      continue;
+    }
+    if (const FunctionProtoType *FT = T->getAs<FunctionProtoType>()) {
+      Out << 'F';
+      VisitType(FT->getResultType());
+      for (FunctionProtoType::arg_type_iterator
+            I = FT->arg_type_begin(), E = FT->arg_type_end(); I!=E; ++I) {
+        VisitType(*I);
+      }
+      if (FT->isVariadic())
+        Out << '.';
+      return;
+    }
+    if (const BlockPointerType *BT = T->getAs<BlockPointerType>()) {
+      Out << 'B';
+      T = BT->getPointeeType();
+      continue;
+    }
+    if (const BuiltinType *BT = T->getAs<BuiltinType>()) {
+      unsigned char c = '\0';
+      switch (BT->getKind()) {
+        case BuiltinType::Void:
+          c = 'v'; break;
+        case BuiltinType::Bool:
+          c = 'b'; break;
+        case BuiltinType::Char_U:
+        case BuiltinType::UChar:
+          c = 'c'; break;
+        case BuiltinType::Char16:
+          c = 'q'; break;
+        case BuiltinType::Char32:
+          c = 'w'; break;
+        case BuiltinType::UShort:
+          c = 's'; break;
+        case BuiltinType::UInt:
+          c = 'i'; break;
+        case BuiltinType::ULong:
+          c = 'l'; break;
+        case BuiltinType::ULongLong:
+          c = 'k'; break;
+        case BuiltinType::UInt128:
+          c = 'j'; break;
+        case BuiltinType::Char_S:
+        case BuiltinType::SChar:
+          c = 'C'; break;
+        case BuiltinType::WChar:
+          c = 'W'; break;
+        case BuiltinType::Short:
+          c = 'S'; break;
+        case BuiltinType::Int:
+          c = 'I'; break;
+        case BuiltinType::Long:
+          c = 'L'; break;
+        case BuiltinType::LongLong:
+          c = 'K'; break;
+        case BuiltinType::Int128:
+          c = 'J'; break;
+        case BuiltinType::Float:
+          c = 'f'; break;
+        case BuiltinType::Double:
+          c = 'd'; break;
+        case BuiltinType::LongDouble:
+          c = 'D'; break;
+        case BuiltinType::NullPtr:
+          c = 'n'; break;
+        case BuiltinType::Overload:
+        case BuiltinType::Dependent:
+        case BuiltinType::UndeducedAuto:
+          IgnoreResults = true;
+          return;
+        case BuiltinType::ObjCId:
+          c = 'o'; break;
+        case BuiltinType::ObjCClass:
+          c = 'O'; break;
+        case BuiltinType::ObjCSel:
+          c = 'e'; break;
+      }
+      Out << c;
+      return;
+    }
+    if (const ComplexType *CT = T->getAs<ComplexType>()) {
+      Out << '<';
+      T = CT->getElementType();
+      continue;
+    }
+    if (const TagType *TT = T->getAs<TagType>()) {
+      Out << '$';
+      VisitTagDecl(TT->getDecl());
+      return;
+    }
+
+    // Unhandled type.
+    Out << ' ';
+    break;
+  } while (true);
 }
 
 //===----------------------------------------------------------------------===//
 // General purpose USR generation methods.
 //===----------------------------------------------------------------------===//
-
-void USRGenerator::GenNamedDecl(llvm::StringRef name) {
-  Out << "@" << name;
-}
 
 void USRGenerator::GenObjCClass(llvm::StringRef cls) {
   Out << "objc(cs)" << cls;
@@ -346,7 +514,7 @@ void USRGenerator::GenObjCCategory(llvm::StringRef cls, llvm::StringRef cat) {
 }
 
 void USRGenerator::GenObjCIvar(llvm::StringRef ivar) {
-  GenNamedDecl(ivar);
+  Out << '@' << ivar;
 }
 
 void USRGenerator::GenObjCMethod(llvm::StringRef meth, bool isInstanceMethod) {
@@ -383,6 +551,7 @@ static CXString getDeclCursorUSR(const CXCursor &C) {
         // Generate USRs for all entities with external linkage.
         break;
       case NoLinkage:
+      case UniqueExternalLinkage:
         // We allow enums, typedefs, and structs that have no linkage to
         // have USRs that are anchored to the file they were defined in
         // (e.g., the header).  This is a little gross, but in principal
@@ -390,27 +559,27 @@ static CXString getDeclCursorUSR(const CXCursor &C) {
         // are referred to across multiple translation units.
         if (isa<TagDecl>(ND) || isa<TypedefDecl>(ND) ||
             isa<EnumConstantDecl>(ND) || isa<FieldDecl>(ND) ||
-            isa<VarDecl>(ND))
+            isa<VarDecl>(ND) || isa<NamespaceDecl>(ND))
           break;
         // Fall-through.
       case InternalLinkage:
         if (isa<FunctionDecl>(ND))
           break;
-      case UniqueExternalLinkage:
-        return createCXString("");
     }
 
-  StringUSRGenerator SUG(&C);
-  SUG->Visit(D);
+  USRGenerator UG(&C);
+  UG->Visit(D);
 
-  if (SUG->ignoreResults())
+  if (UG->ignoreResults())
     return createCXString("");
 
+#if 0
   // For development testing.
-  // assert(SUG.str().size() > 2);
+  assert(UG.str().size() > 2);
+#endif
 
     // Return a copy of the string that must be disposed by the caller.
-  return createCXString(SUG.str(), true);
+  return createCXString(UG.str(), true);
 }
 
 extern "C" {
@@ -422,56 +591,56 @@ CXString clang_getCursorUSR(CXCursor C) {
       return getDeclCursorUSR(C);
 
   if (K == CXCursor_MacroDefinition) {
-    StringUSRGenerator SUG(&C);
-    SUG << "macro@"
-        << cxcursor::getCursorMacroDefinition(C)->getName()->getNameStart();
-    return createCXString(SUG.str(), true);
+    USRGenerator UG(&C);
+    UG << "macro@"
+       << cxcursor::getCursorMacroDefinition(C)->getName()->getNameStart();
+    return createCXString(UG.str(), true);
   }
 
   return createCXString("");
 }
 
 CXString clang_constructUSR_ObjCIvar(const char *name, CXString classUSR) {
-  StringUSRGenerator SUG;
-  SUG << extractUSRSuffix(clang_getCString(classUSR));
-  SUG->GenObjCIvar(name);
-  return createCXString(SUG.str(), true);
+  USRGenerator UG;
+  UG << extractUSRSuffix(clang_getCString(classUSR));
+  UG->GenObjCIvar(name);
+  return createCXString(UG.str(), true);
 }
 
 CXString clang_constructUSR_ObjCMethod(const char *name,
                                        unsigned isInstanceMethod,
                                        CXString classUSR) {
-  StringUSRGenerator SUG;
-  SUG << extractUSRSuffix(clang_getCString(classUSR));
-  SUG->GenObjCMethod(name, isInstanceMethod);
-  return createCXString(SUG.str(), true);
+  USRGenerator UG;
+  UG << extractUSRSuffix(clang_getCString(classUSR));
+  UG->GenObjCMethod(name, isInstanceMethod);
+  return createCXString(UG.str(), true);
 }
 
 CXString clang_constructUSR_ObjCClass(const char *name) {
-  StringUSRGenerator SUG;
-  SUG->GenObjCClass(name);
-  return createCXString(SUG.str(), true);
+  USRGenerator UG;
+  UG->GenObjCClass(name);
+  return createCXString(UG.str(), true);
 }
 
 CXString clang_constructUSR_ObjCProtocol(const char *name) {
-  StringUSRGenerator SUG;
-  SUG->GenObjCProtocol(name);
-  return createCXString(SUG.str(), true);
+  USRGenerator UG;
+  UG->GenObjCProtocol(name);
+  return createCXString(UG.str(), true);
 }
 
 CXString clang_constructUSR_ObjCCategory(const char *class_name,
                                          const char *category_name) {
-  StringUSRGenerator SUG;
-  SUG->GenObjCCategory(class_name, category_name);
-  return createCXString(SUG.str(), true);
+  USRGenerator UG;
+  UG->GenObjCCategory(class_name, category_name);
+  return createCXString(UG.str(), true);
 }
 
 CXString clang_constructUSR_ObjCProperty(const char *property,
                                          CXString classUSR) {
-  StringUSRGenerator SUG;
-  SUG << extractUSRSuffix(clang_getCString(classUSR));
-  SUG->GenObjCProperty(property);
-  return createCXString(SUG.str(), true);
+  USRGenerator UG;
+  UG << extractUSRSuffix(clang_getCString(classUSR));
+  UG->GenObjCProperty(property);
+  return createCXString(UG.str(), true);
 }
 
 } // end extern "C"

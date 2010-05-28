@@ -115,7 +115,7 @@ def h64imm : Operand<i64> {
 // NEON load / store instructions
 //===----------------------------------------------------------------------===//
 
-let mayLoad = 1 in {
+let mayLoad = 1, neverHasSideEffects = 1 in {
 // Use vldmia to load a Q register as a D register pair.
 // This is equivalent to VLDMD except that it has a Q register operand
 // instead of a pair of D registers.
@@ -123,11 +123,6 @@ def VLDMQ
   : AXDI5<(outs QPR:$dst), (ins addrmode5:$addr, pred:$p),
           IndexModeNone, IIC_fpLoadm,
           "vldm${addr:submode}${p}\t${addr:base}, ${dst:dregpair}", "", []>;
-def VLDMQ_UPD
-  : AXDI5<(outs QPR:$dst, GPR:$wb), (ins addrmode5:$addr, pred:$p),
-          IndexModeUpd, IIC_fpLoadm,
-          "vldm${addr:submode}${p}\t${addr:base}!, ${dst:dregpair}",
-          "$addr.base = $wb", []>;
 
 // Use vld1 to load a Q register as a D register pair.
 // This alternative to VLDMQ allows an alignment to be specified.
@@ -135,13 +130,9 @@ def VLDMQ_UPD
 def VLD1q
   : NLdSt<0,0b10,0b1010,0b1100, (outs QPR:$dst), (ins addrmode6:$addr),
           IIC_VLD1, "vld1", "64", "${dst:dregpair}, $addr", "", []>;
-def VLD1q_UPD
-  : NLdSt<0,0b10,0b1010,0b1100, (outs QPR:$dst, GPR:$wb),
-          (ins addrmode6:$addr, am6offset:$offset), IIC_VLD1, "vld1", "64",
-          "${dst:dregpair}, $addr$offset", "$addr.addr = $wb", []>;
-} // mayLoad = 1
+} // mayLoad = 1, neverHasSideEffects = 1
 
-let mayStore = 1 in {
+let mayStore = 1, neverHasSideEffects = 1 in {
 // Use vstmia to store a Q register as a D register pair.
 // This is equivalent to VSTMD except that it has a Q register operand
 // instead of a pair of D registers.
@@ -149,11 +140,6 @@ def VSTMQ
   : AXDI5<(outs), (ins QPR:$src, addrmode5:$addr, pred:$p),
           IndexModeNone, IIC_fpStorem,
           "vstm${addr:submode}${p}\t${addr:base}, ${src:dregpair}", "", []>;
-def VSTMQ_UPD
-  : AXDI5<(outs GPR:$wb), (ins QPR:$src, addrmode5:$addr, pred:$p),
-          IndexModeUpd, IIC_fpStorem,
-          "vstm${addr:submode}${p}\t${addr:base}!, ${src:dregpair}",
-          "$addr.base = $wb", []>;
 
 // Use vst1 to store a Q register as a D register pair.
 // This alternative to VSTMQ allows an alignment to be specified.
@@ -161,14 +147,9 @@ def VSTMQ_UPD
 def VST1q
   : NLdSt<0,0b00,0b1010,0b1100, (outs), (ins addrmode6:$addr, QPR:$src),
           IIC_VST, "vst1", "64", "${src:dregpair}, $addr", "", []>;
-def VST1q_UPD
-  : NLdSt<0,0b00,0b1010,0b1100, (outs GPR:$wb),
-          (ins addrmode6:$addr, am6offset:$offset, QPR:$src),
-          IIC_VST, "vst1", "64", "{$src:dregpair}, $addr$offset",
-          "$addr.addr = $wb", []>;
-} // mayStore = 1
+} // mayStore = 1, neverHasSideEffects = 1
 
-let mayLoad = 1, hasExtraDefRegAllocReq = 1 in {
+let mayLoad = 1, neverHasSideEffects = 1, hasExtraDefRegAllocReq = 1 in {
 
 //   VLD1     : Vector Load (multiple single elements)
 class VLD1D<bits<4> op7_4, string Dt>
@@ -492,9 +473,9 @@ def VLD4LNq32_UPD : VLD4LNWB<0b1011, {?,1,?,?}, "32">;
 //   VLD3DUP  : Vector Load (single 3-element structure to all lanes)
 //   VLD4DUP  : Vector Load (single 4-element structure to all lanes)
 //   FIXME: Not yet implemented.
-} // mayLoad = 1, hasExtraDefRegAllocReq = 1
+} // mayLoad = 1, neverHasSideEffects = 1, hasExtraDefRegAllocReq = 1
 
-let mayStore = 1, hasExtraSrcRegAllocReq = 1 in {
+let mayStore = 1, neverHasSideEffects = 1, hasExtraSrcRegAllocReq = 1 in {
 
 //   VST1     : Vector Store (multiple single elements)
 class VST1D<bits<4> op7_4, string Dt>
@@ -807,7 +788,7 @@ def VST4LNd32_UPD : VST4LNWB<0b1011, {?,0,?,?}, "32">;
 def VST4LNq16_UPD : VST4LNWB<0b0111, {?,?,1,?}, "16">;
 def VST4LNq32_UPD : VST4LNWB<0b1011, {?,1,?,?}, "32">;
 
-} // mayStore = 1, hasExtraSrcRegAllocReq = 1
+} // mayStore = 1, neverHasSideEffects = 1, hasExtraSrcRegAllocReq = 1
 
 
 //===----------------------------------------------------------------------===//
@@ -815,27 +796,32 @@ def VST4LNq32_UPD : VST4LNWB<0b1011, {?,1,?,?}, "32">;
 //===----------------------------------------------------------------------===//
 
 // Extract D sub-registers of Q registers.
-// (arm_dsubreg_0 is 5; arm_dsubreg_1 is 6)
 def DSubReg_i8_reg  : SDNodeXForm<imm, [{
-  return CurDAG->getTargetConstant(5 + N->getZExtValue() / 8, MVT::i32);
+  assert(ARM::dsub_7 == ARM::dsub_0+7 && "Unexpected subreg numbering");
+  return CurDAG->getTargetConstant(ARM::dsub_0 + N->getZExtValue()/8, MVT::i32);
 }]>;
 def DSubReg_i16_reg : SDNodeXForm<imm, [{
-  return CurDAG->getTargetConstant(5 + N->getZExtValue() / 4, MVT::i32);
+  assert(ARM::dsub_7 == ARM::dsub_0+7 && "Unexpected subreg numbering");
+  return CurDAG->getTargetConstant(ARM::dsub_0 + N->getZExtValue()/4, MVT::i32);
 }]>;
 def DSubReg_i32_reg : SDNodeXForm<imm, [{
-  return CurDAG->getTargetConstant(5 + N->getZExtValue() / 2, MVT::i32);
+  assert(ARM::dsub_7 == ARM::dsub_0+7 && "Unexpected subreg numbering");
+  return CurDAG->getTargetConstant(ARM::dsub_0 + N->getZExtValue()/2, MVT::i32);
 }]>;
 def DSubReg_f64_reg : SDNodeXForm<imm, [{
-  return CurDAG->getTargetConstant(5 + N->getZExtValue(), MVT::i32);
+  assert(ARM::dsub_7 == ARM::dsub_0+7 && "Unexpected subreg numbering");
+  return CurDAG->getTargetConstant(ARM::dsub_0 + N->getZExtValue(), MVT::i32);
 }]>;
 def DSubReg_f64_other_reg : SDNodeXForm<imm, [{
-  return CurDAG->getTargetConstant(5 + (1 - N->getZExtValue()), MVT::i32);
+  assert(ARM::dsub_7 == ARM::dsub_0+7 && "Unexpected subreg numbering");
+  return CurDAG->getTargetConstant(ARM::dsub_0 + (1 - N->getZExtValue()),
+                                   MVT::i32);
 }]>;
 
 // Extract S sub-registers of Q/D registers.
-// (arm_ssubreg_0 is 1; arm_ssubreg_1 is 2; etc.)
 def SSubReg_f32_reg : SDNodeXForm<imm, [{
-  return CurDAG->getTargetConstant(1 + N->getZExtValue(), MVT::i32);
+  assert(ARM::ssub_3 == ARM::ssub_0+3 && "Unexpected subreg numbering");
+  return CurDAG->getTargetConstant(ARM::ssub_0 + N->getZExtValue(), MVT::i32);
 }]>;
 
 // Translate lane numbers from Q registers to D subregs.
@@ -2829,10 +2815,20 @@ def  VSWPq    : N2VX<0b11, 0b11, 0b00, 0b10, 0b00000, 1, 0,
 
 //   VMOV     : Vector Move (Register)
 
+let neverHasSideEffects = 1 in {
 def  VMOVDneon: N3VX<0, 0, 0b10, 0b0001, 0, 1, (outs DPR:$dst), (ins DPR:$src),
                      N3RegFrm, IIC_VMOVD, "vmov", "$dst, $src", "", []>;
 def  VMOVQ    : N3VX<0, 0, 0b10, 0b0001, 1, 1, (outs QPR:$dst), (ins QPR:$src),
                      N3RegFrm, IIC_VMOVD, "vmov", "$dst, $src", "", []>;
+
+// Pseudo vector move instructions for QQ and QQQQ registers. This should
+// be expanded after register allocation is completed.
+def  VMOVQQ   : PseudoInst<(outs QQPR:$dst), (ins QQPR:$src),
+                NoItinerary, "${:comment} vmov\t$dst, $src", []>;
+
+def  VMOVQQQQ : PseudoInst<(outs QQQQPR:$dst), (ins QQQQPR:$src),
+                NoItinerary, "${:comment} vmov\t$dst, $src", []>;
+} // neverHasSideEffects
 
 //   VMOV     : Vector Move (Immediate)
 
@@ -2871,6 +2867,7 @@ def vmovImm64 : PatLeaf<(build_vector), [{
 // Note: Some of the cmode bits in the following VMOV instructions need to
 // be encoded based on the immed values.
 
+let isReMaterializable = 1 in {
 def VMOVv8i8  : N1ModImm<1, 0b000, 0b1110, 0, 0, 0, 1, (outs DPR:$dst),
                          (ins h8imm:$SIMM), IIC_VMOVImm,
                          "vmov", "i8", "$dst, $SIMM", "",
@@ -2906,6 +2903,7 @@ def VMOVv2i64 : N1ModImm<1, 0b000, 0b1110, 0, 1, 1, 1, (outs QPR:$dst),
                          (ins h64imm:$SIMM), IIC_VMOVImm,
                          "vmov", "i64", "$dst, $SIMM", "",
                          [(set QPR:$dst, (v2i64 vmovImm64:$SIMM))]>;
+} // isReMaterializable
 
 //   VMOV     : Vector Get Lane (move scalar to ARM core register)
 
@@ -3018,11 +3016,11 @@ def : Pat<(v2f64 (insertelt QPR:$src1, DPR:$src2, imm:$src3)),
           (INSERT_SUBREG QPR:$src1, DPR:$src2, (DSubReg_f64_reg imm:$src3))>;
 
 def : Pat<(v2f32 (scalar_to_vector SPR:$src)),
-          (INSERT_SUBREG (v2f32 (IMPLICIT_DEF)), SPR:$src, arm_ssubreg_0)>;
+          (INSERT_SUBREG (v2f32 (IMPLICIT_DEF)), SPR:$src, ssub_0)>;
 def : Pat<(v2f64 (scalar_to_vector (f64 DPR:$src))),
-          (INSERT_SUBREG (v2f64 (IMPLICIT_DEF)), DPR:$src, arm_dsubreg_0)>;
+          (INSERT_SUBREG (v2f64 (IMPLICIT_DEF)), DPR:$src, dsub_0)>;
 def : Pat<(v4f32 (scalar_to_vector SPR:$src)),
-          (INSERT_SUBREG (v4f32 (IMPLICIT_DEF)), SPR:$src, arm_ssubreg_0)>;
+          (INSERT_SUBREG (v4f32 (IMPLICIT_DEF)), SPR:$src, ssub_0)>;
 
 def : Pat<(v8i8 (scalar_to_vector GPR:$src)),
           (VSETLNi8  (v8i8  (IMPLICIT_DEF)), GPR:$src, (i32 0))>;
@@ -3034,15 +3032,15 @@ def : Pat<(v2i32 (scalar_to_vector GPR:$src)),
 def : Pat<(v16i8 (scalar_to_vector GPR:$src)),
           (INSERT_SUBREG (v16i8 (IMPLICIT_DEF)),
                          (VSETLNi8 (v8i8 (IMPLICIT_DEF)), GPR:$src, (i32 0)),
-                         arm_dsubreg_0)>;
+                         dsub_0)>;
 def : Pat<(v8i16 (scalar_to_vector GPR:$src)),
           (INSERT_SUBREG (v8i16 (IMPLICIT_DEF)),
                          (VSETLNi16 (v4i16 (IMPLICIT_DEF)), GPR:$src, (i32 0)),
-                         arm_dsubreg_0)>;
+                         dsub_0)>;
 def : Pat<(v4i32 (scalar_to_vector GPR:$src)),
           (INSERT_SUBREG (v4i32 (IMPLICIT_DEF)),
                          (VSETLNi32 (v2i32 (IMPLICIT_DEF)), GPR:$src, (i32 0)),
-                         arm_dsubreg_0)>;
+                         dsub_0)>;
 
 //   VDUP     : Vector Duplicate (from ARM core register to all elements)
 
@@ -3376,27 +3374,27 @@ def  VTBX4
 class N2VSPat<SDNode OpNode, ValueType ResTy, ValueType OpTy, NeonI Inst>
   : NEONFPPat<(ResTy (OpNode SPR:$a)),
               (EXTRACT_SUBREG (OpTy (Inst (INSERT_SUBREG (OpTy (IMPLICIT_DEF)),
-                                                       SPR:$a, arm_ssubreg_0))),
-                              arm_ssubreg_0)>;
+                                                       SPR:$a, ssub_0))),
+                              ssub_0)>;
 
 class N3VSPat<SDNode OpNode, NeonI Inst>
   : NEONFPPat<(f32 (OpNode SPR:$a, SPR:$b)),
               (EXTRACT_SUBREG (v2f32
                                  (Inst (INSERT_SUBREG (v2f32 (IMPLICIT_DEF)),
-                                                      SPR:$a, arm_ssubreg_0),
+                                                      SPR:$a, ssub_0),
                                        (INSERT_SUBREG (v2f32 (IMPLICIT_DEF)),
-                                                      SPR:$b, arm_ssubreg_0))),
-                              arm_ssubreg_0)>;
+                                                      SPR:$b, ssub_0))),
+                              ssub_0)>;
 
 class N3VSMulOpPat<SDNode MulNode, SDNode OpNode, NeonI Inst>
   : NEONFPPat<(f32 (OpNode SPR:$acc, (f32 (MulNode SPR:$a, SPR:$b)))),
               (EXTRACT_SUBREG (Inst (INSERT_SUBREG (v2f32 (IMPLICIT_DEF)),
-                                                   SPR:$acc, arm_ssubreg_0),
+                                                   SPR:$acc, ssub_0),
                                     (INSERT_SUBREG (v2f32 (IMPLICIT_DEF)),
-                                                   SPR:$a, arm_ssubreg_0),
+                                                   SPR:$a, ssub_0),
                                     (INSERT_SUBREG (v2f32 (IMPLICIT_DEF)),
-                                                   SPR:$b, arm_ssubreg_0)),
-                              arm_ssubreg_0)>;
+                                                   SPR:$b, ssub_0)),
+                              ssub_0)>;
 
 // These need separate instructions because they must use DPR_VFP2 register
 // class which have SPR sub-registers.

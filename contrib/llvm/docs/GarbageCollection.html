@@ -617,7 +617,7 @@ conforms to the binary interface defined by library, most essentially the
 using namespace llvm;
 
 namespace {
-  class VISIBILITY_HIDDEN MyGC : public GCStrategy {
+  class LLVM_LIBRARY_VISIBILITY MyGC : public GCStrategy {
   public:
     MyGC() {}
   };
@@ -1229,7 +1229,7 @@ generation in the JIT, nor using the object writers.</p>
 using namespace llvm;
 
 namespace {
-  class VISIBILITY_HIDDEN MyGCPrinter : public GCMetadataPrinter {
+  class LLVM_LIBRARY_VISIBILITY MyGCPrinter : public GCMetadataPrinter {
   public:
     virtual void beginAssembly(std::ostream &amp;OS, AsmPrinter &amp;AP,
                                const TargetAsmInfo &amp;TAI);
@@ -1380,7 +1380,7 @@ Fergus Henderson. International Symposium on Memory Management 2002.</p>
 
   <a href="mailto:sabre@nondot.org">Chris Lattner</a><br>
   <a href="http://llvm.org">LLVM Compiler Infrastructure</a><br>
-  Last modified: $Date: 2009-08-05 17:42:44 +0200 (Wed, 05 Aug 2009) $
+  Last modified: $Date: 2010-05-11 22:16:09 +0200 (Tue, 11 May 2010) $
 </address>
 
 </body>

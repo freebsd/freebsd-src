@@ -36,6 +36,7 @@ td {
    <ul>
    <li><a href="#diagnostics_display">Controlling How Clang Displays Diagnostics</a></li>
    <li><a href="#diagnostics_mappings">Diagnostic Mappings</a></li>
+   <li><a href="#diagnostics_categories">Diagnostic Categories</a><li>
    <li><a href="#diagnostics_commandline">Controlling Diagnostics via Command Line Flags</a></li>
    <li><a href="#diagnostics_pragmas">Controlling Diagnostics via Pragmas</a></li>
    </ul>
@@ -286,6 +287,30 @@ diagnostic.  This information tells you the flag needed to enable or disable the
 diagnostic, either from the command line or through <a 
 href="#pragma_GCC_diagnostic">#pragma GCC diagnostic</a>.</dd>
 
+<!-- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -->
+<dt id="opt_fdiagnostics-show-category"><b>-fdiagnostics-show-category=none/id/name</b>:
+Enable printing category information in diagnostic line.</dt>
+<dd>This option, which defaults to "none",
+controls whether or not Clang prints the category associated with a diagnostic
+when emitting it.  Each diagnostic may or many not have an associated category,
+if it has one, it is listed in the diagnostic categorization field of the
+diagnostic line (in the []'s).</p>
+
+<p>For example, a format string warning will produce these three renditions
+based on the setting of this option:</p>
+
+<pre>
+  t.c:3:11: warning: conversion specifies type 'char *' but the argument has type 'int' [-Wformat]
+  t.c:3:11: warning: conversion specifies type 'char *' but the argument has type 'int' [-Wformat<b>,1</b>]
+  t.c:3:11: warning: conversion specifies type 'char *' but the argument has type 'int' [-Wformat<b>,Format String</b>]
+</pre>
+
+<p>This category can be used by clients that want to group diagnostics by
+category, so it should be a high level category.  We want dozens of these, not
+hundreds or thousands of them.</p>
+</dd>
+
+
 
 <!-- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -->
 <dt id="opt_fdiagnostics-fixit-info"><b>-f[no-]diagnostics-fixit-info</b>:
@@ -393,6 +418,10 @@ it:</p>
 <li>An option that indicates how to control the diagnostic (for diagnostics that
     support it) [<a 
    href="#opt_fdiagnostics-show-option">-fdiagnostics-show-option</a>].</li>
+<li>A <a href="#diagnostics_categories">high-level category</a> for the
+    diagnostic for clients that want to group diagnostics by class (for
+    diagnostics that support it) [<a 
+   href="#opt_fdiagnostics-show-category">-fdiagnostics-show-category</a>].</li>
 <li>The line of source code that the issue occurs on, along with a caret and
     ranges that indicate the important locations [<a
     href="opt_fcaret-diagnostics">-fcaret-diagnostics</a>].</li>
@@ -407,6 +436,7 @@ it:</p>
 <p>For more information please see <a href="#cl_diag_formatting">Formatting of
 Diagnostics</a>.</p>
 
+
 <h4 id="diagnostics_mappings">Diagnostic Mappings</h4>
 
 <p>All diagnostics are mapped into one of these 5 classes:</p>
@@ -420,7 +450,23 @@ Diagnostics</a>.</p>
 <li>Fatal</li>
 </ul></p>
 
-<h4 id="diagnostics_commandline">Controlling Diagnostics via Command Line Flags</h4>
+<h4 id="diagnostics_categories">Diagnostic Categories</h4>
+
+<p>Though not shown by default, diagnostics may each be associated with a
+   high-level category.  This category is intended to make it possible to triage
+   builds that produce a large number of errors or warnings in a grouped way.
+</p>
+
+<p>Categories are not shown by default, but they can be turned on with the
+<a href="#opt_fdiagnostics-show-category">-fdiagnostics-show-category</a> option.
+When set to "<tt>name</tt>", the category is printed textually in the diagnostic
+output.  When it is set to "<tt>id</tt>", a category number is printed.  The
+mapping of category names to category id's can be obtained by running '<tt>clang
+  --print-diagnostic-categories</tt>'.
+</p>
+
+<h4 id="diagnostics_commandline">Controlling Diagnostics via Command Line
+ Flags</h4>
 
 <p>-W flags, -pedantic, etc</p>
 

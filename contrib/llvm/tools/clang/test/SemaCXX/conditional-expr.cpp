@@ -238,3 +238,40 @@ namespace PR6757 {
     (void)(true ? Bar() : Foo3()); // expected-error{{no viable constructor copying temporary}}
   }
 }
+
+// Reduced from selfhost.
+namespace test1 {
+  struct A {
+    enum Foo {
+      fa, fb, fc, fd, fe, ff
+    };
+
+    Foo x();
+  };
+
+  void foo(int);
+
+  void test(A *a) {
+    foo(a ? a->x() : 0);
+  }
+}
+
+namespace rdar7998817 {
+  class X { 
+    X(X&); // expected-note{{declared private here}}
+
+    struct ref { };
+
+  public:
+    X();
+    X(ref);
+    
+    operator ref();
+  };
+
+  void f(bool B) {
+    X x;
+    (void)(B? x // expected-error{{calling a private constructor of class 'rdar7998817::X'}}
+           : X());
+  }
+}

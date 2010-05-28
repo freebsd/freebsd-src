@@ -23,8 +23,9 @@ using llvm::dyn_cast;
 
 namespace clang {
   class ASTContext;
+  class IdentifierInfo;
+  class ObjCInterfaceDecl;
 }
-
 
 // Defined in ASTContext.h
 void *operator new(size_t Bytes, clang::ASTContext &C,
@@ -44,6 +45,7 @@ public:
   enum Kind {
     Alias,
     Aligned,
+    AlignMac68k,
     AlwaysInline,
     AnalyzerNoReturn, // Clang-specific.
     Annotate,
@@ -63,8 +65,10 @@ public:
     GNUInline,
     Hiding,
     IBOutletKind, // Clang-specific. Use "Kind" suffix to not conflict w/ macro.
+    IBOutletCollectionKind, // Clang-specific.
     IBActionKind, // Clang-specific. Use "Kind" suffix to not conflict w/ macro.
     Malloc,
+    MaxFieldAlignment,
     NoDebug,
     NoInline,
     NonNull,
@@ -79,13 +83,13 @@ public:
     NSReturnsNotRetained,   // Clang/Checker-specific.
     Overloadable, // Clang-specific
     Packed,
-    PragmaPack,
     Pure,
     Regparm,
     ReqdWorkGroupSize,   // OpenCL-specific
     Section,
     Sentinel,
     StdCall,
+    ThisCall,
     TransparentUnion,
     Unavailable,
     Unused,
@@ -183,11 +187,14 @@ public:                                                                 \
 
 DEF_SIMPLE_ATTR(Packed);
 
-class PragmaPackAttr : public Attr {
+/// \brief Attribute for specifying a maximum field alignment; this is only
+/// valid on record decls.
+class MaxFieldAlignmentAttr : public Attr {
   unsigned Alignment;
 
 public:
-  PragmaPackAttr(unsigned alignment) : Attr(PragmaPack), Alignment(alignment) {}
+  MaxFieldAlignmentAttr(unsigned alignment)
+    : Attr(MaxFieldAlignment), Alignment(alignment) {}
 
   /// getAlignment - The specified alignment in bits.
   unsigned getAlignment() const { return Alignment; }
@@ -196,10 +203,12 @@ public:
 
   // Implement isa/cast/dyncast/etc.
   static bool classof(const Attr *A) {
-    return A->getKind() == PragmaPack;
+    return A->getKind() == MaxFieldAlignment;
   }
-  static bool classof(const PragmaPackAttr *A) { return true; }
+  static bool classof(const MaxFieldAlignmentAttr *A) { return true; }
 };
+
+DEF_SIMPLE_ATTR(AlignMac68k);
 
 class AlignedAttr : public Attr {
   unsigned Alignment;
@@ -315,6 +324,23 @@ public:
     return A->getKind() == IBOutletKind;
   }
   static bool classof(const IBOutletAttr *A) { return true; }
+};
+
+class IBOutletCollectionAttr : public Attr {
+  const ObjCInterfaceDecl *D;
+public:
+  IBOutletCollectionAttr(const ObjCInterfaceDecl *d = 0)
+    : Attr(IBOutletCollectionKind), D(d) {}
+
+  const ObjCInterfaceDecl *getClass() const { return D; }
+
+  virtual Attr *clone(ASTContext &C) const;
+
+  // Implement isa/cast/dyncast/etc.
+  static bool classof(const Attr *A) {
+    return A->getKind() == IBOutletCollectionKind;
+  }
+  static bool classof(const IBOutletCollectionAttr *A) { return true; }
 };
 
 class IBActionAttr : public Attr {
@@ -457,6 +483,7 @@ public:
 
 DEF_SIMPLE_ATTR(FastCall);
 DEF_SIMPLE_ATTR(StdCall);
+DEF_SIMPLE_ATTR(ThisCall);
 DEF_SIMPLE_ATTR(CDecl);
 DEF_SIMPLE_ATTR(TransparentUnion);
 DEF_SIMPLE_ATTR(ObjCNSObject);

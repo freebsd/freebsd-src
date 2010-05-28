@@ -16,6 +16,7 @@
 #define LLVM_CODEGEN_SCHEDULEDAG_H
 
 #include "llvm/CodeGen/MachineBasicBlock.h"
+#include "llvm/Target/TargetMachine.h"
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/BitVector.h"
 #include "llvm/ADT/GraphTraits.h"
@@ -34,7 +35,6 @@ namespace llvm {
   class SDNode;
   class TargetInstrInfo;
   class TargetInstrDesc;
-  class TargetLowering;
   class TargetMachine;
   class TargetRegisterClass;
   template<class Graph> class GraphWriter;
@@ -226,7 +226,6 @@ namespace llvm {
   private:
     SDNode *Node;                       // Representative node.
     MachineInstr *Instr;                // Alternatively, a MachineInstr.
-    MachineInstr *DbgInstr;             // A dbg_value referencing this.
   public:
     SUnit *OrigNode;                    // If not this, the node from which
                                         // this node was cloned.
@@ -240,7 +239,7 @@ namespace llvm {
     typedef SmallVector<SDep, 4>::iterator succ_iterator;
     typedef SmallVector<SDep, 4>::const_iterator const_pred_iterator;
     typedef SmallVector<SDep, 4>::const_iterator const_succ_iterator;
-    
+
     unsigned NodeNum;                   // Entry # of node in the node vector.
     unsigned NodeQueueId;               // Queue id of node.
     unsigned short Latency;             // Node latency.
@@ -257,6 +256,9 @@ namespace llvm {
     bool isScheduled      : 1;          // True once scheduled.
     bool isScheduleHigh   : 1;          // True if preferable to schedule high.
     bool isCloned         : 1;          // True if this node has been cloned.
+    Sched::Preference SchedulingPref;   // Scheduling preference.
+
+    SmallVector<MachineInstr*, 4> DbgInstrList; // dbg_values referencing this.
   private:
     bool isDepthCurrent   : 1;          // True if Depth is current.
     bool isHeightCurrent  : 1;          // True if Height is current.
@@ -269,35 +271,38 @@ namespace llvm {
     /// SUnit - Construct an SUnit for pre-regalloc scheduling to represent
     /// an SDNode and any nodes flagged to it.
     SUnit(SDNode *node, unsigned nodenum)
-      : Node(node), Instr(0), DbgInstr(0), OrigNode(0), NodeNum(nodenum),
+      : Node(node), Instr(0), OrigNode(0), NodeNum(nodenum),
         NodeQueueId(0),  Latency(0), NumPreds(0), NumSuccs(0), NumPredsLeft(0),
         NumSuccsLeft(0), isTwoAddress(false), isCommutable(false),
         hasPhysRegDefs(false), hasPhysRegClobbers(false),
         isPending(false), isAvailable(false), isScheduled(false),
         isScheduleHigh(false), isCloned(false),
+        SchedulingPref(Sched::None),
         isDepthCurrent(false), isHeightCurrent(false), Depth(0), Height(0),
         CopyDstRC(NULL), CopySrcRC(NULL) {}
 
     /// SUnit - Construct an SUnit for post-regalloc scheduling to represent
     /// a MachineInstr.
     SUnit(MachineInstr *instr, unsigned nodenum)
-      : Node(0), Instr(instr), DbgInstr(0), OrigNode(0), NodeNum(nodenum),
+      : Node(0), Instr(instr), OrigNode(0), NodeNum(nodenum),
         NodeQueueId(0), Latency(0), NumPreds(0), NumSuccs(0), NumPredsLeft(0),
         NumSuccsLeft(0), isTwoAddress(false), isCommutable(false),
         hasPhysRegDefs(false), hasPhysRegClobbers(false),
         isPending(false), isAvailable(false), isScheduled(false),
         isScheduleHigh(false), isCloned(false),
+        SchedulingPref(Sched::None),
         isDepthCurrent(false), isHeightCurrent(false), Depth(0), Height(0),
         CopyDstRC(NULL), CopySrcRC(NULL) {}
 
     /// SUnit - Construct a placeholder SUnit.
     SUnit()
-      : Node(0), Instr(0), DbgInstr(0), OrigNode(0), NodeNum(~0u),
+      : Node(0), Instr(0), OrigNode(0), NodeNum(~0u),
         NodeQueueId(0), Latency(0), NumPreds(0), NumSuccs(0), NumPredsLeft(0),
         NumSuccsLeft(0), isTwoAddress(false), isCommutable(false),
         hasPhysRegDefs(false), hasPhysRegClobbers(false),
         isPending(false), isAvailable(false), isScheduled(false),
         isScheduleHigh(false), isCloned(false),
+        SchedulingPref(Sched::None),
         isDepthCurrent(false), isHeightCurrent(false), Depth(0), Height(0),
         CopyDstRC(NULL), CopySrcRC(NULL) {}
 
@@ -327,20 +332,6 @@ namespace llvm {
     MachineInstr *getInstr() const {
       assert(!Node && "Reading MachineInstr of SUnit with SDNode!");
       return Instr;
-    }
-
-    /// setDbgInstr - Assign the debug instruction for the SUnit.
-    /// This may be used during post-regalloc scheduling.
-    void setDbgInstr(MachineInstr *MI) {
-      assert(!Node && "Setting debug MachineInstr of SUnit with SDNode!");
-      DbgInstr = MI;
-    }
-
-    /// getDbgInstr - Return the debug MachineInstr for this SUnit.
-    /// This may be used during post-regalloc scheduling.
-    MachineInstr *getDbgInstr() const {
-      assert(!Node && "Reading debug MachineInstr of SUnit with SDNode!");
-      return DbgInstr;
     }
 
     /// addPred - This adds the specified edge as a pred of the current node if
@@ -404,7 +395,7 @@ namespace llvm {
           return true;
       return false;
     }
-    
+
     void dump(const ScheduleDAG *G) const;
     void dumpAll(const ScheduleDAG *G) const;
     void print(raw_ostream &O, const ScheduleDAG *G) const;
@@ -423,7 +414,9 @@ namespace llvm {
   /// implementation to decide.
   /// 
   class SchedulingPriorityQueue {
+    unsigned CurCycle;
   public:
+    SchedulingPriorityQueue() : CurCycle(0) {}
     virtual ~SchedulingPriorityQueue() {}
   
     virtual void initNodes(std::vector<SUnit> &SUnits) = 0;
@@ -431,11 +424,15 @@ namespace llvm {
     virtual void updateNode(const SUnit *SU) = 0;
     virtual void releaseState() = 0;
 
-    virtual unsigned size() const = 0;
     virtual bool empty() const = 0;
     virtual void push(SUnit *U) = 0;
   
-    virtual void push_all(const std::vector<SUnit *> &Nodes) = 0;
+    void push_all(const std::vector<SUnit *> &Nodes) {
+      for (std::vector<SUnit *>::const_iterator I = Nodes.begin(),
+           E = Nodes.end(); I != E; ++I)
+        push(*I);
+    }
+
     virtual SUnit *pop() = 0;
 
     virtual void remove(SUnit *SU) = 0;
@@ -447,6 +444,14 @@ namespace llvm {
     virtual void ScheduledNode(SUnit *) {}
 
     virtual void UnscheduledNode(SUnit *) {}
+
+    void setCurCycle(unsigned Cycle) {
+      CurCycle = Cycle;
+    }
+
+    unsigned getCurCycle() const {
+      return CurCycle;
+    }    
   };
 
   class ScheduleDAG {
@@ -456,7 +461,6 @@ namespace llvm {
     const TargetMachine &TM;              // Target processor
     const TargetInstrInfo *TII;           // Target instruction information
     const TargetRegisterInfo *TRI;        // Target processor register info
-    const TargetLowering *TLI;            // Target lowering info
     MachineFunction &MF;                  // Machine function
     MachineRegisterInfo &MRI;             // Virtual/real register map
     std::vector<SUnit*> Sequence;         // The schedule. Null SUnit*'s

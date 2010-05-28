@@ -195,8 +195,8 @@ void ARMInstPrinter::printOperand(const MCInst *MI, unsigned OpNo,
       // FIXME: Breaks e.g. ARM/vmul.ll.
       assert(0);
       /*
-      unsigned DRegLo = TRI->getSubReg(Reg, 5); // arm_dsubreg_0
-      unsigned DRegHi = TRI->getSubReg(Reg, 6); // arm_dsubreg_1
+      unsigned DRegLo = TRI->getSubReg(Reg, ARM::dsub_0);
+      unsigned DRegHi = TRI->getSubReg(Reg, ARM::dsub_1);
       O << '{'
       << getRegisterName(DRegLo) << ',' << getRegisterName(DRegHi)
       << '}';*/
@@ -217,7 +217,8 @@ void ARMInstPrinter::printOperand(const MCInst *MI, unsigned OpNo,
            ((Modifier == 0 || Modifier[0] == 0) && "No modifiers supported"));
     O << '#' << Op.getImm();
   } else {
-    assert((Modifier == 0 || Modifier[0] == 0) && "No modifiers supported");
+    if (Modifier && Modifier[0] != 0 && strcmp(Modifier, "call") != 0)
+      llvm_unreachable("Unsupported modifier");
     assert(Op.isExpr() && "unknown operand kind in printOperand");
     O << *Op.getExpr();
   }

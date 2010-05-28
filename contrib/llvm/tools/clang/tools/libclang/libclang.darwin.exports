@@ -1,3 +1,4 @@
+_clang_CXXMethod_isStatic
 _clang_annotateTokens
 _clang_codeComplete
 _clang_codeCompleteGetDiagnostic
@@ -21,12 +22,15 @@ _clang_disposeTranslationUnit
 _clang_enableStackTraces
 _clang_equalCursors
 _clang_equalLocations
+_clang_equalTypes
 _clang_formatDiagnostic
 _clang_getCString
+_clang_getCanonicalType
 _clang_getClangVersion
 _clang_getCompletionChunkCompletionString
 _clang_getCompletionChunkKind
 _clang_getCompletionChunkText
+_clang_getCompletionPriority
 _clang_getCursor
 _clang_getCursorDefinition
 _clang_getCursorExtent
@@ -37,6 +41,7 @@ _clang_getCursorLinkage
 _clang_getCursorLocation
 _clang_getCursorReferenced
 _clang_getCursorSpelling
+_clang_getCursorType
 _clang_getCursorUSR
 _clang_getDefinitionSpellingAndExtent
 _clang_getDiagnostic
@@ -58,6 +63,7 @@ _clang_getNullLocation
 _clang_getNullRange
 _clang_getNumCompletionChunks
 _clang_getNumDiagnostics
+_clang_getPointeeType
 _clang_getRange
 _clang_getRangeEnd
 _clang_getRangeStart
@@ -67,9 +73,12 @@ _clang_getTokenLocation
 _clang_getTokenSpelling
 _clang_getTranslationUnitCursor
 _clang_getTranslationUnitSpelling
+_clang_getTypeDeclaration
+_clang_getTypeKindSpelling
 _clang_isCursorDefinition
 _clang_isDeclaration
 _clang_isExpression
+_clang_isFromMainFile
 _clang_isInvalid
 _clang_isPreprocessing
 _clang_isReference

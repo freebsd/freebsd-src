@@ -37,6 +37,49 @@ using namespace clang;
 using llvm::StringRef;
 using llvm::StrInStrNoCase;
 
+namespace {
+class InstanceReceiver {
+  const ObjCMessageExpr *ME;
+  const LocationContext *LC;
+public:
+  InstanceReceiver(const ObjCMessageExpr *me = 0,
+                   const LocationContext *lc = 0) : ME(me), LC(lc) {}
+
+  bool isValid() const {
+    return ME && ME->isInstanceMessage();
+  }
+  operator bool() const {
+    return isValid();
+  }
+
+  SVal getSValAsScalarOrLoc(const GRState *state) {
+    assert(isValid());
+    // We have an expression for the receiver?  Fetch the value
+    // of that expression.
+    if (const Expr *Ex = ME->getInstanceReceiver())
+      return state->getSValAsScalarOrLoc(Ex);
+
+    // Otherwise we are sending a message to super.  In this case the
+    // object reference is the same as 'self'.
+    if (const ImplicitParamDecl *SelfDecl = LC->getSelfDecl())
+      return state->getSVal(state->getRegion(SelfDecl, LC));
+
+    return UnknownVal();
+  }
+
+  SourceRange getSourceRange() const {
+    assert(isValid());
+    if (const Expr *Ex = ME->getInstanceReceiver())
+      return Ex->getSourceRange();
+
+    // Otherwise we are sending a message to super.
+    SourceLocation L = ME->getSuperLoc();
+    assert(L.isValid());
+    return SourceRange(L, L);
+  }
+};
+}
+
 static const ObjCMethodDecl*
 ResolveToInterfaceMethodDecl(const ObjCMethodDecl *MD) {
   ObjCInterfaceDecl *ID =
@@ -618,11 +661,11 @@ public:
       break;
 
     case ObjCMessageExpr::Class:
-      OD = ME->getClassReceiver()->getAs<ObjCInterfaceType>()->getDecl();
+      OD = ME->getClassReceiver()->getAs<ObjCObjectType>()->getInterface();
       break;
 
     case ObjCMessageExpr::SuperClass:
-      OD = ME->getSuperType()->getAs<ObjCInterfaceType>()->getDecl();
+      OD = ME->getSuperType()->getAs<ObjCObjectType>()->getInterface();
       break;
     }
 
@@ -1374,7 +1417,7 @@ RetainSummaryManager::getInstanceMethodSummary(const ObjCMessageExpr *ME,
   //  we just use the 'ID' from the message expression.
   SVal receiverV;
 
-  if (const Expr *Receiver = ME->getInstanceReceiver()) {
+  if (Receiver) {
     receiverV = state->getSValAsScalarOrLoc(Receiver);
   
     // FIXME: Eventually replace the use of state->get<RefBindings> with
@@ -1724,7 +1767,7 @@ private:
 
   void ProcessNonLeakError(ExplodedNodeSet& Dst,
                            GRStmtNodeBuilder& Builder,
-                           Expr* NodeExpr, Expr* ErrorExpr,
+                           Expr* NodeExpr, SourceRange ErrorRange,
                            ExplodedNode* Pred,
                            const GRState* St,
                            RefVal::Kind hasErr, SymbolRef Sym);
@@ -1768,7 +1811,7 @@ public:
                    GRExprEngine& Eng,
                    GRStmtNodeBuilder& Builder,
                    Expr* Ex,
-                   Expr* Receiver,
+                   InstanceReceiver Receiver,
                    const RetainSummary& Summ,
                    const MemRegion *Callee,
                    ExprIterator arg_beg, ExprIterator arg_end,
@@ -2552,7 +2595,8 @@ static QualType GetReturnType(const Expr* RetE, ASTContext& Ctx) {
         // is a call to a class method whose type we can resolve.  In such
         // cases, promote the return type to XXX* (where XXX is the class).
         const ObjCInterfaceDecl *D = ME->getReceiverInterface();
-        return !D ? RetTy : Ctx.getPointerType(Ctx.getObjCInterfaceType(D));
+        return !D ? RetTy :
+                    Ctx.getObjCObjectPointerType(Ctx.getObjCInterfaceType(D));
       }
 
   return RetTy;
@@ -2562,7 +2606,7 @@ void CFRefCount::EvalSummary(ExplodedNodeSet& Dst,
                              GRExprEngine& Eng,
                              GRStmtNodeBuilder& Builder,
                              Expr* Ex,
-                             Expr* Receiver,
+                             InstanceReceiver Receiver,
                              const RetainSummary& Summ,
                              const MemRegion *Callee,
                              ExprIterator arg_beg, ExprIterator arg_end,
@@ -2571,7 +2615,7 @@ void CFRefCount::EvalSummary(ExplodedNodeSet& Dst,
   // Evaluate the effect of the arguments.
   RefVal::Kind hasErr = (RefVal::Kind) 0;
   unsigned idx = 0;
-  Expr* ErrorExpr = NULL;
+  SourceRange ErrorRange;
   SymbolRef ErrorSym = 0;
 
   llvm::SmallVector<const MemRegion*, 10> RegionsToInvalidate;
@@ -2584,7 +2628,7 @@ void CFRefCount::EvalSummary(ExplodedNodeSet& Dst,
       if (RefBindings::data_type* T = state->get<RefBindings>(Sym)) {
         state = Update(state, Sym, *T, Summ.getArg(idx), hasErr);
         if (hasErr) {
-          ErrorExpr = *I;
+          ErrorRange = (*I)->getSourceRange();
           ErrorSym = Sym;
           break;
         }
@@ -2677,13 +2721,13 @@ void CFRefCount::EvalSummary(ExplodedNodeSet& Dst,
   }
 
   // Evaluate the effect on the message receiver.
-  if (!ErrorExpr && Receiver) {
-    SymbolRef Sym = state->getSValAsScalarOrLoc(Receiver).getAsLocSymbol();
+  if (!ErrorRange.isValid() && Receiver) {
+    SymbolRef Sym = Receiver.getSValAsScalarOrLoc(state).getAsLocSymbol();
     if (Sym) {
       if (const RefVal* T = state->get<RefBindings>(Sym)) {
         state = Update(state, Sym, *T, Summ.getReceiverEffect(), hasErr);
         if (hasErr) {
-          ErrorExpr = Receiver;
+          ErrorRange = Receiver.getSourceRange();
           ErrorSym = Sym;
         }
       }
@@ -2692,7 +2736,7 @@ void CFRefCount::EvalSummary(ExplodedNodeSet& Dst,
 
   // Process any errors.
   if (hasErr) {
-    ProcessNonLeakError(Dst, Builder, Ex, ErrorExpr, Pred, state,
+    ProcessNonLeakError(Dst, Builder, Ex, ErrorRange, Pred, state,
                         hasErr, ErrorSym);
     return;
   }
@@ -2703,7 +2747,7 @@ void CFRefCount::EvalSummary(ExplodedNodeSet& Dst,
   if (RE.getKind() == RetEffect::OwnedWhenTrackedReceiver) {
     bool found = false;
     if (Receiver) {
-      SVal V = state->getSValAsScalarOrLoc(Receiver);
+      SVal V = Receiver.getSValAsScalarOrLoc(state);
       if (SymbolRef Sym = V.getAsLocSymbol())
         if (state->get<RefBindings>(Sym)) {
           found = true;
@@ -2759,8 +2803,8 @@ void CFRefCount::EvalSummary(ExplodedNodeSet& Dst,
     }
 
     case RetEffect::ReceiverAlias: {
-      assert (Receiver);
-      SVal V = state->getSValAsScalarOrLoc(Receiver);
+      assert(Receiver);
+      SVal V = Receiver.getSValAsScalarOrLoc(state);
       state = state->BindExpr(Ex, V, false);
       break;
     }
@@ -2848,7 +2892,8 @@ void CFRefCount::EvalObjCMessageExpr(ExplodedNodeSet& Dst,
       : Summaries.getClassMethodSummary(ME);
 
   assert(Summ && "RetainSummary is null");
-  EvalSummary(Dst, Eng, Builder, ME, ME->getInstanceReceiver(), *Summ, NULL,
+  EvalSummary(Dst, Eng, Builder, ME,
+              InstanceReceiver(ME, Pred->getLocationContext()), *Summ, NULL,
               ME->arg_begin(), ME->arg_end(), Pred, state);
 }
 
@@ -3408,7 +3453,7 @@ void CFRefCount::EvalDeadSymbols(ExplodedNodeSet& Dst,
 
 void CFRefCount::ProcessNonLeakError(ExplodedNodeSet& Dst,
                                      GRStmtNodeBuilder& Builder,
-                                     Expr* NodeExpr, Expr* ErrorExpr,
+                                     Expr* NodeExpr, SourceRange ErrorRange,
                                      ExplodedNode* Pred,
                                      const GRState* St,
                                      RefVal::Kind hasErr, SymbolRef Sym) {
@@ -3439,7 +3484,7 @@ void CFRefCount::ProcessNonLeakError(ExplodedNodeSet& Dst,
   }
 
   CFRefReport *report = new CFRefReport(*BT, *this, N, Sym);
-  report->addRange(ErrorExpr->getSourceRange());
+  report->addRange(ErrorRange);
   BR->EmitReport(report);
 }
 

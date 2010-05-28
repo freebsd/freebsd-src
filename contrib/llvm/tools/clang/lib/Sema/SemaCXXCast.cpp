@@ -388,6 +388,12 @@ CheckDynamicCast(Sema &Self, Expr *&SrcExpr, QualType DestType,
         return;
         
     Kind = CastExpr::CK_DerivedToBase;
+
+    // If we are casting to or through a virtual base class, we need a
+    // vtable.
+    if (Self.BasePathInvolvesVirtualBase(BasePath))
+      Self.MarkVTableUsed(OpRange.getBegin(), 
+                          cast<CXXRecordDecl>(SrcRecord->getDecl()));
     return;
   }
 
@@ -398,6 +404,8 @@ CheckDynamicCast(Sema &Self, Expr *&SrcExpr, QualType DestType,
     Self.Diag(OpRange.getBegin(), diag::err_bad_dynamic_cast_not_polymorphic)
       << SrcPointee.getUnqualifiedType() << SrcExpr->getSourceRange();
   }
+  Self.MarkVTableUsed(OpRange.getBegin(), 
+                      cast<CXXRecordDecl>(SrcRecord->getDecl()));
 
   // Done. Everything else is run-time checks.
   Kind = CastExpr::CK_Dynamic;
@@ -578,8 +586,9 @@ static TryCastResult TryStaticCast(Sema &Self, Expr *&SrcExpr,
           return TC_Success;
         }
       }
-      else if (CStyle && DestType->isObjCObjectPointerType()) {
-        // allow c-style cast of objective-c pointers as they are pervasive.
+      else if (DestType->isObjCObjectPointerType()) {
+        // allow both c-style cast and static_cast of objective-c pointers as 
+        // they are pervasive.
         Kind = CastExpr::CK_AnyPointerToObjCPointerCast;
         return TC_Success;
       }
@@ -590,7 +599,11 @@ static TryCastResult TryStaticCast(Sema &Self, Expr *&SrcExpr,
       }
     }
   }
-
+  // Allow arbitray objective-c pointer conversion with static casts.
+  if (SrcType->isObjCObjectPointerType() &&
+      DestType->isObjCObjectPointerType())
+    return TC_Success;
+  
   // We tried everything. Everything! Nothing works! :-(
   return TC_NotApplicable;
 }
@@ -846,7 +859,7 @@ TryStaticMemberPointerUpcast(Sema &Self, Expr *&SrcExpr, QualType SrcType,
   }
 
   // B is a base of D. But is it an allowed base? If not, it's a hard error.
-  if (Paths.isAmbiguous(DestClass)) {
+  if (Paths.isAmbiguous(Self.Context.getCanonicalType(DestClass))) {
     Paths.clear();
     Paths.setRecordingPaths(true);
     bool StillOkay = Self.IsDerivedFrom(SrcClass, DestClass, Paths);
@@ -970,7 +983,9 @@ static TryCastResult TryConstCast(Sema &Self, Expr *SrcExpr, QualType DestType,
   // C++ 5.2.11p5: For a const_cast involving pointers to data members [...]
   //   the rules for const_cast are the same as those used for pointers.
 
-  if (!DestType->isPointerType() && !DestType->isMemberPointerType()) {
+  if (!DestType->isPointerType() &&
+      !DestType->isMemberPointerType() &&
+      !DestType->isObjCObjectPointerType()) {
     // Cannot cast to non-pointer, non-reference type. Note that, if DestType
     // was a reference type, we converted it to a pointer above.
     // The status of rvalue references isn't entirely clear, but it looks like

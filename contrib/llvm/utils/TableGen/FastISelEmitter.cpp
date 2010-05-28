@@ -31,7 +31,7 @@ namespace {
 struct InstructionMemo {
   std::string Name;
   const CodeGenRegisterClass *RC;
-  unsigned char SubRegNo;
+  std::string SubRegNo;
   std::vector<std::string>* PhysRegs;
 };
 
@@ -123,7 +123,7 @@ struct OperandsSignature {
   void PrintParameters(raw_ostream &OS) const {
     for (unsigned i = 0, e = Operands.size(); i != e; ++i) {
       if (Operands[i] == "r") {
-        OS << "unsigned Op" << i;
+        OS << "unsigned Op" << i << ", bool Op" << i << "IsKill";
       } else if (Operands[i] == "i") {
         OS << "uint64_t imm" << i;
       } else if (Operands[i] == "f") {
@@ -149,7 +149,7 @@ struct OperandsSignature {
       if (PrintedArg)
         OS << ", ";
       if (Operands[i] == "r") {
-        OS << "Op" << i;
+        OS << "Op" << i << ", Op" << i << "IsKill";
         PrintedArg = true;
       } else if (Operands[i] == "i") {
         OS << "imm" << i;
@@ -167,7 +167,7 @@ struct OperandsSignature {
   void PrintArguments(raw_ostream &OS) const {
     for (unsigned i = 0, e = Operands.size(); i != e; ++i) {
       if (Operands[i] == "r") {
-        OS << "Op" << i;
+        OS << "Op" << i << ", Op" << i << "IsKill";
       } else if (Operands[i] == "i") {
         OS << "imm" << i;
       } else if (Operands[i] == "f") {
@@ -278,7 +278,7 @@ void FastISelMap::CollectPatterns(CodeGenDAGPatterns &CGP) {
     // For now, ignore instructions where the first operand is not an
     // output register.
     const CodeGenRegisterClass *DstRC = 0;
-    unsigned SubRegNo = ~0;
+    std::string SubRegNo;
     if (Op->getName() != "EXTRACT_SUBREG") {
       Record *Op0Rec = II.OperandList[0].Rec;
       if (!Op0Rec->isSubClassOf("RegisterClass"))
@@ -287,8 +287,11 @@ void FastISelMap::CollectPatterns(CodeGenDAGPatterns &CGP) {
       if (!DstRC)
         continue;
     } else {
-      SubRegNo = static_cast<IntInit*>(
-                 Dst->getChild(1)->getLeafValue())->getValue();
+      DefInit *SR = dynamic_cast<DefInit*>(Dst->getChild(1)->getLeafValue());
+      if (SR)
+        SubRegNo = getQualifiedName(SR->getDef());
+      else
+        SubRegNo = Dst->getChild(1)->getLeafValue()->getAsString();
     }
 
     // Inspect the pattern.
@@ -433,11 +436,11 @@ void FastISelMap::PrintFunctionDefinitions(raw_ostream &OS) {
                      << (*Memo.PhysRegs)[i] << ", Op" << i << ", "
                      << "TM.getRegisterInfo()->getPhysicalRegisterRegClass("
                      << (*Memo.PhysRegs)[i] << "), "
-                     << "MRI.getRegClass(Op" << i << "));\n";
+                     << "MRI.getRegClass(Op" << i << "), DL);\n";
               }
               
               OS << "  return FastEmitInst_";
-              if (Memo.SubRegNo == (unsigned char)~0) {
+              if (Memo.SubRegNo.empty()) {
                 Operands.PrintManglingSuffix(OS, *Memo.PhysRegs);
                 OS << "(" << InstNS << Memo.Name << ", ";
                 OS << InstNS << Memo.RC->getName() << "RegisterClass";
@@ -447,8 +450,8 @@ void FastISelMap::PrintFunctionDefinitions(raw_ostream &OS) {
                 OS << ");\n";
               } else {
                 OS << "extractsubreg(" << getName(RetVT);
-                OS << ", Op0, ";
-                OS << (unsigned)Memo.SubRegNo;
+                OS << ", Op0, Op0IsKill, ";
+                OS << Memo.SubRegNo;
                 OS << ");\n";
               }
               
@@ -527,12 +530,12 @@ void FastISelMap::PrintFunctionDefinitions(raw_ostream &OS) {
                      << (*Memo.PhysRegs)[i] << ", Op" << i << ", "
                      << "TM.getRegisterInfo()->getPhysicalRegisterRegClass("
                      << (*Memo.PhysRegs)[i] << "), "
-                     << "MRI.getRegClass(Op" << i << "));\n";
+                     << "MRI.getRegClass(Op" << i << "), DL);\n";
               }
             
             OS << "  return FastEmitInst_";
             
-            if (Memo.SubRegNo == (unsigned char)~0) {
+            if (Memo.SubRegNo.empty()) {
               Operands.PrintManglingSuffix(OS, *Memo.PhysRegs);
               OS << "(" << InstNS << Memo.Name << ", ";
               OS << InstNS << Memo.RC->getName() << "RegisterClass";
@@ -541,8 +544,8 @@ void FastISelMap::PrintFunctionDefinitions(raw_ostream &OS) {
               Operands.PrintArguments(OS, *Memo.PhysRegs);
               OS << ");\n";
             } else {
-              OS << "extractsubreg(RetVT, Op0, ";
-              OS << (unsigned)Memo.SubRegNo;
+              OS << "extractsubreg(RetVT, Op0, Op0IsKill, ";
+              OS << Memo.SubRegNo;
               OS << ");\n";
             }
             

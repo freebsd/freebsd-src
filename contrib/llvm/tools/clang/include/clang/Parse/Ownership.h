@@ -166,7 +166,7 @@ namespace llvm {
 // conversions.
 
 // Flip this switch to measure performance impact of the smart pointers.
-//#define DISABLE_SMART_POINTERS
+// #define DISABLE_SMART_POINTERS
 
 namespace llvm {
   template<>
@@ -403,8 +403,10 @@ namespace clang {
 
     friend class moving::ASTResultMover<Destroyer>;
 
+#if !(defined(_MSC_VER) && _MSC_VER >= 1600)
     ASTOwningResult(ASTOwningResult&); // DO NOT IMPLEMENT
     ASTOwningResult& operator =(ASTOwningResult&); // DO NOT IMPLEMENT
+#endif
 
     void destroy() {
       if (Ptr) {
@@ -443,6 +445,19 @@ namespace clang {
       mover->Ptr = 0;
       return *this;
     }
+
+#if defined(_MSC_VER) && _MSC_VER >= 1600
+    // Emulated move semantics don't work with msvc.
+    ASTOwningResult(ASTOwningResult &&mover)
+      : ActionInv(mover.ActionInv),
+        Ptr(mover.Ptr) {
+      mover.Ptr = 0;
+    }
+    ASTOwningResult &operator=(ASTOwningResult &&mover) {
+      *this = moving::ASTResultMover<Destroyer>(mover);
+      return *this;
+    }
+#endif
 
     /// Assignment from a raw pointer. Takes ownership - beware!
     ASTOwningResult &operator=(void *raw) {

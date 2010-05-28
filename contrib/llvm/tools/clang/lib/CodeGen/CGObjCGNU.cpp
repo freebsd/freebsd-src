@@ -142,6 +142,7 @@ public:
   virtual llvm::Constant *GenerateConstantString(const StringLiteral *);
   virtual CodeGen::RValue
   GenerateMessageSend(CodeGen::CodeGenFunction &CGF,
+                      ReturnValueSlot Return,
                       QualType ResultType,
                       Selector Sel,
                       llvm::Value *Receiver,
@@ -150,6 +151,7 @@ public:
                       const ObjCMethodDecl *Method);
   virtual CodeGen::RValue
   GenerateMessageSendSuper(CodeGen::CodeGenFunction &CGF,
+                           ReturnValueSlot Return,
                            QualType ResultType,
                            Selector Sel,
                            const ObjCInterfaceDecl *Class,
@@ -234,6 +236,21 @@ static std::string SymbolNameForMethod(const std::string &ClassName, const
       ':', '_');
   return std::string(isClassMethod ? "_c_" : "_i_") + ClassName + "_" +
     CategoryName + "_" + MethodNameColonStripped;
+}
+static std::string MangleSelectorTypes(const std::string &TypeString) {
+  std::string Mangled = TypeString;
+  // Simple mangling to avoid breaking when we mix JIT / static code.
+  // Not part of the ABI, subject to change without notice.
+  std::replace(Mangled.begin(), Mangled.end(), '@', '_');
+  std::replace(Mangled.begin(), Mangled.end(), ':', 'J');
+  std::replace(Mangled.begin(), Mangled.end(), '*', 'e');
+  std::replace(Mangled.begin(), Mangled.end(), '#', 'E');
+  std::replace(Mangled.begin(), Mangled.end(), ':', 'j');
+  std::replace(Mangled.begin(), Mangled.end(), '(', 'g');
+  std::replace(Mangled.begin(), Mangled.end(), ')', 'G');
+  std::replace(Mangled.begin(), Mangled.end(), '[', 'h');
+  std::replace(Mangled.begin(), Mangled.end(), ']', 'H');
+  return Mangled;
 }
 
 CGObjCGNU::CGObjCGNU(CodeGen::CodeGenModule &cgm)
@@ -440,6 +457,7 @@ llvm::Constant *CGObjCGNU::GenerateConstantString(const StringLiteral *SL) {
 ///should be called.
 CodeGen::RValue
 CGObjCGNU::GenerateMessageSendSuper(CodeGen::CodeGenFunction &CGF,
+                                    ReturnValueSlot Return,
                                     QualType ResultType,
                                     Selector Sel,
                                     const ObjCInterfaceDecl *Class,
@@ -567,7 +585,7 @@ CGObjCGNU::GenerateMessageSendSuper(CodeGen::CodeGenFunction &CGF,
   llvm::MDNode *node = llvm::MDNode::get(VMContext, impMD, 3);
 
   llvm::Instruction *call;
-  RValue msgRet = CGF.EmitCall(FnInfo, imp, ReturnValueSlot(), ActualArgs,
+  RValue msgRet = CGF.EmitCall(FnInfo, imp, Return, ActualArgs,
       0, &call);
   call->setMetadata(msgSendMDKind, node);
   return msgRet;
@@ -576,6 +594,7 @@ CGObjCGNU::GenerateMessageSendSuper(CodeGen::CodeGenFunction &CGF,
 /// Generate code for a message send expression.
 CodeGen::RValue
 CGObjCGNU::GenerateMessageSend(CodeGen::CodeGenFunction &CGF,
+                               ReturnValueSlot Return,
                                QualType ResultType,
                                Selector Sel,
                                llvm::Value *Receiver,
@@ -611,16 +630,16 @@ CGObjCGNU::GenerateMessageSend(CodeGen::CodeGenFunction &CGF,
 
   llvm::BasicBlock *startBB = 0;
   llvm::BasicBlock *messageBB = 0;
-  llvm::BasicBlock *contiueBB = 0;
+  llvm::BasicBlock *continueBB = 0;
 
   if (!isPointerSizedReturn) {
     startBB = Builder.GetInsertBlock();
     messageBB = CGF.createBasicBlock("msgSend");
-    contiueBB = CGF.createBasicBlock("continue");
+    continueBB = CGF.createBasicBlock("continue");
 
     llvm::Value *isNil = Builder.CreateICmpEQ(Receiver, 
             llvm::Constant::getNullValue(Receiver->getType()));
-    Builder.CreateCondBr(isNil, contiueBB, messageBB);
+    Builder.CreateCondBr(isNil, continueBB, messageBB);
     CGF.EmitBlock(messageBB);
   }
 
@@ -711,12 +730,15 @@ CGObjCGNU::GenerateMessageSend(CodeGen::CodeGenFunction &CGF,
     cast<llvm::CallInst>(imp)->setMetadata(msgSendMDKind, node);
   }
   llvm::Instruction *call;
-  RValue msgRet = CGF.EmitCall(FnInfo, imp, ReturnValueSlot(), ActualArgs,
+  RValue msgRet = CGF.EmitCall(FnInfo, imp, Return, ActualArgs,
       0, &call);
   call->setMetadata(msgSendMDKind, node);
 
+
   if (!isPointerSizedReturn) {
-    CGF.EmitBlock(contiueBB);
+    messageBB = CGF.Builder.GetInsertBlock();
+    CGF.Builder.CreateBr(continueBB);
+    CGF.EmitBlock(continueBB);
     if (msgRet.isScalar()) {
       llvm::Value *v = msgRet.getScalarVal();
       llvm::PHINode *phi = Builder.CreatePHI(v->getType());
@@ -1665,34 +1687,36 @@ llvm::Function *CGObjCGNU::ModuleInitFunction() {
     llvm::Constant *Idxs[] = {Zeros[0],
       llvm::ConstantInt::get(llvm::Type::getInt32Ty(VMContext), index++), Zeros[0]};
     llvm::Constant *SelPtr = new llvm::GlobalVariable(TheModule, SelStructPtrTy,
-        true, llvm::GlobalValue::InternalLinkage,
-        llvm::ConstantExpr::getGetElementPtr(SelectorList, Idxs, 2),
-        ".objc_sel_ptr");
+      true, llvm::GlobalValue::LinkOnceODRLinkage,
+      llvm::ConstantExpr::getGetElementPtr(SelectorList, Idxs, 2),
+      MangleSelectorTypes(".objc_sel_ptr"+iter->first.first+"."+
+         iter->first.second));
     // If selectors are defined as an opaque type, cast the pointer to this
     // type.
     if (isSelOpaque) {
       SelPtr = llvm::ConstantExpr::getBitCast(SelPtr,
         llvm::PointerType::getUnqual(SelectorTy));
     }
-    (*iter).second->setAliasee(SelPtr);
+    (*iter).second->replaceAllUsesWith(SelPtr);
+    (*iter).second->eraseFromParent();
   }
   for (llvm::StringMap<llvm::GlobalAlias*>::iterator
       iter=UntypedSelectors.begin(), iterEnd = UntypedSelectors.end();
       iter != iterEnd; iter++) {
     llvm::Constant *Idxs[] = {Zeros[0],
       llvm::ConstantInt::get(llvm::Type::getInt32Ty(VMContext), index++), Zeros[0]};
-    llvm::Constant *SelPtr = new llvm::GlobalVariable
-      (TheModule, SelStructPtrTy,
-       true, llvm::GlobalValue::InternalLinkage,
-       llvm::ConstantExpr::getGetElementPtr(SelectorList, Idxs, 2),
-       ".objc_sel_ptr");
+    llvm::Constant *SelPtr = new llvm::GlobalVariable(TheModule, SelStructPtrTy,
+      true, llvm::GlobalValue::LinkOnceODRLinkage,
+      llvm::ConstantExpr::getGetElementPtr(SelectorList, Idxs, 2),
+      MangleSelectorTypes(std::string(".objc_sel_ptr")+iter->getKey().str()));
     // If selectors are defined as an opaque type, cast the pointer to this
     // type.
     if (isSelOpaque) {
       SelPtr = llvm::ConstantExpr::getBitCast(SelPtr,
         llvm::PointerType::getUnqual(SelectorTy));
     }
-    (*iter).second->setAliasee(SelPtr);
+    (*iter).second->replaceAllUsesWith(SelPtr);
+    (*iter).second->eraseFromParent();
   }
   // Number of classes defined.
   Elements.push_back(llvm::ConstantInt::get(llvm::Type::getInt16Ty(VMContext),
@@ -1922,11 +1946,11 @@ void CGObjCGNU::EmitTryOrSynchronizedStmt(CodeGen::CodeGenFunction &CGF,
         const ObjCObjectPointerType *OPT =
           CatchDecl->getType()->getAs<ObjCObjectPointerType>();
         assert(OPT && "Invalid @catch type.");
-        const ObjCInterfaceType *IT =
-          OPT->getPointeeType()->getAs<ObjCInterfaceType>();
-        assert(IT && "Invalid @catch type.");
+        const ObjCInterfaceDecl *IDecl =
+          OPT->getObjectType()->getInterface();
+        assert(IDecl && "Invalid @catch type.");
         llvm::Value *EHType =
-          MakeConstantString(IT->getDecl()->getNameAsString());
+          MakeConstantString(IDecl->getNameAsString());
         ESelArgs.push_back(EHType);
       }
     }
@@ -2208,7 +2232,8 @@ LValue CGObjCGNU::EmitObjCValueForIvar(CodeGen::CodeGenFunction &CGF,
                                        llvm::Value *BaseValue,
                                        const ObjCIvarDecl *Ivar,
                                        unsigned CVRQualifiers) {
-  const ObjCInterfaceDecl *ID = ObjectTy->getAs<ObjCInterfaceType>()->getDecl();
+  const ObjCInterfaceDecl *ID =
+    ObjectTy->getAs<ObjCObjectType>()->getInterface();
   return EmitValueForIvarAtOffset(CGF, ID, BaseValue, Ivar, CVRQualifiers,
                                   EmitIvarOffset(CGF, ID, Ivar));
 }

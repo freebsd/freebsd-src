@@ -37,7 +37,6 @@
 #include "llvm/Target/TargetOptions.h"
 #include "llvm/ADT/BitVector.h"
 #include "llvm/ADT/STLExtras.h"
-#include "llvm/Support/CommandLine.h"
 #include "llvm/Support/ErrorHandling.h"
 using namespace llvm;
 
@@ -145,6 +144,19 @@ unsigned X86RegisterInfo::getX86RegNum(unsigned RegNo) {
   case X86::XMM7: case X86::XMM15: case X86::MM7:
     return 7;
 
+  case X86::ES:
+    return 0;
+  case X86::CS:
+    return 1;
+  case X86::SS:
+    return 2;
+  case X86::DS:
+    return 3;
+  case X86::FS:
+    return 4;
+  case X86::GS:
+    return 5;
+
   default:
     assert(isVirtualRegister(RegNo) && "Unknown physical register!");
     llvm_unreachable("Register allocator hasn't allocated reg correctly yet!");
@@ -158,8 +170,7 @@ X86RegisterInfo::getMatchingSuperRegClass(const TargetRegisterClass *A,
                                           unsigned SubIdx) const {
   switch (SubIdx) {
   default: return 0;
-  case 1:
-    // 8-bit
+  case X86::sub_8bit:
     if (B == &X86::GR8RegClass) {
       if (A->getSize() == 2 || A->getSize() == 4 || A->getSize() == 8)
         return A;
@@ -191,12 +202,9 @@ X86RegisterInfo::getMatchingSuperRegClass(const TargetRegisterClass *A,
         return &X86::GR16_NOREXRegClass;
       else if (A == &X86::GR16_ABCDRegClass)
         return &X86::GR16_ABCDRegClass;
-    } else if (B == &X86::FR32RegClass) {
-      return A;
     }
     break;
-  case 2:
-    // 8-bit hi
+  case X86::sub_8bit_hi:
     if (B == &X86::GR8_ABCD_HRegClass) {
       if (A == &X86::GR64RegClass || A == &X86::GR64_ABCDRegClass ||
           A == &X86::GR64_NOREXRegClass ||
@@ -209,12 +217,9 @@ X86RegisterInfo::getMatchingSuperRegClass(const TargetRegisterClass *A,
       else if (A == &X86::GR16RegClass || A == &X86::GR16_ABCDRegClass ||
                A == &X86::GR16_NOREXRegClass)
         return &X86::GR16_ABCDRegClass;
-    } else if (B == &X86::FR64RegClass) {
-      return A;
     }
     break;
-  case 3:
-    // 16-bit
+  case X86::sub_16bit:
     if (B == &X86::GR16RegClass) {
       if (A->getSize() == 4 || A->getSize() == 8)
         return A;
@@ -238,12 +243,9 @@ X86RegisterInfo::getMatchingSuperRegClass(const TargetRegisterClass *A,
         return &X86::GR32_NOREXRegClass;
       else if (A == &X86::GR32_ABCDRegClass)
         return &X86::GR64_ABCDRegClass;
-    } else if (B == &X86::VR128RegClass) {
-      return A;
     }
     break;
-  case 4:
-    // 32-bit
+  case X86::sub_32bit:
     if (B == &X86::GR32RegClass || B == &X86::GR32_NOSPRegClass) {
       if (A->getSize() == 8)
         return A;
@@ -260,6 +262,18 @@ X86RegisterInfo::getMatchingSuperRegClass(const TargetRegisterClass *A,
       else if (A == &X86::GR64_ABCDRegClass)
         return &X86::GR64_ABCDRegClass;
     }
+    break;
+  case X86::sub_ss:
+    if (B == &X86::FR32RegClass)
+      return A;
+    break;
+  case X86::sub_sd:
+    if (B == &X86::FR64RegClass)
+      return A;
+    break;
+  case X86::sub_xmm:
+    if (B == &X86::VR128RegClass)
+      return A;
     break;
   }
   return 0;
@@ -518,6 +532,30 @@ X86RegisterInfo::getFrameIndexOffset(const MachineFunction &MF, int FI) const {
   return Offset;
 }
 
+static unsigned getSUBriOpcode(unsigned is64Bit, int64_t Imm) {
+  if (is64Bit) {
+    if (isInt<8>(Imm))
+      return X86::SUB64ri8;
+    return X86::SUB64ri32;
+  } else {
+    if (isInt<8>(Imm))
+      return X86::SUB32ri8;
+    return X86::SUB32ri;
+  }
+}
+
+static unsigned getADDriOpcode(unsigned is64Bit, int64_t Imm) {
+  if (is64Bit) {
+    if (isInt<8>(Imm))
+      return X86::ADD64ri8;
+    return X86::ADD64ri32;
+  } else {
+    if (isInt<8>(Imm))
+      return X86::ADD32ri8;
+    return X86::ADD32ri;
+  }
+}
+
 void X86RegisterInfo::
 eliminateCallFramePseudoInstr(MachineFunction &MF, MachineBasicBlock &MBB,
                               MachineBasicBlock::iterator I) const {
@@ -537,7 +575,7 @@ eliminateCallFramePseudoInstr(MachineFunction &MF, MachineBasicBlock &MBB,
       MachineInstr *New = 0;
       if (Old->getOpcode() == getCallFrameSetupOpcode()) {
         New = BuildMI(MF, Old->getDebugLoc(),
-                      TII.get(Is64Bit ? X86::SUB64ri32 : X86::SUB32ri),
+                      TII.get(getSUBriOpcode(Is64Bit, Amount)),
                       StackPtr)
           .addReg(StackPtr)
           .addImm(Amount);
@@ -549,9 +587,7 @@ eliminateCallFramePseudoInstr(MachineFunction &MF, MachineBasicBlock &MBB,
         Amount -= CalleeAmt;
   
       if (Amount) {
-          unsigned Opc = (Amount < 128) ?
-            (Is64Bit ? X86::ADD64ri8 : X86::ADD32ri8) :
-            (Is64Bit ? X86::ADD64ri32 : X86::ADD32ri);
+          unsigned Opc = getADDriOpcode(Is64Bit, Amount);
           New = BuildMI(MF, Old->getDebugLoc(), TII.get(Opc), StackPtr)
             .addReg(StackPtr)
             .addImm(Amount);
@@ -571,9 +607,7 @@ eliminateCallFramePseudoInstr(MachineFunction &MF, MachineBasicBlock &MBB,
     // something off the stack pointer, add it back.  We do this until we have
     // more advanced stack pointer tracking ability.
     if (uint64_t CalleeAmt = I->getOperand(1).getImm()) {
-      unsigned Opc = (CalleeAmt < 128) ?
-        (Is64Bit ? X86::SUB64ri8 : X86::SUB32ri8) :
-        (Is64Bit ? X86::SUB64ri32 : X86::SUB32ri);
+      unsigned Opc = getSUBriOpcode(Is64Bit, CalleeAmt);
       MachineInstr *Old = I;
       MachineInstr *New =
         BuildMI(MF, Old->getDebugLoc(), TII.get(Opc), 
@@ -691,13 +725,9 @@ void emitSPUpdate(MachineBasicBlock &MBB, MachineBasicBlock::iterator &MBBI,
                   const TargetInstrInfo &TII) {
   bool isSub = NumBytes < 0;
   uint64_t Offset = isSub ? -NumBytes : NumBytes;
-  unsigned Opc = isSub
-    ? ((Offset < 128) ?
-       (Is64Bit ? X86::SUB64ri8 : X86::SUB32ri8) :
-       (Is64Bit ? X86::SUB64ri32 : X86::SUB32ri))
-    : ((Offset < 128) ?
-       (Is64Bit ? X86::ADD64ri8 : X86::ADD32ri8) :
-       (Is64Bit ? X86::ADD64ri32 : X86::ADD32ri));
+  unsigned Opc = isSub ?
+    getSUBriOpcode(Is64Bit, Offset) :
+    getADDriOpcode(Is64Bit, Offset);
   uint64_t Chunk = (1LL << 31) - 1;
   DebugLoc DL = MBB.findDebugLoc(MBBI);
 
@@ -899,7 +929,7 @@ void X86RegisterInfo::emitPrologue(MachineFunction &MF) const {
   if (Is64Bit && !Fn->hasFnAttr(Attribute::NoRedZone) &&
       !needsStackRealignment(MF) &&
       !MFI->hasVarSizedObjects() &&                // No dynamic alloca.
-      !MFI->hasCalls() &&                          // No calls.
+      !MFI->adjustsStack() &&                      // No calls.
       !Subtarget->isTargetWin64()) {               // Win64 has no Red Zone
     uint64_t MinSize = X86FI->getCalleeSavedFrameSize();
     if (HasFP) MinSize += SlotSize;
@@ -917,7 +947,8 @@ void X86RegisterInfo::emitPrologue(MachineFunction &MF) const {
   // size is bigger than the callers.
   if (TailCallReturnAddrDelta < 0) {
     MachineInstr *MI =
-      BuildMI(MBB, MBBI, DL, TII.get(Is64Bit? X86::SUB64ri32 : X86::SUB32ri),
+      BuildMI(MBB, MBBI, DL,
+              TII.get(getSUBriOpcode(Is64Bit, -TailCallReturnAddrDelta)),
               StackPtr)
         .addReg(StackPtr)
         .addImm(-TailCallReturnAddrDelta);
@@ -1307,7 +1338,7 @@ X86RegisterInfo::getInitialFrameState(std::vector<MachineMove> &Moves) const {
   // Calculate amount of bytes used for return address storing
   int stackGrowth = (Is64Bit ? -8 : -4);
 
-  // Initial state of the frame pointer is esp+4.
+  // Initial state of the frame pointer is esp+stackGrowth.
   MachineLocation Dst(MachineLocation::VirtualFP);
   MachineLocation Src(StackPtr, stackGrowth);
   Moves.push_back(MachineMove(0, Dst, Src));

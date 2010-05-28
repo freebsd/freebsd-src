@@ -23,15 +23,10 @@
 #include "clang/AST/PrettyPrinter.h"
 #include "clang/Basic/Builtins.h"
 #include "clang/Basic/IdentifierTable.h"
-#include "clang/Parse/DeclSpec.h"
+#include "clang/Basic/Specifiers.h"
 #include "llvm/Support/ErrorHandling.h"
 
 using namespace clang;
-
-/// \brief Return the TypeLoc wrapper for the type source info.
-TypeLoc TypeSourceInfo::getTypeLoc() const {
-  return TypeLoc(Ty, (void*)(this + 1));
-}
 
 //===----------------------------------------------------------------------===//
 // NamedDecl Implementation
@@ -541,7 +536,7 @@ SourceLocation DeclaratorDecl::getTypeSpecStartLoc() const {
     while (true) {
       TypeLoc NextTL = TL.getNextTypeLoc();
       if (!NextTL)
-        return TL.getSourceRange().getBegin();
+        return TL.getLocalSourceRange().getBegin();
       TL = NextTL;
     }
   }
@@ -1224,9 +1219,8 @@ FunctionDecl::setInstantiationOfMemberFunction(FunctionDecl *FD,
 }
 
 bool FunctionDecl::isImplicitlyInstantiable() const {
-  // If this function already has a definition or is invalid, it can't be
-  // implicitly instantiated.
-  if (isInvalidDecl() || getBody())
+  // If the function is invalid, it can't be implicitly instantiated.
+  if (isInvalidDecl())
     return false;
   
   switch (getTemplateSpecializationKind()) {
@@ -1295,11 +1289,22 @@ FunctionDecl::getTemplateSpecializationArgs() const {
   return 0;
 }
 
+const TemplateArgumentListInfo *
+FunctionDecl::getTemplateSpecializationArgsAsWritten() const {
+  if (FunctionTemplateSpecializationInfo *Info
+        = TemplateOrSpecialization
+            .dyn_cast<FunctionTemplateSpecializationInfo*>()) {
+    return Info->TemplateArgumentsAsWritten;
+  }
+  return 0;
+}
+
 void
 FunctionDecl::setFunctionTemplateSpecialization(FunctionTemplateDecl *Template,
                                      const TemplateArgumentList *TemplateArgs,
                                                 void *InsertPos,
-                                              TemplateSpecializationKind TSK) {
+                                                TemplateSpecializationKind TSK,
+                        const TemplateArgumentListInfo *TemplateArgsAsWritten) {
   assert(TSK != TSK_Undeclared && 
          "Must specify the type of function template specialization");
   FunctionTemplateSpecializationInfo *Info
@@ -1311,6 +1316,7 @@ FunctionDecl::setFunctionTemplateSpecialization(FunctionTemplateDecl *Template,
   Info->Template.setPointer(Template);
   Info->Template.setInt(TSK - 1);
   Info->TemplateArguments = TemplateArgs;
+  Info->TemplateArgumentsAsWritten = TemplateArgsAsWritten;
   TemplateOrSpecialization = Info;
 
   // Insert this function template specialization into the set of known
@@ -1475,6 +1481,12 @@ TagDecl* TagDecl::getCanonicalDecl() {
   return getFirstDeclaration();
 }
 
+void TagDecl::setTypedefForAnonDecl(TypedefDecl *TDD) { 
+  TypedefDeclOrQualifier = TDD; 
+  if (TypeForDecl)
+    TypeForDecl->ClearLinkageCache();
+}
+
 void TagDecl::startDefinition() {
   if (TagType *TagT = const_cast<TagType *>(TypeForDecl->getAs<TagType>())) {
     TagT->decl.setPointer(this);
@@ -1509,6 +1521,7 @@ void TagDecl::completeDefinition() {
                                 TypeForDecl->getAs<InjectedClassNameType>())) {
     assert(Injected->Decl == this &&
            "Attempt to redefine a class template definition?");
+    (void)Injected;
   }
 }
 
@@ -1522,16 +1535,6 @@ TagDecl* TagDecl::getDefinition() const {
       return *R;
 
   return 0;
-}
-
-TagDecl::TagKind TagDecl::getTagKindForTypeSpec(unsigned TypeSpec) {
-  switch (TypeSpec) {
-  default: llvm_unreachable("unexpected type specifier");
-  case DeclSpec::TST_struct: return TK_struct;
-  case DeclSpec::TST_class: return TK_class;
-  case DeclSpec::TST_union: return TK_union;
-  case DeclSpec::TST_enum: return TK_enum;
-  }
 }
 
 void TagDecl::setQualifierInfo(NestedNameSpecifier *Qualifier,
@@ -1571,10 +1574,14 @@ void EnumDecl::Destroy(ASTContext& C) {
 }
 
 void EnumDecl::completeDefinition(QualType NewType,
-                                  QualType NewPromotionType) {
+                                  QualType NewPromotionType,
+                                  unsigned NumPositiveBits,
+                                  unsigned NumNegativeBits) {
   assert(!isDefinition() && "Cannot redefine enums!");
   IntegerType = NewType;
   PromotionType = NewPromotionType;
+  setNumPositiveBits(NumPositiveBits);
+  setNumNegativeBits(NumNegativeBits);
   TagDecl::completeDefinition();
 }
 
@@ -1618,6 +1625,17 @@ bool RecordDecl::isInjectedClassName() const {
 void RecordDecl::completeDefinition() {
   assert(!isDefinition() && "Cannot redefine record!");
   TagDecl::completeDefinition();
+}
+
+ValueDecl *RecordDecl::getAnonymousStructOrUnionObject() {
+  // Force the decl chain to come into existence properly.
+  if (!getNextDeclInContext()) getParent()->decls_begin();
+
+  assert(isAnonymousStructOrUnion());
+  ValueDecl *D = cast<ValueDecl>(getNextDeclInContext());
+  assert(D->getType()->isRecordType());
+  assert(D->getType()->getAs<RecordType>()->getDecl() == this);
+  return D;
 }
 
 //===----------------------------------------------------------------------===//

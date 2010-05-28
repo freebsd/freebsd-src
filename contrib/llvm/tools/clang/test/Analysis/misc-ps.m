@@ -8,6 +8,10 @@
 // RUN: %clang_cc1 -triple x86_64-apple-darwin10 -analyze -analyzer-experimental-internal-checks -analyzer-check-objc-mem -analyzer-store=region -analyzer-constraints=basic -verify -fblocks -Wno-unreachable-code %s
 // RUN: %clang_cc1 -triple x86_64-apple-darwin10 -analyze -analyzer-experimental-internal-checks -analyzer-check-objc-mem -analyzer-store=region -analyzer-constraints=range -verify -fblocks -Wno-unreachable-code %s
 
+#ifndef __clang_analyzer__
+#error __clang__analyzer__ not defined
+#endif
+
 typedef struct objc_ivar *Ivar;
 typedef struct objc_selector *SEL;
 typedef signed char BOOL;
@@ -957,3 +961,13 @@ void pr6938_b() {
   }) == 0) {
   }
 }
+
+//===----------------------------------------------------------------------===//
+// <rdar://problem/7979430> - The CFG for code containing an empty
+//  @synchronized block was previously broken (and would crash the analyzer).
+//===----------------------------------------------------------------------===//
+
+void r7979430(id x) {
+  @synchronized(x) {}
+}
+

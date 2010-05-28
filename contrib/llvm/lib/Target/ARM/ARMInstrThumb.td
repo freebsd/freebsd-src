@@ -127,12 +127,12 @@ def t_addrmode_sp : Operand<i32>,
 let Defs = [SP], Uses = [SP], hasSideEffects = 1 in {
 def tADJCALLSTACKUP :
 PseudoInst<(outs), (ins i32imm:$amt1, i32imm:$amt2), NoItinerary,
-           "@ tADJCALLSTACKUP $amt1",
+           "${:comment} tADJCALLSTACKUP $amt1",
            [(ARMcallseq_end imm:$amt1, imm:$amt2)]>, Requires<[IsThumb1Only]>;
 
 def tADJCALLSTACKDOWN :
 PseudoInst<(outs), (ins i32imm:$amt), NoItinerary,
-           "@ tADJCALLSTACKDOWN $amt",
+           "${:comment} tADJCALLSTACKDOWN $amt",
            [(ARMcallseq_start imm:$amt)]>, Requires<[IsThumb1Only]>;
 }
 
@@ -254,14 +254,14 @@ def tADDspr : TIt<(outs GPR:$dst), (ins GPR:$lhs, GPR:$rhs), IIC_iALUr,
 // Pseudo instruction that will expand into a tSUBspi + a copy.
 let usesCustomInserter = 1 in { // Expanded after instruction selection.
 def tSUBspi_ : PseudoInst<(outs GPR:$dst), (ins GPR:$lhs, t_imm_s4:$rhs),
-               NoItinerary, "@ sub\t$dst, $rhs", []>;
+               NoItinerary, "${:comment} sub\t$dst, $rhs", []>;
 
 def tADDspr_ : PseudoInst<(outs GPR:$dst), (ins GPR:$lhs, GPR:$rhs),
-               NoItinerary, "@ add\t$dst, $rhs", []>;
+               NoItinerary, "${:comment} add\t$dst, $rhs", []>;
 
 let Defs = [CPSR] in
 def tANDsp : PseudoInst<(outs tGPR:$dst), (ins tGPR:$lhs, tGPR:$rhs),
-             NoItinerary, "@ and\t$dst, $rhs", []>;
+             NoItinerary, "${:comment} and\t$dst, $rhs", []>;
 } // usesCustomInserter
 
 //===----------------------------------------------------------------------===//
@@ -374,7 +374,7 @@ let isBranch = 1, isTerminator = 1 in {
   // Far jump
   let Defs = [LR] in
   def tBfar : TIx2<0b11110, 0b11, 1, (outs), (ins brtarget:$target), IIC_Br,
-                    "bl\t$target\t@ far jump",[]>;
+                    "bl\t$target\t${:comment} far jump",[]>;
 
   def tBR_JTr : T1JTI<(outs),
                       (ins tGPR:$target, jtblock_operand:$jt, i32imm:$id),
@@ -417,9 +417,13 @@ def tSVC : T1pI<(outs), (ins i32imm:$svc), IIC_Br, "svc", "\t$svc", []>,
 }
 }
 
-// A8.6.16 B: Encoding T1 -- for disassembly only
+// A8.6.16 B: Encoding T1
 // If Inst{11-8} == 0b1110 then UNDEFINED
-def tTRAP : T1I<(outs), (ins), IIC_Br, "trap", []>, Encoding16 {
+// FIXME: Temporary emitted as raw bytes until this pseudo-op will be added to
+// binutils
+let isBarrier = 1, isTerminator = 1 in
+def tTRAP : TI<(outs), (ins), IIC_Br, 
+               ".short 0xdefe ${:comment} trap", [(trap)]>, Encoding16 {
   let Inst{15-12} = 0b1101;
   let Inst{11-8} = 0b1110;
 }
@@ -476,7 +480,7 @@ def tLDRspi : T1pIs<(outs tGPR:$dst), (ins t_addrmode_sp:$addr), IIC_iLoadi,
 
 // Special instruction for restore. It cannot clobber condition register
 // when it's expanded by eliminateCallFramePseudoInstr().
-let canFoldAsLoad = 1, mayLoad = 1 in
+let canFoldAsLoad = 1, mayLoad = 1, neverHasSideEffects = 1 in
 def tRestore : T1pIs<(outs tGPR:$dst), (ins t_addrmode_sp:$addr), IIC_iLoadi,
                     "ldr", "\t$dst, $addr", []>,
                T1LdStSP<{1,?,?}>;
@@ -490,7 +494,8 @@ def tLDRpci : T1pIs<(outs tGPR:$dst), (ins i32imm:$addr), IIC_iLoadi,
               T1Encoding<{0,1,0,0,1,?}>; // A6.2 & A8.6.59
 
 // Special LDR for loads from non-pc-relative constpools.
-let canFoldAsLoad = 1, mayLoad = 1, isReMaterializable = 1 in
+let canFoldAsLoad = 1, mayLoad = 1, neverHasSideEffects = 1,
+    isReMaterializable = 1 in
 def tLDRcp  : T1pIs<(outs tGPR:$dst), (ins i32imm:$addr), IIC_iLoadi,
                   "ldr", "\t$dst, $addr", []>,
               T1LdStSP<{1,?,?}>;
@@ -527,7 +532,7 @@ def tSTRspi : T1pIs<(outs), (ins tGPR:$src, t_addrmode_sp:$addr), IIC_iStorei,
                    [(store tGPR:$src, t_addrmode_sp:$addr)]>,
               T1LdStSP<{0,?,?}>;
 
-let mayStore = 1 in {
+let mayStore = 1, neverHasSideEffects = 1 in {
 // Special instruction for spill. It cannot clobber condition register
 // when it's expanded by eliminateCallFramePseudoInstr().
 def tSpill : T1pIs<(outs), (ins tGPR:$src, t_addrmode_sp:$addr), IIC_iStorei,
@@ -540,7 +545,7 @@ def tSpill : T1pIs<(outs), (ins tGPR:$src, t_addrmode_sp:$addr), IIC_iStorei,
 //
 
 // These requires base address to be written back or one of the loaded regs.
-let mayLoad = 1, hasExtraDefRegAllocReq = 1 in {
+let mayLoad = 1, neverHasSideEffects = 1, hasExtraDefRegAllocReq = 1 in {
 def tLDM : T1I<(outs),
                (ins addrmode4:$addr, pred:$p, reglist:$dsts, variable_ops),
                IIC_iLoadm,
@@ -553,9 +558,9 @@ def tLDM_UPD : T1It<(outs tGPR:$wb),
                     "ldm${addr:submode}${p}\t$addr!, $dsts",
                     "$addr.addr = $wb", []>,
                T1Encoding<{1,1,0,0,1,?}>; // A6.2 & A8.6.53
-} // mayLoad, hasExtraDefRegAllocReq
+} // mayLoad, neverHasSideEffects = 1, hasExtraDefRegAllocReq
 
-let mayStore = 1, hasExtraSrcRegAllocReq = 1 in
+let mayStore = 1, neverHasSideEffects = 1, hasExtraSrcRegAllocReq = 1 in
 def tSTM_UPD : T1It<(outs tGPR:$wb),
                     (ins addrmode4:$addr, pred:$p, reglist:$srcs, variable_ops),
                     IIC_iStorem,
@@ -866,11 +871,12 @@ def tUXTH  : T1pI<(outs tGPR:$dst), (ins tGPR:$src), IIC_iUNAr,
 let usesCustomInserter = 1 in  // Expanded after instruction selection.
   def tMOVCCr_pseudo :
   PseudoInst<(outs tGPR:$dst), (ins tGPR:$false, tGPR:$true, pred:$cc),
-              NoItinerary, "@ tMOVCCr $cc",
+              NoItinerary, "${:comment} tMOVCCr $cc",
              [/*(set tGPR:$dst, (ARMcmov tGPR:$false, tGPR:$true, imm:$cc))*/]>;
 
 
 // 16-bit movcc in IT blocks for Thumb2.
+let neverHasSideEffects = 1 in {
 def tMOVCCr : T1pIt<(outs GPR:$dst), (ins GPR:$lhs, GPR:$rhs), IIC_iCMOVr,
                     "mov", "\t$dst, $rhs", []>,
               T1Special<{1,0,?,?}>;
@@ -878,9 +884,12 @@ def tMOVCCr : T1pIt<(outs GPR:$dst), (ins GPR:$lhs, GPR:$rhs), IIC_iCMOVr,
 def tMOVCCi : T1pIt<(outs tGPR:$dst), (ins tGPR:$lhs, i32imm:$rhs), IIC_iCMOVi,
                     "mov", "\t$dst, $rhs", []>,
               T1General<{1,0,0,?,?}>;
+} // neverHasSideEffects
 
 // tLEApcrel - Load a pc-relative address into a register without offending the
 // assembler.
+let neverHasSideEffects = 1 in {
+let isReMaterializable = 1 in
 def tLEApcrel : T1I<(outs tGPR:$dst), (ins i32imm:$label, pred:$p), IIC_iALUi,
                     "adr$p\t$dst, #$label", []>,
                 T1Encoding<{1,0,1,0,0,?}>; // A6.2 & A8.6.10
@@ -889,6 +898,7 @@ def tLEApcrelJT : T1I<(outs tGPR:$dst),
                       (ins i32imm:$label, nohash_imm:$id, pred:$p),
                       IIC_iALUi, "adr$p\t$dst, #${label}_${id}", []>,
                   T1Encoding<{1,0,1,0,0,?}>; // A6.2 & A8.6.10
+} // neverHasSideEffects
 
 //===----------------------------------------------------------------------===//
 // TLS Instructions
@@ -918,16 +928,32 @@ let Defs =
   [ R0,  R1,  R2,  R3,  R4,  R5,  R6,  R7, R12 ] in {
   def tInt_eh_sjlj_setjmp : ThumbXI<(outs),(ins tGPR:$src, tGPR:$val),
                               AddrModeNone, SizeSpecial, NoItinerary,
-                              "str\t$val, [$src, #8]\t@ begin eh.setjmp\n"
+                              "str\t$val, [$src, #8]\t${:comment} begin eh.setjmp\n"
                               "\tmov\t$val, pc\n"
-                              "\tadds\t$val, #9\n"
+                              "\tadds\t$val, #7\n"
                               "\tstr\t$val, [$src, #4]\n"
                               "\tmovs\tr0, #0\n"
                               "\tb\t1f\n"
-                              "\tmovs\tr0, #1\t@ end eh.setjmp\n"
+                              "\tmovs\tr0, #1\t${:comment} end eh.setjmp\n"
                               "1:", "",
                    [(set R0, (ARMeh_sjlj_setjmp tGPR:$src, tGPR:$val))]>;
 }
+
+// FIXME: Non-Darwin version(s)
+let isBarrier = 1, hasSideEffects = 1, isTerminator = 1,
+    Defs = [ R7, LR, SP ] in {
+def tInt_eh_sjlj_longjmp : XI<(outs), (ins GPR:$src, GPR:$scratch),
+                             AddrModeNone, SizeSpecial, IndexModeNone,
+                             Pseudo, NoItinerary,
+                             "ldr\t$scratch, [$src, #8]\n\t"
+                             "mov\tsp, $scratch\n\t"
+                             "ldr\t$scratch, [$src, #4]\n\t"
+                             "ldr\tr7, [$src]\n\t"
+                             "bx\t$scratch", "",
+                         [(ARMeh_sjlj_longjmp GPR:$src, GPR:$scratch)]>,
+                                Requires<[IsThumb, IsDarwin]>;
+}
+
 //===----------------------------------------------------------------------===//
 // Non-Instruction Patterns
 //
@@ -1011,7 +1037,7 @@ def : T1Pat<(i32 imm0_255_comp:$src),
 // scheduling.
 let isReMaterializable = 1 in
 def tLDRpci_pic : PseudoInst<(outs GPR:$dst), (ins i32imm:$addr, pclabel:$cp),
-                   NoItinerary, "@ ldr.n\t$dst, $addr\n$cp:\n\tadd\t$dst, pc",
+                   NoItinerary, "${:comment} ldr.n\t$dst, $addr\n$cp:\n\tadd\t$dst, pc",
                [(set GPR:$dst, (ARMpic_add (load (ARMWrapper tconstpool:$addr)),
                                            imm:$cp))]>,
                Requires<[IsThumb1Only]>;

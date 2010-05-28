@@ -34,12 +34,11 @@ namespace llvm {
     MSILTarget(const Target &T, const std::string &TT, const std::string &FS)
       : TargetMachine(T) {}
 
-    virtual bool WantsWholeFile() const { return true; }
-    virtual bool addPassesToEmitWholeFile(PassManager &PM,
-                                          formatted_raw_ostream &Out,
-                                          CodeGenFileType FileType,
-                                          CodeGenOpt::Level OptLevel,
-                                          bool DisableVerify);
+    virtual bool addPassesToEmitFile(PassManagerBase &PM,
+                                     formatted_raw_ostream &Out,
+                                     CodeGenFileType FileType,
+                                     CodeGenOpt::Level OptLevel,
+                                     bool DisableVerify);
 
     virtual const TargetData *getTargetData() const { return 0; }
   };
@@ -279,6 +278,8 @@ std::string MSILWriter::getConvModopt(CallingConv::ID CallingConvID) {
     return "modopt([mscorlib]System.Runtime.CompilerServices.CallConvFastcall) ";
   case CallingConv::X86_StdCall:
     return "modopt([mscorlib]System.Runtime.CompilerServices.CallConvStdcall) ";
+  case CallingConv::X86_ThisCall:
+    return "modopt([mscorlib]System.Runtime.CompilerServices.CallConvThiscall) ";
   default:
     errs() << "CallingConvID = " << CallingConvID << '\n';
     llvm_unreachable("Unsupported calling convention");
@@ -1686,11 +1687,11 @@ void MSILWriter::printExternals() {
 //                      External Interface declaration
 //===----------------------------------------------------------------------===//
 
-bool MSILTarget::addPassesToEmitWholeFile(PassManager &PM,
-                                          formatted_raw_ostream &o,
-                                          CodeGenFileType FileType,
-                                          CodeGenOpt::Level OptLevel,
-                                          bool DisableVerify)
+bool MSILTarget::addPassesToEmitFile(PassManagerBase &PM,
+                                     formatted_raw_ostream &o,
+                                     CodeGenFileType FileType,
+                                     CodeGenOpt::Level OptLevel,
+                                     bool DisableVerify)
 {
   if (FileType != TargetMachine::CGFT_AssemblyFile) return true;
   MSILWriter* Writer = new MSILWriter(o);

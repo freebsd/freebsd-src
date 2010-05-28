@@ -882,7 +882,7 @@ MachineInstr* PreAllocSplitting::FoldSpill(unsigned vreg,
          !RefsInMBB.count(FoldPt))
     --FoldPt;
   
-  int OpIdx = FoldPt->findRegisterDefOperandIdx(vreg, false);
+  int OpIdx = FoldPt->findRegisterDefOperandIdx(vreg);
   if (OpIdx == -1)
     return 0;
   
@@ -1061,7 +1061,8 @@ bool PreAllocSplitting::SplitRegLiveInterval(LiveInterval *LI) {
       // Add spill.
     
       SS = CreateSpillStackSlot(CurrLI->reg, RC);
-      TII->storeRegToStackSlot(*BarrierMBB, SpillPt, CurrLI->reg, true, SS, RC);
+      TII->storeRegToStackSlot(*BarrierMBB, SpillPt, CurrLI->reg, true, SS, RC,
+                               TRI);
       SpillMI = prior(SpillPt);
       SpillIndex = LIs->InsertMachineInstrInMaps(SpillMI);
     }
@@ -1097,7 +1098,8 @@ bool PreAllocSplitting::SplitRegLiveInterval(LiveInterval *LI) {
       }
       // Add spill. 
       SS = CreateSpillStackSlot(CurrLI->reg, RC);
-      TII->storeRegToStackSlot(*DefMBB, SpillPt, CurrLI->reg, false, SS, RC);
+      TII->storeRegToStackSlot(*DefMBB, SpillPt, CurrLI->reg, false, SS, RC,
+                               TRI);
       SpillMI = prior(SpillPt);
       SpillIndex = LIs->InsertMachineInstrInMaps(SpillMI);
     }
@@ -1116,7 +1118,7 @@ bool PreAllocSplitting::SplitRegLiveInterval(LiveInterval *LI) {
     RestoreIndex = LIs->getInstructionIndex(RestorePt);
     FoldedRestore = true;
   } else {
-    TII->loadRegFromStackSlot(*BarrierMBB, RestorePt, CurrLI->reg, SS, RC);
+    TII->loadRegFromStackSlot(*BarrierMBB, RestorePt, CurrLI->reg, SS, RC, TRI);
     MachineInstr *LoadMI = prior(RestorePt);
     RestoreIndex = LIs->InsertMachineInstrInMaps(LoadMI);
   }
@@ -1152,7 +1154,7 @@ PreAllocSplitting::SplitRegLiveIntervals(const TargetRegisterClass **RCs,
     // codegen is not modelling. Ignore these barriers for now.
     if (!TII->isSafeToMoveRegClassDefs(*RC))
       continue;
-    std::vector<unsigned> &VRs = MRI->getRegClassVirtRegs(*RC);
+    const std::vector<unsigned> &VRs = MRI->getRegClassVirtRegs(*RC);
     for (unsigned i = 0, e = VRs.size(); i != e; ++i) {
       unsigned Reg = VRs[i];
       if (!LIs->hasInterval(Reg))

@@ -124,7 +124,6 @@ void MipsInstrInfo::
 insertNoop(MachineBasicBlock &MBB, MachineBasicBlock::iterator MI) const 
 {
   DebugLoc DL;
-  if (MI != MBB.end()) DL = MI->getDebugLoc();
   BuildMI(MBB, MI, DL, get(Mips::NOP));
 }
 
@@ -132,10 +131,8 @@ bool MipsInstrInfo::
 copyRegToReg(MachineBasicBlock &MBB, MachineBasicBlock::iterator I,
              unsigned DestReg, unsigned SrcReg,
              const TargetRegisterClass *DestRC,
-             const TargetRegisterClass *SrcRC) const {
-  DebugLoc DL;
-  
-  if (I != MBB.end()) DL = I->getDebugLoc();
+             const TargetRegisterClass *SrcRC,
+             DebugLoc DL) const {
 
   if (DestRC != SrcRC) {
 
@@ -190,7 +187,8 @@ copyRegToReg(MachineBasicBlock &MBB, MachineBasicBlock::iterator I,
 void MipsInstrInfo::
 storeRegToStackSlot(MachineBasicBlock &MBB, MachineBasicBlock::iterator I,
                     unsigned SrcReg, bool isKill, int FI, 
-                    const TargetRegisterClass *RC) const {
+                    const TargetRegisterClass *RC,
+                    const TargetRegisterInfo *TRI) const {
   DebugLoc DL;
   if (I != MBB.end()) DL = I->getDebugLoc();
 
@@ -223,7 +221,8 @@ storeRegToStackSlot(MachineBasicBlock &MBB, MachineBasicBlock::iterator I,
 void MipsInstrInfo::
 loadRegFromStackSlot(MachineBasicBlock &MBB, MachineBasicBlock::iterator I,
                      unsigned DestReg, int FI,
-                     const TargetRegisterClass *RC) const 
+                     const TargetRegisterClass *RC,
+                     const TargetRegisterInfo *TRI) const 
 {
   DebugLoc DL;
   if (I != MBB.end()) DL = I->getDebugLoc();
@@ -624,7 +623,8 @@ unsigned MipsInstrInfo::getGlobalBaseReg(MachineFunction *MF) const {
   GlobalBaseReg = RegInfo.createVirtualRegister(Mips::CPURegsRegisterClass);
   bool Ok = TII->copyRegToReg(FirstMBB, MBBI, GlobalBaseReg, Mips::GP,
                               Mips::CPURegsRegisterClass,
-                              Mips::CPURegsRegisterClass);
+                              Mips::CPURegsRegisterClass,
+                              DebugLoc());
   assert(Ok && "Couldn't assign to global base register!");
   Ok = Ok; // Silence warning when assertions are turned off.
   RegInfo.addLiveIn(Mips::GP);

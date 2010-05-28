@@ -17,7 +17,6 @@
 #define LATENCY_PRIORITY_QUEUE_H
 
 #include "llvm/CodeGen/ScheduleDAG.h"
-#include "llvm/ADT/PriorityQueue.h"
 
 namespace llvm {
   class LatencyPriorityQueue;
@@ -41,10 +40,11 @@ namespace llvm {
     std::vector<unsigned> NumNodesSolelyBlocking;
     
     /// Queue - The queue.
-    PriorityQueue<SUnit*, std::vector<SUnit*>, latency_sort> Queue;
+    std::vector<SUnit*> Queue;
+    latency_sort Picker;
 
-public:
-  LatencyPriorityQueue() : Queue(latency_sort(this)) {
+  public:
+    LatencyPriorityQueue() : Picker(this) {
     }
 
     void initNodes(std::vector<SUnit> &sunits) {
@@ -73,31 +73,13 @@ public:
       return NumNodesSolelyBlocking[NodeNum];
     }
     
-    unsigned size() const { return Queue.size(); }
-
     bool empty() const { return Queue.empty(); }
     
-    virtual void push(SUnit *U) {
-      push_impl(U);
-    }
-    void push_impl(SUnit *U);
+    virtual void push(SUnit *U);
     
-    void push_all(const std::vector<SUnit *> &Nodes) {
-      for (unsigned i = 0, e = Nodes.size(); i != e; ++i)
-        push_impl(Nodes[i]);
-    }
-    
-    SUnit *pop() {
-      if (empty()) return NULL;
-      SUnit *V = Queue.top();
-      Queue.pop();
-      return V;
-    }
+    virtual SUnit *pop();
 
-    void remove(SUnit *SU) {
-      assert(!Queue.empty() && "Not in queue!");
-      Queue.erase_one(SU);
-    }
+    virtual void remove(SUnit *SU);
 
     // ScheduledNode - As nodes are scheduled, we look to see if there are any
     // successor nodes that have a single unscheduled predecessor.  If so, that

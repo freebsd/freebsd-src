@@ -48,7 +48,7 @@ CodeGenModule::CodeGenModule(ASTContext &C, const CodeGenOptions &CGO,
     Features(C.getLangOptions()), CodeGenOpts(CGO), TheModule(M),
     TheTargetData(TD), TheTargetCodeGenInfo(0), Diags(diags),
     Types(C, M, TD, getTargetCodeGenInfo().getABIInfo()),
-    MangleCtx(C, diags), VTables(*this), Runtime(0),
+    VTables(*this), Runtime(0), ABI(0),
     CFConstantStringClassRef(0),
     NSConstantStringClassRef(0),
     VMContext(M.getContext()) {
@@ -62,12 +62,17 @@ CodeGenModule::CodeGenModule(ASTContext &C, const CodeGenOptions &CGO,
   else
     Runtime = CreateMacObjCRuntime(*this);
 
+  if (!Features.CPlusPlus)
+    ABI = 0;
+  else createCXXABI();
+
   // If debug info generation is enabled, create the CGDebugInfo object.
   DebugInfo = CodeGenOpts.DebugInfo ? new CGDebugInfo(*this) : 0;
 }
 
 CodeGenModule::~CodeGenModule() {
   delete Runtime;
+  delete ABI;
   delete DebugInfo;
 }
 
@@ -78,6 +83,11 @@ void CodeGenModule::createObjCRuntime() {
     Runtime = CreateMacNonFragileABIObjCRuntime(*this);
   else
     Runtime = CreateMacObjCRuntime(*this);
+}
+
+void CodeGenModule::createCXXABI() {
+  // For now, just create an Itanium ABI.
+  ABI = CreateItaniumCXXABI(*this);
 }
 
 void CodeGenModule::Release() {
@@ -316,17 +326,6 @@ GetLinkageForFunction(ASTContext &Context, const FunctionDecl *FD,
                                        == TSK_ExplicitInstantiationDeclaration)
     return CodeGenModule::GVA_C99Inline;
 
-  // If this is a virtual method and its class has a key method in another
-  // translation unit, we know that this method will be present in that
-  // translation unit. In this translation unit we will use this method
-  // only for inlining and analysis. This is the semantics of c99 inline.
-  if (const CXXMethodDecl *MD = dyn_cast<CXXMethodDecl>(FD)) {
-    const CXXRecordDecl *RD = MD->getParent();
-    if (MD->isVirtual() &&
-	CodeGenVTables::isKeyFunctionInAnotherTU(Context, RD))
-      return CodeGenModule::GVA_C99Inline;
-  }  
-
   return CodeGenModule::GVA_CXXInline;
 }
 
@@ -372,7 +371,6 @@ CodeGenModule::getFunctionLinkage(const FunctionDecl *D) {
 /// variables (these details are set in EmitGlobalVarDefinition for variables).
 void CodeGenModule::SetFunctionDefinitionAttributes(const FunctionDecl *D,
                                                     llvm::GlobalValue *GV) {
-  GV->setLinkage(getFunctionLinkage(D));
   SetCommonAttributes(D, GV);
 }
 
@@ -515,15 +513,25 @@ void CodeGenModule::EmitDeferred() {
     GlobalDecl D = DeferredDeclsToEmit.back();
     DeferredDeclsToEmit.pop_back();
 
-    // Look it up to see if it was defined with a stronger definition (e.g. an
-    // extern inline function with a strong function redefinition).  If so,
-    // just ignore the deferred decl.
+    // Check to see if we've already emitted this.  This is necessary
+    // for a couple of reasons: first, decls can end up in the
+    // deferred-decls queue multiple times, and second, decls can end
+    // up with definitions in unusual ways (e.g. by an extern inline
+    // function acquiring a strong function redefinition).  Just
+    // ignore these cases.
+    //
+    // TODO: That said, looking this up multiple times is very wasteful.
     MangleBuffer Name;
     getMangledName(Name, D);
     llvm::GlobalValue *CGRef = GetGlobalValue(Name);
     assert(CGRef && "Deferred decl wasn't referenced?");
 
     if (!CGRef->isDeclaration())
+      continue;
+
+    // GlobalAlias::isDeclaration() defers to the aliasee, but for our
+    // purposes an alias counts as a definition.
+    if (isa<llvm::GlobalAlias>(CGRef))
       continue;
 
     // Otherwise, emit the definition and move on to the next one.
@@ -727,8 +735,9 @@ void CodeGenModule::EmitGlobalDefinition(GlobalDecl GD) {
                                  Context.getSourceManager(),
                                  "Generating code for declaration");
   
-  if (isa<CXXMethodDecl>(D))
-    getVTables().EmitVTableRelatedData(GD);
+  if (const CXXMethodDecl *Method = dyn_cast<CXXMethodDecl>(D))
+    if (Method->isVirtual())
+      getVTables().EmitThunks(GD);
 
   if (const CXXConstructorDecl *CD = dyn_cast<CXXConstructorDecl>(D))
     return EmitCXXConstructor(CD, GD.getCtorType());
@@ -984,6 +993,11 @@ void CodeGenModule::EmitTentativeDefinition(const VarDecl *D) {
   EmitGlobalVarDefinition(D);
 }
 
+void CodeGenModule::EmitVTable(CXXRecordDecl *Class, bool DefinitionRequired) {
+  if (DefinitionRequired)
+    getVTables().GenerateClassData(getVTableLinkage(Class), Class);
+}
+
 llvm::GlobalVariable::LinkageTypes 
 CodeGenModule::getVTableLinkage(const CXXRecordDecl *RD) {
   if (RD->isInAnonymousNamespace() || !RD->hasLinkage())
@@ -1101,10 +1115,12 @@ void CodeGenModule::EmitGlobalVarDefinition(const VarDecl *D) {
     assert(!ASTTy->isIncompleteType() && "Unexpected incomplete type");
     Init = EmitNullConstant(D->getType());
   } else {
-    Init = EmitConstantExpr(InitExpr, D->getType());
-
+    Init = EmitConstantExpr(InitExpr, D->getType());       
     if (!Init) {
       QualType T = InitExpr->getType();
+      if (D->getType()->isReferenceType())
+        T = D->getType();
+      
       if (getLangOptions().CPlusPlus) {
         EmitCXXGlobalVarDeclInitFunc(D);
         Init = EmitNullConstant(T);
@@ -1333,6 +1349,7 @@ void CodeGenModule::EmitGlobalFunctionDefinition(GlobalDecl GD) {
   }
 
   llvm::Function *Fn = cast<llvm::Function>(Entry);
+  setFunctionLinkage(D, Fn);
 
   CodeGenFunction(*this).GenerateCode(D, Fn);
 

@@ -52,3 +52,82 @@ testq %rax, %rbx
 // CHECK: cmpq	%rbx, %r14
 // CHECK:   encoding: [0x49,0x39,0xde]
         cmpq %rbx, %r14
+
+// rdar://7947167
+
+movsq
+// CHECK: movsq
+// CHECK:   encoding: [0x48,0xa5]
+
+movsl
+// CHECK: movsl
+// CHECK:   encoding: [0xa5]
+
+stosq
+// CHECK: stosq
+// CHECK:   encoding: [0x48,0xab]
+stosl
+// CHECK: stosl
+// CHECK:   encoding: [0xab]
+
+
+// Not moffset forms of moves, they are x86-32 only! rdar://7947184
+movb	0, %al    // CHECK: movb 0, %al # encoding: [0x8a,0x04,0x25,A,A,A,A]
+movw	0, %ax    // CHECK: movw 0, %ax # encoding: [0x66,0x8b,0x04,0x25,A,A,A,A]
+movl	0, %eax   // CHECK: movl 0, %eax # encoding: [0x8b,0x04,0x25,A,A,A,A]
+
+// CHECK: pushfq	# encoding: [0x9c]
+        pushf
+// CHECK: pushfq	# encoding: [0x9c]
+        pushfq
+// CHECK: popfq	        # encoding: [0x9d]
+        popf
+// CHECK: popfq	        # encoding: [0x9d]
+        popfq
+
+// CHECK: movabsq $-281474976710654, %rax
+// CHECK: encoding: [0x48,0xb8,0x02,0x00,0x00,0x00,0x00,0x00,0xff,0xff]
+        movabsq $0xFFFF000000000002, %rax
+
+// CHECK: movq $-281474976710654, %rax
+// CHECK: encoding: [0x48,0xb8,0x02,0x00,0x00,0x00,0x00,0x00,0xff,0xff]
+        movq $0xFFFF000000000002, %rax
+
+// CHECK: movq $-65536, %rax
+// CHECK: encoding: [0x48,0xc7,0xc0,0x00,0x00,0xff,0xff]
+        movq $0xFFFFFFFFFFFF0000, %rax
+
+// CHECK: movq $-256, %rax
+// CHECK: encoding: [0x48,0xc7,0xc0,0x00,0xff,0xff,0xff]
+        movq $0xFFFFFFFFFFFFFF00, %rax
+
+// CHECK: movq $10, %rax
+// CHECK: encoding: [0x48,0xc7,0xc0,0x0a,0x00,0x00,0x00]
+        movq $10, %rax
+
+// rdar://8014869
+//
+// CHECK: ret
+// CHECK:  encoding: [0xc3]
+        retq
+
+// CHECK: sete %al
+// CHECK: encoding: [0x0f,0x94,0xc0]
+        setz %al
+
+// CHECK: setne %al
+// CHECK: encoding: [0x0f,0x95,0xc0]
+        setnz %al
+
+// CHECK: je 0
+// CHECK: encoding: [0x74,A]
+        jz 0
+
+// CHECK: jne
+// CHECK: encoding: [0x75,A]
+        jnz 0
+
+// rdar://8017515
+btq $0x01,%rdx
+// CHECK: btq	$1, %rdx
+// CHECK:  encoding: [0x48,0x0f,0xba,0xe2,0x01]

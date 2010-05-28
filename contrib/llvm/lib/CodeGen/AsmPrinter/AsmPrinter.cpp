@@ -205,16 +205,10 @@ void AsmPrinter::EmitLinkage(unsigned Linkage, MCSymbol *GVSym) const {
       OutStreamer.EmitSymbolAttribute(GVSym, MCSA_Global);
       // .weak_definition _foo
       OutStreamer.EmitSymbolAttribute(GVSym, MCSA_WeakDefinition);
-    } else if (const char *LinkOnce = MAI->getLinkOnceDirective()) {
+    } else if (MAI->getLinkOnceDirective() != 0) {
       // .globl _foo
       OutStreamer.EmitSymbolAttribute(GVSym, MCSA_Global);
-      // FIXME: linkonce should be a section attribute, handled by COFF Section
-      // assignment.
-      // http://sourceware.org/binutils/docs-2.20/as/Linkonce.html#Linkonce
-      // .linkonce discard
-      // FIXME: It would be nice to use .linkonce samesize for non-common
-      // globals.
-      OutStreamer.EmitRawText(StringRef(LinkOnce));
+      //NOTE: linkonce is handled by the section the symbol was assigned to.
     } else {
       // .weak _foo
       OutStreamer.EmitSymbolAttribute(GVSym, MCSA_Weak);
@@ -247,6 +241,12 @@ void AsmPrinter::EmitGlobalVariable(const GlobalVariable *GV) {
   if (EmitSpecialLLVMGlobal(GV))
     return;
 
+  if (isVerbose()) {
+    WriteAsOperand(OutStreamer.GetCommentOS(), GV,
+                   /*PrintType=*/false, GV->getParent());
+    OutStreamer.GetCommentOS() << '\n';
+  }
+  
   MCSymbol *GVSym = Mang->getSymbol(GV);
   EmitVisibility(GVSym, GV->getVisibility());
 
@@ -316,17 +316,57 @@ void AsmPrinter::EmitGlobalVariable(const GlobalVariable *GV) {
     OutStreamer.EmitZerofill(TheSection, GVSym, Size, 1 << AlignLog);
     return;
   }
+  
+  // Handle thread local data for mach-o which requires us to output an
+  // additional structure of data and mangle the original symbol so that we
+  // can reference it later.
+  if (GVKind.isThreadLocal() && MAI->hasMachoTBSSDirective()) {
+    // Emit the .tbss symbol
+    MCSymbol *MangSym = 
+      OutContext.GetOrCreateSymbol(GVSym->getName() + Twine("$tlv$init"));
+    
+    if (GVKind.isThreadBSS())
+      OutStreamer.EmitTBSSSymbol(TheSection, MangSym, Size, 1 << AlignLog);
+    else if (GVKind.isThreadData()) {
+      OutStreamer.SwitchSection(TheSection);
+
+      EmitLinkage(GV->getLinkage(), MangSym);
+      EmitAlignment(AlignLog, GV);      
+      OutStreamer.EmitLabel(MangSym);
+      
+      EmitGlobalConstant(GV->getInitializer());
+    }
+    
+    OutStreamer.AddBlankLine();
+    
+    // Emit the variable struct for the runtime.
+    const MCSection *TLVSect 
+      = getObjFileLowering().getTLSExtraDataSection();
+      
+    OutStreamer.SwitchSection(TLVSect);
+    // Emit the linkage here.
+    EmitLinkage(GV->getLinkage(), GVSym);
+    OutStreamer.EmitLabel(GVSym);
+    
+    // Three pointers in size:
+    //   - __tlv_bootstrap - used to make sure support exists
+    //   - spare pointer, used when mapped by the runtime
+    //   - pointer to mangled symbol above with initializer
+    unsigned PtrSize = TD->getPointerSizeInBits()/8;
+    OutStreamer.EmitSymbolValue(GetExternalSymbolSymbol("__tlv_bootstrap"),
+                          PtrSize, 0);
+    OutStreamer.EmitIntValue(0, PtrSize, 0);
+    OutStreamer.EmitSymbolValue(MangSym, PtrSize, 0);
+    
+    OutStreamer.AddBlankLine();
+    return;
+  }
 
   OutStreamer.SwitchSection(TheSection);
 
   EmitLinkage(GV->getLinkage(), GVSym);
   EmitAlignment(AlignLog, GV);
 
-  if (isVerbose()) {
-    WriteAsOperand(OutStreamer.GetCommentOS(), GV,
-                   /*PrintType=*/false, GV->getParent());
-    OutStreamer.GetCommentOS() << '\n';
-  }
   OutStreamer.EmitLabel(GVSym);
 
   EmitGlobalConstant(GV->getInitializer());
@@ -408,7 +448,13 @@ void AsmPrinter::EmitFunctionHeader() {
 /// EmitFunctionEntryLabel - Emit the label that is the entrypoint for the
 /// function.  This can be overridden by targets as required to do custom stuff.
 void AsmPrinter::EmitFunctionEntryLabel() {
-  OutStreamer.EmitLabel(CurrentFnSym);
+  // The function label could have already been emitted if two symbols end up
+  // conflicting due to asm renaming.  Detect this and emit an error.
+  if (CurrentFnSym->isUndefined())
+    return OutStreamer.EmitLabel(CurrentFnSym);
+
+  report_fatal_error("'" + Twine(CurrentFnSym->getName()) +
+                     "' label emitted multiple times to assembly file");
 }
 
 
@@ -503,7 +549,7 @@ static bool EmitDebugValueComment(const MachineInstr *MI, AsmPrinter &AP) {
   // cast away const; DIetc do not take const operands for some reason.
   DIVariable V(const_cast<MDNode*>(MI->getOperand(2).getMetadata()));
   if (V.getContext().isSubprogram())
-    OS << DISubprogram(V.getContext().getNode()).getDisplayName() << ":";
+    OS << DISubprogram(V.getContext()).getDisplayName() << ":";
   OS << V.getName() << " <- ";
 
   // Register or immediate value. Register 0 means undef.

@@ -142,8 +142,8 @@ ActOnStartClassInterface(SourceLocation AtInterfaceLoc,
         // typedef. If we do, get the underlying class type.
         if (const TypedefDecl *TDecl = dyn_cast_or_null<TypedefDecl>(PrevDecl)) {
           QualType T = TDecl->getUnderlyingType();
-          if (T->isObjCInterfaceType()) {
-            if (NamedDecl *IDecl = T->getAs<ObjCInterfaceType>()->getDecl())
+          if (T->isObjCObjectType()) {
+            if (NamedDecl *IDecl = T->getAs<ObjCObjectType>()->getInterface())
               SuperClassDecl = dyn_cast<ObjCInterfaceDecl>(IDecl);
           }
         }
@@ -210,8 +210,8 @@ Sema::DeclPtrTy Sema::ActOnCompatiblityAlias(SourceLocation AtLoc,
                                        LookupOrdinaryName, ForRedeclaration);
   if (const TypedefDecl *TDecl = dyn_cast_or_null<TypedefDecl>(CDeclU)) {
     QualType T = TDecl->getUnderlyingType();
-    if (T->isObjCInterfaceType()) {
-      if (NamedDecl *IDecl = T->getAs<ObjCInterfaceType>()->getDecl()) {
+    if (T->isObjCObjectType()) {
+      if (NamedDecl *IDecl = T->getAs<ObjCObjectType>()->getInterface()) {
         ClassName = IDecl->getIdentifier();
         CDeclU = LookupSingleName(TUScope, ClassName, ClassLocation,
                                   LookupOrdinaryName, ForRedeclaration);
@@ -763,6 +763,10 @@ void Sema::WarnConflictingTypedMethods(ObjCMethodDecl *ImpMethodDecl,
       << (*IM)->getType();
     Diag((*IF)->getLocation(), diag::note_previous_definition);
   }
+  if (ImpMethodDecl->isVariadic() != IntfMethodDecl->isVariadic()) {
+    Diag(ImpMethodDecl->getLocation(), diag::warn_conflicting_variadic);
+    Diag(IntfMethodDecl->getLocation(), diag::note_previous_declaration);
+  }
 }
 
 /// FIXME: Type hierarchies in Objective-C can be deep. We could most likely
@@ -925,7 +929,7 @@ void Sema::MatchAllMethodDeclarations(const llvm::DenseSet<Selector> &InsMap,
   }
 }
 
-void Sema::ImplMethodsVsClassMethods(ObjCImplDecl* IMPDecl,
+void Sema::ImplMethodsVsClassMethods(Scope *S, ObjCImplDecl* IMPDecl,
                                      ObjCContainerDecl* CDecl,
                                      bool IncompleteImpl) {
   llvm::DenseSet<Selector> InsMap;
@@ -938,8 +942,8 @@ void Sema::ImplMethodsVsClassMethods(ObjCImplDecl* IMPDecl,
   // Check and see if properties declared in the interface have either 1)
   // an implementation or 2) there is a @synthesize/@dynamic implementation
   // of the property in the @implementation.
-  if (isa<ObjCInterfaceDecl>(CDecl))
-    DiagnoseUnimplementedProperties(IMPDecl, CDecl, InsMap);
+  if (isa<ObjCInterfaceDecl>(CDecl) && !LangOpts.ObjCNonFragileABI2)
+    DiagnoseUnimplementedProperties(S, IMPDecl, CDecl, InsMap);
       
   llvm::DenseSet<Selector> ClsMap;
   for (ObjCImplementationDecl::classmeth_iterator
@@ -968,7 +972,7 @@ void Sema::ImplMethodsVsClassMethods(ObjCImplDecl* IMPDecl,
     for (ObjCCategoryDecl *Categories = I->getCategoryList();
          Categories; Categories = Categories->getNextClassCategory()) {
       if (Categories->IsClassExtension()) {
-        ImplMethodsVsClassMethods(IMPDecl, Categories, IncompleteImpl);
+        ImplMethodsVsClassMethods(S, IMPDecl, Categories, IncompleteImpl);
         break;
       }
     }
@@ -990,7 +994,7 @@ void Sema::ImplMethodsVsClassMethods(ObjCImplDecl* IMPDecl,
                I = IMP->instmeth_begin(), E = IMP->instmeth_end(); I!=E; ++I)
             InsMap.insert((*I)->getSelector());
         }
-      DiagnoseUnimplementedProperties(IMPDecl, CDecl, InsMap);      
+      DiagnoseUnimplementedProperties(S, IMPDecl, CDecl, InsMap);      
     } 
   } else
     assert(false && "invalid ObjCContainerDecl type.");
@@ -1024,15 +1028,15 @@ Sema::ActOnForwardClassDeclaration(SourceLocation AtClassLoc,
       //
       // FIXME: Make an extension?
       TypedefDecl *TDD = dyn_cast<TypedefDecl>(PrevDecl);
-      if (!TDD || !isa<ObjCInterfaceType>(TDD->getUnderlyingType())) {
+      if (!TDD || !TDD->getUnderlyingType()->isObjCObjectType()) {
         Diag(AtClassLoc, diag::err_redefinition_different_kind) << IdentList[i];
         Diag(PrevDecl->getLocation(), diag::note_previous_definition);
-      } else if (TDD) {
+      } else {
         // a forward class declaration matching a typedef name of a class refers
         // to the underlying class.
-        if (ObjCInterfaceType * OI =
-              dyn_cast<ObjCInterfaceType>(TDD->getUnderlyingType()))
-          PrevDecl = OI->getDecl();
+        if (const ObjCObjectType *OI =
+              TDD->getUnderlyingType()->getAs<ObjCObjectType>())
+          PrevDecl = OI->getInterface();
       }
     }
     ObjCInterfaceDecl *IDecl = dyn_cast_or_null<ObjCInterfaceDecl>(PrevDecl);
@@ -1326,7 +1330,7 @@ void Sema::DiagnoseDuplicateIvars(ObjCInterfaceDecl *ID,
 
 // Note: For class/category implemenations, allMethods/allProperties is
 // always null.
-void Sema::ActOnAtEnd(SourceRange AtEnd,
+void Sema::ActOnAtEnd(Scope *S, SourceRange AtEnd,
                       DeclPtrTy classDecl,
                       DeclPtrTy *allMethods, unsigned allNum,
                       DeclPtrTy *allProperties, unsigned pNum,
@@ -1433,7 +1437,9 @@ void Sema::ActOnAtEnd(SourceRange AtEnd,
   if (ObjCImplementationDecl *IC=dyn_cast<ObjCImplementationDecl>(ClassDecl)) {
     IC->setAtEndRange(AtEnd);
     if (ObjCInterfaceDecl* IDecl = IC->getClassInterface()) {
-      ImplMethodsVsClassMethods(IC, IDecl);
+      if (LangOpts.ObjCNonFragileABI2)
+        DefaultSynthesizeProperties(S, IC, IDecl);
+      ImplMethodsVsClassMethods(S, IC, IDecl);
       AtomicPropertySetterGetterRules(IC, IDecl);
       if (LangOpts.ObjCNonFragileABI2)
         while (IDecl->getSuperClass()) {
@@ -1452,7 +1458,7 @@ void Sema::ActOnAtEnd(SourceRange AtEnd,
       for (ObjCCategoryDecl *Categories = IDecl->getCategoryList();
            Categories; Categories = Categories->getNextClassCategory()) {
         if (Categories->getIdentifier() == CatImplClass->getIdentifier()) {
-          ImplMethodsVsClassMethods(CatImplClass, Categories);
+          ImplMethodsVsClassMethods(S, CatImplClass, Categories);
           break;
         }
       }
@@ -1530,7 +1536,7 @@ Sema::DeclPtrTy Sema::ActOnMethodDeclaration(
 
     // Methods cannot return interface types. All ObjC objects are
     // passed by reference.
-    if (resultDeclType->isObjCInterfaceType()) {
+    if (resultDeclType->isObjCObjectType()) {
       Diag(MethodLoc, diag::err_object_cannot_be_passed_returned_by_value)
         << 0 << resultDeclType;
       return DeclPtrTy();
@@ -1568,7 +1574,7 @@ Sema::DeclPtrTy Sema::ActOnMethodDeclaration(
                             ArgInfo[i].Name, ArgType, DI,
                             VarDecl::None, VarDecl::None, 0);
 
-    if (ArgType->isObjCInterfaceType()) {
+    if (ArgType->isObjCObjectType()) {
       Diag(ArgInfo[i].NameLoc,
            diag::err_object_cannot_be_passed_returned_by_value)
         << 1 << ArgType;
@@ -1592,7 +1598,7 @@ Sema::DeclPtrTy Sema::ActOnMethodDeclaration(
     else
       // Perform the default array/function conversions (C99 6.7.5.3p[7,8]).
       ArgType = adjustParameterType(ArgType);
-    if (ArgType->isObjCInterfaceType()) {
+    if (ArgType->isObjCObjectType()) {
       Diag(Param->getLocation(),
            diag::err_object_cannot_be_passed_returned_by_value)
       << 1 << ArgType;
@@ -1810,7 +1816,7 @@ void Sema::CollectIvarsToConstructOrDestruct(const ObjCInterfaceDecl *OI,
        E = OI->ivar_end(); I != E; ++I) {
     ObjCIvarDecl *Iv = (*I);
     QualType QT = Context.getBaseElementType(Iv->getType());
-    if (isa<RecordType>(QT))
+    if (QT->isRecordType())
       Ivars.push_back(*I);
   }
   
@@ -1820,7 +1826,7 @@ void Sema::CollectIvarsToConstructOrDestruct(const ObjCInterfaceDecl *OI,
          E = CDecl->ivar_end(); I != E; ++I) {
       ObjCIvarDecl *Iv = (*I);
       QualType QT = Context.getBaseElementType(Iv->getType());
-      if (isa<RecordType>(QT))
+      if (QT->isRecordType())
         Ivars.push_back(*I);
     }
   }
@@ -1832,7 +1838,7 @@ void Sema::CollectIvarsToConstructOrDestruct(const ObjCInterfaceDecl *OI,
          E = ImplDecl->ivar_end(); I != E; ++I) {
       ObjCIvarDecl *Iv = (*I);
       QualType QT = Context.getBaseElementType(Iv->getType());
-      if (isa<RecordType>(QT))
+      if (QT->isRecordType())
         Ivars.push_back(*I);
     }
   }

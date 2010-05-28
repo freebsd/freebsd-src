@@ -186,20 +186,73 @@ struct X86Operand : public MCParsedAsmOperand {
 
   bool isImm() const { return Kind == Immediate; }
   
-  bool isImmSExt8() const { 
-    // Accept immediates which fit in 8 bits when sign extended, and
-    // non-absolute immediates.
+  bool isImmSExti16i8() const {
     if (!isImm())
       return false;
 
-    if (const MCConstantExpr *CE = dyn_cast<MCConstantExpr>(getImm())) {
-      int64_t Value = CE->getValue();
-      return Value == (int64_t) (int8_t) Value;
-    }
+    // If this isn't a constant expr, just assume it fits and let relaxation
+    // handle it.
+    const MCConstantExpr *CE = dyn_cast<MCConstantExpr>(getImm());
+    if (!CE)
+      return true;
 
-    return true;
+    // Otherwise, check the value is in a range that makes sense for this
+    // extension.
+    uint64_t Value = CE->getValue();
+    return ((                                  Value <= 0x000000000000007FULL)||
+            (0x000000000000FF80ULL <= Value && Value <= 0x000000000000FFFFULL)||
+            (0xFFFFFFFFFFFFFF80ULL <= Value && Value <= 0xFFFFFFFFFFFFFFFFULL));
   }
-  
+  bool isImmSExti32i8() const {
+    if (!isImm())
+      return false;
+
+    // If this isn't a constant expr, just assume it fits and let relaxation
+    // handle it.
+    const MCConstantExpr *CE = dyn_cast<MCConstantExpr>(getImm());
+    if (!CE)
+      return true;
+
+    // Otherwise, check the value is in a range that makes sense for this
+    // extension.
+    uint64_t Value = CE->getValue();
+    return ((                                  Value <= 0x000000000000007FULL)||
+            (0x00000000FFFFFF80ULL <= Value && Value <= 0x00000000FFFFFFFFULL)||
+            (0xFFFFFFFFFFFFFF80ULL <= Value && Value <= 0xFFFFFFFFFFFFFFFFULL));
+  }
+  bool isImmSExti64i8() const {
+    if (!isImm())
+      return false;
+
+    // If this isn't a constant expr, just assume it fits and let relaxation
+    // handle it.
+    const MCConstantExpr *CE = dyn_cast<MCConstantExpr>(getImm());
+    if (!CE)
+      return true;
+
+    // Otherwise, check the value is in a range that makes sense for this
+    // extension.
+    uint64_t Value = CE->getValue();
+    return ((                                  Value <= 0x000000000000007FULL)||
+            (0xFFFFFFFFFFFFFF80ULL <= Value && Value <= 0xFFFFFFFFFFFFFFFFULL));
+  }
+  bool isImmSExti64i32() const {
+    if (!isImm())
+      return false;
+
+    // If this isn't a constant expr, just assume it fits and let relaxation
+    // handle it.
+    const MCConstantExpr *CE = dyn_cast<MCConstantExpr>(getImm());
+    if (!CE)
+      return true;
+
+    // Otherwise, check the value is in a range that makes sense for this
+    // extension.
+    uint64_t Value = CE->getValue();
+    return ((                                  Value <= 0x000000007FFFFFFFULL)||
+            (0xFFFFFFFF80000000ULL <= Value && Value <= 0xFFFFFFFFFFFFFFFFULL));
+  }
+
   bool isMem() const { return Kind == Memory; }
 
   bool isAbsMem() const {
@@ -227,12 +280,6 @@ struct X86Operand : public MCParsedAsmOperand {
   }
 
   void addImmOperands(MCInst &Inst, unsigned N) const {
-    assert(N == 1 && "Invalid number of operands!");
-    addExpr(Inst, getImm());
-  }
-
-  void addImmSExt8Operands(MCInst &Inst, unsigned N) const {
-    // FIXME: Support user customization of the render method.
     assert(N == 1 && "Invalid number of operands!");
     addExpr(Inst, getImm());
   }
@@ -535,6 +582,21 @@ X86Operand *X86ATTAsmParser::ParseMemOperand(unsigned SegReg, SMLoc MemStart) {
 bool X86ATTAsmParser::
 ParseInstruction(const StringRef &Name, SMLoc NameLoc,
                  SmallVectorImpl<MCParsedAsmOperand*> &Operands) {
+  // The various flavors of pushf and popf use Requires<In32BitMode> and
+  // Requires<In64BitMode>, but the assembler doesn't yet implement that.
+  // For now, just do a manual check to prevent silent misencoding.
+  if (Is64Bit) {
+    if (Name == "popfl")
+      return Error(NameLoc, "popfl cannot be encoded in 64-bit mode");
+    else if (Name == "pushfl")
+      return Error(NameLoc, "pushfl cannot be encoded in 64-bit mode");
+  } else {
+    if (Name == "popfq")
+      return Error(NameLoc, "popfq cannot be encoded in 32-bit mode");
+    else if (Name == "pushfq")
+      return Error(NameLoc, "pushfq cannot be encoded in 32-bit mode");
+  }
+
   // FIXME: Hack to recognize "sal..." and "rep..." for now. We need a way to
   // represent alternative syntaxes in the .td file, without requiring
   // instruction duplication.
@@ -547,8 +609,65 @@ ParseInstruction(const StringRef &Name, SMLoc NameLoc,
     .Case("repe", "rep")
     .Case("repz", "rep")
     .Case("repnz", "repne")
+    .Case("pushf", Is64Bit ? "pushfq" : "pushfl")
+    .Case("popf",  Is64Bit ? "popfq"  : "popfl")
+    .Case("retl", Is64Bit ? "retl" : "ret")
+    .Case("retq", Is64Bit ? "ret" : "retq")
+    .Case("setz", "sete")
+    .Case("setnz", "setne")
+    .Case("jz", "je")
+    .Case("jnz", "jne")
+    .Case("cmovcl", "cmovbl")
+    .Case("cmovcl", "cmovbl")
+    .Case("cmovnal", "cmovbel")
+    .Case("cmovnbl", "cmovael")
+    .Case("cmovnbel", "cmoval")
+    .Case("cmovncl", "cmovael")
+    .Case("cmovngl", "cmovlel")
+    .Case("cmovnl", "cmovgel")
+    .Case("cmovngl", "cmovlel")
+    .Case("cmovngel", "cmovll")
+    .Case("cmovnll", "cmovgel")
+    .Case("cmovnlel", "cmovgl")
+    .Case("cmovnzl", "cmovnel")
+    .Case("cmovzl", "cmovel")
     .Default(Name);
+
+  // FIXME: Hack to recognize cmp<comparison code>{ss,sd,ps,pd}.
+  const MCExpr *ExtraImmOp = 0;
+  if (PatchedName.startswith("cmp") &&
+      (PatchedName.endswith("ss") || PatchedName.endswith("sd") ||
+       PatchedName.endswith("ps") || PatchedName.endswith("pd"))) {
+    unsigned SSEComparisonCode = StringSwitch<unsigned>(
+      PatchedName.slice(3, PatchedName.size() - 2))
+      .Case("eq", 0)
+      .Case("lt", 1)
+      .Case("le", 2)
+      .Case("unord", 3)
+      .Case("neq", 4)
+      .Case("nlt", 5)
+      .Case("nle", 6)
+      .Case("ord", 7)
+      .Default(~0U);
+    if (SSEComparisonCode != ~0U) {
+      ExtraImmOp = MCConstantExpr::Create(SSEComparisonCode,
+                                          getParser().getContext());
+      if (PatchedName.endswith("ss")) {
+        PatchedName = "cmpss";
+      } else if (PatchedName.endswith("sd")) {
+        PatchedName = "cmpsd";
+      } else if (PatchedName.endswith("ps")) {
+        PatchedName = "cmpps";
+      } else {
+        assert(PatchedName.endswith("pd") && "Unexpected mnemonic!");
+        PatchedName = "cmppd";
+      }
+    }
+  }
   Operands.push_back(X86Operand::CreateToken(PatchedName, NameLoc));
+
+  if (ExtraImmOp)
+    Operands.push_back(X86Operand::CreateImm(ExtraImmOp, NameLoc, NameLoc));
 
   if (getLexer().isNot(AsmToken::EndOfStatement)) {
 
@@ -564,7 +683,7 @@ ParseInstruction(const StringRef &Name, SMLoc NameLoc,
       Operands.push_back(Op);
     else
       return true;
-    
+
     while (getLexer().is(AsmToken::Comma)) {
       Parser.Lex();  // Eat the comma.
 
@@ -585,6 +704,17 @@ ParseInstruction(const StringRef &Name, SMLoc NameLoc,
       cast<MCConstantExpr>(static_cast<X86Operand*>(Operands[1])->getImm())->getValue() == 1) {
     delete Operands[1];
     Operands.erase(Operands.begin() + 1);
+  }
+
+  // FIXME: Hack to handle "f{mul*,add*,sub*,div*} $op, st(0)" the same as
+  // "f{mul*,add*,sub*,div*} $op"
+  if ((Name.startswith("fmul") || Name.startswith("fadd") ||
+       Name.startswith("fsub") || Name.startswith("fdiv")) &&
+      Operands.size() == 3 &&
+      static_cast<X86Operand*>(Operands[2])->isReg() &&
+      static_cast<X86Operand*>(Operands[2])->getReg() == X86::ST0) {
+    delete Operands[2];
+    Operands.erase(Operands.begin() + 2);
   }
 
   return false;
@@ -622,6 +752,31 @@ bool X86ATTAsmParser::ParseDirectiveWord(unsigned Size, SMLoc L) {
   return false;
 }
 
+/// LowerMOffset - Lower an 'moffset' form of an instruction, which just has a
+/// imm operand, to having "rm" or "mr" operands with the offset in the disp
+/// field.
+static void LowerMOffset(MCInst &Inst, unsigned Opc, unsigned RegNo,
+                         bool isMR) {
+  MCOperand Disp = Inst.getOperand(0);
+
+  // Start over with an empty instruction.
+  Inst = MCInst();
+  Inst.setOpcode(Opc);
+  
+  if (!isMR)
+    Inst.addOperand(MCOperand::CreateReg(RegNo));
+  
+  // Add the mem operand.
+  Inst.addOperand(MCOperand::CreateReg(0));  // Segment
+  Inst.addOperand(MCOperand::CreateImm(1));  // Scale
+  Inst.addOperand(MCOperand::CreateReg(0));  // IndexReg
+  Inst.addOperand(Disp);                     // Displacement
+  Inst.addOperand(MCOperand::CreateReg(0));  // BaseReg
+ 
+  if (isMR)
+    Inst.addOperand(MCOperand::CreateReg(RegNo));
+}
+
 // FIXME: Custom X86 cleanup function to implement a temporary hack to handle
 // matching INCL/DECL correctly for x86_64. This needs to be replaced by a
 // proper mechanism for supporting (ambiguous) feature dependent instructions.
@@ -637,6 +792,14 @@ void X86ATTAsmParser::InstructionCleanup(MCInst &Inst) {
   case X86::INC16m: Inst.setOpcode(X86::INC64_16m); break;
   case X86::INC32r: Inst.setOpcode(X86::INC64_32r); break;
   case X86::INC32m: Inst.setOpcode(X86::INC64_32m); break;
+      
+  // moffset instructions are x86-32 only.
+  case X86::MOV8o8a:   LowerMOffset(Inst, X86::MOV8rm , X86::AL , false); break;
+  case X86::MOV16o16a: LowerMOffset(Inst, X86::MOV16rm, X86::AX , false); break;
+  case X86::MOV32o32a: LowerMOffset(Inst, X86::MOV32rm, X86::EAX, false); break;
+  case X86::MOV8ao8:   LowerMOffset(Inst, X86::MOV8mr , X86::AL , true); break;
+  case X86::MOV16ao16: LowerMOffset(Inst, X86::MOV16mr, X86::AX , true); break;
+  case X86::MOV32ao32: LowerMOffset(Inst, X86::MOV32mr, X86::EAX, true); break;
   }
 }
 
@@ -673,6 +836,8 @@ X86ATTAsmParser::MatchInstruction(const SmallVectorImpl<MCParsedAsmOperand*>
   bool MatchW = MatchInstructionImpl(Operands, Inst);
   Tmp[Base.size()] = 'l';
   bool MatchL = MatchInstructionImpl(Operands, Inst);
+  Tmp[Base.size()] = 'q';
+  bool MatchQ = MatchInstructionImpl(Operands, Inst);
 
   // Restore the old token.
   Op->setTokenValue(Base);
@@ -680,7 +845,7 @@ X86ATTAsmParser::MatchInstruction(const SmallVectorImpl<MCParsedAsmOperand*>
   // If exactly one matched, then we treat that as a successful match (and the
   // instruction will already have been filled in correctly, since the failing
   // matches won't have modified it).
-  if (MatchB + MatchW + MatchL == 2)
+  if (MatchB + MatchW + MatchL + MatchQ == 3)
     return false;
 
   // Otherwise, the match failed.

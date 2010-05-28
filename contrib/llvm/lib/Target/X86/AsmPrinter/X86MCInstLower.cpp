@@ -224,6 +224,60 @@ static void LowerUnaryToTwoAddr(MCInst &OutMI, unsigned NewOpc) {
   OutMI.addOperand(OutMI.getOperand(0));
 }
 
+/// \brief Simplify FOO $imm, %{al,ax,eax,rax} to FOO $imm, for instruction with
+/// a short fixed-register form.
+static void SimplifyShortImmForm(MCInst &Inst, unsigned Opcode) {
+  unsigned ImmOp = Inst.getNumOperands() - 1;
+  assert(Inst.getOperand(0).isReg() && Inst.getOperand(ImmOp).isImm() &&
+         ((Inst.getNumOperands() == 3 && Inst.getOperand(1).isReg() &&
+           Inst.getOperand(0).getReg() == Inst.getOperand(1).getReg()) ||
+          Inst.getNumOperands() == 2) && "Unexpected instruction!");
+
+  // Check whether the destination register can be fixed.
+  unsigned Reg = Inst.getOperand(0).getReg();
+  if (Reg != X86::AL && Reg != X86::AX && Reg != X86::EAX && Reg != X86::RAX)
+    return;
+
+  // If so, rewrite the instruction.
+  MCOperand Saved = Inst.getOperand(ImmOp);
+  Inst = MCInst();
+  Inst.setOpcode(Opcode);
+  Inst.addOperand(Saved);
+}
+
+/// \brief Simplify things like MOV32rm to MOV32o32a.
+static void SimplifyShortMoveForm(MCInst &Inst, unsigned Opcode) {
+  bool IsStore = Inst.getOperand(0).isReg() && Inst.getOperand(1).isReg();
+  unsigned AddrBase = IsStore;
+  unsigned RegOp = IsStore ? 0 : 5;
+  unsigned AddrOp = AddrBase + 3;
+  assert(Inst.getNumOperands() == 6 && Inst.getOperand(RegOp).isReg() &&
+         Inst.getOperand(AddrBase + 0).isReg() && // base
+         Inst.getOperand(AddrBase + 1).isImm() && // scale
+         Inst.getOperand(AddrBase + 2).isReg() && // index register
+         (Inst.getOperand(AddrOp).isExpr() ||     // address
+          Inst.getOperand(AddrOp).isImm())&&
+         Inst.getOperand(AddrBase + 4).isReg() && // segment
+         "Unexpected instruction!");
+
+  // Check whether the destination register can be fixed.
+  unsigned Reg = Inst.getOperand(RegOp).getReg();
+  if (Reg != X86::AL && Reg != X86::AX && Reg != X86::EAX && Reg != X86::RAX)
+    return;
+
+  // Check whether this is an absolute address.
+  if (Inst.getOperand(AddrBase + 0).getReg() != 0 ||
+      Inst.getOperand(AddrBase + 2).getReg() != 0 ||
+      Inst.getOperand(AddrBase + 4).getReg() != 0 ||
+      Inst.getOperand(AddrBase + 1).getImm() != 1)
+    return;
+
+  // If so, rewrite the instruction.
+  MCOperand Saved = Inst.getOperand(AddrOp);
+  Inst = MCInst();
+  Inst.setOpcode(Opcode);
+  Inst.addOperand(Saved);
+}
 
 void X86MCInstLower::Lower(const MachineInstr *MI, MCInst &OutMI) const {
   OutMI.setOpcode(MI->getOpcode());
@@ -309,8 +363,32 @@ void X86MCInstLower::Lower(const MachineInstr *MI, MCInst &OutMI) const {
     LowerSubReg32_Op0(OutMI, X86::MOV32r0);   // MOV64r0 -> MOV32r0
     LowerUnaryToTwoAddr(OutMI, X86::XOR32rr); // MOV32r0 -> XOR32rr
     break;
-      
-      
+
+  // TAILJMPr, TAILJMPr64, CALL64r, CALL64pcrel32 - These instructions have
+  // register inputs modeled as normal uses instead of implicit uses.  As such,
+  // truncate off all but the first operand (the callee).  FIXME: Change isel.
+  case X86::TAILJMPr:
+  case X86::TAILJMPr64:
+  case X86::CALL64r:
+  case X86::CALL64pcrel32: {
+    unsigned Opcode = OutMI.getOpcode();
+    MCOperand Saved = OutMI.getOperand(0);
+    OutMI = MCInst();
+    OutMI.setOpcode(Opcode);
+    OutMI.addOperand(Saved);
+    break;
+  }
+
+  // TAILJMPd, TAILJMPd64 - Lower to the correct jump instructions.
+  case X86::TAILJMPd:
+  case X86::TAILJMPd64: {
+    MCOperand Saved = OutMI.getOperand(0);
+    OutMI = MCInst();
+    OutMI.setOpcode(X86::TAILJMP_1);
+    OutMI.addOperand(Saved);
+    break;
+  }
+
   // The assembler backend wants to see branches in their small form and relax
   // them to their large form.  The JIT can only handle the large form because
   // it does not do relaxation.  For now, translate the large form to the
@@ -332,6 +410,61 @@ void X86MCInstLower::Lower(const MachineInstr *MI, MCInst &OutMI) const {
   case X86::JGE_4: OutMI.setOpcode(X86::JGE_1); break;
   case X86::JLE_4: OutMI.setOpcode(X86::JLE_1); break;
   case X86::JG_4:  OutMI.setOpcode(X86::JG_1); break;
+
+  // We don't currently select the correct instruction form for instructions
+  // which have a short %eax, etc. form. Handle this by custom lowering, for
+  // now.
+  //
+  // Note, we are currently not handling the following instructions:
+  // MOV64ao8, MOV64o8a
+  // XCHG16ar, XCHG32ar, XCHG64ar
+  case X86::MOV8mr_NOREX:
+  case X86::MOV8mr:     SimplifyShortMoveForm(OutMI, X86::MOV8ao8); break;
+  case X86::MOV8rm_NOREX:
+  case X86::MOV8rm:     SimplifyShortMoveForm(OutMI, X86::MOV8o8a); break;
+  case X86::MOV16mr:    SimplifyShortMoveForm(OutMI, X86::MOV16ao16); break;
+  case X86::MOV16rm:    SimplifyShortMoveForm(OutMI, X86::MOV16o16a); break;
+  case X86::MOV32mr:    SimplifyShortMoveForm(OutMI, X86::MOV32ao32); break;
+  case X86::MOV32rm:    SimplifyShortMoveForm(OutMI, X86::MOV32o32a); break;
+  case X86::MOV64mr:    SimplifyShortMoveForm(OutMI, X86::MOV64ao64); break;
+  case X86::MOV64rm:    SimplifyShortMoveForm(OutMI, X86::MOV64o64a); break;
+
+  case X86::ADC8ri:     SimplifyShortImmForm(OutMI, X86::ADC8i8);    break;
+  case X86::ADC16ri:    SimplifyShortImmForm(OutMI, X86::ADC16i16);  break;
+  case X86::ADC32ri:    SimplifyShortImmForm(OutMI, X86::ADC32i32);  break;
+  case X86::ADC64ri32:  SimplifyShortImmForm(OutMI, X86::ADC64i32);  break;
+  case X86::ADD8ri:     SimplifyShortImmForm(OutMI, X86::ADD8i8);    break;
+  case X86::ADD16ri:    SimplifyShortImmForm(OutMI, X86::ADD16i16);  break;
+  case X86::ADD32ri:    SimplifyShortImmForm(OutMI, X86::ADD32i32);  break;
+  case X86::ADD64ri32:  SimplifyShortImmForm(OutMI, X86::ADD64i32);  break;
+  case X86::AND8ri:     SimplifyShortImmForm(OutMI, X86::AND8i8);    break;
+  case X86::AND16ri:    SimplifyShortImmForm(OutMI, X86::AND16i16);  break;
+  case X86::AND32ri:    SimplifyShortImmForm(OutMI, X86::AND32i32);  break;
+  case X86::AND64ri32:  SimplifyShortImmForm(OutMI, X86::AND64i32);  break;
+  case X86::CMP8ri:     SimplifyShortImmForm(OutMI, X86::CMP8i8);    break;
+  case X86::CMP16ri:    SimplifyShortImmForm(OutMI, X86::CMP16i16);  break;
+  case X86::CMP32ri:    SimplifyShortImmForm(OutMI, X86::CMP32i32);  break;
+  case X86::CMP64ri32:  SimplifyShortImmForm(OutMI, X86::CMP64i32);  break;
+  case X86::OR8ri:      SimplifyShortImmForm(OutMI, X86::OR8i8);     break;
+  case X86::OR16ri:     SimplifyShortImmForm(OutMI, X86::OR16i16);   break;
+  case X86::OR32ri:     SimplifyShortImmForm(OutMI, X86::OR32i32);   break;
+  case X86::OR64ri32:   SimplifyShortImmForm(OutMI, X86::OR64i32);   break;
+  case X86::SBB8ri:     SimplifyShortImmForm(OutMI, X86::SBB8i8);    break;
+  case X86::SBB16ri:    SimplifyShortImmForm(OutMI, X86::SBB16i16);  break;
+  case X86::SBB32ri:    SimplifyShortImmForm(OutMI, X86::SBB32i32);  break;
+  case X86::SBB64ri32:  SimplifyShortImmForm(OutMI, X86::SBB64i32);  break;
+  case X86::SUB8ri:     SimplifyShortImmForm(OutMI, X86::SUB8i8);    break;
+  case X86::SUB16ri:    SimplifyShortImmForm(OutMI, X86::SUB16i16);  break;
+  case X86::SUB32ri:    SimplifyShortImmForm(OutMI, X86::SUB32i32);  break;
+  case X86::SUB64ri32:  SimplifyShortImmForm(OutMI, X86::SUB64i32);  break;
+  case X86::TEST8ri:    SimplifyShortImmForm(OutMI, X86::TEST8i8);   break;
+  case X86::TEST16ri:   SimplifyShortImmForm(OutMI, X86::TEST16i16); break;
+  case X86::TEST32ri:   SimplifyShortImmForm(OutMI, X86::TEST32i32); break;
+  case X86::TEST64ri32: SimplifyShortImmForm(OutMI, X86::TEST64i32); break;
+  case X86::XOR8ri:     SimplifyShortImmForm(OutMI, X86::XOR8i8);    break;
+  case X86::XOR16ri:    SimplifyShortImmForm(OutMI, X86::XOR16i16);  break;
+  case X86::XOR32ri:    SimplifyShortImmForm(OutMI, X86::XOR32i32);  break;
+  case X86::XOR64ri32:  SimplifyShortImmForm(OutMI, X86::XOR64i32);  break;
   }
 }
 
@@ -346,7 +479,7 @@ void X86AsmPrinter::PrintDebugValueComment(const MachineInstr *MI,
   // cast away const; DIetc do not take const operands for some reason.
   DIVariable V(const_cast<MDNode *>(MI->getOperand(NOps-1).getMetadata()));
   if (V.getContext().isSubprogram())
-    O << DISubprogram(V.getContext().getNode()).getDisplayName() << ":";
+    O << DISubprogram(V.getContext()).getDisplayName() << ":";
   O << V.getName();
   O << " <- ";
   // Frame address.  Currently handles register +- offset only.

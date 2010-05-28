@@ -68,13 +68,13 @@ namespace {
     // FIXME: DependentDecltypeType
     QualType VisitRecordType(RecordType *T);
     QualType VisitEnumType(EnumType *T);
-    QualType VisitElaboratedType(ElaboratedType *T);
     // FIXME: TemplateTypeParmType
     // FIXME: SubstTemplateTypeParmType
     // FIXME: TemplateSpecializationType
-    QualType VisitQualifiedNameType(QualifiedNameType *T);
+    QualType VisitElaboratedType(ElaboratedType *T);
     // FIXME: DependentNameType
     QualType VisitObjCInterfaceType(ObjCInterfaceType *T);
+    QualType VisitObjCObjectType(ObjCObjectType *T);
     QualType VisitObjCObjectPointerType(ObjCObjectPointerType *T);
                             
     // Importing declarations
@@ -532,19 +532,7 @@ static bool IsStructurallyEquivalent(StructuralEquivalenceContext &Context,
                                   cast<TagType>(T2)->getDecl()))
       return false;
     break;
-      
-  case Type::Elaborated: {
-    const ElaboratedType *Elab1 = cast<ElaboratedType>(T1);
-    const ElaboratedType *Elab2 = cast<ElaboratedType>(T2);
-    if (Elab1->getTagKind() != Elab2->getTagKind())
-      return false;
-    if (!IsStructurallyEquivalent(Context, 
-                                  Elab1->getUnderlyingType(),
-                                  Elab2->getUnderlyingType()))
-      return false;
-    break;
-  }
-   
+
   case Type::TemplateTypeParm: {
     const TemplateTypeParmType *Parm1 = cast<TemplateTypeParmType>(T1);
     const TemplateTypeParmType *Parm2 = cast<TemplateTypeParmType>(T2);
@@ -594,16 +582,19 @@ static bool IsStructurallyEquivalent(StructuralEquivalenceContext &Context,
     break;
   }
       
-  case Type::QualifiedName: {
-    const QualifiedNameType *Qual1 = cast<QualifiedNameType>(T1);
-    const QualifiedNameType *Qual2 = cast<QualifiedNameType>(T2);
+  case Type::Elaborated: {
+    const ElaboratedType *Elab1 = cast<ElaboratedType>(T1);
+    const ElaboratedType *Elab2 = cast<ElaboratedType>(T2);
+    // CHECKME: what if a keyword is ETK_None or ETK_typename ?
+    if (Elab1->getKeyword() != Elab2->getKeyword())
+      return false;
     if (!IsStructurallyEquivalent(Context, 
-                                  Qual1->getQualifier(), 
-                                  Qual2->getQualifier()))
+                                  Elab1->getQualifier(), 
+                                  Elab2->getQualifier()))
       return false;
     if (!IsStructurallyEquivalent(Context,
-                                  Qual1->getNamedType(),
-                                  Qual2->getNamedType()))
+                                  Elab1->getNamedType(),
+                                  Elab2->getNamedType()))
       return false;
     break;
   }
@@ -642,12 +633,22 @@ static bool IsStructurallyEquivalent(StructuralEquivalenceContext &Context,
     if (!IsStructurallyEquivalent(Context, 
                                   Iface1->getDecl(), Iface2->getDecl()))
       return false;
-    if (Iface1->getNumProtocols() != Iface2->getNumProtocols())
+    break;
+  }
+
+  case Type::ObjCObject: {
+    const ObjCObjectType *Obj1 = cast<ObjCObjectType>(T1);
+    const ObjCObjectType *Obj2 = cast<ObjCObjectType>(T2);
+    if (!IsStructurallyEquivalent(Context,
+                                  Obj1->getBaseType(),
+                                  Obj2->getBaseType()))
       return false;
-    for (unsigned I = 0, N = Iface1->getNumProtocols(); I != N; ++I) {
+    if (Obj1->getNumProtocols() != Obj2->getNumProtocols())
+      return false;
+    for (unsigned I = 0, N = Obj1->getNumProtocols(); I != N; ++I) {
       if (!IsStructurallyEquivalent(Context,
-                                    Iface1->getProtocol(I),
-                                    Iface2->getProtocol(I)))
+                                    Obj1->getProtocol(I),
+                                    Obj2->getProtocol(I)))
         return false;
     }
     break;
@@ -660,14 +661,6 @@ static bool IsStructurallyEquivalent(StructuralEquivalenceContext &Context,
                                   Ptr1->getPointeeType(),
                                   Ptr2->getPointeeType()))
       return false;
-    if (Ptr1->getNumProtocols() != Ptr2->getNumProtocols())
-      return false;
-    for (unsigned I = 0, N = Ptr1->getNumProtocols(); I != N; ++I) {
-      if (!IsStructurallyEquivalent(Context,
-                                    Ptr1->getProtocol(I),
-                                    Ptr2->getProtocol(I)))
-        return false;
-    }
     break;
   }
       
@@ -1293,24 +1286,20 @@ QualType ASTNodeImporter::VisitEnumType(EnumType *T) {
 }
 
 QualType ASTNodeImporter::VisitElaboratedType(ElaboratedType *T) {
-  QualType ToUnderlyingType = Importer.Import(T->getUnderlyingType());
-  if (ToUnderlyingType.isNull())
-    return QualType();
-
-  return Importer.getToContext().getElaboratedType(ToUnderlyingType,
-                                                   T->getTagKind());
-}
-
-QualType ASTNodeImporter::VisitQualifiedNameType(QualifiedNameType *T) {
-  NestedNameSpecifier *ToQualifier = Importer.Import(T->getQualifier());
-  if (!ToQualifier)
-    return QualType();
+  NestedNameSpecifier *ToQualifier = 0;
+  // Note: the qualifier in an ElaboratedType is optional.
+  if (T->getQualifier()) {
+    ToQualifier = Importer.Import(T->getQualifier());
+    if (!ToQualifier)
+      return QualType();
+  }
 
   QualType ToNamedType = Importer.Import(T->getNamedType());
   if (ToNamedType.isNull())
     return QualType();
 
-  return Importer.getToContext().getQualifiedNameType(ToQualifier, ToNamedType);
+  return Importer.getToContext().getElaboratedType(T->getKeyword(),
+                                                   ToQualifier, ToNamedType);
 }
 
 QualType ASTNodeImporter::VisitObjCInterfaceType(ObjCInterfaceType *T) {
@@ -1319,8 +1308,16 @@ QualType ASTNodeImporter::VisitObjCInterfaceType(ObjCInterfaceType *T) {
   if (!Class)
     return QualType();
 
+  return Importer.getToContext().getObjCInterfaceType(Class);
+}
+
+QualType ASTNodeImporter::VisitObjCObjectType(ObjCObjectType *T) {
+  QualType ToBaseType = Importer.Import(T->getBaseType());
+  if (ToBaseType.isNull())
+    return QualType();
+
   llvm::SmallVector<ObjCProtocolDecl *, 4> Protocols;
-  for (ObjCInterfaceType::qual_iterator P = T->qual_begin(), 
+  for (ObjCObjectType::qual_iterator P = T->qual_begin(), 
                                      PEnd = T->qual_end();
        P != PEnd; ++P) {
     ObjCProtocolDecl *Protocol
@@ -1330,9 +1327,9 @@ QualType ASTNodeImporter::VisitObjCInterfaceType(ObjCInterfaceType *T) {
     Protocols.push_back(Protocol);
   }
 
-  return Importer.getToContext().getObjCInterfaceType(Class,
-                                                      Protocols.data(),
-                                                      Protocols.size());
+  return Importer.getToContext().getObjCObjectType(ToBaseType,
+                                                   Protocols.data(),
+                                                   Protocols.size());
 }
 
 QualType ASTNodeImporter::VisitObjCObjectPointerType(ObjCObjectPointerType *T) {
@@ -1340,20 +1337,7 @@ QualType ASTNodeImporter::VisitObjCObjectPointerType(ObjCObjectPointerType *T) {
   if (ToPointeeType.isNull())
     return QualType();
 
-  llvm::SmallVector<ObjCProtocolDecl *, 4> Protocols;
-  for (ObjCObjectPointerType::qual_iterator P = T->qual_begin(), 
-                                         PEnd = T->qual_end();
-       P != PEnd; ++P) {
-    ObjCProtocolDecl *Protocol
-      = dyn_cast_or_null<ObjCProtocolDecl>(Importer.Import(*P));
-    if (!Protocol)
-      return QualType();
-    Protocols.push_back(Protocol);
-  }
-
-  return Importer.getToContext().getObjCObjectPointerType(ToPointeeType,
-                                                          Protocols.data(),
-                                                          Protocols.size());
+  return Importer.getToContext().getObjCObjectPointerType(ToPointeeType);
 }
 
 //----------------------------------------------------------------------------
@@ -1617,7 +1601,12 @@ Decl *ASTNodeImporter::VisitEnumDecl(EnumDecl *D) {
     
     D2->startDefinition();
     ImportDeclContext(D);
-    D2->completeDefinition(T, ToPromotionType);
+
+    // FIXME: we might need to merge the number of positive or negative bits
+    // if the enumerator lists don't match.
+    D2->completeDefinition(T, ToPromotionType,
+                           D->getNumPositiveBits(),
+                           D->getNumNegativeBits());
   }
   
   return D2;
@@ -2961,7 +2950,7 @@ TypeSourceInfo *ASTImporter::Import(TypeSourceInfo *FromTSI) {
     return 0;
 
   return ToContext.getTrivialTypeSourceInfo(T, 
-                        FromTSI->getTypeLoc().getFullSourceRange().getBegin());
+                        FromTSI->getTypeLoc().getSourceRange().getBegin());
 }
 
 Decl *ASTImporter::Import(Decl *FromD) {

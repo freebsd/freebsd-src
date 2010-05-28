@@ -28,7 +28,10 @@ add_clang_library(clangCodeGen
   CodeGenFunction.cpp
   CodeGenModule.cpp
   CodeGenTypes.cpp
+  ItaniumCXXABI.cpp
   Mangle.cpp
   ModuleBuilder.cpp
   TargetInfo.cpp
   )
+
+add_dependencies(clangCodeGen ClangStmtNodes)

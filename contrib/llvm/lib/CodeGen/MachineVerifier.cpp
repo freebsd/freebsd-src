@@ -47,7 +47,7 @@ namespace {
     MachineVerifier(Pass *pass, bool allowDoubleDefs) :
       PASS(pass),
       allowVirtDoubleDefs(allowDoubleDefs),
-      allowPhysDoubleDefs(allowDoubleDefs),
+      allowPhysDoubleDefs(true),
       OutFileName(getenv("LLVM_VERIFY_MACHINEINSTRS"))
       {}
 
@@ -552,19 +552,23 @@ MachineVerifier::visitMachineOperand(const MachineOperand *MO, unsigned MONum) {
       regsLiveInButUnused.erase(Reg);
 
       bool isKill = false;
-      if (MO->isKill()) {
-        isKill = true;
-        // Tied operands on two-address instuctions MUST NOT have a <kill> flag.
-        if (MI->isRegTiedToDefOperand(MONum))
+      unsigned defIdx;
+      if (MI->isRegTiedToDefOperand(MONum, &defIdx)) {
+        // A two-addr use counts as a kill if use and def are the same.
+        unsigned DefReg = MI->getOperand(defIdx).getReg();
+        if (Reg == DefReg) {
+          isKill = true;
+          // ANd in that case an explicit kill flag is not allowed.
+          if (MO->isKill())
             report("Illegal kill flag on two-address instruction operand",
                    MO, MONum);
-      } else {
-        // TwoAddress instr modifying a reg is treated as kill+def.
-        unsigned defIdx;
-        if (MI->isRegTiedToDefOperand(MONum, &defIdx) &&
-            MI->getOperand(defIdx).getReg() == Reg)
-          isKill = true;
-      }
+        } else if (TargetRegisterInfo::isPhysicalRegister(Reg)) {
+          report("Two-address instruction operands must be identical",
+                 MO, MONum);
+        }
+      } else
+        isKill = MO->isKill();
+
       if (isKill) {
         addRegWithSubRegs(regsKilled, Reg);
 
@@ -631,11 +635,14 @@ MachineVerifier::visitMachineOperand(const MachineOperand *MO, unsigned MONum) {
         // Virtual register.
         const TargetRegisterClass *RC = MRI->getRegClass(Reg);
         if (SubIdx) {
-          if (RC->subregclasses_begin()+SubIdx >= RC->subregclasses_end()) {
+          const TargetRegisterClass *SRC = RC->getSubRegisterRegClass(SubIdx);
+          if (!SRC) {
             report("Invalid subregister index for virtual register", MO, MONum);
+            *OS << "Register class " << RC->getName()
+                << " does not support subreg index " << SubIdx << "\n";
             return;
           }
-          RC = *(RC->subregclasses_begin()+SubIdx);
+          RC = SRC;
         }
         if (const TargetRegisterClass *DRC = TOI.getRegClass(TRI)) {
           if (RC != DRC && !RC->hasSuperClass(DRC)) {

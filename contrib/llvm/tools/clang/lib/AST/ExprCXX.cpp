@@ -92,12 +92,11 @@ CXXNewExpr::CXXNewExpr(ASTContext &C, bool globalNew, FunctionDecl *operatorNew,
                        SourceLocation startLoc, SourceLocation endLoc)
   : Expr(CXXNewExprClass, ty, ty->isDependentType(), ty->isDependentType()),
     GlobalNew(globalNew), ParenTypeId(parenTypeId),
-    Initializer(initializer), Array(arraySize), NumPlacementArgs(numPlaceArgs),
-    NumConstructorArgs(numConsArgs), OperatorNew(operatorNew),
+    Initializer(initializer), SubExprs(0), OperatorNew(operatorNew),
     OperatorDelete(operatorDelete), Constructor(constructor),
     StartLoc(startLoc), EndLoc(endLoc) {
-  unsigned TotalSize = Array + NumPlacementArgs + NumConstructorArgs;
-  SubExprs = new (C) Stmt*[TotalSize];
+      
+  AllocateArgsArray(C, arraySize != 0, numPlaceArgs, numConsArgs);
   unsigned i = 0;
   if (Array)
     SubExprs[i++] = arraySize;
@@ -105,8 +104,19 @@ CXXNewExpr::CXXNewExpr(ASTContext &C, bool globalNew, FunctionDecl *operatorNew,
     SubExprs[i++] = placementArgs[j];
   for (unsigned j = 0; j < NumConstructorArgs; ++j)
     SubExprs[i++] = constructorArgs[j];
-  assert(i == TotalSize);
 }
+
+void CXXNewExpr::AllocateArgsArray(ASTContext &C, bool isArray,
+                                   unsigned numPlaceArgs, unsigned numConsArgs){
+  assert(SubExprs == 0 && "SubExprs already allocated");
+  Array = isArray;
+  NumPlacementArgs = numPlaceArgs;
+  NumConstructorArgs = numConsArgs; 
+  
+  unsigned TotalSize = Array + NumPlacementArgs + NumConstructorArgs;
+  SubExprs = new (C) Stmt*[TotalSize];
+}
+
 
 void CXXNewExpr::DoDestroy(ASTContext &C) {
   DestroyChildren(C);
@@ -134,7 +144,7 @@ Stmt::child_iterator CXXPseudoDestructorExpr::child_end() {
 PseudoDestructorTypeStorage::PseudoDestructorTypeStorage(TypeSourceInfo *Info)
  : Type(Info) 
 {
-  Location = Info->getTypeLoc().getSourceRange().getBegin();
+  Location = Info->getTypeLoc().getLocalSourceRange().getBegin();
 }
 
 QualType CXXPseudoDestructorExpr::getDestroyedType() const {
@@ -147,7 +157,7 @@ QualType CXXPseudoDestructorExpr::getDestroyedType() const {
 SourceRange CXXPseudoDestructorExpr::getSourceRange() const {
   SourceLocation End = DestroyedType.getLocation();
   if (TypeSourceInfo *TInfo = DestroyedType.getTypeSourceInfo())
-    End = TInfo->getTypeLoc().getSourceRange().getEnd();
+    End = TInfo->getTypeLoc().getLocalSourceRange().getEnd();
   return SourceRange(Base->getLocStart(), End);
 }
 
@@ -159,21 +169,45 @@ UnresolvedLookupExpr::Create(ASTContext &C, bool Dependent,
                              NestedNameSpecifier *Qualifier,
                              SourceRange QualifierRange, DeclarationName Name,
                              SourceLocation NameLoc, bool ADL,
-                             const TemplateArgumentListInfo &Args) 
+                             const TemplateArgumentListInfo &Args,
+                             UnresolvedSetIterator Begin, 
+                             UnresolvedSetIterator End) 
 {
   void *Mem = C.Allocate(sizeof(UnresolvedLookupExpr) + 
                          ExplicitTemplateArgumentList::sizeFor(Args));
   UnresolvedLookupExpr *ULE
-    = new (Mem) UnresolvedLookupExpr(Dependent ? C.DependentTy : C.OverloadTy,
+    = new (Mem) UnresolvedLookupExpr(C, 
+                                     Dependent ? C.DependentTy : C.OverloadTy,
                                      Dependent, NamingClass,
                                      Qualifier, QualifierRange,
                                      Name, NameLoc, ADL,
                                      /*Overload*/ true,
-                                     /*ExplicitTemplateArgs*/ true);
+                                     /*ExplicitTemplateArgs*/ true,
+                                     Begin, End);
 
   reinterpret_cast<ExplicitTemplateArgumentList*>(ULE+1)->initializeFrom(Args);
 
   return ULE;
+}
+
+OverloadExpr::OverloadExpr(StmtClass K, ASTContext &C, QualType T, 
+                           bool Dependent, NestedNameSpecifier *Qualifier, 
+                           SourceRange QRange, DeclarationName Name, 
+                           SourceLocation NameLoc, bool HasTemplateArgs,
+                           UnresolvedSetIterator Begin, 
+                           UnresolvedSetIterator End)
+  : Expr(K, T, Dependent, Dependent),
+  Results(0), NumResults(End - Begin), Name(Name), Qualifier(Qualifier), 
+  QualifierRange(QRange), NameLoc(NameLoc), 
+  HasExplicitTemplateArgs(HasTemplateArgs)
+{
+  if (NumResults) {
+    Results = static_cast<DeclAccessPair *>(
+                                C.Allocate(sizeof(DeclAccessPair) * NumResults, 
+                                           llvm::alignof<DeclAccessPair>()));
+    memcpy(Results, &*Begin.getIterator(), 
+           (End - Begin) * sizeof(DeclAccessPair));
+  }
 }
 
 bool OverloadExpr::ComputeDependence(UnresolvedSetIterator Begin,
@@ -517,35 +551,43 @@ void CXXConstructExpr::DoDestroy(ASTContext &C) {
   C.Deallocate(this);
 }
 
-CXXExprWithTemporaries::CXXExprWithTemporaries(Expr *subexpr,
+CXXExprWithTemporaries::CXXExprWithTemporaries(ASTContext &C,
+                                               Expr *subexpr,
                                                CXXTemporary **temps,
                                                unsigned numtemps)
-: Expr(CXXExprWithTemporariesClass, subexpr->getType(),
+  : Expr(CXXExprWithTemporariesClass, subexpr->getType(),
        subexpr->isTypeDependent(), subexpr->isValueDependent()),
-  SubExpr(subexpr), Temps(0), NumTemps(numtemps) {
-  if (NumTemps > 0) {
-    Temps = new CXXTemporary*[NumTemps];
-    for (unsigned i = 0; i < NumTemps; ++i)
+    SubExpr(subexpr), Temps(0), NumTemps(0) {
+  if (numtemps) {
+    setNumTemporaries(C, numtemps);
+    for (unsigned i = 0; i != numtemps; ++i)
       Temps[i] = temps[i];
   }
 }
+
+void CXXExprWithTemporaries::setNumTemporaries(ASTContext &C, unsigned N) {
+  assert(Temps == 0 && "Cannot resize with this");
+  NumTemps = N;
+  Temps = new (C) CXXTemporary*[NumTemps];
+}
+
 
 CXXExprWithTemporaries *CXXExprWithTemporaries::Create(ASTContext &C,
                                                        Expr *SubExpr,
                                                        CXXTemporary **Temps,
                                                        unsigned NumTemps) {
-  return new (C) CXXExprWithTemporaries(SubExpr, Temps, NumTemps);
+  return new (C) CXXExprWithTemporaries(C, SubExpr, Temps, NumTemps);
 }
 
 void CXXExprWithTemporaries::DoDestroy(ASTContext &C) {
   DestroyChildren(C);
+  if (Temps)
+    C.Deallocate(Temps);
   this->~CXXExprWithTemporaries();
   C.Deallocate(this);
 }
 
-CXXExprWithTemporaries::~CXXExprWithTemporaries() {
-  delete[] Temps;
-}
+CXXExprWithTemporaries::~CXXExprWithTemporaries() {}
 
 // CXXBindTemporaryExpr
 Stmt::child_iterator CXXBindTemporaryExpr::child_begin() {
@@ -682,7 +724,8 @@ Stmt::child_iterator CXXDependentScopeMemberExpr::child_end() {
   return child_iterator(&Base + 1);
 }
 
-UnresolvedMemberExpr::UnresolvedMemberExpr(QualType T, bool Dependent,
+UnresolvedMemberExpr::UnresolvedMemberExpr(ASTContext &C, QualType T, 
+                                           bool Dependent, 
                                            bool HasUnresolvedUsing,
                                            Expr *Base, QualType BaseType,
                                            bool IsArrow,
@@ -691,10 +734,12 @@ UnresolvedMemberExpr::UnresolvedMemberExpr(QualType T, bool Dependent,
                                            SourceRange QualifierRange,
                                            DeclarationName MemberName,
                                            SourceLocation MemberLoc,
-                                   const TemplateArgumentListInfo *TemplateArgs)
-  : OverloadExpr(UnresolvedMemberExprClass, T, Dependent,
+                                   const TemplateArgumentListInfo *TemplateArgs,
+                                           UnresolvedSetIterator Begin, 
+                                           UnresolvedSetIterator End)
+  : OverloadExpr(UnresolvedMemberExprClass, C, T, Dependent,
                  Qualifier, QualifierRange, MemberName, MemberLoc,
-                 TemplateArgs != 0),
+                 TemplateArgs != 0, Begin, End),
     IsArrow(IsArrow), HasUnresolvedUsing(HasUnresolvedUsing),
     Base(Base), BaseType(BaseType), OperatorLoc(OperatorLoc) {
   if (TemplateArgs)
@@ -710,17 +755,19 @@ UnresolvedMemberExpr::Create(ASTContext &C, bool Dependent,
                              SourceRange QualifierRange,
                              DeclarationName Member,
                              SourceLocation MemberLoc,
-                             const TemplateArgumentListInfo *TemplateArgs) {
+                             const TemplateArgumentListInfo *TemplateArgs,
+                             UnresolvedSetIterator Begin, 
+                             UnresolvedSetIterator End) {
   std::size_t size = sizeof(UnresolvedMemberExpr);
   if (TemplateArgs)
     size += ExplicitTemplateArgumentList::sizeFor(*TemplateArgs);
 
   void *Mem = C.Allocate(size, llvm::alignof<UnresolvedMemberExpr>());
-  return new (Mem) UnresolvedMemberExpr(
+  return new (Mem) UnresolvedMemberExpr(C, 
                              Dependent ? C.DependentTy : C.OverloadTy,
                              Dependent, HasUnresolvedUsing, Base, BaseType,
                              IsArrow, OperatorLoc, Qualifier, QualifierRange,
-                             Member, MemberLoc, TemplateArgs);
+                             Member, MemberLoc, TemplateArgs, Begin, End);
 }
 
 CXXRecordDecl *UnresolvedMemberExpr::getNamingClass() const {

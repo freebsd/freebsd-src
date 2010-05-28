@@ -189,7 +189,7 @@ namespace test4 {
   struct Inequal {};
   bool test() {
     Holder<Inequal> a, b;
-    return a == b; // expected-note {{requested here}}
+    return a == b;  // expected-note {{requested here}}
   }
 }
 

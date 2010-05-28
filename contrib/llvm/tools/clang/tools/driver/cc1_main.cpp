@@ -1,4 +1,4 @@
-//===-- cc1_main.cpp - Clang CC1 Driver -----------------------------------===//
+//===-- cc1_main.cpp - Clang CC1 Compiler Frontend ------------------------===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -43,7 +43,7 @@ using namespace clang;
 // Main driver
 //===----------------------------------------------------------------------===//
 
-void LLVMErrorHandler(void *UserData, const std::string &Message) {
+static void LLVMErrorHandler(void *UserData, const std::string &Message) {
   Diagnostic &Diags = *static_cast<Diagnostic*>(UserData);
 
   Diags.Report(diag::err_fe_error_backend) << Message;
@@ -63,6 +63,7 @@ static FrontendAction *CreateFrontendBaseAction(CompilerInstance &CI) {
   case ASTPrint:               return new ASTPrintAction();
   case ASTPrintXML:            return new ASTPrintXMLAction();
   case ASTView:                return new ASTViewAction();
+  case BoostCon:               return new BoostConAction();
   case DumpRawTokens:          return new DumpRawTokensAction();
   case DumpTokens:             return new DumpTokensAction();
   case EmitAssembly:           return new EmitAssemblyAction();
@@ -70,6 +71,7 @@ static FrontendAction *CreateFrontendBaseAction(CompilerInstance &CI) {
   case EmitHTML:               return new HTMLPrintAction();
   case EmitLLVM:               return new EmitLLVMAction();
   case EmitLLVMOnly:           return new EmitLLVMOnlyAction();
+  case EmitCodeGenOnly:        return new EmitCodeGenOnlyAction();
   case EmitObj:                return new EmitObjAction();
   case FixIt:                  return new FixItAction();
   case GeneratePCH:            return new GeneratePCHAction();

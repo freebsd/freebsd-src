@@ -319,16 +319,16 @@ void ARMAsmPrinter::printOperand(const MachineInstr *MI, int OpNum,
     unsigned Reg = MO.getReg();
     assert(TargetRegisterInfo::isPhysicalRegister(Reg));
     if (Modifier && strcmp(Modifier, "dregpair") == 0) {
-      unsigned DRegLo = TM.getRegisterInfo()->getSubReg(Reg, 5);// arm_dsubreg_0
-      unsigned DRegHi = TM.getRegisterInfo()->getSubReg(Reg, 6);// arm_dsubreg_1
+      unsigned DRegLo = TM.getRegisterInfo()->getSubReg(Reg, ARM::dsub_0);
+      unsigned DRegHi = TM.getRegisterInfo()->getSubReg(Reg, ARM::dsub_1);
       O << '{'
         << getRegisterName(DRegLo) << ',' << getRegisterName(DRegHi)
         << '}';
     } else if (Modifier && strcmp(Modifier, "lane") == 0) {
       unsigned RegNum = ARMRegisterInfo::getRegisterNumbering(Reg);
       unsigned DReg =
-        TM.getRegisterInfo()->getMatchingSuperReg(Reg, RegNum & 1 ? 2 : 1,
-                                                  &ARM::DPR_VFP2RegClass);
+        TM.getRegisterInfo()->getMatchingSuperReg(Reg,
+          RegNum & 1 ? ARM::ssub_1 : ARM::ssub_0, &ARM::DPR_VFP2RegClass);
       O << getRegisterName(DReg) << '[' << (RegNum & 1) << ']';
     } else {
       assert(!MO.getSubReg() && "Subregs should be eliminated!");
@@ -1375,13 +1375,32 @@ void ARMAsmPrinter::printInstructionThroughMCStreamer(const MachineInstr *MI) {
   case ARM::MOVi32imm: { // FIXME: Remove asmstring from td file.
     // This is a hack that lowers as a two instruction sequence.
     unsigned DstReg = MI->getOperand(0).getReg();
-    unsigned ImmVal = (unsigned)MI->getOperand(1).getImm();
-    
+    const MachineOperand &MO = MI->getOperand(1);
+    MCOperand V1, V2;
+    if (MO.isImm()) {
+      unsigned ImmVal = (unsigned)MI->getOperand(1).getImm();
+      V1 = MCOperand::CreateImm(ImmVal & 65535);
+      V2 = MCOperand::CreateImm(ImmVal >> 16);
+    } else if (MO.isGlobal()) {
+      MCSymbol *Symbol = MCInstLowering.GetGlobalAddressSymbol(MO);
+      const MCSymbolRefExpr *SymRef1 =
+	MCSymbolRefExpr::Create(Symbol,
+				MCSymbolRefExpr::VK_ARM_LO16, OutContext);
+      const MCSymbolRefExpr *SymRef2 =
+	MCSymbolRefExpr::Create(Symbol,
+				MCSymbolRefExpr::VK_ARM_HI16, OutContext);
+      V1 = MCOperand::CreateExpr(SymRef1);
+      V2 = MCOperand::CreateExpr(SymRef2);
+    } else {
+      MI->dump();
+      llvm_unreachable("cannot handle this operand");
+    }
+
     {
       MCInst TmpInst;
       TmpInst.setOpcode(ARM::MOVi16);
       TmpInst.addOperand(MCOperand::CreateReg(DstReg));         // dstreg
-      TmpInst.addOperand(MCOperand::CreateImm(ImmVal & 65535)); // lower16(imm)
+      TmpInst.addOperand(V1); // lower16(imm)
       
       // Predicate.
       TmpInst.addOperand(MCOperand::CreateImm(MI->getOperand(2).getImm()));
@@ -1395,7 +1414,7 @@ void ARMAsmPrinter::printInstructionThroughMCStreamer(const MachineInstr *MI) {
       TmpInst.setOpcode(ARM::MOVTi16);
       TmpInst.addOperand(MCOperand::CreateReg(DstReg));         // dstreg
       TmpInst.addOperand(MCOperand::CreateReg(DstReg));         // srcreg
-      TmpInst.addOperand(MCOperand::CreateImm(ImmVal >> 16));   // upper16(imm)
+      TmpInst.addOperand(V2);   // upper16(imm)
       
       // Predicate.
       TmpInst.addOperand(MCOperand::CreateImm(MI->getOperand(2).getImm()));

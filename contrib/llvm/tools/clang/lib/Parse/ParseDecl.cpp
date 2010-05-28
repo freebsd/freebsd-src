@@ -277,8 +277,8 @@ AttributeList* Parser::ParseMicrosoftTypeAttributes(AttributeList *CurrAttr) {
   // Treat these like attributes
   // FIXME: Allow Sema to distinguish between these and real attributes!
   while (Tok.is(tok::kw___fastcall) || Tok.is(tok::kw___stdcall) ||
-         Tok.is(tok::kw___cdecl)    || Tok.is(tok::kw___ptr64) ||
-         Tok.is(tok::kw___w64)) {
+         Tok.is(tok::kw___thiscall) || Tok.is(tok::kw___cdecl)   ||
+         Tok.is(tok::kw___ptr64) || Tok.is(tok::kw___w64)) {
     IdentifierInfo *AttrName = Tok.getIdentifierInfo();
     SourceLocation AttrNameLoc = ConsumeToken();
     if (Tok.is(tok::kw___ptr64) || Tok.is(tok::kw___w64))
@@ -364,7 +364,8 @@ Parser::DeclGroupPtrTy Parser::ParseSimpleDeclaration(unsigned Context,
   // declaration-specifiers init-declarator-list[opt] ';'
   if (Tok.is(tok::semi)) {
     if (RequireSemi) ConsumeToken();
-    DeclPtrTy TheDecl = Actions.ParsedFreeStandingDeclSpec(CurScope, DS);
+    DeclPtrTy TheDecl = Actions.ParsedFreeStandingDeclSpec(CurScope, AS_none,
+                                                           DS);
     DS.complete(TheDecl);
     return Actions.ConvertDeclToDeclGroup(TheDecl);
   }
@@ -838,7 +839,7 @@ void Parser::ParseDeclarationSpecifiers(DeclSpec &DS,
       CCC = Action::CCC_ObjCImplementation;
     
     Actions.CodeCompleteOrdinaryName(CurScope, CCC);
-    ConsumeToken();
+    ConsumeCodeCompletionToken();
   }
   
   DS.SetRangeStart(Tok.getLocation());
@@ -1143,6 +1144,7 @@ void Parser::ParseDeclarationSpecifiers(DeclSpec &DS,
     case tok::kw___cdecl:
     case tok::kw___stdcall:
     case tok::kw___fastcall:
+    case tok::kw___thiscall:
       DS.AddAttributes(ParseMicrosoftTypeAttributes());
       continue;
 
@@ -1622,6 +1624,7 @@ bool Parser::ParseOptionalTypeSpecifier(DeclSpec &DS, bool& isInvalid,
   case tok::kw___cdecl:
   case tok::kw___stdcall:
   case tok::kw___fastcall:
+  case tok::kw___thiscall:
     DS.AddAttributes(ParseMicrosoftTypeAttributes());
     return true;
 
@@ -1674,7 +1677,7 @@ ParseStructDeclaration(DeclSpec &DS, FieldCallback &Fields) {
   // If there are no declarators, this is a free-standing declaration
   // specifier. Let the actions module cope with it.
   if (Tok.is(tok::semi)) {
-    Actions.ParsedFreeStandingDeclSpec(CurScope, DS);
+    Actions.ParsedFreeStandingDeclSpec(CurScope, AS_none, DS);
     return;
   }
 
@@ -1867,7 +1870,7 @@ void Parser::ParseEnumSpecifier(SourceLocation StartLoc, DeclSpec &DS,
   if (Tok.is(tok::code_completion)) {
     // Code completion for an enum name.
     Actions.CodeCompleteTag(CurScope, DeclSpec::TST_enum);
-    ConsumeToken();
+    ConsumeCodeCompletionToken();
   }
   
   llvm::OwningPtr<AttributeList> Attr;
@@ -1875,7 +1878,7 @@ void Parser::ParseEnumSpecifier(SourceLocation StartLoc, DeclSpec &DS,
   if (Tok.is(tok::kw___attribute))
     Attr.reset(ParseGNUAttributes());
 
-  CXXScopeSpec SS;
+  CXXScopeSpec &SS = DS.getTypeSpecScope();
   if (getLang().CPlusPlus) {
     if (ParseOptionalCXXScopeSpecifier(SS, 0, false))
       return;
@@ -2198,6 +2201,7 @@ bool Parser::isTypeSpecifierQualifier() {
   case tok::kw___cdecl:
   case tok::kw___stdcall:
   case tok::kw___fastcall:
+  case tok::kw___thiscall:
   case tok::kw___w64:
   case tok::kw___ptr64:
     return true;
@@ -2304,6 +2308,7 @@ bool Parser::isDeclarationSpecifier() {
   case tok::kw___cdecl:
   case tok::kw___stdcall:
   case tok::kw___fastcall:
+  case tok::kw___thiscall:
   case tok::kw___w64:
   case tok::kw___ptr64:
   case tok::kw___forceinline:
@@ -2401,6 +2406,7 @@ void Parser::ParseTypeQualifierListOpt(DeclSpec &DS, bool GNUAttributesAllowed,
     case tok::kw___cdecl:
     case tok::kw___stdcall:
     case tok::kw___fastcall:
+    case tok::kw___thiscall:
       if (GNUAttributesAllowed) {
         DS.AddAttributes(ParseMicrosoftTypeAttributes());
         continue;
@@ -2785,8 +2791,8 @@ void Parser::ParseParenDeclarator(Declarator &D) {
   }
   // Eat any Microsoft extensions.
   if  (Tok.is(tok::kw___cdecl) || Tok.is(tok::kw___stdcall) ||
-       Tok.is(tok::kw___fastcall) || Tok.is(tok::kw___w64) ||
-       Tok.is(tok::kw___ptr64)) {
+       Tok.is(tok::kw___thiscall) || Tok.is(tok::kw___fastcall) ||
+       Tok.is(tok::kw___w64) || Tok.is(tok::kw___ptr64)) {
     AttrList.reset(ParseMicrosoftTypeAttributes(AttrList.take()));
   }
 
@@ -2937,9 +2943,33 @@ void Parser::ParseFunctionDeclarator(SourceLocation LParenLoc, Declarator &D,
         Diag(Tok, diag::err_argument_required_after_attribute);
         delete AttrList;
       }
+      
       // Identifier list.  Note that '(' identifier-list ')' is only allowed for
-      // normal declarators, not for abstract-declarators.
-      return ParseFunctionDeclaratorIdentifierList(LParenLoc, D);
+      // normal declarators, not for abstract-declarators.  Get the first
+      // identifier.
+      Token FirstTok = Tok;
+      ConsumeToken();  // eat the first identifier.
+      
+      // Identifier lists follow a really simple grammar: the identifiers can
+      // be followed *only* by a ", moreidentifiers" or ")".  However, K&R
+      // identifier lists are really rare in the brave new modern world, and it
+      // is very common for someone to typo a type in a non-k&r style list.  If
+      // we are presented with something like: "void foo(intptr x, float y)",
+      // we don't want to start parsing the function declarator as though it is
+      // a K&R style declarator just because intptr is an invalid type.
+      //
+      // To handle this, we check to see if the token after the first identifier
+      // is a "," or ")".  Only if so, do we parse it as an identifier list.
+      if (Tok.is(tok::comma) || Tok.is(tok::r_paren))
+        return ParseFunctionDeclaratorIdentifierList(LParenLoc,
+                                                   FirstTok.getIdentifierInfo(),
+                                                     FirstTok.getLocation(), D);
+      
+      // If we get here, the code is invalid.  Push the first identifier back
+      // into the token stream and parse the first argument as an (invalid)
+      // normal argument declarator.
+      PP.EnterToken(Tok);
+      Tok = FirstTok;
     }
   }
 
@@ -3122,13 +3152,16 @@ void Parser::ParseFunctionDeclarator(SourceLocation LParenLoc, Declarator &D,
 
 /// ParseFunctionDeclaratorIdentifierList - While parsing a function declarator
 /// we found a K&R-style identifier list instead of a type argument list.  The
-/// current token is known to be the first identifier in the list.
+/// first identifier has already been consumed, and the current token is the
+/// token right after it.
 ///
 ///       identifier-list: [C99 6.7.5]
 ///         identifier
 ///         identifier-list ',' identifier
 ///
 void Parser::ParseFunctionDeclaratorIdentifierList(SourceLocation LParenLoc,
+                                                   IdentifierInfo *FirstIdent,
+                                                   SourceLocation FirstIdentLoc,
                                                    Declarator &D) {
   // Build up an array of information about the parsed arguments.
   llvm::SmallVector<DeclaratorChunk::ParamInfo, 16> ParamInfo;
@@ -3139,16 +3172,13 @@ void Parser::ParseFunctionDeclaratorIdentifierList(SourceLocation LParenLoc,
   // to be abstract.  In abstract-declarators, identifier lists are not valid:
   // diagnose this.
   if (!D.getIdentifier())
-    Diag(Tok, diag::ext_ident_list_in_param);
+    Diag(FirstIdentLoc, diag::ext_ident_list_in_param);
 
-  // Tok is known to be the first identifier in the list.  Remember this
-  // identifier in ParamInfo.
-  ParamsSoFar.insert(Tok.getIdentifierInfo());
-  ParamInfo.push_back(DeclaratorChunk::ParamInfo(Tok.getIdentifierInfo(),
-                                                 Tok.getLocation(),
+  // The first identifier was already read, and is known to be the first
+  // identifier in the list.  Remember this identifier in ParamInfo.
+  ParamsSoFar.insert(FirstIdent);
+  ParamInfo.push_back(DeclaratorChunk::ParamInfo(FirstIdent, FirstIdentLoc,
                                                  DeclPtrTy()));
-
-  ConsumeToken();  // eat the first identifier.
 
   while (Tok.is(tok::comma)) {
     // Eat the comma.

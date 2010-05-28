@@ -58,12 +58,11 @@ bool X86AsmPrinter::runOnMachineFunction(MachineFunction &MF) {
   SetupMachineFunction(MF);
 
   if (Subtarget->isTargetCOFF()) {
-    const Function *F = MF.getFunction();
-    OutStreamer.EmitRawText("\t.def\t " + Twine(CurrentFnSym->getName()) +
-                            ";\t.scl\t" +
-                Twine(F->hasInternalLinkage() ? COFF::C_STAT : COFF::C_EXT) +
-                            ";\t.type\t" + Twine(COFF::DT_FCN << COFF::N_BTSHFT)
-                            + ";\t.endef");
+    bool Intrn = MF.getFunction()->hasInternalLinkage();
+    OutStreamer.BeginCOFFSymbolDef(CurrentFnSym);
+    OutStreamer.EmitCOFFSymbolStorageClass(Intrn ? COFF::C_STAT : COFF::C_EXT);
+    OutStreamer.EmitCOFFSymbolType(COFF::DT_FCN << COFF::N_BTSHFT);
+    OutStreamer.EndCOFFSymbolDef();
   }
 
   // Have common code print out the function header with linkage info etc.
@@ -571,44 +570,55 @@ void X86AsmPrinter::EmitEndOfAsmFile(Module &M) {
       MMI->getObjFileInfo<X86COFFMachineModuleInfo>();
 
     // Emit type information for external functions
-    for (X86COFFMachineModuleInfo::stub_iterator I = COFFMMI.stub_begin(),
-           E = COFFMMI.stub_end(); I != E; ++I) {
-      OutStreamer.EmitRawText("\t.def\t " + Twine(I->getKeyData()) +
-                              ";\t.scl\t" + Twine(COFF::C_EXT) +
-                              ";\t.type\t" +
-                              Twine(COFF::DT_FCN << COFF::N_BTSHFT) +
-                              ";\t.endef");
+    typedef X86COFFMachineModuleInfo::externals_iterator externals_iterator;
+    for (externals_iterator I = COFFMMI.externals_begin(),
+                            E = COFFMMI.externals_end();
+                            I != E; ++I) {
+      OutStreamer.BeginCOFFSymbolDef(CurrentFnSym);
+      OutStreamer.EmitCOFFSymbolStorageClass(COFF::C_EXT);
+      OutStreamer.EmitCOFFSymbolType(COFF::DT_FCN << COFF::N_BTSHFT);
+      OutStreamer.EndCOFFSymbolDef();
     }
 
-    if (Subtarget->isTargetCygMing()) {
-      // Necessary for dllexport support
-      std::vector<const MCSymbol*> DLLExportedFns, DLLExportedGlobals;
+    // Necessary for dllexport support
+    std::vector<const MCSymbol*> DLLExportedFns, DLLExportedGlobals;
 
-      const TargetLoweringObjectFileCOFF &TLOFCOFF =
-        static_cast<const TargetLoweringObjectFileCOFF&>(getObjFileLowering());
+    const TargetLoweringObjectFileCOFF &TLOFCOFF =
+      static_cast<const TargetLoweringObjectFileCOFF&>(getObjFileLowering());
 
-      for (Module::const_iterator I = M.begin(), E = M.end(); I != E; ++I)
-        if (I->hasDLLExportLinkage())
-          DLLExportedFns.push_back(Mang->getSymbol(I));
+    for (Module::const_iterator I = M.begin(), E = M.end(); I != E; ++I)
+      if (I->hasDLLExportLinkage())
+        DLLExportedFns.push_back(Mang->getSymbol(I));
 
-      for (Module::const_global_iterator I = M.global_begin(),
-             E = M.global_end(); I != E; ++I)
-        if (I->hasDLLExportLinkage())
-          DLLExportedGlobals.push_back(Mang->getSymbol(I));
+    for (Module::const_global_iterator I = M.global_begin(),
+           E = M.global_end(); I != E; ++I)
+      if (I->hasDLLExportLinkage())
+        DLLExportedGlobals.push_back(Mang->getSymbol(I));
 
-      // Output linker support code for dllexported globals on windows.
-      if (!DLLExportedGlobals.empty() || !DLLExportedFns.empty()) {
-        OutStreamer.SwitchSection(TLOFCOFF.getCOFFSection(".section .drectve",
-                                                          true,
-                                                   SectionKind::getMetadata()));
-        for (unsigned i = 0, e = DLLExportedGlobals.size(); i != e; ++i)
-          OutStreamer.EmitRawText("\t.ascii \" -export:" +
-                                  Twine(DLLExportedGlobals[i]->getName()) +
-                                  ",data\"");
+    // Output linker support code for dllexported globals on windows.
+    if (!DLLExportedGlobals.empty() || !DLLExportedFns.empty()) {
+      OutStreamer.SwitchSection(TLOFCOFF.getDrectveSection());
+      SmallString<128> name;
+      for (unsigned i = 0, e = DLLExportedGlobals.size(); i != e; ++i) {
+        if (Subtarget->isTargetWindows())
+          name = " /EXPORT:";
+        else
+          name = " -export:";
+        name += DLLExportedGlobals[i]->getName();
+        if (Subtarget->isTargetWindows())
+          name += ",DATA";
+        else
+        name += ",data";
+        OutStreamer.EmitBytes(name, 0);
+      }
 
-        for (unsigned i = 0, e = DLLExportedFns.size(); i != e; ++i)
-          OutStreamer.EmitRawText("\t.ascii \" -export:" +
-                                  Twine(DLLExportedFns[i]->getName()) + "\"");
+      for (unsigned i = 0, e = DLLExportedFns.size(); i != e; ++i) {
+        if (Subtarget->isTargetWindows())
+          name = " /EXPORT:";
+        else
+          name = " -export:";
+        name += DLLExportedFns[i]->getName();
+        OutStreamer.EmitBytes(name, 0);
       }
     }
   }

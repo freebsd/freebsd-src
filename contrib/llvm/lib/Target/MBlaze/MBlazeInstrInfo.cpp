@@ -107,7 +107,6 @@ isStoreToStackSlot(const MachineInstr *MI, int &FrameIndex) const {
 void MBlazeInstrInfo::
 insertNoop(MachineBasicBlock &MBB, MachineBasicBlock::iterator MI) const {
   DebugLoc DL;
-  if (MI != MBB.end()) DL = MI->getDebugLoc();
   BuildMI(MBB, MI, DL, get(MBlaze::NOP));
 }
 
@@ -115,8 +114,8 @@ bool MBlazeInstrInfo::
 copyRegToReg(MachineBasicBlock &MBB, MachineBasicBlock::iterator I,
              unsigned DestReg, unsigned SrcReg,
              const TargetRegisterClass *DestRC,
-             const TargetRegisterClass *SrcRC) const {
-  DebugLoc DL;
+             const TargetRegisterClass *SrcRC,
+             DebugLoc DL) const {
   llvm::BuildMI(MBB, I, DL, get(MBlaze::ADD), DestReg)
       .addReg(SrcReg).addReg(MBlaze::R0);
   return true;
@@ -125,7 +124,8 @@ copyRegToReg(MachineBasicBlock &MBB, MachineBasicBlock::iterator I,
 void MBlazeInstrInfo::
 storeRegToStackSlot(MachineBasicBlock &MBB, MachineBasicBlock::iterator I,
                     unsigned SrcReg, bool isKill, int FI,
-                    const TargetRegisterClass *RC) const {
+                    const TargetRegisterClass *RC,
+                    const TargetRegisterInfo *TRI) const {
   DebugLoc DL;
   BuildMI(MBB, I, DL, get(MBlaze::SWI)).addReg(SrcReg,getKillRegState(isKill))
     .addImm(0).addFrameIndex(FI);
@@ -134,7 +134,8 @@ storeRegToStackSlot(MachineBasicBlock &MBB, MachineBasicBlock::iterator I,
 void MBlazeInstrInfo::
 loadRegFromStackSlot(MachineBasicBlock &MBB, MachineBasicBlock::iterator I,
                      unsigned DestReg, int FI,
-                     const TargetRegisterClass *RC) const {
+                     const TargetRegisterClass *RC,
+                     const TargetRegisterInfo *TRI) const {
   DebugLoc DL;
   BuildMI(MBB, I, DL, get(MBlaze::LWI), DestReg)
       .addImm(0).addFrameIndex(FI);
@@ -210,7 +211,8 @@ unsigned MBlazeInstrInfo::getGlobalBaseReg(MachineFunction *MF) const {
   GlobalBaseReg = RegInfo.createVirtualRegister(MBlaze::CPURegsRegisterClass);
   bool Ok = TII->copyRegToReg(FirstMBB, MBBI, GlobalBaseReg, MBlaze::R20,
                               MBlaze::CPURegsRegisterClass,
-                              MBlaze::CPURegsRegisterClass);
+                              MBlaze::CPURegsRegisterClass,
+                              DebugLoc());
   assert(Ok && "Couldn't assign to global base register!");
   Ok = Ok; // Silence warning when assertions are turned off.
   RegInfo.addLiveIn(MBlaze::R20);

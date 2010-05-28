@@ -137,7 +137,7 @@ CXXRecordDecl::setBases(CXXBaseSpecifier const * const *Bases,
 
     data().VBases[I] =
       CXXBaseSpecifier(VBaseClassDecl->getSourceRange(), true,
-                       VBaseClassDecl->getTagKind() == RecordDecl::TK_class,
+                       VBaseClassDecl->getTagKind() == TTK_Class,
                        VBases[I]->getAccessSpecifier(), VBaseType);
   }
 }
@@ -700,8 +700,9 @@ CXXBaseOrMemberInitializer::
 CXXBaseOrMemberInitializer(ASTContext &Context,
                            TypeSourceInfo *TInfo, bool IsVirtual,
                            SourceLocation L, Expr *Init, SourceLocation R)
-  : BaseOrMember(TInfo), Init(Init), AnonUnionMember(0), IsVirtual(IsVirtual),
-    LParenLoc(L), RParenLoc(R) 
+  : BaseOrMember(TInfo), Init(Init), AnonUnionMember(0),
+    LParenLoc(L), RParenLoc(R), IsVirtual(IsVirtual), IsWritten(false),
+    SourceOrderOrNumArrayIndices(0)
 {
 }
 
@@ -709,14 +710,46 @@ CXXBaseOrMemberInitializer::
 CXXBaseOrMemberInitializer(ASTContext &Context,
                            FieldDecl *Member, SourceLocation MemberLoc,
                            SourceLocation L, Expr *Init, SourceLocation R)
-  : BaseOrMember(Member), MemberLocation(MemberLoc), Init(Init), 
-    AnonUnionMember(0), LParenLoc(L), RParenLoc(R) 
+  : BaseOrMember(Member), MemberLocation(MemberLoc), Init(Init),
+    AnonUnionMember(0), LParenLoc(L), RParenLoc(R), IsVirtual(false),
+    IsWritten(false), SourceOrderOrNumArrayIndices(0)
 {
+}
+
+CXXBaseOrMemberInitializer::
+CXXBaseOrMemberInitializer(ASTContext &Context,
+                           FieldDecl *Member, SourceLocation MemberLoc,
+                           SourceLocation L, Expr *Init, SourceLocation R,
+                           VarDecl **Indices,
+                           unsigned NumIndices)
+  : BaseOrMember(Member), MemberLocation(MemberLoc), Init(Init), 
+    AnonUnionMember(0), LParenLoc(L), RParenLoc(R), IsVirtual(false),
+    IsWritten(false), SourceOrderOrNumArrayIndices(NumIndices)
+{
+  VarDecl **MyIndices = reinterpret_cast<VarDecl **> (this + 1);
+  memcpy(MyIndices, Indices, NumIndices * sizeof(VarDecl *));
+}
+
+CXXBaseOrMemberInitializer *
+CXXBaseOrMemberInitializer::Create(ASTContext &Context,
+                                   FieldDecl *Member, 
+                                   SourceLocation MemberLoc,
+                                   SourceLocation L,
+                                   Expr *Init,
+                                   SourceLocation R,
+                                   VarDecl **Indices,
+                                   unsigned NumIndices) {
+  void *Mem = Context.Allocate(sizeof(CXXBaseOrMemberInitializer) +
+                               sizeof(VarDecl *) * NumIndices,
+                               llvm::alignof<CXXBaseOrMemberInitializer>());
+  return new (Mem) CXXBaseOrMemberInitializer(Context, Member, MemberLoc,
+                                              L, Init, R, Indices, NumIndices);
 }
 
 void CXXBaseOrMemberInitializer::Destroy(ASTContext &Context) {
   if (Init)
     Init->Destroy(Context);
+  // FIXME: Destroy indices
   this->~CXXBaseOrMemberInitializer();
 }
 
@@ -745,11 +778,17 @@ SourceLocation CXXBaseOrMemberInitializer::getSourceLocation() const {
   if (isMemberInitializer())
     return getMemberLocation();
   
-  return getBaseClassLoc().getSourceRange().getBegin();
+  return getBaseClassLoc().getLocalSourceRange().getBegin();
 }
 
 SourceRange CXXBaseOrMemberInitializer::getSourceRange() const {
   return SourceRange(getSourceLocation(), getRParenLoc());
+}
+
+CXXConstructorDecl *
+CXXConstructorDecl::Create(ASTContext &C, EmptyShell Empty) {
+  return new (C) CXXConstructorDecl(0, SourceLocation(), DeclarationName(),
+                                    QualType(), 0, false, false, false);
 }
 
 CXXConstructorDecl *
@@ -855,6 +894,12 @@ bool CXXConstructorDecl::isCopyConstructorLikeSpecialization() const {
 }
 
 CXXDestructorDecl *
+CXXDestructorDecl::Create(ASTContext &C, EmptyShell Empty) {
+  return new (C) CXXDestructorDecl(0, SourceLocation(), DeclarationName(),
+                                   QualType(), false, false);
+}
+
+CXXDestructorDecl *
 CXXDestructorDecl::Create(ASTContext &C, CXXRecordDecl *RD,
                           SourceLocation L, DeclarationName N,
                           QualType T, bool isInline,
@@ -868,6 +913,12 @@ void
 CXXConstructorDecl::Destroy(ASTContext& C) {
   C.Deallocate(BaseOrMemberInitializers);
   CXXMethodDecl::Destroy(C);
+}
+
+CXXConversionDecl *
+CXXConversionDecl::Create(ASTContext &C, EmptyShell Empty) {
+  return new (C) CXXConversionDecl(0, SourceLocation(), DeclarationName(),
+                                   QualType(), 0, false, false);
 }
 
 CXXConversionDecl *
@@ -906,6 +957,12 @@ NamespaceDecl *UsingDirectiveDecl::getNominatedNamespace() {
         dyn_cast_or_null<NamespaceAliasDecl>(NominatedNamespace))
     return NA->getNamespace();
   return cast_or_null<NamespaceDecl>(NominatedNamespace);
+}
+
+void UsingDirectiveDecl::setNominatedNamespace(NamedDecl* ND) {
+  assert((isa<NamespaceDecl>(ND) || isa<NamespaceAliasDecl>(ND)) &&
+    "expected a NamespaceDecl or NamespaceAliasDecl");
+  NominatedNamespace = ND;
 }
 
 NamespaceAliasDecl *NamespaceAliasDecl::Create(ASTContext &C, DeclContext *DC,

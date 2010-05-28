@@ -86,9 +86,6 @@ void C::f() { }
 
 }
 
-// This is from Test5:
-// CHECK: define linkonce_odr void @_ZTv0_n24_N5Test51B1fEv
-
 // Check that the thunk gets internal linkage.
 namespace {
 
@@ -106,7 +103,6 @@ struct C : A, B {
   virtual void f();
 };
 
-// CHECK: define internal void @_ZThn8_N12_GLOBAL__N_11C1fEv(
 void C::f() { }
 
 }
@@ -134,4 +130,112 @@ void f(B b) {
 }
 }
 
+namespace Test6 {
+  struct X {
+    X();
+    X(const X&);
+    X &operator=(const X&);
+    ~X();
+  };
 
+  struct P {
+    P();
+    P(const P&);
+    ~P();
+    X first;
+    X second;
+  };
+
+  P getP();
+
+  struct Base1 {
+    int i;
+
+    virtual X f() { return X(); }
+  };
+
+  struct Base2 {
+    float real;
+
+    virtual X f() { return X(); }
+  };
+
+  struct Thunks : Base1, Base2 {
+    long l;
+
+    virtual X f();
+  };
+
+  // CHECK: define void @_ZThn16_N5Test66Thunks1fEv
+  // CHECK-NOT: memcpy
+  // CHECK: {{call void @_ZN5Test66Thunks1fEv.*sret}}
+  // CHECK: ret void
+  X Thunks::f() { return X(); }
+}
+
+namespace Test7 {
+  // PR7188
+  struct X {
+    X();
+    X(const X&);
+    X &operator=(const X&);
+    ~X();
+  };
+
+  struct Small { short s; };
+  struct Large {
+    char array[1024];
+  };
+
+  class A {
+  protected:
+    virtual void foo() = 0;
+  };
+
+  class B : public A {
+  protected:
+    virtual void bar() = 0;
+  };
+
+  class C : public A  {
+  protected:
+    virtual void baz(X, X&, _Complex float, Small, Small&, Large) = 0;
+  };
+
+  class D : public B,
+            public C {
+
+    void foo() {}
+    void bar() {}
+    void baz(X, X&, _Complex float, Small, Small&, Large);
+  };
+
+  void D::baz(X, X&, _Complex float, Small, Small&, Large) { }
+
+  // CHECK: define void @_ZThn8_N5Test71D3bazENS_1XERS1_CfNS_5SmallERS4_NS_5LargeE(
+  // CHECK-NOT: memcpy
+  // CHECK: ret void
+  void testD() { D d; }
+}
+
+namespace Test8 {
+  struct NonPOD { ~NonPOD(); int x, y, z; };
+  struct A { virtual void foo(); };
+  struct B { virtual void bar(NonPOD); };
+  struct C : A, B { virtual void bar(NonPOD); static void helper(NonPOD); };
+
+  // CHECK: define void @_ZN5Test81C6helperENS_6NonPODE([[NONPODTYPE:%.*]]*
+  void C::helper(NonPOD var) {}
+
+  // CHECK: define void @_ZThn8_N5Test81C3barENS_6NonPODE(
+  // CHECK-NOT: load [[NONPODTYPE]]*
+  // CHECK-NOT: memcpy
+  // CHECK: ret void
+  void C::bar(NonPOD var) {}
+}
+
+/**** The following has to go at the end of the file ****/
+
+// This is from Test5:
+// CHECK: define linkonce_odr void @_ZTv0_n24_N5Test51B1fEv
+// CHECK: define internal void @_ZThn8_N12_GLOBAL__N_11C1fEv(

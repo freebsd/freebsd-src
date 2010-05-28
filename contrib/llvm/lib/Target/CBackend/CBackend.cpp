@@ -2165,6 +2165,9 @@ void CWriter::printFunctionSignature(const Function *F, bool Prototype) {
    case CallingConv::X86_FastCall:
     Out << "__attribute__((fastcall)) ";
     break;
+   case CallingConv::X86_ThisCall:
+    Out << "__attribute__((thiscall)) ";
+    break;
    default:
     break;
   }
@@ -3554,11 +3557,11 @@ void CWriter::visitExtractValueInst(ExtractValueInst &EVI) {
 //                       External Interface declaration
 //===----------------------------------------------------------------------===//
 
-bool CTargetMachine::addPassesToEmitWholeFile(PassManager &PM,
-                                              formatted_raw_ostream &o,
-                                              CodeGenFileType FileType,
-                                              CodeGenOpt::Level OptLevel,
-                                              bool DisableVerify) {
+bool CTargetMachine::addPassesToEmitFile(PassManagerBase &PM,
+                                         formatted_raw_ostream &o,
+                                         CodeGenFileType FileType,
+                                         CodeGenOpt::Level OptLevel,
+                                         bool DisableVerify) {
   if (FileType != TargetMachine::CGFT_AssemblyFile) return true;
 
   PM.add(createGCLoweringPass());

@@ -110,6 +110,7 @@ class Parser {
   IdentifierInfo *Ident_vector;
   IdentifierInfo *Ident_pixel;
 
+  llvm::OwningPtr<PragmaHandler> OptionsHandler;
   llvm::OwningPtr<PragmaHandler> PackHandler;
   llvm::OwningPtr<PragmaHandler> UnusedHandler;
   llvm::OwningPtr<PragmaHandler> WeakHandler;
@@ -234,6 +235,11 @@ private:
     assert(!isTokenStringLiteral() && !isTokenParen() && !isTokenBracket() &&
            !isTokenBrace() &&
            "Should consume special tokens with Consume*Token");
+    if (Tok.is(tok::code_completion)) {
+      CodeCompletionRecovery();
+      return ConsumeCodeCompletionToken();
+    }
+    
     PrevTokLocation = Tok.getLocation();
     PP.Lex(Tok);
     return PrevTokLocation;
@@ -307,6 +313,22 @@ private:
     PP.Lex(Tok);
     return PrevTokLocation;
   }
+
+  /// \brief Consume the current code-completion token.
+  ///
+  /// This routine should be called to consume the code-completion token once
+  /// a code-completion action has already been invoked.
+  SourceLocation ConsumeCodeCompletionToken() {
+    assert(Tok.is(tok::code_completion));
+    PrevTokLocation = Tok.getLocation();
+    PP.Lex(Tok);
+    return PrevTokLocation;    
+  }
+  
+  ///\ brief When we are consuming a code-completion token within having 
+  /// matched specific position in the grammar, provide code-completion results
+  /// based on context.
+  void CodeCompletionRecovery();
 
   /// GetLookAheadToken - This peeks ahead N tokens and returns that token
   /// without consuming any tokens.  LookAhead(0) returns 'Tok', LookAhead(1)
@@ -1004,7 +1026,8 @@ private:
 
   //===--------------------------------------------------------------------===//
   // C++ if/switch/while condition expression.
-  bool ParseCXXCondition(OwningExprResult &ExprResult, DeclPtrTy &DeclResult);
+  bool ParseCXXCondition(OwningExprResult &ExprResult, DeclPtrTy &DeclResult,
+                         SourceLocation Loc, bool ConvertToBoolean);
 
   //===--------------------------------------------------------------------===//
   // C++ types
@@ -1060,7 +1083,9 @@ private:
                                           bool isStmtExpr = false);
   OwningStmtResult ParseCompoundStatementBody(bool isStmtExpr = false);
   bool ParseParenExprOrCondition(OwningExprResult &ExprResult,
-                                 DeclPtrTy &DeclResult);
+                                 DeclPtrTy &DeclResult,
+                                 SourceLocation Loc,
+                                 bool ConvertToBoolean);
   OwningStmtResult ParseIfStatement(AttributeList *Attr);
   OwningStmtResult ParseSwitchStatement(AttributeList *Attr);
   OwningStmtResult ParseWhileStatement(AttributeList *Attr);
@@ -1348,6 +1373,8 @@ private:
                                AttributeList *AttrList = 0,
                                bool RequiresArg = false);
   void ParseFunctionDeclaratorIdentifierList(SourceLocation LParenLoc,
+                                             IdentifierInfo *FirstIdent,
+                                             SourceLocation FirstIdentLoc,
                                              Declarator &D);
   void ParseBracketDeclarator(Declarator &D);
 
@@ -1403,7 +1430,8 @@ private:
                                     bool EnteringContext,
                                     TypeTy *ObjectType,
                                     UnqualifiedId &Id,
-                                    bool AssumeTemplateId = false);
+                                    bool AssumeTemplateId,
+                                    SourceLocation TemplateKWLoc);
   bool ParseUnqualifiedIdOperator(CXXScopeSpec &SS, bool EnteringContext,
                                   TypeTy *ObjectType,
                                   UnqualifiedId &Result);
@@ -1457,6 +1485,7 @@ private:
                                SourceLocation TemplateKWLoc = SourceLocation(),
                                bool AllowTypeAnnotation = true);
   void AnnotateTemplateIdTokenAsType(const CXXScopeSpec *SS = 0);
+  bool IsTemplateArgumentList(unsigned Skip = 0);
   bool ParseTemplateArgumentList(TemplateArgList &TemplateArgs);
   ParsedTemplateArgument ParseTemplateTemplateArgument();
   ParsedTemplateArgument ParseTemplateArgument();

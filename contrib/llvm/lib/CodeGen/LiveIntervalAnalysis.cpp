@@ -263,7 +263,7 @@ static void printRegName(unsigned reg, const TargetRegisterInfo* tri_) {
 #endif
 
 static
-bool MultipleDefsByMI(const MachineInstr &MI, unsigned MOIdx) {
+bool MultipleDefsBySameMI(const MachineInstr &MI, unsigned MOIdx) {
   unsigned Reg = MI.getOperand(MOIdx).getReg();
   for (unsigned i = MOIdx+1, e = MI.getNumOperands(); i < e; ++i) {
     const MachineOperand &MO = MI.getOperand(i);
@@ -275,6 +275,24 @@ bool MultipleDefsByMI(const MachineInstr &MI, unsigned MOIdx) {
              MO.getSubReg());
       return true;
     }
+  }
+  return false;
+}
+
+/// isPartialRedef - Return true if the specified def at the specific index is
+/// partially re-defining the specified live interval. A common case of this is
+/// a definition of the sub-register. 
+bool LiveIntervals::isPartialRedef(SlotIndex MIIdx, MachineOperand &MO,
+                                   LiveInterval &interval) {
+  if (!MO.getSubReg() || MO.isEarlyClobber())
+    return false;
+
+  SlotIndex RedefIndex = MIIdx.getDefIndex();
+  const LiveRange *OldLR =
+    interval.getLiveRangeContaining(RedefIndex.getUseIndex());
+  if (OldLR->valno->isDefAccurate()) {
+    MachineInstr *DefMI = getInstructionFromIndex(OldLR->valno->def);
+    return DefMI->findRegisterDefOperandIdx(interval.reg) != -1;
   }
   return false;
 }
@@ -302,15 +320,20 @@ void LiveIntervals::handleVirtualRegisterDef(MachineBasicBlock *mbb,
     // of inputs.
     if (MO.isEarlyClobber())
       defIndex = MIIdx.getUseIndex();
-    VNInfo *ValNo;
+
+    // Make sure the first definition is not a partial redefinition. Add an
+    // <imp-def> of the full register.
+    if (MO.getSubReg())
+      mi->addRegisterDefined(interval.reg);
+
     MachineInstr *CopyMI = NULL;
     unsigned SrcReg, DstReg, SrcSubReg, DstSubReg;
     if (mi->isExtractSubreg() || mi->isInsertSubreg() || mi->isSubregToReg() ||
         tii_->isMoveInstr(*mi, SrcReg, DstReg, SrcSubReg, DstSubReg))
       CopyMI = mi;
-    // Earlyclobbers move back one.
-    ValNo = interval.getNextValue(defIndex, CopyMI, true, VNInfoAllocator);
 
+    VNInfo *ValNo = interval.getNextValue(defIndex, CopyMI, true,
+                                          VNInfoAllocator);
     assert(ValNo->id == 0 && "First value in interval is not 0?");
 
     // Loop over all of the blocks that the vreg is defined in.  There are
@@ -389,9 +412,9 @@ void LiveIntervals::handleVirtualRegisterDef(MachineBasicBlock *mbb,
     }
 
   } else {
-    if (MultipleDefsByMI(*mi, MOIdx))
-      // Mutple defs of the same virtual register by the same instruction. e.g.
-      // %reg1031:5<def>, %reg1031:6<def> = VLD1q16 %reg1024<kill>, ...
+    if (MultipleDefsBySameMI(*mi, MOIdx))
+      // Multiple defs of the same virtual register by the same instruction.
+      // e.g. %reg1031:5<def>, %reg1031:6<def> = VLD1q16 %reg1024<kill>, ...
       // This is likely due to elimination of REG_SEQUENCE instructions. Return
       // here since there is nothing to do.
       return;
@@ -400,13 +423,21 @@ void LiveIntervals::handleVirtualRegisterDef(MachineBasicBlock *mbb,
     // must be due to phi elimination or two addr elimination.  If this is
     // the result of two address elimination, then the vreg is one of the
     // def-and-use register operand.
-    if (mi->isRegTiedToUseOperand(MOIdx)) {
+
+    // It may also be partial redef like this:
+    // 80	%reg1041:6<def> = VSHRNv4i16 %reg1034<kill>, 12, pred:14, pred:%reg0
+    // 120	%reg1041:5<def> = VSHRNv4i16 %reg1039<kill>, 12, pred:14, pred:%reg0
+    bool PartReDef = isPartialRedef(MIIdx, MO, interval);
+    if (PartReDef || mi->isRegTiedToUseOperand(MOIdx)) {
       // If this is a two-address definition, then we have already processed
       // the live range.  The only problem is that we didn't realize there
       // are actually two values in the live interval.  Because of this we
       // need to take the LiveRegion that defines this register and split it
       // into two values.
-      assert(interval.containsOneValue());
+      // Two-address vregs should always only be redefined once.  This means
+      // that at this point, there should be exactly one value number in it.
+      assert((PartReDef || interval.containsOneValue()) &&
+             "Unexpected 2-addr liveint!");
       SlotIndex DefIndex = interval.getValNumInfo(0)->def.getDefIndex();
       SlotIndex RedefIndex = MIIdx.getDefIndex();
       if (MO.isEarlyClobber())
@@ -420,10 +451,6 @@ void LiveIntervals::handleVirtualRegisterDef(MachineBasicBlock *mbb,
       // because the 2-addr copy must be in the same MBB as the redef.
       interval.removeRange(DefIndex, RedefIndex);
 
-      // Two-address vregs should always only be redefined once.  This means
-      // that at this point, there should be exactly one value number in it.
-      assert(interval.containsOneValue() && "Unexpected 2-addr liveint!");
-
       // The new value number (#1) is defined by the instruction we claimed
       // defined value #0.
       VNInfo *ValNo = interval.getNextValue(OldValNo->def, OldValNo->getCopy(),
@@ -434,6 +461,12 @@ void LiveIntervals::handleVirtualRegisterDef(MachineBasicBlock *mbb,
       // Value#0 is now defined by the 2-addr instruction.
       OldValNo->def  = RedefIndex;
       OldValNo->setCopy(0);
+
+      // A re-def may be a copy. e.g. %reg1030:6<def> = VMOVD %reg1026, ...
+      unsigned SrcReg, DstReg, SrcSubReg, DstSubReg;
+      if (PartReDef &&
+          tii_->isMoveInstr(*mi, SrcReg, DstReg, SrcSubReg, DstSubReg))
+        OldValNo->setCopy(&*mi);
       
       // Add the new live interval which replaces the range for the input copy.
       LiveRange LR(DefIndex, RedefIndex, ValNo);
@@ -451,8 +484,7 @@ void LiveIntervals::handleVirtualRegisterDef(MachineBasicBlock *mbb,
           dbgs() << " RESULT: ";
           interval.print(dbgs(), tri_);
         });
-    } else {
-      assert(lv_->isPHIJoin(interval.reg) && "Multiply defined register");
+    } else if (lv_->isPHIJoin(interval.reg)) {
       // In the case of PHI elimination, each variable definition is only
       // live until the end of the block.  We've already taken care of the
       // rest of the live range.
@@ -475,6 +507,8 @@ void LiveIntervals::handleVirtualRegisterDef(MachineBasicBlock *mbb,
       ValNo->addKill(indexes_->getTerminatorGap(mbb));
       ValNo->setHasPHIKill(true);
       DEBUG(dbgs() << " phi-join +" << LR);
+    } else {
+      llvm_unreachable("Multiply defined register");
     }
   }
 
@@ -528,7 +562,7 @@ void LiveIntervals::handlePhysicalRegisterDef(MachineBasicBlock *MBB,
       end = baseIndex.getDefIndex();
       goto exit;
     } else {
-      int DefIdx = mi->findRegisterDefOperandIdx(interval.reg, false, tri_);
+      int DefIdx = mi->findRegisterDefOperandIdx(interval.reg,false,false,tri_);
       if (DefIdx != -1) {
         if (mi->isRegTiedToUseOperand(DefIdx)) {
           // Two-address instruction.
@@ -590,7 +624,7 @@ void LiveIntervals::handleRegisterDef(MachineBasicBlock *MBB,
     for (const unsigned* AS = tri_->getSubRegisters(MO.getReg()); *AS; ++AS)
       // If MI also modifies the sub-register explicitly, avoid processing it
       // more than once. Do not pass in TRI here so it checks for exact match.
-      if (!MI->modifiesRegister(*AS))
+      if (!MI->definesRegister(*AS))
         handlePhysicalRegisterDef(MBB, MI, MIIdx, MO,
                                   getOrCreateInterval(*AS), 0);
   }
@@ -631,7 +665,7 @@ void LiveIntervals::handleLiveInRegister(MachineBasicBlock *MBB,
       end = baseIndex.getDefIndex();
       SeenDefUse = true;
       break;
-    } else if (mi->modifiesRegister(interval.reg, tri_)) {
+    } else if (mi->definesRegister(interval.reg, tri_)) {
       // Another instruction redefines the register before it is ever read.
       // Then the register is essentially dead at the instruction that defines
       // it. Hence its interval is:
@@ -1343,7 +1377,8 @@ rewriteInstructionsForSpills(const LiveInterval &li, bool TrySplit,
       MI->eraseFromParent();
       continue;
     }
-    assert(!O.isImplicit() && "Spilling register that's used as implicit use?");
+    assert(!(O.isImplicit() && O.isUse()) &&
+           "Spilling register that's used as implicit use?");
     SlotIndex index = getInstructionIndex(MI);
     if (index < start || index >= end)
       continue;
@@ -1605,7 +1640,7 @@ LiveIntervals::getSpillWeight(bool isDef, bool isUse, unsigned loopDepth) {
   // overflow a float. This expression behaves like 10^d for small d, but is
   // more tempered for large d. At d=200 we get 6.7e33 which leaves a bit of
   // headroom before overflow.
-  float lc = powf(1 + (100.0f / (loopDepth+10)), (float)loopDepth);
+  float lc = std::pow(1 + (100.0f / (loopDepth+10)), (float)loopDepth);
 
   return (isDef + isUse) * lc;
 }

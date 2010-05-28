@@ -21,7 +21,6 @@
 #include "clang/Driver/Options.h"
 #include "clang/Driver/ToolChain.h"
 #include "clang/Driver/Util.h"
-#include "clang/Frontend/DiagnosticOptions.h"
 
 #include "llvm/ADT/SmallString.h"
 #include "llvm/ADT/StringSwitch.h"
@@ -769,6 +768,15 @@ void Clang::ConstructJob(Compilation &C, const JobAction &JA,
       CmdArgs.push_back("-E");
   } else if (isa<AssembleJobAction>(JA)) {
     CmdArgs.push_back("-emit-obj");
+
+    // At -O0, we use -mrelax-all by default.
+    bool IsOpt = false;
+    if (Arg *A = Args.getLastArg(options::OPT_O_Group))
+      IsOpt = !A->getOption().matches(options::OPT_O0);
+    if (Args.hasFlag(options::OPT_mrelax_all,
+                      options::OPT_mno_relax_all,
+                      !IsOpt))
+      CmdArgs.push_back("-mrelax-all");
   } else if (isa<PrecompileJobAction>(JA)) {
     // Use PCH if the user requested it, except for C++ (for now).
     bool UsePCH = D.CCCUsePCH;
@@ -911,8 +919,15 @@ void Clang::ConstructJob(Compilation &C, const JobAction &JA,
   if (!Args.hasFlag(options::OPT_fzero_initialized_in_bss,
                     options::OPT_fno_zero_initialized_in_bss))
     CmdArgs.push_back("-mno-zero-initialized-in-bss");
-  if (Args.hasArg(options::OPT_dA) || Args.hasArg(options::OPT_fverbose_asm))
+
+  // Decide whether to use verbose asm. Verbose assembly is the default on
+  // toolchains which have the integrated assembler on by default.
+  bool IsVerboseAsmDefault = getToolChain().IsIntegratedAssemblerDefault();
+  if (Args.hasFlag(options::OPT_fverbose_asm, options::OPT_fno_verbose_asm,
+                   IsVerboseAsmDefault) || 
+      Args.hasArg(options::OPT_dA))
     CmdArgs.push_back("-masm-verbose");
+
   if (Args.hasArg(options::OPT_fdebug_pass_structure)) {
     CmdArgs.push_back("-mdebug-pass");
     CmdArgs.push_back("Structure");
@@ -979,12 +994,23 @@ void Clang::ConstructJob(Compilation &C, const JobAction &JA,
                    false))
     CmdArgs.push_back("-fmath-errno");
 
+  // Explicitly error on some things we know we don't support and can't just
+  // ignore.
+  types::ID InputType = Inputs[0].getType();
   Arg *Unsupported;
   if ((Unsupported = Args.getLastArg(options::OPT_MG)) ||
       (Unsupported = Args.getLastArg(options::OPT_iframework)) ||
       (Unsupported = Args.getLastArg(options::OPT_fshort_enums)))
     D.Diag(clang::diag::err_drv_clang_unsupported)
       << Unsupported->getOption().getName();
+
+  if (types::isCXX(InputType) &&
+      getToolChain().getTriple().getOS() == llvm::Triple::Darwin &&
+      getToolChain().getTriple().getArch() == llvm::Triple::x86) {
+    if ((Unsupported = Args.getLastArg(options::OPT_fapple_kext)))
+      D.Diag(clang::diag::err_drv_clang_unsupported_opt_cxx_darwin_i386)
+        << Unsupported->getOption().getName();
+  }
 
   Args.AddAllArgs(CmdArgs, options::OPT_v);
   Args.AddLastArg(CmdArgs, options::OPT_P);
@@ -993,9 +1019,12 @@ void Clang::ConstructJob(Compilation &C, const JobAction &JA,
   // Special case debug options to only pass -g to clang. This is
   // wrong.
   Args.ClaimAllArgs(options::OPT_g_Group);
-  Arg *Garg = Args.getLastArg(options::OPT_g_Group);
-  if (Garg && Garg != Args.getLastArg(options::OPT_g0))
-    CmdArgs.push_back("-g");
+  if (Arg *A = Args.getLastArg(options::OPT_g_Group))
+    if (!A->getOption().matches(options::OPT_g0))
+      CmdArgs.push_back("-g");
+
+  Args.AddAllArgs(CmdArgs, options::OPT_ffunction_sections);
+  Args.AddAllArgs(CmdArgs, options::OPT_fdata_sections);
 
   Args.AddLastArg(CmdArgs, options::OPT_nostdinc);
   Args.AddLastArg(CmdArgs, options::OPT_nostdincxx);
@@ -1009,7 +1038,6 @@ void Clang::ConstructJob(Compilation &C, const JobAction &JA,
   // preprocessor.
   //
   // FIXME: Support -fpreprocessed
-  types::ID InputType = Inputs[0].getType();
   if (types::getPreprocessedType(InputType) != types::TY_INVALID)
     AddPreprocessingOptions(D, Args, CmdArgs, Output, Inputs);
 
@@ -1018,7 +1046,8 @@ void Clang::ConstructJob(Compilation &C, const JobAction &JA,
   if (Arg *A = Args.getLastArg(options::OPT_O_Group)) {
     if (A->getOption().matches(options::OPT_O4))
       CmdArgs.push_back("-O3");
-    else if (A->getValue(Args)[0] == '\0')
+    else if (A->getOption().matches(options::OPT_O) &&
+             A->getValue(Args)[0] == '\0')
       CmdArgs.push_back("-O2");
     else
       A->render(Args, CmdArgs);
@@ -1059,6 +1088,14 @@ void Clang::ConstructJob(Compilation &C, const JobAction &JA,
     Args.AddLastArg(CmdArgs, options::OPT_trigraphs);
   }
 
+  // Translate GCC's misnamer '-fasm' arguments to '-fgnu-keywords'.
+  if (Arg *Asm = Args.getLastArg(options::OPT_fasm, options::OPT_fno_asm)) {
+    if (Asm->getOption().matches(options::OPT_fasm))
+      CmdArgs.push_back("-fgnu-keywords");
+    else
+      CmdArgs.push_back("-fno-gnu-keywords");
+  }
+
   if (Arg *A = Args.getLastArg(options::OPT_ftemplate_depth_)) {
     CmdArgs.push_back("-ftemplate-depth");
     CmdArgs.push_back(A->getValue(Args));
@@ -1083,20 +1120,16 @@ void Clang::ConstructJob(Compilation &C, const JobAction &JA,
   else
     CmdArgs.push_back("19");
 
-  CmdArgs.push_back("-fmacro-backtrace-limit");
-  if (Arg *A = Args.getLastArg(options::OPT_fmacro_backtrace_limit_EQ))
+  if (Arg *A = Args.getLastArg(options::OPT_fmacro_backtrace_limit_EQ)) {
+    CmdArgs.push_back("-fmacro-backtrace-limit");
     CmdArgs.push_back(A->getValue(Args));
-  else
-    CmdArgs.push_back(Args.MakeArgString(
-                   llvm::Twine(DiagnosticOptions::DefaultMacroBacktraceLimit)));
-                      
-  CmdArgs.push_back("-ftemplate-backtrace-limit");
-  if (Arg *A = Args.getLastArg(options::OPT_ftemplate_backtrace_limit_EQ))
+  }
+
+  if (Arg *A = Args.getLastArg(options::OPT_ftemplate_backtrace_limit_EQ)) {
+    CmdArgs.push_back("-ftemplate-backtrace-limit");
     CmdArgs.push_back(A->getValue(Args));
-  else
-    CmdArgs.push_back(Args.MakeArgString(
-                llvm::Twine(DiagnosticOptions::DefaultTemplateBacktraceLimit)));
-  
+  }
+
   // Pass -fmessage-length=.
   CmdArgs.push_back("-fmessage-length");
   if (Arg *A = Args.getLastArg(options::OPT_fmessage_length_EQ)) {
@@ -1265,6 +1298,11 @@ void Clang::ConstructJob(Compilation &C, const JobAction &JA,
           CmdArgs.push_back("-fobjc-dispatch-method=non-legacy");
       }
     }
+
+    // FIXME: -fobjc-nonfragile-abi2 is a transient option meant to expose
+    // features in testing.  It will eventually be removed.
+    if (Args.hasArg(options::OPT_fobjc_nonfragile_abi2))
+      CmdArgs.push_back("-fobjc-nonfragile-abi2");
   }
 
   if (!Args.hasFlag(options::OPT_fassume_sane_operator_new,
@@ -1320,6 +1358,12 @@ void Clang::ConstructJob(Compilation &C, const JobAction &JA,
                    options::OPT_fno_diagnostics_show_option))
     CmdArgs.push_back("-fdiagnostics-show-option");
 
+  if (const Arg *A =
+        Args.getLastArg(options::OPT_fdiagnostics_show_category_EQ)) {
+    CmdArgs.push_back("-fdiagnostics-show-category");
+    CmdArgs.push_back(A->getValue(Args));
+  }
+  
   // Color diagnostics are the default, unless the terminal doesn't support
   // them.
   if (Args.hasFlag(options::OPT_fcolor_diagnostics,
@@ -1449,6 +1493,67 @@ void Clang::ConstructJob(Compilation &C, const JobAction &JA,
   // care to warn the user about.
   Args.ClaimAllArgs(options::OPT_clang_ignored_f_Group);
   Args.ClaimAllArgs(options::OPT_clang_ignored_m_Group);
+}
+
+void ClangAs::ConstructJob(Compilation &C, const JobAction &JA,
+                           Job &Dest,
+                           const InputInfo &Output,
+                           const InputInfoList &Inputs,
+                           const ArgList &Args,
+                           const char *LinkingOutput) const {
+  const Driver &D = getToolChain().getDriver();
+  ArgStringList CmdArgs;
+
+  assert(Inputs.size() == 1 && "Unexpected number of inputs.");
+  const InputInfo &Input = Inputs[0];
+
+  // Invoke ourselves in -cc1as mode.
+  //
+  // FIXME: Implement custom jobs for internal actions.
+  CmdArgs.push_back("-cc1as");
+
+  // Add the "effective" target triple.
+  CmdArgs.push_back("-triple");
+  std::string TripleStr = getEffectiveClangTriple(D, getToolChain(), Args);
+  CmdArgs.push_back(Args.MakeArgString(TripleStr));
+
+  // Set the output mode, we currently only expect to be used as a real
+  // assembler.
+  CmdArgs.push_back("-filetype");
+  CmdArgs.push_back("obj");
+
+  // At -O0, we use -mrelax-all by default.
+  bool IsOpt = false;
+  if (Arg *A = Args.getLastArg(options::OPT_O_Group))
+    IsOpt = !A->getOption().matches(options::OPT_O0);
+  if (Args.hasFlag(options::OPT_mrelax_all,
+                    options::OPT_mno_relax_all,
+                    !IsOpt))
+    CmdArgs.push_back("-mrelax-all");
+
+  // FIXME: Add -force_cpusubtype_ALL support, once we have it.
+
+  // FIXME: Add -g support, once we have it.
+
+  // FIXME: Add -static support, once we have it.
+
+  Args.AddAllArgValues(CmdArgs, options::OPT_Wa_COMMA,
+                       options::OPT_Xassembler);
+
+  assert(Output.isFilename() && "Unexpected lipo output.");
+  CmdArgs.push_back("-o");
+  CmdArgs.push_back(Output.getFilename());
+
+  if (Input.isPipe()) {
+    CmdArgs.push_back("-");
+  } else {
+    assert(Input.isFilename() && "Invalid input.");
+    CmdArgs.push_back(Input.getFilename());
+  }
+
+  const char *Exec =
+    Args.MakeArgString(getToolChain().GetProgramPath(C, "clang"));
+  Dest.addCommand(new Command(JA, *this, Exec, CmdArgs));
 }
 
 void gcc::Common::ConstructJob(Compilation &C, const JobAction &JA,

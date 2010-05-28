@@ -55,7 +55,7 @@ public:
   QualType getType() const { return Ty; }
 
   /// \brief Return the TypeLoc wrapper for the type source info.
-  TypeLoc getTypeLoc() const;
+  TypeLoc getTypeLoc() const; // implemented in TypeLoc.h
 };
 
 /// TranslationUnitDecl - The top declaration context.
@@ -137,6 +137,8 @@ public:
   //
   // FIXME: Deprecated, move clients to getName().
   std::string getNameAsString() const { return Name.getAsString(); }
+
+  void printName(llvm::raw_ostream &os) const { return Name.printName(os); }
 
   /// getDeclName - Get the actual, stored name of the declaration,
   /// which may be a special name.
@@ -265,18 +267,25 @@ public:
   // \brief Returns true if this is an anonymous namespace declaration.
   //
   // For example:
+  /// \code
   //   namespace {
   //     ...
   //   };
+  // \endcode
   // q.v. C++ [namespace.unnamed]
   bool isAnonymousNamespace() const {
     return !getIdentifier();
   }
 
+  /// \brief Return the next extended namespace declaration or null if this
+  /// is none.
   NamespaceDecl *getNextNamespace() { return NextNamespace; }
   const NamespaceDecl *getNextNamespace() const { return NextNamespace; }
+
+  /// \brief Set the next extended namespace declaration.
   void setNextNamespace(NamespaceDecl *ND) { NextNamespace = ND; }
 
+  /// \brief Get the original (first) namespace declaration.
   NamespaceDecl *getOriginalNamespace() const {
     if (OrigOrAnonNamespace.getInt())
       return const_cast<NamespaceDecl *>(this);
@@ -284,6 +293,14 @@ public:
     return OrigOrAnonNamespace.getPointer();
   }
 
+  /// \brief Return true if this declaration is an original (first) declaration
+  /// of the namespace. This is false for non-original (subsequent) namespace
+  /// declarations and anonymous namespaces.
+  bool isOriginalNamespace() const {
+    return getOriginalNamespace() == this;
+  }
+
+  /// \brief Set the original (first) namespace declaration.
   void setOriginalNamespace(NamespaceDecl *ND) { 
     if (ND != this) {
       OrigOrAnonNamespace.setPointer(ND);
@@ -502,6 +519,10 @@ private:
   /// or an Objective-C @catch statement.
   bool ExceptionVar : 1;
   
+  /// \brief Whether this local variable could be allocated in the return
+  /// slot of its function, enabling the named return value optimization (NRVO).
+  bool NRVOVariable : 1;
+  
   friend class StmtIteratorBase;
 protected:
   VarDecl(Kind DK, DeclContext *DC, SourceLocation L, IdentifierInfo *Id,
@@ -509,7 +530,7 @@ protected:
           StorageClass SCAsWritten)
     : DeclaratorDecl(DK, DC, L, Id, T, TInfo), Init(),
       ThreadSpecified(false), HasCXXDirectInit(false),
-      DeclaredInCondition(false), ExceptionVar(false) {
+      DeclaredInCondition(false), ExceptionVar(false), NRVOVariable(false) {
     SClass = SC;
     SClassAsWritten = SCAsWritten;
   }
@@ -851,6 +872,19 @@ public:
     return ExceptionVar;
   }
   void setExceptionVariable(bool EV) { ExceptionVar = EV; }
+  
+  /// \brief Determine whether this local variable can be used with the named
+  /// return value optimization (NRVO).
+  ///
+  /// The named return value optimization (NRVO) works by marking certain
+  /// non-volatile local variables of class type as NRVO objects. These
+  /// locals can be allocated within the return slot of their containing
+  /// function, in which case there is no need to copy the object to the
+  /// return slot when returning from the function. Within the function body,
+  /// each return that returns the NRVO object will have this variable as its
+  /// NRVO candidate.
+  bool isNRVOVariable() const { return NRVOVariable; }
+  void setNRVOVariable(bool NRVO) { NRVOVariable = NRVO; }
   
   /// \brief If this variable is an instantiated static data member of a
   /// class template specialization, returns the templated static data member
@@ -1390,6 +1424,16 @@ public:
   /// returns NULL.
   const TemplateArgumentList *getTemplateSpecializationArgs() const;
 
+  /// \brief Retrieve the template argument list as written in the sources,
+  /// if any.
+  ///
+  /// If this function declaration is not a function template specialization
+  /// or if it had no explicit template argument list, returns NULL.
+  /// Note that it an explicit template argument list may be written empty,
+  /// e.g., template<> void foo<>(char* s);
+  const TemplateArgumentListInfo*
+  getTemplateSpecializationArgsAsWritten() const;
+
   /// \brief Specify that this function declaration is actually a function
   /// template specialization.
   ///
@@ -1409,7 +1453,8 @@ public:
   void setFunctionTemplateSpecialization(FunctionTemplateDecl *Template,
                                       const TemplateArgumentList *TemplateArgs,
                                          void *InsertPos,
-                    TemplateSpecializationKind TSK = TSK_ImplicitInstantiation);
+                    TemplateSpecializationKind TSK = TSK_ImplicitInstantiation,
+                    const TemplateArgumentListInfo *TemplateArgsAsWritten = 0);
 
   /// \brief Specifies that this function declaration is actually a
   /// dependent function template specialization.
@@ -1593,7 +1638,19 @@ class TypedefDecl : public TypeDecl, public Redeclarable<TypedefDecl> {
     : TypeDecl(Typedef, DC, L, Id), TInfo(TInfo) {}
 
   virtual ~TypedefDecl();
+
+protected:
+  typedef Redeclarable<TypedefDecl> redeclarable_base;
+  virtual TypedefDecl *getNextRedeclaration() { return RedeclLink.getNext(); }
+
 public:
+  typedef redeclarable_base::redecl_iterator redecl_iterator;
+  redecl_iterator redecls_begin() const {
+    return redeclarable_base::redecls_begin();
+  }
+  redecl_iterator redecls_end() const {
+    return redeclarable_base::redecls_end();
+  }
 
   static TypedefDecl *Create(ASTContext &C, DeclContext *DC,
                              SourceLocation L, IdentifierInfo *Id,
@@ -1631,11 +1688,7 @@ class TagDecl
   : public TypeDecl, public DeclContext, public Redeclarable<TagDecl> {
 public:
   // This is really ugly.
-  typedef ElaboratedType::TagKind TagKind;
-  static const TagKind TK_struct = ElaboratedType::TK_struct;
-  static const TagKind TK_union = ElaboratedType::TK_union;
-  static const TagKind TK_class = ElaboratedType::TK_class;
-  static const TagKind TK_enum = ElaboratedType::TK_enum;
+  typedef TagTypeKind TagKind;
 
 private:
   // FIXME: This can be packed into the bitfields in Decl.
@@ -1651,6 +1704,12 @@ private:
   /// in the syntax of a declarator.
   bool IsEmbeddedInDeclarator : 1;
 
+protected:
+  // These are used by (and only defined for) EnumDecl.
+  unsigned NumPositiveBits : 8;
+  unsigned NumNegativeBits : 8;
+
+private:
   SourceLocation TagKeywordLoc;
   SourceLocation RBraceLoc;
 
@@ -1680,7 +1739,8 @@ protected:
           TagDecl *PrevDecl, SourceLocation TKL = SourceLocation())
     : TypeDecl(DK, DC, L, Id), DeclContext(DK), TagKeywordLoc(TKL),
       TypedefDeclOrQualifier((TypedefDecl*) 0) {
-    assert((DK != Enum || TK == TK_enum) &&"EnumDecl not matched with TK_enum");
+    assert((DK != Enum || TK == TTK_Enum) &&
+           "EnumDecl not matched with TTK_Enum");
     TagDeclKind = TK;
     IsDefinition = false;
     IsEmbeddedInDeclarator = false;
@@ -1753,13 +1813,8 @@ public:
   void setDefinition(bool V) { IsDefinition = V; }
 
   const char *getKindName() const {
-    return ElaboratedType::getNameForTagKind(getTagKind());
+    return TypeWithKeyword::getTagTypeKindName(getTagKind());
   }
-
-  /// getTagKindForTypeSpec - Converts a type specifier (DeclSpec::TST)
-  /// into a tag kind.  It is an error to provide a type specifier
-  /// which *isn't* a tag kind here.
-  static TagKind getTagKindForTypeSpec(unsigned TypeSpec);
 
   TagKind getTagKind() const {
     return TagKind(TagDeclKind);
@@ -1767,16 +1822,17 @@ public:
 
   void setTagKind(TagKind TK) { TagDeclKind = TK; }
 
-  bool isStruct() const { return getTagKind() == TK_struct; }
-  bool isClass()  const { return getTagKind() == TK_class; }
-  bool isUnion()  const { return getTagKind() == TK_union; }
-  bool isEnum()   const { return getTagKind() == TK_enum; }
+  bool isStruct() const { return getTagKind() == TTK_Struct; }
+  bool isClass()  const { return getTagKind() == TTK_Class; }
+  bool isUnion()  const { return getTagKind() == TTK_Union; }
+  bool isEnum()   const { return getTagKind() == TTK_Enum; }
 
   TypedefDecl *getTypedefForAnonDecl() const {
     return hasExtInfo() ? 0 : TypedefDeclOrQualifier.get<TypedefDecl*>();
   }
-  void setTypedefForAnonDecl(TypedefDecl *TDD) { TypedefDeclOrQualifier = TDD; }
-
+    
+  void setTypedefForAnonDecl(TypedefDecl *TDD);
+    
   NestedNameSpecifier *getQualifier() const {
     return hasExtInfo() ? TypedefDeclOrQualifier.get<ExtInfo*>()->NNS : 0;
   }
@@ -1820,9 +1876,16 @@ class EnumDecl : public TagDecl {
   /// enumeration declared within the template.
   EnumDecl *InstantiatedFrom;
 
+  // The number of positive and negative bits required by the
+  // enumerators are stored in the SubclassBits field.
+  enum {
+    NumBitsWidth = 8,
+    NumBitsMask = (1 << NumBitsWidth) - 1
+  };
+
   EnumDecl(DeclContext *DC, SourceLocation L,
            IdentifierInfo *Id, EnumDecl *PrevDecl, SourceLocation TKL)
-    : TagDecl(Enum, TK_enum, DC, L, Id, PrevDecl, TKL), InstantiatedFrom(0) {
+    : TagDecl(Enum, TTK_Enum, DC, L, Id, PrevDecl, TKL), InstantiatedFrom(0) {
       IntegerType = QualType();
     }
 public:
@@ -1845,7 +1908,9 @@ public:
   /// added (via DeclContext::addDecl). NewType is the new underlying
   /// type of the enumeration type.
   void completeDefinition(QualType NewType,
-                          QualType PromotionType);
+                          QualType PromotionType,
+                          unsigned NumPositiveBits,
+                          unsigned NumNegativeBits);
 
   // enumerator_iterator - Iterates through the enumerators of this
   // enumeration.
@@ -1872,6 +1937,32 @@ public:
 
   /// \brief Set the underlying integer type.
   void setIntegerType(QualType T) { IntegerType = T; }
+
+  /// \brief Returns the width in bits requred to store all the
+  /// non-negative enumerators of this enum.
+  unsigned getNumPositiveBits() const {
+    return NumPositiveBits;
+  }
+  void setNumPositiveBits(unsigned Num) {
+    NumPositiveBits = Num;
+    assert(NumPositiveBits == Num && "can't store this bitcount");
+  }
+
+  /// \brief Returns the width in bits requred to store all the
+  /// negative enumerators of this enum.  These widths include
+  /// the rightmost leading 1;  that is:
+  /// 
+  /// MOST NEGATIVE ENUMERATOR     PATTERN     NUM NEGATIVE BITS
+  /// ------------------------     -------     -----------------
+  ///                       -1     1111111                     1
+  ///                      -10     1110110                     5
+  ///                     -101     1001011                     8
+  unsigned getNumNegativeBits() const {
+    return NumNegativeBits;
+  }
+  void setNumNegativeBits(unsigned Num) {
+    NumNegativeBits = Num;
+  }
 
   /// \brief Returns the enumeration (declared within the template)
   /// from which this enumeration type was instantiated, or NULL if
@@ -1940,6 +2031,11 @@ public:
   bool isAnonymousStructOrUnion() const { return AnonymousStructOrUnion; }
   void setAnonymousStructOrUnion(bool Anon) {
     AnonymousStructOrUnion = Anon;
+  }
+
+  ValueDecl *getAnonymousStructOrUnionObject();
+  const ValueDecl *getAnonymousStructOrUnionObject() const {
+    return const_cast<RecordDecl*>(this)->getAnonymousStructOrUnionObject();
   }
 
   bool hasObjectMember() const { return HasObjectMember; }

@@ -132,12 +132,14 @@ namespace {
       (void) llvm::createPrintModulePass(0);
       (void) llvm::createPrintFunctionPass("", 0);
       (void) llvm::createDbgInfoPrinterPass();
+      (void) llvm::createModuleDebugInfoPrinterPass();
       (void) llvm::createPartialInliningPass();
       (void) llvm::createSSIPass();
       (void) llvm::createSSIEverythingPass();
       (void) llvm::createGEPSplitterPass();
       (void) llvm::createABCDPass();
       (void) llvm::createLintPass();
+      (void) llvm::createSinkingPass();
 
       (void)new llvm::IntervalPartition();
       (void)new llvm::FindUsedTypes();

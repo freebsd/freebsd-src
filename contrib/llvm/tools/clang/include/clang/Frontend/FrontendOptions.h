@@ -23,13 +23,15 @@ namespace frontend {
     ASTPrint,               ///< Parse ASTs and print them.
     ASTPrintXML,            ///< Parse ASTs and print them in XML.
     ASTView,                ///< Parse ASTs and view them in Graphviz.
+    BoostCon,               ///< BoostCon mode.
     DumpRawTokens,          ///< Dump out raw tokens.
     DumpTokens,             ///< Dump out preprocessed tokens.
     EmitAssembly,           ///< Emit a .s file.
     EmitBC,                 ///< Emit a .bc file.
     EmitHTML,               ///< Translate input source into HTML.
     EmitLLVM,               ///< Emit a .ll file.
-    EmitLLVMOnly,           ///< Generate LLVM IR, but do not
+    EmitLLVMOnly,           ///< Generate LLVM IR, but do not emit anything.
+    EmitCodeGenOnly,        ///< Generate machine code, but don't emit anything.
     EmitObj,                ///< Emit a .o file.
     FixIt,                  ///< Parse and apply any fixits to the source.
     GeneratePCH,            ///< Generate pre-compiled header.
@@ -77,6 +79,8 @@ public:
   unsigned ShowHelp : 1;                   ///< Show the -help text.
   unsigned ShowMacrosInCodeCompletion : 1; ///< Show macros in code completion
                                            /// results.
+  unsigned ShowCodePatternsInCodeCompletion : 1; ///< Show code patterns in code
+                                                 /// completion results.
   unsigned ShowStats : 1;                  ///< Show frontend performance
                                            /// metrics and statistics.
   unsigned ShowTimers : 1;                 ///< Show timers for individual
@@ -123,6 +127,7 @@ public:
     RelocatablePCH = 0;
     ShowHelp = 0;
     ShowMacrosInCodeCompletion = 0;
+    ShowCodePatternsInCodeCompletion = 0;
     ShowStats = 0;
     ShowTimers = 0;
     ShowVersion = 0;

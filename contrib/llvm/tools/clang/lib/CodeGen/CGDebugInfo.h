@@ -80,6 +80,7 @@ class CGDebugInfo {
   llvm::DIType CreateType(const TagType *Ty, llvm::DIFile F);
   llvm::DIType CreateType(const RecordType *Ty, llvm::DIFile F);
   llvm::DIType CreateType(const ObjCInterfaceType *Ty, llvm::DIFile F);
+  llvm::DIType CreateType(const ObjCObjectType *Ty, llvm::DIFile F);
   llvm::DIType CreateType(const EnumType *Ty, llvm::DIFile F);
   llvm::DIType CreateType(const VectorType *Ty, llvm::DIFile F);
   llvm::DIType CreateType(const ArrayType *Ty, llvm::DIFile F);
@@ -208,6 +209,13 @@ private:
   /// getVTableName - Get vtable name for the given Class.
   llvm::StringRef getVTableName(const CXXRecordDecl *Decl);
 
+  /// getLineNumber - Get line number for the location. If location is invalid
+  /// then use current location.
+  unsigned getLineNumber(SourceLocation Loc);
+
+  /// getColumnNumber - Get column number for the location. If location is 
+  /// invalid then use current location.
+  unsigned getColumnNumber(SourceLocation Loc);
 };
 } // namespace CodeGen
 } // namespace clang

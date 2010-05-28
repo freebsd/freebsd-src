@@ -39,6 +39,10 @@ void MCExpr::print(raw_ostream &OS) const {
     const MCSymbolRefExpr &SRE = cast<MCSymbolRefExpr>(*this);
     const MCSymbol &Sym = SRE.getSymbol();
 
+    if (SRE.getKind() == MCSymbolRefExpr::VK_ARM_HI16 ||
+	SRE.getKind() == MCSymbolRefExpr::VK_ARM_LO16)
+      OS << MCSymbolRefExpr::getVariantKindName(SRE.getKind());
+
     // Parenthesize names that start with $ so that they don't look like
     // absolute names.
     if (Sym.getName()[0] == '$')
@@ -46,7 +50,9 @@ void MCExpr::print(raw_ostream &OS) const {
     else
       OS << Sym;
 
-    if (SRE.getKind() != MCSymbolRefExpr::VK_None)
+    if (SRE.getKind() != MCSymbolRefExpr::VK_None &&
+	SRE.getKind() != MCSymbolRefExpr::VK_ARM_HI16 &&
+	SRE.getKind() != MCSymbolRefExpr::VK_ARM_LO16)
       OS << '@' << MCSymbolRefExpr::getVariantKindName(SRE.getKind());
 
     return;
@@ -169,6 +175,9 @@ StringRef MCSymbolRefExpr::getVariantKindName(VariantKind Kind) {
   case VK_PLT: return "PLT";
   case VK_TLSGD: return "TLSGD";
   case VK_TPOFF: return "TPOFF";
+  case VK_ARM_HI16: return ":upper16:";
+  case VK_ARM_LO16: return ":lower16:";
+  case VK_TLVP: return "TLVP";
   }
 }
 
@@ -184,6 +193,7 @@ MCSymbolRefExpr::getVariantKindForName(StringRef Name) {
     .Case("PLT", VK_PLT)
     .Case("TLSGD", VK_TLSGD)
     .Case("TPOFF", VK_TPOFF)
+    .Case("TLVP", VK_TLVP)
     .Default(VK_Invalid);
 }
 
@@ -249,7 +259,7 @@ bool MCExpr::EvaluateAsRelocatable(MCValue &Res,
 
     // Evaluate recursively if this is a variable.
     if (Sym.isVariable()) {
-      if (!Sym.getValue()->EvaluateAsRelocatable(Res, Layout))
+      if (!Sym.getVariableValue()->EvaluateAsRelocatable(Res, Layout))
         return false;
 
       // Absolutize symbol differences between defined symbols when we have a

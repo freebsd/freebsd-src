@@ -352,9 +352,9 @@ public: // Part of public interface to class.
 
   /// RemoveDeadBindings - Scans the RegionStore of 'state' for dead values.
   ///  It returns a new Store with these values removed.
-  Store RemoveDeadBindings(Store store, Stmt* Loc, 
-                           const StackFrameContext *LCtx,
-                           SymbolReaper& SymReaper,
+  const GRState *RemoveDeadBindings(GRState &state, Stmt* Loc, 
+                                    const StackFrameContext *LCtx,
+                                    SymbolReaper& SymReaper,
                           llvm::SmallVectorImpl<const MemRegion*>& RegionRoots);
 
   const GRState *EnterStackFrame(const GRState *state,
@@ -364,7 +364,18 @@ public: // Part of public interface to class.
   // Region "extents".
   //===------------------------------------------------------------------===//
 
-  const GRState *setExtent(const GRState *state,const MemRegion* R,SVal Extent);
+  const GRState *setExtent(const GRState *state,const MemRegion* R,SVal Extent){
+    return state->set<RegionExtents>(R, Extent);
+  }
+
+  Optional<SVal> getExtent(const GRState *state, const MemRegion *R) {
+    const SVal *V = state->get<RegionExtents>(R);
+    if (V)
+      return *V;
+    else
+      return Optional<SVal>();
+  }
+
   DefinedOrUnknownSVal getSizeInElements(const GRState *state,
                                          const MemRegion* R, QualType EleTy);
 
@@ -796,12 +807,6 @@ DefinedOrUnknownSVal RegionStoreManager::getSizeInElements(const GRState *state,
 
   assert(0 && "Unreachable");
   return UnknownVal();
-}
-
-const GRState *RegionStoreManager::setExtent(const GRState *state,
-                                             const MemRegion *region,
-                                             SVal extent) {
-  return state->set<RegionExtents>(region, extent);
 }
 
 //===----------------------------------------------------------------------===//
@@ -1817,12 +1822,12 @@ bool RemoveDeadBindingsWorker::UpdatePostponed() {
   return changed;
 }
 
-Store RegionStoreManager::RemoveDeadBindings(Store store, Stmt* Loc,
+const GRState *RegionStoreManager::RemoveDeadBindings(GRState &state, Stmt* Loc,
                                              const StackFrameContext *LCtx,
                                              SymbolReaper& SymReaper,
                            llvm::SmallVectorImpl<const MemRegion*>& RegionRoots)
 {
-  RegionBindings B = GetRegionBindings(store);
+  RegionBindings B = GetRegionBindings(state.getStore());
   RemoveDeadBindingsWorker W(*this, StateMgr, B, SymReaper, Loc, LCtx);
   W.GenerateClusters();
 
@@ -1855,8 +1860,16 @@ Store RegionStoreManager::RemoveDeadBindings(Store store, Stmt* Loc,
     for (; SI != SE; ++SI)
       SymReaper.maybeDead(*SI);
   }
-
-  return B.getRoot();
+  state.setStore(B.getRoot());
+  const GRState *s = StateMgr.getPersistentState(state);
+  // Remove the extents of dead symbolic regions.
+  llvm::ImmutableMap<const MemRegion*,SVal> Extents = s->get<RegionExtents>();
+  for (llvm::ImmutableMap<const MemRegion *, SVal>::iterator I=Extents.begin(),
+         E = Extents.end(); I != E; ++I) {
+    if (!W.isVisited(I->first))
+      s = s->remove<RegionExtents>(I->first);
+  }
+  return s;
 }
 
 

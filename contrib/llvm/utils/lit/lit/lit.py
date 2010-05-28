@@ -258,9 +258,10 @@ def getTestsInSuite(ts, path_in_suite, litConfig,
     lc = getLocalConfig(ts, path_in_suite, litConfig, localConfigCache)
 
     # Search for tests.
-    for res in lc.test_format.getTestsInDirectory(ts, path_in_suite,
-                                                  litConfig, lc):
-        yield res
+    if lc.test_format is not None:
+        for res in lc.test_format.getTestsInDirectory(ts, path_in_suite,
+                                                      litConfig, lc):
+            yield res
 
     # Search subdirectories.
     for filename in os.listdir(source_path):
@@ -489,11 +490,27 @@ def main():
                                     isWindows = (platform.system()=='Windows'),
                                     params = userParams)
 
+    # Expand '@...' form in inputs.
+    actual_inputs = []
+    for input in inputs:
+        if os.path.exists(input) or not input.startswith('@'):
+            actual_inputs.append(input)
+        else:
+            f = open(input[1:])
+            try:
+                for ln in f:
+                    ln = ln.strip()
+                    if ln:
+                        actual_inputs.append(ln)
+            finally:
+                f.close()
+                    
+            
     # Load the tests from the inputs.
     tests = []
     testSuiteCache = {}
     localConfigCache = {}
-    for input in inputs:
+    for input in actual_inputs:
         prev = len(tests)
         tests.extend(getTests(input, litConfig,
                               testSuiteCache, localConfigCache)[1])

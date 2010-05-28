@@ -315,7 +315,8 @@ public:
                             MachineBasicBlock::iterator MI,
                             unsigned DestReg, unsigned SrcReg,
                             const TargetRegisterClass *DestRC,
-                            const TargetRegisterClass *SrcRC) const {
+                            const TargetRegisterClass *SrcRC,
+                            DebugLoc DL) const {
     assert(0 && "Target didn't implement TargetInstrInfo::copyRegToReg!");
     return false;
   }
@@ -328,7 +329,8 @@ public:
   virtual void storeRegToStackSlot(MachineBasicBlock &MBB,
                                    MachineBasicBlock::iterator MI,
                                    unsigned SrcReg, bool isKill, int FrameIndex,
-                                   const TargetRegisterClass *RC) const {
+                                   const TargetRegisterClass *RC,
+                                   const TargetRegisterInfo *TRI) const {
     assert(0 && "Target didn't implement TargetInstrInfo::storeRegToStackSlot!");
   }
 
@@ -339,7 +341,8 @@ public:
   virtual void loadRegFromStackSlot(MachineBasicBlock &MBB,
                                     MachineBasicBlock::iterator MI,
                                     unsigned DestReg, int FrameIndex,
-                                    const TargetRegisterClass *RC) const {
+                                    const TargetRegisterClass *RC,
+                                    const TargetRegisterInfo *TRI) const {
     assert(0 && "Target didn't implement TargetInstrInfo::loadRegFromStackSlot!");
   }
   
@@ -349,7 +352,8 @@ public:
   /// storeRegToStackSlot(). Returns false otherwise.
   virtual bool spillCalleeSavedRegisters(MachineBasicBlock &MBB,
                                          MachineBasicBlock::iterator MI,
-                                const std::vector<CalleeSavedInfo> &CSI) const {
+                                         const std::vector<CalleeSavedInfo> &CSI,
+                                         const TargetRegisterInfo *TRI) const {
     return false;
   }
 
@@ -359,7 +363,8 @@ public:
   /// Returns false otherwise.
   virtual bool restoreCalleeSavedRegisters(MachineBasicBlock &MBB,
                                            MachineBasicBlock::iterator MI,
-                                const std::vector<CalleeSavedInfo> &CSI) const {
+                                        const std::vector<CalleeSavedInfo> &CSI,
+                                        const TargetRegisterInfo *TRI) const {
     return false;
   }
   
