@@ -32,6 +32,12 @@ SRCS=	\
 	asltransform.c \
 	asltree.c \
 	aslutils.c \
+	dtcompile.c \
+	dtfield.c \
+	dtio.c \
+	dtsubtable.c \
+	dttable.c \
+	dtutils.c \
 	../common/getopt.c \
 	../utilities/utalloc.c \
 	../utilities/utcache.c \
@@ -119,7 +125,7 @@ SRCS=	\
 	../osunixxf.c
 
 NOMAN=	YES
-CFLAGS+= -Wall -O2 -Wstrict-prototypes -D_LINUX -DACPI_ASL_COMPILER -I../include 
+CFLAGS+= -Wall -O2 -Wstrict-prototypes -D_LINUX -DACPI_ASL_COMPILER -I../include -I../compiler
 
 #YACC=	yacc
 YACC=	bison

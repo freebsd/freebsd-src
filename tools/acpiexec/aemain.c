@@ -135,7 +135,7 @@ char                    *FileList[ASL_MAX_FILES];
 int                     FileCount;
 
 
-#define AE_SUPPORTED_OPTIONS    "?ab:de^f:ghimo:rstvx:z"
+#define AE_SUPPORTED_OPTIONS    "?b:d:e:f:gm^ovx:"
 
 
 /******************************************************************************
@@ -157,19 +157,25 @@ usage (void)
 
     printf ("Where:\n");
     printf ("   -?                  Display this message\n");
-    printf ("   -a                  Do not abort methods on error\n");
     printf ("   -b <CommandLine>    Batch mode command execution\n");
-    printf ("   -e [Method]         Batch mode method execution\n");
-    printf ("   -f <Value>          Specify OpRegion initialization fill value\n");
-    printf ("   -i                  Do not run STA/INI methods during init\n");
-    printf ("   -m                  Display final memory use statistics\n");
-    printf ("   -o <OutputFile>     Send output to this file\n");
-    printf ("   -r                  Disable OpRegion address simulation\n");
-    printf ("   -s                  Enable Interpreter Slack Mode\n");
-    printf ("   -t                  Enable Interpreter Serialized Mode\n");
-    printf ("   -v                  Verbose init output\n");
-    printf ("   -x <DebugLevel>     Specify debug output level\n");
-    printf ("   -z                  Enable debug semaphore timeout\n");
+    printf ("   -m [Method]         Batch mode method execution. Default=MAIN\n");
+    printf ("\n");
+
+    printf ("   -da                 Disable method abort on error\n");
+    printf ("   -di                 Disable execution of STA/INI methods during init\n");
+    printf ("   -do                 Disable Operation Region address simulation\n");
+    printf ("   -dt                 Disable allocation tracking (performance)\n");
+    printf ("\n");
+
+    printf ("   -ef                 Enable display of final memory statistics\n");
+    printf ("   -em                 Enable Interpreter Serialized Mode\n");
+    printf ("   -es                 Enable Interpreter Slack Mode\n");
+    printf ("   -et                 Enable debug semaphore timeout\n");
+    printf ("\n");
+
+    printf ("   -f <Value>          Operation Region initialization fill value\n");
+    printf ("   -v                  Verbose initialization output\n");
+    printf ("   -x <DebugLevel>     Debug output level\n");
 }
 
 
@@ -471,10 +477,6 @@ main (
 
     while ((j = AcpiGetopt (argc, argv, AE_SUPPORTED_OPTIONS)) != EOF) switch(j)
     {
-    case 'a':
-        AcpiGbl_IgnoreErrors = TRUE;
-        break;
-
     case 'b':
         if (strlen (AcpiGbl_Optarg) > 127)
         {
@@ -487,20 +489,58 @@ main (
         break;
 
     case 'd':
-        AcpiGbl_DbOpt_disasm = TRUE;
-        AcpiGbl_DbOpt_stats = TRUE;
+        switch (AcpiGbl_Optarg[0])
+        {
+        case 'a':
+            AcpiGbl_IgnoreErrors = TRUE;
+            break;
+
+        case 'i':
+            AcpiGbl_DbOpt_ini_methods = FALSE;
+            break;
+
+        case 'o':
+            AcpiGbl_DbOpt_NoRegionSupport = TRUE;
+            break;
+
+        case 't':
+            #ifdef ACPI_DBG_TRACK_ALLOCATIONS
+                AcpiGbl_DisableMemTracking = TRUE;
+            #endif
+            break;
+
+        default:
+            printf ("Unknown option: -d%s\n", AcpiGbl_Optarg);
+            return (-1);
+        }
         break;
 
     case 'e':
-        AcpiGbl_BatchMode = 2;
         switch (AcpiGbl_Optarg[0])
         {
-        case '^':
-            strcpy (BatchBuffer, "MAIN");
+        case 'f':
+            #ifdef ACPI_DBG_TRACK_ALLOCATIONS
+                AcpiGbl_DisplayFinalMemStats = TRUE;
+            #endif
             break;
+
+        case 'm':
+            AcpiGbl_AllMethodsSerialized = TRUE;
+            printf ("Enabling AML Interpreter serialized mode\n");
+            break;
+
+        case 's':
+            AcpiGbl_EnableInterpreterSlack = TRUE;
+            printf ("Enabling AML Interpreter slack mode\n");
+            break;
+
+        case 't':
+            AcpiGbl_DebugTimeout = TRUE;
+            break;
+
         default:
-            strcpy (BatchBuffer, AcpiGbl_Optarg);
-            break;
+            printf ("Unknown option: -e%s\n", AcpiGbl_Optarg);
+            return (-1);
         }
         break;
 
@@ -513,32 +553,23 @@ main (
         AcpiGbl_DbFilename = NULL;
         break;
 
-    case 'i':
-        AcpiGbl_DbOpt_ini_methods = FALSE;
-        break;
-
     case 'm':
-#ifdef ACPI_DBG_TRACK_ALLOCATIONS
-        AcpiGbl_DisplayFinalMemStats = TRUE;
-#endif
+        AcpiGbl_BatchMode = 2;
+        switch (AcpiGbl_Optarg[0])
+        {
+        case '^':
+            strcpy (BatchBuffer, "MAIN");
+            break;
+
+        default:
+            strcpy (BatchBuffer, AcpiGbl_Optarg);
+            break;
+        }
         break;
 
     case 'o':
-        printf ("O option is not implemented\n");
-        break;
-
-    case 'r':
-        AcpiGbl_DbOpt_NoRegionSupport = TRUE;
-        break;
-
-    case 's':
-        AcpiGbl_EnableInterpreterSlack = TRUE;
-        printf ("Enabling AML Interpreter slack mode\n");
-        break;
-
-    case 't':
-        AcpiGbl_AllMethodsSerialized = TRUE;
-        printf ("Enabling AML Interpreter serialized mode\n");
+        AcpiGbl_DbOpt_disasm = TRUE;
+        AcpiGbl_DbOpt_stats = TRUE;
         break;
 
     case 'v':
@@ -549,10 +580,6 @@ main (
         AcpiDbgLevel = strtoul (AcpiGbl_Optarg, NULL, 0);
         AcpiGbl_DbConsoleDebugLevel = AcpiDbgLevel;
         printf ("Debug Level: 0x%8.8X\n", AcpiDbgLevel);
-        break;
-
-    case 'z':
-        AcpiGbl_DebugTimeout = TRUE;
         break;
 
     case '?':

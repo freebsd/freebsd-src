@@ -216,7 +216,7 @@ LsDoOneNamespaceObject (
 
     Gbl_NumNamespaceObjects++;
 
-    FlPrintFile (ASL_FILE_NAMESPACE_OUTPUT, "%5d  [%d]  %*s %4.4s - %s",
+    FlPrintFile (ASL_FILE_NAMESPACE_OUTPUT, "%5u  [%u]  %*s %4.4s - %s",
         Gbl_NumNamespaceObjects, Level, (Level * 3), " ",
         &Node->Name,
         AcpiUtGetTypeName (Node->Type));
@@ -1245,7 +1245,7 @@ LkNamespaceLocateBegin (
              */
             if (PassedArgs != Node->Value)
             {
-                sprintf (MsgBuffer, "%s requires %d", Op->Asl.ExternalName,
+                sprintf (MsgBuffer, "%s requires %u", Op->Asl.ExternalName,
                             Node->Value);
 
                 if (PassedArgs < Node->Value)

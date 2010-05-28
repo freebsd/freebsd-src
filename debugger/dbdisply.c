@@ -612,7 +612,7 @@ AcpiDbDisplayResults (
     for (i = 0; i < ResultCount; i++)
     {
         ObjDesc = Frame->Results.ObjDesc[Index];
-        AcpiOsPrintf ("Result%d: ", i);
+        AcpiOsPrintf ("Result%u: ", i);
         AcpiDmDisplayInternalObject (ObjDesc, WalkState);
         if (Index == 0)
         {
@@ -722,7 +722,7 @@ AcpiDbDisplayObjectType (
     {
         for (i = 0; i < Info->CompatibleIdList.Count; i++)
         {
-            AcpiOsPrintf ("CID %d: %s\n", i,
+            AcpiOsPrintf ("CID %u: %s\n", i,
                 Info->CompatibleIdList.Ids[i].String);
         }
     }
@@ -854,7 +854,7 @@ AcpiDbDisplayGpes (
                 GpeType = "GPE Block Device";
             }
 
-            AcpiOsPrintf ("\nBlock %d - Info %p  DeviceNode %p [%s] - %s\n",
+            AcpiOsPrintf ("\nBlock %u - Info %p  DeviceNode %p [%s] - %s\n",
                 Block, GpeBlock, GpeBlock->Node, Buffer, GpeType);
 
             AcpiOsPrintf ("    Registers:    %u (%u GPEs)\n",

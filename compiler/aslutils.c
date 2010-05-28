@@ -214,6 +214,8 @@ UtLocalCalloc (
             Gbl_CurrentLineNumber, Gbl_LogicalLineNumber,
             Gbl_InputByteCount, Gbl_CurrentColumn,
             Gbl_Files[ASL_FILE_INPUT].Filename, NULL);
+
+        CmCleanupAndExit ();
         exit (1);
     }
 
@@ -523,33 +525,57 @@ UtDisplaySummary (
             CompilerId, (UINT32) ACPI_CA_VERSION, __DATE__);
     }
 
-    /* Input/Output summary */
-
-    FlPrintFile (FileId,
-        "ASL Input:  %s - %d lines, %d bytes, %d keywords\n",
-        Gbl_Files[ASL_FILE_INPUT].Filename, Gbl_CurrentLineNumber,
-        Gbl_InputByteCount, TotalKeywords);
-
-    /* AML summary */
-
-    if ((Gbl_ExceptionCount[ASL_ERROR] == 0) || (Gbl_IgnoreErrors))
+    if (Gbl_FileType == ASL_INPUT_TYPE_ASCII_DATA)
     {
         FlPrintFile (FileId,
-            "AML Output: %s - %d bytes, %d named objects, %d executable opcodes\n\n",
-            Gbl_Files[ASL_FILE_AML_OUTPUT].Filename, Gbl_TableLength,
-            TotalNamedObjects, TotalExecutableOpcodes);
+            "Table Input:   %s - %u lines, %u bytes, %u fields\n",
+            Gbl_Files[ASL_FILE_INPUT].Filename, Gbl_CurrentLineNumber,
+            Gbl_InputByteCount, Gbl_InputFieldCount);
+
+        if ((Gbl_ExceptionCount[ASL_ERROR] == 0) || (Gbl_IgnoreErrors))
+        {
+            FlPrintFile (FileId,
+                "Binary Output: %s - %u bytes\n\n",
+                Gbl_Files[ASL_FILE_AML_OUTPUT].Filename, Gbl_TableLength);
+        }
+    }
+    else
+    {
+        /* Input/Output summary */
+
+        FlPrintFile (FileId,
+            "ASL Input:  %s - %u lines, %u bytes, %u keywords\n",
+            Gbl_Files[ASL_FILE_INPUT].Filename, Gbl_CurrentLineNumber,
+            Gbl_InputByteCount, TotalKeywords);
+
+        /* AML summary */
+
+        if ((Gbl_ExceptionCount[ASL_ERROR] == 0) || (Gbl_IgnoreErrors))
+        {
+            FlPrintFile (FileId,
+                "AML Output: %s - %u bytes, %u named objects, %u executable opcodes\n\n",
+                Gbl_Files[ASL_FILE_AML_OUTPUT].Filename, Gbl_TableLength,
+                TotalNamedObjects, TotalExecutableOpcodes);
+        }
     }
 
     /* Error summary */
 
     FlPrintFile (FileId,
-        "Compilation complete. %d Errors, %d Warnings, %d Remarks, %d Optimizations\n",
+        "Compilation complete. %u Errors, %u Warnings, %u Remarks",
         Gbl_ExceptionCount[ASL_ERROR],
         Gbl_ExceptionCount[ASL_WARNING] +
             Gbl_ExceptionCount[ASL_WARNING2] +
             Gbl_ExceptionCount[ASL_WARNING3],
-        Gbl_ExceptionCount[ASL_REMARK],
-        Gbl_ExceptionCount[ASL_OPTIMIZATION]);
+        Gbl_ExceptionCount[ASL_REMARK]);
+
+    if (Gbl_FileType != ASL_INPUT_TYPE_ASCII_DATA)
+    {
+        FlPrintFile (FileId,
+            ", %u Optimizations", Gbl_ExceptionCount[ASL_OPTIMIZATION]);
+    }
+
+    FlPrintFile (FileId, "\n");
 }
 
 

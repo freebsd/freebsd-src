@@ -289,7 +289,7 @@ AcpiDmDecodeInternalObject (
 
     case ACPI_TYPE_STRING:
 
-        AcpiOsPrintf ("(%d) \"%.24s",
+        AcpiOsPrintf ("(%u) \"%.24s",
                 ObjDesc->String.Length, ObjDesc->String.Pointer);
 
         if (ObjDesc->String.Length > 24)
@@ -305,7 +305,7 @@ AcpiDmDecodeInternalObject (
 
     case ACPI_TYPE_BUFFER:
 
-        AcpiOsPrintf ("(%d)", ObjDesc->Buffer.Length);
+        AcpiOsPrintf ("(%u)", ObjDesc->Buffer.Length);
         for (i = 0; (i < 8) && (i < ObjDesc->Buffer.Length); i++)
         {
             AcpiOsPrintf (" %2.2X", ObjDesc->Buffer.Pointer[i]);
@@ -651,7 +651,7 @@ AcpiDmDisplayArguments (
     for (i = 0; i < ACPI_METHOD_NUM_ARGS; i++)
     {
         ObjDesc = WalkState->Arguments[i].Object;
-        AcpiOsPrintf ("    Arg%d:   ", i);
+        AcpiOsPrintf ("    Arg%u:   ", i);
         AcpiDmDisplayInternalObject (ObjDesc, WalkState);
     }
 }

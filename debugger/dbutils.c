@@ -291,7 +291,7 @@ AcpiDbDumpExternalObject (
 
     case ACPI_TYPE_PACKAGE:
 
-        AcpiOsPrintf ("[Package] Contains %d Elements:\n",
+        AcpiOsPrintf ("[Package] Contains %u Elements:\n",
                 ObjDesc->Package.Count);
 
         for (i = 0; i < ObjDesc->Package.Count; i++)

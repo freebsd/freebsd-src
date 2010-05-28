@@ -184,6 +184,13 @@
 #define FILE_SUFFIX_C_INCLUDE       "h"
 
 
+/* Types for input files */
+
+#define ASL_INPUT_TYPE_BINARY       0
+#define ASL_INPUT_TYPE_ASCII_ASL    1
+#define ASL_INPUT_TYPE_ASCII_DATA   2
+
+
 /* Misc */
 
 #define ASL_EXTERNAL_METHOD         255

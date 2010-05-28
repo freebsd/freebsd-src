@@ -341,13 +341,13 @@ AsDetectLoneLineFeeds (
         {
             if (!Gbl_IgnoreLoneLineFeeds)
             {
-                printf ("%s: ****File has UNIX format**** (LF only, not CR/LF) %d lines\n",
+                printf ("%s: ****File has UNIX format**** (LF only, not CR/LF) %u lines\n",
                     Filename, LfCount);
             }
         }
         else
         {
-            printf ("%s: %d lone linefeeds in file\n", Filename, LfCount);
+            printf ("%s: %u lone linefeeds in file\n", Filename, LfCount);
         }
         return TRUE;
     }
@@ -795,7 +795,7 @@ AsGetFile (
     Buffer = calloc (Size * 2, 1);
     if (!Buffer)
     {
-        printf ("Could not allocate buffer of size %d\n", Size * 2);
+        printf ("Could not allocate buffer of size %u\n", Size * 2);
         goto ErrorExit;
     }
 

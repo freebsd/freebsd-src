@@ -131,8 +131,18 @@ typedef const struct acpi_dmtable_info
     UINT8                       Opcode;
     UINT8                       Offset;
     char                        *Name;
+    UINT8                       Flags;
 
 } ACPI_DMTABLE_INFO;
+
+#define DT_LENGTH                       0x01    /* Field is a subtable length */
+#define DT_FLAG                         0x02    /* Field is a flag value */
+#define DT_NON_ZERO                     0x04    /* Field must be non-zero */
+
+/* TBD: Not used at this time */
+
+#define DT_OPTIONAL                     0x08
+#define DT_COUNT                        0x10
 
 /*
  * Values for Opcode above.
@@ -173,17 +183,24 @@ typedef const struct acpi_dmtable_info
 #define ACPI_DMT_FADTPM                 32
 #define ACPI_DMT_BUF16                  33
 #define ACPI_DMT_IVRS                   34
+#define ACPI_DMT_BUFFER                 35
+#define ACPI_DMT_PCI_PATH               36
 
 
 typedef
 void (*ACPI_DMTABLE_HANDLER) (
     ACPI_TABLE_HEADER       *Table);
 
+typedef
+ACPI_STATUS (*ACPI_CMTABLE_HANDLER) (
+    void                    **PFieldList);
+
 typedef struct acpi_dmtable_data
 {
     char                    *Signature;
     ACPI_DMTABLE_INFO       *TableInfo;
     ACPI_DMTABLE_HANDLER    TableHandler;
+    ACPI_CMTABLE_HANDLER    CmTableHandler;
     char                    *Name;
 
 } ACPI_DMTABLE_DATA;
@@ -200,11 +217,18 @@ typedef struct acpi_op_walk_info
 
 } ACPI_OP_WALK_INFO;
 
+/*
+ * TBD - another copy of this is in asltypes.h, fix
+ */
+#ifndef ASL_WALK_CALLBACK_DEFINED
 typedef
 ACPI_STATUS (*ASL_WALK_CALLBACK) (
     ACPI_PARSE_OBJECT           *Op,
     UINT32                      Level,
     void                        *Context);
+#define ASL_WALK_CALLBACK_DEFINED
+#endif
+
 
 typedef struct acpi_resource_tag
 {
@@ -312,6 +336,11 @@ extern ACPI_DMTABLE_INFO        AcpiDmTableInfoWdrt[];
 /*
  * dmtable
  */
+
+ACPI_DMTABLE_DATA *
+AcpiDmGetTableData (
+    char                    *Signature);
+
 void
 AcpiDmDumpDataTable (
     ACPI_TABLE_HEADER       *Table);

@@ -117,6 +117,7 @@
 #include "accommon.h"
 #include "acdisasm.h"
 #include "actables.h"
+#include "dtcompiler.h"
 
 /* This module used for application-level code only */
 
@@ -124,10 +125,6 @@
         ACPI_MODULE_NAME    ("dmtable")
 
 /* Local Prototypes */
-
-static ACPI_DMTABLE_DATA *
-AcpiDmGetTableData (
-    char                    *Signature);
 
 static void
 AcpiDmCheckAscii (
@@ -247,37 +244,37 @@ static const char           *AcpiDmFadtProfiles[] =
 
 static ACPI_DMTABLE_DATA    AcpiDmTableData[] =
 {
-    {ACPI_SIG_ASF,  NULL,                   AcpiDmDumpAsf,  "Alert Standard Format table"},
-    {ACPI_SIG_BOOT, AcpiDmTableInfoBoot,    NULL,           "Simple Boot Flag Table"},
-    {ACPI_SIG_BERT, AcpiDmTableInfoBert,    NULL,           "Boot Error Record Table"},
-    {ACPI_SIG_CPEP, NULL,                   AcpiDmDumpCpep, "Corrected Platform Error Polling table"},
-    {ACPI_SIG_DBGP, AcpiDmTableInfoDbgp,    NULL,           "Debug Port table"},
-    {ACPI_SIG_DMAR, NULL,                   AcpiDmDumpDmar, "DMA Remapping table"},
-    {ACPI_SIG_ECDT, AcpiDmTableInfoEcdt,    NULL,           "Embedded Controller Boot Resources Table"},
-    {ACPI_SIG_EINJ, NULL,                   AcpiDmDumpEinj, "Error Injection table"},
-    {ACPI_SIG_ERST, NULL,                   AcpiDmDumpErst, "Error Record Serialization Table"},
-    {ACPI_SIG_FADT, NULL,                   AcpiDmDumpFadt, "Fixed ACPI Description Table"},
-    {ACPI_SIG_HEST, NULL,                   AcpiDmDumpHest, "Hardware Error Source Table"},
-    {ACPI_SIG_HPET, AcpiDmTableInfoHpet,    NULL,           "High Precision Event Timer table"},
-    {ACPI_SIG_IVRS, NULL,                   AcpiDmDumpIvrs, "I/O Virtualization Reporting Structure"},
-    {ACPI_SIG_MADT, NULL,                   AcpiDmDumpMadt, "Multiple APIC Description Table"},
-    {ACPI_SIG_MCFG, NULL,                   AcpiDmDumpMcfg, "Memory Mapped Configuration table"},
-    {ACPI_SIG_MCHI, AcpiDmTableInfoMchi,    NULL,           "Management Controller Host Interface table"},
-    {ACPI_SIG_MSCT, NULL,                   AcpiDmDumpMsct, "Maximum System Characteristics Table"},
-    {ACPI_SIG_RSDT, NULL,                   AcpiDmDumpRsdt, "Root System Description Table"},
-    {ACPI_SIG_SBST, AcpiDmTableInfoSbst,    NULL,           "Smart Battery Specification Table"},
-    {ACPI_SIG_SLIC, AcpiDmTableInfoSlic,    NULL,           "Software Licensing Description Table"},
-    {ACPI_SIG_SLIT, NULL,                   AcpiDmDumpSlit, "System Locality Information Table"},
-    {ACPI_SIG_SPCR, AcpiDmTableInfoSpcr,    NULL,           "Serial Port Console Redirection table"},
-    {ACPI_SIG_SPMI, AcpiDmTableInfoSpmi,    NULL,           "Server Platform Management Interface table"},
-    {ACPI_SIG_SRAT, NULL,                   AcpiDmDumpSrat, "System Resource Affinity Table"},
-    {ACPI_SIG_TCPA, AcpiDmTableInfoTcpa,    NULL,           "Trusted Computing Platform Alliance table"},
-    {ACPI_SIG_UEFI, AcpiDmTableInfoUefi,    NULL,           "UEFI Boot Optimization Table"},
-    {ACPI_SIG_WAET, AcpiDmTableInfoWaet,    NULL,           "Windows ACPI Emulated Devices Table"},
-    {ACPI_SIG_WDAT, NULL,                   AcpiDmDumpWdat, "Watchdog Action Table"},
-    {ACPI_SIG_WDRT, AcpiDmTableInfoWdrt,    NULL,           "Watchdog Resource Table"},
-    {ACPI_SIG_XSDT, NULL,                   AcpiDmDumpXsdt, "Extended System Description Table"},
-    {NULL,          NULL,                   NULL,           NULL}
+    {ACPI_SIG_ASF,  NULL,                   AcpiDmDumpAsf,  DtCompileAsf,   "Alert Standard Format table"},
+    {ACPI_SIG_BOOT, AcpiDmTableInfoBoot,    NULL,           NULL,           "Simple Boot Flag Table"},
+    {ACPI_SIG_BERT, AcpiDmTableInfoBert,    NULL,           NULL,           "Boot Error Record Table"},
+    {ACPI_SIG_CPEP, NULL,                   AcpiDmDumpCpep, DtCompileCpep,  "Corrected Platform Error Polling table"},
+    {ACPI_SIG_DBGP, AcpiDmTableInfoDbgp,    NULL,           NULL,           "Debug Port table"},
+    {ACPI_SIG_DMAR, NULL,                   AcpiDmDumpDmar, DtCompileDmar,  "DMA Remapping table"},
+    {ACPI_SIG_ECDT, AcpiDmTableInfoEcdt,    NULL,           NULL,           "Embedded Controller Boot Resources Table"},
+    {ACPI_SIG_EINJ, NULL,                   AcpiDmDumpEinj, DtCompileEinj,  "Error Injection table"},
+    {ACPI_SIG_ERST, NULL,                   AcpiDmDumpErst, DtCompileErst,  "Error Record Serialization Table"},
+    {ACPI_SIG_FADT, NULL,                   AcpiDmDumpFadt, DtCompileFadt,  "Fixed ACPI Description Table"},
+    {ACPI_SIG_HEST, NULL,                   AcpiDmDumpHest, DtCompileHest,  "Hardware Error Source Table"},
+    {ACPI_SIG_HPET, AcpiDmTableInfoHpet,    NULL,           NULL,           "High Precision Event Timer table"},
+    {ACPI_SIG_IVRS, NULL,                   AcpiDmDumpIvrs, DtCompileIvrs,  "I/O Virtualization Reporting Structure"},
+    {ACPI_SIG_MADT, NULL,                   AcpiDmDumpMadt, DtCompileMadt,  "Multiple APIC Description Table"},
+    {ACPI_SIG_MCFG, NULL,                   AcpiDmDumpMcfg, DtCompileMcfg,  "Memory Mapped Configuration table"},
+    {ACPI_SIG_MCHI, AcpiDmTableInfoMchi,    NULL,           NULL,           "Management Controller Host Interface table"},
+    {ACPI_SIG_MSCT, NULL,                   AcpiDmDumpMsct, DtCompileMsct,  "Maximum System Characteristics Table"},
+    {ACPI_SIG_RSDT, NULL,                   AcpiDmDumpRsdt, DtCompileRsdt,  "Root System Description Table"},
+    {ACPI_SIG_SBST, AcpiDmTableInfoSbst,    NULL,           NULL,           "Smart Battery Specification Table"},
+    {ACPI_SIG_SLIC, AcpiDmTableInfoSlic,    NULL,           NULL,           "Software Licensing Description Table"},
+    {ACPI_SIG_SLIT, NULL,                   AcpiDmDumpSlit, DtCompileSlit,  "System Locality Information Table"},
+    {ACPI_SIG_SPCR, AcpiDmTableInfoSpcr,    NULL,           NULL,           "Serial Port Console Redirection table"},
+    {ACPI_SIG_SPMI, AcpiDmTableInfoSpmi,    NULL,           NULL,           "Server Platform Management Interface table"},
+    {ACPI_SIG_SRAT, NULL,                   AcpiDmDumpSrat, DtCompileSrat,  "System Resource Affinity Table"},
+    {ACPI_SIG_TCPA, AcpiDmTableInfoTcpa,    NULL,           NULL,           "Trusted Computing Platform Alliance table"},
+    {ACPI_SIG_UEFI, AcpiDmTableInfoUefi,    NULL,           NULL,           "UEFI Boot Optimization Table"},
+    {ACPI_SIG_WAET, AcpiDmTableInfoWaet,    NULL,           NULL,           "Windows ACPI Emulated Devices Table"},
+    {ACPI_SIG_WDAT, NULL,                   AcpiDmDumpWdat, DtCompileWdat,  "Watchdog Action Table"},
+    {ACPI_SIG_WDRT, AcpiDmTableInfoWdrt,    NULL,           NULL,           "Watchdog Resource Table"},
+    {ACPI_SIG_XSDT, NULL,                   AcpiDmDumpXsdt, DtCompileXsdt,  "Extended System Description Table"},
+    {NULL,          NULL,                   NULL,           NULL,           NULL}
 };
 
 
@@ -328,7 +325,7 @@ AcpiTbGenerateChecksum (
  *
  ******************************************************************************/
 
-static ACPI_DMTABLE_DATA *
+ACPI_DMTABLE_DATA *
 AcpiDmGetTableData (
     char                    *Signature)
 {

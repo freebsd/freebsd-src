@@ -122,12 +122,6 @@
 
 /* Local prototypes */
 
-static void
-FlOpenFile (
-    UINT32                  FileId,
-    char                    *Filename,
-    char                    *Mode);
-
 FILE *
 FlOpenIncludeWithPrefix (
     char                    *PrefixDir,
@@ -212,7 +206,7 @@ FlFileError (
  *
  ******************************************************************************/
 
-static void
+void
 FlOpenFile (
     UINT32                  FileId,
     char                    *Filename,

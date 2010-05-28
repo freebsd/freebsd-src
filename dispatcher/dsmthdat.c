@@ -188,8 +188,7 @@ AcpiDsMethodDataInit (
         WalkState->Arguments[i].Name.Integer |= (i << 24);
         WalkState->Arguments[i].DescriptorType = ACPI_DESC_TYPE_NAMED;
         WalkState->Arguments[i].Type = ACPI_TYPE_ANY;
-        WalkState->Arguments[i].Flags =
-            ANOBJ_END_OF_PEER_LIST | ANOBJ_METHOD_ARG;
+        WalkState->Arguments[i].Flags = ANOBJ_METHOD_ARG;
     }
 
     /* Init the method locals */
@@ -201,8 +200,7 @@ AcpiDsMethodDataInit (
         WalkState->LocalVariables[i].Name.Integer |= (i << 24);
         WalkState->LocalVariables[i].DescriptorType = ACPI_DESC_TYPE_NAMED;
         WalkState->LocalVariables[i].Type = ACPI_TYPE_ANY;
-        WalkState->LocalVariables[i].Flags =
-            ANOBJ_END_OF_PEER_LIST | ANOBJ_METHOD_LOCAL;
+        WalkState->LocalVariables[i].Flags = ANOBJ_METHOD_LOCAL;
     }
 
     return_VOID;
@@ -238,7 +236,7 @@ AcpiDsMethodDataDeleteAll (
     {
         if (WalkState->LocalVariables[Index].Object)
         {
-            ACPI_DEBUG_PRINT ((ACPI_DB_EXEC, "Deleting Local%d=%p\n",
+            ACPI_DEBUG_PRINT ((ACPI_DB_EXEC, "Deleting Local%u=%p\n",
                     Index, WalkState->LocalVariables[Index].Object));
 
             /* Detach object (if present) and remove a reference */
@@ -253,7 +251,7 @@ AcpiDsMethodDataDeleteAll (
     {
         if (WalkState->Arguments[Index].Object)
         {
-            ACPI_DEBUG_PRINT ((ACPI_DB_EXEC, "Deleting Arg%d=%p\n",
+            ACPI_DEBUG_PRINT ((ACPI_DB_EXEC, "Deleting Arg%u=%p\n",
                     Index, WalkState->Arguments[Index].Object));
 
             /* Detach object (if present) and remove a reference */
@@ -322,7 +320,7 @@ AcpiDsMethodDataInitArgs (
         Index++;
     }
 
-    ACPI_DEBUG_PRINT ((ACPI_DB_EXEC, "%d args passed to method\n", Index));
+    ACPI_DEBUG_PRINT ((ACPI_DB_EXEC, "%u args passed to method\n", Index));
     return_ACPI_STATUS (AE_OK);
 }
 
@@ -429,7 +427,7 @@ AcpiDsMethodDataSetValue (
 
 
     ACPI_DEBUG_PRINT ((ACPI_DB_EXEC,
-        "NewObj %p Type %2.2X, Refs=%d [%s]\n", Object,
+        "NewObj %p Type %2.2X, Refs=%u [%s]\n", Object,
         Type, Object->Common.ReferenceCount,
         AcpiUtGetTypeName (Object->Common.Type)));
 
@@ -667,7 +665,7 @@ AcpiDsStoreObjectToLocal (
 
 
     ACPI_FUNCTION_TRACE (DsStoreObjectToLocal);
-    ACPI_DEBUG_PRINT ((ACPI_DB_EXEC, "Type=%2.2X Index=%d Obj=%p\n",
+    ACPI_DEBUG_PRINT ((ACPI_DB_EXEC, "Type=%2.2X Index=%u Obj=%p\n",
         Type, Index, ObjDesc));
 
     /* Parameter validation */

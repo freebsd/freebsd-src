@@ -562,13 +562,4 @@ void
 AcpiNsTerminate (
     void);
 
-ACPI_NAMESPACE_NODE *
-AcpiNsGetParentNode (
-    ACPI_NAMESPACE_NODE     *Node);
-
-
-ACPI_NAMESPACE_NODE *
-AcpiNsGetNextValidNode (
-    ACPI_NAMESPACE_NODE     *Node);
-
 #endif /* __ACNAMESP_H__ */
