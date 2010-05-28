@@ -1170,6 +1170,12 @@ truecmd(int argc __unused, char **argv __unused)
 int
 execcmd(int argc, char **argv)
 {
+	/*
+	 * Because we have historically not supported any options,
+	 * only treat "--" specially.
+	 */
+	if (argc > 1 && strcmp(argv[1], "--") == 0)
+		argc--, argv++;
 	if (argc > 1) {
 		struct strlist *sp;
 
