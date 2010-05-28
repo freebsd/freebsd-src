@@ -45,8 +45,6 @@ typedef void task_fn_t(void *context, int pending);
 
 struct task {
 	STAILQ_ENTRY(task) ta_link;	/* (q) link for queue */
-	u_int	ta_flags;		/* (q) state of this task */
-#define	TA_FLAGS_RUNNING	0x01
 	u_short	ta_pending;		/* (q) count times queued */
 	u_short	ta_priority;		/* (c) Priority */
 	task_fn_t *ta_func;		/* (c) task handler */
