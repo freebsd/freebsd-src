@@ -127,9 +127,6 @@ void
 mips_timer_init_params(uint64_t platform_counter_freq, int double_count)
 {
 
-	stathz = hz;
-	profhz = hz;
-
 	/*
 	 * XXX: Do not use printf here: uart code 8250 may use DELAY so this
 	 * function should  be called before cninit.
@@ -143,12 +140,29 @@ mips_timer_init_params(uint64_t platform_counter_freq, int double_count)
 	if (double_count != 0)
 		counter_freq /= 2;
 
+	/*
+	 * We want to run stathz in the neighborhood of 128hz.  We would
+	 * like profhz to run as often as possible, so we let it run on
+	 * each clock tick.  We try to honor the requested 'hz' value as
+	 * much as possible.
+	 *
+	 * If 'hz' is above 1500, then we just let the timer
+	 * (and profhz) run at hz.  If 'hz' is below 1500 but above
+	 * 750, then we let the timer run at 2 * 'hz'.  If 'hz'
+	 * is below 750 then we let the timer run at 4 * 'hz'.
+	 */
 	if (hz >= 1500)
 		timer1hz = hz;
 	else if (hz >= 750)
 		timer1hz = hz * 2;
 	else
 		timer1hz = hz * 4;
+
+	if (timer1hz < 128)
+		stathz = timer1hz;
+	else
+		stathz = timer1hz / (timer1hz / 128);
+	profhz = timer1hz;
 
 	cycles_per_tick = counter_freq / timer1hz;
 	cycles_per_usec = counter_freq / (1 * 1000 * 1000);
@@ -285,7 +299,6 @@ clock_intr(void *arg)
 
 	while (lost_ticks >= cycles_per_tick) {
 		timer1clock(TRAPF_USERMODE(tf), tf->pc);
-		timer2clock(TRAPF_USERMODE(tf), tf->pc);
 		lost_ticks -= cycles_per_tick;
 	}
 	DPCPU_SET(lost_ticks, lost_ticks);
@@ -301,7 +314,6 @@ clock_intr(void *arg)
 		(*cyclic_clock_func[cpu])(tf);
 #endif
 	timer1clock(TRAPF_USERMODE(tf), tf->pc);
-	timer2clock(TRAPF_USERMODE(tf), tf->pc);
 	critical_exit();
 	return (FILTER_HANDLED);
 }
