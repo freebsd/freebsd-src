@@ -958,12 +958,17 @@ zio_read_gang(spa_t *spa, const blkptr_t *bp, const dva_t *dva, void *buf)
 			break;
 	if (!vdev || !vdev->v_read)
 		return (EIO);
-	if (vdev->v_read(vdev, bp, &zio_gb, offset, SPA_GANGBLOCKSIZE))
+	if (vdev->v_read(vdev, NULL, &zio_gb, offset, SPA_GANGBLOCKSIZE))
 		return (EIO);
 
 	for (i = 0; i < SPA_GBH_NBLKPTRS; i++) {
-		if (zio_read(spa, &zio_gb.zg_blkptr[i], buf))
+		blkptr_t *gbp = &zio_gb.zg_blkptr[i];
+
+		if (BP_IS_HOLE(gbp))
+			continue;
+		if (zio_read(spa, gbp, buf))
 			return (EIO);
+		buf = (char*)buf + BP_GET_PSIZE(gbp);
 	}
  
 	return (0);
@@ -994,9 +999,8 @@ zio_read(spa_t *spa, const blkptr_t *bp, void *buf)
 			continue;
 
 		if (DVA_GET_GANG(dva)) {
-			printf("ZFS: gang block detected!\n");
 			if (zio_read_gang(spa, bp, dva, buf))
-				return (EIO); 
+				continue;
 		} else {
 			vdevid = DVA_GET_VDEV(dva);
 			offset = DVA_GET_OFFSET(dva);
