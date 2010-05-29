@@ -112,7 +112,7 @@ ath_hal_v1EepromAttach(struct ath_hal *ah)
 {
 	HAL_EEPROM_v1 *ee = AH_PRIVATE(ah)->ah_eeprom;
 	uint16_t athvals[AR_EEPROM_ATHEROS_MAX];	/* XXX off stack */
-	uint16_t protect, version, eeval;
+	uint16_t protect, eeprom_version, eeval;
 	uint32_t sum;
 	int i, loc;
 
@@ -138,18 +138,18 @@ ath_hal_v1EepromAttach(struct ath_hal *ah)
 	HALDEBUG(ah, HAL_DEBUG_ATTACH, "EEPROM protect 0x%x\n", protect);
 	/* XXX check proper access before continuing */
 
-	if (!ath_hal_eepromRead(ah, AR_EEPROM_VERSION, &version)) {
+	if (!ath_hal_eepromRead(ah, AR_EEPROM_VERSION, &eeprom_version)) {
 		HALDEBUG(ah, HAL_DEBUG_ANY,
 		    "%s: unable to read EEPROM version\n", __func__);
 		return HAL_EEREAD;
 	}
-	if (((version>>12) & 0xf) != 1) {
+	if (((eeprom_version>>12) & 0xf) != 1) {
 		/*
 		 * This code only groks the version 1 EEPROM layout.
 		 */
 		HALDEBUG(ah, HAL_DEBUG_ANY,
 		    "%s: unsupported EEPROM version 0x%x found\n",
-		    __func__, version);
+		    __func__, eeprom_version);
 		return HAL_EEVERSION;
 	}
 
@@ -183,7 +183,7 @@ ath_hal_v1EepromAttach(struct ath_hal *ah)
 		return HAL_ENOMEM;
 	}
 
-	ee->ee_version		= version;
+	ee->ee_version		= eeprom_version;
 	ee->ee_protect		= protect;
 	ee->ee_antenna		= athvals[2];
 	ee->ee_biasCurrents	= athvals[3];
@@ -243,7 +243,7 @@ ath_hal_v1EepromAttach(struct ath_hal *ah)
 	}
 
 	AH_PRIVATE(ah)->ah_eeprom = ee;
-	AH_PRIVATE(ah)->ah_eeversion = version;
+	AH_PRIVATE(ah)->ah_eeversion = eeprom_version;
 	AH_PRIVATE(ah)->ah_eepromDetach = v1EepromDetach;
 	AH_PRIVATE(ah)->ah_eepromGet = v1EepromGet;
 	AH_PRIVATE(ah)->ah_eepromSet = v1EepromSet;
