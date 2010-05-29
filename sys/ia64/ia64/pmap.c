@@ -1595,7 +1595,7 @@ validate:
 	if (icache_inval)
 		ia64_sync_icache(va, PAGE_SIZE);
 
-	if ((prot & VM_PROT_WRITE) != 0)
+	if ((prot & VM_PROT_WRITE) != 0 && managed)
 		vm_page_flag_set(m, PG_WRITEABLE);
 	vm_page_unlock_queues();
 	pmap_switch(oldpmap);
