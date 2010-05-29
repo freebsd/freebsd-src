@@ -111,6 +111,7 @@ __FBSDID("$FreeBSD$");
 
 #define	DEFAULT_MARKER	"<default>"
 #define	DEBUG_MARKER	"<debug>"
+#define	INCLUDE_MARKER	"<include>"
 
 struct conf_entry {
 	STAILQ_ENTRY(conf_entry) cf_nextp;
@@ -149,6 +150,11 @@ struct zipwork_entry {
 	char	 zw_fname[1];		/* the file to compress */
 };
 
+struct include_entry {
+	STAILQ_ENTRY(include_entry) inc_nextp;
+	const char *file;	/* Name of file to process */
+};
+
 typedef enum {
 	FREE_ENT, KEEP_ENT
 }	fk_entry;
@@ -156,6 +162,7 @@ typedef enum {
 STAILQ_HEAD(cflist, conf_entry);
 SLIST_HEAD(swlisthead, sigwork_entry) swhead = SLIST_HEAD_INITIALIZER(swhead);
 SLIST_HEAD(zwlisthead, zipwork_entry) zwhead = SLIST_HEAD_INITIALIZER(zwhead);
+STAILQ_HEAD(ilist, include_entry);
 
 int dbg_at_times;		/* -D Show details of 'trim_at' code */
 
@@ -189,10 +196,12 @@ char hostname[MAXHOSTNAMELEN];	/* hostname */
 
 static struct cflist *get_worklist(char **files);
 static void parse_file(FILE *cf, struct cflist *work_p, struct cflist *glob_p,
-		struct conf_entry *defconf_p);
+		    struct conf_entry *defconf_p, struct ilist *inclist);
+static void add_to_queue(const char *fname, struct ilist *inclist);
 static char *sob(char *p);
 static char *son(char *p);
 static int isnumberstr(const char *);
+static int isglobstr(const char *);
 static char *missing_field(char *p, char *errline);
 static void	 change_attrs(const char *, const struct conf_entry *);
 static fk_entry	 do_entry(struct conf_entry *);
@@ -731,13 +740,15 @@ static struct cflist *
 get_worklist(char **files)
 {
 	FILE *f;
-	const char *fname;
 	char **given;
-	struct cflist *filelist, *globlist, *cmdlist;
+	struct cflist *cmdlist, *filelist, *globlist;
 	struct conf_entry *defconf, *dupent, *ent;
+	struct ilist inclist;
+	struct include_entry *inc;
 	int gmatch, fnres;
 
 	defconf = NULL;
+	STAILQ_INIT(&inclist);
 
 	filelist = malloc(sizeof(struct cflist));
 	if (filelist == NULL)
@@ -748,21 +759,29 @@ get_worklist(char **files)
 		err(1, "malloc of globlist");
 	STAILQ_INIT(globlist);
 
-	fname = conf;
-	if (fname == NULL)
-		fname = _PATH_CONF;
+	inc = malloc(sizeof(struct include_entry));
+	if (inc == NULL)
+		err(1, "malloc of inc");
+	inc->file = conf;
+	if (inc->file == NULL)
+		inc->file = _PATH_CONF;
+	STAILQ_INSERT_TAIL(&inclist, inc, inc_nextp);
 
-	if (strcmp(fname, "-") != 0)
-		f = fopen(fname, "r");
-	else {
-		f = stdin;
-		fname = "<stdin>";
+	STAILQ_FOREACH(inc, &inclist, inc_nextp) {
+		if (strcmp(inc->file, "-") != 0)
+			f = fopen(inc->file, "r");
+		else {
+			f = stdin;
+			inc->file = "<stdin>";
+		}
+		if (!f)
+			err(1, "%s", inc->file);
+
+		if (verbose)
+			printf("Processing %s\n", inc->file);
+		parse_file(f, filelist, globlist, defconf, &inclist);
+		(void) fclose(f);
 	}
-	if (!f)
-		err(1, "%s", fname);
-
-	parse_file(f, filelist, globlist, defconf);
-	(void) fclose(f);
 
 	/*
 	 * All config-file information has been read in and turned into
@@ -965,14 +984,16 @@ expand_globs(struct cflist *work_p, struct cflist *glob_p)
  */
 static void
 parse_file(FILE *cf, struct cflist *work_p, struct cflist *glob_p,
-    struct conf_entry *defconf_p)
+    struct conf_entry *defconf_p, struct ilist *inclist)
 {
 	char line[BUFSIZ], *parse, *q;
 	char *cp, *errline, *group;
 	struct conf_entry *working;
 	struct passwd *pwd;
 	struct group *grp;
+	glob_t pglob;
 	int eol, ptm_opts, res, special;
+	size_t i;
 
 	errline = NULL;
 	while (fgets(line, BUFSIZ, cf)) {
@@ -1016,6 +1037,37 @@ parse_file(FILE *cf, struct cflist *work_p, struct cflist *glob_p,
 				*parse = '\0';
 				parse_doption(q);
 			}
+			continue;
+		} else if (strcasecmp(INCLUDE_MARKER, q) == 0) {
+			if (verbose)
+				printf("Found: %s", errline);
+			q = parse = missing_field(sob(++parse), errline);
+			parse = son(parse);
+			if (!*parse) {
+				warnx("include line missing argument:\n%s",
+				    errline);
+				continue;
+			}
+
+			*parse = '\0';
+
+			if (isglobstr(q)) {
+				res = glob(q, GLOB_NOCHECK, NULL, &pglob);
+				if (res != 0) {
+					warn("cannot expand pattern (%d): %s",
+					    res, q);
+					continue;
+				}
+
+				if (verbose > 2)
+					printf("\t+ Expanding pattern %s\n", q);
+
+				for (i = 0; i < pglob.gl_matchc; i++)
+					add_to_queue(pglob.gl_pathv[i],
+					    inclist);
+				globfree(&pglob);
+			} else
+				add_to_queue(q, inclist);
 			continue;
 		}
 
@@ -1310,6 +1362,33 @@ missing_field(char *p, char *errline)
 	if (!p || !*p)
 		errx(1, "missing field in config file:\n%s", errline);
 	return (p);
+}
+
+/*
+ * Only add to the queue if the file hasn't already been added. This is
+ * done to prevent circular include loops.
+ */
+static void
+add_to_queue(const char *fname, struct ilist *inclist)
+{
+	struct include_entry *inc;
+
+	STAILQ_FOREACH(inc, inclist, inc_nextp) {
+		if (strcmp(fname, inc->file) == 0) {
+			warnx("duplicate include detected: %s", fname);
+			return;
+		}
+	}
+
+	inc = malloc(sizeof(struct include_entry));
+	if (inc == NULL)
+		err(1, "malloc of inc");
+	inc->file = strdup(fname);
+
+	if (verbose > 2)
+		printf("\t+ Adding %s to the processing queue.\n", fname);
+
+	STAILQ_INSERT_TAIL(inclist, inc, inc_nextp);
 }
 
 static fk_entry
@@ -1914,6 +1993,19 @@ isnumberstr(const char *string)
 			return (0);
 	}
 	return (1);
+}
+
+/* Check if string contains a glob */
+static int
+isglobstr(const char *string)
+{
+	char chr;
+
+	while ((chr = *string++)) {
+		if (chr == '*' || chr == '?' || chr == '[')
+			return (1);
+	}
+	return (0);
 }
 
 /*
