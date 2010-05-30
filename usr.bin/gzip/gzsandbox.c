@@ -53,6 +53,8 @@ __FBSDID("$FreeBSD$");
 
 #ifndef NO_SANDBOX_SUPPORT
 
+int	gzsandbox(void);
+
 static char *lc_sandbox_argv[] = { __DECONST(char *, LC_USR_BIN_GZIP_SANDBOX),
 				    NULL };
 
@@ -325,8 +327,7 @@ unbzip2_wrapper(int in, int out, char *pre, size_t prelen, off_t *bytes_in)
 /*
  * Main entry point for capability-mode 
  */
-int
-cap_main(__unused int argc, __unused char *argv[])
+int gzsandbox(void)
 {
 	int fdarray[2], fdcount;
 	struct lc_host *lchp;

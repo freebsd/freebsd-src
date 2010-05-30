@@ -106,9 +106,7 @@ static int do_search_info(const Obj_Entry *obj, int, struct dl_serinfo *);
 static bool donelist_check(DoneList *, const Obj_Entry *);
 static void errmsg_restore(char *);
 static char *errmsg_save(void);
-#ifdef IN_RTLD_CAP
-static void *find_capstart(const Obj_Entry *);
-#else
+#ifndef IN_RTLD_CAP
 static void *fill_search_info(const char *, size_t, void *);
 static char *find_library(const char *, const Obj_Entry *);
 static const char *gethints(void);
@@ -352,7 +350,6 @@ _rtld(Elf_Addr *sp, func_ptr_type *exit_proc, Obj_Entry **objp)
 #ifdef IN_RTLD_CAP
     struct stat sb;
     Elf_Auxinfo aux_execfd;
-    void *capstart_ptr;
 #endif
     Elf_Auxinfo *aux_info[AT_COUNT];
     int i;
@@ -652,21 +649,7 @@ _rtld(Elf_Addr *sp, func_ptr_type *exit_proc, Obj_Entry **objp)
     *exit_proc = rtld_exit;
     *objp = obj_main;
 
-#ifdef IN_RTLD_CAP
-    /*
-     * If the object provides an alternative capability-mode specific entry
-     * point, prefer that to the ELF default entry point.  Otherwise, use the
-     * ELF default.
-     */
-    capstart_ptr = find_capstart(obj_main);
-    if (capstart_ptr == NULL) {
-	_rtld_error("_capstart not found; has the binary been compiled with -rdynamic?");
-	die();
-    }
-    return (func_ptr_type) capstart_ptr;
-#else
     return (func_ptr_type) obj_main->entry;
-#endif
 }
 
 Elf_Addr
@@ -833,25 +816,6 @@ origin_subst(const char *real, const char *origin_path)
     return (res4);
 }
 
-#ifdef IN_RTLD_CAP
-static void *
-find_capstart(const Obj_Entry *obj)
-{
-    const char *capstart_str = "_capstart";
-    const Elf_Sym *def;
-    const Obj_Entry *defobj;
-    unsigned long hash;
-
-    hash = elf_hash(capstart_str);
-    def = symlook_default(capstart_str, hash, obj, &defobj, NULL,
-	SYMLOOK_IN_PLT);
-    if (def == NULL)
-	return (NULL);
-    if (ELF_ST_TYPE(def->st_info) != STT_FUNC)
-	return (NULL);
-    return (make_function_pointer(def, defobj));
-}
-#endif
 
 static void
 die(void)

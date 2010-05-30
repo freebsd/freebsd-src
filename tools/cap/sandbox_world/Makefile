@@ -1,6 +1,6 @@
 PROG=sandbox_world
 NO_MAN=
-CFLAGS=-Wall -g -rdynamic
+CFLAGS=-Wall -g
 
 DPADD=	${LIBCAPABILITY} ${LIBSBUF}
 LDADD=	-lcapsicum -lsbuf

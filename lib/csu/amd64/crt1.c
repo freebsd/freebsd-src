@@ -45,7 +45,6 @@ extern void _fini(void);
 extern void _init(void);
 extern int main(int, char **, char **);
 extern void _start(char **, void (*)(void));
-extern void _capstart(char **, void (*)(void));
 
 #ifdef GCRT
 extern void _mcleanup(void);
@@ -92,43 +91,6 @@ __asm__("eprol:");
 #endif
 	_init();
 	exit( main(argc, argv, env) );
-}
-
-/* The Capsicum entry function. */
-void
-_capstart(char **ap, void (*cleanup)(void))
-{
-	int argc;
-	char **argv;
-	char **env;
-	const char *s;
-
-	argc = *(long *)(void *)ap;
-	argv = ap + 1;
-	env = ap + 2 + argc;
-	environ = env;
-	if (argc > 0 && argv[0] != NULL) {
-		__progname = argv[0];
-		for (s = __progname; *s != '\0'; s++)
-			if (*s == '/')
-				__progname = s + 1;
-	}
-
-	if (&_DYNAMIC != NULL)
-		atexit(cleanup);
-	else
-		_init_tls();
-
-#ifdef GCRT
-	atexit(_mcleanup);
-#endif
-	atexit(_fini);
-#ifdef GCRT
-/*	monstartup(&eprol, &etext);*/
-/*__asm__("eprol:");*/             /* JA hope and pray... */
-#endif
-	_init();
-	exit( cap_main(argc, argv, env) );
 }
 
 __asm__(".ident\t\"$FreeBSD$\"");

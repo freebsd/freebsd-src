@@ -53,6 +53,9 @@ __FBSDID("$FreeBSD$");
 
 #define	MYNAME	"sandbox_world"		/* Binary to run in sandbox. */
 
+int	ld_insandbox(void);
+int	sandbox(void);
+
 /*
  * Unsandboxed host process with full user rights.
  */
@@ -64,6 +67,8 @@ main(int argc, char *argv[])
 	struct iovec iov;
 	size_t len;
 	char ch;
+
+	if (ld_insandbox()) return sandbox();
 
 	if (argc != 1)
 		errx(-1, "usage: sandbox_world");
@@ -99,7 +104,7 @@ main(int argc, char *argv[])
  * Sandboxed process implementing a 'printf hello world' RPC.
  */
 int
-cap_main(int argc, char *argv[])
+sandbox()
 {
 	struct lc_host *lchp;
 	u_int32_t opno, seqno;
@@ -142,4 +147,6 @@ cap_main(int argc, char *argv[])
 		}
 		free(buffer);
 	}
+
+	return 0;
 }

@@ -52,12 +52,3 @@ static const struct {
     __FreeBSD_version
 };
 
-extern int cap_main(int, char **, char **) __attribute__((weak));
-int cap_main(__unused int argc, __unused char **argv, __unused char **env)
-{
-	const char warning[] =
-		"ERROR: attempting to run a regular binary in capability mode!\n\nIf you want to run a binary in a sandbox, you must provide a cap_main() function, which takes the same arguments as main().\n";
-
-	write(2, warning, sizeof(warning));
-	return (-1);
-}

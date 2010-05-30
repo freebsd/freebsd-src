@@ -259,6 +259,11 @@ static	off_t	unpack(int, int, char *, size_t, off_t *);
 
 int main(int, char **p);
 
+#ifndef NO_SANDBOX_SUPPORT
+int ld_insandbox(void);
+int gzsandbox(void);
+#endif
+
 #ifdef SMALL
 #define getopt_long(a,b,c,d,e) getopt(a,b,c)
 #else
@@ -296,6 +301,10 @@ main(int argc, char **argv)
 	int len;
 #endif
 	int ch;
+
+#ifndef NO_SANDBOX_SUPPORT
+	if (ld_insandbox()) return gzsandbox();
+#endif
 
 	/* XXX set up signals */
 

@@ -41,17 +41,4 @@ _start:	xorl	%ebp,%ebp
 	call	_start1
 	.size	_start, . - _start
 
-	.globl	_capstart
-	.type	_capstart, @function
-_capstart:	xorl	%ebp,%ebp
-	pushl	%ebp
-	movl	%esp,%ebp
-	andl	$0xfffffff0,%esp # align stack
-	leal	8(%ebp),%eax
-	pushl	%eax		# argv
-	pushl	4(%ebp)		# argc
-	pushl	%edx		# rtld cleanup
-	call	_capstart1
-	.size	_capstart, . - _capstart
-
 	.ident	"$FreeBSD$"
