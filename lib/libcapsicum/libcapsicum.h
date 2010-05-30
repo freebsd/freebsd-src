@@ -131,13 +131,8 @@ int	lch_autosandbox_isenabled(const char *servicename);
  */
 int	lch_start(const char *sandbox, char *const argv[], u_int flags,
 	    struct lc_fdlist *fds, struct lc_sandbox **lcspp);
-int	lch_start_libs(const char *sandbox, char *const argv[], u_int flags,
-	    struct lc_fdlist *fds, struct lc_sandbox **lcspp);
 int	lch_startfd(int fd_sandbox, const char *binname, char *const argv[],
 	    u_int flags, struct lc_fdlist *fds, struct lc_sandbox **lcspp);
-int	lch_startfd_libs(int fd_sandbox, const char *binname,
-	    char *const argv[], u_int flags, struct lc_fdlist *fds,
-	    struct lc_sandbox **lcspp);
 void	lch_stop(struct lc_sandbox *lcsp);
 
 /*
