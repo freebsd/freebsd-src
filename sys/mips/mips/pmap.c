@@ -1342,10 +1342,6 @@ retry:
 			TAILQ_REMOVE(&pmap->pm_pvlist, pv, pv_plist);
 			m->md.pv_list_count--;
 			TAILQ_REMOVE(&m->md.pv_list, pv, pv_list);
-			if (TAILQ_EMPTY(&m->md.pv_list)) {
-				vm_page_flag_clear(m, PG_WRITEABLE);
-				m->md.pv_flags &= ~(PV_TABLE_REF | PV_TABLE_MOD);
-			}
 			pmap_unuse_pt(pmap, va, pv->pv_ptem);
 			if (pmap != locked_pmap)
 				PMAP_UNLOCK(pmap);
@@ -1353,6 +1349,10 @@ retry:
 				allocated_pv = pv;
 			else
 				free_pv_entry(pv);
+		}
+		if (TAILQ_EMPTY(&m->md.pv_list)) {
+			vm_page_flag_clear(m, PG_WRITEABLE);
+			m->md.pv_flags &= ~(PV_TABLE_REF | PV_TABLE_MOD);
 		}
 	}
 	if (allocated_pv == NULL) {
