@@ -50,8 +50,8 @@ CFLAGS+=	-DINET6
 CFLAGS+=	-DLBL_ALIGN
 .endif
 
-DPADD=	${LIBL} ${LIBPCAP}
-LDADD=	-ll -lpcap
+DPADD=	${LIBL} ${LIBPCAP} ${LIBCAPSICUM}
+LDADD=	-ll -lpcap -lcapsicum
 .if ${MK_OPENSSL} != "no" && !defined(RELEASE_CRUNCH)
 DPADD+= ${LIBCRYPTO}
 LDADD+= -lcrypto

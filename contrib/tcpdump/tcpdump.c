@@ -77,6 +77,7 @@ extern int SIZE_BUF;
 #endif /* WIN32 */
 
 #include <sys/capability.h>
+#include <libcapsicum.h>
 
 #include "netdissect.h"
 #include "interface.h"
@@ -1198,6 +1199,12 @@ main(int argc, char **argv)
 		(void)fflush(stderr);
 	}
 #endif /* WIN32 */
+	if (lc_limitfd(STDIN_FILENO, CAP_FSTAT) < 0)
+		error("lc_limitfd: unable to limit STDIN_FILENO");
+	if (lc_limitfd(STDOUT_FILENO, CAP_FSTAT | CAP_SEEK | CAP_WRITE) < 0)
+		error("lc_limitfd: unable to limit STDIN_FILENO");
+	if (lc_limitfd(STDERR_FILENO, CAP_FSTAT | CAP_SEEK | CAP_WRITE) < 0)
+		error("lc_limitfd: unable to limit STDERR_FILENO");
 	if (cap_enter() < 0)
 		error("cap_enter: %s", pcap_strerror(errno));
 	status = pcap_loop(pd, cnt, callback, pcap_userdata);
