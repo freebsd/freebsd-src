@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $P4: //depot/projects/trustedbsd/capabilities/src/lib/libcapsicum/libcapsicum_host.c#16 $
+ * $P4: //depot/projects/trustedbsd/capabilities/src/lib/libcapsicum/libcapsicum_host.c#17 $
  */
 
 #include <sys/param.h>
@@ -367,6 +367,7 @@ lch_stop(struct lc_sandbox *lcsp)
 	lcsp->lcs_fd_sock = -1;
 	lcsp->lcs_fd_procdesc = -1;
 	lcsp->lcs_pid = -1;
+	free(lcsp);
 }
 
 int
