@@ -203,6 +203,7 @@ parsecmd(int interact)
 	 * which could happen if we add command substitution on PS1/PS2.
 	 */
 	parser_temp_free_all();
+	heredoclist = NULL;
 
 	tokpushback = 0;
 	doprompt = interact;
