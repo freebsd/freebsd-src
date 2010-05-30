@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2007-2009 Robert N. M. Watson
+ * Copyright (c) 2007-2010 Robert N. M. Watson
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -168,6 +168,7 @@ static struct cap_desc {
 	{ CAP_MAC_GET,		"mg" },
 	{ CAP_MAC_SET,		"ms" },
 	{ CAP_ACCEPT,		"at" },
+	{ CAP_CONNECT,		"co" },
 	{ CAP_BIND,		"bd" },
 	{ CAP_GETSOCKOPT,	"gs" },
 	{ CAP_SETSOCKOPT,	"ss" },
@@ -182,6 +183,17 @@ static struct cap_desc {
 	{ CAP_PDGETPID,		"pg" },
 	{ CAP_PDWAIT,		"pw" },
 	{ CAP_PDKILL,		"pk" },
+	{ CAP_MAPEXEC,		"me" },
+	{ CAP_TTYHOOK,		"th" },
+	{ CAP_FCHDIR,		"cd" },
+	{ CAP_FSCK,		"fk" },
+	{ CAP_ATBASE,		"ab" },
+	{ CAP_ABSOLUTEPATH,	"ap" },
+	{ CAP_CREATE,		"cr" },
+	{ CAP_DELETE,		"de" },
+	{ CAP_MKDIR,		"md" },
+	{ CAP_RMDIR,		"rm" },
+	{ CAP_MKFIFO,		"mf" },
 };
 static const u_int	cap_desc_count = sizeof(cap_desc) /
 			    sizeof(cap_desc[0]);
@@ -414,20 +426,10 @@ procstat_files(pid_t pid, struct kinfo_proc *kipp)
 		}
 
 		switch (kif->kf_type) {
-		case KF_TYPE_VNODE:
-		case KF_TYPE_FIFO:
-		case KF_TYPE_PTS:
-			printf("%-3s ", "-");
-			break;
-
 		case KF_TYPE_SOCKET:
 			printf("%-3s ",
 			    protocol_to_string(kif->kf_sock_domain,
 			    kif->kf_sock_type, kif->kf_sock_protocol));
-			break;
-
-		case KF_TYPE_PROCDESC:
-			printf("%-3s %d", "-", kif->kf_pid);
 			break;
 
 		default:
