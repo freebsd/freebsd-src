@@ -200,12 +200,12 @@ loop_modevent(module_t mod, int type, void *data)
 }
 
 static moduledata_t loop_mod = {
-	"loop",
+	"if_lo",
 	loop_modevent,
 	0
 };
 
-DECLARE_MODULE(loop, loop_mod, SI_SUB_PROTO_IFATTACHDOMAIN, SI_ORDER_ANY);
+DECLARE_MODULE(if_lo, loop_mod, SI_SUB_PROTO_IFATTACHDOMAIN, SI_ORDER_ANY);
 
 int
 looutput(struct ifnet *ifp, struct mbuf *m, struct sockaddr *dst,
