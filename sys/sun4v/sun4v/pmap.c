@@ -1133,10 +1133,6 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_prot_t access, vm_page_t m,
 		else if (!wired && (otte_data & VTD_WIRED))
 			pmap->pm_stats.wired_count--;
 
-		/*
-		 * We might be turning off write access to the page,
-		 * so we go ahead and sense modify status.
-		 */
 		if (otte_data & VTD_MANAGED) {
 			om = m;
 			tte_data |= VTD_MANAGED;
