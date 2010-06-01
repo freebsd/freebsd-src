@@ -256,8 +256,8 @@ test_sysctls(int before_inflight, int before_openfiles)
 
 	after_openfiles = getopenfiles();
 	if (after_openfiles != before_openfiles)
-		warnx("%s: before: %d, after: %d", test, before_openfiles,
-		    after_openfiles);
+		warnx("%s: before openfiles: %d, after openfiles: %d",
+		    test, before_openfiles, after_openfiles);
 }
 
 static void
