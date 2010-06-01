@@ -459,6 +459,13 @@ devfs_close(struct vop_close_args *ap)
 	int vp_locked, error;
 
 	/*
+	 * XXX: Don't call d_close() if we were called because of
+	 * XXX: insmntque1() failure.
+	 */
+	if (vp->v_data == NULL)
+		return (0);
+
+	/*
 	 * Hack: a tty device that is a controlling terminal
 	 * has a reference from the session structure.
 	 * We cannot easily tell that a character device is
