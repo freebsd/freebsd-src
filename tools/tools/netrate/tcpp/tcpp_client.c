@@ -33,9 +33,11 @@
 #include <sys/socket.h>
 #include <sys/sysctl.h>
 #include <sys/time.h>
+#include <sys/uio.h>
 #include <sys/wait.h>
 
 #include <netinet/in.h>
+#include <netinet/tcp.h>
 
 #include <err.h>
 #include <errno.h>
@@ -82,6 +84,7 @@ static int			 kq;
 static int			 started;	/* Number started so far. */
 static int			 finished;	/* Number finished so far. */
 static int			 counter;	/* IP number offset. */
+static uint64_t			 payload_len;
 
 static struct connection *
 tcpp_client_newconn(void)
@@ -109,6 +112,9 @@ tcpp_client_newconn(void)
 	i = 1;
 	if (setsockopt(fd, SOL_SOCKET, SO_NOSIGPIPE, &i, sizeof(i)) < 0)
 		err(-1, "setsockopt");
+	i = 1;
+	if (setsockopt(fd, IPPROTO_TCP, TCP_NODELAY, &i, sizeof(i)) < 0)
+		err(-1, "setsockopt");
 #if 0
 	i = 1;
 	if (setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &i, sizeof(i)) < 0)
@@ -131,7 +137,7 @@ tcpp_client_newconn(void)
 	conn->conn_magic = CONNECTION_MAGIC;
 	conn->conn_fd = fd;
 	conn->conn_header.th_magic = TCPP_MAGIC;
-	conn->conn_header.th_len = bflag;
+	conn->conn_header.th_len = payload_len;
 	tcpp_header_encode(&conn->conn_header);
 
 	EV_SET(&kev, fd, EVFILT_WRITE, EV_ADD, 0, 0, conn);
@@ -156,16 +162,22 @@ static void
 tcpp_client_handleconn(struct kevent *kev)
 {
 	struct connection *conn;
-	ssize_t len;
+	struct iovec iov[2];
+	ssize_t len, header_left;
 
 	conn = kev->udata;
 	if (conn->conn_magic != CONNECTION_MAGIC)
 		errx(-1, "tcpp_client_handleconn: magic");
 
 	if (conn->conn_header_sent < sizeof(conn->conn_header)) {
-		len = write(conn->conn_fd, ((u_char *)&conn->conn_header) +
-		    conn->conn_header_sent, sizeof(conn->conn_header) -
-		    conn->conn_header_sent);
+		header_left = sizeof(conn->conn_header) -
+		    conn->conn_header_sent;
+		iov[0].iov_base = ((u_char *)&conn->conn_header) +
+		    conn->conn_header_sent;
+		iov[0].iov_len = header_left;
+		iov[1].iov_base = buffer;
+		iov[1].iov_len = min(sizeof(buffer), payload_len);
+		len = writev(conn->conn_fd, iov, 2);
 		if (len < 0) {
 			tcpp_client_closeconn(conn);
 			err(-1, "tcpp_client_handleconn: header write");
@@ -175,10 +187,14 @@ tcpp_client_handleconn(struct kevent *kev)
 			errx(-1, "tcpp_client_handleconn: header write "
 			    "premature EOF");
 		}
-		conn->conn_header_sent += len;
+		if (len > header_left) {
+			conn->conn_data_sent += (len - header_left);
+			conn->conn_header_sent += header_left;
+		} else
+			conn->conn_header_sent += len;
 	} else {
 		len = write(conn->conn_fd, buffer, min(sizeof(buffer),
-		    bflag - conn->conn_data_sent));
+		    payload_len - conn->conn_data_sent));
 		if (len < 0) {
 			tcpp_client_closeconn(conn);
 			err(-1, "tcpp_client_handleconn: data write");
@@ -189,12 +205,12 @@ tcpp_client_handleconn(struct kevent *kev)
 			    "premature EOF");
 		}
 		conn->conn_data_sent += len;
-		if (conn->conn_data_sent >= bflag) {
-			/*
-			 * All is well.
-			 */
-			tcpp_client_closeconn(conn);
-		}
+	}
+	if (conn->conn_data_sent >= payload_len) {
+		/*
+		 * All is well.
+		 */
+		tcpp_client_closeconn(conn);
 	}
 }
 
@@ -260,6 +276,11 @@ tcpp_client(void)
 	size_t size;
 	pid_t pid;
 	int i, failed, status;
+
+	if (bflag < sizeof(struct tcpp_header))
+		errx(-1, "Can't use -b less than %zu\n",
+		   sizeof(struct tcpp_header));
+	payload_len = bflag - sizeof(struct tcpp_header);
 
 	pid_list = malloc(sizeof(*pid_list) * pflag);
 	if (pid_list == NULL)
