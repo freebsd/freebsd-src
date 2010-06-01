@@ -31,7 +31,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $P4: //depot/projects/trustedbsd/capabilities/src/lib/libcapsicum/libcapsicum_fdlist.c#10 $
+ * $P4: //depot/projects/trustedbsd/capabilities/src/lib/libcapsicum/libcapsicum_fdlist.c#11 $
  */
 
 #include <sys/mman.h>
@@ -466,12 +466,6 @@ lc_fdlist_reorder(struct lc_fdlist *lfp)
 
 	LOCK(lfp);
 	lfsp = lfp->lf_storage;
-
-	/* Do we really need to do this? */
-	if (lfsp->count == 0) {
-		UNLOCK(lfp);
-		return (0);
-	}
 
 	/*
 	 * Identify the highest source file descriptor we care about so that
