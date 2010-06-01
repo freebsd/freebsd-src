@@ -255,6 +255,11 @@ typedef struct Struct_SymCache {
     const Obj_Entry *obj;	/* Shared object which defines it */
 } SymCache;
 
+/*
+ * Storage for arrays of file descriptors.
+ */
+struct Struct_FDArray;
+
 extern void _rtld_error(const char *, ...) __printflike(1, 2);
 extern Obj_Entry *map_object(int, const char *, const struct stat *);
 extern void *xcalloc(size_t);
@@ -287,6 +292,11 @@ void *allocate_module_tls(int index);
 bool allocate_tls_offset(Obj_Entry *obj);
 void free_tls_offset(Obj_Entry *obj);
 const Ver_Entry *fetch_ventry(const Obj_Entry *obj, unsigned long);
+bool fdarray_init(struct Struct_FDArray*);
+bool fdarray_append(struct Struct_FDArray*, int);
+int* fdarray_get(struct Struct_FDArray*);
+int  fdarray_lock(struct Struct_FDArray*);
+void fdarray_unlock(struct Struct_FDArray*, int);
 
 /*
  * MD function declarations.
