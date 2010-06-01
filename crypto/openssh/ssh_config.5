@@ -34,9 +34,9 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $OpenBSD: ssh_config.5,v 1.129 2010/03/05 10:28:21 djm Exp $
+.\" $OpenBSD: ssh_config.5,v 1.130 2010/03/26 01:06:13 dtucker Exp $
 .\" $FreeBSD$
-.Dd March 5 2010
+.Dd March 26 2010
 .Dt SSH_CONFIG 5
 .Os
 .Sh NAME
@@ -735,11 +735,7 @@ This allows a client to prefer one method (e.g.\&
 over another method (e.g.\&
 .Cm password )
 The default for this option is:
-.Do gssapi-with-mic ,
-hostbased,
-publickey,
-keyboard-interactive,
-password
+.Do gssapi-with-mic,hostbased,publickey,keyboard-interactive,password
 .Dc .
 .It Cm Protocol
 Specifies the protocol versions
@@ -1087,7 +1083,7 @@ in
 Specifies a string to append to the regular version string to identify
 OS- or site-specific modifications.
 The default is
-.Dq FreeBSD-20100308 .
+.Dq FreeBSD-20100428 .
 .It Cm VisualHostKey
 If this flag is set to
 .Dq yes ,

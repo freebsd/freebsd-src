@@ -40,7 +40,7 @@ UTILS="alias,\
 
 set -e
 
-# With 'command', variable assignments affect the shell environment.
+# With 'command', variable assignments do not affect the shell environment.
 
 set -- ${SPECIAL}
 for cmd in "$@"

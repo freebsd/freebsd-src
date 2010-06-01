@@ -82,6 +82,7 @@ LIBLN?=		"don't use LIBLN, use LIBL"
 .if ${MK_BIND} != "no"
 LIBLWRES?=	${DESTDIR}${LIBDIR}/liblwres.a
 .endif
+LIBLZMA?=	${DESTDIR}${LIBDIR}/liblzma.a
 LIBM?=		${DESTDIR}${LIBDIR}/libm.a
 LIBMAGIC?=	${DESTDIR}${LIBDIR}/libmagic.a
 LIBMD?=		${DESTDIR}${LIBDIR}/libmd.a
@@ -128,6 +129,7 @@ MINUSLPAM+=	-lypclnt
 
 LIBPANEL?=	${DESTDIR}${LIBDIR}/libpanel.a
 LIBPCAP?=	${DESTDIR}${LIBDIR}/libpcap.a
+LIBPKG?=	${DESTDIR}${LIBDIR}/libpkg.a
 LIBPMC?=	${DESTDIR}${LIBDIR}/libpmc.a
 LIBPROC?=	${DESTDIR}${LIBDIR}/libproc.a
 LIBPTHREAD?=	${DESTDIR}${LIBDIR}/libpthread.a

@@ -28,9 +28,7 @@
  */
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/resourcevar.h>	/* defines plimit structure in proc struct */
 #include <sys/kernel.h>
-#include <sys/proc.h>
 #include <sys/fcntl.h>
 #include <sys/bio.h>
 #include <sys/buf.h>
@@ -235,7 +233,6 @@ smbfs_writevnode(struct vnode *vp, struct uio *uiop,
 	struct smbmount *smp = VTOSMBFS(vp);
 	struct smbnode *np = VTOSMB(vp);
 	struct smb_cred scred;
-	struct proc *p;
 	struct thread *td;
 	int error = 0;
 
@@ -249,7 +246,6 @@ smbfs_writevnode(struct vnode *vp, struct uio *uiop,
 /*	if (uiop->uio_offset + uiop->uio_resid > smp->nm_maxfilesize)
 		return (EFBIG);*/
 	td = uiop->uio_td;
-	p = td->td_proc;
 	if (ioflag & (IO_APPEND | IO_SYNC)) {
 		if (np->n_flag & NMODIFIED) {
 			smbfs_attr_cacheremove(vp);
@@ -271,16 +267,10 @@ smbfs_writevnode(struct vnode *vp, struct uio *uiop,
 	}
 	if (uiop->uio_resid == 0)
 		return 0;
-	if (p != NULL) {
-		PROC_LOCK(p);
-		if (uiop->uio_offset + uiop->uio_resid >
-		    lim_cur(p, RLIMIT_FSIZE)) {
-			psignal(p, SIGXFSZ);
-			PROC_UNLOCK(p);
-			return EFBIG;
-		}
-		PROC_UNLOCK(p);
-	}
+
+	if (vn_rlimit_fsize(vp, uiop, td))
+		return (EFBIG);
+
 	smb_makescred(&scred, td, cred);
 	error = smb_write(smp->sm_share, np->n_fid, uiop, &scred);
 	SMBVDEBUG("after: ofs=%d,resid=%d\n",(int)uiop->uio_offset, uiop->uio_resid);
@@ -450,12 +440,13 @@ smbfs_getpages(ap)
 
 	VM_OBJECT_LOCK(object);
 	if (m->valid != 0) {
-		vm_page_lock_queues();
 		for (i = 0; i < npages; ++i) {
-			if (i != reqpage)
+			if (i != reqpage) {
+				vm_page_lock(pages[i]);
 				vm_page_free(pages[i]);
+				vm_page_unlock(pages[i]);
+			}
 		}
-		vm_page_unlock_queues();
 		VM_OBJECT_UNLOCK(object);
 		return 0;
 	}
@@ -488,19 +479,19 @@ smbfs_getpages(ap)
 	VM_OBJECT_LOCK(object);
 	if (error && (uio.uio_resid == count)) {
 		printf("smbfs_getpages: error %d\n",error);
-		vm_page_lock_queues();
 		for (i = 0; i < npages; i++) {
-			if (reqpage != i)
+			if (reqpage != i) {
+				vm_page_lock(pages[i]);
 				vm_page_free(pages[i]);
+				vm_page_unlock(pages[i]);
+			}
 		}
-		vm_page_unlock_queues();
 		VM_OBJECT_UNLOCK(object);
 		return VM_PAGER_ERROR;
 	}
 
 	size = count - uio.uio_resid;
 
-	vm_page_lock_queues();
 	for (i = 0, toff = 0; i < npages; i++, toff = nextoff) {
 		vm_page_t m;
 		nextoff = toff + PAGE_SIZE;
@@ -544,17 +535,23 @@ smbfs_getpages(ap)
 			 * now tell them that it is ok to use.
 			 */
 			if (!error) {
-				if (m->oflags & VPO_WANTED)
+				if (m->oflags & VPO_WANTED) {
+					vm_page_lock(m);
 					vm_page_activate(m);
-				else
+					vm_page_unlock(m);
+				} else {
+					vm_page_lock(m);
 					vm_page_deactivate(m);
+					vm_page_unlock(m);
+				}
 				vm_page_wakeup(m);
 			} else {
+				vm_page_lock(m);
 				vm_page_free(m);
+				vm_page_unlock(m);
 			}
 		}
 	}
-	vm_page_unlock_queues();
 	VM_OBJECT_UNLOCK(object);
 	return 0;
 #endif /* SMBFS_RWGENERIC */

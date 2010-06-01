@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 18, 2008
+.Dd April 22, 2010
 .Dt GPART 8
 .Os
 .Sh NAME
@@ -37,6 +37,7 @@ lines in your kernel configuration file:
 .Bd -ragged -offset indent
 .Cd "options GEOM_PART_APM"
 .Cd "options GEOM_PART_BSD"
+.Cd "options GEOM_PART_EBR"
 .Cd "options GEOM_PART_GPT"
 .Cd "options GEOM_PART_MBR"
 .Cd "options GEOM_PART_PC98"
@@ -52,6 +53,10 @@ The
 option adds support for the traditional
 .Bx
 disklabel.
+The
+.Dv GEOM_PART_EBR
+option adds support for the Extended Boot Record (EBR),
+which is used to define a logical partition.
 The
 .Dv GEOM_PART_GPT
 option adds support for the GUID Partition Table (GPT)
@@ -118,6 +123,13 @@ utility:
 .Fl i Ar index
 .Op Fl l Ar label
 .Op Fl t Ar type
+.Op Fl f Ar flags
+.Ar geom
+.\" ==== RESIZE ====
+.Nm
+.Cm resize
+.Fl i Ar index
+.Op Fl s Ar size
 .Op Fl f Ar flags
 .Ar geom
 .\" ==== SET ====
@@ -315,6 +327,30 @@ To change the label of a partition, specify the new label with the
 option.
 Not all partitioning schemes support labels and it is invalid to
 try to change a partition label in such cases.
+.Pp
+Additional options include:
+.Bl -tag -width 10n
+.It Fl f Ar flags
+Additional operational flags.
+See the section entitled
+.Sx "OPERATIONAL FLAGS"
+below for a discussion
+about its use.
+.El
+.\" ==== RESIZE ====
+.It Cm resize
+Resize a partition from geom
+.Ar geom
+and further identified by the
+.Fl i Ar index
+option. New partition size is expressed in logical block
+numbers and can be given by the 
+.Fl s Ar size
+option. If
+.Fl s
+option is ommited then new size is automatically calculated
+to maximum available from given geom
+.Ar geom .
 .Pp
 Additional options include:
 .Bl -tag -width 10n

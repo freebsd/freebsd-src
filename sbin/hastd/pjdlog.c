@@ -228,7 +228,7 @@ pjdlogv_common(int loglevel, int debuglevel, int error, const char *fmt,
 
 		len = snprintf(log, sizeof(log), "%s", pjdlog_prefix);
 		if ((size_t)len < sizeof(log))
-			len = vsnprintf(log + len, sizeof(log) - len, fmt, ap);
+			len += vsnprintf(log + len, sizeof(log) - len, fmt, ap);
 		if (error != -1 && (size_t)len < sizeof(log)) {
 			(void)snprintf(log + len, sizeof(log) - len, ": %s.",
 			    strerror(error));

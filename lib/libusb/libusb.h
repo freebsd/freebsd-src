@@ -178,7 +178,7 @@ enum libusb_debug_level {
 struct libusb_context;
 struct libusb_device;
 struct libusb_transfer;
-struct libusb20_device;
+struct libusb_device_handle;
 
 struct libusb_pollfd {
 	int	fd;
@@ -187,7 +187,7 @@ struct libusb_pollfd {
 
 typedef struct libusb_context libusb_context;
 typedef struct libusb_device libusb_device;
-typedef struct libusb20_device libusb_device_handle;
+typedef struct libusb_device_handle libusb_device_handle;
 typedef struct libusb_pollfd libusb_pollfd;
 typedef void (*libusb_pollfd_added_cb) (int fd, short events, void *user_data);
 typedef void (*libusb_pollfd_removed_cb) (int fd, void *user_data);

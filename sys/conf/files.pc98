@@ -151,7 +151,7 @@ i386/i386/io.c			optional io
 i386/i386/io_apic.c		optional apic
 i386/i386/k6_mem.c		optional mem
 i386/i386/legacy.c		standard
-i386/i386/local_apic.c		optional apic
+x86/x86/local_apic.c		optional apic
 i386/i386/locore.s		standard	no-obj
 i386/i386/mca.c			standard
 i386/i386/mem.c			optional mem

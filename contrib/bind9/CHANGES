@@ -1,3 +1,8 @@
+	--- 9.6.2-P2 released ---
+
+2876.	[bug]		Named could return SERVFAIL for negative responses
+			from unsigned zones. [RT #21131]
+
 	--- 9.6.2-P1 released ---
 
 2852.	[bug]		Handle broken DNSSEC trust chains better. [RT #15619]

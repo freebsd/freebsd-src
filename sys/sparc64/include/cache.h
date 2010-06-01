@@ -113,6 +113,10 @@ extern cache_flush_t *cache_flush;
 extern dcache_page_inval_t *dcache_page_inval;
 extern icache_page_inval_t *icache_page_inval;
 
+cache_flush_t zeus_cache_flush;
+dcache_page_inval_t zeus_dcache_page_inval;
+icache_page_inval_t zeus_icache_page_inval;
+
 #endif /* KERNEL */
 
 #endif /* !LOCORE */

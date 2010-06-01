@@ -30,7 +30,7 @@
 struct usb_symlink;		/* UGEN */
 struct usb_device;		/* linux compat */
 
-#define	USB_DEFAULT_XFER_MAX 2
+#define	USB_CTRL_XFER_MAX 2
 
 /* "usb_parse_config()" commands */
 
@@ -113,11 +113,14 @@ struct usb_power_save {
 struct usb_device {
 	struct usb_clear_stall_msg cs_msg[2];	/* generic clear stall
 						 * messages */
-	struct sx default_sx[2];
-	struct mtx default_mtx[1];
-	struct cv default_cv[2];
+	struct sx ctrl_sx;
+	struct sx enum_sx;
+	struct sx sr_sx;
+	struct mtx device_mtx;
+	struct cv ctrlreq_cv;
+	struct cv ref_cv;
 	struct usb_interface *ifaces;
-	struct usb_endpoint default_ep;	/* Control Endpoint 0 */
+	struct usb_endpoint ctrl_ep;	/* Control Endpoint 0 */
 	struct usb_endpoint *endpoints;
 	struct usb_power_save pwr_save;/* power save data */
 	struct usb_bus *bus;		/* our USB BUS */
@@ -126,13 +129,13 @@ struct usb_device {
 	struct usb_device *parent_hs_hub;	/* high-speed parent HUB */
 	struct usb_config_descriptor *cdesc;	/* full config descr */
 	struct usb_hub *hub;		/* only if this is a hub */
-	struct usb_xfer *default_xfer[USB_DEFAULT_XFER_MAX];
+	struct usb_xfer *ctrl_xfer[USB_CTRL_XFER_MAX];
 	struct usb_temp_data *usb_template_ptr;
 	struct usb_endpoint *ep_curr;	/* current clear stall endpoint */
 #if USB_HAVE_UGEN
 	struct usb_fifo *fifo[USB_FIFO_MAX];
 	struct usb_symlink *ugen_symlink;	/* our generic symlink */
-	struct cdev *default_dev;	/* Control Endpoint 0 device node */
+	struct cdev *ctrl_dev;	/* Control Endpoint 0 device node */
 	LIST_HEAD(,usb_fs_privdata) pd_list;
 	char	ugen_name[20];		/* name of ugenX.X device */
 #endif
@@ -164,7 +167,7 @@ struct usb_device {
 
 	struct usb_device_flags flags;
 
-	struct usb_endpoint_descriptor default_ep_desc;	/* for endpoint 0 */
+	struct usb_endpoint_descriptor ctrl_ep_desc;	/* for endpoint 0 */
 	struct usb_device_descriptor ddesc;	/* device descriptor */
 
 	char	*serial;		/* serial number */
@@ -213,6 +216,8 @@ void	usb_set_device_state(struct usb_device *udev,
 	    enum usb_dev_state state);
 void	usbd_enum_lock(struct usb_device *);
 void	usbd_enum_unlock(struct usb_device *);
+void	usbd_sr_lock(struct usb_device *);
+void	usbd_sr_unlock(struct usb_device *);
 uint8_t usbd_enum_is_locked(struct usb_device *);
 
 #endif					/* _USB_DEVICE_H_ */

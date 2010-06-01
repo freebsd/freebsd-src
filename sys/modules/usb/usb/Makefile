@@ -31,7 +31,7 @@ S=     ${.CURDIR}/../../..
 
 KMOD=	usb
 SRCS=	bus_if.h device_if.h usb_if.h usb_if.c vnode_if.h \
-	opt_usb.h opt_bus.h \
+	opt_usb.h opt_bus.h opt_ddb.h \
 	usbdevs.h usbdevs_data.h \
 	usb_busdma.c usb_controller.c usb_compat_linux.c usb_core.c usb_debug.c \
 	usb_dev.c usb_device.c usb_dynamic.c usb_error.c usb_generic.c \

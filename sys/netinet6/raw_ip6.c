@@ -119,10 +119,10 @@ VNET_DECLARE(struct inpcbinfo, ripcbinfo);
 #define	V_ripcb				VNET(ripcb)
 #define	V_ripcbinfo			VNET(ripcbinfo)
 
-VNET_DEFINE(struct rip6stat, rip6stat);
-
 extern u_long	rip_sendspace;
 extern u_long	rip_recvspace;
+
+VNET_DEFINE(struct rip6stat, rip6stat);
 
 /*
  * Hooks for multicast routing. They all default to NULL, so leave them not
@@ -465,7 +465,7 @@ rip6_output(m, va_alist)
 	    &oifp, &in6a);
 	if (error)
 		goto bad;
-	error = prison_get_ip6(in6p->inp_cred, &in6a);
+	error = prison_check_ip6(in6p->inp_cred, &in6a);
 	if (error != 0)
 		goto bad;
 	ip6->ip6_src = in6a;

@@ -26,8 +26,6 @@
 #ifndef _SYS_TXG_IMPL_H
 #define	_SYS_TXG_IMPL_H
 
-#pragma ident	"%Z%%M%	%I%	%E% SMI"
-
 #include <sys/spa.h>
 #include <sys/txg.h>
 
@@ -66,7 +64,6 @@ typedef struct tx_state {
 
 	kthread_t	*tx_sync_thread;
 	kthread_t	*tx_quiesce_thread;
-	kthread_t	*tx_timelimit_thread;
 } tx_state_t;
 
 #ifdef	__cplusplus

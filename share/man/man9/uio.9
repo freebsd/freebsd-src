@@ -26,8 +26,8 @@
 .\" $FreeBSD$
 .\"
 .Dd March 21, 2010
-.Os
 .Dt UIO 9
+.Os
 .Sh NAME
 .Nm uio ,
 .Nm uiomove
@@ -115,18 +115,6 @@ space.
 On success
 .Fn uiomove
 will return 0, on error it will return an appropriate errno.
-.Sh ERRORS
-.Fn uiomove
-will fail and return the following error code if:
-.Bl -tag -width Er
-.It Bq Er EFAULT
-The invoked
-.Xr copyin 9
-or
-.Xr copyout 9
-returned
-.Er EFAULT
-.El
 .Sh EXAMPLES
 The idea is that the driver maintains a private buffer for its data,
 and processes the request in chunks of maximal the size of this
@@ -167,6 +155,18 @@ fooread(dev_t dev, struct uio *uio, int flag)
 	return (rv);
 }
 .Ed
+.Sh ERRORS
+.Fn uiomove
+will fail and return the following error code if:
+.Bl -tag -width Er
+.It Bq Er EFAULT
+The invoked
+.Xr copyin 9
+or
+.Xr copyout 9
+returned
+.Er EFAULT
+.El
 .Sh SEE ALSO
 .Xr read 2 ,
 .Xr readv 2 ,

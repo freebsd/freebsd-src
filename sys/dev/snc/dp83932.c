@@ -177,7 +177,7 @@ sncconfig(sc, media, nmedia, defmedia, myea)
 	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
         ifp->if_init = sncinit;
         ifp->if_mtu = ETHERMTU;
-	IFQ_SET_MAXLEN(&ifp->if_snd, IFQ_MAXLEN);
+	IFQ_SET_MAXLEN(&ifp->if_snd, ifqmaxlen);
 
 	/* Initialize media goo. */
 	ifmedia_init(&sc->sc_media, 0, snc_mediachange,

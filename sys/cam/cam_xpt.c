@@ -446,55 +446,41 @@ xptioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag, struct thread *td
 		inccb = (union ccb *)addr;
 
 		bus = xpt_find_bus(inccb->ccb_h.path_id);
-		if (bus == NULL) {
-			error = EINVAL;
+		if (bus == NULL)
+			return (EINVAL);
+
+		switch (inccb->ccb_h.func_code) {
+		case XPT_SCAN_BUS:
+		case XPT_RESET_BUS:
+			if (inccb->ccb_h.target_id != CAM_TARGET_WILDCARD ||
+			    inccb->ccb_h.target_lun != CAM_LUN_WILDCARD) {
+				xpt_release_bus(bus);
+				return (EINVAL);
+			}
+			break;
+		case XPT_SCAN_TGT:
+			if (inccb->ccb_h.target_id == CAM_TARGET_WILDCARD ||
+			    inccb->ccb_h.target_lun != CAM_LUN_WILDCARD) {
+				xpt_release_bus(bus);
+				return (EINVAL);
+			}
+			break;
+		default:
 			break;
 		}
 
 		switch(inccb->ccb_h.func_code) {
 		case XPT_SCAN_BUS:
 		case XPT_RESET_BUS:
-			if ((inccb->ccb_h.target_id != CAM_TARGET_WILDCARD)
-			 || (inccb->ccb_h.target_lun != CAM_LUN_WILDCARD)) {
-				error = EINVAL;
-				break;
-			}
-			/* FALLTHROUGH */
 		case XPT_PATH_INQ:
 		case XPT_ENG_INQ:
 		case XPT_SCAN_LUN:
+		case XPT_SCAN_TGT:
 
 			ccb = xpt_alloc_ccb();
 
 			CAM_SIM_LOCK(bus->sim);
-			/* Ensure passed in target/lun supported on this bus. */
-			if ((inccb->ccb_h.target_id != CAM_TARGET_WILDCARD) ||
-			    (inccb->ccb_h.target_lun != CAM_LUN_WILDCARD)) {
-				if (xpt_create_path(&ccb->ccb_h.path,
-					    xpt_periph,
-					    inccb->ccb_h.path_id,
-					    CAM_TARGET_WILDCARD,
-					    CAM_LUN_WILDCARD) != CAM_REQ_CMP) {
-					error = EINVAL;
-					CAM_SIM_UNLOCK(bus->sim);
-					xpt_free_ccb(ccb);
-					break;
-				}
-				xpt_setup_ccb(&ccb->ccb_h, ccb->ccb_h.path,
-				    inccb->ccb_h.pinfo.priority);
-				ccb->ccb_h.func_code = XPT_PATH_INQ;
-				xpt_action(ccb);
-				xpt_free_path(ccb->ccb_h.path);
-				if ((inccb->ccb_h.target_id != CAM_TARGET_WILDCARD &&
-				    inccb->ccb_h.target_id > ccb->cpi.max_target) ||
-				    (inccb->ccb_h.target_lun != CAM_LUN_WILDCARD &&
-				    inccb->ccb_h.target_lun > ccb->cpi.max_lun)) {
-					error = EINVAL;
-					CAM_SIM_UNLOCK(bus->sim);
-					xpt_free_ccb(ccb);
-					break;
-				}
-			}
+
 			/*
 			 * Create a path using the bus, target, and lun the
 			 * user passed in.
@@ -866,11 +852,21 @@ xpt_rescan(union ccb *ccb)
 	struct ccb_hdr *hdr;
 
 	/* Prepare request */
-	if (ccb->ccb_h.path->target->target_id == CAM_TARGET_WILDCARD ||
+	if (ccb->ccb_h.path->target->target_id == CAM_TARGET_WILDCARD &&
 	    ccb->ccb_h.path->device->lun_id == CAM_LUN_WILDCARD)
 		ccb->ccb_h.func_code = XPT_SCAN_BUS;
-	else
+	else if (ccb->ccb_h.path->target->target_id != CAM_TARGET_WILDCARD &&
+	    ccb->ccb_h.path->device->lun_id == CAM_LUN_WILDCARD)
+		ccb->ccb_h.func_code = XPT_SCAN_TGT;
+	else if (ccb->ccb_h.path->target->target_id != CAM_TARGET_WILDCARD &&
+	    ccb->ccb_h.path->device->lun_id != CAM_LUN_WILDCARD)
 		ccb->ccb_h.func_code = XPT_SCAN_LUN;
+	else {
+		xpt_print(ccb->ccb_h.path, "illegal scan path\n");
+		xpt_free_path(ccb->ccb_h.path);
+		xpt_free_ccb(ccb);
+		return;
+	}
 	ccb->ccb_h.ppriv_ptr1 = ccb->ccb_h.cbfcnp;
 	ccb->ccb_h.cbfcnp = xpt_rescan_done;
 	xpt_setup_ccb(&ccb->ccb_h, ccb->ccb_h.path, CAM_PRIORITY_XPT);
@@ -4901,6 +4897,8 @@ camisr_runqueue(void *V_queue)
 			if ((dev->flags & CAM_DEV_TAG_AFTER_COUNT) != 0
 			 && (--dev->tag_delay_count == 0))
 				xpt_start_tags(ccb_h->path);
+			if (!device_is_send_queued(dev))
+				xpt_schedule_dev_sendq(ccb_h->path->bus, dev);
 		}
 
 		if (ccb_h->status & CAM_RELEASE_SIMQ) {

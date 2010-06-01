@@ -4,6 +4,7 @@
 #
 
 # PROVIDE: initrandom
+# REQUIRE: dumpon ddb
 # BEFORE: disks
 # KEYWORD: nojail
 

@@ -35,6 +35,20 @@ __FBSDID("$FreeBSD$");
 #include <errno.h>
 #include <string.h>
 
+static int
+_perm_is_invalid(acl_perm_t perm)
+{
+
+	/* Check if more than a single bit is set. */
+	if ((perm & -perm) == perm &&
+	    (perm & (ACL_POSIX1E_BITS | ACL_NFS4_PERM_BITS)) == perm)
+		return (0);
+
+	errno = EINVAL;
+
+	return (1);
+}
+
 /*
  * acl_add_perm() (23.4.1): add the permission contained in perm to the
  * permission set permset_d
@@ -43,18 +57,17 @@ int
 acl_add_perm(acl_permset_t permset_d, acl_perm_t perm)
 {
 
-	if (permset_d) {
-		switch(perm) {
-		case ACL_READ:
-		case ACL_WRITE:
-		case ACL_EXECUTE:
-			*permset_d |= perm;
-			return (0);
-		}
+	if (permset_d == NULL) {
+		errno = EINVAL;
+		return (-1);
 	}
 
-	errno = EINVAL;
-	return (-1);
+	if (_perm_is_invalid(perm))
+		return (-1);
+
+	*permset_d |= perm;
+
+	return (0);
 }
 
 /*
@@ -83,16 +96,33 @@ int
 acl_delete_perm(acl_permset_t permset_d, acl_perm_t perm)
 {
 
-	if (permset_d) {
-		switch(perm) {
-		case ACL_READ:
-		case ACL_WRITE:
-		case ACL_EXECUTE:
-			*permset_d &= ~(perm & ACL_PERM_BITS);
-			return (0);
-		}
+	if (permset_d == NULL) {
+		errno = EINVAL;
+		return (-1);
 	}
 
-	errno = EINVAL;
-	return (-1);
+	if (_perm_is_invalid(perm))
+		return (-1);
+
+	*permset_d &= ~perm;
+
+	return (0);
+}
+
+int
+acl_get_perm_np(acl_permset_t permset_d, acl_perm_t perm)
+{
+
+	if (permset_d == NULL) {
+		errno = EINVAL;
+		return (-1);
+	}
+
+	if (_perm_is_invalid(perm))
+		return (-1);
+
+	if (*permset_d & perm)
+		return (1);
+
+	return (0);
 }

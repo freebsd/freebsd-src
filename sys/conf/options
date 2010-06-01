@@ -639,6 +639,7 @@ BUS_DEBUG		opt_bus.h
 
 # options for USB support
 USB_DEBUG		opt_usb.h
+USB_REQ_DEBUG		opt_usb.h
 USB_VERBOSE		opt_usb.h
 USB_EHCI_BIG_ENDIAN_DESC	opt_usb.h
 U3G_DEBUG		opt_u3g.h
@@ -771,6 +772,7 @@ AH_PRIVATE_DIAG		opt_ah.h
 AH_NEED_DESC_SWAP	opt_ah.h
 AH_USE_INIPDGAIN	opt_ah.h
 AH_MAXCHAN		opt_ah.h
+AH_RXCFG_SDMAMW_4BYTES	opt_ah.h
 
 # options for the Broadcom BCM43xx driver (bwi)
 BWI_DEBUG		opt_bwi.h
@@ -846,3 +848,7 @@ SND_PCM_64		opt_snd.h
 SND_OLDSTEREO		opt_snd.h
 
 X86BIOS
+
+# Flattened device tree options
+FDT		opt_platform.h
+FDT_DTB_STATIC	opt_platform.h

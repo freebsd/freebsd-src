@@ -274,7 +274,7 @@ linprocfs_docpuinfo(PFS_FILL_ARGS)
 		    "cpu family\t: %d\n"
 		    "model\t\t: %d\n"
 		    "model name\t: %s\n"
-		    "stepping\t: %d\n",
+		    "stepping\t: %d\n\n",
 		    i, cpu_vendor, class, cpu, model, cpu_id & 0xf);
 		/* XXX per-cpu vendor / class / model / id? */
 	}

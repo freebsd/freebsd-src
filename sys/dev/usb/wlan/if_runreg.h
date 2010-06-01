@@ -517,8 +517,10 @@
 #define RT2860_LNA_PE_A0_POL	(1 << 12)
 #define RT2860_LNA_PE_G1_EN	(1 << 11)
 #define RT2860_LNA_PE_A1_EN	(1 << 10)
+#define RT2860_LNA_PE1_EN	(RT2860_LNA_PE_A1_EN | RT2860_LNA_PE_G1_EN)
 #define RT2860_LNA_PE_G0_EN	(1 <<  9)
 #define RT2860_LNA_PE_A0_EN	(1 <<  8)
+#define RT2860_LNA_PE0_EN	(RT2860_LNA_PE_A0_EN | RT2860_LNA_PE_G0_EN)
 #define RT2860_PA_PE_G1_POL	(1 <<  7)
 #define RT2860_PA_PE_A1_POL	(1 <<  6)
 #define RT2860_PA_PE_G0_POL	(1 <<  5)
@@ -896,7 +898,7 @@ struct rt2860_rxwi {
 #define RT2860_RIDX_CCK1	 0
 #define RT2860_RIDX_CCK11	 3
 #define RT2860_RIDX_OFDM6	 4
-#define RT2860_RIDX_MAX		11
+#define RT2860_RIDX_MAX		12
 static const struct rt2860_rate {
 	uint8_t		rate;
 	uint8_t		mcs;
@@ -1096,24 +1098,6 @@ static const struct rt2860_rate {
 	{ 169, 0x100bb1, 0x1300f4, 0x05e014, 0x001409 },	\
 	{ 171, 0x100bb1, 0x1300f5, 0x05e014, 0x001401 },	\
 	{ 173, 0x100bb1, 0x1300f5, 0x05e014, 0x001403 }
-
-#if 0
-#define RT3070_RF3020	\
-	{ 241, 2, 2 },	\
-	{ 241, 2, 7 },	\
-	{ 242, 2, 2 },	\
-	{ 242, 2, 7 },	\
-	{ 243, 2, 2 },	\
-	{ 243, 2, 7 },	\
-	{ 244, 2, 2 },	\
-	{ 244, 2, 7 },	\
-	{ 245, 2, 2 },	\
-	{ 245, 2, 7 },	\
-	{ 246, 2, 2 },	\
-	{ 246, 2, 7 },	\
-	{ 247, 2, 2 },	\
-	{ 248, 2, 4 }
-#endif
 
 #define RT3070_RF3052		\
 	{ 0xf1, 2,  2 },	\

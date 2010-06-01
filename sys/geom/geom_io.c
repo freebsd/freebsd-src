@@ -309,8 +309,8 @@ g_io_check(struct bio *bp)
 	case BIO_READ:
 	case BIO_WRITE:
 	case BIO_DELETE:
-		/* Zero sectorsize is a probably lack of media */
-		if (pp->sectorsize == 0)
+		/* Zero sectorsize or mediasize is probably a lack of media. */
+		if (pp->sectorsize == 0 || pp->mediasize == 0)
 			return (ENXIO);
 		/* Reject I/O not on sector boundary */
 		if (bp->bio_offset % pp->sectorsize)

@@ -46,6 +46,11 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/uio.h>
 
+#ifdef __sparc64__
+#include <dev/ofw/openfirm.h>
+#include <machine/ofw_machdep.h>
+#endif
+
 #include <dev/isp/isp_freebsd.h>
 
 static uint32_t isp_pci_rd_reg(ispsoftc_t *, int);
@@ -517,7 +522,11 @@ isp_get_specific_options(device_t dev, int chan, ispsoftc_t *isp)
 		if (IS_FC(isp)) {
 			ISP_FC_PC(isp, chan)->default_id = 109 - chan;
 		} else {
+#ifdef __sparc64__
+			ISP_SPI_PC(isp, chan)->iid = OF_getscsinitid(dev);
+#else
 			ISP_SPI_PC(isp, chan)->iid = 7;
+#endif
 		}
 	} else {
 		if (IS_FC(isp)) {

@@ -40,11 +40,6 @@ requires a minimum of 1K device memory to be set up.
 The ECU (EISA Configuration
 Utility) will need to be run to change the settings.
 .El
-.Sh CAVEATS
-Normally, the device driver will not enable the reception of SMT frames.
-However if the IFF_LINK1 flag is set, the device driver will enable the
-reception of SMT frames and pass them up to the Berkeley Packet Filter for
-processing.
 .Sh SEE ALSO
 .Xr arp 4 ,
 .Xr netintro 4 ,
@@ -56,3 +51,8 @@ and
 .Nm fea
 device drivers and this manual page were written by
 .An Matt Thomas .
+.Sh CAVEATS
+Normally, the device driver will not enable the reception of SMT frames.
+However if the IFF_LINK1 flag is set, the device driver will enable the
+reception of SMT frames and pass them up to the Berkeley Packet Filter for
+processing.

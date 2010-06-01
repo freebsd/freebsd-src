@@ -6,6 +6,7 @@
 .if !defined(__CC_MAKEFILE_INC__)
 __CC_MAKEFILE_INC__= ${MFILE}
 
+GCCVER=	4.2
 GCCDIR=	${.CURDIR}/../../../../contrib/gcc
 GCCLIB=	${.CURDIR}/../../../../contrib/gcclibs
 
@@ -15,6 +16,7 @@ GCCLIB=	${.CURDIR}/../../../../contrib/gcclibs
 MD_FILE=	${GCCDIR}/config/${GCC_CPU}/${GCC_CPU}.md
 GCC_TARGET=	${TARGET_ARCH}-undermydesk-freebsd
 
+CFLAGS+=	-DGCCVER=\"${GCCVER}\"
 CFLAGS+=	-DIN_GCC -DHAVE_CONFIG_H
 CFLAGS+=	-DPREFIX=\"${TOOLS_PREFIX}/usr\"
 #CFLAGS+=	-DWANT_COMPILER_INVARIANTS

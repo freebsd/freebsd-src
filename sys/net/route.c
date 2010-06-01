@@ -88,15 +88,14 @@ SYSCTL_INT(_net, OID_AUTO, add_addr_allfibs, CTLFLAG_RW,
     &rt_add_addr_allfibs, 0, "");
 TUNABLE_INT("net.add_addr_allfibs", &rt_add_addr_allfibs);
 
-VNET_DEFINE(struct radix_node_head *, rt_tables);
-static VNET_DEFINE(uma_zone_t, rtzone);		/* Routing table UMA zone. */
-VNET_DEFINE(int, rttrash);		/* routes not in table but not freed */
 VNET_DEFINE(struct rtstat, rtstat);
-
-#define	V_rt_tables	VNET(rt_tables)
-#define	V_rtzone	VNET(rtzone)
-#define	V_rttrash	VNET(rttrash)
 #define	V_rtstat	VNET(rtstat)
+
+VNET_DEFINE(struct radix_node_head *, rt_tables);
+#define	V_rt_tables	VNET(rt_tables)
+
+VNET_DEFINE(int, rttrash);		/* routes not in table but not freed */
+#define	V_rttrash	VNET(rttrash)
 
 
 /* compare two sockaddr structures */
@@ -113,6 +112,9 @@ VNET_DEFINE(struct rtstat, rtstat);
  * do not cast explicitly, but always use the macro below.
  */
 #define RNTORT(p)	((struct rtentry *)(p))
+
+static VNET_DEFINE(uma_zone_t, rtzone);		/* Routing table UMA zone. */
+#define	V_rtzone	VNET(rtzone)
 
 #if 0
 /* default fib for tunnels to use */
@@ -517,7 +519,7 @@ rtredirect_fib(struct sockaddr *dst,
 	}
 
 	/* verify the gateway is directly reachable */
-	if ((ifa = ifa_ifwithnet(gateway)) == NULL) {
+	if ((ifa = ifa_ifwithnet(gateway, 0)) == NULL) {
 		error = ENETUNREACH;
 		goto out;
 	}
@@ -684,7 +686,7 @@ ifa_ifwithroute_fib(int flags, struct sockaddr *dst, struct sockaddr *gateway,
 		ifa = ifa_ifwithdstaddr(gateway);
 	}
 	if (ifa == NULL)
-		ifa = ifa_ifwithnet(gateway);
+		ifa = ifa_ifwithnet(gateway, 0);
 	if (ifa == NULL) {
 		struct rtentry *rt = rtalloc1_fib(gateway, 0, RTF_RNH_LOCKED, fibnum);
 		if (rt == NULL)
@@ -795,7 +797,7 @@ rt_getifa_fib(struct rt_addrinfo *info, u_int fibnum)
 	 */
 	if (info->rti_ifp == NULL && ifpaddr != NULL &&
 	    ifpaddr->sa_family == AF_LINK &&
-	    (ifa = ifa_ifwithnet(ifpaddr)) != NULL) {
+	    (ifa = ifa_ifwithnet(ifpaddr, 0)) != NULL) {
 		info->rti_ifp = ifa->ifa_ifp;
 		ifa_free(ifa);
 	}

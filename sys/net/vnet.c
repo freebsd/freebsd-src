@@ -154,15 +154,6 @@ struct vnet *vnet0;
  */
 
 /*
- * Location of the kernel's 'set_vnet' linker set.
- */
-extern uintptr_t	*__start_set_vnet;
-extern uintptr_t	*__stop_set_vnet;
-
-#define	VNET_START	(uintptr_t)&__start_set_vnet
-#define	VNET_STOP	(uintptr_t)&__stop_set_vnet
-
-/*
  * Number of bytes of data in the 'set_vnet' linker set, and hence the total
  * size of all kernel virtualized global variables, and the malloc(9) type
  * that will be used to allocate it.
@@ -357,7 +348,7 @@ vnet_data_startup(void *dummy __unused)
 
 	df = malloc(sizeof(*df), M_VNET_DATA_FREE, M_WAITOK | M_ZERO);
 	df->vnd_start = (uintptr_t)&VNET_NAME(modspace);
-	df->vnd_len = VNET_MODSIZE;
+	df->vnd_len = VNET_MODMIN;
 	TAILQ_INSERT_HEAD(&vnet_data_free_head, df, vnd_link);
 	sx_init(&vnet_data_free_lock, "vnet_data alloc lock");
 }

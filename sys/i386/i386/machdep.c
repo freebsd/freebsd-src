@@ -328,7 +328,6 @@ cpu_startup(dummy)
 #ifndef XEN
 	cpu_setregs();
 #endif
-	mca_init();
 }
 
 /*
@@ -633,6 +632,13 @@ sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	sf.sf_uc.uc_mcontext.mc_gs = rgs();
 	bcopy(regs, &sf.sf_uc.uc_mcontext.mc_fs, sizeof(*regs));
 	sf.sf_uc.uc_mcontext.mc_len = sizeof(sf.sf_uc.uc_mcontext); /* magic */
+
+	/*
+	 * The get_fpcontext() call must be placed before assignments
+	 * to mc_fsbase and mc_gsbase due to the alignment-override
+	 * code in get_fpcontext() that possibly clobbers 12 bytes of
+	 * mcontext after mc_fpstate.
+	 */
 	get_fpcontext(td, &sf.sf_uc.uc_mcontext);
 	fpstate_drop(td);
 	/*
@@ -944,7 +950,8 @@ freebsd4_sigreturn(td, uap)
 		 * one less debugger trap, so allowing it is fairly harmless.
 		 */
 		if (!EFL_SECURE(eflags & ~PSL_RF, regs->tf_eflags & ~PSL_RF)) {
-			printf("freebsd4_sigreturn: eflags = 0x%x\n", eflags);
+			uprintf("pid %d (%s): freebsd4_sigreturn eflags = 0x%x\n",
+			    td->td_proc->p_pid, td->td_name, eflags);
 	    		return (EINVAL);
 		}
 
@@ -955,7 +962,8 @@ freebsd4_sigreturn(td, uap)
 		 */
 		cs = ucp->uc_mcontext.mc_cs;
 		if (!CS_SECURE(cs)) {
-			printf("freebsd4_sigreturn: cs = 0x%x\n", cs);
+			uprintf("pid %d (%s): freebsd4_sigreturn cs = 0x%x\n",
+			    td->td_proc->p_pid, td->td_name, cs);
 			ksiginfo_init_trap(&ksi);
 			ksi.ksi_signo = SIGBUS;
 			ksi.ksi_code = BUS_OBJERR;
@@ -1056,7 +1064,8 @@ sigreturn(td, uap)
 		 * one less debugger trap, so allowing it is fairly harmless.
 		 */
 		if (!EFL_SECURE(eflags & ~PSL_RF, regs->tf_eflags & ~PSL_RF)) {
-			printf("sigreturn: eflags = 0x%x\n", eflags);
+			uprintf("pid %d (%s): sigreturn eflags = 0x%x\n",
+			    td->td_proc->p_pid, td->td_name, eflags);
 	    		return (EINVAL);
 		}
 
@@ -1067,7 +1076,8 @@ sigreturn(td, uap)
 		 */
 		cs = ucp->uc_mcontext.mc_cs;
 		if (!CS_SECURE(cs)) {
-			printf("sigreturn: cs = 0x%x\n", cs);
+			uprintf("pid %d (%s): sigreturn cs = 0x%x\n",
+			    td->td_proc->p_pid, td->td_name, cs);
 			ksiginfo_init_trap(&ksi);
 			ksi.ksi_signo = SIGBUS;
 			ksi.ksi_code = BUS_OBJERR;
@@ -3236,6 +3246,13 @@ get_mcontext(struct thread *td, mcontext_t *mcp, int flags)
 	mcp->mc_esp = tp->tf_esp;
 	mcp->mc_ss = tp->tf_ss;
 	mcp->mc_len = sizeof(*mcp);
+
+	/*
+	 * The get_fpcontext() call must be placed before assignments
+	 * to mc_fsbase and mc_gsbase due to the alignment-override
+	 * code in get_fpcontext() that possibly clobbers 12 bytes of
+	 * mcontext after mc_fpstate.
+	 */
 	get_fpcontext(td, mcp);
 	sdp = &td->td_pcb->pcb_gsd;
 	mcp->mc_fsbase = sdp->sd_hibase << 24 | sdp->sd_lobase;

@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 23, 2010
+.Dd April 15, 2010
 .Dt NC 1
 .Os
 .Sh NAME
@@ -36,7 +36,7 @@
 .Sh SYNOPSIS
 .Nm nc
 .Bk -words
-.Op Fl 46DdEhklnorStUuvz
+.Op Fl 46DdEhklnrStUuvz
 .Op Fl e Ar IPsec_policy
 .Op Fl I Ar length
 .Op Fl i Ar interval
@@ -159,15 +159,6 @@ socket option.
 .It Fl O Ar length
 Specifies the size of the TCP send buffer.
 When
-.It Fl o
-.Dq Once-only mode .
-By default,
-.Nm
-does not terminate on EOF condition on input,
-but continues until the network side has been closed down.
-Specifying
-.Fl o
-will make it terminate on EOF as well.
 .It Fl P Ar proxy_username
 Specifies a username to present to a proxy server that requires authentication.
 If no username is specified then authentication will not be attempted.

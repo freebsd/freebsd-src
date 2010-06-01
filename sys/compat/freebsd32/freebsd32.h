@@ -31,6 +31,7 @@
 
 #include <sys/procfs.h>
 #include <sys/socket.h>
+#include <sys/user.h>
 
 #define PTRIN(v)	(void *)(uintptr_t) (v)
 #define PTROUT(v)	(u_int32_t)(uintptr_t) (v)
@@ -227,6 +228,87 @@ struct mq_attr32 {
 	int	mq_msgsize;
 	int	mq_curmsgs;
 	int	__reserved[4];
+};
+
+struct kinfo_proc32 {
+	int	ki_structsize;
+	int	ki_layout;
+	uint32_t ki_args;
+	uint32_t ki_paddr;
+	uint32_t ki_addr;
+	uint32_t ki_tracep;
+	uint32_t ki_textvp;
+	uint32_t ki_fd;
+	uint32_t ki_vmspace;
+	uint32_t ki_wchan;
+	pid_t	ki_pid;
+	pid_t	ki_ppid;
+	pid_t	ki_pgid;
+	pid_t	ki_tpgid;
+	pid_t	ki_sid;
+	pid_t	ki_tsid;
+	short	ki_jobc;
+	short	ki_spare_short1;
+	dev_t	ki_tdev;
+	sigset_t ki_siglist;
+	sigset_t ki_sigmask;
+	sigset_t ki_sigignore;
+	sigset_t ki_sigcatch;
+	uid_t	ki_uid;
+	uid_t	ki_ruid;
+	uid_t	ki_svuid;
+	gid_t	ki_rgid;
+	gid_t	ki_svgid;
+	short	ki_ngroups;
+	short	ki_spare_short2;
+	gid_t 	ki_groups[KI_NGROUPS];
+	uint32_t ki_size;
+	int32_t ki_rssize;
+	int32_t ki_swrss;
+	int32_t ki_tsize;
+	int32_t ki_dsize;
+	int32_t ki_ssize;
+	u_short	ki_xstat;
+	u_short	ki_acflag;
+	fixpt_t	ki_pctcpu;
+	u_int	ki_estcpu;
+	u_int	ki_slptime;
+	u_int	ki_swtime;
+	int	ki_spareint1;
+	u_int64_t ki_runtime;
+	struct	timeval32 ki_start;
+	struct	timeval32 ki_childtime;
+	int	ki_flag;
+	int	ki_kiflag;
+	int	ki_traceflag;
+	char	ki_stat;
+	signed char ki_nice;
+	char	ki_lock;
+	char	ki_rqindex;
+	u_char	ki_oncpu;
+	u_char	ki_lastcpu;
+	char	ki_ocomm[OCOMMLEN+1];
+	char	ki_wmesg[WMESGLEN+1];
+	char	ki_login[LOGNAMELEN+1];
+	char	ki_lockname[LOCKNAMELEN+1];
+	char	ki_comm[COMMLEN+1];
+	char	ki_emul[KI_EMULNAMELEN+1];
+	char	ki_sparestrings[68];
+	int	ki_spareints[KI_NSPARE_INT];
+	u_int	ki_cr_flags;
+	int	ki_jid;
+	int	ki_numthreads;
+	lwpid_t	ki_tid;
+	struct	priority ki_pri;
+	struct	rusage32 ki_rusage;
+	struct	rusage32 ki_rusage_ch;
+	uint32_t ki_pcb;
+	uint32_t ki_kstack;
+	uint32_t ki_udata;
+	uint32_t ki_spareptrs[KI_NSPARE_PTR];	/* spare room for growth */
+	int	ki_sparelongs[KI_NSPARE_LONG];
+	int	ki_sflag;
+	int	ki_tdflags;
 };
 
 #endif /* !_COMPAT_FREEBSD32_FREEBSD32_H_ */

@@ -28,7 +28,7 @@
 .\"	From: @(#)sigaction.2	8.2 (Berkeley) 4/3/94
 .\" $FreeBSD$
 .\"
-.Dd June 7, 2004
+.Dd April 18, 2010
 .Dt SIGACTION 2
 .Os
 .Sh NAME
@@ -40,16 +40,11 @@
 .In signal.h
 .Bd -literal
 struct  sigaction {
-        union {
-                void    (*__sa_handler)(int);
-                void    (*__sa_sigaction)(int, struct __siginfo *, void *);
-        } __sigaction_u;                /* signal handler */
+        void    (*sa_handler)(int);
+        void    (*sa_sigaction)(int, siginfo_t *, void *);
         int     sa_flags;               /* see signal options below */
         sigset_t sa_mask;               /* signal mask to apply */
 };
-
-#define	sa_handler	__sigaction_u.__sa_handler
-#define	sa_sigaction	__sigaction_u.__sa_sigaction
 .Ed
 .Ft int
 .Fo sigaction
@@ -147,6 +142,16 @@ If
 .Fa oact
 is non-zero, the previous handling information for the signal
 is returned to the user.
+.Pp
+The above declaration of
+.Vt "struct sigaction"
+is not literal.
+It is provided only to list the accessible members.
+See
+.In sys/signal.h
+for the actual definition.
+In particular, the storage occupied by sa_handler and sa_sigaction overlaps,
+and an application can not use both simultaneously.
 .Pp
 Once a signal handler is installed, it normally remains installed
 until another
@@ -604,13 +609,9 @@ or
 .Xr kill 2 ,
 .Xr ptrace 2 ,
 .Xr sigaltstack 2 ,
-.Xr sigblock 2 ,
-.Xr sigpause 2 ,
 .Xr sigpending 2 ,
 .Xr sigprocmask 2 ,
-.Xr sigsetmask 2 ,
 .Xr sigsuspend 2 ,
-.Xr sigvec 2 ,
 .Xr wait 2 ,
 .Xr fpsetmask 3 ,
 .Xr setjmp 3 ,

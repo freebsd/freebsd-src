@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2002 Marcel Moolenaar
+ * Copyright (c) 2002-2010 Marcel Moolenaar
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -37,6 +37,7 @@
 #include <vm/vm.h>
 #include <vm/vm_kern.h>
 #include <machine/mca.h>
+#include <machine/pal.h>
 #include <machine/sal.h>
 #include <machine/smp.h>
 
@@ -44,19 +45,19 @@ MALLOC_DEFINE(M_MCA, "MCA", "Machine Check Architecture");
 
 struct mca_info {
 	STAILQ_ENTRY(mca_info) mi_link;
-	char	mi_name[32];
+	u_long	mi_seqnr;
+	u_int	mi_cpuid;
 	size_t	mi_recsz;
 	char	mi_record[0];
 };
 
-static STAILQ_HEAD(, mca_info) mca_records =
-    STAILQ_HEAD_INITIALIZER(mca_records);
+STAILQ_HEAD(mca_info_list, mca_info);
 
-int64_t		mca_info_size[SAL_INFO_TYPES];
-vm_offset_t	mca_info_block;
-struct mtx	mca_info_block_lock;
+static int64_t		mca_info_size[SAL_INFO_TYPES];
+static vm_offset_t	mca_info_block;
+static struct mtx	mca_info_block_lock;
 
-SYSCTL_NODE(_hw, OID_AUTO, mca, CTLFLAG_RW, 0, "MCA container");
+SYSCTL_NODE(_hw, OID_AUTO, mca, CTLFLAG_RW, NULL, "MCA container");
 
 static int mca_count;		/* Number of records stored. */
 static int mca_first;		/* First (lowest) record ID. */
@@ -68,6 +69,32 @@ SYSCTL_INT(_hw_mca, OID_AUTO, first, CTLFLAG_RD, &mca_first, 0,
     "First record id");
 SYSCTL_INT(_hw_mca, OID_AUTO, last, CTLFLAG_RD, &mca_last, 0,
     "Last record id");
+
+static struct mtx mca_sysctl_lock;
+
+static int
+mca_sysctl_inject(SYSCTL_HANDLER_ARGS)
+{
+	struct ia64_pal_result res;
+	u_int val;
+	int error;
+
+	val = 0;
+	error = sysctl_wire_old_buffer(req, sizeof(u_int));
+	if (!error)
+		error = sysctl_handle_int(oidp, &val, 0, req);
+
+	if (error != 0 || req->newptr == NULL)
+		return (error);
+
+	/* For example: val=137 causes a fatal CPU error. */
+	res = ia64_call_pal_stacked(PAL_MC_ERROR_INJECT, val, 0, 0);
+	printf("%s: %#lx, %#lx, %#lx, %#lx\n", __func__, res.pal_status,
+	    res.pal_result[0], res.pal_result[1], res.pal_result[2]);
+	return (0);
+}
+SYSCTL_PROC(_hw_mca, OID_AUTO, inject, CTLTYPE_INT | CTLFLAG_RW, NULL, 0,
+    mca_sysctl_inject, "I", "set to trigger a MCA");
 
 static int
 mca_sysctl_handler(SYSCTL_HANDLER_ARGS)
@@ -85,27 +112,8 @@ mca_sysctl_handler(SYSCTL_HANDLER_ARGS)
 	return (error);
 }
 
-void
-ia64_mca_populate(void)
-{
-	struct mca_info *rec;
-
-	mtx_lock_spin(&mca_info_block_lock);
-	while (!STAILQ_EMPTY(&mca_records)) {
-		rec = STAILQ_FIRST(&mca_records);
-		STAILQ_REMOVE_HEAD(&mca_records, mi_link);
-		mtx_unlock_spin(&mca_info_block_lock);
-		(void)SYSCTL_ADD_PROC(NULL, SYSCTL_STATIC_CHILDREN(_hw_mca),
-		    OID_AUTO, rec->mi_name, CTLTYPE_OPAQUE | CTLFLAG_RD,
-		    rec->mi_record, rec->mi_recsz, mca_sysctl_handler, "S,MCA",
-		    "Error record");
-		mtx_lock_spin(&mca_info_block_lock);
-	}
-	mtx_unlock_spin(&mca_info_block_lock);
-}
-
-void
-ia64_mca_save_state(int type)
+static void
+ia64_mca_collect_state(int type, struct mca_info_list *reclst)
 {
 	struct ia64_sal_result result;
 	struct mca_record_header *hdr;
@@ -123,13 +131,13 @@ ia64_mca_save_state(int type)
 	if (mca_info_block == 0)
 		return;
 
-	mtx_lock_spin(&mca_info_block_lock);
 	while (1) {
+		mtx_lock_spin(&mca_info_block_lock);
 		result = ia64_sal_entry(SAL_GET_STATE_INFO, type, 0,
 		    mca_info_block, 0, 0, 0, 0);
 		if (result.sal_status < 0) {
 			mtx_unlock_spin(&mca_info_block_lock);
-			return;
+			break;
 		}
 
 		hdr = (struct mca_record_header *)mca_info_block;
@@ -142,9 +150,10 @@ ia64_mca_save_state(int type)
 		    M_NOWAIT | M_ZERO);
 		if (rec == NULL)
 			/* XXX: Not sure what to do. */
-			return;
+			break;
 
-		sprintf(rec->mi_name, "%lld", (long long)seqnr);
+		rec->mi_seqnr = seqnr;
+		rec->mi_cpuid = PCPU_GET(cpuid);
 
 		mtx_lock_spin(&mca_info_block_lock);
 
@@ -163,7 +172,6 @@ ia64_mca_save_state(int type)
 			if (seqnr != hdr->rh_seqnr) {
 				mtx_unlock_spin(&mca_info_block_lock);
 				free(rec, M_MCA);
-				mtx_lock_spin(&mca_info_block_lock);
 				continue;
 			}
 		}
@@ -171,23 +179,51 @@ ia64_mca_save_state(int type)
 		rec->mi_recsz = recsz;
 		bcopy((char*)mca_info_block, rec->mi_record, recsz);
 
-		if (mca_count > 0) {
-			if (seqnr < mca_first)
-				mca_first = seqnr;
-			else if (seqnr > mca_last)
-				mca_last = seqnr;
-		} else
-			mca_first = mca_last = seqnr;
-
-		mca_count++;
-		STAILQ_INSERT_TAIL(&mca_records, rec, mi_link);
-
 		/*
 		 * Clear the state so that we get any other records when
 		 * they exist.
 		 */
 		result = ia64_sal_entry(SAL_CLEAR_STATE_INFO, type, 0, 0, 0,
 		    0, 0, 0);
+
+		mtx_unlock_spin(&mca_info_block_lock);
+
+		STAILQ_INSERT_TAIL(reclst, rec, mi_link);
+	}
+}
+
+void
+ia64_mca_save_state(int type)
+{
+	char name[64];
+	struct mca_info_list reclst = STAILQ_HEAD_INITIALIZER(reclst);
+	struct mca_info *rec;
+	struct sysctl_oid *oid;
+
+	ia64_mca_collect_state(type, &reclst);
+
+	STAILQ_FOREACH(rec, &reclst, mi_link) {
+		sprintf(name, "%lu", rec->mi_seqnr);
+		oid = SYSCTL_ADD_NODE(NULL, SYSCTL_STATIC_CHILDREN(_hw_mca),
+		    OID_AUTO, name, CTLFLAG_RW, NULL, name);
+		if (oid == NULL)
+			continue;
+
+		mtx_lock(&mca_sysctl_lock);
+		if (mca_count > 0) {
+			if (rec->mi_seqnr < mca_first)
+				mca_first = rec->mi_seqnr;
+			else if (rec->mi_seqnr > mca_last)
+				mca_last = rec->mi_seqnr;
+		} else
+			mca_first = mca_last = rec->mi_seqnr;
+		mca_count++;
+		mtx_unlock(&mca_sysctl_lock);
+
+		sprintf(name, "%u", rec->mi_cpuid);
+		SYSCTL_ADD_PROC(NULL, SYSCTL_CHILDREN(oid), rec->mi_cpuid,
+		    name, CTLTYPE_OPAQUE | CTLFLAG_RD, rec->mi_record,
+		    rec->mi_recsz, mca_sysctl_handler, "S,MCA", "MCA record");
 	}
 }
 
@@ -237,7 +273,14 @@ ia64_mca_init(void)
 	 * should be rare. On top of that, performance is not an issue when
 	 * dealing with machine checks...
 	 */
-	mtx_init(&mca_info_block_lock, "MCA spin lock", NULL, MTX_SPIN);
+	mtx_init(&mca_info_block_lock, "MCA info lock", NULL, MTX_SPIN);
+
+	/*
+	 * Serialize sysctl operations with a sleep lock. Note that this
+	 * implies that we update the sysctl tree in a context that allows
+	 * sleeping.
+	 */
+	mtx_init(&mca_sysctl_lock, "MCA sysctl lock", NULL, MTX_DEF);
 
 	/*
 	 * Get and save any processor and platfom error records. Note that in

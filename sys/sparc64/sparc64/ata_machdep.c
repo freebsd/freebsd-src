@@ -32,7 +32,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/md_var.h>
 
 void
-sparc64_ad_firmware_geom_adjust(device_t dev, struct disk *disk)
+sparc64_ata_disk_firmware_geom_adjust(struct disk *disk)
 {
 
 	/*

@@ -77,7 +77,6 @@ extern struct sysent linux_sysent[];
  */
 #include <sys/syscall.h>
 #include <kern/systrace_args.c>
-extern const char	*syscallnames[];
 #define	DEVNAME		"dtrace/systrace"
 #define	PROVNAME	"syscall"
 #define	MAXSYSCALL	SYS_MAXSYSCALL

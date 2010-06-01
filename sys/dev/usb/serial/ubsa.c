@@ -93,7 +93,7 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/usb/serial/usb_serial.h>
 
-#if USB_DEBUG
+#ifdef USB_DEBUG
 static int ubsa_debug = 0;
 
 SYSCTL_NODE(_hw_usb, OID_AUTO, ubsa, CTLFLAG_RW, 0, "USB ubsa");
@@ -405,9 +405,8 @@ ubsa_cfg_set_break(struct ucom_softc *ucom, uint8_t onoff)
 static int
 ubsa_pre_param(struct ucom_softc *ucom, struct termios *t)
 {
-	struct ubsa_softc *sc = ucom->sc_parent;
 
-	DPRINTF("sc = %p\n", sc);
+	DPRINTF("sc = %p\n", ucom->sc_parent);
 
 	switch (t->c_ospeed) {
 	case B0:

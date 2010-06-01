@@ -26,6 +26,7 @@
 #define	IPI_AST			0x0004
 #define	IPI_STOP		0x0008
 #define	IPI_STOP_HARD		0x0008
+#define	IPI_PREEMPT		0x0010
 
 #ifndef LOCORE
 

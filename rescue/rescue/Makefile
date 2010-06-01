@@ -208,6 +208,10 @@ CRUNCH_PROGS_usr.bin+= bzip2
 CRUNCH_ALIAS_bzip2= bunzip2 bzcat
 CRUNCH_LIBS+= -lbz2
 
+CRUNCH_PROGS_usr.bin+= xz
+CRUNCH_ALIAS_xz= unxz lzma unlzma xzcat lzcat
+CRUNCH_LIBS+= -llzma
+
 CRUNCH_PROGS_usr.bin+= tar
 CRUNCH_LIBS+= -larchive -lmd
 .if ${MK_OPENSSL} != "no"

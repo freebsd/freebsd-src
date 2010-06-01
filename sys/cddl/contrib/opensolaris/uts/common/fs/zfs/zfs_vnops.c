@@ -1209,15 +1209,17 @@ zfs_lookup(vnode_t *dvp, char *nm, vnode_t **vpp, struct componentname *cnp,
 			ltype = VOP_ISLOCKED(dvp);
 			VOP_UNLOCK(dvp, 0);
 		}
+		ZFS_EXIT(zfsvfs);
 		error = vn_lock(*vpp, cnp->cn_lkflags);
 		if (cnp->cn_flags & ISDOTDOT)
 			vn_lock(dvp, ltype | LK_RETRY);
 		if (error != 0) {
 			VN_RELE(*vpp);
 			*vpp = NULL;
-			ZFS_EXIT(zfsvfs);
 			return (error);
 		}
+	} else {
+		ZFS_EXIT(zfsvfs);
 	}
 
 #ifdef FREEBSD_NAMECACHE
@@ -1236,8 +1238,6 @@ zfs_lookup(vnode_t *dvp, char *nm, vnode_t **vpp, struct componentname *cnp,
 		}
 	}
 #endif
-
-	ZFS_EXIT(zfsvfs);
 
 	return (error);
 }
@@ -3208,6 +3208,15 @@ top:
 		}
 	}
 
+	/*
+	 * If the source and destination directories are the same, we should
+	 * grab the z_name_lock of that directory only once.
+	 */
+	if (sdzp == tdzp) {
+		zflg |= ZHAVELOCK;
+		rw_enter(&sdzp->z_name_lock, RW_READER);
+	}
+
 	if (cmp < 0) {
 		serr = zfs_dirent_lock(&sdl, sdzp, snm, &szp,
 		    ZEXISTS | zflg, NULL, NULL);
@@ -3230,6 +3239,10 @@ top:
 			if (tzp)
 				VN_RELE(ZTOV(tzp));
 		}
+
+		if (sdzp == tdzp)
+			rw_exit(&sdzp->z_name_lock);
+
 		if (strcmp(snm, ".") == 0 || strcmp(snm, "..") == 0)
 			serr = EINVAL;
 		ZFS_EXIT(zfsvfs);
@@ -3238,6 +3251,10 @@ top:
 	if (terr) {
 		zfs_dirent_unlock(sdl);
 		VN_RELE(ZTOV(szp));
+
+		if (sdzp == tdzp)
+			rw_exit(&sdzp->z_name_lock);
+
 		if (strcmp(tnm, "..") == 0)
 			terr = EINVAL;
 		ZFS_EXIT(zfsvfs);
@@ -3320,6 +3337,10 @@ top:
 			zfs_rename_unlock(&zl);
 		zfs_dirent_unlock(sdl);
 		zfs_dirent_unlock(tdl);
+
+		if (sdzp == tdzp)
+			rw_exit(&sdzp->z_name_lock);
+
 		VN_RELE(ZTOV(szp));
 		if (tzp)
 			VN_RELE(ZTOV(tzp));
@@ -3366,6 +3387,9 @@ out:
 
 	zfs_dirent_unlock(sdl);
 	zfs_dirent_unlock(tdl);
+
+	if (sdzp == tdzp)
+		rw_exit(&sdzp->z_name_lock);
 
 	VN_RELE(ZTOV(szp));
 	if (tzp)
@@ -3976,6 +4000,9 @@ zfs_freebsd_write(ap)
 		struct ucred *a_cred;
 	} */ *ap;
 {
+
+	if (vn_rlimit_fsize(ap->a_vp, ap->a_uio, ap->a_uio->uio_td))
+		return (EFBIG);
 
 	return (zfs_write(ap->a_vp, ap->a_uio, ap->a_ioflag, ap->a_cred, NULL));
 }
@@ -4935,6 +4962,10 @@ zfs_freebsd_setacl(ap)
 	 */
 	if (ap->a_aclp->acl_cnt * 2 + 6 > ACL_MAX_ENTRIES)
 		return (ENOSPC);
+
+	error = acl_nfs4_check(ap->a_aclp, ap->a_vp->v_type == VDIR);
+	if (error != 0)
+		return (error);
 
 	vsecattr.vsa_mask = VSA_ACE;
 	aclbsize = ap->a_aclp->acl_cnt * sizeof(ace_t);

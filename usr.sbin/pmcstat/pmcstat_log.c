@@ -539,6 +539,8 @@ pmcstat_image_add_symbols(struct pmcstat_image *image, Elf *e,
 			return;
 		if (GELF_ST_TYPE(sym.st_info) != STT_FUNC)
 			continue;
+		if (sym.st_shndx == STN_UNDEF)
+			continue;
 
 		if (!firsttime && pmcstat_symbol_search(image, sym.st_value))
 			continue; /* We've seen this symbol already. */
@@ -1050,7 +1052,6 @@ pmcstat_pmcid_to_name(pmc_id_t pmcid)
 	    if (pr->pr_pmcid == pmcid)
 		    return (pmcstat_string_unintern(pr->pr_pmcname));
 
-	err(EX_SOFTWARE, "ERROR: cannot find pmcid");
 	return NULL;
 }
 
@@ -1083,7 +1084,6 @@ pmcstat_pmcindex_to_pmcr(int pmcin)
 		if (pr->pr_pmcin == pmcin)
 			return pr;
 
-	err(EX_SOFTWARE, "ERROR: invalid pmcindex");
 	return NULL;
 }
 

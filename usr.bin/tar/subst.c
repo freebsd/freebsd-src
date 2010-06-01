@@ -28,7 +28,6 @@ __FBSDID("$FreeBSD$");
 
 #if HAVE_REGEX_H
 #include "bsdtar.h"
-#include "err.h"
 
 #include <errno.h>
 #include <regex.h>
@@ -38,6 +37,8 @@ __FBSDID("$FreeBSD$");
 #ifndef REG_BASIC
 #define	REG_BASIC 0
 #endif
+
+#include "err.h"
 
 struct subst_rule {
 	struct subst_rule *next;

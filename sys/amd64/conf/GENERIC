@@ -224,6 +224,7 @@ device		pcn		# AMD Am79C97x PCI 10/100 (precedence over 'le')
 device		re		# RealTek 8139C+/8169/8169S/8110S
 device		rl		# RealTek 8129/8139
 device		sf		# Adaptec AIC-6915 (``Starfire'')
+device		sge		# Silicon Integrated Systems SiS190/191
 device		sis		# Silicon Integrated Systems SiS 900/SiS 7016
 device		sk		# SysKonnect SK-984x & SK-982x gigabit Ethernet
 device		ste		# Sundance ST201 (D-Link DFE-550TX)
@@ -280,6 +281,7 @@ device		firmware	# firmware assist module
 device		bpf		# Berkeley packet filter
 
 # USB support
+options 	USB_DEBUG	# enable debug msgs
 device		uhci		# UHCI PCI->USB interface
 device		ohci		# OHCI PCI->USB interface
 device		ehci		# EHCI PCI->USB interface (USB 2.0)

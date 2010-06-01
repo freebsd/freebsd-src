@@ -221,6 +221,10 @@ case "${targ}" in
     targ_defvec=bfd_elf32_littlearm_vec
     targ_selvecs=bfd_elf32_bigarm_vec
     ;;
+  armeb-*-freebsd*)
+    targ_defvec=bfd_elf32_bigarm_vec
+    targ_selvecs=bfd_elf32_littlearm_vec
+    ;;
   arm-*-elf | arm-*-freebsd* | arm*-*-linux-gnu* | arm*-*-conix* | \
   arm*-*-uclinux* | arm-*-kfreebsd*-gnu | arm-*-vxworks)
     targ_defvec=bfd_elf32_littlearm_vec

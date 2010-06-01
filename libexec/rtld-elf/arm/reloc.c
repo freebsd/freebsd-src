@@ -245,7 +245,6 @@ reloc_non_plt(Obj_Entry *obj, Obj_Entry *obj_rtld)
 	const Elf_Rel *rellim;
 	const Elf_Rel *rel;
 	SymCache *cache;
-	int bytes = obj->nchains * sizeof(SymCache);
 	int r = -1;
 	
 	/* The relocation for the dynamic loader has already been done. */
@@ -255,10 +254,9 @@ reloc_non_plt(Obj_Entry *obj, Obj_Entry *obj_rtld)
  	 * The dynamic loader may be called from a thread, we have
 	 * limited amounts of stack available so we cannot use alloca().
 	 */
-	cache = mmap(NULL, bytes, PROT_READ|PROT_WRITE, MAP_ANON, -1, 0);
-	if (cache == MAP_FAILED)
-		cache = NULL;
-	
+	cache = calloc(obj->nchains, sizeof(SymCache));
+	/* No need to check for NULL here */
+
 	rellim = (const Elf_Rel *)((caddr_t)obj->rel + obj->relsize);
 	for (rel = obj->rel; rel < rellim; rel++) {
 		if (reloc_nonplt_object(obj, rel, cache) < 0)
@@ -266,9 +264,8 @@ reloc_non_plt(Obj_Entry *obj, Obj_Entry *obj_rtld)
 	}
 	r = 0;
 done:
-	if (cache) {
-		munmap(cache, bytes);
-	}
+	if (cache != NULL)
+		free(cache);
 	return (r);
 }
 

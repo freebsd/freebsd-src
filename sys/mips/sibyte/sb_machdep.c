@@ -76,6 +76,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/vmparam.h>
 
 #ifdef SMP
+#include <sys/smp.h>
 #include <machine/smp.h>
 #endif
 
@@ -157,6 +158,17 @@ mips_init(void)
 #endif
 	TUNABLE_INT_FETCH("hw.physmem", &tmp);
 	maxmem = (uint64_t)tmp * 1024;
+
+	/*
+	 * XXX
+	 * If we used vm_paddr_t consistently in pmap, etc., we could
+	 * use 64-bit page numbers on !n64 systems, too, like i386
+	 * does with PAE.
+	 */
+#if !defined(__mips_n64)
+	if (maxmem == 0 || maxmem > 0xffffffff)
+		maxmem = 0xffffffff;
+#endif
 
 #ifdef CFE
 	/*
@@ -333,9 +345,17 @@ platform_ipi_intrnum(void)
 	return (4);
 }
 
+struct cpu_group *
+platform_smp_topo(void)
+{
+
+	return (smp_topo_none());
+}
+
 void
 platform_init_ap(int cpuid)
 {
+	int ipi_int_mask, clock_int_mask;
 
 	KASSERT(cpuid == 1, ("AP has an invalid cpu id %d", cpuid));
 
@@ -345,6 +365,13 @@ platform_init_ap(int cpuid)
 	kseg0_map_coherent();
 
 	sb_intr_init(cpuid);
+
+	/*
+	 * Unmask the clock and ipi interrupts.
+	 */
+	clock_int_mask = hard_int_mask(5);
+	ipi_int_mask = hard_int_mask(platform_ipi_intrnum());
+	set_intr_mask(ALL_INT_MASK & ~(ipi_int_mask | clock_int_mask));
 }
 
 int

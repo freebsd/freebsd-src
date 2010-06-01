@@ -185,7 +185,7 @@ static const struct usb_ether_methods udav_ue_methods = {
 	.ue_mii_sts = udav_ifmedia_status,
 };
 
-#if USB_DEBUG
+#ifdef USB_DEBUG
 static int udav_debug = 0;
 
 SYSCTL_NODE(_hw_usb, OID_AUTO, udav, CTLFLAG_RW, 0, "USB udav");

@@ -126,6 +126,14 @@ struct xswdev {
 #define	KERN_NOT_RECEIVER	7
 #define	KERN_NO_ACCESS		8
 
+#ifndef PA_LOCK_COUNT
+#ifdef SMP
+#define	PA_LOCK_COUNT	32
+#else
+#define PA_LOCK_COUNT	1
+#endif	/* !SMP */
+#endif	/* !PA_LOCK_COUNT */
+
 #ifndef ASSEMBLER
 #ifdef _KERNEL
 #define num_pages(x) \

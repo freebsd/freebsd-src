@@ -184,7 +184,7 @@ gre_clone_create(ifc, unit, params)
 	GRE2IFP(sc)->if_softc = sc;
 	if_initname(GRE2IFP(sc), ifc->ifc_name, unit);
 
-	GRE2IFP(sc)->if_snd.ifq_maxlen = IFQ_MAXLEN;
+	GRE2IFP(sc)->if_snd.ifq_maxlen = ifqmaxlen;
 	GRE2IFP(sc)->if_addrlen = 0;
 	GRE2IFP(sc)->if_hdrlen = 24; /* IP + GRE */
 	GRE2IFP(sc)->if_mtu = GREMTU;

@@ -2,7 +2,7 @@
 .include <bsd.own.mk>
 
 PROG=	bsdtar
-BSDTAR_VERSION_STRING=2.7.0
+BSDTAR_VERSION_STRING=2.8.3
 SRCS=	bsdtar.c	\
 	cmdline.c	\
 	err.c		\
@@ -15,8 +15,8 @@ SRCS=	bsdtar.c	\
 	tree.c		\
 	util.c		\
 	write.c
-DPADD=	${LIBARCHIVE} ${LIBBZ2} ${LIBZ} ${LIBMD}
-LDADD=	-larchive -lbz2 -lz -lmd
+DPADD=	${LIBARCHIVE} ${LIBBZ2} ${LIBZ} ${LIBMD} ${LIBLZMA}
+LDADD=	-larchive -lbz2 -lz -lmd -llzma
 .if ${MK_OPENSSL} != "no"
 DPADD+=	${LIBCRYPTO}
 LDADD+= -lcrypto

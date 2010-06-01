@@ -177,7 +177,7 @@ struct aac_ident
 	{0x9005, 0x0285, 0x1014, 0x0312, AAC_HWIF_I960RX, 0,
 	 "IBM ServeRAID 8i"},
 	{0x9005, 0x0285, 0x9005, 0x0298, AAC_HWIF_I960RX, 0,
-	 "Adaptec SAS RAID 4000SAS"},
+	 "Adaptec RAID 4000"},
 	{0x9005, 0x0285, 0x9005, 0x0299, AAC_HWIF_I960RX, 0,
 	 "Adaptec SAS RAID 4800SAS"},
 	{0x9005, 0x0285, 0x9005, 0x029a, AAC_HWIF_I960RX, 0,
@@ -353,7 +353,7 @@ aac_pci_attach(device_t dev)
 	/* assume failure is 'not configured' */
 	error = ENXIO;
 
-	/* 
+	/*
 	 * Verify that the adapter is correctly set up in PCI space.
 	 */
 	command = pci_read_config(sc->aac_dev, PCIR_COMMAND, 2);
@@ -401,7 +401,7 @@ aac_pci_attach(device_t dev)
 
 	/*
 	 * Allocate the parent bus DMA tag appropriate for our PCI interface.
-	 * 
+	 *
 	 * Note that some of these controllers are 64-bit capable.
 	 */
 	if (bus_dma_tag_create(NULL, 			/* parent */
@@ -419,7 +419,7 @@ aac_pci_attach(device_t dev)
 		goto out;
 	}
 
-	/* 
+	/*
 	 * Detect the hardware interface version, set up the bus interface
 	 * indirection.
 	 */

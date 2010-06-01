@@ -34,9 +34,9 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $OpenBSD: ssh.1,v 1.302 2010/03/05 10:28:21 djm Exp $
+.\" $OpenBSD: ssh.1,v 1.303 2010/03/26 00:26:58 djm Exp $
 .\" $FreeBSD$
-.Dd March 5 2010
+.Dd March 26 2010
 .Dt SSH 1
 .Os
 .Sh NAME
@@ -560,7 +560,10 @@ argument is
 the listen port will be dynamically allocated on the server and reported
 to the client at run time.
 .It Fl S Ar ctl_path
-Specifies the location of a control socket for connection sharing.
+Specifies the location of a control socket for connection sharing
+or the string
+.Dq none
+to disable connection sharing.
 Refer to the description of
 .Cm ControlPath
 and

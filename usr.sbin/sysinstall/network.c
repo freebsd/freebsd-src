@@ -141,12 +141,22 @@ mediaInitNetwork(Device *dev)
 	    }
 	    rp = variable_get(VAR_GATEWAY);
 	    if (!rp || *rp == '0') {
-		msgConfirm("No gateway has been set. You may be unable to access hosts\n"
+		msgConfirm("No gateway has been set. You will be unable to access hosts\n"
 			   "not on your local network");
 	    }
 	    else {
+		/* 
+		 * Explicitly flush all routes to get back to a known sane
+		 * state. We don't need to check this exit code because if
+		 * anything fails it will show up in the route add below.
+		 */
+		system("route -n flush");
 		msgDebug("Adding default route to %s.\n", rp);
-		vsystem("route -n add default %s", rp);
+		if (vsystem("route -n add default %s", rp) != 0) {
+		    msgConfirm("Failed to add a default route; please check "
+			       "your network configuration");
+		    return FALSE;
+		}
 	    }
 	} else {
 	    msgDebug("A DHCP interface.  Should already be up.\n");

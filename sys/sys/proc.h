@@ -173,6 +173,27 @@ struct kdtrace_thread;
 struct cpuset;
 
 /*
+ * XXX: Does this belong in resource.h or resourcevar.h instead?
+ * Resource usage extension.  The times in rusage structs in the kernel are
+ * never up to date.  The actual times are kept as runtimes and tick counts
+ * (with control info in the "previous" times), and are converted when
+ * userland asks for rusage info.  Backwards compatibility prevents putting
+ * this directly in the user-visible rusage struct.
+ *
+ * Locking for p_rux: (cj) means (j) for p_rux and (c) for p_crux.
+ * Locking for td_rux: (t) for all fields.
+ */
+struct rusage_ext {
+	u_int64_t	rux_runtime;    /* (cj) Real time. */
+	u_int64_t	rux_uticks;     /* (cj) Statclock hits in user mode. */
+	u_int64_t	rux_sticks;     /* (cj) Statclock hits in sys mode. */
+	u_int64_t	rux_iticks;     /* (cj) Statclock hits in intr mode. */
+	u_int64_t	rux_uu;         /* (c) Previous user time in usec. */
+	u_int64_t	rux_su;         /* (c) Previous sys time in usec. */
+	u_int64_t	rux_tu;         /* (c) Previous total time in usec. */
+};
+
+/*
  * Kernel runnable context (thread).
  * This is what is put to sleep and reactivated.
  * Thread context.  Processes may have multiple threads.
@@ -219,7 +240,8 @@ struct thread {
 	u_int		td_estcpu;	/* (t) estimated cpu utilization */
 	int		td_slptick;	/* (t) Time at sleep. */
 	int		td_blktick;	/* (t) Time spent blocked. */
-	struct rusage	td_ru;		/* (t) rusage information */
+	struct rusage	td_ru;		/* (t) rusage information. */
+	struct rusage_ext td_rux;	/* (t) Internal rusage information. */
 	uint64_t	td_incruntime;	/* (t) Cpu ticks to transfer to proc. */
 	uint64_t	td_runtime;	/* (t) How many cpu ticks we've run. */
 	u_int 		td_pticks;	/* (t) Statclock hits for profiling */
@@ -342,6 +364,9 @@ do {									\
 #define	TDB_SUSPEND	0x00000001 /* Thread is suspended by debugger */
 #define	TDB_XSIG	0x00000002 /* Thread is exchanging signal under trace */
 #define	TDB_USERWR	0x00000004 /* Debugger modified memory or registers */
+#define	TDB_SCE		0x00000008 /* Thread performs syscall enter */
+#define	TDB_SCX		0x00000010 /* Thread performs syscall exit */
+#define	TDB_EXEC	0x00000020 /* TDB_SCX from exec(2) family */
 
 /*
  * "Private" flags kept in td_pflags:
@@ -424,26 +449,6 @@ do {									\
 #define	TD_SET_RUNNING(td)	(td)->td_state = TDS_RUNNING
 #define	TD_SET_RUNQ(td)		(td)->td_state = TDS_RUNQ
 #define	TD_SET_CAN_RUN(td)	(td)->td_state = TDS_CAN_RUN
-
-/*
- * XXX: Does this belong in resource.h or resourcevar.h instead?
- * Resource usage extension.  The times in rusage structs in the kernel are
- * never up to date.  The actual times are kept as runtimes and tick counts
- * (with control info in the "previous" times), and are converted when
- * userland asks for rusage info.  Backwards compatibility prevents putting
- * this directly in the user-visible rusage struct.
- *
- * Locking: (cj) means (j) for p_rux and (c) for p_crux.
- */
-struct rusage_ext {
-	u_int64_t	rux_runtime;    /* (cj) Real time. */
-	u_int64_t	rux_uticks;     /* (cj) Statclock hits in user mode. */
-	u_int64_t	rux_sticks;     /* (cj) Statclock hits in sys mode. */
-	u_int64_t	rux_iticks;     /* (cj) Statclock hits in intr mode. */
-	u_int64_t	rux_uu;         /* (c) Previous user time in usec. */
-	u_int64_t	rux_su;         /* (c) Previous sys time in usec. */
-	u_int64_t	rux_tu;         /* (c) Previous total time in usec. */
-};
 
 /*
  * Process structure.
@@ -835,9 +840,14 @@ void	cpu_switch(struct thread *, struct thread *, struct mtx *);
 void	cpu_throw(struct thread *, struct thread *) __dead2;
 void	unsleep(struct thread *);
 void	userret(struct thread *, struct trapframe *);
+struct syscall_args;
+int	syscallenter(struct thread *, struct syscall_args *);
+void	syscallret(struct thread *, int, struct syscall_args *);
 
 void	cpu_exit(struct thread *);
 void	exit1(struct thread *, int) __dead2;
+struct syscall_args;
+int	cpu_fetch_syscall_args(struct thread *td, struct syscall_args *sa);
 void	cpu_fork(struct thread *, struct proc *, struct thread *, int);
 void	cpu_set_fork_handler(struct thread *, void (*)(void *), void *);
 void	cpu_set_syscall_retval(struct thread *, int);

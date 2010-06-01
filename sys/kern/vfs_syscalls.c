@@ -1047,8 +1047,6 @@ kern_openat(struct thread *td, int fd, char *path, enum uio_seg pathseg,
 	struct filedesc *fdp = p->p_fd;
 	struct file *fp;
 	struct vnode *vp;
-	struct vattr vat;
-	struct mount *mp;
 	int cmode;
 	struct file *nfp;
 	int type, indx, error;
@@ -1124,7 +1122,12 @@ kern_openat(struct thread *td, int fd, char *path, enum uio_seg pathseg,
 	NDFREE(&nd, NDF_ONLY_PNBUF);
 	vp = nd.ni_vp;
 
-	fp->f_vnode = vp;	/* XXX Does devfs need this? */
+	/*
+	 * Store the vnode, for any f_type. Typically, the vnode use
+	 * count is decremented by direct call to vn_closefile() for
+	 * files that switched type in the cdevsw fdopen() method.
+	 */
+	fp->f_vnode = vp;
 	/*
 	 * If the file wasn't claimed by devfs bind it to the normal
 	 * vnode operations here.
@@ -1136,7 +1139,7 @@ kern_openat(struct thread *td, int fd, char *path, enum uio_seg pathseg,
 	}
 
 	VOP_UNLOCK(vp, 0);
-	if (flags & (O_EXLOCK | O_SHLOCK)) {
+	if (fp->f_type == DTYPE_VNODE && (flags & (O_EXLOCK | O_SHLOCK)) != 0) {
 		lf.l_whence = SEEK_SET;
 		lf.l_start = 0;
 		lf.l_len = 0;
@@ -1153,18 +1156,7 @@ kern_openat(struct thread *td, int fd, char *path, enum uio_seg pathseg,
 		atomic_set_int(&fp->f_flag, FHASLOCK);
 	}
 	if (flags & O_TRUNC) {
-		if ((error = vn_start_write(vp, &mp, V_WAIT | PCATCH)) != 0)
-			goto bad;
-		VATTR_NULL(&vat);
-		vat.va_size = 0;
-		vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
-#ifdef MAC
-		error = mac_vnode_check_write(td->td_ucred, fp->f_cred, vp);
-		if (error == 0)
-#endif
-			error = VOP_SETATTR(vp, &vat, td->td_ucred);
-		VOP_UNLOCK(vp, 0);
-		vn_finished_write(mp);
+		error = fo_truncate(fp, 0, td->td_ucred, td);
 		if (error)
 			goto bad;
 	}

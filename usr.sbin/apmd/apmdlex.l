@@ -36,6 +36,9 @@
 #include "apmd.h"
 #include "y.tab.h"
 
+/* We don't need it, avoid the warning. */
+#define YY_NO_UNPUT
+
 int lineno;
 int first_time;
 %}

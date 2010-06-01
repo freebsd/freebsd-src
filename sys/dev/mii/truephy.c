@@ -76,6 +76,7 @@ static device_method_t truephy_methods[] = {
 };
 
 static const struct mii_phydesc truephys[] = {
+	MII_PHY_DESC(AGERE,	ET1011),
 	MII_PHY_DESC(AGERE,	ET1011C),
 	MII_PHY_END
 };
@@ -161,7 +162,10 @@ truephy_attach(device_t dev)
 
 	mii->mii_instance++;
 
-	truephy_reset(sc);
+	if (MII_MODEL(ma->mii_id2) == MII_MODEL_AGERE_ET1011)
+		mii_phy_reset(sc);
+	else
+		truephy_reset(sc);
 
 	sc->mii_capabilities = PHY_READ(sc, MII_BMSR) & ma->mii_capmask;
 	if (sc->mii_capabilities & BMSR_EXTSTAT) {

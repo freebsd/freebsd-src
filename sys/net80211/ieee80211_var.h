@@ -213,6 +213,8 @@ struct ieee80211com {
 	enum ieee80211_protmode	ic_htprotmode;	/* HT protection mode */
 	int			ic_lastnonerp;	/* last time non-ERP sta noted*/
 	int			ic_lastnonht;	/* last time non-HT sta noted */
+	uint8_t			ic_rxstream;    /* # RX streams */
+	uint8_t			ic_txstream;    /* # TX streams */
 
 	/* optional state for Atheros SuperG protocol extensions */
 	struct ieee80211_superg	*ic_superg;
@@ -315,7 +317,6 @@ struct ieee80211com {
 	void			(*ic_ampdu_rx_stop)(struct ieee80211_node *,
 				    struct ieee80211_rx_ampdu *);
 	uint64_t		ic_spare[7];
-	uint32_t		ic_spare2;
 };
 
 struct ieee80211_aclator;

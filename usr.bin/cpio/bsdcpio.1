@@ -80,6 +80,9 @@ specified directory.
 Unless specifically stated otherwise, options are applicable in
 all operating modes.
 .Bl -tag -width indent
+.It Fl 0
+Read filenames separated by NUL characters instead of newlines.
+This is necessary if any of the filenames being read might contain newlines.
 .It Fl A
 (o mode only)
 Append to the specified archive.
@@ -142,6 +145,11 @@ for more complete information about the
 formats currently supported by the underlying
 .Xr libarchive 3
 library.
+.It Fl H Ar format
+Synonym for
+.Fl -format .
+.It Fl h , Fl -help
+Print usage information.
 .It Fl I Ar file
 Read archive from
 .Ar file .
@@ -154,6 +162,14 @@ Disable security checks during extraction or copying.
 This allows extraction via symbolic links and path names containing
 .Sq ..
 in the name.
+.It Fl J
+(o mode only)
+Compress the file with xz-compatible compression before writing it.
+In input mode, this option is ignored; xz compression is recognized
+automatically on input.
+.It Fl j
+Synonym for
+.Fl y .
 .It Fl L
 (o and p modes)
 All symbolic links will be followed.
@@ -163,6 +179,11 @@ With this option, the target of the link will be archived or copied instead.
 (p mode only)
 Create links from the target directory to the original files,
 instead of copying.
+.It Fl lzma
+(o mode only)
+Compress the file with lzma-compatible compression before writing it.
+In input mode, this option is ignored; lzma compression is recognized
+automatically on input.
 .It Fl m
 (i and p modes)
 Set file modification time on created files to match
@@ -176,6 +197,10 @@ By default,
 displays the user and group names when they are provided in the
 archive, or looks up the user and group names in the system
 password database.
+.It Fl no-preserve-owner
+(i mode only)
+Do not attempt to restore file ownership.
+This is the default when run by non-root users.
 .It Fl O Ar file
 Write archive to
 .Ar file .
@@ -185,6 +210,10 @@ See above for description.
 .It Fl p
 Pass-through mode.
 See above for description.
+.It Fl preserve-owner
+(i mode only)
+Restore file ownership.
+This is the default when run by the root user.
 .It Fl -quiet
 Suppress unnecessary messages.
 .It Fl R Oo user Oc Ns Oo : Oc Ns Oo group Oc
@@ -266,7 +295,7 @@ for more information.
 .Sh EXAMPLES
 The
 .Nm
-command is traditionally used to copy file hierarchies in conjunction
+command is traditionally used to copy file heirarchies in conjunction
 with the
 .Xr find 1
 command.

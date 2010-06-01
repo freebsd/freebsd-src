@@ -76,6 +76,7 @@ SUBDIR=	${SUBDIR_ORDERED} \
 	${_libipx} \
 	libjail \
 	libkiconv \
+	liblzma \
 	libmagic \
 	libmemstat \
 	${_libmilter} \
@@ -85,6 +86,7 @@ SUBDIR=	${SUBDIR_ORDERED} \
 	libopie \
 	libpam \
 	libpcap \
+	${_libpkg} \
 	${_libpmc} \
 	libproc \
 	librt \
@@ -200,6 +202,10 @@ _libmp=		libmp
 
 .if ${MK_PMC} != "no"
 _libpmc=	libpmc
+.endif
+
+.if ${MK_PKGTOOLS} != "no"
+_libpkg=	libpkg
 .endif
 
 .if ${MK_SENDMAIL} != "no"

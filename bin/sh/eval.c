@@ -937,6 +937,8 @@ evalcommand(union node *cmd, int flags, struct backcmd *backcmd)
 			cmdentry.special = 1;
 		if (cmdentry.special)
 			listsetvar(cmdenviron);
+		if (argc > 0)
+			bltinsetlocale();
 		commandname = argv[0];
 		argptr = argv + 1;
 		nextopt_optptr = NULL;		/* initialize nextopt */
@@ -944,6 +946,8 @@ evalcommand(union node *cmd, int flags, struct backcmd *backcmd)
 		exitstatus = (*builtinfunc[cmdentry.u.index])(argc, argv);
 		flushall();
 cmddone:
+		if (argc > 0)
+			bltinunsetlocale();
 		cmdenviron = NULL;
 		out1 = &output;
 		out2 = &errout;
@@ -1085,8 +1089,7 @@ breakcmd(int argc, char **argv)
 int
 commandcmd(int argc, char **argv)
 {
-	static char stdpath[] = _PATH_STDPATH;
-	char *path;
+	const char *path;
 	int ch;
 	int cmd = -1;
 
@@ -1097,7 +1100,7 @@ commandcmd(int argc, char **argv)
 	while ((ch = getopt(argc, argv, "pvV")) != -1) {
 		switch (ch) {
 		case 'p':
-			path = stdpath;
+			path = _PATH_STDPATH;
 			break;
 		case 'v':
 			cmd = TYPECMD_SMALLV;
@@ -1167,6 +1170,12 @@ truecmd(int argc __unused, char **argv __unused)
 int
 execcmd(int argc, char **argv)
 {
+	/*
+	 * Because we have historically not supported any options,
+	 * only treat "--" specially.
+	 */
+	if (argc > 1 && strcmp(argv[1], "--") == 0)
+		argc--, argv++;
 	if (argc > 1) {
 		struct strlist *sp;
 

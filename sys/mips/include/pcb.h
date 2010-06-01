@@ -51,7 +51,7 @@ struct pcb
 {
 	struct trapframe pcb_regs;	/* saved CPU and registers */
 	__register_t pcb_context[14];	/* kernel context for resume */
-	int	pcb_onfault;		/* for copyin/copyout faults */
+	void *pcb_onfault;		/* for copyin/copyout faults */
 	register_t pcb_tpc;
 };
 

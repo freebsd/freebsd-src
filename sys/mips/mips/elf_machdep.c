@@ -36,6 +36,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/linker.h>
 #include <sys/sysent.h>
 #include <sys/imgact_elf.h>
+#include <sys/proc.h>
 #include <sys/syscall.h>
 #include <sys/signalvar.h>
 #include <sys/vnode.h>
@@ -77,7 +78,10 @@ struct sysentvec elf64_freebsd_sysvec = {
 	.sv_setregs	= exec_setregs,
 	.sv_fixlimit	= NULL,
 	.sv_maxssiz	= NULL,
-	.sv_flags	= SV_ABI_FREEBSD | SV_LP64
+	.sv_flags	= SV_ABI_FREEBSD | SV_LP64,
+	.sv_set_syscall_retval = cpu_set_syscall_retval,
+	.sv_fetch_syscall_args = NULL, /* XXXKIB */
+	.sv_syscallnames = syscallnames,
 };
 
 static Elf64_Brandinfo freebsd_brand_info = {
@@ -129,7 +133,10 @@ struct sysentvec elf32_freebsd_sysvec = {
 	.sv_setregs	= exec_setregs,
 	.sv_fixlimit	= NULL,
 	.sv_maxssiz	= NULL,
-	.sv_flags	= SV_ABI_FREEBSD | SV_ILP32
+	.sv_flags	= SV_ABI_FREEBSD | SV_ILP32,
+	.sv_set_syscall_retval = cpu_set_syscall_retval,
+	.sv_fetch_syscall_args = NULL, /* XXXKIB */
+	.sv_syscallnames = syscallnames,
 };
 
 static Elf32_Brandinfo freebsd_brand_info = {
@@ -159,7 +166,7 @@ static int
 elf_reloc_internal(linker_file_t lf, Elf_Addr relocbase, const void *data,
     int type, int local, elf_lookup_fn lookup)
 {
-	Elf_Addr *where = (Elf_Addr *)NULL;;
+	Elf_Addr *where = (Elf_Addr *)NULL;
 	Elf_Addr addr;
 	Elf_Addr addend = (Elf_Addr)0;
 	Elf_Word rtype = (Elf_Word)0, symidx;

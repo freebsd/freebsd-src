@@ -64,7 +64,7 @@
 #define	USB_DEBUG_VAR ustorage_fs_debug
 #include <dev/usb/usb_debug.h>
 
-#if USB_DEBUG
+#ifdef USB_DEBUG
 static int ustorage_fs_debug = 0;
 
 SYSCTL_NODE(_hw_usb, OID_AUTO, ustorage_fs, CTLFLAG_RW, 0, "USB ustorage_fs");

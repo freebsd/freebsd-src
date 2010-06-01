@@ -104,6 +104,10 @@ struct ifindex_entry {
 SYSCTL_NODE(_net, PF_LINK, link, CTLFLAG_RW, 0, "Link layers");
 SYSCTL_NODE(_net_link, 0, generic, CTLFLAG_RW, 0, "Generic link-management");
 
+TUNABLE_INT("net.link.ifqmaxlen", &ifqmaxlen);
+SYSCTL_UINT(_net_link, OID_AUTO, ifqmaxlen, CTLFLAG_RDTUN,
+    &ifqmaxlen, 0, "max send queue size");
+
 /* Log link state change events */
 static int log_link_state_change = 1;
 
@@ -163,9 +167,11 @@ static void	if_detach_internal(struct ifnet *, int);
 extern void	nd6_setmtu(struct ifnet *);
 #endif
 
+VNET_DEFINE(int, if_index);
+int	ifqmaxlen = IFQ_MAXLEN;
 VNET_DEFINE(struct ifnethead, ifnet);	/* depend on static init XXX */
 VNET_DEFINE(struct ifgrouphead, ifg_head);
-VNET_DEFINE(int, if_index);
+
 static VNET_DEFINE(int, if_indexlim) = 8;
 
 /* Table of ifnet by index. */
@@ -173,8 +179,6 @@ static VNET_DEFINE(struct ifindex_entry *, ifindex_table);
 
 #define	V_if_indexlim		VNET(if_indexlim)
 #define	V_ifindex_table		VNET(ifindex_table)
-
-int	ifqmaxlen = IFQ_MAXLEN;
 
 /*
  * The global network interface list (V_ifnet) and related state (such as
@@ -897,14 +901,20 @@ if_detach_internal(struct ifnet *ifp, int vmove)
 		devctl_notify("IFNET", ifp->if_xname, "DETACH", NULL);
 	if_delgroups(ifp);
 
+	/*
+	 * We cannot hold the lock over dom_ifdetach calls as they might
+	 * sleep, for example trying to drain a callout, thus open up the
+	 * theoretical race with re-attaching.
+	 */
 	IF_AFDATA_LOCK(ifp);
-	for (dp = domains; dp; dp = dp->dom_next) {
+	i = ifp->if_afdata_initialized;
+	ifp->if_afdata_initialized = 0;
+	IF_AFDATA_UNLOCK(ifp);
+	for (dp = domains; i > 0 && dp; dp = dp->dom_next) {
 		if (dp->dom_ifdetach && ifp->if_afdata[dp->dom_family])
 			(*dp->dom_ifdetach)(ifp,
 			    ifp->if_afdata[dp->dom_family]);
 	}
-	ifp->if_afdata_initialized = 0;
-	IF_AFDATA_UNLOCK(ifp);
 }
 
 #ifdef VIMAGE
@@ -1597,7 +1607,7 @@ done:
  * is most specific found.
  */
 struct ifaddr *
-ifa_ifwithnet(struct sockaddr *addr)
+ifa_ifwithnet(struct sockaddr *addr, int ignore_ptp)
 {
 	struct ifnet *ifp;
 	struct ifaddr *ifa;
@@ -1629,7 +1639,8 @@ ifa_ifwithnet(struct sockaddr *addr)
 
 			if (ifa->ifa_addr->sa_family != af)
 next:				continue;
-			if (af == AF_INET && ifp->if_flags & IFF_POINTOPOINT) {
+			if (af == AF_INET && 
+			    ifp->if_flags & IFF_POINTOPOINT && !ignore_ptp) {
 				/*
 				 * This is a bit broken as it doesn't
 				 * take into account that the remote end may
@@ -2043,14 +2054,13 @@ ifhwioctl(u_long cmd, struct ifnet *ifp, caddr_t data, struct thread *td)
 	case SIOCGIFDESCR:
 		error = 0;
 		sx_slock(&ifdescr_sx);
-		if (ifp->if_description == NULL) {
-			ifr->ifr_buffer.length = 0;
+		if (ifp->if_description == NULL)
 			error = ENOMSG;
-		} else {
+		else {
 			/* space for terminating nul */
 			descrlen = strlen(ifp->if_description) + 1;
 			if (ifr->ifr_buffer.length < descrlen)
-				error = ENAMETOOLONG;
+				ifr->ifr_buffer.buffer = NULL;
 			else
 				error = copyout(ifp->if_description,
 				    ifr->ifr_buffer.buffer, descrlen);

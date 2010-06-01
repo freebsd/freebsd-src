@@ -545,15 +545,16 @@ devctl_queue_data(char *data)
 	struct proc *p;
 
 	if (strlen(data) == 0)
-		return;
+		goto out;
 	if (devctl_queue_length == 0)
-		return;
+		goto out;
 	n1 = malloc(sizeof(*n1), M_BUS, M_NOWAIT);
 	if (n1 == NULL)
-		return;
+		goto out;
 	n1->dei_data = data;
 	mtx_lock(&devsoftc.mtx);
 	if (devctl_queue_length == 0) {
+		mtx_unlock(&devsoftc.mtx);
 		free(n1->dei_data, M_BUS);
 		free(n1, M_BUS);
 		return;
@@ -577,6 +578,14 @@ devctl_queue_data(char *data)
 		psignal(p, SIGIO);
 		PROC_UNLOCK(p);
 	}
+	return;
+out:
+	/*
+	 * We have to free data on all error paths since the caller
+	 * assumes it will be free'd when this item is dequeued.
+	 */
+	free(data, M_BUS);
+	return;
 }
 
 /**

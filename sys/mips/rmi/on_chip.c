@@ -38,8 +38,19 @@ __FBSDID("$FreeBSD$");
 #include <sys/limits.h>
 #include <sys/bus.h>
 
+#include <sys/ktr.h>
+#include <sys/kernel.h>
+#include <sys/kthread.h>
+#include <sys/proc.h>
+#include <sys/resourcevar.h>
+#include <sys/sched.h>
+#include <sys/unistd.h>
+#include <sys/sysctl.h>
+#include <sys/malloc.h>
+
 #include <machine/reg.h>
 #include <machine/cpu.h>
+#include <machine/hwfunc.h>
 #include <machine/mips_opcode.h>
 
 #include <machine/param.h>
@@ -61,6 +72,16 @@ struct tx_stn_handler {
 	void (*action) (int, int, int, int, struct msgrng_msg *, void *);
 	void *dev_id;
 };
+
+struct msgring_ithread {
+	struct thread *i_thread;
+	u_int i_pending;
+	u_int i_flags;
+	int i_cpu;
+	int i_core;
+};
+
+struct msgring_ithread *msgring_ithreads[MAXCPU];
 
 /* globals */
 static struct tx_stn_handler tx_stn_handlers[MAX_TX_STNS];
@@ -91,8 +112,6 @@ static uint32_t msgring_thread_mask;
 
 uint32_t msgrng_msg_cycles = 0;
 
-int xlr_counters[MAXCPU][XLR_MAX_COUNTERS] __aligned(XLR_CACHELINE_SIZE);
-
 void xlr_msgring_handler(struct trapframe *);
 
 void 
@@ -103,10 +122,10 @@ xlr_msgring_cpu_init(void)
 	int id;
 	unsigned long flags;
 
-	/* if not thread 0 */
-	if (xlr_thr_id() != 0)
-		return;
-	id = xlr_cpu_id();
+	KASSERT(xlr_thr_id() == 0,
+		("xlr_msgring_cpu_init from non-zero thread\n"));
+
+	id = xlr_core_id();
 
 	bucket_sizes = xlr_board_info.bucket_sizes;
 	cc_config = xlr_board_info.credit_configs[id];
@@ -156,10 +175,6 @@ xlr_msgring_config(void)
 
 	msgring_watermark_count = 1;
 	msgring_thread_mask = 0x01;
-/*   printf("[%s]: int_type = 0x%x, pop_num_buckets=%d, pop_bucket_mask=%x" */
-/*          "watermark_count=%d, thread_mask=%x\n", __FUNCTION__, */
-/*          msgring_int_type, msgring_pop_num_buckets, msgring_pop_bucket_mask, */
-/*          msgring_watermark_count, msgring_thread_mask); */
 }
 
 void 
@@ -172,7 +187,6 @@ xlr_msgring_handler(struct trapframe *tf)
 	unsigned int bucket_empty_bm = 0;
 	unsigned int status = 0;
 
-	xlr_inc_counter(MSGRNG_INT);
 	/* TODO: not necessary to disable preemption */
 	msgrng_flags_save(mflags);
 
@@ -185,18 +199,12 @@ xlr_msgring_handler(struct trapframe *tf)
 			break;
 
 		for (bucket = 0; bucket < msgring_pop_num_buckets; bucket++) {
-			uint32_t cycles = 0;
-
 			if ((bucket_empty_bm & (1 << bucket)) /* empty */ )
 				continue;
 
 			status = message_receive(bucket, &size, &code, &rx_stid, &msg);
 			if (status)
 				continue;
-
-			xlr_inc_counter(MSGRNG_MSG);
-			msgrng_msg_cycles = mips_rd_count();
-			cycles = msgrng_msg_cycles;
 
 			tx_stid = xlr_board_info.msgmap[rx_stid];
 
@@ -211,17 +219,12 @@ xlr_msgring_handler(struct trapframe *tf)
 				    &msg, tx_stn_handlers[tx_stid].dev_id);
 				msgrng_flags_save(mflags);
 			}
-			xlr_set_counter(MSGRNG_MSG_CYCLES, (read_c0_count() - cycles));
 		}
 	}
 
 	xlr_set_counter(MSGRNG_EXIT_STATUS, msgrng_read_status());
 
 	msgrng_flags_restore(mflags);
-
-	//dbg_msg("OUT irq=%d\n", irq);
-
-	/* Call the msg callback */
 }
 
 void 
@@ -249,8 +252,112 @@ disable_msgring_int(void *arg)
 	msgrng_access_restore(&msgrng_lock, mflags);
 }
 
-extern void platform_prep_smp_launch(void);
-extern void msgring_process_fast_intr(void *arg);
+static int
+msgring_process_fast_intr(void *arg)
+{
+	int core = xlr_core_id();
+	volatile struct msgring_ithread *it;
+	struct thread *td;
+
+	/* wakeup an appropriate intr_thread for processing this interrupt */
+	it = (volatile struct msgring_ithread *)msgring_ithreads[core];
+	KASSERT(it != NULL, ("No interrupt thread on cpu %d", core));
+	td = it->i_thread;
+
+	/*
+	 * Interrupt thread will enable the interrupts after processing all
+	 * messages
+	 */
+	disable_msgring_int(NULL);
+	atomic_store_rel_int(&it->i_pending, 1);
+	thread_lock(td);
+	if (TD_AWAITING_INTR(td)) {
+		TD_CLR_IWAIT(td);
+		sched_add(td, SRQ_INTR);
+	}
+	thread_unlock(td);
+	return FILTER_HANDLED;
+}
+
+static void
+msgring_process(void *arg)
+{
+	volatile struct msgring_ithread *ithd;
+	struct thread *td;
+	struct proc *p;
+
+	td = curthread;
+	p = td->td_proc;
+	ithd = (volatile struct msgring_ithread *)arg;
+	KASSERT(ithd->i_thread == td,
+	    ("%s:msg_ithread and proc linkage out of sync", __func__));
+
+	/* First bind this thread to the right CPU */
+	thread_lock(td);
+	
+	sched_bind(td, ithd->i_cpu);
+	thread_unlock(td);
+
+	atomic_store_rel_ptr((volatile uintptr_t *)&msgring_ithreads[ithd->i_core],
+	     (uintptr_t)arg);
+	enable_msgring_int(NULL);
+	
+	while (1) {
+		while (ithd->i_pending) {
+			/*
+			 * This might need a full read and write barrier to
+			 * make sure that this write posts before any of the
+			 * memory or device accesses in the handlers.
+			 */
+			xlr_msgring_handler(NULL);
+			atomic_store_rel_int(&ithd->i_pending, 0);
+			enable_msgring_int(NULL);
+		}
+		if (!ithd->i_pending) {
+			thread_lock(td);
+			if (ithd->i_pending) {
+			  thread_unlock(td);
+			  continue;
+			}
+			sched_class(td, PRI_ITHD);
+			TD_SET_IWAIT(td);
+			mi_switch(SW_VOL, NULL);
+			thread_unlock(td);
+		}
+	}
+
+}
+
+static void 
+create_msgring_thread(int core, int cpu)
+{
+	struct msgring_ithread *ithd;
+	struct thread *td;
+	struct proc *p;
+	int error;
+
+	/* Create kernel thread for message ring interrupt processing */
+	/* Currently create one task for thread 0 of each core */
+	ithd = malloc(sizeof(struct msgring_ithread),
+	    M_DEVBUF, M_WAITOK | M_ZERO);
+	error = kproc_create(msgring_process, (void *)ithd, &p,
+	    RFSTOPPED | RFHIGHPID, 2, "msg_intr%d", cpu);
+
+	if (error)
+		panic("kproc_create() failed with %d", error);
+	td = FIRST_THREAD_IN_PROC(p);	/* XXXKSE */
+
+	ithd->i_thread = td;
+	ithd->i_pending = 0;
+	ithd->i_cpu = cpu;
+	ithd->i_core = core;
+
+	thread_lock(td);
+	sched_class(td, PRI_ITHD);
+	sched_add(td, SRQ_INTR);
+	thread_unlock(td);
+	CTR2(KTR_INTR, "%s: created %s", __func__, ithd_name[core]);
+}
 
 int 
 register_msgring_handler(int major,
@@ -272,14 +379,10 @@ register_msgring_handler(int major,
 	  mtx_unlock_spin(&msgrng_lock);
 
 	if (xlr_test_and_set(&msgring_int_enabled)) {
-		platform_prep_smp_launch();
-
+		create_msgring_thread(0, 0);
 		cpu_establish_hardintr("msgring", (driver_filter_t *) msgring_process_fast_intr,
 			NULL, NULL, IRQ_MSGRING, 
 			INTR_TYPE_NET | INTR_FAST, &cookie);
-
-		/* configure the msgring interrupt on cpu 0 */
-		enable_msgring_int(NULL);
 	}
 	return 0;
 }
@@ -303,7 +406,8 @@ pic_init(void)
 		 * Use local scheduling and high polarity for all IRTs
 		 * Invalidate all IRTs, by default
 		 */
-		xlr_write_reg(mmio, PIC_IRT_1_BASE + i, (level << 30) | (1 << 6) | (PIC_IRQ_BASE + i));
+		xlr_write_reg(mmio, PIC_IRT_1_BASE + i, (level << 30) | (1 << 6) |
+		    (PIC_IRQ_BASE + i));
 	}
 	dbg_msg("PIC init now done\n");
 }
@@ -311,8 +415,6 @@ pic_init(void)
 void 
 on_chip_init(void)
 {
-	int i = 0, j = 0;
-
 	/* Set xlr_io_base to the run time value */
 	mtx_init(&msgrng_lock, "msgring", NULL, MTX_SPIN | MTX_RECURSE);
 	mtx_init(&xlr_pic_lock, "pic", NULL, MTX_SPIN);
@@ -325,8 +427,20 @@ on_chip_init(void)
 	pic_init();
 
 	xlr_msgring_cpu_init();
-
-	for (i = 0; i < MAXCPU; i++)
-		for (j = 0; j < XLR_MAX_COUNTERS; j++)
-			atomic_set_int(&xlr_counters[i][j], 0);
 }
+
+static void
+start_msgring_threads(void *arg)
+{
+	int core, cpu;
+
+	for (core = 1; core < XLR_MAX_CORES; core++) {
+		if ((xlr_hw_thread_mask >> (4 * core)) & 0xf) {
+			/* start one thread for an enabled core */
+			cpu = xlr_hwtid_to_cpuid[4 * core];
+			create_msgring_thread(core, cpu);
+		}
+	}
+}
+
+SYSINIT(start_msgring_threads, SI_SUB_SMP, SI_ORDER_MIDDLE, start_msgring_threads, NULL);

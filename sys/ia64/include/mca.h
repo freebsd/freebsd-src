@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2002 Marcel Moolenaar
+ * Copyright (c) 2002-2010 Marcel Moolenaar
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -240,7 +240,6 @@ struct mca_pcidev_reg {
 #ifdef _KERNEL
 
 void ia64_mca_init(void);
-void ia64_mca_populate(void);
 void ia64_mca_save_state(int);
 
 #endif /* _KERNEL */

@@ -39,6 +39,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/endian.h>
 #include <sys/fcntl.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
@@ -59,6 +60,8 @@ __FBSDID("$FreeBSD$");
 #include <ufs/ufs/ufsmount.h>
 #include <ufs/ufs/ufs_extern.h>
 
+CTASSERT(sizeof(struct dqblk64) == sizeof(struct dqhdr64));
+
 static int unprivileged_get_quota = 0;
 SYSCTL_INT(_security_bsd, OID_AUTO, unprivileged_get_quota, CTLFLAG_RW,
     &unprivileged_get_quota, 0,
@@ -73,12 +76,21 @@ static char *quotatypes[] = INITQFNAMES;
 
 static int chkdqchg(struct inode *, ufs2_daddr_t, struct ucred *, int, int *);
 static int chkiqchg(struct inode *, int, struct ucred *, int, int *);
+static int dqopen(struct vnode *, struct ufsmount *, int);
 static int dqget(struct vnode *,
 	u_long, struct ufsmount *, int, struct dquot **);
 static int dqsync(struct vnode *, struct dquot *);
 static void dqflush(struct vnode *);
 static int quotaoff1(struct thread *td, struct mount *mp, int type);
 static int quotaoff_inchange(struct thread *td, struct mount *mp, int type);
+
+/* conversion functions - from_to() */
+static void dqb32_dq(const struct dqblk32 *, struct dquot *);
+static void dqb64_dq(const struct dqblk64 *, struct dquot *);
+static void dq_dqb32(const struct dquot *, struct dqblk32 *);
+static void dq_dqb64(const struct dquot *, struct dqblk64 *);
+static void dqb32_dqb64(const struct dqblk32 *, struct dqblk64 *);
+static void dqb64_dqb32(const struct dqblk64 *, struct dqblk32 *);
 
 #ifdef DIAGNOSTIC
 static void dqref(struct dquot *);
@@ -90,7 +102,7 @@ static void chkdquot(struct inode *);
  *
  * This routine completely defines the semantics of quotas.
  * If other criterion want to be used to establish quotas, the
- * MAXQUOTAS value in quotas.h should be increased, and the
+ * MAXQUOTAS value in quota.h should be increased, and the
  * additional dquots set up here.
  */
 int
@@ -496,6 +508,9 @@ quotaon(struct thread *td, struct mount *mp, int type, void *fname)
 	if (error)
 		return (error);
 
+	if (mp->mnt_flag & MNT_RDONLY)
+		return (EROFS);
+
 	ump = VFSTOUFS(mp);
 	dq = NODQUOT;
 
@@ -522,10 +537,18 @@ quotaon(struct thread *td, struct mount *mp, int type, void *fname)
 		return (EALREADY);
 	}
 	ump->um_qflags[type] |= QTF_OPENING|QTF_CLOSING;
+	UFS_UNLOCK(ump);
+	if ((error = dqopen(vp, ump, type)) != 0) {
+		UFS_LOCK(ump);
+		ump->um_qflags[type] &= ~(QTF_OPENING|QTF_CLOSING);
+		UFS_UNLOCK(ump);
+		(void) vn_close(vp, FREAD|FWRITE, td->td_ucred, td);
+		VFS_UNLOCK_GIANT(vfslocked);
+		return (error);
+	}
 	MNT_ILOCK(mp);
 	mp->mnt_flag |= MNT_QUOTA;
 	MNT_IUNLOCK(mp);
-	UFS_UNLOCK(ump);
 
 	vpp = &ump->um_quotas[type];
 	if (*vpp != vp)
@@ -734,8 +757,9 @@ quotaoff(struct thread *td, struct mount *mp, int type)
 /*
  * Q_GETQUOTA - return current values in a dqblk structure.
  */
-int
-getquota(struct thread *td, struct mount *mp, u_long id, int type, void *addr)
+static int
+_getquota(struct thread *td, struct mount *mp, u_long id, int type,
+    struct dqblk64 *dqb)
 {
 	struct dquot *dq;
 	int error;
@@ -766,7 +790,7 @@ getquota(struct thread *td, struct mount *mp, u_long id, int type, void *addr)
 	error = dqget(NULLVP, id, VFSTOUFS(mp), type, &dq);
 	if (error)
 		return (error);
-	error = copyout(&dq->dq_dqb, addr, sizeof (struct dqblk));
+	*dqb = dq->dq_dqb;
 	dqrele(NULLVP, dq);
 	return (error);
 }
@@ -774,23 +798,21 @@ getquota(struct thread *td, struct mount *mp, u_long id, int type, void *addr)
 /*
  * Q_SETQUOTA - assign an entire dqblk structure.
  */
-int
-setquota(struct thread *td, struct mount *mp, u_long id, int type, void *addr)
+static int
+_setquota(struct thread *td, struct mount *mp, u_long id, int type,
+    struct dqblk64 *dqb)
 {
 	struct dquot *dq;
 	struct dquot *ndq;
 	struct ufsmount *ump;
-	struct dqblk newlim;
+	struct dqblk64 newlim;
 	int error;
 
 	error = priv_check(td, PRIV_VFS_SETQUOTA);
 	if (error)
 		return (error);
 
-	ump = VFSTOUFS(mp);
-	error = copyin(addr, &newlim, sizeof (struct dqblk));
-	if (error)
-		return (error);
+	newlim = *dqb;
 
 	ndq = NODQUOT;
 	ump = VFSTOUFS(mp);
@@ -839,23 +861,21 @@ setquota(struct thread *td, struct mount *mp, u_long id, int type, void *addr)
 /*
  * Q_SETUSE - set current inode and block usage.
  */
-int
-setuse(struct thread *td, struct mount *mp, u_long id, int type, void *addr)
+static int
+_setuse(struct thread *td, struct mount *mp, u_long id, int type,
+    struct dqblk64 *dqb)
 {
 	struct dquot *dq;
 	struct ufsmount *ump;
 	struct dquot *ndq;
-	struct dqblk usage;
+	struct dqblk64 usage;
 	int error;
 
 	error = priv_check(td, PRIV_UFS_SETUSE);
 	if (error)
 		return (error);
 
-	ump = VFSTOUFS(mp);
-	error = copyin(addr, &usage, sizeof (struct dqblk));
-	if (error)
-		return (error);
+	usage = *dqb;
 
 	ump = VFSTOUFS(mp);
 	ndq = NODQUOT;
@@ -886,6 +906,114 @@ setuse(struct thread *td, struct mount *mp, u_long id, int type, void *addr)
 	DQI_UNLOCK(dq);
 	dqrele(NULLVP, dq);
 	return (0);
+}
+
+int
+getquota32(struct thread *td, struct mount *mp, u_long id, int type, void *addr)
+{
+	struct dqblk32 dqb32;
+	struct dqblk64 dqb64;
+	int error;
+
+	error = _getquota(td, mp, id, type, &dqb64);
+	if (error)
+		return (error);
+	dqb64_dqb32(&dqb64, &dqb32);
+	error = copyout(&dqb32, addr, sizeof(dqb32));
+	return (error);
+}
+
+int
+setquota32(struct thread *td, struct mount *mp, u_long id, int type, void *addr)
+{
+	struct dqblk32 dqb32;
+	struct dqblk64 dqb64;
+	int error;
+
+	error = copyin(addr, &dqb32, sizeof(dqb32));
+	if (error)
+		return (error);
+	dqb32_dqb64(&dqb32, &dqb64);
+	error = _setquota(td, mp, id, type, &dqb64);
+	return (error);
+}
+
+int
+setuse32(struct thread *td, struct mount *mp, u_long id, int type, void *addr)
+{
+	struct dqblk32 dqb32;
+	struct dqblk64 dqb64;
+	int error;
+
+	error = copyin(addr, &dqb32, sizeof(dqb32));
+	if (error)
+		return (error);
+	dqb32_dqb64(&dqb32, &dqb64);
+	error = _setuse(td, mp, id, type, &dqb64);
+	return (error);
+}
+
+int
+getquota(struct thread *td, struct mount *mp, u_long id, int type, void *addr)
+{
+	struct dqblk64 dqb64;
+	int error;
+
+	error = _getquota(td, mp, id, type, &dqb64);
+	if (error)
+		return (error);
+	error = copyout(&dqb64, addr, sizeof(dqb64));
+	return (error);
+}
+
+int
+setquota(struct thread *td, struct mount *mp, u_long id, int type, void *addr)
+{
+	struct dqblk64 dqb64;
+	int error;
+
+	error = copyin(addr, &dqb64, sizeof(dqb64));
+	if (error)
+		return (error);
+	error = _setquota(td, mp, id, type, &dqb64);
+	return (error);
+}
+
+int
+setuse(struct thread *td, struct mount *mp, u_long id, int type, void *addr)
+{
+	struct dqblk64 dqb64;
+	int error;
+
+	error = copyin(addr, &dqb64, sizeof(dqb64));
+	if (error)
+		return (error);
+	error = _setuse(td, mp, id, type, &dqb64);
+	return (error);
+}
+
+/*
+ * Q_GETQUOTASIZE - get bit-size of quota file fields
+ */
+int
+getquotasize(struct thread *td, struct mount *mp, u_long id, int type,
+    void *sizep)
+{
+	struct ufsmount *ump = VFSTOUFS(mp);
+	int bitsize;
+
+	UFS_LOCK(ump);
+	if (ump->um_quotas[type] == NULLVP ||
+	    (ump->um_qflags[type] & QTF_CLOSING)) {
+		UFS_UNLOCK(ump);
+		return (EINVAL);
+	}
+	if ((ump->um_qflags[type] & QTF_64BIT) != 0)
+		bitsize = 64;
+	else
+		bitsize = 32;
+	UFS_UNLOCK(ump);
+	return (copyout(&bitsize, sizep, sizeof(int)));
 }
 
 /*
@@ -1025,6 +1153,60 @@ dqhashfind(struct dqhash *dqh, u_long id, struct vnode *dqvp)
 }
 
 /*
+ * Determine the quota file type.
+ *
+ * A 32-bit quota file is simply an array of struct dqblk32.
+ *
+ * A 64-bit quota file is a struct dqhdr64 followed by an array of struct
+ * dqblk64.  The header contains various magic bits which allow us to be
+ * reasonably confident that it is indeeda 64-bit quota file and not just
+ * a 32-bit quota file that just happens to "look right".
+ *
+ */
+static int
+dqopen(struct vnode *vp, struct ufsmount *ump, int type)
+{
+	struct dqhdr64 dqh;
+	struct iovec aiov;
+	struct uio auio;
+	int error, vfslocked;
+
+	auio.uio_iov = &aiov;
+	auio.uio_iovcnt = 1;
+	aiov.iov_base = &dqh;
+	aiov.iov_len = sizeof(dqh);
+	auio.uio_resid = sizeof(dqh);
+	auio.uio_offset = 0;
+	auio.uio_segflg = UIO_SYSSPACE;
+	auio.uio_rw = UIO_READ;
+	auio.uio_td = (struct thread *)0;
+	vfslocked = VFS_LOCK_GIANT(vp->v_mount);
+	error = VOP_READ(vp, &auio, 0, ump->um_cred[type]);
+	VFS_UNLOCK_GIANT(vfslocked);
+
+	if (error != 0)
+		return (error);
+	if (auio.uio_resid > 0) {
+		/* assume 32 bits */
+		return (0);
+	}
+
+	UFS_LOCK(ump);
+	if (strcmp(dqh.dqh_magic, Q_DQHDR64_MAGIC) == 0 &&
+	    be32toh(dqh.dqh_version) == Q_DQHDR64_VERSION &&
+	    be32toh(dqh.dqh_hdrlen) == (uint32_t)sizeof(struct dqhdr64) &&
+	    be32toh(dqh.dqh_reclen) == (uint32_t)sizeof(struct dqblk64)) {
+		/* XXX: what if the magic matches, but the sizes are wrong? */
+		ump->um_qflags[type] |= QTF_64BIT;
+	} else {
+		ump->um_qflags[type] &= ~QTF_64BIT;
+	}
+	UFS_UNLOCK(ump);
+
+	return (0);
+}
+
+/*
  * Obtain a dquot structure for the specified identifier and quota file
  * reading the information from the file if necessary.
  */
@@ -1032,6 +1214,8 @@ static int
 dqget(struct vnode *vp, u_long id, struct ufsmount *ump, int type,
     struct dquot **dqp)
 {
+	uint8_t buf[sizeof(struct dqblk64)];
+	off_t base, recsize;
 	struct dquot *dq, *dq1;
 	struct dqhash *dqh;
 	struct vnode *dqvp;
@@ -1121,8 +1305,7 @@ hfound:		DQI_LOCK(dq);
 	if (numdquot < desireddquot) {
 		numdquot++;
 		DQH_UNLOCK();
-		dq1 = (struct dquot *)malloc(sizeof *dq, M_DQUOT,
-		    M_WAITOK | M_ZERO);
+		dq1 = malloc(sizeof *dq1, M_DQUOT, M_WAITOK | M_ZERO);
 		mtx_init(&dq1->dq_lock, "dqlock", NULL, MTX_DEF);
 		DQH_LOCK();
 		/*
@@ -1169,20 +1352,37 @@ hfound:		DQI_LOCK(dq);
 	DQREF(dq);
 	DQH_UNLOCK();
 
+	/*
+	 * Read the requested quota record from the quota file, performing
+	 * any necessary conversions.
+	 */
+	if (ump->um_qflags[type] & QTF_64BIT) {
+		recsize = sizeof(struct dqblk64);
+		base = sizeof(struct dqhdr64);
+	} else {
+		recsize = sizeof(struct dqblk32);
+		base = 0;
+	}
 	auio.uio_iov = &aiov;
 	auio.uio_iovcnt = 1;
-	aiov.iov_base = &dq->dq_dqb;
-	aiov.iov_len = sizeof (struct dqblk);
-	auio.uio_resid = sizeof (struct dqblk);
-	auio.uio_offset = (off_t)id * sizeof (struct dqblk);
+	aiov.iov_base = buf;
+	aiov.iov_len = recsize;
+	auio.uio_resid = recsize;
+	auio.uio_offset = base + id * recsize;
 	auio.uio_segflg = UIO_SYSSPACE;
 	auio.uio_rw = UIO_READ;
 	auio.uio_td = (struct thread *)0;
 
 	vfslocked = VFS_LOCK_GIANT(dqvp->v_mount);
 	error = VOP_READ(dqvp, &auio, 0, ump->um_cred[type]);
-	if (auio.uio_resid == sizeof(struct dqblk) && error == 0)
-		bzero(&dq->dq_dqb, sizeof(struct dqblk));
+	if (auio.uio_resid == recsize && error == 0) {
+		bzero(&dq->dq_dqb, sizeof(dq->dq_dqb));
+	} else {
+		if (ump->um_qflags[type] & QTF_64BIT)
+			dqb64_dq((struct dqblk64 *)buf, dq);
+		else
+			dqb32_dq((struct dqblk32 *)buf, dq);
+	}
 	if (dqvplocked)
 		vput(dqvp);
 	else
@@ -1293,6 +1493,8 @@ sync:
 static int
 dqsync(struct vnode *vp, struct dquot *dq)
 {
+	uint8_t buf[sizeof(struct dqblk64)];
+	off_t base, recsize;
 	struct vnode *dqvp;
 	struct iovec aiov;
 	struct uio auio;
@@ -1339,12 +1541,26 @@ dqsync(struct vnode *vp, struct dquot *dq)
 	dq->dq_flags |= DQ_LOCK;
 	DQI_UNLOCK(dq);
 
+	/*
+	 * Write the quota record to the quota file, performing any
+	 * necessary conversions.  See dqget() for additional details.
+	 */
+	if (ump->um_qflags[dq->dq_type] & QTF_64BIT) {
+		dq_dqb64(dq, (struct dqblk64 *)buf);
+		recsize = sizeof(struct dqblk64);
+		base = sizeof(struct dqhdr64);
+	} else {
+		dq_dqb32(dq, (struct dqblk32 *)buf);
+		recsize = sizeof(struct dqblk32);
+		base = 0;
+	}
+
 	auio.uio_iov = &aiov;
 	auio.uio_iovcnt = 1;
-	aiov.iov_base = &dq->dq_dqb;
-	aiov.iov_len = sizeof (struct dqblk);
-	auio.uio_resid = sizeof (struct dqblk);
-	auio.uio_offset = (off_t)dq->dq_id * sizeof (struct dqblk);
+	aiov.iov_base = buf;
+	aiov.iov_len = recsize;
+	auio.uio_resid = recsize;
+	auio.uio_offset = base + dq->dq_id * recsize;
 	auio.uio_segflg = UIO_SYSSPACE;
 	auio.uio_rw = UIO_WRITE;
 	auio.uio_td = (struct thread *)0;
@@ -1357,7 +1573,8 @@ dqsync(struct vnode *vp, struct dquot *dq)
 	DQI_LOCK(dq);
 	DQI_WAKEUP(dq);
 	dq->dq_flags &= ~DQ_MOD;
-out:	DQI_UNLOCK(dq);
+out:
+	DQI_UNLOCK(dq);
 	vfslocked = VFS_LOCK_GIANT(dqvp->v_mount);
 	if (vp != dqvp)
 		vput(dqvp);
@@ -1395,4 +1612,117 @@ dqflush(struct vnode *vp)
 		}
 	}
 	DQH_UNLOCK();
+}
+
+/*
+ * 32-bit / 64-bit conversion functions.
+ *
+ * 32-bit quota records are stored in native byte order.  Attention must
+ * be paid to overflow issues.
+ *
+ * 64-bit quota records are stored in network byte order.
+ */
+
+#define CLIP32(u64) (u64 > UINT32_MAX ? UINT32_MAX : (uint32_t)u64)
+
+/*
+ * Convert 32-bit host-order structure to dquot.
+ */
+static void
+dqb32_dq(const struct dqblk32 *dqb32, struct dquot *dq)
+{
+
+	dq->dq_bhardlimit = dqb32->dqb_bhardlimit;
+	dq->dq_bsoftlimit = dqb32->dqb_bsoftlimit;
+	dq->dq_curblocks = dqb32->dqb_curblocks;
+	dq->dq_ihardlimit = dqb32->dqb_ihardlimit;
+	dq->dq_isoftlimit = dqb32->dqb_isoftlimit;
+	dq->dq_curinodes = dqb32->dqb_curinodes;
+	dq->dq_btime = dqb32->dqb_btime;
+	dq->dq_itime = dqb32->dqb_itime;
+}
+
+/*
+ * Convert 64-bit network-order structure to dquot.
+ */
+static void
+dqb64_dq(const struct dqblk64 *dqb64, struct dquot *dq)
+{
+
+	dq->dq_bhardlimit = be64toh(dqb64->dqb_bhardlimit);
+	dq->dq_bsoftlimit = be64toh(dqb64->dqb_bsoftlimit);
+	dq->dq_curblocks = be64toh(dqb64->dqb_curblocks);
+	dq->dq_ihardlimit = be64toh(dqb64->dqb_ihardlimit);
+	dq->dq_isoftlimit = be64toh(dqb64->dqb_isoftlimit);
+	dq->dq_curinodes = be64toh(dqb64->dqb_curinodes);
+	dq->dq_btime = be64toh(dqb64->dqb_btime);
+	dq->dq_itime = be64toh(dqb64->dqb_itime);
+}
+
+/*
+ * Convert dquot to 32-bit host-order structure.
+ */
+static void
+dq_dqb32(const struct dquot *dq, struct dqblk32 *dqb32)
+{
+
+	dqb32->dqb_bhardlimit = CLIP32(dq->dq_bhardlimit);
+	dqb32->dqb_bsoftlimit = CLIP32(dq->dq_bsoftlimit);
+	dqb32->dqb_curblocks = CLIP32(dq->dq_curblocks);
+	dqb32->dqb_ihardlimit = CLIP32(dq->dq_ihardlimit);
+	dqb32->dqb_isoftlimit = CLIP32(dq->dq_isoftlimit);
+	dqb32->dqb_curinodes = CLIP32(dq->dq_curinodes);
+	dqb32->dqb_btime = CLIP32(dq->dq_btime);
+	dqb32->dqb_itime = CLIP32(dq->dq_itime);
+}
+
+/*
+ * Convert dquot to 64-bit network-order structure.
+ */
+static void
+dq_dqb64(const struct dquot *dq, struct dqblk64 *dqb64)
+{
+
+	dqb64->dqb_bhardlimit = htobe64(dq->dq_bhardlimit);
+	dqb64->dqb_bsoftlimit = htobe64(dq->dq_bsoftlimit);
+	dqb64->dqb_curblocks = htobe64(dq->dq_curblocks);
+	dqb64->dqb_ihardlimit = htobe64(dq->dq_ihardlimit);
+	dqb64->dqb_isoftlimit = htobe64(dq->dq_isoftlimit);
+	dqb64->dqb_curinodes = htobe64(dq->dq_curinodes);
+	dqb64->dqb_btime = htobe64(dq->dq_btime);
+	dqb64->dqb_itime = htobe64(dq->dq_itime);
+}
+
+/*
+ * Convert 64-bit host-order structure to 32-bit host-order structure.
+ */
+static void
+dqb64_dqb32(const struct dqblk64 *dqb64, struct dqblk32 *dqb32)
+{
+
+	dqb32->dqb_bhardlimit = CLIP32(dqb64->dqb_bhardlimit);
+	dqb32->dqb_bsoftlimit = CLIP32(dqb64->dqb_bsoftlimit);
+	dqb32->dqb_curblocks = CLIP32(dqb64->dqb_curblocks);
+	dqb32->dqb_ihardlimit = CLIP32(dqb64->dqb_ihardlimit);
+	dqb32->dqb_isoftlimit = CLIP32(dqb64->dqb_isoftlimit);
+	dqb32->dqb_curinodes = CLIP32(dqb64->dqb_curinodes);
+	dqb32->dqb_btime = CLIP32(dqb64->dqb_btime);
+	dqb32->dqb_itime = CLIP32(dqb64->dqb_itime);
+}
+
+/*
+ * Convert 32-bit host-order structure to 64-bit host-order structure.
+ */
+static void
+dqb32_dqb64(const struct dqblk32 *dqb32, struct dqblk64 *dqb64)
+{
+
+	dqb64->dqb_bhardlimit = dqb32->dqb_bhardlimit;
+	dqb64->dqb_bsoftlimit = dqb32->dqb_bsoftlimit;
+	dqb64->dqb_curblocks = dqb32->dqb_curblocks;
+	dqb64->dqb_ihardlimit = dqb32->dqb_ihardlimit;
+	dqb64->dqb_isoftlimit = dqb32->dqb_isoftlimit;
+	dqb64->dqb_curinodes = dqb32->dqb_curinodes;
+	dqb64->dqb_btime = dqb32->dqb_btime;
+	dqb64->dqb_itime = dqb32->dqb_itime;
 }

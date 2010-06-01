@@ -94,8 +94,6 @@ __FBSDID("$FreeBSD$");
  * Per RFC 768, August, 1980.
  */
 
-VNET_DEFINE(int, udp_blackhole);
-
 /*
  * BSD 4.2 defaulted the udp checksum to be off.  Turning off udp checksums
  * removes the only data integrity mechanism for packets and malformed
@@ -110,6 +108,7 @@ int	udp_log_in_vain = 0;
 SYSCTL_INT(_net_inet_udp, OID_AUTO, log_in_vain, CTLFLAG_RW,
     &udp_log_in_vain, 0, "Log all incoming UDP packets");
 
+VNET_DEFINE(int, udp_blackhole) = 0;
 SYSCTL_VNET_INT(_net_inet_udp, OID_AUTO, blackhole, CTLFLAG_RW,
     &VNET_NAME(udp_blackhole), 0,
     "Do not send port unreachables for refused connects");
@@ -133,14 +132,13 @@ SYSCTL_ULONG(_net_inet_udp, UDPCTL_RECVSPACE, recvspace, CTLFLAG_RW,
 VNET_DEFINE(struct inpcbhead, udb);		/* from udp_var.h */
 VNET_DEFINE(struct inpcbinfo, udbinfo);
 static VNET_DEFINE(uma_zone_t, udpcb_zone);
-VNET_DEFINE(struct udpstat, udpstat);		/* from udp_var.h */
-
 #define	V_udpcb_zone			VNET(udpcb_zone)
 
 #ifndef UDBHASHSIZE
 #define	UDBHASHSIZE	128
 #endif
 
+VNET_DEFINE(struct udpstat, udpstat);		/* from udp_var.h */
 SYSCTL_VNET_STRUCT(_net_inet_udp, UDPCTL_STATS, stats, CTLFLAG_RW,
     &VNET_NAME(udpstat), udpstat,
     "UDP statistics (struct udpstat, netinet/udp_var.h)");
@@ -179,7 +177,6 @@ void
 udp_init(void)
 {
 
-	V_udp_blackhole = 0;
 	in_pcbinfo_init(&V_udbinfo, "udp", &V_udb, UDBHASHSIZE, UDBHASHSIZE,
 	    "udp_inpcb", udp_inpcb_init, NULL, UMA_ZONE_NOFREE);
 	V_udpcb_zone = uma_zcreate("udpcb", sizeof(struct udpcb),

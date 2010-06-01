@@ -141,9 +141,11 @@ ia32_get_mcontext(struct thread *td, struct ia32_mcontext *mcp, int flags)
 	mcp->mc_esi = tp->tf_rsi;
 	mcp->mc_ebp = tp->tf_rbp;
 	mcp->mc_isp = tp->tf_rsp;
+	mcp->mc_eflags = tp->tf_rflags;
 	if (flags & GET_MC_CLEAR_RET) {
 		mcp->mc_eax = 0;
 		mcp->mc_edx = 0;
+		mcp->mc_eflags &= ~PSL_C;
 	} else {
 		mcp->mc_eax = tp->tf_rax;
 		mcp->mc_edx = tp->tf_rdx;
@@ -152,7 +154,6 @@ ia32_get_mcontext(struct thread *td, struct ia32_mcontext *mcp, int flags)
 	mcp->mc_ecx = tp->tf_rcx;
 	mcp->mc_eip = tp->tf_rip;
 	mcp->mc_cs = tp->tf_cs;
-	mcp->mc_eflags = tp->tf_rflags;
 	mcp->mc_esp = tp->tf_rsp;
 	mcp->mc_ss = tp->tf_ss;
 	mcp->mc_len = sizeof(*mcp);
@@ -565,7 +566,8 @@ freebsd4_freebsd32_sigreturn(td, uap)
 	 * one less debugger trap, so allowing it is fairly harmless.
 	 */
 	if (!EFL_SECURE(eflags & ~PSL_RF, regs->tf_rflags & ~PSL_RF)) {
-		printf("freebsd4_freebsd32_sigreturn: eflags = 0x%x\n", eflags);
+		uprintf("pid %d (%s): freebsd4_freebsd32_sigreturn eflags = 0x%x\n",
+		    td->td_proc->p_pid, td->td_name, eflags);
 		return (EINVAL);
 	}
 
@@ -576,7 +578,8 @@ freebsd4_freebsd32_sigreturn(td, uap)
 	 */
 	cs = ucp->uc_mcontext.mc_cs;
 	if (!CS_SECURE(cs)) {
-		printf("freebsd4_sigreturn: cs = 0x%x\n", cs);
+		uprintf("pid %d (%s): freebsd4_sigreturn cs = 0x%x\n",
+		    td->td_proc->p_pid, td->td_name, cs);
 		ksiginfo_init_trap(&ksi);
 		ksi.ksi_signo = SIGBUS;
 		ksi.ksi_code = BUS_OBJERR;
@@ -647,7 +650,8 @@ freebsd32_sigreturn(td, uap)
 	 * one less debugger trap, so allowing it is fairly harmless.
 	 */
 	if (!EFL_SECURE(eflags & ~PSL_RF, regs->tf_rflags & ~PSL_RF)) {
-		printf("freebsd32_sigreturn: eflags = 0x%x\n", eflags);
+		uprintf("pid %d (%s): freebsd32_sigreturn eflags = 0x%x\n",
+		    td->td_proc->p_pid, td->td_name, eflags);
 		return (EINVAL);
 	}
 
@@ -658,7 +662,8 @@ freebsd32_sigreturn(td, uap)
 	 */
 	cs = ucp->uc_mcontext.mc_cs;
 	if (!CS_SECURE(cs)) {
-		printf("sigreturn: cs = 0x%x\n", cs);
+		uprintf("pid %d (%s): sigreturn cs = 0x%x\n",
+		    td->td_proc->p_pid, td->td_name, cs);
 		ksiginfo_init_trap(&ksi);
 		ksi.ksi_signo = SIGBUS;
 		ksi.ksi_code = BUS_OBJERR;

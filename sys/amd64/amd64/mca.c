@@ -33,6 +33,8 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <sys/bus.h>
+#include <sys/interrupt.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
@@ -43,10 +45,28 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysctl.h>
 #include <sys/systm.h>
 #include <sys/taskqueue.h>
+#include <machine/intr_machdep.h>
+#include <machine/apicvar.h>
 #include <machine/cputypes.h>
 #include <machine/mca.h>
 #include <machine/md_var.h>
 #include <machine/specialreg.h>
+
+/* Modes for mca_scan() */
+enum scan_mode {
+	POLLED,
+	MCE,
+	CMCI,
+};
+
+/*
+ * State maintained for each monitored MCx bank to control the
+ * corrected machine check interrupt threshold.
+ */
+struct cmc_state {
+	int	max_threshold;
+	int	last_intr;
+};
 
 struct mca_internal {
 	struct mca_record rec;
@@ -79,19 +99,22 @@ static struct callout mca_timer;
 static int mca_ticks = 3600;	/* Check hourly by default. */
 static struct task mca_task;
 static struct mtx mca_lock;
+static struct cmc_state **cmc_state;	/* Indexed by cpuid, bank */
+static int cmc_banks;
+static int cmc_throttle = 60;	/* Time in seconds to throttle CMCI. */
 
 static int
-sysctl_mca_ticks(SYSCTL_HANDLER_ARGS)
+sysctl_positive_int(SYSCTL_HANDLER_ARGS)
 {
 	int error, value;
 
-	value = mca_ticks;
+	value = *(int *)arg1;
 	error = sysctl_handle_int(oidp, &value, 0, req);
 	if (error || req->newptr == NULL)
 		return (error);
 	if (value <= 0)
 		return (EINVAL);
-	mca_ticks = value;
+	*(int *)arg1 = value;
 	return (0);
 }
 
@@ -401,31 +424,112 @@ mca_record_entry(const struct mca_record *record)
 }
 
 /*
+ * Update the interrupt threshold for a CMCI.  The strategy is to use
+ * a low trigger that interrupts as soon as the first event occurs.
+ * However, if a steady stream of events arrive, the threshold is
+ * increased until the interrupts are throttled to once every
+ * cmc_throttle seconds or the periodic scan.  If a periodic scan
+ * finds that the threshold is too high, it is lowered.
+ */
+static void
+cmci_update(enum scan_mode mode, int bank, int valid, struct mca_record *rec)
+{
+	struct cmc_state *cc;
+	uint64_t ctl;
+	u_int delta;
+	int count, limit;
+
+	/* Fetch the current limit for this bank. */
+	cc = &cmc_state[PCPU_GET(cpuid)][bank];
+	ctl = rdmsr(MSR_MC_CTL2(bank));
+	count = (rec->mr_status & MC_STATUS_COR_COUNT) >> 38;
+	delta = (u_int)(ticks - cc->last_intr);
+
+	/*
+	 * If an interrupt was received less than cmc_throttle seconds
+	 * since the previous interrupt and the count from the current
+	 * event is greater than or equal to the current threshold,
+	 * double the threshold up to the max.
+	 */
+	if (mode == CMCI && valid) {
+		limit = ctl & MC_CTL2_THRESHOLD;
+		if (delta < cmc_throttle && count >= limit &&
+		    limit < cc->max_threshold) {
+			limit = min(limit << 1, cc->max_threshold);
+			ctl &= ~MC_CTL2_THRESHOLD;
+			ctl |= limit;
+			wrmsr(MSR_MC_CTL2(bank), limit);
+		}
+		cc->last_intr = ticks;
+		return;
+	}
+
+	/*
+	 * When the banks are polled, check to see if the threshold
+	 * should be lowered.
+	 */
+	if (mode != POLLED)
+		return;
+
+	/* If a CMCI occured recently, do nothing for now. */
+	if (delta < cmc_throttle)
+		return;
+
+	/*
+	 * Compute a new limit based on the average rate of events per
+	 * cmc_throttle seconds since the last interrupt.
+	 */
+	if (valid) {
+		count = (rec->mr_status & MC_STATUS_COR_COUNT) >> 38;
+		limit = count * cmc_throttle / delta;
+		if (limit <= 0)
+			limit = 1;
+		else if (limit > cc->max_threshold)
+			limit = cc->max_threshold;
+	} else
+		limit = 1;
+	if ((ctl & MC_CTL2_THRESHOLD) != limit) {
+		ctl &= ~MC_CTL2_THRESHOLD;
+		ctl |= limit;
+		wrmsr(MSR_MC_CTL2(bank), limit);
+	}
+}
+
+/*
  * This scans all the machine check banks of the current CPU to see if
  * there are any machine checks.  Any non-recoverable errors are
  * reported immediately via mca_log().  The current thread must be
- * pinned when this is called.  The 'mcip' parameter indicates if we
- * are being called from the MC exception handler.  In that case this
- * function returns true if the system is restartable.  Otherwise, it
- * returns a count of the number of valid MC records found.
+ * pinned when this is called.  The 'mode' parameter indicates if we
+ * are being called from the MC exception handler, the CMCI handler,
+ * or the periodic poller.  In the MC exception case this function
+ * returns true if the system is restartable.  Otherwise, it returns a
+ * count of the number of valid MC records found.
  */
 static int
-mca_scan(int mcip)
+mca_scan(enum scan_mode mode)
 {
 	struct mca_record rec;
 	uint64_t mcg_cap, ucmask;
-	int count, i, recoverable;
+	int count, i, recoverable, valid;
 
 	count = 0;
 	recoverable = 1;
 	ucmask = MC_STATUS_UC | MC_STATUS_PCC;
 
 	/* When handling a MCE#, treat the OVER flag as non-restartable. */
-	if (mcip)
+	if (mode == MCE)
 		ucmask |= MC_STATUS_OVER;
 	mcg_cap = rdmsr(MSR_MCG_CAP);
 	for (i = 0; i < (mcg_cap & MCG_CAP_COUNT); i++) {
-		if (mca_check_status(i, &rec)) {
+		/*
+		 * For a CMCI, only check banks this CPU is
+		 * responsible for.
+		 */
+		if (mode == CMCI && !(PCPU_GET(cmci_mask) & 1 << i))
+			continue;
+
+		valid = mca_check_status(i, &rec);
+		if (valid) {
 			count++;
 			if (rec.mr_status & ucmask) {
 				recoverable = 0;
@@ -433,8 +537,15 @@ mca_scan(int mcip)
 			}
 			mca_record_entry(&rec);
 		}
+	
+		/*
+		 * If this is a bank this CPU monitors via CMCI,
+		 * update the threshold.
+		 */
+		if (PCPU_GET(cmci_mask) & (1 << i))
+			cmci_update(mode, i, valid, &rec);
 	}
-	return (mcip ? recoverable : count);
+	return (mode == MCE ? recoverable : count);
 }
 
 /*
@@ -457,7 +568,7 @@ mca_scan_cpus(void *context, int pending)
 			continue;
 		sched_bind(td, cpu);
 		thread_unlock(td);
-		count += mca_scan(0);
+		count += mca_scan(POLLED);
 		thread_lock(td);
 		sched_unbind(td);
 	}
@@ -511,7 +622,24 @@ mca_startup(void *dummy)
 SYSINIT(mca_startup, SI_SUB_SMP, SI_ORDER_ANY, mca_startup, NULL);
 
 static void
-mca_setup(void)
+cmci_setup(uint64_t mcg_cap)
+{
+	int i;
+
+	cmc_state = malloc((mp_maxid + 1) * sizeof(struct cmc_state **),
+	    M_MCA, M_WAITOK);
+	cmc_banks = mcg_cap & MCG_CAP_COUNT;
+	for (i = 0; i <= mp_maxid; i++)
+		cmc_state[i] = malloc(sizeof(struct cmc_state) * cmc_banks,
+		    M_MCA, M_WAITOK | M_ZERO);
+	SYSCTL_ADD_PROC(NULL, SYSCTL_STATIC_CHILDREN(_hw_mca), OID_AUTO,
+	    "cmc_throttle", CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE,
+	    &cmc_throttle, 0, sysctl_positive_int, "I",
+	    "Interval in seconds to throttle corrected MC interrupts");
+}
+
+static void
+mca_setup(uint64_t mcg_cap)
 {
 
 	mtx_init(&mca_lock, "mca", NULL, MTX_SPIN);
@@ -522,13 +650,62 @@ mca_setup(void)
 	    "count", CTLFLAG_RD, &mca_count, 0, "Record count");
 	SYSCTL_ADD_PROC(NULL, SYSCTL_STATIC_CHILDREN(_hw_mca), OID_AUTO,
 	    "interval", CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE, &mca_ticks,
-	    0, sysctl_mca_ticks, "I",
+	    0, sysctl_positive_int, "I",
 	    "Periodic interval in seconds to scan for machine checks");
 	SYSCTL_ADD_NODE(NULL, SYSCTL_STATIC_CHILDREN(_hw_mca), OID_AUTO,
 	    "records", CTLFLAG_RD, sysctl_mca_records, "Machine check records");
 	SYSCTL_ADD_PROC(NULL, SYSCTL_STATIC_CHILDREN(_hw_mca), OID_AUTO,
 	    "force_scan", CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE, NULL, 0,
 	    sysctl_mca_scan, "I", "Force an immediate scan for machine checks");
+	if (mcg_cap & MCG_CAP_CMCI_P)
+		cmci_setup(mcg_cap);
+}
+
+/*
+ * See if we should monitor CMCI for this bank.  If CMCI_EN is already
+ * set in MC_CTL2, then another CPU is responsible for this bank, so
+ * ignore it.  If CMCI_EN returns zero after being set, then this bank
+ * does not support CMCI_EN.  If this CPU sets CMCI_EN, then it should
+ * now monitor this bank.
+ */
+static void
+cmci_monitor(int i)
+{
+	struct cmc_state *cc;
+	uint64_t ctl;
+
+	KASSERT(i < cmc_banks, ("CPU %d has more MC banks", PCPU_GET(cpuid)));
+
+	ctl = rdmsr(MSR_MC_CTL2(i));
+	if (ctl & MC_CTL2_CMCI_EN)
+		/* Already monitored by another CPU. */
+		return;
+
+	/* Set the threshold to one event for now. */
+	ctl &= ~MC_CTL2_THRESHOLD;
+	ctl |= MC_CTL2_CMCI_EN | 1;
+	wrmsr(MSR_MC_CTL2(i), ctl);
+	ctl = rdmsr(MSR_MC_CTL2(i));
+	if (!(ctl & MC_CTL2_CMCI_EN))
+		/* This bank does not support CMCI. */
+		return;
+
+	cc = &cmc_state[PCPU_GET(cpuid)][i];
+
+	/* Determine maximum threshold. */
+	ctl &= ~MC_CTL2_THRESHOLD;
+	ctl |= 0x7fff;
+	wrmsr(MSR_MC_CTL2(i), ctl);
+	ctl = rdmsr(MSR_MC_CTL2(i));
+	cc->max_threshold = ctl & MC_CTL2_THRESHOLD;
+
+	/* Start off with a threshold of 1. */
+	ctl &= ~MC_CTL2_THRESHOLD;
+	ctl |= 1;
+	wrmsr(MSR_MC_CTL2(i), ctl);
+
+	/* Mark this bank as monitored. */
+	PCPU_SET(cmci_mask, PCPU_GET(cmci_mask) | 1 << i);
 }
 
 /* Must be executed on each CPU. */
@@ -554,14 +731,14 @@ mca_init(void)
 		workaround_erratum383 = 1;
 
 	if (cpu_feature & CPUID_MCA) {
-		if (PCPU_GET(cpuid) == 0)
-			mca_setup();
+		PCPU_SET(cmci_mask, 0);
 
-		sched_pin();
 		mcg_cap = rdmsr(MSR_MCG_CAP);
 		if (mcg_cap & MCG_CAP_CTL_P)
 			/* Enable MCA features. */
 			wrmsr(MSR_MCG_CTL, MCG_CTL_ENABLE);
+		if (PCPU_GET(cpuid) == 0)
+			mca_setup(mcg_cap);
 
 		/*
 		 * Disable logging of level one TLB parity (L1TP) errors by
@@ -597,14 +774,33 @@ mca_init(void)
 
 			if (!skip)
 				wrmsr(MSR_MC_CTL(i), ctl);
+
+			if (mcg_cap & MCG_CAP_CMCI_P)
+				cmci_monitor(i);
+
 			/* Clear all errors. */
 			wrmsr(MSR_MC_STATUS(i), 0);
 		}
-		sched_unpin();
+
+		if (PCPU_GET(cmci_mask) != 0)
+			lapic_enable_cmc();
 	}
 
 	load_cr4(rcr4() | CR4_MCE);
 }
+
+/*
+ * The machine check registers for the BSP cannot be initialized until
+ * the local APIC is initialized.  This happens at SI_SUB_CPU,
+ * SI_ORDER_SECOND.
+ */
+static void
+mca_init_bsp(void *arg __unused)
+{
+
+	mca_init();
+}
+SYSINIT(mca_init_bsp, SI_SUB_CPU, SI_ORDER_ANY, mca_init_bsp, NULL);
 
 /* Called when a machine check exception fires. */
 int
@@ -624,7 +820,7 @@ mca_intr(void)
 	}
 
 	/* Scan the banks and check for any non-recoverable errors. */
-	recoverable = mca_scan(1);
+	recoverable = mca_scan(MCE);
 	mcg_status = rdmsr(MSR_MCG_STATUS);
 	if (!(mcg_status & MCG_STATUS_RIPV))
 		recoverable = 0;
@@ -632,4 +828,32 @@ mca_intr(void)
 	/* Clear MCIP. */
 	wrmsr(MSR_MCG_STATUS, mcg_status & ~MCG_STATUS_MCIP);
 	return (recoverable);
+}
+
+/* Called for a CMCI (correctable machine check interrupt). */
+void
+cmc_intr(void)
+{
+	struct mca_internal *mca;
+	int count;
+
+	/*
+	 * Serialize MCA bank scanning to prevent collisions from
+	 * sibling threads.
+	 */
+	count = mca_scan(CMCI);
+
+	/* If we found anything, log them to the console. */
+	if (count != 0) {
+		mtx_lock_spin(&mca_lock);
+		STAILQ_FOREACH(mca, &mca_records, link) {
+			if (!mca->logged) {
+				mca->logged = 1;
+				mtx_unlock_spin(&mca_lock);
+				mca_log(&mca->rec);
+				mtx_lock_spin(&mca_lock);
+			}
+		}
+		mtx_unlock_spin(&mca_lock);
+	}
 }

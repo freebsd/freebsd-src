@@ -164,8 +164,9 @@ AcpiExAddTable (
     ACPI_NAMESPACE_NODE     *ParentNode,
     ACPI_OPERAND_OBJECT     **DdbHandle)
 {
-    ACPI_STATUS             Status;
     ACPI_OPERAND_OBJECT     *ObjDesc;
+    ACPI_STATUS             Status;
+    ACPI_OWNER_ID           OwnerId;
 
 
     ACPI_FUNCTION_TRACE (ExAddTable);
@@ -205,7 +206,15 @@ AcpiExAddTable (
     AcpiNsExecModuleCodeList ();
     AcpiExEnterInterpreter ();
 
-    return_ACPI_STATUS (Status);
+    /* Update GPEs for any new _PRW or _Lxx/_Exx methods. Ignore errors */
+
+    Status = AcpiTbGetOwnerId (TableIndex, &OwnerId);
+    if (ACPI_SUCCESS (Status))
+    {
+        AcpiEvUpdateGpes (OwnerId);
+    }
+
+    return_ACPI_STATUS (AE_OK);
 }
 
 
@@ -347,9 +356,8 @@ AcpiExLoadTableOp (
     Status = AcpiGetTableByIndex (TableIndex, &Table);
     if (ACPI_SUCCESS (Status))
     {
-        ACPI_INFO ((AE_INFO,
-            "Dynamic OEM Table Load - [%.4s] OemId [%.6s] OemTableId [%.8s]",
-            Table->Signature, Table->OemId, Table->OemTableId));
+        ACPI_INFO ((AE_INFO, "Dynamic OEM Table Load:"));
+        AcpiTbPrintTableHeader (0, Table);
     }
 
     /* Invoke table handler if present */
@@ -643,6 +651,9 @@ AcpiExLoadOp (
         AcpiUtRemoveReference (DdbHandle);
         return_ACPI_STATUS (Status);
     }
+
+    ACPI_INFO ((AE_INFO, "Dynamic OEM Table Load:"));
+    AcpiTbPrintTableHeader (0, TableDesc.Pointer);
 
     /* Remove the reference by added by AcpiExStore above */
 

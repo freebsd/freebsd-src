@@ -30,6 +30,7 @@
     <year>2007</year>
     <year>2008</year>
     <year>2009</year>
+    <year>2010</year>
     <holder role="mailto:doc@FreeBSD.org">The &os; Documentation Project</holder>
   </copyright>
 
@@ -326,6 +327,9 @@
       based on <filename>libarchive</filename>, have replaced the GNU
       Binutils versions of these utilities.</para>
 
+    <para>BSD-licensed versions of &man.bc.1; and &man.dc.1; have
+      replaced their GNU counterparts.</para>
+
     <para role="merged">&man.chflags.1; now supports a <option>-v</option> flag for
       verbose output and a <option>-f</option> flag to ignore errors
       with the same semantics as (for example)
@@ -372,6 +376,9 @@
 
     <para>&man.nc.1; now supports a <option>-O</option> switch to
       disable the use of TCP options.</para>
+
+    <para>&man.nc.1;'s <option>-o</option> switch has been deprecated.
+      It will be removed in a future release.</para>
 
     <para>The &man.ping6.8; utility now returns <literal>2</literal>
       when the packet transmission was successful but no responses

@@ -189,7 +189,7 @@ cm_attach(dev)
 	ifp->if_ioctl = cm_ioctl;
 	ifp->if_init = cm_init;
 	/* XXX IFQ_SET_READY(&ifp->if_snd); */
-	ifp->if_snd.ifq_maxlen = IFQ_MAXLEN;
+	ifp->if_snd.ifq_maxlen = ifqmaxlen;
 	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX;
 
 	arc_ifattach(ifp, linkaddress);

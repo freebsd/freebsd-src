@@ -60,6 +60,8 @@ static void ahci_intr(void *data);
 static void ahci_intr_one(void *data);
 static int ahci_suspend(device_t dev);
 static int ahci_resume(device_t dev);
+static int ahci_ch_init(device_t dev);
+static int ahci_ch_deinit(device_t dev);
 static int ahci_ch_suspend(device_t dev);
 static int ahci_ch_resume(device_t dev);
 static void ahci_ch_pm(void *arg);
@@ -111,6 +113,7 @@ static struct {
 #define AHCI_Q_EDGEIS	64
 #define AHCI_Q_SATA2	128
 #define AHCI_Q_NOBSYRES	256
+#define AHCI_Q_NOAA	512
 } ahci_ids[] = {
 	{0x43801002, 0x00, "ATI IXP600",	0},
 	{0x43901002, 0x00, "ATI IXP700",	0},
@@ -167,75 +170,75 @@ static struct {
 	{0x614511ab, 0x00, "Marvell 88SX6145",	AHCI_Q_NOFORCE|AHCI_Q_4CH|AHCI_Q_EDGEIS},
 	{0x91231b4b, 0x11, "Marvell 88SE912x",	AHCI_Q_NOBSYRES},
 	{0x91231b4b, 0x00, "Marvell 88SE912x",	AHCI_Q_EDGEIS|AHCI_Q_SATA2|AHCI_Q_NOBSYRES},
-	{0x044c10de, 0x00, "NVIDIA MCP65",	0},
-	{0x044d10de, 0x00, "NVIDIA MCP65",	0},
-	{0x044e10de, 0x00, "NVIDIA MCP65",	0},
-	{0x044f10de, 0x00, "NVIDIA MCP65",	0},
-	{0x045c10de, 0x00, "NVIDIA MCP65",	0},
-	{0x045d10de, 0x00, "NVIDIA MCP65",	0},
-	{0x045e10de, 0x00, "NVIDIA MCP65",	0},
-	{0x045f10de, 0x00, "NVIDIA MCP65",	0},
-	{0x055010de, 0x00, "NVIDIA MCP67",	0},
-	{0x055110de, 0x00, "NVIDIA MCP67",	0},
-	{0x055210de, 0x00, "NVIDIA MCP67",	0},
-	{0x055310de, 0x00, "NVIDIA MCP67",	0},
-	{0x055410de, 0x00, "NVIDIA MCP67",	0},
-	{0x055510de, 0x00, "NVIDIA MCP67",	0},
-	{0x055610de, 0x00, "NVIDIA MCP67",	0},
-	{0x055710de, 0x00, "NVIDIA MCP67",	0},
-	{0x055810de, 0x00, "NVIDIA MCP67",	0},
-	{0x055910de, 0x00, "NVIDIA MCP67",	0},
-	{0x055A10de, 0x00, "NVIDIA MCP67",	0},
-	{0x055B10de, 0x00, "NVIDIA MCP67",	0},
-	{0x058410de, 0x00, "NVIDIA MCP67",	0},
-	{0x07f010de, 0x00, "NVIDIA MCP73",	0},
-	{0x07f110de, 0x00, "NVIDIA MCP73",	0},
-	{0x07f210de, 0x00, "NVIDIA MCP73",	0},
-	{0x07f310de, 0x00, "NVIDIA MCP73",	0},
-	{0x07f410de, 0x00, "NVIDIA MCP73",	0},
-	{0x07f510de, 0x00, "NVIDIA MCP73",	0},
-	{0x07f610de, 0x00, "NVIDIA MCP73",	0},
-	{0x07f710de, 0x00, "NVIDIA MCP73",	0},
-	{0x07f810de, 0x00, "NVIDIA MCP73",	0},
-	{0x07f910de, 0x00, "NVIDIA MCP73",	0},
-	{0x07fa10de, 0x00, "NVIDIA MCP73",	0},
-	{0x07fb10de, 0x00, "NVIDIA MCP73",	0},
-	{0x0ad010de, 0x00, "NVIDIA MCP77",	0},
-	{0x0ad110de, 0x00, "NVIDIA MCP77",	0},
-	{0x0ad210de, 0x00, "NVIDIA MCP77",	0},
-	{0x0ad310de, 0x00, "NVIDIA MCP77",	0},
-	{0x0ad410de, 0x00, "NVIDIA MCP77",	0},
-	{0x0ad510de, 0x00, "NVIDIA MCP77",	0},
-	{0x0ad610de, 0x00, "NVIDIA MCP77",	0},
-	{0x0ad710de, 0x00, "NVIDIA MCP77",	0},
-	{0x0ad810de, 0x00, "NVIDIA MCP77",	0},
-	{0x0ad910de, 0x00, "NVIDIA MCP77",	0},
-	{0x0ada10de, 0x00, "NVIDIA MCP77",	0},
-	{0x0adb10de, 0x00, "NVIDIA MCP77",	0},
-	{0x0ab410de, 0x00, "NVIDIA MCP79",	0},
-	{0x0ab510de, 0x00, "NVIDIA MCP79",	0},
-	{0x0ab610de, 0x00, "NVIDIA MCP79",	0},
-	{0x0ab710de, 0x00, "NVIDIA MCP79",	0},
-	{0x0ab810de, 0x00, "NVIDIA MCP79",	0},
-	{0x0ab910de, 0x00, "NVIDIA MCP79",	0},
-	{0x0aba10de, 0x00, "NVIDIA MCP79",	0},
-	{0x0abb10de, 0x00, "NVIDIA MCP79",	0},
-	{0x0abc10de, 0x00, "NVIDIA MCP79",	0},
-	{0x0abd10de, 0x00, "NVIDIA MCP79",	0},
-	{0x0abe10de, 0x00, "NVIDIA MCP79",	0},
-	{0x0abf10de, 0x00, "NVIDIA MCP79",	0},
-	{0x0d8410de, 0x00, "NVIDIA MCP89",	0},
-	{0x0d8510de, 0x00, "NVIDIA MCP89",	0},
-	{0x0d8610de, 0x00, "NVIDIA MCP89",	0},
-	{0x0d8710de, 0x00, "NVIDIA MCP89",	0},
-	{0x0d8810de, 0x00, "NVIDIA MCP89",	0},
-	{0x0d8910de, 0x00, "NVIDIA MCP89",	0},
-	{0x0d8a10de, 0x00, "NVIDIA MCP89",	0},
-	{0x0d8b10de, 0x00, "NVIDIA MCP89",	0},
-	{0x0d8c10de, 0x00, "NVIDIA MCP89",	0},
-	{0x0d8d10de, 0x00, "NVIDIA MCP89",	0},
-	{0x0d8e10de, 0x00, "NVIDIA MCP89",	0},
-	{0x0d8f10de, 0x00, "NVIDIA MCP89",	0},
+	{0x044c10de, 0x00, "NVIDIA MCP65",	AHCI_Q_NOAA},
+	{0x044d10de, 0x00, "NVIDIA MCP65",	AHCI_Q_NOAA},
+	{0x044e10de, 0x00, "NVIDIA MCP65",	AHCI_Q_NOAA},
+	{0x044f10de, 0x00, "NVIDIA MCP65",	AHCI_Q_NOAA},
+	{0x045c10de, 0x00, "NVIDIA MCP65",	AHCI_Q_NOAA},
+	{0x045d10de, 0x00, "NVIDIA MCP65",	AHCI_Q_NOAA},
+	{0x045e10de, 0x00, "NVIDIA MCP65",	AHCI_Q_NOAA},
+	{0x045f10de, 0x00, "NVIDIA MCP65",	AHCI_Q_NOAA},
+	{0x055010de, 0x00, "NVIDIA MCP67",	AHCI_Q_NOAA},
+	{0x055110de, 0x00, "NVIDIA MCP67",	AHCI_Q_NOAA},
+	{0x055210de, 0x00, "NVIDIA MCP67",	AHCI_Q_NOAA},
+	{0x055310de, 0x00, "NVIDIA MCP67",	AHCI_Q_NOAA},
+	{0x055410de, 0x00, "NVIDIA MCP67",	AHCI_Q_NOAA},
+	{0x055510de, 0x00, "NVIDIA MCP67",	AHCI_Q_NOAA},
+	{0x055610de, 0x00, "NVIDIA MCP67",	AHCI_Q_NOAA},
+	{0x055710de, 0x00, "NVIDIA MCP67",	AHCI_Q_NOAA},
+	{0x055810de, 0x00, "NVIDIA MCP67",	AHCI_Q_NOAA},
+	{0x055910de, 0x00, "NVIDIA MCP67",	AHCI_Q_NOAA},
+	{0x055A10de, 0x00, "NVIDIA MCP67",	AHCI_Q_NOAA},
+	{0x055B10de, 0x00, "NVIDIA MCP67",	AHCI_Q_NOAA},
+	{0x058410de, 0x00, "NVIDIA MCP67",	AHCI_Q_NOAA},
+	{0x07f010de, 0x00, "NVIDIA MCP73",	AHCI_Q_NOAA},
+	{0x07f110de, 0x00, "NVIDIA MCP73",	AHCI_Q_NOAA},
+	{0x07f210de, 0x00, "NVIDIA MCP73",	AHCI_Q_NOAA},
+	{0x07f310de, 0x00, "NVIDIA MCP73",	AHCI_Q_NOAA},
+	{0x07f410de, 0x00, "NVIDIA MCP73",	AHCI_Q_NOAA},
+	{0x07f510de, 0x00, "NVIDIA MCP73",	AHCI_Q_NOAA},
+	{0x07f610de, 0x00, "NVIDIA MCP73",	AHCI_Q_NOAA},
+	{0x07f710de, 0x00, "NVIDIA MCP73",	AHCI_Q_NOAA},
+	{0x07f810de, 0x00, "NVIDIA MCP73",	AHCI_Q_NOAA},
+	{0x07f910de, 0x00, "NVIDIA MCP73",	AHCI_Q_NOAA},
+	{0x07fa10de, 0x00, "NVIDIA MCP73",	AHCI_Q_NOAA},
+	{0x07fb10de, 0x00, "NVIDIA MCP73",	AHCI_Q_NOAA},
+	{0x0ad010de, 0x00, "NVIDIA MCP77",	AHCI_Q_NOAA},
+	{0x0ad110de, 0x00, "NVIDIA MCP77",	AHCI_Q_NOAA},
+	{0x0ad210de, 0x00, "NVIDIA MCP77",	AHCI_Q_NOAA},
+	{0x0ad310de, 0x00, "NVIDIA MCP77",	AHCI_Q_NOAA},
+	{0x0ad410de, 0x00, "NVIDIA MCP77",	AHCI_Q_NOAA},
+	{0x0ad510de, 0x00, "NVIDIA MCP77",	AHCI_Q_NOAA},
+	{0x0ad610de, 0x00, "NVIDIA MCP77",	AHCI_Q_NOAA},
+	{0x0ad710de, 0x00, "NVIDIA MCP77",	AHCI_Q_NOAA},
+	{0x0ad810de, 0x00, "NVIDIA MCP77",	AHCI_Q_NOAA},
+	{0x0ad910de, 0x00, "NVIDIA MCP77",	AHCI_Q_NOAA},
+	{0x0ada10de, 0x00, "NVIDIA MCP77",	AHCI_Q_NOAA},
+	{0x0adb10de, 0x00, "NVIDIA MCP77",	AHCI_Q_NOAA},
+	{0x0ab410de, 0x00, "NVIDIA MCP79",	AHCI_Q_NOAA},
+	{0x0ab510de, 0x00, "NVIDIA MCP79",	AHCI_Q_NOAA},
+	{0x0ab610de, 0x00, "NVIDIA MCP79",	AHCI_Q_NOAA},
+	{0x0ab710de, 0x00, "NVIDIA MCP79",	AHCI_Q_NOAA},
+	{0x0ab810de, 0x00, "NVIDIA MCP79",	AHCI_Q_NOAA},
+	{0x0ab910de, 0x00, "NVIDIA MCP79",	AHCI_Q_NOAA},
+	{0x0aba10de, 0x00, "NVIDIA MCP79",	AHCI_Q_NOAA},
+	{0x0abb10de, 0x00, "NVIDIA MCP79",	AHCI_Q_NOAA},
+	{0x0abc10de, 0x00, "NVIDIA MCP79",	AHCI_Q_NOAA},
+	{0x0abd10de, 0x00, "NVIDIA MCP79",	AHCI_Q_NOAA},
+	{0x0abe10de, 0x00, "NVIDIA MCP79",	AHCI_Q_NOAA},
+	{0x0abf10de, 0x00, "NVIDIA MCP79",	AHCI_Q_NOAA},
+	{0x0d8410de, 0x00, "NVIDIA MCP89",	AHCI_Q_NOAA},
+	{0x0d8510de, 0x00, "NVIDIA MCP89",	AHCI_Q_NOAA},
+	{0x0d8610de, 0x00, "NVIDIA MCP89",	AHCI_Q_NOAA},
+	{0x0d8710de, 0x00, "NVIDIA MCP89",	AHCI_Q_NOAA},
+	{0x0d8810de, 0x00, "NVIDIA MCP89",	AHCI_Q_NOAA},
+	{0x0d8910de, 0x00, "NVIDIA MCP89",	AHCI_Q_NOAA},
+	{0x0d8a10de, 0x00, "NVIDIA MCP89",	AHCI_Q_NOAA},
+	{0x0d8b10de, 0x00, "NVIDIA MCP89",	AHCI_Q_NOAA},
+	{0x0d8c10de, 0x00, "NVIDIA MCP89",	AHCI_Q_NOAA},
+	{0x0d8d10de, 0x00, "NVIDIA MCP89",	AHCI_Q_NOAA},
+	{0x0d8e10de, 0x00, "NVIDIA MCP89",	AHCI_Q_NOAA},
+	{0x0d8f10de, 0x00, "NVIDIA MCP89",	AHCI_Q_NOAA},
 	{0x33491106, 0x00, "VIA VT8251",	0},
 	{0x62871106, 0x00, "VIA VT8251",	0},
 	{0x11841039, 0x00, "SiS 966",		0},
@@ -327,6 +330,8 @@ ahci_attach(device_t dev)
 	    &ctlr->r_rid, RF_ACTIVE)))
 		return ENXIO;
 	/* Setup our own memory management for channels. */
+	ctlr->sc_iomem.rm_start = rman_get_start(ctlr->r_mem);
+	ctlr->sc_iomem.rm_end = rman_get_end(ctlr->r_mem);
 	ctlr->sc_iomem.rm_type = RMAN_ARRAY;
 	ctlr->sc_iomem.rm_descr = "I/O memory addresses";
 	if ((error = rman_init(&ctlr->sc_iomem)) != 0) {
@@ -339,6 +344,7 @@ ahci_attach(device_t dev)
 		rman_fini(&ctlr->sc_iomem);
 		return (error);
 	}
+	pci_enable_busmaster(dev);
 	/* Reset controller */
 	if ((error = ahci_ctlr_reset(dev)) != 0) {
 		bus_release_resource(dev, SYS_RES_MEMORY, ctlr->r_rid, ctlr->r_mem);
@@ -774,6 +780,16 @@ ahci_print_child(device_t dev, device_t child)
 	return (retval);
 }
 
+static int
+ahci_child_location_str(device_t dev, device_t child, char *buf,
+    size_t buflen)
+{
+
+	snprintf(buf, buflen, "channel=%d",
+	    (int)(intptr_t)device_get_ivars(child));
+	return (0);
+}
+
 devclass_t ahci_devclass;
 static device_method_t ahci_methods[] = {
 	DEVMETHOD(device_probe,     ahci_probe),
@@ -786,6 +802,7 @@ static device_method_t ahci_methods[] = {
 	DEVMETHOD(bus_release_resource,     ahci_release_resource),
 	DEVMETHOD(bus_setup_intr,   ahci_setup_intr),
 	DEVMETHOD(bus_teardown_intr,ahci_teardown_intr),
+	DEVMETHOD(bus_child_location_str, ahci_child_location_str),
 	{ 0, 0 }
 };
 static driver_t ahci_driver = {
@@ -805,6 +822,7 @@ static device_method_t ahci_ata_methods[] = {
 	DEVMETHOD(bus_release_resource,     ahci_release_resource),
 	DEVMETHOD(bus_setup_intr,   ahci_setup_intr),
 	DEVMETHOD(bus_teardown_intr,ahci_teardown_intr),
+	DEVMETHOD(bus_child_location_str, ahci_child_location_str),
 	{ 0, 0 }
 };
 static driver_t ahci_ata_driver = {
@@ -860,7 +878,14 @@ ahci_ch_attach(device_t dev)
 		ch->user[i].mode = 0;
 		ch->user[i].bytecount = 8192;
 		ch->user[i].tags = ch->numslots;
+		ch->user[i].caps = 0;
 		ch->curr[i] = ch->user[i];
+		if (ch->pm_level) {
+			ch->user[i].caps = CTS_SATA_CAPS_H_PMREQ |
+			    CTS_SATA_CAPS_H_APST |
+			    CTS_SATA_CAPS_D_PMREQ | CTS_SATA_CAPS_D_APST;
+		}
+		ch->user[i].caps |= CTS_SATA_CAPS_H_DMAAA;
 	}
 	rid = ch->unit;
 	if (!(ch->r_mem = bus_alloc_resource_any(dev, SYS_RES_MEMORY,
@@ -868,7 +893,7 @@ ahci_ch_attach(device_t dev)
 		return (ENXIO);
 	ahci_dmainit(dev);
 	ahci_slotsalloc(dev);
-	ahci_ch_resume(dev);
+	ahci_ch_init(dev);
 	mtx_lock(&ch->mtx);
 	rid = ATA_IRQ_RID;
 	if (!(ch->r_irq = bus_alloc_resource_any(dev, SYS_RES_IRQ,
@@ -960,7 +985,7 @@ ahci_ch_detach(device_t dev)
 	bus_teardown_intr(dev, ch->r_irq, ch->ih);
 	bus_release_resource(dev, SYS_RES_IRQ, ATA_IRQ_RID, ch->r_irq);
 
-	ahci_ch_suspend(dev);
+	ahci_ch_deinit(dev);
 	ahci_slotsfree(dev);
 	ahci_dmafini(dev);
 
@@ -970,28 +995,7 @@ ahci_ch_detach(device_t dev)
 }
 
 static int
-ahci_ch_suspend(device_t dev)
-{
-	struct ahci_channel *ch = device_get_softc(dev);
-
-	/* Disable port interrupts. */
-	ATA_OUTL(ch->r_mem, AHCI_P_IE, 0);
-	/* Reset command register. */
-	ahci_stop(dev);
-	ahci_stop_fr(dev);
-	ATA_OUTL(ch->r_mem, AHCI_P_CMD, 0);
-	/* Allow everything, including partial and slumber modes. */
-	ATA_OUTL(ch->r_mem, AHCI_P_SCTL, 0);
-	/* Request slumber mode transition and give some time to get there. */
-	ATA_OUTL(ch->r_mem, AHCI_P_CMD, AHCI_P_CMD_SLUMBER);
-	DELAY(100);
-	/* Disable PHY. */
-	ATA_OUTL(ch->r_mem, AHCI_P_SCTL, ATA_SC_DET_DISABLE);
-	return (0);
-}
-
-static int
-ahci_ch_resume(device_t dev)
+ahci_ch_init(device_t dev)
 {
 	struct ahci_channel *ch = device_get_softc(dev);
 	uint64_t work;
@@ -1012,6 +1016,54 @@ ahci_ch_resume(device_t dev)
 	     ((ch->pm_level > 2) ? AHCI_P_CMD_ASP : 0 )));
 	ahci_start_fr(dev);
 	ahci_start(dev, 1);
+	return (0);
+}
+
+static int
+ahci_ch_deinit(device_t dev)
+{
+	struct ahci_channel *ch = device_get_softc(dev);
+
+	/* Disable port interrupts. */
+	ATA_OUTL(ch->r_mem, AHCI_P_IE, 0);
+	/* Reset command register. */
+	ahci_stop(dev);
+	ahci_stop_fr(dev);
+	ATA_OUTL(ch->r_mem, AHCI_P_CMD, 0);
+	/* Allow everything, including partial and slumber modes. */
+	ATA_OUTL(ch->r_mem, AHCI_P_SCTL, 0);
+	/* Request slumber mode transition and give some time to get there. */
+	ATA_OUTL(ch->r_mem, AHCI_P_CMD, AHCI_P_CMD_SLUMBER);
+	DELAY(100);
+	/* Disable PHY. */
+	ATA_OUTL(ch->r_mem, AHCI_P_SCTL, ATA_SC_DET_DISABLE);
+	return (0);
+}
+
+static int
+ahci_ch_suspend(device_t dev)
+{
+	struct ahci_channel *ch = device_get_softc(dev);
+
+	mtx_lock(&ch->mtx);
+	xpt_freeze_simq(ch->sim, 1);
+	while (ch->oslots)
+		msleep(ch, &ch->mtx, PRIBIO, "ahcisusp", hz/100);
+	ahci_ch_deinit(dev);
+	mtx_unlock(&ch->mtx);
+	return (0);
+}
+
+static int
+ahci_ch_resume(device_t dev)
+{
+	struct ahci_channel *ch = device_get_softc(dev);
+
+	mtx_lock(&ch->mtx);
+	ahci_ch_init(dev);
+	ahci_reset(dev);
+	xpt_release_simq(ch->sim, TRUE);
+	mtx_unlock(&ch->mtx);
 	return (0);
 }
 
@@ -1960,7 +2012,8 @@ ahci_end_transaction(struct ahci_slot *slot, enum ahci_err_type et)
 	    et != AHCI_ERR_TIMEOUT)
 		ahci_rearm_timeout(dev);
 	/* Start PM timer. */
-	if (ch->numrslots == 0 && ch->pm_level > 3) {
+	if (ch->numrslots == 0 && ch->pm_level > 3 &&
+	    (ch->curr[ch->pm_present ? 15 : 0].caps & CTS_SATA_CAPS_D_PMREQ)) {
 		callout_schedule(&ch->pm_timer,
 		    (ch->pm_level == 4) ? hz / 1000 : hz / 8);
 	}
@@ -2083,6 +2136,7 @@ ahci_start(device_t dev, int fbs)
 	}
 	/* Start operations on this channel */
 	cmd = ATA_INL(ch->r_mem, AHCI_P_CMD);
+	cmd &= ~AHCI_P_CMD_PMA;
 	ATA_OUTL(ch->r_mem, AHCI_P_CMD, cmd | AHCI_P_CMD_ST |
 	    (ch->pm_present ? AHCI_P_CMD_PMA : 0));
 }
@@ -2381,6 +2435,24 @@ ahci_sata_phy_reset(device_t dev)
 	return (1);
 }
 
+static int
+ahci_check_ids(device_t dev, union ccb *ccb)
+{
+	struct ahci_channel *ch = device_get_softc(dev);
+
+	if (ccb->ccb_h.target_id > ((ch->caps & AHCI_CAP_SPM) ? 15 : 0)) {
+		ccb->ccb_h.status = CAM_TID_INVALID;
+		xpt_done(ccb);
+		return (-1);
+	}
+	if (ccb->ccb_h.target_lun != 0) {
+		ccb->ccb_h.status = CAM_LUN_INVALID;
+		xpt_done(ccb);
+		return (-1);
+	}
+	return (0);
+}
+
 static void
 ahciaction(struct cam_sim *sim, union ccb *ccb)
 {
@@ -2396,9 +2468,12 @@ ahciaction(struct cam_sim *sim, union ccb *ccb)
 	/* Common cases first */
 	case XPT_ATA_IO:	/* Execute the requested I/O operation */
 	case XPT_SCSI_IO:
-		if (ch->devices == 0) {
+		if (ahci_check_ids(dev, ccb))
+			return;
+		if (ch->devices == 0 ||
+		    (ch->pm_present == 0 &&
+		     ccb->ccb_h.target_id > 0 && ccb->ccb_h.target_id < 15)) {
 			ccb->ccb_h.status = CAM_SEL_TIMEOUT;
-			xpt_done(ccb);
 			break;
 		}
 		/* Check for command collision. */
@@ -2410,7 +2485,7 @@ ahciaction(struct cam_sim *sim, union ccb *ccb)
 			return;
 		}
 		ahci_begin_transaction(dev, ccb);
-		break;
+		return;
 	case XPT_EN_LUN:		/* Enable LUN as a target */
 	case XPT_TARGET_IO:		/* Execute target I/O request */
 	case XPT_ACCEPT_TARGET_IO:	/* Accept Host Target Mode CDB */
@@ -2418,13 +2493,14 @@ ahciaction(struct cam_sim *sim, union ccb *ccb)
 	case XPT_ABORT:			/* Abort the specified CCB */
 		/* XXX Implement */
 		ccb->ccb_h.status = CAM_REQ_INVALID;
-		xpt_done(ccb);
 		break;
 	case XPT_SET_TRAN_SETTINGS:
 	{
 		struct	ccb_trans_settings *cts = &ccb->cts;
 		struct	ahci_device *d; 
 
+		if (ahci_check_ids(dev, ccb))
+			return;
 		if (cts->type == CTS_TYPE_CURRENT_SETTINGS)
 			d = &ch->curr[ccb->ccb_h.target_id];
 		else
@@ -2441,8 +2517,9 @@ ahciaction(struct cam_sim *sim, union ccb *ccb)
 			ch->pm_present = cts->xport_specific.sata.pm_present;
 		if (cts->xport_specific.sata.valid & CTS_SATA_VALID_ATAPI)
 			d->atapi = cts->xport_specific.sata.atapi;
+		if (cts->xport_specific.sata.valid & CTS_SATA_VALID_CAPS)
+			d->caps = cts->xport_specific.sata.caps;
 		ccb->ccb_h.status = CAM_REQ_CMP;
-		xpt_done(ccb);
 		break;
 	}
 	case XPT_GET_TRAN_SETTINGS:
@@ -2452,6 +2529,8 @@ ahciaction(struct cam_sim *sim, union ccb *ccb)
 		struct  ahci_device *d;
 		uint32_t status;
 
+		if (ahci_check_ids(dev, ccb))
+			return;
 		if (cts->type == CTS_TYPE_CURRENT_SETTINGS)
 			d = &ch->curr[ccb->ccb_h.target_id];
 		else
@@ -2472,9 +2551,24 @@ ahciaction(struct cam_sim *sim, union ccb *ccb)
 				cts->xport_specific.sata.valid |=
 				    CTS_SATA_VALID_REVISION;
 			}
+			cts->xport_specific.sata.caps = d->caps & CTS_SATA_CAPS_D;
+			if (ch->pm_level) {
+				if (ch->caps & (AHCI_CAP_PSC | AHCI_CAP_SSC))
+					cts->xport_specific.sata.caps |= CTS_SATA_CAPS_H_PMREQ;
+				if (ch->caps2 & AHCI_CAP2_APST)
+					cts->xport_specific.sata.caps |= CTS_SATA_CAPS_H_APST;
+			}
+			if ((ch->caps & AHCI_CAP_SNCQ) &&
+			    (ch->quirks & AHCI_Q_NOAA) == 0)
+				cts->xport_specific.sata.caps |= CTS_SATA_CAPS_H_DMAAA;
+			cts->xport_specific.sata.caps &=
+			    ch->user[ccb->ccb_h.target_id].caps;
+			cts->xport_specific.sata.valid |= CTS_SATA_VALID_CAPS;
 		} else {
 			cts->xport_specific.sata.revision = d->revision;
 			cts->xport_specific.sata.valid |= CTS_SATA_VALID_REVISION;
+			cts->xport_specific.sata.caps = d->caps;
+			cts->xport_specific.sata.valid |= CTS_SATA_VALID_CAPS;
 		}
 		cts->xport_specific.sata.mode = d->mode;
 		cts->xport_specific.sata.valid |= CTS_SATA_VALID_MODE;
@@ -2487,48 +2581,16 @@ ahciaction(struct cam_sim *sim, union ccb *ccb)
 		cts->xport_specific.sata.atapi = d->atapi;
 		cts->xport_specific.sata.valid |= CTS_SATA_VALID_ATAPI;
 		ccb->ccb_h.status = CAM_REQ_CMP;
-		xpt_done(ccb);
 		break;
 	}
-#if 0
-	case XPT_CALC_GEOMETRY:
-	{
-		struct	  ccb_calc_geometry *ccg;
-		uint32_t size_mb;
-		uint32_t secs_per_cylinder;
-
-		ccg = &ccb->ccg;
-		size_mb = ccg->volume_size
-			/ ((1024L * 1024L) / ccg->block_size);
-		if (size_mb >= 1024 && (aha->extended_trans != 0)) {
-			if (size_mb >= 2048) {
-				ccg->heads = 255;
-				ccg->secs_per_track = 63;
-			} else {
-				ccg->heads = 128;
-				ccg->secs_per_track = 32;
-			}
-		} else {
-			ccg->heads = 64;
-			ccg->secs_per_track = 32;
-		}
-		secs_per_cylinder = ccg->heads * ccg->secs_per_track;
-		ccg->cylinders = ccg->volume_size / secs_per_cylinder;
-		ccb->ccb_h.status = CAM_REQ_CMP;
-		xpt_done(ccb);
-		break;
-	}
-#endif
 	case XPT_RESET_BUS:		/* Reset the specified SCSI bus */
 	case XPT_RESET_DEV:	/* Bus Device Reset the specified SCSI device */
 		ahci_reset(dev);
 		ccb->ccb_h.status = CAM_REQ_CMP;
-		xpt_done(ccb);
 		break;
 	case XPT_TERM_IO:		/* Terminate the I/O process */
 		/* XXX Implement */
 		ccb->ccb_h.status = CAM_REQ_INVALID;
-		xpt_done(ccb);
 		break;
 	case XPT_PATH_INQ:		/* Path routing inquiry */
 	{
@@ -2564,14 +2626,13 @@ ahciaction(struct cam_sim *sim, union ccb *ccb)
 		if (pci_get_devid(device_get_parent(dev)) == 0x43801002)
 			cpi->maxio = min(cpi->maxio, 128 * 512);
 		cpi->ccb_h.status = CAM_REQ_CMP;
-		xpt_done(ccb);
 		break;
 	}
 	default:
 		ccb->ccb_h.status = CAM_REQ_INVALID;
-		xpt_done(ccb);
 		break;
 	}
+	xpt_done(ccb);
 }
 
 static void

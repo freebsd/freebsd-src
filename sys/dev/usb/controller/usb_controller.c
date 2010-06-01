@@ -234,11 +234,12 @@ usb_bus_explore(struct usb_proc_msg *pm)
 
 		USB_BUS_UNLOCK(bus);
 
+#if USB_HAVE_POWERD
 		/*
 		 * First update the USB power state!
 		 */
 		usb_bus_powerd(bus);
-
+#endif
 		 /* Explore the Root USB HUB. */
 		(udev->hub->explore) (udev);
 		USB_BUS_LOCK(bus);
@@ -301,11 +302,13 @@ usb_power_wdog(void *arg)
 	usb_proc_rewakeup(&bus->explore_proc);	/* recover from DDB */
 #endif
 
+#if USB_HAVE_POWERD
 	USB_BUS_UNLOCK(bus);
 
 	usb_bus_power_update(bus);
 
 	USB_BUS_LOCK(bus);
+#endif
 }
 
 /*------------------------------------------------------------------------*

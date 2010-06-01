@@ -2,11 +2,11 @@
 
 .include <bsd.own.mk>
 
-SUBDIR=	lib add create delete info updating version
+SUBDIR=	add create delete info updating version
 
 .include <bsd.subdir.mk>
 
-DATE!=	grep PKG_INSTALL_VERSION ${.CURDIR}/lib/lib.h | sed 's|.*[ 	]||'
+DATE!=	grep PKG_INSTALL_VERSION ${.CURDIR}/Makefile.inc | sed 's|.*=||'
 
 distfile: clean
 	@(cd ${.CURDIR}/..; \

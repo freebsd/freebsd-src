@@ -171,6 +171,8 @@ pmcstat_gmon_create_name(const char *samplesdir, struct pmcstat_image *image,
 	char fullpath[PATH_MAX];
 
 	pmcname = pmcstat_pmcid_to_name(pmcid);
+	if (!pmcname)
+		err(EX_SOFTWARE, "ERROR: cannot find pmcid");
 
 	(void) snprintf(fullpath, sizeof(fullpath),
 	    "%s/%s/%s", samplesdir, pmcname,

@@ -28,7 +28,7 @@
 .\"	@(#)sysctl.3	8.4 (Berkeley) 5/9/95
 .\" $FreeBSD$
 .\"
-.Dd February 21, 2010
+.Dd April 25, 2010
 .Dt SYSCTL 3
 .Os
 .Sh NAME
@@ -286,7 +286,6 @@ privilege may change the value.
 .It "HW_MACHINE_ARCH	string	no"
 .It "HW_REALMEM	integer	no"
 .El
-.Pp
 .Bl -tag -width 6n
 .It Li HW_MACHINE
 The machine class.
@@ -326,7 +325,7 @@ information.
 .It "KERN_BOOTFILE	string	yes"
 .It "KERN_BOOTTIME	struct timeval	no"
 .It "KERN_CLOCKRATE	struct clockinfo	no"
-.It "KERN_FILE	struct file	no"
+.It "KERN_FILE	struct xfile	no"
 .It "KERN_HOSTID	integer	yes"
 .It "KERN_HOSTUUID	string	yes"
 .It "KERN_HOSTNAME	string	yes"
@@ -343,16 +342,15 @@ information.
 .It "KERN_OSREV	integer	no"
 .It "KERN_OSTYPE	string	no"
 .It "KERN_POSIX1	integer	no"
-.It "KERN_PROC	struct proc	no"
+.It "KERN_PROC	node	not applicable"
 .It "KERN_PROF	node	not applicable"
 .It "KERN_QUANTUM	integer	yes"
 .It "KERN_SAVED_IDS	integer	no"
 .It "KERN_SECURELVL	integer	raise only"
 .It "KERN_UPDATEINTERVAL	integer	no"
 .It "KERN_VERSION	string	no"
-.It "KERN_VNODE	struct vnode	no"
+.It "KERN_VNODE	struct xvnode	no"
 .El
-.Pp
 .Bl -tag -width 6n
 .It Li KERN_ARGMAX
 The maximum bytes of argument to
@@ -372,10 +370,8 @@ This structure contains the clock, statistics clock and profiling clock
 frequencies, the number of micro-seconds per hz tick and the skew rate.
 .It Li KERN_FILE
 Return the entire file table.
-The returned data consists of a single
-.Va struct filehead
-followed by an array of
-.Va struct file ,
+The returned data consists of an array of
+.Va struct xfile ,
 whose size depends on the current number of such objects in the system.
 .It Li KERN_HOSTID
 Get or set the host ID.
@@ -527,10 +523,8 @@ Note, the vnode table is not necessarily a consistent snapshot of
 the system.
 The returned data consists of an array whose size depends on the
 current number of such objects in the system.
-Each element of the array contains the kernel address of a vnode
-.Va struct vnode *
-followed by the vnode itself
-.Va struct vnode .
+Each element of the array consists of a
+.Va struct xvnode .
 .El
 .Ss CTL_NET
 The string and integer information available for the CTL_NET level
@@ -543,7 +537,6 @@ privilege may change the value.
 .It "PF_INET	IPv4 values	yes"
 .It "PF_INET6	IPv6 values	yes"
 .El
-.Pp
 .Bl -tag -width 6n
 .It Li PF_ROUTE
 Return the entire routing table or a subset of it.
@@ -650,7 +643,6 @@ privilege may change the value.
 .It "USER_TZNAME_MAX	integer	no"
 .El
 .Bl -tag -width 6n
-.Pp
 .It Li USER_BC_BASE_MAX
 The maximum ibase/obase values in the
 .Xr bc 1
@@ -740,7 +732,6 @@ privilege may change the value.
 .It "VM_V_INACTIVE_TARGET	integer	yes"
 .It "VM_V_PAGEOUT_FREE_MIN	integer	yes"
 .El
-.Pp
 .Bl -tag -width 6n
 .It Li VM_LOADAVG
 Return the load average history.
@@ -859,6 +850,8 @@ An attempt is made to set a read-only value.
 A process without appropriate privilege attempts to set a value.
 .El
 .Sh SEE ALSO
+.Xr confstr 3 ,
+.Xr kvm 3 ,
 .Xr sysconf 3 ,
 .Xr sysctl 8
 .Sh HISTORY

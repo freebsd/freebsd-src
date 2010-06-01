@@ -38,6 +38,7 @@
 __FBSDID("$FreeBSD$");
 
 #include "opt_bpf.h"
+#include "opt_compat.h"
 #include "opt_netgraph.h"
 
 #include <sys/types.h>
@@ -88,6 +89,43 @@ MALLOC_DEFINE(M_BPF, "BPF", "BPF data");
 #if defined(DEV_BPF) || defined(NETGRAPH_BPF)
 
 #define PRINET  26			/* interruptible */
+
+#ifdef COMPAT_FREEBSD32
+#include <sys/mount.h>
+#include <compat/freebsd32/freebsd32.h>
+#define BPF_ALIGNMENT32 sizeof(int32_t)
+#define BPF_WORDALIGN32(x) (((x)+(BPF_ALIGNMENT32-1))&~(BPF_ALIGNMENT32-1))
+
+/*
+ * 32-bit version of structure prepended to each packet.  We use this header
+ * instead of the standard one for 32-bit streams.  We mark the a stream as
+ * 32-bit the first time we see a 32-bit compat ioctl request.
+ */
+struct bpf_hdr32 {
+	struct timeval32 bh_tstamp;	/* time stamp */
+	uint32_t	bh_caplen;	/* length of captured portion */
+	uint32_t	bh_datalen;	/* original length of packet */
+	uint16_t	bh_hdrlen;	/* length of bpf header (this struct
+					   plus alignment padding) */
+};
+
+struct bpf_program32 {
+	u_int bf_len;
+	uint32_t bf_insns;
+};
+
+struct bpf_dltlist32 {
+	u_int	bfl_len;
+	u_int	bfl_list;
+};
+
+#define	BIOCSETF32	_IOW('B', 103, struct bpf_program32)
+#define	BIOCSRTIMEOUT32	_IOW('B',109, struct timeval32)
+#define	BIOCGRTIMEOUT32	_IOR('B',110, struct timeval32)
+#define	BIOCGDLTLIST32	_IOWR('B',121, struct bpf_dltlist32)
+#define	BIOCSETWF32	_IOW('B',123, struct bpf_program32)
+#define	BIOCSETFNR32	_IOW('B',130, struct bpf_program32)
+#endif
 
 /*
  * bpf_iflist is a list of BPF interface structures, each corresponding to a
@@ -1005,8 +1043,14 @@ bpfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags,
 		case BIOCFLUSH:
 		case BIOCGDLT:
 		case BIOCGDLTLIST:
+#ifdef COMPAT_FREEBSD32
+		case BIOCGDLTLIST32:
+#endif
 		case BIOCGETIF:
 		case BIOCGRTIMEOUT:
+#ifdef COMPAT_FREEBSD32
+		case BIOCGRTIMEOUT32:
+#endif
 		case BIOCGSTATS:
 		case BIOCVERSION:
 		case BIOCGRSIG:
@@ -1015,6 +1059,9 @@ bpfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags,
 		case FIONREAD:
 		case BIOCLOCK:
 		case BIOCSRTIMEOUT:
+#ifdef COMPAT_FREEBSD32
+		case BIOCSRTIMEOUT32:
+#endif
 		case BIOCIMMEDIATE:
 		case TIOCGPGRP:
 		case BIOCROTZBUF:
@@ -1023,6 +1070,22 @@ bpfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags,
 			return (EPERM);
 		}
 	}
+#ifdef COMPAT_FREEBSD32
+	/*
+	 * If we see a 32-bit compat ioctl, mark the stream as 32-bit so
+	 * that it will get 32-bit packet headers.
+	 */
+	switch (cmd) {
+	case BIOCSETF32:
+	case BIOCSETFNR32:
+	case BIOCSETWF32:
+	case BIOCGDLTLIST32:
+	case BIOCGRTIMEOUT32:
+	case BIOCSRTIMEOUT32:
+		d->bd_compat32 = 1;
+	}
+#endif
+
 	CURVNET_SET(TD_TO_VNET(td));
 	switch (cmd) {
 
@@ -1080,6 +1143,11 @@ bpfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags,
 	case BIOCSETF:
 	case BIOCSETFNR:
 	case BIOCSETWF:
+#ifdef COMPAT_FREEBSD32
+	case BIOCSETF32:
+	case BIOCSETFNR32:
+	case BIOCSETWF32:
+#endif
 		error = bpf_setf(d, (struct bpf_program *)addr, cmd);
 		break;
 
@@ -1123,6 +1191,26 @@ bpfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags,
 	/*
 	 * Get a list of supported data link types.
 	 */
+#ifdef COMPAT_FREEBSD32
+	case BIOCGDLTLIST32:
+		{
+			struct bpf_dltlist32 *list32;
+			struct bpf_dltlist dltlist;
+
+			list32 = (struct bpf_dltlist32 *)addr;
+			dltlist.bfl_len = list32->bfl_len;
+			dltlist.bfl_list = PTRIN(list32->bfl_list);
+			if (d->bd_bif == NULL)
+				error = EINVAL;
+			else {
+				error = bpf_getdltlist(d, &dltlist);
+				if (error == 0)
+					list32->bfl_len = dltlist.bfl_len;
+			}
+			break;
+		}
+#endif
+
 	case BIOCGDLTLIST:
 		if (d->bd_bif == NULL)
 			error = EINVAL;
@@ -1166,8 +1254,23 @@ bpfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags,
 	 * Set read timeout.
 	 */
 	case BIOCSRTIMEOUT:
+#ifdef COMPAT_FREEBSD32
+	case BIOCSRTIMEOUT32:
+#endif
 		{
 			struct timeval *tv = (struct timeval *)addr;
+#ifdef COMPAT_FREEBSD32
+			struct timeval32 *tv32;
+			struct timeval tv64;
+
+			if (cmd == BIOCSRTIMEOUT32) {
+				tv32 = (struct timeval32 *)addr;
+				tv = &tv64;
+				tv->tv_sec = tv32->tv_sec;
+				tv->tv_usec = tv32->tv_usec;
+			} else
+#endif
+				tv = (struct timeval *)addr;
 
 			/*
 			 * Subtract 1 tick from tvtohz() since this isn't
@@ -1182,11 +1285,31 @@ bpfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags,
 	 * Get read timeout.
 	 */
 	case BIOCGRTIMEOUT:
+#ifdef COMPAT_FREEBSD32
+	case BIOCGRTIMEOUT32:
+#endif
 		{
-			struct timeval *tv = (struct timeval *)addr;
+			struct timeval *tv;
+#ifdef COMPAT_FREEBSD32
+			struct timeval32 *tv32;
+			struct timeval tv64;
+
+			if (cmd == BIOCGRTIMEOUT32)
+				tv = &tv64;
+			else
+#endif
+				tv = (struct timeval *)addr;
 
 			tv->tv_sec = d->bd_rtout / hz;
 			tv->tv_usec = (d->bd_rtout % hz) * tick;
+#ifdef COMPAT_FREEBSD32
+			if (cmd == BIOCGRTIMEOUT32) {
+				tv32 = (struct timeval32 *)addr;
+				tv32->tv_sec = tv->tv_sec;
+				tv32->tv_usec = tv->tv_usec;
+			}
+#endif
+
 			break;
 		}
 
@@ -1331,6 +1454,7 @@ bpfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags,
 			/* FALLSTHROUGH */
 
 		default:
+			CURVNET_RESTORE();
 			return (EINVAL);
 		}
 
@@ -1338,6 +1462,7 @@ bpfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags,
 		if (d->bd_sbuf != NULL || d->bd_hbuf != NULL ||
 		    d->bd_fbuf != NULL || d->bd_bif != NULL) {
 			BPFD_UNLOCK(d);
+			CURVNET_RESTORE();
 			return (EBUSY);
 		}
 		d->bd_bufmode = *(u_int *)addr;
@@ -1345,13 +1470,16 @@ bpfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags,
 		break;
 
 	case BIOCGETZMAX:
-		return (bpf_ioctl_getzmax(td, d, (size_t *)addr));
+		error = bpf_ioctl_getzmax(td, d, (size_t *)addr);
+		break;
 
 	case BIOCSETZBUF:
-		return (bpf_ioctl_setzbuf(td, d, (struct bpf_zbuf *)addr));
+		error = bpf_ioctl_setzbuf(td, d, (struct bpf_zbuf *)addr);
+		break;
 
 	case BIOCROTZBUF:
-		return (bpf_ioctl_rotzbuf(td, d, (struct bpf_zbuf *)addr));
+		error = bpf_ioctl_rotzbuf(td, d, (struct bpf_zbuf *)addr);
+		break;
 	}
 	CURVNET_RESTORE();
 	return (error);
@@ -1369,7 +1497,19 @@ bpf_setf(struct bpf_d *d, struct bpf_program *fp, u_long cmd)
 #ifdef BPF_JITTER
 	bpf_jit_filter *ofunc;
 #endif
+#ifdef COMPAT_FREEBSD32
+	struct bpf_program32 *fp32;
+	struct bpf_program fp_swab;
 
+	if (cmd == BIOCSETWF32 || cmd == BIOCSETF32 || cmd == BIOCSETFNR32) {
+		fp32 = (struct bpf_program32 *)fp;
+		fp_swab.bf_len = fp32->bf_len;
+		fp_swab.bf_insns = (struct bpf_insn *)(uintptr_t)fp32->bf_insns;
+		fp = &fp_swab;
+		if (cmd == BIOCSETWF32)
+			cmd = BIOCSETWF;
+	}
+#endif
 	if (cmd == BIOCSETWF) {
 		old = d->bd_wfilter;
 		wfilter = 1;
@@ -1771,6 +1911,9 @@ catchpacket(struct bpf_d *d, u_char *pkt, u_int pktlen, u_int snaplen,
     struct timeval *tv)
 {
 	struct bpf_hdr hdr;
+#ifdef COMPAT_FREEBSD32
+	struct bpf_hdr32 hdr32;
+#endif
 	int totlen, curlen;
 	int hdrlen = d->bd_bif->bif_hdrlen;
 	int do_wakeup = 0;
@@ -1809,7 +1952,12 @@ catchpacket(struct bpf_d *d, u_char *pkt, u_int pktlen, u_int snaplen,
 	 * buffer is considered immutable by the buffer model, try to rotate
 	 * the buffer and wakeup pending processes.
 	 */
-	curlen = BPF_WORDALIGN(d->bd_slen);
+#ifdef COMPAT_FREEBSD32
+	if (d->bd_compat32)
+		curlen = BPF_WORDALIGN32(d->bd_slen);
+	else
+#endif
+		curlen = BPF_WORDALIGN(d->bd_slen);
 	if (curlen + totlen > d->bd_bufsize || !bpf_canwritebuf(d)) {
 		if (d->bd_fbuf == NULL) {
 			/*
@@ -1831,6 +1979,22 @@ catchpacket(struct bpf_d *d, u_char *pkt, u_int pktlen, u_int snaplen,
 		 * reader should be woken up.
 		 */
 		do_wakeup = 1;
+#ifdef COMPAT_FREEBSD32
+	/*
+	 * If this is a 32-bit stream, then stick a 32-bit header at the
+	 * front and copy the data into the buffer.
+	 */
+	if (d->bd_compat32) {
+		bzero(&hdr32, sizeof(hdr32));
+		hdr32.bh_tstamp.tv_sec = tv->tv_sec;
+		hdr32.bh_tstamp.tv_usec = tv->tv_usec;
+		hdr32.bh_datalen = pktlen;
+		hdr32.bh_hdrlen = hdrlen;
+		hdr.bh_caplen = hdr32.bh_caplen = totlen - hdrlen;
+		bpf_append_bytes(d, d->bd_sbuf, curlen, &hdr32, sizeof(hdr32));
+		goto copy;
+	}
+#endif
 
 	/*
 	 * Append the bpf header.  Note we append the actual header size, but
@@ -1846,6 +2010,9 @@ catchpacket(struct bpf_d *d, u_char *pkt, u_int pktlen, u_int snaplen,
 	/*
 	 * Copy the packet data into the store buffer and update its length.
 	 */
+#ifdef COMPAT_FREEBSD32
+ copy:
+#endif
 	(*cpfn)(d, d->bd_sbuf, curlen + hdrlen, pkt, hdr.bh_caplen);
 	d->bd_slen = curlen + totlen;
 

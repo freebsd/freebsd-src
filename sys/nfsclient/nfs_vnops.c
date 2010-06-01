@@ -932,7 +932,7 @@ nfs_lookup(struct vop_lookup_args *ap)
 	struct mbuf *mreq, *mrep, *md, *mb;
 	long len;
 	nfsfh_t *fhp;
-	struct nfsnode *np;
+	struct nfsnode *np, *newnp;
 	int error = 0, attrflag, fhsize, ltype;
 	int v3 = NFS_ISV3(dvp);
 	struct thread *td = cnp->cn_thread;
@@ -958,10 +958,27 @@ nfs_lookup(struct vop_lookup_args *ap)
 		 * change time of the file matches our cached copy.
 		 * Otherwise, we discard the cache entry and fallback
 		 * to doing a lookup RPC.
+		 *
+		 * To better handle stale file handles and attributes,
+		 * clear the attribute cache of this node if it is a
+		 * leaf component, part of an open() call, and not
+		 * locally modified before fetching the attributes.
+		 * This should allow stale file handles to be detected
+		 * here where we can fall back to a LOOKUP RPC to
+		 * recover rather than having nfs_open() detect the
+		 * stale file handle and failing open(2) with ESTALE.
 		 */
 		newvp = *vpp;
-		if (!VOP_GETATTR(newvp, &vattr, cnp->cn_cred)
-		    && vattr.va_ctime.tv_sec == VTONFS(newvp)->n_ctime) {
+		newnp = VTONFS(newvp);
+		if ((cnp->cn_flags & (ISLASTCN | ISOPEN)) ==
+		    (ISLASTCN | ISOPEN) && !(newnp->n_flag & NMODIFIED)) {
+			mtx_lock(&newnp->n_mtx);
+			newnp->n_attrstamp = 0;
+			KDTRACE_NFS_ATTRCACHE_FLUSH_DONE(newvp);
+			mtx_unlock(&newnp->n_mtx);
+		}
+		if (VOP_GETATTR(newvp, &vattr, cnp->cn_cred) == 0 &&
+		    vattr.va_ctime.tv_sec == newnp->n_ctime) {
 			nfsstats.lookupcache_hits++;
 			if (cnp->cn_nameiop != LOOKUP &&
 			    (flags & ISLASTCN))

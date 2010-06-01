@@ -101,6 +101,7 @@ struct pmp_softc {
 	int			events;
 #define PMP_EV_RESET	1
 #define PMP_EV_RESCAN	2
+	u_int			caps;
 	struct task		sysctl_task;
 	struct sysctl_ctx_list	sysctl_ctx;
 	struct sysctl_oid	*sysctl_tree;
@@ -457,6 +458,14 @@ pmpstart(struct cam_periph *periph, union ccb *start_ccb)
 		ata_pm_read_cmd(ataio, 2, 15);
 		break;
 	case PMP_STATE_PRECONFIG:
+		/* Get/update host SATA capabilities. */
+		bzero(&cts, sizeof(cts));
+		xpt_setup_ccb(&cts.ccb_h, periph->path, CAM_PRIORITY_NONE);
+		cts.ccb_h.func_code = XPT_GET_TRAN_SETTINGS;
+		cts.type = CTS_TYPE_CURRENT_SETTINGS;
+		xpt_action((union ccb *)&cts);
+		if (cts.xport_specific.sata.valid & CTS_SATA_VALID_CAPS)
+			softc->caps = cts.xport_specific.sata.caps;
 		cam_fill_ataio(ataio,
 		      pmp_retry_count,
 		      pmpdone,
@@ -644,14 +653,16 @@ pmpdone(struct cam_periph *periph, union ccb *done_ccb)
 		    (done_ccb->ataio.res.lba_mid << 16) +
 		    (done_ccb->ataio.res.lba_low << 8) +
 		    done_ccb->ataio.res.sector_count;
-		if ((res & 0xf0f) == 0x103 && (res & 0x0f0) != 0) {
+		if (((res & 0xf0f) == 0x103 && (res & 0x0f0) != 0) ||
+		    (res & 0x600) != 0) {
 			if (bootverbose) {
 				printf("%s%d: port %d status: %08x\n",
 				    periph->periph_name, periph->unit_number,
 				    softc->pm_step, res);
 			}
-			/* Report device speed. */
-			if (xpt_create_path(&dpath, periph,
+			/* Report device speed if it is online. */
+			if ((res & 0xf0f) == 0x103 &&
+			    xpt_create_path(&dpath, periph,
 			    xpt_path_path_id(periph->path),
 			    softc->pm_step, 0) == CAM_REQ_CMP) {
 				bzero(&cts, sizeof(cts));
@@ -660,6 +671,9 @@ pmpdone(struct cam_periph *periph, union ccb *done_ccb)
 				cts.type = CTS_TYPE_CURRENT_SETTINGS;
 				cts.xport_specific.sata.revision = (res & 0x0f0) >> 4;
 				cts.xport_specific.sata.valid = CTS_SATA_VALID_REVISION;
+				cts.xport_specific.sata.caps = softc->caps &
+				    (CTS_SATA_CAPS_H_PMREQ | CTS_SATA_CAPS_H_DMAAA);
+				cts.xport_specific.sata.valid |= CTS_SATA_VALID_CAPS;
 				xpt_action((union ccb *)&cts);
 				xpt_free_path(dpath);
 			}

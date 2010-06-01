@@ -96,27 +96,6 @@ struct ufs2_dinode ufs2_zino;
 static void putcgs(void);
 
 /*
- * Write current block of inodes.
- */
-static int
-putino(struct uufsd *disk, ino_t inode)
-{
-	caddr_t inoblock;
-	struct fs *fs;
-	ssize_t ret;
-
-	fs = &disk->d_fs;
-	inoblock = disk->d_inoblock;
-
-	assert(inoblock != NULL);
-	assert(inode >= disk->d_inomin && inode <= disk->d_inomax);
-	ret = bwrite(disk, fsbtodb(fs, ino_to_fsba(fs, inode)), inoblock,
-	    fs->fs_bsize);
-
-	return (ret == -1 ? -1 : 0);
-}
-
-/*
  * Return cylinder group from the cache or load it if it is not in the
  * cache yet.
  * Don't cache more than MAX_CACHED_CGS cylinder groups.
@@ -242,13 +221,11 @@ cancelcgs(void)
 #endif
 
 /*
- * Open the given provider, load statistics.
+ * Open the given provider, load superblock.
  */
 static void
-getdisk(void)
+opendisk(void)
 {
-	int i;
-
 	if (disk != NULL)
 		return;
 	disk = malloc(sizeof(*disk));
@@ -259,24 +236,6 @@ getdisk(void)
 		    disk->d_error);
 	}
 	fs = &disk->d_fs;
-	fs->fs_csp = malloc((size_t)fs->fs_cssize);
-	if (fs->fs_csp == NULL)
-		err(1, "malloc(%zu)", (size_t)fs->fs_cssize);
-	bzero(fs->fs_csp, (size_t)fs->fs_cssize);
-	for (i = 0; i < fs->fs_cssize; i += fs->fs_bsize) {
-		if (bread(disk, fsbtodb(fs, fs->fs_csaddr + numfrags(fs, i)),
-		    (void *)(((char *)fs->fs_csp) + i),
-		    (size_t)(fs->fs_cssize - i < fs->fs_bsize ? fs->fs_cssize - i : fs->fs_bsize)) == -1) {
-			err(1, "bread: %s", disk->d_error);
-		}
-	}
-	if (fs->fs_contigsumsize > 0) {
-		fs->fs_maxcluster = malloc(fs->fs_ncg * sizeof(int32_t));
-		if (fs->fs_maxcluster == NULL)
-			err(1, "malloc(%zu)", fs->fs_ncg * sizeof(int32_t));
-		for (i = 0; i < fs->fs_ncg; i++)
-			fs->fs_maxcluster[i] = fs->fs_contigsumsize;
-	}
 }
 
 /*
@@ -286,11 +245,6 @@ static void
 closedisk(void)
 {
 
-	free(fs->fs_csp);
-	if (fs->fs_contigsumsize > 0) {
-		free(fs->fs_maxcluster);
-		fs->fs_maxcluster = NULL;
-	}
 	fs->fs_clean = 1;
 	if (sbwrite(disk, 0) == -1)
 		err(1, "sbwrite(%s)", devnam);
@@ -299,227 +253,6 @@ closedisk(void)
 	free(disk);
 	disk = NULL;
 	fs = NULL;
-}
-
-/*
- * Write the statistics back, call closedisk().
- */
-static void
-putdisk(void)
-{
-	int i;
-
-	assert(disk != NULL && fs != NULL);
-	for (i = 0; i < fs->fs_cssize; i += fs->fs_bsize) {
-		if (bwrite(disk, fsbtodb(fs, fs->fs_csaddr + numfrags(fs, i)),
-		    (void *)(((char *)fs->fs_csp) + i),
-		    (size_t)(fs->fs_cssize - i < fs->fs_bsize ? fs->fs_cssize - i : fs->fs_bsize)) == -1) {
-			err(1, "bwrite: %s", disk->d_error);
-		}
-	}
-	closedisk();
-}
-
-#if 0
-/*
- * Free memory, close the disk, but don't write anything back.
- */
-static void
-canceldisk(void)
-{
-	int i;
-
-	assert(disk != NULL && fs != NULL);
-	free(fs->fs_csp);
-	if (fs->fs_contigsumsize > 0)
-		free(fs->fs_maxcluster);
-	if (ufs_disk_close(disk) == -1)
-		err(1, "ufs_disk_close(%s)", devnam);
-	free(disk);
-	disk = NULL;
-	fs = NULL;
-}
-#endif
-
-static int
-isblock(unsigned char *cp, ufs1_daddr_t h)
-{
-	unsigned char mask;
-
-	switch ((int)fs->fs_frag) {
-	case 8:
-		return (cp[h] == 0xff);
-	case 4:
-		mask = 0x0f << ((h & 0x1) << 2);
-		return ((cp[h >> 1] & mask) == mask);
-	case 2:
-		mask = 0x03 << ((h & 0x3) << 1);
-		return ((cp[h >> 2] & mask) == mask);
-	case 1:
-		mask = 0x01 << (h & 0x7);
-		return ((cp[h >> 3] & mask) == mask);
-	default:
-		assert(!"isblock: invalid number of fragments");
-	}
-	return (0);
-}
-
-/*
- * put a block into the map
- */
-static void
-setblock(unsigned char *cp, ufs1_daddr_t h)
-{
-
-	switch ((int)fs->fs_frag) {
-	case 8:
-		cp[h] = 0xff;
-		return;
-	case 4:
-		cp[h >> 1] |= (0x0f << ((h & 0x1) << 2));
-		return;
-	case 2:
-		cp[h >> 2] |= (0x03 << ((h & 0x3) << 1));
-		return;
-	case 1:
-		cp[h >> 3] |= (0x01 << (h & 0x7));
-		return;
-	default:
-		assert(!"setblock: invalid number of fragments");
-	}
-}
-
-/*
- * check if a block is free
- */
-static int
-isfreeblock(u_char *cp, ufs1_daddr_t h)
-{
-
-	switch ((int)fs->fs_frag) {
-	case 8:
-		return (cp[h] == 0);
-	case 4:
-		return ((cp[h >> 1] & (0x0f << ((h & 0x1) << 2))) == 0);
-	case 2:
-		return ((cp[h >> 2] & (0x03 << ((h & 0x3) << 1))) == 0);
-	case 1:
-		return ((cp[h >> 3] & (0x01 << (h & 0x7))) == 0);
-	default:
-		assert(!"isfreeblock: invalid number of fragments");
-	}
-	return (0);
-}
-
-/*
- * Update the frsum fields to reflect addition or deletion
- * of some frags.
- */
-void
-fragacct(int fragmap, int32_t fraglist[], int cnt)
-{
-	int inblk;
-	int field, subfield;
-	int siz, pos;
-
-	inblk = (int)(fragtbl[fs->fs_frag][fragmap]) << 1;
-	fragmap <<= 1;
-	for (siz = 1; siz < fs->fs_frag; siz++) {
-		if ((inblk & (1 << (siz + (fs->fs_frag % NBBY)))) == 0)
-			continue;
-		field = around[siz];
-		subfield = inside[siz];
-		for (pos = siz; pos <= fs->fs_frag; pos++) {
-			if ((fragmap & field) == subfield) {
-				fraglist[siz] += cnt;
-				pos += siz;
-				field <<= siz;
-				subfield <<= siz;
-			}
-			field <<= 1;
-			subfield <<= 1;
-		}
-	}
-}
-
-static void
-clusteracct(struct cg *cgp, ufs1_daddr_t blkno)
-{
-	int32_t *sump;
-	int32_t *lp;
-	u_char *freemapp, *mapp;
-	int i, start, end, forw, back, map, bit;
-
-	if (fs->fs_contigsumsize <= 0)
-		return;
-	freemapp = cg_clustersfree(cgp);
-	sump = cg_clustersum(cgp);
-	/*
-	 * Clear the actual block.
-	 */
-	setbit(freemapp, blkno);
-	/*
-	 * Find the size of the cluster going forward.
-	 */
-	start = blkno + 1;
-	end = start + fs->fs_contigsumsize;
-	if (end >= cgp->cg_nclusterblks)
-		end = cgp->cg_nclusterblks;
-	mapp = &freemapp[start / NBBY];
-	map = *mapp++;
-	bit = 1 << (start % NBBY);
-	for (i = start; i < end; i++) {
-		if ((map & bit) == 0)
-			break;
-		if ((i & (NBBY - 1)) != (NBBY - 1)) {
-			bit <<= 1;
-		} else {
-			map = *mapp++;
-			bit = 1;
-		}
-	}
-	forw = i - start;
-	/*
-	 * Find the size of the cluster going backward.
-	 */
-	start = blkno - 1;
-	end = start - fs->fs_contigsumsize;
-	if (end < 0)
-		end = -1;
-	mapp = &freemapp[start / NBBY];
-	map = *mapp--;
-	bit = 1 << (start % NBBY);
-	for (i = start; i > end; i--) {
-		if ((map & bit) == 0)
-			break;
-		if ((i & (NBBY - 1)) != 0) {
-			bit >>= 1;
-		} else {
-			map = *mapp--;
-			bit = 1 << (NBBY - 1);
-		}
-	}
-	back = start - i;
-	/*
-	 * Account for old cluster and the possibly new forward and
-	 * back clusters.
-	 */
-	i = back + forw + 1;
-	if (i > fs->fs_contigsumsize)
-		i = fs->fs_contigsumsize;
-	sump[i]++;
-	if (back > 0)
-		sump[back]--;
-	if (forw > 0)
-		sump[forw]--;
-	/*
-	 * Update cluster summary information.
-	 */
-	lp = &sump[fs->fs_contigsumsize];
-	for (i = fs->fs_contigsumsize; i > 0; i--)
-		if (*lp-- > 0)
-			break;
-	fs->fs_maxcluster[cgp->cg_cgx] = i;
 }
 
 static void
@@ -539,10 +272,10 @@ blkfree(ufs2_daddr_t bno, long size)
 	blksfree = cg_blksfree(cgp);
 	if (size == fs->fs_bsize) {
 		fragno = fragstoblks(fs, cgbno);
-		if (!isfreeblock(blksfree, fragno))
+		if (!ffs_isfreeblock(fs, blksfree, fragno))
 			assert(!"blkfree: freeing free block");
-		setblock(blksfree, fragno);
-		clusteracct(cgp, fragno);
+		ffs_setblock(fs, blksfree, fragno);
+		ffs_clusteracct(fs, cgp, fragno, 1);
 		cgp->cg_cs.cs_nbfree++;
 		fs->fs_cstotal.cs_nbfree++;
 		fs->fs_cs(fs, cg).cs_nbfree++;
@@ -552,7 +285,7 @@ blkfree(ufs2_daddr_t bno, long size)
 		 * decrement the counts associated with the old frags
 		 */
 		blk = blkmap(fs, blksfree, bbase);
-		fragacct(blk, cgp->cg_frsum, -1);
+		ffs_fragacct(fs, blk, cgp->cg_frsum, -1);
 		/*
 		 * deallocate the fragment
 		 */
@@ -569,16 +302,16 @@ blkfree(ufs2_daddr_t bno, long size)
 		 * add back in counts associated with the new frags
 		 */
 		blk = blkmap(fs, blksfree, bbase);
-		fragacct(blk, cgp->cg_frsum, 1);
+		ffs_fragacct(fs, blk, cgp->cg_frsum, 1);
 		/*
 		 * if a complete block has been reassembled, account for it
 		 */
 		fragno = fragstoblks(fs, bbase);
-		if (isblock(blksfree, fragno)) {
+		if (ffs_isblock(fs, blksfree, fragno)) {
 			cgp->cg_cs.cs_nffree -= fs->fs_frag;
 			fs->fs_cstotal.cs_nffree -= fs->fs_frag;
 			fs->fs_cs(fs, cg).cs_nffree -= fs->fs_frag;
-			clusteracct(cgp, fragno);
+			ffs_clusteracct(fs, cgp, fragno, 1);
 			cgp->cg_cs.cs_nbfree++;
 			fs->fs_cstotal.cs_nbfree++;
 			fs->fs_cs(fs, cg).cs_nbfree++;
@@ -599,7 +332,7 @@ freeindir(ufs2_daddr_t blk, int level)
 	if (bread(disk, fsbtodb(fs, blk), (void *)&sblks, (size_t)fs->fs_bsize) == -1)
 		err(1, "bread: %s", disk->d_error);
 	blks = (ufs2_daddr_t *)&sblks;
-	for (i = 0; i < howmany(fs->fs_bsize, sizeof(ufs2_daddr_t)); i++) {
+	for (i = 0; i < NINDIR(fs); i++) {
 		if (blks[i] == 0)
 			break;
 		if (level == 0)
@@ -671,7 +404,7 @@ gjournal_check(const char *filesys)
 	int cg, mode;
 
 	devnam = filesys;
-	getdisk();
+	opendisk();
 	/* Are there any unreferenced inodes in this file system? */
 	if (fs->fs_unrefs == 0) {
 		//printf("No unreferenced inodes.\n");
@@ -747,7 +480,7 @@ gjournal_check(const char *filesys)
 			/* Zero-fill the inode. */
 			*dino = ufs2_zino;
 			/* Write the inode back. */
-			if (putino(disk, ino) == -1)
+			if (putino(disk) == -1)
 				err(1, "putino(cg=%d ino=%d)", cg, ino);
 			if (cgp->cg_unrefs == 0) {
 				//printf("No more unreferenced inodes in cg=%d.\n", cg);
@@ -772,5 +505,5 @@ gjournal_check(const char *filesys)
 	/* Write back modified cylinder groups. */
 	putcgs();
 	/* Write back updated statistics and super-block. */
-	putdisk();
+	closedisk();
 }

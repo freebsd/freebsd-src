@@ -662,14 +662,34 @@ static int
 smu_fan_read_rpm(device_t smu, struct smu_fan *fan)
 {
 	struct smu_cmd cmd;
+	int rpm, error;
 
-	cmd.cmd = SMU_FAN;
-	cmd.len = 1;
-	cmd.data[0] = 1;
+	if (!fan->old_style) {
+		cmd.cmd = SMU_FAN;
+		cmd.len = 2;
+		cmd.data[0] = 0x31;
+		cmd.data[1] = fan->reg;
 
-	smu_run_cmd(smu, &cmd, 1);
+		error = smu_run_cmd(smu, &cmd, 1);
+		if (error)
+			fan->old_style = 1;
 
-	return ((cmd.data[fan->reg*2+1] << 8) | cmd.data[fan->reg*2+2]);
+		rpm = (cmd.data[0] << 8) | cmd.data[1];
+	}
+
+	if (fan->old_style) {
+		cmd.cmd = SMU_FAN;
+		cmd.len = 1;
+		cmd.data[0] = 1;
+
+		error = smu_run_cmd(smu, &cmd, 1);
+		if (error)
+			return (error);
+
+		rpm = (cmd.data[fan->reg*2+1] << 8) | cmd.data[fan->reg*2+2];
+	}
+
+	return (rpm);
 }
 
 static int
@@ -685,6 +705,9 @@ smu_fanrpm_sysctl(SYSCTL_HANDLER_ARGS)
 	fan = &sc->sc_fans[arg2];
 
 	rpm = smu_fan_read_rpm(smu, fan);
+	if (rpm < 0)
+		return (rpm);
+
 	error = sysctl_handle_int(oidp, &rpm, 0, req);
 
 	if (error || !req->newptr)

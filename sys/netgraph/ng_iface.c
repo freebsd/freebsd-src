@@ -564,8 +564,8 @@ ng_iface_constructor(node_p node)
 	ifp->if_addrlen = 0;			/* XXX */
 	ifp->if_hdrlen = 0;			/* XXX */
 	ifp->if_baudrate = 64000;		/* XXX */
-	IFQ_SET_MAXLEN(&ifp->if_snd, IFQ_MAXLEN);
-	ifp->if_snd.ifq_drv_maxlen = IFQ_MAXLEN;
+	IFQ_SET_MAXLEN(&ifp->if_snd, ifqmaxlen);
+	ifp->if_snd.ifq_drv_maxlen = ifqmaxlen;
 	IFQ_SET_READY(&ifp->if_snd);
 
 	/* Give this node the same name as the interface (if possible) */

@@ -737,9 +737,16 @@ iap_allocate_pmc(enum pmc_event pe, char *ctrspec,
 	case PMC_EV_IAP_EVENT_40H: /* Core */
 	case PMC_EV_IAP_EVENT_41H: /* Core */
 	case PMC_EV_IAP_EVENT_42H: /* Core, Core2, Atom */
-	case PMC_EV_IAP_EVENT_77H: /* Core */
 		if (cachestate == 0)
 			cachestate = (0xF << 8);
+		break;
+	case PMC_EV_IAP_EVENT_77H: /* Atom */
+		/* IAP_EVENT_77H only accepts a cachestate qualifier on the
+		 * Atom processor
+		 */
+		if(cpu_info.pm_cputype == PMC_CPU_INTEL_ATOM && cachestate == 0)
+			cachestate = (0xF << 8);
+	    break;
 	default:
 		break;
 	}

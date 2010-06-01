@@ -88,7 +88,7 @@ __FBSDID("$FreeBSD$");
 /* the following file must be included after "ukbdmap.h" */
 #include <dev/kbd/kbdtables.h>
 
-#if USB_DEBUG
+#ifdef USB_DEBUG
 static int ukbd_debug = 0;
 static int ukbd_no_leds = 0;
 
@@ -101,8 +101,6 @@ SYSCTL_INT(_hw_usb_ukbd, OID_AUTO, no_leds, CTLFLAG_RW,
 TUNABLE_INT("hw.usb.ukbd.debug", &ukbd_debug);
 TUNABLE_INT("hw.usb.ukbd.no_leds", &ukbd_no_leds);
 #endif
-
-#define	UPROTO_BOOT_KEYBOARD 1
 
 #define	UKBD_EMULATE_ATSCANCODE	       1
 #define	UKBD_DRIVER_NAME          "ukbd"
@@ -614,7 +612,7 @@ ukbd_intr_callback(struct usb_xfer *xfer, usb_error_t error)
 				apple_fn = 1;
 			else
 				apple_fn = 0;
-#if USB_DEBUG
+#ifdef USB_DEBUG
 			DPRINTF("apple_eject=%u apple_fn=%u\n",
 			    apple_eject, apple_fn);
 
@@ -680,7 +678,7 @@ ukbd_set_leds_callback(struct usb_xfer *xfer, usb_error_t error)
 	uint8_t buf[2];
 	struct ukbd_softc *sc = usbd_xfer_softc(xfer);
 
-#if USB_DEBUG
+#ifdef USB_DEBUG
 	if (ukbd_no_leds)
 		return;
 #endif
@@ -770,7 +768,7 @@ ukbd_probe(device_t dev)
 		return (ENXIO);
 
 	if ((uaa->info.bInterfaceSubClass == UISUBCLASS_BOOT) &&
-	    (uaa->info.bInterfaceProtocol == UPROTO_BOOT_KEYBOARD)) {
+	    (uaa->info.bInterfaceProtocol == UIPROTO_BOOT_KEYBOARD)) {
 		if (usb_test_quirk(uaa, UQ_KBD_IGNORE))
 			return (ENXIO);
 		else

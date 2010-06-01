@@ -84,7 +84,7 @@
 #include <netgraph/ng_bridge.h>
 
 #ifdef NG_SEPARATE_MALLOC
-MALLOC_DEFINE(M_NETGRAPH_BRIDGE, "netgraph_bridge", "netgraph bridge node ");
+MALLOC_DEFINE(M_NETGRAPH_BRIDGE, "netgraph_bridge", "netgraph bridge node");
 #else
 #define M_NETGRAPH_BRIDGE M_NETGRAPH
 #endif
@@ -106,6 +106,7 @@ struct ng_bridge_private {
 	u_int			numBuckets;	/* num buckets in table */
 	u_int			hashMask;	/* numBuckets - 1 */
 	int			numLinks;	/* num connected links */
+	int			persistent;	/* can exist w/o hooks */
 	struct callout		timer;		/* one second periodic timer */
 };
 typedef struct ng_bridge_private *priv_p;
@@ -270,6 +271,13 @@ static const struct ng_cmdlist ng_bridge_cmdlist[] = {
 	  "gettable",
 	  NULL,
 	  &ng_bridge_host_ary_type
+	},
+	{
+	  NGM_BRIDGE_COOKIE,
+	  NGM_BRIDGE_SET_PERSISTENT,
+	  "setpersistent",
+	  NULL,
+	  NULL
 	},
 	{ 0 }
 };
@@ -493,6 +501,11 @@ ng_bridge_rcvmsg(node_p node, item_p item, hook_p lasthook)
 				SLIST_FOREACH(hent, &priv->tab[bucket], next)
 					ary->hosts[i++] = hent->host;
 			}
+			break;
+		    }
+		case NGM_BRIDGE_SET_PERSISTENT:
+		    {
+			priv->persistent = 1;
 			break;
 		    }
 		default:
@@ -800,7 +813,8 @@ ng_bridge_disconnect(hook_p hook)
 
 	/* If no more hooks, go away */
 	if ((NG_NODE_NUMHOOKS(NG_HOOK_NODE(hook)) == 0)
-	&& (NG_NODE_IS_VALID(NG_HOOK_NODE(hook)))) {
+	    && (NG_NODE_IS_VALID(NG_HOOK_NODE(hook)))
+	    && !priv->persistent) {
 		ng_rmnode_self(NG_HOOK_NODE(hook));
 	}
 	return (0);

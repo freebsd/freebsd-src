@@ -139,7 +139,8 @@ powerpc/powermac/openpic_macio.c optional	powermac pci
 powerpc/powermac/pswitch.c	optional	powermac pswitch
 powerpc/powermac/pmu.c		optional	powermac pmu 
 powerpc/powermac/smu.c		optional	powermac smu 
-powerpc/powermac/uninorth.c	optional	powermac pci
+powerpc/powermac/uninorth.c	optional	powermac
+powerpc/powermac/uninorthpci.c	optional	powermac pci
 powerpc/powermac/vcoregpio.c	optional	powermac 
 powerpc/powerpc/altivec.c	optional	aim
 powerpc/powerpc/atomic.S	standard

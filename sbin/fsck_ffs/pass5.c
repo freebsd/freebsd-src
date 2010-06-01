@@ -45,6 +45,7 @@ __FBSDID("$FreeBSD$");
 #include <inttypes.h>
 #include <limits.h>
 #include <string.h>
+#include <libufs.h>
 
 #include "fsck.h"
 

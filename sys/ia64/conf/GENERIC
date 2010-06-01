@@ -116,6 +116,7 @@ device		ida		# Compaq Smart RAID
 device		mlx		# Mylex DAC960 family
 
 # USB host controllers and peripherals
+options 	USB_DEBUG	# enable debug msgs
 device		ehci		# EHCI host controller
 device		ohci		# OHCI PCI->USB interface
 device		uhci		# UHCI PCI->USB interface

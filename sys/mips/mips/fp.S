@@ -94,9 +94,9 @@
  *
  *----------------------------------------------------------------------------
  */
-NON_LEAF(MipsEmulateFP, STAND_FRAME_SIZE, ra)
-	subu	sp, sp, STAND_FRAME_SIZE
-	sw	ra, STAND_RA_OFFSET(sp)
+NON_LEAF(MipsEmulateFP, CALLFRAME_SIZ, ra)
+	subu	sp, sp, CALLFRAME_SIZ
+	sw	ra, CALLFRAME_RA(sp)
 /*
  * Decode the FMT field (bits 24-21) and FUNCTION field (bits 5-0).
  */
@@ -2247,8 +2247,8 @@ result_fs_d:					# result is FS
 	jal	set_fd_d			# save result (in t0,t1,t2,t3)
 
 done:
-	lw	ra, STAND_RA_OFFSET(sp)
-	addu	sp, sp, STAND_FRAME_SIZE
+	lw	ra, CALLFRAME_RA(sp)
+	addu	sp, sp, CALLFRAME_SIZ
 	j	ra
 END(MipsEmulateFP)
 

@@ -22,6 +22,14 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 9.x IS SLOW:
 	machines to maximize performance.  (To disable malloc debugging, run
 	ln -s aj /etc/malloc.conf.)
 
+
+20100429:
+	'vm_page's are now hashed by physical address to an array of mutexes.
+	Currently this is only used to serialize access to hold_count. Over 
+	time the page queue mutex will be peeled away. This changes the size
+	of pmap on every architecture. And requires all callers of vm_page_hold
+	and vm_page_unhold to be updated. 
+ 
 20100402:
 	WITH_CTF can now be specified in src.conf (not recommended, there
 	are some problems with static executables), make.conf (would also
@@ -74,6 +82,9 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 9.x IS SLOW:
 		firewall_simple_onet_ipv6, firewall_trusted_ipv6
 
 	The meanings correspond to the relevant IPv4 variables.
+
+20091125:
+	8.0-RELEASE.
 
 20091113:
 	The default terminal emulation for syscons(4) has been changed

@@ -581,6 +581,8 @@ pmcpl_cg_topdisplay(void)
 	struct pmcstat_pmcrecord *pmcr;
 
 	pmcr = pmcstat_pmcindex_to_pmcr(pmcstat_pmcinfilter);
+	if (!pmcr)
+		err(EX_SOFTWARE, "ERROR: invalid pmcindex");
 
 	/*
 	 * We pull out all callgraph nodes in the top-level hash table

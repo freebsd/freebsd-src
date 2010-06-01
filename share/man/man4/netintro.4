@@ -32,7 +32,7 @@
 .\"     @(#)netintro.4	8.2 (Berkeley) 11/30/93
 .\" $FreeBSD$
 .\"
-.Dd January 26, 2010
+.Dd April 14, 2010
 .Dt NETINTRO 4
 .Os
 .Sh NAME
@@ -292,8 +292,11 @@ field of
 struct passed in as parameter, and the length would include
 the terminating nul character.
 If there is not enough space to hold the interface length,
-no copy would be done and an
-error would be returned.
+no copy would be done and the
+.Va buffer
+field of
+.Va ifru_buffer
+would be set to NULL.
 The kernel will store the buffer length in the
 .Va length
 field upon return, regardless whether the buffer itself is

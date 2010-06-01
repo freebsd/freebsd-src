@@ -46,7 +46,8 @@ int drm_ht_create(struct drm_open_hash *ht, unsigned int order)
 	ht->size = 1 << order;
 	ht->order = order;
 	ht->table = NULL;
-	ht->table = hashinit(ht->size, DRM_MEM_HASHTAB, &ht->mask);
+	ht->table = hashinit_flags(ht->size, DRM_MEM_HASHTAB, &ht->mask,
+	    HASH_NOWAIT);
 	if (!ht->table) {
 		DRM_ERROR("Out of memory for hash table\n");
 		return -ENOMEM;

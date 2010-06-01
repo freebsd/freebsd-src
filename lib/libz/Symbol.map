@@ -4,11 +4,13 @@
 
 ZLIB_1.2.4.0 {
 	adler32;
+	adler32_combine;
 	adler32_combine64;
 	compress;
 	compress2;
 	compressBound;
 	crc32;
+	crc32_combine;
 	crc32_combine64;
 	deflate;
 	deflateBound;
@@ -35,15 +37,19 @@ ZLIB_1.2.4.0 {
 	gzflush;
 	gzgetc;
 	gzgets;
+	gzoffset;
 	gzoffset64;
+	gzopen;
 	gzopen64;
 	gzprintf;
 	gzputc;
 	gzputs;
 	gzread;
 	gzrewind;
+	gzseek;
 	gzseek64;
 	gzsetparams;
+	gztell;
 	gztell64;
 	gzungetc;
 	gzwrite;
@@ -80,13 +86,7 @@ ZLIBprivate_1.0 {
 	_tr_init;
 	_tr_stored_block;
 	_tr_tally;
-	adler32_combine;
-	crc32_combine;
 	gz_error;
-	gzoffset;
-	gzopen;
-	gzseek;
-	gztell;
 	inflate_fast;
 	inflate_table;
 	longest_match;

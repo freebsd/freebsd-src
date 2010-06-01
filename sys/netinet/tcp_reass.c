@@ -74,30 +74,28 @@ __FBSDID("$FreeBSD$");
 #include <netinet/tcp_debug.h>
 #endif /* TCPDEBUG */
 
-static VNET_DEFINE(int, tcp_reass_maxseg);
-VNET_DEFINE(int, tcp_reass_qsize);
-static VNET_DEFINE(int, tcp_reass_maxqlen);
-static VNET_DEFINE(int, tcp_reass_overflows);
-
-#define	V_tcp_reass_maxseg		VNET(tcp_reass_maxseg)
-#define	V_tcp_reass_maxqlen		VNET(tcp_reass_maxqlen)
-#define	V_tcp_reass_overflows		VNET(tcp_reass_overflows)
-
 SYSCTL_NODE(_net_inet_tcp, OID_AUTO, reass, CTLFLAG_RW, 0,
     "TCP Segment Reassembly Queue");
 
+static VNET_DEFINE(int, tcp_reass_maxseg) = 0;
+#define	V_tcp_reass_maxseg		VNET(tcp_reass_maxseg)
 SYSCTL_VNET_INT(_net_inet_tcp_reass, OID_AUTO, maxsegments, CTLFLAG_RDTUN,
     &VNET_NAME(tcp_reass_maxseg), 0,
     "Global maximum number of TCP Segments in Reassembly Queue");
 
+VNET_DEFINE(int, tcp_reass_qsize) = 0;
 SYSCTL_VNET_INT(_net_inet_tcp_reass, OID_AUTO, cursegments, CTLFLAG_RD,
     &VNET_NAME(tcp_reass_qsize), 0,
     "Global number of TCP Segments currently in Reassembly Queue");
 
+static VNET_DEFINE(int, tcp_reass_maxqlen) = 48;
+#define	V_tcp_reass_maxqlen		VNET(tcp_reass_maxqlen)
 SYSCTL_VNET_INT(_net_inet_tcp_reass, OID_AUTO, maxqlen, CTLFLAG_RW,
     &VNET_NAME(tcp_reass_maxqlen), 0,
     "Maximum number of TCP Segments per individual Reassembly Queue");
 
+static VNET_DEFINE(int, tcp_reass_overflows) = 0;
+#define	V_tcp_reass_overflows		VNET(tcp_reass_overflows)
 SYSCTL_VNET_INT(_net_inet_tcp_reass, OID_AUTO, overflows, CTLFLAG_RD,
     &VNET_NAME(tcp_reass_overflows), 0,
     "Global number of TCP Segment Reassembly Queue Overflows");
@@ -116,11 +114,6 @@ VNET_DEFINE(uma_zone_t, tcp_reass_zone);
 void
 tcp_reass_init(void)
 {
-
-	V_tcp_reass_maxseg = 0;
-	V_tcp_reass_qsize = 0;
-	V_tcp_reass_maxqlen = 48;
-	V_tcp_reass_overflows = 0;
 
 	V_tcp_reass_maxseg = nmbclusters / 16;
 	TUNABLE_INT_FETCH("net.inet.tcp.reass.maxsegments",

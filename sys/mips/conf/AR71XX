@@ -29,11 +29,11 @@ options		_KPOSIX_PRIORITY_SCHEDULING #Posix P1003_1B real-time extensions
 
 # options		NFS_LEGACYRPC
 # Debugging for use in -current
-# options		DEADLKRES
-# options		INVARIANTS
-# options		INVARIANT_SUPPORT
-# options		WITNESS
-# options		WITNESS_SKIPSPIN
+options		DEADLKRES
+options		INVARIANTS
+options		INVARIANT_SUPPORT
+options		WITNESS
+options		WITNESS_SKIPSPIN
 options         FFS                     #Berkeley Fast Filesystem
 options         SOFTUPDATES             #Enable FFS soft updates support
 options         UFS_ACL                 #Support for access control lists
@@ -62,6 +62,7 @@ device		ath             # Atheros pci/cardbus NIC's
 options 	ATH_DEBUG
 device		ath_hal
 option		AH_SUPPORT_AR5416
+option		AH_RXCFG_SDMAMW_4BYTES	# See NOTES for details of this WAR
 device		ath_rate_sample
 
 device		mii

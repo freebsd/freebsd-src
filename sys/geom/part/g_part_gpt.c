@@ -103,6 +103,8 @@ static int g_part_gpt_read(struct g_part_table *, struct g_consumer *);
 static const char *g_part_gpt_type(struct g_part_table *, struct g_part_entry *,
     char *, size_t);
 static int g_part_gpt_write(struct g_part_table *, struct g_consumer *);
+static int g_part_gpt_resize(struct g_part_table *, struct g_part_entry *,
+    struct g_part_parms *);
 
 static kobj_method_t g_part_gpt_methods[] = {
 	KOBJMETHOD(g_part_add,		g_part_gpt_add),
@@ -112,6 +114,7 @@ static kobj_method_t g_part_gpt_methods[] = {
 	KOBJMETHOD(g_part_dumpconf,	g_part_gpt_dumpconf),
 	KOBJMETHOD(g_part_dumpto,	g_part_gpt_dumpto),
 	KOBJMETHOD(g_part_modify,	g_part_gpt_modify),
+	KOBJMETHOD(g_part_resize,	g_part_gpt_resize),
 	KOBJMETHOD(g_part_name,		g_part_gpt_name),
 	KOBJMETHOD(g_part_probe,	g_part_gpt_probe),
 	KOBJMETHOD(g_part_read,		g_part_gpt_read),
@@ -547,6 +550,19 @@ g_part_gpt_modify(struct g_part_table *basetable,
 	if (gpp->gpp_parms & G_PART_PARM_LABEL)
 		g_gpt_utf8_to_utf16(gpp->gpp_label, entry->ent.ent_name,
 		    sizeof(entry->ent.ent_name));
+	return (0);
+}
+
+static int
+g_part_gpt_resize(struct g_part_table *basetable,
+    struct g_part_entry *baseentry, struct g_part_parms *gpp)
+{
+	struct g_part_gpt_entry *entry;
+	entry = (struct g_part_gpt_entry *)baseentry;
+
+	baseentry->gpe_end = baseentry->gpe_start + gpp->gpp_size - 1;
+	entry->ent.ent_lba_end = baseentry->gpe_end;
+
 	return (0);
 }
 

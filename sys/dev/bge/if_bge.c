@@ -519,7 +519,7 @@ bge_has_eaddr(struct bge_softc *sc)
 	 */
 	if (OF_getprop(ofw_bus_get_node(dev), SPARC64_OFW_SUBVENDOR,
 	    &subvendor, sizeof(subvendor)) == sizeof(subvendor) &&
-	    subvendor == SUN_VENDORID)
+	    (subvendor == FJTSU_VENDORID || subvendor == SUN_VENDORID))
 		return (0);
 	memset(buf, 0, sizeof(buf));
 	if (OF_package_to_path(ofw_bus_get_node(dev), buf, sizeof(buf)) > 0) {

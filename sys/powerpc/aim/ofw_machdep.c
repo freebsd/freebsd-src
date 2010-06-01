@@ -41,6 +41,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/disk.h>
 #include <sys/fcntl.h>
 #include <sys/malloc.h>
+#include <sys/smp.h>
 #include <sys/stat.h>
 
 #include <net/ethernet.h>
@@ -63,8 +64,6 @@ __FBSDID("$FreeBSD$");
 static struct mem_region OFmem[OFMEM_REGIONS + 1], OFavail[OFMEM_REGIONS + 3];
 static struct mem_region OFfree[OFMEM_REGIONS + 3];
 
-static struct mtx ofw_mutex;
-
 struct mem_region64 {
         vm_offset_t     mr_start_hi;
         vm_offset_t     mr_start_lo;
@@ -77,6 +76,7 @@ static int	(*ofwcall)(void *);
 static void	*fdt;
 int		ofw_real_mode;
 
+static void	ofw_quiesce(void);
 static int	openfirmware(void *args);
 
 /*
@@ -283,8 +283,6 @@ OF_bootstrap()
 {
 	boolean_t status = FALSE;
 
-	mtx_init(&ofw_mutex, "open firmware", NULL, MTX_DEF);
-
 	if (ofwcall != NULL) {
 		if (ofw_real_mode)
 			status = OF_install(OFW_STD_REAL, 0);
@@ -295,6 +293,12 @@ OF_bootstrap()
 			return status;
 
 		OF_init(openfirmware);
+
+		/*
+		 * On some machines, we need to quiesce OF to turn off
+		 * background processes.
+		 */
+		ofw_quiesce();
 	} else {
 		status = OF_install(OFW_FDT, 0);
 
@@ -307,18 +311,46 @@ OF_bootstrap()
 	return (status);
 }
 
+static void
+ofw_quiesce(void)
+{
+	phandle_t rootnode;
+	char model[32];
+	struct {
+		cell_t name;
+		cell_t nargs;
+		cell_t nreturns;
+	} args;
+
+	/*
+	 * Only quiesce Open Firmware on PowerMac11,2 and 12,1. It is
+	 * necessary there to shut down a background thread doing fan
+	 * management, and is harmful on other machines.
+	 *
+	 * Note: we don't need to worry about which OF module we are
+	 * using since this is called only from very early boot, within
+	 * OF's boot context.
+	 */
+
+	rootnode = OF_finddevice("/");
+	if (OF_getprop(rootnode, "model", model, sizeof(model)) > 0) {
+		if (strcmp(model, "PowerMac11,2") == 0 ||
+		    strcmp(model, "PowerMac12,1") == 0) {
+			args.name = (cell_t)(uintptr_t)"quiesce";
+			args.nargs = 0;
+			args.nreturns = 0;
+			openfirmware(&args);
+		}
+	}
+}
+
 static int
-openfirmware(void *args)
+openfirmware_core(void *args)
 {
 	long	oldmsr;
 	int	result;
 	u_int	srsave[16];
 	u_int   i;
-
-	if (pmap_bootstrapped && ofw_real_mode)
-		args = (void *)pmap_kextract((vm_offset_t)args);
-
-	mtx_lock(&ofw_mutex);
 
 	__asm __volatile(	"\t"
 		"sync\n\t"
@@ -372,7 +404,60 @@ openfirmware(void *args)
 		: : "r" (oldmsr)
 	);
 
-	mtx_unlock(&ofw_mutex);
+	return (result);
+}
+
+#ifdef SMP
+struct ofw_rv_args {
+	void *args;
+	int retval;
+	volatile int in_progress;
+};
+
+static void
+ofw_rendezvous_dispatch(void *xargs)
+{
+	struct ofw_rv_args *rv_args = xargs;
+
+	/* NOTE: Interrupts are disabled here */
+
+	if (PCPU_GET(cpuid) == 0) {
+		/*
+		 * Execute all OF calls on CPU 0
+		 */
+		rv_args->retval = openfirmware_core(rv_args->args);
+		rv_args->in_progress = 0;
+	} else {
+		/*
+		 * Spin with interrupts off on other CPUs while OF has
+		 * control of the machine.
+		 */
+		while (rv_args->in_progress)
+			cpu_spinwait();
+	}
+}
+#endif
+
+static int
+openfirmware(void *args)
+{
+	int result;
+	#ifdef SMP
+	struct ofw_rv_args rv_args;
+	#endif
+
+	if (pmap_bootstrapped && ofw_real_mode)
+		args = (void *)pmap_kextract((vm_offset_t)args);
+
+	#ifdef SMP
+	rv_args.args = args;
+	rv_args.in_progress = 1;
+	smp_rendezvous(smp_no_rendevous_barrier, ofw_rendezvous_dispatch,
+	    smp_no_rendevous_barrier, &rv_args);
+	result = rv_args.retval;
+	#else
+	result = openfirmware_core(args);
+	#endif
 
 	return (result);
 }

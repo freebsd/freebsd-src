@@ -122,6 +122,14 @@ STATIC const struct varinit varinit[] = {
 
 STATIC struct var *vartab[VTABSIZE];
 
+STATIC const char *const locale_names[7] = {
+	"LC_COLLATE", "LC_CTYPE", "LC_MONETARY",
+	"LC_NUMERIC", "LC_TIME", "LC_MESSAGES", NULL
+};
+STATIC const int locale_categories[7] = {
+	LC_COLLATE, LC_CTYPE, LC_MONETARY, LC_NUMERIC, LC_TIME, LC_MESSAGES, 0
+};
+
 STATIC struct var **hashvar(const char *);
 STATIC int varequal(const char *, const char *);
 STATIC int localevar(const char *);
@@ -258,11 +266,7 @@ setvar(const char *name, const char *val, int flags)
 STATIC int
 localevar(const char *s)
 {
-	static const char *lnames[7] = {
-		"ALL", "COLLATE", "CTYPE", "MONETARY",
-		"NUMERIC", "TIME", NULL
-	};
-	const char **ss;
+	const char *const *ss;
 
 	if (*s != 'L')
 		return 0;
@@ -270,8 +274,10 @@ localevar(const char *s)
 		return 1;
 	if (strncmp(s + 1, "C_", 2) != 0)
 		return 0;
-	for (ss = lnames; *ss ; ss++)
-		if (varequal(s + 3, *ss))
+	if (varequal(s + 3, "ALL"))
+		return 1;
+	for (ss = locale_names; *ss ; ss++)
+		if (varequal(s + 3, *ss + 3))
 			return 1;
 	return 0;
 }
@@ -436,6 +442,61 @@ bltinlookup(const char *name, int doall)
 	return NULL;
 }
 
+
+/*
+ * Set up locale for a builtin (LANG/LC_* assignments).
+ */
+void
+bltinsetlocale(void)
+{
+	struct strlist *lp;
+	int act = 0;
+	char *loc, *locdef;
+	int i;
+
+	for (lp = cmdenviron ; lp ; lp = lp->next) {
+		if (localevar(lp->text)) {
+			act = 1;
+			break;
+		}
+	}
+	if (!act)
+		return;
+	loc = bltinlookup("LC_ALL", 0);
+	INTOFF;
+	if (loc != NULL) {
+		setlocale(LC_ALL, loc);
+		INTON;
+		return;
+	}
+	locdef = bltinlookup("LANG", 0);
+	for (i = 0; locale_names[i] != NULL; i++) {
+		loc = bltinlookup(locale_names[i], 0);
+		if (loc == NULL)
+			loc = locdef;
+		if (loc != NULL)
+			setlocale(locale_categories[i], loc);
+	}
+	INTON;
+}
+
+/*
+ * Undo the effect of bltinlocaleset().
+ */
+void
+bltinunsetlocale(void)
+{
+	struct strlist *lp;
+
+	INTOFF;
+	for (lp = cmdenviron ; lp ; lp = lp->next) {
+		if (localevar(lp->text)) {
+			setlocale(LC_ALL, "");
+			return;
+		}
+	}
+	INTON;
+}
 
 
 /*

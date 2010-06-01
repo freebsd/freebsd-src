@@ -75,9 +75,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/mount.h>
 #include <sys/priv.h>
-#include <sys/proc.h>
-#include <sys/resourcevar.h>
-#include <sys/signalvar.h>
 #include <sys/stat.h>
 #include <sys/vmmeter.h>
 #include <sys/vnode.h>
@@ -225,6 +222,7 @@ ffs_syncvnode(struct vnode *vp, int waitfor)
 	wait = (waitfor == MNT_WAIT);
 	lbn = lblkno(ip->i_fs, (ip->i_size + ip->i_fs->fs_bsize - 1));
 	bo = &vp->v_bufobj;
+	ip->i_flag &= ~IN_NEEDSYNC;
 
 	/*
 	 * Flush all dirty buffers associated with a vnode.
@@ -651,7 +649,6 @@ ffs_write(ap)
 	struct inode *ip;
 	struct fs *fs;
 	struct buf *bp;
-	struct thread *td;
 	ufs_lbn_t lbn;
 	off_t osize;
 	int seqcount;
@@ -703,17 +700,8 @@ ffs_write(ap)
 	 * Maybe this should be above the vnode op call, but so long as
 	 * file servers have no limits, I don't think it matters.
 	 */
-	td = uio->uio_td;
-	if (vp->v_type == VREG && td != NULL) {
-		PROC_LOCK(td->td_proc);
-		if (uio->uio_offset + uio->uio_resid >
-		    lim_cur(td->td_proc, RLIMIT_FSIZE)) {
-			psignal(td->td_proc, SIGXFSZ);
-			PROC_UNLOCK(td->td_proc);
-			return (EFBIG);
-		}
-		PROC_UNLOCK(td->td_proc);
-	}
+	if (vn_rlimit_fsize(vp, uio, uio->uio_td))
+		return (EFBIG);
 
 	resid = uio->uio_resid;
 	osize = ip->i_size;
@@ -859,13 +847,13 @@ ffs_getpages(ap)
 	if (mreq->valid) {
 		if (mreq->valid != VM_PAGE_BITS_ALL)
 			vm_page_zero_invalid(mreq, TRUE);
-		vm_page_lock_queues();
 		for (i = 0; i < pcount; i++) {
 			if (i != ap->a_reqpage) {
+				vm_page_lock(ap->a_m[i]);
 				vm_page_free(ap->a_m[i]);
+				vm_page_unlock(ap->a_m[i]);
 			}
 		}
-		vm_page_unlock_queues();
 		VM_OBJECT_UNLOCK(mreq->object);
 		return VM_PAGER_OK;
 	}

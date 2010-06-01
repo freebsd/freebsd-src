@@ -112,11 +112,11 @@ static void
 zbuf_page_free(vm_page_t pp)
 {
 
-	vm_page_lock_queues();
+	vm_page_lock(pp);
 	vm_page_unwire(pp, 0);
 	if (pp->wire_count == 0 && pp->object == NULL)
 		vm_page_free(pp);
-	vm_page_unlock_queues();
+	vm_page_unlock(pp);
 }
 
 /*
@@ -168,10 +168,10 @@ zbuf_sfbuf_get(struct vm_map *map, vm_offset_t uaddr)
 	    VM_PROT_WRITE);
 	if (pp == NULL)
 		return (NULL);
-	vm_page_lock_queues();
+	vm_page_lock(pp);
 	vm_page_wire(pp);
 	vm_page_unhold(pp);
-	vm_page_unlock_queues();
+	vm_page_unlock(pp);
 	sf = sf_buf_alloc(pp, SFB_NOWAIT);
 	if (sf == NULL) {
 		zbuf_page_free(pp);

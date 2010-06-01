@@ -480,7 +480,7 @@ init_remote(struct hast_resource *res, struct proto_conn **inp,
 
 	/* Prepare outgoing connection with remote node. */
 	if (proto_client(res->hr_remoteaddr, &out) < 0) {
-		primary_exit(EX_OSERR, "Unable to create connection to %s",
+		primary_exit(EX_TEMPFAIL, "Unable to create connection to %s",
 		    res->hr_remoteaddr);
 	}
 	/* Try to connect, but accept failure. */
@@ -489,6 +489,9 @@ init_remote(struct hast_resource *res, struct proto_conn **inp,
 		    res->hr_remoteaddr);
 		goto close;
 	}
+	/* Error in setting timeout is not critical, but why should it fail? */
+	if (proto_timeout(out, res->hr_timeout) < 0)
+		pjdlog_errno(LOG_WARNING, "Unable to set connection timeout");
 	/*
 	 * First handshake step.
 	 * Setup outgoing connection with remote node.
@@ -552,6 +555,9 @@ init_remote(struct hast_resource *res, struct proto_conn **inp,
 		    res->hr_remoteaddr);
 		goto close;
 	}
+	/* Error in setting timeout is not critical, but why should it fail? */
+	if (proto_timeout(in, res->hr_timeout) < 0)
+		pjdlog_errno(LOG_WARNING, "Unable to set connection timeout");
 	nvout = nv_alloc();
 	nv_add_string(nvout, res->hr_name, "resource");
 	nv_add_uint8_array(nvout, res->hr_token, sizeof(res->hr_token),
@@ -682,7 +688,7 @@ init_ggate(struct hast_resource *res)
 	ggiocreate.gctl_mediasize = res->hr_datasize;
 	ggiocreate.gctl_sectorsize = res->hr_local_sectorsize;
 	ggiocreate.gctl_flags = 0;
-	ggiocreate.gctl_maxcount = 128;
+	ggiocreate.gctl_maxcount = G_GATE_MAX_QUEUE_SIZE;
 	ggiocreate.gctl_timeout = 0;
 	ggiocreate.gctl_unit = G_GATE_NAME_GIVEN;
 	snprintf(ggiocreate.gctl_name, sizeof(ggiocreate.gctl_name), "hast/%s",
@@ -739,7 +745,7 @@ hastd_primary(struct hast_resource *res)
 	pid = fork();
 	if (pid < 0) {
 		KEEP_ERRNO((void)pidfile_remove(pfh));
-		primary_exit(EX_OSERR, "Unable to fork");
+		primary_exit(EX_TEMPFAIL, "Unable to fork");
 	}
 
 	if (pid > 0) {

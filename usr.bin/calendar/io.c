@@ -155,15 +155,15 @@ cal(void)
 		}
 
 		/* Get rid of leading spaces (non-standard) */
-		while (isspace(buf[0]))
-			memcpy(buf, buf + 1, strlen(buf) - 1);
+		while (isspace((unsigned char)buf[0]))
+			memcpy(buf, buf + 1, strlen(buf));
 
 		/* No tab in the line, then not a valid line */
 		if ((pp = strchr(buf, '\t')) == NULL)
 			continue;
 
 		/* Trim spaces in front of the tab */
-		while (isspace(pp[-1]))
+		while (isspace((unsigned char)pp[-1]))
 			pp--;
 
 		p = *pp;

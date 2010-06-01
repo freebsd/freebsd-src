@@ -131,7 +131,7 @@ void	 rucollect(struct rusage *ru, struct rusage *ru2);
 void	 rufetch(struct proc *p, struct rusage *ru);
 void	 rufetchcalc(struct proc *p, struct rusage *ru, struct timeval *up,
 	    struct timeval *sp);
-void	 ruxagg(struct rusage_ext *rux, struct thread *td);
+void	 ruxagg(struct proc *p, struct thread *td);
 int	 suswintr(void *base, int word);
 struct uidinfo
 	*uifind(uid_t uid);

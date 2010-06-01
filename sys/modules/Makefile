@@ -35,15 +35,15 @@ SUBDIR=	${_3dfx} \
 	ata \
 	ath \
 	${_auxio} \
-	${_bce} \
+	bce \
 	bfe \
 	bge \
 	${_bios} \
 	${_bktr} \
 	${_bm} \
 	bridgestp \
-	${_bwi} \
-	${_bwn} \
+	bwi \
+	bwn \
 	cam \
 	${_canbepm} \
 	${_canbus} \
@@ -143,6 +143,7 @@ SUBDIR=	${_3dfx} \
 	${_iwn} \
 	${_iwnfw} \
 	${_ixgb} \
+	${_ixgbe} \
 	jme \
 	joy \
 	kbdmux \
@@ -175,19 +176,21 @@ SUBDIR=	${_3dfx} \
 	mcd \
 	md \
 	mem \
-	${_mfi} \
+	mfi \
 	mii \
 	mlx \
 	${_mly} \
 	mmc \
 	mmcsd \
-	${_mpt} \
+	mpt \
 	mqueue \
 	msdosfs \
 	msdosfs_iconv \
 	${_mse} \
 	msk \
+	mvs \
 	mwl \
+	mwlfw \
 	mxge \
 	my \
 	${_ncp} \
@@ -251,7 +254,8 @@ SUBDIR=	${_3dfx} \
 	sdhci \
 	sem \
 	sf \
-	${_siba_bwn} \
+	sge \
+	siba_bwn \
 	siis \
 	sis \
 	sk \
@@ -279,7 +283,7 @@ SUBDIR=	${_3dfx} \
 	twe \
 	tx \
 	txp \
-	${_uart} \
+	uart \
 	ubsec \
 	udf \
 	udf_iconv \
@@ -320,16 +324,8 @@ _vpo=		vpo
 
 .if ${MACHINE_ARCH} != "arm" && ${MACHINE_ARCH} != "mips"
 # no BUS_SPACE_UNSPECIFIED
-_bce=		bce
-_bwi=		bwi
-_bwn=		bwn
-_mfi=		mfi
-_mpt=		mpt
-_siba_bwn=	siba_bwn
 # No barrier instruction support (specific to this driver)
 _sym=		sym
-# no uart_cpu_$MACHINE_ARCH
-_uart=		uart
 # intr_disable() is a macro, causes problems
 _cxgb=		cxgb
 .endif
@@ -469,6 +465,7 @@ _iwifw=		iwifw
 _iwn=		iwn
 _iwnfw=		iwnfw
 _ixgb=		ixgb
+_ixgbe=		ixgbe
 _mly=		mly
 _nfe=		nfe
 _nve=		nve
@@ -477,9 +474,7 @@ _nxge=		nxge
 _wpi=		wpi
 _wpifw=		wpifw
 .if ${MK_CRYPT} != "no" || defined(ALL_MODULES)
-.if exists(${.CURDIR}/../crypto/via)
 _padlock=	padlock
-.endif
 .endif
 _s3=		s3
 _twa=		twa
@@ -541,6 +536,7 @@ _iwifw=		iwifw
 _iwn=		iwn
 _iwnfw=		iwnfw
 _ixgb=		ixgb
+_ixgbe=		ixgbe
 _lindev=	lindev
 _linprocfs=	linprocfs
 _linsysfs=	linsysfs
@@ -555,9 +551,7 @@ _nxge=		nxge
 _opensolaris=	opensolaris
 .endif
 .if ${MK_CRYPT} != "no" || defined(ALL_MODULES)
-.if exists(${.CURDIR}/../crypto/via)
 _padlock=	padlock
-.endif
 .endif
 _pccard=	pccard
 _rdma=		rdma	

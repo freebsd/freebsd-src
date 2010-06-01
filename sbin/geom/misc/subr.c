@@ -236,6 +236,7 @@ g_metadata_store(const char *name, u_char *md, size_t size)
 		error = errno;
 		goto out;
 	}
+	(void)ioctl(fd, DIOCGFLUSH, NULL);
 out:
 	if (sector != NULL)
 		free(sector);
@@ -293,6 +294,7 @@ g_metadata_clear(const char *name, const char *magic)
 		error = errno;
 		goto out;
 	}
+	(void)ioctl(fd, DIOCGFLUSH, NULL);
 out:
 	if (sector != NULL)
 		free(sector);
