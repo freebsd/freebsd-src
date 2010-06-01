@@ -37,6 +37,7 @@
 #include <sys/wait.h>
 
 #include <netinet/in.h>
+#include <netinet/tcp.h>
 
 #include <err.h>
 #include <fcntl.h>
@@ -237,6 +238,10 @@ tcpp_server_worker(int workernum)
 		err(-1, "setsockopt");
 	i = 1;
 	if (setsockopt(listen_sock, SOL_SOCKET, SO_REUSEPORT, &i, sizeof(i))
+	    < 0)
+		err(-1, "setsockopt");
+	i = 1;
+	if (setsockopt(listen_sock, IPPROTO_TCP, TCP_NODELAY, &i, sizeof(i))
 	    < 0)
 		err(-1, "setsockopt");
 	if (bind(listen_sock, (struct sockaddr *)&localipbase,
