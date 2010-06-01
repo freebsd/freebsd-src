@@ -1518,6 +1518,7 @@ setmlme_assoc_adhoc(struct ieee80211vap *vap,
 	memcpy(vap->iv_des_ssid[0].ssid, ssid, ssid_len);
 	vap->iv_des_nssid = 1;
 
+	memset(&sr, 0, sizeof(sr));
 	sr.sr_flags = IEEE80211_IOC_SCAN_ACTIVE | IEEE80211_IOC_SCAN_ONCE;
 	sr.sr_duration = IEEE80211_IOC_SCAN_FOREVER;
 	memcpy(sr.sr_ssid[0].ssid, ssid, ssid_len);
