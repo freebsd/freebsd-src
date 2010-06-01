@@ -1621,7 +1621,7 @@ mmu_booke_enter_locked(mmu_t mmu, pmap_t pmap, vm_offset_t va, vm_page_t m,
 			 * are turning execute permissions on, icache should
 			 * be flushed.
 			 */
-			if ((flags & (PTE_UX | PTE_SX)) == 0)
+			if ((pte->flags & (PTE_UX | PTE_SX)) == 0)
 				sync++;
 		}
 
