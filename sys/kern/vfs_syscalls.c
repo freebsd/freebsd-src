@@ -2118,8 +2118,7 @@ kern_accessat(struct thread *td, int fd, char *path, enum uio_seg pathseg,
 
 	/*
 	 * Create and modify a temporary credential instead of one that
-	 * is potentially shared.  This could also mess up socket
-	 * buffer accounting which can run in an interrupt context.
+	 * is potentially shared.
 	 */
 	if (!(flags & AT_EACCESS)) {
 		cred = td->td_ucred;
