@@ -31,12 +31,13 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $P4: //depot/projects/trustedbsd/capabilities/src/lib/libcapsicum/libcapsicum_fdlist.c#11 $
+ * $P4: //depot/projects/trustedbsd/capabilities/src/lib/libcapsicum/libcapsicum_fdlist.c#13 $
  */
 
 #include <sys/mman.h>
 #include <sys/stat.h>
 
+#define _WITH_DPRINTF
 #include <errno.h>
 #include <libcapsicum.h>
 #include <pthread.h>
@@ -202,6 +203,24 @@ lc_fdlist_free(struct lc_fdlist *lfp)
 	free(lfp);
 }
 
+void
+lc_fdlist_print(struct lc_fdlist *lfp, int outFD)
+{
+	dprintf(outFD, "FD List:\n");
+	for(int i = 0; ; )
+	{
+		char *subsystem, *classname, *name;
+		int fd;
+
+		if (lc_fdlist_getentry(lfp, &subsystem, &classname, &name, &fd, &i)
+		     < 0)
+			break;
+
+		dprintf(outFD, "% 3d:\t'%s'.'%s': '%s'\n",
+		        fd, subsystem, classname, name);
+	}
+}
+
 int
 lc_fdlist_add(struct lc_fdlist *lfp, const char *subsystem,
     const char *classname, const char *name, int fd)
@@ -248,7 +267,6 @@ lc_fdlist_add(struct lc_fdlist *lfp, const char *subsystem,
 			memcpy(lc_fdlist_storage_names(lfsp_copy), tmp,
 			    lfsp_copy->namelen);
 
-		free(lfsp);
 		lfsp = lfp->lf_storage = lfsp_copy;
 		free(tmp);
 	}
@@ -375,6 +393,60 @@ lc_fdlist_addcap(struct lc_fdlist *fdlist, const char *subsystem,
 }
 
 int
+lc_fdlist_find(struct lc_fdlist *lfp, const char *subsystem,
+	    const char *classname, const char *filename,
+	    const char **relative_name)
+{
+	int pos = 0;
+	int fd = -1;
+
+	/* try to find the file itself in the FD list */
+	size_t len = strlen(filename);
+	*relative_name = filename + len;
+
+	while (fd == -1)
+	{
+		char *dirname;
+
+		if (lc_fdlist_lookup(lfp, subsystem, classname,
+		                     &dirname, &fd, &pos) == -1)
+			break;
+
+		if (strncmp(dirname, filename, len + 1)) fd = -1;
+		free(dirname);
+	}
+
+	if (fd >= 0) return fd;
+
+
+	/* now try to find a parent directory and a relative filename */
+	*relative_name = NULL;
+	pos = 0;
+
+	while (fd == -1)
+	{
+		char *dirname;
+
+		if (lc_fdlist_lookup(lfp, subsystem, classname,
+		                     &dirname, &fd, &pos) == -1)
+			return (-1);
+
+		len = strlen(dirname);
+		if (strncmp(dirname, filename, len)) fd = -1;
+		else
+		{
+			*relative_name = filename + len;
+			if (**relative_name == '/') (*relative_name)++;
+		}
+
+		free(dirname);
+	}
+
+	return fd;
+}
+
+
+int
 lc_fdlist_lookup(struct lc_fdlist *lfp, const char *subsystem,
     const char *classname, char **name, int *fdp, int *pos)
 {
@@ -394,28 +466,30 @@ lc_fdlist_lookup(struct lc_fdlist *lfp, const char *subsystem,
 	for (u_int i = (pos ? *pos : 0); i < lfsp->count; i++) {
 		struct lc_fdlist_entry *entry = lfsp->entries + i;
 
-		if ((!subsystem ||
-		    !strncmp(subsystem, names + entry->sysoff,
-		    entry->syslen + 1))
-		    && (!classname || !strncmp(classname, names +
-		    entry->classoff, entry->classnamelen + 1))) {
-
+		if ((!subsystem
+		     || !strncmp(subsystem, names + entry->sysoff,
+		                 entry->syslen + 1))
+		    && (!classname
+		        || !strncmp(classname, names + entry->classoff,
+		                    entry->classnamelen + 1)))
+		{
 			/* found a matching entry! */
+			successful = 1;
+			*fdp = entry->fd;
+
 			if (name) {
 				*name = malloc(entry->namelen + 1);
 				strncpy(*name, names + entry->nameoff,
 				        entry->namelen + 1);
 			}
-
-			*fdp = entry->fd;
-			if (pos != NULL) *pos = i + 1;
-			successful = 1;
+			if (pos) *pos = i + 1;
 			break;
 		}
 	}
 	UNLOCK(lfp);
 	if (successful)
 		return (0);
+
 	errno = ENOENT;
 	return (-1);
 }

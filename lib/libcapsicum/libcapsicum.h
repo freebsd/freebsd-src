@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $P4: //depot/projects/trustedbsd/capabilities/src/lib/libcapsicum/libcapsicum.h#12 $
+ * $P4: //depot/projects/trustedbsd/capabilities/src/lib/libcapsicum/libcapsicum.h#15 $
  */
 
 #ifndef _LIBCAPSICUM_H_
@@ -52,6 +52,7 @@ struct lc_fdlist	*lc_fdlist_new(void);
 struct lc_fdlist	*lc_fdlist_global(void);
 struct lc_fdlist	*lc_fdlist_dup(struct lc_fdlist *lfp_orig);
 void			 lc_fdlist_free(struct lc_fdlist *lfp);
+void			 lc_fdlist_print(struct lc_fdlist *lfp, int outFD);
 
 /*
  * Size of an FD list in bytes, including all associated string data.
@@ -87,6 +88,19 @@ int	lc_fdlist_append(struct lc_fdlist *to, struct lc_fdlist *from);
 int	lc_fdlist_addcap(struct lc_fdlist *l, const char *subsystem,
 	    const char *classname, const char *name, int fd,
 	    cap_rights_t rights);
+
+/*
+ * Open a stored file descriptor.
+ *
+ * Given a filename '/foo/bar/fubar', this function will attempt to find the file
+ * in the FD list. If that fails, it will attempt to find a parent directory in the
+ * FD list and supply a filename relative to that FD (which will be a pointer to a
+ * location within the supplied filename - do NOT free it!).
+ */
+int
+lc_fdlist_find(struct lc_fdlist *lfp, const char *subsystem,
+	    const char *classname, const char *filename,
+	    const char **relative_name);
 
 /*
  * Look up a file descriptor.

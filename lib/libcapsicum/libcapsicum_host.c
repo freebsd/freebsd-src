@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $P4: //depot/projects/trustedbsd/capabilities/src/lib/libcapsicum/libcapsicum_host.c#17 $
+ * $P4: //depot/projects/trustedbsd/capabilities/src/lib/libcapsicum/libcapsicum_host.c#19 $
  */
 
 #include <sys/param.h>
@@ -41,6 +41,7 @@
 #include <sys/socket.h>
 #include <sys/uio.h>
 
+#define _WITH_DPRINTF
 #include <err.h>
 #include <errno.h>
 #include <fcntl.h>
@@ -66,6 +67,8 @@
 					 | CAP_LOOKUP | CAP_ATBASE
 #define LIBCAPSICUM_CAPMASK_FDLIST	CAP_READ | CAP_WRITE | CAP_FTRUNCATE \
 					 | CAP_FSTAT | CAP_MMAP
+
+#define LIBCAPSICUM_CAPMASK_STDOUT	CAP_WRITE | CAP_SEEK | CAP_FSTAT
 
 extern char **environ;
 
@@ -123,12 +126,12 @@ lch_sandbox(int fd_sock, int fd_binary, int fd_rtld, u_int flags,
 
 	if (lc_fdlist_addcap(fds, LIBCAPSICUM_FQNAME, "stdout", "",
 		STDOUT_FILENO,
-		(flags & LCH_PERMIT_STDOUT) ? CAP_WRITE | CAP_SEEK : 0) < 0)
+		(flags & LCH_PERMIT_STDOUT) ? LIBCAPSICUM_CAPMASK_STDOUT : 0) < 0)
 		err(-1, "Error in lc_fdlist_addcap(stdout)");
 
 	if (lc_fdlist_addcap(fds, LIBCAPSICUM_FQNAME, "stderr", "",
 		STDERR_FILENO,
-		(flags & LCH_PERMIT_STDERR) ? CAP_WRITE | CAP_SEEK : 0) < 0)
+		(flags & LCH_PERMIT_STDERR) ? LIBCAPSICUM_CAPMASK_STDOUT : 0) < 0)
 		err(-1, "Error in lc_fdlist_addcap(stderr)");
 
 	if (lc_fdlist_addcap(fds, LIBCAPSICUM_FQNAME, "socket", "",
@@ -143,12 +146,9 @@ lch_sandbox(int fd_sock, int fd_binary, int fd_rtld, u_int flags,
 	                     fd_rtld, LIBCAPSICUM_CAPMASK_LDSO) < 0)
 		err(-1, "Error in lc_fdlist_addcap(fd_rtld)");
 
-	if (lc_fdlist_addcap(fds, RTLD_CAP_FQNAME, "binary", "",
+	if (lc_fdlist_addcap(fds, RTLD_CAP_FQNAME, "Executable", binname,
 	                     fd_binary, LIBCAPSICUM_CAPMASK_SANDBOX) < 0)
 		err(-1, "Error in lc_fdlist_addcap(fd_binary)");
-
-	if (lc_fdlist_append(fds, userfds) < 0)
-		err(-1, "Error in lc_fdlist_append()");
 
 	/*
 	 * Ask RTLD for library path descriptors.
@@ -170,14 +170,22 @@ lch_sandbox(int fd_sock, int fd_binary, int fd_rtld, u_int flags,
 			break;
 	}
 
-	for (int j = 0; j < size; j++)
-		if (lc_fdlist_addcap(fds, RTLD_CAP_FQNAME, "libdir", "",
+	for (int j = 0; j < size; j++) {
+		if (lc_fdlist_addcap(fds, RTLD_CAP_FQNAME, "LibraryDirectory", "",
 		    libdirs[j], LIBCAPSICUM_CAPMASK_LIBDIR) < 0)
 			err(-1, "Error in lc_fdlist_addcap(libdirs[%d]: %d)",
 			    j, libdirs[j]);
+	}
+
+	/* Append user FD list and reorder the descriptors */
+	if (lc_fdlist_append(fds, userfds) < 0)
+		err(-1, "Error in lc_fdlist_append()");
 
 	if (lc_fdlist_reorder(fds) < 0)
 		err(-1, "Error in lc_fdlist_reorder()");
+
+
+
 
 	/*
 	 * Find the fdlist shared memory segment.
@@ -219,16 +227,16 @@ lch_sandbox(int fd_sock, int fd_binary, int fd_rtld, u_int flags,
 	/*
 	 * Find the binary for RTLD.
 	 */
-	if (lc_fdlist_lookup(fds, RTLD_CAP_FQNAME, "binary", NULL,
+	if (lc_fdlist_lookup(fds, RTLD_CAP_FQNAME, "Executable", NULL,
 	    &fd_binary, NULL) < 0)
-		err(-1, "Error in lc_fdlist_lookup(RTLD binary)");
+		err(-1, "Error in lc_fdlist_lookup(Executable)");
 
 	sprintf(tmp, "%d", fd_binary);
 	if (setenv("LD_BINARY", tmp, 1) != 0)
 		err(-1, "Error in setenv(LD_BINARY)");
 
 	/*
-	 * Build LD_LIBRARY_DIRS for RTLD.
+	 * Build LD_LIBRARY_DIRS and LD_PRELOAD for RTLD.
 	 *
 	 * NOTE: This is FreeBSD-specific; porting to other operating systems
 	 * will require dynamic linkers capable of operating on file
@@ -240,8 +248,9 @@ lch_sandbox(int fd_sock, int fd_binary, int fd_rtld, u_int flags,
 
 	{
 		int fd;
-		while (lc_fdlist_lookup(fds, RTLD_CAP_FQNAME, "libdir", NULL,
-		    &fd, &pos) >= 0)
+		pos = 0;
+		while (lc_fdlist_lookup(fds, RTLD_CAP_FQNAME, "LibraryDirectory",
+		       NULL, &fd, &pos) >= 0)
 			sbuf_printf(sbufp, "%d:", fd);
 	}
 
@@ -252,10 +261,30 @@ lch_sandbox(int fd_sock, int fd_binary, int fd_rtld, u_int flags,
 		err(-1, "Error in setenv(LD_LIBRARY_DIRS)");
 	sbuf_delete(sbufp);
 
+	sbufp = sbuf_new_auto();
+	if (sbufp == NULL)
+		err(-1, "Error in sbuf_new_auto()");
+
+	{
+		int fd;
+		pos = 0;
+		while (lc_fdlist_lookup(fds, RTLD_CAP_FQNAME, "PreloadLibrary",
+		       NULL, &fd, &pos) >= 0)
+			sbuf_printf(sbufp, "%d:", fd);
+	}
+
+	sbuf_finish(sbufp);
+	if (sbuf_overflowed(sbufp))
+		err(-1, "sbuf_overflowed()");
+	if (setenv("LD_PRELOAD", sbuf_data(sbufp), 1) == -1)
+		err(-1, "Error in setenv(LD_PRELOAD)");
+	sbuf_delete(sbufp);
+
 	if (cap_enter() < 0)
 		err(-1, "cap_enter() failed");
 
 	(void)fexecve(fd_rtld, argv, environ);
+	dprintf(2, "ERROR: fexecve() failed; errno = %d\n", errno);
 }
 
 int
