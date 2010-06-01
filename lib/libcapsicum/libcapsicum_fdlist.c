@@ -31,7 +31,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $P4: //depot/projects/trustedbsd/capabilities/src/lib/libcapsicum/libcapsicum_fdlist.c#13 $
+ * $P4: //depot/projects/trustedbsd/capabilities/src/lib/libcapsicum/libcapsicum_fdlist.c#15 $
  */
 
 #include <sys/mman.h>
@@ -402,7 +402,8 @@ lc_fdlist_find(struct lc_fdlist *lfp, const char *subsystem,
 
 	/* try to find the file itself in the FD list */
 	size_t len = strlen(filename);
-	*relative_name = filename + len;
+	if (relative_name)
+		*relative_name = filename + len;
 
 	while (fd == -1)
 	{
@@ -432,6 +433,14 @@ lc_fdlist_find(struct lc_fdlist *lfp, const char *subsystem,
 			return (-1);
 
 		len = strlen(dirname);
+
+		/* if there is no filename, we can't do relative naming */
+		if (len == 0)
+		{
+			fd = -1;
+			continue;
+		}
+
 		if (strncmp(dirname, filename, len)) fd = -1;
 		else
 		{
