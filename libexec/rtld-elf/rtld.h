@@ -226,6 +226,7 @@ typedef struct Struct_Obj_Entry {
     struct link_map linkmap;	/* For GDB and dlinfo() */
     Objlist dldags;		/* Object belongs to these dlopened DAGs (%) */
     Objlist dagmembers;		/* DAG has these members (%) */
+    int fd;			/* Object's file descriptor */
     dev_t dev;			/* Object's filesystem's device */
     ino_t ino;			/* Object's inode number */
     void *priv;			/* Platform-dependant */
