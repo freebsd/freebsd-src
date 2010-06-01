@@ -872,7 +872,7 @@ coda_lookup(struct vop_cachedlookup_args *ap)
 	struct cnode *cp;
 	const char *nm = cnp->cn_nameptr;
 	int len = cnp->cn_namelen;
-	CodaFid VFid;
+	struct CodaFid VFid;
 	int vtype;
 	int error = 0;
 
@@ -1009,7 +1009,7 @@ coda_create(struct vop_create_args *ap)
 	struct cnode *cp;
 	const char *nm = cnp->cn_nameptr;
 	int len = cnp->cn_namelen;
-	CodaFid VFid;
+	struct CodaFid VFid;
 	struct vattr attr;
 
 	MARK_ENTRY(CODA_CREATE_STATS);
@@ -1278,7 +1278,7 @@ coda_mkdir(struct vop_mkdir_args *ap)
 	const char *nm = cnp->cn_nameptr;
 	int len = cnp->cn_namelen;
 	struct cnode *cp;
-	CodaFid VFid;
+	struct CodaFid VFid;
 	struct vattr ova;
 
 	MARK_ENTRY(CODA_MKDIR_STATS);
@@ -1687,7 +1687,7 @@ coda_print_cred(struct ucred *cred)
  * coda_unsave.
  */
 struct cnode *
-make_coda_node(CodaFid *fid, struct mount *vfsp, short type)
+make_coda_node(struct CodaFid *fid, struct mount *vfsp, short type)
 {
 	struct cnode *cp;
 	struct vnode *vp;
