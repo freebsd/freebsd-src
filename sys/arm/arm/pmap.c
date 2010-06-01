@@ -3318,15 +3318,16 @@ pmap_enter_locked(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 	u_int oflags;
 	vm_paddr_t pa;
 
-	KASSERT((m->oflags & VPO_BUSY) != 0 || (flags & M_NOWAIT) != 0,
-	    ("pmap_enter_locked: page %p is not busy", m));
 	PMAP_ASSERT_LOCKED(pmap);
 	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
 	if (va == vector_page) {
 		pa = systempage.pv_pa;
 		m = NULL;
-	} else
+	} else {
+		KASSERT((m->oflags & VPO_BUSY) != 0 || (flags & M_NOWAIT) != 0,
+		    ("pmap_enter_locked: page %p is not busy", m));
 		pa = VM_PAGE_TO_PHYS(m);
+	}
 	nflags = 0;
 	if (prot & VM_PROT_WRITE)
 		nflags |= PVF_WRITE;
