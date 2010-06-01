@@ -26,43 +26,19 @@
  * $FreeBSD$
  */
 
-#ifndef _MACHINE_IODEV_H_
-#define	_MACHINE_IODEV_H_
+#ifndef _DEV_IODEV_H_
+#define	_DEV_IODEV_H_
 
-#include <sys/uuid.h>
+#define	IODEV_PIO_READ		0
+#define	IODEV_PIO_WRITE		1
 
-#ifdef _KERNEL
-#include <machine/bus.h>
-#endif
-
-#define	IODEV_EFIVAR_GETVAR	0
-#define	IODEV_EFIVAR_NEXTNAME	1
-#define	IODEV_EFIVAR_SETVAR	2
-
-struct iodev_efivar_req {
-	u_int	access;
-	u_int	result;			/* errno value */
-	size_t	namesize;
-	u_short	*name;			/* UCS-2 */
-	struct uuid vendor;
-	uint32_t attrib;
-	size_t	datasize;
-	void	*data;
+struct iodev_pio_req {
+	u_int access;
+	u_int port;
+	u_int width;
+	u_int val;
 };
 
-#define	IODEV_EFIVAR	_IOWR('I', 1, struct iodev_efivar_req)
+#define	IODEV_PIO	_IOWR('I', 0, struct iodev_pio_req)
 
-#ifdef _KERNEL
-#define	iodev_read_1	bus_space_read_io_1
-#define	iodev_read_2	bus_space_read_io_2
-#define	iodev_read_4	bus_space_read_io_4
-#define	iodev_write_1	bus_space_write_io_1
-#define	iodev_write_2	bus_space_write_io_2
-#define	iodev_write_4	bus_space_write_io_4
-
-int	 iodev_open(struct thread *td);
-int	 iodev_close(struct thread *td);
-int	 iodev_ioctl(u_long, caddr_t data);
-
-#endif /* _KERNEL */
-#endif /* _MACHINE_IODEV_H_ */
+#endif /* _DEV_IODEV_H_ */
