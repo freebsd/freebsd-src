@@ -1227,7 +1227,17 @@ process_server_config_line(ServerOptions *options, char *line,
 		charptr = (opcode == sAuthorizedKeysFile) ?
 		    &options->authorized_keys_file :
 		    &options->authorized_keys_file2;
-		goto parse_filename;
+		arg = strdelim(&cp);
+		if (!arg || *arg == '\0')
+			fatal("%s line %d: missing file name.",
+			    filename, linenum);
+		if (*activep && *charptr == NULL) {
+			*charptr = tilde_expand_filename(arg, getuid());
+			/* increase optional counter */
+			if (intptr != NULL)
+				*intptr = *intptr + 1;
+		}
+		break;
 
 	case sClientAliveInterval:
 		intptr = &options->client_alive_interval;
