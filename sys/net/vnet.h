@@ -245,6 +245,11 @@ int	vnet_sysctl_handle_uint(SYSCTL_HANDLER_ARGS);
 	    fmt, descr)							\
 	SYSCTL_OID(parent, nbr, name, CTLFLAG_VNET|(access), ptr, arg, 	\
 	    handler, fmt, descr)
+#define	SYSCTL_VNET_OPAQUE(parent, nbr, name, access, ptr, len, fmt,    \
+	    descr)							\
+	SYSCTL_OID(parent, nbr, name,					\
+	    CTLTYPE_OPAQUE|CTLFLAG_VNET|(access), ptr, len, 		\
+	    vnet_sysctl_handle_opaque, fmt, descr)
 #define	SYSCTL_VNET_STRING(parent, nbr, name, access, arg, len, descr)	\
 	SYSCTL_OID(parent, nbr, name,					\
 	    CTLTYPE_STRING|CTLFLAG_VNET|(access),			\
@@ -398,6 +403,9 @@ do {									\
 	    fmt, descr)							\
 	SYSCTL_PROC(parent, nbr, name, access, ptr, arg, handler, fmt,	\
 	    descr)
+#define	SYSCTL_VNET_OPAQUE(parent, nbr, name, access, ptr, len, fmt,    \
+	    descr)							\
+	SYSCTL_OPAQUE(parent, nbr, name, access, ptr, len, fmt, descr)
 #define	SYSCTL_VNET_STRING(parent, nbr, name, access, arg, len, descr)	\
 	SYSCTL_STRING(parent, nbr, name, access, arg, len, descr)
 #define	SYSCTL_VNET_STRUCT(parent, nbr, name, access, ptr, type, descr)	\
