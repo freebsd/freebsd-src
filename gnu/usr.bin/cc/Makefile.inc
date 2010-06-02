@@ -49,6 +49,14 @@ MIPS_ABI_DEFAULT=ABI_64
 MIPS_ABI_DEFAULT?=ABI_32
 CFLAGS += -DMIPS_ABI_DEFAULT=${MIPS_ABI_DEFAULT}
 
+# If we are compiling for the O32 ABI, we need to default to MIPS-III rather
+# than taking the ISA from the ABI requirements, since FreeBSD is built with
+# a number of MIPS-III features/instructions and that is the minimum ISA we
+# support, not the O32 default MIPS-I.
+.if ${MIPS_ABI_DEFAULT} == "ABI_32"
+TARGET_CPUTYPE?=mips3
+.endif
+
 # GCC by default takes the ISA from the ABI's requirements.  If world is built
 # with a superior ISA, since we lack multilib, we have to set the right
 # default ISA to be able to link against what's in /usr/lib.  Terrible stuff.
