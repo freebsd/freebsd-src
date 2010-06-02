@@ -80,6 +80,7 @@ struct varinit {
 
 #ifndef NO_HISTORY
 struct var vhistsize;
+struct var vterm;
 #endif
 struct var vifs;
 struct var vmail;
@@ -114,6 +115,10 @@ STATIC const struct varinit varinit[] = {
 	  NULL },
 	{ &vps4,	0,				"PS4=+ ",
 	  NULL },
+#ifndef NO_HISTORY
+	{ &vterm,	VUNSET,				"TERM=",
+	  setterm },
+#endif
 	{ &voptind,	0,				"OPTIND=1",
 	  getoptsreset },
 	{ NULL,	0,				NULL,
