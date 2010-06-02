@@ -3936,14 +3936,18 @@ isp_login_device(ispsoftc_t *isp, int chan, uint32_t portid, isp_pdb_t *p, uint1
 				i = lim;
 			}
 			break;
-		} else if (r != MBOX_LOOP_ID_USED) {
+		} else if ((r & 0xffff) == MBOX_LOOP_ID_USED) {
+			/*
+			 * Try the next loop id.
+			 */
+			*ohp = handle;
+			handle = isp_nxt_handle(isp, chan, handle);
+		} else {
+			/*
+			 * Give up.
+			 */
 			i = lim;
 			break;
-		} else if (r == MBOX_TIMEOUT) {
-			return (-1);
-		} else {
-			*ohp = handle;
-			handle = isp_nxt_handle(isp, chan, *ohp);
 		}
 	}
 
@@ -4313,8 +4317,7 @@ isp_start(XS_T *xs)
 			reqp->req_header.rqs_entry_type = RQSTYPE_REQUEST;
 		}
 	}
-	/* reqp->req_header.rqs_flags = 0; */
-	/* reqp->req_header.rqs_seqno = 0; */
+
 	if (IS_24XX(isp)) {
 		int ttype;
 		if (XS_TAG_P(xs)) {
@@ -4363,37 +4366,45 @@ isp_start(XS_T *xs)
 			reqp->req_flags = XS_TAG_TYPE(xs);
 		}
 	}
-	cdbp = reqp->req_cdb;
+
 	tptr = &reqp->req_time;
 
 	if (IS_SCSI(isp)) {
 		reqp->req_target = target | (XS_CHANNEL(xs) << 7);
 		reqp->req_lun_trn = XS_LUN(xs);
 		reqp->req_cdblen = XS_CDBLEN(xs);
+		cdbp = reqp->req_cdb;
 	} else if (IS_24XX(isp)) {
+		ispreqt7_t *t7 = (ispreqt7_t *)local;
 		fcportdb_t *lp;
 
 		lp = &FCPARAM(isp, XS_CHANNEL(xs))->portdb[hdlidx];
-		((ispreqt7_t *)reqp)->req_nphdl = target;
-		((ispreqt7_t *)reqp)->req_tidlo = lp->portid;
-		((ispreqt7_t *)reqp)->req_tidhi = lp->portid >> 16;
-		((ispreqt7_t *)reqp)->req_vpidx = ISP_GET_VPIDX(isp, XS_CHANNEL(xs));
+		t7->req_nphdl = target;
+		t7->req_tidlo = lp->portid;
+		t7->req_tidhi = lp->portid >> 16;
+		t7->req_vpidx = ISP_GET_VPIDX(isp, XS_CHANNEL(xs));
 		if (XS_LUN(xs) > 256) {
-			((ispreqt7_t *)reqp)->req_lun[0] = XS_LUN(xs) >> 8;
-			((ispreqt7_t *)reqp)->req_lun[0] |= 0x40;
+			t7->req_lun[0] = XS_LUN(xs) >> 8;
+			t7->req_lun[0] |= 0x40;
 		}
-		((ispreqt7_t *)reqp)->req_lun[1] = XS_LUN(xs);
-		cdbp = ((ispreqt7_t *)reqp)->req_cdb;
-		tptr = &((ispreqt7_t *)reqp)->req_time;
+		t7->req_lun[1] = XS_LUN(xs);
+		cdbp = t7->req_cdb;
+		tptr = &t7->req_time;
 	} else if (ISP_CAP_2KLOGIN(isp)) {
-		((ispreqt2e_t *)reqp)->req_target = target;
-		((ispreqt2e_t *)reqp)->req_scclun = XS_LUN(xs);
+		ispreqt2e_t *t2e = (ispreqt2e_t *)local;
+		t2e->req_target = target;
+		t2e->req_scclun = XS_LUN(xs);
+		cdbp = t2e->req_cdb;
 	} else if (ISP_CAP_SCCFW(isp)) {
-		((ispreqt2_t *)reqp)->req_target = target;
-		((ispreqt2_t *)reqp)->req_scclun = XS_LUN(xs);
+		ispreqt2_t *t2 = (ispreqt2_t *)local;
+		t2->req_target = target;
+		t2->req_scclun = XS_LUN(xs);
+		cdbp = t2->req_cdb;
 	} else {
-		((ispreqt2_t *)reqp)->req_target = target;
-		((ispreqt2_t *)reqp)->req_lun_trn = XS_LUN(xs);
+		ispreqt2_t *t2 = (ispreqt2_t *)local;
+		t2->req_target = target;
+		t2->req_lun_trn = XS_LUN(xs);
+		cdbp = t2->req_cdb;
 	}
 	ISP_MEMCPY(cdbp, XS_CDBP(xs), XS_CDBLEN(xs));
 
