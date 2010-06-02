@@ -566,7 +566,7 @@ hint.mse.0.irq="5"
 
 # Order for ISA/EISA devices is important here
 
-device		ce
+#device		ce
 device		cp
 device		cs
 hint.cs.0.at="isa"
