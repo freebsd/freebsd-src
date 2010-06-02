@@ -1,9 +1,17 @@
 #ifndef _LIBFDT_ENV_H
 #define _LIBFDT_ENV_H
 
+#ifdef _KERNEL
+#include <sys/cdefs.h>
+#include <sys/param.h>
+#include <sys/types.h>
+#include <sys/systm.h>
+#include <sys/stdint.h>
+#else
 #include <stddef.h>
 #include <stdint.h>
 #include <string.h>
+#endif
 
 #define _B(n)	((unsigned long long)((uint8_t *)&x)[n])
 static inline uint32_t fdt32_to_cpu(uint32_t x)
