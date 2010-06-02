@@ -118,6 +118,12 @@ LIB2FUNCS_EXTRA = floatunsidf.c floatunsisf.c
 
 .if ${TARGET_ARCH} == "mips"
 LIB2FUNCS_EXTRA = floatunsidf.c floatunsisf.c
+.if defined(TARGET_ABI) && ${TARGET_ABI} != "o32"
+LIB2FUNCS_EXTRA+= floatdidf.c fixunsdfsi.c
+LIB2FUNCS_EXTRA+= floatdisf.c floatundidf.c
+LIB2FUNCS_EXTRA+= fixsfdi.c floatundisf.c
+LIB2FUNCS_EXTRA+= fixdfdi.c fixunssfsi.c
+.endif
 .endif
 
 .if ${TARGET_ARCH} == "ia64"
