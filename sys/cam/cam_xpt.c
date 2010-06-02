@@ -2138,6 +2138,7 @@ xptpdperiphtraverse(struct periph_driver **pdrv,
 
 	retval = 1;
 
+	xpt_lock_buses();
 	for (periph = (start_periph ? start_periph :
 	     TAILQ_FIRST(&(*pdrv)->units)); periph != NULL;
 	     periph = next_periph) {
@@ -2145,9 +2146,12 @@ xptpdperiphtraverse(struct periph_driver **pdrv,
 		next_periph = TAILQ_NEXT(periph, unit_links);
 
 		retval = tr_func(periph, arg);
-		if (retval == 0)
+		if (retval == 0) {
+			xpt_unlock_buses();
 			return(retval);
+		}
 	}
+	xpt_unlock_buses();
 	return(retval);
 }
 
@@ -2322,7 +2326,6 @@ xpt_action_default(union ccb *start_ccb)
 {
 
 	CAM_DEBUG(start_ccb->ccb_h.path, CAM_DEBUG_TRACE, ("xpt_action_default\n"));
-
 
 	switch (start_ccb->ccb_h.func_code) {
 	case XPT_SCSI_IO:
@@ -2670,7 +2673,9 @@ xpt_action_default(union ccb *start_ccb)
 			xptedtmatch(cdm);
 			break;
 		case CAM_DEV_POS_PDRV:
+			xpt_lock_buses();
 			xptperiphlistmatch(cdm);
+			xpt_unlock_buses();
 			break;
 		default:
 			cdm->status = CAM_DEV_MATCH_ERROR;
