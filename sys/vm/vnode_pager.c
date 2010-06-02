@@ -429,9 +429,7 @@ vnode_pager_setsize(vp, nsize)
 			 * bits.  This would prevent bogus_page
 			 * replacement from working properly.
 			 */
-			vm_page_lock_queues();
 			vm_page_clear_dirty(m, base, PAGE_SIZE - base);
-			vm_page_unlock_queues();
 		} else if ((nsize & PAGE_MASK) &&
 		    __predict_false(object->cache != NULL)) {
 			vm_page_cache_free(object, OFF_TO_IDX(nsize),
