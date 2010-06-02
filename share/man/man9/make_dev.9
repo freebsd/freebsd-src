@@ -158,14 +158,14 @@ The
 function is equivalent to the call
 .Bd -literal -offset indent
 make_dev_credf(0, cdevsw, unit, cr, uid, gid, perms, fmt, ...);
-.Ed .
+.Ed
 .Pp
 The
 .Fn make_dev
 function call is the same as
 .Bd -literal -offset indent
 make_dev_credf(0, cdevsw, unit, NULL, uid, gid, perms, fmt, ...);
-.Ed .
+.Ed
 .Pp
 The
 .Fn make_dev_alias
@@ -245,7 +245,7 @@ The
 function is the same as
 .Bd -literal -offset indent
 destroy_dev_sched(cdev, NULL, NULL);
-.Ed .
+.Ed
 .Pp
 The
 .Fn d_close
