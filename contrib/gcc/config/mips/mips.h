@@ -41,6 +41,7 @@ enum processor_type {
   PROCESSOR_24K,
   PROCESSOR_24KX,
   PROCESSOR_M4K,
+  PROCESSOR_OCTEON,
   PROCESSOR_R3900,
   PROCESSOR_R6000,
   PROCESSOR_R4000,
@@ -199,6 +200,7 @@ extern const struct mips_rtx_cost_data *mips_cost;
 #define ISA_MIPS32		    (mips_isa == 32)
 #define ISA_MIPS32R2		    (mips_isa == 33)
 #define ISA_MIPS64                  (mips_isa == 64)
+#define	ISA_MIPS64R2		    (mips_isa == 65)
 
 /* Architecture target defines.  */
 #define TARGET_MIPS3900             (mips_arch == PROCESSOR_R3900)
@@ -212,6 +214,7 @@ extern const struct mips_rtx_cost_data *mips_cost;
 #define TARGET_SB1                  (mips_arch == PROCESSOR_SB1		\
 				     || mips_arch == PROCESSOR_SB1A)
 #define TARGET_SR71K                (mips_arch == PROCESSOR_SR71000)
+#define TARGET_OCTEON               (mips_arch == PROCESSOR_OCTEON)
 
 /* Scheduling target defines.  */
 #define TUNE_MIPS3000               (mips_tune == PROCESSOR_R3000)
@@ -227,6 +230,7 @@ extern const struct mips_rtx_cost_data *mips_cost;
 #define TUNE_MIPS9000               (mips_tune == PROCESSOR_R9000)
 #define TUNE_SB1                    (mips_tune == PROCESSOR_SB1		\
 				     || mips_tune == PROCESSOR_SB1A)
+#define TUNE_OCTEON                 (mips_tune == PROCESSOR_OCTEON)
 
 /* True if the pre-reload scheduler should try to create chains of
    multiply-add or multiply-subtract instructions.  For example,
@@ -380,6 +384,12 @@ extern const struct mips_rtx_cost_data *mips_cost;
 	  builtin_define ("__mips_isa_rev=1");			\
 	  builtin_define ("_MIPS_ISA=_MIPS_ISA_MIPS64");	\
 	}							\
+      else if (ISA_MIPS64R2)					\
+	{							\
+	  builtin_define ("__mips=64");				\
+	  builtin_define ("__mips_isa_rev=2");			\
+	  builtin_define ("_MIPS_ISA=_MIPS_ISA_MIPS64");	\
+	}							\
 								\
       if (TARGET_HARD_FLOAT)					\
 	builtin_define ("__mips_hard_float");			\
@@ -501,7 +511,11 @@ extern const struct mips_rtx_cost_data *mips_cost;
 #              if MIPS_ISA_DEFAULT == 64
 #                define MULTILIB_ISA_DEFAULT "mips64"
 #              else
-#                define MULTILIB_ISA_DEFAULT "mips1"
+#                if MIPS_ISA_DEFAULT == 65
+#                  define MULTILIB_ISA_DEFAULT "mips64r2"
+#                else
+#                  define MULTILIB_ISA_DEFAULT "mips1"
+#                endif
 #              endif
 #            endif
 #          endif
@@ -562,7 +576,8 @@ extern const struct mips_rtx_cost_data *mips_cost;
 				  || TARGET_MAD				\
                                   || ISA_MIPS32	                        \
                                   || ISA_MIPS32R2                       \
-                                  || ISA_MIPS64)                        \
+                                  || ISA_MIPS64                         \
+                                  || ISA_MIPS64R2)                      \
                                  && !TARGET_MIPS16)
 
 /* Generate three-operand multiply instructions for DImode.  */
@@ -584,7 +599,8 @@ extern const struct mips_rtx_cost_data *mips_cost;
 /* ISA has instructions for managing 64 bit fp and gp regs (e.g. mips3).  */
 #define ISA_HAS_64BIT_REGS	(ISA_MIPS3				\
 				 || ISA_MIPS4				\
-                                 || ISA_MIPS64)
+                                 || ISA_MIPS64				\
+				 || ISA_MIPS64R2)
 
 /* ISA has branch likely instructions (e.g. mips2).  */
 /* Disable branchlikely for tx39 until compare rewrite.  They haven't
@@ -595,7 +611,8 @@ extern const struct mips_rtx_cost_data *mips_cost;
 #define ISA_HAS_CONDMOVE        ((ISA_MIPS4				\
 				  || ISA_MIPS32	                        \
 				  || ISA_MIPS32R2                       \
-				  || ISA_MIPS64)			\
+				  || ISA_MIPS64				\
+				  || ISA_MIPS64R2)			\
                                  && !TARGET_MIPS5500                    \
 				 && !TARGET_MIPS16)
 
@@ -604,13 +621,15 @@ extern const struct mips_rtx_cost_data *mips_cost;
 #define ISA_HAS_8CC		(ISA_MIPS4				\
                          	 || ISA_MIPS32	                        \
                          	 || ISA_MIPS32R2                        \
-				 || ISA_MIPS64)
+				 || ISA_MIPS64				\
+				 || ISA_MIPS64R2)
 
 /* This is a catch all for other mips4 instructions: indexed load, the
    FP madd and msub instructions, and the FP recip and recip sqrt
    instructions.  */
 #define ISA_HAS_FP4             ((ISA_MIPS4				\
-				  || ISA_MIPS64)       			\
+				  || ISA_MIPS64				\
+				  || ISA_MIPS64R2)     			\
  				 && !TARGET_MIPS16)
 
 /* ISA has conditional trap instructions.  */
@@ -621,11 +640,13 @@ extern const struct mips_rtx_cost_data *mips_cost;
 #define ISA_HAS_MADD_MSUB       ((ISA_MIPS32				\
 				  || ISA_MIPS32R2			\
 				  || ISA_MIPS64				\
+				  || ISA_MIPS64R2			\
 				  ) && !TARGET_MIPS16)
 
 /* ISA has floating-point nmadd and nmsub instructions.  */
 #define ISA_HAS_NMADD_NMSUB	((ISA_MIPS4				\
-				  || ISA_MIPS64)       			\
+				  || ISA_MIPS64				\
+				  || ISA_MIPS64R2)			\
                                  && (!TARGET_MIPS5400 || TARGET_MAD)    \
 				 && ! TARGET_MIPS16)
 
@@ -633,11 +654,13 @@ extern const struct mips_rtx_cost_data *mips_cost;
 #define ISA_HAS_CLZ_CLO         ((ISA_MIPS32				\
                                   || ISA_MIPS32R2			\
                                   || ISA_MIPS64				\
+                                  || ISA_MIPS64R2			\
                                  ) && !TARGET_MIPS16)
 
 /* ISA has double-word count leading zeroes/ones instruction (not
    implemented).  */
 #define ISA_HAS_DCLZ_DCLO       (ISA_MIPS64				\
+				 || ISA_MIPS64R2			\
 				 && !TARGET_MIPS16)
 
 /* ISA has three operand multiply instructions that put
@@ -677,6 +700,7 @@ extern const struct mips_rtx_cost_data *mips_cost;
 /* ISA has 32-bit rotate right instruction.  */
 #define ISA_HAS_ROTR_SI         (!TARGET_MIPS16                         \
                                  && (ISA_MIPS32R2                       \
+                                     || ISA_MIPS64R2                    \
                                      || TARGET_MIPS5400                 \
                                      || TARGET_MIPS5500                 \
                                      || TARGET_SR71K                    \
@@ -694,7 +718,8 @@ extern const struct mips_rtx_cost_data *mips_cost;
 #define ISA_HAS_PREFETCH	((ISA_MIPS4				\
 				  || ISA_MIPS32				\
 				  || ISA_MIPS32R2			\
-				  || ISA_MIPS64)	       		\
+				  || ISA_MIPS64		       		\
+				  || ISA_MIPS64R2)	       		\
 				 && !TARGET_MIPS16)
 
 /* ISA has data indexed prefetch instructions.  This controls use of
@@ -702,7 +727,8 @@ extern const struct mips_rtx_cost_data *mips_cost;
    (prefx is a cop1x instruction, so can only be used if FP is
    enabled.)  */
 #define ISA_HAS_PREFETCHX       ((ISA_MIPS4				\
-				  || ISA_MIPS64)       			\
+				  || ISA_MIPS64				\
+				  || ISA_MIPS64R2)			\
  				 && !TARGET_MIPS16)
 
 /* True if trunc.w.s and trunc.w.d are real (not synthetic)
@@ -713,11 +739,13 @@ extern const struct mips_rtx_cost_data *mips_cost;
 /* ISA includes the MIPS32r2 seb and seh instructions.  */
 #define ISA_HAS_SEB_SEH         (!TARGET_MIPS16                        \
                                  && (ISA_MIPS32R2                      \
+				     || ISA_MIPS64R2			\
                                      ))
 
 /* ISA includes the MIPS32/64 rev 2 ext and ins instructions.  */
 #define ISA_HAS_EXT_INS         (!TARGET_MIPS16                        \
                                  && (ISA_MIPS32R2                      \
+				     || ISA_MIPS64R2		       \
                                      ))
 
 /* True if the result of a load is not available to the next instruction.
@@ -748,6 +776,7 @@ extern const struct mips_rtx_cost_data *mips_cost;
 #define ISA_HAS_HILO_INTERLOCKS	(ISA_MIPS32				\
 				 || ISA_MIPS32R2			\
 				 || ISA_MIPS64				\
+				 || ISA_MIPS64R2			\
 				 || TARGET_MIPS5500)
 
 /* Add -G xx support.  */

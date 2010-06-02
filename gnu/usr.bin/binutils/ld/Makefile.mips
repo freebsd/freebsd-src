@@ -1,14 +1,21 @@
 # $FreeBSD$
 
-#xxxIMPxxx: size?
 #xxxIMPxxx: TARGET_BIG_ENDIAN is lame.  We should use the netbsd convention
 # of mipsel and mips.
-_sz?=32
-.if defined(TARGET_BIG_ENDIAN)
-NATIVE_EMULATION=elf${_sz}btsmip_fbsd
+.if !defined(TARGET_BIG_ENDIAN)
+_EMULATION_ENDIAN=l
 .else
-NATIVE_EMULATION=elf${_sz}ltsmip_fbsd
+_EMULATION_ENDIAN=b
 .endif
+
+.if defined(TARGET_ABI) && ${TARGET_ABI} != "o32"
+.if ${TARGET_ABI} == "n32"
+NATIVE_EMULATION=elf32${_EMULATION_ENDIAN}tsmipn32_fbsd
+.elif ${TARGET_ABI} == "n64"
+NATIVE_EMULATION=elf64${_EMULATION_ENDIAN}tsmip_fbsd
+.endif
+.endif
+NATIVE_EMULATION?=elf32${_EMULATION_ENDIAN}tsmip_fbsd
 
 MIPS_ABIS=elf32btsmip_fbsd elf32ltsmip_fbsd elf64btsmip_fbsd elf64ltsmip_fbsd \
     elf32btsmipn32_fbsd elf32ltsmipn32_fbsd
