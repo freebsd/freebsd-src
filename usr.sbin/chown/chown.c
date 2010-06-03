@@ -262,9 +262,7 @@ id(const char *name, const char *type)
 	 */
 	errno = 0;
 	val = strtoul(name, &ep, 10);
-	if (errno)
-		err(1, "%s", name);
-	if (*ep != '\0')
+	if (errno || *ep != '\0')
 		errx(1, "%s: illegal %s name", name, type);
 	return (val);
 }
