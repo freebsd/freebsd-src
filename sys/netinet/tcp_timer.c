@@ -162,7 +162,6 @@ tcp_timer_delack(void *xtp)
 	struct inpcb *inp;
 	CURVNET_SET(tp->t_vnet);
 
-	INP_INFO_RLOCK(&V_tcbinfo);
 	inp = tp->t_inpcb;
 	/*
 	 * XXXRW: While this assert is in fact correct, bugs in the tcpcb
@@ -173,12 +172,10 @@ tcp_timer_delack(void *xtp)
 	 */
 	if (inp == NULL) {
 		tcp_timer_race++;
-		INP_INFO_RUNLOCK(&V_tcbinfo);
 		CURVNET_RESTORE();
 		return;
 	}
 	INP_WLOCK(inp);
-	INP_INFO_RUNLOCK(&V_tcbinfo);
 	if ((inp->inp_flags & INP_DROPPED) || callout_pending(&tp->t_timers->tt_delack)
 	    || !callout_active(&tp->t_timers->tt_delack)) {
 		INP_WUNLOCK(inp);
