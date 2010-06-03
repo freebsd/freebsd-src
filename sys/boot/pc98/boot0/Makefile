@@ -13,7 +13,7 @@ BOOT=	boot0
 # unless you are glutton for punishment.
 BOOT_BOOT0_ORG?=	0x0000
 
-LDFLAGS=-N -e start -Ttext ${BOOT_BOOT0_ORG}
+LDFLAGS=-e start -Ttext ${BOOT_BOOT0_ORG} -Wl,-N
 
 ${BOOT}: ${BOOT}.out
 	objcopy -S -O binary ${BOOT}.out ${.TARGET}
