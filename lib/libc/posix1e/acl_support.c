@@ -127,11 +127,9 @@ _posix1e_acl_entry_compare(struct acl_entry *a, struct acl_entry *b)
 }
 
 /*
- * _posix1e_acl_sort -- sort ACL entries in POSIX.1e-formatted ACLs
- * Give the opportunity to fail, although we don't currently have a way
- * to fail.
+ * _posix1e_acl_sort -- sort ACL entries in POSIX.1e-formatted ACLs.
  */
-int
+void
 _posix1e_acl_sort(acl_t acl)
 {
 	struct acl *acl_int;
@@ -140,8 +138,6 @@ _posix1e_acl_sort(acl_t acl)
 
 	qsort(&acl_int->acl_entry[0], acl_int->acl_cnt,
 	    sizeof(struct acl_entry), (compare) _posix1e_acl_entry_compare);
-
-	return (0);
 }
 
 /*
