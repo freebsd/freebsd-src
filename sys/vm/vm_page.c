@@ -2110,7 +2110,7 @@ vm_page_clear_dirty_mask(vm_page_t m, int pagebits)
 void
 vm_page_set_validclean(vm_page_t m, int base, int size)
 {
-	u_int oldvalid;
+	u_long oldvalid;
 	int endoff, frag, pagebits;
 
 	VM_OBJECT_LOCK_ASSERT(m->object, MA_OWNED);
