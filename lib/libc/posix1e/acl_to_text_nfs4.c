@@ -246,6 +246,7 @@ _nfs4_acl_to_text_np(const acl_t aclp, ssize_t *len_p, int flags)
 
 		error = format_entry(str + off, size - off, entry, flags);
 		if (error) {
+			free(str);
 			errno = EINVAL;
 			return (NULL);
 		}
