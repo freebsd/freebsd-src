@@ -28,6 +28,7 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/stat.h>
+#include <sys/vtoc.h>
 
 #include <assert.h>
 #include <err.h>
@@ -59,13 +60,27 @@ static char autofill[] = "*";
 static char optional[] = "";
 static char flags[] = "C";
 
-static char bootcode_param[] = "bootcode";
-static char index_param[] = "index";
-static char partcode_param[] = "partcode";
+static const char const bootcode_param[] = "bootcode";
+static const char const index_param[] = "index";
+static const char const partcode_param[] = "partcode";
 
+static struct gclass *find_class(struct gmesh *, const char *);
+static struct ggeom * find_geom(struct gclass *, const char *);
+static const char *find_geomcfg(struct ggeom *, const char *);
+static const char *find_provcfg(struct gprovider *, const char *);
+static struct gprovider *find_provider(struct ggeom *,
+    unsigned long long);
+static const char *fmtsize(int64_t);
+static int gpart_autofill(struct gctl_req *);
+static int gpart_autofill_resize(struct gctl_req *);
 static void gpart_bootcode(struct gctl_req *, unsigned int);
+static void *gpart_bootfile_read(const char *, ssize_t *);
 static void gpart_issue(struct gctl_req *, unsigned int);
 static void gpart_show(struct gctl_req *, unsigned int);
+static void gpart_show_geom(struct ggeom *, const char *);
+static int gpart_show_hasopt(struct gctl_req *, const char *, const char *);
+static void gpart_write_partcode(struct ggeom *, int, void *, ssize_t);
+static void gpart_write_partcode_vtoc8(struct ggeom *, int, void *);
 
 struct g_command PUBSYM(class_commands)[] = {
 	{ "add", 0, gpart_issue, {
@@ -132,7 +147,7 @@ struct g_command PUBSYM(class_commands)[] = {
 		{ 'f', "flags", flags, G_TYPE_STRING },
 		G_OPT_SENTINEL },
 	  "geom", NULL
-        },
+	},
 	{ "resize", 0, gpart_issue, {
 		{ 's', "size", autofill, G_TYPE_ASCLBA },
 		{ 'i', index_param, NULL, G_TYPE_ASCNUM },
@@ -605,7 +620,7 @@ gpart_bootfile_read(const char *bootfile, ssize_t *size)
 		errx(EXIT_FAILURE, "%s: not a regular file", bootfile);
 	if (sb.st_size == 0)
 		errx(EXIT_FAILURE, "%s: empty file", bootfile);
-	if (*size > 0 && sb.st_size >= *size)
+	if (*size > 0 && sb.st_size > *size)
 		errx(EXIT_FAILURE, "%s: file too big (%zu limit)", bootfile,
 		    *size);
 
@@ -625,35 +640,14 @@ gpart_bootfile_read(const char *bootfile, ssize_t *size)
 }
 
 static void
-gpart_write_partcode(struct gctl_req *req, int idx, void *code, ssize_t size)
+gpart_write_partcode(struct ggeom *gp, int idx, void *code, ssize_t size)
 {
 	char dsf[128];
-	struct gmesh mesh;
-	struct gclass *classp;
-	struct ggeom *gp;
 	struct gprovider *pp;
 	const char *s;
 	char *buf;
 	off_t bsize;
-	int error, fd;
-
-	s = gctl_get_ascii(req, "class");
-	if (s == NULL)
-		abort();
-	error = geom_gettree(&mesh);
-	if (error != 0)
-		errc(EXIT_FAILURE, error, "Cannot get GEOM tree");
-	classp = find_class(&mesh, s);
-	if (classp == NULL) {
-		geom_deletetree(&mesh);
-		errx(EXIT_FAILURE, "Class %s not found.", s);
-	}
-	s = gctl_get_ascii(req, "geom");
-	if (s == NULL)
-		abort();
-	gp = find_geom(classp, s);
-	if (gp == NULL)
-		errx(EXIT_FAILURE, "No such geom: %s.", s);
+	int fd;
 
 	LIST_FOREACH(pp, &gp->lg_provider, lg_provider) {
 		s = find_provcfg(pp, "index");
@@ -690,18 +684,63 @@ gpart_write_partcode(struct gctl_req *req, int idx, void *code, ssize_t size)
 		close(fd);
 	} else
 		errx(EXIT_FAILURE, "invalid partition index");
+}
 
-	geom_deletetree(&mesh);
+static void
+gpart_write_partcode_vtoc8(struct ggeom *gp, int idx, void *code)
+{
+	char dsf[128];
+	struct gprovider *pp;
+	const char *s;
+	int installed, fd;
+
+	installed = 0;
+	LIST_FOREACH(pp, &gp->lg_provider, lg_provider) {
+		s = find_provcfg(pp, "index");
+		if (s == NULL)
+			continue;
+		if (idx != 0 && atoi(s) != idx)
+			continue;
+		snprintf(dsf, sizeof(dsf), "/dev/%s", pp->lg_name);
+		if (pp->lg_sectorsize != sizeof(struct vtoc8))
+			errx(EXIT_FAILURE, "%s: unexpected sector "
+			    "size (%d)\n", dsf, pp->lg_sectorsize);
+		fd = open(dsf, O_WRONLY);
+		if (fd == -1)
+			err(EXIT_FAILURE, "%s", dsf);
+		if (lseek(fd, VTOC_BOOTSIZE, SEEK_SET) != VTOC_BOOTSIZE)
+			continue;
+		/*
+		 * We ignore the first VTOC_BOOTSIZE bytes of boot code in
+		 * order to avoid overwriting the label.
+		 */
+		if (lseek(fd, sizeof(struct vtoc8), SEEK_SET) !=
+		    sizeof(struct vtoc8))
+			err(EXIT_FAILURE, "%s", dsf);
+		if (write(fd, (caddr_t)code + sizeof(struct vtoc8),
+		    VTOC_BOOTSIZE - sizeof(struct vtoc8)) != VTOC_BOOTSIZE -
+		    sizeof(struct vtoc8))
+			err(EXIT_FAILURE, "%s", dsf);
+		installed++;
+		close(fd);
+		if (idx != 0 && atoi(s) == idx)
+			break;
+	}
+	if (installed == 0)
+		errx(EXIT_FAILURE, "%s: no partitions", gp->lg_name);
 }
 
 static void
 gpart_bootcode(struct gctl_req *req, unsigned int fl)
 {
+	struct gmesh mesh;
+	struct gclass *classp;
+	struct ggeom *gp;
 	const char *s;
 	char *sp;
 	void *bootcode, *partcode;
 	size_t bootsize, partsize;
-	int error, idx;
+	int error, idx, vtoc8;
 
 	if (gctl_has_param(req, bootcode_param)) {
 		s = gctl_get_ascii(req, bootcode_param);
@@ -716,9 +755,31 @@ gpart_bootcode(struct gctl_req *req, unsigned int fl)
 		bootsize = 0;
 	}
 
+	s = gctl_get_ascii(req, "class");
+	if (s == NULL)
+		abort();
+	error = geom_gettree(&mesh);
+	if (error != 0)
+		errc(EXIT_FAILURE, error, "Cannot get GEOM tree");
+	classp = find_class(&mesh, s);
+	if (classp == NULL) {
+		geom_deletetree(&mesh);
+		errx(EXIT_FAILURE, "Class %s not found.", s);
+	}
+	s = gctl_get_ascii(req, "geom");
+	if (s == NULL)
+		abort();
+	gp = find_geom(classp, s);
+	if (gp == NULL)
+		errx(EXIT_FAILURE, "No such geom: %s.", s);
+	s = find_geomcfg(gp, "scheme");
+	vtoc8 = 0;
+	if (strcmp(s, "VTOC8") == 0)
+		vtoc8 = 1;
+
 	if (gctl_has_param(req, partcode_param)) {
 		s = gctl_get_ascii(req, partcode_param);
-		partsize = bootsize * 1024;
+		partsize = vtoc8 != 0 ? VTOC_BOOTSIZE : bootsize * 1024;
 		partcode = gpart_bootfile_read(s, &partsize);
 		error = gctl_delete_param(req, partcode_param);
 		if (error)
@@ -742,16 +803,20 @@ gpart_bootcode(struct gctl_req *req, unsigned int fl)
 		idx = 0;
 
 	if (partcode != NULL) {
-		if (idx == 0)
-			errx(EXIT_FAILURE, "missing -i option");
-		gpart_write_partcode(req, idx, partcode, partsize);
-	} else {
+		if (vtoc8 == 0) {
+			if (idx == 0)
+				errx(EXIT_FAILURE, "missing -i option");
+			gpart_write_partcode(gp, idx, partcode, partsize);
+		} else
+			gpart_write_partcode_vtoc8(gp, idx, partcode);
+	} else
 		if (bootcode == NULL)
 			errx(EXIT_FAILURE, "no -b nor -p");
-	}
 
 	if (bootcode != NULL)
 		gpart_issue(req, fl);
+
+	geom_deletetree(&mesh);
 }
 
 static void
