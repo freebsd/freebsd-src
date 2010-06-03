@@ -5,6 +5,11 @@ SHLIBDIR?= /lib
 
 .include <bsd.own.mk>
 
+# XXX: LLVM PR879 in ldexp.c
+.if ${MK_CLANG_IS_CC} != "no" && ${CC} == "cc" && ${MACHINE_ARCH} == "i386"
+CC=	gcc
+.endif
+
 # All library objects contain FreeBSD revision strings by default; they may be
 # excluded as a space-saving measure.  To produce a library that does
 # not contain these strings, add -DSTRIP_FBSDID (see <sys/cdefs.h>) to CFLAGS
