@@ -486,6 +486,14 @@ vm_page_flag_set(vm_page_t m, unsigned short bits)
 {
 
 	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
+	/*
+	 * For a managed page, the PG_WRITEABLE flag can be set only if
+	 * the page is VPO_BUSY.  Currently this flag is only set by
+	 * pmap_enter().
+	 */
+	KASSERT((bits & PG_WRITEABLE) == 0 ||
+	    (m->flags & (PG_UNMANAGED | PG_FICTITIOUS)) != 0 ||
+	    (m->oflags & VPO_BUSY) != 0, ("PG_WRITEABLE and !VPO_BUSY"));
 	m->flags |= bits;
 } 
 
