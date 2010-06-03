@@ -72,22 +72,25 @@ all of them.
 The
 .Dv IODEV_PIO
 is used by all the architectures in order to request that an I/O operation
-be performed. It takes a 'struct iodev_pio_req' argument
-that must be previously setup.
+be performed.
+It takes a 'struct iodev_pio_req' argument that must be previously setup.
 .Pp
 The
 .Fa access
-member specifies the type of operation requested. It may be:
+member specifies the type of operation requested.
+It may be:
 .Bl -tag -width IODEV_PIO_WRITE
 .It Dv IODEV_PIO_READ
-The operation is an "in" type. A value will be read from the specified port
+The operation is an "in" type.
+A value will be read from the specified port
 (retrieved from the
 .Fa port
 member) and the result will be stored in the
 .Fa val
 member.
 .It Dv IODEV_PIO_WRITE
-The operation is a "out" type. The value will be fetched from the
+The operation is a "out" type.
+The value will be fetched from the
 .Fa val
 member and will be written out to the specified port (defined as the
 .Fa port
@@ -105,13 +108,14 @@ the kernel enforces that only the super-user may open this device.
 .Sh LEGACY
 The
 .Pa /dev/io
-interface used to be very i386 specific and worked differently. The initial
-implementation, in fact, simply raised the
+interface used to be very i386 specific and worked differently.
+The initial implementation simply raised the
 .Em IOPL
 of the current thread when
 .Xr open 2
-was called on the file. This behaviour is retained in the current
-implementation as legacy support for both i386 and amd64 architectures.
+was called on the device.
+This behaviour is retained in the current implementation as legacy
+support for both i386 and amd64 architectures.
 .Sh SEE ALSO
 .Xr close 2 ,
 .Xr i386_get_ioperm 2 ,
