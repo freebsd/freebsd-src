@@ -74,6 +74,6 @@ CFLAGS+=-DFLAGS=${BOOT_BOOT0_FLAGS} \
 	-DTICKS=${BOOT_BOOT0_TICKS} \
 	-DCOMSPEED=${BOOT_BOOT0_COMCONSOLE_SPEED}
 
-LDFLAGS=-N -e start -Ttext ${BOOT_BOOT0_ORG} -Wl,-S,--oformat,binary
+LDFLAGS=-e start -Ttext ${BOOT_BOOT0_ORG} -Wl,-N,-S,--oformat,binary
 
 .include <bsd.prog.mk>
