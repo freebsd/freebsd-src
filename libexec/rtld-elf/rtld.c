@@ -1530,8 +1530,10 @@ load_object(const char *name, const Obj_Entry *refobj, int flags)
 	close(fd);
 	return obj;
     }
-    if (flags & RTLD_LO_NOLOAD)
+    if (flags & RTLD_LO_NOLOAD) {
+	free(path);
 	return (NULL);
+    }
 
     /* First use of this object, so we must map it in */
     obj = do_load_object(fd, name, path, &sb, flags);
