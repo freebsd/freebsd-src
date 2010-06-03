@@ -392,7 +392,6 @@ div_output(struct socket *so, struct mbuf *m, struct sockaddr_in *sin,
 		struct inpcb *inp;
 
 		dt->info |= IPFW_IS_DIVERT | IPFW_INFO_OUT;
-		INP_INFO_WLOCK(&V_divcbinfo);
 		inp = sotoinpcb(so);
 		INP_RLOCK(inp);
 		/*
@@ -403,7 +402,6 @@ div_output(struct socket *so, struct mbuf *m, struct sockaddr_in *sin,
 		     ((u_short)ntohs(ip->ip_len) > m->m_pkthdr.len)) {
 			error = EINVAL;
 			INP_RUNLOCK(inp);
-			INP_INFO_WUNLOCK(&V_divcbinfo);
 			m_freem(m);
 		} else {
 			/* Convert fields to host order for ip_output() */
@@ -444,7 +442,6 @@ div_output(struct socket *so, struct mbuf *m, struct sockaddr_in *sin,
 					error = ENOBUFS;
 			}
 			INP_RUNLOCK(inp);
-			INP_INFO_WUNLOCK(&V_divcbinfo);
 			if (error == ENOBUFS) {
 				m_freem(m);
 				return (error);
