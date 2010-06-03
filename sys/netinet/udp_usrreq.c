@@ -1439,7 +1439,7 @@ udp_attach(struct socket *so, int proto, struct thread *td)
 		return (error);
 	}
 
-	inp = (struct inpcb *)so->so_pcb;
+	inp = sotoinpcb(so);
 	inp->inp_vflag |= INP_IPV4;
 	inp->inp_ip_ttl = V_ip_defttl;
 
@@ -1462,17 +1462,10 @@ udp_set_kernel_tunneling(struct socket *so, udp_tun_func_t f)
 	struct inpcb *inp;
 	struct udpcb *up;
 
-	KASSERT(so->so_type == SOCK_DGRAM, ("udp_set_kernel_tunneling: !dgram"));
-	KASSERT(so->so_pcb != NULL, ("udp_set_kernel_tunneling: NULL inp"));
-	if (so->so_type != SOCK_DGRAM) {
-		/* Not UDP socket... sorry! */
-		return (ENOTSUP);
-	}
-	inp = (struct inpcb *)so->so_pcb;
-	if (inp == NULL) {
-		/* NULL INP? */
-		return (EINVAL);
-	}
+	KASSERT(so->so_type == SOCK_DGRAM,
+	    ("udp_set_kernel_tunneling: !dgram"));
+	inp = sotoinpcb(so);
+	KASSERT(inp != NULL, ("udp_set_kernel_tunneling: inp == NULL"));
 	INP_WLOCK(inp);
 	up = intoudpcb(inp);
 	if (up->u_tun_func != NULL) {
