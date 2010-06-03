@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 22, 2010
+.Dd June 3, 2010
 .Dt GPART 8
 .Os
 .Sh NAME
@@ -72,7 +72,10 @@ NEC PC-98 computers.
 The
 .Dv GEOM_PART_VTOC8
 option adds support for Sun's SMI VTOC8 label as
-found on UltraSPARC-based computers.
+found on computers based on
+.Tn SPARC64
+and
+.Tn UltraSPARC.
 .Pp
 Usage of the
 .Ns Nm
@@ -221,9 +224,15 @@ The
 .Fl p Ar partcode
 option specifies a file that contains the bootstrap code intended to be
 written to a partition.
+For the VTOC8 scheme, it is a 8192 byte file of which the last 7680 bytes
+are installed as bootstrap code.
 The partition is specified by the
 .Fl i Ar index
 option.
+For the VTOC8 scheme, if the
+.Fl i Ar index
+option is omitted, the bootstrap code is written to all sufficiently large
+partitions.
 The size of the file must be smaller than the size of the partition.
 .Pp
 Additional options include:
@@ -343,10 +352,12 @@ Resize a partition from geom
 .Ar geom
 and further identified by the
 .Fl i Ar index
-option. New partition size is expressed in logical block
-numbers and can be given by the 
+option.
+New partition size is expressed in logical block
+numbers and can be given by the
 .Fl s Ar size
-option. If
+option.
+If
 .Fl s
 option is ommited then new size is automatically calculated
 to maximum available from given geom
@@ -448,36 +459,36 @@ A
 partition dedicated to swap space.
 The scheme-specific types are
 .Qq Li "!FreeBSD-swap"
-for APM, and
+for APM,
 .Qq Li "!516e7cb5-6ecf-11d6-8ff8-00022d09712b"
-for GPT.
+for GPT, and tag 0x0901 for VTOC8.
 .It Cm freebsd-ufs
 A
 .Fx
 partition that contains a UFS or UFS2 file system.
 The scheme-specific types are
 .Qq Li "!FreeBSD-UFS"
-for APM, and
+for APM,
 .Qq Li "!516e7cb6-6ecf-11d6-8ff8-00022d09712b"
-for GPT.
+for GPT, and tag 0x0902 for VTOC8.
 .It Cm freebsd-vinum
 A
 .Fx
 partition that contains a Vinum volume.
 The scheme-specific types are
 .Qq Li "!FreeBSD-Vinum"
-for APM, and
+for APM,
 .Qq Li "!516e7cb8-6ecf-11d6-8ff8-00022d09712b"
-for GPT.
+for GPT, and tag 0x0903 for VTOC8.
 .It Cm freebsd-zfs
 A
 .Fx
 partition that contains a ZFS volume.
 The scheme-specific types are
 .Qq Li "!FreeBSD-ZFS"
-for APM, and
+for APM,
 .Qq Li "!516e7cba-6ecf-11d6-8ff8-00022d09712b"
-for GPT.
+for GPT, and 0x0904 for VTOC8.
 .It Cm mbr
 A partition that is sub-partitioned by a master boot record (MBR).
 This type is known as
@@ -543,9 +554,27 @@ future need (e.g.\& from a ZFS partition).
 .Pp
 Create a 512MB-sized
 .Cm freebsd-ufs
-partition that would contain UFS where the system boot from.
+partition that would contain UFS where the system boots from.
 .Bd -literal -offset indent
 /sbin/gpart add -b 162 -s 1048576 -t freebsd-ufs ad0
+.Ed
+.Pp
+Create VTOC8 scheme on
+.Pa da0 .
+.Bd -literal -offset indent
+/sbin/gpart create -s VTOC8 da0
+.Ed
+.Pp
+Create a 512MB-sized
+.Cm freebsd-ufs
+partition that would contain UFS where the system boots from.
+.Bd -literal -offset indent
+/sbin/gpart add -b 0 -s 1048576 -t freebsd-ufs da0
+.Ed
+.Pp
+After having created all required partitions, embed bootstrap code into them.
+.Bd -literal -offset indent
+/sbin/gpart bootcode -p /boot/boot1 da0
 .Ed
 .Sh SEE ALSO
 .Xr geom 4 ,
