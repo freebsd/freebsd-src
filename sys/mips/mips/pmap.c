@@ -967,19 +967,23 @@ pmap_ptpgzone_allocf(uma_zone_t zone, int bytes, u_int8_t *flags, int wait)
 {
 	vm_page_t m;
 	vm_paddr_t paddr;
+	int tries;
 	
 	KASSERT(bytes == PAGE_SIZE,
 		("pmap_ptpgzone_allocf: invalid allocation size %d", bytes));
 
 	*flags = UMA_SLAB_PRIV;
-	for (;;) {
-		m = vm_phys_alloc_contig(1, 0, MIPS_KSEG0_LARGEST_PHYS,
-		    PAGE_SIZE, PAGE_SIZE);
-		if (m != NULL)
-			break;
-		if ((wait & M_WAITOK) == 0)
+	tries = 0;
+retry:
+	m = vm_phys_alloc_contig(1, 0, MIPS_KSEG0_LARGEST_PHYS,
+	    PAGE_SIZE, PAGE_SIZE);
+	if (m == NULL) {
+                if (tries < ((wait & M_NOWAIT) != 0 ? 1 : 3)) {
+			vm_contig_grow_cache(tries, 0, MIPS_KSEG0_LARGEST_PHYS);
+			tries++;
+			goto retry;
+		} else
 			return (NULL);
-		VM_WAIT;
 	}
 
 	paddr = VM_PAGE_TO_PHYS(m);
