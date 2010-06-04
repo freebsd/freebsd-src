@@ -3,6 +3,6 @@
 # A typo'ed directive.
 #
 
-.undef foo
+.uudef foo
 
 all:
