@@ -1,31 +1,25 @@
 # $FreeBSD$
 
-OSTYPE=$(shell uname)
+PROG=	fstest
+NO_MAN=
 
-ifeq "${OSTYPE}" "FreeBSD"
-CFLAGS += -D__OS_FreeBSD__
-CFLAGS += -DHAS_LCHMOD -DHAS_CHFLAGS -DHAS_LCHFLAGS -DHAS_FREEBSD_ACL
-endif
+OSTYPE!= uname
 
-ifeq "${OSTYPE}" "SunOS"
-CFLAGS += -D__OS_Solaris__
-CFLAGS += -DHAS_TRUNCATE64 -DHAS_STAT64
-endif
+.if ${OSTYPE} == "FreeBSD"
+CFLAGS+= -D__OS_FreeBSD__
+CFLAGS+= -DHAS_LCHMOD -DHAS_CHFLAGS -DHAS_LCHFLAGS -DHAS_FREEBSD_ACL
 
-ifeq "${OSTYPE}" "Darwin"
-CFLAGS += -D__OS_Darwin__
-CFLAGS += -DHAS_LCHMOD -DHAS_CHFLAGS -DHAS_LCHFLAGS
-endif
+.elif ${OSTYPE} == "SunOS"
+CFLAGS+= -D__OS_Solaris__
+CFLAGS+= -DHAS_TRUNCATE64 -DHAS_STAT64
 
-ifeq "${OSTYPE}" "Linux"
-CFLAGS += -D__OS_Linux__
-CFLAGS += -D_GNU_SOURCE
-endif
+.elif ${OSTYPE} == "Darwin"
+CFLAGS+= -D__OS_Darwin__
+CFLAGS+= -DHAS_LCHMOD -DHAS_CHFLAGS -DHAS_LCHFLAGS
 
-all:	fstest
+.elif ${OSTYPE} == "Linux"
+CFLAGS+= -D__OS_Linux__
+CFLAGS+= -D_GNU_SOURCE
+.endif
 
-fstest:	fstest.c
-	gcc -Wall ${CFLAGS} fstest.c -o fstest
-
-clean:
-	rm -f fstest
+.include <bsd.prog.mk>
