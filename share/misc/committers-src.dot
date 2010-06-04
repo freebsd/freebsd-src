@@ -142,6 +142,7 @@ markus [label="Markus Brueffer\nmarkus@FreeBSD.org\n2006/06/01"]
 matteo [label="Matteo Riondato\nmatteo@FreeBSD.org\n2006/01/18"]
 mav [label="Alexander Motin\nmav@FreeBSD.org\n2007/04/12"]
 maxim [label="Maxim Konovalov\nmaxim@FreeBSD.org\n2002/02/07"]
+mdf [label="Matthew Fleming\nmdf@FreeBSD.org\n2010/06/04"]
 mjacob [label="Matt Jacob\nmjacob@FreeBSD.org\n1997/08/13"]
 mlaier [label="Max Laier\nmlaier@FreeBSD.org\n2004/02/10"]
 mr [label="Michael Reifenberger\nmr@FreeBSD.org\n2001/09/30"]
@@ -485,5 +486,7 @@ ume -> tshiozak
 wes -> scf
 
 wollman -> gad
+
+zml -> mdf
 
 }
