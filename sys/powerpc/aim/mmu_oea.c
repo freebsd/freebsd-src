@@ -1140,7 +1140,8 @@ moea_enter_locked(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 
 	if (prot & VM_PROT_WRITE) {
 		pte_lo |= PTE_BW;
-		if (pmap_bootstrapped)
+		if (pmap_bootstrapped &&
+		    (m->flags & (PG_FICTITIOUS | PG_UNMANAGED)) == 0)
 			vm_page_flag_set(m, PG_WRITEABLE);
 	} else
 		pte_lo |= PTE_BR;
