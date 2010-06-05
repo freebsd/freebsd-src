@@ -4139,7 +4139,9 @@ isp_kthread(void *arg)
 		 */
 		if (slp == 0 && fc->hysteresis) {
 			isp_prt(isp, ISP_LOGSANCFG|ISP_LOGDEBUG0, "%s: Chan %d sleep hysteresis ticks %d", __func__, chan, fc->hysteresis * hz);
-			(void) msleep(&isp_fabric_hysteresis, &isp->isp_osinfo.lock, PRIBIO, "ispT", (fc->hysteresis * hz));
+			mtx_unlock(&isp->isp_osinfo.lock);
+			pause("ispt", fc->hysteresis * hz);
+			mtx_lock(&isp->isp_osinfo.lock);
 		}
 	}
 	mtx_unlock(&isp->isp_osinfo.lock);
