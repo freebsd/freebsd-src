@@ -1957,6 +1957,7 @@ pmcstat_keypress_log(void)
 	case 'q':
 		wprintw(w, "exiting...");
 		ret = 1;
+		break;
 	default:
 		if (plugins[args.pa_plugin].pl_topkeypress != NULL)
 			if (plugins[args.pa_plugin].pl_topkeypress(c, w))
