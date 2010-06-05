@@ -201,17 +201,19 @@ tcpp_server_worker(int workernum)
 	int ncpus;
 	ssize_t len;
 
-	len = sizeof(ncpus);
-	if (sysctlbyname(SYSCTLNAME_CPUS, &ncpus, &len, NULL, 0) < 0)
-		err(-1, "sysctlbyname: %s", SYSCTLNAME_CPUS);
-	if (len != sizeof(ncpus))
-		errx(-1, "sysctlbyname: %s: len %jd", SYSCTLNAME_CPUS,
-		    (intmax_t)len);
+	if (Pflag) {
+		len = sizeof(ncpus);
+		if (sysctlbyname(SYSCTLNAME_CPUS, &ncpus, &len, NULL, 0) < 0)
+			err(-1, "sysctlbyname: %s", SYSCTLNAME_CPUS);
+		if (len != sizeof(ncpus))
+			errx(-1, "sysctlbyname: %s: len %jd", SYSCTLNAME_CPUS,
+			    (intmax_t)len);
 
-	CPU_ZERO(&mask);
-	CPU_SET(workernum % ncpus, &mask);
-	if (sched_setaffinity(0, CPU_SETSIZE, &mask) < 0)
-		err(-1, "sched_setaffinity");
+		CPU_ZERO(&mask);
+		CPU_SET(workernum % ncpus, &mask);
+		if (sched_setaffinity(0, CPU_SETSIZE, &mask) < 0)
+			err(-1, "sched_setaffinity");
+	}
 #endif
 	setproctitle("tcpp_server %d", workernum);
 
