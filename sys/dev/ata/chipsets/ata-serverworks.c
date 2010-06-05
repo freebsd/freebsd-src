@@ -221,7 +221,7 @@ ata_serverworks_ch_attach(device_t dev)
 #ifdef __powerpc__
     ch->hw.status = ata_serverworks_status;
 
-    /* Make sure that our interrupt is edge triggered */
+    /* Make sure that our interrupt is level low */
     powerpc_config_intr(bus_get_resource_start(device_get_parent(dev),
 	SYS_RES_IRQ, 0), INTR_TRIGGER_LEVEL, INTR_POLARITY_LOW);
 #endif
