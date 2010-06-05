@@ -1210,6 +1210,12 @@ ata_scan_bus(struct cam_periph *periph, union ccb *request_ccb)
 		    !(work_ccb->cpi.hba_misc & PIM_NOBUSRESET) &&
 		    !timevalisset(&request_ccb->ccb_h.path->bus->last_reset)) {
 			reset_ccb = xpt_alloc_ccb_nowait();
+			if (reset_ccb == NULL) {
+				request_ccb->ccb_h.status = CAM_RESRC_UNAVAIL;
+				xpt_free_ccb(work_ccb);
+				xpt_done(request_ccb);
+				return;
+			}
 			xpt_setup_ccb(&reset_ccb->ccb_h, request_ccb->ccb_h.path,
 			      CAM_PRIORITY_NONE);
 			reset_ccb->ccb_h.func_code = XPT_RESET_BUS;
@@ -1229,6 +1235,7 @@ ata_scan_bus(struct cam_periph *periph, union ccb *request_ccb)
 		    malloc(sizeof(ata_scan_bus_info), M_CAMXPT, M_NOWAIT);
 		if (scan_info == NULL) {
 			request_ccb->ccb_h.status = CAM_RESRC_UNAVAIL;
+			xpt_free_ccb(work_ccb);
 			xpt_done(request_ccb);
 			return;
 		}
