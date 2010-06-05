@@ -3039,9 +3039,15 @@ isptargnotify(ispsoftc_t *isp, union ccb *iccb, struct ccb_immediate_notify *ino
 static void
 isptargstart(struct cam_periph *periph, union ccb *iccb)
 {
-	const uint8_t niliqd[SHORT_INQUIRY_LENGTH] = { 0x7f };
+	const uint8_t niliqd[SHORT_INQUIRY_LENGTH] = {
+		0x7f, 0x0, 0x5, 0x2, 32, 0, 0, 0x32,
+		'F', 'R', 'E', 'E', 'B', 'S', 'D', ' ',
+		'S', 'C', 'S', 'I', ' ', 'N', 'U', 'L',
+		'L', ' ', 'D', 'E', 'V', 'I', 'C', 'E',
+		'0', '0', '0', '1'
+	};
 	const uint8_t iqd[SHORT_INQUIRY_LENGTH] = {
-		0, 0x0, 0x2, 0x2, 32, 0, 0, 0x32,
+		0, 0x0, 0x5, 0x2, 32, 0, 0, 0x32,
 		'F', 'R', 'E', 'E', 'B', 'S', 'D', ' ',
 		'S', 'C', 'S', 'I', ' ', 'M', 'E', 'M',
 		'O', 'R', 'Y', ' ', 'D', 'I', 'S', 'K',
