@@ -40,7 +40,7 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 8.x IS SLOW ON IA64 OR SUN4V:
 	The meanings correspond to the relevant IPv4 variables.
 
 20100417:
-	COMPAT_IA32 has been added as an alias for COMPAT_FREEBDS32.  A new
+	COMPAT_IA32 has been added as an alias for COMPAT_FREEBSD32.  A new
 	version of config(8) is required.  The error message when you hit this
 	condition is confusing (COMPAT_FREEBSD32 duplicate option), when it
 	should really say "your config is too old to compile this new kernel."
