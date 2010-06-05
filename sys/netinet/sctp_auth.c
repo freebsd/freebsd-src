@@ -895,9 +895,9 @@ static inline int
 sctp_get_hmac_block_len(uint16_t hmac_algo)
 {
 	switch (hmac_algo) {
-		case SCTP_AUTH_HMAC_ID_SHA1:
+	case SCTP_AUTH_HMAC_ID_SHA1:
 #ifdef HAVE_SHA224
-		case SCTP_AUTH_HMAC_ID_SHA224:
+	case SCTP_AUTH_HMAC_ID_SHA224:
 #endif
 		return (64);
 #ifdef HAVE_SHA2
@@ -918,7 +918,7 @@ static void
 sctp_hmac_init(uint16_t hmac_algo, sctp_hash_context_t * ctx)
 {
 	switch (hmac_algo) {
-		case SCTP_AUTH_HMAC_ID_SHA1:
+	case SCTP_AUTH_HMAC_ID_SHA1:
 		SHA1_Init(&ctx->sha1);
 		break;
 #ifdef HAVE_SHA224
@@ -948,7 +948,7 @@ sctp_hmac_update(uint16_t hmac_algo, sctp_hash_context_t * ctx,
     uint8_t * text, uint32_t textlen)
 {
 	switch (hmac_algo) {
-		case SCTP_AUTH_HMAC_ID_SHA1:
+	case SCTP_AUTH_HMAC_ID_SHA1:
 		SHA1_Update(&ctx->sha1, text, textlen);
 		break;
 #ifdef HAVE_SHA224
@@ -978,7 +978,7 @@ sctp_hmac_final(uint16_t hmac_algo, sctp_hash_context_t * ctx,
     uint8_t * digest)
 {
 	switch (hmac_algo) {
-		case SCTP_AUTH_HMAC_ID_SHA1:
+	case SCTP_AUTH_HMAC_ID_SHA1:
 		SHA1_Final(digest, &ctx->sha1);
 		break;
 #ifdef HAVE_SHA224
