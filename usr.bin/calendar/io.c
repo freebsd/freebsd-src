@@ -226,7 +226,8 @@ opencal(void)
 			char *home = getenv("HOME");
 			if (home == NULL || *home == '\0')
 				errx(1, "cannot get home directory");
-			chdir(home);
+			if (chdir(home) != 0)
+				errx(1, "cannot enter home directory");
 			for (found = i = 0; i < sizeof(calendarHomes) /
 			    sizeof(calendarHomes[0]); i++)
 				if (chdir(calendarHomes[i]) == 0 &&
