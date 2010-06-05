@@ -140,7 +140,6 @@ sctp_startup_iterator(void)
 	    SCTP_KTRHEAD_NAME);
 }
 
-
 #ifdef INET6
 
 void
