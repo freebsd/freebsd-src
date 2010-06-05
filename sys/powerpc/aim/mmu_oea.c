@@ -1786,7 +1786,7 @@ moea_remove_all(mmu_t mmu, vm_page_t m)
 		PMAP_UNLOCK(pmap);
 	}
 	if ((m->flags & PG_WRITEABLE) && moea_is_modified(mmu, m)) {
-		moea_attr_clear(m, LPTE_CHG);
+		moea_attr_clear(m, PTE_CHG);
 		vm_page_dirty(m);
 	}
 	vm_page_flag_clear(m, PG_WRITEABLE);
