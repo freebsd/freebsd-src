@@ -896,10 +896,12 @@ pmcpl_ct_node_printchild(struct pmcpl_ct_node *ct)
 			/* Call address, line, sample. */
 			addr = ct->pct_image->pi_vaddr + ct->pct_func;
 			line = 0;
-			pmcstat_image_addr2line(ct->pct_image, addr, sourcefile,
+			if (pmcstat_image_addr2line(ct->pct_image, addr, sourcefile,
 			    sizeof(sourcefile), &line,
-			    funcname, sizeof(funcname));
-			fprintf(args.pa_graphfile, "%p %u", (void *)addr, line);
+			    funcname, sizeof(funcname)))
+				fprintf(args.pa_graphfile, "%p %u", (void *)addr, line);
+			else
+				fprintf(args.pa_graphfile, "* *");
 		}
 		else
 			fprintf(args.pa_graphfile, "* *");
