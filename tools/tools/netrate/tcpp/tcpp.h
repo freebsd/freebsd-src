@@ -31,7 +31,7 @@
 
 extern struct sockaddr_in localipbase, remoteip;
 extern int cflag, lflag, mflag, pflag, sflag, tflag;
-extern int Cflag, Iflag, Mflag, Tflag;
+extern int Cflag, Iflag, Mflag, Pflag, Tflag;
 extern uint64_t bflag;
 extern u_short rflag;
 

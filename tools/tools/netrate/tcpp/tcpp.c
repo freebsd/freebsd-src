@@ -51,7 +51,7 @@
 
 struct sockaddr_in remoteip; 		/* Base target address. */
 struct sockaddr_in localipbase;		/* Base local address, if -l. */
-int cflag, lflag, mflag, pflag, sflag, tflag, Cflag, Mflag, Tflag;
+int cflag, lflag, mflag, pflag, sflag, tflag, Cflag, Mflag, Pflag, Tflag;
 uint64_t bflag;
 u_short rflag;
 
@@ -61,24 +61,27 @@ usage(void)
 
 	fprintf(stderr, "client: tcpp"
 	    " -c remoteIP"
-	    " [-CT]"
+	    " [-CPT]"
 	    " [-M localIPcount]"
 	    " [-l localIPbase]"
+	    "\n\t"
 	    " [-b bytespertcp]"
 	    " [-m maxtcpsatonce]"
-	    "\n"
-	    "\t"
 	    " [-p procs]"
 	    " [-t tcpsperproc]"
+	    "\n"
+	    "\t"
 	    " [-r baseport]"
 	    "\n");
 
 	fprintf(stderr, "server: tcpp"
 	    " -s"
-	    " [-T]"
+	    " [-PT]"
 	    " [-l localIPbase]"
 	    " [-m maxtcpsatonce]"
 	    " [-p procs]"
+	    "\n"
+	    "\t"
 	    " [-r baseport]"
 	    "\n");
 	exit(EX_USAGE);
@@ -109,7 +112,7 @@ main(int argc, char *argv[])
 	rflag = BASEPORT_DEFAULT;
 	tflag = TCPS_DEFAULT;
 	Mflag = 1;
-	while ((ch = getopt(argc, argv, "b:c:l:m:p:r:st:CM:T")) != -1) {
+	while ((ch = getopt(argc, argv, "b:c:l:m:p:r:st:CM:PT")) != -1) {
 		switch (ch) {
 		case 'b':
 			ll = strtoll(optarg, &dummy, 10);
@@ -172,6 +175,14 @@ main(int argc, char *argv[])
 				usage();
 			Mflag = ll;
 			break;
+
+		case 'P':
+#if defined(CPU_SETSIZE) && 0
+			Pflag++;
+			break;
+#else
+			errx(EX_USAGE, "-P current unsupported");
+#endif
 
 		case 'T':
 			Tflag++;
