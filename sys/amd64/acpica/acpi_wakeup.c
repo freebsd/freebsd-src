@@ -245,7 +245,7 @@ acpi_sleep_machdep(struct acpi_softc *sc, int state)
 	cr3 = rcr3();
 	load_cr3(KPML4phys);
 
-	stopfpu = &stopxpcbs[0]->xpcb_pcb.pcb_save;
+	stopfpu = stopxpcbs[0]->xpcb_pcb.pcb_save;
 	if (acpi_savecpu(stopxpcbs[0])) {
 		fpugetregs(curthread, stopfpu);
 
