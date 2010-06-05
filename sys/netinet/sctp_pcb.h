@@ -621,5 +621,11 @@ sctp_initiate_iterator(inp_func inpf,
     struct sctp_inpcb *,
     uint8_t co_off);
 
+#ifdef INVARIANTS
+void
+     sctp_validate_no_locks(struct sctp_inpcb *inp);
+
+#endif
+
 #endif				/* _KERNEL */
 #endif				/* !__sctp_pcb_h__ */
