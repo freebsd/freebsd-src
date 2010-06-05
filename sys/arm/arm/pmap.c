@@ -3412,7 +3412,8 @@ do_l2b_alloc:
 	
 	if (prot & VM_PROT_WRITE) {
 		npte |= L2_S_PROT_W;
-		if (m != NULL)
+		if (m != NULL &&
+		    (m->flags & (PG_FICTITIOUS | PG_UNMANAGED)) == 0)
 			vm_page_flag_set(m, PG_WRITEABLE);
 	}
 	npte |= pte_l2_s_cache_mode;
