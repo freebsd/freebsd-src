@@ -141,12 +141,12 @@ setnsequences(char *seq)
 	for (i = 0; i < 5; i++) {
 		nsequences[i].name = p;
 		if ((p = strchr(p, ' ')) == NULL) {
+			/* Oh oh there is something wrong. Erase! Erase! */
 			for (i = 0; i < 5; i++) {
 				nsequences[i].name = NULL;
 				nsequences[i].len = 0;
-				return;
 			}
-			
+			return;
 		}
 		*p = '\0';
 		p++;
