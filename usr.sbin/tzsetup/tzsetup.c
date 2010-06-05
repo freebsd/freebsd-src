@@ -564,7 +564,8 @@ install_zoneinfo_file(const char *zoneinfo_file)
 			}
 
 			while ((len = read(fd1, buf, sizeof(buf))) > 0)
-				len = write(fd2, buf, len);
+				if ((len = write(fd2, buf, len)) < 0)
+					break;
 
 			if (len == -1) {
 				snprintf(title, sizeof(title), "Error");
