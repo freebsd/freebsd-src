@@ -1727,6 +1727,7 @@ mvs_issue_read_log(device_t dev)
 	ataio = &ccb->ataio;
 	ataio->data_ptr = malloc(512, M_MVS, M_NOWAIT);
 	if (ataio->data_ptr == NULL) {
+		xpt_free_ccb(ccb);
 		device_printf(dev, "Unable allocate memory for READ LOG command");
 		return; /* XXX */
 	}
