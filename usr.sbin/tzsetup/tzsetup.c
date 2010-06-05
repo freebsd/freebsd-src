@@ -358,7 +358,7 @@ read_zones(void)
 		if (strlen(tlc) != 2)
 			errx(1, "%s:%d: invalid country code `%s'",
 			    path_zonetab, lineno, tlc);
-		coord = strsep(&line, "\t");
+		coord = strsep(&line, "\t");	 /* Unused */
 		file = strsep(&line, "\t");
 		p = strchr(file, '/');
 		if (p == 0)
