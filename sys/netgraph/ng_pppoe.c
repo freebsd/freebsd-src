@@ -1281,7 +1281,7 @@ ng_pppoe_rcvdata_ether(hook_p hook, item_p item)
 {
 	node_p			node = NG_HOOK_NODE(hook);
 	const priv_p		privp = NG_NODE_PRIVATE(node);
-	sessp			sp = NG_HOOK_PRIVATE(hook);
+	sessp			sp;
 	const struct pppoe_tag	*utag = NULL, *tag = NULL;
 	const struct pppoe_full_hdr *wh;
 	const struct pppoe_hdr	*ph;
