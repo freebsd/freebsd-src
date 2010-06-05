@@ -107,8 +107,10 @@ cal(void)
 	tm.tm_wday = 0;
 
 	count = 0;
-	if ((fp = opencal()) == NULL)
+	if ((fp = opencal()) == NULL) {
+		free(extradata);
 		return;
+	}
 	while (fgets(buf, sizeof(buf), stdin) != NULL) {
 		if ((pp = strchr(buf, '\n')) != NULL)
 			*pp = '\0';
@@ -203,6 +205,7 @@ cal(void)
 
 	event_print_all(fp);
 	closecal(fp);
+	free(extradata);
 }
 
 FILE *
