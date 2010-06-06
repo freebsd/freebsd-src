@@ -564,6 +564,7 @@ struct ata_channel {
 #define         ATA_CHECKS_CABLE	0x20
 #define         ATA_NO_ATAPI_DMA	0x40
 #define         ATA_SATA		0x80
+#define         ATA_DMA_BEFORE_CMD	0x100
 
     int				pm_level;	/* power management level */
     int                         devices;        /* what is present */
