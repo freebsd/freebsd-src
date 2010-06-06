@@ -1898,7 +1898,7 @@ sctp_timeout_handler(void *t)
 		SCTP_INP_DECR_REF(inp);
 		sctp_timer_stop(SCTP_TIMER_TYPE_INPKILL, inp, NULL, NULL, SCTP_FROM_SCTPUTIL + SCTP_LOC_3);
 		sctp_inpcb_free(inp, SCTP_FREE_SHOULD_USE_ABORT,
-		    SCTP_CALLED_DIRECTLY_NOCMPSET);
+		    SCTP_CALLED_FROM_INPKILL_TIMER);
 		inp = NULL;
 		goto out_no_decr;
 	default:

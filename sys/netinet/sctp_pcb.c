@@ -3423,7 +3423,9 @@ sctp_inpcb_free(struct sctp_inpcb *inp, int immediate, int from)
 #endif
 		return;
 	}
-	if ((inp->refcount) || (inp->sctp_flags & SCTP_PCB_FLAGS_CLOSE_IP)) {
+	if ((inp->refcount) ||
+	    (inp->sctp_flags & SCTP_PCB_FLAGS_CLOSE_IP) ||
+	    (from != SCTP_CALLED_FROM_INPKILL_TIMER)) {
 		(void)SCTP_OS_TIMER_STOP(&inp->sctp_ep.signature_change.timer);
 		sctp_timer_start(SCTP_TIMER_TYPE_INPKILL, inp, NULL, NULL);
 		SCTP_INP_WUNLOCK(inp);
