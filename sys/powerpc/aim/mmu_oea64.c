@@ -1249,7 +1249,8 @@ moea64_enter_locked(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 
 	if (prot & VM_PROT_WRITE) {
 		pte_lo |= LPTE_BW;
-		if (pmap_bootstrapped)
+		if (pmap_bootstrapped &&
+		    (m->flags & (PG_FICTITIOUS | PG_UNMANAGED)) == 0)
 			vm_page_flag_set(m, PG_WRITEABLE);
 	} else
 		pte_lo |= LPTE_BR;
@@ -1330,12 +1331,14 @@ moea64_enter_object(mmu_t mmu, pmap_t pm, vm_offset_t start, vm_offset_t end,
 
 	psize = atop(end - start);
 	m = m_start;
+	vm_page_lock_queues();
 	PMAP_LOCK(pm);
 	while (m != NULL && (diff = m->pindex - m_start->pindex) < psize) {
 		moea64_enter_locked(pm, start + ptoa(diff), m, prot &
 		    (VM_PROT_READ | VM_PROT_EXECUTE), FALSE);
 		m = TAILQ_NEXT(m, listq);
 	}
+	vm_page_unlock_queues();
 	PMAP_UNLOCK(pm);
 }
 
@@ -1477,15 +1480,14 @@ boolean_t
 moea64_is_referenced(mmu_t mmu, vm_page_t m)
 {
 
-	if ((m->flags & (PG_FICTITIOUS | PG_UNMANAGED)) != 0)
-		return (FALSE);
+	KASSERT((m->flags & (PG_FICTITIOUS | PG_UNMANAGED)) == 0,
+	    ("moea64_is_referenced: page %p is not managed", m));
 	return (moea64_query_bit(m, PTE_REF));
 }
 
 boolean_t
 moea64_is_modified(mmu_t mmu, vm_page_t m)
 {
-	boolean_t rv;
 
 	KASSERT((m->flags & (PG_FICTITIOUS | PG_UNMANAGED)) == 0,
 	    ("moea64_is_modified: page %p is not managed", m));
@@ -1499,10 +1501,7 @@ moea64_is_modified(mmu_t mmu, vm_page_t m)
 	if ((m->oflags & VPO_BUSY) == 0 &&
 	    (m->flags & PG_WRITEABLE) == 0)
 		return (FALSE);
-	vm_page_lock_queues();
-	rv = moea64_query_bit(m, LPTE_CHG);
-	vm_page_unlock_queues();
-	return (rv);
+	return (moea64_query_bit(m, LPTE_CHG));
 }
 
 void
@@ -2394,7 +2393,7 @@ moea64_query_bit(vm_page_t m, u_int64_t ptebit)
 	if (moea64_attr_fetch(m) & ptebit)
 		return (TRUE);
 
-	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
+	vm_page_lock_queues();
 
 	LIST_FOREACH(pvo, vm_page_to_pvoh(m), pvo_vlink) {
 		MOEA_PVO_CHECK(pvo);	/* sanity check */
@@ -2406,6 +2405,7 @@ moea64_query_bit(vm_page_t m, u_int64_t ptebit)
 		if (pvo->pvo_pte.lpte.pte_lo & ptebit) {
 			moea64_attr_save(m, ptebit);
 			MOEA_PVO_CHECK(pvo);	/* sanity check */
+			vm_page_unlock_queues();
 			return (TRUE);
 		}
 	}
@@ -2433,12 +2433,14 @@ moea64_query_bit(vm_page_t m, u_int64_t ptebit)
 
 				moea64_attr_save(m, ptebit);
 				MOEA_PVO_CHECK(pvo);	/* sanity check */
+				vm_page_unlock_queues();
 				return (TRUE);
 			}
 		}
 		UNLOCK_TABLE();
 	}
 
+	vm_page_unlock_queues();
 	return (FALSE);
 }
 

@@ -9,5 +9,10 @@ CLEANFILES+=	${_FIRM}
 
 FIRMWS=	${_FIRM}:${KMOD}
 
+#
+# Note that a license ack is not needed for iwn.
+#
+#FIRMWARE_LICENSE=
+
 ${_FIRM}: ${.CURDIR}/../../../contrib/dev/iwn/${_FIRM}.uu
 	uudecode -p $? > ${.TARGET}

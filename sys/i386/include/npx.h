@@ -143,6 +143,15 @@ union	savefpu {
 
 #define	IRQ_NPX		13
 
+struct fpu_kern_ctx {
+	union savefpu hwstate;
+	union savefpu *prev;
+	uint32_t flags;
+};
+#define	FPU_KERN_CTX_NPXINITDONE 0x01
+
+#define	PCB_USER_FPU(pcb) (((pcb)->pcb_flags & PCB_KERNNPX) == 0)
+
 /* full reset on some systems, NOP on others */
 #define npx_full_reset() outb(IO_NPX + 1, 0)
 
@@ -151,10 +160,22 @@ void	npxdrop(void);
 void	npxexit(struct thread *td);
 int	npxformat(void);
 int	npxgetregs(struct thread *td, union savefpu *addr);
+int	npxgetuserregs(struct thread *td, union savefpu *addr);
 void	npxinit(void);
 void	npxsave(union savefpu *addr);
 void	npxsetregs(struct thread *td, union savefpu *addr);
+void	npxsetuserregs(struct thread *td, union savefpu *addr);
 int	npxtrap(void);
+int	fpu_kern_enter(struct thread *td, struct fpu_kern_ctx *ctx,
+	    u_int flags);
+int	fpu_kern_leave(struct thread *td, struct fpu_kern_ctx *ctx);
+int	fpu_kern_thread(u_int flags);
+int	is_fpu_kern_thread(u_int flags);
+
+/*
+ * Flags for fpu_kern_enter() and fpu_kern_thread().
+ */
+#define	FPU_KERN_NORMAL	0x0000
 
 #endif
 

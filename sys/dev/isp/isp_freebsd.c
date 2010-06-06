@@ -284,7 +284,7 @@ isp_detach(ispsoftc_t *isp)
 		config_intrhook_disestablish(&isp->isp_osinfo.ehook);
 		isp->isp_osinfo.ehook_active = 0;
 	}
-	if (isp->isp_osinfo.devq == NULL) {
+	if (isp->isp_osinfo.devq != NULL) {
 		cam_simq_free(isp->isp_osinfo.devq);
 		isp->isp_osinfo.devq = NULL;
 	}
@@ -1910,7 +1910,7 @@ isp_handle_platform_atio2(ispsoftc_t *isp, at2_entry_t *aep)
 	tstate_t *tptr;
 	struct ccb_accept_tio *atiop;
 	uint16_t nphdl;
-	atio_private_data_t *atp = NULL;
+	atio_private_data_t *atp;
 	inot_private_data_t *ntp;
 
 	/*
@@ -2063,9 +2063,6 @@ isp_handle_platform_atio2(ispsoftc_t *isp, at2_entry_t *aep)
 	rls_lun_statep(isp, tptr);
 	return;
 noresrc:
-	if (atp) {
-		isp_put_atpd(isp, tptr, atp);
-	}
 	ntp = isp_get_ntpd(isp, tptr);
 	if (ntp == NULL) {
 		rls_lun_statep(isp, tptr);
@@ -2500,7 +2497,7 @@ isp_handle_platform_notify_fc(ispsoftc_t *isp, in_fcentry_t *inp)
 			lun = inp->in_lun;
 		}
 		if (ISP_CAP_2KLOGIN(isp)) {
-			loopid = ((in_fcentry_e_t *)inot)->in_iid;
+			loopid = ((in_fcentry_e_t *)inp)->in_iid;
 		} else {
 			loopid = inp->in_iid;
 		}
@@ -3042,9 +3039,15 @@ isptargnotify(ispsoftc_t *isp, union ccb *iccb, struct ccb_immediate_notify *ino
 static void
 isptargstart(struct cam_periph *periph, union ccb *iccb)
 {
-	const uint8_t niliqd[SHORT_INQUIRY_LENGTH] = { 0x7f };
+	const uint8_t niliqd[SHORT_INQUIRY_LENGTH] = {
+		0x7f, 0x0, 0x5, 0x2, 32, 0, 0, 0x32,
+		'F', 'R', 'E', 'E', 'B', 'S', 'D', ' ',
+		'S', 'C', 'S', 'I', ' ', 'N', 'U', 'L',
+		'L', ' ', 'D', 'E', 'V', 'I', 'C', 'E',
+		'0', '0', '0', '1'
+	};
 	const uint8_t iqd[SHORT_INQUIRY_LENGTH] = {
-		0, 0x0, 0x2, 0x2, 32, 0, 0, 0x32,
+		0, 0x0, 0x5, 0x2, 32, 0, 0, 0x32,
 		'F', 'R', 'E', 'E', 'B', 'S', 'D', ' ',
 		'S', 'C', 'S', 'I', ' ', 'M', 'E', 'M',
 		'O', 'R', 'Y', ' ', 'D', 'I', 'S', 'K',
@@ -3893,19 +3896,14 @@ isp_make_here(ispsoftc_t *isp, int chan, int tgt)
 	}
 
 	/*
-	 * Allocate a CCB, create a wildcard path for this bus/target and schedule a rescan.
+	 * Allocate a CCB, create a wildcard path for this target and schedule a rescan.
 	 */
 	ccb = xpt_alloc_ccb_nowait();
 	if (ccb == NULL) {
 		isp_prt(isp, ISP_LOGWARN, "Chan %d unable to alloc CCB for rescan", chan);
 		return;
 	}
-	/*
-	 * xpt_rescan only honors wildcard in the target field. 
-	 * Scan the whole bus instead of target, which will then
-	 * force a scan of all luns.
-	 */
-	if (xpt_create_path(&ccb->ccb_h.path, xpt_periph, cam_sim_path(fc->sim), CAM_TARGET_WILDCARD, CAM_LUN_WILDCARD) != CAM_REQ_CMP) {
+	if (xpt_create_path(&ccb->ccb_h.path, xpt_periph, cam_sim_path(fc->sim), tgt, CAM_LUN_WILDCARD) != CAM_REQ_CMP) {
 		isp_prt(isp, ISP_LOGWARN, "unable to create path for rescan");
 		xpt_free_ccb(ccb);
 		return;
@@ -4147,7 +4145,9 @@ isp_kthread(void *arg)
 		 */
 		if (slp == 0 && fc->hysteresis) {
 			isp_prt(isp, ISP_LOGSANCFG|ISP_LOGDEBUG0, "%s: Chan %d sleep hysteresis ticks %d", __func__, chan, fc->hysteresis * hz);
-			(void) msleep(&isp_fabric_hysteresis, &isp->isp_osinfo.lock, PRIBIO, "ispT", (fc->hysteresis * hz));
+			mtx_unlock(&isp->isp_osinfo.lock);
+			pause("ispt", fc->hysteresis * hz);
+			mtx_lock(&isp->isp_osinfo.lock);
 		}
 	}
 	mtx_unlock(&isp->isp_osinfo.lock);

@@ -848,3 +848,7 @@ SND_PCM_64		opt_snd.h
 SND_OLDSTEREO		opt_snd.h
 
 X86BIOS
+
+# Flattened device tree options
+FDT		opt_platform.h
+FDT_DTB_STATIC	opt_platform.h

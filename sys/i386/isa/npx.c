@@ -135,12 +135,12 @@ void	stop_emulating(void);
 #ifdef CPU_ENABLE_SSE
 #define GET_FPU_CW(thread) \
 	(cpu_fxsr ? \
-		(thread)->td_pcb->pcb_save.sv_xmm.sv_env.en_cw : \
-		(thread)->td_pcb->pcb_save.sv_87.sv_env.en_cw)
+		(thread)->td_pcb->pcb_save->sv_xmm.sv_env.en_cw : \
+		(thread)->td_pcb->pcb_save->sv_87.sv_env.en_cw)
 #define GET_FPU_SW(thread) \
 	(cpu_fxsr ? \
-		(thread)->td_pcb->pcb_save.sv_xmm.sv_env.en_sw : \
-		(thread)->td_pcb->pcb_save.sv_87.sv_env.en_sw)
+		(thread)->td_pcb->pcb_save->sv_xmm.sv_env.en_sw : \
+		(thread)->td_pcb->pcb_save->sv_87.sv_env.en_sw)
 #define SET_FPU_CW(savefpu, value) do { \
 	if (cpu_fxsr) \
 		(savefpu)->sv_xmm.sv_env.en_cw = (value); \
@@ -149,9 +149,9 @@ void	stop_emulating(void);
 } while (0)
 #else /* CPU_ENABLE_SSE */
 #define GET_FPU_CW(thread) \
-	(thread->td_pcb->pcb_save.sv_87.sv_env.en_cw)
+	(thread->td_pcb->pcb_save->sv_87.sv_env.en_cw)
 #define GET_FPU_SW(thread) \
-	(thread->td_pcb->pcb_save.sv_87.sv_env.en_sw)
+	(thread->td_pcb->pcb_save->sv_87.sv_env.en_sw)
 #define SET_FPU_CW(savefpu, value) \
 	(savefpu)->sv_87.sv_env.en_cw = (value)
 #endif /* CPU_ENABLE_SSE */
@@ -502,7 +502,7 @@ npxexit(td)
 
 	savecrit = intr_disable();
 	if (curthread == PCPU_GET(fpcurthread))
-		npxsave(&PCPU_GET(curpcb)->pcb_save);
+		npxsave(PCPU_GET(curpcb)->pcb_save);
 	intr_restore(savecrit);
 #ifdef NPX_DEBUG
 	if (npx_exists) {
@@ -809,6 +809,8 @@ npxdna(void)
 		if (pcb->pcb_initial_npxcw != __INITIAL_NPXCW__)
 			fldcw(&pcb->pcb_initial_npxcw);
 		pcb->pcb_flags |= PCB_NPXINITDONE;
+		if (PCB_USER_FPU(pcb))
+			pcb->pcb_flags |= PCB_NPXUSERINITDONE;
 	} else {
 		/*
 		 * The following fpurstor() may cause an IRQ13 when the
@@ -824,7 +826,7 @@ npxdna(void)
 		 * fnclex if it is the first FPU instruction after a context
 		 * switch.
 		 */
-		fpurstor(&pcb->pcb_save);
+		fpurstor(pcb->pcb_save);
 	}
 	intr_restore(s);
 
@@ -895,18 +897,18 @@ npxdrop()
  * It returns the FPU ownership status.
  */
 int
-npxgetregs(td, addr)
-	struct thread *td;
-	union savefpu *addr;
+npxgetregs(struct thread *td, union savefpu *addr)
 {
+	struct pcb *pcb;
 	register_t s;
 
 	if (!npx_exists)
 		return (_MC_FPOWNED_NONE);
 
-	if ((td->td_pcb->pcb_flags & PCB_NPXINITDONE) == 0) {
+	pcb = td->td_pcb;
+	if ((pcb->pcb_flags & PCB_NPXINITDONE) == 0) {
 		bcopy(&npx_initialstate, addr, sizeof(npx_initialstate));
-		SET_FPU_CW(addr, td->td_pcb->pcb_initial_npxcw);
+		SET_FPU_CW(addr, pcb->pcb_initial_npxcw);
 		return (_MC_FPOWNED_NONE);
 	}
 	s = intr_disable();
@@ -925,7 +927,43 @@ npxgetregs(td, addr)
 		return (_MC_FPOWNED_FPU);
 	} else {
 		intr_restore(s);
-		bcopy(&td->td_pcb->pcb_save, addr, sizeof(*addr));
+		bcopy(pcb->pcb_save, addr, sizeof(*addr));
+		return (_MC_FPOWNED_PCB);
+	}
+}
+
+int
+npxgetuserregs(struct thread *td, union savefpu *addr)
+{
+	struct pcb *pcb;
+	register_t s;
+
+	if (!npx_exists)
+		return (_MC_FPOWNED_NONE);
+
+	pcb = td->td_pcb;
+	if ((pcb->pcb_flags & PCB_NPXUSERINITDONE) == 0) {
+		bcopy(&npx_initialstate, addr, sizeof(npx_initialstate));
+		SET_FPU_CW(addr, pcb->pcb_initial_npxcw);
+		return (_MC_FPOWNED_NONE);
+	}
+	s = intr_disable();
+	if (td == PCPU_GET(fpcurthread) && PCB_USER_FPU(pcb)) {
+		fpusave(addr);
+#ifdef CPU_ENABLE_SSE
+		if (!cpu_fxsr)
+#endif
+			/*
+			 * fnsave initializes the FPU and destroys whatever
+			 * context it contains.  Make sure the FPU owner
+			 * starts with a clean state next time.
+			 */
+			npxdrop();
+		intr_restore(s);
+		return (_MC_FPOWNED_FPU);
+	} else {
+		intr_restore(s);
+		bcopy(&pcb->pcb_user_save, addr, sizeof(*addr));
 		return (_MC_FPOWNED_PCB);
 	}
 }
@@ -934,15 +972,15 @@ npxgetregs(td, addr)
  * Set the state of the FPU.
  */
 void
-npxsetregs(td, addr)
-	struct thread *td;
-	union savefpu *addr;
+npxsetregs(struct thread *td, union savefpu *addr)
 {
+	struct pcb *pcb;
 	register_t s;
 
 	if (!npx_exists)
 		return;
 
+	pcb = td->td_pcb;
 	s = intr_disable();
 	if (td == PCPU_GET(fpcurthread)) {
 #ifdef CPU_ENABLE_SSE
@@ -953,9 +991,39 @@ npxsetregs(td, addr)
 		intr_restore(s);
 	} else {
 		intr_restore(s);
-		bcopy(addr, &td->td_pcb->pcb_save, sizeof(*addr));
+		bcopy(addr, pcb->pcb_save, sizeof(*addr));
 	}
-	curthread->td_pcb->pcb_flags |= PCB_NPXINITDONE;
+	if (PCB_USER_FPU(pcb))
+		pcb->pcb_flags |= PCB_NPXUSERINITDONE;
+	pcb->pcb_flags |= PCB_NPXINITDONE;
+}
+
+void
+npxsetuserregs(struct thread *td, union savefpu *addr)
+{
+	struct pcb *pcb;
+	register_t s;
+
+	if (!npx_exists)
+		return;
+
+	pcb = td->td_pcb;
+	s = intr_disable();
+	if (td == PCPU_GET(fpcurthread) && PCB_USER_FPU(pcb)) {
+#ifdef CPU_ENABLE_SSE
+		if (!cpu_fxsr)
+#endif
+			fnclex();	/* As in npxdrop(). */
+		fpurstor(addr);
+		intr_restore(s);
+		pcb->pcb_flags |= PCB_NPXUSERINITDONE | PCB_NPXINITDONE;
+	} else {
+		intr_restore(s);
+		bcopy(addr, &pcb->pcb_user_save, sizeof(*addr));
+		if (PCB_USER_FPU(pcb))
+			pcb->pcb_flags |= PCB_NPXINITDONE;
+		pcb->pcb_flags |= PCB_NPXUSERINITDONE;
+	}
 }
 
 static void
@@ -1124,3 +1192,74 @@ DRIVER_MODULE(npxisa, isa, npxisa_driver, npxisa_devclass, 0, 0);
 DRIVER_MODULE(npxisa, acpi, npxisa_driver, npxisa_devclass, 0, 0);
 #endif
 #endif /* DEV_ISA */
+
+int
+fpu_kern_enter(struct thread *td, struct fpu_kern_ctx *ctx, u_int flags)
+{
+	struct pcb *pcb;
+
+	pcb = td->td_pcb;
+	KASSERT(!PCB_USER_FPU(pcb) || pcb->pcb_save == &pcb->pcb_user_save,
+	    ("mangled pcb_save"));
+	ctx->flags = 0;
+	if ((pcb->pcb_flags & PCB_NPXINITDONE) != 0)
+		ctx->flags |= FPU_KERN_CTX_NPXINITDONE;
+	npxexit(td);
+	ctx->prev = pcb->pcb_save;
+	pcb->pcb_save = &ctx->hwstate;
+	pcb->pcb_flags |= PCB_KERNNPX;
+	pcb->pcb_flags &= ~PCB_NPXINITDONE;
+	return (0);
+}
+
+int
+fpu_kern_leave(struct thread *td, struct fpu_kern_ctx *ctx)
+{
+	struct pcb *pcb;
+	register_t savecrit;
+
+	pcb = td->td_pcb;
+	savecrit = intr_disable();
+	if (curthread == PCPU_GET(fpcurthread))
+		npxdrop();
+	intr_restore(savecrit);
+	pcb->pcb_save = ctx->prev;
+	if (pcb->pcb_save == &pcb->pcb_user_save) {
+		if ((pcb->pcb_flags & PCB_NPXUSERINITDONE) != 0)
+			pcb->pcb_flags |= PCB_NPXINITDONE;
+		else
+			pcb->pcb_flags &= ~PCB_NPXINITDONE;
+		pcb->pcb_flags &= ~PCB_KERNNPX;
+	} else {
+		if ((ctx->flags & FPU_KERN_CTX_NPXINITDONE) != 0)
+			pcb->pcb_flags |= PCB_NPXINITDONE;
+		else
+			pcb->pcb_flags &= ~PCB_NPXINITDONE;
+		KASSERT(!PCB_USER_FPU(pcb), ("unpaired fpu_kern_leave"));
+	}
+	return (0);
+}
+
+int
+fpu_kern_thread(u_int flags)
+{
+	struct pcb *pcb;
+
+	pcb = PCPU_GET(curpcb);
+	KASSERT((curthread->td_pflags & TDP_KTHREAD) != 0,
+	    ("Only kthread may use fpu_kern_thread"));
+	KASSERT(pcb->pcb_save == &pcb->pcb_user_save, ("mangled pcb_save"));
+	KASSERT(PCB_USER_FPU(pcb), ("recursive call"));
+
+	pcb->pcb_flags |= PCB_KERNNPX;
+	return (0);
+}
+
+int
+is_fpu_kern_thread(u_int flags)
+{
+
+	if ((curthread->td_pflags & TDP_KTHREAD) == 0)
+		return (0);
+	return ((PCPU_GET(curpcb)->pcb_flags & PCB_KERNNPX) != 0);
+}

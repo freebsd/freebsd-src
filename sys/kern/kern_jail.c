@@ -3941,7 +3941,7 @@ sysctl_jail_list(SYSCTL_HANDLER_ARGS)
 	int ip4s = 0;
 #endif
 #ifdef INET6
-	struct in_addr *ip6 = NULL;
+	struct in6_addr *ip6 = NULL;
 	int ip6s = 0;
 #endif
 	int descend, error;

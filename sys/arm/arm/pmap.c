@@ -3318,15 +3318,16 @@ pmap_enter_locked(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 	u_int oflags;
 	vm_paddr_t pa;
 
-	KASSERT((m->oflags & VPO_BUSY) != 0 || (flags & M_NOWAIT) != 0,
-	    ("pmap_enter_locked: page %p is not busy", m));
 	PMAP_ASSERT_LOCKED(pmap);
 	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
 	if (va == vector_page) {
 		pa = systempage.pv_pa;
 		m = NULL;
-	} else
+	} else {
+		KASSERT((m->oflags & VPO_BUSY) != 0 || (flags & M_NOWAIT) != 0,
+		    ("pmap_enter_locked: page %p is not busy", m));
 		pa = VM_PAGE_TO_PHYS(m);
+	}
 	nflags = 0;
 	if (prot & VM_PROT_WRITE)
 		nflags |= PVF_WRITE;
@@ -3411,7 +3412,8 @@ do_l2b_alloc:
 	
 	if (prot & VM_PROT_WRITE) {
 		npte |= L2_S_PROT_W;
-		if (m != NULL)
+		if (m != NULL &&
+		    (m->flags & (PG_FICTITIOUS | PG_UNMANAGED)) == 0)
 			vm_page_flag_set(m, PG_WRITEABLE);
 	}
 	npte |= pte_l2_s_cache_mode;
@@ -3589,12 +3591,14 @@ pmap_enter_object(pmap_t pmap, vm_offset_t start, vm_offset_t end,
 
 	psize = atop(end - start);
 	m = m_start;
+	vm_page_lock_queues();
 	PMAP_LOCK(pmap);
 	while (m != NULL && (diff = m->pindex - m_start->pindex) < psize) {
 		pmap_enter_locked(pmap, start + ptoa(diff), m, prot &
 		    (VM_PROT_READ | VM_PROT_EXECUTE), FALSE, M_NOWAIT);
 		m = TAILQ_NEXT(m, listq);
 	}
+	vm_page_unlock_queues();
  	PMAP_UNLOCK(pmap);
 }
 
@@ -4521,8 +4525,9 @@ boolean_t
 pmap_is_referenced(vm_page_t m)
 {
 
-	return ((m->flags & (PG_FICTITIOUS | PG_UNMANAGED)) == 0 &&
-	    (m->md.pvh_attrs & PVF_REF) != 0);
+	KASSERT((m->flags & (PG_FICTITIOUS | PG_UNMANAGED)) == 0,
+	    ("pmap_is_referenced: page %p is not managed", m));
+	return ((m->md.pvh_attrs & PVF_REF) != 0);
 }
 
 /*
