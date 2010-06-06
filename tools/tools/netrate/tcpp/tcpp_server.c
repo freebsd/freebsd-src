@@ -277,8 +277,10 @@ tcpp_server_worker(int workernum)
 void
 tcpp_server(void)
 {
+#if 0
 	long cp_time_last[CPUSTATES], cp_time_now[CPUSTATES], ticks;
 	size_t size;
+#endif
 	pid_t pid;
 	int i;
 
@@ -307,7 +309,7 @@ tcpp_server(void)
 		pid_list[i] = pid;
 	}
 
-	if (Tflag) {
+#if 0
 		size = sizeof(cp_time_last);
 		if (sysctlbyname(SYSCTLNAME_CPTIME, &cp_time_last, &size,
 		    NULL, 0) < 0)
@@ -334,7 +336,7 @@ tcpp_server(void)
 			    (100 * cp_time_last[CP_IDLE]) / ticks);
 			bcopy(cp_time_now, cp_time_last, sizeof(cp_time_last));
 		}
-	}
+#endif
 
 	/*
 	 * GC workers.
