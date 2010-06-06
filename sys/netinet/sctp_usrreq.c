@@ -4678,6 +4678,8 @@ sctp_accept(struct socket *so, struct sockaddr **addr)
 			struct sockaddr_in *sin;
 
 			SCTP_MALLOC_SONAME(sin, struct sockaddr_in *, sizeof *sin);
+			if (sin == NULL)
+				return (ENOMEM);
 			sin->sin_family = AF_INET;
 			sin->sin_len = sizeof(*sin);
 			sin->sin_port = ((struct sockaddr_in *)&store)->sin_port;
@@ -4691,6 +4693,8 @@ sctp_accept(struct socket *so, struct sockaddr **addr)
 			struct sockaddr_in6 *sin6;
 
 			SCTP_MALLOC_SONAME(sin6, struct sockaddr_in6 *, sizeof *sin6);
+			if (sin6 == NULL)
+				return (ENOMEM);
 			sin6->sin6_family = AF_INET6;
 			sin6->sin6_len = sizeof(*sin6);
 			sin6->sin6_port = ((struct sockaddr_in6 *)&store)->sin6_port;
@@ -4756,6 +4760,8 @@ sctp_ingetaddr(struct socket *so, struct sockaddr **addr)
 	 * Do the malloc first in case it blocks.
 	 */
 	SCTP_MALLOC_SONAME(sin, struct sockaddr_in *, sizeof *sin);
+	if (sin == NULL)
+		return (ENOMEM);
 	sin->sin_family = AF_INET;
 	sin->sin_len = sizeof(*sin);
 	inp = (struct sctp_inpcb *)so->so_pcb;
@@ -4858,6 +4864,8 @@ sctp_peeraddr(struct socket *so, struct sockaddr **addr)
 		return (ENOTCONN);
 	}
 	SCTP_MALLOC_SONAME(sin, struct sockaddr_in *, sizeof *sin);
+	if (sin == NULL)
+		return (ENOMEM);
 	sin->sin_family = AF_INET;
 	sin->sin_len = sizeof(*sin);
 
