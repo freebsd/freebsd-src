@@ -1409,7 +1409,8 @@ pmap_enter_locked(pmap_t pm, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 			tp->tte_data |= TD_SW;
 			if (wired)
 				tp->tte_data |= TD_W;
-			vm_page_flag_set(m, PG_WRITEABLE);
+			if ((m->flags & (PG_FICTITIOUS | PG_UNMANAGED)) == 0)
+				vm_page_flag_set(m, PG_WRITEABLE);
 		} else if ((data & TD_W) != 0)
 			vm_page_dirty(m);
 
@@ -1429,7 +1430,7 @@ pmap_enter_locked(pmap_t pm, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 	} else {
 		/*
 		 * If there is an existing mapping, but its for a different
-		 * phsyical address, delete the old mapping.
+		 * physical address, delete the old mapping.
 		 */
 		if (tp != NULL) {
 			CTR0(KTR_PMAP, "pmap_enter_locked: replace");
@@ -1449,7 +1450,8 @@ pmap_enter_locked(pmap_t pm, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 			data |= TD_P;
 		if ((prot & VM_PROT_WRITE) != 0) {
 			data |= TD_SW;
-			vm_page_flag_set(m, PG_WRITEABLE);
+			if ((m->flags & (PG_FICTITIOUS | PG_UNMANAGED)) == 0)
+				vm_page_flag_set(m, PG_WRITEABLE);
 		}
 		if (prot & VM_PROT_EXECUTE) {
 			data |= TD_EXEC;
@@ -1492,12 +1494,14 @@ pmap_enter_object(pmap_t pm, vm_offset_t start, vm_offset_t end,
 
 	psize = atop(end - start);
 	m = m_start;
+	vm_page_lock_queues();
 	PMAP_LOCK(pm);
 	while (m != NULL && (diff = m->pindex - m_start->pindex) < psize) {
 		pmap_enter_locked(pm, start + ptoa(diff), m, prot &
 		    (VM_PROT_READ | VM_PROT_EXECUTE), FALSE);
 		m = TAILQ_NEXT(m, listq);
 	}
+	vm_page_unlock_queues();
 	PMAP_UNLOCK(pm);
 }
 
@@ -1947,17 +1951,22 @@ boolean_t
 pmap_is_referenced(vm_page_t m)
 {
 	struct tte *tp;
+	boolean_t rv;
 
-	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
-	if ((m->flags & (PG_FICTITIOUS | PG_UNMANAGED)) != 0)
-		return (FALSE);
+	KASSERT((m->flags & (PG_FICTITIOUS | PG_UNMANAGED)) == 0,
+	    ("pmap_is_referenced: page %p is not managed", m));
+	rv = FALSE;
+	vm_page_lock_queues();
 	TAILQ_FOREACH(tp, &m->md.tte_list, tte_link) {
 		if ((tp->tte_data & TD_PV) == 0)
 			continue;
-		if ((tp->tte_data & TD_REF) != 0)
-			return (TRUE);
+		if ((tp->tte_data & TD_REF) != 0) {
+			rv = TRUE;
+			break;
+		}
 	}
-	return (FALSE);
+	vm_page_unlock_queues();
+	return (rv);
 }
 
 void

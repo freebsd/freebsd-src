@@ -23,6 +23,8 @@
 #include "ah_eeprom.h"
 #include "ah_eeprom_v14.h"
 
+#define	AR9285_RDEXT_DEFAULT	0x1F
+
 #undef owl_eep_start_loc
 #ifdef __LINUX_ARM_ARCH__ /* AP71 */
 #define owl_eep_start_loc		0
@@ -150,6 +152,6 @@ typedef struct {
 	uint16_t	ee_numCtls;
 	RD_EDGES_POWER	ee_rdEdgesPower[NUM_EDGES*AR5416_4K_NUM_CTLS];
 	/* XXX these are dynamically calculated for use by shared code */
-	int8_t		ee_antennaGainMax[2];
+	int8_t		ee_antennaGainMax;
 } HAL_EEPROM_v4k;
 #endif /* _AH_EEPROM_V4K_H_ */

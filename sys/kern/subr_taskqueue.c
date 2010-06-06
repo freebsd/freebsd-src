@@ -51,6 +51,7 @@ struct taskqueue {
 	const char		*tq_name;
 	taskqueue_enqueue_fn	tq_enqueue;
 	void			*tq_context;
+	struct task		*tq_running;
 	struct mtx		tq_mutex;
 	struct thread		**tq_threads;
 	int			tq_tcount;
@@ -232,13 +233,13 @@ taskqueue_run(struct taskqueue *queue)
 		STAILQ_REMOVE_HEAD(&queue->tq_queue, ta_link);
 		pending = task->ta_pending;
 		task->ta_pending = 0;
-		task->ta_flags |= TA_FLAGS_RUNNING;
+		queue->tq_running = task;
 		TQ_UNLOCK(queue);
 
 		task->ta_func(task->ta_context, pending);
 
 		TQ_LOCK(queue);
-		task->ta_flags &= ~TA_FLAGS_RUNNING;
+		queue->tq_running = NULL;
 		wakeup(task);
 	}
 
@@ -255,16 +256,14 @@ taskqueue_drain(struct taskqueue *queue, struct task *task)
 {
 	if (queue->tq_spin) {		/* XXX */
 		mtx_lock_spin(&queue->tq_mutex);
-		while (task->ta_pending != 0 ||
-		    (task->ta_flags & TA_FLAGS_RUNNING) != 0)
+		while (task->ta_pending != 0 || task == queue->tq_running)
 			msleep_spin(task, &queue->tq_mutex, "-", 0);
 		mtx_unlock_spin(&queue->tq_mutex);
 	} else {
 		WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK, NULL, __func__);
 
 		mtx_lock(&queue->tq_mutex);
-		while (task->ta_pending != 0 ||
-		    (task->ta_flags & TA_FLAGS_RUNNING) != 0)
+		while (task->ta_pending != 0 || task == queue->tq_running)
 			msleep(task, &queue->tq_mutex, PWAIT, "-", 0);
 		mtx_unlock(&queue->tq_mutex);
 	}

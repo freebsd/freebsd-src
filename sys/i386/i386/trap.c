@@ -501,6 +501,8 @@ trap(struct trapframe *frame)
 
 		case T_DNA:
 #ifdef DEV_NPX
+			KASSERT(PCB_USER_FPU(td->td_pcb),
+			    ("kernel FPU ctx has leaked"));
 			/* transparent fault (due to context switch "late") */
 			if (npxdna())
 				goto userout;
@@ -533,19 +535,22 @@ trap(struct trapframe *frame)
 
 		case T_DNA:
 #ifdef DEV_NPX
-			/*
-			 * The kernel is apparently using npx for copying.
-			 * XXX this should be fatal unless the kernel has
-			 * registered such use.
-			 */
-			printf("npxdna in kernel mode!\n");
-#ifdef KDB
-			kdb_backtrace();
-#endif
+			KASSERT(!PCB_USER_FPU(td->td_pcb),
+			    ("Unregistered use of FPU in kernel"));
 			if (npxdna())
 				goto out;
 #endif
 			break;
+
+		case T_ARITHTRAP:	/* arithmetic trap */
+		case T_XMMFLT:		/* SIMD floating-point exception */
+		case T_FPOPFLT:		/* FPU operand fetch fault */
+			/*
+			 * XXXKIB for now disable any FPU traps in kernel
+			 * handler registration seems to be overkill
+			 */
+			trap_fatal(frame, 0);
+			goto out;
 
 			/*
 			 * The following two traps can happen in
@@ -752,6 +757,8 @@ trap(struct trapframe *frame)
 user:
 	userret(td, frame);
 	mtx_assert(&Giant, MA_NOTOWNED);
+	KASSERT(PCB_USER_FPU(td->td_pcb),
+	    ("Return from trap with kernel FPU ctx leaked"));
 userout:
 out:
 	return;
@@ -1063,6 +1070,13 @@ syscall(struct trapframe *frame)
 		ksi.ksi_addr = (void *)frame->tf_eip;
 		trapsignal(td, &ksi);
 	}
+
+	KASSERT(PCB_USER_FPU(td->td_pcb),
+	    ("System call %s returning with kernel FPU ctx leaked",
+	     syscallname(td->td_proc, sa.code)));
+	KASSERT(td->td_pcb->pcb_save == &td->td_pcb->pcb_user_save,
+	    ("System call %s returning with mangled pcb_save",
+	     syscallname(td->td_proc, sa.code)));
 
 	syscallret(td, error, &sa);
 }

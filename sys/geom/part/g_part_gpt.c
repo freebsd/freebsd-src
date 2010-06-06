@@ -486,6 +486,12 @@ g_part_gpt_create(struct g_part_table *basetable, struct g_part_parms *gpp)
 static int
 g_part_gpt_destroy(struct g_part_table *basetable, struct g_part_parms *gpp)
 {
+	struct g_part_gpt_table *table;
+
+	table = (struct g_part_gpt_table *)basetable;
+	if (table->hdr != NULL)
+		g_free(table->hdr);
+	table->hdr = NULL;
 
 	/*
 	 * Wipe the first 2 sectors as well as the last to clear the

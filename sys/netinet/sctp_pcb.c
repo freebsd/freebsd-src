@@ -2296,7 +2296,7 @@ sctp_inpcb_alloc(struct socket *so, uint32_t vrf_id)
 	if (inp->sctp_asocidhash == NULL) {
 		SCTP_ZONE_FREE(SCTP_BASE_INFO(ipi_zone_ep), inp);
 		SCTP_INP_INFO_WUNLOCK();
-		return error;
+		return (ENOBUFS);
 	}
 #ifdef IPSEC
 	{
@@ -3096,7 +3096,7 @@ sctp_inpcb_free(struct sctp_inpcb *inp, int immediate, int from)
 	struct sctp_laddr *laddr, *nladdr;
 	struct inpcb *ip_pcb;
 	struct socket *so;
-
+	int being_refed = 0;
 	struct sctp_queued_to_read *sq;
 
 
@@ -3107,13 +3107,27 @@ sctp_inpcb_free(struct sctp_inpcb *inp, int immediate, int from)
 #ifdef SCTP_LOG_CLOSING
 	sctp_log_closing(inp, NULL, 0);
 #endif
-	SCTP_ITERATOR_LOCK();
+	if (from == SCTP_CALLED_AFTER_CMPSET_OFCLOSE) {
+		/*
+		 * Once we are in we can remove the flag from = 1 is only
+		 * passed from the actual closing routines that are called
+		 * via the sockets layer.
+		 */
+		SCTP_ITERATOR_LOCK();
+		inp->sctp_flags &= ~SCTP_PCB_FLAGS_CLOSE_IP;
+		/* socket is gone, so no more wakeups allowed */
+		inp->sctp_flags |= SCTP_PCB_FLAGS_DONT_WAKE;
+		inp->sctp_flags &= ~SCTP_PCB_FLAGS_WAKEINPUT;
+		inp->sctp_flags &= ~SCTP_PCB_FLAGS_WAKEOUTPUT;
 
+		/* mark any iterators on the list or being processed */
+		sctp_iterator_inp_being_freed(inp);
+		SCTP_ITERATOR_UNLOCK();
+	}
 	so = inp->sctp_socket;
 	if (inp->sctp_flags & SCTP_PCB_FLAGS_SOCKET_ALLGONE) {
 		/* been here before.. eeks.. get out of here */
 		SCTP_PRINTF("This conflict in free SHOULD not be happening! from %d, imm %d\n", from, immediate);
-		SCTP_ITERATOR_UNLOCK();
 #ifdef SCTP_LOG_CLOSING
 		sctp_log_closing(inp, NULL, 1);
 #endif
@@ -3124,21 +3138,6 @@ sctp_inpcb_free(struct sctp_inpcb *inp, int immediate, int from)
 
 	SCTP_INP_WLOCK(inp);
 	/* First time through we have the socket lock, after that no more. */
-	if (from == SCTP_CALLED_AFTER_CMPSET_OFCLOSE) {
-		/*
-		 * Once we are in we can remove the flag from = 1 is only
-		 * passed from the actual closing routines that are called
-		 * via the sockets layer.
-		 */
-		inp->sctp_flags &= ~SCTP_PCB_FLAGS_CLOSE_IP;
-		/* socket is gone, so no more wakeups allowed */
-		inp->sctp_flags |= SCTP_PCB_FLAGS_DONT_WAKE;
-		inp->sctp_flags &= ~SCTP_PCB_FLAGS_WAKEINPUT;
-		inp->sctp_flags &= ~SCTP_PCB_FLAGS_WAKEOUTPUT;
-
-		/* mark any iterators on the list or being processed */
-		sctp_iterator_inp_being_freed(inp);
-	}
 	sctp_timer_stop(SCTP_TIMER_TYPE_NEWCOOKIE, inp, NULL, NULL,
 	    SCTP_FROM_SCTP_PCB + SCTP_LOC_1);
 
@@ -3164,8 +3163,17 @@ sctp_inpcb_free(struct sctp_inpcb *inp, int immediate, int from)
 			nasoc = LIST_NEXT(asoc, sctp_tcblist);
 			if (asoc->asoc.state & SCTP_STATE_ABOUT_TO_BE_FREED) {
 				/* Skip guys being freed */
-				/* asoc->sctp_socket = NULL; FIXME MT */
 				cnt_in_sd++;
+				if (asoc->asoc.state & SCTP_STATE_IN_ACCEPT_QUEUE) {
+					/*
+					 * Special case - we did not start a
+					 * kill timer on the asoc due to it
+					 * was not closed. So go ahead and
+					 * start it now.
+					 */
+					asoc->asoc.state &= ~SCTP_STATE_IN_ACCEPT_QUEUE;
+					sctp_timer_start(SCTP_TIMER_TYPE_ASOCKILL, inp, asoc, NULL);
+				}
 				SCTP_TCB_UNLOCK(asoc);
 				continue;
 			}
@@ -3329,7 +3337,6 @@ sctp_inpcb_free(struct sctp_inpcb *inp, int immediate, int from)
 			SCTP_INP_WUNLOCK(inp);
 			SCTP_ASOC_CREATE_UNLOCK(inp);
 			SCTP_INP_INFO_WUNLOCK();
-			SCTP_ITERATOR_UNLOCK();
 #ifdef SCTP_LOG_CLOSING
 			sctp_log_closing(inp, NULL, 2);
 #endif
@@ -3356,6 +3363,10 @@ sctp_inpcb_free(struct sctp_inpcb *inp, int immediate, int from)
 	    asoc = nasoc) {
 		nasoc = LIST_NEXT(asoc, sctp_tcblist);
 		if (asoc->asoc.state & SCTP_STATE_ABOUT_TO_BE_FREED) {
+			if (asoc->asoc.state & SCTP_STATE_IN_ACCEPT_QUEUE) {
+				asoc->asoc.state &= ~SCTP_STATE_IN_ACCEPT_QUEUE;
+				sctp_timer_start(SCTP_TIMER_TYPE_ASOCKILL, inp, asoc, NULL);
+			}
 			cnt++;
 			continue;
 		}
@@ -3407,19 +3418,26 @@ sctp_inpcb_free(struct sctp_inpcb *inp, int immediate, int from)
 		SCTP_INP_WUNLOCK(inp);
 		SCTP_ASOC_CREATE_UNLOCK(inp);
 		SCTP_INP_INFO_WUNLOCK();
-		SCTP_ITERATOR_UNLOCK();
 #ifdef SCTP_LOG_CLOSING
 		sctp_log_closing(inp, NULL, 3);
 #endif
 		return;
 	}
-	if ((inp->refcount) || (inp->sctp_flags & SCTP_PCB_FLAGS_CLOSE_IP)) {
+	if (SCTP_INP_LOCK_CONTENDED(inp))
+		being_refed++;
+	if (SCTP_INP_READ_CONTENDED(inp))
+		being_refed++;
+	if (SCTP_ASOC_CREATE_LOCK_CONTENDED(inp))
+		being_refed++;
+
+	if ((inp->refcount) ||
+	    (being_refed) ||
+	    (inp->sctp_flags & SCTP_PCB_FLAGS_CLOSE_IP)) {
 		(void)SCTP_OS_TIMER_STOP(&inp->sctp_ep.signature_change.timer);
 		sctp_timer_start(SCTP_TIMER_TYPE_INPKILL, inp, NULL, NULL);
 		SCTP_INP_WUNLOCK(inp);
 		SCTP_ASOC_CREATE_UNLOCK(inp);
 		SCTP_INP_INFO_WUNLOCK();
-		SCTP_ITERATOR_UNLOCK();
 #ifdef SCTP_LOG_CLOSING
 		sctp_log_closing(inp, NULL, 4);
 #endif
@@ -3541,7 +3559,6 @@ sctp_inpcb_free(struct sctp_inpcb *inp, int immediate, int from)
 	SCTP_INP_READ_DESTROY(inp);
 	SCTP_ASOC_CREATE_LOCK_DESTROY(inp);
 	SCTP_INP_INFO_WUNLOCK();
-	SCTP_ITERATOR_UNLOCK();
 	SCTP_ZONE_FREE(SCTP_BASE_INFO(ipi_zone_ep), inp);
 	SCTP_DECR_EP_COUNT();
 }
@@ -4590,8 +4607,12 @@ sctp_free_assoc(struct sctp_inpcb *inp, struct sctp_tcb *stcb, int from_inpcbfre
 		 * Someone holds a reference OR the socket is unaccepted
 		 * yet.
 		 */
-		if (stcb->asoc.refcnt)
+		if ((stcb->asoc.refcnt) ||
+		    (inp->sctp_flags & SCTP_PCB_FLAGS_SOCKET_ALLGONE) ||
+		    (inp->sctp_flags & SCTP_PCB_FLAGS_SOCKET_GONE)) {
+			stcb->asoc.state &= ~SCTP_STATE_IN_ACCEPT_QUEUE;
 			sctp_timer_start(SCTP_TIMER_TYPE_ASOCKILL, inp, stcb, NULL);
+		}
 		SCTP_TCB_UNLOCK(stcb);
 		if ((inp->sctp_flags & SCTP_PCB_FLAGS_SOCKET_ALLGONE) ||
 		    (inp->sctp_flags & SCTP_PCB_FLAGS_SOCKET_GONE))

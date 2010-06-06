@@ -116,20 +116,20 @@ scsuspend(device_t dev)
 
 	sc = &main_softc;
 
-	if (sc->cur_scp == NULL || sc->suspend_in_progress)
+	if (sc->cur_scp == NULL)
 		return (0);
 
-	if (!sc_no_suspend_vtswitch) {
+	if (sc->suspend_in_progress == 0) {
 		sc_cur_scr = sc->cur_scp->index;
-		do {
-			sc_switch_scr(sc, 0);
-			if (!sc->switch_in_progress)
-				break;
-			pause("scsuspend", hz);
-		} while (retry--);
+		if (!sc_no_suspend_vtswitch && sc_cur_scr != 0)
+			do {
+				sc_switch_scr(sc, 0);
+				if (!sc->switch_in_progress)
+					break;
+				pause("scsuspend", hz);
+			} while (retry--);
 	}
-
-	sc->suspend_in_progress = TRUE;
+	sc->suspend_in_progress++;
 
 	return (0);
 }
@@ -141,13 +141,10 @@ scresume(device_t dev)
 
 	sc = &main_softc;
 
-	if (!sc->suspend_in_progress)
-		return (0);
-
-	sc->suspend_in_progress = FALSE;
-
-	if (!sc_no_suspend_vtswitch)
-		sc_switch_scr(sc, sc_cur_scr);
+	sc->suspend_in_progress--;
+	if (sc->suspend_in_progress == 0)
+		if (!sc_no_suspend_vtswitch && sc_cur_scr != 0)
+			sc_switch_scr(sc, sc_cur_scr);
 
 	return (0);
 }

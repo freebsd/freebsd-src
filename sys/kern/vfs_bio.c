@@ -3630,7 +3630,6 @@ vfs_clean_pages(struct buf *bp)
 	KASSERT(bp->b_offset != NOOFFSET,
 	    ("vfs_clean_pages: no buffer offset"));
 	VM_OBJECT_LOCK(bp->b_bufobj->bo_object);
-	vm_page_lock_queues();
 	for (i = 0; i < bp->b_npages; i++) {
 		m = bp->b_pages[i];
 		noff = (foff + PAGE_SIZE) & ~(off_t)PAGE_MASK;
@@ -3642,7 +3641,6 @@ vfs_clean_pages(struct buf *bp)
 		/* vm_page_clear_dirty(m, foff & PAGE_MASK, eoff - foff); */
 		foff = noff;
 	}
-	vm_page_unlock_queues();
 	VM_OBJECT_UNLOCK(bp->b_bufobj->bo_object);
 }
 

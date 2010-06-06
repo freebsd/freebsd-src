@@ -1074,6 +1074,11 @@ nfs_mount(struct mount *mp)
 		error = EINVAL;
 		goto out;
 	}
+	if (args.fhsize < 0 || args.fhsize > NFSX_V3FHMAX) {
+		vfs_mount_error(mp, "Bad file handle");
+		error = EINVAL;
+		goto out;
+	}
 
 	if (mp->mnt_flag & MNT_UPDATE) {
 		struct nfsmount *nmp = VFSTONFS(mp);

@@ -43,7 +43,7 @@ INTERFACE ofw;
  * @param _cookie	A handle to the client interface, generally the OF
  *			callback routine.
  */
-METHOD void init {
+METHOD int init {
 	ofw_t		_ofw;
 	void		*_cookie;
 };

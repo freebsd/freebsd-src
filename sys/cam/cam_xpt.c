@@ -446,23 +446,36 @@ xptioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag, struct thread *td
 		inccb = (union ccb *)addr;
 
 		bus = xpt_find_bus(inccb->ccb_h.path_id);
-		if (bus == NULL) {
-			error = EINVAL;
+		if (bus == NULL)
+			return (EINVAL);
+
+		switch (inccb->ccb_h.func_code) {
+		case XPT_SCAN_BUS:
+		case XPT_RESET_BUS:
+			if (inccb->ccb_h.target_id != CAM_TARGET_WILDCARD ||
+			    inccb->ccb_h.target_lun != CAM_LUN_WILDCARD) {
+				xpt_release_bus(bus);
+				return (EINVAL);
+			}
+			break;
+		case XPT_SCAN_TGT:
+			if (inccb->ccb_h.target_id == CAM_TARGET_WILDCARD ||
+			    inccb->ccb_h.target_lun != CAM_LUN_WILDCARD) {
+				xpt_release_bus(bus);
+				return (EINVAL);
+			}
+			break;
+		default:
 			break;
 		}
 
 		switch(inccb->ccb_h.func_code) {
 		case XPT_SCAN_BUS:
 		case XPT_RESET_BUS:
-			if ((inccb->ccb_h.target_id != CAM_TARGET_WILDCARD)
-			 || (inccb->ccb_h.target_lun != CAM_LUN_WILDCARD)) {
-				error = EINVAL;
-				break;
-			}
-			/* FALLTHROUGH */
 		case XPT_PATH_INQ:
 		case XPT_ENG_INQ:
 		case XPT_SCAN_LUN:
+		case XPT_SCAN_TGT:
 
 			ccb = xpt_alloc_ccb();
 
@@ -839,11 +852,21 @@ xpt_rescan(union ccb *ccb)
 	struct ccb_hdr *hdr;
 
 	/* Prepare request */
-	if (ccb->ccb_h.path->target->target_id == CAM_TARGET_WILDCARD ||
+	if (ccb->ccb_h.path->target->target_id == CAM_TARGET_WILDCARD &&
 	    ccb->ccb_h.path->device->lun_id == CAM_LUN_WILDCARD)
 		ccb->ccb_h.func_code = XPT_SCAN_BUS;
-	else
+	else if (ccb->ccb_h.path->target->target_id != CAM_TARGET_WILDCARD &&
+	    ccb->ccb_h.path->device->lun_id == CAM_LUN_WILDCARD)
+		ccb->ccb_h.func_code = XPT_SCAN_TGT;
+	else if (ccb->ccb_h.path->target->target_id != CAM_TARGET_WILDCARD &&
+	    ccb->ccb_h.path->device->lun_id != CAM_LUN_WILDCARD)
 		ccb->ccb_h.func_code = XPT_SCAN_LUN;
+	else {
+		xpt_print(ccb->ccb_h.path, "illegal scan path\n");
+		xpt_free_path(ccb->ccb_h.path);
+		xpt_free_ccb(ccb);
+		return;
+	}
 	ccb->ccb_h.ppriv_ptr1 = ccb->ccb_h.cbfcnp;
 	ccb->ccb_h.cbfcnp = xpt_rescan_done;
 	xpt_setup_ccb(&ccb->ccb_h, ccb->ccb_h.path, CAM_PRIORITY_XPT);
@@ -2115,6 +2138,7 @@ xptpdperiphtraverse(struct periph_driver **pdrv,
 
 	retval = 1;
 
+	xpt_lock_buses();
 	for (periph = (start_periph ? start_periph :
 	     TAILQ_FIRST(&(*pdrv)->units)); periph != NULL;
 	     periph = next_periph) {
@@ -2122,9 +2146,12 @@ xptpdperiphtraverse(struct periph_driver **pdrv,
 		next_periph = TAILQ_NEXT(periph, unit_links);
 
 		retval = tr_func(periph, arg);
-		if (retval == 0)
+		if (retval == 0) {
+			xpt_unlock_buses();
 			return(retval);
+		}
 	}
+	xpt_unlock_buses();
 	return(retval);
 }
 
@@ -2299,7 +2326,6 @@ xpt_action_default(union ccb *start_ccb)
 {
 
 	CAM_DEBUG(start_ccb->ccb_h.path, CAM_DEBUG_TRACE, ("xpt_action_default\n"));
-
 
 	switch (start_ccb->ccb_h.func_code) {
 	case XPT_SCSI_IO:
@@ -2647,7 +2673,9 @@ xpt_action_default(union ccb *start_ccb)
 			xptedtmatch(cdm);
 			break;
 		case CAM_DEV_POS_PDRV:
+			xpt_lock_buses();
 			xptperiphlistmatch(cdm);
+			xpt_unlock_buses();
 			break;
 		default:
 			cdm->status = CAM_DEV_MATCH_ERROR;

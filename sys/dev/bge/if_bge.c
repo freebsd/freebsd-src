@@ -400,6 +400,8 @@ static void bge_setpromisc(struct bge_softc *);
 static void bge_setmulti(struct bge_softc *);
 static void bge_setvlan(struct bge_softc *);
 
+static __inline void bge_rxreuse_std(struct bge_softc *, int);
+static __inline void bge_rxreuse_jumbo(struct bge_softc *, int);
 static int bge_newbuf_std(struct bge_softc *, int);
 static int bge_newbuf_jumbo(struct bge_softc *, int);
 static int bge_init_rx_ring_std(struct bge_softc *);
@@ -922,6 +924,7 @@ bge_newbuf_std(struct bge_softc *sc, int i)
 	sc->bge_cdata.bge_rx_std_dmamap[i] = sc->bge_cdata.bge_rx_std_sparemap;
 	sc->bge_cdata.bge_rx_std_sparemap = map;
 	sc->bge_cdata.bge_rx_std_chain[i] = m;
+	sc->bge_cdata.bge_rx_std_seglen[i] = segs[0].ds_len;
 	r = &sc->bge_ldata.bge_rx_std_ring[sc->bge_std];
 	r->bge_addr.bge_addr_lo = BGE_ADDR_LO(segs[0].ds_addr);
 	r->bge_addr.bge_addr_hi = BGE_ADDR_HI(segs[0].ds_addr);
@@ -979,6 +982,11 @@ bge_newbuf_jumbo(struct bge_softc *sc, int i)
 	    sc->bge_cdata.bge_rx_jumbo_sparemap;
 	sc->bge_cdata.bge_rx_jumbo_sparemap = map;
 	sc->bge_cdata.bge_rx_jumbo_chain[i] = m;
+	sc->bge_cdata.bge_rx_jumbo_seglen[i][0] = 0;
+	sc->bge_cdata.bge_rx_jumbo_seglen[i][1] = 0;
+	sc->bge_cdata.bge_rx_jumbo_seglen[i][2] = 0;
+	sc->bge_cdata.bge_rx_jumbo_seglen[i][3] = 0;
+
 	/*
 	 * Fill in the extended RX buffer descriptor.
 	 */
@@ -991,18 +999,22 @@ bge_newbuf_jumbo(struct bge_softc *sc, int i)
 		r->bge_addr3.bge_addr_lo = BGE_ADDR_LO(segs[3].ds_addr);
 		r->bge_addr3.bge_addr_hi = BGE_ADDR_HI(segs[3].ds_addr);
 		r->bge_len3 = segs[3].ds_len;
+		sc->bge_cdata.bge_rx_jumbo_seglen[i][3] = segs[3].ds_len;
 	case 3:
 		r->bge_addr2.bge_addr_lo = BGE_ADDR_LO(segs[2].ds_addr);
 		r->bge_addr2.bge_addr_hi = BGE_ADDR_HI(segs[2].ds_addr);
 		r->bge_len2 = segs[2].ds_len;
+		sc->bge_cdata.bge_rx_jumbo_seglen[i][2] = segs[2].ds_len;
 	case 2:
 		r->bge_addr1.bge_addr_lo = BGE_ADDR_LO(segs[1].ds_addr);
 		r->bge_addr1.bge_addr_hi = BGE_ADDR_HI(segs[1].ds_addr);
 		r->bge_len1 = segs[1].ds_len;
+		sc->bge_cdata.bge_rx_jumbo_seglen[i][1] = segs[1].ds_len;
 	case 1:
 		r->bge_addr0.bge_addr_lo = BGE_ADDR_LO(segs[0].ds_addr);
 		r->bge_addr0.bge_addr_hi = BGE_ADDR_HI(segs[0].ds_addr);
 		r->bge_len0 = segs[0].ds_len;
+		sc->bge_cdata.bge_rx_jumbo_seglen[i][0] = segs[0].ds_len;
 		break;
 	default:
 		panic("%s: %d segments\n", __func__, nsegs);
@@ -1014,12 +1026,6 @@ bge_newbuf_jumbo(struct bge_softc *sc, int i)
 	return (0);
 }
 
-/*
- * The standard receive ring has 512 entries in it. At 2K per mbuf cluster,
- * that's 1MB or memory, which is a lot. For now, we fill only the first
- * 256 ring entries and hope that our CPU is fast enough to keep up with
- * the NIC.
- */
 static int
 bge_init_rx_ring_std(struct bge_softc *sc)
 {
@@ -1027,7 +1033,7 @@ bge_init_rx_ring_std(struct bge_softc *sc)
 
 	bzero(sc->bge_ldata.bge_rx_std_ring, BGE_STD_RX_RING_SZ);
 	sc->bge_std = 0;
-	for (i = 0; i < BGE_SSLOTS; i++) {
+	for (i = 0; i < BGE_STD_RX_RING_CNT; i++) {
 		if ((error = bge_newbuf_std(sc, i)) != 0)
 			return (error);
 		BGE_INC(sc->bge_std, BGE_STD_RX_RING_CNT);
@@ -1036,8 +1042,8 @@ bge_init_rx_ring_std(struct bge_softc *sc)
 	bus_dmamap_sync(sc->bge_cdata.bge_rx_std_ring_tag,
 	    sc->bge_cdata.bge_rx_std_ring_map, BUS_DMASYNC_PREWRITE);
 
-	sc->bge_std = i - 1;
-	bge_writembx(sc, BGE_MBX_RX_STD_PROD_LO, sc->bge_std);
+	sc->bge_std = 0;
+	bge_writembx(sc, BGE_MBX_RX_STD_PROD_LO, BGE_STD_RX_RING_CNT - 1);
 
 	return (0);
 }
@@ -1079,14 +1085,14 @@ bge_init_rx_ring_jumbo(struct bge_softc *sc)
 	bus_dmamap_sync(sc->bge_cdata.bge_rx_jumbo_ring_tag,
 	    sc->bge_cdata.bge_rx_jumbo_ring_map, BUS_DMASYNC_PREWRITE);
 
-	sc->bge_jumbo = i - 1;
+	sc->bge_jumbo = 0;
 
 	rcb = &sc->bge_ldata.bge_info.bge_jumbo_rx_rcb;
 	rcb->bge_maxlen_flags = BGE_RCB_MAXLEN_FLAGS(0,
 				    BGE_RCB_FLAG_USE_EXT_RX_BD);
 	CSR_WRITE_4(sc, BGE_RX_JUMBO_RCB_MAXLEN_FLAGS, rcb->bge_maxlen_flags);
 
-	bge_writembx(sc, BGE_MBX_RX_JUMBO_PROD_LO, sc->bge_jumbo);
+	bge_writembx(sc, BGE_MBX_RX_JUMBO_PROD_LO, BGE_JUMBO_RX_RING_CNT - 1);
 
 	return (0);
 }
@@ -3273,6 +3279,33 @@ bge_reset(struct bge_softc *sc)
 	return(0);
 }
 
+static __inline void
+bge_rxreuse_std(struct bge_softc *sc, int i)
+{
+	struct bge_rx_bd *r;
+
+	r = &sc->bge_ldata.bge_rx_std_ring[sc->bge_std];
+	r->bge_flags = BGE_RXBDFLAG_END;
+	r->bge_len = sc->bge_cdata.bge_rx_std_seglen[i];
+	r->bge_idx = i;
+	BGE_INC(sc->bge_std, BGE_STD_RX_RING_CNT);
+}
+
+static __inline void
+bge_rxreuse_jumbo(struct bge_softc *sc, int i)
+{
+	struct bge_extrx_bd *r;
+
+	r = &sc->bge_ldata.bge_rx_jumbo_ring[sc->bge_jumbo];
+	r->bge_flags = BGE_RXBDFLAG_JUMBO_RING | BGE_RXBDFLAG_END;
+	r->bge_len0 = sc->bge_cdata.bge_rx_jumbo_seglen[i][0];
+	r->bge_len1 = sc->bge_cdata.bge_rx_jumbo_seglen[i][1];
+	r->bge_len2 = sc->bge_cdata.bge_rx_jumbo_seglen[i][2];
+	r->bge_len3 = sc->bge_cdata.bge_rx_jumbo_seglen[i][3];
+	r->bge_idx = i;
+	BGE_INC(sc->bge_jumbo, BGE_JUMBO_RX_RING_CNT);
+}
+
 /*
  * Frame reception handling. This is called if there's a frame
  * on the receive return list.
@@ -3336,24 +3369,24 @@ bge_rxeof(struct bge_softc *sc, uint16_t rx_prod, int holdlck)
 			jumbocnt++;
 			m = sc->bge_cdata.bge_rx_jumbo_chain[rxidx];
 			if (cur_rx->bge_flags & BGE_RXBDFLAG_ERROR) {
-				BGE_INC(sc->bge_jumbo, BGE_JUMBO_RX_RING_CNT);
+				bge_rxreuse_jumbo(sc, rxidx);
 				continue;
 			}
 			if (bge_newbuf_jumbo(sc, rxidx) != 0) {
-				BGE_INC(sc->bge_jumbo, BGE_JUMBO_RX_RING_CNT);
+				bge_rxreuse_jumbo(sc, rxidx);
 				ifp->if_iqdrops++;
 				continue;
 			}
 			BGE_INC(sc->bge_jumbo, BGE_JUMBO_RX_RING_CNT);
 		} else {
 			stdcnt++;
+			m = sc->bge_cdata.bge_rx_std_chain[rxidx];
 			if (cur_rx->bge_flags & BGE_RXBDFLAG_ERROR) {
-				BGE_INC(sc->bge_std, BGE_STD_RX_RING_CNT);
+				bge_rxreuse_std(sc, rxidx);
 				continue;
 			}
-			m = sc->bge_cdata.bge_rx_std_chain[rxidx];
 			if (bge_newbuf_std(sc, rxidx) != 0) {
-				BGE_INC(sc->bge_std, BGE_STD_RX_RING_CNT);
+				bge_rxreuse_std(sc, rxidx);
 				ifp->if_iqdrops++;
 				continue;
 			}

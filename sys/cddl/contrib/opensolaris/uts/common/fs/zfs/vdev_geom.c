@@ -183,7 +183,7 @@ vdev_geom_io(struct g_consumer *cp, int cmd, void *data, off_t offset, off_t siz
 {
 	struct bio *bp;
 	u_char *p;
-	off_t off;
+	off_t off, maxio;
 	int error;
 
 	ASSERT((offset % cp->provider->sectorsize) == 0);
@@ -193,14 +193,15 @@ vdev_geom_io(struct g_consumer *cp, int cmd, void *data, off_t offset, off_t siz
 	off = offset;
 	offset += size;
 	p = data;
+	maxio = MAXPHYS - (MAXPHYS % cp->provider->sectorsize);
 	error = 0;
 
-	for (; off < offset; off += MAXPHYS, p += MAXPHYS, size -= MAXPHYS) {
+	for (; off < offset; off += maxio, p += maxio, size -= maxio) {
 		bzero(bp, sizeof(*bp));
 		bp->bio_cmd = cmd;
 		bp->bio_done = NULL;
 		bp->bio_offset = off;
-		bp->bio_length = MIN(size, MAXPHYS);
+		bp->bio_length = MIN(size, maxio);
 		bp->bio_data = p;
 		g_io_request(bp, cp);
 		error = biowait(bp, "vdev_geom_io");
