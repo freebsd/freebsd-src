@@ -866,6 +866,7 @@ waitforjob(struct job *jp, int *origstatus)
 {
 #if JOBS
 	pid_t mypgrp = getpgrp();
+	int propagate_int = jp->jobctl && jp->foreground;
 #endif
 	int status;
 	int st;
@@ -903,6 +904,11 @@ waitforjob(struct job *jp, int *origstatus)
 		else
 			CLEAR_PENDING_INT;
 	}
+#if JOBS
+	else if (rootshell && iflag && propagate_int &&
+			WIFSIGNALED(status) && WTERMSIG(status) == SIGINT)
+		kill(getpid(), SIGINT);
+#endif
 	INTON;
 	return st;
 }
