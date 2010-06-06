@@ -2296,7 +2296,7 @@ sctp_inpcb_alloc(struct socket *so, uint32_t vrf_id)
 	if (inp->sctp_asocidhash == NULL) {
 		SCTP_ZONE_FREE(SCTP_BASE_INFO(ipi_zone_ep), inp);
 		SCTP_INP_INFO_WUNLOCK();
-		return error;
+		return (ENOBUFS);
 	}
 #ifdef IPSEC
 	{
@@ -3107,13 +3107,27 @@ sctp_inpcb_free(struct sctp_inpcb *inp, int immediate, int from)
 #ifdef SCTP_LOG_CLOSING
 	sctp_log_closing(inp, NULL, 0);
 #endif
-	SCTP_ITERATOR_LOCK();
+	if (from == SCTP_CALLED_AFTER_CMPSET_OFCLOSE) {
+		/*
+		 * Once we are in we can remove the flag from = 1 is only
+		 * passed from the actual closing routines that are called
+		 * via the sockets layer.
+		 */
+		SCTP_ITERATOR_LOCK();
+		inp->sctp_flags &= ~SCTP_PCB_FLAGS_CLOSE_IP;
+		/* socket is gone, so no more wakeups allowed */
+		inp->sctp_flags |= SCTP_PCB_FLAGS_DONT_WAKE;
+		inp->sctp_flags &= ~SCTP_PCB_FLAGS_WAKEINPUT;
+		inp->sctp_flags &= ~SCTP_PCB_FLAGS_WAKEOUTPUT;
 
+		/* mark any iterators on the list or being processed */
+		sctp_iterator_inp_being_freed(inp);
+		SCTP_ITERATOR_UNLOCK();
+	}
 	so = inp->sctp_socket;
 	if (inp->sctp_flags & SCTP_PCB_FLAGS_SOCKET_ALLGONE) {
 		/* been here before.. eeks.. get out of here */
 		SCTP_PRINTF("This conflict in free SHOULD not be happening! from %d, imm %d\n", from, immediate);
-		SCTP_ITERATOR_UNLOCK();
 #ifdef SCTP_LOG_CLOSING
 		sctp_log_closing(inp, NULL, 1);
 #endif
@@ -3124,21 +3138,6 @@ sctp_inpcb_free(struct sctp_inpcb *inp, int immediate, int from)
 
 	SCTP_INP_WLOCK(inp);
 	/* First time through we have the socket lock, after that no more. */
-	if (from == SCTP_CALLED_AFTER_CMPSET_OFCLOSE) {
-		/*
-		 * Once we are in we can remove the flag from = 1 is only
-		 * passed from the actual closing routines that are called
-		 * via the sockets layer.
-		 */
-		inp->sctp_flags &= ~SCTP_PCB_FLAGS_CLOSE_IP;
-		/* socket is gone, so no more wakeups allowed */
-		inp->sctp_flags |= SCTP_PCB_FLAGS_DONT_WAKE;
-		inp->sctp_flags &= ~SCTP_PCB_FLAGS_WAKEINPUT;
-		inp->sctp_flags &= ~SCTP_PCB_FLAGS_WAKEOUTPUT;
-
-		/* mark any iterators on the list or being processed */
-		sctp_iterator_inp_being_freed(inp);
-	}
 	sctp_timer_stop(SCTP_TIMER_TYPE_NEWCOOKIE, inp, NULL, NULL,
 	    SCTP_FROM_SCTP_PCB + SCTP_LOC_1);
 
@@ -3338,7 +3337,6 @@ sctp_inpcb_free(struct sctp_inpcb *inp, int immediate, int from)
 			SCTP_INP_WUNLOCK(inp);
 			SCTP_ASOC_CREATE_UNLOCK(inp);
 			SCTP_INP_INFO_WUNLOCK();
-			SCTP_ITERATOR_UNLOCK();
 #ifdef SCTP_LOG_CLOSING
 			sctp_log_closing(inp, NULL, 2);
 #endif
@@ -3416,7 +3414,6 @@ sctp_inpcb_free(struct sctp_inpcb *inp, int immediate, int from)
 		SCTP_INP_WUNLOCK(inp);
 		SCTP_ASOC_CREATE_UNLOCK(inp);
 		SCTP_INP_INFO_WUNLOCK();
-		SCTP_ITERATOR_UNLOCK();
 #ifdef SCTP_LOG_CLOSING
 		sctp_log_closing(inp, NULL, 3);
 #endif
@@ -3428,7 +3425,6 @@ sctp_inpcb_free(struct sctp_inpcb *inp, int immediate, int from)
 		SCTP_INP_WUNLOCK(inp);
 		SCTP_ASOC_CREATE_UNLOCK(inp);
 		SCTP_INP_INFO_WUNLOCK();
-		SCTP_ITERATOR_UNLOCK();
 #ifdef SCTP_LOG_CLOSING
 		sctp_log_closing(inp, NULL, 4);
 #endif
@@ -3550,7 +3546,6 @@ sctp_inpcb_free(struct sctp_inpcb *inp, int immediate, int from)
 	SCTP_INP_READ_DESTROY(inp);
 	SCTP_ASOC_CREATE_LOCK_DESTROY(inp);
 	SCTP_INP_INFO_WUNLOCK();
-	SCTP_ITERATOR_UNLOCK();
 	SCTP_ZONE_FREE(SCTP_BASE_INFO(ipi_zone_ep), inp);
 	SCTP_DECR_EP_COUNT();
 }
