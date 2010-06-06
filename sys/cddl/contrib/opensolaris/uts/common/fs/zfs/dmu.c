@@ -371,56 +371,51 @@ dmu_prefetch(objset_t *os, uint64_t object, uint64_t offset, uint64_t len)
 	dnode_rele(dn, FTAG);
 }
 
+/*
+ * Get the next "chunk" of file data to free.  We traverse the file from
+ * the end so that the file gets shorter over time (if we crashes in the
+ * middle, this will leave us in a better state).  We find allocated file
+ * data by simply searching the allocated level 1 indirects.
+ */
 static int
-get_next_chunk(dnode_t *dn, uint64_t *offset, uint64_t limit)
+get_next_chunk(dnode_t *dn, uint64_t *start, uint64_t limit)
 {
-	uint64_t len = *offset - limit;
-	uint64_t chunk_len = dn->dn_datablksz * DMU_MAX_DELETEBLKCNT;
-	uint64_t subchunk =
+	uint64_t len = *start - limit;
+	uint64_t blkcnt = 0;
+	uint64_t maxblks = DMU_MAX_ACCESS / (1ULL << (dn->dn_indblkshift + 1));
+	uint64_t iblkrange =
 	    dn->dn_datablksz * EPB(dn->dn_indblkshift, SPA_BLKPTRSHIFT);
 
-	ASSERT(limit <= *offset);
+	ASSERT(limit <= *start);
 
-	if (len <= chunk_len) {
-		*offset = limit;
+	if (len <= iblkrange * maxblks) {
+		*start = limit;
 		return (0);
 	}
+	ASSERT(ISP2(iblkrange));
 
-	ASSERT(ISP2(subchunk));
-
-	while (*offset > limit) {
-		uint64_t initial_offset = P2ROUNDUP(*offset, subchunk);
-		uint64_t delta;
+	while (*start > limit && blkcnt < maxblks) {
 		int err;
 
-		/* skip over allocated data */
+		/* find next allocated L1 indirect */
 		err = dnode_next_offset(dn,
-		    DNODE_FIND_HOLE|DNODE_FIND_BACKWARDS, offset, 1, 1, 0);
-		if (err == ESRCH)
-			*offset = limit;
-		else if (err)
-			return (err);
+		    DNODE_FIND_BACKWARDS, start, 2, 1, 0);
 
-		ASSERT3U(*offset, <=, initial_offset);
-		*offset = P2ALIGN(*offset, subchunk);
-		delta = initial_offset - *offset;
-		if (delta >= chunk_len) {
-			*offset += delta - chunk_len;
+		/* if there are no more, then we are done */
+		if (err == ESRCH) {
+			*start = limit;
 			return (0);
-		}
-		chunk_len -= delta;
-
-		/* skip over unallocated data */
-		err = dnode_next_offset(dn,
-		    DNODE_FIND_BACKWARDS, offset, 1, 1, 0);
-		if (err == ESRCH)
-			*offset = limit;
-		else if (err)
+		} else if (err) {
 			return (err);
+		}
+		blkcnt += 1;
 
-		if (*offset < limit)
-			*offset = limit;
-		ASSERT3U(*offset, <, initial_offset);
+		/* reset offset to end of "next" block back */
+		*start = P2ALIGN(*start, iblkrange);
+		if (*start <= limit)
+			*start = limit;
+		else
+			*start -= 1;
 	}
 	return (0);
 }
