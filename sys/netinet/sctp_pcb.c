@@ -3096,7 +3096,7 @@ sctp_inpcb_free(struct sctp_inpcb *inp, int immediate, int from)
 	struct sctp_laddr *laddr, *nladdr;
 	struct inpcb *ip_pcb;
 	struct socket *so;
-
+	int being_refed = 0;
 	struct sctp_queued_to_read *sq;
 
 
@@ -3423,9 +3423,16 @@ sctp_inpcb_free(struct sctp_inpcb *inp, int immediate, int from)
 #endif
 		return;
 	}
+	if (SCTP_INP_LOCK_CONTENDED(inp))
+		being_refed++;
+	if (SCTP_INP_READ_CONTENDED(inp))
+		being_refed++;
+	if (SCTP_ASOC_CREATE_LOCK_CONTENDED(inp))
+		being_refed++;
+
 	if ((inp->refcount) ||
-	    (inp->sctp_flags & SCTP_PCB_FLAGS_CLOSE_IP) ||
-	    (from != SCTP_CALLED_FROM_INPKILL_TIMER)) {
+	    (being_refed) ||
+	    (inp->sctp_flags & SCTP_PCB_FLAGS_CLOSE_IP)) {
 		(void)SCTP_OS_TIMER_STOP(&inp->sctp_ep.signature_change.timer);
 		sctp_timer_start(SCTP_TIMER_TYPE_INPKILL, inp, NULL, NULL);
 		SCTP_INP_WUNLOCK(inp);
