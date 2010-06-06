@@ -3363,6 +3363,10 @@ sctp_inpcb_free(struct sctp_inpcb *inp, int immediate, int from)
 	    asoc = nasoc) {
 		nasoc = LIST_NEXT(asoc, sctp_tcblist);
 		if (asoc->asoc.state & SCTP_STATE_ABOUT_TO_BE_FREED) {
+			if (asoc->asoc.state & SCTP_STATE_IN_ACCEPT_QUEUE) {
+				asoc->asoc.state &= ~SCTP_STATE_IN_ACCEPT_QUEUE;
+				sctp_timer_start(SCTP_TIMER_TYPE_ASOCKILL, inp, asoc, NULL);
+			}
 			cnt++;
 			continue;
 		}
