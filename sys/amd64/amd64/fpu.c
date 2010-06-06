@@ -453,8 +453,8 @@ fpudrop()
 int
 fpugetuserregs(struct thread *td, struct savefpu *addr)
 {
-	register_t s;
 	struct pcb *pcb;
+	register_t s;
 
 	pcb = td->td_pcb;
 	if ((pcb->pcb_flags & PCB_USERFPUINITDONE) == 0) {
@@ -477,8 +477,8 @@ fpugetuserregs(struct thread *td, struct savefpu *addr)
 int
 fpugetregs(struct thread *td, struct savefpu *addr)
 {
-	register_t s;
 	struct pcb *pcb;
+	register_t s;
 
 	pcb = td->td_pcb;
 	if ((pcb->pcb_flags & PCB_FPUINITDONE) == 0) {
@@ -504,8 +504,8 @@ fpugetregs(struct thread *td, struct savefpu *addr)
 void
 fpusetuserregs(struct thread *td, struct savefpu *addr)
 {
-	register_t s;
 	struct pcb *pcb;
+	register_t s;
 
 	pcb = td->td_pcb;
 	s = intr_disable();
@@ -525,8 +525,8 @@ fpusetuserregs(struct thread *td, struct savefpu *addr)
 void
 fpusetregs(struct thread *td, struct savefpu *addr)
 {
-	register_t s;
 	struct pcb *pcb;
+	register_t s;
 
 	pcb = td->td_pcb;
 	s = intr_disable();
