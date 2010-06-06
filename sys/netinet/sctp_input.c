@@ -4534,7 +4534,8 @@ process_control_chunks:
 				if ((stcb) && (stcb->asoc.total_output_queue_size)) {
 					;
 				} else {
-					if (locked_tcb) {
+					if (locked_tcb != stcb) {
+						/* Very unlikely */
 						SCTP_TCB_UNLOCK(locked_tcb);
 					}
 					*offset = length;
@@ -5423,6 +5424,12 @@ __attribute__((noinline))
 		if (mtx_owned(&lstcb->tcb_mtx)) {
 			panic("Own lock on stcb at return from input");
 		}
+	}
+	if (mtx_owned(&inp->inp_create_mtx)) {
+		panic("Own create lock on inp");
+	}
+	if (mtx_owned(&inp->inp_mtx)) {
+		panic("Own inp lock on inp");
 	}
 }
 
