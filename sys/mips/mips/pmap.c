@@ -3072,26 +3072,20 @@ page_is_managed(vm_offset_t pa)
 static int
 init_pte_prot(vm_offset_t va, vm_page_t m, vm_prot_t prot)
 {
-	int rw = 0;
+	int rw;
 
 	if (!(prot & VM_PROT_WRITE))
 		rw = PTE_ROPAGE;
-	else {
-		if (va >= VM_MIN_KERNEL_ADDRESS) {
-			/*
-			 * Don't bother to trap on kernel writes, just
-			 * record page as dirty.
-			 */
-			rw = PTE_RWPAGE;
-			vm_page_dirty(m);
-		} else if ((m->md.pv_flags & PV_TABLE_MOD) ||
-		    m->dirty == VM_PAGE_BITS_ALL)
+	else if ((m->flags & (PG_FICTITIOUS | PG_UNMANAGED)) == 0) {
+		if ((m->md.pv_flags & PV_TABLE_MOD) != 0)
 			rw = PTE_RWPAGE;
 		else
 			rw = PTE_CWPAGE;
 		vm_page_flag_set(m, PG_WRITEABLE);
-	}
-	return rw;
+	} else
+		/* Needn't emulate a modified bit for unmanaged pages. */
+		rw = PTE_RWPAGE;
+	return (rw);
 }
 
 /*
