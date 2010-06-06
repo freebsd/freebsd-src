@@ -44,7 +44,6 @@ struct bmachine {
 	struct source		*readstack;
 	struct stack		*reg;
 	struct stack		 stack;
-	volatile sig_atomic_t	 interrupted;
 	u_int			 scale;
 	u_int			 obase;
 	u_int			 ibase;
@@ -55,7 +54,7 @@ struct bmachine {
 };
 
 static struct bmachine	 bmachine;
-static void		 sighandler(int);
+static void		 got_sigint(int);
 
 static __inline int	 readch(void);
 static __inline void	 unreadch(void);
@@ -223,14 +222,11 @@ static const struct jump_entry jump_table_data[] = {
 	(sizeof(jump_table_data)/sizeof(jump_table_data[0]))
 
 static void
-sighandler(int ignored)
+got_sigint(int ignored __unused)
 {
 
-	switch (ignored)
-	{
-	default:
-		bmachine.interrupted = true;
-	}
+	putchar('\n');
+	exit(0);
 }
 
 void
@@ -265,7 +261,7 @@ init_bmachine(bool extended_registers)
 	bmachine.obase = bmachine.ibase = 10;
 	BN_init(&zero);
 	bn_check(BN_zero(&zero));
-	signal(SIGINT, sighandler);
+	signal(SIGINT, got_sigint);
 }
 
 /* Reset the things needed before processing a (new) file */
@@ -1745,14 +1741,6 @@ eval(void)
 			src_free();
 			bmachine.readsp--;
 			continue;
-		}
-		if (bmachine.interrupted) {
-			if (bmachine.readsp > 0) {
-				src_free();
-				bmachine.readsp--;
-				continue;
-			} else
-				bmachine.interrupted = false;
 		}
 #ifdef DEBUGGING
 		fprintf(stderr, "# %c\n", ch);
