@@ -4675,8 +4675,8 @@ sctp_free_assoc(struct sctp_inpcb *inp, struct sctp_tcb *stcb, int from_inpcbfre
 					    SS_ISCONFIRMING |
 					    SS_ISCONNECTED);
 				}
+				socantrcvmore_locked(so);
 				SOCK_UNLOCK(so);
-				socantrcvmore(so);
 				sctp_sowwakeup(inp, so);
 				sctp_sorwakeup(inp, so);
 				SCTP_SOWAKEUP(so);
