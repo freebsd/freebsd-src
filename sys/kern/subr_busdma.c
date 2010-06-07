@@ -50,8 +50,6 @@ __FBSDID("$FreeBSD$");
 #include <machine/bus.h>
 #include <machine/md_var.h>
 
-#define MAX_BPAGES 8192
-
 #define	BUS_DMA_COULD_BOUNCE	BUS_DMA_BUS3
 #define	BUS_DMA_MIN_ALLOC_COMP	BUS_DMA_BUS4
 
@@ -139,6 +137,23 @@ static bus_addr_t add_bounce_page(bus_dma_tag_t dmat, bus_dmamap_t map,
     vm_offset_t vaddr, bus_size_t size);
 static void free_bounce_page(bus_dma_tag_t dmat, struct bounce_page *bpage);
 static __inline int run_filter(bus_dma_tag_t dmat, bus_addr_t paddr);
+
+#ifdef XEN
+#undef pmap_kextract
+#define	pmap_kextract	pmap_kextract_ma
+#endif
+
+static void
+warn_null_map(const char *func, void *caller)
+{
+	static struct timeval lastfail;
+	static int curfail;
+
+	if (!ppsratecheck(&lastfail, &curfail, 1))
+		return;
+
+	printf("WARNING: %s called with NULL map from %p\n", func, caller);
+}
 
 /*
  * Return true if a match is made.
@@ -268,7 +283,10 @@ bus_dma_tag_create(bus_dma_tag_t parent, bus_size_t alignment,
 			newtag->boundary = parent->boundary;
 		else if (parent->boundary != 0)
 			newtag->boundary = MIN(parent->boundary,
-					       newtag->boundary);
+			    newtag->boundary);
+		if (newtag->filter != NULL ||
+		    (parent->flags & BUS_DMA_COULD_BOUNCE) != 0)
+			newtag->flags |= BUS_DMA_COULD_BOUNCE;
 		if (newtag->filter == NULL) {
 			/*
 			 * Short circuit looking at our parent directly
@@ -417,9 +435,10 @@ bus_dmamap_create(bus_dma_tag_t dmat, int flags, bus_dmamap_t *mapp)
 		 * basis up to a sane limit.
 		 */
 		if (dmat->alignment > 1)
-			maxpages = MAX_BPAGES;
+			maxpages = BUSDMA_MAX_BPAGES;
 		else
-			maxpages = MIN(MAX_BPAGES, Maxmem -atop(dmat->lowaddr));
+			maxpages = MIN(BUSDMA_MAX_BPAGES,
+			    Maxmem - atop(dmat->lowaddr));
 		if ((dmat->flags & BUS_DMA_MIN_ALLOC_COMP) == 0 ||
 		    (bz->map_count > 0 && bz->total_bpages < maxpages)) {
 			int pages;
@@ -903,6 +922,11 @@ bus_dmamap_unload(bus_dma_tag_t dmat, bus_dmamap_t map)
 {
 	struct bounce_page *bpage;
 
+	if (map == NULL) {
+		warn_null_map(__func__, __builtin_return_address(0));
+		return;
+	}
+
 	while ((bpage = STAILQ_FIRST(&map->bpages)) != NULL) {
 		STAILQ_REMOVE_HEAD(&map->bpages, links);
 		free_bounce_page(dmat, bpage);
@@ -913,6 +937,11 @@ void
 bus_dmamap_sync(bus_dma_tag_t dmat, bus_dmamap_t map, bus_dmasync_op_t op)
 {
 	struct bounce_page *bpage;
+
+	if (map == NULL) {
+		warn_null_map(__func__, __builtin_return_address(0));
+		return;
+	}
 
 	if ((bpage = STAILQ_FIRST(&map->bpages)) != NULL) {
 		/*

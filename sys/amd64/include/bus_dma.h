@@ -31,6 +31,8 @@
 
 #include <sys/bus_dma.h>
 
+#define	BUSDMA_MAX_BPAGES	8192
+
 #define	bus_dma_tag_parent(x)	x
 
 #endif /* _AMD64_BUS_DMA_H_ */
