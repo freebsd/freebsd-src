@@ -313,6 +313,11 @@
         &man.clear.locks.8; command has been added to clear locks held
         on behalf of an NFS client.</para>
 
+      <para role="merged">The <application>ZFS</application> file system
+        has been upgraded to version 14.  Additional changes include
+        support for NFSv4 ACLs, a speedup of zfs send and an improved L2ARC.
+        New statistics for prefetch and L2ARC have been introduced.</para>
+
     </sect3>
   </sect2>
 
