@@ -1224,17 +1224,23 @@ file_compress(char *file, char *outfile, size_t outsize)
 		return -1;
 	}
 
+#ifndef SMALL
+	if (fstat(in, &isb) != 0) {
+		maybe_warn("couldn't stat: %s", file);
+		close(in);
+		return -1;
+	}
+#endif
+
 	if (cflag == 0) {
 #ifndef SMALL
-		if (fstat(in, &isb) == 0) {
-			if (isb.st_nlink > 1 && fflag == 0) {
+		if (isb.st_nlink != 1 && fflag == 0) {
 				maybe_warnx("%s has %d other link%s -- "
 					    "skipping", file, isb.st_nlink - 1,
 					    isb.st_nlink == 1 ? "" : "s");
 				close(in);
 				return -1;
 			}
-		}
 
 		if (fflag == 0 && (suff = check_suffix(file, 0))
 		    && suff->zipped[0] != 0) {
