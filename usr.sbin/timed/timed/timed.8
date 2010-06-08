@@ -77,44 +77,37 @@ are used by
 This option may be specified multiple times
 to add more than one network to the list.
 .It Fl F Ar host ...
-.in +2
-.ti -2
--
+.Bl -dash -compact
+.It
 Create a list of trusted hosts.
-.ti -2
--
+.It
 Can take one or more parameters.
-.ti -2
--
+.It
 .Nm
 will only accept trusted hosts as masters.
 If it finds an untrusted host claiming to be master,
 .Nm
 will suppress incoming messages from that host
 and call for a new election.
-.ti -2
--
+.It
 Use real host names (resolvable by RDNS) not aliases (eg in 
 .Xr named 8
 parlance: use A names, not C names).
-.ti -2
--
+.It
 Use full names eg time1.domain.com not time1.
-.ti -2
--
+.It
 .Fl F
 automatically includes the functionality of 
 .Fl M
-( so
+(so
 .Fl M
 does not need to asserted).
-.ti -2
--
+.It
 If 
 .Fl F
 is not specified,
 all hosts on connected networks are treated as trustworthy.
-.in -2
+.El
 .It Fl M
 Allow this host to become a
 .Nm
