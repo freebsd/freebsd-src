@@ -261,16 +261,15 @@ ioapic_program_intpin(struct ioapic_intsrc *intpin)
 	 * If a pin is completely invalid or if it is valid but hasn't
 	 * been enabled yet, just ensure that the pin is masked.
 	 */
+	mtx_assert(&icu_lock, MA_OWNED);
 	if (intpin->io_irq == IRQ_DISABLED || (intpin->io_irq < NUM_IO_INTS &&
 	    intpin->io_vector == 0)) {
-		mtx_lock_spin(&icu_lock);
 		low = ioapic_read(io->io_addr,
 		    IOAPIC_REDTBL_LO(intpin->io_intpin));
 		if ((low & IOART_INTMASK) == IOART_INTMCLR)
 			ioapic_write(io->io_addr,
 			    IOAPIC_REDTBL_LO(intpin->io_intpin),
 			    low | IOART_INTMSET);
-		mtx_unlock_spin(&icu_lock);
 		return;
 	}
 
@@ -312,14 +311,12 @@ ioapic_program_intpin(struct ioapic_intsrc *intpin)
 	}
 
 	/* Write the values to the APIC. */
-	mtx_lock_spin(&icu_lock);
 	intpin->io_lowreg = low;
 	ioapic_write(io->io_addr, IOAPIC_REDTBL_LO(intpin->io_intpin), low);
 	value = ioapic_read(io->io_addr, IOAPIC_REDTBL_HI(intpin->io_intpin));
 	value &= ~IOART_DEST;
 	value |= high;
 	ioapic_write(io->io_addr, IOAPIC_REDTBL_HI(intpin->io_intpin), value);
-	mtx_unlock_spin(&icu_lock);
 }
 
 static int
@@ -352,6 +349,19 @@ ioapic_assign_cpu(struct intsrc *isrc, u_int apic_id)
 	if (new_vector == 0)
 		return (ENOSPC);
 
+	/*
+	 * Mask the old intpin if it is enabled while it is migrated.
+	 *
+	 * At least some level-triggered interrupts seem to need the
+	 * extra DELAY() to avoid being stuck in a non-EOI'd state.
+	 */
+	mtx_lock_spin(&icu_lock);
+	if (!intpin->io_masked) {
+		ioapic_write(io->io_addr, IOAPIC_REDTBL_LO(intpin->io_intpin),
+		    intpin->io_lowreg | IOART_INTMSET);
+		DELAY(100);
+	}
+
 	intpin->io_cpu = apic_id;
 	intpin->io_vector = new_vector;
 	if (isrc->is_handlers > 0)
@@ -364,6 +374,8 @@ ioapic_assign_cpu(struct intsrc *isrc, u_int apic_id)
 		    intpin->io_vector);
 	}
 	ioapic_program_intpin(intpin);
+	mtx_unlock_spin(&icu_lock);
+
 	/*
 	 * Free the old vector after the new one is established.  This is done
 	 * to prevent races where we could miss an interrupt.
@@ -399,9 +411,11 @@ ioapic_disable_intr(struct intsrc *isrc)
 		/* Mask this interrupt pin and free its APIC vector. */
 		vector = intpin->io_vector;
 		apic_disable_vector(intpin->io_cpu, vector);
+		mtx_lock_spin(&icu_lock);
 		intpin->io_masked = 1;
 		intpin->io_vector = 0;
 		ioapic_program_intpin(intpin);
+		mtx_unlock_spin(&icu_lock);
 		apic_free_vector(intpin->io_cpu, vector, intpin->io_irq);
 	}
 }
@@ -443,6 +457,7 @@ ioapic_config_intr(struct intsrc *isrc, enum intr_trigger trig,
 	 * XXX: Should we write to the ELCR if the trigger mode changes for
 	 * an EISA IRQ or an ISA IRQ with the ELCR present?
 	 */
+	mtx_lock_spin(&icu_lock);
 	if (intpin->io_bus == APIC_BUS_EISA)
 		pol = INTR_POLARITY_HIGH;
 	changed = 0;
@@ -464,6 +479,7 @@ ioapic_config_intr(struct intsrc *isrc, enum intr_trigger trig,
 	}
 	if (changed)
 		ioapic_program_intpin(intpin);
+	mtx_unlock_spin(&icu_lock);
 	return (0);
 }
 
@@ -473,8 +489,10 @@ ioapic_resume(struct pic *pic)
 	struct ioapic *io = (struct ioapic *)pic;
 	int i;
 
+	mtx_lock_spin(&icu_lock);
 	for (i = 0; i < io->io_numintr; i++)
 		ioapic_program_intpin(&io->io_pins[i]);
+	mtx_unlock_spin(&icu_lock);
 }
 
 /*
