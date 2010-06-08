@@ -1588,8 +1588,9 @@ sge_start_locked(struct ifnet *ifp)
 		if (m_head == NULL)
 			break;
 		if (sge_encap(sc, &m_head)) {
-			if (m_head != NULL)
-				IFQ_DRV_PREPEND(&ifp->if_snd, m_head);
+			if (m_head == NULL)
+				break;
+			IFQ_DRV_PREPEND(&ifp->if_snd, m_head);
 			ifp->if_drv_flags |= IFF_DRV_OACTIVE;
 			break;
 		}
