@@ -286,7 +286,6 @@ i386/i386/mpboot.s		optional smp native
 i386/i386/mptable.c		optional apic native
 i386/xen/mptable.c		optional apic xen
 i386/i386/mptable_pci.c		optional apic pci
-i386/i386/msi.c			optional apic pci
 i386/i386/nexus.c		standard
 i386/i386/perfmon.c		optional perfmon
 i386/i386/pmap.c		optional native
@@ -390,3 +389,4 @@ x86/isa/orm.c			optional isa
 x86/x86/io_apic.c		optional apic
 x86/x86/local_apic.c		optional apic
 x86/x86/mca.c			standard
+x86/x86/msi.c			optional apic pci
