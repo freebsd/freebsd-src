@@ -289,10 +289,18 @@ sctp_build_ctl_cchunk(struct sctp_inpcb *inp,
 static void
 sctp_mark_non_revokable(struct sctp_association *asoc, uint32_t tsn)
 {
-	uint32_t gap, i;
+	uint32_t gap, i, cumackp1;
 	int fnd = 0;
 
 	if (SCTP_BASE_SYSCTL(sctp_do_drain) == 0) {
+		return;
+	}
+	cumackp1 = asoc->cumulative_tsn + 1;
+	if (compare_with_wrap(cumackp1, tsn, MAX_TSN)) {
+		/*
+		 * this tsn is behind the cum ack and thus we don't need to
+		 * worry about it being moved from one to the other.
+		 */
 		return;
 	}
 	SCTP_CALC_TSN_TO_GAP(gap, tsn, asoc->mapping_array_base_tsn);
@@ -2259,6 +2267,7 @@ sctp_slide_mapping_arrays(struct sctp_tcb *stcb)
 	uint8_t val;
 	int slide_from, slide_end, lgap, distance;
 	uint32_t old_cumack, old_base, old_highest, highest_tsn;
+	int type;
 
 	asoc = &stcb->asoc;
 	at = 0;
@@ -2270,9 +2279,18 @@ sctp_slide_mapping_arrays(struct sctp_tcb *stcb)
 	 * We could probably improve this a small bit by calculating the
 	 * offset of the current cum-ack as the starting point.
 	 */
+	if (SCTP_BASE_SYSCTL(sctp_nr_sack_on_off) &&
+	    stcb->asoc.peer_supports_nr_sack) {
+		type = SCTP_NR_SELECTIVE_ACK;
+	} else {
+		type = SCTP_SELECTIVE_ACK;
+	}
 	at = 0;
 	for (slide_from = 0; slide_from < stcb->asoc.mapping_array_size; slide_from++) {
-		val = asoc->nr_mapping_array[slide_from] | asoc->mapping_array[slide_from];
+		if (type == SCTP_NR_SELECTIVE_ACK)
+			val = asoc->nr_mapping_array[slide_from];
+		else
+			val = asoc->nr_mapping_array[slide_from] | asoc->mapping_array[slide_from];
 		if (val == 0xff) {
 			at += 8;
 		} else {
