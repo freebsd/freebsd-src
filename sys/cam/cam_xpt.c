@@ -196,8 +196,18 @@ static struct cdevsw xpt_cdevsw = {
 /* Storage for debugging datastructures */
 #ifdef	CAMDEBUG
 struct cam_path *cam_dpath;
-u_int32_t cam_dflags;
+#ifdef	CAM_DEBUG_FLAGS
+u_int32_t cam_dflags = CAM_DEBUG_FLAGS;
+#else
+u_int32_t cam_dflags = CAM_DEBUG_NONE;
+#endif
+TUNABLE_INT("kern.cam.dflags", &cam_dflags);
+SYSCTL_INT(_kern_cam, OID_AUTO, dflags, CTLFLAG_RW,
+	&cam_dflags, 0, "Cam Debug Flags");
 u_int32_t cam_debug_delay;
+TUNABLE_INT("kern.cam.debug_delay", &cam_debug_delay);
+SYSCTL_INT(_kern_cam, OID_AUTO, debug_delay, CTLFLAG_RW,
+	&cam_debug_delay, 0, "Cam Debug Flags");
 #endif
 
 /* Our boot-time initialization hook */
@@ -4212,6 +4222,7 @@ xpt_alloc_target(struct cam_eb *bus, target_id_t target_id)
 		target->target_id = target_id;
 		target->refcount = 1;
 		target->generation = 0;
+		target->luns = NULL;
 		timevalclear(&target->last_reset);
 		/*
 		 * Hold a reference to our parent bus so it
@@ -4243,6 +4254,8 @@ xpt_release_target(struct cam_et *target)
 		TAILQ_REMOVE(&target->bus->et_entries, target, links);
 		target->bus->generation++;
 		xpt_release_bus(target->bus);
+		if (target->luns)
+			free(target->luns, M_CAMXPT);
 		free(target, M_CAMXPT);
 	}
 }
@@ -4505,11 +4518,6 @@ xpt_config(void *arg)
 
 #ifdef CAMDEBUG
 	/* Setup debugging flags and path */
-#ifdef CAM_DEBUG_FLAGS
-	cam_dflags = CAM_DEBUG_FLAGS;
-#else /* !CAM_DEBUG_FLAGS */
-	cam_dflags = CAM_DEBUG_NONE;
-#endif /* CAM_DEBUG_FLAGS */
 #ifdef CAM_DEBUG_BUS
 	if (cam_dflags != CAM_DEBUG_NONE) {
 		/*
