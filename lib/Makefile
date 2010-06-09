@@ -108,7 +108,8 @@ SUBDIR=	${SUBDIR_ORDERED} \
 	libwrap \
 	liby \
 	libz \
-	${_bind}
+	${_bind} \
+	${_clang}
 
 .if exists(${.CURDIR}/csu/${MACHINE_ARCH}-elf)
 _csu=csu/${MACHINE_ARCH}-elf
@@ -135,6 +136,10 @@ _libsdp=	libsdp
 
 .if ${MK_BSNMP} != "no"
 _libbsnmp=	libbsnmp
+.endif
+
+.if ${MK_CLANG} != "no"
+_clang=		clang
 .endif
 
 .if ${MK_GPIB} != "no"
