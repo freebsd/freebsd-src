@@ -871,16 +871,6 @@ void clang::ApplyHeaderSearchOptions(HeaderSearch &HS,
   else
     Init.AddDelimitedPaths(HSOpts.CEnvIncPath);
 
-#if 0 /* We place built-in includes in /usr/include. */
-  if (HSOpts.UseBuiltinIncludes) {
-    // Ignore the sys root, we *always* look for clang headers relative to
-    // supplied path.
-    llvm::sys::Path P(HSOpts.ResourceDir);
-    P.appendComponent("include");
-    Init.AddPath(P.str(), System, false, false, false, /*IgnoreSysRoot=*/ true);
-  }
-#endif
-
   if (HSOpts.UseStandardIncludes)
     Init.AddDefaultSystemIncludePaths(Lang, Triple, HSOpts);
 
