@@ -14,6 +14,7 @@
 #include "clang/Frontend/Utils.h"
 #include "clang/Basic/FileManager.h"
 #include "clang/Basic/LangOptions.h"
+#include "clang/Basic/Version.h"
 #include "clang/Frontend/HeaderSearchOptions.h"
 #include "clang/Lex/HeaderSearch.h"
 #include "llvm/ADT/SmallString.h"
@@ -407,6 +408,7 @@ static bool getWindowsSDKDir(std::string &path) {
 
 void InitHeaderSearch::AddDefaultCIncludePaths(const llvm::Triple &triple,
                                             const HeaderSearchOptions &HSOpts) {
+#if 0 /* Remove unneeded include paths. */
   // FIXME: temporary hack: hard-coded paths.
   AddPath("/usr/local/include", System, true, false, false);
 
@@ -419,6 +421,7 @@ void InitHeaderSearch::AddDefaultCIncludePaths(const llvm::Triple &triple,
     P.appendComponent("include");
     AddPath(P.str(), System, false, false, false, /*IgnoreSysRoot=*/ true);
   }
+#endif
 
   // Add dirs specified via 'configure --with-c-include-dirs'.
   llvm::StringRef CIncludeDirs(C_INCLUDE_DIRS);
@@ -519,6 +522,8 @@ void InitHeaderSearch::AddDefaultCIncludePaths(const llvm::Triple &triple,
     break;
   }
 
+  AddPath("/usr/include/clang/" CLANG_VERSION_STRING,
+    System, false, false, false);
   AddPath("/usr/include", System, false, false, false);
 }
 
@@ -865,6 +870,16 @@ void clang::ApplyHeaderSearchOptions(HeaderSearch &HS,
     Init.AddDelimitedPaths(HSOpts.ObjCEnvIncPath);
   else
     Init.AddDelimitedPaths(HSOpts.CEnvIncPath);
+
+#if 0 /* We place built-in includes in /usr/include. */
+  if (HSOpts.UseBuiltinIncludes) {
+    // Ignore the sys root, we *always* look for clang headers relative to
+    // supplied path.
+    llvm::sys::Path P(HSOpts.ResourceDir);
+    P.appendComponent("include");
+    Init.AddPath(P.str(), System, false, false, false, /*IgnoreSysRoot=*/ true);
+  }
+#endif
 
   if (HSOpts.UseStandardIncludes)
     Init.AddDefaultSystemIncludePaths(Lang, Triple, HSOpts);
