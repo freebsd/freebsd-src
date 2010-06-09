@@ -83,6 +83,10 @@
         scsi
         ..
     ..
+    clang
+        2.0
+        ..
+    ..
     crypto
     ..
     dev
