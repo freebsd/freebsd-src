@@ -3114,12 +3114,6 @@ sctp_inpcb_free(struct sctp_inpcb *inp, int immediate, int from)
 		 * via the sockets layer.
 		 */
 		SCTP_ITERATOR_LOCK();
-		inp->sctp_flags &= ~SCTP_PCB_FLAGS_CLOSE_IP;
-		/* socket is gone, so no more wakeups allowed */
-		inp->sctp_flags |= SCTP_PCB_FLAGS_DONT_WAKE;
-		inp->sctp_flags &= ~SCTP_PCB_FLAGS_WAKEINPUT;
-		inp->sctp_flags &= ~SCTP_PCB_FLAGS_WAKEOUTPUT;
-
 		/* mark any iterators on the list or being processed */
 		sctp_iterator_inp_being_freed(inp);
 		SCTP_ITERATOR_UNLOCK();
@@ -3137,6 +3131,14 @@ sctp_inpcb_free(struct sctp_inpcb *inp, int immediate, int from)
 	SCTP_INP_INFO_WLOCK();
 
 	SCTP_INP_WLOCK(inp);
+	if (from == SCTP_CALLED_AFTER_CMPSET_OFCLOSE) {
+		inp->sctp_flags &= ~SCTP_PCB_FLAGS_CLOSE_IP;
+		/* socket is gone, so no more wakeups allowed */
+		inp->sctp_flags |= SCTP_PCB_FLAGS_DONT_WAKE;
+		inp->sctp_flags &= ~SCTP_PCB_FLAGS_WAKEINPUT;
+		inp->sctp_flags &= ~SCTP_PCB_FLAGS_WAKEOUTPUT;
+
+	}
 	/* First time through we have the socket lock, after that no more. */
 	sctp_timer_stop(SCTP_TIMER_TYPE_NEWCOOKIE, inp, NULL, NULL,
 	    SCTP_FROM_SCTP_PCB + SCTP_LOC_1);
@@ -3334,13 +3336,13 @@ sctp_inpcb_free(struct sctp_inpcb *inp, int immediate, int from)
 		}
 		/* now is there some left in our SHUTDOWN state? */
 		if (cnt_in_sd) {
-			SCTP_INP_WUNLOCK(inp);
-			SCTP_ASOC_CREATE_UNLOCK(inp);
-			SCTP_INP_INFO_WUNLOCK();
 #ifdef SCTP_LOG_CLOSING
 			sctp_log_closing(inp, NULL, 2);
 #endif
 			inp->sctp_socket = NULL;
+			SCTP_INP_WUNLOCK(inp);
+			SCTP_ASOC_CREATE_UNLOCK(inp);
+			SCTP_INP_INFO_WUNLOCK();
 			return;
 		}
 	}
@@ -3415,12 +3417,12 @@ sctp_inpcb_free(struct sctp_inpcb *inp, int immediate, int from)
 	if (cnt) {
 		/* Ok we have someone out there that will kill us */
 		(void)SCTP_OS_TIMER_STOP(&inp->sctp_ep.signature_change.timer);
-		SCTP_INP_WUNLOCK(inp);
-		SCTP_ASOC_CREATE_UNLOCK(inp);
-		SCTP_INP_INFO_WUNLOCK();
 #ifdef SCTP_LOG_CLOSING
 		sctp_log_closing(inp, NULL, 3);
 #endif
+		SCTP_INP_WUNLOCK(inp);
+		SCTP_ASOC_CREATE_UNLOCK(inp);
+		SCTP_INP_INFO_WUNLOCK();
 		return;
 	}
 	if (SCTP_INP_LOCK_CONTENDED(inp))
@@ -3434,26 +3436,43 @@ sctp_inpcb_free(struct sctp_inpcb *inp, int immediate, int from)
 	    (being_refed) ||
 	    (inp->sctp_flags & SCTP_PCB_FLAGS_CLOSE_IP)) {
 		(void)SCTP_OS_TIMER_STOP(&inp->sctp_ep.signature_change.timer);
+#ifdef SCTP_LOG_CLOSING
+		sctp_log_closing(inp, NULL, 4);
+#endif
 		sctp_timer_start(SCTP_TIMER_TYPE_INPKILL, inp, NULL, NULL);
 		SCTP_INP_WUNLOCK(inp);
 		SCTP_ASOC_CREATE_UNLOCK(inp);
 		SCTP_INP_INFO_WUNLOCK();
-#ifdef SCTP_LOG_CLOSING
-		sctp_log_closing(inp, NULL, 4);
-#endif
 		return;
 	}
-	(void)SCTP_OS_TIMER_STOP(&inp->sctp_ep.signature_change.timer);
 	inp->sctp_ep.signature_change.type = 0;
 	inp->sctp_flags |= SCTP_PCB_FLAGS_SOCKET_ALLGONE;
+	/*
+	 * Remove it from the list .. last thing we need a lock for.
+	 */
+	LIST_REMOVE(inp, sctp_list);
+	SCTP_INP_WUNLOCK(inp);
+	SCTP_ASOC_CREATE_UNLOCK(inp);
+	SCTP_INP_INFO_WUNLOCK();
+	/*
+	 * Now we release all locks. Since this INP cannot be found anymore
+	 * except possbily by the kill timer that might be running. We call
+	 * the drain function here. It should hit the case were it sees the
+	 * ACTIVE flag cleared and exit out freeing us to proceed and
+	 * destroy everything.
+	 */
+	if (from != SCTP_CALLED_FROM_INPKILL_TIMER) {
+		(void)SCTP_OS_TIMER_STOP_DRAIN(&inp->sctp_ep.signature_change.timer);
+	} else {
+		/* Probably un-needed */
+		(void)SCTP_OS_TIMER_STOP(&inp->sctp_ep.signature_change.timer);
+	}
 
 #ifdef SCTP_LOG_CLOSING
 	sctp_log_closing(inp, NULL, 5);
 #endif
 
-	(void)SCTP_OS_TIMER_STOP(&inp->sctp_ep.signature_change.timer);
-	inp->sctp_ep.signature_change.type = SCTP_TIMER_TYPE_NONE;
-	/* Clear the read queue */
+
 	if ((inp->sctp_asocidhash) != NULL) {
 		SCTP_HASH_FREE(inp->sctp_asocidhash, inp->hashasocidmark);
 		inp->sctp_asocidhash = NULL;
@@ -3524,8 +3543,6 @@ sctp_inpcb_free(struct sctp_inpcb *inp, int immediate, int from)
 		shared_key = LIST_FIRST(&inp->sctp_ep.shared_keys);
 	}
 
-	LIST_REMOVE(inp, sctp_list);
-
 	/*
 	 * if we have an address list the following will free the list of
 	 * ifaddr's that are set into this ep. Again macro limitations here,
@@ -3558,7 +3575,6 @@ sctp_inpcb_free(struct sctp_inpcb *inp, int immediate, int from)
 	SCTP_INP_LOCK_DESTROY(inp);
 	SCTP_INP_READ_DESTROY(inp);
 	SCTP_ASOC_CREATE_LOCK_DESTROY(inp);
-	SCTP_INP_INFO_WUNLOCK();
 	SCTP_ZONE_FREE(SCTP_BASE_INFO(ipi_zone_ep), inp);
 	SCTP_DECR_EP_COUNT();
 }
