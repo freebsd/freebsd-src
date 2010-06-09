@@ -76,7 +76,7 @@ setnnames(void)
 	int i, l;
 	struct tm tm;
 
-	memset(&tm, sizeof(struct tm), 0);
+	memset(&tm, '\0', sizeof(struct tm));
 	for (i = 0; i < 7; i++) {
 		tm.tm_wday = i;
 		strftime(buf, sizeof(buf), "%a", &tm);
@@ -104,7 +104,7 @@ setnnames(void)
 		fndays[i].len = strlen(buf);
 	}
 
-	memset(&tm, sizeof(struct tm), 0);
+	memset(&tm, '\0', sizeof(struct tm));
 	for (i = 0; i < 12; i++) {
 		tm.tm_mon = i;
 		strftime(buf, sizeof(buf), "%b", &tm);
