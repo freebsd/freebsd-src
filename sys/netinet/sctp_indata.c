@@ -2267,7 +2267,6 @@ sctp_slide_mapping_arrays(struct sctp_tcb *stcb)
 	uint8_t val;
 	int slide_from, slide_end, lgap, distance;
 	uint32_t old_cumack, old_base, old_highest, highest_tsn;
-	int type;
 
 	asoc = &stcb->asoc;
 	at = 0;
@@ -2279,18 +2278,9 @@ sctp_slide_mapping_arrays(struct sctp_tcb *stcb)
 	 * We could probably improve this a small bit by calculating the
 	 * offset of the current cum-ack as the starting point.
 	 */
-	if (SCTP_BASE_SYSCTL(sctp_nr_sack_on_off) &&
-	    stcb->asoc.peer_supports_nr_sack) {
-		type = SCTP_NR_SELECTIVE_ACK;
-	} else {
-		type = SCTP_SELECTIVE_ACK;
-	}
 	at = 0;
 	for (slide_from = 0; slide_from < stcb->asoc.mapping_array_size; slide_from++) {
-		if (type == SCTP_NR_SELECTIVE_ACK)
-			val = asoc->nr_mapping_array[slide_from];
-		else
-			val = asoc->nr_mapping_array[slide_from] | asoc->mapping_array[slide_from];
+		val = asoc->nr_mapping_array[slide_from] | asoc->mapping_array[slide_from];
 		if (val == 0xff) {
 			at += 8;
 		} else {
