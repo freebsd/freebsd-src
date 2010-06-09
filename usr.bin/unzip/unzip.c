@@ -862,7 +862,9 @@ unzip(const char *fn)
 	if ((fd = open(fn, O_RDONLY)) < 0)
 		error("%s", fn);
 
-	a = archive_read_new();
+	if ((a = archive_read_new()) == NULL)
+		error("archive_read_new failed");
+
 	ac(archive_read_support_format_zip(a));
 	ac(archive_read_open_fd(a, fd, 8192));
 
