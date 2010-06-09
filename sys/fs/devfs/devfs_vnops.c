@@ -230,9 +230,11 @@ devfs_vptocnp(struct vop_vptocnp_args *ap)
 		goto finished;
 	}
 	*buflen = i;
-	de = TAILQ_FIRST(&de->de_dlist);	/* "." */
-	de = TAILQ_NEXT(de, de_list);		/* ".." */
-	de = de->de_dir;
+	de = devfs_parent_dirent(de);
+	if (de == NULL) {
+		error = ENOENT;
+		goto finished;
+	}
 	mtx_lock(&devfs_de_interlock);
 	*dvp = de->de_vnode;
 	if (*dvp != NULL) {
@@ -278,9 +280,9 @@ devfs_fqpn(char *buf, struct vnode *dvp, struct componentname *cnp)
 			 return (NULL);
 		bcopy(de->de_dirent->d_name, buf + i,
 		    de->de_dirent->d_namlen);
-		de = TAILQ_FIRST(&de->de_dlist);	/* "." */
-		de = TAILQ_NEXT(de, de_list);		/* ".." */
-		de = de->de_dir;
+		de = devfs_parent_dirent(de);
+		if (de == NULL)
+			return (NULL);
 	}
 	return (buf + i);
 }
@@ -789,10 +791,10 @@ devfs_lookupx(struct vop_lookup_args *ap, int *dm_unlock)
 	if (flags & ISDOTDOT) {
 		if ((flags & ISLASTCN) && nameiop != LOOKUP)
 			return (EINVAL);
+		de = devfs_parent_dirent(dd);
+		if (de == NULL)
+			return (ENOENT);
 		VOP_UNLOCK(dvp, 0);
-		de = TAILQ_FIRST(&dd->de_dlist);	/* "." */
-		de = TAILQ_NEXT(de, de_list);		/* ".." */
-		de = de->de_dir;
 		error = devfs_allocv(de, dvp->v_mount, vpp);
 		*dm_unlock = 0;
 		vn_lock(dvp, LK_EXCLUSIVE | LK_RETRY);
