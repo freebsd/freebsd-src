@@ -274,6 +274,7 @@ MAN=	aac.4 \
 	ng_nat.4 \
 	ng_netflow.4 \
 	ng_one2many.4 \
+	ng_patch.4 \
 	ng_ppp.4 \
 	ng_pppoe.4 \
 	ng_pptpgre.4 \
