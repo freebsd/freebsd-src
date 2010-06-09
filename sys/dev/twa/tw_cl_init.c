@@ -208,7 +208,7 @@ tw_cl_get_mem_requirements(struct tw_cl_ctlr_handle *ctlr_handle,
 	 */
 
 	*non_dma_mem_size = sizeof(struct tw_cli_ctlr_context) +
-		(sizeof(struct tw_cli_req_context) * (max_simult_reqs + 1)) +
+		(sizeof(struct tw_cli_req_context) * max_simult_reqs) +
 		(sizeof(struct tw_cl_event_packet) * max_aens);
 
 
@@ -220,7 +220,7 @@ tw_cl_get_mem_requirements(struct tw_cl_ctlr_handle *ctlr_handle,
 	 */
 
 	*dma_mem_size = (sizeof(struct tw_cl_command_packet) *
-		(max_simult_reqs + 1)) + (TW_CLI_SECTOR_SIZE);
+		(max_simult_reqs)) + (TW_CLI_SECTOR_SIZE);
 
 	return(0);
 }
@@ -287,12 +287,12 @@ tw_cl_init_ctlr(struct tw_cl_ctlr_handle *ctlr_handle, TW_UINT32 flags,
 	}
 
 	tw_osl_memzero(non_dma_mem, sizeof(struct tw_cli_ctlr_context) +
-		(sizeof(struct tw_cli_req_context) * (max_simult_reqs + 1)) +
+		(sizeof(struct tw_cli_req_context) * max_simult_reqs) +
 		(sizeof(struct tw_cl_event_packet) * max_aens));
 
 	tw_osl_memzero(dma_mem,
 		(sizeof(struct tw_cl_command_packet) *
-		(max_simult_reqs + 1)) +
+		max_simult_reqs) +
 		TW_CLI_SECTOR_SIZE);
 
 	free_non_dma_mem = (TW_UINT8 *)non_dma_mem;
@@ -307,7 +307,7 @@ tw_cl_init_ctlr(struct tw_cl_ctlr_handle *ctlr_handle, TW_UINT32 flags,
 	ctlr->arch_id = TWA_ARCH_ID(device_id);
 	ctlr->flags = flags;
 	ctlr->sg_size_factor = TWA_SG_ELEMENT_SIZE_FACTOR(device_id);
-	ctlr->max_simult_reqs = max_simult_reqs + 1;
+	ctlr->max_simult_reqs = max_simult_reqs;
 	ctlr->max_aens_supported = max_aens;
 
 	/* Initialize queues of CL internal request context packets. */
@@ -321,55 +321,23 @@ tw_cl_init_ctlr(struct tw_cl_ctlr_handle *ctlr_handle, TW_UINT32 flags,
 	tw_osl_init_lock(ctlr_handle, "tw_cl_gen_lock", ctlr->gen_lock);
 	ctlr->io_lock = &(ctlr->io_lock_handle);
 	tw_osl_init_lock(ctlr_handle, "tw_cl_io_lock", ctlr->io_lock);
-	/*
-	 * If 64 bit cmd pkt addresses are used, we will need to serialize
-	 * writes to the hardware (across registers), since existing (G66)
-	 * hardware will get confused if, for example, we wrote the low 32 bits
-	 * of the cmd pkt address, followed by a response interrupt mask to the
-	 * control register, followed by the high 32 bits of the cmd pkt
-	 * address.  It will then interpret the value written to the control
-	 * register as the low cmd pkt address.  So, for this case, we will
-	 * make a note that we will need to synchronize control register writes
-	 * with command register writes.
-	 */
-	if ((ctlr->flags & TW_CL_64BIT_ADDRESSES) &&
-	    ((ctlr->device_id == TW_CL_DEVICE_ID_9K) ||
-	     (ctlr->device_id == TW_CL_DEVICE_ID_9K_X) ||
-	     (ctlr->device_id == TW_CL_DEVICE_ID_9K_E) ||
-	     (ctlr->device_id == TW_CL_DEVICE_ID_9K_SA))) {
-		ctlr->state |= TW_CLI_CTLR_STATE_G66_WORKAROUND_NEEDED;
-		ctlr->intr_lock = ctlr->io_lock;
-	} else {
-		ctlr->intr_lock = &(ctlr->intr_lock_handle);
-		tw_osl_init_lock(ctlr_handle, "tw_cl_intr_lock",
-			ctlr->intr_lock);
-	}
 
 	/* Initialize CL internal request context packets. */
 	ctlr->req_ctxt_buf = (struct tw_cli_req_context *)free_non_dma_mem;
 	free_non_dma_mem += (sizeof(struct tw_cli_req_context) *
-		(
-		max_simult_reqs +
-		1));
+		max_simult_reqs);
 
 	ctlr->cmd_pkt_buf = (struct tw_cl_command_packet *)dma_mem;
 	ctlr->cmd_pkt_phys = dma_mem_phys;
 
 	ctlr->internal_req_data = (TW_UINT8 *)
 		(ctlr->cmd_pkt_buf +
-		(
-		max_simult_reqs +
-		1));
+		max_simult_reqs);
 	ctlr->internal_req_data_phys = ctlr->cmd_pkt_phys +
 		(sizeof(struct tw_cl_command_packet) *
-		(
-		max_simult_reqs +
-		1));
+		max_simult_reqs);
 
-	for (i = 0;
-		i < (
-		max_simult_reqs +
-		1); i++) {
+	for (i = 0; i < max_simult_reqs; i++) {
 		req = &(ctlr->req_ctxt_buf[i]);
 
 		req->cmd_pkt = &(ctlr->cmd_pkt_buf[i]);
@@ -421,8 +389,8 @@ start_ctlr:
 	/* Notify some info about the controller to the OSL. */
 	tw_cli_notify_ctlr_info(ctlr);
 
-	/* Mark the controller as active. */
-	ctlr->state |= TW_CLI_CTLR_STATE_ACTIVE;
+	/* Mark the controller active. */
+	ctlr->active = TW_CL_TRUE;
 	return(error);
 }
 
@@ -597,7 +565,7 @@ tw_cl_shutdown_ctlr(struct tw_cl_ctlr_handle *ctlr_handle, TW_UINT32 flags)
 	 * Mark the controller as inactive, disable any further interrupts,
 	 * and notify the controller that we are going down.
 	 */
-	ctlr->state &= ~TW_CLI_CTLR_STATE_ACTIVE;
+	ctlr->active = TW_CL_FALSE;
 
 	tw_cli_disable_interrupts(ctlr);
 
@@ -617,8 +585,6 @@ tw_cl_shutdown_ctlr(struct tw_cl_ctlr_handle *ctlr_handle, TW_UINT32 flags)
 	/* Destroy all locks used by CL. */
 	tw_osl_destroy_lock(ctlr_handle, ctlr->gen_lock);
 	tw_osl_destroy_lock(ctlr_handle, ctlr->io_lock);
-	if (!(ctlr->flags & TW_CL_64BIT_ADDRESSES))
-		tw_osl_destroy_lock(ctlr_handle, ctlr->intr_lock);
 
 ret:
 	return(error);
