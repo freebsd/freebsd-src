@@ -2,8 +2,8 @@
 # $FreeBSD$
 
 PROG=	fsirand
-WARNS?=	0
 MAN=	fsirand.8
+WARNS?=	3
 DPADD=	${LIBUTIL}
 LDADD=	-lutil
 
