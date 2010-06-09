@@ -66,12 +66,6 @@ functions compute the principal value of the arc tangent of
 .Fa y/ Ns Ar x ,
 using the signs of both arguments to determine the quadrant of
 the return value.
-.ie '\*[.T]'utf8' \{\
-.  ds Th \[*h]
-.\}
-.el \{\
-.  ds Th theta
-.\}
 .Pp
 The
 .Fn carg ,
@@ -80,8 +74,8 @@ and
 .Fn cargl
 functions compute the complex argument (or phase angle) of
 .Fa z .
-The complex argument is the number \*(Th such that
-.Li z = r * e^(I * \*(Th) ,
+The complex argument is the number theta such that
+.Li z = r * e^(I * theta) ,
 where
 .Li r = cabs(z) .
 The call
