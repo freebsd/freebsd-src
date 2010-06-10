@@ -1099,7 +1099,7 @@ ACPI_STATUS (*ACPI_ADR_SPACE_SETUP) (
 
 typedef
 ACPI_STATUS (*ACPI_WALK_CALLBACK) (
-    ACPI_HANDLE                     ObjHandle,
+    ACPI_HANDLE                     Object,
     UINT32                          NestingLevel,
     void                            *Context,
     void                            **ReturnValue);

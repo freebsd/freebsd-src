@@ -8,7 +8,7 @@
 #include "gzguts.h"
 #include "zutil.h"
 
-#if _LARGEFILE64_SOURCE == 1 && _LFS64_LARGEFILE == 1
+#if defined(_LARGEFILE64_SOURCE) && _LFS64_LARGEFILE-0
 #  define LSEEK lseek64
 #else
 #  define LSEEK lseek
@@ -29,7 +29,7 @@ local gzFile gz_open OF((const char *, int, const char *));
 
    The gz_strwinerror function does not change the current setting of
    GetLastError. */
-char ZEXPORT *gz_strwinerror (error)
+char ZLIB_INTERNAL *gz_strwinerror (error)
      DWORD error;
 {
     static char buf[1024];
@@ -175,6 +175,7 @@ local gzFile gz_open(path, fd, mode)
                         O_APPEND))),
             0666);
     if (state->fd == -1) {
+        free(state->path);
         free(state);
         return NULL;
     }
@@ -435,7 +436,8 @@ int ZEXPORT gzeof(file)
         return 0;
 
     /* return end-of-file state */
-    return state->mode == GZ_READ ? (state->eof && state->have == 0) : 0;
+    return state->mode == GZ_READ ?
+        (state->eof && state->strm.avail_in == 0 && state->have == 0) : 0;
 }
 
 /* -- see zlib.h -- */
@@ -483,7 +485,7 @@ void ZEXPORT gzclearerr(file)
    memory).  Simply save the error message as a static string.  If there is an
    allocation failure constructing the error message, then convert the error to
    out of memory. */
-void ZEXPORT gz_error(state, err, msg)
+void ZLIB_INTERNAL gz_error(state, err, msg)
     gz_statep state;
     int err;
     const char *msg;
@@ -523,7 +525,7 @@ void ZEXPORT gz_error(state, err, msg)
    available) -- we need to do this to cover cases where 2's complement not
    used, since C standard permits 1's complement and sign-bit representations,
    otherwise we could just use ((unsigned)-1) >> 1 */
-unsigned ZEXPORT gz_intmax()
+unsigned ZLIB_INTERNAL gz_intmax()
 {
     unsigned p, q;
 

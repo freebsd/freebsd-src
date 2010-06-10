@@ -78,7 +78,7 @@
 
 #include <dev/usb/serial/usb_serial.h>
 
-#if USB_DEBUG
+#ifdef USB_DEBUG
 static int uvisor_debug = 0;
 
 SYSCTL_NODE(_hw_usb, OID_AUTO, uvisor, CTLFLAG_RW, 0, "USB uvisor");
@@ -392,7 +392,7 @@ uvisor_init(struct uvisor_softc *sc, struct usb_device *udev, struct usb_config 
 			goto done;
 		}
 	}
-#if USB_DEBUG
+#ifdef USB_DEBUG
 	if (sc->sc_flag & UVISOR_FLAG_VISOR) {
 		uint16_t i, np;
 		const char *desc;

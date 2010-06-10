@@ -87,8 +87,6 @@ static void break_syscall(struct trapframe *tf);
  */
 extern struct fpswa_iface *fpswa_iface;
 
-extern char *syscallnames[];
-
 static const char *ia64_vector_names[] = {
 	"VHPT Translation",			/* 0 */
 	"Instruction TLB",			/* 1 */
@@ -899,6 +897,44 @@ break_syscall(struct trapframe *tf)
 	do_ast(tf);
 }
 
+int
+cpu_fetch_syscall_args(struct thread *td, struct syscall_args *sa)
+{
+	struct proc *p;
+	struct trapframe *tf;
+
+	p = td->td_proc;
+	tf = td->td_frame;
+
+	sa->code = tf->tf_scratch.gr15;
+	sa->args = &tf->tf_scratch.gr16;
+
+	/*
+	 * syscall() and __syscall() are handled the same on
+	 * the ia64, as everything is 64-bit aligned, anyway.
+	 */
+	if (sa->code == SYS_syscall || sa->code == SYS___syscall) {
+		/*
+		 * Code is first argument, followed by actual args.
+		 */
+		sa->code = sa->args[0];
+		sa->args++;
+	}
+
+ 	if (p->p_sysent->sv_mask)
+ 		sa->code &= p->p_sysent->sv_mask;
+ 	if (sa->code >= p->p_sysent->sv_size)
+ 		sa->callp = &p->p_sysent->sv_table[0];
+ 	else
+		sa->callp = &p->p_sysent->sv_table[sa->code];
+	sa->narg = sa->callp->sy_narg;
+
+	td->td_retval[0] = 0;
+	td->td_retval[1] = 0;
+
+	return (0);
+}
+
 /*
  * Process a system call.
  *
@@ -909,107 +945,18 @@ break_syscall(struct trapframe *tf)
 int
 syscall(struct trapframe *tf)
 {
-	struct sysent *callp;
-	struct proc *p;
+	struct syscall_args sa;
 	struct thread *td;
-	uint64_t *args;
-	int code, error;
-
-	ia64_set_fpsr(IA64_FPSR_DEFAULT);
-
-	code = tf->tf_scratch.gr15;
-	args = &tf->tf_scratch.gr16;
-
-	PCPU_INC(cnt.v_syscall);
+	int error;
 
 	td = curthread;
 	td->td_frame = tf;
-	p = td->td_proc;
 
-	td->td_pticks = 0;
-	if (td->td_ucred != p->p_ucred)
-		cred_update_thread(td);
-
-	if (p->p_sysent->sv_prepsyscall) {
-		/* (*p->p_sysent->sv_prepsyscall)(tf, args, &code, &params); */
-		panic("prepsyscall");
-	} else {
-		/*
-		 * syscall() and __syscall() are handled the same on
-		 * the ia64, as everything is 64-bit aligned, anyway.
-		 */
-		if (code == SYS_syscall || code == SYS___syscall) {
-			/*
-			 * Code is first argument, followed by actual args.
-			 */
-			code = args[0];
-			args++;
-		}
-	}
-
- 	if (p->p_sysent->sv_mask)
- 		code &= p->p_sysent->sv_mask;
-
- 	if (code >= p->p_sysent->sv_size)
- 		callp = &p->p_sysent->sv_table[0];
-  	else
- 		callp = &p->p_sysent->sv_table[code];
-
-#ifdef KTRACE
-	if (KTRPOINT(td, KTR_SYSCALL))
-		ktrsyscall(code, callp->sy_narg, args);
-#endif
-	CTR4(KTR_SYSC, "syscall enter thread %p pid %d proc %s code %d", td,
-	    td->td_proc->p_pid, td->td_name, code);
-
-	td->td_retval[0] = 0;
-	td->td_retval[1] = 0;
+	ia64_set_fpsr(IA64_FPSR_DEFAULT);
 	tf->tf_scratch.gr10 = EJUSTRETURN;
 
-	STOPEVENT(p, S_SCE, callp->sy_narg);
-
-	PTRACESTOP_SC(p, td, S_PT_SCE);
-
-	AUDIT_SYSCALL_ENTER(code, td);
-	error = (*callp->sy_call)(td, args);
-	AUDIT_SYSCALL_EXIT(error, td);
-
-	cpu_set_syscall_retval(td, error);
-	td->td_syscalls++;
-
-	/*
-	 * Check for misbehavior.
-	 */
-	WITNESS_WARN(WARN_PANIC, NULL, "System call %s returning",
-	    (code >= 0 && code < SYS_MAXSYSCALL) ? syscallnames[code] : "???");
-	KASSERT(td->td_critnest == 0,
-	    ("System call %s returning in a critical section",
-	    (code >= 0 && code < SYS_MAXSYSCALL) ? syscallnames[code] : "???"));
-	KASSERT(td->td_locks == 0,
-	    ("System call %s returning with %d locks held",
-	    (code >= 0 && code < SYS_MAXSYSCALL) ? syscallnames[code] : "???",
-	    td->td_locks));
-
-	/*
-	 * Handle reschedule and other end-of-syscall issues
-	 */
-	userret(td, tf);
-
-	CTR4(KTR_SYSC, "syscall exit thread %p pid %d proc %s code %d", td,
-	    td->td_proc->p_pid, td->td_name, code);
-#ifdef KTRACE
-	if (KTRPOINT(td, KTR_SYSRET))
-		ktrsysret(code, error, td->td_retval[0]);
-#endif
-
-	/*
-	 * This works because errno is findable through the
-	 * register set.  If we ever support an emulation where this
-	 * is not the case, this code will need to be revisited.
-	 */
-	STOPEVENT(p, S_SCX, code);
-
-	PTRACESTOP_SC(p, td, S_PT_SCX);
+	error = syscallenter(td, &sa);
+	syscallret(td, error, &sa);
 
 	return (error);
 }

@@ -236,6 +236,36 @@ FlOpenFile (
 
 /*******************************************************************************
  *
+ * FUNCTION:    FlGetFileSize
+ *
+ * PARAMETERS:  FileId              - Index into file info array
+ *
+ * RETURN:      File Size
+ *
+ * DESCRIPTION: Get current file size. Uses seek-to-EOF. File must be open.
+ *
+ ******************************************************************************/
+
+UINT32
+FlGetFileSize (
+    UINT32                  FileId)
+{
+    FILE                    *fp;
+    UINT32                  FileSize;
+
+
+    fp = Gbl_Files[FileId].Handle;
+
+    fseek (fp, 0, SEEK_END);
+    FileSize = (UINT32) ftell (fp);
+    fseek (fp, 0, SEEK_SET);
+
+    return (FileSize);
+}
+
+
+/*******************************************************************************
+ *
  * FUNCTION:    FlReadFile
  *
  * PARAMETERS:  FileId              - Index into file info array

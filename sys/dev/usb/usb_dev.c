@@ -182,7 +182,7 @@ usb_loc_fill(struct usb_fs_privdata* pd, struct usb_cdev_privdata *cpd)
  *  0: Success, refcount incremented on the given USB device.
  *  Else: Failure.
  *------------------------------------------------------------------------*/
-usb_error_t
+static usb_error_t
 usb_ref_device(struct usb_cdev_privdata *cpd, 
     struct usb_cdev_refdata *crd, int need_uref)
 {
@@ -284,7 +284,7 @@ error:
 		usbd_enum_unlock(cpd->udev);
 
 		if (--(cpd->udev->refcount) == 0) {
-			cv_signal(cpd->udev->default_cv + 1);
+			cv_signal(&cpd->udev->ref_cv);
 		}
 	}
 	mtx_unlock(&usb_ref_lock);
@@ -327,7 +327,7 @@ usb_usb_ref_device(struct usb_cdev_privdata *cpd,
  * This function will release the reference count by one unit for the
  * given USB device.
  *------------------------------------------------------------------------*/
-void
+static void
 usb_unref_device(struct usb_cdev_privdata *cpd,
     struct usb_cdev_refdata *crd)
 {
@@ -352,7 +352,7 @@ usb_unref_device(struct usb_cdev_privdata *cpd,
 	}
 	if (crd->is_uref) {
 		if (--(cpd->udev->refcount) == 0) {
-			cv_signal(cpd->udev->default_cv + 1);
+			cv_signal(&cpd->udev->ref_cv);
 		}
 		crd->is_uref = 0;
 	}
@@ -500,7 +500,7 @@ usb_fifo_create(struct usb_cdev_privdata *cpd,
 		/* update some fields */
 		f->fifo_index = n + USB_FIFO_TX;
 		f->dev_ep_index = e;
-		f->priv_mtx = udev->default_mtx;
+		f->priv_mtx = &udev->device_mtx;
 		f->priv_sc0 = ep;
 		f->methods = &usb_ugen_methods;
 		f->iface_index = ep->iface_index;
@@ -527,7 +527,7 @@ usb_fifo_create(struct usb_cdev_privdata *cpd,
 		/* update some fields */
 		f->fifo_index = n + USB_FIFO_RX;
 		f->dev_ep_index = e;
-		f->priv_mtx = udev->default_mtx;
+		f->priv_mtx = &udev->device_mtx;
 		f->priv_sc0 = ep;
 		f->methods = &usb_ugen_methods;
 		f->iface_index = ep->iface_index;
@@ -615,7 +615,7 @@ usb_dev_get_ep(struct usb_device *udev, uint8_t ep_index, uint8_t dir)
 	uint8_t ep_dir;
 
 	if (ep_index == 0) {
-		ep = &udev->default_ep;
+		ep = &udev->ctrl_ep;
 	} else {
 		if (dir == USB_FIFO_RX) {
 			if (udev->flags.usb_mode == USB_MODE_HOST) {

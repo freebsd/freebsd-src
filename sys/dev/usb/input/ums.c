@@ -74,7 +74,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/tty.h>
 #include <sys/mouse.h>
 
-#if USB_DEBUG
+#ifdef USB_DEBUG
 static int ums_debug = 0;
 
 SYSCTL_NODE(_hw_usb, OID_AUTO, ums, CTLFLAG_RW, 0, "USB ums");
@@ -286,6 +286,12 @@ ums_intr_callback(struct usb_xfer *xfer, usb_error_t error)
 			DPRINTFN(6, "x:%d y:%d z:%d t:%d w:%d buttons:0x%08x\n",
 			    dx, dy, dz, dt, dw, buttons);
 
+			/* translate T-axis into button presses until further */
+			if (dt > 0)
+				buttons |= 1UL << 3;
+			else if (dt < 0)
+				buttons |= 1UL << 4;
+
 			sc->sc_status.button = buttons;
 			sc->sc_status.dx += dx;
 			sc->sc_status.dy += dy;
@@ -454,6 +460,12 @@ ums_hid_parse(struct ums_softc *sc, device_t dev, const uint8_t *buf,
 		if ((flags & MOUSE_FLAGS_MASK) == MOUSE_FLAGS) {
 			info->sc_flags |= UMS_FLAG_T_AXIS;
 		}
+	} else if (hid_locate(buf, len, HID_USAGE2(HUP_CONSUMER,
+		HUC_AC_PAN), hid_input, index, &info->sc_loc_t,
+		&flags, &info->sc_iid_t)) {
+
+		if ((flags & MOUSE_FLAGS_MASK) == MOUSE_FLAGS)
+			info->sc_flags |= UMS_FLAG_T_AXIS;
 	}
 	/* figure out the number of buttons */
 
@@ -494,7 +506,9 @@ ums_attach(device_t dev)
 	int err;
 	uint16_t d_len;
 	uint8_t i;
+#ifdef USB_DEBUG
 	uint8_t j;
+#endif
 
 	DPRINTFN(11, "sc=%p\n", sc);
 
@@ -588,7 +602,7 @@ ums_attach(device_t dev)
 	free(d_ptr, M_TEMP);
 	d_ptr = NULL;
 
-#if USB_DEBUG
+#ifdef USB_DEBUG
 	for (j = 0; j < UMS_INFO_MAX; j++) {
 		info = &sc->sc_info[j];
 

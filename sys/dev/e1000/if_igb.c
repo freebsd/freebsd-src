@@ -2194,6 +2194,7 @@ igb_allocate_msix(struct adapter *adapter)
 			device_printf(dev, "Failed to register Queue handler");
 			return (error);
 		}
+		bus_describe_intr(dev, que->res, que->tag, "que %d", i);
 		que->msix = vector;
 		if (adapter->hw.mac.type == e1000_82575)
 			que->eims = E1000_EICR_TX_QUEUE0 << i;
@@ -2229,6 +2230,7 @@ igb_allocate_msix(struct adapter *adapter)
 		device_printf(dev, "Failed to register Link handler");
 		return (error);
 	}
+	bus_describe_intr(dev, adapter->res, adapter->tag, "link");
 	adapter->linkvec = vector;
 
 	/* Make tasklet for deferred handling */
@@ -2969,7 +2971,9 @@ err_tx_desc:
 		igb_dma_free(adapter, &txr->txdma);
 	free(adapter->rx_rings, M_DEVBUF);
 rx_fail:
+#if __FreeBSD_version >= 800000
 	buf_ring_free(txr->br, M_DEVBUF);
+#endif
 	free(adapter->tx_rings, M_DEVBUF);
 tx_fail:
 	free(adapter->queues, M_DEVBUF);

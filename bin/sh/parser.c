@@ -203,6 +203,7 @@ parsecmd(int interact)
 	 * which could happen if we add command substitution on PS1/PS2.
 	 */
 	parser_temp_free_all();
+	heredoclist = NULL;
 
 	tokpushback = 0;
 	doprompt = interact;
@@ -973,6 +974,8 @@ parsebackq(char *out, struct nodelist **pbqlist,
 	const int bq_startlinno = plinno;
 	char *volatile ostr = NULL;
 	struct parsefile *const savetopfile = getcurrentfile();
+	struct heredoc *const saveheredoclist = heredoclist;
+	struct heredoc *here;
 
 	str = NULL;
 	if (setjmp(jmploc.loc)) {
@@ -981,6 +984,7 @@ parsebackq(char *out, struct nodelist **pbqlist,
 			ckfree(str);
 		if (ostr)
 			ckfree(ostr);
+		heredoclist = saveheredoclist;
 		handler = savehandler;
 		if (exception == EXERROR) {
 			startlinno = bq_startlinno;
@@ -995,6 +999,7 @@ parsebackq(char *out, struct nodelist **pbqlist,
 		memcpy(str, stackblock(), savelen);
 	}
 	handler = &jmploc;
+	heredoclist = NULL;
 	INTON;
         if (oldstyle) {
                 /* We must read until the closing backquote, giving special
@@ -1091,21 +1096,26 @@ done:
 	while (stackblocksize() <= savelen)
 		growstackblock();
 	STARTSTACKSTR(out);
+	INTOFF;
 	if (str) {
 		memcpy(out, str, savelen);
 		STADJUST(savelen, out);
-		INTOFF;
 		ckfree(str);
 		str = NULL;
-		INTON;
 	}
 	if (ostr) {
-		INTOFF;
 		ckfree(ostr);
 		ostr = NULL;
-		INTON;
+	}
+	here = saveheredoclist;
+	if (here != NULL) {
+		while (here->next != NULL)
+			here = here->next;
+		here->next = heredoclist;
+		heredoclist = saveheredoclist;
 	}
 	handler = savehandler;
+	INTON;
 	if (quoted)
 		USTPUTC(CTLBACKQ | CTLQUOTE, out);
 	else

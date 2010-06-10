@@ -59,6 +59,9 @@ enum {
 	CH_CLEAR_STATS,
 	CH_GET_UP_LA,
 	CH_GET_UP_IOQS,
+	CH_SET_FILTER,
+	CH_DEL_FILTER,
+	CH_GET_FILTER,
 };
 
 /* statistics categories */
@@ -215,6 +218,29 @@ struct ch_up_ioqs {
 	struct t3_ioq_entry *data;
 };
 
+struct ch_filter_tuple {
+	uint32_t sip;
+	uint32_t dip;
+	uint16_t sport;
+	uint16_t dport;
+	uint16_t vlan:12;
+	uint16_t vlan_prio:3;
+};
+
+struct ch_filter {
+	uint32_t filter_id;
+	struct ch_filter_tuple val;
+	struct ch_filter_tuple mask;
+	uint16_t mac_addr_idx;
+	uint8_t mac_hit:1;
+	uint8_t proto:2;
+
+	uint8_t want_filter_id:1;
+	uint8_t pass:1;
+	uint8_t rss:1;
+	uint8_t qset;
+};
+
 #define CHELSIO_SETREG		_IOW('f', CH_SETREG, struct ch_reg)
 #define CHELSIO_GETREG		_IOWR('f', CH_GETREG, struct ch_reg)
 #define CHELSIO_GETMTUTAB	_IOR('f', CH_GETMTUTAB, struct ch_mtus)
@@ -239,4 +265,7 @@ struct ch_up_ioqs {
 #define CHELSIO_GET_EEPROM	_IOWR('f', CH_GET_EEPROM, struct ch_eeprom)
 #define CHELSIO_GET_UP_LA	_IOWR('f', CH_GET_UP_LA, struct ch_up_la)
 #define CHELSIO_GET_UP_IOQS	_IOWR('f', CH_GET_UP_IOQS, struct ch_up_ioqs)
+#define CHELSIO_SET_FILTER	_IOW('f', CH_SET_FILTER, struct ch_filter)
+#define CHELSIO_DEL_FILTER	_IOW('f', CH_DEL_FILTER, struct ch_filter)
+#define CHELSIO_GET_FILTER	_IOWR('f', CH_GET_FILTER, struct ch_filter)
 #endif

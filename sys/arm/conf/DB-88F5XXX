@@ -74,6 +74,7 @@ device		iicbus
 device		ds133x
 
 # USB
+options 	USB_DEBUG	# enable debug msgs
 device		usb
 device		ehci
 device		umass

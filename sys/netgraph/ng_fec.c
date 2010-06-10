@@ -1227,7 +1227,7 @@ ng_fec_constructor(node_p node)
 	ifp->if_start = ng_fec_start;
 	ifp->if_ioctl = ng_fec_ioctl;
 	ifp->if_init = ng_fec_init;
-	ifp->if_snd.ifq_maxlen = IFQ_MAXLEN;
+	ifp->if_snd.ifq_maxlen = ifqmaxlen;
 	ifp->if_mtu = NG_FEC_MTU_DEFAULT;
 	ifp->if_flags = (IFF_SIMPLEX|IFF_BROADCAST|IFF_MULTICAST);
 	ifp->if_addrlen = 0;			/* XXX */

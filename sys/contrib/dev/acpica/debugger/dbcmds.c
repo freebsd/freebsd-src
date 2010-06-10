@@ -675,7 +675,7 @@ AcpiDbDisplayTableInfo (
 
     /* Walk the entire root table list */
 
-    for (i = 0; i < AcpiGbl_RootTableList.Count; i++)
+    for (i = 0; i < AcpiGbl_RootTableList.CurrentTableCount; i++)
     {
         TableDesc = &AcpiGbl_RootTableList.Tables[i];
         AcpiOsPrintf ("%d ", i);

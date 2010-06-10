@@ -143,6 +143,7 @@ struct pcpu {
 	long		pc_cp_time[CPUSTATES];	/* statclock ticks */
 	struct device	*pc_device;
 	void		*pc_netisr;		/* netisr SWI cookie */
+	int		pc_dnweight;		/* vm_page_dontneed() */
 
 	/*
 	 * Stuff for read mostly lock

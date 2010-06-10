@@ -1394,14 +1394,29 @@ vm_map_find(vm_map_t map, vm_object_t object, vm_ooffset_t offset,
 				vm_map_unlock(map);
 				return (KERN_NO_SPACE);
 			}
-			if (find_space == VMFS_ALIGNED_SPACE)
+			switch (find_space) {
+			case VMFS_ALIGNED_SPACE:
 				pmap_align_superpage(object, offset, addr,
 				    length);
+				break;
+#ifdef VMFS_TLB_ALIGNED_SPACE
+			case VMFS_TLB_ALIGNED_SPACE:
+				pmap_align_tlb(addr);
+				break;
+#endif
+			default:
+				break;
+			}
+
 			start = *addr;
 		}
 		result = vm_map_insert(map, object, offset, start, start +
 		    length, prot, max, cow);
-	} while (result == KERN_NO_SPACE && find_space == VMFS_ALIGNED_SPACE);
+	} while (result == KERN_NO_SPACE && (find_space == VMFS_ALIGNED_SPACE
+#ifdef VMFS_TLB_ALIGNED_SPACE
+	    || find_space == VMFS_TLB_ALIGNED_SPACE
+#endif
+	    ));
 	vm_map_unlock(map);
 	return (result);
 }
@@ -1711,7 +1726,6 @@ vm_map_pmap_enter(vm_map_t map, vm_offset_t addr, vm_prot_t prot,
 	vm_offset_t start;
 	vm_page_t p, p_start;
 	vm_pindex_t psize, tmpidx;
-	boolean_t are_queues_locked;
 
 	if ((prot & (VM_PROT_READ | VM_PROT_EXECUTE)) == 0 || object == NULL)
 		return;
@@ -1733,7 +1747,6 @@ vm_map_pmap_enter(vm_map_t map, vm_offset_t addr, vm_prot_t prot,
 		psize = object->size - pindex;
 	}
 
-	are_queues_locked = FALSE;
 	start = 0;
 	p_start = NULL;
 
@@ -1767,25 +1780,14 @@ vm_map_pmap_enter(vm_map_t map, vm_offset_t addr, vm_prot_t prot,
 				p_start = p;
 			}
 		} else if (p_start != NULL) {
-			if (!are_queues_locked) {
-				are_queues_locked = TRUE;
-				vm_page_lock_queues();
-			}
 			pmap_enter_object(map->pmap, start, addr +
 			    ptoa(tmpidx), p_start, prot);
 			p_start = NULL;
 		}
 	}
-	if (p_start != NULL) {
-		if (!are_queues_locked) {
-			are_queues_locked = TRUE;
-			vm_page_lock_queues();
-		}
+	if (p_start != NULL)
 		pmap_enter_object(map->pmap, start, addr + ptoa(psize),
 		    p_start, prot);
-	}
-	if (are_queues_locked)
-		vm_page_unlock_queues();
 unlock_return:
 	VM_OBJECT_UNLOCK(object);
 }

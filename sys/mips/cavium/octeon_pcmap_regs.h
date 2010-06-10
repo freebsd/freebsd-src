@@ -54,14 +54,6 @@
 
 #ifndef LOCORE
 
-/* XXXimp: From Cavium's include/pcpu.h, need to port that over */
-#ifndef OCTEON_SMP
-#define OCTEON_CORE_ID 0
-#else
-extern struct pcpu *cpuid_to_pcpu[];
-#define OCTEON_CORE_ID (mips_rd_coreid())
-#endif
-
 /*
  * Utility inlines & macros
  */
@@ -324,62 +316,6 @@ static inline void oct_write32 (uint64_t csr_addr, uint32_t val32)
 #define OCTEON_SCRATCH_2   32
 
 
-static inline uint64_t oct_mf_chord (void)
-{
-    uint64_t dest;
-
-    __asm __volatile (	".set push\n"
-                        ".set noreorder\n"
-                        ".set noat\n"
-                        ".set mips64\n"
-			"dmfc2 $1, 0x400\n"
-                        "move %0, $1\n"
-        		".set pop\n"
- 			: "=r" (dest) :  : "$1");
-    return dest;
-}
-
-
-#define MIPS64_DMFCz(cop,regnum,cp0reg,select)  \
-        .word   (0x40200000 | (cop << 25) | (regnum << 16) | (cp0reg << 11) | select)
-
-
-#define mips64_getcpz_xstr(s) mips64_getcpz_str(s)
-#define mips64_getcpz_str(s) #s
-
-#define mips64_dgetcpz(cop,cpzreg,sel,val_ptr) \
-    ({ __asm __volatile( \
-            ".set push\n" \
-            ".set mips3\n" \
-            ".set noreorder\n" \
-            ".set noat\n" \
-            mips64_getcpz_xstr(MIPS64_DMFCz(cop,1,cpzreg,sel)) "\n" \
-            "nop\n" \
-            "nop\n" \
-            "nop\n" \
-            "nop\n" \
-            "sd $1,0(%0)\n" \
-            ".set pop" \
-            : /* no outputs */ : "r" (val_ptr) : "$1"); \
-    })
-
-
-#define mips64_dgetcp2(cp2reg,sel,retval_ptr) \
-    mips64_dgetcpz(2,cp2reg,sel,retval_ptr)
-
-
-#define OCTEON_MF_CHORD(dest)  mips64_dgetcp2(0x400, 0, &dest)
-
-
-
-#define OCTEON_RDHWR(result, regstr) \
-	__asm __volatile (		\
-        		".set mips3\n"		\
-			"rdhwr %0,$" OCTEON_TMP_STR(regstr) "\n"	\
-        		".set mips\n"		\
-			 : "=d" (result));
-
-#define CVMX_MF_CHORD(dest)         OCTEON_RDHWR(dest, 30)
 
 #define OCTEON_CHORD_HEX(dest_ptr)  \
     ({ __asm __volatile( \
@@ -397,15 +333,6 @@ static inline uint64_t oct_mf_chord (void)
             : /* no outputs */ : "r" (dest_ptr) : "$2"); \
     })
 
-
-
-#define OCTEON_MF_CHORD_BAD(dest)	\
-         __asm __volatile (		\
-        		".set mips3\n"		\
-			"dmfc2 %0, 0x400\n"	\
-        		".set mips0\n"		\
- 			: "=&r" (dest) : )
-
 static inline uint64_t oct_scratch_read64 (uint64_t address)
 {
     return(*((volatile uint64_t *)(OCTEON_SCRATCH_BASE + address)));
@@ -415,17 +342,6 @@ static inline void oct_scratch_write64 (uint64_t address, uint64_t value)
 {
     *((volatile uint64_t *)(OCTEON_SCRATCH_BASE + address)) = value;
 }
-
-
-#define OCTEON_READ_CSR32(addr, val) \
-	addr_ptr = addr; \
-	oct_read_32_ptr(&addr_ptr, &val);
-
-#define OCTEON_WRITE_CSR32(addr, val, val_dummy) \
-	addr_ptr = addr; \
-	oct_write_32_ptr(&addr_ptr, &val); \
-	oct_read64(OCTEON_MIO_BOOT_BIST_STAT);
-
 
 
 /*
@@ -791,12 +707,6 @@ extern void octeon_led_write_hexchar(int char_position, char hexval);
 extern void octeon_led_write_hex(uint32_t wl);
 extern void octeon_led_write_string(const char *str);
 extern void octeon_reset(void);
-extern void octeon_uart_write_byte(int uart_index, uint8_t ch);
-extern void octeon_uart_write_string(int uart_index, const char *str);
-extern void octeon_uart_write_hex(uint32_t wl);
-extern void octeon_uart_write_hex2(uint32_t wl, uint32_t wh);
-extern void octeon_wait_uart_flush(int uart_index, uint8_t ch);
-extern void octeon_uart_write_byte0(uint8_t ch);
 extern void octeon_led_write_char0(char val);
 extern void octeon_led_run_wheel(int *pos, int led_position);
 extern void octeon_debug_symbol(void);

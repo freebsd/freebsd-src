@@ -31,7 +31,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 6, 2008
+.Dd May 14, 2010
 .Dt IGB 4
 .Os
 .Sh NAME
@@ -60,6 +60,11 @@ The driver supports Transmit/Receive checksum offload and Jumbo
 Frames.
 Furthermore it supports TCP segmentation offload (TSO) on all
 adapters.
+The identification LEDs of the adapters supported by the
+.Nm
+driver can be controlled via the
+.Xr led 4
+API for localization purposes.
 .Pp
 For questions related to hardware requirements, refer to the
 documentation supplied with your Intel PRO/1000 adapter.
@@ -175,10 +180,25 @@ If an issue is identified with the released source code on the supported kernel
 with a supported adapter, email the specific information related to the
 issue to
 .Aq freebsdnic@mailbox.intel.com .
+.Sh FILES
+.Bl -tag -width /dev/led/igb*
+.It Pa /dev/led/igb*
+identification LED device nodes
+.El
+.Sh EXAMPLES
+Make the identification LED of igb0 blink:
+.Pp
+.Dl "echo f2 > /dev/led/igb0"
+.Pp
+Turn the identification LED of igb0 off again:
+.Pp
+.Dl "echo 0 > /dev/led/igb0"
+.Pp
 .Sh SEE ALSO
 .Xr altq 4 ,
 .Xr arp 4 ,
 .Xr em 4 ,
+.Xr led 4 ,
 .Xr netintro 4 ,
 .Xr ng_ether 4 ,
 .Xr polling 4 ,

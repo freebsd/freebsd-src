@@ -2400,10 +2400,7 @@ mxge_get_buf_big(struct mxge_slice_state *ss, bus_dmamap_t map, int idx)
 	mxge_rx_ring_t *rx = &ss->rx_big;
 	int cnt, err, i;
 
-	if (rx->cl_size == MCLBYTES)
-		m = m_getcl(M_DONTWAIT, MT_DATA, M_PKTHDR);
-	else
-		m = m_getjcl(M_DONTWAIT, MT_DATA, M_PKTHDR, rx->cl_size);
+	m = m_getjcl(M_DONTWAIT, MT_DATA, M_PKTHDR, rx->cl_size);
 	if (m == NULL) {
 		rx->alloc_fail++;
 		err = ENOBUFS;
@@ -2781,7 +2778,8 @@ static struct mxge_media_type mxge_sfp_media_types[] =
 	{0,		(1 << 7),	"Reserved"},
 	{IFM_10G_LRM,	(1 << 6),	"10GBASE-LRM"},
 	{IFM_10G_LR, 	(1 << 5),	"10GBASE-LR"},
-	{IFM_10G_SR,	(1 << 4),	"10GBASE-SR"}
+	{IFM_10G_SR,	(1 << 4),	"10GBASE-SR"},
+	{IFM_10G_TWINAX,(1 << 0),	"10GBASE-Twinax"}
 };
 
 static void
@@ -4478,6 +4476,8 @@ mxge_add_msix_irqs(mxge_softc_t *sc)
 				      "message %d\n", i);
 			goto abort_with_intr;
 		}
+		bus_describe_intr(sc->dev, sc->msix_irq_res[i],
+				  sc->msix_ih[i], "s%d", i);
 	}
 
 	if (mxge_verbose) {

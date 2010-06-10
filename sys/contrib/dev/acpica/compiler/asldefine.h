@@ -128,7 +128,7 @@
 #define CompilerId                  "ASL Optimizing Compiler"
 #define DisassemblerId              "AML Disassembler"
 #define CompilerCopyright           "Copyright (c) 2000 - 2010 Intel Corporation"
-#define CompilerCompliance          "Supports ACPI Specification Revision 4.0"
+#define CompilerCompliance          "Supports ACPI Specification Revision 4.0a"
 #define CompilerName                "iasl"
 #define CompilerCreatorId           "INTL"
 

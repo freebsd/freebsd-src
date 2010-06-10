@@ -996,7 +996,7 @@ done:
 static int select_flags[3] = {
     POLLRDNORM | POLLHUP | POLLERR,
     POLLWRNORM | POLLHUP | POLLERR,
-    POLLRDBAND | POLLHUP | POLLERR
+    POLLRDBAND | POLLERR
 };
 
 /*

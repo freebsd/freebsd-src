@@ -55,18 +55,20 @@ static int g_part_vtoc8_add(struct g_part_table *, struct g_part_entry *,
     struct g_part_parms *);
 static int g_part_vtoc8_create(struct g_part_table *, struct g_part_parms *);
 static int g_part_vtoc8_destroy(struct g_part_table *, struct g_part_parms *);
-static void g_part_vtoc8_dumpconf(struct g_part_table *, struct g_part_entry *,
-    struct sbuf *, const char *);
+static void g_part_vtoc8_dumpconf(struct g_part_table *,
+    struct g_part_entry *, struct sbuf *, const char *);
 static int g_part_vtoc8_dumpto(struct g_part_table *, struct g_part_entry *);
-static int g_part_vtoc8_modify(struct g_part_table *, struct g_part_entry *,  
+static int g_part_vtoc8_modify(struct g_part_table *, struct g_part_entry *,
     struct g_part_parms *);
-static const char *g_part_vtoc8_name(struct g_part_table *, struct g_part_entry *,
-    char *, size_t);
+static const char *g_part_vtoc8_name(struct g_part_table *,
+    struct g_part_entry *, char *, size_t);
 static int g_part_vtoc8_probe(struct g_part_table *, struct g_consumer *);
 static int g_part_vtoc8_read(struct g_part_table *, struct g_consumer *);
-static const char *g_part_vtoc8_type(struct g_part_table *, struct g_part_entry *,
-    char *, size_t);
+static const char *g_part_vtoc8_type(struct g_part_table *,
+    struct g_part_entry *, char *, size_t);
 static int g_part_vtoc8_write(struct g_part_table *, struct g_consumer *);
+static int g_part_vtoc8_resize(struct g_part_table *, struct g_part_entry *,
+    struct g_part_parms *);
 
 static kobj_method_t g_part_vtoc8_methods[] = {
 	KOBJMETHOD(g_part_add,		g_part_vtoc8_add),
@@ -75,6 +77,7 @@ static kobj_method_t g_part_vtoc8_methods[] = {
 	KOBJMETHOD(g_part_dumpconf,	g_part_vtoc8_dumpconf),
 	KOBJMETHOD(g_part_dumpto,	g_part_vtoc8_dumpto),
 	KOBJMETHOD(g_part_modify,	g_part_vtoc8_modify),
+	KOBJMETHOD(g_part_resize,	g_part_vtoc8_resize),
 	KOBJMETHOD(g_part_name,		g_part_vtoc8_name),
 	KOBJMETHOD(g_part_probe,	g_part_vtoc8_probe),
 	KOBJMETHOD(g_part_read,		g_part_vtoc8_read),
@@ -258,7 +261,8 @@ g_part_vtoc8_dumpconf(struct g_part_table *basetable,
 }
 
 static int
-g_part_vtoc8_dumpto(struct g_part_table *basetable, struct g_part_entry *entry)  
+g_part_vtoc8_dumpto(struct g_part_table *basetable,
+    struct g_part_entry *entry)
 {
 	struct g_part_vtoc8_table *table;
 	uint16_t tag;
@@ -291,6 +295,26 @@ g_part_vtoc8_modify(struct g_part_table *basetable,
 
 		be16enc(&table->vtoc.part[entry->gpe_index - 1].tag, tag);
 	}
+	return (0);
+}
+
+static int
+g_part_vtoc8_resize(struct g_part_table *basetable,
+    struct g_part_entry *entry, struct g_part_parms *gpp)
+{
+	struct g_part_vtoc8_table *table;
+	uint64_t size;
+
+	table = (struct g_part_vtoc8_table *)basetable;
+	size = gpp->gpp_size;
+	if (size % table->secpercyl)
+		size = size - (size % table->secpercyl);
+	if (size < table->secpercyl)
+		return (EINVAL);
+
+	entry->gpe_end = entry->gpe_start + size - 1;
+	be32enc(&table->vtoc.map[entry->gpe_index - 1].nblks, size);
+
 	return (0);
 }
 
@@ -454,7 +478,7 @@ g_part_vtoc8_read(struct g_part_table *basetable, struct g_consumer *cp)
 }
 
 static const char *
-g_part_vtoc8_type(struct g_part_table *basetable, struct g_part_entry *entry, 
+g_part_vtoc8_type(struct g_part_table *basetable, struct g_part_entry *entry,
     char *buf, size_t bufsz)
 {
 	struct g_part_vtoc8_table *table;

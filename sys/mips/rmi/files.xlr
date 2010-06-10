@@ -9,6 +9,7 @@ mips/rmi/msgring_xls.c				standard
 mips/rmi/board.c				standard
 mips/rmi/on_chip.c				standard
 mips/rmi/intr_machdep.c			        standard
+mips/rmi/mpwait.S			        optional smp
 mips/rmi/xlr_i2c.c              		optional iic
 mips/rmi/uart_bus_xlr_iodi.c			optional uart 
 mips/rmi/uart_cpu_mips_xlr.c			optional uart 

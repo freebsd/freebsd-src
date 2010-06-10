@@ -26,5 +26,5 @@ do
 done
 
 # Other utilities must not abort; we currently still execute them.
-sh -c "readonly a=0; a=1 true; exit $a" 2>/dev/null || exit 1
-sh -c "readonly a=0; a=1 command :; exit $a" 2>/dev/null || exit 1
+sh -c 'readonly a=0; a=1 true; exit $a' 2>/dev/null || exit 1
+sh -c 'readonly a=0; a=1 command :; exit $a' 2>/dev/null || exit 1

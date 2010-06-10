@@ -120,7 +120,7 @@
 
 /* Current ACPICA subsystem version in YYYYMMDD format */
 
-#define ACPI_CA_VERSION                 0x20100331
+#define ACPI_CA_VERSION                 0x20100428
 
 #include <contrib/dev/acpica/include/actypes.h>
 #include <contrib/dev/acpica/include/actbl.h>
@@ -283,7 +283,7 @@ AcpiGetDevices (
 
 ACPI_STATUS
 AcpiGetName (
-    ACPI_HANDLE             Handle,
+    ACPI_HANDLE             Object,
     UINT32                  NameType,
     ACPI_BUFFER             *RetPathPtr);
 
@@ -295,18 +295,18 @@ AcpiGetHandle (
 
 ACPI_STATUS
 AcpiAttachData (
-    ACPI_HANDLE             ObjHandle,
+    ACPI_HANDLE             Object,
     ACPI_OBJECT_HANDLER     Handler,
     void                    *Data);
 
 ACPI_STATUS
 AcpiDetachData (
-    ACPI_HANDLE             ObjHandle,
+    ACPI_HANDLE             Object,
     ACPI_OBJECT_HANDLER     Handler);
 
 ACPI_STATUS
 AcpiGetData (
-    ACPI_HANDLE             ObjHandle,
+    ACPI_HANDLE             Object,
     ACPI_OBJECT_HANDLER     Handler,
     void                    **Data);
 
@@ -338,7 +338,7 @@ AcpiEvaluateObjectTyped (
 
 ACPI_STATUS
 AcpiGetObjectInfo (
-    ACPI_HANDLE             Handle,
+    ACPI_HANDLE             Object,
     ACPI_DEVICE_INFO        **ReturnBuffer);
 
 ACPI_STATUS
@@ -527,36 +527,36 @@ ACPI_STATUS (*ACPI_WALK_RESOURCE_CALLBACK) (
 
 ACPI_STATUS
 AcpiGetVendorResource (
-    ACPI_HANDLE             DeviceHandle,
+    ACPI_HANDLE             Device,
     char                    *Name,
     ACPI_VENDOR_UUID        *Uuid,
     ACPI_BUFFER             *RetBuffer);
 
 ACPI_STATUS
-AcpiGetCurrentResources(
-    ACPI_HANDLE             DeviceHandle,
+AcpiGetCurrentResources (
+    ACPI_HANDLE             Device,
     ACPI_BUFFER             *RetBuffer);
 
 ACPI_STATUS
-AcpiGetPossibleResources(
-    ACPI_HANDLE             DeviceHandle,
+AcpiGetPossibleResources (
+    ACPI_HANDLE             Device,
     ACPI_BUFFER             *RetBuffer);
 
 ACPI_STATUS
 AcpiWalkResources (
-    ACPI_HANDLE                 DeviceHandle,
+    ACPI_HANDLE                 Device,
     char                        *Name,
     ACPI_WALK_RESOURCE_CALLBACK UserFunction,
     void                        *Context);
 
 ACPI_STATUS
 AcpiSetCurrentResources (
-    ACPI_HANDLE             DeviceHandle,
+    ACPI_HANDLE             Device,
     ACPI_BUFFER             *InBuffer);
 
 ACPI_STATUS
-AcpiGetIrqRoutingTable  (
-    ACPI_HANDLE             BusDeviceHandle,
+AcpiGetIrqRoutingTable (
+    ACPI_HANDLE             Device,
     ACPI_BUFFER             *RetBuffer);
 
 ACPI_STATUS

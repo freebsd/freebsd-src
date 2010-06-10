@@ -77,7 +77,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/usb/wlan/if_rumvar.h>
 #include <dev/usb/wlan/if_rumfw.h>
 
-#if USB_DEBUG
+#ifdef USB_DEBUG
 static int rum_debug = 0;
 
 SYSCTL_NODE(_hw_usb, OID_AUTO, rum, CTLFLAG_RW, 0, "USB rum");
@@ -197,6 +197,7 @@ static void		rum_enable_tsf(struct rum_softc *);
 static void		rum_update_slot(struct ifnet *);
 static void		rum_set_bssid(struct rum_softc *, const uint8_t *);
 static void		rum_set_macaddr(struct rum_softc *, const uint8_t *);
+static void		rum_update_mcast(struct ifnet *);
 static void		rum_update_promisc(struct ifnet *);
 static void		rum_setpromisc(struct rum_softc *);
 static const char	*rum_get_rf(int);
@@ -478,8 +479,8 @@ rum_attach(device_t self)
 	ifp->if_init = rum_init;
 	ifp->if_ioctl = rum_ioctl;
 	ifp->if_start = rum_start;
-	IFQ_SET_MAXLEN(&ifp->if_snd, IFQ_MAXLEN);
-	ifp->if_snd.ifq_drv_maxlen = IFQ_MAXLEN;
+	IFQ_SET_MAXLEN(&ifp->if_snd, ifqmaxlen);
+	ifp->if_snd.ifq_drv_maxlen = ifqmaxlen;
 	IFQ_SET_READY(&ifp->if_snd);
 
 	ic->ic_ifp = ifp;
@@ -514,6 +515,7 @@ rum_attach(device_t self)
 
 	ic->ic_vap_create = rum_vap_create;
 	ic->ic_vap_delete = rum_vap_delete;
+	ic->ic_update_mcast = rum_update_mcast;
 
 	ieee80211_radiotap_attach(ic,
 	    &sc->sc_txtap.wt_ihdr, sizeof(sc->sc_txtap),
@@ -1813,6 +1815,13 @@ rum_update_promisc(struct ifnet *ifp)
 	RUM_LOCK(sc);
 	rum_setpromisc(sc);
 	RUM_UNLOCK(sc);
+}
+
+static void
+rum_update_mcast(struct ifnet *ifp)
+{
+
+	/* XXX do nothing? */
 }
 
 static const char *

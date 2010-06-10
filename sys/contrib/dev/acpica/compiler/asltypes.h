@@ -420,7 +420,16 @@ typedef enum
     ASL_MSG_SERIALIZED,
     ASL_MSG_COMPILER_RESERVED,
     ASL_MSG_NAMED_OBJECT_IN_WHILE,
-    ASL_MSG_LOCAL_OUTSIDE_METHOD
+    ASL_MSG_LOCAL_OUTSIDE_METHOD,
+    ASL_MSG_ALIGNMENT,
+    ASL_MSG_ISA_ADDRESS,
+    ASL_MSG_INVALID_MIN_MAX,
+    ASL_MSG_INVALID_LENGTH,
+    ASL_MSG_INVALID_LENGTH_FIXED,
+    ASL_MSG_INVALID_GRANULARITY,
+    ASL_MSG_INVALID_GRAN_FIXED,
+    ASL_MSG_INVALID_ACCESS_SIZE,
+    ASL_MSG_INVALID_ADDR_FLAGS
 
 } ASL_MESSAGE_IDS;
 
@@ -540,7 +549,16 @@ char                        *AslMessages [] = {
 /*    ASL_MSG_SERIALIZED */                 "Control Method marked Serialized",
 /*    ASL_MSG_COMPILER_RESERVED */          "Use of compiler reserved name",
 /*    ASL_MSG_NAMED_OBJECT_IN_WHILE */      "Creating a named object in a While loop",
-/*    ASL_MSG_LOCAL_OUTSIDE_METHOD */       "Local or Arg used outside a control method"
+/*    ASL_MSG_LOCAL_OUTSIDE_METHOD */       "Local or Arg used outside a control method",
+/*    ASL_MSG_ALIGNMENT */                  "Must be a multiple of alignment/granularity value",
+/*    ASL_MSG_ISA_ADDRESS */                "Maximum 10-bit ISA address (0x3FF)",
+/*    ASL_MSG_INVALID_MIN_MAX */            "Address Min is greater than Address Max",
+/*    ASL_MSG_INVALID_LENGTH */             "Length is larger than Min/Max window",
+/*    ASL_MSG_INVALID_LENGTH_FIXED */       "Length is not equal to fixed Min/Max window",
+/*    ASL_MSG_INVALID_GRANULARITY */        "Granularity must be zero or a power of two minus one",
+/*    ASL_MSG_INVALID_GRAN_FIXED */         "Granularity must be zero for fixed Min/Max",
+/*    ASL_MSG_INVALID_ACCESS_SIZE */        "Invalid AccessSize (Maximum is 4 - QWord access)",
+/*    ASL_MSG_INVALID_ADDR_FLAGS */         "Invalid combination of Length and Min/Max fixed flags"
 
 };
 

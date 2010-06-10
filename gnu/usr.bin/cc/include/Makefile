@@ -2,6 +2,8 @@
 
 .include "../Makefile.inc"
 
+INCSDIR=${INCLUDEDIR}/gcc/${GCCVER}
+
 .PATH: ${GCCDIR}/config/${GCC_CPU}
 
 .if ${TARGET_ARCH} == "i386" || ${TARGET_ARCH} == "amd64"

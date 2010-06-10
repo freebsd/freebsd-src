@@ -242,8 +242,9 @@ checkfilesys(char *filesys)
 		if ((fsreadfd = open(filesys, O_RDONLY)) < 0 || readsb(0) == 0)
 			exit(3);	/* Cannot read superblock */
 		close(fsreadfd);
-		if (sblock.fs_flags & FS_NEEDSFSCK)
-			exit(4);	/* Earlier background failed */
+		/* Earlier background failed or journaled */
+		if (sblock.fs_flags & (FS_NEEDSFSCK | FS_SUJ))
+			exit(4);
 		if ((sblock.fs_flags & FS_DOSOFTDEP) == 0)
 			exit(5);	/* Not running soft updates */
 		size = MIBSIZE;
@@ -299,7 +300,7 @@ checkfilesys(char *filesys)
 			pfatal("MOUNTED READ-ONLY, CANNOT RUN IN BACKGROUND\n");
 		} else if ((fsreadfd = open(filesys, O_RDONLY)) >= 0) {
 			if (readsb(0) != 0) {
-				if (sblock.fs_flags & FS_NEEDSFSCK) {
+				if (sblock.fs_flags & (FS_NEEDSFSCK | FS_SUJ)) {
 					bkgrdflag = 0;
 					pfatal("UNEXPECTED INCONSISTENCY, %s\n",
 					    "CANNOT RUN IN BACKGROUND\n");
@@ -383,6 +384,26 @@ checkfilesys(char *filesys)
 		    (long long)sblock.fs_cstotal.cs_nbfree,
 		    sblock.fs_cstotal.cs_nffree * 100.0 / sblock.fs_dsize);
 		return (0);
+	}
+	/*
+	 * Determine if we can and should do journal recovery.
+	 */
+	if ((sblock.fs_flags & (FS_SUJ | FS_NEEDSFSCK)) == FS_SUJ) {
+		if (preen || reply("USE JOURNAL?")) {
+			if (suj_check(filesys) == 0) {
+				if (chkdoreload(mntp) == 0)
+					exit(0);
+				exit(4);
+			}
+			/* suj_check failed, fall through. */
+		}
+		printf("** Skipping journal, falling through to full fsck\n");
+		/*
+		 * Write the superblock so we don't try to recover the
+		 * journal on another pass.
+		 */
+		sblock.fs_mtime = time(NULL);
+		sbdirty();
 	}
 	
 	/*

@@ -68,14 +68,6 @@ The
 .Va portno
 locater can be used to decide which port to use for devices that have
 multiple external ports.
-.Sh BUGS
-Prior to
-.Fx 6.0
-.Nm
-created
-.Pa /dev/ucom?
-rather than the uniform device names created today.
-Old scripts must be adjusted accordingly.
 .Sh FILES
 .Bl -tag -width ".Pa /dev/cuaU?"
 .It Pa /dev/cuaU?
@@ -103,3 +95,11 @@ This manual page was adopted from
 by
 .An Tom Rhodes Aq trhodes@FreeBSD.org
 in April 2002.
+.Sh BUGS
+Prior to
+.Fx 6.0
+.Nm
+created
+.Pa /dev/ucom?
+rather than the uniform device names created today.
+Old scripts must be adjusted accordingly.

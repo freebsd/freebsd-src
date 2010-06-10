@@ -58,6 +58,7 @@ file is following:
 control <addr>
 listen <addr>
 replication <mode>
+timeout <seconds>
 
 on <node> {
 	# Node section
@@ -76,6 +77,7 @@ resource <name> {
 	replication <mode>
 	name <name>
 	local <path>
+	timeout <seconds>
 
 	on <node> {
 		# Resource-node section
@@ -194,6 +196,11 @@ The
 .Ic async
 replication mode is currently not implemented.
 .El
+.It Ic timeout Aq seconds
+.Pp
+Connection timeout in seconds.
+The default value is
+.Va 5 .
 .It Ic name Aq name
 .Pp
 GEOM provider name that will appear as
@@ -216,6 +223,19 @@ When operating as a primary node this address will be used to connect to
 the secondary node.
 When operating as a secondary node only connections from this address
 will be accepted.
+.El
+.Sh FILES
+.Bl -tag -width ".Pa /var/run/hastctl" -compact
+.It Pa /etc/hast.conf
+The default
+.Nm
+configuration file.
+.It Pa /var/run/hastctl
+Control socket used by the
+.Xr hastctl 8
+control utility to communicate with the
+.Xr hastd 8
+daemon.
 .El
 .Sh EXAMPLES
 The example configuration file can look as follows:
@@ -241,19 +261,6 @@ resource tank {
 	}
 }
 .Ed
-.Sh FILES
-.Bl -tag -width ".Pa /var/run/hastctl" -compact
-.It Pa /etc/hast.conf
-The default
-.Nm
-configuration file.
-.It Pa /var/run/hastctl
-Control socket used by the
-.Xr hastctl 8
-control utility to communicate with the
-.Xr hastd 8
-daemon.
-.El
 .Sh SEE ALSO
 .Xr gethostname 3 ,
 .Xr geom 4 ,

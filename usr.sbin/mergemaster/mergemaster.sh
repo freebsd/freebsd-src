@@ -617,14 +617,14 @@ case "${RERUN}" in
       case "${DESTDIR}" in
       '') ;;
       *)
-        ${MM_MAKE} DESTDIR=${DESTDIR} distrib-dirs
+        ${MM_MAKE} DESTDIR=${DESTDIR} distrib-dirs >/dev/null
         ;;
       esac
       od=${TEMPROOT}/usr/obj
-      ${MM_MAKE} DESTDIR=${TEMPROOT} distrib-dirs &&
-      MAKEOBJDIRPREFIX=$od ${MM_MAKE} _obj SUBDIR_OVERRIDE=etc &&
-      MAKEOBJDIRPREFIX=$od ${MM_MAKE} everything SUBDIR_OVERRIDE=etc &&
-      MAKEOBJDIRPREFIX=$od ${MM_MAKE} DESTDIR=${TEMPROOT} distribution;} ||
+      ${MM_MAKE} DESTDIR=${TEMPROOT} distrib-dirs >/dev/null &&
+      MAKEOBJDIRPREFIX=$od ${MM_MAKE} _obj SUBDIR_OVERRIDE=etc >/dev/null &&
+      MAKEOBJDIRPREFIX=$od ${MM_MAKE} everything SUBDIR_OVERRIDE=etc >/dev/null &&
+      MAKEOBJDIRPREFIX=$od ${MM_MAKE} DESTDIR=${TEMPROOT} distribution >/dev/null;} ||
     { echo '';
      echo "  *** FATAL ERROR: Cannot 'cd' to ${SOURCEDIR} and install files to";
       echo "      the temproot environment";
@@ -848,6 +848,9 @@ mm_install () {
       ;;
     /etc/login.conf)
       NEED_CAP_MKDB=yes
+      ;;
+    /etc/services)
+      NEED_SERVICES_MKDB=yes
       ;;
     /etc/master.passwd)
       do_install_and_rm 600 "${1}" "${DESTDIR}${INSTALL_DIR}"
@@ -1275,6 +1278,17 @@ case "${NEED_CAP_MKDB}" in
   echo "    '/usr/bin/cap_mkdb ${DESTDIR}/etc/login.conf'"
   echo "     to rebuild your login.conf database"
   run_it_now "/usr/bin/cap_mkdb ${DESTDIR}/etc/login.conf"
+  ;;
+esac
+
+case "${NEED_SERVICES_MKDB}" in
+'') ;;
+*)
+  echo ''
+  echo "*** You installed a services file, so make sure that you run"
+  echo "    '/usr/sbin/services_mkdb -q -o ${DESTDIR}/var/db/services.db ${DESTDIR}/etc/services'"
+  echo "     to rebuild your services database"
+  run_it_now "/usr/sbin/services_mkdb -q -o ${DESTDIR}/var/db/services.db ${DESTDIR}/etc/services"
   ;;
 esac
 

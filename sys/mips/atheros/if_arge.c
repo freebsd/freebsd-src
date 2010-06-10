@@ -312,8 +312,8 @@ arge_attach(device_t dev)
 	sc->arge_if_flags = ifp->if_flags;
 
 	/* XXX: add real size */
-	IFQ_SET_MAXLEN(&ifp->if_snd, IFQ_MAXLEN);
-	ifp->if_snd.ifq_maxlen = IFQ_MAXLEN;
+	IFQ_SET_MAXLEN(&ifp->if_snd, ifqmaxlen);
+	ifp->if_snd.ifq_maxlen = ifqmaxlen;
 	IFQ_SET_READY(&ifp->if_snd);
 
 	ifp->if_capenable = ifp->if_capabilities;

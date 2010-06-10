@@ -1279,9 +1279,6 @@ ipi_bitmap_handler(struct trapframe frame)
 
 	if (ipi_bitmap & (1 << IPI_STATCLOCK))
 		statclockintr(&frame); 
-
-	if (ipi_bitmap & (1 << IPI_PROFCLOCK))
-		profclockintr(&frame);
 }
 
 /*

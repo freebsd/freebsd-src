@@ -55,7 +55,7 @@ __FBSDID("$FreeBSD$");
 
 #include "find.h"
 
-int typecompare(const void *, const void *);
+static int typecompare(const void *, const void *);
 
 /* NB: the following table must be sorted lexically. */
 /* Options listed with C++ comments are in gnu find, but not our find */
@@ -194,7 +194,7 @@ lookup_option(const char *name)
 	    sizeof(options)/sizeof(OPTION), sizeof(OPTION), typecompare));
 }
 
-int
+static int
 typecompare(const void *a, const void *b)
 {
 	return (strcmp(((const OPTION *)a)->name, ((const OPTION *)b)->name));

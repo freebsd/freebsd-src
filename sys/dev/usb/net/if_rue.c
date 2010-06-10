@@ -97,7 +97,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/usb/net/usb_ethernet.h>
 #include <dev/usb/net/if_ruereg.h>
 
-#if USB_DEBUG
+#ifdef USB_DEBUG
 static int rue_debug = 0;
 
 SYSCTL_NODE(_hw_usb, OID_AUTO, rue, CTLFLAG_RW, 0, "USB rue");

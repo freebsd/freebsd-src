@@ -36,7 +36,7 @@ SUBDIR= adduser \
 	lastlogin \
 	mailwrapper \
 	makefs \
-	manctl \
+	${_manctl} \
 	memcontrol \
 	mergemaster \
 	mfiutil \
@@ -204,6 +204,10 @@ SUBDIR+=	nscd
 
 .if ${MK_LPR} != "no"
 SUBDIR+=	lpr
+.endif
+
+.if ${MK_MAN_UTILS} != "no"
+_manctl=	manctl
 .endif
 
 .if ${MK_NETGRAPH} != "no"

@@ -75,7 +75,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/usb/wlan/if_zydreg.h>
 #include <dev/usb/wlan/if_zydfw.h>
 
-#if USB_DEBUG
+#ifdef USB_DEBUG
 static int zyd_debug = 0;
 
 SYSCTL_NODE(_hw_usb, OID_AUTO, zyd, CTLFLAG_RW, 0, "USB zyd");
@@ -381,7 +381,7 @@ zyd_attach(device_t dev)
 	ifp->if_init = zyd_init;
 	ifp->if_ioctl = zyd_ioctl;
 	ifp->if_start = zyd_start;
-	IFQ_SET_MAXLEN(&ifp->if_snd, IFQ_MAXLEN);
+	IFQ_SET_MAXLEN(&ifp->if_snd, ifqmaxlen);
 	IFQ_SET_READY(&ifp->if_snd);
 
 	ic = ifp->if_l2com;

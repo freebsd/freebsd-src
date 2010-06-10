@@ -17,7 +17,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 29, 1993
+.Dd May 13, 2010
 .Dt CRONTAB 1
 .Os
 .Sh NAME
@@ -114,7 +114,11 @@ from the editor, the modified crontab will be installed automatically.
 .Sh FILES
 .Bl -tag -width /var/cron/allow -compact
 .It Pa /var/cron/allow
+List of users allowed to use crontab
 .It Pa /var/cron/deny
+List of users prohibited from using crontab
+.It Pa /var/cron/tabs
+Directory for personal crontab files
 .El
 .Sh DIAGNOSTICS
 A fairly informative usage message appears if you run it with a bad command

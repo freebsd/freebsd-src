@@ -103,47 +103,22 @@
  * Primitives
  */
 
-/*
- * This table is indexed by u.u_pcb.pcb_onfault in trap().
- * The reason for using this table rather than storing an address in
- * u.u_pcb.pcb_onfault is simply to make the code faster.
- */
-	.globl	onfault_table
-	.data
-	.align	3
-onfault_table:
-	.word	0			# invalid index number
-#define	BADERR		1
-	.word	baderr
-#define	COPYERR		2
-	.word	copyerr
-#define	FSWBERR		3
-	.word	fswberr
-#define	FSWINTRBERR	4
-	.word	fswintrberr
-#if defined(DDB) || defined(DEBUG)
-#define	DDBERR	5
-	.word	ddberr
-#else
-	.word	0
-#endif
-
 	.text
 
 /*
  * See if access to addr with a len type instruction causes a machine check.
- * len is length of access (1=byte, 2=short, 4=long)
+ * len is length of access (1=byte, 2=short, 4=int)
  *
  * badaddr(addr, len)
  *	char *addr;
  *	int len;
  */
 LEAF(badaddr)
-	li	v0, BADERR
+	PTR_LA	v0, baderr
 	GET_CPU_PCPU(v1)
-	lw	v1, PC_CURPCB(v1)
+	PTR_L	v1, PC_CURPCB(v1)
 	bne	a1, 1, 2f
-	sw	v0, U_PCB_ONFAULT(v1)
+	PTR_S	v0, U_PCB_ONFAULT(v1)
 	b	5f
 	lbu	v0, (a0)
 2:
@@ -154,7 +129,7 @@ LEAF(badaddr)
 4:
 	lw	v0, (a0)
 5:
-	sw	zero, U_PCB_ONFAULT(v1)
+	PTR_S	zero, U_PCB_ONFAULT(v1)
 	j	ra
 	move	v0, zero		# made it w/o errors
 baderr:
@@ -169,24 +144,24 @@ END(badaddr)
  * string is too long, return ENAMETOOLONG; else return 0.
  */
 LEAF(copystr)
-	move	t0, a2
-	beq	a2, zero, 4f
+	move		t0, a2
+	beq		a2, zero, 4f
 1:
-	lbu	v0, 0(a0)
-	subu	a2, a2, 1
-	beq	v0, zero, 2f
-	sb	v0, 0(a1)		# each byte until NIL
-	addu	a0, a0, 1
-	bne	a2, zero, 1b		# less than maxlen
-	addu	a1, a1, 1
+	lbu		v0, 0(a0)
+	PTR_SUBU	a2, a2, 1
+	beq		v0, zero, 2f
+	sb		v0, 0(a1)		# each byte until NIL
+	PTR_ADDU	a0, a0, 1
+	bne		a2, zero, 1b		# less than maxlen
+	PTR_ADDU	a1, a1, 1
 4:
-	li	v0, ENAMETOOLONG	# run out of space
+	li		v0, ENAMETOOLONG	# run out of space
 2:
-	beq	a3, zero, 3f		# return num. of copied bytes
-	subu	a2, t0, a2		# if the 4th arg was non-NULL
-	sw	a2, 0(a3)
+	beq		a3, zero, 3f		# return num. of copied bytes
+	PTR_SUBU	a2, t0, a2		# if the 4th arg was non-NULL
+	PTR_S		a2, 0(a3)
 3:
-	j	ra			# v0 is 0 or ENAMETOOLONG
+	j		ra			# v0 is 0 or ENAMETOOLONG
 	nop
 END(copystr)
 
@@ -196,12 +171,12 @@ END(copystr)
  */
 LEAF(fillw)
 1:
-	addiu	a2, a2, -1
-	sh	a0, 0(a1)
-	bne	a2,zero, 1b
-	addiu	a1, a1, 2
+	PTR_ADDU	a2, a2, -1
+	sh		a0, 0(a1)
+	bne		a2,zero, 1b
+	PTR_ADDU	a1, a1, 2
 
-	jr	ra
+	jr		ra
 	nop
 END(fillw)
 
@@ -210,13 +185,13 @@ END(fillw)
  * mem_zero_page(addr);
  */
 LEAF(mem_zero_page)
-	li	v0, NBPG
+	li		v0, PAGE_SIZE
 1:
-	subu	v0, 8
-	sd	zero, 0(a0)
-	bne	zero, v0, 1b
-	addu	a0, 8
-	jr	ra
+	PTR_SUBU	v0, 8
+	sd		zero, 0(a0)
+	bne		zero, v0, 1b
+	PTR_ADDU	a0, 8
+	jr		ra
 	nop
 END(mem_zero_page)
 
@@ -228,56 +203,56 @@ END(mem_zero_page)
  *			a2 = count
  */
 LEAF(insb)
-	beq	a2, zero, 2f
-	addu	a2, a1
+	beq		a2, zero, 2f
+	PTR_ADDU	a2, a1
 1:
-	lbu	v0, 0(a0)
-	addiu	a1, 1
-	bne	a1, a2, 1b
-	sb	v0, -1(a1)
+	lbu		v0, 0(a0)
+	PTR_ADDU	a1, 1
+	bne		a1, a2, 1b
+	sb		v0, -1(a1)
 2:
-	jr	ra
+	jr		ra
 	nop
 END(insb)
 
 LEAF(insw)
-	beq	a2, zero, 2f
-	addu	a2, a2
-	addu	a2, a1
+	beq		a2, zero, 2f
+	PTR_ADDU	a2, a2
+	PTR_ADDU	a2, a1
 1:
-	lhu	v0, 0(a0)
-	addiu	a1, 2
-	bne	a1, a2, 1b
-	sh	v0, -2(a1)
+	lhu		v0, 0(a0)
+	PTR_ADDU	a1, 2
+	bne		a1, a2, 1b
+	sh		v0, -2(a1)
 2:
-	jr	ra
+	jr		ra
 	nop
 END(insw)
 
 LEAF(insl)
-	beq	a2, zero, 2f
-	sll	a2, 2
-	addu	a2, a1
+	beq		a2, zero, 2f
+	sll		a2, 2
+	PTR_ADDU	a2, a1
 1:
-	lw	v0, 0(a0)
-	addiu	a1, 4
-	bne	a1, a2, 1b
-	sw	v0, -4(a1)
+	lw		v0, 0(a0)
+	PTR_ADDU	a1, 4
+	bne		a1, a2, 1b
+	sw		v0, -4(a1)
 2:
-	jr	ra
+	jr		ra
 	nop
 END(insl)
 
 LEAF(outsb)
-	beq	a2, zero, 2f
-	addu	a2, a1
+	beq		a2, zero, 2f
+	PTR_ADDU	a2, a1
 1:
-	lbu	v0, 0(a1)
-	addiu	a1, 1
-	bne	a1, a2, 1b
-	sb	v0, 0(a0)
+	lbu		v0, 0(a1)
+	PTR_ADDU	a1, 1
+	bne		a1, a2, 1b
+	sb		v0, 0(a0)
 2:
-	jr	ra
+	jr		ra
 	nop
 END(outsb)
 
@@ -343,22 +318,22 @@ END(outsl)
  *		u_int maxlength;
  *		u_int *lencopied;
  */
-NON_LEAF(copyinstr, STAND_FRAME_SIZE, ra)
-	subu	sp, sp, STAND_FRAME_SIZE
-	.mask	0x80000000, (STAND_RA_OFFSET - STAND_FRAME_SIZE)
-	sw	ra, STAND_RA_OFFSET(sp)
+NON_LEAF(copyinstr, CALLFRAME_SIZ, ra)
+	PTR_SUBU	sp, sp, CALLFRAME_SIZ
+	.mask	0x80000000, (CALLFRAME_RA - CALLFRAME_SIZ)
+	PTR_LA	v0, copyerr
 	blt	a0, zero, _C_LABEL(copyerr)  # make sure address is in user space
-	li	v0, COPYERR
+	REG_S	ra, CALLFRAME_RA(sp)
 	GET_CPU_PCPU(v1)
-	lw	v1, PC_CURPCB(v1)
+	PTR_L	v1, PC_CURPCB(v1)
 	jal	_C_LABEL(copystr)
-	sw	v0, U_PCB_ONFAULT(v1)
-	lw	ra, STAND_RA_OFFSET(sp)
+	PTR_S	v0, U_PCB_ONFAULT(v1)
+	REG_L	ra, CALLFRAME_RA(sp)
 	GET_CPU_PCPU(v1)
-	lw	v1, PC_CURPCB(v1)
-	sw	zero, U_PCB_ONFAULT(v1)
+	PTR_L	v1, PC_CURPCB(v1)
+	PTR_S	zero, U_PCB_ONFAULT(v1)
 	j	ra
-	addu	sp, sp, STAND_FRAME_SIZE
+	PTR_ADDU	sp, sp, CALLFRAME_SIZ
 END(copyinstr)
 
 /*
@@ -371,22 +346,22 @@ END(copyinstr)
  *		u_int maxlength;
  *		u_int *lencopied;
  */
-NON_LEAF(copyoutstr, STAND_FRAME_SIZE, ra)
-	subu	sp, sp, STAND_FRAME_SIZE
-	.mask	0x80000000, (STAND_RA_OFFSET - STAND_FRAME_SIZE)
-	sw	ra, STAND_RA_OFFSET(sp)
+NON_LEAF(copyoutstr, CALLFRAME_SIZ, ra)
+	PTR_SUBU	sp, sp, CALLFRAME_SIZ
+	.mask	0x80000000, (CALLFRAME_RA - CALLFRAME_SIZ)
+	PTR_LA	v0, copyerr
 	blt	a1, zero, _C_LABEL(copyerr)  # make sure address is in user space
-	li	v0, COPYERR
+	REG_S	ra, CALLFRAME_RA(sp)
 	GET_CPU_PCPU(v1)
-	lw	v1, PC_CURPCB(v1)
+	PTR_L	v1, PC_CURPCB(v1)
 	jal	_C_LABEL(copystr)
-	sw	v0, U_PCB_ONFAULT(v1)
-	lw	ra, STAND_RA_OFFSET(sp)
+	PTR_S	v0, U_PCB_ONFAULT(v1)
+	REG_L	ra, CALLFRAME_RA(sp)
 	GET_CPU_PCPU(v1)
-	lw	v1, PC_CURPCB(v1)
-	sw	zero, U_PCB_ONFAULT(v1)
+	PTR_L	v1, PC_CURPCB(v1)
+	PTR_S	zero, U_PCB_ONFAULT(v1)
 	j	ra
-	addu	sp, sp, STAND_FRAME_SIZE
+	PTR_ADDU	sp, sp, CALLFRAME_SIZ
 END(copyoutstr)
 
 /*
@@ -396,21 +371,21 @@ END(copyoutstr)
  *		caddr_t *to;	(kernel destination address)
  *		unsigned len;
  */
-NON_LEAF(copyin, STAND_FRAME_SIZE, ra)
-	subu	sp, sp, STAND_FRAME_SIZE
-	.mask	0x80000000, (STAND_RA_OFFSET - STAND_FRAME_SIZE)
-	sw	ra, STAND_RA_OFFSET(sp)
+NON_LEAF(copyin, CALLFRAME_SIZ, ra)
+	PTR_SUBU	sp, sp, CALLFRAME_SIZ
+	.mask	0x80000000, (CALLFRAME_RA - CALLFRAME_SIZ)
+	PTR_LA	v0, copyerr
 	blt	a0, zero, _C_LABEL(copyerr)  # make sure address is in user space
-	li	v0, COPYERR
+	REG_S	ra, CALLFRAME_RA(sp)
 	GET_CPU_PCPU(v1)
-	lw	v1, PC_CURPCB(v1)
+	PTR_L	v1, PC_CURPCB(v1)
 	jal	_C_LABEL(bcopy)
-	sw	v0, U_PCB_ONFAULT(v1)
-	lw	ra, STAND_RA_OFFSET(sp)
+	PTR_S	v0, U_PCB_ONFAULT(v1)
+	REG_L	ra, CALLFRAME_RA(sp)
 	GET_CPU_PCPU(v1)
-	lw	v1, PC_CURPCB(v1)	 	# bcopy modified v1, so reload
-	sw	zero, U_PCB_ONFAULT(v1)
-	addu	sp, sp, STAND_FRAME_SIZE
+	PTR_L	v1, PC_CURPCB(v1)	 	# bcopy modified v1, so reload
+	PTR_S	zero, U_PCB_ONFAULT(v1)
+	PTR_ADDU	sp, sp, CALLFRAME_SIZ
 	j	ra
 	move	v0, zero
 END(copyin)
@@ -422,31 +397,28 @@ END(copyin)
  *		caddr_t *to;	(user destination address)
  *		unsigned len;
  */
-NON_LEAF(copyout, STAND_FRAME_SIZE, ra)
-	subu	sp, sp, STAND_FRAME_SIZE
-	.mask	0x80000000, (STAND_RA_OFFSET - STAND_FRAME_SIZE)
-	sw	ra, STAND_RA_OFFSET(sp)
+NON_LEAF(copyout, CALLFRAME_SIZ, ra)
+	PTR_SUBU	sp, sp, CALLFRAME_SIZ
+	.mask	0x80000000, (CALLFRAME_RA - CALLFRAME_SIZ)
+	PTR_LA	v0, copyerr
 	blt	a1, zero, _C_LABEL(copyerr) # make sure address is in user space
-	li	v0, COPYERR
+	REG_S	ra, CALLFRAME_RA(sp)
 	GET_CPU_PCPU(v1)
-	lw	v1, PC_CURPCB(v1)
+	PTR_L	v1, PC_CURPCB(v1)
 	jal	_C_LABEL(bcopy)
-	sw	v0, U_PCB_ONFAULT(v1)
-	lw	ra, STAND_RA_OFFSET(sp)
+	PTR_S	v0, U_PCB_ONFAULT(v1)
+	REG_L	ra, CALLFRAME_RA(sp)
 	GET_CPU_PCPU(v1)
-	lw	v1, PC_CURPCB(v1)		# bcopy modified v1, so reload
-	sw	zero, U_PCB_ONFAULT(v1)
-	addu	sp, sp, STAND_FRAME_SIZE
+	PTR_L	v1, PC_CURPCB(v1)	 	# bcopy modified v1, so reload
+	PTR_S	zero, U_PCB_ONFAULT(v1)
+	PTR_ADDU	sp, sp, CALLFRAME_SIZ
 	j	ra
 	move	v0, zero
 END(copyout)
 
 LEAF(copyerr)
-	lw	ra, STAND_RA_OFFSET(sp)
-	GET_CPU_PCPU(v1)
-	lw	v1, PC_CURPCB(v1)
-	sw	zero, U_PCB_ONFAULT(v1)
-	addu	sp, sp, STAND_FRAME_SIZE
+	REG_L	ra, CALLFRAME_RA(sp)
+	PTR_ADDU	sp, sp, CALLFRAME_SIZ
 	j	ra
 	li	v0, EFAULT			# return error
 END(copyerr)
@@ -460,51 +432,55 @@ END(copyerr)
 LEAF(fuword)
 ALEAF(fuword32)
 ALEAF(fuiword)
+	PTR_LA	v0, fswberr
 	blt	a0, zero, fswberr	# make sure address is in user space
-	li	v0, FSWBERR
+	nop
 	GET_CPU_PCPU(v1)
-	lw	v1, PC_CURPCB(v1)
-	sw	v0, U_PCB_ONFAULT(v1)
+	PTR_L	v1, PC_CURPCB(v1)
+	PTR_S	v0, U_PCB_ONFAULT(v1)
 	lw	v0, 0(a0)		# fetch word
 	j	ra
-	sw	zero, U_PCB_ONFAULT(v1)
+	PTR_S	zero, U_PCB_ONFAULT(v1)
 END(fuword)
 
 LEAF(fusword)
 ALEAF(fuisword)
+	PTR_LA	v0, fswberr
 	blt	a0, zero, fswberr	# make sure address is in user space
-	li	v0, FSWBERR
+	nop
 	GET_CPU_PCPU(v1)
-	lw	v1, PC_CURPCB(v1)
-	sw	v0, U_PCB_ONFAULT(v1)
+	PTR_L	v1, PC_CURPCB(v1)
+	PTR_S	v0, U_PCB_ONFAULT(v1)
 	lhu	v0, 0(a0)		# fetch short
 	j	ra
-	sw	zero, U_PCB_ONFAULT(v1)
+	PTR_S	zero, U_PCB_ONFAULT(v1)
 END(fusword)
 
 LEAF(fubyte)
 ALEAF(fuibyte)
+	PTR_LA	v0, fswberr
 	blt	a0, zero, fswberr	# make sure address is in user space
-	li	v0, FSWBERR
+	nop
 	GET_CPU_PCPU(v1)
-	lw	v1, PC_CURPCB(v1)
-	sw	v0, U_PCB_ONFAULT(v1)
+	PTR_L	v1, PC_CURPCB(v1)
+	PTR_S	v0, U_PCB_ONFAULT(v1)
 	lbu	v0, 0(a0)		# fetch byte
 	j	ra
-	sw	zero, U_PCB_ONFAULT(v1)
+	PTR_S	zero, U_PCB_ONFAULT(v1)
 END(fubyte)
 
 LEAF(suword32)
 #ifndef __mips_n64
 XLEAF(suword)
 #endif
+	PTR_LA	v0, fswberr
 	blt	a0, zero, fswberr	# make sure address is in user space
-	li	v0, FSWBERR
+	nop
 	GET_CPU_PCPU(v1)
-	lw	v1, PC_CURPCB(v1)
-	sw	v0, U_PCB_ONFAULT(v1)
+	PTR_L	v1, PC_CURPCB(v1)
+	PTR_S	v0, U_PCB_ONFAULT(v1)
 	sw	a1, 0(a0)		# store word
-	sw	zero, U_PCB_ONFAULT(v1)
+	PTR_S	zero, U_PCB_ONFAULT(v1)
 	j	ra
 	move	v0, zero
 END(suword32)
@@ -512,13 +488,14 @@ END(suword32)
 #ifdef __mips_n64
 LEAF(suword64)
 XLEAF(suword)
+	PTR_LA	v0, fswberr
 	blt	a0, zero, fswberr	# make sure address is in user space
-	li	v0, FSWBERR
+	nop
 	GET_CPU_PCPU(v1)
-	lw	v1, PC_CURPCB(v1)
-	sw	v0, U_PCB_ONFAULT(v1)
+	PTR_L	v1, PC_CURPCB(v1)
+	PTR_S	v0, U_PCB_ONFAULT(v1)
 	sd	a1, 0(a0)		# store word
-	sw	zero, U_PCB_ONFAULT(v1)
+	PTR_S	zero, U_PCB_ONFAULT(v1)
 	j	ra
 	move	v0, zero
 END(suword64)
@@ -537,11 +514,12 @@ LEAF(casuword32)
 #ifndef __mips_n64
 XLEAF(casuword)
 #endif
+	PTR_LA	v0, fswberr
 	blt	a0, zero, fswberr	# make sure address is in user space
-	li	v0, FSWBERR
+	nop
 	GET_CPU_PCPU(v1)
-	lw	v1, PC_CURPCB(v1)
-	sw	v0, U_PCB_ONFAULT(v1)
+	PTR_L	v1, PC_CURPCB(v1)
+	PTR_S	v0, U_PCB_ONFAULT(v1)
 1:
 	move	t0, a2
 	ll	v0, 0(a0)
@@ -555,7 +533,7 @@ XLEAF(casuword)
 2:
 	li	v0, -1
 3:
-	sw	zero, U_PCB_ONFAULT(v1)
+	PTR_S	zero, U_PCB_ONFAULT(v1)
 	jr	ra
 	nop
 END(casuword32)
@@ -563,11 +541,12 @@ END(casuword32)
 #ifdef __mips_n64
 LEAF(casuword64)
 XLEAF(casuword)
+	PTR_LA	v0, fswberr
 	blt	a0, zero, fswberr	# make sure address is in user space
-	li	v0, FSWBERR
+	nop
 	GET_CPU_PCPU(v1)
-	lw	v1, PC_CURPCB(v1)
-	sw	v0, U_PCB_ONFAULT(v1)
+	PTR_L	v1, PC_CURPCB(v1)
+	PTR_S	v0, U_PCB_ONFAULT(v1)
 1:
 	move	t0, a2
 	lld	v0, 0(a0)
@@ -581,7 +560,7 @@ XLEAF(casuword)
 2:
 	li	v0, -1
 3:
-	sw	zero, U_PCB_ONFAULT(v1)
+	PTR_S	zero, U_PCB_ONFAULT(v1)
 	jr	ra
 	nop
 END(casuword64)
@@ -593,13 +572,14 @@ END(casuword64)
  * Have to flush instruction cache afterwards.
  */
 LEAF(suiword)
+	PTR_LA	v0, fswberr
 	blt	a0, zero, fswberr	# make sure address is in user space
-	li	v0, FSWBERR
+	nop
 	GET_CPU_PCPU(v1)
-	lw	v1, PC_CURPCB(v1)
-	sw	v0, U_PCB_ONFAULT(v1)
+	PTR_L	v1, PC_CURPCB(v1)
+	PTR_S	v0, U_PCB_ONFAULT(v1)
 	sw	a1, 0(a0)		# store word
-	sw	zero, U_PCB_ONFAULT(v1)
+	PTR_S	zero, U_PCB_ONFAULT(v1)
 	j	_C_LABEL(Mips_SyncICache)  # FlushICache sets v0 = 0. (Ugly)
 	li	a1, 4			# size of word
 END(suiword)
@@ -610,26 +590,28 @@ END(suiword)
  */
 LEAF(susword)
 ALEAF(suisword)
+	PTR_LA	v0, fswberr
 	blt	a0, zero, fswberr	# make sure address is in user space
-	li	v0, FSWBERR
+	nop
 	GET_CPU_PCPU(v1)
-	lw	v1, PC_CURPCB(v1)
-	sw	v0, U_PCB_ONFAULT(v1)
+	PTR_L	v1, PC_CURPCB(v1)
+	PTR_S	v0, U_PCB_ONFAULT(v1)
 	sh	a1, 0(a0)		# store short
-	sw	zero, U_PCB_ONFAULT(v1)
+	PTR_S	zero, U_PCB_ONFAULT(v1)
 	j	ra
 	move	v0, zero
 END(susword)
 
 LEAF(subyte)
 ALEAF(suibyte)
+	PTR_LA	v0, fswberr
 	blt	a0, zero, fswberr	# make sure address is in user space
-	li	v0, FSWBERR
+	nop
 	GET_CPU_PCPU(v1)
-	lw	v1, PC_CURPCB(v1)
-	sw	v0, U_PCB_ONFAULT(v1)
+	PTR_L	v1, PC_CURPCB(v1)
+	PTR_S	v0, U_PCB_ONFAULT(v1)
 	sb	a1, 0(a0)		# store byte
-	sw	zero, U_PCB_ONFAULT(v1)
+	PTR_S	zero, U_PCB_ONFAULT(v1)
 	j	ra
 	move	v0, zero
 END(subyte)
@@ -645,24 +627,26 @@ END(fswberr)
  * The important thing is to prevent sleep() and switch().
  */
 LEAF(fuswintr)
+	PTR_LA	v0, fswintrberr
 	blt	a0, zero, fswintrberr	# make sure address is in user space
-	li	v0, FSWINTRBERR
+	nop
 	GET_CPU_PCPU(v1)
-	lw	v1, PC_CURPCB(v1)
-	sw	v0, U_PCB_ONFAULT(v1)
+	PTR_L	v1, PC_CURPCB(v1)
+	PTR_S	v0, U_PCB_ONFAULT(v1)
 	lhu	v0, 0(a0)		# fetch short
 	j	ra
-	sw	zero, U_PCB_ONFAULT(v1)
+	PTR_S	zero, U_PCB_ONFAULT(v1)
 END(fuswintr)
 
 LEAF(suswintr)
+	PTR_LA	v0, fswintrberr
 	blt	a0, zero, fswintrberr	# make sure address is in user space
-	li	v0, FSWINTRBERR
+	nop
 	GET_CPU_PCPU(v1)
-	lw	v1, PC_CURPCB(v1)
-	sw	v0, U_PCB_ONFAULT(v1)
+	PTR_L	v1, PC_CURPCB(v1)
+	PTR_S	v0, U_PCB_ONFAULT(v1)
 	sh	a1, 0(a0)		# store short
-	sw	zero, U_PCB_ONFAULT(v1)
+	PTR_S	zero, U_PCB_ONFAULT(v1)
 	j	ra
 	move	v0, zero
 END(suswintr)
@@ -671,111 +655,6 @@ LEAF(fswintrberr)
 	j	ra
 	li	v0, -1
 END(fswintrberr)
-
-/*
- * Insert 'p' after 'q'.
- *	_insque(p, q)
- *		caddr_t p, q;
- */
-LEAF(_insque)
-	lw	v0, 0(a1)		# v0 = q->next
-	sw	a1, 4(a0)		# p->prev = q
-	sw	v0, 0(a0)		# p->next = q->next
-	sw	a0, 4(v0)		# q->next->prev = p
-	j	ra
-	sw	a0, 0(a1)		# q->next = p
-END(_insque)
-
-/*
- * Remove item 'p' from queue.
- *	_remque(p)
- *		caddr_t p;
- */
-LEAF(_remque)
-	lw	v0, 0(a0)		# v0 = p->next
-	lw	v1, 4(a0)		# v1 = p->prev
-	nop
-	sw	v0, 0(v1)		# p->prev->next = p->next
-	j	ra
-	sw	v1, 4(v0)		# p->next->prev = p->prev
-END(_remque)
-
-/*--------------------------------------------------------------------------
- *
- * Mips_GetCOUNT --
- *
- *	Mips_GetCOUNT()
- *
- * Results:
- *	Returns the current COUNT reg.
- *
- * Side effects:
- *	None.
- *
- *--------------------------------------------------------------------------
- */
-LEAF(Mips_GetCOUNT)
-	mfc0	v0, COP_0_COUNT
-	nop	#???
-	nop	#???
-	j	ra
-	nop
-END(Mips_GetCOUNT)
-
-/*--------------------------------------------------------------------------
- *
- * Mips_SetCOMPARE --
- *
- *	Mips_SetCOMPARE()
- *
- * Results:
- *	Sets a new value to the COMPARE register.
- *
- * Side effects:
- *	The COMPARE equal interrupt is acknowledged.
- *
- *--------------------------------------------------------------------------
- */
-LEAF(Mips_SetCOMPARE)
-	mtc0	a0, COP_0_COMPARE
-	j	ra
-	nop
-END(Mips_SetCOMPARE)
-
-LEAF(Mips_GetCOMPARE)
-	mfc0	v0, COP_0_COMPARE
-	j	ra
-	nop
-END(Mips_GetCOMPARE)
-
-/*
- * u_int32_t mips_cp0_status_read(void)
- *
- *	Return the current value of the CP0 Status register.
- */
-LEAF(mips_cp0_status_read)
-	mfc0	v0, COP_0_STATUS_REG
-	j	ra
-	nop
-END(mips_cp0_status_read)
-
-/*
- * void mips_cp0_status_write(u_int32_t)
- *
- *	Set the value of the CP0 Status register.
- *
- *	Note: This is almost certainly not the way you want to write a
- *	"permanent" value to to the CP0 Status register, since it gets
- *	saved in trap frames and restores.
- */
-LEAF(mips_cp0_status_write)
-	mtc0	a0, COP_0_STATUS_REG
-	nop
-	nop
-	j	ra
-	nop
-END(mips_cp0_status_write)
-
 
 /*
  * memcpy(to, from, len)
@@ -789,7 +668,7 @@ LEAF(memcpy)
 ALEAF(bcopy)
 ALEAF(ovbcopy)
 	.set	noreorder
-	addu	t0, a0, a2		# t0 = end of s1 region
+	PTR_ADDU	t0, a0, a2		# t0 = end of s1 region
 	sltu	t1, a1, t0
 	sltu	t2, a0, a1
 	and	t1, t1, t2		# t1 = true if from < to < (from+len)
@@ -797,11 +676,11 @@ ALEAF(ovbcopy)
 	slt	t2, a2, 12		# check for small copy
 
 	ble	a2, zero, 2f
-	addu	t1, a1, a2		# t1 = end of to region
+	PTR_ADDU	t1, a1, a2		# t1 = end of to region
 1:
 	lb	v1, -1(t0)		# copy bytes backwards,
-	subu	t0, t0, 1		#   doesnt happen often so do slow way
-	subu	t1, t1, 1
+	PTR_SUBU	t0, t0, 1		#   doesnt happen often so do slow way
+	PTR_SUBU	t1, t1, 1
 	bne	t0, a0, 1b
 	sb	v1, 0(t1)
 2:
@@ -811,59 +690,59 @@ forward:
 	bne	t2, zero, smallcpy	# do a small bcopy
 	xor	v1, a0, a1		# compare low two bits of addresses
 	and	v1, v1, 3
-	subu	a3, zero, a1		# compute # bytes to word align address
+	PTR_SUBU	a3, zero, a1		# compute # bytes to word align address
 	beq	v1, zero, aligned	# addresses can be word aligned
 	and	a3, a3, 3
 
 	beq	a3, zero, 1f
-	subu	a2, a2, a3		# subtract from remaining count
+	PTR_SUBU	a2, a2, a3		# subtract from remaining count
 	LWHI	v1, 0(a0)		# get next 4 bytes (unaligned)
 	LWLO	v1, 3(a0)
-	addu	a0, a0, a3
+	PTR_ADDU	a0, a0, a3
 	SWHI	v1, 0(a1)		# store 1, 2, or 3 bytes to align a1
-	addu	a1, a1, a3
+	PTR_ADDU	a1, a1, a3
 1:
 	and	v1, a2, 3		# compute number of words left
-	subu	a3, a2, v1
+	PTR_SUBU	a3, a2, v1
 	move	a2, v1
-	addu	a3, a3, a0		# compute ending address
+	PTR_ADDU	a3, a3, a0		# compute ending address
 2:
 	LWHI	v1, 0(a0)		# copy words a0 unaligned, a1 aligned
 	LWLO	v1, 3(a0)
-	addu	a0, a0, 4
+	PTR_ADDU	a0, a0, 4
 	sw	v1, 0(a1)
-	addu	a1, a1, 4
+	PTR_ADDU	a1, a1, 4
 	bne	a0, a3, 2b
 	nop				# We have to do this mmu-bug.
 	b	smallcpy
 	nop
 aligned:
 	beq	a3, zero, 1f
-	subu	a2, a2, a3		# subtract from remaining count
+	PTR_SUBU	a2, a2, a3		# subtract from remaining count
 	LWHI	v1, 0(a0)		# copy 1, 2, or 3 bytes to align
-	addu	a0, a0, a3
+	PTR_ADDU	a0, a0, a3
 	SWHI	v1, 0(a1)
-	addu	a1, a1, a3
+	PTR_ADDU	a1, a1, a3
 1:
 	and	v1, a2, 3		# compute number of whole words left
-	subu	a3, a2, v1
+	PTR_SUBU	a3, a2, v1
 	move	a2, v1
-	addu	a3, a3, a0		# compute ending address
+	PTR_ADDU	a3, a3, a0		# compute ending address
 2:
 	lw	v1, 0(a0)		# copy words
-	addu	a0, a0, 4
+	PTR_ADDU	a0, a0, 4
 	sw	v1, 0(a1)
 	bne	a0, a3, 2b
-	addu	a1, a1, 4
+	PTR_ADDU	a1, a1, 4
 smallcpy:
 	ble	a2, zero, 2f
-	addu	a3, a2, a0		# compute ending address
+	PTR_ADDU	a3, a2, a0		# compute ending address
 1:
 	lbu	v1, 0(a0)		# copy bytes
-	addu	a0, a0, 1
+	PTR_ADDU	a0, a0, 1
 	sb	v1, 0(a1)
 	bne	a0, a3, 1b
-	addu	a1, a1, 1	   # MMU BUG ? can not do -1(a1) at 0x80000000!!
+	PTR_ADDU	a1, a1, 1	   # MMU BUG ? can not do -1(a1) at 0x80000000!!
 2:
 	j	ra
 	nop
@@ -883,19 +762,19 @@ LEAF(memset)
 	sll	t2, t1, 16		# shift that left 16
 	or	t1, t2, t1		# or together
 
-	subu	t0, zero, a0		# compute # bytes to word align address
+	PTR_SUBU	t0, zero, a0		# compute # bytes to word align address
 	and	t0, t0, 3
 	beq	t0, zero, 1f		# skip if word aligned
-	subu	a2, a2, t0		# subtract from remaining count
+	PTR_SUBU	a2, a2, t0		# subtract from remaining count
 	SWHI	t1, 0(a0)		# store 1, 2, or 3 bytes to align
-	addu	a0, a0, t0
+	PTR_ADDU	a0, a0, t0
 1:
 	and	v1, a2, 3		# compute number of whole words left
-	subu	t0, a2, v1
-	subu	a2, a2, t0
-	addu	t0, t0, a0		# compute ending address
+	PTR_SUBU	t0, a2, v1
+	PTR_SUBU	a2, a2, t0
+	PTR_ADDU	t0, t0, a0		# compute ending address
 2:
-	addu	a0, a0, 4		# clear words
+	PTR_ADDU	a0, a0, 4		# clear words
 #ifdef MIPS3_5900
 	nop
 	nop
@@ -907,9 +786,9 @@ LEAF(memset)
 
 memsetsmallclr:
 	ble	a2, zero, 2f
-	addu	t0, a2, a0		# compute ending address
+	PTR_ADDU	t0, a2, a0		# compute ending address
 1:
-	addu	a0, a0, 1		# clear bytes
+	PTR_ADDU	a0, a0, 1		# clear bytes
 #ifdef MIPS3_5900
 	nop
 	nop
@@ -931,26 +810,26 @@ LEAF(bzero)
 ALEAF(blkclr)
 	.set	noreorder
 	blt	a1, 12, smallclr	# small amount to clear?
-	subu	a3, zero, a0		# compute # bytes to word align address
+	PTR_SUBU	a3, zero, a0		# compute # bytes to word align address
 	and	a3, a3, 3
 	beq	a3, zero, 1f		# skip if word aligned
-	subu	a1, a1, a3		# subtract from remaining count
+	PTR_SUBU	a1, a1, a3		# subtract from remaining count
 	SWHI	zero, 0(a0)		# clear 1, 2, or 3 bytes to align
-	addu	a0, a0, a3
+	PTR_ADDU	a0, a0, a3
 1:
 	and	v0, a1, 3		# compute number of words left
-	subu	a3, a1, v0
+	PTR_SUBU	a3, a1, v0
 	move	a1, v0
-	addu	a3, a3, a0		# compute ending address
+	PTR_ADDU	a3, a3, a0		# compute ending address
 2:
-	addu	a0, a0, 4		# clear words
+	PTR_ADDU	a0, a0, 4		# clear words
 	bne	a0, a3, 2b		#  unrolling loop does not help
 	sw	zero, -4(a0)		#  since we are limited by memory speed
 smallclr:
 	ble	a1, zero, 2f
-	addu	a3, a1, a0		# compute ending address
+	PTR_ADDU	a3, a1, a0		# compute ending address
 1:
-	addu	a0, a0, 1		# clear bytes
+	PTR_ADDU	a0, a0, 1		# clear bytes
 	bne	a0, a3, 1b
 	sb	zero, -1(a0)
 2:
@@ -967,66 +846,66 @@ LEAF(bcmp)
 	blt	a2, 16, smallcmp	# is it worth any trouble?
 	xor	v0, a0, a1		# compare low two bits of addresses
 	and	v0, v0, 3
-	subu	a3, zero, a1		# compute # bytes to word align address
+	PTR_SUBU	a3, zero, a1		# compute # bytes to word align address
 	bne	v0, zero, unalignedcmp	# not possible to align addresses
 	and	a3, a3, 3
 
 	beq	a3, zero, 1f
-	subu	a2, a2, a3		# subtract from remaining count
+	PTR_SUBU	a2, a2, a3		# subtract from remaining count
 	move	v0, v1			# init v0,v1 so unmodified bytes match
 	LWHI	v0, 0(a0)		# read 1, 2, or 3 bytes
 	LWHI	v1, 0(a1)
-	addu	a1, a1, a3
+	PTR_ADDU	a1, a1, a3
 	bne	v0, v1, nomatch
-	addu	a0, a0, a3
+	PTR_ADDU	a0, a0, a3
 1:
 	and	a3, a2, ~3		# compute number of whole words left
-	subu	a2, a2, a3		#   which has to be >= (16-3) & ~3
-	addu	a3, a3, a0		# compute ending address
+	PTR_SUBU	a2, a2, a3		#   which has to be >= (16-3) & ~3
+	PTR_ADDU	a3, a3, a0		# compute ending address
 2:
 	lw	v0, 0(a0)		# compare words
 	lw	v1, 0(a1)
-	addu	a0, a0, 4
+	PTR_ADDU	a0, a0, 4
 	bne	v0, v1, nomatch
-	addu	a1, a1, 4
+	PTR_ADDU	a1, a1, 4
 	bne	a0, a3, 2b
 	nop
 	b	smallcmp		# finish remainder
 	nop
 unalignedcmp:
 	beq	a3, zero, 2f
-	subu	a2, a2, a3		# subtract from remaining count
-	addu	a3, a3, a0		# compute ending address
+	PTR_SUBU	a2, a2, a3		# subtract from remaining count
+	PTR_ADDU	a3, a3, a0		# compute ending address
 1:
 	lbu	v0, 0(a0)		# compare bytes until a1 word aligned
 	lbu	v1, 0(a1)
-	addu	a0, a0, 1
+	PTR_ADDU	a0, a0, 1
 	bne	v0, v1, nomatch
-	addu	a1, a1, 1
+	PTR_ADDU	a1, a1, 1
 	bne	a0, a3, 1b
 	nop
 2:
 	and	a3, a2, ~3		# compute number of whole words left
-	subu	a2, a2, a3		#   which has to be >= (16-3) & ~3
-	addu	a3, a3, a0		# compute ending address
+	PTR_SUBU	a2, a2, a3		#   which has to be >= (16-3) & ~3
+	PTR_ADDU	a3, a3, a0		# compute ending address
 3:
 	LWHI	v0, 0(a0)		# compare words a0 unaligned, a1 aligned
 	LWLO	v0, 3(a0)
 	lw	v1, 0(a1)
-	addu	a0, a0, 4
+	PTR_ADDU	a0, a0, 4
 	bne	v0, v1, nomatch
-	addu	a1, a1, 4
+	PTR_ADDU	a1, a1, 4
 	bne	a0, a3, 3b
 	nop
 smallcmp:
 	ble	a2, zero, match
-	addu	a3, a2, a0		# compute ending address
+	PTR_ADDU	a3, a2, a0		# compute ending address
 1:
 	lbu	v0, 0(a0)
 	lbu	v1, 0(a1)
-	addu	a0, a0, 1
+	PTR_ADDU	a0, a0, 1
 	bne	v0, v1, nomatch
-	addu	a1, a1, 1
+	PTR_ADDU	a1, a1, 1
 	bne	a0, a3, 1b
 	nop
 match:
@@ -1367,9 +1246,6 @@ END(atomic_subtract_8)
  */
 
 	.set	noreorder		# Noreorder is default style!
-#ifndef _MIPS_ARCH_XLR
-	.set	mips3
-#endif
 
 #if !defined(__mips_n64) && !defined(__mips_n32)	
 	/*
@@ -1426,22 +1302,22 @@ END(atomic_load_64)
 #if defined(DDB) || defined(DEBUG)
 
 LEAF(kdbpeek)
-	li	v1, DDBERR
+	PTR_LA	v1, ddberr
 	and	v0, a0, 3			# unaligned ?
 	GET_CPU_PCPU(t1)
-	lw	t1, PC_CURPCB(t1)
+	PTR_L	t1, PC_CURPCB(t1)
 	bne	v0, zero, 1f
-	sw	v1, U_PCB_ONFAULT(t1)
+	PTR_S	v1, U_PCB_ONFAULT(t1)
 
 	lw	v0, (a0)
 	jr	ra
-	sw	zero, U_PCB_ONFAULT(t1)
+	PTR_S	zero, U_PCB_ONFAULT(t1)
 
 1:
 	LWHI	v0, 0(a0)
 	LWLO	v0, 3(a0)
 	jr	ra
-	sw	zero, U_PCB_ONFAULT(t1)
+	PTR_S	zero, U_PCB_ONFAULT(t1)
 END(kdbpeek)
 
 ddberr:
@@ -1450,43 +1326,30 @@ ddberr:
 
 #if defined(DDB)
 LEAF(kdbpoke)
-	li	v1, DDBERR
+	PTR_LA	v1, ddberr
 	and	v0, a0, 3			# unaligned ?
 	GET_CPU_PCPU(t1)
-	lw	t1, PC_CURPCB(t1)
+	PTR_L	t1, PC_CURPCB(t1)
 	bne	v0, zero, 1f
-	sw	v1, U_PCB_ONFAULT(t1)
+	PTR_S	v1, U_PCB_ONFAULT(t1)
 
 	sw	a1, (a0)
 	jr	ra
-	sw	zero, U_PCB_ONFAULT(t1)
+	PTR_S	zero, U_PCB_ONFAULT(t1)
 
 1:
 	SWHI	a1, 0(a0)
 	SWLO	a1, 3(a0)
 	jr	ra
-	sw	zero, U_PCB_ONFAULT(t1)
+	PTR_S	zero, U_PCB_ONFAULT(t1)
 END(kdbpoke)
 
 	.data
 	.globl	esym
 esym:	.word	0
 
-#ifndef _MIPS_ARCH_XLR
-	.set	mips2
-#endif
 #endif /* DDB */
 #endif /* DDB || DEBUG */
-
-#ifndef MIPS_ISAIII
-#define	STORE	sw	/* 32 bit mode regsave instruction */
-#define	LOAD	lw	/* 32 bit mode regload instruction */
-#define	RSIZE	4	/* 32 bit mode register size */
-#else
-#define	STORE	sd	/* 64 bit mode regsave instruction */
-#define	LOAD	ld	/* 64 bit mode regload instruction */
-#define	RSIZE	8	/* 64 bit mode register size */
-#endif
 
 #define	ITLBNOPFIX	nop;nop;nop;nop;nop;nop;nop;nop;nop;nop;
 
@@ -1499,35 +1362,35 @@ LEAF(breakpoint)
 
 LEAF(setjmp)
 	mfc0	v0, COP_0_STATUS_REG	# Later the "real" spl value!
-	STORE	s0, (RSIZE * PREG_S0)(a0)
-	STORE	s1, (RSIZE * PREG_S1)(a0)
-	STORE	s2, (RSIZE * PREG_S2)(a0)
-	STORE	s3, (RSIZE * PREG_S3)(a0)
-	STORE	s4, (RSIZE * PREG_S4)(a0)
-	STORE	s5, (RSIZE * PREG_S5)(a0)
-	STORE	s6, (RSIZE * PREG_S6)(a0)
-	STORE	s7, (RSIZE * PREG_S7)(a0)
-	STORE	s8, (RSIZE * PREG_S8)(a0)
-	STORE	sp, (RSIZE * PREG_SP)(a0)
-	STORE	ra, (RSIZE * PREG_RA)(a0)
-	STORE	v0, (RSIZE * PREG_SR)(a0)
+	REG_S	s0, (SZREG * PREG_S0)(a0)
+	REG_S	s1, (SZREG * PREG_S1)(a0)
+	REG_S	s2, (SZREG * PREG_S2)(a0)
+	REG_S	s3, (SZREG * PREG_S3)(a0)
+	REG_S	s4, (SZREG * PREG_S4)(a0)
+	REG_S	s5, (SZREG * PREG_S5)(a0)
+	REG_S	s6, (SZREG * PREG_S6)(a0)
+	REG_S	s7, (SZREG * PREG_S7)(a0)
+	REG_S	s8, (SZREG * PREG_S8)(a0)
+	REG_S	sp, (SZREG * PREG_SP)(a0)
+	REG_S	ra, (SZREG * PREG_RA)(a0)
+	REG_S	v0, (SZREG * PREG_SR)(a0)
 	jr	ra
 	li	v0, 0			# setjmp return
 END(setjmp)
 
 LEAF(longjmp)
-	LOAD	v0, (RSIZE * PREG_SR)(a0)
-	LOAD	ra, (RSIZE * PREG_RA)(a0)
-	LOAD	s0, (RSIZE * PREG_S0)(a0)
-	LOAD	s1, (RSIZE * PREG_S1)(a0)
-	LOAD	s2, (RSIZE * PREG_S2)(a0)
-	LOAD	s3, (RSIZE * PREG_S3)(a0)
-	LOAD	s4, (RSIZE * PREG_S4)(a0)
-	LOAD	s5, (RSIZE * PREG_S5)(a0)
-	LOAD	s6, (RSIZE * PREG_S6)(a0)
-	LOAD	s7, (RSIZE * PREG_S7)(a0)
-	LOAD	s8, (RSIZE * PREG_S8)(a0)
-	LOAD	sp, (RSIZE * PREG_SP)(a0)
+	REG_L	v0, (SZREG * PREG_SR)(a0)
+	REG_L	ra, (SZREG * PREG_RA)(a0)
+	REG_L	s0, (SZREG * PREG_S0)(a0)
+	REG_L	s1, (SZREG * PREG_S1)(a0)
+	REG_L	s2, (SZREG * PREG_S2)(a0)
+	REG_L	s3, (SZREG * PREG_S3)(a0)
+	REG_L	s4, (SZREG * PREG_S4)(a0)
+	REG_L	s5, (SZREG * PREG_S5)(a0)
+	REG_L	s6, (SZREG * PREG_S6)(a0)
+	REG_L	s7, (SZREG * PREG_S7)(a0)
+	REG_L	s8, (SZREG * PREG_S8)(a0)
+	REG_L	sp, (SZREG * PREG_SP)(a0)
 	mtc0	v0, COP_0_STATUS_REG	# Later the "real" spl value!
 	ITLBNOPFIX
 	jr	ra
@@ -1538,7 +1401,6 @@ LEAF(fusufault)
 	GET_CPU_PCPU(t0)
 	lw	t0, PC_CURTHREAD(t0)
 	lw	t0, TD_PCB(t0)
-	sw	zero, U_PCB_ONFAULT(t0)
 	li	v0, -1
 	j	ra
 END(fusufault)
@@ -1547,8 +1409,7 @@ END(fusufault)
        a pointer that is in user space.	 It will be used as the basic primitive
        for a kernel supported user space lock implementation. */
 LEAF(casuptr)
-
-	li	t0, VM_MAXUSER_ADDRESS /* verify address validity */
+	PTR_LI	t0, VM_MAXUSER_ADDRESS /* verify address validity */
 	blt	a0, t0, fusufault		/* trap faults */
 	nop
 
@@ -1556,8 +1417,8 @@ LEAF(casuptr)
 	lw	t1, PC_CURTHREAD(t1)
 	lw	t1, TD_PCB(t1)
 
-	lw	t2, fusufault
-	sw	t2, U_PCB_ONFAULT(t1)
+	PTR_LA	t2, fusufault
+	PTR_S	t2, U_PCB_ONFAULT(t1)
 1:
 	ll	v0, 0(a0)		/* try to load the old value */
 	beq	v0, a1, 2f		/* compare */
@@ -1565,7 +1426,7 @@ LEAF(casuptr)
 	sc	t0, 0(a0)		/* write if address still locked */
 	beq	t0, zero, 1b			/* if it failed, spin */
 2:
-	sw	zero, U_PCB_ONFAULT(t1) /* clean up */
+	PTR_S	zero, U_PCB_ONFAULT(t1) /* clean up */
 	j	ra
 END(casuptr)
 
@@ -1593,7 +1454,7 @@ END(octeon_get_shadow)
  * octeon_set_control(addr, uint32_t val)
  */
 LEAF(octeon_set_control)
-	.set mips64r2
+	.set push
 	or      t1, a1, zero
 /*	dmfc0   a1, 9, 7*/
 	.word 0x40254807
@@ -1603,20 +1464,21 @@ LEAF(octeon_set_control)
 	.word 0x40a54807
 	jr	ra
 	nop
-        .set	mips0
+	.set pop
 END(octeon_set_control)
 
 /*
  * octeon_get_control(addr)
  */
 LEAF(octeon_get_control)
+	.set push
 	.set mips64r2
 /*	dmfc0   a1, 9, 7 */
 	.word 0x40254807
 	sd	a1, 0(a0)
 	jr	ra
 	nop
-        .set	mips0
+	.set pop
 END(octeon_get_control)
 #endif
 

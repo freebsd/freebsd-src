@@ -432,7 +432,7 @@ ieee80211_reset_bss(struct ieee80211vap *vap)
 	ieee80211_reset_erp(ic);
 
 	ni = ieee80211_alloc_node(&ic->ic_sta, vap, vap->iv_myaddr);
-	KASSERT(ni != NULL, ("unable to setup inital BSS node"));
+	KASSERT(ni != NULL, ("unable to setup initial BSS node"));
 	obss = vap->iv_bss;
 	vap->iv_bss = ieee80211_ref_node(ni);
 	if (obss != NULL) {

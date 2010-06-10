@@ -9,7 +9,7 @@ _CPUCFLAGS =
 . if ${MACHINE_CPUARCH} == "i386"
 MACHINE_CPU = i486
 . elif ${MACHINE_CPUARCH} == "amd64"
-MACHINE_CPU = amd64 sse2 sse
+MACHINE_CPU = amd64 sse2 sse mmx
 . elif ${MACHINE_CPUARCH} == "ia64"
 MACHINE_CPU = itanium
 . elif ${MACHINE_CPUARCH} == "powerpc"

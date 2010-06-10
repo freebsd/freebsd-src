@@ -855,7 +855,7 @@ static int
 ngs_rcvmsg(node_p node, item_p item, hook_p lasthook)
 {
 	struct ngsock *const priv = NG_NODE_PRIVATE(node);
-	struct ngpcb *const pcbp = priv->ctlsock;
+	struct ngpcb *pcbp;
 	struct socket *so;
 	struct sockaddr_ng addr;
 	struct ng_mesg *msg;
@@ -868,15 +868,27 @@ ngs_rcvmsg(node_p node, item_p item, hook_p lasthook)
 	NG_FREE_ITEM(item);
 
 	/*
+	 * Grab priv->mtx here to prevent destroying of control socket
+	 * after checking that priv->ctlsock is not NULL.
+	 */
+	mtx_lock(&priv->mtx);
+	pcbp = priv->ctlsock;
+
+	/*
 	 * Only allow mesgs to be passed if we have the control socket.
 	 * Data sockets can only support the generic messages.
 	 */
 	if (pcbp == NULL) {
+		mtx_unlock(&priv->mtx);
 		TRAP_ERROR;
 		NG_FREE_MSG(msg);
 		return (EINVAL);
 	}
 	so = pcbp->ng_socket;
+	SOCKBUF_LOCK(&so->so_rcv);
+
+	/* As long as the race is handled, priv->mtx may be unlocked now. */
+	mtx_unlock(&priv->mtx);
 
 #ifdef TRACE_MESSAGES
 	printf("[%x]:---------->[socket]: c=<%d>cmd=%x(%s) f=%x #%d\n",
@@ -899,6 +911,8 @@ ngs_rcvmsg(node_p node, item_p item, hook_p lasthook)
 		default:
 			error = EINVAL;		/* unknown command */
 		}
+		SOCKBUF_UNLOCK(&so->so_rcv);
+
 		/* Free the message and return. */
 		NG_FREE_MSG(msg);
 		return (error);
@@ -911,6 +925,7 @@ ngs_rcvmsg(node_p node, item_p item, hook_p lasthook)
 	addrlen = snprintf((char *)&addr.sg_data, sizeof(addr.sg_data),
 	    "[%x]:", retaddr);
 	if (addrlen < 0 || addrlen > sizeof(addr.sg_data)) {
+		SOCKBUF_UNLOCK(&so->so_rcv);
 		printf("%s: snprintf([%x]) failed - %d\n", __func__, retaddr,
 		    addrlen);
 		NG_FREE_MSG(msg);
@@ -928,17 +943,20 @@ ngs_rcvmsg(node_p node, item_p item, hook_p lasthook)
 	NG_FREE_MSG(msg);
 
 	if (m == NULL) {
+		SOCKBUF_UNLOCK(&so->so_rcv);
 		TRAP_ERROR;
 		return (ENOBUFS);
 	}
 
 	/* Send it up to the socket. */
-	if (sbappendaddr(&so->so_rcv, (struct sockaddr *)&addr, m, NULL) == 0) {
+	if (sbappendaddr_locked(&so->so_rcv, (struct sockaddr *)&addr, m,
+	    NULL) == 0) {
+		SOCKBUF_UNLOCK(&so->so_rcv);
 		TRAP_ERROR;
 		m_freem(m);
 		return (ENOBUFS);
 	}
-	sorwakeup(so);
+	sorwakeup_locked(so);
 	
 	return (error);
 }
@@ -1020,8 +1038,11 @@ static int
 ngs_shutdown(node_p node)
 {
 	struct ngsock *const priv = NG_NODE_PRIVATE(node);
-	struct ngpcb *const dpcbp = priv->datasock;
-	struct ngpcb *const pcbp = priv->ctlsock;
+	struct ngpcb *dpcbp, *pcbp;
+
+	mtx_lock(&priv->mtx);
+	dpcbp = priv->datasock;
+	pcbp = priv->ctlsock;
 
 	if (dpcbp != NULL)
 		soisdisconnected(dpcbp->ng_socket);
@@ -1029,7 +1050,6 @@ ngs_shutdown(node_p node)
 	if (pcbp != NULL)
 		soisdisconnected(pcbp->ng_socket);
 
-	mtx_lock(&priv->mtx);
 	priv->node = NULL;
 	NG_NODE_SET_PRIVATE(node, NULL);
 	ng_socket_free_priv(priv);

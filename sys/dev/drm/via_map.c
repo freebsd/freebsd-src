@@ -59,7 +59,7 @@ static int via_do_init_map(struct drm_device * dev, drm_via_init_t * init)
 	}
 
 	dev_priv->sarea_priv =
-	    (drm_via_sarea_t *) ((u8 *) dev_priv->sarea->handle +
+	    (drm_via_sarea_t *) ((u8 *) dev_priv->sarea->virtual +
 				 init->sarea_priv_offset);
 
 	dev_priv->agpAddr = init->agpAddr;

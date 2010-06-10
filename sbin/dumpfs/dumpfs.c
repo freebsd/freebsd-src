@@ -238,7 +238,7 @@ dumpfs(const char *name)
 	if (fsflags & FS_UNCLEAN)
 		printf("unclean ");
 	if (fsflags & FS_DOSOFTDEP)
-		printf("soft-updates ");
+		printf("soft-updates%s ", (fsflags & FS_SUJ) ? "+journal" : "");
 	if (fsflags & FS_NEEDSFSCK)
 		printf("needs fsck run ");
 	if (fsflags & FS_INDEXDIRS)
@@ -255,7 +255,7 @@ dumpfs(const char *name)
 		printf("nfsv4acls ");
 	fsflags &= ~(FS_UNCLEAN | FS_DOSOFTDEP | FS_NEEDSFSCK | FS_INDEXDIRS |
 		     FS_ACLS | FS_MULTILABEL | FS_GJOURNAL | FS_FLAGS_UPDATED |
-		     FS_NFS4ACLS);
+		     FS_NFS4ACLS | FS_SUJ);
 	if (fsflags != 0)
 		printf("unknown flags (%#x)", fsflags);
 	putchar('\n');

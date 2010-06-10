@@ -251,9 +251,10 @@ lexi(void)
 
 	if (auto_typedefs) {
 	    const char *q = s_token;
+	    size_t q_len = strlen(q);
 	    /* Check if we have an "_t" in the end */
-	    if (q[0] && q[1] &&
-	        (strcmp(q + strlen(q) - 2, "_t") == 0)) {
+	    if (q_len > 2 &&
+	        (strcmp(q + q_len - 2, "_t") == 0)) {
 	        ps.its_a_keyword = true;
 		ps.last_u_d = true;
 	        goto found_auto_typedef;

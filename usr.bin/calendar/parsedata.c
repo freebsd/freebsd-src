@@ -872,7 +872,7 @@ isonlydigits(char *s, int nostar)
 	for (i = 0; s[i] != '\0'; i++) {
 		if (nostar == 0 && s[i] == '*' && s[i + 1] == '\0')
 			return 1;
-		if (!isdigit(s[i]))
+		if (!isdigit((unsigned char)s[i]))
 			return (0);
 	}
 	return (1);

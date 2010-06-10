@@ -4578,7 +4578,7 @@ nfsd_recalldelegation(vnode_t vp, NFSPROC_T *p)
 			    100000)
 				return;
 			/* Sleep for a short period of time */
-			(void) nfs_catnap(PZERO, "nfsremove");
+			(void) nfs_catnap(PZERO, 0, "nfsremove");
 		}
 	} while (error == NFSERR_DELAY);
 }

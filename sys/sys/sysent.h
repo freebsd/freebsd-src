@@ -65,6 +65,7 @@ struct sysent {			/* system call table */
 
 struct image_params;
 struct __sigset;
+struct syscall_args;
 struct trapframe;
 struct vnode;
 
@@ -103,6 +104,10 @@ struct sysentvec {
 	void		(*sv_fixlimit)(struct rlimit *, int);
 	u_long		*sv_maxssiz;
 	u_int		sv_flags;
+	void		(*sv_set_syscall_retval)(struct thread *, int);
+	int		(*sv_fetch_syscall_args)(struct thread *, struct
+			    syscall_args *);
+	const char	**sv_syscallnames;
 };
 
 #define	SV_ILP32	0x000100
@@ -123,6 +128,7 @@ extern struct sysentvec aout_sysvec;
 extern struct sysentvec elf_freebsd_sysvec;
 extern struct sysentvec null_sysvec;
 extern struct sysent sysent[];
+extern const char *syscallnames[];
 
 #define	NO_SYSCALL (-1)
 
@@ -195,6 +201,9 @@ int	syscall_deregister(int *offset, struct sysent *old_sysent);
 int	syscall_module_handler(struct module *mod, int what, void *arg);
 int	syscall_helper_register(struct syscall_helper_data *sd);
 int	syscall_helper_unregister(struct syscall_helper_data *sd);
+
+struct proc;
+const char *syscallname(struct proc *p, u_int code);
 
 /* Special purpose system call functions. */
 struct nosys_args;

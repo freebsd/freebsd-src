@@ -70,7 +70,7 @@ __FBSDID("$FreeBSD$");
 
 #include "ofw_if.h"
 
-static void ofw_std_init(ofw_t ofw, void *openfirm);
+static int ofw_std_init(ofw_t ofw, void *openfirm);
 static int ofw_std_test(ofw_t ofw, const char *name);
 static int ofw_std_interpret(ofw_t ofw, const char *cmd, int nreturns,
     unsigned long *returns);
@@ -150,11 +150,12 @@ static int (*openfirmware)(void *);
 
 /* Initializer */
 
-static void
+static int
 ofw_std_init(ofw_t ofw, void *openfirm)
 {
 
 	openfirmware = (int (*)(void *))openfirm;
+	return (0);
 }
 
 /*

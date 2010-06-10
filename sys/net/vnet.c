@@ -348,7 +348,7 @@ vnet_data_startup(void *dummy __unused)
 
 	df = malloc(sizeof(*df), M_VNET_DATA_FREE, M_WAITOK | M_ZERO);
 	df->vnd_start = (uintptr_t)&VNET_NAME(modspace);
-	df->vnd_len = VNET_MODSIZE;
+	df->vnd_len = VNET_MODMIN;
 	TAILQ_INSERT_HEAD(&vnet_data_free_head, df, vnd_link);
 	sx_init(&vnet_data_free_lock, "vnet_data alloc lock");
 }

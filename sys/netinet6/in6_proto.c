@@ -70,6 +70,7 @@ __FBSDID("$FreeBSD$");
 #include "opt_carp.h"
 #include "opt_sctp.h"
 #include "opt_mpath.h"
+#include "opt_route.h"
 
 #include <sys/param.h>
 #include <sys/socket.h>
@@ -129,6 +130,10 @@ __FBSDID("$FreeBSD$");
 #endif /* IPSEC */
 
 #include <netinet6/ip6protosw.h>
+
+#ifdef FLOWTABLE
+#include <net/flowtable.h>
+#endif
 
 /*
  * TCP/IP protocol family: IP6, ICMP6, UDP, TCP.
@@ -234,7 +239,6 @@ struct ip6protosw inet6sw[] = {
 	.pr_output =		rip6_output,
 	.pr_ctlinput =		rip6_ctlinput,
 	.pr_ctloutput =		rip6_ctloutput,
-	.pr_init =		icmp6_init,
 	.pr_fasttimo =		icmp6_fasttimo,
 	.pr_slowtimo =		icmp6_slowtimo,
 	.pr_usrreqs =		&rip6_usrreqs
@@ -378,25 +382,44 @@ VNET_DOMAIN_SET(inet6);
 /*
  * Internet configuration info
  */
-VNET_DEFINE(int, ip6_forwarding);
-VNET_DEFINE(int, ip6_sendredirects);
-VNET_DEFINE(int, ip6_defhlim);
-VNET_DEFINE(int, ip6_defmcasthlim);
-VNET_DEFINE(int, ip6_accept_rtadv);
-VNET_DEFINE(int, ip6_maxfragpackets);
-VNET_DEFINE(int, ip6_maxfrags);
-VNET_DEFINE(int, ip6_log_interval);
-VNET_DEFINE(int, ip6_hdrnestlimit);
-VNET_DEFINE(int, ip6_dad_count);
-VNET_DEFINE(int, ip6_auto_flowlabel);
-VNET_DEFINE(int, ip6_use_deprecated);
-VNET_DEFINE(int, ip6_rr_prune);
-VNET_DEFINE(int, ip6_mcast_pmtu);
-VNET_DEFINE(int, ip6_v6only);
-VNET_DEFINE(int, ip6_keepfaith);
-VNET_DEFINE(time_t, ip6_log_time);
-VNET_DEFINE(int, ip6stealth);
-VNET_DEFINE(int, nd6_onlink_ns_rfc4861);
+#ifndef	IPV6FORWARDING
+#ifdef GATEWAY6
+#define	IPV6FORWARDING	1	/* forward IP6 packets not for us */
+#else
+#define	IPV6FORWARDING	0	/* don't forward IP6 packets not for us */
+#endif /* GATEWAY6 */
+#endif /* !IPV6FORWARDING */
+
+#ifndef	IPV6_SENDREDIRECTS
+#define	IPV6_SENDREDIRECTS	1
+#endif
+
+VNET_DEFINE(int, ip6_forwarding) = IPV6FORWARDING;	/* act as router? */
+VNET_DEFINE(int, ip6_sendredirects) = IPV6_SENDREDIRECTS;
+VNET_DEFINE(int, ip6_defhlim) = IPV6_DEFHLIM;
+VNET_DEFINE(int, ip6_defmcasthlim) = IPV6_DEFAULT_MULTICAST_HOPS;
+VNET_DEFINE(int, ip6_accept_rtadv) = 0;
+VNET_DEFINE(int, ip6_maxfragpackets);	/* initialized in frag6.c:frag6_init() */
+VNET_DEFINE(int, ip6_maxfrags);		/* initialized in frag6.c:frag6_init() */
+VNET_DEFINE(int, ip6_log_interval) = 5;
+VNET_DEFINE(int, ip6_hdrnestlimit) = 15;/* How many header options will we
+					 * process? */
+VNET_DEFINE(int, ip6_dad_count) = 1;	/* DupAddrDetectionTransmits */
+VNET_DEFINE(int, ip6_auto_flowlabel) = 1;
+VNET_DEFINE(int, ip6_use_deprecated) = 1;/* allow deprecated addr
+					 * (RFC2462 5.5.4) */
+VNET_DEFINE(int, ip6_rr_prune) = 5;	/* router renumbering prefix
+					 * walk list every 5 sec. */
+VNET_DEFINE(int, ip6_mcast_pmtu) = 0;	/* enable pMTU discovery for multicast? */
+VNET_DEFINE(int, ip6_v6only) = 1;
+
+VNET_DEFINE(int, ip6_keepfaith) = 0;
+VNET_DEFINE(time_t, ip6_log_time) = (time_t)0L;
+#ifdef IPSTEALTH
+VNET_DEFINE(int, ip6stealth) = 0;
+#endif
+VNET_DEFINE(int, nd6_onlink_ns_rfc4861) = 0;/* allow 'on-link' nd6 NS
+					     * (RFC 4861) */
 
 /* icmp6 */
 /*
@@ -404,26 +427,31 @@ VNET_DEFINE(int, nd6_onlink_ns_rfc4861);
  * XXX: what if we don't define INET? Should we define pmtu6_expire
  * or so? (jinmei@kame.net 19990310)
  */
-VNET_DEFINE(int, pmtu_expire);
-VNET_DEFINE(int, pmtu_probe);
+VNET_DEFINE(int, pmtu_expire) = 60*10;
+VNET_DEFINE(int, pmtu_probe) = 60*2;
 
 /* raw IP6 parameters */
 /*
  * Nominal space allocated to a raw ip socket.
  */
-VNET_DEFINE(u_long, rip6_sendspace);
-VNET_DEFINE(u_long, rip6_recvspace);
+#define	RIPV6SNDQ	8192
+#define	RIPV6RCVQ	8192
+
+VNET_DEFINE(u_long, rip6_sendspace) = RIPV6SNDQ;
+VNET_DEFINE(u_long, rip6_recvspace) = RIPV6RCVQ;
 
 /* ICMPV6 parameters */
-VNET_DEFINE(int, icmp6_rediraccept);
-VNET_DEFINE(int, icmp6_redirtimeout);
-VNET_DEFINE(int, icmp6errppslim);
+VNET_DEFINE(int, icmp6_rediraccept) = 1;/* accept and process redirects */
+VNET_DEFINE(int, icmp6_redirtimeout) = 10 * 60;	/* 10 minutes */
+VNET_DEFINE(int, icmp6errppslim) = 100;		/* 100pps */
 /* control how to respond to NI queries */
-VNET_DEFINE(int, icmp6_nodeinfo);
+VNET_DEFINE(int, icmp6_nodeinfo) =
+    (ICMP6_NODEINFO_FQDNOK|ICMP6_NODEINFO_NODEADDROK);
 
 /* UDP on IP6 parameters */
-VNET_DEFINE(int, udp6_sendspace);
-VNET_DEFINE(int, udp6_recvspace);
+VNET_DEFINE(int, udp6_sendspace) = 9216;/* really max datagram size */
+VNET_DEFINE(int, udp6_recvspace) = 40 * (1024 + sizeof(struct sockaddr_in6));
+					/* 40 1K datagrams */
 
 /*
  * sysctl related items.
@@ -546,6 +574,16 @@ SYSCTL_VNET_INT(_net_inet6_ip6, IPV6CTL_STEALTH, stealth, CTLFLAG_RW,
 	&VNET_NAME(ip6stealth), 0, "");
 #endif
 
+#ifdef FLOWTABLE
+VNET_DEFINE(int, ip6_output_flowtable_size) = 2048;
+VNET_DEFINE(struct flowtable *, ip6_ft);
+#define	V_ip6_output_flowtable_size	VNET(ip6_output_flowtable_size)
+
+SYSCTL_VNET_INT(_net_inet6_ip6, OID_AUTO, output_flowtable_size, CTLFLAG_RDTUN,
+    &VNET_NAME(ip6_output_flowtable_size), 2048,
+    "number of entries in the per-cpu output flow caches");
+#endif
+
 /* net.inet6.icmp6 */
 SYSCTL_VNET_INT(_net_inet6_icmp6, ICMPV6CTL_REDIRACCEPT, rediraccept,
 	CTLFLAG_RW, &VNET_NAME(icmp6_rediraccept), 0, "");
@@ -571,7 +609,6 @@ SYSCTL_VNET_INT(_net_inet6_icmp6, ICMPV6CTL_ND6_MAXNUDHINT, nd6_maxnudhint,
 	CTLFLAG_RW, &VNET_NAME(nd6_maxnudhint), 0, "");
 SYSCTL_VNET_INT(_net_inet6_icmp6, ICMPV6CTL_ND6_DEBUG, nd6_debug, CTLFLAG_RW,
 	&VNET_NAME(nd6_debug), 0, "");
-
 SYSCTL_VNET_INT(_net_inet6_icmp6, ICMPV6CTL_ND6_ONLINKNSRFC4861,
 	nd6_onlink_ns_rfc4861, CTLFLAG_RW, &VNET_NAME(nd6_onlink_ns_rfc4861),
 	0, "Accept 'on-link' nd6 NS in compliance with RFC 4861.");

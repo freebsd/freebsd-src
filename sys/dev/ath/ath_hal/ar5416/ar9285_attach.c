@@ -316,6 +316,16 @@ ar9285WriteIni(struct ath_hal *ah, const struct ieee80211_channel *chan)
 	regWrites = ath_hal_ini_write(ah, &AH5212(ah)->ah_ini_common,
 	    1, regWrites);
 
+      	OS_REG_SET_BIT(ah, AR_DIAG_SW, (AR_DIAG_RX_DIS | AR_DIAG_RX_ABORT));
+
+	if (AR_SREV_MERLIN_10_OR_LATER(ah)) {
+		uint32_t val;
+		val = OS_REG_READ(ah, AR_PCU_MISC_MODE2) &
+			(~AR_PCU_MISC_MODE2_HWWAR1);
+		OS_REG_WRITE(ah, AR_PCU_MISC_MODE2, val);
+		OS_REG_WRITE(ah, 0x9800 + (651 << 2), 0x11);
+	}
+
 }
 
 /*

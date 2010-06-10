@@ -37,6 +37,7 @@
 #include <sys/wait.h>
 
 #include <netinet/in.h>
+#include <netinet/tcp.h>
 
 #include <err.h>
 #include <fcntl.h>
@@ -200,17 +201,19 @@ tcpp_server_worker(int workernum)
 	int ncpus;
 	ssize_t len;
 
-	len = sizeof(ncpus);
-	if (sysctlbyname(SYSCTLNAME_CPUS, &ncpus, &len, NULL, 0) < 0)
-		err(-1, "sysctlbyname: %s", SYSCTLNAME_CPUS);
-	if (len != sizeof(ncpus))
-		errx(-1, "sysctlbyname: %s: len %jd", SYSCTLNAME_CPUS,
-		    (intmax_t)len);
+	if (Pflag) {
+		len = sizeof(ncpus);
+		if (sysctlbyname(SYSCTLNAME_CPUS, &ncpus, &len, NULL, 0) < 0)
+			err(-1, "sysctlbyname: %s", SYSCTLNAME_CPUS);
+		if (len != sizeof(ncpus))
+			errx(-1, "sysctlbyname: %s: len %jd", SYSCTLNAME_CPUS,
+			    (intmax_t)len);
 
-	CPU_ZERO(&mask);
-	CPU_SET(workernum % ncpus, &mask);
-	if (sched_setaffinity(0, CPU_SETSIZE, &mask) < 0)
-		err(-1, "sched_setaffinity");
+		CPU_ZERO(&mask);
+		CPU_SET(workernum % ncpus, &mask);
+		if (sched_setaffinity(0, CPU_SETSIZE, &mask) < 0)
+			err(-1, "sched_setaffinity");
+	}
 #endif
 	setproctitle("tcpp_server %d", workernum);
 
@@ -237,6 +240,10 @@ tcpp_server_worker(int workernum)
 		err(-1, "setsockopt");
 	i = 1;
 	if (setsockopt(listen_sock, SOL_SOCKET, SO_REUSEPORT, &i, sizeof(i))
+	    < 0)
+		err(-1, "setsockopt");
+	i = 1;
+	if (setsockopt(listen_sock, IPPROTO_TCP, TCP_NODELAY, &i, sizeof(i))
 	    < 0)
 		err(-1, "setsockopt");
 	if (bind(listen_sock, (struct sockaddr *)&localipbase,
@@ -270,8 +277,10 @@ tcpp_server_worker(int workernum)
 void
 tcpp_server(void)
 {
+#if 0
 	long cp_time_last[CPUSTATES], cp_time_now[CPUSTATES], ticks;
 	size_t size;
+#endif
 	pid_t pid;
 	int i;
 
@@ -300,7 +309,7 @@ tcpp_server(void)
 		pid_list[i] = pid;
 	}
 
-	if (Tflag) {
+#if 0
 		size = sizeof(cp_time_last);
 		if (sysctlbyname(SYSCTLNAME_CPTIME, &cp_time_last, &size,
 		    NULL, 0) < 0)
@@ -327,7 +336,7 @@ tcpp_server(void)
 			    (100 * cp_time_last[CP_IDLE]) / ticks);
 			bcopy(cp_time_now, cp_time_last, sizeof(cp_time_last));
 		}
-	}
+#endif
 
 	/*
 	 * GC workers.

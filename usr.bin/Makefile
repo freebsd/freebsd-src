@@ -23,6 +23,7 @@ SUBDIR=	alias \
 	chat \
 	chpass \
 	cksum \
+	${_clang} \
 	cmp \
 	col \
 	colldef \
@@ -89,8 +90,9 @@ SUBDIR=	alias \
 	look \
 	lorder \
 	lsvfs \
+	lzmainfo \
 	m4 \
-	makewhatis \
+	${_makewhatis} \
 	mesg \
 	minigzip \
 	ministat \
@@ -180,7 +182,15 @@ SUBDIR=	alias \
 	wtmpcvt \
 	xargs \
 	xinstall \
-	yes
+	${_xlint} \
+	${_xstr} \
+	xz \
+	xzdec \
+	${_yacc} \
+	yes \
+	${_ypcat} \
+	${_ypmatch} \
+	${_ypwhich}
 
 # NB: keep these sorted by MK_* knobs
 
@@ -192,7 +202,7 @@ SUBDIR+=	at
 SUBDIR+=	atm
 .endif
 
-.if ${MK_MAN} != "no"
+.if ${MK_MAN_UTILS} != "no"
 SUBDIR+=	catman
 .endif
 
@@ -213,6 +223,10 @@ SUBDIR+=	cpio
 
 .if ${MK_CALENDAR} != "no"
 SUBDIR+=	calendar
+.endif
+
+.if ${MK_CLANG} != "no"
+_clang=		clang
 .endif
 
 .if ${MK_HESIOD} != "no"
@@ -243,6 +257,10 @@ SUBDIR+=	msgs
 
 .if ${MK_MAKE} != "no"
 SUBDIR+=	make
+.endif
+
+.if ${MK_MAN_UTILS} != "no"
+_makewhatis=	makewhatis
 .endif
 
 .if ${MK_NETCAT} != "no"

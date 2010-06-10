@@ -49,6 +49,10 @@
 #include "tw_cl_externs.h"
 #include "tw_osl_ioctl.h"
 
+#include <cam/cam.h>
+#include <cam/cam_ccb.h>
+#include <cam/cam_xpt_sim.h>
+
 
 
 /*
@@ -76,11 +80,9 @@ tw_cl_start_io(struct tw_cl_ctlr_handle *ctlr_handle,
 
 	ctlr = (struct tw_cli_ctlr_context *)(ctlr_handle->cl_ctlr_ctxt);
 
-	if (ctlr->state & TW_CLI_CTLR_STATE_RESET_IN_PROGRESS) {
+	if (ctlr->reset_in_progress) {
 		tw_cli_dbg_printf(2, ctlr_handle, tw_osl_cur_func(),
-			"I/O during reset: returning busy. Ctlr state = 0x%x",
-			ctlr->state);
-		tw_osl_ctlr_busy(ctlr_handle, req_handle);
+			"I/O during reset: returning busy.");
 		return(TW_OSL_EBUSY);
 	}
 
@@ -101,7 +103,6 @@ tw_cl_start_io(struct tw_cl_ctlr_handle *ctlr_handle,
 		)) == TW_CL_NULL) {
 		tw_cli_dbg_printf(2, ctlr_handle, tw_osl_cur_func(),
 			"Out of request context packets: returning busy");
-		tw_osl_ctlr_busy(ctlr_handle, req_handle);
 		return(TW_OSL_EBUSY);
 	}
 
@@ -171,7 +172,6 @@ tw_cli_submit_cmd(struct tw_cli_req_context *req)
 	struct tw_cl_ctlr_handle	*ctlr_handle = ctlr->ctlr_handle;
 	TW_UINT32			status_reg;
 	TW_INT32			error;
-	TW_UINT8			notify_osl_of_ctlr_busy = TW_CL_FALSE;
 
 	tw_cli_dbg_printf(10, ctlr_handle, tw_osl_cur_func(), "entered");
 
@@ -208,10 +208,13 @@ tw_cli_submit_cmd(struct tw_cli_req_context *req)
 				req->state = TW_CLI_REQ_STATE_PENDING;
 				tw_cli_req_q_insert_tail(req, TW_CLI_PENDING_Q);
 				error = 0;
+				/* Unmask command interrupt. */
+				TW_CLI_WRITE_CONTROL_REGISTER(ctlr_handle,
+					TWA_CONTROL_UNMASK_COMMAND_INTERRUPT);
 			} else
 				error = TW_OSL_EBUSY;
 		} else {
-			notify_osl_of_ctlr_busy = TW_CL_TRUE;
+			tw_osl_ctlr_busy(ctlr_handle, req->req_handle);
 			error = TW_OSL_EBUSY;
 		}
 	} else {
@@ -245,25 +248,6 @@ tw_cli_submit_cmd(struct tw_cli_req_context *req)
 	}
 out:
 	tw_osl_free_lock(ctlr_handle, ctlr->io_lock);
-
-	if (status_reg & TWA_STATUS_COMMAND_QUEUE_FULL) {
-		if (notify_osl_of_ctlr_busy)
-			tw_osl_ctlr_busy(ctlr_handle, req->req_handle);
-
-		/*
-		 * Synchronize access between writes to command and control
-		 * registers in 64-bit environments, on G66.
-		 */
-		if (ctlr->state & TW_CLI_CTLR_STATE_G66_WORKAROUND_NEEDED)
-			tw_osl_get_lock(ctlr_handle, ctlr->io_lock);
-
-		/* Unmask command interrupt. */
-		TW_CLI_WRITE_CONTROL_REGISTER(ctlr_handle,
-			TWA_CONTROL_UNMASK_COMMAND_INTERRUPT);
-
-		if (ctlr->state & TW_CLI_CTLR_STATE_G66_WORKAROUND_NEEDED)
-			tw_osl_free_lock(ctlr_handle, ctlr->io_lock);
-	}
 
 	return(error);
 }
@@ -299,12 +283,9 @@ tw_cl_fw_passthru(struct tw_cl_ctlr_handle *ctlr_handle,
 
 	ctlr = (struct tw_cli_ctlr_context *)(ctlr_handle->cl_ctlr_ctxt);
 
-	if (ctlr->state & TW_CLI_CTLR_STATE_RESET_IN_PROGRESS) {
+	if (ctlr->reset_in_progress) {
 		tw_cli_dbg_printf(2, ctlr_handle, tw_osl_cur_func(),
-			"Passthru request during reset: returning busy. "
-			"Ctlr state = 0x%x",
-			ctlr->state);
-		tw_osl_ctlr_busy(ctlr_handle, req_handle);
+			"Passthru request during reset: returning busy.");
 		return(TW_OSL_EBUSY);
 	}
 
@@ -312,7 +293,6 @@ tw_cl_fw_passthru(struct tw_cl_ctlr_handle *ctlr_handle,
 		)) == TW_CL_NULL) {
 		tw_cli_dbg_printf(2, ctlr_handle, tw_osl_cur_func(),
 			"Out of request context packets: returning busy");
-		tw_osl_ctlr_busy(ctlr_handle, req_handle);
 		return(TW_OSL_EBUSY);
 	}
 
@@ -759,11 +739,11 @@ tw_cli_get_param(struct tw_cli_ctlr_context *ctlr, TW_INT32 table_id,
 		goto out;
 
 	/* Make sure this is the only CL internal request at this time. */
-	if (ctlr->state & TW_CLI_CTLR_STATE_INTERNAL_REQ_BUSY) {
+	if (ctlr->internal_req_busy) {
 		error = TW_OSL_EBUSY;
 		goto out;
 	}
-	ctlr->state |= TW_CLI_CTLR_STATE_INTERNAL_REQ_BUSY;
+	ctlr->internal_req_busy = TW_CL_TRUE;
 	req->data = ctlr->internal_req_data;
 	req->data_phys = ctlr->internal_req_data_phys;
 	req->length = TW_CLI_SECTOR_SIZE;
@@ -821,7 +801,7 @@ tw_cli_get_param(struct tw_cli_ctlr_context *ctlr, TW_INT32 table_id,
 			goto out;
 		}
 		tw_osl_memcpy(param_data, param->data, param_size);
-		ctlr->state &= ~TW_CLI_CTLR_STATE_INTERNAL_REQ_BUSY;
+		ctlr->internal_req_busy = TW_CL_FALSE;
 		tw_cli_req_q_insert_tail(req, TW_CLI_FREE_Q);
 	} else {
 		/* There's a call back.  Simply submit the command. */
@@ -838,7 +818,7 @@ out:
 		"get_param failed",
 		"error = %d", error);
 	if (param)
-		ctlr->state &= ~TW_CLI_CTLR_STATE_INTERNAL_REQ_BUSY;
+		ctlr->internal_req_busy = TW_CL_FALSE;
 	if (req)
 		tw_cli_req_q_insert_tail(req, TW_CLI_FREE_Q);
 	return(1);
@@ -878,11 +858,11 @@ tw_cli_set_param(struct tw_cli_ctlr_context *ctlr, TW_INT32 table_id,
 		goto out;
 
 	/* Make sure this is the only CL internal request at this time. */
-	if (ctlr->state & TW_CLI_CTLR_STATE_INTERNAL_REQ_BUSY) {
+	if (ctlr->internal_req_busy) {
 		error = TW_OSL_EBUSY;
 		goto out;
 	}
-	ctlr->state |= TW_CLI_CTLR_STATE_INTERNAL_REQ_BUSY;
+	ctlr->internal_req_busy = TW_CL_TRUE;
 	req->data = ctlr->internal_req_data;
 	req->data_phys = ctlr->internal_req_data_phys;
 	req->length = TW_CLI_SECTOR_SIZE;
@@ -939,7 +919,7 @@ tw_cli_set_param(struct tw_cli_ctlr_context *ctlr, TW_INT32 table_id,
 				&(req->cmd_pkt->cmd_hdr));
 			goto out;
 		}
-		ctlr->state &= ~TW_CLI_CTLR_STATE_INTERNAL_REQ_BUSY;
+		ctlr->internal_req_busy = TW_CL_FALSE;
 		tw_cli_req_q_insert_tail(req, TW_CLI_FREE_Q);
 	} else {
 		/* There's a call back.  Simply submit the command. */
@@ -956,7 +936,7 @@ out:
 		"set_param failed",
 		"error = %d", error);
 	if (param)
-		ctlr->state &= ~TW_CLI_CTLR_STATE_INTERNAL_REQ_BUSY;
+		ctlr->internal_req_busy = TW_CL_FALSE;
 	if (req)
 		tw_cli_req_q_insert_tail(req, TW_CLI_FREE_Q);
 	return(error);
@@ -1054,8 +1034,11 @@ tw_cli_submit_and_poll_request(struct tw_cli_req_context *req,
 		 * taking care of it).
 		 */
 		tw_cli_req_q_remove_item(req, TW_CLI_PENDING_Q);
+		if ((TW_CL_Q_FIRST_ITEM(&(ctlr->req_q_head[TW_CLI_PENDING_Q]))) == TW_CL_NULL)
+			TW_CLI_WRITE_CONTROL_REGISTER(ctlr->ctlr_handle,
+				TWA_CONTROL_MASK_COMMAND_INTERRUPT);
 		if (req->data)
-			ctlr->state &= ~TW_CLI_CTLR_STATE_INTERNAL_REQ_BUSY;
+			ctlr->internal_req_busy = TW_CL_FALSE;
 		tw_cli_req_q_insert_tail(req, TW_CLI_FREE_Q);
 	}
 
@@ -1079,12 +1062,16 @@ tw_cl_reset_ctlr(struct tw_cl_ctlr_handle *ctlr_handle)
 {
 	struct tw_cli_ctlr_context	*ctlr =
 		(struct tw_cli_ctlr_context *)(ctlr_handle->cl_ctlr_ctxt);
+	struct twa_softc		*sc = ctlr_handle->osl_ctlr_ctxt;
 	TW_INT32			reset_attempt = 1;
 	TW_INT32			error;
 
 	tw_cli_dbg_printf(2, ctlr_handle, tw_osl_cur_func(), "entered");
 
-	ctlr->state |= TW_CLI_CTLR_STATE_RESET_IN_PROGRESS;
+	ctlr->reset_in_progress = TW_CL_TRUE;
+	xpt_freeze_simq(sc->sim, 1);
+
+	tw_cli_disable_interrupts(ctlr);
 
 	/*
 	 * Error back all requests in the complete, busy, and pending queues.
@@ -1098,8 +1085,8 @@ tw_cl_reset_ctlr(struct tw_cl_ctlr_handle *ctlr_handle)
 	tw_cli_drain_complete_queue(ctlr);
 	tw_cli_drain_busy_queue(ctlr);
 	tw_cli_drain_pending_queue(ctlr);
-
-	tw_cli_disable_interrupts(ctlr);
+	ctlr->internal_req_busy = TW_CL_FALSE;
+	ctlr->get_more_aens     = TW_CL_FALSE;
 
 	/* Soft reset the controller. */
 try_reset:
@@ -1135,7 +1122,9 @@ try_reset:
 		" ");
 
 out:
-	ctlr->state &= ~TW_CLI_CTLR_STATE_RESET_IN_PROGRESS;
+	ctlr->reset_in_progress = TW_CL_FALSE;
+	xpt_release_simq(sc->sim, 1);
+
 	/*
 	 * Enable interrupts, and also clear attention and response interrupts.
 	 */
@@ -1163,6 +1152,8 @@ tw_cli_soft_reset(struct tw_cli_ctlr_context *ctlr)
 {
 	struct tw_cl_ctlr_handle	*ctlr_handle = ctlr->ctlr_handle;
 	TW_UINT32			status_reg;
+	int				found;
+	int				loop_count;
 	TW_UINT32			error;
 
 	tw_cli_dbg_printf(1, ctlr_handle, tw_osl_cur_func(), "entered");
@@ -1192,12 +1183,27 @@ tw_cli_soft_reset(struct tw_cli_ctlr_context *ctlr)
 		 * make sure we don't access any hardware registers (for
 		 * polling) during that window.
 		 */
-		ctlr->state |= TW_CLI_CTLR_STATE_RESET_PHASE1_IN_PROGRESS;
-		while (tw_cli_find_response(ctlr,
-			TWA_RESET_PHASE1_NOTIFICATION_RESPONSE) != TW_OSL_ESUCCESS)
+		ctlr->reset_phase1_in_progress = TW_CL_TRUE;
+		loop_count = 0;
+		do {
+			found = (tw_cli_find_response(ctlr, TWA_RESET_PHASE1_NOTIFICATION_RESPONSE) == TW_OSL_ESUCCESS);
 			tw_osl_delay(10);
+			loop_count++;
+			error = 0x7888;
+		} while (!found && (loop_count < 6000000)); /* Loop for no more than 60 seconds */
+
+		if (!found) {
+			tw_cl_create_event(ctlr_handle, TW_CL_TRUE,
+				TW_CL_MESSAGE_SOURCE_COMMON_LAYER_EVENT,
+				0x1109, 0x1, TW_CL_SEVERITY_ERROR_STRING,
+				"Missed firmware handshake after soft-reset",
+				"error = %d", error);
+			tw_osl_free_lock(ctlr_handle, ctlr->io_lock);
+			return(error);
+		}
+
 		tw_osl_delay(TWA_RESET_PHASE1_WAIT_TIME_MS * 1000);
-		ctlr->state &= ~TW_CLI_CTLR_STATE_RESET_PHASE1_IN_PROGRESS;
+		ctlr->reset_phase1_in_progress = TW_CL_FALSE;
 	}
 
 	if ((error = tw_cli_poll_status(ctlr,
@@ -1285,9 +1291,9 @@ tw_cli_send_scsi_cmd(struct tw_cli_req_context *req, TW_INT32 cmd)
 	tw_cli_dbg_printf(4, ctlr->ctlr_handle, tw_osl_cur_func(), "entered");
 
 	/* Make sure this is the only CL internal request at this time. */
-	if (ctlr->state & TW_CLI_CTLR_STATE_INTERNAL_REQ_BUSY)
+	if (ctlr->internal_req_busy)
 		return(TW_OSL_EBUSY);
-	ctlr->state |= TW_CLI_CTLR_STATE_INTERNAL_REQ_BUSY;
+	ctlr->internal_req_busy = TW_CL_TRUE;
 	req->data = ctlr->internal_req_data;
 	req->data_phys = ctlr->internal_req_data_phys;
 	tw_osl_memzero(req->data, TW_CLI_SECTOR_SIZE);
@@ -1365,7 +1371,7 @@ tw_cli_get_aen(struct tw_cli_ctlr_context *ctlr)
 			"Could not send SCSI command",
 			"request = %p, error = %d", req, error);
 		if (req->data)
-			ctlr->state &= ~TW_CLI_CTLR_STATE_INTERNAL_REQ_BUSY;
+			ctlr->internal_req_busy = TW_CL_FALSE;
 		tw_cli_req_q_insert_tail(req, TW_CLI_FREE_Q);
 	}
 	return(error);

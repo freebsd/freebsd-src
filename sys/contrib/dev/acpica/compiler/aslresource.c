@@ -1,7 +1,7 @@
 
 /******************************************************************************
  *
- * Module Name: aslresource - Resource templates and descriptors
+ * Module Name: aslresource - Resource template/descriptor utilities
  *
  *****************************************************************************/
 
@@ -122,6 +122,298 @@
 
 #define _COMPONENT          ACPI_COMPILER
         ACPI_MODULE_NAME    ("aslresource")
+
+
+/*******************************************************************************
+ *
+ * FUNCTION:    RsSmallAddressCheck
+ *
+ * PARAMETERS:  Minimum             - Address Min value
+ *              Maximum             - Address Max value
+ *              Length              - Address range value
+ *              Alignment           - Address alignment value
+ *              MinOp               - Original Op for Address Min
+ *              MaxOp               - Original Op for Address Max
+ *              LengthOp            - Original Op for address range
+ *              AlignOp             - Original Op for address alignment. If
+ *                                    NULL, means "zero value for alignment is
+ *                                    OK, and means 64K alignment" (for
+ *                                    Memory24 descriptor)
+ *
+ * RETURN:      None. Adds error messages to error log if necessary
+ *
+ * DESCRIPTION: Perform common value checks for "small" address descriptors.
+ *              Currently:
+ *                  Io, Memory24, Memory32
+ *
+ ******************************************************************************/
+
+void
+RsSmallAddressCheck (
+    UINT8                   Type,
+    UINT32                  Minimum,
+    UINT32                  Maximum,
+    UINT32                  Length,
+    UINT32                  Alignment,
+    ACPI_PARSE_OBJECT       *MinOp,
+    ACPI_PARSE_OBJECT       *MaxOp,
+    ACPI_PARSE_OBJECT       *LengthOp,
+    ACPI_PARSE_OBJECT       *AlignOp)
+{
+
+    if (Gbl_NoResourceChecking)
+    {
+        return;
+    }
+
+    /* Special case for Memory24, values are compressed */
+
+    if (Type == ACPI_RESOURCE_NAME_MEMORY24)
+    {
+        if (!Alignment) /* Alignment==0 means 64K - no invalid alignment */
+        {
+            Alignment = ACPI_UINT16_MAX + 1;
+        }
+
+        Minimum <<= 8;
+        Maximum <<= 8;
+        Length *= 256;
+    }
+
+    /* IO descriptor has different definition of min/max, don't check */
+
+    if (Type != ACPI_RESOURCE_NAME_IO)
+    {
+        /* Basic checks on Min/Max/Length */
+
+        if (Minimum > Maximum)
+        {
+            AslError (ASL_ERROR, ASL_MSG_INVALID_MIN_MAX, MinOp, NULL);
+        }
+        else if (Length > (Maximum - Minimum + 1))
+        {
+            AslError (ASL_ERROR, ASL_MSG_INVALID_LENGTH, LengthOp, NULL);
+        }
+    }
+
+    /* Alignment of zero is not in ACPI spec, but is used to mean byte acc */
+
+    if (!Alignment)
+    {
+        Alignment = 1;
+    }
+
+    /* Addresses must be an exact multiple of the alignment value */
+
+    if (Minimum % Alignment)
+    {
+        AslError (ASL_ERROR, ASL_MSG_ALIGNMENT, MinOp, NULL);
+    }
+    if (Maximum % Alignment)
+    {
+        AslError (ASL_ERROR, ASL_MSG_ALIGNMENT, MaxOp, NULL);
+    }
+}
+
+
+/*******************************************************************************
+ *
+ * FUNCTION:    RsLargeAddressCheck
+ *
+ * PARAMETERS:  Minimum             - Address Min value
+ *              Maximum             - Address Max value
+ *              Length              - Address range value
+ *              Granularity         - Address granularity value
+ *              Flags               - General flags for address descriptors:
+ *                                    _MIF, _MAF, _DEC
+ *              MinOp               - Original Op for Address Min
+ *              MaxOp               - Original Op for Address Max
+ *              LengthOp            - Original Op for address range
+ *              GranOp              - Original Op for address granularity
+ *
+ * RETURN:      None. Adds error messages to error log if necessary
+ *
+ * DESCRIPTION: Perform common value checks for "large" address descriptors.
+ *              Currently:
+ *                  WordIo,     WordBusNumber,  WordSpace
+ *                  DWordIo,    DWordMemory,    DWordSpace
+ *                  QWordIo,    QWordMemory,    QWordSpace
+ *                  ExtendedIo, ExtendedMemory, ExtendedSpace
+ *
+ * _MIF flag set means that the minimum address is fixed and is not relocatable
+ * _MAF flag set means that the maximum address is fixed and is not relocatable
+ * Length of zero means that the record size is variable
+ *
+ * This function implements the LEN/MIF/MAF/MIN/MAX/GRA rules within Table 6-40
+ * of the ACPI 4.0a specification. Added 04/2010.
+ *
+ ******************************************************************************/
+
+void
+RsLargeAddressCheck (
+    UINT64                  Minimum,
+    UINT64                  Maximum,
+    UINT64                  Length,
+    UINT64                  Granularity,
+    UINT8                   Flags,
+    ACPI_PARSE_OBJECT       *MinOp,
+    ACPI_PARSE_OBJECT       *MaxOp,
+    ACPI_PARSE_OBJECT       *LengthOp,
+    ACPI_PARSE_OBJECT       *GranOp)
+{
+
+    if (Gbl_NoResourceChecking)
+    {
+        return;
+    }
+
+    /* Basic checks on Min/Max/Length */
+
+    if (Minimum > Maximum)
+    {
+        AslError (ASL_ERROR, ASL_MSG_INVALID_MIN_MAX, MinOp, NULL);
+        return;
+    }
+    else if (Length > (Maximum - Minimum + 1))
+    {
+        AslError (ASL_ERROR, ASL_MSG_INVALID_LENGTH, LengthOp, NULL);
+        return;
+    }
+
+    /* If specified (non-zero), ensure granularity is a power-of-two minus one */
+
+    if (Granularity)
+    {
+        if ((Granularity + 1) &
+             Granularity)
+        {
+            AslError (ASL_ERROR, ASL_MSG_INVALID_GRANULARITY, GranOp, NULL);
+            return;
+        }
+    }
+
+    /*
+     * Check the various combinations of Length, MinFixed, and MaxFixed
+     */
+    if (Length)
+    {
+        /* Fixed non-zero length */
+
+        switch (Flags & (ACPI_RESOURCE_FLAG_MIF | ACPI_RESOURCE_FLAG_MAF))
+        {
+        case 0:
+            /*
+             * Fixed length, variable locations (both _MIN and _MAX).
+             * Length must be a multiple of granularity
+             */
+            if (Granularity & Length)
+            {
+                AslError (ASL_ERROR, ASL_MSG_ALIGNMENT, LengthOp, NULL);
+            }
+            break;
+
+        case (ACPI_RESOURCE_FLAG_MIF | ACPI_RESOURCE_FLAG_MAF):
+
+            /* Fixed length, fixed location. Granularity must be zero */
+
+            if (Granularity != 0)
+            {
+                AslError (ASL_ERROR, ASL_MSG_INVALID_GRAN_FIXED, GranOp, NULL);
+            }
+
+            /* Length must be exactly the size of the min/max window */
+
+            if (Length != (Maximum - Minimum + 1))
+            {
+                AslError (ASL_ERROR, ASL_MSG_INVALID_LENGTH_FIXED, LengthOp, NULL);
+            }
+            break;
+
+        /* All other combinations are invalid */
+
+        case ACPI_RESOURCE_FLAG_MIF:
+        case ACPI_RESOURCE_FLAG_MAF:
+        default:
+            AslError (ASL_ERROR, ASL_MSG_INVALID_ADDR_FLAGS, LengthOp, NULL);
+        }
+    }
+    else
+    {
+        /* Variable length (length==0) */
+
+        switch (Flags & (ACPI_RESOURCE_FLAG_MIF | ACPI_RESOURCE_FLAG_MAF))
+        {
+        case 0:
+            /*
+             * Both _MIN and _MAX are variable.
+             * No additional requirements, just exit
+             */
+            break;
+
+        case ACPI_RESOURCE_FLAG_MIF:
+
+            /* _MIN is fixed. _MIN must be multiple of _GRA */
+
+            /*
+             * The granularity is defined by the ACPI specification to be a
+             * power-of-two minus one, therefore the granularity is a
+             * bitmask which can be used to easily validate the addresses.
+             */
+            if (Granularity & Minimum)
+            {
+                AslError (ASL_ERROR, ASL_MSG_ALIGNMENT, MinOp, NULL);
+            }
+            break;
+
+        case ACPI_RESOURCE_FLAG_MAF:
+
+            /* _MAX is fixed. (_MAX + 1) must be multiple of _GRA */
+
+            if (Granularity & (Maximum + 1))
+            {
+                AslError (ASL_ERROR, ASL_MSG_ALIGNMENT, MaxOp, "-1");
+            }
+            break;
+
+        /* Both MIF/MAF set is invalid if length is zero */
+
+        case (ACPI_RESOURCE_FLAG_MIF | ACPI_RESOURCE_FLAG_MAF):
+        default:
+            AslError (ASL_ERROR, ASL_MSG_INVALID_ADDR_FLAGS, LengthOp, NULL);
+        }
+    }
+}
+
+
+/*******************************************************************************
+ *
+ * FUNCTION:    RsGetStringDataLength
+ *
+ * PARAMETERS:  InitializerOp     - Start of a subtree of init nodes
+ *
+ * RETURN:      Valid string length if a string node is found (otherwise 0)
+ *
+ * DESCRIPTION: In a list of peer nodes, find the first one that contains a
+ *              string and return the length of the string.
+ *
+ ******************************************************************************/
+
+UINT16
+RsGetStringDataLength (
+    ACPI_PARSE_OBJECT       *InitializerOp)
+{
+
+    while (InitializerOp)
+    {
+        if (InitializerOp->Asl.ParseOpcode == PARSEOP_STRING_LITERAL)
+        {
+            return ((UINT16) (strlen (InitializerOp->Asl.Value.String) + 1));
+        }
+        InitializerOp = ASL_GET_PEER_NODE (InitializerOp);
+    }
+
+    return 0;
+}
 
 
 /*******************************************************************************

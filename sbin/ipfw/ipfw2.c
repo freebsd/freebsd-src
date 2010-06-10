@@ -314,22 +314,29 @@ static struct _s_x rule_options[] = {
 	{ NULL, 0 }	/* terminator */
 };
 
-/*  
- * The following is used to generate a printable argument for
- * 64-bit numbers, irrespective of platform alignment and bit size.
- * Because all the printf in this program use %llu as a format,
- * we just return an unsigned long long, which is larger than
- * we need in certain cases, but saves the hassle of using
- * PRIu64 as a format specifier.
- * We don't care about inlining, this is not performance critical code.
+/*
+ * Helper routine to print a possibly unaligned uint64_t on
+ * various platform. If width > 0, print the value with
+ * the desired width, followed by a space;
+ * otherwise, return the required width.
  */
-unsigned long long
-align_uint64(const uint64_t *pll)
+int
+pr_u64(uint64_t *pd, int width)
 {
-	uint64_t ret;
+#ifdef TCC
+#define U64_FMT "I64"
+#else
+#define U64_FMT "llu"
+#endif
+	uint64_t u;
+	unsigned long long d;
 
-	bcopy (pll, &ret, sizeof(ret));
-	return ret;
+	bcopy (pd, &u, sizeof(u));
+	d = u;
+	return (width > 0) ?
+		printf("%*" U64_FMT " ", width, d) :
+		snprintf(NULL, 0, "%" U64_FMT, d) ;
+#undef U64_FMT
 }
 
 void *
@@ -973,9 +980,10 @@ show_ipfw(struct ip_fw *rule, int pcwidth, int bcwidth)
 	}
 	printf("%05u ", rule->rulenum);
 
-	if (pcwidth>0 || bcwidth>0)
-		printf("%*llu %*llu ", pcwidth, align_uint64(&rule->pcnt),
-		    bcwidth, align_uint64(&rule->bcnt));
+	if (pcwidth > 0 || bcwidth > 0) {
+		pr_u64(&rule->pcnt, pcwidth);
+		pr_u64(&rule->bcnt, bcwidth);
+	}
 
 	if (co.do_time == 2)
 		printf("%10u ", rule->timestamp);
@@ -1577,10 +1585,12 @@ show_dyn_ipfw(ipfw_dyn_rule *d, int pcwidth, int bcwidth)
 	}
 	bcopy(&d->rule, &rulenum, sizeof(rulenum));
 	printf("%05d", rulenum);
-	if (pcwidth>0 || bcwidth>0)
-	    printf(" %*llu %*llu (%ds)", pcwidth,
-		align_uint64(&d->pcnt), bcwidth,
-		align_uint64(&d->bcnt), d->expire);
+	if (pcwidth > 0 || bcwidth > 0) {
+		printf(" ");
+		pr_u64(&d->pcnt, pcwidth);
+		pr_u64(&d->bcnt, bcwidth);
+		printf("(%ds)", d->expire);
+	}
 	switch (d->dyn_type) {
 	case O_LIMIT_PARENT:
 		printf(" PARENT %d", d->count);
@@ -1645,9 +1655,9 @@ ipfw_sets_handler(char *av[])
 				free(data);
 			nalloc = nalloc * 2 + 200;
 			nbytes = nalloc;
-		data = safe_calloc(1, nbytes);
-		if (do_cmd(IP_FW_GET, data, (uintptr_t)&nbytes) < 0)
-			err(EX_OSERR, "getsockopt(IP_FW_GET)");
+			data = safe_calloc(1, nbytes);
+			if (do_cmd(IP_FW_GET, data, (uintptr_t)&nbytes) < 0)
+				err(EX_OSERR, "getsockopt(IP_FW_GET)");
 		}
 
 		bcopy(&((struct ip_fw *)data)->next_rule,
@@ -1837,14 +1847,12 @@ ipfw_list(int ac, char *av[], int show_counters)
 				continue;
 
 			/* packet counter */
-			width = snprintf(NULL, 0, "%llu",
-			    align_uint64(&r->pcnt));
+			width = pr_u64(&r->pcnt, 0);
 			if (width > pcwidth)
 				pcwidth = width;
 
 			/* byte counter */
-			width = snprintf(NULL, 0, "%llu",
-			    align_uint64(&r->bcnt));
+			width = pr_u64(&r->bcnt, 0);
 			if (width > bcwidth)
 				bcwidth = width;
 		}
@@ -1858,13 +1866,11 @@ ipfw_list(int ac, char *av[], int show_counters)
 				if (set != co.use_set - 1)
 					continue;
 			}
-			width = snprintf(NULL, 0, "%llu",
-			    align_uint64(&d->pcnt));
+			width = pr_u64(&d->pcnt, 0);
 			if (width > pcwidth)
 				pcwidth = width;
 
-			width = snprintf(NULL, 0, "%llu",
-			    align_uint64(&d->bcnt));
+			width = pr_u64(&d->bcnt, 0);
 			if (width > bcwidth)
 				bcwidth = width;
 		}

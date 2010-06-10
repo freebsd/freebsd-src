@@ -50,6 +50,11 @@ __FBSDID("$FreeBSD$");
 #include <netinet6/ip6_var.h>
 #include <netinet6/scope6_var.h>
 
+#ifdef ENABLE_DEFAULT_SCOPE
+VNET_DEFINE(int, ip6_use_defzone) = 1;
+#else
+VNET_DEFINE(int, ip6_use_defzone) = 0;
+#endif
 
 /*
  * The scope6_lock protects the global sid default stored in
@@ -62,8 +67,6 @@ static struct mtx scope6_lock;
 #define	SCOPE6_LOCK_ASSERT()	mtx_assert(&scope6_lock, MA_OWNED)
 
 static VNET_DEFINE(struct scope6_id, sid_default);
-VNET_DEFINE(int, ip6_use_defzone);
-
 #define	V_sid_default			VNET(sid_default)
 
 #define SID(ifp) \
@@ -73,11 +76,6 @@ void
 scope6_init(void)
 {
 
-#ifdef ENABLE_DEFAULT_SCOPE
-	V_ip6_use_defzone = 1;
-#else
-	V_ip6_use_defzone = 0;
-#endif
 	bzero(&V_sid_default, sizeof(V_sid_default));
 
 	if (!IS_DEFAULT_VNET(curvnet))

@@ -604,7 +604,7 @@ ns8250_bus_ipend(struct uart_softc *sc)
 	if (ipend == 0)
 		ns8250_clrint(bas);
 	uart_unlock(sc->sc_hwmtx);
-	return ((sc->sc_leaving) ? 0 : ipend);
+	return (ipend);
 }
 
 static int

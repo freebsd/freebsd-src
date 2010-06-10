@@ -238,7 +238,8 @@ struct ixgbe_rx_buf {
 	struct mbuf	*m_head;
 	struct mbuf	*m_pack;
 	struct mbuf	*fmp;
-	bus_dmamap_t	map;
+	bus_dmamap_t	hmap;
+	bus_dmamap_t	pmap;
 };
 
 /*
@@ -323,8 +324,8 @@ struct rx_ring {
         u32 			next_to_check;
 	char			mtx_name[16];
 	struct ixgbe_rx_buf	*rx_buffers;
-	bus_dma_tag_t		rxtag;
-	bus_dmamap_t		spare_map;
+	bus_dma_tag_t		htag;
+	bus_dma_tag_t		ptag;
 
 	u32			bytes; /* Used for AIM calc */
 	u32			packets;
@@ -471,5 +472,18 @@ ixgbe_is_sfp(struct ixgbe_hw *hw)
 		return FALSE;
 	}
 }
+
+/* Workaround to make 8.0 buildable */
+#if __FreeBSD_version < 800504
+static __inline int
+drbr_needs_enqueue(struct ifnet *ifp, struct buf_ring *br)
+{
+#ifdef ALTQ
+        if (ALTQ_IS_ENABLED(&ifp->if_snd))
+                return (1);
+#endif
+        return (!buf_ring_empty(br));
+}
+#endif
 
 #endif /* _IXGBE_H_ */

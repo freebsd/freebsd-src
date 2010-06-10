@@ -107,8 +107,10 @@ cal(void)
 	tm.tm_wday = 0;
 
 	count = 0;
-	if ((fp = opencal()) == NULL)
+	if ((fp = opencal()) == NULL) {
+		free(extradata);
 		return;
+	}
 	while (fgets(buf, sizeof(buf), stdin) != NULL) {
 		if ((pp = strchr(buf, '\n')) != NULL)
 			*pp = '\0';
@@ -155,15 +157,15 @@ cal(void)
 		}
 
 		/* Get rid of leading spaces (non-standard) */
-		while (isspace(buf[0]))
-			memcpy(buf, buf + 1, strlen(buf) - 1);
+		while (isspace((unsigned char)buf[0]))
+			memcpy(buf, buf + 1, strlen(buf));
 
 		/* No tab in the line, then not a valid line */
 		if ((pp = strchr(buf, '\t')) == NULL)
 			continue;
 
 		/* Trim spaces in front of the tab */
-		while (isspace(pp[-1]))
+		while (isspace((unsigned char)pp[-1]))
 			pp--;
 
 		p = *pp;
@@ -203,6 +205,7 @@ cal(void)
 
 	event_print_all(fp);
 	closecal(fp);
+	free(extradata);
 }
 
 FILE *
@@ -226,7 +229,8 @@ opencal(void)
 			char *home = getenv("HOME");
 			if (home == NULL || *home == '\0')
 				errx(1, "cannot get home directory");
-			chdir(home);
+			if (chdir(home) != 0)
+				errx(1, "cannot enter home directory");
 			for (found = i = 0; i < sizeof(calendarHomes) /
 			    sizeof(calendarHomes[0]); i++)
 				if (chdir(calendarHomes[i]) == 0 &&

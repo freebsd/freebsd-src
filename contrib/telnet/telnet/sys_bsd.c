@@ -809,14 +809,6 @@ NetNonblockingIO(int fd, int onoff)
  */
 
 /* ARGSUSED */
-static SIG_FUNC_RET
-deadpeer(int sig __unused)
-{
-	setcommandmode();
-	longjmp(peerdied, -1);
-}
-
-/* ARGSUSED */
 SIG_FUNC_RET
 intr(int sig __unused)
 {
@@ -884,7 +876,7 @@ sys_telnet_init(void)
 {
     (void) signal(SIGINT, intr);
     (void) signal(SIGQUIT, intr2);
-    (void) signal(SIGPIPE, deadpeer);
+    (void) signal(SIGPIPE, SIG_IGN);
 #ifdef	SIGWINCH
     (void) signal(SIGWINCH, sendwin);
 #endif

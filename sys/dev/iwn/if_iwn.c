@@ -627,8 +627,8 @@ iwn_attach(device_t dev)
 	ifp->if_init = iwn_init;
 	ifp->if_ioctl = iwn_ioctl;
 	ifp->if_start = iwn_start;
-	IFQ_SET_MAXLEN(&ifp->if_snd, IFQ_MAXLEN);
-	ifp->if_snd.ifq_drv_maxlen = IFQ_MAXLEN;
+	IFQ_SET_MAXLEN(&ifp->if_snd, ifqmaxlen);
+	ifp->if_snd.ifq_drv_maxlen = ifqmaxlen;
 	IFQ_SET_READY(&ifp->if_snd);
 
 	ieee80211_ifattach(ic, macaddr);
@@ -2282,6 +2282,7 @@ iwn4965_tx_done(struct iwn_softc *sc, struct iwn_rx_desc *desc,
     struct iwn_rx_data *data)
 {
 	struct iwn4965_tx_stat *stat = (struct iwn4965_tx_stat *)(desc + 1);
+	struct iwn_tx_ring *ring = &sc->txq[desc->qid & 0xf];
 
 	DPRINTF(sc, IWN_DEBUG_XMIT, "%s: "
 	    "qid %d idx %d retries %d nkill %d rate %x duration %d status %x\n",
@@ -2289,7 +2290,7 @@ iwn4965_tx_done(struct iwn_softc *sc, struct iwn_rx_desc *desc,
 	    stat->btkillcnt, stat->rate, le16toh(stat->duration),
 	    le32toh(stat->status));
 
-	bus_dmamap_sync(sc->rxq.data_dmat, data->map, BUS_DMASYNC_POSTREAD);
+	bus_dmamap_sync(ring->data_dmat, data->map, BUS_DMASYNC_POSTREAD);
 	iwn_tx_done(sc, desc, stat->ackfailcnt, le32toh(stat->status) & 0xff);
 }
 
@@ -2298,6 +2299,7 @@ iwn5000_tx_done(struct iwn_softc *sc, struct iwn_rx_desc *desc,
     struct iwn_rx_data *data)
 {
 	struct iwn5000_tx_stat *stat = (struct iwn5000_tx_stat *)(desc + 1);
+	struct iwn_tx_ring *ring = &sc->txq[desc->qid & 0xf];
 
 	DPRINTF(sc, IWN_DEBUG_XMIT, "%s: "
 	    "qid %d idx %d retries %d nkill %d rate %x duration %d status %x\n",
@@ -2310,7 +2312,7 @@ iwn5000_tx_done(struct iwn_softc *sc, struct iwn_rx_desc *desc,
 	iwn5000_reset_sched(sc, desc->qid & 0xf, desc->idx);
 #endif
 
-	bus_dmamap_sync(sc->rxq.data_dmat, data->map, BUS_DMASYNC_POSTREAD);
+	bus_dmamap_sync(ring->data_dmat, data->map, BUS_DMASYNC_POSTREAD);
 	iwn_tx_done(sc, desc, stat->ackfailcnt, le16toh(stat->status) & 0xff);
 }
 
@@ -4728,7 +4730,7 @@ iwn_scan(struct iwn_softc *sc)
 			chan->passive = htole16(78);
 		else
 			chan->passive = htole16(110);
-		hdr->crc_threshold = htole16(1);
+		hdr->crc_threshold = 0xffff;
 	} else if (!(c->ic_flags & IEEE80211_CHAN_PASSIVE)) {
 		chan->rf_gain = 0x28;
 		chan->active  = htole16(36);
@@ -4741,7 +4743,7 @@ iwn_scan(struct iwn_softc *sc)
 			chan->passive = htole16(88);
 		else
 			chan->passive = htole16(120);
-		hdr->crc_threshold = htole16(1);
+		hdr->crc_threshold = 0xffff;
 	}
 
 	DPRINTF(sc, IWN_DEBUG_STATE,

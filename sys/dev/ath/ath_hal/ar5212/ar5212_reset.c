@@ -283,6 +283,14 @@ ar5212Reset(struct ath_hal *ah, HAL_OPMODE opmode,
 	regWrites = ath_hal_ini_write(ah, &ahp->ah_ini_modes, modesIndex, 0);
 	regWrites = write_common(ah, &ahp->ah_ini_common, bChannelChange,
 		regWrites);
+#ifdef AH_RXCFG_SDMAMW_4BYTES
+	/*
+	 * Nala doesn't work with 128 byte bursts on pb42(hydra) (ar71xx),
+	 * use 4 instead.  Enabling it on all platforms would hurt performance,
+	 * so we only enable it on the ones that are affected by it.
+	 */
+	OS_REG_WRITE(ah, AR_RXCFG, 0);
+#endif
 	ahp->ah_rfHal->writeRegs(ah, modesIndex, freqIndex, regWrites);
 
 	OS_MARK(ah, AH_MARK_RESET_LINE, __LINE__);

@@ -31,7 +31,7 @@
 #include "cpio_platform.h"
 #include <stdio.h>
 
-#define	DEFAULT_BYTES_PER_BLOCK	(20*512)
+#include "matching.h"
 
 /*
  * The internal state for the "cpio" program.
@@ -52,17 +52,16 @@ struct cpio {
 	const char	 *format; /* -H format */
 	int		  bytes_per_block; /* -b block_size */
 	int		  verbose;   /* -v */
-	int		  dot;  /* -V */
 	int		  quiet;   /* --quiet */
 	int		  extract_flags; /* Flags for extract operation */
 	char		  symlink_mode; /* H or L, per BSD conventions */
 	const char	 *compress_program;
-	char		  line_separator; /* --null ? '\0' : '\n' */
 	int		  option_append; /* -A, only relevant for -o */
 	int		  option_atime_restore; /* -a */
 	int		  option_follow_links; /* -L */
 	int		  option_link; /* -l */
 	int		  option_list; /* -t */
+	char		  option_null; /* --null */
 	int		  option_numeric_uid_gid; /* -n */
 	int		  option_rename; /* -r */
 	char		 *destdir;
@@ -77,6 +76,7 @@ struct cpio {
 
 	/* Miscellaneous state information */
 	struct archive	 *archive;
+	struct archive	 *archive_read_disk;
 	int		  argc;
 	char		**argv;
 	int		  return_value; /* Value returned by main() */
@@ -91,30 +91,19 @@ struct cpio {
 	size_t		  buff_size;
 };
 
-/* Name of this program; used in error reporting, initialized in main(). */
-const char *cpio_progname;
-
-void	cpio_errc(int _eval, int _code, const char *fmt, ...) __LA_DEAD;
-void	cpio_warnc(int _code, const char *fmt, ...);
-
-int	owner_parse(const char *, int *, int *);
+const char *owner_parse(const char *, int *, int *);
 
 
 /* Fake short equivalents for long options that otherwise lack them. */
 enum {
 	OPTION_INSECURE = 1,
+	OPTION_LZMA,
 	OPTION_NO_PRESERVE_OWNER,
+	OPTION_PRESERVE_OWNER,
 	OPTION_QUIET,
 	OPTION_VERSION
 };
 
-struct line_reader;
-
-struct line_reader *process_lines_init(const char *, char separator);
-const char *process_lines_next(struct line_reader *);
-void	process_lines_free(struct line_reader *);
-
 int	cpio_getopt(struct cpio *cpio);
-int	include_from_file(struct cpio *, const char *);
 
 #endif

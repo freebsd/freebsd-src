@@ -43,7 +43,7 @@
 typedef struct {
 	u_int	(*di_readword)(u_int);
 	void	(*di_printaddr)(u_int);	
-	void	(*di_printf)(const char *, ...) __printflike(1, 2);
+	int	(*di_printf)(const char *, ...) __printflike(1, 2);
 } disasm_interface_t;
 
 /* Prototypes for callable functions */

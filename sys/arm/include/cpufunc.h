@@ -284,7 +284,7 @@ u_int	arm8_clock_config	(u_int, u_int);
 #endif
 
 
-#ifdef CPU_FA526
+#if defined(CPU_FA526) || defined(CPU_FA626TE)
 void	fa526_setup		(char *arg);
 void	fa526_setttb		(u_int ttb);
 void	fa526_context_switch	(void);
@@ -464,11 +464,11 @@ extern unsigned armv5_dcache_index_max;
 extern unsigned armv5_dcache_index_inc;
 #endif
 
-#if defined(CPU_ARM9) || defined(CPU_ARM9E) || defined(CPU_ARM10) || \
-  defined(CPU_SA110) || defined(CPU_SA1100) || defined(CPU_SA1110) || \
-  defined(CPU_XSCALE_80200) || defined(CPU_XSCALE_80321) ||	     \
-    defined(CPU_FA526) || \
-  defined(CPU_XSCALE_PXA2X0) || defined(CPU_XSCALE_IXP425) ||	     \
+#if defined(CPU_ARM9) || defined(CPU_ARM9E) || defined(CPU_ARM10) ||	\
+  defined(CPU_SA110) || defined(CPU_SA1100) || defined(CPU_SA1110) ||	\
+  defined(CPU_XSCALE_80200) || defined(CPU_XSCALE_80321) ||		\
+  defined(CPU_FA526) || defined(CPU_FA626TE) ||				\
+  defined(CPU_XSCALE_PXA2X0) || defined(CPU_XSCALE_IXP425) ||		\
   defined(CPU_XSCALE_80219) || defined(CPU_XSCALE_81342)
   
 void	armv4_tlb_flushID	(void);

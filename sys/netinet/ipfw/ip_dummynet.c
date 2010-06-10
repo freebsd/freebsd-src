@@ -1547,28 +1547,28 @@ config_profile(struct dn_profile *pf, struct dn_id *arg)
 	/* XXX other sanity checks */
 	DN_BH_WLOCK();
 	for (; i < 2*DN_MAX_ID; i += DN_MAX_ID) {
-	s = locate_scheduler(i);
+		s = locate_scheduler(i);
 
-	if (s == NULL) {
+		if (s == NULL) {
 			err = EINVAL;
 			break;
-	}
-	dn_cfg.id++;
-	/*
-	 * If we had a profile and the new one does not fit,
-	 * or it is deleted, then we need to free memory.
-	 */
-	if (s->profile && (pf->samples_no == 0 ||
-			s->profile->oid.len < pf->oid.len)) {
-		free(s->profile, M_DUMMYNET);
-		s->profile = NULL;
-	}
+		}
+		dn_cfg.id++;
+		/*
+		 * If we had a profile and the new one does not fit,
+		 * or it is deleted, then we need to free memory.
+		 */
+		if (s->profile && (pf->samples_no == 0 ||
+		    s->profile->oid.len < pf->oid.len)) {
+			free(s->profile, M_DUMMYNET);
+			s->profile = NULL;
+		}
 		if (pf->samples_no == 0)
 			continue;
-	/*
+		/*
 		 * new profile, possibly allocate memory
-	 * and copy data.
-	 */
+		 * and copy data.
+		 */
 		if (s->profile == NULL)
 			s->profile = malloc(pf->oid.len,
 			    M_DUMMYNET, M_NOWAIT | M_ZERO);
@@ -1642,7 +1642,8 @@ do_config(void *p, int l)
 		default:
 			D("cmd %d not implemented", o->type);
 			break;
-#ifdef EMULATE_SYSCTL		
+
+#ifdef EMULATE_SYSCTL
 		/* sysctl emulation.
 		 * if we recognize the command, jump to the correct
 		 * handler and return
@@ -1651,6 +1652,7 @@ do_config(void *p, int l)
 			err = kesysctl_emu_set(p, l);
 			return err;
 #endif
+
 		case DN_CMD_CONFIG: /* simply a header */
 			break;
 

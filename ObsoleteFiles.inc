@@ -14,6 +14,41 @@
 # The file is partitioned: OLD_FILES first, then OLD_LIBS and OLD_DIRS last.
 #
 
+# 20100514: library version bump for versioned symbols for liblzma
+OLD_LIBS+=usr/lib/liblzma.so.0
+.if ${TARGET_ARCH} == "amd64"
+OLD_LIBS+=usr/lib32/liblzma.so.0
+.endif
+# 20100511: move GCC-specific headers to /usr/include/gcc
+.if ${TARGET_ARCH} == "amd64" || ${TARGET_ARCH} == "i386"
+OLD_FILES+=usr/include/emmintrin.h
+OLD_FILES+=usr/include/mm_malloc.h
+OLD_FILES+=usr/include/pmmintrin.h
+OLD_FILES+=usr/include/xmmintrin.h
+.endif
+.if ${TARGET_ARCH} == "amd64" || ${TARGET_ARCH} == "i386" || ${TARGET_ARCH} == "arm"
+OLD_FILES+=usr/include/mmintrin.h
+.endif
+.if ${TARGET_ARCH} == "ia64"
+OLD_FILES+=usr/include/ia64intrin.h
+.endif
+.if ${TARGET_ARCH} == "powerpc"
+OLD_FILES+=usr/include/altivec.h
+OLD_FILES+=usr/include/ppc-asm.h
+OLD_FILES+=usr/include/spe.h
+.endif
+# 20100416: [mips] removed <machine/psl.h>
+.if ${TARGET_ARCH} == "mips"
+OLD_FILES+=usr/include/machine/psl.h
+.endif
+# 20100415: [mips] removed unused headers
+.if ${TARGET_ARCH} == "mips"
+OLD_FILES+=usr/include/machine/archtype.h
+OLD_FILES+=usr/include/machine/segments.h
+OLD_FILES+=usr/include/machine/rm7000.h
+OLD_FILES+=usr/include/machine/defs.h
+OLD_FILES+=usr/include/machine/queue.h
+.endif
 # 20100326: [ia64] removed <machine/nexusvar.h>
 .if ${TARGET_ARCH} == "ia64"
 OLD_FILES+=usr/include/machine/nexusvar.h

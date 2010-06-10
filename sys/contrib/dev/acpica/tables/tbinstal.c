@@ -227,7 +227,7 @@ AcpiTbAddTable (
 
     /* Check if table is already registered */
 
-    for (i = 0; i < AcpiGbl_RootTableList.Count; ++i)
+    for (i = 0; i < AcpiGbl_RootTableList.CurrentTableCount; ++i)
     {
         if (!AcpiGbl_RootTableList.Tables[i].Pointer)
         {
@@ -370,7 +370,7 @@ AcpiTbResizeRootTableList (
     /* Increase the Table Array size */
 
     Tables = ACPI_ALLOCATE_ZEROED (
-        ((ACPI_SIZE) AcpiGbl_RootTableList.Size +
+        ((ACPI_SIZE) AcpiGbl_RootTableList.MaxTableCount +
             ACPI_ROOT_TABLE_SIZE_INCREMENT) *
         sizeof (ACPI_TABLE_DESC));
     if (!Tables)
@@ -384,7 +384,7 @@ AcpiTbResizeRootTableList (
     if (AcpiGbl_RootTableList.Tables)
     {
         ACPI_MEMCPY (Tables, AcpiGbl_RootTableList.Tables,
-            (ACPI_SIZE) AcpiGbl_RootTableList.Size * sizeof (ACPI_TABLE_DESC));
+            (ACPI_SIZE) AcpiGbl_RootTableList.MaxTableCount * sizeof (ACPI_TABLE_DESC));
 
         if (AcpiGbl_RootTableList.Flags & ACPI_ROOT_ORIGIN_ALLOCATED)
         {
@@ -393,7 +393,7 @@ AcpiTbResizeRootTableList (
     }
 
     AcpiGbl_RootTableList.Tables = Tables;
-    AcpiGbl_RootTableList.Size += ACPI_ROOT_TABLE_SIZE_INCREMENT;
+    AcpiGbl_RootTableList.MaxTableCount += ACPI_ROOT_TABLE_SIZE_INCREMENT;
     AcpiGbl_RootTableList.Flags |= (UINT8) ACPI_ROOT_ORIGIN_ALLOCATED;
 
     return_ACPI_STATUS (AE_OK);
@@ -423,12 +423,14 @@ AcpiTbStoreTable (
     UINT8                   Flags,
     UINT32                  *TableIndex)
 {
-    ACPI_STATUS             Status = AE_OK;
+    ACPI_STATUS             Status;
+    ACPI_TABLE_DESC         *NewTable;
 
 
     /* Ensure that there is room for the table in the Root Table List */
 
-    if (AcpiGbl_RootTableList.Count >= AcpiGbl_RootTableList.Size)
+    if (AcpiGbl_RootTableList.CurrentTableCount >=
+        AcpiGbl_RootTableList.MaxTableCount)
     {
         Status = AcpiTbResizeRootTableList();
         if (ACPI_FAILURE (Status))
@@ -437,21 +439,21 @@ AcpiTbStoreTable (
         }
     }
 
+    NewTable = &AcpiGbl_RootTableList.Tables[AcpiGbl_RootTableList.CurrentTableCount];
+
     /* Initialize added table */
 
-    AcpiGbl_RootTableList.Tables[AcpiGbl_RootTableList.Count].Address = Address;
-    AcpiGbl_RootTableList.Tables[AcpiGbl_RootTableList.Count].Pointer = Table;
-    AcpiGbl_RootTableList.Tables[AcpiGbl_RootTableList.Count].Length = Length;
-    AcpiGbl_RootTableList.Tables[AcpiGbl_RootTableList.Count].OwnerId = 0;
-    AcpiGbl_RootTableList.Tables[AcpiGbl_RootTableList.Count].Flags = Flags;
+    NewTable->Address = Address;
+    NewTable->Pointer = Table;
+    NewTable->Length = Length;
+    NewTable->OwnerId = 0;
+    NewTable->Flags = Flags;
 
-    ACPI_MOVE_32_TO_32 (
-        &(AcpiGbl_RootTableList.Tables[AcpiGbl_RootTableList.Count].Signature),
-        Table->Signature);
+    ACPI_MOVE_32_TO_32 (&NewTable->Signature, Table->Signature);
 
-    *TableIndex = AcpiGbl_RootTableList.Count;
-    AcpiGbl_RootTableList.Count++;
-    return (Status);
+    *TableIndex = AcpiGbl_RootTableList.CurrentTableCount;
+    AcpiGbl_RootTableList.CurrentTableCount++;
+    return (AE_OK);
 }
 
 
@@ -523,7 +525,7 @@ AcpiTbTerminate (
 
     /* Delete the individual tables */
 
-    for (i = 0; i < AcpiGbl_RootTableList.Count; i++)
+    for (i = 0; i < AcpiGbl_RootTableList.CurrentTableCount; i++)
     {
         AcpiTbDeleteTable (&AcpiGbl_RootTableList.Tables[i]);
     }
@@ -539,7 +541,7 @@ AcpiTbTerminate (
 
     AcpiGbl_RootTableList.Tables = NULL;
     AcpiGbl_RootTableList.Flags = 0;
-    AcpiGbl_RootTableList.Count = 0;
+    AcpiGbl_RootTableList.CurrentTableCount = 0;
 
     ACPI_DEBUG_PRINT ((ACPI_DB_INFO, "ACPI Tables freed\n"));
     (void) AcpiUtReleaseMutex (ACPI_MTX_TABLES);
@@ -575,7 +577,7 @@ AcpiTbDeleteNamespaceByOwner (
         return_ACPI_STATUS (Status);
     }
 
-    if (TableIndex >= AcpiGbl_RootTableList.Count)
+    if (TableIndex >= AcpiGbl_RootTableList.CurrentTableCount)
     {
         /* The table index does not exist */
 
@@ -634,7 +636,7 @@ AcpiTbAllocateOwnerId (
 
 
     (void) AcpiUtAcquireMutex (ACPI_MTX_TABLES);
-    if (TableIndex < AcpiGbl_RootTableList.Count)
+    if (TableIndex < AcpiGbl_RootTableList.CurrentTableCount)
     {
         Status = AcpiUtAllocateOwnerId
                     (&(AcpiGbl_RootTableList.Tables[TableIndex].OwnerId));
@@ -668,7 +670,7 @@ AcpiTbReleaseOwnerId (
 
 
     (void) AcpiUtAcquireMutex (ACPI_MTX_TABLES);
-    if (TableIndex < AcpiGbl_RootTableList.Count)
+    if (TableIndex < AcpiGbl_RootTableList.CurrentTableCount)
     {
         AcpiUtReleaseOwnerId (
             &(AcpiGbl_RootTableList.Tables[TableIndex].OwnerId));
@@ -705,7 +707,7 @@ AcpiTbGetOwnerId (
 
 
     (void) AcpiUtAcquireMutex (ACPI_MTX_TABLES);
-    if (TableIndex < AcpiGbl_RootTableList.Count)
+    if (TableIndex < AcpiGbl_RootTableList.CurrentTableCount)
     {
         *OwnerId = AcpiGbl_RootTableList.Tables[TableIndex].OwnerId;
         Status = AE_OK;
@@ -734,7 +736,7 @@ AcpiTbIsTableLoaded (
 
 
     (void) AcpiUtAcquireMutex (ACPI_MTX_TABLES);
-    if (TableIndex < AcpiGbl_RootTableList.Count)
+    if (TableIndex < AcpiGbl_RootTableList.CurrentTableCount)
     {
         IsLoaded = (BOOLEAN)
             (AcpiGbl_RootTableList.Tables[TableIndex].Flags &
@@ -766,7 +768,7 @@ AcpiTbSetTableLoadedFlag (
 {
 
     (void) AcpiUtAcquireMutex (ACPI_MTX_TABLES);
-    if (TableIndex < AcpiGbl_RootTableList.Count)
+    if (TableIndex < AcpiGbl_RootTableList.CurrentTableCount)
     {
         if (IsLoaded)
         {

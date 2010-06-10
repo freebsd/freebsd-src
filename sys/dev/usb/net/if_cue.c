@@ -122,7 +122,7 @@ static int	cue_getmac(struct cue_softc *, void *);
 static uint32_t	cue_mchash(const uint8_t *);
 static void	cue_reset(struct cue_softc *);
 
-#if USB_DEBUG
+#ifdef USB_DEBUG
 static int cue_debug = 0;
 
 SYSCTL_NODE(_hw_usb, OID_AUTO, cue, CTLFLAG_RW, 0, "USB cue");

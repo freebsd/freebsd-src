@@ -17,8 +17,6 @@
 
 #include "includes.h"
 
-#ifdef ENABLE_PKCS11
-
 #include <sys/types.h>
 #ifdef HAVE_SYS_TIME_H
 # include <sys/time.h>
@@ -38,6 +36,8 @@
 #include "key.h"
 #include "authfd.h"
 #include "ssh-pkcs11.h"
+
+#ifdef ENABLE_PKCS11
 
 /* borrows code from sftp-server and ssh-agent */
 

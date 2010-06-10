@@ -70,6 +70,7 @@ STATIC int docd(char *, int, int);
 STATIC char *getcomponent(void);
 STATIC char *findcwd(char *);
 STATIC void updatepwd(char *);
+STATIC char *getpwd(void);
 STATIC char *getpwd2(void);
 
 STATIC char *curdir = NULL;	/* current working directory */
@@ -351,7 +352,7 @@ pwdcmd(int argc, char **argv)
 /*
  * Get the current directory and cache the result in curdir.
  */
-char *
+STATIC char *
 getpwd(void)
 {
 	char *p;
@@ -374,7 +375,6 @@ getpwd(void)
 STATIC char *
 getpwd2(void)
 {
-	struct stat stdot, stpwd;
 	char *pwd;
 	int i;
 
@@ -387,12 +387,29 @@ getpwd2(void)
 			break;
 	}
 
-	pwd = getenv("PWD");
+	return NULL;
+}
+
+/*
+ * Initialize PWD in a new shell.
+ * If the shell is interactive, we need to warn if this fails.
+ */
+void
+pwd_init(int warn)
+{
+	char *pwd;
+	struct stat stdot, stpwd;
+
+	pwd = lookupvar("PWD");
 	if (pwd && *pwd == '/' && stat(".", &stdot) != -1 &&
 	    stat(pwd, &stpwd) != -1 &&
 	    stdot.st_dev == stpwd.st_dev &&
 	    stdot.st_ino == stpwd.st_ino) {
-		return pwd;
+		if (curdir)
+			ckfree(curdir);
+		curdir = savestr(pwd);
 	}
-	return NULL;
+	if (getpwd() == NULL && warn)
+		out2fmt_flush("sh: cannot determine working directory\n");
+	setvar("PWD", curdir, VEXPORT);
 }

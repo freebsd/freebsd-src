@@ -39,9 +39,9 @@
 .Lb libc
 .Sh SYNOPSIS
 .In sys/time.h
-.Fd "#define ITIMER_REAL		0"
-.Fd "#define ITIMER_VIRTUAL	1"
-.Fd "#define ITIMER_PROF		2"
+.Fd "#define ITIMER_REAL      0"
+.Fd "#define ITIMER_VIRTUAL   1"
+.Fd "#define ITIMER_PROF      2"
 .Ft int
 .Fn getitimer "int which" "struct itimerval *value"
 .Ft int
@@ -171,7 +171,7 @@ to be handled.
 .Sh SEE ALSO
 .Xr gettimeofday 2 ,
 .Xr select 2 ,
-.Xr sigvec 2 ,
+.Xr sigaction 2 ,
 .Xr clocks 7
 .Sh HISTORY
 The

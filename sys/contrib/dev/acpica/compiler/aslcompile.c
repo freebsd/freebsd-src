@@ -177,7 +177,8 @@ AslCompilerSignon (
         {
             Prefix = "; ";
         }
-        else if (Gbl_HexOutputFlag == HEX_OUTPUT_C)
+        else if ((Gbl_HexOutputFlag == HEX_OUTPUT_C) ||
+                 (Gbl_HexOutputFlag == HEX_OUTPUT_ASL))
         {
             FlPrintFile (ASL_FILE_HEX_OUTPUT, "/*\n");
             Prefix = " * ";
@@ -265,7 +266,8 @@ AslCompilerFileHeader (
         {
             Prefix = "; ";
         }
-        else if (Gbl_HexOutputFlag == HEX_OUTPUT_C)
+        else if ((Gbl_HexOutputFlag == HEX_OUTPUT_C) ||
+                 (Gbl_HexOutputFlag == HEX_OUTPUT_ASL))
         {
             Prefix = " * ";
         }

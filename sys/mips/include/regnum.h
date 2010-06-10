@@ -42,10 +42,6 @@
 #ifndef _MACHINE_REGNUM_H_
 #define	_MACHINE_REGNUM_H_
 
-#define	STAND_ARG_SIZE		16
-#define	STAND_FRAME_SIZE	24
-#define	STAND_RA_OFFSET		20
-
 /* This must match the numbers
  * in pcb.h and is used by
  * swtch.S

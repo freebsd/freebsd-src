@@ -30,7 +30,9 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <sys/types.h>
 #include <sys/queue.h>
+#include <sys/socket.h>
 
 #include <assert.h>
 #include <errno.h>
@@ -245,6 +247,30 @@ proto_remote_address(const struct proto_conn *conn, char *addr, size_t size)
 	assert(conn->pc_proto != NULL);
 
 	conn->pc_proto->hp_remote_address(conn->pc_ctx, addr, size);
+}
+
+int
+proto_timeout(const struct proto_conn *conn, int timeout)
+{
+	struct timeval tv;
+	int fd;
+
+	assert(conn != NULL);
+	assert(conn->pc_magic == PROTO_CONN_MAGIC);
+	assert(conn->pc_proto != NULL);
+
+	fd = proto_descriptor(conn);
+	if (fd < 0)
+		return (-1);
+
+	tv.tv_sec = timeout;
+	tv.tv_usec = 0;
+	if (setsockopt(fd, SOL_SOCKET, SO_SNDTIMEO, &tv, sizeof(tv)) < 0)
+		return (-1);
+	if (setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv)) < 0)
+		return (-1);
+
+	return (0);
 }
 
 void

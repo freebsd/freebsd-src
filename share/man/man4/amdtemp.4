@@ -64,9 +64,6 @@ located in each CPU core.
 For the K10 and K11 families, the driver creates
 .Va dev.cpu.%d.temperature
 with the temperature of each core.
-.Sh BUGS
-AMD K9 is not supported because temperature reporting has been replaced
-by Maltese.
 .Sh SEE ALSO
 .Xr sysctl 8
 .Sh HISTORY
@@ -77,3 +74,6 @@ driver first appeared in
 .Sh AUTHORS
 .An Rui Paulo Aq rpaulo@FreeBSD.org
 .An Norikatsu Shigemura Aq nork@FreeBSD.org
+.Sh BUGS
+AMD K9 is not supported because temperature reporting has been replaced
+by Maltese.

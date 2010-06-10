@@ -289,10 +289,18 @@ sctp_build_ctl_cchunk(struct sctp_inpcb *inp,
 static void
 sctp_mark_non_revokable(struct sctp_association *asoc, uint32_t tsn)
 {
-	uint32_t gap, i;
+	uint32_t gap, i, cumackp1;
 	int fnd = 0;
 
 	if (SCTP_BASE_SYSCTL(sctp_do_drain) == 0) {
+		return;
+	}
+	cumackp1 = asoc->cumulative_tsn + 1;
+	if (compare_with_wrap(cumackp1, tsn, MAX_TSN)) {
+		/*
+		 * this tsn is behind the cum ack and thus we don't need to
+		 * worry about it being moved from one to the other.
+		 */
 		return;
 	}
 	SCTP_CALC_TSN_TO_GAP(gap, tsn, asoc->mapping_array_base_tsn);
@@ -1466,7 +1474,7 @@ sctp_process_a_data_chunk(struct sctp_tcb *stcb, struct sctp_association *asoc,
 		asoc->send_sack = 1;
 	}
 	protocol_id = ch->dp.protocol_id;
-	ordered = ((ch->ch.chunk_flags & SCTP_DATA_UNORDERED) == 0);
+	ordered = ((chunk_flags & SCTP_DATA_UNORDERED) == 0);
 	if (SCTP_BASE_SYSCTL(sctp_logging_level) & SCTP_MAP_LOGGING_ENABLE) {
 		sctp_log_map(tsn, asoc->cumulative_tsn, asoc->highest_tsn_inside_map, SCTP_MAP_TSN_ENTERS);
 	}
@@ -2123,6 +2131,10 @@ failed_pdapi_express_del:
 		}
 	}
 finish_express_del:
+	if (tsn == (asoc->cumulative_tsn + 1)) {
+		/* Update cum-ack */
+		asoc->cumulative_tsn = tsn;
+	}
 	if (last_chunk) {
 		*m = NULL;
 	}
@@ -2241,15 +2253,19 @@ sctp_slide_mapping_arrays(struct sctp_tcb *stcb)
 	/*
 	 * Now we also need to check the mapping array in a couple of ways.
 	 * 1) Did we move the cum-ack point?
+	 * 
+	 * When you first glance at this you might think that all entries that
+	 * make up the postion of the cum-ack would be in the nr-mapping
+	 * array only.. i.e. things up to the cum-ack are always
+	 * deliverable. Thats true with one exception, when its a fragmented
+	 * message we may not deliver the data until some threshold (or all
+	 * of it) is in place. So we must OR the nr_mapping_array and
+	 * mapping_array to get a true picture of the cum-ack.
 	 */
 	struct sctp_association *asoc;
 	int at;
+	uint8_t val;
 	int slide_from, slide_end, lgap, distance;
-
-	/* EY nr_mapping array variables */
-	/* int nr_at; */
-	/* int nr_last_all_ones = 0; */
-	/* int nr_slide_from, nr_slide_end, nr_lgap, nr_distance; */
 	uint32_t old_cumack, old_base, old_highest, highest_tsn;
 
 	asoc = &stcb->asoc;
@@ -2264,11 +2280,12 @@ sctp_slide_mapping_arrays(struct sctp_tcb *stcb)
 	 */
 	at = 0;
 	for (slide_from = 0; slide_from < stcb->asoc.mapping_array_size; slide_from++) {
-		if (asoc->nr_mapping_array[slide_from] == 0xff) {
+		val = asoc->nr_mapping_array[slide_from] | asoc->mapping_array[slide_from];
+		if (val == 0xff) {
 			at += 8;
 		} else {
 			/* there is a 0 bit */
-			at += sctp_map_lookup_tab[asoc->nr_mapping_array[slide_from]];
+			at += sctp_map_lookup_tab[val];
 			break;
 		}
 	}
@@ -2300,7 +2317,12 @@ sctp_slide_mapping_arrays(struct sctp_tcb *stcb)
 	if ((asoc->cumulative_tsn == highest_tsn) && (at >= 8)) {
 		/* The complete array was completed by a single FR */
 		/* highest becomes the cum-ack */
-		int clr, i;
+		int clr;
+
+#ifdef INVARIANTS
+		unsigned int i;
+
+#endif
 
 		/* clear the array */
 		clr = ((at + 7) >> 3);
@@ -2309,12 +2331,14 @@ sctp_slide_mapping_arrays(struct sctp_tcb *stcb)
 		}
 		memset(asoc->mapping_array, 0, clr);
 		memset(asoc->nr_mapping_array, 0, clr);
+#ifdef INVARIANTS
 		for (i = 0; i < asoc->mapping_array_size; i++) {
 			if ((asoc->mapping_array[i]) || (asoc->nr_mapping_array[i])) {
 				printf("Error Mapping array's not clean at clear\n");
 				sctp_print_mapping_array(asoc);
 			}
 		}
+#endif
 		asoc->mapping_array_base_tsn = asoc->cumulative_tsn + 1;
 		asoc->highest_tsn_inside_nr_map = asoc->highest_tsn_inside_map = asoc->cumulative_tsn;
 	} else if (at >= 8) {
@@ -2371,15 +2395,19 @@ sctp_slide_mapping_arrays(struct sctp_tcb *stcb)
 			int ii;
 
 			for (ii = 0; ii < distance; ii++) {
-				asoc->mapping_array[ii] =
-				    asoc->mapping_array[slide_from + ii];
-				asoc->nr_mapping_array[ii] =
-				    asoc->nr_mapping_array[slide_from + ii];
+				asoc->mapping_array[ii] = asoc->mapping_array[slide_from + ii];
+				asoc->nr_mapping_array[ii] = asoc->nr_mapping_array[slide_from + ii];
 
 			}
 			for (ii = distance; ii < asoc->mapping_array_size; ii++) {
 				asoc->mapping_array[ii] = 0;
 				asoc->nr_mapping_array[ii] = 0;
+			}
+			if (asoc->highest_tsn_inside_map + 1 == asoc->mapping_array_base_tsn) {
+				asoc->highest_tsn_inside_map += (slide_from << 3);
+			}
+			if (asoc->highest_tsn_inside_nr_map + 1 == asoc->mapping_array_base_tsn) {
+				asoc->highest_tsn_inside_nr_map += (slide_from << 3);
 			}
 			asoc->mapping_array_base_tsn += (slide_from << 3);
 			if (SCTP_BASE_SYSCTL(sctp_logging_level) & SCTP_MAP_LOGGING_ENABLE) {
@@ -2808,25 +2836,7 @@ sctp_process_data(struct mbuf **mm, int iphlen, int *offset, int length,
 		stcb->asoc.send_sack = 1;
 	}
 	/* Start a sack timer or QUEUE a SACK for sending */
-	if ((stcb->asoc.cumulative_tsn == stcb->asoc.highest_tsn_inside_map) &&
-	    (stcb->asoc.mapping_array[0] != 0xff)) {
-		if ((stcb->asoc.data_pkts_seen >= stcb->asoc.sack_freq) ||
-		    (stcb->asoc.delayed_ack == 0) ||
-		    (stcb->asoc.numduptsns) ||
-		    (stcb->asoc.send_sack == 1)) {
-			if (SCTP_OS_TIMER_PENDING(&stcb->asoc.dack_timer.timer)) {
-				(void)SCTP_OS_TIMER_STOP(&stcb->asoc.dack_timer.timer);
-			}
-			sctp_send_sack(stcb);
-		} else {
-			if (!SCTP_OS_TIMER_PENDING(&stcb->asoc.dack_timer.timer)) {
-				sctp_timer_start(SCTP_TIMER_TYPE_RECV,
-				    stcb->sctp_ep, stcb, NULL);
-			}
-		}
-	} else {
-		sctp_sack_check(stcb, was_a_gap, &abort_flag);
-	}
+	sctp_sack_check(stcb, was_a_gap, &abort_flag);
 	if (abort_flag)
 		return (2);
 
@@ -3697,6 +3707,7 @@ sctp_try_advance_peer_ack_point(struct sctp_tcb *stcb,
 	tp1 = TAILQ_FIRST(&asoc->sent_queue);
 	while (tp1) {
 		if (tp1->sent != SCTP_FORWARD_TSN_SKIP &&
+		    tp1->sent != SCTP_DATAGRAM_ACKED &&
 		    tp1->sent != SCTP_DATAGRAM_RESEND) {
 			/* no chance to advance, out of here */
 			break;
@@ -3752,7 +3763,8 @@ sctp_try_advance_peer_ack_point(struct sctp_tcb *stcb,
 		 * the chunk, advance our peer ack point and we can check
 		 * the next chunk.
 		 */
-		if (tp1->sent == SCTP_FORWARD_TSN_SKIP) {
+		if ((tp1->sent == SCTP_FORWARD_TSN_SKIP) ||
+		    (tp1->sent == SCTP_DATAGRAM_ACKED)) {
 			/* advance PeerAckPoint goes forward */
 			if (compare_with_wrap(tp1->rec.data.TSN_seq,
 			    asoc->advanced_peer_ack_point,
@@ -3850,7 +3862,8 @@ sctp_window_probe_recovery(struct sctp_tcb *stcb,
 	sctp_total_flight_decrease(stcb, tp1);
 	/* Now mark for resend */
 	tp1->sent = SCTP_DATAGRAM_RESEND;
-	asoc->sent_queue_retran_cnt++;
+	sctp_ucount_incr(asoc->sent_queue_retran_cnt);
+
 	if (SCTP_BASE_SYSCTL(sctp_logging_level) & SCTP_FLIGHT_LOGGING_ENABLE) {
 		sctp_misc_ints(SCTP_FLIGHT_LOG_DOWN_WP,
 		    tp1->whoTo->flight_size,
@@ -4263,7 +4276,7 @@ again:
 					sctp_flight_size_increase(tp1);
 					sctp_total_flight_increase(stcb, tp1);
 				} else if (tp1->sent == SCTP_DATAGRAM_RESEND) {
-					asoc->sent_queue_retran_cnt++;
+					sctp_ucount_incr(asoc->sent_queue_retran_cnt);
 				}
 			}
 		}
@@ -4919,14 +4932,6 @@ done_with_it:
 		if (tp1 != NULL) {
 			/* Peer revoked all dg's marked or acked */
 			TAILQ_FOREACH(tp1, &asoc->sent_queue, sctp_next) {
-				/*
-				 * EY- maybe check only if it is nr_acked
-				 * nr_marked may not be possible
-				 */
-				if ((tp1->sent == SCTP_DATAGRAM_NR_ACKED) ||
-				    (tp1->sent == SCTP_DATAGRAM_NR_MARKED)) {
-					continue;
-				}
 				if (tp1->sent == SCTP_DATAGRAM_ACKED) {
 					tp1->sent = SCTP_DATAGRAM_SENT;
 					if (SCTP_BASE_SYSCTL(sctp_logging_level) & SCTP_FLIGHT_LOGGING_ENABLE) {
@@ -5272,7 +5277,7 @@ again:
 					sctp_flight_size_increase(tp1);
 					sctp_total_flight_increase(stcb, tp1);
 				} else if (tp1->sent == SCTP_DATAGRAM_RESEND) {
-					asoc->sent_queue_retran_cnt++;
+					sctp_ucount_incr(asoc->sent_queue_retran_cnt);
 				}
 			}
 		}
@@ -5361,7 +5366,7 @@ sctp_kick_prsctp_reorder_queue(struct sctp_tcb *stcb,
 {
 	struct sctp_queued_to_read *ctl, *nctl;
 	struct sctp_association *asoc;
-	int tt;
+	uint16_t tt;
 
 	asoc = &stcb->asoc;
 	tt = strmin->last_sequence_delivered;
@@ -5543,8 +5548,8 @@ sctp_handle_forward_tsn(struct sctp_tcb *stcb,
 	 * report where we are.
 	 */
 	struct sctp_association *asoc;
-	uint32_t new_cum_tsn, tsn, gap;
-	unsigned int i, fwd_sz, cumack_set_flag, m_size, fnd = 0;
+	uint32_t new_cum_tsn, gap;
+	unsigned int i, fwd_sz, cumack_set_flag, m_size;
 	uint32_t str_seq;
 	struct sctp_stream_in *strm;
 	struct sctp_tmit_chunk *chk, *at;
@@ -5567,15 +5572,6 @@ sctp_handle_forward_tsn(struct sctp_tcb *stcb,
 	    asoc->cumulative_tsn == new_cum_tsn) {
 		/* Already got there ... */
 		return;
-	}
-	if (compare_with_wrap(new_cum_tsn, asoc->highest_tsn_inside_map,
-	    MAX_TSN)) {
-		asoc->highest_tsn_inside_map = new_cum_tsn;
-
-	}
-	if (compare_with_wrap(new_cum_tsn, asoc->highest_tsn_inside_nr_map,
-	    MAX_TSN)) {
-		asoc->highest_tsn_inside_nr_map = new_cum_tsn;
 	}
 	/*
 	 * now we know the new TSN is more advanced, let's find the actual
@@ -5631,34 +5627,14 @@ sctp_handle_forward_tsn(struct sctp_tcb *stcb,
 	} else {
 		SCTP_TCB_LOCK_ASSERT(stcb);
 		for (i = 0; i <= gap; i++) {
-			SCTP_UNSET_TSN_PRESENT(asoc->mapping_array, i);
-			SCTP_SET_TSN_PRESENT(asoc->nr_mapping_array, i);
-			/* FIX ME add something to set up highest TSN in map */
-		}
-		if (compare_with_wrap(new_cum_tsn, asoc->highest_tsn_inside_nr_map, MAX_TSN)) {
-			asoc->highest_tsn_inside_nr_map = new_cum_tsn;
-		}
-		if (compare_with_wrap(new_cum_tsn, asoc->highest_tsn_inside_map, MAX_TSN) ||
-		    new_cum_tsn == asoc->highest_tsn_inside_map) {
-			/* We must back down to see what the new highest is */
-			for (tsn = new_cum_tsn; (compare_with_wrap(tsn, asoc->mapping_array_base_tsn, MAX_TSN) ||
-			    (tsn == asoc->mapping_array_base_tsn)); tsn--) {
-				SCTP_CALC_TSN_TO_GAP(gap, tsn, asoc->mapping_array_base_tsn);
-				if (SCTP_IS_TSN_PRESENT(asoc->mapping_array, gap)) {
-					asoc->highest_tsn_inside_map = tsn;
-					fnd = 1;
-					break;
+			if (!SCTP_IS_TSN_PRESENT(asoc->mapping_array, i) &&
+			    !SCTP_IS_TSN_PRESENT(asoc->nr_mapping_array, i)) {
+				SCTP_SET_TSN_PRESENT(asoc->nr_mapping_array, i);
+				if (compare_with_wrap(asoc->mapping_array_base_tsn + i, asoc->highest_tsn_inside_nr_map, MAX_TSN)) {
+					asoc->highest_tsn_inside_nr_map = asoc->mapping_array_base_tsn + i;
 				}
 			}
-			if (!fnd) {
-				asoc->highest_tsn_inside_map = asoc->mapping_array_base_tsn - 1;
-			}
 		}
-		/*
-		 * Now after marking all, slide thing forward but no sack
-		 * please.
-		 */
-		sctp_slide_mapping_arrays(stcb);
 	}
 	/*************************************************************/
 	/* 2. Clear up re-assembly queue                             */
@@ -5829,6 +5805,11 @@ sctp_handle_forward_tsn(struct sctp_tcb *stcb,
 		}
 		SCTP_INP_READ_UNLOCK(stcb->sctp_ep);
 	}
+	/*
+	 * Now slide thing forward.
+	 */
+	sctp_slide_mapping_arrays(stcb);
+
 	if (TAILQ_FIRST(&asoc->reasmqueue)) {
 		/* now lets kick out and check for more fragmented delivery */
 		/* sa_ignore NO_NULL_CHK */

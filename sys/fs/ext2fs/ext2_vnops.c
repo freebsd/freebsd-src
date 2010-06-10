@@ -46,7 +46,6 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/resourcevar.h>
 #include <sys/kernel.h>
 #include <sys/fcntl.h>
 #include <sys/stat.h>
@@ -54,7 +53,6 @@
 #include <sys/buf.h>
 #include <sys/endian.h>
 #include <sys/priv.h>
-#include <sys/proc.h>
 #include <sys/mount.h>
 #include <sys/unistd.h>
 #include <sys/time.h>
@@ -71,7 +69,6 @@
 
 #include <fs/fifofs/fifo.h>
 
-#include <sys/signalvar.h>
 #include <ufs/ufs/dir.h>
 
 #include <fs/ext2fs/inode.h>
