@@ -356,7 +356,7 @@ ioapic_assign_cpu(struct intsrc *isrc, u_int apic_id)
 	 * extra DELAY() to avoid being stuck in a non-EOI'd state.
 	 */
 	mtx_lock_spin(&icu_lock);
-	if (!intpin->io_masked) {
+	if (!intpin->io_masked && !intpin->io_edgetrigger) {
 		ioapic_write(io->io_addr, IOAPIC_REDTBL_LO(intpin->io_intpin),
 		    intpin->io_lowreg | IOART_INTMSET);
 		DELAY(100);
