@@ -675,7 +675,7 @@ usb_pc_load_mem(struct usb_page_cache *pc, usb_size_t size, uint8_t sync)
 void
 usb_pc_cpu_invalidate(struct usb_page_cache *pc)
 {
-	if (pc->page_offset_end == pc->page_offset_buf || pc->map == NULL) {
+	if (pc->page_offset_end == pc->page_offset_buf) {
 		/* nothing has been loaded into this page cache! */
 		return;
 	}
@@ -695,7 +695,7 @@ usb_pc_cpu_invalidate(struct usb_page_cache *pc)
 void
 usb_pc_cpu_flush(struct usb_page_cache *pc)
 {
-	if (pc->page_offset_end == pc->page_offset_buf || pc->map == NULL) {
+	if (pc->page_offset_end == pc->page_offset_buf) {
 		/* nothing has been loaded into this page cache! */
 		return;
 	}
