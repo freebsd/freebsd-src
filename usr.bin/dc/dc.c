@@ -87,7 +87,7 @@ main(int argc, char *argv[])
 	while ((ch = getopt_long(argc, argv, "e:f:Vx", long_options, NULL)) != -1) {
 		switch (ch) {
 		case 'e':
-			if(!preproc_done)
+			if (!preproc_done)
 				init_bmachine(extended_regs);
 			src_setstring(&src, optarg);
 			reset_bmachine(&src);
@@ -95,7 +95,7 @@ main(int argc, char *argv[])
 			preproc_done = true;
 			break;
 		case 'f':
-			if(!preproc_done)
+			if (!preproc_done)
 				init_bmachine(extended_regs);
 			procfile(optarg);
 			preproc_done = true;
