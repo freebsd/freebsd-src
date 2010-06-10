@@ -210,7 +210,8 @@ static bool ParseArgPosition(FormatStringHandler &H,
 static FormatSpecifierResult ParseFormatSpecifier(FormatStringHandler &H,
                                                   const char *&Beg,
                                                   const char *E,
-                                                  unsigned &argIndex) {
+                                                  unsigned &argIndex,
+						  bool FormatExtensions) {
 
   using namespace clang::analyze_printf;
 
@@ -369,11 +370,19 @@ static FormatSpecifierResult ParseFormatSpecifier(FormatStringHandler &H,
     case '@': k = ConversionSpecifier::ObjCObjArg; break;
     // Glibc specific.
     case 'm': k = ConversionSpecifier::PrintErrno; break;
+    // FreeBSD format extensions
+    case 'b': if (FormatExtensions) k = ConversionSpecifier::bArg; break; /* check for int and then char * */
+    case 'r': if (FormatExtensions) k = ConversionSpecifier::xArg; break;
+    case 'y': if (FormatExtensions) k = ConversionSpecifier::iArg; break;
+    case 'D': if (FormatExtensions) k = ConversionSpecifier::DArg; break; /* check for u_char * pointer and a char * string */
   }
   ConversionSpecifier CS(conversionPosition, k);
   FS.setConversionSpecifier(CS);
   if (CS.consumesDataArgument() && !FS.usesPositionalArg())
     FS.setArgIndex(argIndex++);
+  // FreeBSD extension
+  if (k == ConversionSpecifier::bArg || k == ConversionSpecifier::DArg)
+    argIndex++;
 
   if (k == ConversionSpecifier::InvalidSpecifier) {
     // Assume the conversion takes one argument.
@@ -383,13 +392,13 @@ static FormatSpecifierResult ParseFormatSpecifier(FormatStringHandler &H,
 }
 
 bool clang::analyze_printf::ParseFormatString(FormatStringHandler &H,
-                       const char *I, const char *E) {
+                       const char *I, const char *E, bool FormatExtensions) {
 
   unsigned argIndex = 0;
 
   // Keep looking for a format specifier until we have exhausted the string.
   while (I != E) {
-    const FormatSpecifierResult &FSR = ParseFormatSpecifier(H, I, E, argIndex);
+    const FormatSpecifierResult &FSR = ParseFormatSpecifier(H, I, E, argIndex, FormatExtensions);
     // Did a fail-stop error of any kind occur when parsing the specifier?
     // If so, don't do any more processing.
     if (FSR.shouldStop())

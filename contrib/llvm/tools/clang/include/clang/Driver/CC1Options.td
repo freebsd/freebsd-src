@@ -377,6 +377,8 @@ def fsjlj_exceptions : Flag<"-fsjlj-exceptions">,
   HelpText<"Use SjLj style exceptions">;
 def ffreestanding : Flag<"-ffreestanding">,
   HelpText<"Assert that the compilation takes place in a freestanding environment">;
+def fformat_extensions : Flag<"-fformat-extensions">,
+  HelpText<"FreeBSD printf format extensions">;
 def fgnu_runtime : Flag<"-fgnu-runtime">,
   HelpText<"Generate output compatible with the standard GNU Objective-C runtime">;
 def std_EQ : Joined<"-std=">,
