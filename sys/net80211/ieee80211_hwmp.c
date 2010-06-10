@@ -707,9 +707,10 @@ hwmp_recv_preq(struct ieee80211vap *vap, struct ieee80211_node *ni,
 	rtorig = ieee80211_mesh_rt_find(vap, preq->preq_origaddr);
 	if (rtorig == NULL)
 		rtorig = ieee80211_mesh_rt_add(vap, preq->preq_origaddr);
-	if (rtorig == NULL)
+	if (rtorig == NULL) {
 		/* XXX stat */
 		return;
+	}
 	hrorig = IEEE80211_MESH_ROUTE_PRIV(rtorig, struct ieee80211_hwmp_route);
 	/*
 	 * Sequence number validation.
