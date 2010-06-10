@@ -1,2 +1,2 @@
 .\" $FreeBSD$
-Set to not build the Clang C/C++ commpiler.
+Set to not build the Clang C/C++ compiler.
