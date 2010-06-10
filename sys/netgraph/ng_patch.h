@@ -30,14 +30,14 @@
 #define _NETGRAPH_NG_PATCH_H_
 
 /* Node type name. */
-#define NG_PATCH_NODE_TYPE	"patch"
+#define	NG_PATCH_NODE_TYPE	"patch"
 
 /* Node type cookie. */
-#define NGM_PATCH_COOKIE	1262445509
+#define	NGM_PATCH_COOKIE	1262445509
 
 /* Hook names */
-#define NG_PATCH_HOOK_IN	"in"
-#define NG_PATCH_HOOK_OUT	"out"
+#define	NG_PATCH_HOOK_IN	"in"
+#define	NG_PATCH_HOOK_OUT	"out"
 
 /* Netgraph commands understood by this node type */
 enum {
@@ -70,7 +70,7 @@ struct ng_patch_op {
 	uint16_t	mode;
 };
 
-#define NG_PATCH_OP_TYPE_INFO	{	\
+#define	NG_PATCH_OP_TYPE_INFO	{	\
 		{ "value",	&ng_parse_uint64_type	},	\
 		{ "offset",	&ng_parse_uint32_type	},	\
 		{ "length",	&ng_parse_uint16_type	},	\
@@ -84,7 +84,7 @@ struct ng_patch_config {
 	struct ng_patch_op ops[];
 };
 
-#define NG_PATCH_CONFIG_TYPE_INFO	{	\
+#define	NG_PATCH_CONFIG_TYPE_INFO	{	\
 		{ "count",	&ng_parse_uint32_type	},	\
 		{ "csum_flags",	&ng_parse_uint32_type	},	\
 		{ "ops",	&ng_patch_confarr_type	},	\
@@ -97,7 +97,7 @@ struct ng_patch_stats {
 	uint64_t	dropped;
 };
 
-#define NG_PATCH_STATS_TYPE_INFO {	\
+#define	NG_PATCH_STATS_TYPE_INFO {	\
 		{ "received",	&ng_parse_uint64_type	},	\
 		{ "patched",	&ng_parse_uint64_type	},	\
 		{ "dropped",	&ng_parse_uint64_type	},	\
