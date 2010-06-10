@@ -54,7 +54,6 @@ struct bmachine {
 };
 
 static struct bmachine	 bmachine;
-static void		 got_sigint(int);
 
 static __inline int	 readch(void);
 static __inline void	 unreadch(void);
@@ -221,14 +220,6 @@ static const struct jump_entry jump_table_data[] = {
 #define JUMP_TABLE_DATA_SIZE \
 	(sizeof(jump_table_data)/sizeof(jump_table_data[0]))
 
-static void
-got_sigint(int ignored __unused)
-{
-
-	putchar('\n');
-	exit(0);
-}
-
 void
 init_bmachine(bool extended_registers)
 {
@@ -261,7 +252,6 @@ init_bmachine(bool extended_registers)
 	bmachine.obase = bmachine.ibase = 10;
 	BN_init(&zero);
 	bn_check(BN_zero(&zero));
-	signal(SIGINT, got_sigint);
 }
 
 /* Reset the things needed before processing a (new) file */
