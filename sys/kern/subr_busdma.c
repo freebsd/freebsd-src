@@ -923,7 +923,8 @@ bus_dmamap_unload(bus_dma_tag_t dmat, bus_dmamap_t map)
 	struct bounce_page *bpage;
 
 	if (map == NULL) {
-		warn_null_map(__func__, __builtin_return_address(0));
+		if (bootverbose)
+			warn_null_map(__func__, __builtin_return_address(0));
 		return;
 	}
 
@@ -939,7 +940,8 @@ bus_dmamap_sync(bus_dma_tag_t dmat, bus_dmamap_t map, bus_dmasync_op_t op)
 	struct bounce_page *bpage;
 
 	if (map == NULL) {
-		warn_null_map(__func__, __builtin_return_address(0));
+		if (bootverbose)
+			warn_null_map(__func__, __builtin_return_address(0));
 		return;
 	}
 
