@@ -30,11 +30,11 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/kernel.h>
-#include <sys/mbuf.h>
-#include <sys/malloc.h>
 #include <sys/ctype.h>
-#include <sys/errno.h>
 #include <sys/endian.h>	/* be64toh(), htobe64() */
+#include <sys/errno.h>
+#include <sys/malloc.h>
+#include <sys/mbuf.h>
 #include <netgraph/ng_message.h>
 #include <netgraph/ng_parse.h>
 #include <netgraph/ng_patch.h>
@@ -47,11 +47,11 @@ static ng_newhook_t	ng_patch_newhook;
 static ng_rcvdata_t	ng_patch_rcvdata;
 static ng_disconnect_t	ng_patch_disconnect;
 
-#define OFFSETOF(s, e) ((char *)&((s *)0)->e - (char *)((s *)0))
+#define	OFFSETOF(s, e) ((char *)&((s *)0)->e - (char *)((s *)0))
 
 static int
-ng_patch_config_getlen(const struct ng_parse_type *type, const u_char *start,
-    const u_char *buf)
+ng_patch_config_getlen(const struct ng_parse_type *type,
+    const u_char *start, const u_char *buf)
 {
 	const struct ng_patch_config *p;
 
@@ -158,7 +158,7 @@ struct ng_patch_priv {
 };
 typedef struct ng_patch_priv *priv_p;
 
-#define NG_PATCH_CONF_SIZE(count)	(sizeof(struct ng_patch_config) + \
+#define	NG_PATCH_CONF_SIZE(count)	(sizeof(struct ng_patch_config) + \
 		(count) * sizeof(struct ng_patch_op))
 
 static void do_patch(priv_p conf, struct mbuf *m);
@@ -195,12 +195,14 @@ static int
 ng_patch_rcvmsg(node_p node, item_p item, hook_p lasthook)
 {
 	const priv_p privp = NG_NODE_PRIVATE(node);
-	struct ng_patch_config *conf;
+	struct ng_patch_config *conf, *newconf;
+	union patch_val *newval;
 	struct ng_mesg *msg;
-	struct ng_mesg *resp = NULL;
-	int i, clear = 0;
-	int error = 0;
+	struct ng_mesg *resp;
+	int i, clear, error;
 
+	clear = error = 0;
+	resp = NULL;
 	NGI_GET_MSG(item, msg);
 	switch (msg->header.typecookie) {
 	case NGM_PATCH_COOKIE:
@@ -215,16 +217,15 @@ ng_patch_rcvmsg(node_p node, item_p item, hook_p lasthook)
 			break;
 		case NGM_PATCH_SETCONFIG:
 		    {
-			struct ng_patch_config *newconf;
-			union patch_val *newval;
-
-			if (msg->header.arglen < sizeof(struct ng_patch_config)) {
+			if (msg->header.arglen <
+			    sizeof(struct ng_patch_config)) {
 				error = EINVAL;
 				break;
 			}
 
 			conf = (struct ng_patch_config *)msg->data;
-			if (msg->header.arglen < NG_PATCH_CONF_SIZE(conf->count)) {
+			if (msg->header.arglen <
+			    NG_PATCH_CONF_SIZE(conf->count)) {
 				error = EINVAL;
 				break;
 			}
@@ -248,27 +249,34 @@ ng_patch_rcvmsg(node_p node, item_p item, hook_p lasthook)
 			    CSUM_SCTP;
 
 			if (error == 0) {
-				newconf = malloc(NG_PATCH_CONF_SIZE(conf->count),
+				newconf = malloc(
+				    NG_PATCH_CONF_SIZE(conf->count),
 				    M_NETGRAPH, M_WAIT);
-				newval = malloc(conf->count * sizeof(union patch_val),
-				    M_NETGRAPH, M_WAIT);
+				newval = malloc(conf->count *
+				    sizeof(union patch_val), M_NETGRAPH,
+				    M_WAIT);
 				for(i = 0; i < conf->count; i++) {
 					switch (conf->ops[i].length) {
 					case 1:
-						newval[i].v1 = conf->ops[i].value;
+						newval[i].v1 =
+						    conf->ops[i].value;
 						break;
 					case 2:
-						newval[i].v2 = conf->ops[i].value;
+						newval[i].v2 =
+						    conf->ops[i].value;
 						break;
 					case 4:
-						newval[i].v4 = conf->ops[i].value;
+						newval[i].v4 =
+						    conf->ops[i].value;
 						break;
 					case 8:
-						newval[i].v8 = conf->ops[i].value;
+						newval[i].v8 =
+						    conf->ops[i].value;
 						break;
 					}
 				}
-				bcopy(conf, newconf, NG_PATCH_CONF_SIZE(conf->count));
+				bcopy(conf, newconf,
+				    NG_PATCH_CONF_SIZE(conf->count));
 				if (privp->val != NULL)
 					free(privp->val, M_NETGRAPH);
 				privp->val = newval;
@@ -310,12 +318,15 @@ ng_patch_rcvmsg(node_p node, item_p item, hook_p lasthook)
 static void
 do_patch(priv_p privp, struct mbuf *m)
 {
-	struct ng_patch_config *conf = privp->config;
+	struct ng_patch_config *conf;
 	uint64_t buf;
-	int i, patched = 0;
+	int i, patched;
 
+	conf = privp->config;
+	patched = 0;
 	for(i = 0; i < conf->count; i++) {
-		if (conf->ops[i].offset + conf->ops[i].length > m->m_pkthdr.len)
+		if (conf->ops[i].offset + conf->ops[i].length >
+		    m->m_pkthdr.len)
 			continue;
 
 		/* for "=" operation we don't need to copy data from mbuf */
@@ -323,7 +334,7 @@ do_patch(priv_p privp, struct mbuf *m)
 			m_copydata(m, conf->ops[i].offset,
 			    conf->ops[i].length, (caddr_t)&buf);
 		}
-		
+
 		switch (conf->ops[i].length) {
 		case 1:
 			switch (conf->ops[i].mode) {
@@ -550,16 +561,17 @@ ng_patch_shutdown(node_p node)
 static int
 ng_patch_disconnect(hook_p hook)
 {
-	priv_p priv = NG_NODE_PRIVATE(NG_HOOK_NODE(hook));
+	priv_p priv;
 
+	priv = NG_NODE_PRIVATE(NG_HOOK_NODE(hook));
 	if (hook == priv->in) {
 		priv->in = NULL;
 	}
 	if (hook == priv->out) {
 		priv->out = NULL;
 	}
-	if ((NG_NODE_NUMHOOKS(NG_HOOK_NODE(hook)) == 0)
-	&& (NG_NODE_IS_VALID(NG_HOOK_NODE(hook)))) /* already shutting down? */
+	if (NG_NODE_NUMHOOKS(NG_HOOK_NODE(hook)) == 0 &&
+	    NG_NODE_IS_VALID(NG_HOOK_NODE(hook))) /* already shutting down? */
 		ng_rmnode_self(NG_HOOK_NODE(hook));
 	return (0);
 }
