@@ -2561,6 +2561,8 @@ struct bge_chain_data {
 	struct mbuf		*bge_tx_chain[BGE_TX_RING_CNT];
 	struct mbuf		*bge_rx_std_chain[BGE_STD_RX_RING_CNT];
 	struct mbuf		*bge_rx_jumbo_chain[BGE_JUMBO_RX_RING_CNT];
+	int			bge_rx_std_seglen[BGE_STD_RX_RING_CNT];
+	int			bge_rx_jumbo_seglen[BGE_JUMBO_RX_RING_CNT][4];
 };
 
 struct bge_dmamap_arg {
