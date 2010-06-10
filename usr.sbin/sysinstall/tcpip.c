@@ -732,6 +732,9 @@ tcpDeviceSelect(void)
 	return (NULL);
     }
 
+    devs = deviceFind(NULL, DEVICE_TYPE_NETWORK);
+    cnt = deviceCount(devs); 
+
     if ((!RunningAsInit) && (variable_check("NETWORK_CONFIGURED=NO") != TRUE)) {
 	if (!msgYesNo("Running multi-user, assume that the network is already configured?"))
 	    return devs[0];
