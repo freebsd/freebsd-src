@@ -547,21 +547,17 @@ vm_pageout_flush(vm_page_t *mc, int count, int flags)
 /*
  *	vm_pageout_object_deactivate_pages
  *
- *	deactivate enough pages to satisfy the inactive target
- *	requirements or if vm_page_proc_limit is set, then
- *	deactivate all of the pages in the object and its
- *	backing_objects.
+ *	Deactivate enough pages to satisfy the inactive target
+ *	requirements.
  *
  *	The object and map must be locked.
  */
 static void
-vm_pageout_object_deactivate_pages(pmap, first_object, desired)
-	pmap_t pmap;
-	vm_object_t first_object;
-	long desired;
+vm_pageout_object_deactivate_pages(pmap_t pmap, vm_object_t first_object,
+    long desired)
 {
 	vm_object_t backing_object, object;
-	vm_page_t p, next;
+	vm_page_t p;
 	int actcount, remove_mode;
 
 	VM_OBJECT_LOCK_ASSERT(first_object, MA_OWNED);
@@ -579,61 +575,57 @@ vm_pageout_object_deactivate_pages(pmap, first_object, desired)
 		if (object->shadow_count > 1)
 			remove_mode = 1;
 		/*
-		 * scan the objects entire memory queue
+		 * Scan the object's entire memory queue.
 		 */
-		p = TAILQ_FIRST(&object->memq);
-		while (p != NULL) {
+		TAILQ_FOREACH(p, &object->memq, listq) {
 			if (pmap_resident_count(pmap) <= desired)
 				goto unlock_return;
-			next = TAILQ_NEXT(p, listq);
-			if ((p->oflags & VPO_BUSY) != 0 || p->busy != 0) {
-				p = next;
+			if ((p->oflags & VPO_BUSY) != 0 || p->busy != 0)
 				continue;
-			}
+			PCPU_INC(cnt.v_pdpages);
 			vm_page_lock(p);
-			vm_page_lock_queues();
-			cnt.v_pdpages++;
-			if (p->wire_count != 0 ||
-			    p->hold_count != 0 ||
+			if (p->wire_count != 0 || p->hold_count != 0 ||
 			    !pmap_page_exists_quick(pmap, p)) {
-				vm_page_unlock_queues();
 				vm_page_unlock(p);
-				p = next;
 				continue;
 			}
 			actcount = pmap_ts_referenced(p);
-			if (actcount) {
-				vm_page_flag_set(p, PG_REFERENCED);
-			} else if (p->flags & PG_REFERENCED) {
-				actcount = 1;
+			if ((p->flags & PG_REFERENCED) != 0) {
+				if (actcount == 0)
+					actcount = 1;
+				vm_page_lock_queues();
+				vm_page_flag_clear(p, PG_REFERENCED);
+				vm_page_unlock_queues();
 			}
-			if ((p->queue != PQ_ACTIVE) &&
-				(p->flags & PG_REFERENCED)) {
+			if (p->queue != PQ_ACTIVE && actcount != 0) {
 				vm_page_activate(p);
 				p->act_count += actcount;
-				vm_page_flag_clear(p, PG_REFERENCED);
 			} else if (p->queue == PQ_ACTIVE) {
-				if ((p->flags & PG_REFERENCED) == 0) {
-					p->act_count -= min(p->act_count, ACT_DECLINE);
-					if (!remove_mode && (vm_pageout_algorithm || (p->act_count == 0))) {
+				if (actcount == 0) {
+					p->act_count -= min(p->act_count,
+					    ACT_DECLINE);
+					if (!remove_mode &&
+					    (vm_pageout_algorithm ||
+					    p->act_count == 0)) {
 						pmap_remove_all(p);
 						vm_page_deactivate(p);
 					} else {
+						vm_page_lock_queues();
 						vm_page_requeue(p);
+						vm_page_unlock_queues();
 					}
 				} else {
 					vm_page_activate(p);
-					vm_page_flag_clear(p, PG_REFERENCED);
-					if (p->act_count < (ACT_MAX - ACT_ADVANCE))
+					if (p->act_count < ACT_MAX -
+					    ACT_ADVANCE)
 						p->act_count += ACT_ADVANCE;
+					vm_page_lock_queues();
 					vm_page_requeue(p);
+					vm_page_unlock_queues();
 				}
-			} else if (p->queue == PQ_INACTIVE) {
+			} else if (p->queue == PQ_INACTIVE)
 				pmap_remove_all(p);
-			}
-			vm_page_unlock_queues();
 			vm_page_unlock(p);
-			p = next;
 		}
 		if ((backing_object = object->backing_object) == NULL)
 			goto unlock_return;
