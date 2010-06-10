@@ -141,6 +141,10 @@ mips_ipi_handler(void *arg)
 			atomic_clear_int(&stopped_cpus, cpumask);
 			CTR0(KTR_SMP, "IPI_STOP (restart)");
 			break;
+		case IPI_PREEMPT:
+			CTR1(KTR_SMP, "%s: IPI_PREEMPT", __func__);
+			sched_preempt(curthread);
+			break;
 		default:
 			panic("Unknown IPI 0x%0x on cpu %d", ipi, curcpu);
 		}
@@ -156,6 +160,8 @@ start_ap(int cpuid)
 
 	cpus = mp_naps;
 	dpcpu = (void *)kmem_alloc(kernel_map, DPCPU_SIZE);
+
+	mips_sync();
 
 	if (platform_start_ap(cpuid) != 0)
 		return (-1);			/* could not start AP */
@@ -190,8 +196,7 @@ cpu_mp_announce(void)
 struct cpu_group *
 cpu_topo(void)
 {
-
-	return (smp_topo_none());
+	return (platform_smp_topo());
 }
 
 int
@@ -232,8 +237,6 @@ cpu_mp_start(void)
 void
 smp_init_secondary(u_int32_t cpuid)
 {
-	int ipi_int_mask, clock_int_mask;
-
 	/* TLB */
 	Mips_SetWIRED(0);
 	Mips_TLBFlush(num_tlbentries);
@@ -245,6 +248,8 @@ smp_init_secondary(u_int32_t cpuid)
 	 */
 	mips_dcache_wbinv_all();
 	mips_icache_sync_all();
+
+	mips_sync();
 
 	MachSetPID(0);
 
@@ -285,18 +290,11 @@ smp_init_secondary(u_int32_t cpuid)
 		; /* nothing */
 
 	/*
-	 * Unmask the clock and ipi interrupts.
-	 */
-	clock_int_mask = hard_int_mask(5);
-	ipi_int_mask = hard_int_mask(platform_ipi_intrnum());
-	set_intr_mask(ALL_INT_MASK & ~(ipi_int_mask | clock_int_mask));
-
-	/*
 	 * Bootstrap the compare register.
 	 */
 	mips_wr_compare(mips_rd_count() + counter_freq / hz);
 
-	enableintr();
+	intr_enable();
 
 	/* enter the scheduler */
 	sched_throw(NULL);

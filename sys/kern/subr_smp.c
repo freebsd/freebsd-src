@@ -137,6 +137,8 @@ static void
 mp_start(void *dummy)
 {
 
+	mtx_init(&smp_ipi_mtx, "smp rendezvous", NULL, MTX_SPIN);
+
 	/* Probe for MP hardware. */
 	if (smp_disabled != 0 || cpu_mp_probe() == 0) {
 		mp_ncpus = 1;
@@ -144,7 +146,6 @@ mp_start(void *dummy)
 		return;
 	}
 
-	mtx_init(&smp_ipi_mtx, "smp rendezvous", NULL, MTX_SPIN);
 	cpu_mp_start();
 	printf("FreeBSD/SMP: Multiprocessor System Detected: %d CPUs\n",
 	    mp_ncpus);
@@ -502,7 +503,10 @@ smp_topo_none(void)
 	top = &group[0];
 	top->cg_parent = NULL;
 	top->cg_child = NULL;
-	top->cg_mask = (1 << mp_ncpus) - 1;
+	if (mp_ncpus == sizeof(top->cg_mask) * 8)
+		top->cg_mask = -1;
+	else
+		top->cg_mask = (1 << mp_ncpus) - 1;
 	top->cg_count = mp_ncpus;
 	top->cg_children = 0;
 	top->cg_level = CG_SHARE_NONE;

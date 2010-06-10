@@ -328,7 +328,6 @@ cpu_startup(dummy)
 #ifndef XEN
 	cpu_setregs();
 #endif
-	mca_init();
 }
 
 /*
@@ -633,6 +632,13 @@ sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	sf.sf_uc.uc_mcontext.mc_gs = rgs();
 	bcopy(regs, &sf.sf_uc.uc_mcontext.mc_fs, sizeof(*regs));
 	sf.sf_uc.uc_mcontext.mc_len = sizeof(sf.sf_uc.uc_mcontext); /* magic */
+
+	/*
+	 * The get_fpcontext() call must be placed before assignments
+	 * to mc_fsbase and mc_gsbase due to the alignment-override
+	 * code in get_fpcontext() that possibly clobbers 12 bytes of
+	 * mcontext after mc_fpstate.
+	 */
 	get_fpcontext(td, &sf.sf_uc.uc_mcontext);
 	fpstate_drop(td);
 	/*
@@ -3179,12 +3185,12 @@ fill_fpregs(struct thread *td, struct fpreg *fpregs)
 {
 #ifdef CPU_ENABLE_SSE
 	if (cpu_fxsr) {
-		fill_fpregs_xmm(&td->td_pcb->pcb_save.sv_xmm,
+		fill_fpregs_xmm(&td->td_pcb->pcb_user_save.sv_xmm,
 						(struct save87 *)fpregs);
 		return (0);
 	}
 #endif /* CPU_ENABLE_SSE */
-	bcopy(&td->td_pcb->pcb_save.sv_87, fpregs, sizeof *fpregs);
+	bcopy(&td->td_pcb->pcb_user_save.sv_87, fpregs, sizeof *fpregs);
 	return (0);
 }
 
@@ -3194,11 +3200,11 @@ set_fpregs(struct thread *td, struct fpreg *fpregs)
 #ifdef CPU_ENABLE_SSE
 	if (cpu_fxsr) {
 		set_fpregs_xmm((struct save87 *)fpregs,
-					   &td->td_pcb->pcb_save.sv_xmm);
+		    &td->td_pcb->pcb_user_save.sv_xmm);
 		return (0);
 	}
 #endif /* CPU_ENABLE_SSE */
-	bcopy(fpregs, &td->td_pcb->pcb_save.sv_87, sizeof *fpregs);
+	bcopy(fpregs, &td->td_pcb->pcb_user_save.sv_87, sizeof *fpregs);
 	return (0);
 }
 
@@ -3240,6 +3246,13 @@ get_mcontext(struct thread *td, mcontext_t *mcp, int flags)
 	mcp->mc_esp = tp->tf_esp;
 	mcp->mc_ss = tp->tf_ss;
 	mcp->mc_len = sizeof(*mcp);
+
+	/*
+	 * The get_fpcontext() call must be placed before assignments
+	 * to mc_fsbase and mc_gsbase due to the alignment-override
+	 * code in get_fpcontext() that possibly clobbers 12 bytes of
+	 * mcontext after mc_fpstate.
+	 */
 	get_fpcontext(td, mcp);
 	sdp = &td->td_pcb->pcb_gsd;
 	mcp->mc_fsbase = sdp->sd_hibase << 24 | sdp->sd_lobase;
@@ -3318,7 +3331,7 @@ get_fpcontext(struct thread *td, mcontext_t *mcp)
 			addr = (void *)((char *)addr + 4);
 		while ((uintptr_t)(void *)addr & 0xF);
 	}
-	mcp->mc_ownedfp = npxgetregs(td, addr);
+	mcp->mc_ownedfp = npxgetuserregs(td, addr);
 	if (addr != (union savefpu *)&mcp->mc_fpstate) {
 		bcopy(addr, &mcp->mc_fpstate, sizeof(mcp->mc_fpstate));
 		bzero(&mcp->mc_spare2, sizeof(mcp->mc_spare2));
@@ -3363,7 +3376,7 @@ set_fpcontext(struct thread *td, const mcontext_t *mcp)
 		 * XXX we violate the dubious requirement that npxsetregs()
 		 * be called with interrupts disabled.
 		 */
-		npxsetregs(td, addr);
+		npxsetuserregs(td, addr);
 #endif
 		/*
 		 * Don't bother putting things back where they were in the
@@ -3380,6 +3393,7 @@ fpstate_drop(struct thread *td)
 {
 	register_t s;
 
+	KASSERT(PCB_USER_FPU(td->td_pcb), ("fpstate_drop: kernel-owned fpu"));
 	s = intr_disable();
 #ifdef DEV_NPX
 	if (PCPU_GET(fpcurthread) == td)
@@ -3395,7 +3409,8 @@ fpstate_drop(struct thread *td)
 	 * sendsig() is the only caller of npxgetregs()... perhaps we just
 	 * have too many layers.
 	 */
-	curthread->td_pcb->pcb_flags &= ~PCB_NPXINITDONE;
+	curthread->td_pcb->pcb_flags &= ~(PCB_NPXINITDONE |
+	    PCB_NPXUSERINITDONE);
 	intr_restore(s);
 }
 

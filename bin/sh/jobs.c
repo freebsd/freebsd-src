@@ -91,6 +91,7 @@ STATIC void freejob(struct job *);
 STATIC struct job *getjob(char *);
 STATIC pid_t dowait(int, struct job *);
 STATIC pid_t waitproc(int, int *);
+STATIC void checkzombies(void);
 STATIC void cmdtxt(union node *);
 STATIC void cmdputs(const char *);
 #if JOBS
@@ -400,7 +401,7 @@ showjobs(int change, int mode)
 	struct job *jp;
 
 	TRACE(("showjobs(%d) called\n", change));
-	while (dowait(0, (struct job *)NULL) > 0);
+	checkzombies();
 	for (jobno = 1, jp = jobtab ; jobno <= njobs ; jobno++, jp++) {
 		if (! jp->used)
 			continue;
@@ -742,6 +743,8 @@ forkshell(struct job *jp, union node *n, int mode)
 	TRACE(("forkshell(%%%d, %p, %d) called\n", jp - jobtab, (void *)n,
 	    mode));
 	INTOFF;
+	if (mode == FORK_BG)
+		checkzombies();
 	flushall();
 	pid = fork();
 	if (pid == -1) {
@@ -863,6 +866,7 @@ waitforjob(struct job *jp, int *origstatus)
 {
 #if JOBS
 	pid_t mypgrp = getpgrp();
+	int propagate_int = jp->jobctl && jp->foreground;
 #endif
 	int status;
 	int st;
@@ -900,6 +904,11 @@ waitforjob(struct job *jp, int *origstatus)
 		else
 			CLEAR_PENDING_INT;
 	}
+#if JOBS
+	else if (rootshell && iflag && propagate_int &&
+			WIFSIGNALED(status) && WTERMSIG(status) == SIGINT)
+		kill(getpid(), SIGINT);
+#endif
 	INTON;
 	return st;
 }
@@ -1055,6 +1064,15 @@ stoppedjobs(void)
 
 	return (0);
 }
+
+
+STATIC void
+checkzombies(void)
+{
+	while (njobs > 0 && dowait(0, NULL) > 0)
+		;
+}
+
 
 /*
  * Return a string identifying a command (to be printed by the

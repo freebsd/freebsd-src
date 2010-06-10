@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 17, 2004
+.Dd May 5, 2010
 .Dt NG_HUB 4
 .Os
 .Sh NAME
@@ -45,11 +45,20 @@ A
 node accepts any request to connect, regardless of the hook name,
 as long as the name is unique.
 .Sh CONTROL MESSAGES
-This node type supports only the generic control messages.
+This node type supports the generic control messages, plus the
+following:
+.Bl -tag -width foo
+.It Dv NGM_HUB_SET_PERSISTENT
+This command sets the persistent flag on the node, and takes no arguments.
+.El
 .Sh SHUTDOWN
 This node shuts down upon receipt of a
 .Dv NGM_SHUTDOWN
-control message, or when all hooks have been disconnected.
+control message, or when all hooks have been disconnected.  Setting the
+persistent flag via a
+.Dv NGM_HUB_SET_PERSISTENT
+control message disables automatic node shutdown when the last hook gets
+disconnected.
 .Sh SEE ALSO
 .Xr netgraph 4 ,
 .Xr ng_bridge 4 ,

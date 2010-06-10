@@ -28,7 +28,7 @@
 .\"     @(#)unlink.2	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd April 10, 2008
+.Dd April 25, 2010
 .Dt UNLINK 2
 .Os
 .Sh NAME
@@ -167,7 +167,7 @@ argument does not specify an absolute path and the
 argument is neither
 .Dv AT_FDCWD
 nor a valid file descriptor open for searching.
-.It Bq Er EEXIST
+.It Bq Er ENOTEMPTY
 The
 .Fa flag
 parameter has the

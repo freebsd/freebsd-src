@@ -39,6 +39,7 @@ The client has more to configure, with the following flags:
 
   -c <remoteIP>                Select client mode, and specific dest IP
   -C                           Print connections/second instead of GBps
+  -P                           Pin each worker to a CPU
   -M <localIPcount>            Number of sequential local IPs to use; req. -l
   -T                           Include CPU use summary in stats at end of run
   -b <bytespertcp>             Data bytes per connection

@@ -436,6 +436,7 @@ gctl_delete_param(struct gctl_req *req, const char *name)
 	if (i == req->narg)
 		return (ENOENT);
 
+	free(ap->name);
 	req->narg--;
 	while (i < req->narg) {
 		req->arg[i] = req->arg[i + 1];

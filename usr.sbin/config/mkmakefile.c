@@ -105,17 +105,14 @@ new_fent(void)
 }
 
 /*
- * Build the makefile from the skeleton
+ * Open the correct Makefile and return it, or error out.
  */
-void
-makefile(void)
+FILE *
+open_makefile_template(void)
 {
-	FILE *ifp, *ofp;
+	FILE *ifp;
 	char line[BUFSIZ];
-	struct opt *op, *t;
-	int versreq;
 
-	read_files();
 	snprintf(line, sizeof(line), "../../conf/Makefile.%s", machinename);
 	ifp = fopen(line, "r");
 	if (ifp == 0) {
@@ -124,7 +121,21 @@ makefile(void)
 	}
 	if (ifp == 0)
 		err(1, "%s", line);
+	return (ifp);
+}
 
+/*
+ * Build the makefile from the skeleton
+ */
+void
+makefile(void)
+{
+	FILE *ifp, *ofp;
+	char line[BUFSIZ];
+	struct opt *op, *t;
+
+	read_files();
+	ifp = open_makefile_template();
 	ofp = fopen(path("Makefile.new"), "w");
 	if (ofp == 0)
 		err(1, "%s", path("Makefile.new"));
@@ -156,23 +167,9 @@ makefile(void)
 			do_rules(ofp);
 		else if (eq(line, "%CLEAN\n"))
 			do_clean(ofp);
-		else if (strncmp(line, "%VERSREQ=", sizeof("%VERSREQ=") - 1) == 0) {
-			versreq = atoi(line + sizeof("%VERSREQ=") - 1);
-			if (MAJOR_VERS(versreq) != MAJOR_VERS(CONFIGVERS) ||
-			    versreq > CONFIGVERS) {
-				fprintf(stderr, "ERROR: version of config(8) does not match kernel!\n");
-				fprintf(stderr, "config version = %d, ", CONFIGVERS);
-				fprintf(stderr, "version required = %d\n\n", versreq);
-				fprintf(stderr, "Make sure that /usr/src/usr.sbin/config is in sync\n");
-				fprintf(stderr, "with your /usr/src/sys and install a new config binary\n");
-				fprintf(stderr, "before trying this again.\n\n");
-				fprintf(stderr, "If running the new config fails check your config\n");
-				fprintf(stderr, "file against the GENERIC or LINT config files for\n");
-				fprintf(stderr, "changes in config syntax, or option/device naming\n");
-				fprintf(stderr, "conventions\n\n");
-				exit(1);
-			}
-		} else
+		else if (strncmp(line, "%VERSREQ=", 9) == 0)
+			line[0] = '\0'; /* handled elsewhere */
+		else
 			fprintf(stderr,
 			    "Unknown %% construct in generic makefile: %s",
 			    line);
@@ -741,7 +738,7 @@ do_rules(FILE *f)
 				printf("config: don't know rules for %s\n", np);
 				break;
 			}
-			snprintf(cmd, sizeof(cmd), "${%s_%c%s}\n.if defined(NORMAL_CTFCONVERT) && !empty(NORMAL_CTFCONVERT)\n\t${NORMAL_CTFCONVERT}\n.endif", ftype,
+			snprintf(cmd, sizeof(cmd), "${%s_%c%s}\n\t@${NORMAL_CTFCONVERT}", ftype,
 			    toupper(och),
 			    ftp->f_flags & NOWERROR ? "_NOWERROR" : "");
 			compilewith = cmd;

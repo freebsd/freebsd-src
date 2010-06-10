@@ -449,7 +449,7 @@ The
 .Vt double
 argument is rounded and converted in the style
 .Sm off
-.Oo \- Oc Ar d Li \&. Ar ddd Li e \\*[Pm] Ar dd
+.Oo \- Oc Ar d Li \&. Ar ddd Li e \(+- Ar dd
 .Sm on
 where there is one digit before the
 decimal-point character
@@ -525,7 +525,7 @@ The
 .Vt double
 argument is rounded and converted to hexadecimal notation in the style
 .Sm off
-.Oo \- Oc Li 0x Ar h Li \&. Ar hhhp Oo \\*[Pm] Oc Ar d ,
+.Oo \- Oc Li 0x Ar h Li \&. Ar hhhp Oo \(+- Oc Ar d ,
 .Sm on
 where the number of digits after the hexadecimal-point character
 is equal to the precision specification.
@@ -709,77 +709,6 @@ char *newfmt(const char *fmt, ...)
 	return (p);
 }
 .Ed
-.Sh SECURITY CONSIDERATIONS
-The
-.Fn sprintf
-and
-.Fn vsprintf
-functions are easily misused in a manner which enables malicious users
-to arbitrarily change a running program's functionality through
-a buffer overflow attack.
-Because
-.Fn sprintf
-and
-.Fn vsprintf
-assume an infinitely long string,
-callers must be careful not to overflow the actual space;
-this is often hard to assure.
-For safety, programmers should use the
-.Fn snprintf
-interface instead.
-For example:
-.Bd -literal
-void
-foo(const char *arbitrary_string, const char *and_another)
-{
-	char onstack[8];
-
-#ifdef BAD
-	/*
-	 * This first sprintf is bad behavior.  Do not use sprintf!
-	 */
-	sprintf(onstack, "%s, %s", arbitrary_string, and_another);
-#else
-	/*
-	 * The following two lines demonstrate better use of
-	 * snprintf().
-	 */
-	snprintf(onstack, sizeof(onstack), "%s, %s", arbitrary_string,
-	    and_another);
-#endif
-}
-.Ed
-.Pp
-The
-.Fn printf
-and
-.Fn sprintf
-family of functions are also easily misused in a manner
-allowing malicious users to arbitrarily change a running program's
-functionality by either causing the program
-to print potentially sensitive data
-.Dq "left on the stack" ,
-or causing it to generate a memory fault or bus error
-by dereferencing an invalid pointer.
-.Pp
-.Cm %n
-can be used to write arbitrary data to potentially carefully-selected
-addresses.
-Programmers are therefore strongly advised to never pass untrusted strings
-as the
-.Fa format
-argument, as an attacker can put format specifiers in the string
-to mangle your stack,
-leading to a possible security hole.
-This holds true even if the string was built using a function like
-.Fn snprintf ,
-as the resulting string may still contain user-supplied conversion specifiers
-for later interpolation by
-.Fn printf .
-.Pp
-Always use the proper secure idiom:
-.Pp
-.Dl "snprintf(buffer, sizeof(buffer), \*q%s\*q, string);"
 .Sh COMPATIBILITY
 Many application writers used the name
 .Va dprintf
@@ -906,3 +835,74 @@ The
 family of functions do not correctly handle multibyte characters in the
 .Fa format
 argument.
+.Sh SECURITY CONSIDERATIONS
+The
+.Fn sprintf
+and
+.Fn vsprintf
+functions are easily misused in a manner which enables malicious users
+to arbitrarily change a running program's functionality through
+a buffer overflow attack.
+Because
+.Fn sprintf
+and
+.Fn vsprintf
+assume an infinitely long string,
+callers must be careful not to overflow the actual space;
+this is often hard to assure.
+For safety, programmers should use the
+.Fn snprintf
+interface instead.
+For example:
+.Bd -literal
+void
+foo(const char *arbitrary_string, const char *and_another)
+{
+	char onstack[8];
+
+#ifdef BAD
+	/*
+	 * This first sprintf is bad behavior.  Do not use sprintf!
+	 */
+	sprintf(onstack, "%s, %s", arbitrary_string, and_another);
+#else
+	/*
+	 * The following two lines demonstrate better use of
+	 * snprintf().
+	 */
+	snprintf(onstack, sizeof(onstack), "%s, %s", arbitrary_string,
+	    and_another);
+#endif
+}
+.Ed
+.Pp
+The
+.Fn printf
+and
+.Fn sprintf
+family of functions are also easily misused in a manner
+allowing malicious users to arbitrarily change a running program's
+functionality by either causing the program
+to print potentially sensitive data
+.Dq "left on the stack" ,
+or causing it to generate a memory fault or bus error
+by dereferencing an invalid pointer.
+.Pp
+.Cm %n
+can be used to write arbitrary data to potentially carefully-selected
+addresses.
+Programmers are therefore strongly advised to never pass untrusted strings
+as the
+.Fa format
+argument, as an attacker can put format specifiers in the string
+to mangle your stack,
+leading to a possible security hole.
+This holds true even if the string was built using a function like
+.Fn snprintf ,
+as the resulting string may still contain user-supplied conversion specifiers
+for later interpolation by
+.Fn printf .
+.Pp
+Always use the proper secure idiom:
+.Pp
+.Dl "snprintf(buffer, sizeof(buffer), \*q%s\*q, string);"

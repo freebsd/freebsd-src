@@ -315,10 +315,6 @@
 #  endif
 #endif
 
-#ifdef HAVE_VISIBILITY_PRAGMA
-#  define ZEXTERN __attribute__((visibility ("default"))) extern
-#endif
-
 #ifndef ZEXTERN
 #  define ZEXTERN extern
 #endif
@@ -364,8 +360,21 @@ typedef uLong FAR uLongf;
 #  define Z_HAVE_UNISTD_H
 #endif
 
-#if defined(Z_HAVE_UNISTD_H)
+#ifdef STDC
 #  include <sys/types.h>    /* for off_t */
+#endif
+
+/* a little trick to accommodate both "#define _LARGEFILE64_SOURCE" and
+ * "#define _LARGEFILE64_SOURCE 1" as requesting 64-bit operations, (even
+ * though the former does not conform to the LFS document), but considering
+ * both "#undef _LARGEFILE64_SOURCE" and "#define _LARGEFILE64_SOURCE 0" as
+ * equivalently requesting no 64-bit operations
+ */
+#if -_LARGEFILE64_SOURCE - -1 == 1
+#  undef _LARGEFILE64_SOURCE
+#endif
+
+#if defined(Z_HAVE_UNISTD_H) || defined(_LARGEFILE64_SOURCE)
 #  include <unistd.h>       /* for SEEK_* and off_t */
 #  ifdef VMS
 #    include <unixio.h>     /* for off_t */
@@ -384,7 +393,6 @@ typedef uLong FAR uLongf;
 /*
  * This is hard-configured for FreeBSD.
  */
-#include <sys/types.h>
 #define	z_off_t	off_t
 #ifndef _FILE_OFFSET_BITS
 #define _FILE_OFFSET_BITS 64
@@ -392,6 +400,12 @@ typedef uLong FAR uLongf;
 
 #ifndef z_off_t
 #  define z_off_t long
+#endif
+
+#if defined(_LARGEFILE64_SOURCE) && _LFS64_LARGEFILE-0
+#  define z_off64_t off64_t
+#else
+#  define z_off64_t z_off_t
 #endif
 
 #if defined(__OS400__)

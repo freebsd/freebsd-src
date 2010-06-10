@@ -831,8 +831,8 @@ static int cx_attach (device_t dev)
 			cx_bus_dma_mem_free (&d->dmamem);
 			continue;
 		}
-		d->lo_queue.ifq_maxlen = IFQ_MAXLEN;
-		d->hi_queue.ifq_maxlen = IFQ_MAXLEN;
+		d->lo_queue.ifq_maxlen = ifqmaxlen;
+		d->hi_queue.ifq_maxlen = ifqmaxlen;
 		mtx_init (&d->lo_queue.ifq_mtx, "cx_queue_lo", NULL, MTX_DEF);
 		mtx_init (&d->hi_queue.ifq_mtx, "cx_queue_hi", NULL, MTX_DEF);
 #else /*NETGRAPH*/

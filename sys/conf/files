@@ -174,6 +174,8 @@ contrib/dev/acpica/dispatcher/dswstate.c	optional acpi
 contrib/dev/acpica/events/evevent.c		optional acpi
 contrib/dev/acpica/events/evgpe.c		optional acpi
 contrib/dev/acpica/events/evgpeblk.c		optional acpi
+contrib/dev/acpica/events/evgpeinit.c		optional acpi
+contrib/dev/acpica/events/evgpeutil.c		optional acpi
 contrib/dev/acpica/events/evmisc.c		optional acpi
 contrib/dev/acpica/events/evregion.c		optional acpi
 contrib/dev/acpica/events/evrgnini.c		optional acpi
@@ -1291,6 +1293,9 @@ dev/mpt/mpt_pci.c		optional mpt pci
 dev/mpt/mpt_raid.c		optional mpt
 dev/mpt/mpt_user.c		optional mpt
 dev/msk/if_msk.c		optional msk inet
+dev/mvs/mvs.c			optional mvs
+dev/mvs/mvs_if.m		optional mvs
+dev/mvs/mvs_pci.c		optional mvs pci
 dev/mwl/if_mwl.c		optional mwl
 dev/mwl/if_mwl_pci.c		optional mwl pci
 dev/mwl/mwlhal.c		optional mwl
@@ -1776,6 +1781,7 @@ dev/usb/misc/udbp.c		optional udbp
 # USB input drivers
 #
 dev/usb/input/atp.c		optional atp
+dev/usb/input/uep.c		optional uep
 dev/usb/input/uhid.c		optional uhid
 dev/usb/input/ukbd.c		optional ukbd
 dev/usb/input/ums.c		optional ums
@@ -2161,7 +2167,7 @@ kern/sys_generic.c		standard
 kern/sys_pipe.c			standard
 kern/sys_process.c		standard
 kern/sys_socket.c		standard
-kern/syscalls.c			optional witness | invariants | kdtrace_hooks
+kern/syscalls.c			standard
 kern/sysv_ipc.c			standard
 kern/sysv_msg.c			optional sysvmsg
 kern/sysv_sem.c			optional sysvsem
@@ -2464,6 +2470,7 @@ netgraph/ng_mppc.c		optional netgraph_mppc_compression | \
 netgraph/ng_nat.c		optional netgraph_nat inet libalias
 netgraph/ng_one2many.c		optional netgraph_one2many
 netgraph/ng_parse.c		optional netgraph
+netgraph/ng_patch.c		optional netgraph_patch
 netgraph/ng_pipe.c		optional netgraph_pipe
 netgraph/ng_ppp.c		optional netgraph_ppp
 netgraph/ng_pppoe.c		optional netgraph_pppoe

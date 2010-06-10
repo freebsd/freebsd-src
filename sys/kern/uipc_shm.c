@@ -304,9 +304,7 @@ shm_dotruncate(struct shmfd *shmfd, off_t length)
 			 */
 			base = roundup2(base, DEV_BSIZE);
 
-			vm_page_lock_queues();
 			vm_page_clear_dirty(m, base, PAGE_SIZE - base);
-			vm_page_unlock_queues();
 		} else if ((length & PAGE_MASK) &&
 		    __predict_false(object->cache != NULL)) {
 			vm_page_cache_free(object, OFF_TO_IDX(length),

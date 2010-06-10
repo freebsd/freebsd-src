@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 14, 2010
+.Dd April 27, 2010
 .Dt RC.CONF 5
 .Os
 .Sh NAME
@@ -1303,6 +1303,13 @@ interface:
 ifconfig_ed0_ipv6="RTADV"
 .Ed
 .Pp
+To configure only a link-local address on the
+.Dq Li ed0
+interface:
+.Bd -literal
+ifconfig_ed0_ipv6="inet6 auto_linklocal"
+.Ed
+.Pp
 To disable RA the
 .Dq Li NORTADV
 option is available, although not required if manual
@@ -1363,7 +1370,7 @@ configured on that interface.
 If not set to
 .Dq Li NO ,
 this is the default output interface for scoped addresses.
-Now this works only for IPv6 link local multicast addresses.
+This works only with ipv6_gateway_enable="NO".
 .It Va ip6addrctl_enable
 .Pq Vt bool
 If set to

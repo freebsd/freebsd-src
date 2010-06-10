@@ -3,7 +3,7 @@
  * For conditions of distribution and use, see copyright notice in zlib.h
  */
 
-#if _LARGEFILE64_SOURCE == 1
+#ifdef _LARGEFILE64_SOURCE
 #  ifndef _LARGEFILE_SOURCE
 #    define _LARGEFILE_SOURCE 1
 #  endif
@@ -12,7 +12,11 @@
 #  endif
 #endif
 
-#define ZLIB_INTERNAL
+#if ((__GNUC__-0) * 10 + __GNUC_MINOR__-0 >= 33) && !defined(NO_VIZ)
+#  define ZLIB_INTERNAL __attribute__((visibility ("hidden")))
+#else
+#  define ZLIB_INTERNAL
+#endif
 
 #include <stdio.h>
 #include "zlib.h"
@@ -56,10 +60,12 @@
 #  endif
 #endif
 
-#if _LARGEFILE64_SOURCE == 1
-#  define z_off64_t off64_t
-#else
-#  define z_off64_t z_off_t
+/* provide prototypes for these when building zlib without LFS */
+#if !defined(_LARGEFILE64_SOURCE) || _LFS64_LARGEFILE-0 == 0
+    ZEXTERN gzFile ZEXPORT gzopen64 OF((const char *, const char *));
+    ZEXTERN z_off64_t ZEXPORT gzseek64 OF((gzFile, z_off64_t, int));
+    ZEXTERN z_off64_t ZEXPORT gztell64 OF((gzFile));
+    ZEXTERN z_off64_t ZEXPORT gzoffset64 OF((gzFile));
 #endif
 
 /* default i/o buffer size -- double this for output when reading */
@@ -110,9 +116,9 @@ typedef struct {
 typedef gz_state FAR *gz_statep;
 
 /* shared functions */
-ZEXTERN void ZEXPORT gz_error OF((gz_statep, int, const char *));
+void ZLIB_INTERNAL gz_error OF((gz_statep, int, const char *));
 #if defined UNDER_CE
-ZEXTERN char ZEXPORT *gz_strwinerror OF((DWORD error));
+char ZLIB_INTERNAL *gz_strwinerror OF((DWORD error));
 #endif
 
 /* GT_OFF(x), where x is an unsigned value, is true if x > maximum z_off64_t
@@ -121,6 +127,6 @@ ZEXTERN char ZEXPORT *gz_strwinerror OF((DWORD error));
 #ifdef INT_MAX
 #  define GT_OFF(x) (sizeof(int) == sizeof(z_off64_t) && (x) > INT_MAX)
 #else
-ZEXTERN unsigned ZEXPORT gz_intmax OF((void));
+unsigned ZLIB_INTERNAL gz_intmax OF((void));
 #  define GT_OFF(x) (sizeof(int) == sizeof(z_off64_t) && (x) > gz_intmax())
 #endif

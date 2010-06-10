@@ -124,7 +124,7 @@
 #define DISABLE_WTMPX 1
 
 /* Enable for PKCS#11 support */
-#define ENABLE_PKCS11 
+#define ENABLE_PKCS11 /**/
 
 /* Builtin PRNG command timeout */
 #define ENTROPY_TIMEOUT_MSEC 200
@@ -456,6 +456,9 @@
 /* Define to 1 if you have the `getutxline' function. */
 #define HAVE_GETUTXLINE 1
 
+/* Define to 1 if you have the `getutxuser' function. */
+#define HAVE_GETUTXUSER 1
+
 /* Define to 1 if you have the `get_default_context_with_level' function. */
 /* #undef HAVE_GET_DEFAULT_CONTEXT_WITH_LEVEL */
 
@@ -551,6 +554,9 @@
 
 /* Define if system has libiaf that supports set_id */
 /* #undef HAVE_LIBIAF */
+
+/* Define to 1 if you have the `network' library (-lnetwork). */
+/* #undef HAVE_LIBNETWORK */
 
 /* Define to 1 if you have the `nsl' library (-lnsl). */
 /* #undef HAVE_LIBNSL */
@@ -804,6 +810,9 @@
 
 /* Define to 1 if you have the `setutent' function. */
 /* #undef HAVE_SETUTENT */
+
+/* Define to 1 if you have the `setutxdb' function. */
+#define HAVE_SETUTXDB 1
 
 /* Define to 1 if you have the `setutxent' function. */
 #define HAVE_SETUTXENT 1
@@ -1416,8 +1425,8 @@
 /* Define if you want SELinux support. */
 /* #undef WITH_SELINUX */
 
-/* Define to 1 if your processor stores words with the most significant byte
-   first (like Motorola and SPARC, unlike Intel and VAX). */
+/* Define WORDS_BIGENDIAN to 1 if your processor stores words with the most
+   significant byte first (like Motorola and SPARC, unlike Intel and VAX). */
 #if defined __BIG_ENDIAN__
 # define WORDS_BIGENDIAN 1
 #elif ! defined __LITTLE_ENDIAN__

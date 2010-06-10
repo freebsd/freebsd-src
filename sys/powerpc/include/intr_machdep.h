@@ -30,6 +30,11 @@
 
 #define	INTR_VECTORS	256
 
+/*
+ * Default base address for MSI messages on PowerPC
+ */
+#define	MSI_INTEL_ADDR_BASE		0xfee00000
+
 extern device_t pic;
 extern device_t pic8259;
 

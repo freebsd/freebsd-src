@@ -133,8 +133,8 @@ lance_config(struct lance_softc *sc, const char* name, int unit)
 	ifp->if_flags &= ~IFF_MULTICAST;
 #endif
 	ifp->if_baudrate = IF_Mbps(10);
-	IFQ_SET_MAXLEN(&ifp->if_snd, IFQ_MAXLEN);
-	ifp->if_snd.ifq_drv_maxlen = IFQ_MAXLEN;
+	IFQ_SET_MAXLEN(&ifp->if_snd, ifqmaxlen);
+	ifp->if_snd.ifq_drv_maxlen = ifqmaxlen;
 	IFQ_SET_READY(&ifp->if_snd);
 
 	/* Initialize ifmedia structures. */

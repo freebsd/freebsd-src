@@ -376,7 +376,7 @@ The
 .Vt double
 argument is rounded and converted in the style
 .Sm off
-.Oo \- Oc Ar d Li \&. Ar ddd Li e \\*[Pm] Ar dd
+.Oo \- Oc Ar d Li \&. Ar ddd Li e \(+- Ar dd
 .Sm on
 where there is one digit before the
 decimal-point character
@@ -452,7 +452,7 @@ The
 .Vt double
 argument is converted to hexadecimal notation in the style
 .Sm off
-.Oo \- Oc Li 0x Ar h Li \&. Ar hhhp Oo \\*[Pm] Oc Ar d ,
+.Oo \- Oc Li 0x Ar h Li \&. Ar hhhp Oo \(+- Oc Ar d ,
 .Sm on
 where the number of digits after the hexadecimal-point character
 is equal to the precision specification.
@@ -588,9 +588,6 @@ In no case does a non-existent or small field width cause truncation of
 a numeric field; if the result of a conversion is wider than the field
 width, the
 field is expanded to contain the conversion result.
-.Sh SECURITY CONSIDERATIONS
-Refer to
-.Xr printf 3 .
 .Sh SEE ALSO
 .Xr btowc 3 ,
 .Xr fputws 3 ,
@@ -616,3 +613,6 @@ and
 functions
 conform to
 .St -isoC-99 .
+.Sh SECURITY CONSIDERATIONS
+Refer to
+.Xr printf 3 .

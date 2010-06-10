@@ -90,6 +90,7 @@ static void get_srcdir(void);
 static void usage(void);
 static void cleanheaders(char *);
 static void kernconfdump(const char *);
+static void checkversion(void);
 
 struct hdr_list {
 	char *h_name;
@@ -204,6 +205,7 @@ main(int argc, char **argv)
 		printf("cpu type must be specified\n");
 		exit(1);
 	}
+	checkversion();
 
 	/*
 	 * make symbolic links in compilation directory
@@ -668,7 +670,7 @@ kernconfdump(const char *file)
 	struct stat st;
 	FILE *fp, *pp;
 	int error, len, osz, r;
-	unsigned int i, off, size;
+	unsigned int i, off, size, t1, t2, align;
 	char *cmd, *o;
 
 	r = open(file, O_RDONLY);
@@ -687,8 +689,8 @@ kernconfdump(const char *file)
 	if (o == NULL)
 		err(EXIT_FAILURE, "Couldn't allocate memory");
 	/* ELF note section header. */
-	asprintf(&cmd, "/usr/bin/elfdump -c %s | grep -A 5 kern_conf"
-	    "| tail -2 | cut -d ' ' -f 2 | paste - - -", file);
+	asprintf(&cmd, "/usr/bin/elfdump -c %s | grep -A 8 kern_conf"
+	    "| tail -5 | cut -d ' ' -f 2 | paste - - - - -", file);
 	if (cmd == NULL)
 		errx(EXIT_FAILURE, "asprintf() failed");
 	pp = popen(cmd, "r");
@@ -697,27 +699,69 @@ kernconfdump(const char *file)
 	free(cmd);
 	len = fread(o, osz, 1, pp);
 	pclose(pp);
-	r = sscanf(o, "%d\t%d", &off, &size);
+	r = sscanf(o, "%d%d%d%d%d", &off, &size, &t1, &t2, &align);
 	free(o);
-	if (r != 2)
+	if (r != 5)
 		errx(EXIT_FAILURE, "File %s doesn't contain configuration "
 		    "file. Either unsupported, or not compiled with "
 		    "INCLUDE_CONFIG_FILE", file);
 	r = fseek(fp, off, SEEK_CUR);
 	if (r != 0)
 		err(EXIT_FAILURE, "fseek() failed");
-	for (i = 0; i < size - 1; i++) {
+	for (i = 0; i < size; i++) {
 		r = fgetc(fp);
 		if (r == EOF)
 			break;
 		/* 
 		 * If '\0' is present in the middle of the configuration
 		 * string, this means something very weird is happening.
-		 * Make such case very visible.
+		 * Make such case very visible.  However, some architectures
+		 * pad the length of the section with NULs to a multiple of
+		 * sh_addralign, allow a NUL in that part of the section.
 		 */
+		if (r == '\0' && (size - i) < align)
+			break;
 		assert(r != '\0' && ("Char present in the configuration "
 		    "string mustn't be equal to 0"));
 		fputc(r, stdout);
 	}
 	fclose(fp);
+}
+
+static void 
+badversion(int versreq)
+{
+	fprintf(stderr, "ERROR: version of config(8) does not match kernel!\n");
+	fprintf(stderr, "config version = %d, ", CONFIGVERS);
+	fprintf(stderr, "version required = %d\n\n", versreq);
+	fprintf(stderr, "Make sure that /usr/src/usr.sbin/config is in sync\n");
+	fprintf(stderr, "with your /usr/src/sys and install a new config binary\n");
+	fprintf(stderr, "before trying this again.\n\n");
+	fprintf(stderr, "If running the new config fails check your config\n");
+	fprintf(stderr, "file against the GENERIC or LINT config files for\n");
+	fprintf(stderr, "changes in config syntax, or option/device naming\n");
+	fprintf(stderr, "conventions\n\n");
+	exit(1);
+}
+
+static void
+checkversion(void)
+{
+	FILE *ifp;
+	char line[BUFSIZ];
+	int versreq;
+
+	ifp = open_makefile_template();
+	while (fgets(line, BUFSIZ, ifp) != 0) {
+		if (*line != '%')
+			continue;
+		if (strncmp(line, "%VERSREQ=", 9) != 0)
+			continue;
+		versreq = atoi(line + 9);
+		if (MAJOR_VERS(versreq) == MAJOR_VERS(CONFIGVERS) &&
+		    versreq <= CONFIGVERS)
+			continue;
+		badversion(versreq);
+	}
+	fclose(ifp);
 }

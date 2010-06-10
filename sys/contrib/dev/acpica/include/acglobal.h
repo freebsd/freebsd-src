@@ -216,11 +216,10 @@ ACPI_NAME                   AcpiGbl_TraceMethodName;
  ****************************************************************************/
 
 /*
- * AcpiGbl_RootTableList is the master list of ACPI tables found in the
- * RSDT/XSDT.
- *
+ * AcpiGbl_RootTableList is the master list of ACPI tables that were
+ * found in the RSDT/XSDT.
  */
-ACPI_EXTERN ACPI_INTERNAL_RSDT          AcpiGbl_RootTableList;
+ACPI_EXTERN ACPI_TABLE_LIST             AcpiGbl_RootTableList;
 ACPI_EXTERN ACPI_TABLE_FACS            *AcpiGbl_FACS;
 
 /* These addresses are calculated from the FADT Event Block addresses */

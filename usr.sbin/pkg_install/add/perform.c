@@ -23,7 +23,7 @@ __FBSDID("$FreeBSD$");
 
 #include <err.h>
 #include <paths.h>
-#include "lib.h"
+#include <pkg.h>
 #include "add.h"
 
 #include <libgen.h>

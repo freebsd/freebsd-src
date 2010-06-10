@@ -128,7 +128,8 @@ NORMAL_C_NOWERROR= ${CC} -c ${CFLAGS} ${PROF} ${.IMPSRC}
 NORMAL_M= ${AWK} -f $S/tools/makeobjops.awk ${.IMPSRC} -c ; \
 	  ${CC} -c ${CFLAGS} ${WERROR} ${PROF} ${.PREFIX}.c
 
-NORMAL_CTFCONVERT= @[ -z "${CTFCONVERT}" -o -n "${NO_CTF}" ] || ${CTFCONVERT} ${CTFFLAGS} ${.TARGET}
+NORMAL_CTFCONVERT= [ -z "${CTFCONVERT}" -o -n "${NO_CTF}" ] || \
+		   ${CTFCONVERT} ${CTFFLAGS} ${.TARGET}
 
 NORMAL_LINT=	${LINT} ${LINTFLAGS} ${CFLAGS:M-[DIU]*} ${.IMPSRC}
 

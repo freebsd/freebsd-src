@@ -167,8 +167,12 @@ AcpiEvQueueNotifyRequest (
 
 
 /*
- * evgpe - GPE handling and dispatch
+ * evgpe - Low-level GPE support
  */
+UINT32
+AcpiEvGpeDetect (
+    ACPI_GPE_XRUPT_INFO     *GpeXruptList);
+
 ACPI_STATUS
 AcpiEvUpdateGpeEnableMasks (
     ACPI_GPE_EVENT_INFO     *GpeEventInfo);
@@ -193,23 +197,8 @@ AcpiEvLowGetGpeInfo (
 
 
 /*
- * evgpeblk
+ * evgpeblk - Upper-level GPE block support
  */
-BOOLEAN
-AcpiEvValidGpeEvent (
-    ACPI_GPE_EVENT_INFO     *GpeEventInfo);
-
-ACPI_STATUS
-AcpiEvWalkGpeList (
-    ACPI_GPE_CALLBACK       GpeWalkCallback,
-    void                    *Context);
-
-ACPI_STATUS
-AcpiEvDeleteGpeHandlers (
-    ACPI_GPE_XRUPT_INFO     *GpeXruptInfo,
-    ACPI_GPE_BLOCK_INFO     *GpeBlock,
-    void                    *Context);
-
 ACPI_STATUS
 AcpiEvCreateGpeBlock (
     ACPI_NAMESPACE_NODE     *GpeDevice,
@@ -233,13 +222,56 @@ AcpiEvGpeDispatch (
     ACPI_GPE_EVENT_INFO     *GpeEventInfo,
     UINT32                  GpeNumber);
 
-UINT32
-AcpiEvGpeDetect (
-    ACPI_GPE_XRUPT_INFO     *GpeXruptList);
-
+/*
+ * evgpeinit - GPE initialization and update
+ */
 ACPI_STATUS
 AcpiEvGpeInitialize (
     void);
+
+void
+AcpiEvUpdateGpes (
+    ACPI_OWNER_ID           TableOwnerId);
+
+ACPI_STATUS
+AcpiEvMatchGpeMethod (
+    ACPI_HANDLE             ObjHandle,
+    UINT32                  Level,
+    void                    *Context,
+    void                    **ReturnValue);
+
+ACPI_STATUS
+AcpiEvMatchPrwAndGpe (
+    ACPI_HANDLE             ObjHandle,
+    UINT32                  Level,
+    void                    *Context,
+    void                    **ReturnValue);
+
+/*
+ * evgpeutil - GPE utilities
+ */
+ACPI_STATUS
+AcpiEvWalkGpeList (
+    ACPI_GPE_CALLBACK       GpeWalkCallback,
+    void                    *Context);
+
+BOOLEAN
+AcpiEvValidGpeEvent (
+    ACPI_GPE_EVENT_INFO     *GpeEventInfo);
+
+ACPI_GPE_XRUPT_INFO *
+AcpiEvGetGpeXruptBlock (
+    UINT32                  InterruptNumber);
+
+ACPI_STATUS
+AcpiEvDeleteGpeXrupt (
+    ACPI_GPE_XRUPT_INFO     *GpeXrupt);
+
+ACPI_STATUS
+AcpiEvDeleteGpeHandlers (
+    ACPI_GPE_XRUPT_INFO     *GpeXruptInfo,
+    ACPI_GPE_BLOCK_INFO     *GpeBlock,
+    void                    *Context);
 
 
 /*

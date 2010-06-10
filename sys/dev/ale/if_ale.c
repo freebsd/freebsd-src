@@ -1585,7 +1585,7 @@ ale_encap(struct ale_softc *sc, struct mbuf **m_head)
 	struct tcphdr *tcp;
 	bus_dma_segment_t txsegs[ALE_MAXTXSEGS];
 	bus_dmamap_t map;
-	uint32_t cflags, ip_off, poff, vtag;
+	uint32_t cflags, hdrlen, ip_off, poff, vtag;
 	int error, i, nsegs, prod, si;
 
 	ALE_LOCK_ASSERT(sc);
@@ -1678,6 +1678,11 @@ ale_encap(struct ale_softc *sc, struct mbuf **m_head)
 				return (ENOBUFS);
 			}
 			tcp = (struct tcphdr *)(mtod(m, char *) + poff);
+			m = m_pullup(m, poff + (tcp->th_off << 2));
+			if (m == NULL) {
+				*m_head = NULL;
+				return (ENOBUFS);
+			}
 			/*
 			 * AR81xx requires IP/TCP header size and offset as
 			 * well as TCP pseudo checksum which complicates
@@ -1730,15 +1735,21 @@ ale_encap(struct ale_softc *sc, struct mbuf **m_head)
 	}
 
 	/* Check descriptor overrun. */
-	if (sc->ale_cdata.ale_tx_cnt + nsegs >= ALE_TX_RING_CNT - 2) {
+	if (sc->ale_cdata.ale_tx_cnt + nsegs >= ALE_TX_RING_CNT - 3) {
 		bus_dmamap_unload(sc->ale_cdata.ale_tx_tag, map);
 		return (ENOBUFS);
 	}
 	bus_dmamap_sync(sc->ale_cdata.ale_tx_tag, map, BUS_DMASYNC_PREWRITE);
 
 	m = *m_head;
-	/* Configure Tx checksum offload. */
-	if ((m->m_pkthdr.csum_flags & ALE_CSUM_FEATURES) != 0) {
+	if ((m->m_pkthdr.csum_flags & CSUM_TSO) != 0) {
+		/* Request TSO and set MSS. */
+		cflags |= ALE_TD_TSO;
+		cflags |= ((uint32_t)m->m_pkthdr.tso_segsz << ALE_TD_MSS_SHIFT);
+		/* Set IP/TCP header size. */
+		cflags |= ip->ip_hl << ALE_TD_IPHDR_LEN_SHIFT;
+		cflags |= tcp->th_off << ALE_TD_TCPHDR_LEN_SHIFT;
+	} else if ((m->m_pkthdr.csum_flags & ALE_CSUM_FEATURES) != 0) {
 		/*
 		 * AR81xx supports Tx custom checksum offload feature
 		 * that offloads single 16bit checksum computation.
@@ -1769,15 +1780,6 @@ ale_encap(struct ale_softc *sc, struct mbuf **m_head)
 		    ALE_TD_CSUM_XSUMOFFSET_SHIFT);
 	}
 
-	if ((m->m_pkthdr.csum_flags & CSUM_TSO) != 0) {
-		/* Request TSO and set MSS. */
-		cflags |= ALE_TD_TSO;
-		cflags |= ((uint32_t)m->m_pkthdr.tso_segsz << ALE_TD_MSS_SHIFT);
-		/* Set IP/TCP header size. */
-		cflags |= ip->ip_hl << ALE_TD_IPHDR_LEN_SHIFT;
-		cflags |= tcp->th_off << ALE_TD_TCPHDR_LEN_SHIFT;
-	}
-
 	/* Configure VLAN hardware tag insertion. */
 	if ((m->m_flags & M_VLANTAG) != 0) {
 		vtag = ALE_TX_VLAN_TAG(m->m_pkthdr.ether_vtag);
@@ -1785,8 +1787,32 @@ ale_encap(struct ale_softc *sc, struct mbuf **m_head)
 		cflags |= ALE_TD_INSERT_VLAN_TAG;
 	}
 
-	desc = NULL;
-	for (i = 0; i < nsegs; i++) {
+	i = 0;
+	if ((m->m_pkthdr.csum_flags & CSUM_TSO) != 0) {
+		/*
+		 * Make sure the first fragment contains
+		 * only ethernet and IP/TCP header with options.
+		 */
+		hdrlen =  poff + (tcp->th_off << 2);
+		desc = &sc->ale_cdata.ale_tx_ring[prod];
+		desc->addr = htole64(txsegs[i].ds_addr);
+		desc->len = htole32(ALE_TX_BYTES(hdrlen) | vtag);
+		desc->flags = htole32(cflags);
+		sc->ale_cdata.ale_tx_cnt++;
+		ALE_DESC_INC(prod, ALE_TX_RING_CNT);
+		if (m->m_len - hdrlen > 0) {
+			/* Handle remaining payload of the first fragment. */
+			desc = &sc->ale_cdata.ale_tx_ring[prod];
+			desc->addr = htole64(txsegs[i].ds_addr + hdrlen);
+			desc->len = htole32(ALE_TX_BYTES(m->m_len - hdrlen) |
+			    vtag);
+			desc->flags = htole32(cflags);
+			sc->ale_cdata.ale_tx_cnt++;
+			ALE_DESC_INC(prod, ALE_TX_RING_CNT);
+		}
+		i = 1;
+	}
+	for (; i < nsegs; i++) {
 		desc = &sc->ale_cdata.ale_tx_ring[prod];
 		desc->addr = htole64(txsegs[i].ds_addr);
 		desc->len = htole32(ALE_TX_BYTES(txsegs[i].ds_len) | vtag);

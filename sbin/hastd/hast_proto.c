@@ -37,7 +37,9 @@ __FBSDID("$FreeBSD$");
 #include <string.h>
 #include <strings.h>
 
+#ifdef HAVE_CRYPTO
 #include <openssl/sha.h>
+#endif
 
 #include <hast.h>
 #include <ebuf.h>
@@ -67,14 +69,18 @@ static int compression_send(struct hast_resource *res, struct nv *nv,
     void **datap, size_t *sizep, bool *freedatap);
 static int compression_recv(struct hast_resource *res, struct nv *nv,
     void **datap, size_t *sizep, bool *freedatap);
+#ifdef HAVE_CRYPTO
 static int checksum_send(struct hast_resource *res, struct nv *nv,
     void **datap, size_t *sizep, bool *freedatap);
 static int checksum_recv(struct hast_resource *res, struct nv *nv,
     void **datap, size_t *sizep, bool *freedatap);
+#endif
 
 static struct hast_pipe_stage pipeline[] = {
 	{ "compression", compression_send, compression_recv },
+#ifdef HAVE_CRYPTO
 	{ "checksum", checksum_send, checksum_recv }
+#endif
 };
 
 static int
@@ -161,6 +167,7 @@ compression_recv(struct hast_resource *res, struct nv *nv, void **datap,
 	return (0);
 }
 
+#ifdef HAVE_CRYPTO
 static int
 checksum_send(struct hast_resource *res, struct nv *nv, void **datap,
     size_t *sizep, bool *freedatap __unused)
@@ -221,6 +228,7 @@ checksum_recv(struct hast_resource *res, struct nv *nv, void **datap,
 
 	return (0);
 }
+#endif	/* HAVE_CRYPTO */
 
 /*
  * Send the given nv structure via conn.

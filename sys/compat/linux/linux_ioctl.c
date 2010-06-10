@@ -65,6 +65,8 @@ __FBSDID("$FreeBSD$");
 #include <net/if_types.h>
 #include <net/vnet.h>
 
+#include <dev/usb/usb_ioctl.h>
+
 #ifdef COMPAT_LINUX32
 #include <machine/../linux32/linux.h>
 #include <machine/../linux32/linux32_proto.h>
@@ -123,7 +125,7 @@ static struct linux_ioctl_handler sg_handler =
 static struct linux_ioctl_handler video_handler =
 { linux_ioctl_v4l, LINUX_IOCTL_VIDEO_MIN, LINUX_IOCTL_VIDEO_MAX };
 static struct linux_ioctl_handler fbsd_usb =
-{ linux_ioctl_fbsd_usb, LINUX_FBSD_USB_MIN, LINUX_FBSD_USB_MAX };
+{ linux_ioctl_fbsd_usb, FBSD_LUSB_MIN, FBSD_LUSB_MAX };
 
 DATA_SET(linux_ioctl_handler_set, cdrom_handler);
 DATA_SET(linux_ioctl_handler_set, vfat_handler);
@@ -2628,6 +2630,7 @@ bsd_to_linux_v4l_tuner(struct video_tuner *vt, struct l_video_tuner *lvt)
 	return (0);
 }
 
+#ifdef COMPAT_LINUX_V4L_CLIPLIST
 static int
 linux_to_bsd_v4l_clip(struct l_video_clip *lvc, struct video_clip *vc)
 {
@@ -2638,6 +2641,7 @@ linux_to_bsd_v4l_clip(struct l_video_clip *lvc, struct video_clip *vc)
 	vc->next = PTRIN(lvc->next);	/* possible pointer size conversion */
 	return (0);
 }
+#endif
 
 static int
 linux_to_bsd_v4l_window(struct l_video_window *lvw, struct video_window *vw)
@@ -2698,6 +2702,7 @@ linux_to_bsd_v4l_code(struct l_video_code *lvc, struct video_code *vc)
 	return (0);
 }
 
+#ifdef COMPAT_LINUX_V4L_CLIPLIST
 static int
 linux_v4l_clip_copy(void *lvc, struct video_clip **ppvc)
 {
@@ -2772,15 +2777,18 @@ linux_v4l_cliplist_copy(struct l_video_window *lvw, struct video_window *vw)
 		 *	example of cliplist use.
 		 */
 		plvc = PTRIN(lvw->clips);
+		vw->clips = NULL;
 		ppvc = &(vw->clips);
 		while (clipcount-- > 0) {
-			if (plvc == 0)
+			if (plvc == 0) {
 				error = EFAULT;
-			if (!error)
-				error = linux_v4l_clip_copy(plvc, ppvc);
-			if (error) {
-				linux_v4l_cliplist_free(vw);
 				break;
+			} else {
+				error = linux_v4l_clip_copy(plvc, ppvc);
+				if (error) {
+					linux_v4l_cliplist_free(vw);
+					break;
+				}
 			}
 			ppvc = &((*ppvc)->next);
 		        plvc = PTRIN(((struct l_video_clip *) plvc)->next);
@@ -2795,6 +2803,7 @@ linux_v4l_cliplist_copy(struct l_video_window *lvw, struct video_window *vw)
 	}
 	return (error);
 }
+#endif
 
 static int
 linux_ioctl_v4l(struct thread *td, struct linux_ioctl_args *args)
@@ -2818,6 +2827,12 @@ linux_ioctl_v4l(struct thread *td, struct linux_ioctl_args *args)
 	case LINUX_VIDIOCGTUNER:
 		if ((error = fget(td, args->fd, &fp)) != 0)
 			return (error);
+		error = copyin((void *) args->arg, &l_vtun, sizeof(l_vtun));
+		if (error) {
+			fdrop(fp, td);
+			return (error);
+		}
+		linux_to_bsd_v4l_tuner(&l_vtun, &vtun);
 		error = fo_ioctl(fp, VIDIOCGTUNER, &vtun, td->td_ucred, td);
 		if (!error) {
 			bsd_to_linux_v4l_tuner(&vtun, &l_vtun);
@@ -2836,7 +2851,7 @@ linux_ioctl_v4l(struct thread *td, struct linux_ioctl_args *args)
 			return (error);
 		}
 		linux_to_bsd_v4l_tuner(&l_vtun, &vtun);
-		error = fo_ioctl(fp, VIDIOCSMICROCODE, &vtun, td->td_ucred, td);
+		error = fo_ioctl(fp, VIDIOCSTUNER, &vtun, td->td_ucred, td);
 		fdrop(fp, td);
 		return (error);
 
@@ -2865,14 +2880,18 @@ linux_ioctl_v4l(struct thread *td, struct linux_ioctl_args *args)
 			return (error);
 		}
 		linux_to_bsd_v4l_window(&l_vwin, &vwin);
+#ifdef COMPAT_LINUX_V4L_CLIPLIST
 		error = linux_v4l_cliplist_copy(&l_vwin, &vwin);
 		if (error) {
 			fdrop(fp, td);
 			return (error);
 		}
+#endif
 		error = fo_ioctl(fp, VIDIOCSWIN, &vwin, td->td_ucred, td);
 		fdrop(fp, td);
+#ifdef COMPAT_LINUX_V4L_CLIPLIST
 		linux_v4l_cliplist_free(&vwin);
+#endif
 		return (error);
 
 	case LINUX_VIDIOCGFBUF:
@@ -2924,7 +2943,7 @@ linux_ioctl_v4l(struct thread *td, struct linux_ioctl_args *args)
 			return (error);
 		}
 		linux_to_bsd_v4l_code(&l_vcode, &vcode);
-		error = fo_ioctl(fp, VIDIOCSTUNER, &vcode, td->td_ucred, td);
+		error = fo_ioctl(fp, VIDIOCSMICROCODE, &vcode, td->td_ucred, td);
 		fdrop(fp, td);
 		return (error);
 
@@ -2966,21 +2985,119 @@ linux_ioctl_special(struct thread *td, struct linux_ioctl_args *args)
 }
 
 /*
- * Support for mounting our devfs under /compat/linux/dev and using
- * our libusb(3) compiled on Linux to access it from within Linuxolator
- * environment.
+ * Support for emulators/linux-libusb. This port uses FBSD_LUSB* macros
+ * instead of USB* ones. This lets us to provide correct values for cmd.
+ * 0xffffffe0 -- 0xffffffff range seemed to be the least collision-prone.
  */
 static int
 linux_ioctl_fbsd_usb(struct thread *td, struct linux_ioctl_args *args)
 {
+	int error;
 
-	/*
-	 * Because on GNU/Linux we build our libusb(3) with our header
-	 * files and ioccom.h macros, ioctl() will contain our native
-	 * command value. This means that we can basically redirect this
-	 * call further.
-	 */
-	return (ioctl(td, (struct ioctl_args *)args));
+	error = 0;
+	switch (args->cmd) {
+	case FBSD_LUSB_DEVICEENUMERATE:
+		args->cmd = USB_DEVICEENUMERATE;
+		break;
+	case FBSD_LUSB_DEV_QUIRK_ADD:
+		args->cmd = USB_DEV_QUIRK_ADD;
+		break;
+	case FBSD_LUSB_DEV_QUIRK_GET:
+		args->cmd = USB_DEV_QUIRK_GET;
+		break;
+	case FBSD_LUSB_DEV_QUIRK_REMOVE:
+		args->cmd = USB_DEV_QUIRK_REMOVE;
+		break;
+	case FBSD_LUSB_DO_REQUEST:
+		args->cmd = USB_DO_REQUEST;
+		break;
+	case FBSD_LUSB_FS_CLEAR_STALL_SYNC:
+		args->cmd = USB_FS_CLEAR_STALL_SYNC;
+		break;
+	case FBSD_LUSB_FS_CLOSE:
+		args->cmd = USB_FS_CLOSE;
+		break;
+	case FBSD_LUSB_FS_COMPLETE:
+		args->cmd = USB_FS_COMPLETE;
+		break;
+	case FBSD_LUSB_FS_INIT:
+		args->cmd = USB_FS_INIT;
+		break;
+	case FBSD_LUSB_FS_OPEN:
+		args->cmd = USB_FS_OPEN;
+		break;
+	case FBSD_LUSB_FS_START:
+		args->cmd = USB_FS_START;
+		break;
+	case FBSD_LUSB_FS_STOP:
+		args->cmd = USB_FS_STOP;
+		break;
+	case FBSD_LUSB_FS_UNINIT:
+		args->cmd = USB_FS_UNINIT;
+		break;
+	case FBSD_LUSB_GET_CONFIG:
+		args->cmd = USB_GET_CONFIG;
+		break;
+	case FBSD_LUSB_GET_DEVICEINFO:
+		args->cmd = USB_GET_DEVICEINFO;
+		break;
+	case FBSD_LUSB_GET_DEVICE_DESC:
+		args->cmd = USB_GET_DEVICE_DESC;
+		break;
+	case FBSD_LUSB_GET_FULL_DESC:
+		args->cmd = USB_GET_FULL_DESC;
+		break;
+	case FBSD_LUSB_GET_IFACE_DRIVER:
+		args->cmd = USB_GET_IFACE_DRIVER;
+		break;
+	case FBSD_LUSB_GET_PLUGTIME:
+		args->cmd = USB_GET_PLUGTIME;
+		break;
+	case FBSD_LUSB_GET_POWER_MODE:
+		args->cmd = USB_GET_POWER_MODE;
+		break;
+	case FBSD_LUSB_GET_REPORT_DESC:
+		args->cmd = USB_GET_REPORT_DESC;
+		break;
+	case FBSD_LUSB_GET_REPORT_ID:
+		args->cmd = USB_GET_REPORT_ID;
+		break;
+	case FBSD_LUSB_GET_TEMPLATE:
+		args->cmd = USB_GET_TEMPLATE;
+		break;
+	case FBSD_LUSB_IFACE_DRIVER_ACTIVE:
+		args->cmd = USB_IFACE_DRIVER_ACTIVE;
+		break;
+	case FBSD_LUSB_IFACE_DRIVER_DETACH:
+		args->cmd = USB_IFACE_DRIVER_DETACH;
+		break;
+	case FBSD_LUSB_QUIRK_NAME_GET:
+		args->cmd = USB_QUIRK_NAME_GET;
+		break;
+	case FBSD_LUSB_READ_DIR:
+		args->cmd = USB_READ_DIR;
+		break;
+	case FBSD_LUSB_SET_ALTINTERFACE:
+		args->cmd = USB_SET_ALTINTERFACE;
+		break;
+	case FBSD_LUSB_SET_CONFIG:
+		args->cmd = USB_SET_CONFIG;
+		break;
+	case FBSD_LUSB_SET_IMMED:
+		args->cmd = USB_SET_IMMED;
+		break;
+	case FBSD_LUSB_SET_POWER_MODE:
+		args->cmd = USB_SET_POWER_MODE;
+		break;
+	case FBSD_LUSB_SET_TEMPLATE:
+		args->cmd = USB_SET_TEMPLATE;
+		break;
+	default:
+		error = ENOIOCTL;
+	}
+	if (error != ENOIOCTL)
+		error = ioctl(td, (struct ioctl_args *)args);
+	return (error);
 }
 
 /*

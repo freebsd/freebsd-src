@@ -740,6 +740,7 @@ kaudit_to_bsm(struct kaudit_record *kar, struct au_record **pau)
 	case AUE_LUTIMES:
 	case AUE_NFS_GETFH:
 	case AUE_LSTAT:
+	case AUE_LPATHCONF:
 	case AUE_PATHCONF:
 	case AUE_READLINK:
 	case AUE_REVOKE:

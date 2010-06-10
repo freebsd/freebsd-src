@@ -43,7 +43,6 @@ __RCSID("$FreeBSD$");
  *
  * TODO:
  *	- use mmap where possible
- *	- handle some signals better (remove outfile?)
  *	- make bzip2/compress -v/-t/-l support work as well as possible
  */
 
@@ -194,6 +193,7 @@ static	int	qflag;			/* quiet mode */
 static	int	rflag;			/* recursive mode */
 static	int	tflag;			/* test */
 static	int	vflag;			/* verbose mode */
+static	const char *remove_file = NULL;	/* file to be removed upon SIGINT */
 #else
 #define		qflag	0
 #define		tflag	0
@@ -231,6 +231,7 @@ static	void	usage(void);
 static	void	display_version(void);
 #ifndef SMALL
 static	void	display_license(void);
+static	void	sigint_handler(int);
 #endif
 static	const suffixes_t *check_suffix(char *, int);
 static	ssize_t	read_retry(int, void *, size_t);
@@ -300,11 +301,10 @@ main(int argc, char **argv)
 #endif
 	int ch;
 
-	/* XXX set up signals */
-
 #ifndef SMALL
 	if ((gzip = getenv("GZIP")) != NULL)
 		prepend_gzip(gzip, &argc, &argv);
+	signal(SIGINT, sigint_handler);
 #endif
 
 	/*
@@ -1171,6 +1171,15 @@ unlink_input(const char *file, const struct stat *sb)
 		return;
 	unlink(file);
 }
+
+static void
+sigint_handler(int signo __unused)
+{
+
+	if (remove_file != NULL)
+		unlink(remove_file);
+	_exit(2);
+}
 #endif
 
 static const suffixes_t *
@@ -1215,16 +1224,22 @@ file_compress(char *file, char *outfile, size_t outsize)
 		return -1;
 	}
 
+#ifndef SMALL
+	if (fstat(in, &isb) != 0) {
+		maybe_warn("couldn't stat: %s", file);
+		close(in);
+		return -1;
+	}
+#endif
+
 	if (cflag == 0) {
 #ifndef SMALL
-		if (fstat(in, &isb) == 0) {
-			if (isb.st_nlink > 1 && fflag == 0) {
-				maybe_warnx("%s has %d other link%s -- "
-					    "skipping", file, isb.st_nlink - 1,
-					    isb.st_nlink == 1 ? "" : "s");
-				close(in);
-				return -1;
-			}
+		if (isb.st_nlink != 1 && fflag == 0) {
+			maybe_warnx("%s has %d other link%s -- "
+				    "skipping", file, isb.st_nlink - 1,
+				    isb.st_nlink == 1 ? "" : "s");
+			close(in);
+			return -1;
 		}
 
 		if (fflag == 0 && (suff = check_suffix(file, 0))
@@ -1257,6 +1272,9 @@ file_compress(char *file, char *outfile, size_t outsize)
 			fclose(stdin);
 			return -1;
 		}
+#ifndef SMALL
+		remove_file = outfile;
+#endif
 	} else
 		out = STDOUT_FILENO;
 
@@ -1288,6 +1306,7 @@ file_compress(char *file, char *outfile, size_t outsize)
 	}
 
 	copymodes(out, &isb, outfile);
+	remove_file = NULL;
 #endif
 	if (close(out) == -1)
 		maybe_warn("couldn't close output");
@@ -1424,6 +1443,9 @@ file_uncompress(char *file, char *outfile, size_t outsize)
 			maybe_warn("can't open %s", outfile);
 			goto lose;
 		}
+#ifndef SMALL
+		remove_file = outfile;
+#endif
 	} else
 		zfd = STDOUT_FILENO;
 
@@ -1555,11 +1577,12 @@ file_uncompress(char *file, char *outfile, size_t outsize)
 		unlink(outfile);
 		return -1;
 	}
-	unlink_input(file, &isb);
 #ifndef SMALL
 	copymodes(ofd, &isb, outfile);
+	remove_file = NULL;
 #endif
 	close(ofd);
+	unlink_input(file, &isb);
 	return size;
 
     unexpected_EOF:

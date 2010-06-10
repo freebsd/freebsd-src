@@ -1088,8 +1088,10 @@ __elfN(coredump)(struct thread *td, struct vnode *vp, off_t limit, int flags)
 	hdrsize = 0;
 	__elfN(puthdr)(td, (void *)NULL, &hdrsize, seginfo.count);
 
-	if (hdrsize + seginfo.size >= limit)
-		return (EFAULT);
+	if (hdrsize + seginfo.size >= limit) {
+		error = EFAULT;
+		goto done;
+	}
 
 	/*
 	 * Allocate memory for building the header, fill it up,
@@ -1097,7 +1099,8 @@ __elfN(coredump)(struct thread *td, struct vnode *vp, off_t limit, int flags)
 	 */
 	hdr = malloc(hdrsize, M_TEMP, M_WAITOK);
 	if (hdr == NULL) {
-		return (EINVAL);
+		error = EINVAL;
+		goto done;
 	}
 	error = __elfN(corehdr)(td, vp, cred, seginfo.count, hdr, hdrsize,
 	    gzfile);
@@ -1125,8 +1128,8 @@ __elfN(coredump)(struct thread *td, struct vnode *vp, off_t limit, int flags)
 		    curproc->p_comm, error);
 	}
 
-#ifdef COMPRESS_USER_CORES
 done:
+#ifdef COMPRESS_USER_CORES
 	if (core_buf)
 		free(core_buf, M_TEMP);
 	if (gzfile)

@@ -100,7 +100,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/usb/net/usb_ethernet.h>
 #include <dev/usb/net/if_auereg.h>
 
-#if USB_DEBUG
+#ifdef USB_DEBUG
 static int aue_debug = 0;
 
 SYSCTL_NODE(_hw_usb, OID_AUTO, aue, CTLFLAG_RW, 0, "USB aue");

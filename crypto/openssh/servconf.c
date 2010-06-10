@@ -1,4 +1,4 @@
-/* $OpenBSD: servconf.c,v 1.204 2010/03/04 10:36:03 djm Exp $ */
+/* $OpenBSD: servconf.c,v 1.207 2010/03/25 23:38:28 djm Exp $ */
 /*
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
  *                    All rights reserved
@@ -474,15 +474,14 @@ parse_token(const char *cp, const char *filename,
 char *
 derelativise_path(const char *path)
 {
-	char *expanded, *ret, *cwd;
+	char *expanded, *ret, cwd[MAXPATHLEN];
 
 	expanded = tilde_expand_filename(path, getuid());
 	if (*expanded == '/')
 		return expanded;
-	if ((cwd = getcwd(NULL, 0)) == NULL)
+	if (getcwd(cwd, sizeof(cwd)) == NULL)
 		fatal("%s: getcwd: %s", __func__, strerror(errno));
 	xasprintf(&ret, "%s/%s", cwd, expanded);
-	xfree(cwd);
 	xfree(expanded);
 	return ret;
 }
@@ -1227,7 +1226,17 @@ process_server_config_line(ServerOptions *options, char *line,
 		charptr = (opcode == sAuthorizedKeysFile) ?
 		    &options->authorized_keys_file :
 		    &options->authorized_keys_file2;
-		goto parse_filename;
+		arg = strdelim(&cp);
+		if (!arg || *arg == '\0')
+			fatal("%s line %d: missing file name.",
+			    filename, linenum);
+		if (*activep && *charptr == NULL) {
+			*charptr = tilde_expand_filename(arg, getuid());
+			/* increase optional counter */
+			if (intptr != NULL)
+				*intptr = *intptr + 1;
+		}
+		break;
 
 	case sClientAliveInterval:
 		intptr = &options->client_alive_interval;

@@ -80,7 +80,7 @@ dtrace_vtime_switch_func_t	dtrace_vtime_switch_func;
 #include <machine/cpu.h>
 #include <machine/smp.h>
 
-#if defined(__sparc64__) || defined(__mips__)
+#if defined(__sparc64__)
 #error "This architecture is not currently compatible with ULE"
 #endif
 
@@ -2367,7 +2367,7 @@ sched_pctcpu(struct thread *td)
 	if (ts == NULL)
 		return (0);
 
-	thread_lock(td);
+	THREAD_LOCK_ASSERT(td, MA_OWNED);
 	if (ts->ts_ticks) {
 		int rtick;
 
@@ -2376,7 +2376,6 @@ sched_pctcpu(struct thread *td)
 		rtick = min(SCHED_TICK_HZ(ts) / SCHED_TICK_SECS, hz);
 		pctcpu = (FSCALE * ((FSCALE * rtick)/hz)) >> FSHIFT;
 	}
-	thread_unlock(td);
 
 	return (pctcpu);
 }
@@ -2427,6 +2426,7 @@ sched_bind(struct thread *td, int cpu)
 	struct td_sched *ts;
 
 	THREAD_LOCK_ASSERT(td, MA_OWNED|MA_NOTRECURSED);
+	KASSERT(td == curthread, ("sched_bind: can only bind curthread"));
 	ts = td->td_sched;
 	if (ts->ts_flags & TSF_BOUND)
 		sched_unbind(td);
@@ -2448,6 +2448,7 @@ sched_unbind(struct thread *td)
 	struct td_sched *ts;
 
 	THREAD_LOCK_ASSERT(td, MA_OWNED);
+	KASSERT(td == curthread, ("sched_unbind: can only bind curthread"));
 	ts = td->td_sched;
 	if ((ts->ts_flags & TSF_BOUND) == 0)
 		return;
@@ -2660,9 +2661,11 @@ sysctl_kern_sched_topology_spec_internal(struct sbuf *sb, struct cpu_group *cg,
 	sbuf_printf(sb, "%*s <flags>", indent, "");
 	if (cg->cg_flags != 0) {
 		if ((cg->cg_flags & CG_FLAG_HTT) != 0)
-			sbuf_printf(sb, "<flag name=\"HTT\">HTT group</flag>\n");
+			sbuf_printf(sb, "<flag name=\"HTT\">HTT group</flag>");
+		if ((cg->cg_flags & CG_FLAG_THREAD) != 0)
+			sbuf_printf(sb, "<flag name=\"THREAD\">THREAD group</flag>");
 		if ((cg->cg_flags & CG_FLAG_SMT) != 0)
-			sbuf_printf(sb, "<flag name=\"THREAD\">SMT group</flag>\n");
+			sbuf_printf(sb, "<flag name=\"SMT\">SMT group</flag>");
 	}
 	sbuf_printf(sb, "</flags>\n");
 

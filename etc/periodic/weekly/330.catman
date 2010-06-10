@@ -27,13 +27,13 @@ case "$weekly_catman_enable" in
 	    then
 		if [ -z "${MANPATH}" ]
 		then
-		    echo "manpath failed to find any manpath directories" 
+		    echo "manpath failed to find any manpath directories"
 		    rc=3
 		else
 		    man_locales=`/usr/bin/manpath -qL`
 		    rc=0
-         
-		    # Preformat original, non-localized manpages  
+
+		    # Preformat original, non-localized manpages
 		    echo /usr/libexec/catman.local -r "$MANPATH" |
 			su -fm man || rc=3
 

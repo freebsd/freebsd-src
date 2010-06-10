@@ -189,8 +189,8 @@ the calling process:
 .It interval timers Ta see Xr getitimer 2
 .It resource limits Ta see Xr getrlimit 2
 .It file mode mask Ta see Xr umask 2
-.It signal mask Ta see Xr sigvec 2 ,
-.Xr sigsetmask 2
+.It signal mask Ta see Xr sigaction 2 ,
+.Xr sigprocmask 2
 .El
 .Pp
 When a program is executed as a result of an
@@ -313,30 +313,6 @@ The
 .Fa fd
 argument is not a valid file descriptor open for executing.
 .El
-.Sh CAVEATS
-If a program is
-.Em setuid
-to a non-super-user, but is executed when
-the real
-.Em uid
-is ``root'', then the program has some of the powers
-of a super-user as well.
-.Pp
-When executing an interpreted program through
-.Fn fexecve ,
-kernel supplies
-.Pa /dev/fd/n
-as a second argument to the interpreter,
-where
-.Ar n
-is the file descriptor passed in the
-.Fa fd
-argument to
-.Fn fexecve .
-For this construction to work correctly, the
-.Xr fdescfs 5
-filesystem shall be mounted on
-.Pa /dev/fd .
 .Sh SEE ALSO
 .Xr ktrace 1 ,
 .Xr _exit 2 ,
@@ -373,3 +349,27 @@ The
 .Fn fexecve
 system call appeared in
 .Fx 8.0 .
+.Sh CAVEATS
+If a program is
+.Em setuid
+to a non-super-user, but is executed when
+the real
+.Em uid
+is ``root'', then the program has some of the powers
+of a super-user as well.
+.Pp
+When executing an interpreted program through
+.Fn fexecve ,
+kernel supplies
+.Pa /dev/fd/n
+as a second argument to the interpreter,
+where
+.Ar n
+is the file descriptor passed in the
+.Fa fd
+argument to
+.Fn fexecve .
+For this construction to work correctly, the
+.Xr fdescfs 5
+filesystem shall be mounted on
+.Pa /dev/fd .

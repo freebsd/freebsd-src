@@ -32,12 +32,9 @@
 
 /* Defines for the IRQ numbers */
 
-#define IRQ_DUMMY_UART           2
-#define IRQ_IPI_SMP_FUNCTION     3
-#define IRQ_IPI_SMP_RESCHEDULE   4
-#define IRQ_REMOTE_DEBUG         5
-#define IRQ_MSGRING              6
-#define IRQ_TIMER                7
+#define IRQ_IPI			41  /* 8-39 are mapped by PIC intr 0-31 */
+#define IRQ_MSGRING             6
+#define IRQ_TIMER               7
 
 /*
  * XLR needs custom pre and post handlers for PCI/PCI-e interrupts

@@ -104,6 +104,10 @@ struct ifindex_entry {
 SYSCTL_NODE(_net, PF_LINK, link, CTLFLAG_RW, 0, "Link layers");
 SYSCTL_NODE(_net_link, 0, generic, CTLFLAG_RW, 0, "Generic link-management");
 
+TUNABLE_INT("net.link.ifqmaxlen", &ifqmaxlen);
+SYSCTL_UINT(_net_link, OID_AUTO, ifqmaxlen, CTLFLAG_RDTUN,
+    &ifqmaxlen, 0, "max send queue size");
+
 /* Log link state change events */
 static int log_link_state_change = 1;
 
@@ -163,9 +167,11 @@ static void	if_detach_internal(struct ifnet *, int);
 extern void	nd6_setmtu(struct ifnet *);
 #endif
 
+VNET_DEFINE(int, if_index);
+int	ifqmaxlen = IFQ_MAXLEN;
 VNET_DEFINE(struct ifnethead, ifnet);	/* depend on static init XXX */
 VNET_DEFINE(struct ifgrouphead, ifg_head);
-VNET_DEFINE(int, if_index);
+
 static VNET_DEFINE(int, if_indexlim) = 8;
 
 /* Table of ifnet by index. */
@@ -173,8 +179,6 @@ static VNET_DEFINE(struct ifindex_entry *, ifindex_table);
 
 #define	V_if_indexlim		VNET(if_indexlim)
 #define	V_ifindex_table		VNET(ifindex_table)
-
-int	ifqmaxlen = IFQ_MAXLEN;
 
 /*
  * The global network interface list (V_ifnet) and related state (such as
@@ -1603,7 +1607,7 @@ done:
  * is most specific found.
  */
 struct ifaddr *
-ifa_ifwithnet(struct sockaddr *addr)
+ifa_ifwithnet(struct sockaddr *addr, int ignore_ptp)
 {
 	struct ifnet *ifp;
 	struct ifaddr *ifa;
@@ -1635,7 +1639,8 @@ ifa_ifwithnet(struct sockaddr *addr)
 
 			if (ifa->ifa_addr->sa_family != af)
 next:				continue;
-			if (af == AF_INET && ifp->if_flags & IFF_POINTOPOINT) {
+			if (af == AF_INET && 
+			    ifp->if_flags & IFF_POINTOPOINT && !ignore_ptp) {
 				/*
 				 * This is a bit broken as it doesn't
 				 * take into account that the remote end may

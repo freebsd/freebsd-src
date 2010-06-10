@@ -471,7 +471,7 @@ pdq_ifattach(pdq_softc_t *sc, const pdq_uint8_t *llc, pdq_type_t type)
     if_initname(ifp, device_get_name(sc->dev), device_get_unit(sc->dev));
     ifp->if_softc = sc;
     ifp->if_init = pdq_ifinit;
-    ifp->if_snd.ifq_maxlen = IFQ_MAXLEN;
+    ifp->if_snd.ifq_maxlen = ifqmaxlen;
     ifp->if_flags = IFF_BROADCAST|IFF_SIMPLEX|IFF_NOTRAILERS|IFF_MULTICAST;
 
     ifp->if_ioctl = pdq_ifioctl;

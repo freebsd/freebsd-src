@@ -76,6 +76,7 @@ SUBDIR=	${SUBDIR_ORDERED} \
 	${_libipx} \
 	libjail \
 	libkiconv \
+	liblzma \
 	libmagic \
 	libmemstat \
 	${_libmilter} \
@@ -85,6 +86,7 @@ SUBDIR=	${SUBDIR_ORDERED} \
 	libopie \
 	libpam \
 	libpcap \
+	${_libpkg} \
 	${_libpmc} \
 	libproc \
 	librt \
@@ -106,7 +108,8 @@ SUBDIR=	${SUBDIR_ORDERED} \
 	libwrap \
 	liby \
 	libz \
-	${_bind}
+	${_bind} \
+	${_clang}
 
 .if exists(${.CURDIR}/csu/${MACHINE_CPUARCH}-elf)
 _csu=csu/${MACHINE_CPUARCH}-elf
@@ -133,6 +136,10 @@ _libsdp=	libsdp
 
 .if ${MK_BSNMP} != "no"
 _libbsnmp=	libbsnmp
+.endif
+
+.if ${MK_CLANG} != "no"
+_clang=		clang
 .endif
 
 .if ${MK_GPIB} != "no"
@@ -195,6 +202,10 @@ _libmp=		libmp
 
 .if ${MK_PMC} != "no"
 _libpmc=	libpmc
+.endif
+
+.if ${MK_PKGTOOLS} != "no"
+_libpkg=	libpkg
 .endif
 
 .if ${MK_SENDMAIL} != "no"

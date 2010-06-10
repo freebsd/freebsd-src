@@ -146,7 +146,6 @@ unsigned char telopt_environ = TELOPT_NEW_ENVIRON;
 #endif
 
 jmp_buf	toplevel;
-jmp_buf	peerdied;
 
 int	flushline;
 int	linemode;

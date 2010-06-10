@@ -136,8 +136,6 @@ ffs_dinode1_swap(struct ufs1_dinode *o, struct ufs1_dinode *n)
 
 	n->di_mode = bswap16(o->di_mode);
 	n->di_nlink = bswap16(o->di_nlink);
-	n->di_u.oldids[0] = bswap16(o->di_u.oldids[0]);
-	n->di_u.oldids[1] = bswap16(o->di_u.oldids[1]);
 	n->di_size = bswap64(o->di_size);
 	n->di_atime = bswap32(o->di_atime);
 	n->di_atimensec = bswap32(o->di_atimensec);

@@ -91,12 +91,12 @@ the command "make b" will echo "bar".  This is for compatibility with the
 way the V7 make behaved.
 
 It's fairly difficult to make the BSD .mk files work when you're building
-multiple programs in a single directory.  It's a lot easier split up the
-programs than to deal with the problem.  Most of the agony comes from making
-the "obj" directory stuff work right, not because we switch to a new version
-of make.  So, don't get mad at us, figure out a better way to handle multiple
-architectures so we can quit using the symbolic link stuff.  (Imake doesn't
-count.)
+multiple programs in a single directory.  It's a lot easier to split up
+the programs than to deal with the problem.  Most of the agony comes from
+making the "obj" directory stuff work right, not because we switch to a new
+version of make.  So, don't get mad at us, figure out a better way to handle
+multiple architectures so we can quit using the symbolic link stuff.
+(Imake doesn't count.)
 
 The file .depend in the source directory is expected to contain dependencies
 for the source files.  This file is read automatically by make after reading

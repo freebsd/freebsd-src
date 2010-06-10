@@ -52,6 +52,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/mutex.h>
 #include <sys/pcpu.h>
 #include <sys/rman.h>
+#include <sys/sysctl.h>
 #include <sys/time.h>
 #include <sys/timetc.h>
 
@@ -385,6 +386,21 @@ schizo_attach(device_t dev)
 	SCHIZO_PCI_WRITE_8(sc, STX_PCI_DIAG, reg);
 
 	/*
+	 * Enable DMA write parity error interrupts of version >= 7 (i.e.
+	 * revision >= 2.5) Schizo.
+	 */
+	if (mode == SCHIZO_MODE_SCZ && sc->sc_ver >= 7) {
+		reg = SCHIZO_PCI_READ_8(sc, SX_PCI_CFG_ICD);
+		reg |= SX_PCI_CFG_ICD_DMAW_PERR_IEN;
+#ifdef SCHIZO_DEBUG
+		device_printf(dev, "PCI CFG/ICD 0x%016llx -> 0x%016llx\n",
+		(unsigned long long)SCHIZO_PCI_READ_8(sc, SX_PCI_CFG_ICD),
+		(unsigned long long)reg);
+#endif
+		SCHIZO_PCI_WRITE_8(sc, SX_PCI_CFG_ICD, reg);
+	}
+
+	/*
 	 * On Tomatillo clear the I/O prefetch lengths (workaround for a
 	 * Jalapeno bug).
 	 */
@@ -697,14 +713,18 @@ schizo_attach(device_t dev)
 
 	ofw_bus_setup_iinfo(node, &sc->sc_pci_iinfo, sizeof(ofw_pci_intr_t));
 
-	/*
-	 * At least when booting Fire V890 from disk a Schizo comes up with
-	 * a PCI bus error residing which triggers as soon as we register
-	 * schizo_pci_bus() even when clearing it from all involved registers
-	 * beforehand (but is quiet once it has fired).  Thus we make PCI bus
-	 * errors non-fatal until we actually touch the bus.
-	 */
-	sc->sc_flags |= SCHIZO_FLAGS_ARMED;
+#define	SCHIZO_SYSCTL_ADD_UINT(name, arg, desc)				\
+	SYSCTL_ADD_UINT(device_get_sysctl_ctx(dev),			\
+	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)), OID_AUTO,	\
+	    (name), CTLFLAG_RD, (arg), 0, (desc))
+
+	SCHIZO_SYSCTL_ADD_UINT("dma_ce", &sc->sc_stats_dma_ce,
+	    "DMA correctable errors");
+	SCHIZO_SYSCTL_ADD_UINT("pci_non_fatal", &sc->sc_stats_pci_non_fatal,
+	    "PCI bus non-fatal errors");
+
+#undef SCHIZO_SYSCTL_ADD_UINT
+
 	device_add_child(dev, "pci", -1);
 	return (bus_generic_attach(dev));
 }
@@ -801,6 +821,11 @@ schizo_pci_bus(void *arg)
 	struct schizo_softc *sc = arg;
 	uint64_t afar, afsr, csr, iommu;
 	uint32_t status;
+	u_int fatal;
+
+	fatal = 0;
+
+	mtx_lock_spin(sc->sc_mtx);
 
 	afar = SCHIZO_PCI_READ_8(sc, STX_PCI_AFAR);
 	afsr = SCHIZO_PCI_READ_8(sc, STX_PCI_AFSR);
@@ -808,41 +833,51 @@ schizo_pci_bus(void *arg)
 	iommu = SCHIZO_PCI_READ_8(sc, STX_PCI_IOMMU);
 	status = PCIB_READ_CONFIG(sc->sc_dev, sc->sc_pci_secbus,
 	    STX_CS_DEVICE, STX_CS_FUNC, PCIR_STATUS, 2);
-	if ((sc->sc_flags & SCHIZO_FLAGS_ARMED) == 0)
-			goto clear_error;
-	if ((csr & STX_PCI_CTRL_MMU_ERR) != 0) {
-		if ((iommu & TOM_PCI_IOMMU_ERR) == 0)
-			goto clear_error;
 
-		/* These are non-fatal if target abort was signaled. */
-		if ((status & PCIM_STATUS_STABORT) != 0 &&
-		    ((iommu & TOM_PCI_IOMMU_ERRMASK) ==
-		    TOM_PCI_IOMMU_INVALID_ERR ||
-		    (iommu & TOM_PCI_IOMMU_ERR_ILLTSBTBW) != 0 ||
-		    (iommu & TOM_PCI_IOMMU_ERR_BAD_VA) != 0)) {
-			SCHIZO_PCI_WRITE_8(sc, STX_PCI_IOMMU, iommu);
-			goto clear_error;
-		}
-	}
+	/*
+	 * IOMMU errors are only fatal on Tomatillo and there also only if
+	 * target abort was not signaled.
+	 */
+	if ((csr & STX_PCI_CTRL_MMU_ERR) != 0 &&
+	    (iommu & TOM_PCI_IOMMU_ERR) != 0 &&
+	    ((status & PCIM_STATUS_STABORT) == 0 ||
+	    ((iommu & TOM_PCI_IOMMU_ERRMASK) != TOM_PCI_IOMMU_INVALID_ERR &&
+	    (iommu & TOM_PCI_IOMMU_ERR_ILLTSBTBW) == 0 &&
+	    (iommu & TOM_PCI_IOMMU_ERR_BAD_VA) == 0)))
+		fatal = 1;
+	else if ((status & PCIM_STATUS_STABORT) != 0)
+		fatal = 1;
+	if ((status & (PCIM_STATUS_PERR | PCIM_STATUS_SERR |
+	    PCIM_STATUS_RMABORT | PCIM_STATUS_RTABORT |
+	    PCIM_STATUS_PERRREPORT)) != 0 ||
+	    (csr & (SCZ_PCI_CTRL_BUS_UNUS | TOM_PCI_CTRL_DTO_ERR |
+	    STX_PCI_CTRL_TTO_ERR | STX_PCI_CTRL_RTRY_ERR |
+	    SCZ_PCI_CTRL_SBH_ERR | STX_PCI_CTRL_SERR)) != 0 ||
+	    (afsr & (STX_PCI_AFSR_P_MA | STX_PCI_AFSR_P_TA |
+	    STX_PCI_AFSR_P_RTRY | STX_PCI_AFSR_P_PERR | STX_PCI_AFSR_P_TTO |
+	    STX_PCI_AFSR_P_UNUS)) != 0)
+		fatal = 1;
+	if (fatal == 0)
+		sc->sc_stats_pci_non_fatal++;
 
-	panic("%s: PCI bus %c error AFAR %#llx AFSR %#llx PCI CSR %#llx "
-	    "IOMMU %#llx STATUS %#llx", device_get_nameunit(sc->sc_dev),
-	    'A' + sc->sc_half, (unsigned long long)afar,
-	    (unsigned long long)afsr, (unsigned long long)csr,
-	    (unsigned long long)iommu, (unsigned long long)status);
+	device_printf(sc->sc_dev, "PCI bus %c error AFAR %#llx AFSR %#llx "
+	    "PCI CSR %#llx IOMMU %#llx STATUS %#llx\n", 'A' + sc->sc_half,
+	    (unsigned long long)afar, (unsigned long long)afsr,
+	    (unsigned long long)csr, (unsigned long long)iommu,
+	    (unsigned long long)status);
 
- clear_error:
-	if (bootverbose)
-		device_printf(sc->sc_dev,
-		    "PCI bus %c error AFAR %#llx AFSR %#llx PCI CSR %#llx "
-		    "STATUS %#llx", 'A' + sc->sc_half,
-		    (unsigned long long)afar, (unsigned long long)afsr,
-		    (unsigned long long)csr, (unsigned long long)status);
 	/* Clear the error bits that we caught. */
 	PCIB_WRITE_CONFIG(sc->sc_dev, sc->sc_pci_secbus, STX_CS_DEVICE,
 	    STX_CS_FUNC, PCIR_STATUS, status, 2);
 	SCHIZO_PCI_WRITE_8(sc, STX_PCI_CTRL, csr);
 	SCHIZO_PCI_WRITE_8(sc, STX_PCI_AFSR, afsr);
+	SCHIZO_PCI_WRITE_8(sc, STX_PCI_IOMMU, iommu);
+
+	mtx_unlock_spin(sc->sc_mtx);
+
+	if (fatal != 0)
+		panic("%s: fatal PCI bus error",
+		    device_get_nameunit(sc->sc_dev));
 	return (FILTER_HANDLED);
 }
 
@@ -853,13 +888,11 @@ schizo_ue(void *arg)
 	uint64_t afar, afsr;
 	int i;
 
-	mtx_lock_spin(sc->sc_mtx);
 	afar = SCHIZO_CTRL_READ_8(sc, STX_CTRL_UE_AFAR);
 	for (i = 0; i < 1000; i++)
 		if (((afsr = SCHIZO_CTRL_READ_8(sc, STX_CTRL_UE_AFSR)) &
 		    STX_CTRL_CE_AFSR_ERRPNDG) == 0)
 			break;
-	mtx_unlock_spin(sc->sc_mtx);
 	panic("%s: uncorrectable DMA error AFAR %#llx AFSR %#llx",
 	    device_get_nameunit(sc->sc_dev), (unsigned long long)afar,
 	    (unsigned long long)afsr);
@@ -874,17 +907,22 @@ schizo_ce(void *arg)
 	int i;
 
 	mtx_lock_spin(sc->sc_mtx);
+
 	afar = SCHIZO_CTRL_READ_8(sc, STX_CTRL_CE_AFAR);
 	for (i = 0; i < 1000; i++)
 		if (((afsr = SCHIZO_CTRL_READ_8(sc, STX_CTRL_UE_AFSR)) &
 		    STX_CTRL_CE_AFSR_ERRPNDG) == 0)
 			break;
+	sc->sc_stats_dma_ce++;
 	device_printf(sc->sc_dev,
 	    "correctable DMA error AFAR %#llx AFSR %#llx\n",
 	    (unsigned long long)afar, (unsigned long long)afsr);
+
 	/* Clear the error bits that we caught. */
 	SCHIZO_CTRL_WRITE_8(sc, STX_CTRL_UE_AFSR, afsr);
+
 	mtx_unlock_spin(sc->sc_mtx);
+
 	return (FILTER_HANDLED);
 }
 

@@ -1530,8 +1530,10 @@ load_object(const char *name, const Obj_Entry *refobj, int flags)
 	close(fd);
 	return obj;
     }
-    if (flags & RTLD_LO_NOLOAD)
+    if (flags & RTLD_LO_NOLOAD) {
+	free(path);
 	return (NULL);
+    }
 
     /* First use of this object, so we must map it in */
     obj = do_load_object(fd, name, path, &sb, flags);
@@ -3311,6 +3313,10 @@ allocate_module_tls(int index)
     }
 
     p = malloc(obj->tlssize);
+    if (p == NULL) {
+	_rtld_error("Cannot allocate TLS block for index %d", index);
+	die();
+    }
     memcpy(p, obj->tlsinit, obj->tlsinitsize);
     memset(p + obj->tlsinitsize, 0, obj->tlssize - obj->tlsinitsize);
 

@@ -358,7 +358,7 @@ static void		moea64_bridge_cpu_bootstrap(mmu_t, int ap);
 static void		moea64_enter_locked(pmap_t, vm_offset_t, vm_page_t,
 			    vm_prot_t, boolean_t);
 static boolean_t	moea64_query_bit(vm_page_t, u_int64_t);
-static u_int		moea64_clear_bit(vm_page_t, u_int64_t, u_int64_t *);
+static u_int		moea64_clear_bit(vm_page_t, u_int64_t);
 static void		moea64_kremove(mmu_t, vm_offset_t);
 static void		moea64_syncicache(pmap_t pmap, vm_offset_t va, 
 			    vm_offset_t pa, vm_size_t sz);
@@ -379,6 +379,7 @@ vm_paddr_t moea64_extract(mmu_t, pmap_t, vm_offset_t);
 vm_page_t moea64_extract_and_hold(mmu_t, pmap_t, vm_offset_t, vm_prot_t);
 void moea64_init(mmu_t);
 boolean_t moea64_is_modified(mmu_t, vm_page_t);
+boolean_t moea64_is_referenced(mmu_t, vm_page_t);
 boolean_t moea64_ts_referenced(mmu_t, vm_page_t);
 vm_offset_t moea64_map(mmu_t, vm_offset_t *, vm_offset_t, vm_offset_t, int);
 boolean_t moea64_page_exists_quick(mmu_t, pmap_t, vm_page_t);
@@ -416,6 +417,7 @@ static mmu_method_t moea64_bridge_methods[] = {
 	MMUMETHOD(mmu_extract_and_hold,	moea64_extract_and_hold),
 	MMUMETHOD(mmu_init,		moea64_init),
 	MMUMETHOD(mmu_is_modified,	moea64_is_modified),
+	MMUMETHOD(mmu_is_referenced,	moea64_is_referenced),
 	MMUMETHOD(mmu_ts_referenced,	moea64_ts_referenced),
 	MMUMETHOD(mmu_map,     		moea64_map),
 	MMUMETHOD(mmu_page_exists_quick,moea64_page_exists_quick),
@@ -1233,6 +1235,8 @@ moea64_enter_locked(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 	if (pmap_bootstrapped)
 		mtx_assert(&vm_page_queue_mtx, MA_OWNED);
 	PMAP_LOCK_ASSERT(pmap, MA_OWNED);
+	KASSERT((m->oflags & VPO_BUSY) != 0 || VM_OBJECT_LOCKED(m->object),
+	    ("moea64_enter_locked: page %p is not busy", m));
 
 	/* XXX change the pvo head for fake pages */
 	if ((m->flags & PG_FICTITIOUS) == PG_FICTITIOUS) {
@@ -1245,7 +1249,8 @@ moea64_enter_locked(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 
 	if (prot & VM_PROT_WRITE) {
 		pte_lo |= LPTE_BW;
-		if (pmap_bootstrapped)
+		if (pmap_bootstrapped &&
+		    (m->flags & (PG_FICTITIOUS | PG_UNMANAGED)) == 0)
 			vm_page_flag_set(m, PG_WRITEABLE);
 	} else
 		pte_lo |= LPTE_BR;
@@ -1326,12 +1331,14 @@ moea64_enter_object(mmu_t mmu, pmap_t pm, vm_offset_t start, vm_offset_t end,
 
 	psize = atop(end - start);
 	m = m_start;
+	vm_page_lock_queues();
 	PMAP_LOCK(pm);
 	while (m != NULL && (diff = m->pindex - m_start->pindex) < psize) {
 		moea64_enter_locked(pm, start + ptoa(diff), m, prot &
 		    (VM_PROT_READ | VM_PROT_EXECUTE), FALSE);
 		m = TAILQ_NEXT(m, listq);
 	}
+	vm_page_unlock_queues();
 	PMAP_UNLOCK(pm);
 }
 
@@ -1339,11 +1346,13 @@ void
 moea64_enter_quick(mmu_t mmu, pmap_t pm, vm_offset_t va, vm_page_t m,
     vm_prot_t prot)
 {
+
+	vm_page_lock_queues();
 	PMAP_LOCK(pm);
 	moea64_enter_locked(pm, va, m, prot & (VM_PROT_READ | VM_PROT_EXECUTE),
 	    FALSE);
+	vm_page_unlock_queues();
 	PMAP_UNLOCK(pm);
-
 }
 
 vm_paddr_t
@@ -1372,18 +1381,23 @@ moea64_extract_and_hold(mmu_t mmu, pmap_t pmap, vm_offset_t va, vm_prot_t prot)
 {
 	struct	pvo_entry *pvo;
 	vm_page_t m;
+        vm_paddr_t pa;
         
 	m = NULL;
-	vm_page_lock_queues();
+	pa = 0;
 	PMAP_LOCK(pmap);
+retry:
 	pvo = moea64_pvo_find_va(pmap, va & ~ADDR_POFF, NULL);
 	if (pvo != NULL && (pvo->pvo_pte.lpte.pte_hi & LPTE_VALID) &&
 	    ((pvo->pvo_pte.lpte.pte_lo & LPTE_PP) == LPTE_RW ||
 	     (prot & VM_PROT_WRITE) == 0)) {
+		if (vm_page_pa_tryrelock(pmap,
+			pvo->pvo_pte.lpte.pte_lo & LPTE_RPGN, &pa))
+			goto retry;
 		m = PHYS_TO_VM_PAGE(pvo->pvo_pte.lpte.pte_lo & LPTE_RPGN);
 		vm_page_hold(m);
 	}
-	vm_page_unlock_queues();
+	PA_UNLOCK_COND(pa);
 	PMAP_UNLOCK(pmap);
 	return (m);
 }
@@ -1463,12 +1477,30 @@ moea64_init(mmu_t mmu)
 }
 
 boolean_t
+moea64_is_referenced(mmu_t mmu, vm_page_t m)
+{
+
+	KASSERT((m->flags & (PG_FICTITIOUS | PG_UNMANAGED)) == 0,
+	    ("moea64_is_referenced: page %p is not managed", m));
+	return (moea64_query_bit(m, PTE_REF));
+}
+
+boolean_t
 moea64_is_modified(mmu_t mmu, vm_page_t m)
 {
 
-	if ((m->flags & (PG_FICTITIOUS | PG_UNMANAGED)) != 0)
-		return (FALSE);
+	KASSERT((m->flags & (PG_FICTITIOUS | PG_UNMANAGED)) == 0,
+	    ("moea64_is_modified: page %p is not managed", m));
 
+	/*
+	 * If the page is not VPO_BUSY, then PG_WRITEABLE cannot be
+	 * concurrently set while the object is locked.  Thus, if PG_WRITEABLE
+	 * is clear, no PTEs can have LPTE_CHG set.
+	 */
+	VM_OBJECT_LOCK_ASSERT(m->object, MA_OWNED);
+	if ((m->oflags & VPO_BUSY) == 0 &&
+	    (m->flags & PG_WRITEABLE) == 0)
+		return (FALSE);
 	return (moea64_query_bit(m, LPTE_CHG));
 }
 
@@ -1476,18 +1508,29 @@ void
 moea64_clear_reference(mmu_t mmu, vm_page_t m)
 {
 
-	if ((m->flags & (PG_FICTITIOUS | PG_UNMANAGED)) != 0)
-		return;
-	moea64_clear_bit(m, LPTE_REF, NULL);
+	KASSERT((m->flags & (PG_FICTITIOUS | PG_UNMANAGED)) == 0,
+	    ("moea64_clear_reference: page %p is not managed", m));
+	moea64_clear_bit(m, LPTE_REF);
 }
 
 void
 moea64_clear_modify(mmu_t mmu, vm_page_t m)
 {
 
-	if ((m->flags & (PG_FICTITIOUS | PG_UNMANAGED)) != 0)
+	KASSERT((m->flags & (PG_FICTITIOUS | PG_UNMANAGED)) == 0,
+	    ("moea64_clear_modify: page %p is not managed", m));
+	VM_OBJECT_LOCK_ASSERT(m->object, MA_OWNED);
+	KASSERT((m->oflags & VPO_BUSY) == 0,
+	    ("moea64_clear_modify: page %p is busy", m));
+
+	/*
+	 * If the page is not PG_WRITEABLE, then no PTEs can have LPTE_CHG
+	 * set.  If the object containing the page is locked and the page is
+	 * not VPO_BUSY, then PG_WRITEABLE cannot be concurrently set.
+	 */
+	if ((m->flags & PG_WRITEABLE) == 0)
 		return;
-	moea64_clear_bit(m, LPTE_CHG, NULL);
+	moea64_clear_bit(m, LPTE_CHG);
 }
 
 /*
@@ -1501,10 +1544,19 @@ moea64_remove_write(mmu_t mmu, vm_page_t m)
 	pmap_t	pmap;
 	uint64_t lo;
 
-	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
-	if ((m->flags & (PG_FICTITIOUS | PG_UNMANAGED)) != 0 ||
+	KASSERT((m->flags & (PG_FICTITIOUS | PG_UNMANAGED)) == 0,
+	    ("moea64_remove_write: page %p is not managed", m));
+
+	/*
+	 * If the page is not VPO_BUSY, then PG_WRITEABLE cannot be set by
+	 * another thread while the object is locked.  Thus, if PG_WRITEABLE
+	 * is clear, no page table entries need updating.
+	 */
+	VM_OBJECT_LOCK_ASSERT(m->object, MA_OWNED);
+	if ((m->oflags & VPO_BUSY) == 0 &&
 	    (m->flags & PG_WRITEABLE) == 0)
 		return;
+	vm_page_lock_queues();
 	lo = moea64_attr_fetch(m);
 	SYNC();
 	LIST_FOREACH(pvo, vm_page_to_pvoh(m), pvo_vlink) {
@@ -1531,6 +1583,7 @@ moea64_remove_write(mmu_t mmu, vm_page_t m)
 		vm_page_dirty(m);
 	}
 	vm_page_flag_clear(m, PG_WRITEABLE);
+	vm_page_unlock_queues();
 }
 
 /*
@@ -1548,14 +1601,10 @@ moea64_remove_write(mmu_t mmu, vm_page_t m)
 boolean_t
 moea64_ts_referenced(mmu_t mmu, vm_page_t m)
 {
-	int count;
 
-	if ((m->flags & (PG_FICTITIOUS | PG_UNMANAGED)) != 0)
-		return (0);
-
-	count = moea64_clear_bit(m, LPTE_REF, NULL);
-
-	return (count);
+	KASSERT((m->flags & (PG_FICTITIOUS | PG_UNMANAGED)) == 0,
+	    ("moea64_ts_referenced: page %p is not managed", m));
+	return (moea64_clear_bit(m, LPTE_REF));
 }
 
 /*
@@ -1664,21 +1713,23 @@ moea64_page_exists_quick(mmu_t mmu, pmap_t pmap, vm_page_t m)
 {
         int loops;
 	struct pvo_entry *pvo;
+	boolean_t rv;
 
-        if (!moea64_initialized || (m->flags & PG_FICTITIOUS))
-                return FALSE;
-
-	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
-
+	KASSERT((m->flags & (PG_FICTITIOUS | PG_UNMANAGED)) == 0,
+	    ("moea64_page_exists_quick: page %p is not managed", m));
 	loops = 0;
+	rv = FALSE;
+	vm_page_lock_queues();
 	LIST_FOREACH(pvo, vm_page_to_pvoh(m), pvo_vlink) {
-		if (pvo->pvo_pmap == pmap) 
-			return (TRUE);
+		if (pvo->pvo_pmap == pmap) {
+			rv = TRUE;
+			break;
+		}
 		if (++loops >= 16)
 			break;
 	}
-
-	return (FALSE);
+	vm_page_unlock_queues();
+	return (rv);
 }
 
 /*
@@ -1692,12 +1743,13 @@ moea64_page_wired_mappings(mmu_t mmu, vm_page_t m)
 	int count;
 
 	count = 0;
-	if (!moea64_initialized || (m->flags & PG_FICTITIOUS) != 0)
+	if ((m->flags & PG_FICTITIOUS) != 0)
 		return (count);
-	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
+	vm_page_lock_queues();
 	LIST_FOREACH(pvo, vm_page_to_pvoh(m), pvo_vlink)
 		if ((pvo->pvo_vaddr & PVO_WIRED) != 0)
 			count++;
+	vm_page_unlock_queues();
 	return (count);
 }
 
@@ -1913,8 +1965,7 @@ moea64_remove_all(mmu_t mmu, vm_page_t m)
 	struct	pvo_entry *pvo, *next_pvo;
 	pmap_t	pmap;
 
-	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
-
+	vm_page_lock_queues();
 	pvo_head = vm_page_to_pvoh(m);
 	for (pvo = LIST_FIRST(pvo_head); pvo != NULL; pvo = next_pvo) {
 		next_pvo = LIST_NEXT(pvo, pvo_vlink);
@@ -1930,6 +1981,7 @@ moea64_remove_all(mmu_t mmu, vm_page_t m)
 		vm_page_dirty(m);
 	}
 	vm_page_flag_clear(m, PG_WRITEABLE);
+	vm_page_unlock_queues();
 }
 
 /*
@@ -2335,7 +2387,7 @@ moea64_query_bit(vm_page_t m, u_int64_t ptebit)
 	if (moea64_attr_fetch(m) & ptebit)
 		return (TRUE);
 
-	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
+	vm_page_lock_queues();
 
 	LIST_FOREACH(pvo, vm_page_to_pvoh(m), pvo_vlink) {
 		MOEA_PVO_CHECK(pvo);	/* sanity check */
@@ -2347,6 +2399,7 @@ moea64_query_bit(vm_page_t m, u_int64_t ptebit)
 		if (pvo->pvo_pte.lpte.pte_lo & ptebit) {
 			moea64_attr_save(m, ptebit);
 			MOEA_PVO_CHECK(pvo);	/* sanity check */
+			vm_page_unlock_queues();
 			return (TRUE);
 		}
 	}
@@ -2374,29 +2427,29 @@ moea64_query_bit(vm_page_t m, u_int64_t ptebit)
 
 				moea64_attr_save(m, ptebit);
 				MOEA_PVO_CHECK(pvo);	/* sanity check */
+				vm_page_unlock_queues();
 				return (TRUE);
 			}
 		}
 		UNLOCK_TABLE();
 	}
 
+	vm_page_unlock_queues();
 	return (FALSE);
 }
 
 static u_int
-moea64_clear_bit(vm_page_t m, u_int64_t ptebit, u_int64_t *origbit)
+moea64_clear_bit(vm_page_t m, u_int64_t ptebit)
 {
 	u_int	count;
 	struct	pvo_entry *pvo;
 	struct	lpte *pt;
-	uint64_t rv;
 
-	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
+	vm_page_lock_queues();
 
 	/*
 	 * Clear the cached value.
 	 */
-	rv = moea64_attr_fetch(m);
 	moea64_attr_clear(m, ptebit);
 
 	/*
@@ -2425,16 +2478,12 @@ moea64_clear_bit(vm_page_t m, u_int64_t ptebit, u_int64_t *origbit)
 				moea64_pte_clear(pt, pvo->pvo_pmap, PVO_VADDR(pvo), ptebit);
 			}
 		}
-		rv |= pvo->pvo_pte.lpte.pte_lo;
 		pvo->pvo_pte.lpte.pte_lo &= ~ptebit;
 		MOEA_PVO_CHECK(pvo);	/* sanity check */
 		UNLOCK_TABLE();
 	}
 
-	if (origbit != NULL) {
-		*origbit = rv;
-	}
-
+	vm_page_unlock_queues();
 	return (count);
 }
 

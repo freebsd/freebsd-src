@@ -144,6 +144,7 @@ SUBDIR=	${_3dfx} \
 	${_iwn} \
 	${_iwnfw} \
 	${_ixgb} \
+	${_ixgbe} \
 	jme \
 	joy \
 	kbdmux \
@@ -188,7 +189,9 @@ SUBDIR=	${_3dfx} \
 	msdosfs_iconv \
 	${_mse} \
 	msk \
+	mvs \
 	mwl \
+	mwlfw \
 	mxge \
 	my \
 	${_ncp} \
@@ -464,6 +467,7 @@ _iwifw=		iwifw
 _iwn=		iwn
 _iwnfw=		iwnfw
 _ixgb=		ixgb
+_ixgbe=		ixgbe
 _mly=		mly
 _nfe=		nfe
 _nve=		nve
@@ -472,9 +476,7 @@ _nxge=		nxge
 _wpi=		wpi
 _wpifw=		wpifw
 .if ${MK_CRYPT} != "no" || defined(ALL_MODULES)
-.if exists(${.CURDIR}/../crypto/via)
 _padlock=	padlock
-.endif
 .endif
 _s3=		s3
 _twa=		twa
@@ -536,6 +538,7 @@ _iwifw=		iwifw
 _iwn=		iwn
 _iwnfw=		iwnfw
 _ixgb=		ixgb
+_ixgbe=		ixgbe
 _lindev=	lindev
 _linprocfs=	linprocfs
 _linsysfs=	linsysfs
@@ -550,9 +553,7 @@ _nxge=		nxge
 _opensolaris=	opensolaris
 .endif
 .if ${MK_CRYPT} != "no" || defined(ALL_MODULES)
-.if exists(${.CURDIR}/../crypto/via)
 _padlock=	padlock
-.endif
 .endif
 _pccard=	pccard
 _rdma=		rdma	

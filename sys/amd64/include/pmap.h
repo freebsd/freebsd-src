@@ -245,6 +245,8 @@ struct pmap {
 	pml4_entry_t		*pm_pml4;	/* KVA of level 4 page table */
 	TAILQ_HEAD(,pv_chunk)	pm_pvchunk;	/* list of mappings in pmap */
 	u_int			pm_active;	/* active on cpus */
+	uint32_t		pm_gen_count;	/* generation count (pmap lock dropped) */
+	u_int			pm_retries;
 	/* spare u_int here due to padding */
 	struct pmap_statistics	pm_stats;	/* pmap statistics */
 	vm_page_t		pm_root;	/* spare page table pages */

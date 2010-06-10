@@ -157,14 +157,14 @@ count is divided by this count to obtain the average L3 hit latency.
 .Pq Event 03H , Umask 08H
 Counts the number of GQ read tracker entries that are allocated in the read
 tracker, have missed in the L3 and have not acquired a Request Transaction
-ID.	The GQ read tracker L3 miss to RTID acquired occupancy count is
+ID. The GQ read tracker L3 miss to RTID acquired occupancy count is
 divided by this count to obtain the average latency for a read L3 miss to
 acquire an RTID.
 .It Li GQ_ALLOC.WT_TO_RTID_ACQUIRED
 .Pq Event 03H , Umask 10H
 Counts the number of GQ write tracker entries that are allocated in the
 write tracker, have missed in the L3 and have not acquired a Request
-Transaction ID.	The GQ write tracker L3 miss to RTID occupancy count is
+Transaction ID. The GQ write tracker L3 miss to RTID occupancy count is
 divided by this count to obtain the average latency for a write L3 miss to
 acquire an RTID.
 .It Li GQ_ALLOC.WRITE_TRACKER

@@ -90,14 +90,16 @@ VNET_DECLARE(int, nd6_recalc_reachtm_interval);
 #define	V_nd6_recalc_reachtm_interval	VNET(nd6_recalc_reachtm_interval)
 
 static VNET_DEFINE(struct ifnet *, nd6_defifp);
+VNET_DEFINE(int, nd6_defifindex);
 #define	V_nd6_defifp			VNET(nd6_defifp)
 
-VNET_DEFINE(int, nd6_defifindex);
-VNET_DEFINE(int, ip6_use_tempaddr);
+VNET_DEFINE(int, ip6_use_tempaddr) = 0;
+
 VNET_DEFINE(int, ip6_desync_factor);
-VNET_DEFINE(u_int32_t, ip6_temp_preferred_lifetime);
-VNET_DEFINE(u_int32_t, ip6_temp_valid_lifetime);
-VNET_DEFINE(int, ip6_temp_regen_advance);
+VNET_DEFINE(u_int32_t, ip6_temp_preferred_lifetime) = DEF_TEMP_PREFERRED_LIFETIME;
+VNET_DEFINE(u_int32_t, ip6_temp_valid_lifetime) = DEF_TEMP_VALID_LIFETIME;
+
+VNET_DEFINE(int, ip6_temp_regen_advance) = TEMPADDR_REGEN_ADVANCE;
 
 /* RTPREF_MEDIUM has to be 0! */
 #define RTPREF_HIGH	1

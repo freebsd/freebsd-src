@@ -145,6 +145,7 @@
 #define DEVICEID_MRVL_436B	0x436B
 #define DEVICEID_MRVL_436C	0x436C
 #define DEVICEID_MRVL_4380	0x4380
+#define DEVICEID_MRVL_4381	0x4381
 
 /*
  * D-Link gigabit ethernet device ID
@@ -621,8 +622,8 @@
 #define RX_GMF_FL_MSK	0x0c4c	/* 32 bit Rx GMAC FIFO Flush Mask */
 #define RX_GMF_FL_THR	0x0c50	/* 32 bit Rx GMAC FIFO Flush Threshold */
 #define RX_GMF_TR_THR	0x0c54	/* 32 bit Rx Truncation Threshold (Yukon-2) */
-#define	RX_GMF_UP_THR	0x0c58	/*  8 bit Rx Upper Pause Thr (Yukon-EC_U) */
-#define	RX_GMF_LP_THR	0x0c5a	/*  8 bit Rx Lower Pause Thr (Yukon-EC_U) */
+#define	RX_GMF_UP_THR	0x0c58	/* 16 bit Rx Upper Pause Thr (Yukon-EC_U) */
+#define	RX_GMF_LP_THR	0x0c5a	/* 16 bit Rx Lower Pause Thr (Yukon-EC_U) */
 #define RX_GMF_VLAN	0x0c5c	/* 32 bit Rx VLAN Type Register (Yukon-2) */
 #define RX_GMF_WP	0x0c60	/* 32 bit Rx GMAC FIFO Write Pointer */
 #define RX_GMF_WLEV	0x0c68	/* 32 bit Rx GMAC FIFO Write Level */
@@ -828,6 +829,9 @@
 #define Y2_IS_CHK_RX2	BIT_10	/* Descriptor error Rx 2 */
 #define Y2_IS_CHK_TXS2	BIT_9	/* Descriptor error TXS 2 */
 #define Y2_IS_CHK_TXA2	BIT_8	/* Descriptor error TXA 2 */
+#define Y2_IS_PSM_ACK	BIT_7	/* PSM Ack (Yukon Optima) */
+#define Y2_IS_PTP_TIST	BIT_6	/* PTP TIme Stamp (Yukon Optima) */
+#define Y2_IS_PHY_QLNK	BIT_5	/* PHY Quick Link (Yukon Optima) */
 #define Y2_IS_IRQ_PHY1	BIT_4	/* Interrupt from PHY 1 */
 #define Y2_IS_IRQ_MAC1	BIT_3	/* Interrupt from MAC 1 */
 #define Y2_IS_CHK_RX1	BIT_2	/* Descriptor error Rx 1 */
@@ -894,6 +898,8 @@
 #define CHIP_ID_YUKON_FE_P	0xb8 /* Chip ID for YUKON-2 FE+ */
 #define CHIP_ID_YUKON_SUPR	0xb9 /* Chip ID for YUKON-2 Supreme */
 #define CHIP_ID_YUKON_UL_2	0xba /* Chip ID for YUKON-2 Ultra 2 */
+#define CHIP_ID_YUKON_UNKNOWN	0xbb
+#define CHIP_ID_YUKON_OPT	0xbc /* Chip ID for YUKON-2 Optima */
 
 #define	CHIP_REV_YU_XL_A0	0 /* Chip Rev. for Yukon-2 A0 */
 #define	CHIP_REV_YU_XL_A1	1 /* Chip Rev. for Yukon-2 A1 */
@@ -1941,6 +1947,8 @@
 #define RX_TRUNC_OFF		BIT_26	/* disable packet truncation */
 #define RX_VLAN_STRIP_ON	BIT_25	/* enable  VLAN stripping */
 #define RX_VLAN_STRIP_OFF	BIT_24	/* disable VLAN stripping */
+#define GMF_RX_MACSEC_FLUSH_ON	BIT_23
+#define GMF_RX_MACSEC_FLUSH_OFF	BIT_22
 #define GMF_RX_OVER_ON		BIT_19	/* enable flushing on receive overrun */
 #define GMF_RX_OVER_OFF		BIT_18	/* disable flushing on receive overrun */
 #define GMF_ASF_RX_OVER_ON	BIT_17	/* enable flushing of ASF when overrun */

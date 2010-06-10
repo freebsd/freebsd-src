@@ -182,6 +182,9 @@ int	format1(const struct stat *,	/* stat info */
 	    char *, size_t,		/* a place to put the output */
 	    int, int, int, int,		/* the parsed format */
 	    int, int);
+#if HAVE_STRUCT_STAT_ST_FLAGS
+char   *xfflagstostr(unsigned long);
+#endif
 
 char *timefmt;
 int linkfail;
@@ -332,6 +335,25 @@ main(int argc, char *argv[])
 
 	return (am_readlink ? linkfail : errs);
 }
+
+#if HAVE_STRUCT_STAT_ST_FLAGS
+/*
+ * fflagstostr() wrapper that leaks only once
+ */
+char *
+xfflagstostr(unsigned long fflags)
+{
+	static char *str = NULL;
+
+	if (str != NULL)
+		free(str);
+
+	str = fflagstostr(fflags);
+	if (str == NULL)
+		err(1, "fflagstostr");
+	return (str);
+}
+#endif /* HAVE_STRUCT_STAT_ST_FLAGS */
 
 void
 usage(const char *synopsis)
@@ -725,8 +747,11 @@ format1(const struct stat *st,
 	case SHOW_st_flags:
 		small = (sizeof(st->st_flags) == 4);
 		data = st->st_flags;
-		sdata = NULL;
-		formats = FMTF_DECIMAL | FMTF_OCTAL | FMTF_UNSIGNED | FMTF_HEX;
+		sdata = xfflagstostr(st->st_flags);
+		if (*sdata == '\0')
+			sdata = "-";
+		formats = FMTF_DECIMAL | FMTF_OCTAL | FMTF_UNSIGNED | FMTF_HEX |
+		    FMTF_STRING;
 		if (ofmt == 0)
 			ofmt = FMTF_UNSIGNED;
 		break;

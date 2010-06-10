@@ -72,7 +72,7 @@ struct usb_std_packet_size {
 
 static usb_callback_t usb_request_callback;
 
-static const struct usb_config usb_control_ep_cfg[USB_DEFAULT_XFER_MAX] = {
+static const struct usb_config usb_control_ep_cfg[USB_CTRL_XFER_MAX] = {
 
 	/* This transfer is used for generic control endpoint transfers */
 
@@ -1418,7 +1418,7 @@ usbd_transfer_submit(struct usb_xfer *xfer)
 	    xfer, xfer->endpoint, xfer->nframes, USB_GET_DATA_ISREAD(xfer) ?
 	    "read" : "write");
 
-#if USB_DEBUG
+#ifdef USB_DEBUG
 	if (USB_DEBUG_VAR > 0) {
 		USB_BUS_LOCK(bus);
 
@@ -2433,8 +2433,8 @@ usbd_pipe_start(struct usb_xfer_queue *pq)
 			if (udev->flags.usb_mode == USB_MODE_DEVICE) {
 				(udev->bus->methods->set_stall) (
 				    udev, NULL, ep, &did_stall);
-			} else if (udev->default_xfer[1]) {
-				info = udev->default_xfer[1]->xroot;
+			} else if (udev->ctrl_xfer[1]) {
+				info = udev->ctrl_xfer[1]->xroot;
 				usb_proc_msignal(
 				    &info->bus->non_giant_callback_proc,
 				    &udev->cs_msg[0], &udev->cs_msg[1]);
@@ -2757,13 +2757,13 @@ usb_command_wrapper(struct usb_xfer_queue *pq, struct usb_xfer *xfer)
 }
 
 /*------------------------------------------------------------------------*
- *	usbd_default_transfer_setup
+ *	usbd_ctrl_transfer_setup
  *
  * This function is used to setup the default USB control endpoint
  * transfer.
  *------------------------------------------------------------------------*/
 void
-usbd_default_transfer_setup(struct usb_device *udev)
+usbd_ctrl_transfer_setup(struct usb_device *udev)
 {
 	struct usb_xfer *xfer;
 	uint8_t no_resetup;
@@ -2774,12 +2774,12 @@ usbd_default_transfer_setup(struct usb_device *udev)
 		return;
 repeat:
 
-	xfer = udev->default_xfer[0];
+	xfer = udev->ctrl_xfer[0];
 	if (xfer) {
 		USB_XFER_LOCK(xfer);
 		no_resetup =
 		    ((xfer->address == udev->address) &&
-		    (udev->default_ep_desc.wMaxPacketSize[0] ==
+		    (udev->ctrl_ep_desc.wMaxPacketSize[0] ==
 		    udev->ddesc.bMaxPacketSize));
 		if (udev->flags.usb_mode == USB_MODE_DEVICE) {
 			if (no_resetup) {
@@ -2806,13 +2806,13 @@ repeat:
 	/*
 	 * Update wMaxPacketSize for the default control endpoint:
 	 */
-	udev->default_ep_desc.wMaxPacketSize[0] =
+	udev->ctrl_ep_desc.wMaxPacketSize[0] =
 	    udev->ddesc.bMaxPacketSize;
 
 	/*
 	 * Unsetup any existing USB transfer:
 	 */
-	usbd_transfer_unsetup(udev->default_xfer, USB_DEFAULT_XFER_MAX);
+	usbd_transfer_unsetup(udev->ctrl_xfer, USB_CTRL_XFER_MAX);
 
 	/*
 	 * Try to setup a new USB transfer for the
@@ -2820,8 +2820,8 @@ repeat:
 	 */
 	iface_index = 0;
 	if (usbd_transfer_setup(udev, &iface_index,
-	    udev->default_xfer, usb_control_ep_cfg, USB_DEFAULT_XFER_MAX, NULL,
-	    udev->default_mtx)) {
+	    udev->ctrl_xfer, usb_control_ep_cfg, USB_CTRL_XFER_MAX, NULL,
+	    &udev->device_mtx)) {
 		DPRINTFN(0, "could not setup default "
 		    "USB transfer\n");
 	} else {
@@ -3001,13 +3001,13 @@ usbd_transfer_poll(struct usb_xfer **ppxfer, uint16_t max)
 		USB_BUS_LOCK(xroot->bus);
 
 		/* check for clear stall */
-		if (udev->default_xfer[1] != NULL) {
+		if (udev->ctrl_xfer[1] != NULL) {
 
 			/* poll clear stall start */
 			pm = &udev->cs_msg[0].hdr;
 			(pm->pm_callback) (pm);
 			/* poll clear stall done thread */
-			pm = &udev->default_xfer[1]->
+			pm = &udev->ctrl_xfer[1]->
 			    xroot->done_m[0].hdr;
 			(pm->pm_callback) (pm);
 		}

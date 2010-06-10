@@ -79,6 +79,7 @@ options 	WITNESS_SKIPSPIN	#Don't run witness on spinlocks for speed
 
 device		md
 
+options 	USB_DEBUG	# enable debug msgs
 device		usb
 device		ohci
 device		umass

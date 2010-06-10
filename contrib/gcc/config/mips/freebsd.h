@@ -75,7 +75,10 @@ Boston, MA 02110-1301, USA.  */
     %{mabi=o64:-melf64%{EB:b}%{EL:l}tsmip_fbsd} \
     %(fbsd_link_spec)"
 
-    
+#undef	LINK_GCC_C_SEQUENCE_SPEC
+#define LINK_GCC_C_SEQUENCE_SPEC \
+  "%{static:--start-group} %G %L %{static:--end-group}%{!static:%G}"
+
 /* Reset our STARTFILE_SPEC which was properly set in config/freebsd.h
    but trashed by config/mips/elf.h.  */
 #undef  STARTFILE_SPEC
@@ -124,7 +127,7 @@ Boston, MA 02110-1301, USA.  */
       builtin_define ("__mips__");				\
 								\
       if (TARGET_64BIT)						\
-	builtin_define ("__mips64__");				\
+	builtin_define ("__mips64");				\
 								\
       if (TARGET_FLOAT64)					\
 	builtin_define ("__mips_fpr=64");			\
@@ -228,13 +231,13 @@ Boston, MA 02110-1301, USA.  */
           builtin_define ("_MIPS_ISA=_MIPS_ISA_MIPS64");        \
 	  builtin_define ("__mips_isa_rev=1");			\
 	}							\
-/*      else if (ISA_MIPS64R2)					\
+      else if (ISA_MIPS64R2)					\
 	{							\
 	  builtin_define ("__mips=64");				\
           builtin_define ("_MIPS_ISA=_MIPS_ISA_MIPS64");        \
 	  builtin_define ("__mips_isa_rev=2");			\
 	}							\
-*/								\
+	    							\
       if (TARGET_HARD_FLOAT)					\
 	builtin_define ("__mips_hard_float");			\
       else if (TARGET_SOFT_FLOAT)				\
@@ -255,27 +258,37 @@ Boston, MA 02110-1301, USA.  */
   while (0)
 
 /* Default ABI and ISA */
+/*
+ * XXX/juli
+ * Shouldn't this also be dependent on !mips*?
+ */
+#ifdef MIPS_CPU_STRING_DEFAULT
+#define DRIVER_SELF_ISA_SPEC	"%{!march=*: -march=" MIPS_CPU_STRING_DEFAULT "}"
+#else
+#define	DRIVER_SELF_ISA_SPEC	"%{!march=*: -march=from-abi}"
+#endif
+
 #undef DRIVER_SELF_SPECS
 #if MIPS_ABI_DEFAULT == ABI_N32
 #define DRIVER_SELF_SPECS \
 	"%{!EB:%{!EL:%(endian_spec)}}", \
-	"%{!march=*: -march=mips64}",   \
-	"%{!mabi=*: -mabi=n32}"
+	"%{!mabi=*: -mabi=n32}", \
+	DRIVER_SELF_ISA_SPEC
 #elif MIPS_ABI_DEFAULT == ABI_64
 #define DRIVER_SELF_SPECS \
 	"%{!EB:%{!EL:%(endian_spec)}}", \
-	"%{!march=*: -march=mips64}",   \
-	"%{!mabi=*: -mabi=64}"
+	"%{!mabi=*: -mabi=64}", \
+	DRIVER_SELF_ISA_SPEC
 #elif MIPS_ABI_DEFAULT == ABI_O64
 #define DRIVER_SELF_SPECS \
 	"%{!EB:%{!EL:%(endian_spec)}}", \
-	"%{!march=*: -march=mips64}",   \
-	"%{!mabi=*: -mabi=o64}"
+	"%{!mabi=*: -mabi=o64}", \
+	DRIVER_SELF_ISA_SPEC
 #else /* default to o32 */
 #define DRIVER_SELF_SPECS \
 	"%{!EB:%{!EL:%(endian_spec)}}", \
-	"%{!march=*: -march=mips32}",   \
-	"%{!mabi=*: -mabi=32}"
+	"%{!mabi=*: -mabi=32}", \
+	DRIVER_SELF_ISA_SPEC
 #endif
 
 #if 0

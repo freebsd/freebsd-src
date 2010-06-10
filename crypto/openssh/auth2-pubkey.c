@@ -1,4 +1,4 @@
-/* $OpenBSD: auth2-pubkey.c,v 1.21 2010/03/04 10:36:03 djm Exp $ */
+/* $OpenBSD: auth2-pubkey.c,v 1.22 2010/03/10 23:27:17 djm Exp $ */
 /*
  * Copyright (c) 2000 Markus Friedl.  All rights reserved.
  *
@@ -240,22 +240,26 @@ user_key_allowed2(struct passwd *pw, Key *key, char *file)
 				continue;
 			if (!key_equal(found, key->cert->signature_key))
 				continue;
-			debug("matching CA found: file %s, line %lu",
-			    file, linenum);
 			fp = key_fingerprint(found, SSH_FP_MD5,
 			    SSH_FP_HEX);
-			verbose("Found matching %s CA: %s",
-			    key_type(found), fp);
-			xfree(fp);
+			debug("matching CA found: file %s, line %lu, %s %s",
+			    file, linenum, key_type(found), fp);
 			if (key_cert_check_authority(key, 0, 0, pw->pw_name,
 			    &reason) != 0) {
+				xfree(fp);
 				error("%s", reason);
 				auth_debug_add("%s", reason);
 				continue;
 			}
 			if (auth_cert_constraints(&key->cert->constraints,
-			    pw) != 0)
+			    pw) != 0) {
+				xfree(fp);
 				continue;
+			}
+			verbose("Accepted certificate ID \"%s\" "
+			    "signed by %s CA %s via %s", key->cert->key_id,
+			    key_type(found), fp, file);
+			xfree(fp);
 			found_key = 1;
 			break;
 		} else if (!key_is_cert_authority && key_equal(found, key)) {
@@ -281,15 +285,15 @@ user_key_allowed2(struct passwd *pw, Key *key, char *file)
 static int
 user_cert_trusted_ca(struct passwd *pw, Key *key)
 {
-	char *key_fp, *ca_fp;
+	char *ca_fp;
 	const char *reason;
 	int ret = 0;
 
 	if (!key_is_cert(key) || options.trusted_user_ca_keys == NULL)
 		return 0;
 
-	key_fp = key_fingerprint(key, SSH_FP_MD5, SSH_FP_HEX);
-	ca_fp = key_fingerprint(key, SSH_FP_MD5, SSH_FP_HEX);
+	ca_fp = key_fingerprint(key->cert->signature_key,
+	    SSH_FP_MD5, SSH_FP_HEX);
 
 	if (key_in_file(key->cert->signature_key,
 	    options.trusted_user_ca_keys, 1) != 1) {
@@ -306,13 +310,12 @@ user_cert_trusted_ca(struct passwd *pw, Key *key)
 	if (auth_cert_constraints(&key->cert->constraints, pw) != 0)
 		goto out;
 
-	verbose("%s certificate %s allowed by trusted %s key %s",
-	    key_type(key), key_fp, key_type(key->cert->signature_key), ca_fp);
+	verbose("Accepted certificate ID \"%s\" signed by %s CA %s via %s",
+	    key->cert->key_id, key_type(key->cert->signature_key), ca_fp,
+	    options.trusted_user_ca_keys);
 	ret = 1;
 
  out:
-	if (key_fp != NULL)
-		xfree(key_fp);
 	if (ca_fp != NULL)
 		xfree(ca_fp);
 	return ret;

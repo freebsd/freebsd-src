@@ -99,6 +99,9 @@ struct ptrace_lwpinfo {
 	int	pl_flags;	/* LWP flags. */
 #define	PL_FLAG_SA	0x01	/* M:N thread */
 #define	PL_FLAG_BOUND	0x02	/* M:N bound thread */
+#define	PL_FLAG_SCE	0x04	/* syscall enter point */
+#define	PL_FLAG_SCX	0x08	/* syscall leave point */
+#define	PL_FLAG_EXEC	0x10	/* exec(2) succeeded */
 	sigset_t	pl_sigmask;	/* LWP signal mask */
 	sigset_t	pl_siglist;	/* LWP pending signal */
 };

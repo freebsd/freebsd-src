@@ -221,10 +221,6 @@ necessary to load the VESA module.
 Just load the bitmap file and the splash decoder module as in the
 first example above.
 .\".Sh DIAGNOSTICS
-.Sh CAVEATS
-Both the splash screen and the screen saver work with
-.Xr syscons 4
-only.
 .Sh SEE ALSO
 .Xr vidcontrol 1 ,
 .Xr syscons 4 ,
@@ -257,6 +253,10 @@ module was written by
 based on the
 .Pa splash_bmp
 code.
+.Sh CAVEATS
+Both the splash screen and the screen saver work with
+.Xr syscons 4
+only.
 .Sh BUGS
 If you load a screen saver while another screen saver has already
 been loaded, the first screen saver will not be automatically unloaded

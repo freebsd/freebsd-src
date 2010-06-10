@@ -83,7 +83,7 @@ void *drm_ioremap(struct drm_device *dev, drm_local_map_t *map)
 
 void drm_ioremapfree(drm_local_map_t *map)
 {
-	pmap_unmapdev((vm_offset_t) map->handle, map->size);
+	pmap_unmapdev((vm_offset_t) map->virtual, map->size);
 }
 
 int

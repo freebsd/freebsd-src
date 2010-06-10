@@ -68,7 +68,7 @@ __FBSDID("$FreeBSD$");
 
 static devclass_t	sc_devclass;
 
-static sc_softc_t main_softc;
+static sc_softc_t	main_softc;
 #ifdef SC_NO_SUSPEND_VTYSWITCH
 static int sc_no_suspend_vtswitch = 1;
 #else
@@ -76,26 +76,28 @@ static int sc_no_suspend_vtswitch = 0;
 #endif
 static int sc_cur_scr;
 
-TUNABLE_INT("hw.syscons.sc_no_suspend_vtswitch", (int *)&sc_no_suspend_vtswitch);
+TUNABLE_INT("hw.syscons.sc_no_suspend_vtswitch", &sc_no_suspend_vtswitch);
 SYSCTL_DECL(_hw_syscons);
 SYSCTL_INT(_hw_syscons, OID_AUTO, sc_no_suspend_vtswitch, CTLFLAG_RW,
-	&sc_no_suspend_vtswitch, 0, "Disable VT switch before suspend.");
+    &sc_no_suspend_vtswitch, 0, "Disable VT switch before suspend.");
 
 static void
-scidentify (driver_t *driver, device_t parent)
+scidentify(driver_t *driver, device_t parent)
 {
+
 	BUS_ADD_CHILD(parent, ISA_ORDER_SPECULATIVE, "sc", 0);
 }
 
 static int
 scprobe(device_t dev)
 {
+
 	/* No pnp support */
 	if (isa_get_vendorid(dev))
 		return (ENXIO);
 
 	device_set_desc(dev, "System console");
-	return sc_probe_unit(device_get_unit(dev), device_get_flags(dev));
+	return (sc_probe_unit(device_get_unit(dev), device_get_flags(dev)));
 }
 
 static int
@@ -117,18 +119,17 @@ scsuspend(device_t dev)
 	if (sc->cur_scp == NULL)
 		return (0);
 
-	sc_cur_scr = sc->cur_scp->index;
-
-	if (sc_no_suspend_vtswitch)
-		return (0);
-
-	do {
-		sc_switch_scr(sc, 0);
-		if (!sc->switch_in_progress) {
-			break;
-		}
-		pause("scsuspend", hz);
-	} while (retry--);
+	if (sc->suspend_in_progress == 0) {
+		sc_cur_scr = sc->cur_scp->index;
+		if (!sc_no_suspend_vtswitch && sc_cur_scr != 0)
+			do {
+				sc_switch_scr(sc, 0);
+				if (!sc->switch_in_progress)
+					break;
+				pause("scsuspend", hz);
+			} while (retry--);
+	}
+	sc->suspend_in_progress++;
 
 	return (0);
 }
@@ -138,11 +139,12 @@ scresume(device_t dev)
 {
 	sc_softc_t	*sc;
 
-	if (sc_no_suspend_vtswitch)
-		return (0);
-
 	sc = &main_softc;
-	sc_switch_scr(sc, sc_cur_scr);
+
+	sc->suspend_in_progress--;
+	if (sc->suspend_in_progress == 0)
+		if (!sc_no_suspend_vtswitch && sc_cur_scr != 0)
+			sc_switch_scr(sc, sc_cur_scr);
 
 	return (0);
 }
@@ -150,7 +152,8 @@ scresume(device_t dev)
 int
 sc_max_unit(void)
 {
-	return devclass_get_maxunit(sc_devclass);
+
+	return (devclass_get_maxunit(sc_devclass));
 }
 
 sc_softc_t
@@ -159,53 +162,53 @@ sc_softc_t
 	sc_softc_t *sc;
 
 	if (unit < 0)
-		return NULL;
-	if (flags & SC_KERNEL_CONSOLE) {
+		return (NULL);
+	if ((flags & SC_KERNEL_CONSOLE) != 0) {
 		/* FIXME: clear if it is wired to another unit! */
 		sc = &main_softc;
 	} else {
-	        sc = (sc_softc_t *)device_get_softc(devclass_get_device(sc_devclass, unit));
+	        sc = device_get_softc(devclass_get_device(sc_devclass, unit));
 		if (sc == NULL)
-			return NULL;
+			return (NULL);
 	}
 	sc->unit = unit;
-	if (!(sc->flags & SC_INIT_DONE)) {
+	if ((sc->flags & SC_INIT_DONE) == 0) {
 		sc->keyboard = -1;
 		sc->adapter = -1;
 		sc->cursor_char = SC_CURSOR_CHAR;
 		sc->mouse_char = SC_MOUSE_CHAR;
 	}
-	return sc;
+	return (sc);
 }
 
 sc_softc_t
 *sc_find_softc(struct video_adapter *adp, struct keyboard *kbd)
 {
 	sc_softc_t *sc;
-	int units;
 	int i;
+	int units;
 
 	sc = &main_softc;
-	if (((adp == NULL) || (adp == sc->adp))
-	    && ((kbd == NULL) || (kbd == sc->kbd)))
-		return sc;
+	if ((adp == NULL || adp == sc->adp) &&
+	    (kbd == NULL || kbd == sc->kbd))
+		return (sc);
 	units = devclass_get_maxunit(sc_devclass);
 	for (i = 0; i < units; ++i) {
-	        sc = (sc_softc_t *)device_get_softc(devclass_get_device(sc_devclass, i));
+	        sc = device_get_softc(devclass_get_device(sc_devclass, i));
 		if (sc == NULL)
 			continue;
-		if (((adp == NULL) || (adp == sc->adp))
-		    && ((kbd == NULL) || (kbd == sc->kbd)))
-			return sc;
+		if ((adp == NULL || adp == sc->adp) &&
+		    (kbd == NULL || kbd == sc->kbd))
+			return (sc);
 	}
-	return NULL;
+	return (NULL);
 }
 
 int
 sc_get_cons_priority(int *unit, int *flags)
 {
 	const char *at;
-	int u, f;
+	int f, u;
 
 #ifdef XBOX
 	/*
@@ -216,7 +219,7 @@ sc_get_cons_priority(int *unit, int *flags)
 	if (arch_i386_is_xbox) {
 		*unit = 0;
 		*flags = SC_KERNEL_CONSOLE;
-		return CN_INTERNAL;
+		return (CN_INTERNAL);
 	}
 #endif
 
@@ -245,24 +248,24 @@ sc_get_cons_priority(int *unit, int *flags)
 		*flags = 0;
 	}
 #if 0
-	return ((*flags & SC_KERNEL_CONSOLE) ? CN_INTERNAL : CN_NORMAL);
+	return ((*flags & SC_KERNEL_CONSOLE) != 0 ? CN_INTERNAL : CN_NORMAL);
 #endif
-	return CN_INTERNAL;
+	return (CN_INTERNAL);
 }
 
 void
 sc_get_bios_values(bios_values_t *values)
 {
 #if defined(__i386__) || defined(__amd64__)
-	u_int8_t shift;
+	uint8_t shift;
 
-	values->cursor_start = *(u_int8_t *)BIOS_PADDRTOVADDR(0x461);
-	values->cursor_end = *(u_int8_t *)BIOS_PADDRTOVADDR(0x460);
-	shift = *(u_int8_t *)BIOS_PADDRTOVADDR(0x417);
-	values->shift_state = ((shift & BIOS_CLKED) ? CLKED : 0)
-			       | ((shift & BIOS_NLKED) ? NLKED : 0)
-			       | ((shift & BIOS_SLKED) ? SLKED : 0)
-			       | ((shift & BIOS_ALKED) ? ALKED : 0);
+	values->cursor_start = *(uint8_t *)BIOS_PADDRTOVADDR(0x461);
+	values->cursor_end = *(uint8_t *)BIOS_PADDRTOVADDR(0x460);
+	shift = *(uint8_t *)BIOS_PADDRTOVADDR(0x417);
+	values->shift_state = ((shift & BIOS_CLKED) != 0 ? CLKED : 0) |
+	    ((shift & BIOS_NLKED) != 0 ? NLKED : 0) |
+	    ((shift & BIOS_SLKED) != 0 ? SLKED : 0) |
+	    ((shift & BIOS_ALKED) != 0 ? ALKED : 0);
 #else
 	values->cursor_start = 0;
 	values->cursor_end = 32;
@@ -274,17 +277,17 @@ sc_get_bios_values(bios_values_t *values)
 int
 sc_tone(int herz)
 {
+
 #if defined(HAS_TIMER_SPKR)
 	if (herz) {
 		if (timer_spkr_acquire())
-			return EBUSY;
+			return (EBUSY);
 		timer_spkr_setfreq(herz);
-	} else {
+	} else
 		timer_spkr_release();
-	}
 #endif
 
-	return 0;
+	return (0);
 }
 
 static device_method_t sc_methods[] = {
@@ -303,3 +306,70 @@ static driver_t sc_driver = {
 };
 
 DRIVER_MODULE(sc, isa, sc_driver, sc_devclass, 0, 0);
+
+static devclass_t	scpm_devclass;
+
+static void
+scpm_identify(driver_t *driver, device_t parent)
+{
+
+	device_add_child(parent, "scpm", 0);
+}
+
+static int
+scpm_probe(device_t dev)
+{
+
+	device_set_desc(dev, SC_DRIVER_NAME " suspend/resume");
+	device_quiet(dev);
+
+	return (BUS_PROBE_DEFAULT);
+}
+
+static int
+scpm_attach(device_t dev)
+{
+
+	bus_generic_probe(dev);
+	bus_generic_attach(dev);
+
+	return (0);
+}
+
+static int
+scpm_suspend(device_t dev)
+{
+	int error;
+
+	error = bus_generic_suspend(dev);
+	if (error != 0)
+		return (error);
+
+	return (scsuspend(dev));
+}
+
+static int
+scpm_resume(device_t dev)
+{
+
+	scresume(dev);
+
+	return (bus_generic_resume(dev));
+}
+
+static device_method_t scpm_methods[] = {
+	DEVMETHOD(device_identify,	scpm_identify),
+	DEVMETHOD(device_probe,		scpm_probe),
+	DEVMETHOD(device_attach,	scpm_attach),
+	DEVMETHOD(device_suspend,	scpm_suspend),
+	DEVMETHOD(device_resume,	scpm_resume),
+	{ 0, 0 }
+};
+
+static driver_t scpm_driver = {
+	"scpm",
+	scpm_methods,
+	0
+};
+
+DRIVER_MODULE(scpm, vgapm, scpm_driver, scpm_devclass, 0, 0);

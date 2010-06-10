@@ -28,60 +28,32 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
-#include <sys/conf.h>
-#include <sys/fcntl.h>
-#include <sys/lock.h>
-#include <sys/malloc.h>
-#include <sys/mutex.h>
-#include <sys/priv.h>
 #include <sys/proc.h>
-#include <sys/signalvar.h>
-#include <sys/systm.h>
 
-#include <machine/db_machdep.h>
 #include <machine/frame.h>
-#include <machine/psl.h>
-#include <machine/specialreg.h>
-
-#include <vm/vm.h>
-#include <vm/pmap.h>
-
 #include <machine/iodev.h>
+#include <machine/psl.h>
 
-/* ARGSUSED */
 int
-ioopen(struct cdev *dev __unused, int flags __unused, int fmt __unused,
-    struct thread *td)
+iodev_open(struct thread *td)
 {
-	int error;
-
-	error = priv_check(td, PRIV_IO);
-	if (error != 0)
-		return (error);
-	error = securelevel_gt(td->td_ucred, 0);
-	if (error != 0)
-		return (error);
 
 	td->td_frame->tf_eflags |= PSL_IOPL;
-
 	return (0);
 }
 
-/* ARGSUSED */
 int
-ioclose(struct cdev *dev __unused, int flags __unused, int fmt __unused,
-    struct thread *td)
+iodev_close(struct thread *td)
 {
+
 	td->td_frame->tf_eflags &= ~PSL_IOPL;
-
 	return (0);
 }
 
 /* ARGSUSED */
 int
-ioioctl(struct cdev *dev __unused, u_long cmd __unused, caddr_t data __unused,
-    int fflag __unused, struct thread *td __unused)
+iodev_ioctl(u_long cmd __unused, caddr_t data __unused)
 {
 
-	return (ENXIO);
+	return (ENOIOCTL);
 }

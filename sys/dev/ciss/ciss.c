@@ -417,6 +417,7 @@ ciss_attach(device_t dev)
     sc = device_get_softc(dev);
     sc->ciss_dev = dev;
     mtx_init(&sc->ciss_mtx, "cissmtx", NULL, MTX_DEF);
+    callout_init_mtx(&sc->ciss_periodic, &sc->ciss_mtx, 0);
 
     /*
      * Do PCI-specific init.
@@ -429,7 +430,6 @@ ciss_attach(device_t dev)
      */
     ciss_initq_free(sc);
     ciss_initq_notify(sc);
-    callout_init_mtx(&sc->ciss_periodic, &sc->ciss_mtx, 0);
 
     /*
      * Initalize device sysctls.

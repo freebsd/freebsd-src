@@ -47,10 +47,14 @@ __FBSDID("$FreeBSD$");
 #include <dev/pci/pcireg.h>
 #include <dev/pci/pcivar.h>
 
-#include <machine/cpufunc.h>
+#include <machine/iodev.h>
 
 #include <vm/vm.h>
 #include <vm/pmap.h>
+
+#if defined(__amd64__) || defined(__i386__)
+#define	X86BIOS_NATIVE_ARCH
+#endif
 
 #define	X86BIOS_PAGE_SIZE	0x00001000	/* 4K */
 
@@ -236,27 +240,49 @@ x86bios_emu_inb(struct x86emu *emu, uint16_t port)
 	if (port >= 0x80 && port < 0x88) /* POST status register */
 		return (0);
 
-	return (inb(port));
+	return (iodev_read_1(port));
 }
 
 static uint16_t
 x86bios_emu_inw(struct x86emu *emu, uint16_t port)
 {
+	uint16_t val;
 
 	if (port >= 0x80 && port < 0x88) /* POST status register */
 		return (0);
 
-	return (inw(port));
+#ifndef X86BIOS_NATIVE_ARCH
+	if ((port & 1) != 0) {
+		val = iodev_read_1(port);
+		val |= iodev_read_1(port + 1) << 8;
+	} else
+#endif
+	val = iodev_read_2(port);
+
+	return (val);
 }
 
 static uint32_t
 x86bios_emu_inl(struct x86emu *emu, uint16_t port)
 {
+	uint32_t val;
 
 	if (port >= 0x80 && port < 0x88) /* POST status register */
 		return (0);
 
-	return (inl(port));
+#ifndef X86BIOS_NATIVE_ARCH
+	if ((port & 1) != 0) {
+		val = iodev_read_1(port);
+		val |= iodev_read_2(port + 1) << 8;
+		val |= iodev_read_1(port + 3) << 24;
+	} else if ((port & 2) != 0) {
+		val = iodev_read_2(port);
+		val |= iodev_read_2(port + 2) << 16;
+	} else
+#endif
+	val = iodev_read_4(port);
+
+	return (val);
 }
 
 static void
@@ -268,7 +294,7 @@ x86bios_emu_outb(struct x86emu *emu, uint16_t port, uint8_t val)
 	if (port >= 0x80 && port < 0x88) /* POST status register */
 		return;
 
-	outb(port, val);
+	iodev_write_1(port, val);
 }
 
 static void
@@ -278,7 +304,13 @@ x86bios_emu_outw(struct x86emu *emu, uint16_t port, uint16_t val)
 	if (port >= 0x80 && port < 0x88) /* POST status register */
 		return;
 
-	outw(port, val);
+#ifndef X86BIOS_NATIVE_ARCH
+	if ((port & 1) != 0) {
+		iodev_write_1(port, val);
+		iodev_write_1(port + 1, val >> 8);
+	} else
+#endif
+	iodev_write_2(port, val);
 }
 
 static void
@@ -288,7 +320,17 @@ x86bios_emu_outl(struct x86emu *emu, uint16_t port, uint32_t val)
 	if (port >= 0x80 && port < 0x88) /* POST status register */
 		return;
 
-	outl(port, val);
+#ifndef X86BIOS_NATIVE_ARCH
+	if ((port & 1) != 0) {
+		iodev_write_1(port, val);
+		iodev_write_2(port + 1, val >> 8);
+		iodev_write_1(port + 3, val >> 24);
+	} else if ((port & 2) != 0) {
+		iodev_write_2(port, val);
+		iodev_write_2(port + 2, val >> 16);
+	} else
+#endif
+	iodev_write_4(port, val);
 }
 
 static void
@@ -484,45 +526,53 @@ x86bios_match_device(uint32_t offset, device_t dev)
 	return (1);
 }
 
-#if defined(__amd64__) || (defined(__i386__) && !defined(PC98))
-#define	PROBE_EBDA	1
+static __inline void
+x86bios_unmap_mem(void)
+{
+
+	if (x86bios_ivt != NULL)
+#ifdef X86BIOS_NATIVE_ARCH
+		pmap_unmapdev((vm_offset_t)x86bios_ivt, X86BIOS_IVT_SIZE);
 #else
-#define	PROBE_EBDA	0
+		free(x86bios_ivt, M_DEVBUF);
 #endif
+	if (x86bios_rom != NULL)
+		pmap_unmapdev((vm_offset_t)x86bios_rom, X86BIOS_ROM_SIZE);
+	if (x86bios_seg != NULL)
+		contigfree(x86bios_seg, X86BIOS_SEG_SIZE, M_DEVBUF);
+}
 
 static __inline int
 x86bios_map_mem(void)
 {
 
+#ifdef X86BIOS_NATIVE_ARCH
 	x86bios_ivt = pmap_mapbios(X86BIOS_IVT_BASE, X86BIOS_IVT_SIZE);
-	if (x86bios_ivt == NULL)
-		return (1);
 
-#if PROBE_EBDA
+#ifndef PC98
 	/* Probe EBDA via BDA. */
-	x86bios_rom_phys = *(uint16_t *)((vm_offset_t)x86bios_ivt + 0x40e);
-	x86bios_rom_phys = le16toh(x86bios_rom_phys) << 4;
+	x86bios_rom_phys = *(uint16_t *)((caddr_t)x86bios_ivt + 0x40e);
+	x86bios_rom_phys = x86bios_rom_phys << 4;
 	if (x86bios_rom_phys != 0 && x86bios_rom_phys < X86BIOS_ROM_BASE &&
 	    X86BIOS_ROM_BASE - x86bios_rom_phys <= 128 * 1024)
 		x86bios_rom_phys =
 		    rounddown(x86bios_rom_phys, X86BIOS_PAGE_SIZE);
 	else
 #endif
+#else
+	x86bios_ivt = malloc(X86BIOS_IVT_SIZE, M_DEVBUF, M_ZERO | M_WAITOK);
+#endif
+
 	x86bios_rom_phys = X86BIOS_ROM_BASE;
 	x86bios_rom = pmap_mapdev(x86bios_rom_phys, X86BIOS_ROM_SIZE);
-	if (x86bios_rom == NULL) {
-		pmap_unmapdev((vm_offset_t)x86bios_ivt, X86BIOS_IVT_SIZE);
-		return (1);
-	}
-#if PROBE_EBDA
+	if (x86bios_rom == NULL)
+		goto fail;
+#if defined(X86BIOS_NATIVE_ARCH) && !defined(PC98)
 	/* Change attribute for EBDA. */
 	if (x86bios_rom_phys < X86BIOS_ROM_BASE &&
 	    pmap_change_attr((vm_offset_t)x86bios_rom,
-	    X86BIOS_ROM_BASE - x86bios_rom_phys, PAT_WRITE_BACK) != 0) {
-		pmap_unmapdev((vm_offset_t)x86bios_ivt, X86BIOS_IVT_SIZE);
-		pmap_unmapdev((vm_offset_t)x86bios_rom, X86BIOS_ROM_SIZE);
-		return (1);
-	}
+	    X86BIOS_ROM_BASE - x86bios_rom_phys, PAT_WRITE_BACK) != 0)
+		goto fail;
 #endif
 
 	x86bios_seg = contigmalloc(X86BIOS_SEG_SIZE, M_DEVBUF, M_WAITOK,
@@ -537,12 +587,10 @@ x86bios_map_mem(void)
 		    (uint32_t)x86bios_seg_phys,
 		    X86BIOS_SEG_SIZE + (uint32_t)x86bios_seg_phys - 1,
 		    x86bios_seg);
-#if PROBE_EBDA
 		if (x86bios_rom_phys < X86BIOS_ROM_BASE)
 			printf("x86bios:  EBDA 0x%06x-0x%06x at %p\n",
 			    (uint32_t)x86bios_rom_phys, X86BIOS_ROM_BASE - 1,
 			    x86bios_rom);
-#endif
 		printf("x86bios:   ROM 0x%06x-0x%06x at %p\n",
 		    X86BIOS_ROM_BASE, X86BIOS_MEM_SIZE - X86BIOS_SEG_SIZE - 1,
 		    (void *)((vm_offset_t)x86bios_rom + X86BIOS_ROM_BASE -
@@ -550,28 +598,22 @@ x86bios_map_mem(void)
 	}
 
 	return (0);
+
+fail:
+	x86bios_unmap_mem();
+
+	return (1);
 }
 
-#undef PROBE_EBDA
-
-static __inline void
-x86bios_unmap_mem(void)
-{
-
-	pmap_unmapdev((vm_offset_t)x86bios_ivt, X86BIOS_IVT_SIZE);
-	pmap_unmapdev((vm_offset_t)x86bios_rom, X86BIOS_ROM_SIZE);
-	contigfree(x86bios_seg, X86BIOS_SEG_SIZE, M_DEVBUF);
-}
-
-static void
-x86bios_init(void *arg __unused)
+static int
+x86bios_init(void)
 {
 	int i;
 
-	mtx_init(&x86bios_lock, "x86bios lock", NULL, MTX_SPIN);
-
 	if (x86bios_map_mem() != 0)
-		return;
+		return (ENOMEM);
+
+	mtx_init(&x86bios_lock, "x86bios lock", NULL, MTX_SPIN);
 
 	x86bios_map = malloc(sizeof(*x86bios_map) * X86BIOS_PAGES, M_DEVBUF,
 	    M_WAITOK | M_ZERO);
@@ -600,10 +642,12 @@ x86bios_init(void *arg __unused)
 
 	for (i = 0; i < 256; i++)
 		x86bios_emu._x86emu_intrTab[i] = x86bios_emu_get_intr;
+
+	return (0);
 }
 
-static void
-x86bios_uninit(void *arg __unused)
+static int
+x86bios_uninit(void)
 {
 	vm_offset_t *map = x86bios_map;
 
@@ -618,6 +662,8 @@ x86bios_uninit(void *arg __unused)
 		x86bios_unmap_mem();
 
 	mtx_destroy(&x86bios_lock);
+
+	return (0);
 }
 
 static int
@@ -626,16 +672,12 @@ x86bios_modevent(module_t mod __unused, int type, void *data __unused)
 
 	switch (type) {
 	case MOD_LOAD:
-		x86bios_init(NULL);
-		break;
+		return (x86bios_init());
 	case MOD_UNLOAD:
-		x86bios_uninit(NULL);
-		break;
+		return (x86bios_uninit());
 	default:
 		return (ENOTSUP);
 	}
-
-	return (0);
 }
 
 static moduledata_t x86bios_mod = {

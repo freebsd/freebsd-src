@@ -50,6 +50,10 @@ FILES+=	sshd
 FILES+= nscd
 .endif
 
+.if ${MK_BLUETOOTH} != "no"
+FILES+=	ubthidhci
+.endif
+
 FILESDIR=	/etc/rc.d
 FILESMODE=	${BINMODE}
 

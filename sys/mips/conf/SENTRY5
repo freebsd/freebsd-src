@@ -75,6 +75,7 @@ device		pci			# siba_pcib
 #device		ath_hal			# pci chip support
 #options		AH_SUPPORT_AR5416	# enable AR5416 tx/rx descriptors
 
+options 	USB_DEBUG		# enable debug msgs
 device		usb			# USB Bus (required)
 device		uhci			# UHCI PCI->USB interface
 device		ehci			# EHCI PCI->USB interface (USB 2.0)

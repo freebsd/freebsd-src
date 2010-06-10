@@ -398,7 +398,7 @@ thread_exit(void)
 
 			/*
 			 * The test below is NOT true if we are the
-			 * sole exiting thread. P_STOPPED_SNGL is unset
+			 * sole exiting thread. P_STOPPED_SINGLE is unset
 			 * in exit1() after it is the only survivor.
 			 */
 			if (P_SHOULDSTOP(p) == P_STOPPED_SINGLE) {
@@ -430,9 +430,8 @@ thread_exit(void)
 		PMC_SWITCH_CONTEXT(td, PMC_FN_CSW_OUT);
 #endif
 	PROC_UNLOCK(p);
+	ruxagg(p, td);
 	thread_lock(td);
-	/* Save our tick information with both the thread and proc locked */
-	ruxagg(&p->p_rux, td);
 	PROC_SUNLOCK(p);
 	td->td_state = TDS_INACTIVE;
 #ifdef WITNESS

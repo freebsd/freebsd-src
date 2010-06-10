@@ -343,7 +343,8 @@ g_mountver_destroy(struct g_geom *gp, boolean_t force)
 	} else {
 		G_MOUNTVER_DEBUG(0, "Device %s removed.", gp->name);
 	}
-	g_orphan_provider(pp, ENXIO);
+	if (pp != NULL)
+		g_orphan_provider(pp, ENXIO);
 	g_mountver_discard_queued(gp);
 	g_free(sc->sc_provider_name);
 	g_free(gp->softc);

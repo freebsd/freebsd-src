@@ -50,7 +50,7 @@ format_who(char *str, size_t size, const acl_entry_t entry, int numeric)
 	acl_tag_t tag;
 	struct passwd *pwd;
 	struct group *grp;
-	id_t *id;
+	uid_t *id;
 
 	error = acl_get_tag_type(entry, &tag);
 	if (error)
@@ -62,7 +62,7 @@ format_who(char *str, size_t size, const acl_entry_t entry, int numeric)
 		break;
 
 	case ACL_USER:
-		id = (id_t *)acl_get_qualifier(entry);
+		id = (uid_t *)acl_get_qualifier(entry);
 		if (id == NULL)
 			return (-1);
 		/* XXX: Thread-unsafe. */
@@ -81,7 +81,7 @@ format_who(char *str, size_t size, const acl_entry_t entry, int numeric)
 		break;
 
 	case ACL_GROUP:
-		id = (id_t *)acl_get_qualifier(entry);
+		id = (uid_t *)acl_get_qualifier(entry);
 		if (id == NULL)
 			return (-1);
 		/* XXX: Thread-unsafe. */
@@ -141,7 +141,7 @@ format_additional_id(char *str, size_t size, const acl_entry_t entry)
 {
 	int error;
 	acl_tag_t tag;
-	id_t *id;
+	uid_t *id;
 
 	error = acl_get_tag_type(entry, &tag);
 	if (error)
@@ -155,7 +155,7 @@ format_additional_id(char *str, size_t size, const acl_entry_t entry)
 		break;
 
 	default:
-		id = (id_t *)acl_get_qualifier(entry);
+		id = (uid_t *)acl_get_qualifier(entry);
 		if (id == NULL)
 			return (-1);
 		snprintf(str, size, ":%d", (unsigned int)*id);
@@ -246,6 +246,7 @@ _nfs4_acl_to_text_np(const acl_t aclp, ssize_t *len_p, int flags)
 
 		error = format_entry(str + off, size - off, entry, flags);
 		if (error) {
+			free(str);
 			errno = EINVAL;
 			return (NULL);
 		}

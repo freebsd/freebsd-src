@@ -147,8 +147,8 @@ again:
 	switch (ipfw) {
 	case IP_FW_PASS:
 		/* next_hop may be set by ipfw_chk */
-                if (args.next_hop == NULL)
-                        break; /* pass */
+		if (args.next_hop == NULL)
+			break; /* pass */
 #ifndef IPFIREWALL_FORWARD
 		ret = EACCES;
 #else
@@ -347,14 +347,14 @@ ipfw_attach_hooks(int arg)
 
 	if (arg == 0) /* detach */
 		ipfw_hook(0, AF_INET);
-        else if (V_fw_enable && ipfw_hook(1, AF_INET) != 0) {
+	else if (V_fw_enable && ipfw_hook(1, AF_INET) != 0) {
                 error = ENOENT; /* see ip_fw_pfil.c::ipfw_hook() */
                 printf("ipfw_hook() error\n");
         }
 #ifdef INET6
 	if (arg == 0) /* detach */
 		ipfw_hook(0, AF_INET6);
-        else if (V_fw6_enable && ipfw_hook(1, AF_INET6) != 0) {
+	else if (V_fw6_enable && ipfw_hook(1, AF_INET6) != 0) {
                 error = ENOENT;
                 printf("ipfw6_hook() error\n");
         }

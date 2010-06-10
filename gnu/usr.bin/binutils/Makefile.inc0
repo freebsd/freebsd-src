@@ -27,7 +27,9 @@ RELSRC=	${RELTOP}/../../../contrib/binutils
 SRCDIR=	${.CURDIR}/${RELSRC}
 
 .if ${TARGET_CPUARCH} == "arm" || ${TARGET_CPUARCH} == "i386" || \
-	${TARGET_CPUARCH} == "powerpc" || ${TARGET_CPUARCH} == "mips"
+	${TARGET_CPUARCH} == "powerpc" || \
+	(${TARGET_CPUARCH} == "mips" && \
+		(!defined(TARGET_ABI) || ${TARGET_ABI} != "n64"))
 CFLAGS+= -DBFD_DEFAULT_TARGET_SIZE=32
 .else
 CFLAGS+= -DBFD_DEFAULT_TARGET_SIZE=64

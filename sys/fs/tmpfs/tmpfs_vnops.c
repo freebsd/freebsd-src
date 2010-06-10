@@ -42,7 +42,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/namei.h>
 #include <sys/priv.h>
 #include <sys/proc.h>
-#include <sys/resourcevar.h>
 #include <sys/sched.h>
 #include <sys/sf_buf.h>
 #include <sys/stat.h>
@@ -460,9 +459,9 @@ tmpfs_nocacheread(vm_object_t tobj, vm_pindex_t idx,
 	error = uiomove_fromphys(&m, offset, tlen, uio);
 	VM_OBJECT_LOCK(tobj);
 out:
-	vm_page_lock_queues();
+	vm_page_lock(m);
 	vm_page_unwire(m, TRUE);
-	vm_page_unlock_queues();
+	vm_page_unlock(m);
 	vm_page_wakeup(m);
 	vm_object_pip_subtract(tobj, 1);
 	VM_OBJECT_UNLOCK(tobj);
@@ -516,8 +515,16 @@ tmpfs_mappedread(vm_object_t vobj, vm_object_t tobj, size_t len, struct uio *uio
 lookupvpg:
 	if (((m = vm_page_lookup(vobj, idx)) != NULL) &&
 	    vm_page_is_valid(m, offset, tlen)) {
-		if (vm_page_sleep_if_busy(m, FALSE, "tmfsmr"))
+		if ((m->oflags & VPO_BUSY) != 0) {
+			/*
+			 * Reference the page before unlocking and sleeping so
+			 * that the page daemon is less likely to reclaim it.  
+			 */
+			vm_page_lock_queues();
+			vm_page_flag_set(m, PG_REFERENCED);
+			vm_page_sleep(m, "tmfsmr");
 			goto lookupvpg;
+		}
 		vm_page_busy(m);
 		VM_OBJECT_UNLOCK(vobj);
 		error = uiomove_fromphys(&m, offset, tlen, uio);
@@ -526,8 +533,16 @@ lookupvpg:
 		VM_OBJECT_UNLOCK(vobj);
 		return	(error);
 	} else if (m != NULL && uio->uio_segflg == UIO_NOCOPY) {
-		if (vm_page_sleep_if_busy(m, FALSE, "tmfsmr"))
+		if ((m->oflags & VPO_BUSY) != 0) {
+			/*
+			 * Reference the page before unlocking and sleeping so
+			 * that the page daemon is less likely to reclaim it.  
+			 */
+			vm_page_lock_queues();
+			vm_page_flag_set(m, PG_REFERENCED);
+			vm_page_sleep(m, "tmfsmr");
 			goto lookupvpg;
+		}
 		vm_page_busy(m);
 		VM_OBJECT_UNLOCK(vobj);
 		sched_pin();
@@ -627,8 +642,16 @@ tmpfs_mappedwrite(vm_object_t vobj, vm_object_t tobj, size_t len, struct uio *ui
 lookupvpg:
 	if (((vpg = vm_page_lookup(vobj, idx)) != NULL) &&
 	    vm_page_is_valid(vpg, offset, tlen)) {
-		if (vm_page_sleep_if_busy(vpg, FALSE, "tmfsmw"))
+		if ((vpg->oflags & VPO_BUSY) != 0) {
+			/*
+			 * Reference the page before unlocking and sleeping so
+			 * that the page daemon is less likely to reclaim it.  
+			 */
+			vm_page_lock_queues();
+			vm_page_flag_set(vpg, PG_REFERENCED);
+			vm_page_sleep(vpg, "tmfsmw");
 			goto lookupvpg;
+		}
 		vm_page_busy(vpg);
 		vm_page_lock_queues();
 		vm_page_undirty(vpg);
@@ -667,6 +690,7 @@ nocache:
 out:
 	if (vobj != NULL)
 		VM_OBJECT_LOCK(vobj);
+	vm_page_lock(tpg);
 	vm_page_lock_queues();
 	if (error == 0) {
 		KASSERT(tpg->valid == VM_PAGE_BITS_ALL,
@@ -675,6 +699,7 @@ out:
 	}
 	vm_page_unwire(tpg, TRUE);
 	vm_page_unlock_queues();
+	vm_page_unlock(tpg);
 	vm_page_wakeup(tpg);
 	if (vpg != NULL)
 		vm_page_wakeup(vpg);
@@ -692,7 +717,6 @@ tmpfs_write(struct vop_write_args *v)
 	struct vnode *vp = v->a_vp;
 	struct uio *uio = v->a_uio;
 	int ioflag = v->a_ioflag;
-	struct thread *td = uio->uio_td;
 
 	boolean_t extended;
 	int error = 0;
@@ -722,16 +746,8 @@ tmpfs_write(struct vop_write_args *v)
 	  VFS_TO_TMPFS(vp->v_mount)->tm_maxfilesize)
 		return (EFBIG);
 
-	if (vp->v_type == VREG && td != NULL) {
-		PROC_LOCK(td->td_proc);
-		if (uio->uio_offset + uio->uio_resid >
-		  lim_cur(td->td_proc, RLIMIT_FSIZE)) {
-			psignal(td->td_proc, SIGXFSZ);
-			PROC_UNLOCK(td->td_proc);
-			return (EFBIG);
-		}
-		PROC_UNLOCK(td->td_proc);
-	}
+	if (vn_rlimit_fsize(vp, uio, uio->uio_td))
+		return (EFBIG);
 
 	extended = uio->uio_offset + uio->uio_resid > node->tn_size;
 	if (extended) {

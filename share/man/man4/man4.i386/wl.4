@@ -141,17 +141,6 @@ packets and also stores the IP src address.
 ARP packets are ignored,
 as are any other network protocol barring IPv4 packets.
 .El
-.Sh CAVEATS
-The 82586 has numerous defects.
-It may experience transmit-side
-errors when modern faster cpus send packets at it faster than it can handle.
-The driver (and probably the chip) does not support an all multicast mode.
-As a result, it can be used with applications like
-.Xr mrouted 8 Pq Pa ports/net/mrouted ,
-but it must go into promiscuous mode for that to work.
-The driver
-is slow to change modes from "normal" to promiscuous mode, presumably
-due to delays in the configuration code.
 .Sh SEE ALSO
 .Xr sysctl 8 ,
 .Xr wlconfig 8
@@ -189,3 +178,14 @@ for contributions.
 .Sh AUTHORS
 Too numerous to mention.
 See above.
+.Sh CAVEATS
+The 82586 has numerous defects.
+It may experience transmit-side
+errors when modern faster cpus send packets at it faster than it can handle.
+The driver (and probably the chip) does not support an all multicast mode.
+As a result, it can be used with applications like
+.Xr mrouted 8 Pq Pa ports/net/mrouted ,
+but it must go into promiscuous mode for that to work.
+The driver
+is slow to change modes from "normal" to promiscuous mode, presumably
+due to delays in the configuration code.

@@ -181,7 +181,7 @@ loop:
 	}
 	/* check for bad PC */
 	/*XXX MIPS64 bad: These hard coded constants are lame */
-	if (pc & 3 || pc < (uintptr_t)0x80000000 || pc >= (uintptr_t)edata) {
+	if (pc & 3 || pc < (uintptr_t)0x80000000) {
 		(*printfn) ("PC 0x%x: not in kernel\n", pc);
 		ra = 0;
 		goto done;
@@ -432,8 +432,8 @@ void
 db_show_mdpcpu(struct pcpu *pc)
 {
 
-	db_printf("ipis	    = 0x%x\n", pc->pc_pending_ipis);
+	db_printf("ipis         = 0x%x\n", pc->pc_pending_ipis);
 	db_printf("next ASID    = %d\n", pc->pc_next_asid);
-	db_printf("GENID	    = %d\n", pc->pc_asid_generation);
+	db_printf("GENID        = %d\n", pc->pc_asid_generation);
 	return;
 }

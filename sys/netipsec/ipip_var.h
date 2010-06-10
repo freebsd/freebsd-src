@@ -60,8 +60,9 @@ struct ipipstat
 
 #ifdef _KERNEL
 VNET_DECLARE(int, ipip_allow);
-#define	V_ipip_allow		VNET(ipip_allow)
 VNET_DECLARE(struct ipipstat, ipipstat);
+
+#define	V_ipip_allow		VNET(ipip_allow)
 #define	V_ipipstat		VNET(ipipstat)
 #endif /* _KERNEL */
 #endif /* _NETINET_IPIP_H_ */

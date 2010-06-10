@@ -98,6 +98,8 @@ histedit(void)
 			/*
 			 * turn editing on
 			 */
+			char *term;
+
 			INTOFF;
 			if (el_in == NULL)
 				el_in = fdopen(0, "r");
@@ -107,6 +109,11 @@ histedit(void)
 				el_out = fdopen(2, "w");
 			if (el_in == NULL || el_err == NULL || el_out == NULL)
 				goto bad;
+			term = lookupvar("TERM");
+			if (term)
+				setenv("TERM", term, 1);
+			else
+				unsetenv("TERM");
 			el = el_init(arg0, el_in, el_out, el_err);
 			if (el != NULL) {
 				if (hist)
@@ -158,6 +165,13 @@ sethistsize(hs)
 			histsize = 100;
 		history(hist, &he, H_SETSIZE, histsize);
 	}
+}
+
+void
+setterm(const char *term)
+{
+	if (rootshell && el != NULL && term != NULL)
+		el_set(el, EL_TERMINAL, term);
 }
 
 int

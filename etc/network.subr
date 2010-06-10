@@ -399,6 +399,8 @@ ipv6if()
 	$_if|"$_if "*|*" $_if"|*" $_if "*|[Aa][Uu][Tt][Oo])
 		# True if $ifconfig_IF_ipv6 is defined.
 		_tmpargs=`_ifconfig_getargs $_if ipv6`
+		# Also true if ipv6_prefix_IF is defined
+		[ -n "$_tmpargs" ] || _tmpargs=`get_if_var $_if ipv6_prefix_IF`
 		;;
 	esac
 
@@ -476,7 +478,7 @@ ifexists()
 }
 
 # ipv4_up if
-#	add IPv4 addresses to the interface $if 
+#	add IPv4 addresses to the interface $if
 ipv4_up()
 {
 	local _if _ret
@@ -586,14 +588,14 @@ ipv6_down()
 ipv4_addrs_common()
 {
 	local _ret _if _action _cidr _cidr_addr
-	local _ipaddr _netmask _range _ipnet _iplow _iphigh _ipcount 
+	local _ipaddr _netmask _range _ipnet _iplow _iphigh _ipcount
 	_ret=1
 	_if=$1
 	_action=$2
-    
+
 	# get ipv4-addresses
 	cidr_addr=`get_if_var $_if ipv4_addrs_IF`
-    
+
 	for _cidr in ${cidr_addr}; do
 		_ipaddr=${_cidr%%/*}
 		_netmask="/"${_cidr##*/}
@@ -606,7 +608,7 @@ ipv4_addrs_common()
 		if [ "${_action}" = "-alias" ]; then
 			_netmask=""
 		fi
-        
+
 		_ipcount=${_iplow}
 		while [ "${_ipcount}" -le "${_iphigh}" ]; do
 			eval "ifconfig ${_if} ${_action} ${_ipnet}.${_ipcount}${_netmask}"
@@ -915,7 +917,7 @@ clone_down()
 	_list=
 
 	for ifn in ${cloned_interfaces}; do
-		ifconfig ${ifn} destroy
+		ifconfig -n ${ifn} destroy
 		if [ $? -eq 0 ]; then
 			_list="${_list}${_prefix}${ifn}"
 			[ -z "$_prefix" ] && _prefix=' '
@@ -1000,10 +1002,7 @@ childif_destroy()
 		if ! ifexists $child; then
 			continue
 		fi
-		if autoif $child; then
-			ifn_stop $child
-		fi
-		ifconfig $child destroy && cfg=0
+		ifconfig -n $child destroy && cfg=0
 	done
 
 	child_vlans=`get_if_var $ifn vlans_IF`
@@ -1014,10 +1013,7 @@ childif_destroy()
 		if ! ifexists $child; then
 			continue
 		fi
-		if autoif $child; then
-			ifn_stop $child
-		fi
-		ifconfig $child destroy && cfg=0
+		ifconfig -n $child destroy && cfg=0
 	done
 
 	return ${cfg}

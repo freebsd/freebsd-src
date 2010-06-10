@@ -22,7 +22,7 @@
 __FBSDID("$FreeBSD$");
 
 #include <err.h>
-#include "lib.h"
+#include <pkg.h>
 #include "delete.h"
 
 static int pkg_do(char *);

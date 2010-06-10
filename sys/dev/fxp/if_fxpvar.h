@@ -149,6 +149,30 @@ struct fxp_ident {
 	char 		*name;
 };
 
+struct fxp_hwstats {
+	uint32_t tx_good;
+	uint32_t tx_maxcols;
+	uint32_t tx_latecols;
+	uint32_t tx_underruns;
+	uint32_t tx_lostcrs;
+	uint32_t tx_deffered;
+	uint32_t tx_single_collisions;
+	uint32_t tx_multiple_collisions;
+	uint32_t tx_total_collisions;
+	uint32_t tx_pause;
+	uint32_t tx_tco;
+	uint32_t rx_good;
+	uint32_t rx_crc_errors;
+	uint32_t rx_alignment_errors;
+	uint32_t rx_rnr_errors;
+	uint32_t rx_overrun_errors;
+	uint32_t rx_cdt_errors;
+	uint32_t rx_shortframes;
+	uint32_t rx_pause;
+	uint32_t rx_controls;
+	uint32_t rx_tco;
+};
+
 /*
  * NOTE: Elements are ordered for optimal cacheline behavior, and NOT
  *	 for functional grouping.
@@ -175,6 +199,7 @@ struct fxp_softc {
 	int tx_queued;			/* # of active TxCB's */
 	struct fxp_stats *fxp_stats;	/* Pointer to interface stats */
 	uint32_t stats_addr;		/* DMA address of the stats structure */
+	struct fxp_hwstats fxp_hwstats;
 	int rx_idle_secs;		/* # of seconds RX has been idle */
 	struct callout stat_ch;		/* stat callout */
 	int watchdog_timer;		/* seconds until chip reset */

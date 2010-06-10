@@ -38,7 +38,9 @@ MLINKS+= chpass.1 ypchpass.1 chpass.1 ypchfn.1 chpass.1 ypchsh.1
 
 beforeinstall:
 .for i in chpass chfn chsh ypchpass ypchfn ypchsh
+.if exists(${DESTDIR}${BINDIR}/$i)
 	-chflags noschg ${DESTDIR}${BINDIR}/$i
+.endif
 .endfor
 
 .if !defined(NO_FSCHG)

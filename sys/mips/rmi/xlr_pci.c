@@ -636,4 +636,4 @@ static driver_t xlr_pcib_driver = {
 	sizeof(struct xlr_pcib_softc),
 };
 
-DRIVER_MODULE(pcib, nexus, xlr_pcib_driver, pcib_devclass, 0, 0);
+DRIVER_MODULE(pcib, iodi, xlr_pcib_driver, pcib_devclass, 0, 0);

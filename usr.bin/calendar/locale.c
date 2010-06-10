@@ -76,6 +76,7 @@ setnnames(void)
 	int i, l;
 	struct tm tm;
 
+	memset(&tm, '\0', sizeof(struct tm));
 	for (i = 0; i < 7; i++) {
 		tm.tm_wday = i;
 		strftime(buf, sizeof(buf), "%a", &tm);
@@ -103,6 +104,7 @@ setnnames(void)
 		fndays[i].len = strlen(buf);
 	}
 
+	memset(&tm, '\0', sizeof(struct tm));
 	for (i = 0; i < 12; i++) {
 		tm.tm_mon = i;
 		strftime(buf, sizeof(buf), "%b", &tm);
@@ -141,12 +143,12 @@ setnsequences(char *seq)
 	for (i = 0; i < 5; i++) {
 		nsequences[i].name = p;
 		if ((p = strchr(p, ' ')) == NULL) {
+			/* Oh oh there is something wrong. Erase! Erase! */
 			for (i = 0; i < 5; i++) {
 				nsequences[i].name = NULL;
 				nsequences[i].len = 0;
-				return;
 			}
-			
+			return;
 		}
 		*p = '\0';
 		p++;

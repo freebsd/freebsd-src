@@ -94,21 +94,11 @@ DECLARE_GEOM_CLASS(zfs_zvol_class, zfs_zvol);
 static kmutex_t zvol_state_lock;
 static uint32_t zvol_minors;
 
-#define	NUM_EXTENTS	((SPA_MAXBLOCKSIZE) / sizeof (zvol_extent_t))
-
 typedef struct zvol_extent {
+	list_node_t	ze_node;
 	dva_t		ze_dva;		/* dva associated with this extent */
-	uint64_t	ze_stride;	/* extent stride */
-	uint64_t	ze_size;	/* number of blocks in extent */
+	uint64_t	ze_nblks;	/* number of blocks in extent */
 } zvol_extent_t;
-
-/*
- * The list of extents associated with the dump device
- */
-typedef struct zvol_ext_list {
-	zvol_extent_t		zl_extents[NUM_EXTENTS];
-	struct zvol_ext_list	*zl_next;
-} zvol_ext_list_t;
 
 /*
  * The in-core state of each volume.
@@ -124,7 +114,7 @@ typedef struct zvol_state {
 	uint32_t	zv_mode;	/* DS_MODE_* flags at open time */
 	uint32_t	zv_total_opens;	/* total open count */
 	zilog_t		*zv_zilog;	/* ZIL handle */
-	zvol_ext_list_t	*zv_list;	/* List of extents for dump */
+	list_t		zv_extents;	/* List of extents for dump */
 	uint64_t	zv_txg_assign;	/* txg to assign during ZIL replay */
 	znode_t		zv_znode;	/* for range locking */
 	int		zv_state;
@@ -350,12 +340,12 @@ static void
 zvol_serve_one(zvol_state_t *zv, struct bio *bp)
 {
 	uint64_t off, volsize;
-	size_t size, resid;
+	size_t resid;
 	char *addr;
 	objset_t *os;
 	rl_t *rl;
 	int error = 0;
-	boolean_t reading;
+	boolean_t doread = (bp->bio_cmd == BIO_READ);
 
 	off = bp->bio_offset;
 	volsize = zv->zv_volsize;
@@ -373,18 +363,16 @@ zvol_serve_one(zvol_state_t *zv, struct bio *bp)
 	 * we can't change the data whilst calculating the checksum.
 	 * A better approach than a per zvol rwlock would be to lock ranges.
 	 */
-	reading = (bp->bio_cmd == BIO_READ);
 	rl = zfs_range_lock(&zv->zv_znode, off, resid,
-	    reading ? RL_READER : RL_WRITER);
+	    doread ? RL_READER : RL_WRITER);
 
 	while (resid != 0 && off < volsize) {
-
-		size = MIN(resid, zvol_maxphys); /* zvol_maxphys per tx */
+		size_t size = MIN(resid, zvol_maxphys); /* zvol_maxphys per tx */
 
 		if (size > volsize - off)	/* don't write past the end */
 			size = volsize - off;
 
-		if (reading) {
+		if (doread) {
 			error = dmu_read(os, ZVOL_OBJ, off, size, addr);
 		} else {
 			dmu_tx_t *tx = dmu_tx_create(os);
@@ -457,128 +445,81 @@ zvol_worker(void *arg)
 	}
 }
 
-void
-zvol_init_extent(zvol_extent_t *ze, blkptr_t *bp)
-{
-	ze->ze_dva = bp->blk_dva[0];	/* structure assignment */
-	ze->ze_stride = 0;
-	ze->ze_size = 1;
-}
-
 /* extent mapping arg */
 struct maparg {
-	zvol_ext_list_t	*ma_list;
-	zvol_extent_t	*ma_extent;
-	int		ma_gang;
+	zvol_state_t	*ma_zv;
+	uint64_t	ma_blks;
 };
 
 /*ARGSUSED*/
 static int
-zvol_map_block(traverse_blk_cache_t *bc, spa_t *spa, void *arg)
+zvol_map_block(spa_t *spa, blkptr_t *bp, const zbookmark_t *zb,
+    const dnode_phys_t *dnp, void *arg)
 {
-	zbookmark_t *zb = &bc->bc_bookmark;
-	blkptr_t *bp = &bc->bc_blkptr;
-	void *data = bc->bc_data;
-	dnode_phys_t *dnp = bc->bc_dnode;
-	struct maparg *ma = (struct maparg *)arg;
-	uint64_t stride;
+	struct maparg *ma = arg;
+	zvol_extent_t *ze;
+	int bs = ma->ma_zv->zv_volblocksize;
 
-	/* If there is an error, then keep trying to make progress */
-	if (bc->bc_errno)
-		return (ERESTART);
-
-#ifdef ZFS_DEBUG
-	if (zb->zb_level == -1) {
-		ASSERT3U(BP_GET_TYPE(bp), ==, DMU_OT_OBJSET);
-		ASSERT3U(BP_GET_LEVEL(bp), ==, 0);
-	} else {
-		ASSERT3U(BP_GET_TYPE(bp), ==, dnp->dn_type);
-		ASSERT3U(BP_GET_LEVEL(bp), ==, zb->zb_level);
-	}
-
-	if (zb->zb_level > 0) {
-		uint64_t fill = 0;
-		blkptr_t *bpx, *bpend;
-
-		for (bpx = data, bpend = bpx + BP_GET_LSIZE(bp) / sizeof (*bpx);
-		    bpx < bpend; bpx++) {
-			if (bpx->blk_birth != 0) {
-				fill += bpx->blk_fill;
-			} else {
-				ASSERT(bpx->blk_fill == 0);
-			}
-		}
-		ASSERT3U(fill, ==, bp->blk_fill);
-	}
-
-	if (zb->zb_level == 0 && dnp->dn_type == DMU_OT_DNODE) {
-		uint64_t fill = 0;
-		dnode_phys_t *dnx, *dnend;
-
-		for (dnx = data, dnend = dnx + (BP_GET_LSIZE(bp)>>DNODE_SHIFT);
-		    dnx < dnend; dnx++) {
-			if (dnx->dn_type != DMU_OT_NONE)
-				fill++;
-		}
-		ASSERT3U(fill, ==, bp->blk_fill);
-	}
-#endif
-
-	if (zb->zb_level || dnp->dn_type == DMU_OT_DNODE)
+	if (bp == NULL || zb->zb_object != ZVOL_OBJ || zb->zb_level != 0)
 		return (0);
+
+	VERIFY3U(ma->ma_blks, ==, zb->zb_blkid);
+	ma->ma_blks++;
 
 	/* Abort immediately if we have encountered gang blocks */
-	if (BP_IS_GANG(bp)) {
-		ma->ma_gang++;
-		return (EINTR);
-	}
+	if (BP_IS_GANG(bp))
+		return (EFRAGS);
 
-	/* first time? */
-	if (ma->ma_extent->ze_size == 0) {
-		zvol_init_extent(ma->ma_extent, bp);
+	/*
+	 * See if the block is at the end of the previous extent.
+	 */
+	ze = list_tail(&ma->ma_zv->zv_extents);
+	if (ze &&
+	    DVA_GET_VDEV(BP_IDENTITY(bp)) == DVA_GET_VDEV(&ze->ze_dva) &&
+	    DVA_GET_OFFSET(BP_IDENTITY(bp)) ==
+	    DVA_GET_OFFSET(&ze->ze_dva) + ze->ze_nblks * bs) {
+		ze->ze_nblks++;
 		return (0);
 	}
 
-	stride = (DVA_GET_OFFSET(&bp->blk_dva[0])) -
-	    ((DVA_GET_OFFSET(&ma->ma_extent->ze_dva)) +
-	    (ma->ma_extent->ze_size - 1) * (ma->ma_extent->ze_stride));
-	if (DVA_GET_VDEV(BP_IDENTITY(bp)) ==
-	    DVA_GET_VDEV(&ma->ma_extent->ze_dva)) {
-		if (ma->ma_extent->ze_stride == 0) {
-			/* second block in this extent */
-			ma->ma_extent->ze_stride = stride;
-			ma->ma_extent->ze_size++;
-			return (0);
-		} else if (ma->ma_extent->ze_stride == stride) {
-			/*
-			 * the block we allocated has the same
-			 * stride
-			 */
-			ma->ma_extent->ze_size++;
-			return (0);
-		}
+	dprintf_bp(bp, "%s", "next blkptr:");
+
+	/* start a new extent */
+	ze = kmem_zalloc(sizeof (zvol_extent_t), KM_SLEEP);
+	ze->ze_dva = bp->blk_dva[0];	/* structure assignment */
+	ze->ze_nblks = 1;
+	list_insert_tail(&ma->ma_zv->zv_extents, ze);
+	return (0);
+}
+
+static void
+zvol_free_extents(zvol_state_t *zv)
+{
+	zvol_extent_t *ze;
+
+	while (ze = list_head(&zv->zv_extents)) {
+		list_remove(&zv->zv_extents, ze);
+		kmem_free(ze, sizeof (zvol_extent_t));
+	}
+}
+
+static int
+zvol_get_lbas(zvol_state_t *zv)
+{
+	struct maparg	ma;
+	int		err;
+
+	ma.ma_zv = zv;
+	ma.ma_blks = 0;
+	zvol_free_extents(zv);
+
+	err = traverse_dataset(dmu_objset_ds(zv->zv_objset), 0,
+	    TRAVERSE_PRE | TRAVERSE_PREFETCH_METADATA, zvol_map_block, &ma);
+	if (err || ma.ma_blks != (zv->zv_volsize / zv->zv_volblocksize)) {
+		zvol_free_extents(zv);
+		return (err ? err : EIO);
 	}
 
-	/*
-	 * dtrace -n 'zfs-dprintf
-	 * /stringof(arg0) == "zvol.c"/
-	 * {
-	 *	printf("%s: %s", stringof(arg1), stringof(arg3))
-	 * } '
-	 */
-	dprintf("ma_extent 0x%lx mrstride 0x%lx stride %lx\n",
-	    ma->ma_extent->ze_size, ma->ma_extent->ze_stride, stride);
-	dprintf_bp(bp, "%s", "next blkptr:");
-	/* start a new extent */
-	if (ma->ma_extent == &ma->ma_list->zl_extents[NUM_EXTENTS - 1]) {
-		ma->ma_list->zl_next = kmem_zalloc(sizeof (zvol_ext_list_t),
-		    KM_SLEEP);
-		ma->ma_list = ma->ma_list->zl_next;
-		ma->ma_extent = &ma->ma_list->zl_extents[0];
-	} else {
-		ma->ma_extent++;
-	}
-	zvol_init_extent(ma->ma_extent, bp);
 	return (0);
 }
 
@@ -676,106 +617,6 @@ zil_replay_func_t *zvol_replay_vector[TX_MAX_TYPE] = {
 };
 
 /*
- * reconstruct dva that gets us to the desired offset (offset
- * is in bytes)
- */
-int
-zvol_get_dva(zvol_state_t *zv, uint64_t offset, dva_t *dva)
-{
-	zvol_ext_list_t	*zl;
-	zvol_extent_t	*ze;
-	int		idx;
-	uint64_t	tmp;
-
-	if ((zl = zv->zv_list) == NULL)
-		return (EIO);
-	idx = 0;
-	ze =  &zl->zl_extents[0];
-	while (offset >= ze->ze_size * zv->zv_volblocksize) {
-		offset -= ze->ze_size * zv->zv_volblocksize;
-
-		if (idx == NUM_EXTENTS - 1) {
-			/* we've reached the end of this array */
-			ASSERT(zl->zl_next != NULL);
-			if (zl->zl_next == NULL)
-				return (-1);
-			zl = zl->zl_next;
-			ze = &zl->zl_extents[0];
-			idx = 0;
-		} else {
-			ze++;
-			idx++;
-		}
-	}
-	DVA_SET_VDEV(dva, DVA_GET_VDEV(&ze->ze_dva));
-	tmp = DVA_GET_OFFSET((&ze->ze_dva));
-	tmp += (ze->ze_stride * (offset / zv->zv_volblocksize));
-	DVA_SET_OFFSET(dva, tmp);
-	return (0);
-}
-
-static void
-zvol_free_extents(zvol_state_t *zv)
-{
-	zvol_ext_list_t *zl;
-	zvol_ext_list_t *tmp;
-
-	if (zv->zv_list != NULL) {
-		zl = zv->zv_list;
-		while (zl != NULL) {
-			tmp = zl->zl_next;
-			kmem_free(zl, sizeof (zvol_ext_list_t));
-			zl = tmp;
-		}
-		zv->zv_list = NULL;
-	}
-}
-
-int
-zvol_get_lbas(zvol_state_t *zv)
-{
-	struct maparg	ma;
-	zvol_ext_list_t	*zl;
-	zvol_extent_t	*ze;
-	uint64_t	blocks = 0;
-	int		err;
-
-	ma.ma_list = zl = kmem_zalloc(sizeof (zvol_ext_list_t), KM_SLEEP);
-	ma.ma_extent = &ma.ma_list->zl_extents[0];
-	ma.ma_gang = 0;
-	zv->zv_list = ma.ma_list;
-
-	err = traverse_zvol(zv->zv_objset, ADVANCE_PRE, zvol_map_block, &ma);
-	if (err == EINTR && ma.ma_gang) {
-		/*
-		 * We currently don't support dump devices when the pool
-		 * is so fragmented that our allocation has resulted in
-		 * gang blocks.
-		 */
-		zvol_free_extents(zv);
-		return (EFRAGS);
-	}
-	ASSERT3U(err, ==, 0);
-
-	ze = &zl->zl_extents[0];
-	while (ze) {
-		blocks += ze->ze_size;
-		if (ze == &zl->zl_extents[NUM_EXTENTS - 1]) {
-			zl = zl->zl_next;
-			ze = &zl->zl_extents[0];
-		} else {
-			ze++;
-		}
-	}
-	if (blocks != (zv->zv_volsize / zv->zv_volblocksize)) {
-		zvol_free_extents(zv);
-		return (EIO);
-	}
-
-	return (0);
-}
-
-/*
  * Create a minor node (plus a whole lot more) for the specified volume.
  */
 int
@@ -830,6 +671,8 @@ zvol_create_minor(const char *name, major_t maj)
 	mutex_init(&zv->zv_znode.z_range_lock, NULL, MUTEX_DEFAULT, NULL);
 	avl_create(&zv->zv_znode.z_range_avl, zfs_range_compare,
 	    sizeof (rl_t), offsetof(rl_t, r_node));
+	list_create(&zv->zv_extents, sizeof (zvol_extent_t),
+	    offsetof(zvol_extent_t, ze_node));
 	/* get and cache the blocksize */
 	error = dmu_object_info(os, ZVOL_OBJ, &doi);
 	ASSERT(error == 0);
@@ -1091,6 +934,8 @@ zvol_set_volblocksize(const char *name, uint64_t volblocksize)
 		if (error == ENOTSUP)
 			error = EBUSY;
 		dmu_tx_commit(tx);
+		if (error == 0)
+			zv->zv_volblocksize = volblocksize;
 	}
 end:
 	mutex_exit(&zvol_state_lock);
@@ -1225,7 +1070,6 @@ zvol_dump_init(zvol_state_t *zv, boolean_t resize)
 	int error = 0;
 	objset_t *os = zv->zv_objset;
 	nvlist_t *nv = NULL;
-	uint64_t checksum, compress, refresrv;
 
 	ASSERT(MUTEX_HELD(&zvol_state_lock));
 
@@ -1248,12 +1092,16 @@ zvol_dump_init(zvol_state_t *zv, boolean_t resize)
 		    zfs_prop_to_name(ZFS_PROP_REFRESERVATION), 8, 1,
 		    &zv->zv_volsize, tx);
 	} else {
+		uint64_t checksum, compress, refresrv, vbs;
+
 		error = dsl_prop_get_integer(zv->zv_name,
 		    zfs_prop_to_name(ZFS_PROP_COMPRESSION), &compress, NULL);
 		error = error ? error : dsl_prop_get_integer(zv->zv_name,
 		    zfs_prop_to_name(ZFS_PROP_CHECKSUM), &checksum, NULL);
 		error = error ? error : dsl_prop_get_integer(zv->zv_name,
 		    zfs_prop_to_name(ZFS_PROP_REFRESERVATION), &refresrv, NULL);
+		error = error ? error : dsl_prop_get_integer(zv->zv_name,
+		    zfs_prop_to_name(ZFS_PROP_VOLBLOCKSIZE), &vbs, NULL);
 
 		error = error ? error : zap_update(os, ZVOL_ZAP_OBJ,
 		    zfs_prop_to_name(ZFS_PROP_COMPRESSION), 8, 1,
@@ -1263,6 +1111,9 @@ zvol_dump_init(zvol_state_t *zv, boolean_t resize)
 		error = error ? error : zap_update(os, ZVOL_ZAP_OBJ,
 		    zfs_prop_to_name(ZFS_PROP_REFRESERVATION), 8, 1,
 		    &refresrv, tx);
+		error = error ? error : zap_update(os, ZVOL_ZAP_OBJ,
+		    zfs_prop_to_name(ZFS_PROP_VOLBLOCKSIZE), 8, 1,
+		    &vbs, tx);
 	}
 	dmu_tx_commit(tx);
 
@@ -1288,6 +1139,9 @@ zvol_dump_init(zvol_state_t *zv, boolean_t resize)
 		VERIFY(nvlist_add_uint64(nv,
 		    zfs_prop_to_name(ZFS_PROP_CHECKSUM),
 		    ZIO_CHECKSUM_OFF) == 0);
+		VERIFY(nvlist_add_uint64(nv,
+		    zfs_prop_to_name(ZFS_PROP_VOLBLOCKSIZE),
+		    SPA_MAXBLOCKSIZE) == 0);
 
 		error = zfs_set_prop_nvlist(zv->zv_name, nv);
 		nvlist_free(nv);
@@ -1367,7 +1221,7 @@ zvol_dump_fini(zvol_state_t *zv)
 	objset_t *os = zv->zv_objset;
 	nvlist_t *nv;
 	int error = 0;
-	uint64_t checksum, compress, refresrv;
+	uint64_t checksum, compress, refresrv, vbs;
 
 	/*
 	 * Attempt to restore the zvol back to its pre-dumpified state.
@@ -1392,6 +1246,8 @@ zvol_dump_fini(zvol_state_t *zv)
 	    zfs_prop_to_name(ZFS_PROP_COMPRESSION), 8, 1, &compress);
 	(void) zap_lookup(zv->zv_objset, ZVOL_ZAP_OBJ,
 	    zfs_prop_to_name(ZFS_PROP_REFRESERVATION), 8, 1, &refresrv);
+	(void) zap_lookup(zv->zv_objset, ZVOL_ZAP_OBJ,
+	    zfs_prop_to_name(ZFS_PROP_VOLBLOCKSIZE), 8, 1, &vbs);
 
 	VERIFY(nvlist_alloc(&nv, NV_UNIQUE_NAME, KM_SLEEP) == 0);
 	(void) nvlist_add_uint64(nv,
@@ -1400,6 +1256,8 @@ zvol_dump_fini(zvol_state_t *zv)
 	    zfs_prop_to_name(ZFS_PROP_COMPRESSION), compress);
 	(void) nvlist_add_uint64(nv,
 	    zfs_prop_to_name(ZFS_PROP_REFRESERVATION), refresrv);
+	(void) nvlist_add_uint64(nv,
+	    zfs_prop_to_name(ZFS_PROP_VOLBLOCKSIZE), vbs);
 	(void) zfs_set_prop_nvlist(zv->zv_name, nv);
 	nvlist_free(nv);
 

@@ -1112,9 +1112,6 @@ ipi_bitmap_handler(struct trapframe frame)
 
 	if (ipi_bitmap & (1 << IPI_STATCLOCK))
 		statclockintr(&frame);
-
-	if (ipi_bitmap & (1 << IPI_PROFCLOCK))
-		profclockintr(&frame);
 }
 
 /*
@@ -1250,7 +1247,7 @@ cpususpend_handler(void)
 
 	rf = intr_disable();
 	cr3 = rcr3();
-	stopfpu = &stopxpcbs[cpu]->xpcb_pcb.pcb_save;
+	stopfpu = stopxpcbs[cpu]->xpcb_pcb.pcb_save;
 	if (savectx2(stopxpcbs[cpu])) {
 		fpugetregs(curthread, stopfpu);
 		wbinvd();

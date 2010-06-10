@@ -76,7 +76,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/usb/input/usb_rdesc.h>
 #include <dev/usb/quirk/usb_quirk.h>
 
-#if USB_DEBUG
+#ifdef USB_DEBUG
 static int uhid_debug = 0;
 
 SYSCTL_NODE(_hw_usb, OID_AUTO, uhid, CTLFLAG_RW, 0, "USB uhid");

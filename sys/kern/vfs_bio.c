@@ -102,8 +102,8 @@ static void vm_hold_load_pages(struct buf *bp, vm_offset_t from,
 static void vfs_page_set_valid(struct buf *bp, vm_ooffset_t off, vm_page_t m);
 static void vfs_page_set_validclean(struct buf *bp, vm_ooffset_t off,
 		vm_page_t m);
-static void vfs_clean_pages(struct buf *bp);
-static void vfs_setdirty(struct buf *bp);
+static void vfs_drain_busy_pages(struct buf *bp);
+static void vfs_clean_pages_dirty_buf(struct buf *bp);
 static void vfs_setdirty_locked_object(struct buf *bp);
 static void vfs_vmio_release(struct buf *bp);
 static int vfs_bio_clcheck(struct vnode *vp, int size,
@@ -214,6 +214,14 @@ SYSCTL_LONG(_vfs, OID_AUTO, notbufdflashes, CTLFLAG_RD, &notbufdflashes, 0,
  * is idling.
  */
 static int bd_request;
+
+/*
+ * Request for the buf daemon to write more buffers than is indicated by
+ * lodirtybuf.  This may be necessary to push out excess dependencies or
+ * defragment the address space where a simple count of the number of dirty
+ * buffers is insufficient to characterize the demand for flushing them.
+ */
+static int bd_speedupreq;
 
 /*
  * This lock synchronizes access to bd_request.
@@ -467,12 +475,20 @@ bd_wakeup(int dirtybuflevel)
  * bd_speedup - speedup the buffer cache flushing code
  */
 
-static __inline
 void
 bd_speedup(void)
 {
+	int needwake;
 
-	bd_wakeup(1);
+	mtx_lock(&bdlock);
+	needwake = 0;
+	if (bd_speedupreq == 0 || bd_request == 0)
+		needwake = 1;
+	bd_speedupreq = 1;
+	bd_request = 1;
+	if (needwake)
+		wakeup(&bd_request);
+	mtx_unlock(&bdlock);
 }
 
 /*
@@ -1009,18 +1025,17 @@ bdwrite(struct buf *bp)
 	}
 
 	/*
-	 * Set the *dirty* buffer range based upon the VM system dirty pages.
+	 * Set the *dirty* buffer range based upon the VM system dirty
+	 * pages.
+	 *
+	 * Mark the buffer pages as clean.  We need to do this here to
+	 * satisfy the vnode_pager and the pageout daemon, so that it
+	 * thinks that the pages have been "cleaned".  Note that since
+	 * the pages are in a delayed write buffer -- the VFS layer
+	 * "will" see that the pages get written out on the next sync,
+	 * or perhaps the cluster will be completed.
 	 */
-	vfs_setdirty(bp);
-
-	/*
-	 * We need to do this here to satisfy the vnode_pager and the
-	 * pageout daemon, so that it thinks that the pages have been
-	 * "cleaned".  Note that since the pages are in a delayed write
-	 * buffer -- the VFS layer "will" see that the pages get written
-	 * out on the next sync, or perhaps the cluster will be completed.
-	 */
-	vfs_clean_pages(bp);
+	vfs_clean_pages_dirty_buf(bp);
 	bqrelse(bp);
 
 	/*
@@ -1337,9 +1352,7 @@ brelse(struct buf *bp)
 					(PAGE_SIZE - poffset) : resid;
 
 				KASSERT(presid >= 0, ("brelse: extra page"));
-				vm_page_lock_queues();
 				vm_page_set_invalid(m, poffset, presid);
-				vm_page_unlock_queues();
 				if (had_bogus)
 					printf("avoided corruption bug in bogus_page/brelse code\n");
 			}
@@ -1547,7 +1560,6 @@ vfs_vmio_release(struct buf *bp)
 	vm_page_t m;
 
 	VM_OBJECT_LOCK(bp->b_bufobj->bo_object);
-	vm_page_lock_queues();
 	for (i = 0; i < bp->b_npages; i++) {
 		m = bp->b_pages[i];
 		bp->b_pages[i] = NULL;
@@ -1555,16 +1567,15 @@ vfs_vmio_release(struct buf *bp)
 		 * In order to keep page LRU ordering consistent, put
 		 * everything on the inactive queue.
 		 */
+		vm_page_lock(m);
 		vm_page_unwire(m, 0);
 		/*
 		 * We don't mess with busy pages, it is
 		 * the responsibility of the process that
 		 * busied the pages to deal with them.
 		 */
-		if ((m->oflags & VPO_BUSY) || (m->busy != 0))
-			continue;
-			
-		if (m->wire_count == 0) {
+		if ((m->oflags & VPO_BUSY) == 0 && m->busy == 0 &&
+		    m->wire_count == 0) {
 			/*
 			 * Might as well free the page if we can and it has
 			 * no valid data.  We also free the page if the
@@ -1579,8 +1590,8 @@ vfs_vmio_release(struct buf *bp)
 				vm_page_try_to_cache(m);
 			}
 		}
+		vm_page_unlock(m);
 	}
-	vm_page_unlock_queues();
 	VM_OBJECT_UNLOCK(bp->b_bufobj->bo_object);
 	pmap_qremove(trunc_page((vm_offset_t) bp->b_data), bp->b_npages);
 	
@@ -2120,6 +2131,7 @@ buf_do_flush(struct vnode *vp)
 static void
 buf_daemon()
 {
+	int lodirtysave;
 
 	/*
 	 * This process needs to be suspended prior to shutdown sync.
@@ -2137,7 +2149,11 @@ buf_daemon()
 		mtx_unlock(&bdlock);
 
 		kproc_suspend_check(bufdaemonproc);
-
+		lodirtysave = lodirtybuffers;
+		if (bd_speedupreq) {
+			lodirtybuffers = numdirtybuffers / 2;
+			bd_speedupreq = 0;
+		}
 		/*
 		 * Do the flush.  Limit the amount of in-transit I/O we
 		 * allow to build up, otherwise we would completely saturate
@@ -2149,6 +2165,7 @@ buf_daemon()
 				break;
 			uio_yield();
 		}
+		lodirtybuffers = lodirtysave;
 
 		/*
 		 * Only clear bd_request if we have reached our low water
@@ -2380,31 +2397,44 @@ notinmem:
 }
 
 /*
- *	vfs_setdirty:
+ * Set the dirty range for a buffer based on the status of the dirty
+ * bits in the pages comprising the buffer.  The range is limited
+ * to the size of the buffer.
  *
- *	Sets the dirty range for a buffer based on the status of the dirty
- *	bits in the pages comprising the buffer.
+ * Tell the VM system that the pages associated with this buffer
+ * are clean.  This is used for delayed writes where the data is
+ * going to go to disk eventually without additional VM intevention.
  *
- *	The range is limited to the size of the buffer.
- *
- *	This routine is primarily used by NFS, but is generalized for the
- *	B_VMIO case.
+ * Note that while we only really need to clean through to b_bcount, we
+ * just go ahead and clean through to b_bufsize.
  */
 static void
-vfs_setdirty(struct buf *bp) 
+vfs_clean_pages_dirty_buf(struct buf *bp)
 {
+	vm_ooffset_t foff, noff, eoff;
+	vm_page_t m;
+	int i;
 
-	/*
-	 * Degenerate case - empty buffer
-	 */
-	if (bp->b_bufsize == 0)
+	if ((bp->b_flags & B_VMIO) == 0 || bp->b_bufsize == 0)
 		return;
 
-	if ((bp->b_flags & B_VMIO) == 0)
-		return;
+	foff = bp->b_offset;
+	KASSERT(bp->b_offset != NOOFFSET,
+	    ("vfs_clean_pages_dirty_buf: no buffer offset"));
 
 	VM_OBJECT_LOCK(bp->b_bufobj->bo_object);
+	vfs_drain_busy_pages(bp);
 	vfs_setdirty_locked_object(bp);
+	for (i = 0; i < bp->b_npages; i++) {
+		noff = (foff + PAGE_SIZE) & ~(off_t)PAGE_MASK;
+		eoff = noff;
+		if (eoff > bp->b_offset + bp->b_bufsize)
+			eoff = bp->b_offset + bp->b_bufsize;
+		m = bp->b_pages[i];
+		vfs_page_set_validclean(bp, foff, m);
+		/* vm_page_clear_dirty(m, foff & PAGE_MASK, eoff - foff); */
+		foff = noff;
+	}
 	VM_OBJECT_UNLOCK(bp->b_bufobj->bo_object);
 }
 
@@ -2425,7 +2455,6 @@ vfs_setdirty_locked_object(struct buf *bp)
 		vm_offset_t boffset;
 		vm_offset_t eoffset;
 
-		vm_page_lock_queues();
 		/*
 		 * test the pages to see if they have been modified directly
 		 * by users through the VM system.
@@ -2451,7 +2480,6 @@ vfs_setdirty_locked_object(struct buf *bp)
 		}
 		eoffset = ((i + 1) << PAGE_SHIFT) - (bp->b_offset & PAGE_MASK);
 
-		vm_page_unlock_queues();
 		/*
 		 * Fit it to the buffer.
 		 */
@@ -2920,7 +2948,6 @@ allocbuf(struct buf *bp, int size)
 				vm_page_t m;
 
 				VM_OBJECT_LOCK(bp->b_bufobj->bo_object);
-				vm_page_lock_queues();
 				for (i = desiredpages; i < bp->b_npages; i++) {
 					/*
 					 * the page is not freed here -- it
@@ -2930,13 +2957,15 @@ allocbuf(struct buf *bp, int size)
 					m = bp->b_pages[i];
 					KASSERT(m != bogus_page,
 					    ("allocbuf: bogus page found"));
-					while (vm_page_sleep_if_busy(m, TRUE, "biodep"))
-						vm_page_lock_queues();
+					while (vm_page_sleep_if_busy(m, TRUE,
+					    "biodep"))
+						continue;
 
 					bp->b_pages[i] = NULL;
+					vm_page_lock(m);
 					vm_page_unwire(m, 0);
+					vm_page_unlock(m);
 				}
-				vm_page_unlock_queues();
 				VM_OBJECT_UNLOCK(bp->b_bufobj->bo_object);
 				pmap_qremove((vm_offset_t) trunc_page((vm_offset_t)bp->b_data) +
 				    (desiredpages << PAGE_SHIFT), (bp->b_npages - desiredpages));
@@ -3002,15 +3031,24 @@ allocbuf(struct buf *bp, int size)
 				 *  vm_fault->getpages->cluster_read->allocbuf
 				 *
 				 */
-				if (vm_page_sleep_if_busy(m, FALSE, "pgtblk"))
+				if ((m->oflags & VPO_BUSY) != 0) {
+					/*
+					 * Reference the page before unlocking
+					 * and sleeping so that the page daemon
+					 * is less likely to reclaim it.  
+					 */
+					vm_page_lock_queues();
+					vm_page_flag_set(m, PG_REFERENCED);
+					vm_page_sleep(m, "pgtblk");
 					continue;
+				}
 
 				/*
 				 * We have a good page.
 				 */
-				vm_page_lock_queues();
+				vm_page_lock(m);
 				vm_page_wire(m);
-				vm_page_unlock_queues();
+				vm_page_unlock(m);
 				bp->b_pages[bp->b_npages] = m;
 				++bp->b_npages;
 			}
@@ -3482,7 +3520,6 @@ vfs_page_set_validclean(struct buf *bp, vm_ooffset_t off, vm_page_t m)
 {
 	vm_ooffset_t soff, eoff;
 
-	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
 	/*
 	 * Start and end offsets in buffer.  eoff - soff may not cross a
 	 * page boundry or cross the end of the buffer.  The end of the
@@ -3505,6 +3542,31 @@ vfs_page_set_validclean(struct buf *bp, vm_ooffset_t off, vm_page_t m)
 		   (vm_offset_t) (eoff - soff)
 		);
 	}
+}
+
+/*
+ * Ensure that all buffer pages are not busied by VPO_BUSY flag. If
+ * any page is busy, drain the flag.
+ */
+static void
+vfs_drain_busy_pages(struct buf *bp)
+{
+	vm_page_t m;
+	int i, last_busied;
+
+	VM_OBJECT_LOCK_ASSERT(bp->b_bufobj->bo_object, MA_OWNED);
+	last_busied = 0;
+	for (i = 0; i < bp->b_npages; i++) {
+		m = bp->b_pages[i];
+		if ((m->oflags & VPO_BUSY) != 0) {
+			for (; last_busied < i; last_busied++)
+				vm_page_busy(bp->b_pages[last_busied]);
+			while ((m->oflags & VPO_BUSY) != 0)
+				vm_page_sleep(m, "vbpage");
+		}
+	}
+	for (i = 0; i < last_busied; i++)
+		vm_page_wakeup(bp->b_pages[i]);
 }
 
 /*
@@ -3535,18 +3597,10 @@ vfs_busy_pages(struct buf *bp, int clear_modify)
 	KASSERT(bp->b_offset != NOOFFSET,
 	    ("vfs_busy_pages: no buffer offset"));
 	VM_OBJECT_LOCK(obj);
+	vfs_drain_busy_pages(bp);
 	if (bp->b_bufsize != 0)
 		vfs_setdirty_locked_object(bp);
-retry:
-	for (i = 0; i < bp->b_npages; i++) {
-		m = bp->b_pages[i];
-
-		if (vm_page_sleep_if_busy(m, FALSE, "vbpage"))
-			goto retry;
-	}
 	bogus = 0;
-	if (clear_modify)
-		vm_page_lock_queues();
 	for (i = 0; i < bp->b_npages; i++) {
 		m = bp->b_pages[i];
 
@@ -3579,50 +3633,10 @@ retry:
 		}
 		foff = (foff + PAGE_SIZE) & ~(off_t)PAGE_MASK;
 	}
-	if (clear_modify)
-		vm_page_unlock_queues();
 	VM_OBJECT_UNLOCK(obj);
 	if (bogus)
 		pmap_qenter(trunc_page((vm_offset_t)bp->b_data),
 		    bp->b_pages, bp->b_npages);
-}
-
-/*
- * Tell the VM system that the pages associated with this buffer
- * are clean.  This is used for delayed writes where the data is
- * going to go to disk eventually without additional VM intevention.
- *
- * Note that while we only really need to clean through to b_bcount, we
- * just go ahead and clean through to b_bufsize.
- */
-static void
-vfs_clean_pages(struct buf *bp)
-{
-	int i;
-	vm_ooffset_t foff, noff, eoff;
-	vm_page_t m;
-
-	if (!(bp->b_flags & B_VMIO))
-		return;
-
-	foff = bp->b_offset;
-	KASSERT(bp->b_offset != NOOFFSET,
-	    ("vfs_clean_pages: no buffer offset"));
-	VM_OBJECT_LOCK(bp->b_bufobj->bo_object);
-	vm_page_lock_queues();
-	for (i = 0; i < bp->b_npages; i++) {
-		m = bp->b_pages[i];
-		noff = (foff + PAGE_SIZE) & ~(off_t)PAGE_MASK;
-		eoff = noff;
-
-		if (eoff > bp->b_offset + bp->b_bufsize)
-			eoff = bp->b_offset + bp->b_bufsize;
-		vfs_page_set_validclean(bp, foff, m);
-		/* vm_page_clear_dirty(m, foff & PAGE_MASK, eoff - foff); */
-		foff = noff;
-	}
-	vm_page_unlock_queues();
-	VM_OBJECT_UNLOCK(bp->b_bufobj->bo_object);
 }
 
 /*
@@ -3838,12 +3852,12 @@ vmapbuf(struct buf *bp)
 retry:
 		if (vm_fault_quick(addr >= bp->b_data ? addr : bp->b_data,
 		    prot) < 0) {
-			vm_page_lock_queues();
 			for (i = 0; i < pidx; ++i) {
+				vm_page_lock(bp->b_pages[i]);
 				vm_page_unhold(bp->b_pages[i]);
+				vm_page_unlock(bp->b_pages[i]);
 				bp->b_pages[i] = NULL;
 			}
-			vm_page_unlock_queues();
 			return(-1);
 		}
 		m = pmap_extract_and_hold(pmap, (vm_offset_t)addr, prot);
@@ -3874,11 +3888,12 @@ vunmapbuf(struct buf *bp)
 
 	npages = bp->b_npages;
 	pmap_qremove(trunc_page((vm_offset_t)bp->b_data), npages);
-	vm_page_lock_queues();
-	for (pidx = 0; pidx < npages; pidx++)
+	for (pidx = 0; pidx < npages; pidx++) {
+		vm_page_lock(bp->b_pages[pidx]);
 		vm_page_unhold(bp->b_pages[pidx]);
-	vm_page_unlock_queues();
-
+		vm_page_unlock(bp->b_pages[pidx]);
+	}
+	
 	bp->b_data = bp->b_saveaddr;
 }
 

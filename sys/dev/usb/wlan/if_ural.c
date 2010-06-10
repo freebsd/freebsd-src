@@ -78,7 +78,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/usb/wlan/if_uralreg.h>
 #include <dev/usb/wlan/if_uralvar.h>
 
-#if USB_DEBUG
+#ifdef USB_DEBUG
 static int ural_debug = 0;
 
 SYSCTL_NODE(_hw_usb, OID_AUTO, ural, CTLFLAG_RW, 0, "USB ural");
@@ -467,8 +467,8 @@ ural_attach(device_t self)
 	ifp->if_init = ural_init;
 	ifp->if_ioctl = ural_ioctl;
 	ifp->if_start = ural_start;
-	IFQ_SET_MAXLEN(&ifp->if_snd, IFQ_MAXLEN);
-	ifp->if_snd.ifq_drv_maxlen = IFQ_MAXLEN;
+	IFQ_SET_MAXLEN(&ifp->if_snd, ifqmaxlen);
+	ifp->if_snd.ifq_drv_maxlen = ifqmaxlen;
 	IFQ_SET_READY(&ifp->if_snd);
 
 	ic->ic_ifp = ifp;

@@ -75,6 +75,7 @@
 #define	HIO_DELETE		3
 #define	HIO_FLUSH		4
 
+#define	HAST_TIMEOUT	5
 #define	HAST_CONFIG	"/etc/hast.conf"
 #define	HAST_CONTROL	"/var/run/hastctl"
 #define	HASTD_PORT	8457
@@ -148,6 +149,8 @@ struct hast_resource {
 	/* Token to verify both in and out connection are coming from
 	   the same node (not necessarily from the same address). */
 	unsigned char hr_token[HAST_TOKEN_SIZE];
+	/* Connection timeout. */
+	int	hr_timeout;
 
 	/* Resource unique identifier. */
 	uint64_t hr_resuid;

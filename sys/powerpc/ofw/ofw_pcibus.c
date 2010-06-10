@@ -43,6 +43,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/ofw/openfirm.h>
 
 #include <machine/bus.h>
+#include <machine/intr_machdep.h>
 #include <machine/resource.h>
 
 #include <dev/pci/pcireg.h>
@@ -192,20 +193,36 @@ ofw_pcibus_enum_devtree(device_t dev, u_int domain, u_int busno)
 		pci_add_child(dev, (struct pci_devinfo *)dinfo);
 
 		/*
-                 * Some devices don't have an intpin set, but do have
-                 * interrupts. These are fully specified, and set in the
+		 * Some devices don't have an intpin set, but do have
+		 * interrupts. These are fully specified, and set in the
 		 * interrupts property, so add that value to the device's
 		 * resource list.
-                 */
-                if (dinfo->opd_dinfo.cfg.intpin == 0) {
-                        ofw_pci_intr_t intr;
+		 */
+		if (dinfo->opd_dinfo.cfg.intpin == 0) {
+			ofw_pci_intr_t intr[2];
+			phandle_t iparent;
+			int icells;
 
 			if (OF_getprop(child, "interrupts", &intr, 
 			    sizeof(intr)) > 0) {
-                                resource_list_add(&dinfo->opd_dinfo.resources,
-                                    SYS_RES_IRQ, 0, intr, intr, 1);
+				iparent = 0;
+				icells = 1;
+				OF_getprop(child, "interrupt-parent", &iparent,
+				    sizeof(iparent));
+				OF_getprop(iparent, "#interrupt-cells", &icells,
+				    sizeof(icells));
+
+				if (iparent != 0 && icells > 1) {
+					powerpc_config_intr(intr[0],
+					    (intr[1] & 1) ? INTR_TRIGGER_LEVEL :
+					    INTR_TRIGGER_EDGE,
+					    INTR_POLARITY_HIGH);
+				}
+		
+				resource_list_add(&dinfo->opd_dinfo.resources,
+				    SYS_RES_IRQ, 0, intr[0], intr[0], 1);
 			}
-                }
+		}
 	}
 }
 

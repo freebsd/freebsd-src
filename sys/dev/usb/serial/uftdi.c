@@ -73,7 +73,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/usb/serial/usb_serial.h>
 #include <dev/usb/serial/uftdi_reg.h>
 
-#if USB_DEBUG
+#ifdef USB_DEBUG
 static int uftdi_debug = 0;
 
 SYSCTL_NODE(_hw_usb, OID_AUTO, uftdi, CTLFLAG_RW, 0, "USB uftdi");
@@ -212,6 +212,7 @@ static struct usb_device_id uftdi_devs[] = {
 	UFTDI_DEV(ATMEL, STK541, 8U232AM),
 	UFTDI_DEV(DRESDENELEKTRONIK, SENSORTERMINALBOARD, 8U232AM),
 	UFTDI_DEV(DRESDENELEKTRONIK, WIRELESSHANDHELDTERMINAL, 8U232AM),
+	UFTDI_DEV(FTDI, GAMMASCOUT, 8U232AM),
 	UFTDI_DEV(FTDI, SERIAL_8U100AX, SIO),
 	UFTDI_DEV(FTDI, SERIAL_2232C, 8U232AM),
 	UFTDI_DEV(FTDI, SERIAL_2232D, 8U232AM),

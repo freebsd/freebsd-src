@@ -41,9 +41,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/buf.h>
 #include <sys/kernel.h>
 #include <sys/mount.h>
-#include <sys/proc.h>
-#include <sys/resourcevar.h>
-#include <sys/signalvar.h>
 #include <sys/vmmeter.h>
 #include <sys/vnode.h>
 
@@ -134,12 +131,13 @@ ncl_getpages(struct vop_getpages_args *ap)
 	 */
 	VM_OBJECT_LOCK(object);
 	if (pages[ap->a_reqpage]->valid != 0) {
-		vm_page_lock_queues();
 		for (i = 0; i < npages; ++i) {
-			if (i != ap->a_reqpage)
+			if (i != ap->a_reqpage) {
+				vm_page_lock(pages[i]);
 				vm_page_free(pages[i]);
+				vm_page_unlock(pages[i]);
+			}
 		}
-		vm_page_unlock_queues();
 		VM_OBJECT_UNLOCK(object);
 		return (0);
 	}
@@ -174,12 +172,13 @@ ncl_getpages(struct vop_getpages_args *ap)
 	if (error && (uio.uio_resid == count)) {
 		ncl_printf("nfs_getpages: error %d\n", error);
 		VM_OBJECT_LOCK(object);
-		vm_page_lock_queues();
 		for (i = 0; i < npages; ++i) {
-			if (i != ap->a_reqpage)
+			if (i != ap->a_reqpage) {
+				vm_page_lock(pages[i]);
 				vm_page_free(pages[i]);
+				vm_page_unlock(pages[i]);
+			}
 		}
-		vm_page_unlock_queues();
 		VM_OBJECT_UNLOCK(object);
 		return (VM_PAGER_ERROR);
 	}
@@ -192,7 +191,6 @@ ncl_getpages(struct vop_getpages_args *ap)
 
 	size = count - uio.uio_resid;
 	VM_OBJECT_LOCK(object);
-	vm_page_lock_queues();
 	for (i = 0, toff = 0; i < npages; i++, toff = nextoff) {
 		vm_page_t m;
 		nextoff = toff + PAGE_SIZE;
@@ -235,17 +233,23 @@ ncl_getpages(struct vop_getpages_args *ap)
 			 * now tell them that it is ok to use.
 			 */
 			if (!error) {
-				if (m->oflags & VPO_WANTED)
+				if (m->oflags & VPO_WANTED) {
+					vm_page_lock(m);
 					vm_page_activate(m);
-				else
+					vm_page_unlock(m);
+				} else {
+					vm_page_lock(m);
 					vm_page_deactivate(m);
+					vm_page_unlock(m);
+				}
 				vm_page_wakeup(m);
 			} else {
+				vm_page_lock(m);
 				vm_page_free(m);
+				vm_page_unlock(m);
 			}
 		}
 	}
-	vm_page_unlock_queues();
 	VM_OBJECT_UNLOCK(object);
 	return (0);
 }
@@ -336,7 +340,7 @@ ncl_putpages(struct vop_putpages_args *ap)
 	else
 	    iomode = NFSWRITE_FILESYNC;
 
-	error = ncl_writerpc(vp, &uio, cred, &iomode, &must_commit);
+	error = ncl_writerpc(vp, &uio, cred, &iomode, &must_commit, 0);
 
 	pmap_qremove(kva, npages);
 	relpbuf(bp, &ncl_pbuf_freecnt);
@@ -554,7 +558,7 @@ ncl_bioread(struct vnode *vp, struct uio *uio, int ioflag, struct ucred *cred)
 		if ((bp->b_flags & B_CACHE) == 0) {
 		    bp->b_iocmd = BIO_READ;
 		    vfs_busy_pages(bp, 0);
-		    error = ncl_doio(vp, bp, cred, td);
+		    error = ncl_doio(vp, bp, cred, td, 0);
 		    if (error) {
 			brelse(bp);
 			return (error);
@@ -583,7 +587,7 @@ ncl_bioread(struct vnode *vp, struct uio *uio, int ioflag, struct ucred *cred)
 		if ((bp->b_flags & B_CACHE) == 0) {
 		    bp->b_iocmd = BIO_READ;
 		    vfs_busy_pages(bp, 0);
-		    error = ncl_doio(vp, bp, cred, td);
+		    error = ncl_doio(vp, bp, cred, td, 0);
 		    if (error) {
 			bp->b_ioflags |= BIO_ERROR;
 			brelse(bp);
@@ -609,7 +613,7 @@ ncl_bioread(struct vnode *vp, struct uio *uio, int ioflag, struct ucred *cred)
 		if ((bp->b_flags & B_CACHE) == 0) {
 		    bp->b_iocmd = BIO_READ;
 		    vfs_busy_pages(bp, 0);
-		    error = ncl_doio(vp, bp, cred, td);
+		    error = ncl_doio(vp, bp, cred, td, 0);
 		    if (error) {
 			    brelse(bp);
 		    }
@@ -638,7 +642,7 @@ ncl_bioread(struct vnode *vp, struct uio *uio, int ioflag, struct ucred *cred)
 			    if ((bp->b_flags & B_CACHE) == 0) {
 				    bp->b_iocmd = BIO_READ;
 				    vfs_busy_pages(bp, 0);
-				    error = ncl_doio(vp, bp, cred, td);
+				    error = ncl_doio(vp, bp, cred, td, 0);
 				    /*
 				     * no error + B_INVAL == directory EOF,
 				     * use the block.
@@ -771,7 +775,7 @@ do_sync:
 			uio.uio_td = td;
 			iomode = NFSWRITE_FILESYNC;
 			error = ncl_writerpc(vp, &uio, cred, &iomode,
-			    &must_commit);
+			    &must_commit, 0);
 			KASSERT((must_commit == 0), 
 				("ncl_directio_write: Did not commit write"));
 			if (error)
@@ -876,7 +880,6 @@ ncl_write(struct vop_write_args *ap)
 	daddr_t lbn;
 	int bcount;
 	int n, on, error = 0;
-	struct proc *p = td?td->td_proc:NULL;
 
 #ifdef DIAGNOSTIC
 	if (uio->uio_rw != UIO_WRITE)
@@ -958,16 +961,8 @@ flush_and_restart:
 	 * Maybe this should be above the vnode op call, but so long as
 	 * file servers have no limits, i don't think it matters
 	 */
-	if (p != NULL) {
-		PROC_LOCK(p);
-		if (uio->uio_offset + uio->uio_resid >
-		    lim_cur(p, RLIMIT_FSIZE)) {
-			psignal(p, SIGXFSZ);
-			PROC_UNLOCK(p);
-			return (EFBIG);
-		}
-		PROC_UNLOCK(p);
-	}
+	if (vn_rlimit_fsize(vp, uio, td))
+		return (EFBIG);
 
 	biosize = vp->v_mount->mnt_stat.f_iosize;
 	/*
@@ -1122,7 +1117,7 @@ again:
 		if ((bp->b_flags & B_CACHE) == 0) {
 			bp->b_iocmd = BIO_READ;
 			vfs_busy_pages(bp, 0);
-			error = ncl_doio(vp, bp, cred, td);
+			error = ncl_doio(vp, bp, cred, td, 0);
 			if (error) {
 				brelse(bp);
 				break;
@@ -1523,7 +1518,7 @@ ncl_doio_directwrite(struct buf *bp)
 	
 	iomode = NFSWRITE_FILESYNC;
 	uiop->uio_td = NULL; /* NULL since we're in nfsiod */
-	ncl_writerpc(bp->b_vp, uiop, bp->b_wcred, &iomode, &must_commit);
+	ncl_writerpc(bp->b_vp, uiop, bp->b_wcred, &iomode, &must_commit, 0);
 	KASSERT((must_commit == 0), ("ncl_doio_directwrite: Did not commit write"));
 	free(iov_base, M_NFSDIRECTIO);
 	free(uiop->uio_iov, M_NFSDIRECTIO);
@@ -1550,7 +1545,8 @@ ncl_doio_directwrite(struct buf *bp)
  * synchronously or from an nfsiod.
  */
 int
-ncl_doio(struct vnode *vp, struct buf *bp, struct ucred *cr, struct thread *td)
+ncl_doio(struct vnode *vp, struct buf *bp, struct ucred *cr, struct thread *td,
+    int called_from_strategy)
 {
 	struct uio *uiop;
 	struct nfsnode *np;
@@ -1695,7 +1691,8 @@ ncl_doio(struct vnode *vp, struct buf *bp, struct ucred *cr, struct thread *td)
 		else
 		    iomode = NFSWRITE_FILESYNC;
 
-		error = ncl_writerpc(vp, uiop, cr, &iomode, &must_commit);
+		error = ncl_writerpc(vp, uiop, cr, &iomode, &must_commit,
+		    called_from_strategy);
 
 		/*
 		 * When setting B_NEEDCOMMIT also set B_CLUSTEROK to try
@@ -1732,6 +1729,12 @@ ncl_doio(struct vnode *vp, struct buf *bp, struct ucred *cr, struct thread *td)
 		 * the block is reused. This is indicated by setting
 		 * the B_DELWRI and B_NEEDCOMMIT flags.
 		 *
+		 * EIO is returned by ncl_writerpc() to indicate a recoverable
+		 * write error and is handled as above, except that
+		 * B_EINTR isn't set. One cause of this is a stale stateid
+		 * error for the RPC that indicates recovery is required,
+		 * when called with called_from_strategy != 0.
+		 *
 		 * If the buffer is marked B_PAGING, it does not reside on
 		 * the vp's paging queues so we cannot call bdirty().  The
 		 * bp in this case is not an NFS cache block so we should
@@ -1760,7 +1763,8 @@ ncl_doio(struct vnode *vp, struct buf *bp, struct ucred *cr, struct thread *td)
 			    bdirty(bp);
 			    bp->b_flags &= ~B_DONE;
 			}
-			if (error && (bp->b_flags & B_ASYNC) == 0)
+			if ((error == EINTR || error == ETIMEDOUT) &&
+			    (bp->b_flags & B_ASYNC) == 0)
 			    bp->b_flags |= B_EINTR;
 			splx(s);
 	    	} else {

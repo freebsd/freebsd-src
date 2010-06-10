@@ -142,7 +142,8 @@ struct ieee80211_rx_ampdu {
 	int		rxa_age;	/* age of oldest frame in window */
 	int		rxa_nframes;	/* frames since ADDBA */
 	struct mbuf *rxa_m[IEEE80211_AGGR_BAWMAX];
-	uint64_t	rxa_pad[4];
+	void		*rxa_private;
+	uint64_t	rxa_pad[3];
 };
 
 void	ieee80211_ht_attach(struct ieee80211com *);

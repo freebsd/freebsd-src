@@ -112,6 +112,7 @@ static const struct mii_phydesc e1000phys[] = {
 	MII_PHY_DESC(MARVELL, E1116R),
 	MII_PHY_DESC(MARVELL, E1118),
 	MII_PHY_DESC(MARVELL, E3016),
+	MII_PHY_DESC(MARVELL, PHYG65G),
 	MII_PHY_DESC(xxMARVELL, E1000),
 	MII_PHY_DESC(xxMARVELL, E1011),
 	MII_PHY_DESC(xxMARVELL, E1000_3),
@@ -230,6 +231,7 @@ e1000phy_reset(struct mii_softc *sc)
 		case MII_MODEL_MARVELL_E1116:
 		case MII_MODEL_MARVELL_E1118:
 		case MII_MODEL_MARVELL_E1149:
+		case MII_MODEL_MARVELL_PHYG65G:
 			/* Disable energy detect mode. */
 			reg &= ~E1000_SCR_EN_DETECT_MASK;
 			reg |= E1000_SCR_AUTO_X_MODE;

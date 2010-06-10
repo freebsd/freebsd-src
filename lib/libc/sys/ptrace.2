@@ -2,7 +2,7 @@
 .\"	$NetBSD: ptrace.2,v 1.2 1995/02/27 12:35:37 cgd Exp $
 .\"
 .\" This file is in the public domain.
-.Dd February 11, 2010
+.Dd May 24, 2010
 .Dt PTRACE 2
 .Os
 .Sh NAME
@@ -289,8 +289,11 @@ argument specifies a pointer to a
 which is defined as follows:
 .Bd -literal
 struct ptrace_lwpinfo {
-	lwpid_t pl_lwpid;	/* LWP described. */
-	int	pl_event;	/* Event received. */
+	lwpid_t pl_lwpid;
+	int	pl_event;
+	int	pl_flags;
+	sigset_t pl_sigmask;
+	sigset_t pl_siglist;
 };
 .Ed
 .Pp
@@ -298,6 +301,51 @@ The
 .Fa data
 argument is to be set to the size of the structure known to the caller.
 This allows the structure to grow without affecting older programs.
+.Pp
+The fields in the
+.Vt "struct ptrace_lwpinfo"
+have the following meaning:
+.Bl -tag -width indent -compact
+.It pl_lwpid
+LWP id of the thread
+.It pl_event
+Event that caused the stop.
+Currently defined events are
+.Bl -tag -width indent -compact
+.It PL_EVENT_NONE
+No reason given
+.It PL_EVENT_SIGNAL
+Thread stopped due to the pending signal
+.El
+.It pl_flags
+Flags that specify additional details about observed stop.
+Currently defined flags are:
+.Bl -tag -width indent -compact
+.It PL_FLAG_SCE
+The thread stopped due to system call entry, right after the kernel is entered.
+The debugger may examine syscall arguments that are stored in memory and
+registers according to the ABI of the current process, and modify them,
+if needed.
+.It PL_FLAG_SCX
+The thread is stopped immediately before syscall is returning to the usermode.
+The debugger may examine system call return values in the ABI-defined registers
+and/or memory.
+.It PL_FLAG_EXEC
+When
+.Dv PL_FLAG_SCX
+is set, this flag may be additionally specified to inform that the
+program being executed by debuggee process has been changed by succesful
+execution of a system call from the
+.Fn execve 2
+family.
+.El
+.It pl_sigmask
+The current signal mask of the LWP
+.It pl_siglist
+The current pending set of signals for the LWP. Note that signals that
+are delivered to the process would not appear on an LWP siglist until
+the thread is selected for delivery.
+.El
 .It PT_GETNUMLWPS
 This request returns the number of kernel threads associated with the
 traced process.
@@ -501,3 +549,10 @@ The
 .Fn ptrace
 function appeared in
 .At v7 .
+.Sh BUGS
+The
+.Dv PL_FLAG_SCE ,
+.Dv PL_FLAG_SCX
+and
+.Dv PL_FLAG_EXEC
+are not implemented for MIPS and ARM architectures.

@@ -87,43 +87,46 @@ __FBSDID("$FreeBSD$");
 extern struct mbuf *m_copypack();
 #endif
 
-VNET_DEFINE(int, path_mtu_discovery);
-VNET_DEFINE(int, ss_fltsz);
-VNET_DEFINE(int, ss_fltsz_local);
-VNET_DEFINE(int, tcp_do_newreno);
-VNET_DEFINE(int, tcp_do_tso);
-VNET_DEFINE(int, tcp_do_autosndbuf);
-VNET_DEFINE(int, tcp_autosndbuf_inc);
-VNET_DEFINE(int, tcp_autosndbuf_max);
-
+VNET_DEFINE(int, path_mtu_discovery) = 1;
 SYSCTL_VNET_INT(_net_inet_tcp, OID_AUTO, path_mtu_discovery, CTLFLAG_RW,
 	&VNET_NAME(path_mtu_discovery), 1,
 	"Enable Path MTU Discovery");
 
+VNET_DEFINE(int, ss_fltsz) = 1;
 SYSCTL_VNET_INT(_net_inet_tcp, OID_AUTO, slowstart_flightsize, CTLFLAG_RW,
 	&VNET_NAME(ss_fltsz), 1,
 	"Slow start flight size");
 
+VNET_DEFINE(int, ss_fltsz_local) = 4;
 SYSCTL_VNET_INT(_net_inet_tcp, OID_AUTO, local_slowstart_flightsize,
 	CTLFLAG_RW, &VNET_NAME(ss_fltsz_local), 1,
 	"Slow start flight size for local networks");
 
+VNET_DEFINE(int, tcp_do_newreno) = 1;
 SYSCTL_VNET_INT(_net_inet_tcp, OID_AUTO, newreno, CTLFLAG_RW,
 	&VNET_NAME(tcp_do_newreno), 0,
 	"Enable NewReno Algorithms");
 
+VNET_DEFINE(int, tcp_do_tso) = 1;
+#define	V_tcp_do_tso		VNET(tcp_do_tso)
 SYSCTL_VNET_INT(_net_inet_tcp, OID_AUTO, tso, CTLFLAG_RW,
 	&VNET_NAME(tcp_do_tso), 0,
 	"Enable TCP Segmentation Offload");
 
+VNET_DEFINE(int, tcp_do_autosndbuf) = 1;
+#define	V_tcp_do_autosndbuf	VNET(tcp_do_autosndbuf)
 SYSCTL_VNET_INT(_net_inet_tcp, OID_AUTO, sendbuf_auto, CTLFLAG_RW,
 	&VNET_NAME(tcp_do_autosndbuf), 0,
 	"Enable automatic send buffer sizing");
 
+VNET_DEFINE(int, tcp_autosndbuf_inc) = 8*1024;
+#define	V_tcp_autosndbuf_inc	VNET(tcp_autosndbuf_inc)
 SYSCTL_VNET_INT(_net_inet_tcp, OID_AUTO, sendbuf_inc, CTLFLAG_RW,
 	&VNET_NAME(tcp_autosndbuf_inc), 0,
 	"Incrementor step size of automatic send buffer");
 
+VNET_DEFINE(int, tcp_autosndbuf_max) = 256*1024;
+#define	V_tcp_autosndbuf_max	VNET(tcp_autosndbuf_max)
 SYSCTL_VNET_INT(_net_inet_tcp, OID_AUTO, sendbuf_max, CTLFLAG_RW,
 	&VNET_NAME(tcp_autosndbuf_max), 0,
 	"Max size of automatic send buffer");
@@ -1048,7 +1051,7 @@ send:
 	 * XXX: Fixme: This is currently not the case for IPv6.
 	 */
 	if (tso) {
-		m->m_pkthdr.csum_flags = CSUM_TSO;
+		m->m_pkthdr.csum_flags |= CSUM_TSO;
 		m->m_pkthdr.tso_segsz = tp->t_maxopd - optlen;
 	}
 

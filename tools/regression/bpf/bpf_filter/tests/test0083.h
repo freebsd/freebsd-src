@@ -6,7 +6,7 @@
 
 /* BPF program */
 struct bpf_insn pc[] = {
-	BPF_JUMP(BPF_JMP+BPF_JA, 0, 0, 0),
+	BPF_STMT(BPF_LD|BPF_IMM, 0),
 };
 
 /* Packet */

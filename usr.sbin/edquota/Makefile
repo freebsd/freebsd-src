@@ -4,4 +4,10 @@
 PROG=	edquota
 MAN=	edquota.8
 
+CSTD=	gnu99
+WARNS?=	4
+
+DPADD=	${LIBUTIL}
+LDADD=	-lutil
+
 .include <bsd.prog.mk>

@@ -135,6 +135,8 @@ struct cam_et {
 	u_int32_t	refcount;
 	u_int		generation;
 	struct		timeval last_reset;
+	u_int		rpl_size;
+	struct scsi_report_luns_data *luns;
 };
 
 /*

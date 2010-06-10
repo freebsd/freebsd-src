@@ -25,7 +25,7 @@ __FBSDID("$FreeBSD$");
 #include <getopt.h>
 #include <err.h>
 
-#include "lib.h"
+#include <pkg.h>
 #include "info.h"
 
 int	Flags		= 0;
@@ -67,6 +67,8 @@ main(int argc, char **argv)
     int ch;
     char **pkgs, **start;
     char *pkgs_split;
+
+    pkg_wrap(PKG_INSTALL_VERSION, argv);
 
     whead = malloc(sizeof(struct which_head));
     if (whead == NULL)
@@ -225,7 +227,10 @@ main(int argc, char **argv)
 	    }
 
 	case 'P':
-	    Flags = SHOW_PTREV;
+	    if (Flags & SHOW_PTREV)
+		Flags |= SHOW_LPREV;
+	    else
+		Flags = SHOW_PTREV;
 	    break;
 
 	case 'h':
@@ -242,6 +247,11 @@ main(int argc, char **argv)
 	if (!Quiet)
 	    printf("Package tools revision: ");
 	printf("%d\n", PKG_INSTALL_VERSION);
+	if (Flags & SHOW_LPREV) {
+	    if (!Quiet)
+		printf("Libpkg revision: ");
+	    printf("%d\n", libpkg_version());
+	}
 	exit(0);
     }
 

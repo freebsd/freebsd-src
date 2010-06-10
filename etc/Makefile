@@ -64,7 +64,7 @@ BIN1+=	hosts.lpd printcap
 BIN1+=	${.CURDIR}/../usr.bin/mail/misc/mail.rc
 .endif
 
-.if ${MK_MAN} != "no"
+.if ${MK_MAN_UTILS} != "no"
 BIN1+=	${.CURDIR}/../gnu/usr.bin/man/manpath/manpath.config
 .endif
 

@@ -685,16 +685,15 @@ brgphy_status(struct mii_softc *sc)
 
 	}
 
-#if 0
-	/* Todo: Change bge/bce to use these settings. */
+	/* Todo: Change bge to use these settings. */
 
-	/* Fetch flow control settings from the PHY */
+	/* Fetch flow control settings from the copper PHY. */
 	if ((sc->mii_flags & MIIF_HAVEFIBER) == 0) {
-		/* Set FLAG0 is RX is enabled and FLAG1 if TX is enabled */
+		/* Set FLAG0 if RX is enabled and FLAG1 if TX is enabled */
 		if ((anar & BRGPHY_ANAR_PC) && (anlpar & BRGPHY_ANLPAR_PC)) {
 			mii->mii_media_active |= IFM_FLAG0 | IFM_FLAG1;
 		} else if (!(anar & BRGPHY_ANAR_PC) && (anlpar & BRGPHY_ANAR_ASP) &&
-		    (anlpar & BRPHY_ANLPAR_PC) && (anlpar & BRGPHY_ANLPAR_ASP)) {
+		    (anlpar & BRGPHY_ANLPAR_PC) && (anlpar & BRGPHY_ANLPAR_ASP)) {
 			mii->mii_media_active |= IFM_FLAG1;
 		} else if ((anar & BRGPHY_ANAR_PC) && (anar & BRGPHY_ANAR_ASP) &&
 		    !(anlpar & BRGPHY_ANLPAR_PC) && (anlpar & BRGPHY_ANLPAR_ASP)) {
@@ -703,7 +702,6 @@ brgphy_status(struct mii_softc *sc)
 	}
 
 	/* Todo: Add support for fiber settings too. */
-#endif
 
 
 brgphy_status_exit:

@@ -19,15 +19,14 @@
  * CDDL HEADER END
  */
 /*
- * Copyright 2007 Sun Microsystems, Inc.  All rights reserved.
+ * Copyright 2008 Sun Microsystems, Inc.  All rights reserved.
  * Use is subject to license terms.
  */
-
-#pragma ident	"%Z%%M%	%I%	%E% SMI"
 
 #include <sys/zfs_context.h>
 
 int taskq_now;
+taskq_t *system_taskq;
 
 typedef struct task {
 	struct task	*task_next;
@@ -252,4 +251,11 @@ taskq_member(taskq_t *tq, void *t)
 			return (1);
 
 	return (0);
+}
+
+void
+system_taskq_init(void)
+{
+	system_taskq = taskq_create("system_taskq", 64, minclsyspri, 4, 512,
+	    TASKQ_DYNAMIC | TASKQ_PREPOPULATE);
 }

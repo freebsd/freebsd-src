@@ -80,9 +80,6 @@
 /* Define if you want to specify the path to your lastlog file */
 #undef CONF_LASTLOG_FILE
 
-/* Define if you want to specify the path to your utmpx file */
-#undef CONF_UTMPX_FILE
-
 /* Define if you want to specify the path to your utmp file */
 #undef CONF_UTMP_FILE
 
@@ -455,6 +452,9 @@
 /* Define to 1 if you have the `getutxline' function. */
 #undef HAVE_GETUTXLINE
 
+/* Define to 1 if you have the `getutxuser' function. */
+#undef HAVE_GETUTXUSER
+
 /* Define to 1 if you have the `get_default_context_with_level' function. */
 #undef HAVE_GET_DEFAULT_CONTEXT_WITH_LEVEL
 
@@ -550,6 +550,9 @@
 
 /* Define if system has libiaf that supports set_id */
 #undef HAVE_LIBIAF
+
+/* Define to 1 if you have the `network' library (-lnetwork). */
+#undef HAVE_LIBNETWORK
 
 /* Define to 1 if you have the `nsl' library (-lnsl). */
 #undef HAVE_LIBNSL
@@ -803,6 +806,9 @@
 
 /* Define to 1 if you have the `setutent' function. */
 #undef HAVE_SETUTENT
+
+/* Define to 1 if you have the `setutxdb' function. */
+#undef HAVE_SETUTXDB
 
 /* Define to 1 if you have the `setutxent' function. */
 #undef HAVE_SETUTXENT

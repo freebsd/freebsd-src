@@ -108,6 +108,22 @@ g_gate_load(void)
 }
 
 static void
+child_exit_log(unsigned int pid, int status)
+{
+
+	if (WIFEXITED(status) && WEXITSTATUS(status) == 0) {
+		pjdlog_debug(1, "Worker process exited gracefully (pid=%u).",
+		    pid);
+	} else if (WIFSIGNALED(status)) {
+		pjdlog_error("Worker process killed (pid=%u, signal=%d).",
+		    pid, WTERMSIG(status));
+	} else {
+		pjdlog_error("Worker process exited ungracefully (pid=%u, exitcode=%d).",
+		    pid, WIFEXITED(status) ? WEXITSTATUS(status) : -1);
+	}
+}
+
+static void
 child_exit(void)
 {
 	struct hast_resource *res;
@@ -129,19 +145,25 @@ child_exit(void)
 		}
 		pjdlog_prefix_set("[%s] (%s) ", res->hr_name,
 		    role2str(res->hr_role));
-		if (WEXITSTATUS(status) == 0) {
-			pjdlog_debug(1,
-			    "Worker process exited gracefully (pid=%u).",
-			    (unsigned int)pid);
-		} else {
-			pjdlog_error("Worker process failed (pid=%u, status=%d).",
-			    (unsigned int)pid, WEXITSTATUS(status));
-		}
+		child_exit_log(pid, status);
+		proto_close(res->hr_ctrl);
 		res->hr_workerpid = 0;
 		if (res->hr_role == HAST_ROLE_PRIMARY) {
-			sleep(1);
-			pjdlog_info("Restarting worker process.");
-			hastd_primary(res);
+			/*
+			 * Restart child process if it was killed by signal
+			 * or exited because of temporary problem.
+			 */
+			if (WIFSIGNALED(status) ||
+			    (WIFEXITED(status) &&
+			     WEXITSTATUS(status) == EX_TEMPFAIL)) {
+				sleep(1);
+				pjdlog_info("Restarting worker process.");
+				hastd_primary(res);
+			} else {
+				res->hr_role = HAST_ROLE_INIT;
+				pjdlog_info("Changing resource role back to %s.",
+				    role2str(res->hr_role));
+			}
 		}
 		pjdlog_prefix_set("%s", "");
 	}
@@ -179,6 +201,10 @@ listen_accept(void)
 	proto_local_address(conn, laddr, sizeof(laddr));
 	proto_remote_address(conn, raddr, sizeof(raddr));
 	pjdlog_info("Connection from %s to %s.", laddr, raddr);
+
+	/* Error in setting timeout is not critical, but why should it fail? */
+	if (proto_timeout(conn, HAST_TIMEOUT) < 0)
+		pjdlog_errno(LOG_WARNING, "Unable to set connection timeout");
 
 	nvin = nvout = nverr = NULL;
 
@@ -289,18 +315,12 @@ listen_accept(void)
 			/* Wait for it to exit. */
 			else if ((pid = waitpid(res->hr_workerpid,
 			    &status, 0)) != res->hr_workerpid) {
+				/* We can only log the problem. */
 				pjdlog_errno(LOG_ERR,
 				    "Waiting for worker process (pid=%u) failed",
 				    (unsigned int)res->hr_workerpid);
-				/* See above. */
-			} else if (status != 0) {
-				pjdlog_error("Worker process (pid=%u) exited ungracefully: status=%d.",
-				    (unsigned int)res->hr_workerpid, status);
-				/* See above. */
 			} else {
-				pjdlog_debug(1,
-				    "Worker process (pid=%u) exited gracefully.",
-				    (unsigned int)res->hr_workerpid);
+				child_exit_log(res->hr_workerpid, status);
 			}
 			res->hr_workerpid = 0;
 		} else if (res->hr_remotein != NULL) {

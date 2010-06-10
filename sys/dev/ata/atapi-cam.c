@@ -868,11 +868,11 @@ free_hcb(struct atapi_hcb *hcb)
 static void
 free_softc(struct atapi_xpt_softc *scp)
 {
-    struct atapi_hcb *hcb;
+    struct atapi_hcb *hcb, *thcb;
 
     if (scp != NULL) {
 	mtx_lock(&scp->state_lock);
-	TAILQ_FOREACH(hcb, &scp->pending_hcbs, chain) {
+	TAILQ_FOREACH_SAFE(hcb, &scp->pending_hcbs, chain, thcb) {
 	    free_hcb_and_ccb_done(hcb, CAM_UNREC_HBA_ERROR);
 	}
 	if (scp->path != NULL) {
