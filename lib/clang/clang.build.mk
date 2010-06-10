@@ -10,7 +10,8 @@ CFLAGS+=-I${LLVM_SRCS}/include -I${CLANG_SRCS}/include \
 
 TARGET_ARCH?=	${MACHINE_ARCH}
 # XXX: 8.0, to keep __FreeBSD_cc_version happy
-CFLAGS+=-DLLVM_HOSTTRIPLE=\"${TARGET_ARCH}-undermydesk-freebsd9.0\"
+CFLAGS+=-DLLVM_HOSTTRIPLE=\"${TARGET_ARCH}-undermydesk-freebsd9.0\" \
+	-DCLANG_VENDOR=\"clang\ r104832\ 20100610\ [FreeBSD]\\n\"
 
 .PATH:	${LLVM_SRCS}/${SRCDIR}
 
