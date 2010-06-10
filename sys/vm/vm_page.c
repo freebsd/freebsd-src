@@ -502,6 +502,8 @@ vm_page_flag_clear(vm_page_t m, unsigned short bits)
 {
 
 	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
+	KASSERT((bits & PG_REFERENCED) == 0 || VM_OBJECT_LOCKED(m->object),
+	    ("PG_REFERENCED and !VM_OBJECT_LOCKED"));
 	m->flags &= ~bits;
 }
 
@@ -1333,8 +1335,7 @@ vm_waitpfault(void)
 /*
  *	vm_page_requeue:
  *
- *	If the given page is contained within a page queue, move it to the tail
- *	of that queue.
+ *	Move the given page to the tail of its present page queue.
  *
  *	The page queues must be locked.
  */
@@ -1344,11 +1345,12 @@ vm_page_requeue(vm_page_t m)
 	int queue = VM_PAGE_GETQUEUE(m);
 	struct vpgqueues *vpq;
 
-	if (queue != PQ_NONE) {
-		vpq = &vm_page_queues[queue];
-		TAILQ_REMOVE(&vpq->pl, m, pageq);
-		TAILQ_INSERT_TAIL(&vpq->pl, m, pageq);
-	}
+	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
+	KASSERT(queue != PQ_NONE,
+	    ("vm_page_requeue: page %p is not queued", m));
+	vpq = &vm_page_queues[queue];
+	TAILQ_REMOVE(&vpq->pl, m, pageq);
+	TAILQ_INSERT_TAIL(&vpq->pl, m, pageq);
 }
 
 /*

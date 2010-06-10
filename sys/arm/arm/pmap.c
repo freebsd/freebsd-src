@@ -1423,7 +1423,7 @@ pmap_clearbit(struct vm_page *pg, u_int maskbits)
 	u_int oflags;
 	int count = 0;
 
-	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
+	vm_page_lock_queues();
 
 	if (maskbits & PVF_WRITE)
 		maskbits |= PVF_MOD;
@@ -1433,6 +1433,7 @@ pmap_clearbit(struct vm_page *pg, u_int maskbits)
 	pg->md.pvh_attrs &= ~(maskbits & (PVF_MOD | PVF_REF));
 
 	if (TAILQ_EMPTY(&pg->md.pv_list)) {
+		vm_page_unlock_queues();
 		return (0);
 	}
 
@@ -1568,6 +1569,7 @@ pmap_clearbit(struct vm_page *pg, u_int maskbits)
 
 	if (maskbits & PVF_WRITE)
 		vm_page_flag_clear(pg, PG_WRITEABLE);
+	vm_page_unlock_queues();
 	return (count);
 }
 
@@ -4417,24 +4419,23 @@ pmap_page_exists_quick(pmap_t pmap, vm_page_t m)
 {
 	pv_entry_t pv;
 	int loops = 0;
+	boolean_t rv;
 	
-	if (m->flags & PG_FICTITIOUS)
-		return (FALSE);
-		
-	/*
-	 * Not found, check current mappings returning immediately
-	 */
-	for (pv = TAILQ_FIRST(&m->md.pv_list);
-	    pv;
-	    pv = TAILQ_NEXT(pv, pv_list)) {
+	KASSERT((m->flags & (PG_FICTITIOUS | PG_UNMANAGED)) == 0,
+	    ("pmap_page_exists_quick: page %p is not managed", m));
+	rv = FALSE;
+	vm_page_lock_queues();
+	TAILQ_FOREACH(pv, &m->md.pv_list, pv_list) {
 	    	if (pv->pv_pmap == pmap) {
-	    		return (TRUE);
+			rv = TRUE;
+			break;
 	    	}
 		loops++;
 		if (loops >= 16)
 			break;
 	}
-	return (FALSE);
+	vm_page_unlock_queues();
+	return (rv);
 }
 
 /*
@@ -4469,8 +4470,8 @@ int
 pmap_ts_referenced(vm_page_t m)
 {
 
-	if (m->flags & PG_FICTITIOUS)
-		return (0);
+	KASSERT((m->flags & (PG_FICTITIOUS | PG_UNMANAGED)) == 0,
+	    ("pmap_ts_referenced: page %p is not managed", m));
 	return (pmap_clearbit(m, PVF_REF));
 }
 
@@ -4508,10 +4509,8 @@ pmap_clear_modify(vm_page_t m)
 	 */
 	if ((m->flags & PG_WRITEABLE) == 0)
 		return;
-	vm_page_lock_queues();
 	if (m->md.pvh_attrs & PVF_MOD)
 		pmap_clearbit(m, PVF_MOD);
-	vm_page_unlock_queues();
 }
 
 
@@ -4541,10 +4540,8 @@ pmap_clear_reference(vm_page_t m)
 
 	KASSERT((m->flags & (PG_FICTITIOUS | PG_UNMANAGED)) == 0,
 	    ("pmap_clear_reference: page %p is not managed", m));
-	vm_page_lock_queues();
 	if (m->md.pvh_attrs & PVF_REF) 
 		pmap_clearbit(m, PVF_REF);
-	vm_page_unlock_queues();
 }
 
 
@@ -4565,11 +4562,8 @@ pmap_remove_write(vm_page_t m)
 	 */
 	VM_OBJECT_LOCK_ASSERT(m->object, MA_OWNED);
 	if ((m->oflags & VPO_BUSY) != 0 ||
-	    (m->flags & PG_WRITEABLE) != 0) {
-		vm_page_lock_queues();
+	    (m->flags & PG_WRITEABLE) != 0)
 		pmap_clearbit(m, PVF_WRITE);
-		vm_page_unlock_queues();
-	}
 }
 
 
