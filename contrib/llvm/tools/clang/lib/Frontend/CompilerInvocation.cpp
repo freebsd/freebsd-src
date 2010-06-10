@@ -530,6 +530,8 @@ static void LangOptsToArgs(const LangOptions &Opts,
     Res.push_back("-fgnu-runtime");
   if (Opts.Freestanding)
     Res.push_back("-ffreestanding");
+  if (Opts.FormatExtensions)
+    Res.push_back("-fformat-extensions");
   if (Opts.NoBuiltin)
     Res.push_back("-fno-builtin");
   if (!Opts.AssumeSaneOperatorNew)
@@ -1245,6 +1247,7 @@ static void ParseLangArgs(LangOptions &Opts, ArgList &Args,
   Opts.CharIsSigned = !Args.hasArg(OPT_fno_signed_char);
   Opts.ShortWChar = Args.hasArg(OPT_fshort_wchar);
   Opts.Freestanding = Args.hasArg(OPT_ffreestanding);
+  Opts.FormatExtensions = Args.hasArg(OPT_fformat_extensions);
   Opts.NoBuiltin = Args.hasArg(OPT_fno_builtin) || Opts.Freestanding;
   Opts.AssumeSaneOperatorNew = !Args.hasArg(OPT_fno_assume_sane_operator_new);
   Opts.HeinousExtensions = Args.hasArg(OPT_fheinous_gnu_extensions);
