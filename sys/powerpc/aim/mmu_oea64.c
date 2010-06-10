@@ -358,7 +358,7 @@ static void		moea64_bridge_cpu_bootstrap(mmu_t, int ap);
 static void		moea64_enter_locked(pmap_t, vm_offset_t, vm_page_t,
 			    vm_prot_t, boolean_t);
 static boolean_t	moea64_query_bit(vm_page_t, u_int64_t);
-static u_int		moea64_clear_bit(vm_page_t, u_int64_t, u_int64_t *);
+static u_int		moea64_clear_bit(vm_page_t, u_int64_t);
 static void		moea64_kremove(mmu_t, vm_offset_t);
 static void		moea64_syncicache(pmap_t pmap, vm_offset_t va, 
 			    vm_offset_t pa, vm_size_t sz);
@@ -1510,9 +1510,7 @@ moea64_clear_reference(mmu_t mmu, vm_page_t m)
 
 	KASSERT((m->flags & (PG_FICTITIOUS | PG_UNMANAGED)) == 0,
 	    ("moea64_clear_reference: page %p is not managed", m));
-	vm_page_lock_queues();
-	moea64_clear_bit(m, LPTE_REF, NULL);
-	vm_page_unlock_queues();
+	moea64_clear_bit(m, LPTE_REF);
 }
 
 void
@@ -1532,9 +1530,7 @@ moea64_clear_modify(mmu_t mmu, vm_page_t m)
 	 */
 	if ((m->flags & PG_WRITEABLE) == 0)
 		return;
-	vm_page_lock_queues();
-	moea64_clear_bit(m, LPTE_CHG, NULL);
-	vm_page_unlock_queues();
+	moea64_clear_bit(m, LPTE_CHG);
 }
 
 /*
@@ -1605,14 +1601,10 @@ moea64_remove_write(mmu_t mmu, vm_page_t m)
 boolean_t
 moea64_ts_referenced(mmu_t mmu, vm_page_t m)
 {
-	int count;
 
-	if ((m->flags & (PG_FICTITIOUS | PG_UNMANAGED)) != 0)
-		return (0);
-
-	count = moea64_clear_bit(m, LPTE_REF, NULL);
-
-	return (count);
+	KASSERT((m->flags & (PG_FICTITIOUS | PG_UNMANAGED)) == 0,
+	    ("moea64_ts_referenced: page %p is not managed", m));
+	return (moea64_clear_bit(m, LPTE_REF));
 }
 
 /*
@@ -1721,21 +1713,23 @@ moea64_page_exists_quick(mmu_t mmu, pmap_t pmap, vm_page_t m)
 {
         int loops;
 	struct pvo_entry *pvo;
+	boolean_t rv;
 
-        if (!moea64_initialized || (m->flags & PG_FICTITIOUS))
-                return FALSE;
-
-	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
-
+	KASSERT((m->flags & (PG_FICTITIOUS | PG_UNMANAGED)) == 0,
+	    ("moea64_page_exists_quick: page %p is not managed", m));
 	loops = 0;
+	rv = FALSE;
+	vm_page_lock_queues();
 	LIST_FOREACH(pvo, vm_page_to_pvoh(m), pvo_vlink) {
-		if (pvo->pvo_pmap == pmap) 
-			return (TRUE);
+		if (pvo->pvo_pmap == pmap) {
+			rv = TRUE;
+			break;
+		}
 		if (++loops >= 16)
 			break;
 	}
-
-	return (FALSE);
+	vm_page_unlock_queues();
+	return (rv);
 }
 
 /*
@@ -1749,7 +1743,7 @@ moea64_page_wired_mappings(mmu_t mmu, vm_page_t m)
 	int count;
 
 	count = 0;
-	if (!moea64_initialized || (m->flags & PG_FICTITIOUS) != 0)
+	if ((m->flags & PG_FICTITIOUS) != 0)
 		return (count);
 	vm_page_lock_queues();
 	LIST_FOREACH(pvo, vm_page_to_pvoh(m), pvo_vlink)
@@ -2445,19 +2439,17 @@ moea64_query_bit(vm_page_t m, u_int64_t ptebit)
 }
 
 static u_int
-moea64_clear_bit(vm_page_t m, u_int64_t ptebit, u_int64_t *origbit)
+moea64_clear_bit(vm_page_t m, u_int64_t ptebit)
 {
 	u_int	count;
 	struct	pvo_entry *pvo;
 	struct	lpte *pt;
-	uint64_t rv;
 
-	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
+	vm_page_lock_queues();
 
 	/*
 	 * Clear the cached value.
 	 */
-	rv = moea64_attr_fetch(m);
 	moea64_attr_clear(m, ptebit);
 
 	/*
@@ -2486,16 +2478,12 @@ moea64_clear_bit(vm_page_t m, u_int64_t ptebit, u_int64_t *origbit)
 				moea64_pte_clear(pt, pvo->pvo_pmap, PVO_VADDR(pvo), ptebit);
 			}
 		}
-		rv |= pvo->pvo_pte.lpte.pte_lo;
 		pvo->pvo_pte.lpte.pte_lo &= ~ptebit;
 		MOEA_PVO_CHECK(pvo);	/* sanity check */
 		UNLOCK_TABLE();
 	}
 
-	if (origbit != NULL) {
-		*origbit = rv;
-	}
-
+	vm_page_unlock_queues();
 	return (count);
 }
 

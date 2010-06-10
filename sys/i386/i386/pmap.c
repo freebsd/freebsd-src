@@ -4061,30 +4061,35 @@ pmap_page_exists_quick(pmap_t pmap, vm_page_t m)
 	struct md_page *pvh;
 	pv_entry_t pv;
 	int loops = 0;
+	boolean_t rv;
 
-	if (m->flags & PG_FICTITIOUS)
-		return (FALSE);
-
-	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
+	KASSERT((m->flags & (PG_FICTITIOUS | PG_UNMANAGED)) == 0,
+	    ("pmap_page_exists_quick: page %p is not managed", m));
+	rv = FALSE;
+	vm_page_lock_queues();
 	TAILQ_FOREACH(pv, &m->md.pv_list, pv_list) {
 		if (PV_PMAP(pv) == pmap) {
-			return (TRUE);
+			rv = TRUE;
+			break;
 		}
 		loops++;
 		if (loops >= 16)
 			break;
 	}
-	if (loops < 16) {
+	if (!rv && loops < 16) {
 		pvh = pa_to_pvh(VM_PAGE_TO_PHYS(m));
 		TAILQ_FOREACH(pv, &pvh->pv_list, pv_list) {
-			if (PV_PMAP(pv) == pmap)
-				return (TRUE);
+			if (PV_PMAP(pv) == pmap) {
+				rv = TRUE;
+				break;
+			}
 			loops++;
 			if (loops >= 16)
 				break;
 		}
 	}
-	return (FALSE);
+	vm_page_unlock_queues();
+	return (rv);
 }
 
 /*
@@ -4512,11 +4517,11 @@ pmap_ts_referenced(vm_page_t m)
 	vm_offset_t va;
 	int rtval = 0;
 
-	if (m->flags & PG_FICTITIOUS)
-		return (rtval);
-	sched_pin();
-	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
+	KASSERT((m->flags & (PG_FICTITIOUS | PG_UNMANAGED)) == 0,
+	    ("pmap_ts_referenced: page %p is not managed", m));
 	pvh = pa_to_pvh(VM_PAGE_TO_PHYS(m));
+	vm_page_lock_queues();
+	sched_pin();
 	TAILQ_FOREACH_SAFE(pv, &pvh->pv_list, pv_list, pvn) {
 		va = pv->pv_va;
 		pmap = PV_PMAP(pv);
@@ -4571,6 +4576,7 @@ pmap_ts_referenced(vm_page_t m)
 	}
 out:
 	sched_unpin();
+	vm_page_unlock_queues();
 	return (rtval);
 }
 
