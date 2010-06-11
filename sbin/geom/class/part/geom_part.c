@@ -72,7 +72,6 @@ static struct gprovider *find_provider(struct ggeom *,
     unsigned long long);
 static const char *fmtsize(int64_t);
 static int gpart_autofill(struct gctl_req *);
-static int gpart_autofill_resize(struct gctl_req *);
 static void gpart_bootcode(struct gctl_req *, unsigned int);
 static void *gpart_bootfile_read(const char *, ssize_t *);
 static void gpart_issue(struct gctl_req *, unsigned int);
