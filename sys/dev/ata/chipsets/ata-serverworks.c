@@ -241,6 +241,16 @@ ata_serverworks_ch_attach(device_t dev)
 	ATA_OUTL(ctlr->r_res2, ch_offset + 0x88, 0);
 	ATA_OUTL(ctlr->r_res2, ch_offset + 0x80,
 	    ATA_INL(ctlr->r_res2, ch_offset + 0x80) & ~0x00040000);
+
+	/*
+	 * Some controllers have a bug where they will send the command
+	 * to the drive before seeing a DMA start, and then can begin
+	 * receiving data before the DMA start arrives. The controller
+	 * will then become confused and either corrupt the data or crash.
+	 * Remedy this by starting DMA before sending the drive command.
+	 */
+
+	ch->flags |= ATA_DMA_BEFORE_CMD;
     }
 
     /* chip does not reliably do 64K DMA transfers */
