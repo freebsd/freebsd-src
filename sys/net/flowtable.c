@@ -328,9 +328,7 @@ flowtable_show_stats(struct sbuf *sb, struct flowtable *ft)
 	if (ft->ft_flags & FL_PCPU) {
 		bzero(&fs, sizeof(fs));
 		pfs = &fs;
-		for (i = 0; i <= mp_maxid; i++) {
-			if (CPU_ABSENT(i))
-				continue;
+		CPU_FOREACH(i) {
 			pfs->ft_collisions  += ft->ft_stats[i].ft_collisions;
 			pfs->ft_allocated   += ft->ft_stats[i].ft_allocated;
 			pfs->ft_misses      += ft->ft_stats[i].ft_misses;
@@ -1495,10 +1493,7 @@ flowtable_route_flush(struct flowtable *ft, struct rtentry *rt)
 	int i;
 
 	if (ft->ft_flags & FL_PCPU) {
-		for (i = 0; i <= mp_maxid; i++) {
-			if (CPU_ABSENT(i))
-				continue;
-			
+		CPU_FOREACH(i) {
 			if (smp_started == 1) {
 				thread_lock(curthread);
 				sched_bind(curthread, i);
@@ -1527,10 +1522,7 @@ flowtable_clean_vnet(void)
 	ft = V_flow_list_head;
 	while (ft != NULL) {
 		if (ft->ft_flags & FL_PCPU) {
-			for (i = 0; i <= mp_maxid; i++) {
-				if (CPU_ABSENT(i))
-					continue;
-
+			CPU_FOREACH(i) {
 				if (smp_started == 1) {
 					thread_lock(curthread);
 					sched_bind(curthread, i);
@@ -1799,9 +1791,7 @@ flowtable_show_vnet(void)
 	while (ft != NULL) {
 		printf("name: %s\n", ft->ft_name);
 		if (ft->ft_flags & FL_PCPU) {
-			for (i = 0; i <= mp_maxid; i++) {
-				if (CPU_ABSENT(i))
-					continue;
+			CPU_FOREACH(i) {
 				flowtable_show(ft, i);
 			}
 		} else {

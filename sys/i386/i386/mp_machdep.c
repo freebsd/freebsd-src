@@ -1573,9 +1573,7 @@ mp_ipi_intrcnt(void *dummy)
 	char buf[64];
 	int i;
 
-	for (i = 0; i < mp_maxid; i++) {
-		if (CPU_ABSENT(i))
-			continue;
+	CPU_FOREACH(i) {
 		snprintf(buf, sizeof(buf), "cpu%d: invltlb", i);
 		intrcnt_add(buf, &ipi_invltlb_counts[i]);
 		snprintf(buf, sizeof(buf), "cpu%d: invlrng", i);
