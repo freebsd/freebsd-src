@@ -644,6 +644,7 @@ gvinum_detach(int argc, char **argv)
 	struct gctl_req *req;
 	int flags, i;
 
+	flags = 0;
 	optreset = 1;
 	optind = 1;
 	while ((i = getopt(argc, argv, "f")) != -1) {
