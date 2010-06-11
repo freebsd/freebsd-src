@@ -429,15 +429,11 @@ acpi_video_vo_init(UINT32 adr)
 {
 	struct acpi_video_output *vn, *vo, *vp;
 	int n, x;
-	int display_index;
-	int display_port;
 	char name[8], env[32];
 	const char *type, *desc;
 	struct acpi_video_output_queue *voqh;
 
 	ACPI_SERIAL_ASSERT(video);
-	display_index = adr & DOD_DEVID_MASK_DISPIDX;
-	display_port = (adr & DOD_DEVID_MASK_DISPPORT) >> 4;
 
 	switch (adr & DOD_DEVID_MASK) {
 	case DOD_DEVID_MONITOR:
@@ -474,7 +470,7 @@ acpi_video_vo_init(UINT32 adr)
 	}
 
 	n = 0;
-	vn = vp = NULL;
+	vp = NULL;
 	STAILQ_FOREACH(vn, voqh, vo_unit.next) {
 		if (vn->vo_unit.num != n)
 			break;
@@ -782,7 +778,6 @@ acpi_video_vo_presets_sysctl(SYSCTL_HANDLER_ARGS)
 	struct acpi_video_output *vo;
 	int i, level, *preset, err;
 
-	err = 0;
 	vo = (struct acpi_video_output *)arg1;
 	ACPI_SERIAL_BEGIN(video_output);
 	if (vo->handle == NULL) {
@@ -942,7 +937,6 @@ vo_get_brightness_levels(ACPI_HANDLE handle, int **levelp)
 	ACPI_OBJECT *res;
 	int num, i, n, *levels;
 
-	num = 0;
 	bcl_buf.Length = ACPI_ALLOCATE_BUFFER;
 	bcl_buf.Pointer = NULL;
 	status = AcpiEvaluateObject(handle, "_BCL", NULL, &bcl_buf);

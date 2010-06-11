@@ -453,7 +453,6 @@ static int
 acpi_hp_attach(device_t dev)
 {
 	struct acpi_hp_softc	*sc;
-	struct acpi_softc	*acpi_sc;
 	devclass_t		wmi_devclass;
 	int			arg;
 
@@ -477,7 +476,6 @@ acpi_hp_attach(device_t dev)
 	sc->cmi_order_size = -1;
 	sc->verbose = 0;
 	memset(sc->cmi_order, 0, sizeof(sc->cmi_order));
-	acpi_sc = acpi_device_get_parent_softc(dev);
 
 	if (!(wmi_devclass = devclass_find ("acpi_wmi"))) {
 		device_printf(dev, "Couldn't find acpi_wmi devclass\n");
