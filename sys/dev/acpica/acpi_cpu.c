@@ -445,9 +445,7 @@ acpi_pcpu_get_id(uint32_t idx, uint32_t *acpi_id, uint32_t *cpu_id)
 
     KASSERT(acpi_id != NULL, ("Null acpi_id"));
     KASSERT(cpu_id != NULL, ("Null cpu_id"));
-    for (i = 0; i <= mp_maxid; i++) {
-	if (CPU_ABSENT(i))
-	    continue;
+    CPU_FOREACH(i) {
 	pcpu_data = pcpu_find(i);
 	KASSERT(pcpu_data != NULL, ("no pcpu data for %d", i));
 	if (idx-- == 0) {
