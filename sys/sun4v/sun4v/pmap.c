@@ -1084,7 +1084,8 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_prot_t access, vm_page_t m,
 	vm_page_t om;
 	int invlva;
 
-	KASSERT((m->oflags & VPO_BUSY) != 0,
+	KASSERT((m->flags & (PG_FICTITIOUS | PG_UNMANAGED)) != 0 ||
+	    (m->oflags & VPO_BUSY) != 0,
 	    ("pmap_enter: page %p is not busy", m));
 	if (pmap->pm_context)
 		DPRINTF("pmap_enter(va=%lx, pa=0x%lx, prot=%x)\n", va, 
