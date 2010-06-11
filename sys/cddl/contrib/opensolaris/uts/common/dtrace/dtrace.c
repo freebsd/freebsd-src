@@ -10583,8 +10583,6 @@ dtrace_buffer_alloc(dtrace_buffer_t *bufs, size_t size, int flags,
 {
 #if defined(sun)
 	cpu_t *cp;
-#else
-	struct pcpu *cp;
 #endif
 	dtrace_buffer_t *buf;
 
@@ -10672,10 +10670,7 @@ err:
 #endif
 
 	ASSERT(MUTEX_HELD(&dtrace_lock));
-	for (i = 0; i <= mp_maxid; i++) {
-		if ((cp = pcpu_find(i)) == NULL)
-			continue;
-
+	CPU_FOREACH(i) {
 		if (cpu != DTRACE_CPUALL && cpu != i)
 			continue;
 
@@ -10715,10 +10710,7 @@ err:
 	 * Error allocating memory, so free the buffers that were
 	 * allocated before the failed allocation.
 	 */
-	for (i = 0; i <= mp_maxid; i++) {
-		if ((cp = pcpu_find(i)) == NULL)
-			continue;
-
+	CPU_FOREACH(i) {
 		if (cpu != DTRACE_CPUALL && cpu != i)
 			continue;
 
@@ -12621,10 +12613,10 @@ dtrace_dstate_init(dtrace_dstate_t *dstate, size_t size)
 	maxper = (limit - (uintptr_t)start) / NCPU;
 	maxper = (maxper / dstate->dtds_chunksize) * dstate->dtds_chunksize;
 
-	for (i = 0; i < NCPU; i++) {
 #if !defined(sun)
-		if (CPU_ABSENT(i))
-			continue;
+	CPU_FOREACH(i) {
+#else
+	for (i = 0; i < NCPU; i++) {
 #endif
 		dstate->dtds_percpu[i].dtdsc_free = dvar = start;
 
