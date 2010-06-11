@@ -133,7 +133,7 @@ static int sysctl_shmsegs(SYSCTL_HANDLER_ARGS);
  * Tuneable values.
  */
 #ifndef SHMMAXPGS
-#define	SHMMAXPGS	8192	/* Note: sysv shared memory is swap backed. */
+#define	SHMMAXPGS	131072	/* Note: sysv shared memory is swap backed. */
 #endif
 #ifndef SHMMAX
 #define	SHMMAX	(SHMMAXPGS*PAGE_SIZE)
