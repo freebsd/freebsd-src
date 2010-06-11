@@ -1787,6 +1787,7 @@ cas_rint(struct cas_softc *sc)
 				}
 			}
 			idx2 = 0;
+			m2 = NULL;
 			rxds2 = NULL;
 			if ((word1 & CAS_RC1_SPLIT_PKT) != 0) {
 				KASSERT((word1 & CAS_RC1_RELEASE_NEXT) != 0,
@@ -1799,32 +1800,39 @@ cas_rint(struct cas_softc *sc)
 				    __func__, idx2);
 #endif
 				rxds2 = &sc->sc_rxdsoft[idx2];
-				MGET(m2, M_DONTWAIT, MT_DATA);
-				if (m2 != NULL) {
-					refcount_acquire(
-					    &rxds2->rxds_refcount);
-					m2->m_len = len - m->m_len;
-					bus_dmamap_sync(sc->sc_rdmatag,
-					    rxds2->rxds_dmamap,
-					    BUS_DMASYNC_POSTREAD);
+				if (m != NULL) {
+					MGET(m2, M_DONTWAIT, MT_DATA);
+					if (m2 != NULL) {
+						refcount_acquire(
+						    &rxds2->rxds_refcount);
+						m2->m_len = len - m->m_len;
+						bus_dmamap_sync(
+						    sc->sc_rdmatag,
+						    rxds2->rxds_dmamap,
+						    BUS_DMASYNC_POSTREAD);
 #if __FreeBSD_version < 800016
-					MEXTADD(m2, (caddr_t)rxds2->rxds_buf,
-					    m2->m_len, cas_free, rxds2,
-					    M_RDONLY, EXT_NET_DRV);
+						MEXTADD(m2,
+						    (caddr_t)rxds2->rxds_buf,
+						    m2->m_len, cas_free,
+						    rxds2, M_RDONLY,
+						    EXT_NET_DRV);
 #else
-					MEXTADD(m2, (caddr_t)rxds2->rxds_buf,
-					    m2->m_len, cas_free,
-					    sc, (void *)(uintptr_t)idx2,
-					    M_RDONLY, EXT_NET_DRV);
+						MEXTADD(m2,
+						    (caddr_t)rxds2->rxds_buf,
+						    m2->m_len, cas_free, sc,
+						    (void *)(uintptr_t)idx2,
+						    M_RDONLY, EXT_NET_DRV);
 #endif
-					if ((m2->m_flags & M_EXT) == 0) {
-						m_freem(m2);
-						m2 = NULL;
+						if ((m2->m_flags & M_EXT) ==
+						    0) {
+							m_freem(m2);
+							m2 = NULL;
+						}
 					}
 				}
 				if (m2 != NULL)
 					m->m_next = m2;
-				else {
+				else if (m != NULL) {
 					m_freem(m);
 					m = NULL;
 				}
