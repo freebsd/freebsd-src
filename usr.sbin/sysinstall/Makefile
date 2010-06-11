@@ -14,13 +14,13 @@ SRCS=	anonFTP.c cdrom.c command.c config.c devices.c dhcp.c \
 	system.c tcpip.c termcap.c ttys.c ufs.c usb.c user.c \
 	variable.c ${_wizard} keymap.h countries.h
 
-CFLAGS+= -DUSE_GZIP=1
+CFLAGS+= -DUSE_GZIP=1 -fno-strict-aliasing
 .if ${MACHINE} == "pc98"
 CFLAGS+= -DPC98
 .endif
 CFLAGS+= -I${.CURDIR}/../../gnu/lib/libdialog -I.
 
-WARNS?=	1
+WARNS?=  2	
 
 DPADD=	${LIBDIALOG} ${LIBNCURSES} ${LIBUTIL} ${LIBDISK} ${LIBFTPIO}
 LDADD=	-ldialog -lncurses -lutil -ldisk -lftpio

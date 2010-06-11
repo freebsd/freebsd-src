@@ -649,7 +649,6 @@ tcpDeviceScan(void)
 	int s;
 	struct ifmediareq ifmr;
 	struct ifaddrs *ifap, *ifa;
-	struct if_data *ifd;
 	char *network_dev;
 
 	if ((s = socket(AF_LOCAL, SOCK_DGRAM, 0)) < 0)
