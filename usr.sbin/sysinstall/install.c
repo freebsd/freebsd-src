@@ -357,7 +357,6 @@ installFixitUSB(dialogMenuItem *self)
 int
 installFixitCDROM(dialogMenuItem *self)
 {
-    struct stat sb;
     int need_eject;
 
     if (!RunningAsInit)
