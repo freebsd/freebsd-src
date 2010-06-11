@@ -496,10 +496,11 @@ skin(name)
 				*cp2++ = ' ';
 			}
 			*cp2++ = c;
-			if (c == ',' && *cp == ' ' && !gotlt) {
+			if (c == ',' && !gotlt &&
+			    (*cp == ' ' || *cp == '"' || *cp == '<')) {
 				*cp2++ = ' ';
-				while (*++cp == ' ')
-					;
+				while (*cp == ' ')
+					cp++;
 				lastsp = 0;
 				bufend = cp2;
 			}
