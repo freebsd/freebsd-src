@@ -3251,12 +3251,8 @@ newjmvref(dp, ino, oldoff, newoff)
  * the jsegdep when we're done.
  */
 static struct jremref *
-newjremref(dirrem, dp, ip, diroff, nlink)
-	struct dirrem *dirrem;
-	struct inode *dp;
-	struct inode *ip;
-	off_t diroff;
-	nlink_t nlink;
+newjremref(struct dirrem *dirrem, struct inode *dp, struct inode *ip,
+    off_t diroff, nlink_t nlink)
 {
 	struct jremref *jremref;
 
@@ -3271,13 +3267,8 @@ newjremref(dirrem, dp, ip, diroff, nlink)
 }
 
 static inline void
-newinoref(inoref, ino, parent, diroff, nlink, mode)
-	struct inoref *inoref;
-	ino_t ino;
-	ino_t parent;
-	off_t diroff;
-	nlink_t nlink;
-	uint16_t mode;
+newinoref(struct inoref *inoref, ino_t ino, ino_t parent, off_t diroff,
+    nlink_t nlink, uint16_t mode)
 {
 
 	inoref->if_jsegdep = newjsegdep(&inoref->if_list);
@@ -3296,12 +3287,8 @@ newinoref(inoref, ino, parent, diroff, nlink, mode)
  * to have the correct FMT.
  */
 static struct jaddref *
-newjaddref(dp, ino, diroff, nlink, mode)
-	struct inode *dp;
-	ino_t ino;
-	off_t diroff;
-	int16_t nlink;
-	uint16_t mode;
+newjaddref(struct inode *dp, ino_t ino, off_t diroff, int16_t nlink,
+    uint16_t mode)
 {
 	struct jaddref *jaddref;
 
