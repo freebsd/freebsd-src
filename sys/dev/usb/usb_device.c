@@ -1577,7 +1577,7 @@ usb_alloc_device(device_t parent_dev, struct usb_bus *bus,
 	udev->ctrl_dev = usb_make_dev(udev, 0, FREAD|FWRITE);
 
 	/* Create a link from /dev/ugenX.X to the default endpoint */
-	make_dev_alias(udev->ctrl_dev, udev->ugen_name);
+	make_dev_alias(udev->ctrl_dev, "%s", udev->ugen_name);
 #endif
 	if (udev->flags.usb_mode == USB_MODE_HOST) {
 
