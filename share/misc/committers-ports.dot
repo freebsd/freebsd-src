@@ -51,6 +51,7 @@ amdmi3 [label="Dmitry Marakasov\namdmi3@FreeBSD.org\n2008/06/19"]
 anray [label="Andrey Slusar\nanray@FreeBSD.org\n2005/12/11"]
 araujo [label="Marcelo Araujo\naraujo@FreeBSD.org\n2007/04/26"]
 arved [label="Tilman Linneweh\narved@FreeBSD.org\n2002/10/15"]
+ashish [label="Ashish SHUKLA\nashish@FreeBSD.org\n2010/06/10"]
 avilla [label="Alberto Villa\navilla@FreeBSD.org\n2010/01/24"]
 avl [label="Alexander Logvinov\navl@FreeBSD.org\n2009/05/27"]
 az [label="Andrej Zverev\naz@FreeBSD.org\n2005/10/03"]
@@ -322,6 +323,7 @@ pav -> josef
 pav -> kwm
 pav -> mnag
 
+pgj -> ashish
 pgj -> jacula
 
 philip -> koitsu
@@ -347,6 +349,7 @@ stas -> araujo
 
 steve -> netchild
 
+tabthorpe -> ashish
 tabthorpe -> avilla
 tabthorpe -> avl
 tabthorpe -> fluffy
