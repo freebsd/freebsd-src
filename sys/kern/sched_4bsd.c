@@ -1190,9 +1190,7 @@ sched_pickcpu(struct thread *td)
 		best = td->td_lastcpu;
 	else
 		best = NOCPU;
-	for (cpu = 0; cpu <= mp_maxid; cpu++) {
-		if (CPU_ABSENT(cpu))
-			continue;
+	CPU_FOREACH(cpu) {
 		if (!THREAD_CAN_SCHED(td, cpu))
 			continue;
 	
@@ -1627,9 +1625,7 @@ sched_affinity(struct thread *td)
 	 */
 	ts = td->td_sched;
 	ts->ts_flags &= ~TSF_AFFINITY;
-	for (cpu = 0; cpu <= mp_maxid; cpu++) {
-		if (CPU_ABSENT(cpu))
-			continue;
+	CPU_FOREACH(cpu) {
 		if (!THREAD_CAN_SCHED(td, cpu)) {
 			ts->ts_flags |= TSF_AFFINITY;
 			break;
