@@ -133,16 +133,16 @@ struct sem_undo {
  * Configuration parameters
  */
 #ifndef SEMMNI
-#define SEMMNI	10		/* # of semaphore identifiers */
+#define SEMMNI	50		/* # of semaphore identifiers */
 #endif
 #ifndef SEMMNS
-#define SEMMNS	60		/* # of semaphores in system */
+#define SEMMNS	340		/* # of semaphores in system */
 #endif
 #ifndef SEMUME
-#define SEMUME	10		/* max # of undo entries per process */
+#define SEMUME	50		/* max # of undo entries per process */
 #endif
 #ifndef SEMMNU
-#define SEMMNU	30		/* # of undo structures in system */
+#define SEMMNU	150		/* # of undo structures in system */
 #endif
 
 /* shouldn't need tuning */
