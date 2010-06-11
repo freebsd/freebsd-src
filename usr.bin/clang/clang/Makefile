@@ -10,9 +10,9 @@ MAN=
 
 LINKS=	${BINDIR}/clang ${BINDIR}/clang++
 
-TGHDRS=	DiagnosticCommonKinds DiagnosticDriverKinds \
-	DiagnosticFrontendKinds DiagnosticLexKinds DiagnosticSemaKinds \
-	CC1Options CC1AsOptions Options
+TGHDRS=	CC1AsOptions CC1Options DiagnosticCommonKinds \
+	DiagnosticDriverKinds DiagnosticFrontendKinds \
+	DiagnosticLexKinds DiagnosticSemaKinds Options
 LIBDEPS=clangfrontend clangdriver clangcodegen clangsema clangchecker \
 	clanganalysis clangrewrite clangast clangparse clanglex clangbasic \
 	\
