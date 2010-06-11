@@ -811,7 +811,8 @@ id_or_type(const char *s)
 			longjmp(yypcb->pcb_jmpbuf, EDT_NOMEM);
 	}
 
-	unput(c0);
+	if (c0 != EOF)
+		unput(c0);
 	return (ttok);
 }
 
