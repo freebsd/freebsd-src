@@ -1409,7 +1409,8 @@ pmap_enter_locked(pmap_t pm, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 			tp->tte_data |= TD_SW;
 			if (wired)
 				tp->tte_data |= TD_W;
-			vm_page_flag_set(m, PG_WRITEABLE);
+			if ((m->flags & (PG_FICTITIOUS | PG_UNMANAGED)) == 0)
+				vm_page_flag_set(m, PG_WRITEABLE);
 		} else if ((data & TD_W) != 0)
 			vm_page_dirty(m);
 
@@ -1429,7 +1430,7 @@ pmap_enter_locked(pmap_t pm, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 	} else {
 		/*
 		 * If there is an existing mapping, but its for a different
-		 * phsyical address, delete the old mapping.
+		 * physical address, delete the old mapping.
 		 */
 		if (tp != NULL) {
 			CTR0(KTR_PMAP, "pmap_enter_locked: replace");
@@ -1449,7 +1450,8 @@ pmap_enter_locked(pmap_t pm, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 			data |= TD_P;
 		if ((prot & VM_PROT_WRITE) != 0) {
 			data |= TD_SW;
-			vm_page_flag_set(m, PG_WRITEABLE);
+			if ((m->flags & (PG_FICTITIOUS | PG_UNMANAGED)) == 0)
+				vm_page_flag_set(m, PG_WRITEABLE);
 		}
 		if (prot & VM_PROT_EXECUTE) {
 			data |= TD_EXEC;
@@ -1787,20 +1789,25 @@ pmap_page_exists_quick(pmap_t pm, vm_page_t m)
 {
 	struct tte *tp;
 	int loops;
+	boolean_t rv;
 
-	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
-	if ((m->flags & (PG_FICTITIOUS | PG_UNMANAGED)) != 0)
-		return (FALSE);
+	KASSERT((m->flags & (PG_FICTITIOUS | PG_UNMANAGED)) == 0,
+	    ("pmap_page_exists_quick: page %p is not managed", m));
 	loops = 0;
+	rv = FALSE;
+	vm_page_lock_queues();
 	TAILQ_FOREACH(tp, &m->md.tte_list, tte_link) {
 		if ((tp->tte_data & TD_PV) == 0)
 			continue;
-		if (TTE_GET_PMAP(tp) == pm)
-			return (TRUE);
+		if (TTE_GET_PMAP(tp) == pm) {
+			rv = TRUE;
+			break;
+		}
 		if (++loops >= 16)
 			break;
 	}
-	return (FALSE);
+	vm_page_unlock_queues();
+	return (rv);
 }
 
 /*
@@ -1876,10 +1883,10 @@ pmap_ts_referenced(vm_page_t m)
 	u_long data;
 	int count;
 
-	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
-	if ((m->flags & (PG_FICTITIOUS | PG_UNMANAGED)) != 0)
-		return (0);
+	KASSERT((m->flags & (PG_FICTITIOUS | PG_UNMANAGED)) == 0,
+	    ("pmap_ts_referenced: page %p is not managed", m));
 	count = 0;
+	vm_page_lock_queues();
 	if ((tp = TAILQ_FIRST(&m->md.tte_list)) != NULL) {
 		tpf = tp;
 		do {
@@ -1893,6 +1900,7 @@ pmap_ts_referenced(vm_page_t m)
 				break;
 		} while ((tp = tpn) != NULL && tp != tpf);
 	}
+	vm_page_unlock_queues();
 	return (count);
 }
 

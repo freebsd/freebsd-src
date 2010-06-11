@@ -288,6 +288,18 @@ _no_fdt= FDT
 .endif
 
 #
+# Default behaviour of MK_CLANG depends on the architecture.
+#
+.if ${MACHINE_ARCH} == "amd64" || ${MACHINE_ARCH} == "i386" || \
+    ${MACHINE_ARCH} == "powerpc"
+_clang_yes=CLANG
+_clang_no=
+.else
+_clang_yes=
+_clang_no=CLANG
+.endif
+
+#
 # MK_* options which default to "yes".
 #
 .for var in \
@@ -314,7 +326,7 @@ _no_fdt= FDT
     BZIP2 \
     CALENDAR \
     CDDL \
-    CLANG \
+    ${_clang_yes} \
     CLANG_IS_CC \
     CPP \
     CRYPT \
@@ -418,6 +430,7 @@ MK_${var}:=	yes
     BIND_LIBS \
     BIND_SIGCHASE \
     BIND_XML \
+    ${_clang_no} \
     ${_no_fdt} \
     HESIOD \
     IDEA \
@@ -499,6 +512,7 @@ MK_GROFF:=	no
 .endif
 
 .if ${MK_TOOLCHAIN} == "no"
+MK_CLANG:=	no
 MK_GDB:=	no
 .endif
 

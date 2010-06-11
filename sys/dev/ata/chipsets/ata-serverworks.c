@@ -41,6 +41,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/sema.h>
 #include <sys/taskqueue.h>
 #include <vm/uma.h>
+#ifdef __powerpc__
+#include <machine/intr_machdep.h>
+#endif
 #include <machine/stdarg.h>
 #include <machine/resource.h>
 #include <machine/bus.h>
@@ -217,6 +220,10 @@ ata_serverworks_ch_attach(device_t dev)
     ch->hw.tf_write = ata_serverworks_tf_write;
 #ifdef __powerpc__
     ch->hw.status = ata_serverworks_status;
+
+    /* Make sure that our interrupt is level low */
+    powerpc_config_intr(bus_get_resource_start(device_get_parent(dev),
+	SYS_RES_IRQ, 0), INTR_TRIGGER_LEVEL, INTR_POLARITY_LOW);
 #endif
 
     if (ctlr->chip->chipid == ATA_K2) {
@@ -234,6 +241,16 @@ ata_serverworks_ch_attach(device_t dev)
 	ATA_OUTL(ctlr->r_res2, ch_offset + 0x88, 0);
 	ATA_OUTL(ctlr->r_res2, ch_offset + 0x80,
 	    ATA_INL(ctlr->r_res2, ch_offset + 0x80) & ~0x00040000);
+
+	/*
+	 * Some controllers have a bug where they will send the command
+	 * to the drive before seeing a DMA start, and then can begin
+	 * receiving data before the DMA start arrives. The controller
+	 * will then become confused and either corrupt the data or crash.
+	 * Remedy this by starting DMA before sending the drive command.
+	 */
+
+	ch->flags |= ATA_DMA_BEFORE_CMD;
     }
 
     /* chip does not reliably do 64K DMA transfers */

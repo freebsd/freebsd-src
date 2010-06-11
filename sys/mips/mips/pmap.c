@@ -967,19 +967,23 @@ pmap_ptpgzone_allocf(uma_zone_t zone, int bytes, u_int8_t *flags, int wait)
 {
 	vm_page_t m;
 	vm_paddr_t paddr;
+	int tries;
 	
 	KASSERT(bytes == PAGE_SIZE,
 		("pmap_ptpgzone_allocf: invalid allocation size %d", bytes));
 
 	*flags = UMA_SLAB_PRIV;
-	for (;;) {
-		m = vm_phys_alloc_contig(1, 0, MIPS_KSEG0_LARGEST_PHYS,
-		    PAGE_SIZE, PAGE_SIZE);
-		if (m != NULL)
-			break;
-		if ((wait & M_WAITOK) == 0)
+	tries = 0;
+retry:
+	m = vm_phys_alloc_contig(1, 0, MIPS_KSEG0_LARGEST_PHYS,
+	    PAGE_SIZE, PAGE_SIZE);
+	if (m == NULL) {
+                if (tries < ((wait & M_NOWAIT) != 0 ? 1 : 3)) {
+			vm_contig_grow_cache(tries, 0, MIPS_KSEG0_LARGEST_PHYS);
+			tries++;
+			goto retry;
+		} else
 			return (NULL);
-		VM_WAIT;
 	}
 
 	paddr = VM_PAGE_TO_PHYS(m);
@@ -2344,20 +2348,23 @@ pmap_page_exists_quick(pmap_t pmap, vm_page_t m)
 {
 	pv_entry_t pv;
 	int loops = 0;
+	boolean_t rv;
 
-	if (m->flags & PG_FICTITIOUS)
-		return FALSE;
-
-	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
+	KASSERT((m->flags & (PG_FICTITIOUS | PG_UNMANAGED)) == 0,
+	    ("pmap_page_exists_quick: page %p is not managed", m));
+	rv = FALSE;
+	vm_page_lock_queues();
 	TAILQ_FOREACH(pv, &m->md.pv_list, pv_list) {
 		if (pv->pv_pmap == pmap) {
-			return TRUE;
+			rv = TRUE;
+			break;
 		}
 		loops++;
 		if (loops >= 16)
 			break;
 	}
-	return (FALSE);
+	vm_page_unlock_queues();
+	return (rv);
 }
 
 /*
@@ -2590,14 +2597,16 @@ pmap_remove_write(vm_page_t m)
 int
 pmap_ts_referenced(vm_page_t m)
 {
-	if (m->flags & PG_FICTITIOUS)
-		return (0);
 
+	KASSERT((m->flags & (PG_FICTITIOUS | PG_UNMANAGED)) == 0,
+	    ("pmap_ts_referenced: page %p is not managed", m));
 	if (m->md.pv_flags & PV_TABLE_REF) {
+		vm_page_lock_queues();
 		m->md.pv_flags &= ~PV_TABLE_REF;
-		return 1;
+		vm_page_unlock_queues();
+		return (1);
 	}
-	return 0;
+	return (0);
 }
 
 /*
@@ -3068,26 +3077,20 @@ page_is_managed(vm_offset_t pa)
 static int
 init_pte_prot(vm_offset_t va, vm_page_t m, vm_prot_t prot)
 {
-	int rw = 0;
+	int rw;
 
 	if (!(prot & VM_PROT_WRITE))
 		rw = PTE_ROPAGE;
-	else {
-		if (va >= VM_MIN_KERNEL_ADDRESS) {
-			/*
-			 * Don't bother to trap on kernel writes, just
-			 * record page as dirty.
-			 */
-			rw = PTE_RWPAGE;
-			vm_page_dirty(m);
-		} else if ((m->md.pv_flags & PV_TABLE_MOD) ||
-		    m->dirty == VM_PAGE_BITS_ALL)
+	else if ((m->flags & (PG_FICTITIOUS | PG_UNMANAGED)) == 0) {
+		if ((m->md.pv_flags & PV_TABLE_MOD) != 0)
 			rw = PTE_RWPAGE;
 		else
 			rw = PTE_CWPAGE;
 		vm_page_flag_set(m, PG_WRITEABLE);
-	}
-	return rw;
+	} else
+		/* Needn't emulate a modified bit for unmanaged pages. */
+		rw = PTE_RWPAGE;
+	return (rw);
 }
 
 /*

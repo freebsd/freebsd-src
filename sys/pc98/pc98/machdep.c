@@ -2513,12 +2513,12 @@ fill_fpregs(struct thread *td, struct fpreg *fpregs)
 {
 #ifdef CPU_ENABLE_SSE
 	if (cpu_fxsr) {
-		fill_fpregs_xmm(&td->td_pcb->pcb_save.sv_xmm,
+		fill_fpregs_xmm(&td->td_pcb->pcb_save->sv_xmm,
 						(struct save87 *)fpregs);
 		return (0);
 	}
 #endif /* CPU_ENABLE_SSE */
-	bcopy(&td->td_pcb->pcb_save.sv_87, fpregs, sizeof *fpregs);
+	bcopy(&td->td_pcb->pcb_save->sv_87, fpregs, sizeof *fpregs);
 	return (0);
 }
 
@@ -2528,11 +2528,11 @@ set_fpregs(struct thread *td, struct fpreg *fpregs)
 #ifdef CPU_ENABLE_SSE
 	if (cpu_fxsr) {
 		set_fpregs_xmm((struct save87 *)fpregs,
-					   &td->td_pcb->pcb_save.sv_xmm);
+					   &td->td_pcb->pcb_save->sv_xmm);
 		return (0);
 	}
 #endif /* CPU_ENABLE_SSE */
-	bcopy(fpregs, &td->td_pcb->pcb_save.sv_87, sizeof *fpregs);
+	bcopy(fpregs, &td->td_pcb->pcb_save->sv_87, sizeof *fpregs);
 	return (0);
 }
 

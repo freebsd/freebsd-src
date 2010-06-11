@@ -2346,7 +2346,7 @@ acpi_ReqSleepState(struct acpi_softc *sc, int state)
 	clone->notify_status = APM_EV_NONE;
 	if ((clone->flags & ACPI_EVF_DEVD) == 0) {
 	    selwakeuppri(&clone->sel_read, PZERO);
-	    KNOTE_UNLOCKED(&clone->sel_read.si_note, 0);
+	    KNOTE_LOCKED(&clone->sel_read.si_note, 0);
 	}
     }
 

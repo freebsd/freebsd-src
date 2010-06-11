@@ -53,14 +53,8 @@ __FBSDID("$FreeBSD$");
 #define NUMBER_OF_MTU_SIZES 18
 
 
-#if defined(__Windows__) && !defined(SCTP_LOCAL_TRACE_BUF)
-#include "eventrace_netinet.h"
-#include "sctputil.tmh"		/* this is the file that will be auto
-				 * generated */
-#else
 #ifndef KTR_SCTP
 #define KTR_SCTP KTR_SUBSYS
-#endif
 #endif
 
 void
@@ -1261,15 +1255,20 @@ sctp_iterator_work(struct sctp_iterator *it)
 {
 	int iteration_count = 0;
 	int inp_skip = 0;
+	int first_in = 1;
+	struct sctp_inpcb *tinp;
 
+	SCTP_INP_INFO_RLOCK();
 	SCTP_ITERATOR_LOCK();
 	if (it->inp) {
+		SCTP_INP_RLOCK(it->inp);
 		SCTP_INP_DECR_REF(it->inp);
 	}
 	if (it->inp == NULL) {
 		/* iterator is complete */
 done_with_iterator:
 		SCTP_ITERATOR_UNLOCK();
+		SCTP_INP_INFO_RUNLOCK();
 		if (it->function_atend != NULL) {
 			(*it->function_atend) (it->pointer, it->val);
 		}
@@ -1277,7 +1276,11 @@ done_with_iterator:
 		return;
 	}
 select_a_new_ep:
-	SCTP_INP_RLOCK(it->inp);
+	if (first_in) {
+		first_in = 0;
+	} else {
+		SCTP_INP_RLOCK(it->inp);
+	}
 	while (((it->pcb_flags) &&
 	    ((it->inp->sctp_flags & it->pcb_flags) != it->pcb_flags)) ||
 	    ((it->pcb_features) &&
@@ -1287,8 +1290,9 @@ select_a_new_ep:
 			SCTP_INP_RUNLOCK(it->inp);
 			goto done_with_iterator;
 		}
-		SCTP_INP_RUNLOCK(it->inp);
+		tinp = it->inp;
 		it->inp = LIST_NEXT(it->inp, sctp_list);
+		SCTP_INP_RUNLOCK(tinp);
 		if (it->inp == NULL) {
 			goto done_with_iterator;
 		}
@@ -1329,6 +1333,8 @@ select_a_new_ep:
 			SCTP_INP_INCR_REF(it->inp);
 			SCTP_INP_RUNLOCK(it->inp);
 			SCTP_ITERATOR_UNLOCK();
+			SCTP_INP_INFO_RUNLOCK();
+			SCTP_INP_INFO_RLOCK();
 			SCTP_ITERATOR_LOCK();
 			if (sctp_it_ctl.iterator_flags) {
 				/* We won't be staying here */
@@ -1388,9 +1394,7 @@ no_stcb:
 	if (it->iterator_flags & SCTP_ITERATOR_DO_SINGLE_INP) {
 		it->inp = NULL;
 	} else {
-		SCTP_INP_INFO_RLOCK();
 		it->inp = LIST_NEXT(it->inp, sctp_list);
-		SCTP_INP_INFO_RUNLOCK();
 	}
 	if (it->inp == NULL) {
 		goto done_with_iterator;
@@ -1904,7 +1908,7 @@ sctp_timeout_handler(void *t)
 		SCTP_INP_DECR_REF(inp);
 		sctp_timer_stop(SCTP_TIMER_TYPE_INPKILL, inp, NULL, NULL, SCTP_FROM_SCTPUTIL + SCTP_LOC_3);
 		sctp_inpcb_free(inp, SCTP_FREE_SHOULD_USE_ABORT,
-		    SCTP_CALLED_DIRECTLY_NOCMPSET);
+		    SCTP_CALLED_FROM_INPKILL_TIMER);
 		inp = NULL;
 		goto out_no_decr;
 	default:
@@ -3829,13 +3833,6 @@ sctp_abort_association(struct sctp_inpcb *inp, struct sctp_tcb *stcb,
 #if defined (__APPLE__) || defined(SCTP_SO_LOCK_TESTING)
 		SCTP_SOCKET_UNLOCK(so, 1);
 #endif
-	} else {
-		if (inp->sctp_flags & SCTP_PCB_FLAGS_SOCKET_GONE) {
-			if (LIST_FIRST(&inp->sctp_asoc_list) == NULL) {
-				sctp_inpcb_free(inp, SCTP_FREE_SHOULD_USE_ABORT,
-				    SCTP_CALLED_DIRECTLY_NOCMPSET);
-			}
-		}
 	}
 }
 
@@ -4207,7 +4204,7 @@ void
 sctp_print_address_pkt(struct ip *iph, struct sctphdr *sh)
 {
 	switch (iph->ip_v) {
-		case IPVERSION:
+	case IPVERSION:
 		{
 			struct sockaddr_in lsa, fsa;
 

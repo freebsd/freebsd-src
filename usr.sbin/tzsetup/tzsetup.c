@@ -358,7 +358,7 @@ read_zones(void)
 		if (strlen(tlc) != 2)
 			errx(1, "%s:%d: invalid country code `%s'",
 			    path_zonetab, lineno, tlc);
-		coord = strsep(&line, "\t");
+		coord = strsep(&line, "\t");	 /* Unused */
 		file = strsep(&line, "\t");
 		p = strchr(file, '/');
 		if (p == 0)
@@ -564,7 +564,8 @@ install_zoneinfo_file(const char *zoneinfo_file)
 			}
 
 			while ((len = read(fd1, buf, sizeof(buf))) > 0)
-				len = write(fd2, buf, len);
+				if ((len = write(fd2, buf, len)) < 0)
+					break;
 
 			if (len == -1) {
 				snprintf(title, sizeof(title), "Error");

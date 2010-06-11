@@ -65,10 +65,6 @@ __RCSID("$FreeBSD$");
 #include <getopt.h>
 #include <time.h>
 
-#ifndef PRIdOFF
-#define PRIdOFF PRId64
-#endif
-
 /* what type of file are we dealing with */
 enum filetype {
 	FT_GZIP,
@@ -1221,40 +1217,46 @@ file_compress(char *file, char *outfile, size_t outsize)
 	in = open(file, O_RDONLY);
 	if (in == -1) {
 		maybe_warn("can't open %s", file);
-		return -1;
+		return (-1);
 	}
+
+#ifndef SMALL
+	if (fstat(in, &isb) != 0) {
+		maybe_warn("couldn't stat: %s", file);
+		close(in);
+		return (-1);
+	}
+#endif
 
 	if (cflag == 0) {
 #ifndef SMALL
-		if (fstat(in, &isb) == 0) {
-			if (isb.st_nlink > 1 && fflag == 0) {
-				maybe_warnx("%s has %d other link%s -- "
-					    "skipping", file, isb.st_nlink - 1,
-					    isb.st_nlink == 1 ? "" : "s");
-				close(in);
-				return -1;
-			}
+		if (isb.st_nlink > 1 && fflag == 0) {
+			maybe_warnx("%s has %d other link%s -- skipping",
+			    file, isb.st_nlink - 1,
+			    (isb.st_nlink - 1) == 1 ? "" : "s");
+			close(in);
+			return (-1);
 		}
 
-		if (fflag == 0 && (suff = check_suffix(file, 0))
-		    && suff->zipped[0] != 0) {
+		if (fflag == 0 && (suff = check_suffix(file, 0)) &&
+		    suff->zipped[0] != 0) {
 			maybe_warnx("%s already has %s suffix -- unchanged",
-				    file, suff->zipped);
+			    file, suff->zipped);
 			close(in);
-			return -1;
+			return (-1);
 		}
 #endif
 
 		/* Add (usually) .gz to filename */
 		if ((size_t)snprintf(outfile, outsize, "%s%s",
-					file, suffixes[0].zipped) >= outsize)
+		    file, suffixes[0].zipped) >= outsize)
 			memcpy(outfile + outsize - suffixes[0].ziplen - 1,
-				suffixes[0].zipped, suffixes[0].ziplen + 1);
+			    suffixes[0].zipped, suffixes[0].ziplen + 1);
 
 #ifndef SMALL
 		if (check_outfile(outfile) == 0) {
 			close(in);
-			return -1;
+			return (-1);
 		}
 #endif
 	}
@@ -1264,7 +1266,7 @@ file_compress(char *file, char *outfile, size_t outsize)
 		if (out == -1) {
 			maybe_warn("could not create output: %s", outfile);
 			fclose(stdin);
-			return -1;
+			return (-1);
 		}
 #ifndef SMALL
 		remove_file = outfile;
@@ -1284,7 +1286,7 @@ file_compress(char *file, char *outfile, size_t outsize)
 	 * has the expected size.
 	 */
 	if (cflag != 0)
-		return insize == -1 ? -1 : size;
+		return (insize == -1 ? -1 : size);
 
 #ifndef SMALL
 	if (fstat(out, &osb) != 0) {
@@ -1293,9 +1295,8 @@ file_compress(char *file, char *outfile, size_t outsize)
 	}
 
 	if (osb.st_size != size) {
-		maybe_warnx("output file: %s wrong size (%" PRIdOFF
-				" != %" PRIdOFF "), deleting",
-				outfile, osb.st_size, size);
+		maybe_warnx("output file: %s wrong size (%ju != %ju), deleting",
+		    outfile, (uintmax_t)osb.st_size, (uintmax_t)size);
 		goto bad_outfile;
 	}
 
@@ -1307,7 +1308,7 @@ file_compress(char *file, char *outfile, size_t outsize)
 
 	/* output is good, ok to delete input */
 	unlink_input(file, &isb);
-	return size;
+	return (size);
 
 #ifndef SMALL
     bad_outfile:
@@ -1316,7 +1317,7 @@ file_compress(char *file, char *outfile, size_t outsize)
 
 	maybe_warnx("leaving original %s", file);
 	unlink(outfile);
-	return size;
+	return (size);
 #endif
 }
 
@@ -1564,9 +1565,8 @@ file_uncompress(char *file, char *outfile, size_t outsize)
 		return -1;
 	}
 	if (osb.st_size != size) {
-		maybe_warnx("stat gave different size: %" PRIdOFF
-				" != %" PRIdOFF " (leaving original)",
-				size, osb.st_size);
+		maybe_warnx("stat gave different size: %ju != %ju (leaving original)",
+		    (uintmax_t)size, (uintmax_t)osb.st_size);
 		close(ofd);
 		unlink(outfile);
 		return -1;

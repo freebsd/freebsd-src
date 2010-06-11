@@ -313,6 +313,11 @@
         &man.clear.locks.8; command has been added to clear locks held
         on behalf of an NFS client.</para>
 
+      <para role="merged">The <application>ZFS</application> file system
+        has been upgraded to version 14.  Additional changes include
+        support for NFSv4 ACLs, a speedup of zfs send and an improved L2ARC.
+        New statistics for prefetch and L2ARC have been introduced.</para>
+
     </sect3>
   </sect2>
 
@@ -490,6 +495,10 @@
 
     <para><application>WPA Supplicant</application> has been
       updated from 0.5.8 to 0.5.10.</para>
+
+    <para role="merged">A snapshot of <application>xz</application> as of
+      12 April 2010 has been added. More information can be found in the 
+      &man.xz.1;, &man.xzdec.1; and &man.lzmainfo.1; manual pages.</para>
 
   </sect2>
 

@@ -1596,7 +1596,8 @@ mmu_booke_enter_locked(mmu_t mmu, pmap_t pmap, vm_offset_t va, vm_page_t m,
 			if (!su)
 				flags |= PTE_UW;
 
-			vm_page_flag_set(m, PG_WRITEABLE);
+			if ((flags & PTE_MANAGED) != 0)
+				vm_page_flag_set(m, PG_WRITEABLE);
 		} else {
 			/* Handle modified pages, sense modify status. */
 
@@ -1621,7 +1622,7 @@ mmu_booke_enter_locked(mmu_t mmu, pmap_t pmap, vm_offset_t va, vm_page_t m,
 			 * are turning execute permissions on, icache should
 			 * be flushed.
 			 */
-			if ((flags & (PTE_UX | PTE_SX)) == 0)
+			if ((pte->flags & (PTE_UX | PTE_SX)) == 0)
 				sync++;
 		}
 
@@ -1662,7 +1663,8 @@ mmu_booke_enter_locked(mmu_t mmu, pmap_t pmap, vm_offset_t va, vm_page_t m,
 			if (!su)
 				flags |= PTE_UW;
 
-			vm_page_flag_set(m, PG_WRITEABLE);
+			if ((m->flags & (PG_FICTITIOUS | PG_UNMANAGED)) == 0)
+				vm_page_flag_set(m, PG_WRITEABLE);
 		}
 
 		if (prot & VM_PROT_EXECUTE) {
@@ -2291,17 +2293,14 @@ mmu_booke_ts_referenced(mmu_t mmu, vm_page_t m)
 	pv_entry_t pv;
 	int count;
 
-	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
-	if ((m->flags & (PG_FICTITIOUS | PG_UNMANAGED)) != 0)
-		return (0);
-
+	KASSERT((m->flags & (PG_FICTITIOUS | PG_UNMANAGED)) == 0,
+	    ("mmu_booke_ts_referenced: page %p is not managed", m));
 	count = 0;
+	vm_page_lock_queues();
 	TAILQ_FOREACH(pv, &m->md.pv_list, pv_link) {
 		PMAP_LOCK(pv->pv_pmap);
-		if ((pte = pte_find(mmu, pv->pv_pmap, pv->pv_va)) != NULL) {
-			if (!PTE_ISVALID(pte))
-				goto make_sure_to_unlock;
-
+		if ((pte = pte_find(mmu, pv->pv_pmap, pv->pv_va)) != NULL &&
+		    PTE_ISVALID(pte)) {
 			if (PTE_ISREFERENCED(pte)) {
 				mtx_lock_spin(&tlbivax_mutex);
 				tlb_miss_lock();
@@ -2318,9 +2317,9 @@ mmu_booke_ts_referenced(mmu_t mmu, vm_page_t m)
 				}
 			}
 		}
-make_sure_to_unlock:
 		PMAP_UNLOCK(pv->pv_pmap);
 	}
+	vm_page_unlock_queues();
 	return (count);
 }
 
@@ -2392,20 +2391,23 @@ mmu_booke_page_exists_quick(mmu_t mmu, pmap_t pmap, vm_page_t m)
 {
 	pv_entry_t pv;
 	int loops;
+	boolean_t rv;
 
-	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
-	if ((m->flags & (PG_FICTITIOUS | PG_UNMANAGED)) != 0)
-		return (FALSE);
-
+	KASSERT((m->flags & (PG_FICTITIOUS | PG_UNMANAGED)) == 0,
+	    ("mmu_booke_page_exists_quick: page %p is not managed", m));
 	loops = 0;
+	rv = FALSE;
+	vm_page_lock_queues();
 	TAILQ_FOREACH(pv, &m->md.pv_list, pv_link) {
-		if (pv->pv_pmap == pmap)
-			return (TRUE);
-
+		if (pv->pv_pmap == pmap) {
+			rv = TRUE;
+			break;
+		}
 		if (++loops >= 16)
 			break;
 	}
-	return (FALSE);
+	vm_page_unlock_queues();
+	return (rv);
 }
 
 /*

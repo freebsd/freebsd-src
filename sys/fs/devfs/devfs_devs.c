@@ -198,6 +198,26 @@ devfs_newdirent(char *name, int namelen)
 }
 
 struct devfs_dirent *
+devfs_parent_dirent(struct devfs_dirent *de)
+{
+
+	if (de->de_dirent->d_type != DT_DIR)
+		return (de->de_dir);
+
+	if (de->de_flags & (DE_DOT | DE_DOTDOT))
+		return (NULL);
+
+	de = TAILQ_FIRST(&de->de_dlist);	/* "." */
+	if (de == NULL)
+		return (NULL);
+	de = TAILQ_NEXT(de, de_list);		/* ".." */
+	if (de == NULL)
+		return (NULL);
+
+	return (de->de_dir);
+}
+
+struct devfs_dirent *
 devfs_vmkdir(struct devfs_mount *dmp, char *name, int namelen, struct devfs_dirent *dotdot, u_int inode)
 {
 	struct devfs_dirent *dd;
