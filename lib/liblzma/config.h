@@ -84,6 +84,12 @@
 # define __EXTENSIONS__ 1
 #endif
 #define VERSION "4.999.9beta"
+#if defined(__FreeBSD__)
+#include <machine/endian.h>
+#if _BYTE_ORDER == _BIG_ENDIAN
+# define WORDS_BIGENDIAN 1
+#endif
+#else
 #if defined AC_APPLE_UNIVERSAL_BUILD
 # if defined __BIG_ENDIAN__
 #  define WORDS_BIGENDIAN 1
@@ -92,4 +98,5 @@
 # ifndef WORDS_BIGENDIAN
 /* #  undef WORDS_BIGENDIAN */
 # endif
+#endif
 #endif
