@@ -2687,7 +2687,7 @@ arc_read_done(zio_t *zio)
 	/* byteswap if necessary */
 	callback_list = hdr->b_acb;
 	ASSERT(callback_list != NULL);
-	if (BP_SHOULD_BYTESWAP(zio->io_bp)) {
+	if (BP_SHOULD_BYTESWAP(zio->io_bp) && zio->io_error == 0) {
 		arc_byteswap_func_t *func = BP_GET_LEVEL(zio->io_bp) > 0 ?
 		    byteswap_uint64_array :
 		    dmu_ot[BP_GET_TYPE(zio->io_bp)].ot_byteswap;
