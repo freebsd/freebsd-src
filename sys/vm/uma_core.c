@@ -620,9 +620,7 @@ cache_drain(uma_zone_t zone)
 	 * it is used elsewhere.  Should the tear-down path be made special
 	 * there in some form?
 	 */
-	for (cpu = 0; cpu <= mp_maxid; cpu++) {
-		if (CPU_ABSENT(cpu))
-			continue;
+	CPU_FOREACH(cpu) {
 		cache = &zone->uz_cpu[cpu];
 		bucket_drain(zone, cache->uc_allocbucket);
 		bucket_drain(zone, cache->uc_freebucket);
@@ -3075,9 +3073,7 @@ uma_print_zone(uma_zone_t zone)
 	    zone->uz_name, zone, zone->uz_size, zone->uz_flags);
 	LIST_FOREACH(kl, &zone->uz_kegs, kl_link)
 		uma_print_keg(kl->kl_keg);
-	for (i = 0; i <= mp_maxid; i++) {
-		if (CPU_ABSENT(i))
-			continue;
+	CPU_FOREACH(i) {
 		cache = &zone->uz_cpu[i];
 		printf("CPU %d Cache:\n", i);
 		cache_print(cache);
@@ -3106,9 +3102,7 @@ uma_zone_sumstat(uma_zone_t z, int *cachefreep, u_int64_t *allocsp,
 
 	allocs = frees = 0;
 	cachefree = 0;
-	for (cpu = 0; cpu <= mp_maxid; cpu++) {
-		if (CPU_ABSENT(cpu))
-			continue;
+	CPU_FOREACH(cpu) {
 		cache = &z->uz_cpu[cpu];
 		if (cache->uc_allocbucket != NULL)
 			cachefree += cache->uc_allocbucket->ub_cnt;

@@ -1365,7 +1365,6 @@ ixgbe_msix_que(void *arg)
 	bool		more_tx, more_rx;
 	u32		newitr = 0;
 
-	ixgbe_disable_queue(adapter, que->msix);
 	++que->irqs;
 
 	more_rx = ixgbe_rxeof(que, adapter->rx_process_limit);
@@ -2121,6 +2120,9 @@ ixgbe_allocate_msix(struct adapter *adapter)
 			device_printf(dev, "Failed to register QUE handler");
 			return (error);
 		}
+#if __FreeBSD_version >= 800504
+		bus_describe_intr(dev, que->res, que->tag, "que %d", i);
+#endif
 		que->msix = vector;
         	adapter->que_mask |= (u64)(1 << que->msix);
 		/*
@@ -2155,6 +2157,9 @@ ixgbe_allocate_msix(struct adapter *adapter)
 		device_printf(dev, "Failed to register LINK handler");
 		return (error);
 	}
+#if __FreeBSD_version >= 800504
+	bus_describe_intr(dev, adapter->res, adapter->tag, "link");
+#endif
 	adapter->linkvec = vector;
 	/* Tasklets for Link, SFP and Multispeed Fiber */
 	TASK_INIT(&adapter->link_task, 0, ixgbe_handle_link, adapter);
@@ -3637,7 +3642,7 @@ ixgbe_setup_receive_ring(struct rx_ring *rxr)
 			goto skip_head;
 
 		/* First the header */
-		rxbuf->m_head = m_gethdr(M_WAITOK, MT_DATA);
+		rxbuf->m_head = m_gethdr(M_NOWAIT, MT_DATA);
 		if (rxbuf->m_head == NULL) {
 			error = ENOBUFS;
 			goto fail;
@@ -3659,7 +3664,7 @@ ixgbe_setup_receive_ring(struct rx_ring *rxr)
 
 skip_head:
 		/* Now the payload cluster */
-		rxbuf->m_pack = m_getjcl(M_WAITOK, MT_DATA,
+		rxbuf->m_pack = m_getjcl(M_NOWAIT, MT_DATA,
 		    M_PKTHDR, adapter->rx_mbuf_sz);
 		if (rxbuf->m_pack == NULL) {
 			error = ENOBUFS;

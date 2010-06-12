@@ -486,6 +486,7 @@ NETGRAPH_MPPC_ENCRYPTION	opt_netgraph.h
 NETGRAPH_NAT		opt_netgraph.h
 NETGRAPH_NETFLOW	opt_netgraph.h
 NETGRAPH_ONE2MANY	opt_netgraph.h
+NETGRAPH_PATCH		opt_netgraph.h
 NETGRAPH_PIPE		opt_netgraph.h
 NETGRAPH_PPP		opt_netgraph.h
 NETGRAPH_PPPOE		opt_netgraph.h

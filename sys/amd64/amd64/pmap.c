@@ -3138,7 +3138,8 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_prot_t access, vm_page_t m,
 	KASSERT(va < UPT_MIN_ADDRESS || va >= UPT_MAX_ADDRESS,
 	    ("pmap_enter: invalid to pmap_enter page table pages (va: 0x%lx)",
 	    va));
-	KASSERT((m->oflags & VPO_BUSY) != 0,
+	KASSERT((m->flags & (PG_FICTITIOUS | PG_UNMANAGED)) != 0 ||
+	    (m->oflags & VPO_BUSY) != 0,
 	    ("pmap_enter: page %p is not busy", m));
 
 	mpte = NULL;
@@ -3899,30 +3900,35 @@ pmap_page_exists_quick(pmap_t pmap, vm_page_t m)
 	struct md_page *pvh;
 	pv_entry_t pv;
 	int loops = 0;
+	boolean_t rv;
 
-	if (m->flags & PG_FICTITIOUS)
-		return (FALSE);
-
-	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
+	KASSERT((m->flags & (PG_FICTITIOUS | PG_UNMANAGED)) == 0,
+	    ("pmap_page_exists_quick: page %p is not managed", m));
+	rv = FALSE;
+	vm_page_lock_queues();
 	TAILQ_FOREACH(pv, &m->md.pv_list, pv_list) {
 		if (PV_PMAP(pv) == pmap) {
-			return (TRUE);
+			rv = TRUE;
+			break;
 		}
 		loops++;
 		if (loops >= 16)
 			break;
 	}
-	if (loops < 16) {
+	if (!rv && loops < 16) {
 		pvh = pa_to_pvh(VM_PAGE_TO_PHYS(m));
 		TAILQ_FOREACH(pv, &pvh->pv_list, pv_list) {
-			if (PV_PMAP(pv) == pmap)
-				return (TRUE);
+			if (PV_PMAP(pv) == pmap) {
+				rv = TRUE;
+				break;
+			}
 			loops++;
 			if (loops >= 16)
 				break;
 		}
 	}
-	return (FALSE);
+	vm_page_unlock_queues();
+	return (rv);
 }
 
 /*
@@ -4335,10 +4341,10 @@ pmap_ts_referenced(vm_page_t m)
 	vm_offset_t va;
 	int rtval = 0;
 
-	if (m->flags & PG_FICTITIOUS)
-		return (rtval);
-	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
+	KASSERT((m->flags & (PG_FICTITIOUS | PG_UNMANAGED)) == 0,
+	    ("pmap_ts_referenced: page %p is not managed", m));
 	pvh = pa_to_pvh(VM_PAGE_TO_PHYS(m));
+	vm_page_lock_queues();
 	TAILQ_FOREACH_SAFE(pv, &pvh->pv_list, pv_list, pvn) {
 		pmap = PV_PMAP(pv);
 		PMAP_LOCK(pmap);
@@ -4362,7 +4368,7 @@ pmap_ts_referenced(vm_page_t m)
 					rtval++;
 					if (rtval > 4) {
 						PMAP_UNLOCK(pmap);
-						return (rtval);
+						goto out;
 					}
 				}
 			}
@@ -4391,6 +4397,8 @@ pmap_ts_referenced(vm_page_t m)
 			PMAP_UNLOCK(pmap);
 		} while ((pv = pvn) != NULL && pv != pvf);
 	}
+out:
+	vm_page_unlock_queues();
 	return (rtval);
 }
 

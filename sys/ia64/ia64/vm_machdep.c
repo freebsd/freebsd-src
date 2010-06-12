@@ -378,9 +378,8 @@ sf_buf_free(struct sf_buf *sf)
  */   
 void  
 swi_vm(void *dummy) 
-{     
-#if 0
+{
+
 	if (busdma_swi_pending != 0)
 		busdma_swi();
-#endif
 }

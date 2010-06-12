@@ -511,7 +511,7 @@ _sx_xlock_hard(struct sx *sx, uintptr_t tid, int opts, const char *file,
 		 * running or the state of the lock changes.
 		 */
 		x = sx->sx_lock;
-		if ((sx->lock_object.lo_flags & SX_NOADAPTIVE) != 0) {
+		if ((sx->lock_object.lo_flags & SX_NOADAPTIVE) == 0) {
 			if ((x & SX_LOCK_SHARED) == 0) {
 				x = SX_OWNER(x);
 				owner = (struct thread *)x;

@@ -1084,7 +1084,8 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_prot_t access, vm_page_t m,
 	vm_page_t om;
 	int invlva;
 
-	KASSERT((m->oflags & VPO_BUSY) != 0,
+	KASSERT((m->flags & (PG_FICTITIOUS | PG_UNMANAGED)) != 0 ||
+	    (m->oflags & VPO_BUSY) != 0,
 	    ("pmap_enter: page %p is not busy", m));
 	if (pmap->pm_context)
 		DPRINTF("pmap_enter(va=%lx, pa=0x%lx, prot=%x)\n", va, 
@@ -1738,20 +1739,23 @@ pmap_page_exists_quick(pmap_t pmap, vm_page_t m)
 {
 	pv_entry_t pv;
 	int loops = 0;
+	boolean_t rv;
 
-	if (m->flags & PG_FICTITIOUS)
-		return FALSE;
-
-	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
+	KASSERT((m->flags & (PG_FICTITIOUS | PG_UNMANAGED)) == 0,
+	    ("pmap_page_exists_quick: page %p is not managed", m));
+	rv = FALSE;
+	vm_page_lock_queues();
 	TAILQ_FOREACH(pv, &m->md.pv_list, pv_list) {
 		if (pv->pv_pmap == pmap) {
-			return TRUE;
+			rv = TRUE;
+			break;
 		}
 		loops++;
 		if (loops >= 16)
 			break;
 	}	
-	return (FALSE);
+	vm_page_unlock_queues();
+	return (rv);
 }
 
 /*
@@ -2309,17 +2313,15 @@ pmap_tte_hash_resize(pmap_t pmap)
 int
 pmap_ts_referenced(vm_page_t m)
 {
-	
 	int rv;
 	pv_entry_t pv, pvf, pvn;
 	pmap_t pmap;
 	tte_t otte_data;
 
+	KASSERT((m->flags & (PG_FICTITIOUS | PG_UNMANAGED)) == 0,
+	    ("pmap_ts_referenced: page %p is not managed", m));
 	rv = 0;
-	if (m->flags & PG_FICTITIOUS)
-		return (rv);
-
-        mtx_assert(&vm_page_queue_mtx, MA_OWNED);
+	vm_page_lock_queues();
         if ((pv = TAILQ_FIRST(&m->md.pv_list)) != NULL) {
 		
 		pvf = pv;
@@ -2347,6 +2349,7 @@ pmap_ts_referenced(vm_page_t m)
 			PMAP_UNLOCK(pmap);
 		} while ((pv = pvn) != NULL && pv != pvf);
 	}
+	vm_page_unlock_queues();
 	return (rv);
 }
 

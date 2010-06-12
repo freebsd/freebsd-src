@@ -76,6 +76,7 @@ struct ia64_init_return {
 extern uint64_t ia64_lapic_addr;
 
 extern long Maxmem;
+extern u_int busdma_swi_pending;
 
 void	*acpi_find_table(const char *sig);
 void	busdma_swi(void);

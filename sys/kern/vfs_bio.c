@@ -102,8 +102,8 @@ static void vm_hold_load_pages(struct buf *bp, vm_offset_t from,
 static void vfs_page_set_valid(struct buf *bp, vm_ooffset_t off, vm_page_t m);
 static void vfs_page_set_validclean(struct buf *bp, vm_ooffset_t off,
 		vm_page_t m);
-static void vfs_clean_pages(struct buf *bp);
-static void vfs_setdirty(struct buf *bp);
+static void vfs_drain_busy_pages(struct buf *bp);
+static void vfs_clean_pages_dirty_buf(struct buf *bp);
 static void vfs_setdirty_locked_object(struct buf *bp);
 static void vfs_vmio_release(struct buf *bp);
 static int vfs_bio_clcheck(struct vnode *vp, int size,
@@ -393,10 +393,16 @@ runningbufwakeup(struct buf *bp)
  */
 
 static __inline void
-bufcountwakeup(void) 
+bufcountwakeup(struct buf *bp) 
 {
+	int old;
 
-	atomic_add_int(&numfreebuffers, 1);
+	KASSERT((bp->b_vflags & BV_INFREECNT) == 0,
+	    ("buf %p already counted as free", bp));
+	bp->b_vflags |= BV_INFREECNT;
+	old = atomic_fetchadd_int(&numfreebuffers, 1);
+	KASSERT(old >= 0 && old < nbuf,
+	    ("numfreebuffers climbed to %d", old + 1));
 	mtx_lock(&nblock);
 	if (needsbuffer) {
 		needsbuffer &= ~VFS_BIO_NEED_ANY;
@@ -592,7 +598,7 @@ bufinit(void)
 		bp->b_rcred = NOCRED;
 		bp->b_wcred = NOCRED;
 		bp->b_qindex = QUEUE_EMPTY;
-		bp->b_vflags = 0;
+		bp->b_vflags = BV_INFREECNT;	/* buf is counted as free */
 		bp->b_xflags = 0;
 		LIST_INIT(&bp->b_dep);
 		BUF_LOCKINIT(bp);
@@ -686,6 +692,7 @@ bfreekva(struct buf *bp)
 void
 bremfree(struct buf *bp)
 {
+	int old;
 
 	CTR3(KTR_BUF, "bremfree(%p) vp %p flags %X", bp, bp->b_vp, bp->b_flags);
 	KASSERT((bp->b_flags & B_REMFREE) == 0,
@@ -696,8 +703,13 @@ bremfree(struct buf *bp)
 
 	bp->b_flags |= B_REMFREE;
 	/* Fixup numfreebuffers count.  */
-	if ((bp->b_flags & B_INVAL) || (bp->b_flags & B_DELWRI) == 0)
-		atomic_subtract_int(&numfreebuffers, 1);
+	if ((bp->b_flags & B_INVAL) || (bp->b_flags & B_DELWRI) == 0) {
+		KASSERT((bp->b_vflags & BV_INFREECNT) != 0,
+		    ("buf %p not counted in numfreebuffers", bp));
+		bp->b_vflags &= ~BV_INFREECNT;
+		old = atomic_fetchadd_int(&numfreebuffers, -1);
+		KASSERT(old > 0, ("numfreebuffers dropped to %d", old - 1));
+	}
 }
 
 /*
@@ -723,6 +735,8 @@ bremfreef(struct buf *bp)
 static void
 bremfreel(struct buf *bp)
 {
+	int old;
+
 	CTR3(KTR_BUF, "bremfreel(%p) vp %p flags %X",
 	    bp, bp->b_vp, bp->b_flags);
 	KASSERT(bp->b_qindex != QUEUE_NONE,
@@ -745,8 +759,13 @@ bremfreel(struct buf *bp)
 	 * delayed-write, the buffer was free and we must decrement
 	 * numfreebuffers.
 	 */
-	if ((bp->b_flags & B_INVAL) || (bp->b_flags & B_DELWRI) == 0)
-		atomic_subtract_int(&numfreebuffers, 1);
+	if ((bp->b_flags & B_INVAL) || (bp->b_flags & B_DELWRI) == 0) {
+		KASSERT((bp->b_vflags & BV_INFREECNT) != 0,
+		    ("buf %p not counted in numfreebuffers", bp));
+		bp->b_vflags &= ~BV_INFREECNT;
+		old = atomic_fetchadd_int(&numfreebuffers, -1);
+		KASSERT(old > 0, ("numfreebuffers dropped to %d", old - 1));
+	}
 }
 
 
@@ -1025,18 +1044,17 @@ bdwrite(struct buf *bp)
 	}
 
 	/*
-	 * Set the *dirty* buffer range based upon the VM system dirty pages.
+	 * Set the *dirty* buffer range based upon the VM system dirty
+	 * pages.
+	 *
+	 * Mark the buffer pages as clean.  We need to do this here to
+	 * satisfy the vnode_pager and the pageout daemon, so that it
+	 * thinks that the pages have been "cleaned".  Note that since
+	 * the pages are in a delayed write buffer -- the VFS layer
+	 * "will" see that the pages get written out on the next sync,
+	 * or perhaps the cluster will be completed.
 	 */
-	vfs_setdirty(bp);
-
-	/*
-	 * We need to do this here to satisfy the vnode_pager and the
-	 * pageout daemon, so that it thinks that the pages have been
-	 * "cleaned".  Note that since the pages are in a delayed write
-	 * buffer -- the VFS layer "will" see that the pages get written
-	 * out on the next sync, or perhaps the cluster will be completed.
-	 */
-	vfs_clean_pages(bp);
+	vfs_clean_pages_dirty_buf(bp);
 	bqrelse(bp);
 
 	/*
@@ -1449,7 +1467,7 @@ brelse(struct buf *bp)
 	 */
 
 	if (!(bp->b_flags & B_DELWRI))
-		bufcountwakeup();
+		bufcountwakeup(bp);
 
 	/*
 	 * Something we can maybe free or reuse
@@ -1538,7 +1556,7 @@ bqrelse(struct buf *bp)
 	mtx_unlock(&bqlock);
 
 	if ((bp->b_flags & B_INVAL) || !(bp->b_flags & B_DELWRI))
-		bufcountwakeup();
+		bufcountwakeup(bp);
 
 	/*
 	 * Something we can maybe free or reuse.
@@ -1917,6 +1935,8 @@ restart:
 		bp->b_flags = 0;
 		bp->b_ioflags = 0;
 		bp->b_xflags = 0;
+		KASSERT((bp->b_vflags & BV_INFREECNT) == 0,
+		    ("buf %p still counted as free?", bp));
 		bp->b_vflags = 0;
 		bp->b_vp = NULL;
 		bp->b_blkno = bp->b_lblkno = 0;
@@ -2398,31 +2418,44 @@ notinmem:
 }
 
 /*
- *	vfs_setdirty:
+ * Set the dirty range for a buffer based on the status of the dirty
+ * bits in the pages comprising the buffer.  The range is limited
+ * to the size of the buffer.
  *
- *	Sets the dirty range for a buffer based on the status of the dirty
- *	bits in the pages comprising the buffer.
+ * Tell the VM system that the pages associated with this buffer
+ * are clean.  This is used for delayed writes where the data is
+ * going to go to disk eventually without additional VM intevention.
  *
- *	The range is limited to the size of the buffer.
- *
- *	This routine is primarily used by NFS, but is generalized for the
- *	B_VMIO case.
+ * Note that while we only really need to clean through to b_bcount, we
+ * just go ahead and clean through to b_bufsize.
  */
 static void
-vfs_setdirty(struct buf *bp) 
+vfs_clean_pages_dirty_buf(struct buf *bp)
 {
+	vm_ooffset_t foff, noff, eoff;
+	vm_page_t m;
+	int i;
 
-	/*
-	 * Degenerate case - empty buffer
-	 */
-	if (bp->b_bufsize == 0)
+	if ((bp->b_flags & B_VMIO) == 0 || bp->b_bufsize == 0)
 		return;
 
-	if ((bp->b_flags & B_VMIO) == 0)
-		return;
+	foff = bp->b_offset;
+	KASSERT(bp->b_offset != NOOFFSET,
+	    ("vfs_clean_pages_dirty_buf: no buffer offset"));
 
 	VM_OBJECT_LOCK(bp->b_bufobj->bo_object);
+	vfs_drain_busy_pages(bp);
 	vfs_setdirty_locked_object(bp);
+	for (i = 0; i < bp->b_npages; i++) {
+		noff = (foff + PAGE_SIZE) & ~(off_t)PAGE_MASK;
+		eoff = noff;
+		if (eoff > bp->b_offset + bp->b_bufsize)
+			eoff = bp->b_offset + bp->b_bufsize;
+		m = bp->b_pages[i];
+		vfs_page_set_validclean(bp, foff, m);
+		/* vm_page_clear_dirty(m, foff & PAGE_MASK, eoff - foff); */
+		foff = noff;
+	}
 	VM_OBJECT_UNLOCK(bp->b_bufobj->bo_object);
 }
 
@@ -3533,6 +3566,31 @@ vfs_page_set_validclean(struct buf *bp, vm_ooffset_t off, vm_page_t m)
 }
 
 /*
+ * Ensure that all buffer pages are not busied by VPO_BUSY flag. If
+ * any page is busy, drain the flag.
+ */
+static void
+vfs_drain_busy_pages(struct buf *bp)
+{
+	vm_page_t m;
+	int i, last_busied;
+
+	VM_OBJECT_LOCK_ASSERT(bp->b_bufobj->bo_object, MA_OWNED);
+	last_busied = 0;
+	for (i = 0; i < bp->b_npages; i++) {
+		m = bp->b_pages[i];
+		if ((m->oflags & VPO_BUSY) != 0) {
+			for (; last_busied < i; last_busied++)
+				vm_page_busy(bp->b_pages[last_busied]);
+			while ((m->oflags & VPO_BUSY) != 0)
+				vm_page_sleep(m, "vbpage");
+		}
+	}
+	for (i = 0; i < last_busied; i++)
+		vm_page_wakeup(bp->b_pages[i]);
+}
+
+/*
  * This routine is called before a device strategy routine.
  * It is used to tell the VM system that paging I/O is in
  * progress, and treat the pages associated with the buffer
@@ -3560,15 +3618,9 @@ vfs_busy_pages(struct buf *bp, int clear_modify)
 	KASSERT(bp->b_offset != NOOFFSET,
 	    ("vfs_busy_pages: no buffer offset"));
 	VM_OBJECT_LOCK(obj);
+	vfs_drain_busy_pages(bp);
 	if (bp->b_bufsize != 0)
 		vfs_setdirty_locked_object(bp);
-retry:
-	for (i = 0; i < bp->b_npages; i++) {
-		m = bp->b_pages[i];
-
-		if (vm_page_sleep_if_busy(m, FALSE, "vbpage"))
-			goto retry;
-	}
 	bogus = 0;
 	for (i = 0; i < bp->b_npages; i++) {
 		m = bp->b_pages[i];
@@ -3606,42 +3658,6 @@ retry:
 	if (bogus)
 		pmap_qenter(trunc_page((vm_offset_t)bp->b_data),
 		    bp->b_pages, bp->b_npages);
-}
-
-/*
- * Tell the VM system that the pages associated with this buffer
- * are clean.  This is used for delayed writes where the data is
- * going to go to disk eventually without additional VM intevention.
- *
- * Note that while we only really need to clean through to b_bcount, we
- * just go ahead and clean through to b_bufsize.
- */
-static void
-vfs_clean_pages(struct buf *bp)
-{
-	int i;
-	vm_ooffset_t foff, noff, eoff;
-	vm_page_t m;
-
-	if (!(bp->b_flags & B_VMIO))
-		return;
-
-	foff = bp->b_offset;
-	KASSERT(bp->b_offset != NOOFFSET,
-	    ("vfs_clean_pages: no buffer offset"));
-	VM_OBJECT_LOCK(bp->b_bufobj->bo_object);
-	for (i = 0; i < bp->b_npages; i++) {
-		m = bp->b_pages[i];
-		noff = (foff + PAGE_SIZE) & ~(off_t)PAGE_MASK;
-		eoff = noff;
-
-		if (eoff > bp->b_offset + bp->b_bufsize)
-			eoff = bp->b_offset + bp->b_bufsize;
-		vfs_page_set_validclean(bp, foff, m);
-		/* vm_page_clear_dirty(m, foff & PAGE_MASK, eoff - foff); */
-		foff = noff;
-	}
-	VM_OBJECT_UNLOCK(bp->b_bufobj->bo_object);
 }
 
 /*
@@ -4107,5 +4123,28 @@ DB_SHOW_COMMAND(vnodebufs, db_show_vnodebufs)
 		db_show_buffer((uintptr_t)bp, 1, 0, NULL);
 		db_printf("\n");
 	}
+}
+
+DB_COMMAND(countfreebufs, db_coundfreebufs)
+{
+	struct buf *bp;
+	int i, used = 0, nfree = 0;
+
+	if (have_addr) {
+		db_printf("usage: countfreebufs\n");
+		return;
+	}
+
+	for (i = 0; i < nbuf; i++) {
+		bp = &buf[i];
+		if ((bp->b_vflags & BV_INFREECNT) != 0)
+			nfree++;
+		else
+			used++;
+	}
+
+	db_printf("Counted %d free, %d used (%d tot)\n", nfree, used,
+	    nfree + used);
+	db_printf("numfreebuffers is %d\n", numfreebuffers);
 }
 #endif /* DDB */

@@ -219,6 +219,9 @@ extern struct vpglocks pa_lock[];
  *	 pte mappings, nor can they be removed from their objects via 
  *	 the object, and such pages are also not on any PQ queue.
  *
+ * PG_REFERENCED may be cleared only if the object containing the page is
+ * locked.
+ *
  * PG_WRITEABLE is set exclusively on managed pages by pmap_enter().  When it
  * does so, the page must be VPO_BUSY.
  */

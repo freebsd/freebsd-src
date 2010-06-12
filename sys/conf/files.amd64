@@ -105,12 +105,9 @@ amd64/amd64/in_cksum.c		optional	inet
 amd64/amd64/initcpu.c		standard
 amd64/amd64/intr_machdep.c	standard
 amd64/amd64/io.c		optional	io
-amd64/amd64/io_apic.c		standard
 amd64/amd64/legacy.c		standard
-x86/x86/local_apic.c		standard
 amd64/amd64/locore.S		standard	no-obj
 amd64/amd64/machdep.c		standard
-amd64/amd64/mca.c		standard
 amd64/amd64/mem.c		optional	mem
 amd64/amd64/minidump_machdep.c	standard
 amd64/amd64/mp_machdep.c	optional	smp
@@ -118,7 +115,6 @@ amd64/amd64/mp_watchdog.c	optional	mp_watchdog smp
 amd64/amd64/mpboot.S		optional	smp
 amd64/amd64/mptable.c		optional	mptable
 amd64/amd64/mptable_pci.c	optional	mptable pci
-amd64/amd64/msi.c		optional	pci
 amd64/amd64/nexus.c		standard
 amd64/amd64/pmap.c		standard
 amd64/amd64/prof_machdep.c	optional	profiling-routine
@@ -306,3 +302,7 @@ x86/isa/isa.c			standard
 x86/isa/isa_dma.c		standard
 x86/isa/nmi.c			standard
 x86/isa/orm.c			optional	isa
+x86/x86/io_apic.c		standard
+x86/x86/local_apic.c		standard
+x86/x86/mca.c			standard
+x86/x86/msi.c			optional	pci
