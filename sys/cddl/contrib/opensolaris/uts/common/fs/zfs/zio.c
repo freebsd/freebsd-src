@@ -894,11 +894,11 @@ zio_taskq_dispatch(zio_t *zio, enum zio_taskq_type q)
 	zio_type_t t = zio->io_type;
 
 	/*
-	 * If we're a config writer, the normal issue and interrupt threads
-	 * may all be blocked waiting for the config lock.  In this case,
-	 * select the otherwise-unused taskq for ZIO_TYPE_NULL.
+	 * If we're a config writer or a probe, the normal issue and
+	 * interrupt threads may all be blocked waiting for the config lock.
+	 * In this case, select the otherwise-unused taskq for ZIO_TYPE_NULL.
 	 */
-	if (zio->io_flags & ZIO_FLAG_CONFIG_WRITER)
+	if (zio->io_flags & (ZIO_FLAG_CONFIG_WRITER | ZIO_FLAG_PROBE))
 		t = ZIO_TYPE_NULL;
 
 	/*
