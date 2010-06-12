@@ -70,6 +70,9 @@ std::string getClangFullVersion() {
 #endif
   OS << "clang version " CLANG_VERSION_STRING " ("
      << getClangFullRepositoryVersion() << ')';
+#ifdef CLANG_VENDOR_SUFFIX
+  OS << CLANG_VENDOR_SUFFIX;
+#endif
   return OS.str();
 }
 
