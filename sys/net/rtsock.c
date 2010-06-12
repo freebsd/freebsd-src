@@ -672,8 +672,13 @@ route_output(struct mbuf *m, struct socket *so)
 			rt_setmetrics(rtm->rtm_inits, &rtm->rtm_rmx,
 					&rt->rt_rmx);
 			rtm->rtm_index = rt->rt_ifp->if_index;
-			if (rt->rt_ifa && rt->rt_ifa->ifa_rtrequest)
-			       rt->rt_ifa->ifa_rtrequest(RTM_ADD, rt, &info);
+			if (rt->rt_ifa && rt->rt_ifa->ifa_rtrequest) {
+				RT_UNLOCK(rt);
+				RADIX_NODE_HEAD_LOCK(rnh);
+				RT_LOCK(rt);
+				rt->rt_ifa->ifa_rtrequest(RTM_ADD, rt, &info);
+				RADIX_NODE_HEAD_UNLOCK(rnh);
+			}
 			if (info.rti_info[RTAX_GENMASK])
 				rt->rt_genmask = info.rti_info[RTAX_GENMASK];
 			/* FALLTHROUGH */
