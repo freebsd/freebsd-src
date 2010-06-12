@@ -368,14 +368,14 @@ tw_cli_drain_aen_queue(struct tw_cli_ctlr_context *ctlr)
 		if (aen_code == TWA_AEN_SYNC_TIME_WITH_HOST)
 			continue;
 
-		ctlr->state &= ~TW_CLI_CTLR_STATE_INTERNAL_REQ_BUSY;
+		ctlr->internal_req_busy = TW_CL_FALSE;
 		tw_cli_req_q_insert_tail(req, TW_CLI_FREE_Q);
 	}
 
 out:
 	if (req) {
 		if (req->data)
-			ctlr->state &= ~TW_CLI_CTLR_STATE_INTERNAL_REQ_BUSY;
+			ctlr->internal_req_busy = TW_CL_FALSE;
 		tw_cli_req_q_insert_tail(req, TW_CLI_FREE_Q);
 	}
 	return(error);
@@ -447,34 +447,7 @@ tw_cli_poll_status(struct tw_cli_ctlr_context *ctlr, TW_UINT32 status,
 			/* got the required bit(s) */
 			return(TW_OSL_ESUCCESS);
 
-		/*
-		 * The OSL should not define TW_OSL_CAN_SLEEP if it calls
-		 * tw_cl_deferred_interrupt from within the ISR and not a
-		 * lower interrupt level, since, in that case, we might end
-		 * up here, and try to sleep (within an ISR).
-		 */
-#ifndef TW_OSL_CAN_SLEEP
-		/* OSL doesn't support sleeping; will spin. */
 		tw_osl_delay(1000);
-#else /* TW_OSL_CAN_SLEEP */
-#if 0
-		/* Will spin if initializing, sleep otherwise. */
-		if (!(ctlr->state & TW_CLI_CTLR_STATE_ACTIVE))
-			tw_osl_delay(1000);
-		else
-			tw_osl_sleep(ctlr->ctlr_handle,
-				&(ctlr->sleep_handle), 1 /* ms */);
-#else /* #if 0 */
-		/*
-		 * Will always spin for now (since reset holds a spin lock).
-		 * We could free io_lock after the call to TW_CLI_SOFT_RESET,
-		 * so we could sleep here.  To block new requests (since
-		 * the lock will have been released) we could use the
-		 * ...RESET_IN_PROGRESS flag.  Need to revisit.
-		 */
-		tw_osl_delay(1000);
-#endif /* #if 0 */
-#endif /* TW_OSL_CAN_SLEEP */
 	} while (tw_osl_get_local_time() <= end_time);
 
 	return(TW_OSL_ETIMEDOUT);
@@ -736,22 +709,20 @@ tw_cli_check_ctlr_state(struct tw_cli_ctlr_context *ctlr, TW_UINT32 status_reg)
 	tw_cli_dbg_printf(8, ctlr->ctlr_handle, tw_osl_cur_func(), "entered");
 
 	/* Check if the 'micro-controller ready' bit is not set. */
-	if ((status_reg & TWA_STATUS_EXPECTED_BITS) !=
-				TWA_STATUS_EXPECTED_BITS) {
+	if (!(status_reg & TWA_STATUS_MICROCONTROLLER_READY)) {
 		TW_INT8	desc[200];
 
 		tw_osl_memzero(desc, 200);
-		if ((status_reg & TWA_STATUS_MICROCONTROLLER_READY) ||
-			(!(ctlr->state &
-			TW_CLI_CTLR_STATE_RESET_PHASE1_IN_PROGRESS))) {
+		if (!(ctlr->reset_phase1_in_progress)) {
 			tw_cl_create_event(ctlr_handle, TW_CL_TRUE,
 				TW_CL_MESSAGE_SOURCE_COMMON_LAYER_EVENT,
 				0x1301, 0x1, TW_CL_SEVERITY_ERROR_STRING,
 				"Missing expected status bit(s)",
 				"status reg = 0x%x; Missing bits: %s",
 				status_reg,
-				tw_cli_describe_bits (~status_reg &
-					TWA_STATUS_EXPECTED_BITS, desc));
+				tw_cli_describe_bits(
+					TWA_STATUS_MICROCONTROLLER_READY,
+					desc));
 			error = TW_OSL_EGENFAILURE;
 		}
 	}
@@ -765,7 +736,7 @@ tw_cli_check_ctlr_state(struct tw_cli_ctlr_context *ctlr, TW_UINT32 status_reg)
 		/* Skip queue error msgs during 9650SE/9690SA reset */
 		if (((ctlr->device_id != TW_CL_DEVICE_ID_9K_E) &&
 		     (ctlr->device_id != TW_CL_DEVICE_ID_9K_SA)) ||
-		    ((ctlr->state & TW_CLI_CTLR_STATE_RESET_IN_PROGRESS) == 0) ||
+		    (!(ctlr->reset_in_progress)) ||
 		    ((status_reg & TWA_STATUS_QUEUE_ERROR_INTERRUPT) == 0))
 		tw_cl_create_event(ctlr_handle, TW_CL_TRUE,
 			TW_CL_MESSAGE_SOURCE_COMMON_LAYER_EVENT,
@@ -819,7 +790,7 @@ tw_cli_check_ctlr_state(struct tw_cli_ctlr_context *ctlr, TW_UINT32 status_reg)
 			/* Skip queue error msgs during 9650SE/9690SA reset */
 			if (((ctlr->device_id != TW_CL_DEVICE_ID_9K_E) &&
 			     (ctlr->device_id != TW_CL_DEVICE_ID_9K_SA)) ||
-			    ((ctlr->state & TW_CLI_CTLR_STATE_RESET_IN_PROGRESS) == 0))
+			    (!(ctlr->reset_in_progress)))
 				tw_cl_create_event(ctlr_handle, TW_CL_TRUE,
 						   TW_CL_MESSAGE_SOURCE_COMMON_LAYER_EVENT,
 						   0x1305, 0x1, TW_CL_SEVERITY_ERROR_STRING,
@@ -839,7 +810,7 @@ tw_cli_check_ctlr_state(struct tw_cli_ctlr_context *ctlr, TW_UINT32 status_reg)
 				"status reg = 0x%x %s",
 				status_reg,
 				tw_cli_describe_bits(status_reg, desc));
-			error = TW_OSL_EGENFAILURE;
+			error = TW_OSL_EGENFAILURE; // tw_cl_reset_ctlr(ctlr_handle);
 		}
 	}
 	return(error);

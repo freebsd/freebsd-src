@@ -22,7 +22,7 @@
  */
 
 #ifndef	_SCSI_SCSI_ALL_H
-#define _SCSI_SCSI_ALL_H 1
+#define	_SCSI_SCSI_ALL_H 1
 
 #include <sys/cdefs.h>
 
@@ -41,13 +41,13 @@ extern int scsi_delay;
 /*
  * Define dome bits that are in ALL (or a lot of) scsi commands
  */
-#define SCSI_CTL_LINK		0x01
-#define SCSI_CTL_FLAG		0x02
-#define SCSI_CTL_VENDOR		0xC0
+#define	SCSI_CTL_LINK		0x01
+#define	SCSI_CTL_FLAG		0x02
+#define	SCSI_CTL_VENDOR		0xC0
 #define	SCSI_CMD_LUN		0xA0	/* these two should not be needed */
 #define	SCSI_CMD_LUN_SHIFT	5	/* LUN in the cmd is no longer SCSI */
 
-#define SCSI_MAX_CDBLEN		16	/* 
+#define	SCSI_MAX_CDBLEN		16	/* 
 					 * 16 byte commands are in the 
 					 * SCSI-3 spec 
 					 */
@@ -56,7 +56,7 @@ extern int scsi_delay;
 #endif
 
 /* 6byte CDBs special case 0 length to be 256 */
-#define SCSI_CDB6_LEN(len)	((len) == 0 ? 256 : len)
+#define	SCSI_CDB6_LEN(len)	((len) == 0 ? 256 : len)
 
 /*
  * This type defines actions to be taken when a particular sense code is
@@ -94,16 +94,16 @@ typedef enum {
 } scsi_sense_action_qualifier;
 
 /* Mask for error status values */
-#define SS_ERRMASK	0xff
+#define	SS_ERRMASK	0xff
 
 /* The default, retyable, error action */
-#define SS_RDEF		SS_RETRY|SSQ_DECREMENT_COUNT|SSQ_PRINT_SENSE|EIO
+#define	SS_RDEF		SS_RETRY|SSQ_DECREMENT_COUNT|SSQ_PRINT_SENSE|EIO
 
 /* The retyable, error action, with table specified error code */
-#define SS_RET		SS_RETRY|SSQ_DECREMENT_COUNT|SSQ_PRINT_SENSE
+#define	SS_RET		SS_RETRY|SSQ_DECREMENT_COUNT|SSQ_PRINT_SENSE
 
 /* Fatal error action, with table specified error code */
-#define SS_FATAL	SS_FAIL|SSQ_PRINT_SENSE
+#define	SS_FATAL	SS_FAIL|SSQ_PRINT_SENSE
 
 struct scsi_generic
 {
@@ -168,16 +168,16 @@ struct scsi_mode_sense_6
 #define	SMS_DBD				0x08
 	u_int8_t page;
 #define	SMS_PAGE_CODE 			0x3F
-#define SMS_VENDOR_SPECIFIC_PAGE	0x00
-#define SMS_DISCONNECT_RECONNECT_PAGE	0x02
-#define SMS_FORMAT_DEVICE_PAGE		0x03
-#define SMS_GEOMETRY_PAGE		0x04
-#define SMS_CACHE_PAGE			0x08
-#define SMS_PERIPHERAL_DEVICE_PAGE	0x09
-#define SMS_CONTROL_MODE_PAGE		0x0A
-#define SMS_PROTO_SPECIFIC_PAGE		0x19
-#define SMS_INFO_EXCEPTIONS_PAGE	0x1C
-#define SMS_ALL_PAGES_PAGE		0x3F
+#define	SMS_VENDOR_SPECIFIC_PAGE	0x00
+#define	SMS_DISCONNECT_RECONNECT_PAGE	0x02
+#define	SMS_FORMAT_DEVICE_PAGE		0x03
+#define	SMS_GEOMETRY_PAGE		0x04
+#define	SMS_CACHE_PAGE			0x08
+#define	SMS_PERIPHERAL_DEVICE_PAGE	0x09
+#define	SMS_CONTROL_MODE_PAGE		0x0A
+#define	SMS_PROTO_SPECIFIC_PAGE		0x19
+#define	SMS_INFO_EXCEPTIONS_PAGE	0x1C
+#define	SMS_ALL_PAGES_PAGE		0x3F
 #define	SMS_PAGE_CTRL_MASK		0xC0
 #define	SMS_PAGE_CTRL_CURRENT 		0x00
 #define	SMS_PAGE_CTRL_CHANGEABLE 	0x40
@@ -262,8 +262,8 @@ struct scsi_log_sense
 #define	SLS_ERROR_VERIFY_PAGE		0x05
 #define	SLS_ERROR_NONMEDIUM_PAGE	0x06
 #define	SLS_ERROR_LASTN_PAGE		0x07
-#define SLS_SELF_TEST_PAGE		0x10
-#define SLS_IE_PAGE			0x2f
+#define	SLS_SELF_TEST_PAGE		0x10
+#define	SLS_IE_PAGE			0x2f
 #define	SLS_PAGE_CTRL_MASK		0xC0
 #define	SLS_PAGE_CTRL_THRESHOLD		0x00
 #define	SLS_PAGE_CTRL_CUMULATIVE	0x40
@@ -320,30 +320,30 @@ struct scsi_control_page {
 	u_int8_t page_code;
 	u_int8_t page_length;
 	u_int8_t rlec;
-#define SCB_RLEC			0x01	/*Report Log Exception Cond*/
+#define	SCB_RLEC			0x01	/*Report Log Exception Cond*/
 	u_int8_t queue_flags;
-#define SCP_QUEUE_ALG_MASK		0xF0
-#define SCP_QUEUE_ALG_RESTRICTED	0x00
-#define SCP_QUEUE_ALG_UNRESTRICTED	0x10
-#define SCP_QUEUE_ERR			0x02	/*Queued I/O aborted for CACs*/
-#define SCP_QUEUE_DQUE			0x01	/*Queued I/O disabled*/
+#define	SCP_QUEUE_ALG_MASK		0xF0
+#define	SCP_QUEUE_ALG_RESTRICTED	0x00
+#define	SCP_QUEUE_ALG_UNRESTRICTED	0x10
+#define	SCP_QUEUE_ERR			0x02	/*Queued I/O aborted for CACs*/
+#define	SCP_QUEUE_DQUE			0x01	/*Queued I/O disabled*/
 	u_int8_t eca_and_aen;
-#define SCP_EECA			0x80	/*Enable Extended CA*/
-#define SCP_RAENP			0x04	/*Ready AEN Permission*/
-#define SCP_UAAENP			0x02	/*UA AEN Permission*/
-#define SCP_EAENP			0x01	/*Error AEN Permission*/
+#define	SCP_EECA			0x80	/*Enable Extended CA*/
+#define	SCP_RAENP			0x04	/*Ready AEN Permission*/
+#define	SCP_UAAENP			0x02	/*UA AEN Permission*/
+#define	SCP_EAENP			0x01	/*Error AEN Permission*/
 	u_int8_t reserved;
 	u_int8_t aen_holdoff_period[2];
 };
 
 struct scsi_cache_page {
 	u_int8_t page_code;
-#define SCHP_PAGE_SAVABLE		0x80	/* Page is savable */
+#define	SCHP_PAGE_SAVABLE		0x80	/* Page is savable */
 	u_int8_t page_length;
 	u_int8_t cache_flags;
-#define SCHP_FLAGS_WCE			0x04	/* Write Cache Enable */
-#define SCHP_FLAGS_MF			0x02	/* Multiplication factor */
-#define SCHP_FLAGS_RCD			0x01	/* Read Cache Disable */
+#define	SCHP_FLAGS_WCE			0x04	/* Write Cache Enable */
+#define	SCHP_FLAGS_MF			0x02	/* Multiplication factor */
+#define	SCHP_FLAGS_RCD			0x01	/* Read Cache Disable */
 	u_int8_t rw_cache_policy;
 	u_int8_t dis_prefetch[2];
 	u_int8_t min_prefetch[2];
@@ -353,16 +353,16 @@ struct scsi_cache_page {
 
 struct scsi_info_exceptions_page {
 	u_int8_t page_code;
-#define SIEP_PAGE_SAVABLE		0x80	/* Page is savable */
+#define	SIEP_PAGE_SAVABLE		0x80	/* Page is savable */
 	u_int8_t page_length;
 	u_int8_t info_flags;
-#define SIEP_FLAGS_PERF			0x80
-#define SIEP_FLAGS_EBF			0x20
-#define SIEP_FLAGS_EWASC		0x10
-#define SIEP_FLAGS_DEXCPT		0x08
-#define SIEP_FLAGS_TEST			0x04
-#define SIEP_FLAGS_EBACKERR		0x02
-#define SIEP_FLAGS_LOGERR		0x01
+#define	SIEP_FLAGS_PERF			0x80
+#define	SIEP_FLAGS_EBF			0x20
+#define	SIEP_FLAGS_EWASC		0x10
+#define	SIEP_FLAGS_DEXCPT		0x08
+#define	SIEP_FLAGS_TEST			0x04
+#define	SIEP_FLAGS_EBACKERR		0x02
+#define	SIEP_FLAGS_LOGERR		0x01
 	u_int8_t mrie;
 	u_int8_t interval_timer[4];
 	u_int8_t report_count[4];
@@ -370,19 +370,19 @@ struct scsi_info_exceptions_page {
 
 struct scsi_proto_specific_page {
 	u_int8_t page_code;
-#define SPSP_PAGE_SAVABLE		0x80	/* Page is savable */
+#define	SPSP_PAGE_SAVABLE		0x80	/* Page is savable */
 	u_int8_t page_length;
 	u_int8_t protocol;
-#define SPSP_PROTO_FC			0x00
-#define SPSP_PROTO_SPI			0x01
-#define SPSP_PROTO_SSA			0x02
-#define SPSP_PROTO_1394			0x03
-#define SPSP_PROTO_RDMA			0x04
-#define SPSP_PROTO_ISCSI		0x05
-#define SPSP_PROTO_SAS			0x06
-#define SPSP_PROTO_ADT			0x07
-#define SPSP_PROTO_ATA			0x08
-#define SPSP_PROTO_NONE			0x0f
+#define	SPSP_PROTO_FC			0x00
+#define	SPSP_PROTO_SPI			0x01
+#define	SPSP_PROTO_SSA			0x02
+#define	SPSP_PROTO_1394			0x03
+#define	SPSP_PROTO_RDMA			0x04
+#define	SPSP_PROTO_ISCSI		0x05
+#define	SPSP_PROTO_SAS			0x06
+#define	SPSP_PROTO_ADT			0x07
+#define	SPSP_PROTO_ATA			0x08
+#define	SPSP_PROTO_NONE			0x0f
 };
 
 struct scsi_reserve
@@ -412,7 +412,7 @@ struct scsi_prevent
 	u_int8_t control;
 };
 #define	PR_PREVENT 0x01
-#define PR_ALLOW   0x00
+#define	PR_ALLOW   0x00
 
 struct scsi_sync_cache
 {
@@ -490,7 +490,7 @@ struct scsi_rw_12
 {
 	u_int8_t opcode;
 #define	SRW12_RELADDR	0x01
-#define SRW12_FUA	0x08
+#define	SRW12_FUA	0x08
 #define	SRW12_DPO	0x10
 	u_int8_t byte2;
 	u_int8_t addr[4];
@@ -527,13 +527,13 @@ struct scsi_start_stop_unit
 struct ata_pass_12 {
 	u_int8_t opcode;
 	u_int8_t protocol;
-#define AP_MULTI	0xe0
+#define	AP_MULTI	0xe0
 	u_int8_t flags;
-#define AP_T_LEN	0x03
-#define AP_BB		0x04
-#define AP_T_DIR	0x08
-#define AP_CK_COND	0x20
-#define AP_OFFLINE	0x60
+#define	AP_T_LEN	0x03
+#define	AP_BB		0x04
+#define	AP_T_DIR	0x08
+#define	AP_CK_COND	0x20
+#define	AP_OFFLINE	0x60
 	u_int8_t features;
 	u_int8_t sector_count;
 	u_int8_t lba_low;
@@ -548,7 +548,7 @@ struct ata_pass_12 {
 struct ata_pass_16 {
 	u_int8_t opcode;
 	u_int8_t protocol;
-#define AP_EXTEND	0x01
+#define	AP_EXTEND	0x01
 	u_int8_t flags;
 	u_int8_t features_ext;
 	u_int8_t features;
@@ -565,51 +565,69 @@ struct ata_pass_16 {
 	u_int8_t control;
 };
 
-#define SC_SCSI_1 0x01
-#define SC_SCSI_2 0x03
+#define	SC_SCSI_1 0x01
+#define	SC_SCSI_2 0x03
 
 /*
  * Opcodes
  */
 
 #define	TEST_UNIT_READY		0x00
-#define REQUEST_SENSE		0x03
+#define	REQUEST_SENSE		0x03
 #define	READ_6			0x08
-#define WRITE_6			0x0a
-#define INQUIRY			0x12
-#define MODE_SELECT_6		0x15
-#define MODE_SENSE_6		0x1a
-#define START_STOP_UNIT		0x1b
-#define START_STOP		0x1b
-#define RESERVE      		0x16
-#define RELEASE      		0x17
-#define	RECEIVE_DIAGNOSTIC	0x1c
-#define	SEND_DIAGNOSTIC		0x1d
-#define PREVENT_ALLOW		0x1e
+#define	WRITE_6			0x0A
+#define	INQUIRY			0x12
+#define	MODE_SELECT_6		0x15
+#define	MODE_SENSE_6		0x1A
+#define	START_STOP_UNIT		0x1B
+#define	START_STOP		0x1B
+#define	RESERVE      		0x16
+#define	RELEASE      		0x17
+#define	RECEIVE_DIAGNOSTIC	0x1C
+#define	SEND_DIAGNOSTIC		0x1D
+#define	PREVENT_ALLOW		0x1E
 #define	READ_CAPACITY		0x25
 #define	READ_10			0x28
-#define WRITE_10		0x2a
-#define POSITION_TO_ELEMENT	0x2b
+#define	WRITE_10		0x2A
+#define	POSITION_TO_ELEMENT	0x2B
 #define	SYNCHRONIZE_CACHE	0x35
 #define	READ_DEFECT_DATA_10	0x37
-#define	WRITE_BUFFER            0x3b
-#define	READ_BUFFER             0x3c
+#define	WRITE_BUFFER            0x3B
+#define	READ_BUFFER             0x3C
 #define	CHANGE_DEFINITION	0x40
-#define	LOG_SELECT		0x4c
-#define	LOG_SENSE		0x4d
+#define	LOG_SELECT		0x4C
+#define	LOG_SENSE		0x4D
 #define	MODE_SELECT_10		0x55
 #define	MODE_SENSE_10		0x5A
 #define	ATA_PASS_16		0x85
 #define	READ_16			0x88
-#define	WRITE_16		0x8a
-#define	SERVICE_ACTION_IN	0x9e
+#define	WRITE_16		0x8A
+#define	SERVICE_ACTION_IN	0x9E
 #define	REPORT_LUNS		0xA0
-#define	ATA_PASS_12		0xa1
-#define	MOVE_MEDIUM     	0xa5
-#define	READ_12			0xa8
-#define	WRITE_12		0xaa
-#define	READ_ELEMENT_STATUS	0xb8
+#define	ATA_PASS_12		0xA1
+#define	MAINTENANCE_IN		0xA3
+#define	MAINTENANCE_OUT		0xA4
+#define	MOVE_MEDIUM     	0xA5
+#define	READ_12			0xA8
+#define	WRITE_12		0xAA
+#define	READ_ELEMENT_STATUS	0xB8
 
+/* Maintenance In Service Action Codes */
+#define	REPORT_IDENTIFYING_INFRMATION		0x05
+#define	REPORT_TARGET_PORT_GROUPS		0x0A
+#define	REPORT_ALIASES				0x0B
+#define	REPORT_SUPPORTED_OPERATION_CODES	0x0C
+#define	REPORT_SUPPORTED_TASK_MANAGEMENT_FUNCTIONS	0x0D
+#define	REPORT_PRIORITY				0x0E
+#define	REPORT_TIMESTAMP			0x0F
+#define	MANAGEMENT_PROTOCOL_IN			0x10
+/* Maintenance Out Service Action Codes */
+#define	SET_IDENTIFY_INFORMATION		0x06
+#define	SET_TARGET_PORT_GROUPS			0x0A
+#define	CHANGE_ALIASES				0x0B
+#define	SET_PRIORITY				0x0E
+#define	SET_TIMESTAMP				0x0F
+#define	MANGAEMENT_PROTOCOL_OUT			0x10
 
 /*
  * Device Types
@@ -635,7 +653,7 @@ struct ata_pass_16 {
 #define	T_NODEVICE	0x1f
 #define	T_ANY		0xff	/* Used in Quirk table matches */
 
-#define T_REMOV		1
+#define	T_REMOV		1
 #define	T_FIXED		0
 
 /*
@@ -670,7 +688,7 @@ struct scsi_inquiry_data
 					 * physical device is not currently
 					 * connected to this logical unit.
 					 */
-#define SID_QUAL_RSVD		0x02
+#define	SID_QUAL_RSVD		0x02
 #define	SID_QUAL_BAD_LU		0x03	/*
 					 * The target is not capable of
 					 * supporting a physical device on
@@ -688,30 +706,39 @@ struct scsi_inquiry_data
 #define	SID_QUAL2	0x7F
 #define	SID_IS_REMOVABLE(inq_data) (((inq_data)->dev_qual2 & 0x80) != 0)
 	u_int8_t version;
-#define SID_ANSI_REV(inq_data) ((inq_data)->version & 0x07)
+#define	SID_ANSI_REV(inq_data) ((inq_data)->version & 0x07)
 #define		SCSI_REV_0		0
 #define		SCSI_REV_CCS		1
 #define		SCSI_REV_2		2
 #define		SCSI_REV_SPC		3
 #define		SCSI_REV_SPC2		4
+#define		SCSI_REV_SPC3		5
+#define		SCSI_REV_SPC4		6
 
-#define SID_ECMA	0x38
-#define SID_ISO		0xC0
+#define	SID_ECMA	0x38
+#define	SID_ISO		0xC0
 	u_int8_t response_format;
-#define SID_AENC	0x80
-#define SID_TrmIOP	0x40
+#define	SID_AENC	0x80
+#define	SID_TrmIOP	0x40
 	u_int8_t additional_length;
 #define	SID_ADDITIONAL_LENGTH(iqd)					\
 	((iqd)->additional_length +					\
 	offsetof(struct scsi_inquiry_data, additional_length) + 1)
-	u_int8_t reserved;
+	u_int8_t spc3_flags;
+#define	SPC3_SID_PROTECT	0x01
+#define	SPC3_SID_3PC		0x08
+#define	SPC3_SID_TPGS_MASK	0x30
+#define	SPC3_SID_TPGS_IMPLICIT	0x10
+#define	SPC3_SID_TPGS_EXPLICIT	0x20
+#define	SPC3_SID_ACC		0x40
+#define	SPC3_SID_SCCS		0x80
 	u_int8_t spc2_flags;
-#define SPC2_SID_MChngr 	0x08
-#define SPC2_SID_MultiP 	0x10
-#define SPC2_SID_EncServ	0x40
-#define SPC2_SID_BQueue		0x80
+#define	SPC2_SID_MChngr 	0x08
+#define	SPC2_SID_MultiP 	0x10
+#define	SPC2_SID_EncServ	0x40
+#define	SPC2_SID_BQueue		0x80
 
-#define INQ_DATA_TQ_ENABLED(iqd)				\
+#define	INQ_DATA_TQ_ENABLED(iqd)				\
     ((SID_ANSI_REV(iqd) < SCSI_REV_SPC2)? ((iqd)->flags & SID_CmdQue) :	\
     (((iqd)->flags & SID_CmdQue) && !((iqd)->spc2_flags & SPC2_SID_BQueue)) || \
     (!((iqd)->flags & SID_CmdQue) && ((iqd)->spc2_flags & SPC2_SID_BQueue)))
@@ -724,11 +751,11 @@ struct scsi_inquiry_data
 #define	SID_WBus16	0x20
 #define	SID_WBus32	0x40
 #define	SID_RelAdr	0x80
-#define SID_VENDOR_SIZE   8
+#define	SID_VENDOR_SIZE   8
 	char	 vendor[SID_VENDOR_SIZE];
-#define SID_PRODUCT_SIZE  16
+#define	SID_PRODUCT_SIZE  16
 	char	 product[SID_PRODUCT_SIZE];
-#define SID_REVISION_SIZE 4
+#define	SID_REVISION_SIZE 4
 	char	 revision[SID_REVISION_SIZE];
 	/*
 	 * The following fields were taken from SCSI Primary Commands - 2
@@ -769,10 +796,10 @@ struct scsi_vpd_supported_page_list
 {
 	u_int8_t device;
 	u_int8_t page_code;
-#define SVPD_SUPPORTED_PAGE_LIST 0x00
+#define	SVPD_SUPPORTED_PAGE_LIST 0x00
 	u_int8_t reserved;
 	u_int8_t length;	/* number of VPD entries */
-#define SVPD_SUPPORTED_PAGES_SIZE	251
+#define	SVPD_SUPPORTED_PAGES_SIZE	251
 	u_int8_t list[SVPD_SUPPORTED_PAGES_SIZE];
 };
 
@@ -780,10 +807,10 @@ struct scsi_vpd_unit_serial_number
 {
 	u_int8_t device;
 	u_int8_t page_code;
-#define SVPD_UNIT_SERIAL_NUMBER	0x80
+#define	SVPD_UNIT_SERIAL_NUMBER	0x80
 	u_int8_t reserved;
 	u_int8_t length; /* serial number length */
-#define SVPD_SERIAL_NUM_SIZE 251
+#define	SVPD_SERIAL_NUM_SIZE 251
 	u_int8_t serial_num[SVPD_SERIAL_NUM_SIZE];
 };
 
@@ -860,6 +887,63 @@ struct scsi_report_luns_data {
 #define	RPL_LUNDATA_ATYP_LUN	0x80
 #define	RPL_LUNDATA_ATYP_EXTLUN	0xc0
 
+struct scsi_target_group
+{
+	uint8_t opcode;
+	uint8_t service_action;
+#define	STG_PDF_LENGTH		0x00
+#define	RPL_PDF_EXTENDED	0x20
+	uint8_t reserved1[4];
+	uint8_t length[4];
+	uint8_t reserved2;
+	uint8_t control;
+};
+
+struct scsi_target_port_descriptor {
+	uint8_t	reserved[2];
+	uint8_t	relative_target_port_identifier[2];
+};
+
+struct scsi_target_port_group_descriptor {
+	uint8_t	pref_state;
+#define	TPG_PRIMARY				0x80
+#define	TPG_ASYMMETRIC_ACCESS_STATE_MASK	0xf
+#define	TPG_ASYMMETRIC_ACCESS_OPTIMIZED		0x0
+#define	TPG_ASYMMETRIC_ACCESS_NONOPTIMIZED	0x1
+#define	TPG_ASYMMETRIC_ACCESS_STANDBY		0x2
+#define	TPG_ASYMMETRIC_ACCESS_UNAVAILABLE	0x3
+#define	TPG_ASYMMETRIC_ACCESS_LBA_DEPENDENT	0x4
+#define	TPG_ASYMMETRIC_ACCESS_OFFLINE		0xE
+#define	TPG_ASYMMETRIC_ACCESS_TRANSITIONING	0xF
+	uint8_t support;
+#define	TPG_AO_SUP	0x01
+#define	TPG_AN_SUP	0x02
+#define	TPG_S_SUP	0x04
+#define	TPG_U_SUP	0x08
+#define	TPG_LBD_SUP	0x10
+#define	TPG_O_SUP	0x40
+#define	TPG_T_SUP	0x80
+	uint8_t target_port_group[2];
+	uint8_t reserved;
+	uint8_t status;
+	uint8_t vendor_specific;
+	uint8_t	target_port_count;
+	struct scsi_target_port_descriptor descriptors[1];
+};
+
+struct scsi_target_group_data {
+	uint8_t length[4];	/* length of returned data, in bytes */
+	struct scsi_target_port_group_descriptor groups[1];
+};
+
+struct scsi_target_group_data_extended {
+	uint8_t length[4];	/* length of returned data, in bytes */
+	uint8_t format_type;	/* STG_PDF_LENGTH or RPL_PDF_EXTENDED */
+	uint8_t	implicit_transition_time;
+	uint8_t reserved[2];
+	struct scsi_target_port_group_descriptor groups[1];
+};
+
 
 struct scsi_sense_data
 {
@@ -898,12 +982,12 @@ struct scsi_sense_data
 	u_int8_t fru;
 	u_int8_t sense_key_spec[3];
 #define	SSD_SCS_VALID		0x80
-#define SSD_FIELDPTR_CMD	0x40
-#define SSD_BITPTR_VALID	0x08
-#define SSD_BITPTR_VALUE	0x07
-#define SSD_MIN_SIZE 18
+#define	SSD_FIELDPTR_CMD	0x40
+#define	SSD_BITPTR_VALID	0x08
+#define	SSD_BITPTR_VALUE	0x07
+#define	SSD_MIN_SIZE 18
 	u_int8_t extra_bytes[14];
-#define SSD_FULL_SIZE sizeof(struct scsi_sense_data)
+#define	SSD_FULL_SIZE sizeof(struct scsi_sense_data)
 };
 
 struct scsi_mode_header_6
@@ -948,13 +1032,13 @@ struct scsi_mode_blk_desc
 #define	SCSI_STATUS_CHECK_COND		0x02
 #define	SCSI_STATUS_COND_MET		0x04
 #define	SCSI_STATUS_BUSY		0x08
-#define SCSI_STATUS_INTERMED		0x10
-#define SCSI_STATUS_INTERMED_COND_MET	0x14
-#define SCSI_STATUS_RESERV_CONFLICT	0x18
-#define SCSI_STATUS_CMD_TERMINATED	0x22	/* Obsolete in SAM-2 */
-#define SCSI_STATUS_QUEUE_FULL		0x28
-#define SCSI_STATUS_ACA_ACTIVE		0x30
-#define SCSI_STATUS_TASK_ABORTED	0x40
+#define	SCSI_STATUS_INTERMED		0x10
+#define	SCSI_STATUS_INTERMED_COND_MET	0x14
+#define	SCSI_STATUS_RESERV_CONFLICT	0x18
+#define	SCSI_STATUS_CMD_TERMINATED	0x22	/* Obsolete in SAM-2 */
+#define	SCSI_STATUS_QUEUE_FULL		0x28
+#define	SCSI_STATUS_ACA_ACTIVE		0x30
+#define	SCSI_STATUS_TASK_ABORTED	0x40
 
 struct scsi_inquiry_pattern {
 	u_int8_t   type;
@@ -1065,9 +1149,9 @@ int		scsi_interpret_sense(struct cam_device *device,
 #endif /* _KERNEL */
 
 #define	SF_RETRY_UA	0x01
-#define SF_NO_PRINT	0x02
-#define SF_QUIET_IR	0x04	/* Be quiet about Illegal Request reponses */
-#define SF_PRINT_ALWAYS	0x08
+#define	SF_NO_PRINT	0x02
+#define	SF_QUIET_IR	0x04	/* Be quiet about Illegal Request reponses */
+#define	SF_PRINT_ALWAYS	0x08
 
 
 const char *	scsi_op_desc(u_int16_t opcode, 
@@ -1171,6 +1255,20 @@ void		scsi_report_luns(struct ccb_scsiio *csio, u_int32_t retries,
 				 union ccb *), u_int8_t tag_action, 
 				 u_int8_t select_report,
 				 struct scsi_report_luns_data *rpl_buf,
+				 u_int32_t alloc_len, u_int8_t sense_len,
+				 u_int32_t timeout);
+
+void		scsi_report_target_group(struct ccb_scsiio *csio, u_int32_t retries,
+				 void (*cbfcnp)(struct cam_periph *, 
+				 union ccb *), u_int8_t tag_action, 
+				 u_int8_t pdf,
+				 void *buf,
+				 u_int32_t alloc_len, u_int8_t sense_len,
+				 u_int32_t timeout);
+
+void		scsi_set_target_group(struct ccb_scsiio *csio, u_int32_t retries,
+				 void (*cbfcnp)(struct cam_periph *, 
+				 union ccb *), u_int8_t tag_action, void *buf,
 				 u_int32_t alloc_len, u_int8_t sense_len,
 				 u_int32_t timeout);
 

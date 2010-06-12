@@ -4506,6 +4506,7 @@ isp_action(struct cam_sim *sim, union ccb *ccb)
 			fcparam *fcp = FCPARAM(isp, bus);
 			struct ccb_trans_settings_scsi *scsi = &cts->proto_specific.scsi;
 			struct ccb_trans_settings_fc *fc = &cts->xport_specific.fc;
+			unsigned int hdlidx;
 
 			cts->protocol = PROTO_SCSI;
 			cts->protocol_version = SCSI_REV_2;
@@ -4517,8 +4518,9 @@ isp_action(struct cam_sim *sim, union ccb *ccb)
 			fc->valid = CTS_FC_VALID_SPEED;
 			fc->bitrate = 100000;
 			fc->bitrate *= fcp->isp_gbspeed;
-			if (tgt > 0 && tgt < MAX_FC_TARG) {
-				fcportdb_t *lp = &fcp->portdb[tgt];
+			hdlidx = fcp->isp_dev_map[tgt] - 1;
+			if (hdlidx < MAX_FC_TARG) {
+				fcportdb_t *lp = &fcp->portdb[hdlidx];
 				fc->wwnn = lp->node_wwn;
 				fc->wwpn = lp->port_wwn;
 				fc->port = lp->portid;

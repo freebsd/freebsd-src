@@ -289,10 +289,18 @@ sctp_build_ctl_cchunk(struct sctp_inpcb *inp,
 static void
 sctp_mark_non_revokable(struct sctp_association *asoc, uint32_t tsn)
 {
-	uint32_t gap, i;
+	uint32_t gap, i, cumackp1;
 	int fnd = 0;
 
 	if (SCTP_BASE_SYSCTL(sctp_do_drain) == 0) {
+		return;
+	}
+	cumackp1 = asoc->cumulative_tsn + 1;
+	if (compare_with_wrap(cumackp1, tsn, MAX_TSN)) {
+		/*
+		 * this tsn is behind the cum ack and thus we don't need to
+		 * worry about it being moved from one to the other.
+		 */
 		return;
 	}
 	SCTP_CALC_TSN_TO_GAP(gap, tsn, asoc->mapping_array_base_tsn);
@@ -2245,15 +2253,19 @@ sctp_slide_mapping_arrays(struct sctp_tcb *stcb)
 	/*
 	 * Now we also need to check the mapping array in a couple of ways.
 	 * 1) Did we move the cum-ack point?
+	 * 
+	 * When you first glance at this you might think that all entries that
+	 * make up the postion of the cum-ack would be in the nr-mapping
+	 * array only.. i.e. things up to the cum-ack are always
+	 * deliverable. Thats true with one exception, when its a fragmented
+	 * message we may not deliver the data until some threshold (or all
+	 * of it) is in place. So we must OR the nr_mapping_array and
+	 * mapping_array to get a true picture of the cum-ack.
 	 */
 	struct sctp_association *asoc;
 	int at;
+	uint8_t val;
 	int slide_from, slide_end, lgap, distance;
-
-	/* EY nr_mapping array variables */
-	/* int nr_at; */
-	/* int nr_last_all_ones = 0; */
-	/* int nr_slide_from, nr_slide_end, nr_lgap, nr_distance; */
 	uint32_t old_cumack, old_base, old_highest, highest_tsn;
 
 	asoc = &stcb->asoc;
@@ -2268,11 +2280,12 @@ sctp_slide_mapping_arrays(struct sctp_tcb *stcb)
 	 */
 	at = 0;
 	for (slide_from = 0; slide_from < stcb->asoc.mapping_array_size; slide_from++) {
-		if (asoc->nr_mapping_array[slide_from] == 0xff) {
+		val = asoc->nr_mapping_array[slide_from] | asoc->mapping_array[slide_from];
+		if (val == 0xff) {
 			at += 8;
 		} else {
 			/* there is a 0 bit */
-			at += sctp_map_lookup_tab[asoc->nr_mapping_array[slide_from]];
+			at += sctp_map_lookup_tab[val];
 			break;
 		}
 	}

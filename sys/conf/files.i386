@@ -269,16 +269,13 @@ i386/i386/in_cksum.c		optional inet
 i386/i386/initcpu.c		standard
 i386/i386/intr_machdep.c	standard
 i386/i386/io.c			optional io
-i386/i386/io_apic.c		optional apic
 i386/i386/k6_mem.c		optional mem
 i386/i386/legacy.c		optional native
-x86/x86/local_apic.c		optional apic
 i386/i386/locore.s		optional native	no-obj
 i386/xen/locore.s		optional xen	no-obj
 i386/i386/longrun.c		optional cpu_enable_longrun
 i386/i386/machdep.c		standard
 i386/xen/xen_machdep.c		optional xen
-i386/i386/mca.c			standard
 i386/i386/mem.c			optional mem
 i386/i386/minidump_machdep.c	standard
 i386/i386/mp_clock.c		optional smp
@@ -289,7 +286,6 @@ i386/i386/mpboot.s		optional smp native
 i386/i386/mptable.c		optional apic native
 i386/xen/mptable.c		optional apic xen
 i386/i386/mptable_pci.c		optional apic pci
-i386/i386/msi.c			optional apic pci
 i386/i386/nexus.c		standard
 i386/i386/perfmon.c		optional perfmon
 i386/i386/pmap.c		optional native
@@ -390,3 +386,7 @@ x86/isa/isa.c			optional isa
 x86/isa/isa_dma.c		optional isa
 x86/isa/nmi.c			standard
 x86/isa/orm.c			optional isa
+x86/x86/io_apic.c		optional apic
+x86/x86/local_apic.c		optional apic
+x86/x86/mca.c			standard
+x86/x86/msi.c			optional apic pci

@@ -40,7 +40,8 @@ typedef enum {
 	CAM_DEBUG_SUBTRACE	= 0x04,	/* internal to routine flows */
 	CAM_DEBUG_CDB		= 0x08, /* print out SCSI CDBs only */
 	CAM_DEBUG_XPT		= 0x10,	/* print out xpt scheduling */
-	CAM_DEBUG_PERIPH	= 0x20  /* print out peripheral calls */
+	CAM_DEBUG_PERIPH	= 0x20, /* print out peripheral calls */
+	CAM_DEBUG_PROBE		= 0x40  /* print out probe actions */
 } cam_debug_flags;
 
 #if defined(CAMDEBUG) && defined(_KERNEL)
@@ -58,6 +59,7 @@ extern u_int32_t cam_debug_delay;
 	 && (cam_dpath != NULL)				\
 	 && (xpt_path_comp(cam_dpath, path) >= 0)	\
 	 && (xpt_path_comp(cam_dpath, path) < 2))
+
 #define	CAM_DEBUG(path, flag, printfargs)		\
 	if ((cam_dflags & (flag))			\
 	 && (cam_dpath != NULL)				\
@@ -68,9 +70,18 @@ extern u_int32_t cam_debug_delay;
 		if (cam_debug_delay != 0)		\
 			DELAY(cam_debug_delay);		\
 	}
+
 #define	CAM_DEBUG_PRINT(flag, printfargs)		\
 	if (cam_dflags & (flag)) {			\
 		printf("cam_debug: ");			\
+ 		printf printfargs;			\
+		if (cam_debug_delay != 0)		\
+			DELAY(cam_debug_delay);		\
+	}
+
+#define	CAM_DEBUG_PATH_PRINT(flag, path, printfargs)	\
+	if (cam_dflags & (flag)) {			\
+		xpt_print(path, "cam_debug: ");		\
  		printf printfargs;			\
 		if (cam_debug_delay != 0)		\
 			DELAY(cam_debug_delay);		\
@@ -81,6 +92,7 @@ extern u_int32_t cam_debug_delay;
 #define	CAM_DEBUGGED(A, B)	0
 #define	CAM_DEBUG(A, B, C)
 #define	CAM_DEBUG_PRINT(A, B)
+#define	CAM_DEBUG_PATH_PRINT(A, B, C)
 
 #endif /* CAMDEBUG && _KERNEL */
 

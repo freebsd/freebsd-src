@@ -238,6 +238,10 @@ TUNABLE_INT("hw.cxgb.snd_queue_len", &cxgb_snd_queue_len);
 SYSCTL_UINT(_hw_cxgb, OID_AUTO, snd_queue_len, CTLFLAG_RDTUN,
     &cxgb_snd_queue_len, 0, "send queue size ");
 
+static int nfilters = -1;
+TUNABLE_INT("hw.cxgb.nfilters", &nfilters);
+SYSCTL_INT(_hw_cxgb, OID_AUTO, nfilters, CTLFLAG_RDTUN,
+    &nfilters, 0, "max number of entries in the filter table");
 
 enum {
 	MAX_TXQ_ENTRIES      = 16384,
@@ -1652,6 +1656,7 @@ static int
 cxgb_up(struct adapter *sc)
 {
 	int err = 0;
+	unsigned int mxf = t3_mc5_size(&sc->mc5) - MC5_MIN_TIDS;
 
 	KASSERT(sc->open_device_map == 0, ("%s: device(s) already open (%x)",
 					   __func__, sc->open_device_map));
@@ -1668,11 +1673,13 @@ cxgb_up(struct adapter *sc)
 			if ((err = update_tpsram(sc)))
 				goto out;
 
-		if (is_offload(sc)) {
+		if (is_offload(sc) && nfilters != 0) {
 			sc->params.mc5.nservers = 0;
-			sc->params.mc5.nroutes = 0;
-			sc->params.mc5.nfilters = t3_mc5_size(&sc->mc5) -
-			    MC5_MIN_TIDS;
+
+			if (nfilters < 0)
+				sc->params.mc5.nfilters = mxf;
+			else
+				sc->params.mc5.nfilters = min(nfilters, mxf);
 		}
 
 		err = t3_init_hw(sc, 0);

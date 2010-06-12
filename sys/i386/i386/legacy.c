@@ -290,12 +290,11 @@ cpu_identify(driver_t *driver, device_t parent)
 	 * so that these devices are attached after the Host-PCI
 	 * bridges (which are added at order 100).
 	 */
-	for (i = 0; i <= mp_maxid; i++)
-		if (!CPU_ABSENT(i)) {
-			child = BUS_ADD_CHILD(parent, 150, "cpu", i);
-			if (child == NULL)
-				panic("legacy_attach cpu");
-		}
+	CPU_FOREACH(i) {
+		child = BUS_ADD_CHILD(parent, 150, "cpu", i);
+		if (child == NULL)
+			panic("legacy_attach cpu");
+	}
 }
 
 static device_t
