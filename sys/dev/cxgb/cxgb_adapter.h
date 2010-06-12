@@ -388,6 +388,8 @@ struct adapter {
 	char                    reglockbuf[ADAPTER_LOCK_NAME_LEN];
 	char                    mdiolockbuf[ADAPTER_LOCK_NAME_LEN];
 	char                    elmerlockbuf[ADAPTER_LOCK_NAME_LEN];
+
+	int			timestamp;
 };
 
 struct t3_rx_mode {

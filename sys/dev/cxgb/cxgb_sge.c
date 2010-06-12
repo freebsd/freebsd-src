@@ -2961,6 +2961,7 @@ process_responses(adapter_t *adap, struct sge_qset *qs, int budget)
 	struct lro_ctrl *lro_ctrl = &qs->lro.ctrl;
 	struct mbuf *offload_mbufs[RX_BUNDLE_SIZE];
 	int ngathered = 0;
+	struct t3_mbuf_hdr *mh = &rspq->rspq_mh;
 #ifdef DEBUG	
 	static int last_holdoff = 0;
 	if (cxgb_debug && rspq->holdoff_tmr != last_holdoff) {
@@ -2984,9 +2985,9 @@ process_responses(adapter_t *adap, struct sge_qset *qs, int budget)
 			if (cxgb_debug)
 				printf("async notification\n");
 
-			if (rspq->rspq_mh.mh_head == NULL) {
-				rspq->rspq_mh.mh_head = m_gethdr(M_DONTWAIT, MT_DATA);
-				m = rspq->rspq_mh.mh_head;
+			if (mh->mh_head == NULL) {
+				mh->mh_head = m_gethdr(M_DONTWAIT, MT_DATA);
+				m = mh->mh_head;
 			} else {
 				m = m_gethdr(M_DONTWAIT, MT_DATA);
 			}
@@ -3005,27 +3006,28 @@ process_responses(adapter_t *adap, struct sge_qset *qs, int budget)
 
 			DPRINTF("IMM DATA VALID opcode=0x%x rspq->cidx=%d\n",
 			    r->rss_hdr.opcode, rspq->cidx);
-			if (rspq->rspq_mh.mh_head == NULL)
-				rspq->rspq_mh.mh_head = m_gethdr(M_DONTWAIT, MT_DATA);
+			if (mh->mh_head == NULL)
+				mh->mh_head = m_gethdr(M_DONTWAIT, MT_DATA);
                         else 
 				m = m_gethdr(M_DONTWAIT, MT_DATA);
 
-			if (rspq->rspq_mh.mh_head == NULL &&  m == NULL) {	
+			if (mh->mh_head == NULL &&  m == NULL) {	
 		no_mem:
 				rspq->next_holdoff = NOMEM_INTR_DELAY;
 				budget_left--;
 				break;
 			}
-			get_imm_packet(adap, r, rspq->rspq_mh.mh_head);
+			get_imm_packet(adap, r, mh->mh_head);
 			eop = 1;
 			rspq->imm_data++;
 		} else if (r->len_cq) {
 			int drop_thresh = eth ? SGE_RX_DROP_THRES : 0;
 			
-			eop = get_packet(adap, drop_thresh, qs, &rspq->rspq_mh, r);
+			eop = get_packet(adap, drop_thresh, qs, mh, r);
 			if (eop) {
-				rspq->rspq_mh.mh_head->m_flags |= M_FLOWID;
-				rspq->rspq_mh.mh_head->m_pkthdr.flowid = rss_hash;
+				if (r->rss_hdr.hash_type && !adap->timestamp)
+					mh->mh_head->m_flags |= M_FLOWID;
+				mh->mh_head->m_pkthdr.flowid = rss_hash;
 			}
 			
 			ethpad = 2;
@@ -3050,20 +3052,20 @@ process_responses(adapter_t *adap, struct sge_qset *qs, int budget)
 			rspq->credits = 0;
 		}
 		if (!eth && eop) {
-			rspq->rspq_mh.mh_head->m_pkthdr.csum_data = rss_csum;
+			mh->mh_head->m_pkthdr.csum_data = rss_csum;
 			/*
 			 * XXX size mismatch
 			 */
-			m_set_priority(rspq->rspq_mh.mh_head, rss_hash);
+			m_set_priority(mh->mh_head, rss_hash);
 
 			
 			ngathered = rx_offload(&adap->tdev, rspq,
-			    rspq->rspq_mh.mh_head, offload_mbufs, ngathered);
-			rspq->rspq_mh.mh_head = NULL;
+			    mh->mh_head, offload_mbufs, ngathered);
+			mh->mh_head = NULL;
 			DPRINTF("received offload packet\n");
 			
 		} else if (eth && eop) {
-			struct mbuf *m = rspq->rspq_mh.mh_head;
+			struct mbuf *m = mh->mh_head;
 
 			t3_rx_eth(adap, rspq, m, ethpad);
 
@@ -3092,7 +3094,7 @@ process_responses(adapter_t *adap, struct sge_qset *qs, int budget)
 				struct ifnet *ifp = m->m_pkthdr.rcvif;
 				(*ifp->if_input)(ifp, m);
 			}
-			rspq->rspq_mh.mh_head = NULL;
+			mh->mh_head = NULL;
 
 		}
 		__refill_fl_lt(adap, &qs->fl[0], 32);
@@ -3459,6 +3461,29 @@ t3_set_coalesce_usecs(SYSCTL_HANDLER_ARGS)
 	return (0);
 }
 
+static int
+t3_pkt_timestamp(SYSCTL_HANDLER_ARGS)
+{
+	adapter_t *sc = arg1;
+	int rc, timestamp;
+
+	if ((sc->flags & FULL_INIT_DONE) == 0)
+		return (ENXIO);
+
+	timestamp = sc->timestamp;
+	rc = sysctl_handle_int(oidp, &timestamp, arg2, req);
+
+	if (rc != 0)
+		return (rc);
+
+	if (timestamp != sc->timestamp) {
+		t3_set_reg_field(sc, A_TP_PC_CONFIG2, F_ENABLERXPKTTMSTPRSS,
+		    timestamp ? F_ENABLERXPKTTMSTPRSS : 0);
+		sc->timestamp = timestamp;
+	}
+
+	return (0);
+}
 
 void
 t3_add_attach_sysctls(adapter_t *sc)
@@ -3493,6 +3518,10 @@ t3_add_attach_sysctls(adapter_t *sc)
 	    "txq_overrun",
 	    CTLFLAG_RD, &txq_fills,
 	    0, "#times txq overrun");
+	SYSCTL_ADD_INT(ctx, children, OID_AUTO, 
+	    "core_clock",
+	    CTLFLAG_RD, &sc->params.vpd.cclk,
+	    0, "core clock frequency (in KHz)");
 }
 
 
@@ -3536,6 +3565,12 @@ t3_add_configured_sysctls(adapter_t *sc)
 	    CTLTYPE_INT|CTLFLAG_RW, sc,
 	    0, t3_set_coalesce_usecs,
 	    "I", "interrupt coalescing timer (us)");
+
+	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, 
+	    "pkt_timestamp",
+	    CTLTYPE_INT | CTLFLAG_RW, sc,
+	    0, t3_pkt_timestamp,
+	    "I", "provide packet timestamp instead of connection hash");
 
 	for (i = 0; i < sc->params.nports; i++) {
 		struct port_info *pi = &sc->port[i];
