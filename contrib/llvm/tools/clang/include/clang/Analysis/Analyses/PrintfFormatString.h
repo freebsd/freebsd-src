@@ -308,7 +308,7 @@ public:
 };
 
 bool ParseFormatString(FormatStringHandler &H,
-                       const char *beg, const char *end);
+                       const char *beg, const char *end, bool FormatExtensions);
 
 } // end printf namespace
 } // end clang namespace

@@ -54,6 +54,7 @@ public:
 
   unsigned NeXTRuntime       : 1; // Use NeXT runtime.
   unsigned Freestanding      : 1; // Freestanding implementation
+  unsigned FormatExtensions  : 1; // FreeBSD format extensions (-fformat-extensions)
   unsigned NoBuiltin         : 1; // Do not use builtin functions (-fno-builtin)
 
   unsigned ThreadsafeStatics : 1; // Whether static initializers are protected

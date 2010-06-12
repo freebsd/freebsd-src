@@ -1433,7 +1433,8 @@ void Sema::CheckPrintfString(const StringLiteral *FExpr,
                        isa<ObjCStringLiteral>(OrigFormatExpr), Str,
                        HasVAListArg, TheCall, format_idx);
 
-  if (!analyze_printf::ParseFormatString(H, Str, Str + StrLen))
+  bool FormatExtensions = getLangOptions().FormatExtensions;
+  if (!analyze_printf::ParseFormatString(H, Str, Str + StrLen, FormatExtensions))
     H.DoneProcessing();
 }
 
