@@ -32,7 +32,7 @@
 .\"     @(#)date.1	8.3 (Berkeley) 4/28/95
 .\" $FreeBSD$
 .\"
-.Dd June 2, 2007
+.Dd June 3, 2010
 .Dt DATE 1
 .Os
 .Sh NAME
@@ -219,6 +219,14 @@ When the date is adjusted to a specific value that occurs twice
 the resulting timezone will be set so that the date matches the earlier of
 the two times.
 .Pp
+It is not possible to adjust a date to an invalid absolute day, so using
+the switches
+.Fl v No 31d Fl v No 12m
+will simply fail five months of the year.
+It is therefore usual to set the month before setting the day; using
+.Fl v No 12m Fl v No 31d
+always works.
+.Pp
 Adjusting the date by months is inherently ambiguous because
 a month is a unit of variable length depending on the current date.
 This kind of date adjustment is applied in the most intuitive way.
@@ -339,9 +347,9 @@ will display the last day of February in the year 2000:
 .Pp
 .Dl "Tue Feb 29 03:18:00 GMT 2000"
 .Pp
-So will do the command:
+So will the command:
 .Pp
-.Dl "date -v30d -v3m -v0y -v-1m"
+.Dl "date -v3m -v30d -v0y -v-1m"
 .Pp
 because there is no such date as the 30th of February.
 .Pp
