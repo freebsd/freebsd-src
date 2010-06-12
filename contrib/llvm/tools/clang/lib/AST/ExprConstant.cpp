@@ -1274,7 +1274,7 @@ bool IntExprEvaluator::VisitBinaryOperator(const BinaryOperator *E) {
       // Reject any bases from the normal codepath; we special-case comparisons
       // to null.
       if (LHSValue.getLValueBase()) {
-//        if (!E->isEqualityOp())
+        if (!E->isEqualityOp())
           return false;
         if (RHSValue.getLValueBase() || !RHSValue.getLValueOffset().isZero())
           return false;
@@ -1283,7 +1283,7 @@ bool IntExprEvaluator::VisitBinaryOperator(const BinaryOperator *E) {
           return false;
         return Success(bres ^ (E->getOpcode() == BinaryOperator::EQ), E);
       } else if (RHSValue.getLValueBase()) {
-//        if (!E->isEqualityOp())
+        if (!E->isEqualityOp())
           return false;
         if (LHSValue.getLValueBase() || !LHSValue.getLValueOffset().isZero())
           return false;
