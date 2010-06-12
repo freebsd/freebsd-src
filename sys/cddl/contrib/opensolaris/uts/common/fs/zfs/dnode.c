@@ -1317,16 +1317,7 @@ dnode_next_offset_level(dnode_t *dn, int flags, uint64_t *offset,
 
 		for (i = (*offset >> span) & (blkfill - 1);
 		    i >= 0 && i < blkfill; i += inc) {
-			boolean_t newcontents = B_TRUE;
-			if (txg) {
-				int j;
-				newcontents = B_FALSE;
-				for (j = 0; j < dnp[i].dn_nblkptr; j++) {
-					if (dnp[i].dn_blkptr[j].blk_birth > txg)
-						newcontents = B_TRUE;
-				}
-			}
-			if (!dnp[i].dn_type == hole && newcontents)
+			if ((dnp[i].dn_type == DMU_OT_NONE) == hole)
 				break;
 			*offset += (1ULL << span) * inc;
 		}
