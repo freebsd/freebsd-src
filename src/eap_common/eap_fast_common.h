@@ -24,8 +24,7 @@
 #define TLS_EXT_PAC_OPAQUE 35
 
 /*
- * draft-cam-winget-eap-fast-provisioning-04.txt:
- * Section 4.2.1 - Formats for PAC TLV Attributes / Type Field
+ * RFC 5422: Section 4.2.1 - Formats for PAC TLV Attributes / Type Field
  * Note: bit 0x8000 (Mandatory) and bit 0x4000 (Reserved) are also defined
  * in the general PAC TLV format (Section 4.2).
  */
@@ -59,10 +58,7 @@ struct pac_tlv_hdr {
 
 #define EAP_FAST_PAC_KEY_LEN 32
 
-/* draft-cam-winget-eap-fast-provisioning-04.txt: 4.2.6 PAC-Type TLV
- * Note: Machine Authentication PAC and User Authorization PAC were removed in
- * draft-cam-winget-eap-fast-provisioning-03.txt
- */
+/* RFC 5422: 4.2.6 PAC-Type TLV */
 #define PAC_TYPE_TUNNEL_PAC 1
 /* Application Specific Short Lived PACs (only in volatile storage) */
 /* User Authorization PAC */
@@ -73,8 +69,8 @@ struct pac_tlv_hdr {
 
 
 /*
- * draft-cam-winget-eap-fast-provisioning-04.txt:
- * Section 3.4 - Key Derivations Used in the EAP-FAST Provisioning Exchange
+ * RFC 5422:
+ * Section 3.3 - Key Derivations Used in the EAP-FAST Provisioning Exchange
  */
 struct eap_fast_key_block_provisioning {
 	/* Extra key material after TLS key_block */

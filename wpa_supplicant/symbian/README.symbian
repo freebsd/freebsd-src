@@ -1,0 +1,24 @@
+wpa_supplicant for Symbian
+==========================
+
+Copyright (c) 2003-2007, Jouni Malinen <j@w1.fi> and
+contributors
+All Rights Reserved.
+
+This program is dual-licensed under both the GPL version 2 and BSD
+license. Either license may be used at your option.
+
+
+This directory includes project files for testing experimental Symbian
+(e.g., Nokia S60 3rd Ed) builds. The Symbian port is not really
+complete or expected to work, but these files can be used to verify
+that the build itself can be completed successfully.
+
+These files have been successfully tested with Nokia S60 3rd Edition
+MR SDK.
+
+Build files can be created and a phone release build can be run with
+following commands:
+
+bldmake bldfiles
+abld build gcce urel

@@ -842,7 +842,7 @@ static int eap_ttls_phase2_request_pap(struct eap_sm *sm,
 	/* User-Password; in RADIUS, this is encrypted, but EAP-TTLS encrypts
 	 * the data, so no separate encryption is used in the AVP itself.
 	 * However, the password is padded to obfuscate its length. */
-	pad = (16 - (password_len & 15)) & 15;
+	pad = password_len == 0 ? 16 : (16 - (password_len & 15)) & 15;
 	pos = eap_ttls_avp_hdr(pos, RADIUS_ATTR_USER_PASSWORD, 0, 1,
 			       password_len + pad);
 	os_memcpy(pos, password, password_len);

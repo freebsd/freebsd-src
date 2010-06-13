@@ -56,7 +56,7 @@ void wpa_debug_print_timestamp(void)
  *
  * Note: New line '\n' is added to the end of the text when printing to stdout.
  */
-void wpa_printf(int level, char *fmt, ...)
+void wpa_printf(int level, const char *fmt, ...)
 {
 	va_list ap;
 
@@ -267,7 +267,7 @@ void wpa_msg_register_cb(wpa_msg_cb_func func)
 }
 
 
-void wpa_msg(void *ctx, int level, char *fmt, ...)
+void wpa_msg(void *ctx, int level, const char *fmt, ...)
 {
 	va_list ap;
 	char *buf;
@@ -286,6 +286,30 @@ void wpa_msg(void *ctx, int level, char *fmt, ...)
 	wpa_printf(level, "%s", buf);
 	if (wpa_msg_cb)
 		wpa_msg_cb(ctx, level, buf, len);
+	os_free(buf);
+}
+
+
+void wpa_msg_ctrl(void *ctx, int level, const char *fmt, ...)
+{
+	va_list ap;
+	char *buf;
+	const int buflen = 2048;
+	int len;
+
+	if (!wpa_msg_cb)
+		return;
+
+	buf = os_malloc(buflen);
+	if (buf == NULL) {
+		wpa_printf(MSG_ERROR, "wpa_msg_ctrl: Failed to allocate "
+			   "message buffer");
+		return;
+	}
+	va_start(ap, fmt);
+	len = vsnprintf(buf, buflen, fmt, ap);
+	va_end(ap);
+	wpa_msg_cb(ctx, level, buf, len);
 	os_free(buf);
 }
 #endif /* CONFIG_NO_WPA_MSG */

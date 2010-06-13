@@ -500,7 +500,7 @@ static void eap_tnc_process(struct eap_sm *sm, void *priv,
 static Boolean eap_tnc_isDone(struct eap_sm *sm, void *priv)
 {
 	struct eap_tnc_data *data = priv;
-	return data->state == DONE;
+	return data->state == DONE || data->state == FAIL;
 }
 
 
