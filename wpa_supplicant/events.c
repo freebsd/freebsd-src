@@ -251,6 +251,11 @@ static int wpa_supplicant_match_privacy(struct wpa_scan_res *bss,
 	if (ssid->mixed_cell)
 		return 1;
 
+#ifdef CONFIG_WPS
+	if (ssid->key_mgmt & WPA_KEY_MGMT_WPS)
+		return 1;
+#endif /* CONFIG_WPS */
+
 	for (i = 0; i < NUM_WEP_KEYS; i++) {
 		if (ssid->wep_key_len[i]) {
 			privacy = 1;
@@ -410,6 +415,11 @@ wpa_supplicant_select_bss_wpa(struct wpa_supplicant *wpa_s,
 			continue;
 		}
 
+		if (ssid_len == 0) {
+			wpa_printf(MSG_DEBUG, "   skip - SSID not known");
+			continue;
+		}
+
 		if (wpa_ie_len == 0 && rsn_ie_len == 0) {
 			wpa_printf(MSG_DEBUG, "   skip - no WPA/RSN IE");
 			continue;
@@ -500,6 +510,11 @@ wpa_supplicant_select_bss_non_wpa(struct wpa_supplicant *wpa_s,
 			continue;
 		}
 
+		if (ssid_len == 0) {
+			wpa_printf(MSG_DEBUG, "   skip - SSID not known");
+			continue;
+		}
+
 		for (ssid = group; ssid; ssid = ssid->pnext) {
 			int check_ssid = ssid->ssid_len != 0;
 
@@ -536,7 +551,7 @@ wpa_supplicant_select_bss_non_wpa(struct wpa_supplicant *wpa_s,
 					   "BSSID mismatch");
 				continue;
 			}
-			
+
 			if (!(ssid->key_mgmt & WPA_KEY_MGMT_NONE) &&
 			    !(ssid->key_mgmt & WPA_KEY_MGMT_WPS) &&
 			    !(ssid->key_mgmt & WPA_KEY_MGMT_IEEE8021X_NO_WPA))
@@ -546,7 +561,7 @@ wpa_supplicant_select_bss_non_wpa(struct wpa_supplicant *wpa_s,
 				continue;
 			}
 
-			if ((ssid->key_mgmt & 
+			if ((ssid->key_mgmt &
 			     (WPA_KEY_MGMT_IEEE8021X | WPA_KEY_MGMT_PSK |
 			      WPA_KEY_MGMT_FT_IEEE8021X | WPA_KEY_MGMT_FT_PSK |
 			      WPA_KEY_MGMT_IEEE8021X_SHA256 |
@@ -608,6 +623,8 @@ static void wpa_supplicant_event_scan_results(struct wpa_supplicant *wpa_s)
 	struct wpa_scan_res *selected = NULL;
 	struct wpa_ssid *ssid = NULL;
 
+	wpa_supplicant_notify_scanning(wpa_s, 0);
+
 	if (wpa_supplicant_get_scan_results(wpa_s) < 0) {
 		if (wpa_s->conf->ap_scan == 2)
 			return;
@@ -626,14 +643,19 @@ static void wpa_supplicant_event_scan_results(struct wpa_supplicant *wpa_s)
 		wpa_msg(wpa_s, MSG_DEBUG, "Cached scan results are "
 			"empty - not posting");
 	} else {
-		wpa_msg(wpa_s, MSG_INFO, WPA_EVENT_SCAN_RESULTS);
+		wpa_printf(MSG_DEBUG, "New scan results available");
+		wpa_msg_ctrl(wpa_s, MSG_INFO, WPA_EVENT_SCAN_RESULTS);
 		wpa_supplicant_dbus_notify_scan_results(wpa_s);
 		wpas_wps_notify_scan_results(wpa_s);
 	}
 
-	if ((wpa_s->conf->ap_scan == 2 && !wpas_wps_searching(wpa_s)) ||
-	    wpa_s->disconnected)
+	if ((wpa_s->conf->ap_scan == 2 && !wpas_wps_searching(wpa_s)))
 		return;
+
+	if (wpa_s->disconnected) {
+		wpa_supplicant_set_state(wpa_s, WPA_DISCONNECTED);
+		return;
+	}
 
 	while (selected == NULL) {
 		for (prio = 0; prio < wpa_s->conf->num_prio; prio++) {
@@ -696,6 +718,14 @@ req_scan:
 		 */
 		wpa_s->scan_res_tried++;
 		timeout = 0;
+	} else if (!wpa_supplicant_enabled_networks(wpa_s->conf)) {
+		/*
+		 * No networks are enabled; short-circuit request so
+		 * we don't wait timeout seconds before transitioning
+		 * to INACTIVE state.
+		 */
+		wpa_supplicant_set_state(wpa_s, WPA_INACTIVE);
+		return;
 	}
 	wpa_supplicant_req_scan(wpa_s, timeout, 0);
 }
@@ -863,6 +893,25 @@ static void wpa_supplicant_event_assoc(struct wpa_supplicant *wpa_s,
 		wpa_supplicant_set_state(wpa_s, WPA_COMPLETED);
 		eapol_sm_notify_portValid(wpa_s->eapol, TRUE);
 		eapol_sm_notify_eap_success(wpa_s->eapol, TRUE);
+	}
+
+	if (wpa_s->pending_eapol_rx) {
+		struct os_time now, age;
+		os_get_time(&now);
+		os_time_sub(&now, &wpa_s->pending_eapol_rx_time, &age);
+		if (age.sec == 0 && age.usec < 100000 &&
+		    os_memcmp(wpa_s->pending_eapol_rx_src, bssid, ETH_ALEN) ==
+		    0) {
+			wpa_printf(MSG_DEBUG, "Process pending EAPOL frame "
+				   "that was received just before association "
+				   "notification");
+			wpa_supplicant_rx_eapol(
+				wpa_s, wpa_s->pending_eapol_rx_src,
+				wpabuf_head(wpa_s->pending_eapol_rx),
+				wpabuf_len(wpa_s->pending_eapol_rx));
+		}
+		wpabuf_free(wpa_s->pending_eapol_rx);
+		wpa_s->pending_eapol_rx = NULL;
 	}
 }
 

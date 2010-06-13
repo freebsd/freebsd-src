@@ -201,15 +201,15 @@ static struct hostapd_config * hostapd_config_defaults(void)
 	struct hostapd_config *conf;
 	struct hostapd_bss_config *bss;
 	int i;
-	const int aCWmin = 15, aCWmax = 1024;
-	const struct hostapd_wme_ac_params ac_bk =
+	const int aCWmin = 4, aCWmax = 10;
+	const struct hostapd_wmm_ac_params ac_bk =
 		{ aCWmin, aCWmax, 7, 0, 0 }; /* background traffic */
-	const struct hostapd_wme_ac_params ac_be =
+	const struct hostapd_wmm_ac_params ac_be =
 		{ aCWmin, aCWmax, 3, 0, 0 }; /* best effort traffic */
-	const struct hostapd_wme_ac_params ac_vi = /* video traffic */
-		{ aCWmin >> 1, aCWmin, 2, 3000 / 32, 1 };
-	const struct hostapd_wme_ac_params ac_vo = /* voice traffic */
-		{ aCWmin >> 2, aCWmin >> 1, 2, 1500 / 32, 1 };
+	const struct hostapd_wmm_ac_params ac_vi = /* video traffic */
+		{ aCWmin - 1, aCWmin, 2, 3000 / 32, 1 };
+	const struct hostapd_wmm_ac_params ac_vo = /* voice traffic */
+		{ aCWmin - 2, aCWmin - 1, 2, 1500 / 32, 1 };
 
 	conf = os_zalloc(sizeof(*conf));
 	bss = os_zalloc(sizeof(*bss));
@@ -251,10 +251,10 @@ static struct hostapd_config * hostapd_config_defaults(void)
 	for (i = 0; i < NUM_TX_QUEUES; i++)
 		conf->tx_queue[i].aifs = -1; /* use hw default */
 
-	conf->wme_ac_params[0] = ac_be;
-	conf->wme_ac_params[1] = ac_bk;
-	conf->wme_ac_params[2] = ac_vi;
-	conf->wme_ac_params[3] = ac_vo;
+	conf->wmm_ac_params[0] = ac_be;
+	conf->wmm_ac_params[1] = ac_bk;
+	conf->wmm_ac_params[2] = ac_vi;
+	conf->wmm_ac_params[3] = ac_vo;
 
 #ifdef CONFIG_IEEE80211N
 	conf->ht_capab = HT_CAP_INFO_SMPS_DISABLED;
@@ -1166,14 +1166,14 @@ static int hostapd_config_tx_queue(struct hostapd_config *conf, char *name,
 }
 
 
-static int hostapd_config_wme_ac(struct hostapd_config *conf, char *name,
-				   char *val)
+static int hostapd_config_wmm_ac(struct hostapd_config *conf, char *name,
+				 char *val)
 {
 	int num, v;
 	char *pos;
-	struct hostapd_wme_ac_params *ac;
+	struct hostapd_wmm_ac_params *ac;
 
-	/* skip 'wme_ac_' prefix */
+	/* skip 'wme_ac_' or 'wmm_ac_' prefix */
 	pos = name + 7;
 	if (os_strncmp(pos, "be_", 3) == 0) {
 		num = 0;
@@ -1188,11 +1188,11 @@ static int hostapd_config_wme_ac(struct hostapd_config *conf, char *name,
 		num = 3;
 		pos += 3;
 	} else {
-		wpa_printf(MSG_ERROR, "Unknown wme name '%s'", pos);
+		wpa_printf(MSG_ERROR, "Unknown WMM name '%s'", pos);
 		return -1;
 	}
 
-	ac = &conf->wme_ac_params[num];
+	ac = &conf->wmm_ac_params[num];
 
 	if (os_strcmp(pos, "aifs") == 0) {
 		v = atoi(val);
@@ -1221,7 +1221,7 @@ static int hostapd_config_wme_ac(struct hostapd_config *conf, char *name,
 			wpa_printf(MSG_ERROR, "Invalid txop value %d", v);
 			return -1;
 		}
-		ac->txopLimit = v;
+		ac->txop_limit = v;
 	} else if (os_strcmp(pos, "acm") == 0) {
 		v = atoi(val);
 		if (v < 0 || v > 1) {
@@ -1230,7 +1230,7 @@ static int hostapd_config_wme_ac(struct hostapd_config *conf, char *name,
 		}
 		ac->admission_control_mandatory = v;
 	} else {
-		wpa_printf(MSG_ERROR, "Unknown wme_ac_ field '%s'", pos);
+		wpa_printf(MSG_ERROR, "Unknown wmm_ac_ field '%s'", pos);
 		return -1;
 	}
 
@@ -1452,13 +1452,13 @@ struct hostapd_config * hostapd_config_read(const char *fname)
 		} else if (os_strcmp(buf, "bridge") == 0) {
 			os_strlcpy(bss->bridge, pos, sizeof(bss->bridge));
 		} else if (os_strcmp(buf, "driver") == 0) {
-			int i;
+			int j;
 			/* clear to get error below if setting is invalid */
 			conf->driver = NULL;
-			for (i = 0; hostapd_drivers[i]; i++) {
-				if (os_strcmp(pos, hostapd_drivers[i]->name) ==
+			for (j = 0; hostapd_drivers[j]; j++) {
+				if (os_strcmp(pos, hostapd_drivers[j]->name) ==
 				    0) {
-					conf->driver = hostapd_drivers[i];
+					conf->driver = hostapd_drivers[j];
 					break;
 				}
 			}
@@ -2070,11 +2070,13 @@ struct hostapd_config * hostapd_config_read(const char *fname)
 					   "queue item", line);
 				errors++;
 			}
-		} else if (os_strcmp(buf, "wme_enabled") == 0) {
-			bss->wme_enabled = atoi(pos);
-		} else if (os_strncmp(buf, "wme_ac_", 7) == 0) {
-			if (hostapd_config_wme_ac(conf, buf, pos)) {
-				wpa_printf(MSG_ERROR, "Line %d: invalid wme "
+		} else if (os_strcmp(buf, "wme_enabled") == 0 ||
+			   os_strcmp(buf, "wmm_enabled") == 0) {
+			bss->wmm_enabled = atoi(pos);
+		} else if (os_strncmp(buf, "wme_ac_", 7) == 0 ||
+			   os_strncmp(buf, "wmm_ac_", 7) == 0) {
+			if (hostapd_config_wmm_ac(conf, buf, pos)) {
+				wpa_printf(MSG_ERROR, "Line %d: invalid WMM "
 					   "ac item", line);
 				errors++;
 			}
@@ -2255,28 +2257,29 @@ struct hostapd_config * hostapd_config_read(const char *fname)
 
 	fclose(f);
 
-	if (bss->individual_wep_key_len == 0) {
-		/* individual keys are not use; can use key idx0 for broadcast
-		 * keys */
-		bss->broadcast_key_idx_min = 0;
-	}
-
-	/* Select group cipher based on the enabled pairwise cipher suites */
-	pairwise = 0;
-	if (bss->wpa & 1)
-		pairwise |= bss->wpa_pairwise;
-	if (bss->wpa & 2) {
-		if (bss->rsn_pairwise == 0)
-			bss->rsn_pairwise = bss->wpa_pairwise;
-		pairwise |= bss->rsn_pairwise;
-	}
-	if (pairwise & WPA_CIPHER_TKIP)
-		bss->wpa_group = WPA_CIPHER_TKIP;
-	else
-		bss->wpa_group = WPA_CIPHER_CCMP;
-
 	for (i = 0; i < conf->num_bss; i++) {
 		bss = &conf->bss[i];
+
+		if (bss->individual_wep_key_len == 0) {
+			/* individual keys are not use; can use key idx0 for
+			 * broadcast keys */
+			bss->broadcast_key_idx_min = 0;
+		}
+
+		/* Select group cipher based on the enabled pairwise cipher
+		 * suites */
+		pairwise = 0;
+		if (bss->wpa & 1)
+			pairwise |= bss->wpa_pairwise;
+		if (bss->wpa & 2) {
+			if (bss->rsn_pairwise == 0)
+				bss->rsn_pairwise = bss->wpa_pairwise;
+			pairwise |= bss->rsn_pairwise;
+		}
+		if (pairwise & WPA_CIPHER_TKIP)
+			bss->wpa_group = WPA_CIPHER_TKIP;
+		else
+			bss->wpa_group = WPA_CIPHER_CCMP;
 
 		bss->radius->auth_server = bss->radius->auth_servers;
 		bss->radius->acct_server = bss->radius->acct_servers;
@@ -2476,6 +2479,8 @@ void hostapd_config_free(struct hostapd_config *conf)
 	for (i = 0; i < conf->num_bss; i++)
 		hostapd_config_free_bss(&conf->bss[i]);
 	os_free(conf->bss);
+	os_free(conf->supported_rates);
+	os_free(conf->basic_rates);
 
 	os_free(conf);
 }

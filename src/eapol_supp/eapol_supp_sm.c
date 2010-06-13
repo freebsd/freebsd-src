@@ -282,7 +282,12 @@ SM_STATE(SUPP_PAE, CONNECTING)
 		 * delay authentication. Use a short timeout to send the first
 		 * EAPOL-Start if Authenticator does not start authentication.
 		 */
+#ifdef CONFIG_WPS
+		/* Reduce latency on starting WPS negotiation. */
+		sm->startWhen = 1;
+#else /* CONFIG_WPS */
 		sm->startWhen = 3;
+#endif /* CONFIG_WPS */
 	}
 	eapol_enable_timer_tick(sm);
 	sm->eapolEap = FALSE;
@@ -737,8 +742,8 @@ static void eapol_sm_processKey(struct eapol_sm *sm)
 		os_memcpy(ekey + IEEE8021X_KEY_IV_LEN, keydata.encr_key,
 			  encr_key_len);
 		os_memcpy(datakey, key + 1, key_len);
-		rc4(datakey, key_len, ekey,
-		    IEEE8021X_KEY_IV_LEN + encr_key_len);
+		rc4_skip(ekey, IEEE8021X_KEY_IV_LEN + encr_key_len, 0,
+			 datakey, key_len);
 		wpa_hexdump_key(MSG_DEBUG, "EAPOL: Decrypted(RC4) key",
 				datakey, key_len);
 	} else if (key_len == 0) {

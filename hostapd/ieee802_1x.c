@@ -164,7 +164,7 @@ static void ieee802_1x_tx_key_one(struct hostapd_data *hapd,
 	}
 	os_memcpy(ekey, key->key_iv, sizeof(key->key_iv));
 	os_memcpy(ekey + sizeof(key->key_iv), sm->eap_if->eapKeyData, 32);
-	rc4((u8 *) (key + 1), key_len, ekey, ekey_len);
+	rc4_skip(ekey, ekey_len, 0, (u8 *) (key + 1), key_len);
 	os_free(ekey);
 
 	/* This header is needed here for HMAC-MD5, but it will be regenerated

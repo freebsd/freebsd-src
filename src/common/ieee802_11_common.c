@@ -49,26 +49,33 @@ static int ieee802_11_parse_vendor_specific(u8 *pos, size_t elen,
 			elems->wpa_ie = pos;
 			elems->wpa_ie_len = elen;
 			break;
-		case WME_OUI_TYPE: /* this is a Wi-Fi WME info. element */
+		case WMM_OUI_TYPE:
+			/* WMM information element */
 			if (elen < 5) {
-				wpa_printf(MSG_MSGDUMP, "short WME "
+				wpa_printf(MSG_MSGDUMP, "short WMM "
 					   "information element ignored "
 					   "(len=%lu)",
 					   (unsigned long) elen);
 				return -1;
 			}
 			switch (pos[4]) {
-			case WME_OUI_SUBTYPE_INFORMATION_ELEMENT:
-			case WME_OUI_SUBTYPE_PARAMETER_ELEMENT:
-				elems->wme = pos;
-				elems->wme_len = elen;
+			case WMM_OUI_SUBTYPE_INFORMATION_ELEMENT:
+			case WMM_OUI_SUBTYPE_PARAMETER_ELEMENT:
+				/*
+				 * Share same pointer since only one of these
+				 * is used and they start with same data.
+				 * Length field can be used to distinguish the
+				 * IEs.
+				 */
+				elems->wmm = pos;
+				elems->wmm_len = elen;
 				break;
-			case WME_OUI_SUBTYPE_TSPEC_ELEMENT:
-				elems->wme_tspec = pos;
-				elems->wme_tspec_len = elen;
+			case WMM_OUI_SUBTYPE_TSPEC_ELEMENT:
+				elems->wmm_tspec = pos;
+				elems->wmm_tspec_len = elen;
 				break;
 			default:
-				wpa_printf(MSG_MSGDUMP, "unknown WME "
+				wpa_printf(MSG_MSGDUMP, "unknown WMM "
 					   "information element ignored "
 					   "(subtype=%d len=%lu)",
 					   pos[4], (unsigned long) elen);

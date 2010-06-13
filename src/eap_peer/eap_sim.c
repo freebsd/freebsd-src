@@ -468,8 +468,6 @@ static struct wpabuf * eap_sim_response_notification(struct eap_sim_data *data,
 	wpa_printf(MSG_DEBUG, "Generating EAP-SIM Notification (id=%d)", id);
 	msg = eap_sim_msg_init(EAP_CODE_RESPONSE, id,
 			       EAP_TYPE_SIM, EAP_SIM_SUBTYPE_NOTIFICATION);
-	wpa_printf(MSG_DEBUG, "   AT_NOTIFICATION");
-	eap_sim_msg_add(msg, EAP_SIM_AT_NOTIFICATION, notification, NULL, 0);
 	if (k_aut && data->reauth) {
 		wpa_printf(MSG_DEBUG, "   AT_IV");
 		wpa_printf(MSG_DEBUG, "   AT_ENCR_DATA");

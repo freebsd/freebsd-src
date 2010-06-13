@@ -1,6 +1,6 @@
 /*
- * WPA Supplicant / Crypto wrapper for Microsoft CryptoAPI
- * Copyright (c) 2005-2006, Jouni Malinen <j@w1.fi>
+ * Crypto wrapper for Microsoft CryptoAPI
+ * Copyright (c) 2005-2009, Jouni Malinen <j@w1.fi>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -40,12 +40,6 @@ L"Microsoft Enhanced RSA and AES Cryptographic Provider (Prototype)"
  * define here whatever extra is needed.
  */
 
-static PCCERT_CONTEXT WINAPI
-(*CertCreateCertificateContext)(DWORD dwCertEncodingType,
-				const BYTE *pbCertEncoded,
-				DWORD cbCertEncoded)
-= NULL; /* to be loaded from crypt32.dll */
-
 static BOOL WINAPI
 (*CryptImportPublicKeyInfo)(HCRYPTPROV hCryptProv, DWORD dwCertEncodingType,
 			    PCERT_PUBLIC_KEY_INFO pInfo, HCRYPTKEY *phKey)
@@ -59,22 +53,13 @@ static int mingw_load_crypto_func(void)
 	/* MinGW does not yet have full CryptoAPI support, so load the needed
 	 * function here. */
 
-	if (CertCreateCertificateContext)
+	if (CryptImportPublicKeyInfo)
 		return 0;
 
 	dll = LoadLibrary("crypt32");
 	if (dll == NULL) {
 		wpa_printf(MSG_DEBUG, "CryptoAPI: Could not load crypt32 "
 			   "library");
-		return -1;
-	}
-
-	CertCreateCertificateContext = (void *) GetProcAddress(
-		dll, "CertCreateCertificateContext");
-	if (CertCreateCertificateContext == NULL) {
-		wpa_printf(MSG_DEBUG, "CryptoAPI: Could not get "
-			   "CertCreateCertificateContext() address from "
-			   "crypt32 library");
 		return -1;
 	}
 

@@ -16,6 +16,7 @@
 #include <sys/un.h>
 #include <sys/stat.h>
 #include <grp.h>
+#include <stddef.h>
 
 #include "common.h"
 #include "eloop.h"
@@ -69,7 +70,8 @@ static int wpa_supplicant_ctrl_iface_attach(struct ctrl_iface_priv *priv,
 	dst->next = priv->ctrl_dst;
 	priv->ctrl_dst = dst;
 	wpa_hexdump(MSG_DEBUG, "CTRL_IFACE monitor attached",
-		    (u8 *) from->sun_path, fromlen - sizeof(from->sun_family));
+		    (u8 *) from->sun_path,
+		    fromlen - offsetof(struct sockaddr_un, sun_path));
 	return 0;
 }
 
@@ -84,7 +86,8 @@ static int wpa_supplicant_ctrl_iface_detach(struct ctrl_iface_priv *priv,
 	while (dst) {
 		if (fromlen == dst->addrlen &&
 		    os_memcmp(from->sun_path, dst->addr.sun_path,
-			      fromlen - sizeof(from->sun_family)) == 0) {
+			      fromlen - offsetof(struct sockaddr_un, sun_path))
+		    == 0) {
 			if (prev == NULL)
 				priv->ctrl_dst = dst->next;
 			else
@@ -92,7 +95,8 @@ static int wpa_supplicant_ctrl_iface_detach(struct ctrl_iface_priv *priv,
 			os_free(dst);
 			wpa_hexdump(MSG_DEBUG, "CTRL_IFACE monitor detached",
 				    (u8 *) from->sun_path,
-				    fromlen - sizeof(from->sun_family));
+				    fromlen -
+				    offsetof(struct sockaddr_un, sun_path));
 			return 0;
 		}
 		prev = dst;
@@ -115,10 +119,12 @@ static int wpa_supplicant_ctrl_iface_level(struct ctrl_iface_priv *priv,
 	while (dst) {
 		if (fromlen == dst->addrlen &&
 		    os_memcmp(from->sun_path, dst->addr.sun_path,
-			      fromlen - sizeof(from->sun_family)) == 0) {
+			      fromlen - offsetof(struct sockaddr_un, sun_path))
+		    == 0) {
 			wpa_hexdump(MSG_DEBUG, "CTRL_IFACE changed monitor "
 				    "level", (u8 *) from->sun_path,
-				    fromlen - sizeof(from->sun_family));
+				    fromlen -
+				    offsetof(struct sockaddr_un, sun_path));
 			dst->debug_level = atoi(level);
 			return 0;
 		}
@@ -326,6 +332,14 @@ wpa_supplicant_ctrl_iface_init(struct wpa_supplicant *wpa_s)
 		goto fail;
 	}
 
+	/* Make sure the group can enter and read the directory */
+	if (gid_set &&
+	    chmod(dir, S_IRUSR | S_IWUSR | S_IXUSR | S_IRGRP | S_IXGRP) < 0) {
+		wpa_printf(MSG_ERROR, "CTRL: chmod[ctrl_interface]: %s",
+			   strerror(errno));
+		goto fail;
+	}
+
 	if (os_strlen(dir) + 1 + os_strlen(wpa_s->ifname) >=
 	    sizeof(addr.sun_path)) {
 		wpa_printf(MSG_ERROR, "ctrl_iface path limit exceeded");
@@ -339,6 +353,9 @@ wpa_supplicant_ctrl_iface_init(struct wpa_supplicant *wpa_s)
 	}
 
 	os_memset(&addr, 0, sizeof(addr));
+#ifdef __FreeBSD__
+	addr.sun_len = sizeof(addr);
+#endif /* __FreeBSD__ */
 	addr.sun_family = AF_UNIX;
 	fname = wpa_supplicant_ctrl_iface_path(wpa_s);
 	if (fname == NULL)
@@ -510,13 +527,16 @@ static void wpa_supplicant_ctrl_iface_send(struct ctrl_iface_priv *priv,
 		if (level >= dst->debug_level) {
 			wpa_hexdump(MSG_DEBUG, "CTRL_IFACE monitor send",
 				    (u8 *) dst->addr.sun_path, dst->addrlen -
-				    sizeof(dst->addr.sun_family));
+				    offsetof(struct sockaddr_un, sun_path));
 			msg.msg_name = (void *) &dst->addr;
 			msg.msg_namelen = dst->addrlen;
 			if (sendmsg(priv->sock, &msg, 0) < 0) {
-				perror("sendmsg(CTRL_IFACE monitor)");
+				int _errno = errno;
+				wpa_printf(MSG_INFO, "CTRL_IFACE monitor[%d]: "
+					   "%d - %s",
+					   idx, errno, strerror(errno));
 				dst->errors++;
-				if (dst->errors > 10) {
+				if (dst->errors > 10 || _errno == ENOENT) {
 					wpa_supplicant_ctrl_iface_detach(
 						priv, &dst->addr,
 						dst->addrlen);
@@ -637,6 +657,9 @@ wpa_supplicant_global_ctrl_iface_init(struct wpa_global *global)
 	}
 
 	os_memset(&addr, 0, sizeof(addr));
+#ifdef __FreeBSD__
+	addr.sun_len = sizeof(addr);
+#endif /* __FreeBSD__ */
 	addr.sun_family = AF_UNIX;
 	os_strlcpy(addr.sun_path, global->params.ctrl_interface,
 		   sizeof(addr.sun_path));
