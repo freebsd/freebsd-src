@@ -105,9 +105,7 @@ int		 el_parse(EditLine *, int, const char **);
  */
 int		 el_set(EditLine *, int, ...);
 int		 el_get(EditLine *, int, ...);
-#if 0
 unsigned char	_el_fn_complete(EditLine *, int);
-#endif
 
 /*
  * el_set/el_get parameters
