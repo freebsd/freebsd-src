@@ -69,3 +69,7 @@ device		scbus
 device		pass
 device		da
 
+# Flattened Device Tree
+options 	FDT
+options		FDT_DTB_STATIC
+makeoptions	FDT_DTS_FILE=sheevaplug.dts

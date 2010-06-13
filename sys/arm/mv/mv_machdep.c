@@ -37,6 +37,7 @@
 
 #include "opt_msgbuf.h"
 #include "opt_ddb.h"
+#include "opt_platform.h"
 
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
@@ -65,6 +66,10 @@ __FBSDID("$FreeBSD$");
 #include <sys/msgbuf.h>
 #include <machine/reg.h>
 #include <machine/cpu.h>
+#include <machine/fdt.h>
+
+#include <dev/fdt/fdt_common.h>
+#include <dev/ofw/openfirm.h>
 
 #include <vm/vm.h>
 #include <vm/pmap.h>
@@ -82,10 +87,13 @@ __FBSDID("$FreeBSD$");
 #include <machine/armreg.h>
 #include <machine/bus.h>
 #include <sys/reboot.h>
-#include <machine/bootinfo.h>
 
+#include <arm/mv/mvreg.h>	/* XXX */
 #include <arm/mv/mvvar.h>	/* XXX eventually this should be eliminated */
 #include <arm/mv/mvwin.h>
+
+#define DEBUG
+#undef DEBUG
 
 #ifdef  DEBUG
 #define debugf(fmt, args...) printf(fmt, ##args)
@@ -105,9 +113,6 @@ __FBSDID("$FreeBSD$");
 #define ABT_STACK_SIZE	1
 #define UND_STACK_SIZE	1
 
-/* Maximum number of memory regions */
-#define MEM_REGIONS	8
-
 extern unsigned char kernbase[];
 extern unsigned char _etext[];
 extern unsigned char _edata[];
@@ -118,13 +123,10 @@ extern u_int data_abort_handler_address;
 extern u_int prefetch_abort_handler_address;
 extern u_int undefined_handler_address;
 
-extern const struct pmap_devmap *pmap_devmap_bootstrap_table;
 extern vm_offset_t pmap_bootstrap_lastaddr;
-
-struct pv_addr kernel_pt_table[KERNEL_PT_MAX];
-
 extern int *end;
 
+struct pv_addr kernel_pt_table[KERNEL_PT_MAX];
 struct pcpu __pcpu;
 struct pcpu *pcpup = &__pcpu;
 
@@ -145,21 +147,15 @@ struct pv_addr kernelstack;
 
 static struct trapframe proc0_tf;
 
-struct mem_region {
-	vm_offset_t	mr_start;
-	vm_size_t	mr_size;
-};
-
-static struct mem_region availmem_regions[MEM_REGIONS];
+static struct mem_region availmem_regions[FDT_MEM_REGIONS];
 static int availmem_regions_sz;
-
-struct bootinfo *bootinfo;
 
 static void print_kenv(void);
 static void print_kernel_section_addr(void);
-static void print_bootinfo(void);
 
 static void physmap_init(int);
+static int platform_devmap_init(void);
+static int platform_mpp_init(void);
 
 static char *
 kenv_next(char *cp)
@@ -194,40 +190,6 @@ print_kenv(void)
 }
 
 static void
-print_bootinfo(void)
-{
-	struct bi_mem_region *mr;
-	struct bi_eth_addr *eth;
-	int i, j;
-
-	debugf("bootinfo:\n");
-	if (bootinfo == NULL) {
-		debugf(" no bootinfo, null ptr\n");
-		return;
-	}
-
-	debugf(" version = 0x%08x\n", bootinfo->bi_version);
-	debugf(" ccsrbar = 0x%08x\n", bootinfo->bi_bar_base);
-	debugf(" cpu_clk = 0x%08x\n", bootinfo->bi_cpu_clk);
-	debugf(" bus_clk = 0x%08x\n", bootinfo->bi_bus_clk);
-
-	debugf(" mem regions:\n");
-	mr = (struct bi_mem_region *)bootinfo->bi_data;
-	for (i = 0; i < bootinfo->bi_mem_reg_no; i++, mr++)
-		debugf("    #%d, base = 0x%08x, size = 0x%08x\n", i,
-		    mr->mem_base, mr->mem_size);
-
-	debugf(" eth addresses:\n");
-	eth = (struct bi_eth_addr *)mr;
-	for (i = 0; i < bootinfo->bi_eth_addr_no; i++, eth++) {
-		debugf("    #%d, addr = ", i);
-		for (j = 0; j < 6; j++)
-			debugf("%02x ", eth->mac_addr[j]);
-		debugf("\n");
-	}
-}
-
-static void
 print_kernel_section_addr(void)
 {
 
@@ -237,13 +199,6 @@ print_kernel_section_addr(void)
 	debugf(" _edata         = 0x%08x\n", (uint32_t)_edata);
 	debugf(" __bss_start    = 0x%08x\n", (uint32_t)__bss_start);
 	debugf(" _end           = 0x%08x\n", (uint32_t)_end);
-}
-
-struct bi_mem_region *
-bootinfo_mr(void)
-{
-
-	return ((struct bi_mem_region *)bootinfo->bi_data);
 }
 
 static void
@@ -361,9 +316,8 @@ initarm(void *mdp, void *unused __unused)
 {
 	struct pv_addr kernel_l1pt;
 	struct pv_addr dpcpu;
-	vm_offset_t freemempos, l2_start, lastaddr;
+	vm_offset_t dtbp, freemempos, l2_start, lastaddr;
 	uint32_t memsize, l2size;
-	struct bi_mem_region *mr;
 	void *kmdp;
 	u_int l1pagetable;
 	int i = 0, j = 0;
@@ -371,6 +325,7 @@ initarm(void *mdp, void *unused __unused)
 	kmdp = NULL;
 	lastaddr = 0;
 	memsize = 0;
+	dtbp = (vm_offset_t)NULL;
 
 	set_cpufuncs();
 
@@ -387,24 +342,13 @@ initarm(void *mdp, void *unused __unused)
 		preload_metadata = mdp;
 		kmdp = preload_search_by_type("elf kernel");
 		if (kmdp != NULL) {
-			bootinfo = (struct bootinfo *)preload_search_info(kmdp,
-			    MODINFO_METADATA|MODINFOMD_BOOTINFO);
-
 			boothowto = MD_FETCH(kmdp, MODINFOMD_HOWTO, int);
 			kern_envp = MD_FETCH(kmdp, MODINFOMD_ENVP, char *);
-			lastaddr = MD_FETCH(kmdp, MODINFOMD_KERNEND, vm_offset_t);
+			dtbp = MD_FETCH(kmdp, MODINFOMD_DTBP, vm_offset_t);
+			lastaddr = MD_FETCH(kmdp, MODINFOMD_KERNEND,
+			    vm_offset_t);
 		}
 
-		/* Initialize memory regions table */
-		mr = bootinfo_mr();
-		for (i = 0; i < bootinfo->bi_mem_reg_no; i++, mr++) {
-			if (i == MEM_REGIONS)
-				break;
-			availmem_regions[i].mr_start = mr->mem_base;
-			availmem_regions[i].mr_size = mr->mem_size;
-			memsize += mr->mem_size;
-		}
-		availmem_regions_sz = i;
 	} else {
 		/* Fall back to hardcoded metadata. */
 		lastaddr = fake_preload_metadata();
@@ -416,16 +360,31 @@ initarm(void *mdp, void *unused __unused)
 		memsize = PHYSMEM_SIZE;
 	}
 
+#if defined(FDT_DTB_STATIC)
 	/*
-	 * If memsize is invalid, we can neither proceed nor panic (too
-	 * early for console output).
+	 * In case the device tree blob was not retrieved (from metadata) try
+	 * to use the statically embedded one.
 	 */
-	if (memsize == 0)
+	if (dtbp == (vm_offset_t)NULL)
+		dtbp = (vm_offset_t)&fdt_static_dtb;
+#endif
+
+	if (OF_install(OFW_FDT, 0) == FALSE)
+		while (1);
+
+	if (OF_init((void *)dtbp) != 0)
+		while (1);
+
+	/* Grab physical memory regions information from device tree. */
+	if (fdt_get_mem_regions(availmem_regions, &availmem_regions_sz,
+	    &memsize) != 0)
+		while(1);
+
+	if (fdt_immr_addr() != 0)
 		while (1);
 
 	/* Platform-specific initialisation */
-	pmap_bootstrap_lastaddr = MV_BASE - ARM_NOCACHE_KVA_SIZE;
-	pmap_devmap_bootstrap_table = &pmap_devmap[0];
+	pmap_bootstrap_lastaddr = fdt_immr_va - ARM_NOCACHE_KVA_SIZE;
 
 	pcpu_init(pcpup, 0, sizeof(struct pcpu));
 	PCPU_SET(curthread, &thread0);
@@ -540,26 +499,45 @@ initarm(void *mdp, void *unused __unused)
 	pmap_map_entry(l1pagetable, ARM_VECTORS_HIGH, systempage.pv_pa,
 	    VM_PROT_READ|VM_PROT_WRITE, PTE_CACHE);
 
+	/* Map pmap_devmap[] entries */
+	if (platform_devmap_init() != 0)
+		while (1);
 	pmap_devmap_bootstrap(l1pagetable, pmap_devmap_bootstrap_table);
+
 	cpu_domains((DOMAIN_CLIENT << (PMAP_DOMAIN_KERNEL * 2)) |
 	    DOMAIN_CLIENT);
 	setttb(kernel_l1pt.pv_pa);
 	cpu_tlb_flushID();
 	cpu_domains(DOMAIN_CLIENT << (PMAP_DOMAIN_KERNEL * 2));
+
+	/*
+	 * Only after the SOC registers block is mapped we can perform device
+	 * tree fixups, as they may attempt to read parameters from hardware.
+	 */
+	OF_interpret("perform-fixup", 0);
+
+	/*
+	 * Re-initialise MPP. It is important to call this prior to using
+	 * console as the physical connection can be routed via MPP.
+	 */
+	if (platform_mpp_init() != 0)
+		while (1);
+
+	/*
+	 * Initialize GPIO as early as possible.
+	 */
+	if (platform_gpio_init() != 0)
+		while (1);
+
 	cninit();
 	physmem = memsize / PAGE_SIZE;
 
 	debugf("initarm: console initialized\n");
 	debugf(" arg1 mdp = 0x%08x\n", (uint32_t)mdp);
 	debugf(" boothowto = 0x%08x\n", boothowto);
-	print_bootinfo();
+	printf(" dtbp = 0x%08x\n", (uint32_t)dtbp);
 	print_kernel_section_addr();
 	print_kenv();
-
-	/*
-	 * Re-initialise MPP
-	 */
-	platform_mpp_init();
 
 	/*
 	 * Re-initialise decode windows
@@ -635,6 +613,217 @@ initarm(void *mdp, void *unused __unused)
 	kdb_init();
 	return ((void *)(kernelstack.pv_va + USPACE_SVC_STACK_TOP -
 	    sizeof(struct pcb)));
+}
+
+#define MPP_PIN_MAX		50
+#define MPP_PIN_CELLS		2
+#define MPP_PINS_PER_REG	8
+#define MPP_SEL(pin,func)	(((func) & 0xf) <<		\
+    (((pin) % MPP_PINS_PER_REG) * 4))
+
+static int
+platform_mpp_init(void)
+{
+	pcell_t pinmap[MPP_PIN_MAX * MPP_PIN_CELLS];
+	int mpp[MPP_PIN_MAX];
+	uint32_t ctrl_val, ctrl_offset;
+	pcell_t reg[4];
+	u_long start, size;
+	phandle_t node;
+	pcell_t pin_cells, *pinmap_ptr, pin_count;
+	ssize_t len;
+	int par_addr_cells, par_size_cells;
+	int tuple_size, tuples, rv, pins, i, j;
+	int mpp_pin, mpp_function;
+
+	/*
+	 * Try to access the MPP node directly i.e. through /aliases/mpp.
+	 */
+	if ((node = OF_finddevice("mpp")) != 0)
+		if (fdt_is_compatible(node, "mrvl,mpp"))
+			goto moveon;
+	/*
+	 * Find the node the long way.
+	 */
+	if ((node = OF_finddevice("/")) == 0)
+		return (ENXIO);
+
+	if ((node = fdt_find_compatible(node, "simple-bus", 0)) == 0)
+		return (ENXIO);
+
+	if ((node = fdt_find_compatible(node, "mrvl,mpp", 0)) == 0)
+		return (ENXIO);
+moveon:
+	/*
+	 * Process 'reg' prop.
+	 */
+	if ((rv = fdt_addrsize_cells(OF_parent(node), &par_addr_cells,
+	    &par_size_cells)) != 0)
+		return(ENXIO);
+
+	tuple_size = sizeof(pcell_t) * (par_addr_cells + par_size_cells);
+	len = OF_getprop(node, "reg", reg, sizeof(reg));
+	tuples = len / tuple_size;
+	if (tuple_size <= 0)
+		return (EINVAL);
+
+	/*
+	 * Get address/size. XXX we assume only the first 'reg' tuple is used.
+	 */
+	rv = fdt_data_to_res(reg, par_addr_cells, par_size_cells,
+	    &start, &size);
+	if (rv != 0)
+		return (rv);
+	start += fdt_immr_va;
+
+	/*
+	 * Process 'pin-count' and 'pin-map' props.
+	 */
+	if (OF_getprop(node, "pin-count", &pin_count, sizeof(pin_count)) <= 0)
+		return (ENXIO);
+	pin_count = fdt32_to_cpu(pin_count);
+	if (pin_count > MPP_PIN_MAX)
+		return (ERANGE);
+
+	if (OF_getprop(node, "#pin-cells", &pin_cells, sizeof(pin_cells)) <= 0)
+		pin_cells = MPP_PIN_CELLS;
+	pin_cells = fdt32_to_cpu(pin_cells);
+	if (pin_cells > MPP_PIN_CELLS)
+		return (ERANGE);
+	tuple_size = sizeof(pcell_t) * pin_cells;
+
+	bzero(pinmap, sizeof(pinmap));
+	len = OF_getprop(node, "pin-map", pinmap, sizeof(pinmap));
+	if (len <= 0)
+		return (ERANGE);
+	if (len % tuple_size)
+		return (ERANGE);
+	pins = len / tuple_size;
+	if (pins > pin_count)
+		return (ERANGE);
+	/*
+	 * Fill out a "mpp[pin] => function" table. All pins unspecified in
+	 * the 'pin-map' property are defaulted to 0 function i.e. GPIO.
+	 */
+	bzero(mpp, sizeof(mpp));
+	pinmap_ptr = pinmap;
+	for (i = 0; i < pins; i++) {
+		mpp_pin = fdt32_to_cpu(*pinmap_ptr);
+		mpp_function = fdt32_to_cpu(*(pinmap_ptr + 1));
+		mpp[mpp_pin] = mpp_function;
+		pinmap_ptr += pin_cells;
+	}
+
+	/*
+	 * Prepare and program MPP control register values.
+	 */
+	ctrl_offset = 0;
+	for (i = 0; i < pin_count;) {
+		ctrl_val = 0;
+
+		for (j = 0; j < MPP_PINS_PER_REG; j++) {
+			if (i + j == pin_count - 1)
+				break;
+			ctrl_val |= MPP_SEL(i + j, mpp[i + j]);
+		}
+		i += MPP_PINS_PER_REG;
+		bus_space_write_4(fdtbus_bs_tag, start, ctrl_offset,
+		    ctrl_val);
+
+#if defined(SOC_MV_ORION)
+		/*
+		 * Third MPP reg on Orion SoC is placed
+		 * non-linearly (with different offset).
+		 */
+		if (i ==  (2 * MPP_PINS_PER_REG))
+			ctrl_offset = 0x50;
+		else
+#endif
+			ctrl_offset += 4;
+	}
+
+	return (0);
+}
+
+#define FDT_DEVMAP_MAX	(1 + 2 + 1 + 1)
+static struct pmap_devmap fdt_devmap[FDT_DEVMAP_MAX] = {
+	{ 0, 0, 0, 0, 0, }
+};
+
+/*
+ * Construct pmap_devmap[] with DT-derived config data.
+ */
+static int
+platform_devmap_init(void)
+{
+	phandle_t root, child;
+	u_long base, size;
+	int i;
+
+	/*
+	 * IMMR range.
+	 */
+	i = 0;
+	fdt_devmap[i].pd_va = fdt_immr_va;
+	fdt_devmap[i].pd_pa = fdt_immr_pa;
+	fdt_devmap[i].pd_size = fdt_immr_size;
+	fdt_devmap[i].pd_prot = VM_PROT_READ | VM_PROT_WRITE;
+	fdt_devmap[i].pd_cache = PTE_NOCACHE;
+	i++;
+
+	/*
+	 * PCI range(s).
+	 */
+	if ((root = OF_finddevice("/")) == 0)
+		return (ENXIO);
+
+	for (child = OF_child(root); child != 0; child = OF_peer(child))
+		if (fdt_is_type(child, "pci")) {
+			/*
+			 * Check space: each PCI node will consume 2 devmap
+			 * entries.
+			 */
+			if (i + 1 >= FDT_DEVMAP_MAX) {
+				return (ENOMEM);
+				break;
+			}
+
+			/*
+			 * XXX this should account for PCI and multiple ranges
+			 * of a given kind.
+			 */
+			if (fdt_pci_devmap(child, &fdt_devmap[i],
+			    MV_PCIE_IO_BASE, MV_PCIE_MEM_BASE) != 0)
+				return (ENXIO);
+			i += 2;
+		}
+
+	/*
+	 * CESA SRAM range.
+	 */
+	if ((child = OF_finddevice("sram")) != 0)
+		if (fdt_is_compatible(child, "mrvl,cesa-sram"))
+			goto moveon;
+
+	if ((child = fdt_find_compatible(root, "mrvl,cesa-sram", 0)) == 0)
+		/* No CESA SRAM node. */
+		goto out;
+moveon:
+	if (i >= FDT_DEVMAP_MAX)
+		return (ENOMEM);
+
+	if (fdt_regsize(child, &base, &size) != 0)
+		return (EINVAL);
+
+	fdt_devmap[i].pd_va = MV_CESA_SRAM_BASE; /* XXX */
+	fdt_devmap[i].pd_pa = base;
+	fdt_devmap[i].pd_size = size;
+	fdt_devmap[i].pd_prot = VM_PROT_READ | VM_PROT_WRITE;
+	fdt_devmap[i].pd_cache = PTE_NOCACHE;
+
+out:
+	pmap_devmap_bootstrap_table = &fdt_devmap[0];
+	return (0);
 }
 
 struct arm32_dma_range *
