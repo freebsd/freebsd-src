@@ -8,6 +8,7 @@ SUBDIR= ${_binutils} \
 	dialog \
 	diff \
 	diff3 \
+	${_dtc} \
 	${_gdb} \
 	${_gperf} \
 	${_grep} \
@@ -29,6 +30,10 @@ _groff=		groff
 
 .if ${MK_CVS} != "no"
 _cvs=		cvs
+.endif
+
+.if ${MK_FDT}	!= "no"
+_dtc=		dtc
 .endif
 
 .if ${MK_GNU_GREP} != "no"

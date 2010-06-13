@@ -55,6 +55,18 @@ emu10k1-alsa%diked.h		optional snd_emu10k1 | snd_emu10kx	   \
 	compile-with	"CC='${CC}' AWK=${AWK} sh $S/tools/sound/emu10k1-mkalsa.sh $S/gnu/dev/sound/pci/emu10k1-alsa.h emu10k1-alsa%diked.h" \
 	no-obj no-implicit-rule before-depend				   \
 	clean		"emu10k1-alsa%diked.h"
+#
+# The 'fdt_dtb_file' target covers an actual DTB file name, which is derived
+# from the specified source (DTS) file: <platform>.dts -> <platform>.dtb
+#
+fdt_dtb_file			optional fdt \
+	compile-with "if [ -f $S/boot/fdt/dts/${FDT_DTS_FILE} ]; then dtc -O dtb -o `echo ${FDT_DTS_FILE} | cut -d. -f1`.dtb -b 0 -p 1024 $S/boot/fdt/dts/${FDT_DTS_FILE}; fi" \
+	no-obj no-implicit-rule before-depend	\
+	clean		"`echo ${FDT_DTS_FILE} | cut -d. -f1`.dtb"
+fdt_static_dtb.h		optional fdt fdt_dtb_static \
+	compile-with "sh $S/tools/fdt/make_dtbh.sh ${FDT_DTS_FILE} ." \
+	no-obj no-implicit-rule before-depend \
+	clean		"fdt_static_dtb.h"
 p16v-alsa%diked.h		optional snd_emu10kx pci			   \
 	dependency	"$S/tools/sound/emu10k1-mkalsa.sh $S/gnu/dev/sound/pci/p16v-alsa.h" \
 	compile-with	"CC='${CC}' AWK=${AWK} sh $S/tools/sound/emu10k1-mkalsa.sh $S/gnu/dev/sound/pci/p16v-alsa.h p16v-alsa%diked.h" \
@@ -302,6 +314,12 @@ contrib/ipfilter/netinet/ip_sync.c optional ipfilter inet \
 	compile-with "${NORMAL_C} -I$S/contrib/ipfilter"
 contrib/ipfilter/netinet/mlfk_ipl.c optional ipfilter inet \
 	compile-with "${NORMAL_C} -I$S/contrib/ipfilter"
+contrib/libfdt/fdt.c			optional	fdt
+contrib/libfdt/fdt_ro.c			optional	fdt
+contrib/libfdt/fdt_rw.c			optional	fdt
+contrib/libfdt/fdt_strerror.c		optional	fdt
+contrib/libfdt/fdt_sw.c			optional	fdt
+contrib/libfdt/fdt_wip.c		optional	fdt
 contrib/ngatm/netnatm/api/cc_conn.c optional ngatm_ccatm \
 	compile-with "${NORMAL_C_NOWERROR} -I$S/contrib/ngatm"
 contrib/ngatm/netnatm/api/cc_data.c optional ngatm_ccatm \
@@ -961,6 +979,11 @@ dev/ex/if_ex_pccard.c		optional ex pccard
 dev/exca/exca.c			optional cbb
 dev/fatm/if_fatm.c		optional fatm pci
 dev/fb/splash.c			optional splash
+dev/fdt/fdt_common.c		optional fdt
+dev/fdt/fdt_pci.c		optional fdt pci
+dev/fdt/fdt_static_dtb.S	optional fdt fdt_dtb_static
+dev/fdt/fdtbus.c		optional fdt
+dev/fdt/simplebus.c		optional fdt
 dev/fe/if_fe.c			optional fe
 dev/fe/if_fe_pccard.c		optional fe pccard
 dev/firewire/firewire.c		optional firewire
@@ -1659,6 +1682,7 @@ dev/txp/if_txp.c		optional txp inet
 dev/uart/uart_bus_acpi.c	optional uart acpi
 #dev/uart/uart_bus_cbus.c	optional uart cbus
 dev/uart/uart_bus_ebus.c	optional uart ebus
+dev/uart/uart_bus_fdt.c		optional uart fdt
 dev/uart/uart_bus_isa.c		optional uart isa
 dev/uart/uart_bus_pccard.c	optional uart pccard
 dev/uart/uart_bus_pci.c		optional uart pci
