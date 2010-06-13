@@ -968,6 +968,10 @@ _dtrace_tools= cddl/usr.bin/sgsmsg cddl/lib/libctf lib/libelf \
     lib/libdwarf cddl/usr.bin/ctfconvert cddl/usr.bin/ctfmerge
 .endif
 
+.if ${MK_FDT} != "no"
+_dtc= gnu/usr.bin/dtc
+.endif
+
 bootstrap-tools:
 .for _tool in \
     ${_clang_tblgen} \
@@ -976,6 +980,7 @@ bootstrap-tools:
     ${_gperf} \
     ${_groff} \
     ${_ar} \
+    ${_dtc} \
     usr.bin/lorder \
     usr.bin/makewhatis \
     ${_mklocale} \
@@ -1448,3 +1453,39 @@ _xi-links:
 			    ../../../../usr/bin/${XDDIR}${OSREL}-$$i; \
 		done
 .endif
+
+.if !empty(KRNLOBJDIR) && !empty(KERNCONF)
+DTBOUTPUTPATH= ${KRNLOBJDIR}/${KERNCONF}/
+
+.if !defined(FDT_DTS_FILE) || empty(FDT_DTS_FILE)
+FDT_DTS_FILE!=	 grep "^makeoptions[[:space:]]\+FDT_DTS_FILE" \
+	${KERNCONFDIR}/${KERNCONF} 2> /dev/null | cut -d= -f2
+.endif
+
+.endif
+
+.if !defined(DTBOUTPUTPATH) || !exists(${DTBOUTPUTPATH})
+DTBOUTPUTPATH= ${.CURDIR}
+.endif
+
+#
+# Build 'standalone' Device Tree Blob
+#
+builddtb:
+	@if [ "${FDT_DTS_FILE}" = "" ]; then \
+		echo "ERROR: FDT_DTS_FILE must be specified!"; \
+		exit 1; \
+	fi;	\
+	if [ ! -f ${.CURDIR}/sys/boot/fdt/dts/${FDT_DTS_FILE} ]; then \
+		echo "ERROR: Specified DTS file (${FDT_DTS_FILE}) does not \
+			exist!"; \
+		exit 1;	\
+	fi;	\
+	if [ "${DTBOUTPUTPATH}" = "${.CURDIR}" ]; then	\
+		echo "WARNING: DTB will be placed in the current working \
+			directory"; \
+	fi
+	@PATH=${TMPPATH} \
+	dtc -O dtb -o \
+	    ${DTBOUTPUTPATH}/`echo ${FDT_DTS_FILE} | cut -d. -f1`.dtb -b 0 \
+	    -p 1024 ${.CURDIR}/sys/boot/fdt/dts/${FDT_DTS_FILE}
