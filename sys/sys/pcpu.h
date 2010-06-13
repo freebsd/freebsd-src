@@ -106,6 +106,17 @@ extern uintptr_t dpcpu_off[];
 #define	DPCPU_ID_GET(i, n)	(*DPCPU_ID_PTR(i, n))
 #define	DPCPU_ID_SET(i, n, v)	(*DPCPU_ID_PTR(i, n) = v)
 
+/*
+ * Utility macros.
+ */
+#define DPCPU_SUM(n, var, sum)						\
+do {									\
+	(sum) = 0;							\
+	u_int i;							\
+	CPU_FOREACH(i)							\
+		(sum) += (DPCPU_ID_PTR(i, n))->var;			\
+} while (0)
+
 /* 
  * XXXUPS remove as soon as we have per cpu variable
  * linker sets and can define rm_queue in _rm_lock.h
