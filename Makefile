@@ -89,7 +89,8 @@ TGTS=	all all-man buildenv buildenvvars buildkernel buildworld \
 	obj objlink regress rerelease showconfig tags toolchain update \
 	_worldtmp _legacy _bootstrap-tools _cleanobj _obj \
 	_build-tools _cross-tools _includes _libraries _depend \
-	build32 distribute32 install32 xdev xdev-build xdev-install
+	build32 builddtb distribute32 install32 xdev xdev-build xdev-install \
+
 TGTS+=	${SUBDIR_TARGETS}
 
 BITGTS=	files includes
