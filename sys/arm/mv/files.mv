@@ -25,13 +25,10 @@ arm/mv/ic.c			standard
 arm/mv/mv_machdep.c		standard
 arm/mv/mv_pci.c			optional	pci
 arm/mv/mv_sata.c		optional	ata | atamvsata
-arm/mv/obio.c			standard
 arm/mv/timer.c			standard
 arm/mv/twsi.c			optional	iicbus
 
 dev/mge/if_mge.c		optional	mge
 dev/mvs/mvs_soc.c		optional	mvs
-dev/uart/uart_bus_mbus.c	optional	uart
-dev/uart/uart_cpu_mv.c		optional	uart
 dev/uart/uart_dev_ns8250.c	optional	uart
-dev/usb/controller/ehci_mbus.c	optional	ehci
+dev/usb/controller/ehci_mv.c	optional	ehci
