@@ -77,6 +77,7 @@ struct fdtbus_softc {
 /*
  * Prototypes.
  */
+static void fdtbus_identify(driver_t *, device_t);
 static int fdtbus_probe(device_t);
 static int fdtbus_attach(device_t);
 
@@ -109,6 +110,7 @@ static void newbus_device_from_fdt_node(device_t, phandle_t);
  */
 static device_method_t fdtbus_methods[] = {
 	/* Device interface */
+	DEVMETHOD(device_identify,	fdtbus_identify),
 	DEVMETHOD(device_probe,		fdtbus_probe),
 	DEVMETHOD(device_attach,	fdtbus_attach),
 	DEVMETHOD(device_detach,	bus_generic_detach),
@@ -143,6 +145,14 @@ static driver_t fdtbus_driver = {
 devclass_t fdtbus_devclass;
 
 DRIVER_MODULE(fdtbus, nexus, fdtbus_driver, fdtbus_devclass, 0, 0);
+
+static void
+fdtbus_identify(driver_t *driver, device_t parent)
+{
+
+	if (device_find_child(parent, "fdtbus", -1) == NULL)
+		BUS_ADD_CHILD(parent, 0, "fdtbus", -1);
+}
 
 static int
 fdtbus_probe(device_t dev)
