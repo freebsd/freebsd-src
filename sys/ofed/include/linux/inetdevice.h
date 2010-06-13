@@ -31,4 +31,24 @@
 
 #include <linux/netdevice.h>
 
+static inline struct net_device *
+ip_dev_find(struct net *net, uint32_t addr)
+{
+	struct sockaddr_in sin;
+	struct ifaddr *ifa;
+	struct ifnet *ifp;
+
+	ifp = NULL;
+	sin.sin_addr.s_addr = addr;
+	sin.sin_port = 0;
+	sin.sin_len = sizeof(sin);
+	ifa = ifa_ifwithaddr((struct sockaddr *)&sin);
+	if (ifa) {
+		ifp = ifa->ifa_ifp;
+		if_ref(ifp);
+		ifa_free(ifa);
+	}
+	return (ifp);
+}
+
 #endif	/* _LINUX_INETDEVICE_H_ */

@@ -26,40 +26,43 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef	_LINUX_IDR_H_
-#define	_LINUX_IDR_H_
+#include <sys/param.h>
+#include <sys/systm.h>
+#include <sys/malloc.h>
+#include <sys/kernel.h>
+#include <sys/sysctl.h>
+#include <sys/lock.h>
+#include <sys/mutex.h>
 
-#define	IDR_BITS	5
-#define	IDR_SIZE	(1 << IDR_BITS)
-#define	IDR_MASK	(IDR_SIZE - 1)
+#include <machine/stdarg.h>
 
-#define	MAX_ID_SHIFT	((sizeof(int) * NBBY) - 1)
-#define	MAX_ID_BIT	(1U << MAX_ID_SHIFT)
-#define	MAX_ID_MASK	(MAX_ID_BIT - 1)
-#define	MAX_LEVEL	(MAX_ID_SHIFT + IDR_BITS - 1) / IDR_BITS
+#include <linux/kobject.h>
+#include <linux/slab.h>
 
-struct idr_layer {
-	unsigned long		bitmap;
-	struct idr_layer	*ary[IDR_SIZE];
-};
+MALLOC_DEFINE(M_KMALLOC, "linux", "Linux kmalloc compat");
 
-struct idr {
-	struct idr_layer	*top;
-	struct idr_layer	*free;
-	int			layers;
-	struct mtx		lock;
-};
+#include <linux/rbtree.h>
+/* Undo Linux compat change. */
+#undef RB_ROOT
+#define	RB_ROOT(head)	(head)->rbh_root
 
-#define DEFINE_IDR(name)        struct idr name
+int
+panic_cmp(struct rb_node *one, struct rb_node *two)
+{
+	panic("no cmp");
+}
 
-void	*idr_find(struct idr *idp, int id);
-int	idr_pre_get(struct idr *idp, gfp_t gfp_mask);
-int	idr_get_new(struct idr *idp, void *ptr, int *id);
-int	idr_get_new_above(struct idr *idp, void *ptr, int starting_id, int *id);
-void	*idr_replace(struct idr *idp, void *ptr, int id);
-void	idr_remove(struct idr *idp, int id);
-void	idr_remove_all(struct idr *idp);
-void	idr_destroy(struct idr *idp);
-void	idr_init(struct idr *idp);
+RB_GENERATE(linux_root, rb_node, __entry, panic_cmp);
+ 
+int
+kobject_set_name(struct kobject *kobj, const char *fmt, ...)
+{
+	va_list args;
+	int error;
 
-#endif	/* _LINUX_IDR_H_ */
+	va_start(args, fmt);
+	error = kobject_set_name_vargs(kobj, fmt, args);
+	va_end(args);
+
+	return (error);
+}

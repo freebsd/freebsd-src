@@ -32,6 +32,18 @@
 #define	BIT_MASK(n)		(~0UL >> (BITS_PER_LONG - (n)))
 #define	BITS_TO_LONGS(n)	roundup2((n), BITS_PER_LONG)
 
+static inline int
+__ffsl(long mask)
+{
+	return (ffsl(mask) - 1);
+}
+
+static inline int
+__flsl(long mask)
+{
+	return (flsl(mask) - 1);
+}
+
 static inline unsigned long
 find_first_bit(unsigned long *addr, unsigned long size)
 {
@@ -42,12 +54,12 @@ find_first_bit(unsigned long *addr, unsigned long size)
 	    size -= BITS_PER_LONG, bit += BITS_PER_LONG, addr++) {
 		if (*addr == 0)
 			continue;
-		return (bit + ffs(*addr));
+		return (bit + __ffsl(*addr));
 	}
 	if (size) {
 		mask = (*addr) & BIT_MASK(size);
 		if (mask)
-			bit += ffsl(mask);
+			bit += __ffsl(mask);
 		else
 			bit += size;
 	}
@@ -64,12 +76,12 @@ find_first_zero_bit(unsigned long *addr, unsigned long size)
 	    size -= BITS_PER_LONG, bit += BITS_PER_LONG, addr++) {
 		if (~(*addr) == 0)
 			continue;
-		return (bit + ffs(~(*addr)));
+		return (bit + __ffsl(~(*addr)));
 	}
 	if (size) {
 		mask = ~(*addr) & BIT_MASK(size);
 		if (mask)
-			bit += ffsl(mask);
+			bit += __ffsl(mask);
 		else
 			bit += size;
 	}
@@ -91,13 +103,13 @@ find_last_bit(unsigned long *addr, unsigned long size)
 	if (offs) {
 		mask = (*addr) & BIT_MASK(offs);
 		if (mask)
-			return (bit + flsl(mask));
+			return (bit + __flsl(mask));
 	}
 	while (--pos) {
 		addr--;
 		bit -= BITS_PER_LONG;
 		if (*addr)
-			return (bit + flsl(mask));
+			return (bit + __flsl(mask));
 	}
 	return (size);
 }
@@ -117,7 +129,7 @@ find_next_bit(unsigned long *addr, unsigned long size, unsigned long offset)
 	if (offs) {
 		mask = (*addr) & ~BIT_MASK(offs);
 		if (mask)
-			return (bit + ffsl(mask));
+			return (bit + __ffsl(mask));
 		bit += BITS_PER_LONG;
 		addr++;
 	}
@@ -125,12 +137,12 @@ find_next_bit(unsigned long *addr, unsigned long size, unsigned long offset)
 	    size -= BITS_PER_LONG, bit += BITS_PER_LONG, addr++) {
 		if (*addr == 0)
 			continue;
-		return (bit + ffs(*addr));
+		return (bit + __ffsl(*addr));
 	}
 	if (size) {
 		mask = (*addr) & BIT_MASK(size);
 		if (mask)
-			bit += ffsl(mask);
+			bit += __ffsl(mask);
 		else
 			bit += size;
 	}

@@ -25,12 +25,25 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#ifndef _LINUX_UACCESS_H_
-#define _LINUX_UACCESS_H_
+#ifndef _ASM_UACCESS_H_
+#define _ASM_UACCESS_H_
 
 #include <linux/uaccess.h>
 
-long copy_from_user(void *to, const void __user * from, unsigned long n);
-long copy_to_user(void __user *to, const void *from, unsigned long n);
+static inline long
+copy_to_user(void *to, const void *from, unsigned long n)
+{
+	if (copyout(from, to, n) != 0)
+		return n;
+	return 0;
+}
 
-#endif	/* _LINUX_UACCESS_H_ */
+static inline long
+copy_from_user(void *to, const void *from, unsigned long n)
+{
+	if (copyin(from, to, n) != 0)
+		return n;
+	return 0;
+}
+
+#endif	/* _ASM_UACCESS_H_ */

@@ -32,6 +32,8 @@
 #include <sys/conf.h>
 #include <sys/types.h>
 #include <sys/vnode.h>
+#include <sys/file.h>
+#include <sys/filedesc.h>
 #include <linux/types.h>
 #include <linux/wait.h>
 
@@ -57,12 +59,18 @@ struct dentry {
 	struct inode	*d_inode;
 };
 
-struct file {
-	void *private_data;
-	int f_flags;
-	struct dentry *f_dentry;
-	struct dentry f_dentry_store;
+struct file_operations;
+
+struct linux_file {
+	struct file	*_file;
+	struct file_operations	*f_op;
+	void 		*private_data;
+	int		f_flags;
+	struct dentry	*f_dentry;
+	struct dentry	f_dentry_store;
 };
+
+#define	file	linux_file
 
 typedef int (*filldir_t)(void *, const char *, int, loff_t, u64, unsigned);
 

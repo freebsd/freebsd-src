@@ -28,16 +28,4 @@
 #ifndef	_LINUX_ETHTOOL_H_
 #define	_LINUX_ETHTOOL_H_
 
-#include <linux/types.h>
-
-struct net_device;
-
-struct ethtool_cmd {
-	u16	speed;
-};
-
-struct ethtool_ops {
-	int	(*get_settings)(struct net_device *, struct ethtool_cmd *);
-};
-
 #endif	/* _LINUX_ETHTOOL_H_ */

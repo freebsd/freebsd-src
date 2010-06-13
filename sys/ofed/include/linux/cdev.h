@@ -46,10 +46,31 @@ struct cdev {
 	const struct file_operations *ops;
 };
 
-void	cdev_init(struct cdev *, const struct file_operations *);
-struct	cdev *cdev_alloc(void);
-void	cdev_put(struct cdev *p);
-int	cdev_add(struct cdev *, dev_t, unsigned);
-void	cdev_del(struct cdev *);
+static inline void
+cdev_init(struct cdev *cdev, const struct file_operations *ops)
+{
+}
+
+static inline struct cdev *
+cdev_alloc(void)
+{
+	return (NULL);
+}
+
+static inline void
+cdev_put(struct cdev *p)
+{
+}
+
+static inline int
+cdev_add(struct cdev *cdev, dev_t dev, unsigned count)
+{
+	return (0);
+}
+
+static inline void
+cdev_del(struct cdev *cdev)
+{
+}
 
 #endif	/* _LINUX_CDEV_H_ */

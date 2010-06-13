@@ -26,40 +26,52 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef	_LINUX_IDR_H_
-#define	_LINUX_IDR_H_
+#ifndef _LINUX_NET_IP_H_
+#define	_LINUX_NET_IP_H_
 
-#define	IDR_BITS	5
-#define	IDR_SIZE	(1 << IDR_BITS)
-#define	IDR_MASK	(IDR_SIZE - 1)
+#include <sys/types.h>
+#include <sys/socket.h>
 
-#define	MAX_ID_SHIFT	((sizeof(int) * NBBY) - 1)
-#define	MAX_ID_BIT	(1U << MAX_ID_SHIFT)
-#define	MAX_ID_MASK	(MAX_ID_BIT - 1)
-#define	MAX_LEVEL	(MAX_ID_SHIFT + IDR_BITS - 1) / IDR_BITS
+#include <net/if_types.h>
+#include <net/if.h>
+#include <net/if_var.h>
 
-struct idr_layer {
-	unsigned long		bitmap;
-	struct idr_layer	*ary[IDR_SIZE];
-};
+#include <netinet/in.h>
+#include <netinet/in_pcb.h>
 
-struct idr {
-	struct idr_layer	*top;
-	struct idr_layer	*free;
-	int			layers;
-	struct mtx		lock;
-};
+static inline void inet_get_local_port_range(int *low, int *high)
+{
+	*low = V_ipport_firstauto;
+	*high = V_ipport_lastauto;
+}
 
-#define DEFINE_IDR(name)        struct idr name
+static inline void
+ip_ib_mc_map(uint32_t addr, const unsigned char *bcast, char *buf)
+{
+	unsigned char scope;
 
-void	*idr_find(struct idr *idp, int id);
-int	idr_pre_get(struct idr *idp, gfp_t gfp_mask);
-int	idr_get_new(struct idr *idp, void *ptr, int *id);
-int	idr_get_new_above(struct idr *idp, void *ptr, int starting_id, int *id);
-void	*idr_replace(struct idr *idp, void *ptr, int id);
-void	idr_remove(struct idr *idp, int id);
-void	idr_remove_all(struct idr *idp);
-void	idr_destroy(struct idr *idp);
-void	idr_init(struct idr *idp);
+	addr = ntohl(addr);
+	scope = bcast[5] & 0xF;
+	buf[0] = 0;
+	buf[1] = 0xff;
+	buf[2] = 0xff;
+	buf[3] = 0xff;
+	buf[4] = 0xff;
+	buf[5] = 0x10 | scope;
+	buf[6] = 0x40;
+	buf[7] = 0x1b;
+	buf[8] = bcast[8];
+	buf[9] = bcast[9];
+	buf[10] = 0;
+	buf[11] = 0;
+	buf[12] = 0;
+	buf[13] = 0;
+	buf[14] = 0;
+	buf[15] = 0;
+	buf[16] = (addr >> 24) & 0x0f;
+	buf[17] = (addr >> 16) & 0xff;
+	buf[18] = (addr >> 8) & 0xff;
+	buf[19] = addr & 0xff;
+}
 
-#endif	/* _LINUX_IDR_H_ */
+#endif	/* _LINUX_NET_IP_H_ */

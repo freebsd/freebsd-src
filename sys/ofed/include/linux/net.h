@@ -25,6 +25,49 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#ifndef _LINUX_ROUTE_H_
-#define	_LINUX_ROUTE_H_
-#endif /* _LINUX_ROUTE_H_ */
+
+#ifndef	_LINUX_NET_H_
+#define	_LINUX_NET_H_
+
+#include <sys/protosw.h>
+#include <sys/socket.h>
+#include <sys/socketvar.h>
+
+static inline int
+sock_create_kern(int family, int type, int proto, struct socket **res)
+{
+	return -socreate(family, res, type, proto, curthread->td_ucred,
+	    curthread);
+}
+
+static inline int
+sock_getname(struct socket *so, struct sockaddr *addr, int *sockaddr_len,
+    int peer)
+{
+	struct sockaddr **nam;
+	int error;
+
+	nam = NULL;
+	if ((so->so_state & (SS_ISCONNECTED|SS_ISCONFIRMING)) == 0)
+		return (-ENOTCONN);
+
+	if (peer)
+		error = (*so->so_proto->pr_usrreqs->pru_peeraddr)(so, nam);
+	else
+		error = (*so->so_proto->pr_usrreqs->pru_sockaddr)(so, nam);
+	if (error)
+		return (-error);
+	*addr = **nam;
+	*sockaddr_len = addr->sa_len;
+
+	free(*nam, M_SONAME);
+	return (0);
+}
+
+static inline void
+sock_release(struct socket *so)
+{
+	soclose(so);
+}
+
+#endif	/* _LINUX_NET_H_ */

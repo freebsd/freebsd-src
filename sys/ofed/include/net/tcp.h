@@ -28,4 +28,11 @@
 
 #ifndef _LINUX_NET_TCP_H_
 #define	_LINUX_NET_TCP_H_
+
+#include <linux/list.h>
+#include <linux/slab.h>
+#include <linux/kref.h>
+
+#include <net/ip.h>
+
 #endif	/* _LINUX_NET_TCP_H_ */

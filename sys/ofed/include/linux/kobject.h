@@ -47,7 +47,6 @@ struct kobject {
 	struct kobj_type	*ktype;
 };
 
-
 static inline int
 kobject_init_and_add(struct kobject *kobj, struct kobj_type *ktype,
     struct kobject *parent, const char *fmt, ...)
@@ -97,20 +96,6 @@ kobject_set_name_vargs(struct kobject *kobj, const char *fmt, va_list args)
 	return (0);
 }
 
-
-static inline int
-kobject_set_name(struct kobject *kobj, const char *fmt, ...)
-{
-	va_list args;
-	int error;
-
-	va_start(args, fmt);
-	error = kobject_set_name_vargs(kobj, fmt, args);
-	va_end(args);
-
-	return (error);
-}
-
 static inline int
 kobject_add(struct kobject *kobj, struct kobject *parent, const char *fmt, ...)
 {
@@ -131,5 +116,7 @@ kobject_name(const struct kobject *kobj)
 {
 	return kobj->name;
 }
+
+int kobject_set_name(struct kobject *kobj, const char *fmt, ...);
 
 #endif /* _LINUX_KOBJECT_H_ */

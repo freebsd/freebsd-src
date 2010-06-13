@@ -48,14 +48,10 @@ struct rb_root {
 /*
  * In linux all of the comparisons are done by the caller.
  */
-static inline int
-panic_cmp(struct rb_node *one, struct rb_node *two)
-{
-	panic("no cmp");
-}
+int panic_cmp(struct rb_node *one, struct rb_node *two);
 
 RB_HEAD(linux_root, rb_node);
-RB_PROTOTYPE(linux_root, rb_node, __entry, null_cmp);
+RB_PROTOTYPE(linux_root, rb_node, __entry, panic_cmp);
 
 #define	rb_parent(r)	RB_PARENT(r, __entry)
 #define	rb_color(r)	RB_COLOR(r, __entry)

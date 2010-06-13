@@ -28,24 +28,29 @@
 #ifndef	_LINUX_NETDEVICE_H_
 #define	_LINUX_NETDEVICE_H_
 
+#include <sys/socket.h>
+
+#include <net/if_types.h>
+#include <net/if.h>
+#include <net/if_var.h>
+#include <net/if_dl.h>
+
 #include <linux/completion.h>
 #include <linux/device.h>
 #include <linux/ethtool.h>
 #include <linux/workqueue.h>
+#include <linux/net.h>
 
-struct net
-{
+struct net {
 };
 
-struct net_device {
-	const struct ethtool_ops *ethtool_ops;
-};
+extern struct net init_net;
 
-struct net init_net;
+#define	MAX_ADDR_LEN		32 
 
-#define	MAX_ADDR_LEN	32 
+#define	net_device	ifnet
 
-struct net_device *dev_get_by_index(struct net *net, int ifindex);
-void	dev_put(struct net_device *dev);
+#define	dev_get_by_index(n, idx)	ifnet_byindex_ref((idx))
+#define	dev_put(d)	if_rele((d))
 
 #endif	/* _LINUX_NETDEVICE_H_ */

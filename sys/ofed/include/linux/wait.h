@@ -30,6 +30,7 @@
 
 #include <linux/spinlock.h>
 #include <linux/sched.h>
+#include <linux/list.h>
 
 #include <sys/param.h>
 #include <sys/systm.h>

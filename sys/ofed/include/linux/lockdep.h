@@ -29,7 +29,9 @@
 #ifndef	_LINUX_LOCKDEP_H_
 #define	_LINUX_LOCKDEP_H_
 
-struct lock_class_key;
+struct lock_class_key {
+};
+
 #define lockdep_set_class(lock, key)
 
 #endif	/* _LINUX_LOCKDEP_H_ */

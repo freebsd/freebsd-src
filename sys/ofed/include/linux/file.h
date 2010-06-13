@@ -30,28 +30,49 @@
 
 #include <sys/param.h>
 
-struct file;
+struct linux_file;
 
-static inline struct file *
-fget(unsigned int fd)
+#undef file
+
+struct fileops linuxfileops;
+
+static inline struct linux_file *
+linux_fget(unsigned int fd)
 {
+	struct file *file;
 
-	return (NULL);
+	file = fget_unlocked(curthread->td_proc->p_fd, fd);
+	return (struct linux_file *)file->f_data;
 }
 
 static inline void
-fput(struct file *filp)
+fput(struct linux_file *filp)
 {
+	if (refcount_release(&filp->_file->f_count)) {
+		_fdrop(filp->_file, curthread);
+		kfree(filp);
+	}
 }
 
 static inline void
 put_unused_fd(unsigned int fd)
 {
+	struct linux_file *file;
+
+	file = linux_fget(fd);
+	if (file == NULL)
+		return;
+	if (file->_file)
+		fdclose(curthread->td_proc->p_fd, file->_file, fd, curthread);
 }
 
 static inline void
 fd_install(unsigned int fd, struct file *file)
 {
+	file->f_ops = &linuxfileops;
 }
+
+#define	file	linux_file
+#define	fget	linux_fget
 
 #endif	/* _LINUX_FILE_H_ */

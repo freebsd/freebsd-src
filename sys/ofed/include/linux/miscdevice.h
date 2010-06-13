@@ -38,8 +38,17 @@ struct miscdevice  {
 	int		minor;
 };
 
-int	misc_register(struct miscdevice *misc);
-int	misc_deregister(struct miscdevice *misc);
+static inline int
+misc_register(struct miscdevice *misc)
+{
+	return (0);
+}
+
+static inline int
+misc_deregister(struct miscdevice *misc)
+{
+	return (0);
+}
 
 
 #endif	/* _LINUX_MISCDEVICE_H_ */

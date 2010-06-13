@@ -30,6 +30,7 @@
 
 #include <linux/errno.h>
 #include <linux/sched.h>
+#include <linux/wait.h>
 
 #include <sys/param.h>
 #include <sys/systm.h>

@@ -43,6 +43,11 @@
 #include <sys/vnode.h>
 #include <sys/conf.h>
 
+#include <sys/socket.h>
+#include <net/if_types.h>
+#include <netinet/in.h>
+#include <netinet/in_pcb.h>
+
 #define	prefetch(x)
 
 struct list_head {
