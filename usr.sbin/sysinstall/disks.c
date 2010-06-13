@@ -79,7 +79,6 @@ static struct chunk *chunk_info[CHUNK_INFO_ENTRIES];
 static int current_chunk;
 
 static void	diskPartitionNonInteractive(Device *dev);
-static u_char *	bootalloc(char *name, size_t *size);
 
 static void
 record_chunks(Disk *d)
@@ -216,6 +215,41 @@ print_command_summary(void)
     mvprintw(21, 0, "Use F1 or ? to get more help, arrow keys to select.");
     move(0, 0);
 }
+
+#if !defined(__ia64__)
+static u_char *
+bootalloc(char *name, size_t *size)
+{
+    char buf[FILENAME_MAX];
+    struct stat sb;
+
+    snprintf(buf, sizeof buf, "/boot/%s", name);
+    if (stat(buf, &sb) != -1) {
+	int fd;
+
+	fd = open(buf, O_RDONLY);
+	if (fd != -1) {
+	    u_char *cp;
+
+	    cp = malloc(sb.st_size);
+	    if (read(fd, cp, sb.st_size) != sb.st_size) {
+		free(cp);
+		close(fd);
+		msgDebug("bootalloc: couldn't read %ld bytes from %s\n", (long)sb.st_size, buf);
+		return NULL;
+	    }
+	    close(fd);
+	    if (size != NULL)
+		*size = sb.st_size;
+	    return cp;
+	}
+	msgDebug("bootalloc: couldn't open %s\n", buf);
+    }
+    else
+	msgDebug("bootalloc: can't stat %s\n", buf);
+    return NULL;
+}
+#endif
 
 #ifdef PC98
 static void
@@ -732,39 +766,6 @@ diskPartition(Device *dev)
 }
 #endif /* WITH_SLICES */
 
-static u_char *
-bootalloc(char *name, size_t *size)
-{
-    char buf[FILENAME_MAX];
-    struct stat sb;
-
-    snprintf(buf, sizeof buf, "/boot/%s", name);
-    if (stat(buf, &sb) != -1) {
-	int fd;
-
-	fd = open(buf, O_RDONLY);
-	if (fd != -1) {
-	    u_char *cp;
-
-	    cp = malloc(sb.st_size);
-	    if (read(fd, cp, sb.st_size) != sb.st_size) {
-		free(cp);
-		close(fd);
-		msgDebug("bootalloc: couldn't read %ld bytes from %s\n", (long)sb.st_size, buf);
-		return NULL;
-	    }
-	    close(fd);
-	    if (size != NULL)
-		*size = sb.st_size;
-	    return cp;
-	}
-	msgDebug("bootalloc: couldn't open %s\n", buf);
-    }
-    else
-	msgDebug("bootalloc: can't stat %s\n", buf);
-    return NULL;
-}
-
 #ifdef WITH_SLICES 
 static int
 partitionHook(dialogMenuItem *selected)
@@ -874,7 +875,9 @@ diskPartitionWrite(dialogMenuItem *self)
 	msgDebug("diskPartitionWrite: Examining %d devices\n", deviceCount(devs));
     for (i = 0; devs[i]; i++) {
 	Disk *d = (Disk *)devs[i]->private;
+#if !defined(__ia64__)
 	static u_char *boot1;
+#endif
 #if defined(__i386__) || defined(__amd64__)
 	static u_char *boot2;
 #endif
