@@ -30,7 +30,7 @@
  */
 
 /*
- * MBus attachment driver for the USB Enhanced Host Controller.
+ * FDT attachment driver for the USB Enhanced Host Controller.
  */
 
 #include <sys/cdefs.h>
@@ -58,6 +58,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/priv.h>
 
+#include <dev/ofw/ofw_bus.h>
+#include <dev/ofw/ofw_bus_subr.h>
+
 #include <dev/usb/usb.h>
 #include <dev/usb/usbdi.h>
 
@@ -77,11 +80,11 @@ __FBSDID("$FreeBSD$");
 #define	EHCI_VENDORID_MRVL	0x1286
 #define	EHCI_HC_DEVSTR		"Marvell Integrated USB 2.0 controller"
 
-static device_attach_t ehci_mbus_attach;
-static device_detach_t ehci_mbus_detach;
-static device_shutdown_t ehci_mbus_shutdown;
-static device_suspend_t ehci_mbus_suspend;
-static device_resume_t ehci_mbus_resume;
+static device_attach_t mv_ehci_attach;
+static device_detach_t mv_ehci_detach;
+static device_shutdown_t mv_ehci_shutdown;
+static device_suspend_t mv_ehci_suspend;
+static device_resume_t mv_ehci_resume;
 
 static int err_intr(void *arg);
 
@@ -100,7 +103,7 @@ static void *ih_err;
 #define	MV_USB_DEVICE_UNDERFLOW (1 << 3)
 
 static int
-ehci_mbus_suspend(device_t self)
+mv_ehci_suspend(device_t self)
 {
 	ehci_softc_t *sc = device_get_softc(self);
 	int err;
@@ -113,7 +116,7 @@ ehci_mbus_suspend(device_t self)
 }
 
 static int
-ehci_mbus_resume(device_t self)
+mv_ehci_resume(device_t self)
 {
 	ehci_softc_t *sc = device_get_softc(self);
 
@@ -125,7 +128,7 @@ ehci_mbus_resume(device_t self)
 }
 
 static int
-ehci_mbus_shutdown(device_t self)
+mv_ehci_shutdown(device_t self)
 {
 	ehci_softc_t *sc = device_get_softc(self);
 	int err;
@@ -139,8 +142,11 @@ ehci_mbus_shutdown(device_t self)
 }
 
 static int
-ehci_mbus_probe(device_t self)
+mv_ehci_probe(device_t self)
 {
+
+	if (!ofw_bus_is_compatible(self, "mrvl,usb-ehci"))
+		return (ENXIO);
 
 	device_set_desc(self, EHCI_HC_DEVSTR);
 
@@ -148,7 +154,7 @@ ehci_mbus_probe(device_t self)
 }
 
 static int
-ehci_mbus_attach(device_t self)
+mv_ehci_attach(device_t self)
 {
 	ehci_softc_t *sc = device_get_softc(self);
 	bus_space_handle_t bsh;
@@ -177,10 +183,11 @@ ehci_mbus_attach(device_t self)
 	sc->sc_io_size = rman_get_size(sc->sc_io_res) - MV_USB_HOST_OFST;
 
 	/*
-	 * Marvell EHCI host controller registers start at certain offset within
-	 * the whole USB registers range, so create a subregion for the host
-	 * mode configuration purposes.
+	 * Marvell EHCI host controller registers start at certain offset
+	 * within the whole USB registers range, so create a subregion for the
+	 * host mode configuration purposes.
 	 */
+
 	if (bus_space_subregion(sc->sc_io_tag, bsh, MV_USB_HOST_OFST,
 	    sc->sc_io_size, &sc->sc_io_hdl) != 0)
 		panic("%s: unable to subregion USB host registers",
@@ -191,14 +198,14 @@ ehci_mbus_attach(device_t self)
 	    RF_SHAREABLE | RF_ACTIVE);
 	if (irq_err == NULL) {
 		device_printf(self, "Could not allocate error irq\n");
-		ehci_mbus_detach(self);
+		mv_ehci_detach(self);
 		return (ENXIO);
 	}
 
 	/*
-	 * Notice: Marvell EHCI controller has TWO interrupt lines, so make sure to
-	 * use the correct rid for the main one (controller interrupt) --
-	 * refer to obio_devices[] for the right resource number to use here.
+	 * Notice: Marvell EHCI controller has TWO interrupt lines, so make
+	 * sure to use the correct rid for the main one (controller interrupt)
+	 * -- refer to DTS for the right resource number to use here.
 	 */
 	rid = 1;
 	sc->sc_irq_res = bus_alloc_resource_any(self, SYS_RES_IRQ, &rid,
@@ -216,7 +223,7 @@ ehci_mbus_attach(device_t self)
 	device_set_ivars(sc->sc_bus.bdev, &sc->sc_bus);
 	device_set_desc(sc->sc_bus.bdev, EHCI_HC_DEVSTR);
 
- 	sprintf(sc->sc_vendor, "Marvell");
+	sprintf(sc->sc_vendor, "Marvell");
 
 	err = bus_setup_intr(self, irq_err, INTR_FAST | INTR_TYPE_BIO,
 	    err_intr, NULL, sc, &ih_err);
@@ -238,7 +245,7 @@ ehci_mbus_attach(device_t self)
 		goto error;
 	}
 
-  	/*
+	/*
 	 * Workaround for Marvell integrated EHCI controller: reset of
 	 * the EHCI core clears the USBMODE register, which sets the core in
 	 * an undefined state (neither host nor agent), so it needs to be set
@@ -265,18 +272,18 @@ ehci_mbus_attach(device_t self)
 	return (0);
 
 error:
-	ehci_mbus_detach(self);
+	mv_ehci_detach(self);
 	return (ENXIO);
 }
 
 static int
-ehci_mbus_detach(device_t self)
+mv_ehci_detach(device_t self)
 {
 	ehci_softc_t *sc = device_get_softc(self);
 	device_t bdev;
 	int err;
 
- 	if (sc->sc_bus.bdev) {
+	if (sc->sc_bus.bdev) {
 		bdev = sc->sc_bus.bdev;
 		device_detach(bdev);
 		device_delete_child(self, bdev);
@@ -291,7 +298,7 @@ ehci_mbus_detach(device_t self)
 		EWRITE4(sc, EHCI_USBINTR, 0);
 		EWRITE4(sc, USB_BRIDGE_INTR_MASK, 0);
 	}
- 	if (sc->sc_irq_res && sc->sc_intr_hdl) {
+	if (sc->sc_irq_res && sc->sc_intr_hdl) {
 		/*
 		 * only call ehci_detach() after ehci_init()
 		 */
@@ -305,7 +312,7 @@ ehci_mbus_detach(device_t self)
 			    err);
 		sc->sc_intr_hdl = NULL;
 	}
- 	if (irq_err && ih_err) {
+	if (irq_err && ih_err) {
 		err = bus_teardown_intr(self, irq_err, ih_err);
 
 		if (err)
@@ -317,7 +324,7 @@ ehci_mbus_detach(device_t self)
 		bus_release_resource(self, SYS_RES_IRQ, 0, irq_err);
 		irq_err = NULL;
 	}
- 	if (sc->sc_irq_res) {
+	if (sc->sc_irq_res) {
 		bus_release_resource(self, SYS_RES_IRQ, 1, sc->sc_irq_res);
 		sc->sc_irq_res = NULL;
 	}
@@ -359,12 +366,12 @@ err_intr(void *arg)
 
 static device_method_t ehci_methods[] = {
 	/* Device interface */
-	DEVMETHOD(device_probe, ehci_mbus_probe),
-	DEVMETHOD(device_attach, ehci_mbus_attach),
-	DEVMETHOD(device_detach, ehci_mbus_detach),
-	DEVMETHOD(device_suspend, ehci_mbus_suspend),
-	DEVMETHOD(device_resume, ehci_mbus_resume),
-	DEVMETHOD(device_shutdown, ehci_mbus_shutdown),
+	DEVMETHOD(device_probe, mv_ehci_probe),
+	DEVMETHOD(device_attach, mv_ehci_attach),
+	DEVMETHOD(device_detach, mv_ehci_detach),
+	DEVMETHOD(device_suspend, mv_ehci_suspend),
+	DEVMETHOD(device_resume, mv_ehci_resume),
+	DEVMETHOD(device_shutdown, mv_ehci_shutdown),
 
 	/* Bus interface */
 	DEVMETHOD(bus_print_child, bus_generic_print_child),
@@ -380,5 +387,5 @@ static driver_t ehci_driver = {
 
 static devclass_t ehci_devclass;
 
-DRIVER_MODULE(ehci, mbus, ehci_driver, ehci_devclass, 0, 0);
+DRIVER_MODULE(ehci, simplebus, ehci_driver, ehci_devclass, 0, 0);
 MODULE_DEPEND(ehci, usb, 1, 1, 1);
