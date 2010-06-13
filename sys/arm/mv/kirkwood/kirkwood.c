@@ -42,82 +42,6 @@ __FBSDID("$FreeBSD$");
 #include <arm/mv/mvvar.h>
 #include <arm/mv/mvwin.h>
 
-struct obio_device obio_devices[] = {
-	{ "ic", MV_IC_BASE, MV_IC_SIZE,
-		{ -1 },
-		{ -1 },
-		CPU_PM_CTRL_NONE
-	},
-	{ "timer", MV_TIMERS_BASE, MV_TIMERS_SIZE,
-		{ MV_INT_BRIDGE, -1 },
-		{ -1 },
-		CPU_PM_CTRL_NONE
-	},
-	{ "rtc", MV_RTC_BASE, MV_RTC_SIZE,
-		{ -1 },
-		{ -1 },
-		CPU_PM_CTRL_NONE
-	},
-	{ "gpio", MV_GPIO_BASE, MV_GPIO_SIZE,
-		{ MV_INT_GPIO7_0, MV_INT_GPIO15_8,
-		  MV_INT_GPIO23_16, MV_INT_GPIO31_24, 
-		  MV_INT_GPIOHI7_0, MV_INT_GPIOHI15_8,
-		  MV_INT_GPIOHI23_16, -1 },
-		{ -1 },
-		CPU_PM_CTRL_NONE
-	},
-	{ "uart", MV_UART0_BASE, MV_UART_SIZE,
-		{ MV_INT_UART0, -1 },
-		{ -1 },
-		CPU_PM_CTRL_NONE
-	},
-	{ "uart", MV_UART1_BASE, MV_UART_SIZE,
-		{ MV_INT_UART1, -1 },
-		{ -1 },
-		CPU_PM_CTRL_NONE
-	},
-	{ "xor", MV_XOR_BASE, MV_XOR_SIZE,
-		{ MV_INT_XOR0_CHAN0, MV_INT_XOR0_CHAN1,
-		  MV_INT_XOR1_CHAN0, MV_INT_XOR1_CHAN1,
-		  MV_INT_XOR0_ERR, MV_INT_XOR1_ERR,
-		  -1 },
-		{ -1 },
-		CPU_PM_CTRL_XOR0 | CPU_PM_CTRL_XOR1
-	},
-	{ "ehci", MV_USB0_BASE, MV_USB_SIZE,
-		{ MV_INT_USB_BERR, MV_INT_USB_CI, -1 },
-		{ -1 },
-		CPU_PM_CTRL_USB0
-	},
-	{ "mge", MV_ETH0_BASE, MV_ETH_SIZE,
-		{ MV_INT_GBERX, MV_INT_GBETX, MV_INT_GBEMISC,
-		  MV_INT_GBESUM, MV_INT_GBEERR, -1 },
-		{ -1 },
-		CPU_PM_CTRL_GE0
-	},
-	{ "twsi", MV_TWSI0_BASE, MV_TWSI_SIZE,
-		{ -1 }, { -1 },
-		CPU_PM_CTRL_NONE
-	},
-	{ "sata", MV_SATAHC_BASE, MV_SATAHC_SIZE,
-		{ MV_INT_SATA, -1 },
-		{ -1 },
-		CPU_PM_CTRL_SATA0 | CPU_PM_CTRL_SATA1
-	},
-	{ NULL, 0, 0, { 0 }, { 0 }, 0 }
-};
-
-const struct obio_pci mv_pci_info[] = {
-	{ MV_TYPE_PCIE,
-		MV_PCIE_BASE, MV_PCIE_SIZE,
-		MV_PCIE_IO_BASE, MV_PCIE_IO_SIZE,	4, 0xE0,
-		MV_PCIE_MEM_BASE, MV_PCIE_MEM_SIZE,	4, 0xE8,
-		NULL, MV_INT_PEX0
-	},
-
-	{ 0, 0, 0 }
-};
-
 struct resource_spec mv_gpio_res[] = {
 	{ SYS_RES_MEMORY,	0,	RF_ACTIVE },
 	{ SYS_RES_IRQ,		0,	RF_ACTIVE },
@@ -130,43 +54,11 @@ struct resource_spec mv_gpio_res[] = {
 	{ -1, 0 }
 };
 
-struct resource_spec mv_xor_res[] = {
-	{ SYS_RES_MEMORY,	0,	RF_ACTIVE },
-	{ SYS_RES_IRQ,		0,	RF_ACTIVE },
-	{ SYS_RES_IRQ,		1,	RF_ACTIVE },
-	{ SYS_RES_IRQ,		2,	RF_ACTIVE },
-	{ SYS_RES_IRQ,		3,	RF_ACTIVE },
-	{ SYS_RES_IRQ,		4,	RF_ACTIVE },
-	{ SYS_RES_IRQ,		5,	RF_ACTIVE },
-	{ -1, 0 }
-};
-
-const struct decode_win cpu_win_tbl[] = {
-	/* Device bus BOOT */
-	{ 1, 0x0f, MV_DEV_BOOT_PHYS_BASE, MV_DEV_BOOT_SIZE, -1 },
-
-	/* Device bus CS0 */
-	{ 1, 0x1e, MV_DEV_CS0_PHYS_BASE, MV_DEV_CS0_SIZE, -1 },
-
-	/* Device bus CS1 */
-	{ 1, 0x1d, MV_DEV_CS1_PHYS_BASE, MV_DEV_CS1_SIZE, -1 },
-
-	/* Device bus CS2 */
-	{ 1, 0x1b, MV_DEV_CS2_PHYS_BASE, MV_DEV_CS2_SIZE, -1 },
-
-	/* CESA */
-	{ 3, 0x00, MV_CESA_SRAM_PHYS_BASE, MV_CESA_SRAM_SIZE, -1 },
-
-};
-const struct decode_win *cpu_wins = cpu_win_tbl;
-int cpu_wins_no = sizeof(cpu_win_tbl) / sizeof(struct decode_win);
-
 const struct decode_win xor_win_tbl[] = {
-	/* PCIE MEM */
-	{ 4, 0xE8, MV_PCIE_MEM_PHYS_BASE, MV_PCIE_MEM_SIZE, -1 },
+	{ 0 },
 };
 const struct decode_win *xor_wins = xor_win_tbl;
-int xor_wins_no = sizeof(xor_win_tbl) / sizeof(struct decode_win);
+int xor_wins_no = 0;
 
 uint32_t
 get_tclk(void)
