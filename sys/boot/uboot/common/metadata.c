@@ -36,7 +36,9 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/elf.h>
 #include <machine/metadata.h>
+#if !defined(LOADER_FDT_SUPPORT)
 #include <machine/bootinfo.h>
+#endif
 
 #include "api_public.h"
 #include "bootstrap.h"
