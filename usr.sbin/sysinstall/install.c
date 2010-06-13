@@ -1191,9 +1191,7 @@ installFilesystems(dialogMenuItem *self)
 	    }
 #if defined(__ia64__)
 	    else if (c1->type == efi && c1->private_data) {
-		char bootdir[FILENAME_MAX];
 		PartInfo *pi = (PartInfo *)c1->private_data;
-		char *p;
 
 		sprintf(dname, "%s/dev/%s", RunningAsInit ? "/mnt" : "",
 		    c1->name);
