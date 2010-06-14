@@ -408,6 +408,7 @@ static bool getWindowsSDKDir(std::string &path) {
 
 void InitHeaderSearch::AddDefaultCIncludePaths(const llvm::Triple &triple,
                                             const HeaderSearchOptions &HSOpts) {
+#if 0 /* Remove unneeded include paths. */
   // FIXME: temporary hack: hard-coded paths.
   AddPath("/usr/local/include", System, true, false, false);
 
@@ -420,6 +421,7 @@ void InitHeaderSearch::AddDefaultCIncludePaths(const llvm::Triple &triple,
     P.appendComponent("include");
     AddPath(P.str(), System, false, false, false, /*IgnoreSysRoot=*/ true);
   }
+#endif
 
   // Add dirs specified via 'configure --with-c-include-dirs'.
   llvm::StringRef CIncludeDirs(C_INCLUDE_DIRS);
