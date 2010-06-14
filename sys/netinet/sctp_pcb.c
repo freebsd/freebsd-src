@@ -3074,6 +3074,9 @@ sctp_iterator_inp_being_freed(struct sctp_inpcb *inp)
 				SCTP_FREE(it, SCTP_M_ITER);
 			} else {
 				it->inp = LIST_NEXT(it->inp, sctp_list);
+				if (it->inp) {
+					SCTP_INP_INCR_REF(it->inp);
+				}
 			}
 			/*
 			 * When its put in the refcnt is incremented so decr
@@ -3114,17 +3117,10 @@ sctp_inpcb_free(struct sctp_inpcb *inp, int immediate, int from)
 #ifdef SCTP_LOG_CLOSING
 	sctp_log_closing(inp, NULL, 0);
 #endif
-	if (from == SCTP_CALLED_AFTER_CMPSET_OFCLOSE) {
-		/*
-		 * Once we are in we can remove the flag from = 1 is only
-		 * passed from the actual closing routines that are called
-		 * via the sockets layer.
-		 */
-		SCTP_ITERATOR_LOCK();
-		/* mark any iterators on the list or being processed */
-		sctp_iterator_inp_being_freed(inp);
-		SCTP_ITERATOR_UNLOCK();
-	}
+	SCTP_ITERATOR_LOCK();
+	/* mark any iterators on the list or being processed */
+	sctp_iterator_inp_being_freed(inp);
+	SCTP_ITERATOR_UNLOCK();
 	so = inp->sctp_socket;
 	if (inp->sctp_flags & SCTP_PCB_FLAGS_SOCKET_ALLGONE) {
 		/* been here before.. eeks.. get out of here */
@@ -4637,7 +4633,6 @@ sctp_free_assoc(struct sctp_inpcb *inp, struct sctp_tcb *stcb, int from_inpcbfre
 		atomic_add_int(&stcb->asoc.refcnt, 1);
 
 		SCTP_TCB_UNLOCK(stcb);
-
 		SCTP_INP_INFO_WLOCK();
 		SCTP_INP_WLOCK(inp);
 		SCTP_TCB_LOCK(stcb);
@@ -4679,6 +4674,16 @@ sctp_free_assoc(struct sctp_inpcb *inp, struct sctp_tcb *stcb, int from_inpcbfre
 	/* re-increment the lock */
 	if (from_inpcbfree == SCTP_NORMAL_PROC) {
 		atomic_add_int(&stcb->asoc.refcnt, -1);
+	}
+	if (stcb->asoc.refcnt) {
+		stcb->asoc.state &= ~SCTP_STATE_IN_ACCEPT_QUEUE;
+		sctp_timer_start(SCTP_TIMER_TYPE_ASOCKILL, inp, stcb, NULL);
+		if (from_inpcbfree == SCTP_NORMAL_PROC) {
+			SCTP_INP_INFO_WUNLOCK();
+			SCTP_INP_WUNLOCK(inp);
+		}
+		SCTP_TCB_UNLOCK(stcb);
+		return (0);
 	}
 	asoc->state = 0;
 	if (inp->sctp_tcbhash) {
