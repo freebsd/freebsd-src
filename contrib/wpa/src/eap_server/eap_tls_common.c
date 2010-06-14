@@ -344,7 +344,7 @@ struct wpabuf * eap_server_tls_encrypt(struct eap_sm *sm,
 	size_t buf_len;
 
 	/* reserve some extra room for encryption overhead */
-	buf_len = plain_len + 200;
+	buf_len = plain_len + 300;
 	buf = wpabuf_alloc(buf_len);
 	if (buf == NULL)
 		return NULL;

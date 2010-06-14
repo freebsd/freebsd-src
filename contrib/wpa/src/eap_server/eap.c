@@ -573,6 +573,13 @@ SM_STATE(EAP, SUCCESS2)
 	}
 
 	sm->eap_if.eapSuccess = TRUE;
+
+	/*
+	 * Start reauthentication with identity request even though we know the
+	 * previously used identity. This is needed to get reauthentication
+	 * started properly.
+	 */
+	sm->start_reauth = TRUE;
 }
 
 
@@ -1070,7 +1077,7 @@ static EapType eap_sm_Policy_getNextMethod(struct eap_sm *sm, int *vendor)
 
 static int eap_sm_Policy_getDecision(struct eap_sm *sm)
 {
-	if (!sm->eap_server && sm->identity) {
+	if (!sm->eap_server && sm->identity && !sm->start_reauth) {
 		wpa_printf(MSG_DEBUG, "EAP: getDecision: -> PASSTHROUGH");
 		return DECISION_PASSTHROUGH;
 	}
@@ -1091,7 +1098,8 @@ static int eap_sm_Policy_getDecision(struct eap_sm *sm)
 		return DECISION_FAILURE;
 	}
 
-	if ((sm->user == NULL || sm->update_user) && sm->identity) {
+	if ((sm->user == NULL || sm->update_user) && sm->identity &&
+	    !sm->start_reauth) {
 		/*
 		 * Allow Identity method to be started once to allow identity
 		 * selection hint to be sent from the authentication server,
@@ -1118,6 +1126,7 @@ static int eap_sm_Policy_getDecision(struct eap_sm *sm)
 		}
 		sm->update_user = FALSE;
 	}
+	sm->start_reauth = FALSE;
 
 	if (sm->user && sm->user_eap_method_index < EAP_MAX_METHODS &&
 	    (sm->user->methods[sm->user_eap_method_index].vendor !=
@@ -1252,7 +1261,7 @@ void eap_server_sm_deinit(struct eap_sm *sm)
 		sm->m->reset(sm, sm->eap_method_priv);
 	wpabuf_free(sm->eap_if.eapReqData);
 	os_free(sm->eap_if.eapKeyData);
-	os_free(sm->lastReqData);
+	wpabuf_free(sm->lastReqData);
 	wpabuf_free(sm->eap_if.eapRespData);
 	os_free(sm->identity);
 	os_free(sm->pac_opaque_encr_key);

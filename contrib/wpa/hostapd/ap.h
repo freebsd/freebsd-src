@@ -30,7 +30,7 @@
 #define WLAN_STA_PENDING_POLL BIT(6) /* pending activity poll not ACKed */
 #define WLAN_STA_SHORT_PREAMBLE BIT(7)
 #define WLAN_STA_PREAUTH BIT(8)
-#define WLAN_STA_WME BIT(9)
+#define WLAN_STA_WMM BIT(9)
 #define WLAN_STA_MFP BIT(10)
 #define WLAN_STA_HT BIT(11)
 #define WLAN_STA_WPS BIT(12)

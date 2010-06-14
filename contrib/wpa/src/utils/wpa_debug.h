@@ -60,7 +60,7 @@ void wpa_debug_print_timestamp(void);
  *
  * Note: New line '\n' is added to the end of the text when printing to stdout.
  */
-void wpa_printf(int level, char *fmt, ...)
+void wpa_printf(int level, const char *fmt, ...)
 PRINTF_FORMAT(2, 3);
 
 /**
@@ -141,6 +141,7 @@ void wpa_hexdump_ascii_key(int level, const char *title, const u8 *buf,
 
 #ifdef CONFIG_NO_WPA_MSG
 #define wpa_msg(args...) do { } while (0)
+#define wpa_msg_ctrl(args...) do { } while (0)
 #define wpa_msg_register_cb(f) do { } while (0)
 #else /* CONFIG_NO_WPA_MSG */
 /**
@@ -157,7 +158,22 @@ void wpa_hexdump_ascii_key(int level, const char *title, const u8 *buf,
  *
  * Note: New line '\n' is added to the end of the text when printing to stdout.
  */
-void wpa_msg(void *ctx, int level, char *fmt, ...) PRINTF_FORMAT(3, 4);
+void wpa_msg(void *ctx, int level, const char *fmt, ...) PRINTF_FORMAT(3, 4);
+
+/**
+ * wpa_msg_ctrl - Conditional printf for ctrl_iface monitors
+ * @ctx: Pointer to context data; this is the ctx variable registered
+ *	with struct wpa_driver_ops::init()
+ * @level: priority level (MSG_*) of the message
+ * @fmt: printf format string, followed by optional arguments
+ *
+ * This function is used to print conditional debugging and error messages.
+ * This function is like wpa_msg(), but it sends the output only to the
+ * attached ctrl_iface monitors. In other words, it can be used for frequent
+ * events that do not need to be sent to syslog.
+ */
+void wpa_msg_ctrl(void *ctx, int level, const char *fmt, ...)
+PRINTF_FORMAT(3, 4);
 
 typedef void (*wpa_msg_cb_func)(void *ctx, int level, const char *txt,
 				size_t len);
