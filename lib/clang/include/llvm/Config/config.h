@@ -27,7 +27,7 @@
 /* #undef ENABLE_THREADS */
 
 /* Define if timestamp information (e.g., __DATE___) is allowed */
-#define ENABLE_TIMESTAMPS 1
+/* #undef ENABLE_TIMESTAMPS */
 
 /* Define to 1 if you have the `argz_append' function. */
 /* #undef HAVE_ARGZ_APPEND */
@@ -270,7 +270,7 @@
 #define HAVE_OPENDIR 1
 
 /* Define to 1 if you have the `posix_spawn' function. */
-#define HAVE_POSIX_SPAWN 1
+/* #undef HAVE_POSIX_SPAWN */
 
 /* Define to 1 if you have the `powf' function. */
 #define HAVE_POWF 1
