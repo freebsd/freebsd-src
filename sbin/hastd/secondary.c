@@ -295,6 +295,7 @@ init_remote(struct hast_resource *res, struct nv *nvin)
 		nv_free(nvout);
 		exit(EX_TEMPFAIL);
 	}
+	nv_free(nvout);
 	if (res->hr_secondary_localcnt > res->hr_primary_remotecnt &&
 	     res->hr_primary_localcnt > res->hr_secondary_remotecnt) {
 		/* Exit on split-brain. */
