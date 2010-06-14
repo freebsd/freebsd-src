@@ -62,6 +62,11 @@ static inline void eap_peer_unregister_methods(void)
 {
 }
 
+static inline char ** eap_get_names_as_string_array(size_t *num)
+{
+	return NULL;
+}
+
 #endif /* IEEE8021X_EAPOL */
 
 

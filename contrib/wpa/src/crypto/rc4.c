@@ -68,19 +68,3 @@ void rc4_skip(const u8 *key, size_t keylen, size_t skip,
 		*pos++ ^= S[(S[i] + S[j]) & 0xff];
 	}
 }
-
-
-/**
- * rc4 - XOR RC4 stream to given data
- * @buf: data to be XOR'ed with RC4 stream
- * @len: buf length
- * @key: RC4 key
- * @key_len: RC4 key length
- *
- * Generate RC4 pseudo random stream for the given key and XOR this with the
- * data buffer to perform RC4 encryption/decryption.
- */
-void rc4(u8 *buf, size_t len, const u8 *key, size_t key_len)
-{
-	rc4_skip(key, key_len, 0, buf, len);
-}

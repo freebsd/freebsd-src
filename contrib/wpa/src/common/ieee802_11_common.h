@@ -41,10 +41,10 @@ struct ieee802_11_elems {
 	u8 wpa_ie_len;
 	u8 *rsn_ie;
 	u8 rsn_ie_len;
-	u8 *wme;
-	u8 wme_len;
-	u8 *wme_tspec;
-	u8 wme_tspec_len;
+	u8 *wmm; /* WMM Information or Parameter Element */
+	u8 wmm_len; /* 7 = WMM Information; 24 = WMM Parameter */
+	u8 *wmm_tspec;
+	u8 wmm_tspec_len;
 	u8 *wps_ie;
 	u8 wps_ie_len;
 	u8 *power_cap;

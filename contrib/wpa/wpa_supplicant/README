@@ -397,10 +397,8 @@ CONFIG_PCSC=y
 
 Following options can be added to .config to select which driver
 interfaces are included. Hermes driver interface needs to be downloaded
-from Agere (see above). CONFIG_WIRELESS_EXTENSION will be used
-automatically if any of the selected drivers need it.
+from Agere (see above).
 
-CONFIG_WIRELESS_EXTENSION=y
 CONFIG_DRIVER_HOSTAP=y
 CONFIG_DRIVER_HERMES=y
 CONFIG_DRIVER_MADWIFI=y
@@ -426,7 +424,6 @@ CONFIG_DRIVER_BROADCOM=y
 CONFIG_DRIVER_IPW=y
 CONFIG_DRIVER_BSD=y
 CONFIG_DRIVER_NDIS=y
-CONFIG_WIRELESS_EXTENSION=y
 CONFIG_IEEE8021X_EAPOL=y
 CONFIG_EAP_MD5=y
 CONFIG_EAP_MSCHAPV2=y
@@ -520,11 +517,11 @@ drivers:
   hostap = Host AP driver (Intersil Prism2/2.5/3) [default]
 	(this can also be used with Linuxant DriverLoader)
   hermes = Agere Systems Inc. driver (Hermes-I/Hermes-II)
-  madwifi = MADWIFI 802.11 support (Atheros, etc.)
+  madwifi = MADWIFI 802.11 support (Atheros, etc.) (deprecated; use wext)
   atmel = ATMEL AT76C5XXx (USB, PCMCIA)
   wext = Linux wireless extensions (generic)
   ralink = Ralink Client driver
-  ndiswrapper = Linux ndiswrapper
+  ndiswrapper = Linux ndiswrapper (deprecated; use wext)
   broadcom = Broadcom wl.o driver
   ipw = Intel ipw2100/2200 driver (old; use wext with Linux 2.6.13 or newer)
   wired = wpa_supplicant wired Ethernet driver

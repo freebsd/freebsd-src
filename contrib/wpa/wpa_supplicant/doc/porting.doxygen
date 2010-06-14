@@ -5,9 +5,9 @@
 hardware (board, CPU) and software (OS, drivers) targets. It is
 already used with number of operating systems and numerous wireless
 card models and drivers. The main %wpa_supplicant repository includes
-support for Linux, FreeBSD, and Windows. In addition, at least VxWorks,
-PalmOS, Windows CE, and Windows Mobile are supported in separate
-repositories. On the hardware
+support for Linux, FreeBSD, and Windows. In addition, the code has been
+ported to number of other operating systems like VxWorks, PalmOS,
+Windows CE, and Windows Mobile. On the hardware
 side, %wpa_supplicant is used on various systems: desktops, laptops,
 PDAs, and embedded devices with CPUs including x86, PowerPC,
 arm/xscale, and MIPS. Both big and little endian configurations are
