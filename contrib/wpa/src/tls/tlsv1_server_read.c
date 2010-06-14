@@ -40,6 +40,7 @@ static int tls_process_client_hello(struct tlsv1_server *conn, u8 ct,
 	u16 cipher_suite;
 	u16 num_suites;
 	int compr_null_found;
+	u16 ext_type, ext_len;
 
 	if (ct != TLS_CONTENT_TYPE_HANDSHAKE) {
 		wpa_printf(MSG_DEBUG, "TLSv1: Expected Handshake; "
@@ -183,10 +184,7 @@ static int tls_process_client_hello(struct tlsv1_server *conn, u8 ct,
 	}
 
 	if (end - pos >= 2) {
-		u16 ext_len;
-
 		/* Extension client_hello_extension_list<0..2^16-1> */
-
 		ext_len = WPA_GET_BE16(pos);
 		pos += 2;
 
@@ -195,7 +193,7 @@ static int tls_process_client_hello(struct tlsv1_server *conn, u8 ct,
 		if (end - pos != ext_len) {
 			wpa_printf(MSG_DEBUG, "TLSv1: Invalid ClientHello "
 				   "extension list length %u (expected %u)",
-				   ext_len, end - pos);
+				   ext_len, (unsigned int) (end - pos));
 			goto decode_error;
 		}
 
@@ -207,8 +205,6 @@ static int tls_process_client_hello(struct tlsv1_server *conn, u8 ct,
 		 */
 
 		while (pos < end) {
-			u16 ext_type, ext_len;
-
 			if (end - pos < 2) {
 				wpa_printf(MSG_DEBUG, "TLSv1: Invalid "
 					   "extension_type field");
@@ -520,7 +516,7 @@ static int tls_process_client_key_exchange_rsa(
 						 out, &outlen) < 0) {
 		wpa_printf(MSG_DEBUG, "TLSv1: Failed to decrypt "
 			   "PreMasterSecret (encr_len=%d outlen=%lu)",
-			   end - pos, (unsigned long) outlen);
+			   (int) (end - pos), (unsigned long) outlen);
 		use_random = 1;
 	}
 

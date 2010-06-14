@@ -25,7 +25,7 @@
 
 int wpa_derive_ptk_ft(struct wpa_sm *sm, const unsigned char *src_addr,
 		      const struct wpa_eapol_key *key,
-		      struct wpa_ptk *ptk)
+		      struct wpa_ptk *ptk, size_t ptk_len)
 {
 	u8 pmk_r1_name[WPA_PMK_NAME_LEN];
 	u8 ptk_name[WPA_PMK_NAME_LEN];
@@ -50,8 +50,8 @@ int wpa_derive_ptk_ft(struct wpa_sm *sm, const unsigned char *src_addr,
 	wpa_hexdump(MSG_DEBUG, "FT: PMKR1Name", pmk_r1_name, WPA_PMK_NAME_LEN);
 	wpa_pmk_r1_to_ptk(sm->pmk_r1, sm->snonce, anonce, sm->own_addr,
 			  sm->bssid, pmk_r1_name,
-			  (u8 *) ptk, sizeof(*ptk), ptk_name);
-	wpa_hexdump_key(MSG_DEBUG, "FT: PTK", (u8 *) ptk, sizeof(*ptk));
+			  (u8 *) ptk, ptk_len, ptk_name);
+	wpa_hexdump_key(MSG_DEBUG, "FT: PTK", (u8 *) ptk, ptk_len);
 	wpa_hexdump(MSG_DEBUG, "FT: PTKName", ptk_name, WPA_PMK_NAME_LEN);
 
 	return 0;
@@ -455,7 +455,7 @@ int wpa_ft_process_response(struct wpa_sm *sm, const u8 *ies, size_t ies_len,
 			    int ft_action, const u8 *target_ap)
 {
 	u8 *ft_ies;
-	size_t ft_ies_len;
+	size_t ft_ies_len, ptk_len;
 	struct wpa_ft_ies parse;
 	struct rsn_mdie *mdie;
 	struct rsn_ftie *ftie;
@@ -545,11 +545,12 @@ int wpa_ft_process_response(struct wpa_sm *sm, const u8 *ies, size_t ies_len,
 		    sm->pmk_r1_name, WPA_PMK_NAME_LEN);
 
 	bssid = target_ap;
+	ptk_len = sm->pairwise_cipher == WPA_CIPHER_CCMP ? 48 : 64;
 	wpa_pmk_r1_to_ptk(sm->pmk_r1, sm->snonce, ftie->anonce, sm->own_addr,
 			  bssid, sm->pmk_r1_name,
-			  (u8 *) &sm->ptk, sizeof(sm->ptk), ptk_name);
+			  (u8 *) &sm->ptk, ptk_len, ptk_name);
 	wpa_hexdump_key(MSG_DEBUG, "FT: PTK",
-			(u8 *) &sm->ptk, sizeof(sm->ptk));
+			(u8 *) &sm->ptk, ptk_len);
 	wpa_hexdump(MSG_DEBUG, "FT: PTKName", ptk_name, WPA_PMK_NAME_LEN);
 
 	ft_ies = wpa_ft_gen_req_ies(sm, &ft_ies_len, ftie->anonce,

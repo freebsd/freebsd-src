@@ -295,7 +295,7 @@ static struct wpabuf * eap_tnc_process(struct eap_sm *sm, void *priv,
 			wpa_printf(MSG_DEBUG, "EAP-TNC: Server did not use "
 				   "start flag in the first message");
 			ret->ignore = TRUE;
-			return NULL;
+			goto fail;
 		}
 
 		tncc_init_connection(data->tncc);
@@ -308,7 +308,7 @@ static struct wpabuf * eap_tnc_process(struct eap_sm *sm, void *priv,
 			wpa_printf(MSG_DEBUG, "EAP-TNC: Server used start "
 				   "flag again");
 			ret->ignore = TRUE;
-			return NULL;
+			goto fail;
 		}
 
 		res = tncc_process_if_tnccs(data->tncc,
@@ -317,7 +317,7 @@ static struct wpabuf * eap_tnc_process(struct eap_sm *sm, void *priv,
 		switch (res) {
 		case TNCCS_PROCESS_ERROR:
 			ret->ignore = TRUE;
-			return NULL;
+			goto fail;
 		case TNCCS_PROCESS_OK_NO_RECOMMENDATION:
 		case TNCCS_RECOMMENDATION_ERROR:
 			wpa_printf(MSG_DEBUG, "EAP-TNC: No "
@@ -404,6 +404,11 @@ static struct wpabuf * eap_tnc_process(struct eap_sm *sm, void *priv,
 	data->out_buf = resp;
 	data->state = PROC_MSG;
 	return eap_tnc_build_msg(data, ret, id);
+
+fail:
+	if (data->in_buf == &tmpbuf)
+		data->in_buf = NULL;
+	return NULL;
 }
 
 

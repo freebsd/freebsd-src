@@ -122,7 +122,7 @@ void hmac_sha256(const u8 *key, size_t key_len, const u8 *data,
 void sha256_prf(const u8 *key, size_t key_len, const char *label,
 		const u8 *data, size_t data_len, u8 *buf, size_t buf_len)
 {
-	u16 counter = 0;
+	u16 counter = 1;
 	size_t pos, plen;
 	u8 hash[SHA256_MAC_LEN];
 	const u8 *addr[4];

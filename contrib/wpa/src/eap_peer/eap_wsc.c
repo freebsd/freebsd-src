@@ -144,7 +144,7 @@ static void * eap_wsc_init(struct eap_sm *sm)
 
 	if (registrar && cfg.pin) {
 		wps_registrar_add_pin(data->wps_ctx->registrar, NULL,
-				      cfg.pin, cfg.pin_len);
+				      cfg.pin, cfg.pin_len, 0);
 	}
 
 	return data;

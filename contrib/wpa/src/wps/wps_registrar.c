@@ -23,6 +23,7 @@
 #include "wps_dev_attr.h"
 #include "wps_upnp.h"
 
+#define WPS_WORKAROUNDS
 
 struct wps_uuid_pin {
 	struct wps_uuid_pin *next;
@@ -30,7 +31,10 @@ struct wps_uuid_pin {
 	int wildcard_uuid;
 	u8 *pin;
 	size_t pin_len;
-	int locked;
+#define PIN_LOCKED BIT(0)
+#define PIN_EXPIRES BIT(1)
+	int flags;
+	struct os_time expiration;
 };
 
 
@@ -98,6 +102,9 @@ struct wps_registrar {
 	int disable_auto_conf;
 	int sel_reg_dev_password_id_override;
 	int sel_reg_config_methods_override;
+	int static_wep_only;
+
+	int force_pbc_overlap;
 };
 
 
@@ -376,6 +383,7 @@ wps_registrar_init(struct wps_context *wps,
 	reg->disable_auto_conf = cfg->disable_auto_conf;
 	reg->sel_reg_dev_password_id_override = -1;
 	reg->sel_reg_config_methods_override = -1;
+	reg->static_wep_only = cfg->static_wep_only;
 
 	if (wps_set_ie(reg)) {
 		wps_registrar_deinit(reg);
@@ -409,10 +417,11 @@ void wps_registrar_deinit(struct wps_registrar *reg)
  * @uuid: UUID-E or %NULL for wildcard (any UUID)
  * @pin: PIN (Device Password)
  * @pin_len: Length of pin in octets
+ * @timeout: Time (in seconds) when the PIN will be invalidated; 0 = no timeout
  * Returns: 0 on success, -1 on failure
  */
 int wps_registrar_add_pin(struct wps_registrar *reg, const u8 *uuid,
-			  const u8 *pin, size_t pin_len)
+			  const u8 *pin, size_t pin_len, int timeout)
 {
 	struct wps_uuid_pin *p;
 
@@ -431,17 +440,56 @@ int wps_registrar_add_pin(struct wps_registrar *reg, const u8 *uuid,
 	os_memcpy(p->pin, pin, pin_len);
 	p->pin_len = pin_len;
 
+	if (timeout) {
+		p->flags |= PIN_EXPIRES;
+		os_get_time(&p->expiration);
+		p->expiration.sec += timeout;
+	}
+
 	p->next = reg->pins;
 	reg->pins = p;
 
-	wpa_printf(MSG_DEBUG, "WPS: A new PIN configured");
+	wpa_printf(MSG_DEBUG, "WPS: A new PIN configured (timeout=%d)",
+		   timeout);
 	wpa_hexdump(MSG_DEBUG, "WPS: UUID", uuid, WPS_UUID_LEN);
 	wpa_hexdump_ascii_key(MSG_DEBUG, "WPS: PIN", pin, pin_len);
 	reg->selected_registrar = 1;
 	reg->pbc = 0;
 	wps_set_ie(reg);
+	eloop_cancel_timeout(wps_registrar_set_selected_timeout, reg, NULL);
+	eloop_register_timeout(WPS_PBC_WALK_TIME, 0,
+			       wps_registrar_set_selected_timeout,
+			       reg, NULL);
 
 	return 0;
+}
+
+
+static void wps_registrar_expire_pins(struct wps_registrar *reg)
+{
+	struct wps_uuid_pin *pin, *prev, *del;
+	struct os_time now;
+
+	os_get_time(&now);
+	prev = NULL;
+	pin = reg->pins;
+	while (pin) {
+		if ((pin->flags & PIN_EXPIRES) &&
+		    os_time_before(&pin->expiration, &now)) {
+			if (prev == NULL)
+				reg->pins = pin->next;
+			else
+				prev->next = pin->next;
+			del = pin;
+			pin = pin->next;
+			wpa_hexdump(MSG_DEBUG, "WPS: Expired PIN for UUID",
+				    del->uuid, WPS_UUID_LEN);
+			wps_free_pin(del);
+			continue;
+		}
+		prev = pin;
+		pin = pin->next;
+	}
 }
 
 
@@ -481,6 +529,8 @@ static const u8 * wps_registrar_get_pin(struct wps_registrar *reg,
 {
 	struct wps_uuid_pin *pin;
 
+	wps_registrar_expire_pins(reg);
+
 	pin = reg->pins;
 	while (pin) {
 		if (!pin->wildcard_uuid &&
@@ -512,13 +562,13 @@ static const u8 * wps_registrar_get_pin(struct wps_registrar *reg,
 	 * Lock the PIN to avoid attacks based on concurrent re-use of the PIN
 	 * that could otherwise avoid PIN invalidations.
 	 */
-	if (pin->locked) {
+	if (pin->flags & PIN_LOCKED) {
 		wpa_printf(MSG_DEBUG, "WPS: Selected PIN locked - do not "
 			   "allow concurrent re-use");
 		return NULL;
 	}
 	*pin_len = pin->pin_len;
-	pin->locked = 1;
+	pin->flags |= PIN_LOCKED;
 	return pin->pin;
 }
 
@@ -545,7 +595,7 @@ int wps_registrar_unlock_pin(struct wps_registrar *reg, const u8 *uuid)
 					   "wildcard PIN");
 				return wps_registrar_invalidate_pin(reg, uuid);
 			}
-			pin->locked = 0;
+			pin->flags &= ~PIN_LOCKED;
 			return 0;
 		}
 		pin = pin->next;
@@ -568,6 +618,7 @@ static void wps_registrar_pbc_timeout(void *eloop_ctx, void *timeout_ctx)
 	struct wps_registrar *reg = eloop_ctx;
 
 	wpa_printf(MSG_DEBUG, "WPS: PBC timed out - disable PBC mode");
+	wps_pbc_timeout_event(reg->wps);
 	wps_registrar_stop_pbc(reg);
 }
 
@@ -586,9 +637,11 @@ int wps_registrar_button_pushed(struct wps_registrar *reg)
 	if (wps_registrar_pbc_overlap(reg, NULL, NULL)) {
 		wpa_printf(MSG_DEBUG, "WPS: PBC overlap - do not start PBC "
 			   "mode");
+		wps_pbc_overlap_event(reg->wps);
 		return -1;
 	}
 	wpa_printf(MSG_DEBUG, "WPS: Button pushed - PBC mode started");
+	reg->force_pbc_overlap = 0;
 	reg->selected_registrar = 1;
 	reg->pbc = 1;
 	wps_set_ie(reg);
@@ -605,6 +658,14 @@ static void wps_registrar_pbc_completed(struct wps_registrar *reg)
 	wpa_printf(MSG_DEBUG, "WPS: PBC completed - stopping PBC mode");
 	eloop_cancel_timeout(wps_registrar_pbc_timeout, reg, NULL);
 	wps_registrar_stop_pbc(reg);
+}
+
+static void wps_registrar_pin_completed(struct wps_registrar *reg)
+{
+	wpa_printf(MSG_DEBUG, "WPS: PIN completed using internal Registrar");
+	eloop_cancel_timeout(wps_registrar_set_selected_timeout, reg, NULL);
+	reg->selected_registrar = 0;
+	wps_set_ie(reg);
 }
 
 
@@ -648,8 +709,18 @@ void wps_registrar_probe_req_rx(struct wps_registrar *reg, const u8 *addr,
 
 	wpa_printf(MSG_DEBUG, "WPS: Probe Request for PBC received from "
 		   MACSTR, MAC2STR(addr));
+	if (attr.uuid_e == NULL) {
+		wpa_printf(MSG_DEBUG, "WPS: Invalid Probe Request WPS IE: No "
+			   "UUID-E included");
+		return;
+	}
 
 	wps_registrar_add_pbc_session(reg, addr, attr.uuid_e);
+	if (wps_registrar_pbc_overlap(reg, addr, attr.uuid_e)) {
+		wpa_printf(MSG_DEBUG, "WPS: PBC session overlap detected");
+		reg->force_pbc_overlap = 1;
+		wps_pbc_overlap_event(reg->wps);
+	}
 }
 
 
@@ -775,6 +846,28 @@ static int wps_set_ie(struct wps_registrar *reg)
 		wpabuf_free(beacon);
 		wpabuf_free(probe);
 		return -1;
+	}
+
+	if (reg->static_wep_only) {
+		/*
+		 * Windows XP and Vista clients can get confused about
+		 * EAP-Identity/Request when they probe the network with
+		 * EAPOL-Start. In such a case, they may assume the network is
+		 * using IEEE 802.1X and prompt user for a certificate while
+		 * the correct (non-WPS) behavior would be to ask for the
+		 * static WEP key. As a workaround, use Microsoft Provisioning
+		 * IE to advertise that legacy 802.1X is not supported.
+		 */
+		const u8 ms_wps[7] = {
+			WLAN_EID_VENDOR_SPECIFIC, 5,
+			/* Microsoft Provisioning IE (00:50:f2:5) */
+			0x00, 0x50, 0xf2, 5,
+			0x00 /* no legacy 802.1X or MS WPS */
+		};
+		wpa_printf(MSG_DEBUG, "WPS: Add Microsoft Provisioning IE "
+			   "into Beacon/Probe Response frames");
+		wpabuf_put_data(beacon, ms_wps, sizeof(ms_wps));
+		wpabuf_put_data(probe, ms_wps, sizeof(ms_wps));
 	}
 
 	ret = wps_cb_set_ie(reg, beacon, probe);
@@ -1033,8 +1126,10 @@ static int wps_build_cred(struct wps_data *wps, struct wpabuf *msg)
 		}
 	}
 	wps->cred.encr_type = wps->encr_type;
-	/* Set MAC address in the Credential to be the AP's address (BSSID) */
-	os_memcpy(wps->cred.mac_addr, wps->wps->dev.mac_addr, ETH_ALEN);
+	/*
+	 * Set MAC address in the Credential to be the Enrollee's MAC address
+	 */
+	os_memcpy(wps->cred.mac_addr, wps->mac_addr_e, ETH_ALEN);
 
 	if (wps->wps->wps_state == WPS_STATE_NOT_CONFIGURED && wps->wps->ap &&
 	    !wps->wps->registrar->disable_auto_conf) {
@@ -1159,14 +1254,15 @@ static struct wpabuf * wps_build_m2(struct wps_data *wps)
 static struct wpabuf * wps_build_m2d(struct wps_data *wps)
 {
 	struct wpabuf *msg;
-	u16 err = WPS_CFG_NO_ERROR;
+	u16 err = wps->config_error;
 
 	wpa_printf(MSG_DEBUG, "WPS: Building Message M2D");
 	msg = wpabuf_alloc(1000);
 	if (msg == NULL)
 		return NULL;
 
-	if (wps->wps->ap && wps->wps->ap_setup_locked)
+	if (wps->wps->ap && wps->wps->ap_setup_locked &&
+	    err == WPS_CFG_NO_ERROR)
 		err = WPS_CFG_SETUP_LOCKED;
 
 	if (wps_build_version(msg) ||
@@ -1368,8 +1464,18 @@ struct wpabuf * wps_registrar_get_msg(struct wps_data *wps,
 			else
 				wps->wps->upnp_msgs = NULL;
 			msg = p->msg;
+			switch (p->type) {
+			case WPS_WSC_ACK:
+				*op_code = WSC_ACK;
+				break;
+			case WPS_WSC_NACK:
+				*op_code = WSC_NACK;
+				break;
+			default:
+				*op_code = WSC_MSG;
+				break;
+			}
 			os_free(p);
-			*op_code = WSC_MSG;
 			if (wps->ext_reg == 0)
 				wps->ext_reg = 1;
 			return msg;
@@ -1654,7 +1760,21 @@ static int wps_process_auth_type_flags(struct wps_data *wps, const u8 *auth)
 		wpa_printf(MSG_DEBUG, "WPS: No match in supported "
 			   "authentication types (own 0x%x Enrollee 0x%x)",
 			   wps->wps->auth_types, auth_types);
+#ifdef WPS_WORKAROUNDS
+		/*
+		 * Some deployed implementations seem to advertise incorrect
+		 * information in this attribute. For example, Linksys WRT350N
+		 * seems to have a byteorder bug that breaks this negotiation.
+		 * In order to interoperate with existing implementations,
+		 * assume that the Enrollee supports everything we do.
+		 */
+		wpa_printf(MSG_DEBUG, "WPS: Workaround - assume Enrollee "
+			   "does not advertise supported authentication types "
+			   "correctly");
+		wps->auth_type = wps->wps->auth_types;
+#else /* WPS_WORKAROUNDS */
 		return -1;
+#endif /* WPS_WORKAROUNDS */
 	}
 
 	return 0;
@@ -1678,8 +1798,23 @@ static int wps_process_encr_type_flags(struct wps_data *wps, const u8 *encr)
 	wps->encr_type = wps->wps->encr_types & encr_types;
 	if (wps->encr_type == 0) {
 		wpa_printf(MSG_DEBUG, "WPS: No match in supported "
-			   "encryption types");
+			   "encryption types (own 0x%x Enrollee 0x%x)",
+			   wps->wps->encr_types, encr_types);
+#ifdef WPS_WORKAROUNDS
+		/*
+		 * Some deployed implementations seem to advertise incorrect
+		 * information in this attribute. For example, Linksys WRT350N
+		 * seems to have a byteorder bug that breaks this negotiation.
+		 * In order to interoperate with existing implementations,
+		 * assume that the Enrollee supports everything we do.
+		 */
+		wpa_printf(MSG_DEBUG, "WPS: Workaround - assume Enrollee "
+			   "does not advertise supported encryption types "
+			   "correctly");
+		wps->encr_type = wps->wps->encr_types;
+#else /* WPS_WORKAROUNDS */
 		return -1;
+#endif /* WPS_WORKAROUNDS */
 	}
 
 	return 0;
@@ -1806,11 +1941,15 @@ static enum wps_process_res wps_process_m1(struct wps_data *wps,
 	}
 
 	if (wps->dev_pw_id == DEV_PW_PUSHBUTTON) {
-		if (wps_registrar_pbc_overlap(wps->wps->registrar,
+		if (wps->wps->registrar->force_pbc_overlap ||
+		    wps_registrar_pbc_overlap(wps->wps->registrar,
 					      wps->mac_addr_e, wps->uuid_e)) {
 			wpa_printf(MSG_DEBUG, "WPS: PBC overlap - deny PBC "
 				   "negotiation");
 			wps->state = SEND_M2D;
+			wps->config_error = WPS_CFG_MULTIPLE_PBC_DETECTED;
+			wps_pbc_overlap_event(wps->wps);
+			wps->wps->registrar->force_pbc_overlap = 1;
 			return WPS_CONTINUE;
 		}
 		wps_registrar_add_pbc_session(wps->wps->registrar,
@@ -1833,6 +1972,14 @@ static enum wps_process_res wps_process_m3(struct wps_data *wps,
 		wpa_printf(MSG_DEBUG, "WPS: Unexpected state (%d) for "
 			   "receiving M3", wps->state);
 		wps->state = SEND_WSC_NACK;
+		return WPS_CONTINUE;
+	}
+
+	if (wps->pbc && wps->wps->registrar->force_pbc_overlap) {
+		wpa_printf(MSG_DEBUG, "WPS: Reject negotiation due to PBC "
+			   "session overlap");
+		wps->state = SEND_WSC_NACK;
+		wps->config_error = WPS_CFG_MULTIPLE_PBC_DETECTED;
 		return WPS_CONTINUE;
 	}
 
@@ -1862,6 +2009,14 @@ static enum wps_process_res wps_process_m5(struct wps_data *wps,
 		wpa_printf(MSG_DEBUG, "WPS: Unexpected state (%d) for "
 			   "receiving M5", wps->state);
 		wps->state = SEND_WSC_NACK;
+		return WPS_CONTINUE;
+	}
+
+	if (wps->pbc && wps->wps->registrar->force_pbc_overlap) {
+		wpa_printf(MSG_DEBUG, "WPS: Reject negotiation due to PBC "
+			   "session overlap");
+		wps->state = SEND_WSC_NACK;
+		wps->config_error = WPS_CFG_MULTIPLE_PBC_DETECTED;
 		return WPS_CONTINUE;
 	}
 
@@ -1896,6 +2051,28 @@ static enum wps_process_res wps_process_m5(struct wps_data *wps,
 }
 
 
+static void wps_sta_cred_cb(struct wps_data *wps)
+{
+	/*
+	 * Update credential to only include a single authentication and
+	 * encryption type in case the AP configuration includes more than one
+	 * option.
+	 */
+	if (wps->cred.auth_type & WPS_AUTH_WPA2PSK)
+		wps->cred.auth_type = WPS_AUTH_WPA2PSK;
+	else if (wps->cred.auth_type & WPS_AUTH_WPAPSK)
+		wps->cred.auth_type = WPS_AUTH_WPAPSK;
+	if (wps->cred.encr_type & WPS_ENCR_AES)
+		wps->cred.encr_type = WPS_ENCR_AES;
+	else if (wps->cred.encr_type & WPS_ENCR_TKIP)
+		wps->cred.encr_type = WPS_ENCR_TKIP;
+	wpa_printf(MSG_DEBUG, "WPS: Update local configuration based on the "
+		   "AP configuration");
+	if (wps->wps->cred_cb)
+		wps->wps->cred_cb(wps->wps->cb_ctx, &wps->cred);
+}
+
+
 static int wps_process_ap_settings_r(struct wps_data *wps,
 				     struct wps_parse_attr *attr)
 {
@@ -1908,12 +2085,21 @@ static int wps_process_ap_settings_r(struct wps_data *wps,
 
 	wpa_printf(MSG_INFO, "WPS: Received old AP configuration from AP");
 
+#if 0
 	/*
 	 * TODO: Provide access to AP settings and allow changes before sending
 	 * out M8. For now, just copy the settings unchanged into M8.
 	 */
 
 	return 0;
+#else
+	/*
+	 * For now, use the AP PIN only to receive the current AP settings,
+	 * not to reconfigure the AP.
+	 */
+	wps_sta_cred_cb(wps);
+	return 1;
+#endif
 }
 
 
@@ -1930,6 +2116,14 @@ static enum wps_process_res wps_process_m7(struct wps_data *wps,
 		wpa_printf(MSG_DEBUG, "WPS: Unexpected state (%d) for "
 			   "receiving M7", wps->state);
 		wps->state = SEND_WSC_NACK;
+		return WPS_CONTINUE;
+	}
+
+	if (wps->pbc && wps->wps->registrar->force_pbc_overlap) {
+		wpa_printf(MSG_DEBUG, "WPS: Reject negotiation due to PBC "
+			   "session overlap");
+		wps->state = SEND_WSC_NACK;
+		wps->config_error = WPS_CFG_MULTIPLE_PBC_DETECTED;
 		return WPS_CONTINUE;
 	}
 
@@ -2281,12 +2475,8 @@ static enum wps_process_res wps_process_wsc_done(struct wps_data *wps,
 		wps->new_psk = NULL;
 	}
 
-	if (!wps->wps->ap) {
-		wpa_printf(MSG_DEBUG, "WPS: Update local configuration based "
-			   "on the modified AP configuration");
-		if (wps->wps->cred_cb)
-			wps->wps->cred_cb(wps->wps->cb_ctx, &wps->cred);
-	}
+	if (!wps->wps->ap)
+		wps_sta_cred_cb(wps);
 
 	if (wps->new_psk) {
 		if (wps_cb_new_psk(wps->wps->registrar, wps->mac_addr_e,
@@ -2304,6 +2494,8 @@ static enum wps_process_res wps_process_wsc_done(struct wps_data *wps,
 		wps_registrar_remove_pbc_session(wps->wps->registrar,
 						 wps->mac_addr_e, wps->uuid_e);
 		wps_registrar_pbc_completed(wps->wps->registrar);
+	} else {
+		wps_registrar_pin_completed(wps->wps->registrar);
 	}
 
 	wps_success_event(wps->wps);
@@ -2333,7 +2525,8 @@ enum wps_process_res wps_registrar_process_msg(struct wps_data *wps,
 		wps_registrar_free_pending_m2(wps->wps);
 	if (wps->wps->wps_upnp && wps->ext_reg &&
 	    wps->wps->upnp_msgs == NULL &&
-	    (op_code == WSC_MSG || op_code == WSC_Done)) {
+	    (op_code == WSC_MSG || op_code == WSC_Done || op_code == WSC_NACK))
+	{
 		struct wps_parse_attr attr;
 		int type;
 		if (wps_parse_msg(msg, &attr) < 0 || attr.msg_type == NULL)
@@ -2401,7 +2594,6 @@ static void wps_registrar_set_selected_timeout(void *eloop_ctx,
  * wps_registrar_set_selected_registrar - Notification of SetSelectedRegistrar
  * @reg: Registrar data from wps_registrar_init()
  * @msg: Received message from SetSelectedRegistrar
- * @msg_len: Length of msg in octets
  * Returns: 0 on success, -1 on failure
  *
  * This function is called when an AP receives a SetSelectedRegistrar UPnP

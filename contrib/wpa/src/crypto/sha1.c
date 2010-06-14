@@ -606,8 +606,8 @@ static void SHA1Transform(u32 state[5], const unsigned char buffer[64])
 	} CHAR64LONG16;
 	CHAR64LONG16* block;
 #ifdef SHA1HANDSOFF
-	u32 workspace[16];
-	block = (CHAR64LONG16 *) workspace;
+	CHAR64LONG16 workspace;
+	block = &workspace;
 	os_memcpy(block, buffer, 64);
 #else
 	block = (CHAR64LONG16 *) buffer;

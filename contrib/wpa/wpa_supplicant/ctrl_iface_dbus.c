@@ -540,6 +540,8 @@ static DBusHandlerResult wpas_iface_message_handler(DBusConnection *connection,
 								      wpa_s);
 		else if (!strcmp(method, "state"))
 			reply = wpas_dbus_iface_get_state(message, wpa_s);
+		else if (!strcmp(method, "scanning"))
+			reply = wpas_dbus_iface_get_scanning(message, wpa_s);
 		else if (!strcmp(method, "setBlobs"))
 			reply = wpas_dbus_iface_set_blobs(message, wpa_s);
 		else if (!strcmp(method, "removeBlobs"))
@@ -602,6 +604,9 @@ static DBusHandlerResult wpas_message_handler(DBusConnection *connection,
 				message, ctrl_iface->global);
 		} else if (!strcmp(method, "getInterface")) {
 			reply = wpas_dbus_global_get_interface(
+				message, ctrl_iface->global);
+		} else if (!strcmp(method, "setDebugParams")) {
+			reply = wpas_dbus_global_set_debugparams(
 				message, ctrl_iface->global);
 		}
 	}
@@ -741,6 +746,58 @@ out:
 }
 
 
+/**
+ * wpa_supplicant_dbus_notify_scanning - send scanning status
+ * @wpa_s: %wpa_supplicant network interface data
+ * Returns: 0 on success, -1 on failure
+ *
+ * Notify listeners of interface scanning state changes
+ */
+void wpa_supplicant_dbus_notify_scanning(struct wpa_supplicant *wpa_s)
+{
+	struct ctrl_iface_dbus_priv *iface = wpa_s->global->dbus_ctrl_iface;
+	DBusMessage *_signal;
+	const char *path;
+	dbus_bool_t scanning = wpa_s->scanning ? TRUE : FALSE;
+
+	/* Do nothing if the control interface is not turned on */
+	if (iface == NULL)
+		return;
+
+	path = wpa_supplicant_get_dbus_path(wpa_s);
+	if (path == NULL) {
+		perror("wpa_supplicant_dbus_notify_scanning[dbus]: interface "
+		       "didn't have a dbus path");
+		wpa_printf(MSG_ERROR,
+		           "%s[dbus]: interface didn't have a dbus path; "
+			   "can't send scanning signal.", __FUNCTION__);
+		return;
+	}
+	_signal = dbus_message_new_signal(path, WPAS_DBUS_IFACE_INTERFACE,
+					  "Scanning");
+	if (_signal == NULL) {
+		perror("wpa_supplicant_dbus_notify_scanning[dbus]: couldn't "
+		       "create dbus signal; likely out of memory");
+		wpa_printf(MSG_ERROR, "%s[dbus]: dbus control interface: not "
+		           "enough memory to send scan results signal.",
+		           __FUNCTION__);
+		return;
+	}
+
+	if (dbus_message_append_args(_signal,
+	                             DBUS_TYPE_BOOLEAN, &scanning,
+	                             DBUS_TYPE_INVALID)) {
+		dbus_connection_send(iface->con, _signal, NULL);
+	} else {
+		perror("wpa_supplicant_dbus_notify_scanning[dbus]: not enough "
+		       "memory to construct signal.");
+		wpa_printf(MSG_ERROR, "%s[dbus]: not enough memory to "
+			   "construct signal.", __FUNCTION__);
+	}
+	dbus_message_unref(_signal);
+}
+
+
 #ifdef CONFIG_WPS
 void wpa_supplicant_dbus_notify_wps_cred(struct wpa_supplicant *wpa_s,
 					 const struct wps_credential *cred)
@@ -794,6 +851,11 @@ void wpa_supplicant_dbus_notify_wps_cred(struct wpa_supplicant *wpa_s,
 
 out:
 	dbus_message_unref(_signal);
+}
+#else /* CONFIG_WPS */
+void wpa_supplicant_dbus_notify_wps_cred(struct wpa_supplicant *wpa_s,
+					 const struct wps_credential *cred)
+{
 }
 #endif /* CONFIG_WPS */
 

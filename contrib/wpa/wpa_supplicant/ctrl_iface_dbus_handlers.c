@@ -24,7 +24,11 @@
 #include "ieee802_11_defs.h"
 #include "wpas_glue.h"
 #include "eapol_supp/eapol_supp_sm.h"
+#include "wpa.h"
 
+extern int wpa_debug_level;
+extern int wpa_debug_show_keys;
+extern int wpa_debug_timestamp;
 
 /**
  * wpas_dbus_new_invalid_opts_error - Return a new invalid options error message
@@ -277,6 +281,51 @@ out:
 	return reply;
 }
 
+/**
+ * wpas_dbus_global_set_debugparams- Set the debug params
+ * @message: Pointer to incoming dbus message
+ * @global: %wpa_supplicant global data structure
+ * Returns: a dbus message containing a UINT32 indicating success (1) or
+ *          failure (0), or returns a dbus error message with more information
+ *
+ * Handler function for "setDebugParams" method call. Handles requests
+ * by dbus clients for the object path of an specific network interface.
+ */
+DBusMessage * wpas_dbus_global_set_debugparams(DBusMessage *message,
+					       struct wpa_global *global)
+{
+	DBusMessage *reply = NULL;
+	int debug_level;
+	dbus_bool_t debug_timestamp;
+	dbus_bool_t debug_show_keys;
+
+	if (!dbus_message_get_args(message, NULL,
+	                           DBUS_TYPE_INT32, &debug_level,
+	                           DBUS_TYPE_BOOLEAN, &debug_timestamp,
+	                           DBUS_TYPE_BOOLEAN, &debug_show_keys,
+	                           DBUS_TYPE_INVALID)) {
+		reply = wpas_dbus_new_invalid_opts_error(message, NULL);
+		goto out;
+	}
+
+	/* check for allowed debuglevels */
+	if (debug_level != MSG_MSGDUMP &&
+	    debug_level != MSG_DEBUG &&
+	    debug_level != MSG_INFO &&
+	    debug_level != MSG_WARNING &&
+	    debug_level != MSG_ERROR) {
+		reply = wpas_dbus_new_invalid_opts_error(message, NULL);
+		goto out;
+	}
+
+	wpa_debug_level = debug_level;
+	wpa_debug_timestamp = debug_timestamp ? 1 : 0;
+	wpa_debug_show_keys = debug_show_keys ? 1 : 0;
+	reply = wpas_dbus_new_success_reply(message);
+
+out:
+	return reply;
+}
 
 /**
  * wpas_dbus_iface_scan - Request a wireless scan on an interface
@@ -1246,8 +1295,11 @@ DBusMessage * wpas_dbus_iface_set_smartcard_modules(
 	wpa_s->conf->pkcs11_module_path = pkcs11_module_path;
 #endif /* EAP_TLS_OPENSSL */
 
+	wpa_sm_set_eapol(wpa_s->wpa, NULL);
 	eapol_sm_deinit(wpa_s->eapol);
+	wpa_s->eapol = NULL;
 	wpa_supplicant_init_eapol(wpa_s);
+	wpa_sm_set_eapol(wpa_s->wpa, wpa_s->eapol);
 
 	return wpas_dbus_new_success_reply(message);
 
@@ -1278,6 +1330,35 @@ DBusMessage * wpas_dbus_iface_get_state(DBusMessage *message,
 		str_state = wpa_supplicant_state_txt(wpa_s->wpa_state);
 		dbus_message_append_args(reply, DBUS_TYPE_STRING, &str_state,
 					 DBUS_TYPE_INVALID);
+	}
+
+	return reply;
+}
+
+
+/**
+ * wpas_dbus_iface_get_scanning - Get interface scanning state
+ * @message: Pointer to incoming dbus message
+ * @wpa_s: wpa_supplicant structure for a network interface
+ * Returns: A dbus message containing whether the interface is scanning
+ *
+ * Handler function for "scanning" method call.
+ */
+DBusMessage * wpas_dbus_iface_get_scanning(DBusMessage *message,
+					   struct wpa_supplicant *wpa_s)
+{
+	DBusMessage *reply = NULL;
+	dbus_bool_t scanning = wpa_s->scanning ? TRUE : FALSE;
+
+	reply = dbus_message_new_method_return(message);
+	if (reply != NULL) {
+		dbus_message_append_args(reply, DBUS_TYPE_BOOLEAN, &scanning,
+					 DBUS_TYPE_INVALID);
+	} else {
+		perror("wpas_dbus_iface_get_scanning[dbus]: out of "
+		       "memory.");
+		wpa_printf(MSG_ERROR, "dbus control interface: not enough "
+			   "memory to return scanning state.");
 	}
 
 	return reply;

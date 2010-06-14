@@ -45,6 +45,18 @@ static int eap_tls_check_blob(struct eap_sm *sm, const char **name,
 }
 
 
+static void eap_tls_params_flags(struct tls_connection_params *params,
+				 const char *txt)
+{
+	if (txt == NULL)
+		return;
+	if (os_strstr(txt, "tls_allow_md5=1"))
+		params->flags |= TLS_CONN_ALLOW_SIGN_RSA_MD5;
+	if (os_strstr(txt, "tls_disable_time_checks=1"))
+		params->flags |= TLS_CONN_DISABLE_TIME_CHECKS;
+}
+
+
 static void eap_tls_params_from_conf1(struct tls_connection_params *params,
 				      struct eap_peer_config *config)
 {
@@ -62,6 +74,7 @@ static void eap_tls_params_from_conf1(struct tls_connection_params *params,
 	params->key_id = config->key_id;
 	params->cert_id = config->cert_id;
 	params->ca_cert_id = config->ca_cert_id;
+	eap_tls_params_flags(params, config->phase1);
 }
 
 
@@ -82,6 +95,7 @@ static void eap_tls_params_from_conf2(struct tls_connection_params *params,
 	params->key_id = config->key2_id;
 	params->cert_id = config->cert2_id;
 	params->ca_cert_id = config->ca_cert2_id;
+	eap_tls_params_flags(params, config->phase2);
 }
 
 
