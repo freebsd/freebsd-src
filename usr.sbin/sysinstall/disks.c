@@ -215,6 +215,7 @@ print_command_summary(void)
     mvprintw(21, 0, "Use F1 or ? to get more help, arrow keys to select.");
     move(0, 0);
 }
+#endif /* WITH_SLICES */
 
 #if !defined(__ia64__)
 static u_char *
@@ -249,8 +250,9 @@ bootalloc(char *name, size_t *size)
 	msgDebug("bootalloc: can't stat %s\n", buf);
     return NULL;
 }
-#endif
+#endif /* !defined(__ia64__) */
 
+#ifdef WITH_SLICES
 #ifdef PC98
 static void
 getBootMgr(char *dname, u_char **bootipl, size_t *bootipl_size,
