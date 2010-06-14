@@ -30,6 +30,8 @@ S=	../../..
 .endif
 .include "$S/conf/kern.pre.mk"
 
+INCLUDES+= -I$S/contrib/libfdt
+
 SYSTEM_LD:= ${SYSTEM_LD:$S/conf/ldscript.$M=ldscript.$M}
 SYSTEM_DEP:= ${SYSTEM_DEP:$S/conf/ldscript.$M=ldscript.$M}
 

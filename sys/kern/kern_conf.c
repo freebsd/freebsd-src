@@ -55,9 +55,8 @@ struct mtx devmtx;
 static void destroy_devl(struct cdev *dev);
 static int destroy_dev_sched_cbl(struct cdev *dev,
     void (*cb)(void *), void *arg);
-static struct cdev *make_dev_credv(int flags,
-    struct cdevsw *devsw, int unit,
-    struct ucred *cr, uid_t uid, gid_t gid, int mode, const char *fmt,
+static int make_dev_credv(int flags, struct cdev **dres, struct cdevsw *devsw,
+    int unit, struct ucred *cr, uid_t uid, gid_t gid, int mode, const char *fmt,
     va_list ap);
 
 static struct cdev_priv_list cdevp_free_list =
@@ -509,18 +508,18 @@ notify(struct cdev *dev, const char *ev, int flags)
 {
 	static const char prefix[] = "cdev=";
 	char *data;
-	int namelen;
+	int namelen, mflags;
 
 	if (cold)
 		return;
+	mflags = (flags & MAKEDEV_NOWAIT) ? M_NOWAIT : M_WAITOK;
 	namelen = strlen(dev->si_name);
-	data = malloc(namelen + sizeof(prefix), M_TEMP,
-	     (flags & MAKEDEV_NOWAIT) ? M_NOWAIT : M_WAITOK);
+	data = malloc(namelen + sizeof(prefix), M_TEMP, mflags);
 	if (data == NULL)
 		return;
 	memcpy(data, prefix, sizeof(prefix) - 1);
 	memcpy(data + sizeof(prefix) - 1, dev->si_name, namelen + 1);
-	devctl_notify("DEVFS", "CDEV", ev, data);
+	devctl_notify_f("DEVFS", "CDEV", ev, data, mflags);
 	free(data, M_TEMP);
 }
 
@@ -580,20 +579,20 @@ prep_cdevsw(struct cdevsw *devsw, int flags)
 
 	mtx_assert(&devmtx, MA_OWNED);
 	if (devsw->d_flags & D_INIT)
-		return (1);
+		return (0);
 	if (devsw->d_flags & D_NEEDGIANT) {
 		dev_unlock();
 		dsw2 = malloc(sizeof *dsw2, M_DEVT,
 		     (flags & MAKEDEV_NOWAIT) ? M_NOWAIT : M_WAITOK);
 		dev_lock();
 		if (dsw2 == NULL && !(devsw->d_flags & D_INIT))
-			return (0);
+			return (ENOMEM);
 	} else
 		dsw2 = NULL;
 	if (devsw->d_flags & D_INIT) {
 		if (dsw2 != NULL)
 			cdevsw_free_devlocked(dsw2);
-		return (1);
+		return (0);
 	}
 
 	if (devsw->d_version != D_VERSION_03) {
@@ -651,25 +650,28 @@ prep_cdevsw(struct cdevsw *devsw, int flags)
 
 	if (dsw2 != NULL)
 		cdevsw_free_devlocked(dsw2);
-	return (1);
+	return (0);
 }
 
-static struct cdev *
-make_dev_credv(int flags, struct cdevsw *devsw, int unit,
-    struct ucred *cr, uid_t uid,
-    gid_t gid, int mode, const char *fmt, va_list ap)
+static int
+make_dev_credv(int flags, struct cdev **dres, struct cdevsw *devsw, int unit,
+    struct ucred *cr, uid_t uid, gid_t gid, int mode, const char *fmt,
+    va_list ap)
 {
 	struct cdev *dev;
-	int i;
+	int i, res;
 
+	KASSERT((flags & MAKEDEV_WAITOK) == 0 || (flags & MAKEDEV_NOWAIT) == 0,
+	    ("make_dev_credv: both WAITOK and NOWAIT specified"));
 	dev = devfs_alloc(flags);
 	if (dev == NULL)
-		return (NULL);
+		return (ENOMEM);
 	dev_lock();
-	if (!prep_cdevsw(devsw, flags)) {
+	res = prep_cdevsw(devsw, flags);
+	if (res != 0) {
 		dev_unlock();
 		devfs_free(dev);
-		return (NULL);
+		return (res);
 	}
 	dev = newdev(devsw, unit, dev);
 	if (flags & MAKEDEV_REF)
@@ -682,7 +684,8 @@ make_dev_credv(int flags, struct cdevsw *devsw, int unit,
 		 * XXX: still ??
 		 */
 		dev_unlock_and_free();
-		return (dev);
+		*dres = dev;
+		return (0);
 	}
 	KASSERT(!(dev->si_flags & SI_NAMED),
 	    ("make_dev() by driver %s on pre-existing device (min=%x, name=%s)",
@@ -707,7 +710,8 @@ make_dev_credv(int flags, struct cdevsw *devsw, int unit,
 
 	notify_create(dev, flags);
 
-	return (dev);
+	*dres = dev;
+	return (0);
 }
 
 struct cdev *
@@ -716,10 +720,13 @@ make_dev(struct cdevsw *devsw, int unit, uid_t uid, gid_t gid, int mode,
 {
 	struct cdev *dev;
 	va_list ap;
+	int res;
 
 	va_start(ap, fmt);
-	dev = make_dev_credv(0, devsw, unit, NULL, uid, gid, mode, fmt, ap);
+	res = make_dev_credv(0, &dev, devsw, unit, NULL, uid, gid, mode, fmt,
+	    ap);
 	va_end(ap);
+	KASSERT(res == 0 && dev != NULL, ("make_dev: failed make_dev_credv"));
 	return (dev);
 }
 
@@ -729,28 +736,50 @@ make_dev_cred(struct cdevsw *devsw, int unit, struct ucred *cr, uid_t uid,
 {
 	struct cdev *dev;
 	va_list ap;
+	int res;
 
 	va_start(ap, fmt);
-	dev = make_dev_credv(0, devsw, unit, cr, uid, gid, mode, fmt, ap);
+	res = make_dev_credv(0, &dev, devsw, unit, cr, uid, gid, mode, fmt, ap);
 	va_end(ap);
 
+	KASSERT(res == 0 && dev != NULL,
+	    ("make_dev_cred: failed make_dev_credv"));
 	return (dev);
 }
 
 struct cdev *
-make_dev_credf(int flags, struct cdevsw *devsw, int unit,
-    struct ucred *cr, uid_t uid,
-    gid_t gid, int mode, const char *fmt, ...)
+make_dev_credf(int flags, struct cdevsw *devsw, int unit, struct ucred *cr,
+    uid_t uid, gid_t gid, int mode, const char *fmt, ...)
 {
 	struct cdev *dev;
 	va_list ap;
+	int res;
 
 	va_start(ap, fmt);
-	dev = make_dev_credv(flags, devsw, unit, cr, uid, gid, mode,
+	res = make_dev_credv(flags, &dev, devsw, unit, cr, uid, gid, mode,
 	    fmt, ap);
 	va_end(ap);
 
-	return (dev);
+	KASSERT((flags & MAKEDEV_NOWAIT) != 0 || res == 0,
+	    ("make_dev_credf: failed make_dev_credv"));
+	return (res == 0 ? dev : NULL);
+}
+
+int
+make_dev_p(int flags, struct cdev **cdev, struct cdevsw *devsw, int unit,
+    struct ucred *cr, uid_t uid, gid_t gid, int mode, const char *fmt, ...)
+{
+	va_list ap;
+	int res;
+
+	va_start(ap, fmt);
+	res = make_dev_credv(flags, cdev, devsw, unit, cr, uid, gid, mode,
+	    fmt, ap);
+	va_end(ap);
+
+	KASSERT((flags & MAKEDEV_NOWAIT) != 0 || res == 0,
+	    ("make_dev_credf: failed make_dev_credv"));
+	return (res);
 }
 
 static void

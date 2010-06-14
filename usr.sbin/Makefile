@@ -498,6 +498,10 @@ _spkrtest=	spkrtest
 _zzz=		zzz
 .endif
 
+.if ${MACHINE_ARCH} == "arm"
+_ofwdump=	ofwdump
+.endif
+
 .if ${MACHINE_ARCH} == "ia64"
 .if ${MK_ACPI} != "no"
 _acpi=		acpi

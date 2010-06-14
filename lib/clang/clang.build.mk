@@ -20,9 +20,16 @@ REQUIRES_RTTI=
 CFLAGS+=	-fno-rtti
 .endif
 
+# Correct for gcc miscompilation when compiling on PPC with -O2
+.if ${MACHINE_ARCH} == "powerpc"
+CFLAGS+= -O1
+.endif
+
 TARGET_ARCH?=	${MACHINE_ARCH}
 # XXX: 8.0, to keep __FreeBSD_cc_version happy
-CFLAGS+=-DLLVM_HOSTTRIPLE=\"${TARGET_ARCH}-undermydesk-freebsd9.0\"
+CFLAGS+=-DLLVM_HOSTTRIPLE=\"${TARGET_ARCH}-undermydesk-freebsd9.0\" \
+	-DCLANG_VENDOR=\"FreeBSD\ \" -DSVN_REVISION=\"104832\" \
+	-DCLANG_VENDOR_SUFFIX=\"\ 20100614\"
 
 .PATH:	${LLVM_SRCS}/${SRCDIR}
 

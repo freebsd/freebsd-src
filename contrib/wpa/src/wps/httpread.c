@@ -206,7 +206,8 @@ static int httpread_hdr_option_analyze(
 		h->got_content_length = 1;
 		return 0;
 	}
-	if (word_eq(hbp, "TRANSFER_ENCODING:")) {
+	if (word_eq(hbp, "TRANSFER_ENCODING:") ||
+	    word_eq(hbp, "TRANSFER-ENCODING:")) {
 		while (isgraph(*hbp))
 			hbp++;
 		while (*hbp == ' ' || *hbp == '\t')
@@ -214,7 +215,7 @@ static int httpread_hdr_option_analyze(
 		/* There should (?) be no encodings of interest
 		 * other than chunked...
 		 */
-		if (os_strncmp(hbp, "CHUNKED", 7)) {
+		if (word_eq(hbp, "CHUNKED")) {
 			h->chunked = 1;
 			h->in_chunk_data = 0;
 			/* ignore possible ;<parameters> */
@@ -513,6 +514,8 @@ static void httpread_read_handler(int sd, void *eloop_ctx, void *sock_ctx)
 	 * consists of chunks each with a header, ending with
 	 * an ending header.
 	 */
+	if (nread == 0)
+		goto get_more;
 	if (!h->got_body) {
 		/* Here to get (more of) body */
 		/* ensure we have enough room for worst case for body

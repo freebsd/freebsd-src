@@ -1,5 +1,5 @@
 # $FreeBSD$
 
-SUBDIR=	clang
+SUBDIR=	clang tblgen
 
 .include <bsd.subdir.mk>

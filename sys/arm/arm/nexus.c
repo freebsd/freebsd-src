@@ -107,6 +107,7 @@ static devclass_t nexus_devclass;
 static int
 nexus_probe(device_t dev)
 {
+
 	device_quiet(dev);	/* suppress attach message for neatness */
 
 	mem_rman.rm_start = 0;
@@ -116,7 +117,7 @@ nexus_probe(device_t dev)
 	if (rman_init(&mem_rman) || rman_manage_region(&mem_rman, 0, ~0u))
 		panic("nexus_probe mem_rman");
 
-	return (0);
+	return (BUS_PROBE_DEFAULT);
 }
 
 static int

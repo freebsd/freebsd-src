@@ -1,5 +1,7 @@
 # $FreeBSD$
 
+.include <bsd.own.mk>
+
 PROG=		ubldr
 NEWVERSWHAT=	"U-Boot loader" ${MACHINE_ARCH}
 BINDIR?=	/boot
@@ -18,7 +20,7 @@ LOADER_NFS_SUPPORT?=	yes
 LOADER_TFTP_SUPPORT?=	no
 LOADER_GZIP_SUPPORT?=	no
 LOADER_BZIP2_SUPPORT?=	no
-.if defined(WITH_FDT)
+.if ${MK_FDT} != "no"
 LOADER_FDT_SUPPORT=	yes
 .else
 LOADER_FDT_SUPPORT=	no

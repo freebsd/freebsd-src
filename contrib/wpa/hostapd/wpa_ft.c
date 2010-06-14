@@ -321,7 +321,7 @@ static int wpa_ft_pull_pmk_r1(struct wpa_authenticator *wpa_auth,
 
 
 int wpa_auth_derive_ptk_ft(struct wpa_state_machine *sm, const u8 *pmk,
-			   struct wpa_ptk *ptk)
+			   struct wpa_ptk *ptk, size_t ptk_len)
 {
 	u8 pmk_r0[PMK_LEN], pmk_r0_name[WPA_PMK_NAME_LEN];
 	u8 pmk_r1[PMK_LEN], pmk_r1_name[WPA_PMK_NAME_LEN];
@@ -354,8 +354,8 @@ int wpa_auth_derive_ptk_ft(struct wpa_state_machine *sm, const u8 *pmk,
 
 	wpa_pmk_r1_to_ptk(pmk_r1, sm->SNonce, sm->ANonce, sm->addr,
 			  sm->wpa_auth->addr, pmk_r1_name,
-			  (u8 *) ptk, sizeof(*ptk), ptk_name);
-	wpa_hexdump_key(MSG_DEBUG, "FT: PTK", (u8 *) ptk, sizeof(*ptk));
+			  (u8 *) ptk, ptk_len, ptk_name);
+	wpa_hexdump_key(MSG_DEBUG, "FT: PTK", (u8 *) ptk, ptk_len);
 	wpa_hexdump(MSG_DEBUG, "FT: PTKName", ptk_name, WPA_PMK_NAME_LEN);
 
 	return 0;
@@ -714,7 +714,7 @@ static u16 wpa_ft_process_auth_req(struct wpa_state_machine *sm,
 	u8 ptk_name[WPA_PMK_NAME_LEN];
 	struct wpa_auth_config *conf;
 	struct wpa_ft_ies parse;
-	size_t buflen;
+	size_t buflen, ptk_len;
 	int ret;
 	u8 *pos, *end;
 
@@ -804,11 +804,12 @@ static u16 wpa_ft_process_auth_req(struct wpa_state_machine *sm,
 	wpa_hexdump(MSG_DEBUG, "FT: Generated ANonce",
 		    sm->ANonce, WPA_NONCE_LEN);
 
+	ptk_len = sm->pairwise == WPA_CIPHER_CCMP ? 48 : 64;
 	wpa_pmk_r1_to_ptk(pmk_r1, sm->SNonce, sm->ANonce, sm->addr,
 			  sm->wpa_auth->addr, pmk_r1_name,
-			  (u8 *) &sm->PTK, sizeof(sm->PTK), ptk_name);
+			  (u8 *) &sm->PTK, ptk_len, ptk_name);
 	wpa_hexdump_key(MSG_DEBUG, "FT: PTK",
-			(u8 *) &sm->PTK, sizeof(sm->PTK));
+			(u8 *) &sm->PTK, ptk_len);
 	wpa_hexdump(MSG_DEBUG, "FT: PTKName", ptk_name, WPA_PMK_NAME_LEN);
 
 	wpa_ft_install_ptk(sm);

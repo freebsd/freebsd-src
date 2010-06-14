@@ -99,7 +99,7 @@ int	igb_display_debug_stats = 0;
 /*********************************************************************
  *  Driver version:
  *********************************************************************/
-char igb_driver_version[] = "version - 1.9.5";
+char igb_driver_version[] = "version - 1.9.6";
 
 
 /*********************************************************************
@@ -240,7 +240,6 @@ static void     igb_led_func(void *, int);
 static int	igb_irq_fast(void *);
 static void	igb_add_rx_process_limit(struct adapter *, const char *,
 		    const char *, int *, int);
-static void	igb_handle_rxtx(void *context, int pending);
 static void	igb_handle_que(void *context, int pending);
 static void	igb_handle_link(void *context, int pending);
 
@@ -818,21 +817,25 @@ igb_start(struct ifnet *ifp)
 static int
 igb_mq_start(struct ifnet *ifp, struct mbuf *m)
 {
-	struct adapter	*adapter = ifp->if_softc;
-	struct tx_ring	*txr;
-	int 		i = 0, err = 0;
+	struct adapter		*adapter = ifp->if_softc;
+	struct igb_queue	*que;
+	struct tx_ring		*txr;
+	int 			i = 0, err = 0;
 
 	/* Which queue to use */
 	if ((m->m_flags & M_FLOWID) != 0)
 		i = m->m_pkthdr.flowid % adapter->num_queues;
 
 	txr = &adapter->tx_rings[i];
+	que = &adapter->queues[i];
 
 	if (IGB_TX_TRYLOCK(txr)) {
 		err = igb_mq_start_locked(ifp, txr, m);
 		IGB_TX_UNLOCK(txr);
-	} else
+	} else {
 		err = drbr_enqueue(ifp, txr->br, m);
+		taskqueue_enqueue(que->tq, &que->que_task);
+	}
 
 	return (err);
 }
@@ -1225,35 +1228,6 @@ igb_init(void *arg)
 
 
 static void
-igb_handle_rxtx(void *context, int pending)
-{
-	struct igb_queue	*que = context;
-	struct adapter		*adapter = que->adapter;
-	struct tx_ring		*txr = adapter->tx_rings;
-	struct ifnet		*ifp;
-
-	ifp = adapter->ifp;
-
-	if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
-		if (igb_rxeof(que, adapter->rx_process_limit))
-			taskqueue_enqueue(adapter->tq, &adapter->rxtx_task);
-		IGB_TX_LOCK(txr);
-		igb_txeof(txr);
-
-#if __FreeBSD_version >= 800000
-		if (!drbr_empty(ifp, txr->br))
-			igb_mq_start_locked(ifp, txr, NULL);
-#else
-		if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
-			igb_start_locked(txr, ifp);
-#endif
-		IGB_TX_UNLOCK(txr);
-	}
-
-	igb_enable_intr(adapter);
-}
-
-static void
 igb_handle_que(void *context, int pending)
 {
 	struct igb_queue *que = context;
@@ -1268,7 +1242,8 @@ igb_handle_que(void *context, int pending)
 		IGB_TX_LOCK(txr);
 		igb_txeof(txr);
 #if __FreeBSD_version >= 800000
-		igb_mq_start_locked(ifp, txr, NULL);
+		if (!drbr_empty(ifp, txr->br))
+			igb_mq_start_locked(ifp, txr, NULL);
 #else
 		if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
 			igb_start_locked(txr, ifp);
@@ -1280,11 +1255,15 @@ igb_handle_que(void *context, int pending)
 		}
 	}
 
-	/* Reenable this interrupt */
 #ifdef DEVICE_POLLING
-	if (!(ifp->if_capenable & IFCAP_POLLING))
+	if (ifp->if_capenable & IFCAP_POLLING)
+		return;
 #endif
-	E1000_WRITE_REG(&adapter->hw, E1000_EIMS, que->eims);
+	/* Reenable this interrupt */
+	if (que->eims)
+		E1000_WRITE_REG(&adapter->hw, E1000_EIMS, que->eims);
+	else
+		igb_enable_intr(adapter);
 }
 
 /* Deal with link in a sleepable context */
@@ -1923,11 +1902,6 @@ igb_local_timer(void *arg)
 			goto timeout;
 	}
 
-	/* Trigger an RX interrupt on all queues */
-#ifdef DEVICE_POLLING
-	if (!(ifp->if_capenable & IFCAP_POLLING))
-#endif
-	E1000_WRITE_REG(&adapter->hw, E1000_EICS, adapter->rx_mask);
 	callout_reset(&adapter->timer, hz, igb_local_timer, adapter);
 	return;
 
@@ -2142,7 +2116,7 @@ igb_allocate_legacy(struct adapter *adapter)
 	 * Try allocating a fast interrupt and the associated deferred
 	 * processing contexts.
 	 */
-	TASK_INIT(&adapter->rxtx_task, 0, igb_handle_rxtx, que);
+	TASK_INIT(&adapter->rxtx_task, 0, igb_handle_que, que);
 	/* Make tasklet for deferred link handling */
 	TASK_INIT(&adapter->link_task, 0, igb_handle_link, adapter);
 	adapter->tq = taskqueue_create_fast("igb_taskq", M_NOWAIT,
@@ -2194,7 +2168,9 @@ igb_allocate_msix(struct adapter *adapter)
 			device_printf(dev, "Failed to register Queue handler");
 			return (error);
 		}
+#if __FreeBSD_version >= 800504
 		bus_describe_intr(dev, que->res, que->tag, "que %d", i);
+#endif
 		que->msix = vector;
 		if (adapter->hw.mac.type == e1000_82575)
 			que->eims = E1000_EICR_TX_QUEUE0 << i;
@@ -2230,7 +2206,9 @@ igb_allocate_msix(struct adapter *adapter)
 		device_printf(dev, "Failed to register Link handler");
 		return (error);
 	}
+#if __FreeBSD_version >= 800504
 	bus_describe_intr(dev, adapter->res, adapter->tag, "link");
+#endif
 	adapter->linkvec = vector;
 
 	/* Make tasklet for deferred handling */
@@ -3572,7 +3550,7 @@ igb_refresh_mbufs(struct rx_ring *rxr, int limit)
 	cleaned = -1; /* Signify no completions */
 	while (i != limit) {
 		rxbuf = &rxr->rx_buffers[i];
-		if (rxbuf->m_head == NULL) {
+		if ((rxbuf->m_head == NULL) && (rxr->hdr_split)) {
 			mh = m_gethdr(M_DONTWAIT, MT_DATA);
 			if (mh == NULL)
 				goto update;
@@ -3778,16 +3756,24 @@ igb_setup_receive_ring(struct rx_ring *rxr)
 	*/
 	igb_free_receive_ring(rxr);
 
+	/* Configure for header split? */
+	if (igb_header_split)
+		rxr->hdr_split = TRUE;
+
         /* Now replenish the ring mbufs */
 	for (int j = 0; j != adapter->num_rx_desc; ++j) {
 		struct mbuf	*mh, *mp;
 
 		rxbuf = &rxr->rx_buffers[j];
+		if (rxr->hdr_split == FALSE)
+			goto skip_head;
 
 		/* First the header */
 		rxbuf->m_head = m_gethdr(M_DONTWAIT, MT_DATA);
-		if (rxbuf->m_head == NULL)
+		if (rxbuf->m_head == NULL) {
+			error = ENOBUFS;
                         goto fail;
+		}
 		m_adj(rxbuf->m_head, ETHER_ALIGN);
 		mh = rxbuf->m_head;
 		mh->m_len = mh->m_pkthdr.len = MHLEN;
@@ -3803,11 +3789,14 @@ igb_setup_receive_ring(struct rx_ring *rxr)
 		/* Update descriptor */
 		rxr->rx_base[j].read.hdr_addr = htole64(hseg[0].ds_addr);
 
+skip_head:
 		/* Now the payload cluster */
 		rxbuf->m_pack = m_getjcl(M_DONTWAIT, MT_DATA,
 		    M_PKTHDR, adapter->rx_mbuf_sz);
-		if (rxbuf->m_pack == NULL)
+		if (rxbuf->m_pack == NULL) {
+			error = ENOBUFS;
                         goto fail;
+		}
 		mp = rxbuf->m_pack;
 		mp->m_pkthdr.len = mp->m_len = adapter->rx_mbuf_sz;
 		/* Get the memory mapping */
@@ -3826,11 +3815,8 @@ igb_setup_receive_ring(struct rx_ring *rxr)
 	rxr->next_to_check = 0;
 	rxr->next_to_refresh = 0;
 	rxr->lro_enabled = FALSE;
-
-	if (igb_header_split)
-		rxr->hdr_split = TRUE;
-	else
-		ifp->if_capabilities &= ~IFCAP_LRO;
+	rxr->rx_split_packets = 0;
+	rxr->rx_bytes = 0;
 
 	rxr->fmp = NULL;
 	rxr->lmp = NULL;
@@ -3874,7 +3860,7 @@ static int
 igb_setup_receive_structures(struct adapter *adapter)
 {
 	struct rx_ring *rxr = adapter->rx_rings;
-	int i, j;
+	int i;
 
 	for (i = 0; i < adapter->num_queues; i++, rxr++)
 		if (igb_setup_receive_ring(rxr))
@@ -3885,13 +3871,11 @@ fail:
 	/*
 	 * Free RX buffers allocated so far, we will only handle
 	 * the rings that completed, the failing case will have
-	 * cleaned up for itself. The value of 'i' will be the
-	 * failed ring so we must pre-decrement it.
+	 * cleaned up for itself. 'i' is the endpoint.
 	 */
-	rxr = adapter->rx_rings;
-	for (--i; i > 0; i--, rxr++) {
-		for (j = 0; j < adapter->num_rx_desc; j++)
-			igb_free_receive_ring(rxr);
+	for (int j = 0; j > i; ++j) {
+		rxr = &adapter->rx_rings[i];
+		igb_free_receive_ring(rxr);
 	}
 
 	return (ENOBUFS);
@@ -4197,7 +4181,9 @@ igb_rx_input(struct rx_ring *rxr, struct ifnet *ifp, struct mbuf *m, u32 ptype)
 			if (tcp_lro_rx(&rxr->lro, m, 0) == 0)
 				return;
 	}
+	IGB_RX_UNLOCK(rxr);
 	(*ifp->if_input)(ifp, m);
+	IGB_RX_LOCK(rxr);
 }
 
 /*********************************************************************
@@ -4368,8 +4354,11 @@ next_desc:
 		/*
 		** Send to the stack or LRO
 		*/
-		if (sendmp != NULL)
+		if (sendmp != NULL) {
+			rxr->next_to_check = i;
 			igb_rx_input(rxr, ifp, sendmp, ptype);
+			i = rxr->next_to_check;
+		}
 
 		/* Every 8 descriptors we go to refresh mbufs */
 		if (processed == 8) {
@@ -4838,19 +4827,14 @@ igb_print_debug_info(struct adapter *adapter)
 	    adapter->hw.fc.high_water,
 	    adapter->hw.fc.low_water);
 
-	for (int i = 0; i < adapter->num_queues; i++, rxr++, txr++) {
+	for (int i = 0; i < adapter->num_queues; i++, txr++) {
 		device_printf(dev, "Queue(%d) tdh = %d, tdt = %d  ", i,
 		    E1000_READ_REG(&adapter->hw, E1000_TDH(i)),
 		    E1000_READ_REG(&adapter->hw, E1000_TDT(i)));
-		device_printf(dev, "rdh = %d, rdt = %d\n",
-		    E1000_READ_REG(&adapter->hw, E1000_RDH(i)),
-		    E1000_READ_REG(&adapter->hw, E1000_RDT(i)));
-		device_printf(dev, "TX(%d) no descriptors avail event = %lld\n",
+		device_printf(dev, "TX(%d) no descriptors = %lld\n",
 		    txr->me, (long long)txr->no_desc_avail);
 		device_printf(dev, "TX(%d) Packets sent = %lld\n",
 		    txr->me, (long long)txr->tx_packets);
-		device_printf(dev, "RX(%d) Packets received = %lld  ",
-		    rxr->me, (long long)rxr->rx_packets);
 	}
 
 	for (int i = 0; i < adapter->num_queues; i++, rxr++) {
@@ -4870,7 +4854,7 @@ igb_print_debug_info(struct adapter *adapter)
 	}
 
 	for (int i = 0; i < adapter->num_queues; i++, que++)
-		device_printf(dev,"QUE(%d) IRQs = %llx\n",
+		device_printf(dev,"QUE(%d) IRQs = %lld\n",
 		    i, (long long)que->irqs);
 
 	device_printf(dev, "LINK MSIX IRQ Handled = %u\n", adapter->link_irq);

@@ -439,11 +439,8 @@ dtrace_gethrtime_init(void *arg)
 	/* The current CPU is the reference one. */
 	tsc_skew[curcpu] = 0;
 
-	for (i = 0; i <= mp_maxid; i++) {
+	CPU_FOREACH(i) {
 		if (i == curcpu)
-			continue;
-
-		if (pcpu_find(i) == NULL)
 			continue;
 
 		map = 0;

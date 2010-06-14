@@ -182,7 +182,8 @@ static uint64_t pmap_ptc_e_count1 = 3;
 static uint64_t pmap_ptc_e_count2 = 2;
 static uint64_t pmap_ptc_e_stride1 = 0x2000;
 static uint64_t pmap_ptc_e_stride2 = 0x100000000;
-struct mtx pmap_ptcmutex;
+
+volatile u_long pmap_ptc_g_sem;
 
 /*
  * Data for the RID allocator
@@ -340,7 +341,6 @@ pmap_bootstrap()
 		       pmap_ptc_e_count2,
 		       pmap_ptc_e_stride1,
 		       pmap_ptc_e_stride2);
-	mtx_init(&pmap_ptcmutex, "Global PTC lock", NULL, MTX_SPIN);
 
 	/*
 	 * Setup RIDs. RIDs 0..7 are reserved for the kernel.
@@ -540,7 +540,8 @@ pmap_invalidate_page(vm_offset_t va)
 {
 	struct ia64_lpte *pte;
 	struct pcpu *pc;
-	uint64_t tag;
+	uint64_t tag, sem;
+	register_t is;
 	u_int vhpt_ofs;
 
 	critical_enter();
@@ -550,10 +551,32 @@ pmap_invalidate_page(vm_offset_t va)
 		pte = (struct ia64_lpte *)(pc->pc_md.vhpt + vhpt_ofs);
 		atomic_cmpset_64(&pte->tag, tag, 1UL << 63);
 	}
-	critical_exit();
-	mtx_lock_spin(&pmap_ptcmutex);
+
+	/* PTC.G enter exclusive */
+	is = intr_disable();
+
+	/* Atomically assert writer after all writers have gone. */
+	do {
+		/* Wait until there's no more writer. */
+		do {
+			sem = atomic_load_acq_long(&pmap_ptc_g_sem);
+			tag = sem | (1ul << 63);
+		} while (sem == tag);
+	} while (!atomic_cmpset_rel_long(&pmap_ptc_g_sem, sem, tag));
+
+	/* Wait until all readers are gone. */
+	tag = (1ul << 63);
+	do {
+		sem = atomic_load_acq_long(&pmap_ptc_g_sem);
+	} while (sem != tag);
+
 	ia64_ptc_ga(va, PAGE_SHIFT << 2);
-	mtx_unlock_spin(&pmap_ptcmutex);
+
+	/* PTC.G leave exclusive */
+	atomic_store_rel_long(&pmap_ptc_g_sem, 0);
+
+	intr_restore(is);
+	critical_exit();
 }
 
 static void
@@ -1498,7 +1521,8 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_prot_t access, vm_page_t m,
 
 	va &= ~PAGE_MASK;
  	KASSERT(va <= VM_MAX_KERNEL_ADDRESS, ("pmap_enter: toobig"));
-	KASSERT((m->oflags & VPO_BUSY) != 0,
+	KASSERT((m->flags & (PG_FICTITIOUS | PG_UNMANAGED)) != 0 ||
+	    (m->oflags & VPO_BUSY) != 0,
 	    ("pmap_enter: page %p is not busy", m));
 
 	/*

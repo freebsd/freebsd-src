@@ -83,3 +83,7 @@ device		ds133x
 # SATA
 device		ata
 device		atadisk
+
+# Flattened Device Tree
+options 	FDT
+makeoptions	FDT_DTS_FILE=db78100.dts

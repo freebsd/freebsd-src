@@ -1733,7 +1733,7 @@ usb_fifo_attach(struct usb_device *udev, void *priv_sc,
 
 		/* Now, create the device itself */
 		f_sc->dev = make_dev(&usb_devsw, 0, uid, gid, mode,
-		    devname);
+		    "%s", devname);
 		/* XXX setting si_drv1 and creating the device is not atomic! */
 		f_sc->dev->si_drv1 = pd;
 	}

@@ -165,9 +165,16 @@ Example command to add a PIN (12345670) for an Enrollee:
 hostapd_cli wps_pin 53b63a98-d29e-4457-a2ed-094d7e6a669c 12345670
 
 If the UUID-E is not available (e.g., Enrollee waits for the Registrar
-to be selected before connecting), wildcard UUID may be used to allow the PIN to be used once with any UUID:
+to be selected before connecting), wildcard UUID may be used to allow
+the PIN to be used once with any UUID:
 
 hostapd_cli wps_pin any 12345670
+
+To reduce likelihood of PIN being used with other devices or of
+forgetting an active PIN available for potential attackers, expiration
+time can be set for the new PIN:
+
+hostapd_cli wps_pin any 12345670 300
 
 
 After this, the Enrollee can connect to the AP again and complete WPS

@@ -429,15 +429,11 @@ acpi_video_vo_init(UINT32 adr)
 {
 	struct acpi_video_output *vn, *vo, *vp;
 	int n, x;
-	int display_index;
-	int display_port;
 	char name[8], env[32];
 	const char *type, *desc;
 	struct acpi_video_output_queue *voqh;
 
 	ACPI_SERIAL_ASSERT(video);
-	display_index = adr & DOD_DEVID_MASK_DISPIDX;
-	display_port = (adr & DOD_DEVID_MASK_DISPPORT) >> 4;
 
 	switch (adr & DOD_DEVID_MASK) {
 	case DOD_DEVID_MONITOR:
@@ -474,7 +470,7 @@ acpi_video_vo_init(UINT32 adr)
 	}
 
 	n = 0;
-	vn = vp = NULL;
+	vp = NULL;
 	STAILQ_FOREACH(vn, voqh, vo_unit.next) {
 		if (vn->vo_unit.num != n)
 			break;
@@ -782,7 +778,6 @@ acpi_video_vo_presets_sysctl(SYSCTL_HANDLER_ARGS)
 	struct acpi_video_output *vo;
 	int i, level, *preset, err;
 
-	err = 0;
 	vo = (struct acpi_video_output *)arg1;
 	ACPI_SERIAL_BEGIN(video_output);
 	if (vo->handle == NULL) {
@@ -942,7 +937,6 @@ vo_get_brightness_levels(ACPI_HANDLE handle, int **levelp)
 	ACPI_OBJECT *res;
 	int num, i, n, *levels;
 
-	num = 0;
 	bcl_buf.Length = ACPI_ALLOCATE_BUFFER;
 	bcl_buf.Pointer = NULL;
 	status = AcpiEvaluateObject(handle, "_BCL", NULL, &bcl_buf);
@@ -950,39 +944,34 @@ vo_get_brightness_levels(ACPI_HANDLE handle, int **levelp)
 		if (status != AE_NOT_FOUND)
 			printf("can't evaluate %s._BCL - %s\n",
 			       acpi_name(handle), AcpiFormatException(status));
-		num = -1;
 		goto out;
 	}
 	res = (ACPI_OBJECT *)bcl_buf.Pointer;
 	if (!ACPI_PKG_VALID(res, 2)) {
 		printf("evaluation of %s._BCL makes no sense\n",
 		       acpi_name(handle));
-		num = -1;
 		goto out;
 	}
 	num = res->Package.Count;
-	if (levelp == NULL)
+	if (num < 2 || levelp == NULL)
 		goto out;
 	levels = AcpiOsAllocate(num * sizeof(*levels));
-	if (levels == NULL) {
-		num = -1;
+	if (levels == NULL)
 		goto out;
-	}
 	for (i = 0, n = 0; i < num; i++)
 		if (acpi_PkgInt32(res, i, &levels[n]) == 0)
 			n++;
 	if (n < 2) {
-		num = -1;
 		AcpiOsFree(levels);
-	} else {
-		num = n;
-		*levelp = levels;
+		goto out;
 	}
+	*levelp = levels;
+	return (n);
+
 out:
 	if (bcl_buf.Pointer != NULL)
 		AcpiOsFree(bcl_buf.Pointer);
-
-	return (num);
+	return (0);
 }
 
 static int
