@@ -269,61 +269,6 @@ _posix1e_acl_check(acl_t acl)
 	return (0);
 }
 
-
-/*
- * Given a uid/gid, return a username/groupname for the text form of an ACL.
- * Note that we truncate user and group names, rather than error out, as
- * this is consistent with other tools manipulating user and group names.
- * XXX NOT THREAD SAFE, RELIES ON GETPWUID, GETGRGID
- * XXX USES *PW* AND *GR* WHICH ARE STATEFUL AND THEREFORE THIS ROUTINE
- * MAY HAVE SIDE-EFFECTS
- */
-int
-_posix1e_acl_id_to_name(acl_tag_t tag, uid_t id, ssize_t buf_len, char *buf,
-    int flags)
-{
-	struct group	*g;
-	struct passwd	*p;
-	int	i;
-
-	switch(tag) {
-	case ACL_USER:
-		if (flags & ACL_TEXT_NUMERIC_IDS)
-			p = NULL;
-		else
-			p = getpwuid(id);
-		if (!p)
-			i = snprintf(buf, buf_len, "%d", id);
-		else
-			i = snprintf(buf, buf_len, "%s", p->pw_name);
-
-		if (i < 0) {
-			errno = ENOMEM;
-			return (-1);
-		}
-		return (0);
-
-	case ACL_GROUP:
-		if (flags & ACL_TEXT_NUMERIC_IDS)
-			g = NULL;
-		else
-			g = getgrgid(id);
-		if (g == NULL)
-			i = snprintf(buf, buf_len, "%d", id);
-		else
-			i = snprintf(buf, buf_len, "%s", g->gr_name);
-
-		if (i < 0) {
-			errno = ENOMEM;
-			return (-1);
-		}
-		return (0);
-
-	default:
-		return (EINVAL);
-	}
-}
-
 /*
  * Given a right-shifted permission (i.e., direct ACL_PERM_* mask), fill
  * in a string describing the permissions.
