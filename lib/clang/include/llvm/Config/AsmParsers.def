@@ -1,3 +1,4 @@
+/* $FreeBSD$ */
 //===- llvm/Config/AsmParsers.def - LLVM Assembly Parsers -------*- C++ -*-===//
 //
 //                     The LLVM Compiler Infrastructure

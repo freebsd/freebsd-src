@@ -1,3 +1,4 @@
+/* $FreeBSD$ */
 //===- llvm/Config/Disassemblers.def - LLVM Assembly Parsers ----*- C++ -*-===//
 //
 //                     The LLVM Compiler Infrastructure
