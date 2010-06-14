@@ -118,6 +118,8 @@ static void		pci_unmask_msix(device_t dev, u_int index);
 static int		pci_msi_blacklisted(void);
 static void		pci_resume_msi(device_t dev);
 static void		pci_resume_msix(device_t dev);
+static int		pci_remap_intr_method(device_t bus, device_t dev,
+			    u_int irq);
 
 static device_method_t pci_methods[] = {
 	/* Device interface */
@@ -147,6 +149,7 @@ static device_method_t pci_methods[] = {
 	DEVMETHOD(bus_deactivate_resource, pci_deactivate_resource),
 	DEVMETHOD(bus_child_pnpinfo_str, pci_child_pnpinfo_str_method),
 	DEVMETHOD(bus_child_location_str, pci_child_location_str_method),
+	DEVMETHOD(bus_remap_intr,	pci_remap_intr_method),
 
 	/* PCI interface */
 	DEVMETHOD(pci_read_config,	pci_read_config_method),
@@ -1736,20 +1739,17 @@ pci_resume_msi(device_t dev)
 	    2);
 }
 
-int
-pci_remap_msi_irq(device_t dev, u_int irq)
+static int
+pci_remap_intr_method(device_t bus, device_t dev, u_int irq)
 {
 	struct pci_devinfo *dinfo = device_get_ivars(dev);
 	pcicfgregs *cfg = &dinfo->cfg;
 	struct resource_list_entry *rle;
 	struct msix_table_entry *mte;
 	struct msix_vector *mv;
-	device_t bus;
 	uint64_t addr;
 	uint32_t data;	
 	int error, i, j;
-
-	bus = device_get_parent(dev);
 
 	/*
 	 * Handle MSI first.  We try to find this IRQ among our list
