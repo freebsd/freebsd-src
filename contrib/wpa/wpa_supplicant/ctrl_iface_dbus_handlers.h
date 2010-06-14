@@ -28,6 +28,9 @@ DBusMessage * wpas_dbus_global_remove_interface(DBusMessage *message,
 DBusMessage * wpas_dbus_global_get_interface(DBusMessage *message,
 					     struct wpa_global *global);
 
+DBusMessage * wpas_dbus_global_set_debugparams(DBusMessage *message,
+					       struct wpa_global *global);
+
 DBusMessage * wpas_dbus_iface_scan(DBusMessage *message,
 				   struct wpa_supplicant *wpa_s);
 
@@ -73,6 +76,9 @@ DBusMessage * wpas_dbus_iface_set_smartcard_modules(
 
 DBusMessage * wpas_dbus_iface_get_state(DBusMessage *message,
 					struct wpa_supplicant *wpa_s);
+
+DBusMessage * wpas_dbus_iface_get_scanning(DBusMessage *message,
+					   struct wpa_supplicant *wpa_s);
 
 DBusMessage * wpas_dbus_iface_set_blobs(DBusMessage *message,
 				        struct wpa_supplicant *wpa_s);

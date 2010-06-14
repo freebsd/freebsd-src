@@ -215,8 +215,8 @@ int wpa_write_rsn_ie(struct wpa_auth_config *conf, u8 *buf, size_t len,
 		capab |= WPA_CAPABILITY_PREAUTH;
 	if (conf->peerkey)
 		capab |= WPA_CAPABILITY_PEERKEY_ENABLED;
-	if (conf->wme_enabled) {
-		/* 4 PTKSA replay counters when using WME */
+	if (conf->wmm_enabled) {
+		/* 4 PTKSA replay counters when using WMM */
 		capab |= (RSN_NUM_REPLAY_COUNTERS_16 << 2);
 	}
 #ifdef CONFIG_IEEE80211W

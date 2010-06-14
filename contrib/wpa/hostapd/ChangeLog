@@ -1,5 +1,37 @@
 ChangeLog for hostapd
 
+2010-01-12 - v0.6.10
+	* fixed SHA-256 based key derivation function to match with the
+	  standard when using CCMP (for IEEE 802.11r and IEEE 802.11w)
+	  (note: this breaks interoperability with previous version) [Bug 307]
+	* fixed WPS selected registrar expiration for internal PIN registrar
+	* disable PMTU discovery for RADIUS packets
+	* fixed WPS UPnP SSDP on 32-bit targets
+	* fixed WPS AP reconfiguration with drivers that do not use hostapd
+	  MLME
+	* fixed RSN parameter setting for multi-BSS case
+	* added WPS workarounds for known interoperability issues with broken,
+	  deployed implementation
+	* update IEEE 802.11w implementation to match with the published
+	  standard
+	* fixed OpCode when proxying WSC_ACK or WSC_NACK from WPS ER
+	* fixed proxying of WSC_NACK to WPS ER
+	* fixed compilation with newer GnuTLS versions
+	* added support for defining timeout for WPS PINs
+	* fixed WPS Probe Request processing to handle missing required
+	  attribute
+	* fixed PKCS#12 use with OpenSSL 1.0.0
+
+2009-03-23 - v0.6.9
+	* driver_nl80211: fixed STA accounting data collection (TX/RX bytes
+	  reported correctly; TX/RX packets not yet available from kernel)
+	* fixed EAPOL/EAP reauthentication when using an external RADIUS
+	  authentication server
+	* driver_prism54: fixed segmentation fault on initialization
+	* fixed TNC with EAP-TTLS
+	* fixed IEEE 802.11r key derivation function to match with the standard
+	  (note: this breaks interoperability with previous version) [Bug 303]
+
 2009-02-15 - v0.6.8
 	* increased hostapd_cli ping interval to 5 seconds and made this
 	  configurable with a new command line options (-G<seconds>)

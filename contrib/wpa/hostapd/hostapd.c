@@ -249,7 +249,7 @@ void hostapd_new_assoc_sta(struct hostapd_data *hapd, struct sta_info *sta,
 	if (!hapd->conf->ieee802_1x && !hapd->conf->wpa)
 		accounting_sta_start(hapd, sta);
 
-	hostapd_wme_sta_config(hapd, sta);
+	hostapd_wmm_sta_config(hapd, sta);
 
 	/* Start IEEE 802.1X authentication process for new stations */
 	ieee802_1x_new_station(hapd, sta);
@@ -306,7 +306,7 @@ static void hostapd_wpa_auth_conf(struct hostapd_bss_config *conf,
 	wconf->rsn_preauth = conf->rsn_preauth;
 	wconf->eapol_version = conf->eapol_version;
 	wconf->peerkey = conf->peerkey;
-	wconf->wme_enabled = conf->wme_enabled;
+	wconf->wmm_enabled = conf->wmm_enabled;
 	wconf->okc = conf->okc;
 #ifdef CONFIG_IEEE80211W
 	wconf->ieee80211w = conf->ieee80211w;
@@ -339,6 +339,7 @@ int hostapd_reload_config(struct hostapd_iface *iface)
 	struct hostapd_data *hapd = iface->bss[0];
 	struct hostapd_config *newconf, *oldconf;
 	struct wpa_auth_config wpa_auth_conf;
+	size_t j;
 
 	newconf = hostapd_config_read(iface->config_fname);
 	if (newconf == NULL)
@@ -348,7 +349,8 @@ int hostapd_reload_config(struct hostapd_iface *iface)
 	 * Deauthenticate all stations since the new configuration may not
 	 * allow them to use the BSS anymore.
 	 */
-	hostapd_flush_old_stations(hapd);
+	for (j = 0; j < iface->num_bss; j++)
+		hostapd_flush_old_stations(iface->bss[j]);
 
 	/* TODO: update dynamic data based on changed configuration
 	 * items (e.g., open/close sockets, etc.) */
@@ -377,6 +379,16 @@ int hostapd_reload_config(struct hostapd_iface *iface)
 	}
 
 	ieee802_11_set_beacon(hapd);
+
+	if (hapd->conf->ssid.ssid_set &&
+	    hostapd_set_ssid(hapd, (u8 *) hapd->conf->ssid.ssid,
+			     hapd->conf->ssid.ssid_len)) {
+		wpa_printf(MSG_ERROR, "Could not set SSID for kernel driver");
+		/* try to continue */
+	}
+
+	if (hapd->conf->ieee802_1x || hapd->conf->wpa)
+		hostapd_set_ieee8021x(hapd->conf->iface, hapd, 1);
 
 	hostapd_config_free(oldconf);
 
@@ -465,7 +477,7 @@ static void hostapd_dump_state(struct hostapd_data *hapd)
 			(sta->flags & WLAN_STA_SHORT_PREAMBLE ?
 			 "[SHORT_PREAMBLE]" : ""),
 			(sta->flags & WLAN_STA_PREAUTH ? "[PREAUTH]" : ""),
-			(sta->flags & WLAN_STA_WME ? "[WME]" : ""),
+			(sta->flags & WLAN_STA_WMM ? "[WMM]" : ""),
 			(sta->flags & WLAN_STA_MFP ? "[MFP]" : ""),
 			(sta->flags & WLAN_STA_WPS ? "[WPS]" : ""),
 			(sta->flags & WLAN_STA_MAYBE_WPS ? "[MAYBE_WPS]" : ""),
@@ -1308,6 +1320,13 @@ static int hostapd_setup_bss(struct hostapd_data *hapd, int first)
 		}
 	}
 
+	hostapd_flush_old_stations(hapd);
+	hostapd_set_privacy(hapd, 0);
+
+	hostapd_broadcast_wep_clear(hapd);
+	if (hostapd_setup_encryption(hapd->conf->iface, hapd))
+		return -1;
+
 	/*
 	 * Fetch the SSID from the system and use it or,
 	 * if one was specified in the config file, verify they
@@ -1510,7 +1529,6 @@ static int setup_interface(struct hostapd_iface *iface)
 	u8 *b = conf->bssid;
 	int freq;
 	size_t j;
-	int ret = 0;
 	u8 *prev_addr;
 
 	/*
@@ -1582,9 +1600,6 @@ static int setup_interface(struct hostapd_iface *iface)
 		}
 	}
 
-	hostapd_flush_old_stations(hapd);
-	hostapd_set_privacy(hapd, 0);
-
 	if (hapd->iconf->channel) {
 		freq = hostapd_hw_get_freq(hapd, hapd->iconf->channel);
 		wpa_printf(MSG_DEBUG, "Mode: %s  Channel: %d  "
@@ -1601,12 +1616,7 @@ static int setup_interface(struct hostapd_iface *iface)
 		}
 	}
 
-	hostapd_broadcast_wep_clear(hapd);
-	if (hostapd_setup_encryption(hapd->conf->iface, hapd))
-		return -1;
-
 	hostapd_set_beacon_int(hapd, hapd->iconf->beacon_int);
-	ieee802_11_set_beacon(hapd);
 
 	if (hapd->iconf->rts_threshold > -1 &&
 	    hostapd_set_rts(hapd, hapd->iconf->rts_threshold)) {
@@ -1644,7 +1654,7 @@ static int setup_interface(struct hostapd_iface *iface)
 		return -1;
 	}
 
-	return ret;
+	return 0;
 }
 
 
@@ -1867,7 +1877,7 @@ int main(int argc, char *argv[])
 	int ret = 1, k;
 	size_t i, j;
 	int c, debug = 0, daemonize = 0, tnc = 0;
-	const char *pid_file = NULL;
+	char *pid_file = NULL;
 
 	hostapd_logger_register_cb(hostapd_logger_cb);
 
@@ -1891,7 +1901,8 @@ int main(int argc, char *argv[])
 			wpa_debug_show_keys++;
 			break;
 		case 'P':
-			pid_file = optarg;
+			os_free(pid_file);
+			pid_file = os_rel2abs_path(optarg);
 			break;
 		case 't':
 			wpa_debug_timestamp++;
@@ -2026,6 +2037,7 @@ int main(int argc, char *argv[])
 #endif /* EAP_SERVER */
 
 	os_daemonize_terminate(pid_file);
+	os_free(pid_file);
 
 	return ret;
 }

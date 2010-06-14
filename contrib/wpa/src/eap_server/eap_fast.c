@@ -73,6 +73,10 @@ struct eap_fast_data {
 };
 
 
+static int eap_fast_process_phase2_start(struct eap_sm *sm,
+					 struct eap_fast_data *data);
+
+
 static const char * eap_fast_state_txt(int state)
 {
 	switch (state) {
@@ -804,11 +808,48 @@ static struct wpabuf * eap_fast_build_pac(struct eap_sm *sm,
 }
 
 
+static int eap_fast_encrypt_phase2(struct eap_sm *sm,
+				   struct eap_fast_data *data,
+				   struct wpabuf *plain, int piggyback)
+{
+	struct wpabuf *encr;
+
+	wpa_hexdump_buf_key(MSG_DEBUG, "EAP-FAST: Encrypting Phase 2 TLVs",
+			    plain);
+	encr = eap_server_tls_encrypt(sm, &data->ssl, wpabuf_mhead(plain),
+				      wpabuf_len(plain));
+	wpabuf_free(plain);
+
+	if (data->ssl.out_buf && piggyback) {
+		wpa_printf(MSG_DEBUG, "EAP-FAST: Piggyback Phase 2 data "
+			   "(len=%d) with last Phase 1 Message (len=%d "
+			   "used=%d)",
+			   (int) wpabuf_len(encr),
+			   (int) wpabuf_len(data->ssl.out_buf),
+			   (int) data->ssl.out_used);
+		if (wpabuf_resize(&data->ssl.out_buf, wpabuf_len(encr)) < 0) {
+			wpa_printf(MSG_WARNING, "EAP-FAST: Failed to resize "
+				   "output buffer");
+			wpabuf_free(encr);
+			return -1;
+		}
+		wpabuf_put_buf(data->ssl.out_buf, encr);
+		wpabuf_free(encr);
+	} else {
+		wpabuf_free(data->ssl.out_buf);
+		data->ssl.out_used = 0;
+		data->ssl.out_buf = encr;
+	}
+
+	return 0;
+}
+
+
 static struct wpabuf * eap_fast_buildReq(struct eap_sm *sm, void *priv, u8 id)
 {
 	struct eap_fast_data *data = priv;
 	struct wpabuf *req = NULL;
-	struct wpabuf *encr;
+	int piggyback = 0;
 
 	if (data->ssl.state == FRAG_ACK) {
 		return eap_server_tls_build_ack(id, EAP_TYPE_FAST,
@@ -827,6 +868,19 @@ static struct wpabuf * eap_fast_buildReq(struct eap_sm *sm, void *priv, u8 id)
 		if (tls_connection_established(sm->ssl_ctx, data->ssl.conn)) {
 			if (eap_fast_phase1_done(sm, data) < 0)
 				return NULL;
+			if (data->state == PHASE2_START) {
+				/*
+				 * Try to generate Phase 2 data to piggyback
+				 * with the end of Phase 1 to avoid extra
+				 * roundtrip.
+				 */
+				wpa_printf(MSG_DEBUG, "EAP-FAST: Try to start "
+					   "Phase 2");
+				if (eap_fast_process_phase2_start(sm, data))
+					break;
+				req = eap_fast_build_phase2_req(sm, data, id);
+				piggyback = 1;
+			}
 		}
 		break;
 	case PHASE2_ID:
@@ -856,18 +910,9 @@ static struct wpabuf * eap_fast_buildReq(struct eap_sm *sm, void *priv, u8 id)
 		return NULL;
 	}
 
-	if (req) {
-		wpa_hexdump_buf_key(MSG_DEBUG, "EAP-FAST: Encrypting Phase 2 "
-				    "TLVs", req);
-		encr = eap_server_tls_encrypt(sm, &data->ssl,
-					      wpabuf_mhead(req),
-					      wpabuf_len(req));
-		wpabuf_free(req);
-
-		wpabuf_free(data->ssl.out_buf);
-		data->ssl.out_used = 0;
-		data->ssl.out_buf = encr;
-	}
+	if (req &&
+	    eap_fast_encrypt_phase2(sm, data, req, piggyback) < 0)
+		return NULL;
 
 	return eap_server_tls_build_msg(&data->ssl, EAP_TYPE_FAST,
 					data->fast_version, id);
@@ -1443,8 +1488,8 @@ static int eap_fast_process_phase1(struct eap_sm *sm,
 }
 
 
-static void eap_fast_process_phase2_start(struct eap_sm *sm,
-					  struct eap_fast_data *data)
+static int eap_fast_process_phase2_start(struct eap_sm *sm,
+					 struct eap_fast_data *data)
 {
 	u8 next_type;
 
@@ -1474,7 +1519,7 @@ static void eap_fast_process_phase2_start(struct eap_sm *sm,
 		next_type = EAP_TYPE_IDENTITY;
 	}
 
-	eap_fast_phase2_init(sm, data, next_type);
+	return eap_fast_phase2_init(sm, data, next_type);
 }
 
 

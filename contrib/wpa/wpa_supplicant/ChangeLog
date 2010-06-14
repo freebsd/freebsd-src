@@ -1,5 +1,28 @@
 ChangeLog for wpa_supplicant
 
+2010-01-12 - v0.6.10
+	* fixed SHA-256 based key derivation function to match with the
+	  standard when using CCMP (for IEEE 802.11r and IEEE 802.11w)
+	  (note: this breaks interoperability with previous version) [Bug 307]
+	* changed driver_wext to disconnect at init/deinit to clear state
+	* added explicit disconnect on 4-way handshake failures
+	* added WPS workarounds for known interoperability issues with broken,
+	  deployed implementation
+	* update IEEE 802.11w implementation to match with the published
+	  standard
+	* do not send WPS M8 message when learning current AP configuration as
+	  an external Registrar
+	* added a workaround for race condition between receive EAPOL frames
+	  and association events
+	* fixed compilation with newer GnuTLS versions
+	* fixed PKCS#12 use with OpenSSL 1.0.0
+
+2009-03-23 - v0.6.9
+	* driver_ndis: add PAE group address to the multicast address list to
+	  fix wired IEEE 802.1X authentication
+	* fixed IEEE 802.11r key derivation function to match with the standard
+	  (note: this breaks interoperability with previous version) [Bug 303]
+
 2009-02-15 - v0.6.8
 	* increased wpa_cli ping interval to 5 seconds and made this
 	  configurable with a new command line options (-G<seconds>)
