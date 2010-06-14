@@ -717,6 +717,10 @@ run_detach(device_t self)
 	usbd_transfer_unsetup(sc->sc_xfer, RUN_N_XFER);
 
 	RUN_LOCK(sc);
+
+	sc->ratectl_run = RUN_RATECTL_OFF;
+	sc->cmdq_run = sc->cmdq_key_set = RUN_CMDQ_ABORT;
+
 	/* free TX list, if any */
 	for (i = 0; i != RUN_EP_QUEUES; i++)
 		run_unsetup_tx_list(sc, &sc->sc_epq[i]);
@@ -825,6 +829,9 @@ run_vap_create(struct ieee80211com *ic,
 	}
 	if(sc->rvp_cnt++ == 0)
 		ic->ic_opmode = opmode;
+
+	if(opmode == IEEE80211_M_HOSTAP)
+		sc->cmdq_run = RUN_CMDQ_GO;
 
 	DPRINTF("rvp_id=%d bmap=%x rvp_cnt=%d\n",
 	    rvp->rvp_id, sc->rvp_bmap, sc->rvp_cnt);
@@ -1951,19 +1958,14 @@ run_key_set_cb(void *arg)
 	struct ieee80211_node *ni;
 	uint32_t attr;
 	uint16_t base, associd;
-	uint8_t mode, wcid, txmic, rxmic, iv[8];
+	uint8_t mode, wcid, iv[8];
 
 	RUN_LOCK_ASSERT(sc, MA_OWNED);
 
-	if(vap->iv_opmode == IEEE80211_M_HOSTAP){
+	if(vap->iv_opmode == IEEE80211_M_HOSTAP)
 		ni = ieee80211_find_vap_node(&ic->ic_sta, vap, cmdq->mac);
-		txmic = 24;
-		rxmic = 16;
-	} else {
+	else
 		ni = vap->iv_bss;
-		txmic = 16;
-		rxmic = 24;
-	}
 	associd = (ni != NULL) ? ni->ni_associd : 0;
 
 	/* map net80211 cipher to RT2860 security mode */
@@ -2002,9 +2004,9 @@ run_key_set_cb(void *arg)
 	if (k->wk_cipher->ic_cipher == IEEE80211_CIPHER_TKIP) {
 		if(run_write_region_1(sc, base, k->wk_key, 16))
 			return;
-		if(run_write_region_1(sc, base + 16, &k->wk_key[txmic], 8))	/* wk_txmic */
+		if(run_write_region_1(sc, base + 16, &k->wk_key[16], 8))	/* wk_txmic */
 			return;
-		if(run_write_region_1(sc, base + 24, &k->wk_key[rxmic], 8))	/* wk_rxmic */
+		if(run_write_region_1(sc, base + 24, &k->wk_key[24], 8))	/* wk_rxmic */
 			return;
 	} else {
 		/* roundup len to 16-bit: XXX fix write_region_1() instead */
@@ -2084,6 +2086,16 @@ run_key_set(struct ieee80211vap *vap, struct ieee80211_key *k,
 	sc->cmdq[i].k = k;
 	IEEE80211_ADDR_COPY(sc->cmdq[i].mac, mac);
 	ieee80211_runtask(ic, &sc->cmdq_task);
+
+	/*
+	 * To make sure key will be set when hostapd
+	 * calls iv_key_set() before if_init().
+	 */
+	if(vap->iv_opmode == IEEE80211_M_HOSTAP){
+		RUN_LOCK(sc);
+		sc->cmdq_key_set = RUN_CMDQ_GO;
+		RUN_UNLOCK(sc);
+	}
 
 	return(1);
 }
@@ -2895,6 +2907,9 @@ run_set_tx_desc(struct run_softc *sc, struct run_tx_data *data)
 		txwi->txop |= RT2860_TX_TXOP_HT;
 	else
 		txwi->txop |= RT2860_TX_TXOP_BACKOFF;
+
+	if(vap->iv_opmode != IEEE80211_M_STA && !IEEE80211_QOS_HAS_SEQ(wh))
+		txwi->xflags |= RT2860_TX_NSEQ;
 }
 
 /* This function must be called locked */
@@ -2974,7 +2989,7 @@ run_tx(struct run_softc *sc, struct mbuf *m, struct ieee80211_node *ni)
 	if (!IEEE80211_IS_MULTICAST(wh->i_addr1) &&
 	    (!hasqos || (qos & IEEE80211_QOS_ACKPOLICY) !=
 	     IEEE80211_QOS_ACKPOLICY_NOACK)) {
-		xflags = RT2860_TX_ACK;
+		xflags |= RT2860_TX_ACK;
 		if (ic->ic_flags & IEEE80211_F_SHPREAMBLE)
 			dur = rt2860_rates[ctl_ridx].sp_ack_dur;
 		else
@@ -2996,8 +3011,8 @@ run_tx(struct run_softc *sc, struct mbuf *m, struct ieee80211_node *ni)
 	txd->flags = qflags;
 	txwi = (struct rt2860_txwi *)(txd + 1);
 	txwi->xflags = xflags;
-	txwi->wcid = (type == IEEE80211_FC0_TYPE_DATA) ?
-	    RUN_AID2WCID(ni->ni_associd) : 0xff;
+	txwi->wcid = IEEE80211_IS_MULTICAST(wh->i_addr1) ?
+	    0 : RUN_AID2WCID(ni->ni_associd);
 	/* clear leftover garbage bits */
 	txwi->flags = 0;
 	txwi->txop = 0;
@@ -3920,6 +3935,7 @@ run_update_beacon_cb(void *arg)
 	        txwi.phy |= htole16(RT2860_PHY_OFDM);
 	txwi.txop = RT2860_TX_TXOP_HT;
 	txwi.flags = RT2860_TX_TS;
+	txwi.xflags = RT2860_TX_NSEQ;
 
 	run_write_region_1(sc, RT2860_BCN_BASE(RUN_VAP(vap)->rvp_id),
 	    (uint8_t *)&txwi, sizeof txwi);
@@ -4667,10 +4683,14 @@ run_init_locked(struct run_softc *sc)
 	run_set_region_4(sc, RT2860_WCID_ENTRY(0), 0, 512);
 	/* clear WCID attribute table */
 	run_set_region_4(sc, RT2860_WCID_ATTR(0), 0, 8 * 32);
-	/* clear shared key table */
-	run_set_region_4(sc, RT2860_SKEY(0, 0), 0, 8 * 32);
-	/* clear shared key mode */
-	run_set_region_4(sc, RT2860_SKEY_MODE_0_7, 0, 4);
+
+	/* hostapd sets a key before init. So, don't clear it. */
+	if(sc->cmdq_key_set != RUN_CMDQ_GO){
+		/* clear shared key table */
+		run_set_region_4(sc, RT2860_SKEY(0, 0), 0, 8 * 32);
+		/* clear shared key mode */
+		run_set_region_4(sc, RT2860_SKEY_MODE_0_7, 0, 4);
+	}
 
 	run_read(sc, RT2860_US_CYC_CNT, &tmp);
 	tmp = (tmp & ~0xff) | 0x1e;
@@ -4778,7 +4798,7 @@ run_stop(void *arg)
 	ifp->if_drv_flags &= ~(IFF_DRV_RUNNING | IFF_DRV_OACTIVE);
 
 	sc->ratectl_run = RUN_RATECTL_OFF;
-	sc->cmdq_run = RUN_CMDQ_ABORT;
+	sc->cmdq_run = sc->cmdq_key_set;
 
 	RUN_UNLOCK(sc);
 
