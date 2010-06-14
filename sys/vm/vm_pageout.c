@@ -805,7 +805,7 @@ rescan0:
 		/*
 		 * A held page may be undergoing I/O, so skip it.
 		 */
-		if (m->hold_count || (object = m->object) == NULL) {
+		if (m->hold_count) {
 			vm_page_unlock(m);
 			vm_page_requeue(m);
 			addl_page_shortage++;
@@ -816,6 +816,7 @@ rescan0:
 		 * Don't mess with busy pages, keep in the front of the
 		 * queue, most likely are being paged out.
 		 */
+		object = m->object;
 		if (!VM_OBJECT_TRYLOCK(object) &&
 		    (!vm_pageout_fallback_object_lock(m, &next) ||
 			m->hold_count != 0)) {
@@ -1127,17 +1128,16 @@ unlock_and_continue:
 		    ("vm_pageout_scan: page %p isn't active", m));
 
 		next = TAILQ_NEXT(m, pageq);
-		object = m->object;
 		if ((m->flags & PG_MARKER) != 0) {
 			m = next;
 			continue;
 		}
-		if (!vm_pageout_page_lock(m, &next) ||
-		    (object = m->object) == NULL) {
+		if (!vm_pageout_page_lock(m, &next)) {
 			vm_page_unlock(m);
 			m = next;
 			continue;
 		}
+		object = m->object;
 		if (!VM_OBJECT_TRYLOCK(object) &&
 		    !vm_pageout_fallback_object_lock(m, &next)) {
 			VM_OBJECT_UNLOCK(object);
@@ -1397,12 +1397,12 @@ vm_pageout_page_stats()
 			continue;
 		}
 		vm_page_lock_assert(m, MA_NOTOWNED);
-		if (!vm_pageout_page_lock(m, &next) ||
-		    (object = m->object) == NULL) {
+		if (!vm_pageout_page_lock(m, &next)) {
 			vm_page_unlock(m);
 			m = next;
 			continue;
 		}
+		object = m->object;
 		if (!VM_OBJECT_TRYLOCK(object) &&
 		    !vm_pageout_fallback_object_lock(m, &next)) {
 			VM_OBJECT_UNLOCK(object);
