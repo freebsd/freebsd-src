@@ -447,6 +447,7 @@ init_local(struct hast_resource *res)
 		primary_exit(EX_NOINPUT, "Unable to read activemap");
 	}
 	activemap_copyin(res->hr_amp, buf, mapsize);
+	free(buf);
 	if (res->hr_resuid != 0)
 		return;
 	/*
