@@ -204,7 +204,7 @@ read_iso3166_table(void)
 
 	fp = fopen(path_iso3166, "r");
 	if (!fp)
-		err(1, path_iso3166);
+		err(1, "%s", path_iso3166);
 	lineno = 0;
 
 	while ((s = fgetln(fp, &len)) != 0) {
@@ -343,7 +343,7 @@ read_zones(void)
 
 	fp = fopen(path_zonetab, "r");
 	if (!fp)
-		err(1, path_zonetab);
+		err(1, "%s", path_zonetab);
 	lineno = 0;
 
 	while ((line = fgetln(fp, &len)) != 0) {
