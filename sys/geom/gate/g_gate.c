@@ -210,7 +210,7 @@ g_gate_start(struct bio *bp)
 }
 
 static struct g_gate_softc *
-g_gate_hold(u_int unit, const char *name)
+g_gate_hold(int unit, const char *name)
 {
 	struct g_gate_softc *sc = NULL;
 
