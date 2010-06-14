@@ -195,7 +195,10 @@ static pthread_mutex_t metadata_lock;
 	mtx_unlock(&hio_##name##_list_lock);				\
 } while (0)
 
-#define	SYNCREQ(hio)		do { (hio)->hio_ggio.gctl_unit = -1; } while (0)
+#define	SYNCREQ(hio)		do {					\
+	(hio)->hio_ggio.gctl_unit = -1;					\
+	(hio)->hio_ggio.gctl_seq = 1;					\
+} while (0)
 #define	ISSYNCREQ(hio)		((hio)->hio_ggio.gctl_unit == -1)
 #define	SYNCREQDONE(hio)	do { (hio)->hio_ggio.gctl_unit = -2; } while (0)
 #define	ISSYNCREQDONE(hio)	((hio)->hio_ggio.gctl_unit == -2)
