@@ -200,7 +200,7 @@ listen_accept(void)
 
 	proto_local_address(conn, laddr, sizeof(laddr));
 	proto_remote_address(conn, raddr, sizeof(raddr));
-	pjdlog_info("Connection from %s to %s.", laddr, raddr);
+	pjdlog_info("Connection from %s to %s.", raddr, laddr);
 
 	/* Error in setting timeout is not critical, but why should it fail? */
 	if (proto_timeout(conn, HAST_TIMEOUT) < 0)
@@ -286,7 +286,7 @@ listen_accept(void)
 	if (token != NULL && memcmp(token, res->hr_token,
 	    sizeof(res->hr_token)) != 0) {
 		pjdlog_error("Token received from %s doesn't match.", raddr);
-		nv_add_stringf(nverr, "errmsg", "Toke doesn't match.");
+		nv_add_stringf(nverr, "errmsg", "Token doesn't match.");
 		goto fail;
 	}
 	/*

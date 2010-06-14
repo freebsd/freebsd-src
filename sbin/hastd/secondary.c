@@ -688,7 +688,7 @@ send_thread(void *arg)
 			pjdlog_exit(EX_TEMPFAIL, "Unable to send reply.");
 		}
 		nv_free(nvout);
-		pjdlog_debug(2, "disk: (%p) Moving request to the free queue.",
+		pjdlog_debug(2, "send: (%p) Moving request to the free queue.",
 		    hio);
 		nv_free(hio->hio_nv);
 		hio->hio_error = 0;
