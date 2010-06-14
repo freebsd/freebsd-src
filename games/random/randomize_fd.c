@@ -104,7 +104,7 @@ randomize_fd(int fd, int type, int unique, double denom)
 
 	rand_root = rand_tail = NULL;
 	bufc = i = 0;
-	bufleft = eof = fndstr = numnode = ret = 0;
+	bufleft = eof = fndstr = numnode = 0;
 
 	if (type == RANDOM_TYPE_UNSET)
 		type = RANDOM_TYPE_LINES;
