@@ -826,6 +826,7 @@ send_reply:
 	ack->serial_number = serial_num;
 	ack->last_sent_to = NULL;
 	ack->data = m_ack;
+	ack->len = 0;
 	n = m_ack;
 	while (n) {
 		ack->len += SCTP_BUF_LEN(n);
@@ -1025,7 +1026,8 @@ sctp_asconf_nets_cleanup(struct sctp_tcb *stcb, struct sctp_ifn *ifn)
 		 * address.
 		 */
 		if (SCTP_ROUTE_HAS_VALID_IFN(&net->ro) &&
-		    SCTP_GET_IF_INDEX_FROM_ROUTE(&net->ro) != ifn->ifn_index) {
+		    ((ifn == NULL) ||
+		    (SCTP_GET_IF_INDEX_FROM_ROUTE(&net->ro) != ifn->ifn_index))) {
 			/* clear any cached route */
 			RTFREE(net->ro.ro_rt);
 			net->ro.ro_rt = NULL;
