@@ -1247,7 +1247,7 @@ cpususpend_handler(void)
 
 	rf = intr_disable();
 	cr3 = rcr3();
-	stopfpu = stopxpcbs[cpu]->xpcb_pcb.pcb_save;
+	stopfpu = &stopxpcbs[cpu]->xpcb_pcb.pcb_user_save;
 	if (savectx2(stopxpcbs[cpu])) {
 		fpugetregs(curthread, stopfpu);
 		wbinvd();
