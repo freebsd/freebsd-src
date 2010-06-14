@@ -218,6 +218,7 @@ struct run_softc {
 	uint32_t			cmdq_store;
 	uint8_t				cmdq_exec;
 	uint8_t				cmdq_run;
+	uint8_t				cmdq_key_set;
 #define RUN_CMDQ_ABORT	0
 #define RUN_CMDQ_GO	1
 
