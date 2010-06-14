@@ -55,8 +55,8 @@ struct ebuf {
 	size_t		 eb_size;
 };
 
-static int ebuf_head_extent(struct ebuf *eb, size_t size);
-static int ebuf_tail_extent(struct ebuf *eb, size_t size);
+static int ebuf_head_extend(struct ebuf *eb, size_t size);
+static int ebuf_tail_extend(struct ebuf *eb, size_t size);
 
 struct ebuf *
 ebuf_alloc(size_t size)
@@ -110,7 +110,7 @@ ebuf_add_head(struct ebuf *eb, const void *data, size_t size)
 		 * We can't add more entries at the front, so we have to extend
 		 * our buffer.
 		 */
-		if (ebuf_head_extent(eb, size) < 0)
+		if (ebuf_head_extend(eb, size) < 0)
 			return (-1);
 	}
 	assert(size <= (size_t)(eb->eb_used - eb->eb_start));
@@ -137,13 +137,13 @@ ebuf_add_tail(struct ebuf *eb, const void *data, size_t size)
 		 * We can't add more entries at the back, so we have to extend
 		 * our buffer.
 		 */
-		if (ebuf_tail_extent(eb, size) < 0)
+		if (ebuf_tail_extend(eb, size) < 0)
 			return (-1);
 	}
 	assert(size <= (size_t)(eb->eb_end - (eb->eb_used + eb->eb_size)));
 
 	/*
-	 * If data is NULL the caller just wants to reserve place.
+	 * If data is NULL the caller just wants to reserve space.
 	 */
 	if (data != NULL)
 		bcopy(data, eb->eb_used + eb->eb_size, size);
@@ -203,7 +203,7 @@ ebuf_size(struct ebuf *eb)
  * Function adds size + (PAGE_SIZE / 4) bytes at the front of the buffer..
  */
 static int
-ebuf_head_extent(struct ebuf *eb, size_t size)
+ebuf_head_extend(struct ebuf *eb, size_t size)
 {
 	unsigned char *newstart, *newused;
 	size_t newsize;
@@ -231,7 +231,7 @@ ebuf_head_extent(struct ebuf *eb, size_t size)
  * Function adds size + ((3 * PAGE_SIZE) / 4) bytes at the back.
  */
 static int
-ebuf_tail_extent(struct ebuf *eb, size_t size)
+ebuf_tail_extend(struct ebuf *eb, size_t size)
 {
 	unsigned char *newstart;
 	size_t newsize;
