@@ -572,8 +572,8 @@ g_gate_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct threa
 
 		switch (bp->bio_cmd) {
 		case BIO_READ:
-			break;
 		case BIO_DELETE:
+			break;
 		case BIO_WRITE:
 			error = copyout(bp->bio_data, ggio->gctl_data,
 			    bp->bio_length);
