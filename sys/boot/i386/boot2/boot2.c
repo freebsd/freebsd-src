@@ -152,7 +152,7 @@ static int xgetc(int);
 static int getc(int);
 
 void memcpy(void *, const void *, int);
-void __attribute__ ((noinline))
+void __noinline
 memcpy(void *dst, const void *src, int len)
 {
     const char *s = src;
@@ -162,7 +162,7 @@ memcpy(void *dst, const void *src, int len)
         *d++ = *s++;
 }
 
-static int __attribute__ ((noinline))
+static int
 strcmp(const char *s1, const char *s2)
 {
     for (; *s1 == *s2 && *s1; s1++, s2++);
@@ -601,7 +601,7 @@ printf(const char *fmt,...)
     return;
 }
 
-static void __attribute__ ((noinline))
+static void __noinline
 putchar(int c)
 {
     if (c == '\n')
