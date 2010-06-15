@@ -50,10 +50,10 @@ __FBSDID("$FreeBSD$");
 #include "histedit.h"
 #include "filecomplete.h"
 
-static char break_chars[] = { ' ', '\t', '\n', '"', '\\', '\'', '`', '@',
-    '$', '>', '<', '=', ';', '|', '&', '{', '(', '\0' };
+static char break_chars[] = { ' ', '\t', '\n', '"', '\\', '\'', '`',
+    '>', '<', '=', ';', '|', '&', '{', '(', '\0' };
 /* Tilde is deliberately omitted here, we treat it specially. */
-static char extra_quote_chars[] = { ')', '}', '\0' };
+static char extra_quote_chars[] = { ')', '}', '*', '?', '[', '$', '\0' };
 
 
 /********************************/
@@ -595,6 +595,8 @@ sh_quote(const char *str)
 	int extra_len = 0;
 	char *quoted_str, *dst;
 
+	if (*str == '-' || *str == '+')
+		extra_len += 2;
 	for (src = str; *src != '\0'; src++)
 		if (strchr(break_chars, *src) ||
 		    strchr(extra_quote_chars, *src))
@@ -606,6 +608,8 @@ sh_quote(const char *str)
 		return NULL;
 
 	dst = quoted_str;
+	if (*str == '-' || *str == '+')
+		*dst++ = '.', *dst++ = '/';
 	for (src = str; *src != '\0'; src++) {
 		if (strchr(break_chars, *src) ||
 		    strchr(extra_quote_chars, *src))
