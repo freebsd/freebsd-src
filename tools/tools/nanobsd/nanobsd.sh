@@ -650,19 +650,19 @@ cust_pkg () (
 
 #######################################################################
 # Convenience function:
-# 	Register $1 as customize function.
+# 	Register all args as customize function.
 
 customize_cmd () {
-	NANO_CUSTOMIZE="$NANO_CUSTOMIZE $1"
+	NANO_CUSTOMIZE="$NANO_CUSTOMIZE $*"
 }
 
 #######################################################################
 # Convenience function:
-# 	Register $1 as late customize function to run just before
+# 	Register all args as late customize function to run just before
 #	image creation.
 
 late_customize_cmd () {
-	NANO_LATE_CUSTOMIZE="$NANO_LATE_CUSTOMIZE $1"
+	NANO_LATE_CUSTOMIZE="$NANO_LATE_CUSTOMIZE $*"
 }
 
 #######################################################################
