@@ -325,7 +325,7 @@ do {									\
 #define	THREAD_LOCKPTR_ASSERT(td, lock)
 #endif
 
-#define	CRITSECT_ASSERT(td)						\
+#define	CRITICAL_ASSERT(td)						\
     KASSERT((td)->td_critnest >= 1, ("Not in critical section"));
 
 /*
