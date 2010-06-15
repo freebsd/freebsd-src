@@ -241,6 +241,9 @@ install_etc ( ) (
 	${NANO_PMAKE} __MAKE_CONF=${NANO_MAKE_CONF_INSTALL} distribution \
 		DESTDIR=${NANO_WORLDDIR} \
 		> ${NANO_OBJ}/_.etc 2>&1
+	# make.conf doesn't get created by default, but some ports need it
+	# so they can spam it.
+	cp /dev/null ${NANO_WORLDDIR}/etc/make.conf
 )
 
 install_kernel ( ) (
