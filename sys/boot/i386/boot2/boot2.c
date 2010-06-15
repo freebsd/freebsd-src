@@ -151,8 +151,8 @@ static int xputc(int);
 static int xgetc(int);
 static int getc(int);
 
-void memcpy(void *, const void *, int);
-void __noinline
+static void memcpy(void *, const void *, int);
+static __noinline void
 memcpy(void *dst, const void *src, int len)
 {
     const char *s = src;
@@ -162,7 +162,7 @@ memcpy(void *dst, const void *src, int len)
         *d++ = *s++;
 }
 
-static int
+static inline int
 strcmp(const char *s1, const char *s2)
 {
     for (; *s1 == *s2 && *s1; s1++, s2++);
@@ -601,7 +601,7 @@ printf(const char *fmt,...)
     return;
 }
 
-static void __noinline
+static __noinline void
 putchar(int c)
 {
     if (c == '\n')
