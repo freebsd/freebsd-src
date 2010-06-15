@@ -124,6 +124,10 @@ NANO_HEADS=16
 NANO_BOOT0CFG="-o packet -s 1 -m 3"
 NANO_BOOTLOADER="boot/boot0sio"
 
+# boot2 flags/options
+# default force serial console
+NANO_BOOT2CFG="-h"
+
 # Backing type of md(4) device
 # Can be "file" or "swap"
 NANO_MD_BACKING="file"
@@ -608,7 +612,7 @@ cust_comconsole () (
 	sed -i "" -e '/^ttyv[0-8]/s/	on/	off/' ${NANO_WORLDDIR}/etc/ttys
 
 	# Tell loader to use serial console early.
-	echo " -h" > ${NANO_WORLDDIR}/boot.config
+	echo "${NANO_BOOT2CFG}" > ${NANO_WORLDDIR}/boot.config
 )
 
 #######################################################################
