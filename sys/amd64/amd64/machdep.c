@@ -2119,10 +2119,9 @@ set_fpcontext(struct thread *td, const mcontext_t *mcp)
 void
 fpstate_drop(struct thread *td)
 {
-	register_t s;
 
 	KASSERT(PCB_USER_FPU(td->td_pcb), ("fpstate_drop: kernel-owned fpu"));
-	s = intr_disable();
+	critical_enter();
 	if (PCPU_GET(fpcurthread) == td)
 		fpudrop();
 	/*
@@ -2137,7 +2136,7 @@ fpstate_drop(struct thread *td)
 	 */
 	curthread->td_pcb->pcb_flags &= ~(PCB_FPUINITDONE |
 	    PCB_USERFPUINITDONE);
-	intr_restore(s);
+	critical_exit();
 }
 
 int
