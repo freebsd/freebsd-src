@@ -347,13 +347,12 @@ fn_display_match_list(EditLine *el, char **matches, size_t len, size_t max)
 		count++;
 
 	/* Sort the items if they are not already sorted. */
-	qsort(&matches[1], (size_t)(len - 1), sizeof(char *),
-	    _fn_qsort_string_compare);
+	qsort(&matches[1], len, sizeof(char *), _fn_qsort_string_compare);
 
 	idx = 1;
 	for(; count > 0; count--) {
 		int more = limit > 0 && matches[0];
-		for(i = 0; more; i++, idx++) {
+		for(i = 0; more; idx++) {
 			more = ++i < limit && matches[idx + 1];
 			(void)fprintf(el->el_outfile, "%-*s%s", (int)max,
 			    matches[idx], more ? " " : "");
