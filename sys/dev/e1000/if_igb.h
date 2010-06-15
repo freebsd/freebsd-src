@@ -382,7 +382,6 @@ struct adapter {
 	int		min_frame_size;
 	struct mtx	core_mtx;
 	int		igb_insert_vlan_header;
-	struct task     rxtx_task;
 	struct taskqueue *tq;	/* adapter task queue */
         u16		num_queues;
 
