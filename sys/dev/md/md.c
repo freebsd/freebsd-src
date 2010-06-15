@@ -666,12 +666,10 @@ mdstart_swap(struct md_s *sc, struct bio *bp)
 		sched_unpin();
 		vm_page_wakeup(m);
 		vm_page_lock(m);
-		vm_page_lock_queues();
 		vm_page_activate(m);
+		vm_page_unlock(m);
 		if (bp->bio_cmd == BIO_WRITE)
 			vm_page_dirty(m);
-		vm_page_unlock_queues();
-		vm_page_unlock(m);
 
 		/* Actions on further pages start at offset 0 */
 		p += PAGE_SIZE - offs;
