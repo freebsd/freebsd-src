@@ -90,7 +90,7 @@ static struct timecounter *timecounters = &dummy_timecounter;
 time_t time_second = 1;
 time_t time_uptime = 1;
 
-static struct bintime boottimebin;
+struct bintime boottimebin;
 struct timeval boottime;
 static int sysctl_kern_boottime(SYSCTL_HANDLER_ARGS);
 SYSCTL_PROC(_kern, KERN_BOOTTIME, boottime, CTLTYPE_STRUCT|CTLFLAG_RD,
