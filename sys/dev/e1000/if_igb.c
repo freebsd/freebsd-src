@@ -1285,8 +1285,9 @@ igb_handle_link(void *context, int pending)
 static int
 igb_irq_fast(void *arg)
 {
-	struct adapter	*adapter = arg;
-	uint32_t	reg_icr;
+	struct adapter		*adapter = arg;
+	struct igb_queue	*que = adapter->queues;
+	u32			reg_icr;
 
 
 	reg_icr = E1000_READ_REG(&adapter->hw, E1000_ICR);
@@ -1308,11 +1309,11 @@ igb_irq_fast(void *arg)
 	 * MSI message reordering errata on certain systems.
 	 */
 	igb_disable_intr(adapter);
-	taskqueue_enqueue(adapter->tq, &adapter->rxtx_task);
+	taskqueue_enqueue(que->tq, &que->que_task);
 
 	/* Link status change */
 	if (reg_icr & (E1000_ICR_RXSEQ | E1000_ICR_LSC))
-		taskqueue_enqueue(adapter->tq, &adapter->link_task);
+		taskqueue_enqueue(que->tq, &adapter->link_task);
 
 	if (reg_icr & E1000_ICR_RXO)
 		adapter->rx_overruns++;
@@ -1352,7 +1353,7 @@ igb_poll(struct ifnet *ifp, enum poll_cmd cmd, int count)
 		reg_icr = E1000_READ_REG(&adapter->hw, E1000_ICR);
 		/* Link status change */
 		if (reg_icr & (E1000_ICR_RXSEQ | E1000_ICR_LSC))
-			taskqueue_enqueue(adapter->tq, &adapter->link_task);
+			taskqueue_enqueue(que->tq, &adapter->link_task);
 
 		if (reg_icr & E1000_ICR_RXO)
 			adapter->rx_overruns++;
@@ -2116,20 +2117,20 @@ igb_allocate_legacy(struct adapter *adapter)
 	 * Try allocating a fast interrupt and the associated deferred
 	 * processing contexts.
 	 */
-	TASK_INIT(&adapter->rxtx_task, 0, igb_handle_que, que);
+	TASK_INIT(&que->que_task, 0, igb_handle_que, que);
 	/* Make tasklet for deferred link handling */
 	TASK_INIT(&adapter->link_task, 0, igb_handle_link, adapter);
-	adapter->tq = taskqueue_create_fast("igb_taskq", M_NOWAIT,
-	    taskqueue_thread_enqueue, &adapter->tq);
-	taskqueue_start_threads(&adapter->tq, 1, PI_NET, "%s taskq",
+	que->tq = taskqueue_create_fast("igb_taskq", M_NOWAIT,
+	    taskqueue_thread_enqueue, &que->tq);
+	taskqueue_start_threads(&que->tq, 1, PI_NET, "%s taskq",
 	    device_get_nameunit(adapter->dev));
 	if ((error = bus_setup_intr(dev, adapter->res,
 	    INTR_TYPE_NET | INTR_MPSAFE, igb_irq_fast, NULL,
 	    adapter, &adapter->tag)) != 0) {
 		device_printf(dev, "Failed to register fast interrupt "
 			    "handler: %d\n", error);
-		taskqueue_free(adapter->tq);
-		adapter->tq = NULL;
+		taskqueue_free(que->tq);
+		que->tq = NULL;
 		return (error);
 	}
 
