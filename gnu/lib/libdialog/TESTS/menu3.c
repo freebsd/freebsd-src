@@ -44,7 +44,7 @@ maybe(dialogMenuItem *self)
 static char *insurance[] = {
     "1,000,000",	"Mondo insurance policy", "Off",
     "5,000,000",	"Mega insurance policy", "Off",
-    "10,000,000",	"Friend!  Most Favored customer!"
+    "10,000,000",	"Friend!  Most Favored customer!", "On"
 };
 
 static void
