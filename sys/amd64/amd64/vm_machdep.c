@@ -265,8 +265,10 @@ cpu_thread_exit(struct thread *td)
 {
 	struct pcb *pcb;
 
+	critical_enter();
 	if (td == PCPU_GET(fpcurthread))
 		fpudrop();
+	critical_exit();
 
 	pcb = td->td_pcb;
 
