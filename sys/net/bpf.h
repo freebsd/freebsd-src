@@ -45,6 +45,8 @@
 
 typedef	int32_t	  bpf_int32;
 typedef	u_int32_t bpf_u_int32;
+typedef	int64_t	  bpf_int64;
+typedef	u_int64_t bpf_u_int64;
 
 /*
  * Alignment macros.  BPF_WORDALIGN rounds up to the next
@@ -113,36 +115,38 @@ struct bpf_zbuf {
 	size_t	 bz_buflen;	/* Size of zero-copy buffers. */
 };
 
-#define	BIOCGBLEN	_IOR('B',102, u_int)
-#define	BIOCSBLEN	_IOWR('B',102, u_int)
-#define	BIOCSETF	_IOW('B',103, struct bpf_program)
-#define	BIOCFLUSH	_IO('B',104)
-#define BIOCPROMISC	_IO('B',105)
-#define	BIOCGDLT	_IOR('B',106, u_int)
-#define BIOCGETIF	_IOR('B',107, struct ifreq)
-#define BIOCSETIF	_IOW('B',108, struct ifreq)
-#define BIOCSRTIMEOUT	_IOW('B',109, struct timeval)
-#define BIOCGRTIMEOUT	_IOR('B',110, struct timeval)
-#define BIOCGSTATS	_IOR('B',111, struct bpf_stat)
-#define BIOCIMMEDIATE	_IOW('B',112, u_int)
-#define BIOCVERSION	_IOR('B',113, struct bpf_version)
-#define BIOCGRSIG	_IOR('B',114, u_int)
-#define BIOCSRSIG	_IOW('B',115, u_int)
-#define BIOCGHDRCMPLT	_IOR('B',116, u_int)
-#define BIOCSHDRCMPLT	_IOW('B',117, u_int)
-#define BIOCGDIRECTION	_IOR('B',118, u_int)
-#define BIOCSDIRECTION	_IOW('B',119, u_int)
-#define	BIOCSDLT	_IOW('B',120, u_int)
-#define	BIOCGDLTLIST	_IOWR('B',121, struct bpf_dltlist)
+#define	BIOCGBLEN	_IOR('B', 102, u_int)
+#define	BIOCSBLEN	_IOWR('B', 102, u_int)
+#define	BIOCSETF	_IOW('B', 103, struct bpf_program)
+#define	BIOCFLUSH	_IO('B', 104)
+#define	BIOCPROMISC	_IO('B', 105)
+#define	BIOCGDLT	_IOR('B', 106, u_int)
+#define	BIOCGETIF	_IOR('B', 107, struct ifreq)
+#define	BIOCSETIF	_IOW('B', 108, struct ifreq)
+#define	BIOCSRTIMEOUT	_IOW('B', 109, struct timeval)
+#define	BIOCGRTIMEOUT	_IOR('B', 110, struct timeval)
+#define	BIOCGSTATS	_IOR('B', 111, struct bpf_stat)
+#define	BIOCIMMEDIATE	_IOW('B', 112, u_int)
+#define	BIOCVERSION	_IOR('B', 113, struct bpf_version)
+#define	BIOCGRSIG	_IOR('B', 114, u_int)
+#define	BIOCSRSIG	_IOW('B', 115, u_int)
+#define	BIOCGHDRCMPLT	_IOR('B', 116, u_int)
+#define	BIOCSHDRCMPLT	_IOW('B', 117, u_int)
+#define	BIOCGDIRECTION	_IOR('B', 118, u_int)
+#define	BIOCSDIRECTION	_IOW('B', 119, u_int)
+#define	BIOCSDLT	_IOW('B', 120, u_int)
+#define	BIOCGDLTLIST	_IOWR('B', 121, struct bpf_dltlist)
 #define	BIOCLOCK	_IO('B', 122)
-#define	BIOCSETWF	_IOW('B',123, struct bpf_program)
-#define	BIOCFEEDBACK	_IOW('B',124, u_int)
-#define	BIOCGETBUFMODE	_IOR('B',125, u_int)
-#define	BIOCSETBUFMODE	_IOW('B',126, u_int)
-#define	BIOCGETZMAX	_IOR('B',127, size_t)
-#define	BIOCROTZBUF	_IOR('B',128, struct bpf_zbuf)
-#define	BIOCSETZBUF	_IOW('B',129, struct bpf_zbuf)
-#define	BIOCSETFNR	_IOW('B',130, struct bpf_program)
+#define	BIOCSETWF	_IOW('B', 123, struct bpf_program)
+#define	BIOCFEEDBACK	_IOW('B', 124, u_int)
+#define	BIOCGETBUFMODE	_IOR('B', 125, u_int)
+#define	BIOCSETBUFMODE	_IOW('B', 126, u_int)
+#define	BIOCGETZMAX	_IOR('B', 127, size_t)
+#define	BIOCROTZBUF	_IOR('B', 128, struct bpf_zbuf)
+#define	BIOCSETZBUF	_IOW('B', 129, struct bpf_zbuf)
+#define	BIOCSETFNR	_IOW('B', 130, struct bpf_program)
+#define	BIOCGTSTAMP	_IOR('B', 131, u_int)
+#define	BIOCSTSTAMP	_IOW('B', 132, u_int)
 
 /* Obsolete */
 #define	BIOCGSEESENT	BIOCGDIRECTION
@@ -155,9 +159,48 @@ enum bpf_direction {
 	BPF_D_OUT	/* See outgoing packets */
 };
 
+/* Time stamping functions */
+#define	BPF_T_MICROTIME		0x0000
+#define	BPF_T_NANOTIME		0x0001
+#define	BPF_T_BINTIME		0x0002
+#define	BPF_T_NONE		0x0003
+#define	BPF_T_FORMAT_MASK	0x0003
+#define	BPF_T_NORMAL		0x0000
+#define	BPF_T_FAST		0x0100
+#define	BPF_T_MONOTONIC		0x0200
+#define	BPF_T_MONOTONIC_FAST	(BPF_T_FAST | BPF_T_MONOTONIC)
+#define	BPF_T_FLAG_MASK		0x0300
+#define	BPF_T_FORMAT(t)		((t) & BPF_T_FORMAT_MASK)
+#define	BPF_T_FLAG(t)		((t) & BPF_T_FLAG_MASK)
+#define	BPF_T_VALID(t)						\
+    ((t) == BPF_T_NONE || (BPF_T_FORMAT(t) != BPF_T_NONE &&	\
+    ((t) & ~(BPF_T_FORMAT_MASK | BPF_T_FLAG_MASK)) == 0))
+
+#define	BPF_T_MICROTIME_FAST		(BPF_T_MICROTIME | BPF_T_FAST)
+#define	BPF_T_NANOTIME_FAST		(BPF_T_NANOTIME | BPF_T_FAST)
+#define	BPF_T_BINTIME_FAST		(BPF_T_BINTIME | BPF_T_FAST)
+#define	BPF_T_MICROTIME_MONOTONIC	(BPF_T_MICROTIME | BPF_T_MONOTONIC)
+#define	BPF_T_NANOTIME_MONOTONIC	(BPF_T_NANOTIME | BPF_T_MONOTONIC)
+#define	BPF_T_BINTIME_MONOTONIC		(BPF_T_BINTIME | BPF_T_MONOTONIC)
+#define	BPF_T_MICROTIME_MONOTONIC_FAST	(BPF_T_MICROTIME | BPF_T_MONOTONIC_FAST)
+#define	BPF_T_NANOTIME_MONOTONIC_FAST	(BPF_T_NANOTIME | BPF_T_MONOTONIC_FAST)
+#define	BPF_T_BINTIME_MONOTONIC_FAST	(BPF_T_BINTIME | BPF_T_MONOTONIC_FAST)
+
 /*
  * Structure prepended to each packet.
  */
+struct bpf_ts {
+	bpf_int64	bt_sec;		/* seconds */
+	bpf_u_int64	bt_frac;	/* fraction */
+};
+struct bpf_xhdr {
+	struct bpf_ts	bh_tstamp;	/* time stamp */
+	bpf_u_int32	bh_caplen;	/* length of captured portion */
+	bpf_u_int32	bh_datalen;	/* original length of packet */
+	u_short		bh_hdrlen;	/* length of bpf header (this struct
+					   plus alignment padding) */
+};
+/* Obsolete */
 struct bpf_hdr {
 	struct timeval	bh_tstamp;	/* time stamp */
 	bpf_u_int32	bh_caplen;	/* length of captured portion */
@@ -165,14 +208,9 @@ struct bpf_hdr {
 	u_short		bh_hdrlen;	/* length of bpf header (this struct
 					   plus alignment padding) */
 };
-/*
- * Because the structure above is not a multiple of 4 bytes, some compilers
- * will insist on inserting padding; hence, sizeof(struct bpf_hdr) won't work.
- * Only the kernel needs to know about it; applications use bh_hdrlen.
- */
 #ifdef _KERNEL
-#define	SIZEOF_BPF_HDR	(sizeof(struct bpf_hdr) <= 20 ? 18 : \
-    sizeof(struct bpf_hdr))
+#define	MTAG_BPF		0x627066
+#define	MTAG_BPF_TIMESTAMP	0
 #endif
 
 /*
@@ -922,7 +960,7 @@ struct bpf_if {
 	LIST_ENTRY(bpf_if)	bif_next;	/* list of all interfaces */
 	LIST_HEAD(, bpf_d)	bif_dlist;	/* descriptor list */
 	u_int bif_dlt;				/* link layer type */
-	u_int bif_hdrlen;		/* length of header (with padding) */
+	u_int bif_hdrlen;		/* length of link header */
 	struct ifnet *bif_ifp;		/* corresponding interface */
 	struct mtx	bif_mtx;	/* mutex for interface */
 };
