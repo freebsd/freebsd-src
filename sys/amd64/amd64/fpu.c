@@ -439,7 +439,7 @@ fpudrop()
 
 	td = PCPU_GET(fpcurthread);
 	KASSERT(td == curthread, ("fpudrop: fpcurthread != curthread"));
-	CRITSECT_ASSERT(td);
+	CRITICAL_ASSERT(td);
 	PCPU_SET(fpcurthread, NULL);
 	td->td_pcb->pcb_flags &= ~PCB_FPUINITDONE;
 	start_emulating();
