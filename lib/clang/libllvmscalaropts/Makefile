@@ -9,7 +9,7 @@ SRCS=	ADCE.cpp BasicBlockPlacement.cpp CodeGenPrepare.cpp \
 	LICM.cpp LoopDeletion.cpp LoopIndexSplit.cpp LoopRotation.cpp \
 	LoopStrengthReduce.cpp LoopUnrollPass.cpp LoopUnswitch.cpp \
 	MemCpyOptimizer.cpp Reassociate.cpp Reg2Mem.cpp SCCP.cpp \
-	Scalar.cpp ScalarReplAggregates.cpp SimplifyCFGPass.cpp \
+	ScalarReplAggregates.cpp SimplifyCFGPass.cpp \
 	SimplifyHalfPowrLibCalls.cpp SimplifyLibCalls.cpp \
 	TailDuplication.cpp TailRecursionElimination.cpp
 
