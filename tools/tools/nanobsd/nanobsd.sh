@@ -357,6 +357,30 @@ prune_usr() (
 		done
 )
 
+populate_slice ( ) (
+	local dev dir mnt
+	dev=$1
+	dir=$2
+	mnt=$3
+	test -z $2 && dir=/var/empty
+	test -d $d || dir=/var/empty
+	echo "Creating ${dev} with ${dir} (mounting on ${mnt})"
+	newfs ${NANO_NEWFS} ${dev}
+	mount ${dev} ${mnt}
+	cd ${dir}
+	find . -print | grep -Ev '/(CVS|\.svn)' | cpio -dumpv ${mnt}
+	df -i ${mnt}
+	umount ${mnt}
+)
+
+populate_cfg_slice ( ) (
+	populate_slice "$1" "$2" "$3"
+)
+
+populate_data_slice ( ) (
+	populate_slice "$1" "$2" "$3"
+)
+
 create_i386_diskimage ( ) (
 	pprint 2 "build diskimage"
 	pprint 3 "log: ${NANO_OBJ}/_.di"
@@ -456,6 +480,7 @@ create_i386_diskimage ( ) (
 	bsdlabel ${MD}s1
 
 	# Create first image
+	# XXX: should use populate_slice for easier override
 	newfs ${NANO_NEWFS} /dev/${MD}s1a
 	mount /dev/${MD}s1a ${MNT}
 	df -i ${MNT}
@@ -480,13 +505,11 @@ create_i386_diskimage ( ) (
 	fi
 	
 	# Create Config slice
-	newfs ${NANO_NEWFS} /dev/${MD}s3
-	# XXX: fill from where ?
+	populate_cfg_slice /dev/${MD}s3 "${NANO_CFGDIR}" ${MNT}
 
 	# Create Data slice, if any.
 	if [ $NANO_DATASIZE -ne 0 ] ; then
-		newfs ${NANO_NEWFS} /dev/${MD}s4
-		# XXX: fill from where ?
+		populate_data_slice /dev/${MD}s4 "${NANO_DATADIR}" ${MNT}
 	fi
 
 	if [ "${NANO_MD_BACKING}" = "swap" ] ; then
