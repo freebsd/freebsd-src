@@ -31,13 +31,13 @@ static int spending;
 static int
 check(dialogMenuItem *self)
 {
-    return ((int)self->data == spending);
+    return ((int)(intptr_t)self->data == spending);
 }
 
 static int
 spend(dialogMenuItem *self)
 {
-    spending = (int)self->data;
+    spending = (int)(intptr_t)self->data;
     return DITEM_SUCCESS | DITEM_REDRAW;
 }
 
