@@ -1368,7 +1368,7 @@ pmap_fix_cache(struct vm_page *pg, pmap_t pm, vm_offset_t va)
 		 * check for kernel uncachable conditions
 		 * kernel writable or kernel readable with writable user entry
 		 */
-		if ((kwritable && entries) ||
+		if ((kwritable && (entries || kentries > 1)) ||
 		    (kwritable > 1) ||
 		    ((kwritable != writable) && kentries &&
 		     (pv->pv_pmap == pmap_kernel() ||
