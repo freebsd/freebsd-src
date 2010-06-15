@@ -1007,6 +1007,8 @@ acpi_cpu_notify(ACPI_HANDLE h, UINT32 notify, void *context)
 	if (isc->cpu_cx_count > cpu_cx_count)
 	    cpu_cx_count = isc->cpu_cx_count;
     }
+    if (sc->cpu_cx_lowest < cpu_cx_lowest)
+	acpi_cpu_set_cx_lowest(sc, min(cpu_cx_lowest, sc->cpu_cx_count - 1));
     ACPI_SERIAL_END(cpu);
 }
 
@@ -1202,7 +1204,7 @@ acpi_cpu_global_cx_lowest_sysctl(SYSCTL_HANDLER_ARGS)
     ACPI_SERIAL_BEGIN(cpu);
     for (i = 0; i < cpu_ndevices; i++) {
 	sc = device_get_softc(cpu_devices[i]);
-	acpi_cpu_set_cx_lowest(sc, val);
+	acpi_cpu_set_cx_lowest(sc, min(val, sc->cpu_cx_count - 1));
     }
     ACPI_SERIAL_END(cpu);
 
